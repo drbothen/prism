@@ -6,7 +6,7 @@ wave: tbd
 epic_id: maintenance
 priority: P2
 status: ready
-version: "0.19"
+version: "0.20"
 level: ops
 producer: story-writer
 timestamp: "2026-07-15"
@@ -70,7 +70,7 @@ points: 5
 estimated_days: 1
 risk: MEDIUM
 acceptance_criteria_count: 7
-red_gate_tests: 9
+red_gate_tests: 10
 estimated_passes: "1"
 holdout_scenarios: []
 assumption_validations: []
@@ -227,6 +227,63 @@ and use unquoted YAML booleans (matching the implemented ci.yml form):
     swap-storage: false
 ```
 
+**Both reclaimer-bearing jobs MUST include an immediate post-reclaimer neutralization step.**
+The `large-packages: true` path in `core.sh` (~line 112) runs:
+```
+sudo gem install apt-spy2
+sudo apt-spy2 fix --commit --launchpad --country=US
+```
+This overwrites `/etc/apt/sources.list` with a geographically-nearest Launchpad mirror
+(e.g., `https://mirror.enzu.com/ubuntu/` on US-hosted runners). If that mirror returns
+HTTP 404 for noble Release files, ALL subsequent `apt-get update` calls in the job fail
+with exit code 100 — the first attempt fails BEFORE the fallback wrapper even runs.
+Investigation confirmed no input in `action.yml` (7 inputs: android, dotnet, haskell,
+large-packages, tools-cache, swap-storage, docker-images) disables apt-spy2; it is
+hardcoded in the `large-packages: true` block (core.sh SHA dae9fabcb8). Evidence:
+runs 29541731247/29541732821 on HEAD ab0d9405 (2026-07-16), 3 Linux jobs failed
+(F-MAINT-P11-CRIT-001). Solution: truncate `/etc/apt/sources.list` immediately after
+the reclaimer step — ubuntu packages use `ubuntu.sources` (`mirror+file:` scheme);
+`/etc/apt/sources.list` is comment-only by default on image 20260714.240.1 — safe to
+truncate.
+
+**Test-matrix job (immediately after `Reclaim disk space (Linux only)`):**
+
+```yaml
+- name: Neutralize apt-spy2 sources.list rewrite
+  if: runner.os == 'Linux'
+  run: |
+    # insightsengineering/disk-space-reclaimer large-packages:true runs
+    # `sudo apt-spy2 fix --commit --launchpad --country=US` (core.sh ~line 112)
+    # which overwrites /etc/apt/sources.list with a geographically-selected mirror
+    # (e.g., mirror.enzu.com). That mirror can return 404 Release files, causing
+    # ALL subsequent apt-get update calls in the job to fail (exit code 100).
+    # ubuntu packages use ubuntu.sources (mirror+file:/etc/apt/apt-mirrors.txt);
+    # /etc/apt/sources.list is comment-only by default (image 20260714.240.1)
+    # — safe to truncate (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821).
+    sudo truncate -s 0 /etc/apt/sources.list
+```
+
+**`test-no-default-features` job (immediately after `Reclaim disk space`):**
+
+```yaml
+- name: Neutralize apt-spy2 sources.list rewrite
+  run: |
+    # insightsengineering/disk-space-reclaimer large-packages:true runs
+    # `sudo apt-spy2 fix --commit --launchpad --country=US` (core.sh ~line 112)
+    # which overwrites /etc/apt/sources.list with a geographically-selected mirror
+    # (e.g., mirror.enzu.com). That mirror can return 404 Release files, causing
+    # ALL subsequent apt-get update calls in the job to fail (exit code 100).
+    # ubuntu packages use ubuntu.sources (mirror+file:/etc/apt/apt-mirrors.txt);
+    # /etc/apt/sources.list is comment-only by default (image 20260714.240.1)
+    # — safe to truncate (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821).
+    sudo truncate -s 0 /etc/apt/sources.list
+```
+
+Note: the `test-no-default-features` job is ubuntu-only (no `if: runner.os == 'Linux'`
+needed); the test-matrix leg uses `if: runner.os == 'Linux'` matching the reclaimer step
+style. Both neutralization steps MUST appear immediately after the reclaimer step and
+before the ≥25 GB gate and any `apt-get` usage.
+
 Documented fallback: `jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1`
 (upstream, unmaintained since 2023-10). If the fork diverges or becomes unmaintained,
 revert to this pin. The `tool-cache` / `tools-cache` input (renamed in the fork) is
@@ -261,6 +318,25 @@ count=$(grep -cE '^\s+uses: insightsengineering/disk-space-reclaimer' .github/wo
   echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-002: disk-space-reclaimer missing from ≥2 Linux jobs (found ${count}; need test (Test matrix) + test-no-default-features)"
   exit 1
 }
+echo "S-MAINT-CI-DISK-EXHAUSTION-001 disk-space-reclaimer check passed: ${count} sites (≥2 required)."
+```
+
+The `verify-workflow-structure` job gains an assertion confirming the post-reclaimer
+neutralization step is present in both reclaimer-bearing jobs in `ci.yml`
+(Red Gate test 8 — count ≥ 2; F-MAINT-P11-CRIT-001):
+
+```bash
+# RG-8: post-reclaimer sources.list neutralization step (F-MAINT-P11-CRIT-001).
+# apt-spy2 (large-packages:true) overwrites sources.list with a flaky mirror;
+# the dedicated step truncates it after reclaim, before any apt-get use.
+# Anchored to YAML step-name syntax — self-match-proof (assertion starts with
+# whitespace+count=$(grep..., not whitespace+"- name:").
+count=$(grep -cE '^\s+- name: Neutralize apt-spy2 sources\.list rewrite' .github/workflows/ci.yml)
+[ "$count" -ge 2 ] || {
+  echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001: post-reclaimer sources.list neutralization missing (found ${count}; need ≥2: test-matrix + test-no-default-features — F-MAINT-P11-CRIT-001)"
+  exit 1
+}
+echo "S-MAINT-CI-DISK-EXHAUSTION-001 post-reclaimer neutralization check passed: ${count} sites (≥2 required)."
 ```
 
 **AC-002 adjudicated no-action items (PR-LEVEL pass-3, 2026-07-15):**
@@ -376,11 +452,12 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y musl-tools ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -388,6 +465,7 @@ the fix scope is deterministic and bounded).
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -411,11 +489,12 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -423,6 +502,7 @@ the fix scope is deterministic and bounded).
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -445,11 +525,12 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -457,6 +538,7 @@ the fix scope is deterministic and bounded).
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -476,11 +558,12 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -488,6 +571,7 @@ the fix scope is deterministic and bounded).
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -506,11 +590,12 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -518,6 +603,7 @@ the fix scope is deterministic and bounded).
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -536,11 +622,12 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -548,6 +635,7 @@ the fix scope is deterministic and bounded).
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -566,11 +654,12 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -578,6 +667,7 @@ the fix scope is deterministic and bounded).
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -596,11 +686,12 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -608,6 +699,7 @@ the fix scope is deterministic and bounded).
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -626,11 +718,12 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -638,6 +731,7 @@ the fix scope is deterministic and bounded).
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -655,11 +749,12 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y shellcheck ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -667,6 +762,7 @@ the fix scope is deterministic and bounded).
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -688,11 +784,12 @@ It MUST be converted to the combined two-attempt form:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config gnome-keyring dbus-x11 ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -700,6 +797,7 @@ It MUST be converted to the combined two-attempt form:
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -797,11 +895,12 @@ The install is idempotent (`apt-get install -y` is a no-op when packages are alr
           # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
           # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
           if ! ( sudo apt-get update && sudo apt-get install -y build-essential libc6-dev clang libclang-dev ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -809,6 +908,7 @@ The install is idempotent (`apt-get install -y` is a no-op when packages are alr
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -833,11 +933,12 @@ The install is idempotent (`apt-get install -y` is a no-op when packages are alr
           # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
           # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
           if ! ( sudo apt-get update && sudo apt-get install -y build-essential libc6-dev clang libclang-dev ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -845,6 +946,7 @@ The install is idempotent (`apt-get install -y` is a no-op when packages are alr
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -937,7 +1039,7 @@ original from LOCAL pass-2 + AC-7 `semver-checks` + AC-8 `test-no-default-featur
 job-name anchors; F-CIDISK-P4-HIGH-002 + LOW-001, adjudicated 2026-07-15). Error messages
 are preserved verbatim. No other structural changes to the `verify-workflow-structure` job.
 
-**Pass-6 traceability (LOW-001 + OBS-002, updated v0.19):** The ci.yml summary echo must use the code-authoritative assertion count: 12 pre-existing reachability (9 original + 3 added by develop between story writing and rebase to 4f9a5c6f: wasm32-threatintel-staleness-check + F-MCPRS-PRL14-LOW-001 ×2) + 4 new count-based reachability (AC-001, AC-002, AC-006, AC-007) + 1 new e2e.yml reachability (RG-7, F-MAINT-P8-MED-004) + 2 new fallback-form reachability (RG-5b: apt-mirrors.txt tee count ≥ 12 in ci.yml; RG-7b: apt-mirrors.txt tee count ≥ 1 in e2e.yml; F-MAINT-P10-CRIT-001) + 2 new config-invariant (AC-003 assertions 3+4) = 21 total (19 reachability + 2 config-invariant, matching the ci.yml summary echo). All story §Tasks echo-bump instructions use the post-rebase base of 12 pre-existing + 2 post-AC-001/002 = 14 reachability as the starting point before AC-006. S-MAINT prefix required on AC-006/AC-007/e2e-AC-006 echo items to disambiguate from pre-existing PLUGIN-MIGRATION-001-F "AC-006" item.
+**Pass-6 traceability (LOW-001 + OBS-002, updated v0.20):** The ci.yml summary echo must use the code-authoritative assertion count: 12 pre-existing reachability (9 original + 3 added by develop between story writing and rebase to 4f9a5c6f: wasm32-threatintel-staleness-check + F-MCPRS-PRL14-LOW-001 ×2) + 4 new count-based reachability (AC-001, AC-002, AC-006, AC-007) + 1 new e2e.yml reachability (RG-7, F-MAINT-P8-MED-004) + 2 new fallback-form reachability (RG-5b: apt-mirrors.txt tee count ≥ 12 in ci.yml; RG-7b: apt-mirrors.txt tee count ≥ 1 in e2e.yml; F-MAINT-P10-CRIT-001) + 1 new post-reclaimer neutralization reachability (RG-8: neutralization step count ≥ 2 in ci.yml; F-MAINT-P11-CRIT-001) + 2 new config-invariant (AC-003 assertions 3+4) = 22 total (20 reachability + 2 config-invariant, matching the ci.yml summary echo). All story §Tasks echo-bump instructions use the post-rebase base of 12 pre-existing + 2 post-AC-001/002 = 14 reachability as the starting point before AC-006. S-MAINT prefix required on AC-006/AC-007/e2e-AC-006 echo items to disambiguate from pre-existing PLUGIN-MIGRATION-001-F "AC-006" item.
 
 ## §Token Budget Estimate
 
@@ -991,6 +1093,9 @@ Well within a single agent context window; no splitting required.
 - [ ] `verify-workflow-structure` job: add RG-7 assertion (`count=$(grep -cE '^\s+if ! \( sudo apt-get update && sudo apt-get install' .github/workflows/e2e.yml)` + `[ "$count" -ge 1 ]`) before the final summary echo; update summary echo: add `+ S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1)` to assertion list; change `16 reachability assertions` to `17 reachability assertions`; change `= 18 total checks` to `= 19 total checks` (RG-7, F-MAINT-P8-MED-004)
 - [ ] `verify-workflow-structure` job: add RG-5b assertion (`count=$(grep -cE '^\s+sudo tee /etc/apt/apt-mirrors\.txt' .github/workflows/ci.yml)` + `[ "$count" -ge 12 ]`) before the final summary echo; update summary echo: add `+ S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-mirrors (count≥12)` to assertion list; change `17 reachability assertions` to `18 reachability assertions`; change `= 19 total checks` to `= 20 total checks` (RG-5b fallback apt-mirrors.txt overwrite lock; F-MAINT-P10-CRIT-001)
 - [ ] `verify-workflow-structure` job: add RG-7b assertion (`count=$(grep -cE '^\s+sudo tee /etc/apt/apt-mirrors\.txt' .github/workflows/e2e.yml)` + `[ "$count" -ge 1 ]`) before the final summary echo; update summary echo: add `+ S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-mirrors (count≥1)` to assertion list; change `18 reachability assertions` to `19 reachability assertions`; change `= 20 total checks` to `= 21 total checks` (RG-7b fallback apt-mirrors.txt overwrite lock; F-MAINT-P10-CRIT-001)
+- [ ] `verify-workflow-structure` job: add RG-8 assertion (`count=$(grep -cE '^\s+- name: Neutralize apt-spy2 sources\.list rewrite' .github/workflows/ci.yml)` + `[ "$count" -ge 2 ]`) before the final summary echo; update summary echo: add `+ S-MAINT-CI-DISK-EXHAUSTION-001-post-reclaimer-truncate (count≥2)` to assertion list; change `19 reachability assertions` to `20 reachability assertions`; change `= 21 total checks` to `= 22 total checks` (RG-8 post-reclaimer sources.list neutralization lock; F-MAINT-P11-CRIT-001)
+- [ ] Both reclaimer-bearing jobs in ci.yml: add `Neutralize apt-spy2 sources.list rewrite` step IMMEDIATELY after the reclaimer step and BEFORE the `Verify ≥25 GB free after reclaim` step — test-matrix leg with `if: runner.os == 'Linux'`; test-no-default-features leg unconditional (ubuntu-only job); exact step spec in AC-002 body (F-MAINT-P11-CRIT-001; RG-8)
+- [ ] PG probe-fidelity lesson: The v0.19 scratch-branch probe (29540085270) validated apt config WITHOUT running the disk-space-reclaimer first — probe showed a clean sources.list because apt-spy2 had not yet run. **Future scratch-branch probes for apt config validation MUST include the reclaimer step before dumping apt state**, otherwise the probe misses the apt-spy2 corruption class entirely. This fidelity gap is what allowed F-MAINT-P11-CRIT-001 to survive probe 29540085270 undetected; only live CI runs 29541731247/29541732821 caught it.
 - [ ] Verify each fallback block includes diagnostic dump commands on fallback entry (F-MAINT-P10-PG-009): `echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true` and `echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true` — these must appear in all 13 fallback blocks (12 ci.yml + 1 e2e.yml); they self-evidence future flake runs without requiring log scraping
 - [ ] Record three consecutive green CI run IDs in the PR description (AC-005 evidence; NOTE: runs 29524703679 attempt-1/bd65e93a, 29531645116/0939973f, and 29531648104/0939973f are all DISQUALIFIED — see AC-005 v0.19 NOTE; three-green record restarts on post-fix HEAD; re-run attempts of a failed run ID do NOT qualify)
 
@@ -1029,19 +1134,21 @@ and `wasm32-compile-check` assertion pattern established during S-PLUGIN-PREREQ-
   apt install step(s) — no other changes to these jobs are permitted (carve-out ratified AC-006,
   F-MAINT-P8-MED-001)
 - The `test-no-default-features` job MAY be modified only to add: the four v0.6-ratified protective
-  steps (preflight, disk-space-reclaimer + ≥25 GB gate, failure annotation), the AC-006 apt-mirror
-  two-attempt wrapper on its libdbus install step, and the AC-007 C toolchain baseline install step
-  — the job's existing `PROPTEST_CASES`, `RUSTFLAGS`, test-invocation lines, and cache configuration
-  must NOT be changed (carve-out ratified v0.6 + F-MAINT-P8-MED-001)
+  steps (preflight, disk-space-reclaimer + ≥25 GB gate, failure annotation), the post-reclaimer
+  neutralization step (F-MAINT-P11-CRIT-001, RG-8), the AC-006 apt-mirror two-attempt wrapper on
+  its libdbus install step, and the AC-007 C toolchain baseline install step — the job's existing
+  `PROPTEST_CASES`, `RUSTFLAGS`, test-invocation lines, and cache configuration must NOT be changed
+  (carve-out ratified v0.6 + F-MAINT-P8-MED-001; neutralization step added v0.20)
 - The `verify-workflow-structure` job's existing assertions (AC-5 `TARGET_COUNT >= 5`,
   AC-6 cargo-deny/audit, AC-7 semver, AC-8 no-default-features, non-exhaustive, wasm32
-  checks) must ALL pass after this story's modifications; the nine new assertions (AC-001
+  checks) must ALL pass after this story's modifications; the ten new assertions (AC-001
   count ≥ 2, AC-002 count ≥ 2, AC-006 count ≥ 12, RG-5b apt-mirrors.txt overwrite count ≥ 12, AC-007 count ≥ 2,
-  RG-7 e2e.yml count ≥ 1, RG-7b e2e.yml apt-mirrors.txt overwrite count ≥ 1, AC-003 assertions 3 and 4) are
+  RG-7 e2e.yml count ≥ 1, RG-7b e2e.yml apt-mirrors.txt overwrite count ≥ 1, AC-003 assertions 3 and 4,
+  RG-8 post-reclaimer neutralization step count ≥ 2) are
   additive, and the 7 pre-existing reachability assertions (5 original + AC-7 semver-checks
   + AC-8 test-no-default-features) are updated in-place to self-match-proof anchored forms
   (see §Tasks sibling-sweep task); no other structural changes.
-  The final summary echo must reflect 21 total checks (19 reachability + 2 config-invariant)
+  The final summary echo must reflect 22 total checks (20 reachability + 2 config-invariant)
 - All new GitHub Actions steps must be pinned to a specific commit SHA with a `# vN.N.N`
   comment per the project SHA-pinning policy (every existing action in ci.yml is
   commit-pinned; no exceptions)
@@ -1071,7 +1178,7 @@ New `apt-get` packages installed by AC-007 C toolchain baseline step (CI runner 
 
 | File | Action | Notes |
 |------|--------|-------|
-| `.github/workflows/ci.yml` | MODIFY | Linux Test job legs: add preflight (AC-001), disk-space-reclaimer with `swap-storage: false, continue-on-error: true` (AC-002; best-effort per EC-009; gate is the authoritative check), ≥25 GB gate (AC-002; `df -P /` 1K-block form + `AVAIL_GB=${AVAIL_GB:-0}` guard), failure annotation (AC-004; `USED_PCT=${USED_PCT:-0}` guard); `test-no-default-features` job: mirror same three protective steps + failure annotation (F-CIDISK-P4-MED-002); DO NOT add `CARGO_PROFILE_DEV_DEBUG` (AC-003 — it is a no-op; forbidden); convert ten `sudo apt-get update && sudo apt-get install ...` steps to two-attempt mirror-resilience form: 3 original steps (Install musl-tools in test matrix; Install libdbus-1-dev in test matrix; Install libdbus-1-dev in test-no-default-features) + 7 new steps (clippy → libdbus-1-dev pkg-config; semver-checks → libdbus-1-dev pkg-config; fuzz-smoke-vp021 → libdbus-1-dev pkg-config; perimeter-compile-fail → libdbus-1-dev pkg-config; non-exhaustive-violation-compile-fail → libdbus-1-dev pkg-config; no-hardcoded-sensors-compile-fail → libdbus-1-dev pkg-config; shellcheck-demo-scripts → shellcheck) (AC-006; F-CIDISK-PR1-OBS-001; byte-exact snippets in AC-006 section); add `Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)` step with outer step-level preamble (4-line comment block above `- name:`) via AC-006 two-attempt wrapper BEFORE any cargo build phase in both Linux workspace-build jobs (AC-007; DRIFT-CI-STDBOOL-001 revised — self-inflicted toolchain removal by reclaimer, not runner-image omission; F-CIDISK-PR1-MED-001); `verify-workflow-structure` job: AC-001 count assertion (≥2; `^\s+- name: Report initial disk space\s*$`) + AC-002 count assertion (≥2; `^\s+uses: insightsengineering/disk-space-reclaimer`) + AC-006 count assertion (≥12; `^\s+if ! \( sudo apt-get update && sudo apt-get install`; 10 apt-install steps + 2 AC-007 toolchain installs; F-CIDISK-PR1-MED-002, grep updated F-MAINT-P8-LOW-003) + AC-007 count assertion (≥2; `^\s+sudo apt-get install -y build-essential libc6-dev clang libclang-dev\s*$`) + RG-7 e2e.yml count assertion (≥1; `^\s+if ! \( sudo apt-get update && sudo apt-get install` against e2e.yml; F-MAINT-P8-MED-004) + RG-5b fallback-mirrors count assertion (≥12; `^\s+sudo tee /etc/apt/apt-mirrors\.txt` in ci.yml; F-MAINT-P10-CRIT-001) + RG-7b fallback-mirrors count assertion (≥1; `^\s+sudo tee /etc/apt/apt-mirrors\.txt` against e2e.yml; F-MAINT-P10-CRIT-001) + two AC-003 `.cargo/config.toml` invariant checks + anchor 7 pre-existing reachability assertions (5 original + AC-7 `semver-checks` + AC-8 `test-no-default-features`; see §Tasks sibling-sweep) + update summary echo to 21 total / 19 reachability; no other jobs touched |
+| `.github/workflows/ci.yml` | MODIFY | Linux Test job legs: add preflight (AC-001), disk-space-reclaimer with `swap-storage: false, continue-on-error: true` (AC-002; best-effort per EC-009; gate is the authoritative check), post-reclaimer neutralization step `Neutralize apt-spy2 sources.list rewrite` (F-MAINT-P11-CRIT-001; RG-8; immediately after reclaimer, test-matrix leg with `if: runner.os == 'Linux'`), ≥25 GB gate (AC-002; `df -P /` 1K-block form + `AVAIL_GB=${AVAIL_GB:-0}` guard), failure annotation (AC-004; `USED_PCT=${USED_PCT:-0}` guard); `test-no-default-features` job: mirror same four protective steps + failure annotation (F-CIDISK-P4-MED-002; neutralization step unconditional — ubuntu-only job); DO NOT add `CARGO_PROFILE_DEV_DEBUG` (AC-003 — it is a no-op; forbidden); convert ten `sudo apt-get update && sudo apt-get install ...` steps to two-attempt mirror-resilience form: 3 original steps (Install musl-tools in test matrix; Install libdbus-1-dev in test matrix; Install libdbus-1-dev in test-no-default-features) + 7 new steps (clippy → libdbus-1-dev pkg-config; semver-checks → libdbus-1-dev pkg-config; fuzz-smoke-vp021 → libdbus-1-dev pkg-config; perimeter-compile-fail → libdbus-1-dev pkg-config; non-exhaustive-violation-compile-fail → libdbus-1-dev pkg-config; no-hardcoded-sensors-compile-fail → libdbus-1-dev pkg-config; shellcheck-demo-scripts → shellcheck) (AC-006; F-CIDISK-PR1-OBS-001; byte-exact snippets in AC-006 section); add `Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)` step with outer step-level preamble (4-line comment block above `- name:`) via AC-006 two-attempt wrapper BEFORE any cargo build phase in both Linux workspace-build jobs (AC-007; DRIFT-CI-STDBOOL-001 revised — self-inflicted toolchain removal by reclaimer, not runner-image omission; F-CIDISK-PR1-MED-001); `verify-workflow-structure` job: AC-001 count assertion (≥2; `^\s+- name: Report initial disk space\s*$`) + AC-002 count assertion (≥2; `^\s+uses: insightsengineering/disk-space-reclaimer`) + AC-006 count assertion (≥12; `^\s+if ! \( sudo apt-get update && sudo apt-get install`; 10 apt-install steps + 2 AC-007 toolchain installs; F-CIDISK-PR1-MED-002, grep updated F-MAINT-P8-LOW-003) + AC-007 count assertion (≥2; `^\s+sudo apt-get install -y build-essential libc6-dev clang libclang-dev\s*$`) + RG-7 e2e.yml count assertion (≥1; `^\s+if ! \( sudo apt-get update && sudo apt-get install` against e2e.yml; F-MAINT-P8-MED-004) + RG-5b fallback-mirrors count assertion (≥12; `^\s+sudo tee /etc/apt/apt-mirrors\.txt` in ci.yml; F-MAINT-P10-CRIT-001) + RG-7b fallback-mirrors count assertion (≥1; `^\s+sudo tee /etc/apt/apt-mirrors\.txt` against e2e.yml; F-MAINT-P10-CRIT-001) + RG-8 post-reclaimer neutralization count assertion (≥2; `^\s+- name: Neutralize apt-spy2 sources\.list rewrite` in ci.yml; F-MAINT-P11-CRIT-001) + two AC-003 `.cargo/config.toml` invariant checks + anchor 7 pre-existing reachability assertions (5 original + AC-7 `semver-checks` + AC-8 `test-no-default-features`; see §Tasks sibling-sweep) + update summary echo to 22 total / 20 reachability; no other jobs touched |
 | `.github/workflows/e2e.yml` | MODIFY | `Install keyring runtime dependencies (libdbus-1-dev, gnome-keyring, dbus-x11)` step: convert from single-attempt inline form to AC-006 combined two-attempt wrapper form (byte-exact snippet from AC-006 e2e.yml scope extension paragraph; redesigned fallback with apt-mirrors.txt overwrite + dpkg repair; F-MAINT-P8-MED-004 / F-MAINT-P10-CRIT-001/HIGH-002) |
 
 No new files required. The `insightsengineering/disk-space-reclaimer` action is invoked
@@ -1112,6 +1219,7 @@ as an inline `uses:` step; it does not require a new config file in the reposito
 | EC-013 | apt-get install phase mirror failure ("E: Unable to fetch some archives") — the original two-attempt pattern guarded only `apt-get update`; a mirror that returns 200 on metadata but HTTP errors on package-fetch (partial mirror rotation) caused `apt-get install` to fail with "E: Unable to fetch some archives" while `apt-get update` succeeded, leaving the fallback untriggered | Combined update+install form per F-MAINT-P8-LOW-003: `if ! ( sudo apt-get update && sudo apt-get install -y <pkgs> ); then` — the outer condition spans both phases, so a failure at any point (update OR install) triggers the redesigned fallback (apt-mirrors.txt overwrite + dpkg repair + retry against archive.ubuntu.com priority:1; F-MAINT-P10-CRIT-001). |
 | EC-014 | e2e.yml keyring dependency step vulnerable to EC-010 mirror-flake class — `.github/workflows/e2e.yml` `Install keyring runtime dependencies (libdbus-1-dev, gnome-keyring, dbus-x11)` step used single-attempt inline form; not covered by RG-5 (which only counts ci.yml sites) | AC-006 scope extended to e2e.yml per F-MAINT-P8-MED-004: step converted to combined two-attempt form; RG-7 in verify-workflow-structure confirms the pattern is present in e2e.yml (count ≥ 1). |
 | EC-015 | Third-party apt source 403/404 causing fallback trigger — `packages.microsoft.com` repos are pre-installed on the ubuntu-24.04 runner image at `/etc/apt/sources.list.d/microsoft-prod.list` (classic .list) and `/etc/apt/sources.list.d/azure-cli.sources` (deb822). **NOTE: `azure-cli.list` does NOT exist on image 20260714.240.1** — v0.18's fallback `rm -f azure-cli.list` was ineffective (F-MAINT-P10-HIGH-002, probe 29540085270 confirmed). When those third-party sources return HTTP 403, `apt-get update` exits 100 and the two-attempt fallback wrapper triggers. The root cause is more fundamental: the ubuntu package source itself uses `mirror+file:` scheme (not http://), so even after third-party source removal, sed-based URL rewriting never had any effect on ubuntu package metadata. Both F-MAINT-P9-HIGH-001/002 and this finding are resolved together by the v0.19 redesign. | v0.19 redesigned fallback (F-MAINT-P10-CRIT-001): diagnostic dump on entry; remove four defensive variants of third-party source files (`microsoft-prod.list`, `azure-cli.sources`, `microsoft-prod.sources`, `azure-cli.list`); overwrite `/etc/apt/apt-mirrors.txt` to pin `http://archive.ubuntu.com/ubuntu/` at priority:1; `sudo dpkg --configure -a 2>/dev/null || true`; retry. RG-5b and RG-7b in `verify-workflow-structure` lock `sudo tee /etc/apt/apt-mirrors.txt` presence in all fallback blocks (count ≥ 12 in ci.yml, count ≥ 1 in e2e.yml). |
+| EC-016 | apt-spy2 reclaimer mirror corruption — `insightsengineering/disk-space-reclaimer` `large-packages: true` block (core.sh ~line 112, SHA dae9fabcb8) runs `sudo gem install apt-spy2 && sudo apt-spy2 fix --commit --launchpad --country=US` which OVERWRITES `/etc/apt/sources.list` with a geographically-nearest Launchpad mirror (e.g., `https://mirror.enzu.com/ubuntu/` on US-hosted runners). If that mirror returns HTTP 404 Release files, ALL subsequent `apt-get update` calls in the job fail with exit code 100 — the `&&` in the combined `apt-get update && apt-get install` form aborts the install without triggering the fallback wrapper (the fallback only triggers on the OUTER `if !` condition; the FIRST attempt for each apt step fails because sources.list is already corrupted BEFORE any step's first-attempt apt-get update). The action has NO input to disable apt-spy2 (7 inputs: android, dotnet, haskell, large-packages, tools-cache, swap-storage, docker-images); it is hardcoded in the `large-packages: true` block. Setting `large-packages: false` would skip the entire block but lose ~15–20 GB of reclaim. Evidence: runs 29541731247/29541732821 on HEAD ab0d9405 (2026-07-16) — 3 Linux jobs failed on first attempt. The v0.19 fallback fix (apt-mirrors.txt overwrite) was insufficient because the fallback only fires on first-attempt failure, and apt-spy2 corrupts sources.list BEFORE that first attempt. **Probe fidelity gap:** scratch-branch probe 29540085270 ran WITHOUT the reclaimer first; it showed a clean sources.list because apt-spy2 had not yet run. Only live CI runs with the full job sequence caught this class. | Primary: `sudo truncate -s 0 /etc/apt/sources.list` in a dedicated `Neutralize apt-spy2 sources.list rewrite` step in BOTH reclaimer-bearing jobs — runs IMMEDIATELY after the reclaimer step and BEFORE the ≥25 GB gate and any `apt-get` use (F-MAINT-P11-CRIT-001; RG-8 count ≥ 2 in ci.yml). ubuntu packages use `ubuntu.sources` (`mirror+file:/etc/apt/apt-mirrors.txt`); `/etc/apt/sources.list` is comment-only by default on image 20260714.240.1 — truncating it is safe and reversible. Defense-in-depth: fallback block also truncates `/etc/apt/sources.list` before overwriting `apt-mirrors.txt` (ordered: diagnostics → rm third-party sources → `truncate -s 0 sources.list` → tee apt-mirrors.txt → dpkg repair → retry). |
 
 ## §Purity Classification
 
@@ -1162,6 +1270,7 @@ Findings applied in v0.3:
 
 ## §Changelog
 
+- v0.20 (2026-07-16): PR-LEVEL pass-11 spec-layer fix-burst (HEAD frozen ab0d9405; runs 29541731247/29541732821). **F-MAINT-P11-CRIT-001** [apt-spy2 reclaimer mirror corruption]: `insightsengineering/disk-space-reclaimer` `large-packages: true` (core.sh ~line 112, SHA dae9fabcb8) hardcodes `sudo gem install apt-spy2 && sudo apt-spy2 fix --commit --launchpad --country=US`, which OVERWRITES `/etc/apt/sources.list` with a geographically-nearest Launchpad mirror (e.g., `mirror.enzu.com` on US-hosted runners). If that mirror returns HTTP 404 for noble Release files, ALL subsequent `apt-get update` calls in the job fail before the two-attempt fallback wrapper can help (the first attempt fails because sources.list is already corrupted). Investigation confirmed NO action input disables apt-spy2 (action.yml has 7 inputs: android, dotnet, haskell, large-packages, tools-cache, swap-storage, docker-images — none affect apt-spy2). **Primary fix:** two new dedicated `Neutralize apt-spy2 sources.list rewrite` steps (`sudo truncate -s 0 /etc/apt/sources.list`) immediately after the reclaimer step in BOTH reclaimer-bearing jobs (`test` matrix with `if: runner.os == 'Linux'`; `test-no-default-features` unconditional). **Fallback defense-in-depth:** all 13 canonical fallback blocks updated: added `sudo truncate -s 0 /etc/apt/sources.list` between the `rm -f` block and the `printf|tee apt-mirrors.txt` line; updated comment to cite F-MAINT-P11-CRIT-001 + runs; added `echo/cat sources.list` diagnostic dump. **RG-8** added: `^\s+- name: Neutralize apt-spy2 sources\.list rewrite` count ≥ 2 in ci.yml. **EC-016** added: apt-spy2 reclaimer mirror corruption class (includes probe-fidelity gap note: probe 29540085270 ran before reclaimer and missed this class). **§Tasks**: RG-8 echo-bump bullet + neutralization step task bullet + probe-fidelity PG lesson added. **§ACR**: "nine" → "ten new assertions"; `22 total (20 reachability + 2 config-invariant)`; carve-out updated for neutralization step. **§FSR ci.yml**: post-reclaimer neutralization step added; echo updated to 22 total / 20 reachability; RG-8 assertion added. **Pass-6 traceability**: updated v0.19 → v0.20; RG-8 added to formula; 21 → 22 total, 19 → 20 reachability. red_gate_tests: 9 → 10. All 13 fallback blocks updated via replace-all.
 - v0.19 (2026-07-16): PR-LEVEL pass-10 spec-layer fix-burst (HEAD frozen 0939973f; runs 29531645116/29531648104). **F-MAINT-P10-CRIT-001** [sed is a structural no-op on mirror+file: scheme]: probe run 29540085270 (image 20260714.240.1) confirmed that `/etc/apt/sources.list.d/ubuntu.sources` uses `URIs: mirror+file:/etc/apt/apt-mirrors.txt` — NOT any http:// URL. `/etc/apt/sources.list` is comment-only. ALL sed-based URL rewriting was always a structural no-op; v0.17 and v0.18 fallback blocks ran without changing anything. Root cause of all three fallback generations: wrong intervention point. Correct intervention: overwrite `/etc/apt/apt-mirrors.txt`. **F-MAINT-P10-HIGH-002** [azure-cli.sources not azure-cli.list]: probe confirmed `azure-cli.sources` (deb822) exists; `azure-cli.list` does NOT exist — v0.18 `rm -f azure-cli.list` was ineffective. Fixed: defensive removal of all four variants (microsoft-prod.list, azure-cli.sources, microsoft-prod.sources, azure-cli.list). **F-MAINT-P10-LOW-005** [|| true guards]: all non-fatal commands in new fallback carry `|| true` or `2>/dev/null || true`; retry update/install are intentionally NOT guarded. **F-MAINT-P10-LOW-006** [wrong sed `-e` expressions]: moot — all sed logic deleted. **F-MAINT-P10-MED-004** [AC-005 acquisition mechanism undefined]: AC-005 NOTE updated — three consecutive DISTINCT run IDs required; re-run attempts do NOT qualify; push-event runs on PR branch qualify (OBS-008 adjudication). **F-MAINT-P10-PG-009** [no self-evidencing on fallback entry]: diagnostic dump added to all 13 fallback blocks: `echo/cat apt-mirrors.txt` + `echo/ls sources.list.d/` with `|| true` guards. POL-29 sweep: all body references to old sed form deleted; new form uses `sudo tee /etc/apt/apt-mirrors.txt` as the canonical lock pattern. RG-5b pattern changed from `sudo rm -f .../microsoft-prod\.list` to `sudo tee /etc/apt/apt-mirrors\.txt` (count ≥ 12 in ci.yml). RG-7b pattern same change (count ≥ 1 in e2e.yml). All 13 YAML snippets redesigned via replace-all. EC-010 rewritten: mirror+file: mechanism explanation; cites probe 29540085270 + runs 29531645116/29531648104. EC-015 amended: azure-cli.list claim falsified; v0.19 resolution described. EC-013 updated: references new fallback. §ACR, §FSR, §Tasks, §Implementation Notes all updated. red_gate_tests: 9 (unchanged). Echo arithmetic: 21 total (unchanged — assertion count unchanged; only grep patterns change).
 - v0.18 (2026-07-16): PR-LEVEL pass-9 spec-layer fix-burst (HEAD frozen bd65e93a). Two HIGH findings addressed. **F-MAINT-P9-HIGH-001** [fallback sed path-segment corruption]: the old pattern `s|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g` matched `/ubuntu` as a PATH SEGMENT in third-party URLs (`packages.microsoft.com/ubuntu/24.04/prod`) because `[^ ]*` (greedy, no slash exclusion) matched `packages.microsoft.com` then `/ubuntu` matched literally — corrupting the MS source entry to `azure.archive.ubuntu.com/ubuntu/24.04/prod` (nonexistent). Evidence: run 29524703679 attempt-1 on bd65e93a. Redesigned fallback: (1) `sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true` — removes third-party source files whose packages we never install; (2) host-anchored sed using `[^/ ]*` (excludes both space and slash) with two `-e` expressions: trailing-space variant for classic .list format and trailing-`$` variant for deb822 .sources URIs: field — `/ubuntu` in a deeper path segment cannot match because it would be followed by `/` not whitespace/EOL. **F-MAINT-P9-HIGH-002** [https:// rewrite target on HTTP-only host]: old pattern emitted `https://azure.archive.ubuntu.com/ubuntu` but `azure.archive.ubuntu.com` is HTTP-only; `:443` timed out. Fixed: rewrite target changed to `http://azure.archive.ubuntu.com/ubuntu`. POL-29 exhaustive sweep: all 13 YAML snippets (10 AC-006 apt-install + 2 AC-007 C toolchain + 1 e2e.yml) updated via replace-all; `sed rewrite rationale (host-agnostic)` paragraph in AC-006 body replaced with redesigned rationale; §Implementation Notes "sed rewrite is host-agnostic" sentence updated; "rewrite any ubuntu mirror URL" comment lines (×3) updated. EC-010 rationale updated: "always-authoritative" → "authoritative over HTTP (HTTP-only)"; redesigned fallback described. EC-013: fallback-redesign reference added. EC-015 added: third-party-source 403 failure class (cites run 29524703679 attempt-1 evidence). RG-5b added: `^\s+sudo rm -f /etc/apt/sources.list.d/microsoft-prod\.list` count ≥ 12 in ci.yml. RG-7b added: same pattern count ≥ 1 in e2e.yml. red_gate_tests: 7 → 9. Echo arithmetic: 19 total (17 reachability + 2 config-invariant) → 21 total (19 reachability + 2 config-invariant). §Tasks: two new task bullets (RG-5b + RG-7b echo-bumps); final-task note added re: run 29524703679 disqualification. §ACR: seven → nine new assertions; 19 → 21 total. §FSR: RG-5b + RG-7b assertions added; 19/17 → 21/19 counts. AC-005: disqualification NOTE added for run 29524703679 attempt-1. Pass-9 LOW-002a (spec-adjacent nit): no `linux-test` phantom references introduced; all new content uses `test (Test matrix)` / `ci.yml` / `e2e.yml` forms.
 - v0.17 (2026-07-16): PR-LEVEL pass-8 spec-side findings closed (PR #224 @4f9a5c6f; HEAD frozen — spec-only fix-burst). Six findings addressed: **F-MAINT-P8-MED-001** [§Architecture Compliance Rules + §Forbidden Patterns carve-outs]: replaced single prohibition row "fmt, clippy, deny, audit, semver-checks, test-no-default-features, non-exhaustive-violation-compile-fail must NOT be modified" with three targeted rules — fmt/deny/audit strictly prohibited; clippy/semver-checks/non-exhaustive-violation-compile-fail/perimeter-compile-fail/no-hardcoded-sensors-compile-fail/fuzz-smoke-vp021/shellcheck-demo-scripts permitted to add AC-006 wrapper only; test-no-default-features permitted to add four v0.6 steps + AC-006 + AC-007; §Forbidden Patterns table split into three rows accordingly. **F-MAINT-P8-MED-002** [arithmetic fixes]: 9 pre-existing → 12 (develop added wasm32-threatintel-staleness-check + F-MCPRS-PRL14-LOW-001 ×2 post-rebase); target echo bumped to 19 total (17 reachability + 2 config-invariant); §Implementation Notes pass-6 traceability rewritten; §Architecture Compliance Rules echo count 15→19, six→seven new assertions; AC-006/AC-007 echo-bump instructions updated (14→15 reachability/16→17 total and 15→16 reachability/17→18 total respectively); red_gate_tests: 6→7; §FSR echo count updated. **F-MAINT-P8-MED-004** [e2e.yml scope extension]: AC-006 extended to `.github/workflows/e2e.yml` `Install keyring runtime dependencies` step; YAML snippet added to AC-006 body; RG-7 assertion added to verify-workflow-structure (count ≥ 1 in e2e.yml); §Tasks: e2e.yml apt-wrapper task + RG-7 echo-bump bullet added; EC-014 added; §FSR: e2e.yml row added. **F-MAINT-P8-LOW-001** [phantom job name linux-test → test]: AC-001/AC-002/AC-007 error echoes corrected to `test (Test matrix)`; AC-007 heading + prose body corrected; §Tasks AC-001/AC-002 counting notes corrected; EC-011 corrected; POL-22 Phase C; changelog rows exempted per POL-32. **F-MAINT-P8-LOW-003** [combined update+install pattern]: all 12 apt snippets (10 AC-006 + 2 AC-007) updated from `if ! sudo apt-get update` to `if ! ( sudo apt-get update && sudo apt-get install -y <pkgs> )` combined form; fallback block retries both phases; RG-5 grep updated to `^\s+if ! \( sudo apt-get update && sudo apt-get install`; rationale paragraph added; EC-013 added. **F-MAINT-P8-OBS-001** [volatile line numbers removed]: §Tasks sibling-sweep sub-bullets stripped of `; line NNN in ci.yml` / `; line NNN` references per TD-VSDD-091; step-name/job-name anchors retained.
