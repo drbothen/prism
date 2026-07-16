@@ -8,7 +8,7 @@
 //! ## Root cause (fixed)
 //!
 //! `cmd_configure()` in `main.rs` called `POST /dtu/configure` WITHOUT the `X-Admin-Token`
-//! header required by ADR-003 Amendment #5 item 5. Every clone returned HTTP 401. There was
+//! header required by ADR-003 Amendment #5 §Decision. Every clone returned HTTP 401. There was
 //! also no mechanism for `cmd_configure` (a separate process invocation) to obtain the
 //! per-clone admin token — no token sidecar was written at server-start time.
 //!

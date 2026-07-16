@@ -49,6 +49,7 @@ tests/external/perimeter-violation/Cargo.lock
 # These are ephemeral process state, not source — never committed.
 .prism-dtu-demo-server.pid
 .prism-dtu-demo-server.urls*.json
+.prism-dtu-demo-server.urls*.json.tmp
 .prism-dtu-demo-server.admin-tokens*.json
 .prism-dtu-demo-server.admin-tokens*.json.tmp
 

@@ -60,9 +60,8 @@ use tempfile::TempDir;
 /// via per-client env vars for E2E tests (ADR-032 / BC-2.06.003).
 ///
 /// The Cyberint DTU validates the `access_token` cookie against an in-memory
-/// allowlist (ADR-031 §D3-a). This constant is used on both sides:
-///   1. `configure_cyberint_dtu_access_token()` POSTs it to the DTU's `/dtu/configure`.
-///   2. `launch_prism_bin()` sets `PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY` for each
+/// allowlist (ADR-031 §D3-a). `launch_prism_bin()` sets
+/// `PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY` for each
 ///      org that uses Cyberint, so `StaticCookieAuthProvider` (via `PrismCredentialResolver`)
 ///      injects it as `Cookie: access_token=dtu-e2e-cyberint-access-token`.
 ///
