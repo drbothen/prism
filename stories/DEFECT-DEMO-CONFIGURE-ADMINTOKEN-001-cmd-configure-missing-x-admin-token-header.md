@@ -6,7 +6,7 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.4"
+version: "0.5"
 level: ops
 producer: story-writer
 timestamp: "2026-07-16"
@@ -97,13 +97,24 @@ non-zero exit, but the reconfiguration never takes effect.
 
 ### Root Cause
 
-ADR-003 Amendment #5, item 5 states:
-> "All callers of `POST /dtu/configure` (test harnesses, demo-server `configure` subcommand)
-> include `.header("X-Admin-Token", clone.admin_token())` in their requests."
+ADR-003 Amendment #5 §Decision states:
+
+> `POST /dtu/configure` on every DTU clone MUST require a valid `X-Admin-Token`
+> header. The token value is a per-instance UUID v4 generated at clone construction
+> time and accessible via the new `BehavioralClone::admin_token()` trait method.
+> Requests missing the header, or presenting an incorrect token, receive HTTP 401
+> with `{"error": "missing or invalid X-Admin-Token"}`.
+
+ADR-003 Amendment #5 §Implementation item 4 states:
+
+> All 12 existing `td_wv0_04` configure tests (2 per clone) and all other
+> integration tests calling `/dtu/configure`: updated to include
+> `.header("X-Admin-Token", clone.admin_token())`.
 
 The test callers in `tests/ac_3_configure_endpoint.rs` were implemented correctly (they call
 `ClonePair::admin_token()` which delegates to `BehavioralClone::admin_token()`).
-The `cmd_configure` CLI path in `main.rs` was not implemented.
+The `cmd_configure` CLI path in `main.rs` was not implemented — it is not an integration test
+and was therefore not covered by item 4's update scope.
 
 **Secondary root cause:** There is no mechanism for `cmd_configure` — which runs in a
 SEPARATE process invocation after the demo server is already running — to obtain each
@@ -382,6 +393,7 @@ already-present workspace dependencies (`serde_json`, `reqwest`, `tokio`, `std`)
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| v0.5 | 2026-07-16 | product-owner FIX-BURST-4 SPEC (F-ADMTOK-P4-MED-001) | POL-22 Phase A violation: §Root Cause block-quoted "ADR-003 Amendment #5, item 5" with fabricated text that does not exist in the ADR. Replaced with two verbatim ADR anchors: (1) Amendment #5 §Decision paragraph ("POST /dtu/configure on every DTU clone MUST require a valid X-Admin-Token header…") establishing the server-side requirement; (2) Amendment #5 §Implementation item 4 ("All 12 existing td_wv0_04 configure tests…and all other integration tests calling /dtu/configure: updated to include .header(…)") showing item 4 scoped to integration tests only — cmd_configure is a CLI path, not a test, so it was not covered. Narrative conclusion (cmd_configure was the un-updated caller) preserved. POL-25 sweep: one "item 5" citation in the file (line 100) — corrected. |
 | v0.4 | 2026-07-16 | product-owner FIX-BURST-2 SPEC (F-ADMTOK-P2-LOW-001) | TD-VSDD-091: volatile line pin "lines 1068-1076" in EC-005 replaced with behavioral anchor "the multi-match ambiguity arm of `resolve_configure_token` in `multi_org_cmd.rs`" — line numbers decay on subsequent diffs; function + arm name is stable. |
 | v0.3 | 2026-07-16 | product-owner FIX-BURST-1 SPEC | F-ADMTOK-P1-MED-001: BC-2.06.017 version pin v1.10 → v1.11 (Relevant Clause cell updated to note v1.11 formally enumerates admin_token_map and TOKEN_MULTI_FILE). F-ADMTOK-P1-LOW-001: EC-005 message template reconciled — org list rendering changed from unquoted `[org-a, org-b]` to `{:?}`-quoted `["org-a", "org-b"]` to match `resolve_configure_token` code (multi_org_cmd.rs lines 1068-1076) and be consistent with sibling `resolve_configure_url` ambiguity arm. |
 | v0.2 | 2026-07-16 | remove-uncertainty pass (D-1110) | U1 (HIGH): AC-004 + T-12 sibling-sweep rewrite — replaced broken BRE-pipe regex with two-step `rg -n 'dtu/configure'` + `rg -n 'X-Admin-Token'` reconciliation; explicit note that dynamic-URL sites must be traced via callers of `resolve_configure_url`. U2 (MED): reqwest-timeout enforcement cell now includes explicit exception rationale (DTU is test/demo infra, not production; 10s is the ratified crate-local value). U3 (LOW): dep provenance labels corrected — `reqwest`, `uuid`, `tokio` are per-crate in `prism-dtu-demo-server/Cargo.toml`; only `serde_json` is workspace-level. U4 (LOW): `start_instances()` Architecture Compliance Rules bullet rationale corrected from "concrete type is erased" to OWNERSHIP — the clone is moved into the watcher task and becomes unreachable from the call site. Template conformance: added `## Narrative`, `## Purity Classification`, renamed `Library and Framework Requirements` → `Library & Framework Requirements`. |
