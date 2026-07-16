@@ -2,7 +2,7 @@
 document_type: demo-runbook
 objective: T13-capstone
 level: ops
-version: "1.10"
+version: "1.11"
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
 project: prism
@@ -520,10 +520,11 @@ client_id = "org-c"
 Expected: Returns Cyberint alerts where `status` is `'open'` or `'closed'`.
 Cyberint status values (`'open'`, `'acknowledged'`, `'closed'`) are vendor-native
 lifecycle identifiers — they do not case-insensitively match any OCSF status caption
-(New, In Progress, Suppressed, Resolved, Archived, Deleted), so they pass through
-the adapter boundary as-is per BC-2.02.013 RG-021 (same class as Claroty
-`'Unresolved'` and Armis `'UNHANDLED'`; DRIFT-AUDIT-RUNBOOK-LITERALS-001
-adjudication 2026-07-08). IIN remains casing-proof against the actual stored
+(generic: Unknown, Success, Failure, Other; finding-class: New, In Progress, Suppressed,
+Resolved, Archived, Deleted), so they pass through the adapter boundary as-is per
+BC-2.02.013 RG-021 (same class as Claroty `'Unresolved'` and Armis `'UNHANDLED'`;
+DRIFT-AUDIT-RUNBOOK-LITERALS-001 D-1609 adjudication 2026-07-16; documented in
+BC-2.02.013 EC-02-029). IIN remains casing-proof against the actual stored
 values: `lower('open')` matches `lower('open')`. If a future Cyberint adapter
 version aligns to OCSF and normalizes these values, the analyst query would need
 updating — but for the current data the vendor-native values are the correct
@@ -1113,6 +1114,7 @@ context between queries but does not hand-hold Claude on syntax.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.11 | 2026-07-16 | **DRIFT-AUDIT-RUNBOOK-LITERALS-001 D-1609 closure.** Task 1: Full-document sweep for 0-row literals — WARN-1 (`severity IEQ 'high'` on CrowdStrike → fixed to `'critical'` in v1.7) and WARN-2 (`status IIN ('new','in progress')` → fixed to `('open','closed')` in v1.7) confirmed in place in v1.10; no additional 0-row literals found. Seed-data evidence: `crates/prism-dtu-crowdstrike/src/generator.rs` first-5 severity_id=4→"Critical", rest severity_id=2→"Medium" only; `crates/prism-dtu-cyberint/src/generator.rs` statuses=["open","acknowledged","closed"] (lowercase vendor-native). Task 2: D-1609 formal adjudication (A) CORRECT PASSTHROUGH — Cyberint `status` values have no OCSF caption match, pass through per RG-021; documented in BC-2.02.013 EC-02-029 (v1.9 → v1.10). Step 3.1a adjudication reference updated: "2026-07-08" → "D-1609 2026-07-16"; full OCSF caption set enumerated (generic+finding-class); EC-02-029 cross-reference added. |
 | 1.10 | 2026-07-12 | **F-AUD-P21-HIGH-003 — §5.5 CVSS threshold tightened from range to exact value.** Adjudication: Option (a). The NVD DTU (`NvdClone::new_with_scenario`, BC-2.06.020 PC-4) hardcodes `base_score = 8.1 / base_severity = "HIGH"` for all scenario CVEs (`CVE-9999-NNNN` format); this is a deterministic contract, not an approximation. §4 Expected Outputs "CVSS 8.1 HIGH" talking point is authoritative. Changes: (1) §5.5 checklist item: `cvss_base_score >= 7.0` → `cvss_base_score == 8.1` with rationale citing `NvdClone::new_with_scenario` PC-4. (2) §3 Step 3.5 expected output: `(~8.1)` → `(8.1)` (tilde removed — value is deterministic). Implementer E3 assertion: `assert cvss_base_score == 8.1`. No other loci require change (lines 105-106, 212-213, 672, and §4 row 904 already cite 8.1 exactly). |
 | 1.9 | 2026-07-11 | **F-AUD-P10-HIGH-001 — completed ADR-051 D4 scalar-input amendment — 6 prose loci `iocs_value` → `iocs_value_first` (query blocks were already amended in v1.8).** Locus 1: Act 4 narrative (line ~210). Locus 2: §4 Talking Points IOC enrichment row (line ~903). Locus 3: §5.4 Scenario Clock elapsed >= 360s item — LEFT unchanged (describes raw `iocs_value` JSON-list column being non-null, not an enrich call). Locus 4: §5.5 Enrichment Path checklist (line ~959) — enrich call updated; erroneous parenthetical "enrich operates on the list" replaced with accurate ADR-051 D4 scalar-companion note. Locus 5: §6 Capability Caveats "Enrichment at Stage < 3" bullet (line ~1041) — enrich call updated; null-state description updated to reference `iocs_value_first` scalar companion while retaining explanation of the underlying `iocs_value` JSON-list behavior. Locus 6: §7 Recording Sequence Block 3 (line ~1097). Residual grep: zero remaining `threat_score(iocs_value)` non-`_first` sites. |
 | 1.8 | 2026-07-09 | **AUDIT-COVERAGE-001 — ADR-051 D4 scalar-input + parse-error literal corrections.** (1) Steps 3.2 and 6.2: `iocs_value` → `iocs_value_first` in query blocks and follow-on prose UDF examples (`threat_is_known_malicious`, `threat_sources`). Step 3.2 filter: `\| where iocs_value IS NOT NULL` → `\| where iocs_value_first IS NOT NULL`. Step 6.2 filter: `\| where iocs_type IS NOT NULL` → `\| where iocs_value_first IS NOT NULL`. (2) Step 3.4: `\| enrich threat_score(behaviors_ioc_value)` → `\| enrich threat_score(behaviors_ioc_value_first)`. All three changes enforce ADR-051 D4 scalar-input rule: enrichment UDFs require `*_first` scalar companions, not JSON-list columns. (3) §5.3 per-client data distinctness checklist: `FROM crowdstrike_detections LIMIT 5` → `FROM crowdstrike_detections \| limit 5` (two lines). (4) §5.4 scenario clock progression: `FROM armis_devices LIMIT 20` → `FROM armis_devices \| limit 20`. Bare SQL `LIMIT N` without `\|` prefix is a PrismQL parse error; valid pipe form is `\| limit N`. Source: t13-audit-coverage-gap-analysis-2026-07-10.md §5 findings a + b. Frontmatter version 1.7 → 1.8. |

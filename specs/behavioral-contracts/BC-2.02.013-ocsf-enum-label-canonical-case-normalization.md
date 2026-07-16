@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.9"
+version: "1.10"
 status: active
 producer: product-owner
 timestamp: 2026-07-06T00:00:00Z
@@ -12,7 +12,7 @@ subsystems_multi: ["SS-22", "SS-02"]  # PRIMARY SS-22 per v1.5 F-CRIT-002 adjudi
 capability: "CAP-003"
 lifecycle_status: active
 introduced: 2026-07-06
-modified: 2026-07-08
+modified: 2026-07-16
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -23,7 +23,7 @@ inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/domain-spec/invariants.md"
   - ".factory/specs/architecture/decisions/ADR-047-prismql-case-sensitivity-policy-ieq-iin-and-adapter-boundary-normalization.md"
-input-hash: "TBD"
+input-hash: "b6a807c"
 traces_to: ["CAP-003"]
 extracted_from: null
 ---
@@ -116,6 +116,7 @@ This normalization is complementary to, not a replacement for, the `IEQ`/`IIN`/`
 | EC-02-026 | `GROUP BY severity` PrismQL query across CrowdStrike (emits `'High'`) + Armis (originally emits `'HIGH'`) after normalization | Both sensors now contribute to the same `'High'` bucket — no fragmentation into `'High'` + `'HIGH'` variants; cross-sensor aggregation is correct |
 | EC-02-027 | `severity = 'High'` PrismQL query after normalization | Returns rows from all sensors regardless of original sensor casing — normalization ensures all store `'High'` |
 | EC-02-028 | Sensor record where the OCSF enum-label field value is empty string `""` (e.g., `severity=''`) | Normalization is bypassed entirely — value passes through as empty string unchanged; no `ocsf.enum_label_unrecognized` warn is emitted. Empty string represents an unset/missing sensor field, not a vendor enum value; emitting an unrecognized-value warning for it would produce misleading audit noise (contrast with EC-02-021/EC-02-022 where non-empty unrecognized values DO trigger the warn). This bypass is enforced at both PRIMARY (`build_column_array`) and SECONDARY (`normalize_with_mappers`) insertion points. |
+| EC-02-029 | Cyberint adapter emits `status='open'`, `status='acknowledged'`, or `status='closed'` (vendor-native lifecycle identifiers) | Values left as-received; `ocsf.enum_label_unrecognized` warning logged per record. None of `'open'`, `'acknowledged'`, or `'closed'` match any OCSF `status_id` caption in a case-insensitive lookup (generic: Unknown, Success, Failure, Other; finding-class: New, In Progress, Suppressed, Resolved, Archived, Deleted). Vendor-native passthrough is correct and expected behavior per RG-021 — NOT a normalization coverage gap. Analyst queries use `status IIN ('open', 'closed')` — IIN lowercases both sides so `lower('open') = 'open'` matches the as-received stored value. Same class as EC-02-022 (Claroty `'Unresolved'`) and EC-02-021 (Armis `'UNHANDLED'`). D-1609 adjudication 2026-07-16. |
 
 ## Canonical Test Vectors
 
@@ -176,6 +177,7 @@ VP-016 (existing), VP-022 (existing). VP for cross-sensor aggregation cardinalit
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | DRIFT-AUDIT-RUNBOOK-LITERALS-001-D-1609 | 2026-07-16 | product-owner | **D-1609 adjudication (CORRECT PASSTHROUGH): Cyberint `status` field vendor-native values (`'open'`, `'acknowledged'`, `'closed'`) pass through the adapter boundary without OCSF Title-case normalization because none match any OCSF `status_id` caption (generic: Unknown, Success, Failure, Other; finding-class: New, In Progress, Suppressed, Resolved, Archived, Deleted). `normalize_enum_label("status", "open")` returns `None` for all three Cyberint status values — RG-021 passthrough applies. This is NOT a normalization coverage gap. Added EC-02-029 documenting Cyberint status passthrough (same RG-021 class as EC-02-022 Claroty `'Unresolved'` and EC-02-021 Armis `'UNHANDLED'`). Seed-data evidence: `crates/prism-dtu-cyberint/src/generator.rs` line 286 `statuses = ["open", "acknowledged", "closed"]`; none match OCSF caption set. Full-document sweep of T13-capstone-demo-runbook.md confirmed WARN-1 (`severity IEQ 'high'` → fixed to `'critical'` in v1.7) and WARN-2 (`status IIN ('new','in progress')` → fixed to `('open','closed')` in v1.7) remain in place; no additional 0-row literals found in v1.10. Companion: T13-capstone-demo-runbook.md v1.10 → v1.11 (adjudication reference updated to D-1609 2026-07-16; EC-02-029 cross-reference added). Frontmatter v1.9 → v1.10; modified 2026-07-08 → 2026-07-16.** |
 | 1.9 | post-merge-burst-D-1607 | 2026-07-08 | state-manager | POL-14 auto-promotion: `status: draft` → `status: active`, `lifecycle_status: draft` → `lifecycle_status: active`. PR #217 squash-merged to develop@f935edb6 (2026-07-08T21:18:56Z); story S-PRISMQL-CASE-INSENSITIVE-001 merged; BC-5.39.001 LOCAL 35-pass + PR-LEVEL 8-pass 3-CLEAN CONVERGED. |
 | 1.8 | S-PRISMQL-CASE-INSENSITIVE-001-adversary-pass-28-f-p28-med-001 | 2026-07-08 | product-owner | **F-P28-MED-001 (pass-28): §Postconditions in-scope table coverage column updated Absent/Partial→Present per implemented enum_map.rs (status_id 10 entries: generic 0/1/2/99 + finding-class synthetic keys 1001-1006; activity_id 6 entries: 0,1,2,3,4,99; disposition_id 29 entries: 0-27, 99); temporal-indexical "today" column header removed (OBS-P28-001); design note conditional "When...are added (currently Absent)" framing replaced with stative "The entries in...include".** |
 | 1.7 | S-PRISMQL-CASE-INSENSITIVE-001-adversary-pass-20-f-p20-low-002 | 2026-07-07 | product-owner | **LOCAL adversary pass-20 closure: F-P20-LOW-002 (subsystem frontmatter reflects pre-F-CRIT-002 SECONDARY-only ownership).** Added `subsystems_multi: ["SS-22", "SS-02"]` additive frontmatter field to expose dual-subsystem ownership to downstream tooling. `subsystem: "SS-02"` retained as the ID-family anchor (BC-2.02.NNN namespace; append_only_numbering policy forbids renumbering). Corpus survey of all BC files confirmed all use scalar `subsystem:` — no array precedent in BC files; `subsystems_multi` is a new additive companion field following the recommended minimal-schema-impact path from the finding. Existing §Traceability Architecture Module body row (PRIMARY SS-22 / SECONDARY SS-02) unchanged. State-manager must update BC-INDEX row (version 1.6 → 1.7). Story-writer must propagate v1.6 → v1.7 references in story body (see sibling sweep list). |
