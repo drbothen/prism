@@ -48,8 +48,10 @@
 //! | Test B: `test_BC_2_06_017_token_sidecar_written_and_configure_with_token_returns_200` | AC-001/AC-002 | F-ADMTOK-P1-HIGH-003 | Removing `header("X-Admin-Token", token)` from POST → 401 assertion fails |
 //! | Test C: `test_BC_3_6_001_e_demo_007_configure_no_sidecar_present` | AC-003 EC-004 | F-ADMTOK-P1-HIGH-003 | Removing E-DEMO-007 error return from `resolve_configure_token` fails |
 //! | Test D: `test_BC_3_6_001_e_demo_007_ec005_ambiguous_bare_sensor_name` | AC-003 EC-005 | — | Removing EC-005 ambiguity path from `resolve_configure_token` fails |
-//! | Test E: `test_BC_3_6_001_ac001_binary_configure_with_sidecar_token_returns_200` | AC-001 ¶4 | F-ADMTOK-P1-HIGH-001 | Reverting T-08 (removing `X-Admin-Token` header in binary) → configure exits 1 |
+//! | Test E: `test_BC_3_6_001_ac001_binary_configure_with_sidecar_token_returns_200` | AC-001 ¶4 | F-ADMTOK-P1-HIGH-001, F-ADMTOK-P3-LOW-002 | Reverting T-08 → configure exits 1; reverting T-09 (TOKEN_FILE cleanup) → sidecar persists |
 //! | Test F: `test_BC_2_06_017_start_multi_admin_token_map_and_sidecar_written` | AC-002 | F-ADMTOK-P1-HIGH-002 | Removing T-02 (`admin_token_map`) or T-05 (sidecar write) fails |
+//! | Test G: `test_BC_2_06_017_ac002_binary_startmulti_configure_with_multi_sidecar_token` | AC-002 | F-ADMTOK-P3-MED-001, F-ADMTOK-P3-LOW-002 | Reverting T-06 (write_multi_admin_token_sidecar in cmd_start_multi) → TOKEN_MULTI_FILE absent → configure exits 1; reverting T-09 → TOKEN_MULTI_FILE persists |
+//! | _(Note: Test G requires `--features fixture-gen`; cfg(all(unix, feature="fixture-gen")))_ | | | |
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -389,9 +391,14 @@ async fn test_BC_3_6_001_e_demo_007_ec005_ambiguous_bare_sensor_name() {
         msg.contains("ambiguous"),
         "AC-003/EC-005: error must cite ambiguity; got: {msg}"
     );
+    // F-ADMTOK-P3-LOW-001: assert the exact {:?} rendered form ["org-a", "org-b"].
+    // The code sorts bare_matches by org slug before formatting (line 1074 of multi_org_cmd.rs),
+    // so "org-a" precedes "org-b" deterministically. Vec<String> {:?} format produces
+    // ["org-a", "org-b"] (with double-quoted elements). This locks the quoted rendering per
+    // story v0.4 — a change to sort order or quoting style breaks this assertion.
     assert!(
-        msg.contains("org-a") && msg.contains("org-b"),
-        "AC-003/EC-005: error must name the conflicting orgs; got: {msg}"
+        msg.contains(r#"["org-a", "org-b"]"#),
+        "AC-003/EC-005: error must contain sorted {{:?}} org list [\"org-a\", \"org-b\"]; got: {msg}"
     );
     // tmp is dropped here — temp dir auto-cleaned by tempfile.
 }
@@ -474,6 +481,16 @@ async fn test_BC_3_6_001_ac001_binary_configure_with_sidecar_token_returns_200()
     // Clean shutdown: SIGTERM to the start server.
     e2e_send_sigterm(start_pid);
     let _ = start_child.wait();
+
+    // F-ADMTOK-P3-LOW-002 — T-09 cleanup regression lock: after shutdown, TOKEN_FILE must
+    // be removed by `wait_for_shutdown_signal` (T-09 calls `let _ = remove_file(TOKEN_FILE)`).
+    // Reverting T-09 causes TOKEN_FILE to persist → this assertion fails.
+    assert!(
+        !token_sidecar.exists(),
+        "T-09 cleanup (F-ADMTOK-P3-LOW-002): TOKEN_FILE must be removed after shutdown. \
+         Load-bearing: reverting T-09 (`remove_file(TOKEN_FILE)` in wait_for_shutdown_signal) \
+         causes the flat token sidecar to persist post-shutdown."
+    );
 
     // LOAD-BEARING assertion: configure must exit 0.
     // Revert T-08 (remove X-Admin-Token header in cmd_configure) → server returns 401
@@ -808,4 +825,169 @@ fn e2e_send_sigterm(pid: u32) {
     // SAFETY: calling libc::kill with a valid pid and SIGTERM is safe.
     let ret = unsafe { libc::kill(pid as libc::pid_t, libc::SIGTERM) };
     assert_eq!(ret, 0, "AC-001-E2E: kill(SIGTERM) to pid {pid} failed");
+}
+
+// ---------------------------------------------------------------------------
+// Test G — GREEN (requires --features fixture-gen) / F-ADMTOK-P3-MED-001
+// AC-002 (BC-2.06.017 Postcondition 1)
+// Only compiled and run on Unix with fixture-gen feature active.
+// ---------------------------------------------------------------------------
+
+/// AC-002 (Test G) — Binary-level E2E: `start-multi` writes TOKEN_MULTI_FILE;
+/// `configure <org_slug>-<sensor_id>` reads it and returns HTTP 200.
+///
+/// Traces to: BC-2.06.017 Postcondition 1 (TOKEN_MULTI_FILE is the token parallel to
+/// URL_MULTI_FILE; both are written by cmd_start_multi via T-05/T-06).
+///
+/// F-ADMTOK-P3-MED-001: The binary `start-multi` path (T-06: write_multi_admin_token_sidecar
+/// in cmd_start_multi) had no binary-level test before this. Test F covers the in-process
+/// write_multi_admin_token_sidecar_to_path API (T-05); this test covers the binary's cmd_start_multi
+/// calling that helper and writing TOKEN_MULTI_FILE to cwd.
+///
+/// Load-bearing assertions:
+/// - Reverting T-06 (removing `write_multi_admin_token_sidecar` call from cmd_start_multi) →
+///   TOKEN_MULTI_FILE is never written → configure cannot resolve the token → exits 1.
+/// - Reverting T-08 (removing `.header("X-Admin-Token", &admin_token)` from cmd_configure) →
+///   server returns HTTP 401 → configure exits 1.
+/// - Reverting T-09 (removing `remove_file(TOKEN_MULTI_FILE)` from wait_for_shutdown_signal_multi)
+///   → TOKEN_MULTI_FILE persists after shutdown → F-ADMTOK-P3-LOW-002 assertion fails.
+///
+/// Requires `--features fixture-gen` (start-multi calls build_multi_clone_factory which
+/// requires fixture-gen per GAP-1; without it, the binary panics).
+///
+/// Pattern mirrors Test E. config TOML mirrors Test F's MultiOrgDemoConfig shape.
+#[tokio::test]
+#[cfg(all(unix, feature = "fixture-gen"))]
+async fn test_BC_2_06_017_ac002_binary_startmulti_configure_with_multi_sidecar_token() {
+    use std::time::Duration;
+
+    // AC-002 (Test G): binary-level E2E for start-multi. GREEN with fixture-gen.
+    // Load-bearing against T-06, T-08, T-09. Requires --features fixture-gen.
+
+    let tmp = tempfile::tempdir().expect("Test-G: tempdir must be created");
+    let config_path = e2e_write_multi_crowdstrike_config(tmp.path());
+    let bin = e2e_binary_path();
+
+    // Spawn `prism-dtu-demo-server start-multi --config <config>` in tmp.path() as cwd.
+    // The binary will write URL_MULTI_FILE and TOKEN_MULTI_FILE into that cwd (T-06).
+    let mut server_child = std::process::Command::new(&bin)
+        .args(["start-multi", "--config", config_path.to_str().unwrap()])
+        .current_dir(tmp.path())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .expect("Test-G: start-multi binary must spawn");
+
+    let server_pid = server_child.id();
+
+    // RAII kill-guard: if this test panics before SIGTERM, SIGKILL the server process
+    // so it does not leak. Pattern mirrors Test E (F-ADMTOK-P2-OBS-002 KillGuard).
+    struct KillGuard(u32);
+    impl Drop for KillGuard {
+        fn drop(&mut self) {
+            unsafe { libc::kill(self.0 as libc::pid_t, libc::SIGKILL) };
+        }
+    }
+    let _kill_guard = KillGuard(server_pid);
+
+    // Poll for TOKEN_MULTI_FILE in tmp.path() — written AFTER URL_MULTI_FILE, so it is
+    // the stricter gate. Both sidecars are present once TOKEN_MULTI_FILE appears.
+    // Timeout: 20s (binary must bind org-a-crowdstrike + org-b-crowdstrike, write sidecars).
+    //
+    // LOAD-BEARING: reverting T-06 (removing write_multi_admin_token_sidecar from
+    // cmd_start_multi) causes TOKEN_MULTI_FILE to never be written → poll times out → panic.
+    let token_multi_sidecar = tmp.path().join(TOKEN_MULTI_FILE);
+    e2e_wait_for_json_file(&token_multi_sidecar, Duration::from_secs(20));
+
+    // Assert nested {org_slug: {sensor_id: token}} shape in TOKEN_MULTI_FILE.
+    // This verifies that T-06 produced the correct structure before configure reads it.
+    let sidecar_str = std::fs::read_to_string(&token_multi_sidecar)
+        .expect("Test-G: TOKEN_MULTI_FILE must be readable after start-multi");
+    let nested: std::collections::HashMap<String, std::collections::HashMap<String, String>> =
+        serde_json::from_str(&sidecar_str).expect(
+            "Test-G: TOKEN_MULTI_FILE must be valid nested JSON {org_slug: {sensor_id: token}}",
+        );
+    assert!(
+        nested.contains_key("org-a"),
+        "Test-G: TOKEN_MULTI_FILE must contain 'org-a' key; got: {:?}",
+        nested.keys().collect::<Vec<_>>()
+    );
+    assert!(
+        nested.contains_key("org-b"),
+        "Test-G: TOKEN_MULTI_FILE must contain 'org-b' key; got: {:?}",
+        nested.keys().collect::<Vec<_>>()
+    );
+    assert!(
+        nested["org-a"].contains_key("crowdstrike"),
+        "Test-G: TOKEN_MULTI_FILE['org-a'] must contain 'crowdstrike'"
+    );
+
+    // Run `configure org-a-crowdstrike '{"seed":99}'` as a binary subprocess in tmp.path().
+    // configure reads TOKEN_MULTI_FILE + URL_MULTI_FILE from cwd to resolve token + URL.
+    // The nested lookup matches full key "org-a-crowdstrike" → {org-a: {crowdstrike: TOKEN}}.
+    let configure_output = std::process::Command::new(&bin)
+        .args(["configure", "org-a-crowdstrike", r#"{"seed": 99}"#])
+        .current_dir(tmp.path())
+        .output()
+        .expect("Test-G: configure subprocess must complete");
+
+    // Clean shutdown: SIGTERM to the start-multi server.
+    e2e_send_sigterm(server_pid);
+    let _ = server_child.wait();
+
+    // F-ADMTOK-P3-LOW-002 — T-09 cleanup regression lock: after shutdown, TOKEN_MULTI_FILE
+    // must be removed by `wait_for_shutdown_signal_multi` (T-09 calls
+    // `let _ = remove_file(TOKEN_MULTI_FILE)`).
+    // Reverting T-09 causes TOKEN_MULTI_FILE to persist → this assertion fails.
+    assert!(
+        !token_multi_sidecar.exists(),
+        "T-09 cleanup (F-ADMTOK-P3-LOW-002): TOKEN_MULTI_FILE must be removed after shutdown. \
+         Load-bearing: reverting T-09 (`remove_file(TOKEN_MULTI_FILE)` in \
+         wait_for_shutdown_signal_multi) causes the nested token sidecar to persist post-shutdown."
+    );
+
+    // LOAD-BEARING: configure must exit 0.
+    // Revert T-06 → TOKEN_MULTI_FILE absent → configure cannot resolve token → exits 1.
+    // Revert T-08 → X-Admin-Token missing → server returns 401 → exits 1.
+    assert_eq!(
+        configure_output.status.code(),
+        Some(0),
+        "Test-G: configure org-a-crowdstrike must exit 0. \
+         Load-bearing: reverting T-06 (removing write_multi_admin_token_sidecar from \
+         cmd_start_multi) or T-08 (removing X-Admin-Token header from cmd_configure) \
+         causes exit 1.",
+    );
+
+    // Spot-check stdout for "200".
+    let stdout = String::from_utf8_lossy(&configure_output.stdout);
+    assert!(
+        stdout.contains("200"),
+        "Test-G: configure stdout must contain '200'; got: {stdout}"
+    );
+    // tmp is dropped here — temp dir auto-cleaned by tempfile.
+}
+
+/// Write a minimal two-org CrowdStrike `MultiOrgDemoConfig` TOML to `dir` and return the path.
+///
+/// Config shape mirrors Test F's in-process MultiOrgDemoConfig (2 orgs, each with crowdstrike).
+/// Uses seeded constructors (new_with_seed) via build_multi_clone_factory — requires fixture-gen.
+#[cfg(all(unix, feature = "fixture-gen"))]
+fn e2e_write_multi_crowdstrike_config(dir: &std::path::Path) -> std::path::PathBuf {
+    let toml = r#"
+[harness]
+bind = "127.0.0.1"
+
+[orgs.org-a]
+org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a1001"
+sensors = ["crowdstrike"]
+seed = 100
+
+[orgs.org-b]
+org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a1002"
+sensors = ["crowdstrike"]
+seed = 200
+"#;
+    let path = dir.join("e2e-test-multi.toml");
+    std::fs::write(&path, toml).expect("Test-G: failed to write multi-org config TOML");
+    path
 }
