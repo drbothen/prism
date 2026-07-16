@@ -972,7 +972,7 @@ pub fn resolve_configure_url(
 ///   neither `flat_sidecar_path` nor `nested_sidecar_path` exists on disk (EC-004).
 /// - `"clone '{clone_name}' not found in token sidecar '{path}'"` — sidecar exists but
 ///   the clone name is absent (EC-003).
-/// - `"Bare sensor name '{name}' is ambiguous — found in N orgs: [org-a, org-b]. Use full \
+/// - `"Bare sensor name '{name}' is ambiguous — found in N orgs: ["org-a", "org-b"]. Use full \
 ///   '{org_slug}-{sensor_id}' form."` — EC-005: multiple orgs have the same bare sensor name.
 ///
 /// # Lookup logic
