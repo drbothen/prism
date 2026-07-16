@@ -6,7 +6,7 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.1"
+version: "0.2"
 level: ops
 producer: story-writer
 timestamp: "2026-07-16"
@@ -75,6 +75,11 @@ risk_mitigations: []
 ---
 
 # DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001: cmd_configure missing X-Admin-Token header — POST /dtu/configure returns 401
+
+## Narrative
+- **As a** SOC-analyst demo operator
+- **I want to** run `prism-dtu-demo-server configure <clone> ...` to inject failure modes or reset clone state mid-demo
+- **So that** the demo server's operator recovery path (EC-007 in `resolve_configure_url`) functions correctly instead of silently failing with HTTP 401 on every invocation
 
 ## §Origin — [defect] DRIFT-DEMO-CONFIGURE-ADMINTOKEN-001
 
@@ -225,9 +230,24 @@ A comment block at the top of the `cmd_configure` function body documents the TD
 sibling sweep, naming each enumerated site and confirming only `cmd_configure` was the
 defect site. The new test in AC-001 explicitly references this comment.
 
-The implementer MUST run `rg 'post.*dtu/configure\|/dtu/configure.*post' crates/ --type rust -i`
-and document that the only non-test client-side POST is `cmd_configure`, confirming the sibling
-sweep is complete. This grep result MUST appear in the PR description.
+The implementer MUST execute the following two-step reconciliation sweep and include the
+full output of both commands plus the reconciliation table in the PR description:
+
+**Step 1 — All textual references to the configure endpoint:**
+`rg -n 'dtu/configure' crates/ --type rust`
+
+**Step 2 — All X-Admin-Token header attachments:**
+`rg -n 'X-Admin-Token' crates/ --type rust`
+
+**Reconciliation:** For each POST call site referencing `dtu/configure`, confirm that
+a corresponding `X-Admin-Token` header attachment appears on the same or an adjacent
+request-builder line. Dynamic-URL call sites — where the URL is constructed into a
+variable (e.g., `client.post(&configure_url)`) rather than typed as a string literal —
+will NOT be found by searching for `dtu/configure` on the POST line. These sites MUST
+be enumerated by reading the callers of `resolve_configure_url` (or the equivalent
+URL-builder function) directly, not by regex. The PR description MUST include the full
+output of both greps AND an explicit reconciliation table mapping each POST call site
+to its header status, consistent with the sibling enumeration table in §Root Cause above.
 
 ## Architecture Mapping
 
@@ -246,7 +266,7 @@ sweep is complete. This grep result MUST appear in the PR description.
 - Token sidecar files MUST use the atomic tmp+rename write pattern (same as URL sidecars, GAP-3 guarantee)
 - Token values MUST be read via `BehavioralClone::admin_token()` — never hardcoded, never reused across process invocations
 - The token sidecar format MUST be a flat JSON object `{name: token}` for `start` mode and a nested object `{org_slug: {sensor_id: token}}` for `start-multi` mode — exactly mirroring the URL sidecar shape
-- `start_instances()` MUST extract `clone.admin_token().to_string()` from each `BoundInstance` BEFORE `drop(clone)` is called inside `tokio::spawn` — the concrete type is erased after the move
+- `start_instances()` MUST extract `clone.admin_token().to_string()` from each `BoundInstance` BEFORE it is moved into the detached watcher task — OWNERSHIP: once the clone is moved into `tokio::spawn(async move { drop(clone) })`, it is unreachable from the `start_instances` call site; extraction must happen in the bind loop before the spawn (note: `BoundInstance` is already `Box<dyn BehavioralClone>` so `admin_token()` remains callable on the trait object, but OWNERSHIP prevents access after the move)
 - No token values may appear in structured log fields (AD-017 credential-safety rule; demo tokens are ephemeral test values, not production credentials, but the pattern must be consistent)
 
 ## Edge Cases
@@ -260,6 +280,16 @@ sweep is complete. This grep result MUST appear in the PR description.
 | EC-005 | Ambiguous bare sensor name in `start-multi` mode (multiple orgs have same sensor) | Same disambiguation rule as `resolve_configure_url`: E-DEMO-007 with message "Bare sensor name '{name}' is ambiguous — found in N orgs: [org-a, org-b]. Use full '{org_slug}-{sensor_id}' form." |
 | EC-006 | Concurrent `start-multi` restarts the demo server; old token sidecar has stale tokens | New token sidecar is written atomically on each start; stale-token 401 from server is surfaced (existing AC-003 flow); operator must retry |
 | EC-007 | TLS-enabled `start --tls` — clone URLs use `https://`; configure must still work | URL resolution unchanged (URL sidecar uses `https://`); token sidecar is independent of TLS; test harness uses `danger_accept_invalid_certs(true)` where needed |
+
+## Purity Classification
+
+| Module | Classification | Justification |
+|--------|---------------|---------------|
+| `crates/prism-dtu-demo-server/src/main.rs` (`cmd_configure`, `write_token_sidecar`) | effectful-shell | Performs HTTP POST and file I/O |
+| `crates/prism-dtu-demo-server/src/multi_instance.rs` (`admin_token_map`) | pure-core | Read-only accessor over in-memory map |
+| `crates/prism-dtu-demo-server/src/multi_instance.rs` (`start_instances` amendment) | effectful-shell | Spawns async tasks, binds ports |
+| `crates/prism-dtu-demo-server/src/multi_org_cmd.rs` (`write_multi_admin_token_sidecar_to_path`, `resolve_configure_token`) | effectful-shell | File write / file read |
+| `crates/prism-dtu-demo-server/src/lib.rs` (`TOKEN_FILE`, `TOKEN_MULTI_FILE`) | pure-core | Constants only |
 
 ## Token Budget Estimate
 
@@ -292,7 +322,7 @@ This is well within the 20-30% context window guideline for a single story. No s
 - [ ] T-09: Remove token sidecar files on shutdown: add `let _ = std::fs::remove_file(TOKEN_FILE)` to `wait_for_shutdown_signal()` alongside `URL_FILE` removal; add `let _ = std::fs::remove_file(TOKEN_MULTI_FILE)` to `wait_for_shutdown_signal_multi()` alongside `URL_MULTI_FILE` removal
 - [ ] T-10: Write RED Gate test in `tests/defect_demo_configure_admintoken_001.rs` (starts harness, POSTs without header, asserts 401 before fix; asserts 200 after fix; tests E-DEMO-007 sidecar-missing path)
 - [ ] T-11: Register `E-DEMO-007` in `.factory/specs/prd-supplements/error-taxonomy.md` under `## DEMO: Demo-Server Errors` per POL-24 (exact message template verbatim)
-- [ ] T-12: Run `rg 'post.*dtu/configure\|/dtu/configure.*post' crates/ --type rust -i` and document result in PR description (TD-VSDD-060 sibling sweep evidence for AC-004)
+- [ ] T-12: Execute the two-step TD-VSDD-060 sibling sweep from AC-004: (a) `rg -n 'dtu/configure' crates/ --type rust`; (b) `rg -n 'X-Admin-Token' crates/ --type rust`; manually reconcile each POST call site — dynamic-URL sites (e.g., `client.post(&configure_url)`) must be traced by reading callers of `resolve_configure_url` directly rather than by regex; include both grep outputs plus a reconciliation table in the PR description
 
 ## Previous Story Intelligence
 
@@ -316,19 +346,19 @@ The defect fix replicates this pattern for the CLI code path by reading from the
 |------|--------|-------------|
 | Atomic write (tmp+rename) for all sidecar files | GAP-3 (S-DEMO-LAUNCHER-CONSOLIDATION-001) | Token sidecars must use the same pattern; partial-write reads from demo-run.sh must be impossible |
 | `BehavioralClone::admin_token()` is the ONLY source of truth for token values | ADR-003 Amendment #5 | Never hardcode, derive, or guess token values; always call `clone.admin_token()` |
-| reqwest clients must set `.timeout(Duration::from_secs(30))` | CLAUDE.md §Conventions | `cmd_configure`'s existing client already sets `timeout(10s)` — maintain this; do not reduce below 10s |
+| reqwest clients must set `.timeout(Duration::from_secs(30))` | CLAUDE.md §Conventions | `cmd_configure`'s existing client already sets `timeout(10s)` — maintain this; do not reduce below 10s. Exception rationale: `prism-dtu-demo-server` is test/demo infrastructure (feature-gated `#[cfg(any(test, feature = "dtu"))]` in `lib.rs`), not a production client; the CLAUDE.md 30s mandate applies to production crates only. 10s is the ratified crate-local value for this demo server. Do not treat this as precedent for production crates. |
 | reqwest clients must use `default-features = false, features = ["rustls-tls"]` | ADR-050 D1/D2 | The `prism-dtu-demo-server` `Cargo.toml` already declares `rustls-tls`; do not add a new reqwest dependency entry |
 | No `println!` in production code | CLAUDE.md §Conventions | `cmd_configure` uses `println!` for HTTP status display — this is the CLI output formatter, which is the ratified exception for CLI formatting helpers |
 | Token values MUST NOT appear in structured log fields | AD-017 (CLAUDE.md) | `tracing::debug!` calls showing token-related activity must use a placeholder like `token_present=true`, not the token value |
 
-## Library and Framework Requirements
+## Library & Framework Requirements
 
 | Library | Version | Source of truth |
 |---------|---------|----------------|
-| `serde_json` | `1` (workspace) | `Cargo.toml` workspace dep — used for token sidecar serialization |
-| `reqwest` | `0.12` (workspace), `rustls-tls`, `default-features = false` | Existing `cmd_configure` client — no new dep entry needed |
-| `uuid` | `1` (workspace) | Admin tokens are UUID v4 strings; no new usage in cmd_configure (token is a `&str` read from sidecar) |
-| `tokio` | `1` (workspace) | Async runtime — no change |
+| `serde_json` | `1` (workspace) | Workspace-level dep in root `Cargo.toml` — used for token sidecar serialization |
+| `reqwest` | `0.12` (per-crate), `rustls-tls`, `default-features = false` | Per-crate dep in `crates/prism-dtu-demo-server/Cargo.toml`; existing `cmd_configure` client — no new dep entry needed |
+| `uuid` | `1` (per-crate) | Per-crate dep in `crates/prism-dtu-demo-server/Cargo.toml`; admin tokens are UUID v4 strings; no new usage in `cmd_configure` (token is a `&str` read from sidecar) |
+| `tokio` | `1` (per-crate) | Per-crate dep in `crates/prism-dtu-demo-server/Cargo.toml`; async runtime — no change |
 
 ## File Structure Requirements
 
@@ -347,6 +377,13 @@ The defect fix replicates this pattern for the CLI code path by reading from the
 in `lib.rs`). No new production crate dependencies are required. If the implementer is tempted to
 add a new dep to fix this story, that is a signal the approach is wrong — the fix uses only
 already-present workspace dependencies (`serde_json`, `reqwest`, `tokio`, `std`).
+
+## §Changelog
+
+| Version | Date | Author | Summary |
+|---------|------|--------|---------|
+| v0.2 | 2026-07-16 | remove-uncertainty pass (D-1110) | U1 (HIGH): AC-004 + T-12 sibling-sweep rewrite — replaced broken BRE-pipe regex with two-step `rg -n 'dtu/configure'` + `rg -n 'X-Admin-Token'` reconciliation; explicit note that dynamic-URL sites must be traced via callers of `resolve_configure_url`. U2 (MED): reqwest-timeout enforcement cell now includes explicit exception rationale (DTU is test/demo infra, not production; 10s is the ratified crate-local value). U3 (LOW): dep provenance labels corrected — `reqwest`, `uuid`, `tokio` are per-crate in `prism-dtu-demo-server/Cargo.toml`; only `serde_json` is workspace-level. U4 (LOW): `start_instances()` Architecture Compliance Rules bullet rationale corrected from "concrete type is erased" to OWNERSHIP — the clone is moved into the watcher task and becomes unreachable from the call site. Template conformance: added `## Narrative`, `## Purity Classification`, renamed `Library and Framework Requirements` → `Library & Framework Requirements`. |
+| v0.1 | 2026-07-16 | story-writer | Initial story decomposition for DRIFT-DEMO-CONFIGURE-ADMINTOKEN-001. |
 
 ## §References
 
