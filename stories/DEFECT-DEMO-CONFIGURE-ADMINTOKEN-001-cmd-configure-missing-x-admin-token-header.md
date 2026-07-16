@@ -6,7 +6,7 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.5"
+version: "0.6"
 level: ops
 producer: story-writer
 timestamp: "2026-07-16"
@@ -202,8 +202,8 @@ Token sidecar write requirements:
   `URL_MULTI_FILE`
 - `MultiInstanceServers` MUST expose `admin_token_map() -> &HashMap<String, String>` —
   tokens captured from each clone via `clone.admin_token().to_string()` BEFORE the clone is
-  moved into its detached watcher task in `start_instances()` (currently line ~354-365 of
-  `multi_instance.rs`)
+  moved into its detached watcher task in `start_instances()` (in the watcher-spawn loop of
+  `start_instances` in `multi_instance.rs`)
 - Token sidecar files MUST be removed on shutdown alongside the corresponding URL sidecar
   files in `wait_for_shutdown_signal()` and `wait_for_shutdown_signal_multi()`
 - `TOKEN_FILE` and `TOKEN_MULTI_FILE` constants MUST be declared as `pub const` in `lib.rs`
@@ -284,8 +284,8 @@ to its header status, consistent with the sibling enumeration table in §Root Ca
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | Token mismatch — someone manually edits the token sidecar with a wrong value | Clone returns HTTP 401; `cmd_configure` receives non-2xx; prints `"HTTP 401"` + body to stdout and exits with code 1 (existing behavior in `cmd_configure` lines ~583-585) |
-| EC-002 | Clone without admin token configured ("dev mode") | NOT APPLICABLE — all `BehavioralClone` implementations generate a random UUID v4 token via `uuid::Uuid::new_v4().to_string()` at construction time (verified in `CrowdstrikeState::default()` line ~415). There is no dev-mode no-token path. |
+| EC-001 | Token mismatch — someone manually edits the token sidecar with a wrong value | Clone returns HTTP 401; `cmd_configure` receives non-2xx; prints `"HTTP 401"` + body to stdout and exits with code 1 (the non-2xx status-print-and-exit block of `cmd_configure`) |
+| EC-002 | Clone without admin token configured ("dev mode") | NOT APPLICABLE — all `BehavioralClone` implementations generate a random UUID v4 token via `uuid::Uuid::new_v4().to_string()` at construction time (verified in the `admin_token` field initialization in `CrowdstrikeState::default`). There is no dev-mode no-token path. |
 | EC-003 | Token sidecar exists but clone name is absent (e.g., `configure threatintel` after `start` that did not include threatintel) | E-DEMO-007: "clone 'threatintel' not found in token sidecar '.prism-dtu-demo-server.admin-tokens.json'" — exits code 1 |
 | EC-004 | Token sidecar missing (server not running or different cwd) | E-DEMO-007: "token sidecar not found (start the demo server first with start or start-multi)" — exits code 1 |
 | EC-005 | Ambiguous bare sensor name in `start-multi` mode (multiple orgs have same sensor) | Same disambiguation rule as `resolve_configure_url`: E-DEMO-007 with message "Bare sensor name '{name}' is ambiguous — found in N orgs: ["org-a", "org-b"]. Use full '{org_slug}-{sensor_id}' form." — the org list is rendered via Rust `{:?}` on a `Vec<String>`, producing quoted strings (e.g. `["org-a", "org-b"]`), consistent with the sibling `resolve_configure_url` ambiguity arm (same `{:?}` format, verified in the multi-match ambiguity arm of `resolve_configure_token` in `multi_org_cmd.rs`). |
@@ -393,6 +393,7 @@ already-present workspace dependencies (`serde_json`, `reqwest`, `tokio`, `std`)
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| v0.6 | 2026-07-16 | product-owner FIX-BURST-5 SPEC (F-ADMTOK-P6-LOW-003) | TD-VSDD-091 full sibling sweep — 3 volatile line pins replaced with behavioral anchors. (1) AC-002 bullet: "line ~354-365 of multi_instance.rs" → "in the watcher-spawn loop of start_instances in multi_instance.rs". (2) EC-001: "cmd_configure lines ~583-585" → "the non-2xx status-print-and-exit block of cmd_configure". (3) EC-002: "CrowdstrikeState::default() line ~415" → "the admin_token field initialization in CrowdstrikeState::default". Excepted (unchanged): §Root Cause TD-VSDD-060 enumeration table "Line range (approx.)" column — justified citation table. |
 | v0.5 | 2026-07-16 | product-owner FIX-BURST-4 SPEC (F-ADMTOK-P4-MED-001) | POL-22 Phase A violation: §Root Cause block-quoted "ADR-003 Amendment #5, item 5" with fabricated text that does not exist in the ADR. Replaced with two verbatim ADR anchors: (1) Amendment #5 §Decision paragraph ("POST /dtu/configure on every DTU clone MUST require a valid X-Admin-Token header…") establishing the server-side requirement; (2) Amendment #5 §Implementation item 4 ("All 12 existing td_wv0_04 configure tests…and all other integration tests calling /dtu/configure: updated to include .header(…)") showing item 4 scoped to integration tests only — cmd_configure is a CLI path, not a test, so it was not covered. Narrative conclusion (cmd_configure was the un-updated caller) preserved. POL-25 sweep: one "item 5" citation in the file (line 100) — corrected. |
 | v0.4 | 2026-07-16 | product-owner FIX-BURST-2 SPEC (F-ADMTOK-P2-LOW-001) | TD-VSDD-091: volatile line pin "lines 1068-1076" in EC-005 replaced with behavioral anchor "the multi-match ambiguity arm of `resolve_configure_token` in `multi_org_cmd.rs`" — line numbers decay on subsequent diffs; function + arm name is stable. |
 | v0.3 | 2026-07-16 | product-owner FIX-BURST-1 SPEC | F-ADMTOK-P1-MED-001: BC-2.06.017 version pin v1.10 → v1.11 (Relevant Clause cell updated to note v1.11 formally enumerates admin_token_map and TOKEN_MULTI_FILE). F-ADMTOK-P1-LOW-001: EC-005 message template reconciled — org list rendering changed from unquoted `[org-a, org-b]` to `{:?}`-quoted `["org-a", "org-b"]` to match `resolve_configure_token` code (multi_org_cmd.rs lines 1068-1076) and be consistent with sibling `resolve_configure_url` ambiguity arm. |
