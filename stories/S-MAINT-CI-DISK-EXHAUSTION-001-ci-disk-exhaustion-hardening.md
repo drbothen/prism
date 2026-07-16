@@ -6,7 +6,7 @@ wave: tbd
 epic_id: maintenance
 priority: P2
 status: ready
-version: "0.17"
+version: "0.18"
 level: ops
 producer: story-writer
 timestamp: "2026-07-15"
@@ -70,7 +70,7 @@ points: 5
 estimated_days: 1
 risk: MEDIUM
 acceptance_criteria_count: 7
-red_gate_tests: 7
+red_gate_tests: 9
 estimated_passes: "1"
 holdout_scenarios: []
 assumption_validations: []
@@ -334,6 +334,8 @@ After the `.github/workflows/ci.yml` changes are pushed to a maintenance branch
 green (all Linux legs pass without re-run) before the PR is merged. The PR description
 records the three GitHub Actions run IDs as evidence.
 
+**NOTE (v0.18):** Run 29524703679 attempt-1 on HEAD bd65e93a (2026-07-16) is DISQUALIFIED as green evidence — it failed on the fallback mechanism defect diagnosed as F-MAINT-P9-HIGH-001/002. AC-005 requires green without re-run; the three-consecutive-green record restarts on the post-fix HEAD after v0.18 spec changes are applied to the implementation.
+
 The changes in this story MUST ride `maintenance/ci-disk-hardening` and NOT be merged
 through any open defect PR branch (e.g., `fix/DEFECT-*`), to keep CI infrastructure
 changes cleanly bisectable.
@@ -366,13 +368,20 @@ the fix scope is deterministic and bounded).
           # Apt-mirror resilience: combined two-attempt pattern (F-MAINT-P8-LOW-003).
           # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
           # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
-          # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
+          # outside our control; on failure remove third-party source files and rewrite Ubuntu
+          # mirror hosts (host-anchored, http://) to the canonical azure archive (F-MAINT-P9-HIGH-001/002).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y musl-tools ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y musl-tools
@@ -388,13 +397,20 @@ the fix scope is deterministic and bounded).
           # Apt-mirror resilience: combined two-attempt pattern (F-MAINT-P8-LOW-003).
           # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
           # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
-          # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
+          # outside our control; on failure remove third-party source files and rewrite Ubuntu
+          # mirror hosts (host-anchored, http://) to the canonical azure archive (F-MAINT-P9-HIGH-001/002).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -409,13 +425,20 @@ the fix scope is deterministic and bounded).
           # Apt-mirror resilience: combined two-attempt pattern (F-MAINT-P8-LOW-003).
           # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
           # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
-          # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
+          # outside our control; on failure remove third-party source files and rewrite Ubuntu
+          # mirror hosts (host-anchored, http://) to the canonical azure archive (F-MAINT-P9-HIGH-001/002).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -433,9 +456,15 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -452,9 +481,15 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -471,9 +506,15 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -490,9 +531,15 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -509,9 +556,15 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -528,9 +581,15 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -546,9 +605,15 @@ the fix scope is deterministic and bounded).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y shellcheck ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y shellcheck
@@ -568,9 +633,15 @@ It MUST be converted to the combined two-attempt form:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config gnome-keyring dbus-x11 ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config gnome-keyring dbus-x11
@@ -588,6 +659,14 @@ count=$(grep -cE '^\s+if ! \( sudo apt-get update && sudo apt-get install' .gith
   exit 1
 }
 echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 e2e.yml check passed: apt-mirror resilience found ${count} times (≥1 required)."
+# RG-7b: e2e.yml fallback includes third-party source-list removal (F-MAINT-P9-HIGH-001).
+# Self-match-proof: assertion lines start with whitespace+count=$(grep..., not whitespace+sudo.
+count=$(grep -cE '^\s+sudo rm -f /etc/apt/sources.list.d/microsoft-prod\.list' .github/workflows/e2e.yml)
+[ "$count" -ge 1 ] || {
+  echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 e2e.yml: fallback source-list removal missing (found ${count}; need ≥1 — F-MAINT-P9-HIGH-001)"
+  exit 1
+}
+echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 e2e.yml fallback-rm check passed: ${count} sites (≥1 required)."
 ```
 
 The implementer MUST also update the final summary echo in `verify-workflow-structure` to add
@@ -596,7 +675,13 @@ from `18` to `19` (`16 reachability` → `17 reachability`).
 
 **Combined update+install rationale (F-MAINT-P8-LOW-003):** The original pattern only guarded the `apt-get update` phase; a mirror-failure during the subsequent `apt-get install` package-fetch phase ("E: Unable to fetch some archives") was unguarded. The combined form `if ! ( sudo apt-get update && sudo apt-get install -y <pkgs> ); then` wraps both phases in a single condition: if either phase fails the mirror-rewrite fallback triggers and both phases are retried against azure.archive.ubuntu.com. The fallback block retries BOTH `sudo apt-get update` AND `sudo apt-get install -y <pkgs>` (not just update); if the canonical archive also fails on the install, the step fails loud.
 
-**sed rewrite rationale (host-agnostic):** The pattern `s|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g` rewrites any ubuntu-suite mirror URL to the canonical azure archive regardless of which mirror the runner image was configured to use. It covers both classic `deb https://<mirror>/ubuntu <suite>` lines (in `/etc/apt/sources.list` and `/etc/apt/sources.list.d/*.list`) and deb822 `URIs: https://<mirror>/ubuntu` lines (in `/etc/apt/sources.list.d/*.sources`, which ubuntu-24.04 runner images ship). The `2>/dev/null || true` on each `sed` invocation handles the case where the target glob expands to no files (no-op, error suppressed). The fallback `sudo apt-get update` (and install) are NOT wrapped in `|| true` — if the canonical archive also fails, the step must fail loud.
+**sed rewrite rationale (redesigned F-MAINT-P9-HIGH-001/002):** The original pattern `s|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g` was defective in two ways: (1) `[^ ]*` is greedy and matches the host up to the LAST `/ubuntu` occurrence in the token, meaning `packages.microsoft.com/ubuntu/24.04/prod` matched with `[^ ]*` = `packages.microsoft.com` — silently corrupting the MS source entry to `azure.archive.ubuntu.com/ubuntu/24.04/prod` (a nonexistent path); (2) the rewrite emitted `https://` but `azure.archive.ubuntu.com` is HTTP-only — the `:443` connection timed out. Evidence: run 29524703679 attempt-1 on bd65e93a.
+
+The redesigned fallback has three ordered steps:
+
+**Step 1 — Remove third-party source files:** `sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true`. None of our wrapped install payloads (libdbus-1-dev, musl-tools, build-essential, libc6-dev, clang, libclang-dev, pkg-config, gnome-keyring, dbus-x11, shellcheck) require these third-party repos. `rm -f` is idempotent (silent success if already absent). This eliminates the 403-class trigger before the sed step runs.
+
+**Step 2 — Host-anchored HTTP mirror rewrite:** Two separate `sed -i -E` invocations (one for `/etc/apt/sources.list` + `*.list` classic format; one for `*.sources` deb822 format — ubuntu-24.04 runner images use deb822 for the main Ubuntu repos). Each invocation uses two `-e` expressions: `'s|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g'` (URL followed by space — classic sources.list deb-line format) and `'s|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g'` (URL at end of line — deb822 `URIs:` field). The `[^/ ]*` character class (excluding BOTH spaces AND forward-slashes) matches only the URL authority (hostname) — it cannot span across path components. Therefore `/ubuntu` in a path like `packages.microsoft.com/ubuntu/24.04/prod` cannot trigger the replacement because the trailing context after `/ubuntu` is `/` (another path segment), not whitespace or end-of-line. The rewrite emits `http://` (not `https://`) because `azure.archive.ubuntu.com` is HTTP-only. The `2>/dev/null || true` on each `sed` invocation suppresses missing-file errors when globs expand to no files. The fallback `sudo apt-get update` (and install) are NOT wrapped in `|| true` — if the canonical archive also fails, the step must fail loud.
 
 The `verify-workflow-structure` job gains a Red Gate assertion confirming the combined two-attempt pattern is present in ≥12 steps in ci.yml (10 apt-install steps + 2 AC-007 toolchain installs share the same `if ! ( sudo apt-get update && sudo apt-get install` keyword; Red Gate test 5, F-MAINT-P8-LOW-003 grep updated). Derivation: 3 original sites + 7 new sites = 10 AC-006 apt-install sites; the 2 AC-007 C toolchain steps also use the AC-006 wrapper, contributing 2 more matches for a total of 12. The e2e.yml site is checked separately by RG-7 (not counted here):
 
@@ -610,6 +695,15 @@ count=$(grep -cE '^\s+if ! \( sudo apt-get update && sudo apt-get install' .gith
   exit 1
 }
 echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 check passed: apt-mirror resilience found ${count} times (≥12 required: 10 apt-install steps + 2 AC-007 toolchain installs)."
+# RG-5b: canonical fallback includes third-party source-list removal (F-MAINT-P9-HIGH-001).
+# Each of the 12 apt-wrapper fallback blocks must contain the sudo rm -f guard.
+# Self-match-proof: assertion lines start with whitespace+count=$(grep..., not whitespace+sudo.
+count=$(grep -cE '^\s+sudo rm -f /etc/apt/sources.list.d/microsoft-prod\.list' .github/workflows/ci.yml)
+[ "$count" -ge 12 ] || {
+  echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006: fallback source-list removal missing from ≥12 apt-wrapper sites (found ${count}; need 12 — F-MAINT-P9-HIGH-001)"
+  exit 1
+}
+echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 fallback-rm check passed: ${count} sites (≥12 required)."
 ```
 
 The implementer MUST also update the final summary echo in `verify-workflow-structure` to add `+ S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12)` to the assertion list and bump the total from `16` to `17` (`14 reachability` → `15 reachability`).
@@ -639,9 +733,15 @@ The install is idempotent (`apt-get install -y` is a no-op when packages are alr
           # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
           # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
           if ! ( sudo apt-get update && sudo apt-get install -y build-essential libc6-dev clang libclang-dev ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y build-essential libc6-dev clang libclang-dev
@@ -664,9 +764,15 @@ The install is idempotent (`apt-get install -y` is a no-op when packages are alr
           # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
           # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
           if ! ( sudo apt-get update && sudo apt-get install -y build-essential libc6-dev clang libclang-dev ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y build-essential libc6-dev clang libclang-dev
@@ -736,7 +842,7 @@ runs on the same ubuntu-latest disk envelope and is subject to the same class of
 (F-CIDISK-P4-MED-002, adjudicated 2026-07-15). The ordering constraint (checkout → reclaim →
 cache restore) applies identically.
 
-**Pre-existing apt install steps — two-attempt pattern (AC-006):** The ten `sudo apt-get update && sudo apt-get install ...` steps across the CI pipeline (Install musl-tools in test matrix; Install libdbus-1-dev in test matrix; Install libdbus-1-dev in test-no-default-features; Install libdbus-1-dev in clippy; Install libdbus-1-dev in semver-checks; Install libdbus-1-dev in fuzz-smoke-vp021; Install libdbus-1-dev in perimeter-compile-fail; Install libdbus-1-dev in non-exhaustive-violation-compile-fail; Install libdbus-1-dev in no-hardcoded-sensors-compile-fail; Install shellcheck in shellcheck-demo-scripts) must each be expanded from the single-attempt inline form into the two-attempt pattern specified in AC-006. The sed rewrite is host-agnostic: it matches any `https?://…/ubuntu` mirror URL (not just mirror.enzu.com), covering both classic sources.list and deb822 .sources file formats. The `2>/dev/null || true` on each sed silences missing-file errors. The fallback `sudo apt-get update` is NOT `|| true` — canonical archive failures fail loud. No `continue-on-error: true` on these steps; they are not best-effort (unlike the disk-space-reclaimer). See AC-006 for byte-exact snippets and the Red Gate assertion (count ≥ 12).
+**Pre-existing apt install steps — two-attempt pattern (AC-006):** The ten `sudo apt-get update && sudo apt-get install ...` steps across the CI pipeline (Install musl-tools in test matrix; Install libdbus-1-dev in test matrix; Install libdbus-1-dev in test-no-default-features; Install libdbus-1-dev in clippy; Install libdbus-1-dev in semver-checks; Install libdbus-1-dev in fuzz-smoke-vp021; Install libdbus-1-dev in perimeter-compile-fail; Install libdbus-1-dev in non-exhaustive-violation-compile-fail; Install libdbus-1-dev in no-hardcoded-sensors-compile-fail; Install shellcheck in shellcheck-demo-scripts) must each be expanded from the single-attempt inline form into the two-attempt pattern specified in AC-006. The redesigned fallback (F-MAINT-P9-HIGH-001/002) removes third-party apt source files first (`sudo rm -f microsoft-prod.list azure-cli.list`), then applies a host-anchored HTTP mirror rewrite using two `-e` expressions per sed invocation: one for URLs followed by whitespace (classic sources.list deb-line format) and one for URLs at end of line (deb822 `URIs:` field); `[^/ ]*` in the pattern prevents matching `/ubuntu` in third-party path segments. Rewrite target is `http://azure.archive.ubuntu.com/ubuntu` (http:// — NOT https://; azure.archive.ubuntu.com is HTTP-only). The `2>/dev/null || true` on each sed silences missing-file errors. The fallback `sudo apt-get update` is NOT `|| true` — canonical archive failures fail loud. No `continue-on-error: true` on these steps; they are not best-effort (unlike the disk-space-reclaimer). See AC-006 for byte-exact snippets and the Red Gate assertions (RG-5 count ≥ 12 outer wrapper; RG-5b count ≥ 12 rm-f).
 
 **Ordering constraint:** The disk-space-reclaimer step MUST run after `actions/checkout`
 (so git metadata is intact) and BEFORE `Swatinem/rust-cache` (so the cache restore does
@@ -757,7 +863,7 @@ original from LOCAL pass-2 + AC-7 `semver-checks` + AC-8 `test-no-default-featur
 job-name anchors; F-CIDISK-P4-HIGH-002 + LOW-001, adjudicated 2026-07-15). Error messages
 are preserved verbatim. No other structural changes to the `verify-workflow-structure` job.
 
-**Pass-6 traceability (LOW-001 + OBS-002, updated v0.17):** The ci.yml summary echo must use the code-authoritative assertion count: 12 pre-existing reachability (9 original + 3 added by develop between story writing and rebase to 4f9a5c6f: wasm32-threatintel-staleness-check + F-MCPRS-PRL14-LOW-001 ×2) + 4 new count-based reachability (AC-001, AC-002, AC-006, AC-007) + 1 new e2e.yml reachability (RG-7, F-MAINT-P8-MED-004) + 2 new config-invariant (AC-003 assertions 3+4) = 19 total (17 reachability + 2 config-invariant, matching the ci.yml summary echo). All story §Tasks echo-bump instructions use the post-rebase base of 12 pre-existing + 2 post-AC-001/002 = 14 reachability as the starting point before AC-006. S-MAINT prefix required on AC-006/AC-007/e2e-AC-006 echo items to disambiguate from pre-existing PLUGIN-MIGRATION-001-F "AC-006" item.
+**Pass-6 traceability (LOW-001 + OBS-002, updated v0.18):** The ci.yml summary echo must use the code-authoritative assertion count: 12 pre-existing reachability (9 original + 3 added by develop between story writing and rebase to 4f9a5c6f: wasm32-threatintel-staleness-check + F-MCPRS-PRL14-LOW-001 ×2) + 4 new count-based reachability (AC-001, AC-002, AC-006, AC-007) + 1 new e2e.yml reachability (RG-7, F-MAINT-P8-MED-004) + 2 new fallback-form reachability (RG-5b: rm-f count ≥ 12 in ci.yml; RG-7b: rm-f count ≥ 1 in e2e.yml; F-MAINT-P9-HIGH-001) + 2 new config-invariant (AC-003 assertions 3+4) = 21 total (19 reachability + 2 config-invariant, matching the ci.yml summary echo). All story §Tasks echo-bump instructions use the post-rebase base of 12 pre-existing + 2 post-AC-001/002 = 14 reachability as the starting point before AC-006. S-MAINT prefix required on AC-006/AC-007/e2e-AC-006 echo items to disambiguate from pre-existing PLUGIN-MIGRATION-001-F "AC-006" item.
 
 ## §Token Budget Estimate
 
@@ -809,7 +915,9 @@ Well within a single agent context window; no splitting required.
 - [ ] `test-no-default-features` job: add identical `Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)` step using the AC-006 two-attempt wrapper BEFORE the build phase; unconditional (AC-007)
 - [ ] `verify-workflow-structure` job: add AC-007 Red Gate assertion (`count=$(grep -cE '^\s+sudo apt-get install -y build-essential libc6-dev clang libclang-dev\s*$' .github/workflows/ci.yml)` + `[ "$count" -ge 2 ]`) before the final summary echo; update summary echo: add `+ S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2)` to assertion list; change `15 reachability assertions` to `16 reachability assertions`; change `= 17 total checks` to `= 18 total checks` (AC-007 Red Gate test 6)
 - [ ] `verify-workflow-structure` job: add RG-7 assertion (`count=$(grep -cE '^\s+if ! \( sudo apt-get update && sudo apt-get install' .github/workflows/e2e.yml)` + `[ "$count" -ge 1 ]`) before the final summary echo; update summary echo: add `+ S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1)` to assertion list; change `16 reachability assertions` to `17 reachability assertions`; change `= 18 total checks` to `= 19 total checks` (RG-7, F-MAINT-P8-MED-004)
-- [ ] Record three consecutive green CI run IDs in the PR description (AC-005 evidence)
+- [ ] `verify-workflow-structure` job: add RG-5b assertion (`count=$(grep -cE '^\s+sudo rm -f /etc/apt/sources.list.d/microsoft-prod\.list' .github/workflows/ci.yml)` + `[ "$count" -ge 12 ]`) before the final summary echo; update summary echo: add `+ S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-rm (count≥12)` to assertion list; change `17 reachability assertions` to `18 reachability assertions`; change `= 19 total checks` to `= 20 total checks` (RG-5b fallback source-removal lock; F-MAINT-P9-HIGH-001)
+- [ ] `verify-workflow-structure` job: add RG-7b assertion (`count=$(grep -cE '^\s+sudo rm -f /etc/apt/sources.list.d/microsoft-prod\.list' .github/workflows/e2e.yml)` + `[ "$count" -ge 1 ]`) before the final summary echo; update summary echo: add `+ S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-rm (count≥1)` to assertion list; change `18 reachability assertions` to `19 reachability assertions`; change `= 20 total checks` to `= 21 total checks` (RG-7b fallback source-removal lock; F-MAINT-P9-HIGH-001)
+- [ ] Record three consecutive green CI run IDs in the PR description (AC-005 evidence; NOTE: run 29524703679 attempt-1 on bd65e93a is disqualified — see AC-005 v0.18 NOTE; restarts on post-fix HEAD)
 
 ## §Previous Story Intelligence
 
@@ -852,12 +960,13 @@ and `wasm32-compile-check` assertion pattern established during S-PLUGIN-PREREQ-
   must NOT be changed (carve-out ratified v0.6 + F-MAINT-P8-MED-001)
 - The `verify-workflow-structure` job's existing assertions (AC-5 `TARGET_COUNT >= 5`,
   AC-6 cargo-deny/audit, AC-7 semver, AC-8 no-default-features, non-exhaustive, wasm32
-  checks) must ALL pass after this story's modifications; the seven new assertions (AC-001
-  count ≥ 2, AC-002 count ≥ 2, AC-006 count ≥ 12, AC-007 count ≥ 2, RG-7 e2e.yml count ≥ 1,
-  AC-003 assertions 3 and 4) are additive, and the 7 pre-existing reachability assertions
-  (5 original + AC-7 semver-checks + AC-8 test-no-default-features) are updated in-place to
-  self-match-proof anchored forms (see §Tasks sibling-sweep task); no other structural changes.
-  The final summary echo must reflect 19 total checks (17 reachability + 2 config-invariant)
+  checks) must ALL pass after this story's modifications; the nine new assertions (AC-001
+  count ≥ 2, AC-002 count ≥ 2, AC-006 count ≥ 12, RG-5b rm-f count ≥ 12, AC-007 count ≥ 2,
+  RG-7 e2e.yml count ≥ 1, RG-7b e2e.yml rm-f count ≥ 1, AC-003 assertions 3 and 4) are
+  additive, and the 7 pre-existing reachability assertions (5 original + AC-7 semver-checks
+  + AC-8 test-no-default-features) are updated in-place to self-match-proof anchored forms
+  (see §Tasks sibling-sweep task); no other structural changes.
+  The final summary echo must reflect 21 total checks (19 reachability + 2 config-invariant)
 - All new GitHub Actions steps must be pinned to a specific commit SHA with a `# vN.N.N`
   comment per the project SHA-pinning policy (every existing action in ci.yml is
   commit-pinned; no exceptions)
@@ -887,8 +996,8 @@ New `apt-get` packages installed by AC-007 C toolchain baseline step (CI runner 
 
 | File | Action | Notes |
 |------|--------|-------|
-| `.github/workflows/ci.yml` | MODIFY | Linux Test job legs: add preflight (AC-001), disk-space-reclaimer with `swap-storage: false, continue-on-error: true` (AC-002; best-effort per EC-009; gate is the authoritative check), ≥25 GB gate (AC-002; `df -P /` 1K-block form + `AVAIL_GB=${AVAIL_GB:-0}` guard), failure annotation (AC-004; `USED_PCT=${USED_PCT:-0}` guard); `test-no-default-features` job: mirror same three protective steps + failure annotation (F-CIDISK-P4-MED-002); DO NOT add `CARGO_PROFILE_DEV_DEBUG` (AC-003 — it is a no-op; forbidden); convert ten `sudo apt-get update && sudo apt-get install ...` steps to two-attempt mirror-resilience form: 3 original steps (Install musl-tools in test matrix; Install libdbus-1-dev in test matrix; Install libdbus-1-dev in test-no-default-features) + 7 new steps (clippy → libdbus-1-dev pkg-config; semver-checks → libdbus-1-dev pkg-config; fuzz-smoke-vp021 → libdbus-1-dev pkg-config; perimeter-compile-fail → libdbus-1-dev pkg-config; non-exhaustive-violation-compile-fail → libdbus-1-dev pkg-config; no-hardcoded-sensors-compile-fail → libdbus-1-dev pkg-config; shellcheck-demo-scripts → shellcheck) (AC-006; F-CIDISK-PR1-OBS-001; byte-exact snippets in AC-006 section); add `Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)` step with outer step-level preamble (4-line comment block above `- name:`) via AC-006 two-attempt wrapper BEFORE any cargo build phase in both Linux workspace-build jobs (AC-007; DRIFT-CI-STDBOOL-001 revised — self-inflicted toolchain removal by reclaimer, not runner-image omission; F-CIDISK-PR1-MED-001); `verify-workflow-structure` job: AC-001 count assertion (≥2; `^\s+- name: Report initial disk space\s*$`) + AC-002 count assertion (≥2; `^\s+uses: insightsengineering/disk-space-reclaimer`) + AC-006 count assertion (≥12; `^\s+if ! \( sudo apt-get update && sudo apt-get install`; 10 apt-install steps + 2 AC-007 toolchain installs; F-CIDISK-PR1-MED-002, grep updated F-MAINT-P8-LOW-003) + AC-007 count assertion (≥2; `^\s+sudo apt-get install -y build-essential libc6-dev clang libclang-dev\s*$`) + RG-7 e2e.yml count assertion (≥1; `^\s+if ! \( sudo apt-get update && sudo apt-get install` against e2e.yml; F-MAINT-P8-MED-004) + two AC-003 `.cargo/config.toml` invariant checks + anchor 7 pre-existing reachability assertions (5 original + AC-7 `semver-checks` + AC-8 `test-no-default-features`; see §Tasks sibling-sweep) + update summary echo to 19 total / 17 reachability; no other jobs touched |
-| `.github/workflows/e2e.yml` | MODIFY | `Install keyring runtime dependencies (libdbus-1-dev, gnome-keyring, dbus-x11)` step: convert from single-attempt inline form to AC-006 combined two-attempt wrapper form (byte-exact snippet from AC-006 e2e.yml scope extension paragraph); F-MAINT-P8-MED-004 |
+| `.github/workflows/ci.yml` | MODIFY | Linux Test job legs: add preflight (AC-001), disk-space-reclaimer with `swap-storage: false, continue-on-error: true` (AC-002; best-effort per EC-009; gate is the authoritative check), ≥25 GB gate (AC-002; `df -P /` 1K-block form + `AVAIL_GB=${AVAIL_GB:-0}` guard), failure annotation (AC-004; `USED_PCT=${USED_PCT:-0}` guard); `test-no-default-features` job: mirror same three protective steps + failure annotation (F-CIDISK-P4-MED-002); DO NOT add `CARGO_PROFILE_DEV_DEBUG` (AC-003 — it is a no-op; forbidden); convert ten `sudo apt-get update && sudo apt-get install ...` steps to two-attempt mirror-resilience form: 3 original steps (Install musl-tools in test matrix; Install libdbus-1-dev in test matrix; Install libdbus-1-dev in test-no-default-features) + 7 new steps (clippy → libdbus-1-dev pkg-config; semver-checks → libdbus-1-dev pkg-config; fuzz-smoke-vp021 → libdbus-1-dev pkg-config; perimeter-compile-fail → libdbus-1-dev pkg-config; non-exhaustive-violation-compile-fail → libdbus-1-dev pkg-config; no-hardcoded-sensors-compile-fail → libdbus-1-dev pkg-config; shellcheck-demo-scripts → shellcheck) (AC-006; F-CIDISK-PR1-OBS-001; byte-exact snippets in AC-006 section); add `Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)` step with outer step-level preamble (4-line comment block above `- name:`) via AC-006 two-attempt wrapper BEFORE any cargo build phase in both Linux workspace-build jobs (AC-007; DRIFT-CI-STDBOOL-001 revised — self-inflicted toolchain removal by reclaimer, not runner-image omission; F-CIDISK-PR1-MED-001); `verify-workflow-structure` job: AC-001 count assertion (≥2; `^\s+- name: Report initial disk space\s*$`) + AC-002 count assertion (≥2; `^\s+uses: insightsengineering/disk-space-reclaimer`) + AC-006 count assertion (≥12; `^\s+if ! \( sudo apt-get update && sudo apt-get install`; 10 apt-install steps + 2 AC-007 toolchain installs; F-CIDISK-PR1-MED-002, grep updated F-MAINT-P8-LOW-003) + AC-007 count assertion (≥2; `^\s+sudo apt-get install -y build-essential libc6-dev clang libclang-dev\s*$`) + RG-7 e2e.yml count assertion (≥1; `^\s+if ! \( sudo apt-get update && sudo apt-get install` against e2e.yml; F-MAINT-P8-MED-004) + RG-5b fallback-rm count assertion (≥12; `^\s+sudo rm -f /etc/apt/sources.list.d/microsoft-prod\.list` in ci.yml; F-MAINT-P9-HIGH-001) + RG-7b fallback-rm count assertion (≥1; same pattern against e2e.yml; F-MAINT-P9-HIGH-001) + two AC-003 `.cargo/config.toml` invariant checks + anchor 7 pre-existing reachability assertions (5 original + AC-7 `semver-checks` + AC-8 `test-no-default-features`; see §Tasks sibling-sweep) + update summary echo to 21 total / 19 reachability; no other jobs touched |
+| `.github/workflows/e2e.yml` | MODIFY | `Install keyring runtime dependencies (libdbus-1-dev, gnome-keyring, dbus-x11)` step: convert from single-attempt inline form to AC-006 combined two-attempt wrapper form (byte-exact snippet from AC-006 e2e.yml scope extension paragraph; redesigned fallback with rm-f + host-anchored http sed); F-MAINT-P8-MED-004 / F-MAINT-P9-HIGH-001/002 |
 
 No new files required. The `insightsengineering/disk-space-reclaimer` action is invoked
 as an inline `uses:` step; it does not require a new config file in the repository.
@@ -922,11 +1031,12 @@ as an inline `uses:` step; it does not require a new config file in the reposito
 | EC-007 | Preflight `df -h` step placed after `actions/checkout` instead of before | The preflight MUST be before checkout to capture the true baseline; checkout restores git metadata and may trigger cache actions. Verify ordering in the delivered YAML. |
 | EC-008 | `swap-storage: false` — OOM headroom preservation trade-off | Swap (~4 GB) is deliberately preserved. The linux-gnu leg runs a 1000-PROPTEST_CASES nextest run followed by doctests; a pre-existing OOM-kill risk exists in that leg. The remaining reclaim inputs (android/dotnet/haskell/docker-images/large-packages) still deliver 21–31 GB, satisfying the ≥25 GB gate. Future maintainers: do NOT re-enable `swap-storage: true` without first verifying the doctest OOM risk is resolved. (F-CIDISK-P4-MED-001, adjudicated 2026-07-15.) |
 | EC-009 | apt-mirror flake / partial-reclaim: `large-packages: true` triggers `apt-get` against the runner's rotating apt mirror; the mirror can return HTTP 404 Release files on rotation (evidence: CI run 29437306537, 2026-07-15, mirror.enzu.com, apt exit code 100, reclaimer step failed — ALL THREE hardened Linux jobs failed BEFORE the ≥25 GB gate) | `continue-on-error: true` on the reclaimer step allows the job to proceed to the ≥25 GB gate regardless of reclaimer exit code. If disk is ≥25 GB despite partial/zero reclaim, the build continues. If below 25 GB, the gate exits 1 loud with the actual free-GB count. Trade-off: `continue-on-error` can mask persistent action breakage (e.g., an action update that breaks the inputs API); mitigated because the ≥25 GB gate provides ground-truth disk verification on every run and fails loud when reclaim genuinely under-delivers. |
-| EC-010 | Persistent apt-mirror outage affecting pre-existing apt install steps: the runner image selects its apt mirror at image-build time; a mirror that returns HTTP 404 Release files (or is otherwise unreachable) causes all `sudo apt-get update` invocations in the job to fail with exit code 100, regardless of `continue-on-error` on the reclaimer step (the reclaimer's `continue-on-error` does not propagate to other steps). Evidence: run 29438854846 rerun (2026-07-15) — mirror.enzu.com 404 blocked `Install musl-tools` (test matrix) and `Install libdbus-1-dev pkg-config` (test-no-default-features) even after EC-009 fix had landed. Runner-image mirror selection is entirely outside our control; we cannot pre-screen or change the runner's default apt mirror. | Two-attempt pattern per AC-006: first attempt `sudo apt-get update`; on failure rewrite all ubuntu-suite mirror URLs in both classic sources.list forms (`/etc/apt/sources.list` and `/etc/apt/sources.list.d/*.list`) and deb822 form (`/etc/apt/sources.list.d/*.sources`) to `azure.archive.ubuntu.com` (always-authoritative canonical archive); then retry `sudo apt-get update`. Trade-off: the fallback adds ~seconds only on failure (rewrite + retry is cheap); azure.archive.ubuntu.com is slower than mirrors but always authoritative. No `continue-on-error` on these steps — they are not best-effort; if the canonical archive also fails, the job fails loud. |
+| EC-010 | Persistent apt-mirror outage affecting pre-existing apt install steps: the runner image selects its apt mirror at image-build time; a mirror that returns HTTP 404 Release files (or is otherwise unreachable) causes all `sudo apt-get update` invocations in the job to fail with exit code 100, regardless of `continue-on-error` on the reclaimer step (the reclaimer's `continue-on-error` does not propagate to other steps). Evidence: run 29438854846 rerun (2026-07-15) — mirror.enzu.com 404 blocked `Install musl-tools` (test matrix) and `Install libdbus-1-dev pkg-config` (test-no-default-features) even after EC-009 fix had landed. Runner-image mirror selection is entirely outside our control; we cannot pre-screen or change the runner's default apt mirror. | Redesigned two-attempt pattern per AC-006 (F-MAINT-P9-HIGH-001/002): on first-attempt failure, (1) remove known third-party source files (`microsoft-prod.list`, `azure-cli.list`) whose repos we never install from — eliminates 403-class triggers; (2) host-anchored sed rewrites Ubuntu archive mirror HOSTS using two `-e` expressions (URL-followed-by-space and URL-at-end-of-line) — ensures `/ubuntu` in third-party path segments like `packages.microsoft.com/ubuntu/24.04/prod` cannot match; rewrite target is `http://azure.archive.ubuntu.com/ubuntu` (HTTP-only; `https://` on `:443` times out); covers classic `.list` and deb822 `.sources` forms; then (3) retry `sudo apt-get update && sudo apt-get install -y <pkgs>`. `azure.archive.ubuntu.com` is authoritative over HTTP (HTTP-only). Trade-off: fallback adds ~seconds only on failure; azure.archive.ubuntu.com is slower than mirrors but authoritative. No `continue-on-error` on these steps — not best-effort; if the canonical archive also fails, the job fails loud. |
 | EC-011 | Runner-image toolchain regression — `ubuntu-latest` image `ubuntu24/20260705.232` ships without `libc6-dev` and `build-essential`, causing C-compilation failures in native build scripts (rocksdb-sys v0.17.3+10.4.2). DRIFT-CI-STDBOOL-001 (2026-07-15): observed in PR #224 pull_request CI runs; both Linux legs (test matrix + test-no-default-features) failed with `fatal error: 'stdbool.h' file not found`. The push-event CI succeeded because that run landed on a different runner image revision that retained libc6-dev. Runner-image regressions of this class are unpredictable — GitHub does not allow pinning the runner image version on `ubuntu-latest`-labeled hosted runners; any `ubuntu-latest` relabelling can silently drop previously-installed packages. **[v0.13 FALSIFIED]** This hypothesis is refuted by CI evidence from job 87471517229 (run 29450000494, 2026-07-15): FA596F92 branch (which includes the v0.11 AC-007 `build-essential libc6-dev` install) still failed all 6 Linux test legs. The causal chain shows the reclaimer removing `libclang-common-*-dev` at 21:05:21, AC-007 successfully installing `build-essential libc6-dev` at 21:05:52, and the build STILL failing at 21:10:26 with `stdbool.h`. The root cause is self-inflicted clang-toolchain removal by this story's own AC-002 reclaim step, not a runner-image omission. See EC-012 for the corrected root cause. | **[v0.13 SUPERSEDED]** Original mitigation (install `build-essential libc6-dev`) was insufficient — those packages do not provide the clang builtin resource headers removed by the reclaimer. Corrected mitigation in EC-012: install `clang libclang-dev` meta-packages in addition. |
 | EC-012 | Self-inflicted toolchain removal — AC-002 disk-space-reclaimer `large-packages: true` purge removes `libclang-common-16-dev`, `libclang-common-17-dev`, `libclang-common-18-dev`, and `libclang-rt-{16,17,18}-dev` from the runner image. `librocksdb-sys v0.17.3+10.4.2` generates bindings via bindgen → libclang; `stdbool.h` is a **clang builtin resource header** shipped by `libclang-common-<N>-dev` — NOT by `libc6-dev`. Failure is masked on cache-hit runs (Swatinem/rust-cache restores a prior librocksdb-sys artifact, bindgen never re-runs, and the missing headers are invisible), explaining push-event vs pull_request divergence. Evidence: CI job 87471517229 (run 29450000494, image ubuntu-24.04 Version 20260705.232.1, 2026-07-15): reclaimer removed `libclang-common-*-dev` at 21:05:21; AC-007 installed `build-essential libc6-dev` at 21:05:52 (successfully, proving AC-006 mirror fallback works); `librocksdb-sys` bindgen failed at 21:10:26 with `stdbool.h`. DRIFT-CI-STDBOOL-001 root-cause revision (2026-07-15). | AC-007 mitigates (corrected in v0.13): install `clang` and `libclang-dev` (version-tracking meta-packages; do NOT pin `-18`-suffixed names which break on image/llvm bumps) in addition to `build-essential` and `libc6-dev`, after the reclaimer step. Meta-packages automatically track the runner's active LLVM version and restore the clang resource headers removed by the reclaimer. Install is idempotent (no-op when packages already present). No `continue-on-error` — the packages are mandatory for the build; if the canonical archive fails, the job must fail loud. |
-| EC-013 | apt-get install phase mirror failure ("E: Unable to fetch some archives") — the original two-attempt pattern guarded only `apt-get update`; a mirror that returns 200 on metadata but HTTP errors on package-fetch (partial mirror rotation) caused `apt-get install` to fail with "E: Unable to fetch some archives" while `apt-get update` succeeded, leaving the mirror-rewrite fallback untriggered | Combined update+install form per F-MAINT-P8-LOW-003: `if ! ( sudo apt-get update && sudo apt-get install -y <pkgs> ); then` — the outer condition spans both phases, so a failure at any point in the pipeline (update OR install) triggers the sed rewrite and retry against azure.archive.ubuntu.com. |
+| EC-013 | apt-get install phase mirror failure ("E: Unable to fetch some archives") — the original two-attempt pattern guarded only `apt-get update`; a mirror that returns 200 on metadata but HTTP errors on package-fetch (partial mirror rotation) caused `apt-get install` to fail with "E: Unable to fetch some archives" while `apt-get update` succeeded, leaving the fallback untriggered | Combined update+install form per F-MAINT-P8-LOW-003: `if ! ( sudo apt-get update && sudo apt-get install -y <pkgs> ); then` — the outer condition spans both phases, so a failure at any point (update OR install) triggers the redesigned fallback (rm-f third-party sources + host-anchored http sed rewrite + retry against `http://azure.archive.ubuntu.com/ubuntu`; F-MAINT-P9-HIGH-001/002). |
 | EC-014 | e2e.yml keyring dependency step vulnerable to EC-010 mirror-flake class — `.github/workflows/e2e.yml` `Install keyring runtime dependencies (libdbus-1-dev, gnome-keyring, dbus-x11)` step used single-attempt inline form; not covered by RG-5 (which only counts ci.yml sites) | AC-006 scope extended to e2e.yml per F-MAINT-P8-MED-004: step converted to combined two-attempt form; RG-7 in verify-workflow-structure confirms the pattern is present in e2e.yml (count ≥ 1). |
+| EC-015 | Third-party apt source 403 causing fallback block corruption — `packages.microsoft.com` apt repos (azure-cli, ubuntu-prod) are pre-installed on the ubuntu-24.04 runner image at `/etc/apt/sources.list.d/microsoft-prod.list` and `/etc/apt/sources.list.d/azure-cli.list`. When those sources return HTTP 403 (as observed in run 29524703679 attempt-1 on HEAD bd65e93a, 2026-07-16), `apt-get update` exits 100 and the two-attempt fallback wrapper triggers. The OLD path-segment sed pattern `s|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g` matched the path-segment `/ubuntu` inside `packages.microsoft.com/ubuntu/24.04/prod` (because `[^ ]*` matches `packages.microsoft.com` then `/ubuntu` matches literally), corrupting that source entry to `azure.archive.ubuntu.com/ubuntu/24.04/prod` (a nonexistent URL). Simultaneously, the `https://` rewrite target timed out on `:443` because `azure.archive.ubuntu.com` is HTTP-only. The fallback mechanism was structurally incapable of succeeding (F-MAINT-P9-HIGH-001/002). | Redesigned fallback per F-MAINT-P9-HIGH-001/002: Step 1 removes `/etc/apt/sources.list.d/microsoft-prod.list` and `/etc/apt/sources.list.d/azure-cli.list` via `sudo rm -f 2>/dev/null || true` — our install payloads require no third-party repos; `rm -f` is idempotent and eliminates the 403 trigger entirely. Step 2 applies host-anchored sed with two `-e` expressions: `[^/ ]*/ubuntu ` (trailing space — classic sources.list deb-line) and `[^/ ]*/ubuntu$` (end-of-line — deb822 URIs: field); `[^/ ]*` cannot span across `/` path separators so `packages.microsoft.com/ubuntu/24.04/prod` can no longer match. Rewrite target is `http://azure.archive.ubuntu.com/ubuntu` (http:// scheme only; azure.archive.ubuntu.com is HTTP-only). RG-5b and RG-7b in `verify-workflow-structure` lock the `sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list` presence in all fallback blocks (count ≥ 12 in ci.yml, count ≥ 1 in e2e.yml). |
 
 ## §Purity Classification
 
@@ -977,6 +1087,7 @@ Findings applied in v0.3:
 
 ## §Changelog
 
+- v0.18 (2026-07-16): PR-LEVEL pass-9 spec-layer fix-burst (HEAD frozen bd65e93a). Two HIGH findings addressed. **F-MAINT-P9-HIGH-001** [fallback sed path-segment corruption]: the old pattern `s|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g` matched `/ubuntu` as a PATH SEGMENT in third-party URLs (`packages.microsoft.com/ubuntu/24.04/prod`) because `[^ ]*` (greedy, no slash exclusion) matched `packages.microsoft.com` then `/ubuntu` matched literally — corrupting the MS source entry to `azure.archive.ubuntu.com/ubuntu/24.04/prod` (nonexistent). Evidence: run 29524703679 attempt-1 on bd65e93a. Redesigned fallback: (1) `sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true` — removes third-party source files whose packages we never install; (2) host-anchored sed using `[^/ ]*` (excludes both space and slash) with two `-e` expressions: trailing-space variant for classic .list format and trailing-`$` variant for deb822 .sources URIs: field — `/ubuntu` in a deeper path segment cannot match because it would be followed by `/` not whitespace/EOL. **F-MAINT-P9-HIGH-002** [https:// rewrite target on HTTP-only host]: old pattern emitted `https://azure.archive.ubuntu.com/ubuntu` but `azure.archive.ubuntu.com` is HTTP-only; `:443` timed out. Fixed: rewrite target changed to `http://azure.archive.ubuntu.com/ubuntu`. POL-29 exhaustive sweep: all 13 YAML snippets (10 AC-006 apt-install + 2 AC-007 C toolchain + 1 e2e.yml) updated via replace-all; `sed rewrite rationale (host-agnostic)` paragraph in AC-006 body replaced with redesigned rationale; §Implementation Notes "sed rewrite is host-agnostic" sentence updated; "rewrite any ubuntu mirror URL" comment lines (×3) updated. EC-010 rationale updated: "always-authoritative" → "authoritative over HTTP (HTTP-only)"; redesigned fallback described. EC-013: fallback-redesign reference added. EC-015 added: third-party-source 403 failure class (cites run 29524703679 attempt-1 evidence). RG-5b added: `^\s+sudo rm -f /etc/apt/sources.list.d/microsoft-prod\.list` count ≥ 12 in ci.yml. RG-7b added: same pattern count ≥ 1 in e2e.yml. red_gate_tests: 7 → 9. Echo arithmetic: 19 total (17 reachability + 2 config-invariant) → 21 total (19 reachability + 2 config-invariant). §Tasks: two new task bullets (RG-5b + RG-7b echo-bumps); final-task note added re: run 29524703679 disqualification. §ACR: seven → nine new assertions; 19 → 21 total. §FSR: RG-5b + RG-7b assertions added; 19/17 → 21/19 counts. AC-005: disqualification NOTE added for run 29524703679 attempt-1. Pass-9 LOW-002a (spec-adjacent nit): no `linux-test` phantom references introduced; all new content uses `test (Test matrix)` / `ci.yml` / `e2e.yml` forms.
 - v0.17 (2026-07-16): PR-LEVEL pass-8 spec-side findings closed (PR #224 @4f9a5c6f; HEAD frozen — spec-only fix-burst). Six findings addressed: **F-MAINT-P8-MED-001** [§Architecture Compliance Rules + §Forbidden Patterns carve-outs]: replaced single prohibition row "fmt, clippy, deny, audit, semver-checks, test-no-default-features, non-exhaustive-violation-compile-fail must NOT be modified" with three targeted rules — fmt/deny/audit strictly prohibited; clippy/semver-checks/non-exhaustive-violation-compile-fail/perimeter-compile-fail/no-hardcoded-sensors-compile-fail/fuzz-smoke-vp021/shellcheck-demo-scripts permitted to add AC-006 wrapper only; test-no-default-features permitted to add four v0.6 steps + AC-006 + AC-007; §Forbidden Patterns table split into three rows accordingly. **F-MAINT-P8-MED-002** [arithmetic fixes]: 9 pre-existing → 12 (develop added wasm32-threatintel-staleness-check + F-MCPRS-PRL14-LOW-001 ×2 post-rebase); target echo bumped to 19 total (17 reachability + 2 config-invariant); §Implementation Notes pass-6 traceability rewritten; §Architecture Compliance Rules echo count 15→19, six→seven new assertions; AC-006/AC-007 echo-bump instructions updated (14→15 reachability/16→17 total and 15→16 reachability/17→18 total respectively); red_gate_tests: 6→7; §FSR echo count updated. **F-MAINT-P8-MED-004** [e2e.yml scope extension]: AC-006 extended to `.github/workflows/e2e.yml` `Install keyring runtime dependencies` step; YAML snippet added to AC-006 body; RG-7 assertion added to verify-workflow-structure (count ≥ 1 in e2e.yml); §Tasks: e2e.yml apt-wrapper task + RG-7 echo-bump bullet added; EC-014 added; §FSR: e2e.yml row added. **F-MAINT-P8-LOW-001** [phantom job name linux-test → test]: AC-001/AC-002/AC-007 error echoes corrected to `test (Test matrix)`; AC-007 heading + prose body corrected; §Tasks AC-001/AC-002 counting notes corrected; EC-011 corrected; POL-22 Phase C; changelog rows exempted per POL-32. **F-MAINT-P8-LOW-003** [combined update+install pattern]: all 12 apt snippets (10 AC-006 + 2 AC-007) updated from `if ! sudo apt-get update` to `if ! ( sudo apt-get update && sudo apt-get install -y <pkgs> )` combined form; fallback block retries both phases; RG-5 grep updated to `^\s+if ! \( sudo apt-get update && sudo apt-get install`; rationale paragraph added; EC-013 added. **F-MAINT-P8-OBS-001** [volatile line numbers removed]: §Tasks sibling-sweep sub-bullets stripped of `; line NNN in ci.yml` / `; line NNN` references per TD-VSDD-091; step-name/job-name anchors retained.
 - v0.16 (2026-07-15): PR-LEVEL pass-4 spec-side findings closed (PR #224 @498ffb6c; HEAD frozen — spec-only fix-burst). F-CIDISK-PR4-MED-001 [§Architecture Compliance Rules AC-006 threshold propagation gap]: `AC-006 count ≥ 3` in the "six new assertions" sentence changed to `AC-006 count ≥ 12` — v0.14 (F-CIDISK-PR1-MED-002) tightened the Red Gate assertion and §Tasks/§FSR references but missed this prose sentence; POL-29 exhaustive sweep of all "≥3"-class AC-006 live sites confirms one site corrected, zero remaining outside historical changelog rows. F-CIDISK-PR4-LOW-001 [date corrections, orchestrator dispatch-date error]: v0.15 changelog entry date corrected 2026-07-16→2026-07-15; AC-002 adjudicated no-action items block header date corrected 2026-07-16→2026-07-15; full-file sweep of "2026-07-16" confirms zero occurrences remaining.
 - v0.15 (2026-07-15): PR-LEVEL pass-3 spec-side findings closed (PR #224 @498ffb6c; HEAD frozen — spec-only fix-burst). F-CIDISK-PR3-LOW-001 [AC-002 snippet `with:` block quoted vs unquoted]: `with:` input values changed from quoted strings (`android: "true"`, `dotnet: "true"`, etc.) to unquoted YAML booleans (`android: true`, `dotnet: true`, ..., `swap-storage: false`) — matching the actual ci.yml implementation and the §Tasks/§Implementation Notes narrative (cosmetic; no semantic change to reclaimer behavior). F-CIDISK-PR3-OBS-001 [AC-002 snippet step-name drift]: single generic snippet replaced with two labeled variants following AC-007 v0.12 precedent — Test-matrix job uses `- name: Reclaim disk space (Linux only)`, `test-no-default-features` job uses `- name: Reclaim disk space`; intro prose updated to note step-name difference and identical `with:` blocks. F-CIDISK-PR3-OBS-002/003/004 [no-action ratification]: AC-006 ≥12 threshold by-design note, AC-007 step-position asymmetry within-ordering-contract note, and reclaimer `continue-on-error` EC-009 trade-off note added to AC-002 adjudicated no-action block; all three explicitly adjudicated to prevent re-finding in future fresh-context passes. No AC count changes; no red_gate_tests changes; no semantic behavior changes.
