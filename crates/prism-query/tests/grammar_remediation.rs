@@ -543,8 +543,8 @@ fn test_bc_2_11_grammar015_enrich_missing_column_arg_multi_stage_guidance() {
 /// added to `parse_sqlpipe_internal` in filter_parser.rs causes this test to
 /// fail because the raw Chumsky error does not contain the guided substring.
 ///
-/// BC-2.11.023 AC-025: "in all pipeline positions" mandate requires SqlPipe
-/// pipe-stage errors to be covered by the same rewrite logic as pure-pipe.
+/// BC-2.11.023 §Postconditions D2 (mode-bridge diagnostic parity — ADR-046 D2): SqlPipe
+/// pipe-stage errors must be covered by the same rewrite logic as pure-pipe.
 #[test]
 fn test_bc_2_11_obs1_sqlpipe_enrich_missing_column_arg_guided_error() {
     // `enrich threat_score` is missing the required `(<column>)` argument.

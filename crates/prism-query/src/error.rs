@@ -14,6 +14,11 @@ use serde::{Deserialize, Serialize};
 ///
 /// Multiple errors may be returned in a single parse attempt when Chumsky's
 /// error-recovery strategies are active (S-3.01 §error_recovery).
+///
+/// `#[non_exhaustive]` per CLAUDE.md §Conventions — all pub-API surface types
+/// in prism-query require this attribute (BC-2.11.019 v1.26 §OBS-005,
+/// DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 mechanical item).
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ParseError {
     /// Byte offset in the input string where the error was detected.
@@ -22,6 +27,21 @@ pub struct ParseError {
     pub message: String,
     /// Optional label identifying the recovery point (e.g. `"after 'WHERE'"`).
     pub recovery_label: Option<String>,
+    /// True when this error originates from a semantic-validation site
+    /// (`Rich::custom` / `.validate()` / `.try_map()` returning `Rich::custom`)
+    /// rather than a structural Chumsky parse failure (`RichReason::ExpectedFound`).
+    ///
+    /// Used by:
+    /// - `sql_parser::parse_sql_with_limits`: blocks the F-MEDIUM-001 partial-AST
+    ///   recovery path (semantic errors must propagate as `Err`, not partial `Ok`).
+    /// - `materialization.rs`: uses `e.message` directly (not `e.to_string()`) in
+    ///   the `QueryParseFailed.detail` for semantic errors to avoid doubled
+    ///   "parse error at offset X: " (ADR-048 §D.7.2 de-prefix discipline).
+    ///
+    /// Discriminator replaces the retired `e.message.starts_with("E-QUERY-001:")`
+    /// prefix check (F-PQLFN-PR10-MED-001 fix-burst-41).
+    #[serde(default)]
+    pub semantic: bool,
 }
 
 impl ParseError {
@@ -31,6 +51,40 @@ impl ParseError {
             offset,
             message: message.into(),
             recovery_label: None,
+            semantic: false,
+        }
+    }
+
+    /// Construct a semantic `ParseError` with a message.
+    ///
+    /// Semantic errors originate from `.validate()` / `.try_map()` combinators
+    /// that return `Rich::custom(...)` in the Chumsky parser — they carry structured
+    /// error-code messages (e.g., `"E-QUERY-001: empty query string"`) rather than
+    /// structural `ExpectedFound` descriptions.
+    ///
+    /// Sets `semantic: true` so that materialization.rs applies ADR-048 §D.7.2
+    /// de-prefix discipline (strips the leading `"E-QUERY-001: "` before injecting
+    /// the message as `QueryParseFailed.detail`, preventing doubled prefixes).
+    ///
+    /// External callers constructing semantic errors (e.g., in tests or validators
+    /// outside the Chumsky pipeline) MUST use this constructor instead of direct
+    /// struct literal construction (which is forbidden by `#[non_exhaustive]`).
+    ///
+    /// # Example
+    /// ```
+    /// use prism_query::error::ParseError;
+    /// let err = ParseError::semantic(0, "E-QUERY-001: empty query string");
+    /// assert!(err.semantic);
+    /// assert_eq!(err.message, "E-QUERY-001: empty query string");
+    /// ```
+    ///
+    /// Implements: DEFECT-PQL-FNCALL-LHS-001 F-PQLFN-PR12-LOW-002.
+    pub fn semantic(offset: usize, message: impl Into<String>) -> Self {
+        ParseError {
+            offset,
+            message: message.into(),
+            recovery_label: None,
+            semantic: true,
         }
     }
 
@@ -273,5 +327,65 @@ pub fn truncate_for_display(s: &str, max_bytes: usize) -> std::borrow::Cow<'_, s
             end -= 1;
         }
         std::borrow::Cow::Owned(format!("{}…", &s[..end]))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ParseError;
+
+    // ── ParseError::semantic() constructor (F-PQLFN-PR12-LOW-002) ────────────
+
+    /// `ParseError::semantic()` sets `semantic: true` and preserves the message.
+    ///
+    /// Implements: DEFECT-PQL-FNCALL-LHS-001 F-PQLFN-PR12-LOW-002.
+    #[test]
+    fn test_parse_error_semantic_constructor_sets_flag() {
+        let err = ParseError::semantic(5, "E-QUERY-001: test semantic error");
+        assert!(
+            err.semantic,
+            "ParseError::semantic() must set semantic = true"
+        );
+        assert_eq!(err.offset, 5);
+        assert_eq!(err.message, "E-QUERY-001: test semantic error");
+        assert!(
+            err.recovery_label.is_none(),
+            "ParseError::semantic() must set recovery_label = None"
+        );
+    }
+
+    /// `ParseError::semantic()` Display matches the `ParseError::Display` format.
+    ///
+    /// Format: "parse error at offset N: <message>"
+    ///
+    /// Implements: DEFECT-PQL-FNCALL-LHS-001 F-PQLFN-PR12-LOW-002.
+    #[test]
+    fn test_parse_error_semantic_display() {
+        let err = ParseError::semantic(0, "E-QUERY-001: empty query string");
+        let display = format!("{err}");
+        assert_eq!(
+            display, "parse error at offset 0: E-QUERY-001: empty query string",
+            "ParseError::semantic() Display must match 'parse error at offset N: <message>'"
+        );
+    }
+
+    /// `ParseError::semantic()` differs from `ParseError::new()` only in the `semantic` flag.
+    ///
+    /// Implements: DEFECT-PQL-FNCALL-LHS-001 F-PQLFN-PR12-LOW-002.
+    #[test]
+    fn test_parse_error_semantic_vs_new() {
+        let via_new = ParseError::new(3, "some message");
+        let via_semantic = ParseError::semantic(3, "some message");
+        assert!(
+            !via_new.semantic,
+            "ParseError::new() must have semantic = false"
+        );
+        assert!(
+            via_semantic.semantic,
+            "ParseError::semantic() must have semantic = true"
+        );
+        assert_eq!(via_new.offset, via_semantic.offset);
+        assert_eq!(via_new.message, via_semantic.message);
+        assert_eq!(via_new.recovery_label, via_semantic.recovery_label);
     }
 }

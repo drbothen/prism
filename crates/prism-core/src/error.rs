@@ -73,13 +73,20 @@ impl EnrichUdfNotFoundDetails {
     ///
     /// Required because `#[non_exhaustive]` prevents struct literal construction
     /// from outside `prism-core`. (CLAUDE.md `#[non_exhaustive]` discipline)
+    ///
+    /// **Injection-safety (SEC-001, CWE-117):** the `infusion` field is sanitized via
+    /// [`sanitize_for_log`] at construction — Unicode Cc characters and U+2028/U+2029
+    /// line/paragraph separators are stripped before storage. This guarantees that
+    /// `EnrichUdfNotFoundDetails.infusion` and its `Display` rendering are free of
+    /// log-injection vectors regardless of call site.
+    /// `available_infusions` and `did_you_mean` are server-controlled and untouched.
     pub fn new(
         infusion: impl Into<String>,
         available_infusions: Vec<String>,
         did_you_mean: Option<String>,
     ) -> Self {
         Self {
-            infusion: infusion.into(),
+            infusion: sanitize_for_log(&infusion.into()),
             available_infusions,
             did_you_mean,
         }

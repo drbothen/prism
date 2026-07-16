@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-76, 77-78, 80-84, 86-88 (68 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-76, 77-78, 80-84, 86-88, 92 (69 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -1428,4 +1428,36 @@ pub fn v88_enrich_udf_not_found_details() {
         did_you_mean: None,
     };
     let _ = _details;
+}
+
+// ─── DEFECT-PQL-FNCALL-LHS-001 BC-2.11.019 v1.26 §OBS-005: ParseError ─────────
+//
+// `ParseError` is the pub-API surface type for PrismQL parse failures returned
+// by `parse_query()` and `parse_sql_with_limits()`. `#[non_exhaustive]` ensures
+// that future fields (e.g., `recovery_suggestion`, `severity`, `related_spans`)
+// can be added without requiring external callers to update struct literals.
+// ci.yml EXPECTED bumped from 91 to 92.
+
+/// Violation 92: prism_query::error::ParseError struct literal (E0639).
+///
+/// `ParseError` is the canonical PrismQL parse error type (prism-query pub API).
+/// `#[non_exhaustive]` was added by DEFECT-PQL-FNCALL-LHS-001 fix-burst-42
+/// (BC-2.11.019 v1.26 §OBS-005). External callers MUST use `ParseError::new(...)`
+/// or `ParseError::semantic(...)` — direct struct literal construction MUST NOT
+/// compile (E0639). Future fields (e.g., `recovery_suggestion`, `related_spans`)
+/// can be added without breaking downstream callers.
+///
+/// Added: DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 (BC-2.11.019 v1.26 §OBS-005).
+/// ci.yml EXPECTED bumped from 91 to 92.
+#[allow(dead_code)]
+pub fn v92_parse_error() {
+    use prism_query::error::ParseError;
+    // Triggers E0639 (#[non_exhaustive]).
+    let _err = ParseError {
+        offset: 0,
+        message: "E-QUERY-003: test".to_string(),
+        recovery_label: None,
+        semantic: true,
+    };
+    let _ = _err;
 }

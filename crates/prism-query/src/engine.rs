@@ -796,6 +796,26 @@ impl QueryEngine {
             };
         let effective_query: &str = &effective_query;
 
+        // ADR-048 v1.2 §D.7.4 — aggregate-in-predicate gate fires BEFORE temporal gate.
+        //
+        // When a WHERE predicate contains an aggregate fn-call (e.g., `WHERE stddev(x) = 5`),
+        // the D.7 aggregate gate in `check_enrich_udf_availability` must fire E-QUERY-001
+        // BEFORE `check_temporal_literals` fires E-QUERY-042. Without this pre-check, a
+        // query like `WHERE stddev(x) = '2026-06-24'` would receive E-QUERY-042
+        // (NonColumnLhsComparison) from the temporal gate — which is incorrect: the
+        // primary fault is the aggregate-in-WHERE, not the date-like RHS.
+        //
+        // Passing `None` for the registry here runs ONLY the aggregate gate (E-QUERY-001)
+        // and skips the E-QUERY-039 infusion-UDF check (which requires E-QUERY-037 and
+        // E-QUERY-038 to have passed first, per BC-2.11.019 gate ordering). The full
+        // E-QUERY-039 check runs at the call site below (after table and column gates).
+        //
+        // COST: this invocation performs a full `PrismQlParser::parse` (O(n)) regardless
+        // of whether any aggregate is found in a predicate position. The double-parse cost
+        // is accepted and ADR-048 §D.7.4-ratified — consistent with the temporal-check
+        // double-parse design (HIGH-4 note below), which also re-parses at plan time.
+        check_enrich_udf_availability(effective_query, None)?;
+
         // ADR-052 §D4 Option A: E-QUERY-041 temporal literal gate fires BEFORE E-QUERY-037.
         //
         // EC-013 (story spec): dotted external-source queries with temporal literals must
@@ -897,6 +917,10 @@ impl QueryEngine {
         // failures).
         //
         // Gate is skipped when `infusion_registry` is None (enrichment not configured).
+        //
+        // COST: this invocation performs a full `PrismQlParser::parse` (O(n)) — the same
+        // double-parse cost accepted for the registry=None invocation above (ADR-048 §D.7.4-ratified
+        // gate ordering; consistent with the temporal-check double-parse design).
         check_enrich_udf_availability(effective_query, self.infusion_registry.as_deref())?;
 
         // ADR-052 D4 Option A: plan-time temporal literal gate is now implemented as
@@ -1170,6 +1194,14 @@ impl QueryEngine {
         ),
         PrismError,
     > {
+        // ADR-048 §D.7.4 — aggregate-in-predicate gate fires BEFORE temporal gate (mirrors
+        // execute_inner's registry=None pre-check). Passing None runs ONLY the aggregate gate
+        // (E-QUERY-001) and skips E-QUERY-039; E-QUERY-039 runs at the call site below after
+        // table and column gates. COST: performs a full `PrismQlParser::parse` (O(n)) —
+        // ADR-048 §D.7.4-ratified double-parse; cost accepted, consistent with temporal-check
+        // design (see execute_inner HIGH-4 comment for the full rationale).
+        check_enrich_udf_availability(query_str, None)?;
+
         // ADR-052 §D4 Option A: E-QUERY-041 temporal literal gate fires BEFORE E-QUERY-037.
         // EC-013: dotted external-source temporal literal queries → E-QUERY-041, not E-QUERY-037.
         // Mirrors execute_inner's early temporal check. See execute_inner HIGH-4 comment for
@@ -1220,6 +1252,8 @@ impl QueryEngine {
         // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: E-QUERY-039 enrichment UDF gate for
         // scheduled queries — fires LAST among content gates (after E-QUERY-037 and E-QUERY-038).
         // Gate ordering (BC-2.11.019 §Gate ordering): E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+        // COST: performs a full `PrismQlParser::parse` (O(n)) — ADR-048 §D.7.4-ratified
+        // double-parse; cost accepted (consistent with temporal-check double-parse design).
         check_enrich_udf_availability(query_str, self.infusion_registry.as_deref())?;
 
         // ADR-052 D4 Option A: temporal gate is now in run_materialization_pipeline.
@@ -1530,6 +1564,47 @@ static DATAFUSION_BUILTIN_FUNCTION_NAMES: std::sync::LazyLock<std::collections::
         names
     });
 
+/// Set of DataFusion built-in AGGREGATE function names (lowercase) — used by the
+/// aggregate-in-predicate plan-time gate in `check_enrich_udf_availability` (ADR-048 D.3).
+///
+/// Derived from `SessionStateDefaults::default_aggregate_functions()` — the same source
+/// used to populate the aggregate portion of `DATAFUSION_BUILTIN_FUNCTION_NAMES`.
+/// Single source of truth: DataFusion's aggregate registry, not a hard-coded list.
+///
+/// When a `ScalarFunc::Unknown(name)` in a predicate fn-call LHS position resolves to
+/// a name in this set, the gate returns E-QUERY-001 (QueryParseFailed) with the
+/// ADR-048 D.3 aggregate-in-where message.
+static DATAFUSION_BUILTIN_AGGREGATE_NAMES: std::sync::LazyLock<std::collections::HashSet<String>> =
+    std::sync::LazyLock::new(|| {
+        use datafusion::execution::SessionStateDefaults;
+        let mut names = std::collections::HashSet::new();
+        for udaf in SessionStateDefaults::default_aggregate_functions() {
+            names.insert(udaf.name().to_ascii_lowercase());
+            for alias in udaf.aliases() {
+                names.insert(alias.to_ascii_lowercase());
+            }
+        }
+        // PrismQL-specific aggregate names ABSENT from DataFusion 53.1's built-in registry
+        // (EMPIRICALLY VERIFIED — see `datafusion_aggregate_registry_empirical_tests` below)
+        // but semantically aggregate functions in PrismQL grammar (ADR-048 v1.2 D.7.1).
+        // These must also be rejected in WHERE predicates with the canonical E-QUERY-001
+        // message — they cannot be valid WHERE predicate LHS values.
+        //
+        // distinct_count: maps to SQL APPROX_DISTINCT / COUNT(DISTINCT ...) at emit time.
+        //   DataFusion 53.1 uses "approx_distinct", NOT "distinct_count" — absent from registry.
+        // percentile:     maps to APPROX_PERCENTILE_CONT at emit time.
+        //   DataFusion 53.1 has NO "percentile" built-in — absent from registry.
+        //   ADR-048 v1.3 claimed "percentile IS registered" — EMPIRICALLY FALSE (F-PQLFN-P4-MED-001).
+        //   ADR-048 v1.4 retracted this claim (§D.2 PERCENTILE note corrected; F-PQLFN-P4-MED-001); manual insert is necessary, not redundant.
+        //
+        // Both are in the removed parser-level AGGREGATE_FUNC_NAMES list (OD-4 removal) and
+        // must be covered by this plan-time gate to maintain the WHERE aggregate invariant
+        // (ADR-048 D.6). The union mechanism: DataFusion registry ∪ PrismQL-specific names.
+        names.insert("distinct_count".to_string());
+        names.insert("percentile".to_string());
+        names
+    });
+
 /// Walk the six top-level scalar-expr positions in a `SqlQuery` and collect
 /// `ScalarFunc::Unknown` names.
 ///
@@ -1604,12 +1679,19 @@ fn collect_unknown_scalars_from_sql_query(sq: &crate::ast::SqlQuery, out: &mut V
 ///
 /// Module-level so it is accessible from `#[cfg(test)]` blocks for unit testing.
 /// Called by `check_enrich_udf_availability` and `collect_unknown_scalars_from_sql_query`.
+///
+/// All `Expr` variants are enumerated explicitly (no wildcard `_ => {}`) so that adding a
+/// new `Expr` variant forces a compile error here, preventing a silent no-op for a variant
+/// that may contain a nested `ScalarFunc::Unknown`. `Expr` is `#[non_exhaustive]` but
+/// in-crate matches are exhaustively checkable — future variants must force a compile error
+/// here (mirrors `shift_scalar_spans_in_expr` discipline, F-PQLFN-PR14-OBS-004).
 fn collect_unknown_scalar_from_expr(expr: &crate::ast::Expr, out: &mut Vec<String>) {
     use crate::ast::{Expr, FuncCall, ScalarFunc};
     match expr {
         Expr::FuncCall(FuncCall::Scalar {
             func: ScalarFunc::Unknown(name),
             args,
+            ..
         }) => {
             out.push(name.clone());
             for arg in args {
@@ -1626,6 +1708,10 @@ fn collect_unknown_scalar_from_expr(expr: &crate::ast::Expr, out: &mut Vec<Strin
                 collect_unknown_scalar_from_expr(arg, out);
             }
         }
+        Expr::FuncCall(FuncCall::Window { .. }) => {
+            // Window stub: no args field currently (S-3.06 will add fields).
+            // No ScalarFunc::Unknown to collect.
+        }
         Expr::Logical { lhs, rhs, .. } => {
             collect_unknown_scalar_from_expr(lhs, out);
             collect_unknown_scalar_from_expr(rhs, out);
@@ -1635,24 +1721,28 @@ fn collect_unknown_scalar_from_expr(expr: &crate::ast::Expr, out: &mut Vec<Strin
             collect_unknown_scalar_from_expr(lhs, out);
             collect_unknown_scalar_from_expr(rhs, out);
         }
-        // Leaf nodes and intentionally excluded positions — nothing to collect:
-        //
-        // - `Expr::Literal`, `Expr::Field`, `Expr::VirtualField`, `Expr::In`,
-        //   `Expr::Star`, `Expr::Now`, `Expr::Interval`: true leaf nodes; no
-        //   sub-expressions that can contain a function call.
-        //
-        // - `Expr::TimestampArithmetic { base, .. }`: `base` is always `Expr::Now`
-        //   per the grammar (`build_temporal_rhs_parser` only parses
-        //   `NOW() ± INTERVAL '...'` — the base is hard-coded to `Expr::Now`).
-        //   A `ScalarFunc::Unknown` cannot appear as the `base` expression of a
-        //   timestamp arithmetic node in valid PrismQL AST.
-        //
-        // - `Expr::InSubquery { subquery, .. }`: the subquery body CAN structurally
-        //   contain a `ScalarFunc::Unknown` in its SELECT items, but the gate
-        //   intentionally does NOT descend into subquery bodies — see BC-2.11.019
-        //   §OBS-001 for the full rationale (fail-open; DataFusion produces
-        //   function-not-found, not the opaque E-INT-001 crash this gate prevents).
-        _ => {}
+        // Leaf nodes — no sub-expressions that can contain a function call.
+        Expr::Literal(_) | Expr::Field(_) | Expr::VirtualField(_) => {}
+        Expr::Star | Expr::Now | Expr::Interval(_) => {}
+        Expr::In { .. } => {
+            // FieldPath + Vec<Literal> — no Expr sub-tree that can contain
+            // a ScalarFunc::Unknown.
+        }
+        Expr::TimestampArithmetic { .. } => {
+            // `base` is always `Expr::Now` per the grammar (`build_temporal_rhs_parser`
+            // only parses `NOW() ± INTERVAL '...'` — the base is hard-coded to
+            // `Expr::Now`). A `ScalarFunc::Unknown` cannot appear as the `base`
+            // expression of a timestamp arithmetic node in valid PrismQL AST.
+        }
+        Expr::InSubquery { .. } => {
+            // The subquery body CAN structurally contain a `ScalarFunc::Unknown` in
+            // its SELECT items, but the gate intentionally does NOT descend into
+            // subquery bodies — BC-2.11.019 §OBS-001 fail-open convention (DataFusion
+            // produces function-not-found, not the opaque E-INT-001 crash this gate
+            // prevents). Enumerated explicitly so a future grammar extension that
+            // widens the gate to subquery bodies forces a compile error here rather
+            // than silently becoming a no-op.
+        }
     }
 }
 
@@ -1666,6 +1756,13 @@ fn collect_unknown_scalar_from_expr(expr: &crate::ast::Expr, out: &mut Vec<Strin
 ///
 /// Module-level so it is accessible from `#[cfg(test)]` blocks for unit testing.
 /// Called by `check_enrich_udf_availability`.
+///
+/// All `Predicate` variants are enumerated explicitly (no wildcard `_ => {}`) so that
+/// adding a new `Predicate` variant forces a compile error here, preventing a silent
+/// no-op for a variant that may hold a nested `Expr` containing a `ScalarFunc::Unknown`.
+/// `Predicate` is `#[non_exhaustive]` but in-crate matches are exhaustively checkable —
+/// future variants must force a compile error here (mirrors `shift_scalar_spans_in_predicate`
+/// discipline, F-PQLFN-PR14-OBS-004).
 fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut Vec<String>) {
     use crate::ast::Predicate;
     match pred {
@@ -1679,24 +1776,202 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
             }
         }
         Predicate::Not(inner) => collect_unknown_scalar_from_predicate(inner, out),
-        // Remaining variants — intentionally not walked or provably UDF-free:
-        //
-        // - `Predicate::StringOp`, `Predicate::Regex`, `Predicate::In`,
-        //   `Predicate::Cidr`, `Predicate::Has`, `Predicate::Missing`,
-        //   `Predicate::IsNull`, `Predicate::Wildcard`, `Predicate::RecoveryError`:
-        //   none of these hold an `Expr` sub-tree that can contain a function call.
-        //
-        // - `Predicate::Between { low, high, .. }`: `low` and `high` are typed as
-        //   `Literal` (not `Expr`), so a `ScalarFunc::Unknown` provably cannot appear
-        //   in either position.
-        //
-        // - `Predicate::InSubquery { subquery, .. }`: the subquery body CAN
-        //   structurally contain a `ScalarFunc::Unknown` in its SELECT items, but
-        //   the gate intentionally does NOT descend into subquery bodies — see
-        //   BC-2.11.019 §OBS-001 for the full rationale (fail-open; DataFusion
-        //   produces function-not-found, not the opaque E-INT-001 crash this gate
-        //   prevents).
-        _ => {}
+        Predicate::StringOp { .. } => {
+            // FieldPath + String pattern + flags — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::Regex { .. } => {
+            // FieldPath + RegexLiteral — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::In { .. } => {
+            // FieldPath + Vec<Literal> — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::InSubquery { .. } => {
+            // The subquery body CAN structurally contain a `ScalarFunc::Unknown` in
+            // its SELECT items, but the gate intentionally does NOT descend into
+            // subquery bodies — BC-2.11.019 §OBS-001 fail-open convention (DataFusion
+            // produces function-not-found, not the opaque E-INT-001 crash this gate
+            // prevents). Enumerated explicitly so a future grammar extension that
+            // widens the gate to subquery bodies forces a compile error here rather
+            // than silently becoming a no-op.
+        }
+        Predicate::Between { .. } => {
+            // FieldPath + Literal bounds — `low` and `high` are `Literal` (not `Expr`),
+            // so a ScalarFunc::Unknown provably cannot appear in either position.
+        }
+        Predicate::Cidr { .. } => {
+            // FieldPath + CidrLiteral — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::Has(_) => {
+            // FieldPath only — no Expr or FuncCall containing ScalarFunc::Unknown.
+        }
+        Predicate::Missing(_) => {
+            // FieldPath only — no Expr or FuncCall containing ScalarFunc::Unknown.
+        }
+        Predicate::IsNull { .. } => {
+            // FieldPath + negated bool — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::Wildcard { .. } => {
+            // FieldPath + String pattern + negated bool — no Expr or FuncCall
+            // containing ScalarFunc::Unknown.
+        }
+        Predicate::RecoveryError => {
+            // Sentinel produced by error recovery only — no fields; never contains
+            // a function call.
+        }
+    }
+}
+
+/// Collect all `ScalarFunc::Unknown` names AND their source offsets from an `Expr` tree.
+///
+/// Mirrors `collect_unknown_scalar_from_expr` but accumulates `(name, span.start)` pairs
+/// so the aggregate-in-predicate gate (E-QUERY-001) can report truthful source offsets
+/// per ADR-048 §D.7.2 (F-PQLFN-P21-OBS-003).
+///
+/// The `span.start` field is the byte offset of the function name in the original query
+/// string, populated by filter_parser.rs `fn_call_comparison` via `map_with`. For AST
+/// nodes constructed outside the parser (tests, direct construction), `span` is `Span::ZERO`
+/// → `span.start == 0`; callers should accept `0` as "offset unknown" in that case.
+/// All `Expr` variants are enumerated explicitly (no wildcard `_ => {}`) so that adding a
+/// new `Expr` variant forces a compile error here, preventing a silent no-op for a variant
+/// that may contain a nested `ScalarFunc::Unknown`. `Expr` is `#[non_exhaustive]` but
+/// in-crate matches are exhaustively checkable — future variants must force a compile error
+/// here (mirrors `shift_scalar_spans_in_expr` discipline, F-PQLFN-PR14-OBS-004).
+fn collect_unknown_scalar_offsets_from_expr(
+    expr: &crate::ast::Expr,
+    out: &mut Vec<(String, usize)>,
+) {
+    use crate::ast::{Expr, FuncCall, ScalarFunc};
+    match expr {
+        Expr::FuncCall(FuncCall::Scalar {
+            func: ScalarFunc::Unknown(name),
+            args,
+            span,
+        }) => {
+            out.push((name.clone(), span.start));
+            for arg in args {
+                collect_unknown_scalar_offsets_from_expr(arg, out);
+            }
+        }
+        Expr::FuncCall(FuncCall::Scalar { args, .. }) => {
+            for arg in args {
+                collect_unknown_scalar_offsets_from_expr(arg, out);
+            }
+        }
+        Expr::FuncCall(FuncCall::Aggregate { args, .. }) => {
+            for arg in args {
+                collect_unknown_scalar_offsets_from_expr(arg, out);
+            }
+        }
+        Expr::FuncCall(FuncCall::Window { .. }) => {
+            // Window stub: no args field currently (S-3.06 will add fields).
+            // No ScalarFunc::Unknown span to collect.
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            collect_unknown_scalar_offsets_from_expr(lhs, out);
+            collect_unknown_scalar_offsets_from_expr(rhs, out);
+        }
+        Expr::Not(inner) => collect_unknown_scalar_offsets_from_expr(inner, out),
+        Expr::Compare { lhs, rhs, .. } => {
+            collect_unknown_scalar_offsets_from_expr(lhs, out);
+            collect_unknown_scalar_offsets_from_expr(rhs, out);
+        }
+        // Leaf nodes — no sub-expressions that can contain a function call.
+        Expr::Literal(_) | Expr::Field(_) | Expr::VirtualField(_) => {}
+        Expr::Star | Expr::Now | Expr::Interval(_) => {}
+        Expr::In { .. } => {
+            // FieldPath + Vec<Literal> — no Expr sub-tree that can contain
+            // a ScalarFunc::Unknown.
+        }
+        Expr::TimestampArithmetic { .. } => {
+            // `base` is always `Expr::Now` per the grammar — a `ScalarFunc::Unknown`
+            // cannot appear as the `base` expression of a timestamp arithmetic node
+            // in valid PrismQL AST.
+        }
+        Expr::InSubquery { .. } => {
+            // Intentionally not descended — BC-2.11.019 §OBS-001 fail-open convention.
+            // Enumerated explicitly so a future grammar extension forces a compile error
+            // here rather than silently becoming a no-op.
+        }
+    }
+}
+
+/// Collect all `ScalarFunc::Unknown` names AND their source offsets from a `Predicate` tree.
+///
+/// Mirrors `collect_unknown_scalar_from_predicate` but accumulates `(name, span.start)` pairs
+/// for the aggregate-in-predicate E-QUERY-001 gate (F-PQLFN-P21-OBS-003).
+///
+/// All `Predicate` variants are enumerated explicitly (no wildcard `_ => {}`) so that
+/// adding a new `Predicate` variant forces a compile error here, preventing a silent
+/// no-op for a variant that may hold a nested `Expr` containing a `ScalarFunc::Unknown`.
+/// `Predicate` is `#[non_exhaustive]` but in-crate matches are exhaustively checkable —
+/// future variants must force a compile error here (mirrors `shift_scalar_spans_in_predicate`
+/// discipline, F-PQLFN-PR14-OBS-004).
+fn collect_unknown_scalar_offsets_from_predicate(
+    pred: &crate::ast::Predicate,
+    out: &mut Vec<(String, usize)>,
+) {
+    use crate::ast::Predicate;
+    match pred {
+        Predicate::Compare { lhs, rhs, .. } => {
+            collect_unknown_scalar_offsets_from_expr(lhs, out);
+            collect_unknown_scalar_offsets_from_expr(rhs, out);
+        }
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates {
+                collect_unknown_scalar_offsets_from_predicate(p, out);
+            }
+        }
+        Predicate::Not(inner) => collect_unknown_scalar_offsets_from_predicate(inner, out),
+        Predicate::StringOp { .. } => {
+            // FieldPath + String pattern + flags — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::Regex { .. } => {
+            // FieldPath + RegexLiteral — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::In { .. } => {
+            // FieldPath + Vec<Literal> — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::InSubquery { .. } => {
+            // The subquery body CAN structurally contain a `ScalarFunc::Unknown` in
+            // its SELECT items, but the gate intentionally does NOT descend into
+            // subquery bodies — BC-2.11.019 §OBS-001 fail-open convention. Enumerated
+            // explicitly so a future grammar extension that widens the gate to subquery
+            // bodies forces a compile error here rather than silently becoming a no-op.
+        }
+        Predicate::Between { .. } => {
+            // FieldPath + Literal bounds — `low` and `high` are `Literal` (not `Expr`),
+            // so a ScalarFunc::Unknown provably cannot appear in either position.
+        }
+        Predicate::Cidr { .. } => {
+            // FieldPath + CidrLiteral — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::Has(_) => {
+            // FieldPath only — no Expr or FuncCall containing ScalarFunc::Unknown.
+        }
+        Predicate::Missing(_) => {
+            // FieldPath only — no Expr or FuncCall containing ScalarFunc::Unknown.
+        }
+        Predicate::IsNull { .. } => {
+            // FieldPath + negated bool — no Expr or FuncCall containing
+            // ScalarFunc::Unknown.
+        }
+        Predicate::Wildcard { .. } => {
+            // FieldPath + String pattern + negated bool — no Expr or FuncCall
+            // containing ScalarFunc::Unknown.
+        }
+        Predicate::RecoveryError => {
+            // Sentinel produced by error recovery only — no fields; never contains
+            // a function call.
+        }
     }
 }
 
@@ -1710,13 +1985,42 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
 /// (both pipe-mode `| enrich udf_name(col)` and SQL-mode `SELECT udf_name(col)`), then
 /// validates each against the `InfusionRegistry` descriptor set.
 ///
+/// Also runs the aggregate-in-predicate plan-time gate (ADR-048 D.3): `ScalarFunc::Unknown`
+/// names from predicate fn-call LHS positions are checked against DataFusion built-in
+/// aggregate names; if an aggregate appears in a WHERE/where predicate, E-QUERY-001 fires.
+///
 /// # Gate skip conditions
 /// - `registry` is `None`: skip immediately (enrichment not configured).
 /// - Query fails to parse: return `Ok(())` — parse errors handled downstream.
 /// - No enrichment names found in the AST: return `Ok(())` (query doesn't use enrichment).
 /// - Name is a DataFusion built-in scalar: skip (resolved by `ctx.sql()` — not an enrichment).
 ///
-/// # SQL path detection
+/// # Predicate-position walks (ADR-048 §D.7.1)
+///
+/// Seven WHERE/where positions are walked into `predicate_fncall_names` for the
+/// aggregate-in-predicate gate (ADR-048 D.3). HAVING is exempt at every position
+/// (§D.7.1 HAVING exemption; §D.7.3). Positions 1-3 were added by
+/// DEFECT-PQL-FNCALL-LHS-001; positions 4-5 by OD-5; position 6 by OD-6 (ADR-048
+/// §D.7.5); position 7 by OD-7 (ADR-048 §D.7.6).
+///
+/// | Position | AST arm | Field walked |
+/// |---|---|---|
+/// | 1 — `pipe \| where` | `Ast::Pipe` | `PipeStage::Where(pred)` |
+/// | 2 — filter-mode root predicate | `Ast::Filter(fe)` | `fe.predicate` |
+/// | 3 — `SqlPipe \| where` | `Ast::SqlPipe` | `PipeStage::Where(pred)` in stage list |
+/// | 4 — SQL WHERE | `Ast::Sql(Select)` | `sq.where_` |
+/// | 5 — SqlPipe-head WHERE | `Ast::SqlPipe` | `spq.head.where_` |
+/// | 6 — DML DELETE/UPDATE WHERE | `Ast::Sql(Dml)` | `dml.filter` |
+/// | 7 — INSERT source_select WHERE | `Ast::Sql(Dml)` | `dml.source_select.where_` |
+///
+/// Positions 4 and 5 are also walked by `collect_unknown_scalars_from_sql_query` into
+/// `sql_unknown_names` for the E-QUERY-039 enrichment check; they additionally reach
+/// E-QUERY-039 via the `predicate_fncall_names → sql_unknown_names` fold in
+/// `check_enrich_udf_availability` (two-path coverage). Positions 1-3 and 6-7 reach
+/// E-QUERY-039 exclusively via the fold (walk-observable through E-QUERY-039 signals);
+/// `collect_unknown_scalars_from_sql_query` does not walk those AST arms.
+///
+/// # SQL path detection (E-QUERY-039 enrichment check)
 /// SQL-mode enrichment: `ScalarFunc::Unknown(name)` in `FuncCall::Scalar` nodes.
 /// Both `Ast::Sql(Select)` and `Ast::SqlPipe` head queries are handled via
 /// `collect_unknown_scalars_from_sql_query`, which scans all six scalar positions:
@@ -1732,16 +2036,78 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
 ///
 /// DataFusion built-in functions (scalar, aggregate, window — e.g. lower, stddev,
 /// row_number) are excluded via `DATAFUSION_BUILTIN_FUNCTION_NAMES` before the
-/// registered-UDF check.
+/// registered-UDF check. `Ast::Sql(Dml)` (DELETE/UPDATE/INSERT) is NOT walked by
+/// `collect_unknown_scalars_from_sql_query`; DML predicates feed `predicate_fncall_names`
+/// only (positions 6-7 above).
 ///
-/// # Pipe path detection
+/// # Pipe and filter path detection (E-QUERY-039 enrichment check)
 /// Pipe-mode enrichment: `PipeStage::Enrich(EnrichStage { infusion, .. })` nodes in
-/// the pipe stage list. The `infusion` field holds the caller-supplied UDF name.
+/// the pipe stage list (both `Ast::Pipe` and `Ast::SqlPipe`). The `infusion` field holds
+/// the caller-supplied UDF name. No DataFusion built-in skip is applied — `| enrich lower(col)`
+/// is an explicit enrichment directive; `lower` there is an unregistered infusion name and
+/// E-QUERY-039 MUST fire.
+///
+/// Pipe-mode `| where` predicates (`PipeStage::Where`) in both `Ast::Pipe` and `Ast::SqlPipe`
+/// stage lists are walked into `predicate_fncall_names` (positions 1 and 3 above) for the
+/// aggregate gate and then folded into `sql_unknown_names` for the E-QUERY-039 check via
+/// the `predicate_fncall_names → sql_unknown_names` fold in `check_enrich_udf_availability`.
+/// They do not feed `pipe_enrich_names`.
+///
+/// Filter mode (`Ast::Filter`): the root predicate is walked into `predicate_fncall_names`
+/// (position 2 above) for the aggregate gate and then folded into `sql_unknown_names` for
+/// the E-QUERY-039 check. Filter mode has no `| enrich` stages.
 ///
 /// # Reference
 /// S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019; error-taxonomy.md E-QUERY-039.
 /// F-PJL1-HIGH-001 (Pass-J LOCAL cascade): original scalar exclusion.
 /// F1 amendment (Pass-N1b): expanded to aggregate + window functions.
+/// DEFECT-PQL-FNCALL-LHS-001: predicate fn-call LHS gate, seven-position audit,
+/// positions 1-3 added. ADR-048 §D.7.5 (OD-6): DML WHERE position 6.
+/// ADR-048 §D.7.6 (OD-7): INSERT source_select WHERE position 7. OD-5: positions 4-5.
+// ── helper: HAVING-interception detail-builder (BC-2.11.019 v1.26 §OBS-004) ──────────────────
+/// Build the HAVING-interception E-QUERY-001 detail string for a PrismQL aggregate name.
+///
+/// Two branches (BC-2.11.019 v1.26 §OBS-004, F-PQLFN-PR5-LOW-001):
+/// (a) `name_lower == "percentile"` → two-arg canonical template `(field, p)` — the
+///     existing byte-verbatim template UNCHANGED from prior implementation.
+/// (b) any other name → signature-neutral generic template `(...)` — correct fail-safe
+///     guidance for any future AGGREGATE-only name reaching the arm without the two-arg
+///     PERCENTILE misapplication risk.
+///
+/// The `'{name}'` placeholder is INPUT-VERBATIM (analyst's original casing echoed);
+/// the template body uses `{name_upper}` (always uppercase, PrismQL keyword form).
+/// Branch (b) is unreachable today (triggering set = {"percentile"}) but is unit-tested
+/// directly via `having_aggregate_interception_detail_tests`.
+///
+/// Caller wraps the returned detail in `PrismError::QueryParseFailed { offset, detail, query }`.
+/// (BC-2.11.019 v1.26 §OBS-004; ADR-048 v1.17 §D.2; POL-24)
+fn having_aggregate_interception_detail(name: &str) -> String {
+    let name_lower = name.to_ascii_lowercase();
+    let name_upper = name.to_ascii_uppercase();
+    if name_lower == "percentile" {
+        // Branch (a): percentile-specific two-arg template (field, p).
+        // Byte-verbatim per POL-24 / ADR-048 v1.17 §D.2 canonical template.
+        format!(
+            "'{name}' is a PrismQL aggregate function; \
+             {name_upper} is not directly supported in HAVING predicates \
+             \u{2014} alias it in SELECT: \
+             SELECT {name_upper}(field, p) AS alias ... HAVING alias > threshold \
+             (ADR-048 D.3 OD-2)"
+        )
+    } else {
+        // Branch (b): signature-neutral generic template (...).
+        // Unreachable today (triggering set = {"percentile"}).
+        // Byte-exact per POL-24 / BC-2.11.019 v1.26 §OBS-004.
+        format!(
+            "'{name}' is a PrismQL aggregate function; \
+             {name_upper} is not directly supported in HAVING predicates \
+             \u{2014} alias it in SELECT: \
+             SELECT {name_upper}(...) AS alias ... HAVING alias > threshold \
+             (ADR-048 D.3 OD-2)"
+        )
+    }
+}
+
 fn check_enrich_udf_availability(
     query_str: &str,
     registry: Option<&prism_spec_engine::InfusionRegistry>,
@@ -1750,22 +2116,14 @@ fn check_enrich_udf_availability(
     use crate::filter_parser::PrismQlParser;
     use prism_core::error::EnrichUdfNotFoundDetails;
 
-    // Skip when no registry is wired — enrichment not configured in this deployment.
-    let Some(registry) = registry else {
-        return Ok(());
-    };
-
-    // Parse the query. On parse failure, return Ok(()) — parse errors are emitted
-    // downstream as E-QUERY-001. This mirrors check_table_availability's behavior.
+    // Parse the query BEFORE the registry-None check. On parse failure, return Ok(()) —
+    // parse errors are emitted downstream as E-QUERY-001. Parsing happens first because
+    // the aggregate-in-predicate gate (ADR-048 D.3) must run even when infusion registry
+    // is not configured — it does not depend on the registry.
     let ast = match PrismQlParser::parse(query_str) {
         Ok(ast) => ast,
         Err(_) => return Ok(()),
     };
-
-    // Build the registered UDF name set from the live registry.
-    let descriptors = registry.udf_descriptors();
-    let registered_names: std::collections::HashSet<&str> =
-        descriptors.iter().map(|d| d.name.as_str()).collect();
 
     // Collect enrichment UDF names from the AST via direct pattern matching.
     // Using direct match (not the Visitor trait) to avoid coupling with the full
@@ -1781,44 +2139,261 @@ fn check_enrich_udf_availability(
     // built-in skip is applied to SQL names only.
     let mut pipe_enrich_names: Vec<String> = Vec::new(); // no built-in skip
     let mut sql_unknown_names: Vec<String> = Vec::new(); // built-in skip applied
+                                                         // ScalarFunc::Unknown names from predicate fn-call LHS — all seven positions per
+                                                         // ADR-048 §D.7.1: pipe | where, filter root, SqlPipe | where, SQL WHERE,
+                                                         // SqlPipe-head WHERE, SQL DML WHERE, INSERT source_select WHERE. Checked for aggregate classification
+                                                         // (ADR-048 D.3 plan-time gate) before being folded into sql_unknown_names for
+                                                         // E-QUERY-039. BC-2.11.019 §Postconditions third bullet (DEFECT-PQL-FNCALL-LHS-001).
+                                                         // (String, usize) = (name, span.start) — offset is the byte position of the
+                                                         // function name in the original query string (F-PQLFN-P21-OBS-003). For AST
+                                                         // nodes constructed outside the parser, span.start == 0 ("offset unknown").
+    let mut predicate_fncall_names: Vec<(String, usize)> = Vec::new();
+    // EC-11-086 (ADR-048 v1.17 §D.2): ScalarFunc::Unknown names from HAVING predicate position
+    // (position f of collect_unknown_scalars_from_sql_query). Checked against
+    // DATAFUSION_BUILTIN_AGGREGATE_NAMES BEFORE the infusion-registry-None guard, so the
+    // interception fires regardless of whether a registry is configured (registry-INDEPENDENT).
+    // "percentile" (manually inserted in DATAFUSION_BUILTIN_AGGREGATE_NAMES) is the primary
+    // case: excluded from build_agg_call_parser (OD-2 grammar ambiguity), so it parses as
+    // ScalarFunc::Unknown("percentile") in HAVING and reaches this gate.
+    let mut having_fncall_names: Vec<(String, usize)> = Vec::new();
 
     match &ast {
         // Pipe mode: `FROM table | enrich udf_name(col)` stages.
+        // Post-DEFECT-PQL-FNCALL-LHS-001: also walk PipeStage::Where predicates —
+        // build_predicate_parser now accepts ScalarFunc::Unknown fn-call LHS.
         Ast::Pipe(pq) => {
             for stage in &pq.stages {
-                if let PipeStage::Enrich(es) = stage {
-                    pipe_enrich_names.push(es.infusion.clone());
+                match stage {
+                    PipeStage::Enrich(es) => {
+                        pipe_enrich_names.push(es.infusion.clone());
+                    }
+                    PipeStage::Where(pred) => {
+                        collect_unknown_scalar_offsets_from_predicate(
+                            pred,
+                            &mut predicate_fncall_names,
+                        );
+                    }
+                    _ => {}
                 }
             }
         }
+        // Filter mode: root predicate may contain ScalarFunc::Unknown fn-call LHS
+        // (post-DEFECT-PQL-FNCALL-LHS-001 grammar extension). Walk the predicate.
+        // Previously fell through to `_ => {}` (gate was a no-op for Ast::Filter).
+        Ast::Filter(fe) => {
+            collect_unknown_scalar_offsets_from_predicate(
+                &fe.predicate,
+                &mut predicate_fncall_names,
+            );
+        }
         // SqlPipe mode: SQL head with pipe stages.
-        // Enrich names can appear in TWO places:
-        //   (a) pipe stages: `… | enrich udf_name(col)` — pipe-mode, no built-in skip.
-        //   (b) SQL HEAD: any scalar position in the head SqlQuery (SELECT, WHERE,
+        // Enrich names can appear in THREE places:
+        //   (a) pipe stages `| enrich udf_name(col)` — pipe-mode, no built-in skip.
+        //   (b) pipe stages `| where fn(col) = val` — predicate fn-call LHS.
+        //   (c) SQL HEAD: any scalar position in the head SqlQuery (SELECT, WHERE,
         //       JOIN ON, GROUP BY, ORDER BY, HAVING) — SQL-mode, built-in skip applied.
         // BC-2.11.019 §Precondition 1(b): projection OR WHERE (either site counts).
         // C1/C2 fix: use collect_unknown_scalars_from_sql_query to cover ALL positions
         // including JOIN ON / GROUP BY / ORDER BY which the previous inline walk missed.
+        //
+        // ADR-048 v1.2 §D.7.1 (position 5): SqlPipe-head WHERE predicate fn-call names
+        // are walked into predicate_fncall_names for the aggregate-in-predicate gate.
+        // Previously these went only to sql_unknown_names via collect_unknown_scalars_from_sql_query
+        // position (b), then were filtered by DATAFUSION_BUILTIN_FUNCTION_NAMES before the
+        // E-QUERY-039 check — so the aggregate gate never saw them (F-PQLFN-P2-HIGH-001).
+        // The head WHERE is walked into BOTH predicate_fncall_names (aggregate gate) AND
+        // sql_unknown_names (E-QUERY-039 gate) — duplicate entries are harmless.
         Ast::SqlPipe(spq) => {
-            // (a) pipe stages — pipe-mode, no built-in skip.
             for stage in &spq.stages {
-                if let PipeStage::Enrich(es) = stage {
-                    pipe_enrich_names.push(es.infusion.clone());
+                match stage {
+                    // (a) pipe stages — pipe-mode, no built-in skip.
+                    PipeStage::Enrich(es) => {
+                        pipe_enrich_names.push(es.infusion.clone());
+                    }
+                    // (b) pipe | where predicates — predicate fn-call LHS.
+                    PipeStage::Where(pred) => {
+                        collect_unknown_scalar_offsets_from_predicate(
+                            pred,
+                            &mut predicate_fncall_names,
+                        );
+                    }
+                    _ => {}
                 }
             }
-            // (b) SQL head — ALL scalar positions via canonical shared walk, SQL-mode.
+            // (D.7.1 position 5) SqlPipe-head WHERE → predicate_fncall_names (aggregate gate).
+            // HAVING is intentionally excluded from predicate_fncall_names — only head.where_ is walked here.
+            if let Some(pred) = &spq.head.where_ {
+                collect_unknown_scalar_offsets_from_predicate(pred, &mut predicate_fncall_names);
+            }
+            // (EC-11-086 / ADR-048 v1.17 §D.2) SqlPipe head HAVING → having_fncall_names.
+            if let Some(pred) = &spq.head.having {
+                collect_unknown_scalar_offsets_from_predicate(pred, &mut having_fncall_names);
+            }
+            // (c) SQL head — ALL scalar positions via canonical shared walk, SQL-mode.
+            // This also walks head.where_ into sql_unknown_names (duplicate for WHERE names —
+            // harmless; aggregate names will be filtered by DATAFUSION_BUILTIN_FUNCTION_NAMES
+            // before E-QUERY-039, and non-aggregate unknowns reach E-QUERY-039 correctly).
             collect_unknown_scalars_from_sql_query(&spq.head, &mut sql_unknown_names);
         }
         // SQL mode: scan ALL scalar positions via canonical shared walk.
         // BC-2.11.019 §Precondition 1(b): projection OR WHERE (either site counts).
         // C1/C2 fix: use collect_unknown_scalars_from_sql_query to cover ALL positions
         // including JOIN ON / GROUP BY / ORDER BY which the previous inline walk missed.
+        //
+        // ADR-048 v1.2 §D.7.1 (position 4): SQL WHERE predicate fn-call names are walked
+        // into predicate_fncall_names for the aggregate-in-predicate gate. Previously they
+        // went only to sql_unknown_names via collect_unknown_scalars_from_sql_query position (b),
+        // then were filtered by DATAFUSION_BUILTIN_FUNCTION_NAMES before the E-QUERY-039 check —
+        // so the aggregate gate never saw them (F-PQLFN-P2-HIGH-001). The WHERE predicate is
+        // walked into BOTH predicate_fncall_names (aggregate gate) AND sql_unknown_names via the
+        // shared walk below — duplicate entries are harmless.
         Ast::Sql(SqlStatement::Select(sq)) => {
+            // (D.7.1 position 4) SQL WHERE → predicate_fncall_names (aggregate gate).
+            // HAVING is intentionally excluded from predicate_fncall_names — only sq.where_ is walked here.
+            if let Some(pred) = &sq.where_ {
+                collect_unknown_scalar_offsets_from_predicate(pred, &mut predicate_fncall_names);
+            }
+            // (EC-11-086 / ADR-048 v1.17 §D.2) SQL HAVING → having_fncall_names.
+            // Separate from predicate_fncall_names: HAVING may legitimately contain aggregates,
+            // but names in DATAFUSION_BUILTIN_AGGREGATE_NAMES that parse as ScalarFunc::Unknown
+            // (e.g., "percentile") are intercepted with HAVING-specific E-QUERY-001 guidance.
+            if let Some(pred) = &sq.having {
+                collect_unknown_scalar_offsets_from_predicate(pred, &mut having_fncall_names);
+            }
+            // All positions (SELECT, WHERE, JOIN ON, GROUP BY, ORDER BY, HAVING) via canonical
+            // shared walk into sql_unknown_names for E-QUERY-039.
             collect_unknown_scalars_from_sql_query(sq, &mut sql_unknown_names);
         }
-        // Filter mode and DML have no enrichment syntax.
-        _ => {}
+        // (D.7.1 position 6 + 7) DML WHERE: walk filter and source_select WHERE into
+        // predicate_fncall_names.
+        //
+        // Position 6 (DELETE/UPDATE WHERE): build_delete_parser and build_update_parser
+        // bind build_predicate_parser for their WHERE clause; post-branch fn_call_comparison
+        // is in build_predicate_parser so DML WHERE accepts fn-call LHS. Without this arm
+        // the aggregate gate silently passes DML WHERE aggregates → SILENT EMPTY SUCCESS
+        // (DML execution no-ops to Ok(vec![])). (ADR-048 §D.7.5, OD-6)
+        //
+        // Position 7 (INSERT source_select WHERE): build_insert_parser calls build_sql_parser
+        // → build_sql_predicate_parser → build_predicate_parser → fn_call_comparison; INSERT
+        // carries source_select: Option<SqlQuery> whose WHERE must also be walked. Without this
+        // walk, INSERT INTO t SELECT ... WHERE stddev(x) > 5 parses to
+        // DmlNode{filter:None, source_select:Some(SqlQuery{where_:Some(...stddev...)})}; the
+        // gate sees filter=None and walks nothing → SILENT EMPTY SUCCESS. (ADR-048 §D.7.6, OD-7)
+        //
+        // source_select HAVING is intentionally exempt — HAVING may legitimately contain
+        // aggregate functions (§D.7.1 HAVING exemption; §D.7.3).
+        //
+        // Note: `Ast` and `SqlStatement` are non-exhaustive for external crates, but within
+        // this crate all current variants (Pipe, Filter, SqlPipe, Sql(Select), Sql(Dml)) are
+        // explicitly handled — `_ => {}` is removed as it is unreachable within-crate.
+        Ast::Sql(SqlStatement::Dml(dml)) => {
+            // (D.7.1 position 6) DELETE/UPDATE WHERE → predicate_fncall_names.
+            if let Some(pred) = &dml.filter {
+                collect_unknown_scalar_offsets_from_predicate(pred, &mut predicate_fncall_names);
+            }
+            // (D.7.1 position 7) INSERT source_select WHERE → predicate_fncall_names.
+            if let Some(src) = &dml.source_select {
+                if let Some(pred) = &src.where_ {
+                    collect_unknown_scalar_offsets_from_predicate(
+                        pred,
+                        &mut predicate_fncall_names,
+                    );
+                }
+                // src.having is intentionally exempt — HAVING may legitimately contain
+                // aggregate functions (§D.7.1 HAVING exemption; §D.7.3). INSERT
+                // source_select HAVING follows the same rule as regular SQL HAVING.
+            }
+        }
     }
+
+    // Aggregate-in-predicate plan-time gate (ADR-048 D.3) — runs regardless of infusion
+    // registry. When a ScalarFunc::Unknown name from a predicate fn-call LHS position is
+    // a DataFusion built-in aggregate function (e.g., stddev, variance, median, corr), it
+    // cannot be a valid predicate — aggregates belong in HAVING, not WHERE.
+    //
+    // Rejected with E-QUERY-001 (QueryParseFailed) at plan time so the analyst receives
+    // the controlled ADR-048 D.3 message rather than an uncontrolled -32000 / QueryPlanFailed
+    // from DataFusion (which also rejects aggregates in WHERE, but with an opaque error).
+    //
+    // Source of truth: DATAFUSION_BUILTIN_AGGREGATE_NAMES (derived from DataFusion's
+    // default_aggregate_functions() registry — same source as the aggregate portion of
+    // DATAFUSION_BUILTIN_FUNCTION_NAMES). No hard-coded name list.
+    for (name, offset) in &predicate_fncall_names {
+        let name_lower = name.to_ascii_lowercase();
+        if DATAFUSION_BUILTIN_AGGREGATE_NAMES.contains(&name_lower) {
+            return Err(PrismError::QueryParseFailed {
+                offset: *offset,
+                detail: format!(
+                    "'{name}' is an aggregate function; \
+                     aggregate fn-calls are not valid in WHERE/where predicates \
+                     (use HAVING for post-aggregation filters, ADR-048 D.3)"
+                ),
+                query: query_str.to_string(),
+            });
+        }
+    }
+
+    // EC-11-086: HAVING-position DATAFUSION_BUILTIN_AGGREGATE_NAMES interception (ADR-048 v1.17 §D.2).
+    // Fires BEFORE the registry-None guard — registry-INDEPENDENT.
+    // Catches ScalarFunc::Unknown names from HAVING position (f) that are (a) in
+    // DATAFUSION_BUILTIN_AGGREGATE_NAMES and (b) NOT in DATAFUSION_BUILTIN_FUNCTION_NAMES.
+    // Criterion (b) restricts the gate to names that DataFusion cannot resolve natively in HAVING:
+    // natively-registered aggregates (e.g., stddev, variance, corr) are in DATAFUSION_BUILTIN_FUNCTION_NAMES
+    // and CAN appear in HAVING without error (DataFusion resolves them via ctx.sql()); those names
+    // are NOT intercepted here. Only the manually-inserted names ("percentile", "distinct_count")
+    // satisfy criterion (b) — and distinct_count parses as FuncCall::Aggregate (not ScalarFunc::Unknown)
+    // via build_agg_call_parser, so it never populates having_fncall_names.
+    // Primary case: "percentile" — excluded from build_agg_call_parser (OD-2 two-arg grammar
+    // ambiguity), parses as ScalarFunc::Unknown("percentile") in HAVING, NOT in DATAFUSION_BUILTIN_FUNCTION_NAMES.
+    // Without this gate: registry=None → Ok(()) → DataFusion plan error; registry=Some → E-QUERY-039.
+    // (BC-2.11.004 v1.48 EC-11-086; BC-2.11.019 v1.26 §OBS-004; ADR-048 v1.17 §D.2)
+    for (name, offset) in &having_fncall_names {
+        let name_lower = name.to_ascii_lowercase();
+        if DATAFUSION_BUILTIN_AGGREGATE_NAMES.contains(&name_lower)
+            && !DATAFUSION_BUILTIN_FUNCTION_NAMES.contains(&name_lower)
+        {
+            // Two-branch detail-builder (BC-2.11.019 v1.26 §OBS-004, F-PQLFN-PR5-LOW-001).
+            // `having_aggregate_interception_detail` branches on name_lower == "percentile":
+            //   (a) percentile → two-arg canonical template `(field, p)` (byte-verbatim, POL-24)
+            //   (b) any other name → generic template `(...)` (unreachable today; unit-tested)
+            // The v1.22 debug_assert_eq! guard is REMOVED — it compiled out in release; a future
+            // AGGREGATE-only name would have emitted the two-arg template (wrong guidance).
+            // The two-branch helper provides correct fail-safe guidance without the assertion.
+            return Err(PrismError::QueryParseFailed {
+                offset: *offset,
+                detail: having_aggregate_interception_detail(name),
+                query: query_str.to_string(),
+            });
+        }
+    }
+
+    // Skip E-QUERY-039 check when no infusion registry is configured.
+    let Some(registry) = registry else {
+        return Ok(());
+    };
+
+    // Fold predicate fn-call names into sql_unknown_names for E-QUERY-039 gate.
+    // DataFusion built-in exclusion (DATAFUSION_BUILTIN_FUNCTION_NAMES) applies —
+    // aggregate names that reached here were not in the aggregate-only set (would have
+    // been caught above), and non-aggregate DataFusion built-ins (e.g., lower, upper)
+    // are excluded from E-QUERY-039 by the DATAFUSION_BUILTIN_FUNCTION_NAMES filter below.
+    // Folded here (before descriptor materialization) so the emptiness check below sees
+    // the complete set of names. (F-PQLFN-P7-OBS-001 hoist)
+    sql_unknown_names.extend(predicate_fncall_names.iter().map(|(n, _)| n.clone()));
+
+    // OBS-001 hoist (F-PQLFN-P7-OBS-001): skip descriptor materialization when there
+    // are no names to validate. The aggregate gate already ran; if pipe_enrich_names and
+    // sql_unknown_names (which now includes predicate_fncall_names) are both empty, no
+    // E-QUERY-039 check is possible — early return avoids the O(n) udf_descriptors()
+    // allocation on queries with no enrichment syntax.
+    if pipe_enrich_names.is_empty() && sql_unknown_names.is_empty() {
+        return Ok(());
+    }
+
+    // Build the registered UDF name set from the live registry.
+    let descriptors = registry.udf_descriptors();
+    let registered_names: std::collections::HashSet<&str> =
+        descriptors.iter().map(|d| d.name.as_str()).collect();
 
     // Validate pipe-mode enrich names — NO DataFusion built-in exclusion.
     // BC-2.11.019 §F-PJL1-HIGH-001: pipe-mode `| enrich <name>` is an explicit
@@ -1857,10 +2432,23 @@ fn check_enrich_udf_availability(
             // OBS-1 fix: lexicographic tie-break (name asc) to ensure determinism
             // when multiple names have the same minimum edit distance. This mirrors
             // the column gate's determinism fix (check_query_column_availability).
-            // F-PHL1-HIGH-001: cap `requested` at 128 bytes (SEC-002 / CWE-407)
-            // before the O(m×n) Levenshtein loop — mirrors the table gate cap in
-            // `table_registry::did_you_mean`.
-            let requested_capped = crate::table_registry::cap_name_for_levenshtein(requested);
+            //
+            // F-PQLFN-PR14-OBS-001: sanitize `requested` BEFORE the Levenshtein
+            // computation so `did_you_mean` and `EnrichUdfNotFoundDetails.infusion`
+            // derive from the same sanitized form (BC-2.11.019 v1.26 §Injection-safety,
+            // CWE-116/CWE-117). Without this, a name containing Cc/U+2028/U+2029
+            // control chars computes did_you_mean against the raw string while the
+            // constructor stores the sanitized form — two different string forms of
+            // the same input. `EnrichUdfNotFoundDetails::new` applies sanitize_for_log
+            // itself, so passing the raw `requested` to the constructor is equivalent
+            // to passing the sanitized form for the stored `infusion` field.
+            //
+            // F-PHL1-HIGH-001: cap the SANITIZED string at 128 bytes (SEC-002 / CWE-407
+            // Algorithmic Complexity DoS guard) before the O(m×n) Levenshtein loop —
+            // mirrors the table gate cap in `table_registry::did_you_mean`.
+            let sanitized_requested = sanitize_for_log(requested);
+            let requested_capped =
+                crate::table_registry::cap_name_for_levenshtein(&sanitized_requested);
             let did_you_mean = available_infusions
                 .iter()
                 .map(|n| (n.clone(), strsim::levenshtein(requested_capped, n)))
@@ -1868,6 +2456,8 @@ fn check_enrich_udf_availability(
                 .min_by_key(|(name, dist)| (*dist, name.clone()))
                 .map(|(name, _)| name);
 
+            // Pass raw `requested` to the constructor — EnrichUdfNotFoundDetails::new
+            // applies sanitize_for_log itself, producing the same sanitized infusion field.
             return Err(PrismError::EnrichUdfNotFound(Box::new(
                 EnrichUdfNotFoundDetails::new(requested.clone(), available_infusions, did_you_mean),
             )));
@@ -2154,8 +2744,9 @@ fn collect_predicate_columns_with_bareness(
                 }
             }
             Expr::FuncCall(_) => {
-                // HAVING aggregate (e.g. `HAVING count(col) > 0`): recurse into FuncCall args,
-                // preserving per-reference bareness for each arg field ref.
+                // Fn-call LHS (all seven shared-parser predicate positions, ADR-048 §D.7.1,
+                // + HAVING FuncCall LHS contexts, §D.3/§D.7.3).
+                // Recurse into FuncCall args, preserving per-reference bareness for each field ref.
                 extract_field_paths_with_bareness(lhs.as_ref(), table_name, table_alias, out);
             }
             _ => {}
@@ -3718,10 +4309,13 @@ fn check_pipe_stage_columns(
 /// The `Compare { lhs, .. }` arm matches `lhs` on two forms (ADR-048):
 /// - `Expr::Field(fp)` — bare column reference (WHERE / HAVING bare predicate);
 ///   extracted via `extract_column_name_from_field_path`.
-/// - `Expr::FuncCall(_)` — aggregate-function call (HAVING `agg_fn(col) op literal`
-///   per ADR-048 D.3); recursed via `extract_field_paths_from_expr` to reach nested
-///   `Expr::Field` args. This form is only reachable from the HAVING predicate path;
-///   WHERE grammar cannot produce a `FuncCall` LHS in `Predicate::Compare`.
+/// - `Expr::FuncCall(_)` — fn-call LHS: either an aggregate (HAVING `agg_fn(col) op literal`
+///   per ADR-048 D.3) or a scalar fn-call (pipe `| where` `scalar_fn(col) op literal`
+///   per DEFECT-PQL-FNCALL-LHS-001). Recursed via `extract_field_paths_from_expr` to
+///   reach nested `Expr::Field` args. Exercised for the seven §D.7.1 shared-parser
+///   predicate positions PLUS HAVING FuncCall LHS contexts (FuncCall::Aggregate per
+///   §D.3, FuncCall::Scalar base fallthrough per §D.7.3); §D.7.1's HAVING exemption
+///   applies to the aggregate gate, not to column extraction.
 /// - All other `lhs` forms (`VirtualField`, `Literal`, etc.) — fail-open (silently skipped).
 ///
 /// F-001B-DC-HIGH-001: uses `extract_column_name_from_field_path` for each
@@ -3752,16 +4346,18 @@ fn collect_predicate_columns(
     match pred {
         // Compare: lhs may be:
         //   - Expr::Field(fp)        — bare column ref (WHERE / HAVING bare predicate)
-        //   - Expr::FuncCall(..)     — aggregate fn call (HAVING agg predicate, ADR-048)
+        //   - Expr::FuncCall(..)     — fn-call LHS: all seven shared-parser predicate positions
+        //                             (ADR-048 §D.7.1; WHERE-safe via arg-recursion, ADR-048 §D.3)
+        //                             + HAVING FuncCall LHS contexts (§D.3/§D.7.3).
         //
         // For Expr::Field: extract via extract_column_name_from_field_path (handles
         //   qualified refs, F-001B-DC-HIGH-001).
         // For Expr::FuncCall: recurse into args via extract_field_paths_from_expr, which
         //   already handles FuncCall::Aggregate/Scalar arg lists at any nesting depth.
-        //   This is reachable only from the HAVING predicate path (ADR-048 D.3); WHERE
-        //   grammar cannot produce a FuncCall LHS in Predicate::Compare.
+        //   WHERE-safe: `extract_field_paths_from_expr` recurses into FuncCall args regardless of
+        //   function identity — column extraction operates on args, not the fn name (ADR-048 §D.3 v1.3).
         //
-        // F-001B-DC-HIGH-001; ADR-048 D.3.
+        // F-001B-DC-HIGH-001; ADR-048 D.3; DEFECT-PQL-FNCALL-LHS-001.
         Predicate::Compare { lhs, .. } => {
             match lhs.as_ref() {
                 Expr::Field(fp) => {
@@ -3772,8 +4368,9 @@ fn collect_predicate_columns(
                     }
                 }
                 Expr::FuncCall(_) => {
-                    // Aggregate function in HAVING predicate (ADR-048).
-                    // Recurse into the FuncCall args to extract any Expr::Field refs.
+                    // Fn-call LHS (all seven shared-parser positions, ADR-048 §D.7.1,
+                    // + HAVING FuncCall LHS contexts, §D.3/§D.7.3).
+                    // Recurse into args via extract_field_paths_from_expr to extract Expr::Field refs.
                     extract_field_paths_from_expr(lhs.as_ref(), table_name, table_alias, out);
                 }
                 // Other lhs forms (VirtualField, Literal, etc.) — fail-open.
@@ -6453,6 +7050,98 @@ mod sqlpipe_gate_sweep_tests {
             );
         }
     }
+
+    // ── BC-2.11.004 TM-SCHED: execute_scheduled aggregate-gate parity lock ──────
+
+    /// TD-VSDD-059 parity gap (F-PQLFN-P3-LOW-002): `execute_scheduled_inner` aggregate-gate
+    /// parity lock.
+    ///
+    /// The ADR-048 v1.2 D.7 unified plan-time aggregate-gate was verified for the `execute`
+    /// path (TM-03/09 in `temporal_typing_tests.rs`). This test locks the SAME gate via
+    /// `execute_scheduled`, proving the early `check_enrich_udf_availability(query_str, None)`
+    /// call at the start of `execute_scheduled_inner` fires and returns E-QUERY-001 with the
+    /// canonical D.3 message substrings — symmetrically to `execute`.
+    ///
+    /// Query: `FROM crowdstrike_detections | where stddev(risk_score) = 5`
+    ///
+    /// # Expected: GREEN on arrival
+    /// `execute_scheduled_inner` already calls `check_enrich_udf_availability(query_str, None)`
+    /// as its FIRST gate (before the table gate). `stddev` ∈
+    /// `DATAFUSION_BUILTIN_AGGREGATE_NAMES` → the aggregate gate fires → E-QUERY-001 with the
+    /// canonical D.3 message containing "stddev", "aggregate function", and "HAVING".
+    ///
+    /// Both `execute` and `execute_scheduled` must return `QueryParseFailed` for this query,
+    /// demonstrating symmetric aggregate-gate behavior across both execution paths.
+    ///
+    /// Traces to: BC-2.11.004 EC-11-082 (renumbered from EC-11-013 in v1.47; SR-006 collision with BC-2.11.005); ADR-048 v1.2 §D.7.4; F-PQLFN-P3-LOW-002.
+    #[tokio::test]
+    async fn test_BC_2_11_004_tm_sched_parity_aggregate_gate_execute_scheduled() {
+        let engine = make_test_engine();
+
+        let query = "FROM crowdstrike_detections | where stddev(risk_score) = 5";
+
+        let execute_result = engine.execute(query, QueryOptions::default()).await;
+
+        // Map execute_scheduled to Result<QueryResult, PrismError> by discarding the
+        // Arc<SessionContext> (SessionContext does not impl Debug so we cannot
+        // unwrap_err on the raw tuple result).
+        let scheduled_result = engine
+            .execute_scheduled(query, None)
+            .await
+            .map(|(qr, _ctx)| qr);
+
+        // Both must error.
+        assert!(
+            execute_result.is_err(),
+            "TM-SCHED: execute with stddev aggregate in | where must return Err; got Ok"
+        );
+        assert!(
+            scheduled_result.is_err(),
+            "TM-SCHED: execute_scheduled with stddev aggregate in | where must return Err; \
+             got Ok. If Ok: the aggregate gate in execute_scheduled_inner is missing or bypassed."
+        );
+
+        let exec_err = execute_result.unwrap_err();
+        let sched_err = scheduled_result.unwrap_err();
+
+        // Both must be QueryParseFailed (E-QUERY-001).
+        assert!(
+            matches!(exec_err, PrismError::QueryParseFailed { .. }),
+            "TM-SCHED: execute must return QueryParseFailed (E-QUERY-001); got: {exec_err:?}"
+        );
+        assert!(
+            matches!(sched_err, PrismError::QueryParseFailed { .. }),
+            "TM-SCHED: execute_scheduled must return QueryParseFailed (E-QUERY-001) \
+             to match execute behavior. Got: {sched_err:?}. \
+             If TableNotAvailable (E-QUERY-037): the aggregate gate is NOT firing before the \
+             table gate in execute_scheduled_inner (ADR-048 v1.2 §D.7.4 gate ordering violated)."
+        );
+
+        // Both Display outputs must contain the canonical D.3 message substrings.
+        let exec_display = format!("{exec_err}");
+        let sched_display = format!("{sched_err}");
+
+        for (label, display) in [
+            ("execute", &exec_display),
+            ("execute_scheduled", &sched_display),
+        ] {
+            assert!(
+                display.contains("stddev"),
+                "TM-SCHED [{label}]: Display must contain 'stddev' (aggregate fn name, \
+                 ADR-048 D.3 canonical). Got: {display}"
+            );
+            assert!(
+                display.contains("aggregate function"),
+                "TM-SCHED [{label}]: Display must contain 'aggregate function' \
+                 (ADR-048 D.3 canonical message). Got: {display}"
+            );
+            assert!(
+                display.contains("HAVING"),
+                "TM-SCHED [{label}]: Display must contain 'HAVING' (use HAVING guidance, \
+                 ADR-048 D.3). Got: {display}"
+            );
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -6486,11 +7175,13 @@ pub(crate) fn collect_unknown_scalars_from_sql_query_test_only(
 // from this #[cfg(test)] block via `super::`).
 //
 // Rationale for direct AST construction (not query-string parsing):
-// The SQL parser's WHERE predicate grammar uses `build_predicate_parser()` which
-// does NOT include scalar function call syntax — `WHERE badudf(col) = 1` is a
-// parse error (E-QUERY-001) at runtime. The collect_unknown_scalar_from_predicate
-// helper is defensive code for programmatic AST construction (e.g., macros,
-// future parser extensions). These unit tests verify the logic directly.
+// Post-DEFECT-PQL-FNCALL-LHS-001: `build_predicate_parser()` (shared by pipe `| where`,
+// filter mode, and SQL WHERE via `build_sql_predicate_parser`) now accepts fn-call LHS via
+// `fn_call_comparison` — `WHERE badudf(col) = 1` can now parse successfully. Direct AST
+// construction is used here to isolate the collect_ function logic from the parser and
+// test the walker independently of the grammar production rules. These unit tests verify
+// the walk logic directly without parser round-trips.
+// TD-VSDD-059: load-bearing unit tests on the actual collect_ functions.
 //
 // TD-VSDD-059: load-bearing unit tests on the actual collect_ functions.
 
@@ -6511,6 +7202,7 @@ mod enrich_gate_where_clause_unit_tests {
             lhs: Box::new(Expr::FuncCall(FuncCall::Scalar {
                 func: ScalarFunc::Unknown("badudf".to_string()),
                 args: vec![Expr::Field(FieldPath::new(vec!["col".to_string()]))],
+                span: crate::ast::Span::ZERO,
             })),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::String("value".to_string()))),
@@ -6536,6 +7228,7 @@ mod enrich_gate_where_clause_unit_tests {
             lhs: Box::new(Expr::FuncCall(FuncCall::Scalar {
                 func: ScalarFunc::Unknown("badudf".to_string()),
                 args: vec![],
+                span: crate::ast::Span::ZERO,
             })),
             op: CompareOp::Eq,
             rhs: Box::new(Expr::Literal(Literal::Integer(1))),
@@ -6594,6 +7287,7 @@ mod enrich_gate_where_clause_unit_tests {
             lhs: Box::new(Expr::FuncCall(FuncCall::Scalar {
                 func: ScalarFunc::Unknown("evil_udf".to_string()),
                 args: vec![],
+                span: crate::ast::Span::ZERO,
             })),
             op: CompareOp::Ne,
             rhs: Box::new(Expr::Literal(Literal::Integer(0))),
@@ -14647,5 +15341,1672 @@ mod sec_find_001_cwe117_column_not_found_log_sanitization_tests {
                 other
             ),
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PQLFN-P4-MED-001: DataFusion aggregate registry empirical locks
+// ---------------------------------------------------------------------------
+//
+// Settles the ADR-048 v1.3 vs engine.rs comment discrepancy about whether
+// "percentile" and "distinct_count" are present in DataFusion 53.1's
+// default_aggregate_functions() registry.
+//
+// These tests pin the EMPIRICAL TRUTH as load-bearing assertions. If a
+// DataFusion upgrade ever adds "percentile" or "distinct_count" to the registry,
+// the corresponding test fails — reviewer knows to remove the now-redundant manual
+// insert from DATAFUSION_BUILTIN_AGGREGATE_NAMES and update ADR-048.
+//
+// VERDICT (DataFusion 53.1):
+//   "percentile"      → ABSENT  (ADR-048 v1.3 claim was FALSE; comment correct)
+//   "distinct_count"  → ABSENT  (DataFusion uses "approx_distinct")
+//   "approx_percentile_cont" → PRESENT  (what "percentile" emits at query time)
+//   "approx_distinct" → PRESENT  (what "distinct_count" maps to at emit time)
+
+#[cfg(test)]
+mod datafusion_aggregate_registry_empirical_tests {
+    /// F-PQLFN-P4-MED-001 empirical lock (1/4): "percentile" ABSENT from DataFusion 53.1.
+    ///
+    /// Settles the discrepancy between:
+    ///   - ADR-048 v1.3 claim: "percentile IS registered in default_aggregate_functions()"
+    ///   - engine.rs comment: "absent from DataFusion's built-in registry"
+    ///
+    /// EMPIRICAL VERDICT: "percentile" is ABSENT from DataFusion 53.1.
+    ///   → engine.rs comment CORRECT; ADR-048 v1.3 claim is FALSE.
+    ///   → The manual `names.insert("percentile")` is NECESSARY for correct gate coverage.
+    ///   → ADR-048 v1.4 retracted this claim (§D.2 PERCENTILE note corrected; F-PQLFN-P4-MED-001); manual insert is necessary, not redundant.
+    ///
+    /// If this test FAILS in a future DataFusion upgrade: "percentile" was added to the
+    /// registry. Remove the manual insert and update ADR-048 accordingly.
+    ///
+    /// Traces to: F-PQLFN-P4-MED-001; ADR-048 v1.3 reconciliation.
+    #[test]
+    fn test_f_pqlfn_p4_med_001_percentile_absent_from_datafusion_53_1_aggregate_registry() {
+        use datafusion::execution::SessionStateDefaults;
+
+        let raw_names: std::collections::HashSet<String> =
+            SessionStateDefaults::default_aggregate_functions()
+                .iter()
+                .flat_map(|f| {
+                    let mut names = vec![f.name().to_ascii_lowercase()];
+                    for alias in f.aliases() {
+                        names.push(alias.to_ascii_lowercase());
+                    }
+                    names
+                })
+                .collect();
+
+        // EMPIRICAL LOCK: "percentile" must be ABSENT from the raw DataFusion registry
+        // (before the manual inserts in DATAFUSION_BUILTIN_AGGREGATE_NAMES).
+        assert!(
+            !raw_names.contains("percentile"),
+            "F-PQLFN-P4-MED-001 EMPIRICAL LOCK BROKEN: 'percentile' is now IN DataFusion's \
+             default_aggregate_functions() registry (not present in DataFusion 53.1). \
+             ADR-048 v1.3 claim would now be CORRECT for this DataFusion version. \
+             Action: remove `names.insert(\"percentile\")` from DATAFUSION_BUILTIN_AGGREGATE_NAMES \
+             and update ADR-048 to note version where percentile became a DataFusion built-in."
+        );
+    }
+
+    /// F-PQLFN-P4-MED-001 empirical lock (2/4): "distinct_count" ABSENT from DataFusion 53.1.
+    ///
+    /// DataFusion 53.1 uses "approx_distinct" (not "distinct_count") as the canonical name.
+    /// "distinct_count" is a PrismQL-specific alias — absent from DataFusion's registry.
+    ///   → The manual `names.insert("distinct_count")` is NECESSARY for correct gate coverage.
+    ///
+    /// If this test FAILS: DataFusion added "distinct_count" as an alias or new function.
+    /// Action: verify if the manual insert is still needed; update ADR-048.
+    ///
+    /// Traces to: F-PQLFN-P4-MED-001; ADR-048 v1.3 reconciliation.
+    #[test]
+    fn test_f_pqlfn_p4_med_001_distinct_count_absent_from_datafusion_53_1_aggregate_registry() {
+        use datafusion::execution::SessionStateDefaults;
+
+        let raw_names: std::collections::HashSet<String> =
+            SessionStateDefaults::default_aggregate_functions()
+                .iter()
+                .flat_map(|f| {
+                    let mut names = vec![f.name().to_ascii_lowercase()];
+                    for alias in f.aliases() {
+                        names.push(alias.to_ascii_lowercase());
+                    }
+                    names
+                })
+                .collect();
+
+        // EMPIRICAL LOCK: "distinct_count" must be ABSENT (DataFusion uses "approx_distinct").
+        assert!(
+            !raw_names.contains("distinct_count"),
+            "F-PQLFN-P4-MED-001 EMPIRICAL LOCK BROKEN: 'distinct_count' is now IN DataFusion's \
+             default_aggregate_functions() registry. DataFusion 53.1 uses 'approx_distinct'. \
+             Action: verify if the manual insert is still needed; update ADR-048."
+        );
+    }
+
+    /// F-PQLFN-P4-MED-001 empirical lock (3/4): "approx_percentile_cont" PRESENT in DataFusion 53.1.
+    ///
+    /// Confirms that the UNDERLYING function "percentile" maps to at emit time IS present.
+    /// This validates the pipe_sql_emitter.rs `percentile → approx_percentile_cont` translation.
+    ///
+    /// If this test FAILS: DataFusion renamed or removed "approx_percentile_cont".
+    /// Action: update pipe_sql_emitter.rs percentile emit logic to use new function name.
+    ///
+    /// Traces to: F-PQLFN-P4-MED-001; pipe_sql_emitter.rs percentile emit logic.
+    #[test]
+    fn test_f_pqlfn_p4_med_001_approx_percentile_cont_present_in_datafusion_53_1_registry() {
+        use datafusion::execution::SessionStateDefaults;
+
+        let raw_names: std::collections::HashSet<String> =
+            SessionStateDefaults::default_aggregate_functions()
+                .iter()
+                .flat_map(|f| {
+                    let mut names = vec![f.name().to_ascii_lowercase()];
+                    for alias in f.aliases() {
+                        names.push(alias.to_ascii_lowercase());
+                    }
+                    names
+                })
+                .collect();
+
+        // EMPIRICAL LOCK: "approx_percentile_cont" must be PRESENT (pipe_sql_emitter maps to it).
+        assert!(
+            raw_names.contains("approx_percentile_cont"),
+            "F-PQLFN-P4-MED-001: 'approx_percentile_cont' is ABSENT from DataFusion's \
+             default_aggregate_functions() registry. Unexpected for DataFusion 53.1. \
+             pipe_sql_emitter.rs maps 'percentile' to 'approx_percentile_cont' at emit time. \
+             Action: update pipe_sql_emitter.rs to use DataFusion's current percentile function."
+        );
+    }
+
+    /// F-PQLFN-P4-MED-001 empirical lock (4/4): "approx_distinct" PRESENT in DataFusion 53.1.
+    ///
+    /// Confirms that the UNDERLYING function "distinct_count" maps to at emit time IS present.
+    ///
+    /// Traces to: F-PQLFN-P4-MED-001.
+    #[test]
+    fn test_f_pqlfn_p4_med_001_approx_distinct_present_in_datafusion_53_1_registry() {
+        use datafusion::execution::SessionStateDefaults;
+
+        let raw_names: std::collections::HashSet<String> =
+            SessionStateDefaults::default_aggregate_functions()
+                .iter()
+                .flat_map(|f| {
+                    let mut names = vec![f.name().to_ascii_lowercase()];
+                    for alias in f.aliases() {
+                        names.push(alias.to_ascii_lowercase());
+                    }
+                    names
+                })
+                .collect();
+
+        // EMPIRICAL LOCK: "approx_distinct" must be PRESENT (DataFusion 53.1 built-in).
+        assert!(
+            raw_names.contains("approx_distinct"),
+            "F-PQLFN-P4-MED-001: 'approx_distinct' is ABSENT from DataFusion's registry. \
+             Unexpected for DataFusion 53.1. Action: check DataFusion version and update."
+        );
+    }
+
+    /// F-PQLFN-P5-LOW-001 empirical lock (scalar): "percentile" ABSENT from DataFusion 53.1
+    /// default_scalar_functions() registry.
+    ///
+    /// Rationale: `DATAFUSION_BUILTIN_FUNCTION_NAMES` unions scalar + aggregate + window
+    /// registries (see static initializer). The existing aggregate-registry absence lock
+    /// (test_f_pqlfn_p4_med_001_percentile_absent_from_datafusion_53_1_aggregate_registry)
+    /// covered only the aggregate arm. This lock completes coverage for the scalar arm, ensuring
+    /// that ADR-048 v1.4 §D.2's claim ("percentile absent from DataFusion built-ins") is
+    /// empirically anchored across ALL three registry sources.
+    ///
+    /// EMPIRICAL VERDICT (DataFusion 53.1): "percentile" is ABSENT from default_scalar_functions().
+    ///   → The manual `names.insert("percentile")` in DATAFUSION_BUILTIN_AGGREGATE_NAMES is
+    ///     still the correct mechanism; no scalar-registry built-in shadows it.
+    ///
+    /// If this test FAILS: DataFusion added "percentile" as a scalar function.
+    /// Action: investigate whether the manual insert is still needed; update ADR-048.
+    ///
+    /// Traces to: F-PQLFN-P5-LOW-001; ADR-048 v1.4 §D.2 scalar-registry absence claim.
+    #[test]
+    fn test_f_pqlfn_p5_low_001_percentile_absent_from_datafusion_53_1_scalar_registry() {
+        use datafusion::execution::SessionStateDefaults;
+
+        let raw_names: std::collections::HashSet<String> =
+            SessionStateDefaults::default_scalar_functions()
+                .iter()
+                .flat_map(|f| {
+                    let mut names = vec![f.name().to_ascii_lowercase()];
+                    for alias in f.aliases() {
+                        names.push(alias.to_ascii_lowercase());
+                    }
+                    names
+                })
+                .collect();
+
+        // EMPIRICAL LOCK: "percentile" must be ABSENT from the scalar registry (DataFusion 53.1).
+        assert!(
+            !raw_names.contains("percentile"),
+            "F-PQLFN-P5-LOW-001 EMPIRICAL LOCK BROKEN: 'percentile' is now IN DataFusion's \
+             default_scalar_functions() registry (not present in DataFusion 53.1). \
+             This changes the ADR-048 reconciliation — stop and report to the architect. \
+             Action: determine whether the manual insert in DATAFUSION_BUILTIN_AGGREGATE_NAMES \
+             is still necessary and update ADR-048 §D.2 accordingly."
+        );
+    }
+
+    /// F-PQLFN-P5-LOW-001 empirical lock (window): "percentile" ABSENT from DataFusion 53.1
+    /// default_window_functions() registry.
+    ///
+    /// Rationale: `DATAFUSION_BUILTIN_FUNCTION_NAMES` unions scalar + aggregate + window
+    /// registries (see static initializer). The existing aggregate-registry absence lock
+    /// covered only the aggregate arm. This lock completes coverage for the window arm, ensuring
+    /// that ADR-048 v1.4 §D.2's claim ("percentile absent from DataFusion built-ins") is
+    /// empirically anchored across ALL three registry sources.
+    ///
+    /// EMPIRICAL VERDICT (DataFusion 53.1): "percentile" is ABSENT from default_window_functions().
+    ///   → The manual `names.insert("percentile")` in DATAFUSION_BUILTIN_AGGREGATE_NAMES is
+    ///     still the correct mechanism; no window-registry built-in shadows it.
+    ///
+    /// If this test FAILS: DataFusion added "percentile" as a window function.
+    /// Action: investigate whether the manual insert is still needed; update ADR-048.
+    ///
+    /// Traces to: F-PQLFN-P5-LOW-001; ADR-048 v1.4 §D.2 window-registry absence claim.
+    #[test]
+    fn test_f_pqlfn_p5_low_001_percentile_absent_from_datafusion_53_1_window_registry() {
+        use datafusion::execution::SessionStateDefaults;
+
+        let raw_names: std::collections::HashSet<String> =
+            SessionStateDefaults::default_window_functions()
+                .iter()
+                .flat_map(|f| {
+                    let mut names = vec![f.name().to_ascii_lowercase()];
+                    for alias in f.aliases() {
+                        names.push(alias.to_ascii_lowercase());
+                    }
+                    names
+                })
+                .collect();
+
+        // EMPIRICAL LOCK: "percentile" must be ABSENT from the window registry (DataFusion 53.1).
+        assert!(
+            !raw_names.contains("percentile"),
+            "F-PQLFN-P5-LOW-001 EMPIRICAL LOCK BROKEN: 'percentile' is now IN DataFusion's \
+             default_window_functions() registry (not present in DataFusion 53.1). \
+             This changes the ADR-048 reconciliation — stop and report to the architect. \
+             Action: determine whether the manual insert in DATAFUSION_BUILTIN_AGGREGATE_NAMES \
+             is still necessary and update ADR-048 §D.2 accordingly."
+        );
+    }
+
+    /// F-PQLFN-PR9-OBS-001 **GREEN LOCK** — DataFusion registry set-difference invariant:
+    /// `DATAFUSION_BUILTIN_AGGREGATE_NAMES ∖ DATAFUSION_BUILTIN_FUNCTION_NAMES`
+    /// == `{"distinct_count", "percentile"}`.
+    ///
+    /// The HAVING-position interception gate (EC-11-086, ADR-048 v1.17 §D.2) uses the
+    /// two-condition criterion to decide which names are intercepted:
+    ///   (a) `name ∈ DATAFUSION_BUILTIN_AGGREGATE_NAMES`, AND
+    ///   (b) `name ∉ DATAFUSION_BUILTIN_FUNCTION_NAMES`
+    ///
+    /// The set difference `AGGREGATE ∖ FUNCTION_NAMES` is the exact "triggering set" —
+    /// names that satisfy BOTH conditions and thus reach the HAVING interception branch.
+    /// Today this set is `{"distinct_count", "percentile"}`:
+    ///   - Both are manually inserted in `DATAFUSION_BUILTIN_AGGREGATE_NAMES`.
+    ///   - Both are absent from DataFusion 53.1's raw aggregate registry (F-PQLFN-P4-MED-001).
+    ///   - Because they're absent from the raw registry, they're also absent from
+    ///     `DATAFUSION_BUILTIN_FUNCTION_NAMES` (which unions scalar + aggregate + window).
+    ///
+    /// The two-branch `having_aggregate_interception_detail` builder (BC-2.11.019 v1.26
+    /// §OBS-004, F-PQLFN-PR5-LOW-001) branches on `name_lower == "percentile"` to emit
+    /// the two-arg template vs the generic `(...)` template. If a DataFusion 53.x upgrade
+    /// adds a new aggregate-only name that widens the triggering set, this test fails
+    /// loudly — the reviewer knows to extend the detail-builder's branching logic before
+    /// silent behavior change reaches analysts.
+    ///
+    /// Note: `distinct_count` IS in the set difference but in practice never reaches
+    /// `having_fncall_names` because it parses as `FuncCall::Aggregate` via
+    /// `build_agg_call_parser` (not `ScalarFunc::Unknown`) — it is correctly included in
+    /// the invariant as a structural property of the gate design (BC-2.11.019 v1.26 §OBS-004).
+    ///
+    /// Kills the class of silent-breakage mutations where a DataFusion upgrade changes the
+    /// registry contents in a way that shifts the triggering set without any test failure.
+    ///
+    /// Traces to: BC-2.11.019 v1.26 §OBS-004 (set-difference invariant, F-PQLFN-PR9-OBS-001);
+    ///            F-PQLFN-P4-MED-001 (empirical absence locks); ADR-048 v1.17 §D.2.
+    #[test]
+    fn test_f_pqlfn_pr9_obs_001_datafusion_set_difference_invariant() {
+        let diff: std::collections::HashSet<&str> = super::DATAFUSION_BUILTIN_AGGREGATE_NAMES
+            .iter()
+            .filter(|name| !super::DATAFUSION_BUILTIN_FUNCTION_NAMES.contains(*name))
+            .map(|s| s.as_str())
+            .collect();
+
+        let expected: std::collections::HashSet<&str> =
+            ["distinct_count", "percentile"].iter().copied().collect();
+
+        assert_eq!(
+            diff, expected,
+            "F-PQLFN-PR9-OBS-001 INVARIANT BROKEN: \
+             DATAFUSION_BUILTIN_AGGREGATE_NAMES ∖ DATAFUSION_BUILTIN_FUNCTION_NAMES \
+             must equal {{\"distinct_count\", \"percentile\"}}. \
+             Actual difference: {diff:?}. \
+             The HAVING interception gate (EC-11-086, ADR-048 v1.17 §D.2) fires for names \
+             in this triggering set. A DataFusion upgrade that widened this set would \
+             silently change HAVING-interception behavior for analysts. \
+             Action: inspect the new name(s), extend `having_aggregate_interception_detail` \
+             branching if the new name needs a custom message template, update ADR-048 §D.2, \
+             and amend this test to include the new expected names after deliberate review."
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PQLFN-P35-MED-002: known-UDF-passes sibling locks for positions 1-5
+// (ADR-048 §D.7.1 Positions 1-5; fix-burst 27)
+// ---------------------------------------------------------------------------
+//
+// Five new bilateral boundary locks — one per gated position — mirror the pattern
+// established by the Position 6 / OD-6 (fix-burst 26 POL-29 sibling sweep) and
+// Position 7 / OD-7 (fix-burst 26) locks.  Positions 1-3 are walk-observable
+// (F-PQLFN-P35-OBS-001) for the predicate_fncall_names walk: the compound predicate
+// `enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1` proves
+// (a) the predicate_fncall_names walk executes and (b) registry filtering correctly
+// passes the known UDF while rejecting the unknown UDF.
+// Positions 4-5 are boundary-locked via the sql_unknown_names path instead
+// (collect_unknown_scalars_from_sql_query position (b)); the compound predicate tests
+// are NOT walk-observable for the predicate_fncall_names walk at those positions.
+// True walk locks: TM-06/TM-07 (Position 4) and TM-10 (Position 5) in
+// temporal_typing_tests.rs (F-PQLFN-P37-MED-001).
+//
+// Tests call `check_enrich_udf_availability` directly (private fn, same file) to
+// keep the fixture minimal — no registered table needed; the enrichment gate fires
+// before any table-availability check.  Each test registers `enrich_lookup` via the
+// same InfusionRegistry + InfusionSpec::new + InfusionField::new fixture pattern as
+// the Position 6 / OD-6 and Position 7 / OD-7 locks.
+//
+// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 Positions 1-5;
+//            BC-2.11.019.
+
+// ── Position 1: pipe | where ──────────────────────────────────────────────────
+
+/// `FROM t | where enrich_lookup(ip_address) = 'US'` with `enrich_lookup` registered
+/// MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
+///
+/// Walk-observable (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
+/// fires E-QUERY-039 for the unknown UDF only, proving the predicate walk executes and
+/// registry filtering passes the known UDF.
+///
+/// Bilateral boundary for Position 1:
+///   - known UDF in `| where` → gate passes (Ok(()))
+///   - unknown UDF in `| where` → gate fires (E-QUERY-039) [locked by MED-004 in
+///     temporal_typing_tests.rs]
+///
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 Position 1.
+#[cfg(test)]
+mod pipe_where_first_gated_position_enrich_udf_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    #[test]
+    fn test_pipe_where_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P35-MED-002 position-1 fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P35-MED-002 position-1 fixture");
+
+        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known + unknown UDF).
+        // Regression class (a) — walk removal: if PipeStage::Where walk removed from Ast::Pipe
+        //   arm, predicate_fncall_names stays empty → totally_unknown_udf undetected → false Ok.
+        // Regression class (b) — registry filtering: if registry check removed, enrich_lookup
+        //   would also fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        let compound_result = check_enrich_udf_availability(
+            "FROM t | where enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 Position 1 compound: pipe | where enrich_lookup AND totally_unknown_udf \
+             must fire E-QUERY-039 for totally_unknown_udf only — proving (a) walk reaches pipe \
+             | where predicate and (b) registry filtering passes enrich_lookup. \
+             Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 Position 1: available_infusions must contain 'enrich_lookup'. \
+                 Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 known-UDF-passes direction: pure known-UDF → Ok.
+        let result = check_enrich_udf_availability(
+            "FROM t | where enrich_lookup(ip_address) = 'US'",
+            Some(&registry),
+        );
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P35-MED-002 Position 1: pipe | where enrich_lookup(ip_address) = 'US' with known \
+             UDF MUST return Ok (E-QUERY-039 must NOT fire). \
+             Position 1 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Got: {result:?}"
+        );
+    }
+}
+
+// ── Position 2: filter-mode root predicate ────────────────────────────────────
+
+/// `t | enrich_lookup(ip_address) = 'US'` (filter mode) with `enrich_lookup` registered
+/// MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
+///
+/// Walk-observable (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
+/// fires E-QUERY-039 for the unknown UDF only, proving the Ast::Filter root-predicate
+/// walk executes and registry filtering passes the known UDF.
+///
+/// Bilateral boundary for Position 2:
+///   - known UDF in filter root predicate → gate passes (Ok(()))
+///   - unknown UDF in filter root predicate → gate fires (E-QUERY-039) [locked by MED-004 in
+///     temporal_typing_tests.rs]
+///
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 Position 2.
+#[cfg(test)]
+mod filter_root_second_gated_position_enrich_udf_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    #[test]
+    fn test_filter_root_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P35-MED-002 position-2 fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P35-MED-002 position-2 fixture");
+
+        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known + unknown UDF).
+        // Regression class (a) — walk removal: if Ast::Filter arm removed from
+        //   check_enrich_udf_availability, predicate_fncall_names stays empty → false Ok.
+        // Regression class (b) — registry filtering: if registry check removed, enrich_lookup
+        //   would also fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        // Query: filter-mode (source_ref = "t", no FROM/SELECT prefix — first token is "t").
+        let compound_result = check_enrich_udf_availability(
+            "t | enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 Position 2 compound: filter-mode enrich_lookup AND totally_unknown_udf \
+             must fire E-QUERY-039 for totally_unknown_udf only — proving (a) walk reaches filter \
+             root predicate (Ast::Filter arm) and (b) registry filtering passes enrich_lookup. \
+             Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 Position 2: available_infusions must contain 'enrich_lookup'. \
+                 Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 known-UDF-passes direction: pure known-UDF → Ok.
+        let result =
+            check_enrich_udf_availability("t | enrich_lookup(ip_address) = 'US'", Some(&registry));
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P35-MED-002 Position 2: filter-mode enrich_lookup(ip_address) = 'US' with known \
+             UDF MUST return Ok (E-QUERY-039 must NOT fire). \
+             Position 2 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Got: {result:?}"
+        );
+    }
+}
+
+// ── Position 3: SqlPipe | where ───────────────────────────────────────────────
+
+/// `SELECT ip_address FROM t | where enrich_lookup(ip_address) = 'US'` with
+/// `enrich_lookup` registered MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
+///
+/// Walk-observable (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
+/// fires E-QUERY-039 for the unknown UDF only, proving the SqlPipe PipeStage::Where
+/// walk executes and registry filtering passes the known UDF.
+///
+/// Bilateral boundary for Position 3:
+///   - known UDF in SqlPipe | where → gate passes (Ok(()))
+///   - unknown UDF in SqlPipe | where → gate fires (E-QUERY-039) [locked by MED-004 in
+///     temporal_typing_tests.rs]
+///
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 Position 3.
+#[cfg(test)]
+mod sqlpipe_where_third_gated_position_enrich_udf_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    #[test]
+    fn test_sqlpipe_where_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P35-MED-002 position-3 fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P35-MED-002 position-3 fixture");
+
+        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known + unknown UDF).
+        // Regression class (a) — walk removal: if PipeStage::Where walk removed from Ast::SqlPipe
+        //   arm, predicate_fncall_names stays empty → totally_unknown_udf undetected → false Ok.
+        // Regression class (b) — registry filtering: if registry check removed, enrich_lookup
+        //   would also fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        let compound_result = check_enrich_udf_availability(
+            "SELECT ip_address FROM t | where \
+             enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 Position 3 compound: SqlPipe | where enrich_lookup AND \
+             totally_unknown_udf must fire E-QUERY-039 for totally_unknown_udf only — proving \
+             (a) walk reaches SqlPipe PipeStage::Where predicate and (b) registry passes \
+             enrich_lookup. Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 Position 3: available_infusions must contain 'enrich_lookup'. \
+                 Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 known-UDF-passes direction: pure known-UDF → Ok.
+        let result = check_enrich_udf_availability(
+            "SELECT ip_address FROM t | where enrich_lookup(ip_address) = 'US'",
+            Some(&registry),
+        );
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P35-MED-002 Position 3: SqlPipe | where enrich_lookup(ip_address) = 'US' with \
+             known UDF MUST return Ok (E-QUERY-039 must NOT fire). \
+             Position 3 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Got: {result:?}"
+        );
+    }
+}
+
+// ── Position 4: SQL SELECT WHERE (added by OD-5) ─────────────────────────────
+
+/// `SELECT ip_address FROM t WHERE enrich_lookup(ip_address) = 'US'` with
+/// `enrich_lookup` registered MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
+///
+/// Boundary-locked (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
+/// fires E-QUERY-039 for the unknown UDF only. Both `collect_unknown_scalars_from_sql_query`
+/// (position (b)) and the `predicate_fncall_names → sql_unknown_names` fold in
+/// `check_enrich_udf_availability` contribute at Position 4; the compound test is not
+/// walk-distinguishable between them (true walk locks: TM-06/TM-07 in temporal_typing_tests.rs).
+///
+/// Bilateral boundary for Position 4 (added by OD-5):
+///   - known UDF in SQL WHERE → gate passes (Ok(()))
+///   - unknown UDF in SQL WHERE → gate fires (E-QUERY-039) [locked by BC-2.11.019 N1B tests
+///     and TM-06/TM-07 aggregate-gate tests in temporal_typing_tests.rs]
+///
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 Position 4 (added by OD-5).
+#[cfg(test)]
+mod sql_where_fourth_gated_position_enrich_udf_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    #[test]
+    fn test_sql_where_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P35-MED-002 position-4 fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P35-MED-002 position-4 fixture");
+
+        // F-PQLFN-P35-OBS-001 boundary lock: compound predicate (known + unknown UDF).
+        // This test locks known-UDF-passes + unknown-UDF-fires boundaries at Position 4 via
+        // the sql_unknown_names path (collect_unknown_scalars_from_sql_query position (b)).
+        // NOT walk-observable for the Position-4 predicate_fncall_names walk — removing that
+        // walk leaves sql_unknown_names populated and this test still passes (totally_unknown_udf
+        // reaches E-QUERY-039 via sql_unknown_names regardless). The predicate_fncall_names
+        // walk at Position 4 serves the aggregate gate exclusively (ADR-048 §D.7.1, OD-5):
+        // DataFusion built-in aggregate names are filtered from sql_unknown_names by
+        // DATAFUSION_BUILTIN_FUNCTION_NAMES before E-QUERY-039, so only predicate_fncall_names
+        // catches them for E-QUERY-001. True walk locks (F-PQLFN-P37-MED-001):
+        //   test_BC_2_11_019_tm_06_sql_where_count_e_query_001_high001 (TM-06)
+        //   test_BC_2_11_019_tm_07_sql_where_sum_e_query_001_high001 (TM-07)
+        // Regression class (b) — registry filtering: if registry check removed, enrich_lookup
+        //   would also fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        let compound_result = check_enrich_udf_availability(
+            "SELECT ip_address FROM t WHERE \
+             enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 Position 4 compound: SQL WHERE enrich_lookup AND totally_unknown_udf \
+             must fire E-QUERY-039 for totally_unknown_udf only — proving (a) walk reaches SQL \
+             WHERE predicate (Ast::Sql Select arm) and (b) registry passes enrich_lookup. \
+             Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 Position 4: available_infusions must contain 'enrich_lookup'. \
+                 Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 known-UDF-passes direction: pure known-UDF → Ok.
+        let result = check_enrich_udf_availability(
+            "SELECT ip_address FROM t WHERE enrich_lookup(ip_address) = 'US'",
+            Some(&registry),
+        );
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P35-MED-002 Position 4: SQL WHERE enrich_lookup(ip_address) = 'US' with known \
+             UDF MUST return Ok (E-QUERY-039 must NOT fire). \
+             Position 4 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Got: {result:?}"
+        );
+    }
+}
+
+// ── Position 5: SqlPipe-head WHERE (added by OD-5) ────────────────────────────
+
+/// `SELECT ip_address FROM t WHERE enrich_lookup(ip_address) = 'US' | limit 5` with
+/// `enrich_lookup` registered MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
+///
+/// Boundary-locked (F-PQLFN-P35-OBS-001): compound predicate with known + unknown UDF
+/// fires E-QUERY-039 for the unknown UDF only. Both `collect_unknown_scalars_from_sql_query`
+/// (position (b) on spq.head) and the `predicate_fncall_names → sql_unknown_names` fold in
+/// `check_enrich_udf_availability` contribute at Position 5; the compound test is not
+/// walk-distinguishable between them (true walk lock: TM-10 in temporal_typing_tests.rs).
+///
+/// Bilateral boundary for Position 5 (added by OD-5):
+///   - known UDF in SqlPipe-head WHERE → gate passes (Ok(()))
+///   - unknown UDF in SqlPipe-head WHERE → gate fires (E-QUERY-039) [TM-10 aggregate-gate
+///     and BC-2.11.019 tests in temporal_typing_tests.rs]
+///
+/// Traces to: F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001; ADR-048 §D.7.1 Position 5 (added by OD-5).
+#[cfg(test)]
+mod sqlpipe_head_where_fifth_gated_position_enrich_udf_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    #[test]
+    fn test_sqlpipe_head_where_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P35-MED-002 position-5 fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P35-MED-002 position-5 fixture");
+
+        // F-PQLFN-P35-OBS-001 boundary lock: compound predicate (known + unknown UDF).
+        // This test locks known-UDF-passes + unknown-UDF-fires boundaries at Position 5 via
+        // the sql_unknown_names path (collect_unknown_scalars_from_sql_query position (b),
+        // called on spq.head). NOT walk-observable for the Position-5 predicate_fncall_names
+        // walk — removing that walk leaves sql_unknown_names populated and this test still
+        // passes (totally_unknown_udf reaches E-QUERY-039 via sql_unknown_names regardless).
+        // The predicate_fncall_names walk at Position 5 serves the aggregate gate exclusively
+        // (ADR-048 §D.7.1, OD-5): DataFusion built-in aggregate names are filtered from
+        // sql_unknown_names by DATAFUSION_BUILTIN_FUNCTION_NAMES before E-QUERY-039, so only
+        // predicate_fncall_names catches them for E-QUERY-001. True walk lock (F-PQLFN-P37-MED-001):
+        //   test_BC_2_11_019_tm_10_sqlpipe_head_where_aggregate_e_query_001_high001 (TM-10)
+        // Regression class (b) — registry filtering: if registry check removed, enrich_lookup
+        //   would also fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        // Query: SqlPipe mode — SELECT head with WHERE, followed by | limit stage.
+        let compound_result = check_enrich_udf_availability(
+            "SELECT ip_address FROM t WHERE \
+             enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1 | limit 5",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 Position 5 compound: SqlPipe-head WHERE enrich_lookup AND \
+             totally_unknown_udf must fire E-QUERY-039 for totally_unknown_udf only — proving \
+             (a) walk reaches spq.head.where_ and (b) registry filtering passes enrich_lookup. \
+             Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 Position 5: available_infusions must contain 'enrich_lookup'. \
+                 Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 known-UDF-passes direction: pure known-UDF → Ok.
+        let result = check_enrich_udf_availability(
+            "SELECT ip_address FROM t WHERE enrich_lookup(ip_address) = 'US' | limit 5",
+            Some(&registry),
+        );
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P35-MED-002 Position 5: SqlPipe-head WHERE enrich_lookup(ip_address) = 'US' with \
+             known UDF MUST return Ok (E-QUERY-039 must NOT fire). \
+             Position 5 behavioral boundary: known UDF → passes; unknown UDF → fires. \
+             Got: {result:?}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PQLFN-P7-LOW-002: DML WHERE sixth gated position (ADR-048 §D.7.5, OD-6)
+// ---------------------------------------------------------------------------
+//
+// Before fix: `Ast::Sql(SqlStatement::Dml(_))` fell to `_ => {}` in
+// `check_enrich_udf_availability`. After the branch added `fn_call_comparison` to
+// `build_predicate_parser` (which both build_delete_parser and build_update_parser
+// bind), DML WHERE accepted fn-call LHS but the aggregate gate silently passed them.
+// Post-fix: the `Ast::Sql(SqlStatement::Dml(dml))` arm walks `dml.filter` into
+// `predicate_fncall_names`, restoring E-QUERY-001 for aggregates and enabling
+// E-QUERY-039 for unknown UDFs with a registry.
+//
+// Tests call `check_enrich_udf_availability` directly (private fn, same file)
+// to avoid requiring a registered table for DML gate tests. The aggregate gate
+// fires before any table availability check — direct call cleanly isolates the gate.
+//
+// Traces to: F-PQLFN-P7-LOW-002; ADR-048 v1.6 §D.7.5; OD-6.
+#[cfg(test)]
+mod dml_where_sixth_gated_position_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    /// F-PQLFN-P7-LOW-002 (1/4): `DELETE FROM t WHERE stddev(x) > 5` must fire E-QUERY-001
+    /// (aggregate-in-predicate gate, ADR-048 D.7.1 Position 6). No infusion registry needed —
+    /// aggregate gate fires regardless of registry state.
+    ///
+    /// Before fix: fell to `_ => {}` → aggregate gate skipped → SILENT EMPTY SUCCESS (DML no-op).
+    /// After fix: DML arm walks dml.filter → stddev in predicate_fncall_names → E-QUERY-001.
+    ///
+    /// Traces to: F-PQLFN-P7-LOW-002; ADR-048 v1.6 §D.7.5.
+    #[test]
+    fn test_f_pqlfn_p7_low_002_delete_where_aggregate_fires_e_query_001() {
+        let result = check_enrich_udf_availability("DELETE FROM t WHERE stddev(x) > 5", None);
+
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P7-LOW-002: DELETE FROM t WHERE stddev(x) > 5 must return Err \
+             (E-QUERY-001 aggregate gate). Got Ok. \
+             Before fix: fell to _ => {{}} arm — aggregate gate was a no-op for DML."
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        assert!(
+            matches!(&err, PrismError::QueryParseFailed { .. }),
+            "F-PQLFN-P7-LOW-002: DELETE WHERE aggregate must return QueryParseFailed \
+             (E-QUERY-001). Got: {err:?} (Display: {display})"
+        );
+
+        assert!(
+            display.contains("aggregate function"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'aggregate function' \
+             (ADR-048 D.3 canonical message). Got: {display}"
+        );
+
+        assert!(
+            display.contains("stddev"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'stddev' (the aggregate fn name). \
+             Got: {display}"
+        );
+
+        assert!(
+            display.contains("HAVING"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'HAVING' (ADR-048 D.3 guidance). \
+             Got: {display}"
+        );
+
+        // F-PQLFN-P9-LOW-001 regression lock: canonical message must use position-agnostic
+        // phrasing "WHERE/where predicates" (ADR-048 v1.8 §D.7.2) rather than the
+        // misleading "pipe | where" which mis-identifies the error location for DML WHERE.
+        assert!(
+            display.contains("not valid in WHERE/where predicates"),
+            "F-PQLFN-P9-LOW-001: Display must contain 'not valid in WHERE/where predicates' \
+             (ADR-048 v1.8 §D.7.2 position-agnostic message). \
+             Got: {display}"
+        );
+    }
+
+    /// F-PQLFN-P7-LOW-002 (2/4): `UPDATE t SET col = 1 WHERE avg(x) > 100` must fire
+    /// E-QUERY-001 (aggregate-in-predicate gate). No registry needed.
+    ///
+    /// Sibling of the DELETE test; exercises build_update_parser path (both bind
+    /// build_predicate_parser, which now includes fn_call_comparison).
+    ///
+    /// Note: `variance` is absent from DataFusion 53.1's default_aggregate_functions() registry
+    /// (DataFusion uses `var_samp`/`var_pop`). `avg` is a registered DataFusion aggregate and
+    /// exercises the same gate. The test validates the mechanism (UPDATE WHERE aggregate →
+    /// E-QUERY-001) rather than a specific function name.
+    ///
+    /// Traces to: F-PQLFN-P7-LOW-002; ADR-048 v1.6 §D.7.5.
+    #[test]
+    fn test_f_pqlfn_p7_low_002_update_where_aggregate_fires_e_query_001() {
+        let result = check_enrich_udf_availability("UPDATE t SET col = 1 WHERE avg(x) > 100", None);
+
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P7-LOW-002: UPDATE t SET col = 1 WHERE avg(x) > 100 must return Err \
+             (E-QUERY-001 aggregate gate). Got Ok."
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        assert!(
+            matches!(&err, PrismError::QueryParseFailed { .. }),
+            "F-PQLFN-P7-LOW-002: UPDATE WHERE aggregate must return QueryParseFailed \
+             (E-QUERY-001). Got: {err:?} (Display: {display})"
+        );
+
+        assert!(
+            display.contains("aggregate function"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'aggregate function'. Got: {display}"
+        );
+
+        assert!(
+            display.contains("avg"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'avg' (the aggregate fn name). Got: {display}"
+        );
+
+        assert!(
+            display.contains("HAVING"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'HAVING'. Got: {display}"
+        );
+
+        // F-PQLFN-P9-LOW-001 regression lock: canonical message must use position-agnostic
+        // phrasing "WHERE/where predicates" (ADR-048 v1.8 §D.7.2) rather than the
+        // misleading "pipe | where" which mis-identifies the error location for UPDATE WHERE.
+        assert!(
+            display.contains("not valid in WHERE/where predicates"),
+            "F-PQLFN-P9-LOW-001: Display must contain 'not valid in WHERE/where predicates' \
+             (ADR-048 v1.8 §D.7.2 position-agnostic message). \
+             Got: {display}"
+        );
+    }
+
+    /// F-PQLFN-P7-LOW-002 (3/4): `DELETE FROM t WHERE badudf(col) = 1` with an empty
+    /// InfusionRegistry (badudf not registered) must fire E-QUERY-039.
+    ///
+    /// `badudf` is NOT a DataFusion built-in aggregate → aggregate gate does not fire.
+    /// It IS a ScalarFunc::Unknown reaching predicate_fncall_names → folded into
+    /// sql_unknown_names → not filtered by DATAFUSION_BUILTIN_FUNCTION_NAMES → not in
+    /// registered_names → E-QUERY-039.
+    ///
+    /// Note: DELETE FROM t WHERE badudf(col) = 1 with NO registry returns Ok(()) early
+    /// (registry=None → skip E-QUERY-039). This test uses an EMPTY registry (Some, zero
+    /// entries) to confirm E-QUERY-039 fires when a registry is configured.
+    ///
+    /// Traces to: F-PQLFN-P7-LOW-002; ADR-048 v1.6 §D.7.5 (E-QUERY-039 coverage for DML).
+    #[test]
+    fn test_f_pqlfn_p7_low_002_delete_where_unknown_udf_fires_e_query_039() {
+        use prism_spec_engine::InfusionRegistry;
+
+        let registry = InfusionRegistry::new(); // empty — badudf not registered
+        let result =
+            check_enrich_udf_availability("DELETE FROM t WHERE badudf(col) = 1", Some(&registry));
+
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P7-LOW-002: DELETE FROM t WHERE badudf(col) = 1 with empty registry \
+             must return Err (E-QUERY-039 unknown UDF). Got Ok."
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        assert!(
+            matches!(&err, PrismError::EnrichUdfNotFound(_)),
+            "F-PQLFN-P7-LOW-002: DELETE WHERE unknown UDF must return EnrichUdfNotFound \
+             (E-QUERY-039). Got: {err:?} (Display: {display})"
+        );
+
+        assert!(
+            display.contains("E-QUERY-039"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'E-QUERY-039'. Got: {display}"
+        );
+
+        assert!(
+            display.contains("badudf"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'badudf' (the unknown UDF name). \
+             Got: {display}"
+        );
+    }
+
+    /// F-PQLFN-P7-LOW-002 (4/4): `UPDATE t SET col = 1 WHERE badudf(x) = 1` with an empty
+    /// InfusionRegistry (badudf not registered) must fire E-QUERY-039.
+    ///
+    /// Sibling of the DELETE E-QUERY-039 test; exercises build_update_parser path.
+    ///
+    /// Traces to: F-PQLFN-P7-LOW-002; ADR-048 v1.6 §D.7.5.
+    #[test]
+    fn test_f_pqlfn_p7_low_002_update_where_unknown_udf_fires_e_query_039() {
+        use prism_spec_engine::InfusionRegistry;
+
+        let registry = InfusionRegistry::new(); // empty — badudf not registered
+        let result = check_enrich_udf_availability(
+            "UPDATE t SET col = 1 WHERE badudf(x) = 1",
+            Some(&registry),
+        );
+
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P7-LOW-002: UPDATE t SET col = 1 WHERE badudf(x) = 1 with empty registry \
+             must return Err (E-QUERY-039 unknown UDF). Got Ok."
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        assert!(
+            matches!(&err, PrismError::EnrichUdfNotFound(_)),
+            "F-PQLFN-P7-LOW-002: UPDATE WHERE unknown UDF must return EnrichUdfNotFound \
+             (E-QUERY-039). Got: {err:?} (Display: {display})"
+        );
+
+        assert!(
+            display.contains("E-QUERY-039"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'E-QUERY-039'. Got: {display}"
+        );
+
+        assert!(
+            display.contains("badudf"),
+            "F-PQLFN-P7-LOW-002: Display must contain 'badudf'. Got: {display}"
+        );
+    }
+
+    /// F-PQLFN-P34-OBS-001 sibling sweep (POL-29) — enrichment-UDF sibling lock for position-6:
+    /// `DELETE FROM t WHERE enrich_lookup(ip_address) = 'US'` with `enrich_lookup` registered
+    /// MUST pass the plan-time gate (E-QUERY-039 does NOT fire).
+    ///
+    /// This locks the behavioral boundary for OD-6 between:
+    ///   - fn-call whose name is NOT in the registry → gate fires (E-QUERY-039)
+    ///   - fn-call whose name IS in the registry (known enrichment UDF) → gate passes (Ok(()))
+    ///
+    /// When `enrich_lookup` IS in the registered UDF set, `check_enrich_udf_availability` must
+    /// return Ok(()) — the E-QUERY-039 gate only fires for fn-calls NOT found in the registry.
+    ///
+    /// Position-6 already locks the unknown-UDF-fires direction (tests 3/4 and 4/4 above).
+    /// This test adds the known-UDF-passes direction to complete the bilateral boundary lock,
+    /// mirroring the sibling lock added to position-7 in the same fix-burst.
+    ///
+    /// Traces to: F-PQLFN-P34-OBS-001 sibling sweep (POL-29); ADR-048 §D.7.5 Position 6.
+    #[test]
+    fn test_dml_where_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        // Register `enrich_lookup` as a known UDF (mimics a real geo-lookup infusion).
+        // source_path = "/dev/null" with LocalLookup → NullSource → load_spec succeeds.
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P34-OBS-001 position-6 fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P34-OBS-001 position-6 fixture");
+
+        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known UDF + unknown UDF).
+        // Proves (a) the walk reaches the DML WHERE predicate and (b) registry filtering
+        // passes enrich_lookup as known. Regression locks:
+        //   - walk-removal regression: if predicate walk removed, predicate_fncall_names stays
+        //     empty → totally_unknown_udf undetected → gate passes silently (false Ok).
+        //   - registry-filtering regression: if registry check removed, enrich_lookup would also
+        //     fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        let compound_result = check_enrich_udf_availability(
+            "DELETE FROM t WHERE enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 OD-6 compound: DELETE WHERE enrich_lookup AND totally_unknown_udf \
+             must fire E-QUERY-039 for totally_unknown_udf only — proving walk reaches DML WHERE \
+             predicate and registry filtering passes enrich_lookup. Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 OD-6: available_infusions must contain 'enrich_lookup' \
+                 (registered UDF must appear as known). Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 / F-PQLFN-P34-OBS-001 known-UDF-passes direction:
+        // pure known-UDF predicate → Ok (E-QUERY-039 must NOT fire).
+        let result = check_enrich_udf_availability(
+            "DELETE FROM t WHERE enrich_lookup(ip_address) = 'US'",
+            Some(&registry),
+        );
+
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P34-OBS-001 sibling sweep POL-29: DELETE FROM t WHERE enrich_lookup(\
+             ip_address) = 'US' with known enrichment UDF MUST return Ok (E-QUERY-039 must NOT \
+             fire). `enrich_lookup` IS in registered_names → gate passes. \
+             OD-6 behavioral boundary: known UDF predicate → passes; unknown UDF predicate → fires. \
+             Got: {result:?}"
+        );
+    }
+}
+
+// F-PQLFN-P32-OBS-001: INSERT source_select WHERE seventh gated position (ADR-048 §D.7.6, OD-7)
+// --------------------------------------------------------------------------------------------
+//
+// Before fix: `Ast::Sql(SqlStatement::Dml(dml))` arm in `check_enrich_udf_availability`
+// walked only `dml.filter`. INSERT queries have `filter = None` and carry the WHERE via
+// `dml.source_select.where_`. Without the source_select walk, the aggregate gate saw
+// filter=None, walked nothing, and returned Ok(()) — SILENT EMPTY SUCCESS for:
+//   `INSERT INTO t (col) SELECT col FROM t2 WHERE stddev(x) > 5`
+//
+// Post-fix: the arm also walks `dml.source_select.where_` into `predicate_fncall_names`,
+// restoring E-QUERY-001 for aggregates in INSERT source_select WHERE.
+//
+// source_select HAVING is intentionally exempt (§D.7.1 HAVING exemption; §D.7.3).
+// The HAVING aggregate lock test confirms no false E-QUERY-001 fires for HAVING form.
+//
+// Tests call `check_enrich_udf_availability` directly (private fn, same file) to avoid
+// requiring a registered table for DML gate tests. Aggregate gate fires before any table
+// availability check — direct call cleanly isolates the gate behavior.
+//
+// Traces to: F-PQLFN-P32-OBS-001; ADR-048 v1.13 §D.7.6; OD-7.
+#[cfg(test)]
+mod insert_source_select_where_seventh_gated_position_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::PrismError;
+
+    /// F-PQLFN-P32-OBS-001 (1/3): `INSERT INTO t (col) SELECT col FROM t2 WHERE stddev(x) > 5`
+    /// must fire E-QUERY-001 (aggregate-in-predicate gate, ADR-048 D.7.1 Position 7).
+    /// No infusion registry needed — aggregate gate fires regardless of registry state.
+    ///
+    /// Before fix: INSERT filter=None → gate walked nothing → SILENT EMPTY SUCCESS (DML no-op).
+    /// After fix: DML arm walks dml.source_select.where_ → stddev in predicate_fncall_names
+    ///            → aggregate gate → E-QUERY-001.
+    ///
+    /// Error detail must contain "stddev" and "aggregate" per §D.7.6 table.
+    /// Offset must be > 0 (stddev appears after the INSERT prefix; exact byte position
+    /// not hard-coded as it is fragile to query reformatting — §D.7.6 "Offset truthfulness").
+    ///
+    /// Traces to: F-PQLFN-P32-OBS-001; ADR-048 v1.13 §D.7.6.
+    #[test]
+    fn test_f_pqlfn_p32_obs_001_insert_source_select_where_aggregate_fires_e_query_001() {
+        let result = check_enrich_udf_availability(
+            "INSERT INTO t (col) SELECT col FROM t2 WHERE stddev(x) > 5",
+            None,
+        );
+
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P32-OBS-001: INSERT INTO t (col) SELECT col FROM t2 WHERE stddev(x) > 5 \
+             must return Err (E-QUERY-001 aggregate gate). Got Ok. \
+             Before fix: source_select.where_ not walked — aggregate gate was a no-op for INSERT."
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        assert!(
+            matches!(&err, PrismError::QueryParseFailed { .. }),
+            "F-PQLFN-P32-OBS-001: INSERT source_select WHERE aggregate must return \
+             QueryParseFailed (E-QUERY-001). Got: {err:?} (Display: {display})"
+        );
+
+        assert!(
+            display.contains("aggregate function"),
+            "F-PQLFN-P32-OBS-001: Display must contain 'aggregate function' \
+             (ADR-048 D.3 canonical message). Got: {display}"
+        );
+
+        assert!(
+            display.contains("stddev"),
+            "F-PQLFN-P32-OBS-001: Display must contain 'stddev' (the aggregate fn name). \
+             Got: {display}"
+        );
+
+        assert!(
+            display.contains("HAVING"),
+            "F-PQLFN-P32-OBS-001: Display must contain 'HAVING' (ADR-048 D.3 guidance). \
+             Got: {display}"
+        );
+
+        assert!(
+            display.contains("not valid in WHERE/where predicates"),
+            "F-PQLFN-P32-OBS-001: Display must contain 'not valid in WHERE/where predicates' \
+             (ADR-048 v1.8 §D.7.2 position-agnostic message). Got: {display}"
+        );
+
+        // Offset truthfulness: stddev appears well into the INSERT statement; offset must be > 0.
+        // Exact byte position not asserted — fragile to query reformatting (ADR-048 §D.7.6).
+        if let PrismError::QueryParseFailed { offset, .. } = &err {
+            assert!(
+                *offset > 0,
+                "F-PQLFN-P32-OBS-001: Offset must be > 0 (stddev appears after INSERT prefix). \
+                 Got offset={offset}"
+            );
+        }
+    }
+
+    /// F-PQLFN-P32-OBS-001 (2/3): `INSERT INTO t (col) SELECT col FROM t2 WHERE avg(score) > 100`
+    /// must fire E-QUERY-001 (aggregate-in-predicate gate). No registry needed.
+    ///
+    /// Sibling of the stddev test; exercises a second aggregate name to confirm the gate
+    /// is not function-name-specific. `avg` is registered in DataFusion 53.1
+    /// `default_aggregate_functions()` and exercises the same DATAFUSION_BUILTIN_AGGREGATE_NAMES
+    /// gate mechanism.
+    ///
+    /// Traces to: F-PQLFN-P32-OBS-001; ADR-048 v1.13 §D.7.6.
+    #[test]
+    fn test_f_pqlfn_p32_obs_001_insert_source_select_where_avg_fires_e_query_001() {
+        let result = check_enrich_udf_availability(
+            "INSERT INTO t (col) SELECT col FROM t2 WHERE avg(score) > 100",
+            None,
+        );
+
+        assert!(
+            result.is_err(),
+            "F-PQLFN-P32-OBS-001: INSERT INTO t (col) SELECT col FROM t2 WHERE avg(score) > 100 \
+             must return Err (E-QUERY-001 aggregate gate). Got Ok."
+        );
+
+        let err = result.unwrap_err();
+        let display = format!("{err}");
+
+        assert!(
+            matches!(&err, PrismError::QueryParseFailed { .. }),
+            "F-PQLFN-P32-OBS-001: INSERT source_select WHERE avg must return QueryParseFailed \
+             (E-QUERY-001). Got: {err:?} (Display: {display})"
+        );
+
+        assert!(
+            display.contains("aggregate function"),
+            "F-PQLFN-P32-OBS-001 (avg): Display must contain 'aggregate function'. Got: {display}"
+        );
+
+        assert!(
+            display.contains("avg"),
+            "F-PQLFN-P32-OBS-001 (avg): Display must contain 'avg'. Got: {display}"
+        );
+
+        assert!(
+            display.contains("HAVING"),
+            "F-PQLFN-P32-OBS-001 (avg): Display must contain 'HAVING'. Got: {display}"
+        );
+
+        assert!(
+            display.contains("not valid in WHERE/where predicates"),
+            "F-PQLFN-P32-OBS-001 (avg): Display must contain 'not valid in WHERE/where predicates'. \
+             Got: {display}"
+        );
+    }
+
+    /// F-PQLFN-P33-MED-001: Load-bearing HAVING exemption lock for INSERT source_select HAVING.
+    ///
+    /// Query: `INSERT INTO t (col) SELECT x FROM t2 GROUP BY x HAVING stddev(x) > 5`
+    ///
+    /// WHY stddev IS the load-bearing form (not count(*)):
+    ///   `count(*)` parses as `FuncCall::Aggregate` which `collect_unknown_scalar_offsets_from_expr`
+    ///   NEVER collects — so a test using count(*) would pass even if source_select.having were
+    ///   incorrectly walked (the gate would see no names to flag).
+    ///   `stddev(x)` parses as `FuncCall::Scalar(Unknown("stddev"))`, which IS collected by
+    ///   `collect_unknown_scalar_offsets_from_expr`. `stddev` IS in `DATAFUSION_BUILTIN_AGGREGATE_NAMES`,
+    ///   so IF having were walked it would appear in `predicate_fncall_names` → aggregate gate →
+    ///   QueryParseFailed. The HAVING exemption (§D.7.1 / §D.7.3) must prevent this walk.
+    ///
+    /// Load-bearing property: if `check_enrich_udf_availability` were to incorrectly walk
+    /// `source_select.having`, this test WOULD FAIL (stddev would be collected → E-QUERY-001
+    /// fired despite HAVING being exempt). The count(*) sibling (test below) would NOT fail
+    /// under the same regression. Hence stddev is the defect-detecting form.
+    ///
+    /// Traces to: F-PQLFN-P33-MED-001; ADR-048 §D.7.3; §D.7.6 "source_select HAVING: EXEMPT".
+    #[test]
+    fn test_f_pqlfn_p33_med_001_insert_source_select_having_stddev_load_bearing_exemption_lock() {
+        let result = check_enrich_udf_availability(
+            "INSERT INTO t (col) SELECT x FROM t2 GROUP BY x HAVING stddev(x) > 5",
+            None,
+        );
+
+        // HAVING stddev must NOT produce E-QUERY-001 — HAVING is exempt (§D.7.1/§D.7.3).
+        // If this test fails, source_select.having is being incorrectly walked by the gate.
+        // Unlike the count(*) sibling, stddev IS collected by collect_unknown_scalar_offsets_from_expr
+        // and IS in DATAFUSION_BUILTIN_AGGREGATE_NAMES, making this the true load-bearing lock.
+        match &result {
+            Err(PrismError::QueryParseFailed { .. }) => {
+                let display = format!("{}", result.unwrap_err());
+                assert!(
+                    !display.contains("aggregate function"),
+                    "F-PQLFN-P33-MED-001 HAVING LOCK (stddev): INSERT source_select HAVING stddev(x) > 5 \
+                     must NOT fire E-QUERY-001 aggregate gate (HAVING is exempt per §D.7.1/§D.7.3). \
+                     If this fires, source_select.having is being incorrectly walked. \
+                     Got aggregate gate error: {display}"
+                );
+            }
+            _ => {
+                // Ok or non-QueryParseFailed error — HAVING exemption holds (stddev load-bearing form).
+            }
+        }
+    }
+
+    /// F-PQLFN-P32-OBS-001 (3/3): HAVING exemption regression lock.
+    /// `INSERT INTO t (col) SELECT x, count(*) AS c FROM t2 GROUP BY x HAVING count(*) > 5`
+    /// must NOT fire E-QUERY-001.
+    ///
+    /// HAVING predicates are exempt from the aggregate-in-predicate gate (§D.7.1 HAVING
+    /// exemption; §D.7.3). The source_select HAVING must remain exempt even after the
+    /// Position 7 gate extension — only source_select WHERE is gated.
+    ///
+    /// Note: count(*) parses as FuncCall::Aggregate which is never collected by
+    /// collect_unknown_scalar_offsets_from_expr — this test passes even if having were
+    /// incorrectly walked. The stddev sibling (F-PQLFN-P33-MED-001 above) is the
+    /// load-bearing form that catches incorrect having-walk regressions.
+    ///
+    /// This is a GREEN lock test: it must remain passing. If this test fails it means
+    /// the gate implementation incorrectly walked source_select.having.
+    ///
+    /// Traces to: F-PQLFN-P32-OBS-001; ADR-048 §D.7.3; §D.7.6 "source_select HAVING: EXEMPT".
+    #[test]
+    fn test_f_pqlfn_p32_obs_001_insert_source_select_having_aggregate_does_not_fire_e_query_001() {
+        let result = check_enrich_udf_availability(
+            "INSERT INTO t (col) SELECT x, count(*) AS c FROM t2 GROUP BY x HAVING count(*) > 5",
+            None,
+        );
+
+        // HAVING aggregate must NOT produce E-QUERY-001. The result may be Ok or some other
+        // error (e.g., DataFusion plan error for unknown table), but must NOT be
+        // QueryParseFailed (E-QUERY-001) triggered by the aggregate gate.
+        match &result {
+            Err(PrismError::QueryParseFailed { .. }) => {
+                let display = format!("{}", result.unwrap_err());
+                // Only fail if the error is the aggregate gate message — a parse error
+                // from unrecognised syntax is acceptable (the gate must not fire).
+                assert!(
+                    !display.contains("aggregate function"),
+                    "F-PQLFN-P32-OBS-001 HAVING LOCK: INSERT source_select HAVING count(*) > 5 \
+                     must NOT fire E-QUERY-001 aggregate gate (HAVING is exempt per §D.7.1/§D.7.3). \
+                     Got aggregate gate error: {display}"
+                );
+            }
+            _ => {
+                // Ok or non-QueryParseFailed error — HAVING exemption holds.
+            }
+        }
+    }
+
+    /// F-PQLFN-P34-OBS-001 enrichment-UDF sibling lock: `INSERT INTO t (col) SELECT col FROM t2
+    /// WHERE enrich_lookup(ip_address) = 'US'` with `enrich_lookup` registered MUST pass the
+    /// plan-time gate (E-QUERY-039 does NOT fire).
+    ///
+    /// This locks the behavioral boundary for OD-7 between:
+    ///   - fn-call whose name is NOT in the registry → gate fires (E-QUERY-039)
+    ///   - fn-call whose name IS in the registry (known enrichment UDF) → gate passes (Ok(()))
+    ///
+    /// When `enrich_lookup` IS in the registered UDF set, `check_enrich_udf_availability` must
+    /// return Ok(()) — the E-QUERY-039 gate only fires for fn-calls NOT found in the registry.
+    ///
+    /// F-PQLFN-P35-MED-002 accuracy fix: all seven predicate positions (ADR-048 §D.7.1) now
+    /// carry a known-UDF-passes sibling lock — Position 1 (pipe | where), Position 2
+    /// (filter root), Position 3 (SqlPipe | where), Position 4 (SQL WHERE, added by OD-5),
+    /// Position 5 (SqlPipe-head WHERE, added by OD-5), Position 6 / OD-6 (DML WHERE,
+    /// F-PQLFN-P34-OBS-001 POL-29), Position 7 / OD-7 (INSERT source_select WHERE).
+    /// 5/7 locks are walk-observable (F-PQLFN-P35-OBS-001) for the predicate_fncall_names
+    /// walk (Positions 1, 2, 3, 6, 7): compound predicate fires E-QUERY-039 for
+    /// `totally_unknown_udf` only — proving the walk reaches the predicate and registry
+    /// filtering passes the known UDF. Positions 4 and 5 are boundary-locked via the
+    /// sql_unknown_names path (collect_unknown_scalars_from_sql_query position (b)); their
+    /// predicate_fncall_names walk additionally reaches E-QUERY-039 via the
+    /// `predicate_fncall_names → sql_unknown_names` fold but the compound tests are not
+    /// walk-distinguishable between the two paths (ADR-048 §D.7.1, OD-5). True walk locks:
+    /// TM-06/TM-07 (Position 4) and TM-10 (Position 5) in
+    /// temporal_typing_tests.rs (F-PQLFN-P37-MED-001).
+    ///
+    /// Traces to: F-PQLFN-P34-OBS-001; F-PQLFN-P35-MED-002; F-PQLFN-P35-OBS-001;
+    ///            ADR-048 v1.13 §D.7.6; BC-2.11.019; OD-7.
+    #[test]
+    fn test_insert_source_select_where_enrich_udf_passes_gate() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        // Register `enrich_lookup` as a known UDF (mimics a real geo-lookup infusion).
+        // Source is None (no backing file needed) → NullSource → load_spec succeeds.
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "geo_lookup",
+            "GeoIP lookup (F-PQLFN-P34-OBS-001 test fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "enrich_lookup", // UDF name — must match the fn-call in the query
+                "ip_address",    // input field
+                "string",        // input type
+                "string",        // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("geo_lookup spec must load for F-PQLFN-P34-OBS-001 fixture");
+
+        // F-PQLFN-P35-OBS-001 walk-observable: compound predicate (known UDF + unknown UDF).
+        // Proves (a) the walk reaches INSERT source_select WHERE predicate and (b) registry
+        // filtering passes enrich_lookup as known. Regression locks:
+        //   - walk-removal regression: if source_select.where_ walk removed, predicate_fncall_names
+        //     stays empty → totally_unknown_udf undetected → gate passes silently (false Ok).
+        //   - registry-filtering regression: if registry check removed, enrich_lookup would also
+        //     fire E-QUERY-039, making d.infusion != "totally_unknown_udf".
+        let compound_result = check_enrich_udf_availability(
+            "INSERT INTO t (col) SELECT col FROM t2 WHERE \
+             enrich_lookup(ip_address) = 'US' AND totally_unknown_udf(x) = 1",
+            Some(&registry),
+        );
+        assert!(
+            matches!(&compound_result,
+                Err(PrismError::EnrichUdfNotFound(ref d)) if d.infusion == "totally_unknown_udf"),
+            "F-PQLFN-P35-OBS-001 OD-7 compound: INSERT source_select WHERE enrich_lookup AND \
+             totally_unknown_udf must fire E-QUERY-039 for totally_unknown_udf only — proving \
+             walk reaches source_select.where_ and registry filtering passes enrich_lookup. \
+             Got: {compound_result:?}"
+        );
+        if let Err(PrismError::EnrichUdfNotFound(ref d)) = compound_result {
+            assert!(
+                d.available_infusions.contains(&"enrich_lookup".to_string()),
+                "F-PQLFN-P35-OBS-001 OD-7: available_infusions must contain 'enrich_lookup' \
+                 (registered UDF must appear as known). Got: {:?}",
+                d.available_infusions
+            );
+        }
+
+        // F-PQLFN-P35-MED-002 / F-PQLFN-P34-OBS-001 known-UDF-passes direction:
+        // pure known-UDF predicate → Ok (E-QUERY-039 must NOT fire).
+        let result = check_enrich_udf_availability(
+            "INSERT INTO t (col) SELECT col FROM t2 WHERE enrich_lookup(ip_address) = 'US'",
+            Some(&registry),
+        );
+
+        assert!(
+            result.is_ok(),
+            "F-PQLFN-P34-OBS-001 sibling lock: INSERT source_select WHERE with known enrichment \
+             UDF `enrich_lookup` MUST return Ok (E-QUERY-039 must NOT fire). \
+             `enrich_lookup` IS in registered_names → gate passes. \
+             OD-7 behavioral boundary: known UDF predicate → passes; unknown UDF predicate → fires. \
+             Got: {result:?}"
+        );
+    }
+}
+
+// ── F-PQLFN-PR5-LOW-001: two-branch HAVING interception detail-builder ─────────────────────────
+//
+// Tests for the extracted `having_aggregate_interception_detail` helper (BC-2.11.019 v1.26 §OBS-004).
+// Branch (b) is unreachable through the gate arm in production (triggering set = {"percentile"})
+// but is unit-tested directly here to verify the generic template is byte-exact per POL-24.
+//
+// RED GATE: these tests fail to compile before `having_aggregate_interception_detail` is defined
+// (missing symbol → E0425). Once the helper is implemented they must go GREEN without changing
+// any assertion text.
+//
+// Traces to: BC-2.11.019 v1.26 §OBS-004; F-PQLFN-PR5-LOW-001; POL-24; ADR-048 v1.17 §D.2.
+#[cfg(test)]
+mod having_aggregate_interception_detail_tests {
+    use super::having_aggregate_interception_detail;
+
+    /// F-PQLFN-PR5-LOW-001 (branch a, lowercase): `"percentile"` → two-arg canonical template.
+    ///
+    /// Verifies the percentile branch returns the byte-verbatim canonical template from
+    /// BC-2.11.019 v1.26 §OBS-004 / ADR-048 v1.17 §D.2 with argument list `(field, p)`.
+    ///
+    /// Traces to: BC-2.11.019 v1.26 §OBS-004; F-PQLFN-PR5-LOW-001; POL-24.
+    #[test]
+    fn test_f_pqlfn_pr5_low_001_detail_builder_percentile_lowercase() {
+        let detail = having_aggregate_interception_detail("percentile");
+        assert_eq!(
+            detail,
+            "'percentile' is a PrismQL aggregate function; \
+             PERCENTILE is not directly supported in HAVING predicates \
+             \u{2014} alias it in SELECT: \
+             SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold \
+             (ADR-048 D.3 OD-2)",
+            "F-PQLFN-PR5-LOW-001 branch(a): percentile → two-arg template (field, p) \
+             byte-verbatim per POL-24 (BC-2.11.019 v1.26 §OBS-004)"
+        );
+    }
+
+    /// F-PQLFN-PR5-LOW-001 (branch a, uppercase input): `"PERCENTILE"` → input-verbatim `'PERCENTILE'`,
+    /// template body uppercase `PERCENTILE`.
+    ///
+    /// Verifies the input-verbatim convention (BC-2.11.019 v1.26 §OBS-004 F-PQLFN-PR4-OBS-002):
+    /// the analyst's original casing is echoed in the quoted name; the guidance template body
+    /// uses uppercase `{name_upper}` regardless of input casing.
+    ///
+    /// Traces to: BC-2.11.019 v1.26 §OBS-004 (F-PQLFN-PR4-OBS-002 input-verbatim convention);
+    ///            F-PQLFN-PR5-LOW-001; POL-24.
+    #[test]
+    fn test_f_pqlfn_pr5_low_001_detail_builder_percentile_uppercase_input() {
+        let detail = having_aggregate_interception_detail("PERCENTILE");
+        assert_eq!(
+            detail,
+            "'PERCENTILE' is a PrismQL aggregate function; \
+             PERCENTILE is not directly supported in HAVING predicates \
+             \u{2014} alias it in SELECT: \
+             SELECT PERCENTILE(field, p) AS alias ... HAVING alias > threshold \
+             (ADR-048 D.3 OD-2)",
+            "F-PQLFN-PR5-LOW-001 branch(a) uppercase input: 'PERCENTILE' echoed verbatim, \
+             template body uppercase PERCENTILE (BC-2.11.019 v1.26 §OBS-004 F-PQLFN-PR4-OBS-002)"
+        );
+    }
+
+    /// F-PQLFN-PR5-LOW-001 (branch b): non-percentile name → generic template `(...)`.
+    ///
+    /// Branch (b) is unreachable in production today (triggering set = {"percentile"}) but is
+    /// unit-tested directly to verify the generic `(...)` argument list is byte-exact per POL-24.
+    /// Any future AGGREGATE-only name reaching the arm will emit this template — correct
+    /// signature-neutral guidance without the two-arg PERCENTILE misapplication risk.
+    ///
+    /// Traces to: BC-2.11.019 v1.26 §OBS-004 (F-PQLFN-PR5-LOW-001 two-branch design); POL-24.
+    #[test]
+    fn test_f_pqlfn_pr5_low_001_detail_builder_generic_branch() {
+        let detail = having_aggregate_interception_detail("array_agg");
+        assert_eq!(
+            detail,
+            "'array_agg' is a PrismQL aggregate function; \
+             ARRAY_AGG is not directly supported in HAVING predicates \
+             \u{2014} alias it in SELECT: \
+             SELECT ARRAY_AGG(...) AS alias ... HAVING alias > threshold \
+             (ADR-048 D.3 OD-2)",
+            "F-PQLFN-PR5-LOW-001 branch(b): non-percentile name → generic template (...) \
+             byte-exact per POL-24 (BC-2.11.019 v1.26 §OBS-004)"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PQLFN-PR14-OBS-001: sanitize-before-Levenshtein ordering (did_you_mean consistency)
+// ---------------------------------------------------------------------------
+//
+// Before fix: `check_enrich_udf_availability` called `cap_name_for_levenshtein(requested)`
+// on the RAW `requested` string, then compared against registered names for did_you_mean.
+// `EnrichUdfNotFoundDetails::new` sanitized the same `requested` via `sanitize_for_log`
+// at construction. Two operations derived from DIFFERENT string forms: Levenshtein used
+// the raw form; the stored `infusion` field used the sanitized form — a CWE-116/CWE-117
+// consistency gap.
+//
+// After fix: `sanitize_for_log(requested)` is called BEFORE `cap_name_for_levenshtein`,
+// so both `did_you_mean` (computed) and `infusion` (stored) derive from the same sanitized
+// string (BC-2.11.019 v1.26 §Injection-safety).
+//
+// PARSER NOTE: PrismQL identifiers are restricted to ASCII alphanumerics + '_' by the
+// lexer (`c.is_ascii_alphanumeric() || *c == '_'`). Unicode C1 control chars (U+0085 etc.)
+// and line/paragraph separators (U+2028, U+2029) cannot appear in parsed identifiers today.
+// As a result, the sanitize call is a defensive no-op for all currently-reachable query
+// paths. The tests below verify:
+//   (a) the MATHEMATICAL PROPERTY (strsim + sanitize_for_log directly) that makes the
+//       fix meaningful if control chars ever appear via future parser changes or alternative
+//       code paths that populate UDF name strings from untrusted sources;
+//   (b) the end-to-end did_you_mean path through `check_enrich_udf_availability` for a
+//       clean ASCII typo — verifies the fix does not break the normal suggestion path.
+//
+// Traces to: F-PQLFN-PR14-OBS-001; BC-2.11.019 v1.26 §Injection-safety; CWE-116/CWE-117.
+#[cfg(test)]
+#[allow(non_snake_case, clippy::expect_used, clippy::unwrap_used)]
+mod sanitize_ordering_did_you_mean_tests {
+    use super::check_enrich_udf_availability;
+    use prism_core::error::{sanitize_for_log, PrismError};
+
+    /// F-PQLFN-PR14-OBS-001 (a) — mathematical property: C1 control chars + U+2028 inflate
+    /// raw Levenshtein distance above 3, while the sanitized form produces distance 0 ≤ 3.
+    ///
+    /// The UDF name "nvd\u{0085}\u{0086}\u{0087}\u{2028}cvss" contains 3 C1 control chars
+    /// (U+0085 NEL, U+0086 SSA, U+0087 ESA) and U+2028 LINE SEPARATOR — 4 extra Unicode
+    /// codepoints between "nvd" and "cvss". Against registered "nvdcvss" (7 codepoints):
+    ///
+    ///   pre-fix:  levenshtein(11-codepoint raw, "nvdcvss") = 4 > 3 → no suggestion
+    ///   post-fix: levenshtein(sanitize(raw), "nvdcvss") = levenshtein("nvdcvss", "nvdcvss")
+    ///             = 0 ≤ 3 → did_you_mean = Some("nvdcvss")
+    ///
+    /// Load-bearing (TD-VSDD-059): if `sanitize_for_log` stops stripping C1/U+2028/U+2029,
+    /// `sanitized` ≠ "nvdcvss" and the `assert_eq!(sanitized, "nvdcvss")` assertion fails.
+    /// If the raw distance ≤ 3 (pre-condition holds but premise breaks), the test also fails.
+    ///
+    /// Traces to: F-PQLFN-PR14-OBS-001; BC-2.11.019 v1.26 §Injection-safety; CWE-116.
+    #[test]
+    fn test_f_pqlfn_pr14_obs_001_sanitize_math_property_control_chars_and_u2028() {
+        // 3 C1 control chars (U+0085, U+0086, U+0087) + U+2028 (LINE SEPARATOR):
+        // raw = "nvd" + 4 codepoints + "cvss" = 11 Unicode codepoints total.
+        // registered = "nvdcvss" = 7 codepoints. 4 deletions needed → distance 4 > 3.
+        let raw = "nvd\u{0085}\u{0086}\u{0087}\u{2028}cvss";
+        let registered = "nvdcvss";
+
+        // Pre-fix: levenshtein(raw, registered) must be > 3.
+        let raw_dist = strsim::levenshtein(raw, registered);
+        assert!(
+            raw_dist > 3,
+            "F-PQLFN-PR14-OBS-001 (a): pre-condition — levenshtein(raw, registered) must be > 3 \
+             to demonstrate the pre-fix bug scenario. \
+             raw={:?} registered={:?} dist={}",
+            raw.escape_default(),
+            registered,
+            raw_dist
+        );
+
+        // Post-fix: sanitize_for_log strips C1/U+2028 → "nvdcvss" (identical to registered).
+        let sanitized = sanitize_for_log(raw);
+        assert_eq!(
+            sanitized, registered,
+            "F-PQLFN-PR14-OBS-001 (a): sanitize_for_log must strip 3 C1 chars \
+             (U+0085/U+0086/U+0087) and U+2028, leaving 'nvdcvss'. Got: {:?}",
+            sanitized
+        );
+
+        // Post-fix: levenshtein(sanitized, registered) = 0 ≤ 3 → did_you_mean fires.
+        let sanitized_dist = strsim::levenshtein(&sanitized, registered);
+        assert_eq!(
+            sanitized_dist, 0,
+            "F-PQLFN-PR14-OBS-001 (a): levenshtein(sanitized, registered) must be 0 \
+             (identical strings after stripping). Got: {}",
+            sanitized_dist
+        );
+    }
+
+    /// F-PQLFN-PR14-OBS-001 (b) — end-to-end: did_you_mean correctly populated for a
+    /// clean ASCII typo through `check_enrich_udf_availability`.
+    ///
+    /// After FIX 1, `sanitize_for_log` is called before `cap_name_for_levenshtein`. For
+    /// ASCII-only identifiers, the sanitize call is a no-op — the Levenshtein distance
+    /// is unchanged. This test verifies that the fix does not break the normal suggestion
+    /// path: typo "nvdcvs" (1 edit from "nvdcvss") must still produce did_you_mean.
+    ///
+    /// Load-bearing (TD-VSDD-059): if the sanitize call accidentally mangles ASCII names
+    /// (e.g., strips valid chars), the Levenshtein distance would change and the assertion
+    /// `details.did_you_mean == Some("nvdcvss")` would fail.
+    ///
+    /// Traces to: F-PQLFN-PR14-OBS-001; BC-2.11.019 v1.26 §Injection-safety.
+    #[test]
+    fn test_f_pqlfn_pr14_obs_001_did_you_mean_clean_ascii_typo() {
+        use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+
+        // Register "nvdcvss" as a known UDF (NVD CVSS score lookup fixture).
+        let registry = InfusionRegistry::new();
+        let spec = InfusionSpec::new(
+            "nvd_lookup",
+            "NVD CVSS lookup (F-PQLFN-PR14-OBS-001 b fixture)",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(
+                "nvdcvss", // UDF name — matches the registered name in the query
+                "cve_id",  // input field
+                "string",  // input type
+                "float",   // output type
+            )],
+            "/dev/null",
+        );
+        registry
+            .load_spec(spec)
+            .expect("nvd_lookup spec must load for F-PQLFN-PR14-OBS-001 (b) fixture");
+
+        // "nvdcvs" is a 1-edit typo of "nvdcvss" (missing final 's').
+        // sanitize("nvdcvs") = "nvdcvs" (no-op: ASCII-only), levenshtein("nvdcvs", "nvdcvss") = 1.
+        // FIX 1 post-condition: 1 ≤ 3 → did_you_mean = Some("nvdcvss").
+        let result =
+            check_enrich_udf_availability("FROM t | enrich nvdcvs(cve_id)", Some(&registry));
+
+        let err = result.expect_err(
+            "F-PQLFN-PR14-OBS-001 (b): 'nvdcvs' is not registered; E-QUERY-039 must fire",
+        );
+
+        let details = match &err {
+            PrismError::EnrichUdfNotFound(d) => d,
+            other => panic!(
+                "F-PQLFN-PR14-OBS-001 (b): expected PrismError::EnrichUdfNotFound, got: {other:?}"
+            ),
+        };
+
+        assert_eq!(
+            details.did_you_mean.as_deref(),
+            Some("nvdcvss"),
+            "F-PQLFN-PR14-OBS-001 (b): did_you_mean must be Some('nvdcvss') for 1-edit typo \
+             'nvdcvs'. FIX 1: sanitize is a no-op for ASCII names, Levenshtein distance = 1 ≤ 3. \
+             Got: {:?}",
+            details.did_you_mean
+        );
+
+        // infusion must be "nvdcvs" — sanitize_for_log is identity for ASCII-only names.
+        assert_eq!(
+            details.infusion, "nvdcvs",
+            "F-PQLFN-PR14-OBS-001 (b): infusion must be 'nvdcvs' (sanitize is no-op for ASCII). \
+             Got: {:?}",
+            details.infusion
+        );
     }
 }

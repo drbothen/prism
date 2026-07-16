@@ -700,7 +700,46 @@ pub enum FuncCall {
         distinct: bool,
     },
     /// Scalar (UDF) function call from the UDF registry.
-    Scalar { func: ScalarFunc, args: Vec<Expr> },
+    ///
+    /// `span` is the byte-offset range of the function *name* token in the original
+    /// query string.
+    ///
+    /// **Truthful-span paths** — on the **returned** `Ast`, every `FuncCall::Scalar::span`
+    /// is an absolute byte offset into the original query string.  How that guarantee
+    /// is achieved depends on the caller:
+    ///
+    /// - *Filter / pipe `| where` / SQL WHERE / SQL HAVING / SQL DML WHERE:*
+    ///   `filter_parser.rs` `fn_call_comparison` receives the full original query string,
+    ///   so the parsed span is already absolute.
+    ///
+    /// - *SqlPipe `| where` stages:* two-step process (`parse_sqlpipe_internal`,
+    ///   `filter_parser.rs`): (1) the stage predicate parser receives
+    ///   `stages_str = &input[split_offset..]`, so `fn_call_comparison` produces spans
+    ///   relative to `split_offset`, not to the query start; (2) the mandatory
+    ///   `filter_parser::shift_scalar_spans_in_stages` call adds `split_offset` to every
+    ///   `FuncCall::Scalar::span` in every `PipeStage::Where`, converting stage-relative
+    ///   offsets to absolute.  **This shift call is load-bearing** — removing it silently
+    ///   mis-reports error positions in E-QUERY-001 diagnostics (F-PQLFN-P22-MED-001).
+    ///
+    /// **Span::ZERO paths** (parser does not populate span):
+    /// - `sql_parser.rs` `scalar_call` for SELECT projections, JOIN ON conditions,
+    ///   GROUP BY expressions, and ORDER BY expressions — these callers construct
+    ///   `FuncCall::Scalar` with `span: Span::ZERO` because the aggregate-in-predicate
+    ///   gate (E-QUERY-001, ADR-048 §D.7.2) that uses `span.start` as the reported
+    ///   error offset is only reachable from the predicate path.
+    /// - Direct AST construction (tests, materialization): `Span::ZERO`.
+    ///
+    /// The aggregate-in-predicate gate (E-QUERY-001, ADR-048 §D.7.2) uses `span.start`
+    /// as the reported error offset so analysts see the correct source position
+    /// (F-PQLFN-P21-OBS-003). The gate fires only on the predicate path, where
+    /// truthful spans are always populated.
+    Scalar {
+        func: ScalarFunc,
+        args: Vec<Expr>,
+        /// Byte-offset span of the function name in the original query string.
+        /// `Span::ZERO` for AST nodes produced outside the parser.
+        span: Span,
+    },
     /// Window function stub — populated in S-3.06.
     Window {
         // Placeholder: S-3.06 will add fields here.
@@ -2388,7 +2427,7 @@ impl PqlNormalizer {
                     format!("{inner_name}({distinct_kw}{})", args_str.join(", "))
                 }
             }
-            FuncCall::Scalar { func, args } => {
+            FuncCall::Scalar { func, args, .. } => {
                 let func_name = match func {
                     ScalarFunc::SubnetContains => "subnet_contains",
                     ScalarFunc::TimeWindow => "time_window",
@@ -2976,6 +3015,7 @@ mod bc_2_11_018_normalizer_roundtrip_tests {
         let func_call_expr = Expr::FuncCall(FuncCall::Scalar {
             func: ScalarFunc::Unknown("unknown_udf".to_string()),
             args: vec![both_quote_arg],
+            span: Span::ZERO,
         });
 
         // Wrap in a minimal SQL AST so we can call normalize().

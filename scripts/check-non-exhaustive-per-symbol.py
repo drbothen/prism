@@ -27,17 +27,17 @@ import re
 import sys
 
 # ---------------------------------------------------------------------------
-# Expected symbol list — 91 entries, one per violation function.
+# Expected symbol list — 92 entries, one per violation function.
 # E0639 names: as they appear in the struct literal expression in
 #   struct_violations.rs (may be a local alias, e.g. TypesSensorTableDescriptor).
 # E0004 names: last path segment from `note: \`path::TypeName\` defined here`
 #   in the E0004 rendered message (always the canonical type name leaf).
 # Guard: len(EXPECTED_SYMBOLS) must equal EXPECTED_COUNT (checked at startup).
 # ---------------------------------------------------------------------------
-EXPECTED_COUNT = 91
+EXPECTED_COUNT = 92
 
 EXPECTED_SYMBOLS = [
-    # ── E0639 struct literal violations (68 total) ──────────────────────────
+    # ── E0639 struct literal violations (69 total) ──────────────────────────
     # Names match the identifier used in the struct literal expression in
     # tests/external/non-exhaustive-violation/src/struct_violations.rs.
     # Some are local aliases (e.g. TypesSensorTableDescriptor for types::SensorTableDescriptor).
@@ -109,6 +109,7 @@ EXPECTED_SYMBOLS = [
     "SqlPipeQuery",               # v86 (struct_violations) prism_query::ast::SqlPipeQuery
     "UnknownSourceTableDetails",  # v87 prism_core::error::UnknownSourceTableDetails
     "EnrichUdfNotFoundDetails",   # v88 prism_core::error::EnrichUdfNotFoundDetails
+    "ParseError",                 # v92 prism_query::error::ParseError (DEFECT-PQL-FNCALL-LHS-001 §OBS-005)
     # ── E0004 enum match violations (23 entries; 22 unique after prism_core::ColumnType dedup) ──
     # Names are the last path segment from `note: \`path::TypeName\` defined here`.
     "PaginationConfig",      # v07 spec_parser::PaginationConfig
