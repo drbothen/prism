@@ -1,4 +1,4 @@
-//! Red Gate tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N2 — BC-2.11.001 v1.15.
+//! Red Gate tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N2 — BC-2.11.001.
 //!
 //! Finding N2 (EC-11-067): `FROM cyberint.alerts` (dot-notation) in a FROM target
 //! position routes to the sensor fan-out as a dot-notation string, producing a silent
@@ -15,7 +15,7 @@
 //! the underscore form exists — because `FROM sensor.table` is not the valid PrismQL
 //! FROM syntax (only `FROM sensor_table` is valid for FROM targets).
 //!
-//! BC-2.11.001 v1.15 (HIGH-1 closure): EC-11-067 applies to ALL modes including SqlPipe.
+//! BC-2.11.001 (HIGH-1 closure): EC-11-067 applies to ALL modes including SqlPipe.
 //! The prior SqlPipe exemption in `check_availability_gate` is removed. A SqlPipe query
 //! `SELECT * FROM crowdstrike.detections | limit 10` must return E-QUERY-037 with
 //! `table: "crowdstrike.detections"` and `did_you_mean` containing "crowdstrike_detections".
@@ -35,10 +35,10 @@
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
-//! | test_bc_2_11_001_n2_dot_notation_from_target_e_query_037 | AC-N2 | BC-2.11.001 v1.15 EC-11-067 |
-//! | test_bc_2_11_001_n2_dot_notation_sqlpipe_e_query_037 | AC-N2 HIGH-1 | BC-2.11.001 v1.15 EC-11-067 |
+//! | test_bc_2_11_001_n2_dot_notation_from_target_e_query_037 | AC-N2 | BC-2.11.001 EC-11-067 |
+//! | test_bc_2_11_001_n2_dot_notation_sqlpipe_e_query_037 | AC-N2 HIGH-1 | BC-2.11.001 EC-11-067 |
 //! | test_bc_2_11_001_n2_filter_mode_underscore_no_regression | regression guard | BC-2.11.023 / ADR-046 |
-//! | test_bc_2_11_001_n2_sqlpipe_underscore_no_regression | regression guard (SqlPipe) | BC-2.11.001 v1.15 |
+//! | test_bc_2_11_001_n2_sqlpipe_underscore_no_regression | regression guard (SqlPipe) | BC-2.11.001 |
 
 use crate::table_registry::TableRegistry;
 use prism_core::error::PrismError;
@@ -93,7 +93,7 @@ fn make_registry_with_cyberint_crowdstrike() -> TableRegistry {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// BC-2.11.001 v1.15 EC-11-067 — AC-N2 Red Gate test.
+/// BC-2.11.001 EC-11-067 — AC-N2 Red Gate test.
 ///
 /// `FROM cyberint.alerts` (pipe mode) and `SELECT * FROM crowdstrike.detections` (SQL mode)
 /// are dot-notation FROM targets. The `TableRegistry` only stores underscore-qualified names
@@ -210,7 +210,7 @@ fn test_bc_2_11_001_n2_filter_mode_underscore_no_regression() {
     );
 }
 
-/// BC-2.11.001 v1.15 EC-11-067 — AC-N2 HIGH-1 Red Gate test: SqlPipe dot-notation.
+/// BC-2.11.001 EC-11-067 — AC-N2 HIGH-1 Red Gate test: SqlPipe dot-notation.
 ///
 /// A SqlPipe query `SELECT * FROM crowdstrike.detections | limit 10` contains a
 /// dot-notation FROM target. The `TableRegistry` must reject it with
@@ -221,7 +221,7 @@ fn test_bc_2_11_001_n2_filter_mode_underscore_no_regression() {
 /// bypassed the EC-11-067 dot-notation rejection for SqlPipe mode. The underscore form
 /// `crowdstrike_detections` IS registered — so the exempted SqlPipe query passed the
 /// gate and the dot-notation string routed to fan-out (silent E-SENSOR-030 partial
-/// failure). BC-2.11.001 v1.15: EC-11-067 applies to ALL modes including SqlPipe.
+/// failure). BC-2.11.001: EC-11-067 applies to ALL modes including SqlPipe.
 ///
 /// After HIGH-1 fix: `External { sensor, table }` AST nodes are rejected with
 /// E-QUERY-037 unconditionally — the `is_sqlpipe` guard is removed.
@@ -252,7 +252,7 @@ fn test_bc_2_11_001_n2_dot_notation_sqlpipe_e_query_037() {
             // Load-bearing: table must be the dot-notation string as written.
             assert_eq!(
                 details.table, "crowdstrike.detections",
-                "BC-2.11.001 v1.15 AC-N2 HIGH-1 SqlPipe: \
+                "BC-2.11.001 AC-N2 HIGH-1 SqlPipe: \
                  TableNotAvailable.table must be 'crowdstrike.detections' \
                  (the name as written, NOT the underscore form). Got: {:?}",
                 details.table
@@ -260,26 +260,26 @@ fn test_bc_2_11_001_n2_dot_notation_sqlpipe_e_query_037() {
             // did_you_mean must contain the underscore form.
             assert!(
                 details.did_you_mean.contains("crowdstrike_detections"),
-                "BC-2.11.001 v1.15 AC-N2 HIGH-1 SqlPipe: \
+                "BC-2.11.001 AC-N2 HIGH-1 SqlPipe: \
                  TableNotAvailable.did_you_mean must contain 'crowdstrike_detections'. \
                  Got: {:?}",
                 details.did_you_mean
             );
         }
         Ok(()) => panic!(
-            "BC-2.11.001 v1.15 AC-N2 HIGH-1 SqlPipe: \
+            "BC-2.11.001 AC-N2 HIGH-1 SqlPipe: \
              'SELECT * FROM crowdstrike.detections | limit 10' must return \
              Err(PrismError::TableNotAvailable) (EC-11-067 applies to SqlPipe). \
              Got Ok(())."
         ),
         Err(other) => panic!(
-            "BC-2.11.001 v1.15 AC-N2 HIGH-1 SqlPipe: expected Err(PrismError::TableNotAvailable), \
+            "BC-2.11.001 AC-N2 HIGH-1 SqlPipe: expected Err(PrismError::TableNotAvailable), \
              got different error: {other:?}"
         ),
     }
 }
 
-/// BC-2.11.001 v1.15 regression guard — SqlPipe with underscore-qualified table names.
+/// BC-2.11.001 regression guard — SqlPipe with underscore-qualified table names.
 ///
 /// A SqlPipe query `SELECT * FROM crowdstrike_detections | limit 10` uses an
 /// underscore-qualified name (NOT dot-notation in FROM position). After the HIGH-1 fix
@@ -302,7 +302,7 @@ fn test_bc_2_11_001_n2_sqlpipe_underscore_no_regression() {
 
     assert!(
         result.is_ok(),
-        "BC-2.11.001 v1.15 regression guard: SqlPipe query \
+        "BC-2.11.001 regression guard: SqlPipe query \
          'SELECT * FROM crowdstrike_detections | limit 10' must pass the availability gate \
          (crowdstrike_detections IS registered, no dot-notation). \
          Got Err: {result:?}"

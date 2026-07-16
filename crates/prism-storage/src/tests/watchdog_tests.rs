@@ -558,9 +558,9 @@ mod inner {
         }
     }
 
-    // ── Denylist expiry — 24-hour requirement (BC-2.15.008 v1.7) ─────────────
+    // ── Denylist expiry — 24-hour requirement (BC-2.15.008) ─────────────
 
-    /// BC-2.15.008 v1.7: denylist entry expiry is exactly 86400 seconds (24 hours).
+    /// BC-2.15.008: denylist entry expiry is exactly 86400 seconds (24 hours).
     ///
     /// Asserts against the literal `86400` — NOT against `DENYLIST_EXPIRY_SECS`
     /// (which the stub has as `3600`).  This forces the implementer to fix the
@@ -595,7 +595,7 @@ mod inner {
             .expect("is_denylisted at 86399s must not fail");
         assert!(
             still_denylisted,
-            "BC-2.15.008 v1.7: entry must still be denylisted at now+86399s \
+            "BC-2.15.008: entry must still be denylisted at now+86399s \
              (expiry is 86400s = 24h; got false, meaning expiry < 86400s — \
              likely the stub constant 3600 was used)"
         );
@@ -606,7 +606,7 @@ mod inner {
             .expect("is_denylisted at 86400s must not fail");
         assert!(
             !expired,
-            "BC-2.15.008 v1.7: entry must be expired at exactly now+86400s (24h); \
+            "BC-2.15.008: entry must be expired at exactly now+86400s (24h); \
              got true, meaning expiry > 86400s"
         );
     }

@@ -626,7 +626,7 @@ async fn test_crit3_crowdstrike_write_denied_in_default_build() {
     let err_msg = err.to_string();
     // P2-02 (2026-06-10 review pass-2): compile-tier denial reason is the
     // spec-pinned E-FLAG-002 template ("no write-endpoint declaration",
-    // error-taxonomy E-FLAG-002 row / BC-2.04.015 v1.2 / BC-2.04.001 v1.2) —
+    // error-taxonomy E-FLAG-002 row / BC-2.04.015 / BC-2.04.001) —
     // the retired "not compiled" alternate stays removed so it cannot phantom-pass.
     assert!(
         err_msg.contains("E-FLAG-002")

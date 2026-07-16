@@ -142,7 +142,7 @@ pub trait CredentialResolver: Send + Sync {
     ///   `(client_id, sensor_id)` tuple. Callers should map this to `E-AUTH-005`.
     /// - `CredentialResolutionError::BackendUnavailable` — credential is configured but the
     ///   backing store (file, env, keyring) is inaccessible at resolution time. Callers should
-    ///   map this to `E-AUTH-007` (BC-2.01.017 v1.3 EC-017-010).
+    ///   map this to `E-AUTH-007` (BC-2.01.017 EC-017-010).
     fn resolve<'a>(
         &'a self,
         client_id: &'a str,
@@ -227,7 +227,7 @@ impl CredentialResolver for PrismCredentialResolver {
 
             // Propagate typed CredentialResolutionError directly — no string erasure.
             // NotFound → caller maps to E-AUTH-005; BackendUnavailable → E-AUTH-007
-            // (BC-2.01.017 v1.3 EC-017-010 / E-AUTH-007 in error-taxonomy.md).
+            // (BC-2.01.017 EC-017-010 / E-AUTH-007 in error-taxonomy.md).
             prism_credentials::resolve_credential(
                 &client_id,
                 &sensor_id,
@@ -324,7 +324,7 @@ impl CredentialResolver for NotFoundCredentialResolver {
 /// vars or the real credential store. This is the correct injection mechanism for
 /// tests that need to verify "backend unreachable" behavior.
 ///
-/// BC-2.01.017 v1.3 EC-017-010 / TV-BC-2.01.017-009 / E-AUTH-007 in error-taxonomy.md.
+/// BC-2.01.017 EC-017-010 / TV-BC-2.01.017-009 / E-AUTH-007 in error-taxonomy.md.
 ///
 /// **Feature-gated:** only available under `cfg(test)` or the `test-helpers` Cargo feature.
 /// AD-017: no credential value is stored in this struct.
@@ -389,7 +389,7 @@ impl CredentialResolver for BackendUnavailableCredentialResolver {
 ///   or exceeds 4096 bytes. See E-AUTH-006 in error-taxonomy.md.
 /// - `E-AUTH-007`: credential backend unavailable (backend configured but inaccessible).
 ///   Resolver returned `CredentialResolutionError::BackendUnavailable`.
-///   BC-2.01.017 v1.3 EC-017-010 / E-AUTH-007 in error-taxonomy.md.
+///   BC-2.01.017 EC-017-010 / E-AUTH-007 in error-taxonomy.md.
 ///
 /// ## AD-017 Credential Safety
 ///
@@ -484,7 +484,7 @@ impl AuthProvider for StaticCookieAuthProvider {
     /// - `E-AUTH-007`: credential backend unavailable → `SpecEngineError::AuthAcquisitionFailed`
     ///   with message matching the E-AUTH-007 template in error-taxonomy.md.
     ///   Resolver returned `CredentialResolutionError::BackendUnavailable`.
-    ///   BC-2.01.017 v1.3 EC-017-010.
+    ///   BC-2.01.017 EC-017-010.
     ///
     /// BC-2.01.017 §Postconditions P1; INV-COOKIE-001; AC-005, AC-006, AC-010.
     ///
@@ -505,7 +505,7 @@ impl AuthProvider for StaticCookieAuthProvider {
             // PrismCredentialResolver (wraps prism_credentials::resolve_credential);
             // tests inject MockCredentialResolver without touching the real store.
             //
-            // Variant dispatch (BC-2.01.017 v1.3 EC-017-010 / error-taxonomy.md):
+            // Variant dispatch (BC-2.01.017 EC-017-010 / error-taxonomy.md):
             //   NotFound           → E-AUTH-005 (credential not configured for this tuple)
             //   BackendUnavailable → E-AUTH-007 (backend unreachable at resolution time)
             let secret = match resolver
@@ -532,7 +532,7 @@ impl AuthProvider for StaticCookieAuthProvider {
                             "E-AUTH-007: credential backend unavailable — {detail}. \
                              Check that the configured backend (env file, keyring, vault) \
                              is accessible in the current execution environment. \
-                             BC-2.01.017 v1.3 EC-017-010."
+                             BC-2.01.017 EC-017-010."
                         ),
                     });
                 }
@@ -954,14 +954,14 @@ mod tests {
 
     /// E-AUTH-005: acquire_token returns E-AUTH-005 when the credential resolver returns Err.
     ///
-    /// Verifies BC-2.01.017 v1.2 EC-017-003 (credential not found path):
+    /// Verifies BC-2.01.017 EC-017-003 (credential not found path):
     /// when resolve_credential returns Err (not-found), acquire_token wraps the error
     /// as E-AUTH-005 and returns immediately without any HTTP call.
     ///
     /// Uses MockDI injection (NotFoundCredentialResolver via new_with_resolver) — no env var
     /// mutation required. TD-VSDD-059 load-bearing assertion: checks E-AUTH-005 error code.
     ///
-    /// BC-2.01.017 v1.2 EC-017-003; ADR-022 §C.
+    /// BC-2.01.017 EC-017-003; ADR-022 §C.
     #[tokio::test]
     async fn test_static_cookie_auth_provider_missing_credential_returns_e_auth_005() {
         let provider = StaticCookieAuthProvider::new_with_resolver(
@@ -975,7 +975,7 @@ mod tests {
 
         assert!(
             result.is_err(),
-            "BC-2.01.017 v1.2 EC-017-003: acquire_token must return Err when credential \
+            "BC-2.01.017 EC-017-003: acquire_token must return Err when credential \
              resolver returns Err (not-found path). Got Ok."
         );
         let err_str = result.unwrap_err().to_string();
@@ -983,13 +983,13 @@ mod tests {
             err_str.contains("E-AUTH-005"),
             "missing credential MUST yield E-AUTH-005. \
              Got: {err_str}. \
-             BC-2.01.017 v1.2 EC-017-003 (resolver Err path)."
+             BC-2.01.017 EC-017-003 (resolver Err path)."
         );
     }
 
     /// E-AUTH-006: acquire_token returns E-AUTH-006 when the resolved credential is empty.
     ///
-    /// Verifies BC-2.01.017 v1.2 EC-017-005 (empty/whitespace value path):
+    /// Verifies BC-2.01.017 EC-017-005 (empty/whitespace value path):
     /// when resolve_credential returns Ok(SecretString("")) — the case where the credential
     /// name is known but the value is empty (e.g., direct-env branch with empty value per
     /// resolve_secret.rs EC-017-005 semantics) — acquire_token's api_key.is_empty() guard
@@ -1001,7 +1001,7 @@ mod tests {
     /// to exercise validation gates in the production code under test.
     ///
     /// TD-VSDD-059 load-bearing assertion: checks E-AUTH-006 error code.
-    /// BC-2.01.017 v1.2 EC-017-005; ADR-022 §C.
+    /// BC-2.01.017 EC-017-005; ADR-022 §C.
     #[tokio::test]
     async fn test_static_cookie_auth_provider_empty_value_returns_e_auth_006() {
         // Inject an empty resolved credential value via MockCredentialResolver.
@@ -1019,7 +1019,7 @@ mod tests {
 
         assert!(
             result.is_err(),
-            "BC-2.01.017 v1.2 EC-017-005: acquire_token must return Err when resolved \
+            "BC-2.01.017 EC-017-005: acquire_token must return Err when resolved \
              credential value is empty. Got Ok."
         );
         let err_str = result.unwrap_err().to_string();
@@ -1027,7 +1027,7 @@ mod tests {
             err_str.contains("E-AUTH-006"),
             "empty resolved value MUST yield E-AUTH-006. \
              Got: {err_str}. \
-             BC-2.01.017 v1.2 EC-017-005 (resolver Ok(empty) path)."
+             BC-2.01.017 EC-017-005 (resolver Ok(empty) path)."
         );
     }
 
@@ -1063,13 +1063,13 @@ mod tests {
     /// E-AUTH-007: acquire_token returns E-AUTH-007 when the credential resolver returns
     /// `CredentialResolutionError::BackendUnavailable`.
     ///
-    /// Verifies BC-2.01.017 v1.3 EC-017-010 (backend unavailable path) /
+    /// Verifies BC-2.01.017 EC-017-010 (backend unavailable path) /
     /// TV-BC-2.01.017-009: when the resolver returns `BackendUnavailable`, acquire_token
     /// wraps the error as E-AUTH-007 (NOT E-AUTH-005). The distinction is critical:
     /// E-AUTH-005 = credential not configured; E-AUTH-007 = configured but backend down.
     ///
     /// Uses MockDI injection (BackendUnavailableCredentialResolver via new_with_resolver) —
-    /// no env var mutation required. ADR-022 §C; BC-2.01.017 v1.3 EC-017-010.
+    /// no env var mutation required. ADR-022 §C; BC-2.01.017 EC-017-010.
     ///
     /// TD-VSDD-059 load-bearing assertion: checks E-AUTH-007 code AND absence of E-AUTH-005.
     #[tokio::test]
@@ -1085,7 +1085,7 @@ mod tests {
 
         assert!(
             result.is_err(),
-            "BC-2.01.017 v1.3 EC-017-010: acquire_token must return Err when credential \
+            "BC-2.01.017 EC-017-010: acquire_token must return Err when credential \
              resolver returns BackendUnavailable. Got Ok."
         );
         let err_str = result.unwrap_err().to_string();
@@ -1093,13 +1093,13 @@ mod tests {
             err_str.contains("E-AUTH-007"),
             "backend unavailable MUST yield E-AUTH-007. \
              Got: {err_str}. \
-             BC-2.01.017 v1.3 EC-017-010 / TV-BC-2.01.017-009."
+             BC-2.01.017 EC-017-010 / TV-BC-2.01.017-009."
         );
         assert!(
             !err_str.contains("E-AUTH-005"),
             "backend unavailable MUST NOT produce E-AUTH-005 (that code is for missing credential). \
              Got: {err_str}. \
-             BC-2.01.017 v1.3 EC-017-010."
+             BC-2.01.017 EC-017-010."
         );
     }
 

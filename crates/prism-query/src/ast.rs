@@ -782,7 +782,7 @@ pub enum ScalarFunc {
 /// of `Expr::Field` so that the planner and executor can handle them without
 /// string-scanning field names.
 ///
-/// # BC-2.11.012 v1.7 — canonical four-field set
+/// # BC-2.11.012 — canonical four-field set
 ///
 /// `_safety_flags` is a response-envelope concern (BC-2.09.004) and is NOT
 /// a virtual query field.  It is intentionally excluded from this enum so
@@ -961,7 +961,7 @@ impl FieldPath {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Convert a `FieldPath` into `Expr::VirtualField` for the four canonical
-/// underscore-prefixed names defined in BC-2.11.012 v1.7, or `Expr::Field` otherwise.
+/// underscore-prefixed names defined in BC-2.11.012, or `Expr::Field` otherwise.
 ///
 /// Called by all three parsers (filter, SQL, pipe) whenever a field path is
 /// emitted as a value expression. This ensures that `_sensor`, `_client`,
@@ -987,7 +987,7 @@ pub fn field_path_to_expr(fp: FieldPath) -> Expr {
             "_source_table" => return Expr::VirtualField(VirtualField::SourceTable),
             "_source_type" => return Expr::VirtualField(VirtualField::SourceType),
             // "_safety_flags" intentionally falls through to Expr::Field:
-            // BC-2.11.012 v1.7 excludes it; E-QUERY-038 gate handles it.
+            // BC-2.11.012 excludes it; E-QUERY-038 gate handles it.
             _ => {}
         }
     }

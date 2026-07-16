@@ -1,7 +1,7 @@
 //! Harness Clone Route Parity — S-DEMO-HARNESS-CLONE-PARITY-001 Red Gate
 //!
 //! Covers:
-//!   BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY
+//!   BC-2.16.013 INV-HARNESS-ROUTE-PARITY
 //!
 //! # Red Gate
 //!
@@ -70,7 +70,7 @@ fn get_addr(
 //
 // test_BC_2_16_013_armis_harness_search_returns_200_with_bearer_403_without
 //
-// BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY:
+// BC-2.16.013 INV-HARNESS-ROUTE-PARITY:
 //   armis::router() MUST include GET /api/v1/search
 //   Armis auth model: 403 on missing/invalid Bearer
 //
@@ -80,7 +80,7 @@ fn get_addr(
 
 /// AC-001: Armis harness clone GET /api/v1/search — 200 with real admin token, 403 without Bearer.
 ///
-/// (BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — armis::router() MUST include
+/// (BC-2.16.013 INV-HARNESS-ROUTE-PARITY — armis::router() MUST include
 /// GET /api/v1/search; Armis auth model: 403 on missing/malformed Bearer)
 ///
 /// Red Gate: GET /api/v1/search → 404 (route not registered).
@@ -140,7 +140,7 @@ async fn test_BC_2_16_013_armis_harness_search_returns_200_with_bearer_403_witho
 //
 // test_BC_2_16_013_armis_harness_search_401_on_wrong_token
 //
-// BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY:
+// BC-2.16.013 INV-HARNESS-ROUTE-PARITY:
 //   Armis auth model: check_bearer_auth(&headers, &state.admin_token)
 //   - Missing/no bearer  → 403
 //   - Present but WRONG  → 401  ← this is the C-3 "#1 Red Gate trap" case
@@ -164,7 +164,7 @@ async fn test_BC_2_16_013_armis_harness_search_returns_200_with_bearer_403_witho
 /// harness-generated admin token so the test is deterministic and non-trivially
 /// passing.
 ///
-/// (BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — Armis auth model, C-3 trap)
+/// (BC-2.16.013 INV-HARNESS-ROUTE-PARITY — Armis auth model, C-3 trap)
 #[tokio::test]
 async fn test_BC_2_16_013_armis_harness_search_401_on_wrong_token() {
     let harness = prism_dtu_harness::Harness::builder()
@@ -216,7 +216,7 @@ async fn test_BC_2_16_013_armis_harness_search_401_on_wrong_token() {
 //
 // test_BC_2_16_013_armis_harness_search_aql_in_devices_returns_device_records
 //
-// BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY:
+// BC-2.16.013 INV-HARNESS-ROUTE-PARITY:
 //   Armis search response envelope: {"data": {"results": [...], "total": N}}
 //   in:devices → $.data.results is a non-empty array
 //   in:alerts  → $.data.results contains alert records (not device records)
@@ -235,7 +235,7 @@ async fn test_BC_2_16_013_armis_harness_search_401_on_wrong_token() {
 /// in:alerts  → $.data.results non-empty (alert records, not device records).
 /// Envelope: {"data": {"results": [...], "total": N}}
 ///
-/// (BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — C-7: structural parity)
+/// (BC-2.16.013 INV-HARNESS-ROUTE-PARITY — C-7: structural parity)
 ///
 /// Red Gate: GET /api/v1/search → 404 (route not registered).
 #[tokio::test]
@@ -451,7 +451,7 @@ async fn test_BC_2_16_013_armis_harness_search_aql_in_devices_returns_device_rec
 //
 // test_BC_2_16_013_claroty_harness_audit_log_returns_200_with_bearer_401_without
 //
-// BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY:
+// BC-2.16.013 INV-HARNESS-ROUTE-PARITY:
 //   claroty::router() MUST include POST /api/v1/audit_log/get
 //   claroty::network_router() MUST also include POST /api/v1/audit_log/get
 //   Claroty auth model: 401 on missing/invalid Bearer (NOT 403)
@@ -467,7 +467,7 @@ async fn test_BC_2_16_013_armis_harness_search_aql_in_devices_returns_device_rec
 /// Covers logical mode (router()) and network mode (network_router()) — C-4.
 /// Claroty auth model: 401 on missing/empty Bearer (NOT 403 — that's Armis only).
 ///
-/// (BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — claroty::router() MUST include
+/// (BC-2.16.013 INV-HARNESS-ROUTE-PARITY — claroty::router() MUST include
 /// POST /api/v1/audit_log/get; Claroty auth model: 401 on missing/invalid Bearer)
 ///
 /// Red Gate: POST /api/v1/audit_log/get → 404 (route not registered).
@@ -578,7 +578,7 @@ async fn test_BC_2_16_013_claroty_harness_audit_log_returns_200_with_bearer_401_
 //
 // test_BC_2_16_013_claroty_harness_audit_log_response_envelope_matches_standalone
 //
-// BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY:
+// BC-2.16.013 INV-HARNESS-ROUTE-PARITY:
 //   Response envelope: {"audit_log": [...], "total": N}
 //   audit_log is non-empty
 //   Each entry has all 5 columns: id, action, actor, timestamp, resource
@@ -594,7 +594,7 @@ async fn test_BC_2_16_013_claroty_harness_audit_log_returns_200_with_bearer_401_
 /// Envelope: {"audit_log": [...], "total": N}
 /// audit_log non-empty; each entry has all 5 columns (id/action/actor/timestamp/resource).
 ///
-/// (BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — Claroty audit_log response envelope)
+/// (BC-2.16.013 INV-HARNESS-ROUTE-PARITY — Claroty audit_log response envelope)
 ///
 /// Red Gate: POST /api/v1/audit_log/get → 404 (route not registered).
 #[tokio::test]

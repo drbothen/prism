@@ -274,7 +274,7 @@ fn shuffle_by_seed(ids: &[String], seed: u64) -> Vec<String> {
 /// results. The previous value `"placeholder"` was not in the host pool, causing every
 /// such JOIN to return 0 rows (DEFECT-CSDEVICES-EMPTY-PIPELINE-001).
 ///
-/// # F-CSD-P31-OBS-001 — stable det_index from detection_id (BC-2.16.013 v1.31)
+/// # F-CSD-P31-OBS-001 — stable det_index from detection_id (BC-2.16.013)
 ///
 /// `det_index` is derived internally from the trailing integer of `detection_id`
 /// (format `det-{org_slug}-{seed}-{NNN:03}` → parse `NNN`). This guarantees that
@@ -282,7 +282,7 @@ fn shuffle_by_seed(ids: &[String], seed: u64) -> Vec<String> {
 /// the same detection_id always maps to the same device_id regardless of its position
 /// in a batch POST body.
 ///
-/// # F-CSD-P31-MED-001 — severity string label (BC-2.16.013 v1.31)
+/// # F-CSD-P31-MED-001 — severity string label (BC-2.16.013)
 ///
 /// `severity` is emitted as a string label from `["Low","Medium","High","Critical"]`
 /// (same label set as `make_detection_with_ioc` in the standalone DTU generator).
@@ -323,7 +323,7 @@ fn detection_detail(detection_id: &str, org_slug: &str, seed: u64) -> Value {
     // host_ids is never empty in practice. The debug_assert catches any future
     // HOST_COUNT=0 regression during dev/test; the release fallback prevents a panic
     // in production without altering observable behavior for the non-empty case
-    // (BC-2.16.013 v1.31 host-pool mapping invariant preserved).
+    // (BC-2.16.013 host-pool mapping invariant preserved).
     debug_assert!(
         !host_ids.is_empty(),
         "generate_host_ids must never return empty; org_slug={org_slug:?} seed={seed}"

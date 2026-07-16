@@ -321,7 +321,7 @@ pub async fn get_search(
             // `last_seen` key with `first_seen` fallback (P2-01 mirrors of
             // `lastSeen` / `firstSeen`), matching the §8.3 fallback chain.
 
-            // Scenario path: apply StageMask projection (BC-2.06.019 v1.13 PC-4 /
+            // Scenario path: apply StageMask projection (BC-2.06.019 PC-4 /
             // F-PIVOT003-R8C-001). Mirrors devices.rs::paginate_devices scenario logic
             // exactly. This is the CANONICAL path for `from armis.devices` queries:
             // the `devices` table path_template is `/api/v1/search?aql=${query.filter.aql}`
@@ -379,7 +379,7 @@ pub async fn get_search(
                         .skip(start_offset)
                         .take(size)
                         .map(|v| {
-                            // BC-2.06.019 v1.13 PC-4 / F-PIVOT003-R8C-001:
+                            // BC-2.06.019 PC-4 / F-PIVOT003-R8C-001:
                             // device_cves=false → strip device_cves_first.
                             // Applied on the CANONICAL search path (in:devices AQL →
                             // /api/v1/search) — the path PipelineExecutor actually uses.

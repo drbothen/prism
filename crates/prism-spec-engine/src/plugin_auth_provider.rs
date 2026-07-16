@@ -141,7 +141,7 @@ impl AuthProvider for PluginAuthProvider {
         Box::pin(async move {
             // ADR-028 §D11 Option C: resolve credentials from prism_credentials before dispatch.
             // ADR-034 §D1: resolve slug → OrgId here (in prism-spec-engine), then pass to resolve_credential.
-            // BC-2.03.006 / BC-2.06.003 v1.4: full four-tier resolution chain.
+            // BC-2.03.006 / BC-2.06.003: full four-tier resolution chain.
             let cid_str = client_id.as_str();
 
             // Slug → OrgId resolution (ADR-034 §D1: prism-credentials MUST NOT import OrgRegistry;

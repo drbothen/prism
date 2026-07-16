@@ -16,7 +16,7 @@
 //!
 //! | F-PASS1-MED-001 | test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url | test exercised EC-004 skip path, never constructed adapter or called fetch() |
 //!
-//! # Adversary pass-2 findings addressed (BC-2.01.013 v1.14 OCSF Conformance Clause)
+//! # Adversary pass-2 findings addressed (BC-2.01.013 OCSF Conformance Clause)
 //!
 //! | Finding | Tests | Root cause |
 //! |---------|-------|-----------|
@@ -26,12 +26,12 @@
 //! | F-002-R | test_BC_2_22_001_production_boot_path_wiring_guard | Replaced duplicate-helper call with source-code structural wiring guard |
 //! | F-004-R | test_BC_2_01_013_auth_refresh_failed_display_carries_e_auth_002_taxonomy_code | E-AUTH-002 taxonomy code structurally pinned to prevent silent drift |
 //!
-//! # D-925 fixture correction (BC-2.01.013 v1.14, adversary F-001-R-RECUR)
+//! # D-925 fixture correction (BC-2.01.013, adversary F-001-R-RECUR)
 //!
 //! `make_crowdstrike_detection_spec` was corrected from fake `ocsf_class = "detection"` to the
 //! real production value `ocsf_class = "security_finding"` (crowdstrike.sensor.toml detections
 //! table at time of writing). Expected envelope post-OCSF-CLASS-MIGRATION-001:
-//! `class_uid = 2004`, `category_uid = 2` (2004/1000). Per BC-2.02.012 v1.6 Option A,
+//! `class_uid = 2004`, `category_uid = 2` (2004/1000). Per BC-2.02.012 Option A,
 //! `select_by_class_name("security_finding")` now returns 2004 (Detection Finding) with a
 //! deprecation WARN — not 2001 as it did prior to OCSF-CLASS-MIGRATION-001.
 //!
@@ -46,9 +46,9 @@
 //! | AC-010 | test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_bearer_static | BC-2.01.013 | F-001 |
 //! | AC-010 | test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_plugin | BC-2.01.013 | F-001 |
 //! | AC-010 | test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_static_cookie | BC-2.01.013 | F-001 |
-//! | AC-010 (item 1) | test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schema | BC-2.01.013 v1.14 | F-001-R/D-925 |
-//! | AC-010 (item 2) | test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied | BC-2.01.013 v1.14 | F-001-R/D-925 |
-//! | AC-010 (item 3) | test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_sensor_id | BC-2.01.013 v1.14 | F-001-R/D-925 |
+//! | AC-010 (item 1) | test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schema | BC-2.01.013 | F-001-R/D-925 |
+//! | AC-010 (item 2) | test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied | BC-2.01.013 | F-001-R/D-925 |
+//! | AC-010 (item 3) | test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_sensor_id | BC-2.01.013 | F-001-R/D-925 |
 //! | AC-012 | test_BC_2_01_013_spec_driven_adapter_double_401_returns_auth_refresh_failed | BC-2.01.013 | F-004 |
 //! | AC-012 | test_BC_2_01_013_auth_refresh_failed_display_carries_e_auth_002_taxonomy_code | BC-2.01.013 | F-004-R |
 //! | AC-004 | test_BC_2_22_001_boot_step9a_registers_correct_adapter_count | BC-2.22.001 | (exists, unchanged) |
@@ -1283,7 +1283,7 @@ async fn test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url() {
 
     // ADV-SDEMO002-P01-CRIT-001: BearerStatic sensors now resolve the bearer token from
     // `resolve_credential(org_slug, "armis", "bearer_token")` via the per-client env var
-    // (ADR-032 / BC-2.06.003 v1.3 Tier 2). This test uses make_org_registry("overlay-test-org")
+    // (ADR-032 / BC-2.06.003 Tier 2). This test uses make_org_registry("overlay-test-org")
     // so org_slug="overlay-test-org" → {ID}=OVERLAY_TEST_ORG.
     // Set the per-client env var to the expected token value so the mock header assertion passes.
     // The mock expects `Authorization: Bearer overlay-url-precedence-token-ac005`.
@@ -1330,7 +1330,7 @@ async fn test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url() {
     //
     // ADV-SDEMO002-P01-CRIT-001: BearerStatic sensors now use BearerStaticCredentialAuthProvider
     // (Plugin strategy). The SensorAuth arg is ignored; auth comes from the per-client env var
-    // PRISM_CLIENTS_OVERLAY_TEST_ORG_SENSORS_ARMIS_BEARER_TOKEN set above (ADR-032 / BC-2.06.003 v1.3).
+    // PRISM_CLIENTS_OVERLAY_TEST_ORG_SENSORS_ARMIS_BEARER_TOKEN set above (ADR-032 / BC-2.06.003).
     // A no-op BearerStaticSensorAuth is passed to satisfy the fetch() interface.
     let adapter_spec = make_adapter_spec("armis", org_id);
     let params = make_query_params();
@@ -1557,9 +1557,9 @@ async fn test_BC_2_06_014_boot_step9a_translates_org_slug_to_org_id() {
 // (the `pub` 30-second wrapper) — exercised by the adv_p02 integration tests below.
 
 // ===========================================================================
-// BC-2.01.013 v1.14 OCSF Conformance Clause tests (adversary pass-2, F-001-R)
+// BC-2.01.013 OCSF Conformance Clause tests (adversary pass-2, F-001-R)
 //
-// These 3 tests encode the MINIMUM CONFORMANCE GATE from BC-2.01.013 v1.14
+// These 3 tests encode the MINIMUM CONFORMANCE GATE from BC-2.01.013
 // §SpecDrivenSensorAdapter OCSF Conformance Clause, items 1–3.
 //
 // All 3 tests MUST FAIL against the current `pipeline_result_to_record_batch`
@@ -1582,7 +1582,7 @@ async fn test_BC_2_06_014_boot_step9a_translates_org_slug_to_org_id() {
 ///
 /// Uses `ocsf_class = "security_finding"` as the fixture class-name (the historical
 /// crowdstrike.sensor.toml detections value, now migrated to "detection_finding" by
-/// OCSF-CLASS-MIGRATION-001). Per BC-2.02.012 v1.6 Option A transitional alias:
+/// OCSF-CLASS-MIGRATION-001). Per BC-2.02.012 Option A transitional alias:
 /// `EventClassSelector::select_by_class_name("security_finding")` → 2004 (Detection Finding),
 /// `category_uid` → 2 (2004/1000). A deprecation WARN is emitted during the call.
 ///
@@ -1601,7 +1601,7 @@ fn make_crowdstrike_detection_spec(base_url: &str) -> SensorSpec {
         base_url,
         vec![TableSpec::new_point_in_time(
             "detections",
-            "security_finding", // ocsf_class transitional alias per BC-2.02.012 v1.6 Option A; select_by_class_name → 2004, category_uid 2
+            "security_finding", // ocsf_class transitional alias per BC-2.02.012 Option A; select_by_class_name → 2004, category_uid 2
             vec![
                 ColumnSpec::new("detection_id", ColumnType::String, None, vec![]),
                 ColumnSpec::new("severity", ColumnType::String, None, vec![]),
@@ -1634,7 +1634,7 @@ fn make_crowdstrike_detection_spec(base_url: &str) -> SensorSpec {
 /// - `"detection_id": "det-conformance-001"` and `"severity": "High"` — spec-declared
 ///   data columns that MUST survive into the Arrow schema (not dropped).
 ///
-/// BC-2.01.013 v1.14 conformance probe; TV-BC-2.01.013-004/005.
+/// BC-2.01.013 conformance probe; TV-BC-2.01.013-004/005.
 fn crowdstrike_conformance_raw_response() -> serde_json::Value {
     serde_json::json!({
         "data": [
@@ -1649,7 +1649,7 @@ fn crowdstrike_conformance_raw_response() -> serde_json::Value {
     })
 }
 
-/// AC-010 item 1 — BC-2.01.013 v1.14 OCSF Conformance Clause item 1 (spec columns survive):
+/// AC-010 item 1 — BC-2.01.013 OCSF Conformance Clause item 1 (spec columns survive):
 ///
 /// `SpecDrivenSensorAdapter::fetch()` MUST return a RecordBatch whose Arrow schema contains
 /// EVERY column declared in the sensor's TOML `[[tables.columns]]` spec, in addition to the
@@ -1667,7 +1667,7 @@ fn crowdstrike_conformance_raw_response() -> serde_json::Value {
 /// TV-BC-2.01.013-004: "5 spec-declared columns PLUS category_uid, class_uid, _sensor;
 /// no spec-declared column is absent."
 ///
-/// BC-2.01.013 v1.14 OCSF Conformance Clause item 1; AC-010(a); F-001-R; S-DEMO-001 v1.5.
+/// BC-2.01.013 OCSF Conformance Clause item 1; AC-010(a); F-001-R; S-DEMO-001 v1.5.
 #[tokio::test]
 async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schema() {
     let mock_server = MockServer::start().await;
@@ -1715,7 +1715,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
     assert!(
         !batches.is_empty(),
         "F-001-R item 1: fetch() must return at least one non-empty RecordBatch. \
-         Got empty Vec. BC-2.01.013 v1.14 Conformance Clause item 1."
+         Got empty Vec. BC-2.01.013 Conformance Clause item 1."
     );
 
     let first_batch = &batches[0];
@@ -1727,7 +1727,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
     // constructs a Schema with only 3 fields: category_uid, class_uid, _sensor.
     // Spec-declared data columns are never added to the schema.
     //
-    // BC-2.01.013 v1.14 item 1: "Every column declared in [[tables.columns]] MUST survive
+    // BC-2.01.013 item 1: "Every column declared in [[tables.columns]] MUST survive
     // into the returned RecordBatch via ColumnMapper field-by-field mapping."
     // EC-01-025: "RecordBatch with only envelope fields while discarding sensor payload = NON-CONFORMANT."
     assert!(
@@ -1737,7 +1737,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
          Root cause: pipeline_result_to_record_batch builds only the 3-column envelope schema \
          (category_uid, class_uid, _sensor) — all spec data columns are silently dropped. \
          Fix: use ColumnMapper to map spec.tables[].columns into the RecordBatch. \
-         BC-2.01.013 v1.14 Conformance Clause item 1; AC-010(a); F-001-R.",
+         BC-2.01.013 Conformance Clause item 1; AC-010(a); F-001-R.",
         column_names
     );
 
@@ -1746,7 +1746,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
         "F-001-R item 1 LOAD-BEARING: Arrow schema MUST contain spec-declared column \
          'severity'. Present columns: {:?}. \
          Root cause: same as detection_id — spec data columns dropped in current stub. \
-         BC-2.01.013 v1.14 Conformance Clause item 1; AC-010(a); F-001-R.",
+         BC-2.01.013 Conformance Clause item 1; AC-010(a); F-001-R.",
         column_names
     );
 
@@ -1762,7 +1762,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
     }
 }
 
-/// AC-010 item 2 — BC-2.01.013 v1.14 OCSF Conformance Clause item 2 (envelope derivation):
+/// AC-010 item 2 — BC-2.01.013 OCSF Conformance Clause item 2 (envelope derivation):
 ///
 /// `category_uid` and `class_uid` MUST be derived by `OcsfNormalizer` from the sensor's
 /// declared `ocsf_class` (via `EventClassSelector::select_by_class_name(ocsf_class)` mapping),
@@ -1773,7 +1773,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
 ///
 /// The mock raw record has `"class_uid": 9999, "category_uid": 9999`.
 /// The spec declares `sensor_id = "crowdstrike"` and `ocsf_class = "security_finding"`
-/// (transitional alias per BC-2.02.012 v1.6 Option A; OCSF-CLASS-MIGRATION-001).
+/// (transitional alias per BC-2.02.012 Option A; OCSF-CLASS-MIGRATION-001).
 /// `EventClassSelector::select_by_class_name("security_finding")` → 2004 (Detection Finding).
 /// `category_uid` → 2 (2004 / 1000).
 /// The test asserts `class_uid == 2004` — forcing failure if:
@@ -1783,15 +1783,15 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
 /// # Status
 ///
 /// GREEN after OCSF-CLASS-MIGRATION-001: `select_by_class_name("security_finding")` returns
-/// 2004 (per BC-2.02.012 v1.6 Option A) — the full derivation chain produces class_uid = 2004.
+/// 2004 (per BC-2.02.012 Option A) — the full derivation chain produces class_uid = 2004.
 ///
-/// TV-BC-2.01.013-005 (BC-2.01.013 v1.14): "category_uid/class_uid in returned batch derived
+/// TV-BC-2.01.013-005 (BC-2.01.013): "category_uid/class_uid in returned batch derived
 /// from ocsf_class, NOT equal to raw 9999 value; class_uid MUST equal 2004."
 ///
-/// BC-2.01.013 v1.14 OCSF Conformance Clause item 2; AC-010(b); F-001-R; D-925.
+/// BC-2.01.013 OCSF Conformance Clause item 2; AC-010(b); F-001-R; D-925.
 #[tokio::test]
 async fn test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied() {
-    // select_by_class_name("security_finding") → 2004 (BC-2.02.012 v1.6 Option A,
+    // select_by_class_name("security_finding") → 2004 (BC-2.02.012 Option A,
     // OCSF-CLASS-MIGRATION-001). The full derivation chain produces class_uid = 2004.
     // A deprecation WARN (ocsf.deprecated_class_alias) is emitted during the call — this
     // is expected behavior and does not affect the assertion.
@@ -1867,7 +1867,7 @@ async fn test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied() {
     // LOAD-BEARING assertion (TD-VSDD-059, D-925, OCSF-CLASS-MIGRATION-001 AC-005):
     // Raw record has class_uid = 9999. The spec declares ocsf_class = "security_finding".
     // Correct implementation (post-OCSF-CLASS-MIGRATION-001):
-    //   select_by_class_name("security_finding") → 2004 (BC-2.02.012 v1.6 Option A).
+    //   select_by_class_name("security_finding") → 2004 (BC-2.02.012 Option A).
     // This assertion fails for BOTH the raw-copy (9999) and any path that does not call
     // select_by_class_name, ensuring the implementer must use the real class-name derivation path.
     assert_ne!(
@@ -1875,26 +1875,26 @@ async fn test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied() {
         "F-001-R item 2 LOAD-BEARING: class_uid in returned RecordBatch MUST NOT be the \
          raw JSON value 9999. It must be the spec-derived value from \
          EventClassSelector::select_by_class_name('security_finding') = 2004 \
-         (BC-2.02.012 v1.6 Option A transitional alias — Detection Finding, not deprecated 2001). \
+         (BC-2.02.012 Option A transitional alias — Detection Finding, not deprecated 2001). \
          EC-01-026: 'Implementation that copies category_uid/class_uid from raw vendor JSON = NON-CONFORMANT.' \
-         BC-2.01.013 v1.14 OCSF Conformance Clause item 2; AC-010(b); F-001-R; D-925; TV-BC-2.01.013-005."
+         BC-2.01.013 OCSF Conformance Clause item 2; AC-010(b); F-001-R; D-925; TV-BC-2.01.013-005."
     );
 
     // Assert the correct derived value (2004) is present.
-    // BC-2.02.012 v1.6 mapping: ocsf_class "security_finding" → class_uid 2004 (transitional alias),
+    // BC-2.02.012 mapping: ocsf_class "security_finding" → class_uid 2004 (transitional alias),
     // category_uid 2 (2004/1000). OCSF-CLASS-MIGRATION-001 AC-005.
     assert_eq!(
         class_uid_val, 2004,
         "F-001-R item 2 LOAD-BEARING: class_uid MUST equal the spec-derived value 2004 \
          (EventClassSelector::select_by_class_name('security_finding') = Detection Finding, 2004). \
-         Per BC-2.02.012 v1.6 Option A (OCSF-CLASS-MIGRATION-001), 'security_finding' is a \
+         Per BC-2.02.012 Option A (OCSF-CLASS-MIGRATION-001), 'security_finding' is a \
          transitional alias that maps to 2004, not the deprecated 2001. Got: {}. \
-         BC-2.01.013 v1.14 Conformance Clause item 2; AC-010(b); D-925; TV-BC-2.01.013-005.",
+         BC-2.01.013 Conformance Clause item 2; AC-010(b); D-925; TV-BC-2.01.013-005.",
         class_uid_val
     );
 }
 
-/// AC-010 item 3 — BC-2.01.013 v1.14 OCSF Conformance Clause item 3 (_sensor virtual column):
+/// AC-010 item 3 — BC-2.01.013 OCSF Conformance Clause item 3 (_sensor virtual column):
 ///
 /// The `_sensor` virtual column MUST be present and set to the sensor's canonical `SensorId`
 /// string (e.g., `"crowdstrike"`), injected by the normalization layer — NOT read from the
@@ -1914,7 +1914,7 @@ async fn test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied() {
 /// `unwrap_or(sensor_id)` is never reached. Result: `_sensor = "tampered-sensor-name"`.
 /// The assertion `_sensor_val == "crowdstrike"` FAILS.
 ///
-/// BC-2.01.013 v1.14 OCSF Conformance Clause item 3; AC-010(c); F-001-R; S-DEMO-001 v1.5.
+/// BC-2.01.013 OCSF Conformance Clause item 3; AC-010(c); F-001-R; S-DEMO-001 v1.5.
 #[tokio::test]
 async fn test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_sensor_id() {
     let mock_server = MockServer::start().await;
@@ -1995,7 +1995,7 @@ async fn test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_se
          Root cause: pipeline_result_to_record_batch reads _sensor from raw JSON with fallback \
          (record.get('_sensor')...unwrap_or(sensor_id)) — raw JSON value wins when present. \
          Fix: always inject canonical sensor_id, never read _sensor from raw record. \
-         BC-2.01.013 v1.14 Conformance Clause item 3; AC-010(c); F-001-R."
+         BC-2.01.013 Conformance Clause item 3; AC-010(c); F-001-R."
     );
 
     assert_eq!(
@@ -2003,7 +2003,7 @@ async fn test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_se
         "F-001-R item 3: '_sensor' MUST equal the canonical SensorId 'crowdstrike' from \
          the resolved spec. Got: '{}'. The normalization layer must inject this value, \
          ignoring any '_sensor' field in the raw API response. \
-         BC-2.01.013 v1.14 Conformance Clause item 3; AC-010(c); F-001-R.",
+         BC-2.01.013 Conformance Clause item 3; AC-010(c); F-001-R.",
         sensor_val
     );
 }

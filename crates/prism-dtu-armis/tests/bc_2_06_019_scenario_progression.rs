@@ -469,7 +469,7 @@ async fn test_BPRL_P4_02_armis_alerts_stage_guard_primary_device() {
 ///
 /// This exercises the PRODUCTION CONSTRUCTOR path (`new_with_scenario`), NOT the generator
 /// helper directly. It proves that the demo server, which calls `new_with_scenario`, will
-/// serve CVE-stamped device records enabling the NVD pivot (AC-008 / BC-2.06.019 v1.13,
+/// serve CVE-stamped device records enabling the NVD pivot (AC-008 / BC-2.06.019,
 /// F-PIVOT003-R2-002).
 ///
 /// TD-VSDD-059: load-bearing — verifies production path, not the helper function.
@@ -485,7 +485,7 @@ async fn test_BC_2_06_019_scenario_clone_device_records_carry_device_cves_first(
     assert!(
         !catalog.device_cves.is_empty(),
         "build_scenario_entity_catalog must produce a non-empty device_cves slice; \
-         got empty. BC-2.06.019 v1.13 F-PIVOT003-R2-002."
+         got empty. BC-2.06.019 F-PIVOT003-R2-002."
     );
     let expected_cve = catalog.device_cves[0].clone();
 
@@ -556,7 +556,7 @@ async fn test_BC_2_06_019_scenario_clone_device_records_carry_device_cves_first(
 /// SERVED-ROUTE TEST — F-PIVOT003-R7A-001: device_cves_first absent at stages 0-3,
 /// present at stage 4.
 ///
-/// BC-2.06.019 v1.13 PC-4: "device_cves=false: CVE-related enrichment fields on device
+/// BC-2.06.019 PC-4: "device_cves=false: CVE-related enrichment fields on device
 /// records are omitted."  The `device_cves_first` field is the scalar CVE projection
 /// (U17/Ruling 1b) stamped by `generate_with_scenario_cves`.
 ///
@@ -667,7 +667,7 @@ async fn test_BC_2_06_019_armis_device_cves_first_stagemask_served_route() {
     let primary1 = primary_record_stage1.unwrap();
     assert!(
         primary1.get("device_cves_first").is_none(),
-        "F-PIVOT003-R7A-001 BC-2.06.019 v1.13 PC-4: at stage 1 (Recon, mask.device_cves=false), \
+        "F-PIVOT003-R7A-001 BC-2.06.019 PC-4: at stage 1 (Recon, mask.device_cves=false), \
          device_cves_first MUST be absent from GET /api/v1/devices response; \
          found it with value {:?}. \
          routes/devices.rs must strip device_cves_first when !mask.device_cves. \
@@ -748,7 +748,7 @@ async fn test_BC_2_06_019_armis_device_cves_first_stagemask_served_route() {
     let primary4 = primary_record_stage4.unwrap();
     assert!(
         primary4.get("device_cves_first").is_some(),
-        "F-PIVOT003-R7A-001 BC-2.06.019 v1.13 PC-4: at stage 4 (Containment, \
+        "F-PIVOT003-R7A-001 BC-2.06.019 PC-4: at stage 4 (Containment, \
          mask.device_cves=true), device_cves_first MUST be present in GET /api/v1/devices \
          response; found record {:?}. \
          routes/devices.rs must serve device_cves_first when mask.device_cves=true.",
@@ -966,7 +966,7 @@ async fn test_F_PIVOT003_R8C_001_search_primary_device_stage_visibility() {
 /// absent at stage 1 (mask.device_cves=false) and present at stage 4 (mask.device_cves=true)
 /// on the CANONICAL armis.devices query path: GET /api/v1/search?aql=in:devices.
 ///
-/// BC-2.06.019 v1.13 PC-4 / F-PIVOT003-R8C-001: the `device_cves_first` strip must be
+/// BC-2.06.019 PC-4 / F-PIVOT003-R8C-001: the `device_cves_first` strip must be
 /// applied in search.rs (the route path_template points to), not only in devices.rs.
 ///
 /// FAIL mode (before fix): search.rs device branch missing device_cves_first strip →
@@ -1055,7 +1055,7 @@ async fn test_F_PIVOT003_R8C_001_search_device_cves_first_stagemask_served_route
     // device_cves_first MUST be absent at stage 1 (mask.device_cves=false at Recon).
     assert!(
         primary1_rec.get("device_cves_first").is_none(),
-        "F-PIVOT003-R8C-001 / BC-2.06.019 v1.13 PC-4: at stage 1 (Recon, mask.device_cves=false), \
+        "F-PIVOT003-R8C-001 / BC-2.06.019 PC-4: at stage 1 (Recon, mask.device_cves=false), \
          device_cves_first MUST be absent from GET /api/v1/search?aql=in:devices results; \
          found value {:?}. \
          search.rs device branch must apply the device_cves_first strip \
@@ -1134,7 +1134,7 @@ async fn test_F_PIVOT003_R8C_001_search_device_cves_first_stagemask_served_route
     // device_cves_first MUST be present at stage 4 (mask.device_cves=true at Containment).
     assert!(
         primary4_rec.get("device_cves_first").is_some(),
-        "F-PIVOT003-R8C-001 / BC-2.06.019 v1.13 PC-4: at stage 4 (Containment, mask.device_cves=true), \
+        "F-PIVOT003-R8C-001 / BC-2.06.019 PC-4: at stage 4 (Containment, mask.device_cves=true), \
          device_cves_first MUST be present in GET /api/v1/search?aql=in:devices results; \
          found record {:?}. The NVD pivot must be enabled at stage 4.",
         primary4_rec

@@ -547,7 +547,7 @@ async fn test_BPRL_P4_02_detections_stage_guard_primary_device() {
 ///
 /// This exercises the PRODUCTION CONSTRUCTOR path (`new_with_scenario`), NOT the generator
 /// helper directly. It proves that the demo server, which calls `new_with_scenario`, will
-/// serve IOC-stamped detections (AC-004 / BC-2.06.019 v1.13, F-PIVOT003-R2-001).
+/// serve IOC-stamped detections (AC-004 / BC-2.06.019, F-PIVOT003-R2-001).
 ///
 /// TD-VSDD-059: load-bearing — verifies production path, not the helper function.
 #[tokio::test]
@@ -562,7 +562,7 @@ async fn test_BC_2_06_019_scenario_clone_detection_0_carries_ioc_value_from_cata
     assert!(
         !catalog.ioc_hashes.is_empty(),
         "build_scenario_entity_catalog must produce a non-empty ioc_hashes slice; \
-         got empty. BC-2.06.019 v1.13 F-PIVOT003-R2-001."
+         got empty. BC-2.06.019 F-PIVOT003-R2-001."
     );
     let expected_ioc_hash = catalog.ioc_hashes[0].clone();
 
@@ -633,13 +633,13 @@ async fn test_BC_2_06_019_scenario_clone_detection_0_carries_ioc_value_from_cata
         ioc_value
     );
 
-    // Also verify ioc_type is "hash_sha256" (BC-2.06.019 v1.13 algorithm-qualified token).
+    // Also verify ioc_type is "hash_sha256" (BC-2.06.019 algorithm-qualified token).
     let ioc_type = behaviors[0].get("ioc_type").and_then(|v| v.as_str());
 
     assert_eq!(
         ioc_type,
         Some("hash_sha256"),
-        "AC-004 / BC-2.06.019 v1.13: behaviors[0].ioc_type MUST be 'hash_sha256' \
+        "AC-004 / BC-2.06.019: behaviors[0].ioc_type MUST be 'hash_sha256' \
          (algorithm-qualified); got {:?}.",
         ioc_type
     );
@@ -652,7 +652,7 @@ async fn test_BC_2_06_019_scenario_clone_detection_0_carries_ioc_value_from_cata
 /// SERVED-ROUTE TEST — F-PIVOT003-R7A-002: IOC-bearing detections absent at stage 1
 /// (mask.ioc_hashes=false), present at stage 2+ (mask.ioc_hashes=true).
 ///
-/// BC-2.06.019 v1.13 PC-4: "ioc_hashes=false: detection records where
+/// BC-2.06.019 PC-4: "ioc_hashes=false: detection records where
 /// behaviors[].ioc_value matches catalog.ioc_hashes are withheld."
 ///
 /// Detection 0 is the IOC-bearing detection (behaviors[0].ioc_value = ioc_hashes[0]).
@@ -774,7 +774,7 @@ async fn test_BC_2_06_019_crowdstrike_ioc_bearing_detection_stagemask_served_rou
             .unwrap_or_default();
 
         // Assert: NO detection has behaviors[].ioc_value in catalog.ioc_hashes.
-        // BC-2.06.019 v1.13 PC-4 / F-PIVOT003-R7A-002.
+        // BC-2.06.019 PC-4 / F-PIVOT003-R7A-002.
         let ioc_bearing = resources1.iter().find(|rec| {
             rec.get("behaviors")
                 .and_then(|v| v.as_array())
@@ -791,7 +791,7 @@ async fn test_BC_2_06_019_crowdstrike_ioc_bearing_detection_stagemask_served_rou
 
         assert!(
             ioc_bearing.is_none(),
-            "F-PIVOT003-R7A-002 BC-2.06.019 v1.13 PC-4: at stage 1 (Recon, \
+            "F-PIVOT003-R7A-002 BC-2.06.019 PC-4: at stage 1 (Recon, \
              mask.ioc_hashes=false), the IOC-bearing detection with \
              behaviors[].ioc_value='{}' MUST be absent from the served response; \
              found record: {:?}. \
@@ -908,7 +908,7 @@ async fn test_BC_2_06_019_crowdstrike_ioc_bearing_detection_stagemask_served_rou
 
     assert!(
         ioc_bearing_stage2.is_some(),
-        "F-PIVOT003-R7A-002 BC-2.06.019 v1.13 PC-4: at stage 2 (LateralMovement, \
+        "F-PIVOT003-R7A-002 BC-2.06.019 PC-4: at stage 2 (LateralMovement, \
          mask.ioc_hashes=true), the IOC-bearing detection with \
          behaviors[].ioc_value='{}' MUST be present in the served response; \
          got {} detection records but none with this IOC value. \

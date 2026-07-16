@@ -104,7 +104,7 @@ fn test_BC_2_04_015_ac6_compile_absent_returns_capability_denied_with_rebuild_su
         } => {
             // P2-02 (2026-06-10 review pass-2): reason must match the spec-pinned
             // E-FLAG-002 message template VERBATIM — three spec layers agree on it:
-            // error-taxonomy.md E-FLAG-002 row, BC-2.04.015 v1.2, BC-2.04.001 v1.2.
+            // error-taxonomy.md E-FLAG-002 row, BC-2.04.015, BC-2.04.001.
             // The retired "Feature not compiled" framing is false under registry-driven
             // dispatch (nothing is un-compiled) and must NOT reappear.
             assert_eq!(
@@ -112,7 +112,7 @@ fn test_BC_2_04_015_ac6_compile_absent_returns_capability_denied_with_rebuild_su
                 "Write capability 'sensor.crowdstrike.containment' denied: no write-endpoint declaration (no [[write_endpoints]] entry in the sensor's TOML spec)",
                 "BC-2.04.015/P2-02: compile-tier denied reason must be the exact \
                  spec-pinned E-FLAG-002 template (error-taxonomy E-FLAG-002 row, \
-                 BC-2.04.015 v1.2, BC-2.04.001 v1.2)"
+                 BC-2.04.015, BC-2.04.001)"
             );
             assert!(
                 !reason.contains("not compiled"),

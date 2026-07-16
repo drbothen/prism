@@ -482,7 +482,7 @@ async fn test_BC_2_01_013_org_c_all_4_sensors_return_independent_data() {
 ///         the isolation error MUST be explicit. This test asserts on the error code,
 ///         not just "no rows".
 ///
-/// # Wire shape (post F-2 / BC-2.10.007 v1.5+)
+/// # Wire shape (post F-2 / BC-2.10.007+)
 ///
 /// The MCP `query` handler routes all user-visible domain errors (including E-QUERY-032)
 /// through `prism_error_to_structured_call_result`, which returns:

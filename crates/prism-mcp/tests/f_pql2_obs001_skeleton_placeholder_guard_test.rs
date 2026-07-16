@@ -40,8 +40,8 @@
 //!
 //! | Test | Finding | BC |
 //! |------|---------|-----|
-//! | test_f_pql2_obs001_query_skeleton_no_bare_timestamp | F-PQL2-OBS-001 | BC-2.10.016 v1.2 |
-//! | test_f_pql2_obs001_datetime_arithmetic_uses_placeholder | F-PQL2-OBS-001 | BC-2.10.016 v1.2 |
+//! | test_f_pql2_obs001_query_skeleton_no_bare_timestamp | F-PQL2-OBS-001 | BC-2.10.016 |
+//! | test_f_pql2_obs001_datetime_arithmetic_uses_placeholder | F-PQL2-OBS-001 | BC-2.10.016 |
 
 use prism_mcp::resources::build_reference_content;
 

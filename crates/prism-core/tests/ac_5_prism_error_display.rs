@@ -95,7 +95,7 @@ fn test_ac5_prism_error_display_e_cred_001() {
 /// P2-03(c) (2026-06-10 review pass-2): previously exercised the
 /// `FeatureFlagDisabled` variant, which was removed (zero spec backing, zero
 /// production emitters; E-FLAG-002 is the compile-tier `CapabilityDenied`
-/// denial per BC-2.04.015 v1.2). E-FLAG category Display coverage is preserved
+/// denial per BC-2.04.015). E-FLAG category Display coverage is preserved
 /// via `FeatureFlagEvalError` (E-FLAG-010).
 #[test]
 fn test_ac5_prism_error_display_e_flag_010() {

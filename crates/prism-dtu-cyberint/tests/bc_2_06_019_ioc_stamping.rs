@@ -10,9 +10,9 @@
 //!
 //! Story: S-DEMO-ENRICHMENT-PIVOT-003
 //! Traces to:
-//!   BC-2.06.019 v1.13 PC-4 — Cyberint alerts carry real IOC fields; StageMask filter on
+//!   BC-2.06.019 PC-4 — Cyberint alerts carry real IOC fields; StageMask filter on
 //!     real-schema accessors (ioc.value / iocs[].value / alert_data.ip / alert_data.domain)
-//!   BC-2.06.019 v1.13 §Interim State — _ioc_value synthetic filter MUST NOT coexist with
+//!   BC-2.06.019 §Interim State — _ioc_value synthetic filter MUST NOT coexist with
 //!     real-schema filter (removed atomically)
 //!   BC-2.06.020 PC-1 — Scenario generator stamps IOC catalog values on alert records
 //!
@@ -73,7 +73,7 @@ fn default_opts(seed: u64) -> GenOpts {
 // Test 1 — Cyberint Alert struct has real IOC fields
 // ---------------------------------------------------------------------------
 
-/// Test 1 — BC-2.06.019 v1.13 PC-4: Cyberint `Alert` type carries real IOC fields.
+/// Test 1 — BC-2.06.019 PC-4: Cyberint `Alert` type carries real IOC fields.
 ///
 /// Asserts:
 /// - `Alert` has an `ioc: Option<Ioc>` field
@@ -86,7 +86,7 @@ fn default_opts(seed: u64) -> GenOpts {
 /// STRUCTURAL test: already GREEN in stub state (type defs present). Included so the
 /// behavioral contract is encoded in the test suite and regression protection is established.
 ///
-/// BC-2.06.019 v1.13 PC-4 (Per-Sensor IOC-Surface Matrix — Cyberint: YES).
+/// BC-2.06.019 PC-4 (Per-Sensor IOC-Surface Matrix — Cyberint: YES).
 /// Red Gate test plan #1 (S-DEMO-ENRICHMENT-PIVOT-003).
 #[test]
 fn test_BC_2_06_019_cyberint_alert_struct_has_real_ioc_fields() {
@@ -179,7 +179,7 @@ fn test_BC_2_06_019_cyberint_alert_struct_has_real_ioc_fields() {
 // Test 2 — Cyberint Ioc struct dual-alias deserializes both key forms
 // ---------------------------------------------------------------------------
 
-/// Test 2 — BC-2.06.019 v1.13 §Cyberint INCONCLUSIVE inner-key: `Ioc` struct must
+/// Test 2 — BC-2.06.019 §Cyberint INCONCLUSIVE inner-key: `Ioc` struct must
 /// deserialize BOTH `{"type","value"}` (primary) AND `{"ioc_type","ioc_value"}` (alias)
 /// JSON forms to the same `Ioc` value.
 ///
@@ -187,13 +187,13 @@ fn test_BC_2_06_019_cyberint_alert_struct_has_real_ioc_fields() {
 ///   `#[serde(rename = "type", alias = "ioc_type")]` on `ioc_type` field
 ///   `#[serde(alias = "ioc_value")]` on `value` field
 ///
-/// This test uses exact canonical test vectors from BC-2.06.019 v1.13 §Cyberint IOC section.
+/// This test uses exact canonical test vectors from BC-2.06.019 §Cyberint IOC section.
 ///
 /// FAIL mode: if serde annotations are removed/changed, deserialization fails or returns
 ///   wrong field values.
 /// STRUCTURAL test: already GREEN in stub state. Included for regression protection.
 ///
-/// BC-2.06.019 v1.13 §Cyberint INCONCLUSIVE inner-key.
+/// BC-2.06.019 §Cyberint INCONCLUSIVE inner-key.
 /// Red Gate test plan #2 (S-DEMO-ENRICHMENT-PIVOT-003).
 #[test]
 fn test_BC_2_06_019_cyberint_ioc_struct_dual_alias_deserializes_both_key_forms() {
@@ -236,7 +236,7 @@ fn test_BC_2_06_019_cyberint_ioc_struct_dual_alias_deserializes_both_key_forms()
         ioc_primary.value, ioc_alias.value
     );
 
-    // Cross-check exact values (canonical test vector from BC-2.06.019 v1.13).
+    // Cross-check exact values (canonical test vector from BC-2.06.019).
     assert_eq!(ioc_primary.ioc_type, "hash_sha256");
     assert_eq!(ioc_primary.value, "deadbeefdeadbeefdeadbeefdeadbeef");
 
@@ -260,7 +260,7 @@ fn test_BC_2_06_019_cyberint_ioc_struct_dual_alias_deserializes_both_key_forms()
 // Test 3 — Cyberint fixture generator stamps scenario IOCs
 // ---------------------------------------------------------------------------
 
-/// Test 3 — BC-2.06.020 PC-1 + BC-2.06.019 v1.13 PC-4: `generate_with_scenario_iocs()`
+/// Test 3 — BC-2.06.020 PC-1 + BC-2.06.019 PC-4: `generate_with_scenario_iocs()`
 /// stamps scenario IOC catalog values onto `CompromisedEndpoint` alert records.
 ///
 /// After stamping:
@@ -351,7 +351,7 @@ fn test_BC_2_06_019_cyberint_fixture_generator_stamps_scenario_iocs() {
 
     assert!(
         has_stamped_ioc,
-        "BC-2.06.019 v1.13 PC-4 / AC-002: at least one alert record must carry an IOC value \
+        "BC-2.06.019 PC-4 / AC-002: at least one alert record must carry an IOC value \
          from the scenario catalog (ioc_hashes / ioc_ips / ioc_domains). \
          Catalog ioc_hashes={:?}, ioc_ips={:?}, ioc_domains={:?}. \
          Alert records found: {}",
@@ -366,7 +366,7 @@ fn test_BC_2_06_019_cyberint_fixture_generator_stamps_scenario_iocs() {
 // Test 4 — Cyberint alerts route real-schema IOC filter (no synthetic _ioc_value)
 // ---------------------------------------------------------------------------
 
-/// Test 4 — BC-2.06.019 v1.13 PC-4 §Interim State: the Cyberint alerts route
+/// Test 4 — BC-2.06.019 PC-4 §Interim State: the Cyberint alerts route
 /// real-schema IOC filter replaces the removed `_ioc_value` synthetic filter.
 ///
 /// Asserts:
@@ -383,7 +383,7 @@ fn test_BC_2_06_019_cyberint_fixture_generator_stamps_scenario_iocs() {
 /// The `todo!()` in routes/alerts.rs IS the blocking dependency — once AC-003 lands,
 /// the server stops panicking and this test passes.
 ///
-/// BC-2.06.019 v1.13 PC-4 §Interim State.
+/// BC-2.06.019 PC-4 §Interim State.
 /// Red Gate test plan #4 (S-DEMO-ENRICHMENT-PIVOT-003).
 #[tokio::test]
 async fn test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic() {
@@ -517,7 +517,7 @@ async fn test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic() 
     // At stage 0 (ioc_hashes=false): the IOC-referencing alert MUST be ABSENT.
     assert!(
         !ids.contains(&"real-schema-ioc-alert-003".to_owned()),
-        "BC-2.06.019 v1.13 PC-4 / AC-003: at stage 0 (ioc_hashes=false), alert \
+        "BC-2.06.019 PC-4 / AC-003: at stage 0 (ioc_hashes=false), alert \
          'real-schema-ioc-alert-003' with iocs[0].value='{}' must be ABSENT; \
          found in response ids: {:?}. \
          The real-schema filter (not _ioc_value) must apply.",
@@ -528,7 +528,7 @@ async fn test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic() 
     // The non-IOC alert MUST be PRESENT (no IOC fields → always passes through).
     assert!(
         ids.contains(&"non-ioc-alert-003".to_owned()),
-        "BC-2.06.019 v1.13 PC-4: non-IOC alert 'non-ioc-alert-003' must always be \
+        "BC-2.06.019 PC-4: non-IOC alert 'non-ioc-alert-003' must always be \
          PRESENT regardless of StageMask state; not found in: {:?}",
         ids
     );
@@ -543,7 +543,7 @@ async fn test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic() 
 // Test 7 — Cyberint TOML sensor spec has IOC columns
 // ---------------------------------------------------------------------------
 
-/// Test 7 — BC-2.06.019 v1.13 PC-4 + SAP-2: the Cyberint sensor TOML spec must
+/// Test 7 — BC-2.06.019 PC-4 + SAP-2: the Cyberint sensor TOML spec must
 /// declare IOC columns with post-ENRICH-1 clean SQL identifiers + source_path values
 /// matching the real-schema fields.
 ///
@@ -568,7 +568,7 @@ async fn test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic() 
 /// SAP-2 parity rule: column in TOML with no DTU struct equivalent = P1 CRITICAL.
 ///   The reverse (DTU field with no TOML column) = MEDIUM (missing coverage).
 ///
-/// BC-2.06.019 v1.13 PC-4 + SAP-2.
+/// BC-2.06.019 PC-4 + SAP-2.
 /// Red Gate test plan #7 (S-DEMO-ENRICHMENT-PIVOT-003).
 #[test]
 fn test_BC_2_06_019_cyberint_alert_toml_spec_has_ioc_columns() {
@@ -658,7 +658,7 @@ fn test_BC_2_06_019_cyberint_alert_toml_spec_has_ioc_columns() {
                 None => {
                     let names: Vec<&str> = all_columns.iter().map(|(n, _)| n.as_str()).collect();
                     panic!(
-                        "BC-2.06.019 v1.13 PC-4 / AC-006 / HIGH-001: cyberint.sensor.toml at {:?} \
+                        "BC-2.06.019 PC-4 / AC-006 / HIGH-001: cyberint.sensor.toml at {:?} \
                          must declare a column with name='{}' (post-ENRICH-1 clean identifier). \
                          If the name is still the old bracket form (e.g., 'iocs[].value'), that is \
                          a regression — ENRICH-1 renamed it. \
@@ -670,7 +670,7 @@ fn test_BC_2_06_019_cyberint_alert_toml_spec_has_ioc_columns() {
                     assert_eq!(
                         actual_source_path.as_deref(),
                         Some(*expected_source_path),
-                        "BC-2.06.019 v1.13 PC-4 / SAP-2 / HIGH-001: cyberint.sensor.toml at {:?} \
+                        "BC-2.06.019 PC-4 / SAP-2 / HIGH-001: cyberint.sensor.toml at {:?} \
                          column '{}' must have source_path='{}' (post-ENRICH-1 JSONPath). \
                          Actual source_path: {:?}",
                         toml_path,
@@ -698,7 +698,7 @@ fn test_BC_2_06_019_cyberint_alert_toml_spec_has_ioc_columns() {
             let reverted = all_columns.iter().any(|(name, _)| name == old_name);
             assert!(
                 !reverted,
-                "BC-2.06.019 v1.13 PC-4 / HIGH-001 regression guard: cyberint.sensor.toml at {:?} \
+                "BC-2.06.019 PC-4 / HIGH-001 regression guard: cyberint.sensor.toml at {:?} \
                  must NOT contain a column with the old bracket-in-name form '{}'. \
                  This name was retired by ENRICH-1 and replaced with a clean SQL identifier + source_path. \
                  A reversion to the old form means nested array resolution will silently fail at runtime.",
@@ -713,21 +713,21 @@ fn test_BC_2_06_019_cyberint_alert_toml_spec_has_ioc_columns() {
 // Test 10 — ioc_hashes=false withholds Cyberint alert with matching hash
 // ---------------------------------------------------------------------------
 
-/// Test 10 — BC-2.06.019 v1.13 PC-4 ioc_hashes StageMask field:
+/// Test 10 — BC-2.06.019 PC-4 ioc_hashes StageMask field:
 /// At stage 0 (ioc_hashes=false), a Cyberint alert carrying `iocs[0].value` equal to
 /// a catalog IOC hash must be WITHHELD from the `/api/v1/alerts` response.
 ///
 /// This is a direct StageMask filter correctness test using the real-schema IOC accessor
 /// path (`iocs[].value`), confirming the filter works for the hash IOC type.
 ///
-/// Test vectors (canonical from BC-2.06.019 v1.13 §Cyberint route coverage):
+/// Test vectors (canonical from BC-2.06.019 §Cyberint route coverage):
 /// - Stage 0 (elapsed ≈ 10s < 60s): ioc_hashes=false → hash-IOC alert ABSENT
 /// - Stage 3 (elapsed ≈ 400s ≥ 360s): ioc_hashes=true → hash-IOC alert PRESENT
 ///
 /// FAIL mode: routes/alerts.rs scenario path contains `todo!()` → server panics,
 ///   test fails with panic propagation or connection error.
 ///
-/// BC-2.06.019 v1.13 PC-4, ioc_hashes StageMask field.
+/// BC-2.06.019 PC-4, ioc_hashes StageMask field.
 /// Red Gate test plan #10 (S-DEMO-ENRICHMENT-PIVOT-003).
 #[tokio::test]
 async fn test_BC_2_06_019_ioc_hashes_false_withholds_cyberint_alert_with_matching_hash() {
@@ -835,7 +835,7 @@ async fn test_BC_2_06_019_ioc_hashes_false_withholds_cyberint_alert_with_matchin
 
     assert!(
         !ids0.contains(&"hash-ioc-alert-test10".to_owned()),
-        "BC-2.06.019 v1.13 PC-4 / test #10: at stage 0 (ioc_hashes=false), alert \
+        "BC-2.06.019 PC-4 / test #10: at stage 0 (ioc_hashes=false), alert \
          'hash-ioc-alert-test10' with iocs[0].value='{}' (catalog hash) must be ABSENT; \
          found in response ids: {:?}.",
         catalog_hash,
@@ -924,7 +924,7 @@ async fn test_BC_2_06_019_ioc_hashes_false_withholds_cyberint_alert_with_matchin
 
     assert!(
         ids3.contains(&"hash-ioc-alert-test10".to_owned()),
-        "BC-2.06.019 v1.13 PC-4 / test #10: at stage 3 (ioc_hashes=true), alert \
+        "BC-2.06.019 PC-4 / test #10: at stage 3 (ioc_hashes=true), alert \
          'hash-ioc-alert-test10' with iocs[0].value='{}' (catalog hash) must be PRESENT; \
          not found in: {:?}.",
         catalog_hash,
@@ -933,23 +933,23 @@ async fn test_BC_2_06_019_ioc_hashes_false_withholds_cyberint_alert_with_matchin
 }
 
 // ---------------------------------------------------------------------------
-// Test 11 — F-PIVOT003-R2-005: fail-closed projection integrity (BC-2.06.019 v1.13 PC-4 §6)
+// Test 11 — F-PIVOT003-R2-005: fail-closed projection integrity (BC-2.06.019 PC-4 §6)
 // ---------------------------------------------------------------------------
 
-/// Test 11 — BC-2.06.019 v1.13 PC-4 step 6: fail-closed projection integrity.
+/// Test 11 — BC-2.06.019 PC-4 step 6: fail-closed projection integrity.
 ///
 /// A record that CANNOT be deserialized as `Alert` (e.g., missing required fields)
 /// MUST be WITHHELD from the response — not passed through.
 ///
 /// Rationale: the StageMask IOC filter cannot be correctly applied to an
 /// undeserializable record, so surfacing it would violate the IOC masking guarantee
-/// (F-PIVOT003-R2-005, BC-2.06.019 v1.13 PC-4 §6).
+/// (F-PIVOT003-R2-005, BC-2.06.019 PC-4 §6).
 ///
 /// LOAD-BEARING (production path): goes through `CyberintClone::new_with_scenario`
 /// (the same constructor harness.rs uses), starts an HTTP server, and asserts the
 /// injected malformed record is absent from the response.
 ///
-/// BC-2.06.019 v1.13 PC-4 step 6. F-PIVOT003-R2-005.
+/// BC-2.06.019 PC-4 step 6. F-PIVOT003-R2-005.
 #[tokio::test]
 async fn test_BC_2_06_019_fail_closed_malformed_alert_is_withheld() {
     let org = deadbeef_org();
@@ -1049,7 +1049,7 @@ async fn test_BC_2_06_019_fail_closed_malformed_alert_is_withheld() {
 
     assert!(
         noise_records.is_empty(),
-        "BC-2.06.019 v1.13 PC-4 §6 / F-PIVOT003-R2-005: fail-closed — malformed record \
+        "BC-2.06.019 PC-4 §6 / F-PIVOT003-R2-005: fail-closed — malformed record \
          with 'not_an_alert_field' key MUST be withheld from the response; \
          found {} such record(s) in response. The fail-open path was changed to fail-closed.",
         noise_records.len()
@@ -1067,7 +1067,7 @@ async fn test_BC_2_06_019_fail_closed_malformed_alert_is_withheld() {
 
     assert!(
         valid_ids.contains(&"valid-alert-fail-closed-test11".to_owned()),
-        "BC-2.06.019 v1.13 PC-4 §6: valid alert 'valid-alert-fail-closed-test11' must be PRESENT; \
+        "BC-2.06.019 PC-4 §6: valid alert 'valid-alert-fail-closed-test11' must be PRESENT; \
          not found in: {:?}",
         valid_ids
     );
@@ -1092,7 +1092,7 @@ async fn test_BC_2_06_019_fail_closed_malformed_alert_is_withheld() {
 /// an HTTP server, and asserts via GET /api/v1/alerts. This directly exercises the
 /// routes/alerts.rs StageMask filter branches for ioc_ips / ioc_domains.
 ///
-/// BC-2.06.019 v1.13 PC-2 (ioc_ips/ioc_domains become true at Exfil, stage 3+)
+/// BC-2.06.019 PC-2 (ioc_ips/ioc_domains become true at Exfil, stage 3+)
 /// F-PIVOT003-R11A-001.
 #[tokio::test]
 async fn test_BC_2_06_019_ip_domain_ioc_stage_gating_served_route() {

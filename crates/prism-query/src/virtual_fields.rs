@@ -7,7 +7,7 @@
 //! The engine MUST overwrite any sensor-emitted columns with these names to
 //! prevent spoofing. (BC-2.11.012, EC-005)
 //!
-//! # Virtual Fields (BC-2.11.012 v1.7 canonical four-field set)
+//! # Virtual Fields (BC-2.11.012 canonical four-field set)
 //! - `_sensor`       — sensor type string (e.g. `"crowdstrike"`)
 //! - `_client`       — OrgSlug for the client that owns the sensor instance
 //! - `_source_table` — source table name (e.g. `"crowdstrike.detections"`)
@@ -42,7 +42,7 @@ use prism_core::{OrgSlug, SensorId};
 pub const VIRTUAL_FIELD_SENSOR: &str = "_sensor";
 pub const VIRTUAL_FIELD_CLIENT: &str = "_client";
 pub const VIRTUAL_FIELD_SOURCE_TABLE: &str = "_source_table";
-/// Fourth canonical virtual field (BC-2.11.012 v1.7 AC-9/AC-10).
+/// Fourth canonical virtual field (BC-2.11.012 AC-9/AC-10).
 pub const VIRTUAL_FIELD_SOURCE_TYPE: &str = "_source_type";
 
 // ---------------------------------------------------------------------------
@@ -51,7 +51,7 @@ pub const VIRTUAL_FIELD_SOURCE_TYPE: &str = "_source_type";
 
 /// Inject the four canonical virtual fields into a RecordBatch.
 ///
-/// The four fields (BC-2.11.012 v1.7):
+/// The four fields (BC-2.11.012):
 /// - `_sensor`       — sensor type string
 /// - `_client`       — OrgSlug for the client
 /// - `_source_table` — source table name
@@ -65,7 +65,7 @@ pub const VIRTUAL_FIELD_SOURCE_TYPE: &str = "_source_type";
 /// Numeric comparisons on virtual fields are type errors at the query layer.
 /// (BC-2.11.012)
 ///
-/// # `_source_type` value (BC-2.11.012 v1.7 AC-9/AC-10)
+/// # `_source_type` value (BC-2.11.012 AC-9/AC-10)
 ///
 /// This function always injects `"live"` as the `_source_type` value.  This
 /// covers two cases:
@@ -105,7 +105,7 @@ pub fn inject_virtual_fields(
     let sensor_array = Arc::new(StringArray::from(vec![sensor_val; num_rows])) as _;
     let client_array = Arc::new(StringArray::from(vec![client_val; num_rows])) as _;
     let table_array = Arc::new(StringArray::from(vec![source_table; num_rows])) as _;
-    // BC-2.11.012 v1.7 AC-10: PointInTime / cold-start EventStream → "live".
+    // BC-2.11.012 AC-10: PointInTime / cold-start EventStream → "live".
     // EventStream buffered rows use inject_source_type at the JSON layer (TD-S302-005).
     let source_type_array = Arc::new(StringArray::from(vec!["live"; num_rows])) as _;
 
@@ -219,7 +219,7 @@ pub(crate) fn remove_spoofed_virtual_columns(
 /// produced by [`inject_virtual_fields`]. Callers must not rely on index
 /// position; use field names instead.
 ///
-/// # BC-2.11.012 v1.7
+/// # BC-2.11.012
 /// Virtual fields must be available in ALL PrismQL modes regardless of row count.
 /// The canonical four-field set is `_sensor`, `_client`, `_source_table`,
 /// `_source_type`. `_safety_flags` is a response-envelope concern (BC-2.09.004)
@@ -246,7 +246,7 @@ pub(crate) fn append_virtual_fields_to_schema(schema: Arc<Schema>) -> Arc<Schema
     fields.push(Field::new(VIRTUAL_FIELD_SENSOR, DataType::Utf8, true));
     fields.push(Field::new(VIRTUAL_FIELD_CLIENT, DataType::Utf8, true));
     fields.push(Field::new(VIRTUAL_FIELD_SOURCE_TABLE, DataType::Utf8, true));
-    // Fourth canonical virtual field (BC-2.11.012 v1.7 AC-9/AC-10).
+    // Fourth canonical virtual field (BC-2.11.012 AC-9/AC-10).
     // nullable=true: LEFT JOIN on empty table produces NULL for _source_type.
     fields.push(Field::new(VIRTUAL_FIELD_SOURCE_TYPE, DataType::Utf8, true));
 

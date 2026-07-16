@@ -742,7 +742,7 @@ async fn remove_tag(
 /// Harness clone is in-scope for DTU=true-DTU per ADR-031 §D7 (harness-scope
 /// extension); route-existence parity per §D1-c (DTU registers exactly the real
 /// API's endpoints). Synthetic fixture data per §D2. Harness route-parity
-/// obligation per BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY
+/// obligation per BC-2.16.013 INV-HARNESS-ROUTE-PARITY
 /// (S-DEMO-HARNESS-CLONE-PARITY-001 AC-003 / AC-004).
 ///
 /// Auth: any non-empty Bearer accepted; 401 on missing/empty Bearer (Claroty model).

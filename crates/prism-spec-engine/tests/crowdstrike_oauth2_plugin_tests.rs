@@ -718,7 +718,7 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
     // ADR-028 §D11 Option C: sensor_id (not credential_handle) is the 3rd arg.
     // PluginAuthProvider resolves client_id/client_secret from prism_credentials at dispatch time.
     //
-    // Test setup: inject credentials via per-client env vars (ADR-032 / BC-2.06.003 v1.3).
+    // Test setup: inject credentials via per-client env vars (ADR-032 / BC-2.06.003).
     // PluginAuthProvider::acquire_token calls resolve_credential(org_slug, "crowdstrike", "client_id")
     // where org_slug comes from the FetchContext. This test uses OrgSlug::new("test-org") (line ~731),
     // so the env vars are keyed to {ID}=TEST_ORG.
@@ -1546,7 +1546,7 @@ async fn test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed() {
 
     // SAFETY: This test runs in a single-threaded tokio runtime (#[tokio::test]).
     // No other threads are spawned that read these env vars concurrently.
-    // Per-client env vars (ADR-032 / BC-2.06.003 v1.3): test uses OrgSlug::new("test-org"),
+    // Per-client env vars (ADR-032 / BC-2.06.003): test uses OrgSlug::new("test-org"),
     // so {ID}=TEST_ORG.
     #[allow(unused_unsafe)]
     unsafe {

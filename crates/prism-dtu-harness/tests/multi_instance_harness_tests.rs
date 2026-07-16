@@ -783,7 +783,7 @@ async fn test_BC_2_06_017_single_instance_path_unaffected_by_multi_instance_addi
     use prism_dtu_common::BehavioralClone;
 
     // Direct single-instance call — existing calling convention, must compile unchanged.
-    // This call form is the canonical TV-017-008 call site (BC-2.06.017 v1.1 TV-017-008).
+    // This call form is the canonical TV-017-008 call site (BC-2.06.017 TV-017-008).
     let mut clone =
         prism_dtu_armis::ArmisClone::new().expect("ArmisClone::new must succeed (INV-COMPAT-001)");
 

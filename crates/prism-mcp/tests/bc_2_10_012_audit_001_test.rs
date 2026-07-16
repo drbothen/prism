@@ -1,4 +1,4 @@
-//! Red Gate test for S-DEMO-FIDELITY-REMEDIATION-001 AC-AUDIT-001 — BC-2.10.012 v1.5.
+//! Red Gate test for S-DEMO-FIDELITY-REMEDIATION-001 AC-AUDIT-001 — BC-2.10.012.
 //!
 //! Finding AUDIT-001: `build_tables_for_client` emits bare table names (`alerts`,
 //! `devices`) instead of sensor-prefixed names (`crowdstrike_alerts`,
@@ -19,8 +19,8 @@
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
-//! | test_bc_2_10_012_audit_001_sensor_prefixed_table_names | AUDIT-001 | BC-2.10.012 v1.5 |
-//! | test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique | AUDIT-001 (OBS-2) | BC-2.10.012 v1.5 |
+//! | test_bc_2_10_012_audit_001_sensor_prefixed_table_names | AUDIT-001 | BC-2.10.012 |
+//! | test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique | AUDIT-001 (OBS-2) | BC-2.10.012 |
 
 use prism_core::column::ColumnType;
 use prism_mcp::tools::prism_describe::handle_prism_describe;
@@ -87,7 +87,7 @@ fn make_config_manager_crowdstrike_two_tables() -> Arc<arc_swap::ArcSwap<ConfigM
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// BC-2.10.012 v1.5 AUDIT-001 — Red Gate test.
+/// BC-2.10.012 AUDIT-001 — Red Gate test.
 ///
 /// `handle_prism_describe("crowdstrike", ...)` must return table descriptors with
 /// `name` values set to `crowdstrike_alerts` and `crowdstrike_devices` (sensor-prefixed),
@@ -446,9 +446,9 @@ async fn test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique() {
     }
 }
 
-// ── AC-CAT2: Category-2 enrichment UDF discovery hints (BC-2.10.012 v1.7 §pql_hints) ──────────
+// ── AC-CAT2: Category-2 enrichment UDF discovery hints (BC-2.10.012 §pql_hints) ──────────
 //
-// These 3 tests cover the Category-2 enrichment-discovery hint introduced by BC-2.10.012 v1.7
+// These 3 tests cover the Category-2 enrichment-discovery hint introduced by BC-2.10.012
 // (ADV-P208-P02-001 follow-on; human directive: implement AC-CAT2 in-scope on PR #208).
 //
 // Test vehicle: end-to-end via handle_prism_describe (SID-1: drives the real production path).
@@ -470,7 +470,7 @@ async fn test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique() {
 //      `let infusion_registry = query_engine.and_then(|qe| qe.infusion_registry());`
 //      and passes `infusion_registry.as_deref()` as 4th arg to `build_pql_hints`.
 
-/// Build the canonical Cat-2 fixture InfusionRegistry with 2 UDFs per BC-2.10.012 v1.7 EC-10-030:
+/// Build the canonical Cat-2 fixture InfusionRegistry with 2 UDFs per BC-2.10.012 EC-10-030:
 ///   - `nvd_cvss`     (input_field: `"device_cves_first"`)   — alphabetically first ('n' < 't')
 ///   - `threat_score` (input_field: `"ioc_value_singleton"`) — alphabetically second
 ///
@@ -523,13 +523,13 @@ fn make_cat2_infusion_registry() -> Arc<prism_spec_engine::InfusionRegistry> {
     registry
 }
 
-/// BC-2.10.012 v1.7 AC-CAT2 (test 1 of 3) — was Red Gate (assertion-fail); now passes.
+/// BC-2.10.012 AC-CAT2 (test 1 of 3) — was Red Gate (assertion-fail); now passes.
 ///
 /// When `infusion_registry` is `Some(reg)` with 2 non-empty UDFs AND N ≥ 1 tables, `pql_hints`
 /// MUST have exactly 3 elements; `pql_hints[2]` MUST be the byte-exact enrichment-presence hint
 /// with UDFs sorted alphabetically by name, each formatted as `name(input_field)`.
 ///
-/// # Byte-exact expected string (BC-2.10.012 v1.7 §pql_hints Category-2, EC-10-030):
+/// # Byte-exact expected string (BC-2.10.012 §pql_hints Category-2, EC-10-030):
 ///
 /// `"Enrichment available via pipe syntax: | enrich nvd_cvss(device_cves_first). Available UDFs
 /// for this client: nvd_cvss(device_cves_first), threat_score(ioc_value_singleton)"`
@@ -631,7 +631,7 @@ async fn test_bc_2_10_012_cat2_enrichment_hint_with_udfs() {
         .as_str()
         .expect("BC-2.10.012 AC-CAT2: pql_hints[2] must be a JSON string");
 
-    // Byte-exact assertion per BC-2.10.012 v1.7 §pql_hints Category-2, EC-10-030:
+    // Byte-exact assertion per BC-2.10.012 §pql_hints Category-2, EC-10-030:
     // Sort order: nvd_cvss < threat_score ('n' < 't'); first sorted entry is the example call.
     // Entry format: "name(input_field)" — uses InfusionUdfDescriptor.input_field (added by AC-CAT2 fix).
     const EXPECTED_CAT2_WITH_UDFS: &str = concat!(
@@ -646,12 +646,12 @@ async fn test_bc_2_10_012_cat2_enrichment_hint_with_udfs() {
     );
 }
 
-/// BC-2.10.012 v1.7 AC-CAT2 (test 2 of 3) — was Red Gate (assertion-fail); now passes.
+/// BC-2.10.012 AC-CAT2 (test 2 of 3) — was Red Gate (assertion-fail); now passes.
 ///
 /// When `infusion_registry` is `None` (no enrichment configured) AND N ≥ 1 tables, `pql_hints`
 /// MUST have exactly 3 elements; `pql_hints[2]` MUST be the byte-exact enrichment-absence hint.
 ///
-/// # Byte-exact expected string (BC-2.10.012 v1.7 §pql_hints Category-2, EC-10-031):
+/// # Byte-exact expected string (BC-2.10.012 §pql_hints Category-2, EC-10-031):
 ///
 /// `"No enrichment UDFs are registered for this client — enrichment is not available."`
 ///
@@ -660,7 +660,7 @@ async fn test_bc_2_10_012_cat2_enrichment_hint_with_udfs() {
 /// Uses `query_engine = None` (single-tenant path through config_manager). Per the AC-CAT2 fix,
 /// `handle_prism_describe` now resolves `infusion_registry = None` (from `None` query_engine)
 /// and passes it to `build_pql_hints` as the 4th parameter. This exercises the "None registry"
-/// case per BC-2.10.012 v1.7: both `None` and empty registry emit the absence hint.
+/// case per BC-2.10.012: both `None` and empty registry emit the absence hint.
 ///
 /// # Red Gate (resolved)
 ///
@@ -724,7 +724,7 @@ async fn test_bc_2_10_012_cat2_enrichment_absent_hint() {
         .as_str()
         .expect("BC-2.10.012 AC-CAT2 absent: pql_hints[2] must be a JSON string");
 
-    // Byte-exact assertion per BC-2.10.012 v1.7 §pql_hints Category-2, EC-10-031:
+    // Byte-exact assertion per BC-2.10.012 §pql_hints Category-2, EC-10-031:
     const EXPECTED_CAT2_ABSENT: &str =
         "No enrichment UDFs are registered for this client — enrichment is not available.";
     assert_eq!(
@@ -734,7 +734,7 @@ async fn test_bc_2_10_012_cat2_enrichment_absent_hint() {
     );
 }
 
-/// BC-2.10.012 v1.7 AC-CAT2 (test 3 of 3) — Regression guard.
+/// BC-2.10.012 AC-CAT2 (test 3 of 3) — Regression guard.
 ///
 /// When UDFs ARE registered but N = 0 tables, Category-2 MUST be suppressed entirely.
 /// `pql_hints` must have exactly 1 element (the zero-table Category-1 hint only).

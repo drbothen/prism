@@ -269,7 +269,7 @@ fn test_BC_2_16_012_002_spec_parser_behavioral_equivalence_crowdstrike() {
     // Panics pre-implementation on todo!() in validate_cross_composition.
     // Post-implementation: must return Ok(()) for a valid spec (no cross-composition violation).
     //
-    // Per BC-2.06.003 v1.3 / ADR-032: oauth2_client_credentials requires exactly 2
+    // Per BC-2.06.003 / ADR-032: oauth2_client_credentials requires exactly 2
     // credential_refs (client_id + client_secret).
     let result = SpecLoader::validate_cross_composition(
         &spec.sensor_id,

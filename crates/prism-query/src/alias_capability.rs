@@ -30,7 +30,7 @@
 //! `CompileTimeGate::Present`.
 //!
 //! Story: S-3.04 — prism-query: Alias System (P1)
-//! BCs:   BC-2.11.008, BC-2.11.006 v1.17
+//! BCs:   BC-2.11.008, BC-2.11.006
 
 use prism_core::error::PrismError;
 use prism_security::feature_flag::{CapabilityCheckResult, CompileTimeGate, FeatureFlagEvaluator};

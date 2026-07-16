@@ -216,17 +216,36 @@ jobs:
           echo "F-LP5-HIGH-001: wasm32-wasip1 compile check PASSED — Guest impl + wit-bindgen macro + export!(Component) compiled successfully"
       # S-PLUGIN-CI-001 AC-001: Install wasm-tools to build the .prx component artifact.
       # Pinned to 1.248.0 — the version used to build the committed .prx and WASI adapter.
+      # SEC-001 (CWE-494): SHA-256 integrity check before extracting.
+      # Checksum source: downloaded from GitHub releases over HTTPS and computed 2026-07-13.
       - name: Install wasm-tools 1.248.0
         run: |
           WASM_TOOLS_VERSION="1.248.0"
+          EXPECTED_SHA256="dcd7d587b0f4644aabc85cd4471cb795de84f36a68ee01201d5261f87c0d6349"
           curl -fsSL "https://github.com/bytecodealliance/wasm-tools/releases/download/v${WASM_TOOLS_VERSION}/wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux.tar.gz" \
-            | tar -xz --strip-components=1 -C /usr/local/bin wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux/wasm-tools
+            -o /tmp/wasm-tools.tar.gz
+          echo "${EXPECTED_SHA256}  /tmp/wasm-tools.tar.gz" | sha256sum -c
+          tar -xz --strip-components=1 -C /usr/local/bin \
+            wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux/wasm-tools \
+            < /tmp/wasm-tools.tar.gz
+          rm /tmp/wasm-tools.tar.gz
           wasm-tools --version
       # Install just (task runner) for the build-plugin-crowdstrike-oauth2 recipe.
+      # F-MCPRS-PRL2-LOW-003: pinned to 1.43.1 — unpinned `tool: just` resolves to
+      # latest at download time, violating supply-chain reproducibility.
       - name: Install just
         uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
         with:
-          tool: just
+          tool: just@1.43.1
+      # F-MCPRS-PRL14-LOW-001: validate the COMMITTED crowdstrike-oauth2.prx structurally
+      # BEFORE the build overwrites it. Without this step, a byte-corrupt committed .prx
+      # with a consistent hash/sidecar would pass CI and fail only at runtime load.
+      # Placed here (after wasm-tools install, before just build-plugin-crowdstrike-oauth2)
+      # so the committed binary is the one being validated.
+      - name: Validate committed crowdstrike-oauth2.prx structural integrity (F-MCPRS-PRL14-LOW-001)
+        run: |
+          wasm-tools validate --features=component-model crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx
+          echo "F-MCPRS-PRL14-LOW-001 PASS: committed crowdstrike-oauth2.prx passes structural validation"
       # S-PLUGIN-CI-001 AC-001: Build the crowdstrike-oauth2 .prx component artifact.
       # This verifies the full toolchain pipeline: cargo build → wasm-tools component new.
       - name: Build crowdstrike-oauth2.prx
@@ -241,6 +260,173 @@ jobs:
         with:
           name: crowdstrike-oauth2-prx
           path: crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx
+          retention-days: 7
+
+  wasm32-threatintel-staleness-check:
+    name: ThreatIntel .prx staleness guard (F-MCPNULL-P2-OBS-002)
+    # F-MCPNULL-P2-OBS-002 closure: the committed threatintel-lookup.prx must stay in sync
+    # with its source crate (crates/plugins/prism-threatintel-infusion). This job enforces
+    # staleness via a source-hash sidecar (threatintel-lookup.prx.src-tree-hash) rather than
+    # binary byte-equality. Byte-equality is not valid cross-platform: macOS aarch64 and
+    # Linux x86_64 produce different WASM bytes from the same source (LLVM codegen divergence).
+    #
+    # Staleness gate: hash-plugin-source.py computes SHA-256 over all git-tracked files in
+    # the source crate. A mismatch between the committed sidecar and the current source means
+    # source changed without a .prx rebuild. Developer fix: run 'just build-plugin-threatintel-infusion'
+    # and commit .prx + manifest + .src-tree-hash sidecar together.
+    #
+    # Binary validity: wasm-tools validate --features=component-model on the committed .prx
+    # confirms structural correctness independently of origin platform.
+    #
+    # Manifest staleness: separate SHA-256 comparison (F-MCPNULL-P3-LOW-004) remains valid
+    # since the manifest is a text file with byte-identical content on all platforms.
+    needs: clippy
+    runs-on: ubuntu-latest
+    # F-MCPRS-PRL1-OBS-004: bumped from 15 to 20 — wasm-tools install + cargo check
+    # + full .prx build on a cold per-job cache can exceed 15 min; 20 provides headroom.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # fetch-depth: 0 required for F-MCPRS-PRL1-MED-001 commit-atomicity gate.
+          # git log -1 --format=%H -- <path> returns empty on a shallow (depth=1) clone
+          # for any file not modified in HEAD, which would hard-fail the empty-commit guard
+          # on every run. Full history is needed to find the last-touching commit per path.
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          targets: wasm32-wasip1
+      # Separate shared-key from wasm32-compile-check to avoid cache namespace collision.
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: wasm32-threatintel-staleness-check
+      - name: Check prism-threatintel-infusion compiles for wasm32-wasip1
+        run: |
+          cargo check --target wasm32-wasip1 -p prism-threatintel-infusion \
+            --manifest-path crates/plugins/prism-threatintel-infusion/Cargo.toml
+          echo "F-MCPNULL-P2-OBS-002: wasm32-wasip1 compile check PASSED — prism-threatintel-infusion compiled successfully"
+      # Pin to 1.248.0 — matches the version used to build the committed .prx and WASI adapter.
+      # SEC-001 (CWE-494): SHA-256 integrity check before extracting.
+      # Checksum source: downloaded from GitHub releases over HTTPS and computed 2026-07-13.
+      - name: Install wasm-tools 1.248.0
+        run: |
+          WASM_TOOLS_VERSION="1.248.0"
+          EXPECTED_SHA256="dcd7d587b0f4644aabc85cd4471cb795de84f36a68ee01201d5261f87c0d6349"
+          curl -fsSL "https://github.com/bytecodealliance/wasm-tools/releases/download/v${WASM_TOOLS_VERSION}/wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux.tar.gz" \
+            -o /tmp/wasm-tools.tar.gz
+          echo "${EXPECTED_SHA256}  /tmp/wasm-tools.tar.gz" | sha256sum -c
+          tar -xz --strip-components=1 -C /usr/local/bin \
+            wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux/wasm-tools \
+            < /tmp/wasm-tools.tar.gz
+          rm /tmp/wasm-tools.tar.gz
+          wasm-tools --version
+      # F-MCPRS-PRL2-LOW-003: pinned to 1.43.1 — unpinned `tool: just` resolves to
+      # latest at download time, violating supply-chain reproducibility.
+      - name: Install just
+        uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+        with:
+          tool: just@1.43.1
+      # F-MCPNULL-P2-OBS-002: source-hash staleness gate.
+      # Compares committed .src-tree-hash sidecar against freshly computed source hash.
+      # Placed before the build so staleness is caught without paying full WASM build cost.
+      - name: Verify threatintel-lookup.prx source freshness (F-MCPNULL-P2-OBS-002)
+        run: |
+          SIDECAR="crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx.src-tree-hash"
+          if [ ! -f "$SIDECAR" ]; then
+            echo "::error::F-MCPNULL-P2-OBS-002: staleness sidecar missing — run 'just build-plugin-threatintel-infusion' and commit threatintel-lookup.prx.src-tree-hash alongside the .prx"
+            exit 1
+          fi
+          COMMITTED_HASH=$(cat "$SIDECAR" | tr -d '[:space:]')
+          CURRENT_HASH=$(python3 scripts/hash-plugin-source.py crates/plugins/prism-threatintel-infusion)
+          echo "committed source hash: $COMMITTED_HASH"
+          echo "current  source hash:  $CURRENT_HASH"
+          if [ "$COMMITTED_HASH" != "$CURRENT_HASH" ]; then
+            echo "::error::F-MCPNULL-P2-OBS-002 STALENESS: crates/plugins/prism-threatintel-infusion source changed since the committed .prx was built."
+            echo "::error::Run 'just build-plugin-threatintel-infusion' and commit the updated .prx, manifest, and .src-tree-hash sidecar before merging."
+            exit 1
+          fi
+          echo "F-MCPNULL-P2-OBS-002 PASS: committed .prx matches current source (hash: $CURRENT_HASH)"
+      # F-MCPRS-PRL14-LOW-001: validate the COMMITTED threatintel-lookup.prx structurally
+      # BEFORE the build overwrites it. Without this step, a byte-corrupt committed .prx
+      # with a consistent hash/sidecar/manifest would pass CI and fail only at runtime load.
+      # Placed between the source-hash gate (F-MCPNULL-P2-OBS-002) and the sidecar-ancestor
+      # check (F-MCPRS-PRL1-MED-001), after wasm-tools is installed (Install wasm-tools step).
+      - name: Validate committed threatintel-lookup.prx structural integrity (F-MCPRS-PRL14-LOW-001)
+        run: |
+          wasm-tools validate --features=component-model crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
+          echo "F-MCPRS-PRL14-LOW-001 PASS: committed threatintel-lookup.prx passes structural validation"
+      - name: Verify sidecar does not post-date .prx without a rebuild (F-MCPRS-PRL1-MED-001)
+        run: |
+          PRX_PATH="crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx"
+          SIDECAR_PATH="crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx.src-tree-hash"
+          PRX_COMMIT=$(git log -1 --format="%H" -- "$PRX_PATH")
+          SIDECAR_COMMIT=$(git log -1 --format="%H" -- "$SIDECAR_PATH")
+          echo ".prx last commit:     $PRX_COMMIT"
+          echo "sidecar last commit:  $SIDECAR_COMMIT"
+          if [ -z "$PRX_COMMIT" ] || [ -z "$SIDECAR_COMMIT" ]; then
+            echo "::error::F-MCPRS-PRL1-MED-001: git log returned empty SHA for .prx or sidecar — verify paths are tracked"
+            exit 1
+          fi
+          # INVARIANT: sidecar_commit must be an ancestor-of-or-equal-to prx_commit.
+          # Meaning: every source-hash introduction or update is accounted for by a
+          # subsequent (or same-commit) .prx rebuild.
+          # FAIL if sidecar is NEWER than .prx — indicates sidecar was updated after
+          # the last rebuild, i.e. source changed and sidecar was regenerated without
+          # rebuilding the binary.
+          if ! git merge-base --is-ancestor "$SIDECAR_COMMIT" "$PRX_COMMIT"; then
+            echo "::error::F-MCPRS-PRL1-MED-001: sidecar post-dates the last .prx rebuild."
+            echo "::error::  sidecar commit: $SIDECAR_COMMIT"
+            echo "::error::  .prx commit:    $PRX_COMMIT"
+            echo "::error::This check fires in two distinct scenarios — read carefully before taking action:"
+            echo "::error::"
+            echo "::error::  (a) Source changed and .prx was NOT rebuilt:"
+            echo "::error::      The plugin binary is stale. Run 'just build-plugin-threatintel-infusion'"
+            echo "::error::      and commit the updated .prx, manifest, and .src-tree-hash sidecar together."
+            echo "::error::"
+            echo "::error::  (b) Source changed, .prx WAS rebuilt, but the rebuild produced byte-identical output:"
+            echo "::error::      The binary content is current but git sees no new .prx commit (nothing changed"
+            echo "::error::      in the binary), so the sidecar commit appears newer than the .prx commit."
+            echo "::error::      Running 'just build-plugin-threatintel-infusion' again will NOT resolve this —"
+            echo "::error::      the output is already correct. Instead, amend the sidecar commit to also include"
+            echo "::error::      a no-op touch of the .prx file, or commit the sidecar together with the next"
+            echo "::error::      commit that modifies any file under the .prx path."
+            exit 1
+          fi
+          echo "F-MCPRS-PRL1-MED-001 PASS: sidecar $SIDECAR_COMMIT is ancestor-or-equal of .prx $PRX_COMMIT"
+      # F-MCPNULL-P3-LOW-004: save committed manifest SHA before build overwrites it,
+      # then compare after rebuild. The manifest is a text file (byte-identical cross-platform).
+      - name: Save committed manifest SHA-256
+        run: |
+          COMMITTED_MANIFEST_SHA=$(sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml | cut -d' ' -f1)
+          echo "COMMITTED_MANIFEST_SHA=$COMMITTED_MANIFEST_SHA" >> "$GITHUB_ENV"
+          echo "F-MCPNULL-P3-LOW-004: committed manifest SHA-256 = $COMMITTED_MANIFEST_SHA"
+      - name: Build threatintel-lookup.prx
+        run: |
+          just build-plugin-threatintel-infusion
+          echo "F-MCPNULL-P2-OBS-002: threatintel-lookup.prx built successfully"
+          ls -la crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
+          ls -la crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
+      # F-MCPNULL-P3-LOW-004: manifest staleness gate — the manifest is also a build output.
+      # `just build-plugin-threatintel-infusion` copies the manifest from the source crate;
+      # a manifest edit in the source crate without recommitting the deploy copy will fail here.
+      - name: Verify threatintel-lookup.manifest.toml is not stale
+        run: |
+          REBUILT_MANIFEST_SHA=$(sha256sum crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml | cut -d' ' -f1)
+          echo "committed manifest SHA-256: $COMMITTED_MANIFEST_SHA"
+          echo "rebuilt   manifest SHA-256: $REBUILT_MANIFEST_SHA"
+          if [ "$COMMITTED_MANIFEST_SHA" != "$REBUILT_MANIFEST_SHA" ]; then
+            echo "::error::F-MCPNULL-P3-LOW-004 STALENESS: committed threatintel-lookup.manifest.toml does not match rebuilt artifact."
+            echo "::error::The manifest in crates/prism-spec-engine/plugins/threatintel-lookup/ is out of sync with the source at crates/plugins/prism-threatintel-infusion/threatintel-lookup.manifest.toml."
+            echo "::error::Run 'just build-plugin-threatintel-infusion' locally and commit the updated .prx, manifest, and .src-tree-hash sidecar before merging."
+            exit 1
+          fi
+          echo "F-MCPNULL-P3-LOW-004 PASS: committed threatintel-lookup.manifest.toml matches rebuilt artifact (SHA-256 $REBUILT_MANIFEST_SHA)"
+      - name: Upload threatintel-lookup.prx artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: threatintel-lookup-prx
+          path: crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
           retention-days: 7
 
   deny:
@@ -1239,45 +1425,79 @@ jobs:
           # #[non_exhaustive] on all pub TOML-deserialized types. A future PR removing
           # the entire job block would not be caught by structural validation without
           # this check. This grep anchors the job name to the file so removal is detected.
-          grep -qE 'non-exhaustive-violation-compile-fail' .github/workflows/ci.yml || {
+          # Anchored job-definition pattern (F-MCPNULL-P3-LOW-003): greps must match the
+          # actual job definition line (2-space-indented YAML key) so commented-out job
+          # blocks — which still contain the name as text — do NOT pass the check.
+          # Pattern: '^  <job-name>:' matches "  job-name:" at line start; a commented
+          # block "#  job-name:" starts with '#' and does not match.
+          grep -qE '^  non-exhaustive-violation-compile-fail:' .github/workflows/ci.yml || {
             echo "::error::AC-5 CI enforcement job 'non-exhaustive-violation-compile-fail' is missing from ci.yml — forward-compat #[non_exhaustive] enforcement removed (BC-2.01.013 AC-5)"
             exit 1
           }
-          echo 'AC-5 reachability check passed: non-exhaustive-violation-compile-fail job present.'
+          echo 'AC-5 reachability check passed: non-exhaustive-violation-compile-fail job definition present.'
           # F-LP5-HIGH-001 reachability assertion:
           # The wasm32-compile-check job is the SOLE CI gate proving the crowdstrike-oauth2
           # plugin's wit-bindgen Guest impl + export!(Component) macro actually compile.
           # A future PR removing this job block would silently disable the gate.
-          grep -qE 'wasm32-compile-check' .github/workflows/ci.yml || {
+          grep -qE '^  wasm32-compile-check:' .github/workflows/ci.yml || {
             echo "::error::F-LP5-HIGH-001: wasm32-compile-check job is missing from ci.yml — Guest impl compile gate removed (PLUGIN-MIGRATION-001-E F-LP5-HIGH-001)"
             exit 1
           }
-          echo 'F-LP5-HIGH-001 reachability check passed: wasm32-compile-check job present.'
+          echo 'F-LP5-HIGH-001 reachability check passed: wasm32-compile-check job definition present.'
           # S-PLUGIN-CI-001 AC-001 reachability assertion:
-          # The wasm32-compile-check job must include wasm-tools install + .prx build step.
-          # A future PR removing the build step would silently disable the AC-001 CI gate.
-          grep -qE 'build-plugin-crowdstrike-oauth2' .github/workflows/ci.yml || {
-            echo "::error::S-PLUGIN-CI-001 AC-001: 'build-plugin-crowdstrike-oauth2' step is missing from ci.yml — .prx build gate removed (S-PLUGIN-CI-001 AC-001)"
+          # The wasm32-compile-check job must include the .prx build step that runs
+          # `just build-plugin-crowdstrike-oauth2`. Anchored to the leading-whitespace run
+          # command ('^[[:space:]]+just ...') so a commented-out step does NOT match
+          # ('#          just ...' starts with '#', not whitespace-then-'just').
+          grep -qE '^[[:space:]]+just build-plugin-crowdstrike-oauth2' .github/workflows/ci.yml || {
+            echo "::error::S-PLUGIN-CI-001 AC-001: 'just build-plugin-crowdstrike-oauth2' run step is missing from ci.yml — .prx build gate removed (S-PLUGIN-CI-001 AC-001)"
             exit 1
           }
-          echo 'S-PLUGIN-CI-001 AC-001 reachability check passed: build-plugin-crowdstrike-oauth2 step present.'
+          echo 'S-PLUGIN-CI-001 AC-001 reachability check passed: build-plugin-crowdstrike-oauth2 run step present.'
           # AC-006 PLUGIN-MIGRATION-001-F reachability assertion:
           # The no-hardcoded-sensors-compile-fail job is the SOLE CI gate enforcing ADR-023
           # Rule 3 (no sensor-named module references outside DTU clones). A future PR
           # removing this job block would silently allow regression of the deleted auth
           # modules (prism_sensors::auth::{armis,claroty,crowdstrike,cyberint}).
-          grep -qE 'no-hardcoded-sensors-compile-fail' .github/workflows/ci.yml || {
+          grep -qE '^  no-hardcoded-sensors-compile-fail:' .github/workflows/ci.yml || {
             echo "::error::AC-006 PLUGIN-MIGRATION-001-F: 'no-hardcoded-sensors-compile-fail' job is missing from ci.yml — ADR-023 Rule 3 compile-fail enforcement removed"
             exit 1
           }
-          echo 'AC-006 reachability check passed: no-hardcoded-sensors-compile-fail job present.'
+          echo 'AC-006 reachability check passed: no-hardcoded-sensors-compile-fail job definition present.'
           # S-DEMO-003 HIGH-2 / AC-014 reachability assertion:
           # The shellcheck-demo-scripts job is the required PR gate for demo script quality
           # (ADR-034 HIGH-2 remediation). A future PR removing this job would silently remove
           # the shellcheck gate.
-          grep -qE 'shellcheck-demo-scripts' .github/workflows/ci.yml || {
+          grep -qE '^  shellcheck-demo-scripts:' .github/workflows/ci.yml || {
             echo "::error::S-DEMO-003 AC-014: 'shellcheck-demo-scripts' job is missing from ci.yml — shellcheck PR gate removed (ADR-034 HIGH-2)"
             exit 1
           }
-          echo 'S-DEMO-003 AC-014 reachability check passed: shellcheck-demo-scripts job present.'
-          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 reachability assertions pass.'
+          echo 'S-DEMO-003 AC-014 reachability check passed: shellcheck-demo-scripts job definition present.'
+          # F-MCPNULL-P2-OBS-002 / F-MCPNULL-P3-LOW-003 reachability assertion:
+          # The wasm32-threatintel-staleness-check job is the SOLE CI gate enforcing that the
+          # committed threatintel-lookup.prx and manifest stay in sync with their source crate.
+          # A future PR removing this job block would silently allow the committed artifacts
+          # to drift stale. Anchored to the 2-space job definition line (F-MCPNULL-P3-LOW-003).
+          grep -qE '^  wasm32-threatintel-staleness-check:' .github/workflows/ci.yml || {
+            echo "::error::F-MCPNULL-P2-OBS-002: 'wasm32-threatintel-staleness-check' job is missing from ci.yml — threatintel-lookup.prx staleness gate removed (DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P2-OBS-002)"
+            exit 1
+          }
+          echo 'F-MCPNULL-P2-OBS-002 reachability check passed: wasm32-threatintel-staleness-check job definition present.'
+          # F-MCPRS-PRL14-LOW-001 reachability assertion (threatintel-lookup):
+          # The committed-binary structural validation step must remain in
+          # wasm32-threatintel-staleness-check BEFORE the build overwrites the binary.
+          # Pattern: grep for the PASS echo unique to the committed-binary validation step.
+          grep -q 'F-MCPRS-PRL14-LOW-001 PASS: committed threatintel' .github/workflows/ci.yml || {
+            echo "::error::F-MCPRS-PRL14-LOW-001: committed threatintel-lookup.prx structural validation step missing from ci.yml — byte-corrupt committed .prx would pass CI undetected"
+            exit 1
+          }
+          echo 'F-MCPRS-PRL14-LOW-001 reachability check passed: committed threatintel-lookup.prx wasm-tools validate step present.'
+          # F-MCPRS-PRL14-LOW-001 reachability assertion (crowdstrike-oauth2):
+          # The committed-binary structural validation step must remain in
+          # wasm32-compile-check BEFORE the build overwrites the binary.
+          grep -q 'F-MCPRS-PRL14-LOW-001 PASS: committed crowdstrike' .github/workflows/ci.yml || {
+            echo "::error::F-MCPRS-PRL14-LOW-001: committed crowdstrike-oauth2.prx structural validation step missing from ci.yml — byte-corrupt committed .prx would pass CI undetected"
+            exit 1
+          }
+          echo 'F-MCPRS-PRL14-LOW-001 reachability check passed: committed crowdstrike-oauth2.prx wasm-tools validate step present.'
+          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 reachability assertions pass (anchored job-definition patterns, F-MCPNULL-P3-LOW-003).'

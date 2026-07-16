@@ -3904,7 +3904,7 @@ mod tests {
     // The RED assertion is the schema width check: `schema.index_of("_sensor")`
     // fails because virtual fields are absent from the spec-only empty schema.
     //
-    // Schema parity contract (BC-2.11.012 v1.7): the empty-path schema must include
+    // Schema parity contract (BC-2.11.012): the empty-path schema must include
     // the same column names as inject_virtual_fields produces on the populated
     // path. The fix closes the gap between:
     //   - populated path: spec columns + [_sensor, _client, _source_table, _source_type]
@@ -3913,11 +3913,11 @@ mod tests {
     // F-CSD-P21-OBS-001: extended from 3 to 4 fields (add _source_type).
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// F-CSD-P14-001-T2 / BC-2.11.012 v1.7 / BC-2.11.005: SELECT * result schema from
+    /// F-CSD-P14-001-T2 / BC-2.11.012 / BC-2.11.005: SELECT * result schema from
     /// the empty side of a LEFT JOIN must include all 4 virtual field columns —
     /// matching the schema that `inject_virtual_fields` produces on the populated path.
     ///
-    /// # Schema parity rationale (BC-2.11.012 v1.7)
+    /// # Schema parity rationale (BC-2.11.012)
     ///
     /// On the populated path, `inject_virtual_fields` appends these columns to every
     /// registered batch before `register_mem_table`:
@@ -3964,7 +3964,7 @@ mod tests {
         // Canonical virtual field names from virtual_fields.rs constants.
         // These match what inject_virtual_fields appends to every populated batch.
         // F-CSD-P21-OBS-001: extended from 3 to 4 fields (add _source_type per
-        // BC-2.11.012 v1.7 §Invariants canonical four-field set).
+        // BC-2.11.012 §Invariants canonical four-field set).
         let expected_virtual_fields = [
             crate::virtual_fields::VIRTUAL_FIELD_SENSOR,
             crate::virtual_fields::VIRTUAL_FIELD_CLIENT,
@@ -4004,7 +4004,7 @@ mod tests {
         // PASSES after fix: all 4 virtual fields appended to spec schema.
         // F-CSD-P21-OBS-001: extended from 3 to 4 fields (add _source_type).
         //
-        // Schema parity contract (BC-2.11.012 v1.7): the empty-path schema must include
+        // Schema parity contract (BC-2.11.012): the empty-path schema must include
         // the same column names as inject_virtual_fields produces on the populated path.
         // The 4 constants below are the canonical names from virtual_fields.rs.
         for vf in &expected_virtual_fields {
@@ -4028,9 +4028,9 @@ mod tests {
     // Strengthens T33 by verifying the *nullable attribute* (not just presence) of ALL
     // FOUR virtual fields on each injection path independently, without going through
     // DataFusion. (F-CSD-P20-011: extended from 3-field to 4-field parity per
-    // BC-2.11.012 v1.7 §Invariants.)
+    // BC-2.11.012 §Invariants.)
     //
-    // Contract (BC-2.11.012 v1.7 T33):
+    // Contract (BC-2.11.012 T33):
     //   - Empty path: append_virtual_fields_to_schema → nullable=true for all 4 fields
     //     (LEFT JOIN NULL propagation — the column must accept NULL when the empty table
     //     contributes no rows)
@@ -4041,11 +4041,11 @@ mod tests {
     // Four canonical fields: _sensor, _client, _source_table, _source_type
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// F-CSD-P14-001-T33b / BC-2.11.012 v1.7 T33: Both virtual-field injection helpers
+    /// F-CSD-P14-001-T33b / BC-2.11.012 T33: Both virtual-field injection helpers
     /// must produce ALL FOUR canonical virtual fields with the correct nullable attribute
     /// for their respective paths (F-CSD-P20-011: extended from 3-field to 4-field parity).
     ///
-    /// Four canonical fields (BC-2.11.012 v1.7 §Invariants):
+    /// Four canonical fields (BC-2.11.012 §Invariants):
     ///   `_sensor`, `_client`, `_source_table`, `_source_type`
     ///
     /// - `append_virtual_fields_to_schema` (empty path) → nullable=true for all four
@@ -4067,7 +4067,7 @@ mod tests {
             crate::virtual_fields::VIRTUAL_FIELD_SENSOR,
             crate::virtual_fields::VIRTUAL_FIELD_CLIENT,
             crate::virtual_fields::VIRTUAL_FIELD_SOURCE_TABLE,
-            // BC-2.11.012 v1.7 §Invariants: fourth canonical virtual field
+            // BC-2.11.012 §Invariants: fourth canonical virtual field
             // (F-CSD-P20-011: stale 3-field array extended to the canonical four).
             crate::virtual_fields::VIRTUAL_FIELD_SOURCE_TYPE,
         ];
@@ -4456,10 +4456,10 @@ mod tests {
     }
 
     // =========================================================================
-    // T36 — F-CSD-P19-003 (BC-2.11.012 v1.7): _source_type injection in
+    // T36 — F-CSD-P19-003 (BC-2.11.012): _source_type injection in
     //       populated path (fourth canonical virtual field)
     //
-    // BC-2.11.012 v1.7 mandates FOUR canonical virtual fields:
+    // BC-2.11.012 mandates FOUR canonical virtual fields:
     //   _sensor, _client, _source_table, _source_type.
     // _safety_flags is EXCLUDED (response-envelope concern per BC-2.09.004).
     //
@@ -4473,7 +4473,7 @@ mod tests {
     //   (PointInTime / cold-start EventStream → AC-10).
     // =========================================================================
 
-    /// F-CSD-P19-003-T36 / BC-2.11.012 v1.7: SELECT `_source_type` from a populated
+    /// F-CSD-P19-003-T36 / BC-2.11.012: SELECT `_source_type` from a populated
     /// registered table must succeed and carry `"live"` (PointInTime / cold-start case,
     /// AC-10).
     ///
@@ -4488,7 +4488,7 @@ mod tests {
     ///
     /// Wire `_source_type` injection into `inject_virtual_fields` (or a new wrapper)
     /// so that every registered Arrow batch includes the fourth virtual field.
-    /// PointInTime / cold-start EventStream → `"live"` (BC-2.11.012 v1.7 AC-10).
+    /// PointInTime / cold-start EventStream → `"live"` (BC-2.11.012 AC-10).
     /// EventStream rows from buffer → `"buffered"` (AC-9).
     /// `append_virtual_fields_to_schema` must also include `_source_type` nullable=true
     /// for the empty-path LEFT JOIN parity (T37 locks this).
@@ -4525,14 +4525,14 @@ mod tests {
         // PRIMARY assertion — RED at HEAD.
         assert!(
             result.is_ok(),
-            "F-CSD-P19-003-T36 / BC-2.11.012 v1.7: SELECT `_source_type` from a populated \
+            "F-CSD-P19-003-T36 / BC-2.11.012: SELECT `_source_type` from a populated \
              registered table must return Ok (fourth canonical virtual field). \
              RED: inject_virtual_fields only injects three fields at HEAD \
              (_sensor, _client, _source_table); `_source_type` absent → DataFusion plan \
              error → Err(QueryExecutionFailed). \
              Fix: wire _source_type injection into inject_virtual_fields so every Arrow \
              batch includes the fourth virtual field; PointInTime/cold-start → 'live', \
-             EventStream-buffered → 'buffered' (BC-2.11.012 v1.7 AC-9/AC-10). \
+             EventStream-buffered → 'buffered' (BC-2.11.012 AC-9/AC-10). \
              got: {result:?}"
         );
 
@@ -4565,7 +4565,7 @@ mod tests {
             let val = st_arr.value(i);
             assert_eq!(
                 val, "live",
-                "F-CSD-P19-003-T36 / BC-2.11.012 v1.7 AC-10: _source_type for \
+                "F-CSD-P19-003-T36 / BC-2.11.012 AC-10: _source_type for \
                  PointInTime / cold-start EventStream must be \"live\"; \
                  got '{val}' at row {i}"
             );
@@ -4573,17 +4573,17 @@ mod tests {
     }
 
     // =========================================================================
-    // T37 — F-CSD-P19-003 (BC-2.11.012 v1.7): empty-path parity —
+    // T37 — F-CSD-P19-003 (BC-2.11.012): empty-path parity —
     //       append_virtual_fields_to_schema must include _source_type nullable=true
     //
     // Mirrors T33b (which locks the four-field nullable contract).
-    // BC-2.11.012 v1.7 adds _source_type as the fourth canonical virtual field.
+    // BC-2.11.012 adds _source_type as the fourth canonical virtual field.
     // append_virtual_fields_to_schema must append all FOUR fields with nullable=true.
     //
     // At HEAD: only THREE fields appended; field_with_name("_source_type") fails → RED.
     // =========================================================================
 
-    /// F-CSD-P19-003-T37 / BC-2.11.012 v1.7: `append_virtual_fields_to_schema` (empty-path
+    /// F-CSD-P19-003-T37 / BC-2.11.012: `append_virtual_fields_to_schema` (empty-path
     /// helper) must include `_source_type` with `nullable=true`, alongside the three
     /// existing virtual fields.
     ///
@@ -4612,7 +4612,7 @@ mod tests {
         // RED at HEAD: field_with_name("_source_type") returns Err → panic.
         let field = schema.field_with_name("_source_type").unwrap_or_else(|_| {
             panic!(
-                "F-CSD-P19-003-T37 / BC-2.11.012 v1.7: \
+                "F-CSD-P19-003-T37 / BC-2.11.012: \
                      `append_virtual_fields_to_schema` must include `_source_type` as the \
                      fourth canonical virtual field (alongside _sensor, _client, \
                      _source_table). At HEAD only three fields are appended. \
@@ -4622,7 +4622,7 @@ mod tests {
 
         assert!(
             field.is_nullable(),
-            "F-CSD-P19-003-T37 / BC-2.11.012 v1.7: `_source_type` in the empty-path schema \
+            "F-CSD-P19-003-T37 / BC-2.11.012: `_source_type` in the empty-path schema \
              must have nullable=true (LEFT JOIN NULL propagation — column must accept NULL \
              when the empty table contributes no rows to the join); got nullable=false"
         );
@@ -4630,7 +4630,7 @@ mod tests {
 
     // =========================================================================
     // T38 — F-CSD-P19-003 / F-CSD-P20-003 / F-CSD-P20-004
-    //       (BC-2.11.012 v1.8 / BC-2.11.016 v1.26): _safety_flags plan-time
+    //       (BC-2.11.012 / BC-2.11.016): _safety_flags plan-time
     //       E-QUERY-038 gate — full payload assertion.
     //
     // Architect Option A (@e8f7dc8b): `VirtualField::SafetyFlags` was retired from
@@ -4639,7 +4639,7 @@ mod tests {
     // collects `Expr::Field` paths and checks them against the table registry.
     //
     // This test drives the gate directly (not through execute_against_session) to
-    // assert the FULL ColumnNotFoundDetails payload per BC-2.11.016 v1.26
+    // assert the FULL ColumnNotFoundDetails payload per BC-2.11.016
     // §Design Constraints (F-CSD-P20-004 paper-fix closure: payload must be
     // structurally asserted, not just matched on variant).
     //
@@ -4647,10 +4647,10 @@ mod tests {
     // execute_against_session returns Err(QueryExecutionFailed) for _safety_flags
     // because it does NOT call check_query_column_availability — that gate only
     // fires through engine.rs::execute(). This two-tier behavior is intentional
-    // per BC-2.11.016 v1.26 §Design Constraints.
+    // per BC-2.11.016 §Design Constraints.
     // =========================================================================
 
-    /// F-CSD-P19-003-T38 / BC-2.11.016 v1.26 / BC-2.11.012 v1.8:
+    /// F-CSD-P19-003-T38 / BC-2.11.016 / BC-2.11.012:
     /// `check_query_column_availability` must fire E-QUERY-038 for a query referencing
     /// `_safety_flags` against a CrowdStrike devices registry, with FULL payload:
     /// column="_safety_flags", table="crowdstrike_devices", client_id="",
@@ -4750,7 +4750,7 @@ mod tests {
                         "status"
                     ],
                     "T38: available_columns must be the six canonical CrowdStrike devices \
-                     columns sorted lexicographically (BC-2.11.016 v1.26 §Design Constraints \
+                     columns sorted lexicographically (BC-2.11.016 §Design Constraints \
                      — sort+dedup applied by check_column_availability single-tenant path); \
                      got: {:?}",
                     details.available_columns
@@ -4763,7 +4763,7 @@ mod tests {
                 );
             }
             Ok(()) => panic!(
-                "T38 / BC-2.11.016 v1.26 / BC-2.11.012 v1.8: check_query_column_availability \
+                "T38 / BC-2.11.016 / BC-2.11.012: check_query_column_availability \
                  must return Err(ColumnNotFound) for '_safety_flags' against the crowdstrike \
                  devices registry. '_safety_flags' is a response-envelope concern (BC-2.09.004) \
                  and must NOT be recognised as a virtual query field. The E-QUERY-038 plan-time \
@@ -4771,7 +4771,7 @@ mod tests {
                  got: Ok(())"
             ),
             Err(other) => panic!(
-                "T38 / BC-2.11.016 v1.26 / BC-2.11.012 v1.8: expected \
+                "T38 / BC-2.11.016 / BC-2.11.012: expected \
                  Err(PrismError::ColumnNotFound), got different error: {other:?}"
             ),
         }
@@ -4792,10 +4792,10 @@ mod tests {
     //   Tier 1 (engine.rs::execute path): E-QUERY-038 fires → Err(ColumnNotFound)
     //   Tier 2 (execute_against_session path): DataFusion error → Err(QueryExecutionFailed)
     //
-    // BC-2.11.016 v1.26 §Design Constraints defines this intentional split.
+    // BC-2.11.016 §Design Constraints defines this intentional split.
     // =========================================================================
 
-    /// F-CSD-P20-003-T38b / BC-2.11.016 v1.26: `execute_against_session` must return
+    /// F-CSD-P20-003-T38b / BC-2.11.016: `execute_against_session` must return
     /// `Err(QueryExecutionFailed)` — NOT `Err(ColumnNotFound)` — for a query referencing
     /// `_safety_flags`, locking the Option A two-tier boundary.
     ///
@@ -4839,10 +4839,10 @@ mod tests {
 
         // Assert QueryExecutionFailed — NOT ColumnNotFound.
         // If this assertion fails with ColumnNotFound, the runtime fallback was
-        // re-introduced (violating Option A / BC-2.11.016 v1.26 §Design Constraints).
+        // re-introduced (violating Option A / BC-2.11.016 §Design Constraints).
         assert!(
             matches!(&result, Err(PrismError::QueryExecutionFailed { .. })),
-            "T38b / BC-2.11.016 v1.26 Option A: execute_against_session must return \
+            "T38b / BC-2.11.016 Option A: execute_against_session must return \
              Err(QueryExecutionFailed) for '_safety_flags' — the plan-time E-QUERY-038 \
              gate only fires through engine.rs::execute(), not through the materialisation \
              layer. If this returns Err(ColumnNotFound), the runtime FieldNotFound→ColumnNotFound \
@@ -4853,7 +4853,7 @@ mod tests {
     }
 
     // =========================================================================
-    // EC-11-035 — BC-2.11.012 v1.10: _source_type on internal table returns
+    // EC-11-035 — BC-2.11.012: _source_type on internal table returns
     //             QueryExecutionFailed, NOT ColumnNotFound.
     //
     // Two mechanisms cause E-QUERY-038 to be intentionally bypassed for
@@ -4882,7 +4882,7 @@ mod tests {
     // tables") is queued as DRIFT-INTERNAL-TABLE-COLUMN-GATE-001.
     // =========================================================================
 
-    /// EC-11-035 / BC-2.11.012 v1.10: `engine.execute("SELECT _source_type FROM prism_alerts")`
+    /// EC-11-035 / BC-2.11.012: `engine.execute("SELECT _source_type FROM prism_alerts")`
     /// must return `Err(QueryExecutionFailed)` — NOT `Err(ColumnNotFound)`.
     ///
     /// # Two mechanisms prevent E-QUERY-038 from firing on internal tables
@@ -4917,7 +4917,7 @@ mod tests {
     /// (`_source_type is not available on internal tables`) instead of the opaque
     /// `QueryExecutionFailed`. That is queued as DRIFT-INTERNAL-TABLE-COLUMN-GATE-001.
     /// Until it lands, `QueryExecutionFailed` is the correct spec-locked behavior per
-    /// BC-2.11.012 v1.10 EC-11-035.
+    /// BC-2.11.012 EC-11-035.
     #[tokio::test]
     async fn test_BC_2_11_012_EC_11_035_source_type_on_internal_table_returns_query_execution_failed(
     ) {
@@ -4999,7 +4999,7 @@ mod tests {
         // E-QUERY-038 does NOT fire (two mechanisms above).
         assert!(
             matches!(&result, Err(PrismError::QueryExecutionFailed { .. })),
-            "EC-11-035 / BC-2.11.012 v1.10: engine.execute must return QueryExecutionFailed \
+            "EC-11-035 / BC-2.11.012: engine.execute must return QueryExecutionFailed \
              for `SELECT _source_type FROM prism_alerts`. Internal tables bypass E-QUERY-038 \
              via SourceRefKind::Internal fail-open in check_query_column_availability, and \
              _source_type bypasses it via VirtualField always-valid skip in \
@@ -5009,10 +5009,10 @@ mod tests {
         );
 
         // Negative assertion: must NOT be ColumnNotFound — locks the intentional
-        // prism_* / VirtualField fail-open boundary (BC-2.11.012 v1.10 EC-11-035).
+        // prism_* / VirtualField fail-open boundary (BC-2.11.012 EC-11-035).
         assert!(
             !matches!(&result, Err(PrismError::ColumnNotFound(_))),
-            "EC-11-035 / BC-2.11.012 v1.10: engine.execute must NOT return ColumnNotFound \
+            "EC-11-035 / BC-2.11.012: engine.execute must NOT return ColumnNotFound \
              for internal tables. If this fails, E-QUERY-038 has been erroneously wired to \
              fire on prism_* tables — violating the intentional prism_* fail-open guard in \
              check_query_column_availability (SourceRefKind::Internal arm) and/or the \
@@ -5022,7 +5022,7 @@ mod tests {
     }
 
     // =========================================================================
-    // EC-11-035b — BC-2.11.012 v1.10 production-path companion:
+    // EC-11-035b — BC-2.11.012 production-path companion:
     //   engine with storage=Some(InMemoryBackend) — prism_alerts IS registered
     //   under alerts_schema() — _source_type absent from schema → DataFusion
     //   field-not-found plan error → QueryExecutionFailed (NOT ColumnNotFound).
@@ -5033,7 +5033,7 @@ mod tests {
     // FieldNotFound→ColumnNotFound fallback on the real storage-backed path.
     // =========================================================================
 
-    /// EC-11-035b / BC-2.11.012 v1.10: production-path variant.
+    /// EC-11-035b / BC-2.11.012: production-path variant.
     ///
     /// With `storage = Some(InMemoryBackend)`, `execute_inner` calls
     /// `register_internal_tables_with_capabilities`, which registers `prism_alerts`
@@ -5049,7 +5049,7 @@ mod tests {
     /// Guards against accidental re-introduction of the retired Option-A runtime
     /// `FieldNotFound→ColumnNotFound` fallback on the real storage-backed code path.
     /// If `ColumnNotFound` is returned, the Option-A fallback has been re-wired on
-    /// the storage=Some branch (a regression against BC-2.11.012 v1.10 EC-11-035).
+    /// the storage=Some branch (a regression against BC-2.11.012 EC-11-035).
     ///
     /// # Why InMemoryBackend is sufficient
     ///
@@ -5147,7 +5147,7 @@ mod tests {
         // VirtualField always-valid skip — same as EC-11-035).
         assert!(
             matches!(&result, Err(PrismError::QueryExecutionFailed { .. })),
-            "EC-11-035b / BC-2.11.012 v1.10: engine.execute with storage=Some must return \
+            "EC-11-035b / BC-2.11.012: engine.execute with storage=Some must return \
              QueryExecutionFailed for `SELECT _source_type FROM prism_alerts`. \
              prism_alerts is registered under alerts_schema() (no _source_type column); \
              DataFusion field-not-found plan error → QueryExecutionFailed. \
@@ -5156,10 +5156,10 @@ mod tests {
 
         // Negative assertion: must NOT be ColumnNotFound — locks against Option-A
         // FieldNotFound→ColumnNotFound fallback re-introduction on the storage=Some path
-        // (BC-2.11.012 v1.10 EC-11-035, DRIFT-INTERNAL-TABLE-COLUMN-GATE-001).
+        // (BC-2.11.012 EC-11-035, DRIFT-INTERNAL-TABLE-COLUMN-GATE-001).
         assert!(
             !matches!(&result, Err(PrismError::ColumnNotFound(_))),
-            "EC-11-035b / BC-2.11.012 v1.10: engine.execute with storage=Some must NOT return \
+            "EC-11-035b / BC-2.11.012: engine.execute with storage=Some must NOT return \
              ColumnNotFound for `SELECT _source_type FROM prism_alerts`. \
              If this fails, the Option-A FieldNotFound→ColumnNotFound fallback has been \
              re-introduced on the storage-backed path — a regression. \

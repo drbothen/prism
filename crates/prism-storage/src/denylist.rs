@@ -20,7 +20,7 @@
 // `record_failure` and `is_denylisted` accept an optional `&dyn ClockProbe` so that
 // tests can inject a fixed timestamp without sleeping.  Production code passes
 // `SystemClock` (which reads `SystemTime::now()`).  This seam is required to test
-// the 86400-second expiry assertion from BC-2.15.008 v1.7 without a 24-hour sleep.
+// the 86400-second expiry assertion from BC-2.15.008 without a 24-hour sleep.
 // Design decision recorded in
 // `.factory/cycles/v1.0.0-greenfield/S-2.02/implementation/red-gate-log.md`.
 
@@ -36,7 +36,7 @@ pub const DENYLIST_THRESHOLD: u32 = 3;
 
 /// Default denylist expiry duration in seconds.
 ///
-/// BC-2.15.008 v1.7: 24 hours = 86400 seconds.
+/// BC-2.15.008: 24 hours = 86400 seconds.
 pub const DENYLIST_EXPIRY_SECS: u64 = 86400;
 
 // ── ClockProbe — test-driven seam ────────────────────────────────────────────
@@ -47,7 +47,7 @@ pub const DENYLIST_EXPIRY_SECS: u64 = 86400;
 /// Test implementation: `FixedClock(ts)` (returns a fixed timestamp).
 ///
 /// Introduced by the test-writer so the denylist expiry test can verify the
-/// 86400-second BC-2.15.008 v1.7 requirement without sleeping.
+/// 86400-second BC-2.15.008 requirement without sleeping.
 pub trait ClockProbe {
     /// Return the current Unix timestamp in seconds.
     fn unix_secs(&self) -> u64;

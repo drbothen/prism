@@ -1540,14 +1540,14 @@ fn test_BC_2_11_012_virtual_field_source_type_emits_virtual_field_variant() {
     }
 }
 
-/// BC-2.11.012 v1.7: `_safety_flags` is excluded from the canonical four-field virtual
+/// BC-2.11.012: `_safety_flags` is excluded from the canonical four-field virtual
 /// set (BC-2.09.004 response-envelope concern).  A pipe where stage referencing
 /// `_safety_flags` must parse as `Expr::Field` (ordinary field), NOT as
 /// `Expr::VirtualField(SafetyFlags)`.  The E-QUERY-038 plan-time column-existence gate
 /// then returns an actionable `ColumnNotFound` error rather than an opaque DataFusion
 /// plan error.
 ///
-/// Traces: BC-2.11.012 v1.7 (SafetyFlags exclusion), BC-2.09.004 (response-envelope),
+/// Traces: BC-2.11.012 (SafetyFlags exclusion), BC-2.09.004 (response-envelope),
 ///         F-CSD-P19-003-T38
 #[test]
 fn test_BC_2_11_012_safety_flags_parses_as_ordinary_field_not_virtual() {
@@ -1559,13 +1559,13 @@ fn test_BC_2_11_012_safety_flags_parses_as_ordinary_field_not_virtual() {
             Predicate::Compare { lhs, .. } => match lhs.as_ref() {
                 Expr::Field(fp) if fp.segments.as_slice() == ["_safety_flags"] => {
                     // Correct: _safety_flags parses as Expr::Field, not VirtualField.
-                    // BC-2.11.012 v1.7 exclusion: _safety_flags is a response-envelope
+                    // BC-2.11.012 exclusion: _safety_flags is a response-envelope
                     // concern (BC-2.09.004); E-QUERY-038 column gate handles it.
                     // Note: compare only segments, not span — parsed FieldPath has
                     // non-zero span while FieldPath::new() produces Span::ZERO.
                 }
                 other => panic!(
-                    "BC-2.11.012 v1.7: expected Expr::Field(_safety_flags), got {:?} — \
+                    "BC-2.11.012: expected Expr::Field(_safety_flags), got {:?} — \
                      _safety_flags must NOT be promoted to VirtualField (BC-2.09.004 exclusion)",
                     other
                 ),
@@ -3047,13 +3047,13 @@ fn test_BC_2_11_012_non_canonical_underscore_field_stays_field() {
     }
 }
 
-/// BC-2.11.012 v1.7: all four canonical virtual fields are recognised in pipe mode WHERE stage.
+/// BC-2.11.012: all four canonical virtual fields are recognised in pipe mode WHERE stage.
 ///
 /// Tests all four VirtualField variants (`_sensor`, `_client`, `_source_table`,
 /// `_source_type`).  `_safety_flags` is excluded (BC-2.09.004 response-envelope concern)
 /// and is covered by `test_BC_2_11_012_safety_flags_parses_as_ordinary_field_not_virtual`.
 ///
-/// Traces: BC-2.11.012 v1.7 (virtual fields in pipe mode, canonical four-field set)
+/// Traces: BC-2.11.012 (virtual fields in pipe mode, canonical four-field set)
 #[test]
 fn test_BC_2_11_012_virtual_fields_all_four_in_pipe_mode() {
     use crate::ast::VirtualField;

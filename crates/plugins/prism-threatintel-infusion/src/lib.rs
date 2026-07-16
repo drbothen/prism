@@ -71,7 +71,8 @@ mod host_impl {
         }
 
         fn version() -> String {
-            "1.0.0".to_string()
+            // 1.0.2: Cargo.lock tracked for full-graph reproducibility, F-MCPRS-PRL10-OBS-001 human ruling
+            "1.0.2".to_string()
         }
 
         fn enrich_single(input_value: String, input_type: String) -> Option<String> {

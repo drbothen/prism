@@ -61,12 +61,12 @@ fn read_tool_call_entries(backend: &RocksDbBackend) -> Vec<StorageAuditEntry> {
     decoded_entries
 }
 
-/// BC-2.05.001 / CRIT-005 / MCP-02 / BC-2.10.012 v1.1: `write_tool_call` with
+/// BC-2.05.001 / CRIT-005 / MCP-02 / BC-2.10.012: `write_tool_call` with
 /// operation `"invoked"` and outcome `"success"` persists a durable `mcp.tool.called`
 /// entry to the `audit_buffer` CF whose payload fields (tool_name, client_id,
 /// operation, outcome) survive the round-trip.
 ///
-/// BC-2.10.012 v1.1: operation and outcome are separate payload fields.
+/// BC-2.10.012: operation and outcome are separate payload fields.
 #[tokio::test]
 async fn test_BC_2_05_001_write_tool_call_invoked_cf_readback() {
     let (_state_dir, backend, writer) = make_writer();
@@ -100,17 +100,17 @@ async fn test_BC_2_05_001_write_tool_call_invoked_cf_readback() {
         Some("acme"),
         "P1-03: payload client_id must round-trip when present"
     );
-    // BC-2.10.012 v1.1: operation is the canonical operation name (e.g. "invoked").
+    // BC-2.10.012: operation is the canonical operation name (e.g. "invoked").
     assert_eq!(
         payload.get("operation").map(String::as_str),
         Some("invoked"),
-        "P1-03 (BC-2.10.012 v1.1): payload operation must round-trip as 'invoked'"
+        "P1-03 (BC-2.10.012): payload operation must round-trip as 'invoked'"
     );
-    // BC-2.10.012 v1.1: outcome is the result ("success" | "error").
+    // BC-2.10.012: outcome is the result ("success" | "error").
     assert_eq!(
         payload.get("outcome").map(String::as_str),
         Some("success"),
-        "P1-03 (BC-2.10.012 v1.1): payload outcome must round-trip as 'success'"
+        "P1-03 (BC-2.10.012): payload outcome must round-trip as 'success'"
     );
     assert!(
         !entries[0].trace_id.is_empty(),
@@ -122,7 +122,7 @@ async fn test_BC_2_05_001_write_tool_call_invoked_cf_readback() {
     );
 }
 
-/// BC-2.05.001 / CRIT-005 / MCP-02 + BC-2.05.002 / BC-2.10.012 v1.1: `write_tool_call`
+/// BC-2.05.001 / CRIT-005 / MCP-02 + BC-2.05.002 / BC-2.10.012: `write_tool_call`
 /// with operation `"rejected_injection"` and outcome `"error"` and NO client_id persists
 /// a durable entry whose `client_id` field carries the BC-2.05.002 `"MISSING"` sentinel.
 #[tokio::test]
@@ -143,17 +143,17 @@ async fn test_BC_2_05_001_write_tool_call_rejected_injection_missing_client_id_c
     );
 
     let payload = &entries[0].payload;
-    // BC-2.10.012 v1.1: operation is the canonical operation name.
+    // BC-2.10.012: operation is the canonical operation name.
     assert_eq!(
         payload.get("operation").map(String::as_str),
         Some("rejected_injection"),
-        "P1-03 (BC-2.10.012 v1.1): payload operation must round-trip as 'rejected_injection'"
+        "P1-03 (BC-2.10.012): payload operation must round-trip as 'rejected_injection'"
     );
-    // BC-2.10.012 v1.1: outcome is "error" for rejected injections.
+    // BC-2.10.012: outcome is "error" for rejected injections.
     assert_eq!(
         payload.get("outcome").map(String::as_str),
         Some("error"),
-        "P1-03 (BC-2.10.012 v1.1): payload outcome must round-trip as 'error'"
+        "P1-03 (BC-2.10.012): payload outcome must round-trip as 'error'"
     );
     assert_eq!(
         payload.get("client_id").map(String::as_str),
@@ -191,14 +191,14 @@ async fn test_BC_2_05_001_write_tool_call_appends_distinct_entries() {
         "P1-03: both tool-call records must be present (append, not overwrite)"
     );
 
-    // BC-2.10.012 v1.1: operation field carries the canonical operation name.
+    // BC-2.10.012: operation field carries the canonical operation name.
     let operations: Vec<&str> = entries
         .iter()
         .filter_map(|e| e.payload.get("operation").map(String::as_str))
         .collect();
     assert!(
         operations.contains(&"invoked") && operations.contains(&"rejected_injection"),
-        "P1-03 (BC-2.10.012 v1.1): both operations must be present in the audit_buffer CF; got: {operations:?}"
+        "P1-03 (BC-2.10.012): both operations must be present in the audit_buffer CF; got: {operations:?}"
     );
 
     let trace_ids: std::collections::BTreeSet<&str> =
