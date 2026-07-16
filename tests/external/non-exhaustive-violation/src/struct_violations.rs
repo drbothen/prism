@@ -1430,7 +1430,7 @@ pub fn v88_enrich_udf_not_found_details() {
     let _ = _details;
 }
 
-// ─── DEFECT-PQL-FNCALL-LHS-001 BC-2.11.019 v1.25 §OBS-005: ParseError ─────────
+// ─── DEFECT-PQL-FNCALL-LHS-001 BC-2.11.019 v1.26 §OBS-005: ParseError ─────────
 //
 // `ParseError` is the pub-API surface type for PrismQL parse failures returned
 // by `parse_query()` and `parse_sql_with_limits()`. `#[non_exhaustive]` ensures
@@ -1442,12 +1442,12 @@ pub fn v88_enrich_udf_not_found_details() {
 ///
 /// `ParseError` is the canonical PrismQL parse error type (prism-query pub API).
 /// `#[non_exhaustive]` was added by DEFECT-PQL-FNCALL-LHS-001 fix-burst-42
-/// (BC-2.11.019 v1.25 §OBS-005). External callers MUST use `ParseError::new(...)`
+/// (BC-2.11.019 v1.26 §OBS-005). External callers MUST use `ParseError::new(...)`
 /// or `ParseError::semantic(...)` — direct struct literal construction MUST NOT
 /// compile (E0639). Future fields (e.g., `recovery_suggestion`, `related_spans`)
 /// can be added without breaking downstream callers.
 ///
-/// Added: DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 (BC-2.11.019 v1.25 §OBS-005).
+/// Added: DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 (BC-2.11.019 v1.26 §OBS-005).
 /// ci.yml EXPECTED bumped from 91 to 92.
 #[allow(dead_code)]
 pub fn v92_parse_error() {
