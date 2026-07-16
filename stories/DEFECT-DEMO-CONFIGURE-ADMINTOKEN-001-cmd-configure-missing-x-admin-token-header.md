@@ -6,7 +6,7 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.6"
+version: "0.7"
 level: ops
 producer: story-writer
 timestamp: "2026-07-16"
@@ -134,10 +134,11 @@ the move.
 | Test `configure_with_correct_token_returns_200` | `crates/prism-dtu-crowdstrike/tests/td_wv0_07_configure_requires_admin_token.rs` | ~74 | YES | Correct |
 | Tests in claroty/cyberint/armis/nvd/threatintel/jira/pagerduty `td_wv0_07_*` | Each DTU crate | varies | YES | Correct |
 | `bc_2_06_019_scenario_progression.rs` demo-server test | `tests/bc_2_06_019_scenario_progression.rs` | ~533-537 | YES | Correct (uses `admin_token()`) |
+| `configure_failure` helper (the BC-3.6.001 test itself) | `crates/prism-dtu-harness/tests/bc_3_6_001_ops_clone_failure_modes.rs` | varies | YES (lowercase `x-admin-token`; token sourced via `Harness::admin_token_for()`, not `clone.admin_token()`) | Correct |
+| `deny_unknown_fields` helper | `crates/prism-dtu-harness/tests/review_2026_06_10_deny_unknown.rs` | varies | YES (same pattern — lowercase `x-admin-token` via `harness.admin_token_for()`) | Correct |
 
 **Result:** `cmd_configure()` in `main.rs` is the ONLY affected client-side call site.
-All other callers in tests have the header. No production code paths (outside test infrastructure)
-call `/dtu/configure` directly.
+All other callers in tests have the header; harness-crate callers (`bc_3_6_001_ops_clone_failure_modes.rs`, `review_2026_06_10_deny_unknown.rs`) source the token via `Harness::admin_token_for()` rather than `clone.admin_token()` — both ultimately access the same per-instance UUID v4. No production code paths (outside test infrastructure) call `/dtu/configure` directly.
 
 ### Excluded from scope (OUT OF SCOPE)
 
@@ -168,7 +169,7 @@ contains a **failing** (RED Gate) test that:
    replicating the current `cmd_configure` behavior
 4. Asserts the response is HTTP 401 — proving the defect is observable
 
-The test MUST fail before the fix lands (Red Gate gate density requirement) and pass after.
+Note: steps 1-4 form a **defect-observability contract lock** — they pass both before and after the fix (the server already correctly returns 401 for unauthenticated requests; that gate predates this branch). The Red-Gate obligation for this AC is carried by the binary E2E test (asserting `cmd_configure` exits 0 after adding the token header) and the token-sidecar-existence assertions; those tests fail before the fix and pass after.
 
 Additionally, a unit test in the `#[cfg(test)] mod tests` block of
 `crates/prism-dtu-demo-server/src/main.rs` (or a suitably scoped integration test)
@@ -393,6 +394,7 @@ already-present workspace dependencies (`serde_json`, `reqwest`, `tokio`, `std`)
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| v0.7 | 2026-07-16 | product-owner FIX-BURST-6 SPEC (F-ADMTOK-P7-LOW-001 + F-ADMTOK-P7-OBS-001) | F-ADMTOK-P7-LOW-001: §Root Cause TD-VSDD-060 sibling table was missing two harness-crate call sites — added `configure_failure` helper in `bc_3_6_001_ops_clone_failure_modes.rs` (the BC-3.6.001 test itself; lowercase `x-admin-token` via `Harness::admin_token_for()`) and `deny_unknown_fields` helper in `review_2026_06_10_deny_unknown.rs` (same token-source pattern); both correctly authenticated. Updated summary sentence to note the harness-token variant (`Harness::admin_token_for()` vs `clone.admin_token()`). F-ADMTOK-P7-OBS-001: AC-001 "The test MUST fail before the fix lands" sentence was internally contradictory — a POST-without-header / assert-401 test passes before AND after (server 401 gate predates the branch). Replaced with contract-lock explanation: steps 1-4 are a defect-observability lock (always passes); Red-Gate obligation lives in binary E2E exit-0 assertion and sidecar-existence tests. |
 | v0.6 | 2026-07-16 | product-owner FIX-BURST-5 SPEC (F-ADMTOK-P6-LOW-003) | TD-VSDD-091 full sibling sweep — 3 volatile line pins replaced with behavioral anchors. (1) AC-002 bullet: "line ~354-365 of multi_instance.rs" → "in the watcher-spawn loop of start_instances in multi_instance.rs". (2) EC-001: "cmd_configure lines ~583-585" → "the non-2xx status-print-and-exit block of cmd_configure". (3) EC-002: "CrowdstrikeState::default() line ~415" → "the admin_token field initialization in CrowdstrikeState::default". Excepted (unchanged): §Root Cause TD-VSDD-060 enumeration table "Line range (approx.)" column — justified citation table. |
 | v0.5 | 2026-07-16 | product-owner FIX-BURST-4 SPEC (F-ADMTOK-P4-MED-001) | POL-22 Phase A violation: §Root Cause block-quoted "ADR-003 Amendment #5, item 5" with fabricated text that does not exist in the ADR. Replaced with two verbatim ADR anchors: (1) Amendment #5 §Decision paragraph ("POST /dtu/configure on every DTU clone MUST require a valid X-Admin-Token header…") establishing the server-side requirement; (2) Amendment #5 §Implementation item 4 ("All 12 existing td_wv0_04 configure tests…and all other integration tests calling /dtu/configure: updated to include .header(…)") showing item 4 scoped to integration tests only — cmd_configure is a CLI path, not a test, so it was not covered. Narrative conclusion (cmd_configure was the un-updated caller) preserved. POL-25 sweep: one "item 5" citation in the file (line 100) — corrected. |
 | v0.4 | 2026-07-16 | product-owner FIX-BURST-2 SPEC (F-ADMTOK-P2-LOW-001) | TD-VSDD-091: volatile line pin "lines 1068-1076" in EC-005 replaced with behavioral anchor "the multi-match ambiguity arm of `resolve_configure_token` in `multi_org_cmd.rs`" — line numbers decay on subsequent diffs; function + arm name is stable. |
