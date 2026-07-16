@@ -101,7 +101,18 @@ jobs:
       # dbus-x11: provides dbus-run-session which creates an isolated D-Bus session bus
       # for the test run, ensuring clean teardown and no cross-process pollution.
       - name: Install keyring runtime dependencies (libdbus-1-dev, gnome-keyring, dbus-x11)
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config gnome-keyring dbus-x11
+        run: |
+          # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-MED-004).
+          # The outer condition wraps both update AND install so a mirror-failure during package
+          # fetch ("E: Unable to fetch some archives") also triggers the fallback.
+          if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config gnome-keyring dbus-x11 ); then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+            sudo apt-get install -y libdbus-1-dev pkg-config gnome-keyring dbus-x11
+          fi
 
       # Cache is keyed separately from the main `test` job so a change to e2e tests
       # does not invalidate the shared test-ubuntu-linux-gnu cache namespace.

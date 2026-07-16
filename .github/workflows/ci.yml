@@ -42,16 +42,18 @@ jobs:
       - name: Install libdbus-1-dev (required by keyring build on Linux)
         if: runner.os == 'Linux'
         run: |
-          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
           # Evidence: EC-010 mirror-flake class; clippy is a needs: predecessor blocking pipeline.
-          if ! sudo apt-get update; then
+          # The outer condition wraps both update AND install so a mirror-failure during package
+          # fetch ("E: Unable to fetch some archives") also triggers the fallback.
+          if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
+            sudo apt-get install -y libdbus-1-dev pkg-config
           fi
-          sudo apt-get install -y libdbus-1-dev pkg-config
       # Optimization 1: Swatinem/rust-cache for incremental build caching
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
@@ -149,15 +151,15 @@ jobs:
           # libclang-common-*-dev; bindgen/libclang needs these clang builtin resource headers for
           # stdbool.h. clang + libclang-dev are meta-packages tracking the image default LLVM version
           # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
-          # Apt-mirror resilience: two-attempt pattern per AC-006.
-          if ! sudo apt-get update; then
+          # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
+          if ! ( sudo apt-get update && sudo apt-get install -y build-essential libc6-dev clang libclang-dev ); then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
+            sudo apt-get install -y build-essential libc6-dev clang libclang-dev
           fi
-          sudo apt-get install -y build-essential libc6-dev clang libclang-dev
       # Optimization 1: Swatinem/rust-cache — per-target shared key for cache isolation
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
@@ -166,18 +168,20 @@ jobs:
       - name: Install musl-tools
         if: matrix.install_musl
         run: |
-          # Apt-mirror resilience: two-attempt pattern.
+          # Apt-mirror resilience: combined two-attempt pattern (F-MAINT-P8-LOW-003).
           # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
           # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
           # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
-          if ! sudo apt-get update; then
+          # The outer condition wraps both update AND install so a mirror-failure during package
+          # fetch ("E: Unable to fetch some archives") also triggers the fallback.
+          if ! ( sudo apt-get update && sudo apt-get install -y musl-tools ); then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
+            sudo apt-get install -y musl-tools
           fi
-          sudo apt-get install -y musl-tools
       # prism-credentials uses keyring 3.x with linux-native-sync-persistent (Secret Service
       # backend). When --all-features is passed, libdbus-sys is compiled on all Linux legs
       # (build.rs runs on the glibc host even for musl cross-compile targets).
@@ -188,18 +192,20 @@ jobs:
       - name: Install libdbus-1-dev (required by keyring build on Linux, all-features)
         if: runner.os == 'Linux'
         run: |
-          # Apt-mirror resilience: two-attempt pattern.
+          # Apt-mirror resilience: combined two-attempt pattern (F-MAINT-P8-LOW-003).
           # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
           # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
           # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
-          if ! sudo apt-get update; then
+          # The outer condition wraps both update AND install so a mirror-failure during package
+          # fetch ("E: Unable to fetch some archives") also triggers the fallback.
+          if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
+            sudo apt-get install -y libdbus-1-dev pkg-config
           fi
-          sudo apt-get install -y libdbus-1-dev pkg-config
       # Optimization: mold linker — faster linking on Linux (saves ~5 min per Linux leg)
       # make-default: false — we set RUSTFLAGS explicitly for robustness (see rui314/setup-mold#3)
       - name: Install mold linker (Linux only)
@@ -308,18 +314,20 @@ jobs:
       # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
       - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
         run: |
-          # Apt-mirror resilience: two-attempt pattern.
+          # Apt-mirror resilience: combined two-attempt pattern (F-MAINT-P8-LOW-003).
           # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
           # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
           # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
-          if ! sudo apt-get update; then
+          # The outer condition wraps both update AND install so a mirror-failure during package
+          # fetch ("E: Unable to fetch some archives") also triggers the fallback.
+          if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
+            sudo apt-get install -y libdbus-1-dev pkg-config
           fi
-          sudo apt-get install -y libdbus-1-dev pkg-config
       # S-MAINT-CI-DISK-EXHAUSTION-001 AC-007: C toolchain baseline required by rocksdb-sys
       # v0.17.3+10.4.2 build script (bindgen → libclang needs clang builtin resource headers).
       # Root cause: AC-002 reclaimer large-packages purge removes libclang-common-*-dev.
@@ -331,15 +339,15 @@ jobs:
           # libclang-common-*-dev; bindgen/libclang needs these clang builtin resource headers for
           # stdbool.h. clang + libclang-dev are meta-packages tracking the image default LLVM version
           # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
-          # Apt-mirror resilience: two-attempt pattern per AC-006.
-          if ! sudo apt-get update; then
+          # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
+          if ! ( sudo apt-get update && sudo apt-get install -y build-essential libc6-dev clang libclang-dev ); then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
+            sudo apt-get install -y build-essential libc6-dev clang libclang-dev
           fi
-          sudo apt-get install -y build-essential libc6-dev clang libclang-dev
       # Optimization 1: Swatinem/rust-cache
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
@@ -672,15 +680,17 @@ jobs:
       - name: Install libdbus-1-dev (required by keyring build on Linux)
         if: runner.os == 'Linux'
         run: |
-          # Apt-mirror resilience: two-attempt pattern per AC-006.
-          if ! sudo apt-get update; then
+          # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
+          # The outer condition wraps both update AND install so a mirror-failure during package
+          # fetch ("E: Unable to fetch some archives") also triggers the fallback.
+          if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
+            sudo apt-get install -y libdbus-1-dev pkg-config
           fi
-          sudo apt-get install -y libdbus-1-dev pkg-config
       # Optimization 1: Swatinem/rust-cache
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
@@ -776,15 +786,17 @@ jobs:
       - name: Install libdbus-1-dev (required by keyring build on Linux)
         if: runner.os == 'Linux'
         run: |
-          # Apt-mirror resilience: two-attempt pattern per AC-006.
-          if ! sudo apt-get update; then
+          # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
+          # The outer condition wraps both update AND install so a mirror-failure during package
+          # fetch ("E: Unable to fetch some archives") also triggers the fallback.
+          if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
+            sudo apt-get install -y libdbus-1-dev pkg-config
           fi
-          sudo apt-get install -y libdbus-1-dev pkg-config
       - name: Install cargo-fuzz
         uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
         with:
@@ -844,15 +856,17 @@ jobs:
       - name: Install libdbus-1-dev (required by keyring build on Linux)
         if: runner.os == 'Linux'
         run: |
-          # Apt-mirror resilience: two-attempt pattern per AC-006.
-          if ! sudo apt-get update; then
+          # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
+          # The outer condition wraps both update AND install so a mirror-failure during package
+          # fetch ("E: Unable to fetch some archives") also triggers the fallback.
+          if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
+            sudo apt-get install -y libdbus-1-dev pkg-config
           fi
-          sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
@@ -1070,15 +1084,17 @@ jobs:
       - name: Install libdbus-1-dev (required by keyring build on Linux)
         if: runner.os == 'Linux'
         run: |
-          # Apt-mirror resilience: two-attempt pattern per AC-006.
-          if ! sudo apt-get update; then
+          # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
+          # The outer condition wraps both update AND install so a mirror-failure during package
+          # fetch ("E: Unable to fetch some archives") also triggers the fallback.
+          if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
+            sudo apt-get install -y libdbus-1-dev pkg-config
           fi
-          sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
@@ -1120,15 +1136,17 @@ jobs:
       - name: Install libdbus-1-dev (required by keyring build on Linux)
         if: runner.os == 'Linux'
         run: |
-          # Apt-mirror resilience: two-attempt pattern per AC-006.
-          if ! sudo apt-get update; then
+          # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
+          # The outer condition wraps both update AND install so a mirror-failure during package
+          # fetch ("E: Unable to fetch some archives") also triggers the fallback.
+          if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
+            sudo apt-get install -y libdbus-1-dev pkg-config
           fi
-          sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
@@ -1630,15 +1648,17 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install shellcheck
         run: |
-          # Apt-mirror resilience: two-attempt pattern per AC-006.
-          if ! sudo apt-get update; then
+          # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
+          # The outer condition wraps both update AND install so a mirror-failure during package
+          # fetch ("E: Unable to fetch some archives") also triggers the fallback.
+          if ! ( sudo apt-get update && sudo apt-get install -y shellcheck ); then
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
             sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
+            sudo apt-get install -y shellcheck
           fi
-          sudo apt-get install -y shellcheck
       - name: Run shellcheck on demo scripts
         run: |
           # AC-014 (S-DEMO-003): shellcheck must pass with zero errors on all demo scripts.
@@ -1757,22 +1777,22 @@ jobs:
           # that runs before actions/checkout to capture a pristine baseline. A future PR removing
           # this step would silently remove post-hoc disk-exhaustion analysis capability.
           # Anchored to YAML step-name syntax (^\s+- name:) — indent-agnostic and self-match-proof.
-          # Count-based: must appear in ≥2 Linux jobs (linux-test + test-no-default-features).
+          # Count-based: must appear in ≥2 Linux jobs (test matrix + test-no-default-features).
           # The assertion line starts with whitespace+count=$(grep..., not whitespace+"- name:", so
           # the ^ anchor cannot self-match.
-          count=$(grep -cE '^\s+- name: Report initial disk space\s*$' .github/workflows/ci.yml)
+          count=$(grep -cE '^\s+- name: Report initial disk space\s*$' .github/workflows/ci.yml || true)
           [ "$count" -ge 2 ] || {
-            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-001: disk preflight step missing from ≥2 Linux jobs (found ${count}; need linux-test + test-no-default-features)"
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-001: disk preflight step missing from ≥2 Linux jobs (found ${count}; need test (Test matrix) + test-no-default-features)"
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-001 check passed: disk preflight step found ${count} times (≥2 required)."
           # Anchored to YAML uses: key syntax (^\s+uses:) — self-match-proof.
-          # Count-based: must appear in ≥2 Linux jobs (linux-test + test-no-default-features).
+          # Count-based: must appear in ≥2 Linux jobs (test matrix + test-no-default-features).
           # The assertion line starts with whitespace+count=$(grep..., not whitespace+"uses:", so
           # the ^ anchor cannot self-match.
-          count=$(grep -cE '^\s+uses: insightsengineering/disk-space-reclaimer' .github/workflows/ci.yml)
+          count=$(grep -cE '^\s+uses: insightsengineering/disk-space-reclaimer' .github/workflows/ci.yml || true)
           [ "$count" -ge 2 ] || {
-            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-002: disk-space-reclaimer missing from ≥2 Linux jobs (found ${count}; need linux-test + test-no-default-features)"
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-002: disk-space-reclaimer missing from ≥2 Linux jobs (found ${count}; need test (Test matrix) + test-no-default-features)"
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-002 check passed: disk-space-reclaimer action found ${count} times (≥2 required)."
@@ -1796,19 +1816,27 @@ jobs:
           echo 'S-MAINT-CI-DISK-EXHAUSTION-001 AC-003 assertion-4 passed: [profile.dev.package."*"] section present.'
           # Anchored to the two-attempt pattern keyword — count-based, self-match-proof.
           # The assertion line starts with whitespace+count=$(grep..., so the if-pattern cannot self-match.
-          count=$(grep -cE '^\s+if ! sudo apt-get update; then$' .github/workflows/ci.yml)
+          count=$(grep -cE '^\s+if ! \( sudo apt-get update && sudo apt-get install' .github/workflows/ci.yml || true)
           [ "$count" -ge 12 ] || {
             echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006: apt-mirror two-attempt wrapper missing from expected sites (found ${count}; need 12: 10 apt-install steps + 2 AC-007 toolchain installs)"
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 check passed: apt-mirror resilience found ${count} times (≥12 required: 10 apt-install steps + 2 AC-007 toolchain installs)."
+          # RG-7: e2e.yml apt-mirror resilience — count-based, self-match-proof.
+          # Checks e2e.yml for the combined two-attempt pattern (F-MAINT-P8-MED-004).
+          count=$(grep -cE '^\s+if ! \( sudo apt-get update && sudo apt-get install' .github/workflows/e2e.yml || true)
+          [ "$count" -ge 1 ] || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 e2e.yml: apt-mirror two-attempt wrapper missing from e2e.yml (found ${count}; need ≥1: Install keyring runtime dependencies)"
+            exit 1
+          }
+          echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 e2e.yml check passed: apt-mirror resilience found ${count} times (≥1 required)."
           # Anchored to the specific install payload — count-based, self-match-proof.
           # The assertion line starts with whitespace+count=$(grep..., not whitespace+"sudo apt-get install",
           # so the ^\s+sudo anchor cannot self-match.
-          count=$(grep -cE '^\s+sudo apt-get install -y build-essential libc6-dev clang libclang-dev\s*$' .github/workflows/ci.yml)
+          count=$(grep -cE '^\s+sudo apt-get install -y build-essential libc6-dev clang libclang-dev\s*$' .github/workflows/ci.yml || true)
           [ "$count" -ge 2 ] || {
-            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-007: C toolchain baseline install (build-essential libc6-dev clang libclang-dev) missing from ≥2 Linux jobs (found ${count}; need linux-test + test-no-default-features)"
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-007: C toolchain baseline install (build-essential libc6-dev clang libclang-dev) missing from ≥2 Linux jobs (found ${count}; need test (Test matrix) + test-no-default-features)"
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-007 check passed: C toolchain baseline install found ${count} times (≥2 required)."
-          echo 'All verify-workflow-structure assertions pass: AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001/AC-002 (count≥2) + AC-006 (count≥12) + AC-007 (count≥2) — all reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant).'
+          echo 'All verify-workflow-structure assertions pass (19 total: 17 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) — 17 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 19 total checks.'
