@@ -106,9 +106,15 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config gnome-keyring dbus-x11 ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config gnome-keyring dbus-x11

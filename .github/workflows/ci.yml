@@ -47,9 +47,15 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -153,9 +159,15 @@ jobs:
           # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
           # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
           if ! ( sudo apt-get update && sudo apt-get install -y build-essential libc6-dev clang libclang-dev ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y build-essential libc6-dev clang libclang-dev
@@ -175,9 +187,15 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y musl-tools ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y musl-tools
@@ -199,9 +217,15 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -272,7 +296,7 @@ jobs:
         run: df -h
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       # S-MAINT-CI-DISK-EXHAUSTION-001 AC-002: reclaim preinstalled toolsets not needed by Rust
-      # build, BEFORE rust-cache restore (F-CIDISK-P4-MED-002). Same inputs as linux-test legs.
+      # build, BEFORE rust-cache restore (F-CIDISK-P4-MED-002). Same inputs as `test` matrix job Linux legs.
       # Fallback pin: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
       - name: Reclaim disk space
         uses: insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2
@@ -321,9 +345,15 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -341,9 +371,15 @@ jobs:
           # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
           # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
           if ! ( sudo apt-get update && sudo apt-get install -y build-essential libc6-dev clang libclang-dev ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y build-essential libc6-dev clang libclang-dev
@@ -684,9 +720,15 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -790,9 +832,15 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -860,9 +908,15 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -1088,9 +1142,15 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -1140,9 +1200,15 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
@@ -1652,9 +1718,15 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y shellcheck ); then
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+            sudo sed -i -E \
+              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
+              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y shellcheck
@@ -1822,6 +1894,15 @@ jobs:
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 check passed: apt-mirror resilience found ${count} times (≥12 required: 10 apt-install steps + 2 AC-007 toolchain installs)."
+          # RG-5b: canonical fallback includes third-party source-list removal (F-MAINT-P9-HIGH-001).
+          # Each of the 12 apt-wrapper fallback blocks must contain the sudo rm -f guard.
+          # Self-match-proof: assertion lines start with whitespace+count=$(grep..., not whitespace+sudo.
+          count=$(grep -cE '^\s+sudo rm -f /etc/apt/sources.list.d/microsoft-prod\.list' .github/workflows/ci.yml || true)
+          [ "$count" -ge 12 ] || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006: fallback source-list removal missing from ≥12 apt-wrapper sites (found ${count}; need 12 — F-MAINT-P9-HIGH-001)"
+            exit 1
+          }
+          echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 fallback-rm check passed: ${count} sites (≥12 required)."
           # RG-7: e2e.yml apt-mirror resilience — count-based, self-match-proof.
           # Checks e2e.yml for the combined two-attempt pattern (F-MAINT-P8-MED-004).
           count=$(grep -cE '^\s+if ! \( sudo apt-get update && sudo apt-get install' .github/workflows/e2e.yml || true)
@@ -1830,6 +1911,14 @@ jobs:
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 e2e.yml check passed: apt-mirror resilience found ${count} times (≥1 required)."
+          # RG-7b: e2e.yml fallback includes third-party source-list removal (F-MAINT-P9-HIGH-001).
+          # Self-match-proof: assertion lines start with whitespace+count=$(grep..., not whitespace+sudo.
+          count=$(grep -cE '^\s+sudo rm -f /etc/apt/sources.list.d/microsoft-prod\.list' .github/workflows/e2e.yml || true)
+          [ "$count" -ge 1 ] || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 e2e.yml: fallback source-list removal missing (found ${count}; need ≥1 — F-MAINT-P9-HIGH-001)"
+            exit 1
+          }
+          echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 e2e.yml fallback-rm check passed: ${count} sites (≥1 required)."
           # Anchored to the specific install payload — count-based, self-match-proof.
           # The assertion line starts with whitespace+count=$(grep..., not whitespace+"sudo apt-get install",
           # so the ^\s+sudo anchor cannot self-match.
@@ -1839,4 +1928,4 @@ jobs:
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-007 check passed: C toolchain baseline install found ${count} times (≥2 required)."
-          echo 'All verify-workflow-structure assertions pass (19 total: 17 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) — 17 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 19 total checks.'
+          echo 'All verify-workflow-structure assertions pass (21 total: 19 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-rm (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-rm (count≥1) — 19 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 21 total checks.'
