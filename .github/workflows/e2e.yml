@@ -106,16 +106,21 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config gnome-keyring dbus-x11 ); then
-            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
-              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
+            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
+            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
+            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config gnome-keyring dbus-x11
           fi

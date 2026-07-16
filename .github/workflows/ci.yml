@@ -47,16 +47,21 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
-              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
+            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
+            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
+            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
           fi
@@ -159,16 +164,21 @@ jobs:
           # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
           # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
           if ! ( sudo apt-get update && sudo apt-get install -y build-essential libc6-dev clang libclang-dev ); then
-            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
-              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
+            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
+            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
+            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y build-essential libc6-dev clang libclang-dev
           fi
@@ -183,20 +193,27 @@ jobs:
           # Apt-mirror resilience: combined two-attempt pattern (F-MAINT-P8-LOW-003).
           # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
           # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
-          # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
+          # outside our control; on failure overwrite apt-mirrors.txt to pin canonical archive
+          # and remove third-party source files — sed URL-rewriting is a structural no-op on
+          # image 20260714.240.1 (ubuntu.sources uses mirror+file:, not http://; F-MAINT-P10-CRIT-001).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y musl-tools ); then
-            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
-              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
+            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
+            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
+            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y musl-tools
           fi
@@ -213,20 +230,27 @@ jobs:
           # Apt-mirror resilience: combined two-attempt pattern (F-MAINT-P8-LOW-003).
           # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
           # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
-          # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
+          # outside our control; on failure overwrite apt-mirrors.txt to pin canonical archive
+          # and remove third-party source files — sed URL-rewriting is a structural no-op on
+          # image 20260714.240.1 (ubuntu.sources uses mirror+file:, not http://; F-MAINT-P10-CRIT-001).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
-              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
+            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
+            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
+            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
           fi
@@ -341,20 +365,27 @@ jobs:
           # Apt-mirror resilience: combined two-attempt pattern (F-MAINT-P8-LOW-003).
           # Evidence: runs 29437306537 + 29438854846 rerun (PR #224, 2026-07-15) — mirror.enzu.com
           # returned HTTP 404 Release files; apt exit code 100. Runner-image mirror selection is
-          # outside our control; on failure rewrite any ubuntu mirror URL to the canonical archive.
+          # outside our control; on failure overwrite apt-mirrors.txt to pin canonical archive
+          # and remove third-party source files — sed URL-rewriting is a structural no-op on
+          # image 20260714.240.1 (ubuntu.sources uses mirror+file:, not http://; F-MAINT-P10-CRIT-001).
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
-              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
+            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
+            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
+            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
           fi
@@ -371,16 +402,21 @@ jobs:
           # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
           # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
           if ! ( sudo apt-get update && sudo apt-get install -y build-essential libc6-dev clang libclang-dev ); then
-            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
-              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
+            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
+            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
+            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y build-essential libc6-dev clang libclang-dev
           fi
@@ -720,16 +756,21 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
-              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
+            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
+            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
+            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
           fi
@@ -832,16 +873,21 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
-              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
+            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
+            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
+            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
           fi
@@ -908,16 +954,21 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
-              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
+            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
+            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
+            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
           fi
@@ -1142,16 +1193,21 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
-              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
+            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
+            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
+            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
           fi
@@ -1200,16 +1256,21 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
-              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
+            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
+            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
+            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y libdbus-1-dev pkg-config
           fi
@@ -1718,16 +1779,21 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y shellcheck ); then
-            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
-              /etc/apt/sources.list.d/azure-cli.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-            sudo sed -i -E \
-              -e 's|https?://[^/ ]*/ubuntu |http://azure.archive.ubuntu.com/ubuntu |g' \
-              -e 's|https?://[^/ ]*/ubuntu$|http://azure.archive.ubuntu.com/ubuntu|g' \
-              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
+            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
+            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
+            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
+            sudo rm -f \
+              /etc/apt/sources.list.d/microsoft-prod.list \
+              /etc/apt/sources.list.d/azure-cli.sources \
+              /etc/apt/sources.list.d/microsoft-prod.sources \
+              /etc/apt/sources.list.d/azure-cli.list \
+              2>/dev/null || true
+            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+              sudo tee /etc/apt/apt-mirrors.txt
+            sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
             sudo apt-get install -y shellcheck
           fi
@@ -1894,15 +1960,15 @@ jobs:
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 check passed: apt-mirror resilience found ${count} times (≥12 required: 10 apt-install steps + 2 AC-007 toolchain installs)."
-          # RG-5b: canonical fallback includes third-party source-list removal (F-MAINT-P9-HIGH-001).
-          # Each of the 12 apt-wrapper fallback blocks must contain the sudo rm -f guard.
+          # RG-5b: canonical fallback includes apt-mirrors.txt overwrite (F-MAINT-P10-CRIT-001).
+          # Each of the 12 apt-wrapper fallback blocks must contain the sudo tee apt-mirrors.txt line.
           # Self-match-proof: assertion lines start with whitespace+count=$(grep..., not whitespace+sudo.
-          count=$(grep -cE '^\s+sudo rm -f /etc/apt/sources.list.d/microsoft-prod\.list' .github/workflows/ci.yml || true)
+          count=$(grep -cE '^\s+sudo tee /etc/apt/apt-mirrors\.txt' .github/workflows/ci.yml)
           [ "$count" -ge 12 ] || {
-            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006: fallback source-list removal missing from ≥12 apt-wrapper sites (found ${count}; need 12 — F-MAINT-P9-HIGH-001)"
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006: fallback apt-mirrors.txt overwrite missing from ≥12 apt-wrapper sites (found ${count}; need 12 — F-MAINT-P10-CRIT-001)"
             exit 1
           }
-          echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 fallback-rm check passed: ${count} sites (≥12 required)."
+          echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 fallback-mirrors check passed: ${count} sites (≥12 required)."
           # RG-7: e2e.yml apt-mirror resilience — count-based, self-match-proof.
           # Checks e2e.yml for the combined two-attempt pattern (F-MAINT-P8-MED-004).
           count=$(grep -cE '^\s+if ! \( sudo apt-get update && sudo apt-get install' .github/workflows/e2e.yml || true)
@@ -1911,14 +1977,14 @@ jobs:
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 e2e.yml check passed: apt-mirror resilience found ${count} times (≥1 required)."
-          # RG-7b: e2e.yml fallback includes third-party source-list removal (F-MAINT-P9-HIGH-001).
+          # RG-7b: e2e.yml fallback includes apt-mirrors.txt overwrite (F-MAINT-P10-CRIT-001).
           # Self-match-proof: assertion lines start with whitespace+count=$(grep..., not whitespace+sudo.
-          count=$(grep -cE '^\s+sudo rm -f /etc/apt/sources.list.d/microsoft-prod\.list' .github/workflows/e2e.yml || true)
+          count=$(grep -cE '^\s+sudo tee /etc/apt/apt-mirrors\.txt' .github/workflows/e2e.yml)
           [ "$count" -ge 1 ] || {
-            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 e2e.yml: fallback source-list removal missing (found ${count}; need ≥1 — F-MAINT-P9-HIGH-001)"
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 e2e.yml: fallback apt-mirrors.txt overwrite missing (found ${count}; need ≥1 — F-MAINT-P10-CRIT-001)"
             exit 1
           }
-          echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 e2e.yml fallback-rm check passed: ${count} sites (≥1 required)."
+          echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 e2e.yml fallback-mirrors check passed: ${count} sites (≥1 required)."
           # Anchored to the specific install payload — count-based, self-match-proof.
           # The assertion line starts with whitespace+count=$(grep..., not whitespace+"sudo apt-get install",
           # so the ^\s+sudo anchor cannot self-match.
@@ -1928,4 +1994,4 @@ jobs:
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-007 check passed: C toolchain baseline install found ${count} times (≥2 required)."
-          echo 'All verify-workflow-structure assertions pass (21 total: 19 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-rm (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-rm (count≥1) — 19 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 21 total checks.'
+          echo 'All verify-workflow-structure assertions pass (21 total: 19 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-mirrors (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-mirrors (count≥1) — 19 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 21 total checks.'
