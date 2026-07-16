@@ -108,13 +108,58 @@ timestamp: 2026-07-16T00:30:00Z
 >
 > **D-1701 (2026-07-12): SESSION WRAP — §RESUME SNAPSHOT D-1701 authored (supersedes D-1700).** AUDIT-COVERAGE-001 B-hardening passes 29–32 + fix-bursts 29–32. HEAD db765001→4857d967→9cbd9033→334784c3→67654e0f. P31 CLEAN(PR-merge). P32 NOT CLEAN (1 MED + 4 LOW + 4 OBS); fix-burst 32 closed all 6 findings @67654e0f. FROZEN HEAD 67654e0f (36 commits over develop@5f1b5771; LOCAL-ONLY NOT pushed). Streak 0/3 on 67654e0f. S-7.02 queue 9 items unchanged. Standing accepted-limitations: H14e smoke-only; H8 PASS-ATTRIBUTED; H23 even-fence; H16 non-content-channel. STATE v8.300→v8.301.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1793 POST-MERGE BURST; PR #223 MERGED @36bed016 + PR #222 MERGED @84062ced; develop@84062ced; MAINT PR #224 REBASED @4f9a5c6f PR-LEVEL streak RESET 0/3; VERY NEXT = dispatch PR-LEVEL adversary pass-1 on frozen 4f9a5c6f (MAINT; streak 0/3)** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1793 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1793 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `84062ced` (PR #222 DEFECT-MCP-ROWSHAPE-NULLS-001 squash-merged 2026-07-16; chain: 5f1b5771→PR#223→36bed016→PR#222→84062ced). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.393. D-1793 POST-MERGE BURST; PR #223 MERGED @36bed016 (DEFECT-PQL-FNCALL-LHS-001 CLOSED; branch deleted); PR #222 MERGED @84062ced (DEFECT-MCP-ROWSHAPE-NULLS-001 CLOSED; branch deleted); MAINT PR #224 REBASED @4f9a5c6f (story v0.16; PR-LEVEL streak RESET 0/3 per DRIFT-ORCH-PRLEVEL-PUSH-001); AUDIT-COVERAGE-001 @cd369b54 needs rebase; STORY-INDEX v2.694; BC-INDEX v8.31; total_stories 244; workspace ~5655 estimated; VERY NEXT ACTION = dispatch PR-LEVEL adversary pass-1 on frozen 4f9a5c6f [fresh session].
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1794 SESSION WRAP; PRs #223+#222 MERGED; develop@84062ced; MAINT PR #224 rebased @4f9a5c6f PR-LEVEL streak 0/3; VERY NEXT = confirm CI 43/43 on 4f9a5c6f → dispatch PR-LEVEL adversary pass-1 on frozen 4f9a5c6f → 3/3 CLEAN → squash-merge (HUMAN PRE-AUTHORIZED 2026-07-15)** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1794 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1794 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `84062ced` (PR #222 DEFECT-MCP-ROWSHAPE-NULLS-001 squash-merged 2026-07-16; chain: 5f1b5771→PR#223→36bed016→PR#222→84062ced). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.394. D-1794 SESSION WRAP; PRs #223+#222 MERGED (both defect lanes CLOSED); MAINT PR #224 @4f9a5c6f (story v0.16; PR-LEVEL streak 0/3; CI running at wrap 30/45 green); AUDIT-COVERAGE-001 @cd369b54 LOCAL-ONLY needs rebase; VERY NEXT ACTION = confirm CI 43/43 → dispatch PR-LEVEL adversary pass-1 on frozen 4f9a5c6f [fresh session].
 
 ---
 
-## §RESUME SNAPSHOT — D-1793 (2026-07-16 — POST-MERGE BURST; PR #223+#222 MERGED; MAINT rebased @4f9a5c6f re-gate pending; develop 84062ced; STATE v8.393) [SUPERSEDES D-1792]
+## §RESUME SNAPSHOT — D-1794 (2026-07-16 — SESSION WRAP; PRs #223+#222 MERGED; MAINT PR #224 @4f9a5c6f PR-LEVEL 0/3; STATE v8.394) [SUPERSEDES D-1793]
+
+### RESUME IN ONE BREATH
+
+PRs #223 (PQL) and #222 (MCP) MERGED; develop = 84062ced. ONE open PR: #224 (CI hardening) rebased @4f9a5c6f, CI was running at wrap (30/45 green, 0 failures) — NEXT: confirm CI 43/43 green, then dispatch 3 fresh PR-LEVEL adversary passes on FROZEN 4f9a5c6f (streak 0/3 — rebase push reset per DRIFT-ORCH-PRLEVEL-PUSH-001), then squash-merge #224 (HUMAN PRE-AUTHORIZED 2026-07-15). Then: devops worktree cleanup (2 merged lanes) + AUDIT-COVERAGE-001 unpark/rebase onto 84062ced.
+
+### HEADS (verified 2026-07-16 at D-1794 wrap)
+
+- develop: origin/develop = `84062ced` (PR #222 squash-merged 2026-07-16T04:51:44Z; chain: 5f1b5771 → PR#223 squash → 36bed016 → PR#222 squash → 84062ced)
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code; D-1794 wrap commit)
+- `maintenance/ci-disk-hardening` `4f9a5c6f` — PUSHED. PR #224 OPEN. Story v0.16. PR-LEVEL streak RESET to 0/3 per DRIFT-ORCH-PRLEVEL-PUSH-001 (rebase push). CI running at wrap (30/45 green, 0 failures).
+- `fix/DEFECT-PQL-FNCALL-LHS-001` — MERGED develop@36bed016. Remote branch DELETED. Worktree `.worktrees/DEFECT-PQL-FNCALL-LHS-001` REMOVABLE-POST-MERGE (devops cleanup pending).
+- `fix/DEFECT-MCP-ROWSHAPE-NULLS-001` — MERGED develop@84062ced. Remote branch DELETED. Worktree `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001` REMOVABLE-POST-MERGE (devops cleanup pending).
+- AUDIT-COVERAGE-001 `cd369b54` — LOCAL-ONLY dirty=1 (untracked pycache). PARKED — rebase onto 84062ced before unpark.
+- S-3.09 `43c41389` KEEP-PARKED; W3-FIX-S307-001 `fcab8717` PARKED-DIRTY do-NOT-touch.
+
+### PER-WORKSTREAM RESUME NEXT-ACTIONS
+
+1. **MAINT PR #224** — FIRST: confirm CI 43/43 green on frozen 4f9a5c6f. Then dispatch PR-LEVEL adversary pass-1 on frozen 4f9a5c6f (streak 0/3; NO pushes mid-cascade per DRIFT-ORCH-PRLEVEL-PUSH-001). On 3/3 CLEAN(strict) → security APPROVE → pr-reviewer APPROVE → HUMAN squash-merge (PRE-AUTHORIZED 2026-07-15). No POL-14 (behavioral_contracts: []).
+2. **Devops cleanup** — Remove `.worktrees/DEFECT-PQL-FNCALL-LHS-001` + `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001` (both merged; remote branches deleted). Delete local branches if any.
+3. **AUDIT-COVERAGE-001** — After #224 merged: rebase `fix/T13-audit-coverage` @cd369b54 onto develop@84062ced → re-run local audit → LOCAL 3-CLEAN → push → PR.
+4. **S-PQLFN-GAP2-SOURCESELECT-GATE-001** — post-demo wave, P2, depends_on S-3.07. Not yet scheduled.
+
+### PENDING HUMAN DECISIONS
+
+1. PR #224 (S-MAINT-CI-DISK-EXHAUSTION-001) merge gate — HUMAN PRE-AUTHORIZED 2026-07-15 pending 3/3 CLEAN(strict) + security APPROVE + pr-reviewer APPROVE.
+2. AUDIT-COVERAGE-001 PR merge gate (after rebase + 3-CLEAN + push + PR-LEVEL 3-CLEAN).
+3. S-3.09 EC-collision handling option (A/B/C) at wave-gate / S-3.09 dispatch.
+4. day2-design-decisions/clip-boundary-and-reframe-asks-2026-06-30.md disposition (NOT staged).
+
+### WORKTREE INVENTORY (D-1794)
+
+- `.worktrees/S-MAINT-CI-DISK-EXHAUSTION-001` on `maintenance/ci-disk-hardening` @ `4f9a5c6f` (PUSHED; story v0.16; PR #224 OPEN; rebased onto 84062ced; PR-LEVEL 0/3; VERY NEXT: confirm CI 43/43 → pass-1)
+- `.worktrees/DEFECT-PQL-FNCALL-LHS-001` REMOVABLE-POST-MERGE (PR #223 merged; devops cleanup pending)
+- `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001` REMOVABLE-POST-MERGE (PR #222 merged; devops cleanup pending)
+- `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ `cd369b54` (LOCAL-ONLY dirty=1; PARKED — needs rebase onto 84062ced)
+- `.worktrees/S-3.09` KEEP-PARKED on `feature/S-3.09` @ `43c41389` (local-only)
+- `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ `fcab8717` (local-only; do NOT touch)
+
+### DECISION DELTA — D-1794 (session wrap)
+
+1 wrap burst D-1794. SESSION WRAP: PRs #223 + #222 both merged (develop chain 5f1b5771→36bed016→84062ced). STATE.md compacted: 741 lines / 579KB → 255 lines / 62KB (D-1794 compaction — frontmatter NOTE chains trimmed; archive stubs removed; rows D-1785..D-1788 archived to burst-log.md). MAINT PR #224 CI running (30/45 green at wrap). develop_head unchanged at 84062ced. STATE v8.393→v8.394. factory-artifacts: single atomic wrap commit (TD-VSDD-053).
+
+---
+
+## §RESUME SNAPSHOT — D-1793 (2026-07-16 — POST-MERGE BURST; PR #223+#222 MERGED; MAINT rebased @4f9a5c6f re-gate pending; develop 84062ced; STATE v8.393) [SUPERSEDES D-1792] [SUPERSEDED by D-1794]
 
 ### RESUME IN ONE BREATH
 
