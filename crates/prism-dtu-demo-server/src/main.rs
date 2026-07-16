@@ -600,15 +600,18 @@ async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<
     // Enumerated in DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 §Root Cause sibling table:
     // | Site                                             | X-Admin-Token? | Status          |
     // |--------------------------------------------------|----------------|-----------------|
-    // | cmd_configure() — this function (main.rs)        | YES (FIXED)    | DEFECT → FIXED  |
-    // | ac_3_configure_called_on_clone_port_directly     | YES            | Correct         |
-    // | ac_3_no_harness_proxy_for_configure              | YES            | Correct         |
-    // | prism-dtu-crowdstrike td_wv0_07_*                | YES            | Correct         |
-    // | prism-dtu-{claroty,cyberint,armis,...} td_wv0_07_* | YES          | Correct         |
-    // | bc_2_06_019_scenario_progression.rs              | YES            | Correct         |
+    // | cmd_configure() — this function (main.rs)              | YES (FIXED)    | DEFECT → FIXED  |
+    // | ac_3_configure_called_on_clone_port_directly           | YES            | Correct         |
+    // | ac_3_no_harness_proxy_for_configure                    | YES            | Correct         |
+    // | prism-dtu-crowdstrike td_wv0_07_*                      | YES            | Correct         |
+    // | prism-dtu-{claroty,cyberint,armis,...} td_wv0_07_*     | YES            | Correct         |
+    // | bc_2_06_019_scenario_progression.rs                    | YES            | Correct         |
+    // | bc_3_6_001_ops_clone_failure_modes.rs (configure_failure helper) | YES | Correct (via Harness::admin_token_for()) |
+    // | review_2026_06_10_deny_unknown.rs                      | YES            | Correct (via Harness::admin_token_for()) |
     //
     // Only cmd_configure() was missing the header before this fix. All other callers in tests
-    // correctly include `.header("X-Admin-Token", clone.admin_token())` per ADR-003 Amendment #5.
+    // correctly authenticate: test files in prism-dtu-{sensor} use `clone.admin_token()`; harness
+    // tests in prism-dtu-harness use `Harness::admin_token_for()` — both per ADR-003 Amendment #5.
 
     // HIGH-1 fix: resolve the clone URL from whichever sidecar exists.
     //

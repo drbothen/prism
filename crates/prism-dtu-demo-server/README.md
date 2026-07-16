@@ -76,12 +76,15 @@ Forwards a JSON payload to a clone's `/dtu/configure` endpoint:
 prism-dtu-demo-server configure crowdstrike '{"failure_mode":"Timeout"}'
 ```
 
-The URL is resolved from the URL sidecar (`.prism-dtu-demo-server.urls.json`)
-written by `start`. The admin token is resolved from the token sidecar
+The URL is resolved from whichever URL sidecar is present:
+`.prism-dtu-demo-server.urls.json` (flat, written by `start`) or
+`.prism-dtu-demo-server.urls-multi.json` (nested, written by `start-multi`).
+The admin token is resolved from the corresponding token sidecar
 (`.prism-dtu-demo-server.admin-tokens.json` for `start`,
 `.prism-dtu-demo-server.admin-tokens-multi.json` for `start-multi`). Both
-sidecars must be present — if the token sidecar is absent the subcommand exits
-with error code E-DEMO-007. The harness must be running.
+the URL sidecar and the token sidecar must be present — if the token sidecar
+is absent the subcommand exits with error code E-DEMO-007. The harness must be
+running.
 
 ---
 
@@ -208,7 +211,8 @@ the `DEMO_FAKE_*` flat-model tokens used here.
 | File                                                   | Purpose |
 |--------------------------------------------------------|---------|
 | `.prism-dtu-demo-server.pid`                           | PID of the running harness process; read by `stop` |
-| `.prism-dtu-demo-server.urls.json`                     | Clone URL map; read by `configure` and `stop` |
+| `.prism-dtu-demo-server.urls.json`                     | Flat URL map for the `start` model; read by `configure` and `stop` |
+| `.prism-dtu-demo-server.urls-multi.json`               | Nested URL map for the `start-multi` model; read by `configure` |
 | `.prism-dtu-demo-server.admin-tokens.json`             | Admin token map for the flat (`start`) model; read by `configure` |
 | `.prism-dtu-demo-server.admin-tokens-multi.json`       | Admin token map for the multi-org (`start-multi`) model; read by `configure` |
 

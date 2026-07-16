@@ -62,8 +62,8 @@ use tempfile::TempDir;
 /// The Cyberint DTU validates the `access_token` cookie against an in-memory
 /// allowlist (ADR-031 §D3-a). `launch_prism_bin()` sets
 /// `PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY` for each
-///      org that uses Cyberint, so `StaticCookieAuthProvider` (via `PrismCredentialResolver`)
-///      injects it as `Cookie: access_token=dtu-e2e-cyberint-access-token`.
+/// org that uses Cyberint, so `StaticCookieAuthProvider` (via `PrismCredentialResolver`)
+/// injects it as `Cookie: access_token=dtu-e2e-cyberint-access-token`.
 ///
 /// Not a real credential — never reaches any external service.
 /// Per AD-017: credential values must not transit AI context; this is a
