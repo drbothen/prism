@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.692"
+version: "v2.693"
 status: draft
 producer: state-manager
-timestamp: 2026-07-15T23:59:00Z
+timestamp: 2026-07-16T00:30:00Z
 phase: 3
 total_stories: 243
 total_active_bcs: 222
@@ -20,6 +20,7 @@ Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
+- **D-1792 CONSOLIDATION BURST — S-MAINT-CI-DISK-EXHAUSTION-001 v0.10→v0.14 + PQL PR-LEVEL CONVERGED + STORY-INDEX v2.692→v2.693 (2026-07-16):** (state-manager D-1792) S-MAINT-CI-DISK-EXHAUSTION-001 **v0.14** (fix-burst-11 @498ffb6c PUSHED; AC-006 scope expanded 3→10 sites; threshold ≥12 (10 AC-006 + 2 AC-007); AC-007 snippets corrected preamble; 7 single-attempt conversions; zero single-attempt forms remain). DRIFT-CI-STDBOOL-001 root cause REVISED: AC-002 self-inflicted toolchain-removal (NOT runner-image regression; AC-002 large-packages purge removes libclang-common-16/17/18-dev; librocksdb-sys bindgen needs clang builtin resource headers; cache-hit runs masked failure). AC-007 expanded 2→4 packages: build-essential, libc6-dev, clang, libclang-dev. PQL PR-LEVEL CONVERGED 3/3 on frozen @60c97e8a (passes 13-19; fb-44/45/46; security delta APPROVE; pr-reviewer APPROVE; 66p/46fb total cascade; AWAITING HUMAN MERGE GATE). BC-2.11.019 v1.24→v1.26 (v1.25 curly-quote reconciliation; v1.26 §OBS-004 DML cross-note semantic fix). STORY-INDEX v2.692→v2.693.
 - **D-1791 SESSION WRAP — S-MAINT-CI-DISK-EXHAUSTION-001 v0.9→v0.10 + STORY-INDEX v2.691→v2.692 (2026-07-15):** (state-manager D-1791) S-MAINT-CI-DISK-EXHAUSTION-001 **v0.10** (fix-burst-8 @c9cb2c34 PUSHED to origin/maintenance/ci-disk-hardening; AC-006 apt-mirror two-attempt resilience + EC-010 added; red_gate_tests 4→5; acceptance_criteria_count 5→6; PR #224 HEAD now c9cb2c34). PR #224 CI update: push-event SUCCESS; 2 pull_request runs FAILED — DRIFT-CI-STDBOOL-001 (rocksdb-sys stdbool.h runner-image regression ubuntu24/20260705.232; not a hardening regression; story v0.11 amendment queued). STORY-INDEX v2.691→v2.692.
 - **D-1788 S-MAINT-CI-DISK-EXHAUSTION-001 LOCAL 3-CLEAN CONVERGED + PR #224 OPENED — STORY-INDEX v2.690→v2.691 (2026-07-15):** (state-manager D-1788) LOCAL 3-CLEAN CONVERGED (BC-5.39.001; 10 passes / 6 fix-bursts; passes 8/9/10 on frozen @e48033e4). Pass-5 CLEAN streak 0/3→1/3; pass-6 NOT CLEAN (MED=1/LOW=1/OBS=1 — exclusion-list contradiction; fix-burst-5 story v0.6→v0.7 + @22cb83ad); pass-7 NOT CLEAN (MED=1/LOW=1/OBS=1 — AC-003 context-blind awk redesign; fix-burst-6 story v0.7→v0.8 + @e48033e4); passes 8/9/10 CLEAN streak 0→3/3 LOCAL CONVERGED. Branch pushed @e48033e4 (pre-push just check GREEN). PR #224 OPENED https://github.com/drbothen/prism/pull/224 (base develop; headRefOid e48033e4). BC governance: behavioral_contracts: [] CONFORMING; no POL-14. NEXT: PR-LEVEL cascade 0/3 on frozen e48033e4 + AC-005 3 green CI runs + security + pr-reviewer. STORY-INDEX v2.690→v2.691.
 - **D-1781 DEFECT-PQL-FNCALL-LHS-001 PR-LEVEL pass-6 CLEAN(strict)=YES + S-MAINT-CI-DISK-EXHAUSTION-001 registered — STORY-INDEX v2.687→v2.688 (2026-07-15):** (state-manager D-1781) PR-LEVEL pass-6 on frozen 97cb070e: CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings; streak 0/3→1/3 (DRIFT-ORCH-PRLEVEL-PUSH-001 clean; NO pushes since fix-burst-38); 6 passes / 3 fix-bursts. CI 43/43 PASS on 97cb070e (3rd disk-full flake x86_64-linux run 29404746333; re-run green; D-1780 watch-note threshold met). NEW STORY S-MAINT-CI-DISK-EXHAUSTION-001 **draft v0.1** registered (P2; 5 pts; 5 ACs; 2 Red Gate tests; Platform Engineering; .github/workflows/ci.yml disk-exhaustion hardening; triggered_by D-1780 watch-note 3rd occurrence; maintenance/ci-disk-hardening branch isolated from defect PRs). total_stories 242→243. STORY-INDEX v2.687→v2.688.

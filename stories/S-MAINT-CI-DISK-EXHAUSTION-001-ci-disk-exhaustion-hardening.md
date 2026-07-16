@@ -6,7 +6,7 @@ wave: tbd
 epic_id: maintenance
 priority: P2
 status: ready
-version: "0.10"
+version: "0.14"
 level: ops
 producer: story-writer
 timestamp: "2026-07-15"
@@ -69,8 +69,8 @@ blocks: []
 points: 5
 estimated_days: 1
 risk: MEDIUM
-acceptance_criteria_count: 6
-red_gate_tests: 5
+acceptance_criteria_count: 7
+red_gate_tests: 6
 estimated_passes: "1"
 holdout_scenarios: []
 assumption_validations: []
@@ -306,15 +306,22 @@ changes cleanly bisectable.
 
 ### AC-006 — apt-mirror resilience for pre-existing apt install steps (test matrix + test-no-default-features)
 
-The three pre-existing `sudo apt-get update && sudo apt-get install ...` steps are
+The ten `sudo apt-get update && sudo apt-get install ...` steps across the CI pipeline are
 vulnerable to the same apt-mirror 404 class that motivated EC-009 (evidence: run
 29438854846 rerun, 2026-07-15 — both the `musl-tools` step in the Test matrix AND the
 `libdbus-1-dev pkg-config` step in `test-no-default-features` failed identically after
 the reclaimer's `continue-on-error: true` fix had already landed; the broken mirror
-blocked ALL remaining apt install steps in the same CI run). Each of the three steps
+blocked ALL remaining apt install steps in the same CI run). Each of the ten steps
 MUST be converted from the single-attempt inline form to the two-attempt pattern below.
 The reclaimer step itself is NOT given this wrapper — it already carries `continue-on-error:
 true` best-effort semantics per EC-009; the ≥25 GB gate is the authoritative check there.
+
+**Rationale for 7-job extension (F-CIDISK-PR1-OBS-001):** EC-010's mirror-flake class
+affects ANY job that calls `sudo apt-get update`, not just the test-matrix jobs. `clippy`
+is a `needs:` predecessor of several pipeline stages whose failure would block AC-005
+evidence collection across the whole pipeline. A partial sweep (3-site) leaves 7 known-flaky
+apt steps unresilient. Full sweep required per Canonical Principle Rule 4 (no deferral when
+the fix scope is deterministic and bounded).
 
 **Snippet — `Install musl-tools` (test matrix; `if: matrix.install_musl`):**
 
@@ -375,22 +382,216 @@ true` best-effort semantics per EC-009; the ≥25 GB gate is the authoritative c
           sudo apt-get install -y libdbus-1-dev pkg-config
 ```
 
+**Snippet — `clippy` job (`if: runner.os == 'Linux'`):**
+
+```yaml
+      - name: Install libdbus-1-dev (required by keyring build on Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          # Evidence: EC-010 mirror-flake class; clippy is a needs: predecessor blocking pipeline.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
+```
+
+**Snippet — `semver-checks` job (`if: runner.os == 'Linux'`):**
+
+```yaml
+      - name: Install libdbus-1-dev (required by keyring build on Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
+```
+
+**Snippet — `fuzz-smoke-vp021` job (`if: runner.os == 'Linux'`):**
+
+```yaml
+      - name: Install libdbus-1-dev (required by keyring build on Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
+```
+
+**Snippet — `perimeter-compile-fail` job (`if: runner.os == 'Linux'`):**
+
+```yaml
+      - name: Install libdbus-1-dev (required by keyring build on Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
+```
+
+**Snippet — `non-exhaustive-violation-compile-fail` job (`if: runner.os == 'Linux'`):**
+
+```yaml
+      - name: Install libdbus-1-dev (required by keyring build on Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
+```
+
+**Snippet — `no-hardcoded-sensors-compile-fail` job (`if: runner.os == 'Linux'`):**
+
+```yaml
+      - name: Install libdbus-1-dev (required by keyring build on Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
+```
+
+**Snippet — `shellcheck-demo-scripts` job (unconditional — ubuntu-only job):**
+
+```yaml
+      - name: Install shellcheck
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y shellcheck
+```
+
 **sed rewrite rationale (host-agnostic):** The pattern `s|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g` rewrites any ubuntu-suite mirror URL to the canonical azure archive regardless of which mirror the runner image was configured to use. It covers both classic `deb https://<mirror>/ubuntu <suite>` lines (in `/etc/apt/sources.list` and `/etc/apt/sources.list.d/*.list`) and deb822 `URIs: https://<mirror>/ubuntu` lines (in `/etc/apt/sources.list.d/*.sources`, which ubuntu-24.04 runner images ship). The `2>/dev/null || true` on each `sed` invocation handles the case where the target glob expands to no files (no-op, error suppressed). The fallback `sudo apt-get update` is NOT wrapped in `|| true` — if the canonical archive also fails, the step must fail loud.
 
-The `verify-workflow-structure` job gains a Red Gate assertion confirming the two-attempt pattern is present in ≥3 steps (one per apt install step; Red Gate test 5):
+The `verify-workflow-structure` job gains a Red Gate assertion confirming the two-attempt pattern is present in ≥12 steps (10 apt-install steps + 2 AC-007 toolchain installs share the same `if ! sudo apt-get update; then` keyword; Red Gate test 5). Derivation: 3 original sites + 7 new sites = 10 AC-006 apt-install sites; the 2 AC-007 C toolchain steps also use the AC-006 wrapper, contributing 2 more matches for a total of 12:
 
 ```bash
 # Anchored to the two-attempt pattern keyword — count-based, self-match-proof.
 # The assertion line starts with whitespace+count=$(grep..., so the if-pattern cannot self-match.
 count=$(grep -cE '^\s+if ! sudo apt-get update; then$' .github/workflows/ci.yml)
-[ "$count" -ge 3 ] || {
-  echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006: apt-mirror resilience (two-attempt pattern) missing from ≥3 apt install steps (found ${count}; need install-musl + libdbus-linux-test + libdbus-no-default-features)"
+[ "$count" -ge 12 ] || {
+  echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006: apt-mirror two-attempt wrapper missing from expected sites (found ${count}; need 12: 10 apt-install steps + 2 AC-007 toolchain installs)"
   exit 1
 }
-echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 check passed: apt-mirror resilience found ${count} times (≥3 required)."
+echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 check passed: apt-mirror resilience found ${count} times (≥12 required: 10 apt-install steps + 2 AC-007 toolchain installs)."
 ```
 
-The implementer MUST also update the final summary echo in `verify-workflow-structure` to add `+ S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥3)` to the assertion list and bump the total from `13` to `14` (`11 reachability` → `12 reachability`).
+The implementer MUST also update the final summary echo in `verify-workflow-structure` to add `+ S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12)` to the assertion list and bump the total from `13` to `14` (`11 reachability` → `12 reachability`).
+
+### AC-007 — C toolchain baseline install in both Linux workspace-build jobs (linux-test + test-no-default-features)
+
+Both Linux workspace-build CI jobs (`linux-test` matrix legs and `test-no-default-features`) install the C toolchain baseline explicitly via a dedicated step BEFORE any `cargo build` phase. The step installs `build-essential`, `libc6-dev`, `clang`, and `libclang-dev` using the AC-006 apt-mirror two-attempt resilience wrapper (so a mirror failure on this install also triggers the azure.archive.ubuntu.com fallback), making it robust to the same apt-mirror flake class (EC-010).
+
+**Root cause (DRIFT-CI-STDBOOL-001, revised v0.13):** AC-002 disk-space-reclaimer `large-packages: true` purge removes `libclang-common-16-dev`, `libclang-common-17-dev`, `libclang-common-18-dev`, and `libclang-rt-{16,17,18}-dev` from the runner. The `rocksdb-sys v0.17.3+10.4.2` build script invokes **bindgen → libclang** for binding generation; in that context `stdbool.h` is a **clang builtin resource header** shipped by `libclang-common-<N>-dev` — NOT by `libc6-dev`. Without it, bindgen fails with `fatal error: 'stdbool.h' file not found`. The v0.11 hypothesis that the runner image omitted `libc6-dev` is **falsified** by CI evidence (job 87471517229, run 29450000494, 2026-07-15): AC-007 successfully installed `build-essential libc6-dev` at 21:05:52 AFTER the reclaimer ran at 21:05:21 — and the build still failed at 21:10:26 with the same stdbool error. True root cause: **this story's own AC-002 reclaim step removes the clang resource headers that bindgen needs**. Failure is masked on cache-hit runs because Swatinem/rust-cache restores a prior librocksdb-sys artifact, bindgen never re-runs, and the missing headers are invisible — explaining push-event vs pull_request divergence. Fix: add `clang` and `libclang-dev` (version-tracking meta-packages; do NOT pin `-18`-suffixed names which break on image/llvm bumps) in addition to `build-essential` and `libc6-dev`. See EC-011 (falsification note) and EC-012 (revised root cause).
+
+The install is idempotent (`apt-get install -y` is a no-op when packages are already present) and deterministic (pinned package names; no version constraint required as `build-essential`, `libc6-dev`, `clang`, and `libclang-dev` are system packages — `clang` and `libclang-dev` are meta-packages tracking the runner's active LLVM version, which is exactly the behavior needed to restore headers removed by the reclaimer regardless of the LLVM version in use).
+
+**Snippet — Test-matrix Linux legs (`if: runner.os == 'Linux'` required; mixed-OS matrix includes macOS/Windows legs where apt-get is unavailable):**
+
+```yaml
+      # S-MAINT-CI-DISK-EXHAUSTION-001 AC-007: C toolchain baseline required by rocksdb-sys
+      # v0.17.3+10.4.2 build script (bindgen → libclang needs clang builtin resource headers).
+      # Root cause: AC-002 reclaimer large-packages purge removes libclang-common-*-dev.
+      # DRIFT-CI-STDBOOL-001 (revised 2026-07-15: self-inflicted toolchain removal, EC-012).
+      - name: Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)
+        if: runner.os == 'Linux'
+        run: |
+          # C toolchain baseline required by rocksdb-sys v0.17.3+10.4.2 build script.
+          # Root cause (DRIFT-CI-STDBOOL-001 revised): AC-002 reclaimer large-packages purge removes
+          # libclang-common-*-dev; bindgen/libclang needs these clang builtin resource headers for
+          # stdbool.h. clang + libclang-dev are meta-packages tracking the image default LLVM version
+          # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y build-essential libc6-dev clang libclang-dev
+```
+
+**Snippet — `test-no-default-features` job (ubuntu-only job; unconditional — no `if:`):**
+
+```yaml
+      # S-MAINT-CI-DISK-EXHAUSTION-001 AC-007: C toolchain baseline required by rocksdb-sys
+      # v0.17.3+10.4.2 build script (bindgen → libclang needs clang builtin resource headers).
+      # Root cause: AC-002 reclaimer large-packages purge removes libclang-common-*-dev.
+      # DRIFT-CI-STDBOOL-001 (revised 2026-07-15: self-inflicted toolchain removal, EC-012).
+      - name: Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)
+        run: |
+          # C toolchain baseline required by rocksdb-sys v0.17.3+10.4.2 build script.
+          # Root cause (DRIFT-CI-STDBOOL-001 revised): AC-002 reclaimer large-packages purge removes
+          # libclang-common-*-dev; bindgen/libclang needs these clang builtin resource headers for
+          # stdbool.h. clang + libclang-dev are meta-packages tracking the image default LLVM version
+          # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y build-essential libc6-dev clang libclang-dev
+```
+
+The `verify-workflow-structure` job gains a Red Gate assertion confirming the C toolchain baseline install is present in both Linux workspace-build jobs (Red Gate test 6 — count ≥ 2):
+
+```bash
+# Anchored to the specific install payload — count-based, self-match-proof.
+# The assertion line starts with whitespace+count=$(grep..., not whitespace+"sudo apt-get install",
+# so the ^\s+sudo anchor cannot self-match.
+count=$(grep -cE '^\s+sudo apt-get install -y build-essential libc6-dev clang libclang-dev\s*$' .github/workflows/ci.yml)
+[ "$count" -ge 2 ] || {
+  echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-007: C toolchain baseline install (build-essential libc6-dev clang libclang-dev) missing from ≥2 Linux jobs (found ${count}; need linux-test + test-no-default-features)"
+  exit 1
+}
+echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-007 check passed: C toolchain baseline install found ${count} times (≥2 required)."
+```
+
+The implementer MUST also update the final summary echo in `verify-workflow-structure` to add `+ S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2)` to the assertion list and bump the total from `14` to `15` (`12 reachability` → `13 reachability`).
 
 ## §Implementation Notes
 
@@ -430,7 +631,7 @@ runs on the same ubuntu-latest disk envelope and is subject to the same class of
 (F-CIDISK-P4-MED-002, adjudicated 2026-07-15). The ordering constraint (checkout → reclaim →
 cache restore) applies identically.
 
-**Pre-existing apt install steps — two-attempt pattern (AC-006):** The three existing `sudo apt-get update && sudo apt-get install ...` steps (Install musl-tools in test matrix; Install libdbus-1-dev in test matrix; Install libdbus-1-dev in test-no-default-features) must each be expanded from the single-attempt inline form into the two-attempt pattern specified in AC-006. The sed rewrite is host-agnostic: it matches any `https?://…/ubuntu` mirror URL (not just mirror.enzu.com), covering both classic sources.list and deb822 .sources file formats. The `2>/dev/null || true` on each sed silences missing-file errors. The fallback `sudo apt-get update` is NOT `|| true` — canonical archive failures fail loud. No `continue-on-error: true` on these steps; they are not best-effort (unlike the disk-space-reclaimer). See AC-006 for byte-exact snippets and the Red Gate assertion (count ≥ 3).
+**Pre-existing apt install steps — two-attempt pattern (AC-006):** The ten `sudo apt-get update && sudo apt-get install ...` steps across the CI pipeline (Install musl-tools in test matrix; Install libdbus-1-dev in test matrix; Install libdbus-1-dev in test-no-default-features; Install libdbus-1-dev in clippy; Install libdbus-1-dev in semver-checks; Install libdbus-1-dev in fuzz-smoke-vp021; Install libdbus-1-dev in perimeter-compile-fail; Install libdbus-1-dev in non-exhaustive-violation-compile-fail; Install libdbus-1-dev in no-hardcoded-sensors-compile-fail; Install shellcheck in shellcheck-demo-scripts) must each be expanded from the single-attempt inline form into the two-attempt pattern specified in AC-006. The sed rewrite is host-agnostic: it matches any `https?://…/ubuntu` mirror URL (not just mirror.enzu.com), covering both classic sources.list and deb822 .sources file formats. The `2>/dev/null || true` on each sed silences missing-file errors. The fallback `sudo apt-get update` is NOT `|| true` — canonical archive failures fail loud. No `continue-on-error: true` on these steps; they are not best-effort (unlike the disk-space-reclaimer). See AC-006 for byte-exact snippets and the Red Gate assertion (count ≥ 12).
 
 **Ordering constraint:** The disk-space-reclaimer step MUST run after `actions/checkout`
 (so git metadata is intact) and BEFORE `Swatinem/rust-cache` (so the cache restore does
@@ -451,7 +652,7 @@ original from LOCAL pass-2 + AC-7 `semver-checks` + AC-8 `test-no-default-featur
 job-name anchors; F-CIDISK-P4-HIGH-002 + LOW-001, adjudicated 2026-07-15). Error messages
 are preserved verbatim. No other structural changes to the `verify-workflow-structure` job.
 
-**Pass-6 traceability (LOW-001 + OBS-002):** The ci.yml summary echo must use the code-authoritative assertion count: 9 pre-existing reachability + 3 new count-based reachability + 2 new config-invariant = 14 total (12 reachability + 2 config-invariant, matching the ci.yml summary echo). (Bumped from 13→14 / 11→12 reachability by AC-006 v0.10 addition.)
+**Pass-6 traceability (LOW-001 + OBS-002):** The ci.yml summary echo must use the code-authoritative assertion count: 9 pre-existing reachability + 4 new count-based reachability + 2 new config-invariant = 15 total (13 reachability + 2 config-invariant, matching the ci.yml summary echo). (Bumped from 14→15 / 12→13 reachability by AC-007 v0.11 addition.)
 
 ## §Token Budget Estimate
 
@@ -496,7 +697,11 @@ Well within a single agent context window; no splitting required.
 - [ ] Test matrix job — `Install musl-tools` step: replace `run: sudo apt-get update && sudo apt-get install -y musl-tools` with the two-attempt mirror-resilience form from AC-006 (byte-exact snippet; preserves `if: matrix.install_musl` conditional) (AC-006)
 - [ ] Test matrix job — `Install libdbus-1-dev (required by keyring build on Linux, all-features)` step: replace `run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config` with the two-attempt form (byte-exact snippet; preserves `if: runner.os == 'Linux'` conditional) (AC-006)
 - [ ] `test-no-default-features` job — `Install libdbus-1-dev (required by keyring Secret Service backend on Linux)` step: replace `run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config` with the two-attempt form (byte-exact snippet; unconditional step) (AC-006)
-- [ ] `verify-workflow-structure` job: add AC-006 Red Gate assertion (`count=$(grep -cE '^\s+if ! sudo apt-get update; then$' .github/workflows/ci.yml)` + `[ "$count" -ge 3 ]`) before the final summary echo; update summary echo: add `+ S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥3)` to assertion list; change `11 reachability assertions` to `12 reachability assertions`; change `= 13 total checks` to `= 14 total checks` (AC-006 Red Gate test 5)
+- [ ] 7-site full sweep (AC-006, F-CIDISK-PR1-OBS-001): convert the remaining seven single-attempt apt install steps to the AC-006 two-attempt wrapper form (wrapper identical; only the final `apt-get install -y <pkgs>` line varies per site; see AC-006 snippets): `clippy` job → `libdbus-1-dev pkg-config`; `semver-checks` job → `libdbus-1-dev pkg-config`; `fuzz-smoke-vp021` job → `libdbus-1-dev pkg-config`; `perimeter-compile-fail` job → `libdbus-1-dev pkg-config`; `non-exhaustive-violation-compile-fail` job → `libdbus-1-dev pkg-config`; `no-hardcoded-sensors-compile-fail` job → `libdbus-1-dev pkg-config`; `shellcheck-demo-scripts` job → `shellcheck`. Rationale: EC-010 mirror-flake class affects every apt job; `clippy` is a `needs:` predecessor whose failure blocks the whole pipeline including AC-005 evidence; full sweep required per Canonical Principle Rule 4 (no partial deferral)
+- [ ] `verify-workflow-structure` job: add AC-006 Red Gate assertion (`count=$(grep -cE '^\s+if ! sudo apt-get update; then$' .github/workflows/ci.yml)` + `[ "$count" -ge 12 ]`) before the final summary echo; update summary echo: add `+ S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12)` to assertion list; change `11 reachability assertions` to `12 reachability assertions`; change `= 13 total checks` to `= 14 total checks` (AC-006 Red Gate test 5)
+- [ ] Linux Test job legs: add `Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)` step using the AC-006 two-attempt wrapper (byte-exact snippet from AC-007) BEFORE any `cargo build` phase (i.e., after `actions/checkout` and disk-reclaim steps, before the build step); `if: runner.os == 'Linux'` guard required (mixed-OS Test-matrix includes macOS/Windows legs where apt-get is unavailable; the step must run unconditionally on every Linux leg) (AC-007)
+- [ ] `test-no-default-features` job: add identical `Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)` step using the AC-006 two-attempt wrapper BEFORE the build phase; unconditional (AC-007)
+- [ ] `verify-workflow-structure` job: add AC-007 Red Gate assertion (`count=$(grep -cE '^\s+sudo apt-get install -y build-essential libc6-dev clang libclang-dev\s*$' .github/workflows/ci.yml)` + `[ "$count" -ge 2 ]`) before the final summary echo; update summary echo: add `+ S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2)` to assertion list; change `12 reachability assertions` to `13 reachability assertions`; change `= 14 total checks` to `= 15 total checks` (AC-007 Red Gate test 6)
 - [ ] Record three consecutive green CI run IDs in the PR description (AC-005 evidence)
 
 ## §Previous Story Intelligence
@@ -533,12 +738,12 @@ and `wasm32-compile-check` assertion pattern established during S-PLUGIN-PREREQ-
   and cache configuration must NOT be changed
 - The `verify-workflow-structure` job's existing assertions (AC-5 `TARGET_COUNT >= 5`,
   AC-6 cargo-deny/audit, AC-7 semver, AC-8 no-default-features, non-exhaustive, wasm32
-  checks) must ALL pass after this story's modifications; the five new assertions (AC-001
-  count ≥ 2, AC-002 count ≥ 2, AC-006 count ≥ 3, AC-003 assertions 3 and 4) are additive,
-  and the 7 pre-existing reachability assertions (5 original + AC-7 semver-checks + AC-8
-  test-no-default-features) are updated in-place to self-match-proof anchored forms (see
-  §Tasks sibling-sweep task); no other structural changes. The final summary echo must
-  reflect 14 total checks (12 reachability + 2 config-invariant)
+  checks) must ALL pass after this story's modifications; the six new assertions (AC-001
+  count ≥ 2, AC-002 count ≥ 2, AC-006 count ≥ 3, AC-007 count ≥ 2, AC-003 assertions 3
+  and 4) are additive, and the 7 pre-existing reachability assertions (5 original + AC-7
+  semver-checks + AC-8 test-no-default-features) are updated in-place to self-match-proof
+  anchored forms (see §Tasks sibling-sweep task); no other structural changes. The final
+  summary echo must reflect 15 total checks (13 reachability + 2 config-invariant)
 - All new GitHub Actions steps must be pinned to a specific commit SHA with a `# vN.N.N`
   comment per the project SHA-pinning policy (every existing action in ci.yml is
   commit-pinned; no exceptions)
@@ -562,14 +767,13 @@ No new Rust dependencies. CI tooling only:
 | `insightsengineering/disk-space-reclaimer` | `dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2` (validated 2026-07-15) | Actively-maintained drop-in fork of unmaintained jlumbroso/free-disk-space (last 2023-10). Removes android/dotnet/haskell/docker-images/large-packages; swap preserved as OOM headroom (`swap-storage: false`; see EC-008). Fallback: `jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1` |
 | `df` / `awk` | system utilities present on all ubuntu-latest runners | Used in preflight, ≥25 GB gate, and failure annotation steps |
 
-No new `apt-get` packages. No Python packages. No compiled Cargo dev-dependencies.
-No new GitHub Actions secrets required.
+New `apt-get` packages installed by AC-007 C toolchain baseline step (CI runner only; not Rust crate dependencies): `build-essential`, `libc6-dev`, `clang`, `libclang-dev`. These restore the clang resource headers (`libclang-common-*-dev`) removed by AC-002 disk-space-reclaimer `large-packages: true` purge, enabling bindgen-based build scripts (librocksdb-sys). No Python packages. No compiled Cargo dev-dependencies. No new GitHub Actions secrets required.
 
 ## §File Structure Requirements
 
 | File | Action | Notes |
 |------|--------|-------|
-| `.github/workflows/ci.yml` | MODIFY | Linux Test job legs: add preflight (AC-001), disk-space-reclaimer with `swap-storage: false, continue-on-error: true` (AC-002; best-effort per EC-009; gate is the authoritative check), ≥25 GB gate (AC-002; `df -P /` 1K-block form + `AVAIL_GB=${AVAIL_GB:-0}` guard), failure annotation (AC-004; `USED_PCT=${USED_PCT:-0}` guard); `test-no-default-features` job: mirror same three protective steps + failure annotation (F-CIDISK-P4-MED-002); DO NOT add `CARGO_PROFILE_DEV_DEBUG` (AC-003 — it is a no-op; forbidden); convert three pre-existing `sudo apt-get update && sudo apt-get install ...` steps to two-attempt mirror-resilience form (AC-006; byte-exact snippets in AC-006 section); `verify-workflow-structure` job: AC-001 count assertion (≥2; `^\s+- name: Report initial disk space\s*$`) + AC-002 count assertion (≥2; `^\s+uses: insightsengineering/disk-space-reclaimer`) + AC-006 count assertion (≥3; `^\s+if ! sudo apt-get update; then$`) + two AC-003 `.cargo/config.toml` invariant checks + anchor 7 pre-existing reachability assertions (5 original + AC-7 `semver-checks` + AC-8 `test-no-default-features`; see §Tasks sibling-sweep) + update summary echo from 13→14 total / 11→12 reachability; no other jobs touched |
+| `.github/workflows/ci.yml` | MODIFY | Linux Test job legs: add preflight (AC-001), disk-space-reclaimer with `swap-storage: false, continue-on-error: true` (AC-002; best-effort per EC-009; gate is the authoritative check), ≥25 GB gate (AC-002; `df -P /` 1K-block form + `AVAIL_GB=${AVAIL_GB:-0}` guard), failure annotation (AC-004; `USED_PCT=${USED_PCT:-0}` guard); `test-no-default-features` job: mirror same three protective steps + failure annotation (F-CIDISK-P4-MED-002); DO NOT add `CARGO_PROFILE_DEV_DEBUG` (AC-003 — it is a no-op; forbidden); convert ten `sudo apt-get update && sudo apt-get install ...` steps to two-attempt mirror-resilience form: 3 original steps (Install musl-tools in test matrix; Install libdbus-1-dev in test matrix; Install libdbus-1-dev in test-no-default-features) + 7 new steps (clippy → libdbus-1-dev pkg-config; semver-checks → libdbus-1-dev pkg-config; fuzz-smoke-vp021 → libdbus-1-dev pkg-config; perimeter-compile-fail → libdbus-1-dev pkg-config; non-exhaustive-violation-compile-fail → libdbus-1-dev pkg-config; no-hardcoded-sensors-compile-fail → libdbus-1-dev pkg-config; shellcheck-demo-scripts → shellcheck) (AC-006; F-CIDISK-PR1-OBS-001; byte-exact snippets in AC-006 section); add `Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)` step with outer step-level preamble (4-line comment block above `- name:`) via AC-006 two-attempt wrapper BEFORE any cargo build phase in both Linux workspace-build jobs (AC-007; DRIFT-CI-STDBOOL-001 revised — self-inflicted toolchain removal by reclaimer, not runner-image omission; F-CIDISK-PR1-MED-001); `verify-workflow-structure` job: AC-001 count assertion (≥2; `^\s+- name: Report initial disk space\s*$`) + AC-002 count assertion (≥2; `^\s+uses: insightsengineering/disk-space-reclaimer`) + AC-006 count assertion (≥12; `^\s+if ! sudo apt-get update; then$`; 10 apt-install steps + 2 AC-007 toolchain installs; F-CIDISK-PR1-MED-002) + AC-007 count assertion (≥2; `^\s+sudo apt-get install -y build-essential libc6-dev clang libclang-dev\s*$`) + two AC-003 `.cargo/config.toml` invariant checks + anchor 7 pre-existing reachability assertions (5 original + AC-7 `semver-checks` + AC-8 `test-no-default-features`; see §Tasks sibling-sweep) + update summary echo from 13→15 total / 11→13 reachability; no other jobs touched |
 
 No new files required. The `insightsengineering/disk-space-reclaimer` action is invoked
 as an inline `uses:` step; it does not require a new config file in the repository.
@@ -602,6 +806,8 @@ as an inline `uses:` step; it does not require a new config file in the reposito
 | EC-008 | `swap-storage: false` — OOM headroom preservation trade-off | Swap (~4 GB) is deliberately preserved. The linux-gnu leg runs a 1000-PROPTEST_CASES nextest run followed by doctests; a pre-existing OOM-kill risk exists in that leg. The remaining reclaim inputs (android/dotnet/haskell/docker-images/large-packages) still deliver 21–31 GB, satisfying the ≥25 GB gate. Future maintainers: do NOT re-enable `swap-storage: true` without first verifying the doctest OOM risk is resolved. (F-CIDISK-P4-MED-001, adjudicated 2026-07-15.) |
 | EC-009 | apt-mirror flake / partial-reclaim: `large-packages: true` triggers `apt-get` against the runner's rotating apt mirror; the mirror can return HTTP 404 Release files on rotation (evidence: CI run 29437306537, 2026-07-15, mirror.enzu.com, apt exit code 100, reclaimer step failed — ALL THREE hardened Linux jobs failed BEFORE the ≥25 GB gate) | `continue-on-error: true` on the reclaimer step allows the job to proceed to the ≥25 GB gate regardless of reclaimer exit code. If disk is ≥25 GB despite partial/zero reclaim, the build continues. If below 25 GB, the gate exits 1 loud with the actual free-GB count. Trade-off: `continue-on-error` can mask persistent action breakage (e.g., an action update that breaks the inputs API); mitigated because the ≥25 GB gate provides ground-truth disk verification on every run and fails loud when reclaim genuinely under-delivers. |
 | EC-010 | Persistent apt-mirror outage affecting pre-existing apt install steps: the runner image selects its apt mirror at image-build time; a mirror that returns HTTP 404 Release files (or is otherwise unreachable) causes all `sudo apt-get update` invocations in the job to fail with exit code 100, regardless of `continue-on-error` on the reclaimer step (the reclaimer's `continue-on-error` does not propagate to other steps). Evidence: run 29438854846 rerun (2026-07-15) — mirror.enzu.com 404 blocked `Install musl-tools` (test matrix) and `Install libdbus-1-dev pkg-config` (test-no-default-features) even after EC-009 fix had landed. Runner-image mirror selection is entirely outside our control; we cannot pre-screen or change the runner's default apt mirror. | Two-attempt pattern per AC-006: first attempt `sudo apt-get update`; on failure rewrite all ubuntu-suite mirror URLs in both classic sources.list forms (`/etc/apt/sources.list` and `/etc/apt/sources.list.d/*.list`) and deb822 form (`/etc/apt/sources.list.d/*.sources`) to `azure.archive.ubuntu.com` (always-authoritative canonical archive); then retry `sudo apt-get update`. Trade-off: the fallback adds ~seconds only on failure (rewrite + retry is cheap); azure.archive.ubuntu.com is slower than mirrors but always authoritative. No `continue-on-error` on these steps — they are not best-effort; if the canonical archive also fails, the job fails loud. |
+| EC-011 | Runner-image toolchain regression — `ubuntu-latest` image `ubuntu24/20260705.232` ships without `libc6-dev` and `build-essential`, causing C-compilation failures in native build scripts (rocksdb-sys v0.17.3+10.4.2). DRIFT-CI-STDBOOL-001 (2026-07-15): observed in PR #224 pull_request CI runs; both Linux legs (linux-test matrix + test-no-default-features) failed with `fatal error: 'stdbool.h' file not found`. The push-event CI succeeded because that run landed on a different runner image revision that retained libc6-dev. Runner-image regressions of this class are unpredictable — GitHub does not allow pinning the runner image version on `ubuntu-latest`-labeled hosted runners; any `ubuntu-latest` relabelling can silently drop previously-installed packages. **[v0.13 FALSIFIED]** This hypothesis is refuted by CI evidence from job 87471517229 (run 29450000494, 2026-07-15): FA596F92 branch (which includes the v0.11 AC-007 `build-essential libc6-dev` install) still failed all 6 Linux test legs. The causal chain shows the reclaimer removing `libclang-common-*-dev` at 21:05:21, AC-007 successfully installing `build-essential libc6-dev` at 21:05:52, and the build STILL failing at 21:10:26 with `stdbool.h`. The root cause is self-inflicted clang-toolchain removal by this story's own AC-002 reclaim step, not a runner-image omission. See EC-012 for the corrected root cause. | **[v0.13 SUPERSEDED]** Original mitigation (install `build-essential libc6-dev`) was insufficient — those packages do not provide the clang builtin resource headers removed by the reclaimer. Corrected mitigation in EC-012: install `clang libclang-dev` meta-packages in addition. |
+| EC-012 | Self-inflicted toolchain removal — AC-002 disk-space-reclaimer `large-packages: true` purge removes `libclang-common-16-dev`, `libclang-common-17-dev`, `libclang-common-18-dev`, and `libclang-rt-{16,17,18}-dev` from the runner image. `librocksdb-sys v0.17.3+10.4.2` generates bindings via bindgen → libclang; `stdbool.h` is a **clang builtin resource header** shipped by `libclang-common-<N>-dev` — NOT by `libc6-dev`. Failure is masked on cache-hit runs (Swatinem/rust-cache restores a prior librocksdb-sys artifact, bindgen never re-runs, and the missing headers are invisible), explaining push-event vs pull_request divergence. Evidence: CI job 87471517229 (run 29450000494, image ubuntu-24.04 Version 20260705.232.1, 2026-07-15): reclaimer removed `libclang-common-*-dev` at 21:05:21; AC-007 installed `build-essential libc6-dev` at 21:05:52 (successfully, proving AC-006 mirror fallback works); `librocksdb-sys` bindgen failed at 21:10:26 with `stdbool.h`. DRIFT-CI-STDBOOL-001 root-cause revision (2026-07-15). | AC-007 mitigates (corrected in v0.13): install `clang` and `libclang-dev` (version-tracking meta-packages; do NOT pin `-18`-suffixed names which break on image/llvm bumps) in addition to `build-essential` and `libc6-dev`, after the reclaimer step. Meta-packages automatically track the runner's active LLVM version and restore the clang resource headers removed by the reclaimer. Install is idempotent (no-op when packages already present). No `continue-on-error` — the packages are mandatory for the build; if the canonical archive fails, the job must fail loud. |
 
 ## §Research Trace
 
@@ -642,6 +848,10 @@ Findings applied in v0.3:
 
 ## §Changelog
 
+- v0.14 (2026-07-15): PR-LEVEL pass-1 findings closed (PR #224 @5cd2df5e). F-CIDISK-PR1-MED-001 [AC-007 outer preamble falsified-text correction]: both AC-007 snippets now include the 4-line outer step-level preamble comment block immediately above `- name:`, with corrected text citing self-inflicted toolchain removal (EC-012) rather than the falsified runner-image-omission hypothesis (EC-011); §FSR MODIFY row updated to document preamble requirement. F-CIDISK-PR1-MED-002 [AC-006 threshold 3→12, slack elimination, POL-34]: Red Gate assertion threshold changed from `[ "$count" -ge 3 ]` to `[ "$count" -ge 12 ]`; derivation: 10 AC-006 apt-install steps + 2 AC-007 toolchain installs all emit the `if ! sudo apt-get update; then` keyword; error/pass echo updated to name both categories and the 12-count basis; `(count≥3)` → `(count≥12)` in §Tasks verify-workflow-structure bullet and §FSR assertion references. F-CIDISK-PR1-OBS-001 [process-gap, full 7-site sweep per Canonical Principle Rule 4]: AC-006 scope extended from 3 to 10 sites; 7 new jobs converted to the two-attempt wrapper form — `clippy` (libdbus-1-dev pkg-config), `semver-checks` (libdbus-1-dev pkg-config), `fuzz-smoke-vp021` (libdbus-1-dev pkg-config), `perimeter-compile-fail` (libdbus-1-dev pkg-config), `non-exhaustive-violation-compile-fail` (libdbus-1-dev pkg-config), `no-hardcoded-sensors-compile-fail` (libdbus-1-dev pkg-config), `shellcheck-demo-scripts` (shellcheck); rationale: clippy is a `needs:` predecessor whose failure blocks the whole pipeline including AC-005 evidence; EC-010 mirror-flake class affects every apt job; 12-count derivation: 3 original + 7 new = 10 apt-install sites, plus 2 AC-007 C toolchain installs sharing the same two-attempt keyword; byte-exact snippets added to AC-006 for all 7 new sites; §Tasks: new 7-site sweep bullet added; §FSR and §Implementation Notes updated throughout.
+- v0.13 (2026-07-15): root-cause correction per CI evidence (job 87471517229, run 29450000494, 2026-07-15). EC-011 v0.11 hypothesis falsified: original claim that runner image `ubuntu24/20260705.232` omits `libc6-dev` is refuted — AC-007 successfully installed `build-essential libc6-dev` at 21:05:52 but the build still failed at 21:10:26 with `stdbool.h`; true root cause is self-inflicted clang toolchain removal by this story's own AC-002 `large-packages: true` purge (removes `libclang-common-*-dev`; bindgen-based librocksdb-sys needs these clang builtin resource headers; masked on cache-hit runs). EC-011 amended with falsification note (ID preserved per POL-1 append-only). EC-012 added: self-inflicted toolchain removal root cause documentation. AC-007 corrected: both snippets' step names updated to `Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)`; comment lines updated with corrected root cause (DRIFT-CI-STDBOOL-001 revised); install lines extended to `sudo apt-get install -y build-essential libc6-dev clang libclang-dev`. Red Gate test 6 grep pattern updated to `^\s+sudo apt-get install -y build-essential libc6-dev clang libclang-dev\s*$`; error/pass echo updated to name all four packages. §Tasks AC-007 bullets, §FSR MODIFY row, and §Library & Framework Requirements updated throughout. Note: DRIFT-CI-STDBOOL-001 registry entry requires root-cause revision — state-manager owns the registry; reporting here, not editing directly. (DRIFT-CI-STDBOOL-001 revised, 2026-07-15.)
+- v0.12 (2026-07-15): spec-precision amendment — AC-007 Test-matrix instance requires `if: runner.os == 'Linux'` guard (mixed-OS matrix includes macOS/Windows legs where apt-get is unavailable; semantic intent of "unconditional on Linux legs" preserved; DRIFT-CI-STDBOOL-001 lineage; discovered at implementation in fix-burst-9 @fa596f92). §Tasks AC-007 Linux Test leg bullet updated: "no `if:` condition (unconditional on Linux legs)" → "`if: runner.os == 'Linux'` guard required". AC-007 snippet split into two labeled forms: Test-matrix leg (with `if: runner.os == 'Linux'`) and test-no-default-features leg (unconditional, ubuntu-only). Red Gate test 6 grep unaffected (anchors to `run:` block content `^\s+sudo apt-get install -y build-essential libc6-dev\s*$`, not to any `if:` line).
+- v0.11 (2026-07-15): DRIFT-CI-STDBOOL-001 adjudication per D-1791 (product-owner; POL-32). Runner-image regression: `ubuntu-latest` image `ubuntu24/20260705.232` ships without `libc6-dev` and `build-essential`, causing `rocksdb-sys v0.17.3+10.4.2` build script to fail with `fatal error: 'stdbool.h' file not found` in both Linux CI legs (pull_request runs). EC-011 added: runner-image toolchain regression class documentation. AC-007 added: explicit `sudo apt-get install -y build-essential libc6-dev` step via AC-006 two-attempt wrapper in both Linux workspace-build jobs, positioned BEFORE any cargo build phase. Red Gate test 6 added: `count=$(grep -cE '^\s+sudo apt-get install -y build-essential libc6-dev\s*$' .github/workflows/ci.yml)` count ≥ 2 in verify-workflow-structure. acceptance_criteria_count: 6→7. red_gate_tests: 5→6. §Architecture Compliance Rules: five→six new assertions. §Implementation Notes: pass-6 traceability count bumped 14→15 / 12→13 reachability. §File Structure Requirements and §Tasks updated. verify-workflow-structure summary echo must be updated from 14→15 total.
 - v0.10 (2026-07-15): fix-burst-8 adjudication — PR #224 persistent apt-mirror blocker (product-owner; POL-32). AC-006 added: apt-mirror resilience for the three pre-existing `sudo apt-get update && sudo apt-get install ...` steps (Install musl-tools in test matrix; Install libdbus-1-dev pkg-config in test matrix; Install libdbus-1-dev pkg-config in test-no-default-features). Evidence: run 29438854846 rerun (2026-07-15) — mirror.enzu.com returned HTTP 404 Release files on BOTH the `musl-tools` and `libdbus-1-dev` steps after the EC-009 reclaimer `continue-on-error: true` fix had already landed; AC-005 unachievable while these steps depend on the broken mirror. Fix: two-attempt pattern — first `sudo apt-get update`; on failure sed-rewrite any ubuntu mirror URL in classic sources.list and deb822 .sources forms to `azure.archive.ubuntu.com`; then retry. EC-010 added: persistent apt-mirror outage class. Red Gate test 5 added: `count=$(grep -cE '^\s+if ! sudo apt-get update; then$' .github/workflows/ci.yml)` count ≥ 3 in verify-workflow-structure. acceptance_criteria_count: 5→6. red_gate_tests: 4→5. §Implementation Notes: apt-resilience note added; pass-6 traceability count bumped 13→14 / 11→12 reachability. §Architecture Compliance Rules: four→five new assertions. §File Structure Requirements and §Tasks updated. verify-workflow-structure summary echo must be updated from 13→14 total.
 - v0.9 (2026-07-15): fix-burst-7 adjudication — PR #224 first live CI run failure (product-owner; POL-32). EC-009 added: apt-mirror flake / partial-reclaim class — `large-packages: true` invokes `apt-get` against the runner's rotating mirror; mirror.enzu.com returned HTTP 404 Release files (run 29437306537, 2026-07-15), apt exited 100, reclaimer step failed, ALL THREE hardened Linux jobs failed BEFORE the ≥25 GB gate ran. Fix: `continue-on-error: true` added to reclaimer step in BOTH Linux jobs (linux-test legs + test-no-default-features). AC-002 prose updated: YAML snippet added showing the step with `continue-on-error: true` + inline comment documenting the evidence and rationale. EC-001 updated: design changed from `continue-on-error: false` (default, prior) to `continue-on-error: true`; early-failure rationale replaced with gate-as-authoritative-check rationale. §Implementation Notes: new "Reclaimer step is BEST-EFFORT" paragraph added. §Tasks: `continue-on-error: true` added to both reclaimer task bullets. §File Structure Requirements: notes column updated. AC-002 count≥2 reachability assertion UNAFFECTED — grep anchors `^\s+uses: insightsengineering/disk-space-reclaimer`; `continue-on-error:` is a separate YAML key on a different line, not part of the `uses:` line. acceptance_criteria_count and red_gate_tests unchanged.
 - v0.8 (2026-07-15): LOCAL pass-7 spec fix (product-owner fix-burst-6; POL-32). F-CIDISK-P7-MED-001: AC-003 assertions 3 and 4 redesigned from context-blind grep to section-scoped awk; assertion-3 now verifies debug = "line-tables-only" is within [profile.dev] (not just present anywhere in the file); assertion-4 now verifies debug = false payload is within [profile.dev.package."*"] (not just that the section header exists). §Tasks AC-003 assertion-3 and assertion-4 descriptions updated to awk forms. F-CIDISK-P7-LOW-001: AC-004 code snippet corrected to df -P / (was df /; now matches the ratified pass-6 form consistent with the AC-002 gate step); pass-6 traceability note shortened to drop the now-redundant df -P / annotation. F-CIDISK-P7-OBS-001: §Implementation Notes arithmetic rewritten to code-authoritative grouping: 9 pre-existing reachability + 2 new count-based reachability + 2 new config-invariant = 13 total (11 reachability + 2 config-invariant, matching the ci.yml summary echo).

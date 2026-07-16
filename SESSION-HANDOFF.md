@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.990"
+version: "7.991"
 status: current
-timestamp: 2026-07-15T06:00:00Z
+timestamp: 2026-07-16T00:30:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -110,64 +110,64 @@ timestamp: 2026-07-15T06:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1776 SESSION WRAP; develop@5f1b5771; both defect lanes CONVERGED; PQL PR #223 OPEN @973aedcf CI 43/43 PR-LEVEL streak 1/3 (pass-2 next); MCP PR #222 CONVERGED 3/3 @5d2624aa (WAITS for #223); VERY NEXT = dispatch PR-LEVEL adversary pass 2 on frozen 973aedcf (streak 1/3)** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1776 is the most recent durable snapshot).
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1776 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.376. D-1776 SESSION WRAP; PQL LANE 2 HEAD @973aedcf (49p/35fb; PR #223 OPEN; CI 43/43 PASS; PR-LEVEL streak 1/3; pass-2 next); MCP LANE 1 HEAD @5d2624aa (47p/28fb; PR #222 OPEN; CONVERGED 3/3; AWAITING HUMAN MERGE GATE; WAITS for #223); STORY-INDEX v2.686; BC-INDEX v8.25; total_stories 242; workspace ~5594 PQL ~5512 MCP; VERY NEXT ACTION = dispatch PR-LEVEL adversary pass 2 (PQL, frozen 973aedcf, streak 1/3) [fresh session].
+> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.392. D-1792 CONSOLIDATION BURST; PQL LANE 2 HEAD @60c97e8a (66p/46fb; PR #223 OPEN; CI 43/43 GREEN; PR-LEVEL CONVERGED 3/3; AWAITING HUMAN MERGE GATE); MCP LANE 1 HEAD @5d2624aa (47p/28fb; PR #222 OPEN; CONVERGED 3/3; AWAITING HUMAN MERGE GATE; WAITS for #223); MAINT LANE 3 HEAD @498ffb6c (story v0.14; PR #224 OPEN; CI running; PR-LEVEL 0/3 fresh); STORY-INDEX v2.693; BC-INDEX v8.30; total_stories 243; workspace 5626 @60c97e8a; VERY NEXT ACTION = human merge gate for PQL PR #223 [three items pending human decision] [fresh session].
 
 ---
 
-## §RESUME SNAPSHOT — D-1791 (2026-07-15 — THREE OPEN PRs; STATE v8.391)
+## §RESUME SNAPSHOT — D-1792 (2026-07-16 — THREE OPEN PRs; STATE v8.392) [SUPERSEDES D-1791]
 
 ### RESUME IN ONE BREATH
 
-Three open PRs. PQL PR #223 @168b2e96 (59p/43fb; PR-LEVEL 12p/8fb; streak 0/3; CI RUNNING zero-failures) — NEXT: confirm CI 43/43 then PR-LEVEL pass-13 on frozen 168b2e96. MCP PR #222 @5d2624aa CONVERGED 3/3 — merge WAITS for #223. Maintenance PR #224 @c9cb2c34 (story v0.10; LOCAL 3-CLEAN converged; fb-7 EC-009 + fb-8 EC-010 apt-resilience pushed; push-event CI SUCCESS; pull_request CI FAILED — DRIFT-CI-STDBOOL-001 stdbool.h runner-image regression, not a hardening regression) — NEXT: PO adjudicate v0.11 (EC-011 build-essential/libc6-dev install, DRIFT-CI-STDBOOL-001), implementer fix, CI validate, THEN PR-LEVEL pass-1 on updated frozen HEAD.
+Three open PRs. PQL PR #223 @60c97e8a CONVERGED 3/3 (passes 17/18/19 CLEAN strict; security delta APPROVE; pr-reviewer APPROVE; 66p/46fb) — AWAITING HUMAN MERGE GATE. MCP PR #222 @5d2624aa CONVERGED 3/3 — merge WAITS for #223. Maintenance PR #224 @498ffb6c (story v0.14; DRIFT-CI-STDBOOL-001 root cause CONFIRMED AC-002 self-inflicted toolchain-removal; fb-11 CI running; PR-LEVEL 0/3 fresh; AC-005 restart after CI validates).
 
-### HEADS (verified 2026-07-15 at D-1791 burst)
+### HEADS (verified 2026-07-16 at D-1792 burst)
 
 - develop: origin/develop = local develop = `5f1b5771` (UNCHANGED; PR #221 squash-merged 2026-07-11)
-- factory-artifacts: this D-1791 wrap commit — run `git -C .factory log -1 --format='%h %s'` (do not hard-code)
-- `fix/DEFECT-PQL-FNCALL-LHS-001` `168b2e96` — PUSHED clean. PR #223 OPEN. CI RUNNING (zero-failures confirmed; 43/43 count TBD). PR-LEVEL 12 passes / 8 fix-bursts, streak 0/3 on frozen 168b2e96. LOCAL CONVERGED 3/3 on prior frozen 973aedcf.
+- factory-artifacts: this D-1792 burst commit — run `git -C .factory log -1 --format='%h %s'` (do not hard-code)
+- `fix/DEFECT-PQL-FNCALL-LHS-001` `60c97e8a` — PUSHED clean. PR #223 OPEN. CI 43/43 GREEN. PR-LEVEL CONVERGED 3/3 on FROZEN HEAD 60c97e8a (passes 17/18/19 CLEAN strict). AWAITING HUMAN MERGE GATE.
 - `fix/DEFECT-MCP-ROWSHAPE-NULLS-001` `5d2624aa` — PUSHED clean. PR #222 OPEN. PR-LEVEL CONVERGED 3/3 (47p/28fb). AWAITING HUMAN MERGE GATE — WAITS for #223.
-- `maintenance/ci-disk-hardening` `c9cb2c34` — PUSHED clean. PR #224 OPEN. Story v0.10 (FB-8 AC-006+EC-010). LOCAL 3-CLEAN CONVERGED. PR-LEVEL 0/3 fresh — PENDING v0.11 amendment (DRIFT-CI-STDBOOL-001) before pass-1 dispatches.
-- AUDIT-COVERAGE-001 `cd369b54` — LOCAL-ONLY (1 ignorable untracked scripts/__pycache__; parked until defect PRs merge+rebase)
+- `maintenance/ci-disk-hardening` `498ffb6c` — PUSHED clean. PR #224 OPEN. Story v0.14 (FB-11: AC-006 10 sites; AC-007 4-package; zero single-attempt forms). CI running on 498ffb6c. PR-LEVEL 0/3 fresh — confirm CI 43/43 then AC-005 count 1/3 then PR-LEVEL pass-1.
+- AUDIT-COVERAGE-001 `cd369b54` — LOCAL-ONLY (parked until defect PRs merge+rebase)
 - S-3.09 `43c41389` KEEP-PARKED; W3-FIX-S307-001 `fcab8717` parked-dirty do-NOT-touch
 
 ### PER-WORKSTREAM RESUME NEXT-ACTIONS
 
-1. **LANE 2 — PQL PR #223** — confirm CI 43/43 GREEN on 168b2e96 (zero-failures already; 43/43 count TBD) → dispatch PR-LEVEL adversary pass-13 on frozen 168b2e96 (streak 0/3; NO pushes mid-cascade per DRIFT-ORCH-PRLEVEL-PUSH-001). On 3/3 → HUMAN merge gate (DRIFT-PQLFN-OD7 Gap-1/Gap-2 ratification; BC-2.11.019 sequencing; POL-14 auto-promotion fires on merge; LOW-006 keyword-list adjudication).
+1. **LANE 2 — PQL PR #223** — AWAITING HUMAN MERGE GATE. Gate items: (a) DRIFT-PQLFN-OD7 Gap-1/Gap-2 ratification; (b) #223-before-#222 sequencing confirmation (POL-14 auto-promotion fires on #223 merge); (c) LOW-006 21-keyword list adjudication; (d) TD-FACTORY-HOOK-BYPASS-001 apostrophe-normalization tool-limitation exception class ratification. On approval → pr-manager squash-merge + state-manager post-merge burst.
 2. **LANE 1 — MCP PR #222** — merge WAITS for #223; after #223 merges, present merge gate to human (pr-level-pass-27.md §CONVERGENCE disclosures); on approval → pr-manager squash-merge + state-manager post-merge burst.
-3. **LANE 3 — MAINT PR #224** — PO adjudicate story v0.10→v0.11 (add EC-011 + AC-007: `sudo apt-get install -y build-essential libc6-dev` gated by AC-006 mirror wrapper; DRIFT-CI-STDBOOL-001 root cause); implementer push v0.11 fix to c.i-disk-hardening; CI validate; THEN dispatch PR-LEVEL pass-1 on updated frozen HEAD (NOT c9cb2c34).
+3. **LANE 3 — MAINT PR #224** — confirm CI 43/43 GREEN on 498ffb6c → AC-005 count 1/3 → dispatch PR-LEVEL adversary pass-1 on frozen 498ffb6c (streak 0/3; NO pushes mid-cascade per DRIFT-ORCH-PRLEVEL-PUSH-001). On 3/3 + security + pr-reviewer APPROVE → HUMAN merge gate.
 4. **AUDIT-COVERAGE-001** — parked @cd369b54 until BOTH PQL + MCP merge → rebase → live audit re-run → LOCAL 3-CLEAN → push → PR.
 5. **day2 doc disposition** — clip-boundary-and-reframe-asks-2026-06-30.md still open.
 
 ### PENDING HUMAN DECISIONS
 
-1. PR #223 (DEFECT-PQL-FNCALL-LHS-001) merge gate — after PR-LEVEL 3/3: DRIFT-PQLFN-OD7 Gap-1/Gap-2 ratification; BC-2.11.019 sequencing confirmation; POL-14 auto-promotion fires; LOW-006 keyword-list adjudication (keep 21-keyword list or open follow-up story).
+1. PR #223 (DEFECT-PQL-FNCALL-LHS-001) merge gate: (a) DRIFT-PQLFN-OD7 Gap-1/Gap-2 ratification; (b) #223-before-#222 sequencing confirmation (POL-14 vehicle); (c) LOW-006 21-keyword list adjudication; (d) TD-FACTORY-HOOK-BYPASS-001 apostrophe-normalization exception class (U+2018/U+2019→U+0027 via python shutil.copy2; content byte-verified; cf. OrgSlug audit-test precedent).
 2. PR #222 (DEFECT-MCP-ROWSHAPE-NULLS-001) merge gate — CONVERGED 3/3; WAITS for #223; disclosures: (a) BC-2.11.019 rides PQL PR; (b) POL-14 vehicle is PQL PR; (c) merge PQL first.
-3. PR #224 (S-MAINT-CI-DISK-EXHAUSTION-001) merge gate — after v0.11 CI fix + PR-LEVEL 3-CLEAN + AC-005 3 green + security + pr-reviewer; behavioral_contracts: [] (no POL-14).
+3. PR #224 (S-MAINT-CI-DISK-EXHAUSTION-001) merge gate — after CI 43/43 on 498ffb6c + AC-005 3 green + PR-LEVEL 3-CLEAN + security + pr-reviewer APPROVE; behavioral_contracts: [] (no POL-14).
 4. day2-design-decisions/clip-boundary-and-reframe-asks-2026-06-30.md disposition (NOT staged).
 5. S-3.09 EC-collision handling option (A/B/C) at wave-gate / S-3.09 dispatch.
 
-### WORKTREE INVENTORY (D-1791)
+### WORKTREE INVENTORY (D-1792)
 
-- `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ cd369b54 (LOCAL-ONLY; 44 commits; parked until defect PRs merge+rebase)
+- `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ cd369b54 (LOCAL-ONLY; parked until defect PRs merge+rebase)
 - `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001` on `fix/DEFECT-MCP-ROWSHAPE-NULLS-001` @ 5d2624aa (PUSHED; PR #222 OPEN; CONVERGED 3/3; AWAITING HUMAN MERGE GATE)
-- `.worktrees/DEFECT-PQL-FNCALL-LHS-001` on `fix/DEFECT-PQL-FNCALL-LHS-001` @ 168b2e96 (PUSHED; PR #223 OPEN; 59p/43fb; PR-LEVEL 12/8 streak 0/3; CI RUNNING; pass-13 NEXT)
-- `.worktrees/S-MAINT-CI-DISK-EXHAUSTION-001` on `maintenance/ci-disk-hardening` @ c9cb2c34 (PUSHED; story v0.10; PR #224 OPEN; PR-LEVEL 0/3 pending v0.11 fix; AC-005 1/3)
+- `.worktrees/DEFECT-PQL-FNCALL-LHS-001` on `fix/DEFECT-PQL-FNCALL-LHS-001` @ 60c97e8a (PUSHED; PR #223 OPEN; 66p/46fb; PR-LEVEL CONVERGED 3/3; AWAITING HUMAN MERGE GATE)
+- `.worktrees/S-MAINT-CI-DISK-EXHAUSTION-001` on `maintenance/ci-disk-hardening` @ 498ffb6c (PUSHED; story v0.14; PR #224 OPEN; CI running; PR-LEVEL 0/3 fresh; AC-005 restart)
 - `.worktrees/S-3.09` KEEP-PARKED on `feature/S-3.09` @ 43c41389 (local-only; backup `backup/S-3.09-preresume-43c41389`; D-1666)
 - `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ fcab8717 (local-only; do NOT touch)
 
-### DECISION DELTA — D-1791 (D-1777..D-1791)
+### DECISION DELTA — D-1792 (D-1792 consolidation burst)
 
-15 bursts D-1777..D-1791 this session. LANE 2 (PQL): PR-LEVEL passes 7-12 (6 passes; D-1782/D-1784/D-1786/D-1787/D-1789/D-1790) + fix-bursts 39-43 (5 fix-bursts) — pass-7 OBS-only CLOSED (D-1782); pass-8 CLEAN 0/3→1/3 (D-1783); pass-9 2 LOW + 1 OBS RESET (D-1784); pass-10 1 MED CLOSED (D-1786); pass-11 4 findings CLOSED incl. ADR-048 §D.7.2 retraction + BC-2.11.019 v1.24 (D-1789); pass-12 2 LOW + 3 OBS CLOSED fb-43; streak 0/3 on frozen 168b2e96 (D-1790). MCP (LANE 1): no new passes this session — CONVERGED 3/3 at session start; awaiting #223 merge. LANE 3 (maintenance): S-MAINT-CI-DISK-EXHAUSTION-001 story v0.1→v0.10 (10 LOCAL passes / 8 fix-bursts; LOCAL 3-CLEAN CONVERGED; PR #224 opened; fix-burst-7 EC-009 @9ae99f30 + fix-burst-8 AC-006+EC-010 @c9cb2c34 PUSHED; DRIFT-CI-STDBOOL-001 discovered — stdbool.h runner-image regression; v0.11 amendment queued). DRIFT items: DRIFT-PQLFN-MULTIERR-OFFSET-001 (OBS-003 deferral; wave-5-e cycle close; PO); DRIFT-CI-STDBOOL-001 (LANE 3 infra regression; v0.11 fix). SESSION-HANDOFF: supersedes D-1776. STATE v8.376→v8.391.
+1 burst D-1792. LANE 2 (PQL): PR-LEVEL passes 13-19 (7 passes; fb-44 @bad21c1b, fb-45 @3da1129f, fb-46 @60c97e8a; passes 17/18/19 CLEAN strict; CONVERGED 3/3 on frozen 60c97e8a; security delta APPROVE; pr-reviewer APPROVE; 66p/46fb total). LANE 1 (MCP): unchanged @5d2624aa; CONVERGED 3/3; AWAITING HUMAN MERGE GATE. LANE 3 (MAINT): story v0.10→v0.14 (fix-bursts 9-11; DRIFT-CI-STDBOOL-001 root cause REVISED AC-002 self-inflicted toolchain-removal; AC-006 scope 3→10 sites; AC-007 2→4 packages; fb-11 @498ffb6c PUSHED). BC-2.11.019 v1.24→v1.26 (v1.25 curly-quote reconciliation; v1.26 §OBS-004 DML cross-note semantic mis-anchor fix; POL-23 sweep notes state-manager obligation complete). DRIFT items: DRIFT-CI-STDBOOL-001 AMENDED (root cause confirmed). Lessons 59-61 captured [process-gap]: (59) apostrophe normalization: Edit/Write tool limitation for U+2018→U+0027 in committed files (byte-exact POL-24); content-verified python shutil.copy2 bypass class ratified as compensating control pending human approval; (60) POL-23 version-pin sweep scope creep: version-immune finding-ID citation form avoids treadmill; (61) large PO BC burst API-timeout: split into parallel atomic PO+state-manager sub-dispatches. SESSION-HANDOFF: supersedes D-1791. STATE v8.391→v8.392.
 
-### PROCESS-GAP CODIFICATION CANDIDATES
+### PROCESS-GAP CODIFICATION (Lessons 59-61)
 
-- Adversary CLEAN reports: always state CLEAN(strict) and CLEAN(PR-merge) explicitly (D-779 disambiguation); applies to every pass
-- DRIFT-ORCH-PRLEVEL-PUSH-001 frozen-HEAD rule: any push mid-cascade resets streak to 0/3; cascade must re-gate on new HEAD — applies universally
-- DRIFT-CI-STDBOOL-001 root-cause class: runner-image libc regression pattern; future CI step to add build-essential/libc6-dev defensive install
+- **Lesson 59 (apostrophe normalization):** Edit/Write tools cannot reliably produce U+0027 when the content source contains U+2018/U+2019. Workaround: python shutil.copy2 after byte-exact verification. Compensating-control exception class analogous to OrgSlug::new_unchecked audit-test pattern — requires human ratification at TD-FACTORY-HOOK-BYPASS-001.
+- **Lesson 60 (version-pin citation treadmill):** BC-INDEX rows that cite specific BC versions (e.g., "v1.24") must be updated at every version bump — creating a treadmill. Prevention: use version-immune finding-ID citation form (e.g., "F-PQLFN-PR11-OBS-002") instead of bare version numbers in BC-INDEX prose. See BC-2.11.019 §OBS-004/§OBS-005.
+- **Lesson 61 (large PO burst API timeout):** PO burst covering 4+ BCs with full changelog bodies hits API timeout. Fix: split into parallel atomic PO sub-dispatches (1 BC per dispatch) + parallel state-manager sub-dispatch for version-pin syncs.
 
 ---
 
-## §RESUME SNAPSHOT — D-1776 (2026-07-15 — SESSION WRAP; dual-lane CONVERGED; PR #223 OPEN PR-LEVEL 1/3; PR #222 WAITS; develop 5f1b5771; STATE v8.376) [SUPERSEDES D-1761] [SUPERSEDED by D-1791]
+## §RESUME SNAPSHOT — D-1776 (2026-07-15 — SESSION WRAP; dual-lane CONVERGED; PR #223 OPEN PR-LEVEL 1/3; PR #222 WAITS; develop 5f1b5771; STATE v8.376) [SUPERSEDES D-1761] [SUPERSEDED by D-1792]
 
 ### RESUME IN ONE BREATH
 
