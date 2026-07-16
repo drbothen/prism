@@ -766,6 +766,28 @@ pub fn write_multi_admin_token_sidecar_to_path(
         p.set_file_name(format!("{fname}.tmp"));
         p
     };
+    // Write tmp file with 0600 permissions on Unix (AD-017 credential safety:
+    // tokens are ephemeral but perms hardening is cheap consistency — F-ADMTOK-P1-OBS-002).
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(&tmp_path)
+            .and_then(|mut f| f.write_all(json.as_bytes()))
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to write nested token sidecar tmp {:?}: {}",
+                    tmp_path,
+                    e
+                )
+            })?;
+    }
+    #[cfg(not(unix))]
     std::fs::write(&tmp_path, &json).map_err(|e| {
         anyhow::anyhow!(
             "Failed to write nested token sidecar tmp {:?}: {}",

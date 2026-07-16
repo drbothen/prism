@@ -228,19 +228,6 @@ impl DemoHarness {
             }
         }
 
-        // Write admin-token sidecar atomically (tmp+rename) so that `cmd_configure`
-        // (a separate process invocation) can read per-clone tokens for the
-        // `X-Admin-Token` header required by ADR-003 Amendment #5.
-        //
-        // This write happens on the success path only (all binds succeeded).
-        // File I/O errors are propagated — a failed sidecar write is fatal because
-        // `cmd_configure` would silently receive HTTP 401 from every clone without it.
-        //
-        // DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-03/T-04: write_token_sidecar is called
-        // here (in start_all) so that integration tests calling start_all directly (without
-        // going through the binary's cmd_start) also get the token sidecar written.
-        write_token_sidecar_to_path(&self.token_map(), std::path::Path::new(crate::TOKEN_FILE))?;
-
         Ok(())
     }
 
@@ -351,8 +338,13 @@ impl DemoHarness {
 
 /// Write the flat admin-token sidecar `{name: token}` atomically (tmp+rename).
 ///
-/// Called from `DemoHarness::start_all` after all clones have bound successfully.
+/// Called from `cmd_start` in `main.rs` immediately after `write_url_sidecar`, so that
+/// `cmd_configure` (a separate process invocation) can read per-clone admin tokens for
+/// the `X-Admin-Token` header required by ADR-003 Amendment #5.
+///
 /// Written to `path` (typically `TOKEN_FILE = ".prism-dtu-demo-server.admin-tokens.json"`).
+/// Path-parameterised so that tests can target per-test temp paths without touching
+/// the shared crate-CWD `TOKEN_FILE` constant.
 ///
 /// # Atomic write (GAP-3 sidecar-availability guarantee)
 ///
@@ -363,9 +355,10 @@ impl DemoHarness {
 ///
 /// Token values MUST NOT appear in structured log fields. This function does not log
 /// token values. All tokens are ephemeral UUID v4 strings generated at clone construction.
+/// The tmp file is created with mode 0600 on Unix to prevent world-readable token files.
 ///
-/// (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-03)
-fn write_token_sidecar_to_path(
+/// (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-03 / F-ADMTOK-P1-OBS-002)
+pub fn write_token_sidecar_to_path(
     token_map: &std::collections::HashMap<String, String>,
     path: &std::path::Path,
 ) -> anyhow::Result<()> {
@@ -378,6 +371,24 @@ fn write_token_sidecar_to_path(
             .unwrap_or("tokens");
         path.with_file_name(format!("{fname}.tmp"))
     };
+    // Write tmp file with 0600 permissions on Unix (AD-017 credential safety:
+    // tokens are ephemeral but perms hardening is cheap consistency — F-ADMTOK-P1-OBS-002).
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(&tmp_path)
+            .and_then(|mut f| f.write_all(json.as_bytes()))
+            .map_err(|e| {
+                anyhow::anyhow!("Failed to write token sidecar tmp {:?}: {}", tmp_path, e)
+            })?;
+    }
+    #[cfg(not(unix))]
     std::fs::write(&tmp_path, &json)
         .map_err(|e| anyhow::anyhow!("Failed to write token sidecar tmp {:?}: {}", tmp_path, e))?;
     std::fs::rename(&tmp_path, path)

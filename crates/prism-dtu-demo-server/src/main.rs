@@ -174,6 +174,12 @@ async fn cmd_start(
     // 8. Write URL sidecar for `configure` subcommand.
     write_url_sidecar(&harness)?;
 
+    // 8b. Write admin-token sidecar for `configure` subcommand (T-04).
+    //     Written atomically alongside URL_FILE so that `cmd_configure` (a separate
+    //     process invocation) can obtain per-clone tokens for the `X-Admin-Token` header
+    //     required by ADR-003 Amendment #5 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-04).
+    write_token_sidecar(&harness)?;
+
     // 9. Print URL table.
     harness.print_url_table();
 
@@ -313,6 +319,27 @@ fn write_url_sidecar(harness: &prism_dtu_demo_server::DemoHarness) -> anyhow::Re
     std::fs::rename(&tmp_path, URL_FILE)
         .map_err(|e| anyhow::anyhow!("Failed to rename URL sidecar: {}", e))?;
     Ok(())
+}
+
+/// Write the admin-token sidecar JSON file so that `configure` can look up per-clone
+/// admin tokens for the `X-Admin-Token` header (ADR-003 Amendment #5).
+///
+/// Delegates to `write_token_sidecar_to_path` (the testable, path-parameterised variant
+/// in `harness.rs`) with the canonical `TOKEN_FILE` path.
+///
+/// Written atomically (tmp + rename, 0600 on Unix) to prevent `cmd_configure` from reading
+/// a partial file (GAP-3 sidecar-availability guarantee / F-ADMTOK-P1-OBS-002).
+///
+/// # T-03/T-04 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001)
+///
+/// Called immediately after `write_url_sidecar` in `cmd_start()` — the call site is
+/// in this binary (main.rs), NOT in `DemoHarness::start_all`, so that the library does
+/// not gain an unrequested I/O failure mode for callers that do not need the sidecar.
+fn write_token_sidecar(harness: &prism_dtu_demo_server::DemoHarness) -> anyhow::Result<()> {
+    prism_dtu_demo_server::write_token_sidecar_to_path(
+        &harness.token_map(),
+        std::path::Path::new(TOKEN_FILE),
+    )
 }
 
 /// Wait for SIGINT or SIGTERM, then gracefully shut down all clones.

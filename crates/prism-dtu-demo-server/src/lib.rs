@@ -53,7 +53,7 @@ pub use config::{
     DemoConfig, EnrichmentConfig, MultiOrgDemoConfig, OrgConfig, KNOWN_ENRICHMENT_CLONES,
     KNOWN_SENSORS,
 };
-pub use harness::{ClonePair, DemoHarness, StartReport};
+pub use harness::{write_token_sidecar_to_path, ClonePair, DemoHarness, StartReport};
 pub use multi_instance::{
     start_instances, DemoBindError, InstanceEntry, MultiInstanceBindError, MultiInstanceConfig,
     MultiInstanceServers,
