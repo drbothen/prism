@@ -36,9 +36,14 @@
 //! | `prism-dtu-crowdstrike` `td_wv0_07_*` | YES | Correct |
 //! | `prism-dtu-{claroty,cyberint,armis,...}` `td_wv0_07_*` | YES | Correct |
 //! | `bc_2_06_019_scenario_progression.rs` | YES | Correct |
+//! | `crates/prism-dtu-harness/tests/bc_3_6_001_ops_clone_failure_modes.rs` — `configure_failure` helper | YES (`x-admin-token` via `Harness::admin_token_for()`) | Correct |
+//! | `crates/prism-dtu-harness/tests/review_2026_06_10_deny_unknown.rs` — `assert_configure_strict` | YES (`x-admin-token` via `Harness::admin_token_for()`) | Correct |
 //!
-//! Only `cmd_configure()` was missing the header. The sibling-sweep comment block at the
-//! top of `cmd_configure()` in `main.rs` documents all enumerated sites (AC-004).
+//! Only `cmd_configure()` was missing the header. The two harness sites above use
+//! `Harness::admin_token_for()` with the lowercase header `x-admin-token` — correct per
+//! HTTP case-insensitivity (RFC 7230 §3.2); they are NOT missing the token. The
+//! sibling-sweep comment block at the top of `cmd_configure()` in `main.rs` documents
+//! all enumerated sites (AC-004).
 //!
 //! ## Test inventory
 //!
@@ -48,6 +53,8 @@
 //! | Test B: `test_BC_2_06_017_token_sidecar_written_and_configure_with_token_returns_200` | AC-001/AC-002 | F-ADMTOK-P1-HIGH-003 | Removing `header("X-Admin-Token", token)` from POST → 401 assertion fails |
 //! | Test C: `test_BC_3_6_001_e_demo_007_configure_no_sidecar_present` | AC-003 EC-004 | F-ADMTOK-P1-HIGH-003 | Removing E-DEMO-007 error return from `resolve_configure_token` fails |
 //! | Test D: `test_BC_3_6_001_e_demo_007_ec005_ambiguous_bare_sensor_name` | AC-003 EC-005 | — | Removing EC-005 ambiguity path from `resolve_configure_token` fails |
+//! | Test H: `test_BC_3_6_001_e_demo_007_ec003_flat_miss_no_fallthrough_to_nested` | AC-003 EC-003 | F-ADMTOK-P7-MED-001 | Removing flat-miss early return (adding fallthrough to nested) → resolve returns Ok → expect_err panics |
+//! | Test I: `test_BC_3_6_001_e_demo_007_ec003_nested_only_zero_matches` | AC-003 EC-003 | F-ADMTOK-P7-MED-001 | Removing nested zero-match error return → resolve returns Ok → expect_err panics |
 //! | Test E: `test_BC_3_6_001_ac001_binary_configure_with_sidecar_token_returns_200` | AC-001 ¶4 | F-ADMTOK-P1-HIGH-001, F-ADMTOK-P3-LOW-002 | Reverting T-08 → configure exits 1; reverting T-09 (TOKEN_FILE cleanup) → sidecar persists |
 //! | Test F: `test_BC_2_06_017_start_multi_admin_token_map_and_sidecar_written` | AC-002 | F-ADMTOK-P1-HIGH-002 | Removing T-02 (`admin_token_map`) or T-05 (sidecar write) fails |
 //! | Test G: `test_BC_2_06_017_ac002_binary_startmulti_configure_with_multi_sidecar_token` | AC-002 | F-ADMTOK-P3-MED-001, F-ADMTOK-P3-LOW-002 | Reverting T-06 (write_multi_admin_token_sidecar in cmd_start_multi) → TOKEN_MULTI_FILE absent → configure exits 1; reverting T-09 → TOKEN_MULTI_FILE persists |
@@ -399,6 +406,166 @@ async fn test_BC_3_6_001_e_demo_007_ec005_ambiguous_bare_sensor_name() {
     assert!(
         msg.contains(r#"["org-a", "org-b"]"#),
         "AC-003/EC-005: error must contain sorted {{:?}} org list [\"org-a\", \"org-b\"]; got: {msg}"
+    );
+    // tmp is dropped here — temp dir auto-cleaned by tempfile.
+}
+
+// ---------------------------------------------------------------------------
+// Test H — GREEN post-fix / F-ADMTOK-P7-MED-001 (EC-003 flat arm, no-fallthrough lock)
+// AC-003, EC-003 (BC-3.6.001 Precondition 4)
+// ---------------------------------------------------------------------------
+
+/// AC-003 (Test H) — EC-003 flat arm: flat sidecar exists and parses but does NOT contain
+/// the requested clone; nested sidecar IS present and DOES contain the clone. The function
+/// must return E-DEMO-007 without falling through to the nested sidecar.
+///
+/// Traces to: BC-3.6.001 Precondition 4 (resolve_configure_token flat-first contract).
+/// Error taxonomy: E-DEMO-007 (EC-003 — clone not found in sidecar).
+///
+/// EC-003 flat arm: flat sidecar exists + parses, clone_name absent → E-DEMO-007 early return.
+/// The nested sidecar is written WITH the clone to lock the no-fallthrough invariant:
+/// if the function fell through to nested, it would return Ok(token) — making expect_err panic.
+///
+/// Load-bearing assertion: Removing the `return Err(e_demo_007(...))` early-exit after a
+/// flat-miss (changing it to fall through to the nested arm) → resolve_configure_token returns
+/// Ok("nested-token-cs") → expect_err panics → test FAILS. This locks the documented
+/// flat-first-no-fallthrough precedence in multi_org_cmd.rs.
+#[tokio::test]
+async fn test_BC_3_6_001_e_demo_007_ec003_flat_miss_no_fallthrough_to_nested() {
+    // AC-003, EC-003 flat arm (Test H): GREEN post-fix.
+    // Per-test temp dir — no shared CWD files. In-process; no harness required.
+
+    let tmp = tempfile::tempdir().expect("Test-H: tempdir must be created");
+    let flat_path = tmp.path().join(TOKEN_FILE);
+    let nested_path = tmp.path().join(TOKEN_MULTI_FILE);
+
+    // Write flat sidecar WITHOUT "crowdstrike" — only "other-clone" is present.
+    // This exercises the flat-exists-but-clone-not-found branch of resolve_configure_token.
+    let flat_map: std::collections::HashMap<String, String> = [(
+        "other-clone".to_string(),
+        "flat-token-for-other".to_string(),
+    )]
+    .into_iter()
+    .collect();
+    prism_dtu_demo_server::write_token_sidecar_to_path(&flat_map, &flat_path)
+        .expect("Test-H: must write flat token sidecar");
+
+    // Write nested sidecar WITH "crowdstrike" — to prove the function does NOT fall through.
+    // If resolve_configure_token fell through to nested on a flat miss, it would find this
+    // token and return Ok("nested-token-cs") — causing expect_err to panic.
+    let nested_map: std::collections::HashMap<String, std::collections::HashMap<String, String>> =
+        [(
+            "org-a".to_string(),
+            [("crowdstrike".to_string(), "nested-token-cs".to_string())]
+                .into_iter()
+                .collect(),
+        )]
+        .into_iter()
+        .collect();
+    std::fs::write(
+        &nested_path,
+        serde_json::to_string(&nested_map).expect("Test-H: nested map must serialize"),
+    )
+    .expect("Test-H: must write nested token sidecar");
+
+    // LOAD-BEARING (EC-003 flat arm, F-ADMTOK-P7-MED-001): removing the flat-miss early
+    // return (adding fallthrough to nested) → the nested sidecar contains "crowdstrike" →
+    // Ok("nested-token-cs") → expect_err panics → test FAILS.
+    // This locks the flat-first-no-fallthrough contract.
+    let result = prism_dtu_demo_server::resolve_configure_token(
+        "crowdstrike",
+        Some(&flat_path),
+        Some(&nested_path),
+    );
+
+    let err = result.expect_err(
+        "AC-003/EC-003 flat arm: flat sidecar exists but lacks clone → must return E-DEMO-007; \
+         must NOT fall through to nested sidecar even though nested contains the clone",
+    );
+    let msg = format!("{err:?}");
+
+    assert!(
+        msg.contains("E-DEMO-007"),
+        "AC-003/EC-003 flat arm: error must contain E-DEMO-007 code; got: {msg}"
+    );
+    assert!(
+        msg.contains("configure"),
+        "AC-003/EC-003 flat arm: error must match E-DEMO-007 template 'configure: E-DEMO-007: ...'; \
+         got: {msg}"
+    );
+    assert!(
+        msg.contains("not found in token sidecar"),
+        "AC-003/EC-003 flat arm: error reason must cite missing clone in sidecar; got: {msg}"
+    );
+    // tmp is dropped here — temp dir auto-cleaned by tempfile.
+}
+
+// ---------------------------------------------------------------------------
+// Test I — GREEN post-fix / F-ADMTOK-P7-MED-001 (EC-003 nested arm, zero matches)
+// AC-003, EC-003 (BC-3.6.001 Precondition 4)
+// ---------------------------------------------------------------------------
+
+/// AC-003 (Test I) — EC-003 nested arm: only the nested sidecar is present; the requested
+/// clone is not found in any org via exact-key or bare-sensor scan → E-DEMO-007.
+///
+/// Traces to: BC-3.6.001 Precondition 4 (resolve_configure_token nested-only path).
+/// Error taxonomy: E-DEMO-007 (EC-003 — clone not found in sidecar).
+///
+/// EC-003 nested arm: nested sidecar exists; exact-key match finds nothing; bare-sensor scan
+/// yields 0 matches → E-DEMO-007 with same message form as the flat arm.
+///
+/// Load-bearing assertion: Removing the `bare_matches.len() == 0` error arm from
+/// resolve_configure_token and returning Ok("") instead → expect_err panics → test FAILS.
+#[tokio::test]
+async fn test_BC_3_6_001_e_demo_007_ec003_nested_only_zero_matches() {
+    // AC-003, EC-003 nested arm (Test I): GREEN post-fix.
+    // Per-test temp dir — no shared CWD files. In-process; no harness required.
+
+    let tmp = tempfile::tempdir().expect("Test-I: tempdir must be created");
+    let nested_path = tmp.path().join(TOKEN_MULTI_FILE);
+
+    // Write a nested sidecar that contains "armis" but NOT "crowdstrike".
+    // Exercises the zero-bare-matches branch in the nested arm of resolve_configure_token.
+    let nested_map: std::collections::HashMap<String, std::collections::HashMap<String, String>> =
+        [(
+            "org-a".to_string(),
+            [("armis".to_string(), "nested-token-armis".to_string())]
+                .into_iter()
+                .collect(),
+        )]
+        .into_iter()
+        .collect();
+    std::fs::write(
+        &nested_path,
+        serde_json::to_string(&nested_map).expect("Test-I: nested map must serialize"),
+    )
+    .expect("Test-I: must write nested token sidecar");
+
+    // No flat sidecar — only nested is provided (start-multi case, no flat TOKEN_FILE).
+    // LOAD-BEARING (EC-003 nested arm, F-ADMTOK-P7-MED-001): removing the zero-match error
+    // return from resolve_configure_token → resolve returns Ok or falls to EC-004 path →
+    // expect_err panics or returns wrong E-DEMO-007 reason → test FAILS.
+    let result =
+        prism_dtu_demo_server::resolve_configure_token("crowdstrike", None, Some(&nested_path));
+
+    let err = result.expect_err(
+        "AC-003/EC-003 nested arm: nested sidecar present but clone absent in all orgs → \
+         must return E-DEMO-007",
+    );
+    let msg = format!("{err:?}");
+
+    assert!(
+        msg.contains("E-DEMO-007"),
+        "AC-003/EC-003 nested arm: error must contain E-DEMO-007 code; got: {msg}"
+    );
+    assert!(
+        msg.contains("configure"),
+        "AC-003/EC-003 nested arm: error must match E-DEMO-007 template 'configure: E-DEMO-007: ...'; \
+         got: {msg}"
+    );
+    assert!(
+        msg.contains("not found in token sidecar"),
+        "AC-003/EC-003 nested arm: error reason must cite missing clone in sidecar; got: {msg}"
     );
     // tmp is dropped here — temp dir auto-cleaned by tempfile.
 }
