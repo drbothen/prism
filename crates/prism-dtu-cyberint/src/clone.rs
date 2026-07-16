@@ -272,7 +272,7 @@ impl CyberintClone {
         // AND catalog CVEs on CVE-surface records (PC-8 / BC-2.06.020).
         // generate_with_scenario_iocs also stamps iocs[0].value with catalog_ioc_hashes[0]
         // onto CompromisedEndpoint alert-surface records, enabling the real-schema IOC filter
-        // in routes/alerts.rs to apply StageMask projection (BC-2.06.019 v1.13 PC-4).
+        // in routes/alerts.rs to apply StageMask projection (BC-2.06.019 PC-4).
         let opts = GenOpts {
             seed,
             time_anchor,

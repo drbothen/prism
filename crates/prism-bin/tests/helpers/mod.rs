@@ -57,7 +57,7 @@ use tempfile::TempDir;
 // ---------------------------------------------------------------------------
 
 /// Shared access token registered in the Cyberint DTU's allowlist and passed
-/// via per-client env vars for E2E tests (ADR-032 / BC-2.06.003 v1.3).
+/// via per-client env vars for E2E tests (ADR-032 / BC-2.06.003).
 ///
 /// The Cyberint DTU validates the `access_token` cookie against an in-memory
 /// allowlist (ADR-031 §D3-a). This constant is used on both sides:
@@ -75,7 +75,7 @@ const DTU_E2E_CYBERINT_ACCESS_TOKEN: &str = "dtu-e2e-cyberint-access-token";
 ///
 /// Resolved by `BearerStaticCredentialAuthProvider` via
 /// `resolve_credential(org_slug, "armis", "bearer_token")` → env var
-/// `PRISM_CLIENTS_{ID}_SENSORS_ARMIS_BEARER_TOKEN` (BC-2.06.003 v1.3 Tier 2).
+/// `PRISM_CLIENTS_{ID}_SENSORS_ARMIS_BEARER_TOKEN` (BC-2.06.003 Tier 2).
 /// The Armis DTU clone validates `Authorization: Bearer {non-empty}` — any non-empty value passes.
 ///
 /// Not a real credential — never reaches any external service.
@@ -87,7 +87,7 @@ const DTU_E2E_ARMIS_BEARER_TOKEN: &str = "dtu-e2e-armis-bearer-token";
 ///
 /// Resolved by `BearerStaticCredentialAuthProvider` via
 /// `resolve_credential(org_slug, "claroty", "bearer_token")` → env var
-/// `PRISM_CLIENTS_{ID}_SENSORS_CLAROTY_BEARER_TOKEN` (BC-2.06.003 v1.3 Tier 2).
+/// `PRISM_CLIENTS_{ID}_SENSORS_CLAROTY_BEARER_TOKEN` (BC-2.06.003 Tier 2).
 /// The Claroty DTU clone validates `Authorization: Bearer {non-empty}` — any non-empty value passes.
 ///
 /// Not a real credential — never reaches any external service.
@@ -718,7 +718,7 @@ impl McpStdioHandle {
     /// Use this for tests that need to assert on genuine JSON-RPC protocol-level errors
     /// (e.g., unknown method, malformed request, fatal pre-handler failures). For user-visible
     /// domain errors (E-QUERY-032, validation, permission, etc.), use `send_request` directly —
-    /// post BC-2.10.007 v1.5 (F-2 fix), domain errors return `{ "result": { "isError": true, ... } }`
+    /// post BC-2.10.007 (F-2 fix), domain errors return `{ "result": { "isError": true, ... } }`
     /// which `send_request` handles correctly without error propagation.
     fn send_request_allow_rpc_error(
         &mut self,
@@ -838,7 +838,7 @@ impl McpStdioHandle {
     /// that prevent the server from calling the tool handler at all).
     ///
     /// For **user-visible domain errors** (E-QUERY-032 cross-org isolation, validation errors,
-    /// permission errors, etc.), use `tool_query_scoped` instead. Post BC-2.10.007 v1.5 (F-2
+    /// permission errors, etc.), use `tool_query_scoped` instead. Post BC-2.10.007 (F-2
     /// fix), domain errors return `Ok(CallToolResult { isError: true, structuredContent: {...} })`
     /// — a JSON-RPC success with `isError=true` in the result — NOT a protocol-level error.
     /// `send_request` handles those correctly; this method is not needed for them.
@@ -1048,7 +1048,7 @@ pub async fn launch_prism_bin(
     //
     // This is correct for E2E tests: we test protocol behavior, not log output. Log output
     // correctness is covered by unit tests (step1_init_tracing, BC-2.06.011 AC-5 first-log-line).
-    // Per-client env-var convention (ADR-032 / BC-2.06.003 v1.3):
+    // Per-client env-var convention (ADR-032 / BC-2.06.003):
     // Format: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}
     // where {ID} = org_slug uppercased with hyphens → underscores.
     //
@@ -1087,7 +1087,7 @@ pub async fn launch_prism_bin(
         .env("CROWDSTRIKE_BASE_URL", "http://127.0.0.1")
         // ---------- Armis bearer_token (orgs: demo-org, demo-org-a, demo-org-c) ----------
         // Resolved by BearerStaticCredentialAuthProvider via
-        // resolve_credential(org_slug, "armis", "bearer_token") (BC-2.06.003 v1.3 Tier 2).
+        // resolve_credential(org_slug, "armis", "bearer_token") (BC-2.06.003 Tier 2).
         // The Armis DTU clone validates Authorization: Bearer {non-empty}.
         // ADR-031 §D3-b / ADR-032 per-client convention.
         .env(
@@ -1104,7 +1104,7 @@ pub async fn launch_prism_bin(
         )
         // ---------- Claroty bearer_token (orgs: demo-org, demo-org-b, demo-org-c) ----------
         // Resolved by BearerStaticCredentialAuthProvider via
-        // resolve_credential(org_slug, "claroty", "bearer_token") (BC-2.06.003 v1.3 Tier 2).
+        // resolve_credential(org_slug, "claroty", "bearer_token") (BC-2.06.003 Tier 2).
         // The Claroty DTU clone validates Authorization: Bearer {non-empty}.
         .env(
             "PRISM_CLIENTS_DEMO_ORG_SENSORS_CLAROTY_BEARER_TOKEN",
@@ -1123,7 +1123,7 @@ pub async fn launch_prism_bin(
         // initial_access_token in demo.toml. The DTU validates the `access_token` cookie
         // against its allowlist; this value must be identical on both sides.
         // ADR-031 §D3-a: static cookie auth; no login roundtrip.
-        // Resolved via resolve_credential(org_slug, "cyberint", "api_key") (BC-2.06.003 v1.3 Tier 2).
+        // Resolved via resolve_credential(org_slug, "cyberint", "api_key") (BC-2.06.003 Tier 2).
         .env(
             "PRISM_CLIENTS_DEMO_ORG_SENSORS_CYBERINT_API_KEY",
             DTU_E2E_CYBERINT_ACCESS_TOKEN,
@@ -1139,7 +1139,7 @@ pub async fn launch_prism_bin(
         // ---------- CrowdStrike client_id (orgs: demo-org, demo-org-a, demo-org-c) ----------
         // Used by the crowdstrike-oauth2 WASM plugin to POST client credentials to the DTU's
         // /oauth2/token endpoint. The CrowdStrike DTU accepts any non-empty client_id/secret pair.
-        // Resolved via resolve_credential(org_slug, "crowdstrike", "client_id") (BC-2.06.003 v1.3).
+        // Resolved via resolve_credential(org_slug, "crowdstrike", "client_id") (BC-2.06.003).
         .env(
             "PRISM_CLIENTS_DEMO_ORG_SENSORS_CROWDSTRIKE_CLIENT_ID",
             "dtu-e2e-crowdstrike-client-id",
@@ -1153,7 +1153,7 @@ pub async fn launch_prism_bin(
             "dtu-e2e-crowdstrike-client-id",
         )
         // ---------- CrowdStrike client_secret (orgs: demo-org, demo-org-a, demo-org-c) ----------
-        // Resolved via resolve_credential(org_slug, "crowdstrike", "client_secret") (BC-2.06.003 v1.3).
+        // Resolved via resolve_credential(org_slug, "crowdstrike", "client_secret") (BC-2.06.003).
         .env(
             "PRISM_CLIENTS_DEMO_ORG_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
             "dtu-e2e-crowdstrike-client-secret",
@@ -1704,7 +1704,7 @@ pub fn write_multi_org_prism_toml(tempdir: &TempDir) -> Result<(), String> {
 ///   org-c: all 4 sensors
 ///
 /// The org slug env prefix is ORG_A_SLUG.replace('-', '_').to_uppercase() → "ORG_A", etc.
-/// Per ADR-032 / BC-2.06.003 v1.3: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}.
+/// Per ADR-032 / BC-2.06.003: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}.
 ///
 /// Also sets RUST_LOG=off, CROWDSTRIKE_BASE_URL=http://127.0.0.1, and the
 /// sensor placeholder env vars (CLAROTY_INSTANCE_URL, ARMIS_INSTANCE_URL,
@@ -1716,7 +1716,7 @@ pub async fn launch_prism_bin_multi_org(
 ) -> Result<(SubprocessGuard, McpStdioHandle), String> {
     let prism_bin = locate_binary("prism")?;
 
-    // Env prefix per org slug (ADR-032 / BC-2.06.003 v1.3):
+    // Env prefix per org slug (ADR-032 / BC-2.06.003):
     //   "org-a" → replace '-' with '_' → "org_a" → uppercase → "ORG_A"
     //   "org-b" → "ORG_B"
     //   "org-c" → "ORG_C"

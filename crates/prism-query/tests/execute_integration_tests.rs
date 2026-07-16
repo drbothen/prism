@@ -2440,7 +2440,7 @@ async fn test_QRY_02_force_refresh_bypasses_and_replaces_cache_entry() {
 /// P1-01 / BC-2.07.005 v4.4 (EC-07-043): limit-poisoning regression.
 ///
 /// The fan-out target pushes the effective fetch-limit to the sensor API
-/// (BC-2.01.013 v1.14 / F-P1-CRIT-004), so the cached response is
+/// (BC-2.01.013 / F-P1-CRIT-004), so the cached response is
 /// limit-truncated at the source. A `limit=3` query must therefore populate an
 /// entry that a later `limit=1000` query with identical filters does NOT hit —
 /// otherwise the analyst silently receives 3 records and a wrong

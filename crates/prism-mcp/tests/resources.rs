@@ -27,7 +27,7 @@
 //! - test_BC_2_08_005_check_sensor_health_returns_structured_result (AC-4)
 //! - test_BC_2_08_005_check_sensor_health_trust_level_is_internal (AC-4, BC-2.08.005 postcondition 7)
 //! - test_BC_2_08_005_check_sensor_health_structured_content_shape (AC-4, BC-2.08.005 postcondition 5)
-//! - test_BC_2_08_005_check_sensor_health_requires_client_id (BC-2.08.005 v1.4 precondition)
+//! - test_BC_2_08_005_check_sensor_health_requires_client_id (BC-2.08.005 precondition)
 //! - test_BC_2_08_006_sensors_health_resource_returns_cached_data (AC-5)
 //! - test_BC_2_08_006_sensors_health_resource_returns_unknown_before_check (AC-6)
 //! - test_BC_2_08_006_sensors_health_zero_clients_returns_unknown_sentinel (BC-2.08.006 postcondition 2 / EC-002; OBS-A: retired EC-08-013 citation replaced)
@@ -244,10 +244,10 @@ async fn test_BC_2_10_008_config_clients_returns_all_clients() {
 
 // ─── AC-2: prism://config/clients/{client_id}/sensors — per-client filtering ───
 
-/// AC-2 (BC-2.10.008 v1.8 postcondition 2 / DI-008): `prism://config/clients/crowdstrike/sensors`
+/// AC-2 (BC-2.10.008 postcondition 2 / DI-008): `prism://config/clients/crowdstrike/sensors`
 /// MUST return ONLY the crowdstrike sensor — other sensors (claroty, armis) MUST NOT appear.
 ///
-/// BC-2.10.008 v1.8 amendment: "the handler MUST filter by the `client_id` URI segment
+/// BC-2.10.008 amendment: "the handler MUST filter by the `client_id` URI segment
 /// before returning results. Returning all sensors regardless of `client_id` is a DI-008
 /// data separation defect. The `api_base_url` field MUST be present and contain only
 /// scheme+host+port (e.g., `'https://api.crowdstrike.com'`); full paths, query strings,
@@ -391,7 +391,7 @@ async fn test_BC_2_10_008_client_sensors_acme_does_not_include_globex_sensors() 
          (per-client isolation). Got sensor_types: {sensor_types:?}. Full response: {content_text:?}"
     );
 
-    // BC-2.10.008 v1.8 postcondition 2: each entry must have `api_base_url`
+    // BC-2.10.008 postcondition 2: each entry must have `api_base_url`
     // containing ONLY scheme+host+port — no path, no query, no credentials.
     // These assertions execute on the real crowdstrike entry (non-vacuous).
     for entry in entries {
@@ -407,7 +407,7 @@ async fn test_BC_2_10_008_client_sensors_acme_does_not_include_globex_sensors() 
             .unwrap_or_else(|| {
                 panic!(
                     "AC-2: SensorConfigEntry must include 'api_base_url' field \
-                     (BC-2.10.008 v1.8 postcondition 2, VP-050). Field is absent for \
+                     (BC-2.10.008 postcondition 2, VP-050). Field is absent for \
                      sensor_type={sensor_type:?}. Full entry: {entry:?}"
                 )
             });
@@ -639,11 +639,11 @@ fn test_BC_2_10_009_triage_alerts_includes_security_reminder() {
 
 // ─── AC-4: check_sensor_health returns spec-only structured result ────────────
 
-/// AC-4 (BC-2.08.005 v1.5 postconditions 5, 6, 7, 8): `check_sensor_health` in S-5.03
+/// AC-4 (BC-2.08.005 postconditions 5, 6, 7, 8): `check_sensor_health` in S-5.03
 /// scope returns `structured_content` with `probe_level: "spec-only"`, `reachable: null`,
 /// `auth_valid: null`, `last_successful_query_at: null`.
 ///
-/// BC-2.08.005 v1.5 two-phase probe model (F-S503-004 adjudication):
+/// BC-2.08.005 two-phase probe model (F-S503-004 adjudication):
 /// - S-5.03 scope: spec-only — no live probe. `reachable` and `auth_valid` MUST be null.
 ///   Hardcoding `true` sends a false-positive signal to the AI consumer — FORBIDDEN.
 /// - S-5.04 scope: live probe. `reachable`/`auth_valid` = real bool from API probe.
@@ -688,7 +688,7 @@ async fn test_BC_2_08_005_check_sensor_health_returns_structured_result() {
          got structured_content: {sc:?}"
     );
 
-    // BC-2.08.005 v1.5 postcondition 6: prose summary MUST contain
+    // BC-2.08.005 postcondition 6: prose summary MUST contain
     // "spec-only: no live probe performed" (S-5.03 contract).
     let prose = result
         .content
@@ -698,7 +698,7 @@ async fn test_BC_2_08_005_check_sensor_health_returns_structured_result() {
         .join(" ");
     assert!(
         prose.contains("spec-only: no live probe performed"),
-        "BC-2.08.005 v1.5 postcondition 6 (AC-4): prose summary MUST contain \
+        "BC-2.08.005 postcondition 6 (AC-4): prose summary MUST contain \
          'spec-only: no live probe performed' so the AI consumer cannot mistake this \
          response for a live health check (F-S503-004 adjudication). \
          Got prose: {prose:?}"
@@ -894,7 +894,7 @@ async fn test_BC_2_10_008_config_clients_resource_reflects_registered_tables() {
              Got enabled_sensors: {enabled:?}"
         );
 
-        // Positive load-bearing assertions: BC-2.10.008 v1.12 postcondition 1 requires
+        // Positive load-bearing assertions: BC-2.10.008 postcondition 1 requires
         // `enabled_sensors` to carry sensor IDs (e.g. "crowdstrike"), NOT table names
         // (e.g. "crowdstrike_table"). These assertions would FAIL under the pre-fix
         // table-name semantics and PASS only under the corrected sensor-ID semantics.
@@ -905,13 +905,13 @@ async fn test_BC_2_10_008_config_clients_resource_reflects_registered_tables() {
         if client_id_for_pos == "crowdstrike" {
             assert!(
                 enabled.contains(&"crowdstrike"),
-                "BC-2.10.008 v1.12 postcondition 1: enabled_sensors for client_id='crowdstrike' \
+                "BC-2.10.008 postcondition 1: enabled_sensors for client_id='crowdstrike' \
                  must contain the sensor ID 'crowdstrike', not a table name. \
                  Got enabled_sensors: {enabled:?}"
             );
             assert!(
                 !enabled.contains(&"crowdstrike_table"),
-                "BC-2.10.008 v1.12 postcondition 1: enabled_sensors must NOT contain the \
+                "BC-2.10.008 postcondition 1: enabled_sensors must NOT contain the \
                  table-name shape 'crowdstrike_table' — sensor IDs required, not table names. \
                  Got enabled_sensors: {enabled:?}"
             );
@@ -919,13 +919,13 @@ async fn test_BC_2_10_008_config_clients_resource_reflects_registered_tables() {
         if client_id_for_pos == "claroty" {
             assert!(
                 enabled.contains(&"claroty"),
-                "BC-2.10.008 v1.12 postcondition 1: enabled_sensors for client_id='claroty' \
+                "BC-2.10.008 postcondition 1: enabled_sensors for client_id='claroty' \
                  must contain the sensor ID 'claroty', not a table name. \
                  Got enabled_sensors: {enabled:?}"
             );
             assert!(
                 !enabled.contains(&"claroty_table"),
-                "BC-2.10.008 v1.12 postcondition 1: enabled_sensors must NOT contain the \
+                "BC-2.10.008 postcondition 1: enabled_sensors must NOT contain the \
                  table-name shape 'claroty_table' — sensor IDs required, not table names. \
                  Got enabled_sensors: {enabled:?}"
             );
@@ -1359,7 +1359,7 @@ async fn test_BC_2_08_005_check_sensor_health_requires_client_id() {
 /// BC-2.08.006 postcondition 2 / EC-002: `prism://sensors/health` with an empty health
 /// cache returns the "unknown" sentinel shape — `{"status":"unknown","message":"..."}`.
 ///
-/// BC-2.08.006 v1.6 postcondition 2: "If no health check has been run for any client,
+/// BC-2.08.006 postcondition 2: "If no health check has been run for any client,
 /// the resource returns `{"status":"unknown","message":"Run check_sensor_health to
 /// populate this resource."}` — not an error, and NOT the `{"clients":{}}` shape."
 ///
@@ -1368,7 +1368,7 @@ async fn test_BC_2_08_005_check_sensor_health_requires_client_id() {
 /// discriminating sentinel-only shape so it would FAIL if the empty-object shape were
 /// returned instead.
 ///
-/// OBS-A: retired EC-08-013 citation removed; updated to current BC-2.08.006 v1.6
+/// OBS-A: retired EC-08-013 citation removed; updated to current BC-2.08.006
 /// postcondition 2. EC-08-013 described a superseded `{"clients":{}}` empty-object
 /// shape that is no longer emitted by production code.
 ///
@@ -1484,7 +1484,7 @@ async fn test_BC_2_10_008_invariant_zero_clients_returns_empty_array() {
     );
 }
 
-// ─── IMP-8 per-org scoping tests (BC-2.10.008 v1.9) ─────────────────────────
+// ─── IMP-8 per-org scoping tests (BC-2.10.008) ─────────────────────────
 
 /// Build a `resolved_spec_map` fixture with two orgs:
 /// - "acme"  → crowdstrike + claroty overlays
@@ -1672,7 +1672,7 @@ async fn test_BC_2_10_008_per_org_scoping_acme_has_crowdstrike_and_claroty_not_a
          Got sensor_types: {sensor_types:?}. Full response: {content_text:?}"
     );
 
-    // VP-050 / BC-2.10.008 v1.8: api_base_url must be stripped to host+port only.
+    // VP-050 / BC-2.10.008: api_base_url must be stripped to host+port only.
     // These assertions execute on real entries (non-vacuous).
     for entry in entries {
         let sensor_type = entry
@@ -1685,7 +1685,7 @@ async fn test_BC_2_10_008_per_org_scoping_acme_has_crowdstrike_and_claroty_not_a
             .unwrap_or_else(|| {
                 panic!(
                     "IMP-8: SensorConfigEntry must include 'api_base_url' field \
-                     (BC-2.10.008 v1.8 postcondition 2). Missing for sensor_type={sensor_type:?}"
+                     (BC-2.10.008 postcondition 2). Missing for sensor_type={sensor_type:?}"
                 )
             });
         // Must not contain path segments stripped by strip_url_to_host_port.
@@ -1821,7 +1821,7 @@ async fn test_BC_2_10_008_ec_10_017_org_with_no_overlay_returns_empty_sensors() 
     assert_eq!(
         content_text.trim(),
         "[]",
-        "IMP-8 EC-10-017 (BC-2.10.008 v1.9 Option B): org 'empty-org' is registered in \
+        "IMP-8 EC-10-017 (BC-2.10.008 Option B): org 'empty-org' is registered in \
          OrgRegistry but has zero entries in resolved_spec_map. MUST return '[]'. \
          Got: {content_text:?}"
     );
@@ -1839,7 +1839,7 @@ async fn test_BC_2_10_008_ec_10_017_org_with_no_overlay_returns_empty_sensors() 
 /// This test FAILS if:
 /// - Any org is missing from the response.
 /// - Sensor counts are wrong (e.g., acme shows 1 instead of 2).
-/// - empty-org is omitted (BC-2.10.008 v1.9: registered orgs with zero sensors are listed).
+/// - empty-org is omitted (BC-2.10.008: registered orgs with zero sensors are listed).
 #[tokio::test]
 async fn test_BC_2_10_008_client_list_per_org_enumerates_all_registered_orgs() {
     let config_manager = {
@@ -2109,7 +2109,7 @@ fn test_OBS_1_prompt_render_rejects_injection_shaped_args() {
 
 // ─── CODE-CHANGE-1 load-bearing: sensors health keyed-object shape ─────────────
 
-/// BC-2.08.006 v1.5 postcondition 2 (CODE-CHANGE-1): `prism://sensors/health`
+/// BC-2.08.006 postcondition 2 (CODE-CHANGE-1): `prism://sensors/health`
 /// MUST emit `sensors` as a JSON object keyed by `sensor_id`, NOT a JSON array.
 ///
 /// AI consumers must be able to look up `clients["acme"]["sensors"]["crowdstrike"]["probe_level"]`
@@ -2150,7 +2150,7 @@ fn test_BC_2_08_006_sensors_health_resource_keyed_object_shape() {
     let sensors_value = &payload["clients"]["acme"]["sensors"];
     assert!(
         sensors_value.is_object(),
-        "BC-2.08.006 v1.5 postcondition 2 (CODE-CHANGE-1): \
+        "BC-2.08.006 postcondition 2 (CODE-CHANGE-1): \
          clients[\"acme\"][\"sensors\"] MUST be a JSON object keyed by sensor_id, NOT an array. \
          Got: {sensors_value:?}"
     );
@@ -2159,26 +2159,26 @@ fn test_BC_2_08_006_sensors_health_resource_keyed_object_shape() {
     let probe_level = &payload["clients"]["acme"]["sensors"]["crowdstrike"]["probe_level"];
     assert!(
         probe_level.is_string(),
-        "BC-2.08.006 v1.5 postcondition 2: sensors[\"crowdstrike\"][\"probe_level\"] \
+        "BC-2.08.006 postcondition 2: sensors[\"crowdstrike\"][\"probe_level\"] \
          must be directly indexable as a string; got: {probe_level:?}"
     );
     assert_eq!(
         probe_level.as_str().unwrap_or(""),
         "spec-only",
-        "BC-2.08.006 v1.5: probe_level for S-5.03 spec-only result must be 'spec-only'; \
+        "BC-2.08.006: probe_level for S-5.03 spec-only result must be 'spec-only'; \
          got: {probe_level:?}"
     );
 }
 
 // ─── CODE-CHANGE-2 load-bearing: resource_pressure null encoding ──────────────
 
-/// BC-2.08.005 v1.6 RECONCILIATION-3 (CODE-CHANGE-2): `check_sensor_health` in S-5.03
+/// BC-2.08.005 RECONCILIATION-3 (CODE-CHANGE-2): `check_sensor_health` in S-5.03
 /// scope MUST emit `resource_pressure.active_cursor_count` and
 /// `resource_pressure.active_token_count` as JSON `null`, NOT `0`.
 ///
 /// An AI consumer receiving `0` cannot distinguish "not yet wired" from a genuine
 /// zero count (no active cursors). JSON `null` encodes the honest-unknown state
-/// required by BC-2.08.005 v1.6.
+/// required by BC-2.08.005.
 ///
 /// LOAD-BEARING: This test FAILS if `ResourcePressure::new(None, None)` serializes
 /// the counts as `0` instead of `null`.
@@ -2191,21 +2191,21 @@ fn test_BC_2_08_005_resource_pressure_null_encoding_in_s503_scope() {
     // Assert the counts serialize as JSON null, not 0.
     assert!(
         json.contains(r#""active_cursor_count":null"#),
-        "BC-2.08.005 v1.6 RECONCILIATION-3 (CODE-CHANGE-2): \
+        "BC-2.08.005 RECONCILIATION-3 (CODE-CHANGE-2): \
          active_cursor_count MUST serialize as null in S-5.03 scope (not 0). \
          Got: {json:?}"
     );
     assert!(
         json.contains(r#""active_token_count":null"#),
-        "BC-2.08.005 v1.6 RECONCILIATION-3 (CODE-CHANGE-2): \
+        "BC-2.08.005 RECONCILIATION-3 (CODE-CHANGE-2): \
          active_token_count MUST serialize as null in S-5.03 scope (not 0). \
          Got: {json:?}"
     );
 }
 
-// ─── BC-2.10.008 v1.11: display_name present/null on config/clients ──────────
+// ─── BC-2.10.008: display_name present/null on config/clients ──────────
 
-/// BC-2.10.008 v1.11 LOAD-BEARING — display_name is present when OrgEntry.name is set:
+/// BC-2.10.008 LOAD-BEARING — display_name is present when OrgEntry.name is set:
 /// An org configured with `name = "Acme Corp"` in prism.toml MUST produce a
 /// `ClientInventoryEntry` with `display_name: "Acme Corp"` in the JSON response.
 ///
@@ -2214,7 +2214,7 @@ fn test_BC_2_08_005_resource_pressure_null_encoding_in_s503_scope() {
 /// - The `org_display_names` key lookup is wrong.
 /// - The `display_name` field is missing from `ClientInventoryEntry`.
 ///
-/// BC-2.10.008 v1.11 postcondition: "display_name is sourced from [[orgs]].name in
+/// BC-2.10.008 postcondition: "display_name is sourced from [[orgs]].name in
 /// prism.toml (OrgEntry.name), serialized as JSON null when absent."
 #[tokio::test]
 async fn test_BC_2_10_008_v1_11_display_name_present_when_org_name_configured() {
@@ -2245,7 +2245,7 @@ async fn test_BC_2_10_008_v1_11_display_name_present_when_org_name_configured() 
         Some(&spec_map),
     )
     .await
-    .expect("BC-2.10.008 v1.11: render_client_list_resource must return Ok with org_display_names");
+    .expect("BC-2.10.008: render_client_list_resource must return Ok with org_display_names");
 
     let content_text = result
         .contents
@@ -2260,35 +2260,35 @@ async fn test_BC_2_10_008_v1_11_display_name_present_when_org_name_configured() 
         .collect::<Vec<_>>()
         .join("");
 
-    let parsed: serde_json::Value = serde_json::from_str(&content_text)
-        .expect("BC-2.10.008 v1.11: response must be valid JSON");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&content_text).expect("BC-2.10.008: response must be valid JSON");
     let entries = parsed
         .as_array()
-        .expect("BC-2.10.008 v1.11: response must be a JSON array");
+        .expect("BC-2.10.008: response must be a JSON array");
 
     // Find the "acme" entry.
     let acme_entry = entries
         .iter()
         .find(|e| e.get("client_id").and_then(|v| v.as_str()) == Some("acme"))
         .expect(
-            "BC-2.10.008 v1.11: 'acme' must appear in client list. \
+            "BC-2.10.008: 'acme' must appear in client list. \
              Full response: {content_text:?}",
         );
 
     // LOAD-BEARING: display_name for "acme" must be "Acme Corp" (not null, not missing).
     let display_name = acme_entry.get("display_name").expect(
-        "BC-2.10.008 v1.11: 'display_name' field MUST be present in ClientInventoryEntry JSON. \
+        "BC-2.10.008: 'display_name' field MUST be present in ClientInventoryEntry JSON. \
          If this field is missing, the struct is not being serialized or the field was removed.",
     );
     assert_eq!(
         display_name.as_str(),
         Some("Acme Corp"),
-        "BC-2.10.008 v1.11: acme display_name MUST be 'Acme Corp' when OrgEntry.name = 'Acme Corp'. \
+        "BC-2.10.008: acme display_name MUST be 'Acme Corp' when OrgEntry.name = 'Acme Corp'. \
          Got: {display_name:?}. Full response: {content_text:?}"
     );
 }
 
-/// BC-2.10.008 v1.11 LOAD-BEARING — display_name is null when OrgEntry.name is absent:
+/// BC-2.10.008 LOAD-BEARING — display_name is null when OrgEntry.name is absent:
 /// An org configured WITHOUT `name =` in prism.toml MUST produce a `ClientInventoryEntry`
 /// with `display_name: null` in the JSON response.
 ///
@@ -2296,7 +2296,7 @@ async fn test_BC_2_10_008_v1_11_display_name_present_when_org_name_configured() 
 /// - `display_name` serializes as a non-null value for an org without a name.
 /// - The `display_name` field is omitted entirely (must be present as JSON null).
 ///
-/// BC-2.10.008 v1.11 postcondition: "JSON null when name is absent."
+/// BC-2.10.008 postcondition: "JSON null when name is absent."
 #[tokio::test]
 async fn test_BC_2_10_008_v1_11_display_name_null_when_org_name_absent() {
     use prism_spec_engine::{types::ConfigSnapshot, ConfigManager};
@@ -2326,7 +2326,7 @@ async fn test_BC_2_10_008_v1_11_display_name_null_when_org_name_absent() {
         Some(&spec_map),
     )
     .await
-    .expect("BC-2.10.008 v1.11: render_client_list_resource must return Ok for org with null name");
+    .expect("BC-2.10.008: render_client_list_resource must return Ok for org with null name");
 
     let content_text = result
         .contents
@@ -2341,26 +2341,26 @@ async fn test_BC_2_10_008_v1_11_display_name_null_when_org_name_absent() {
         .collect::<Vec<_>>()
         .join("");
 
-    let parsed: serde_json::Value = serde_json::from_str(&content_text)
-        .expect("BC-2.10.008 v1.11: response must be valid JSON");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&content_text).expect("BC-2.10.008: response must be valid JSON");
     let entries = parsed
         .as_array()
-        .expect("BC-2.10.008 v1.11: response must be a JSON array");
+        .expect("BC-2.10.008: response must be a JSON array");
 
     // Find the "globex" entry.
     let globex_entry = entries
         .iter()
         .find(|e| e.get("client_id").and_then(|v| v.as_str()) == Some("globex"))
-        .expect("BC-2.10.008 v1.11: 'globex' must appear in client list");
+        .expect("BC-2.10.008: 'globex' must appear in client list");
 
     // LOAD-BEARING: display_name for "globex" must be JSON null (not a string, not missing).
     let display_name = globex_entry.get("display_name").expect(
-        "BC-2.10.008 v1.11: 'display_name' field MUST be present in ClientInventoryEntry JSON \
+        "BC-2.10.008: 'display_name' field MUST be present in ClientInventoryEntry JSON \
          even when null. Field must not be omitted (use #[serde(skip_serializing_if)] would break this).",
     );
     assert!(
         display_name.is_null(),
-        "BC-2.10.008 v1.11: globex display_name MUST be JSON null when OrgEntry.name is None. \
+        "BC-2.10.008: globex display_name MUST be JSON null when OrgEntry.name is None. \
          Got: {display_name:?}. Full response: {content_text:?}"
     );
 }

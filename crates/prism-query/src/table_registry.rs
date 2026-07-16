@@ -653,7 +653,7 @@ impl TableRegistry {
             // All modes (Pipe, SQL, SqlPipe): dot-notation in FROM target position is INVALID
             //   PrismQL syntax. Only underscore-qualified names (`sensor_table`) are valid in
             //   FROM. Reject with E-QUERY-037 immediately using the dot-notation string as the
-            //   error table name (EC-11-067 / BC-2.11.001 v1.15 / AC-N2). Do NOT silently
+            //   error table name (EC-11-067 / BC-2.11.001 / AC-N2). Do NOT silently
             //   convert to underscore form and let the fan-out proceed.
             //
             //   Example (pipe):    `FROM cyberint.alerts` → Err(TableNotAvailable { table:
@@ -662,7 +662,7 @@ impl TableRegistry {
             //     Err(TableNotAvailable { table: "crowdstrike.detections",
             //     did_you_mean: " Did you mean: 'crowdstrike_detections'?" })
             //
-            //   HIGH-1 (BC-2.11.001 v1.15): the prior SqlPipe exemption (`is_sqlpipe` guard)
+            //   HIGH-1 (BC-2.11.001): the prior SqlPipe exemption (`is_sqlpipe` guard)
             //   allowed dot-notation in SqlPipe queries to bypass E-QUERY-037, silently routing
             //   to fan-out. EC-11-067 applies to ALL AST modes — the exemption is removed.
             //   The later `SourceRefKind::External { sensor, table } => format!("{sensor}_{table}")`
@@ -673,7 +673,7 @@ impl TableRegistry {
             //   position, and they emit Custom refs (underscore form) — not External —
             //   so BC-2.11.023 / ADR-046 filter-mode queries are not affected.
             if let SourceRefKind::External { sensor, table } = &source.kind {
-                // Reject dot-notation in all modes (EC-11-067, BC-2.11.001 v1.15).
+                // Reject dot-notation in all modes (EC-11-067, BC-2.11.001).
                 let dot_name = format!("{sensor}.{table}");
                 let underscore_name = format!("{sensor}_{table}");
 
@@ -757,7 +757,7 @@ impl TableRegistry {
             let table_name = match &source.kind {
                 SourceRefKind::Custom => source.raw.clone(),
                 // External sources are always rejected by the dot-notation guard above
-                // (EC-11-067 / BC-2.11.001 v1.15 — all modes including SqlPipe).
+                // (EC-11-067 / BC-2.11.001 — all modes including SqlPipe).
                 // This arm is unreachable for External sources but kept as a safety
                 // fallback for hypothetical future AST variants that reach this point.
                 // Internal and Composite already handled above.

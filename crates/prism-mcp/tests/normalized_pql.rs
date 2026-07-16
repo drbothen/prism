@@ -175,7 +175,7 @@ mod tests {
             QueryEngineConfig::default(),
             prism_query::cache::CacheConfig::default(),
         );
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(resolved_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(resolved_map));
         engine = engine.with_table_registry(registry);
 
         PrismServer::new().with_query_engine(Arc::new(engine))
@@ -254,7 +254,7 @@ mod tests {
         // Wire AlwaysSucceedsCreds so fan_out() reaches the adapter (not blocked by creds).
         engine = engine.with_credential_resolver(Arc::new(AlwaysSucceedsCreds));
         // Wire resolved_spec_map and table_registry.
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(resolved_map))));
+        engine = engine.with_resolved_spec_map(Arc::new(resolved_map));
         engine = engine.with_table_registry(registry);
 
         let server = PrismServer::new().with_query_engine(Arc::new(engine));
@@ -1943,8 +1943,8 @@ query = "severity = 'high'"
         };
         // Wire resolved_spec_map for the plan-time table availability gate (E-QUERY-037).
         // Without this, the query would be rejected before reaching alias expansion.
-        let mut engine = engine;
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+        // (F-MCPRS-PRL1-OBS-002: field is now pub(crate); use with_resolved_spec_map builder)
+        let engine = engine.with_resolved_spec_map(Arc::new(spec_map));
 
         // ---- Step 3: build PrismServer wired with both engine + alias_store ----
         let server = PrismServer::new()

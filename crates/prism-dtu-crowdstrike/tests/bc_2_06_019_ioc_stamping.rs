@@ -10,7 +10,7 @@
 //!
 //! Story: S-DEMO-ENRICHMENT-PIVOT-003
 //! Traces to:
-//!   BC-2.06.019 v1.13 PC-4 — CrowdStrike detections IOC stamp in behaviors[] array
+//!   BC-2.06.019 PC-4 — CrowdStrike detections IOC stamp in behaviors[] array
 //!   SAP-2 — CrowdStrike detection TOML columns must match generator.rs key set
 //!   AC-005 — CrowdStrike detections TOML spec declares behaviors[] IOC columns
 //!
@@ -29,7 +29,7 @@
 // Test 6 — CrowdStrike detection TOML spec has behaviors[] IOC columns
 // ---------------------------------------------------------------------------
 
-/// Test 6 — BC-2.06.019 v1.13 PC-4 + SAP-2: the CrowdStrike sensor TOML spec must
+/// Test 6 — BC-2.06.019 PC-4 + SAP-2: the CrowdStrike sensor TOML spec must
 /// declare columns for the `behaviors[]` IOC fields with post-ENRICH-1 clean SQL identifiers
 /// + source_path values, matching JSON keys stamped by `make_detection_with_ioc()`.
 ///
@@ -53,7 +53,7 @@
 ///   OLD: content.contains("behaviors[].ioc_type")  ← matched COMMENT text in migrated spec
 ///   NEW: parse TOML, assert actual name + source_path field values
 ///
-/// BC-2.06.019 v1.13 PC-4, AC-005, SAP-2.
+/// BC-2.06.019 PC-4, AC-005, SAP-2.
 /// Red Gate test plan #6 (S-DEMO-ENRICHMENT-PIVOT-003).
 #[test]
 fn test_BC_2_06_019_crowdstrike_detection_toml_spec_has_ioc_columns() {
@@ -142,7 +142,7 @@ fn test_BC_2_06_019_crowdstrike_detection_toml_spec_has_ioc_columns() {
                 None => {
                     let names: Vec<&str> = all_columns.iter().map(|(n, _)| n.as_str()).collect();
                     panic!(
-                        "BC-2.06.019 v1.13 PC-4 / AC-005 / SAP-2 / HIGH-001: \
+                        "BC-2.06.019 PC-4 / AC-005 / SAP-2 / HIGH-001: \
                          crowdstrike.sensor.toml at {:?} must declare a column with \
                          name='{}' (post-ENRICH-1 clean identifier matching generator.rs \
                          wire key). \
@@ -160,7 +160,7 @@ fn test_BC_2_06_019_crowdstrike_detection_toml_spec_has_ioc_columns() {
                     assert_eq!(
                         actual_source_path.as_deref(),
                         Some(*expected_source_path),
-                        "BC-2.06.019 v1.13 PC-4 / SAP-2 / HIGH-001: crowdstrike.sensor.toml at {:?} \
+                        "BC-2.06.019 PC-4 / SAP-2 / HIGH-001: crowdstrike.sensor.toml at {:?} \
                          column '{}' must have source_path='{}' (post-ENRICH-1 JSONPath). \
                          Actual source_path: {:?}",
                         toml_path,
@@ -183,7 +183,7 @@ fn test_BC_2_06_019_crowdstrike_detection_toml_spec_has_ioc_columns() {
             let reverted = all_columns.iter().any(|(name, _)| name == old_name);
             assert!(
                 !reverted,
-                "BC-2.06.019 v1.13 PC-4 / HIGH-001 regression guard: crowdstrike.sensor.toml at {:?} \
+                "BC-2.06.019 PC-4 / HIGH-001 regression guard: crowdstrike.sensor.toml at {:?} \
                  must NOT contain a column with the old bracket-in-name form '{}'. \
                  This name was retired by ENRICH-1 and replaced with a clean SQL identifier + source_path. \
                  A reversion to the old form means nested array resolution will silently fail at runtime.",

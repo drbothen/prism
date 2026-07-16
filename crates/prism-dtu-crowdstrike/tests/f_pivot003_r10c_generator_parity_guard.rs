@@ -32,7 +32,7 @@
 //! on the NEXT CI run. The scenario-path IOC contract is still verified by Test 5 and
 //! Test 8 in the existing test suite.
 //!
-//! BC-2.06.019 v1.13 PC-4 (CrowdStrike detections IOC stamp)
+//! BC-2.06.019 PC-4 (CrowdStrike detections IOC stamp)
 //! F-PIVOT003-R10C (closing finding: parity guard required)
 
 #![cfg(feature = "fixture-gen")]
@@ -67,7 +67,7 @@ fn deadbeef_org() -> OrgId {
 ///   - detection 0 behaviors[0] on scenario path has ioc_type/ioc_value keys
 ///   - detection 0 behaviors[0] on baseline path does NOT have ioc_type/ioc_value
 ///
-/// BC-2.06.019 v1.13 PC-4 / F-PIVOT003-R10C
+/// BC-2.06.019 PC-4 / F-PIVOT003-R10C
 #[test]
 fn test_BC_2_06_019_crowdstrike_generator_scenario_parity_modulo_ioc_stamp() {
     let org = deadbeef_org();
@@ -305,7 +305,7 @@ fn test_BC_2_06_019_crowdstrike_generator_scenario_parity_modulo_ioc_stamp() {
         "F-PIVOT003-R10C: scenario detection 0 behaviors[0].ioc_value must equal \
          the IOC hash passed to generate_with_scenario_iocs. \
          Expected: Some('{ioc_hash}'). Got: {s_det0_ioc:?}. \
-         BC-2.06.019 v1.13 PC-4 / AC-004"
+         BC-2.06.019 PC-4 / AC-004"
     );
 
     // ── Confirm ioc_type is "hash_sha256" on scenario detection 0 ─────────────
@@ -320,6 +320,6 @@ fn test_BC_2_06_019_crowdstrike_generator_scenario_parity_modulo_ioc_stamp() {
         s_det0_ioc_type,
         Some("hash_sha256"),
         "F-PIVOT003-R10C: scenario detection 0 behaviors[0].ioc_type must be 'hash_sha256'. \
-         Got: {s_det0_ioc_type:?}. BC-2.06.019 v1.13 correction (algorithm-qualified token)."
+         Got: {s_det0_ioc_type:?}. BC-2.06.019 correction (algorithm-qualified token)."
     );
 }

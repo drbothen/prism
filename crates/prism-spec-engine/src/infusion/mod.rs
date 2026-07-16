@@ -9,7 +9,7 @@
 //! - Credential values from `[infusion.credentials]` MUST NOT appear in logs or errors.
 //! - This crate MUST NOT import DataFusion or Arrow.
 //!
-//! # Plugin-type specs (BC-2.19.001 v1.4)
+//! # Plugin-type specs (BC-2.19.001)
 //! Use `load_spec_with_runtime` to populate plugin-type specs with a real
 //! `Arc<PluginInfusionSource>`. Bare `load_spec` wires real file-backed sources for
 //! `LocalLookup` specs; plugin-type specs receive `NullSource` and should use
@@ -980,7 +980,7 @@ impl InfusionRegistry {
     ///
     /// Consumed by prism-query (S-3.02) to register DataFusion ScalarUDFs.
     ///
-    /// Uses the stored `InfusionSource` for each entry (BC-2.19.001 v1.4: plugin-type
+    /// Uses the stored `InfusionSource` for each entry (BC-2.19.001: plugin-type
     /// descriptors carry a real `PluginInfusionSource` when the registry was populated via
     /// `load_spec_with_runtime`; entries loaded via bare `load_spec` carry the real
     /// constructed source — matching the stored registry state).

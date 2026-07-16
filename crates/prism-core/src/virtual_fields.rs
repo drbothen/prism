@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 /// These columns are pre-injected before DataFusion execution so analysts can
 /// reference them in `WHERE` / `GROUP BY` / `ORDER BY` clauses.  Sensor tables
 /// receive **four** virtual fields — these three plus `_source_type` — via
-/// `prism_query::virtual_fields::inject_virtual_fields` (BC-2.11.012 v1.9).
+/// `prism_query::virtual_fields::inject_virtual_fields` (BC-2.11.012).
 ///
 /// Each variant maps to a fixed, underscore-prefixed column name:
 ///

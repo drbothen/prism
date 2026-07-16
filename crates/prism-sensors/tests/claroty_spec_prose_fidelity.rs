@@ -11,7 +11,7 @@
 //! | `test_BC_2_16_013_AC002_audit_logs_gap_cl_006_closed_comment_present` | RED pre-impl | `"Gap-CL-006 CLOSED"` comment line not yet written; this is the genuine Red Gate assertion. |
 //! | `test_BC_2_16_013_AC004_audit_logs_functional_fields_unchanged` | GREEN pre-impl | No-regression guard — asserts functional TOML content is intact before and after. |
 //!
-//! Traces to: BC-2.16.013 v1.25 §Postconditions §1 (audit_logs clause).
+//! Traces to: BC-2.16.013 §Postconditions §1 (audit_logs clause).
 //!
 //! Story: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001
 #![allow(clippy::expect_used, clippy::unwrap_used)]
@@ -75,7 +75,7 @@ fn audit_logs_block() -> String {
 // If any stale comment string re-appears in the audit_logs block (e.g., from an
 // incorrect revert or incorrect patch), this test becomes a red gate.
 //
-// Traces to: BC-2.16.013 v1.25 §Postconditions §1 — audit_logs clause.
+// Traces to: BC-2.16.013 §Postconditions §1 — audit_logs clause.
 // ---------------------------------------------------------------------------
 
 /// GREEN-BY-DESIGN (no-regression guard): audit_logs block must not contain
@@ -88,7 +88,7 @@ fn audit_logs_block() -> String {
 /// commit and must remain absent.
 ///
 /// Story: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 AC-001
-/// BC: BC-2.16.013 v1.25 §Postconditions §1
+/// BC: BC-2.16.013 §Postconditions §1
 #[test]
 fn test_BC_2_16_013_AC001_audit_logs_no_stale_dtu_gap_comments() {
     let block = audit_logs_block();
@@ -116,7 +116,7 @@ fn test_BC_2_16_013_AC001_audit_logs_no_stale_dtu_gap_comments() {
 // It PASSES only after the implementer adds a line containing both
 // "Gap-CL-006 CLOSED" and "S-DEMO-CLAROTY-AUDIT-DTU-001" to the block.
 //
-// Traces to: BC-2.16.013 v1.25 §Postconditions §1 — prose accurately reflects
+// Traces to: BC-2.16.013 §Postconditions §1 — prose accurately reflects
 // closed gap (Gap-CL-006 CLOSED by S-DEMO-CLAROTY-AUDIT-DTU-001).
 // ---------------------------------------------------------------------------
 
@@ -131,7 +131,7 @@ fn test_BC_2_16_013_AC001_audit_logs_no_stale_dtu_gap_comments() {
 /// Until the implementer adds that comment, this assertion fails.
 ///
 /// Story: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 AC-002
-/// BC: BC-2.16.013 v1.25 §Postconditions §1
+/// BC: BC-2.16.013 §Postconditions §1
 #[test]
 fn test_BC_2_16_013_AC002_audit_logs_gap_cl_006_closed_comment_present() {
     let block = audit_logs_block();
@@ -157,10 +157,10 @@ fn test_BC_2_16_013_AC002_audit_logs_gap_cl_006_closed_comment_present() {
 //
 // This test parses the full claroty.sensor.toml via the canonical SpecLoader::parse
 // API, finds the audit_logs TableSpec, and asserts every functional field matches
-// the expected values grounded from BC-2.16.013 v1.25 §Postconditions §1 and
+// the expected values grounded from BC-2.16.013 §Postconditions §1 and
 // the Gap-CL-002 fix (path corrected to /api/v1/audit_log/get in 72baf413).
 //
-// Traces to: BC-2.16.013 v1.25 §Postconditions §1 — TOML functional content
+// Traces to: BC-2.16.013 §Postconditions §1 — TOML functional content
 // already correct per earlier Gap-CL-002 fix; only comment lines are in scope.
 // ---------------------------------------------------------------------------
 
@@ -177,7 +177,7 @@ fn test_BC_2_16_013_AC002_audit_logs_gap_cl_006_closed_comment_present() {
 /// any functional TOML key.
 ///
 /// Story: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 AC-004
-/// BC: BC-2.16.013 v1.25 §Postconditions §1
+/// BC: BC-2.16.013 §Postconditions §1
 #[test]
 fn test_BC_2_16_013_AC004_audit_logs_functional_fields_unchanged() {
     let toml_path = concat!(env!("CARGO_MANIFEST_DIR"), "/specs/claroty.sensor.toml");

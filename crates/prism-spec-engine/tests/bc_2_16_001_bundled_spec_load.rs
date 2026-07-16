@@ -361,7 +361,7 @@ ocsf_class = "security_finding"
 ///
 /// DEC-036 update (S-DEMO-002 / ADR-032): The bundled crowdstrike.sensor.toml now
 /// declares 2 `[[credential_refs]]` blocks (client_id + client_secret) per
-/// BC-2.06.003 v1.3. This test now uses an inline TOML fixture with zero credential_refs
+/// BC-2.06.003. This test now uses an inline TOML fixture with zero credential_refs
 /// to directly verify DEC-036 empty-credential scenario behavior (BC-2.01.016 Rule B
 /// only fires when credential_refs.len() > 1 OR exceeds the auth-type's allowed count).
 #[test]

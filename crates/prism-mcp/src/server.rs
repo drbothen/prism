@@ -1947,7 +1947,11 @@ impl PrismServer {
         // Then parses the buffer to extract individual rows for the payload.
         let rows: Vec<serde_json::Value> = {
             let mut buf: Vec<u8> = Vec::new();
+            // BC-2.11.001 EC-11-079: explicit_nulls=true ensures NULL-valued cells
+            // appear as JSON `null` in row objects rather than being omitted (the default).
+            // Every projected column key must appear in every row regardless of nullability.
             let mut writer = arrow_json::writer::WriterBuilder::new()
+                .with_explicit_nulls(true)
                 .build::<_, arrow_json::writer::JsonArray>(&mut buf);
             for batch in &result.batches {
                 writer.write(batch).map_err(|e| {
@@ -5887,9 +5891,15 @@ mod tests {
         );
         // The error comes from Internal (QueryEngine not wired).
         // This confirms domain logic was reached (past the injection scan).
+        // H8b: PrismError::Internal maps to terse "Internal error" at MCP boundary (detail stripped).
         assert!(
-            msg.contains("Internal error") || msg.contains("not wired"),
-            "error must be an internal error indicating domain logic was reached; got: '{msg}'"
+            msg.contains("Internal error"),
+            "error must be the terse 'Internal error' (H8b: detail stripped at MCP boundary, \
+             domain logic confirmed reached past injection scan); got: '{msg}'"
+        );
+        assert!(
+            !msg.contains("audit log"),
+            "H8b: internal error must not leak audit log details; got: '{msg}'"
         );
     }
 
@@ -6425,9 +6435,15 @@ mod tests {
              not FORBIDDEN (-32002); got code: {}",
             err.code.0
         );
+        // H8b: PrismError::Internal maps to terse "Internal error" at MCP boundary (detail stripped).
         assert!(
-            msg.contains("WriteExecutor") || msg.contains("not wired") || msg.contains("Internal"),
-            "error must indicate missing wiring; got: '{msg}'"
+            msg.contains("Internal error"),
+            "error must be the terse 'Internal error' (H8b: WriteExecutor/not-wired detail \
+             stripped at MCP boundary); got: '{msg}'"
+        );
+        assert!(
+            !msg.contains("audit log"),
+            "H8b: internal error must not leak audit log details; got: '{msg}'"
         );
     }
 
@@ -6825,10 +6841,20 @@ mod tests {
              through to AliasNotFound (-32602) or similar (test fails)"
         );
         // PrismError::Internal suppresses detail in the MCP message per error-mapping.rs;
-        // the generic message is the expected output.
+        // the generic terse form "Internal error" is the expected output (H8b split:
+        // terse MCP path, NOT the verbose audit log path).
+        // F-MCPNULL-P3-OBS-002: assert terse form IS present and audit-log detail is NOT.
         assert!(
-            err.message.contains("Internal error") || err.message.contains("audit log"),
-            "error message must indicate an internal error; got: '{}'",
+            err.message.contains("Internal error"),
+            "F-PASS15-MED-1: error message must be the terse form containing 'Internal error'; \
+             got: '{}'",
+            err.message
+        );
+        assert!(
+            !err.message.contains("audit log"),
+            "F-PASS15-MED-1: error message must NOT contain 'audit log' \
+             (H8b split enforced: terse MCP path only, no audit log detail in client-facing message); \
+             got: '{}'",
             err.message
         );
     }
@@ -7767,9 +7793,17 @@ mod tests {
             "F-PASS16-MED-2: missing 'scope' in create_alias token must return INTERNAL_ERROR (-32000); \
              if unwrap_or(\"global\") is restored, code will be -32602 (AliasNotFound) — test fails"
         );
+        // F-MCPNULL-P3-OBS-002: assert terse form IS present and audit-log detail is NOT (H8b split).
         assert!(
-            err.message.contains("Internal error") || err.message.contains("audit log"),
-            "error message must indicate an internal error; got: '{}'",
+            err.message.contains("Internal error"),
+            "F-PASS16-MED-2: error message must be the terse form containing 'Internal error'; \
+             got: '{}'",
+            err.message
+        );
+        assert!(
+            !err.message.contains("audit log"),
+            "F-PASS16-MED-2: error message must NOT contain 'audit log' \
+             (H8b split enforced: terse MCP path only); got: '{}'",
             err.message
         );
     }
@@ -7817,9 +7851,17 @@ mod tests {
             "F-PASS16-MED-2: missing 'scope' in delete_alias token must return INTERNAL_ERROR (-32000); \
              if unwrap_or(\"global\") is restored, code will be different — test fails"
         );
+        // F-MCPNULL-P3-OBS-002: assert terse form IS present and audit-log detail is NOT (H8b split).
         assert!(
-            err.message.contains("Internal error") || err.message.contains("audit log"),
-            "error message must indicate an internal error; got: '{}'",
+            err.message.contains("Internal error"),
+            "F-PASS16-MED-2: error message must be the terse form containing 'Internal error'; \
+             got: '{}'",
+            err.message
+        );
+        assert!(
+            !err.message.contains("audit log"),
+            "F-PASS16-MED-2: error message must NOT contain 'audit log' \
+             (H8b split enforced: terse MCP path only); got: '{}'",
             err.message
         );
     }
@@ -7870,9 +7912,17 @@ mod tests {
             "F-PASS16-MED-2: missing 'force' in delete_alias token must return INTERNAL_ERROR (-32000); \
              if unwrap_or(false) is restored, code will be different — test fails"
         );
+        // F-MCPNULL-P3-OBS-002: assert terse form IS present and audit-log detail is NOT (H8b split).
         assert!(
-            err.message.contains("Internal error") || err.message.contains("audit log"),
-            "error message must indicate an internal error; got: '{}'",
+            err.message.contains("Internal error"),
+            "F-PASS16-MED-2: error message must be the terse form containing 'Internal error'; \
+             got: '{}'",
+            err.message
+        );
+        assert!(
+            !err.message.contains("audit log"),
+            "F-PASS16-MED-2: error message must NOT contain 'audit log' \
+             (H8b split enforced: terse MCP path only); got: '{}'",
             err.message
         );
     }
@@ -10733,18 +10783,18 @@ mod adr_042_tests {
         //
         // This direct `Arc::new(arc_swap::ArcSwap::new(...))` assignment will fail
         // to compile against the current type until the implementer changes the field.
-        let mut qe = prism_query::engine::QueryEngine::new_with_cache_config(
+        let qe = prism_query::engine::QueryEngine::new_with_cache_config(
             Arc::new(prism_sensors::AdapterRegistry::new()),
             Arc::new(prism_credentials::InMemoryCredentialStore::new()),
             Arc::new(prism_ocsf::OcsfNormalizer::new()),
             Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
             prism_query::engine::QueryEngineConfig::default(),
             prism_query::cache::CacheConfig::default(),
-        );
-        // Inject ArcSwap-backed resolved_spec_map.
-        // RED GATE: compile fails until field type changed to ArcSwap.
-        qe.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(initial_resolved_map)));
-        qe.org_registry = Some(Arc::clone(&org_registry));
+        )
+        // Wire ArcSwap-backed resolved_spec_map and org_registry via builders
+        // (F-MCPRS-PRL1-OBS-002: field is now pub(crate); use with_resolved_spec_map / with_org_registry).
+        .with_resolved_spec_map(initial_resolved_map)
+        .with_org_registry(Arc::clone(&org_registry));
         let qe_arc = Arc::new(qe);
 
         // ── Mock subscriber registry: acme + globex subscribed ───────────────
@@ -10930,18 +10980,18 @@ mod adr_042_tests {
         );
         let initial_resolved = Arc::new(initial_overlay.resolved);
 
-        // Build QueryEngine with ArcSwap-backed resolved_spec_map.
-        // RED GATE (compile): field type must be changed to ArcSwap before this compiles.
-        let mut qe = prism_query::engine::QueryEngine::new_with_cache_config(
+        // Build QueryEngine with resolved_spec_map and org_registry via builders
+        // (F-MCPRS-PRL1-OBS-002: fields are now pub(crate)).
+        let qe = prism_query::engine::QueryEngine::new_with_cache_config(
             Arc::new(prism_sensors::AdapterRegistry::new()),
             Arc::new(prism_credentials::InMemoryCredentialStore::new()),
             Arc::new(prism_ocsf::OcsfNormalizer::new()),
             Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
             prism_query::engine::QueryEngineConfig::default(),
             prism_query::cache::CacheConfig::default(),
-        );
-        qe.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(initial_resolved)));
-        qe.org_registry = Some(Arc::clone(&org_registry));
+        )
+        .with_resolved_spec_map(initial_resolved)
+        .with_org_registry(Arc::clone(&org_registry));
         let qe_arc = Arc::new(qe);
 
         // ── Step 1: prism_describe BEFORE reload ──────────────────────────────
@@ -11163,8 +11213,9 @@ mod adr_042_tests {
         );
         let initial_resolved = Arc::new(initial_overlay.resolved);
 
-        // ── Build QueryEngine: with_table_registry + ArcSwap resolved_spec_map ─
-        let mut qe = QueryEngine::new_with_cache_config(
+        // ── Build QueryEngine: with_table_registry + resolved_spec_map + org_registry ─
+        // (F-MCPRS-PRL1-OBS-002: fields are now pub(crate); use builder methods)
+        let qe = QueryEngine::new_with_cache_config(
             Arc::new(AdapterRegistry::new()),
             Arc::new(prism_credentials::InMemoryCredentialStore::new()),
             Arc::new(prism_ocsf::OcsfNormalizer::new()),
@@ -11172,9 +11223,9 @@ mod adr_042_tests {
             QueryEngineConfig::default(),
             prism_query::cache::CacheConfig::default(),
         )
-        .with_table_registry(Arc::clone(&table_registry));
-        qe.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(initial_resolved)));
-        qe.org_registry = Some(Arc::clone(&org_registry));
+        .with_table_registry(Arc::clone(&table_registry))
+        .with_resolved_spec_map(initial_resolved)
+        .with_org_registry(Arc::clone(&org_registry));
         let qe_arc = Arc::new(qe);
 
         // ── Schema subscriber registry: acme subscribed ──────────────────────

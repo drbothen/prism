@@ -14,12 +14,12 @@ use prism_credentials::resolution::{resolve_credential, CredentialResolutionErro
 
 /// BC-2.03.006 postcondition: when credential exists, it is resolved as SecretString.
 ///
-/// Fixture: sets per-client env var (ADR-032 / BC-2.06.003 v1.3) to supply a resolvable value.
+/// Fixture: sets per-client env var (ADR-032 / BC-2.06.003) to supply a resolvable value.
 /// Format: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF} where {ID}=ACME for org_slug="acme".
 /// Env var is unset after the test to avoid leaking into sibling tests on the same thread.
 #[tokio::test]
 async fn test_BC_2_03_006_resolves_existing_credential_as_secret_string() {
-    // Fixture: supply the credential value via the per-client env var (BC-2.06.003 v1.3 Tier 2).
+    // Fixture: supply the credential value via the per-client env var (BC-2.06.003 Tier 2).
     // resolve_credential("acme", "crowdstrike", "api_key") → PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_API_KEY
     std::env::set_var(
         "PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_API_KEY",
@@ -70,14 +70,14 @@ async fn test_BC_2_03_006_rejects_missing_credential_with_setup_suggestion() {
 /// BC-2.03.006 EC-03-014: CrowdStrike requires two credentials.
 /// Both must be resolved independently; both must succeed.
 ///
-/// Fixture: sets both per-client env vars (ADR-032 / BC-2.06.003 v1.3 Tier 2).
+/// Fixture: sets both per-client env vars (ADR-032 / BC-2.06.003 Tier 2).
 /// Format: PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_{REF} for org_slug="acme".
 /// This is the "both present" scenario — contrast with test 004 which tests the
 /// "client_secret absent" failure scenario. These are distinct fixture states.
 /// Env vars are removed after the test regardless of outcome.
 #[tokio::test]
 async fn test_BC_2_03_006_crowdstrike_both_credentials_resolve() {
-    // Fixture: both credentials present in per-client env var (BC-2.06.003 v1.3 Tier 2).
+    // Fixture: both credentials present in per-client env var (BC-2.06.003 Tier 2).
     // resolve_credential("acme", "crowdstrike", "client_id") → PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_ID
     // resolve_credential("acme", "crowdstrike", "client_secret") → PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_SECRET
     std::env::set_var(

@@ -682,7 +682,7 @@ pub fn tactic_pair_for_technique(technique_id: &str) -> Option<(&'static str, &'
 /// AC-004 (S-DEMO-ENRICHMENT-PIVOT-003): `scenario_ioc_hash` is the IOC hash
 /// value to stamp on `behaviors[0].ioc_value` when present. The stamped
 /// `behaviors[0].ioc_type` MUST be `"hash_sha256"` — algorithm-qualified per
-/// BC-2.06.019 v1.13 (bare `"hash"` is incorrect; `"cmdline"` is a SEPARATE
+/// BC-2.06.019 (bare `"hash"` is incorrect; `"cmdline"` is a SEPARATE
 /// sibling field, never an ioc_type value).
 ///
 /// NOTE (U19): no typed `Detection` or `Behavior` struct exists in this crate.
@@ -745,7 +745,7 @@ pub(crate) fn make_detection_with_ioc(
     });
 
     let behaviors = if let Some(ioc_hash) = scenario_ioc_hash {
-        // AC-004: ioc_type MUST be "hash_sha256" (algorithm-qualified per BC-2.06.019 v1.13).
+        // AC-004: ioc_type MUST be "hash_sha256" (algorithm-qualified per BC-2.06.019).
         // Tolerant-unknown-type policy applies to READING; we always WRITE "hash_sha256".
         let mut ioc_behavior = base_behavior.clone();
         if let Some(obj) = ioc_behavior.as_object_mut() {
@@ -871,23 +871,23 @@ fn scaled(baseline: usize, scale: f64, min_count: usize) -> usize {
 mod tests {
     use super::*;
 
-    /// Test 5 — BC-2.06.019 v1.13 PC-4 CrowdStrike IOC stamp correction:
+    /// Test 5 — BC-2.06.019 PC-4 CrowdStrike IOC stamp correction:
     /// `make_detection_with_ioc()` must stamp `behaviors[0]["ioc_type"] == "hash_sha256"`
-    /// (algorithm-qualified token), NOT bare `"hash"` (BC-2.06.019 v1.13 correction).
+    /// (algorithm-qualified token), NOT bare `"hash"` (BC-2.06.019 correction).
     ///
     /// Also asserts:
     /// - `behaviors[0]["ioc_value"]` == the scenario_ioc_hash passed in
     /// - `behaviors[0]["ioc_source"]` == `"catalog"`
     /// - `behaviors[0]["ioc_description"]` == `"scenario IOC"`
     ///
-    /// Canonical test vector (BC-2.06.019 v1.13):
+    /// Canonical test vector (BC-2.06.019):
     ///   Input: scenario_ioc_hash = Some("aabbccdd" * 8)
     ///   Expected: behaviors[0]["ioc_type"] = "hash_sha256" (NOT "hash")
     ///             behaviors[0]["ioc_value"] = "aabbccdd" * 8
     ///             behaviors[0]["ioc_source"] = "catalog"
     ///             behaviors[0]["ioc_description"] = "scenario IOC"
     ///
-    /// BC-2.06.019 v1.13 PC-4 (CrowdStrike detections IOC stamp).
+    /// BC-2.06.019 PC-4 (CrowdStrike detections IOC stamp).
     /// Red Gate test plan #5 (S-DEMO-ENRICHMENT-PIVOT-003).
     #[test]
     #[allow(non_snake_case)]
@@ -902,7 +902,7 @@ mod tests {
             ..Default::default()
         };
 
-        // Canonical test vector (BC-2.06.019 v1.13): 64-char SHA256-like hex string.
+        // Canonical test vector (BC-2.06.019): 64-char SHA256-like hex string.
         let ioc_hash = "aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
 
         let slug = org_slug(&org);
@@ -926,13 +926,13 @@ mod tests {
 
         assert!(
             !behaviors.is_empty(),
-            "BC-2.06.019 v1.13 PC-4: behaviors[] array must be non-empty after IOC stamping"
+            "BC-2.06.019 PC-4: behaviors[] array must be non-empty after IOC stamping"
         );
 
         let b0 = &behaviors[0];
 
         // CRITICAL assertion: ioc_type MUST be "hash_sha256" (NOT bare "hash").
-        // BC-2.06.019 v1.13 correction: algorithm-qualified tokens only.
+        // BC-2.06.019 correction: algorithm-qualified tokens only.
         let ioc_type = b0
             .get("ioc_type")
             .and_then(|v| v.as_str())
@@ -940,7 +940,7 @@ mod tests {
 
         assert_eq!(
             ioc_type, "hash_sha256",
-            "BC-2.06.019 v1.13 correction: behaviors[0]['ioc_type'] must be 'hash_sha256' \
+            "BC-2.06.019 correction: behaviors[0]['ioc_type'] must be 'hash_sha256' \
              (algorithm-qualified), NOT bare 'hash'. Got: '{ioc_type}'. \
              CrowdStrike enum: {{hash_sha256, hash_md5, domain, filename, registry_key}}."
         );
@@ -987,7 +987,7 @@ mod tests {
     /// This test must be GREEN even before implementation (the None branch is already
     /// implemented). It serves as a regression guard for shape parity.
     ///
-    /// BC-2.06.019 v1.13: tolerant-unknown-type policy applies to READING; writing "hash_sha256"
+    /// BC-2.06.019: tolerant-unknown-type policy applies to READING; writing "hash_sha256"
     /// only applies when scenario_ioc_hash is Some. None path = MITRE-only.
     #[test]
     #[allow(non_snake_case)]

@@ -759,7 +759,7 @@ async fn test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count() {
 /// error with `isError: true` and `structuredContent.error.code = "E-QUERY-032"`.
 /// No Claroty data from demo-org-b is leaked.
 ///
-/// # Wire shape (post F-2 / BC-2.10.007 v1.5+)
+/// # Wire shape (post F-2 / BC-2.10.007+)
 ///
 /// The MCP `query` handler routes all user-visible domain errors (including E-QUERY-032)
 /// through `prism_error_to_structured_call_result`, which returns:

@@ -6,7 +6,7 @@
 //!   `[SALT_LEN-byte salt][NONCE_LEN-byte nonce][ciphertext + 16-byte GCM tag]`
 //!
 //! Key derivation: Argon2id from master passphrase + per-credential salt.
-//! Production params: m=65536 (64MB), t=3, p=1 (BC-2.03.003 v1.4).
+//! Production params: m=65536 (64MB), t=3, p=1 (BC-2.03.003).
 //! Test params (proptest): m=256, t=1, p=1 (VP-034/VP-035 speed requirement).
 //!
 //! Atomic writes: write to `{name}.enc.tmp`, rename to `{name}.enc`.
@@ -33,7 +33,7 @@ use crate::{
     trait_::{CredentialStore, CredentialStoreOrgId},
 };
 
-/// Salt length in bytes (BC-2.03.003 v1.4 — Argon2id 16-byte salt).
+/// Salt length in bytes (BC-2.03.003 — Argon2id 16-byte salt).
 pub const SALT_LEN: usize = 16;
 
 /// Nonce length in bytes (AES-256-GCM, 96-bit).
@@ -45,7 +45,7 @@ pub const KEY_LEN: usize = 32;
 /// Minimum valid file size: salt(16) + nonce(12) + GCM tag(16) = 44 bytes.
 pub const MIN_FILE_BYTES: usize = SALT_LEN + NONCE_LEN + 16;
 
-/// Argon2id production parameters (BC-2.03.003 v1.4).
+/// Argon2id production parameters (BC-2.03.003).
 /// Only used in non-test builds; suppress dead_code warning in test mode.
 #[allow(dead_code)]
 const ARGON2_M_COST: u32 = 65536; // 64 MB
@@ -228,7 +228,7 @@ impl EncryptedFileBackend {
 ///
 /// In `cfg(test)` mode: uses scaled-down parameters (m=256, t=1, p=1) for
 /// VP-034/VP-035 proptest speed requirement (must complete in <1 min).
-/// In production: uses m=65536, t=3, p=1 per BC-2.03.003 v1.4.
+/// In production: uses m=65536, t=3, p=1 per BC-2.03.003.
 ///
 /// Returns `Err(CredentialStoreError)` if passphrase is empty (EC-005).
 ///

@@ -48,7 +48,7 @@ pub enum CapabilityCheckResult {
     /// Both tiers passed — the operation is permitted.
     Allowed,
     /// Denied by the compile-time tier (no write-endpoint declaration;
-    /// registry-derived per BC-2.04.001 v1.2 / BC-2.16.012).
+    /// registry-derived per BC-2.04.001 / BC-2.16.012).
     DeniedCompileTime {
         capability: String,
         client_id: String,
@@ -226,8 +226,8 @@ impl FeatureFlagEvaluator {
                 client_id: client_id.clone(),
                 // P2-02 (2026-06-10 review pass-2): the spec-pinned E-FLAG-002
                 // message template, VERBATIM — three spec layers agree on it
-                // (error-taxonomy.md E-FLAG-002 row, BC-2.04.015 v1.2,
-                // BC-2.04.001 v1.2; spec wins per POL-24). Registry semantics,
+                // (error-taxonomy.md E-FLAG-002 row, BC-2.04.015,
+                // BC-2.04.001; spec wins per POL-24). Registry semantics,
                 // not Cargo features — under registry-driven dispatch nothing is
                 // "un-compiled"; the compile-time tier is Absent because the
                 // sensor's TOML spec declares no [[write_endpoints]] for this

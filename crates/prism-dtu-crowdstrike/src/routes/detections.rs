@@ -209,7 +209,7 @@ pub async fn list_detection_ids(
                 .collect();
 
             // Pre-compute catalog IOC hash set for O(1) ioc_hashes gate.
-            // BC-2.06.019 v1.13 PC-4 / F-PIVOT003-R7A-002: ioc_hashes=false → withhold
+            // BC-2.06.019 PC-4 / F-PIVOT003-R7A-002: ioc_hashes=false → withhold
             // detection records whose behaviors[].ioc_value matches a catalog IOC hash.
             let catalog_ioc_hashes: std::collections::HashSet<&str> = timeline
                 .entities
@@ -236,7 +236,7 @@ pub async fn list_detection_ids(
                     if !visible {
                         return None;
                     }
-                    // BC-2.06.019 v1.13 PC-4 / F-PIVOT003-R7A-002: ioc_hashes gate.
+                    // BC-2.06.019 PC-4 / F-PIVOT003-R7A-002: ioc_hashes gate.
                     // When mask.ioc_hashes=false, withhold detections whose
                     // behaviors[].ioc_value is in the catalog IOC hash set.
                     // Mirrors Cyberint's ioc_hashes=false filter on alerts.rs.
@@ -479,7 +479,7 @@ pub async fn get_detection_summaries(
                 .collect();
 
             // Pre-compute catalog IOC hash set for O(1) ioc_hashes gate.
-            // BC-2.06.019 v1.13 PC-4 / F-PIVOT003-R7A-002: ioc_hashes=false → withhold
+            // BC-2.06.019 PC-4 / F-PIVOT003-R7A-002: ioc_hashes=false → withhold
             // detection records whose behaviors[].ioc_value matches a catalog IOC hash.
             let catalog_ioc_hashes_summaries: std::collections::HashSet<&str> = timeline
                 .entities
@@ -506,7 +506,7 @@ pub async fn get_detection_summaries(
                     if !visible {
                         return None;
                     }
-                    // BC-2.06.019 v1.13 PC-4 / F-PIVOT003-R7A-002: ioc_hashes gate.
+                    // BC-2.06.019 PC-4 / F-PIVOT003-R7A-002: ioc_hashes gate.
                     // When mask.ioc_hashes=false, withhold detections whose
                     // behaviors[].ioc_value is in the catalog IOC hash set.
                     // Mirrors list_detection_ids scenario path and Cyberint alerts.rs.

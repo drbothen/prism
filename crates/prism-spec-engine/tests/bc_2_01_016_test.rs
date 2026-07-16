@@ -80,14 +80,14 @@ fn test_BC_2_01_016_002_auth_composition_runtime_rejection() {
 /// Exercises BC-2.01.016 §Error Cases E-SPEC-013 (Rule B — credential_refs cardinality
 /// must match the auth method's schema). ADR-023 Rule 2, Rule B.
 ///
-/// Per BC-2.06.003 v1.3 / ADR-032 amendment:
+/// Per BC-2.06.003 / ADR-032 amendment:
 ///   - `oauth2_client_credentials` now allows exactly 2 refs (client_id + client_secret).
 ///   - 3+ refs for `oauth2_client_credentials` → E-SPEC-013.
 ///   - 2 refs for `bearer_static` (which needs exactly 1) → E-SPEC-013.
 ///
 /// Red Gate failure mode: `validate_cross_composition` is `todo!()` — panics.
 ///
-/// Story: S-PLUGIN-PREREQ-E AC-3b | BC: BC-2.01.016 | BC-2.06.003 v1.3 | ADR-032
+/// Story: S-PLUGIN-PREREQ-E AC-3b | BC: BC-2.01.016 | BC-2.06.003 | ADR-032
 #[test]
 fn test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected() {
     // Case 1: 3 refs for oauth2_client_credentials (only 2 are allowed).
@@ -148,7 +148,7 @@ fn test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected() {
 /// Exercises BC-2.01.016 §Error Cases E-SPEC-014 (Rule C — structural mismatch
 /// between auth_type and credential shape). ADR-023 Rule 2, Rule C.
 ///
-/// Note: per BC-2.06.003 v1.3 / ADR-032, `oauth2_client_credentials` now requires
+/// Note: per BC-2.06.003 / ADR-032, `oauth2_client_credentials` now requires
 /// exactly 2 credential_refs. To test Rule C in isolation (past Rule B), we use
 /// `bearer_static` with 1 ref (Rule B passes) and mismatched shapes.
 ///

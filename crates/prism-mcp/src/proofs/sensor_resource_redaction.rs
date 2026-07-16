@@ -40,6 +40,19 @@ mod vp_050_tests {
             })
     }
 
+    /// Generate a URL with a fragment component (no path/query).
+    ///
+    /// Used by `prop_vp050_fragment_stripped` to verify that fragment identifiers
+    /// are not leaked into `api_base_url` (F-MCPRS-PRL14-OBS-001).
+    fn url_with_fragment_no_path() -> impl Strategy<Value = String> {
+        (
+            "[a-z]{3,10}", // host
+            "[0-9]{4,5}",  // port
+            "[a-z]{3,20}", // fragment
+        )
+            .prop_map(|(host, port, frag)| format!("https://{host}.example.com:{port}#{frag}"))
+    }
+
     // ─── VP-050 proptest ──────────────────────────────────────────────────────
 
     // ─── Unit test: userinfo stripping (F-OBS-1) ─────────────────────────────
@@ -121,6 +134,86 @@ mod vp_050_tests {
         );
     }
 
+    /// VP-050 / F-MCPRS-PRL14-OBS-001: `strip_url_to_host_port` MUST NOT confuse a fragment
+    /// identifier (`#`) with userinfo.
+    ///
+    /// Two scenarios:
+    /// (a) URL with real userinfo + fragment: userinfo stripped, fragment does not confuse.
+    /// (b) Adversary scenario: `@` appears only inside the fragment. The correct host MUST
+    ///     be preserved; the fragment-internal value MUST NOT replace the host.
+    ///
+    /// Without the fix, `https://host.example.com#user:pw@evil` would pass
+    /// `"host.example.com#user:pw@evil"` to `rfind('@')`, strip everything up to that `@`,
+    /// and return `"evil"` as the authority — causing `strip_url_to_host_port` to output
+    /// `"https://evil"` instead of `"https://host.example.com"`.
+    #[test]
+    fn test_vp050_strip_userinfo_fragment_isolation() {
+        use crate::resources::render_sensor_inventory_resource;
+
+        // Case 1: real userinfo present, fragment present — userinfo stripped, no confusion.
+        let entry = render_sensor_inventory_resource(
+            "crowdstrike",
+            "cred-ref-1234",
+            "https://user:pass@host.example.com#fragment",
+            &["detections".to_string()],
+        );
+        let serialized = serde_json::to_string(&entry).unwrap();
+        assert!(
+            !serialized.contains("user:pass@"),
+            "F-MCPRS-PRL14-OBS-001: userinfo must be stripped even when fragment is present. \
+             Got: {serialized}"
+        );
+        assert!(
+            serialized.contains("host.example.com"),
+            "F-MCPRS-PRL14-OBS-001: host must be preserved after userinfo+fragment stripping. \
+             Got: {serialized}"
+        );
+        assert!(
+            !serialized.contains("fragment"),
+            "F-MCPRS-PRL14-OBS-001: fragment must be stripped from api_base_url. \
+             Got: {serialized}"
+        );
+
+        // Case 2: adversary scenario — `@` in fragment only, no real userinfo.
+        // The host MUST be preserved; the fragment-internal attacker value MUST NOT replace it.
+        let entry2 = render_sensor_inventory_resource(
+            "claroty",
+            "cred-ref-5678",
+            "https://host.example.com#user:pw@evil",
+            &["assets".to_string()],
+        );
+        let serialized2 = serde_json::to_string(&entry2).unwrap();
+        assert!(
+            serialized2.contains("host.example.com"),
+            "F-MCPRS-PRL14-OBS-001: host must be preserved when `@` appears only in fragment. \
+             Fragment content MUST NOT be treated as userinfo. Got: {serialized2}"
+        );
+        assert!(
+            !serialized2.contains("evil"),
+            "F-MCPRS-PRL14-OBS-001: the adversary-controlled fragment value 'evil' MUST NOT \
+             replace the host. Got: {serialized2}"
+        );
+
+        // Case 3: fragment with no path, no query (tests strip_path_from_authority '#' fix).
+        let entry3 = render_sensor_inventory_resource(
+            "armis",
+            "cred-ref-9012",
+            "https://api.armis.com:443#no-path",
+            &["devices".to_string()],
+        );
+        let serialized3 = serde_json::to_string(&entry3).unwrap();
+        assert!(
+            serialized3.contains("api.armis.com"),
+            "F-MCPRS-PRL14-OBS-001: host must be preserved for fragment-only URL. \
+             Got: {serialized3}"
+        );
+        assert!(
+            !serialized3.contains("no-path"),
+            "F-MCPRS-PRL14-OBS-001: fragment 'no-path' must be stripped from api_base_url. \
+             Got: {serialized3}"
+        );
+    }
+
     proptest! {
         /// VP-050: render_sensor_inventory_resource redacts API keys.
         ///
@@ -170,7 +263,7 @@ mod vp_050_tests {
         ///
         /// This test is LOAD-BEARING: it would FAIL if `strip_url_to_host_port` were
         /// removed from `render_sensor_inventory_resource`, because `api_base_url` is
-        /// now a serialized field in `SensorConfigEntry` (BC-2.10.008 v1.8 postcondition 2).
+        /// now a serialized field in `SensorConfigEntry` (BC-2.10.008 postcondition 2).
         ///
         /// For any full URL with path/query, the serialized `api_base_url` field must:
         /// (a) NOT contain path components (anything after the host:port)
@@ -219,7 +312,41 @@ mod vp_050_tests {
             prop_assert!(
                 serialized.contains("api_base_url"),
                 "VP-050 FAIL: 'api_base_url' field must be present in serialized SensorConfigEntry \
-                 (BC-2.10.008 v1.8 postcondition 2). Got: {serialized}"
+                 (BC-2.10.008 postcondition 2). Got: {serialized}"
+            );
+        }
+
+        /// VP-050 / F-MCPRS-PRL14-OBS-001: render_sensor_inventory_resource strips URL fragments.
+        ///
+        /// For any URL that has a fragment (`#`) but no path — e.g.
+        /// `https://host.example.com:443#fragment` — the serialized `api_base_url` field
+        /// MUST NOT contain the `#` character or any fragment text.
+        ///
+        /// This exercises the `strip_path_from_authority` `#`-termination fix.
+        #[test]
+        fn prop_vp050_fragment_stripped(
+            url in url_with_fragment_no_path(),
+        ) {
+            let sources = vec!["events".to_string()];
+            let entry = render_sensor_inventory_resource(
+                "armis",
+                "cred-ref-frag",
+                &url,
+                &sources,
+            );
+            let serialized = serde_json::to_string(&entry).unwrap();
+            // F-MCPRS-PRL14-OBS-001 LOAD-BEARING: fragment MUST NOT appear in api_base_url.
+            prop_assert!(
+                !serialized.contains('#'),
+                "F-MCPRS-PRL14-OBS-001 FAIL: URL fragment '#' leaked into api_base_url. \
+                 api_base_url must contain ONLY scheme+host+port. Input URL: {url}. \
+                 Got serialized: {serialized}"
+            );
+            // Sanity: host must still be present.
+            prop_assert!(
+                serialized.contains("api_base_url"),
+                "F-MCPRS-PRL14-OBS-001 FAIL: 'api_base_url' field must be present. \
+                 Got: {serialized}"
             );
         }
     }

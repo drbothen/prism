@@ -147,9 +147,9 @@ pub(crate) fn check_auth(
 ///    excluding any records where the real-schema IOC fields (`ioc.value`, `iocs[].value`,
 ///    `alert_data.ip`, `alert_data.domain`) reference a catalog IOC whose corresponding
 ///    mask field (`ioc_ips`, `ioc_domains`, or `ioc_hashes`) is `false`.
-///    BC-2.06.019 v1.13 PC-4 alert-surface semantics: `ioc_ips/ioc_domains/ioc_hashes=false`
+///    BC-2.06.019 PC-4 alert-surface semantics: `ioc_ips/ioc_domains/ioc_hashes=false`
 ///    → alert records referencing those catalog IOCs are excluded from the response.
-///    NOTE: the synthetic-ioc filter has been REMOVED (BC-2.06.019 v1.13 §Interim State);
+///    NOTE: the synthetic-ioc filter has been REMOVED (BC-2.06.019 §Interim State);
 ///    IOC field access uses `Ioc.value` deserialized from `#[serde(rename = "type", alias = "ioc_type")]`
 ///    on `Ioc.ioc_type` and the primary `value` field (AC-003 / S-DEMO-ENRICHMENT-PIVOT-003).
 ///
@@ -232,9 +232,9 @@ pub async fn get_alerts(
                 .map(|s| s.as_str())
                 .collect();
 
-            // AC-003 / BC-2.06.019 v1.13 PC-4: real-schema IOC filter.
+            // AC-003 / BC-2.06.019 PC-4: real-schema IOC filter.
             //
-            // Filter logic (per BC-2.06.019 v1.13 PC-4):
+            // Filter logic (per BC-2.06.019 PC-4):
             // - `ioc_hashes=false`: withhold alert if ioc.value or any iocs[].value
             //   (deserialized via Ioc.ioc_type/value dual-alias) matches catalog_ioc_hashes.
             // - `ioc_ips=false`: withhold if ioc.value, iocs[].value, or alert_data.ip
@@ -269,7 +269,7 @@ pub async fn get_alerts(
                 .into_iter()
                 .filter(|rec| {
                     // Try to deserialize as typed Alert for IOC access.
-                    // BC-2.06.019 v1.13 PC-4 step 6: fail-closed.
+                    // BC-2.06.019 PC-4 step 6: fail-closed.
                     // Records that cannot be deserialized as Alert MUST be withheld:
                     // the StageMask IOC filter cannot be correctly applied to untyped data,
                     // so surfacing an undeserializable record would violate the IOC masking

@@ -193,7 +193,7 @@ impl CrowdstrikeClone {
     /// Internally calls `generate_with_scenario_iocs` so that CompromisedEndpoint
     /// detection 0 carries `behaviors[0].ioc_value = catalog.ioc_hashes[0]` — the
     /// anchor that makes the ThreatIntel pivot `enrich threat_intel(iocs[].value)`
-    /// resolve at stage ≥ 3 (AC-004 / BC-2.06.019 v1.13).
+    /// resolve at stage ≥ 3 (AC-004 / BC-2.06.019).
     ///
     /// Sets `state.timeline = Some(Arc::clone(&timeline))` so route handlers can
     /// compute the current stage and apply StageMask filtering.

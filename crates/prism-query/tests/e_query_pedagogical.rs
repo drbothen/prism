@@ -177,15 +177,15 @@ mod tests {
                 .expect("register_sensor must not fail in test fixture");
         }
 
-        let mut engine = QueryEngine::new_with_cache_config(
+        let engine = QueryEngine::new_with_cache_config(
             Arc::new(prism_sensors::AdapterRegistry::new()),
             Arc::new(NoopCs),
             Arc::new(prism_ocsf::OcsfNormalizer::new()),
             Arc::new(ClientRegistry::new(clients)),
             QueryEngineConfig::default(),
             prism_query::cache::CacheConfig::default(),
-        );
-        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(resolved_map))));
+        )
+        .with_resolved_spec_map(Arc::new(resolved_map));
         engine.with_table_registry(registry)
     }
 

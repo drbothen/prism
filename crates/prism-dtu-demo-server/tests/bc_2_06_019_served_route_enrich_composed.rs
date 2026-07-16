@@ -28,8 +28,8 @@
 //!
 //! ## BC traceability
 //!
-//! BC-2.06.019 v1.13 PC-4 (Cyberint alerts IOC surface at stage ≥ 3)
-//! BC-2.06.019 v1.13 AC-007 (iocs[].value canonical pivot field)
+//! BC-2.06.019 PC-4 (Cyberint alerts IOC surface at stage ≥ 3)
+//! BC-2.06.019 AC-007 (iocs[].value canonical pivot field)
 //! BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001 (scenario IOCs resolve as Malicious)
 //! F-PIVOT003-R10A-001 (closing finding: composed served-route → enrich test required)
 
@@ -152,7 +152,7 @@ impl InfusionSource for ThreatIntelInfusionSource {
 /// (d) `enrich_single` is never called (hollow-feature guard), OR
 /// (e) Scenario IOCs are not registered as Malicious in ThreatIntelState.
 ///
-/// BC-2.06.019 v1.13 PC-4 / AC-007 / BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001
+/// BC-2.06.019 PC-4 / AC-007 / BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001
 /// F-PIVOT003-R10A-001
 #[tokio::test]
 async fn test_BC_2_06_019_served_route_to_enrich_pipeline_composed_full_chain() {
@@ -247,7 +247,7 @@ async fn test_BC_2_06_019_served_route_to_enrich_pipeline_composed_full_chain() 
 
     let mut served_ioc_values: Vec<String> = Vec::new();
     for rec in &data {
-        // iocs[] array form (canonical pivot field — BC-2.06.019 v1.13 AC-007).
+        // iocs[] array form (canonical pivot field — BC-2.06.019 AC-007).
         if let Some(iocs_arr) = rec.get("iocs").and_then(|v| v.as_array()) {
             for ioc_entry in iocs_arr {
                 if let Some(val) = ioc_entry.get("value").and_then(|v| v.as_str()) {
@@ -281,7 +281,7 @@ async fn test_BC_2_06_019_served_route_to_enrich_pipeline_composed_full_chain() 
          At stage ≥ 3 (scenario_start = now - 1000s), ioc_hashes=true — IOC records MUST be \
          served. If this fires: StageMask ioc_hashes gate is broken OR CyberintClone did not \
          stamp catalog IOC hashes on alert records. catalog.ioc_hashes={:?}. \
-         BC-2.06.019 v1.13 PC-4 / AC-007",
+         BC-2.06.019 PC-4 / AC-007",
         data.len(),
         catalog.ioc_hashes,
     );
@@ -353,7 +353,7 @@ async fn test_BC_2_06_019_served_route_to_enrich_pipeline_composed_full_chain() 
          Got 0 — InfusionAsyncUdf::invoke_async_with_args did NOT call the source. \
          This is the hollow-feature guard (TD-VSDD-059): the UDF pipeline was not exercised. \
          served_ioc_values_count = {}. \
-         BC-2.06.019 v1.13 AC-007",
+         BC-2.06.019 AC-007",
         served_ioc_values.len()
     );
 
@@ -366,7 +366,7 @@ async fn test_BC_2_06_019_served_route_to_enrich_pipeline_composed_full_chain() 
         "F-PIVOT003-R10A-001: query must return at least 1 row. \
          Got 0 rows — MemTable was empty or WHERE clause eliminated all rows. \
          served_ioc_values_count = {}. \
-         BC-2.06.019 v1.13 AC-007",
+         BC-2.06.019 AC-007",
         served_ioc_values.len()
     );
 
@@ -393,7 +393,7 @@ async fn test_BC_2_06_019_served_route_to_enrich_pipeline_composed_full_chain() 
         "F-PIVOT003-R10A-001: at least 1 non-NULL verdict row required. \
          Got 0 — enrich_single returned None for all served IOC values. \
          enrich_call_count={enrich_call_count}. served_ioc_values={:?}. \
-         BC-2.06.019 v1.13 AC-007 / INV-THREATINTEL-IOC-CORRELATION-001",
+         BC-2.06.019 AC-007 / INV-THREATINTEL-IOC-CORRELATION-001",
         served_ioc_values
     );
 
@@ -404,7 +404,7 @@ async fn test_BC_2_06_019_served_route_to_enrich_pipeline_composed_full_chain() 
          Expected: served IOC values from GET /api/v1/alerts (stage ≥ 3) include \
          catalog.ioc_hashes[0] which ThreatIntelState maps to FixtureKey::Malicious. \
          enrich_call_count={enrich_call_count}. served_ioc_values={:?}. \
-         BC-2.06.019 v1.13 AC-007 / INV-THREATINTEL-IOC-CORRELATION-001 / F-PIVOT003-R10A-001",
+         BC-2.06.019 AC-007 / INV-THREATINTEL-IOC-CORRELATION-001 / F-PIVOT003-R10A-001",
         served_ioc_values
     );
 }

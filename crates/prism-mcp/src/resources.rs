@@ -1209,24 +1209,34 @@ fn strip_url_to_host_port(url: &str) -> String {
 /// RFC 3986 §3.2.1: userinfo is the segment before the last `@` in the authority.
 /// For `user:secret@host:443/path`, returns `host:443/path`.
 /// For `host:443/path` (no userinfo), returns the input unchanged.
+///
+/// F-MCPRS-PRL14-OBS-001: the authority section also terminates at `#` (fragment).
+/// Without this, `https://host.example.com#user:pw@evil` would have `rfind('@')`
+/// match inside the fragment, causing `strip_url_to_host_port` to return
+/// `https://evil` instead of `https://host.example.com`.
 fn strip_userinfo(authority_and_rest: &str) -> &str {
-    // Split the path-part off first so we don't accidentally find `@` in a query value.
-    // The authority ends at the first `/` or `?`.
-    let (authority_section, rest_suffix) = if let Some(slash_pos) = authority_and_rest.find('/') {
-        (
-            &authority_and_rest[..slash_pos],
-            &authority_and_rest[slash_pos..],
-        )
-    } else if let Some(q_pos) = authority_and_rest.find('?') {
-        (&authority_and_rest[..q_pos], &authority_and_rest[q_pos..])
+    // Split the path-part off first so we don't accidentally find `@` in a query value
+    // or fragment. The authority ends at the first `/`, `?`, or `#`
+    // (RFC 3986 §3: path delimiter `/`, query delimiter `?`, fragment delimiter `#`).
+    let boundary = [
+        authority_and_rest.find('/'),
+        authority_and_rest.find('?'),
+        authority_and_rest.find('#'),
+    ]
+    .into_iter()
+    .flatten()
+    .min();
+
+    let (authority_section, rest_suffix) = if let Some(pos) = boundary {
+        (&authority_and_rest[..pos], &authority_and_rest[pos..])
     } else {
         (authority_and_rest, "")
     };
 
     // Find the last `@` in the authority section — everything before it is userinfo.
     if let Some(at_pos) = authority_section.rfind('@') {
-        // Reconstruct: skip the userinfo prefix and re-attach any path/query suffix.
-        // `rest_suffix` already starts with `/` or `?`, so direct concatenation is safe.
+        // Reconstruct: skip the userinfo prefix and re-attach any path/query/fragment suffix.
+        // `rest_suffix` already starts with `/`, `?`, or `#`, so direct concatenation is safe.
         // We return a subslice of the original `authority_and_rest` that starts right
         // after the `@`. The suffix offset is at_pos + 1 within authority_section,
         // which is the same byte position in authority_and_rest.
@@ -1238,13 +1248,24 @@ fn strip_userinfo(authority_and_rest: &str) -> &str {
 }
 
 /// Strip path/query/fragment from an authority (host:port) string.
+///
+/// F-MCPRS-PRL14-OBS-001: also truncates at `#` (fragment delimiter) so that
+/// URLs like `https://host:443#fragment` (no path) are correctly reduced to
+/// `https://host:443` rather than retaining the fragment in the output.
 fn strip_path_from_authority(authority_and_rest: &str) -> &str {
-    // authority_and_rest is "host:port/path?query" or "host:port"
-    // Find the first '/' that is NOT part of the authority
-    if let Some(slash_pos) = authority_and_rest.find('/') {
-        &authority_and_rest[..slash_pos]
-    } else if let Some(question_pos) = authority_and_rest.find('?') {
-        &authority_and_rest[..question_pos]
+    // authority_and_rest is "host:port/path?query#fragment" or "host:port"
+    // Find the earliest of '/', '?', or '#' — all terminate the authority
+    // (RFC 3986 §3: path at '/', query at '?', fragment at '#').
+    let boundary = [
+        authority_and_rest.find('/'),
+        authority_and_rest.find('?'),
+        authority_and_rest.find('#'),
+    ]
+    .into_iter()
+    .flatten()
+    .min();
+    if let Some(pos) = boundary {
+        &authority_and_rest[..pos]
     } else {
         authority_and_rest
     }
