@@ -39,8 +39,19 @@ jobs:
       # prism-credentials uses keyring 3.x with linux-native-sync-persistent (Secret Service
       # backend) on Linux gnu, which requires libdbus-1-dev + pkg-config at build time.
       # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
-      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - name: Install libdbus-1-dev (required by keyring build on Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          # Evidence: EC-010 mirror-flake class; clippy is a needs: predecessor blocking pipeline.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
       # Optimization 1: Swatinem/rust-cache for incremental build caching
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
@@ -127,8 +138,9 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       # S-MAINT-CI-DISK-EXHAUSTION-001 AC-007: C toolchain baseline required by rocksdb-sys
-      # v0.17.3+10.4.2 build script. Runner image ubuntu24/20260705.232 omits libc6-dev;
-      # stdbool.h missing => build fails. DRIFT-CI-STDBOOL-001 (runner-image regression, 2026-07-15).
+      # v0.17.3+10.4.2 build script (bindgen → libclang needs clang builtin resource headers).
+      # Root cause: AC-002 reclaimer large-packages purge removes libclang-common-*-dev.
+      # DRIFT-CI-STDBOOL-001 (revised 2026-07-15: self-inflicted toolchain removal, EC-012).
       - name: Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)
         if: runner.os == 'Linux'
         run: |
@@ -309,8 +321,9 @@ jobs:
           fi
           sudo apt-get install -y libdbus-1-dev pkg-config
       # S-MAINT-CI-DISK-EXHAUSTION-001 AC-007: C toolchain baseline required by rocksdb-sys
-      # v0.17.3+10.4.2 build script. Runner image ubuntu24/20260705.232 omits libc6-dev;
-      # stdbool.h missing => build fails. DRIFT-CI-STDBOOL-001 (runner-image regression, 2026-07-15).
+      # v0.17.3+10.4.2 build script (bindgen → libclang needs clang builtin resource headers).
+      # Root cause: AC-002 reclaimer large-packages purge removes libclang-common-*-dev.
+      # DRIFT-CI-STDBOOL-001 (revised 2026-07-15: self-inflicted toolchain removal, EC-012).
       - name: Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)
         run: |
           # C toolchain baseline required by rocksdb-sys v0.17.3+10.4.2 build script.
@@ -656,8 +669,18 @@ jobs:
       # prism-credentials uses keyring 3.x with linux-native-sync-persistent (Secret Service
       # backend) on Linux, requiring libdbus-1-dev + pkg-config at build time.
       # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
-      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - name: Install libdbus-1-dev (required by keyring build on Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
       # Optimization 1: Swatinem/rust-cache
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
@@ -750,8 +773,18 @@ jobs:
       # prism-credentials (transitive dep of prism-query via fuzz target) uses keyring 3.x
       # with linux-native-sync-persistent (Secret Service backend) on Linux gnu, requiring
       # libdbus-1-dev + pkg-config at build time. ADR-034 / BC-2.06.003.
-      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - name: Install libdbus-1-dev (required by keyring build on Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
       - name: Install cargo-fuzz
         uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
         with:
@@ -808,8 +841,18 @@ jobs:
       # perimeter-violation depends on prism-query which transitively depends on
       # prism-credentials → keyring 3.x linux-native-sync-persistent (Secret Service
       # backend), requiring libdbus-1-dev + pkg-config. ADR-034 / BC-2.06.003.
-      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - name: Install libdbus-1-dev (required by keyring build on Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
@@ -1024,8 +1067,18 @@ jobs:
       # non-exhaustive-violation depends on prism-spec-engine which transitively depends on
       # prism-credentials → keyring 3.x linux-native-sync-persistent (Secret Service
       # backend), requiring libdbus-1-dev + pkg-config. ADR-034 / BC-2.06.003.
-      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - name: Install libdbus-1-dev (required by keyring build on Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
@@ -1064,8 +1117,18 @@ jobs:
       # no-hardcoded-sensors depends on prism-sensors which transitively depends on
       # prism-credentials → keyring 3.x linux-native-sync-persistent (Secret Service
       # backend), requiring libdbus-1-dev + pkg-config. ADR-034 / BC-2.06.003.
-      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - name: Install libdbus-1-dev (required by keyring build on Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
@@ -1566,7 +1629,16 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install shellcheck
-        run: sudo apt-get update && sudo apt-get install -y shellcheck
+        run: |
+          # Apt-mirror resilience: two-attempt pattern per AC-006.
+          if ! sudo apt-get update; then
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            sudo sed -i -E 's|https?://[^ ]*/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo apt-get update
+          fi
+          sudo apt-get install -y shellcheck
       - name: Run shellcheck on demo scripts
         run: |
           # AC-014 (S-DEMO-003): shellcheck must pass with zero errors on all demo scripts.
@@ -1725,11 +1797,11 @@ jobs:
           # Anchored to the two-attempt pattern keyword — count-based, self-match-proof.
           # The assertion line starts with whitespace+count=$(grep..., so the if-pattern cannot self-match.
           count=$(grep -cE '^\s+if ! sudo apt-get update; then$' .github/workflows/ci.yml)
-          [ "$count" -ge 3 ] || {
-            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006: apt-mirror resilience (two-attempt pattern) missing from ≥3 apt install steps (found ${count}; need install-musl + libdbus-linux-test + libdbus-no-default-features)"
+          [ "$count" -ge 12 ] || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001 AC-006: apt-mirror two-attempt wrapper missing from expected sites (found ${count}; need 12: 10 apt-install steps + 2 AC-007 toolchain installs)"
             exit 1
           }
-          echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 check passed: apt-mirror resilience found ${count} times (≥3 required)."
+          echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-006 check passed: apt-mirror resilience found ${count} times (≥12 required: 10 apt-install steps + 2 AC-007 toolchain installs)."
           # Anchored to the specific install payload — count-based, self-match-proof.
           # The assertion line starts with whitespace+count=$(grep..., not whitespace+"sudo apt-get install",
           # so the ^\s+sudo anchor cannot self-match.
@@ -1739,4 +1811,4 @@ jobs:
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-007 check passed: C toolchain baseline install found ${count} times (≥2 required)."
-          echo 'All verify-workflow-structure assertions pass: AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001/AC-002 (count≥2) + AC-006 (count≥3) + AC-007 (count≥2) — all reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant).'
+          echo 'All verify-workflow-structure assertions pass: AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001/AC-002 (count≥2) + AC-006 (count≥12) + AC-007 (count≥2) — all reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant).'
