@@ -109,7 +109,10 @@ async fn test_BC_3_6_001_replicates_defect_401_without_admin_token() {
     // POST /dtu/configure WITHOUT X-Admin-Token — replicates the pre-fix cmd_configure defect.
     // ADR-003 Amendment #5: all callers of POST /dtu/configure must include
     // `.header("X-Admin-Token", clone.admin_token())`. cmd_configure omitted it (now fixed).
-    let payload = serde_json::json!({ "seed": 42 });
+    // AC-001 specifies {"auth_mode": "accept"} as the representative payload shape for this
+    // contract-lock test. The server rejects the request pre-parse (missing X-Admin-Token)
+    // so the payload body is never inspected — but aligning to the AC literal is required.
+    let payload = serde_json::json!({ "auth_mode": "accept" });
     let resp = client
         .post(&url)
         .header("Content-Type", "application/json")
@@ -320,7 +323,7 @@ async fn test_BC_3_6_001_e_demo_007_configure_no_sidecar_present() {
 ///
 /// EC-005: In start-multi mode, if multiple orgs have the same sensor name (e.g.
 /// "crowdstrike"), a bare sensor name is ambiguous. Expected E-DEMO-007 message (per
-/// story §Edge Cases EC-005 and `resolve_configure_token` lines 1068-1076):
+/// story §Edge Cases EC-005 and the multi-match ambiguity arm of `resolve_configure_token`):
 ///   "Bare sensor name 'crowdstrike' is ambiguous — found in N orgs: ["org-a", "org-b"].
 ///    Use full '{org_slug}-{sensor_id}' form."
 ///
@@ -441,6 +444,18 @@ async fn test_BC_3_6_001_ac001_binary_configure_with_sidecar_token_returns_200()
         .expect("AC-001-E2E: start binary must spawn");
 
     let start_pid = start_child.id();
+
+    // RAII kill-guard (F-ADMTOK-P2-OBS-002): if this test panics before the SIGTERM line,
+    // Drop sends SIGKILL so the spawned demo server is not leaked.
+    // Safety: SIGKILL to our own subprocess; the OS silently ignores SIGKILL to an
+    // already-exited process (returns ESRCH, which we discard).
+    struct KillGuard(u32);
+    impl Drop for KillGuard {
+        fn drop(&mut self) {
+            unsafe { libc::kill(self.0 as libc::pid_t, libc::SIGKILL) };
+        }
+    }
+    let _kill_guard = KillGuard(start_pid);
 
     // Poll for TOKEN_FILE in tmp.path() (written after URL_FILE, so polling TOKEN_FILE
     // is the stricter gate — both sidecars are present once TOKEN_FILE appears).

@@ -142,6 +142,21 @@ enabled = false
         assert_eq!(ret, 0, "kill(SIGTERM) to pid {pid} failed");
     }
 
+    /// RAII kill-guard (F-ADMTOK-P2-OBS-002 TD-VSDD-060 sibling sweep).
+    ///
+    /// Holds the pid of a spawned subprocess. On `Drop`, sends SIGKILL to ensure the
+    /// child is not leaked if the test panics before the explicit `send_sigterm` line.
+    /// The OS silently ignores SIGKILL to an already-exited process (returns ESRCH).
+    #[cfg(unix)]
+    struct KillGuard(u32);
+    #[cfg(unix)]
+    impl Drop for KillGuard {
+        fn drop(&mut self) {
+            // SAFETY: SIGKILL to our own subprocess; already-exited pids return ESRCH (ignored).
+            unsafe { libc::kill(self.0 as libc::pid_t, libc::SIGKILL) };
+        }
+    }
+
     /// Do a blocking GET to `url` with a `connect_timeout` and return the status code.
     ///
     /// Uses a single-threaded tokio runtime so tests can call this from sync context.
@@ -198,6 +213,8 @@ enabled = false
             .expect("TD-WV1-04: binary must spawn");
 
         let pid = child.id();
+        // Kill-guard: ensures child is killed even if this test panics mid-execution.
+        let _kill_guard = KillGuard(pid);
 
         // Wait for URL sidecar (up to 15s — binary needs to bind + write).
         let url_map = wait_for_url_file(&url_file, Duration::from_secs(15));
@@ -263,6 +280,8 @@ enabled = false
             .expect("TD-WV1-04: binary must spawn");
 
         let pid = child.id();
+        // Kill-guard: ensures child is killed even if this test panics mid-execution.
+        let _kill_guard = KillGuard(pid);
 
         let url_map = wait_for_url_file(&url_file, Duration::from_secs(15));
 
@@ -323,6 +342,8 @@ enabled = false
             .expect("TD-WV1-04: binary must spawn");
 
         let pid = child.id();
+        // Kill-guard: ensures child is killed even if this test panics mid-execution.
+        let _kill_guard = KillGuard(pid);
 
         // Wait for the URL file so we know the binary has printed the URL table.
         wait_for_url_file(&url_file, Duration::from_secs(15));
