@@ -34,6 +34,20 @@ pub const URL_FILE: &str = ".prism-dtu-demo-server.urls.json";
 /// `resolve_configure_url` can reference it in error messages.
 pub const URL_MULTI_FILE: &str = ".prism-dtu-demo-server.urls-multi.json";
 
+/// Name of the flat admin-token sidecar file written by `start` subcommand.
+///
+/// Format: `{name: token}` (one entry per clone, mirroring `URL_FILE`).
+/// Written atomically (tmp+rename) alongside `URL_FILE` so that `cmd_configure`
+/// can obtain the per-clone admin token for the `X-Admin-Token` header
+/// (ADR-003 Amendment #5 / AC-002 of DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001).
+pub const TOKEN_FILE: &str = ".prism-dtu-demo-server.admin-tokens.json";
+
+/// Name of the nested admin-token sidecar file written by `start-multi` subcommand.
+///
+/// Format: `{org_slug: {sensor_id: token}}` (mirroring `URL_MULTI_FILE`).
+/// Written atomically (tmp+rename) alongside `URL_MULTI_FILE`.
+pub const TOKEN_MULTI_FILE: &str = ".prism-dtu-demo-server.admin-tokens-multi.json";
+
 // Re-export primary types for test usage.
 pub use config::{
     DemoConfig, EnrichmentConfig, MultiOrgDemoConfig, OrgConfig, KNOWN_ENRICHMENT_CLONES,
@@ -48,6 +62,7 @@ pub use multi_instance::{
 // Re-exported so integration tests in tests/multi_org.rs can call them directly
 // without subprocess overhead (Architecture Compliance Rule).
 pub use multi_org_cmd::{
-    build_multi_clone_factory, resolve_configure_url, start_multi_for_config,
+    build_multi_clone_factory, resolve_configure_token, resolve_configure_url,
+    start_multi_for_config, write_multi_admin_token_sidecar_to_path,
     write_multi_url_sidecar_to_path,
 };

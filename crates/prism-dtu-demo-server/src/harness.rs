@@ -228,6 +228,19 @@ impl DemoHarness {
             }
         }
 
+        // Write admin-token sidecar atomically (tmp+rename) so that `cmd_configure`
+        // (a separate process invocation) can read per-clone tokens for the
+        // `X-Admin-Token` header required by ADR-003 Amendment #5.
+        //
+        // This write happens on the success path only (all binds succeeded).
+        // File I/O errors are propagated — a failed sidecar write is fatal because
+        // `cmd_configure` would silently receive HTTP 401 from every clone without it.
+        //
+        // DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-03/T-04: write_token_sidecar is called
+        // here (in start_all) so that integration tests calling start_all directly (without
+        // going through the binary's cmd_start) also get the token sidecar written.
+        write_token_sidecar_to_path(&self.token_map(), std::path::Path::new(crate::TOKEN_FILE))?;
+
         Ok(())
     }
 
@@ -293,6 +306,25 @@ impl DemoHarness {
             .collect()
     }
 
+    /// Return a map from clone name to admin token string.
+    ///
+    /// Only includes clones with a bound address (i.e., successfully started).
+    /// Used by `write_token_sidecar_to_path` to write `TOKEN_FILE` so that
+    /// `cmd_configure` can obtain per-clone tokens for the `X-Admin-Token` header
+    /// (ADR-003 Amendment #5 / DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-03).
+    pub fn token_map(&self) -> HashMap<String, String> {
+        self.pairs
+            .iter()
+            .filter_map(|pair| {
+                if pair.bound_addr.is_some() {
+                    Some((pair.name.clone(), pair.admin_token().to_string()))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
     /// Print the URL table to stdout.
     ///
     /// Only lists clones with a bound address (i.e., successfully started).
@@ -315,6 +347,42 @@ impl DemoHarness {
             }
         }
     }
+}
+
+/// Write the flat admin-token sidecar `{name: token}` atomically (tmp+rename).
+///
+/// Called from `DemoHarness::start_all` after all clones have bound successfully.
+/// Written to `path` (typically `TOKEN_FILE = ".prism-dtu-demo-server.admin-tokens.json"`).
+///
+/// # Atomic write (GAP-3 sidecar-availability guarantee)
+///
+/// Writes to a `.tmp` file first, then renames atomically, so that `cmd_configure`
+/// (polling in a separate process) never reads a partial file.
+///
+/// # AD-017 credential safety
+///
+/// Token values MUST NOT appear in structured log fields. This function does not log
+/// token values. All tokens are ephemeral UUID v4 strings generated at clone construction.
+///
+/// (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-03)
+fn write_token_sidecar_to_path(
+    token_map: &std::collections::HashMap<String, String>,
+    path: &std::path::Path,
+) -> anyhow::Result<()> {
+    let json = serde_json::to_string(token_map)
+        .map_err(|e| anyhow::anyhow!("Failed to serialise token map: {}", e))?;
+    let tmp_path = {
+        let fname = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("tokens");
+        path.with_file_name(format!("{fname}.tmp"))
+    };
+    std::fs::write(&tmp_path, &json)
+        .map_err(|e| anyhow::anyhow!("Failed to write token sidecar tmp {:?}: {}", tmp_path, e))?;
+    std::fs::rename(&tmp_path, path)
+        .map_err(|e| anyhow::anyhow!("Failed to rename token sidecar {:?}: {}", path, e))?;
+    Ok(())
 }
 
 /// Build all clone pairs from a `DemoConfig`.

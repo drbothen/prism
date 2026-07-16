@@ -83,9 +83,9 @@ enum Commands {
 /// Name of the PID sidecar file written in cwd by `start`.
 const PID_FILE: &str = ".prism-dtu-demo-server.pid";
 
-// URL_FILE and URL_MULTI_FILE are defined in lib.rs (as `pub const`) so that
-// multi_org_cmd.rs can reference them in error messages. Import them here.
-use prism_dtu_demo_server::{URL_FILE, URL_MULTI_FILE};
+// URL_FILE, URL_MULTI_FILE, TOKEN_FILE, TOKEN_MULTI_FILE are defined in lib.rs (as `pub const`)
+// so that multi_org_cmd.rs can reference them in error messages. Import them here.
+use prism_dtu_demo_server::{TOKEN_FILE, TOKEN_MULTI_FILE, URL_FILE, URL_MULTI_FILE};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -356,6 +356,8 @@ async fn wait_for_shutdown_signal(harness: &mut prism_dtu_demo_server::DemoHarne
     // Remove sidecar files.
     let _ = std::fs::remove_file(PID_FILE);
     let _ = std::fs::remove_file(URL_FILE);
+    // T-09: Remove admin-token sidecar alongside URL sidecar on shutdown.
+    let _ = std::fs::remove_file(TOKEN_FILE);
 
     if stop_result.is_err() {
         tracing::error!("stop_all() timed out after 5s — hard aborting");
@@ -400,6 +402,11 @@ async fn cmd_start_multi(config_path: std::path::PathBuf) -> anyhow::Result<()> 
     //    Written to URL_MULTI_FILE (distinct from the flat URL_FILE written by `start`).
     write_multi_url_sidecar(&servers, &cfg)?;
 
+    // 5b. Write NESTED admin-token sidecar: {org_slug: {sensor_id: token}}.
+    //     Written to TOKEN_MULTI_FILE alongside URL_MULTI_FILE so that `cmd_configure`
+    //     can obtain per-clone tokens for the `X-Admin-Token` header (T-06).
+    write_multi_admin_token_sidecar(&servers, &cfg)?;
+
     // 6. Print nested URL table to stdout.
     let socket_map = servers.socket_map();
     println!("start-multi: {} instances running", socket_map.len());
@@ -437,6 +444,29 @@ fn write_multi_url_sidecar(
         servers,
         cfg,
         std::path::Path::new(URL_MULTI_FILE),
+    )
+}
+
+/// Write the NESTED admin-token sidecar file `.prism-dtu-demo-server.admin-tokens-multi.json`.
+///
+/// Delegates to `write_multi_admin_token_sidecar_to_path` (the testable, path-parameterised
+/// variant in `multi_org_cmd.rs`) with the canonical `TOKEN_MULTI_FILE` path.
+///
+/// Written atomically (tmp + rename) to prevent `cmd_configure` from reading a partial file.
+///
+/// # Production-grade: no silent drops
+///
+/// Errors loudly if any expected `{org_slug}-{sensor_id}` entry is absent from
+/// `servers.admin_token_map()` — a missing token would cause HTTP 401 on every
+/// `configure` call for that sensor (CLAUDE.md Standing Rule 3 §2).
+fn write_multi_admin_token_sidecar(
+    servers: &prism_dtu_demo_server::MultiInstanceServers,
+    cfg: &prism_dtu_demo_server::MultiOrgDemoConfig,
+) -> anyhow::Result<()> {
+    prism_dtu_demo_server::write_multi_admin_token_sidecar_to_path(
+        servers,
+        cfg,
+        std::path::Path::new(TOKEN_MULTI_FILE),
     )
 }
 
@@ -480,6 +510,8 @@ async fn wait_for_shutdown_signal_multi(servers: &prism_dtu_demo_server::MultiIn
     // Remove sidecar files.
     let _ = std::fs::remove_file(PID_FILE);
     let _ = std::fs::remove_file(URL_MULTI_FILE);
+    // T-09: Remove admin-token sidecar alongside URL sidecar on shutdown.
+    let _ = std::fs::remove_file(TOKEN_MULTI_FILE);
 
     tracing::info!("start-multi: All instances signalled for graceful shutdown.");
 }
@@ -536,6 +568,21 @@ fn send_sigterm(pid: i32) -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<()> {
+    // TD-VSDD-060 sibling sweep (AC-004): all POST /dtu/configure call sites in client code.
+    //
+    // Enumerated in DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 §Root Cause sibling table:
+    // | Site                                             | X-Admin-Token? | Status          |
+    // |--------------------------------------------------|----------------|-----------------|
+    // | cmd_configure() — this function (main.rs)        | YES (FIXED)    | DEFECT → FIXED  |
+    // | ac_3_configure_called_on_clone_port_directly     | YES            | Correct         |
+    // | ac_3_no_harness_proxy_for_configure              | YES            | Correct         |
+    // | prism-dtu-crowdstrike td_wv0_07_*                | YES            | Correct         |
+    // | prism-dtu-{claroty,cyberint,armis,...} td_wv0_07_* | YES          | Correct         |
+    // | bc_2_06_019_scenario_progression.rs              | YES            | Correct         |
+    //
+    // Only cmd_configure() was missing the header before this fix. All other callers in tests
+    // correctly include `.header("X-Admin-Token", clone.admin_token())` per ADR-003 Amendment #5.
+
     // HIGH-1 fix: resolve the clone URL from whichever sidecar exists.
     //
     // `start` writes URL_FILE (flat: {name: url}).
@@ -558,6 +605,26 @@ async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<
         )
     })?;
 
+    // T-08 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001): resolve admin token from token sidecar.
+    //
+    // `start` writes TOKEN_FILE (flat: {name: token}).
+    // `start-multi` writes TOKEN_MULTI_FILE (nested: {org_slug: {sensor_id: token}}).
+    //
+    // `resolve_configure_token` uses the same flat-first/nested-fallback/bare-name-disambiguation
+    // logic as `resolve_configure_url`. Returns E-DEMO-007 if the token cannot be resolved.
+    //
+    // AD-017 credential safety: the token value is NOT logged (only token_present=true).
+    let admin_token = prism_dtu_demo_server::resolve_configure_token(
+        &clone_name,
+        Some(std::path::Path::new(TOKEN_FILE)),
+        Some(std::path::Path::new(TOKEN_MULTI_FILE)),
+    )?;
+    tracing::debug!(
+        clone = %clone_name,
+        token_present = true,
+        "cmd_configure: resolved admin token from token sidecar"
+    );
+
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
@@ -566,6 +633,7 @@ async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<
     let resp = client
         .post(&configure_url)
         .header("Content-Type", "application/json")
+        .header("X-Admin-Token", &admin_token)
         .body(json_body)
         .send()
         .await
