@@ -3381,3 +3381,101 @@ grep -rn "EC-11-NNN" .factory/specs/behavioral-contracts/ .factory/stories/ 2>/d
 Wave-gate adjudication at S-3.09 dispatch selects among A/B/C.
 
 **Source:** D-PQLFN-P47-OBS-001 (DEFECT-PQL-FNCALL-LHS-001 pass-47 deferred OBS; 2026-07-14). 3rd EC-collision incident.
+
+---
+
+### Lesson 59 — [process-gap] Edit/Write tool U+2018/U+2019→U+0027 apostrophe normalization is a tool-limitation class (D-1792; byte-exact POL-24)
+
+**Classification:** PROCESS-GAP — DEFECT-PQL-FNCALL-LHS-001 PR-LEVEL cascade; D-1792 (2026-07-16).
+
+**Finding:** The Edit and Write tools cannot reliably produce U+0027 (ASCII apostrophe) when the content source contains U+2018/U+2019 (Unicode left/right single quotation marks). Attempting to normalize curly quotes to straight quotes via Edit/Write produces byte-mismatch failures under POL-24 (byte-exact content verification). The issue manifests in BC bodies authored with smart-quote editors where the canonical text contains U+2018/U+2019 that must be normalized to U+0027 for consistent grep/search behavior.
+
+**Workaround:** Use `python shutil.copy2` after byte-exact verification to copy the corrected bytes. This is analogous to the `OrgSlug::new_unchecked` audit-test compensating-control pattern — a bypass mechanism with compensating controls. This class of bypass requires explicit human ratification at TD-FACTORY-HOOK-BYPASS-001 (bypass = `python shutil.copy2` not Edit/Write; content byte-verified before and after).
+
+**Codified rule:** When a BC or story amendment requires U+2018/U+2019→U+0027 normalization in a file that has already been committed with curly quotes: (1) attempt Edit/Write normally first; (2) if byte-mismatch occurs, switch to python shutil.copy2 workaround; (3) byte-verify the content after copy; (4) note the bypass class in the commit message. The bypass requires human ratification at TD-FACTORY-HOOK-BYPASS-001 if not already ratified.
+
+**Source:** D-1792 (BC-2.11.019 v1.25 curly-quote reconciliation; F-PQLFN-PR14-LOW-001 + F-PQLFN-PR14-OBS-001 closures). [Captured in SESSION-HANDOFF D-1792 PROCESS-GAP CODIFICATION; written to lessons.md in D-1793 single-commit burst.]
+
+---
+
+### Lesson 60 — [process-gap] BC-INDEX summary-row version-pin citation treadmill — use finding-ID citation form to avoid churn (D-1792)
+
+**Classification:** PROCESS-GAP — DEFECT-PQL-FNCALL-LHS-001 PR-LEVEL cascade; D-1792 (2026-07-16).
+
+**Finding:** BC-INDEX rows that cite specific BC versions in parenthetical notes (e.g., "F-PQLFN-PR14-LOW-001 — v1.24 curly-quote reconciliation") must be updated at every subsequent BC version bump — creating a "treadmill" where POL-23 sweeps require re-editing the BC-INDEX row to advance the cited version. This is exactly the class of drift that POL-23 is designed to prevent in story pins, but BC-INDEX parentheticals are also susceptible.
+
+**Root cause:** BC-INDEX summary rows use version-pin strings ("BC-2.11.019 v1.24") rather than version-immune finding-ID citation forms ("F-PQLFN-PR11-OBS-002"). The former must be updated on each version bump; the latter never changes.
+
+**Codified rule:** BC-INDEX summary-row parentheticals that describe specific closure events SHOULD use version-immune finding-ID citation form (e.g., "F-PQLFN-PR11-OBS-002 (non-exhaustive gate expansion)") rather than bare version numbers that will become stale at the next BC bump. Where a version cite is unavoidable (e.g., changelog entry rows), explicitly mark it as a version-pin site for POL-23 sweeps.
+
+**Source:** D-1792 (BC-2.11.019 v1.24→v1.26 POL-23 sweep scope; DEFECT-PQL-FNCALL-LHS-001 PR-LEVEL cascade). [Captured in SESSION-HANDOFF D-1792 PROCESS-GAP CODIFICATION; written to lessons.md in D-1793 single-commit burst.]
+
+---
+
+### Lesson 61 — [process-gap] Large PO BC burst covering 4+ BCs with full changelogs hits API timeout — split into parallel atomic sub-dispatches (D-1792)
+
+**Classification:** PROCESS-GAP — D-1792 (2026-07-16); PQL PR-LEVEL cascade fix-burst-44/45/46.
+
+**Finding:** A product-owner dispatch covering 4+ BCs with full changelog body updates hits API context/response timeout. The failure mode is a silent API timeout that returns an empty or truncated response — the dispatch appears to complete but only a subset of the BCs are actually updated. This is the same class as the "large PO burst API timeout" recorded in Lesson 61 context below.
+
+**Recurrence pattern:** Two product-owner API timeouts (PR-LEVEL fix-bursts 44 and 45); one pr-manager timeout (PR-LEVEL gate presentation). Each triggered a stall requiring fresh re-dispatch.
+
+**Codified rule:** When a PO fix-burst covers 4+ BCs:
+1. Split into parallel atomic PO sub-dispatches — 1 BC per dispatch. Each dispatch can be pre-supplied with the exact BC file path and changelog content to avoid large re-reads.
+2. Use WRITE-FIRST protocol: supply the exact file content and BC delta to the dispatch; forbid large context re-reads that inflate the dispatch's context window.
+3. Run parallel state-manager sub-dispatch for version-pin syncs on the same BC versions.
+
+**Mitigation rules (D-1793 refinement):** Any agent dispatch that stalls silently for >60 seconds should be treated as a timeout class. Fresh surgical re-dispatch with pre-supplied values is always cheaper than waiting for timeout recovery.
+
+**Source:** D-1792 (fix-bursts 44/45 PO timeout; fix-burst 46 pr-manager timeout; PQL PR-LEVEL cascade passes 13-19). [Captured in SESSION-HANDOFF D-1792 PROCESS-GAP CODIFICATION; written to lessons.md in D-1793 single-commit burst.]
+
+---
+
+### Lesson 62 — [ops-lesson] Silent API-timeout agent stalls require fresh surgical re-dispatch with pre-supplied values (D-1793)
+
+**Classification:** OPS-LESSON — D-1793 (2026-07-16); three stall incidents during D-1792/D-1793 orchestration.
+
+**Finding:** Three agent dispatches stalled silently during the D-1792/D-1793 session cycle: product-owner ×2 (BC amendment bursts) + pr-manager ×1 (merge gate presentation). Each stall had no explicit error — the dispatch simply stopped producing output after 90-120 seconds, requiring orchestrator intervention to restart.
+
+**Root cause pattern:** Large context re-reads at dispatch time inflate the agent's working memory and hit API response limits. The stall is not a hard error but a soft timeout — the response is truncated or abandoned without notification.
+
+**Mitigation rules:**
+1. **WRITE-FIRST protocol:** Always supply the exact file content delta (or the complete new file text for small files) directly in the dispatch prompt. Do not ask the agent to re-read large files to reconstruct context.
+2. **Pre-supplied values:** For any dispatch that requires version numbers, BC changelog entries, or git SHAs, supply these values explicitly in the prompt. Do not ask the agent to compute or grep for them.
+3. **Forbid large re-reads:** Dispatches covering >3 BCs or >2 large spec files simultaneously should be split. One BC per dispatch is the safe ceiling for changelog-body updates.
+4. **Fresh re-dispatch on stall:** If a dispatch stalls >60s without output, treat it as timeout class and re-dispatch with a narrower scope. Do not retry the same wide-scope prompt.
+
+**Source:** D-1793 orchestration session; product-owner ×2 + pr-manager ×1 stall incidents (2026-07-16).
+
+---
+
+### Lesson 63 — [ops-lesson] Orchestrator dispatch-date computation — derive dates from environment, never compute mentally (D-1793)
+
+**Classification:** OPS-LESSON — D-1793 (2026-07-16); orchestrator dispatch-date error.
+
+**Finding:** The orchestrator erroneously wrote a dispatch date of 2026-07-16 while the environment date was 2026-07-15. The error arose from mental date computation (adding 1 day based on the expected merge timeline) rather than reading the environment date directly. This caused a one-day date drift in the dispatch record that required correction.
+
+**Root cause:** Mental date computation ("today should be July 16 based on workflow progression") substituted for direct environment query. The computation was wrong because the session progressed across two calendar days, invalidating the predicted date.
+
+**Codified rule:** All dates written in dispatch prompts, MERGE records, and decision log entries MUST be derived from the environment's current date — not computed mentally, not inferred from workflow progression. The correct primitive is the environment `date` command or the `current_date` session variable. Mental date computation is forbidden for any artifact that will be committed to factory-artifacts.
+
+**Discipline:** Before writing any date in a factory artifact, mentally ask: "did I read this from the environment or compute it?" If computed, stop and read the environment date.
+
+**Source:** D-1793 orchestration (2026-07-16); date error in initial dispatch draft, corrected before commit.
+
+---
+
+### Lesson 64 — [ops-lesson] Sequential-merge conflict exposure — single-file CI PRs should merge first to minimize rebase risk (D-1793)
+
+**Classification:** OPS-LESSON — D-1793 (2026-07-16); PR #224 ci.yml conflict after PR #222 merge.
+
+**Finding:** PR #224 (S-MAINT-CI-DISK-EXHAUSTION-001) was the only open PR that touched `ci.yml`. PR #222 (DEFECT-MCP-ROWSHAPE-NULLS-001) also modified `ci.yml` as part of its changes. After PR #222 merged into develop, PR #224's `ci.yml` hunk conflicted and required a manual rebase onto `84062ced`. The rebase push reset the PR-LEVEL streak to 0/3 per DRIFT-ORCH-PRLEVEL-PUSH-001, requiring a full re-gate on the new HEAD `4f9a5c6f`.
+
+**Root cause:** The merge order was PQL (#223) → MCP (#222) → then MAINT (#224) still open. PR #222 touched `ci.yml` (its scope was MCP row-shape + null serialization + CI changes). The single-file `ci.yml` PR (#224) was open concurrently. The conflict was foreseeable from the overlap analysis.
+
+**Codified rule:** When multiple open PRs touch the same file (e.g., `ci.yml`, `Cargo.toml`), resolve in merge order to minimize rebase exposure:
+1. Single-file CIsolo PRs (where `ci.yml` is the ONLY changed file) should be merged FIRST if there is no functional dependency on later PRs. This minimizes the risk of their single shared file being conflicted by a larger PR.
+2. At PR-gate presentation, explicitly enumerate which files are shared between open PRs. Flag concurrent `ci.yml` modifications as a scheduling risk.
+3. If a rebase is unavoidable, note the DRIFT-ORCH-PRLEVEL-PUSH-001 streak reset in the state burst and re-gate immediately.
+
+**Source:** D-1793 (PR #224 rebase onto `84062ced` after PR #222 merge; `ci.yml` conflict; streak reset; 2026-07-16).

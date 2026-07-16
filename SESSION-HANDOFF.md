@@ -108,13 +108,56 @@ timestamp: 2026-07-16T00:30:00Z
 >
 > **D-1701 (2026-07-12): SESSION WRAP — §RESUME SNAPSHOT D-1701 authored (supersedes D-1700).** AUDIT-COVERAGE-001 B-hardening passes 29–32 + fix-bursts 29–32. HEAD db765001→4857d967→9cbd9033→334784c3→67654e0f. P31 CLEAN(PR-merge). P32 NOT CLEAN (1 MED + 4 LOW + 4 OBS); fix-burst 32 closed all 6 findings @67654e0f. FROZEN HEAD 67654e0f (36 commits over develop@5f1b5771; LOCAL-ONLY NOT pushed). Streak 0/3 on 67654e0f. S-7.02 queue 9 items unchanged. Standing accepted-limitations: H14e smoke-only; H8 PASS-ATTRIBUTED; H23 even-fence; H16 non-content-channel. STATE v8.300→v8.301.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1776 SESSION WRAP; develop@5f1b5771; both defect lanes CONVERGED; PQL PR #223 OPEN @973aedcf CI 43/43 PR-LEVEL streak 1/3 (pass-2 next); MCP PR #222 CONVERGED 3/3 @5d2624aa (WAITS for #223); VERY NEXT = dispatch PR-LEVEL adversary pass 2 on frozen 973aedcf (streak 1/3)** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1776 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1776 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `5f1b5771` (PR #221 DEFECT-CSDEVICES-EMPTY-PIPELINE-001 squash-merged 2026-07-11). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.392. D-1792 CONSOLIDATION BURST; PQL LANE 2 HEAD @60c97e8a (66p/46fb; PR #223 OPEN; CI 43/43 GREEN; PR-LEVEL CONVERGED 3/3; AWAITING HUMAN MERGE GATE); MCP LANE 1 HEAD @5d2624aa (47p/28fb; PR #222 OPEN; CONVERGED 3/3; AWAITING HUMAN MERGE GATE; WAITS for #223); MAINT LANE 3 HEAD @498ffb6c (story v0.14; PR #224 OPEN; CI running; PR-LEVEL 0/3 fresh); STORY-INDEX v2.693; BC-INDEX v8.30; total_stories 243; workspace 5626 @60c97e8a; VERY NEXT ACTION = human merge gate for PQL PR #223 [three items pending human decision] [fresh session].
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1793 POST-MERGE BURST; PR #223 MERGED @36bed016 + PR #222 MERGED @84062ced; develop@84062ced; MAINT PR #224 REBASED @4f9a5c6f PR-LEVEL streak RESET 0/3; VERY NEXT = dispatch PR-LEVEL adversary pass-1 on frozen 4f9a5c6f (MAINT; streak 0/3)** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1793 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1793 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `84062ced` (PR #222 DEFECT-MCP-ROWSHAPE-NULLS-001 squash-merged 2026-07-16; chain: 5f1b5771→PR#223→36bed016→PR#222→84062ced). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.393. D-1793 POST-MERGE BURST; PR #223 MERGED @36bed016 (DEFECT-PQL-FNCALL-LHS-001 CLOSED; branch deleted); PR #222 MERGED @84062ced (DEFECT-MCP-ROWSHAPE-NULLS-001 CLOSED; branch deleted); MAINT PR #224 REBASED @4f9a5c6f (story v0.16; PR-LEVEL streak RESET 0/3 per DRIFT-ORCH-PRLEVEL-PUSH-001); AUDIT-COVERAGE-001 @cd369b54 needs rebase; STORY-INDEX v2.694; BC-INDEX v8.31; total_stories 244; workspace ~5655 estimated; VERY NEXT ACTION = dispatch PR-LEVEL adversary pass-1 on frozen 4f9a5c6f [fresh session].
 
 ---
 
-## §RESUME SNAPSHOT — D-1792 (2026-07-16 — THREE OPEN PRs; STATE v8.392) [SUPERSEDES D-1791]
+## §RESUME SNAPSHOT — D-1793 (2026-07-16 — POST-MERGE BURST; PR #223+#222 MERGED; MAINT rebased @4f9a5c6f re-gate pending; develop 84062ced; STATE v8.393) [SUPERSEDES D-1792]
+
+### RESUME IN ONE BREATH
+
+PR #223 (DEFECT-PQL-FNCALL-LHS-001) MERGED @36bed016; PR #222 (DEFECT-MCP-ROWSHAPE-NULLS-001) MERGED @84062ced. develop chain: 5f1b5771 → 36bed016 → 84062ced. POL-14: BC-2.11.019 already active — §Injection-safety v1.24-v1.26 amendments now on develop via PR #223 squash. Both defect worktrees removed (branches deleted). MAINT PR #224 rebased onto 84062ced → new HEAD 4f9a5c6f (ci.yml post-#222 conflict resolved); DRIFT-ORCH-PRLEVEL-PUSH-001: rebase push RESETS PR-LEVEL streak → 0/3; re-gate on 4f9a5c6f. AUDIT-COVERAGE-001 @cd369b54 needs rebase onto 84062ced. New story S-PQLFN-GAP2-SOURCESELECT-GATE-001 registered (v0.3, draft, P2, post-demo wave). Lessons 62-64 captured [ops-lesson].
+
+### HEADS (verified 2026-07-16 at D-1793 burst)
+
+- develop: origin/develop = `84062ced` (PR #222 squash-merged 2026-07-16; chain: 5f1b5771 → PR#223 squash → 36bed016 → PR#222 squash → 84062ced)
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code)
+- `fix/DEFECT-PQL-FNCALL-LHS-001` — MERGED onto develop @36bed016. Remote branch DELETED. Worktree REMOVED. CLOSED.
+- `fix/DEFECT-MCP-ROWSHAPE-NULLS-001` — MERGED onto develop @84062ced. Remote branch DELETED. Worktree REMOVED. CLOSED.
+- `maintenance/ci-disk-hardening` `4f9a5c6f` — REBASED onto 84062ced (post-#222 ci.yml conflict). PUSHED. PR #224 OPEN. Story v0.16. PR-LEVEL streak RESET to 0/3 per DRIFT-ORCH-PRLEVEL-PUSH-001. VERY NEXT ACTION: PR-LEVEL adversary pass-1 on frozen 4f9a5c6f (NO pushes mid-cascade).
+- AUDIT-COVERAGE-001 `cd369b54` — LOCAL-ONLY. Needs rebase onto develop@84062ced before live audit re-run.
+- S-3.09 `43c41389` KEEP-PARKED; W3-FIX-S307-001 `fcab8717` parked-dirty do-NOT-touch
+
+### PER-WORKSTREAM RESUME NEXT-ACTIONS
+
+1. **MAINT PR #224** — dispatch PR-LEVEL adversary pass-1 on frozen 4f9a5c6f (streak 0/3; NO pushes mid-cascade per DRIFT-ORCH-PRLEVEL-PUSH-001). On 3/3 CLEAN(strict) → security APPROVE → pr-reviewer APPROVE → HUMAN merge gate.
+2. **AUDIT-COVERAGE-001** — rebase @cd369b54 onto develop@84062ced → live audit re-run → LOCAL 3-CLEAN → push → PR.
+3. **S-PQLFN-GAP2-SOURCESELECT-GATE-001** — post-demo wave, P2, depends_on S-3.07. Not yet scheduled.
+4. **day2 doc disposition** — clip-boundary-and-reframe-asks-2026-06-30.md still open.
+
+### PENDING HUMAN DECISIONS
+
+1. PR #224 (S-MAINT-CI-DISK-EXHAUSTION-001) merge gate — after PR-LEVEL 3/3 CLEAN(strict) + security APPROVE + pr-reviewer APPROVE. behavioral_contracts: [] (no POL-14).
+2. S-3.09 EC-collision handling option (A/B/C) at wave-gate / S-3.09 dispatch.
+3. day2-design-decisions/clip-boundary-and-reframe-asks-2026-06-30.md disposition (NOT staged).
+4. AUDIT-COVERAGE-001 PR merge gate (after rebase + 3-CLEAN + push + PR-LEVEL 3-CLEAN).
+
+### WORKTREE INVENTORY (D-1793)
+
+- `.worktrees/S-MAINT-CI-DISK-EXHAUSTION-001` on `maintenance/ci-disk-hardening` @ 4f9a5c6f (PUSHED; story v0.16; PR #224 OPEN; rebased onto 84062ced; PR-LEVEL 0/3 fresh; VERY NEXT ACTION: pass-1)
+- `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ cd369b54 (LOCAL-ONLY; needs rebase onto 84062ced)
+- `.worktrees/S-3.09` KEEP-PARKED on `feature/S-3.09` @ 43c41389 (local-only; backup `backup/S-3.09-preresume-43c41389`)
+- `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ fcab8717 (local-only; do NOT touch)
+
+### DECISION DELTA — D-1793 (post-merge burst)
+
+1 burst D-1793. PR #223 MERGED: squash 36bed016 onto develop (prior 5f1b5771); final frozen HEAD 60c97e8a; LOCAL 49p/35fb + PR-LEVEL 19p/11fb; security APPROVE (2 LOW disclosed); pr-reviewer APPROVE; human-ratified 2026-07-16. POL-14: BC-2.11.019 already active — §Injection-safety v1.24-v1.26 amendments now on develop@36bed016. PR #222 MERGED: squash 84062ced onto develop; final frozen 5d2624aa; 47p/28fb CONVERGED 3/3; human-ratified 2026-07-16. MAINT PR #224 rebased onto 84062ced → HEAD 4f9a5c6f (ci.yml post-#222 conflict resolved); PR-LEVEL streak RESET to 0/3 per DRIFT-ORCH-PRLEVEL-PUSH-001. NEW STORY: S-PQLFN-GAP2-SOURCESELECT-GATE-001 v0.3 registered (P2, draft, post-demo wave, depends_on S-3.07, BCs [BC-2.11.019], drift anchor DRIFT-PQLFN-OD7-GAP2-S307). S-MAINT-CI-DISK-EXHAUSTION-001 story version v0.10→v0.16 (STORY-INDEX row updated). STORY-INDEX v2.693→v2.694 (total_stories 243→244). BC-INDEX v8.30→v8.31 (POL-14 BC-2.11.019 PR#223 merge recorded). Lessons 62-64 appended [ops-lesson]: (62) silent API-timeout stalls: 3 incidents (PO×2, pr-manager×1) — mitigation: fresh surgical dispatches + WRITE-FIRST protocol + pre-supplied values + forbid large re-reads; (63) orchestrator dispatch-date error: derive dates from env/`date` command, never compute mentally; (64) sequential-merge conflict exposure: #224 ci.yml conflicted after #222 landed — single-file CI PRs should merge first to minimize rebase exposure. develop_head 5f1b5771→84062ced. STATE v8.392→v8.393.
+
+---
+
+## §RESUME SNAPSHOT — D-1792 (2026-07-16 — THREE OPEN PRs; STATE v8.392) [SUPERSEDES D-1791] [SUPERSEDED by D-1793]
 
 ### RESUME IN ONE BREATH
 

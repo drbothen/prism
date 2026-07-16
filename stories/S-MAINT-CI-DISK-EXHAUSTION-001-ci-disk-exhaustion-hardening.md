@@ -6,7 +6,7 @@ wave: tbd
 epic_id: maintenance
 priority: P2
 status: ready
-version: "0.14"
+version: "0.16"
 level: ops
 producer: story-writer
 timestamp: "2026-07-15"
@@ -174,10 +174,14 @@ that mirror can return HTTP 404 Release files on mirror rotation (evidence: CI r
 29437306537, 2026-07-15, mirror.enzu.com returned 404 Release files, apt exit code 100).
 With the default `continue-on-error: false`, ALL THREE hardened Linux jobs failed on the
 first live CI run BEFORE the ≥25 GB gate even had a chance to assess actual disk state.
-The reclaimer step snippet applied to BOTH Linux jobs:
+The reclaimer step differs only in step name between the two Linux jobs (matching
+AC-007 precedent from v0.12). The `with:` block inputs are identical in both cases
+and use unquoted YAML booleans (matching the implemented ci.yml form):
+
+**Test-matrix job (step name: `Reclaim disk space (Linux only)`):**
 
 ```yaml
-- name: Free disk space (best-effort)
+- name: Reclaim disk space (Linux only)
   uses: insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2
   # Reclaim is BEST-EFFORT: continue-on-error absorbs apt-mirror 404s and other transient
   # reclaimer failures. Evidence: run 29437306537 (2026-07-15) — mirror.enzu.com returned
@@ -190,12 +194,36 @@ The reclaimer step snippet applied to BOTH Linux jobs:
   # disk verification on every run.
   continue-on-error: true
   with:
-    android: "true"
-    dotnet: "true"
-    haskell: "true"
-    docker-images: "true"
-    large-packages: "true"
-    swap-storage: "false"
+    android: true
+    dotnet: true
+    haskell: true
+    docker-images: true
+    large-packages: true
+    swap-storage: false
+```
+
+**`test-no-default-features` job (step name: `Reclaim disk space`):**
+
+```yaml
+- name: Reclaim disk space
+  uses: insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2
+  # Reclaim is BEST-EFFORT: continue-on-error absorbs apt-mirror 404s and other transient
+  # reclaimer failures. Evidence: run 29437306537 (2026-07-15) — mirror.enzu.com returned
+  # HTTP 404 Release files on the large-packages apt path; apt exit code 100 caused the
+  # reclaimer step to fail, which failed ALL THREE hardened Linux jobs before the ≥25 GB
+  # gate ran. The ≥25 GB gate (next step) is the sole authoritative arbiter of disk
+  # readiness — it fails loud with the actual free-GB count if reclaim genuinely
+  # under-delivers. Trade-off: continue-on-error masks persistent action breakage (e.g.,
+  # action update breaking the inputs API); mitigated because the gate provides ground-truth
+  # disk verification on every run.
+  continue-on-error: true
+  with:
+    android: true
+    dotnet: true
+    haskell: true
+    docker-images: true
+    large-packages: true
+    swap-storage: false
 ```
 
 Documented fallback: `jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1`
@@ -233,6 +261,11 @@ count=$(grep -cE '^\s+uses: insightsengineering/disk-space-reclaimer' .github/wo
   exit 1
 }
 ```
+
+**AC-002 adjudicated no-action items (PR-LEVEL pass-3, 2026-07-15):**
+- **F-CIDISK-PR3-OBS-002 (AC-006 ≥12 threshold):** The `count ≥ 12` threshold is BY DESIGN — it encodes the exact number of `if ! sudo apt-get update; then` lines present at time of v0.14 ratification (10 apt-install sites + 2 AC-007 toolchain installs; F-CIDISK-PR1-MED-002 POL-34 slack elimination). Future legitimate site additions must update the threshold, error echo, and pass echo in lock-step; future site removals likewise.
+- **F-CIDISK-PR3-OBS-003 (AC-007 step-position asymmetry):** The AC-007 step position differs between the two Linux jobs relative to the libdbus/rust-cache steps. This is intentional and within the spec's ordering contract: "after checkout + reclaim, before any cargo build phase." The relative position to libdbus and rust-cache within that window is unconstrained by this story and does not constitute drift.
+- **F-CIDISK-PR3-OBS-004 (reclaimer continue-on-error masking):** The `continue-on-error: true` on the reclaimer step is the EC-009-ratified trade-off. The ≥25 GB gate is the authoritative arbiter of disk readiness; it fails loud with the actual free-GB count if reclaim genuinely under-delivers. This masking design is load-bearing — no change required.
 
 ### AC-003 — `.cargo/config.toml` minimal-DWARF invariant guarded in verify-workflow-structure
 
@@ -739,7 +772,7 @@ and `wasm32-compile-check` assertion pattern established during S-PLUGIN-PREREQ-
 - The `verify-workflow-structure` job's existing assertions (AC-5 `TARGET_COUNT >= 5`,
   AC-6 cargo-deny/audit, AC-7 semver, AC-8 no-default-features, non-exhaustive, wasm32
   checks) must ALL pass after this story's modifications; the six new assertions (AC-001
-  count ≥ 2, AC-002 count ≥ 2, AC-006 count ≥ 3, AC-007 count ≥ 2, AC-003 assertions 3
+  count ≥ 2, AC-002 count ≥ 2, AC-006 count ≥ 12, AC-007 count ≥ 2, AC-003 assertions 3
   and 4) are additive, and the 7 pre-existing reachability assertions (5 original + AC-7
   semver-checks + AC-8 test-no-default-features) are updated in-place to self-match-proof
   anchored forms (see §Tasks sibling-sweep task); no other structural changes. The final
@@ -848,6 +881,8 @@ Findings applied in v0.3:
 
 ## §Changelog
 
+- v0.16 (2026-07-15): PR-LEVEL pass-4 spec-side findings closed (PR #224 @498ffb6c; HEAD frozen — spec-only fix-burst). F-CIDISK-PR4-MED-001 [§Architecture Compliance Rules AC-006 threshold propagation gap]: `AC-006 count ≥ 3` in the "six new assertions" sentence changed to `AC-006 count ≥ 12` — v0.14 (F-CIDISK-PR1-MED-002) tightened the Red Gate assertion and §Tasks/§FSR references but missed this prose sentence; POL-29 exhaustive sweep of all "≥3"-class AC-006 live sites confirms one site corrected, zero remaining outside historical changelog rows. F-CIDISK-PR4-LOW-001 [date corrections, orchestrator dispatch-date error]: v0.15 changelog entry date corrected 2026-07-16→2026-07-15; AC-002 adjudicated no-action items block header date corrected 2026-07-16→2026-07-15; full-file sweep of "2026-07-16" confirms zero occurrences remaining.
+- v0.15 (2026-07-15): PR-LEVEL pass-3 spec-side findings closed (PR #224 @498ffb6c; HEAD frozen — spec-only fix-burst). F-CIDISK-PR3-LOW-001 [AC-002 snippet `with:` block quoted vs unquoted]: `with:` input values changed from quoted strings (`android: "true"`, `dotnet: "true"`, etc.) to unquoted YAML booleans (`android: true`, `dotnet: true`, ..., `swap-storage: false`) — matching the actual ci.yml implementation and the §Tasks/§Implementation Notes narrative (cosmetic; no semantic change to reclaimer behavior). F-CIDISK-PR3-OBS-001 [AC-002 snippet step-name drift]: single generic snippet replaced with two labeled variants following AC-007 v0.12 precedent — Test-matrix job uses `- name: Reclaim disk space (Linux only)`, `test-no-default-features` job uses `- name: Reclaim disk space`; intro prose updated to note step-name difference and identical `with:` blocks. F-CIDISK-PR3-OBS-002/003/004 [no-action ratification]: AC-006 ≥12 threshold by-design note, AC-007 step-position asymmetry within-ordering-contract note, and reclaimer `continue-on-error` EC-009 trade-off note added to AC-002 adjudicated no-action block; all three explicitly adjudicated to prevent re-finding in future fresh-context passes. No AC count changes; no red_gate_tests changes; no semantic behavior changes.
 - v0.14 (2026-07-15): PR-LEVEL pass-1 findings closed (PR #224 @5cd2df5e). F-CIDISK-PR1-MED-001 [AC-007 outer preamble falsified-text correction]: both AC-007 snippets now include the 4-line outer step-level preamble comment block immediately above `- name:`, with corrected text citing self-inflicted toolchain removal (EC-012) rather than the falsified runner-image-omission hypothesis (EC-011); §FSR MODIFY row updated to document preamble requirement. F-CIDISK-PR1-MED-002 [AC-006 threshold 3→12, slack elimination, POL-34]: Red Gate assertion threshold changed from `[ "$count" -ge 3 ]` to `[ "$count" -ge 12 ]`; derivation: 10 AC-006 apt-install steps + 2 AC-007 toolchain installs all emit the `if ! sudo apt-get update; then` keyword; error/pass echo updated to name both categories and the 12-count basis; `(count≥3)` → `(count≥12)` in §Tasks verify-workflow-structure bullet and §FSR assertion references. F-CIDISK-PR1-OBS-001 [process-gap, full 7-site sweep per Canonical Principle Rule 4]: AC-006 scope extended from 3 to 10 sites; 7 new jobs converted to the two-attempt wrapper form — `clippy` (libdbus-1-dev pkg-config), `semver-checks` (libdbus-1-dev pkg-config), `fuzz-smoke-vp021` (libdbus-1-dev pkg-config), `perimeter-compile-fail` (libdbus-1-dev pkg-config), `non-exhaustive-violation-compile-fail` (libdbus-1-dev pkg-config), `no-hardcoded-sensors-compile-fail` (libdbus-1-dev pkg-config), `shellcheck-demo-scripts` (shellcheck); rationale: clippy is a `needs:` predecessor whose failure blocks the whole pipeline including AC-005 evidence; EC-010 mirror-flake class affects every apt job; 12-count derivation: 3 original + 7 new = 10 apt-install sites, plus 2 AC-007 C toolchain installs sharing the same two-attempt keyword; byte-exact snippets added to AC-006 for all 7 new sites; §Tasks: new 7-site sweep bullet added; §FSR and §Implementation Notes updated throughout.
 - v0.13 (2026-07-15): root-cause correction per CI evidence (job 87471517229, run 29450000494, 2026-07-15). EC-011 v0.11 hypothesis falsified: original claim that runner image `ubuntu24/20260705.232` omits `libc6-dev` is refuted — AC-007 successfully installed `build-essential libc6-dev` at 21:05:52 but the build still failed at 21:10:26 with `stdbool.h`; true root cause is self-inflicted clang toolchain removal by this story's own AC-002 `large-packages: true` purge (removes `libclang-common-*-dev`; bindgen-based librocksdb-sys needs these clang builtin resource headers; masked on cache-hit runs). EC-011 amended with falsification note (ID preserved per POL-1 append-only). EC-012 added: self-inflicted toolchain removal root cause documentation. AC-007 corrected: both snippets' step names updated to `Install C toolchain baseline (build-essential, libc6-dev, clang, libclang-dev)`; comment lines updated with corrected root cause (DRIFT-CI-STDBOOL-001 revised); install lines extended to `sudo apt-get install -y build-essential libc6-dev clang libclang-dev`. Red Gate test 6 grep pattern updated to `^\s+sudo apt-get install -y build-essential libc6-dev clang libclang-dev\s*$`; error/pass echo updated to name all four packages. §Tasks AC-007 bullets, §FSR MODIFY row, and §Library & Framework Requirements updated throughout. Note: DRIFT-CI-STDBOOL-001 registry entry requires root-cause revision — state-manager owns the registry; reporting here, not editing directly. (DRIFT-CI-STDBOOL-001 revised, 2026-07-15.)
 - v0.12 (2026-07-15): spec-precision amendment — AC-007 Test-matrix instance requires `if: runner.os == 'Linux'` guard (mixed-OS matrix includes macOS/Windows legs where apt-get is unavailable; semantic intent of "unconditional on Linux legs" preserved; DRIFT-CI-STDBOOL-001 lineage; discovered at implementation in fix-burst-9 @fa596f92). §Tasks AC-007 Linux Test leg bullet updated: "no `if:` condition (unconditional on Linux legs)" → "`if: runner.os == 'Linux'` guard required". AC-007 snippet split into two labeled forms: Test-matrix leg (with `if: runner.os == 'Linux'`) and test-no-default-features leg (unconditional, ubuntu-only). Red Gate test 6 grep unaffected (anchors to `run:` block content `^\s+sudo apt-get install -y build-essential libc6-dev\s*$`, not to any `if:` line).
