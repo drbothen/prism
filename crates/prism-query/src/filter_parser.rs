@@ -27,7 +27,8 @@ use crate::{
     },
     error::ParseError,
     error_recovery::{
-        rewrite_d2_sql_keyword_in_pipe_position, rewrite_enrich_parse_errors, rich_to_parse_error,
+        rewrite_d2_sql_keyword_in_pipe_position, rewrite_enrich_parse_errors,
+        rewrite_temporal_literal_in_pipe_key_position, rich_to_parse_error,
     },
     pipe_parser::build_pipe_parser,
     security,
@@ -481,18 +482,64 @@ fn parse_sqlpipe_internal(
         let errs: Vec<ParseError> = stage_errs.iter().map(rich_to_parse_error).collect();
         // AC-025: apply the same guided-error rewrites that parse_pipe_with_limits uses,
         // so SqlPipe-routed pipe-stage errors receive the same actionable messages as
-        // pure-pipe errors (BC-2.11.023 §D2 and AC-022/AC-025 "in all pipeline positions").
-        // D2 rewrite takes precedence (applied first); enrich rewrite follows.
+        // pure-pipe errors (BC-2.11.023 §Postconditions D2 — mode-bridge diagnostic parity, ADR-046 D2).
+        // D2 rewrite takes precedence (applied first); enrich rewrite follows; temporal-
+        // literal rewrite runs last (ADR-052 §D4 v1.10 — same order as parse_pipe_with_limits).
+        // All three rewriters operate on stage-relative offsets (inspecting `stages_str`),
+        // so all must run BEFORE `shift_parse_error_offsets` (F-PQLFN-P28-OOS-001).
         let errs = rewrite_d2_sql_keyword_in_pipe_position(stages_str, errs);
         let errs = rewrite_enrich_parse_errors(stages_str, errs);
+        // ADR-052 §D4 v1.10 option (a): rewrite `| sort '<literal>'` and
+        // `| stats … by '<literal>'` errors with analyst-friendly "field name, not a
+        // literal value" guidance.  Runs last so it does not interfere with D2 or enrich
+        // rewriters.  Passes `stages_str` (stage-relative) — not `input` — consistent
+        // with the shift-after-rewrite ordering (F-PQLFN-P28-OOS-001).
+        let errs = rewrite_temporal_literal_in_pipe_key_position(stages_str, errs);
+        // F-PQLFN-P27-MED-001 (ADR-048 §D.7.2): ALL errors from the stage parser are
+        // stage-relative (spans in `stages_str = &input[split_offset..]`).  This covers:
+        //   - Structural Chumsky parse failures (unexpected token, missing delimiter, …)
+        //   - `.validate()`-emitted semantic errors (LOW-006 keyword-fn-name rejection,
+        //     PERCENTILE out-of-range gate, and any future semantic validators that emit
+        //     `Rich::custom` from inside `fn_call_comparison` or its siblings)
+        // All carry span.start values relative to `stages_str`, not to the original
+        // `input`.  Shift every error's offset by `split_offset` to make it absolute.
+        //
+        // Parallel to `shift_scalar_spans_in_stages` on the success path — that helper
+        // shifts FuncCall::Scalar spans in the AST; this helper shifts ParseError offsets
+        // in the error list.  Both apply the same `split_offset` delta.
+        //
+        // No double-shift: `split_offset` is applied exactly once here.  The rewrites
+        // above operate on stage-relative offsets (they inspect `stages_str` character
+        // positions), so the shift must come AFTER the rewrites, not before.
+        //
+        // Head-path exclusion: the SQL head string `sql_head_str = input[..split_offset]`
+        // starts at byte 0 of `input`, so head-parse errors are already absolute.  Head
+        // errors propagate via `?` at the `parse_sql_with_limits` call above and are
+        // never touched by this shift — the test lock
+        // `test_pqlfn_p22_med001_aggregate_offset_sqlpipe_head_where` guards that path.
+        let errs = shift_parse_error_offsets(errs, split_offset);
         return Err(errs);
     }
-    let stages = stage_result.ok_or_else(|| {
+    let mut stages = stage_result.ok_or_else(|| {
         vec![ParseError::new(
             split_offset,
             "E-QUERY-001: SqlPipe stage list failed to parse",
         )]
     })?;
+
+    // F-PQLFN-P22-MED-001 (ADR-048 §D.7.2): spans captured by `fn_call_comparison`
+    // during the stage parse are relative to `stages_str = &input[split_offset..]`,
+    // not the original query string.  Shift every `FuncCall::Scalar::span` by
+    // `split_offset` to make offsets absolute so the aggregate-in-predicate gate
+    // (engine.rs `collect_unknown_scalar_offsets_from_predicate`) reports the correct
+    // source position in E-QUERY-001 errors.
+    //
+    // `FieldPath::span` is intentionally NOT shifted: no production code reads
+    // `FieldPath::span.start` for error-offset reporting (verified: the sole
+    // `span.start` access in engine.rs is inside
+    // `collect_unknown_scalar_offsets_from_expr`, which extracts only
+    // `FuncCall::Scalar::span`).
+    shift_scalar_spans_in_stages(&mut stages, split_offset);
 
     // Security: check stage count.
     limits
@@ -500,6 +547,185 @@ fn parse_sqlpipe_internal(
         .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
 
     Ok(Ast::SqlPipe(SqlPipeQuery { head, stages }))
+}
+
+/// Shift `FuncCall::Scalar::span` in every `PipeStage::Where` predicate by `offset`.
+///
+/// Called after parsing `stages_str = &input[split_offset..]` in
+/// `parse_sqlpipe_internal`.  The stage parser produces spans relative to
+/// `stages_str`; adding `split_offset` corrects them to absolute positions in
+/// the original query string (ADR-048 §D.7.2, F-PQLFN-P22-MED-001).
+fn shift_scalar_spans_in_stages(stages: &mut [crate::ast::PipeStage], offset: usize) {
+    use crate::ast::PipeStage;
+    for stage in stages.iter_mut() {
+        if let PipeStage::Where(pred) = stage {
+            shift_scalar_spans_in_predicate(pred, offset);
+        }
+    }
+}
+
+fn shift_scalar_spans_in_predicate(pred: &mut crate::ast::Predicate, offset: usize) {
+    use crate::ast::Predicate;
+    // All Predicate variants are enumerated explicitly (no wildcard `_ => {}`) so that
+    // adding a new Predicate variant forces a compile error here, preventing a silent
+    // no-op for a variant that may contain nested Expr or Predicate with FuncCall::Scalar
+    // spans. Predicate is #[non_exhaustive] but in-crate matches are exhaustively
+    // checkable — future variants must force a compile error here, matching the
+    // fix-burst-18 philosophy in shift_scalar_spans_in_expr (F-PQLFN-P24-OBS-002).
+    match pred {
+        Predicate::Compare { lhs, rhs, .. } => {
+            // Both lhs and rhs are Box<Expr>; recurse to shift any nested FuncCall::Scalar.
+            shift_scalar_spans_in_expr(lhs, offset);
+            shift_scalar_spans_in_expr(rhs, offset);
+        }
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates.iter_mut() {
+                shift_scalar_spans_in_predicate(p, offset);
+            }
+        }
+        Predicate::Not(inner) => shift_scalar_spans_in_predicate(inner, offset),
+        Predicate::StringOp { .. } => {
+            // Contains FieldPath + String + StringOp flags — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::Regex { .. } => {
+            // Contains FieldPath + RegexLiteral — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::In { .. } => {
+            // Contains FieldPath + Vec<Literal> — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::InSubquery { .. } => {
+            // Grammar-unreachable in pipe `| where` stages: the pipe stage parser
+            // (`build_pipe_stages_parser`) does not produce InSubquery predicates — only
+            // `build_sql_predicate_parser` does, and those parse contexts (SQL WHERE, HAVING)
+            // are not processed by this span-shifter (F-PQLFN-P23-OBS-002 lineage).
+            // Variant enumerated explicitly so a future grammar extension that admits
+            // `field IN (SELECT ...)` in pipe `| where` stages forces a compile error here
+            // rather than silently becoming a no-op.
+            // FUTURE-EXTENSION NOTE: if the grammar is extended to admit IN-subquery in
+            // pipe `| where` stages, this arm MUST recurse into the subquery's predicate
+            // and expr trees — SqlQuery nests Predicate/Expr subtrees that can carry
+            // FuncCall::Scalar spans; a no-op here would silently mis-report aggregate-gate
+            // error offsets for any fn-call appearing inside the subquery.
+        }
+        Predicate::Between { .. } => {
+            // Contains FieldPath + Literal bounds — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::Cidr { .. } => {
+            // Contains FieldPath + CidrLiteral — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::Has(_) => {
+            // Contains FieldPath only — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::Missing(_) => {
+            // Contains FieldPath only — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::IsNull { .. } => {
+            // Contains FieldPath + negated bool — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::Wildcard { .. } => {
+            // Contains FieldPath + String pattern + negated bool — no Expr or FuncCall::Scalar span.
+        }
+        Predicate::RecoveryError => {
+            // No fields; sentinel produced by error recovery only — no span to shift.
+        }
+    }
+}
+
+fn shift_scalar_spans_in_expr(expr: &mut crate::ast::Expr, offset: usize) {
+    use crate::ast::{Expr, FuncCall, Span};
+    // All Expr variants are enumerated explicitly (no wildcard `_ => {}`) so that
+    // adding a new Expr variant forces a compile error here, preventing a silent
+    // no-op for a variant that may contain nested FuncCall::Scalar spans.
+    // Expr is #[non_exhaustive] but in-crate matches are exhaustively checkable —
+    // no external wildcard is needed (F-PQLFN-P23-OBS-002).
+    match expr {
+        Expr::FuncCall(FuncCall::Scalar { span, args, .. }) => {
+            *span = Span {
+                start: span.start + offset,
+                end: span.end + offset,
+            };
+            for arg in args.iter_mut() {
+                shift_scalar_spans_in_expr(arg, offset);
+            }
+        }
+        Expr::FuncCall(FuncCall::Aggregate { args, .. }) => {
+            for arg in args.iter_mut() {
+                shift_scalar_spans_in_expr(arg, offset);
+            }
+        }
+        Expr::FuncCall(FuncCall::Window { .. }) => {
+            // Window stub: no args and no span currently (S-3.06 will add fields).
+            // No FuncCall::Scalar span to shift.
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            shift_scalar_spans_in_expr(lhs, offset);
+            shift_scalar_spans_in_expr(rhs, offset);
+        }
+        Expr::Not(inner) => shift_scalar_spans_in_expr(inner, offset),
+        Expr::Compare { lhs, rhs, .. } => {
+            shift_scalar_spans_in_expr(lhs, offset);
+            shift_scalar_spans_in_expr(rhs, offset);
+        }
+        Expr::TimestampArithmetic { base, .. } => {
+            // Recurse into base to shift any nested FuncCall::Scalar spans.
+            // Currently unreachable in pipe WHERE stage (grammar does not produce
+            // TimestampArithmetic as a sub-expression within fn_call_comparison),
+            // but enumerated explicitly to force a compile error if grammar extends
+            // to nest fn_call_comparison inside a TimestampArithmetic (F-PQLFN-P23-OBS-002).
+            shift_scalar_spans_in_expr(base, offset);
+        }
+        Expr::In { .. } => {
+            // `In` contains field_path (no span) and Vec<Literal> values (no FuncCall).
+            // No FuncCall::Scalar span to shift.
+        }
+        Expr::InSubquery { .. } => {
+            // Grammar-unreachable in pipe `| where` stages per grammar
+            // (F-PQLFN-P23-OBS-002): the pipe stage parser does not produce InSubquery
+            // Expr variants in pipe WHERE positions; only `build_sql_predicate_parser`
+            // does, and those parse contexts are not processed by this span-shifter.
+            // FUTURE-EXTENSION NOTE: if the grammar is extended to admit `field IN
+            // (SELECT ...)` in pipe `| where` stages, this arm MUST recurse into the
+            // subquery's predicate and expr trees — SqlQuery nests Predicate/Expr
+            // subtrees that can carry FuncCall::Scalar spans; a no-op here would silently
+            // mis-report aggregate-gate error offsets for any fn-call inside the subquery.
+        }
+        // Leaf nodes with no FuncCall::Scalar span to shift.
+        Expr::Literal(_) | Expr::Field(_) | Expr::VirtualField(_) => {}
+        Expr::Star | Expr::Now | Expr::Interval(_) => {}
+    }
+}
+
+/// Shift every `ParseError.offset` in `errs` by `delta`, returning the updated list.
+///
+/// Called in the `stage_errs` early-return path of `parse_sqlpipe_internal` to
+/// translate stage-relative offsets (produced by parsing `stages_str =
+/// &input[split_offset..]`) into absolute offsets in the original query string
+/// (F-PQLFN-P27-MED-001, ADR-048 §D.7.2).
+///
+/// This is the error-list counterpart to `shift_scalar_spans_in_stages`, which shifts
+/// `FuncCall::Scalar::span` values in the SUCCESS-path AST.  Both apply the same
+/// `split_offset` delta; this function handles the FAILURE path (non-empty `stage_errs`).
+///
+/// The shift covers ALL error categories:
+/// - Structural Chumsky parse failures (unexpected token, missing delimiter, …)
+/// - `.validate()`-emitted semantic errors (LOW-006 keyword-fn-name rejection,
+///   PERCENTILE out-of-range gate, any future semantic validator emitting
+///   `Rich::custom` from `fn_call_comparison` or its siblings)
+///
+/// The `recovery_label` field is preserved verbatim (it names a recovery point, not a
+/// byte offset).
+fn shift_parse_error_offsets(errs: Vec<ParseError>, delta: usize) -> Vec<ParseError> {
+    if delta == 0 {
+        return errs;
+    }
+    errs.into_iter()
+        .map(|e| ParseError {
+            offset: e.offset + delta,
+            message: e.message,
+            recovery_label: e.recovery_label,
+            semantic: e.semantic,
+        })
+        .collect()
 }
 
 /// Find the byte offset of the first unquoted `|` in `input` that is followed
@@ -781,25 +1007,48 @@ fn build_filter_parser<'a>(
 }
 
 /// Build the source reference parser (dotted-ident, rejects path traversal).
+///
+/// The parser uses a WIDE character capture (alphanumeric, `_`, `.`, `/`, `\`)
+/// so that inputs containing path-traversal characters are captured as a whole
+/// token and rejected by the EC-004 `try_map` check, rather than being silently
+/// truncated by the lexical filter.
+///
+/// The previous narrow grammar (`[a-zA-Z0-9_]+` separated by `.`) excluded `/`,
+/// `\`, and adjacent `.` at the lexical level, making the EC-004 `try_map` check
+/// unreachable dead code (DEFECT-PQL-FNCALL-LHS-001 fix-burst-42, Defect 2).
+///
+/// After EC-004 validation, a dotted-identifier structural check ensures
+/// currently-valid queries (dotted identifiers with `[a-zA-Z0-9_]` chars only)
+/// continue to work unchanged.
 pub(crate) fn build_source_ref_parser<'a>(
 ) -> impl Parser<'a, &'a str, SourceRef, extra::Err<Rich<'a, char>>> + Clone {
-    let segment = any::<&str, extra::Err<Rich<char>>>()
-        .filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_')
+    // Wide capture: accept chars that may constitute path traversal so EC-004 is
+    // reachable. Characters other than whitespace and `|` (the pipe separator) are
+    // included so inputs like `crowdstrike/../detections` are captured whole.
+    any::<&str, extra::Err<Rich<char>>>()
+        .filter(|c: &char| c.is_ascii_alphanumeric() || matches!(*c, '_' | '.' | '/' | '\\'))
         .repeated()
         .at_least(1)
-        .to_slice();
-
-    segment
-        .separated_by(just('.'))
-        .at_least(1)
-        .collect::<Vec<_>>()
         .to_slice()
         .try_map(|raw: &str, span| {
-            // Reject path traversal: `..`, `/`, `\`.
+            // EC-004: reject path traversal characters before any further processing.
             if raw.contains("..") || raw.contains('/') || raw.contains('\\') {
                 return Err(Rich::custom(
                     span,
                     "EC-004: SourceRef contains path traversal characters ('..', '/', '\\')",
+                ));
+            }
+            // Structural validation: must be a valid dotted identifier.
+            // Each dot-separated segment must be non-empty and `[a-zA-Z0-9_]+`.
+            // This preserves the previous narrow-grammar rejection of malformed inputs
+            // such as `crowdstrike.` (trailing dot) or `.leading` (leading dot).
+            if !raw.split('.').all(|seg| {
+                !seg.is_empty() && seg.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+            }) {
+                return Err(Rich::custom(
+                    span,
+                    "expected a valid source reference \
+                     (dotted identifier such as 'sensor_name' or 'sensor.table')",
                 ));
             }
             Ok(SourceRef::from_raw(raw))
@@ -882,6 +1131,30 @@ pub(crate) fn build_predicate_parser<'a>(
             .map(Predicate::Missing);
 
         // --- field =~ "regex" | field MATCHES "regex" ---
+        //
+        // try_map is placed at the LITERAL level (not the full-sequence level) so that
+        // the emitted error span begins at the position of the regex literal token (the
+        // opening quote), NOT at the start of the whole pattern (the field_path position).
+        //
+        // Chumsky 0.12 `choice()` error merging selects the error with the HIGHEST
+        // `span.start` ("furthest match" heuristic). For a query like:
+        //   `FROM crowdstrike_detections | where hostname MATCHES "aaa…"` (1025 'a's)
+        //
+        // Without this fix (try_map at sequence level):
+        //   - `regex_match` span.start = 36 (start of `hostname`)
+        //   - `cidr_match` span.start ≈ 45 (`M` of `MATCHES`, where "IN" was expected)
+        //   - choice() picked cidr_match's error → E-QUERY-003 was suppressed
+        //
+        // With this fix (try_map at literal level):
+        //   - `regex_literal` try_map span.start = 53 (opening `"`)
+        //   - 53 > 45 → E-QUERY-003 wins in choice() merging
+        //
+        // Mirrors the IEQ/INE try_map-at-literal-level pattern (~1338, ~1370).
+        // Fix: DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 F-PQLFN-PR11-OBS-001 Defect 1.
+        let regex_literal = string_val
+            .clone()
+            .padded()
+            .try_map(|pat, span| RegexLiteral::new(&pat).map_err(|e| Rich::custom(span, e)));
         let regex_match = field_path
             .clone()
             .padded()
@@ -889,14 +1162,10 @@ pub(crate) fn build_predicate_parser<'a>(
                 just("=~").padded().to(()),
                 kw("MATCHES").padded().to(()),
             )))
-            .then(string_val.clone().padded())
-            .try_map(|((fp, ()), pat), span| {
-                RegexLiteral::new(&pat)
-                    .map(|rl| Predicate::Regex {
-                        field: fp,
-                        pattern: rl,
-                    })
-                    .map_err(|e| Rich::custom(span, e))
+            .then(regex_literal)
+            .map(|((fp, ()), rl)| Predicate::Regex {
+                field: fp,
+                pattern: rl,
             });
 
         // --- field IN CIDR "10.0.0.0/8" ---
@@ -1178,6 +1447,143 @@ pub(crate) fn build_predicate_parser<'a>(
             .clone()
             .or(literal.clone().padded().map(crate::ast::Expr::Literal));
 
+        // --- fn-call comparison: scalar_fn_name(args) compare_op rhs_expr ---
+        //
+        // (DEFECT-PQL-FNCALL-LHS-001, ADR-048 v1.2 §D.7.2) Grammar extension for scalar
+        // fn-call LHS comparisons in pipe `| where`, filter mode, SQL WHERE, SqlPipe
+        // `| where`, and SqlPipe-head WHERE. Positioned BEFORE `field_comparison` in the
+        // atom choice so that `lower(col) = 'val'` is dispatched here rather than causing
+        // a backtrack at `(`.
+        //
+        // PARSER-LEVEL AGGREGATE BLOCKLIST REMOVED (ADR-048 v1.2 OD-4): the prior
+        // `AGGREGATE_FUNC_NAMES` `try_map` guard (count/sum/avg/min/max/distinct_count/
+        // percentile) has been removed. Chumsky backtrack was swallowing the rejection
+        // error, producing "found '('" instead of the canonical ADR-048 D.3 message.
+        // Aggregate names now parse successfully as `FuncCall::Scalar(Unknown(name))` and
+        // are intercepted by the plan-time `DATAFUSION_BUILTIN_AGGREGATE_NAMES` gate in
+        // `check_enrich_udf_availability`, which fires the canonical E-QUERY-001 message
+        // for all seven predicate positions (ADR-048 D.7.1).
+        //
+        // Downstream handling requires NO logic changes — pre-existing code handles FuncCall LHS:
+        //   - check_enrich_udf_availability: DATAFUSION_BUILTIN_AGGREGATE_NAMES gate
+        //     fires E-QUERY-001 for aggregate names in WHERE predicates (ADR-048 D.3)
+        //   - check_temporal_literals arm (4): non-Field LHS + RawTemporalLiteral → E-QUERY-042
+        //   - collect_predicate_columns FuncCall arm: recurses args for E-QUERY-038 column gate
+        //   - collect_predicate_columns_with_bareness FuncCall arm: same with bareness tracking
+        let fn_call_arg = literal
+            .clone()
+            .padded()
+            .map(crate::ast::Expr::Literal)
+            .or(field_path.clone().padded().map(field_path_to_expr));
+        // fn-name identifier-start constraint (F-PQLFN-P10-OBS-002 / ADR-048 D.7.2):
+        // first char must be ASCII alphabetic or '_'; subsequent chars may be
+        // alphanumeric or '_'. Digit-leading names (e.g. '123abc') are rejected at
+        // parse time — fn_call_comparison fails to match and Chumsky backtracks to
+        // field_comparison, which also fails, producing E-QUERY-001 (QueryParseFailed).
+        let fn_call_comparison = any::<&str, extra::Err<Rich<char>>>()
+            .filter(|c: &char| c.is_ascii_alphabetic() || *c == '_')
+            .then(
+                any::<&str, extra::Err<Rich<char>>>()
+                    .filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_')
+                    .repeated(),
+            )
+            .to_slice()
+            // Capture the byte-offset span of the function name BEFORE consuming padding.
+            // `e.span()` gives the position of the identifier in the original query string,
+            // used to populate `FuncCall::Scalar::span` for ADR-048 §D.7.2 offset reporting
+            // in E-QUERY-001 aggregate-gate errors (F-PQLFN-P21-OBS-003).
+            .map_with(|name: &str, e| {
+                let s = e.span();
+                (
+                    name.to_string(),
+                    Span {
+                        start: s.start,
+                        end: s.end,
+                    },
+                )
+            })
+            .padded()
+            .then(
+                fn_call_arg
+                    .separated_by(just(',').padded())
+                    .collect::<Vec<_>>()
+                    .delimited_by(just('(').padded(), just(')').padded()),
+            )
+            .then(compare_op.clone())
+            .then(rhs_expr.clone().padded())
+            // LOW-006 (BC-2.11.004 v1.42, F-PQLFN-P26-OBS-002): reject fn-call names
+            // that match PrismQL predicate-level reserved keywords (case-insensitive).
+            //
+            // Mechanism: `.validate()` instead of `.map()` so that the keyword-rejection
+            // error is EMITTED (non-fatal, continues parsing) rather than a `try_map`
+            // backtrack.  A `try_map` backtrack at this position would produce an error at
+            // `func_span.start` (position of the identifier), which loses to the
+            // `kw("NOT").ignore_then(not.clone())` arm in `not_pred` — that arm's error
+            // sits at position 3+ (after consuming "NOT").  Chumsky's choice() error-
+            // priority rule then surfaces the arm-1 error and swallows the keyword message.
+            //
+            // With `.validate()`, `fn_call_comparison` SUCCEEDS (produces a Predicate)
+            // while accumulating the keyword error.  `parse_pipe_with_limits` and all
+            // other callers check `if errs.is_empty()` before returning Ok — non-empty
+            // errors cause them to return the keyword error to the engine caller.
+            //
+            // The 21 reserved keywords correspond to the operator productions in
+            // `build_predicate_parser` that are structurally unreachable as UDF names in
+            // predicate position.  Analyst error `NOT(x) = 5` (typo for `NOT (x = 5)`)
+            // is now caught at parse time with a clear message instead of silently
+            // producing `Ok(QueryResult { 0 rows })` on no-data installations.
+            // BC-2.11.004 v1.48 fix-burst-36: "NULL" added as keyword #21 (EC-11-085).
+            .validate(
+                |((((func_name, func_span), args), op), rhs), _extra, emitter| {
+                    const RESERVED_KEYWORDS: &[&str] = &[
+                        "NOT",
+                        "AND",
+                        "OR",
+                        "IN",
+                        "IIN",
+                        "IEQ",
+                        "INE",
+                        "IS",
+                        "BETWEEN",
+                        "LIKE",
+                        "CIDR",
+                        "MATCHES",
+                        "HAS",
+                        "MISSING",
+                        "CONTAINS",
+                        "ICONTAINS",
+                        "STARTSWITH",
+                        "ISTARTSWITH",
+                        "ENDSWITH",
+                        "IENDSWITH",
+                        "NULL",
+                    ];
+                    if RESERVED_KEYWORDS
+                        .iter()
+                        .any(|kw| func_name.eq_ignore_ascii_case(kw))
+                    {
+                        emitter.emit(Rich::custom(
+                            SimpleSpan::from(func_span.start..func_span.end),
+                            format!(
+                                "'{}' is a PrismQL keyword and cannot be used as a function name",
+                                func_name
+                            ),
+                        ));
+                    }
+                    use crate::ast::{FuncCall, ScalarFunc};
+                    Predicate::Compare {
+                        lhs: Box::new(crate::ast::Expr::FuncCall(FuncCall::Scalar {
+                            func: ScalarFunc::Unknown(func_name),
+                            args,
+                            span: func_span,
+                        })),
+                        op,
+                        rhs: Box::new(rhs),
+                        case_insensitive: false,
+                    }
+                },
+            );
+
         // --- Basic comparison: field op (temporal_expr | literal) ---
         // Auto-promotes = or != with wildcard string patterns to Predicate::Wildcard.
         let field_comparison = field_path
@@ -1242,7 +1648,8 @@ pub(crate) fn build_predicate_parser<'a>(
             });
 
         // Atom: `(predicate)` | one of the above
-        // Ordering discipline: IIN before IN, IEQ/INE before field_comparison.
+        // Ordering discipline: IIN before IN, IEQ/INE before field_comparison,
+        // fn_call_comparison BEFORE field_comparison (DEFECT-PQL-FNCALL-LHS-001).
         let atom = choice((
             predicate
                 .clone()
@@ -1262,6 +1669,7 @@ pub(crate) fn build_predicate_parser<'a>(
             like_match,
             ieq_compare,
             ine_compare,
+            fn_call_comparison,
             field_comparison,
         ));
 

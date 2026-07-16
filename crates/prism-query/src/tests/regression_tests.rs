@@ -26,8 +26,11 @@
     unused_imports
 )]
 
+use std::sync::Arc;
+
 use crate::{
     ast::Ast,
+    engine::{QueryEngine, QueryEngineConfig, QueryOptions},
     filter_parser::{parse_filter, PrismQlParser},
     pipe_parser::parse_pipe,
     security::{
@@ -42,6 +45,76 @@ use crate::{
     tests::util::run_with_deep_stack,
     ParseError,
 };
+use prism_core::error::PrismError;
+
+// ── Engine fixture for parse-only tests (F-PQLFN-PR12-OBS-002) ──────────────
+//
+// Query-execute tests that fail at PARSE time (before table registry lookup)
+// need a minimal `QueryEngine`.  No table registration required — parse errors
+// are returned before the table existence gate (E-QUERY-037) fires.
+
+/// Minimal no-op credential store for regression tests that do not exercise auth.
+///
+/// Mirrors the `NoopCs` pattern from `temporal_typing_tests.rs`.
+struct NoopCs;
+
+#[async_trait::async_trait]
+impl prism_credentials::CredentialStore for NoopCs {
+    async fn get(
+        &self,
+        _t: &prism_core::OrgSlug,
+        _s: &str,
+        _n: &prism_credentials::namespace::CredentialName,
+    ) -> Result<Option<secrecy::SecretString>, PrismError> {
+        Ok(None)
+    }
+    async fn set(
+        &self,
+        _t: &prism_core::OrgSlug,
+        _s: &str,
+        _n: &prism_credentials::namespace::CredentialName,
+        _v: secrecy::SecretString,
+    ) -> Result<(), PrismError> {
+        Ok(())
+    }
+    async fn delete(
+        &self,
+        _t: &prism_core::OrgSlug,
+        _s: &str,
+        _n: &prism_credentials::namespace::CredentialName,
+    ) -> Result<bool, PrismError> {
+        Ok(false)
+    }
+    async fn list(
+        &self,
+        _t: &prism_core::OrgSlug,
+    ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError> {
+        Ok(vec![])
+    }
+    async fn exists(
+        &self,
+        _t: &prism_core::OrgSlug,
+        _s: &str,
+        _n: &prism_credentials::namespace::CredentialName,
+    ) -> Result<bool, PrismError> {
+        Ok(false)
+    }
+}
+
+/// Build a minimal `QueryEngine` sufficient for parse-time-only tests.
+///
+/// No table registry is wired — parse errors are returned before the table
+/// existence gate (E-QUERY-037).  Using for F-PQLFN-PR12-OBS-002 Display locks.
+fn make_parse_test_engine() -> QueryEngine {
+    QueryEngine::new_with_cache_config(
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(NoopCs),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        crate::cache::CacheConfig::default(),
+    )
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B-2: AST depth check missing for SQL and pipe modes
@@ -1983,5 +2056,125 @@ fn test_f_p3_crit_001d_enrich_ascii_behavior_preserved() {
     assert!(
         msg.contains("enrich requires a column argument"),
         "F-P3-CRIT-001d: expected enrich guidance message, got: {msg}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-PQLFN-PR11-OBS-001: regex-length and EC-004 canonical wrapped Display locks
+// ─────────────────────────────────────────────────────────────────────────────
+// BC-2.11.006 v1.20: two-layer MCP-observable Display is canonical for in-perimeter
+// semantic parse errors wrapping security-limit inner codes.
+//
+// Defect 1 (regex span level): regex_match try_map was placed at the SEQUENCE
+// level — span.start = field_path offset (36 for `hostname`).  Chumsky choice()
+// error-merging uses the highest span.start; cidr_match's "expected keyword 'IN'"
+// error at span.start=45 (the `M` of `MATCHES`) outcompeted the E-QUERY-003
+// error at span.start=36, suppressing the real cause.
+//
+// Defect 2 (EC-004 dead code): source_ref segment grammar ([a-zA-Z0-9_]+ sep '.')
+// excluded '/', '\', and adjacent '.' at the lexical level, so the try_map EC-004
+// check was unreachable.  Path-traversal inputs failed with a structural error
+// instead of the canonical EC-004 message.
+//
+// Fix reference: DEFECT-PQL-FNCALL-LHS-001 fix-burst-42.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-PQLFN-PR11-OBS-001 **RED → GREEN** — regex-length canonical wrapped Display lock.
+///
+/// Query: `FROM crowdstrike_detections | where hostname MATCHES "<1025 'a's>"`
+///
+/// After the fix (try_map placed at LITERAL level in `regex_match`):
+/// - `regex_literal = string_val.padded().try_map(…)` span.start = 53 (opening `"`)
+/// - 53 > cidr_match's span.start ≈ 45 → E-QUERY-003 wins in Chumsky choice()
+/// - Canonical MCP-observable Display (BC-2.11.006 v1.20):
+///   `"E-QUERY-001: query parse error at offset 53: E-QUERY-003: regex pattern
+///    length 1025 bytes exceeds maximum allowed 1024 bytes"`
+///
+/// **RED state** (current try_map at sequence level):
+/// - span.start = 36 (field_path `hostname`) for regex_match; cidr_match wins at ≈45
+/// - Error is "expected keyword 'IN'" at wrong offset (not E-QUERY-003)
+///
+/// Offset derivation (query = `FROM crowdstrike_detections | where hostname MATCHES "…"`):
+///   F(0)…M(3) (4)c(5)…s(26) (27)|(28) (29)w(30)…e(34) (35)h(36)…e(43) (44)M(45)…S(51) (52)"(53)
+///
+/// Converted to full `engine.execute()` Display assertion (F-PQLFN-PR12-OBS-002):
+/// exercises the real materialization.rs path instead of a manual simulation whose
+/// else-branch (`first.to_string()`) drifted from production (`e.message.clone()`).
+/// Byte-exact expected string unchanged.
+///
+/// Traces: F-PQLFN-PR11-OBS-001; BC-2.11.006 v1.20; F-PQLFN-PR12-OBS-002;
+///         DEFECT-PQL-FNCALL-LHS-001.
+#[tokio::test]
+async fn test_f_pqlfn_pr11_obs_001_regex_length_wrapped_display_lock() {
+    let engine = make_parse_test_engine();
+    let pattern = "a".repeat(1025);
+    let query = format!("FROM crowdstrike_detections | where hostname MATCHES \"{pattern}\"");
+
+    let result = engine.execute(&query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR11-OBS-001 regex length: must produce QueryParseFailed. Got: {result:?}"
+    );
+
+    let display = format!("{}", result.unwrap_err());
+
+    // BC-2.11.006 v1.20 canonical two-layer form (Option B ratified):
+    let expected = "E-QUERY-001: query parse error at offset 53: \
+         E-QUERY-003: regex pattern length 1025 bytes exceeds maximum allowed 1024 bytes";
+    assert_eq!(
+        display, expected,
+        "F-PQLFN-PR11-OBS-001 regex length: canonical engine Display mismatch.\n\
+         RED state: cidr_match wins at span.start≈45 (wrong — 'expected IN' error).\n\
+         GREEN state: try_map at literal level gives span.start=53 > 45 → E-QUERY-003 wins."
+    );
+}
+
+/// F-PQLFN-PR11-OBS-001 **RED → GREEN** — EC-004 SourceRef traversal canonical wrapped Display lock.
+///
+/// Query: `FROM crowdstrike/../detections | where x = "1"`
+///
+/// After the fix (widened source_ref grammar — wide capture + EC-004 try_map):
+/// - source_ref captures `crowdstrike/../detections` at offset 5 (after `FROM `)
+/// - EC-004 fires at span.start = 5
+/// - Canonical MCP-observable Display (BC-2.11.006 v1.20):
+///   `"E-QUERY-001: query parse error at offset 5: EC-004: SourceRef contains
+///    path traversal characters ('..', '/', '\')"`
+///
+/// **RED state** (current narrow segment grammar):
+/// - source_ref grammar `[a-zA-Z0-9_]+` sep-by `.` captures only `crowdstrike`
+///   (stops at `/`); EC-004 is unreachable dead code; error is structural (wrong offset)
+///
+/// Converted to full `engine.execute()` Display assertion (F-PQLFN-PR12-OBS-002):
+/// exercises the real materialization.rs path instead of a manual simulation whose
+/// else-branch (`first.to_string()`) drifted from production (`e.message.clone()`).
+/// Byte-exact expected string unchanged.
+///
+/// Traces: F-PQLFN-PR11-OBS-001; BC-2.11.006 v1.20 EC-004; F-PQLFN-PR12-OBS-002;
+///         DEFECT-PQL-FNCALL-LHS-001.
+#[tokio::test]
+async fn test_f_pqlfn_pr11_obs_001_sourceref_traversal_wrapped_display_lock() {
+    let engine = make_parse_test_engine();
+    // Source `crowdstrike/../detections` starts at offset 5 (after `FROM `).
+    let query = "FROM crowdstrike/../detections | where x = \"1\"";
+
+    let result = engine.execute(query, QueryOptions::default()).await;
+
+    assert!(
+        matches!(&result, Err(PrismError::QueryParseFailed { .. })),
+        "F-PQLFN-PR11-OBS-001 EC-004: must produce QueryParseFailed. Got: {result:?}"
+    );
+
+    let display = format!("{}", result.unwrap_err());
+
+    // BC-2.11.006 v1.20 canonical two-layer form (Option B ratified):
+    let expected = "E-QUERY-001: query parse error at offset 5: \
+         EC-004: SourceRef contains path traversal characters ('..', '/', '\\')";
+    assert_eq!(
+        display, expected,
+        "F-PQLFN-PR11-OBS-001 EC-004: canonical engine Display mismatch.\n\
+         RED state: narrow segment grammar truncates to 'crowdstrike' → structural error at \
+         wrong offset (EC-004 unreachable dead code).\n\
+         GREEN state: wide capture + EC-004 try_map fires at span.start=5."
     );
 }

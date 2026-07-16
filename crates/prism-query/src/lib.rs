@@ -523,7 +523,7 @@ fn inject_now_expr(
                         distinct,
                     }
                 }
-                FuncCall::Scalar { func, args } => {
+                FuncCall::Scalar { func, args, span } => {
                     let mut folded_args = Vec::with_capacity(args.len());
                     for a in args {
                         folded_args.push(inject_now_expr(a, now_literal)?);
@@ -531,6 +531,7 @@ fn inject_now_expr(
                     FuncCall::Scalar {
                         func,
                         args: folded_args,
+                        span,
                     }
                 }
                 // Window functions carry no expression args today; pass through.

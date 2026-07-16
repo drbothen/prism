@@ -140,3 +140,92 @@ fn test_f_pbl1_low002_display_self_sorts_available_infusions() {
          after fix, sorts first → [a_infusion, z_infusion]."
     );
 }
+
+/// F-PQLFN-PR14-OBS-001 (U+2029) — `sanitize_for_log` must strip U+2029 PARAGRAPH SEPARATOR.
+///
+/// Pass-13 noted that U+2029 was asserted for `sanitize_for_log` in general but not
+/// explicitly tested at the `EnrichUdfNotFoundDetails::new` construction boundary.
+/// This test closes that micro-gap: a name containing U+2029 must have the char stripped
+/// from the stored `infusion` field, matching the U+2028 behavior already tested by
+/// `test_f_pqlfn_p7_low_001_enrich_udf_infusion_cc_stripped_at_construction`.
+///
+/// Load-bearing (TD-VSDD-059): if `sanitize_for_log` stops stripping U+2029, the
+/// `!details.infusion.contains('\u{2029}')` assertion fails.
+///
+/// Traces to: F-PQLFN-PR14-OBS-001 (pass-13 micro-gap); CWE-117; AD-017.
+#[test]
+fn test_f_pqlfn_pr14_obs_001_u2029_stripped_at_construction() {
+    // U+2029 PARAGRAPH SEPARATOR — a log-injection vector in JSON and some structured
+    // log formats that treat it as a record separator. Functionally equivalent to U+2028.
+    let raw_name = "threat\u{2029}intel";
+    let details = EnrichUdfNotFoundDetails::new(raw_name, vec![], None);
+
+    // The stored infusion field must NOT contain U+2029.
+    assert!(
+        !details.infusion.contains('\u{2029}'),
+        "F-PQLFN-PR14-OBS-001: EnrichUdfNotFoundDetails::new must strip U+2029 (PARAGRAPH \
+         SEPARATOR) from the infusion field at construction (CWE-117, AD-017). \
+         Raw input: {:?}. Got: {:?}",
+        raw_name,
+        details.infusion
+    );
+
+    assert_eq!(
+        details.infusion, "threatintel",
+        "F-PQLFN-PR14-OBS-001: infusion must equal 'threatintel' after stripping U+2029. \
+         Got: {:?}",
+        details.infusion
+    );
+}
+
+/// F-PQLFN-P7-LOW-001 — SEC-001 (CWE-117): `EnrichUdfNotFoundDetails::new` must strip
+/// Unicode Cc control characters (and U+2028/U+2029 line/paragraph separators) from the
+/// `infusion` field at construction time.
+///
+/// The `infusion` field comes from analyst-provided query text (e.g., the UDF name in
+/// `| enrich <name>(col)` or `WHERE <name>(col) = val`). An analyst could embed C1
+/// control characters or line separators in a UDF name to inject log-splitting sequences
+/// into agent-consumed structured logs (AD-017 extension, CWE-117).
+///
+/// This test mirrors the sanitize_for_log behaviour verified for `ColumnNotFoundDetails::new`
+/// (see `ColumnNotFoundDetails` doc, SEC-001 parity).
+///
+/// Load-bearing (F-PQLFN-P7-LOW-001): removing `sanitize_for_log` from
+/// `EnrichUdfNotFoundDetails::new` causes this test to fail — the stored field would
+/// contain the raw control character instead of the stripped string.
+///
+/// Traces to: F-PQLFN-P7-LOW-001 (SEC-001 sibling parity); CWE-117; AD-017.
+#[test]
+fn test_f_pqlfn_p7_low_001_enrich_udf_infusion_cc_stripped_at_construction() {
+    use crate::error::sanitize_for_log;
+
+    // Build a UDF name embedding a C1 control char (U+0085 NEL) and a line separator
+    // (U+2028). These are valid Unicode code points but log-injection vectors.
+    let raw_name = "threat\u{0085}intel\u{2028}score";
+    let expected_stored = sanitize_for_log(raw_name); // "threatintelscore"
+
+    let details = EnrichUdfNotFoundDetails::new(raw_name, vec![], None);
+
+    // Assert the stored field is the sanitized value — control chars stripped.
+    assert_eq!(
+        details.infusion, expected_stored,
+        "F-PQLFN-P7-LOW-001: EnrichUdfNotFoundDetails::new must strip Cc/U+2028/U+2029 \
+         from the infusion field at construction (SEC-001, CWE-117). \
+         Raw input: {:?}. Expected stored: {:?}. Got: {:?}",
+        raw_name, expected_stored, details.infusion
+    );
+
+    // Belt-and-suspenders: the stored value must NOT contain the raw control chars.
+    assert!(
+        !details.infusion.contains('\u{0085}'),
+        "F-PQLFN-P7-LOW-001: stored infusion must not contain U+0085 (NEL). \
+         Got: {:?}",
+        details.infusion
+    );
+    assert!(
+        !details.infusion.contains('\u{2028}'),
+        "F-PQLFN-P7-LOW-001: stored infusion must not contain U+2028 (LINE SEPARATOR). \
+         Got: {:?}",
+        details.infusion
+    );
+}

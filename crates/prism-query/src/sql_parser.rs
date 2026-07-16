@@ -240,7 +240,29 @@ pub(crate) fn parse_sql_with_limits(
     // Security checks still apply to the partial AST.
     if let Some(sq) = result {
         let parse_errors: Vec<ParseError> = errs.iter().map(rich_to_parse_error).collect();
-        if !parse_errors.is_empty() {
+        // LOW-006 guard (BC-2.11.004 v1.42, F-PQLFN-P26-OBS-002, ADR-048 v1.12 §D.7.2):
+        // do NOT apply the F-MEDIUM-001 recovery Ok path when any error is a semantic
+        // validation error emitted by a `.validate()` or `.try_map()` combinator
+        // (i.e., `Rich::custom` — `ParseError.semantic == true` after `rich_to_parse_error`).
+        // Structural Chumsky parse errors (`RichReason::ExpectedFound`) are NOT semantic;
+        // they set `semantic = false` and are safe to return behind a partial Ok AST.
+        //
+        // Semantic gate examples blocked by this guard:
+        //   - LOW-006 keyword-fn-name exclusion in `fn_call_comparison` (.validate())
+        //   - PERCENTILE out-of-range gate (.try_map())
+        //   - IIN/IEQ/INE literal-type rejection (.try_map())
+        //   - Any future semantic validator emitting `Rich::custom`
+        //
+        // The `e.semantic` flag replaces the retired `e.message.starts_with("E-QUERY-001:")`
+        // prefix check (F-PQLFN-PR10-MED-001 fix-burst-41, ADR-048 §D.7.2 de-prefix
+        // discipline): semantic errors (e.g. LOW-006 keyword-fn-name exclusion above)
+        // store ONLY the root-cause code in `e.message` — they do NOT embed an
+        // "E-QUERY-001:" prefix. The `QueryParseFailed` #[error] template supplies
+        // "E-QUERY-001: query parse error at offset N: " exactly once at the transport
+        // layer; the root-cause code (e.g. "E-QUERY-004: …") appears as the inner
+        // detail. This is the de-prefix discipline (F-PQLFN-PR11-LOW-001 fix-burst-42).
+        let has_semantic_error = parse_errors.iter().any(|e| e.semantic);
+        if !parse_errors.is_empty() && !has_semantic_error {
             // Partial AST with recovery errors: validate depth and list sizes
             // before returning. The AST may contain Predicate::RecoveryError
             // sentinels where recovery occurred.
@@ -1016,7 +1038,20 @@ fn build_sql_expr_parser<'a>(
                     .collect::<Vec<_>>()
                     .delimited_by(just('(').padded(), just(')').padded()),
             )
-            .map(|(func, args)| Expr::FuncCall(FuncCall::Scalar { func, args }));
+            .map(|(func, args)| {
+                Expr::FuncCall(FuncCall::Scalar {
+                    func,
+                    args,
+                    // Span::ZERO: scalar_call appears in SELECT projections, JOIN ON
+                    // conditions, GROUP BY expressions, and ORDER BY expressions — none
+                    // of which reach the aggregate-in-predicate gate (E-QUERY-001,
+                    // ADR-048 §D.7.2) that uses `span.start` as the reported error
+                    // offset.  Truthful spans are only required on the predicate path
+                    // (`fn_call_comparison` in `build_predicate_parser`), where they
+                    // ARE populated.  See `ast.rs` `FuncCall::Scalar` §Span::ZERO paths.
+                    span: crate::ast::Span::ZERO,
+                })
+            });
 
         // Basic comparison (field vs literal).
         // Virtual-field promotion: _sensor/_client/etc. become Expr::VirtualField.

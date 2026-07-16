@@ -1100,6 +1100,7 @@ mod high002_plan_pinning_tests {
         let func_call_expr = Expr::FuncCall(FuncCall::Scalar {
             func: ScalarFunc::TimeWindow,
             args: vec![Expr::Now, Expr::Field(FieldPath::new(["device_id"]))],
+            span: crate::ast::Span::ZERO,
         });
 
         let sq = SqlQuery::new(

@@ -567,9 +567,50 @@ pub async fn run_materialization_pipeline(
     let ast = crate::filter_parser::PrismQlParser::parse(query_str).map_err(|errs| {
         PrismError::QueryParseFailed {
             offset: errs.first().map(|e| e.offset).unwrap_or(0),
+            // ADR-048 §D.7.2 de-prefix discipline (F-PQLFN-PR10-MED-001 fix-burst-41):
+            // Semantic errors (`e.semantic == true`, from `Rich::custom`) use the bare
+            // message — without the "parse error at offset X: " wrapper added by
+            // `ParseError::Display` AND without any embedded "E-QUERY-001: " prefix
+            // (stripped here so it is not doubled by the `QueryParseFailed` #[error]
+            // template `"E-QUERY-001: query parse error at offset {offset}: {detail}"`).
+            //
+            // Some semantic-error messages embed `"E-QUERY-001: "` in their `message`
+            // field per BC-2.11.024 (e.g. IIN/IEQ/INE errors — tests verify
+            // `e.message.contains("E-QUERY-001")` directly).  Those messages are stored
+            // prefixed so that per-field callers still see the error code.  Here we strip
+            // the prefix before injecting into `detail` to prevent doubling.
+            //
+            // Both semantic AND non-semantic errors use `e.message` directly.
+            //
+            // Non-semantic (`RichReason::ExpectedFound`) errors previously used
+            // `e.to_string()` = `ParseError::Display` = `"parse error at offset N: <msg>"`.
+            // That produced a double "parse error at offset N:" when injected as the
+            // `detail` field of `QueryParseFailed`, whose `#[error]` template adds the
+            // outer "E-QUERY-001: query parse error at offset N: " prefix again.
+            //
+            // Fix (DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 F-PQLFN-PR11-OBS-002):
+            // use `e.message.clone()` for all errors — the raw Chumsky message without
+            // the `ParseError::Display` "parse error at offset N: " wrapper.
             detail: errs
                 .iter()
-                .map(|e| e.to_string())
+                .map(|e| {
+                    // ADR-048 §D.7.2 de-prefix discipline (F-PQLFN-PR12-OBS-001):
+                    // Strip a leading "E-QUERY-001: " from e.message regardless of
+                    // whether the error is semantic or structural.
+                    //
+                    // Semantic errors (e.semantic == true, from Rich::custom/try_map):
+                    //   message = "E-QUERY-001: …" (embedded code) → strip to avoid doubling
+                    //   message = "E-QUERY-003: …" or "EC-004: …" → no prefix, unchanged
+                    //
+                    // Non-semantic errors (RichReason::ExpectedFound): message = bare Chumsky
+                    //   description ("found '@', expected …"), normally no prefix → unchanged.
+                    //   Exception: early-exit guards in filter_parser / pipe_parser use
+                    //   ParseError::new(0, "E-QUERY-001: empty query string") before Chumsky
+                    //   parsing begins; these have semantic == false but carry the prefix.
+                    //   The strip is correct for both cases: safe when absent, required when present.
+                    let msg = &e.message;
+                    msg.strip_prefix("E-QUERY-001: ").unwrap_or(msg).to_string()
+                })
                 .collect::<Vec<_>>()
                 .join("; "),
             query: query_str.to_string(),
@@ -609,9 +650,17 @@ pub async fn run_materialization_pipeline(
         // overflow in the constant-fold arm produces E-QUERY-001 instead of panicking.
         crate::inject_now(ast, &now_literal_expr).map_err(|errs| PrismError::QueryParseFailed {
             offset: errs.first().map(|e| e.offset).unwrap_or(0),
+            // ADR-048 §D.7.2 de-prefix discipline: same detail formatting as
+            // the Step 1 parse site above (strip "E-QUERY-001: " from both
+            // semantic and non-semantic errors).
+            // Fix: DEFECT-PQL-FNCALL-LHS-001 fix-burst-42 F-PQLFN-PR11-OBS-002
+            //      + fix-burst-43 F-PQLFN-PR12-OBS-001 (extended to non-semantic).
             detail: errs
                 .iter()
-                .map(|e| e.to_string())
+                .map(|e| {
+                    let msg = &e.message;
+                    msg.strip_prefix("E-QUERY-001: ").unwrap_or(msg).to_string()
+                })
                 .collect::<Vec<_>>()
                 .join("; "),
             query: query_str.to_string(),
@@ -1346,6 +1395,23 @@ pub(crate) async fn execute_against_session_with_registry(
                 detail: format!("filter SQL lowering failed: {e}. Retry or report to support."),
             })?;
 
+            // F-PQLFN-P18-MED-001 fix-burst 14: pre-register the source table if absent.
+            //
+            // For source-qualified filter queries, `pre_register_source_table` ensures the
+            // source table is in the DataFusion catalog before planning. This mirrors the
+            // `pre_register_empty_tables` call used by `Ast::Sql(Select)` and `Ast::SqlPipe`
+            // and handles the case where a sensor returned 0 batches (table not registered
+            // by `register_mem_table`). For bare filters the table is already enumerated
+            // from the session catalog, so no pre-registration is needed.
+            if !filter.source.raw.is_empty() {
+                pre_register_source_table(
+                    session_ctx,
+                    &datafusion_table_name(&filter.source.raw),
+                    table_registry,
+                )
+                .await?;
+            }
+
             // Determine the set of registered source tables to apply the predicate against.
             // Source-qualified: only the specified source. Bare: all registered tables.
             //
@@ -1439,6 +1505,19 @@ pub(crate) async fn execute_against_session_with_registry(
         // by the Fields-exclude projection). The MemTables have already been registered
         // by `run_materialization_pipeline` before this function is called.
         Ast::Pipe(pipe) => {
+            // F-PQLFN-P18-MED-001 fix-burst 14: pre-register the source table if absent.
+            //
+            // Mirrors the `pre_register_empty_tables` call in `Ast::SqlPipe` and
+            // `Ast::Sql(Select)`. When a sensor returns 0 batches, `register_mem_table`
+            // skips registration, leaving the table absent from the DataFusion catalog.
+            // Without pre-registration, `session_ctx.sql(pipe_sql)` fails at planning with
+            // "table not found" → `PrismError::QueryExecutionFailed`.
+            // (BC-2.11.005 DEC-022, BC-2.01.010 empty-is-not-error)
+            {
+                let source_table = datafusion_table_name(&pipe.source.raw);
+                pre_register_source_table(session_ctx, &source_table, table_registry).await?;
+            }
+
             // F-P1-PIPE-TYPECHECK-GAP: pre-flight CI column-type check for pipe mode,
             // mirroring the Ast::Filter arm above. IEQ/INE/IIN on a non-string column
             // in a `| where` stage must produce E-QUERY-002 (QueryTypeMismatch), NOT
@@ -2495,15 +2574,17 @@ async fn check_ci_column_types(
                 //   are pre-registered before `sqlpipe_to_executable_sql` emits the CTE.
                 //   Same coverage as SQL SELECT mode for the head query.
                 // - Filter mode (`Ast::Filter`) and Pipe mode (`Ast::Pipe`):
-                //   `pre_register_empty_tables` does NOT run. The filter_parser and
-                //   pipe_parser do not produce subquery atoms — their grammars contain
-                //   no `IN (SELECT ...)` production (survey: filter_parser.rs §Predicate,
-                //   pipe_parser.rs §PipeStage::Where). An unregistered table in these
-                //   modes causes a structural parse error before reaching DataFusion, so
-                //   no pre-registration gap exists. A query against a structurally valid
-                //   but unregistered table will fail at DataFusion execution time with
-                //   "table not found" — which is the correct behavior
-                //   (BC-2.01.010 / F-P16-OBS-002).
+                //   `pre_register_source_table` NOW runs for the source table in both arms
+                //   (F-PQLFN-P18-MED-001 fix-burst 14). Previously these modes had no
+                //   pre-registration because the Pipe/Filter grammars contain no
+                //   `IN (SELECT ...)` production, making DataFusion "table not found" the
+                //   expected behavior. With fn-call LHS in `| where` predicates, valid
+                //   queries against sensors returning 0 batches can now reach DataFusion
+                //   and must succeed (BC-2.01.010 empty-is-not-error). The source table is
+                //   pre-registered via `pre_register_source_table` which uses the same
+                //   Priority 1/2/3 logic as `pre_register_empty_tables` but for a single
+                //   table name (no JOIN inference needed — Pipe/Filter grammars are
+                //   single-source).
                 //
                 // BC-2.01.010: empty result ≠ error; F-P16-OBS-002 guard.
             }
@@ -2951,6 +3032,99 @@ fn extract_join_equalities(joins: &[crate::ast::Join]) -> Vec<(String, String, S
         recurse(&join.on, &mut result);
     }
     result
+}
+
+/// Pre-register a schema-only empty `MemTable` for a single named source table,
+/// if it is not already registered in the DataFusion session catalog.
+///
+/// # Purpose (F-PQLFN-P18-MED-001 fix-burst 14)
+///
+/// `Ast::Pipe` and `Ast::Filter` arms of `execute_against_session_with_registry` do not
+/// invoke `pre_register_empty_tables` (which requires a `SqlQuery`). When a sensor
+/// returns 0 batches, its MemTable is skipped by `register_mem_table`, so the table is
+/// absent from the session catalog. Without pre-registration, DataFusion planning fails
+/// with "table not found" (mapped to `PrismError::QueryExecutionFailed`).
+///
+/// This function mirrors the per-table inner loop of `pre_register_empty_tables` for a
+/// single source table name (no JOIN inference needed — Pipe/Filter grammars have no
+/// subquery production). Priority order is identical:
+///
+/// 1. Live `TableRegistry` columns (production path)
+/// 2. Bundled spec TOML fallback (`BUNDLED_SPEC_SCHEMAS`) — covers unit tests that call
+///    `execute_against_session` directly without a registry
+/// 3. `Schema::empty()` — 0-column empty MemTable allows 0-row results (BC-2.01.010)
+///
+/// Internal `prism_*` tables are always skipped (same guard as `pre_register_empty_tables`).
+///
+/// # BC anchors
+///
+/// - BC-2.11.005 DEC-022: "All sensor API calls return empty" → empty result, not error
+/// - BC-2.01.010: empty result ≠ error
+async fn pre_register_source_table(
+    session_ctx: &SessionContext,
+    table_name: &str,
+    table_registry: Option<&crate::table_registry::TableRegistry>,
+) -> Result<(), PrismError> {
+    use arrow::datatypes::{Field, Schema};
+
+    // Skip internal prism_* tables — same guard as `pre_register_empty_tables`.
+    if table_name.starts_with("prism_") {
+        return Ok(());
+    }
+
+    // Get the default public schema; if absent, let DataFusion handle it.
+    let public_schema = match session_ctx
+        .catalog("datafusion")
+        .and_then(|cat| cat.schema("public"))
+    {
+        Some(s) => s,
+        None => return Ok(()),
+    };
+
+    // Already registered — nothing to do.
+    match public_schema.table(table_name).await {
+        Ok(Some(_)) => return Ok(()),
+        Ok(None) => {}           // Missing — register empty placeholder below.
+        Err(_) => return Ok(()), // Catalog error — let DataFusion surface it.
+    }
+
+    // Priority 1: live TableRegistry (production path via run_materialization_pipeline).
+    if let Some(registry) = table_registry {
+        let col_names = registry.columns_for_table(table_name);
+        if !col_names.is_empty() {
+            let fields: Vec<Field> = col_names
+                .iter()
+                .map(|col_name| {
+                    let col_type = registry
+                        .column_type_for(table_name, col_name)
+                        .unwrap_or(prism_core::column::ColumnType::String);
+                    Field::new(
+                        col_name,
+                        spec_column_type_to_arrow_data_type(&col_type),
+                        true, // nullable
+                    )
+                })
+                .collect();
+            let schema = Arc::new(Schema::new(fields));
+            let schema = crate::virtual_fields::append_virtual_fields_to_schema(schema);
+            return do_register_empty_mem_table(session_ctx, table_name, schema);
+        }
+    }
+
+    // Priority 2: bundled spec TOML fallback (unit-test path without a live registry).
+    {
+        let bundled = BUNDLED_SPEC_SCHEMAS.get_or_init(build_bundled_spec_schemas);
+        if let Some(schema) = bundled.get(table_name) {
+            let schema_vf =
+                crate::virtual_fields::append_virtual_fields_to_schema(Arc::clone(schema));
+            return do_register_empty_mem_table(session_ctx, table_name, schema_vf);
+        }
+    }
+
+    // Priority 3: Schema::empty() — no JOIN peers to infer from in Pipe/Filter context.
+    let schema = Arc::new(Schema::empty());
+    let schema = crate::virtual_fields::append_virtual_fields_to_schema(schema);
+    do_register_empty_mem_table(session_ctx, table_name, schema)
 }
 
 /// Pre-register schema-only empty `MemTable`s for SQL query tables not yet in the
@@ -4834,6 +5008,7 @@ mod walker_coverage_tests {
         let scalar_func_expr = Expr::FuncCall(FuncCall::Scalar {
             func: ScalarFunc::Unknown("severity_label".to_string()),
             args: vec![in_subquery_arg],
+            span: Span::ZERO,
         });
 
         let mut sql = minimal_select("crowdstrike_detections");
@@ -6426,6 +6601,7 @@ mod temporal_walker_unit_tests {
         let mut expr = Expr::FuncCall(FuncCall::Scalar {
             func: ScalarFunc::IocMatch,
             args: vec![Expr::Literal(raw_lit("2026-06-24"))],
+            span: crate::ast::Span::ZERO,
         });
         let result = check_expr_temporal(&mut expr, Some("test_events"), None);
         // Walking happens — OBS-2 coerces the arg instead of erroring.
