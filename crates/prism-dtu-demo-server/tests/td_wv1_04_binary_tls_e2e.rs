@@ -245,6 +245,8 @@ enabled = false
         // Clean shutdown.
         send_sigterm(pid);
         let _ = child.wait();
+        // Disarm: pid is freed by wait(); prevent Drop from SIGKILLing a recycled pid.
+        std::mem::forget(_kill_guard);
     }
 
     // ---------------------------------------------------------------------------
@@ -306,6 +308,8 @@ enabled = false
 
         send_sigterm(pid);
         let _ = child.wait();
+        // Disarm: pid is freed by wait(); prevent Drop from SIGKILLing a recycled pid.
+        std::mem::forget(_kill_guard);
     }
 
     // ---------------------------------------------------------------------------
@@ -351,6 +355,8 @@ enabled = false
         // Kill the process so stdout is flushed and pipe is closed.
         send_sigterm(pid);
         let _ = child.wait();
+        // Disarm: pid is freed by wait(); prevent Drop from SIGKILLing a recycled pid.
+        std::mem::forget(_kill_guard);
 
         // Drain the piped stdout pipe using a blocking read.
         //

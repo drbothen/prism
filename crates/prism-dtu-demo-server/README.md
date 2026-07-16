@@ -76,8 +76,12 @@ Forwards a JSON payload to a clone's `/dtu/configure` endpoint:
 prism-dtu-demo-server configure crowdstrike '{"failure_mode":"Timeout"}'
 ```
 
-The URL is resolved from the URL sidecar written by `start`; the harness must
-be running.
+The URL is resolved from the URL sidecar (`.prism-dtu-demo-server.urls.json`)
+written by `start`. The admin token is resolved from the token sidecar
+(`.prism-dtu-demo-server.admin-tokens.json` for `start`,
+`.prism-dtu-demo-server.admin-tokens-multi.json` for `start-multi`). Both
+sidecars must be present — if the token sidecar is absent the subcommand exits
+with error code E-DEMO-007. The harness must be running.
 
 ---
 
@@ -201,9 +205,11 @@ the `DEMO_FAKE_*` flat-model tokens used here.
 
 ## Files written to cwd
 
-| File                              | Purpose |
-|-----------------------------------|---------|
-| `.prism-dtu-demo-server.pid`      | PID of the running harness process; read by `stop` |
-| `.prism-dtu-demo-server.urls.json`| Clone URL map; read by `configure` and `stop` |
+| File                                                   | Purpose |
+|--------------------------------------------------------|---------|
+| `.prism-dtu-demo-server.pid`                           | PID of the running harness process; read by `stop` |
+| `.prism-dtu-demo-server.urls.json`                     | Clone URL map; read by `configure` and `stop` |
+| `.prism-dtu-demo-server.admin-tokens.json`             | Admin token map for the flat (`start`) model; read by `configure` |
+| `.prism-dtu-demo-server.admin-tokens-multi.json`       | Admin token map for the multi-org (`start-multi`) model; read by `configure` |
 
-Both files are written atomically (tmp + rename) and removed on clean shutdown.
+All files are written atomically (tmp + rename) and removed on clean shutdown.

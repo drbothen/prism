@@ -53,7 +53,7 @@
 //! | Test G: `test_BC_2_06_017_ac002_binary_startmulti_configure_with_multi_sidecar_token` | AC-002 | F-ADMTOK-P3-MED-001, F-ADMTOK-P3-LOW-002 | Reverting T-06 (write_multi_admin_token_sidecar in cmd_start_multi) → TOKEN_MULTI_FILE absent → configure exits 1; reverting T-09 → TOKEN_MULTI_FILE persists |
 //! | _(Note: Test G requires `--features fixture-gen`; cfg(all(unix, feature="fixture-gen")))_ | | | |
 
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used, non_snake_case)]
 
 mod common;
 
@@ -481,6 +481,8 @@ async fn test_BC_3_6_001_ac001_binary_configure_with_sidecar_token_returns_200()
     // Clean shutdown: SIGTERM to the start server.
     e2e_send_sigterm(start_pid);
     let _ = start_child.wait();
+    // Disarm: pid is freed by wait(); prevent Drop from SIGKILLing a recycled pid.
+    std::mem::forget(_kill_guard);
 
     // F-ADMTOK-P3-LOW-002 — T-09 cleanup regression lock: after shutdown, TOKEN_FILE must
     // be removed by `wait_for_shutdown_signal` (T-09 calls `let _ = remove_file(TOKEN_FILE)`).
@@ -934,6 +936,8 @@ async fn test_BC_2_06_017_ac002_binary_startmulti_configure_with_multi_sidecar_t
     // Clean shutdown: SIGTERM to the start-multi server.
     e2e_send_sigterm(server_pid);
     let _ = server_child.wait();
+    // Disarm: pid is freed by wait(); prevent Drop from SIGKILLing a recycled pid.
+    std::mem::forget(_kill_guard);
 
     // F-ADMTOK-P3-LOW-002 — T-09 cleanup regression lock: after shutdown, TOKEN_MULTI_FILE
     // must be removed by `wait_for_shutdown_signal_multi` (T-09 calls
