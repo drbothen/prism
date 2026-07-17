@@ -3479,3 +3479,19 @@ Wave-gate adjudication at S-3.09 dispatch selects among A/B/C.
 3. If a rebase is unavoidable, note the DRIFT-ORCH-PRLEVEL-PUSH-001 streak reset in the state burst and re-gate immediately.
 
 **Source:** D-1793 (PR #224 rebase onto `84062ced` after PR #222 merge; `ci.yml` conflict; streak reset; 2026-07-16).
+
+---
+
+### Lesson 65 — [process-gap] [codified] Pass reports MUST be persisted before session wrap (D-1797)
+
+**Classification:** PROCESS-GAP — D-1797 (2026-07-17); [codified].
+
+**Finding:** At D-1796 session wrap, S-MAINT PR-LEVEL passes 11-13 and DEFECT-ADMINTOKEN LOCAL passes 5-11 recorded only one-line summaries in STATE.md / SESSION-HANDOFF.md. The full pass-11 and pass-13 adversarial reports were lost with session context, forcing a reconstruction review at D-1797 resume. The reconstruction found 2 MED findings where the lost pass-13 had recorded 2 LOW + 1 OBS — lost detail also meant lost severity fidelity.
+
+**Root cause:** The per-burst commit procedure for session-wrap bursts did not include a step to persist full adversary pass reports to `cycles/<cycle>/<story>/adversarial-review/` before writing the session-wrap STATE.md and SESSION-HANDOFF.md. Only the STATE.md and SESSION-HANDOFF.md summary lines were committed; the full reports lived only in session context and were lost at wrap.
+
+**Codified rule:** Every adversary pass dispatch is followed by persisting the full report to `cycles/<cycle>/<story>/adversarial-review/` BEFORE the next dispatch and BEFORE session wrap. The burst that records the pass outcome (STATE.md / SESSION-HANDOFF.md update) MUST include the full report file in the same atomic commit. A one-line STATE.md summary without a committed full report is an incomplete burst.
+
+**Orchestrator obligation:** When dispatching an adversary pass, explicitly include "persist full pass report to `cycles/<cycle>/<story>/adversarial-review/<pass-N>.md` as part of this burst" in the dispatch prompt. Do not allow a wrap burst to commit STATE.md pass summaries without the corresponding full report files.
+
+**Source:** D-1796 session wrap (2026-07-17) — S-MAINT pass-11/13 and DEFECT-ADMINTOKEN passes 5-11 reports lost; D-1797 reconstruction pass required.
