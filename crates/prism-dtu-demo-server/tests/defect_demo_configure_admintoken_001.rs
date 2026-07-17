@@ -76,6 +76,7 @@
 //! | Test D: `test_BC_3_6_001_e_demo_007_ec005_ambiguous_bare_sensor_name` | AC-003 EC-005 | — | Removing EC-005 ambiguity path from `resolve_configure_token` fails |
 //! | Test H: `test_BC_3_6_001_e_demo_007_ec003_flat_miss_no_fallthrough_to_nested` | AC-003 EC-003 | F-ADMTOK-P7-MED-001 | Removing flat-miss early return (adding fallthrough to nested) → resolve returns Ok → expect_err panics |
 //! | Test I: `test_BC_3_6_001_e_demo_007_ec003_nested_only_zero_matches` | AC-003 EC-003 | F-ADMTOK-P7-MED-001 | Removing nested zero-match error return → resolve returns Ok → expect_err panics |
+//! | Test J: `test_resolve_configure_url_ambiguity_message_uses_sorted_org_list` | AC-003 EC-005 | F-ADMTOK-P12-OBS-001 | Removing `bare_matches.sort_by(...)` from `resolve_configure_url` → nondeterministic org order → assertion flakes ~50% of runs |
 //! | Test E: `test_BC_3_6_001_ac001_binary_configure_with_sidecar_token_returns_200` | AC-001 ¶4 | F-ADMTOK-P1-HIGH-001, F-ADMTOK-P3-LOW-002 | Reverting T-08 → configure exits 1; reverting T-09 (TOKEN_FILE cleanup) → sidecar persists |
 //! | Test F: `test_BC_2_06_017_start_multi_admin_token_map_and_sidecar_written` | AC-002 | F-ADMTOK-P1-HIGH-002 | Removing T-02 (`admin_token_map`) or T-05 (sidecar write) fails |
 //! | Test G: `test_BC_2_06_017_ac002_binary_startmulti_configure_with_multi_sidecar_token` | AC-002 | F-ADMTOK-P3-MED-001, F-ADMTOK-P3-LOW-002 | Reverting T-06 (write_multi_admin_token_sidecar in cmd_start_multi) → TOKEN_MULTI_FILE absent → configure exits 1; reverting T-09 → TOKEN_MULTI_FILE persists |
