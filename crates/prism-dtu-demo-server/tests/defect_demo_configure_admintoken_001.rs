@@ -611,8 +611,8 @@ async fn test_BC_3_6_001_e_demo_007_ec003_nested_only_zero_matches() {
 ///
 /// Load-bearing assertion: Removing `bare_matches.sort_by(...)` from `resolve_configure_url`
 /// before the ambiguity match arm makes the org list order nondeterministic. The test FAILS
-/// on runs where HashMap happens to emit "org-b" before "org-a" (approximately 50% of runs
-/// with the current BTreeMap-backed hash seed), or is fragile (depends on seed). With the
+/// on runs where HashMap happens to emit "org-b" before "org-a" (RandomState/SipHash-seeded
+/// std HashMap; ~50% of runs emit reversed order for 2 keys), or is fragile (depends on seed). With the
 /// sort in place, it always passes.
 ///
 /// Traces to: F-ADMTOK-P12-OBS-001 (TD-VSDD-060 sibling sweep of resolve_configure_token sort).
@@ -1001,6 +1001,17 @@ async fn test_BC_2_06_017_start_multi_admin_token_map_and_sidecar_written() {
     assert!(
         err_msg.contains("org-a-armis"),
         "Test-F: error must name the missing entry 'org-a-armis'; got: {err_msg}"
+    );
+    // LOAD-BEARING (F-ADMTOK-P13-LOW-001): assert sorted key order in the fail-loud message.
+    //
+    // The token_map has "org-a-crowdstrike" and "org-b-crowdstrike" (alphabetical order).
+    // Without `ks.sort()` in `write_multi_admin_token_sidecar_to_path`, std HashMap
+    // (RandomState/SipHash-seeded) emits keys in nondeterministic order — ~50% of runs would
+    // produce ["org-b-crowdstrike", "org-a-crowdstrike"] instead.  The sort locks the order.
+    assert!(
+        err_msg.contains(r#"["org-a-crowdstrike", "org-b-crowdstrike"]"#),
+        "Test-F: fail-loud message must list available token_map keys in sorted order \
+         [\"org-a-crowdstrike\", \"org-b-crowdstrike\"]; got: {err_msg}"
     );
     // tmp is dropped here — temp dir auto-cleaned by tempfile.
 }

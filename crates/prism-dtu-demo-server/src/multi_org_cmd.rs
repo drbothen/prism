@@ -596,13 +596,16 @@ pub fn write_multi_url_sidecar_to_path(
         for sensor_id in &org_cfg.sensors {
             let entry_name = format!("{org_slug}-{sensor_id}");
             let addr = socket_map.get(&entry_name).ok_or_else(|| {
+                // Sort for deterministic error messages.
+                let mut ks: Vec<_> = socket_map.keys().collect();
+                ks.sort();
                 anyhow::anyhow!(
                     "write_multi_url_sidecar: socket_map is missing expected entry '{}'. \
                      This is a programming error — all sensors declared in MultiOrgDemoConfig \
                      must have been started by start_instances before writing the sidecar. \
                      Available socket_map keys: {:?}",
                     entry_name,
-                    socket_map.keys().collect::<Vec<_>>()
+                    ks
                 )
             })?;
             sensor_urls.insert(sensor_id.clone(), format!("http://{addr}"));
@@ -630,13 +633,16 @@ pub fn write_multi_url_sidecar_to_path(
         };
         if enabled {
             let addr = socket_map.get(enrichment_name).ok_or_else(|| {
+                // Sort for deterministic error messages.
+                let mut ks: Vec<_> = socket_map.keys().collect();
+                ks.sort();
                 anyhow::anyhow!(
                     "write_multi_url_sidecar: socket_map is missing expected enrichment entry \
                      '{}'. This is a programming error — enrichment clones enabled in \
                      EnrichmentConfig must have been started by start_instances before writing \
                      the sidecar. Available socket_map keys: {:?}",
                     enrichment_name,
-                    socket_map.keys().collect::<Vec<_>>()
+                    ks
                 )
             })?;
             global_urls.insert(enrichment_name.to_string(), format!("http://{addr}"));
@@ -715,13 +721,16 @@ pub fn write_multi_admin_token_sidecar_to_path(
         for sensor_id in &org_cfg.sensors {
             let entry_name = format!("{org_slug}-{sensor_id}");
             let token = token_map.get(&entry_name).ok_or_else(|| {
+                // Sort for deterministic error messages.
+                let mut ks: Vec<_> = token_map.keys().collect();
+                ks.sort();
                 anyhow::anyhow!(
                     "write_multi_admin_token_sidecar: token_map is missing expected entry '{}'. \
                      This is a programming error — all sensors declared in MultiOrgDemoConfig \
                      must have been started by start_instances before writing the sidecar. \
                      Available token_map keys: {:?}",
                     entry_name,
-                    token_map.keys().collect::<Vec<_>>()
+                    ks
                 )
             })?;
             sensor_tokens.insert(sensor_id.clone(), token.clone());
@@ -740,13 +749,16 @@ pub fn write_multi_admin_token_sidecar_to_path(
         };
         if enabled {
             let token = token_map.get(enrichment_name).ok_or_else(|| {
+                // Sort for deterministic error messages.
+                let mut ks: Vec<_> = token_map.keys().collect();
+                ks.sort();
                 anyhow::anyhow!(
                     "write_multi_admin_token_sidecar: token_map is missing expected enrichment \
                      entry '{}'. This is a programming error — enrichment clones enabled in \
                      EnrichmentConfig must have been started by start_instances before writing \
                      the sidecar. Available token_map keys: {:?}",
                     enrichment_name,
-                    token_map.keys().collect::<Vec<_>>()
+                    ks
                 )
             })?;
             global_tokens.insert(enrichment_name.to_string(), token.clone());
