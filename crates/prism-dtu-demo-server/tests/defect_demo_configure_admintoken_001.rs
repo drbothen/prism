@@ -420,7 +420,7 @@ async fn test_BC_3_6_001_e_demo_007_ec005_ambiguous_bare_sensor_name() {
         "AC-003/EC-005: error must cite ambiguity; got: {msg}"
     );
     // F-ADMTOK-P3-LOW-001: assert the exact {:?} rendered form ["org-a", "org-b"].
-    // The code sorts bare_matches by org slug before formatting (line 1074 of multi_org_cmd.rs),
+    // resolve_configure_token sorts bare_matches by org slug before the ambiguity match arm,
     // so "org-a" precedes "org-b" deterministically. Vec<String> {:?} format produces
     // ["org-a", "org-b"] (with double-quoted elements). This locks the quoted rendering per
     // story v0.4 — a change to sort order or quoting style breaks this assertion.
@@ -587,6 +587,98 @@ async fn test_BC_3_6_001_e_demo_007_ec003_nested_only_zero_matches() {
     assert!(
         msg.contains("not found in token sidecar"),
         "AC-003/EC-003 nested arm: error reason must cite missing clone in sidecar; got: {msg}"
+    );
+    // tmp is dropped here — temp dir auto-cleaned by tempfile.
+}
+
+// ---------------------------------------------------------------------------
+// Test J — GREEN post-fix / F-ADMTOK-P12-OBS-001 (resolve_configure_url sort parity)
+// Sibling determinism: resolve_configure_url ambiguity path
+// ---------------------------------------------------------------------------
+
+/// Test J — F-ADMTOK-P12-OBS-001: `resolve_configure_url` ambiguity message uses sorted org list.
+///
+/// Mirrors Test D (`test_BC_3_6_001_e_demo_007_ec005_ambiguous_bare_sensor_name`) which proved
+/// that `resolve_configure_token` sorts `bare_matches` before the ambiguity message. This test
+/// is the load-bearing closure for F-ADMTOK-P12-OBS-001: `resolve_configure_url` was the
+/// sibling that lacked the identical sort.
+///
+/// Setup: two-org URL sidecar where both "org-a" and "org-b" have "crowdstrike".
+/// A bare sensor name "crowdstrike" is therefore ambiguous.
+///
+/// Expected: error message contains the org list in sorted order: `["org-a", "org-b"]` —
+/// NOT in nondeterministic HashMap iteration order.
+///
+/// Load-bearing assertion: Removing `bare_matches.sort_by(...)` from `resolve_configure_url`
+/// before the ambiguity match arm makes the org list order nondeterministic. The test FAILS
+/// on runs where HashMap happens to emit "org-b" before "org-a" (approximately 50% of runs
+/// with the current BTreeMap-backed hash seed), or is fragile (depends on seed). With the
+/// sort in place, it always passes.
+///
+/// Traces to: F-ADMTOK-P12-OBS-001 (TD-VSDD-060 sibling sweep of resolve_configure_token sort).
+#[tokio::test]
+async fn test_resolve_configure_url_ambiguity_message_uses_sorted_org_list() {
+    // Test J: F-ADMTOK-P12-OBS-001 — URL-ambiguity message org list is sorted.
+    // Per-test temp dir — in-process, no harness required.
+
+    let tmp = tempfile::tempdir().expect("Test-J: tempdir must be created");
+    let url_multi_path = tmp.path().join("urls-multi.ec005-url-test.json");
+
+    // Build a two-org URL sidecar where both orgs have "crowdstrike".
+    // This exercises the multi-match ambiguity arm of resolve_configure_url.
+    let ambiguous_sidecar: std::collections::HashMap<
+        String,
+        std::collections::HashMap<String, String>,
+    > = [
+        (
+            "org-a".to_string(),
+            [(
+                "crowdstrike".to_string(),
+                "http://127.0.0.1:19001".to_string(),
+            )]
+            .into_iter()
+            .collect(),
+        ),
+        (
+            "org-b".to_string(),
+            [(
+                "crowdstrike".to_string(),
+                "http://127.0.0.1:19002".to_string(),
+            )]
+            .into_iter()
+            .collect(),
+        ),
+    ]
+    .into_iter()
+    .collect();
+
+    std::fs::write(
+        &url_multi_path,
+        serde_json::to_string(&ambiguous_sidecar).unwrap(),
+    )
+    .expect("Test-J: must write temporary ambiguous URL sidecar");
+
+    // LOAD-BEARING (F-ADMTOK-P12-OBS-001): removing `bare_matches.sort_by(...)` from
+    // `resolve_configure_url` makes the org list in the error nondeterministic.
+    // The sorted-order assertion below pins the behavior.
+    let result =
+        prism_dtu_demo_server::resolve_configure_url("crowdstrike", None, Some(&url_multi_path));
+
+    let err =
+        result.expect_err("Test-J: ambiguous bare sensor name in URL sidecar must return an error");
+    let msg = format!("{err:?}");
+
+    assert!(
+        msg.contains("ambiguous"),
+        "Test-J: error must cite ambiguity; got: {msg}"
+    );
+    // Assert the exact {:?} rendered form ["org-a", "org-b"] — sorted order.
+    // resolve_configure_url sorts bare_matches by org slug before the ambiguity match arm,
+    // so "org-a" precedes "org-b" deterministically. Vec<String> {:?} format produces
+    // ["org-a", "org-b"] (with double-quoted elements).
+    assert!(
+        msg.contains(r#"["org-a", "org-b"]"#),
+        "Test-J: error must contain sorted org list [\"org-a\", \"org-b\"]; got: {msg}"
     );
     // tmp is dropped here — temp dir auto-cleaned by tempfile.
 }

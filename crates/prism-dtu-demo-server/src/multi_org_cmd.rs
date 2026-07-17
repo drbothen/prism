@@ -847,11 +847,14 @@ pub fn resolve_configure_url(
             if let Some(url) = url_map.get(clone_name) {
                 return Ok(format!("{url}/dtu/configure"));
             }
+            // Sort for deterministic diagnostic output.
+            let mut available: Vec<_> = url_map.keys().collect();
+            available.sort();
             anyhow::bail!(
                 "Clone '{}' not found in flat sidecar '{}'. Available: {:?}",
                 clone_name,
                 flat_path.display(),
-                url_map.keys().collect::<Vec<_>>()
+                available
             );
         }
     }
@@ -897,10 +900,12 @@ pub fn resolve_configure_url(
                     bare_matches.push((org_slug.clone(), url.clone()));
                 }
             }
+            // Sort for deterministic error messages.
+            bare_matches.sort_by(|a, b| a.0.cmp(&b.0));
             match bare_matches.len() {
                 0 => {
                     // Not found by any lookup strategy.
-                    let all_keys: Vec<String> = nested
+                    let mut all_keys: Vec<String> = nested
                         .iter()
                         .flat_map(|(org, sensors)| {
                             sensors
@@ -909,6 +914,8 @@ pub fn resolve_configure_url(
                                 .collect::<Vec<_>>()
                         })
                         .collect();
+                    // Sort for deterministic diagnostic output.
+                    all_keys.sort();
                     anyhow::bail!(
                         "Clone '{}' not found in nested sidecar '{}'. \
                          Use the full '{{org_slug}}-{{sensor_id}}' form or a bare sensor name \
