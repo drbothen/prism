@@ -71,17 +71,17 @@
 //! | Test | AC | Finding closed | Load-bearing: what revert breaks this |
 //! |------|----|----------------|---------------------------------------|
 //! | Test A: `test_BC_3_6_001_replicates_defect_401_without_admin_token` | AC-001 ¶3 | contract lock | Removing server-side 401 gate breaks this |
-//! | Test B: `test_BC_2_06_017_token_sidecar_written_and_configure_with_token_returns_200` | AC-001/AC-002 | F-ADMTOK-P1-HIGH-003 | Removing `header("X-Admin-Token", token)` from POST → 401 assertion fails |
+//! | Test B: `test_BC_2_06_017_token_sidecar_written_and_configure_with_token_returns_200` | AC-001/AC-002 | F-ADMTOK-P1-HIGH-003, F-ADMTOK-P18-LOW-001 | Removing `header("X-Admin-Token", token)` from POST → 401 assertion fails; 0o600→0o644 mutation → mode & 0o077 != 0 |
 //! | Test C: `test_BC_3_6_001_e_demo_007_configure_no_sidecar_present` | AC-003 EC-004 | F-ADMTOK-P1-HIGH-003 | Removing E-DEMO-007 error return from `resolve_configure_token` fails |
 //! | Test D: `test_BC_3_6_001_e_demo_007_ec005_ambiguous_bare_sensor_name` | AC-003 EC-005 | F-ADMTOK-P3-LOW-001 | Removing EC-005 ambiguity path from `resolve_configure_token` fails |
 //! | Test H: `test_BC_3_6_001_e_demo_007_ec003_flat_miss_no_fallthrough_to_nested` | AC-003 EC-003 | F-ADMTOK-P7-MED-001 | Removing flat-miss early return (adding fallthrough to nested) → resolve returns Ok → expect_err panics |
 //! | Test I: `test_BC_3_6_001_e_demo_007_ec003_nested_only_zero_matches` | AC-003 EC-003 | F-ADMTOK-P7-MED-001 | Removing nested zero-match error return → resolve returns Ok → expect_err panics |
 //! | Test J: `test_resolve_configure_url_ambiguity_message_uses_sorted_org_list` | AC-003 EC-005 | F-ADMTOK-P12-OBS-001 | Removing `bare_matches.sort_by(...)` from `resolve_configure_url` → nondeterministic org order → assertion flakes ~50% of runs |
 //! | Test E: `test_BC_3_6_001_ac001_binary_configure_with_sidecar_token_returns_200` | AC-001 ¶4 | F-ADMTOK-P1-HIGH-001, F-ADMTOK-P3-LOW-002 | Reverting T-08 → configure exits 1; reverting T-09 (TOKEN_FILE cleanup) → sidecar persists |
-//! | Test F: `test_BC_2_06_017_start_multi_admin_token_map_and_sidecar_written` | AC-002 | F-ADMTOK-P1-HIGH-002, F-ADMTOK-P13-LOW-001 | Removing T-02 (`admin_token_map`) or T-05 (sidecar write) fails |
+//! | Test F: `test_BC_2_06_017_start_multi_admin_token_map_and_sidecar_written` | AC-002 | F-ADMTOK-P1-HIGH-002, F-ADMTOK-P13-LOW-001, F-ADMTOK-P18-LOW-001 | Removing T-02 (`admin_token_map`) or T-05 (sidecar write) fails; 0o600→0o644 mutation → mode & 0o077 != 0 |
 //! | Test G: `test_BC_2_06_017_ac002_binary_startmulti_configure_with_multi_sidecar_token` | AC-002 | F-ADMTOK-P3-MED-001, F-ADMTOK-P3-LOW-002 | Reverting T-06 (write_multi_admin_token_sidecar in cmd_start_multi) → TOKEN_MULTI_FILE absent → configure exits 1; reverting T-09 → TOKEN_MULTI_FILE persists |
 //! | _(Note: Test G requires `--features fixture-gen`; cfg(all(unix, feature="fixture-gen")))_ | | | |
-//! | Test K: `test_BC_2_06_017_start_multi_enrichment_token_global_key_written_and_resolved` | AC-002 `_global` enrichment tokens | F-ADMTOK-P15-MED-001 | Removing `_global` arm from `write_multi_admin_token_sidecar_to_path` fails (a)/(b); replacing `?` with silent-skip fails (d) |
+//! | Test K: `test_BC_2_06_017_start_multi_enrichment_token_global_key_written_and_resolved` | AC-002 `_global` enrichment tokens | F-ADMTOK-P15-MED-001, F-ADMTOK-P18-LOW-001 | Removing `_global` arm from `write_multi_admin_token_sidecar_to_path` fails (a)/(b); replacing `?` with silent-skip fails (d); 0o600→0o644 mutation → mode & 0o077 != 0 |
 
 #![allow(clippy::unwrap_used, clippy::expect_used, non_snake_case)]
 
@@ -218,6 +218,26 @@ async fn test_BC_2_06_017_token_sidecar_written_and_configure_with_token_returns
         "Test-B/AC-002: TOKEN_FILE must exist after write_token_sidecar_to_path. \
          Pub helper T-03 must write the sidecar atomically."
     );
+
+    // F-ADMTOK-P18-LOW-001 — 0600 sidecar-permissions lock (umask-robust form).
+    // LOAD-BEARING: mutating 0o600→0o644 in write_token_sidecar_to_path's OpenOptions causes
+    // `mode() & 0o077` to equal 0o044 (group-read + other-read) → assertion fails.
+    // The & 0o077 form is umask-robust: it checks only the group+other permission bits
+    // regardless of the process umask at write time.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            std::fs::metadata(&token_sidecar_path)
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o077,
+            0,
+            "Test-B/F-ADMTOK-P18-LOW-001: TOKEN_FILE must not be group/other-readable (0600); \
+             load-bearing: 0o600→0o644 in write_token_sidecar_to_path causes mode & 0o077 == 0o044"
+        );
+    }
 
     // Resolve the token via the same function used by cmd_configure (T-07).
     let token = prism_dtu_demo_server::resolve_configure_token(
@@ -923,6 +943,26 @@ async fn test_BC_2_06_017_start_multi_admin_token_map_and_sidecar_written() {
         "Test-F: TOKEN_MULTI_FILE must exist after write_multi_admin_token_sidecar_to_path"
     );
 
+    // F-ADMTOK-P18-LOW-001 — 0600 sidecar-permissions lock (umask-robust form).
+    // LOAD-BEARING: mutating 0o600→0o644 in write_multi_admin_token_sidecar_to_path's OpenOptions
+    // causes `mode() & 0o077` to equal 0o044 (group-read + other-read) → assertion fails.
+    // The & 0o077 form is umask-robust: it checks only the group+other permission bits
+    // regardless of the process umask at write time.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            std::fs::metadata(&token_multi_path)
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o077,
+            0,
+            "Test-F/F-ADMTOK-P18-LOW-001: TOKEN_MULTI_FILE must not be group/other-readable (0600); \
+             load-bearing: 0o600→0o644 in write_multi_admin_token_sidecar_to_path causes mode & 0o077 == 0o044"
+        );
+    }
+
     // Assert nested {org_slug: {sensor_id: token}} shape.
     let sidecar_str = std::fs::read_to_string(&token_multi_path)
         .expect("Test-F: TOKEN_MULTI_FILE must be readable");
@@ -1413,6 +1453,26 @@ async fn test_BC_2_06_017_start_multi_enrichment_token_global_key_written_and_re
         token_multi_path.exists(),
         "Test-K: TOKEN_MULTI_FILE must exist after write_multi_admin_token_sidecar_to_path"
     );
+
+    // F-ADMTOK-P18-LOW-001 — 0600 sidecar-permissions lock (umask-robust form).
+    // LOAD-BEARING: mutating 0o600→0o644 in write_multi_admin_token_sidecar_to_path's OpenOptions
+    // causes `mode() & 0o077` to equal 0o044 (group-read + other-read) → assertion fails.
+    // The & 0o077 form is umask-robust: it checks only the group+other permission bits
+    // regardless of the process umask at write time.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            std::fs::metadata(&token_multi_path)
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o077,
+            0,
+            "Test-K/F-ADMTOK-P18-LOW-001: TOKEN_MULTI_FILE must not be group/other-readable (0600); \
+             load-bearing: 0o600→0o644 in write_multi_admin_token_sidecar_to_path causes mode & 0o077 == 0o044"
+        );
+    }
 
     // Parse the written sidecar.
     let sidecar_str = std::fs::read_to_string(&token_multi_path)
