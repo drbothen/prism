@@ -6,12 +6,12 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.15"
+version: "0.16"
 level: ops
 producer: story-writer
 timestamp: "2026-07-16"
 modified: "2026-07-17"
-input-hash: "5bb76c5"
+input-hash: "6982f3b"
 inputs:
   - crates/prism-dtu-demo-server/src/main.rs
   - crates/prism-dtu-demo-server/src/multi_instance.rs
@@ -29,13 +29,18 @@ cycle: "v1.0.0-greenfield"
 phase: 3
 tdd_mode: strict
 track: "Platform Engineering"
-subsystems: [SS-22]
+subsystems: [SS-01]
 # Subsystem anchor justification:
-#   SS-22 (Binary Entrypoint) owns the `prism-dtu-demo-server` CLI subcommand surface.
-#   `cmd_configure` is a subcommand of the `prism-dtu-demo-server` binary, and both the
-#   primary fix site (`cmd_configure` in main.rs) and the supporting infrastructure
-#   (`MultiInstanceServers` admin_token_map, token sidecar write/read) live in the
-#   `prism-dtu-demo-server` crate. Per ARCH-INDEX Subsystem Registry SS-22.
+#   SS-01 (Sensor Adapters) owns this story's scope because `prism-dtu-demo-server`
+#   is explicitly listed in the SS-01 crate column of the ARCH-INDEX Subsystem Registry
+#   (v2.193, Subsystem Registry table, line 154). SS-01 crates include all DTU crates:
+#   prism-dtu-common, prism-dtu-claroty, prism-dtu-armis, prism-dtu-crowdstrike,
+#   prism-dtu-cyberint, prism-dtu-slack, prism-dtu-pagerduty, prism-dtu-jira,
+#   prism-dtu-nvd, prism-dtu-threatintel, prism-dtu-demo-server, prism-dtu-harness.
+#   SS-22 (Process Lifecycle) is scoped exclusively to prism-bin boot orchestration
+#   (ADR-022 §B 11-step boot, startup failure exit-code map, traffic gate signal
+#   handlers) per ARCH-INDEX v2.193 line 175 — it does not cover prism-dtu-demo-server.
+#   Per ARCH-INDEX Subsystem Registry SS-01 (line 154) and SS-22 (line 175).
 crates_touched:
   - prism-dtu-demo-server
 target_module: "crates/prism-dtu-demo-server"
@@ -433,6 +438,7 @@ already-present workspace dependencies (`serde_json`, `reqwest`, `tokio`, `std`)
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| v0.16 | 2026-07-17 | story-writer FIX-BURST F-ADMTOK-PR4-HIGH-001 | F-ADMTOK-PR4-HIGH-001 (HIGH): subsystems anchor corrected SS-22 → SS-01. SS-22 is canonically "Process Lifecycle" (not "Binary Entrypoint") and is scoped exclusively to prism-bin boot orchestration (ADR-022 §B 11-step boot, startup failure exit-code map, traffic gate signal handlers) per ARCH-INDEX v2.193 line 175. SS-22 does not own prism-dtu-demo-server. SS-01 (Sensor Adapters) is the correct anchor: ARCH-INDEX v2.193 Subsystem Registry line 154 explicitly lists prism-dtu-demo-server in SS-01's crate column. Old→new: `subsystems: [SS-22]` → `subsystems: [SS-01]`; justification comment rewritten. POL-29 sibling sweep: grep confirmed all three SS-22/"Binary Entrypoint" occurrences were confined to frontmatter lines 32–38; zero body occurrences. input-hash updated 5bb76c5 → 6982f3b (hook-computed current hash). |
 | v0.15 | 2026-07-17 | product-owner FIX-BURST-14 SPEC (F-ADMTOK-P15-MED-001, F-ADMTOK-P15-OBS-002) | F-ADMTOK-P15-MED-001 (MED, spec facet): AC-002 did not specify the `_global` enrichment-token section of TOKEN_MULTI_FILE. BC-2.06.017 v1.12 Postcondition 1 (sidecar format: nested JSON mirroring URL_MULTI_FILE) makes the `_global` key contract-mandated because URL_MULTI_FILE carries `_global` per ENRICH-3. Added bullet to AC-002 "Token sidecar write requirements": TOKEN_MULTI_FILE MUST include the reserved `_global` key carrying admin tokens for all enabled enrichment DTU clones (KNOWN_ENRICHMENT_CLONES), mirroring the URL_MULTI_FILE `_global` pattern (ENRICH-3); `write_multi_admin_token_sidecar_to_path` MUST fail-loud (propagate an error) when an enabled enrichment clone's token is absent from admin_token_map; contract-locked by Test K (enrichment `_global` token lock). F-ADMTOK-P15-OBS-002 (OBS, EC-007 namespace collision): AC-002 item 2 cited "(EC-007 recovery form)" without qualification — within this story's §Edge Cases namespace, EC-007 is the TLS-enabled `start --tls` case, not the operator recovery form in `resolve_configure_url`. Qualified as "(EC-007 recovery form documented in `resolve_configure_url` — distinct from this story's §Edge Cases EC-007)". POL-25 sweep: two other EC-007 references in §Narrative and §Origin are already qualified with "in `resolve_configure_url`" and "documented in `resolve_configure_url`" respectively — no further changes needed. |
 | v0.14 | 2026-07-17 | product-owner FIX-BURST-12 SPEC (F-ADMTOK-P13-LOW-002, F-ADMTOK-P13-LOW-003) | F-ADMTOK-P13-LOW-002 (LOW, POL-22 Phase C + POL-25 sweep): corrected story structural tables to reflect as-built file layout. (i) AC-002 sidecar write bullet reworded: `cmd_start()` calls `write_token_sidecar` immediately after `write_url_sidecar`; the load-bearing helper `write_token_sidecar_to_path` lives in `src/harness.rs` (not `src/main.rs`), re-exported via `lib.rs`, with `write_token_sidecar` in `main.rs` as a thin binary wrapper delegating to it (confirmed: harness.rs `token_map()` at `DemoHarness::token_map`, `write_token_sidecar_to_path` at line 361; main.rs wrapper at `write_token_sidecar` delegates to `prism_dtu_demo_server::write_token_sidecar_to_path`; lib.rs re-export confirmed `pub use harness::{write_token_sidecar_to_path, ...}`). (ii) Added `MODIFY crates/prism-dtu-demo-server/src/harness.rs` row to §File Structure Requirements (`DemoHarness::token_map()` accessor + `write_token_sidecar_to_path` helper + re-export via `lib.rs`); updated `lib.rs` row to include re-export. (iii) §Architecture Mapping: split the incorrect `write_token_sidecar (new helper) \| library \| src/main.rs` row into `write_token_sidecar_to_path` (library helper, harness.rs), `write_token_sidecar` (binary wrapper, main.rs), and `DemoHarness::token_map()` (pure accessor, harness.rs). §Purity Classification: updated main.rs row to note binary-wrapper nature of `write_token_sidecar`; added harness.rs row for `write_token_sidecar_to_path` (effectful-shell) and `token_map()` (pure-core). F-ADMTOK-P13-LOW-003 (LOW, SWEEP-MIRROR convention codification): AC-004 ¶1 reworded from "naming each enumerated site" to codify the v0.10 ratified SWEEP-MIRROR convention as built — code mirrors carry byte-identical command forms + stable counts (447/131/6/8) + condensed site-group table; the story §Root Cause TD-VSDD-060 table (~24 live rows / 146 POSTs) is the source of truth; `cmd_configure` confirmed ONLY defect site. POL-29 sweep: "naming each enumerated site" phrase found only in the fixed AC-004 ¶1 location. |
 | v0.13 | 2026-07-17 | product-owner FIX-BURST-11 SPEC (F-ADMTOK-P12-MED-001, F-ADMTOK-P12-LOW-001, F-ADMTOK-P12-LOW-002, F-ADMTOK-P12-LOW-003) | F-ADMTOK-P12-MED-001 (MED, POL-21 phantom §-anchor + POL-4 GAP-3 semantic mismatch): stripped `§Sidecar-availability guarantee (GAP-3 from S-DEMO-LAUNCHER-CONSOLIDATION-001)` from BC-2.06.017 Relevant Clause cell — "Sidecar-availability" is not a heading anywhere in `.factory/`; the launcher story heading is `## Changelog` (no §-sigil), and GAP-3 in that story's Changelog v2.1 is a cwd-path-threading note for demo-run.sh, not an atomic-write guarantee. Replaced with: `the atomic tmp+rename sidecar write pattern (established for URL sidecars; cf. GAP-3 sidecar-poll note, S-DEMO-LAUNCHER-CONSOLIDATION-001 Changelog v2.1)`. BC-2.06.017 version pin updated v1.11 → v1.12 (BC updated in parallel). Code comments in main.rs/multi_org_cmd.rs may retain the informal phrase (accepted-informal, out of spec scope). F-ADMTOK-P12-LOW-001 (LOW): aligned three footnote command forms byte-for-byte with code mirrors — dropped `-n` flag from commands (1)(2)(3); command (3) gained trailing `wc -l` count suffix. IDENTICAL claim is now true for all four commands; choice: option (a) — byte-identical alignment; counts unchanged (447, 131, 6, 8). F-ADMTOK-P12-LOW-002 (LOW, POL-22 Phase C, POL-25 sweep): renamed helper function name `deny_unknown_fields` → `assert_configure_strict` (deny-unknown-fields test) in two live table cells (Site cell row 137, Harness::inject_failure() row 138) and in the v0.7 changelog narrative (POL-25: all three occurrences corrected). F-ADMTOK-P12-LOW-003 (LOW): EC-005 Expected Behavior corrected — `resolve_configure_url` returns a plain anyhow ambiguity error first (no E-DEMO-007 code) in the canonical scenario; the E-DEMO-007 arm of `resolve_configure_token` is defense-in-depth for skewed-sidecar states, contract-locked by Test D (`test_BC_3_6_001_e_demo_007_ec005_ambiguous_bare_sensor_name`). E-DEMO-007 message template retained byte-verbatim per POL-24. |

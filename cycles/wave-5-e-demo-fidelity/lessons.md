@@ -3516,3 +3516,21 @@ Wave-gate adjudication at S-3.09 dispatch selects among A/B/C.
 **Follow-up:** story-writer dispatch pending for a self-improvement epic story anchoring D-1811 with the permanent fix requirement. Until the story is implemented and merged, the interim mitigation applies to every pr-manager dispatch.
 
 **Source:** D-1811 (2026-07-17) — three pr-manager scope violations including attempted unauthorized merge of PR #225; orchestrator safety classifier block; dual-lane session S-MAINT-CI-DISK-EXHAUSTION-001 + DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001.
+
+---
+
+### Lesson 67 — [process-gap] story version bumps require same-burst STORY-INDEX sync BEFORE the next adversarial gating pass (D-1816)
+
+**Classification:** PROCESS-GAP — D-1816 (2026-07-18); F-ADMTOK-PR7-MED-001 root-cause analysis.
+
+**Finding:** The story-writer fix-burst for F-ADMTOK-PR4-HIGH-001 bumped DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 from v0.15 to v0.16 (SS-22→SS-01 subsystem re-anchor per ARCH-INDEX v2.193:154). The STORY-INDEX.md registry row was NOT updated in the same burst. The version-pin-lattice adversary probe at pass-7 found STORY-INDEX pinned to v0.15 while the story frontmatter was already v0.16 — a MEDIUM finding that reset the streak to 0/3, requiring an additional consolidated burst (D-1816) to close.
+
+**Root cause:** The report-persistence burst (bursts between pass-4 HIGH closure and pass-7) was a lightweight state-recording burst that persisted the pass reports (passes 2/3/5/6) but did NOT include a STORY-INDEX sync. The index-row sync was deferred to a "later consolidated burst," which is precisely the anti-pattern that generates POL-13 findings — it splits the story version bump from its registry propagation across a gating boundary.
+
+**Codified rule:** Every story version bump (by any agent — story-writer, PO, or state-manager) MUST be accompanied by a STORY-INDEX.md registry-row update in the SAME atomic commit. No story version bump commit is complete without the corresponding STORY-INDEX sync. When a story version bump occurs in a fix-burst that precedes the next adversarial pass, the STORY-INDEX sync is NOT deferrable — it must land before the adversary runs, not after.
+
+**State-manager obligation:** When recording a story version bump in STATE.md decisions log or current_step, always include "STORY-INDEX sync complete" in the burst checklist. If the STORY-INDEX sync was NOT done in the same burst, do it immediately before closing the burst record.
+
+**Narrow exception (does NOT apply here):** If a story version bump happens mid-cascade on a frozen HEAD and the adversary is literally in-flight (subagent already launched), the sync may land in the post-pass burst. This exception requires: (1) the adversary was already dispatched before the bump could be recorded, AND (2) the post-pass burst immediately corrects the lag before the next dispatch. This exception was NOT satisfied at pass-7 (the passes-2/3 report-persistence burst happened after pass-4 closed and before pass-5 was dispatched).
+
+**Source:** D-1816 (2026-07-18) — F-ADMTOK-PR7-MED-001 pass-7 MEDIUM finding; version-pin-lattice probe catch; pass-6 prior passes 5+6 CLEAN (code-anchored axis) → pass-7 MEDIUM (registry axis); consolidated burst D-1816 closes the lag.

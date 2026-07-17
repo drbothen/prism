@@ -134,13 +134,13 @@ timestamp: 2026-07-17T20:00:00Z
 
 ### RESUME IN ONE BREATH
 
-LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): code @828449de LOCAL-ONLY on fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (CLEAN tree, FROZEN); story v0.15; BC-2.06.017 v1.12; 18 passes / 15 fix-bursts; streak 0/3 on frozen 828449de. NEXT: LOCAL pass-19 on frozen 828449de, then 20/21 — on 3-CLEAN(strict) → push branch + pr-manager PR + PR-LEVEL cascade. LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): story v0.22 @faf112fd FROZEN PUSHED; pass-13 reconstruction persisted + all spec fixes landed; PR #224 CLOSED — HUMAN must reopen (AC-005 run-3) → then PR-LEVEL pass-14 on frozen faf112fd. develop=84062ced unchanged.
+LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): code @828449de LOCAL-ONLY on fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (CLEAN tree, FROZEN); story v0.16; BC-2.06.017 v1.12; 18 passes / 15 fix-bursts; streak 0/3 on frozen 828449de. NEXT: LOCAL pass-19 on frozen 828449de, then 20/21 — on 3-CLEAN(strict) → push branch + pr-manager PR + PR-LEVEL cascade. LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): story v0.22 @faf112fd FROZEN PUSHED; pass-13 reconstruction persisted + all spec fixes landed; PR #224 CLOSED — HUMAN must reopen (AC-005 run-3) → then PR-LEVEL pass-14 on frozen faf112fd. develop=84062ced unchanged.
 
 ### HEADS (verified 2026-07-17 at D-1805 wrap)
 
 - develop: origin/develop = `84062ced` (unchanged; ff'd 2026-07-16) — PUSHED
 - factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code; D-1805 wrap commit)
-- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`828449de` — LOCAL-ONLY (NOT pushed); story v0.15; BC-2.06.017 v1.12; pass-18 NOT CLEAN strict / CLEAN(PR-merge) YES (1 LOW; fb-15 closed); streak 0/3; pass-19 next on frozen 828449de
+- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`828449de` — LOCAL-ONLY (NOT pushed); story v0.16; BC-2.06.017 v1.12; pass-18 NOT CLEAN strict / CLEAN(PR-merge) YES (1 LOW; fb-15 closed); streak 0/3; pass-19 next on frozen 828449de
 - `maintenance/ci-disk-hardening` @`faf112fd` — FROZEN PUSHED; PR #224 CLOSED; story v0.22; pass-14 next; streak 0/3
 - `fix/T13-audit-coverage` @`cd369b54` — LOCAL-ONLY dirty=1; PARKED — rebase onto 84062ced before unpark
 - `feature/S-3.09` @`43c41389` — KEEP-PARKED (local-only)
@@ -149,7 +149,7 @@ LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): code @828449de 
 
 ### PER-WORKSTREAM RESUME NEXT-ACTIONS
 
-1. **LANE 3 — dispatch LOCAL pass-19** — Fresh-context general-purpose-as-adversary per TD-VSDD-005; dispatch tuple: worktree=/Users/jmagady/Dev/prism/.worktrees/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, HEAD=828449de, story v0.15, BC-2.06.017 v1.12; policy rubric + SAP-1 + Lesson 65 report-persistence per pass; KNOWN: 3 bc_2_06_018_seeding Red Gate failures + DEMO_ORG_UUID_B clippy warning; accepted-excluded: DRIFT-HARNESS-ADMIN-TOKEN-CT-001. On 3-CLEAN(strict) → push + pr-manager PR + PR-LEVEL cascade.
+1. **LANE 3 — dispatch LOCAL pass-19** — Fresh-context general-purpose-as-adversary per TD-VSDD-005; dispatch tuple: worktree=/Users/jmagady/Dev/prism/.worktrees/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, HEAD=828449de, story v0.16, BC-2.06.017 v1.12; policy rubric + SAP-1 + Lesson 65 report-persistence per pass; KNOWN: 3 bc_2_06_018_seeding Red Gate failures + DEMO_ORG_UUID_B clippy warning; accepted-excluded: DRIFT-HARNESS-ADMIN-TOKEN-CT-001. On 3-CLEAN(strict) → push + pr-manager PR + PR-LEVEL cascade.
 2. **LANE 1 HUMAN ACTION: Reopen PR #224** — Triggers AC-005 run-3 (agents cannot close/reopen; dual-guard blocks). After reopen: dispatch PR-LEVEL adversary pass-14 on FROZEN faf112fd (streak 0/3; NO pushes mid-cascade per DRIFT-ORCH-PRLEVEL-PUSH-001). On 3/3 CLEAN(strict) → security APPROVE → pr-reviewer APPROVE → human squash-merge.
 3. **AUDIT-COVERAGE-001** — After MAINT PR #224 merges: rebase @cd369b54 onto develop (84062ced) → LOCAL 3-CLEAN → push → PR.
 4. **DRIFT-SDEMO004-TODO-SECTIONS-001 OPEN** — story-writer fills 5 [TODO] sections in S-DEMO-004 at next maintenance sweep.
@@ -163,7 +163,7 @@ LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): code @828449de 
 
 ### WORKTREE INVENTORY (D-1805)
 
-- `.worktrees/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` on `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @ `828449de` (LOCAL-ONLY; story v0.15; pass-18 NOT CLEAN strict / PR-merge YES; streak 0/3; NEXT: pass-19; P1 demo-blocking)
+- `.worktrees/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` on `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @ `828449de` (LOCAL-ONLY; story v0.16; pass-18 NOT CLEAN strict / PR-merge YES; streak 0/3; NEXT: pass-19; P1 demo-blocking)
 - `.worktrees/S-MAINT-CI-DISK-EXHAUSTION-001` on `maintenance/ci-disk-hardening` @ `faf112fd` (FROZEN PUSHED; story v0.22; PR #224 CLOSED; pass-14 next; streak 0/3)
 - `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ `cd369b54` (LOCAL-ONLY dirty=1; PARKED — needs rebase onto 84062ced)
 - `.worktrees/S-3.09` KEEP-PARKED on `feature/S-3.09` @ `43c41389` (local-only)
