@@ -120,7 +120,7 @@ jobs:
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
             sudo truncate -s 0 /etc/apt/sources.list
-            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update

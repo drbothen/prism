@@ -61,7 +61,7 @@ jobs:
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
             sudo truncate -s 0 /etc/apt/sources.list
-            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
@@ -83,6 +83,8 @@ jobs:
     # Observed worst-case green duration: 22 min (x86_64-apple-darwin, runs 29544970679/29544972231).
     # 45 min ≈ 2× worst-case (all legs); per-leg timeout is independent for matrix jobs.
     timeout-minutes: 45
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -203,7 +205,7 @@ jobs:
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
             sudo truncate -s 0 /etc/apt/sources.list
-            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
@@ -240,7 +242,7 @@ jobs:
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
             sudo truncate -s 0 /etc/apt/sources.list
-            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
@@ -279,7 +281,7 @@ jobs:
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
             sudo truncate -s 0 /etc/apt/sources.list
-            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
@@ -348,6 +350,8 @@ jobs:
     # Observed worst-case green duration: 10.2 min (runs 29544970679/29544972231).
     # 25 min ≈ 2.5× worst-case; clean number with margin for cache-cold runs.
     timeout-minutes: 25
+    permissions:
+      contents: read
     steps:
       # S-MAINT-CI-DISK-EXHAUSTION-001 AC-001: disk-free preflight — captures pristine baseline
       # before checkout and rust-cache restore (F-CIDISK-P4-MED-002).
@@ -438,7 +442,7 @@ jobs:
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
             sudo truncate -s 0 /etc/apt/sources.list
-            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
@@ -471,7 +475,7 @@ jobs:
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
             sudo truncate -s 0 /etc/apt/sources.list
-            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
@@ -827,7 +831,7 @@ jobs:
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
             sudo truncate -s 0 /etc/apt/sources.list
-            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
@@ -946,7 +950,7 @@ jobs:
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
             sudo truncate -s 0 /etc/apt/sources.list
-            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
@@ -1029,7 +1033,7 @@ jobs:
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
             sudo truncate -s 0 /etc/apt/sources.list
-            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
@@ -1270,7 +1274,7 @@ jobs:
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
             sudo truncate -s 0 /etc/apt/sources.list
-            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
@@ -1335,7 +1339,7 @@ jobs:
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
             sudo truncate -s 0 /etc/apt/sources.list
-            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
@@ -1860,7 +1864,7 @@ jobs:
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
             sudo truncate -s 0 /etc/apt/sources.list
-            printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
             sudo apt-get update
