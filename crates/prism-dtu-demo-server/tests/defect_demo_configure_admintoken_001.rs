@@ -73,14 +73,15 @@
 //! | Test A: `test_BC_3_6_001_replicates_defect_401_without_admin_token` | AC-001 ¶3 | contract lock | Removing server-side 401 gate breaks this |
 //! | Test B: `test_BC_2_06_017_token_sidecar_written_and_configure_with_token_returns_200` | AC-001/AC-002 | F-ADMTOK-P1-HIGH-003 | Removing `header("X-Admin-Token", token)` from POST → 401 assertion fails |
 //! | Test C: `test_BC_3_6_001_e_demo_007_configure_no_sidecar_present` | AC-003 EC-004 | F-ADMTOK-P1-HIGH-003 | Removing E-DEMO-007 error return from `resolve_configure_token` fails |
-//! | Test D: `test_BC_3_6_001_e_demo_007_ec005_ambiguous_bare_sensor_name` | AC-003 EC-005 | — | Removing EC-005 ambiguity path from `resolve_configure_token` fails |
+//! | Test D: `test_BC_3_6_001_e_demo_007_ec005_ambiguous_bare_sensor_name` | AC-003 EC-005 | F-ADMTOK-P3-LOW-001 | Removing EC-005 ambiguity path from `resolve_configure_token` fails |
 //! | Test H: `test_BC_3_6_001_e_demo_007_ec003_flat_miss_no_fallthrough_to_nested` | AC-003 EC-003 | F-ADMTOK-P7-MED-001 | Removing flat-miss early return (adding fallthrough to nested) → resolve returns Ok → expect_err panics |
 //! | Test I: `test_BC_3_6_001_e_demo_007_ec003_nested_only_zero_matches` | AC-003 EC-003 | F-ADMTOK-P7-MED-001 | Removing nested zero-match error return → resolve returns Ok → expect_err panics |
 //! | Test J: `test_resolve_configure_url_ambiguity_message_uses_sorted_org_list` | AC-003 EC-005 | F-ADMTOK-P12-OBS-001 | Removing `bare_matches.sort_by(...)` from `resolve_configure_url` → nondeterministic org order → assertion flakes ~50% of runs |
 //! | Test E: `test_BC_3_6_001_ac001_binary_configure_with_sidecar_token_returns_200` | AC-001 ¶4 | F-ADMTOK-P1-HIGH-001, F-ADMTOK-P3-LOW-002 | Reverting T-08 → configure exits 1; reverting T-09 (TOKEN_FILE cleanup) → sidecar persists |
-//! | Test F: `test_BC_2_06_017_start_multi_admin_token_map_and_sidecar_written` | AC-002 | F-ADMTOK-P1-HIGH-002 | Removing T-02 (`admin_token_map`) or T-05 (sidecar write) fails |
+//! | Test F: `test_BC_2_06_017_start_multi_admin_token_map_and_sidecar_written` | AC-002 | F-ADMTOK-P1-HIGH-002, F-ADMTOK-P13-LOW-001 | Removing T-02 (`admin_token_map`) or T-05 (sidecar write) fails |
 //! | Test G: `test_BC_2_06_017_ac002_binary_startmulti_configure_with_multi_sidecar_token` | AC-002 | F-ADMTOK-P3-MED-001, F-ADMTOK-P3-LOW-002 | Reverting T-06 (write_multi_admin_token_sidecar in cmd_start_multi) → TOKEN_MULTI_FILE absent → configure exits 1; reverting T-09 → TOKEN_MULTI_FILE persists |
 //! | _(Note: Test G requires `--features fixture-gen`; cfg(all(unix, feature="fixture-gen")))_ | | | |
+//! | Test K: `test_BC_2_06_017_start_multi_enrichment_token_global_key_written_and_resolved` | AC-002 `_global` enrichment tokens | F-ADMTOK-P15-MED-001 | Removing `_global` arm from `write_multi_admin_token_sidecar_to_path` fails (a)/(b); replacing `?` with silent-skip fails (d) |
 
 #![allow(clippy::unwrap_used, clippy::expect_used, non_snake_case)]
 
@@ -1286,4 +1287,265 @@ seed = 200
     let path = dir.join("e2e-test-multi.toml");
     std::fs::write(&path, toml).expect("Test-G: failed to write multi-org config TOML");
     path
+}
+
+// ---------------------------------------------------------------------------
+// Test K — GREEN post-fix / F-ADMTOK-P15-MED-001
+// AC-002 (BC-2.06.017 Postcondition 1) + ENRICH-3 token sidecar contract
+// ---------------------------------------------------------------------------
+
+/// AC-002 (Test K) — `_global` enrichment-token arm in `write_multi_admin_token_sidecar_to_path`:
+/// enrichment tokens are emitted under the reserved `_global` key; `resolve_configure_token`
+/// resolves them by bare-sensor scan; non-leakage between org sections and `_global` is verified;
+/// fail-loud when enrichment token is absent from `admin_token_map`.
+///
+/// Traces to:
+///   BC-2.06.017 Postcondition 1: `MultiInstanceServers` token sidecar (`TOKEN_MULTI_FILE`)
+///     parallels the URL sidecar; global enrichment tokens appear under the reserved `_global`
+///     key, mirroring the ENRICH-3 `_global` pattern for URLs.
+///   ENRICH-3 (token side): global enrichment DTU instances (ThreatIntel, NVD) must appear
+///     under `_global` in both the URL sidecar and the token sidecar.
+///
+/// Pattern template: `test_enrich3_sidecar_emits_global_key_for_enrichment` (URL twin in
+///   `enrich_23_dtu_wiring.rs`) is the URL analog — this test is the token analog.
+///
+/// Load-bearing assertions:
+///
+/// (a) `nested["_global"]["threatintel"] == admin_token_map()["threatintel"]` —
+///     removing the `_global` arm (the `global_tokens` block and the `nested.insert("_global", ...)`
+///     call) in `write_multi_admin_token_sidecar_to_path` causes `nested.get("_global")` to return
+///     `None` → `.expect(...)` panics → test FAILS.
+///
+/// (b) `resolve_configure_token("threatintel", None, Some(&path))` —
+///     removing the `_global` arm means "threatintel" has no entry in the nested sidecar →
+///     bare-sensor scan across all outer keys finds 0 matches → E-DEMO-007 error →
+///     `.expect(...)` panics → test FAILS.
+///
+/// (c) Non-leakage: `_global` entries do NOT appear under org sections; per-org sensor names
+///     do NOT appear under `_global`. Violations would indicate namespace crossing in the
+///     build logic.
+///
+/// (d) Fail-loud arm: a config with `enrichment.nvd = true` presented to `servers` that has
+///     no "nvd" token in `admin_token_map` (ThreatIntel was started but NVD was not) must
+///     `Err()` naming "nvd" with the sorted available-keys list.
+///     Replacing the `ok_or_else(...)? ` (fail-loud `?` propagation in the `_global` arm)
+///     with a silent skip would return `Ok` instead → `is_err()` is false → test FAILS.
+///
+/// Uses `start_instances` directly with `CrowdstrikeClone::new()` + `ThreatIntelClone::new()`
+/// (unseeded, no `fixture-gen` required). Mirrors Test F's in-process pattern.
+#[tokio::test]
+async fn test_BC_2_06_017_start_multi_enrichment_token_global_key_written_and_resolved() {
+    // AC-002, ENRICH-3 token side (Test K): GREEN post-fix.
+    // Uses per-test temp dir — no shared CWD files. In-process; no harness required.
+
+    use prism_dtu_demo_server::{
+        multi_instance::{InstanceEntry, MultiInstanceConfig},
+        MultiOrgDemoConfig,
+    };
+
+    let tmp = tempfile::tempdir().expect("Test-K: tempdir must be created");
+    let token_multi_path = tmp.path().join(TOKEN_MULTI_FILE);
+
+    // Build a MultiOrgDemoConfig with enrichment.threatintel=true and one org (crowdstrike).
+    let toml = r#"
+        [harness]
+        bind = "127.0.0.1"
+
+        [enrichment]
+        threatintel = true
+
+        [orgs.org-k]
+        org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a1009"
+        sensors = ["crowdstrike"]
+        seed = 900
+    "#;
+    let enrichment_cfg =
+        MultiOrgDemoConfig::from_str(toml).expect("Test-K: enrichment config must parse");
+
+    // Build MultiInstanceConfig: per-org entry + global enrichment entry.
+    // Per-org convention: "{org_slug}-{sensor_id}". Global: just the clone name.
+    let instance_cfg = MultiInstanceConfig::new(vec![
+        InstanceEntry::new("org-k-crowdstrike", "127.0.0.1:0".parse().unwrap()),
+        InstanceEntry::new("threatintel", "127.0.0.1:0".parse().unwrap()),
+    ]);
+
+    // Start both instances using unseeded constructors (no fixture-gen required).
+    // Mirrors Test F's direct use of start_instances with CrowdstrikeClone::new().
+    let servers =
+        prism_dtu_demo_server::start_instances(instance_cfg, |entry| match entry.name.as_str() {
+            "org-k-crowdstrike" => Box::new(prism_dtu_crowdstrike::CrowdstrikeClone::new()),
+            "threatintel" => Box::new(prism_dtu_threatintel::ThreatIntelClone::new()),
+            other => panic!("Test-K: unexpected instance entry '{other}'"),
+        })
+        .await
+        .expect("Test-K: start_instances must succeed for org-k-crowdstrike + threatintel");
+
+    // Extract admin_token_map for comparison (T-02 accessor).
+    let token_map = servers.admin_token_map();
+
+    assert_eq!(
+        token_map.len(),
+        2,
+        "Test-K: admin_token_map must have 2 entries (org-k-crowdstrike + threatintel); \
+         got {} entries: {:?}",
+        token_map.len(),
+        token_map.keys().collect::<Vec<_>>()
+    );
+    assert!(
+        token_map.contains_key("threatintel"),
+        "Test-K: admin_token_map must contain 'threatintel' global enrichment entry"
+    );
+    let threatintel_token = token_map["threatintel"].clone();
+    assert!(
+        !threatintel_token.is_empty(),
+        "Test-K: threatintel admin token must be non-empty (UUID v4)"
+    );
+
+    // Write multi-org token sidecar with the enrichment-enabled config.
+    prism_dtu_demo_server::write_multi_admin_token_sidecar_to_path(
+        &servers,
+        &enrichment_cfg,
+        &token_multi_path,
+    )
+    .expect("Test-K: write_multi_admin_token_sidecar_to_path must succeed");
+
+    assert!(
+        token_multi_path.exists(),
+        "Test-K: TOKEN_MULTI_FILE must exist after write_multi_admin_token_sidecar_to_path"
+    );
+
+    // Parse the written sidecar.
+    let sidecar_str = std::fs::read_to_string(&token_multi_path)
+        .expect("Test-K: TOKEN_MULTI_FILE must be readable");
+    let nested: std::collections::HashMap<String, std::collections::HashMap<String, String>> =
+        serde_json::from_str(&sidecar_str).expect(
+            "Test-K: TOKEN_MULTI_FILE must be valid nested JSON {org_slug: {sensor_id: token}}",
+        );
+
+    // --- Assertion (a): _global key contains the threatintel token ---
+    //
+    // LOAD-BEARING: removing the `_global` arm (global_tokens block + nested.insert("_global"))
+    // from `write_multi_admin_token_sidecar_to_path` causes `nested.get("_global")` to return
+    // None → `.expect(...)` panics → test FAILS.
+    let global = nested.get("_global").expect(
+        "Test-K (a): TOKEN_MULTI_FILE must contain '_global' key for enrichment tokens. \
+         Load-bearing: removing the _global arm from write_multi_admin_token_sidecar_to_path \
+         causes nested.get(\"_global\") to return None → this expect panics.",
+    );
+
+    assert!(
+        global.contains_key("threatintel"),
+        "Test-K (a): '_global' section must contain 'threatintel' token; got keys: {:?}",
+        global.keys().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        global["threatintel"], threatintel_token,
+        "Test-K (a): nested[\"_global\"][\"threatintel\"] must equal admin_token_map()[\"threatintel\"]. \
+         Load-bearing: removing the _global arm drops the entry from the sidecar → \
+         nested[\"_global\"] key absent or value mismatch → assertion fails."
+    );
+
+    // --- Assertion (b): resolve_configure_token("threatintel") finds the _global token ---
+    //
+    // resolve_configure_token does a bare-sensor scan across all outer keys including "_global".
+    // "_global" maps to {"threatintel": token}, so the scan finds exactly 1 match → Ok(token).
+    //
+    // LOAD-BEARING: removing the _global arm means "threatintel" has no entry in any outer key →
+    // bare scan finds 0 matches → E-DEMO-007 error → `.expect(...)` panics → test FAILS.
+    let resolved_token = prism_dtu_demo_server::resolve_configure_token(
+        "threatintel",
+        None,
+        Some(&token_multi_path),
+    )
+    .expect(
+        "Test-K (b): resolve_configure_token(\"threatintel\") must succeed via bare-sensor scan \
+         of the '_global' section. Load-bearing: removing the _global arm causes 0 bare matches \
+         → E-DEMO-007 error → this expect panics.",
+    );
+
+    assert_eq!(
+        resolved_token, threatintel_token,
+        "Test-K (b): resolved token for 'threatintel' must equal admin_token_map()[\"threatintel\"]"
+    );
+
+    // --- Assertion (c): non-leakage ---
+    //
+    // (c1) Per-org section "org-k" must NOT contain enrichment clone names.
+    let org_k = nested
+        .get("org-k")
+        .expect("Test-K (c): nested sidecar must contain 'org-k' for per-org sensors");
+
+    assert!(
+        org_k.contains_key("crowdstrike"),
+        "Test-K (c): 'org-k' section must contain 'crowdstrike' sensor token"
+    );
+    assert!(
+        !org_k.contains_key("threatintel"),
+        "Test-K (c1): 'org-k' section must NOT contain enrichment clone 'threatintel' — \
+         non-leakage violation: enrichment tokens must not appear under per-org namespaces."
+    );
+
+    // (c2) _global section must NOT contain per-org sensor names or full org-sensor keys.
+    assert!(
+        !global.contains_key("crowdstrike"),
+        "Test-K (c2): '_global' must NOT contain per-org sensor name 'crowdstrike'"
+    );
+    assert!(
+        !global.contains_key("org-k-crowdstrike"),
+        "Test-K (c2): '_global' must NOT contain full '{{org_slug}}-{{sensor_id}}' key \
+         'org-k-crowdstrike'"
+    );
+
+    // --- Assertion (d): fail-loud arm — enrichment token absent from admin_token_map ---
+    //
+    // Config with enrichment.nvd=true presented to servers that only has "org-k-crowdstrike"
+    // and "threatintel" in admin_token_map() — "nvd" was never started.
+    // write_multi_admin_token_sidecar_to_path must Err() naming "nvd".
+    //
+    // LOAD-BEARING: replacing the `ok_or_else(...)? ` (fail-loud `?` propagation in the
+    // _global arm) with a silent skip (`if let Some(token) = token_map.get(...)`) would cause
+    // the function to return Ok instead of Err → `is_err()` is false → assertion FAILS.
+    let toml_nvd = r#"
+        [harness]
+        bind = "127.0.0.1"
+
+        [enrichment]
+        nvd = true
+
+        [orgs.org-k]
+        org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a1009"
+        sensors = ["crowdstrike"]
+        seed = 900
+    "#;
+    let enrichment_cfg_nvd =
+        MultiOrgDemoConfig::from_str(toml_nvd).expect("Test-K: nvd-only config must parse");
+
+    // servers has tokens for "org-k-crowdstrike" and "threatintel" but NOT "nvd".
+    let fail_result = prism_dtu_demo_server::write_multi_admin_token_sidecar_to_path(
+        &servers,
+        &enrichment_cfg_nvd,
+        &token_multi_path,
+    );
+
+    assert!(
+        fail_result.is_err(),
+        "Test-K (d): write_multi_admin_token_sidecar_to_path must Err() when enrichment clone \
+         'nvd' is declared in config but absent from admin_token_map(). \
+         Load-bearing: replacing the fail-loud `?` with silent-skip returns Ok → \
+         is_err() false → assertion fails."
+    );
+    let fail_msg = format!("{:?}", fail_result.unwrap_err());
+    assert!(
+        fail_msg.contains("nvd"),
+        "Test-K (d): fail-loud error must name the missing entry 'nvd'; got: {fail_msg}"
+    );
+    // Assert sorted available-keys list in the error message.
+    // admin_token_map has "org-k-crowdstrike" and "threatintel" (sorted alphabetically:
+    // "org-k-crowdstrike" < "threatintel"). The _global arm sorts keys via `ks.sort()`.
+    assert!(
+        fail_msg.contains(r#"["org-k-crowdstrike", "threatintel"]"#),
+        "Test-K (d): fail-loud error must list available token_map keys in sorted order \
+         [\"org-k-crowdstrike\", \"threatintel\"]; got: {fail_msg}"
+    );
+    // tmp is dropped here — temp dir auto-cleaned by tempfile.
 }
