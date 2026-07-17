@@ -38,12 +38,17 @@
 //! | `bc_2_06_019_scenario_progression.rs` | YES | Correct |
 //! | `crates/prism-dtu-harness/tests/bc_3_6_001_ops_clone_failure_modes.rs` — `configure_failure` helper | YES (`x-admin-token` via `Harness::admin_token_for()`) | Correct |
 //! | `crates/prism-dtu-harness/tests/review_2026_06_10_deny_unknown.rs` — `assert_configure_strict` | YES (`x-admin-token` via `Harness::admin_token_for()`) | Correct |
+//! | `crates/prism-dtu-harness/src/builder.rs` — `test_build_harness_http_client_timeout_is_load_bearing` | N/A | Synthetic (hung-socket; verifies client timeout, no DTU handler — header not applicable) |
 //!
-//! Only `cmd_configure()` was missing the header. The two harness sites above use
+//! `rg 'dtu/configure' crates/ --type rust`: 449 hits total (116 `.post(…)` client calls,
+//! 21 `.route(…)` server registrations, remainder in doc comments and const strings).
+//!
+//! Only `cmd_configure()` was missing the header. The two harness test sites above use
 //! `Harness::admin_token_for()` with the lowercase header `x-admin-token` — correct per
-//! HTTP case-insensitivity (RFC 7230 §3.2); they are NOT missing the token. The
-//! sibling-sweep comment block at the top of `cmd_configure()` in `main.rs` documents
-//! all enumerated sites (AC-004).
+//! HTTP case-insensitivity (RFC 7230 §3.2); they are NOT missing the token. The builder.rs
+//! entry is synthetic — it POSTs to a hung socket with no DTU handler; authentication is
+//! not applicable. The sibling-sweep comment block at the top of `cmd_configure()` in
+//! `main.rs` documents all enumerated sites (AC-004).
 //!
 //! ## Test inventory
 //!

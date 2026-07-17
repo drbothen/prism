@@ -608,10 +608,16 @@ async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<
     // | bc_2_06_019_scenario_progression.rs                    | YES            | Correct         |
     // | bc_3_6_001_ops_clone_failure_modes.rs (configure_failure helper) | YES | Correct (via Harness::admin_token_for()) |
     // | review_2026_06_10_deny_unknown.rs                      | YES            | Correct (via Harness::admin_token_for()) |
+    // | prism-dtu-harness/src/builder.rs                       | N/A            | Synthetic (hung-socket; verifies client |
+    // |   (test_build_harness_http_client_timeout_is_load_bearing) |             |   timeout, no DTU handler — not applicable) |
     //
-    // Only cmd_configure() was missing the header before this fix. All other callers in tests
-    // correctly authenticate: test files in prism-dtu-{sensor} use `clone.admin_token()`; harness
-    // tests in prism-dtu-harness use `Harness::admin_token_for()` — both per ADR-003 Amendment #5.
+    // rg 'dtu/configure' crates/ --type rust: 449 hits total (116 .post(…) client calls,
+    // 21 .route(…) server registrations, remainder in doc comments and const strings).
+    //
+    // Only cmd_configure() was missing the header before this fix. All authenticated callers
+    // use `clone.admin_token()` (prism-dtu-{sensor} tests) or `Harness::admin_token_for()`
+    // (prism-dtu-harness tests) per ADR-003 Amendment #5. The builder.rs synthetic entry
+    // POSTs to a hung socket with no DTU handler — authentication is not applicable there.
 
     // HIGH-1 fix: resolve the clone URL from whichever sidecar exists.
     //

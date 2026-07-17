@@ -211,7 +211,7 @@ the `DEMO_FAKE_*` flat-model tokens used here.
 | File                                                   | Purpose |
 |--------------------------------------------------------|---------|
 | `.prism-dtu-demo-server.pid`                           | PID of the running harness process; read by `stop` |
-| `.prism-dtu-demo-server.urls.json`                     | Flat URL map for the `start` model; read by `configure` and `stop` |
+| `.prism-dtu-demo-server.urls.json`                     | Flat URL map for the `start` model; read by `configure` |
 | `.prism-dtu-demo-server.urls-multi.json`               | Nested URL map for the `start-multi` model; read by `configure` |
 | `.prism-dtu-demo-server.admin-tokens.json`             | Admin token map for the flat (`start`) model; read by `configure` |
 | `.prism-dtu-demo-server.admin-tokens-multi.json`       | Admin token map for the multi-org (`start-multi`) model; read by `configure` |
