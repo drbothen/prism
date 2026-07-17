@@ -47,11 +47,12 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -59,6 +60,7 @@ jobs:
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -131,6 +133,18 @@ jobs:
           docker-images: true
           large-packages: true
           swap-storage: false
+      - name: Neutralize apt-spy2 sources.list rewrite
+        if: runner.os == 'Linux'
+        run: |
+          # insightsengineering/disk-space-reclaimer large-packages:true runs
+          # `sudo apt-spy2 fix --commit --launchpad --country=US` (core.sh ~line 112)
+          # which overwrites /etc/apt/sources.list with a geographically-selected mirror
+          # (e.g., mirror.enzu.com). That mirror can return 404 Release files, causing
+          # ALL subsequent apt-get update calls in the job to fail (exit code 100).
+          # ubuntu packages use ubuntu.sources (mirror+file:/etc/apt/apt-mirrors.txt);
+          # /etc/apt/sources.list is comment-only by default (image 20260714.240.1)
+          # — safe to truncate (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821).
+          sudo truncate -s 0 /etc/apt/sources.list
       - name: Verify >=25 GB free after reclaim
         if: runner.os == 'Linux'
         run: |
@@ -164,11 +178,12 @@ jobs:
           # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
           # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
           if ! ( sudo apt-get update && sudo apt-get install -y build-essential libc6-dev clang libclang-dev ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -176,6 +191,7 @@ jobs:
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -199,11 +215,12 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y musl-tools ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -211,6 +228,7 @@ jobs:
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -236,11 +254,12 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -248,6 +267,7 @@ jobs:
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -341,6 +361,17 @@ jobs:
           docker-images: true
           large-packages: true
           swap-storage: false
+      - name: Neutralize apt-spy2 sources.list rewrite
+        run: |
+          # insightsengineering/disk-space-reclaimer large-packages:true runs
+          # `sudo apt-spy2 fix --commit --launchpad --country=US` (core.sh ~line 112)
+          # which overwrites /etc/apt/sources.list with a geographically-selected mirror
+          # (e.g., mirror.enzu.com). That mirror can return 404 Release files, causing
+          # ALL subsequent apt-get update calls in the job to fail (exit code 100).
+          # ubuntu packages use ubuntu.sources (mirror+file:/etc/apt/apt-mirrors.txt);
+          # /etc/apt/sources.list is comment-only by default (image 20260714.240.1)
+          # — safe to truncate (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821).
+          sudo truncate -s 0 /etc/apt/sources.list
       - name: Verify >=25 GB free after reclaim
         run: |
           # df -P / output: Filesystem, 1K-blocks, Used, Available, Use%, Mounted
@@ -371,11 +402,12 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -383,6 +415,7 @@ jobs:
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -402,11 +435,12 @@ jobs:
           # (do not pin -18 suffix). build-essential + libc6-dev included as C compiler baseline.
           # Apt-mirror resilience: combined two-attempt pattern per AC-006 (F-MAINT-P8-LOW-003).
           if ! ( sudo apt-get update && sudo apt-get install -y build-essential libc6-dev clang libclang-dev ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -414,6 +448,7 @@ jobs:
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -756,11 +791,12 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -768,6 +804,7 @@ jobs:
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -873,11 +910,12 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -885,6 +923,7 @@ jobs:
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -954,11 +993,12 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -966,6 +1006,7 @@ jobs:
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -1193,11 +1234,12 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -1205,6 +1247,7 @@ jobs:
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -1256,11 +1299,12 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -1268,6 +1312,7 @@ jobs:
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -1779,11 +1824,12 @@ jobs:
           # The outer condition wraps both update AND install so a mirror-failure during package
           # fetch ("E: Unable to fetch some archives") also triggers the fallback.
           if ! ( sudo apt-get update && sudo apt-get install -y shellcheck ); then
-            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1,
-            # probe 29540085270). Sed URL-rewriting is a structural no-op — no http(s):// URLs
-            # exist in any apt source file. Overwrite apt-mirrors.txt to pin canonical archive;
-            # remove third-party source files; dpkg --configure -a repairs reclaimer-induced dpkg state.
+            # ubuntu.sources uses mirror+file:/etc/apt/apt-mirrors.txt (image 20260714.240.1).
+            # Sed URL-rewriting is a structural no-op. apt-spy2 (reclaimer large-packages:true,
+            # core.sh ~line 112) can overwrite sources.list with a flaky mirror; truncate it
+            # (F-MAINT-P11-CRIT-001, runs 29541731247/29541732821). Overwrite apt-mirrors.txt.
             echo "=== [fallback] apt-mirrors.txt on entry ===" && cat /etc/apt/apt-mirrors.txt 2>/dev/null || true
+            echo "=== [fallback] sources.list on entry ===" && cat /etc/apt/sources.list 2>/dev/null || true
             echo "=== [fallback] sources.list.d on entry ===" && ls /etc/apt/sources.list.d/ 2>/dev/null || true
             sudo rm -f \
               /etc/apt/sources.list.d/microsoft-prod.list \
@@ -1791,6 +1837,7 @@ jobs:
               /etc/apt/sources.list.d/microsoft-prod.sources \
               /etc/apt/sources.list.d/azure-cli.list \
               2>/dev/null || true
+            sudo truncate -s 0 /etc/apt/sources.list
             printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n' | \
               sudo tee /etc/apt/apt-mirrors.txt
             sudo dpkg --configure -a 2>/dev/null || true
@@ -1994,4 +2041,15 @@ jobs:
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 AC-007 check passed: C toolchain baseline install found ${count} times (≥2 required)."
-          echo 'All verify-workflow-structure assertions pass (21 total: 19 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-mirrors (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-mirrors (count≥1) — 19 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 21 total checks.'
+          # RG-8: post-reclaimer sources.list neutralization step (F-MAINT-P11-CRIT-001).
+          # apt-spy2 (large-packages:true) overwrites sources.list with a flaky mirror;
+          # the dedicated step truncates it after reclaim, before any apt-get use.
+          # Anchored to YAML step-name syntax — self-match-proof (assertion starts with
+          # whitespace+count=$(grep..., not whitespace+"- name:").
+          count=$(grep -cE '^\s+- name: Neutralize apt-spy2 sources\.list rewrite' .github/workflows/ci.yml)
+          [ "$count" -ge 2 ] || {
+            echo "::error::S-MAINT-CI-DISK-EXHAUSTION-001: post-reclaimer sources.list neutralization missing (found ${count}; need ≥2: test-matrix + test-no-default-features — F-MAINT-P11-CRIT-001)"
+            exit 1
+          }
+          echo "S-MAINT-CI-DISK-EXHAUSTION-001 post-reclaimer neutralization check passed: ${count} sites (≥2 required)."
+          echo 'All verify-workflow-structure assertions pass (22 total: 20 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-mirrors (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-mirrors (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-post-reclaimer-truncate (count≥2) — 20 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 22 total checks.'
