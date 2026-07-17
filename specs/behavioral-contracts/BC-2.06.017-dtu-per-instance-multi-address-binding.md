@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-036"
 introduced: "2026-06-09"
-modified: "2026-07-16"
+modified: "2026-07-17"
 deprecated: null
 deprecated_by: null
 replacement: null

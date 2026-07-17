@@ -1,13 +1,15 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.991"
+version: "7.992"
 status: current
-timestamp: 2026-07-16T00:30:00Z
+timestamp: 2026-07-17T20:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
+> **D-1801 (2026-07-17): LANE-3 PASS-15 CLOSURE + FIX-BURST-14 — pass-15 NOT CLEAN (3M+2OBS; fresh-angle probing: _global arm untested + POL-23/POL-27 sweep misses; trajectory 4→5→5→1→5); fb-14 CLOSED: Test K @e806ef73 (test_BC_2_06_017_start_multi_enrichment_token_global_key_written_and_resolved; 5 load-bearing assertions incl. fail-loud silent-skip probe + fail-loud global-key probe; defect suite 10/10) + story v0.15 (PO: AC-002 _global enrichment-token contract sentence + Test K citation; EC-007 disambiguation) + S-DEMO-004 v1.15 (story-writer: BC-2.06.017 pin v1.10→v1.12 fix; inputs path fix; 5 [TODO] template sections) + BC-2.06.017 modified-date 2026-07-16→2026-07-17; reports persisted; STORY-INDEX v2.699→v2.700; streak 0/3 (new HEAD); NEXT = LOCAL pass-16 on frozen e806ef73. LANE 1 unchanged (awaiting human PR #224 reopen). STATE v8.400→v8.401.**
+>
 > **D-1800 (2026-07-17): LANE-3 PASS-14 CLOSURE + FIX-BURST-13 — pass-14 NOT CLEAN strict / CLEAN(PR-merge) YES (1 OBS only — F-ADMTOK-P14-OBS-001 Test J inventory row absent from module header; trajectory 4→5→5→1); fb-13 CLOSED: code @803db300 (Test J row added to ## Test inventory table in tests/defect_demo_configure_admintoken_001.rs); report persisted local-pass-14.md; STORY-INDEX v2.698→v2.699; streak 0/3; NEXT = LOCAL pass-15 on frozen 803db300 (convergence imminent). LANE 1 (S-MAINT): UNCHANGED — story v0.22 @faf112fd FROZEN; PR #224 CLOSED (human must reopen); pass-14 next; streak 0/3. STATE v8.399→v8.400.**
 >
 > **D-1799 (2026-07-17): LANE-3 PASS-13 CLOSURE + FIX-BURST-12 — pass-13 NOT CLEAN strict / CLEAN(PR-merge) YES (0M+4L+1OBS — first zero-MED+ pass; 2 process-gap tags); fb-12 CLOSED: code @558d5881 (4 sorted diagnostic-list paths + SWEEP-MIRROR table + Test F load-bearing assertion + Test J comment fix) + story v0.13→v0.14 (harness.rs in §File Structure/Architecture/Purity; AC-002 corrected; AC-004 ¶1 SWEEP-MIRROR codified) + BC-INDEX v8.34→v8.35 (v8.34 narrative F-ADMTOK-P13-LOW-004 corrected); pass-13 report persisted (local-pass-13.md); STORY-INDEX v2.697→v2.698; streak 0/3; NEXT = LOCAL pass-14 on frozen 558d5881. LANE 1 (S-MAINT): UNCHANGED — story v0.22 @faf112fd FROZEN; PR #224 CLOSED (human must reopen); pass-14 next; streak 0/3. STATE v8.398→v8.399.**

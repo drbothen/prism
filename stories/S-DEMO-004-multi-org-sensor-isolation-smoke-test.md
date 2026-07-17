@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "1.14"
+version: "1.15"
 level: "L4"
 producer: architect
 timestamp: "2026-05-29T00:00:00Z"
@@ -158,7 +158,7 @@ inputs:
   - "crates/prism-dtu-demo-server/src/harness.rs"
   - "crates/prism-dtu-harness/src/multi_instance.rs"
   - "crates/prism-dtu-harness/src/overlay_wiring.rs"
-  - ".factory/specs/behavioral-contracts/BC-3.2.001-multi-tenant-isolation.md"
+  - ".factory/specs/behavioral-contracts/BC-3.2.001-per-org-sensor-data-isolation.md"
   - ".factory/specs/behavioral-contracts/BC-2.06.014-instance-identity-resolution-at-fanout.md"
   - ".factory/specs/behavioral-contracts/BC-2.06.017-dtu-per-instance-multi-address-binding.md"
   - ".factory/specs/behavioral-contracts/BC-2.06.018-dtu-demo-clone-data-seeding.md"
@@ -167,7 +167,7 @@ inputs:
   - ".factory/stories/S-DEMO-001-spec-driven-sensor-adapter-and-boot-step-9a.md"
   - ".factory/stories/S-DEMO-002-e2e-subprocess-smoke-test-all-sensors.md"
   - ".factory/stories/S-CONFIG-MULTI-TENANT-OVERRIDE-001-per-org-sensor-endpoint-overlay-loading.md"
-input-hash: null
+input-hash: "7694d3c"
 traces_to: []
 cycle: "v1.0.0-brownfield"
 phase: 3
@@ -177,7 +177,7 @@ phase: 3
 
 **Story ID:** S-DEMO-004
 **Status:** ready
-**Version:** v1.14
+**Version:** v1.15
 **Wave:** 5
 **Priority:** P0
 **Points:** 8
@@ -449,6 +449,14 @@ to execute it. Comment: `// E2E-MULTI-001: requires multi-org DTU setup; un-gate
 
 ---
 
+## Architecture Mapping
+
+| Component | Module | Pure/Effectful |
+|-----------|--------|---------------|
+| [TODO: populate per template] | [module_path] | pure-core / effectful-shell |
+
+---
+
 ## Architecture Compliance Rules
 
 | Rule | Source | Enforcement |
@@ -493,6 +501,14 @@ clone response) is traversed by each assertion, not just a subset of it.
 
 ---
 
+## Library & Framework Requirements (MANDATORY)
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| [TODO: populate per template] | [>= X.Y.Z] | [why this version is required] |
+
+---
+
 ## File Structure Requirements
 
 | File | Action | Purpose |
@@ -522,6 +538,14 @@ clone response) is traversed by each assertion, not just a subset of it.
 10. **Add** `[profile.e2e-multi-org]` to `.config/nextest.toml` (NOT `.cargo/nextest.toml` — that path does not exist; nextest reads `.config/nextest.toml`). Append the new block to the existing file, mirroring the existing `[profile.e2e]` block structure.
 11. **Run** `cargo nextest run -p prism-bin --profile e2e-multi-org` after S-DEMO-001 + S-DEMO-002 merge; all assertions GREEN.
 12. **Run** `just check` — final pre-push gate.
+
+---
+
+## Previous Story Intelligence (MANDATORY)
+
+| Story | Key Decisions | Patterns Established | Gotchas Discovered |
+|-------|--------------|---------------------|-------------------|
+| [TODO: populate per template] | [decisions made] | [patterns to follow] | [pitfalls to avoid] |
 
 ---
 
@@ -569,6 +593,26 @@ clone response) is traversed by each assertion, not just a subset of it.
 | EC-002 | Two orgs registered with same sensor — accidental same DTU socket | Under MultiInstanceHarness, each (org_slug, sensor_id) pair binds to a distinct ephemeral port selected by the OS. The harness returns `Err(HarnessError::DuplicateKey { org_slug, sensor_id })` if the same pair is submitted twice (BC-2.06.017 Postcondition 7). This means the "same socket for two orgs" scenario is structurally prevented at harness-startup time rather than being a silent config error. Test code must never submit duplicate (org_slug, sensor_id) pairs to MultiInstanceHarness::start. |
 | EC-003 | Cross-org query (AC-005) returns empty data instead of AdapterNotFound | Empty data looks like a "soft pass" but is a BC-3.2.001 violation — the isolation error MUST be explicit. AC-005 asserts on the error code, not just "no rows". |
 | EC-004 | Cyberint login step fails for org-b but succeeds for org-c | CookieLoginAuthProvider instances are independent; one failing doesn't affect the other. org-c's Cyberint query proceeds normally. |
+
+---
+
+## Purity Classification
+
+| Module | Classification | Justification |
+|--------|---------------|---------------|
+| [TODO: populate per template] | pure-core / effectful-shell | [why] |
+
+## Token Budget Estimate (MANDATORY)
+
+| Context Source | Estimated Tokens |
+|---------------|-----------------|
+| This story spec | [TODO] |
+| Referenced code files | [TODO] |
+| Test files | [TODO] |
+| Tool outputs overhead | [TODO] |
+| **Total** | **[TODO]** |
+| Agent context window | 200K (Sonnet) |
+| **Budget usage** | **[TODO]%** |
 
 ---
 
@@ -678,7 +722,7 @@ Add to `behavioral_contracts:` array in the story frontmatter (for PO in T8-PO):
   math). ADR-036 v2.3 (current) is already the authoritative design document; no amendment
   is needed to extend its scope to S-DEMO-004 — S-DEMO-004 is a consumer of ADR-036, not a
   modifier of it.
-- BC-2.06.017 (ACTIVE v1.10) and BC-2.06.018 (ACTIVE v1.6) are the canonical contract
+- BC-2.06.017 (ACTIVE v1.12) and BC-2.06.018 (ACTIVE v1.6) are the canonical contract
   documents for the mechanisms this story consumes. Both BCs already describe the behavior
   S-DEMO-004 relies on; referencing them from this story's frontmatter and AC traces is
   sufficient. No new ADR category (routing, seeding, testing) is opened by this reconciliation.
@@ -692,14 +736,15 @@ cross-referencing needed for the implementer to understand how to use the merged
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.15 | 2026-07-17 | story-writer | F-ADMTOK-P15-MED-002: BC-2.06.017 canonical-contract pin updated v1.10 → v1.12 (bumped v1.10→v1.11 by DEFECT-ADMINTOKEN FIX-BURST-1; v1.11→v1.12 by FIX-BURST-11). BC-2.06.018 pin (v1.6) verified current against BC-2.06.018 frontmatter — no change. POL-23/POL-25 sibling sweep within S-DEMO-004: line 681 was the only live canonical-contract pin site; all other BC-2.06.017/BC-2.06.018 occurrences are non-versioned references or story-changelog historical records — no further updates required. Body version header synced v1.14 → v1.15 (POL-23). |
 | 1.14 | 2026-06-14 | story-writer | F-PR3-MED-002 fix: AC-004 Red Gate test name corrected. `test_BC_3_2_001_org_c_all_4_sensors_return_independent_data` → `test_BC_2_01_013_org_c_all_4_sensors_return_independent_data`. The old prefix `BC_3_2_001` self-contradicted the AC-004 trace (`BC-2.01.013`) and did not match the actual test in `crates/prism-bin/tests/e2e_multi_org.rs` (evidence-report Red Gate table). Only one occurrence of the old test name existed in the body (AC-004); confirmed single-site via grep before edit. Body version header synced from v1.13 → v1.14 (POL-23 sibling-sweep propagation completing this burst). |
 | 1.13 | 2026-06-14 | product-owner | PR #188 F-PR3-MED-001: AC-003 query corrected. `tool_query "FROM claroty_assets LIMIT 5"` → `tool_query "SELECT * FROM claroty_alerts LIMIT 5"`. Two errors fixed: (1) wrong table name `claroty_assets` → canonical `claroty_alerts`; (2) bare `FROM ... LIMIT` pipe syntax → valid PrismQL `SELECT * FROM ... LIMIT`. Now matches the actual test in `crates/prism-bin/tests/e2e_multi_org.rs` and the evidence-report (POL-22 verified: `claroty_assets` appears at exactly one site; that site is AC-003 body, now corrected). |
 | 1.12 | 2026-06-14 | story-writer | POL-8 body propagation for BC-2.22.001 + BC-2.09.008 added in v1.11 frontmatter. Added two rows to §Behavioral Contracts table: BC-2.22.001 "Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate" (AC-001, AC-010) and BC-2.09.008 "Response Envelope with Trust Annotations" (AC-008). Updated AC-001 trace annotation to cite BC-2.22.001 by full verbatim title. Updated AC-008 trace annotation to cite BC-2.09.008 by full verbatim title. Updated AC-010 trace annotation to cite BC-2.22.001 by full verbatim title. Bidirectional AC↔BC traces satisfied for both new BCs. |
 | 1.11 | 2026-06-14 | product-owner | Add BC-2.22.001 + BC-2.09.008 to behavioral_contracts array (PR #188 PR-LEVEL MED-1). AC-001 and AC-010 trace to BC-2.22.001 ("Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate"); AC-008 traces to BC-2.09.008 ("Response Envelope with Trust Annotations"). Both BCs were active in BC-INDEX but missing from frontmatter array. Body BC table and AC-trace column propagation deferred to story-writer (POL-8). |
 | 1.10 | 2026-06-14 | story-writer | LOCAL adversary PASS-3 LOW-1 §File-Structure correction. Renamed NOTE row header from `crates/prism-bin/tests/e2e_multi_org.rs (regression guard)` to `crates/prism-bin/tests/bc_2_10_006_mcp_stdout_purity.rs`; action changed from NOTE to CREATE (standalone file, not part of e2e_multi_org.rs); description updated to cite BC-2.10.006 §Postconditions as the stdout-purity invariant source (stdout reserved for MCP JSON-RPC per BC-2.10.006, enforced at the step1_init_tracing emission site). No BC-2.22.001→BC-2.10.006 body corrections required: AC-001 and AC-010 reference BC-2.22.001 for boot sequencing and startup determinism respectively — those are correct semantics for BC-2.22.001 and are unrelated to the stdout-purity invariant. Status: ready. |
-| 1.9 | 2026-06-14 | story-writer | LOCAL adversary PASS-2 §File-Structure accuracy fixes (M2-01, O2-01, O2-02) + AC-009 test-rename reference + M2-02 regression-guard note. M2-01: added `crates/prism-bin/src/boot.rs | MODIFY` row documenting that `step1_init_tracing` forces all fmt layers to stderr (`.with_writer(std::io::stderr)`) to uphold MCP-stdout-purity invariant (fix-burst commit a7c9cbf0). O2-01: fixture path corrected from `crates/prism-bin/tests/fixtures/multi-org-prism.toml.template` → `crates/prism-bin/fixtures/multi-org-prism.toml.template` (crate-level `fixtures/`, no `tests/` prefix). O2-02: helper signatures corrected — `write_multi_org_overlays` now typed as `(&BackgroundHarness, &TempDir)` and documented to call `write_overlay_from_socket_map(harness.socket_map(), specs_dir)` internally (not `write_overlay_temp_dir`); `write_multi_org_prism_toml` now typed as `(&TempDir)` only, no socket_map arg; `BackgroundHarness` wrapper described (background thread, dedicated multi-thread runtime, oneshot for socket_map, SyncSender shutdown, Drop joins thread). Task 9: `concurrent`/`tokio::join!` language replaced with `sequential`/back-to-back/single-channel language; test name updated to `test_BC_2_11_005_sequential_org_queries_do_not_interfere`. M2-02: added NOTE row for MCP-stdout cleanliness regression guard (green guard, not Red Gate AC test; does not change acceptance_criteria_count=10 or red_gate_tests=4). Status: ready. |
+| 1.9 | 2026-06-14 | story-writer | LOCAL adversary PASS-2 §File-Structure accuracy fixes (M2-01, O2-01, O2-02) + AC-009 test-rename reference + M2-02 regression-guard note. M2-01: added `crates/prism-bin/src/boot.rs \| MODIFY` row documenting that `step1_init_tracing` forces all fmt layers to stderr (`.with_writer(std::io::stderr)`) to uphold MCP-stdout-purity invariant (fix-burst commit a7c9cbf0). O2-01: fixture path corrected from `crates/prism-bin/tests/fixtures/multi-org-prism.toml.template` → `crates/prism-bin/fixtures/multi-org-prism.toml.template` (crate-level `fixtures/`, no `tests/` prefix). O2-02: helper signatures corrected — `write_multi_org_overlays` now typed as `(&BackgroundHarness, &TempDir)` and documented to call `write_overlay_from_socket_map(harness.socket_map(), specs_dir)` internally (not `write_overlay_temp_dir`); `write_multi_org_prism_toml` now typed as `(&TempDir)` only, no socket_map arg; `BackgroundHarness` wrapper described (background thread, dedicated multi-thread runtime, oneshot for socket_map, SyncSender shutdown, Drop joins thread). Task 9: `concurrent`/`tokio::join!` language replaced with `sequential`/back-to-back/single-channel language; test name updated to `test_BC_2_11_005_sequential_org_queries_do_not_interfere`. M2-02: added NOTE row for MCP-stdout cleanliness regression guard (green guard, not Red Gate AC test; does not change acceptance_criteria_count=10 or red_gate_tests=4). Status: ready. |
 | 1.8 | 2026-06-14 | product-owner | LOCAL adversary PASS-2 L2-01 adjudication — AC-009 prose corrected (decision A). `tokio::join!`/simultaneously language removed; AC-009 now specifies rapid sequential/back-to-back dispatch on the single MCP stdio channel. Architecture rationale added inline: per-analyst stdio is a serialized single-channel protocol (AD-013 / deployment model) — a single client cannot issue genuinely concurrent requests over one pipe; BC-2.11.005 ephemeral materialization property is fully proven by sequential dispatch + `ids_a ∩ ids_c = ∅`. AC-009 title changed from "Concurrent queries..." to "Sequential cross-org queries do not interfere..." to match. Test rename guidance added: `test_BC_2_11_005_concurrent_org_queries_do_not_interfere` → `test_BC_2_11_005_sequential_org_queries_do_not_interfere` (story-writer/implementer to apply). BC-2.11.005 trace retained; BC-2.06.018 trace retained. §File Structure / other ACs NOT touched (story-writer pass follows). |
-| 1.7 | 2026-06-14 | story-writer | LOCAL adversary PASS-1 O-01 closure — spec reconciliation only, no code touched. (1) `crates_touched` frontmatter: `[prism-bin]` → `[prism-bin, prism-dtu-harness]`; inline comment added explaining the wiring-not-redesign rationale (`write_overlay_from_socket_map` added for BackgroundHarness off-runtime pattern; `write_overlay_temp_dir` refactored to delegate; behavior-preserving; covered by e2e + harness tests). (2) §File Structure Requirements: added `crates/prism-dtu-harness/src/overlay_wiring.rs | MODIFY` row documenting `write_overlay_from_socket_map` addition and `write_overlay_temp_dir` delegation refactor. Status: ready. Counts unchanged (acceptance_criteria_count=10, red_gate_tests=4). |
+| 1.7 | 2026-06-14 | story-writer | LOCAL adversary PASS-1 O-01 closure — spec reconciliation only, no code touched. (1) `crates_touched` frontmatter: `[prism-bin]` → `[prism-bin, prism-dtu-harness]`; inline comment added explaining the wiring-not-redesign rationale (`write_overlay_from_socket_map` added for BackgroundHarness off-runtime pattern; `write_overlay_temp_dir` refactored to delegate; behavior-preserving; covered by e2e + harness tests). (2) §File Structure Requirements: added `crates/prism-dtu-harness/src/overlay_wiring.rs \| MODIFY` row documenting `write_overlay_from_socket_map` addition and `write_overlay_temp_dir` delegation refactor. Status: ready. Counts unchanged (acceptance_criteria_count=10, red_gate_tests=4). |
 | 1.6 | 2026-06-14 | story-writer | Pre-TDD remove-uncertainty re-run correction (D-1110). Single fix: §File Structure `crates/prism-bin/Cargo.toml` MODIFY row item (2) — corrected mis-framing of `prism-dtu-common` from ADD to MODIFY. Ground truth (verified against `crates/prism-bin/Cargo.toml [dev-dependencies]`): `prism-dtu-common` is ALREADY present as a dev-dep with `features = ["dtu"]` (added by S-DEMO-QUERY-PUSHDOWN-001). On `prism-dtu-common`, `dtu` and `fixture-gen` are INDEPENDENT features (`dtu` does NOT transitively enable `fixture-gen`), so BOTH must be listed. Corrected wording: "MODIFY the EXISTING `prism-dtu-common` dev-dep: `features = ["dtu"]` → `features = ["dtu", "fixture-gen"]`" with rationale that adding it as a new dep would either produce a duplicate `prism-dtu-common` key (Cargo error) or overwrite `["dtu"]` → `["fixture-gen"]` alone (dropping the `dtu` activation that push-down tests rely on). Other dev-dep instructions confirmed CORRECT and unchanged: `prism-dtu-armis` + `prism-dtu-crowdstrike` remain MODIFYs (`["dtu"]` → `["dtu","fixture-gen"]`); `prism-dtu-claroty` + `prism-dtu-cyberint` remain ADDs with `["dtu","fixture-gen"]`; `prism-dtu-harness` remains ADD with `["dtu"]`. Status kept: ready. |
 | 1.5 | 2026-06-14 | story-writer | Remove-uncertainty spec corrections (6 fixes). FIX-1: `.cargo/nextest.toml` → `.config/nextest.toml` in §File Structure and Task 10 (the `.cargo/` path does not exist; nextest reads `.config/nextest.toml`, which already has `[profile.e2e]` and `[profile.ci]`; new block mirrors existing pattern). FIX-2: Added `crates/prism-bin/Cargo.toml` MODIFY row to §File Structure with full enumeration of required dev-dep changes: `fixture-gen` feature on existing `prism-dtu-armis` + `prism-dtu-crowdstrike`; new dev-deps `prism-dtu-claroty` + `prism-dtu-cyberint` (with `["dtu","fixture-gen"]`); MODIFY existing `prism-dtu-common` dev-dep (`["dtu"]` → `["dtu","fixture-gen"]`); ADD `prism-dtu-harness` (with `["dtu"]`). (Note: v1.5 originally listed `prism-dtu-common` as a new ADD — corrected to MODIFY in v1.6; the enumeration here is updated to reflect the ground-truth framing.) INV-PERIMETER-001 note preserved. FIX-3: `HarnessEntry` construction guidance changed from struct-literal to `HarnessEntry::new(org_slug, sensor_id, clone)` in Task 2, Task 3, and risk_mitigations; `#[non_exhaustive]` + E0639 rationale stated explicitly. FIX-4: All `write_overlay_temp_dir(&harness, &tempdir)` → `write_overlay_temp_dir(&harness, tempdir.path())` in risk_mitigations (1 occurrence), §File Structure helpers/mod.rs row (1 occurrence), Open Questions OQ-1 (1 occurrence); Task 2 and Task 3 already use `.path()` form. FIX-5: `new_with_seed` fallibility and arg types corrected in §DTU multi-tenancy scope and Open Questions OQ-2: `CrowdstrikeClone` and `ClarotyClone` → infallible (`Self`); `ArmisClone` and `CyberintClone` → fallible (`anyhow::Result<Self>`, use `?`); `archetype` is `prism_dtu_common::Archetype` enum; `org_id` is `prism_dtu_common::OrgId([u8;16])` constructed `OrgId(*uuid::Uuid::parse_str(s)?.as_bytes())`; reference pattern `build_clone_pairs` in `prism-dtu-demo-server/src/harness.rs`. FIX-6: Standardized all device-ID format occurrences to `"dev-{8hex}-{seed}-{n}"` where `8hex = hex(org_id.as_bytes()[0..4])`; eliminated all `"dev-{org_slug}-{seed}-{n}"` forms (2 occurrences: frontmatter comment line 48, §AC-006 Design Directive); added false-green trap warning in AC-006 body, AC-009 body, frontmatter comment, §AC-006 Design Directive, risk_mitigations, and OQ-2 — asserting `"dev-org-a-..."` matches zero IDs, making intersection vacuously ∅. BONUS (LOW): Task 1 and §File Structure helpers/mod.rs row updated to note that `write_multi_org_demo_config` and `McpStdioHandle::tool_query_scoped` / `tool_query_scoped_expect_rpc_error` already exist in helpers/mod.rs and should be reused for AC-002/003/005. |
 | 1.4 | 2026-06-14 | story-writer | T9 materialization — AC-trace propagation + real-seeding body propagation + status draft→ready. (1) AC-006 body rewritten: replaced port-binding-only model with content-level INV-DISTINCT-DATA-001 proof: org-a CrowdStrike clone constructed via `new_with_seed(seed_a=100, archetype, org_id_a)` and org-c via `new_with_seed(seed_c=200, archetype, org_id_c)`; test reads response bodies and asserts `ids_org_a ∩ ids_org_c = ∅`; trace updated to `BC-2.06.017 Postcondition 3 + BC-2.06.018 INV-DISTINCT-DATA-001 + BC-2.06.014 endpoint-resolution`; Red Gate test renamed to `test_BC_2_06_018_per_org_seeded_data_is_disjoint`. (2) AC-009 strengthened: "no row-level mixing occurs" extended to assert `ids_a ∩ ids_c = ∅` on concurrent response bodies; added `BC-2.06.018 INV-DISTINCT-DATA-001` as additional trace. (3) AC-007: added `BC-2.06.017 INV-ISOLATION-001 (per-org distinct Cyberint DTU sockets)` trace and clarified distinct-socket setup. (4) §risk_mitigations: first mitigation rewritten to describe MultiInstanceHarness::start + new_with_seed per-org seeding + write_overlay_temp_dir + ids_a ∩ ids_c = ∅ content assertion. (5) §Tasks: tasks 2, 3, 5, 7, 9 rewritten for MultiInstanceHarness API; new task 4 separates prism.toml writing from overlay TOML; retired stale "DTU demo server invocations" language. (6) §File Structure Requirements: `write_multi_org_config()` and `MultiOrgDtuPorts` replaced with `start_multi_org_harness()`, `write_multi_org_overlays()`, `write_multi_org_prism_toml()` reflecting harness API; retired `MultiOrgDtuPorts` struct. (7) EC-002: reconciled "same port config mistake" edge case — now documents that MultiInstanceHarness prevents this structurally via HarnessError::DuplicateKey (BC-2.06.017 Postcondition 7). (8) §Architecture Compliance Rules: added canonical ID format rule referencing ADR-036 v2.0 §2.2; updated AC-006/AC-007/AC-009 rule rows to reference seeding semantics and content-level proofs; updated §Behavioral Contracts table AC-trace columns for BC-2.06.017 and BC-2.06.018. Status set to ready. |
