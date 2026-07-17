@@ -6,11 +6,11 @@ wave: tbd
 epic_id: maintenance
 priority: P2
 status: ready
-version: "0.22"
+version: "0.23"
 level: ops
 producer: story-writer
 timestamp: "2026-07-15"
-modified: "2026-07-16"
+modified: "2026-07-17"
 input-hash: "[live-state]"
 inputs:
   - .github/workflows/ci.yml
@@ -292,9 +292,7 @@ Documented fallback: `jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2
 revert to this pin. The `tool-cache` / `tools-cache` input (renamed in the fork) is
 NOT removed — this story does not remove tool cache; leave the input unset.
 
-A verification step immediately after the reclaim step confirms at least 25 GB free
-via `df -h`. If post-reclaim free space is below 25 GB, the job fails early with a
-diagnostic message rather than proceeding to a late-stage OOM/disk-full linker crash:
+A ≥25 GB gate step runs immediately after the neutralization step (full ordering: reclaimer → neutralization → ≥25 GB gate via `df -P /`). If post-reclaim free space is below 25 GB, the job fails early with a diagnostic message rather than proceeding to a late-stage OOM/disk-full linker crash:
 
 ```bash
 # df -P / output: Filesystem, 1K-blocks, Used, Available, Use%, Mounted
@@ -1071,8 +1069,8 @@ Workable within a single agent context window (200k+ context); the story spec al
 - [ ] `test-no-default-features` job: add "Report initial disk space" step (`run: df -h`) as the FIRST step (before `actions/checkout`) (AC-001 + F-CIDISK-P4-MED-002)
 - [ ] Linux Test job legs: add `insightsengineering/disk-space-reclaimer@dae9fabcb8febe09f6585471948acf9dc9a57489 # v1.1.2` step after checkout and before rust-cache; include `if: runner.os == 'Linux'` guard (mixed-OS matrix includes macOS/Windows legs where the reclaimer is not applicable); configure `android: true, dotnet: true, haskell: true, docker-images: true, large-packages: true, swap-storage: false`; include `continue-on-error: true` (reclaim is best-effort — apt-mirror flake class motivated this; the ≥25 GB gate is the sole authoritative check; see EC-009) (AC-002; swap=false per EC-008)
 - [ ] `test-no-default-features` job: add the same reclaimer step with identical inputs (`swap-storage: false`) and `continue-on-error: true` after checkout and before rust-cache (AC-002 + F-CIDISK-P4-MED-002 + EC-009)
-- [ ] Linux Test job legs: add "Verify ≥25 GB free" step immediately after the reclaimer step (see AC-002 snippet; uses `df -P /` + 1K-block arithmetic + `AVAIL_GB=${AVAIL_GB:-0}` guard — no gsub)
-- [ ] `test-no-default-features` job: add identical "Verify ≥25 GB free" step immediately after its reclaimer step (F-CIDISK-P4-MED-002)
+- [ ] Linux Test job legs: add "Verify ≥25 GB free" step immediately after the neutralization step (full ordering: reclaimer → neutralization → ≥25 GB gate; see AC-002 snippet; uses `df -P /` + 1K-block arithmetic + `AVAIL_GB=${AVAIL_GB:-0}` guard — no gsub)
+- [ ] `test-no-default-features` job: add identical "Verify ≥25 GB free" step immediately after its neutralization step (full ordering: reclaimer → neutralization → ≥25 GB gate; F-CIDISK-P4-MED-002)
 - [ ] DO NOT add `CARGO_PROFILE_DEV_DEBUG` to the Test job `env:` block — it is a no-op; `.cargo/config.toml` already sets identical values at higher precedence (AC-003; F-CIDISK-P4-HIGH-001 adjudication)
 - [ ] Linux Test job legs: add `if: failure()` disk-annotation step at the END (after JUnit upload; see AC-004 snippet — includes `USED_PCT=${USED_PCT:-0}` guard)
 - [ ] `test-no-default-features` job: add identical `if: failure()` disk-annotation step at the END (AC-004 + F-CIDISK-P4-MED-002)
@@ -1213,7 +1211,7 @@ as an inline `uses:` step; it does not require a new config file in the reposito
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | `insightsengineering/disk-space-reclaimer` action fails or hangs (non-apt-mirror cause, e.g., GitHub Actions runner infra fault) | `continue-on-error: true` — the job proceeds to the ≥25 GB gate regardless of reclaimer exit code. The gate is the sole authoritative arbiter: if post-failure free disk is ≥25 GB the build continues; if below 25 GB the gate exits 1 with the actual free-GB count. Design changed v0.8→v0.9 from `continue-on-error: false`; the apt-mirror flake class (EC-009) motivated the change. |
+| EC-001 | `insightsengineering/disk-space-reclaimer` action fails or hangs (non-apt-mirror cause, e.g., GitHub Actions runner infra fault) | **Failure coverage:** `continue-on-error: true` absorbs the non-zero exit code; the job proceeds to the ≥25 GB gate regardless of reclaimer exit code. The gate is the sole authoritative arbiter: if post-failure free disk is ≥25 GB the build continues; if below 25 GB the gate exits 1 with the actual free-GB count. **Hang coverage:** step-level `timeout-minutes: 10` (~3× worst observed step duration 203s/160s) converts a hung reclaimer into a timed-out step failure at 10 min; `continue-on-error: true` then absorbs that failure and the ≥25 GB gate proceeds on the same path. Job-level `timeout-minutes: 45` (`test` job) and `timeout-minutes: 25` (`test-no-default-features` job) are the outer bound on total job hang time. Design changed v0.8→v0.9 from `continue-on-error: false`; apt-mirror flake class (EC-009) motivated the failure-coverage path; step-level and job-level timeout bounds added in PR branch (HEAD c5e559d3, PR-LEVEL pass-14 implementation, 2026-07-17). |
 | EC-002 | Post-reclaim disk still below 25 GB on an unusual runner topology | AC-002 gate exits 1 with a human-readable `::error::` message identifying available space; job fails early |
 | EC-003 | _(retired v0.6)_ `CARGO_PROFILE_DEV_DEBUG` env var — no-op per F-CIDISK-P4-HIGH-001; env var removed from scope | _(retired)_ AC-003 now guards the pre-existing `.cargo/config.toml` invariant instead |
 | EC-004 | _(retired v0.6)_ Future story adding `CARGO_PROFILE_DEV_DEBUG` — now forbidden pattern | _(retired)_ `CARGO_PROFILE_DEV_DEBUG` in `ci.yml` is forbidden; see §Forbidden Patterns |
@@ -1278,6 +1276,8 @@ Findings applied in v0.3:
    reclaim-BEFORE-cache-restore ordering confirmed correct-and-important.
 
 ## §Changelog
+
+- v0.23 (2026-07-17): PR-LEVEL pass-14 spec-amendment fix-burst (F-MAINT-P14-LOW-002 + F-MAINT-P14-LOW-003). **F-MAINT-P14-LOW-002** [AC-002 residual v0.1-era sentence — `df -h` + stale ordering]: stale intro sentence "A verification step immediately after the reclaim step confirms at least 25 GB free via `df -h`" replaced with accurate ordering narrative (reclaimer → neutralization → ≥25 GB gate via `df -P /`). POL-29 sibling sweep: two §Tasks bullets updated — test-matrix leg "Verify ≥25 GB free" task and test-no-default-features leg equivalent both changed from "immediately after the reclaimer step" to "immediately after the neutralization step"; no other `df -h`-for-gate or stale-ordering sites found outside these three (other `df -h` instances describe the preflight AC-001 step and the failure-annotation AC-004 step, which correctly use `df -h`). **F-MAINT-P14-LOW-003** [EC-001 false hang-coverage claim]: EC-001 Expected Behavior rewritten to distinguish failure coverage (`continue-on-error: true` + gate) from hang coverage (step-level `timeout-minutes: 10` converts hang → timed-out step failure at 10 min → `continue-on-error: true` → gate proceeds; job-level outer bounds `timeout-minutes: 45` for `test`, `timeout-minutes: 25` for `test-no-default-features`; values from HEAD c5e559d3 PR-LEVEL pass-14 implementation, 2026-07-17). POL-29 sibling sweep: no other "fails or hangs" / "`continue-on-error` covers hangs" sites found; §Implementation Notes BEST-EFFORT paragraph describes failure path only (apt-mirror flake class, EC-009) and does not require amendment.
 
 - v0.22 (2026-07-16): Fresh-context adversarial reconstruction fix-burst (F-CIDISK-RECON-MED-001, F-CIDISK-RECON-LOW-001, F-CIDISK-RECON-OBS-001, F-CIDISK-RECON-OBS-002, F-CIDISK-RECON-OBS-003). **F-CIDISK-RECON-MED-001** [test-matrix reclaimer YAML snippet missing `if: runner.os == 'Linux'`]: Three-site fix — (a) YAML snippet for test-matrix reclaimer now includes `if: runner.os == 'Linux'` immediately after `- name: Reclaim disk space (Linux only)`, matching implemented ci.yml byte-form; (b) intro prose rewritten from "differs only in step name" to describe the actual two-way difference: step name AND `if:` guard — test-matrix leg carries the guard (mixed-OS matrix), test-no-default-features leg is unconditional (ubuntu-only job), matching AC-007's two-variant precedent; (c) §Tasks reclaimer bullet now explicitly requires the `if: runner.os == 'Linux'` guard for the test-matrix leg. POL-29 sibling sweep: one other site (line 282-283 neutralization step note) already correctly described the guard; no change needed there. **F-CIDISK-RECON-LOW-001** [Token Budget Estimate v0.1-era stale]: §Token Budget Estimate updated from ~3 k spec / ~11 k total (v0.1) to ~42 k spec / ~82 k total (accurate for 1295-line, 7-AC, 10-RG-test story + 2055-line ci.yml); "Well within" note updated to "Workable within" with selective-read guidance. **F-CIDISK-RECON-OBS-001** [AC-006 five vs EC-010 six operations]: Option A applied — AC-006 five-operation framing kept canonical; EC-010's six-item enumeration unified to five by merging items (5) dpkg-repair + (6) retry into a single step 5 via " + retry" phrasing. Rationale: no RG assertion is load-bearing on the step count; the YAML snippets show dpkg-configure-a and retry as a sequential pair that logically belong together in "repair and retry"; five-operation matches AC-006's Step 5 description exactly. POL-29 sweep: EC-015 and EC-016 use dash/arrow separators without step numbers — no change needed. **F-CIDISK-RECON-OBS-002** [non-monotonic echo-bump deltas]: One-line note added at each of three echo-bump instruction sites (18→19, 16→17, 17→18) clarifying the delta assumes the canonical ordered sequence in §Tasks (resolves to 22 total) and must not be applied in document order. Numeric deltas are individually correct and unchanged. **F-CIDISK-RECON-OBS-003** [volatile line-number pin in e2e.yml scope paragraph]: Removed "at line 104 of pre-rebase e2e.yml" from the AC-006 e2e scope extension paragraph (TD-VSDD-091); step-name anchor retained.
 
