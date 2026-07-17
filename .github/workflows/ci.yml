@@ -79,6 +79,10 @@ jobs:
     name: Test (${{ matrix.target }})
     needs: clippy
     runs-on: ${{ matrix.runner }}
+    # F-MAINT-P14-LOW-003: bound the job so a hung reclaimer cannot stall 360 min.
+    # Observed worst-case green duration: 22 min (x86_64-apple-darwin, runs 29544970679/29544972231).
+    # 45 min ≈ 2× worst-case (all legs); per-leg timeout is independent for matrix jobs.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -126,6 +130,13 @@ jobs:
         # action update breaking the inputs API); mitigated because the gate provides ground-truth
         # disk verification on every run.
         continue-on-error: true
+        # F-MAINT-P14-LOW-003: bound the reclaim step so a hang does not stall the job.
+        # continue-on-error:true alone cannot bound a hang; timeout-minutes gives the hard ceiling.
+        # Observed worst-case: 203s ≈ 3.4 min (linux-musl, runs 29544970679/29544972231).
+        # 10 min ≈ 3× worst-case; satisfies 3-5× headroom rule and minimum-5 requirement.
+        # A timed-out reclaimer is marked failed-but-continues; the ≥25 GB gate (next step)
+        # still executes and enforces disk readiness on every run.
+        timeout-minutes: 10
         with:
           android: true
           dotnet: true
@@ -333,6 +344,10 @@ jobs:
     name: Test (no-default-features)
     needs: clippy
     runs-on: ubuntu-latest
+    # F-MAINT-P14-LOW-003: bound the job so a hung reclaimer cannot stall 360 min.
+    # Observed worst-case green duration: 10.2 min (runs 29544970679/29544972231).
+    # 25 min ≈ 2.5× worst-case; clean number with margin for cache-cold runs.
+    timeout-minutes: 25
     steps:
       # S-MAINT-CI-DISK-EXHAUSTION-001 AC-001: disk-free preflight — captures pristine baseline
       # before checkout and rust-cache restore (F-CIDISK-P4-MED-002).
@@ -354,6 +369,13 @@ jobs:
         # action update breaking the inputs API); mitigated because the gate provides ground-truth
         # disk verification on every run.
         continue-on-error: true
+        # F-MAINT-P14-LOW-003: bound the reclaim step so a hang does not stall the job.
+        # continue-on-error:true alone cannot bound a hang; timeout-minutes gives the hard ceiling.
+        # Observed worst-case: 160s ≈ 2.7 min (runs 29544970679/29544972231).
+        # 10 min ≈ 3.7× worst-case; satisfies 3-5× headroom rule and minimum-5 requirement.
+        # A timed-out reclaimer is marked failed-but-continues; the ≥25 GB gate (next step)
+        # still executes and enforces disk readiness on every run.
+        timeout-minutes: 10
         with:
           android: true
           dotnet: true
