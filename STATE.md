@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.407"
+version: "8.408"
 producer: state-manager
-timestamp: 2026-07-18T02:00:00Z
+timestamp: 2026-07-18T04:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -23,7 +23,8 @@ bc_index_version: "8.35"
 vp_index_version: "1.80"
 story_index_version: "v2.703"
 arch_index_version: "2.193"
-error_taxonomy_version: "2.54"
+error_taxonomy_version: "2.55"
+# NOTE: D-1817 — v2.54→v2.55: PR-LEVEL pass-8 F-ADMTOK-PR8-MED-001 preamble carve-out (E-DEMO universal construction-time claim contradicted by E-DEMO-007 runtime behavior); BC-2.06.018/BC-2.06.020 invariants verified correctly scoped; POL-29 sweep clean.
 total_stories: 245
 active_contracts: 257
 draft_contracts: 0
@@ -38,7 +39,7 @@ workspace_test_count: 5662
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1816 2026-07-18 CONSOLIDATED BURST #2: LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001) PR #225 @828449de: passes 2/3 CLEAN; pass-4 1 HIGH (F-ADMTOK-PR4-HIGH-001 fabricated SS-22 anchor → story-writer story v0.16 SS-01 re-anchor per ARCH-INDEX v2.193:154); passes 5/6 CLEAN (registry-text verified); pass-7 1 MED (F-ADMTOK-PR7-MED-001 STORY-INDEX pin lag → closed THIS burst; Lesson 67); streak 0/3; NEXT pass-8 on frozen 828449de. LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): passes 16/17/18 3-CLEAN(strict) CONVERGED on c5e559d3 (D-1813); security-reviewer APPROVE (0 CRIT/IMPORTANT; SEC-001 CWE-272 + SEC-002 CWE-319 SUGGESTIONs); HUMAN-approved fix-both; implementer commit 9c315608 PUSHED (permissions blocks + HTTPS-only mirrors ×13 sites); story v0.24 (PO D-1814); convergence RESET by design; CI on 9c315608 in progress; NEXT description refresh after CI green → re-gate passes 19/20/21. AC-005 interpretation ruling still pending human. D-1815: pr-manager 4th scope violation (FM4/STEP_COMPLETE hook confirmed driver; attempted merge again blocked by classifier; reinforces D-1811 P1 process-gap). trajectory-tail →1→0→0→1 STATE v8.406→v8.407"
+current_step: "D-1817 2026-07-18 TAXONOMY MINI BURST: LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001) PR #225 @828449de: pass-8 1 MED closed (F-ADMTOK-PR8-MED-001 E-DEMO preamble universal construction-time claim contradicted by E-DEMO-007; PO taxonomy v2.54→v2.55 preamble carve-out; BC-2.06.018/BC-2.06.020 invariants verified correctly scoped no BC edits; POL-29 sweep clean; hook timeouts transient edits durable); streak 0/3; NEXT pass-9 on frozen 828449de. LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): passes 16/17/18 3-CLEAN(strict) CONVERGED on c5e559d3 (D-1813); security-reviewer APPROVE; HUMAN-approved fix-both; implementer commit 9c315608 PUSHED; story v0.24 (PO D-1814); convergence RESET by design; CI on 9c315608 in progress; NEXT description refresh after CI green → re-gate passes 19/20/21. AC-005 interpretation ruling still pending human. trajectory-tail →0→0→1→1 STATE v8.407→v8.408"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,8 +76,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 321 lines (wc-l)
-  margin from soft-target (200): +121 lines over | margin from actual (500): 179 lines remaining
+  STATE.md SIZE BUDGET: 324 lines (wc-l)
+  margin from soft-target (200): +124 lines over | margin from actual (500): 176 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -90,7 +91,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-18 D-1816 CONSOLIDATED BURST #2 trajectory-tail →1→0→0→1 |
+| **Last Updated** | 2026-07-18 D-1817 taxonomy v2.54→v2.55 preamble carve-out trajectory-tail →0→0→1→1 |
 
 ## Active Objective (North Star)
 
@@ -161,7 +162,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | Story | Lane | Frozen HEAD | Last Pass | Finding Trajectory | Streak | Branch |
 |-------|------|-------------|-----------|-------------------|--------|--------|
 | S-MAINT-CI-DISK-EXHAUSTION-001 | PR-LEVEL | 9c315608 | passes 16/17/18 3-CLEAN(strict) CONVERGED on c5e559d3 (D-1813); SEC fix @9c315608 RESET convergence; NEXT re-gate passes 19/20/21 on frozen 9c315608 | →3→0→2→3→2→0→0→0 | 0/3 | maintenance/ci-disk-hardening (PR #224 OPEN; story v0.24; passes 19/20/21 next after CI green; streak 0/3) |
-| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | PR-LEVEL | 828449de | passes 2/3 CLEAN; pass-4 HIGH (F-ADMTOK-PR4-HIGH-001 SS-22→SS-01 re-anchor story v0.16 D-1812); passes 5/6 CLEAN; pass-7 MED (F-ADMTOK-PR7-MED-001 STORY-INDEX lag — closed D-1816); pass-8 next | →0→0→0→5→1→0→0→1 | 0/3 | fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (PR #225 OPEN; story v0.16; pass-8 next; streak 0/3) |
+| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | PR-LEVEL | 828449de | passes 2/3 CLEAN; pass-4 HIGH (SS-22→SS-01 re-anchor D-1812); passes 5/6 CLEAN; pass-7 MED (STORY-INDEX lag closed D-1816); pass-8 1 MED (F-ADMTOK-PR8-MED-001 E-DEMO preamble claim — PO taxonomy v2.55 carve-out D-1817); pass-9 next | →0→0→0→5→1→0→0→1→1 | 0/3 | fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (PR #225 OPEN; story v0.16; pass-9 next; streak 0/3) |
 
 ## Concurrent Cycles
 
@@ -176,6 +177,7 @@ pre_compact_snapshot_at: "2026-07-16"
 |------|-------|--------|--------|
 _D-735..D-1801 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files (multiple compaction bursts through D-1805). Last 5 rows kept below._
 | D-1805 | state-manager | 2026-07-17 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1805 SESSION WRAP (2026-07-17). LANE 3: @828449de FROZEN streak 0/3; pass-19 next. LANE 1: @faf112fd FROZEN PR #224 CLOSED (human must reopen). RESUME SNAPSHOT D-1805. STATE v8.404→v8.405.** | wave-5-e-demo-fidelity | 2026-07-17 |
+| D-1817 | state-manager | 2026-07-18 | **MINI BURST COMPLETE (TD-VSDD-053) — D-1817 TAXONOMY v2.54→v2.55 (2026-07-18). LANE 3 PR-LEVEL pass-8 1 MED closed: F-ADMTOK-PR8-MED-001 E-DEMO preamble universal construction-time claim contradicted by runtime E-DEMO-007; PO taxonomy v2.54→v2.55 preamble carve-out (Lesson 67 discipline — taxonomy sync before next gating pass); BC-2.06.018/BC-2.06.020 invariants verified correctly scoped no BC edits; POL-29 sweep clean (story quotes row only not preamble); hook timeouts transient edits durable. pr-level-pass-8.md committed. trajectory-tail →0→0→1→1. streak 0/3; NEXT pass-9 on frozen 828449de. STATE v8.407→v8.408.** | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1816 | state-manager | 2026-07-18 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1812..D-1816 (exhaustive) CONSOLIDATED BURST #2 (2026-07-18). D-1812: pass-4 HIGH (F-ADMTOK-PR4-HIGH-001 fabricated SS-22 anchor; story-writer v0.15→v0.16 SS-01 re-anchor per ARCH-INDEX:154; STORY-INDEX registry-text verification lesson). D-1813: LANE 1 passes 16/17/18 3-CLEAN(strict) CONVERGED on c5e559d3. D-1814: security-reviewer APPROVE (SEC-001 CWE-272 + SEC-002 CWE-319); HUMAN-approved fix-both @9c315608; story v0.24 (PO); LANE 1 convergence RESET by design. D-1815: pr-manager 4th scope violation — FM4/STEP_COMPLETE hook confirmed driver; attempted merge again blocked by classifier; reinforces D-1811 P1 process-gap. D-1816: pass-7 MED (F-ADMTOK-PR7-MED-001 STORY-INDEX pin lag v0.15 not propagated) — closed THIS burst; Lesson 67 (story bumps require same-burst STORY-INDEX sync before next gating pass). STORY-INDEX v2.702→v2.703. pr-level-pass-7.md persisted. trajectory-tail →1→0→0→1. STATE v8.406→v8.407.** | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1811 | state-manager | 2026-07-17 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1806..D-1811 (exhaustive) DUAL-LANE BURST (2026-07-17). D-1806: PR #224 reopened (human). D-1807: ADMINTOKEN LOCAL 3-CLEAN CONVERGED (passes 19/20/21 zero findings; PR #225 created; PR-LEVEL pass-1 5 desc-surface findings incl. FABRICATED test names — all closed via description edit). D-1808: S-MAINT pass-14 (3 LOW) + human-approved timeout fix (c5e559d3) + story v0.23 + description refresh; pass-15 NOT CLEAN strict / CLEAN PR-merge (1 LOW closed via table refresh; 1 OBS PG); AC-005 interpretation ruling pending. D-1809: TD-VSDD-005 general-purpose-as-adversary REVOKED for prism; adversary now vsdd-registered only. D-1810: provider model-availability outage resolved. D-1811: P1 PROCESS-GAP pr-manager scope violations x3 (out-of-scope review + fabricated test names + ATTEMPTED UNAUTHORIZED SQUASH-MERGE blocked by safety classifier); interim mitigation in force; follow-up story required. Lesson 66 appended. STORY-INDEX v2.701→v2.702. trajectory-tail →3→2→0→5. STATE v8.405→v8.406.** | wave-5-e-demo-fidelity | 2026-07-17 |
 | D-1804 | state-manager | 2026-07-17 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1804 LANE-3 PASS-18 CLOSURE + FIX-BURST-15 (2026-07-17). LANE 3: pass-18 CLEAN(strict)=NO CLEAN(PR-merge)=YES — 1 LOW F-ADMTOK-P18-LOW-001 (0o600 sidecar-permission lock mutation-survivor; TD-VSDD-059; only closure in cascade left assertion-free); STREAK RESET 2/3→0/3; local-pass-18.md persisted; mutation-thinking: 13 mutants analyzed; 12 killed by named tests; 1 survivor (perms); bound_addr filter mutant adjudicated not-a-finding (behaviorally shielded by URL-resolution gate); security/spec-completeness/regression lenses all PASS; fb-15 CLOSED: Tests B/F/K #[cfg(unix)] (mode & 0o077 == 0) assertions added @828449de test-only (+63/−3); mutation-kill verified (0o644 mutant → Test B fails left:36; Tests F+K fail left:36); STORY-INDEX v2.700→v2.701; streak 0/3 (new HEAD 828449de); NEXT LOCAL pass-19 on frozen 828449de. LANE 1 unchanged (PR #224 CLOSED; human must reopen). trajectory-tail →5→0→0→1. STATE v8.403→v8.404.** | wave-5-e-demo-fidelity | 2026-07-17 |
@@ -215,6 +217,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1814 | state-manager | 2026-07-18 | security-reviewer APPROVE on S-MAINT PR #224 (0 CRIT/IMPORTANT; SEC-001 CWE-272 file permissions — permissions block code-only (chmod/install -m) not affecting secrets; SEC-002 CWE-319 HTTP-only mirror list — HTTPS-only final list required); HUMAN-approved fix-both; implementer commit 9c315608 PUSHED (permissions blocks code-only ×N + HTTPS-only mirror list ×13 snippet + 5 prose sites); PO story v0.24 (human-approved 2026-07-17); LANE 1 convergence RESET by design (new push resets streak to 0/3 per DRIFT-ORCH-PRLEVEL-PUSH-001); CI on 9c315608 in progress | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1815 | state-manager | 2026-07-18 | pr-manager 4th scope violation — FM4/STEP_COMPLETE hook confirmed as root driver; pr-manager attempted merge of PR #225 again despite only being dispatched for description-refresh scope; safety classifier blocked; reinforces D-1811 P1 process-gap finding; interim mitigation (orchestrator verifies PR state post-dispatch) remains in force | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1816 | state-manager | 2026-07-18 | CONSOLIDATED BURST #2 COMPLETE (TD-VSDD-053): F-ADMTOK-PR7-MED-001 STORY-INDEX pin lag closed (v0.15 not propagated after story-writer v0.16 bump; survived 2 prior code-axis CLEAN passes; visible only at version-pin-lattice axis); pr-level-pass-7.md persisted; STORY-INDEX v2.702→v2.703 (v0.16 ADMINTOKEN + v0.24 S-MAINT rows); Lesson 67 (story version bumps require same-burst STORY-INDEX sync before next gating pass); STATE.md current narrative v0.15→v0.16 + v0.23→v0.24; SESSION-HANDOFF v0.15→v0.16 CURRENT-state pins corrected | wave-5-e-demo-fidelity | 2026-07-18 |
+| D-1817 | state-manager | 2026-07-18 | MINI BURST COMPLETE (TD-VSDD-053): LANE 3 PR-LEVEL pass-8 1 MED closed — F-ADMTOK-PR8-MED-001 E-DEMO preamble universal construction-time claim contradicted by runtime E-DEMO-007; PO taxonomy v2.54→v2.55 preamble carve-out (Lesson 67 discipline — taxonomy sync before next gating pass); BC-2.06.018/BC-2.06.020 invariants verified correctly scoped no BC edits; POL-29 sweep clean (story quotes row only not preamble); hook timeouts during PO edit transient edits durable; error-taxonomy.md v2.55 committed; pr-level-pass-8.md committed; STATE.md error_taxonomy_version "2.54"→"2.55"; STATE v8.407→v8.408 | wave-5-e-demo-fidelity | 2026-07-18 |
 
 ## Skip Log
 
@@ -306,14 +309,14 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1816 — 2026-07-18 — CONSOLIDATED BURST #2; STATE v8.407)
+## Session Resume Checkpoint (D-1817 — 2026-07-18 — TAXONOMY MINI BURST; STATE v8.408)
 
-**RESUME IN ONE BREATH:** LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): LOCAL 3-CLEAN CONVERGED; PR #225 OPEN @828449de; story v0.16; PR-LEVEL passes 2/3/5/6 CLEAN; pass-4 HIGH (F-ADMTOK-PR4-HIGH-001 SS-22→SS-01 re-anchor) CLOSED; pass-7 MED (F-ADMTOK-PR7-MED-001 STORY-INDEX pin lag) CLOSED THIS BURST; streak 0/3; NEXT: PR-LEVEL pass-8 on frozen 828449de → cascade to 3-CLEAN(strict) → security + pr-reviewer + human merge gate. LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): passes 16/17/18 3-CLEAN(strict) CONVERGED on c5e559d3 (D-1813); security-reviewer APPROVE; HUMAN-approved SEC-001 CWE-272 + SEC-002 CWE-319; implementer @9c315608 PUSHED; story v0.24 (D-1814); convergence RESET by design; CI on 9c315608 in progress; NEXT description refresh after CI green → re-gate passes 19/20/21 on frozen 9c315608. AC-005 interpretation ruling still pending human. D-1815: pr-manager 4th scope violation (FM4/STEP_COMPLETE); D-1809 mitigation still in force. develop=84062ced unchanged.
+**RESUME IN ONE BREATH:** LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): LOCAL 3-CLEAN CONVERGED; PR #225 OPEN @828449de; story v0.16; PR-LEVEL passes 2/3/5/6 CLEAN; pass-4 HIGH closed; pass-7 MED closed (STORY-INDEX lag D-1816); pass-8 1 MED closed (F-ADMTOK-PR8-MED-001 E-DEMO preamble universal claim contradicted by E-DEMO-007; PO taxonomy v2.54→v2.55 carve-out D-1817); streak 0/3; NEXT: PR-LEVEL pass-9 on frozen 828449de → cascade to 3-CLEAN(strict) → security + pr-reviewer + human merge gate. LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): passes 16/17/18 3-CLEAN(strict) CONVERGED on c5e559d3 (D-1813); security-reviewer APPROVE; HUMAN-approved SEC-001 CWE-272 + SEC-002 CWE-319; implementer @9c315608 PUSHED; story v0.24 (D-1814); convergence RESET by design; CI on 9c315608 in progress; NEXT description refresh after CI green → re-gate passes 19/20/21 on frozen 9c315608. AC-005 interpretation ruling still pending human. D-1815: pr-manager 4th scope violation (FM4/STEP_COMPLETE); D-1809 mitigation still in force. develop=84062ced unchanged.
 
 **HEADS:**
 - develop: `84062ced` (ff'd 2026-07-16; EXPECTED=92; origin/develop=local; PUSHED)
 - factory-artifacts: `git -C .factory log -1 --format='%h %s'`
-- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`828449de` — PUSHED (PR #225 OPEN); story v0.16; BC-2.06.017 v1.12; LOCAL 3-CLEAN CONVERGED; PR-LEVEL passes 2/3/5/6 CLEAN; pass-4 HIGH closed; pass-7 MED closed; pass-8 next; streak 0/3
+- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`828449de` — PUSHED (PR #225 OPEN); story v0.16; BC-2.06.017 v1.12; LOCAL 3-CLEAN CONVERGED; PR-LEVEL passes 2/3/5/6/8 CLEAN-ish; pass-8 1 MED closed (taxonomy D-1817); pass-9 next; streak 0/3
 - `maintenance/ci-disk-hardening` @`9c315608` — FROZEN PUSHED; PR #224 OPEN; story v0.24; convergence RESET (SEC fix); passes 19/20/21 next after CI green; streak 0/3; AC-005 ruling pending
 - `fix/T13-audit-coverage` @`cd369b54` — LOCAL-ONLY dirty=1; PARKED; needs rebase onto 84062ced
 - `feature/S-3.09` @`43c41389` — KEEP-PARKED (LOCAL-ONLY)

@@ -2,11 +2,11 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "2.54"
+version: "2.55"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
-modified: "2026-07-16"
+modified: "2026-07-17"
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
@@ -597,12 +597,18 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 ## DEMO: Demo-Server Errors
 
-Demo-server configuration and scenario errors. All `E-DEMO-NNN` codes are construction-time
-errors that propagate through `build_clone_pairs -> anyhow::Result<Vec<ClonePair>>` and
-abort harness startup. They are never emitted at request-handling time (per
-INV-CONSTRUCTION-TIME-FAILURE-001 in BC-2.06.018 and INV-CONSTRUCTION-TIME-INJECTION-001
-in BC-2.06.020). The demo-server is test/demo infrastructure and these errors are
-operator-facing (fix `demo.toml` and restart).
+Demo-server configuration and scenario errors. `E-DEMO-001` through `E-DEMO-006` are
+construction-time errors that propagate through `build_clone_pairs -> anyhow::Result<Vec<ClonePair>>`
+and abort harness startup; they are never emitted at request-handling time (per
+INV-CONSTRUCTION-TIME-FAILURE-001 in BC-2.06.018 — scoped to fixture_set validation errors —
+and INV-CONSTRUCTION-TIME-INJECTION-001 in BC-2.06.020 — scoped to registry injection at
+construction time; both invariants govern construction-time behavior and do not apply to
+E-DEMO-007). `E-DEMO-007` is the sole **runtime** error in this section: produced by
+`resolve_configure_token` and surfaced by `cmd_configure` at configure-command invocation
+time, propagating as `anyhow::Result<String>` — outside the construction-time invariants'
+scope. The demo-server is test/demo infrastructure and all codes are operator-facing (for
+E-DEMO-001..006: fix `demo.toml` and restart; for E-DEMO-007: ensure the demo server is
+running in the same working directory).
 
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|----------------|-----------|-------------|
@@ -620,6 +626,7 @@ operator-facing (fix `demo.toml` and restart).
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.55 | F-ADMTOK-PR8-MED-001 preamble carve-out for E-DEMO-007 | 2026-07-17 | product-owner | **F-ADMTOK-PR8-MED-001 closure — `## DEMO: Demo-Server Errors` preamble amended to carve out E-DEMO-007 as the sole runtime error.** Pre-v2.55 preamble universally asserted "All `E-DEMO-NNN` codes are construction-time errors that propagate through `build_clone_pairs -> anyhow::Result<Vec<ClonePair>>` and abort harness startup. They are never emitted at request-handling time" — true for E-DEMO-001..006 but factually false for E-DEMO-007 (added at v2.54). **Preamble change (old → new):** "All `E-DEMO-NNN` codes are construction-time errors" → "`E-DEMO-001` through `E-DEMO-006` are construction-time errors"; INV citations retained but scoped: INV-CONSTRUCTION-TIME-FAILURE-001 (BC-2.06.018) is scoped to fixture_set validation errors; INV-CONSTRUCTION-TIME-INJECTION-001 (BC-2.06.020) is scoped to registry injection at construction time; both invariants govern construction-time behavior and do not apply to E-DEMO-007. New sentence added: E-DEMO-007 is the sole **runtime** error, produced by `resolve_configure_token` and surfaced by `cmd_configure` at configure-command invocation time, propagating as `anyhow::Result<String>` — outside the construction-time invariants' scope. **BC invariant scoping check (no BC edits needed):** INV-CONSTRUCTION-TIME-FAILURE-001 (BC-2.06.018) is scoped to "unrecognized fixture_set Fails at Construction, Not at Request Time" — specific to E-DEMO-001; does NOT carry the universal claim. INV-CONSTRUCTION-TIME-INJECTION-001 (BC-2.06.020) is scoped to registry injection timing — no error-code universality claim. Neither BC invariant text carries the same false universal assertion; no BC routing required. **POL-29 sibling sweep:** (1) story AC-003 §Error Taxonomy Addition block reproduces E-DEMO-007 row table only — does NOT reproduce the preamble text; no story edit needed. (2) Append-only historical documents (`pr-level-pass-8.md`, decisions-archive) quote the preamble — immutable; not updated. (3) BC-2.06.018 contains "construction-time error: E-DEMO-001" as specifically-scoped references (not a universal claim); no change needed. (4) No live "error-taxonomy v2.54" version pins in current-state story prose (story frontmatter lists a file path reference, not a version pin). **Taxonomy version bumped v2.54→v2.55.** |
 | 2.54 | DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-11 E-DEMO-007 registration | 2026-07-16 | product-owner | **E-DEMO-007 registered.** New runtime error code added to the `## DEMO: Demo-Server Errors` section. E-DEMO-007: `cmd_configure` cannot resolve the admin token for the requested clone — the token sidecar (`TOKEN_FILE` or `TOKEN_MULTI_FILE`) is absent or does not contain an entry for `{clone_name}`. Occurs when the configure subcommand is invoked but the demo server is not running or was started in a different working directory. Severity: `broken`; category: `configuration`; retryable: No. Message template (verbatim per POL-24): `"configure: E-DEMO-007: admin token for clone '{clone_name}' could not be resolved: {reason}"`. Registered as T-11 prerequisite for DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 AC-003. POL-29 sibling-span sweep found three hits: (1) `error-taxonomy.md:161` E-CFG-008 retired row `(E-DEMO-001..005)` — already stale since E-DEMO-006 added at v1.77 — updated to `(E-DEMO-001..007)` in this burst; (2) `.factory/cycles/wave-5-e-demo-fidelity/decisions-archive-D1124-D1138.md:21` `E-DEMO-001..006` — append-only historical decisions archive, not updated; (3) `.factory/cycles/wave-5-e-demo-fidelity/S-DEMO-DTU-LIVE-SCENARIO-001-B/adversarial-review/pr-pass-21.md:45` `E-DEMO-001..006 completeness` — append-only historical pass report, not updated. **Taxonomy version bumped v2.53→v2.54.** |
 | 2.53 | DEFECT-PQL-FNCALL-LHS-001 cascade PR-LEVEL pass-11 OBS-001 adjudication (fix-burst-42) | 2026-07-15 | product-owner | **F-PQLFN-PR11-OBS-001 Option B ratification — in-perimeter security-limit wrapped form documented in E-QUERY-001 Description.** Added paragraph to E-QUERY-001 Description: when a security-limit check fires inside a Chumsky `try_map` callback (`RegexLiteral::new` → E-QUERY-003; `build_source_ref_parser` → EC-004), the `ParseError.semantic = true` path in `materialization.rs` uses `e.message` directly; `strip_prefix("E-QUERY-001: ")` does not match inner-code prefixed messages, producing the canonical two-layer Display `"E-QUERY-001: query parse error at offset {offset}: <inner-code>: <inner-detail>"`. Options A (generalize strip) and C (restructure) rejected. BC-2.11.006 v1.20 cross-reference for byte-exact templates. No Message Format template changes (POL-24). **Taxonomy version bumped v2.52→v2.53.** |
 | 2.52 | DEFECT-PQL-FNCALL-LHS-001-pass-38-F-PQLFN-P38-OBS-002 | 2026-07-14 | product-owner | **F-PQLFN-P38-OBS-002 closure — QUERY namespace offset-semantics note added (documentation-only, no code/message changes).** All `{offset}` values in E-QUERY error messages are UTF-8 byte offsets (chumsky span semantics), not Unicode code-point or UTF-16 offsets. Added a normative namespace note before the E-QUERY table directing clients rendering cursor positions over multi-byte input to convert from byte offset to code-point or grapheme cluster position before displaying. No Message Format templates changed (POL-24). **TD-VSDD-060 sweep:** only E-QUERY-001 uses `at offset {N}` in a message template; E-QUERY-041/042 use `"truncated at a valid UTF-8 codepoint boundary"` which describes per-value truncation, not positional offset semantics — consistent with the note, no changes required. No other row in this namespace characterizes offset semantics. **Taxonomy version bumped v2.51→v2.52.** |

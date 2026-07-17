@@ -11,6 +11,14 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 
 ---
 
+## Archived: D-1816 — 2026-07-18; STATE v8.407 — CONSOLIDATED BURST #2
+
+**RESUME IN ONE BREATH:** LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): LOCAL 3-CLEAN CONVERGED; PR #225 OPEN @828449de; story v0.16; PR-LEVEL passes 2/3/5/6 CLEAN; pass-4 HIGH (F-ADMTOK-PR4-HIGH-001 SS-22→SS-01 re-anchor) CLOSED; pass-7 MED (F-ADMTOK-PR7-MED-001 STORY-INDEX pin lag) CLOSED THIS BURST; streak 0/3; NEXT: PR-LEVEL pass-8 on frozen 828449de. LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): passes 16/17/18 3-CLEAN(strict) CONVERGED on c5e559d3 (D-1813); security-reviewer APPROVE; HUMAN-approved SEC-001 CWE-272 + SEC-002 CWE-319; implementer @9c315608 PUSHED; story v0.24 (D-1814); convergence RESET by design; CI on 9c315608 in progress; NEXT description refresh after CI green → re-gate passes 19/20/21 on frozen 9c315608. AC-005 interpretation ruling still pending human. D-1815: pr-manager 4th scope violation (FM4/STEP_COMPLETE); D-1809 mitigation still in force. develop=84062ced unchanged.
+
+**HEADS:** develop `84062ced`; fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 @828449de PUSHED (PR #225 OPEN; story v0.16; pass-8 next; streak 0/3); maintenance/ci-disk-hardening @9c315608 FROZEN PUSHED (PR #224 OPEN; story v0.24; passes 19/20/21 next; streak 0/3; AC-005 ruling pending); fix/T13-audit-coverage @cd369b54 LOCAL-ONLY PARKED; feature/S-3.09 @43c41389 KEEP-PARKED; feature/W3-FIX-S307-001 @fcab8717 PARKED-DIRTY.
+
+---
+
 ## Archived: D-1632 — 2026-07-09; STATE v8.232
 
 **FIX-IEQ-ERRPATH-001 PR #219 OPEN @dacb60fa (base develop). LOCAL cascade CONVERGED (19 passes; streak 3/3 CLEAN(strict) on frozen 35117a38). Reviews completed on 35117a38: pr-reviewer APPROVE (0 blocking; NB-1/NB-2/NB-3 non-blocking); security-reviewer CLEAR (0 CRIT/HIGH/MED; SEC-FIND-001 CWE-117 CONFIRMED GENUINE — CLOSED in fix-burst 51f071ff; SEC-FIND-002 CWE-200 — CLOSED in 51f071ff). CI-FAIL-001 clippy (pre-existing on develop, toolchain drift) — CLOSED in dacb60fa. Fix-burst 51f071ff: sanitize_for_log @3 column_not_found.rejected sites + CWE-117 unit test; SEC-002 comment corrected; audit-script G2/G3/G6/G7/G8 WARN→FAIL; G4 heuristic→canonical anchor. Clippy dacb60fa: 3 match→? infusion/mod.rs. Branch PUSHED @dacb60fa (51f071ff + dacb60fa); just check 5392/5392 GREEN; non-exhaustive 89/89. PR-LEVEL cascade 0/3 on frozen dacb60fa (BC-5.39.001; DRIFT-ORCH-PRLEVEL-PUSH-001 — push reset streak). NB-1 PR-body fix via gh pr edit (no code push).**
