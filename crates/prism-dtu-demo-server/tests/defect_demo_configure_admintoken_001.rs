@@ -26,7 +26,7 @@
 //!
 //! ## TD-VSDD-060 sibling sweep (AC-004)
 //!
-//! All POST /dtu/configure call sites in client code enumerated in §Root Cause:
+//! All POST /dtu/configure call sites in client code enumerated in §Root Cause: // SWEEP-MIRROR
 //!
 //! | Site | X-Admin-Token? | Status |
 //! |------|----------------|--------|
@@ -40,14 +40,19 @@
 //! | `crates/prism-dtu-harness/tests/review_2026_06_10_deny_unknown.rs` — `assert_configure_strict` | YES (`x-admin-token` via `Harness::admin_token_for()`) | Correct |
 //! | `crates/prism-dtu-harness/src/builder.rs` — `test_build_harness_http_client_timeout_is_load_bearing` | N/A | Synthetic (hung-socket; verifies client timeout, no DTU handler — header not applicable) |
 //!
+//! Convention: lines tagged `// SWEEP-MIRROR` contain the grep patterns below; append
+//! `| grep -v SWEEP-MIRROR` to each command for stable, self-consistent counts.
 //! Reproducible counts (run from worktree root):
-//!   `rg 'dtu/configure' crates/ --type rust | wc -l`           → 451 total hits
-//!   `rg '\.post\(.*dtu/configure' crates/ --type rust | wc -l` → 131 same-line `.post()` calls
-//!   `rg '\.route.*dtu/configure' crates/ --type rust | wc -l`  → 21 `.route()` registrations
-//! 7 dynamic `.post()` calls (URL pre-built before `.post()` line):
-//!   `harness.rs:287`, `builder.rs:1245`, `defect_test:121+229`,
-//!   `ac_3_configure_endpoint.rs:36+88`, and `main.rs` `cmd_configure` (via `resolve_configure_url`)
-//! Total POST client calls: 131 same-line + 7 dynamic = 138; remainder of 451 in doc/strings.
+//!   `rg 'dtu/configure' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l`           → 447 total hits // SWEEP-MIRROR
+//!   `rg '\.post\(.*dtu/configure' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l` → 131 same-line `.post()` calls // SWEEP-MIRROR
+//!   `rg '\.route.*dtu/configure' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l`  → 21 `.route()` registrations // SWEEP-MIRROR
+//! 7 dynamic `.post()` calls (URL pre-built in let-binding, `.post()` on separate line): // SWEEP-MIRROR
+//!   `inject_failure` (harness.rs), `test_build_harness_http_client_timeout_is_load_bearing` (builder.rs),
+//!   `test_BC_3_6_001_replicates_defect_401_without_admin_token` (defect test A),
+//!   `test_BC_2_06_017_token_sidecar_written_and_configure_with_token_returns_200` (defect test B),
+//!   `ac_3_configure_called_on_clone_port_directly`, `ac_3_no_harness_proxy_for_configure`,
+//!   and `cmd_configure` (via `resolve_configure_url` → `.post(&url)`) // SWEEP-MIRROR
+//! Total POST client calls: 131 same-line + 7 dynamic = 138; remainder of 447 in doc/strings.
 //!
 //! Only `cmd_configure()` was missing the header. The two harness test sites above use
 //! `Harness::admin_token_for()` with the lowercase header `x-admin-token` — correct per

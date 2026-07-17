@@ -595,7 +595,7 @@ fn send_sigterm(pid: i32) -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<()> {
-    // TD-VSDD-060 sibling sweep (AC-004): all POST /dtu/configure call sites in client code.
+    // TD-VSDD-060 sibling sweep (AC-004): all POST /dtu/configure call sites in client code. // SWEEP-MIRROR
     //
     // Enumerated in DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 §Root Cause sibling table:
     // | Site                                             | X-Admin-Token? | Status          |
@@ -611,14 +611,19 @@ async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<
     // | prism-dtu-harness/src/builder.rs                       | N/A            | Synthetic (hung-socket; verifies client |
     // |   (test_build_harness_http_client_timeout_is_load_bearing) |             |   timeout, no DTU handler — not applicable) |
     //
+    // Convention: lines tagged `// SWEEP-MIRROR` contain the grep patterns below; append
+    // `| grep -v SWEEP-MIRROR` to each command for stable, self-consistent counts.
     // Reproducible counts (run from worktree root):
-    //   `rg 'dtu/configure' crates/ --type rust | wc -l`           → 451 total hits
-    //   `rg '\.post\(.*dtu/configure' crates/ --type rust | wc -l` → 131 same-line .post() calls
-    //   `rg '\.route.*dtu/configure' crates/ --type rust | wc -l`  → 21 .route() registrations
-    // 7 dynamic .post() calls (URL pre-built before .post() line; not counted by the same-line grep):
-    //   harness.rs:287, builder.rs:1245, defect_test:121, defect_test:229,
-    //   ac_3_configure_endpoint.rs:36+88, and this function (resolve_configure_url → .post(&url))
-    // Total POST client calls: 131 same-line + 7 dynamic = 138; remainder of 451 in doc/strings.
+    //   `rg 'dtu/configure' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l`           → 447 total hits // SWEEP-MIRROR
+    //   `rg '\.post\(.*dtu/configure' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l` → 131 same-line .post() calls // SWEEP-MIRROR
+    //   `rg '\.route.*dtu/configure' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l`  → 21 .route() registrations // SWEEP-MIRROR
+    // 7 dynamic .post() calls (URL pre-built in let-binding, .post() on separate line): // SWEEP-MIRROR
+    //   inject_failure (harness.rs), test_build_harness_http_client_timeout_is_load_bearing (builder.rs),
+    //   test_BC_3_6_001_replicates_defect_401_without_admin_token (defect test A),
+    //   test_BC_2_06_017_token_sidecar_written_and_configure_with_token_returns_200 (defect test B),
+    //   ac_3_configure_called_on_clone_port_directly, ac_3_no_harness_proxy_for_configure,
+    //   and this function cmd_configure (resolve_configure_url → .post(&url)) // SWEEP-MIRROR
+    // Total POST client calls: 131 same-line + 7 dynamic = 138; remainder of 447 in doc/strings.
     //
     // Only cmd_configure() was missing the header before this fix. All authenticated callers
     // use `clone.admin_token()` (prism-dtu-{sensor} tests) or `Harness::admin_token_for()`
