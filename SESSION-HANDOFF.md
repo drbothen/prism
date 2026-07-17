@@ -108,13 +108,60 @@ timestamp: 2026-07-16T00:30:00Z
 >
 > **D-1701 (2026-07-12): SESSION WRAP — §RESUME SNAPSHOT D-1701 authored (supersedes D-1700).** AUDIT-COVERAGE-001 B-hardening passes 29–32 + fix-bursts 29–32. HEAD db765001→4857d967→9cbd9033→334784c3→67654e0f. P31 CLEAN(PR-merge). P32 NOT CLEAN (1 MED + 4 LOW + 4 OBS); fix-burst 32 closed all 6 findings @67654e0f. FROZEN HEAD 67654e0f (36 commits over develop@5f1b5771; LOCAL-ONLY NOT pushed). Streak 0/3 on 67654e0f. S-7.02 queue 9 items unchanged. Standing accepted-limitations: H14e smoke-only; H8 PASS-ATTRIBUTED; H23 even-fence; H16 non-content-channel. STATE v8.300→v8.301.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1794 SESSION WRAP; PRs #223+#222 MERGED; develop@84062ced; MAINT PR #224 rebased @4f9a5c6f PR-LEVEL streak 0/3; VERY NEXT = confirm CI 43/43 on 4f9a5c6f → dispatch PR-LEVEL adversary pass-1 on frozen 4f9a5c6f → 3/3 CLEAN → squash-merge (HUMAN PRE-AUTHORIZED 2026-07-15)** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1794 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1794 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `84062ced` (PR #222 DEFECT-MCP-ROWSHAPE-NULLS-001 squash-merged 2026-07-16; chain: 5f1b5771→PR#223→36bed016→PR#222→84062ced). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.394. D-1794 SESSION WRAP; PRs #223+#222 MERGED (both defect lanes CLOSED); MAINT PR #224 @4f9a5c6f (story v0.16; PR-LEVEL streak 0/3; CI running at wrap 30/45 green); AUDIT-COVERAGE-001 @cd369b54 LOCAL-ONLY needs rebase; VERY NEXT ACTION = confirm CI 43/43 → dispatch PR-LEVEL adversary pass-1 on frozen 4f9a5c6f [fresh session].
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1796 SESSION WRAP; TWO CASCADES FROZEN MID-3-CLEAN; develop@84062ced; LANE 1 PR #224 CLOSED (human must reopen); LANE 3 @0aa0c6ed LOCAL-ONLY fb-10 PENDING** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1796 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1796 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `84062ced` (unchanged; ff'd 2026-07-16). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.396. D-1796 SESSION WRAP; LANE 1 S-MAINT @faf112fd FROZEN (story v0.21; pass-13 NOT CLEAN; PR #224 CLOSED — human must reopen AC-005 run-3); LANE 3 ADMINTOKEN @0aa0c6ed LOCAL-ONLY (pass-11 NOT CLEAN 1M+2L+1OBS; fb-10 PENDING); trajectory-tail →3→0→2→4 [fresh session].
 
 ---
 
-## §RESUME SNAPSHOT — D-1794 (2026-07-16 — SESSION WRAP; PRs #223+#222 MERGED; MAINT PR #224 @4f9a5c6f PR-LEVEL 0/3; STATE v8.394) [SUPERSEDES D-1793]
+## §RESUME SNAPSHOT — D-1796 (2026-07-17 — SESSION WRAP; TWO CASCADES FROZEN MID-3-CLEAN; STATE v8.396) [SUPERSEDES D-1794]
+
+### RESUME IN ONE BREATH
+
+LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): story v0.21 frozen @faf112fd; pass-13 NOT CLEAN (2L+1OBS spec-side only; no code push) RESET streak to 0/3; PR #224 CLOSED — human must reopen to trigger AC-005 run-3 (dual-guard blocks agent close/reopen). After human reopens: dispatch PR-LEVEL adversary pass-14 on FROZEN faf112fd (no pushes). LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001): story v0.11 @0aa0c6ed LOCAL-ONLY; pass-11 NOT CLEAN 1M+2L+1OBS (F-ADMTOK-P11-MED-001 FidelityValidator callers missing AC-004; F-ADMTOK-P11-LOW-001 command-forms claim; F-ADMTOK-P11-LOW-002 phantom mirror row; F-ADMTOK-P11-OBS-001 pid.tmp gitignore); streak 0/3; fix-burst-10 PENDING. develop = 84062ced (unchanged from D-1794). AUDIT-COVERAGE-001 @cd369b54 still PARKED.
+
+### HEADS (verified 2026-07-17 at D-1796 wrap)
+
+- develop: origin/develop = `84062ced` (unchanged; ff'd 2026-07-16)
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code; D-1796 wrap commit)
+- `maintenance/ci-disk-hardening` @`faf112fd` — FROZEN. PR #224 CLOSED. Story v0.21. Pass-13 NOT CLEAN (spec-side only). Streak 0/3. **HUMAN must reopen PR #224 to trigger AC-005 run-3** (dual-guard blocks agents).
+- `feature/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`0aa0c6ed` — LOCAL-ONLY (NOT pushed). Pass-11 NOT CLEAN 1M+2L+1OBS. Streak 0/3. Fix-burst-10 PENDING.
+- AUDIT-COVERAGE-001 `cd369b54` — LOCAL-ONLY dirty=1. PARKED — rebase onto 84062ced before unpark.
+- `.worktrees/DEFECT-PQL-FNCALL-LHS-001` REMOVABLE-POST-MERGE (PR #223 merged)
+- `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001` REMOVABLE-POST-MERGE (PR #222 merged)
+- S-3.09 `43c41389` KEEP-PARKED; W3-FIX-S307-001 `fcab8717` PARKED-DIRTY do-NOT-touch
+
+### PER-WORKSTREAM RESUME NEXT-ACTIONS
+
+1. **HUMAN ACTION REQUIRED — Reopen PR #224** — Triggers AC-005 run-3 (agents cannot close/reopen; dual-guard blocks). After reopen: dispatch PR-LEVEL adversary pass-14 on FROZEN faf112fd (streak 0/3; NO pushes mid-cascade per DRIFT-ORCH-PRLEVEL-PUSH-001). On 3/3 CLEAN(strict) → security APPROVE → pr-reviewer APPROVE → human squash-merge.
+2. **LANE 3 fix-burst-10** — Dispatch implementer: fix F-ADMTOK-P11-MED-001 (FidelityValidator callers missing AC-004 permission check) + F-ADMTOK-P11-LOW-001 (command-forms claim) + F-ADMTOK-P11-LOW-002 (phantom mirror row) + F-ADMTOK-P11-OBS-001 (pid.tmp gitignore). Then pass-12 on frozen HEAD.
+3. **AUDIT-COVERAGE-001** — After MAINT PR #224 merged: rebase @cd369b54 onto develop (84062ced) → LOCAL 3-CLEAN → push → PR.
+4. **Devops cleanup** — Remove `.worktrees/DEFECT-PQL-FNCALL-LHS-001` + `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001`.
+
+### PENDING HUMAN DECISIONS
+
+1. **CRITICAL: Reopen PR #224** — Dual-guard blocks agent close/reopen. Human must reopen to trigger AC-005 run-3.
+2. AUDIT-COVERAGE-001 PR merge gate (after rebase + 3-CLEAN + push + PR-LEVEL 3-CLEAN).
+3. S-3.09 EC-collision handling option (A/B/C) at wave-gate / S-3.09 dispatch.
+4. day2-design-decisions/clip-boundary-and-reframe-asks-2026-06-30.md disposition (NOT staged).
+
+### WORKTREE INVENTORY (D-1796)
+
+- `.worktrees/S-MAINT-CI-DISK-EXHAUSTION-001` on `maintenance/ci-disk-hardening` @ `faf112fd` (FROZEN; story v0.21; PR #224 CLOSED; pass-13 NOT CLEAN; streak 0/3; NEXT: human reopens → pass-14)
+- `.worktrees/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` on `feature/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @ `0aa0c6ed` (LOCAL-ONLY; pass-11 NOT CLEAN; streak 0/3; fb-10 PENDING)
+- `.worktrees/DEFECT-PQL-FNCALL-LHS-001` REMOVABLE-POST-MERGE (PR #223 merged; devops cleanup pending)
+- `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001` REMOVABLE-POST-MERGE (PR #222 merged; devops cleanup pending)
+- `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ `cd369b54` (LOCAL-ONLY dirty=1; PARKED — needs rebase onto 84062ced)
+- `.worktrees/S-3.09` KEEP-PARKED on `feature/S-3.09` @ `43c41389` (local-only)
+- `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ `fcab8717` (local-only; do NOT touch)
+
+### DECISION DELTA — D-1796 (session wrap)
+
+1 wrap burst D-1796. TWO ACTIVE CASCADES FROZEN MID-3-CLEAN at session end. LANE 1 (S-MAINT): story v0.19→v0.21; fix-bursts 14+ closed; pass-11 (3L) + pass-12 CLEAN(strict) 1/3 + pass-13 (2L+1OBS spec-side) RESET 0/3; @faf112fd PUSHED; PR #224 CLOSED (human must reopen). LANE 3 (DEFECT-ADMINTOKEN): passes 6-11 + fix-bursts 5-10; story v0.6→v0.11; pass-11 1M+2L+1OBS @0aa0c6ed LOCAL-ONLY; streak 0/3; fb-10 PENDING. vsdd_factory rc.18→rc.22. trajectory-tail →3→0→2→4. STATE v8.395→v8.396. factory-artifacts: single atomic wrap commit (TD-VSDD-053).
+
+---
+
+## §RESUME SNAPSHOT — D-1794 (2026-07-16 — SESSION WRAP; PRs #223+#222 MERGED; MAINT PR #224 @4f9a5c6f PR-LEVEL 0/3; STATE v8.394) [SUPERSEDES D-1793] [SUPERSEDED by D-1796]
 
 ### RESUME IN ONE BREATH
 

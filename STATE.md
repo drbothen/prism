@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.395"
+version: "8.396"
 producer: state-manager
-timestamp: 2026-07-17T00:22:00Z
+timestamp: 2026-07-17T00:45:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -35,14 +35,14 @@ vp_count: 157
 bc_count_corrected: 266
 workspace_test_count: 5662
 # NOTE: D-1795 — 5655→5662: DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 fix-burst-1 adds +7 tests (@66a8861e+@7aad8a0f; 6 tests + E-DEMO-007 error-taxonomy v2.54). D-1793 NOTE archived to burst-log.md.
-vsdd_factory_version: "1.0.0-rc.18"
+vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1795 2026-07-16 THREE-LANE: S-MAINT p9 NOT CLEAN (bd65e93a 2H/1M/2L/2O; fb-13 v0.17→v0.18 @0939973f) p10 NOT CLEAN (0939973f 1C/1H/2M/2L/2O/1PG; Mirrorlist-blind CRIT; v0.19 DISPATCHED); DRIFT-AUDIT CLOSED; DEFECT p2-4 NOT CLEAN fb2-4 CLOSED p5 DISPATCHED @26e623c9 p6 IN FLIGHT. TD-VSDD-005 RESOLVED. BC-INDEX v8.31→v8.33. STORY-INDEX v2.694→v2.695. STATE v8.394→v8.395 →0→9→7→9"
+current_step: "D-1796 2026-07-17 SESSION WRAP: LANE 1 (S-MAINT) p11 3L p12 CLEAN(strict) 1/3 p13 RESET 0/3 (P13-LOW-001+OBS-002 spec-side; no push); story v0.21 @faf112fd; PR #224 CLOSED (human must reopen AC-005 run-3; dual-guard blocks agents). LANE 3 (DEFECT-ADMINTOKEN) p11 NOT CLEAN 1M+2L+1OBS (F-ADMTOK-P11-MED-001 FidelityValidator callers missing AC-004; F-ADMTOK-P11-LOW-001 command-forms claim; F-ADMTOK-P11-LOW-002 phantom mirror row; F-ADMTOK-P11-OBS-001 pid.tmp gitignore); story v0.11 @0aa0c6ed LOCAL-ONLY streak 0/3; fb-10 PENDING. STATE v8.395→v8.396 trajectory-tail →3→0→2→4"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "DEFECT-PQL-FNCALL-LHS-001 MERGED PR #223 develop@36bed016 D-1793; worktree .worktrees/DEFECT-PQL-FNCALL-LHS-001 REMOVABLE-POST-MERGE (devops cleanup pending). DEFECT-MCP-ROWSHAPE-NULLS-001 MERGED PR #222 develop@84062ced D-1793; worktree .worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001 REMOVABLE-POST-MERGE (devops cleanup pending). AUDIT-COVERAGE-001 fix/T13-audit-coverage @cd369b54 LOCAL-ONLY dirty=1; PARKED — needs rebase onto 84062ced before re-activate. S-MAINT-CI-DISK-EXHAUSTION-001 maintenance/ci-disk-hardening @0939973f (story v0.18 @b54af749 + v0.19 in flight; pass-10 NOT CLEAN; PR #224 OPEN; streak 0/3). DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 feature/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 @26e623c9 LOCAL-ONLY (LOCAL pass-6 IN FLIGHT; streak 0/3; P1 demo-blocking). S-3.09 @43c41389 KEEP-PARKED. W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch."
+worktree_status: "DEFECT-PQL-FNCALL-LHS-001 MERGED PR #223; worktree .worktrees/DEFECT-PQL-FNCALL-LHS-001 REMOVABLE-POST-MERGE (devops cleanup pending). DEFECT-MCP-ROWSHAPE-NULLS-001 MERGED PR #222; worktree REMOVABLE-POST-MERGE (devops cleanup pending). AUDIT-COVERAGE-001 fix/T13-audit-coverage @cd369b54 LOCAL-ONLY dirty=1; PARKED — needs rebase onto 84062ced before re-activate. S-MAINT-CI-DISK-EXHAUSTION-001 maintenance/ci-disk-hardening @faf112fd FROZEN (story v0.21; pass-13 NOT CLEAN 2L+1OBS spec-side; PR #224 CLOSED human-must-reopen AC-005 run-3; streak 0/3). DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 feature/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 @0aa0c6ed LOCAL-ONLY (pass-11 NOT CLEAN 1M+2L+1OBS; streak 0/3; P1 demo-blocking; fb-10 PENDING). S-3.09 @43c41389 KEEP-PARKED. W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch."
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 289 lines (wc-l)
+  STATE.md SIZE BUDGET: 297 lines (wc-l)
   margin from soft-target (200): +89 lines over | margin from actual (500): 211 lines remaining
 -->
 
@@ -83,7 +83,14 @@ pre_compact_snapshot_at: "2026-07-16"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-07-16 →0→9→7→9
+| Field | Value |
+|-------|-------|
+| **Product** | Prism |
+| **Language** | Rust |
+| **Mode** | brownfield |
+| **Deploy** | per-analyst stdio (MCP) |
+| **Started** | 2026-04-13 |
+| **Last Updated** | 2026-07-17 trajectory-tail →3→0→2→4 |
 
 ## Active Objective (North Star)
 
@@ -153,26 +160,26 @@ pre_compact_snapshot_at: "2026-07-16"
 
 | Story | Lane | Frozen HEAD | Last Pass | Finding Trajectory | Streak | Branch |
 |-------|------|-------------|-----------|-------------------|--------|--------|
-| S-MAINT-CI-DISK-EXHAUSTION-001 | PR-LEVEL | 0939973f | pass-10 NOT CLEAN | →0→9→7→9 | 0/3 | maintenance/ci-disk-hardening (PR #224 OPEN; v0.19 in flight) |
-| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | LOCAL | 26e623c9 | pass-6 in flight | →0→9→4→3 | 0/3 | feature/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (P1 demo-blocking) |
+| S-MAINT-CI-DISK-EXHAUSTION-001 | PR-LEVEL | faf112fd | pass-13 NOT CLEAN (2L+1OBS spec-side) | →9→3→0→2 | 0/3 | maintenance/ci-disk-hardening (PR #224 CLOSED; human must reopen AC-005 run-3) |
+| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | LOCAL | 0aa0c6ed | pass-11 NOT CLEAN (1M+2L+1OBS) | →4→3→3→4 | 0/3 | feature/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (P1 demo-blocking; fb-10 PENDING) |
 
 ## Concurrent Cycles
 
 | Story | Branch | Head | Status |
 |-------|--------|------|--------|
-| S-MAINT-CI-DISK-EXHAUSTION-001 | maintenance/ci-disk-hardening | 0939973f | pass-10 NOT CLEAN; story v0.19 dispatched; PR #224 OPEN; streak 0/3 |
-| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | feature/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | 26e623c9 LOCAL-ONLY | LOCAL pass-6 in flight; P1 demo-blocking; streak 0/3 |
+| S-MAINT-CI-DISK-EXHAUSTION-001 | maintenance/ci-disk-hardening | faf112fd FROZEN | pass-13 NOT CLEAN (2L+1OBS spec-side); story v0.21; PR #224 CLOSED (human must reopen); streak 0/3 |
+| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | feature/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | 0aa0c6ed LOCAL-ONLY | pass-11 NOT CLEAN (1M+2L+1OBS); P1 demo-blocking; streak 0/3; fb-10 PENDING |
 
 ## Current Phase Steps
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735..D-1789 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files (multiple compaction bursts through D-1795). Last 5 rows kept below._
+| D-1796 | state-manager | 2026-07-17 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1796 SESSION WRAP (2026-07-17). LANE 1 (S-MAINT): story v0.19→v0.21; fb-14..fix code; PUSHED @faf112fd; pass-11 3L; pass-12 CLEAN(strict) 1/3; pass-13 2L+1OBS (P13-LOW-001+OBS-002 spec-side; no push) RESET 0/3; PR #224 CLOSED (human must reopen AC-005 run-3; dual-guard blocks agents). LANE 3 (DEFECT-ADMINTOKEN): passes 6-11; fb-5..fb-9 closed; story v0.6→v0.11 @0aa0c6ed LOCAL-ONLY; pass-11 NOT CLEAN 1M+2L+1OBS (F-ADMTOK-P11-MED-001 FidelityValidator; F-ADMTOK-P11-LOW-001 command-forms; F-ADMTOK-P11-LOW-002 phantom mirror; F-ADMTOK-P11-OBS-001 pid.tmp gitignore); streak 0/3; fb-10 PENDING. trajectory-tail →3→0→2→4. STATE v8.395→v8.396.** | wave-5-e-demo-fidelity | 2026-07-17 |
 | D-1795 | state-manager | 2026-07-16 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1795 THREE-LANE CONSOLIDATED BURST (2026-07-16). LANE 1 (S-MAINT): pass-9 CLOSED NOT CLEAN bd65e93a; fb-13 @b54af749/@0939973f PUSHED; pass-10 CLOSED NOT CLEAN (1C/1H/2M/2L/2O/1PG 0939973f; Mirrorlist-blind fallback; azure-cli.sources missed; empirical probe DONE); story v0.19 DISPATCHED; streak 0/3. LANE 2 (DRIFT-AUDIT-RUNBOOK-LITERALS-001): CLOSED VERDICT-A; BC-2.02.013 v1.9→v1.10. LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001): pass-1 through pass-4 NOT CLEAN; fb-1 through fb-4 CLOSED; pass-5 DISPATCHED; pass-6 IN FLIGHT; last code @26e623c9 streak 0/3. TD-VSDD-005 RESOLVED rc.22. develop ff→84062ced. EXPECTED=92. BC-INDEX v8.31→v8.33. STORY-INDEX v2.694→v2.695. STATE v8.394→v8.395.** | wave-5-e-demo-fidelity | 2026-07-16 |
 | D-1793 | state-manager | 2026-07-16 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1793 POST-MERGE BURST (2026-07-16). PR #223 MERGED @36bed016. PR #222 MERGED @84062ced. S-PQLFN-GAP2-SOURCESELECT-GATE-001 registered (v0.3, draft, P2). MAINT story v0.16. Lessons 62/63/64. BC-INDEX v8.30→v8.31. STORY-INDEX v2.693→v2.694. STATE v8.392→v8.393.** | wave-5-e-demo-fidelity | 2026-07-16 |
 | D-1792 | state-manager | 2026-07-16 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1792 CONSOLIDATION BURST (2026-07-15/16). PQL PR-LEVEL CONVERGED 3/3 @60c97e8a; passes 17/18/19 CLEAN strict. MAINT story v0.10→v0.14; DRIFT-CI-STDBOOL-001 ROOT CAUSE REVISED (AC-002 self-inflicted-toolchain-removal). fb-10 @5cd2df5e CI 43/43 GREEN. fb-11 @498ffb6c AC-006 scope. BC-INDEX v8.29→v8.30. STORY-INDEX v2.692→v2.693. STATE v8.391→v8.392.** | wave-5-e-demo-fidelity | 2026-07-16 |
 | D-1791 | state-manager | 2026-07-15 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1791 SESSION WRAP. pass-12 CLEAN(PR-merge)=YES 2 LOW+3 OBS; fb-43 PUSHED @168b2e96 5623 tests streak 0/3. LANE 3 story v0.9→v0.10 AC-006+EC-010 @c9cb2c34. SESSION-HANDOFF.md RESUME D-1791. STORY-INDEX v2.691→v2.692. STATE v8.389→v8.391.** | wave-5-e-demo-fidelity | 2026-07-15 |
-| D-1790 | state-manager | 2026-07-15 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1790 pass-12 CLOSED. CLEAN(strict)=NO CLEAN(PR-merge)=YES 2 LOW+3 OBS. Fix-burst-43: LOW-001 gate placement; LOW-002 ParseError::semantic() constructor+3 unit tests; OBS-001 strip unified; 5623/5623 92/92 just check GREEN PUSHED 168b2e96 CI PENDING streak 0/3. DRIFT-PQLFN-MULTIERR-OFFSET-001 registered. LANE 3 story v0.9→v0.10 @c9cb2c34. STORY-INDEX v2.691→v2.692. STATE v8.389→v8.390.** | wave-5-e-demo-fidelity | 2026-07-15 |
 
 ## Decisions Log
 
@@ -186,6 +193,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1792 | state-manager | 2026-07-16 | PQL PR-LEVEL CONVERGED 3/3 @60c97e8a passes 17/18/19; MAINT story v0.14 @498ffb6c CI 43/43 GREEN; BC-INDEX v8.29→v8.30; STATE v8.391→v8.392 | wave-5-e-demo-fidelity | 2026-07-16 |
 | D-1793 | state-manager | 2026-07-16 | PR #223 MERGED @36bed016; PR #222 MERGED @84062ced; S-PQLFN-GAP2 registered; MAINT v0.16; BC-INDEX v8.30→v8.31; STATE v8.392→v8.393 | wave-5-e-demo-fidelity | 2026-07-16 |
 | D-1795 | state-manager | 2026-07-16 | THREE-LANE BURST: S-MAINT pass-9/10 NOT CLEAN; fb-13 @0939973f PUSHED; pass-10 (1C/1H/2M/2L/2O/1PG; Mirrorlist-blind; azure-cli.sources); empirical probe DONE; story v0.19 DISPATCHED; DEFECT pass-2/3/4 NOT CLEAN; fb-2/3/4 CLOSED; pass-5 DISPATCHED @26e623c9 + pass-6 in flight; TD-VSDD-005 RESOLVED rc.22; DRIFT-AUDIT-RUNBOOK-LITERALS-001 CLOSED VERDICT-A; develop ff→84062ced; EXPECTED=92; BC-INDEX v8.31→v8.33; STORY-INDEX v2.694→v2.695; STATE v8.394→v8.395 | wave-5-e-demo-fidelity | 2026-07-16 |
+| D-1796 | state-manager | 2026-07-17 | SESSION WRAP: LANE 1 S-MAINT story v0.21 @faf112fd FROZEN; pass-11 3L; pass-12 CLEAN(strict) 1/3; pass-13 2L+1OBS RESET 0/3; PR #224 CLOSED (human reopen). LANE 3 ADMINTOKEN story v0.11 @0aa0c6ed LOCAL-ONLY; pass-11 1M+2L+1OBS streak 0/3; fb-10 PENDING. vsdd_factory rc.18→rc.22. trajectory-tail →3→0→2→4. STATE v8.395→v8.396 | wave-5-e-demo-fidelity | 2026-07-17 |
 
 ## Skip Log
 
@@ -274,15 +282,15 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1795 — 2026-07-16 — THREE-LANE BURST; STATE v8.395)
+## Session Resume Checkpoint (D-1796 — 2026-07-17 — SESSION WRAP; STATE v8.396)
 
-**RESUME IN ONE BREATH:** LANE 1 (S-MAINT): PR #224 OPEN; story v0.18 @b54af749 + v0.19 amendment in flight; fix-burst-13 @0939973f PUSHED; pass-10 CLOSED NOT CLEAN (1C/1H/2M/2L/2O/1PG; CRIT Mirrorlist-blind fallback both CI runs failed live; HIGH azure-cli.sources missed; empirical probe DONE: ubuntu.sources mirror+file:/etc/apt/apt-mirrors.txt; intervention: overwrite apt-mirrors.txt); streak 0/3. LANE 2: CLOSED DONE. LANE 3 (DEFECT-ADMINTOKEN): pass-2/3/4 CLOSED NOT CLEAN; fb-2/@3c8607d9 + fb-3/@e37417c4 + fb-4/@26e623c9 CLOSED; pass-5 DISPATCHED; pass-6 IN FLIGHT frozen 26e623c9 (streak 0/3; P1 demo-blocking). TD-VSDD-005 RESOLVED rc.22 (Read+Grep+Glob bind; no-shell by-design).
+**RESUME IN ONE BREATH:** LANE 1 (S-MAINT): story v0.21 @faf112fd FROZEN; pass-11 3L; pass-12 CLEAN(strict) 1/3; pass-13 2L+1OBS (P13-LOW-001+OBS-002 spec-side only; no code push) RESET 0/3; PR #224 CLOSED — human must reopen to trigger AC-005 run-3 (dual-guard blocks agents). NEXT: human reopens PR #224 then pass-14. LANE 3 (DEFECT-ADMINTOKEN): story v0.11 @0aa0c6ed LOCAL-ONLY; pass-11 NOT CLEAN 1M+2L+1OBS (F-ADMTOK-P11-MED-001 FidelityValidator callers missing AC-004; F-ADMTOK-P11-LOW-001 command-forms claim; F-ADMTOK-P11-LOW-002 phantom mirror row; F-ADMTOK-P11-OBS-001 pid.tmp gitignore); streak 0/3; NEXT: fix-burst-10 then pass-12.
 
 **HEADS:**
 - develop: `84062ced` (ff'd 2026-07-16; threatintel cleared; EXPECTED=92)
 - factory-artifacts: `git -C .factory log -1 --format='%h %s'`
-- `maintenance/ci-disk-hardening` @`0939973f`; PR #224 OPEN; pass-10 NOT CLEAN; story v0.19 in flight; streak 0/3
-- `feature/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`26e623c9` LOCAL-ONLY; pass-6 in flight; streak 0/3; P1 demo-blocking
+- `maintenance/ci-disk-hardening` @`faf112fd` FROZEN; PR #224 CLOSED; pass-13 NOT CLEAN; streak 0/3
+- `feature/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`0aa0c6ed` LOCAL-ONLY; pass-11 NOT CLEAN; streak 0/3; fb-10 PENDING
 - AUDIT-COVERAGE-001 @`cd369b54` LOCAL-ONLY dirty=1; PARKED; needs rebase onto 84062ced
 - DEFECT-PQL-FNCALL-LHS-001 worktree: REMOVABLE-POST-MERGE (PR #223 merged)
 - DEFECT-MCP-ROWSHAPE-NULLS-001 worktree: REMOVABLE-POST-MERGE (PR #222 merged)
