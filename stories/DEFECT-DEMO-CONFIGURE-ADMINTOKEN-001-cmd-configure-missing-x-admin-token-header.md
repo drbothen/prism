@@ -6,7 +6,7 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.13"
+version: "0.14"
 level: ops
 producer: story-writer
 timestamp: "2026-07-16"
@@ -216,8 +216,10 @@ After the fix, `cmd_configure()` in `main.rs`:
    asserts the response is HTTP 200 (not 401) when calling a clone that requires the header
 
 Token sidecar write requirements:
-- `write_url_sidecar()` in `main.rs` MUST also write `TOKEN_FILE` atomically (tmp+rename,
-  same atomic-write pattern as the URL sidecar per S-DEMO-LAUNCHER-CONSOLIDATION-001) — format: `{clone_name: admin_token}` where
+- `cmd_start()` MUST write `TOKEN_FILE` atomically immediately after `write_url_sidecar` —
+  via the `write_token_sidecar` binary wrapper in `main.rs`, which delegates to
+  `write_token_sidecar_to_path` in `src/harness.rs` (re-exported via `lib.rs`);
+  uses tmp+rename atomic pattern — format: `{clone_name: admin_token}` where
   each key matches the corresponding key in `URL_FILE`
 - `cmd_start_multi()` (via a new helper, parallel to `write_multi_url_sidecar`) MUST write
   `TOKEN_MULTI_FILE` atomically — format: `{org_slug: {sensor_id: admin_token}}` mirroring
@@ -259,9 +261,16 @@ under `## DEMO: Demo-Server Errors` before this story merges, per POL-24):
 (traces to BC-2.06.017 postcondition 1 — the admin_token_map on MultiInstanceServers is
 the closing mechanism for start-multi mode)
 
-A comment block at the top of the `cmd_configure` function body documents the TD-VSDD-060
-sibling sweep, naming each enumerated site and confirming only `cmd_configure` was the
-defect site. The new test in AC-001 explicitly references this comment.
+A SWEEP-MIRROR comment block in the `cmd_configure` function body (and a corresponding
+mirror block in `defect_demo_configure_admintoken_001.rs`) documents the TD-VSDD-060
+sibling sweep. Per the v0.10 ratified SWEEP-MIRROR convention, the code mirrors carry:
+(a) byte-identical reproducible command forms (commands (1)-(4) from §Root Cause, each
+filtered with `| grep -v SWEEP-MIRROR | wc -l`), (b) stable counts (447/131/6/8), and
+(c) a condensed site-group table. The exhaustive per-site enumeration lives in the story
+§Root Cause TD-VSDD-060 table (~24 live rows / 146 HTTP POST client calls), which is the
+source of truth for the sweep. `cmd_configure` was the ONLY defect site — confirmed by
+the complete sweep of 146 total HTTP POST client calls. The new test in AC-001 explicitly
+references this SWEEP-MIRROR block.
 
 The implementer MUST execute the following two-step reconciliation sweep and include the
 full output of both commands plus the reconciliation table in the PR description:
@@ -288,7 +297,9 @@ to its header status, consistent with the sibling enumeration table in §Root Ca
 |-----------|--------|------|----------------|
 | `cmd_configure` (primary fix) | prism-dtu-demo-server binary | `src/main.rs` | Effectful (HTTP POST + file read) |
 | `write_url_sidecar` extension | prism-dtu-demo-server binary | `src/main.rs` | Effectful (file write) |
-| `write_token_sidecar` (new helper) | prism-dtu-demo-server library | `src/main.rs` | Effectful (file write) |
+| `write_token_sidecar_to_path` (library helper, load-bearing) | prism-dtu-demo-server library | `src/harness.rs` (re-exported via `lib.rs`) | Effectful (file write — atomic tmp+rename, 0600 on Unix) |
+| `write_token_sidecar` (binary wrapper) | prism-dtu-demo-server binary | `src/main.rs` | Effectful (thin wrapper; delegates to `write_token_sidecar_to_path`) |
+| `DemoHarness::token_map()` (new method) | prism-dtu-demo-server library | `src/harness.rs` | Pure (read-only accessor over bound clone pairs) |
 | `MultiInstanceServers::admin_token_map()` | prism-dtu-demo-server library | `src/multi_instance.rs` | Pure (accessor) |
 | `start_instances()` amendment | prism-dtu-demo-server library | `src/multi_instance.rs` | Effectful (token extraction before async move) |
 | `write_multi_admin_token_sidecar_to_path` (new fn) | prism-dtu-demo-server library | `src/multi_org_cmd.rs` | Effectful (file write) |
@@ -318,7 +329,8 @@ to its header status, consistent with the sibling enumeration table in §Root Ca
 
 | Module | Classification | Justification |
 |--------|---------------|---------------|
-| `crates/prism-dtu-demo-server/src/main.rs` (`cmd_configure`, `write_token_sidecar`) | effectful-shell | Performs HTTP POST and file I/O |
+| `crates/prism-dtu-demo-server/src/main.rs` (`cmd_configure`, `write_token_sidecar` binary wrapper) | effectful-shell | `cmd_configure`: HTTP POST + file read; `write_token_sidecar`: thin binary wrapper delegating file I/O to `write_token_sidecar_to_path` in `harness.rs` |
+| `crates/prism-dtu-demo-server/src/harness.rs` (`write_token_sidecar_to_path`, `DemoHarness::token_map`) | effectful-shell / pure-core | `write_token_sidecar_to_path`: effectful (atomic tmp+rename file write); `token_map()`: pure-core (read-only accessor) |
 | `crates/prism-dtu-demo-server/src/multi_instance.rs` (`admin_token_map`) | pure-core | Read-only accessor over in-memory map |
 | `crates/prism-dtu-demo-server/src/multi_instance.rs` (`start_instances` amendment) | effectful-shell | Spawns async tasks, binds ports |
 | `crates/prism-dtu-demo-server/src/multi_org_cmd.rs` (`write_multi_admin_token_sidecar_to_path`, `resolve_configure_token`) | effectful-shell | File write / file read |
@@ -397,7 +409,8 @@ The defect fix replicates this pattern for the CLI code path by reading from the
 
 | Action | File | Change |
 |--------|------|--------|
-| MODIFY | `crates/prism-dtu-demo-server/src/lib.rs` | Add `pub const TOKEN_FILE: &str` and `pub const TOKEN_MULTI_FILE: &str` declarations |
+| MODIFY | `crates/prism-dtu-demo-server/src/lib.rs` | Add `pub const TOKEN_FILE: &str` and `pub const TOKEN_MULTI_FILE: &str` declarations; add `pub use harness::write_token_sidecar_to_path` re-export |
+| MODIFY | `crates/prism-dtu-demo-server/src/harness.rs` | Add `DemoHarness::token_map()` accessor; add `write_token_sidecar_to_path()` library helper (re-exported from `lib.rs`) |
 | MODIFY | `crates/prism-dtu-demo-server/src/multi_instance.rs` | Add `token_map` field to `MultiInstanceServers`; add `admin_token_map()` accessor; extract tokens in `start_instances()` before watcher spawn |
 | MODIFY | `crates/prism-dtu-demo-server/src/main.rs` | Add `write_token_sidecar()` helper; call it in `cmd_start()`; call `write_multi_admin_token_sidecar_to_path()` in `cmd_start_multi()`; read token and include header in `cmd_configure()`; clean up token sidecars in shutdown handlers |
 | MODIFY | `crates/prism-dtu-demo-server/src/multi_org_cmd.rs` | Add `write_multi_admin_token_sidecar_to_path()` function (mirror of `write_multi_url_sidecar_to_path`); add `resolve_configure_token()` function (mirror of `resolve_configure_url` for the token sidecar) |
@@ -415,6 +428,7 @@ already-present workspace dependencies (`serde_json`, `reqwest`, `tokio`, `std`)
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| v0.14 | 2026-07-17 | product-owner FIX-BURST-12 SPEC (F-ADMTOK-P13-LOW-002, F-ADMTOK-P13-LOW-003) | F-ADMTOK-P13-LOW-002 (LOW, POL-22 Phase C + POL-25 sweep): corrected story structural tables to reflect as-built file layout. (i) AC-002 sidecar write bullet reworded: `cmd_start()` calls `write_token_sidecar` immediately after `write_url_sidecar`; the load-bearing helper `write_token_sidecar_to_path` lives in `src/harness.rs` (not `src/main.rs`), re-exported via `lib.rs`, with `write_token_sidecar` in `main.rs` as a thin binary wrapper delegating to it (confirmed: harness.rs `token_map()` at `DemoHarness::token_map`, `write_token_sidecar_to_path` at line 361; main.rs wrapper at `write_token_sidecar` delegates to `prism_dtu_demo_server::write_token_sidecar_to_path`; lib.rs re-export confirmed `pub use harness::{write_token_sidecar_to_path, ...}`). (ii) Added `MODIFY crates/prism-dtu-demo-server/src/harness.rs` row to §File Structure Requirements (`DemoHarness::token_map()` accessor + `write_token_sidecar_to_path` helper + re-export via `lib.rs`); updated `lib.rs` row to include re-export. (iii) §Architecture Mapping: split the incorrect `write_token_sidecar (new helper) \| library \| src/main.rs` row into `write_token_sidecar_to_path` (library helper, harness.rs), `write_token_sidecar` (binary wrapper, main.rs), and `DemoHarness::token_map()` (pure accessor, harness.rs). §Purity Classification: updated main.rs row to note binary-wrapper nature of `write_token_sidecar`; added harness.rs row for `write_token_sidecar_to_path` (effectful-shell) and `token_map()` (pure-core). F-ADMTOK-P13-LOW-003 (LOW, SWEEP-MIRROR convention codification): AC-004 ¶1 reworded from "naming each enumerated site" to codify the v0.10 ratified SWEEP-MIRROR convention as built — code mirrors carry byte-identical command forms + stable counts (447/131/6/8) + condensed site-group table; the story §Root Cause TD-VSDD-060 table (~24 live rows / 146 POSTs) is the source of truth; `cmd_configure` confirmed ONLY defect site. POL-29 sweep: "naming each enumerated site" phrase found only in the fixed AC-004 ¶1 location. |
 | v0.13 | 2026-07-17 | product-owner FIX-BURST-11 SPEC (F-ADMTOK-P12-MED-001, F-ADMTOK-P12-LOW-001, F-ADMTOK-P12-LOW-002, F-ADMTOK-P12-LOW-003) | F-ADMTOK-P12-MED-001 (MED, POL-21 phantom §-anchor + POL-4 GAP-3 semantic mismatch): stripped `§Sidecar-availability guarantee (GAP-3 from S-DEMO-LAUNCHER-CONSOLIDATION-001)` from BC-2.06.017 Relevant Clause cell — "Sidecar-availability" is not a heading anywhere in `.factory/`; the launcher story heading is `## Changelog` (no §-sigil), and GAP-3 in that story's Changelog v2.1 is a cwd-path-threading note for demo-run.sh, not an atomic-write guarantee. Replaced with: `the atomic tmp+rename sidecar write pattern (established for URL sidecars; cf. GAP-3 sidecar-poll note, S-DEMO-LAUNCHER-CONSOLIDATION-001 Changelog v2.1)`. BC-2.06.017 version pin updated v1.11 → v1.12 (BC updated in parallel). Code comments in main.rs/multi_org_cmd.rs may retain the informal phrase (accepted-informal, out of spec scope). F-ADMTOK-P12-LOW-001 (LOW): aligned three footnote command forms byte-for-byte with code mirrors — dropped `-n` flag from commands (1)(2)(3); command (3) gained trailing `wc -l` count suffix. IDENTICAL claim is now true for all four commands; choice: option (a) — byte-identical alignment; counts unchanged (447, 131, 6, 8). F-ADMTOK-P12-LOW-002 (LOW, POL-22 Phase C, POL-25 sweep): renamed helper function name `deny_unknown_fields` → `assert_configure_strict` (deny-unknown-fields test) in two live table cells (Site cell row 137, Harness::inject_failure() row 138) and in the v0.7 changelog narrative (POL-25: all three occurrences corrected). F-ADMTOK-P12-LOW-003 (LOW): EC-005 Expected Behavior corrected — `resolve_configure_url` returns a plain anyhow ambiguity error first (no E-DEMO-007 code) in the canonical scenario; the E-DEMO-007 arm of `resolve_configure_token` is defense-in-depth for skewed-sidecar states, contract-locked by Test D (`test_BC_3_6_001_e_demo_007_ec005_ambiguous_bare_sensor_name`). E-DEMO-007 message template retained byte-verbatim per POL-24. |
 | v0.12 | 2026-07-17 | product-owner FIX-BURST-10 SPEC (F-ADMTOK-P11-MED-001 spec side) | 8 FidelityCheck-based indirect POST callers of `/dtu/configure` enumerated: 2 new rows added to §Root Cause TD-VSDD-060 table — (a) 5 per-DTU `fidelity_validator.rs` files (nvd, claroty, armis, threatintel, cyberint) and (b) 3 `harness_tests.rs` AC-002 FidelityValidator tests (armis, claroty, cyberint); all correct-token class (token in `FidelityCheck.headers` field, ADR-003 Amendment #3). Footnote: 4th sweep command added (`rg 'endpoint.*"/dtu/configure"' crates/ --type rust \| grep -v SWEEP-MIRROR \| wc -l` → 8). Grand total updated 138 → 146 (arithmetic: 138 + 8 = 146; correct-token class: 103 + 8 = 111). Summary sentence updated to 146 total / 111 correct-token. In-process row exclusion footnote updated 138 → 146. These 8 sites are invisible to the `.post(.*dtu/configure)` grep because `FidelityValidator::run` issues the HTTP POST via `client.request()` internally. |
 | v0.11 | 2026-07-16 | product-owner MICRO-FIX SPEC (mirror-mismatch) | Command (1) count corrected 451 → 447 (implementer commit 0aa0c6ed tagged 8 SWEEP-MIRROR lines total, not 4 as assumed; 455 raw − 8 = 447). Commands (2) and (3) updated to add `\| grep -v SWEEP-MIRROR` for form-parity with code mirrors (counts unchanged: 131 / 6). All three artifacts (story footnote, main.rs mirror, defect_demo mirror) now quote identical command forms. |
