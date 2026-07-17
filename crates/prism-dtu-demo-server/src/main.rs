@@ -611,8 +611,14 @@ async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<
     // | prism-dtu-harness/src/builder.rs                       | N/A            | Synthetic (hung-socket; verifies client |
     // |   (test_build_harness_http_client_timeout_is_load_bearing) |             |   timeout, no DTU handler — not applicable) |
     //
-    // rg 'dtu/configure' crates/ --type rust: 449 hits total (116 .post(…) client calls,
-    // 21 .route(…) server registrations, remainder in doc comments and const strings).
+    // Reproducible counts (run from worktree root):
+    //   `rg 'dtu/configure' crates/ --type rust | wc -l`           → 451 total hits
+    //   `rg '\.post\(.*dtu/configure' crates/ --type rust | wc -l` → 131 same-line .post() calls
+    //   `rg '\.route.*dtu/configure' crates/ --type rust | wc -l`  → 21 .route() registrations
+    // 7 dynamic .post() calls (URL pre-built before .post() line; not counted by the same-line grep):
+    //   harness.rs:287, builder.rs:1245, defect_test:121, defect_test:229,
+    //   ac_3_configure_endpoint.rs:36+88, and this function (resolve_configure_url → .post(&url))
+    // Total POST client calls: 131 same-line + 7 dynamic = 138; remainder of 451 in doc/strings.
     //
     // Only cmd_configure() was missing the header before this fix. All authenticated callers
     // use `clone.admin_token()` (prism-dtu-{sensor} tests) or `Harness::admin_token_for()`
