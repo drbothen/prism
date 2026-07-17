@@ -6,7 +6,7 @@ wave: tbd
 epic_id: maintenance
 priority: P2
 status: ready
-version: "0.24"
+version: "0.25"
 level: ops
 producer: story-writer
 timestamp: "2026-07-15"
@@ -844,7 +844,7 @@ The redesigned fallback has five ordered operations:
 
 **Step 3 — Truncate sources.list (F-MAINT-P11-CRIT-001):** `sudo truncate -s 0 /etc/apt/sources.list` — apt-spy2 (reclaimer `large-packages: true`, core.sh ~line 112) may have overwritten `/etc/apt/sources.list` with a flaky Launchpad mirror before the first-attempt failure triggered the fallback. ubuntu packages use `ubuntu.sources` (`mirror+file:` scheme); sources.list is comment-only by default on image 20260714.240.1 — truncating it is safe and reversible.
 
-**Step 4 — Overwrite apt-mirrors.txt:** `printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | sudo tee /etc/apt/apt-mirrors.txt`. HTTPS-only 2-mirror list (SEC-002/CWE-319: `http://archive.ubuntu.com/ubuntu/` removed); priority:1 is `https://archive.ubuntu.com/ubuntu/` — canonical Ubuntu archive over TLS, bypasses azure.archive.ubuntu.com (the flaky original priority:1); priority:2 is `https://security.ubuntu.com/ubuntu/` (higher number = tried first under mirror+file: protocol). APT GPG signature verification is unchanged. The `mirror+file:` method re-reads this file on next `apt-get update`.
+**Step 4 — Overwrite apt-mirrors.txt:** `printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | sudo tee /etc/apt/apt-mirrors.txt`. HTTPS-only 2-mirror list (SEC-002/CWE-319: `http://archive.ubuntu.com/ubuntu/` removed); priority:1 is `https://archive.ubuntu.com/ubuntu/` — canonical Ubuntu archive over TLS, bypasses azure.archive.ubuntu.com (the flaky original priority:1); priority:2 is `https://security.ubuntu.com/ubuntu/` (lower number = tried first per apt-transport-mirror(1); priority:1 is the preferred mirror). APT GPG signature verification is unchanged. The `mirror+file:` method re-reads this file on next `apt-get update`.
 
 **Step 5 — dpkg state repair + retry:** `sudo dpkg --configure -a 2>/dev/null || true` repairs broken dpkg state from the reclaimer purge. The retry `sudo apt-get update` and `sudo apt-get install -y <pkgs>` are NOT wrapped in `|| true` — canonical archive failure must fail loud.
 
@@ -1143,9 +1143,11 @@ and `wasm32-compile-check` assertion pattern established during S-PLUGIN-PREREQ-
 - The `test-no-default-features` job MAY be modified only to add: the four v0.6-ratified protective
   steps (preflight, disk-space-reclaimer + ≥25 GB gate, failure annotation), the post-reclaimer
   neutralization step (F-MAINT-P11-CRIT-001, RG-8), the AC-006 apt-mirror two-attempt wrapper on
-  its libdbus install step, and the AC-007 C toolchain baseline install step — the job's existing
-  `PROPTEST_CASES`, `RUSTFLAGS`, test-invocation lines, and cache configuration must NOT be changed
-  (carve-out ratified v0.6 + F-MAINT-P8-MED-001; neutralization step added v0.20)
+  its libdbus install step, the AC-007 C toolchain baseline install step, and the SEC-001 job-level
+  `permissions: contents: read` block (CWE-272, human-approved 2026-07-17, security-review
+  fix-burst @9c315608) — the job's existing `PROPTEST_CASES`, `RUSTFLAGS`, test-invocation lines,
+  and cache configuration must NOT be changed
+  (carve-out ratified v0.6 + F-MAINT-P8-MED-001; neutralization step added v0.20; SEC-001 added v0.25)
 - The `verify-workflow-structure` job's existing assertions (AC-5 `TARGET_COUNT >= 5`,
   AC-6 cargo-deny/audit, AC-7 semver, AC-8 no-default-features, non-exhaustive, wasm32
   checks) must ALL pass after this story's modifications; the ten new assertions (AC-001
@@ -1204,7 +1206,7 @@ as an inline `uses:` step; it does not require a new config file in the reposito
 | Mixing this change into an open defect PR branch | Branch isolation required per AC-005; complicates bisection |
 | Modifying `fmt`, `deny`, or `audit` jobs in any way | Strictly out of scope; no exceptions |
 | Modifying `clippy`, `semver-checks`, `non-exhaustive-violation-compile-fail`, `perimeter-compile-fail`, `no-hardcoded-sensors-compile-fail`, `fuzz-smoke-vp021`, or `shellcheck-demo-scripts` jobs beyond adding the AC-006 apt-mirror two-attempt wrapper | Only the AC-006 apt wrapper is permitted in these jobs; any other change is out of scope (F-MAINT-P8-MED-001 carve-out) |
-| Modifying `test-no-default-features` job beyond the four v0.6 protective steps + AC-006 wrapper + AC-007 C toolchain install | The three explicitly-ratified modification types are the only permitted changes; existing `PROPTEST_CASES`, `RUSTFLAGS`, test-invocation lines, and cache configuration must not be changed (F-MAINT-P8-MED-001 carve-out) |
+| Modifying `test-no-default-features` job beyond the four v0.6 protective steps + AC-006 wrapper + AC-007 C toolchain install + SEC-001 permissions block | The four explicitly-ratified modification types are the only permitted changes; existing `PROPTEST_CASES`, `RUSTFLAGS`, test-invocation lines, and cache configuration must not be changed (F-MAINT-P8-MED-001 carve-out; SEC-001 `permissions: contents: read` carve-out added v0.25, CWE-272, human-approved 2026-07-17, security-review fix-burst @9c315608) |
 | Removing or renaming existing `PROPTEST_CASES` or `RUSTFLAGS` env entries | Existing entries must be preserved; no new env entries are added under this story |
 
 ## §Edge Cases
@@ -1276,6 +1278,8 @@ Findings applied in v0.3:
    reclaim-BEFORE-cache-restore ordering confirmed correct-and-important.
 
 ## §Changelog
+
+- v0.25 (2026-07-17): PR-LEVEL pass-19 spec-side findings closed (F-MAINT-P19-MED-001 + F-MAINT-P19-LOW-001). **F-MAINT-P19-MED-001** [SEC-001 scope-contract carve-out — two exhaustive-allowlist sites]: the human-approved SEC-001 fix (code HEAD 9c315608) added `permissions: contents: read` job-level blocks to the `test` and `test-no-default-features` jobs; the v0.24 exhaustive allowlists for `test-no-default-features` modifications omitted this change, making the shipped code appear out-of-scope. v0.24 changelog row's claim "story does not pin job-level permissions posture so no body edits required" was inaccurate for these two exhaustive-allowlist sites — corrected here: (1) §Architecture Compliance Rules: `test-no-default-features` MAY clause extended with the SEC-001 job-level `permissions: contents: read` carve-out (CWE-272, human-approved 2026-07-17, security-review fix-burst @9c315608); (2) §Forbidden Patterns: `test-no-default-features` row Pattern column extended with "+ SEC-001 permissions block" and Reason column updated from "three" to "four" ratified modification types with corresponding SEC-001 carve-out citation. POL-29 sweep evidence: no other exhaustive-allowlist or forbidden-pattern sites in the story would classify the permissions block as a violation — §Architecture Compliance Rules env-entry rule ("The Test job's existing `env:` block entries must NOT be replaced or renamed; no new entries are added") targets env vars only; §Tasks "DO NOT add `CARGO_PROFILE_DEV_DEBUG`" bullet targets env vars only; §File Structure Requirements `ci.yml` notes row describes what TO DO (not an exhaustive prohibition); §Tasks modification bullets are implementer directives, not scope-contract prohibitions. **F-MAINT-P19-LOW-001** [priority-ordering parenthetical correction]: v0.24 changelog aside "(higher number = tried first under mirror+file: protocol)" was incorrect — apt-transport-mirror(1) states "The mirrors with the lowest number are tried first" (verified via Debian manpages; authoritative Debian man page for apt-transport-mirror). Correct semantics: lower priority number = tried first; priority:1 = preferred mirror. Non-load-bearing: archive.ubuntu.com at priority:1 is already the intended first-tried mirror and security.ubuntu.com at priority:2 is the intended second-tried mirror — the values are correct, only the prose description of the ordering rule was inverted. v0.24 changelog row's parenthetical is immutable (POL-32); correction applied (a) in the v0.25 row (this entry) and (b) as an in-place fix to §Implementation Notes Step 4 body prose — changed "(higher number = tried first under mirror+file: protocol)" to "(lower number = tried first per apt-transport-mirror(1); priority:1 is the preferred mirror)"; body prose is mutable (POL-32 applies to changelog rows only).
 
 - v0.24 (2026-07-17): SEC-002 (CWE-319) + SEC-001 (CWE-272) spec sync — human-approved 2026-07-17, code HEAD 9c315608. **SEC-002** [CWE-319: Cleartext Transmission of Sensitive Information]: `http://archive.ubuntu.com/ubuntu/` entry REMOVED from every fallback apt-mirrors.txt block (13 story sites swept: 11 code-snippet printf lines in AC-006/AC-007 ci.yml snippets + 1 in e2e.yml scope extension snippet + 1 in AC-007 test-no-default-features snippet); HTTPS-only 2-mirror list now specified in all snippets: `https://archive.ubuntu.com/ubuntu/` priority:1, `https://security.ubuntu.com/ubuntu/` priority:2 (higher number = tried first under mirror+file: protocol); APT GPG signature verification unchanged. Step 4 prose in AC-006 (inline code + adjudication rationale), §Implementation Notes (AC-006 pattern description), EC-010, EC-013, and EC-015 all updated to reflect HTTPS-only posture. POL-29 sweep (Class 1 — mirror-list content): 13 printf-snippet sites updated via replace_all; (Class 2 — prose describing HTTP trust posture): 5 prose sites updated; zero http://archive.ubuntu.com references remain in body outside this changelog. **SEC-001** [CWE-272: Least Privilege Violation]: `permissions: contents: read` added to `test` and `test-no-default-features` jobs — code-only change; story does not pin job-level permissions posture so no body edits required.
 
