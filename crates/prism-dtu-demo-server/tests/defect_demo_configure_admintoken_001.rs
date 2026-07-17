@@ -35,31 +35,36 @@
 //! | `ac_3_no_harness_proxy_for_configure` | YES | Correct |
 //! | `prism-dtu-crowdstrike` `td_wv0_07_*` | YES | Correct |
 //! | `prism-dtu-{claroty,cyberint,armis,...}` `td_wv0_07_*` | YES | Correct |
-//! | `bc_2_06_019_scenario_progression.rs` | YES | Correct |
 //! | `crates/prism-dtu-harness/tests/bc_3_6_001_ops_clone_failure_modes.rs` — `configure_failure` helper | YES (`x-admin-token` via `Harness::admin_token_for()`) | Correct |
 //! | `crates/prism-dtu-harness/tests/review_2026_06_10_deny_unknown.rs` — `assert_configure_strict` | YES (`x-admin-token` via `Harness::admin_token_for()`) | Correct |
 //! | `crates/prism-dtu-harness/src/builder.rs` — `test_build_harness_http_client_timeout_is_load_bearing` | N/A | Synthetic (hung-socket; verifies client timeout, no DTU handler — header not applicable) |
+//! | `fidelity_validator.rs` in `prism-dtu-{nvd,claroty,armis,threatintel,cyberint}` | YES | Correct (FidelityCheck `headers` field, 1 per file = 5 total) |
+//! | `harness_tests.rs` AC-002 FidelityValidator in `prism-dtu-{armis,claroty,cyberint}` | YES | Correct (FidelityCheck `headers` field, 1 per file = 3 total) |
 //!
 //! Convention: lines tagged `// SWEEP-MIRROR` contain the grep patterns below; append
 //! `| grep -v SWEEP-MIRROR` to each command for stable, self-consistent counts.
 //! Reproducible counts (run from worktree root):
 //!   `rg 'dtu/configure' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l`           → 447 total hits // SWEEP-MIRROR
 //!   `rg '\.post\(.*dtu/configure' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l` → 131 same-line `.post()` calls // SWEEP-MIRROR
-//!   `rg '\.route.*dtu/configure' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l`  → 21 `.route()` registrations // SWEEP-MIRROR
+//!   `rg 'let url = format.*dtu/configure' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l` → 6 dynamic-URL construction lines // SWEEP-MIRROR
+//!   `rg 'endpoint.*"/dtu/configure"' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l` → 8 FidelityCheck-based callers // SWEEP-MIRROR
 //! 7 dynamic `.post()` calls (URL pre-built in let-binding, `.post()` on separate line): // SWEEP-MIRROR
 //!   `inject_failure` (harness.rs), `test_build_harness_http_client_timeout_is_load_bearing` (builder.rs),
 //!   `test_BC_3_6_001_replicates_defect_401_without_admin_token` (defect test A),
 //!   `test_BC_2_06_017_token_sidecar_written_and_configure_with_token_returns_200` (defect test B),
 //!   `ac_3_configure_called_on_clone_port_directly`, `ac_3_no_harness_proxy_for_configure`,
 //!   and `cmd_configure` (via `resolve_configure_url` → `.post(&url)`) // SWEEP-MIRROR
-//! Total POST client calls: 131 same-line + 7 dynamic = 138; remainder of 447 in doc/strings.
+//! Total POST client calls: 131 same-line + 7 dynamic + 8 FidelityCheck-based = 146; remainder of 447 in doc/strings.
 //!
 //! Only `cmd_configure()` was missing the header. The two harness test sites above use
 //! `Harness::admin_token_for()` with the lowercase header `x-admin-token` — correct per
 //! HTTP case-insensitivity (RFC 7230 §3.2); they are NOT missing the token. The builder.rs
 //! entry is synthetic — it POSTs to a hung socket with no DTU handler; authentication is
-//! not applicable. The sibling-sweep comment block at the top of `cmd_configure()` in
-//! `main.rs` documents all enumerated sites (AC-004).
+//! not applicable. FidelityCheck-based callers (8 total: 5 in per-DTU `fidelity_validator.rs`,
+//! 3 in `harness_tests.rs` AC-002 tests) pass `X-Admin-Token` via the `headers` field
+//! (ADR-003 Amendment #3); `FidelityValidator::run` injects these via `client.request()`.
+//! The sibling-sweep comment block at the top of `cmd_configure()` in `main.rs`
+//! documents all enumerated sites (AC-004).
 //!
 //! ## Test inventory
 //!
