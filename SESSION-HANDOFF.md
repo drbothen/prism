@@ -124,13 +124,60 @@ timestamp: 2026-07-17T20:00:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1804 LANE-3 PASS-18 NOT CLEAN strict / fb-15 CLOSED @828449de; streak 0/3; pass-19 next on frozen 828449de; LANE 1 @faf112fd FROZEN story v0.22 PR #224 CLOSED (human must reopen)** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1804 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1796 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `84062ced` (unchanged; ff'd 2026-07-16). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.398. D-1798 LANE-3 PASS-12 CLOSURE + FIX-BURST-11; LANE 3 ADMINTOKEN @4feac52b PUSHED (story v0.13; fb-11 CLOSED; pass-13 next; streak 0/3); LANE 1 S-MAINT @faf112fd FROZEN (story v0.22; PR #224 CLOSED — human must reopen AC-005 run-3; pass-14 next); trajectory-tail →0→2→4→5.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1805 SESSION WRAP — LANE 3 @828449de FROZEN streak 0/3 NEXT pass-19; LANE 1 @faf112fd FROZEN PR #224 CLOSED (human must reopen)** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1805 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1805 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `84062ced` (unchanged; ff'd 2026-07-16). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.405. D-1805 SESSION WRAP; LANE 3 ADMINTOKEN @828449de FROZEN (story v0.15; BC-2.06.017 v1.12; 18p/15fb; streak 0/3; pass-19 next); LANE 1 S-MAINT @faf112fd FROZEN (story v0.22; PR #224 CLOSED — human must reopen AC-005 run-3; pass-14 next); trajectory-tail →5→0→0→1.
 
 ---
 
-## §RESUME SNAPSHOT — D-1796 (2026-07-17 — SESSION WRAP; TWO CASCADES FROZEN MID-3-CLEAN; STATE v8.396) [SUPERSEDES D-1794]
+## §RESUME SNAPSHOT — D-1805 (2026-07-17 — SESSION WRAP; STATE v8.405) [SUPERSEDES D-1796]
+
+### RESUME IN ONE BREATH
+
+LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): code @828449de LOCAL-ONLY on fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (CLEAN tree, FROZEN); story v0.15; BC-2.06.017 v1.12; 18 passes / 15 fix-bursts; streak 0/3 on frozen 828449de. NEXT: LOCAL pass-19 on frozen 828449de, then 20/21 — on 3-CLEAN(strict) → push branch + pr-manager PR + PR-LEVEL cascade. LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): story v0.22 @faf112fd FROZEN PUSHED; pass-13 reconstruction persisted + all spec fixes landed; PR #224 CLOSED — HUMAN must reopen (AC-005 run-3) → then PR-LEVEL pass-14 on frozen faf112fd. develop=84062ced unchanged.
+
+### HEADS (verified 2026-07-17 at D-1805 wrap)
+
+- develop: origin/develop = `84062ced` (unchanged; ff'd 2026-07-16) — PUSHED
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code; D-1805 wrap commit)
+- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`828449de` — LOCAL-ONLY (NOT pushed); story v0.15; BC-2.06.017 v1.12; pass-18 NOT CLEAN strict / CLEAN(PR-merge) YES (1 LOW; fb-15 closed); streak 0/3; pass-19 next on frozen 828449de
+- `maintenance/ci-disk-hardening` @`faf112fd` — FROZEN PUSHED; PR #224 CLOSED; story v0.22; pass-14 next; streak 0/3
+- `fix/T13-audit-coverage` @`cd369b54` — LOCAL-ONLY dirty=1; PARKED — rebase onto 84062ced before unpark
+- `feature/S-3.09` @`43c41389` — KEEP-PARKED (local-only)
+- `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (local-only)
+- Backup boundary: fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 @828449de, fix/T13-audit-coverage @cd369b54, feature/S-3.09 @43c41389, feature/W3-FIX-S307-001 @fcab8717 are LOCAL-ONLY; maintenance/ci-disk-hardening @faf112fd and develop and factory-artifacts are PUSHED
+
+### PER-WORKSTREAM RESUME NEXT-ACTIONS
+
+1. **LANE 3 — dispatch LOCAL pass-19** — Fresh-context general-purpose-as-adversary per TD-VSDD-005; dispatch tuple: worktree=/Users/jmagady/Dev/prism/.worktrees/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, HEAD=828449de, story v0.15, BC-2.06.017 v1.12; policy rubric + SAP-1 + Lesson 65 report-persistence per pass; KNOWN: 3 bc_2_06_018_seeding Red Gate failures + DEMO_ORG_UUID_B clippy warning; accepted-excluded: DRIFT-HARNESS-ADMIN-TOKEN-CT-001. On 3-CLEAN(strict) → push + pr-manager PR + PR-LEVEL cascade.
+2. **LANE 1 HUMAN ACTION: Reopen PR #224** — Triggers AC-005 run-3 (agents cannot close/reopen; dual-guard blocks). After reopen: dispatch PR-LEVEL adversary pass-14 on FROZEN faf112fd (streak 0/3; NO pushes mid-cascade per DRIFT-ORCH-PRLEVEL-PUSH-001). On 3/3 CLEAN(strict) → security APPROVE → pr-reviewer APPROVE → human squash-merge.
+3. **AUDIT-COVERAGE-001** — After MAINT PR #224 merges: rebase @cd369b54 onto develop (84062ced) → LOCAL 3-CLEAN → push → PR.
+4. **DRIFT-SDEMO004-TODO-SECTIONS-001 OPEN** — story-writer fills 5 [TODO] sections in S-DEMO-004 at next maintenance sweep.
+
+### PENDING HUMAN DECISIONS
+
+1. **CRITICAL: Reopen PR #224** — Dual-guard blocks agent close/reopen. Human must reopen to trigger AC-005 run-3.
+2. AUDIT-COVERAGE-001 PR merge gate (after rebase + 3-CLEAN + push + PR-LEVEL 3-CLEAN).
+3. S-3.09 EC-collision handling option (A/B/C) at wave-gate / S-3.09 dispatch.
+4. day2-design-decisions/clip-boundary-and-reframe-asks-2026-06-30.md disposition (NOT staged; carried from prior sessions).
+
+### WORKTREE INVENTORY (D-1805)
+
+- `.worktrees/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` on `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @ `828449de` (LOCAL-ONLY; story v0.15; pass-18 NOT CLEAN strict / PR-merge YES; streak 0/3; NEXT: pass-19; P1 demo-blocking)
+- `.worktrees/S-MAINT-CI-DISK-EXHAUSTION-001` on `maintenance/ci-disk-hardening` @ `faf112fd` (FROZEN PUSHED; story v0.22; PR #224 CLOSED; pass-14 next; streak 0/3)
+- `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ `cd369b54` (LOCAL-ONLY dirty=1; PARKED — needs rebase onto 84062ced)
+- `.worktrees/S-3.09` KEEP-PARKED on `feature/S-3.09` @ `43c41389` (local-only)
+- `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ `fcab8717` (local-only; do NOT touch)
+- `.worktrees/DEFECT-PQL-FNCALL-LHS-001` REMOVED this session (PR #223 merged; branch deleted; human-approved)
+- `.worktrees/DEFECT-MCP-ROWSHAPE-NULLS-001` REMOVED this session (PR #222 merged; branch deleted; human-approved)
+
+### DECISION DELTA — D-1805 (session wrap)
+
+9 bursts this session (D-1797..D-1805). Dual-lane resume established (D-1797). Pass-13 reconstruction persisted — lost-report recovery; found 2M+1L+3OBS vs recorded 2L+1OBS (D-1797). S-MAINT story v0.22 (D-1797). ADMINTOKEN passes 12-18 + fb-10..fb-15 (story v0.11→v0.15; BC-2.06.017 v1.11→v1.12; code 0aa0c6ed→828449de; notable: phantom §Sidecar-availability anchor purge, _global enrichment arm Test K, 0600 perms mutation-survivor locked, 7 determinism sites, S-DEMO-004 pin v1.12+v1.15). Lesson 65 codified (persist pass reports before next dispatch — held for all 7 passes). Worktree cleanup ~48GB (DEFECT-PQL-FNCALL-LHS-001 + DEFECT-MCP-ROWSHAPE-NULLS-001 removed; human-approved; branches deleted). DRIFT-SDEMO004-INPUTS-BC32001-001 RESOLVED; DRIFT-SDEMO004-TODO-SECTIONS-001 OPENED. Trajectory tail: 4→5→5→1→5→0→0→1. STATE v8.396→v8.405.
+
+---
+
+## §RESUME SNAPSHOT — D-1796 (2026-07-17 — SESSION WRAP; TWO CASCADES FROZEN MID-3-CLEAN; STATE v8.396) [SUPERSEDES D-1794] [SUPERSEDED by D-1805]
 
 ### RESUME IN ONE BREATH
 

@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.404"
+version: "8.405"
 producer: state-manager
-timestamp: 2026-07-17T23:30:00Z
+timestamp: 2026-07-17T23:59:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -38,7 +38,7 @@ workspace_test_count: 5662
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1804 2026-07-17: LANE 3 pass-18 NOT CLEAN strict / CLEAN(PR-merge) YES (1 LOW — mutation-survivor: 0600 perms lock missing; STREAK RESET 2/3→0/3) → fb-15 CLOSED (test-only @828449de; Tests B/F/K perms assertions; mutation-kill verified); report persisted; NEXT LOCAL pass-19 on frozen 828449de (fresh streak 0/3). LANE 1 unchanged (awaiting human PR #224 reopen → pass-14 on frozen faf112fd). STATE v8.403→v8.404 trajectory-tail →5→0→0→1"
+current_step: "D-1805 2026-07-17 SESSION WRAP: LANE 3 @828449de FROZEN streak 0/3 NEXT pass-19; LANE 1 @faf112fd FROZEN awaiting human PR #224 reopen; RESUME SNAPSHOT D-1805; STATE v8.404→v8.405 trajectory-tail →5→0→0→1"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,8 +75,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 303 lines (wc-l)
-  margin from soft-target (200): +103 lines over | margin from actual (500): 197 lines remaining
+  STATE.md SIZE BUDGET: 306 lines (wc-l)
+  margin from soft-target (200): +106 lines over | margin from actual (500): 194 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -90,7 +90,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-17 D-1803 trajectory-tail →1→5→0→0 |
+| **Last Updated** | 2026-07-17 D-1805 SESSION WRAP trajectory-tail →5→0→0→1 |
 
 ## Active Objective (North Star)
 
@@ -174,12 +174,12 @@ pre_compact_snapshot_at: "2026-07-16"
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735..D-1799 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files (multiple compaction bursts through D-1804). Last 5 rows kept below._
+_D-735..D-1800 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files (multiple compaction bursts through D-1805). Last 5 rows kept below._
+| D-1805 | state-manager | 2026-07-17 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1805 SESSION WRAP (2026-07-17). LANE 3: @828449de FROZEN streak 0/3; pass-19 next on frozen 828449de (LOCAL; then 20/21 → push + pr-manager PR + PR-LEVEL cascade on 3-CLEAN). LANE 1: @faf112fd FROZEN; PR #224 CLOSED (human must reopen → AC-005 run-3 → pass-14); streak 0/3. RESUME SNAPSHOT D-1805; AUDIT-COVERAGE-001 PARKED @cd369b54; Lesson 65 codified. STATE v8.404→v8.405.** | wave-5-e-demo-fidelity | 2026-07-17 |
 | D-1804 | state-manager | 2026-07-17 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1804 LANE-3 PASS-18 CLOSURE + FIX-BURST-15 (2026-07-17). LANE 3: pass-18 CLEAN(strict)=NO CLEAN(PR-merge)=YES — 1 LOW F-ADMTOK-P18-LOW-001 (0o600 sidecar-permission lock mutation-survivor; TD-VSDD-059; only closure in cascade left assertion-free); STREAK RESET 2/3→0/3; local-pass-18.md persisted; mutation-thinking: 13 mutants analyzed; 12 killed by named tests; 1 survivor (perms); bound_addr filter mutant adjudicated not-a-finding (behaviorally shielded by URL-resolution gate); security/spec-completeness/regression lenses all PASS; fb-15 CLOSED: Tests B/F/K #[cfg(unix)] (mode & 0o077 == 0) assertions added @828449de test-only (+63/−3); mutation-kill verified (0o644 mutant → Test B fails left:36; Tests F+K fail left:36); STORY-INDEX v2.700→v2.701; streak 0/3 (new HEAD 828449de); NEXT LOCAL pass-19 on frozen 828449de. LANE 1 unchanged (PR #224 CLOSED; human must reopen). trajectory-tail →5→0→0→1. STATE v8.403→v8.404.** | wave-5-e-demo-fidelity | 2026-07-17 |
 | D-1803 | state-manager | 2026-07-17 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1803 LANE-3 PASS-17 CLEAN(strict) — STREAK 2/3 (2026-07-17). LANE 3: pass-17 CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings on frozen e806ef73 (story v0.15 + BC-2.06.017 v1.12); local-pass-17.md persisted; 11 fresh probes all negative; SAP-1 clean; AD-017 clean; non-exhaustive 92/92; streak 2/3 (second consecutive CLEAN(strict) on e806ef73); pass-18 next on frozen e806ef73 (DECISIVE — on CLEAN → LOCAL 3-CLEAN CONVERGED). LANE 1 unchanged (PR #224 CLOSED; human must reopen). trajectory-tail →1→5→0→0. STATE v8.402→v8.403.** | wave-5-e-demo-fidelity | 2026-07-17 |
 | D-1802 | state-manager | 2026-07-17 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1802 LANE-3 PASS-16 CLEAN(strict) — STREAK 1/3 (2026-07-17). LANE 3: pass-16 CLEAN(strict)=YES CLEAN(PR-merge)=YES — ZERO findings on frozen e806ef73 (story v0.15 + BC-2.06.017 v1.12); local-pass-16.md persisted; Part A fb-14 closures all verified; 5 fresh probes all negative; SAP-1 clean; AD-017 clean; non-exhaustive 92/92; streak 1/3 (first CLEAN(strict) on e806ef73); pass-17 next on frozen e806ef73 (NO pushes mid-streak per DRIFT-ORCH-PRLEVEL-PUSH-001). LANE 1 unchanged (PR #224 CLOSED; human must reopen). trajectory-tail →5→1→5→0. STATE v8.401→v8.402.** | wave-5-e-demo-fidelity | 2026-07-17 |
 | D-1801 | state-manager | 2026-07-17 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1801 LANE-3 PASS-15 CLOSURE + FIX-BURST-14 (2026-07-17). LANE 3: pass-15 NOT CLEAN (3M+2OBS; fresh-angle probing: _global arm untested + POL-23/POL-27 sweep misses; trajectory 4→5→5→1→5); local-pass-15.md persisted; fb-14 CLOSED: Test K @e806ef73 (test_BC_2_06_017_start_multi_enrichment_token_global_key_written_and_resolved; 5 load-bearing assertions; defect suite 10/10) + story v0.15 (AC-002 _global contract + EC-007 disambiguation) + S-DEMO-004 v1.15 (pin fix + 5 template sections) + BC-2.06.017 modified-date 2026-07-16→2026-07-17; STORY-INDEX v2.699→v2.700; streak 0/3 (new HEAD); pass-16 next on frozen e806ef73. LANE 1 unchanged (PR #224 CLOSED; human must reopen). trajectory-tail →5→5→1→5. STATE v8.400→v8.401.** | wave-5-e-demo-fidelity | 2026-07-17 |
-| D-1800 | state-manager | 2026-07-17 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1800 LANE-3 PASS-14 CLOSURE + FIX-BURST-13 (2026-07-17). LANE 3: pass-14 NOT CLEAN strict / CLEAN(PR-merge) YES (1 OBS only — F-ADMTOK-P14-OBS-001 Test J inventory row absent from module header); local-pass-14.md persisted; fb-13 CLOSED: code @803db300 (Test J row added to ## Test inventory table in tests/defect_demo_configure_admintoken_001.rs); STORY-INDEX v2.698→v2.699; streak 0/3; pass-15 next on frozen 803db300. LANE 1 unchanged (PR #224 CLOSED; human must reopen). trajectory-tail →4→5→5→1. STATE v8.399→v8.400.** | wave-5-e-demo-fidelity | 2026-07-17 |
 ## Decisions Log
 
 _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decisions-archive files. Rows below in ascending D-NNN order per D-431(b)._
@@ -201,6 +201,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1802 | state-manager | 2026-07-17 | LANE-3 PASS-16 CLEAN(strict) — ZERO findings on frozen e806ef73 (story v0.15, BC-2.06.017 v1.12); Part A fb-14 closures verified; 5 fresh probes negative; SAP-1 clean; AD-017 clean; non-exhaustive 92/92; report persisted local-pass-16.md; streak 1/3 (BC-5.39.001; first CLEAN(strict) on e806ef73); NEXT = LOCAL pass-17 on frozen e806ef73 (NO pushes mid-streak per DRIFT-ORCH-PRLEVEL-PUSH-001); trajectory-tail →5→1→5→0. LANE 1 unchanged (PR #224 CLOSED; human must reopen). STATE v8.401→v8.402 | wave-5-e-demo-fidelity | 2026-07-17 |
 | D-1803 | state-manager | 2026-07-17 | LANE-3 PASS-17 CLEAN(strict) — ZERO findings on frozen e806ef73 (story v0.15, BC-2.06.017 v1.12); 11 fresh probes negative; SAP-1 clean; AD-017 clean; non-exhaustive 92/92; report persisted local-pass-17.md; streak 2/3 (BC-5.39.001; second consecutive CLEAN(strict) on e806ef73; per DRIFT-ORCH-PRLEVEL-PUSH-001 NO pushes mid-streak); NEXT = LOCAL pass-18 on frozen e806ef73 (DECISIVE — on CLEAN → LOCAL 3-CLEAN CONVERGED → push + pr-manager PR + PR-LEVEL cascade); trajectory-tail →1→5→0→0. LANE 1 unchanged (PR #224 CLOSED; human must reopen). STATE v8.402→v8.403 | wave-5-e-demo-fidelity | 2026-07-17 |
 | D-1804 | state-manager | 2026-07-17 | LANE-3 PASS-18 CLOSURE + FIX-BURST-15: pass-18 NOT CLEAN strict / CLEAN(PR-merge) YES (1 LOW — F-ADMTOK-P18-LOW-001 0o600 permission lock mutation-survivor; STREAK RESET 2/3→0/3); mutation-thinking: 13 mutants / 12 killed / 1 survivor (perms); bound_addr filter adjudicated not-a-finding; security/spec-completeness/regression lenses PASS; fb-15 CLOSED test-only @828449de (Tests B/F/K #[cfg(unix)] mode & 0o077 == 0; mutation-kill verified; +63/−3); pass-18 report persisted local-pass-18.md; STORY-INDEX v2.700→v2.701; streak 0/3 (new HEAD 828449de); NEXT LOCAL pass-19 on frozen 828449de. LANE 1 unchanged (PR #224 CLOSED; human must reopen). STATE v8.403→v8.404 | wave-5-e-demo-fidelity | 2026-07-17 |
+| D-1805 | state-manager | 2026-07-17 | SESSION WRAP: LANE 3 @828449de FROZEN streak 0/3 NEXT pass-19 (P1 demo-blocking; story v0.15; BC-2.06.017 v1.12; 18p/15fb; 3-CLEAN → push + pr-manager PR + PR-LEVEL cascade on convergence); LANE 1 @faf112fd FROZEN PR #224 CLOSED (human must reopen → AC-005 run-3 → pass-14); RESUME SNAPSHOT D-1805; worktrees: 5 remaining (2 merged lanes removed this session ~48GB); Lesson 65 codified; DRIFT-SDEMO004-TODO-SECTIONS-001 OPEN; DRIFT-SDEMO004-INPUTS-BC32001-001 RESOLVED; trajectory-tail →5→0→0→1. STATE v8.404→v8.405 | wave-5-e-demo-fidelity | 2026-07-17 |
 
 ## Skip Log
 
@@ -290,14 +291,16 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1804 — 2026-07-17 — LANE-3 PASS-18 NOT CLEAN strict / fb-15 CLOSED; STATE v8.404)
+## Session Resume Checkpoint (D-1805 — 2026-07-17 — SESSION WRAP; STATE v8.405)
 
-**RESUME IN ONE BREATH:** LANE 3 (DEFECT-ADMINTOKEN): story v0.15 + BC-2.06.017 v1.12; code @828449de LOCAL-ONLY on fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001; 18 passes / 15 fix-bursts; streak 0/3; pass-18 NOT CLEAN strict (1 LOW F-ADMTOK-P18-LOW-001 — 0o600 perms lock mutation-survivor; TD-VSDD-059); fb-15 CLOSED test-only @828449de (Tests B/F/K #[cfg(unix)] mode & 0o077 == 0 assertions; mutation-kill verified both sites); NEXT = LOCAL pass-19 on frozen 828449de, then 20/21 (3-CLEAN → push + pr-manager PR + PR-LEVEL cascade); pass-report persistence discipline per Lesson 65 (persist each report before next dispatch). LANE 1 (S-MAINT): story v0.22 @faf112fd FROZEN; PR #224 CLOSED — human must reopen (AC-005 run-3) → then PR-LEVEL pass-14; pass-13 reconstruction persisted. AUDIT-COVERAGE-001 PARKED @cd369b54 (rebase after MAINT merges). S-3.09 KEEP-PARKED; W3-FIX-S307-001 do-NOT-touch.
+**RESUME IN ONE BREATH:** LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): code @828449de LOCAL-ONLY on fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (CLEAN tree, FROZEN); story v0.15; BC-2.06.017 v1.12; 18 passes / 15 fix-bursts; streak 0/3 on frozen 828449de. NEXT: LOCAL pass-19 on frozen 828449de, then 20/21 — on 3-CLEAN(strict) → push branch + pr-manager PR + PR-LEVEL cascade. LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): story v0.22 @faf112fd FROZEN PUSHED; pass-13 reconstruction persisted + all spec fixes landed; PR #224 CLOSED — HUMAN must reopen (AC-005 run-3) → then PR-LEVEL pass-14 on frozen faf112fd. develop=84062ced unchanged.
 
 **HEADS:**
-- develop: `84062ced` (ff'd 2026-07-16; threatintel cleared; EXPECTED=92)
+- develop: `84062ced` (ff'd 2026-07-16; EXPECTED=92; origin/develop=local; PUSHED)
 - factory-artifacts: `git -C .factory log -1 --format='%h %s'`
-- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`828449de` LOCAL-ONLY; story v0.15; pass-18 NOT CLEAN strict / fb-15 CLOSED; pass-19 next on frozen 828449de; streak 0/3
-- `maintenance/ci-disk-hardening` @`faf112fd` FROZEN; PR #224 CLOSED; story v0.22; pass-14 next; streak 0/3
-- AUDIT-COVERAGE-001 @`cd369b54` LOCAL-ONLY dirty=1; PARKED; needs rebase onto 84062ced
-- S-3.09 @`43c41389` KEEP-PARKED; W3-FIX-S307-001 @`fcab8717` do-NOT-touch
+- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`828449de` — LOCAL-ONLY (NOT pushed); story v0.15; BC-2.06.017 v1.12; pass-18 NOT CLEAN strict / CLEAN(PR-merge) YES (1 LOW fb-15 closed); streak 0/3; pass-19 next on frozen 828449de
+- `maintenance/ci-disk-hardening` @`faf112fd` — FROZEN PUSHED; PR #224 CLOSED; story v0.22; pass-14 next; streak 0/3
+- `fix/T13-audit-coverage` @`cd369b54` — LOCAL-ONLY dirty=1; PARKED; needs rebase onto 84062ced
+- `feature/S-3.09` @`43c41389` — KEEP-PARKED (LOCAL-ONLY)
+- `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
+- `maintenance/ci-disk-hardening` and `develop` and `factory-artifacts` are PUSHED; all others are LOCAL-ONLY
