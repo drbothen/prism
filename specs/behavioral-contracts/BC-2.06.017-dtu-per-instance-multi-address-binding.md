@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.017"
-version: "1.11"
+version: "1.12"
 status: active
 lifecycle_status: active
 producer: product-owner
@@ -96,8 +96,8 @@ multi-instance bind function (`start_instances`) runs:
       happen in the bind loop before the spawn.
     - All N instances are present in the map; no entries are silently dropped.
   - The `admin_token_map` feeds the `TOKEN_MULTI_FILE` token sidecar written atomically
-    by `cmd_start_multi` (tmp+rename, same §Sidecar-availability guarantee as the URL
-    sidecar, GAP-3 from S-DEMO-LAUNCHER-CONSOLIDATION-001). Sidecar format:
+    by `cmd_start_multi` (tmp+rename, same atomic-write pattern as the URL sidecar; cf.
+    GAP-3 sidecar-poll note, S-DEMO-LAUNCHER-CONSOLIDATION-001 Changelog v2.1). Sidecar format:
     `{org_slug: {sensor_id: token}}` — nested JSON mirroring `URL_MULTI_FILE`.
   - Triggers graceful shutdown of ALL instances when either:
     - `servers.shutdown()` is called explicitly, OR
@@ -401,6 +401,7 @@ is warranted.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.12 | DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 FIX-BURST-11 SPEC (F-ADMTOK-P12-MED-001) | 2026-07-17 | product-owner | Postcondition 1: corrected phantom §Sidecar-availability anchor (POL-21 violation). "§Sidecar-availability guarantee" was never a real heading in `.factory/`; the S-DEMO-LAUNCHER-CONSOLIDATION-001 launcher story heading is `## Changelog` (no §-sigil), and GAP-3 in that story's Changelog v2.1 is a cwd-path-threading note for demo-run.sh, not an atomic-write guarantee. Replaced with: `same atomic-write pattern as the URL sidecar; cf. GAP-3 sidecar-poll note, S-DEMO-LAUNCHER-CONSOLIDATION-001 Changelog v2.1`. The v1.11 row is NOT rewritten (do not rewrite history). Substance unchanged: admin-token sidecar write is still atomic tmp+rename; the correction is citation-form only. |
 | 1.11 | DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 FIX-BURST-1 SPEC (F-ADMTOK-P1-MED-001) | 2026-07-16 | product-owner | Postcondition 1 extended: `MultiInstanceServers` surface now includes `admin_token_map() -> &HashMap<String, String>` accessor (tokens captured per-instance at bind time before the clone is moved into its detached watcher task, same ownership pattern as `socket_map`; once inside `tokio::spawn(async move { … })` the clone is unreachable). Also documents the `TOKEN_MULTI_FILE` admin-token sidecar mechanism: nested `{org_slug: {sensor_id: token}}` JSON, written atomically (tmp+rename) by `cmd_start_multi` from `admin_token_map()`, mirroring `URL_MULTI_FILE` format and the §Sidecar-availability guarantee (GAP-3 from S-DEMO-LAUNCHER-CONSOLIDATION-001). Closing F-ADMTOK-P1-MED-001 (MED: Postcondition 1 did not enumerate `admin_token_map` despite the accessor being mandated by AC-002). |
 | 1.10 | F-PR4-MED-001 (PR-LEVEL adversary) | 2026-06-14 | product-owner | Corrected harness-test citation symbols: added the missing `test_BC_2_06_017_` infix to all `multi_tenant_routing` test references (EC-017-007, VP catalog) so they grep-resolve to the actual functions. Citation-accuracy only; no semantic change. |
 | 1.9 | F-PR3-HIGH-001 (PR-LEVEL adversary, architect-adjudicated) | 2026-06-14 | product-owner | Narrowed Postcondition 4 + AC-006-anchored invariant + VP-catalog from "FanOutTarget dispatches" framing to the true DISTINCT-LISTENER isolation scope the harness tests actually prove; cross-referenced the FanOutTarget→base_url routing proofs (prism-sensors fanout test_F_LP2_CRIT_001 + new prism-sensors/tests E2E). §Architecture Anchors note added (architect). INV-ISOLATION-001 invariant unchanged; only in-harness verification scope clarified. No product-value reduction (routing proven in prism-sensors). |
