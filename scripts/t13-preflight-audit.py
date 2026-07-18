@@ -63,6 +63,7 @@ import traceback
 import unicodedata
 from pathlib import Path
 import itertools
+import tempfile
 
 # PRISM_BIN: resolved in priority order:
 #   1. $PRISM_BIN env var (explicit override)
@@ -542,12 +543,34 @@ _H8_RESULT_KEY = "[H8] HEAD-JOIN fail-open: bare unknown col in JOIN (not E-QUER
 EXPECTED_SENSORS = {"crowdstrike", "armis", "claroty", "cyberint"}
 
 
+def _strip_ctl(s: str) -> str:
+    """Strip ANSI escape sequences and Unicode control characters from s.
+
+    Preserves newline (\\n) and tab (\\t) for readability.
+    Replaces other Unicode Cc-category characters and line/paragraph
+    separators (U+2028/U+2029) with '?' to prevent CWE-117 log injection.
+    """
+    # Strip ANSI CSI sequences (ESC [ ... letter) first.
+    s = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', s)
+    _LS_PS = (" ", " ")
+    return "".join(
+        ch if (ch in ("\n", "\t") or not (
+            unicodedata.category(ch).startswith("C") or ch in _LS_PS
+        )) else "?"
+        for ch in s
+    )
+
+
 def run_audit():
     results = {}
     # F-AUD-P16-OBS-001: PID-suffix prevents log collision under parallel audit runs.
     # F-AUD-P16-LOW-001: open into a named variable so the handle is closed in finally.
-    _mcp_log_path = f"/tmp/prism-audit-mcp-{os.getpid()}.log"
-    _mcp_log_fh = open(_mcp_log_path, "w")
+    # SEC-001 (CWE-377): use NamedTemporaryFile (O_CREAT|O_EXCL) to avoid TOCTOU race
+    # on the predictable /tmp/prism-audit-mcp-<pid>.log path.
+    _mcp_log_fh = tempfile.NamedTemporaryFile(
+        mode="w", prefix="prism-audit-mcp-", suffix=".log", dir="/tmp", delete=False
+    )
+    _mcp_log_path = _mcp_log_fh.name
 
     try:
         proc = subprocess.Popen(
@@ -588,9 +611,12 @@ def run_audit():
                 _mcp_log_fh.flush()
                 with open(_mcp_log_path) as f:
                     last_lines = f.readlines()[-5:]
+                # SEC-002 (CWE-117): sanitize raw stderr before embedding in results
+                # to prevent log injection via attacker-controlled binary output.
+                _last_log = _strip_ctl("".join(last_lines).strip())
                 results["BOOT"] = (
                     f"FAIL: process exited rc={rc} after {_boot_elapsed:.1f}s, "
-                    f"last log: {''.join(last_lines).strip()}"
+                    f"last log: {_last_log}"
                 )
                 return results
             # OBS-002: check stability BEFORE sleeping so the break only fires after
