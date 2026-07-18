@@ -37,7 +37,9 @@ Phase sequence for prism (brownfield mode):
 - Phase 6: Formal Hardening (Kani + cargo-fuzz + cargo-mutants + semgrep)
 - Phase 7: Convergence — 7-dimensional convergence assessment
 
-Per-story Phase 3 sub-workflow: stubs → failing tests → TDD green → LOCAL adversary 3-CLEAN → demo-recorder per-AC → push → pr-manager 9-step PR cycle → squash-merge → state-manager post-merge burst. BC-5.39.001 3-CLEAN protocol applies to every cascade.
+Per-story Phase 3 sub-workflow: stubs → failing tests → TDD green → LOCAL adversary 3-CLEAN → **story-level holdout gate** → demo-recorder per-AC → push → pr-manager 9-step PR cycle → squash-merge → state-manager post-merge burst. BC-5.39.001 3-CLEAN protocol applies to every cascade.
+
+**Story-level holdout gate (human-approved 2026-07-13):** product-owner authors 2–4 HIDDEN, SINGLE-USE holdout scenarios per story at story-materialization time (same touchpoint as the remove-uncertainty pass), stored under the holdout directory that test-writer/implementer never read. After LOCAL 3-CLEAN and BEFORE demo recording/push, the holdout-evaluator runs the scenarios against the story's built binary (real MCP stdio + DTU, wire-level assertions, scoped to the story's touched surface). The gate is BLOCKING: any unsatisfied scenario routes findings through the VSDD feedback loop as OBSERVED BEHAVIOR ONLY (never scenario text — contamination control) and resets the LOCAL streak per BC-5.39.001. Consumed scenarios are marked used and never reused. Wave-level and Phase-4 holdout pools are separate and unchanged. Origin: T13 live-audit triage (D-1715/D-1716) — end-to-end observed-output evaluation caught 3 defects that 5,483 tests (workspace test count at the D-1715 live-audit triage, 2026-07-13) and the adversarial cascades missed.
 
 ---
 
@@ -252,6 +254,8 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 
 - **`reqwest` TLS backend — rustls-tls mandatory (ADR-050).** Every `reqwest` dependency entry in the workspace — `[dependencies]`, `[dev-dependencies]`, and optional/feature-gated entries — must declare `default-features = false, features = ["rustls-tls"]`. Omitting `default-features = false` silently enables `native-tls`, which causes ~65s macOS Keychain init overhead and opens a corporate MITM proxy interception path for outbound sensor API credentials. The `native-tls` feature and its aliases (`default-tls`, `native-tls-alpn`, `native-tls-vendored`) are forbidden workspace-wide. New workspace crates must declare `rustls-tls` at first write — there is no acceptable "fix in a follow-up" (ADR-050 D3).
 
+- **Wire-shape assertion discipline (2026-07-13, human-approved).** Any test covering an MCP-visible surface (tool responses, resources) must include at least one assertion on the **serialized JSON output** — the exact envelope/row bytes the LLM agent consumes — not only pre-serialization Rust structures. NULL vs absent vs empty distinctions MUST be asserted at the wire level (BC-2.11.001 EC-11-079 row-shape null-not-absent). Origin: live-audit [C3]/[H20] escape — `arrow_json` `explicit_nulls` default silently omitted NULL keys; 5,483 tests (workspace test count at the D-1715 live-audit triage, 2026-07-13) missed it because none asserted serialized row shape.
+
 ### Forbidden patterns
 
 | Pattern | Reason |
@@ -341,9 +345,31 @@ When no failing test drives a spec-required behavior because integration tests a
 
 Source: PLUGIN-MIGRATION-001-D pass-1 FB-IMPL-1 D-764 orchestrator rejection + remediation cycle adding 7 unit tests; lesson 17.
 
+### SAP-3 — Adversary standing probe: spec-arm reachability
+
+For EVERY adversarial pass on stories or PRs touching prism-query grammar/plan gates or any BC postcondition arm / EC table:
+
+1. For each BC postcondition arm / EC row claimed by the story, verify at least one test reaches the arm **end-to-end from the public surface** (parser input or MCP tool call) — not merely a unit test invoking the internal handler with a synthetic AST
+2. Synthetic-AST / direct-handler tests count as defense-in-depth ONLY; an arm with ONLY synthetic coverage = **P2 finding** (the arm may be unreachable from the product surface)
+3. Where an arm is intentionally defense-in-depth (unreachable by design), the covering test must carry a comment stating so with the reachability rationale
+4. Precedent: BC-2.11.004 arm (4) NonColumnLhsComparison was grammar-unreachable from pipe mode until DEFECT-PQL-FNCALL-LHS-001 — synthetic-AST coverage masked the gap; the live audit ([H5c]) exposed it
+
+Source: live-audit triage 2026-07-13 (D-1715/D-1716); human-approved codification.
+
+### SID-2 — Test-writer/implementer discipline: composed-output assertions
+
+When a user/agent-visible string is composed from multiple fields (e.g., `message` + `suggestion`, category prefix + text):
+
+1. At least one test MUST assert on the FULL composed string as emitted, not only its component fields
+2. Where composed fields could overlap semantically, include a no-duplicated-phrase assertion (e.g., occurrence count of the shared phrase == 1)
+3. Component-only assertions are insufficient to declare the surface covered
+4. Precedent: [H8b] doubled "see audit log. See audit log for details." — message and suggestion were each individually asserted; the composition never was
+
+Source: live-audit triage 2026-07-13 (D-1715/D-1716); human-approved codification.
+
 ### Conflict with upstream agent prompts
 
-If the upstream vsdd-factory adversary or implementer agent prompt defines a probe / discipline that contradicts SAP-1, SAP-2, or SID-1, the project-local rule wins for prism. Upstream canonicalization tracked in `drbothen/vsdd-factory` issue tracker.
+If the upstream vsdd-factory adversary or implementer agent prompt defines a probe / discipline that contradicts SAP-1, SAP-2, SAP-3, SID-1, or SID-2, the project-local rule wins for prism. Upstream canonicalization tracked in `drbothen/vsdd-factory` issue tracker.
 
 ---
 
