@@ -617,6 +617,12 @@ fn sanitize_clone_name(s: &str) -> String {
 /// The error message echoes the sanitized form (control chars replaced with '?')
 /// so the error itself cannot carry injection payloads.
 fn validate_clone_name(name: &str) -> anyhow::Result<()> {
+    // NEW-001 (CWE-20): reject empty names explicitly.
+    // `"".chars().all(predicate)` is vacuously true, so without this guard an
+    // empty string would pass the charset check and reach resolve_configure_url.
+    if name.is_empty() {
+        anyhow::bail!("configure: clone name must not be empty");
+    }
     if name
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
@@ -812,6 +818,34 @@ mod tests {
         // Space.
         validate_clone_name("clone name with spaces")
             .expect_err("SEC-001: space in clone name must be rejected");
+    }
+
+    // ---------------------------------------------------------------------------
+    // test_validate_clone_name_rejects_empty
+    // SEC-001 / NEW-001 (CWE-20): vacuous-truth regression gate.
+    //
+    // LOAD-BEARING: `"".chars().all(predicate)` is vacuously true in Rust (all(…)
+    // on an empty iterator always returns true), so without an explicit empty-string
+    // check the function would silently return Ok(()) for an empty clone name.
+    // An empty name then reaches `resolve_configure_url` and either panics on
+    // URL construction or returns a confusing "ambiguous" error rather than the
+    // correct "clone name must not be empty" rejection.
+    //
+    // Removing or weakening the `is_empty()` guard at the top of `validate_clone_name`
+    // would cause this assertion to fail — that's the regression being locked down.
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn test_validate_clone_name_rejects_empty() {
+        let result = validate_clone_name("");
+        let err = result.expect_err(
+            "NEW-001 (CWE-20): empty clone name must be rejected by validate_clone_name (vacuous-truth gate)",
+        );
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("must not be empty"),
+            "NEW-001: rejection error for empty name must contain 'must not be empty'; got: {msg}"
+        );
     }
 
     // ---------------------------------------------------------------------------
