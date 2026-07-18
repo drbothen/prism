@@ -591,10 +591,56 @@ fn send_sigterm(pid: i32) -> anyhow::Result<()> {
 }
 
 // ---------------------------------------------------------------------------
+// `configure` subcommand — input validation helpers
+// ---------------------------------------------------------------------------
+
+/// Replace every disallowed character with '?' so the sanitized form can be
+/// safely embedded in log and error messages without carrying control characters.
+fn sanitize_clone_name(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '?'
+            }
+        })
+        .collect()
+}
+
+/// Validate that `name` consists entirely of `[a-zA-Z0-9_-]`.
+///
+/// Called at the entry of `cmd_configure` BEFORE any file or network I/O so that
+/// a malformed clone name cannot reach `tracing::debug!` or other sinks where
+/// unsanitised text would be a CWE-117 log-injection vector.
+///
+/// The error message echoes the sanitized form (control chars replaced with '?')
+/// so the error itself cannot carry injection payloads.
+fn validate_clone_name(name: &str) -> anyhow::Result<()> {
+    if name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        Ok(())
+    } else {
+        let sanitized = sanitize_clone_name(name);
+        anyhow::bail!(
+            "configure: invalid clone name '{}': clone names may contain only alphanumerics, '-' and '_'",
+            sanitized
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
 // `configure` subcommand
 // ---------------------------------------------------------------------------
 
 async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<()> {
+    // SEC-001 (CWE-117): validate clone_name at entry before any resolution or logging.
+    // Characters outside [a-zA-Z0-9_-] are rejected here so that the later
+    // tracing::debug! (which logs clone_name) only ever sees validated input.
+    validate_clone_name(&clone_name)?;
+
     // TD-VSDD-060 sibling sweep (AC-004): all POST /dtu/configure call sites in client code. // SWEEP-MIRROR
     //
     // Enumerated in DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 §Root Cause sibling table:
@@ -677,6 +723,8 @@ async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<
         "cmd_configure: resolved admin token from token sidecar"
     );
 
+    // SEC-002: 10s timeout — local loopback demo server (not a production sensor API client).
+    // Production sensor clients use 30s per CLAUDE.md §HTTP client timeout.
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
@@ -705,4 +753,92 @@ async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<
     }
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests — SEC-001 validate_clone_name
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ---------------------------------------------------------------------------
+    // test_validate_clone_name_rejects_invalid
+    // SEC-001 (CWE-117): load-bearing rejection path.
+    //
+    // LOAD-BEARING: removing or relaxing `validate_clone_name` so that characters
+    // outside [a-zA-Z0-9_-] are accepted would cause these assertions to fail.
+    //
+    // Also verifies the sanitized form echoed in the error message cannot carry
+    // control characters or ANSI sequences.
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn test_validate_clone_name_rejects_invalid() {
+        // Newline injection (CWE-117 canonical case).
+        let result = validate_clone_name("crowdstrike\n--injected");
+        let err = result.expect_err(
+            "SEC-001: clone name containing newline must be rejected by validate_clone_name",
+        );
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("invalid clone name"),
+            "SEC-001: rejection error must contain 'invalid clone name'; got: {msg}"
+        );
+        // The sanitized form replaces '\n' and '-' (the second '-' is actually allowed but
+        // the SPACE after 'crowdstrike\n' is not — verify '?' is present for the newline).
+        assert!(
+            msg.contains('?'),
+            "SEC-001: sanitized error must replace disallowed chars with '?'; got: {msg}"
+        );
+        assert!(
+            msg.contains("alphanumerics"),
+            "SEC-001: rejection error must cite allowed charset; got: {msg}"
+        );
+
+        // Null byte.
+        validate_clone_name("bad\0name")
+            .expect_err("SEC-001: null byte in clone name must be rejected");
+
+        // ANSI escape sequence.
+        validate_clone_name("name\x1b[31mred\x1b[0m")
+            .expect_err("SEC-001: ANSI escape in clone name must be rejected");
+
+        // Slash (path traversal shape).
+        validate_clone_name("../etc/passwd")
+            .expect_err("SEC-001: slash in clone name must be rejected");
+
+        // Space.
+        validate_clone_name("clone name with spaces")
+            .expect_err("SEC-001: space in clone name must be rejected");
+    }
+
+    // ---------------------------------------------------------------------------
+    // test_validate_clone_name_accepts_valid
+    // SEC-001: confirm valid clone names (the normal case) pass through unblocked.
+    //
+    // LOAD-BEARING: over-restricting `validate_clone_name` (e.g., rejecting '-')
+    // would cause real clone names like "org-a-crowdstrike" to fail → these assertions
+    // would catch that regression.
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn test_validate_clone_name_accepts_valid() {
+        // Plain sensor names.
+        validate_clone_name("crowdstrike").expect("SEC-001: 'crowdstrike' must be accepted");
+        validate_clone_name("cyberint").expect("SEC-001: 'cyberint' must be accepted");
+        validate_clone_name("armis").expect("SEC-001: 'armis' must be accepted");
+
+        // {org_slug}-{sensor_id} composite form.
+        validate_clone_name("org-a-crowdstrike")
+            .expect("SEC-001: 'org-a-crowdstrike' must be accepted");
+        validate_clone_name("org-b-cyberint").expect("SEC-001: 'org-b-cyberint' must be accepted");
+
+        // Underscores and hyphens are explicitly allowed.
+        validate_clone_name("sensor_name-v2").expect("SEC-001: underscores and hyphens allowed");
+
+        // Mixed alphanumerics.
+        validate_clone_name("Sensor42").expect("SEC-001: mixed case + digits allowed");
+    }
 }
