@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.416"
+version: "8.417"
 producer: state-manager
-timestamp: 2026-07-18T16:30:00Z
+timestamp: 2026-07-18T17:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -39,11 +39,11 @@ workspace_test_count: 5671
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1829..D-1830 (exhaustive) 2026-07-18 POST-MERGE BURST PR #224 (TD-VSDD-053): LANE 1 CLOSED — S-MAINT-CI-DISK-EXHAUSTION-001 MERGED @0f9857dd (25-pass 3-CLEAN on d412defe; AC-005 human-ruled satisfied literal-reading; story v0.27 final; D-1829). LANE 3 active — PR #225 @5c9458d6 accelerated delta re-gate pending CI. AUDIT-COVERAGE-001 UNBLOCKED (D-1830). STORY-INDEX v2.710→v2.711. trajectory-tail →0→0→0→0 STATE v8.415→v8.416"
+current_step: "D-1831 SESSION WRAP 2026-07-18 (TD-VSDD-053): LANE 1 CLOSED — S-MAINT-CI-DISK-EXHAUSTION-001 MERGED @0f9857dd (25-pass 3-CLEAN; AC-005 human-ruled; story v0.27 final; worktree REMOVED; D-1829). LANE 3 PR #225 OPEN @5c9458d6 (accelerated delta re-gate pending; D-1827 one-time exception). AUDIT-COVERAGE-001 UNBLOCKED. RESUME SNAPSHOT D-1831. trajectory-tail →0→0→0→0 STATE v8.416→v8.417"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "AUDIT-COVERAGE-001 fix/T13-audit-coverage @cd369b54 LOCAL-ONLY dirty=1; UNBLOCKED — needs rebase onto 0f9857dd (D-1830; was gated on PR #224 merge per D-1805 resume actions). S-MAINT-CI-DISK-EXHAUSTION-001 maintenance/ci-disk-hardening @d412defe MERGED (PR #224 develop@0f9857dd D-1829; story v0.27 final; remote branch deleted; devops cleanup-in-progress). DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 @5c9458d6 PUSHED (story v0.20; LOCAL 3-CLEAN CONVERGED; PR #225 OPEN; PR-LEVEL 3-CLEAN CONVERGED on 828449de passes 18/19/20; security APPROVE 0 CRIT/IMPORTANT; HUMAN D-1827 one-time accelerated-convergence exception; accelerated delta re-gate pending on 5c9458d6). S-3.09 @43c41389 KEEP-PARKED. W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch."
+worktree_status: "DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 @5c9458d6 PUSHED (story v0.20; LOCAL 3-CLEAN CONVERGED; PR #225 OPEN; PR-LEVEL 3-CLEAN CONVERGED on 828449de passes 18/19/20; security APPROVE 0 CRIT/IMPORTANT; HUMAN D-1827 one-time accelerated-convergence exception; accelerated delta re-gate pending on 5c9458d6). AUDIT-COVERAGE-001 fix/T13-audit-coverage @cd369b54 LOCAL-ONLY dirty=1; UNBLOCKED — rebase onto 0f9857dd (D-1830). S-MAINT-CI-DISK-EXHAUSTION-001 maintenance/ci-disk-hardening @d412defe MERGED (PR #224 develop@0f9857dd D-1829; story v0.27 final; worktree REMOVED D-1831; local+remote branches deleted). S-3.09 @43c41389 KEEP-PARKED. W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch."
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -76,7 +76,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 337 lines (wc-l)
+  STATE.md SIZE BUDGET: 338 lines (wc-l)
   margin from soft-target (200): +133 lines over | margin from actual (500): 167 lines remaining
 -->
 
@@ -91,7 +91,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-18 D-1829..D-1830 (exhaustive) POST-MERGE BURST — PR #224 MERGED @0f9857dd (LANE 1 S-MAINT-CI-DISK-EXHAUSTION-001 CLOSED; 25-pass 3-CLEAN; AC-005 human-ruled satisfied; story v0.27 final); LANE 3 (PR #225 @5c9458d6) accelerated delta re-gate pending CI; AUDIT-COVERAGE-001 UNBLOCKED. STORY-INDEX v2.711 trajectory-tail →0→0→0→0 |
+| **Last Updated** | 2026-07-18 D-1831 SESSION WRAP — LANE 1 CLOSED (S-MAINT-CI-DISK-EXHAUSTION-001 MERGED @0f9857dd; worktree REMOVED; D-1829). LANE 3 PR #225 OPEN @5c9458d6; D-1827 one-time accelerated-convergence exception; accelerated delta re-gate pending. AUDIT-COVERAGE-001 UNBLOCKED. RESUME SNAPSHOT D-1831. trajectory-tail →0→0→0→0 |
 
 ## Active Objective (North Star)
 
@@ -231,6 +231,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1828 | state-manager | 2026-07-18 | LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): passes 23+24 CLEAN(strict) on frozen d412defe (zero findings each; DRIFT-ORCH-PRLEVEL-PUSH-001 clean — no pushes mid-streak); streak 2/3 (BC-5.39.001); pr-level-pass-23.md + pr-level-pass-24.md committed; AC-005 1/3; pass-25 convergence candidate next. LANE 3 ADMINTOKEN see D-1826+D-1827. STATE v8.415 (bundled in D-1826..D-1828 (exhaustive) burst) | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1829 | state-manager | 2026-07-18 | PR #224 MERGED @0f9857dd (squash commit 2026-07-18T05:08:01Z); develop 84062ced→0f9857dd; 25-pass PR-LEVEL 3-CLEAN CONVERGED on d412defe (passes 23/24/25 CLEAN(strict); BC-5.39.001; security APPROVE D-1814; pr-reviewer APPROVE); AC-005 human-ruled satisfied literal-reading (3 distinct green pull_request run IDs at frozen HEAD d412defe; human explicit authorization per pass-25 §AC-005 Dual-Reading); story v0.27 final; behavioral_contracts: [] CONFORMING (no POL-14); story status ready→merged; DRIFT-AC005-DISTINCT-TRIGGER-RULING-001 RESOLVED; remote branch maintenance/ci-disk-hardening deleted; devops cleanup-in-progress | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1830 | state-manager | 2026-07-18 | AUDIT-COVERAGE-001 UNBLOCKED — parked worktree @cd369b54 can now rebase onto develop 0f9857dd (was gated on PR #224 merge per D-1805 resume actions). NEXT: devops rebase @cd369b54 onto 0f9857dd → LOCAL 3-CLEAN → push → PR | wave-5-e-demo-fidelity | 2026-07-18 |
+| D-1831 | state-manager | 2026-07-18 | SESSION WRAP: LANE 1 CLOSED — S-MAINT-CI-DISK-EXHAUSTION-001 MERGED @0f9857dd (PR #224; 25-pass 3-CLEAN; AC-005 human-ruled satisfied literal-reading; story v0.27 final; worktree REMOVED; local+remote branches deleted; D-1829). LANE 3 DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 @5c9458d6 PR #225 OPEN; D-1827 one-time accelerated-convergence exception active; ONE delta-scoped adversarial pass + security delta-confirm pending on frozen 5c9458d6. AUDIT-COVERAGE-001 UNBLOCKED (D-1830). Lessons 65-68 codified. RESUME SNAPSHOT D-1831. STATE v8.416→v8.417 | wave-5-e-demo-fidelity | 2026-07-18 |
 
 ## Skip Log
 
@@ -322,15 +323,15 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1830 — 2026-07-18 — POST-MERGE BURST D-1829..D-1830 (exhaustive); STATE v8.416)
+## Session Resume Checkpoint (D-1831 — 2026-07-18 — SESSION WRAP; STATE v8.417)
 
-**RESUME IN ONE BREATH:** LANE 1 CLOSED — PR #224 MERGED @0f9857dd (25-pass 3-CLEAN on d412defe; AC-005 human-ruled satisfied literal-reading; story v0.27 final; D-1829). LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): LOCAL 3-CLEAN CONVERGED; PR-LEVEL 3-CLEAN CONVERGED on frozen 828449de (passes 18/19/20 CLEAN(strict)); security APPROVE (0 CRIT/IMPORTANT; SEC-001 CWE-117 + SEC-002 advisory); HUMAN D-1827 one-time accelerated-convergence exception; implementer @5c9458d6 PUSHED; PO story v0.20 (EC-008); PR #225 OPEN; accelerated delta re-gate pending on frozen 5c9458d6 (one delta-scoped adversarial pass + security delta-confirm). AUDIT-COVERAGE-001 UNBLOCKED (D-1830) — rebase @cd369b54 onto 0f9857dd. D-1809 mitigation still in force.
+**RESUME IN ONE BREATH:** LANE 1 CLOSED — S-MAINT-CI-DISK-EXHAUSTION-001 MERGED @0f9857dd (25-pass 3-CLEAN; AC-005 human-ruled satisfied; story v0.27 final; worktree REMOVED; D-1829). LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): PR-LEVEL 3-CLEAN CONVERGED on frozen 828449de (passes 18/19/20 CLEAN(strict)); security APPROVE (0 CRIT/IMPORTANT); HUMAN D-1827 one-time accelerated-convergence exception; implementer @5c9458d6 PUSHED (validate_clone_name CWE-117 gate + timeout comment; story v0.20 EC-008); PR #225 OPEN; accelerated delta re-gate pending on frozen 5c9458d6 (ONE delta-scoped adversarial pass + security delta-confirm; NOT full 3-CLEAN). AUDIT-COVERAGE-001 UNBLOCKED (D-1830) — rebase @cd369b54 onto 0f9857dd. D-1809 mitigation still in force.
 
 **HEADS:**
 - develop: `0f9857dd` (PR #224 squash-merged 2026-07-18; EXPECTED=92; origin/develop=local; PUSHED)
-- factory-artifacts: `git -C .factory log -1 --format='%h %s'`
-- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`5c9458d6` — PUSHED (PR #225 OPEN); story v0.20; BC-2.06.017 v1.12; LOCAL 3-CLEAN CONVERGED; PR-LEVEL 3-CLEAN CONVERGED on 828449de; security APPROVE; D-1827 one-time accelerated-convergence exception; accelerated delta re-gate pending on 5c9458d6
-- `maintenance/ci-disk-hardening` @`d412defe` — MERGED @0f9857dd; branch deleted; devops worktree cleanup-in-progress
+- factory-artifacts: `git -C .factory log -1 --format='%h %s'` (D-1831 wrap commit)
+- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`5c9458d6` — PUSHED (PR #225 OPEN); story v0.20; BC-2.06.017 v1.12; 3-CLEAN on 828449de; D-1827 one-time exception; accelerated delta re-gate pending on 5c9458d6
+- `maintenance/ci-disk-hardening` @`d412defe` — MERGED @0f9857dd; worktree REMOVED; local+remote branches deleted
 - `fix/T13-audit-coverage` @`cd369b54` — LOCAL-ONLY dirty=1; UNBLOCKED — rebase onto 0f9857dd (D-1830)
 - `feature/S-3.09` @`43c41389` — KEEP-PARKED (LOCAL-ONLY)
 - `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)

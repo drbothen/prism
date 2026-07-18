@@ -124,13 +124,54 @@ timestamp: 2026-07-17T20:00:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1829..D-1830 (exhaustive) POST-MERGE BURST — LANE 1 S-MAINT CLOSED (PR #224 MERGED @0f9857dd; 25-pass 3-CLEAN; AC-005 human-ruled satisfied; story v0.27 final). LANE 3 ADMINTOKEN @5c9458d6 story v0.20; PR #225 OPEN; accelerated delta re-gate pending on 5c9458d6. AUDIT-COVERAGE-001 UNBLOCKED.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1830 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1830 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `0f9857dd` (PR #224 squash-merged 2026-07-18; prior 84062ced). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.416. D-1829..D-1830 (exhaustive) POST-MERGE BURST; LANE 1 S-MAINT MERGED @0f9857dd (story v0.27 final; AC-005 human-ruled satisfied; D-1829); LANE 3 ADMINTOKEN @5c9458d6 PUSHED (story v0.20; PR #225 OPEN; accelerated delta re-gate pending); AUDIT-COVERAGE-001 UNBLOCKED (D-1830); trajectory-tail →0→0→0→0.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1831 SESSION WRAP — LANE 1 CLOSED (S-MAINT-CI-DISK-EXHAUSTION-001 MERGED @0f9857dd; 25-pass 3-CLEAN; AC-005 human-ruled; story v0.27 final; worktree removed). LANE 3 ADMINTOKEN @5c9458d6 PR #225 OPEN; D-1827 one-time accelerated-convergence exception; accelerated delta re-gate pending. AUDIT-COVERAGE-001 UNBLOCKED.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1831 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1831 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `0f9857dd` — PUSHED (PR #224 squash-merged 2026-07-18). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.417. D-1831 SESSION WRAP; LANE 1 S-MAINT CLOSED @0f9857dd (worktree REMOVED; story v0.27 final; D-1829). LANE 3 ADMINTOKEN @5c9458d6 PUSHED (story v0.20; PR #225 OPEN; accelerated delta re-gate pending; D-1827 one-time exception); AUDIT-COVERAGE-001 UNBLOCKED.
 
 ---
 
-## §RESUME SNAPSHOT — D-1830 (2026-07-18 — POST-MERGE BURST D-1829..D-1830 (exhaustive); STATE v8.416) [SUPERSEDES D-1828]
+## §RESUME SNAPSHOT — D-1831 (2026-07-18 — SESSION WRAP; STATE v8.417) [SUPERSEDES D-1830]
+
+### RESUME IN ONE BREATH
+LANE 1 CLOSED: S-MAINT-CI-DISK-EXHAUSTION-001 MERGED — PR #224 squash 0f9857dd is the develop head (25-pass 3-CLEAN + security + pr-reviewer + human AC-005 literal ruling + human-authorized merge; worktree removed, branches deleted). LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): PR #225 OPEN @ 5c9458d6 PUSHED (SEC fix-burst: validate_clone_name CWE-117 gate + timeout comment; story v0.20 EC-008; earlier 3-CLEAN was on 828449de and was superseded by the human-approved SEC push). D-1827 ONE-TIME accelerated-convergence exception ACTIVE: re-gate = ONE delta-scoped fresh adversary pass + security delta-confirm (NOT full 3-CLEAN; not precedent). NEXT: confirm CI green on 5c9458d6 (was 4/5 green, 1 pull_request in progress at wrap) → pr-manager description refresh (new HEAD, story v0.20, SEC closure, fresh run IDs, hard scope limits) → github-ops evidence staging → accelerated pass (namespace F-ADMTOK-PR21) + security delta-confirm (828449de...5c9458d6) → pr-reviewer → human merge gate.
+
+### HEADS (verified 2026-07-18 at D-1831 wrap)
+- develop: origin/develop = `0f9857dd` — PUSHED (PR #224 squash)
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (D-1831 wrap commit; parent 42a465b0 D-1829/D-1830 post-merge burst)
+- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @ `5c9458d6` — PUSHED (PR #225); worktree .worktrees/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 CLEAN; story v0.20; taxonomy v2.55
+- `fix/T13-audit-coverage` @ `cd369b54` — LOCAL-ONLY, worktree dirty=1; UNBLOCKED by #224 merge (D-1830): rebase onto 0f9857dd before unpark
+- `feature/S-3.09` @ `43c41389` — LOCAL-ONLY clean; KEEP-PARKED
+- `feature/W3-FIX-S307-001` @ `fcab8717` — LOCAL-ONLY dirty=1; PARKED do-NOT-touch
+- Backup boundary: everything pushed EXCEPT the three parked local-only branches above (AUDIT-COVERAGE + S-3.09 + W3-FIX).
+
+### PER-WORKSTREAM RESUME NEXT-ACTIONS
+1. **LANE 3 accelerated re-gate (FIRST ACTION)** — verify CI on 5c9458d6 all green (`gh pr checks 225`); then pr-manager PR #225 description refresh (HARD SCOPE: single gh pr edit; reflect HEAD 5c9458d6, story v0.20, SEC-001/002 closure with EC-008, 2 new unit tests, fresh run IDs; the FM4/STEP_COMPLETE hook drives pr-manager scope escalation — verify PR state after every pr-manager dispatch per Lesson 66); then github-ops stage /tmp evidence (body + checks + run-list + diff-stat); then ONE fresh-context adversary pass via vsdd-factory:adversary (per D-1809: registered agents only; policy rubric + all six mandatory axes incl. EC-008 verification + delta focus on validate_clone_name/sanitize_clone_name; known-accepted list per pass-20 dispatch + #7 updated to story v0.20); then security-reviewer delta-confirm (828449de...5c9458d6); then pr-reviewer (read-only verdict variant); then HUMAN merge gate.
+2. **D-1811 P1 process-gap follow-up story (owed before cycle close, S-7.02)** — story-writer dispatch to draft the self-improvement story for the pr-manager FM4/STEP_COMPLETE hook scope-escalation defect (4 violations incl. 2 attempted unauthorized merges; classifier held) + upstream drbothen/vsdd-factory issue candidate.
+3. **AUDIT-COVERAGE-001** — rebase cd369b54 (dirty=1 — inspect the 1 dirty file first) onto develop 0f9857dd → LOCAL 3-CLEAN → push → PR.
+4. **DRIFT-SDEMO004-TODO-SECTIONS-001** — story-writer fills 5 [TODO] sections in S-DEMO-004 at next maintenance sweep (carried).
+
+### PENDING HUMAN DECISIONS (carried unless noted)
+1. PR #225 squash-merge authorization at the gate (after accelerated re-gate completes).
+2. S-3.09 EC-collision handling option (A/B/C) at wave-gate / S-3.09 dispatch (carried).
+3. day2-design-decisions/clip-boundary-and-reframe-asks-2026-06-30.md disposition (carried).
+
+### STANDING RULINGS MADE THIS SESSION (durable; do not re-litigate)
+- D-1809: TD-VSDD-005 general-purpose-as-adversary REVOKED — registered vsdd agents only; adversary paired with github-ops evidence staging + state-manager report persistence.
+- D-1827: ONE-TIME accelerated-convergence exception for PR #225 post-SEC re-gate ONLY — explicitly not precedent; BC-5.39.001 binding everywhere else.
+- AC-005 literal-reading ruling (D-1829) applied to PR #224 — story-specific, not a global reinterpretation of F-MAINT-P10-OBS-008.
+
+### WORKTREE INVENTORY (D-1831)
+- `.worktrees/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` ACTIVE (PR #225 endgame)
+- `.worktrees/AUDIT-COVERAGE-001` PARKED-UNBLOCKED (rebase pending; dirty=1)
+- `.worktrees/S-3.09` KEEP-PARKED; `.worktrees/W3-FIX-S307-001` PARKED-DIRTY do-NOT-touch
+- `.worktrees/S-MAINT-CI-DISK-EXHAUSTION-001` REMOVED this session (post-merge; clean removal; local+remote branches deleted)
+
+### DECISION DELTA — D-1831 (session wrap)
+Session 2026-07-17→18 totals: LANE 1 = 12 PR-LEVEL passes (14-25) + 4 fix-bursts (timeout add, SEC-001/002, resize, spec-syncs v0.22→v0.27) → MERGED. LANE 3 = LOCAL 3-CLEAN (19/20/21) + PR #225 created + 20 PR-LEVEL passes + 6 fix-bursts (story v0.15→v0.20; SS-01 re-anchor; taxonomy v2.55; index syncs) + SEC fix @5c9458d6. Lessons 65-68 codified. D-1806..D-1831. pr-manager process-gap ×4 (D-1811/D-1815). Provider outage handled (D-1810).
+
+---
+
+## §RESUME SNAPSHOT — D-1830 (2026-07-18 — POST-MERGE BURST D-1829..D-1830 (exhaustive); STATE v8.416) [SUPERSEDES D-1828] [SUPERSEDED by D-1831]
 
 ### RESUME IN ONE BREATH
 
