@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.414"
+version: "8.415"
 producer: state-manager
-timestamp: 2026-07-18T14:00:00Z
+timestamp: 2026-07-18T15:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -21,7 +21,7 @@ develop_head: "84062ced"
 bc_index_version: "8.35"
 # NOTE: D-1799 — BC-INDEX v8.34→v8.35: BC-INDEX v8.34 narrative-only correction (F-ADMTOK-P13-LOW-004 [process-gap]): v8.34 misdescribed BC-2.06.017 v1.12 fix as "§Postconditions/Postcondition-7 citation form"; actual fix was "(tmp+rename, same atomic-write pattern as the URL sidecar; cf. GAP-3 sidecar-poll note, S-DEMO-LAUNCHER-CONSOLIDATION-001 Changelog v2.1)"; corrected in-place + v8.35 row added. D-1798 NOTE: v8.33→v8.34 (BC-2.06.017 v1.11→v1.12 F-ADMTOK-P12-MED-001 closure). D-1795 NOTE: v8.32 (BC-2.02.013 v1.9→v1.10); v8.33 (BC-2.06.017 v1.10→v1.11 admin_token_map() @5b802b64).
 vp_index_version: "1.80"
-story_index_version: "v2.709"
+story_index_version: "v2.710"
 arch_index_version: "2.193"
 error_taxonomy_version: "2.55"
 # NOTE: D-1817 — v2.54→v2.55: PR-LEVEL pass-8 F-ADMTOK-PR8-MED-001 preamble carve-out (E-DEMO universal construction-time claim contradicted by E-DEMO-007 runtime behavior); BC-2.06.018/BC-2.06.020 invariants verified correctly scoped; POL-29 sweep clean.
@@ -34,16 +34,16 @@ policies_version: "1.34"
 subsystem_count: 22
 vp_count: 157
 bc_count_corrected: 266
-workspace_test_count: 5662
-# NOTE: D-1795 — 5655→5662: DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 fix-burst-1 adds +7 tests (@66a8861e+@7aad8a0f; 6 tests + E-DEMO-007 error-taxonomy v2.54). D-1793 NOTE archived to burst-log.md.
+workspace_test_count: 5671
+# NOTE: D-1827 — 5662→5671: DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 implementer fix @5c9458d6 adds +9 tests (validate_clone_name gate: test_validate_clone_name_rejects_invalid + test_validate_clone_name_accepts_valid + SEC-001/SEC-002 supporting tests; just check 5671/5671). D-1795 NOTE: 5655→5662 archived to burst-log.md.
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1824..D-1825 (exhaustive) 2026-07-18 MINI STATE BURST (TD-VSDD-053 Lesson 67+68 pre-gate index sync): LANE 1 pass-21 CLEAN(strict) 1/3; pass-22 1 MED F-MAINT-P22-MED-001 resize-attribution EC-001 SHA 9c315608→d412defe → PO fix-burst v0.26→v0.27; streak reset 0/3 on frozen d412defe; pass-23 next. LANE 3 passes 18+19 CLEAN(strict) streak 2/3 on frozen 828449de; pass-20 convergence candidate next. STORY-INDEX v2.708→v2.709. trajectory-tail →0→0→0→1 STATE v8.413→v8.414"
+current_step: "D-1826..D-1828 (exhaustive) 2026-07-18 MINI STATE BURST (TD-VSDD-053 Lesson 67 pre-gate index sync): LANE 3 PR-LEVEL 3-CLEAN CONVERGED on frozen 828449de (pass-20 CLEAN 3/3); security APPROVE (0 CRIT/IMPORTANT; SEC-001 CWE-117 + SEC-002 advisory SUGGESTIONs); HUMAN D-1827 one-time accelerated-convergence exception — fix both SUGGESTIONs NOW + delta re-gate; implementer @5c9458d6 PUSHED (validate_clone_name gate + tests + timeout rationale; just check 5671/5671); PO story v0.19→v0.20 (EC-008). LANE 1 passes 23+24 CLEAN(strict) streak 2/3 on frozen d412defe; pass-25 convergence candidate in flight. STORY-INDEX v2.709→v2.710. trajectory-tail →0→0→0→0 STATE v8.414→v8.415"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "AUDIT-COVERAGE-001 fix/T13-audit-coverage @cd369b54 LOCAL-ONLY dirty=1; PARKED — needs rebase onto 84062ced before re-activate. S-MAINT-CI-DISK-EXHAUSTION-001 maintenance/ci-disk-hardening @d412defe FROZEN PUSHED (story v0.27; PR #224 OPEN; pass-21 CLEAN(strict) 1/3; pass-22 1 MED F-MAINT-P22-MED-001 resize-attribution → PO fix-burst v0.26→v0.27 DONE; streak 0/3; AC-005 1/3; pass-23 next). DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 @828449de LOCAL CONVERGED (story v0.19; LOCAL 3-CLEAN CONVERGED passes 19/20/21; PR #225 OPEN; PR-LEVEL passes 2/3/5/6/8 CLEAN; pass-4 HIGH closed D-1812; pass-7 MED closed D-1816; pass-8 MED closed D-1817; passes 9+10 CLEAN(strict) streak 2/3; pass-11 1 LOW (F-ADMTOK-PR11-LOW-001) closed; pass-12 CLEAN(strict) streak 1/3; pass-13 CLEAN(strict) streak 2/3; pass-14 1 MED+1 LOW → PO story v0.18; passes 15+16 CLEAN(strict) streak 2/3; pass-17 1 LOW F-ADMTOK-PR17-LOW-001 → PO story v0.19; streak reset 0/3; passes 18+19 CLEAN(strict) streak 2/3; pass-20 convergence candidate next on frozen 828449de). S-3.09 @43c41389 KEEP-PARKED. W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch."
+worktree_status: "AUDIT-COVERAGE-001 fix/T13-audit-coverage @cd369b54 LOCAL-ONLY dirty=1; PARKED — needs rebase onto 84062ced before re-activate. S-MAINT-CI-DISK-EXHAUSTION-001 maintenance/ci-disk-hardening @d412defe FROZEN PUSHED (story v0.27; PR #224 OPEN; passes 23+24 CLEAN(strict) streak 2/3 D-1828; AC-005 1/3; pass-25 convergence candidate in flight). DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 @5c9458d6 PUSHED (story v0.20; LOCAL 3-CLEAN CONVERGED; PR #225 OPEN; PR-LEVEL 3-CLEAN CONVERGED on 828449de passes 18/19/20; security APPROVE 0 CRIT/IMPORTANT; HUMAN D-1827 one-time accelerated-convergence exception; implementer @5c9458d6 PUSHED validate_clone_name gate + tests; PO story v0.20 EC-008; accelerated delta re-gate pending on 5c9458d6). S-3.09 @43c41389 KEEP-PARKED. W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch."
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -76,8 +76,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 330 lines (wc-l)
-  margin from soft-target (200): +130 lines over | margin from actual (500): 170 lines remaining
+  STATE.md SIZE BUDGET: 333 lines (wc-l)
+  margin from soft-target (200): +133 lines over | margin from actual (500): 167 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -91,7 +91,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-18 D-1824 LANE 1 pass-21 CLEAN(strict) 1/3; pass-22 1 MED F-MAINT-P22-MED-001 → PO v0.27; streak 0/3; pass-23 next. LANE 3 passes 18+19 CLEAN(strict) streak 2/3; pass-20 next. STORY-INDEX v2.709 trajectory-tail →0→0→0→1 |
+| **Last Updated** | 2026-07-18 D-1826..D-1828 (exhaustive) LANE 3 PR-LEVEL 3-CLEAN CONVERGED (pass-20 CLEAN); security APPROVE; HUMAN D-1827 one-time accelerated-convergence exception; @5c9458d6 PUSHED story v0.20 (EC-008); delta re-gate pending. LANE 1 passes 23+24 CLEAN(strict) streak 2/3; pass-25 in flight. STORY-INDEX v2.710 trajectory-tail →0→0→0→0 |
 
 ## Active Objective (North Star)
 
@@ -161,15 +161,15 @@ pre_compact_snapshot_at: "2026-07-16"
 
 | Story | Lane | Frozen HEAD | Last Pass | Finding Trajectory | Streak | Branch |
 |-------|------|-------------|-----------|-------------------|--------|--------|
-| S-MAINT-CI-DISK-EXHAUSTION-001 | PR-LEVEL | d412defe | pass-21 CLEAN(strict) 1/3; pass-22 1 MED F-MAINT-P22-MED-001 resize-attribution EC-001 SHA 9c315608→d412defe → PO fix-burst story v0.26→v0.27; streak 0/3; AC-005 1/3; pass-23 next | →3→0→2→3→2→0→0→0→2→2→0→1 | 0/3 | maintenance/ci-disk-hardening (PR #224 OPEN; story v0.27; @d412defe PUSHED; pass-23 next) |
-| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | PR-LEVEL | 828449de | passes 2/3 CLEAN; pass-4 HIGH (SS-22→SS-01 re-anchor D-1812); passes 5/6 CLEAN; pass-7 MED closed (D-1816); pass-8 MED closed (D-1817); pass-9 CLEAN(strict) streak 1/3; pass-10 CLEAN(strict) streak 2/3; pass-11 1 LOW (F-ADMTOK-PR11-LOW-001) closed by PO v0.17; pass-12 CLEAN(strict) streak 1/3 (first attempt infra-voided; pass of record); pass-13 CLEAN(strict) streak 2/3; pass-14 (pass of record; first attempt infra-voided) 1 MED F-ADMTOK-PR14-MED-001 + 1 LOW F-ADMTOK-PR14-LOW-001 → PO story v0.18; passes 15+16 CLEAN(strict) streak 2/3; pass-17 1 LOW F-ADMTOK-PR17-LOW-001 EC-006 flow-attribution (AC-003→EC-001 one-cell) → PO story v0.19; streak reset 0/3; passes 18+19 CLEAN(strict) streak 2/3; pass-20 convergence candidate next | →0→0→0→5→1→0→0→1→1→0→0→1→0→2→0→0→1→0→0 | 2/3 | fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (PR #225 OPEN; story v0.19; passes 18+19 CLEAN(strict); pass-20 next; streak 2/3) |
+| S-MAINT-CI-DISK-EXHAUSTION-001 | PR-LEVEL | d412defe | pass-21 CLEAN(strict) 1/3; pass-22 1 MED F-MAINT-P22-MED-001 → PO v0.27; streak reset 0/3; passes 23+24 CLEAN(strict) streak 2/3 on d412defe; pass-25 convergence candidate in flight (D-1828) | →3→0→2→3→2→0→0→0→2→2→0→1→0→0 | 2/3 | maintenance/ci-disk-hardening (PR #224 OPEN; story v0.27; @d412defe FROZEN PUSHED; streak 2/3; pass-25 in flight) |
+| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | PR-LEVEL | 5c9458d6 | PR-LEVEL 3-CLEAN CONVERGED on frozen 828449de (passes 18/19/20 CLEAN(strict); DRIFT-ORCH-PRLEVEL-PUSH-001 clean); security APPROVE (0 CRIT/IMPORTANT; SEC-001 CWE-117 + SEC-002 advisory); HUMAN D-1827 one-time accelerated-convergence exception; implementer @5c9458d6 PUSHED; PO story v0.20 (EC-008); accelerated delta re-gate pending (delta-scoped adversarial pass + security delta-confirm on frozen 5c9458d6) | →0→0→0→5→1→0→0→1→1→0→0→1→0→2→0→0→1→0→0→0 | CONVERGED+DELTA | fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (PR #225 OPEN; story v0.20; @5c9458d6 PUSHED; 3-CLEAN CONVERGED on 828449de; accelerated delta re-gate pending on 5c9458d6) |
 
 ## Concurrent Cycles
 
 | Story | Branch | Head | Status |
 |-------|--------|------|--------|
-| S-MAINT-CI-DISK-EXHAUSTION-001 | maintenance/ci-disk-hardening | d412defe FROZEN PUSHED | story v0.27; PR #224 OPEN; pass-21 CLEAN(strict) 1/3; pass-22 1 MED F-MAINT-P22-MED-001 resize-attribution (EC-001 in-place SHA 9c315608→d412defe); PO fix-burst v0.26→v0.27 DONE; streak 0/3; AC-005 1/3; pass-23 next |
-| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | 828449de LOCAL CONVERGED | story v0.19; LOCAL 3-CLEAN CONVERGED (passes 19/20/21; 21p/15fb); PR #225 OPEN @828449de; PR-LEVEL passes 2/3/5/6/8 CLEAN (pass-4 HIGH closed D-1812; pass-7 MED closed D-1816; pass-8 MED closed D-1817); pass-9 CLEAN(strict) streak 1/3; pass-10 CLEAN(strict) streak 2/3; pass-11 1 LOW (F-ADMTOK-PR11-LOW-001) closed by PO v0.17; pass-12 CLEAN(strict) streak 1/3 (first attempt infra-voided); pass-13 CLEAN(strict) streak 2/3; pass-14 1 MED+1 LOW → PO story v0.18; passes 15+16 CLEAN(strict) streak 2/3; pass-17 1 LOW F-ADMTOK-PR17-LOW-001 → PO story v0.19; streak reset 0/3; passes 18+19 CLEAN(strict) streak 2/3; pass-20 convergence candidate next on frozen 828449de |
+| S-MAINT-CI-DISK-EXHAUSTION-001 | maintenance/ci-disk-hardening | d412defe FROZEN PUSHED | story v0.27; PR #224 OPEN; passes 23+24 CLEAN(strict) streak 2/3 (D-1828); AC-005 1/3; pass-25 convergence candidate in flight |
+| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | 5c9458d6 PUSHED | story v0.20; LOCAL 3-CLEAN CONVERGED; PR #225 OPEN; PR-LEVEL 3-CLEAN CONVERGED on frozen 828449de (passes 18/19/20 CLEAN(strict)); security APPROVE (0 CRIT/IMPORTANT; SEC-001 CWE-117 + SEC-002 advisory); HUMAN D-1827 one-time accelerated-convergence exception; implementer @5c9458d6 PUSHED; PO story v0.20 EC-008; accelerated delta re-gate pending (delta-scoped adversarial pass + security delta-confirm on frozen 5c9458d6) |
 
 ## Current Phase Steps
 
@@ -224,6 +224,9 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1823 | state-manager | 2026-07-18 | MINI INDEX SYNC (TD-VSDD-053 / Lesson 67 pre-gate index sync): LANE 3 PR-LEVEL: passes 15+16 CLEAN(strict) streak 2/3 on frozen 828449de (zero findings each; DRIFT-ORCH-PRLEVEL-PUSH-001 clean — no pushes mid-streak); pass-17 NOT CLEAN strict — 1 LOW F-ADMTOK-PR17-LOW-001 (EC-006 flow-attribution: AC-003→EC-001 one-cell correction in AC-003 error-flow table); PO fix-burst story v0.18→v0.19; streak reset 0/3; pass-18 next on frozen 828449de. pr-level-pass-15.md + pr-level-pass-16.md + pr-level-pass-17.md committed. STORY-INDEX v2.707→v2.708. LANE 1: description refreshed @d412defe/v0.26; pass-21 in flight (streak 0/3). trajectory-tail →2→0→0→1. STATE v8.412→v8.413 | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1824 | state-manager | 2026-07-18 | MINI STATE BURST (TD-VSDD-053 Lesson 67+68 pre-gate index sync): LANE 1 (S-MAINT): pass-21 CLEAN(strict) 1/3 on d412defe; pass-22 1 MED F-MAINT-P22-MED-001 resize-attribution EC-001 SHA wrong 9c315608→correct d412defe; PO fix-burst story v0.26→v0.27 DONE; streak reset 0/3 on d412defe; pass-23 next. ROOT CAUSE: PO spec-sync dispatched parallel with implementer push — EC-001 cited 9c315608 SHA (pre-push) instead of d412defe (post-push). Lesson 68 codified: PO must sequence AFTER implementer push when EC-001 SHA citation required. pr-level-pass-21.md + pr-level-pass-22.md committed. STORY-INDEX v2.708→v2.709. STATE v8.413→v8.414 | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1825 | state-manager | 2026-07-18 | LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001): passes 18+19 CLEAN(strict) streak 2/3 on frozen 828449de (zero findings each; DRIFT-ORCH-PRLEVEL-PUSH-001 clean — no pushes mid-streak); pass-20 convergence candidate next on frozen 828449de. pr-level-pass-18.md + pr-level-pass-19.md committed. (Bundled in D-1824 burst.) | wave-5-e-demo-fidelity | 2026-07-18 |
+| D-1826 | state-manager | 2026-07-18 | LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001) PR-LEVEL 3-CLEAN CONVERGED: pass-20 CLEAN(strict) on frozen 828449de (zero findings; DRIFT-ORCH-PRLEVEL-PUSH-001 clean — no pushes mid-streak); streak 3/3 CONVERGED (BC-5.39.001); pr-level-pass-20.md committed. security-reviewer dispatched on frozen 828449de → APPROVE (0 CRIT/IMPORTANT; SEC-001 CWE-117 advisory SUGGESTION — validate_clone_name input gate; SEC-002 advisory SUGGESTION — reqwest timeout rationale comment). LANE 1 (S-MAINT) UNCHANGED on d412defe. STATE v8.414 (bundled in D-1826..D-1828 (exhaustive) burst) | wave-5-e-demo-fidelity | 2026-07-18 |
+| D-1827 | human+state-manager | 2026-07-18 | HUMAN RULING: fix both PR #225 SUGGESTIONs (SEC-001 CWE-117 + SEC-002) NOW with ONE-TIME accelerated-convergence exception ("just this ONCE, one time exception," 2026-07-17) — the post-fix re-gate on the new HEAD is ONE delta-scoped fresh-context adversarial pass + security delta-confirm INSTEAD of full BC-5.39.001 3-CLEAN. Explicitly NOT precedent; BC-5.39.001 remains binding for all other cascades. Implementer fix @5c9458d6 PUSHED to fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (validate_clone_name gate + test_validate_clone_name_rejects_invalid + test_validate_clone_name_accepts_valid + 10s timeout rationale comment; just check 5671/5671 GREEN); PO story v0.19→v0.20 (EC-008 added; POL-29 sweep clean; no taxonomy registration — validation-gate not E-DEMO-NNN). STORY-INDEX v2.709→v2.710. STATE v8.414→v8.415 | wave-5-e-demo-fidelity | 2026-07-18 |
+| D-1828 | state-manager | 2026-07-18 | LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): passes 23+24 CLEAN(strict) on frozen d412defe (zero findings each; DRIFT-ORCH-PRLEVEL-PUSH-001 clean — no pushes mid-streak); streak 2/3 (BC-5.39.001); pr-level-pass-23.md + pr-level-pass-24.md committed; AC-005 1/3; pass-25 convergence candidate next. LANE 3 ADMINTOKEN see D-1826+D-1827. STATE v8.415 (bundled in D-1826..D-1828 (exhaustive) burst) | wave-5-e-demo-fidelity | 2026-07-18 |
 
 ## Skip Log
 
@@ -315,15 +318,15 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1823 — 2026-07-18 — MINI STATE BURST D-1823; STATE v8.413)
+## Session Resume Checkpoint (D-1828 — 2026-07-18 — MINI STATE BURST D-1826..D-1828 (exhaustive); STATE v8.415)
 
-**RESUME IN ONE BREATH:** LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): LOCAL 3-CLEAN CONVERGED; PR #225 OPEN @828449de; story v0.19; PR-LEVEL passes 2/3/5/6/8 CLEAN; pass-4 HIGH closed (D-1812); pass-7 MED closed (D-1816); pass-8 MED closed (D-1817); passes 9+10 CLEAN(strict) streak 2/3; pass-11 NOT CLEAN(strict) 1 LOW closed by PO v0.17; pass-12 CLEAN(strict) streak 1/3 (first attempt infra-voided; pass of record); pass-13 CLEAN(strict) streak 2/3; pass-14 (pass of record; first attempt infra-voided) 1 MED+1 LOW → PO story v0.18; passes 15+16 CLEAN(strict) streak 2/3; pass-17 1 LOW F-ADMTOK-PR17-LOW-001 EC-006 flow-attribution (AC-003→EC-001 one-cell) → PO story v0.19; streak reset 0/3; pass-18 next on frozen 828449de — on 3-CLEAN(strict) → security + pr-reviewer + human merge gate. LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): description refreshed @d412defe/v0.26; pass-21 in flight (streak 0/3; AC-005 1/3). D-1809 mitigation still in force. develop=84062ced unchanged.
+**RESUME IN ONE BREATH:** LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): LOCAL 3-CLEAN CONVERGED; PR-LEVEL 3-CLEAN CONVERGED on frozen 828449de (passes 18/19/20 CLEAN(strict)); security APPROVE (0 CRIT/IMPORTANT; SEC-001 CWE-117 + SEC-002 advisory); HUMAN D-1827 one-time accelerated-convergence exception — fix both SUGGESTIONs + delta re-gate on new HEAD; implementer @5c9458d6 PUSHED (validate_clone_name gate + tests + timeout rationale; just check 5671/5671 GREEN); PO story v0.20 (EC-008); PR #225 OPEN; accelerated delta re-gate pending on frozen 5c9458d6 (one delta-scoped adversarial pass + security delta-confirm). LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): story v0.27; @d412defe FROZEN PUSHED; PR #224 OPEN; passes 23+24 CLEAN(strict) streak 2/3 (D-1828); AC-005 1/3; pass-25 convergence candidate next. D-1809 mitigation still in force. develop=84062ced unchanged.
 
 **HEADS:**
 - develop: `84062ced` (ff'd 2026-07-16; EXPECTED=92; origin/develop=local; PUSHED)
 - factory-artifacts: `git -C .factory log -1 --format='%h %s'`
-- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`828449de` — PUSHED (PR #225 OPEN); story v0.19; BC-2.06.017 v1.12; LOCAL 3-CLEAN CONVERGED; PR-LEVEL passes 2/3/5/6/8 CLEAN; passes 9+10 CLEAN(strict) streak 2/3; pass-11 1 LOW closed by PO v0.17; pass-12 CLEAN(strict) streak 1/3; pass-13 CLEAN(strict) streak 2/3; pass-14 1 MED+1 LOW → PO v0.18; passes 15+16 CLEAN(strict) streak 2/3; pass-17 1 LOW → PO v0.19; streak 0/3; pass-18 next
-- `maintenance/ci-disk-hardening` @`d412defe` — FROZEN PUSHED; PR #224 OPEN; story v0.26; pass-20 NOT CLEAN (1 HIGH+1 MED); HUMAN-approved ~2× resize; PO fix-burst done v0.26; description refreshed; streak 0/3; AC-005 1/3; pass-21 in flight
+- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`5c9458d6` — PUSHED (PR #225 OPEN); story v0.20; BC-2.06.017 v1.12; LOCAL 3-CLEAN CONVERGED; PR-LEVEL 3-CLEAN CONVERGED on 828449de; security APPROVE; D-1827 one-time accelerated-convergence exception; accelerated delta re-gate pending on 5c9458d6
+- `maintenance/ci-disk-hardening` @`d412defe` — FROZEN PUSHED; PR #224 OPEN; story v0.27; passes 23+24 CLEAN(strict) streak 2/3; AC-005 1/3; pass-25 next
 - `fix/T13-audit-coverage` @`cd369b54` — LOCAL-ONLY dirty=1; PARKED; needs rebase onto 84062ced
 - `feature/S-3.09` @`43c41389` — KEEP-PARKED (LOCAL-ONLY)
 - `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
