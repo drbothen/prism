@@ -124,13 +124,54 @@ timestamp: 2026-07-17T20:00:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1805 SESSION WRAP — LANE 3 @828449de FROZEN streak 0/3 NEXT pass-19; LANE 1 @faf112fd FROZEN PR #224 CLOSED (human must reopen)** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1805 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1805 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `84062ced` (unchanged; ff'd 2026-07-16). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.405. D-1805 SESSION WRAP; LANE 3 ADMINTOKEN @828449de FROZEN (story v0.15; BC-2.06.017 v1.12; 18p/15fb; streak 0/3; pass-19 next); LANE 1 S-MAINT @faf112fd FROZEN (story v0.22; PR #224 CLOSED — human must reopen AC-005 run-3; pass-14 next); trajectory-tail →5→0→0→1.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1824..D-1825 (exhaustive) MINI STATE BURST — LANE 1 S-MAINT @d412defe story v0.27; PR #224 OPEN; streak 0/3; pass-23 next. LANE 3 ADMINTOKEN @828449de story v0.19; PR #225 OPEN; passes 18+19 CLEAN(strict) streak 2/3; pass-20 convergence candidate next.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1824 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1824 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `84062ced` (unchanged; ff'd 2026-07-16). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.414. D-1824..D-1825 (exhaustive) MINI STATE BURST; LANE 1 S-MAINT @d412defe PUSHED (story v0.27; PR #224 OPEN; pass-21 CLEAN 1/3 + pass-22 1 MED F-MAINT-P22-MED-001 → PO v0.27 corrective; streak 0/3; pass-23 next); LANE 3 ADMINTOKEN @828449de PUSHED (story v0.19; PR #225 OPEN; passes 18+19 CLEAN(strict) streak 2/3; pass-20 convergence candidate next); trajectory-tail →0→0→0→1.
 
 ---
 
-## §RESUME SNAPSHOT — D-1805 (2026-07-17 — SESSION WRAP; STATE v8.405) [SUPERSEDES D-1796]
+## §RESUME SNAPSHOT — D-1824 (2026-07-18 — MINI STATE BURST; STATE v8.414) [SUPERSEDES D-1805]
+
+### RESUME IN ONE BREATH
+
+LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): code @d412defe PUSHED on maintenance/ci-disk-hardening; story v0.27; PR #224 OPEN (description refreshed); pass-21 CLEAN(strict) 1/3 + pass-22 1 MED F-MAINT-P22-MED-001 resize-attribution EC-001 SHA corrected 9c315608→d412defe → PO fix-burst v0.26→v0.27 DONE; streak 0/3 on d412defe; pass-23 next on frozen d412defe. ROOT CAUSE: PO spec-sync was dispatched parallel with implementer push — Lesson 68 codified. LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001): code @828449de PUSHED on fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001; story v0.19; BC-2.06.017 v1.12; PR #225 OPEN; passes 18+19 CLEAN(strict) streak 2/3 on frozen 828449de; pass-20 convergence candidate next — on CLEAN → 3/3 CONVERGED.
+
+### HEADS (verified 2026-07-18 at D-1824 burst)
+
+- develop: origin/develop = `84062ced` (unchanged; ff'd 2026-07-16) — PUSHED
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code; D-1824 burst commit)
+- `maintenance/ci-disk-hardening` @`d412defe` — PUSHED; story v0.27; PR #224 OPEN; streak 0/3; pass-23 next on frozen d412defe
+- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`828449de` — PUSHED; story v0.19; BC-2.06.017 v1.12; PR #225 OPEN; passes 18+19 CLEAN(strict) streak 2/3; pass-20 convergence candidate next on frozen 828449de
+- `fix/T13-audit-coverage` @`cd369b54` — LOCAL-ONLY dirty=1; PARKED — rebase onto 84062ced before unpark
+- `feature/S-3.09` @`43c41389` — KEEP-PARKED (local-only)
+- `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (local-only)
+
+### PER-WORKSTREAM RESUME NEXT-ACTIONS
+
+1. **LANE 3 — dispatch PR-LEVEL pass-20 on frozen 828449de** — convergence candidate; dispatch tuple: worktree=/Users/jmagady/Dev/prism/.worktrees/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, HEAD=828449de, story v0.19, BC-2.06.017 v1.12; PR #225; on CLEAN(strict) → streak 3/3 CONVERGED → security APPROVE → pr-reviewer APPROVE → human squash-merge gate.
+2. **LANE 1 — dispatch PR-LEVEL pass-23 on frozen d412defe** — streak 0/3 restart; dispatch tuple: worktree=/Users/jmagady/Dev/prism/.worktrees/S-MAINT-CI-DISK-EXHAUSTION-001, HEAD=d412defe, story v0.27; PR #224; AC-005 1/3 (one push=trigger already counted); pass-23 is next fresh pass on corrected story v0.27.
+
+### PENDING HUMAN DECISIONS
+
+1. PR #224 (S-MAINT-CI-DISK-EXHAUSTION-001) merge gate — after PR-LEVEL 3-CLEAN(strict) on d412defe + security APPROVE + pr-reviewer APPROVE.
+2. PR #225 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001) merge gate — after PR-LEVEL 3-CLEAN(strict) on 828449de + security APPROVE + pr-reviewer APPROVE.
+3. AUDIT-COVERAGE-001 PR merge gate (after both PRs merge + rebase + 3-CLEAN + push + PR-LEVEL 3-CLEAN).
+
+### WORKTREE INVENTORY (D-1824)
+
+- `.worktrees/S-MAINT-CI-DISK-EXHAUSTION-001` on `maintenance/ci-disk-hardening` @ `d412defe` (PUSHED; story v0.27; PR #224 OPEN; streak 0/3; pass-23 next on frozen d412defe)
+- `.worktrees/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` on `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @ `828449de` (PUSHED; story v0.19; PR #225 OPEN; passes 18+19 CLEAN(strict) streak 2/3; pass-20 convergence candidate next)
+- `.worktrees/AUDIT-COVERAGE-001` on `fix/T13-audit-coverage` @ `cd369b54` (LOCAL-ONLY dirty=1; PARKED — rebase onto 84062ced)
+- `.worktrees/S-3.09` KEEP-PARKED on `feature/S-3.09` @ `43c41389` (local-only)
+- `.worktrees/W3-FIX-S307-001` PARKED on `feature/W3-FIX-S307-001` @ `fcab8717` (local-only; do NOT touch)
+
+### DECISION DELTA — D-1824..D-1825 (exhaustive) (mini burst 2026-07-18)
+
+D-1824: LANE 1 pass-21 CLEAN(strict) 1/3; pass-22 1 MED F-MAINT-P22-MED-001 resize-attribution EC-001 wrong SHA (9c315608 pre-push, should be d412defe post-push) → PO fix-burst story v0.26→v0.27 corrective; streak reset 0/3 on d412defe; pass-23 next. Lesson 68 (PO must sequence AFTER implementer push when EC-001 SHA citation required). D-1825: LANE 3 passes 18+19 CLEAN(strict) streak 2/3 on frozen 828449de; pass-20 convergence candidate next. STORY-INDEX v2.708→v2.709. STATE v8.413→v8.414.
+
+---
+
+## §RESUME SNAPSHOT — D-1805 (2026-07-17 — SESSION WRAP; STATE v8.405) [SUPERSEDES D-1796] [SUPERSEDED by D-1824]
 
 ### RESUME IN ONE BREATH
 

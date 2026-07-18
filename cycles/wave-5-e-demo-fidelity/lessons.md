@@ -3534,3 +3534,27 @@ Wave-gate adjudication at S-3.09 dispatch selects among A/B/C.
 **Narrow exception (does NOT apply here):** If a story version bump happens mid-cascade on a frozen HEAD and the adversary is literally in-flight (subagent already launched), the sync may land in the post-pass burst. This exception requires: (1) the adversary was already dispatched before the bump could be recorded, AND (2) the post-pass burst immediately corrects the lag before the next dispatch. This exception was NOT satisfied at pass-7 (the passes-2/3 report-persistence burst happened after pass-4 closed and before pass-5 was dispatched).
 
 **Source:** D-1816 (2026-07-18) — F-ADMTOK-PR7-MED-001 pass-7 MEDIUM finding; version-pin-lattice probe catch; pass-6 prior passes 5+6 CLEAN (code-anchored axis) → pass-7 MEDIUM (registry axis); consolidated burst D-1816 closes the lag.
+
+---
+
+### Lesson 68 — [process-gap] spec-sync fix-bursts that must pin a code-fix commit SHA must sequence product-owner AFTER implementer's push, never in parallel (D-1824)
+
+**Classification:** PROCESS-GAP — D-1824 (2026-07-18); F-MAINT-P22-MED-001 origin analysis.
+
+**Finding:** Pass-22 of S-MAINT-CI-DISK-EXHAUSTION-001 surfaced F-MAINT-P22-MED-001 (MEDIUM): the EC-001 body in the story spec cited the SHA `9c315608` (the earlier security-fix commit) as the implementation anchor for the resize-attribution values (75/45 minutes), but the actual implementing commit was `d412defe` (the later HUMAN-approved ~2× resize push). The spec attributed the behavior to the wrong commit — a spec-vs-git-truth attribution defect.
+
+**Root cause:** The product-owner fix-burst for pass-20 findings (which added resize values 75/45 to EC-001) was dispatched in parallel with the implementer's push of `d412defe`. The PO wrote the story v0.26 body before `d412defe` was pushed to origin. When the PO cited a SHA to anchor the resize, only `9c315608` was available in the PUSHED state; `d412defe` existed only as a local commit at the time of the PO's write. The PO used the last-known pushed SHA (`9c315608`) as a reasonable proxy, but it was the wrong commit for the EC-001 resize attribution.
+
+**Why this matters:** EC-001 entries that cite a specific implementation SHA serve as traceability anchors for the adversary's TD-VSDD-059 paper-fix probe. A wrong SHA cite means the adversary cannot verify the closure by reading the right commit diff — the traceability chain is broken, creating a MEDIUM finding that resets the streak to 0/3.
+
+**Codified rule:** When a spec-sync fix-burst must cite a code-fix commit SHA (e.g., EC-001 "In-place: `<commit-SHA>`" patterns), the sequencing constraint is:
+
+1. **Implementer completes and PUSHES the code fix first** — the commit SHA exists on origin and is verifiable.
+2. **Product-owner dispatched AFTER the push completes** — the PO reads the pushed commit, observes the SHA from `git -C .worktrees/<story> log -1 --format='%H'` (or `git -C .factory log -1 origin/...`), and uses that SHA in the EC-001 attribution.
+3. **Never dispatch PO in parallel with implementer when EC-001 SHA attribution is required** — a PO dispatch that runs concurrently with an implementer push will read a stale PUSHED state and cite the wrong SHA.
+
+**Narrow exception:** If the spec-sync fix-burst is purely narrative (no SHA cite, no version-pin of code artifacts), parallel dispatch is acceptable. The rule only applies when the PO's output must reference a specific code commit SHA.
+
+**State-manager obligation:** When authoring a dispatch plan that includes both implementer + PO for the same fix-burst, check whether the PO's story edits include EC-001 SHA citations or other code-commit anchors. If yes, sequence PO as a DEPENDENCY of implementer-push, not a parallel.
+
+**Source:** D-1824 (2026-07-18) — F-MAINT-P22-MED-001 pass-22 MEDIUM finding; S-MAINT-CI-DISK-EXHAUSTION-001 PR-LEVEL cascade; PO spec-sync (D-1820) dispatched in parallel with implementer push @d412defe; EC-001 cited wrong SHA 9c315608; corrective v0.27 burst closes the lag.
