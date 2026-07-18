@@ -11,6 +11,16 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 
 ---
 
+## Archived: D-1844 — 2026-07-18; STATE v8.419 — LANE 3 ADMINTOKEN CLOSED
+
+**RESUME IN ONE BREATH:** BOTH LANES CLOSED. LANE 1 — S-MAINT-CI-DISK-EXHAUSTION-001 MERGED @0f9857dd (D-1829). LANE 3 — DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 MERGED @277b7844 (D-1841; PR #225 squash-merged 2026-07-18T16:10:23Z; story v0.21 final; BC-3.6.001 POL-14 legacy-sync BLOCKED-TD031 — product-owner fix-burst owed; DRIFT-ADMINTOKEN-BC361-TD031-001 open). **NEXT: AUDIT-COVERAGE-001 (fix/T13-audit-coverage @cd369b54 LOCAL-ONLY dirty=1) — devops-engineer rebase onto develop 277b7844, then LOCAL 3-CLEAN → push → PR. D-1811 story-writer dispatch (FM4 follow-up story) pending — was parked mid-provider-instability (D-1844).** D-1809 mitigation still in force.
+
+**HEADS:** develop `277b7844`; fix/T13-audit-coverage @cd369b54 LOCAL-ONLY dirty=1 UNBLOCKED; feature/S-3.09 @43c41389 KEEP-PARKED; feature/W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch; develop and factory-artifacts PUSHED; all others LOCAL-ONLY.
+
+**NOTE: Superseded by D-1849 — AUDIT-COVERAGE-001 rebased @98bb1de2; LOCAL F-AUD-R1 CLEAN(strict)=yes streak 1/3; taxonomy v2.55→v2.56; S-MAINT-PRMGR-HOOK-SCOPE-001 REGISTERED. STATE v8.419→v8.420.**
+
+---
+
 ## Archived: D-1816 — 2026-07-18; STATE v8.407 — CONSOLIDATED BURST #2
 
 **RESUME IN ONE BREATH:** LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): LOCAL 3-CLEAN CONVERGED; PR #225 OPEN @828449de; story v0.16; PR-LEVEL passes 2/3/5/6 CLEAN; pass-4 HIGH (F-ADMTOK-PR4-HIGH-001 SS-22→SS-01 re-anchor) CLOSED; pass-7 MED (F-ADMTOK-PR7-MED-001 STORY-INDEX pin lag) CLOSED THIS BURST; streak 0/3; NEXT: PR-LEVEL pass-8 on frozen 828449de. LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): passes 16/17/18 3-CLEAN(strict) CONVERGED on c5e559d3 (D-1813); security-reviewer APPROVE; HUMAN-approved SEC-001 CWE-272 + SEC-002 CWE-319; implementer @9c315608 PUSHED; story v0.24 (D-1814); convergence RESET by design; CI on 9c315608 in progress; NEXT description refresh after CI green → re-gate passes 19/20/21 on frozen 9c315608. AC-005 interpretation ruling still pending human. D-1815: pr-manager 4th scope violation (FM4/STEP_COMPLETE); D-1809 mitigation still in force. develop=84062ced unchanged.

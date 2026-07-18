@@ -1263,7 +1263,7 @@ BC-2.06.020 v1.5→v1.6: INV-PERIMETER-COMPLIANCE-001 body + Architecture Anchor
 > The burst is a STATE-HYGIENE action — streak UNCHANGED, no spec/code changes, single atomic commit per TD-VSDD-053.
 
 **Outcome (D-1132):**
-STATE.md compacted from 214KB/367 lines to 28KB/274 lines. Decisions D-1055..D-1123 archived to decisions-archive-D1055-D1123.md. SESSION-HANDOFF hardened with full do-not-reflag list (40+ items verbatim) in §4 and T5 cascade ledger (LOCAL 1-13 + PR-LEVEL 1-24) in §3. Task ledger CURRENT POINTER updated to T5 PR-LEVEL cascade pass 25. STATE v7.780→v7.781.
+STATE.md compacted from 214KB/367 lines to 28KB/274 lines. Decisions D-1055..D-1123 (exhaustive) archived to decisions-archive-D1055-D1123.md. SESSION-HANDOFF hardened with full do-not-reflag list (40+ items verbatim) in §4 and T5 cascade ledger (LOCAL 1-13 + PR-LEVEL 1-24) in §3. Task ledger CURRENT POINTER updated to T5 PR-LEVEL cascade pass 25. STATE v7.780→v7.781.
 
 ---
 
@@ -3607,3 +3607,29 @@ This evidence summary serves two purposes: (a) it gives the subagent transcript 
 **Observation:** This instability pattern was transient (resolved within the session) but recurred 6+ times. The chunked-write mitigation adds latency but guarantees completion. For artifacts requiring large contiguous output (e.g., pr-body refresh, full pass reports), the chunked approach is now the default first attempt, not a fallback.
 
 **Source:** D-1844 (2026-07-18) — provider instability incident; PR #225 lifecycle; D-1811 story-writer dispatch parked; D-1832 PR body refresh required four retries with chunked writes.
+
+---
+
+### Lesson 71 — [infra] WASM plugin fuel-ceiling fail-closed false positives on large .factory/ files require per-session human authorization (D-1847)
+
+**Classification:** INFRA/PROCESS-GAP — D-1847 (2026-07-18); PG-HOOK-FUEL-CEILING-001; AUDIT-COVERAGE-001 taxonomy fix burst.
+
+**Finding:** PostToolUse validator plugins (WASM) have a fuel ceiling of 10M execution steps. Large .factory/ files — specifically error-taxonomy.md (784 lines), STORY-INDEX.md (~2013 lines), STATE.md (~360 lines) — exhaust the fuel budget during sync plugin execution. When fuel is exhausted, the plugin dispatcher fails closed: all 22–32 sync PostToolUse Edit\|Write validator plugins produce block events. These blocks are NOT content violations — the edits themselves are valid and land on disk. They are compute-timeout false positives.
+
+**How it manifested:** During the AUDIT-COVERAGE-001 taxonomy fix burst (D-1847), a product-owner edit to error-taxonomy.md (v2.55→v2.56, +6 E-SENSOR rows) was blocked by all 22 sync plugins timing out. The block appeared identical to a legitimate content violation, but inspecting `total_ms` (~360ms for 22 plugins) confirmed it was a timeout: legitimate validators take 2,000–8,000ms for STATE.md; timing out in 360ms across all plugins is the fuel-exhaustion signature.
+
+**Interim mitigation (D-1850):** dx-engineer patched `fuel_cap` from 10M to 100M steps in all 32 PostToolUse Edit\|Write validator entries in `hooks-registry.toml` (cache-dir edit). This is non-persistent — it resets when the vsdd-factory plugin is updated. The upstream drbothen/vsdd-factory issue tracking the permanent fix is anchored in S-MAINT-PRMGR-HOOK-SCOPE-001 AC-004.
+
+**Codified rule:**
+
+1. **Identify the false-positive signature:** When ALL sync PostToolUse plugins block in ≤500ms total, it is a fuel-ceiling timeout, NOT a content violation. A single legitimate validator finding takes 2,000–8,000ms on STATE.md.
+2. **Do NOT treat as a content violation:** The edit landed on disk. The content is valid. No rollback needed.
+3. **Request human authorization:** Per task instructions, STOP and report the block verbatim to the orchestrator. Human authorization is required for each session where the ceiling is hit (until upstream fix lands).
+4. **Apply dx-engineer fuel_cap patch:** `fuel_cap = 100000000` in hooks-registry.toml for all 32 Edit\|Write validator entries. TOML validate after patch. Non-persistent — re-apply if plugin updates reset it.
+5. **Third evidence-context-asymmetry FP (D-1851):** The fuel_cap patch itself (explicitly human-authorized at orchestrator gate) was flagged as "guard-weakening self-modification" by the classifier during dispatch — because the human authorization evidence lived in orchestrator context, invisible to the classifier's transcript. Third corroboration of the D-1811/D-1843 class; reinforces S-MAINT-PRMGR-HOOK-SCOPE-001 AC-003 (orchestrator must embed authorization summary in every dispatch touching hooks/config).
+
+**Affected file sizes:** error-taxonomy.md (784 lines), STORY-INDEX.md (~2015 lines), STATE.md (~360 lines). Files below ~300 lines have not triggered the ceiling.
+
+**Closes:** D-1847, D-1848, D-1850, D-1851
+
+**Source:** D-1847 (2026-07-18) — AUDIT-COVERAGE-001 taxonomy fix burst; PG-HOOK-FUEL-CEILING-001 registered; S-MAINT-PRMGR-HOOK-SCOPE-001 AC-004 upstream anchor. D-1850 fuel_cap patch. D-1851 third classifier FP.
