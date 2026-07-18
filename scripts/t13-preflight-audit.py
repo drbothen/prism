@@ -6,6 +6,7 @@ the FULL demo feature coverage matrix (extends the 18-item smoke audit).
 
 Usage:
     python3 scripts/t13-preflight-audit.py
+    PRISM_THREATINTEL_BASE_URL=http://127.0.0.1:PORT PRISM_NVD_BASE_URL=http://127.0.0.1:PORT python3 scripts/t13-preflight-audit.py
     PRISM_THREATINTEL_PORT=65343 PRISM_NVD_PORT=65344 python3 scripts/t13-preflight-audit.py
 
 Invocation discipline — exit-code capture:
@@ -19,7 +20,10 @@ Invocation discipline — exit-code capture:
 
 Requirements:
     - prism-dtu-demo-server must be running (bash scripts/demo-run.sh)
-    - PRISM_THREATINTEL_PORT and PRISM_NVD_PORT env vars (from demo-run.sh output)
+    - PRISM_THREATINTEL_BASE_URL and PRISM_NVD_BASE_URL env vars (from demo-run.sh output —
+      the full URLs printed after DTU server start, e.g. "PRISM_THREATINTEL_BASE_URL=http://127.0.0.1:PORT").
+      Alternatively PRISM_THREATINTEL_PORT / PRISM_NVD_PORT bare port numbers are accepted
+      (precedence: explicit BASE_URL > explicit PORT > built-in default port 54646/54647).
 
 Coverage matrix (see len(COVERAGE_MATRIX) for current authoritative count):
   1. Full 54-tool catalog asserted present via tools/list (14 live LIVE_TOOLS + 40 NYA stubs;
@@ -144,9 +148,30 @@ elif os.environ.get("XDG_CONFIG_HOME"):
 else:
     CONFIG_DIR = str(Path.home() / ".config" / "prism-demo")
 
-# Ports are output by demo-run.sh — set via env vars or pass as args
+# ThreatIntel / NVD base-URL resolution — precedence: BASE_URL > PORT > default.
+#
+# demo-run.sh exports PRISM_THREATINTEL_BASE_URL / PRISM_NVD_BASE_URL as full URLs
+# (e.g. "http://127.0.0.1:54321") after the DTU server starts and learns its ephemeral
+# port.  Operators following demo-run.sh copy-paste these exports directly — those vars
+# take precedence and are passed through verbatim so the prism subprocess reaches the
+# correct ephemeral port.
+#
+# Fallback chain (applied independently for each DTU):
+#   1. PRISM_THREATINTEL_BASE_URL / PRISM_NVD_BASE_URL — full URL, passed through verbatim
+#   2. PRISM_THREATINTEL_PORT / PRISM_NVD_PORT — bare port, wrapped as http://127.0.0.1:PORT
+#   3. Built-in default ports 54646 / 54647 — fixed only for static lab setups that don't
+#      run demo-run.sh; almost always wrong in demo environments with ephemeral DTU ports.
+#
+# F-AUD-PR4-MED-001: original code read only PORT vars and always rebuilt BASE_URL from
+# them, silently discarding any BASE_URL already in env — causing all enrichment checks
+# to fail against stale/dead ports when following the demo-run.sh operator workflow.
+_threatintel_base_url_env = os.environ.get("PRISM_THREATINTEL_BASE_URL")
+_nvd_base_url_env = os.environ.get("PRISM_NVD_BASE_URL")
 THREATINTEL_PORT = os.environ.get("PRISM_THREATINTEL_PORT", "54646")
 NVD_PORT = os.environ.get("PRISM_NVD_PORT", "54647")
+# Effective URLs used for the prism subprocess — Base URL wins when set.
+THREATINTEL_BASE_URL = _threatintel_base_url_env if _threatintel_base_url_env else f"http://127.0.0.1:{THREATINTEL_PORT}"
+NVD_BASE_URL = _nvd_base_url_env if _nvd_base_url_env else f"http://127.0.0.1:{NVD_PORT}"
 
 # OBS-004: CROWDSTRIKE_BASE_URL / ARMIS_INSTANCE_URL / CLAROTY_INSTANCE_URL have no port.
 # This is intentional — DTU ports are ephemeral (scripts/demo.toml [harness] has no port
@@ -159,9 +184,9 @@ NVD_PORT = os.environ.get("PRISM_NVD_PORT", "54647")
 # the TYPE spec base_url host at step 7.5b; adding a port here would cause SEC-003 to reject
 # the host "127.0.0.1:NNNNN" (host includes port in URL parse) on first boot.
 # Source: scripts/demo-run.sh lines 354-373; scripts/demo.toml [harness] (no port).
-# PRISM_THREATINTEL_PORT / PRISM_NVD_PORT are env-provided at runtime (printed by demo-run.sh
-# after the DTU server starts); they use the same ephemeral pattern but are exposed as
-# explicit env vars because their base_url is not replaced via per-org overlays.
+# PRISM_THREATINTEL_BASE_URL / PRISM_NVD_BASE_URL are provided by demo-run.sh as full URLs
+# after the DTU server starts; they use the same ephemeral pattern but are surfaced as
+# BASE_URL vars (not PORT vars) because their base_url is not replaced via per-org overlays.
 ENV = {
     **os.environ,
     "CROWDSTRIKE_BASE_URL": "http://127.0.0.1",      # no port: ephemeral DTU; overlay provides port at step 4c
@@ -169,9 +194,9 @@ ENV = {
     "CLAROTY_INSTANCE_URL": "http://127.0.0.1",       # no port: ephemeral DTU; overlay provides port at step 4c
     "CYBERINT_ENVIRONMENT": "demo",
     "PRISM_DTU_MODE": "true",
-    "PRISM_THREATINTEL_BASE_URL": f"http://127.0.0.1:{THREATINTEL_PORT}",
+    "PRISM_THREATINTEL_BASE_URL": THREATINTEL_BASE_URL,
     "PRISM_THREATINTEL_API_KEY": "demo-threatintel-api-key",
-    "PRISM_NVD_BASE_URL": f"http://127.0.0.1:{NVD_PORT}",
+    "PRISM_NVD_BASE_URL": NVD_BASE_URL,
     "PRISM_NVD_API_KEY": "demo-nvd-api-key",
 }
 
@@ -5657,7 +5682,7 @@ if __name__ == "__main__":
         sys.exit(1)
     print("=" * 80)
     print("T13 COMPREHENSIVE PRE-FLIGHT DEMO AUDIT — develop baseline at AUDIT-COVERAGE-001 branch point + fix/T13-audit-coverage Section-H extension")
-    print(f"  ThreatIntel port: {THREATINTEL_PORT}  NVD port: {NVD_PORT}")
+    print(f"  ThreatIntel URL: {THREATINTEL_BASE_URL}  NVD URL: {NVD_BASE_URL}")
     print(f"  Coverage floor: {EXPECTED_COVERAGE_COUNT} required, {len(COVERAGE_MATRIX)} present")
     print(f"  Coverage: {len(COVERAGE_MATRIX)} matrix items across 8 sections (A–H)")
     print("=" * 80)
