@@ -83,9 +83,9 @@ enum Commands {
 /// Name of the PID sidecar file written in cwd by `start`.
 const PID_FILE: &str = ".prism-dtu-demo-server.pid";
 
-// URL_FILE and URL_MULTI_FILE are defined in lib.rs (as `pub const`) so that
-// multi_org_cmd.rs can reference them in error messages. Import them here.
-use prism_dtu_demo_server::{URL_FILE, URL_MULTI_FILE};
+// URL_FILE, URL_MULTI_FILE, TOKEN_FILE, TOKEN_MULTI_FILE are defined in lib.rs (as `pub const`)
+// so that multi_org_cmd.rs can reference them in error messages. Import them here.
+use prism_dtu_demo_server::{TOKEN_FILE, TOKEN_MULTI_FILE, URL_FILE, URL_MULTI_FILE};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -173,6 +173,12 @@ async fn cmd_start(
 
     // 8. Write URL sidecar for `configure` subcommand.
     write_url_sidecar(&harness)?;
+
+    // 8b. Write admin-token sidecar for `configure` subcommand (T-04).
+    //     Written atomically alongside URL_FILE so that `cmd_configure` (a separate
+    //     process invocation) can obtain per-clone tokens for the `X-Admin-Token` header
+    //     required by ADR-003 Amendment #5 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-04).
+    write_token_sidecar(&harness)?;
 
     // 9. Print URL table.
     harness.print_url_table();
@@ -315,6 +321,27 @@ fn write_url_sidecar(harness: &prism_dtu_demo_server::DemoHarness) -> anyhow::Re
     Ok(())
 }
 
+/// Write the admin-token sidecar JSON file so that `configure` can look up per-clone
+/// admin tokens for the `X-Admin-Token` header (ADR-003 Amendment #5).
+///
+/// Delegates to `write_token_sidecar_to_path` (the testable, path-parameterised variant
+/// in `harness.rs`) with the canonical `TOKEN_FILE` path.
+///
+/// Written atomically (tmp + rename, 0600 on Unix) to prevent `cmd_configure` from reading
+/// a partial file (GAP-3 sidecar-availability guarantee / F-ADMTOK-P1-OBS-002).
+///
+/// # T-03/T-04 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001)
+///
+/// Called immediately after `write_url_sidecar` in `cmd_start()` — the call site is
+/// in this binary (main.rs), NOT in `DemoHarness::start_all`, so that the library does
+/// not gain an unrequested I/O failure mode for callers that do not need the sidecar.
+fn write_token_sidecar(harness: &prism_dtu_demo_server::DemoHarness) -> anyhow::Result<()> {
+    prism_dtu_demo_server::write_token_sidecar_to_path(
+        &harness.token_map(),
+        std::path::Path::new(TOKEN_FILE),
+    )
+}
+
 /// Wait for SIGINT or SIGTERM, then gracefully shut down all clones.
 ///
 /// If shutdown takes longer than 5 seconds, exits with code 1.
@@ -356,6 +383,8 @@ async fn wait_for_shutdown_signal(harness: &mut prism_dtu_demo_server::DemoHarne
     // Remove sidecar files.
     let _ = std::fs::remove_file(PID_FILE);
     let _ = std::fs::remove_file(URL_FILE);
+    // T-09: Remove admin-token sidecar alongside URL sidecar on shutdown.
+    let _ = std::fs::remove_file(TOKEN_FILE);
 
     if stop_result.is_err() {
         tracing::error!("stop_all() timed out after 5s — hard aborting");
@@ -400,6 +429,11 @@ async fn cmd_start_multi(config_path: std::path::PathBuf) -> anyhow::Result<()> 
     //    Written to URL_MULTI_FILE (distinct from the flat URL_FILE written by `start`).
     write_multi_url_sidecar(&servers, &cfg)?;
 
+    // 5b. Write NESTED admin-token sidecar: {org_slug: {sensor_id: token}}.
+    //     Written to TOKEN_MULTI_FILE alongside URL_MULTI_FILE so that `cmd_configure`
+    //     can obtain per-clone tokens for the `X-Admin-Token` header (T-06).
+    write_multi_admin_token_sidecar(&servers, &cfg)?;
+
     // 6. Print nested URL table to stdout.
     let socket_map = servers.socket_map();
     println!("start-multi: {} instances running", socket_map.len());
@@ -437,6 +471,29 @@ fn write_multi_url_sidecar(
         servers,
         cfg,
         std::path::Path::new(URL_MULTI_FILE),
+    )
+}
+
+/// Write the NESTED admin-token sidecar file `.prism-dtu-demo-server.admin-tokens-multi.json`.
+///
+/// Delegates to `write_multi_admin_token_sidecar_to_path` (the testable, path-parameterised
+/// variant in `multi_org_cmd.rs`) with the canonical `TOKEN_MULTI_FILE` path.
+///
+/// Written atomically (tmp + rename) to prevent `cmd_configure` from reading a partial file.
+///
+/// # Production-grade: no silent drops
+///
+/// Errors loudly if any expected `{org_slug}-{sensor_id}` entry is absent from
+/// `servers.admin_token_map()` — a missing token would cause HTTP 401 on every
+/// `configure` call for that sensor (CLAUDE.md Standing Rule 3 §2).
+fn write_multi_admin_token_sidecar(
+    servers: &prism_dtu_demo_server::MultiInstanceServers,
+    cfg: &prism_dtu_demo_server::MultiOrgDemoConfig,
+) -> anyhow::Result<()> {
+    prism_dtu_demo_server::write_multi_admin_token_sidecar_to_path(
+        servers,
+        cfg,
+        std::path::Path::new(TOKEN_MULTI_FILE),
     )
 }
 
@@ -480,6 +537,8 @@ async fn wait_for_shutdown_signal_multi(servers: &prism_dtu_demo_server::MultiIn
     // Remove sidecar files.
     let _ = std::fs::remove_file(PID_FILE);
     let _ = std::fs::remove_file(URL_MULTI_FILE);
+    // T-09: Remove admin-token sidecar alongside URL sidecar on shutdown.
+    let _ = std::fs::remove_file(TOKEN_MULTI_FILE);
 
     tracing::info!("start-multi: All instances signalled for graceful shutdown.");
 }
@@ -532,10 +591,102 @@ fn send_sigterm(pid: i32) -> anyhow::Result<()> {
 }
 
 // ---------------------------------------------------------------------------
+// `configure` subcommand — input validation helpers
+// ---------------------------------------------------------------------------
+
+/// Replace every disallowed character with '?' so the sanitized form can be
+/// safely embedded in log and error messages without carrying control characters.
+fn sanitize_clone_name(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '?'
+            }
+        })
+        .collect()
+}
+
+/// Validate that `name` consists entirely of `[a-zA-Z0-9_-]`.
+///
+/// Called at the entry of `cmd_configure` BEFORE any file or network I/O so that
+/// a malformed clone name cannot reach `tracing::debug!` or other sinks where
+/// unsanitised text would be a CWE-117 log-injection vector.
+///
+/// The error message echoes the sanitized form (control chars replaced with '?')
+/// so the error itself cannot carry injection payloads.
+fn validate_clone_name(name: &str) -> anyhow::Result<()> {
+    // NEW-001 (CWE-20): reject empty names explicitly.
+    // `"".chars().all(predicate)` is vacuously true, so without this guard an
+    // empty string would pass the charset check and reach resolve_configure_url.
+    if name.is_empty() {
+        anyhow::bail!("configure: clone name must not be empty");
+    }
+    if name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        Ok(())
+    } else {
+        let sanitized = sanitize_clone_name(name);
+        anyhow::bail!(
+            "configure: invalid clone name '{}': clone names may contain only alphanumerics, '-' and '_'",
+            sanitized
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
 // `configure` subcommand
 // ---------------------------------------------------------------------------
 
 async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<()> {
+    // SEC-001 (CWE-117): validate clone_name at entry before any resolution or logging.
+    // Characters outside [a-zA-Z0-9_-] are rejected here so that the later
+    // tracing::debug! (which logs clone_name) only ever sees validated input.
+    validate_clone_name(&clone_name)?;
+
+    // TD-VSDD-060 sibling sweep (AC-004): all POST /dtu/configure call sites in client code. // SWEEP-MIRROR
+    //
+    // Enumerated in DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 §Root Cause sibling table:
+    // | Site                                             | X-Admin-Token? | Status          |
+    // |--------------------------------------------------|----------------|-----------------|
+    // | cmd_configure() — this function (main.rs)              | YES (FIXED)    | DEFECT → FIXED  |
+    // | ac_3_configure_called_on_clone_port_directly           | YES            | Correct         |
+    // | ac_3_no_harness_proxy_for_configure                    | YES            | Correct         |
+    // | prism-dtu-crowdstrike td_wv0_07_*                      | YES            | Correct         |
+    // | prism-dtu-{claroty,cyberint,armis,...} td_wv0_07_*     | YES            | Correct         |
+    // | bc_3_6_001_ops_clone_failure_modes.rs (configure_failure helper) | YES | Correct (via Harness::admin_token_for()) |
+    // | review_2026_06_10_deny_unknown.rs                      | YES            | Correct (via Harness::admin_token_for()) |
+    // | prism-dtu-harness/src/builder.rs                       | N/A            | Synthetic (hung-socket; verifies client |
+    // |   (test_build_harness_http_client_timeout_is_load_bearing) |             |   timeout, no DTU handler — not applicable) |
+    // | fidelity_validator.rs in prism-dtu-{nvd,claroty,armis,threatintel,cyberint} | YES | Correct (FidelityCheck headers field, 1 per file = 5 total) |
+    // | harness_tests.rs AC-002 FidelityValidator in prism-dtu-{armis,claroty,cyberint} | YES | Correct (FidelityCheck headers field, 1 per file = 3 total) |
+    //
+    // Convention: lines tagged `// SWEEP-MIRROR` contain the grep patterns below; append
+    // `| grep -v SWEEP-MIRROR` to each command for stable, self-consistent counts.
+    // Reproducible counts (run from worktree root):
+    //   `rg 'dtu/configure' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l`           → 447 total hits // SWEEP-MIRROR
+    //   `rg '\.post\(.*dtu/configure' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l` → 131 same-line .post() calls // SWEEP-MIRROR
+    //   `rg 'let url = format.*dtu/configure' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l` → 6 dynamic-URL construction lines // SWEEP-MIRROR
+    //   `rg 'endpoint.*"/dtu/configure"' crates/ --type rust | grep -v SWEEP-MIRROR | wc -l` → 8 FidelityCheck-based callers // SWEEP-MIRROR
+    // 7 dynamic .post() calls (URL pre-built in let-binding, .post() on separate line): // SWEEP-MIRROR
+    //   inject_failure (harness.rs), test_build_harness_http_client_timeout_is_load_bearing (builder.rs),
+    //   test_BC_3_6_001_replicates_defect_401_without_admin_token (defect test A),
+    //   test_BC_2_06_017_token_sidecar_written_and_configure_with_token_returns_200 (defect test B),
+    //   ac_3_configure_called_on_clone_port_directly, ac_3_no_harness_proxy_for_configure,
+    //   and this function cmd_configure (resolve_configure_url → .post(&url)) // SWEEP-MIRROR
+    // Total POST client calls: 131 same-line + 7 dynamic + 8 FidelityCheck-based = 146; remainder of 447 in doc/strings.
+    //
+    // Only cmd_configure() was missing the header before this fix. All authenticated callers
+    // use `clone.admin_token()` (prism-dtu-{sensor} tests) or `Harness::admin_token_for()`
+    // (prism-dtu-harness tests) per ADR-003 Amendment #5. The builder.rs synthetic entry
+    // POSTs to a hung socket with no DTU handler — authentication is not applicable there.
+    // FidelityCheck-based callers (8 total: 5 in per-DTU fidelity_validator.rs, 3 in harness_tests.rs
+    // AC-002 tests) pass X-Admin-Token via the `headers` field (ADR-003 Amendment #3);
+    // FidelityValidator::run injects these via client.request() — not captured by .post() grep.
+
     // HIGH-1 fix: resolve the clone URL from whichever sidecar exists.
     //
     // `start` writes URL_FILE (flat: {name: url}).
@@ -558,6 +709,28 @@ async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<
         )
     })?;
 
+    // T-08 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001): resolve admin token from token sidecar.
+    //
+    // `start` writes TOKEN_FILE (flat: {name: token}).
+    // `start-multi` writes TOKEN_MULTI_FILE (nested: {org_slug: {sensor_id: token}}).
+    //
+    // `resolve_configure_token` uses the same flat-first/nested-fallback/bare-name-disambiguation
+    // logic as `resolve_configure_url`. Returns E-DEMO-007 if the token cannot be resolved.
+    //
+    // AD-017 credential safety: the token value is NOT logged (only token_present=true).
+    let admin_token = prism_dtu_demo_server::resolve_configure_token(
+        &clone_name,
+        Some(std::path::Path::new(TOKEN_FILE)),
+        Some(std::path::Path::new(TOKEN_MULTI_FILE)),
+    )?;
+    tracing::debug!(
+        clone = %clone_name,
+        token_present = true,
+        "cmd_configure: resolved admin token from token sidecar"
+    );
+
+    // SEC-002: 10s timeout — local loopback demo server (not a production sensor API client).
+    // Production sensor clients use 30s per CLAUDE.md §HTTP client timeout.
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
@@ -566,6 +739,7 @@ async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<
     let resp = client
         .post(&configure_url)
         .header("Content-Type", "application/json")
+        .header("X-Admin-Token", &admin_token)
         .body(json_body)
         .send()
         .await
@@ -585,4 +759,120 @@ async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<
     }
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests — SEC-001 validate_clone_name
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ---------------------------------------------------------------------------
+    // test_validate_clone_name_rejects_invalid
+    // SEC-001 (CWE-117): load-bearing rejection path.
+    //
+    // LOAD-BEARING: removing or relaxing `validate_clone_name` so that characters
+    // outside [a-zA-Z0-9_-] are accepted would cause these assertions to fail.
+    //
+    // Also verifies the sanitized form echoed in the error message cannot carry
+    // control characters or ANSI sequences.
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn test_validate_clone_name_rejects_invalid() {
+        // Newline injection (CWE-117 canonical case).
+        let result = validate_clone_name("crowdstrike\n--injected");
+        let err = result.expect_err(
+            "SEC-001: clone name containing newline must be rejected by validate_clone_name",
+        );
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("invalid clone name"),
+            "SEC-001: rejection error must contain 'invalid clone name'; got: {msg}"
+        );
+        // The sanitized form replaces '\n' and '-' (the second '-' is actually allowed but
+        // the SPACE after 'crowdstrike\n' is not — verify '?' is present for the newline).
+        assert!(
+            msg.contains('?'),
+            "SEC-001: sanitized error must replace disallowed chars with '?'; got: {msg}"
+        );
+        assert!(
+            msg.contains("alphanumerics"),
+            "SEC-001: rejection error must cite allowed charset; got: {msg}"
+        );
+
+        // Null byte.
+        validate_clone_name("bad\0name")
+            .expect_err("SEC-001: null byte in clone name must be rejected");
+
+        // ANSI escape sequence.
+        validate_clone_name("name\x1b[31mred\x1b[0m")
+            .expect_err("SEC-001: ANSI escape in clone name must be rejected");
+
+        // Slash (path traversal shape).
+        validate_clone_name("../etc/passwd")
+            .expect_err("SEC-001: slash in clone name must be rejected");
+
+        // Space.
+        validate_clone_name("clone name with spaces")
+            .expect_err("SEC-001: space in clone name must be rejected");
+    }
+
+    // ---------------------------------------------------------------------------
+    // test_validate_clone_name_rejects_empty
+    // SEC-001 / NEW-001 (CWE-20): vacuous-truth regression gate.
+    //
+    // LOAD-BEARING: `"".chars().all(predicate)` is vacuously true in Rust (all(…)
+    // on an empty iterator always returns true), so without an explicit empty-string
+    // check the function would silently return Ok(()) for an empty clone name.
+    // An empty name then reaches `resolve_configure_url` and either panics on
+    // URL construction or returns a confusing "ambiguous" error rather than the
+    // correct "clone name must not be empty" rejection.
+    //
+    // Removing or weakening the `is_empty()` guard at the top of `validate_clone_name`
+    // would cause this assertion to fail — that's the regression being locked down.
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn test_validate_clone_name_rejects_empty() {
+        let result = validate_clone_name("");
+        let err = result.expect_err(
+            "NEW-001 (CWE-20): empty clone name must be rejected by validate_clone_name (vacuous-truth gate)",
+        );
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("must not be empty"),
+            "NEW-001: rejection error for empty name must contain 'must not be empty'; got: {msg}"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // test_validate_clone_name_accepts_valid
+    // SEC-001: confirm valid clone names (the normal case) pass through unblocked.
+    //
+    // LOAD-BEARING: over-restricting `validate_clone_name` (e.g., rejecting '-')
+    // would cause real clone names like "org-a-crowdstrike" to fail → these assertions
+    // would catch that regression.
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn test_validate_clone_name_accepts_valid() {
+        // Plain sensor names.
+        validate_clone_name("crowdstrike").expect("SEC-001: 'crowdstrike' must be accepted");
+        validate_clone_name("cyberint").expect("SEC-001: 'cyberint' must be accepted");
+        validate_clone_name("armis").expect("SEC-001: 'armis' must be accepted");
+
+        // {org_slug}-{sensor_id} composite form.
+        validate_clone_name("org-a-crowdstrike")
+            .expect("SEC-001: 'org-a-crowdstrike' must be accepted");
+        validate_clone_name("org-b-cyberint").expect("SEC-001: 'org-b-cyberint' must be accepted");
+
+        // Underscores and hyphens are explicitly allowed.
+        validate_clone_name("sensor_name-v2").expect("SEC-001: underscores and hyphens allowed");
+
+        // Mixed alphanumerics.
+        validate_clone_name("Sensor42").expect("SEC-001: mixed case + digits allowed");
+    }
 }
