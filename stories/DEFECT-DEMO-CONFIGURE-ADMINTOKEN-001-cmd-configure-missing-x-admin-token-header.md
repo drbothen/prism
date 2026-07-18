@@ -5,7 +5,10 @@ title: "cmd_configure missing X-Admin-Token header — POST /dtu/configure retur
 wave: maintenance
 epic_id: maintenance
 priority: P1
-status: draft
+status: merged
+merged_sha: "277b7844"
+merged_pr: "225"
+merged_date: "2026-07-18"
 version: "0.21"
 level: ops
 producer: story-writer

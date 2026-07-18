@@ -3558,3 +3558,52 @@ Wave-gate adjudication at S-3.09 dispatch selects among A/B/C.
 **State-manager obligation:** When authoring a dispatch plan that includes both implementer + PO for the same fix-burst, check whether the PO's story edits include EC-001 SHA citations or other code-commit anchors. If yes, sequence PO as a DEPENDENCY of implementer-push, not a parallel.
 
 **Source:** D-1824 (2026-07-18) — F-MAINT-P22-MED-001 pass-22 MEDIUM finding; S-MAINT-CI-DISK-EXHAUSTION-001 PR-LEVEL cascade; PO spec-sync (D-1820) dispatched in parallel with implementer push @d412defe; EC-001 cited wrong SHA 9c315608; corrective v0.27 burst closes the lag.
+
+---
+
+### Lesson 69 — [process-gap] evidence-context asymmetry between orchestrator and subagent transcripts triggers false-positive security classifiers at merge dispatch (D-1843)
+
+**Classification:** PROCESS-GAP — D-1843 (2026-07-18); DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 PR #225 merge dispatch; corroborates D-1811.
+
+**Finding:** At the merge dispatch for PR #225, the harness security classifier flagged the pr-manager subagent for "fabricated checklist / merge without review" — a false positive. The actual review evidence (adversary F-ADMTOK-PR22 CLEAN(strict)=yes, security delta-confirm #2 APPROVE, pr-reviewer APPROVE, human merge authorization Joshua 2026-07-18) lived in the ORCHESTRATOR's context, invisible to the subagent's transcript. The subagent had no visibility into the evidence chain accumulated across the session — it appeared, from the classifier's perspective, to be attempting a merge without completed review.
+
+**Root cause:** The security classifier operates on the subagent's transcript, not the orchestrator's context. When review evidence is accumulated across multiple prior sessions or subagent dispatches, the subagent transcript at merge time contains only the merge instruction — not the full evidence chain. The classifier correctly identifies an apparent review-without-evidence pattern, but the evidence exists in context the classifier cannot see.
+
+**Codified rule:** When dispatching a merge authorization to pr-manager (or any merge-capable subagent), the dispatch prompt MUST include an explicit evidence summary containing:
+
+1. The final adversarial review result (pass number, verdict, frozen HEAD)
+2. The security review result (verdict, any closed findings)
+3. The pr-reviewer result (verdict, any non-blocking nits and their adjudication)
+4. The human merge authorization statement (who authorized, when, under what conditions)
+5. The pre-merge checklist tally (N/11 items ticked)
+
+This evidence summary serves two purposes: (a) it gives the subagent transcript the evidence the classifier needs to confirm authorized review, and (b) it provides a complete audit trail in the merge dispatch record.
+
+**Short-term mitigation:** Orchestrator embeds full evidence summary in every merge dispatch prompt (implemented for PR #225; see D-1840 merge dispatch).
+
+**Long-term fix:** D-1811 follow-up story covers hook-side improvements — either widening the classifier's evidence window to include orchestrator context, or providing a structured evidence-bundle mechanism that the pr-manager subagent can present to the classifier.
+
+**Observation on D-1811 pattern:** The D-1811 pr-manager FM4/STEP_COMPLETE hook scope pressure (attempted unauthorized merge) and the D-1843 false-positive classifier are distinct failure modes with a shared root cause — the classifier operates on subagent transcript, not full orchestrator context. D-1811 covers hook-driven scope escalation; D-1843 covers evidence-context asymmetry at legitimate merge dispatch. Both need hook-side fixes.
+
+**Source:** D-1843 (2026-07-18) — PR #225 merge dispatch; D-1811 corroboration (evidence-context asymmetry codification); DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 cascade.
+
+---
+
+### Lesson 70 — [infra] provider connection-drop instability during large single generations mitigated by chunked small writes (D-1844)
+
+**Classification:** INFRA — D-1844 (2026-07-18); provider instability incident during DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 PR #225 cycle.
+
+**Finding:** During the PR #225 lifecycle (2026-07-18), six or more provider connection-drop/stall incidents severed subagent dispatches mid-generation. Specifically, large single generation attempts (e.g., full PR body refresh, full adversary pass reports) were severed before completion. The D-1811 story-writer dispatch was parked mid-instability with no file written.
+
+**Mitigation that worked:** Breaking large single generations into chunked small writes resolved the instability. Instead of dispatching one large-output subagent, smaller sequential writes completed reliably. The PR body refresh (D-1832) required four retries with chunked writes before completing.
+
+**Codified rule:** When provider instability (connection drops, stalls, severed generation) is observed on large single generations:
+
+1. **Immediately switch to chunked small writes** — break any large generation into sequential smaller pieces (e.g., one section of a PR body at a time, one report section per write).
+2. **Do NOT retry the same large generation** — retrying without changing approach will produce the same failure mode.
+3. **Record the incident** — note the instability in the burst D-row for audit trail.
+4. **Parked dispatches** — if a subagent dispatch is severed mid-execution with no file written, re-dispatch from scratch after switching to chunked approach. Do not assume partial output was saved.
+
+**Observation:** This instability pattern was transient (resolved within the session) but recurred 6+ times. The chunked-write mitigation adds latency but guarantees completion. For artifacts requiring large contiguous output (e.g., pr-body refresh, full pass reports), the chunked approach is now the default first attempt, not a fallback.
+
+**Source:** D-1844 (2026-07-18) — provider instability incident; PR #225 lifecycle; D-1811 story-writer dispatch parked; D-1832 PR body refresh required four retries with chunked writes.

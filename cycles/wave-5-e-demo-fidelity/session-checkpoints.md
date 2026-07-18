@@ -166,4 +166,20 @@ _Archived to session-checkpoints.md by D-1659 burst (state-manager keep-last-1 d
 1. Run vsdd-factory:factory-worktree-health (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `b9cf3f9b`.
 3. `git -C .factory log -1 --format="%h %s"` → factory-artifacts HEAD (do not hard-code).
+
+---
+
+## Archived: D-1837 — 2026-07-18 — burst complete; STATE v8.418
+
+**RESUME IN ONE BREATH:** LANE 1 CLOSED — S-MAINT-CI-DISK-EXHAUSTION-001 MERGED @0f9857dd (D-1829). LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): D-1827 one-time exception USED — delta re-gate F-ADMTOK-PR21 CLEAN(PR-merge) on frozen 5c9458d6 (1 OBS closed); security delta-confirm APPROVE SEC-001+SEC-002 CLOSED; fix-burst NEW-001 empty-string guard closed by implementer @dac830d1 (+1 test test_validate_clone_name_rejects_empty; story v0.21); PR #225 HEAD @dac830d1 PUSHED; CI pending. D-1837 HUMAN RULING: second one-time accelerated delta re-gate GRANTED on dac830d1 (explicitly one-time, NOT precedent). **NEXT: CI green on dac830d1 → PR body refresh → adversary delta pass (5c9458d6..dac830d1) → security delta-confirm → pr-reviewer APPROVE → human merge gate.** AUDIT-COVERAGE-001 UNBLOCKED (D-1830) — rebase @cd369b54 onto 0f9857dd. D-1809 mitigation still in force.
+
+**HEADS:**
+- develop: `0f9857dd` (PR #224 squash-merged 2026-07-18; EXPECTED=92; origin/develop=local; PUSHED)
+- factory-artifacts: `git -C .factory log -1 --format='%h %s'` (D-1837 burst commit)
+- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`dac830d1` — PUSHED (PR #225 OPEN); story v0.21; BC-2.06.017 v1.12; D-1837 second accelerated delta re-gate AUTHORIZED; CI pending
+- `maintenance/ci-disk-hardening` @`d412defe` — MERGED @0f9857dd; worktree REMOVED; local+remote branches deleted
+- `fix/T13-audit-coverage` @`cd369b54` — LOCAL-ONLY dirty=1; UNBLOCKED — rebase onto 0f9857dd (D-1830)
+- `feature/S-3.09` @`43c41389` — KEEP-PARKED (LOCAL-ONLY)
+- `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
+- `develop`, `factory-artifacts`, and `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` are PUSHED; all others are LOCAL-ONLY
 4. VERY NEXT ACTION = LOCAL pass 7 result on frozen `3d48b6a9` (`fix/csdevices-empty-pipeline`; streak 0/3).
