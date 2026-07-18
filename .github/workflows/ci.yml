@@ -80,9 +80,10 @@ jobs:
     needs: clippy
     runs-on: ${{ matrix.runner }}
     # F-MAINT-P14-LOW-003: bound the job so a hung reclaimer cannot stall 360 min.
-    # Observed worst-case green duration: 22 min (x86_64-apple-darwin, runs 29544970679/29544972231).
-    # 45 min ≈ 2× worst-case (all legs); per-leg timeout is independent for matrix jobs.
-    timeout-minutes: 45
+    # Observed worst-case green duration: 35m39s (x86_64-apple-darwin, push run 29615360280 at HEAD
+    # 9c315608; human re-validated 2026-07-17). Reclaimer is Linux-only — macOS and Windows legs
+    # have no reclaimer but share this per-leg ceiling. 75 min ≈ 2× observed worst-case.
+    timeout-minutes: 75
     permissions:
       contents: read
     strategy:
@@ -347,9 +348,9 @@ jobs:
     needs: clippy
     runs-on: ubuntu-latest
     # F-MAINT-P14-LOW-003: bound the job so a hung reclaimer cannot stall 360 min.
-    # Observed worst-case green duration: 10.2 min (runs 29544970679/29544972231).
-    # 25 min ≈ 2.5× worst-case; clean number with margin for cache-cold runs.
-    timeout-minutes: 25
+    # Observed worst-case green duration: 22m33s (push run 29615360280 at HEAD 9c315608;
+    # human re-validated 2026-07-17). 45 min ≈ 2× observed worst-case.
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
