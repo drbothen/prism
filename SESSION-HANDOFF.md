@@ -124,13 +124,38 @@ timestamp: 2026-07-17T20:00:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1844 POST-MERGE BURST — BOTH LANES CLOSED. LANE 1 S-MAINT MERGED @0f9857dd (D-1829). LANE 3 ADMINTOKEN MERGED @277b7844 (D-1841; PR #225 squash-merged 2026-07-18T16:10:23Z; story v0.21 final). AUDIT-COVERAGE-001 UNBLOCKED — rebase onto 277b7844.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1844 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1844 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `277b7844` — PUSHED (PR #225 squash-merged 2026-07-18T16:10:23Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.419. D-1844 burst complete; LANE 3 ADMINTOKEN CLOSED @277b7844 (D-1841); AUDIT-COVERAGE-001 rebase target 277b7844; D-1811 story-writer dispatch pending.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1869 POST-MERGE BURST — ALL LANES CLOSED. LANE 1 AUDIT-COVERAGE-001 MERGED @97d7335d (D-1868; PR #226 squash-merged 2026-07-18T22:47:30Z). NEXT: runbook env-bridge addendum (FIRST ACTION) → T13 capstone → T14.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1869 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1869 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `97d7335d` — PUSHED (PR #226 squash-merged 2026-07-18T22:47:30Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.423. D-1869 burst complete; LANE 1 AUDIT-COVERAGE-001 CLOSED @97d7335d (D-1868); T13 capstone UNBLOCKED; FIRST ACTION: runbook env-bridge addendum.
 
 ---
 
-## §RESUME SNAPSHOT — D-1844 (2026-07-18 — POST-MERGE BURST D-1838..D-1844 (exhaustive); STATE v8.419) [SUPERSEDES D-1831]
+## §RESUME SNAPSHOT — D-1869 (2026-07-18 — POST-MERGE BURST D-1863..D-1869 (exhaustive); STATE v8.423) [SUPERSEDES D-1844]
+
+### RESUME IN ONE BREATH
+LANE 1 AUDIT-COVERAGE-001 CLOSED. PR #226 SQUASH-MERGED @97d7335d 2026-07-18T22:47:30Z (D-1868). BOTH DEMO-BLOCKING LANES CLOSED (PR #225 @277b7844 ADMINTOKEN + PR #226 @97d7335d AUDIT-COVERAGE). T13 capstone UNBLOCKED on develop @97d7335d. DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 UNBLOCKED — FIRST ACTION in next session (implementer adds env-bridge + audit-invocation step to T13-capstone-demo-runbook.md). DRIFT-ADMINTOKEN-BC361-TD031-001 open (product-owner fix-burst owed). PG-HOOK-FUEL-CEILING-001 open (D-1847). D-1809 mitigation still in force. FRESH SESSION RECOMMENDED before T13.
+
+### HEADS (verified 2026-07-18 at D-1869 burst)
+- develop: origin/develop = `97d7335d` (PR #226 squash-merged 2026-07-18T22:47:30Z; prior 277b7844) — PUSHED
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code)
+- `feature/S-3.09` @`43c41389` — KEEP-PARKED (local-only)
+- `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (local-only)
+- `develop` and `factory-artifacts` are PUSHED; all others are LOCAL-ONLY
+
+### PER-WORKSTREAM RESUME NEXT-ACTIONS
+1. **DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 — FIRST ACTION** — implementer: add env-bridging + audit-invocation step to T13-capstone-demo-runbook.md before T13 execution gate. Required before T13 capstone run.
+2. **T13 capstone demo run** — on develop @97d7335d after runbook addendum complete.
+3. **T14 recording** — demo-recorder after T13 capstone verified.
+4. **BC-3.6.001 POL-14 legacy-sync BLOCKED-TD031** — product-owner fix-burst to replace volatile file.rs:NNN citations in BC body (TD-VSDD-091), then state-manager retries status: draft→active legacy sync.
+5. **DRIFT-SDEMO004-TODO-SECTIONS-001** — story-writer fills 5 [TODO] sections in S-DEMO-004 at next maintenance sweep (carried).
+
+### PENDING HUMAN DECISIONS (carried unless noted)
+1. S-3.09 EC-collision handling option (A/B/C) at wave-gate / S-3.09 dispatch (carried).
+2. day2-design-decisions/clip-boundary-and-reframe-asks-2026-06-30.md disposition (carried).
+
+---
+
+## §RESUME SNAPSHOT — D-1844 (2026-07-18 — POST-MERGE BURST D-1838..D-1844 (exhaustive); STATE v8.419) [SUPERSEDED by D-1869]
 
 ### RESUME IN ONE BREATH
 BOTH LANES CLOSED. LANE 1 — S-MAINT-CI-DISK-EXHAUSTION-001 MERGED @0f9857dd (D-1829). LANE 3 — DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 MERGED @277b7844 (D-1841; PR #225 squash-merged 2026-07-18T16:10:23Z; story v0.21 final; BC-3.6.001 POL-14 legacy-sync BLOCKED-TD031 — product-owner fix-burst owed; DRIFT-ADMINTOKEN-BC361-TD031-001 open). NEXT: AUDIT-COVERAGE-001 (fix/T13-audit-coverage @cd369b54 LOCAL-ONLY dirty=1) — devops-engineer rebase onto develop 277b7844, then LOCAL 3-CLEAN → push → PR. D-1811 story-writer dispatch (FM4 follow-up story) pending — parked mid-provider-instability (D-1844). D-1809 mitigation still in force.

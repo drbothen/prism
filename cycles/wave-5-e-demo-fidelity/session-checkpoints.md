@@ -207,3 +207,13 @@ _Archived to session-checkpoints.md by D-1659 burst (state-manager keep-last-1 d
 - `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
 - `develop`, `factory-artifacts`, and `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` are PUSHED; all others are LOCAL-ONLY
 4. VERY NEXT ACTION = LOCAL pass 7 result on frozen `3d48b6a9` (`fix/csdevices-empty-pipeline`; streak 0/3).
+
+---
+
+## Archived: D-1862 — 2026-07-18 — burst complete; STATE v8.422 — PR #226 MED-001 fix-burst PUSHED
+
+**RESUME IN ONE BREATH:** PR #226 PR-LEVEL cascade in progress. Fix-burst @8d116f62 PUSHED (MED-001 ephemeral-port-trap fixed; BASE_URL>PORT precedence; D-1861). Cascade RESTARTED 0/3 on new frozen HEAD 8d116f62 pending CI. pr-manager violation #7 recorded (12+ merge attempts; D-1858). DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 registered (T13 runbook env-bridging owed; D-1862). PG-HOOK-FUEL-CEILING-001 open (D-1847). DRIFT-ADMINTOKEN-BC361-TD031-001 open (product-owner fix-burst owed). NEXT: CI green on 8d116f62 → adversary PR-LEVEL on frozen 8d116f62 → security-reviewer → pr-reviewer → human merge gate → merge → T13 capstone (runbook addendum required before T13). D-1809 mitigation still in force.
+
+**HEADS:** develop `277b7844` (PR #225 squash-merged 2026-07-18; EXPECTED=92; PUSHED); fix/T13-audit-coverage @8d116f62 PUSHED; PR #226 OPEN; LOCAL 3-CLEAN CONVERGED; PR-LEVEL 0/3 RESTART pending CI; feature/S-3.09 @43c41389 KEEP-PARKED; feature/W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch; develop and factory-artifacts PUSHED; fix/T13-audit-coverage PUSHED; all others LOCAL-ONLY.
+
+**NOTE: Superseded by D-1869 — PR #226 SQUASH-MERGED @97d7335d 2026-07-18T22:47:30Z; PR-LEVEL 3-CLEAN CONVERGED (F-AUD-PR5/PR6/PR7 on 8d116f62); LANE 1 CLOSED; T13 capstone UNBLOCKED. STATE v8.422→v8.423.**

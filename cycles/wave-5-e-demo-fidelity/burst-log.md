@@ -250,3 +250,53 @@ _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and
 | D-1791 | state-manager | 2026-07-15 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1791 SESSION WRAP. pass-12 CLEAN(PR-merge)=YES 2 LOW+3 OBS; fb-43 PUSHED @168b2e96 5623 tests streak 0/3. LANE 3 story v0.9→v0.10 AC-006+EC-010 @c9cb2c34. SESSION-HANDOFF.md RESUME D-1791. STORY-INDEX v2.691→v2.692. STATE v8.389→v8.391.** | wave-5-e-demo-fidelity | 2026-07-15 |
 
 | D-1795 | state-manager | 2026-07-16 | **[ARCHIVED from Current Phase Steps by D-1800 burst — keep-last-5 prune]** SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1795 THREE-LANE CONSOLIDATED BURST (2026-07-16). LANE 1 (S-MAINT): pass-9 CLOSED NOT CLEAN bd65e93a; fb-13 @b54af749/@0939973f PUSHED; pass-10 CLOSED NOT CLEAN (1C/1H/2M/2L/2O/1PG 0939973f; Mirrorlist-blind fallback; azure-cli.sources missed; empirical probe DONE); story v0.19 DISPATCHED; streak 0/3. LANE 2 (DRIFT-AUDIT-RUNBOOK-LITERALS-001): CLOSED VERDICT-A; BC-2.02.013 v1.9→v1.10. LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001): pass-1 through pass-4 NOT CLEAN; fb-1 through fb-4 CLOSED; pass-5 DISPATCHED; pass-6 IN FLIGHT; last code @26e623c9 streak 0/3. TD-VSDD-005 RESOLVED rc.22. develop ff→84062ced. EXPECTED=92. BC-INDEX v8.31→v8.33. STORY-INDEX v2.694→v2.695. STATE v8.394→v8.395. | wave-5-e-demo-fidelity | 2026-07-16 |
+
+| D-1805 | state-manager | 2026-07-17 | **[ARCHIVED from Current Phase Steps by D-1869 burst — keep-last-5 prune]** SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1805 SESSION WRAP (2026-07-17). LANE 3: @828449de FROZEN streak 0/3; pass-19 next. LANE 1: @faf112fd FROZEN PR #224 CLOSED (human must reopen). RESUME SNAPSHOT D-1805. STATE v8.404→v8.405. | wave-5-e-demo-fidelity | 2026-07-17 |
+
+| D-1811 | state-manager | 2026-07-17 | **[ARCHIVED from Current Phase Steps by D-1869 burst — keep-last-5 prune]** SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1806..D-1811 (exhaustive) DUAL-LANE BURST (2026-07-17). D-1806: PR #224 reopened (human). D-1807: ADMINTOKEN LOCAL 3-CLEAN CONVERGED (passes 19/20/21 zero findings; PR #225 created; PR-LEVEL pass-1 5 desc-surface findings incl. FABRICATED test names — all closed via description edit). D-1808: S-MAINT pass-14 (3 LOW) + human-approved timeout fix (c5e559d3) + story v0.23 + description refresh; pass-15 NOT CLEAN strict / CLEAN PR-merge (1 LOW closed via table refresh; 1 OBS PG); AC-005 interpretation ruling pending. D-1809: TD-VSDD-005 general-purpose-as-adversary REVOKED for prism; adversary now vsdd-registered only. D-1810: provider model-availability outage resolved. D-1811: P1 PROCESS-GAP pr-manager scope violations x3 (out-of-scope review + fabricated test names + ATTEMPTED UNAUTHORIZED SQUASH-MERGE blocked by safety classifier); interim mitigation in force; follow-up story required. Lesson 66 appended. STORY-INDEX v2.701→v2.702. trajectory-tail →3→2→0→5. STATE v8.405→v8.406. | wave-5-e-demo-fidelity | 2026-07-17 |
+
+| D-1816 | state-manager | 2026-07-18 | **[ARCHIVED from Current Phase Steps by D-1869 burst — keep-last-5 prune]** SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1812..D-1816 (exhaustive) CONSOLIDATED BURST #2 (2026-07-18). D-1812: pass-4 HIGH (F-ADMTOK-PR4-HIGH-001 fabricated SS-22 anchor; story-writer v0.15→v0.16 SS-01 re-anchor per ARCH-INDEX:154). D-1813: LANE 1 passes 16/17/18 3-CLEAN(strict) CONVERGED on c5e559d3. D-1814: security-reviewer APPROVE (SEC-001 CWE-272 + SEC-002 CWE-319); HUMAN-approved fix-both @9c315608; story v0.24 (PO); LANE 1 convergence RESET by design. D-1815: pr-manager 4th scope violation — FM4/STEP_COMPLETE hook confirmed driver; attempted merge again blocked by classifier. D-1816: pass-7 MED (F-ADMTOK-PR7-MED-001 STORY-INDEX pin lag v0.15 not propagated) — closed THIS burst; Lesson 67. STORY-INDEX v2.702→v2.703. trajectory-tail →1→0→0→1. STATE v8.406→v8.407. | wave-5-e-demo-fidelity | 2026-07-18 |
+
+| D-1817 | state-manager | 2026-07-18 | **[ARCHIVED from Current Phase Steps by D-1869 burst — keep-last-5 prune]** MINI BURST COMPLETE (TD-VSDD-053) — D-1817 TAXONOMY v2.54→v2.55 (2026-07-18). LANE 3 PR-LEVEL pass-8 1 MED closed: F-ADMTOK-PR8-MED-001 E-DEMO preamble universal construction-time claim contradicted by runtime E-DEMO-007; PO taxonomy v2.54→v2.55 preamble carve-out (Lesson 67 discipline); BC-2.06.018/BC-2.06.020 invariants verified; POL-29 sweep clean; hook timeouts transient edits durable. pr-level-pass-8.md committed. trajectory-tail →0→0→1→1. streak 0/3; NEXT pass-9 on frozen 828449de. STATE v8.407→v8.408. | wave-5-e-demo-fidelity | 2026-07-18 |
+
+| D-1824 | state-manager | 2026-07-18 | **[ARCHIVED from Current Phase Steps by D-1869 burst — keep-last-5 prune]** MINI STATE BURST COMPLETE (TD-VSDD-053) — D-1824 LANE 1+LANE 3 INDEX SYNC (2026-07-18). LANE 1 (S-MAINT): pass-21 CLEAN(strict) 1/3; pass-22 1 MED F-MAINT-P22-MED-001 resize-attribution EC-001 SHA 9c315608→d412defe → PO fix-burst story v0.26→v0.27 DONE; streak reset 0/3 on d412defe; pass-23 next. ROOT CAUSE: PO spec-sync dispatched parallel with implementer push (Lesson 68). LANE 3 (ADMINTOKEN): passes 18+19 CLEAN(strict) streak 2/3 on frozen 828449de; pass-20 convergence candidate next. pr-level-pass-21.md + pr-level-pass-22.md + pr-level-pass-18.md + pr-level-pass-19.md committed. Lesson 68 appended. STORY-INDEX v2.708→v2.709. trajectory-tail →0→0→0→1. STATE v8.413→v8.414. | wave-5-e-demo-fidelity | 2026-07-18 |
+
+| D-1829 | state-manager | 2026-07-18 | **[ARCHIVED from Current Phase Steps by D-1869 burst — keep-last-5 prune]** SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1829..D-1830 (exhaustive) POST-MERGE BURST PR #224 (2026-07-18). D-1829: PR #224 MERGED @0f9857dd (squash commit 2026-07-18T05:08:01Z); develop 84062ced→0f9857dd; maintenance/ci-disk-hardening remote branch deleted; story v0.27→merged (POL-14 no-op); AC-005 human-ruled satisfied literal-reading (3 distinct PR run IDs at frozen HEAD d412defe); DRIFT-AC005-DISTINCT-TRIGGER-RULING-001 RESOLVED. D-1830: AUDIT-COVERAGE-001 UNBLOCKED. STORY-INDEX v2.710→v2.711. trajectory-tail →0→0→0→0 LANE 1 CLOSED. STATE v8.415→v8.416. | wave-5-e-demo-fidelity | 2026-07-18 |
+
+---
+
+## Burst: POST-MERGE BURST D-1863..D-1869 PR #226 AUDIT-COVERAGE-001 MERGED (2026-07-18)
+
+**Parent-commit:** `277b7844` (develop HEAD before PR #226 squash-merge; PR frozen HEAD `8d116f62`)
+
+**Adversary verdict:** CONVERGED — BC-5.39.001 SATISFIED. Three consecutive CLEAN(strict)=yes passes (F-AUD-PR5/PR6/PR7) on frozen HEAD `8d116f62` with no pushes between passes (DRIFT-ORCH-PRLEVEL-PUSH-001 clean). Zero findings at any severity in passes 1/3, 2/3, 3/3. Security delta-confirm `0fbef7db..8d116f62` APPROVE (zero findings). PR-LEVEL cascade CONVERGED.
+
+**Files touched (Dim-1): 8 unique files**
+
+- `.factory/STATE.md` (v8.422→v8.423; D-1863..D-1869 decisions log; frontmatter develop_head 277b7844→97d7335d)
+- `.factory/SESSION-HANDOFF.md` (§RESUME SNAPSHOT D-1869 supersedes D-1844)
+- `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` (6 rows archived; this burst entry)
+- `.factory/cycles/wave-5-e-demo-fidelity/session-checkpoints.md` (D-1862 archived)
+- `.factory/cycles/wave-5-e-demo-fidelity/AUDIT-COVERAGE-001/adversarial-review/pr-level-pass-4.md` (F-AUD-PR5; streak 0/3→1/3)
+- `.factory/cycles/wave-5-e-demo-fidelity/AUDIT-COVERAGE-001/adversarial-review/pr-level-pass-5.md` (F-AUD-PR6; streak 1/3→2/3)
+- `.factory/cycles/wave-5-e-demo-fidelity/AUDIT-COVERAGE-001/adversarial-review/pr-level-pass-6.md` (F-AUD-PR7; streak 2/3→3/3 CONVERGED)
+- `.factory/cycles/wave-5-e-demo-fidelity/AUDIT-COVERAGE-001/security-delta-confirm-8d116f62.md` (APPROVE; zero findings)
+
+**Codifications:** D-1863..D-1869 (exhaustive). D-1863: security-delta-confirm APPROVE. D-1864: F-AUD-PR5 CLEAN(strict)=yes streak 1/3. D-1865: F-AUD-PR6 CLEAN(strict)=yes streak 2/3. D-1866: F-AUD-PR7 CLEAN(strict)=yes streak 3/3 CONVERGED BC-5.39.001. D-1867: pr-reviewer APPROVE. D-1868: PR #226 SQUASH-MERGED @97d7335d (2026-07-18T22:47:30Z); develop 277b7844→97d7335d; LANE 1 AUDIT-COVERAGE-001 CLOSED. D-1869: pr-manager minor scope-slip recorded; DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 → UNBLOCKED/FIRST-ACTION-next-session. CLAUDE.md four codifications VERIFIED (holdout gate, wire-shape/EC-11-079, SAP-3, SID-2 — all present post-squash-merge).
+
+**Dim-2 Attestation:** STATE.md version advanced 8.422→8.423 per validate-state-structure. develop_head updated 277b7844→97d7335d per D-1868 merge event. Frontmatter trajectory-tail →0→0→0→0 confirmed in both `current_step` and `Last Updated` cells (validate-trajectory-tail-cell-completeness PASS). SIZE BUDGET banner 378 lines verified.
+
+**Dim-5 Attestation:** F-AUD-PR5 (pr-level-pass-4.md) — CLEAN(strict)=yes, 0 findings. F-AUD-PR6 (pr-level-pass-5.md) — CLEAN(strict)=yes, 0 findings. F-AUD-PR7 (pr-level-pass-6.md) — CLEAN(strict)=yes, 0 findings; convergence: true; bc_satisfied: BC-5.39.001. Security-delta-confirm-8d116f62.md — APPROVE, CLEAN(strict)=yes, 0 findings. All four adversary/security artifacts persisted to `.factory/cycles/wave-5-e-demo-fidelity/AUDIT-COVERAGE-001/`.
+
+**Dim-6 Attestation:** CONVERGED. PR-LEVEL 3-CLEAN(strict) streak completed on frozen HEAD `8d116f62`. BC-5.39.001 SATISFIED. PR #226 squash-merged to develop @97d7335d (2026-07-18T22:47:30Z). LANE 1 AUDIT-COVERAGE-001 CLOSED. BOTH DEMO-BLOCKING LANES (LANE 1 S-MAINT + LANE 1 AUDIT-COVERAGE-001) NOW CLOSED. T13 capstone UNBLOCKED on develop @97d7335d.
+
+**Dim-7 Attestation:** Agents dispatched this burst: security-reviewer (D-1863 delta-confirm), adversary ×3 (D-1864/D-1865/D-1866 PR-LEVEL passes), pr-reviewer (D-1867), state-manager (D-1869 bookkeeping) = 6 agents. Prior burst D-1862 cited 5 agents dispatched (pr-manager gate dispatch). Consistent — no sweep anomaly.
+
+**Closes:**
+- D-1863: security-delta-confirm `0fbef7db..8d116f62` APPROVE (SEC-001/002 closures holding; BASE_URL passthrough no-new-risk)
+- D-1864: F-AUD-PR5 PR-LEVEL pass-4 CLEAN(strict)=yes; streak 0/3→1/3
+- D-1865: F-AUD-PR6 PR-LEVEL pass-5 CLEAN(strict)=yes; streak 1/3→2/3
+- D-1866: F-AUD-PR7 PR-LEVEL pass-6 CLEAN(strict)=yes; streak 2/3→3/3; BC-5.39.001 SATISFIED
+- D-1867: pr-reviewer APPROVE — no blocking defects; MERGE-READY confirmed
+- D-1868: PR #226 SQUASH-MERGED @97d7335d; develop 277b7844→97d7335d; LANE 1 AUDIT-COVERAGE-001 CLOSED; T13 capstone UNBLOCKED
+- D-1869: pr-manager scope-slip logged; DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 UNBLOCKED/FIRST-ACTION-next-session; STATE v8.422→v8.423
