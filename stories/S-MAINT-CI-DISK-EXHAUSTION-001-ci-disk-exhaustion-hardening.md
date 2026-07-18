@@ -5,7 +5,7 @@ title: "CI disk-exhaustion hardening — preflight + disk-space-reclaimer + carg
 wave: tbd
 epic_id: maintenance
 priority: P2
-status: ready
+status: merged
 version: "0.27"
 level: ops
 producer: story-writer
