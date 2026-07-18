@@ -2,7 +2,7 @@
 document_type: demo-runbook
 objective: T13-capstone
 level: ops
-version: "1.11"
+version: "1.12"
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
 project: prism
@@ -170,6 +170,75 @@ delivered in S-DEMO-LAUNCHER-CONSOLIDATION-001 (T11, merged PR #190
 **VERIFY IN DRY-RUN:** Confirm `demo-run.sh` correctly waits for `urls-multi.json`
 (not the flat `urls.json` sidecar), generates overlay TOMLs in the right paths, and
 that prism-bin reads them at boot step 4c.
+
+---
+
+### 1.6 Pre-Flight Audit (Go/No-Go Gate)
+
+Run the pre-flight audit after `demo-run.sh` reports the fleet up — before executing
+any analyst-walkthrough queries in §3. It is the go/no-go gate for the recording
+session.
+
+**How to invoke:**
+
+`demo-run.sh` prints `PRISM_THREATINTEL_BASE_URL` and `PRISM_NVD_BASE_URL` as part of
+the multi-line prism start command block it outputs (the `==>  To start prism` block).
+Copy those two values verbatim — DTU ports are ephemeral and change on every
+`demo-run.sh` invocation. Never reuse port values from a previous run.
+
+```bash
+# Set these from the values printed by demo-run.sh in the prism start command:
+export PRISM_THREATINTEL_BASE_URL=http://127.0.0.1:<PORT-from-demo-run.sh>
+export PRISM_NVD_BASE_URL=http://127.0.0.1:<PORT-from-demo-run.sh>
+
+# PRISM_BIN resolves to target/release/prism (repo-relative) by default.
+# Override only if the release binary is at a non-default path:
+# export PRISM_BIN=/path/to/target/release/prism
+
+python3 scripts/t13-preflight-audit.py
+```
+
+**Env-var precedence (`scripts/t13-preflight-audit.py` docstring):**
+
+- `PRISM_THREATINTEL_BASE_URL` / `PRISM_NVD_BASE_URL` — full URLs; passed through
+  verbatim. This is the correct path for demo runs (set from `demo-run.sh` output).
+- `PRISM_THREATINTEL_PORT` / `PRISM_NVD_PORT` — bare port numbers; wrapped as
+  `http://127.0.0.1:PORT`. Accepted as a lower-precedence alternative.
+- Built-in defaults (54646 / 54647) — fixed only for static lab setups that do not
+  run `demo-run.sh`. Almost always wrong for demo environments with ephemeral ports.
+
+**Exit-code capture discipline:** When piping output through `tee`, `$?` captures
+`tee`'s exit code (always 0), not the script's exit code. To log and preserve the
+real exit code, use either form:
+
+```bash
+# Redirect to file — $? is the script's exit code:
+python3 scripts/t13-preflight-audit.py > /tmp/prism-audit.log 2>&1
+echo "EXIT=$?"
+
+# Pipe to tee — use PIPESTATUS[0], not $?:
+python3 scripts/t13-preflight-audit.py | tee /tmp/prism-audit.log
+echo "EXIT=${PIPESTATUS[0]}"
+```
+
+**Interpreting the results:**
+
+The script exercises a 106-check coverage matrix across 8 sections (A–H): tool
+catalog, sensor adapter tables, query modes, scenario stage determinism, multi-client
+isolation, enrichment correlation, error taxonomy paths, and regression probes. Each
+check prints `PASS`, `FAIL`, or `WARN` with its check ID (e.g., `[A1]`, `[B3]`,
+`[H24]`).
+
+The final output line is the verdict:
+
+| Verdict | Exit code | Action |
+|---------|-----------|--------|
+| `DEMO-READY: YES` | 0 | Proceed to the analyst walkthrough (§2 / §3). |
+| `DEMO-READY: NO` | 1 | **STOP. Do not record.** Triage the `FAIL` rows — each carries a check ID that maps to a specific behavior in `scripts/t13-preflight-audit.py`. |
+
+A healthy fleet passes 106/106 checks. There are no expected failures —
+`DEMO-READY: NO` always indicates a real problem in the fleet that must be resolved
+before recording.
 
 ---
 
@@ -1114,6 +1183,7 @@ context between queries but does not hand-hold Claude on syntax.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.12 | 2026-07-18 | **DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 closure.** Added §1.6 Pre-Flight Audit (Go/No-Go Gate): operator-facing invocation procedure for `scripts/t13-preflight-audit.py`. Documents `PRISM_THREATINTEL_BASE_URL` / `PRISM_NVD_BASE_URL` copy-from-demo-run.sh workflow, env-var precedence (BASE_URL > PORT > built-in default), optional `PRISM_BIN` override, exit-code capture discipline (`PIPESTATUS[0]` vs `$?`), 106-check coverage matrix summary, and DEMO-READY verdict + exit code semantics. Inserted between §1.5 fleet-startup and §2 narrative arc as the go/no-go gate step. PR #226 develop@97d7335d 2026-07-18. |
 | 1.11 | 2026-07-16 | **DRIFT-AUDIT-RUNBOOK-LITERALS-001 D-1609 closure.** Task 1: Full-document sweep for 0-row literals — WARN-1 (`severity IEQ 'high'` on CrowdStrike → fixed to `'critical'` in v1.7) and WARN-2 (`status IIN ('new','in progress')` → fixed to `('open','closed')` in v1.7) confirmed in place in v1.10; no additional 0-row literals found. Seed-data evidence: `crates/prism-dtu-crowdstrike/src/generator.rs` first-5 severity_id=4→"Critical", rest severity_id=2→"Medium" only; `crates/prism-dtu-cyberint/src/generator.rs` statuses=["open","acknowledged","closed"] (lowercase vendor-native). Task 2: D-1609 formal adjudication (A) CORRECT PASSTHROUGH — Cyberint `status` values have no OCSF caption match, pass through per RG-021; documented in BC-2.02.013 EC-02-029 (v1.9 → v1.10). Step 3.1a adjudication reference updated: "2026-07-08" → "D-1609 2026-07-16"; full OCSF caption set enumerated (generic+finding-class); EC-02-029 cross-reference added. |
 | 1.10 | 2026-07-12 | **F-AUD-P21-HIGH-003 — §5.5 CVSS threshold tightened from range to exact value.** Adjudication: Option (a). The NVD DTU (`NvdClone::new_with_scenario`, BC-2.06.020 PC-4) hardcodes `base_score = 8.1 / base_severity = "HIGH"` for all scenario CVEs (`CVE-9999-NNNN` format); this is a deterministic contract, not an approximation. §4 Expected Outputs "CVSS 8.1 HIGH" talking point is authoritative. Changes: (1) §5.5 checklist item: `cvss_base_score >= 7.0` → `cvss_base_score == 8.1` with rationale citing `NvdClone::new_with_scenario` PC-4. (2) §3 Step 3.5 expected output: `(~8.1)` → `(8.1)` (tilde removed — value is deterministic). Implementer E3 assertion: `assert cvss_base_score == 8.1`. No other loci require change (lines 105-106, 212-213, 672, and §4 row 904 already cite 8.1 exactly). |
 | 1.9 | 2026-07-11 | **F-AUD-P10-HIGH-001 — completed ADR-051 D4 scalar-input amendment — 6 prose loci `iocs_value` → `iocs_value_first` (query blocks were already amended in v1.8).** Locus 1: Act 4 narrative (line ~210). Locus 2: §4 Talking Points IOC enrichment row (line ~903). Locus 3: §5.4 Scenario Clock elapsed >= 360s item — LEFT unchanged (describes raw `iocs_value` JSON-list column being non-null, not an enrich call). Locus 4: §5.5 Enrichment Path checklist (line ~959) — enrich call updated; erroneous parenthetical "enrich operates on the list" replaced with accurate ADR-051 D4 scalar-companion note. Locus 5: §6 Capability Caveats "Enrichment at Stage < 3" bullet (line ~1041) — enrich call updated; null-state description updated to reference `iocs_value_first` scalar companion while retaining explanation of the underlying `iocs_value` JSON-list behavior. Locus 6: §7 Recording Sequence Block 3 (line ~1097). Residual grep: zero remaining `threat_score(iocs_value)` non-`_first` sites. |
