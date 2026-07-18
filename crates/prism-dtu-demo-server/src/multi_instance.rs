@@ -150,6 +150,16 @@ pub struct DemoBindError {
 #[non_exhaustive]
 pub struct MultiInstanceServers {
     socket_map: HashMap<String, SocketAddr>,
+    /// Per-instance admin tokens, keyed by `InstanceEntry::name`.
+    ///
+    /// Tokens are extracted from each `BoundInstance` via `clone.admin_token().to_string()`
+    /// BEFORE the clone is moved into its detached watcher task (OWNERSHIP constraint:
+    /// once moved into `tokio::spawn(async move { drop(clone); })`, the clone is unreachable).
+    ///
+    /// Used by `write_multi_admin_token_sidecar_to_path` (via `admin_token_map()`) so that
+    /// `cmd_configure` can obtain per-clone tokens for the `X-Admin-Token` header
+    /// (ADR-003 Amendment #5 / DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-02).
+    token_map: HashMap<String, String>,
     /// Shared broadcast sender — owned EXCLUSIVELY by this handle.
     /// Each instance subscribed via `shutdown_tx.subscribe()` at bind time.
     /// Watcher tasks hold ONLY the clone object — NEVER an additional Sender
@@ -179,6 +189,21 @@ impl MultiInstanceServers {
     /// (BC-2.06.017 Postcondition 1)
     pub fn socket_map(&self) -> &HashMap<String, SocketAddr> {
         &self.socket_map
+    }
+
+    /// Return the per-name admin token map.
+    ///
+    /// Each key is the `InstanceEntry::name` string; each value is the clone's
+    /// admin token (extracted via `BehavioralClone::admin_token()` before the clone
+    /// was moved into its detached watcher task).
+    ///
+    /// Used by `write_multi_admin_token_sidecar_to_path` in `multi_org_cmd.rs` to
+    /// write the token sidecar so that `cmd_configure` can obtain per-clone tokens
+    /// for the `X-Admin-Token` header (ADR-003 Amendment #5).
+    ///
+    /// (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-02 / BC-2.06.017 Postcondition 1)
+    pub fn admin_token_map(&self) -> &HashMap<String, String> {
+        &self.token_map
     }
 
     /// Send the graceful-shutdown signal to all instances.
@@ -259,6 +284,7 @@ pub async fn start_instances(
         let (shutdown_tx, _) = broadcast::channel::<()>(1);
         return Ok(MultiInstanceServers {
             socket_map: HashMap::new(),
+            token_map: HashMap::new(),
             shutdown_tx,
             task_handles: Vec::new(),
         });
@@ -342,6 +368,13 @@ pub async fn start_instances(
     // No extra Sender clones exist — the channel closes (waking all receivers)
     // when either shutdown() sends the signal or the handle is dropped.
     //
+    // OWNERSHIP constraint (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-02):
+    // Admin tokens MUST be extracted from each BoundInstance BEFORE the clone is moved
+    // into `tokio::spawn(async move { drop(clone); })`. Once moved, the clone is
+    // unreachable from this call site — `clone.admin_token()` cannot be called after the move.
+    // The token is a UUID v4 string; extracting it as `to_string()` here captures a copy
+    // for the token_map without keeping any reference into the moved clone.
+    //
     // Each clone is moved into a `tokio::spawn(async move { drop(clone); })` task.
     // Because ArmisClone / ClarotyClone have no Drop impl, drop(clone) merely drops
     // `server_handle: Option<JoinHandle<()>>`, which DETACHES (not aborts) the axum
@@ -350,8 +383,12 @@ pub async fn start_instances(
     // Real shutdown happens ONLY when shutdown_tx.send(()) (from Drop or shutdown())
     // wakes the axum graceful-shutdown receiver each server holds from subscribe().
     let mut socket_map = HashMap::with_capacity(bound.len());
+    let mut token_map = HashMap::with_capacity(bound.len());
     let mut task_handles = Vec::with_capacity(bound.len());
     for instance in bound {
+        // Extract admin token BEFORE moving clone into the watcher task (OWNERSHIP).
+        // admin_token() returns &str; to_string() captures a copy before the move.
+        let token = instance.clone.admin_token().to_string();
         let clone = instance.clone;
         // Spawn the watcher task AFTER confirming all binds succeeded.
         // drop(clone) detaches the internal JoinHandle — the axum server continues
@@ -363,12 +400,14 @@ pub async fn start_instances(
             // wakes the graceful-shutdown receiver from shutdown_tx.subscribe() at bind time.
             drop(clone);
         });
-        socket_map.insert(instance.name, instance.addr);
+        socket_map.insert(instance.name.clone(), instance.addr);
+        token_map.insert(instance.name, token);
         task_handles.push(task_handle);
     }
 
     Ok(MultiInstanceServers {
         socket_map,
+        token_map,
         shutdown_tx,
         task_handles,
     })

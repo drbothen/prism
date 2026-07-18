@@ -48,7 +48,11 @@ tests/external/perimeter-violation/Cargo.lock
 # prism-dtu-demo-server runtime sidecars (written to cwd by `start` / `start-multi`).
 # These are ephemeral process state, not source — never committed.
 .prism-dtu-demo-server.pid
+.prism-dtu-demo-server.pid.tmp
 .prism-dtu-demo-server.urls*.json
+.prism-dtu-demo-server.urls*.json.tmp
+.prism-dtu-demo-server.admin-tokens*.json
+.prism-dtu-demo-server.admin-tokens*.json.tmp
 
 # direnv environment files — contains local env overrides, must not be committed
 # .envrc* covers .envrc, .envrc.bed, .envrc.backup, .envrc.local, etc.

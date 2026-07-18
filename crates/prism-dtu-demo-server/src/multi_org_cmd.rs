@@ -596,13 +596,16 @@ pub fn write_multi_url_sidecar_to_path(
         for sensor_id in &org_cfg.sensors {
             let entry_name = format!("{org_slug}-{sensor_id}");
             let addr = socket_map.get(&entry_name).ok_or_else(|| {
+                // Sort for deterministic error messages.
+                let mut ks: Vec<_> = socket_map.keys().collect();
+                ks.sort();
                 anyhow::anyhow!(
                     "write_multi_url_sidecar: socket_map is missing expected entry '{}'. \
                      This is a programming error — all sensors declared in MultiOrgDemoConfig \
                      must have been started by start_instances before writing the sidecar. \
                      Available socket_map keys: {:?}",
                     entry_name,
-                    socket_map.keys().collect::<Vec<_>>()
+                    ks
                 )
             })?;
             sensor_urls.insert(sensor_id.clone(), format!("http://{addr}"));
@@ -630,13 +633,16 @@ pub fn write_multi_url_sidecar_to_path(
         };
         if enabled {
             let addr = socket_map.get(enrichment_name).ok_or_else(|| {
+                // Sort for deterministic error messages.
+                let mut ks: Vec<_> = socket_map.keys().collect();
+                ks.sort();
                 anyhow::anyhow!(
                     "write_multi_url_sidecar: socket_map is missing expected enrichment entry \
                      '{}'. This is a programming error — enrichment clones enabled in \
                      EnrichmentConfig must have been started by start_instances before writing \
                      the sidecar. Available socket_map keys: {:?}",
                     enrichment_name,
-                    socket_map.keys().collect::<Vec<_>>()
+                    ks
                 )
             })?;
             global_urls.insert(enrichment_name.to_string(), format!("http://{addr}"));
@@ -665,6 +671,144 @@ pub fn write_multi_url_sidecar_to_path(
     })?;
     std::fs::rename(&tmp_path, path)
         .map_err(|e| anyhow::anyhow!("Failed to rename nested URL sidecar {:?}: {}", path, e))?;
+
+    Ok(())
+}
+
+/// Write the nested `{org_slug: {sensor_id: token}}` admin-token sidecar to a caller-specified path.
+///
+/// Mirror of `write_multi_url_sidecar_to_path` for admin tokens (tokens instead of URLs).
+/// The binary's `cmd_start_multi` delegates to this function with `path = TOKEN_MULTI_FILE`.
+///
+/// # Format
+///
+/// `{org_slug: {sensor_id: token}}` — nested JSON object mirroring `URL_MULTI_FILE` format
+/// but containing admin tokens instead of URLs. Each `sensor_id` key matches the corresponding
+/// key in `URL_MULTI_FILE` for the same org.
+///
+/// # Production-grade: no silent drops
+///
+/// Returns `Err` with an actionable message when ANY expected `{org_slug}-{sensor_id}` key
+/// is missing from `token_map`. A missing token means `cmd_configure` would receive HTTP 401
+/// — a runtime defect that must be caught at write time, not at configure time.
+///
+/// # Atomic write
+///
+/// Written atomically (tmp + rename) to prevent `cmd_configure` from reading a partial file
+/// during the poll loop (GAP-3 sidecar-availability guarantee).
+///
+/// # AD-017 credential safety
+///
+/// Token values MUST NOT appear in structured log fields. This function does not log
+/// token values. All tokens are ephemeral UUID v4 strings generated at clone construction.
+///
+/// (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-05)
+pub fn write_multi_admin_token_sidecar_to_path(
+    servers: &MultiInstanceServers,
+    cfg: &MultiOrgDemoConfig,
+    path: &Path,
+) -> anyhow::Result<()> {
+    use crate::config::KNOWN_ENRICHMENT_CLONES;
+    use std::collections::HashMap;
+
+    let token_map = servers.admin_token_map();
+
+    // Build nested map: {org_slug → {sensor_id → token}}.
+    // Errors LOUDLY if any expected {org_slug}-{sensor_id} entry is missing from token_map.
+    let mut nested: HashMap<String, HashMap<String, String>> = HashMap::new();
+    for (org_slug, org_cfg) in &cfg.orgs {
+        let mut sensor_tokens: HashMap<String, String> = HashMap::new();
+        for sensor_id in &org_cfg.sensors {
+            let entry_name = format!("{org_slug}-{sensor_id}");
+            let token = token_map.get(&entry_name).ok_or_else(|| {
+                // Sort for deterministic error messages.
+                let mut ks: Vec<_> = token_map.keys().collect();
+                ks.sort();
+                anyhow::anyhow!(
+                    "write_multi_admin_token_sidecar: token_map is missing expected entry '{}'. \
+                     This is a programming error — all sensors declared in MultiOrgDemoConfig \
+                     must have been started by start_instances before writing the sidecar. \
+                     Available token_map keys: {:?}",
+                    entry_name,
+                    ks
+                )
+            })?;
+            sensor_tokens.insert(sensor_id.clone(), token.clone());
+        }
+        nested.insert(org_slug.clone(), sensor_tokens);
+    }
+
+    // Emit global enrichment DTU tokens under the reserved "_global" key.
+    // Mirrors the `_global` key pattern from write_multi_url_sidecar_to_path (ENRICH-3).
+    let mut global_tokens: HashMap<String, String> = HashMap::new();
+    for &enrichment_name in KNOWN_ENRICHMENT_CLONES {
+        let enabled = match enrichment_name {
+            "threatintel" => cfg.enrichment.threatintel,
+            "nvd" => cfg.enrichment.nvd,
+            _ => false,
+        };
+        if enabled {
+            let token = token_map.get(enrichment_name).ok_or_else(|| {
+                // Sort for deterministic error messages.
+                let mut ks: Vec<_> = token_map.keys().collect();
+                ks.sort();
+                anyhow::anyhow!(
+                    "write_multi_admin_token_sidecar: token_map is missing expected enrichment \
+                     entry '{}'. This is a programming error — enrichment clones enabled in \
+                     EnrichmentConfig must have been started by start_instances before writing \
+                     the sidecar. Available token_map keys: {:?}",
+                    enrichment_name,
+                    ks
+                )
+            })?;
+            global_tokens.insert(enrichment_name.to_string(), token.clone());
+        }
+    }
+    if !global_tokens.is_empty() {
+        nested.insert("_global".to_string(), global_tokens);
+    }
+
+    let json = serde_json::to_string(&nested)
+        .map_err(|e| anyhow::anyhow!("Failed to serialise nested token map: {}", e))?;
+
+    // Atomic write: tmp file + rename.
+    let tmp_path = {
+        let mut p = path.to_path_buf();
+        let fname = p.file_name().and_then(|n| n.to_str()).unwrap_or("tokens");
+        p.set_file_name(format!("{fname}.tmp"));
+        p
+    };
+    // Write tmp file with 0600 permissions on Unix (AD-017 credential safety:
+    // tokens are ephemeral but perms hardening is cheap consistency — F-ADMTOK-P1-OBS-002).
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(&tmp_path)
+            .and_then(|mut f| f.write_all(json.as_bytes()))
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to write nested token sidecar tmp {:?}: {}",
+                    tmp_path,
+                    e
+                )
+            })?;
+    }
+    #[cfg(not(unix))]
+    std::fs::write(&tmp_path, &json).map_err(|e| {
+        anyhow::anyhow!(
+            "Failed to write nested token sidecar tmp {:?}: {}",
+            tmp_path,
+            e
+        )
+    })?;
+    std::fs::rename(&tmp_path, path)
+        .map_err(|e| anyhow::anyhow!("Failed to rename nested token sidecar {:?}: {}", path, e))?;
 
     Ok(())
 }
@@ -715,11 +859,14 @@ pub fn resolve_configure_url(
             if let Some(url) = url_map.get(clone_name) {
                 return Ok(format!("{url}/dtu/configure"));
             }
+            // Sort for deterministic diagnostic output.
+            let mut available: Vec<_> = url_map.keys().collect();
+            available.sort();
             anyhow::bail!(
                 "Clone '{}' not found in flat sidecar '{}'. Available: {:?}",
                 clone_name,
                 flat_path.display(),
-                url_map.keys().collect::<Vec<_>>()
+                available
             );
         }
     }
@@ -765,10 +912,12 @@ pub fn resolve_configure_url(
                     bare_matches.push((org_slug.clone(), url.clone()));
                 }
             }
+            // Sort for deterministic error messages.
+            bare_matches.sort_by(|a, b| a.0.cmp(&b.0));
             match bare_matches.len() {
                 0 => {
                     // Not found by any lookup strategy.
-                    let all_keys: Vec<String> = nested
+                    let mut all_keys: Vec<String> = nested
                         .iter()
                         .flat_map(|(org, sensors)| {
                             sensors
@@ -777,6 +926,8 @@ pub fn resolve_configure_url(
                                 .collect::<Vec<_>>()
                         })
                         .collect();
+                    // Sort for deterministic diagnostic output.
+                    all_keys.sort();
                     anyhow::bail!(
                         "Clone '{}' not found in nested sidecar '{}'. \
                          Use the full '{{org_slug}}-{{sensor_id}}' form or a bare sensor name \
@@ -826,4 +977,151 @@ pub fn resolve_configure_url(
         crate::URL_FILE,
         crate::URL_MULTI_FILE
     )
+}
+
+/// Resolve the admin token for a clone, reading from whichever token sidecar exists.
+///
+/// # E-DEMO-007 error contract
+///
+/// Returns `Err` with message matching the E-DEMO-007 template:
+/// `"configure: E-DEMO-007: admin token for clone '{clone_name}' could not be resolved: {reason}"`
+///
+/// Error reasons:
+/// - `"token sidecar not found (start the demo server first with start or start-multi)"` —
+///   neither `flat_sidecar_path` nor `nested_sidecar_path` exists on disk (EC-004).
+/// - `"clone '{clone_name}' not found in token sidecar '{path}'"` — sidecar exists but
+///   the clone name is absent (EC-003).
+/// - `"Bare sensor name '{name}' is ambiguous — found in N orgs: ["org-a", "org-b"]. Use full \
+///   '{org_slug}-{sensor_id}' form."` — EC-005: multiple orgs have the same bare sensor name.
+///
+/// # Lookup logic
+///
+/// Mirrors `resolve_configure_url` for the token sidecar:
+/// 1. If `flat_sidecar_path` is `Some` and exists: look up `clone_name` directly (flat format).
+/// 2. Else if `nested_sidecar_path` is `Some` and exists: look up as literal
+///    `{org_slug}-{sensor_id}` key or as a bare sensor name (EC-007 recovery form).
+///    Bare names that match exactly one org return that org's token; bare names matching
+///    multiple orgs return E-DEMO-007 (EC-005 ambiguity).
+/// 3. Otherwise: E-DEMO-007 with "token sidecar not found" reason (EC-004).
+///
+/// # Parameters
+///
+/// - `clone_name`: the name argument to `configure` — full `{org_slug}-{sensor_id}` key
+///   or a bare sensor name.
+/// - `flat_sidecar_path`: path to the flat token sidecar written by `start`, if known.
+/// - `nested_sidecar_path`: path to the nested token sidecar written by `start-multi`, if known.
+///
+/// (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 T-07 / BC-3.6.001 Precondition 4)
+pub fn resolve_configure_token(
+    clone_name: &str,
+    flat_sidecar_path: Option<&Path>,
+    nested_sidecar_path: Option<&Path>,
+) -> anyhow::Result<String> {
+    use std::collections::HashMap;
+
+    // Helper to produce the E-DEMO-007 error with the canonical message template.
+    let e_demo_007 = |reason: &str| -> anyhow::Error {
+        anyhow::anyhow!(
+            "configure: E-DEMO-007: admin token for clone '{}' could not be resolved: {}",
+            clone_name,
+            reason
+        )
+    };
+
+    // --- 1. Try flat sidecar first (written by `start`) ---
+    if let Some(flat_path) = flat_sidecar_path {
+        if flat_path.exists() {
+            let sidecar_str = std::fs::read_to_string(flat_path).map_err(|e| {
+                e_demo_007(&format!(
+                    "failed to read token sidecar {:?}: {}",
+                    flat_path, e
+                ))
+            })?;
+            let token_map: HashMap<String, String> = serde_json::from_str(&sidecar_str)
+                .map_err(|e| e_demo_007(&format!("failed to parse token sidecar: {}", e)))?;
+            if let Some(token) = token_map.get(clone_name) {
+                return Ok(token.clone());
+            }
+            return Err(e_demo_007(&format!(
+                "clone '{}' not found in token sidecar '{}'",
+                clone_name,
+                flat_path.display()
+            )));
+        }
+    }
+
+    // --- 2. Try nested sidecar (written by `start-multi`) ---
+    if let Some(nested_path) = nested_sidecar_path {
+        if nested_path.exists() {
+            let sidecar_str = std::fs::read_to_string(nested_path).map_err(|e| {
+                e_demo_007(&format!(
+                    "failed to read token sidecar {:?}: {}",
+                    nested_path, e
+                ))
+            })?;
+            let nested: HashMap<String, HashMap<String, String>> =
+                serde_json::from_str(&sidecar_str).map_err(|e| {
+                    e_demo_007(&format!("failed to parse nested token sidecar: {}", e))
+                })?;
+
+            // First: try clone_name as a literal {org_slug}-{sensor_id} key.
+            let mut exact_match: Option<String> = None;
+            for (org_slug, sensor_map) in &nested {
+                for (sensor_id, token) in sensor_map {
+                    let full_key = format!("{org_slug}-{sensor_id}");
+                    if full_key == clone_name {
+                        exact_match = Some(token.clone());
+                        break;
+                    }
+                }
+                if exact_match.is_some() {
+                    break;
+                }
+            }
+            if let Some(token) = exact_match {
+                return Ok(token);
+            }
+
+            // Second: try clone_name as a bare sensor_id (EC-007 recovery form).
+            let mut bare_matches: Vec<(String, String)> = Vec::new(); // (org_slug, token)
+            for (org_slug, sensor_map) in &nested {
+                if let Some(token) = sensor_map.get(clone_name) {
+                    bare_matches.push((org_slug.clone(), token.clone()));
+                }
+            }
+            // Sort for deterministic error messages.
+            bare_matches.sort_by(|a, b| a.0.cmp(&b.0));
+
+            match bare_matches.len() {
+                0 => {
+                    return Err(e_demo_007(&format!(
+                        "clone '{}' not found in token sidecar '{}'",
+                        clone_name,
+                        nested_path.display()
+                    )));
+                }
+                1 => {
+                    let (_, token) = bare_matches.remove(0);
+                    return Ok(token);
+                }
+                _ => {
+                    // EC-005: Ambiguous bare sensor name — multiple orgs have this sensor.
+                    let org_list: Vec<String> =
+                        bare_matches.iter().map(|(org, _)| org.clone()).collect();
+                    return Err(e_demo_007(&format!(
+                        "Bare sensor name '{}' is ambiguous — found in {} orgs: {:?}. \
+                         Use full '{{org_slug}}-{{sensor_id}}' form.",
+                        clone_name,
+                        org_list.len(),
+                        org_list
+                    )));
+                }
+            }
+        }
+    }
+
+    // --- 3. Neither sidecar found (EC-004) ---
+    Err(e_demo_007(
+        "token sidecar not found (start the demo server first with start or start-multi)",
+    ))
 }
