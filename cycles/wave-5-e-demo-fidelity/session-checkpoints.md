@@ -179,6 +179,20 @@ _Archived to session-checkpoints.md by D-1659 burst (state-manager keep-last-1 d
 
 ---
 
+## Archived: D-1851 — 2026-07-18 — burst complete; STATE v8.420
+
+**RESUME IN ONE BREATH:** AUDIT-COVERAGE-001 LOCAL cascade RESTARTED @98bb1de2 (rebased onto develop 277b7844; D-1845). F-AUD-R1 CLEAN(strict)=yes CLEAN(PR-merge)=yes; streak 1/3 (D-1846). Taxonomy v2.55→v2.56 F-AUD-R1-DEFER-001 CLOSED (D-1847). S-MAINT-PRMGR-HOOK-SCOPE-001 draft v0.1 REGISTERED — D-1811 obligation satisfied (D-1849). fuel_cap 100M interim patch applied D-1850 (non-persistent; resets on plugin update). PG-HOOK-FUEL-CEILING-001 open (D-1847; upstream S-MAINT-PRMGR-HOOK-SCOPE-001 AC-004). DRIFT-ADMINTOKEN-BC361-TD031-001 open (BC-3.6.001 POL-14 BLOCKED-TD031; product-owner fix-burst owed). **NEXT: LOCAL pass F-AUD-R2 on frozen 98bb1de2 (NO pushes mid-streak — DRIFT-ORCH-PRLEVEL-PUSH-001). D-1809 mitigation still in force.**
+
+**HEADS:**
+- develop: `277b7844` (PR #225 squash-merged 2026-07-18; EXPECTED=92; PUSHED)
+- factory-artifacts: `git -C .factory log -1 --format='%h %s'` (D-1851 burst commit)
+- `fix/T13-audit-coverage` @`98bb1de2` — LOCAL-ONLY; rebased onto develop 277b7844; LOCAL streak 1/3; NEXT F-AUD-R2
+- `feature/S-3.09` @`43c41389` — KEEP-PARKED (LOCAL-ONLY)
+- `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
+- `develop` and `factory-artifacts` are PUSHED; all others are LOCAL-ONLY
+
+---
+
 ## Archived: D-1837 — 2026-07-18 — burst complete; STATE v8.418
 
 **RESUME IN ONE BREATH:** LANE 1 CLOSED — S-MAINT-CI-DISK-EXHAUSTION-001 MERGED @0f9857dd (D-1829). LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): D-1827 one-time exception USED — delta re-gate F-ADMTOK-PR21 CLEAN(PR-merge) on frozen 5c9458d6 (1 OBS closed); security delta-confirm APPROVE SEC-001+SEC-002 CLOSED; fix-burst NEW-001 empty-string guard closed by implementer @dac830d1 (+1 test test_validate_clone_name_rejects_empty; story v0.21); PR #225 HEAD @dac830d1 PUSHED; CI pending. D-1837 HUMAN RULING: second one-time accelerated delta re-gate GRANTED on dac830d1 (explicitly one-time, NOT precedent). **NEXT: CI green on dac830d1 → PR body refresh → adversary delta pass (5c9458d6..dac830d1) → security delta-confirm → pr-reviewer APPROVE → human merge gate.** AUDIT-COVERAGE-001 UNBLOCKED (D-1830) — rebase @cd369b54 onto 0f9857dd. D-1809 mitigation still in force.

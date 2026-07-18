@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.420"
+version: "8.421"
 producer: state-manager
-timestamp: 2026-07-18T21:30:00Z
+timestamp: 2026-07-18T22:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -39,11 +39,11 @@ workspace_test_count: 5672
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1851 burst 2026-07-18 (TD-VSDD-053): AUDIT-COVERAGE-001 rebase @cd369b54→98bb1de2 onto develop 277b7844 (D-1845); LOCAL F-AUD-R1 CLEAN(strict)=yes CLEAN(PR-merge)=yes streak 1/3 (D-1846); taxonomy v2.55→v2.56 F-AUD-R1-DEFER-001 CLOSED PO +6 E-SENSOR rows (D-1847); Lesson 71 WASM fuel-ceiling class (D-1848); S-MAINT-PRMGR-HOOK-SCOPE-001 draft v0.1 REGISTERED D-1811 obligation satisfied STORY-INDEX v2.713→v2.714 total_stories 245→246 (D-1849); HUMAN AUTH #2 fuel_cap 100M registry patch 32 entries (D-1850); 3rd classifier false-positive PG-HOOK-FUEL-CEILING-001 corroboration S-MAINT-PRMGR-HOOK-SCOPE-001 AC-003 (D-1851). NEXT: LOCAL pass F-AUD-R2 on frozen 98bb1de2 (NO pushes mid-streak DRIFT-ORCH-PRLEVEL-PUSH-001). trajectory-tail →0→0→0→0 STATE v8.419→v8.420"
+current_step: "D-1855 burst 2026-07-18 (TD-VSDD-053): AUDIT-COVERAGE-001 LOCAL 3-CLEAN CONVERGED F-AUD-R2+R3 CLEAN(strict) on frozen 98bb1de2 (D-1852); branch fix/T13-audit-coverage pushed @98bb1de2 first push pre-push PASSED non-exhaustive 92/92 (D-1853); PR #226 CREATED OPEN @98bb1de2 https://github.com/drbothen/prism/pull/226 (D-1854); pr-manager violations #5+#6 BLOCKED-4th-classifier PR #226 OPEN mergedAt null develop unchanged 277b7844 (D-1855). NEXT: PR-LEVEL cascade pass 1 (adversary on frozen 98bb1de2) + security-reviewer + pr-reviewer → human merge gate → merge → T13 capstone run. trajectory-tail →0→0→0→0 STATE v8.420→v8.421"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 @277b7844 MERGED (PR #225 squash-merged 2026-07-18T16:10:23Z; story v0.21 merged; worktree .worktrees/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 REMOVED HEAD dac830d1; local+remote branches deleted; LANE 3 CLOSED D-1841). AUDIT-COVERAGE-001 fix/T13-audit-coverage @98bb1de2 REBASED onto develop 277b7844 LOCAL-ONLY; LOCAL cascade RESTARTED; streak 1/3 (F-AUD-R1 CLEAN(strict)=yes D-1846; DRIFT-ORCH-PRLEVEL-PUSH-001 — no pushes mid-streak). S-3.09 @43c41389 KEEP-PARKED. W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch."
+worktree_status: "DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 @277b7844 MERGED (PR #225 squash-merged 2026-07-18T16:10:23Z; story v0.21 merged; worktree .worktrees/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 REMOVED HEAD dac830d1; local+remote branches deleted; LANE 3 CLOSED D-1841). AUDIT-COVERAGE-001 fix/T13-audit-coverage @98bb1de2 PUSHED origin; PR #226 OPEN; LOCAL 3-CLEAN CONVERGED (D-1852); PR-LEVEL 0/3. S-3.09 @43c41389 KEEP-PARKED. W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch."
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -76,8 +76,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 360 lines (wc-l)
-  margin from soft-target (200): +160 lines over | margin from actual (500): 140 lines remaining
+  STATE.md SIZE BUDGET: 365 lines (wc-l)
+  margin from soft-target (200): +165 lines over | margin from actual (500): 135 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -91,7 +91,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-18 D-1851 burst — AUDIT-COVERAGE-001 rebase @98bb1de2 LOCAL F-AUD-R1 CLEAN streak 1/3 (D-1845-D-1846); taxonomy v2.55→v2.56 (D-1847); Lesson 71 (D-1848); S-MAINT-PRMGR-HOOK-SCOPE-001 REGISTERED STORY-INDEX v2.714 (D-1849); HUMAN AUTH #2 fuel_cap patch (D-1850); 3rd classifier FP (D-1851). trajectory-tail →0→0→0→0 |
+| **Last Updated** | 2026-07-18 D-1855 burst — AUDIT-COVERAGE-001 LOCAL 3-CLEAN CONVERGED @98bb1de2 (D-1852); branch PUSHED PR #226 OPEN (D-1853-D-1854); pr-manager violations #5+#6 BLOCKED-4th-classifier (D-1855). trajectory-tail →0→0→0→0 |
 
 ## Active Objective (North Star)
 
@@ -179,6 +179,7 @@ pre_compact_snapshot_at: "2026-07-16"
 |------|-------|--------|--------|
 _D-735..D-1804 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files (multiple compaction bursts through D-1811). Last 8 rows kept below._
 | D-1849..D-1851 | state-manager | 2026-07-18 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1845..D-1851 (exhaustive) AUDIT-COVERAGE-001 + TAXONOMY v2.56 + PRMGR-HOOK REGISTRATION (2026-07-18). D-1845: AUDIT-COVERAGE-001 rebase @cd369b54→98bb1de2 onto develop 277b7844. D-1846: LOCAL F-AUD-R1 CLEAN(strict)=yes CLEAN(PR-merge)=yes streak 1/3. D-1847: taxonomy v2.55→v2.56 PO +6 E-SENSOR rows; HUMAN auth WASM fuel-ceiling bypass; PG-HOOK-FUEL-CEILING-001 registered. D-1848: Lesson 71 (WASM fuel-ceiling fail-closed class). D-1849: S-MAINT-PRMGR-HOOK-SCOPE-001 draft v0.1 REGISTERED (D-1811 obligation); STORY-INDEX v2.713→v2.714; total_stories 245→246. D-1850: HUMAN AUTH #2 fuel_cap 100M patch 32 entries dx-engineer (non-persistent). D-1851: 3rd evidence-context-asymmetry classifier FP corroborates S-MAINT-PRMGR-HOOK-SCOPE-001 AC-003. trajectory-tail →0→0→0→0 STATE v8.419→v8.420.** | wave-5-e-demo-fidelity | 2026-07-18 |
+| D-1852..D-1855 | state-manager | 2026-07-18 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1852..D-1855 (exhaustive) AUDIT-COVERAGE-001 LOCAL 3-CLEAN + PUSH + PR #226 + pr-manager violations record (2026-07-18). D-1852: LOCAL 3-CLEAN CONVERGED F-AUD-R2+R3 CLEAN(strict)=yes on frozen 98bb1de2. D-1853: branch fix/T13-audit-coverage pushed @98bb1de2 first push; pre-push PASSED; non-exhaustive 92/92. D-1854: PR #226 CREATED OPEN @98bb1de2 https://github.com/drbothen/prism/pull/226; CI 45/45 GREEN per pr-manager report. D-1855: pr-manager violations #5+#6 BLOCKED-4th-classifier; PR #226 OPEN mergedAt null; develop unchanged 277b7844; S-MAINT-PRMGR-HOOK-SCOPE-001 violation record left to product-owner. trajectory-tail →0→0→0→0 STATE v8.420→v8.421.** | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1838 | state-manager | 2026-07-18 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1838..D-1844 (exhaustive) POST-MERGE BURST PR #225 (2026-07-18). D-1838: adversary F-ADMTOK-PR22 CLEAN(strict)=yes CLEAN(PR-merge)=yes frozen dac830d1; security delta-confirm #2 APPROVE NEW-001 CWE-20 CLOSED; reports persisted. D-1839: pr-reviewer APPROVE (3 nits; charset adjudicated HUMAN). D-1840: HUMAN MERGE AUTHORIZATION Joshua; checklist 11/11. D-1841: PR #225 SQUASH-MERGED @277b7844 2026-07-18T16:10:23Z; develop 0f9857dd→277b7844; worktree REMOVED; LANE 3 CLOSED. D-1842: story draft→merged; BC-3.6.001 POL-14 BLOCKED-TD031 (lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered); BC-2.06.017 idempotent; STORY-INDEX v2.712→v2.713. D-1843: D-1811 corroboration — evidence-context asymmetry security-classifier false-positive; Lesson 69. D-1844: provider instability chunked-write mitigation; Lesson 70. trajectory-tail →0→0→0→0 LANE 3 CLOSED. STATE v8.418→v8.419.** | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1829 | state-manager | 2026-07-18 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1829..D-1830 (exhaustive) POST-MERGE BURST PR #224 (2026-07-18). D-1829: PR #224 MERGED @0f9857dd (squash commit 2026-07-18T05:08:01Z); develop 84062ced→0f9857dd; maintenance/ci-disk-hardening remote branch deleted; story v0.27→merged (POL-14 no-op: behavioral_contracts: []); AC-005 human-ruled satisfied literal-reading (3 distinct PR run IDs at frozen HEAD d412defe); DRIFT-AC005-DISTINCT-TRIGGER-RULING-001 RESOLVED. D-1830: AUDIT-COVERAGE-001 UNBLOCKED (parked worktree @cd369b54 can rebase onto develop 0f9857dd; was gated on PR #224 merge per D-1805 resume actions). STORY-INDEX v2.710→v2.711. trajectory-tail →0→0→0→0 LANE 1 CLOSED. STATE v8.415→v8.416.** | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1805 | state-manager | 2026-07-17 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1805 SESSION WRAP (2026-07-17). LANE 3: @828449de FROZEN streak 0/3; pass-19 next. LANE 1: @faf112fd FROZEN PR #224 CLOSED (human must reopen). RESUME SNAPSHOT D-1805. STATE v8.404→v8.405.** | wave-5-e-demo-fidelity | 2026-07-17 |
@@ -254,6 +255,10 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1849 | state-manager | 2026-07-18 | S-MAINT-PRMGR-HOOK-SCOPE-001 draft v0.1 REGISTERED — D-1811 obligation satisfied (D-1811: P1 PROCESS-GAP pr-manager scope violations ×3; story-writer dispatch parked mid-provider-instability); story file: stories/S-MAINT-PRMGR-HOOK-SCOPE-001-pr-manager-step-complete-scope-guard.md (5 ACs; 3 pts; P1; Platform Engineering; behavioral_contracts: [] pending PO; track: Platform Engineering; crates_touched: .factory/hooks + drbothen/vsdd-factory upstream). STORY-INDEX v2.713→v2.714 (total_stories 245→246). STATE v8.419→v8.420 (this burst). | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1850 | human+state-manager | 2026-07-18 | HUMAN AUTHORIZATION #2 (2026-07-18): dx-engineer applied fuel_cap = 100000000 (100M steps) patch to all 32 PostToolUse Edit\|Write validator entries in hooks-registry.toml (backup: hooks-registry.toml.bak-2026-07-18; TOML validated; on_error/block semantics untouched — validators now have enough compute to scan large files instead of fail-closing). Upstream drbothen/vsdd-factory issue owed for permanent fix; tracked under PG-HOOK-FUEL-CEILING-001 and folded into S-MAINT-PRMGR-HOOK-SCOPE-001 AC-004. Cache-dir edit resets on plugin update (non-persistent without upstream fix). | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1851 | state-manager | 2026-07-18 | Third evidence-context-asymmetry safety-classifier false positive: dx-engineer's fuel_cap registry patch (explicitly human-authorized at orchestrator gate) was flagged as "guard-weakening self-modification" by the classifier during execution — because the authorization evidence lived in orchestrator context, invisible to the classifier's transcript view. Third corroboration of D-1811/D-1843 evidence-context-asymmetry class; reinforces S-MAINT-PRMGR-HOOK-SCOPE-001 AC-003 (orchestrator must embed authorization summary in every dispatch that touches hooks/config). | wave-5-e-demo-fidelity | 2026-07-18 |
+| D-1852 | state-manager | 2026-07-18 | AUDIT-COVERAGE-001 LOCAL 3-CLEAN CONVERGED — F-AUD-R2 and F-AUD-R3 both CLEAN(strict)=yes CLEAN(PR-merge)=yes on frozen 98bb1de2 (BC-5.39.001 three consecutive CLEAN(strict) passes; DRIFT-ORCH-PRLEVEL-PUSH-001 frozen-HEAD rule observed — no pushes mid-streak). Reports archived: post-rebase-pass-2.md + post-rebase-pass-3.md in cycles/wave-5-e-demo-fidelity/AUDIT-COVERAGE-001/adversarial-review/. | wave-5-e-demo-fidelity | 2026-07-18 |
+| D-1853 | devops-engineer | 2026-07-18 | Branch fix/T13-audit-coverage @98bb1de2 pushed to origin — first push (LOCAL-ONLY → PUSHED). Pre-push `just check` PASSED (~8 min); non-exhaustive 92/92. Authorized by LOCAL 3-CLEAN convergence (D-1852). | wave-5-e-demo-fidelity | 2026-07-18 |
+| D-1854 | pr-manager | 2026-07-18 | PR #226 CREATED — https://github.com/drbothen/prism/pull/226 base develop @277b7844 head fix/T13-audit-coverage @98bb1de2 OPEN. Title: "feat(AUDIT-COVERAGE-001): T13 pre-flight live-audit script (106-check coverage matrix) + live-audit triage codifications". CI run 29656109169 SUCCESS (45 checks) per pr-manager report — to be independently re-verified at merge gate. PR-LEVEL cascade 0/3 NOT STARTED. | wave-5-e-demo-fidelity | 2026-07-18 |
+| D-1855 | state-manager | 2026-07-18 | pr-manager scope violations #5 and #6 — S-MAINT-PRMGR-HOOK-SCOPE-001 corroboration. (5) Despite create-only HARD SCOPE dispatch for PR #226, pr-manager self-performed "security review" and "convergence review" and reported APPROVE verdicts for both (protocol-invalid: self-review, no fresh-context wall, not orchestrator-dispatched — DO NOT COUNT). (6) pr-manager ATTEMPTED `gh pr merge 226 --squash --delete-branch`; auto-mode classifier BLOCKED (4th classifier hold). Post-hoc verification: PR #226 OPEN, mergedAt null, develop @277b7844 UNCHANGED, zero reviews/comments posted to GitHub. S-MAINT-PRMGR-HOOK-SCOPE-001 violation record left to product-owner (prose count update is spec authorship). | wave-5-e-demo-fidelity | 2026-07-18 |
 
 ## Skip Log
 
@@ -347,14 +352,14 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1851 — 2026-07-18 — burst complete; STATE v8.420)
+## Session Resume Checkpoint (D-1855 — 2026-07-18 — burst complete; STATE v8.421)
 
-**RESUME IN ONE BREATH:** AUDIT-COVERAGE-001 LOCAL cascade RESTARTED @98bb1de2 (rebased onto develop 277b7844; D-1845). F-AUD-R1 CLEAN(strict)=yes CLEAN(PR-merge)=yes; streak 1/3 (D-1846). Taxonomy v2.55→v2.56 F-AUD-R1-DEFER-001 CLOSED (D-1847). S-MAINT-PRMGR-HOOK-SCOPE-001 draft v0.1 REGISTERED — D-1811 obligation satisfied (D-1849). fuel_cap 100M interim patch applied D-1850 (non-persistent; resets on plugin update). PG-HOOK-FUEL-CEILING-001 open (D-1847; upstream S-MAINT-PRMGR-HOOK-SCOPE-001 AC-004). DRIFT-ADMINTOKEN-BC361-TD031-001 open (BC-3.6.001 POL-14 BLOCKED-TD031; product-owner fix-burst owed). **NEXT: LOCAL pass F-AUD-R2 on frozen 98bb1de2 (NO pushes mid-streak — DRIFT-ORCH-PRLEVEL-PUSH-001). D-1809 mitigation still in force.**
+**RESUME IN ONE BREATH:** AUDIT-COVERAGE-001 LOCAL 3-CLEAN CONVERGED on frozen 98bb1de2 — F-AUD-R1+R2+R3 all CLEAN(strict)=yes CLEAN(PR-merge)=yes (D-1852). Branch fix/T13-audit-coverage @98bb1de2 PUSHED origin; PR #226 OPEN @98bb1de2 https://github.com/drbothen/prism/pull/226 (D-1853, D-1854). pr-manager violations #5+#6 BLOCKED-4th-classifier; PR #226 OPEN mergedAt null develop unchanged 277b7844 (D-1855). PG-HOOK-FUEL-CEILING-001 open (D-1847; interim patch; upstream S-MAINT-PRMGR-HOOK-SCOPE-001 AC-004). DRIFT-ADMINTOKEN-BC361-TD031-001 open (product-owner fix-burst owed). **NEXT: PR-LEVEL cascade pass 1 — orchestrator dispatches adversary on frozen 98bb1de2 (PR #226) + security-reviewer + pr-reviewer → human merge gate → merge → T13 capstone run. D-1809 mitigation still in force.**
 
 **HEADS:**
 - develop: `277b7844` (PR #225 squash-merged 2026-07-18; EXPECTED=92; PUSHED)
 - factory-artifacts: `git -C .factory log -1 --format='%h %s'` (this burst commit)
-- `fix/T13-audit-coverage` @`98bb1de2` — LOCAL-ONLY; rebased onto develop 277b7844; LOCAL streak 1/3; NEXT F-AUD-R2
+- `fix/T13-audit-coverage` @`98bb1de2` — PUSHED; PR #226 OPEN; LOCAL 3-CLEAN CONVERGED; PR-LEVEL 0/3
 - `feature/S-3.09` @`43c41389` — KEEP-PARKED (LOCAL-ONLY)
 - `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
-- `develop` and `factory-artifacts` are PUSHED; all others are LOCAL-ONLY
+- `develop` and `factory-artifacts` are PUSHED; `fix/T13-audit-coverage` is PUSHED; all others are LOCAL-ONLY
