@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.410"
+version: "8.411"
 producer: state-manager
-timestamp: 2026-07-18T08:00:00Z
+timestamp: 2026-07-18T10:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -21,7 +21,7 @@ develop_head: "84062ced"
 bc_index_version: "8.35"
 # NOTE: D-1799 — BC-INDEX v8.34→v8.35: BC-INDEX v8.34 narrative-only correction (F-ADMTOK-P13-LOW-004 [process-gap]): v8.34 misdescribed BC-2.06.017 v1.12 fix as "§Postconditions/Postcondition-7 citation form"; actual fix was "(tmp+rename, same atomic-write pattern as the URL sidecar; cf. GAP-3 sidecar-poll note, S-DEMO-LAUNCHER-CONSOLIDATION-001 Changelog v2.1)"; corrected in-place + v8.35 row added. D-1798 NOTE: v8.33→v8.34 (BC-2.06.017 v1.11→v1.12 F-ADMTOK-P12-MED-001 closure). D-1795 NOTE: v8.32 (BC-2.02.013 v1.9→v1.10); v8.33 (BC-2.06.017 v1.10→v1.11 admin_token_map() @5b802b64).
 vp_index_version: "1.80"
-story_index_version: "v2.705"
+story_index_version: "v2.706"
 arch_index_version: "2.193"
 error_taxonomy_version: "2.55"
 # NOTE: D-1817 — v2.54→v2.55: PR-LEVEL pass-8 F-ADMTOK-PR8-MED-001 preamble carve-out (E-DEMO universal construction-time claim contradicted by E-DEMO-007 runtime behavior); BC-2.06.018/BC-2.06.020 invariants verified correctly scoped; POL-29 sweep clean.
@@ -39,11 +39,11 @@ workspace_test_count: 5662
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1819 2026-07-18 LANE 3 MINI INDEX SYNC (Lesson 67): PR-LEVEL pass-11 NOT CLEAN(strict) — 1 LOW F-ADMTOK-PR11-LOW-001 (AC-003 taxonomy mirror-table header non-canonical; closed by PO fix-burst story v0.16→v0.17; AC-003 header aligned to canonical Severity | Category | Message Format; row values unchanged); streak reset 0/3; pass-12 next on frozen 828449de. LANE 1 UNCHANGED (story v0.25; pass-20 next on frozen 9c315608; streak 0/3). STORY-INDEX v2.704→v2.705. trajectory-tail →1→1→0→1 STATE v8.409→v8.410"
+current_step: "D-1821 2026-07-18 MINI STATE BURST (D-1820/D-1821 TD-VSDD-053 Lesson 67 pre-gate index sync): LANE 1 pass-20 NOT CLEAN (1 HIGH F-MAINT-P20-HIGH-001 timeout ceilings below cold-cache durations + 1 MED F-MAINT-P20-MED-001 scope-contract omission ×2 sites); HUMAN-approved ~2× resize; implementer @d412defe PUSHED (test 45→75 tndef 25→45 evidence-true comments; basis run 29615360280 35m39s/22m33s); PO story v0.25→v0.26; streak 0/3; AC-005 1/3; pass-21 next after CI green + description refresh. LANE 3 pass-12 CLEAN(strict) (first attempt infra-voided; pass of record) streak 1/3 on frozen 828449de; pass-13 in flight. STORY-INDEX v2.705→v2.706. trajectory-tail →2→1→2→0 STATE v8.410→v8.411"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "AUDIT-COVERAGE-001 fix/T13-audit-coverage @cd369b54 LOCAL-ONLY dirty=1; PARKED — needs rebase onto 84062ced before re-activate. S-MAINT-CI-DISK-EXHAUSTION-001 maintenance/ci-disk-hardening @9c315608 FROZEN PUSHED (story v0.25; PR #224 OPEN; pass-19 NOT CLEAN strict 1 MED+1 LOW spec-prose D-1818; PO fix-burst v0.24→v0.25 DONE; pass-20 next on frozen 9c315608; streak 0/3; AC-005 ruling pending). DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 @828449de LOCAL CONVERGED (story v0.17; LOCAL 3-CLEAN CONVERGED passes 19/20/21; PR #225 OPEN; PR-LEVEL passes 2/3/5/6/8 CLEAN; pass-4 HIGH closed D-1812; pass-7 MED closed D-1816; pass-8 MED closed D-1817; passes 9+10 CLEAN(strict) streak 2/3; pass-11 1 LOW (F-ADMTOK-PR11-LOW-001) closed by PO v0.17 fix-burst; streak reset 0/3; pass-12 next on frozen 828449de). S-3.09 @43c41389 KEEP-PARKED. W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch."
+worktree_status: "AUDIT-COVERAGE-001 fix/T13-audit-coverage @cd369b54 LOCAL-ONLY dirty=1; PARKED — needs rebase onto 84062ced before re-activate. S-MAINT-CI-DISK-EXHAUSTION-001 maintenance/ci-disk-hardening @d412defe FROZEN PUSHED (story v0.26; PR #224 OPEN; pass-20 NOT CLEAN 1 HIGH+1 MED D-1820; HUMAN-approved ~2× resize; PO fix-burst v0.25→v0.26 DONE; streak 0/3; AC-005 1/3; pass-21 next after CI green + description refresh). DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 @828449de LOCAL CONVERGED (story v0.17; LOCAL 3-CLEAN CONVERGED passes 19/20/21; PR #225 OPEN; PR-LEVEL passes 2/3/5/6/8 CLEAN; pass-4 HIGH closed D-1812; pass-7 MED closed D-1816; pass-8 MED closed D-1817; passes 9+10 CLEAN(strict) streak 2/3; pass-11 1 LOW (F-ADMTOK-PR11-LOW-001) closed; pass-12 CLEAN(strict) streak 1/3; pass-13 in flight on frozen 828449de). S-3.09 @43c41389 KEEP-PARKED. W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch."
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -76,8 +76,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 326 lines (wc-l)
-  margin from soft-target (200): +126 lines over | margin from actual (500): 174 lines remaining
+  STATE.md SIZE BUDGET: 328 lines (wc-l)
+  margin from soft-target (200): +128 lines over | margin from actual (500): 172 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -91,7 +91,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-18 D-1819 LANE 3 pass-11 1 LOW (F-ADMTOK-PR11-LOW-001) PO fix-burst v0.16→v0.17; streak reset 0/3; pass-12 next; STORY-INDEX v2.705 trajectory-tail →1→1→0→1 |
+| **Last Updated** | 2026-07-18 D-1821 LANE 1 pass-20 NOT CLEAN (1H+1M; ~2× resize @d412defe; streak 0/3; AC-005 1/3; pass-21 next); LANE 3 pass-12 CLEAN(strict) streak 1/3 (pass-13 in flight); STORY-INDEX v2.706 trajectory-tail →2→1→2→0 |
 
 ## Active Objective (North Star)
 
@@ -161,15 +161,15 @@ pre_compact_snapshot_at: "2026-07-16"
 
 | Story | Lane | Frozen HEAD | Last Pass | Finding Trajectory | Streak | Branch |
 |-------|------|-------------|-----------|-------------------|--------|--------|
-| S-MAINT-CI-DISK-EXHAUSTION-001 | PR-LEVEL | 9c315608 | pass-19 NOT CLEAN strict (1 MED F-MAINT-P19-MED-001 scope-contract + 1 LOW F-MAINT-P19-LOW-001 priority-semantics; both spec-prose; SEC verified correct D-1818); PO fix-burst story v0.25; pass-20 next on frozen 9c315608 | →3→0→2→3→2→0→0→0→2 | 0/3 | maintenance/ci-disk-hardening (PR #224 OPEN; story v0.25; pass-20 next; streak 0/3) |
-| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | PR-LEVEL | 828449de | passes 2/3 CLEAN; pass-4 HIGH (SS-22→SS-01 re-anchor D-1812); passes 5/6 CLEAN; pass-7 MED (STORY-INDEX lag closed D-1816); pass-8 MED closed (D-1817); pass-9 CLEAN(strict) streak 1/3; pass-10 CLEAN(strict) streak 2/3; pass-11 1 LOW (F-ADMTOK-PR11-LOW-001 non-canonical mirror-table headers) closed by PO v0.17 fix-burst; streak reset 0/3; pass-12 next on frozen 828449de | →0→0→0→5→1→0→0→1→1→0→0→1 | 0/3 | fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (PR #225 OPEN; story v0.17; pass-12 next; streak 0/3) |
+| S-MAINT-CI-DISK-EXHAUSTION-001 | PR-LEVEL | d412defe | pass-20 NOT CLEAN strict (1 HIGH F-MAINT-P20-HIGH-001 timeout ceilings vs cold-cache durations + 1 MED F-MAINT-P20-MED-001 scope-contract tndef omission ×2 sites; HUMAN-approved ~2× resize D-1820); PO fix-burst story v0.26; streak 0/3; AC-005 1/3; pass-21 next | →3→0→2→3→2→0→0→0→2→2 | 0/3 | maintenance/ci-disk-hardening (PR #224 OPEN; story v0.26; @d412defe PUSHED; pass-21 next after CI green) |
+| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | PR-LEVEL | 828449de | passes 2/3 CLEAN; pass-4 HIGH (SS-22→SS-01 re-anchor D-1812); passes 5/6 CLEAN; pass-7 MED closed (D-1816); pass-8 MED closed (D-1817); pass-9 CLEAN(strict) streak 1/3; pass-10 CLEAN(strict) streak 2/3; pass-11 1 LOW (F-ADMTOK-PR11-LOW-001) closed by PO v0.17; pass-12 CLEAN(strict) streak 1/3 (first attempt infra-voided; pass of record); pass-13 in flight | →0→0→0→5→1→0→0→1→1→0→0→1→0 | 1/3 | fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (PR #225 OPEN; story v0.17; pass-12 CLEAN 1/3; pass-13 in flight) |
 
 ## Concurrent Cycles
 
 | Story | Branch | Head | Status |
 |-------|--------|------|--------|
-| S-MAINT-CI-DISK-EXHAUSTION-001 | maintenance/ci-disk-hardening | 9c315608 FROZEN PUSHED | story v0.25; PR #224 OPEN; pass-19 NOT CLEAN strict (1 MED F-MAINT-P19-MED-001 scope-contract + 1 LOW F-MAINT-P19-LOW-001 priority-semantics — both spec-prose; SEC verified correct/complete D-1818); PO fix-burst story v0.24→v0.25 DONE; streak 0/3; pass-20 next on frozen 9c315608; AC-005 distinct-trigger 1/3 ruling pending |
-| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | 828449de LOCAL CONVERGED | story v0.17; LOCAL 3-CLEAN CONVERGED (passes 19/20/21; 21p/15fb); PR #225 OPEN @828449de; PR-LEVEL passes 2/3/5/6/8 CLEAN (pass-4 HIGH closed D-1812; pass-7 MED closed D-1816; pass-8 MED closed D-1817); pass-9 CLEAN(strict) streak 1/3; pass-10 CLEAN(strict) streak 2/3; pass-11 1 LOW (F-ADMTOK-PR11-LOW-001) closed by PO v0.17 fix-burst; streak 0/3; pass-12 next on frozen 828449de |
+| S-MAINT-CI-DISK-EXHAUSTION-001 | maintenance/ci-disk-hardening | d412defe FROZEN PUSHED | story v0.26; PR #224 OPEN; pass-20 NOT CLEAN strict (1 HIGH F-MAINT-P20-HIGH-001 timeout ceilings vs cold-cache durations + 1 MED F-MAINT-P20-MED-001 scope-contract omission D-1820); HUMAN-approved ~2× resize; implementer @d412defe PUSHED; PO fix-burst story v0.25→v0.26 DONE; streak 0/3; AC-005 1/3 (push = trigger event 1); pass-21 next after CI green + description refresh |
+| DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | 828449de LOCAL CONVERGED | story v0.17; LOCAL 3-CLEAN CONVERGED (passes 19/20/21; 21p/15fb); PR #225 OPEN @828449de; PR-LEVEL passes 2/3/5/6/8 CLEAN (pass-4 HIGH closed D-1812; pass-7 MED closed D-1816; pass-8 MED closed D-1817); pass-9 CLEAN(strict) streak 1/3; pass-10 CLEAN(strict) streak 2/3; pass-11 1 LOW (F-ADMTOK-PR11-LOW-001) closed by PO v0.17; pass-12 CLEAN(strict) streak 1/3 (first attempt infra-voided); pass-13 in flight on frozen 828449de |
 
 ## Current Phase Steps
 
@@ -220,6 +220,8 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1817 | state-manager | 2026-07-18 | MINI BURST COMPLETE (TD-VSDD-053): LANE 3 PR-LEVEL pass-8 1 MED closed — F-ADMTOK-PR8-MED-001 E-DEMO preamble universal construction-time claim contradicted by runtime E-DEMO-007; PO taxonomy v2.54→v2.55 preamble carve-out (Lesson 67 discipline — taxonomy sync before next gating pass); BC-2.06.018/BC-2.06.020 invariants verified correctly scoped no BC edits; POL-29 sweep clean (story quotes row only not preamble); hook timeouts during PO edit transient edits durable; error-taxonomy.md v2.55 committed; pr-level-pass-8.md committed; STATE.md error_taxonomy_version "2.54"→"2.55"; STATE v8.407→v8.408 | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1818 | state-manager | 2026-07-18 | MINI BURST: LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001) pass-19 NOT CLEAN strict (1 MED F-MAINT-P19-MED-001 scope-contract carve-out tndef §ACR+§Forbidden + 1 LOW F-MAINT-P19-LOW-001 priority-semantics parenthetical inverted; both spec-prose; SEC commit verified correct/complete; no code push); PO fix-burst story v0.24→v0.25 DONE; streak 0/3; pass-20 next on frozen 9c315608. LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001) passes 9+10 CLEAN(strict) streak 2/3 on frozen 828449de (zero findings each; pass-11 convergence candidate in flight). STORY-INDEX v2.703→v2.704. STATE v8.408→v8.409 | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1819 | state-manager | 2026-07-18 | MINI INDEX SYNC (TD-VSDD-053 / Lesson 67): LANE 3 PR-LEVEL pass-11 NOT CLEAN(strict) — 1 LOW F-ADMTOK-PR11-LOW-001 (AC-003 taxonomy mirror-table header non-canonical; PO fix-burst story v0.16→v0.17; AC-003 header aligned to canonical `Severity \| Category \| Message Format`; row values unchanged); streak reset 0/3; pass-12 next on frozen 828449de. LANE 1 UNCHANGED (story v0.25; pass-20 next on frozen 9c315608; streak 0/3). STORY-INDEX v2.704→v2.705. STATE v8.409→v8.410 | wave-5-e-demo-fidelity | 2026-07-18 |
+| D-1820 | state-manager | 2026-07-18 | MINI STATE BURST (TD-VSDD-053 / Lesson 67 pre-gate index sync): LANE 1 pass-20 NOT CLEAN (1 HIGH F-MAINT-P20-HIGH-001 timeout ceilings below cold-cache durations + 1 MED F-MAINT-P20-MED-001 scope-contract tndef omission ×2 sites); HUMAN-approved ~2× resize test 45→75 tndef 25→45; implementer @d412defe PUSHED (evidence-true comments; basis run 29615360280: 35m39s/22m33s); PO story v0.25→v0.26 (EC-001 values 75/45 + snippets/tasks/FSR propagation); streak 0/3 on d412defe; AC-005 1/3 (push=trigger 1); pass-21 next after CI green + description refresh. STORY-INDEX v2.705→v2.706. STATE v8.410→v8.411 | wave-5-e-demo-fidelity | 2026-07-18 |
+| D-1821 | state-manager | 2026-07-18 | LANE 3 pass-12 CLEAN(strict) (first attempt infra-voided; pass of record) — streak 1/3 on frozen 828449de; pass-13 in flight. (Bundled in D-1820 burst.) | wave-5-e-demo-fidelity | 2026-07-18 |
 
 ## Skip Log
 
@@ -311,15 +313,15 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1819 — 2026-07-18 — LANE 3 MINI INDEX SYNC; STATE v8.410)
+## Session Resume Checkpoint (D-1821 — 2026-07-18 — MINI STATE BURST D-1820/D-1821; STATE v8.411)
 
-**RESUME IN ONE BREATH:** LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): LOCAL 3-CLEAN CONVERGED; PR #225 OPEN @828449de; story v0.17; PR-LEVEL passes 2/3/5/6/8 CLEAN; pass-4 HIGH closed (D-1812); pass-7 MED closed (D-1816); pass-8 MED closed (D-1817); pass-9 CLEAN(strict) streak 1/3; pass-10 CLEAN(strict) streak 2/3; pass-11 NOT CLEAN(strict) — 1 LOW F-ADMTOK-PR11-LOW-001 (non-canonical mirror-table headers) closed by PO v0.17 fix-burst; streak reset 0/3; pass-12 next on frozen 828449de — on 3-CLEAN(strict) → security + pr-reviewer + human merge gate. LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): pass-19 NOT CLEAN strict — 1 MED F-MAINT-P19-MED-001 (scope-contract carve-out ×2 spec-body sites; tndef §ACR+§Forbidden) + 1 LOW F-MAINT-P19-LOW-001 (priority-semantics parenthetical inverted; non-load-bearing); SEC commit verified correct/complete; PO fix-burst story v0.24→v0.25 DONE; streak 0/3; pass-20 next on frozen 9c315608. AC-005 interpretation ruling still pending human. D-1809 mitigation still in force. develop=84062ced unchanged.
+**RESUME IN ONE BREATH:** LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): LOCAL 3-CLEAN CONVERGED; PR #225 OPEN @828449de; story v0.17; PR-LEVEL passes 2/3/5/6/8 CLEAN; pass-4 HIGH closed (D-1812); pass-7 MED closed (D-1816); pass-8 MED closed (D-1817); passes 9+10 CLEAN(strict) streak 2/3; pass-11 NOT CLEAN(strict) 1 LOW closed by PO v0.17; pass-12 CLEAN(strict) streak 1/3 (first attempt infra-voided; pass of record); pass-13 in flight on frozen 828449de — on 3-CLEAN(strict) → security + pr-reviewer + human merge gate. LANE 1 (S-MAINT-CI-DISK-EXHAUSTION-001): pass-20 NOT CLEAN strict — 1 HIGH F-MAINT-P20-HIGH-001 (timeout ceilings tighter than cold-cache durations; test 45→75 tndef 25→45) + 1 MED F-MAINT-P20-MED-001 (scope-contract tndef timeout-minutes omission ×2 sites §ACR+§FSR); HUMAN-approved ~2× resize; implementer @d412defe PUSHED; PO fix-burst v0.25→v0.26 DONE; streak 0/3; AC-005 1/3 (push=trigger 1); pass-21 next after CI green + description refresh. D-1809 mitigation still in force. develop=84062ced unchanged.
 
 **HEADS:**
 - develop: `84062ced` (ff'd 2026-07-16; EXPECTED=92; origin/develop=local; PUSHED)
 - factory-artifacts: `git -C .factory log -1 --format='%h %s'`
-- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`828449de` — PUSHED (PR #225 OPEN); story v0.17; BC-2.06.017 v1.12; LOCAL 3-CLEAN CONVERGED; PR-LEVEL passes 2/3/5/6/8 CLEAN; passes 9+10 CLEAN(strict) streak 2/3; pass-11 1 LOW (F-ADMTOK-PR11-LOW-001) closed; streak reset 0/3; pass-12 next
-- `maintenance/ci-disk-hardening` @`9c315608` — FROZEN PUSHED; PR #224 OPEN; story v0.25; pass-19 NOT CLEAN (1 MED+1 LOW spec-prose); PO fix-burst done; pass-20 next; streak 0/3; AC-005 ruling pending
+- `fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001` @`828449de` — PUSHED (PR #225 OPEN); story v0.17; BC-2.06.017 v1.12; LOCAL 3-CLEAN CONVERGED; PR-LEVEL passes 2/3/5/6/8 CLEAN; passes 9+10 CLEAN(strict) streak 2/3; pass-11 1 LOW closed by PO v0.17; pass-12 CLEAN(strict) streak 1/3; pass-13 in flight
+- `maintenance/ci-disk-hardening` @`d412defe` — FROZEN PUSHED; PR #224 OPEN; story v0.26; pass-20 NOT CLEAN (1 HIGH+1 MED); HUMAN-approved ~2× resize; PO fix-burst done v0.26; streak 0/3; AC-005 1/3; pass-21 next after CI green
 - `fix/T13-audit-coverage` @`cd369b54` — LOCAL-ONLY dirty=1; PARKED; needs rebase onto 84062ced
 - `feature/S-3.09` @`43c41389` — KEEP-PARKED (LOCAL-ONLY)
 - `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
