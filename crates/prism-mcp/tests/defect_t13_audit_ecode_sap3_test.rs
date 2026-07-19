@@ -10,10 +10,17 @@
 //! Each test satisfies SAP-3 (spec-arm reachability) and SID-2 (composed-output
 //! assertions) per CLAUDE.md §Standing Adversary Probes & Implementer Disciplines.
 //!
-//! - **[G4] coverage**: `test_sap3_sql_mode_ieq_rejection_wire_shape` drives the
-//!   query through `PrismQlParser::parse` (confirming the parse-rejection path IS
-//!   reachable), then through `prism_error_to_structured_call_result` (the
-//!   error-response constructor) and asserts on the SERIALISED JSON output.
+//! - **[G4] coverage (two-layer)**:
+//!   1. `test_sap3_sql_mode_ieq_e2e_routing` — **end-to-end routing test** (SAP-3
+//!      primary): drives the IEQ SQL query through `QueryEngine::execute` (full
+//!      parser → `run_materialization_pipeline` → `PrismError::QueryParseFailed`
+//!      routing) and asserts the `detail` field is de-prefixed per ADR-048 §D.7.2.
+//!      This catches a materialization regression that stops routing SQL-IEQ parse
+//!      errors into `PrismError::QueryParseFailed`.
+//!   2. `test_sap3_sql_mode_ieq_rejection_wire_shape` — **wire-shape defense-in-depth**:
+//!      hand-builds `PrismError::QueryParseFailed` after calling `PrismQlParser::parse`
+//!      directly, then drives it through `prism_error_to_structured_call_result` (the
+//!      error-response constructor) and asserts on the SERIALISED JSON output.
 //!
 //! - **[H8] coverage (two-layer)**:
 //!   1. `test_sap3_head_join_bare_unknown_col_plan_suspension` — **end-to-end
@@ -39,7 +46,8 @@
 //!
 //! | Test | Defect check | BC |
 //! |------|--------------|----|
-//! | test_sap3_sql_mode_ieq_rejection_wire_shape        | [G4]  | BC-2.11.017 AC-003 / BC-2.11.024 |
+//! | test_sap3_sql_mode_ieq_e2e_routing                 | [G4]  | BC-2.11.017 AC-003 / BC-2.11.024 (e2e routing — SAP-3 primary) |
+//! | test_sap3_sql_mode_ieq_rejection_wire_shape        | [G4]  | BC-2.11.017 AC-003 / BC-2.11.024 (wire-shape defense-in-depth) |
 //! | test_sap3_head_join_bare_unknown_col_plan_suspension | [H8] | BC-2.11.016 §FP-001 (planner gate) |
 //! | test_sap3_head_join_bare_unknown_col_wire_shape    | [H8]  | BC-2.11.016 §FP-001 / BC-2.10.007 |
 
@@ -144,11 +152,128 @@ fn make_join_engine() -> (QueryEngine, OrgSlug) {
     (engine, org)
 }
 
-// ── Test A: [G4] SQL-mode IEQ rejection → E-QUERY-001 ────────────────────────
+// ── Fixture: minimal QueryEngine (no sensor tables) ──────────────────────────
 
-/// SAP-3 wire-level regression: SQL-mode IEQ rejection emits `code == "E-QUERY-001"` in
-/// `structuredContent.error`, while `content[].text` carries NO E-code (BC-2.10.007
-/// message/suggestion split — the canonical code lives in structured content only).
+/// Build a `QueryEngine` with no sensor tables registered.
+///
+/// Sufficient for parse-error gate testing: `PrismError::QueryParseFailed` is
+/// returned by `run_materialization_pipeline` before any table-registry lookup,
+/// so no registered sensors are needed.
+fn make_minimal_engine() -> QueryEngine {
+    QueryEngine::new_with_cache_config(
+        Arc::new(AdapterRegistry::new()),
+        Arc::new(InMemoryCredentialStore::new()),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        prism_query::cache::CacheConfig::default(),
+    )
+}
+
+// ── Test A (SAP-3 primary): [G4] end-to-end SQL-IEQ routing ──────────────────
+
+/// SAP-3 end-to-end routing test: `QueryEngine::execute` with a SQL-mode IEQ query
+/// must return `Err(PrismError::QueryParseFailed)` with the detail de-prefixed per
+/// ADR-048 §D.7.2 (no leading "E-QUERY-001: " in the `detail` field).
+///
+/// This is the **primary SAP-3 gate** for [G4]: it drives through
+/// `execute` → `execute_inner` → `run_materialization_pipeline` (the
+/// `QueryParseFailed` arm of the error-construction path in `materialization.rs`)
+/// and proves that a materialization regression that stops routing SQL-IEQ parse
+/// errors into `PrismError::QueryParseFailed` (e.g., returning a different variant,
+/// or failing to strip the de-prefix) will be caught here.
+///
+/// The existing `test_sap3_sql_mode_ieq_rejection_wire_shape` is **defense-in-depth**
+/// only (it hand-builds `QueryParseFailed` and does not drive through
+/// `run_materialization_pipeline`); this test provides the load-bearing end-to-end coverage.
+///
+/// BC-2.11.017 AC-003 / BC-2.11.024 / ADR-048 §D.7.2.
+#[tokio::test]
+async fn test_sap3_sql_mode_ieq_e2e_routing() {
+    let engine = make_minimal_engine();
+
+    // SQL-mode IEQ query: must be rejected at parse time inside
+    // run_materialization_pipeline (materialization.rs QueryParseFailed arm).
+    let query = "SELECT severity, count(*) FROM cyberint_alerts \
+                 WHERE severity IEQ 'high' GROUP BY severity";
+
+    let result = engine
+        .execute(
+            query,
+            QueryOptions {
+                clients: None,
+                ..QueryOptions::default()
+            },
+        )
+        .await;
+
+    // ── SAP-3 gate: must route to QueryParseFailed ────────────────────────────
+    match result {
+        Err(PrismError::QueryParseFailed {
+            ref detail,
+            offset: _,
+            query: _,
+        }) => {
+            // ── De-prefix gate (ADR-048 §D.7.2): detail must NOT carry "E-QUERY-001: " ──
+            // run_materialization_pipeline strips the "E-QUERY-001: " prefix before
+            // injecting into detail (the `#[error]` template adds it back in the
+            // Display form).  If this fails, the strip in run_materialization_pipeline
+            // is broken (ADR-048 §D.7.2 de-prefix discipline).
+            assert!(
+                !detail.starts_with("E-QUERY-001: "),
+                "SAP-3 [G4] e2e: QueryParseFailed.detail must NOT start with \
+                 'E-QUERY-001: ' (ADR-048 §D.7.2 de-prefix discipline — \
+                 run_materialization_pipeline strips the prefix before injection). \
+                 Got detail: {:?}",
+                &detail[..detail.len().min(120)]
+            );
+
+            // ── Pedagogical content gate ───────────────────────────────────────
+            // The detail should contain the mode-boundary message fragment from
+            // the SQL parser (BC-2.11.024 / sql_parser.rs SQL-mode rejection).
+            assert!(
+                detail.to_lowercase().contains("not supported in sql mode")
+                    || detail.to_lowercase().contains("ieq"),
+                "SAP-3 [G4] e2e: QueryParseFailed.detail must contain mode-boundary \
+                 pedagogy ('not supported in SQL mode' or 'IEQ'). \
+                 Got detail: {:?}",
+                &detail[..detail.len().min(120)]
+            );
+        }
+        Err(other) => {
+            panic!(
+                "SAP-3 [G4] e2e ROUTING RED GATE: QueryEngine::execute with SQL-mode IEQ \
+                 must return Err(PrismError::QueryParseFailed); got Err({other:?}). \
+                 This means run_materialization_pipeline (materialization.rs) did NOT \
+                 route the IEQ parse error into QueryParseFailed. Check the \
+                 QueryParseFailed arm of the error-construction path in \
+                 run_materialization_pipeline (ADR-048 §D.7.2 / BC-2.11.024)."
+            );
+        }
+        Ok(_) => {
+            panic!(
+                "SAP-3 [G4] e2e ROUTING RED GATE: QueryEngine::execute with SQL-mode IEQ \
+                 must return Err; got Ok. The SQL parser must reject IEQ in SQL mode \
+                 (BC-2.11.017 AC-003 / BC-2.11.024 SQL-Mode Rejection)."
+            );
+        }
+    }
+}
+
+// ── Test A (defense-in-depth): [G4] SQL-mode IEQ rejection → wire-shape ──────
+
+/// SAP-3 wire-shape defense-in-depth: SQL-mode IEQ rejection emits
+/// `code == "E-QUERY-001"` in `structuredContent.error`, while `content[].text`
+/// carries NO E-code (BC-2.10.007 message/suggestion split — the canonical code
+/// lives in structured content only).
+///
+/// **Scope (defense-in-depth)**: this test hand-builds `PrismError::QueryParseFailed`
+/// after calling `PrismQlParser::parse` directly, then drives it through
+/// `prism_error_to_structured_call_result` (the error-response constructor).  It
+/// does NOT drive through `run_materialization_pipeline`; a regression that stops
+/// routing SQL-IEQ parse errors into `QueryParseFailed` would NOT be caught here.
+/// That regression is caught by `test_sap3_sql_mode_ieq_e2e_routing` (the primary
+/// SAP-3 gate for [G4]).
 ///
 /// Defect: T13 audit check [G4] was a false FAIL because `parse_envelope` read the
 /// regex-scraped code from message text ("PrismQL parse error: ...") which contains
@@ -156,20 +281,16 @@ fn make_join_engine() -> (QueryEngine, OrgSlug) {
 /// `structuredContent.error.code == "E-QUERY-001"` (via `ec_code_override` in
 /// `error_mapping.rs`).
 ///
-/// SAP-3: drives from the parser surface — `PrismQlParser::parse` is called first
-/// (SAP-3 reachability: confirms the parse-rejection arm IS reached from the public
-/// surface), then `prism_error_to_structured_call_result` (the error-response
-/// constructor) is exercised.  The assertion is on the SERIALISED JSON envelope.
-///
 /// Coupling note (OBS-2 / ADR-048 §D.7.2 de-prefix discipline): the production
-/// path (`materialization.rs` line ~612) strips `"E-QUERY-001: "` from the SQL
-/// parser's `ParseError.message` before injecting it into `QueryParseFailed.detail`,
-/// preventing the prefix from doubling in the Display template.  This test mimics
-/// that stripping so it exercises the same wire shape the live audit sees.
+/// path (`run_materialization_pipeline` in `materialization.rs`) strips
+/// `"E-QUERY-001: "` from the SQL parser's `ParseError.message` before injecting
+/// it into `QueryParseFailed.detail`, preventing the prefix from doubling in the
+/// Display template.  This test mimics that stripping so it exercises the same
+/// wire shape the live audit sees.
 /// The assertion at Step 2a below pins this coupling: if the SQL parser STOPS
 /// prefixing messages with "E-QUERY-001: ", the assertion fires and alerts
-/// maintainers that the de-prefix strip is now a no-op (and the de-prefix code
-/// in `materialization.rs` should be reviewed).
+/// maintainers that the de-prefix strip in `run_materialization_pipeline` is now
+/// a no-op (and the ADR-048 §D.7.2 strip logic should be reviewed).
 ///
 /// SID-2: the full composed `content[].text` is asserted (not only the `code` field).
 ///
@@ -197,8 +318,9 @@ fn test_sap3_sql_mode_ieq_rejection_wire_shape() {
 
     // 2a. COUPLING PIN (OBS-2): assert that the SQL parser DOES prefix messages with
     //     "E-QUERY-001: " so the strip_prefix below is load-bearing.  If this assertion
-    //     fails, `sql_parser.rs` changed its error format and `materialization.rs`
-    //     de-prefix stripping at line ~612 should be revisited.
+    //     fails, `sql_parser.rs` changed its error format and the ADR-048 §D.7.2
+    //     de-prefix strip in `run_materialization_pipeline` (`materialization.rs`)
+    //     should be revisited.
     assert!(
         first.message.starts_with("E-QUERY-001: "),
         "SAP-3 [G4] de-prefix coupling pin: SQL parser must emit ParseError.message \
