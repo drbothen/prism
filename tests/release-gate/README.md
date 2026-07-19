@@ -11,7 +11,7 @@ This suite is the **authoritative gate** for the release workflow (`release.yml`
 | test_AC-002_chocolatey-removal.sh | AC-002 | chocolatey-publish job is removed |
 | test_AC-003_homebrew-removal.sh | AC-003 | homebrew-update job is removed |
 | test_AC-004_crates-io-removal.sh | AC-004 | crates-io-publish job is removed |
-| test_AC-005_prerelease-flag.sh | AC-005 | gh release create uses `--prerelease` flag |
+| test_AC-005_prerelease-flag.sh | AC-005 | gh release create uses `--prerelease` flag; idempotent re-run guard (`gh release view`/`upload --clobber`) present; create path splices `"${PRERELEASE_ARGS[@]}"` (SID-2) |
 | test_AC-006_matrix-targets.sh | AC-006 | All 5 platform targets present and correctly spelled; exactly 5 matrix entries |
 | test_AC-007_checksums.sh | AC-007 | SHA-256 checksum step present and checksums.txt attached to release |
 | test_AC-008_oidc-attestation.sh | AC-008 | OIDC attestation step present (actions/attest-build-provenance v4.1.1) |
@@ -58,7 +58,7 @@ in the original release.yml (the original workflow already had the correct matri
 shape for those checks).
 See `.factory/cycles/v1.0.0-release-engineering/S-REL-001/implementation/red-gate-log.md` for details.
 
-After implementation, all 58 assertions should pass. actionlint must be installed
+After implementation, all 61 assertions should pass. actionlint must be installed
 (absent actionlint is a hard failure, not a skip — the gate fails closed).
 
 ## Floor Constants (F-REL001-P7-001)
@@ -69,7 +69,7 @@ or losing assertions causes a loud harness failure rather than a silent pass:
 | Constant | Value | Meaning |
 |----------|-------|---------|
 | `EXPECTED_TEST_FILES` | 11 | Number of `test_AC-*.sh` files that must be executed |
-| `EXPECTED_ASSERTIONS` | 58 | Total TAP assertions across all test files |
+| `EXPECTED_ASSERTIONS` | 61 | Total TAP assertions across all test files |
 
 Exact equality is used (not `>=`), following the `scripts/check-non-exhaustive.sh
 EXPECTED=92` precedent. An unexpected *increase* also requires a conscious constant
