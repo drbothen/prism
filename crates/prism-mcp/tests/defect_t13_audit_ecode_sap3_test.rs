@@ -55,7 +55,13 @@
 
 use std::sync::Arc;
 
-use prism_core::{column::ColumnType, error::PrismError, OrgSlug};
+use arrow::{
+    array::StringArray,
+    datatypes::{DataType, Field, Schema},
+    record_batch::RecordBatch,
+};
+use async_trait::async_trait;
+use prism_core::{column::ColumnType, error::PrismError, OrgId, OrgSlug, SensorId};
 use prism_credentials::InMemoryCredentialStore;
 use prism_mcp::error_mapping::prism_error_to_structured_call_result;
 use prism_query::{
@@ -64,8 +70,88 @@ use prism_query::{
     table_registry::TableRegistry,
     PrismQlParser,
 };
-use prism_sensors::AdapterRegistry;
+use prism_sensors::{
+    AdapterRegistry, CredentialResolver, QueryParams as SensorQueryParams, SensorAdapter,
+    SensorAuth, SensorError, SensorSpec as SensorAdapterSpec,
+};
 use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec};
+
+// ── Stub types for execution-capable JOIN fixture ─────────────────────────────
+//
+// Required by OPTION A (fix-burst #8 re-triage): to replicate the live [H8] outcome
+// (Err(QueryExecutionFailed) for totally_unknown_col), the fixture must supply
+// adapter data so DataFusion registers non-empty MemTables and validates column
+// references at plan time.  With an empty AdapterRegistry, DataFusion receives 0
+// rows and returns Ok(empty) without schema validation — the silent-swallow path
+// the live [H8] audit correctly flags as FAIL-DEFECT (BC-2.11.016 §HEAD-JOIN
+// SUSPENSION RULE: fail-open defers to execution-time DataFusion error, NOT 0-row success).
+
+/// Stub auth token — ignored by `ReturnsOneRowAdapter::fetch`.
+struct StubAuth;
+
+impl SensorAuth for StubAuth {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn auth_type_name(&self) -> &'static str {
+        "custom_via_plugin"
+    }
+}
+
+/// Credential resolver that always succeeds (returns `StubAuth`).
+///
+/// Required so `fan_out()` reaches the adapter boundary rather than
+/// short-circuiting with a `CredentialNotFound` error.  The stub auth is
+/// ignored by `ReturnsOneRowAdapter::fetch`.  Pattern from `normalized_pql.rs`
+/// `AlwaysSucceedsCreds` (SID-1 compliance).
+struct AlwaysSucceedsCreds;
+
+impl CredentialResolver for AlwaysSucceedsCreds {
+    fn resolve(
+        &self,
+        _client_id: &str,
+        _sensor_id: SensorId,
+    ) -> Result<Box<dyn SensorAuth>, SensorError> {
+        Ok(Box::new(StubAuth))
+    }
+}
+
+/// Stub sensor adapter that returns exactly one row with the given Arrow schema.
+///
+/// Every column is filled with the static string `"stub"` — sufficient for
+/// DataFusion to register a non-empty MemTable and validate WHERE column
+/// references.  The adapter ignores `_spec`, `_params`, and `_auth`.
+struct ReturnsOneRowAdapter {
+    sensor_id: SensorId,
+    schema: Arc<Schema>,
+}
+
+#[async_trait]
+impl SensorAdapter for ReturnsOneRowAdapter {
+    fn sensor_type(&self) -> SensorId {
+        self.sensor_id.clone()
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "returns-one-row-stub"
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &SensorAdapterSpec,
+        _params: &SensorQueryParams,
+        _auth: &dyn SensorAuth,
+    ) -> Result<Vec<RecordBatch>, SensorError> {
+        let n_cols = self.schema.fields().len();
+        let arrays: Vec<Arc<dyn arrow::array::Array>> = (0..n_cols)
+            .map(|_| Arc::new(StringArray::from(vec!["stub"])) as Arc<dyn arrow::array::Array>)
+            .collect();
+        let batch = RecordBatch::try_new(Arc::clone(&self.schema), arrays)
+            .expect("ReturnsOneRowAdapter: stub RecordBatch construction must not fail");
+        Ok(vec![batch])
+    }
+}
 
 // ── Helper: extract content[0].text from a CallToolResult ────────────────────
 
@@ -78,18 +164,38 @@ fn content_text(result: &rmcp::model::CallToolResult) -> String {
         .join("\n")
 }
 
-// ── Fixture: QueryEngine with crowdstrike_alerts + some_other_table ───────────
+// ── Fixture: QueryEngine with crowdstrike_alerts + secondary_table ───────────
 
-/// Build a minimal single-tenant `QueryEngine` with two tables registered:
-///   - `crowdstrike_alerts` (columns: `severity` String, `timestamp` Datetime)
-///   - `some_other_table`  (columns: `col` String, `id` String)
+/// Build an execution-capable single-tenant `QueryEngine` with two tables and
+/// their matching stub adapters registered:
+///   - `crowdstrike_alerts` (columns: `severity` String, `timestamp` String)
+///   - `secondary_table`   (columns: `col` String, `id` String)
 ///
-/// No real sensor adapters are wired — `AdapterRegistry` is empty.  This is
-/// sufficient for plan-time gate testing; fan_out returns empty batches.
+/// Each table is backed by a `ReturnsOneRowAdapter` that returns exactly one
+/// schema-conforming row.  This makes the AdapterRegistry non-empty, which
+/// causes `resolve_source_refs` to create FanOutTargets, which causes DataFusion
+/// to receive real RecordBatch data and validate WHERE column references at plan
+/// time.
+///
+/// Without real data (empty AdapterRegistry), `resolve_source_refs` silently
+/// skips fan-out for sensors with no adapters (BC-2.11.011 EC-005), DataFusion
+/// receives 0 rows, and returns Ok(empty) without schema validation — the
+/// silent-swallow case that BC-2.11.016 §HEAD-JOIN SUSPENSION RULE flags as
+/// FAIL-DEFECT.
+///
+/// OPTION A (fix-burst #8 re-triage): execution-capable fixture so the test
+/// mirrors the live [H8] contract end-to-end.
 ///
 /// Used by `test_sap3_head_join_bare_unknown_col_plan_suspension`.
 fn make_join_engine() -> (QueryEngine, OrgSlug) {
     let org = OrgSlug::new("acme");
+
+    // Deterministic OrgId (sentinel byte 0xA8 — JOIN fixture).
+    // Pattern from bc_2_11_001_null_row_shape_test.rs and normalized_pql.rs.
+    let org_id = OrgId::from_uuid(uuid::Uuid::from_bytes([
+        0x01, 0x9f, 0x3a, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0xA8,
+    ]));
 
     // ── Primary: crowdstrike_alerts ───────────────────────────────────────────
     let cs_spec = SensorSpec::new(
@@ -111,9 +217,12 @@ fn make_join_engine() -> (QueryEngine, OrgSlug) {
         Vec::new(),
     );
 
-    // ── JOIN target: some_other_table ─────────────────────────────────────────
+    // ── JOIN target: secondary_table ──────────────────────────────────────────
+    // sensor_id must NOT contain underscores: `sensor_id_from_table_name` splits at
+    // the first underscore to extract the sensor prefix.  "secondary" + table "table"
+    // → full name "secondary_table" → prefix "secondary" ✓ (registered in AdapterRegistry).
     let jo_spec = SensorSpec::new(
-        "some_other",
+        "secondary",
         "Some Other sensor",
         AuthType::ApiKey,
         "https://api.example.com",
@@ -137,16 +246,44 @@ fn make_join_engine() -> (QueryEngine, OrgSlug) {
         .expect("make_join_engine: register crowdstrike_alerts must not fail");
     registry
         .register_sensor(&jo_spec)
-        .expect("make_join_engine: register some_other_table must not fail");
+        .expect("make_join_engine: register secondary_table must not fail");
+
+    // ── Execution-capable adapters: each returns 1 row with the declared schema ─
+    // Arrow schema matches the declared columns (severity/timestamp for crowdstrike,
+    // col/id for secondary).  `totally_unknown_col` is absent from BOTH schemas;
+    // DataFusion fails at plan time with a schema error → Err(QueryExecutionFailed).
+    let cs_schema = Arc::new(Schema::new(vec![
+        Field::new("severity", DataType::Utf8, true),
+        Field::new("timestamp", DataType::Utf8, true),
+    ]));
+    let jo_schema = Arc::new(Schema::new(vec![
+        Field::new("col", DataType::Utf8, true),
+        Field::new("id", DataType::Utf8, true),
+    ]));
+    let cs_adapter: Arc<dyn SensorAdapter> = Arc::new(ReturnsOneRowAdapter {
+        sensor_id: SensorId::new("crowdstrike"),
+        schema: cs_schema,
+    });
+    let jo_adapter: Arc<dyn SensorAdapter> = Arc::new(ReturnsOneRowAdapter {
+        sensor_id: SensorId::new("secondary"),
+        schema: jo_schema,
+    });
+
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, cs_adapter);
+    adapter_registry.register(org_id, jo_adapter);
 
     let engine = QueryEngine::new_with_cache_config(
-        Arc::new(AdapterRegistry::new()),
+        Arc::new(adapter_registry),
         Arc::new(InMemoryCredentialStore::new()),
         Arc::new(prism_ocsf::OcsfNormalizer::new()),
         Arc::new(ClientRegistry::new(vec![])),
         QueryEngineConfig::default(),
         prism_query::cache::CacheConfig::default(),
     )
+    // AlwaysSucceedsCreds: required so fan_out() reaches the adapter boundary
+    // rather than short-circuiting on CredentialNotFound (SID-1 pattern).
+    .with_credential_resolver(Arc::new(AlwaysSucceedsCreds))
     .with_table_registry(registry);
 
     (engine, org)
@@ -426,16 +563,17 @@ fn test_sap3_sql_mode_ieq_rejection_wire_shape() {
 /// whereas the synthetic Test B below (`test_sap3_head_join_bare_unknown_col_wire_shape`)
 /// would continue to pass — demonstrating that this test is the load-bearing SAP-3 gate.
 ///
-/// **Anti-vacuous-pass guard (PR-LEVEL OBS-1):** the test explicitly rejects
-/// `Err(PrismError::QueryParseFailed)` before the main column-gate assertion.
-/// If the query fails at parse time the planner is never reached and a suspension-arm
-/// regression would be invisible (the test would pass vacuously).  `TableNotAvailable`
-/// cannot fire because `make_join_engine()` registers both tables with `expect()`
-/// (setup panic prevents reaching the assertion).
+/// **Anti-vacuous-pass guards (PR-LEVEL OBS-1):** the test explicitly rejects
+/// `Err(PrismError::QueryParseFailed)` (planner never reached — vacuous pass) and
+/// `Err(PrismError::TableNotAvailable)` (column gate never reached — vacuous pass).
+/// An `Ok(_)` result is also rejected as a silent-swallow signal (BC-2.11.016
+/// §HEAD-JOIN SUSPENSION RULE / live T13 [H8] parity: 0-rows-no-error = FAIL-DEFECT).
 ///
 /// Engine fixture: `make_join_engine()` — two tables registered in `TableRegistry`,
-/// empty `AdapterRegistry` (no real fan-out; execution returns empty batches after
-/// plan gates pass). Single-tenant mode (`resolved_spec_map = None`).
+/// populated `AdapterRegistry` with `ReturnsOneRowAdapter` stubs (each returns 1
+/// schema-conforming row per fetch) so DataFusion receives non-empty MemTables and
+/// evaluates the WHERE schema at execution time. Single-tenant mode
+/// (`resolved_spec_map = None`).
 ///
 /// T13 live-audit coverage for [H8]: `scripts/t13-preflight-audit.py` check [H8]
 /// exercises the full HEAD-JOIN execution path against a live DTU endpoint; this
@@ -450,7 +588,7 @@ async fn test_sap3_head_join_bare_unknown_col_plan_suspension() {
     // crowdstrike_alerts schema.  HEAD-JOIN SUSPENSION RULE: non-empty join list →
     // E-QUERY-038 gate MUST be suspended for this bare ref (fail-open per FP-001).
     let query = "SELECT severity FROM crowdstrike_alerts \
-                 JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id \
+                 JOIN secondary_table ON crowdstrike_alerts.severity = secondary_table.id \
                  WHERE totally_unknown_col = 'foo'";
 
     let result = engine
@@ -495,7 +633,7 @@ async fn test_sap3_head_join_bare_unknown_col_plan_suspension() {
              regression would be invisible. Details: {}. \
              If fixture table names drifted from the query table names, update one to match; \
              make_join_engine() must register both 'crowdstrike_alerts' and \
-             'some_other_table', which must match the table names used in this test's query.",
+             'secondary_table', which must match the table names used in this test's query.",
             details
         );
     }
@@ -509,7 +647,7 @@ async fn test_sap3_head_join_bare_unknown_col_plan_suspension() {
     //
     // AuditTableAccessDenied (E-QUERY-011): check_internal_table_capabilities fires
     // only for table names in INTERNAL_TABLE_DESCRIPTORS (e.g., `prism_audit`) that
-    // require the AuditRead capability.  `crowdstrike_alerts` and `some_other_table`
+    // require the AuditRead capability.  `crowdstrike_alerts` and `secondary_table`
     // are sensor tables not present in that descriptor set — this gate is structurally
     // unreachable from a query that names only sensor tables.
     //
@@ -519,7 +657,31 @@ async fn test_sap3_head_join_bare_unknown_col_plan_suspension() {
     // ── SAP-3 gate assertion ─────────────────────────────────────────────────
     // Plan-time suspension MUST NOT surface ColumnNotFound for "totally_unknown_col".
     // The anti-vacuous-pass guards above ensure the planner was reached.
-    // Acceptable outcomes: Ok (empty results), QueryExecutionFailed, QueryTimeout, etc.
+    // Expected outcome: Err(QueryExecutionFailed) — DataFusion schema error at
+    // execution time because "totally_unknown_col" is absent from both table schemas.
+    // BC-2.11.016 §HEAD-JOIN SUSPENSION RULE / §FP-001: fail-open means DataFusion
+    // validates the WHERE column at execution time, not silent 0-row success.
+    // Live [H8] parity: t13-preflight-audit.py ~4012-4018 FAILs 0-rows-no-error as
+    // "swallowed DataFusion schema error" (FAIL-DEFECT). Ok(empty) here = T13 [H8] FAIL.
+
+    // [H8] silent-swallow guard: Ok(_) with 0 rows means DataFusion skipped schema
+    // validation — mirrors the live T13 [H8] FAIL condition (BC-2.11.016 §HEAD-JOIN
+    // SUSPENSION RULE: fail-open must produce a DataFusion execution-time schema error,
+    // NOT silent 0-row success).
+    if result.is_ok() {
+        panic!(
+            "SAP-3 [H8] SILENT-SWALLOW: query returned Ok (empty or non-empty) for \
+             WHERE totally_unknown_col = 'foo' in a JOIN query. \
+             BC-2.11.016 §HEAD-JOIN SUSPENSION RULE (FP-001): fail-open must produce \
+             a DataFusion execution-time schema error, NOT silent 0-row success. \
+             Live T13 [H8] parity: t13-preflight-audit.py FAILs 0-rows-no-error as \
+             swallowed DataFusion schema error (FAIL-DEFECT per BC-2.11.016 §HEAD-JOIN \
+             SUSPENSION RULE). An Ok result here means the fixture has empty MemTables \
+             (DataFusion skips schema validation on empty input) — verify that \
+             make_join_engine() registers execution-capable adapters returning ≥1 row."
+        );
+    }
+
     if let Err(PrismError::ColumnNotFound(ref details)) = result {
         panic!(
             "SAP-3 [H8] PLANNER RED GATE: HEAD-JOIN suspension FAILED — E-QUERY-038 \
@@ -534,8 +696,19 @@ async fn test_sap3_head_join_bare_unknown_col_plan_suspension() {
             details.column, details.table, details.available_columns
         );
     }
-    // Other outcomes (Ok, QueryExecutionFailed, etc.) mean the suspension fired
-    // correctly and execution proceeded past the plan-time gate — test passes.
+
+    // Positive assertion: the execution path must terminate at QueryExecutionFailed
+    // (DataFusion schema error for "totally_unknown_col" absent from both table schemas).
+    assert!(
+        matches!(result, Err(PrismError::QueryExecutionFailed { .. })),
+        "SAP-3 [H8] EXECUTION OUTCOME: expected Err(QueryExecutionFailed) — DataFusion \
+         schema error for 'totally_unknown_col' absent from both table schemas — \
+         but got: {:?}. \
+         BC-2.11.016 §HEAD-JOIN SUSPENSION RULE (FP-001): execution-time DataFusion schema \
+         error is the spec-sanctioned outcome when the planner suspends E-QUERY-038 \
+         (fail-open) and the column is genuinely absent from the execution schema.",
+        result.as_ref().err()
+    );
 }
 
 // ── Test B: [H8] error-mapping defense-in-depth → E-QUERY-034, NOT E-QUERY-038 ─
