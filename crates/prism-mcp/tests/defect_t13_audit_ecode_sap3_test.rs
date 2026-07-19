@@ -362,7 +362,7 @@ async fn test_sap3_sql_mode_ieq_e2e_routing() {
                  'E-QUERY-001: ' (ADR-048 §D.7.2 de-prefix discipline — \
                  run_materialization_pipeline strips the prefix before injection). \
                  Got detail: {:?}",
-                &detail[..detail.len().min(120)]
+                detail.chars().take(120).collect::<String>()
             );
 
             // ── Pedagogical content gate ───────────────────────────────────────
@@ -374,7 +374,7 @@ async fn test_sap3_sql_mode_ieq_e2e_routing() {
                 "SAP-3 [G4] e2e: QueryParseFailed.detail must contain mode-boundary \
                  pedagogy ('not supported in SQL mode' or 'IEQ'). \
                  Got detail: {:?}",
-                &detail[..detail.len().min(120)]
+                detail.chars().take(120).collect::<String>()
             );
         }
         Err(other) => {
@@ -464,7 +464,7 @@ fn test_sap3_sql_mode_ieq_rejection_wire_shape() {
          starting with 'E-QUERY-001: ' (ADR-048 §D.7.2 / sql_parser.rs BC-2.11.024 §SQL-Mode \
          Rejection). Got: {:?}. If this assertion fails, review the de-prefix strip in \
          materialization.rs and update the coupling here.",
-        &first.message[..first.message.len().min(80)]
+        first.message.chars().take(80).collect::<String>()
     );
 
     let detail = first
@@ -542,7 +542,7 @@ fn test_sap3_sql_mode_ieq_rejection_wire_shape() {
         text.starts_with("ERROR: ["),
         "SAP-3 [G4]: content[].text must start with 'ERROR: [' (BC-2.10.007 content_text \
          format 'ERROR: [{{category}}] - ...'). Got: {:?}",
-        &text[..text.len().min(60)]
+        text.chars().take(60).collect::<String>()
     );
 }
 
@@ -615,7 +615,7 @@ async fn test_sap3_head_join_bare_unknown_col_plan_suspension() {
              QueryParseFailed detail: {:?}. \
              If SQL syntax changed, update the query in this test; \
              if a grammar change caused this, investigate before loosening the guard.",
-            &detail[..detail.len().min(200)]
+            detail.chars().take(200).collect::<String>()
         );
     }
 
@@ -710,28 +710,33 @@ async fn test_sap3_head_join_bare_unknown_col_plan_suspension() {
         result.as_ref().err()
     );
 
-    // Detail-content assertion (OBS-1): "SQL planning error:" is the site-specific prefix
+    // Detail-content assertion (OBS-1): "SQL planning error:" is a prism-owned constant
     // hardcoded at the sql.sql_planning_error construction site in materialization.rs
     // (`session_ctx.sql(&plan_pinned_sql).await.map_err(...)` — the DataFusion logical
     // planning step that validates WHERE column references against registered MemTable
-    // schemas). This prefix distinguishes this QueryExecutionFailed from:
-    //   "virtual field injection failed:"  — fan-out path
+    // schemas). Not DataFusion prose — immune to DataFusion version evolution.
+    // `starts_with` (not `contains`) is required for correct site discrimination:
+    // the sibling construction sites "filter SQL planning error:", "pipe SQL planning
+    // error:", and "sqlpipe SQL planning error:" all CONTAIN the substring but do NOT
+    // start with it (they carry a mode-prefix before "SQL planning error:").
+    // starts_with excludes them. Full discrimination table:
+    //   "virtual field injection failed:"  — fan-out path (different prefix)
     //   "<redacted; see server logs>"      — memory budget (map_datafusion_memory_error)
-    //   "filter SQL planning error:"       — filter-mode DataFusion path
-    //   "pipe SQL planning error:"         — pipe-mode DataFusion path
-    //   "sqlpipe SQL planning error:"      — sql-pipe-mode DataFusion path
+    //   "filter SQL planning error:"       — filter-mode (starts_with "filter …")
+    //   "pipe SQL planning error:"         — pipe-mode (starts_with "pipe …")
+    //   "sqlpipe SQL planning error:"      — sql-pipe-mode (starts_with "sqlpipe …")
     //   "SQL normalization failed:"        — normalize_for_datafusion None path
     // The column name "totally_unknown_col" is not present in the detail
     // (CWE-209 / BC-2.10.007 Rule-1 redaction); the site-specific prefix is the
     // stable behavioral anchor that uniquely identifies this execution site.
     if let Err(PrismError::QueryExecutionFailed { ref detail }) = result {
         assert!(
-            detail.contains("SQL planning error:"),
-            "SAP-3 [H8] DETAIL CONTENT: QueryExecutionFailed detail must contain \
-             'SQL planning error:' — uniquely identifies this as a DataFusion SQL \
-             planning path failure (sql.sql_planning_error site in materialization.rs \
-             `session_ctx.sql()` call), not a virtual-field injection, memory budget, \
-             filter/pipe/sqlpipe path, or normalization failure. \
+            detail.starts_with("SQL planning error:"),
+            "SAP-3 [H8] DETAIL CONTENT: QueryExecutionFailed detail must start with \
+             'SQL planning error:' — a prism-owned constant at the sql.sql_planning_error \
+             site in materialization.rs `session_ctx.sql()`, not a virtual-field injection, \
+             memory budget, filter/pipe/sqlpipe path (those carry a mode-prefix before the \
+             phrase), or normalization failure. \
              Actual detail: {:?}",
             detail
         );
@@ -857,6 +862,6 @@ fn test_sap3_head_join_bare_unknown_col_wire_shape() {
         "SAP-3 [H8]: content[].text must start with 'ERROR: [internal]' for \
          QueryExecutionFailed (category='internal', BC-2.10.007 §LOW-002 / BC-2.10.007 \
          content_text format). Got: {:?}",
-        &text[..text.len().min(60)]
+        text.chars().take(60).collect::<String>()
     );
 }
