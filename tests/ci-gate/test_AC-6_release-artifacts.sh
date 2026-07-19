@@ -45,7 +45,7 @@ for target in "${TARGETS[@]}"; do
 done
 
 # cargo build --release --locked must be a real run step.
-if grep -qE '^\s+run:\s+cargo build --release --locked' "$REL_YML" 2>/dev/null; then
+if grep -qE '^[[:space:]]+run:[[:space:]]+cargo build --release --locked' "$REL_YML" 2>/dev/null; then
   tap_pass "AC-6: 'cargo build --release --locked' is a real run step"
 else
   tap_fail "AC-6: 'cargo build --release --locked' missing as real run step" \
@@ -53,7 +53,7 @@ else
 fi
 
 # SHA-256 checksum step must be real (sha256sum or shasum invocation).
-if grep -qE '^\s+run:.*sha256sum|shasum' "$REL_YML" 2>/dev/null; then
+if grep -qE '^[[:space:]]+run:.*sha256sum|shasum' "$REL_YML" 2>/dev/null; then
   tap_pass "AC-6: SHA-256 checksum step is a real run step"
 else
   tap_fail "AC-6: SHA-256 checksum step missing or still a TODO echo" \
@@ -69,7 +69,7 @@ else
 fi
 
 # gh release create must be a real step.
-if grep -qE '^\s+run:.*gh release create' "$REL_YML" 2>/dev/null; then
+if grep -qE '^[[:space:]]+run:.*gh release create' "$REL_YML" 2>/dev/null; then
   tap_pass "AC-6: 'gh release create' is a real run step"
 else
   tap_fail "AC-6: 'gh release create' missing as real run step" \

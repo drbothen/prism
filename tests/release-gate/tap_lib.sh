@@ -89,7 +89,7 @@ assert_not_in_functional_lines() {
   local ac_id="$3"
   # Extract non-comment lines; suppress errors if file missing (caught by assert_file_exists).
   local functional_content
-  functional_content=$(grep -v '^\s*#' "$file" 2>/dev/null) || true
+  functional_content=$(grep -v '^[[:space:]]*#' "$file" 2>/dev/null) || true
   if echo "$functional_content" | grep -qF -- "$needle" 2>/dev/null; then
     tap_fail "${ac_id}: '${needle}' found in functional lines of ${file##*/}" \
       "${ac_id} FAIL: '${needle}' must not appear in functional (non-comment) lines of ${file}"
@@ -105,7 +105,7 @@ assert_not_in_functional_lines_re() {
   local pattern="$2"
   local ac_id="$3"
   local functional_content
-  functional_content=$(grep -v '^\s*#' "$file" 2>/dev/null) || true
+  functional_content=$(grep -v '^[[:space:]]*#' "$file" 2>/dev/null) || true
   if echo "$functional_content" | grep -qE "$pattern" 2>/dev/null; then
     tap_fail "${ac_id}: pattern '${pattern}' found in functional lines of ${file##*/}" \
       "${ac_id} FAIL: pattern '${pattern}' must not appear in functional (non-comment) lines"

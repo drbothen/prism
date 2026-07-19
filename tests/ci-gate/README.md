@@ -13,9 +13,13 @@ These tests are intentionally **failing** until the implementer fills in the wor
 | test_AC-4_cargo-audit.sh | AC-4 | `cargo audit` + `cargo deny check` are real steps; step order is fmt→clippy→test→deny→audit→semver |
 | test_AC-5_kani-proofs.sh | AC-5 | Post-merge kani job: real invocation, --timeout 300, --mem-limit 8192, artifact upload, all 6 fuzz targets |
 | test_AC-6_release-artifacts.sh | AC-6 | Release workflow: v* tag trigger, 5 targets, `--locked` build, sha256sum, gh release create |
-| test_AC-7_homebrew-tap.sh | AC-7 | homebrew-update job: tap checkout, Formula/prism.rb update, gh pr create, HOMEBREW_TAP_TOKEN |
-| test_AC-8_crates-io-publish.sh | AC-8 | crates-io-publish job: gated on build-release, real cargo publish, CRATES_IO_TOKEN, prism-core first |
+| ~~test_AC-7_homebrew-tap.sh~~ | ~~AC-7~~ | **Superseded by S-REL-001**: homebrew-update and crates-io-publish jobs were removed from the release workflow. Tests deleted as part of S-REL-001 release.yml repair. |
+| ~~test_AC-8_crates-io-publish.sh~~ | ~~AC-8~~ | **Superseded by S-REL-001**: see AC-7 note above. |
 | test_AC-9_no-hardcoded-secrets.sh | AC-9 | All secrets referenced via `secrets.VARNAME`; no hardcoded values |
+
+> **Note:** The authoritative test suite for the release workflow is `tests/release-gate/` (S-REL-001).
+> That suite covers release.yml AC-001..AC-011 using a TAP harness compatible with BSD grep (macOS).
+> `tests/ci-gate/` covers the CI pipeline (ci.yml, post-merge.yml) AC-1..AC-6, AC-9.
 
 ## How to Run
 

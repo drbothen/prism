@@ -13,7 +13,7 @@ CI_YML="${WORKTREE}/.github/workflows/ci.yml"
 assert_file_exists "$CI_YML" "AC-4"
 
 # cargo audit must be a real run step (not an echo).
-if grep -qE '^\s+run:\s+cargo audit' "$CI_YML" 2>/dev/null; then
+if grep -qE '^[[:space:]]+run:[[:space:]]+cargo audit' "$CI_YML" 2>/dev/null; then
   tap_pass "AC-4: ci.yml has real 'run: cargo audit' step"
 else
   tap_fail "AC-4: ci.yml missing real 'cargo audit' step" \
@@ -21,7 +21,7 @@ else
 fi
 
 # cargo deny check must also be a real run step.
-if grep -qE '^\s+run:\s+cargo deny check' "$CI_YML" 2>/dev/null; then
+if grep -qE '^[[:space:]]+run:[[:space:]]+cargo deny check' "$CI_YML" 2>/dev/null; then
   tap_pass "AC-4: ci.yml has real 'run: cargo deny check' step"
 else
   tap_fail "AC-4: ci.yml missing real 'run: cargo deny check' step" \
@@ -30,12 +30,12 @@ fi
 
 # Verify step ORDER: deny must appear before audit in the file.
 # We extract line numbers for the first occurrence of each real run step.
-deny_line=$(grep -nE '^\s+run:\s+cargo deny' "$CI_YML" 2>/dev/null | head -1 | cut -d: -f1)
-audit_line=$(grep -nE '^\s+run:\s+cargo audit' "$CI_YML" 2>/dev/null | head -1 | cut -d: -f1)
-fmt_line=$(grep -nE '^\s+run:\s+cargo fmt' "$CI_YML" 2>/dev/null | head -1 | cut -d: -f1)
-clippy_line=$(grep -nE '^\s+run:\s+cargo clippy' "$CI_YML" 2>/dev/null | head -1 | cut -d: -f1)
-test_line=$(grep -nE '^\s+run:\s+cargo test' "$CI_YML" 2>/dev/null | head -1 | cut -d: -f1)
-semver_line=$(grep -nE '^\s+run:\s+cargo semver' "$CI_YML" 2>/dev/null | head -1 | cut -d: -f1)
+deny_line=$(grep -nE '^[[:space:]]+run:[[:space:]]+cargo deny' "$CI_YML" 2>/dev/null | head -1 | cut -d: -f1)
+audit_line=$(grep -nE '^[[:space:]]+run:[[:space:]]+cargo audit' "$CI_YML" 2>/dev/null | head -1 | cut -d: -f1)
+fmt_line=$(grep -nE '^[[:space:]]+run:[[:space:]]+cargo fmt' "$CI_YML" 2>/dev/null | head -1 | cut -d: -f1)
+clippy_line=$(grep -nE '^[[:space:]]+run:[[:space:]]+cargo clippy' "$CI_YML" 2>/dev/null | head -1 | cut -d: -f1)
+test_line=$(grep -nE '^[[:space:]]+run:[[:space:]]+cargo test' "$CI_YML" 2>/dev/null | head -1 | cut -d: -f1)
+semver_line=$(grep -nE '^[[:space:]]+run:[[:space:]]+cargo semver' "$CI_YML" 2>/dev/null | head -1 | cut -d: -f1)
 
 # Order check helper: pass if a < b (both non-empty numbers).
 check_order() {

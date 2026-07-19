@@ -31,9 +31,9 @@ assert_contains "$REL_YML" "x86_64-pc-windows-msvc" "AC-006"
 # This is the defect spelling from U1 — the correct form is x86_64 (with '64').
 assert_not_contains "$REL_YML" "x86_x64-unknown-linux-musl" "AC-006"
 
-# Exactly 5 matrix target: entries. Counts lines matching '^\s*target:' which are
+# Exactly 5 matrix target: entries. Counts lines matching '^[[:space:]]*target:' which are
 # the matrix include entries. Guards against accidentally adding or removing a leg.
-target_count=$(grep -c '^\s*target:' "$REL_YML" 2>/dev/null || echo 0)
+target_count=$(grep -c '^[[:space:]]*target:' "$REL_YML" 2>/dev/null || echo 0)
 if [ "$target_count" -eq 5 ]; then
   tap_pass "AC-006: exactly 5 matrix 'target:' entries found (count=${target_count})"
 else
