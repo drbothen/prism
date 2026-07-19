@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.714"
+version: "v2.716"
 status: draft
 producer: state-manager
-timestamp: 2026-07-18T21:30:00Z
+timestamp: 2026-07-19T20:00:00Z
 phase: 3
-total_stories: 246
+total_stories: 253
 total_active_bcs: 222
 # 230 total registered (222 active + 6 removed + 2 retired) — stories cover active BCs only
 total_vps_assigned: 145
@@ -830,6 +830,20 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 
 | S-MAINT-PRMGR-HOOK-SCOPE-001 | pr-manager FM4/STEP_COMPLETE hook scope-guard and evidence-context-asymmetry mitigations [**draft v0.1** (D-1849 state-manager 2026-07-18: REGISTERED; origin_findings: D-1811 P1 process-gap (pr-manager scope violations ×3 + FM4/STEP_COMPLETE hook driver confirmed D-1815; D-1843 evidence-context-asymmetry root-cause; D-1851 3rd classifier FP corroboration); origin: wave-5-e-demo-fidelity; 5 ACs; 3 pts; P1; tdd_mode: strict; track: Platform Engineering; depends_on []; blocks []; behavioral_contracts: [] pending PO; subsystems: []; crates_touched: [.factory/hooks, drbothen/vsdd-factory upstream]; file: S-MAINT-PRMGR-HOOK-SCOPE-001-pr-manager-step-complete-scope-guard.md)] | .factory/hooks, drbothen/vsdd-factory | 0 (pending PO) | -- | 0.1 | -- |
 
+## Feature-Mode Release Engineering (Wave F-A / F-B)
+
+RC-1 release engineering stories materialized 2026-07-19 (story-writer F3 burst). These 7 stories unblock the 1.0.0-rc.1 release. Wave F-A stories are fully parallel except where `depends_on` is set; S-REL-005 is the terminal F-A story. S-REL-006 is Wave F-B (depends on two F-A stories).
+
+| Story ID | Title | Crate | BCs | VPs | pts | Depends On |
+|----------|-------|-------|-----|-----|-----|------------|
+| S-REL-001 | release.yml repair — remove dead jobs (DEF-REL-001/002/003/004), add v*-rc.* prerelease handling [**draft v0.1** (2026-07-19: story-writer F3 burst; 10 ACs; 3 pts; P0; Wave F-A; tdd_mode: strict; track: Platform Engineering; depends_on []; blocks [S-REL-003, S-REL-004, S-REL-005]; behavioral_contracts: [] N/A infra; file: S-REL-001-release-yml-repair.md)] | devops | 0 (N/A infra) | -- | 3 | -- |
+| S-REL-002 | prism-bin version alignment to 1.0.0-rc.1 + ADR-053 product version policy [**draft v0.1** (2026-07-19: story-writer F3 burst; 6 ACs; 2 pts; P0; Wave F-A; tdd_mode: strict; track: Platform Engineering; depends_on []; blocks [S-REL-004, S-REL-006]; behavioral_contracts: [] N/A infra; file: S-REL-002-version-alignment-adr-053.md)] | prism-bin | 0 (N/A infra) | -- | 2 | -- |
+| S-REL-003 | install.sh + install.ps1 — checksum-verified consumer install scripts for all 5 platforms [**draft v0.1** (2026-07-19: story-writer F3 burst; 9 ACs; 3 pts; P0; Wave F-A; tdd_mode: strict; track: Platform Engineering; depends_on [S-REL-001]; blocks [S-REL-005]; behavioral_contracts: [] N/A infra; file: S-REL-003-install-scripts.md)] | devops | 0 (N/A infra) | -- | 3 | S-REL-001 |
+| S-REL-004 | demo-bundle packaging — build-plugins CI job (wasm-tools 1.248.0, single Linux runner) + per-platform demo bundle release asset [**draft v0.1** (2026-07-19: story-writer F3 burst; 10 ACs; 8 pts; P0; Wave F-A; tdd_mode: strict; track: Platform Engineering; depends_on [S-REL-001, S-REL-002]; blocks [S-REL-007, S-REL-005]; behavioral_contracts: [] N/A infra; file: S-REL-004-demo-bundle-packaging.md)] | devops | 0 (N/A infra) | -- | 8 | S-REL-001, S-REL-002 |
+| S-REL-007 | Windows PowerShell demo parity — demo-setup.ps1, demo-run.ps1, demo-teardown.ps1; ConvertFrom-Json; stdin-pipe credentials; DEMO-RUNBOOK.md Windows section [**draft v0.1** (2026-07-19: story-writer F3 burst; promoted from F-C to F-A; 12 ACs; 8 pts; P0; Wave F-A; tdd_mode: strict; track: Platform Engineering; depends_on [S-REL-004]; blocks [S-REL-005, S-REL-006]; behavioral_contracts: [] N/A infra; file: S-REL-007-windows-powershell-demo-parity.md)] | devops | 0 (N/A infra) | -- | 8 | S-REL-004 |
+| S-REL-005 | docs/RELEASING.md operator runbook + .factory/release-config.yaml (schema 1, quality_gates vsdd-full, require_human_approval: true) [**draft v0.1** (2026-07-19: story-writer F3 burst; terminal F-A story; 7 ACs; 2 pts; P0; Wave F-A; tdd_mode: strict; track: Platform Engineering; depends_on [S-REL-001, S-REL-002, S-REL-003, S-REL-004, S-REL-007]; blocks []; behavioral_contracts: [] N/A infra; file: S-REL-005-releasing-runbook.md)] | devops | 0 (N/A infra) | -- | 2 | S-REL-001, S-REL-002, S-REL-003, S-REL-004, S-REL-007 |
+| S-REL-006 | Graduate prism-consumer-contract.md to docs/consumer-contract.md + DEMO-RUNBOOK.md Windows cross-reference [**draft v0.1** (2026-07-19: story-writer F3 burst; Wave F-B; 6 ACs; 2 pts; P1; tdd_mode: strict; track: Platform Engineering; depends_on [S-REL-002, S-REL-007]; blocks []; behavioral_contracts: [] N/A infra; file: S-REL-006-consumer-contract-graduation.md)] | devops | 0 (N/A infra) | -- | 2 | S-REL-002, S-REL-007 |
+
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
 
 ---
@@ -1372,6 +1386,8 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.716 | 2026-07-19 | story-writer fix-burst: S-REL-001 through S-REL-005 + S-REL-007 updated to v0.2 (S-REL-006 unchanged). Applied research findings from release-engineering-uncertainties-2026.md: U3 prerelease bash-array, U4 actionlint Go tool, U5 attest v4.1.1 + macos-13 retired + artifact v7/v8, U6 semver-checks MAJOR bump (runs in check-ci not just check), U8 /releases?per_page=1 (no gh CLI), U9 sha256sum/shasum dual-path, U10 composite musl detection, U13 demo-server download not rebuild, U15 build-demo-bundle needs publish-release, U16/U17 infusion+manifest paths corrected, U18 if-no-files-found:error + prx glob, U19 parallel build-plugins, U21 taiki-e/install-action for wasm-tools, U22 Windows bundle .zip, U24/U25 release-config.yaml quality_gates MAP schema + packages/version_sources, U27 S-REL-hotfix-001 anchor (no bare TODO), U28 DTU sidecar poll, U29-U33 PS 5.1 full treatment. Input-hashes recomputed. |
+| v2.715 | 2026-07-19 | story-writer F3 burst: 7 RC-1-blocking release-engineering stories materialized (S-REL-001 through S-REL-007; Wave F-A/F-B; E-REL epic; 28 total story points). Defects closed: DEF-REL-001/002/003/004 (release.yml dead jobs), DEF-REL-005 (missing demo bundle). New artifacts: ADR-053 (product version policy), scripts/install.sh, scripts/install.ps1, scripts/demo-bundle.sh, scripts/demo-setup.ps1/run.ps1/teardown.ps1, docs/RELEASING.md, .factory/release-config.yaml, docs/consumer-contract.md. total_stories 246→253 (pending state-manager atomic bump with STATE.md). |
 | v2.714 | 2026-07-18 | state-manager D-1849..D-1851: AUDIT-COVERAGE-001 rebased @98bb1de2 onto develop 277b7844 (D-1845); LOCAL F-AUD-R1 CLEAN(strict)=yes streak 1/3 (D-1846); error-taxonomy v2.55→v2.56 F-AUD-R1-DEFER-001 CLOSED +6 E-SENSOR rows (D-1847); Lesson 71 WASM fuel-ceiling class (D-1848); S-MAINT-PRMGR-HOOK-SCOPE-001 draft v0.1 REGISTERED D-1811-obligation (D-1849); HUMAN AUTH #2 fuel_cap 100M patch (D-1850); 3rd evidence-context-asymmetry classifier FP AC-003 corroboration (D-1851). total_stories 245→246. develop_head UNCHANGED 277b7844. STATE v8.419→v8.420. |
 | v2.713 | 2026-07-18 | state-manager D-1838..D-1844: DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 MERGED (PR #225 squash-merged develop@277b7844 2026-07-18T16:10:23Z; 22-pass PR-LEVEL converged via D-1827+D-1837 two one-time accelerated re-gates; adversary F-ADMTOK-PR22 CLEAN(strict)=yes on frozen dac830d1; security delta-confirm #2 APPROVE NEW-001 CLOSED; pr-reviewer APPROVE; human-authorized; story v0.21 draft→merged; BC-3.6.001 POL-14 legacy-sync BLOCKED-TD031 (lifecycle_status already active, no count impact); BC-2.06.017 idempotent; worktree removed; LANE 3 CLOSED). develop_head 0f9857dd→277b7844. STATE v8.418→v8.419. |
 | v2.712 | 2026-07-18 | state-manager D-1832..D-1836: DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 v0.20→v0.21 (PO fix-burst F-ADMTOK-PR21-OBS-001 — EC-008 accepts-test literals aligned; delta re-gate F-ADMTOK-PR21 CLEAN(PR-merge) on 5c9458d6; security delta-confirm APPROVE SEC-001+SEC-002 CLOSED NEW-001 closed @dac830d1; implementer +1 test test_validate_clone_name_rejects_empty; PR #225 HEAD @dac830d1 PUSHED; PENDING HUMAN re-gate-form decision). develop_head UNCHANGED 0f9857dd. STATE v8.417→v8.418. |

@@ -124,13 +124,40 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1872 POST-MERGE BURST — DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 PR #227 MERGED @e116a587. T13 AUDIT INSTRUMENT FIXED (structuredContent.error.code authoritative); live re-run 106/106 DEMO-READY: YES ×2. NEXT: T13 capstone on develop@e116a587 → T14 recording. HUMAN ACTION REQUIRED before T14: interactive bash scripts/demo-setup.sh keychain auth.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1872 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1872 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `e116a587` — PUSHED (PR #227 squash-merged 2026-07-19T14:27:25Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.426. D-1872 POST-MERGE BURST complete; DEMO-READY: YES; NEXT: T13 capstone → T14 recording.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1877 WAVE F-A PLANNING PACKAGE BURST — 7 stories S-REL-001..007 materialized + uncertainty-hardened (33 findings resolved; 13 HIGH). STORY-INDEX v2.716 total_stories 253. NEXT: (1) S-REL-001 TDD first in own worktree; delivery order 001→002∥003→004→007→005. (2) secops-factory Workstream B: separate session against .factory/planning/feature-release-engineering/secops-factory-handoff-brief.md. (3) T13/T14 BLOCKED on Workstream B. HUMAN PREREQS before T14: interactive bash scripts/demo-setup.sh + demo Jira provisioning.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1877 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1877 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `e116a587` — PUSHED (PR #227 squash-merged 2026-07-19T14:27:25Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.427. D-1877 WAVE F-A PLANNING PACKAGE BURST complete; 7 stories S-REL-001..007 materialized. NEXT: S-REL-001 TDD delivery + secops-factory Workstream B.
 
 ---
 
-## §RESUME SNAPSHOT — D-1872 (2026-07-19 — POST-MERGE BURST; DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 MERGED; STATE v8.426) [SUPERSEDES D-1871]
+## §RESUME SNAPSHOT — D-1877 (2026-07-19 — WAVE F-A PLANNING PACKAGE BURST; 7 stories S-REL-001..007; STATE v8.427) [SUPERSEDES D-1872]
+
+### RESUME IN ONE BREATH
+Wave F-A planning package COMPLETE. 7 stories S-REL-001..007 materialized + uncertainty-hardened (33 findings resolved; 13 HIGH incl. fabricated CLI mechanism, never-executed Linux release legs, schema-guess release-config). STORY-INDEX v2.716 total_stories 253. Planning package committed (.factory/planning/feature-release-engineering/). Research artifacts committed. **NEXT ACTION (prism):** TDD S-REL-001 first in own worktree (per-story flow); delivery order 001→002∥003→004→007→005 (006 after 002). **NEXT ACTION (secops-factory):** Workstream B — separate session against `.factory/planning/feature-release-engineering/secops-factory-handoff-brief.md` (research-corrected monitoring loop, demo-Jira intake). **T13/T14 BLOCKED on Workstream B completion.** **HUMAN PREREQUISITES before T14**: interactive `bash scripts/demo-setup.sh` macOS Keychain auth (repeat after every release rebuild — non-scriptable); demo Jira project provisioning (D-1876).
+
+### HEADS (verified 2026-07-19 D-1877 wrap)
+- develop: local == origin/develop == `e116a587` (PR #227 squash-merged 2026-07-19T14:27:25Z) — PUSHED
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code)
+- `.worktrees/S-3.09` @`43c41389` feature/S-3.09 LOCAL-ONLY — KEEP-PARKED
+- `.worktrees/W3-FIX-S307-001` @`fcab8717` LOCAL-ONLY dirty=1 — PARKED-DIRTY do-NOT-touch
+- Main tree residue (pre-existing, NOT session products): staged .github/workflows/ci.yml + e2e.yml (unknown provenance — do not commit/discard without human review); untracked .playwright-mcp/, drawio exports, mutants.out*, scripts/__pycache__
+- No open PRs. `develop` and `factory-artifacts` PUSHED; all others LOCAL-ONLY.
+
+### PER-WORKSTREAM NEXT-ACTIONS
+1. **S-REL-001 TDD delivery (FIRST ACTION, prism)** — create worktree feature/S-REL-001; per-story TDD flow (stubs → failing tests → GREEN → LOCAL 3-CLEAN → story-level holdout gate → demo-recorder → push → PR); delivery order: 001→002∥003→004→007→005 (006 after 002 per dependency graph).
+2. **secops-factory Workstream B (SECOND ACTION, parallel session)** — separate session against `.factory/planning/feature-release-engineering/secops-factory-handoff-brief.md`; research-corrected monitoring loop requirement; demo Jira project intake (D-1876).
+3. **T13 capstone** — BLOCKED on Workstream B completion (D-1873; T14 demo to run through secops-factory plugin).
+4. **Carried**: S-3.09 EC-collision option (human), W3-FIX-S307-001 disposition (human), DRIFT-SDEMO004-TODO-SECTIONS-001, PG-CLIPPY-ALLTARGETS-001 (post-T14).
+
+### PENDING USER-APPROVED-UNSTARTED
+secops-factory Workstream B session (D-1873/D-1874; separate session per handoff brief). Demo Jira project provisioning (D-1876).
+
+### DECISION DELTA (session 2026-07-19 planning package)
+D-1874..D-1877 (exhaustive) — 4 decisions: feature intake D-1874; distribution decisions D-1875; F1 adjudications D-1876; remove-uncertainty + 7 stories D-1877. STORY-INDEX v2.715→v2.716 total_stories 246→253. STATE v8.426→v8.427.
+
+---
+
+## §RESUME SNAPSHOT — D-1872 (2026-07-19 — POST-MERGE BURST; DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 MERGED; STATE v8.426) [SUPERSEDES D-1871] [SUPERSEDED by D-1877]
 
 ### RESUME IN ONE BREATH
 DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 PR #227 squash-merged @e116a587 = current develop (local==origin). T13 audit instrument FIXED: parse_envelope now reads structuredContent.error.code (authoritative per BC-2.10.007); live re-run 106/106 DEMO-READY: YES ×2. workspace_test_count 5676. NEXT: T13 capstone on develop@e116a587 → T14 BLOCKED pending secops-factory integration planning (D-1873; stories not yet materialized; orchestrator planning in progress). **HUMAN ACTION REQUIRED before T14**: interactive `bash scripts/demo-setup.sh` for macOS Keychain auth (repeat after every release rebuild — non-scriptable).
