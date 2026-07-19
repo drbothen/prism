@@ -3390,8 +3390,11 @@ def run_audit():
                         f"FAIL: E-QUERY-038 but 'not found in table' absent — "
                         f"message-template regression (POL-24); message={msg[:80]!r}"
                     )
-            # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" at the
-            # MCP boundary by map_prism_error (error_mapping.rs) as E-INT-001.
+            # NOTE: map_prism_error (error_mapping.rs) Rule-1-redacts the message text to
+            # "Internal error; see audit log" for execution-class errors; the canonical
+            # structured code remains E-QUERY-034 via ec_code_override (BC-2.10.007 §LOW-002).
+            # E-INT-001 would only appear if ec_code_override regressed — not a spec-sanctioned
+            # outcome for this query path.
             # fix-burst 39 (TD-VSDD-060 sibling sweep): `(not ec and "Internal error" in msg)`
             # is a dead branch — after the root-cause fix (DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001),
             # parse_envelope promotes sc_code to ec when structuredContent.error.code is present
@@ -3446,8 +3449,11 @@ def run_audit():
                         f"FAIL: E-QUERY-038 but 'not found in table' absent — "
                         f"message-template regression (POL-24); message={msg[:80]!r}"
                     )
-            # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" at the
-            # MCP boundary by map_prism_error (error_mapping.rs) as E-INT-001.
+            # NOTE: map_prism_error (error_mapping.rs) Rule-1-redacts the message text to
+            # "Internal error; see audit log" for execution-class errors; the canonical
+            # structured code remains E-QUERY-034 via ec_code_override (BC-2.10.007 §LOW-002).
+            # E-INT-001 would only appear if ec_code_override regressed — not a spec-sanctioned
+            # outcome for this query path.
             # fix-burst 39 (TD-VSDD-060 sibling sweep): `(not ec and "Internal error" in msg)`
             # is a dead branch — after the root-cause fix (DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001),
             # parse_envelope promotes sc_code to ec when structuredContent.error.code is present
