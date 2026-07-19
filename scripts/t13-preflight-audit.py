@@ -363,7 +363,20 @@ def parse_envelope(resp):
     # Plain text error: "ERROR: [type] - message"
     if text.startswith("ERROR:"):
         m = re.search(r"(E-[A-Z]+-\d+)", text)
-        error_code = m.group(1) if m else "UNKNOWN"
+        scraped_code = m.group(1) if m else None
+        # DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 root-cause fix:
+        # structuredContent.error.code is AUTHORITATIVE when present; message-text
+        # regex is a fallback only.  Two classes of false FAILs motivate this:
+        #   [G4] E-QUERY-001: materialization.rs strips the E-code from parse error
+        #        text ("PrismQL parse error: ...") — code lives in sc.error.code.
+        #   [H8] E-QUERY-034: error_mapping.rs maps QueryExecutionFailed to
+        #        ec_code_override="E-QUERY-034" and redacts message to "Internal
+        #        error" (no E-code in text) — code lives in sc.error.code.
+        # Six query-engine variants (QueryPlanFailed, QueryExecutionFailed, etc.)
+        # each pin their canonical E-QUERY-* code via ec_code_override; they are
+        # NOT redacted to E-INT-001.
+        sc_code = sc_err_obj.get("code") if isinstance(sc_err_obj, dict) else None
+        error_code = sc_code or scraped_code or "UNKNOWN"
         # Strip "ERROR: [type] - " prefix for message
         msg = re.sub(r"^ERROR:\s*\[[^\]]+\]\s*-\s*", "", text).strip()
         result_body = {"error_code": error_code, "message": msg}
@@ -3377,11 +3390,15 @@ def run_audit():
                         f"FAIL: E-QUERY-038 but 'not found in table' absent — "
                         f"message-template regression (POL-24); message={msg[:80]!r}"
                     )
-            # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" at the
-            # MCP boundary by map_prism_error (error_mapping.rs) as E-INT-001.
+            # NOTE: map_prism_error (error_mapping.rs) Rule-1-redacts the message text to
+            # "Internal error; see audit log" for execution-class errors; the canonical
+            # structured code remains E-QUERY-034 via ec_code_override (BC-2.10.007 §LOW-002).
+            # E-INT-001 would only appear if ec_code_override regressed — not a spec-sanctioned
+            # outcome for this query path.
             # fix-burst 39 (TD-VSDD-060 sibling sweep): `(not ec and "Internal error" in msg)`
-            # is a dead branch — parse_envelope sets ec="UNKNOWN" for plain-text ERROR without
-            # an E-code, making `not ec` false; ec="E-INT-001" is the live detection path.
+            # is a dead branch — after the root-cause fix (DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001),
+            # parse_envelope promotes sc_code to ec when structuredContent.error.code is present
+            # (e.g., "E-QUERY-034" / "E-INT-001"); `not ec` is always false on the ERROR path.
             elif ec == "E-QUERY-034" or ec == "E-INT-001":
                 results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
                     f"FAIL: REGRESSION — got {ec!r} instead of E-QUERY-038; "
@@ -3432,11 +3449,15 @@ def run_audit():
                         f"FAIL: E-QUERY-038 but 'not found in table' absent — "
                         f"message-template regression (POL-24); message={msg[:80]!r}"
                     )
-            # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" at the
-            # MCP boundary by map_prism_error (error_mapping.rs) as E-INT-001.
+            # NOTE: map_prism_error (error_mapping.rs) Rule-1-redacts the message text to
+            # "Internal error; see audit log" for execution-class errors; the canonical
+            # structured code remains E-QUERY-034 via ec_code_override (BC-2.10.007 §LOW-002).
+            # E-INT-001 would only appear if ec_code_override regressed — not a spec-sanctioned
+            # outcome for this query path.
             # fix-burst 39 (TD-VSDD-060 sibling sweep): `(not ec and "Internal error" in msg)`
-            # is a dead branch — parse_envelope sets ec="UNKNOWN" for plain-text ERROR without
-            # an E-code, making `not ec` false; ec="E-INT-001" is the live detection path.
+            # is a dead branch — after the root-cause fix (DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001),
+            # parse_envelope promotes sc_code to ec when structuredContent.error.code is present
+            # (e.g., "E-QUERY-034" / "E-INT-001"); `not ec` is always false on the ERROR path.
             elif ec == "E-QUERY-034" or ec == "E-INT-001":
                 results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
                     f"FAIL: REGRESSION — {ec!r} instead of E-QUERY-038; "
@@ -3930,12 +3951,13 @@ def run_audit():
             ec = body.get("error_code", "")
             msg = body.get("message", "")
             rows = body.get("rows", [])
-            # fix-burst 39 (ITEM 4): extract structured error code for E-INT-001 detection.
+            # F-T13ECODE-P1-LOW-001 / fix-burst 39 (ITEM 4): extract structured error code.
             # parse_envelope attaches _sc_error from structuredContent.error when present;
-            # map_prism_error_meta emits E-INT-001 for internal-redacted errors (error_mapping.rs).
-            # The old `(not ec and "Internal error" in msg)` branch was dead:
-            # parse_envelope sets ec="UNKNOWN" for plain-text ERROR without an E-code, making
-            # `not ec` false. Production-grade fix: check ec == "E-INT-001" OR _sc_code == "E-INT-001".
+            # QueryExecutionFailed pins ec_code_override = "E-QUERY-034" (error_mapping.rs /
+            # BC-2.10.007 §LOW-002), so ec == "E-QUERY-034" is the canonical expected outcome.
+            # E-INT-001 is the catch-all code for errors that LACK a pinned ec_code_override;
+            # accepting it as PASS would mask an ec_code_override regression — see acceptance
+            # condition below.
             _sc_code = (body.get("_sc_error") or {}).get("code", "")
             if rows:
                 results[_H8_RESULT_KEY] = (
@@ -3946,31 +3968,35 @@ def run_audit():
                     f"FAIL: E-QUERY-038 fired for bare unknown col in JOIN — "
                     f"HEAD-JOIN fail-open (FP-001) should suppress E-QUERY-038 here"
                 )
-            # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" (E-INT-001) at the
-            # MCP boundary by map_prism_error (error_mapping.rs). Accept both direct E-QUERY-034
-            # and E-INT-001 (via ec or structuredContent.error.code) as spec-sanctioned
-            # controlled-rejection outcomes for HEAD-JOIN fail-open (BC-2.11.016 §FP-001).
-            elif ec == "E-QUERY-034" or ec == "E-INT-001" or _sc_code == "E-INT-001":
-                # F-AUD-P1-MED-002: only E-QUERY-034 or Internal error (with no ec) PASSes here.
+            # NOTE: QueryExecutionFailed (HEAD-JOIN fail-open per BC-2.11.016 §FP-001) is
+            # pinned to ec_code_override = "E-QUERY-034" in error_mapping.rs (BC-2.10.007
+            # §LOW-002).  The message text is Rule-1-redacted to "Internal error; see audit log"
+            # at the MCP boundary, but the canonical error code is "E-QUERY-034" — NOT E-INT-001.
+            # F-T13ECODE-P1-LOW-001: E-INT-001 is deliberately NOT accepted here because it
+            # is the catch-all code that appears ONLY when ec_code_override is absent or
+            # regressed; accepting it as PASS would mask exactly that regression.
+            # _sc_code disjunct is belt-and-suspenders: parse_envelope promotes sc_code to ec
+            # after the root-cause fix, but _sc_code guards the structured-code path directly.
+            elif ec == "E-QUERY-034" or _sc_code == "E-QUERY-034":
+                # F-AUD-P1-MED-002: only E-QUERY-034 PASSes here (ec_code_override pin).
                 # The former third disjunct `(ec and ec != "E-QUERY-038")` accepted any
                 # error code — removed; unexpected error codes must be investigated.
                 # F-AUD-P15-MED-001: require H7 JOIN-machinery evidence before attributing
-                # in-band E-QUERY-034 / "Internal error" to HEAD-JOIN fail-open (FP-001).
+                # in-band E-QUERY-034 to HEAD-JOIN fail-open (FP-001).
                 # Without H7 PASS, the controlled rejection could be an unrelated engine
                 # failure — not specifically BC-2.11.016 §HEAD-JOIN SUSPENSION RULE.
                 _h7_key = _H7_RESULT_KEY
                 _h7_result = results.get(_h7_key, "")
                 if _h7_result.startswith("PASS"):
-                    # F-AUD-P30-LOW-002: PASS-ATTRIBUTED — "Internal error; see audit log"
-                    # (in-band path) is emitted by map_prism_error (error_mapping.rs) for ALL
-                    # QueryExecutionFailed variants; the message is indistinguishable from any
-                    # other engine failure at the MCP boundary. Attribution to HEAD-JOIN fail-open
+                    # F-AUD-P30-LOW-002: PASS-ATTRIBUTED — E-QUERY-034 (ec_code_override pin,
+                    # BC-2.10.007 §LOW-002) with Rule-1-redacted message text "Internal error; see
+                    # audit log".  The message text is indistinguishable from any other
+                    # QueryExecutionFailed at the MCP boundary; attribution to HEAD-JOIN fail-open
                     # (FP-001) is probabilistic: H7 PASS + bare-unknown-col-in-JOIN query shape.
                     results[_H8_RESULT_KEY] = (
-                        f"PASS-ATTRIBUTED: {ec or 'Internal error (no ec)'} + H7 healthy; "
-                        "HEAD-JOIN fail-open message indistinguishable from generic QueryExecutionFailed "
-                        "at MCP boundary (map_prism_error redacts all QueryExecutionFailed to "
-                        "'Internal error; see audit log'); "
+                        f"PASS-ATTRIBUTED: {ec} + H7 healthy; "
+                        "HEAD-JOIN fail-open emits E-QUERY-034 (ec_code_override / BC-2.10.007 §LOW-002); "
+                        "message text Rule-1-redacted to 'Internal error; see audit log' at MCP boundary; "
                         "spec-sanctioned FP-001 outcome (BC-2.11.016 §HEAD-JOIN SUSPENSION RULE); "
                         "H7 JOIN-machinery evidence present"
                     )
@@ -3991,10 +4017,13 @@ def run_audit():
                     "not silent 0-row success"
                 )
             else:
-                # Unexpected error code — neither E-QUERY-034 nor Internal error
+                # Unexpected error code — not E-QUERY-034 (ec_code_override pin) and not
+                # the suppressed E-QUERY-038.  E-INT-001 reaches here intentionally — it
+                # signals an ec_code_override regression (BC-2.10.007 §LOW-002 / F-T13ECODE-P1-LOW-001).
                 results[_H8_RESULT_KEY] = (
                     f"FAIL: unexpected error code {ec!r} for bare-col JOIN; "
-                    f"expected E-QUERY-034 or 'Internal error'; message={msg[:80]!r}"
+                    f"expected E-QUERY-034 (ec_code_override pin, BC-2.10.007 §LOW-002); "
+                    f"if ec='E-INT-001', ec_code_override may have regressed; message={msg[:80]!r}"
                 )
 
         # ── H9: SqlPipe mode — SQL head + pipe stage (BC-2.11.020) ───────────
