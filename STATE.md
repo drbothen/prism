@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.424"
+version: "8.425"
 producer: state-manager
-timestamp: 2026-07-19T00:05:00Z
+timestamp: 2026-07-19T01:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -39,7 +39,7 @@ workspace_test_count: 5672
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1870 mini-burst 2026-07-18 (TD-VSDD-053): T13-capstone-demo-runbook.md v1.11→v1.12 §1.6 Pre-Flight Audit (Go/No-Go Gate) authored — PRISM_THREATINTEL_BASE_URL/PRISM_NVD_BASE_URL env-bridge from demo-run.sh, BASE_URL>PORT>default precedence, PRISM_BIN override, PIPESTATUS[0]/$? exit-code discipline, 106-check matrix, DEMO-READY YES/NO verdict. DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 RESOLVED. ALL T13 PRECONDITIONS CLOSED. NEXT (fresh session recommended): T13 capstone on develop@97d7335d (runbook v1.12 §1.6 go/no-go gate) → T14 recording. trajectory-tail →0→0→0→0 STATE v8.423→v8.424"
+current_step: "SESSION WRAP D-1871 (TD-VSDD-053) 2026-07-18 — BOTH DEMO-BLOCKING LANES CLOSED: PR #225 ADMINTOKEN @277b7844 + PR #226 AUDIT-COVERAGE @97d7335d. Runbook v1.12 §1.6 Pre-Flight Audit authored (D-1870). ALL T13 PRECONDITIONS CLOSED. S-MAINT-PRMGR-HOOK-SCOPE-001 registered v2.714. Fuel_cap patch applied (D-1850). Taxonomy v2.56 (D-1847). RESUME SNAPSHOT D-1871 authored. NEXT (fresh session): T13 capstone on develop@97d7335d (scripts/demo-run.sh + runbook §1.6 go/no-go 106 checks DEMO-READY gate) → T14 recording. trajectory-tail →0→0→0→0 STATE v8.424→v8.425"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -76,8 +76,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 379 lines (wc-l)
-  margin from soft-target (200): +179 lines over | margin from actual (500): 121 lines remaining
+  STATE.md SIZE BUDGET: 381 lines (wc-l)
+  margin from soft-target (200): +181 lines over | margin from actual (500): 119 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -91,7 +91,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-18 D-1870 mini-burst — runbook v1.12 §1.6 Pre-Flight Audit authored; DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 RESOLVED. ALL T13 PRECONDITIONS CLOSED. NEXT: T13 capstone on develop@97d7335d (runbook v1.12 §1.6 go/no-go gate) → T14 recording. trajectory-tail →0→0→0→0 STATE v8.423→v8.424 |
+| **Last Updated** | 2026-07-18 D-1871 SESSION WRAP — BOTH DEMO-BLOCKING LANES CLOSED (PR #225 @277b7844 + PR #226 @97d7335d). ALL T13 PRECONDITIONS CLOSED (runbook v1.12 §1.6). RESUME SNAPSHOT D-1871. NEXT: T13 capstone on develop@97d7335d → T14 recording. trajectory-tail →0→0→0→0 STATE v8.424→v8.425 |
 
 ## Active Objective (North Star)
 
@@ -273,6 +273,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1868 | human+state-manager | 2026-07-18 | HUMAN MERGE AUTHORIZATION (Joshua, orchestrator gate) → PR #226 SQUASH-MERGED 2026-07-18T22:47:30Z; merge commit 97d7335d = new origin/develop head; develop 277b7844→97d7335d. Pre-merge checklist 5/5 satisfied: adversary 3-CLEAN(strict) CONVERGED (D-1866); security delta-confirm APPROVE (D-1863); pr-reviewer APPROVE (D-1867); BC-5.39.001 (D-1866); CI 45/45 green @8d116f62. Remote branch fix/T13-audit-coverage deleted. Worktree .worktrees/AUDIT-COVERAGE-001 removed clean. Local branch deleted. Local develop fast-forwarded to 97d7335d. LANE 1 AUDIT-COVERAGE-001 CLOSED. T13 capstone UNBLOCKED on develop @97d7335d. | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1869 | state-manager | 2026-07-18 | pr-manager minor scope-slip at merge dispatch: wrote .factory/code-delivery/AUDIT-COVERAGE-001/pr-description.md (gitignored path; harmless; evidence-bundle mitigation otherwise held — no unauthorized actions; classifier warning was the known evidence-context-asymmetry false positive per D-1811/D-1843/D-1851 class). S-MAINT-PRMGR-HOOK-SCOPE-001 corroboration (minor tier). DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 status → UNBLOCKED/FIRST-ACTION-next-session: T13 runbook env-bridge addendum is FIRST ACTION in next session before T13 capstone execution. | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1870 | state-manager | 2026-07-18 | T13-capstone-demo-runbook.md v1.11→v1.12: §1.6 Pre-Flight Audit (Go/No-Go Gate) authored — operator env-bridge workflow (PRISM_THREATINTEL_BASE_URL/PRISM_NVD_BASE_URL verbatim from demo-run.sh output; never reuse prior-run port values), env-var precedence (BASE_URL>PORT>built-in default), optional PRISM_BIN override, exit-code capture discipline (PIPESTATUS[0] vs $?), 106-check coverage matrix summary (8 sections A–H), DEMO-READY YES/NO verdict + exit-code semantics; no expected failures. Inserted between §1.5 fleet-startup and §2 narrative arc as the go/no-go gate step. changelog row v1.12 prepended newest-first. DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 RESOLVED — last T13 precondition closed. ALL T13 PRECONDITIONS CLOSED. | wave-5-e-demo-fidelity | 2026-07-18 |
+| D-1871 | state-manager | 2026-07-18 | SESSION WRAP (TD-VSDD-053): BOTH DEMO-BLOCKING LANES CLOSED — PR #225 DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 MERGED @277b7844 (D-1841) + PR #226 AUDIT-COVERAGE-001 MERGED @97d7335d (D-1868). Runbook v1.12 §1.6 Pre-Flight Audit authored (D-1870). ALL T13 PRECONDITIONS CLOSED. develop local==origin@97d7335d. Session delta D-1832..D-1871 (exhaustive) — ~40 decisions: PR #225 2 accelerated re-gates + NEW-001/OBS-001 fix + merge; PR #226 rebase + LOCAL 3-CLEAN (R1–R3) + PR-LEVEL 7 passes (PR1–PR7) + 3 fix-bursts (SEC-001/002+pins @0fbef7db; MED-001 BASE_URL @8d116f62) + 2 security delta-confirms + pr-reviewer + merge. Taxonomy v2.56 (D-1847). Story v2.714 (+S-MAINT-PRMGR-HOOK-SCOPE-001). Lessons 69–72. Infra: fuel_cap patch (D-1850). RESUME SNAPSHOT D-1871 authored (supersedes D-1870). NEXT: T13 capstone on develop@97d7335d. trajectory-tail →0→0→0→0 STATE v8.424→v8.425 | wave-5-e-demo-fidelity | 2026-07-18 |
 
 ## Skip Log
 
@@ -367,13 +368,14 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1870 — 2026-07-18 — runbook v1.12 §1.6 authored; DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 RESOLVED; STATE v8.424)
+## Session Resume Checkpoint (D-1871 — 2026-07-18 — SESSION WRAP; BOTH LANES CLOSED; STATE v8.425)
 
-**RESUME IN ONE BREATH:** ALL T13 PRECONDITIONS CLOSED. Runbook v1.12 §1.6 Pre-Flight Audit (go/no-go gate) authored (D-1870). LANE 1 AUDIT-COVERAGE-001 CLOSED @97d7335d (D-1868). BOTH DEMO-BLOCKING LANES CLOSED. DRIFT-ADMINTOKEN-BC361-TD031-001 open (product-owner fix-burst owed). PG-HOOK-FUEL-CEILING-001 open (D-1847). D-1809 mitigation still in force. **FRESH SESSION RECOMMENDED. NEXT: (1) T13 capstone on develop @97d7335d (runbook v1.12 §1.6 go/no-go gate) → (2) T14 recording.**
+**RESUME IN ONE BREATH:** BOTH DEMO-BLOCKING LANES CLOSED: PR #225 ADMINTOKEN merged @277b7844 and PR #226 AUDIT-COVERAGE (T13 audit instrument) merged @97d7335d = current develop head (local==origin). Runbook v1.12 §1.6 Pre-Flight Audit authored (D-1870) — ALL T13 PRECONDITIONS CLOSED. VERY NEXT ACTION: T13 capstone run on develop@97d7335d (fleet up via scripts/demo-run.sh → runbook §1.6 go/no-go audit, 106 checks, DEMO-READY gate → SOC-analyst walkthrough) → T14 demo recording. Fresh session recommended.
 
-**HEADS (verified 2026-07-18 D-1869 burst):**
-- develop: `97d7335d` (PR #226 squash-merged 2026-07-18T22:47:30Z; EXPECTED=92; PUSHED)
-- factory-artifacts: `git -C .factory log -1 --format='%h %s'` (this burst commit)
+**HEADS (verified 2026-07-18 D-1871 wrap):**
+- develop: `97d7335d` (PR #226 squash-merged 2026-07-18T22:47:30Z) local==origin — PUSHED
+- factory-artifacts: `git -C .factory log -1 --format='%h %s'` (do not hard-code)
 - `feature/S-3.09` @`43c41389` — KEEP-PARKED (LOCAL-ONLY)
 - `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
+- Main tree residue (pre-existing, NOT session products): staged .github/workflows/ci.yml + e2e.yml (unknown provenance — do not commit/discard without human review); untracked .playwright-mcp/, drawio exports, mutants.out*, scripts/__pycache__
 - `develop` and `factory-artifacts` are PUSHED; all others are LOCAL-ONLY
