@@ -363,7 +363,20 @@ def parse_envelope(resp):
     # Plain text error: "ERROR: [type] - message"
     if text.startswith("ERROR:"):
         m = re.search(r"(E-[A-Z]+-\d+)", text)
-        error_code = m.group(1) if m else "UNKNOWN"
+        scraped_code = m.group(1) if m else None
+        # DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 root-cause fix:
+        # structuredContent.error.code is AUTHORITATIVE when present; message-text
+        # regex is a fallback only.  Two classes of false FAILs motivate this:
+        #   [G4] E-QUERY-001: materialization.rs strips the E-code from parse error
+        #        text ("PrismQL parse error: ...") — code lives in sc.error.code.
+        #   [H8] E-QUERY-034: error_mapping.rs maps QueryExecutionFailed to
+        #        ec_code_override="E-QUERY-034" and redacts message to "Internal
+        #        error" (no E-code in text) — code lives in sc.error.code.
+        # Six query-engine variants (QueryPlanFailed, QueryExecutionFailed, etc.)
+        # each pin their canonical E-QUERY-* code via ec_code_override; they are
+        # NOT redacted to E-INT-001.
+        sc_code = sc_err_obj.get("code") if isinstance(sc_err_obj, dict) else None
+        error_code = sc_code or scraped_code or "UNKNOWN"
         # Strip "ERROR: [type] - " prefix for message
         msg = re.sub(r"^ERROR:\s*\[[^\]]+\]\s*-\s*", "", text).strip()
         result_body = {"error_code": error_code, "message": msg}
@@ -3946,11 +3959,17 @@ def run_audit():
                     f"FAIL: E-QUERY-038 fired for bare unknown col in JOIN — "
                     f"HEAD-JOIN fail-open (FP-001) should suppress E-QUERY-038 here"
                 )
-            # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" (E-INT-001) at the
-            # MCP boundary by map_prism_error (error_mapping.rs). Accept both direct E-QUERY-034
-            # and E-INT-001 (via ec or structuredContent.error.code) as spec-sanctioned
-            # controlled-rejection outcomes for HEAD-JOIN fail-open (BC-2.11.016 §FP-001).
-            elif ec == "E-QUERY-034" or ec == "E-INT-001" or _sc_code == "E-INT-001":
+            # NOTE: The six query-engine variants (QueryPlanFailed, QueryExecutionFailed, etc.)
+            # each pin their canonical E-QUERY-* code via ec_code_override in error_mapping.rs
+            # — they are NOT redacted to E-INT-001.  For QueryExecutionFailed (HEAD-JOIN
+            # fail-open), structuredContent.error.code == "E-QUERY-034" and the message text
+            # is "Internal error" (Rule-1 redaction — no E-code in text).  The root-cause fix
+            # in parse_envelope (above) promotes sc_code to error_code, so ec == "E-QUERY-034"
+            # after the fix.  Retain the E-INT-001 disjuncts as belt-and-suspenders for any
+            # legacy path that surfaces the catch-all code before the root-cause fix landed.
+            # DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001: add _sc_code == "E-QUERY-034" to
+            # cover the structured-code path if parse_envelope falls back to scraped "UNKNOWN".
+            elif ec == "E-QUERY-034" or ec == "E-INT-001" or _sc_code == "E-QUERY-034" or _sc_code == "E-INT-001":
                 # F-AUD-P1-MED-002: only E-QUERY-034 or Internal error (with no ec) PASSes here.
                 # The former third disjunct `(ec and ec != "E-QUERY-038")` accepted any
                 # error code — removed; unexpected error codes must be investigated.
