@@ -3393,8 +3393,9 @@ def run_audit():
             # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" at the
             # MCP boundary by map_prism_error (error_mapping.rs) as E-INT-001.
             # fix-burst 39 (TD-VSDD-060 sibling sweep): `(not ec and "Internal error" in msg)`
-            # is a dead branch — parse_envelope sets ec="UNKNOWN" for plain-text ERROR without
-            # an E-code, making `not ec` false; ec="E-INT-001" is the live detection path.
+            # is a dead branch — after the root-cause fix (DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001),
+            # parse_envelope promotes sc_code to ec when structuredContent.error.code is present
+            # (e.g., "E-QUERY-034" / "E-INT-001"); `not ec` is always false on the ERROR path.
             elif ec == "E-QUERY-034" or ec == "E-INT-001":
                 results["[H1] E-QUERY-038 pipe mode (original DRIFT shape)"] = (
                     f"FAIL: REGRESSION — got {ec!r} instead of E-QUERY-038; "
@@ -3448,8 +3449,9 @@ def run_audit():
             # NOTE: E-QUERY-034 is redacted to "Internal error; see audit log" at the
             # MCP boundary by map_prism_error (error_mapping.rs) as E-INT-001.
             # fix-burst 39 (TD-VSDD-060 sibling sweep): `(not ec and "Internal error" in msg)`
-            # is a dead branch — parse_envelope sets ec="UNKNOWN" for plain-text ERROR without
-            # an E-code, making `not ec` false; ec="E-INT-001" is the live detection path.
+            # is a dead branch — after the root-cause fix (DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001),
+            # parse_envelope promotes sc_code to ec when structuredContent.error.code is present
+            # (e.g., "E-QUERY-034" / "E-INT-001"); `not ec` is always false on the ERROR path.
             elif ec == "E-QUERY-034" or ec == "E-INT-001":
                 results["[H1b] E-QUERY-038 filter mode (position 7, no FROM)"] = (
                     f"FAIL: REGRESSION — {ec!r} instead of E-QUERY-038; "
@@ -3947,8 +3949,9 @@ def run_audit():
             # parse_envelope attaches _sc_error from structuredContent.error when present;
             # map_prism_error_meta emits E-INT-001 for internal-redacted errors (error_mapping.rs).
             # The old `(not ec and "Internal error" in msg)` branch was dead:
-            # parse_envelope sets ec="UNKNOWN" for plain-text ERROR without an E-code, making
-            # `not ec` false. Production-grade fix: check ec == "E-INT-001" OR _sc_code == "E-INT-001".
+            # after the root-cause fix, parse_envelope promotes sc_code to ec (e.g., "E-INT-001"
+            # or "E-QUERY-034"), making `not ec` false. Production-grade fix: check
+            # ec == "E-INT-001" OR _sc_code == "E-INT-001".
             _sc_code = (body.get("_sc_error") or {}).get("code", "")
             if rows:
                 results[_H8_RESULT_KEY] = (
@@ -3967,8 +3970,10 @@ def run_audit():
             # in parse_envelope (above) promotes sc_code to error_code, so ec == "E-QUERY-034"
             # after the fix.  Retain the E-INT-001 disjuncts as belt-and-suspenders for any
             # legacy path that surfaces the catch-all code before the root-cause fix landed.
-            # DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001: add _sc_code == "E-QUERY-034" to
-            # cover the structured-code path if parse_envelope falls back to scraped "UNKNOWN".
+            # DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001: add _sc_code == "E-QUERY-034" and
+            # == "E-INT-001" disjuncts as belt-and-suspenders; the root-cause fix ensures
+            # ec is promoted to sc_code (primary path uses ec == "E-QUERY-034"), while
+            # _sc_code disjuncts guard any legacy fallback path where sc_code is not promoted.
             elif ec == "E-QUERY-034" or ec == "E-INT-001" or _sc_code == "E-QUERY-034" or _sc_code == "E-INT-001":
                 # F-AUD-P1-MED-002: only E-QUERY-034 or Internal error (with no ec) PASSes here.
                 # The former third disjunct `(ec and ec != "E-QUERY-038")` accepted any
