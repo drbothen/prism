@@ -148,8 +148,14 @@ jobs:
           TAG: ${{ github.ref_name }}
         # Array form avoids empty positional arg when NOT prerelease.
         # gh does NOT auto-detect --prerelease from tag format (research U3).
-        # F-REL001-P9-001: idempotent re-run guard — if a matrix leg fails transiently
-        # and the workflow is re-run for the same tag, 'gh release create' aborts with
-        # "release already exists". On the re-run path the prerelease flag is already
-        # set on the existing release, so 'gh release upload --clobber' is sufficient.
+        # F-REL001-P9-001: idempotent re-run guard — the 'gh release upload --clobber'
+        # path is reachable only when: (a) this publish step failed transiently AFTER
+        # 'gh release create' succeeded but before all assets were uploaded (e.g., an
+        # upload timeout on a later asset), (b) an operator manually re-runs an
+        # already-successful workflow, or (c) a tag was deleted and re-pushed while a
+        # prior release still exists. A failed build-release matrix leg means this
+        # step never ran (publish-release needs: build-release), so no release exists
+        # yet and the re-run takes the CREATE path — matrix leg failure is not a
+        # trigger for --clobber. Prerelease status on the existing release persists;
+        # upload --clobber is sufficient on the re-run path.
         run: PRERELEASE_ARGS=(); if [[ "$TAG" == *-* ]]; then PRERELEASE_ARGS+=(--prerelease); fi; if gh release view "$TAG" >/dev/null 2>&1; then gh release upload "$TAG" --clobber artifacts/release-*/*.tar.gz artifacts/release-*/*.zip checksums.txt; else gh release create "$TAG" --title "Prism $TAG" --generate-notes "${PRERELEASE_ARGS[@]}" artifacts/release-*/*.tar.gz artifacts/release-*/*.zip checksums.txt; fi
