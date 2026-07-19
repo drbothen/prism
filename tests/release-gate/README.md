@@ -7,15 +7,15 @@ This suite is the **authoritative gate** for the release workflow (`release.yml`
 
 | Test file | AC | Assertion |
 |-----------|-----|-----------|
-| test_AC-001_binary-exists-removal.sh | AC-001 | binary-exists job is removed (not merely stubbed) |
+| test_AC-001_binary-exists-removal.sh | AC-001 | binary-exists step + outputs block removed from build-release job (not merely stubbed) |
 | test_AC-002_chocolatey-removal.sh | AC-002 | chocolatey-publish job is removed |
 | test_AC-003_homebrew-removal.sh | AC-003 | homebrew-update job is removed |
 | test_AC-004_crates-io-removal.sh | AC-004 | crates-io-publish job is removed |
 | test_AC-005_prerelease-flag.sh | AC-005 | gh release create uses `--prerelease` flag |
 | test_AC-006_matrix-targets.sh | AC-006 | All 5 platform targets present and correctly spelled; exactly 5 matrix entries |
 | test_AC-007_checksums.sh | AC-007 | SHA-256 checksum step present and checksums.txt attached to release |
-| test_AC-008_oidc-attestation.sh | AC-008 | OIDC attestation step present (actions/attest-build-provenance v1.4.1+) |
-| test_AC-009_demo-server-build.sh | AC-009 | demo-server build job present for PR previews |
+| test_AC-008_oidc-attestation.sh | AC-008 | OIDC attestation step present (actions/attest-build-provenance v4.1.1) |
+| test_AC-009_demo-server-build.sh | AC-009 | demo-server build job present in the tag-triggered release matrix (artifact consumed by S-REL-004 demo bundle) |
 | test_AC-010_linux-setup.sh | AC-010 | Linux apt dependencies installed (musl-tools, libdbus-1-dev, etc.) |
 | test_AC-011_actionlint.sh | AC-011 | actionlint exits 0 on release.yml (requires: brew install actionlint) |
 
@@ -53,9 +53,10 @@ No network access required. No files are modified.
 ## Red Gate Status
 
 AC-001..AC-005, AC-008, AC-009, AC-010, AC-011 were expected to fail before
-implementation. AC-006, AC-007, and partial AC-008 pass on the unimplemented
-release.yml (the unimplemented stubs already had the correct matrix shape).
+implementation. AC-006, AC-007, and partial AC-008 pass on the broken/dead jobs
+in the original release.yml (the original workflow already had the correct matrix
+shape for those checks).
 See `.factory/stories/S-REL-001.md` red-gate-log for details.
 
-After implementation, all 58 assertions should pass (1 SKIP for actionlint if
-not installed).
+After implementation, all 58 assertions should pass. actionlint must be installed
+(absent actionlint is a hard failure, not a skip — the gate fails closed).

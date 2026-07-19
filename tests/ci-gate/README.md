@@ -19,7 +19,8 @@ These tests are intentionally **failing** until the implementer fills in the wor
 
 > **Note:** The authoritative test suite for the release workflow is `tests/release-gate/` (S-REL-001).
 > That suite covers release.yml AC-001..AC-011 using a TAP harness compatible with BSD grep (macOS).
-> `tests/ci-gate/` covers the CI pipeline (ci.yml, post-merge.yml) AC-1..AC-6, AC-9.
+> `tests/ci-gate/` covers ci.yml, post-merge.yml, and release.yml (test_AC-6 asserts release.yml
+> for AC-6, which predates the S-REL-001 suite split) — AC-1..AC-6, AC-9.
 
 ## How to Run
 

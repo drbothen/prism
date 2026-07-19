@@ -11,7 +11,10 @@
 # Note: actionlint must be installed via 'brew install actionlint' or the official
 # download-actionlint.bash script. 'cargo install actionlint' DOES NOT WORK
 # (actionlint is a Go tool; research U4). If actionlint is not installed, this
-# test is SKIPPED (not failed).
+# test FAILS (not skips) — this gate must never green without the tool executing.
+# Rationale: this suite is the authoritative gate for a security-relevant workflow
+# (OIDC + injection-sensitive run: blocks); a gate that greens without its tool
+# ever running is a false-pass vulnerability.
 #
 # Traces to: delta-analysis.md §8 "manual test tag push gate"; research U4
 # requires: bash 3.2+, actionlint (brew install actionlint)
@@ -26,10 +29,10 @@ REL_YML="${WORKTREE}/.github/workflows/release.yml"
 assert_file_exists "$REL_YML" "AC-011"
 
 if ! command -v actionlint >/dev/null 2>&1; then
-  tap_skip "AC-011: actionlint exits 0 on release.yml" \
-    "actionlint not installed — install via 'brew install actionlint' (NOT cargo install, which does not work)"
+  tap_fail "AC-011: actionlint not installed — gate fails closed" \
+    "actionlint is required but not found in PATH. Install via: brew install actionlint  OR  curl -sL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash  (NOT cargo install — actionlint is a Go tool, not a Rust crate)"
   tap_done
-  exit 0
+  exit 1
 fi
 
 # Run actionlint; capture output and exit code without triggering set -e.
@@ -39,7 +42,7 @@ actionlint_exit=$?
 set -e
 
 if [ "$actionlint_exit" -eq 0 ]; then
-  tap_pass "AC-011: actionlint .github/workflows/release.yml exits 0 (zero errors)"
+  tap_pass "AC-011: actionlint validated release.yml: 0 findings"
 else
   tap_fail "AC-011: actionlint .github/workflows/release.yml exits ${actionlint_exit} (errors present)" \
     "$(echo "$actionlint_output" | head -3 | tr '\n' '|')"

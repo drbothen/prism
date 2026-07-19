@@ -32,25 +32,54 @@ for test_file in "${SCRIPT_DIR}"/test_AC-*.sh; do
     echo "$line"
   done <<< "$output"
 
-  # Tally from TAP lines emitted.
-  file_pass=$(echo "$output" | grep -c '^ok ' || true)
-  file_fail=$(echo "$output" | grep -c '^not ok ' || true)
-  file_skip=$(echo "$output" | grep -c '# SKIP' || true)
+  # Tally from TAP result lines.
+  # tap_skip emits "ok N - msg # SKIP reason" and must NOT inflate PASS count.
+  # Use a case loop to distinguish pass / fail / skip with no grep edge cases.
+  file_pass=0
+  file_fail=0
+  file_skip=0
+  while IFS= read -r tap_line; do
+    case "$tap_line" in
+      'ok '*'# SKIP'*) file_skip=$((file_skip + 1)) ;;
+      'ok '*)          file_pass=$((file_pass + 1)) ;;
+      'not ok '*)      file_fail=$((file_fail + 1)) ;;
+    esac
+  done <<< "$output"
+
+  # TAP plan reconciliation: parse 1..N and verify assertion count matches.
+  # Missing or mismatched plan is treated as a hard failure (silent-shrink guard).
+  plan_n=$(echo "$output" | grep '^1\.\.[0-9]' | head -1 | cut -c4-)
+  if [ -z "$plan_n" ]; then
+    echo "# HARNESS ERROR: ${test_name} produced no TAP plan line (1..N missing) — hard failure"
+    FAIL=$((FAIL + 1))
+  else
+    tap_total=$((file_pass + file_fail + file_skip))
+    if [ "$tap_total" -ne "$plan_n" ]; then
+      echo "# HARNESS ERROR: ${test_name} plan mismatch — plan declares ${plan_n} tests, counted ${tap_total} result lines (pass:${file_pass} fail:${file_fail} skip:${file_skip})"
+      FAIL=$((FAIL + 1))
+    fi
+  fi
+
+  # Non-zero exit with no reported failures = crash or silent failure before tap_done.
+  if [ "$exit_code" -ne 0 ] && [ "$file_fail" -eq 0 ]; then
+    echo "# HARNESS ERROR: ${test_name} exited ${exit_code} with zero TAP failures — likely crashed before tap_done"
+    FAIL=$((FAIL + 1))
+  fi
 
   PASS=$((PASS + file_pass))
   FAIL=$((FAIL + file_fail))
   SKIP=$((SKIP + file_skip))
-  TOTAL=$((TOTAL + file_pass + file_fail))
+  TOTAL=$((TOTAL + file_pass + file_fail + file_skip))
 
   echo ""
 done
 
 echo "# ========================================"
 echo "# S-0.01 Red Gate Summary"
-echo "# Total:  ${TOTAL}"
-echo "# Passed: ${PASS}"
-echo "# Failed: ${FAIL}"
-echo "# Skipped (tool not found): ${SKIP}"
+echo "# Total:   ${TOTAL}"
+echo "# Passed:  ${PASS}"
+echo "# Failed:  ${FAIL}"
+echo "# Skipped: ${SKIP}"
 echo "# ========================================"
 
 if [ "$FAIL" -gt 0 ]; then
