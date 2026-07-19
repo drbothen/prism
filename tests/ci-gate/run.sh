@@ -74,6 +74,8 @@ for test_file in "${SCRIPT_DIR}"/test_AC-*.sh; do
   echo ""
 done
 
+[ "$TOTAL" -gt 0 ] || { echo "HARNESS ERROR: no tests executed"; exit 1; }
+
 echo "# ========================================"
 echo "# S-0.01 Red Gate Summary"
 echo "# Total:   ${TOTAL}"
@@ -86,6 +88,6 @@ if [ "$FAIL" -gt 0 ]; then
   echo "# RED GATE ACTIVE: ${FAIL} test(s) failing — stubs are hollow, implementation required."
   exit 1
 else
-  echo "# WARNING: All tests passed — Red Gate breached. Investigate; tests may be vacuously true."
+  echo "# All CI-gate tests passed."
   exit 0
 fi

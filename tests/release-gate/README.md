@@ -46,7 +46,7 @@ without requiring Homebrew GNU grep.
 |------|---------|---------|
 | bash 3.2+ | all tests | ships with macOS |
 | grep (BSD or GNU) | all tests | ships with macOS |
-| actionlint | test_AC-011 | `brew install actionlint` (SKIP if absent) |
+| actionlint | test_AC-011 | `brew install actionlint` — FAIL if absent — gate fails closed (AC-012/POL-34) |
 
 No network access required. No files are modified.
 
