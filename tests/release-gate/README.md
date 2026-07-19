@@ -60,3 +60,26 @@ See `.factory/cycles/v1.0.0-release-engineering/S-REL-001/implementation/red-gat
 
 After implementation, all 58 assertions should pass. actionlint must be installed
 (absent actionlint is a hard failure, not a skip — the gate fails closed).
+
+## Floor Constants (F-REL001-P7-001)
+
+`run.sh` enforces **exact** expected counts so that silently deleting a test file
+or losing assertions causes a loud harness failure rather than a silent pass:
+
+| Constant | Value | Meaning |
+|----------|-------|---------|
+| `EXPECTED_TEST_FILES` | 11 | Number of `test_AC-*.sh` files that must be executed |
+| `EXPECTED_ASSERTIONS` | 58 | Total TAP assertions across all test files |
+
+Exact equality is used (not `>=`), following the `scripts/check-non-exhaustive.sh
+EXPECTED=92` precedent. An unexpected *increase* also requires a conscious constant
+bump — coverage drift in either direction is flagged.
+
+### When the suite grows (three places to update)
+
+1. `run.sh` — bump `EXPECTED_TEST_FILES` and/or `EXPECTED_ASSERTIONS`
+2. This README — update the table above
+3. The test file table at the top of this README — add the new row
+
+Failure to update all three will cause `run.sh` to exit non-zero with a message
+like `HARNESS ERROR: expected 11 test files, executed 12`.

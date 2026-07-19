@@ -22,10 +22,21 @@
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Floor constants — exact expected counts (not minimums).
+# When adding or removing a test file or assertion, update ALL THREE:
+#   1. EXPECTED_TEST_FILES here
+#   2. EXPECTED_ASSERTIONS here
+#   3. README.md "Floor constants" section assertion count
+# This floor exists so silent coverage shrink fails loud (F-REL001-P7-001).
+# Precedent: scripts/check-non-exhaustive.sh EXPECTED=92 pattern.
+EXPECTED_TEST_FILES=11
+EXPECTED_ASSERTIONS=58
+
 PASS=0
 FAIL=0
 SKIP=0
 TOTAL=0
+FILES_EXECUTED=0
 
 echo "TAP version 13"
 echo "# S-REL-001 Release Gate — Red Gate validation suite"
@@ -35,6 +46,7 @@ echo ""
 
 for test_file in "${SCRIPT_DIR}"/test_AC-*.sh; do
   [ -f "$test_file" ] || continue
+  FILES_EXECUTED=$((FILES_EXECUTED + 1))
   test_name="$(basename "$test_file")"
   echo "# --- ${test_name} ---"
 
@@ -89,6 +101,16 @@ for test_file in "${SCRIPT_DIR}"/test_AC-*.sh; do
   echo ""
 done
 
+# Floor guard — exact equality, not >= (F-REL001-P7-001 / EXPECTED=92 precedent).
+# An unexpected increase also demands a conscious constant bump.
+if [ "$FILES_EXECUTED" -ne "$EXPECTED_TEST_FILES" ]; then
+  echo "HARNESS ERROR: expected ${EXPECTED_TEST_FILES} test files, executed ${FILES_EXECUTED} — add/remove a test_AC-*.sh file? Update EXPECTED_TEST_FILES + README."
+  exit 1
+fi
+if [ "$TOTAL" -ne "$EXPECTED_ASSERTIONS" ]; then
+  echo "HARNESS ERROR: expected ${EXPECTED_ASSERTIONS} assertions, counted ${TOTAL} — update EXPECTED_ASSERTIONS + README."
+  exit 1
+fi
 [ "$TOTAL" -gt 0 ] || { echo "HARNESS ERROR: no tests executed"; exit 1; }
 
 echo "# ========================================"
