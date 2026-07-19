@@ -481,10 +481,40 @@ async fn test_sap3_head_join_bare_unknown_col_plan_suspension() {
         );
     }
 
-    // Table-availability guard: TableNotAvailable (E-QUERY-037) fires BEFORE the column
-    // gate.  The make_join_engine() fixture registers both crowdstrike_alerts and
-    // some_other_table with expect(), so registration failure panics at setup time and
-    // this arm cannot be reached.  A comment suffices — no runtime assertion needed.
+    // ── Anti-vacuous-pass guard: TableNotAvailable (E-QUERY-037) ─────────────
+    // TableNotAvailable fires BEFORE the column gate in execute_inner.  Unlike the
+    // QueryParseFailed guard above (which is provably unreachable when the SQL is
+    // syntactically valid), TableNotAvailable CAN fire if the query's table names
+    // drift from the fixture's registered names — register_sensor(...).expect() only
+    // proves registration succeeded, NOT that the query's table names resolve.
+    // Symmetric runtime guard is required to catch that fixture/query drift.
+    if let Err(PrismError::TableNotAvailable(ref details)) = result {
+        panic!(
+            "SAP-3 [H8] VACUOUS-PASS GUARD: TableNotAvailable (E-QUERY-037) fired before \
+             column gate — column-availability gate was never reached, a suspension-arm \
+             regression would be invisible. Details: {}. \
+             If fixture table names drifted from the query table names, update one to match; \
+             make_join_engine() must register both 'crowdstrike_alerts' and \
+             'some_other_table', which must match the table names used in this test's query.",
+            details
+        );
+    }
+
+    // Pre-column-gate variants that are genuinely unreachable for this fixture/query:
+    //
+    // check_temporal_literals (E-QUERY-041 / E-QUERY-002): fires only when the query
+    // contains a temporal literal (e.g., `timestamp > '2024-01-01T00:00:00Z'`).  Our
+    // WHERE predicate is `totally_unknown_col = 'foo'` — a plain string comparison with
+    // no temporal literal syntax.  check_temporal_literals returns Ok(()) immediately.
+    //
+    // AuditTableAccessDenied (E-QUERY-011): check_internal_table_capabilities fires
+    // only for table names in INTERNAL_TABLE_DESCRIPTORS (e.g., `prism_audit`) that
+    // require the AuditRead capability.  `crowdstrike_alerts` and `some_other_table`
+    // are sensor tables not present in that descriptor set — this gate is structurally
+    // unreachable from a query that names only sensor tables.
+    //
+    // resolve_clients / CapabilityDenied: resolve_clients executes AFTER the column
+    // gate in execute_inner.  It cannot fire before the suspension arm is exercised.
 
     // ── SAP-3 gate assertion ─────────────────────────────────────────────────
     // Plan-time suspension MUST NOT surface ColumnNotFound for "totally_unknown_col".
