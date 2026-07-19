@@ -46,7 +46,7 @@ assert_contains() {
   local file="$1"
   local needle="$2"
   local ac_id="$3"
-  if grep -qF "$needle" "$file" 2>/dev/null; then
+  if grep -qF -- "$needle" "$file" 2>/dev/null; then
     tap_pass "${ac_id}: '${needle}' found in ${file##*/}"
   else
     tap_fail "${ac_id}: '${needle}' NOT found in ${file##*/}" \
@@ -59,7 +59,7 @@ assert_not_contains() {
   local file="$1"
   local needle="$2"
   local ac_id="$3"
-  if grep -qF "$needle" "$file" 2>/dev/null; then
+  if grep -qF -- "$needle" "$file" 2>/dev/null; then
     tap_fail "${ac_id}: forbidden '${needle}' found in ${file##*/}" \
       "${ac_id} FAIL: '${needle}' must not be present — found in ${file}"
   else
@@ -90,7 +90,7 @@ assert_not_in_functional_lines() {
   # Extract non-comment lines; suppress errors if file missing (caught by assert_file_exists).
   local functional_content
   functional_content=$(grep -v '^\s*#' "$file" 2>/dev/null) || true
-  if echo "$functional_content" | grep -qF "$needle" 2>/dev/null; then
+  if echo "$functional_content" | grep -qF -- "$needle" 2>/dev/null; then
     tap_fail "${ac_id}: '${needle}' found in functional lines of ${file##*/}" \
       "${ac_id} FAIL: '${needle}' must not appear in functional (non-comment) lines of ${file}"
   else

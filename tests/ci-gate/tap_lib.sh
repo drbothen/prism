@@ -45,7 +45,7 @@ assert_contains() {
   local file="$1"
   local needle="$2"
   local ac_id="$3"
-  if grep -qF "$needle" "$file" 2>/dev/null; then
+  if grep -qF -- "$needle" "$file" 2>/dev/null; then
     tap_pass "${ac_id}: '${needle}' found in ${file##*/}"
   else
     tap_fail "${ac_id}: '${needle}' NOT found in ${file##*/}" \
@@ -58,7 +58,7 @@ assert_not_contains() {
   local file="$1"
   local needle="$2"
   local ac_id="$3"
-  if grep -qF "$needle" "$file" 2>/dev/null; then
+  if grep -qF -- "$needle" "$file" 2>/dev/null; then
     tap_fail "${ac_id}: hardcoded value '${needle}' found in ${file##*/}" \
       "${ac_id} FAIL: '${needle}' must not be hardcoded — use secrets.VARNAME instead"
   else
