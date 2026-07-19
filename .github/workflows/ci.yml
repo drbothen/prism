@@ -2079,7 +2079,23 @@ jobs:
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 post-reclaimer neutralization check passed: ${count} sites (≥2 required)."
-          echo 'All verify-workflow-structure assertions pass (22 total: 20 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-mirrors (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-mirrors (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-post-reclaimer-truncate (count≥2) — 20 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 22 total checks.'
+          # S-REL-001 release-gate job reachability assertion (F-REL001-P3-OBS-002):
+          # The release-gate job is the SOLE CI enforcement for tests/release-gate/ suite on every
+          # PR/push. A future PR removing this job block would silently disable release criteria validation.
+          grep -qE '^  release-gate:' .github/workflows/ci.yml || {
+            echo "::error::F-REL001-P3-OBS-002: 'release-gate' job is missing from ci.yml — release criteria validation gate removed (S-REL-001 AC-012)"
+            exit 1
+          }
+          echo 'F-REL001-P3-OBS-002 reachability check passed: release-gate job definition present.'
+          # S-REL-001 release-gate suite run assertion (F-REL001-P3-OBS-002):
+          # The release-gate job must invoke tests/release-gate/run.sh — the run step is the
+          # actual enforcement; removing it while keeping the job stub would silently disable validation.
+          grep -qE 'tests/release-gate/run\.sh' .github/workflows/ci.yml || {
+            echo "::error::F-REL001-P3-OBS-002: tests/release-gate/run.sh invocation missing from ci.yml — release-gate suite no longer runs (S-REL-001 AC-012)"
+            exit 1
+          }
+          echo 'F-REL001-P3-OBS-002 run assertion passed: tests/release-gate/run.sh invocation present.'
+          echo 'All verify-workflow-structure assertions pass (24 total: 22 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-mirrors (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-mirrors (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-post-reclaimer-truncate (count≥2) + F-REL001-P3-OBS-002 (×2) — 22 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 24 total checks.'
 
   release-gate:
     name: Release gate (S-REL-001 AC-012)
@@ -2099,10 +2115,14 @@ jobs:
         run: |
           set -euo pipefail
           # Pin to 1.7.12 — minimum confirmed working version per S-REL-001 risk_mitigations.
-          # Download script to file before executing (avoids direct curl-pipe-to-bash pattern).
-          # Script deposits binary in CWD; move to /usr/local/bin to put on PATH.
-          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
+          # F-REL001-P3-003 / CWE-494: URL pinned to release tag (not moving /main ref) and
+          # SHA-256 integrity check added before executing, consistent with SEC-001/CWE-494
+          # discipline established by the wasm-tools install steps above.
+          # Checksum source: downloaded from raw.githubusercontent.com over HTTPS and computed 2026-07-19.
+          EXPECTED_SHA256="72fa3e45ac20f3c3a512d6747b4fcf719e21f890e8c43e78d48a41fdfb900c4e"
+          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash \
             -o /tmp/download-actionlint.bash
+          echo "${EXPECTED_SHA256}  /tmp/download-actionlint.bash" | sha256sum -c
           bash /tmp/download-actionlint.bash 1.7.12
           mv ./actionlint /usr/local/bin/actionlint
           actionlint --version
