@@ -426,6 +426,13 @@ fn test_sap3_sql_mode_ieq_rejection_wire_shape() {
 /// whereas the synthetic Test B below (`test_sap3_head_join_bare_unknown_col_wire_shape`)
 /// would continue to pass — demonstrating that this test is the load-bearing SAP-3 gate.
 ///
+/// **Anti-vacuous-pass guard (PR-LEVEL OBS-1):** the test explicitly rejects
+/// `Err(PrismError::QueryParseFailed)` before the main column-gate assertion.
+/// If the query fails at parse time the planner is never reached and a suspension-arm
+/// regression would be invisible (the test would pass vacuously).  `TableNotAvailable`
+/// cannot fire because `make_join_engine()` registers both tables with `expect()`
+/// (setup panic prevents reaching the assertion).
+///
 /// Engine fixture: `make_join_engine()` — two tables registered in `TableRegistry`,
 /// empty `AdapterRegistry` (no real fan-out; execution returns empty batches after
 /// plan gates pass). Single-tenant mode (`resolved_spec_map = None`).
@@ -456,10 +463,33 @@ async fn test_sap3_head_join_bare_unknown_col_plan_suspension() {
         )
         .await;
 
+    // ── Anti-vacuous-pass guard (PR-LEVEL OBS-1) ─────────────────────────────
+    // If the query fails at PARSE time, the planner is never reached and a
+    // suspension-arm regression is invisible — the test would pass vacuously.
+    // Explicitly reject QueryParseFailed to prove reachability.
+    if let Err(PrismError::QueryParseFailed {
+        ref detail, offset, ..
+    }) = result
+    {
+        panic!(
+            "SAP-3 [H8] VACUOUS-PASS GUARD: query failed at PARSE time (offset={offset}), \
+             planner never reached — suspension-arm regression would be invisible. \
+             QueryParseFailed detail: {:?}. \
+             If SQL syntax changed, update the query in this test; \
+             if a grammar change caused this, investigate before loosening the guard.",
+            &detail[..detail.len().min(200)]
+        );
+    }
+
+    // Table-availability guard: TableNotAvailable (E-QUERY-037) fires BEFORE the column
+    // gate.  The make_join_engine() fixture registers both crowdstrike_alerts and
+    // some_other_table with expect(), so registration failure panics at setup time and
+    // this arm cannot be reached.  A comment suffices — no runtime assertion needed.
+
     // ── SAP-3 gate assertion ─────────────────────────────────────────────────
     // Plan-time suspension MUST NOT surface ColumnNotFound for "totally_unknown_col".
-    // Any result other than ColumnNotFound (Ok, TableNotAvailable, QueryExecutionFailed,
-    // QueryTimeout, …) is acceptable here — we are testing the PLANNER, not the executor.
+    // The anti-vacuous-pass guards above ensure the planner was reached.
+    // Acceptable outcomes: Ok (empty results), QueryExecutionFailed, QueryTimeout, etc.
     if let Err(PrismError::ColumnNotFound(ref details)) = result {
         panic!(
             "SAP-3 [H8] PLANNER RED GATE: HEAD-JOIN suspension FAILED — E-QUERY-038 \
@@ -474,8 +504,8 @@ async fn test_sap3_head_join_bare_unknown_col_plan_suspension() {
             details.column, details.table, details.available_columns
         );
     }
-    // Other outcomes (Ok, other Err variants) mean the suspension fired correctly and
-    // execution proceeded past the plan-time gate — test passes.
+    // Other outcomes (Ok, QueryExecutionFailed, etc.) mean the suspension fired
+    // correctly and execution proceeded past the plan-time gate — test passes.
 }
 
 // ── Test B: [H8] error-mapping defense-in-depth → E-QUERY-034, NOT E-QUERY-038 ─
