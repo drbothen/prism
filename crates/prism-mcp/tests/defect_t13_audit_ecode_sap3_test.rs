@@ -5,31 +5,59 @@
 //! `structuredContent.error.code`.  These tests lock the wire-level behaviour that
 //! the engine is **spec-correct** — they are regression coverage, NOT Red Gate tests.
 //!
-//! Both tests satisfy SAP-3 (spec-arm reachability) and SID-2 (composed-output
-//! assertions) per CLAUDE.md §Standing Adversary Probes & Implementer Disciplines:
+//! ## SAP-3 / SID-2 compliance
 //!
-//! - SAP-3: each test drives end-to-end through `prism_error_to_structured_call_result`
-//!   (the MCP tool boundary), not a stub or internal helper, and asserts on the
-//!   SERIALISED JSON output.
-//! - SID-2: at least one assertion covers the FULL composed `content[].text` string,
-//!   not only its component fields.
+//! Each test satisfies SAP-3 (spec-arm reachability) and SID-2 (composed-output
+//! assertions) per CLAUDE.md §Standing Adversary Probes & Implementer Disciplines.
 //!
-//! Wire-shape discipline (CLAUDE.md §Conventions wire-shape assertion discipline):
-//! Every assertion targets the SERIALISED JSON bytes — the exact envelope the LLM
-//! agent consumes — via `serde_json::to_string` on `structured_content`.
+//! - **[G4] coverage**: `test_sap3_sql_mode_ieq_rejection_wire_shape` drives the
+//!   query through `PrismQlParser::parse` (confirming the parse-rejection path IS
+//!   reachable), then through `prism_error_to_structured_call_result` (the
+//!   error-response constructor) and asserts on the SERIALISED JSON output.
+//!
+//! - **[H8] coverage (two-layer)**:
+//!   1. `test_sap3_head_join_bare_unknown_col_plan_suspension` — **end-to-end
+//!      planner test** (SAP-3 primary): drives a HEAD-JOIN + bare-unknown-col query
+//!      through `QueryEngine::execute` (parser → plan gates) and asserts the
+//!      plan-time E-QUERY-038 gate is SUSPENDED (fail-open per BC-2.11.016 §FP-001).
+//!      This catches a planner regression where the suspension arm is removed.
+//!   2. `test_sap3_head_join_bare_unknown_col_wire_shape` — **error-mapping
+//!      defense-in-depth**: hand-builds `QueryExecutionFailed` and drives it through
+//!      `prism_error_to_structured_call_result`, asserting the JSON code field is
+//!      "E-QUERY-034" (not "E-QUERY-038").  Catches a mapping regression in
+//!      `error_mapping.rs`; cannot catch a planner regression on its own.
+//!
+//! - **SID-2**: at least one assertion covers the FULL composed `content[].text` string.
+//!
+//! ## Wire-shape discipline
+//!
+//! Wire-shape assertions target the SERIALISED JSON bytes — the exact envelope the
+//! LLM agent consumes — via `serde_json::to_string` on `structured_content`
+//! (CLAUDE.md §Conventions wire-shape assertion discipline, 2026-07-13).
 //!
 //! # Test → defect mapping
 //!
 //! | Test | Defect check | BC |
 //! |------|--------------|----|
-//! | test_sap3_sql_mode_ieq_rejection_wire_shape | [G4] | BC-2.11.017 AC-003 / BC-2.11.024 |
-//! | test_sap3_head_join_bare_unknown_col_wire_shape | [H8] | BC-2.11.016 §FP-001 / BC-2.10.007 |
+//! | test_sap3_sql_mode_ieq_rejection_wire_shape        | [G4]  | BC-2.11.017 AC-003 / BC-2.11.024 |
+//! | test_sap3_head_join_bare_unknown_col_plan_suspension | [H8] | BC-2.11.016 §FP-001 (planner gate) |
+//! | test_sap3_head_join_bare_unknown_col_wire_shape    | [H8]  | BC-2.11.016 §FP-001 / BC-2.10.007 |
 
 #![allow(clippy::unwrap_used, clippy::expect_used, non_snake_case)]
 
-use prism_core::error::PrismError;
+use std::sync::Arc;
+
+use prism_core::{column::ColumnType, error::PrismError, OrgSlug};
+use prism_credentials::InMemoryCredentialStore;
 use prism_mcp::error_mapping::prism_error_to_structured_call_result;
-use prism_query::PrismQlParser;
+use prism_query::{
+    engine::{QueryEngine, QueryEngineConfig, QueryOptions},
+    scoping::ClientRegistry,
+    table_registry::TableRegistry,
+    PrismQlParser,
+};
+use prism_sensors::AdapterRegistry;
+use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec};
 
 // ── Helper: extract content[0].text from a CallToolResult ────────────────────
 
@@ -42,11 +70,85 @@ fn content_text(result: &rmcp::model::CallToolResult) -> String {
         .join("\n")
 }
 
+// ── Fixture: QueryEngine with crowdstrike_alerts + some_other_table ───────────
+
+/// Build a minimal single-tenant `QueryEngine` with two tables registered:
+///   - `crowdstrike_alerts` (columns: `severity` String, `timestamp` Datetime)
+///   - `some_other_table`  (columns: `col` String, `id` String)
+///
+/// No real sensor adapters are wired — `AdapterRegistry` is empty.  This is
+/// sufficient for plan-time gate testing; fan_out returns empty batches.
+///
+/// Used by `test_sap3_head_join_bare_unknown_col_plan_suspension`.
+fn make_join_engine() -> (QueryEngine, OrgSlug) {
+    let org = OrgSlug::new("acme");
+
+    // ── Primary: crowdstrike_alerts ───────────────────────────────────────────
+    let cs_spec = SensorSpec::new(
+        "crowdstrike",
+        "CrowdStrike sensor",
+        AuthType::ApiKey,
+        "https://api.crowdstrike.com",
+        vec![TableSpec::new_point_in_time(
+            "alerts",
+            "security_finding",
+            vec![
+                ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+                ColumnSpec::new("timestamp", ColumnType::Datetime, None, vec![]),
+            ],
+            vec![],
+        )],
+        None,
+        "1.0.0",
+        Vec::new(),
+    );
+
+    // ── JOIN target: some_other_table ─────────────────────────────────────────
+    let jo_spec = SensorSpec::new(
+        "some_other",
+        "Some Other sensor",
+        AuthType::ApiKey,
+        "https://api.example.com",
+        vec![TableSpec::new_point_in_time(
+            "table",
+            "some_category",
+            vec![
+                ColumnSpec::new("col", ColumnType::String, None, vec![]),
+                ColumnSpec::new("id", ColumnType::String, None, vec![]),
+            ],
+            vec![],
+        )],
+        None,
+        "1.0.0",
+        Vec::new(),
+    );
+
+    let registry = Arc::new(TableRegistry::new());
+    registry
+        .register_sensor(&cs_spec)
+        .expect("make_join_engine: register crowdstrike_alerts must not fail");
+    registry
+        .register_sensor(&jo_spec)
+        .expect("make_join_engine: register some_other_table must not fail");
+
+    let engine = QueryEngine::new_with_cache_config(
+        Arc::new(AdapterRegistry::new()),
+        Arc::new(InMemoryCredentialStore::new()),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        prism_query::cache::CacheConfig::default(),
+    )
+    .with_table_registry(registry);
+
+    (engine, org)
+}
+
 // ── Test A: [G4] SQL-mode IEQ rejection → E-QUERY-001 ────────────────────────
 
 /// SAP-3 wire-level regression: SQL-mode IEQ rejection emits `code == "E-QUERY-001"` in
 /// `structuredContent.error`, while `content[].text` carries NO E-code (BC-2.10.007
-/// message/suggestion split — the pedagogical code lives in structured content only).
+/// message/suggestion split — the canonical code lives in structured content only).
 ///
 /// Defect: T13 audit check [G4] was a false FAIL because `parse_envelope` read the
 /// regex-scraped code from message text ("PrismQL parse error: ...") which contains
@@ -54,10 +156,20 @@ fn content_text(result: &rmcp::model::CallToolResult) -> String {
 /// `structuredContent.error.code == "E-QUERY-001"` (via `ec_code_override` in
 /// `error_mapping.rs`).
 ///
-/// SAP-3: drives from the PUBLIC MCP surface — the real `PrismQlParser::parse` is
-/// called first to confirm the query IS rejected, then `prism_error_to_structured_call_result`
-/// (the actual MCP tool boundary) is exercised.  The assertion is on the SERIALISED
-/// JSON envelope.
+/// SAP-3: drives from the parser surface — `PrismQlParser::parse` is called first
+/// (SAP-3 reachability: confirms the parse-rejection arm IS reached from the public
+/// surface), then `prism_error_to_structured_call_result` (the error-response
+/// constructor) is exercised.  The assertion is on the SERIALISED JSON envelope.
+///
+/// Coupling note (OBS-2 / ADR-048 §D.7.2 de-prefix discipline): the production
+/// path (`materialization.rs` line ~612) strips `"E-QUERY-001: "` from the SQL
+/// parser's `ParseError.message` before injecting it into `QueryParseFailed.detail`,
+/// preventing the prefix from doubling in the Display template.  This test mimics
+/// that stripping so it exercises the same wire shape the live audit sees.
+/// The assertion at Step 2a below pins this coupling: if the SQL parser STOPS
+/// prefixing messages with "E-QUERY-001: ", the assertion fires and alerts
+/// maintainers that the de-prefix strip is now a no-op (and the de-prefix code
+/// in `materialization.rs` should be reviewed).
 ///
 /// SID-2: the full composed `content[].text` is asserted (not only the `code` field).
 ///
@@ -82,6 +194,20 @@ fn test_sap3_sql_mode_ieq_rejection_wire_shape() {
     // "E-QUERY-001: " from parse error messages before injecting into QueryParseFailed.detail
     // to prevent doubling by the `#[error]` template.  Mimic that here so the test
     // exercises the same wire shape the live audit sees.
+
+    // 2a. COUPLING PIN (OBS-2): assert that the SQL parser DOES prefix messages with
+    //     "E-QUERY-001: " so the strip_prefix below is load-bearing.  If this assertion
+    //     fails, `sql_parser.rs` changed its error format and `materialization.rs`
+    //     de-prefix stripping at line ~612 should be revisited.
+    assert!(
+        first.message.starts_with("E-QUERY-001: "),
+        "SAP-3 [G4] de-prefix coupling pin: SQL parser must emit ParseError.message \
+         starting with 'E-QUERY-001: ' (ADR-048 §D.7.2 / sql_parser.rs BC-2.11.024 §SQL-Mode \
+         Rejection). Got: {:?}. If this assertion fails, review the de-prefix strip in \
+         materialization.rs and update the coupling here.",
+        &first.message[..first.message.len().min(80)]
+    );
+
     let detail = first
         .message
         .strip_prefix("E-QUERY-001: ")
@@ -161,20 +287,102 @@ fn test_sap3_sql_mode_ieq_rejection_wire_shape() {
     );
 }
 
-// ── Test B: [H8] HEAD-JOIN bare unknown col → E-QUERY-034, NOT E-QUERY-038 ───
+// ── Test B2: [H8] SAP-3 planner-level — HEAD-JOIN suspension gate ─────────────
 
-/// SAP-3 wire-level regression: `QueryExecutionFailed` (the HEAD-JOIN fail-open variant)
-/// emits `code == "E-QUERY-034"` in `structuredContent.error`, while `content[].text`
-/// carries the redacted "Internal error" form with NO E-code (Rule-1 redaction, BC-2.10.007).
+/// SAP-3 planner-level test: a SQL query with a non-empty HEAD JOIN list and a
+/// bare unqualified column reference absent from the FROM table MUST NOT fire
+/// `PrismError::ColumnNotFound` (E-QUERY-038) at plan time.
+///
+/// This is the **primary SAP-3 coverage** for BC-2.11.016 §HEAD-JOIN SUSPENSION RULE:
+/// it drives from the public `QueryEngine::execute` surface through the full
+/// parser + planner path and asserts that `check_query_column_availability` suspends
+/// the E-QUERY-038 gate (fail-open per FP-001) when `head_has_joins = true` and the
+/// referenced column (`totally_unknown_col`) is absent from the FROM table schema.
+///
+/// A planner regression that removes or narrows the suspension arm would cause this
+/// test to fail (E-QUERY-038 would surface as `Err(PrismError::ColumnNotFound)`),
+/// whereas the synthetic Test B below (`test_sap3_head_join_bare_unknown_col_wire_shape`)
+/// would continue to pass — demonstrating that this test is the load-bearing SAP-3 gate.
+///
+/// Engine fixture: `make_join_engine()` — two tables registered in `TableRegistry`,
+/// empty `AdapterRegistry` (no real fan-out; execution returns empty batches after
+/// plan gates pass). Single-tenant mode (`resolved_spec_map = None`).
+///
+/// T13 live-audit coverage for [H8]: `scripts/t13-preflight-audit.py` check [H8]
+/// exercises the full HEAD-JOIN execution path against a live DTU endpoint; this
+/// in-process test provides continuous regression coverage without a live DTU.
+///
+/// BC-2.11.016 §HEAD-JOIN SUSPENSION RULE / §FP-001 / BC-2.10.007.
+#[tokio::test]
+async fn test_sap3_head_join_bare_unknown_col_plan_suspension() {
+    let (engine, _org) = make_join_engine();
+
+    // Query with HEAD JOIN + bare unqualified ref "totally_unknown_col" absent from
+    // crowdstrike_alerts schema.  HEAD-JOIN SUSPENSION RULE: non-empty join list →
+    // E-QUERY-038 gate MUST be suspended for this bare ref (fail-open per FP-001).
+    let query = "SELECT severity FROM crowdstrike_alerts \
+                 JOIN some_other_table ON crowdstrike_alerts.severity = some_other_table.id \
+                 WHERE totally_unknown_col = 'foo'";
+
+    let result = engine
+        .execute(
+            query,
+            QueryOptions {
+                clients: None,
+                ..QueryOptions::default()
+            },
+        )
+        .await;
+
+    // ── SAP-3 gate assertion ─────────────────────────────────────────────────
+    // Plan-time suspension MUST NOT surface ColumnNotFound for "totally_unknown_col".
+    // Any result other than ColumnNotFound (Ok, TableNotAvailable, QueryExecutionFailed,
+    // QueryTimeout, …) is acceptable here — we are testing the PLANNER, not the executor.
+    if let Err(PrismError::ColumnNotFound(ref details)) = result {
+        panic!(
+            "SAP-3 [H8] PLANNER RED GATE: HEAD-JOIN suspension FAILED — E-QUERY-038 \
+             fired for column '{}' in table '{}'. \
+             BC-2.11.016 §HEAD-JOIN SUSPENSION RULE (FP-001): when `sql_query.joins` is \
+             non-empty AND the reference is a bare unqualified ref absent from the FROM \
+             schema, the E-QUERY-038 gate MUST NOT fire (fail-open). \
+             Fix: verify `head_has_joins = !sql_query.joins.is_empty()` in \
+             `check_query_column_availability` and that the suspension arm \
+             `Err(PrismError::ColumnNotFound(_)) => {{}}` is reachable. \
+             Available columns reported: {:?}",
+            details.column, details.table, details.available_columns
+        );
+    }
+    // Other outcomes (Ok, other Err variants) mean the suspension fired correctly and
+    // execution proceeded past the plan-time gate — test passes.
+}
+
+// ── Test B: [H8] error-mapping defense-in-depth → E-QUERY-034, NOT E-QUERY-038 ─
+
+/// SAP-3 error-mapping defense-in-depth: `QueryExecutionFailed` (the execution-time
+/// variant that HEAD-JOIN fail-open produces at DataFusion execution) emits
+/// `code == "E-QUERY-034"` in `structuredContent.error`, while `content[].text`
+/// carries the redacted "Internal error" form with NO E-code (Rule-1 redaction,
+/// BC-2.10.007).
+///
+/// **Scope**: this test covers the error-response constructor
+/// (`prism_error_to_structured_call_result`) path only — it hand-builds a
+/// `PrismError::QueryExecutionFailed` directly and does NOT drive through the
+/// parser or planner.  A planner regression that changes the error variant fired
+/// (e.g., E-QUERY-038 fires before reaching execution) would NOT be caught here;
+/// that regression is caught by `test_sap3_head_join_bare_unknown_col_plan_suspension`
+/// above (the primary SAP-3 gate for [H8]).
+///
+/// **Reachability rationale**: `QueryExecutionFailed` is produced by the DataFusion
+/// execution path when a bare unqualified column is absent from ALL join sources at
+/// run time (the column DID pass the plan-time suspension gate).  The T13 live-audit
+/// [H8] check exercises this path against a live DTU endpoint; this in-process test
+/// covers only the error-mapping half of the path without a live DTU.
 ///
 /// Defect: T13 audit check [H8] was a false FAIL because `parse_envelope` read the
-/// regex-scraped code from message text ("ERROR: [internal] - Internal error. ...") which
-/// contains no E-code, yielding "UNKNOWN".  The canonical code lives in
+/// regex-scraped code from message text ("ERROR: [internal] - Internal error. ...")
+/// which contains no E-code, yielding "UNKNOWN".  The canonical code lives in
 /// `structuredContent.error.code == "E-QUERY-034"` (via `ec_code_override` in the
 /// six-variant query-engine arm of `error_mapping.rs`).
-///
-/// SAP-3: drives through `prism_error_to_structured_call_result` (the MCP tool boundary)
-/// and asserts on the SERIALISED JSON envelope.
 ///
 /// SID-2: the full composed `content[].text` is asserted (not only the `code` field).
 ///
