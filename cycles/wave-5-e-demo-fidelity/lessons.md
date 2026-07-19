@@ -3654,3 +3654,64 @@ This evidence summary serves two purposes: (a) it gives the subagent transcript 
 **Closes:** D-1858
 
 **Source:** D-1858 (2026-07-18) — PR #226 H-range body-micro-fix dispatch; violation #7; S-MAINT-PRMGR-HOOK-SCOPE-001 AC-006 mitigation-effectiveness evidence.
+
+---
+
+### Lesson 73 — [spec-instrument] Audit instrument expectations must read structuredContent.error.code, not content[].text (D-1872)
+
+**Classification:** SPEC-INSTRUMENT — D-1872 (2026-07-19); DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001; SAP-3 codification.
+
+**Finding:** The T13 pre-flight audit (`scripts/t13-preflight-audit.py`) reported [G4] and [H8] as FAILs, claiming the MCP engine returned UNKNOWN error codes where E-QUERY-001 and E-QUERY-034 were expected. Codebase analysis confirmed the engine was spec-correct. Root cause: `parse_envelope` extracted the error code by regex-scraping `content[].text` (the human-readable message string). For parse errors (BC-2.11.017) the text intentionally carries no error code; for internal-redacted variants (BC-2.10.007 Category=internal) the text is also code-free by design. The canonical machine-readable error code lives in `structuredContent.error.code` — a separate JSON field that `parse_envelope` never read.
+
+**Codified rules:**
+
+1. **Audit instruments reading MCP tool responses MUST read `structuredContent.error.code` as the authoritative error code field** (BC-2.10.007). `content[].text` is the human-readable message — intentionally code-free for parse errors and internally-redacted variants.
+2. **Any audit script that regex-scrapes error codes from message text is structurally fragile.** Even if it passes today, future message-text changes will silently corrupt audit results. The wire-level structured field is the only stable contract.
+3. **A "FAIL" from an audit instrument is not authoritative evidence of an engine defect.** Before filing a defect, verify the instrument itself reads the canonical output field. Instrument defects are cheaper to fix than engine-side changes that were correct.
+4. **SAP-3 standing probe applies to audit instruments as well:** if no test asserts the full end-to-end wire path (instrument → MCP response → structured field), the coverage gap is invisible until a live run exposes it.
+
+**Closes:** D-1872 (instrument defect root cause)
+
+**Source:** D-1872 (2026-07-19) — DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001; codebase-analyzer triage; BC-2.10.007; SAP-3 gap.
+
+---
+
+### Lesson 74 — [tdd-discipline] Empirical STOP-tripwires caught wrong load-bearing fixture assumption (D-1872)
+
+**Classification:** TDD-DISCIPLINE — D-1872 (2026-07-19); DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 fix lane; SID-1/SAP-3 intersection.
+
+**Finding:** During the SAP-3 end-to-end test authoring phase, the initial fixture used an empty `AdapterRegistry`. The test appeared to run but always returned `Ok(vec![])` (zero rows) without exercising the error-code path. This is BC-2.11.011 EC-005: zero-batch fan-out skip — when no adapter is registered for the queried sensor, the engine skips predicate schema evaluation entirely and returns an empty result rather than an error. The test was vacuously passing because the fixture never reached the code under test.
+
+**Detection mechanism:** The adversary's anti-vacuous guard in the test (asserting that the result is NOT `Ok(vec![])`) triggered and failed, surfacing the fixture defect before any coverage claim could be made. The false-green was caught before it could escape to the PR.
+
+**Codified rules:**
+
+1. **End-to-end error-path tests MUST use an execution-capable fixture** (one that actually registers a mock adapter for the sensor being queried). An empty registry will silently short-circuit at the fan-out layer, returning Ok(empty) instead of exercising error propagation.
+2. **Anti-vacuous guards are load-bearing.** Every test that asserts an error code or structured error response SHOULD also assert that the result is not vacuously empty. `assert!(!result.is_empty(), "fixture must not skip execution")` is cheap insurance.
+3. **`sensor_id_from_table_name` splits at first underscore.** A mock adapter registered as `some_other` is invisible to a query against `some_other_sensor` — the function extracts `some` as the sensor ID. Use the correct prefix or register the adapter under the correct extracted ID.
+4. **BC-2.11.011 EC-005 (zero-batch skip) is a vacuous-test trap.** Whenever a new test queries a sensor table, verify that the adapter registry has an entry for the extracted sensor_id before trusting the result.
+
+**Closes:** D-1872 (fixture design trap; anti-vacuous guard value)
+
+**Source:** D-1872 (2026-07-19) — DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 fix lane passes 1–3; execution-capable fixture discovery; BC-2.11.011 EC-005.
+
+---
+
+### Lesson 75 — [process-gap] Classifier human-in-the-loop merge friction pattern S-MAINT-PRMGR-HOOK-SCOPE-001 (D-1872)
+
+**Classification:** PROCESS-GAP — D-1872 (2026-07-19); S-MAINT-PRMGR-HOOK-SCOPE-001 +4 instances; auto-mode classifier merge-block escalation.
+
+**Finding:** Four additional classifier merge-block instances occurred this session during the DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 PR #227 merge: (1) pr-manager refused orchestrator-relayed merge authorization ×2 (evidence-context-asymmetry — authorization lived in orchestrator context, invisible to pr-manager transcript); (2) github-ops dispatch for merge execution denied ×2 (classifier flagged the merge command as requiring direct human consent). Resolution in all four cases: human answered AskUserQuestion + typed explicit consent; merge executed via orchestrator Bash call directly. Total S-MAINT-PRMGR-HOOK-SCOPE-001 evidence across all sessions: 11+ classifier holds.
+
+**Pattern:** The FM4/STEP_COMPLETE hook in pr-manager drives the full 9-step lifecycle regardless of dispatch scope. When the hook fires at the merge step, the classifier sees a merge action in a subagent that was not explicitly authorized at the subagent level — even if the orchestrator received human authorization. Evidence-context-asymmetry means the subagent's transcript never carries the authorization evidence.
+
+**Codified rules:**
+
+1. **Orchestrator merge authorization must be embedded verbatim in the pr-manager dispatch prompt** (D-1843 mitigation). The orchestrator's "human said yes" is invisible to the subagent unless explicitly written into the dispatch.
+2. **When the classifier blocks after evidence embedding, escalate to AskUserQuestion.** Do not retry the same dispatch prompt. The human's direct response resolves the block conclusively.
+3. **The fallback for intractable pr-manager merge blocks is orchestrator Bash execution** (`gh pr merge NNN --squash --delete-branch`). This is not a safety violation — it is the designed escalation path when the subagent cannot execute a pre-authorized action.
+4. **S-MAINT-PRMGR-HOOK-SCOPE-001 evidence continues to accumulate.** Story-writer owes an AC-004 violation-count update in the story body. The upstream fix (FM4/STEP_COMPLETE scope guard) is the only permanent resolution.
+
+**Closes:** D-1872 (classifier merge-friction instances this session)
+
+**Source:** D-1872 (2026-07-19) — PR #227 merge gate; S-MAINT-PRMGR-HOOK-SCOPE-001 +4 instances; AskUserQuestion resolution pattern.

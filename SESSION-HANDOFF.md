@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.992"
+version: "7.993"
 status: current
-timestamp: 2026-07-17T20:00:00Z
+timestamp: 2026-07-19T14:30:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -124,13 +124,40 @@ timestamp: 2026-07-17T20:00:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1871 SESSION WRAP — BOTH DEMO-BLOCKING LANES CLOSED. ALL T13 PRECONDITIONS CLOSED. NEXT: T13 capstone on develop@97d7335d (runbook v1.12 §1.6 go/no-go audit, 106 checks, DEMO-READY gate) → T14 recording.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1871 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1871 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `97d7335d` — PUSHED (PR #226 squash-merged 2026-07-18T22:47:30Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.425. D-1871 SESSION WRAP complete; ALL T13 PRECONDITIONS CLOSED; NEXT: T13 capstone.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1872 POST-MERGE BURST — DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 PR #227 MERGED @e116a587. T13 AUDIT INSTRUMENT FIXED (structuredContent.error.code authoritative); live re-run 106/106 DEMO-READY: YES ×2. NEXT: T13 capstone on develop@e116a587 → T14 recording. HUMAN ACTION REQUIRED before T14: interactive bash scripts/demo-setup.sh keychain auth.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1872 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1872 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `e116a587` — PUSHED (PR #227 squash-merged 2026-07-19T14:27:25Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.426. D-1872 POST-MERGE BURST complete; DEMO-READY: YES; NEXT: T13 capstone → T14 recording.
 
 ---
 
-## §RESUME SNAPSHOT — D-1871 (2026-07-18 — SESSION WRAP; BOTH LANES CLOSED; STATE v8.425) [SUPERSEDES D-1870]
+## §RESUME SNAPSHOT — D-1872 (2026-07-19 — POST-MERGE BURST; DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 MERGED; STATE v8.426) [SUPERSEDES D-1871]
+
+### RESUME IN ONE BREATH
+DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 PR #227 squash-merged @e116a587 = current develop (local==origin). T13 audit instrument FIXED: parse_envelope now reads structuredContent.error.code (authoritative per BC-2.10.007); live re-run 106/106 DEMO-READY: YES ×2. workspace_test_count 5676. NEXT: T13 capstone on develop@e116a587 → T14 BLOCKED pending secops-factory integration planning (D-1873; stories not yet materialized; orchestrator planning in progress). **HUMAN ACTION REQUIRED before T14**: interactive `bash scripts/demo-setup.sh` for macOS Keychain auth (repeat after every release rebuild — non-scriptable).
+
+### HEADS (verified 2026-07-19 D-1872 wrap)
+- develop: local == origin/develop == `e116a587` (PR #227 squash-merged 2026-07-19T14:27:25Z) — PUSHED
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code)
+- `.worktrees/S-3.09` @`43c41389` feature/S-3.09 LOCAL-ONLY — KEEP-PARKED
+- `.worktrees/W3-FIX-S307-001` @`fcab8717` LOCAL-ONLY dirty=1 — PARKED-DIRTY do-NOT-touch
+- Main tree residue (pre-existing, NOT session products): staged .github/workflows/ci.yml + e2e.yml (unknown provenance — do not commit/discard without human review); untracked .playwright-mcp/, drawio exports, mutants.out*, scripts/__pycache__
+- No open PRs. `develop` and `factory-artifacts` PUSHED; all others LOCAL-ONLY.
+
+### PER-WORKSTREAM NEXT-ACTIONS
+1. **T13 capstone (FIRST ACTION)** — develop@e116a587; audit instrument now trustworthy (D-1872); follow runbook v1.12 §1.6 pre-flight audit (106 checks, DEMO-READY YES required) → §2–§5 SOC-analyst walkthrough. Complete during planning wait.
+2. **T14 demo recording** — BLOCKED pending secops-factory integration decisions (D-1873): demo to run through the secops-factory plugin; orchestrator planning in progress; stories TBD.
+3. **S-MAINT-PRMGR-HOOK-SCOPE-001** (draft v0.1, STORY-INDEX v2.714) — deliver post-T14 or next maintenance burst.
+4. **Carried**: S-3.09 EC-collision option (human), W3-FIX-S307-001 disposition (human), DRIFT-SDEMO004-TODO-SECTIONS-001, PG-CLIPPY-ALLTARGETS-001 (post-T14).
+
+### PENDING USER-APPROVED-UNSTARTED
+secops-factory integration story materialization (D-1873; orchestrator planning in progress).
+
+### DECISION DELTA (session 2026-07-19)
+D-1872..D-1873 (exhaustive) — 2 decisions: PR #227 DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 post-merge burst (D-1872); T14 BLOCKED secops-factory integration planning announced (D-1873). workspace_test_count 5672→5676. STATE v8.425→v8.426.
+
+---
+
+## §RESUME SNAPSHOT — D-1871 (2026-07-18 — SESSION WRAP; BOTH LANES CLOSED; STATE v8.425) [SUPERSEDES D-1870] [SUPERSEDED by D-1872]
 
 ### RESUME IN ONE BREATH
 BOTH DEMO-BLOCKING LANES CLOSED: PR #225 ADMINTOKEN merged @277b7844 and PR #226 AUDIT-COVERAGE (T13 audit instrument) merged @97d7335d = current develop head (local==origin). Runbook v1.12 §1.6 Pre-Flight Audit authored (D-1870) — ALL T13 PRECONDITIONS CLOSED. VERY NEXT ACTION: T13 capstone run on develop@97d7335d (fleet up via scripts/demo-run.sh → runbook §1.6 go/no-go audit, 106 checks, DEMO-READY gate → SOC-analyst walkthrough) → T14 demo recording. Fresh session recommended.

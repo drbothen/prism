@@ -217,3 +217,13 @@ _Archived to session-checkpoints.md by D-1659 burst (state-manager keep-last-1 d
 **HEADS:** develop `277b7844` (PR #225 squash-merged 2026-07-18; EXPECTED=92; PUSHED); fix/T13-audit-coverage @8d116f62 PUSHED; PR #226 OPEN; LOCAL 3-CLEAN CONVERGED; PR-LEVEL 0/3 RESTART pending CI; feature/S-3.09 @43c41389 KEEP-PARKED; feature/W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch; develop and factory-artifacts PUSHED; fix/T13-audit-coverage PUSHED; all others LOCAL-ONLY.
 
 **NOTE: Superseded by D-1869 — PR #226 SQUASH-MERGED @97d7335d 2026-07-18T22:47:30Z; PR-LEVEL 3-CLEAN CONVERGED (F-AUD-PR5/PR6/PR7 on 8d116f62); LANE 1 CLOSED; T13 capstone UNBLOCKED. STATE v8.422→v8.423.**
+
+---
+
+## Archived: D-1871 — 2026-07-18 — SESSION WRAP; BOTH LANES CLOSED; STATE v8.425
+
+**RESUME IN ONE BREATH:** BOTH DEMO-BLOCKING LANES CLOSED: PR #225 ADMINTOKEN merged @277b7844 and PR #226 AUDIT-COVERAGE (T13 audit instrument) merged @97d7335d = current develop head (local==origin). Runbook v1.12 §1.6 Pre-Flight Audit authored (D-1870) — ALL T13 PRECONDITIONS CLOSED. VERY NEXT ACTION: T13 capstone run on develop@97d7335d (fleet up via scripts/demo-run.sh → runbook §1.6 go/no-go audit, 106 checks, DEMO-READY gate → SOC-analyst walkthrough) → T14 demo recording. Fresh session recommended.
+
+**HEADS:** develop `97d7335d` (PR #226 squash-merged 2026-07-18T22:47:30Z; local==origin — PUSHED); factory-artifacts: `git -C .factory log -1 --format='%h %s'`; feature/S-3.09 @43c41389 KEEP-PARKED (LOCAL-ONLY); feature/W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch (LOCAL-ONLY); develop and factory-artifacts PUSHED; all others LOCAL-ONLY. No open PRs.
+
+**NOTE: Superseded by D-1872 — DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 PR #227 MERGED @e116a587 2026-07-19T14:27:25Z; T13 audit instrument FIXED (structuredContent.error.code authoritative); DEMO-READY: YES ×2; workspace_test_count 5676; T14 BLOCKED pending secops-factory integration (D-1873). STATE v8.425→v8.426.**

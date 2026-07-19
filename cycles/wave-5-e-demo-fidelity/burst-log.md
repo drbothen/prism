@@ -300,3 +300,39 @@ _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and
 - D-1867: pr-reviewer APPROVE — no blocking defects; MERGE-READY confirmed
 - D-1868: PR #226 SQUASH-MERGED @97d7335d; develop 277b7844→97d7335d; LANE 1 AUDIT-COVERAGE-001 CLOSED; T13 capstone UNBLOCKED
 - D-1869: pr-manager scope-slip logged; DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 UNBLOCKED/FIRST-ACTION-next-session; STATE v8.422→v8.423
+
+---
+
+## Archived Current Phase Steps — D-1849..D-1851 (rotated out at D-1872)
+
+| Step | Agent | Status | Output |
+|------|-------|--------|--------|
+| D-1849..D-1851 | state-manager | 2026-07-18 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1845..D-1851 (exhaustive) AUDIT-COVERAGE-001 + TAXONOMY v2.56 + PRMGR-HOOK REGISTRATION (2026-07-18). D-1845: AUDIT-COVERAGE-001 rebase @cd369b54→98bb1de2 onto develop 277b7844. D-1846: LOCAL F-AUD-R1 CLEAN(strict)=yes CLEAN(PR-merge)=yes streak 1/3. D-1847: taxonomy v2.55→v2.56 PO +6 E-SENSOR rows; HUMAN auth WASM fuel-ceiling bypass; PG-HOOK-FUEL-CEILING-001 registered. D-1848: Lesson 71 (WASM fuel-ceiling fail-closed class). D-1849: S-MAINT-PRMGR-HOOK-SCOPE-001 draft v0.1 REGISTERED (D-1811 obligation); STORY-INDEX v2.713→v2.714; total_stories 245→246. D-1850: HUMAN AUTH #2 fuel_cap 100M patch 32 entries dx-engineer (non-persistent). D-1851: 3rd evidence-context-asymmetry classifier FP corroborates S-MAINT-PRMGR-HOOK-SCOPE-001 AC-003. trajectory-tail →0→0→0→0 STATE v8.419→v8.420.** |
+
+---
+
+## Burst — D-1872/D-1873 (2026-07-19) — POST-MERGE BURST; DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 MERGED; T14 BLOCKED (secops-factory)
+
+**Session summary (2026-07-19):** T13 pre-flight audit on develop@97d7335d: 104/106 DEMO-READY: NO — [G4] (SQL-mode IEQ expected E-QUERY-001, got UNKNOWN) + [H8] (HEAD-JOIN bare unknown col expected E-QUERY-034/E-INT-001, got UNKNOWN). Triage (codebase-analyzer): both FAILs are AUDIT-INSTRUMENT defects; parse_envelope regex-scraped error code from content[].text but canonical code lives in structuredContent.error.code (BC-2.10.007). Engine was spec-correct throughout. SAP-3 gap: no wire-level end-to-end test asserted structuredContent.error.code.
+
+Fix lane `DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001` (worktree off develop@97d7335d): 11 commits / 10 fix-bursts. parse_envelope restructured to treat structuredContent.error.code as authoritative; [H8] now gates on E-QUERY-034-only (BC-2.11.016 §FP-001). NEW: `crates/prism-mcp/tests/defect_t13_audit_ecode_sap3_test.rs` (4 SAP-3 tests: 2 end-to-end via QueryEngine::execute with execution-capable mock-adapter fixture, 2 defense-in-depth wire-shape; anti-vacuous guards; site-discriminating starts_with("SQL planning error:"); char-boundary-safe truncation). Notable mid-cascade: empty AdapterRegistry fixture terminated Ok(empty) (BC-2.11.011 EC-005 zero-batch skip); resolved by execution-capable fixture that injects a non-empty mock adapter. "some_other" sensor rename → "secondary" (sensor_id_from_table_name splits at first underscore).
+
+Convergence: LOCAL 3-CLEAN(strict) 8 passes (trajectory 3→1→2→1→1→0→0→0); PR-LEVEL 3-CLEAN(strict) on frozen 801903c7 (passes 1–3: 1 finding each fixed; passes 4–6 CLEAN(strict) converged; DRIFT-ORCH-PRLEVEL-PUSH-001 observed); pr-reviewer APPROVE ×3 (41c110d0 full + af96d5be delta + 801903c7 micro-delta); CI 44/44; live audit re-runs: 106/106 DEMO-READY: YES ×2. MERGE: PR #227 squash-merged 2026-07-19T14:27:25Z, merge commit e116a587 = new develop head (local==origin). Remote + local branch deleted; worktree removed. workspace_test_count 5672→5676. S-MAINT-PRMGR-HOOK-SCOPE-001 +4 classifier merge-block instances this session (auto-mode classifier refused orchestrator-relayed merge auth ×2; github-ops dispatch denied ×2; resolved via human AskUserQuestion + orchestrator Bash).
+
+sidecar-learning.md: pre-existing uncommitted modification contained ONLY automated session-end timestamp markers 2026-04-14..2026-07-19 (1,373 lines; no substantive lesson material). Included in commit as-is.
+
+T14 BLOCKED (D-1873): demo will run through the secops-factory plugin; architectural decisions in progress (activate-skill MCP wiring, GH Releases + install.sh/install.ps1 Windows day-1, v1.0.0-rc.1 first RC, DTUs stay prism-side, onboarding TOML flows, periodic alert-monitoring loop). Stories not yet materialized.
+
+**Files modified (factory-artifacts):**
+- `.factory/STATE.md` (v8.425→v8.426; develop_head 97d7335d→e116a587; workspace_test_count 5672→5676; D-1872/D-1873 added; RESUME SNAPSHOT D-1871→D-1872)
+- `.factory/SESSION-HANDOFF.md` (v7.992→v7.993; §RESUME SNAPSHOT D-1872 added; D-1871 superseded)
+- `.factory/cycles/wave-5-e-demo-fidelity/burst-log.md` (this file; D-1849..D-1851 archived; D-1872/D-1873 narrative appended)
+- `.factory/cycles/wave-5-e-demo-fidelity/lessons.md` (lessons 73/74/75 appended)
+- `.factory/cycles/wave-5-e-demo-fidelity/session-checkpoints.md` (D-1871 archived)
+- `.factory/sidecar-learning.md` (pre-existing stale session-end markers; included as-is)
+
+**Codifications:** D-1872: post-merge burst DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001; PR #227 @e116a587; 4 SAP-3 tests; LOCAL 8p/3-CLEAN; PR-LEVEL 6p/3-CLEAN. D-1873: T14 BLOCKED secops-factory integration planning in progress.
+
+**Closes:**
+- D-1872: DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 MERGED PR #227 @e116a587; LANE CLOSED; workspace_test_count 5676; DEMO-READY: YES ×2
+- D-1873: T14 BLOCKED — secops-factory integration planning initiated; T13 capstone to proceed during wait
