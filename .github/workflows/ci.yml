@@ -1879,7 +1879,7 @@ jobs:
           echo "shellcheck: all demo scripts pass (S-DEMO-003 HIGH-2 / AC-014)"
 
   verify-workflow-structure:
-    name: Verify workflow structure (AC-5..AC-8 reachability)
+    name: Verify workflow structure (reachability + config invariants, 24 assertions)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

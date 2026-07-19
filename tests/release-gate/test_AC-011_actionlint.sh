@@ -30,7 +30,7 @@ assert_file_exists "$REL_YML" "AC-011"
 
 if ! command -v actionlint >/dev/null 2>&1; then
   tap_fail "AC-011: actionlint not installed — gate fails closed" \
-    "actionlint is required but not found in PATH. Install via: brew install actionlint  OR  curl -sL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash  (NOT cargo install — actionlint is a Go tool, not a Rust crate)"
+    "actionlint is required but not found in PATH. macOS: brew install actionlint  Linux (pinned): curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash -o /tmp/download-actionlint.bash && bash /tmp/download-actionlint.bash 1.7.12  (NOT cargo install — actionlint is a Go tool, not a Rust crate; NOT /main/ URL — use the v1.7.12 tag per CI job CWE-494 discipline)"
   tap_done
   exit 1
 fi
