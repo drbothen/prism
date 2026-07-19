@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.427"
+version: "8.428"
 producer: state-manager
-timestamp: 2026-07-19T20:00:00Z
+timestamp: 2026-07-19T20:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -21,7 +21,7 @@ develop_head: "e116a587"
 bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.80"
-story_index_version: "v2.716"
+story_index_version: "v2.717"
 arch_index_version: "2.193"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "WAVE F-A PLANNING PACKAGE BURST D-1874..D-1877 (exhaustive) (TD-VSDD-053) 2026-07-19 — Feature-mode F1 intake approved (D-1874: secops-factory as demo vehicle; DTUs prism-side; onboarding TOML flows; monitoring loop). Distribution decisions locked (D-1875: GH Releases + install.sh/.ps1 Windows day-1; Homebrew disabled; Chocolatey removed; v1.0.0-rc.1 first RC tag; demo = RC gate). F1 adjudications complete (D-1876: .prx prebuilds RC-1; PowerShell parity RC-1-blocking; T13 audit ships as-is; demo Jira project intake; architect U13/U15/U19/U22/U2/U26 rulings). Remove-uncertainty pass 33 findings resolved (D-1877: 13 HIGH incl. fabricated CLI mechanism, never-executed Linux release legs, schema-guess release-config; all closed into story v0.2s). 7 stories S-REL-001..007 materialized + hardened. STORY-INDEX v2.715→v2.716 total_stories 246→253. RESUME SNAPSHOT D-1877. NEXT: F-A TDD delivery (S-REL-001 first) in parallel with secops-factory Workstream B session; T13/T14 re-sequenced BLOCKED on secops-factory integration. trajectory-tail →0→0→0→0 STATE v8.426→v8.427"
+current_step: "S-REL-001 TDD DELIVERY IN PROGRESS — Pre-TDD fix-burst D-1878 (2026-07-19): 4 findings → ADJ-001..004 → stories v0.3. S-REL-001 v0.3 (11 ACs; AC-011 libdbus-1-dev unconditional; per-OS demo-server wrap; input-hash e2b3e1e). S-REL-003 v0.3 (10 ACs; ADJ-002 upload ownership; new AC-010 upload task; input-hash e11dfc9). Adjudications recorded in .factory/planning/feature-release-engineering/delta-analysis.md §13. STORY-INDEX v2.716→v2.717. Worktree .worktrees/S-REL-001 created on feature/S-REL-001 @e116a587 (local-only). NEXT: Red Gate (test-writer stubs for S-REL-001). trajectory-tail →0→0→0→0 STATE v8.427→v8.428"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -76,8 +76,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 391 lines (wc-l)
-  margin from soft-target (200): +189 lines over | margin from actual (500): 111 lines remaining
+  STATE.md SIZE BUDGET: 393 lines (wc-l)
+  margin from soft-target (200): +193 lines over | margin from actual (500): 107 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -91,7 +91,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-19 D-1874..D-1877 (exhaustive) WAVE F-A PLANNING PACKAGE BURST — 7 stories S-REL-001..007 materialized + uncertainty-hardened (33 findings resolved). Feature intake D-1874, distribution decisions D-1875, F1 adjudications D-1876, remove-uncertainty D-1877. STORY-INDEX v2.716. total_stories 253. RESUME SNAPSHOT D-1877. NEXT: S-REL-001 TDD + secops-factory Workstream B. trajectory-tail →0→0→0→0 STATE v8.426→v8.427 |
+| **Last Updated** | 2026-07-19 D-1878 PRE-TDD FIX-BURST S-REL-001 — 4 findings → ADJ-001..004 applied (stories v0.3). S-REL-001 v0.3 (11 ACs; libdbus-1-dev unconditional; per-OS demo-server wrap). S-REL-003 v0.3 (10 ACs; upload task ADJ-002). STORY-INDEX v2.717. Worktree .worktrees/S-REL-001 created; TDD delivery started (Red Gate next). trajectory-tail →0→0→0→0 STATE v8.427→v8.428 |
 
 ## Active Objective (North Star)
 
@@ -184,12 +184,12 @@ pre_compact_snapshot_at: "2026-07-16"
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735..D-1870 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files (multiple compaction bursts through D-1871). Last 5 rows kept below._
+_D-735..D-1870 + D-1852..D-1855 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files (multiple compaction bursts through D-1871). Last 5 rows kept below._
 | D-1863..D-1869 | state-manager | 2026-07-18 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1863..D-1869 (exhaustive) POST-MERGE BURST PR #226 AUDIT-COVERAGE-001 (2026-07-18). D-1863: sec-delta-confirm 0fbef7db..8d116f62 APPROVE zero findings BASE_URL passthrough no-new-risk. D-1864: F-AUD-PR5 CLEAN(strict)=yes streak 1/3; pr-level-pass-4.md persisted. D-1865: F-AUD-PR6 CLEAN(strict)=yes streak 2/3; pr-level-pass-5.md persisted. D-1866: F-AUD-PR7 CLEAN(strict)=yes streak 3/3 CONVERGED BC-5.39.001; pr-level-pass-6.md persisted. D-1867: pr-reviewer APPROVE no blocking defects. D-1868: HUMAN MERGE AUTH Joshua; PR #226 SQUASH-MERGED @97d7335d 2026-07-18T22:47:30Z; develop 277b7844→97d7335d; LANE 1 CLOSED. D-1869: pr-manager minor scope-slip (gitignored; harmless); DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 UNBLOCKED/FIRST-ACTION-next-session. trajectory-tail →0→0→0→0 STATE v8.422→v8.423.** | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1856..D-1862 | state-manager | 2026-07-18 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1856..D-1862 (exhaustive) PR #226 PR-LEVEL cascade progress + MED-001 fix-burst (2026-07-18). D-1856: F-AUD-PR1 @98bb1de2 4 findings (3L+1O) body-fix→0fbef7db; sec delta-confirm APPROVE SEC-001+SEC-002 CLOSED. D-1857: F-AUD-PR2 @0fbef7db 1 LOW H-range H1→H35 corrected H1→H24. D-1858: pr-manager violation #7 — 12+ merge attempts BLOCKED classifier; H-range fix landed; PR OPEN mergedAt null; explicit-warning mitigation-effectiveness data point. D-1859: F-AUD-PR3 @0fbef7db CLEAN(strict)=yes streak 1/3; pr-level-pass-2.md persisted. D-1860: F-AUD-PR4 @0fbef7db 1 MED ephemeral-port-trap; streak RESET 0/3; pr-level-pass-3.md persisted. D-1861: implementer @8d116f62 MED-001 fix (BASE_URL>PORT precedence; 5-site TD-VSDD-060 sweep; docstring; PUSHED); cascade restart 0/3. D-1862: DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 registered (T13 runbook addendum owed before T13 execution). Lesson 72 appended. pr-level-pass-1/2/3.md persisted. trajectory-tail →4→1→0→1→restart STATE v8.421→v8.422.** | wave-5-e-demo-fidelity | 2026-07-18 |
-| D-1852..D-1855 | state-manager | 2026-07-18 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1852..D-1855 (exhaustive) AUDIT-COVERAGE-001 LOCAL 3-CLEAN + PUSH + PR #226 + pr-manager violations record (2026-07-18). D-1852: LOCAL 3-CLEAN CONVERGED F-AUD-R2+R3 CLEAN(strict)=yes on frozen 98bb1de2. D-1853: branch fix/T13-audit-coverage pushed @98bb1de2 first push; pre-push PASSED; non-exhaustive 92/92. D-1854: PR #226 CREATED OPEN @98bb1de2 https://github.com/drbothen/prism/pull/226; CI 45/45 GREEN per pr-manager report. D-1855: pr-manager violations #5+#6 BLOCKED-4th-classifier; PR #226 OPEN mergedAt null; develop unchanged 277b7844; S-MAINT-PRMGR-HOOK-SCOPE-001 violation record left to product-owner. trajectory-tail →0→0→0→0 STATE v8.420→v8.421.** | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1872 | state-manager | 2026-07-19 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1872 POST-MERGE BURST DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 (2026-07-19). T13 pre-flight on @97d7335d: 104/106 DEMO-READY NO — [G4]+[H8] AUDIT-INSTRUMENT defects; parse_envelope scraped error code from content[].text not structuredContent.error.code. Triage: codebase-analyzer confirmed engine spec-correct; BC-2.10.007 canonical code path; SAP-3 gap. Fix lane: 11 commits/10 fix-bursts; LOCAL 8p/3-CLEAN(strict) (3→1→2→1→1→0→0→0); PR-LEVEL 6p/3-CLEAN(strict) on frozen 801903c7 (3 earlier passes: 1 finding each fixed); pr-reviewer APPROVE ×3; CI 44/44; security N/A. Notable: execution-capable mock-adapter fixture; zero-batch fan-out Ok(empty) false-positive resolved by non-empty fixture; classifier merge-friction ×4 instances. PR #227 squash-merged @e116a587. Live re-run: 106/106 DEMO-READY: YES ×2 (pure instrument defect; main-tree binaries unchanged). workspace_test_count 5672→5676 (+4 SAP-3 tests). sidecar-learning.md: stale session-end markers only (1373 lines, 2026-04-14..2026-07-19; no lesson content; included in commit as-is). S-MAINT-PRMGR-HOOK-SCOPE-001: +4 classifier merge-block instances this session (total evidence growing; story-writer owed AC-004 body update). Lessons 73/74/75 appended. RESUME SNAPSHOT D-1872. trajectory-tail →0→0→0→0 STATE v8.425→v8.426.** | wave-5-e-demo-fidelity | 2026-07-19 |
 | D-1874..D-1877 (exhaustive) | state-manager | 2026-07-19 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1874..D-1877 (exhaustive) WAVE F-A PLANNING PACKAGE (2026-07-19). D-1874: feature intake approved — secops-factory as demo vehicle; DTUs stay prism-side; onboarding TOML flows; monitoring loop requirement codified. D-1875: distribution decisions locked — GH Releases + install.sh/.ps1 Windows day-1; Homebrew disabled; Chocolatey removed; v1.0.0-rc.1 first RC tag; demo = RC gate. D-1876: F1 adjudications complete — .prx prebuilds RC-1; full PowerShell parity RC-1-blocking; T13 audit ships as-is; demo Jira project intake; architect U13/U15/U19/U22/U2/U26 rulings resolved. D-1877: remove-uncertainty pass complete — 33 findings (13 HIGH incl. fabricated CLI mechanism, never-executed Linux release legs, schema-guess release-config); all resolved into story v0.2s. 7 stories S-REL-001..007 materialized + hardened. planning package committed (.factory/planning/feature-release-engineering/). research artifacts committed. STORY-INDEX v2.715→v2.716 total_stories 246→253. RESUME SNAPSHOT D-1877. trajectory-tail →0→0→0→0 STATE v8.426→v8.427.** | wave-5-e-demo-fidelity | 2026-07-19 |
+| D-1878 | state-manager | 2026-07-19 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1878 PRE-TDD FIX-BURST S-REL-001 (2026-07-19). Pre-TDD remove-uncertainty second touchpoint (D-1110) found 4 findings: ADJ-001 Critical libdbus-1-dev (add unconditionally to all Linux jobs); ADJ-002 Important AC-011 sequencing inversion (AC-011 upload-install-scripts deleted from S-REL-001; upload task + AC-010 added to S-REL-003); ADJ-003 Medium Windows .exe tar-wrap (per-OS demo-server wrap added); ADJ-004 Low stale crate count. All repo-internal; architect adjudicated; durably recorded in .factory/planning/feature-release-engineering/delta-analysis.md §13. S-REL-001 v0.2→v0.3 (12→11 ACs; AC-011 deleted; AC-012→AC-011; input-hash e2b3e1e). S-REL-003 v0.2→v0.3 (9→10 ACs; new upload task AC-010; input-hash e11dfc9). STORY-INDEX v2.716→v2.717. Worktree .worktrees/S-REL-001 created on feature/S-REL-001 @e116a587 (local-only). TDD delivery started; Red Gate next. trajectory-tail →0→0→0→0 STATE v8.427→v8.428.** | wave-5-e-demo-fidelity | 2026-07-19 |
 ## Decisions Log
 
 _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decisions-archive files. Rows below in ascending D-NNN order per D-431(b)._
@@ -284,6 +284,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1875 | orchestrator+state-manager | 2026-07-19 | Distribution decisions locked — GH Releases + install.sh/.ps1 Windows day-1; Homebrew tap disabled (no homebrew/core bottleneck); Chocolatey removed; v1.0.0-rc.1 = first release tag; demo completion = RC gate criterion. | wave-5-e-demo-fidelity | 2026-07-19 |
 | D-1876 | orchestrator+state-manager | 2026-07-19 | F1 adjudications complete — .prx prebuilds ship in RC-1; full PowerShell demo parity is RC-1-blocking; T13 audit script ships as-is (no scope expansion); demo Jira project intake approved; architect rulings: U13 wasm-tools via taiki-e/install-action, U15 build-demo-bundle needs publish-release dependency, U19 parallel build-plugins, U22 Windows bundle .zip, U2 semver-checks runs in check-ci, U26 S-REL-hotfix-001 anchor replaces bare TODO. | wave-5-e-demo-fidelity | 2026-07-19 |
 | D-1877 | state-manager | 2026-07-19 | Remove-uncertainty pass complete — 33 findings resolved (13 HIGH incl. fabricated CLI mechanism, never-executed Linux release legs, schema-guess release-config; all closed into story v0.2s). 7 stories S-REL-001..007 uncertainty-hardened. STORY-INDEX v2.715→v2.716 total_stories 246→253. RESUME SNAPSHOT D-1877. trajectory-tail →0→0→0→0 STATE v8.426→v8.427 | wave-5-e-demo-fidelity | 2026-07-19 |
+| D-1878 | state-manager | 2026-07-19 | Pre-TDD fix-burst S-REL-001 — remove-uncertainty second touchpoint (D-1110) found 4 findings; architect ADJ-001..004 applied: ADJ-001 libdbus-1-dev unconditional (all Linux jobs); ADJ-002 AC-011 sequencing inversion (upload-install-scripts deleted from S-REL-001; upload task + AC-010 added to S-REL-003); ADJ-003 Windows .exe per-OS tar-wrap; ADJ-004 stale crate count. Adjudications durably recorded in .factory/planning/feature-release-engineering/delta-analysis.md §13. S-REL-001 v0.2→v0.3 (12→11 ACs; input-hash e2b3e1e). S-REL-003 v0.2→v0.3 (9→10 ACs; new AC-010 upload task; input-hash e11dfc9). STORY-INDEX v2.716→v2.717. Worktree .worktrees/S-REL-001 created on feature/S-REL-001 @e116a587 (local-only). TDD delivery started; Red Gate next. trajectory-tail →0→0→0→0 STATE v8.427→v8.428 | wave-5-e-demo-fidelity | 2026-07-19 |
 
 ## Skip Log
 
@@ -378,13 +379,14 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1877 — 2026-07-19 — WAVE F-A PLANNING PACKAGE BURST; STATE v8.427)
+## Session Resume Checkpoint (D-1878 — 2026-07-19 — PRE-TDD FIX-BURST S-REL-001; STATE v8.428)
 
-**RESUME IN ONE BREATH:** Wave F-A planning package COMPLETE. 7 stories S-REL-001..007 materialized + uncertainty-hardened (33 findings resolved; 13 HIGH incl. fabricated CLI mechanism, never-executed Linux release legs, schema-guess release-config). STORY-INDEX v2.716 total_stories 253. NEXT ACTION: (1) S-REL-001 TDD delivery first (new worktree, per-story flow); then delivery order 001→002∥003→004→007→005 (006 after 002). (2) secops-factory Workstream B: separate session against `.factory/planning/feature-release-engineering/secops-factory-handoff-brief.md` (research-corrected monitoring loop, demo-Jira intake). (3) T13/T14 BLOCKED on Workstream B completion. **HUMAN PREREQUISITES before T14**: interactive `bash scripts/demo-setup.sh` macOS Keychain auth (repeat after every release rebuild); demo Jira project provisioning (D-1876). Lessons 73/74/75 in cycles/wave-5-e-demo-fidelity/lessons.md.
+**RESUME IN ONE BREATH:** S-REL-001 TDD delivery started. Pre-TDD fix-burst D-1878 applied 4 findings via architect ADJ-001..004: libdbus-1-dev unconditional (ADJ-001); AC-011 sequencing corrected + upload task moved to S-REL-003 (ADJ-002); Windows .exe per-OS tar-wrap (ADJ-003); stale crate count corrected (ADJ-004). S-REL-001 now v0.3 (11 ACs; input-hash e2b3e1e). S-REL-003 now v0.3 (10 ACs; input-hash e11dfc9). STORY-INDEX v2.717. Worktree `.worktrees/S-REL-001` on feature/S-REL-001 @e116a587 (local-only). **NEXT ACTION:** Red Gate test stubs for S-REL-001 (test-writer); then per-story TDD delivery flow (stubs → failing tests → implementation → LOCAL 3-CLEAN → story-level holdout gate → demo-recorder → push → pr-manager). Delivery order after S-REL-001: 002∥003→004→007→005 (006 after 002). secops-factory Workstream B still pending (separate session). T13/T14 BLOCKED on Workstream B. **HUMAN PREREQUISITES before T14**: interactive `bash scripts/demo-setup.sh` macOS Keychain auth; demo Jira project provisioning (D-1876). Lessons 73/74/75 in cycles/wave-5-e-demo-fidelity/lessons.md.
 
-**HEADS (verified 2026-07-19 D-1877 wrap):**
+**HEADS (verified 2026-07-19 D-1878 wrap):**
 - develop: `e116a587` (PR #227 squash-merged 2026-07-19T14:27:25Z) local==origin — PUSHED
 - factory-artifacts: `git -C .factory log -1 --format='%h %s'` (do not hard-code)
+- `.worktrees/S-REL-001`: feature/S-REL-001 @e116a587 — LOCAL-ONLY (TDD in progress; Red Gate next)
 - `feature/S-3.09` @`43c41389` — KEEP-PARKED (LOCAL-ONLY)
 - `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
 - Main tree residue (pre-existing, NOT session products): staged .github/workflows/ci.yml + e2e.yml (unknown provenance — do not commit/discard without human review); untracked .playwright-mcp/, drawio exports, mutants.out*, scripts/__pycache__

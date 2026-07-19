@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: draft
-version: "0.2"
+version: "0.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
@@ -39,7 +39,7 @@ risk: LOW
 # rejection). Removing dead jobs can only improve CI — no regression risk. DEF-REL-001
 # removal eliminates non-deterministic matrix output behavior. Prerelease flag addition is
 # additive-only. Risk is LOW per delta-analysis §8.
-acceptance_criteria_count: 12
+acceptance_criteria_count: 11
 red_gate_tests: 4
 estimated_passes: "1-2 LOCAL adversary passes"
 holdout_scenarios: []
@@ -59,11 +59,13 @@ risk_mitigations:
     references."
   - "TD-VSDD-060 sweep: grep for 'binary_exists', 'check_binary', 'chocolatey', 'homebrew-update',
     'crates-io' in release.yml after edits to confirm zero residual references."
-  - "Linux cross-compile setup (U2): build-release matrix job needs `musl-tools pkg-config`
-    on ubuntu runners for x86_64-unknown-linux-musl. libdbus-1-dev is INCONCLUSIVE (depends
-    on keyring crate backend — verify against Cargo.lock at implementation time). Do NOT
-    add libssl-dev (ADR-050 mandates rustls-tls). Verify BEFORE finalizing: check the
-    pinned `keyring` version and enabled features in prism workspace Cargo.toml/Cargo.lock."
+  - "Linux cross-compile setup (U2): libdbus-1-dev REQUIRED unconditionally on both Linux
+    legs: prism-credentials default features enable keyring-linux-native-sync-persistent →
+    dbus-secret-service 4.1.0 → dbus 0.9.11 → libdbus-sys 0.2.7 (C-linked). build.rs runs
+    on the glibc host even for musl cross-targets. Verified: cargo tree --target
+    x86_64-unknown-linux-{gnu,musl} -i libdbus-sys shows libdbus-sys v0.2.7. ci.yml installs
+    libdbus-1-dev pkg-config unconditionally on every Linux job (ADR-034/BC-2.06.003). Do
+    NOT add libssl-dev (ADR-050 mandates rustls-tls)."
   - "action pin SHAs: all `uses:` entries must be pinned to an immutable commit SHA
     (repo convention; research U20). Resolve SHAs at implementation time via
     `git ls-remote https://github.com/<owner>/<repo> refs/tags/<tag>`.
@@ -75,11 +77,15 @@ risk_mitigations:
     cargo invocation uses `-p prism-bin -p prism-dtu-demo-server` in one call. The
     prism-dtu-demo-server binary is tar-wrapped (tar czf) before upload-artifact to preserve
     the +x bit (research U18: upload-artifact ZIP format strips executable bits). The build-demo-bundle
-    job downloads+untars rather than re-building."
-  - "install.sh and install.ps1 uploaded as release assets by publish-release job (U26):
-    the publish-release step must include `scripts/install.sh` and `scripts/install.ps1` in
-    the `gh release upload` glob. Version passed to install.ps1 consumers via
-    `$env:PRISM_INSTALL_VERSION` env var (research U8: irm|iex piping cannot carry positional args)."
+    job downloads+untars rather than re-building. The demo-server wrap step uses per-OS
+    conditional logic matching the `archive_ext` matrix variable (same pattern as the main
+    `prism` archive step): `tar czf` on Unix (preserves +x); `7z a ... .exe` on Windows.
+    Strip applies to both `prism` and `prism-dtu-demo-server` on Unix legs."
+  - "install.sh and install.ps1 are authored by S-REL-003. S-REL-003 also amends the
+    publish-release job in release.yml to add the gh release upload step for those scripts.
+    S-REL-001 does NOT implement the upload — it establishes the release URL pattern that
+    S-REL-003 consumes. (U26 upload step ownership reassigned to S-REL-003 per pre-TDD scan
+    ADJ-002.)"
   - "fork-tag dry-run (U2 finding): before cutting the real v1.0.0-rc.1 tag, gate RC-1 on
     a successful full workflow green run on a fork tag push. Add this as a mandatory
     verification task in the story's task list."
@@ -87,7 +93,7 @@ inputs:
   - ".github/workflows/release.yml"
   - ".factory/planning/feature-release-engineering/delta-analysis.md"
   - ".factory/research/release-engineering-uncertainties-2026.md"
-input-hash: "77224a8"
+input-hash: "e2b3e1e"
 traces_to: []
 cycle: "v1.0.0-release-engineering"
 phase: "F3"
@@ -97,7 +103,7 @@ phase: "F3"
 
 **Story ID:** S-REL-001
 **Status:** draft
-**Version:** v0.2
+**Version:** v0.3
 **Wave:** F-A
 **Priority:** P0
 **Points:** 3
@@ -114,8 +120,8 @@ not packaged) is addressed by S-REL-004.
 Additionally: (a) the current workflow does not set `--prerelease` on RC tags — required so that
 consumers can distinguish RC releases from GA; (b) the build-release matrix must build both
 `prism-bin` and `prism-dtu-demo-server` together (U13, architect adjudication); (c) Linux
-cross-compile requires a musl-tools setup step (U2); (d) install.sh/install.ps1 are uploaded
-as release assets by the publish-release job (U26).
+cross-compile requires a musl-tools setup step (U2); (d) install.sh/install.ps1 are authored by S-REL-003, which also amends the publish-release
+job to upload them (U26 upload step ownership reassigned to S-REL-003 per pre-TDD scan ADJ-002).
 
 ---
 
@@ -141,7 +147,7 @@ observing workflow execution on a test tag push.
 | `delta-analysis.md` §3 (DEF-REL-004) | Remove crates-io-publish job (all crates have publish = false) |
 | `delta-analysis.md` §2.1 (prerelease) | Add --prerelease flag for v*-rc.* tags |
 | Architect U13 adjudication | build-release builds -p prism-bin -p prism-dtu-demo-server; demo-server tar-wrapped |
-| Architect U26 adjudication | install.sh/.ps1 uploaded as release assets by publish-release |
+| Architect U26 adjudication | install.sh/.ps1 uploaded as release assets by publish-release — upload step implemented in S-REL-003 (which authors the files; upload moved per pre-TDD scan ADJ-002; files do not exist at S-REL-001 implementation time) |
 | Research U2 (release-engineering-uncertainties-2026.md) | musl-tools + pkg-config setup step for Linux |
 
 ---
@@ -187,25 +193,57 @@ Within the 30% context window budget.
 
 6. **Fix DEF-REL-004 — remove crates-io-publish job:**
    - Delete the entire `crates-io-publish` job block.
-   - Add comment: `# crates-io-publish removed (DEF-REL-004): all 24 workspace crates
+   - Add comment: `# crates-io-publish removed (DEF-REL-004): all workspace crates
      carry publish = false. crates.io publication deferred post-v1.0.0.`
 
 7. **Update build-release matrix job (U13):**
    - Change the cargo invocation from `-p prism-bin` to `-p prism-bin -p prism-dtu-demo-server`.
-   - Add a tar-wrap step after build: `tar czf prism-dtu-demo-server-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release prism-dtu-demo-server` (preserves +x bit — upload-artifact ZIP strips executable mode).
    - Add Linux setup step to matrix job or a dedicated pre-build step:
      ```yaml
      - name: Install Linux build deps
        if: contains(matrix.target, 'linux')
        run: |
          sudo apt-get update
-         sudo apt-get install -y musl-tools pkg-config
-         # NOTE: libdbus-1-dev: VERIFY against Cargo.lock keyring backend before adding.
-         # If keyring uses zbus (pure-Rust), libdbus-1-dev is NOT needed.
-         # If keyring uses the C-linked backend, ADD libdbus-1-dev here.
+         # libdbus-1-dev: required by prism-credentials keyring-linux-native-sync-persistent
+         # → dbus-secret-service (C-linked libdbus). build.rs runs on glibc host even for
+         # musl cross-target. ADR-034/BC-2.06.003.
+         sudo apt-get install -y musl-tools pkg-config libdbus-1-dev
      ```
-   - Verify: `grep -n 'libdbus-1-dev' Cargo.lock` or check `keyring` crate features before
-     making the final decision on libdbus-1-dev.
+   - Replace the single tar-wrap step for demo-server with the following two-step block
+     (ADJ-003 — per-OS conditional wrap matching the existing `archive_ext` matrix variable):
+
+     Step 1 — strip demo-server on Unix (note: strip for `prism` is handled by the existing
+     workflow strip step; this step covers `prism-dtu-demo-server`):
+     ```yaml
+     - name: Strip demo-server (Unix)
+       if: runner.os != 'Windows'
+       run: strip target/${{ matrix.target }}/release/prism-dtu-demo-server 2>/dev/null || true
+     ```
+
+     Step 2 — per-OS conditional wrap using the existing `archive_ext` matrix variable:
+     ```yaml
+     - name: Wrap prism-dtu-demo-server for artifact upload
+       shell: bash
+       run: |
+         if [ "${{ matrix.archive_ext }}" = "zip" ]; then
+           cd target/${{ matrix.target }}/release
+           7z a "../../../prism-dtu-demo-server-${{ matrix.target }}.zip" prism-dtu-demo-server.exe
+         else
+           tar czf prism-dtu-demo-server-${{ matrix.target }}.tar.gz \
+             -C target/${{ matrix.target }}/release prism-dtu-demo-server
+         fi
+     ```
+
+     Upload step (job-to-job only — NOT a public release asset):
+     ```yaml
+     - name: Upload demo-server artifact (job-to-job)
+       uses: actions/upload-artifact@...  # same pin as main artifact step
+       with:
+         name: prism-dtu-demo-server-${{ matrix.target }}
+         path: prism-dtu-demo-server-${{ matrix.target }}.${{ matrix.archive_ext }}
+     ```
+   - Demo-server ships on ALL 5 targets. `build-demo-bundle` (S-REL-004) downloads this
+     artifact and extracts based on `archive_ext` — that extraction logic is S-REL-004's scope.
 
 8. **Fix the matrix typo (U1):** Verify the matrix target `x86_64-unknown-linux-musl` is
    spelled correctly (NOT `x86_x64-unknown-linux-musl`).
@@ -242,21 +280,12 @@ Within the 30% context window budget.
     - VERIFY v7 upload + v8 download same-run interop works by running a smoke-test job
       (upload then immediately download in same workflow run before finalizing pins).
 
-12. **Upload install.sh and install.ps1 as release assets (U26):**
-    In the publish-release or create-release job, include `scripts/install.sh` and
-    `scripts/install.ps1` in the `gh release upload` invocation:
-    ```bash
-    gh release upload "$TAG" scripts/install.sh scripts/install.ps1 ./dist/*
-    ```
-    The Windows PowerShell one-liner passes the version via `$env:PRISM_INSTALL_VERSION`
-    (env var before pipe), not as a positional arg to `iex`.
-
-13. **Fork-tag dry-run gate (U2):**
+12. **Fork-tag dry-run gate (U2):**
     Before pushing the real `v1.0.0-rc.1` tag to origin, run a complete dry-run on a fork:
     push a test tag (e.g., `v0.0.1-rc.test`) to a fork; verify all jobs pass; then cut the real tag.
     Document this as a mandatory verification step in RELEASING.md (S-REL-005).
 
-14. **Run actionlint** (install via `brew install actionlint` or the official
+13. **Run actionlint** (install via `brew install actionlint` or the official
     `download-actionlint.bash` script — NOT `cargo install actionlint` which does not exist):
     `actionlint .github/workflows/release.yml` — exit code 0 required.
 
@@ -325,24 +354,25 @@ Then: `id-token: write` permission is present; `attest-build-provenance` step us
 Given: The modified build-release job.
 When: The cargo invocation is inspected.
 Then: `-p prism-bin -p prism-dtu-demo-server` appears in one cargo command. prism-dtu-demo-server
-binary is tar-wrapped before upload (to preserve +x bit).
-(traces to architect U13 adjudication: "one cargo invocation, demo-server tar-wrapped")
+binary is wrapped before upload-artifact using per-OS conditional logic: `.tar.gz` (tar,
+preserves +x bit) on Unix legs; `.zip` (7z, `.exe` suffix) on Windows. Uploaded as artifact
+`prism-dtu-demo-server-${{ matrix.target }}` with path
+`prism-dtu-demo-server-${{ matrix.target }}.${{ matrix.archive_ext }}`. All 5 matrix targets
+produce this artifact. prism-dtu-demo-server is stripped on Unix legs (alongside `prism`).
+(traces to architect U13 adjudication: "one cargo invocation, demo-server tar-wrapped"; ADJ-003:
+per-OS conditional wrap + strip)
 
 ### AC-010: Linux setup step installs musl-tools and pkg-config
 Given: The modified build-release matrix job.
 When: The Linux-gated setup step is inspected.
-Then: `sudo apt-get install -y musl-tools pkg-config` is present, gated to
-`contains(matrix.target, 'linux')`. libdbus-1-dev presence is justified by a comment citing
-the verified keyring crate backend.
-(traces to research U2: "musl-tools + pkg-config required; libdbus-1-dev INCONCLUSIVE")
+Then: `libdbus-1-dev` is installed unconditionally alongside `musl-tools` and `pkg-config` on
+both Linux legs, with a comment citing ADR-034/BC-2.06.003 and the build.rs host-linkage
+rationale. Secondary probe: `cargo tree --target x86_64-unknown-linux-gnu -i libdbus-sys` and
+`cargo tree --target x86_64-unknown-linux-musl -i libdbus-sys` both return `libdbus-sys vX.Y.Z`.
+(traces to architect ADJ-001 ruling: libdbus-1-dev REQUIRED unconditionally on both Linux legs;
+ADR-034/BC-2.06.003)
 
-### AC-011: install.sh and install.ps1 uploaded as release assets
-Given: The publish-release job in the modified release.yml.
-When: The `gh release upload` or `gh release create` invocation is read.
-Then: `scripts/install.sh` and `scripts/install.ps1` are included in the upload glob.
-(traces to architect U26 adjudication: "install scripts uploaded as release assets")
-
-### AC-012: Workflow YAML parses without errors (actionlint)
+### AC-011: Workflow YAML parses without errors (actionlint)
 Given: The modified `.github/workflows/release.yml`.
 When: `actionlint .github/workflows/release.yml` is run (installed via `brew install actionlint`
 or the official bash download script — NOT cargo install, which does not work).
@@ -364,7 +394,7 @@ by delta-analysis §3 accumulated during development.
 
 | Rule | Source | Enforcement |
 |------|--------|-------------|
-| No `cargo publish` for any workspace crate | All 24 crates carry `publish = false` | Absence of any `cargo publish` in release.yml |
+| No `cargo publish` for any workspace crate | All workspace crates carry `publish = false` | Absence of any `cargo publish` in release.yml |
 | 5-platform matrix is non-negotiable | ADR-022 boot contract | Matrix must remain unchanged |
 | OIDC attestation with v4.1.1 pin | Supply chain security | attest-build-provenance@v4.1.1 + SHA pin |
 | --prerelease via bash array, not quoted-empty var | U3: gh no auto-detect | Array form prevents empty positional arg |
@@ -388,6 +418,7 @@ by delta-analysis §3 accumulated during development.
 | `actions/attest-build-provenance` | v4.1.1 — resolve SHA via git ls-remote | Research U5 (NOT v4.1.0) |
 | `dtolnay/rust-toolchain` | @stable (moving tag) — resolve SHA via git ls-remote | Research U20 |
 | `musl-tools`, `pkg-config` | ubuntu-24.04 apt packages | Research U2 |
+| `libdbus-1-dev` | ubuntu-24.04 apt package | ADR-034/BC-2.06.003 |
 
 ---
 
@@ -424,8 +455,9 @@ by delta-analysis §3 accumulated during development.
 | EC-003 | Tag `v2.0.0-rc.1` pushed | `*-*` pattern matches; release created as prerelease |
 | EC-004 | All 5 matrix runners pass | Single release with 5 archives + checksums + attestation created |
 | EC-005 | v7 upload + v8 download interop | Smoke test verifies; if broken, pin both to v7 |
-| EC-006 | musl target build without libdbus-1-dev | If keyring uses zbus (pure-Rust), builds succeed; verify from Cargo.lock |
+| EC-006 | musl target build (libdbus-sys C-linked at build time) | `libdbus-1-dev` installed on host; build succeeds. musl binary does NOT dynamically link libdbus at runtime (kernel-keyutils path only). Build fails if `libdbus-1-dev` is absent from runner. |
 | EC-007 | Intel macOS build on macos-15-intel | Builds succeed; EOL Aug 2027 migration noted in workflow comment |
+| EC-008 | Windows demo-server wrap (.exe + 7z) | `7z a` wraps `prism-dtu-demo-server.exe` into `.zip`; artifact path uses `${{ matrix.archive_ext }}`; `build-demo-bundle` (S-REL-004) downloads and extracts `.zip` on the Windows leg. |
 
 ---
 
@@ -444,5 +476,6 @@ by delta-analysis §3 accumulated during development.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.3 | 2026-07-19 | Pre-TDD fix-burst applying ADJ-001..004 per delta-analysis.md §13: ADJ-001 libdbus-1-dev REQUIRED unconditionally on both Linux legs (ADR-034/BC-2.06.003); ADJ-002 install-script upload step moved to S-REL-003; ADJ-003 per-OS demo-server wrap (.tar.gz Unix / .zip Windows + strip); ADJ-004 remove hardcoded crate count; acceptance_criteria_count 12→11 |
 | 0.2 | 2026-07-19 | Fix-burst: U1 typo; U2 Linux setup musl-tools+pkg-config+fork-tag dry-run; U3 bash-array prerelease (no gh auto-detect); U4 actionlint is Go not cargo; U5 attest v4.1.0→v4.1.1+macos-13 retired+upload v7/download v8+smoke-test; U13 build-release builds demo-server+tar-wrap; U20 SHA-pinning tasks; U23 artifact name release-$target; U26 install scripts uploaded as release assets; acceptance_criteria_count 9→12 |
 | 0.1 | 2026-07-19 | Initial story creation (story-writer F3 burst) |

@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: draft
-version: "0.2"
+version: "0.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
@@ -40,7 +40,7 @@ risk: MEDIUM
 # Checksum verification must be cryptographically correct (SHA-256 mismatch must abort
 # install). Platform detection must correctly distinguish macOS ARM64/x86_64, Linux
 # glibc/musl, and Windows. Risk is MEDIUM per delta-analysis §8: "test on all 5 platforms".
-acceptance_criteria_count: 9
+acceptance_criteria_count: 10
 red_gate_tests: 3
 estimated_passes: "2-3 LOCAL adversary passes"
 holdout_scenarios: []
@@ -77,7 +77,7 @@ inputs:
   - ".factory/planning/feature-release-engineering/prism-consumer-contract.md"
   - ".github/workflows/release.yml"
   - ".factory/research/release-engineering-uncertainties-2026.md"
-input-hash: "ae00ca6"
+input-hash: "e11dfc9"
 traces_to: []
 cycle: "v1.0.0-release-engineering"
 phase: "F3"
@@ -87,7 +87,7 @@ phase: "F3"
 
 **Story ID:** S-REL-003
 **Status:** draft
-**Version:** v0.2
+**Version:** v0.3
 **Wave:** F-A
 **Priority:** P0
 **Points:** 3
@@ -243,7 +243,19 @@ Well within the 30% context window budget.
      run: Invoke-ScriptAnalyzer -Path scripts/install.ps1 -Severity Error
    ```
 
-7. **Verify locally:**
+7. **Amend `publish-release` job in `.github/workflows/release.yml` to upload install scripts (ADJ-002/U26):**
+   After the `gh release create` invocation in the `publish-release` job, add a `gh release upload`
+   step (or include the files in the create invocation) for `scripts/install.sh` and
+   `scripts/install.ps1`:
+   ```bash
+   gh release upload "$TAG" scripts/install.sh scripts/install.ps1
+   ```
+   Version is passed to PowerShell consumers via `$env:PRISM_INSTALL_VERSION` env var set before
+   the `irm | iex` pipe — NOT as a positional arg to `iex` (U8: positional args cannot be carried
+   through `iex`). This upload step lands in S-REL-003's PR because the scripts are authored here;
+   S-REL-001 establishes the release URL pattern but does not reference paths that do not yet exist.
+
+8. **Verify locally:**
    - `shellcheck scripts/install.sh` → 0 errors
    - `bash scripts/install.sh --version v1.0.0-rc.1 --dry-run` (add dry-run flag that
      prints download URL without downloading) → correct URL for host platform
@@ -329,6 +341,14 @@ PSScriptAnalyzer explicitly (`Install-Module -Name PSScriptAnalyzer -Scope Curre
 (traces to delta-analysis.md §8: "test install scripts"; CLAUDE.md §Conventions shellcheck
 discipline; research U33: PSScriptAnalyzer must be explicitly installed)
 
+### AC-010: publish-release job in release.yml uploads install.sh and install.ps1
+Given: `.github/workflows/release.yml` is modified by this story.
+When: `grep -n 'install\.sh\|install\.ps1' .github/workflows/release.yml` is run.
+Then: At least one match appears inside the publish-release job context (a `gh release create`
+or `gh release upload` invocation that includes `scripts/install.sh` and `scripts/install.ps1`).
+(traces to delta-analysis.md §13 ADJ-002: S-REL-003 owns both authoring the install scripts
+and the publish-release upload step; upload moved from S-REL-001 per pre-TDD scan ADJ-002)
+
 ---
 
 ## Previous Story Intelligence
@@ -386,6 +406,7 @@ Key lessons from fix-burst U8/U9/U10 research:
 | `scripts/install.sh` | Create | macOS + Linux install; shellcheck-clean |
 | `scripts/install.ps1` | Create | Windows install; PowerShell 5.1+ |
 | `.github/workflows/ci.yml` | Modify | Add shellcheck step for install.sh + PSScriptAnalyzer step for install.ps1 |
+| `.github/workflows/release.yml` | Modify | Amend publish-release job to upload scripts/install.sh and scripts/install.ps1 (ADJ-002) |
 
 ---
 
@@ -438,5 +459,6 @@ Key lessons from fix-burst U8/U9/U10 research:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.3 | 2026-07-19 | ADJ-002 per delta-analysis.md §13: added task to amend publish-release job in release.yml to upload install.sh/install.ps1; added AC-010 for upload verification; acceptance_criteria_count 9→10 |
 | 0.2 | 2026-07-19 | Fix-burst: U8 version resolution via /releases?per_page=1 (no gh CLI dep); U9 SHA-256 dual-path (sha256sum/shasum); U10 composite musl detection (getconf→ld-musl path→ldd); U29/U30/U31/U33 PS 5.1 constraints (#Requires + PSObject.Properties + PSScriptAnalyzer explicit install); research file added to inputs |
 | 0.1 | 2026-07-19 | Initial story creation (story-writer F3 burst) |

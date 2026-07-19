@@ -462,3 +462,183 @@ check ─────┬──→ build-plugins  (WASM only, single job, paralle
 - `publish-release` creates the GitHub Release and uploads prism binaries + install.sh/install.ps1
 - `build-demo-bundle` must list all three predecessors in `needs` to prevent the `gh release upload` race (U15)
 - `build-release` builds both `prism` and `prism-dtu-demo-server` in one cargo invocation; the demo-server binary flows to `build-demo-bundle` via workflow artifact (not rebuilt) (U13)
+
+---
+
+## 13. Pre-TDD Adjudication Record — S-REL-001 v0.2
+
+**Adjudicated by:** architect  
+**Date:** 2026-07-19  
+**Story version adjudicated:** S-REL-001 v0.2  
+**Context:** Mandatory pre-TDD uncertainty scan surfaced four findings. Story-writer applies all rulings in a v0.3 revision. This record is the authoritative source; the v0.3 story supersedes v0.2 for implementation scope per CLAUDE.md Source-of-Truth Precedence §1.
+
+---
+
+### ADJ-001 (Critical): libdbus-1-dev required unconditionally on both Linux legs
+
+**Finding severity:** Critical  
+**Finding source:** Pre-TDD scan contradicting U2 research conclusion.
+
+#### Evidence
+
+```
+cargo tree --target x86_64-unknown-linux-gnu -p prism-credentials -i libdbus-sys
+→ libdbus-sys v0.2.7
+
+cargo tree --target x86_64-unknown-linux-musl -p prism-credentials -i libdbus-sys
+→ libdbus-sys v0.2.7
+```
+
+`prism-credentials` `[features] default` includes `keyring-linux-native-sync-persistent = ["keyring/linux-native-sync-persistent", "keyring/crypto-rust"]`, which activates `dbus-secret-service 4.1.0 → dbus 0.9.11 → libdbus-sys 0.2.7` (C-linked). The `[features]` section does not branch on target triple — both Linux targets compile `dbus-secret-service`. The runtime distinction (musl: kernel-keyutils only; gnu: dbus Secret Service) is enforced in keyring's runtime logic, not at compile-time feature selection. Therefore libdbus-sys is compiled for BOTH Linux targets.
+
+`ci.yml` installs `libdbus-1-dev pkg-config` on every Linux job (7 occurrences verified) with comment: "build.rs runs on the glibc host even for musl cross-targets. Both linux-gnu and linux-musl legs therefore need libdbus-1-dev + pkg-config on the host. ADR-034 / BC-2.06.003."
+
+The U2 research conclusion "libdbus-1-dev NOT needed (keyring v3 uses pure-Rust zbus)" was a general finding about keyring v3 in the abstract. It does NOT apply to this workspace: prism-credentials uses the C-linked `dbus-secret-service` backend (not zbus). The research finding was correct in the abstract but inapplicable given prism's specific Cargo.toml feature configuration.
+
+The S-REL-001 v0.2 verification probe `grep -n 'libdbus-1-dev' Cargo.lock` is structurally invalid: apt package names never appear in Cargo.lock. The correct probe is `cargo tree --target <triple> -i libdbus-sys`.
+
+#### Ruling
+
+`libdbus-1-dev` MUST be installed unconditionally alongside `musl-tools` and `pkg-config` on both Linux legs (`x86_64-unknown-linux-gnu` and `x86_64-unknown-linux-musl`), citing ADR-034/BC-2.06.003. The EC-006 "if keyring uses zbus" hedge is withdrawn — it does not use zbus. The broken Cargo.lock probe is replaced.
+
+#### S-REL-001 v0.3 deltas (story-writer applies)
+
+1. **`risk_mitigations` entry for "Linux cross-compile setup (U2)"** — replace the entire "libdbus-1-dev is INCONCLUSIVE..." clause with:
+   > `libdbus-1-dev REQUIRED unconditionally on both Linux legs: prism-credentials default features enable keyring-linux-native-sync-persistent → dbus-secret-service 4.1.0 → dbus 0.9.11 → libdbus-sys 0.2.7 (C-linked). build.rs runs on the glibc host even for musl cross-targets. Verified: cargo tree --target x86_64-unknown-linux-{gnu,musl} -i libdbus-sys shows libdbus-sys v0.2.7. ci.yml installs libdbus-1-dev pkg-config unconditionally on every Linux job (ADR-034/BC-2.06.003). Do NOT add libssl-dev (ADR-050 mandates rustls-tls).`
+
+2. **task 7**, "Install Linux build deps" step:
+   - Remove the `# NOTE: libdbus-1-dev: VERIFY against Cargo.lock keyring backend before adding...` comment block entirely.
+   - Change the apt-get install line to: `sudo apt-get install -y musl-tools pkg-config libdbus-1-dev`
+   - Add a comment directly above the apt-get line:
+     `# libdbus-1-dev: required by prism-credentials keyring-linux-native-sync-persistent → dbus-secret-service (C-linked libdbus). build.rs runs on glibc host even for musl cross-target. ADR-034/BC-2.06.003.`
+
+3. **AC-010** "Then" clause — replace:
+   > `libdbus-1-dev presence is justified by a comment citing the verified keyring crate backend.`
+
+   with:
+   > `` `libdbus-1-dev` is installed unconditionally alongside `musl-tools` and `pkg-config` on both Linux legs, with a comment citing ADR-034/BC-2.06.003 and the build.rs host-linkage rationale. Secondary probe: `cargo tree --target x86_64-unknown-linux-gnu -i libdbus-sys` and `cargo tree --target x86_64-unknown-linux-musl -i libdbus-sys` both return `libdbus-sys vX.Y.Z`. ``
+
+4. **EC-006** — replace the row entirely:
+
+   | ID | Description | Expected Behavior |
+   |----|-------------|-------------------|
+   | EC-006 | musl target build (libdbus-sys C-linked at build time) | `libdbus-1-dev` installed on host; build succeeds. musl binary does NOT dynamically link libdbus at runtime (kernel-keyutils path only). Build fails if `libdbus-1-dev` is absent from runner. |
+
+---
+
+### ADJ-002 (Important): install.sh/install.ps1 upload step moves to S-REL-003
+
+**Finding severity:** Important (fork-tag dry-run gate blocker)  
+**Finding source:** Pre-TDD scan detecting nonexistent file reference.
+
+#### Reasoning
+
+`scripts/install.sh` and `scripts/install.ps1` do not exist on develop. They are authored by S-REL-003. S-REL-001 blocks S-REL-003 (genuine dependency: S-REL-003 needs S-REL-001's release URL pattern to write install.sh). Therefore at S-REL-001 implementation time, the install scripts will not exist.
+
+`gh release upload` hard-fails on nonexistent paths — no partial success. S-REL-001 task 13 (fork-tag dry-run) cannot go green with task 12 / AC-011 implemented as written: the files do not yet exist when S-REL-001 runs.
+
+Option analysis:
+- **(b) Re-adjudicate the dependency edge** — rejected. S-REL-003 genuinely needs S-REL-001's release URL pattern. Dropping the S-REL-001 → S-REL-003 dependency would mean S-REL-003 authors install.sh before the URL pattern is established. This is a real ordering constraint.
+- **(c) Placeholder glob logic** — rejected per canonical principle (defer-pattern smell; no "for now" placeholders).
+- **(a) Move upload step to S-REL-003** — adopted. The story that authors a file also owns the CI step that uploads it. This is correct-agent-pattern: S-REL-003 writes the files AND wires the upload. The U26 adjudication is preserved (install scripts ARE uploaded as release assets by publish-release); only the implementing story changes.
+
+#### Ruling
+
+Task 12 and AC-011 are removed from S-REL-001. S-REL-003 inherits ownership of both authoring the install scripts and amending the publish-release job in release.yml to upload them. The S-REL-001 → S-REL-003 dependency edge is unchanged. The CI job topology in §12 is unaffected (publish-release still uploads install.sh/install.ps1 at release time; it just takes effect after S-REL-003 merges).
+
+#### S-REL-001 v0.3 deltas (story-writer applies)
+
+1. Delete **task 12** ("Upload install.sh and install.ps1 as release assets (U26)") entirely.
+2. Delete **AC-011** ("install.sh and install.ps1 uploaded as release assets") entirely.
+3. Decrement **`acceptance_criteria_count`** frontmatter field: `12` → `11`.
+4. Rename **AC-012** → **AC-011** (the actionlint AC; only a renumbering, content unchanged).
+5. **Behavioral Contracts table**, "Architect U26 adjudication" row — update text:
+   > `install.sh/.ps1 uploaded as release assets by publish-release — upload step implemented in S-REL-003 (which authors the files; upload moved per pre-TDD scan ADJ-002; files do not exist at S-REL-001 implementation time)`
+6. **`risk_mitigations`**, entry for "install.sh and install.ps1 uploaded as release assets by publish-release job (U26)" — replace with:
+   > `install.sh and install.ps1 are authored by S-REL-003. S-REL-003 also amends the publish-release job in release.yml to add the gh release upload step for those scripts. S-REL-001 does NOT implement the upload — it establishes the release URL pattern that S-REL-003 consumes. (U26 upload step ownership reassigned to S-REL-003 per pre-TDD scan ADJ-002.)`
+
+#### S-REL-003 additions (story-writer applies when authoring S-REL-003)
+
+Add the following to S-REL-003 (in addition to its existing scope of authoring the scripts):
+
+1. **New task**: After the task that authors `scripts/install.ps1`, add:
+   > Amend the `publish-release` job in `.github/workflows/release.yml` to include `scripts/install.sh` and `scripts/install.ps1` in the `gh release create` invocation or as a subsequent `gh release upload` step within publish-release. Pass the release version to install.ps1 consumers via `$env:PRISM_INSTALL_VERSION` env var before the `irm | iex` pipe — positional args cannot be carried through `iex` (U8).
+
+2. **New AC**: Add to S-REL-003 acceptance criteria:
+   > The `publish-release` job in the modified `.github/workflows/release.yml` includes `scripts/install.sh` and `scripts/install.ps1` in the upload invocation. Verification: `grep -n 'install\.sh\|install\.ps1' .github/workflows/release.yml` returns at least one match inside the publish-release job context.
+
+3. **`depends_on`** of S-REL-003 must list `S-REL-001` (already implied by existing graph; make explicit in frontmatter if not present).
+
+---
+
+### ADJ-003 (Medium): Windows demo-server wrap requires .exe + 7z; all 5 targets
+
+**Finding severity:** Medium  
+**Finding source:** Pre-TDD scan detecting platform-specific binary naming gap.
+
+#### Reasoning
+
+`tar czf ... prism-dtu-demo-server` fails on `x86_64-pc-windows-msvc`: the Windows binary is `prism-dtu-demo-server.exe`. The existing main binary archive step already handles this correctly via `archive_ext` matrix variable and `if [ "${{ matrix.archive_ext }}" = "zip" ]` conditional — the same pattern must govern the demo-server wrap. The +x preservation rationale applies only to Unix legs; Windows has no Unix executable bit concept.
+
+Strip handling: the existing story strips only `prism`. Both binaries should be stripped on Unix legs under the production-grade default.
+
+Target coverage: all 5 matrix targets build the demo-server (delta-analysis §7: demo bundle is per-platform for all 5 targets).
+
+#### Ruling
+
+Task 7 must use per-OS conditional logic for the demo-server wrap, keyed on the existing `archive_ext` matrix variable. Unix legs: `tar czf` (preserves +x). Windows: `7z a ... prism-dtu-demo-server.exe`. Strip covers both binaries on Unix legs. Artifact upload uses `${{ matrix.archive_ext }}` in the filename. No target exclusion.
+
+#### S-REL-001 v0.3 deltas (story-writer applies)
+
+1. **task 7**, demo-server wrap step — replace the single tar command with the following two-step block:
+
+   ```yaml
+   - name: Strip demo-server (Unix)
+     if: runner.os != 'Windows'
+     run: strip target/${{ matrix.target }}/release/prism-dtu-demo-server 2>/dev/null || true
+
+   - name: Wrap prism-dtu-demo-server for artifact upload
+     shell: bash
+     run: |
+       if [ "${{ matrix.archive_ext }}" = "zip" ]; then
+         cd target/${{ matrix.target }}/release
+         7z a "../../../prism-dtu-demo-server-${{ matrix.target }}.zip" prism-dtu-demo-server.exe
+       else
+         tar czf prism-dtu-demo-server-${{ matrix.target }}.tar.gz \
+           -C target/${{ matrix.target }}/release prism-dtu-demo-server
+       fi
+   ```
+
+   Upload artifact step for demo-server (job-to-job only — not a public release asset):
+   ```yaml
+   - name: Upload demo-server artifact (job-to-job)
+     uses: actions/upload-artifact@...  # same pin as main artifact step
+     with:
+       name: prism-dtu-demo-server-${{ matrix.target }}
+       path: prism-dtu-demo-server-${{ matrix.target }}.${{ matrix.archive_ext }}
+   ```
+
+   `build-demo-bundle` (S-REL-004) downloads this artifact and extracts based on `archive_ext` — that extraction logic is S-REL-004's scope, not S-REL-001's.
+
+2. **AC-009** "Then" clause — replace:
+   > `prism-dtu-demo-server binary is tar-wrapped before upload (to preserve +x bit).`
+
+   with:
+   > `prism-dtu-demo-server binary is wrapped before upload-artifact using per-OS conditional logic: `.tar.gz` (tar, preserves +x bit) on Unix legs; `.zip` (7z, `.exe` suffix) on Windows. Uploaded as artifact `prism-dtu-demo-server-${{ matrix.target }}` with path `prism-dtu-demo-server-${{ matrix.target }}.${{ matrix.archive_ext }}`. All 5 matrix targets produce this artifact. prism-dtu-demo-server is stripped on Unix legs (alongside `prism`).`
+
+3. **`risk_mitigations`** entry for "build-release builds prism-bin + prism-dtu-demo-server together (U13)" — append:
+   > The demo-server wrap step uses per-OS conditional logic matching the `archive_ext` matrix variable (same pattern as the main `prism` archive step): `tar czf` on Unix (preserves +x); `7z a ... .exe` on Windows. Strip applies to both `prism` and `prism-dtu-demo-server` on Unix legs.
+
+---
+
+### ADJ-004 (Low — note only): Stale crate count "24" in task 6
+
+**No formal adjudication required.** The Cargo workspace currently has 27 member entries (verified from root `Cargo.toml` `members` array). The CLAUDE.md header cites a different count from a prior session. Hardcoded counts in inline comments are a maintenance liability — they drift silently as crates are added.
+
+**S-REL-001 v0.3 delta (story-writer applies):** In **task 6**, change the comment text from:
+> `all 24 workspace crates carry publish = false`
+
+to:
+> `all workspace crates carry publish = false`
+
+No number. The sentence remains true regardless of future crate additions.
