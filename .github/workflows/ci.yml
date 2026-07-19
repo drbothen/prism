@@ -1879,7 +1879,7 @@ jobs:
           echo "shellcheck: all demo scripts pass (S-DEMO-003 HIGH-2 / AC-014)"
 
   verify-workflow-structure:
-    name: Verify workflow structure (reachability + config invariants, 24 assertions)
+    name: Verify workflow structure (reachability + config invariants, 25 assertions)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -2087,15 +2087,26 @@ jobs:
             exit 1
           }
           echo 'F-REL001-P3-OBS-002 reachability check passed: release-gate job definition present.'
-          # S-REL-001 release-gate suite run assertion (F-REL001-P3-OBS-002):
-          # The release-gate job must invoke tests/release-gate/run.sh — the run step is the
-          # actual enforcement; removing it while keeping the job stub would silently disable validation.
-          grep -qE 'tests/release-gate/run\.sh' .github/workflows/ci.yml || {
-            echo "::error::F-REL001-P3-OBS-002: tests/release-gate/run.sh invocation missing from ci.yml — release-gate suite no longer runs (S-REL-001 AC-012)"
+          # S-REL-001 release-gate suite run assertion — SCOPED (F-REL001-P3-OBS-002 / F-REL001-P11-001 fix):
+          # Scoped to the release-gate job block only to prevent self-matching against this assertion line.
+          # awk '/^  release-gate:/,0' extracts from job definition to EOF (release-gate is the last job).
+          # grep then checks for the exact indented bash invocation within that block only.
+          # Deletion proof: removing 'bash tests/release-gate/run.sh' from the release-gate job makes this FAIL.
+          RELEASE_GATE_BLOCK=$(awk '/^  release-gate:/,0' .github/workflows/ci.yml)
+          echo "$RELEASE_GATE_BLOCK" | grep -qE '^\s+bash tests/release-gate/run\.sh\s*$' || {
+            echo "::error::F-REL001-P3-OBS-002: 'bash tests/release-gate/run.sh' run step missing from release-gate job block — release-gate suite no longer runs (S-REL-001 AC-012)"
             exit 1
           }
-          echo 'F-REL001-P3-OBS-002 run assertion passed: tests/release-gate/run.sh invocation present.'
-          echo 'All verify-workflow-structure assertions pass (24 total: 22 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-mirrors (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-mirrors (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-post-reclaimer-truncate (count≥2) + F-REL001-P3-OBS-002 (×2) — 22 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 24 total checks.'
+          echo 'F-REL001-P3-OBS-002 scoped run assertion passed: bash tests/release-gate/run.sh present in release-gate job block.'
+          # F-REL001-P11-001 fix: AC-012 Justfile recipe guard.
+          # verify-workflow-structure runs from checkout root — Justfile is at repo root, path resolves.
+          # Guards the AC-012 local-run clause (previously verified by inspection only).
+          grep -qE '^test-release-gate:' Justfile || {
+            echo "::error::F-REL001-P11-001: 'test-release-gate:' recipe missing from Justfile — AC-012 local run recipe removed (S-REL-001 AC-012)"
+            exit 1
+          }
+          echo 'F-REL001-P11-001 Justfile recipe assertion passed: test-release-gate recipe present.'
+          echo 'All verify-workflow-structure assertions pass (25 total: 23 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-mirrors (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-mirrors (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-post-reclaimer-truncate (count≥2) + F-REL001-P3-OBS-002 (×2, scoped) + F-REL001-P11-001 (Justfile) — 23 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 25 total checks.'
 
   release-gate:
     name: Release gate (S-REL-001 AC-012)
