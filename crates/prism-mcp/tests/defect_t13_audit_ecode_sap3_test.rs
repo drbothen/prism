@@ -661,8 +661,8 @@ async fn test_sap3_head_join_bare_unknown_col_plan_suspension() {
     // execution time because "totally_unknown_col" is absent from both table schemas.
     // BC-2.11.016 §HEAD-JOIN SUSPENSION RULE / §FP-001: fail-open means DataFusion
     // validates the WHERE column at execution time, not silent 0-row success.
-    // Live [H8] parity: t13-preflight-audit.py ~4012-4018 FAILs 0-rows-no-error as
-    // "swallowed DataFusion schema error" (FAIL-DEFECT). Ok(empty) here = T13 [H8] FAIL.
+    // Live [H8] parity: t13-preflight-audit.py [H8] check FAILs the `not ec and not rows`
+    // branch (swallowed DataFusion schema error, FAIL-DEFECT). Ok(empty) here = T13 [H8] FAIL.
 
     // [H8] silent-swallow guard: Ok(_) with 0 rows means DataFusion skipped schema
     // validation — mirrors the live T13 [H8] FAIL condition (BC-2.11.016 §HEAD-JOIN
@@ -709,6 +709,33 @@ async fn test_sap3_head_join_bare_unknown_col_plan_suspension() {
          (fail-open) and the column is genuinely absent from the execution schema.",
         result.as_ref().err()
     );
+
+    // Detail-content assertion (OBS-1): "SQL planning error:" is the site-specific prefix
+    // hardcoded at the sql.sql_planning_error construction site in materialization.rs
+    // (`session_ctx.sql(&plan_pinned_sql).await.map_err(...)` — the DataFusion logical
+    // planning step that validates WHERE column references against registered MemTable
+    // schemas). This prefix distinguishes this QueryExecutionFailed from:
+    //   "virtual field injection failed:"  — fan-out path
+    //   "<redacted; see server logs>"      — memory budget (map_datafusion_memory_error)
+    //   "filter SQL planning error:"       — filter-mode DataFusion path
+    //   "pipe SQL planning error:"         — pipe-mode DataFusion path
+    //   "sqlpipe SQL planning error:"      — sql-pipe-mode DataFusion path
+    //   "SQL normalization failed:"        — normalize_for_datafusion None path
+    // The column name "totally_unknown_col" is not present in the detail
+    // (CWE-209 / BC-2.10.007 Rule-1 redaction); the site-specific prefix is the
+    // stable behavioral anchor that uniquely identifies this execution site.
+    if let Err(PrismError::QueryExecutionFailed { ref detail }) = result {
+        assert!(
+            detail.contains("SQL planning error:"),
+            "SAP-3 [H8] DETAIL CONTENT: QueryExecutionFailed detail must contain \
+             'SQL planning error:' — uniquely identifies this as a DataFusion SQL \
+             planning path failure (sql.sql_planning_error site in materialization.rs \
+             `session_ctx.sql()` call), not a virtual-field injection, memory budget, \
+             filter/pipe/sqlpipe path, or normalization failure. \
+             Actual detail: {:?}",
+            detail
+        );
+    }
 }
 
 // ── Test B: [H8] error-mapping defense-in-depth → E-QUERY-034, NOT E-QUERY-038 ─
