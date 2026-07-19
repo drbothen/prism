@@ -56,7 +56,7 @@ AC-001..AC-005, AC-008, AC-009, AC-010, AC-011 were expected to fail before
 implementation. AC-006, AC-007, and partial AC-008 pass on the broken/dead jobs
 in the original release.yml (the original workflow already had the correct matrix
 shape for those checks).
-See `.factory/stories/S-REL-001.md` red-gate-log for details.
+See `.factory/cycles/v1.0.0-release-engineering/S-REL-001/implementation/red-gate-log.md` for details.
 
 After implementation, all 58 assertions should pass. actionlint must be installed
 (absent actionlint is a hard failure, not a skip — the gate fails closed).

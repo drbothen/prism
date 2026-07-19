@@ -31,7 +31,7 @@ for target in "${TARGETS[@]}"; do
 done
 
 # Required runners.
-RUNNERS=("macos-latest" "macos-13" "ubuntu-latest" "windows-latest")
+RUNNERS=("macos-latest" "macos-15-intel" "ubuntu-latest" "windows-latest")
 for runner in "${RUNNERS[@]}"; do
   if grep -qF "runner: ${runner}" "$CI_YML" 2>/dev/null; then
     tap_pass "AC-3: runner '${runner}' listed under matrix.include"
