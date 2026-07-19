@@ -96,11 +96,15 @@ jobs:
           fi
       - name: Compute SHA-256 checksum
         shell: bash
+        # F-REL001-P1-001 fix: ARCHIVE was set via GITHUB_ENV in the prior step and is available
+        # as a plain shell variable. Using "$ARCHIVE" (not "${{ env.ARCHIVE }}") prevents the
+        # Actions runner from textually substituting a tag-derived value into bash source code,
+        # eliminating the CWE-78 command injection path.
         run: |
           if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum "${{ env.ARCHIVE }}" >> checksums.txt
+            sha256sum "$ARCHIVE" >> checksums.txt
           else
-            shasum -a 256 "${{ env.ARCHIVE }}" >> checksums.txt
+            shasum -a 256 "$ARCHIVE" >> checksums.txt
           fi
       - name: Attest build provenance
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
@@ -137,6 +141,11 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # F-REL001-P1-001 fix: bind tag via env: map so the value reaches bash as an
+          # environment variable rather than as textual substitution into bash source.
+          # An attacker-controlled tag like v1.0.0$(id) would execute via the old
+          # TAG="${{ github.ref_name }}" form; the env: binding eliminates that path.
+          TAG: ${{ github.ref_name }}
         # Array form avoids empty positional arg when NOT prerelease.
         # gh does NOT auto-detect --prerelease from tag format (research U3).
-        run: TAG="${{ github.ref_name }}"; PRERELEASE_ARGS=(); if [[ "$TAG" == *-* ]]; then PRERELEASE_ARGS+=(--prerelease); fi; gh release create "$TAG" --title "Prism $TAG" --generate-notes "${PRERELEASE_ARGS[@]}" artifacts/release-*/*.tar.gz artifacts/release-*/*.zip checksums.txt
+        run: PRERELEASE_ARGS=(); if [[ "$TAG" == *-* ]]; then PRERELEASE_ARGS+=(--prerelease); fi; gh release create "$TAG" --title "Prism $TAG" --generate-notes "${PRERELEASE_ARGS[@]}" artifacts/release-*/*.tar.gz artifacts/release-*/*.zip checksums.txt
