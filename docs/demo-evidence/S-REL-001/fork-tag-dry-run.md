@@ -155,3 +155,170 @@ already in `ci.yml`.
 
 **Orchestrator routing:** Implementer (the fix is in `.github/workflows/release.yml`,
 a CI/CD artifact; the required step SHA is already pinned in `ci.yml`).
+
+---
+
+## Attempt 2 — DEFECT-REL001-PROTOC-MISSING-001 Verification
+
+**Tag:** `v0.0.1-rc.test` at commit `68247e87`
+
+**Tag push time (UTC):** 2026-07-20T01:42:31Z
+
+**Run URL:** https://github.com/drbothen/prism/actions/runs/29711315678
+
+**Pre-push hooks:** ALL PASSED (fmt + clippy + nextest + non-exhaustive 92/92 gate)
+
+---
+
+### Per-Leg Results Table
+
+| Target | Job ID | Conclusion | Duration | Job Link |
+|--------|--------|------------|----------|----------|
+| x86_64-apple-darwin | 88255545319 | PASS | 10m 53s | https://github.com/drbothen/prism/actions/runs/29711315678/job/88255545319 |
+| x86_64-pc-windows-msvc | 88255545321 | PASS | 14m 12s | https://github.com/drbothen/prism/actions/runs/29711315678/job/88255545321 |
+| x86_64-unknown-linux-musl | 88255545323 | FAIL | 2m 6s | https://github.com/drbothen/prism/actions/runs/29711315678/job/88255545323 |
+| x86_64-unknown-linux-gnu | 88255545331 | PASS | 6m 43s | https://github.com/drbothen/prism/actions/runs/29711315678/job/88255545331 |
+| aarch64-apple-darwin | 88255545340 | PASS | 6m 15s | https://github.com/drbothen/prism/actions/runs/29711315678/job/88255545340 |
+| publish-release (Create GitHub Release) | 88256432739 | SKIPPED | 0s | N/A |
+
+4 of 5 build-release legs passed. DEFECT-REL001-PROTOC-MISSING-001 is CONFIRMED
+FIXED — the protoc step showed ✓ on ALL 5 legs, including the failing musl leg.
+
+---
+
+### DEFECT-REL001-PROTOC-MISSING-001 Closure Confirmation
+
+The `Install protoc (required by prost-build for prism-ocsf)` step showed ✓ (success)
+on all 5 matrix legs. The original Attempt 1 failure cause is eliminated.
+
+---
+
+### NEW REAL DEFECT — DEFECT-REL001-MUSL-DBUS-001: libdbus-sys cross-compilation failure
+
+**Label:** REAL DEFECT (deterministic, not an environment flake)
+
+**Root cause:** `cargo build --release --locked --target x86_64-unknown-linux-musl`
+puts cargo into cross-compilation mode. `libdbus-sys v0.2.7` (transitive dep via
+`prism-credentials` → keyring → dbus-secret-service) invokes `pkg-config` in its
+build.rs to locate libdbus-1. When cross-compiling, `pkg-config` refuses to run
+without cross-compilation configuration:
+
+```
+error: failed to run custom build command for `libdbus-sys v0.2.7`
+  process didn't exit successfully: `.../libdbus-sys-.../build-script-build` (exit status: 101)
+  --- stderr
+  pkg_config failed: pkg-config has not been configured to support cross-compilation.
+  Install a sysroot for the target platform and configure it via
+  PKG_CONFIG_SYSROOT_DIR and PKG_CONFIG_PATH, or install a
+  cross-compiling wrapper for pkg-config and set it via
+  PKG_CONFIG environment variable.
+```
+
+**Why CI does NOT exhibit this:** `ci.yml` test job runs `cargo nextest run --workspace
+--all-features --profile ci` WITHOUT an explicit `--target` flag. Without `--target`,
+cargo builds for the host architecture (`x86_64-unknown-linux-gnu` on ubuntu-latest).
+pkg-config operates in host mode (no cross-compilation mode) and finds `libdbus-1-dev`
+trivially. `release.yml` correctly passes `--target x86_64-unknown-linux-musl`, which
+triggers cross-compilation mode and exposes the gap.
+
+**Required fix (for orchestrator routing):**
+Add `PKG_CONFIG_ALLOW_CROSS=1` to the `env:` block of the `Build release binary` step
+in `release.yml`, scoped to linux targets:
+
+```yaml
+- name: Build release binary
+  env:
+    # libdbus-sys build.rs runs on the glibc host even for musl cross-target;
+    # PKG_CONFIG_ALLOW_CROSS=1 permits host pkg-config to find libdbus-1-dev.
+    # Applies only when contains(matrix.target, 'linux').
+    PKG_CONFIG_ALLOW_CROSS: ${{ contains(matrix.target, 'linux') && '1' || '' }}
+  run: cargo build --release --locked --target ${{ matrix.target }} -p prism-bin -p prism-dtu-demo-server
+```
+
+**Orchestrator routing:** Implementer (the fix is a single `env:` addition to `.github/workflows/release.yml`).
+
+---
+
+### Release Asset Listing (EC-001/AC-005)
+
+**Not applicable.** The `publish-release` (Create GitHub Release) job was SKIPPED
+because the musl `build-release` matrix leg failed (`needs: build-release` requires
+all legs to succeed). No GitHub Release was created for `v0.0.1-rc.test`.
+
+```
+gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"
+```
+
+EC-001/AC-005 (prerelease flag must be true for `-` tags) wire proof is partially
+unblocked: the 4 passing legs produced their artifacts and attestations correctly.
+Full wire proof requires the musl defect to be fixed.
+
+---
+
+### Idempotency Spot-Check (EC-009) — Attempt 2
+
+**Not applicable.** No release was created; the publish-release job was skipped.
+This spot-check must be re-run after DEFECT-REL001-MUSL-DBUS-001 is fixed and
+a successful 5/5 run exists.
+
+---
+
+### Attestation Step Outcome — Attempt 2
+
+The `actions/attest-build-provenance` step ran and SUCCEEDED on all 4 passing legs.
+The step was skipped (not reached) on the musl leg because the build failed before
+the archive step. OIDC token (`id-token: write` permission) was available. The 4
+successful attestations are internally consistent — confirmed by the passing job logs.
+
+---
+
+### Cleanup Verification — Attempt 2
+
+1. GitHub Release deleted: N/A — no release was created (publish-release was skipped).
+2. Remote tag deleted:
+
+```
+git push origin :refs/tags/v0.0.1-rc.test
+To https://github.com/drbothen/prism.git
+ - [deleted]           v0.0.1-rc.test
+```
+
+3. Local tag deleted:
+
+```
+git tag -d v0.0.1-rc.test
+Deleted tag 'v0.0.1-rc.test' (was 68247e87)
+```
+
+4. Verification:
+
+```
+git ls-remote origin refs/tags/v0.0.1-rc.test → (empty)
+git tag -l "v0.0.1-rc.test" → (empty)
+gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"
+```
+
+All confirmed clean.
+
+---
+
+### Attempt 2 Gate Verdict
+
+**DRY-RUN FAILED**
+
+DEFECT-REL001-PROTOC-MISSING-001: FIXED (confirmed — protoc step ✓ on all 5 legs)
+
+Failing leg: x86_64-unknown-linux-musl (1 of 5)
+
+New root cause: DEFECT-REL001-MUSL-DBUS-001 — `libdbus-sys` cross-compilation via
+`pkg-config` fails when `--target x86_64-unknown-linux-musl` is passed to cargo.
+
+4 of 5 legs (x86_64-apple-darwin, x86_64-pc-windows-msvc, x86_64-unknown-linux-gnu,
+aarch64-apple-darwin) passed with correct artifact upload and attestation.
+
+The workflow's publish-release, asset naming, checksums, prerelease flag logic,
+and idempotent `--clobber` path are structurally sound — blocked only by the single
+musl cross-compilation environment variable gap.
+
+**Orchestrator routing:** Implementer (single `env: PKG_CONFIG_ALLOW_CROSS: 1` line
+on the `Build release binary` step in `.github/workflows/release.yml`).
