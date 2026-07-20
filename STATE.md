@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.436"
+version: "8.437"
 producer: state-manager
-timestamp: 2026-07-20T23:45:00Z
+timestamp: 2026-07-20T23:58:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1888 (2026-07-20): SESSION WRAP — findings-first priority pivot (human-directed); api-specs reference created (.factory/reference/api-specs/: cyberint alerts+assets, xdome); RESUME SNAPSHOT D-1888 authored; VERY NEXT ACTION: (1) verify develop CI on 7fef57da green, (2) read /Users/jmagady/Dev/test-soc/demo-soc/findings/ README + 9 findings docs and triage into registered defects/stories; Wave F-A resumes AFTER findings phase. trajectory-tail →0→0→0→0 STATE v8.435→v8.436"
+current_step: "D-1889 (2026-07-20): FINDINGS TRIAGE CAPTURE — 7-reader fan-out triaged; 36 findings registered (18 engine + 12 sensor + 6 DTU scenarios); 8 CRIT total (F1/F10/G4 engine + 5 sensor); systemic root cause ADR-028 spec←DTU circular grounding; 5 wrong-direction stories flagged; 5 open human-gate decisions (LOCKED D-747 overturn, incidents retire/build conflict, ADR-028 supersession, cycle structure); triage-capture.md at planning/findings-remediation-2026-07-20/. VERY NEXT ACTION: human sign-off on 5 open decisions → dispatch routing chain. trajectory-tail →0→0→0→0 STATE v8.436→v8.437"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 411 lines (wc-l)
+  STATE.md SIZE BUDGET: 412 lines (wc-l)
   margin from soft-target (200): +209 lines over | margin from actual (500): 91 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-20 D-1888 — SESSION WRAP: findings-first priority pivot (human-directed); api-specs reference folder created (.factory/reference/api-specs/: cyberint alerts+assets OpenAPI + xdome OpenAPI); RESUME SNAPSHOT D-1888 authored (supersedes D-1881). trajectory-tail →0→0→0→0 STATE v8.435→v8.436 |
+| **Last Updated** | 2026-07-20 D-1889 — FINDINGS TRIAGE CAPTURE: 36 findings registered (18 engine + 12 sensor); 8 CRIT; systemic root cause ADR-028; 5 wrong-direction stories flagged; 5 open human-gate decisions. triage-capture.md at planning/findings-remediation-2026-07-20/. trajectory-tail →0→0→0→0 STATE v8.436→v8.437 |
 
 ## Active Objective (North Star)
 
@@ -301,6 +301,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1886 | state-manager | 2026-07-20 | PR #228 SQUASH-MERGED to develop 2026-07-20; merge commit 7fef57dad0d14121c0b4f28234a18b328f12fa49 (short: 7fef57da); develop e116a587→7fef57da; S-REL-001 story status→SHIPPED; behavioral_contracts: [] CONFORMING (no POL-14 actions required); .worktrees/S-REL-001 lane CLOSED; STATE v8.433→v8.434 | wave-5-e-demo-fidelity | 2026-07-20 |
 | D-1887 | state-manager | 2026-07-20 | POST-MERGE RECONCILIATION BURST (TD-VSDD-053): repaired pr-manager b23f5e70 frozen-HEAD error (384d520e→e16f5e6a in Phase Progress + Convergence Status + Concurrent Cycles; actual final 3-CLEAN frozen HEAD; 12 passes total). S-REL-001 story status draft→merged (POL-13; merged_sha 7fef57da; merged_pr 228; merged_date 2026-07-20). STORY-INDEX v2.718→v2.719: S-REL-001 row merged v0.24 @7fef57da; S-REL-004 v0.1→v0.3; S-REL-005 v0.1→v0.3. SESSION-HANDOFF D-1881 amended by D-1887. 2 process-gaps: PG-PRMGR-MERGE-AUTHORITY-001 [HIGH] + PG-PRMGR-STATEMD-DIRECT-EDIT-001 [MED]. Lessons 80+81 appended. STATE v8.434→v8.435 | wave-5-e-demo-fidelity | 2026-07-20 |
 | D-1888 | state-manager | 2026-07-20 | SESSION WRAP — PRIORITY PIVOT (human-directed 2026-07-20): findings-first before Wave F-A. api-specs reference folder created: .factory/reference/api-specs/ (cyberint_alerts_openapi_06.20.2026.json, cyberint_assets_openapi_06.20.2026.json, xdome_openapi_06.20.2026.json; canonical vendor OpenAPI specs for DTU fidelity remediation; human-supplied). Armis: no OpenAPI file — canonical API docs at https://dev.armis.com/reference/post_oauth_token_post. RESUME SNAPSHOT D-1888 authored (supersedes D-1881 [AMENDED by D-1886/D-1887]). SESSION-HANDOFF.md priority banner updated to reference D-1888; D-1881 marked [SUPERSEDED by D-1888]. STATE v8.435→v8.436 | wave-5-e-demo-fidelity | 2026-07-20 |
+| D-1889 | state-manager | 2026-07-20 | FINDINGS TRIAGE CAPTURE (7-reader fan-out, D-1888-directed): 36 findings registered; 8 CRIT total (F1=DEFECT-PQL-SUBQUERY-FANOUT-001, F10=DEFECT-ADAPTER-TLS-XDOME-LIVE-001, G4=DEFECT-QUERY-TIMEOUT-ORPHAN-SWEEP-001 engine + 5 sensor: S-ARMIS-AUTH-FIDELITY-001, S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001, S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001, DEFECT-CYBERINT-SPEC-FIDELITY-001, ARCH-CYBERINT-AUTH-READJUDICATION-001); systemic root cause ADR-028 spec←DTU circular grounding; 5 wrong-direction stories flagged for PO adjudication (do NOT retire yet); 5 open human-gate decisions (ADR-028 supersession, LOCKED D-747 cyberint/armis auth overturns, incidents retire-vs-build conflict, cycle structure); sidecar-learning.md dirty pre-burst rides along. Full inventory at planning/findings-remediation-2026-07-20/triage-capture.md. STATE v8.436→v8.437 | wave-5-e-demo-fidelity | 2026-07-20 |
 
 ## Skip Log
 
