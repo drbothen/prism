@@ -16,7 +16,7 @@ This suite is the **authoritative gate** for the release workflow (`release.yml`
 | test_AC-007_checksums.sh | AC-007 | SHA-256 checksum step present and checksums.txt attached to release |
 | test_AC-008_oidc-attestation.sh | AC-008 | OIDC attestation step present (actions/attest-build-provenance v4.1.1) |
 | test_AC-009_demo-server-build.sh | AC-009 | demo-server build job present in the tag-triggered release matrix (artifact consumed by S-REL-004 demo bundle) |
-| test_AC-010_linux-setup.sh | AC-010 | Linux apt dependencies installed (musl-tools, libdbus-1-dev, etc.) |
+| test_AC-010_linux-setup.sh | AC-010 | Linux apt dependencies installed (musl-tools, libdbus-1-dev, etc.); protoc toolchain pinned (arduino/setup-protoc SHA+version comment, no if: gate — DEFECT-REL001-PROTOC-MISSING-001) |
 | test_AC-011_actionlint.sh | AC-011 | actionlint exits 0 on release.yml (requires: brew install actionlint) |
 
 ## How to Run
@@ -58,7 +58,7 @@ in the original release.yml (the original workflow already had the correct matri
 shape for those checks).
 See `.factory/cycles/v1.0.0-release-engineering/S-REL-001/implementation/red-gate-log.md` for details.
 
-After implementation, all 61 assertions should pass. actionlint must be installed
+After implementation, all 63 assertions should pass. actionlint must be installed
 (absent actionlint is a hard failure, not a skip — the gate fails closed).
 
 ## Floor Constants (F-REL001-P7-001)
@@ -69,7 +69,7 @@ or losing assertions causes a loud harness failure rather than a silent pass:
 | Constant | Value | Meaning |
 |----------|-------|---------|
 | `EXPECTED_TEST_FILES` | 11 | Number of `test_AC-*.sh` files that must be executed |
-| `EXPECTED_ASSERTIONS` | 61 | Total TAP assertions across all test files |
+| `EXPECTED_ASSERTIONS` | 63 | Total TAP assertions across all test files |
 
 Exact equality is used (not `>=`), following the `scripts/check-non-exhaustive.sh
 EXPECTED=92` precedent. An unexpected *increase* also requires a conscious constant

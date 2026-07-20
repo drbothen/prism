@@ -55,4 +55,37 @@ else
     "AC-010 FAIL: expected \"if: contains(matrix.target, 'linux')\" on the apt-get install step"
 fi
 
+# DEFECT-REL001-PROTOC-MISSING-001 + F-REL001-P10-001:
+# protoc toolchain is required by prost-build (prism-ocsf build.rs) on all 5 matrix legs.
+# The fix-burst that added the setup-protoc step must have a load-bearing suite assertion
+# per the F-REL001-P10-001 codified discipline (any fix-burst adding load-bearing workflow
+# logic must add a suite assertion in the same burst).
+#
+# 6. SID-2 composed assertion: full pinned SHA + version comment must co-appear on the same
+# uses: line. Asserting just the action name or just the SHA would leave either the SHA-pin
+# or the human-readable version comment unverified.
+# At Red: step absent → full string absent → FAILS.
+assert_contains "$REL_YML" \
+  "arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0" \
+  "AC-010"
+
+# 7. setup-protoc must run on ALL 5 matrix legs — no if: gate allowed.
+# Extract the step block from '- name: Install protoc' through the next step boundary
+# (a line starting with '      - ') and verify no 'if:' condition appears in the block.
+# At Red: step absent → block is empty → first branch fires → FAILS.
+protoc_block=$(awk '
+  /- name: Install protoc.*prost-build/ { capture=1 }
+  capture && /^      - / && !/Install protoc/ { exit }
+  capture { print }
+' "$REL_YML")
+if [ -z "$protoc_block" ]; then
+  tap_fail "AC-010: setup-protoc step block not found in release.yml" \
+    "AC-010 FAIL: expected '- name: Install protoc (required by prost-build' step — absent entirely"
+elif echo "$protoc_block" | grep -qF 'if:' 2>/dev/null; then
+  tap_fail "AC-010: setup-protoc step is gated by if: (must run on all 5 matrix legs)" \
+    "AC-010 FAIL: setup-protoc step must be unconditional — 'if:' found in step block"
+else
+  tap_pass "AC-010: setup-protoc step runs unconditionally on all 5 matrix legs (no if: gate)"
+fi
+
 tap_done
