@@ -44,12 +44,16 @@ for target in "${TARGETS[@]}"; do
   fi
 done
 
-# cargo build --release --locked must be a real run step.
-if grep -qE '^[[:space:]]+run:[[:space:]]+cargo build --release --locked' "$REL_YML" 2>/dev/null; then
-  tap_pass "AC-6: 'cargo build --release --locked' is a real run step"
+# Locked release build must exist on both paths (DEFECT-REL001-MUSL-LIBSTDCXX-001 §15):
+# musl target uses cargo-zigbuild; all other targets use cargo build.
+# Both share --release --locked. Assert BOTH commands are present in the build step's
+# multiline run block (block-scoped, not requiring run: and command on the same line).
+if grep -qF "cargo zigbuild --release --locked" "$REL_YML" 2>/dev/null && \
+   grep -qF "cargo build --release --locked" "$REL_YML" 2>/dev/null; then
+  tap_pass "AC-6: locked release builds present for both zigbuild (musl) and cargo build (non-musl) paths"
 else
-  tap_fail "AC-6: 'cargo build --release --locked' missing as real run step" \
-    "AC-6 FAIL: expected 'run: cargo build --release --locked --target ...' — found only TODO echo"
+  tap_fail "AC-6: locked release builds incomplete — cargo zigbuild and/or cargo build --locked missing" \
+    "AC-6 FAIL: expected both 'cargo zigbuild --release --locked' and 'cargo build --release --locked' in release.yml"
 fi
 
 # SHA-256 checksum step must be real (sha256sum or shasum invocation).

@@ -89,9 +89,10 @@ else
 fi
 
 # DEFECT-REL001-MUSL-CXX-001 + F-REL001-P10-001 (SID-2 composed assertions):
-# The musl C++ toolchain fix requires two load-bearing changes to co-exist:
-# (1) clang added to apt-get install, and (2) CXX_x86_64_unknown_linux_musl
-# env var exported with value clang++. Assert the composed forms, not fragments.
+# §15 ratified: cargo-zigbuild closes DEFECT-REL001-MUSL-LIBSTDCXX-001 by replacing
+# the CXX_x86_64_unknown_linux_musl=clang++ env export with Zig's own musl-aware
+# C++ toolchain. clang is still installed for build.rs cc-rs usage on the glibc host.
+# Assertions 9-16: assert §15 design (pip/zigbuild) and guard against CXX reintroduction.
 #
 # 9. 'libdbus-1-dev clang' — composed end of the apt-get install command.
 #    Asserting both packages together distinguishes the functional install line
@@ -100,9 +101,46 @@ assert_contains "$REL_YML" \
   "libdbus-1-dev clang" \
   "AC-010"
 
-# 10. Full composed CXX env assignment (SID-2: key=value form — not the variable
-#     name alone and not 'clang++' alone; the pairing is what the fix requires).
+# §15 cargo-zigbuild assertions (DEFECT-REL001-MUSL-LIBSTDCXX-001, Delta 15-1/15-2/15-3):
+
+# 10. pip3 install with --require-hashes and the requirements file path (Delta 15-2, §15).
+#     SID-2 composed: hash-pinning flag + exact requirements file path co-appear on one line.
 assert_contains "$REL_YML" \
+  "pip3 install --require-hashes -r .github/workflows/requirements-musl-ci.txt" \
+  "AC-010"
+
+# 11. cargo-zigbuild installed at the exact pinned version with --locked (Delta 15-1, §15).
+#     SID-2 composed: --locked + exact version string must co-appear.
+assert_contains "$REL_YML" \
+  "cargo install --locked cargo-zigbuild --version 0.23.0" \
+  "AC-010"
+
+# 12. musl build uses cargo zigbuild with --locked AND both -p package specs (SID-2, §15).
+#     Composed: zigbuild + locked + both package names in one shell line.
+#     Single quotes prevent bash from expanding ${{ matrix.target }} — passed as literal.
+MUSL_BUILD_CMD='cargo zigbuild --release --locked --target ${{ matrix.target }} -p prism-bin -p prism-dtu-demo-server'
+assert_contains "$REL_YML" "$MUSL_BUILD_CMD" "AC-010"
+
+# 13. requirements-musl-ci.txt file must exist adjacent to release.yml (Delta 15-2, §15).
+REQUIREMENTS_TXT="${WORKTREE}/.github/workflows/requirements-musl-ci.txt"
+assert_file_exists "$REQUIREMENTS_TXT" "AC-010"
+
+# 14. Requirements file pins ziglang at the exact version (not a range or inequality).
+assert_contains "$REQUIREMENTS_TXT" \
+  "ziglang==0.16.0" \
+  "AC-010"
+
+# 15. Requirements file includes the sha256 hash (CWE-494 discipline, Delta 15-2, §15).
+#     SID-2 composed: the full --hash=sha256:<digest> string must be present.
+assert_contains "$REQUIREMENTS_TXT" \
+  "--hash=sha256:9fcda73f62b851dd72a54b710ad40a209896db14cfb13649e62191243556342b" \
+  "AC-010"
+
+# 16. CXX_x86_64_unknown_linux_musl=clang++ MUST BE ABSENT from release.yml.
+#     Negative regression guard: the superseded ABI-unsound export (clang++ linked against
+#     glibc's libstdc++.a produces 117+ undefined-ref errors against musl libc) must not
+#     be reintroduced. Full composed form guards both the key and the value.
+assert_not_contains "$REL_YML" \
   "CXX_x86_64_unknown_linux_musl=clang++" \
   "AC-010"
 
