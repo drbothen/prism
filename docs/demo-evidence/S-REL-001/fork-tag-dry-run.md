@@ -1256,3 +1256,16 @@ Attestation: 5/5 success.
 Cleanup: release, remote tag, local tag all deleted and verified gone.
 
 Task 12 gate: **DRY-RUN GREEN**
+
+---
+
+### Evidence-Representativeness Verification — Attempt 6 (2026-07-20)
+
+Orchestrator verified `git diff 339a0c04..acb718fb -- .github/workflows/release.yml .github/workflows/requirements-musl-ci.txt crates/prism-credentials/` = EMPTY (only tests + evidence commits since the attempt-6 tag commit) — attempt-6 GREEN fully represents subsequent HEADs.
+
+Subsequent commits after the attempt-6 tag commit (339a0c04):
+- `2f69f914` — guard case-insensitivity: touches no release.yml or credentials logic
+- `ea0d690a` — lib.rs message precision: touches no release.yml or credentials logic
+- current commit (F-REL001-P20-003 ci.yml actionlint-install hardening): modifies `.github/workflows/ci.yml` release-gate job only (replaces download-actionlint.bash script-based install with direct pinned-tarball download + SHA-256 verification of the binary tarball itself); does NOT touch `.github/workflows/release.yml` or `requirements-musl-ci.txt` or `crates/prism-credentials/` — the dry-run's verified subjects are unmodified
+
+Conclusion: Attempt-6 GREEN remains representative of all HEADs including this commit. The current commit's ci.yml change affects the release-gate CI job (which validates ci.yml itself), not the release workflow (release.yml) that was the subject of the dry-run.

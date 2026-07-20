@@ -2116,8 +2116,8 @@ jobs:
   release-gate:
     name: Release gate (S-REL-001 AC-012)
     # F-REL001-P2-001: automated enforcement for tests/release-gate/ suite on every
-    # PR/push. Installs actionlint via the official download-actionlint.bash script
-    # (NOT brew — unavailable on ubuntu-latest; NOT cargo install — actionlint is Go,
+    # PR/push. Installs actionlint via direct pinned-tarball download (F-REL001-P20-003;
+    # NOT brew — unavailable on ubuntu-latest; NOT cargo install — actionlint is Go,
     # not Rust; research U4). Fails closed when actionlint is absent from PATH
     # (AC-012 fail-closed gate, POL-34). No Rust toolchain needed — lightweight
     # YAML/shell validation only.
@@ -2131,16 +2131,20 @@ jobs:
         run: |
           set -euo pipefail
           # Pin to 1.7.12 — minimum confirmed working version per S-REL-001 risk_mitigations.
-          # F-REL001-P3-003 / CWE-494: URL pinned to release tag (not moving /main ref) and
-          # SHA-256 integrity check added before executing, consistent with SEC-001/CWE-494
-          # discipline established by the wasm-tools install steps above.
-          # Checksum source: downloaded from raw.githubusercontent.com over HTTPS and computed 2026-07-19.
-          EXPECTED_SHA256="72fa3e45ac20f3c3a512d6747b4fcf719e21f890e8c43e78d48a41fdfb900c4e"
-          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash \
-            -o /tmp/download-actionlint.bash
-          echo "${EXPECTED_SHA256}  /tmp/download-actionlint.bash" | sha256sum -c
-          bash /tmp/download-actionlint.bash 1.7.12
-          mv ./actionlint /usr/local/bin/actionlint
+          # F-REL001-P20-003 / CWE-494: direct pinned-tarball download with SHA-256 verification
+          # of the release asset before extraction. Replaces the prior approach (download-actionlint.bash
+          # script + script-hash check) — that approach verified the downloader script but not the
+          # binary tarball it subsequently fetched, leaving an unverified download in the chain.
+          # This approach verifies the binary tarball directly, closing the gap (CWE-494).
+          # Runner: ubuntu-latest (x86_64 linux). Tarball layout: actionlint at root (no subdirectory).
+          # Checksum source: downloaded from GitHub releases over HTTPS and computed 2026-07-20.
+          EXPECTED_SHA256="8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+          curl -fsSL \
+            "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz" \
+            -o /tmp/actionlint.tar.gz
+          echo "${EXPECTED_SHA256}  /tmp/actionlint.tar.gz" | sha256sum -c
+          tar -xz -f /tmp/actionlint.tar.gz -C /usr/local/bin actionlint
+          rm /tmp/actionlint.tar.gz
           actionlint --version
       - name: Run release-gate suite
         run: |
