@@ -796,8 +796,9 @@ DEFECT-REL001-MUSL-LIBSTDCXX-001 CONFIRMED FIXED — musl leg completed without 
 The musl leg (job 88271792201) ran all 16 steps to completion. The previous 117 undefined
 references to glibc symbols (`__libc_single_threaded`, `__isoc23_strtoul`, etc.) are completely
 absent. `cargo zigbuild` with Zig's musl-built libc++ (ziglang==0.16.0 hash-locked wheel via
-requirements-musl-ci.txt, cargo-zigbuild pinned to
-`5c52d3498b21e2f61f6b45b2cb88fd8d67f52a23`) produced a clean musl binary. Confirmed fixed.
+requirements-musl-ci.txt, cargo-zigbuild 0.23.0 (cargo install --locked, crates.io;
+no SHA/hash pin — cargo install limitation, accepted per §15/F-REL001-P14-004)) produced
+a clean musl binary. Confirmed fixed.
 
 ---
 
@@ -1008,3 +1009,14 @@ Attestation: 5/5 success. Idempotency (EC-009): upload --clobber path confirmed 
 Cleanup: release, remote tag, local tag all deleted and verified gone.
 
 Task 12 gate: **DRY-RUN GREEN**
+
+---
+
+### Evidence-Representativeness Verification (2026-07-20)
+
+Orchestrator verified `git diff fc430c4a..3659409d -- .github/workflows/release.yml crates/prism-credentials/Cargo.toml crates/prism-credentials/src/lib.rs`:
+- `release.yml`: comment-only changes (P14-003/P14-004 comment corrections; 6 insertions, 2 deletions, zero logic changes)
+- `crates/prism-credentials/Cargo.toml`: untouched (no diff)
+- `crates/prism-credentials/src/lib.rs`: untouched (no diff)
+
+Conclusion: Attempt-5 GREEN remains representative of HEAD (3659409d). No logic changes to the release workflow or credentials crate between the Attempt-5 tag commit and current HEAD.
