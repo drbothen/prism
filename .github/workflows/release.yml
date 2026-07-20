@@ -59,6 +59,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           targets: ${{ matrix.target }}
+      # DEFECT-REL001-PROTOC-MISSING-001: prism-ocsf build.rs invokes prost-build which
+      # requires protoc at compile time. All 5 matrix legs failed without this step.
+      # Dry-run evidence: https://github.com/drbothen/prism/actions/runs/29709483646
+      - name: Install protoc (required by prost-build for prism-ocsf)
+        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       # Optimization 1: Swatinem/rust-cache — per-target shared key for release cache isolation
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
