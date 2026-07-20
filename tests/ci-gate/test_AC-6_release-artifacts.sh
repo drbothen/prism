@@ -72,12 +72,14 @@ else
     "AC-6 FAIL: checksums.txt must be generated and attached to GitHub Release"
 fi
 
-# gh release create must be a real step.
-if grep -qE '^[[:space:]]+run:.*gh release create' "$REL_YML" 2>/dev/null; then
+# gh release create must be a real step (block-scalar run: | — command is on its own line;
+# fixed-string grep avoids the line-anchored ^run:.* form that breaks on block scalars).
+# The quoted "$TAG" form is intentional: it also locks the CWE-78-safe variable reference.
+if grep -qF 'gh release create "$TAG"' "$REL_YML" 2>/dev/null; then
   tap_pass "AC-6: 'gh release create' is a real run step"
 else
   tap_fail "AC-6: 'gh release create' missing as real run step" \
-    "AC-6 FAIL: expected 'run: gh release create ...' step — found only TODO echo"
+    "AC-6 FAIL: expected 'gh release create \"\$TAG\"' invocation — found only TODO echo or unquoted form"
 fi
 
 tap_done
