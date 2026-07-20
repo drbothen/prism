@@ -88,4 +88,22 @@ else
   tap_pass "AC-010: setup-protoc step runs unconditionally on all 5 matrix legs (no if: gate)"
 fi
 
+# DEFECT-REL001-MUSL-CXX-001 + F-REL001-P10-001 (SID-2 composed assertions):
+# The musl C++ toolchain fix requires two load-bearing changes to co-exist:
+# (1) clang added to apt-get install, and (2) CXX_x86_64_unknown_linux_musl
+# env var exported with value clang++. Assert the composed forms, not fragments.
+#
+# 9. 'libdbus-1-dev clang' — composed end of the apt-get install command.
+#    Asserting both packages together distinguishes the functional install line
+#    from comment-only mentions of clang (which lack the libdbus-1-dev prefix).
+assert_contains "$REL_YML" \
+  "libdbus-1-dev clang" \
+  "AC-010"
+
+# 10. Full composed CXX env assignment (SID-2: key=value form — not the variable
+#     name alone and not 'clang++' alone; the pairing is what the fix requires).
+assert_contains "$REL_YML" \
+  "CXX_x86_64_unknown_linux_musl=clang++" \
+  "AC-010"
+
 tap_done
