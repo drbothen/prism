@@ -74,8 +74,11 @@ jobs:
             # errors when building the musl static binary.
             # Fix: cargo-zigbuild replaces cargo build for the musl leg. Zig provides its own
             # musl-aware C++ toolchain and C++ runtime with no glibc symbol contamination.
-            # Delta 15-1 (§15): exact version pin; no --break-system-packages (not needed
-            # with explicit version pin on ubuntu-latest runners).
+            # Delta 15-1 (§15): exact version pin; no --break-system-packages needed —
+            # runner image's system Python is not marked externally-managed (PEP 668)
+            # as of ubuntu-24.04 images; if a future image changes this, pip will fail
+            # with 'externally-managed-environment' — add --break-system-packages or
+            # switch to a venv at that point.
             # Delta 15-2 (§15): --require-hashes matches CWE-494 SHA-pin discipline used
             # for all GitHub Actions steps in this workflow. Hash covers the full Zig
             # toolchain binary payload (pure-Python wheel, no secondary download at
@@ -84,6 +87,7 @@ jobs:
             # Delta 15-3 (§15): skip cargo install on cache hit (actions/cache step above).
             if [[ ! -f "$HOME/.cargo/bin/cargo-zigbuild" ]]; then
               # --locked: use crate's own Cargo.lock for reproducible dep resolution.
+              # --locked + exact version is the maximum pinning cargo install supports (no --require-hashes equivalent); ratified §15 / F-REL001-P14-004 — CWE-494 posture accepted.
               cargo install --locked cargo-zigbuild --version 0.23.0
             fi
           fi
