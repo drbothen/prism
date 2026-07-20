@@ -3715,3 +3715,90 @@ This evidence summary serves two purposes: (a) it gives the subagent transcript 
 **Closes:** D-1872 (classifier merge-friction instances this session)
 
 **Source:** D-1872 (2026-07-19) — PR #227 merge gate; S-MAINT-PRMGR-HOOK-SCOPE-001 +4 instances; AskUserQuestion resolution pattern.
+
+---
+
+### Lesson 76 — [codified] Worktree-identity preflight is mandatory in all worktree dispatch prompts (D-1879)
+
+**Classification:** PROCESS-GAP [codified] — S-REL-001 LOCAL cascade (2026-07-20); main-tree develop contamination recovered same-session.
+
+**Finding:** During the S-REL-001 LOCAL cascade an implementer dispatch executed code changes in the main worktree (`/Dev/prism/`) instead of the S-REL-001 feature worktree (`.worktrees/S-REL-001/`). The contamination was caught same-session via `git reflog` and recovered at commit `28ca8a05` with no changes reaching origin. Root cause: the dispatch prompt did not include an explicit worktree-identity preflight check ("`pwd` must be `.worktrees/S-REL-001`; abort if not").
+
+**Codified rule (now in S-REL-001 story risk_mitigations and MUST be added to all future worktree dispatch prompts):**
+
+1. **Every implementer/test-writer dispatch prompt targeting a worktree MUST open with an explicit identity check:** "Verify `pwd` == `.worktrees/<STORY-ID>`; if not, STOP and report — do not proceed."
+2. **The check must be the FIRST action in the prompt**, before any file reads or edits.
+3. **Recovery path when contamination is detected:** `git reflog` → identify last clean commit → `git reset --hard <sha>` on the contaminated worktree (or main tree if contaminated); verify with `git diff --stat HEAD`.
+4. **The fact that this was recoverable same-session is NOT evidence that the preflight is optional.** It happened once; it will happen again without the guard.
+
+**Closes:** D-1879 (worktree contamination incident; main-tree develop; recovered @28ca8a05)
+
+**Source:** D-1879 (2026-07-20) — S-REL-001 LOCAL cascade; implementer dispatch without worktree-identity guard.
+
+---
+
+### Lesson 77 — [codified] Load-bearing logic needs a load-bearing assertion (D-1879, F-REL001-P10-001)
+
+**Classification:** IMPLEMENTATION-DISCIPLINE [codified] — S-REL-001 LOCAL cascade pass-10 (2026-07-20); now codified in S-REL-001 §risk_mitigations.
+
+**Finding:** F-REL001-P10-001 (adversary pass 10): a release-gate harness check executed the logic path correctly but only asserted exit-code-nonzero, not the specific diagnostic text that distinguishes the failure mode. A mutation that changed the diagnostic message would survive the test. The check was "load-bearing logic with a non-load-bearing assertion" — a paper-fix variant at the test layer.
+
+**Codified rule:**
+
+1. **Every release-gate check that exercises a distinct failure mode MUST assert the specific diagnostic text** (or structured output field) that distinguishes that mode from all other failures. Exit-code alone is insufficient when multiple paths produce exit(1).
+2. **Exact-equality assertion floors (EXPECTED_ASSERTIONS count gate) are the mechanism.** The release-gate suite enforces `EXPECTED_ASSERTIONS=80`; any new check that only asserts exit-code without diagnostic text does NOT increment the assertion count and will cause the floor to fail — this is the intended tripwire.
+3. **The CWE-78 run-block guard (whitespace+case tolerant) is a companion discipline:** shell run-blocks must be guarded so that a mutant that strips the command cannot silently pass by exiting 0 from an empty block.
+
+**Closes:** D-1879 (F-REL001-P10-001; load-bearing-logic-needs-assertion codified in story risk_mitigations)
+
+**Source:** D-1879 (2026-07-20) — S-REL-001 LOCAL cascade pass-10; release-gate harness; EXPECTED_ASSERTIONS discipline.
+
+---
+
+### Lesson 78 — Executed-evidence principle validated: 13+ static passes missed 4 build-environment defects that dry-runs caught (D-1879)
+
+**Classification:** METHODOLOGY-VALIDATION — S-REL-001 Task-12 dry-run gate (2026-07-20).
+
+**Finding:** The S-REL-001 LOCAL adversarial cascade ran 20 passes before dry-run execution. During those 20 passes, the adversary (operating purely on spec text and CI YAML) missed four real runtime defects that only manifested when GitHub Actions runners actually executed the jobs:
+
+1. **DEFECT-REL001-PROTOC-MISSING-001** — `protoc` absent on Linux runners; the spec's `apt-get install` list was incomplete. Static analysis saw the install step; only live execution showed the missing package.
+2. **DEFECT-REL001-MUSL-DBUS-001** — musl cross-compile required `libdbus-1-dev:amd64` installed alongside musl-tools. Invisible statically; caught on attempt 2.
+3. **DEFECT-REL001-MUSL-CXX-001** — C++ toolchain gap under musl (superseded by zigbuild solution).
+4. **DEFECT-REL001-MUSL-LIBSTDCXX-001** — `libstdc++` dynamic linking in musl binary; caught by `ldd` check in dry-run; drove §15 adoption of cargo-zigbuild.
+
+The static adversary passes were not useless — they caught spec-level defects, logic gaps, and wiring errors. But build-environment defects are structurally invisible to any static analysis because they depend on the actual runner image state.
+
+**Codified rule:**
+
+1. **For any story whose acceptance criteria include CI pipeline execution (build, publish, attest), a dry-run execution gate is mandatory** and cannot be substituted by static adversary passes, no matter how many.
+2. **The dry-run gate MUST use the real target environment** (same runner OS, same action versions). A local-only dry-run of a GitHub Actions workflow is insufficient — it will miss runner-image-specific package gaps.
+3. **"GREEN on static adversary" does not mean "GREEN on execution."** The two are complementary, not substitutable. Treat the adversary cascade as spec-completeness gating and the dry-run gate as execution-environment gating.
+
+**Closes:** D-1879 (executed-evidence principle validated by 4 runtime defects missed by 13+ static passes)
+
+**Source:** D-1879 (2026-07-20) — S-REL-001 Task-12 dry-run gate; 6 origin test-tag attempts; 4 DEFECTs; attempt 6 GREEN.
+
+---
+
+### Lesson 79 — [OPEN process-gap] F-A planning burst missed story-level holdout authoring touchpoint for all 7 S-REL stories (D-1880)
+
+**Classification:** PROCESS-GAP [OPEN — human adjudication pending] — D-1880 (2026-07-20); F-A Wave planning burst D-1877.
+
+**Finding:** The Wave F-A planning burst (D-1877) materialized and uncertainty-hardened 7 S-REL stories but did not invoke the story-level holdout authoring touchpoint. All 7 story files have `holdout_scenarios: []`. Per CLAUDE.md: "product-owner authors 2–4 HIDDEN, SINGLE-USE holdout scenarios per story at story-materialization time (same touchpoint as the remove-uncertainty pass)." The touchpoint was missed entirely for the entire wave.
+
+**Root cause:** The D-1877 planning burst was orchestrated as "materialization + remove-uncertainty". The holdout authoring step is defined as a THIRD touchpoint at the same moment (alongside remove-uncertainty), but it was not included in the D-1877 dispatch prompt. The prompt covered story-writer F3 burst + remove-uncertainty; holdout authoring was not mentioned.
+
+**Impact:** S-REL-001 cannot proceed to its story-level holdout gate because there are no holdout scenarios to evaluate against. The gate is blocked (D-1880).
+
+**Human adjudication options:**
+- **(a) Retroactive authoring:** PO authors 2–4 holdout scenarios for S-REL-001 (and subsequently S-REL-002..007) before each story's holdout gate runs.
+- **(b) Policy exception for infra-only stories:** Approve a policy carve-out for stories with `behavioral_contracts: []` (infrastructure-only; no behavioral contracts to hold out against). S-REL-001..007 all have empty BCs.
+
+**Prevention (regardless of adjudication):**
+1. **Orchestrator dispatch prompts for story materialization MUST explicitly include the holdout authoring touchpoint** as a named step, not implied. The prompt must say: "After materializing each story and after the remove-uncertainty pass, dispatch product-owner to author 2–4 holdout scenarios per story."
+2. **The orchestrator must verify `holdout_scenarios` is non-empty** before advancing a story to the holdout gate. If empty, route to PO for authoring — do not skip the gate.
+3. **Wave planning bursts must include a holdout-authoring checklist item** alongside the remove-uncertainty checklist item.
+
+**Closes:** D-1880 (process-gap registered; human adjudication pending; lessons codified)
+
+**Source:** D-1880 (2026-07-20) — Wave F-A planning burst D-1877; 7 S-REL stories; holdout_scenarios: [] in all.

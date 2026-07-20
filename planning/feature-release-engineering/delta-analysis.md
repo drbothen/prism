@@ -642,3 +642,360 @@ to:
 > `all workspace crates carry publish = false`
 
 No number. The sentence remains true regardless of future crate additions.
+
+---
+
+## 14. Defect Adjudication — DEFECT-REL001-MUSL-DBUS-001
+
+**Defect ID:** DEFECT-REL001-MUSL-DBUS-001  
+**Adjudicated by:** architect  
+**Date:** 2026-07-19  
+**Source:** S-REL-001 task-12 origin dry-run attempt 2, CI run https://github.com/drbothen/prism/actions/runs/29711315678  
+**Failure:** `cargo build --release --locked --target x86_64-unknown-linux-musl` aborts — `libdbus-sys v0.2.7` build.rs calls `pkg_config::probe_library("dbus-1")`; `pkg-config` refuses cross-compilation mode: "pkg-config has not been configured to support cross-compilation."
+
+---
+
+### Root Cause
+
+`prism-credentials/Cargo.toml` `[features] default` includes `keyring-linux-native-sync-persistent = ["keyring/linux-native-sync-persistent", "keyring/crypto-rust"]` **unconditionally** — the features block does not branch on target triple. This activates the dep chain `dbus-secret-service 4.1.0 → dbus 0.9.11 → libdbus-sys 0.2.7` at compile time for ALL Linux targets including musl. `libdbus-sys/build.rs` calls `pkg_config::probe_library("dbus-1")`; when the cargo target triple differs from the host triple (`x86_64-unknown-linux-gnu` host compiling `x86_64-unknown-linux-musl`), pkg-config detects cross-compile mode and aborts.
+
+**Relationship to ADJ-001 (§13):** ADJ-001 established that `libdbus-1-dev` is required on both Linux build legs because `build.rs` runs on the glibc host even for musl cross-targets. That ruling is correct about the build-time host linkage path. ADJ-001 did NOT fix the cross-compile rejection — having `libdbus-1-dev` installed is a precondition for pkg-config to return a result, but pkg-config still refuses to run when it detects cross-compile mode. The two findings are separate layers: ADJ-001 resolved "is the library present on the host?" and DEFECT-REL001-MUSL-DBUS-001 surfaces "does pkg-config consent to run at all for a cross-compile target?" ADJ-001 therefore remains correct; this adjudication addresses the deeper cross-compile mode rejection.
+
+**Runtime reality (already documented):** `prism-credentials/Cargo.toml` comment line 73–74: "Linux musl: linux-native only → linux-keyutils (kernel session keyring). dbus-secret-service links libdbus via glibc; musl cannot load it at runtime, so we accept kernel-keyutils-only." ADR-034/BC-2.06.003 document the same runtime distinction. The bug is that compile-time feature selection does not reflect this documented runtime intent.
+
+---
+
+### Option Analysis
+
+#### Option A — PKG_CONFIG_ALLOW_CROSS=1 on the musl leg
+
+`PKG_CONFIG_ALLOW_CROSS=1` instructs pkg-config to use the host's glibc `libdbus-1` headers and linker paths for the cross-compile target. This allows build.rs to locate `libdbus-1.so` and emit `-ldbus-1` as a Cargo link directive.
+
+**Linkage outcome:** The musl linker resolves `-ldbus-1` to the host's glibc dynamic shared library `libdbus-1.so.3`. The resulting "musl" binary has a `DT_NEEDED` entry for glibc `libdbus-1.so.3`. A binary that is both musl-linked and dynamically depends on a glibc shared library is ABI-unsound: glibc and musl have incompatible symbol ABIs; attempting to load glibc `libdbus-1.so.3` alongside musl's libc causes undefined behavior at runtime (typically: symbol resolution failure or crash at startup). Depending on the linker toolchain configured for the musl target, the link step may also fail outright when the linker detects the ABI mismatch.
+
+**Verification outcome:** The static-linkage proof required for a valid musl artifact (`readelf -d target/.../prism | grep NEEDED` must be empty OR contain only musl libc) would FAIL — `libdbus-1.so.3` would appear in NEEDED. Even if the build completes, the artifact does not qualify as a valid musl binary.
+
+**Verdict: REJECTED.** Option A does not produce a valid musl artifact. The production-grade requirement is that the shipped musl binary actually works as a musl binary — single statically-linked executable without glibc ABI dependencies. PKG_CONFIG_ALLOW_CROSS=1 defeats this requirement.
+
+#### Option B — Target-conditional compile-time feature split (ADOPTED)
+
+keyring 3.6.3 provides the necessary feature granularity:
+- `linux-native` → `linux-keyutils` only (no dbus, no C library dependency)
+- `linux-native-sync-persistent` → `linux-keyutils` + `dbus-secret-service` (C-linked, requires libdbus)
+
+`keyring-linux-native` is already in `prism-credentials` `[features] default`. The only change needed is to stop unconditionally activating `keyring-linux-native-sync-persistent` (which pulls in dbus) for the musl target, while keeping it active for linux-gnu.
+
+Cargo's `[target.'cfg(...)'.dependencies]` mechanism activates dependency features conditionally on target. Since Cargo feature unioning means the `[dependencies]` base entry provides no dbus-related features, and the `[target.cfg...]` entry adds `linux-native-sync-persistent` on linux-gnu only, the musl target sees no dbus dep chain at all.
+
+**Guard compatibility:** `prism-credentials/src/lib.rs` lines 61–74 (F-P10-CRIT-001 guard) fires if on Linux and NEITHER `cfg(feature = "keyring-linux-native-sync-persistent")` NOR `cfg(feature = "keyring-linux-native")` is true. After the fix:
+- On musl: `keyring-linux-native` remains in `default` → `cfg(feature = "keyring-linux-native")` is true → guard does NOT fire ✓
+- On linux-gnu: `keyring-linux-native` in default + `linux-native-sync-persistent` via target-cfg → guard does NOT fire ✓
+
+The guard was WRITTEN for exactly this split (lib.rs comment line 60: "Either satisfies the guard — musl uses keyring-linux-native alone."). The fix aligns compile-time behavior with what the guard comment already documented as the intent.
+
+**Blast radius:** `prism-credentials/Cargo.toml` only. One `[features] default` line removed; one `[target.cfg.dependencies]` block added. One lib.rs comment updated. No change to any public API, no change to runtime behavior, no BC/ADR amendment required.
+
+**Verdict: ADOPTED.**
+
+#### Option C — Vendored/static dbus for musl
+
+Compiling libdbus from source against musl libc introduces a vendored C dependency with its own transitive requirements (expat, libsystemd on some configurations). libdbus-1 upstream does not support easy static musl builds. High ongoing maintenance burden (C CVEs in vendored code must be patched manually). Inconsistent with the documented runtime intent (musl runtime path does not use dbus at all). The correct fix is a 3-line Cargo.toml change; vendored dbus is disproportionate.
+
+**Verdict: REJECTED.**
+
+#### Option D — Drop musl target from 5-platform matrix
+
+Contradicts the locked 5-platform matrix (story Architecture Compliance: "5-platform matrix is non-negotiable, ADR-022"). Included for completeness only.
+
+**Verdict: REJECTED per constraint.**
+
+---
+
+### Ruling — Option B
+
+**Root fix: align compile-time feature selection with the documented runtime intent.** On musl, `dbus-secret-service` must not compile. `keyring-linux-native` (keyutils-only, no C deps) is the correct and already-present backend for musl.
+
+---
+
+### Implementation Deltas
+
+**Delta B-1: `crates/prism-credentials/Cargo.toml`**
+
+Remove `"keyring-linux-native-sync-persistent"` from the `default` feature list:
+
+```toml
+default = [
+    "keyring-apple-native",
+    "keyring-windows-native",
+    # keyring-linux-native-sync-persistent removed from default — activated via
+    # [target.cfg.dependencies] for linux-gnu only (see below). musl uses linux-native
+    # (kernel-keyutils) without dbus per ADR-034/BC-2.06.003.
+    "keyring-linux-native",
+]
+```
+
+Add a `[target.cfg.dependencies]` block activating the persistent/sync Secret Service backend on linux-gnu only. Insert directly after the `[dependencies]` section (after the `keyring = { version = "3", default-features = false }` line):
+
+```toml
+# Linux gnu (glibc): persistent Secret Service backend — kernel-keyutils + dbus-secret-service.
+# linux-native-sync-persistent pulls dbus-secret-service → dbus → libdbus-sys (C-linked,
+# pkg-config). pkg-config cross-compile mode refuses when host != target triple, so this
+# feature MUST NOT be activated for the musl cross-compile target. ADR-034/BC-2.06.003.
+# musl: linux-native (kernel-keyutils only) satisfies the F-P10-CRIT-001 guard without dbus.
+[target.'cfg(all(target_os = "linux", not(target_env = "musl")))'.dependencies]
+keyring = { version = "3", default-features = false, features = ["linux-native-sync-persistent", "crypto-rust"] }
+```
+
+**Delta B-2: `crates/prism-credentials/src/lib.rs`** — comment update only (no logic change)
+
+Update the F-P10-CRIT-001 guard comment block (lines 21–34) to reflect the new activation path. The `compile_error!` predicate itself is UNCHANGED. Only the prose comment describing "Two-place update invariant" needs amendment:
+
+Replace the existing comment block lines 33–34:
+```
+// Two-place update invariant: removing a backend feature from [dependencies].keyring.features
+// AND the pass-through feature from [features] will trip these guards on the next build.
+```
+
+With:
+```
+// Two-place update invariant (linux-gnu): the linux-native-sync-persistent backend is
+// activated via [target.'cfg(all(target_os = "linux", not(target_env = "musl")))'.dependencies],
+// NOT via the [features] default. Removing that target-cfg block will NOT trip this guard
+// (because keyring-linux-native remains in default). However it will silently downgrade
+// linux-gnu to keyutils-only (no persistent Secret Service). Removing keyring-linux-native
+// from [features] default WILL trip the Linux guard on all Linux targets.
+// musl: keyring-linux-native in [features] default is the sole backend; no dbus.
+```
+
+**Delta B-3: `delta-analysis.md` §13 ADJ-001 EC-006 amendment**
+
+ADJ-001 established that `libdbus-1-dev` is required on both Linux build legs. After Option B is applied, the musl leg no longer compiles `libdbus-sys`; `libdbus-1-dev` is technically not needed on musl. However, installing it unconditionally on both legs is harmless and avoids conditional install logic in the release.yml workflow. The release.yml implementer (S-REL-001) MAY install it unconditionally. The ADJ-001 ruling is superseded for EC-006 — replace:
+
+| EC-006 | musl target build (libdbus-sys C-linked at build time) | `libdbus-1-dev` installed on host; build succeeds. musl binary does NOT dynamically link libdbus at runtime (kernel-keyutils path only). Build fails if `libdbus-1-dev` is absent from runner. |
+
+with:
+
+| EC-006 | musl target build | DEFECT-REL001-MUSL-DBUS-001 ruling (§14): `keyring-linux-native-sync-persistent` removed from `prism-credentials` default features; `dbus-secret-service` is NOT compiled for musl. `libdbus-sys` does not appear in the musl dep tree after this fix. `libdbus-1-dev` is NOT required for the musl build; installing it on the musl leg is harmless but not necessary. Build succeeds. musl binary is statically linked with no libdbus dependency. |
+
+---
+
+### Verification Requirements — Dry-Run Attempt 3
+
+The following evidence is REQUIRED in the CI run for dry-run attempt 3. All five checks must pass before the dry-run is considered green for the musl leg.
+
+| Check | Command | Required Result |
+|-------|---------|-----------------|
+| Build exits 0 | `cargo build --release --locked --target x86_64-unknown-linux-musl` | Exit code 0 |
+| Static linkage — no libdbus NEEDED | `readelf -d target/x86_64-unknown-linux-musl/release/prism \| grep NEEDED` | No `libdbus-1.so` in output |
+| file(1) static | `file target/x86_64-unknown-linux-musl/release/prism` | Reports `statically linked` |
+| libdbus-sys absent from musl dep tree | `cargo tree --target x86_64-unknown-linux-musl -p prism-credentials -i libdbus-sys` | Empty output (no match) |
+| libdbus-sys present on gnu dep tree (regression) | `cargo tree --target x86_64-unknown-linux-gnu -p prism-credentials -i libdbus-sys` | `libdbus-sys v0.2.7` present |
+
+The `readelf` check is the BLOCKING proof. A build that exits 0 but produces a glibc-dependent artifact still fails the gate.
+
+The gnu-leg regression check ensures that removing `keyring-linux-native-sync-persistent` from `default` did not accidentally strip the persistent Secret Service backend from linux-gnu targets (which must still compile dbus-secret-service).
+
+---
+
+### BC/ADR Impact
+
+**ADR-034:** No amendment required. ADR-034 documents Tier-3 keyring runtime resolution behavior (musl = kernel-keyutils only, no dbus at runtime). This defect fix aligns compile-time feature selection with the documented runtime intent. The fix is an implementation detail, not an architectural decision change.
+
+**BC-2.06.003:** No amendment required. The BC describes credential resolution semantics, not build configuration.
+
+**ADJ-001 (§13 of this document):** EC-006 row superseded per Delta B-3 above. The remaining ADJ-001 ruling (install `libdbus-1-dev` on both Linux legs; comment citing ADR-034/BC-2.06.003 and build.rs host-linkage rationale) is safe-but-over-conservative after Option B. The S-REL-001 story-writer may keep the unconditional install (harmless) or add target-conditional logic. If unconditional install is kept, the comment should be updated to note that the musl leg installs `libdbus-1-dev` conservatively (it does not compile libdbus-sys after DEFECT-REL001-MUSL-DBUS-001 fix, but the package presence is not harmful).
+
+---
+
+**Summary line for story-writer:** Apply Deltas B-1 and B-2 before implementing any S-REL-001 workflow tasks. EC-006 in the S-REL-001 story spec is superseded by the §14 table above. The musl dry-run verification checklist in the story's AC for the fork-tag dry-run must include all five checks in the Verification Requirements table above.
+
+---
+
+## 15. Toolchain Decision — DEFECT-REL001-MUSL-LIBSTDCXX-001: cargo-zigbuild Ratification
+
+**Defect ID:** DEFECT-REL001-MUSL-LIBSTDCXX-001  
+**Adjudicated by:** architect  
+**Date:** 2026-07-19  
+**Dry-run attempt at issue:** 4 (CI run https://github.com/drbothen/prism/actions/runs/29714047923)  
+**Applied fix (commit caf1443d):** devops-engineer replaced `CXX_x86_64_unknown_linux_musl=clang++` env override with `pip3 install ziglang --break-system-packages` + `cargo install cargo-zigbuild` + conditional `cargo zigbuild` invocation on the musl leg.
+
+---
+
+### Root Cause Recap
+
+System `clang++` on `ubuntu-latest` is compiled against glibc. When `cc-rs` invokes it to compile `librocksdb-sys` C++ sources for the `x86_64-unknown-linux-musl` target, it links the produced objects against glibc's `libstdc++.a`. That static archive contains object files that externally reference 19 glibc-only symbol classes (`__libc_single_threaded`, `__isoc23_strtoul`, `__memcpy_chk`, `__cxa_thread_atexit_impl`, `arc4random`, `fopen64`, and 13 others). The musl linker cannot resolve these symbols; the link step fails with 117 undefined references.
+
+The contamination is in the `libstdc++.a` object files themselves — not in how they are linked. Any toolchain that uses glibc's `libstdc++` for the C++ compile step will reproduce this failure, regardless of link flags. The only fix is a C++ compiler whose standard library is built against musl, not glibc.
+
+---
+
+### Option Assessment
+
+**Option C — `-static-libstdc++` with clang++ (REJECTED)**
+
+`-static-libstdc++` statically links `libstdc++.a` (glibc-compiled) into the musl binary. This does not resolve the 19 glibc symbol classes — those are undefined externals *within* the libstdc++ object files themselves, emitted at compile time by the glibc-built toolchain. The musl linker still encounters 117 undefined references at link time because musl libc does not export `__libc_single_threaded`, `__isoc23_strtoul`, `arc4random`, `fopen64`, or any of the other glibc-internal symbols. Static vs dynamic linkage of `libstdc++` is irrelevant when the symbol gap is between `libstdc++.a`'s internal object files and the musl C runtime.
+
+Verdict: does NOT resolve the 19 glibc symbol classes. Rejected.
+
+**Option B — musl-cross-make g++ toolchain download (NOT RATIFIED)**
+
+A full musl-cross GCC toolchain (e.g., musl-cross-make) would provide a musl-native g++ and libstdc++ built against musl libc, which would eliminate the contamination. However:
+- No prebuilt binary is available via `apt` on `ubuntu-latest`; building musl-cross-make from source takes 5-20+ minutes per cold CI run
+- No standard GitHub Actions action exists for it; integration requires manual tarball download with its own supply-chain surface
+- Maintenance burden: manual version tracking of GCC + musl-cross-make release cadence
+- Performance cost is substantially higher than cargo-zigbuild
+
+The fundamental problem it solves (musl-native C++ compiler) is identical to what cargo-zigbuild provides. It is the correct class of solution but inferior in every practical dimension.
+
+**Option A — cargo-zigbuild (RATIFIED)**
+
+Zig ships its own C++ standard library (`libc++`) compiled against musl libc for musl targets. When `cargo zigbuild --target x86_64-unknown-linux-musl` is invoked, cargo-zigbuild configures `cc-rs` to use `zig cc` / `zig c++` as the C/C++ compiler. The resulting object files are linked against Zig's musl `libc++`, not glibc's `libstdc++`. None of the 19 glibc symbol classes are emitted:
+
+- `__libc_single_threaded` — glibc internal TLS fast-path; musl/libc++ uses pthread-based locking throughout; not emitted
+- `__isoc23_strtoul` / `__isoc23_*` — glibc C23 ABI variant symbols; musl provides C23-conforming strtoul without the internal `__isoc23_` prefix
+- `__memcpy_chk` — glibc FORTIFY_SOURCE builtin; disabled in Zig's musl build (FORTIFY_SOURCE is a glibc extension)
+- `__cxa_thread_atexit_impl` — glibc's TLS destructor hook; Zig's `libc++` uses `pthread_key_create`-based destructors for musl targets
+- `arc4random` — not a standard C function; musl does not export it; Zig's musl runtime uses `/dev/urandom` directly
+- `fopen64` — glibc large-file alias; musl uses 64-bit `off_t` by default, so `fopen` == `fopen64` without the alias
+
+The `ziglang` PyPI package (version 0.16.0) is maintained by the official Zig organization (`ziglang/zig-pypi` on GitHub) — the same organization that owns `ziglang/zig`. The supply-chain trust is directly from upstream. `cargo-zigbuild` (version 0.23.0, `rust-cross/cargo-zigbuild`) is the established Rust cross-compilation integration layer for Zig. Both are actively maintained with deterministic versioning.
+
+**Verdict: RATIFIED.** cargo-zigbuild is the correct and production-grade fix for DEFECT-REL001-MUSL-LIBSTDCXX-001.
+
+---
+
+### Hardening Deltas Required Before Attempt 5
+
+The devops-engineer's commit caf1443d applies the correct toolchain approach but leaves two supply-chain gaps that must be closed before attempt 5. These are not cosmetic — they are required to match the repo's CWE-494 discipline (SHA-pinned GitHub Actions steps throughout release.yml).
+
+#### Delta 15-1: Exact version pins for ziglang and cargo-zigbuild
+
+**Current (commit caf1443d):**
+```yaml
+pip3 install ziglang --break-system-packages
+cargo install cargo-zigbuild
+```
+
+**Required for attempt 5:**
+```yaml
+pip3 install ziglang==0.16.0
+cargo install --locked cargo-zigbuild --version 0.23.0
+```
+
+Version rationale:
+- `ziglang==0.16.0` — latest stable; corresponds to Zig 0.16.0 (latest stable release from ziglang.org as of 2026-07-19; the PyPI package version numbers mirror the Zig release version numbers 1:1)
+- `cargo-zigbuild --version 0.23.0` — latest stable (verified from crates.io; `rust-version = "1.88"`, compatible with prism's toolchain)
+- `--locked` on `cargo install` — instructs Cargo to use the crate's own `Cargo.lock` for its dependency graph, rather than re-resolving; required for reproducible builds; the crate ships its Cargo.lock (SHA-256 of that lockfile as of v0.23.0: `ee606e75567b927d2279a37c7e6daacc7d07f83420e0a03c5907e41f2e79b5ca`)
+- Remove `--break-system-packages` — this flag is a workaround for system-managed Python installations. GitHub Actions' `ubuntu-latest` runners expose Python in a state that does not require it with an explicit version pin. Its presence with an unpinned version is a supply-chain smell; its removal with an exact pin is the correct posture.
+
+#### Delta 15-2: Hash pinning for ziglang (REQUIRED before v1.0.0 GA; may defer to attempt 6 if attempt 5 is the final dry-run)
+
+`pip install --require-hashes` is the production-grade control matching the SHA-pinning discipline applied to GitHub Actions action references throughout this workflow. The exact version pin (Delta 15-1) is the minimum viable floor; hash pinning is the required ceiling.
+
+**Implementation:** Create `.github/workflows/requirements-musl-ci.txt` with the x86_64 manylinux wheel hash (the platform used by `ubuntu-latest` runners):
+
+```
+ziglang==0.16.0 \
+    --hash=sha256:9fcda73f62b851dd72a54b710ad40a209896db14cfb13649e62191243556342b
+```
+
+Replace the `pip3 install ziglang==0.16.0` line with:
+
+```yaml
+pip3 install --require-hashes -r .github/workflows/requirements-musl-ci.txt
+```
+
+The `ziglang` wheel is a pure Python wheel containing the Zig compiler binary for the target platform. The hash covers the entire Zig toolchain payload; no secondary network download occurs at install time. `--require-hashes` therefore fully secures the Zig binary delivered to the musl build leg.
+
+**Attempt 5 gate:** Delta 15-1 (exact version pins + `--locked`) is BLOCKING for attempt 5. Delta 15-2 (hash file) MAY be applied in attempt 5 or in the first story fix-burst after attempt 5 passes — the devops-engineer decides based on timeline. Both deltas must be applied before S-REL-001 PR merge.
+
+#### Delta 15-3: Cargo install caching
+
+`cargo install --locked cargo-zigbuild --version 0.23.0` compiles cargo-zigbuild from source on every cold CI run (approximately 2-4 minutes on `ubuntu-latest`). The existing `Swatinem/rust-cache` step does not cache `~/.cargo/bin/` (it caches build artifacts, not installed binaries).
+
+Add the following step immediately before the `pip3 install` / `cargo install` block in the musl-conditional block:
+
+```yaml
+- name: Cache cargo-zigbuild binary
+  if: matrix.target == 'x86_64-unknown-linux-musl'
+  uses: actions/cache@...  # same pin as other cache actions in this workflow
+  with:
+    path: ~/.cargo/bin/cargo-zigbuild
+    key: cargo-zigbuild-0.23.0-${{ runner.os }}
+```
+
+On cache hit, skip the `cargo install` step (wrap it in a conditional checking `~/.cargo/bin/cargo-zigbuild` existence). On cache miss, `cargo install` runs and populates the cache for subsequent runs.
+
+**Attempt 5 gate for caching:** Not blocking for attempt 5 (dry-run correctness, not performance). Required before S-REL-001 PR merge to avoid paying 2-4 minutes on the musl leg for every tag push.
+
+#### Delta 15-4: Comment correction
+
+The existing comment in commit caf1443d says:
+```
+# clang: retained for any build.rs scripts that invoke cc-rs on the host.
+```
+
+This is correct for the `apt-get install` line (clang is still installed). The cargo-zigbuild comment block is accurate. No further correction needed; this delta is informational only.
+
+**Correction 2026-07-20 (F-REL001-P16-001):** The prose above describes the state at §15 authoring time (commit caf1443d). F-REL001-P16-001, adjudicated after §15 was written, removed clang entirely from release.yml's apt-get install line. Empirical basis: the attempt-2 gnu leg passed without clang present; zig bundles its own C/C++ toolchain, so clang is not needed by the musl leg; attempt-6 ran GREEN with clang absent from the apt logs on both Linux legs. Story v0.21 and the AC-010 clang-absence guard encode the removal as a verified invariant. Therefore: clang is NOT installed on the release.yml Linux runners; the comment "clang: retained..." no longer exists in release.yml; the claim "clang is still installed" is stale as of F-REL001-P16-001.
+
+---
+
+### ADR-050 Rustls Posture
+
+Zig's toolchain links C/C++ code (compiled via `cc-rs` invocations from `librocksdb-sys` and similar crates) against musl `libc++`. The `reqwest` TLS backend is a Rust crate feature (`rustls-tls`, selected in `Cargo.toml`), not a C library dependency. TLS is handled entirely within Rust's crate graph; Zig does not inject a TLS library into the binary and does not touch the Rust crate feature selection. ADR-050's `rustls-tls` mandate is unaffected by the choice of C/C++ toolchain.
+
+The `readelf -d ... | grep NEEDED` gate (from §14's verification checklist) remains the authoritative confirmation: a valid musl binary has an empty or musl-only NEEDED table. OpenSSL, libssl, and native-tls artifacts do not appear because `rustls-tls` was selected at Cargo feature resolution time, independently of what Zig does at C++ link time.
+
+---
+
+### install.sh Consumers (S-REL-003)
+
+The install.sh script downloads a pre-built binary from GitHub Releases. The musl binary (`prism-${TAG}-x86_64-unknown-linux-musl.tar.gz`) is used by consumers running Alpine Linux or other musl-based distributions. The build toolchain (cargo-zigbuild vs plain cargo) is not visible to consumers; what they receive is a statically linked binary that must satisfy the §14 verification requirements (`readelf NEEDED` empty, `file(1)` reports statically linked).
+
+S-REL-003's scope (authoring install.sh and install.ps1 and wiring the upload step) is unchanged. The toolchain decision here is entirely within S-REL-001's CI layer. No S-REL-003 story amendment required.
+
+---
+
+### demo-server Binary on musl
+
+Confirmed from the caf1443d diff: the build step is:
+```bash
+cargo zigbuild --release --locked --target ${{ matrix.target }} -p prism-bin -p prism-dtu-demo-server
+```
+
+Both `prism` and `prism-dtu-demo-server` are built by the same `cargo zigbuild` invocation. The demo-server musl binary receives identical toolchain treatment: Zig's musl `libc++` replaces glibc's `libstdc++` for all C++ compiled by `librocksdb-sys` and any other cc-rs consumers in `prism-dtu-demo-server`'s transitive dep graph. The §14 `readelf` and `file(1)` verification requirements apply to the demo-server binary as well; the S-REL-001 story's dry-run AC must assert static linkage for BOTH binaries.
+
+---
+
+### Verification Requirements — Attempt 5
+
+The §14 five-check table remains in force. Additionally, attempt 5 must confirm the hardening deltas:
+
+| Check | Command | Required Result |
+|-------|---------|-----------------|
+| Build exits 0 — prism | `cargo zigbuild ... -p prism-bin` | Exit code 0 |
+| Build exits 0 — demo-server | `cargo zigbuild ... -p prism-dtu-demo-server` | Exit code 0 |
+| Static linkage — prism | `readelf -d target/x86_64-unknown-linux-musl/release/prism \| grep NEEDED` | Empty output (no glibc, no libstdc++, no libdbus) |
+| Static linkage — demo-server | `readelf -d target/x86_64-unknown-linux-musl/release/prism-dtu-demo-server \| grep NEEDED` | Empty output |
+| file(1) prism | `file target/x86_64-unknown-linux-musl/release/prism` | Reports `statically linked` |
+| file(1) demo-server | `file target/x86_64-unknown-linux-musl/release/prism-dtu-demo-server` | Reports `statically linked` |
+| libdbus-sys absent from musl tree | `cargo tree --target x86_64-unknown-linux-musl -p prism-credentials -i libdbus-sys` | Empty output |
+| libdbus-sys present on gnu tree | `cargo tree --target x86_64-unknown-linux-gnu -p prism-credentials -i libdbus-sys` | `libdbus-sys v0.2.7` present |
+| cargo-zigbuild version | `~/.cargo/bin/cargo-zigbuild --version` | `cargo-zigbuild 0.23.0` |
+| ziglang version | `pip3 show ziglang \| grep Version` | `Version: 0.16.0` |
+
+The `readelf NEEDED empty` check for BOTH binaries is the BLOCKING proof. A build that exits 0 but has glibc symbols in NEEDED still fails the gate.
+
+---
+
+### Summary for devops-engineer
+
+Apply the following changes to the musl-leg block in `.github/workflows/release.yml` before attempt 5:
+
+1. Replace `pip3 install ziglang --break-system-packages` with `pip3 install ziglang==0.16.0` (or the hash-requirements variant if Delta 15-2 is applied in this burst).
+2. Replace `cargo install cargo-zigbuild` with `cargo install --locked cargo-zigbuild --version 0.23.0`.
+3. Add a `actions/cache` step keyed on `cargo-zigbuild-0.23.0-${{ runner.os }}` caching `~/.cargo/bin/cargo-zigbuild`, before the cargo install line.
+4. Confirm that the dry-run AC in S-REL-001 asserts `readelf NEEDED empty` for BOTH `prism` and `prism-dtu-demo-server` on the musl leg.
+
+No changes to S-REL-003, S-REL-004, or any BC/ADR are required by this toolchain decision.

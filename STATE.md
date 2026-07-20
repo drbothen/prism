@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.428"
+version: "8.429"
 producer: state-manager
-timestamp: 2026-07-19T20:30:00Z
+timestamp: 2026-07-20T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -21,11 +21,11 @@ develop_head: "e116a587"
 bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.80"
-story_index_version: "v2.717"
+story_index_version: "v2.718"
 arch_index_version: "2.193"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
-total_stories: 253
+total_stories: 254
 active_contracts: 257
 draft_contracts: 0
 retired_contracts: 6
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "S-REL-001 TDD DELIVERY IN PROGRESS — Pre-TDD fix-burst D-1878 (2026-07-19): 4 findings → ADJ-001..004 → stories v0.3. S-REL-001 v0.3 (11 ACs; AC-011 libdbus-1-dev unconditional; per-OS demo-server wrap; input-hash e2b3e1e). S-REL-003 v0.3 (10 ACs; ADJ-002 upload ownership; new AC-010 upload task; input-hash e11dfc9). Adjudications recorded in .factory/planning/feature-release-engineering/delta-analysis.md §13. STORY-INDEX v2.716→v2.717. Worktree .worktrees/S-REL-001 created on feature/S-REL-001 @e116a587 (local-only). NEXT: Red Gate (test-writer stubs for S-REL-001). trajectory-tail →0→0→0→0 STATE v8.427→v8.428"
+current_step: "S-REL-001 LOCAL CASCADE CONVERGED (D-1879) — 23 passes; passes 21/22/23 CLEAN(strict) @75ce8cbf; story v0.3→v0.22 (12 ACs; release-gate 11 files/80 assertions; fail-closed actionlint; CWE-78 run-block guard); 4 DEFECTs caught+fixed by dry-run evidence; §14 Option B keyring split + §15 cargo-zigbuild ratified+pinned; delta-analysis.md §13/14/15+correction. S-MAINT-CIGATE-REMEDIATION-001 draft v0.3 REGISTERED (8 ACs; AC-007 BLOCKED on human ci.yml/e2e.yml residue disposition). D-1880: F-A holdout-authoring process-gap surfaced; human adjudication pending. STORY-INDEX v2.717→v2.718 total_stories 253→254. NEXT: human adjudicates D-1880 holdout process-gap → PO authors S-REL-001 holdout scenarios → holdout gate → demo-recorder → push → pr-manager. trajectory-tail →0→0→0→0 STATE v8.428→v8.429"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -76,8 +76,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 393 lines (wc-l)
-  margin from soft-target (200): +193 lines over | margin from actual (500): 107 lines remaining
+  STATE.md SIZE BUDGET: 395 lines (wc-l)
+  margin from soft-target (200): +195 lines over | margin from actual (500): 105 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -91,7 +91,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-19 D-1878 PRE-TDD FIX-BURST S-REL-001 — 4 findings → ADJ-001..004 applied (stories v0.3). S-REL-001 v0.3 (11 ACs; libdbus-1-dev unconditional; per-OS demo-server wrap). S-REL-003 v0.3 (10 ACs; upload task ADJ-002). STORY-INDEX v2.717. Worktree .worktrees/S-REL-001 created; TDD delivery started (Red Gate next). trajectory-tail →0→0→0→0 STATE v8.427→v8.428 |
+| **Last Updated** | 2026-07-20 D-1879/D-1880 — S-REL-001 LOCAL CASCADE CONVERGED (23p, 3-CLEAN @75ce8cbf; story v0.22; 4 DEFECTs dry-run-caught+fixed; §13-§15 adjudications). S-MAINT-CIGATE-REMEDIATION-001 draft v0.3 REGISTERED. D-1880 F-A holdout process-gap surfaced. STORY-INDEX v2.718 total_stories 254. trajectory-tail →0→0→0→0 STATE v8.428→v8.429 |
 
 ## Active Objective (North Star)
 
@@ -285,6 +285,8 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1876 | orchestrator+state-manager | 2026-07-19 | F1 adjudications complete — .prx prebuilds ship in RC-1; full PowerShell demo parity is RC-1-blocking; T13 audit script ships as-is (no scope expansion); demo Jira project intake approved; architect rulings: U13 wasm-tools via taiki-e/install-action, U15 build-demo-bundle needs publish-release dependency, U19 parallel build-plugins, U22 Windows bundle .zip, U2 semver-checks runs in check-ci, U26 S-REL-hotfix-001 anchor replaces bare TODO. | wave-5-e-demo-fidelity | 2026-07-19 |
 | D-1877 | state-manager | 2026-07-19 | Remove-uncertainty pass complete — 33 findings resolved (13 HIGH incl. fabricated CLI mechanism, never-executed Linux release legs, schema-guess release-config; all closed into story v0.2s). 7 stories S-REL-001..007 uncertainty-hardened. STORY-INDEX v2.715→v2.716 total_stories 246→253. RESUME SNAPSHOT D-1877. trajectory-tail →0→0→0→0 STATE v8.426→v8.427 | wave-5-e-demo-fidelity | 2026-07-19 |
 | D-1878 | state-manager | 2026-07-19 | Pre-TDD fix-burst S-REL-001 — remove-uncertainty second touchpoint (D-1110) found 4 findings; architect ADJ-001..004 applied: ADJ-001 libdbus-1-dev unconditional (all Linux jobs); ADJ-002 AC-011 sequencing inversion (upload-install-scripts deleted from S-REL-001; upload task + AC-010 added to S-REL-003); ADJ-003 Windows .exe per-OS tar-wrap; ADJ-004 stale crate count. Adjudications durably recorded in .factory/planning/feature-release-engineering/delta-analysis.md §13. S-REL-001 v0.2→v0.3 (12→11 ACs; input-hash e2b3e1e). S-REL-003 v0.2→v0.3 (9→10 ACs; new AC-010 upload task; input-hash e11dfc9). STORY-INDEX v2.716→v2.717. Worktree .worktrees/S-REL-001 created on feature/S-REL-001 @e116a587 (local-only). TDD delivery started; Red Gate next. trajectory-tail →0→0→0→0 STATE v8.427→v8.428 | wave-5-e-demo-fidelity | 2026-07-19 |
+| D-1879 | state-manager | 2026-07-20 | S-REL-001 LOCAL CASCADE CONVERGED (BC-5.39.001 SATISFIED): 23 passes; passes 21/22/23 CLEAN(strict) on frozen worktree HEAD 75ce8cbf; story v0.3→v0.22 through ~20 fix-bursts; release-gate suite: 11 test files / 80 assertions with exact-equality floors; fail-closed actionlint; CWE-78 run-block guard (whitespace+case tolerant). Task-12 dry-run gate: 6 origin test-tag attempts (human-authorized destination drbothen/prism; fork infeasible for repo owner); 4 REAL runtime defects caught+fixed by executed evidence: DEFECT-REL001-PROTOC-MISSING-001 (protoc absent on Linux runners), DEFECT-REL001-MUSL-DBUS-001 (→§14 Option B prism-credentials target-cfg keyring split ratified), DEFECT-REL001-MUSL-CXX-001 (superseded by §15), DEFECT-REL001-MUSL-LIBSTDCXX-001 (→§15 cargo-zigbuild ratified, pinned). Attempt 6 GREEN: 5 legs + publish; both musl binaries statically linked/no dynamic section; isPrerelease true; attestations 5/5. Evidence: docs/demo-evidence/S-REL-001/fork-tag-dry-run.md (feature branch). Architect adjudications: delta-analysis.md §13 (ADJ-001..004), §14 (Option B keyring split), §15 (cargo-zigbuild + Delta 15-4 correction). S-MAINT-CIGATE-REMEDIATION-001 draft v0.3 REGISTERED in STORY-INDEX (8 ACs: 7 active + 1 superseded; AC-007 BLOCKED on human disposition of staged ci.yml/e2e.yml residue). STORY-INDEX v2.717→v2.718 total_stories 253→254. trajectory-tail →0→0→0→0 STATE v8.428→v8.429 | wave-5-e-demo-fidelity | 2026-07-20 |
+| D-1880 | state-manager | 2026-07-20 | F-A HOLDOUT PROCESS-GAP SURFACED: Wave F-A planning burst (D-1877) missed the story-level holdout authoring touchpoint for all 7 S-REL stories — holdout_scenarios: [] in all 7 story files. Per CLAUDE.md: "product-owner authors 2–4 HIDDEN, SINGLE-USE holdout scenarios per story at story-materialization time (same touchpoint as the remove-uncertainty pass)." Applies to S-REL-001..007. Human adjudication requested: (a) retroactively author holdout scenarios for S-REL-001 before its holdout gate runs, or (b) approve a policy exception for infra-only stories with no behavioral contracts. Story-level holdout gate for S-REL-001 is BLOCKED pending this adjudication. Lessons 76-79 appended to cycles/wave-5-e-demo-fidelity/lessons.md (worktree-identity preflight, load-bearing-logic-needs-assertion, executed-evidence principle, F-A holdout process-gap). | wave-5-e-demo-fidelity | 2026-07-20 |
 
 ## Skip Log
 
@@ -379,15 +381,15 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1878 — 2026-07-19 — PRE-TDD FIX-BURST S-REL-001; STATE v8.428)
+## Session Resume Checkpoint (D-1879/D-1880 — 2026-07-20 — S-REL-001 LOCAL CASCADE CONVERGED; STATE v8.429)
 
-**RESUME IN ONE BREATH:** S-REL-001 TDD delivery started. Pre-TDD fix-burst D-1878 applied 4 findings via architect ADJ-001..004: libdbus-1-dev unconditional (ADJ-001); AC-011 sequencing corrected + upload task moved to S-REL-003 (ADJ-002); Windows .exe per-OS tar-wrap (ADJ-003); stale crate count corrected (ADJ-004). S-REL-001 now v0.3 (11 ACs; input-hash e2b3e1e). S-REL-003 now v0.3 (10 ACs; input-hash e11dfc9). STORY-INDEX v2.717. Worktree `.worktrees/S-REL-001` on feature/S-REL-001 @e116a587 (local-only). **NEXT ACTION:** Red Gate test stubs for S-REL-001 (test-writer); then per-story TDD delivery flow (stubs → failing tests → implementation → LOCAL 3-CLEAN → story-level holdout gate → demo-recorder → push → pr-manager). Delivery order after S-REL-001: 002∥003→004→007→005 (006 after 002). secops-factory Workstream B still pending (separate session). T13/T14 BLOCKED on Workstream B. **HUMAN PREREQUISITES before T14**: interactive `bash scripts/demo-setup.sh` macOS Keychain auth; demo Jira project provisioning (D-1876). Lessons 73/74/75 in cycles/wave-5-e-demo-fidelity/lessons.md.
+**RESUME IN ONE BREATH:** S-REL-001 LOCAL cascade CONVERGED (BC-5.39.001; 23 passes; passes 21/22/23 CLEAN(strict) @75ce8cbf). Story v0.22 (12 ACs; release-gate 11 test files/80 assertions; fail-closed actionlint; CWE-78 run-block guard). Task-12 dry-run gate GREEN x2 (attempt 6: 5 legs + publish; both musl statically linked; isPrerelease true; attestations 5/5). 4 DEFECTs caught+fixed by executed evidence: PROTOC-MISSING-001 / MUSL-DBUS-001 (§14 Option B keyring split) / MUSL-CXX-001 / MUSL-LIBSTDCXX-001 (§15 zigbuild+pin). S-MAINT-CIGATE-REMEDIATION-001 draft v0.3 REGISTERED. **OPEN BLOCK (D-1880):** F-A planning burst missed holdout authoring for all 7 S-REL stories (holdout_scenarios: [] everywhere); human adjudication required before S-REL-001 holdout gate. **NEXT ACTION:** (1) Human adjudicates D-1880 holdout process-gap; (2) PO authors S-REL-001 holdout scenarios; (3) holdout gate; (4) demo-recorder; (5) push; (6) pr-manager. Delivery order after 001: 002∥003→004→007→005 (006 after 002). Lessons 76-79 in cycles/wave-5-e-demo-fidelity/lessons.md.
 
-**HEADS (verified 2026-07-19 D-1878 wrap):**
+**HEADS (verified 2026-07-20 D-1879/D-1880 wrap):**
 - develop: `e116a587` (PR #227 squash-merged 2026-07-19T14:27:25Z) local==origin — PUSHED
 - factory-artifacts: `git -C .factory log -1 --format='%h %s'` (do not hard-code)
-- `.worktrees/S-REL-001`: feature/S-REL-001 @e116a587 — LOCAL-ONLY (TDD in progress; Red Gate next)
+- `.worktrees/S-REL-001`: feature/S-REL-001 @75ce8cbf — LOCAL (post-cascade; awaiting holdout gate)
 - `feature/S-3.09` @`43c41389` — KEEP-PARKED (LOCAL-ONLY)
 - `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
-- Main tree residue (pre-existing, NOT session products): staged .github/workflows/ci.yml + e2e.yml (unknown provenance — do not commit/discard without human review); untracked .playwright-mcp/, drawio exports, mutants.out*, scripts/__pycache__
+- Main tree residue (pre-existing): staged .github/workflows/ci.yml + e2e.yml (human must review — AC-007 of S-MAINT-CIGATE-REMEDIATION-001 explicitly BLOCKED on this disposition); untracked .playwright-mcp/, drawio exports, mutants.out*, scripts/__pycache__
 - `develop` and `factory-artifacts` are PUSHED; all others are LOCAL-ONLY
