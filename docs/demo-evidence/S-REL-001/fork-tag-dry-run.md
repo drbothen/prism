@@ -322,3 +322,219 @@ musl cross-compilation environment variable gap.
 
 **Orchestrator routing:** Implementer (single `env: PKG_CONFIG_ALLOW_CROSS: 1` line
 on the `Build release binary` step in `.github/workflows/release.yml`).
+
+---
+
+## Attempt 3 — DEFECT-REL001-MUSL-DBUS-001 Verification (§14 Option B)
+
+**Tag:** `v0.0.1-rc.test` at commit `4efed8d8`
+
+**Tag push time (UTC):** 2026-07-20T02:32:47Z
+
+**Run URL:** https://github.com/drbothen/prism/actions/runs/29712784282
+
+**Pre-push hooks:** ALL PASSED (fmt + clippy + nextest + non-exhaustive 92/92 gate; 103s)
+
+---
+
+### Per-Leg Results Table
+
+| Target | Job ID | Conclusion | Duration | Job Link |
+|--------|--------|------------|----------|----------|
+| aarch64-apple-darwin | 88259545512 | PASS | 6m36s | https://github.com/drbothen/prism/actions/runs/29712784282/job/88259545512 |
+| x86_64-unknown-linux-gnu | 88259545514 | PASS | 6m34s | https://github.com/drbothen/prism/actions/runs/29712784282/job/88259545514 |
+| x86_64-unknown-linux-musl | 88259545525 | FAIL | 2m35s | https://github.com/drbothen/prism/actions/runs/29712784282/job/88259545525 |
+| x86_64-apple-darwin | 88259545540 | PASS | 15m12s | https://github.com/drbothen/prism/actions/runs/29712784282/job/88259545540 |
+| x86_64-pc-windows-msvc | 88259545508 | PASS | 14m23s | https://github.com/drbothen/prism/actions/runs/29712784282/job/88259545508 |
+| publish-release (Create GitHub Release) | 88260889151 | SKIPPED | 0s | N/A |
+
+4 of 5 build-release legs passed. DEFECT-REL001-MUSL-DBUS-001 CONFIRMED FIXED —
+the musl leg now passes the `Install Linux build deps` and `Install protoc` steps,
+and the `Build release binary` step advances well past the dbus pkg-config phase
+before encountering a new, distinct failure.
+
+---
+
+### DEFECT-REL001-MUSL-DBUS-001 Closure Confirmation
+
+The musl leg progressed to `cargo build` and began compiling workspace crates. The
+previous `pkg-config has not been configured to support cross-compilation` error is
+completely absent. dbus and pkg-config are no longer the failure. Confirmed fixed.
+
+---
+
+### NEW REAL DEFECT — DEFECT-REL001-MUSL-CXX-001: missing C++ cross-compiler for musl
+
+**Label:** REAL DEFECT (deterministic, reproducible — same root cause as Attempt 2 musl failure pattern)
+
+**Failure step:** `Build release binary` — exit code 101
+
+**Root cause:** `librocksdb-sys v0.17.3+10.4.2` compiles RocksDB from source using
+the `cc` crate. For the `x86_64-unknown-linux-musl` target, `cc-rs` looks for a
+target-prefixed C++ compiler: `x86_64-linux-musl-g++`. The `musl-tools` Ubuntu
+package provides `x86_64-linux-musl-gcc` (the C compiler) but does NOT include a
+C++ compiler equivalent. No C++ cross-toolchain for musl is available in the Ubuntu
+standard package set under the name `cc-rs` expects.
+
+**Precise log excerpts (job 88259545525, Build release binary step):**
+
+```
+2026-07-20T02:34:37.5612227Z warning: librocksdb-sys@0.17.3+10.4.2: Compiler family
+  detection failed due to error: ToolNotFound: failed to find tool
+  "x86_64-linux-musl-g++": No such file or directory (os error 2)
+2026-07-20T02:34:37.5620970Z error: failed to run custom build command for
+  `librocksdb-sys v0.17.3+10.4.2`
+2026-07-20T02:34:37.5623781Z   process didn't exit successfully:
+  `.../librocksdb-sys-ad6679b21fb5f065/build-script-build` (exit status: 1)
+2026-07-20T02:34:37.5680835Z   error occurred in cc-rs: failed to find tool
+  "x86_64-linux-musl-g++": No such file or directory (os error 2)
+2026-07-20T02:35:10.7865659Z ##[error]Process completed with exit code 101.
+```
+
+**cc-rs env probe output (confirms no CXX override was set):**
+
+```
+CXX_x86_64-unknown-linux-musl = None
+CXX_x86_64_unknown_linux_musl = None
+TARGET_CXX = None
+CXX = None
+CROSS_COMPILE = None
+```
+
+**Fix applied in scope (devops-engineer domain — CI/CD workflow):**
+
+In `.github/workflows/release.yml`, the `Install Linux build deps` step was updated
+to install `clang` and export `CXX_x86_64_unknown_linux_musl=clang++` for the musl
+target. `clang++` natively handles multi-target C++ compilation without requiring a
+separate musl-specific C++ toolchain package.
+
+```diff
+-         sudo apt-get install -y musl-tools pkg-config libdbus-1-dev
++         # clang: C++ cross-compiler for musl leg — musl-tools provides x86_64-linux-musl-gcc
++         # (C only); librocksdb-sys build.rs (via cc-rs) requires a C++ compiler and looks for
++         # x86_64-linux-musl-g++ which does not exist in the Ubuntu package set.
++         # DEFECT-REL001-MUSL-CXX-001: fixed by pointing cc-rs to clang++ via env override.
++         sudo apt-get install -y musl-tools pkg-config libdbus-1-dev clang
++         if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-musl" ]]; then
++           echo "CXX_x86_64_unknown_linux_musl=clang++" >> "$GITHUB_ENV"
++         fi
+```
+
+This fix is committed in the same evidence commit (see §Commit below).
+
+---
+
+### Five-Check Verification — Attempt 3
+
+| Check | Description | Result |
+|-------|-------------|--------|
+| (a) | Build exit 0 on all 5 legs | FAIL — musl leg: exit 101 (DEFECT-REL001-MUSL-CXX-001) |
+| (b) | MUSL artifact linkage gate: `file` reports "statically linked" | NOT APPLICABLE — no artifact published (publish-release skipped) |
+| (c) | MUSL ELF dynamic section: no libdbus-1.so NEEDED entries | NOT APPLICABLE — no artifact published (publish-release skipped) |
+| (d) | `cargo tree --target x86_64-unknown-linux-musl -p prism-credentials -i libdbus-sys` → empty | PASS — output: "warning: nothing to print." |
+| (e) | `cargo tree --target x86_64-unknown-linux-gnu -p prism-credentials -i libdbus-sys` → present | PASS — output: "libdbus-sys v0.2.7 / dbus v0.9.11 / dbus-secret-service v4.1.0 / keyring v3.6.3 / prism-credentials v0.1.0" |
+
+**Check (d) raw output:**
+```
+warning: nothing to print.
+
+To find dependencies that require specific target platforms, try to use option
+`--target all` first, and then narrow your search scope accordingly.
+EXIT: 0
+```
+
+**Check (e) raw output:**
+```
+libdbus-sys v0.2.7
+└── dbus v0.9.11
+    └── dbus-secret-service v4.1.0
+        └── keyring v3.6.3
+            └── prism-credentials v0.1.0
+              (/Users/jmagady/Dev/prism/.worktrees/S-REL-001/crates/prism-credentials)
+EXIT: 0
+```
+
+Checks (d) and (e) confirm that the DEFECT-REL001-MUSL-DBUS-001 fix (target-conditional
+dbus feature split) is structurally sound in the dependency graph: libdbus-sys is absent
+from the musl tree and present in the gnu tree exactly as required.
+
+---
+
+### Release Asset Listing (EC-001/AC-005) — Attempt 3
+
+**Not applicable.** The `publish-release` (Create GitHub Release) job was SKIPPED
+because the musl `build-release` matrix leg failed (`needs: build-release`). No
+GitHub Release was created for `v0.0.1-rc.test`.
+
+EC-001/AC-005 (prerelease flag must be true for `-` tags) wire proof is still pending
+pending full 5/5 pass. Blocked by DEFECT-REL001-MUSL-CXX-001 (fixed in this commit
+for verification in Attempt 4).
+
+---
+
+### Idempotency Spot-Check (EC-009) — Attempt 3
+
+**Not applicable.** No release was created; publish-release was skipped.
+
+---
+
+### Attestation Step Outcome — Attempt 3
+
+The `actions/attest-build-provenance` step ran and SUCCEEDED on all 4 passing legs
+(aarch64-apple-darwin, x86_64-unknown-linux-gnu, x86_64-apple-darwin,
+x86_64-pc-windows-msvc). The step was not reached on the musl leg (build failed
+before the archive step). OIDC token (`id-token: write` permission) was available
+on all legs.
+
+---
+
+### Cleanup Verification — Attempt 3
+
+1. GitHub Release deleted: N/A — no release was created (publish-release was skipped).
+2. Remote tag deleted:
+
+```
+git push origin :refs/tags/v0.0.1-rc.test
+To https://github.com/drbothen/prism.git
+ - [deleted]           v0.0.1-rc.test
+```
+
+3. Local tag deleted:
+
+```
+git tag -d v0.0.1-rc.test
+Deleted tag 'v0.0.1-rc.test' (was 4efed8d8)
+```
+
+4. Verification:
+
+```
+git ls-remote origin refs/tags/v0.0.1-rc.test → (empty)
+git tag -l "v0.0.1-rc.test" → (empty)
+gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"
+```
+
+All confirmed clean.
+
+---
+
+### Attempt 3 Gate Verdict
+
+**DRY-RUN FAILED**
+
+DEFECT-REL001-PROTOC-MISSING-001: FIXED (confirmed in Attempt 2, still fixed in Attempt 3)
+DEFECT-REL001-MUSL-DBUS-001: FIXED (confirmed — musl leg progresses past dbus/pkg-config)
+
+Failing leg: x86_64-unknown-linux-musl (1 of 5)
+
+New root cause: DEFECT-REL001-MUSL-CXX-001 — `librocksdb-sys` build.rs (via cc-rs)
+requires `x86_64-linux-musl-g++` (C++ cross-compiler for musl); `musl-tools` provides
+only the C compiler `x86_64-linux-musl-gcc`. Fix applied in scope: `clang` added to
+apt-get install + `CXX_x86_64_unknown_linux_musl=clang++` exported for musl leg.
+
+4 of 5 legs (aarch64-apple-darwin, x86_64-unknown-linux-gnu, x86_64-apple-darwin,
+x86_64-pc-windows-msvc) passed with correct artifact upload and attestation.
+
+Checks (d) and (e) confirm the DEFECT-REL001-MUSL-DBUS-001 dependency-graph fix is
+structurally correct. Checks (b), (c) (artifact linkage gate) and (a) full pass remain
+blocked pending Attempt 4 with DEFECT-REL001-MUSL-CXX-001 fix.

@@ -55,7 +55,14 @@ jobs:
           # libdbus-1-dev: required by prism-credentials keyring-linux-native-sync-persistent
           # → dbus-secret-service (C-linked libdbus). build.rs runs on glibc host even for
           # musl cross-target. ADR-034/BC-2.06.003.
-          sudo apt-get install -y musl-tools pkg-config libdbus-1-dev
+          # clang: C++ cross-compiler for musl leg — musl-tools provides x86_64-linux-musl-gcc
+          # (C only); librocksdb-sys build.rs (via cc-rs) requires a C++ compiler and looks for
+          # x86_64-linux-musl-g++ which does not exist in the Ubuntu package set.
+          # DEFECT-REL001-MUSL-CXX-001: fixed by pointing cc-rs to clang++ via env override.
+          sudo apt-get install -y musl-tools pkg-config libdbus-1-dev clang
+          if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-musl" ]]; then
+            echo "CXX_x86_64_unknown_linux_musl=clang++" >> "$GITHUB_ENV"
+          fi
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           targets: ${{ matrix.target }}
