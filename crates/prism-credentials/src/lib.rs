@@ -60,8 +60,10 @@ compile_error!(
      Add `keyring-windows-native` to prism-credentials features in Cargo.toml."
 );
 // guard: Linux — at least one real backend pass-through feature required.
-// keyring-linux-native-sync-persistent: kernel keyutils + dbus-secret-service (persistent).
-// keyring-linux-native: kernel keyutils only (musl, no dbus).
+// keyring-linux-native-sync-persistent: kernel keyutils + dbus Secret Service (persistent);
+//   activated on gnu targets via the [target.'cfg(all(target_os="linux", not(target_env="musl")))'.dependencies]
+//   keyring block in Cargo.toml — NOT via [features] default (adding it there reactivates dbus on musl).
+// keyring-linux-native: kernel keyutils only (musl-safe, no dbus); must remain in [features] default.
 // Either satisfies the guard — musl uses keyring-linux-native alone.
 #[cfg(all(
     target_os = "linux",
@@ -71,11 +73,14 @@ compile_error!(
     ))
 ))]
 compile_error!(
-    "prism-credentials: `keyring-linux-native-sync-persistent` or `keyring-linux-native` \
-     MUST be enabled on Linux. Removing all backend features reverts to the in-process \
-     mock keystore (F-P10-CRIT-001). \
-     For gnu targets: enable `keyring-linux-native-sync-persistent`. \
-     For musl targets: enable `keyring-linux-native`."
+    "prism-credentials: no real keyring backend is enabled on Linux. \
+     This reverts to the in-process mock keystore (F-P10-CRIT-001). \
+     gnu targets receive linux-native-sync-persistent automatically via the \
+     [target.'cfg(all(target_os=\"linux\", not(target_env=\"musl\")))'.dependencies] \
+     keyring block in Cargo.toml — do NOT add keyring-linux-native-sync-persistent to \
+     [features] default (that reactivates dbus on musl; forbidden per \
+     DEFECT-REL001-MUSL-DBUS-001; guarded by release-gate assertion #19). \
+     If this guard fires, ensure keyring-linux-native remains in [features] default."
 );
 // ---------------------------------------------------------------------------
 
