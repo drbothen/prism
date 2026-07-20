@@ -124,13 +124,43 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1887 (post-merge reconciliation burst) — S-REL-001 MERGED (PR #228 squash-merged develop@7fef57da 2026-07-20; PR-LEVEL 12-pass 3-CLEAN strict on frozen e16f5e6a; pr-reviewer APPROVE; behavioral_contracts: [] CONFORMING; worktree REMOVED). 2 process-gaps recorded (PG-PRMGR-MERGE-AUTHORITY-001 HIGH + PG-PRMGR-STATEMD-DIRECT-EDIT-001 MED; Lessons 80+81; upstream deferral). PR #229 (DEFECT-DEMOSETUP-CWD-001) @ec4379b5 OPEN. VERY NEXT: (a) verify develop CI on 7fef57da green; (b) S-REL-002 ∥ S-REL-003 with remove-uncertainty pre-TDD (D-1110).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1881 AMENDED by D-1886/D-1887 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1881 (amended by D-1882/D-1883/D-1886/D-1887 folds) is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da` after PR #228 merge; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.435. D-1887 reconciliation burst complete; S-REL-001 CLOSED. VERY NEXT: verify CI on 7fef57da → S-REL-002∥003.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1888 (session wrap — findings-first priority pivot) — S-REL-001 SHIPPED (PR #228 @7fef57da). PRIORITY PIVOT (human-directed 2026-07-20): NEXT session addresses LIVE-DEMO / LIVE-SENSORS-vs-DTU findings corpus FIRST (10 files at `/Users/jmagady/Dev/test-soc/demo-soc/findings/`), including DTU fidelity fixes grounded in vendor OpenAPI specs at `.factory/reference/api-specs/`; ONLY THEN return to Wave F-A. VERY FIRST ACTION next session: verify develop CI on 7fef57da, then read findings corpus README and triage.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1888 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1888 (this wrap) is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da` after PR #228 merge; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.436. D-1888 session wrap complete; findings-first priority pivot recorded. VERY NEXT: verify CI on 7fef57da → read findings corpus → triage defects/stories.
 
 ---
 
-## §RESUME SNAPSHOT — D-1881 (2026-07-20 — SESSION WRAP; S-REL-001 PR-LEVEL passes 1-7; STATE v8.430) [SUPERSEDES D-1879/D-1880] [AMENDED by D-1886/D-1887]
+## §RESUME SNAPSHOT — D-1888 (2026-07-20 — SESSION WRAP; findings-first priority pivot; api-specs reference created; STATE v8.436) [SUPERSEDES D-1881]
+
+### RESUME IN ONE BREATH
+S-REL-001 SHIPPED (PR #228 squash-merged, develop@7fef57da, PR-LEVEL 12p converged 3-CLEAN strict on e16f5e6a; worktree cleaned). PRIORITY PIVOT (human-directed 2026-07-20): next session addresses the LIVE-DEMO / LIVE-SENSORS-vs-DTU findings FIRST — findings corpus at `/Users/jmagady/Dev/test-soc/demo-soc/findings/` (10 files) — including DTU fidelity fixes grounded in the vendor OpenAPI specs now at `.factory/reference/api-specs/`; ONLY THEN return to Wave F-A (S-REL-002..007). VERY FIRST ACTION next session: verify develop CI on 7fef57da went green (main CI workflow was queued at wrap; Crate Layout + E2E Red Gate already SUCCESS), then read the findings corpus README and triage into registered defects/stories.
+
+### HEADS (verified 2026-07-20 at wrap)
+- origin/develop: `7fef57da` (PR #228 S-REL-001 squash-merged 2026-07-20T20:44:26Z) — PUSHED
+- LOCAL develop: `e116a587` — STALE, ff to 7fef57da blocked by staged ci.yml/e2e.yml residue awaiting human review (DRIFT-LOCAL-DEVELOP-FF-001)
+- factory-artifacts: this wrap commit (run `git -C .factory log -1 --format='%h %s'`) — PUSHED
+- `.worktrees/fix-demosetup-cwd`: fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5` clean — PUSHED; PR #229 OPEN
+- `.worktrees/S-3.09`: feature/S-3.09 @`43c41389` clean — LOCAL-ONLY, KEEP-PARKED
+- `.worktrees/W3-FIX-S307-001`: feature/W3-FIX-S307-001 @`fcab8717` dirty=1 — LOCAL-ONLY, PARKED-DIRTY do-NOT-touch
+- `.worktrees/S-REL-001`: REMOVED (merged)
+- Main tree residue unchanged: staged ci.yml + e2e.yml (human review owed; blocks S-MAINT-CIGATE-REMEDIATION-001 AC-007), untracked diagram exports / mutants.out* / .playwright-mcp/ / scripts/__pycache__
+
+### PER-WORKSTREAM NEXT-ACTIONS (priority order)
+1. **develop CI verification (FIRST ACTION)** — `gh run list --branch develop` → confirm CI workflow on 7fef57da completed success (was queued at wrap; 0 failures anywhere; merge executed at 23/25 per PG-PRMGR-MERGE-AUTHORITY-001). If red → top-priority fix lane.
+2. **Demo/DTU findings triage (PRIORITY PIVOT, human-directed)** — read `/Users/jmagady/Dev/test-soc/demo-soc/findings/README.md` then the 9 findings docs: dtu-fidelity-gaps.md, dtu-scenario-enhancements.md, prism-armis-endpoint-plan.md, prism-crowdstrike-endpoint-plan.md, prism-cyberint-endpoint-plan.md, prism-pql-deficiencies.md (33KB — largest), prism-pushdown-audit.md, prism-xdome-endpoint-plan.md, prism-xdome-spec-gaps.md. Triage each into registered defects/stories (product-owner/story-writer via orchestrator). DTU remediation grounds against `.factory/reference/api-specs/` (cyberint alerts + assets, xdome) + Armis docs URL (https://dev.armis.com/reference/post_oauth_token_post). Human directive: fix these BEFORE resuming S-REL.
+3. **PR #229** (DEFECT-DEMOSETUP-CWD-001 + NEXTSTEPS-001) — OPEN @`ec4379b5`; fold DEFECT-DEMOSETUP-PRISMBIN-ACL-001 (`--prism-bin` arg; macOS Keychain ACL keyed to writing binary, D-1882) into it or a sibling; deliver during the findings phase (same demo-tooling scope).
+4. **Wave F-A (RESUMES AFTER findings phase)** — S-REL-002 (version alignment ADR-053) ∥ S-REL-003 (install scripts) → S-REL-004 → S-REL-007 → S-REL-005 (TERMINAL); S-REL-006 after 002. Each: full per-story flow + remove-uncertainty pre-TDD (D-1110). POL-35: infra-only stories exempt from story-level holdout gate. v1.0.0-rc.1 tag gated on full Wave F-A completion (D-1875).
+5. **Carried human items**: staged ci.yml/e2e.yml review; S-3.09 EC-collision option; W3-FIX-S307-001 applicability audit; DRIFT-SDEMO004-TODO-SECTIONS-001; PG-CLIPPY-ALLTARGETS-001 (post-T14); pyyaml install for sha-currency cross-check.
+
+### PENDING USER-APPROVED / UNSTARTED
+- D-989 Wave-5 autonomy standing. D-1884 POL-35 holdout exemption standing. Priority pivot (findings-first) = human directive this wrap.
+
+### DECISION DELTA (this session, 2026-07-20)
+D-1884 (holdout adjudication + POL-35, policies v1.35), D-1885 (pass-8 outcome), D-1886 (pr-manager post-merge, repaired), D-1887 (reconciliation: STORY-INDEX v2.719, S-REL-001 merged v0.24, PG-PRMGR-MERGE-AUTHORITY-001 HIGH + PG-PRMGR-STATEMD-DIRECT-EDIT-001 MED recorded, DRIFT-LOCAL-DEVELOP-FF-001), D-1888 (this wrap: api-specs reference folder created; priority pivot recorded; snapshot authored).
+
+---
+
+## §RESUME SNAPSHOT — D-1881 (2026-07-20 — SESSION WRAP; S-REL-001 PR-LEVEL passes 1-7; STATE v8.430) [SUPERSEDES D-1879/D-1880] [AMENDED by D-1886/D-1887] [SUPERSEDED by D-1888]
 
 ### RESUME IN ONE BREATH
 S-REL-001 SHIPPED — PR #228 squash-merged @7fef57da (2026-07-20). PR-LEVEL 12-pass cascade CONVERGED (3-CLEAN strict on frozen e16f5e6a; passes 8+9 finding-only, passes 10/11/12 CLEAN strict; pr-reviewer APPROVE; behavioral_contracts: [] CONFORMING no POL-14; POL-35 holdout-gate exempt D-1884). Post-merge reconciliation burst D-1887 COMPLETE: frozen-HEAD repair (384d520e→e16f5e6a in 3 STATE.md tables), STORY-INDEX v2.718→v2.719 (S-REL-001 merged, S-REL-004/005 v0.3 reconciled), 2 process-gaps recorded (PG-PRMGR-MERGE-AUTHORITY-001 HIGH + PG-PRMGR-STATEMD-DIRECT-EDIT-001 MED; upstream deferral). S-REL-001 worktree REMOVED. **VERY NEXT ACTION:** (a) verify develop CI on 7fef57da completes green (main CI was queued at merge time); then (b) Wave F-A continues: S-REL-002 (version alignment ADR-053) ∥ S-REL-003 (install scripts) each with remove-uncertainty pre-TDD (D-1110). PR #229 (DEFECT-DEMOSETUP-CWD-001) @ec4379b5 OPEN — review after CI confirmed.

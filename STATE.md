@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.435"
+version: "8.436"
 producer: state-manager
 timestamp: 2026-07-20T23:45:00Z
 inputs: []
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1887 (2026-07-20): POST-MERGE RECONCILIATION BURST — S-REL-001 SHIPPED (PR #228 @7fef57da; PR-LEVEL 12p converged 3-CLEAN strict on frozen e16f5e6a; pr-reviewer APPROVE; worktree cleaned; STORY-INDEX v0.22→v0.24 merged; S-REL-004/005 v0.1→v0.3 reconciled); 2 process-gaps recorded (PG-PRMGR-MERGE-AUTHORITY-001 HIGH, PG-PRMGR-STATEMD-DIRECT-EDIT-001 MED); VERY NEXT ACTION: (a) verify develop CI run on 7fef57da completes green (main CI workflow was queued at burst time), then (b) S-REL-002∥003 next (remove-uncertainty pre-TDD per D-1110); PR #229 review queued. trajectory-tail →0→0→0→0 STATE v8.434→v8.435"
+current_step: "D-1888 (2026-07-20): SESSION WRAP — findings-first priority pivot (human-directed); api-specs reference created (.factory/reference/api-specs/: cyberint alerts+assets, xdome); RESUME SNAPSHOT D-1888 authored; VERY NEXT ACTION: (1) verify develop CI on 7fef57da green, (2) read /Users/jmagady/Dev/test-soc/demo-soc/findings/ README + 9 findings docs and triage into registered defects/stories; Wave F-A resumes AFTER findings phase. trajectory-tail →0→0→0→0 STATE v8.435→v8.436"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -55,6 +55,7 @@ dtu_strategy_decided: 2026-04-20
 active_objective: "multi-client SOC-analyst live demo (real per-client data; TDE deferred) — see SESSION-HANDOFF §ACTIVE OBJECTIVE"
 task_ledger: ".factory/objectives/multi-client-soc-demo-tasks.md"
 demo_scope_doc: ".factory/objectives/DEMO-SCOPE.md"
+api_specs_reference: ".factory/reference/api-specs/"
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 user_directive_remove_uncertainty: "Run dclaude:remove-uncertainty on every implementation story BOTH immediately after story-writer materializes/writes it AND again before TDD delivery (D-1110 extension 2026-06-12)."
 policy_registry_source_of_truth: .factory/policies.yaml
@@ -76,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 409 lines (wc-l)
+  STATE.md SIZE BUDGET: 411 lines (wc-l)
   margin from soft-target (200): +209 lines over | margin from actual (500): 91 lines remaining
 -->
 
@@ -91,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-20 D-1887 — POST-MERGE RECONCILIATION BURST: S-REL-001 SHIPPED (PR #228 @7fef57da; PR-LEVEL 12p 3-CLEAN strict on e16f5e6a); frozen-HEAD repairs (384d520e→e16f5e6a); STORY-INDEX v0.22→v0.24 merged + S-REL-004/005 v0.3 reconciled; 2 process-gaps (PG-PRMGR-MERGE-AUTHORITY-001 HIGH + PG-PRMGR-STATEMD-DIRECT-EDIT-001 MED). trajectory-tail →0→0→0→0 STATE v8.434→v8.435 |
+| **Last Updated** | 2026-07-20 D-1888 — SESSION WRAP: findings-first priority pivot (human-directed); api-specs reference folder created (.factory/reference/api-specs/: cyberint alerts+assets OpenAPI + xdome OpenAPI); RESUME SNAPSHOT D-1888 authored (supersedes D-1881). trajectory-tail →0→0→0→0 STATE v8.435→v8.436 |
 
 ## Active Objective (North Star)
 
@@ -187,8 +188,9 @@ pre_compact_snapshot_at: "2026-07-16"
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735..D-1870 + D-1852..D-1869 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files (multiple compaction bursts through D-1871). Last 5 rows kept below._
-| D-1856..D-1862 | state-manager | 2026-07-18 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1856..D-1862 (exhaustive) PR #226 PR-LEVEL cascade progress + MED-001 fix-burst (2026-07-18). D-1856: F-AUD-PR1 @98bb1de2 4 findings (3L+1O) body-fix→0fbef7db; sec delta-confirm APPROVE SEC-001+SEC-002 CLOSED. D-1857: F-AUD-PR2 @0fbef7db 1 LOW H-range H1→H35 corrected H1→H24. D-1858: pr-manager violation #7 — 12+ merge attempts BLOCKED classifier; H-range fix landed; PR OPEN mergedAt null; explicit-warning mitigation-effectiveness data point. D-1859: F-AUD-PR3 @0fbef7db CLEAN(strict)=yes streak 1/3; pr-level-pass-2.md persisted. D-1860: F-AUD-PR4 @0fbef7db 1 MED ephemeral-port-trap; streak RESET 0/3; pr-level-pass-3.md persisted. D-1861: implementer @8d116f62 MED-001 fix (BASE_URL>PORT precedence; 5-site TD-VSDD-060 sweep; docstring; PUSHED); cascade restart 0/3. D-1862: DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 registered (T13 runbook addendum owed before T13 execution). Lesson 72 appended. pr-level-pass-1/2/3.md persisted. trajectory-tail →4→1→0→1→restart STATE v8.421→v8.422.** | wave-5-e-demo-fidelity | 2026-07-18 |
+_D-735..D-1870 + D-1852..D-1869 + D-1856..D-1862 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files (multiple compaction bursts through D-1871). Last 6 rows kept below._
+| D-1888 | state-manager | 2026-07-20 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1888 SESSION WRAP (2026-07-20). PRIORITY PIVOT (human-directed): next session addresses LIVE-DEMO/DTU findings corpus FIRST (10 files at /Users/jmagady/Dev/test-soc/demo-soc/findings/); Wave F-A resumes AFTER. api-specs reference folder created: .factory/reference/api-specs/ (cyberint_alerts_openapi_06.20.2026.json + cyberint_assets_openapi_06.20.2026.json + xdome_openapi_06.20.2026.json; canonical vendor OpenAPI specs for DTU fidelity remediation; human-supplied 2026-07-20). SESSION-HANDOFF D-1881 amended [SUPERSEDED by D-1888]; D-1888 RESUME SNAPSHOT authored. trajectory-tail →0→0→0→0 STATE v8.435→v8.436.** | wave-5-e-demo-fidelity | 2026-07-20 |
+| D-1856..D-1862 (exhaustive) | state-manager | 2026-07-18 | **ARCHIVED** — see cycles/wave-5-e-demo-fidelity/burst-log.md. PR #226 PR-LEVEL cascade progress + MED-001 fix-burst (2026-07-18). D-1856: F-AUD-PR1 @98bb1de2 4 findings (3L+1O) body-fix→0fbef7db; sec delta-confirm APPROVE SEC-001+SEC-002 CLOSED. D-1857: F-AUD-PR2 @0fbef7db 1 LOW H-range H1→H35 corrected H1→H24. D-1858: pr-manager violation #7 — 12+ merge attempts BLOCKED classifier; H-range fix landed; PR OPEN mergedAt null; explicit-warning mitigation-effectiveness data point. D-1859: F-AUD-PR3 @0fbef7db CLEAN(strict)=yes streak 1/3; pr-level-pass-2.md persisted. D-1860: F-AUD-PR4 @0fbef7db 1 MED ephemeral-port-trap; streak RESET 0/3; pr-level-pass-3.md persisted. D-1861: implementer @8d116f62 MED-001 fix (BASE_URL>PORT precedence; 5-site TD-VSDD-060 sweep; docstring; PUSHED); cascade restart 0/3. D-1862: DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 registered (T13 runbook addendum owed before T13 execution). Lesson 72 appended. pr-level-pass-1/2/3.md persisted. trajectory-tail →4→1→0→1→restart STATE v8.421→v8.422.** | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1872 | state-manager | 2026-07-19 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1872 POST-MERGE BURST DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 (2026-07-19). T13 pre-flight on @97d7335d: 104/106 DEMO-READY NO — [G4]+[H8] AUDIT-INSTRUMENT defects; parse_envelope scraped error code from content[].text not structuredContent.error.code. Triage: codebase-analyzer confirmed engine spec-correct; BC-2.10.007 canonical code path; SAP-3 gap. Fix lane: 11 commits/10 fix-bursts; LOCAL 8p/3-CLEAN(strict) (3→1→2→1→1→0→0→0); PR-LEVEL 6p/3-CLEAN(strict) on frozen 801903c7 (3 earlier passes: 1 finding each fixed); pr-reviewer APPROVE ×3; CI 44/44; security N/A. Notable: execution-capable mock-adapter fixture; zero-batch fan-out Ok(empty) false-positive resolved by non-empty fixture; classifier merge-friction ×4 instances. PR #227 squash-merged @e116a587. Live re-run: 106/106 DEMO-READY: YES ×2 (pure instrument defect; main-tree binaries unchanged). workspace_test_count 5672→5676 (+4 SAP-3 tests). sidecar-learning.md: stale session-end markers only (1373 lines, 2026-04-14..2026-07-19; no lesson content; included in commit as-is). S-MAINT-PRMGR-HOOK-SCOPE-001: +4 classifier merge-block instances this session (total evidence growing; story-writer owed AC-004 body update). Lessons 73/74/75 appended. RESUME SNAPSHOT D-1872. trajectory-tail →0→0→0→0 STATE v8.425→v8.426.** | wave-5-e-demo-fidelity | 2026-07-19 |
 | D-1874..D-1877 (exhaustive) | state-manager | 2026-07-19 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1874..D-1877 (exhaustive) WAVE F-A PLANNING PACKAGE (2026-07-19). D-1874: feature intake approved — secops-factory as demo vehicle; DTUs stay prism-side; onboarding TOML flows; monitoring loop requirement codified. D-1875: distribution decisions locked — GH Releases + install.sh/.ps1 Windows day-1; Homebrew disabled; Chocolatey removed; v1.0.0-rc.1 first RC tag; demo = RC gate. D-1876: F1 adjudications complete — .prx prebuilds RC-1; full PowerShell parity RC-1-blocking; T13 audit ships as-is; demo Jira project intake; architect U13/U15/U19/U22/U2/U26 rulings resolved. D-1877: remove-uncertainty pass complete — 33 findings (13 HIGH incl. fabricated CLI mechanism, never-executed Linux release legs, schema-guess release-config); all resolved into story v0.2s. 7 stories S-REL-001..007 materialized + hardened. planning package committed (.factory/planning/feature-release-engineering/). research artifacts committed. STORY-INDEX v2.715→v2.716 total_stories 246→253. RESUME SNAPSHOT D-1877. trajectory-tail →0→0→0→0 STATE v8.426→v8.427.** | wave-5-e-demo-fidelity | 2026-07-19 |
 | D-1878 | state-manager | 2026-07-19 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1878 PRE-TDD FIX-BURST S-REL-001 (2026-07-19). Pre-TDD remove-uncertainty second touchpoint (D-1110) found 4 findings: ADJ-001 Critical libdbus-1-dev (add unconditionally to all Linux jobs); ADJ-002 Important AC-011 sequencing inversion (AC-011 upload-install-scripts deleted from S-REL-001; upload task + AC-010 added to S-REL-003); ADJ-003 Medium Windows .exe tar-wrap (per-OS demo-server wrap added); ADJ-004 Low stale crate count. All repo-internal; architect adjudicated; durably recorded in .factory/planning/feature-release-engineering/delta-analysis.md §13. S-REL-001 v0.2→v0.3 (12→11 ACs; AC-011 deleted; AC-012→AC-011; input-hash e2b3e1e). S-REL-003 v0.2→v0.3 (9→10 ACs; new upload task AC-010; input-hash e11dfc9). STORY-INDEX v2.716→v2.717. Worktree .worktrees/S-REL-001 created on feature/S-REL-001 @e116a587 (local-only). TDD delivery started; Red Gate next. trajectory-tail →0→0→0→0 STATE v8.427→v8.428.** | wave-5-e-demo-fidelity | 2026-07-19 |
@@ -298,6 +300,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1885 | state-manager | 2026-07-20 | PR-LEVEL adversary pass 8 on frozen HEAD 384d520e — NOT CLEAN (1 MED finding F-REL001-PR8-001): demo-evidence-report.md + TAP-001 recordings captured at 75ce8cbf document 80/80 release-gate assertions; shipped suite at 384d520e enforces 81 assertions (AC-005 gained assertion #7b). Routing: demo-recorder regenerates evidence-report.md + TAP-001 recordings at current PR HEAD (384d520e), push (HEAD will advance per DRIFT-ORCH-PRLEVEL-PUSH-001 streak stays reset), then PR-LEVEL cascade to 3 CLEAN(strict) → pr-reviewer → CI green → squash-merge #228. Streak remains 0/3. trajectory-tail →0→0→0→1 STATE v8.432→v8.433. | wave-5-e-demo-fidelity | 2026-07-20 |
 | D-1886 | state-manager | 2026-07-20 | PR #228 SQUASH-MERGED to develop 2026-07-20; merge commit 7fef57dad0d14121c0b4f28234a18b328f12fa49 (short: 7fef57da); develop e116a587→7fef57da; S-REL-001 story status→SHIPPED; behavioral_contracts: [] CONFORMING (no POL-14 actions required); .worktrees/S-REL-001 lane CLOSED; STATE v8.433→v8.434 | wave-5-e-demo-fidelity | 2026-07-20 |
 | D-1887 | state-manager | 2026-07-20 | POST-MERGE RECONCILIATION BURST (TD-VSDD-053): repaired pr-manager b23f5e70 frozen-HEAD error (384d520e→e16f5e6a in Phase Progress + Convergence Status + Concurrent Cycles; actual final 3-CLEAN frozen HEAD; 12 passes total). S-REL-001 story status draft→merged (POL-13; merged_sha 7fef57da; merged_pr 228; merged_date 2026-07-20). STORY-INDEX v2.718→v2.719: S-REL-001 row merged v0.24 @7fef57da; S-REL-004 v0.1→v0.3; S-REL-005 v0.1→v0.3. SESSION-HANDOFF D-1881 amended by D-1887. 2 process-gaps: PG-PRMGR-MERGE-AUTHORITY-001 [HIGH] + PG-PRMGR-STATEMD-DIRECT-EDIT-001 [MED]. Lessons 80+81 appended. STATE v8.434→v8.435 | wave-5-e-demo-fidelity | 2026-07-20 |
+| D-1888 | state-manager | 2026-07-20 | SESSION WRAP — PRIORITY PIVOT (human-directed 2026-07-20): findings-first before Wave F-A. api-specs reference folder created: .factory/reference/api-specs/ (cyberint_alerts_openapi_06.20.2026.json, cyberint_assets_openapi_06.20.2026.json, xdome_openapi_06.20.2026.json; canonical vendor OpenAPI specs for DTU fidelity remediation; human-supplied). Armis: no OpenAPI file — canonical API docs at https://dev.armis.com/reference/post_oauth_token_post. RESUME SNAPSHOT D-1888 authored (supersedes D-1881 [AMENDED by D-1886/D-1887]). SESSION-HANDOFF.md priority banner updated to reference D-1888; D-1881 marked [SUPERSEDED by D-1888]. STATE v8.435→v8.436 | wave-5-e-demo-fidelity | 2026-07-20 |
 
 ## Skip Log
 
@@ -395,15 +398,14 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1887 — 2026-07-20 — POST-MERGE RECONCILIATION; develop@7fef57da; STATE v8.435)
+## Session Resume Checkpoint (D-1888 — 2026-07-20 — PRIORITY PIVOT + SESSION WRAP; develop@7fef57da; STATE v8.436)
 
-**RESUME IN ONE BREATH:** S-REL-001 SHIPPED — PR #228 squash-merged @7fef57da; PR-LEVEL 12p converged 3-CLEAN strict on frozen e16f5e6a; worktree REMOVED. Post-merge reconciliation burst D-1887 complete (frozen-HEAD repair, STORY-INDEX merged, 2 process-gaps recorded). **VERY NEXT ACTION:** (a) verify develop CI on 7fef57da completes green (main CI workflow was queued at merge — check before proceeding); then (b) Wave F-A continues: S-REL-002 (version alignment ADR-053) ∥ S-REL-003 (install scripts), each with remove-uncertainty pre-TDD (D-1110). PR #229 (DEFECT-DEMOSETUP-CWD-001) @ec4379b5 OPEN — review after #228 CI confirmed. **OPEN DECISIONS:** staged ci.yml/e2e.yml residue (AC-007 of S-MAINT-CIGATE-REMEDIATION-001 BLOCKED; human must review). v1.0.0-rc.1 gated on full Wave F-A (D-1875).
+**RESUME IN ONE BREATH:** S-REL-001 SHIPPED (PR #228 squash-merged @7fef57da; 3-CLEAN strict on e16f5e6a). PRIORITY PIVOT (human-directed 2026-07-20): NEXT session fixes LIVE-DEMO/DTU findings corpus FIRST (10 files at `/Users/jmagady/Dev/test-soc/demo-soc/findings/`), DTU remediation grounds against `.factory/reference/api-specs/`; Wave F-A RESUMES AFTER. **VERY NEXT ACTION:** (1) `gh run list --branch develop` — verify CI on 7fef57da green; (2) read findings README + 9 docs, triage defects/stories. **OPEN DECISIONS:** staged ci.yml/e2e.yml (AC-007 S-MAINT-CIGATE-REMEDIATION-001 BLOCKED; human review). v1.0.0-rc.1 gated on full Wave F-A (D-1875).
 
-**HEADS (verified 2026-07-20 D-1887):**
-- develop: `7fef57da` (PR #228 S-REL-001 squash-merged 2026-07-20) local==origin — PUSHED
+**HEADS (verified 2026-07-20 D-1888):**
+- origin/develop: `7fef57da` — PUSHED; LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001)
 - factory-artifacts: `git -C .factory log -1 --format='%h %s'` (do not hard-code)
 - `.worktrees/fix-demosetup-cwd`: fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5` — PUSHED; PR #229 OPEN
-- `feature/S-3.09` @`43c41389` — KEEP-PARKED (LOCAL-ONLY)
-- `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
-- Main tree residue (pre-existing): staged .github/workflows/ci.yml + e2e.yml (human must review — AC-007 of S-MAINT-CIGATE-REMEDIATION-001 BLOCKED); untracked .playwright-mcp/, drawio exports, mutants.out*, scripts/__pycache__
+- `feature/S-3.09` @`43c41389` KEEP-PARKED; `feature/W3-FIX-S307-001` @`fcab8717` PARKED-DIRTY do-NOT-touch (both LOCAL-ONLY)
+- Main tree residue: staged .github/workflows/ci.yml + e2e.yml (AC-007 BLOCKED; human must review); untracked .playwright-mcp/, drawio exports, mutants.out*, scripts/__pycache__
 - `develop` and `factory-artifacts` PUSHED; `fix/DEFECT-DEMOSETUP-CWD-001` PUSHED (PR #229 OPEN); all others LOCAL-ONLY
