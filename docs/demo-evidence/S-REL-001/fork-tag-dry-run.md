@@ -1365,3 +1365,57 @@ Behavior-preservation argument: The version check is a pure additive guard inser
 #### Self-referential closure clause — updated (F-REL001-PR6-002)
 
 This note is authored by a commit that modifies `.github/workflows/release.yml` (the F-REL001-PR6-002 version check guard, Delta 7 above) and `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md` (Delta 7 + this clause). The `crates/prism-credentials/` tree is untouched by this commit. The Delta 7 behavior-preservation argument above establishes that the release.yml change does not alter the success-path behavior verified in Attempt-6. Any reader auditing a later HEAD must extend the delta range from `339a0c04..<later HEAD>` — the invariant: enumerate any delta under `.github/workflows/release.yml` and `crates/prism-credentials/` with a behavior-preservation argument, or push a new re-verification attempt if the delta is non-additive.
+
+---
+
+#### Delta 8 — F-REL001-PR6-002 guard invocation form fix (empirically verified 2026-07-20)
+
+**Finding:** The Delta 7 guard used `cargo zigbuild --version` (cargo subcommand form). Empirical
+testing on the exact pinned binary (`cargo install --locked cargo-zigbuild --version 0.23.0`) reveals
+that `cargo zigbuild --version` rejects `--version` as an unknown argument — cargo dispatches to
+`cargo-zigbuild zigbuild --version` internally, which treats `--version` as an argument to the
+zigbuild subcommand rather than the binary, exits non-zero, and emits the error to stderr with
+empty stdout. This would cause `grep -qF "cargo-zigbuild 0.23.0"` to fail on every invocation
+(grep sees empty stdin), triggering the `exit 1` arm — a deterministic false-fail on every musl leg.
+
+**Empirical verification results (2026-07-20):**
+```
+cargo zigbuild --version:
+error: unexpected argument '--version' found
+  tip: a similar argument exists: '--verbose'
+Usage: cargo-zigbuild zigbuild --verbose...
+For more information, try '--help'.
+
+cargo-zigbuild --version:
+cargo-zigbuild 0.23.0
+```
+
+The direct binary form `cargo-zigbuild --version` outputs `cargo-zigbuild 0.23.0` — the needle
+is correct; only the invocation form needed correction.
+
+**Fix applied:** `cargo zigbuild --version` → `cargo-zigbuild --version` in the guard (line 103
+of release.yml). Comment updated to remove the "assumption" caveat and document both the verified
+output format and the reason the cargo subcommand form must not be used.
+
+**Behavior-preservation argument:** On version match (normal case): `cargo-zigbuild --version`
+exits 0 and emits "cargo-zigbuild 0.23.0" to stdout; grep matches the needle; the `||` arm is
+not reached; execution continues identically to before. The musl build toolchain, the
+`cargo zigbuild --release --locked` invocation, and the produced binary contents are unaffected.
+The Attempt-6 GREEN evidence (5/5 legs, statically linked musl binary, attestation 5/5) ran
+before the Delta-7 guard was introduced and remains fully representative of the success path.
+The Delta-7 guard itself was never executed in a live run; this delta corrects a latent bug
+that would have caused the guard to always false-fail on first use.
+
+**Local verification:** `actionlint .github/workflows/release.yml` → exit 0;
+`bash tests/release-gate/run.sh` → 81/81; `bash tests/ci-gate/run.sh` → 48/60 (unchanged).
+
+---
+
+#### Self-referential closure clause — updated (Delta 8)
+
+This note is authored by a commit that modifies `.github/workflows/release.yml` (Delta 8 guard
+invocation fix) and `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md` (Delta 8 + this clause).
+The `crates/prism-credentials/` tree is untouched by this commit. Any reader auditing a later
+HEAD must extend the delta range from `339a0c04..<later HEAD>` — the invariant: enumerate any
+delta under `.github/workflows/release.yml` and `crates/prism-credentials/` with a
+behavior-preservation argument, or push a new re-verification attempt if the delta is non-additive.
