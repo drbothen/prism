@@ -124,9 +124,9 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1882 FOLD (on top of D-1881 SESSION WRAP) — S-REL-001 PR-LEVEL passes 1-7 complete; strict streak 0/3; dry-run attempt 7 in-flight at wrap — re-check origin/feature/S-REL-001. LANE 2 test-soc DTU auth RESOLVED (D-1882: macOS Keychain ACL root-cause; DEFECT-DEMOSETUP-PRISMBIN-ACL-001 registered). PR #228 (S-REL-001) + PR #229 (demosetup fix) OPEN. OPEN BLOCK D-1880: holdout authoring (human adjudication pending). NEXT: re-read origin/feature/S-REL-001; if attempt-7 evidence commit landed → PR-LEVEL adversary on new frozen HEAD until 3 CLEAN(strict) → squash-merge #228.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1881 + D-1882 fold is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1881 (amended by D-1882 fold) is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `e116a587` — PUSHED. factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.431. D-1882 FOLD complete (LANE 2 resolved + defect registered); S-REL-001 PR-LEVEL 0/3 strict, PR #228 OPEN. NEXT: check attempt-7 dry-run result → PR-LEVEL adversary cascade.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1883 FOLD (all lanes resolved) — S-REL-001 PR-LEVEL passes 1-7 complete; dry-run gate GREEN (attempt 7 @384d520e; F-REL001-PR7-001 CLOSED); strict streak 0/3 on frozen HEAD 384d520e. LANE 2 test-soc DTU auth RESOLVED (DEFECT-DEMOSETUP-PRISMBIN-ACL-001 registered). PR #228 (S-REL-001) + PR #229 (demosetup fix) OPEN. OPEN BLOCK D-1880: holdout authoring (human adjudication pending). VERY NEXT: dispatch PR-LEVEL adversary on frozen HEAD 384d520e until 3 CLEAN(strict) → squash-merge #228.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1881 amended by D-1882/D-1883 folds is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1881 (amended by D-1882/D-1883 folds) is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `e116a587` — PUSHED. factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.432. D-1883 FOLD complete (all lanes resolved; frozen HEAD 384d520e); S-REL-001 PR-LEVEL 0/3 strict on 384d520e. VERY NEXT: PR-LEVEL adversary on frozen HEAD 384d520e.
 
 ---
 
@@ -135,10 +135,10 @@ timestamp: 2026-07-19T14:30:00Z
 ### RESUME IN ONE BREATH
 S-REL-001 PR #228 is in the PR-LEVEL adversarial cascade. LOCAL already CONVERGED 23p @75ce8cbf (D-1879). PR-LEVEL passes 1–7 done: all findings F-REL001-PR1-001..PR7-001 closed; code-reviewer+security APPROVE; CLEAN(PR-merge) achieved; strict 3-CLEAN streak 0/3 (pass 7 raised 1 OBS F-REL001-PR7-001 — cargo-zigbuild version-guard had never executed live). **VERY NEXT ACTION:** Re-read `git rev-parse origin/feature/S-REL-001` first — dry-run attempt 7 was in-flight at wrap; if a new evidence commit landed, confirm version-guard log + GATE VERDICT in `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md` §Attempt 7. If GREEN → PR-LEVEL adversary on new frozen HEAD until 3 consecutive CLEAN(strict) → pr-reviewer → CI green → squash-merge #228 (D-989 autonomy) → post-merge burst. If no attempt-7 commit landed → re-run attempt 7 (push disposable origin tag v0.0.1-rc.test at current feature HEAD, capture musl-leg "Install Linux build deps" log proving guard fired, delete tag/release after).
 
-### HEADS (verified 2026-07-20 D-1881 wrap)
+### HEADS (verified 2026-07-20 D-1883 fold)
 - develop: `e116a587` (PR #227 squash-merged 2026-07-19T14:27:25Z) local==origin — PUSHED
 - factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code)
-- `.worktrees/S-REL-001`: feature/S-REL-001 origin@`4ed7bd1c` at wrap time; **RE-READ `git rev-parse origin/feature/S-REL-001`** before resuming — dry-run attempt 7 may advance HEAD
+- `.worktrees/S-REL-001`: feature/S-REL-001 origin@`384d520e` — PUSHED; PR #228 OPEN; **frozen PR HEAD for PR-LEVEL cascade** (dry-run attempt 7 evidence @384d520e; F-REL001-PR7-001 CLOSED)
 - `.worktrees/fix-demosetup-cwd`: fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5` — PUSHED; PR #229 OPEN
 - `feature/S-3.09` @`43c41389` LOCAL-ONLY — KEEP-PARKED
 - `feature/W3-FIX-S307-001` @`fcab8717` LOCAL-ONLY dirty=1 — PARKED-DIRTY do-NOT-touch
@@ -147,7 +147,7 @@ S-REL-001 PR #228 is in the PR-LEVEL adversarial cascade. LOCAL already CONVERGE
 
 ### PER-WORKSTREAM NEXT-ACTIONS
 
-1. **S-REL-001 PR-LEVEL cascade (FIRST ACTION)** — re-check `origin/feature/S-REL-001`; read `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md` §Attempt 7 for version-guard log + GATE VERDICT. If GREEN → PR-LEVEL adversary on new frozen HEAD until 3 CLEAN(strict) → pr-reviewer → CI green → squash-merge #228 (D-989 autonomy) → post-merge state burst (STATE develop_head, STORY-INDEX S-REL-001 status→merged, POL-14 N/A no BCs, decision row).
+1. **S-REL-001 PR-LEVEL cascade (FIRST ACTION)** — dry-run gate GREEN (attempt 7 @384d520e; F-REL001-PR7-001 CLOSED per D-1883). Dispatch PR-LEVEL adversary passes on frozen HEAD `384d520e` until 3 consecutive CLEAN(strict) → pr-reviewer fresh-eyes → CI green → squash-merge #228 (D-989 autonomy) → post-merge state burst (STATE develop_head, STORY-INDEX S-REL-001 status→merged, POL-14 N/A no BCs, decision row).
 2. **D-1880 holdout adjudication (BLOCKING S-REL-001 holdout gate)** — human must rule: (a) retroactively author holdout scenarios for S-REL-001 before its holdout gate, or (b) approve policy exception for infra-only stories with no BCs. All 7 S-REL stories currently have `holdout_scenarios: []`.
 3. **Wave F-A delivery (after S-REL-001 merges)** — S-REL-002 (version alignment ADR-053) ∥ S-REL-003 (install scripts; owns install.sh/.ps1 upload ADJ-002) → S-REL-004 (demo-bundle; F-REL001-PR2-OBS-2 attestation decision gate, v0.3) → S-REL-007 (Windows PS parity) → S-REL-005 (RELEASING.md + release-config.yaml, TERMINAL; tag-discipline gate F-REL001-PR6-003, v0.3). S-REL-006 (consumer contract graduation) after S-REL-002. Each story: full per-story flow + remove-uncertainty pre-TDD (D-1110) + story-level holdout authoring.
 4. **PR #229 (DEFECT-DEMOSETUP-CWD-001 + NEXTSTEPS-001)** — OPEN; review after #228. Also fold: DEFECT-DEMOSETUP-PRISMBIN-ACL-001 (macOS Keychain ACL keyed to writing binary; demo-setup.sh needs `--prism-bin PATH` arg; folds into PR #229 or sibling). Correct invocation: `bash /Users/jmagady/Dev/prism/scripts/demo-setup.sh --config-dir /Users/jmagady/Dev/test-soc/.prism --prism-bin /Users/jmagady/Dev/test-soc/bin/prism`.
@@ -163,7 +163,7 @@ S-REL-001 PR #228 is in the PR-LEVEL adversarial cascade. LOCAL already CONVERGE
 ### WORKTREE INVENTORY
 | Path | Branch | HEAD | Status |
 |------|--------|------|--------|
-| `.worktrees/S-REL-001` | feature/S-REL-001 | 4ed7bd1c (origin at wrap; re-check) | ACTIVE — PR #228 OPEN, PR-LEVEL 0/3 strict |
+| `.worktrees/S-REL-001` | feature/S-REL-001 | 384d520e (origin PUSHED; frozen PR HEAD) | ACTIVE — PR #228 OPEN, PR-LEVEL 0/3 strict on 384d520e |
 | `.worktrees/fix-demosetup-cwd` | fix/DEFECT-DEMOSETUP-CWD-001 | ec4379b5 | ACTIVE — PR #229 OPEN |
 | `.worktrees/S-3.09` | feature/S-3.09 | 43c41389 | KEEP-PARKED (LOCAL-ONLY; resume when S-3.02 ships) |
 | `.worktrees/W3-FIX-S307-001` | feature/W3-FIX-S307-001 | fcab8717 | PARKED-DIRTY do-NOT-touch (LOCAL-ONLY; applicability audit queued) |
@@ -179,6 +179,7 @@ D-1879/D-1880 (already committed @6628d9c6) + D-1881 (session wrap @5f94b666) + 
 - **D-1880**: F-A holdout authoring process-gap surfaced (holdout_scenarios: [] in all 7 S-REL stories); human adjudication pending.
 - **D-1881**: Session wrap — PR-LEVEL passes 1-7 done (F-REL001-PR1-001..PR7-001 all closed; strict streak 0/3; dry-run attempt 7 in-flight). Spec version chain on feature branch (S-REL-001 v0.13→v0.24, S-REL-004 v0.3, S-REL-005 v0.3); post-merge burst reconciles STORY-INDEX. STATE v8.429→v8.430.
 - **D-1882**: COORDINATOR FOLD — LANE 2 (test-soc DTU auth) RESOLVED. Root cause: macOS Keychain ACL keyed to writing binary; demo-setup.sh `PRISM_BIN=target/release/prism` vs deployed `test-soc/bin/prism` → different app identity → `Ok(None)` reads for armis/claroty `bearer_token` + cyberint `api_key` → E-SENSOR-030 AllTargetsFailed. CrowdStrike unaffected (OAuth2). Runtime fix: all 10 credentials re-stored via `test-soc/bin/prism` (armis 50 rows / cyberint 20 rows confirmed). NEW DEFECT: DEFECT-DEMOSETUP-PRISMBIN-ACL-001 registered — `--prism-bin PATH` arg needed in demo-setup.sh; folds into PR #229 or sibling. Correct invocation documented. STATE v8.430→v8.431.
+- **D-1883**: COORDINATOR FOLD — LANE 1 (dry-run attempt 7) RESOLVED GREEN. F-REL001-PR7-001 CLOSED: cargo-zigbuild version guard executed LIVE on real musl leg (run 29759391659, fresh-install/cache-miss path), matched "cargo-zigbuild 0.23.0", exited 0. Full five-check PASS. Evidence committed `384d520e`, pushed to origin/feature/S-REL-001. CRITICAL: PR HEAD advanced `4ed7bd1c` → `384d520e` (PUSHED). Per DRIFT-ORCH-PRLEVEL-PUSH-001: PR-LEVEL streak RESET to 0/3 on new frozen HEAD `384d520e`. VERY NEXT: dispatch PR-LEVEL adversary on `384d520e` until 3 CLEAN(strict). STATE v8.431→v8.432.
 
 ---
 
