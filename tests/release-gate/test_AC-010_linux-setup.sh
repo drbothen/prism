@@ -144,4 +144,67 @@ assert_not_contains "$REL_YML" \
   "CXX_x86_64_unknown_linux_musl=clang++" \
   "AC-010"
 
+# F-REL001-P14-001 — §14 Option B linux-gnu persistence invariant regression guard.
+# Target: crates/prism-credentials/Cargo.toml (Cargo manifest, NOT release.yml).
+# The release-gate suite is the story's authoritative regression net per F-REL001-P10-001;
+# this file hosts Cargo.toml assertions because no separate Cargo-manifest test file exists.
+#
+# §14 rationale: linux-gnu requires keyring-linux-native-sync-persistent
+# (dbus-secret-service + crypto-rust) for persistent credentials across reboots. This
+# MUST be activated via a target-specific
+#   [target.'cfg(all(target_os = "linux", not(target_env = "musl")))'.dependencies]
+# block — NOT via the default = [...] feature array — because musl cannot link libdbus
+# (C-linked via glibc). The compile_error! guard in lib.rs cannot catch accidental block
+# removal (the guard only fires when the feature KEY is absent from the crate feature
+# registry, not when the dep-activation block is removed while the key declaration
+# remains). This automated regression guard closes that gap.
+# Source: F-REL001-P14-001 (LOCAL adversary pass-14); ADR-034/BC-2.06.003.
+CREDS_CARGO="${WORKTREE}/crates/prism-credentials/Cargo.toml"
+
+# 17. Target-cfg header must be present as a functional (non-comment) line in the
+#     Cargo manifest. Filtering comments first prevents the matching comment inside
+#     the default = [...] block (which references the header for documentation
+#     purposes) from producing a false pass.
+#     At regression (block removed): header absent from functional lines → tap_fail.
+TARGET_CFG_HDR="[target.'cfg(all(target_os = \"linux\", not(target_env = \"musl\")))'.dependencies]"
+if grep -v '^[[:space:]]*#' "$CREDS_CARGO" | grep -qF "$TARGET_CFG_HDR" 2>/dev/null; then
+  tap_pass "AC-010: target-cfg(linux-gnu) header present as functional line in Cargo.toml"
+else
+  tap_fail "AC-010: target-cfg(linux-gnu) header ABSENT from functional lines of Cargo.toml" \
+    "AC-010 FAIL: expected [target.'cfg(all(target_os = \"linux\", not(target_env = \"musl\")))'.dependencies] — absent or only in comments"
+fi
+
+# 18. SID-2 composed block-scoped assertion: keyring with linux-native-sync-persistent
+#     must appear inside the target-cfg(linux-gnu) block.
+#     awk anchors capture to actual TOML section headers (/^\[target\./) to avoid false
+#     match on the comment line inside default = [...] that references the header string.
+#     Then greps for the feature name inside the captured block.
+#     At regression (block removed): captured block is empty → grep fails → tap_fail.
+target_gnu_block=$(awk '
+  /^\[target\./ && /target_os.*linux.*not.*target_env.*musl/ { capture=1 }
+  capture && /^\[/ && !/target_os/ { exit }
+  capture { print }
+' "$CREDS_CARGO")
+if echo "$target_gnu_block" | grep -qF "linux-native-sync-persistent" 2>/dev/null; then
+  tap_pass "AC-010: keyring linux-native-sync-persistent present in target-cfg(linux-gnu) block (Cargo.toml)"
+else
+  tap_fail "AC-010: keyring linux-native-sync-persistent ABSENT from target-cfg(linux-gnu) block (Cargo.toml)" \
+    "AC-010 FAIL: expected keyring dep with linux-native-sync-persistent in [target.cfg(linux,not(musl)).dependencies] — block absent or feature removed"
+fi
+
+# 19. Negative guard: keyring-linux-native-sync-persistent must NOT be an active
+#     (non-comment, quoted) entry in the default = [...] feature array.
+#     Re-adding "keyring-linux-native-sync-persistent" to default would activate dbus on
+#     musl targets, which cannot link libdbus at runtime (ADR-034/BC-2.06.003).
+#     Comment references (# keyring-linux-native-sync-persistent ...) are acceptable.
+#     awk extracts the default = [...] block; grep -v removes comment lines; the inner grep
+#     checks for the quoted feature name form that would only appear as an active entry.
+default_feat_block=$(awk '/^default = \[/{capture=1} capture{print} /^\]/{if(capture){capture=0}}' "$CREDS_CARGO")
+if echo "$default_feat_block" | grep -v '^[[:space:]]*#' | grep -qF '"keyring-linux-native-sync-persistent"' 2>/dev/null; then
+  tap_fail "AC-010: forbidden \"keyring-linux-native-sync-persistent\" as active default feature (Cargo.toml)" \
+    "AC-010 FAIL: 'keyring-linux-native-sync-persistent' must not be in default = [...] — reactivation breaks musl builds (§14 Option B regression)"
+else
+  tap_pass "AC-010: 'keyring-linux-native-sync-persistent' correctly absent from default = [...] active entries (Cargo.toml)"
+fi
+
 tap_done
