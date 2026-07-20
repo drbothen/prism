@@ -124,13 +124,63 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1877 WAVE F-A PLANNING PACKAGE BURST — 7 stories S-REL-001..007 materialized + uncertainty-hardened (33 findings resolved; 13 HIGH). STORY-INDEX v2.716 total_stories 253. NEXT: (1) S-REL-001 TDD first in own worktree; delivery order 001→002∥003→004→007→005. (2) secops-factory Workstream B: separate session against .factory/planning/feature-release-engineering/secops-factory-handoff-brief.md. (3) T13/T14 BLOCKED on Workstream B. HUMAN PREREQS before T14: interactive bash scripts/demo-setup.sh + demo Jira provisioning.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1877 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1877 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `e116a587` — PUSHED (PR #227 squash-merged 2026-07-19T14:27:25Z). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.427. D-1877 WAVE F-A PLANNING PACKAGE BURST complete; 7 stories S-REL-001..007 materialized. NEXT: S-REL-001 TDD delivery + secops-factory Workstream B.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1881 SESSION WRAP — S-REL-001 PR-LEVEL passes 1-7 complete; strict streak 0/3 (F-REL001-PR7-001 OBS; dry-run attempt 7 in-flight at wrap — re-check origin/feature/S-REL-001). PR #228 (S-REL-001) + PR #229 (demosetup fix) OPEN. OPEN BLOCK D-1880: holdout authoring for S-REL-001..007 (human adjudication pending). NEXT: re-read origin/feature/S-REL-001; if attempt-7 evidence commit landed → PR-LEVEL adversary on new frozen HEAD until 3 CLEAN(strict) → squash-merge #228.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1881 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1881 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `e116a587` — PUSHED. factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.430. D-1881 SESSION WRAP complete; S-REL-001 PR-LEVEL 0/3 strict, PR #228 OPEN. NEXT: check attempt-7 dry-run result → PR-LEVEL adversary cascade.
 
 ---
 
-## §RESUME SNAPSHOT — D-1877 (2026-07-19 — WAVE F-A PLANNING PACKAGE BURST; 7 stories S-REL-001..007; STATE v8.427) [SUPERSEDES D-1872]
+## §RESUME SNAPSHOT — D-1881 (2026-07-20 — SESSION WRAP; S-REL-001 PR-LEVEL passes 1-7; STATE v8.430) [SUPERSEDES D-1879/D-1880]
+
+### RESUME IN ONE BREATH
+S-REL-001 PR #228 is in the PR-LEVEL adversarial cascade. LOCAL already CONVERGED 23p @75ce8cbf (D-1879). PR-LEVEL passes 1–7 done: all findings F-REL001-PR1-001..PR7-001 closed; code-reviewer+security APPROVE; CLEAN(PR-merge) achieved; strict 3-CLEAN streak 0/3 (pass 7 raised 1 OBS F-REL001-PR7-001 — cargo-zigbuild version-guard had never executed live). **VERY NEXT ACTION:** Re-read `git rev-parse origin/feature/S-REL-001` first — dry-run attempt 7 was in-flight at wrap; if a new evidence commit landed, confirm version-guard log + GATE VERDICT in `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md` §Attempt 7. If GREEN → PR-LEVEL adversary on new frozen HEAD until 3 consecutive CLEAN(strict) → pr-reviewer → CI green → squash-merge #228 (D-989 autonomy) → post-merge burst. If no attempt-7 commit landed → re-run attempt 7 (push disposable origin tag v0.0.1-rc.test at current feature HEAD, capture musl-leg "Install Linux build deps" log proving guard fired, delete tag/release after).
+
+### HEADS (verified 2026-07-20 D-1881 wrap)
+- develop: `e116a587` (PR #227 squash-merged 2026-07-19T14:27:25Z) local==origin — PUSHED
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code)
+- `.worktrees/S-REL-001`: feature/S-REL-001 origin@`4ed7bd1c` at wrap time; **RE-READ `git rev-parse origin/feature/S-REL-001`** before resuming — dry-run attempt 7 may advance HEAD
+- `.worktrees/fix-demosetup-cwd`: fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5` — PUSHED; PR #229 OPEN
+- `feature/S-3.09` @`43c41389` LOCAL-ONLY — KEEP-PARKED
+- `feature/W3-FIX-S307-001` @`fcab8717` LOCAL-ONLY dirty=1 — PARKED-DIRTY do-NOT-touch
+- Main tree residue (pre-existing): staged .github/workflows/ci.yml + e2e.yml (human must review — AC-007 S-MAINT-CIGATE-REMEDIATION-001 BLOCKED); untracked .playwright-mcp/, drawio exports, mutants.out*, scripts/__pycache__
+- `develop` and `factory-artifacts` PUSHED; `feature/S-REL-001` + `fix/DEFECT-DEMOSETUP-CWD-001` PUSHED (PRs #228+#229 OPEN); all others LOCAL-ONLY
+
+### PER-WORKSTREAM NEXT-ACTIONS
+
+1. **S-REL-001 PR-LEVEL cascade (FIRST ACTION)** — re-check `origin/feature/S-REL-001`; read `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md` §Attempt 7 for version-guard log + GATE VERDICT. If GREEN → PR-LEVEL adversary on new frozen HEAD until 3 CLEAN(strict) → pr-reviewer → CI green → squash-merge #228 (D-989 autonomy) → post-merge state burst (STATE develop_head, STORY-INDEX S-REL-001 status→merged, POL-14 N/A no BCs, decision row).
+2. **D-1880 holdout adjudication (BLOCKING S-REL-001 holdout gate)** — human must rule: (a) retroactively author holdout scenarios for S-REL-001 before its holdout gate, or (b) approve policy exception for infra-only stories with no BCs. All 7 S-REL stories currently have `holdout_scenarios: []`.
+3. **Wave F-A delivery (after S-REL-001 merges)** — S-REL-002 (version alignment ADR-053) ∥ S-REL-003 (install scripts; owns install.sh/.ps1 upload ADJ-002) → S-REL-004 (demo-bundle; F-REL001-PR2-OBS-2 attestation decision gate, v0.3) → S-REL-007 (Windows PS parity) → S-REL-005 (RELEASING.md + release-config.yaml, TERMINAL; tag-discipline gate F-REL001-PR6-003, v0.3). S-REL-006 (consumer contract graduation) after S-REL-002. Each story: full per-story flow + remove-uncertainty pre-TDD (D-1110) + story-level holdout authoring.
+4. **PR #229 (DEFECT-DEMOSETUP-CWD-001 + NEXTSTEPS-001)** — OPEN; review after #228. Also carry: test-soc DTU auth root-cause (org-c armis/claroty/cyberint E-SENSOR-030; hypothesis: demo-setup.sh credential values not matching DTU-seeded expected; test-soc env at `/Users/jmagady/Dev/test-soc`).
+5. **Carried**: S-3.09 EC-collision option (human), W3-FIX-S307-001 applicability audit (human), DRIFT-SDEMO004-TODO-SECTIONS-001, PG-CLIPPY-ALLTARGETS-001 (post-T14).
+
+### DEMO-RELEASE ROADMAP
+- v1.0.0-rc.1 tag: GATED on full Wave F-A completion (D-1875); demo (T13/T14) = RC gate
+- Wave F-A stories: S-REL-001..007 (28 pts); delivery order: 001→002∥003→004→007→005 (006 after 002)
+- Human step after any prism rebuild: `cd /Users/jmagady/Dev/prism && bash scripts/demo-setup.sh --config-dir /Users/jmagady/Dev/test-soc/.prism ; bash /Users/jmagady/Dev/test-soc/start-demo.sh`
+- Origin test-tag dry-run destination = drbothen/prism (human-approved; fork infeasible for repo owner)
+
+### WORKTREE INVENTORY
+| Path | Branch | HEAD | Status |
+|------|--------|------|--------|
+| `.worktrees/S-REL-001` | feature/S-REL-001 | 4ed7bd1c (origin at wrap; re-check) | ACTIVE — PR #228 OPEN, PR-LEVEL 0/3 strict |
+| `.worktrees/fix-demosetup-cwd` | fix/DEFECT-DEMOSETUP-CWD-001 | ec4379b5 | ACTIVE — PR #229 OPEN |
+| `.worktrees/S-3.09` | feature/S-3.09 | 43c41389 | KEEP-PARKED (LOCAL-ONLY; resume when S-3.02 ships) |
+| `.worktrees/W3-FIX-S307-001` | feature/W3-FIX-S307-001 | fcab8717 | PARKED-DIRTY do-NOT-touch (LOCAL-ONLY; applicability audit queued) |
+
+### PENDING USER-APPROVED / UNSTARTED
+- D-989 Wave-5 autonomy: auto-merge on objective gates (standing)
+- D-1880: holdout authoring for S-REL-001..007 (human adjudication pending; blocks S-REL-001 holdout gate)
+- Staged ci.yml/e2e.yml residue (main tree): do NOT commit/discard without human review — blocks S-MAINT-CIGATE-REMEDIATION-001 AC-007
+
+### DECISION DELTA (session 2026-07-20)
+D-1879/D-1880 (already committed @6628d9c6) + D-1881 (this wrap).
+- **D-1879**: S-REL-001 LOCAL CASCADE CONVERGED (23p, 3-CLEAN @75ce8cbf; story v0.22; 4 DEFECTs dry-run-caught+fixed; §14 Option B keyring split; §15 zigbuild+pin). S-MAINT-CIGATE-REMEDIATION-001 draft v0.3 REGISTERED. STORY-INDEX v2.718 total_stories 254.
+- **D-1880**: F-A holdout authoring process-gap surfaced (holdout_scenarios: [] in all 7 S-REL stories); human adjudication pending.
+- **D-1881**: Session wrap — PR-LEVEL passes 1-7 done (F-REL001-PR1-001..PR7-001 all closed; strict streak 0/3; dry-run attempt 7 in-flight). Spec version chain on feature branch (S-REL-001 v0.13→v0.24, S-REL-004 v0.3, S-REL-005 v0.3); post-merge burst reconciles STORY-INDEX. STATE v8.429→v8.430.
+
+---
+
+## §RESUME SNAPSHOT — D-1877 (2026-07-19 — WAVE F-A PLANNING PACKAGE BURST; 7 stories S-REL-001..007; STATE v8.427) [SUPERSEDES D-1872] [SUPERSEDED by D-1881]
 
 ### RESUME IN ONE BREATH
 Wave F-A planning package COMPLETE. 7 stories S-REL-001..007 materialized + uncertainty-hardened (33 findings resolved; 13 HIGH incl. fabricated CLI mechanism, never-executed Linux release legs, schema-guess release-config). STORY-INDEX v2.716 total_stories 253. Planning package committed (.factory/planning/feature-release-engineering/). Research artifacts committed. **NEXT ACTION (prism):** TDD S-REL-001 first in own worktree (per-story flow); delivery order 001→002∥003→004→007→005 (006 after 002). **NEXT ACTION (secops-factory):** Workstream B — separate session against `.factory/planning/feature-release-engineering/secops-factory-handoff-brief.md` (research-corrected monitoring loop, demo-Jira intake). **T13/T14 BLOCKED on Workstream B completion.** **HUMAN PREREQUISITES before T14**: interactive `bash scripts/demo-setup.sh` macOS Keychain auth (repeat after every release rebuild — non-scriptable); demo Jira project provisioning (D-1876).

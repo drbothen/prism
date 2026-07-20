@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: draft
-version: "0.2"
+version: "0.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
@@ -77,6 +77,17 @@ risk_mitigations:
   - "demo-bundle.sh shellcheck: the packaging script must pass shellcheck in CI."
   - "Separate bundle from main archive: prism-${TAG}-${target}.tar.gz contains ONLY prism
     binary. prism-demo-bundle-${TAG}-${target}.tar.gz is a SEPARATE release asset."
+  - "attestation + checksum coverage for demo bundle public release assets (F-REL001-PR2-OBS-2):
+    S-REL-001 PR-LEVEL pass-2 OBS-2 notes that prism-dtu-demo-server job-to-job artifacts and
+    checksums.txt are NOT attested in S-REL-001 (acceptable — not public assets). When S-REL-004
+    promotes demo bundles to public release assets, the implementer MUST explicitly decide:
+    (a) whether to generate and upload a checksums.txt (SHA-256 sums for all five demo bundle
+    archives) as an additional release asset alongside the bundles; and (b) whether to add SLSA
+    provenance attestation via slsa-github-generator for the bundle archives (noting S-REL-001
+    attests only the main prism binary archives, not the demo bundles). Both decisions must be
+    recorded as inline comments in the build-demo-bundle job in release.yml before the story is
+    marked complete — even if the decision is 'checksums: yes, SLSA attestation: deferred to
+    follow-up story'."
 inputs:
   - ".factory/planning/feature-release-engineering/delta-analysis.md"
   - ".github/workflows/release.yml"
@@ -84,7 +95,7 @@ inputs:
   - "scripts/demo-run.sh"
   - "scripts/demo-teardown.sh"
   - ".factory/research/release-engineering-uncertainties-2026.md"
-input-hash: "b10c199"
+input-hash: "4f64f71"
 traces_to: []
 cycle: "v1.0.0-release-engineering"
 phase: "F3"
@@ -94,7 +105,7 @@ phase: "F3"
 
 **Story ID:** S-REL-004
 **Status:** draft
-**Version:** v0.2
+**Version:** v0.3
 **Wave:** F-A
 **Priority:** P0
 **Points:** 8
@@ -320,7 +331,22 @@ then the current release.yml (post S-REL-001), then the demo scripts.
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
    ```
 
-9. **Verify demo-bundle.sh passes shellcheck.**
+9. **Decide attestation + checksum coverage for demo bundle release assets (F-REL001-PR2-OBS-2):**
+   Before the `gh release upload` step in the `build-demo-bundle` job (Task 8) can be
+   considered complete, the implementer must make and record the following two decisions as
+   inline comments directly in `.github/workflows/release.yml` inside the `build-demo-bundle`
+   job:
+   - **Checksums:** whether to generate a `checksums.txt` (SHA-256 sums of all five demo bundle
+     archives) and upload it as an additional release asset alongside the bundles. If yes, add a
+     step using `sha256sum` (Linux/macOS) / `Get-FileHash` (Windows) before the upload step.
+   - **SLSA attestation:** whether to wire `slsa-github-generator` provenance attestation for the
+     demo bundle archives (noting that S-REL-001 only attests the main `prism` binary archives;
+     demo bundles are a distinct, new public asset class). If deferred, cite the follow-up story
+     ID in the comment.
+   Neither decision may be left as "TBD" — the comment must state a concrete choice with brief
+   rationale. This gate applies even if both decisions are "no / deferred to STORY-NNN".
+
+10. **Verify demo-bundle.sh passes shellcheck.**
 
 ---
 
@@ -530,5 +556,6 @@ Key lessons from fix-burst research:
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.3 | 2026-07-20 | Forward-note (F-REL001-PR2-OBS-2): attestation + checksum coverage for demo bundle public release assets must be explicitly decided at implementation time — risk_mitigations entry added; Task 9 attestation decision gate inserted; shellcheck task renumbered to Task 10 |
 | 0.2 | 2026-07-19 | Fix-burst: U13 demo-server downloaded from artifact (no rebuild); U15 build-demo-bundle needs publish-release; U16 infusion paths corrected to specs/infusions/; U17 manifest path corrected to plugins/threatintel-lookup/; U18 if-no-files-found error + prx glob; U19 build-plugins parallel to build-release; U21 taiki-e/install-action for wasm-tools; U22 Windows bundle is .zip with .ps1 scripts; research file added to inputs |
 | 0.1 | 2026-07-19 | Initial story creation (story-writer F3 burst) |

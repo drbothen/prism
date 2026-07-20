@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: draft
-version: "0.22"
+version: "0.24"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
@@ -52,9 +52,11 @@ holdout_scenarios: []
 assumption_validations: []
 risk_mitigations:
   - "Actionlint is Go, not Rust: do NOT run `cargo install actionlint`. Install via
-    `brew install actionlint` locally or the official download-actionlint.bash script in
-    CI (research U4 confirmed: no crates.io package named actionlint exists). Invoke
-    as bare `actionlint` with no arguments to lint all workflows."
+    `brew install actionlint` locally; CI uses direct pinned-tarball download + SHA-256
+    verification — see ci.yml release-gate job (F-REL001-P20-003 supersession;
+    download-actionlint.bash superseded). Research U4 confirmed: no crates.io package
+    named actionlint exists. Invoke as bare `actionlint` with no arguments to lint all
+    workflows."
   - "Prerelease flag -- gh does NOT auto-detect: `gh release create v1.0.0-rc.1` does NOT
     auto-set --prerelease (research U3 confirmed). Derive is_prerelease from the tag
     ([[ \"$TAG\" == *-* ]]) and pass via bash array pattern (args+=(--prerelease)) so
@@ -177,7 +179,7 @@ phase: "F3"
 
 **Story ID:** S-REL-001
 **Status:** draft
-**Version:** v0.22
+**Version:** v0.24
 **Wave:** F-A
 **Priority:** P0
 **Points:** 3
@@ -380,11 +382,14 @@ Within the 30% context window budget.
           PRERELEASE_ARGS+=(--prerelease)
         fi
         echo "is_prerelease=$([[ "$TAG" == *-* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-        # Use array form to avoid empty positional arg when NOT prerelease
-        gh release create "$TAG" "${PRERELEASE_ARGS[@]}" ./dist/*
+        # Use set-u-safe array form to avoid empty positional arg when NOT prerelease.
+        # Asset list: see release.yml publish-release step for implementation-of-record
+        # (F-REL001-P16-002 — spec omits asset paths to prevent drift).
+        gh release create "$TAG" ${PRERELEASE_ARGS[@]+"${PRERELEASE_ARGS[@]}"}
     ```
     NOTE: `gh` does NOT auto-detect prerelease from the tag — `--prerelease` MUST be explicit
-    (research U3). Never pass `$PRERELEASE_FLAG` as a quoted-empty variable (use array form).
+    (research U3). Never pass `$PRERELEASE_FLAG` as a quoted-empty variable (use set-u-safe
+    array form: `${PRERELEASE_ARGS[@]+"${PRERELEASE_ARGS[@]}"}`).
     NOTE (F-REL001-P9-001/F-REL001-P10-002 — idempotency guard): `gh release create` aborts if
     the release already exists. Because publish-release carries `needs: build-release`, a failed
     matrix leg means publish-release never ran → no release object exists → re-run takes the
@@ -392,9 +397,11 @@ Within the 30% context window budget.
     transient failure AFTER `gh release create` succeeded (e.g., asset-upload timeout); (b)
     manual full re-run of an already-successful workflow; (c) tag re-push when a release already
     exists. Guard the step: run `gh release view "$TAG"` first. If the release exists, take the
-    upload path — `gh release upload --clobber "$TAG" ./dist/*` (no `--prerelease` flag needed;
+    upload path — `gh release upload --clobber "$TAG" <asset-paths>` (asset paths per
+    release.yml publish-release step — F-REL001-P16-002; no `--prerelease` flag needed;
     the prerelease status persists on the existing release object). If the release does not
-    exist, take the original create path with `"${PRERELEASE_ARGS[@]}"`. RELEASING.md (S-REL-005)
+    exist, take the original create path with
+    `${PRERELEASE_ARGS[@]+"${PRERELEASE_ARGS[@]}"}`. RELEASING.md (S-REL-005)
     must document the three re-run triggers so release engineers know no manual release deletion
     is required.
 
@@ -493,15 +500,17 @@ Within the 30% context window budget.
     streak existed to reset). Noted here per DRIFT-ORCH-PRLEVEL-PUSH-001 discipline for
     auditability. The streak-reset rule activates only when a streak ≥ 1 is in progress.
 
-13. **Run actionlint** (install via `brew install actionlint` or the official
-    `download-actionlint.bash` script — NOT `cargo install actionlint` which does not exist):
+13. **Run actionlint** (install via `brew install actionlint` locally — NOT `cargo install
+    actionlint` which does not exist; CI installs via direct pinned-tarball + SHA-256,
+    see ci.yml release-gate job, F-REL001-P20-003):
     `actionlint .github/workflows/release.yml` — exit code 0 required.
 
 14. **Wire release-gate suite into automated enforcement (F-REL001-P2-001):**
     Add a `test-release-gate` recipe to the `Justfile` that runs `bash tests/release-gate/run.sh`
     and fails closed — if actionlint is absent from the PATH, the AC-011 test file must exit
     non-zero (FAIL), not skip. Add a `release-gate` job/step to `.github/workflows/ci.yml` that:
-    (a) installs actionlint via the official `download-actionlint.bash` script (NOT brew, NOT
+    (a) installs actionlint via direct pinned-tarball download + SHA-256 verification
+    (F-REL001-P20-003 supersession — download-actionlint.bash superseded; NOT brew, NOT
     cargo install), and (b) runs `bash tests/release-gate/run.sh`. This ensures the gate
     enforces automatically on every PR touching `.github/workflows/release.yml`.
     Delete `tests/ci-gate/test_AC-7_homebrew-tap.sh` and `tests/ci-gate/test_AC-8_crates-io-publish.sh`
@@ -618,7 +627,8 @@ ADR-034/BC-2.06.003; §14 Option B: musl = keyutils-only)
 ### AC-011: Workflow YAML parses without errors (actionlint)
 Given: The modified `.github/workflows/release.yml`.
 When: `actionlint .github/workflows/release.yml` is run (installed via `brew install actionlint`
-or the official bash download script — NOT cargo install, which does not work).
+locally; CI: direct pinned-tarball + SHA-256 — see ci.yml release-gate job, F-REL001-P20-003;
+NOT cargo install, which does not work).
 Then: Exit code 0. Zero errors reported.
 (traces to delta-analysis.md §8: "manual test tag push gate before RC-1"; research U4: actionlint
 is Go, not Rust — `cargo install actionlint` is INVALID)
@@ -627,7 +637,8 @@ is Go, not Rust — `cargo install actionlint` is INVALID)
 Given: The story branch with the modified `.github/workflows/release.yml`.
 When: The `Justfile` and `.github/workflows/ci.yml` are inspected.
 Then: A `test-release-gate` Justfile recipe exists that runs `bash tests/release-gate/run.sh`;
-a `ci.yml` step installs actionlint via the official `download-actionlint.bash` script and runs
+a `ci.yml` step installs actionlint via direct pinned-tarball download + SHA-256 verification
+(F-REL001-P20-003 supersession — download-actionlint.bash superseded) and runs
 `bash tests/release-gate/run.sh`; and the AC-011 test file exits non-zero (FAIL) when actionlint
 is absent from the PATH — the gate is fail-closed, not skip-on-missing.
 (traces to F-REL001-P2-001; POL-34 fail-loud)
@@ -651,7 +662,7 @@ by delta-analysis §3 accumulated during development.
 | OIDC attestation with v4.1.1 pin | Supply chain security | attest-build-provenance@v4.1.1 + SHA pin |
 | --prerelease via bash array, not quoted-empty var | U3: gh no auto-detect | Array form prevents empty positional arg |
 | Actions expression injection guard (CWE-78) | F-REL001-P1-001 / CWE-78 | NEVER interpolate ${{ github.ref_name }} or ref-derived expressions inside run: script source; bind via env: map |
-| actionlint via brew/script, NOT cargo install | U4: actionlint is Go | brew install or download-actionlint.bash |
+| actionlint via brew (local) or direct pinned-tarball+SHA-256 in CI (F-REL001-P20-003), NOT cargo install | U4: actionlint is Go | `brew install actionlint` local; CI: see ci.yml release-gate job |
 | build-release builds prism-bin + demo-server together | U13 architect adjudication | Single cargo invocation; tar-wrap demo-server |
 | musl-tools + pkg-config for Linux targets | U2: musl cross-compile | Linux-gated apt-get step |
 | upload-artifact@v7 + download-artifact@v8 | U5: current majors; interop verified by workflow's own build-release→publish-release flow (F-REL001-P7-002) | Origin test-tag dry-run (task 12) exercises the full upload→download path |
@@ -664,7 +675,7 @@ by delta-analysis §3 accumulated during development.
 | Tool | Version | Source |
 |------|---------|--------|
 | `gh` CLI | 2.96.0 (on ubuntu-latest) | GitHub-hosted runner (pre-installed) |
-| actionlint | ≥ 1.7.12 (verify latest on releases page) | `brew install actionlint` or download-actionlint.bash |
+| actionlint | ≥ 1.7.12 (verify latest on releases page) | `brew install actionlint` (local); CI: direct pinned-tarball + SHA-256 — see ci.yml release-gate job (F-REL001-P20-003; download-actionlint.bash superseded) |
 | `actions/checkout` | v6.0.2 — resolve SHA via git ls-remote | Research U5 |
 | `actions/upload-artifact` | v7 — resolve SHA via git ls-remote | Research U5 |
 | `actions/download-artifact` | v8 — resolve SHA via git ls-remote | Research U5 |
@@ -685,7 +696,7 @@ by delta-analysis §3 accumulated during development.
 |------|--------|-------|
 | `.github/workflows/release.yml` | Modify | Remove 4 dead jobs; add prerelease; update matrix; Linux setup; upload installs; tar-wrap demo-server |
 | `Justfile` | Modify | Add `test-release-gate` recipe that runs `bash tests/release-gate/run.sh`; fails closed on missing actionlint (F-REL001-P2-001) |
-| `.github/workflows/ci.yml` | Modify | Add release-gate job/step: install actionlint via official `download-actionlint.bash`, run `bash tests/release-gate/run.sh` (F-REL001-P2-001 enforcement wiring) |
+| `.github/workflows/ci.yml` | Modify | Add release-gate job/step: install actionlint via direct pinned-tarball + SHA-256 (F-REL001-P20-003; download-actionlint.bash superseded), run `bash tests/release-gate/run.sh` (F-REL001-P2-001 enforcement wiring) |
 | `tests/release-gate/` | Create | Authoritative TAP suite for release.yml (AC-001..AC-011); executable test files one-per-AC |
 | `tests/ci-gate/test_AC-3_matrix-5-platforms.sh` | Modify | runner-label refresh macos-13→macos-15-intel (stale assertion vs ci.yml matrix; supersession per research U5 macos-13 retirement; orchestrator-adjudicated in-scope, F-REL001-P5-002/F-REL001-P6-001) |
 | `tests/ci-gate/test_AC-7_homebrew-tap.sh` | Delete | Superseded — S-REL-001 removes the homebrew-update job; this S-0.01 assertion no longer applies |
@@ -756,6 +767,8 @@ by delta-analysis §3 accumulated during development.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.24 | 2026-07-20 | PR-LEVEL pass-6 fix-burst (F-REL001-PR6-001 LOW): actionlint install mechanism reconciled across all spec sites — download-actionlint.bash superseded by direct pinned-tarball + SHA-256 in CI (F-REL001-P20-003); brew primary kept for local dev; "see ci.yml release-gate job" pointer added as drift-resistant convention. Sites updated: risk_mitigations, Task 13, Task 14, AC-011, AC-012, Architecture Compliance Rules, Library & Framework Requirements. POL-25 sweep complete. |
+| 0.23 | 2026-07-20 | PR-LEVEL pass-1 fix-burst: F-REL001-PR1-001 ./dist/* glob corrected — Task 10 snippet trimmed per F-REL001-P16-002 convention (asset list deferred to release.yml; `<asset-paths>` placeholder in create/upload normative text); F-REL001-PR1-002 set-u-safe array splice `${PRERELEASE_ARGS[@]+"${PRERELEASE_ARGS[@]}"}` reflected in Task 10 snippet and normative text. POL-32 |
 | 0.22 | 2026-07-20 | pass-20 fix-burst: F-REL001-P20-002 attempt-6 status reconciled to GREEN — all 5 legs + publish PASS, both musl binaries statically linked, no dynamic section (run 29721841906; clang absent from apt logs on both Linux legs; evidence committed); Task 12 attempt-6 paragraph rewritten from to-do voice to completed record; FSR evidence-file row updated (5→6 attempts committed; attempt-6 GREEN). Case-insensitive guard hardening + actionlint binary pin + guard-message precision handled worktree-side under F-REL001-P20-001/003/004. POL-32 |
 | 0.21 | 2026-07-20 | pass-16 fix-burst: F-REL001-P16-001 clang removed from Task 7 apt-get line — spec/code/test reconciled; Library & Framework clang row empirical basis appended (gnu leg passed attempt-2 with no clang; zig bundles musl-built libc++); AC-010 enumeration already clang-free (no change); attempt-6 re-verification noted in Task 12; F-REL001-P16-002 §15 install-step snippet replaced with normative summary + pointer to release.yml as implementation-of-record (Cache→Install order, pip3, --locked before --version, cache-hit skip guard documented). POL-32 |
 | 0.20 | 2026-07-20 | pass-15 fix-burst: F-REL001-P15-002 cache-step snippet aligned to shipped implementation (name "Cache cargo-zigbuild binary", path ~/.cargo/bin/cargo-zigbuild only, key cargo-zigbuild-0.23.0-${{ runner.os }}; zig not cached — hash-pinned pip install per run); F-REL001-P15-001/003 closed evidence-side. POL-32 |

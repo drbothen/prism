@@ -6,7 +6,7 @@ wave: F-A
 epic_id: E-REL
 priority: P0
 status: draft
-version: "0.2"
+version: "0.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
@@ -42,7 +42,7 @@ estimated_days: 1
 risk: LOW
 # Risk justification: Documentation and configuration artifact only. No Rust code changes.
 # YAML schema for release-config is simple (schema 1). RELEASING.md cannot break anything.
-acceptance_criteria_count: 7
+acceptance_criteria_count: 8
 red_gate_tests: 1
 estimated_passes: "1 LOCAL adversary pass"
 holdout_scenarios: []
@@ -72,7 +72,7 @@ inputs:
   - ".github/workflows/release.yml"
   - ".factory/planning/feature-release-engineering/prism-consumer-contract.md"
   - ".factory/research/release-engineering-uncertainties-2026.md"
-input-hash: "da7e7c2"
+input-hash: "a40f30a"
 traces_to: []
 cycle: "v1.0.0-release-engineering"
 phase: "F3"
@@ -82,7 +82,7 @@ phase: "F3"
 
 **Story ID:** S-REL-005
 **Status:** draft
-**Version:** v0.2
+**Version:** v0.3
 **Wave:** F-A (terminal story — depends on all other F-A stories)
 **Priority:** P0
 **Points:** 2
@@ -168,6 +168,16 @@ Well within the 30% context window budget.
    2. `git push origin v<VERSION>`
    The release workflow triggers automatically on `v*` tags.
 
+   ## Tag-naming discipline
+   The release workflow triggers on any `v*` tag. Only tags matching
+   `vMAJOR.MINOR.PATCH` (GA) or `vMAJOR.MINOR.PATCH-rc.N` (prerelease) may be
+   pushed to origin. Non-release tags that begin with `v` (e.g., `vendor-sync`)
+   MUST NOT be pushed to origin — they would trigger the release pipeline and,
+   containing `-`, publish as a prerelease.
+
+   **Workflow trigger scope decision (F-REL001-PR6-003):** [Implementer must record
+   the decision here — see Task 5. Do not leave this as a bare TODO.]
+
    ## What the release workflow does
    The `.github/workflows/release.yml` workflow:
    1. Builds prism binary for 5 platforms (aarch64-apple-darwin, x86_64-apple-darwin,
@@ -239,6 +249,20 @@ Well within the 30% context window budget.
    # artifacts: [binary+checksum+attestation, demo-bundle]
    ```
 
+5. **Evaluate and document release.yml trigger scope (F-REL001-PR6-003):**
+   The current `on: push: tags: v*` pattern triggers the release pipeline for any tag
+   beginning with `v` — including hypothetical non-release tags such as `vendor-sync`.
+   A tag containing `-` would be flagged as a prerelease. Evaluate whether to tighten
+   the trigger to a semver-shaped glob (e.g., `v[0-9]+.[0-9]+.[0-9]+*`):
+   - **If tightening:** update `.github/workflows/release.yml` `on.push.tags` accordingly,
+     verify the existing test tag `v0.0.1-rc.test` still matches the new pattern, and
+     record the change in RELEASING.md §Tag-naming discipline with rationale.
+   - **If keeping `v*`:** record the rationale in RELEASING.md §Tag-naming discipline —
+     e.g., "GitHub tags-filter does not support full regex; tag-naming discipline is the
+     compensating control." The decision must be explicit text, not a placeholder.
+   Either path: the decision is written into RELEASING.md before the story is closed
+   (Canonical Principle Rule 3 — no bare TODO). AC-008 verifies this.
+
 ---
 
 ## Acceptance Criteria
@@ -295,6 +319,17 @@ Then: A `packages:` array exists with one entry for `name: prism`. That entry ha
 No invented top-level keys (`release_series:`, `platforms:`, `artifacts:`) appear as
 schema keys — they may appear only as YAML comments.
 (traces to delta-analysis.md §11 S-REL-005; research U25: packages/version_sources)
+
+### AC-008: RELEASING.md documents tag-naming discipline and records trigger-scope decision
+Given: `docs/RELEASING.md` is read.
+When: The "Tag-naming discipline" section is inspected.
+Then: The section (a) states that only `vMAJOR.MINOR.PATCH` (GA) and
+`vMAJOR.MINOR.PATCH-rc.N` (prerelease) tags may be pushed to origin; (b) states that
+non-release `v*` tags MUST NOT be pushed; (c) contains the trigger-scope evaluation
+decision — either a rationale for keeping `v*` or a reference to a tightened pattern
+with the updated workflow — as explicit prose (not a placeholder, not a bare TODO).
+(traces to F-REL001-PR6-003: release.yml v* trigger matches any v-prefixed tag;
+ a non-release v* tag with `-` would publish as an unintended prerelease)
 
 ---
 
@@ -360,6 +395,7 @@ No code dependencies — documentation and YAML only.
 | EC-001 | Future schema extension (schema: 2) | Add schema version migration note to release-config.yaml comments |
 | EC-002 | Release from main vs develop | RELEASING.md clarifies: tag targets develop; main is updated by PR merge |
 | EC-003 | Hotfix release path | Deferred to story S-REL-hotfix-001 with explicit anchor in RELEASING.md Hotfix section; Canonical Principle Rule 3 compliant (anchor + concrete future dependency stated) |
+| EC-004 | Non-release `v*` tag pushed to origin (e.g., `vendor-sync`) | Would trigger release pipeline; containing `-` would publish as unintended prerelease. Prevented by RELEASING.md tag-naming discipline (AC-008). Workflow trigger tightening decision recorded per Task 5 / F-REL001-PR6-003. |
 
 ---
 
@@ -376,5 +412,6 @@ No code dependencies — documentation and YAML only.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.3 | 2026-07-20 | F-REL001-PR6-003 (OBS): scope extended — RELEASING.md tag-naming discipline section added (only vMAJOR.MINOR.PATCH[-rc.N] tags to origin; non-release v* tags forbidden); Task 5 added to evaluate and record workflow trigger-scope decision (decision must be present in runbook, not deferred-TBD); AC-008 added; EC-004 non-release v* tag edge case; acceptance_criteria_count 7→8 |
 | 0.2 | 2026-07-19 | Fix-burst: U24/U25 release-config.yaml quality_gates rewritten as MAP (mode+individual gate keys); packages/version_sources added; invented top-level keys (release_series/platforms/artifacts) moved to comments only; AC-005/007 updated to verify MAP structure; U27 EC-003 and RELEASING.md Hotfix section use S-REL-hotfix-001 story anchor instead of bare TODO; research file added to inputs |
 | 0.1 | 2026-07-19 | Initial story creation (story-writer F3 burst) |
