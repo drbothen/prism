@@ -91,15 +91,32 @@ fi
 # DEFECT-REL001-MUSL-CXX-001 + F-REL001-P10-001 (SID-2 composed assertions):
 # §15 ratified: cargo-zigbuild closes DEFECT-REL001-MUSL-LIBSTDCXX-001 by replacing
 # the CXX_x86_64_unknown_linux_musl=clang++ env export with Zig's own musl-aware
-# C++ toolchain. clang is still installed for build.rs cc-rs usage on the glibc host.
-# Assertions 9-16: assert §15 design (pip/zigbuild) and guard against CXX reintroduction.
+# C++ toolchain. §15/F-REL001-P16-001 further removes clang from the apt-get install
+# line (gnu dry-run passed pre-clang; cc-rs uses gcc/g++; musl uses zig's bundled toolchain).
+# Assertions 9a, 9b, 10-16: assert §15 design (pip/zigbuild) and guard against regression.
 #
-# 9. 'libdbus-1-dev clang' — composed end of the apt-get install command.
-#    Asserting both packages together distinguishes the functional install line
-#    from comment-only mentions of clang (which lack the libdbus-1-dev prefix).
+# 9a. SID-2 positive composed assertion: full apt-get install command as shipped after
+#     §15/F-REL001-P16-001 (clang removed). Asserting the complete composed string ensures
+#     all three packages co-appear on the functional install line — not merely individually
+#     somewhere in the file.
 assert_contains "$REL_YML" \
-  "libdbus-1-dev clang" \
+  "sudo apt-get install -y musl-tools pkg-config libdbus-1-dev" \
   "AC-010"
+
+# 9b. Negative regression guard (§15/F-REL001-P16-001): clang must NOT appear on the
+#     functional apt-get install line. The removal rationale comment directly above the
+#     install command and the DEFECT-REL001-MUSL-LIBSTDCXX-001 comment inside the musl
+#     block both contain the word "clang"; a whole-file grep would match those comment
+#     lines and false-pass when clang is re-added to the install command.
+#     Scope: strip YAML comment lines ('^[[:space:]]*#'), then filter to apt-get install
+#     lines, then assert ' clang' is absent from that functional-line-only set.
+apt_install_line=$(grep -v '^[[:space:]]*#' "$REL_YML" 2>/dev/null | grep 'apt-get install' || true)
+if echo "$apt_install_line" | grep -qF ' clang' 2>/dev/null; then
+  tap_fail "AC-010: clang found on apt-get install line (must not be reintroduced per §15/F-REL001-P16-001)" \
+    "AC-010 FAIL: ' clang' found in functional apt-get install line — §15 requires clang absent (musl uses zig toolchain; gnu uses cc-rs/gcc)"
+else
+  tap_pass "AC-010: clang correctly absent from apt-get install line (§15/F-REL001-P16-001 regression guard)"
+fi
 
 # §15 cargo-zigbuild assertions (DEFECT-REL001-MUSL-LIBSTDCXX-001, Delta 15-1/15-2/15-3):
 
