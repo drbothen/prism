@@ -3,7 +3,7 @@
 
 **Story version:** v0.22
 **Branch:** feature/S-REL-001
-**HEAD at evidence capture:** 75ce8cbf
+**HEAD at evidence capture:** 384d520e
 **Date:** 2026-07-20
 **Produced by:** vsdd-factory:demo-recorder
 
@@ -14,8 +14,8 @@
 | Artifact | File | Description |
 |----------|------|-------------|
 | TAP recording (.tape) | `TAP-001-release-gate-suite.tape` | VHS script: runs `bash tests/release-gate/run.sh` |
-| TAP recording (.gif) | `TAP-001-release-gate-suite.gif` | Terminal recording of full 80/80 TAP suite |
-| TAP recording (.webm) | `TAP-001-release-gate-suite.webm` | Archival recording of full 80/80 TAP suite |
+| TAP recording (.gif) | `TAP-001-release-gate-suite.gif` | Terminal recording of full 81/81 TAP suite |
+| TAP recording (.webm) | `TAP-001-release-gate-suite.webm` | Archival recording of full 81/81 TAP suite |
 | Dry-run evidence | `fork-tag-dry-run.md` | Task-12 dry-run gate (6 attempts; attempt-6 GREEN) — DO NOT MODIFY |
 
 ---
@@ -28,7 +28,7 @@
 | AC-002 | DEF-REL-002 closed — chocolatey-publish removed | test_AC-002_chocolatey-removal.sh (5 assertions, all PASS) | Attempt-6 — no `chocolatey-publish` job in workflow run | PASS |
 | AC-003 | DEF-REL-003 closed — homebrew-update removed | test_AC-003_homebrew-removal.sh (5 assertions, all PASS) | Attempt-6 — no `homebrew-update` job in workflow run | PASS |
 | AC-004 | DEF-REL-004 closed — crates-io-publish removed | test_AC-004_crates-io-removal.sh (4 assertions, all PASS) | Attempt-6 — no `crates-io-publish` job in workflow run | PASS |
-| AC-005 | Prerelease flag via bash array; no gh auto-detection | test_AC-005_prerelease-flag.sh (13 assertions, all PASS) | Attempt-6: `isPrerelease: true` (dry-run tag v0.0.1-rc.test matches `*-*` pattern); idempotency re-run path also present in workflow | PASS |
+| AC-005 | Prerelease flag via bash array; no gh auto-detection | test_AC-005_prerelease-flag.sh (14 assertions, all PASS) — includes assertion #9 "set-u-safe splice guard full form present — F-REL001-PR2-OBS-1/SID-2" | Attempt-6: `isPrerelease: true` (dry-run tag v0.0.1-rc.test matches `*-*` pattern); idempotency re-run path also present in workflow | PASS |
 | AC-006 | 5-platform matrix preserved and correctly spelled | test_AC-006_matrix-targets.sh (9 assertions, all PASS) | Attempt-6: 5 matrix legs all ran — gnu, musl, aarch64-darwin, windows, x86_64-darwin | PASS |
 | AC-007 | SHA-256 checksums step preserved | test_AC-007_checksums.sh (4 assertions, all PASS) | Attempt-6 release assets: `checksums.txt` (582 bytes) with 5 lines, one per platform | PASS |
 | AC-008 | OIDC attestation preserved with v4.1.1 pin | test_AC-008_oidc-attestation.sh (6 assertions, all PASS) | Attempt-6: "Attest build provenance" step succeeded on all 5 legs (5/5 attestations: success) | PASS |
@@ -37,13 +37,13 @@
 | AC-011 | Workflow YAML parses without errors (actionlint) | test_AC-011_actionlint.sh (2 assertions, all PASS); direct: `actionlint .github/workflows/release.yml` exit 0, zero output | N/A (static analysis) | PASS |
 | AC-012 | Release-gate suite wired into automated enforcement | Justfile `test-release-gate` recipe present; ci.yml `release-gate` job present with `bash tests/release-gate/run.sh`; verify-workflow-structure guard (F-REL001-P3-OBS-002, F-REL001-P11-001) enforces both at CI time | N/A (wiring proof by inspection + CI run) | PASS |
 
-**Total: 12/12 ACs covered. 80/80 TAP assertions passing.**
+**Total: 12/12 ACs covered. 81/81 TAP assertions passing.**
 
 ---
 
 ## TAP Suite Full Output (AC-001..AC-011)
 
-Captured live on HEAD 75ce8cbf via `bash tests/release-gate/run.sh`:
+Captured live on HEAD 384d520e via `bash tests/release-gate/run.sh`:
 
 ```
 TAP version 13
@@ -91,12 +91,13 @@ ok 5 - AC-005: '"$PRERELEASE_FLAG"' correctly absent from release.yml
 ok 6 - AC-005: idempotent guard 'gh release view "$TAG"' present (F-REL001-P10-001)
 ok 7 - AC-005: idempotent guard upload path 'gh release upload "$TAG" --clobber' present (F-REL001-P10-001)
 ok 8 - AC-005: create path splices '"${PRERELEASE_ARGS[@]}"' into gh release create (SID-2 / F-REL001-P10-001)
-ok 9 - AC-005: run: block extraction non-empty (awk state-machine preflight)
-ok 10 - AC-005: ${{ github.ref* }} absent from all run: blocks (F-REL001-P1-001 / F-REL001-P18-001)
-ok 11 - AC-005: ${{ github.event* }} absent from all run: blocks (F-REL001-P1-001 / F-REL001-P18-001)
-ok 12 - AC-005: ${{ github.head_ref }} absent from all run: blocks (F-REL001-P1-001 / F-REL001-P18-001)
-ok 13 - AC-005: ${{ env.* }} absent from all run: blocks (F-REL001-P1-001 / F-REL001-P18-001 env-re-exposure vector)
-1..13
+ok 9 - AC-005: set-u-safe splice guard full form present (F-REL001-PR2-OBS-1 / SID-2)
+ok 10 - AC-005: run: block extraction non-empty (awk state-machine preflight)
+ok 11 - AC-005: ${{ github.ref* }} absent from all run: blocks (F-REL001-P1-001 / F-REL001-P18-001)
+ok 12 - AC-005: ${{ github.event* }} absent from all run: blocks (F-REL001-P1-001 / F-REL001-P18-001)
+ok 13 - AC-005: ${{ github.head_ref }} absent from all run: blocks (F-REL001-P1-001 / F-REL001-P18-001)
+ok 14 - AC-005: ${{ env.* }} absent from all run: blocks (F-REL001-P1-001 / F-REL001-P18-001 env-re-exposure vector)
+1..14
 
 # --- test_AC-006_matrix-targets.sh ---
 ok 1 - AC-006: file exists: release.yml
@@ -166,8 +167,8 @@ ok 2 - AC-011: actionlint validated release.yml: 0 findings
 
 # ========================================
 # S-REL-001 Release Gate Summary
-# Total:   80
-# Passed:  80
+# Total:   81
+# Passed:  81
 # Failed:  0
 # Skipped: 0
 # ========================================
@@ -209,7 +210,7 @@ test-release-gate:
     @bash tests/release-gate/run.sh
 ```
 
-`just test-release-gate` output confirms 80/80 pass (same TAP output as above).
+`just test-release-gate` output confirms 81/81 pass (same TAP output as above).
 
 ### ci.yml release-gate Job Block
 
@@ -282,7 +283,7 @@ All three guards pass on current HEAD.
 | `test_AC-002_chocolatey-removal.sh` | AC-002 | 5 | YAML grep (absence — functional lines only) |
 | `test_AC-003_homebrew-removal.sh` | AC-003 | 5 | YAML grep (absence + S-REL-008 reference present) |
 | `test_AC-004_crates-io-removal.sh` | AC-004 | 4 | YAML grep (absence — cargo publish, CARGO_REGISTRY_TOKEN) |
-| `test_AC-005_prerelease-flag.sh` | AC-005 | 13 | YAML grep (array form, idempotency guard, CWE-78 injection absence) |
+| `test_AC-005_prerelease-flag.sh` | AC-005 | 14 | YAML grep (array form, idempotency guard, set-u-safe splice guard, CWE-78 injection absence) |
 | `test_AC-006_matrix-targets.sh` | AC-006 | 9 | YAML grep (5 targets present, typo absent, exact count=5) |
 | `test_AC-007_checksums.sh` | AC-007 | 4 | YAML grep (sha256sum/shasum command, checksums.txt path) |
 | `test_AC-008_oidc-attestation.sh` | AC-008 | 6 | YAML grep (id-token:write, v4.1.1 present, v4.1.0 absent, SHA pin present) |
@@ -291,7 +292,7 @@ All three guards pass on current HEAD.
 | `test_AC-011_actionlint.sh` | AC-011 | 2 | Live actionlint execution on release.yml (exit 0, zero findings) |
 | (Justfile + ci.yml inspection) | AC-012 | N/A | verify-workflow-structure guards + just test-release-gate recipe |
 
-**Total executable assertions: 80** (test files 1-11; AC-012 verified by inspection + CI run per story spec red_gate_tests note).
+**Total executable assertions: 81** (test files 1-11; AC-012 verified by inspection + CI run per story spec red_gate_tests note).
 
 ---
 
@@ -347,9 +348,9 @@ Reference: `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md` (DO NOT MODIFY).
 
 | Gate | Outcome | Reference |
 |------|---------|-----------|
-| LOCAL adversarial cascade | CONVERGED — 3-CLEAN @ 75ce8cbf (23 passes, BC-5.39.001) | .factory/STATE.md D-1880 |
-| TAP release-gate suite | GREEN — 80/80 @ 75ce8cbf | This report §TAP Suite Full Output |
-| actionlint | GREEN — exit 0, zero findings @ 75ce8cbf | This report §AC-011 |
+| LOCAL adversarial cascade | CONVERGED — 3-CLEAN @ 75ce8cbf (23 passes, BC-5.39.001); evidence regenerated @ 384d520e (F-REL001-PR8-001) | .factory/STATE.md D-1880 |
+| TAP release-gate suite | GREEN — 81/81 @ 384d520e | This report §TAP Suite Full Output |
+| actionlint | GREEN — exit 0, zero findings @ 384d520e | This report §AC-011 |
 | Task-12 dry-run gate | GREEN — Attempt 6, run 29721841906 (2026-07-20) | fork-tag-dry-run.md §Attempt 6 |
 | Story-level holdout gate | HUMAN-DIRECTED WAIVER — D-1880 adjudication (2026-07-20): dry-run gate stands as observed-output evidence for this CI-infra story (no MCP stdio surface; holdout-evaluator cannot drive CI/CD workflow execution against live GitHub Actions) | .factory/STATE.md D-1880 |
 
@@ -360,10 +361,10 @@ Reference: `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md` (DO NOT MODIFY).
 This is a CI/CD infrastructure story. VHS is present on this machine (`/opt/homebrew/bin/vhs` v0.11.0). A terminal recording of the full TAP suite run was captured:
 
 - `TAP-001-release-gate-suite.tape` — VHS script
-- `TAP-001-release-gate-suite.gif` — 377K animated GIF (PR embed)
-- `TAP-001-release-gate-suite.webm` — 1.1M archival recording
+- `TAP-001-release-gate-suite.gif` — 2.5M animated GIF (PR embed)
+- `TAP-001-release-gate-suite.webm` — 1.5M archival recording
 
-The TAP output itself (80/80) is the primary evidence as specified by the story spec and VSDD demo-recorder constraints for CI-infra stories. The VHS recording supplements it with a visual terminal capture.
+The TAP output itself (81/81) is the primary evidence as specified by the story spec and VSDD demo-recorder constraints for CI-infra stories. The VHS recording supplements it with a visual terminal capture.
 
 ---
 
