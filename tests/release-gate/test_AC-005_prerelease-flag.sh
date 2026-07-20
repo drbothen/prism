@@ -121,12 +121,22 @@ fi
 #   ${{ secrets.* }} — repo-controlled, never set from user input.
 #   ${{ runner.* }} — runner-controlled metadata.
 #
+# Case-insensitivity (F-REL001-P20-001): GitHub Actions evaluates ${{ }}
+# expressions case-insensitively, so ${{ GITHUB.REF_NAME }} and
+# ${{ Env.ARCHIVE }} are functionally equivalent to their lowercase forms
+# and equally dangerous.  The four negative assertions therefore use
+# grep -qiE (case-insensitive extended regex) to catch any capitalisation
+# variant.  This cannot produce false failures on the allowlist: the
+# forbidden-class patterns (github.ref, github.event, github.head_ref,
+# env.) share no substring with matrix.target or matrix.archive_ext even
+# under case folding, so allowlisted expressions remain unaffected.
+#
 # Design: POSIX awk state machine extracts the text of every run: block
 # (both block-scalar "run: |" and inline "run: command" forms).  Four
 # separate negative assertions then check the extracted text for each
-# forbidden expression class.  A preflight assertion verifies the awk
-# produced non-empty output so a broken awk cannot create a false pass
-# on the negative checks.
+# forbidden expression class using case-insensitive grep (-i).  A
+# preflight assertion verifies the awk produced non-empty output so a
+# broken awk cannot create a false pass on the negative checks.
 # ====================================================================
 
 # Extract all run: block bodies using a POSIX awk state machine.
@@ -172,7 +182,7 @@ fi
 # Covers github.ref, github.ref_name, github.ref_type.
 # Correct pattern: bind via env: map (env: TAG: ${{ github.ref_name }}) and
 # use plain $TAG in run: bodies.  CWE-78 / F-REL001-P1-001 / F-REL001-P18-001.
-if echo "$run_blocks" | grep -qE '\$\{\{[[:space:]]*github\.ref' 2>/dev/null; then
+if echo "$run_blocks" | grep -qiE '\$\{\{[[:space:]]*github\.ref' 2>/dev/null; then
   tap_fail "AC-005: forbidden \${{ github.ref* }} in run: block (CWE-78 / F-REL001-P1-001 regression)" \
     "AC-005 FAIL: '\${{ github.ref' must not appear in run: script bodies — bind via env: map and use plain \$TAG (F-REL001-P1-001 / F-REL001-P18-001 / CWE-78)"
 else
@@ -183,7 +193,7 @@ fi
 # github.event.* values (PR body, commit message, etc.) are fully
 # attacker-controlled via PR creation or commit authorship.
 # CWE-78 / F-REL001-P1-001 / F-REL001-P18-001.
-if echo "$run_blocks" | grep -qE '\$\{\{[[:space:]]*github\.event' 2>/dev/null; then
+if echo "$run_blocks" | grep -qiE '\$\{\{[[:space:]]*github\.event' 2>/dev/null; then
   tap_fail "AC-005: forbidden \${{ github.event* }} in run: block (CWE-78 / F-REL001-P1-001 regression)" \
     "AC-005 FAIL: '\${{ github.event' must not appear in run: script bodies — event-derived values are attacker-controlled via PR/commit"
 else
@@ -194,7 +204,7 @@ fi
 # head_ref is the PR source branch name — attacker-controlled when a PR
 # is opened from a fork with an arbitrary branch name.
 # CWE-78 / F-REL001-P1-001 / F-REL001-P18-001.
-if echo "$run_blocks" | grep -qE '\$\{\{[[:space:]]*github\.head_ref' 2>/dev/null; then
+if echo "$run_blocks" | grep -qiE '\$\{\{[[:space:]]*github\.head_ref' 2>/dev/null; then
   tap_fail "AC-005: forbidden \${{ github.head_ref }} in run: block (CWE-78 / F-REL001-P1-001 regression)" \
     "AC-005 FAIL: '\${{ github.head_ref' must not appear in run: script bodies — PR source branch name is attacker-controlled"
 else
@@ -209,7 +219,7 @@ fi
 # ($ARCHIVE, $TAG) which bash receives as an already-resolved string.
 # The ${{ env.ARCHIVE }} form is allowed in with:/env: keys (not run:).
 # F-REL001-P1-001 / F-REL001-P18-001 / CWE-78.
-if echo "$run_blocks" | grep -qE '\$\{\{[[:space:]]*env\.' 2>/dev/null; then
+if echo "$run_blocks" | grep -qiE '\$\{\{[[:space:]]*env\.' 2>/dev/null; then
   tap_fail "AC-005: forbidden \${{ env.* }} in run: block (env re-exposure / F-REL001-P1-001 regression)" \
     "AC-005 FAIL: '\${{ env.' must not appear in run: script bodies — use plain shell var (\$ARCHIVE, \$TAG) not \${{ env.VAR }} (F-REL001-P1-001 / F-REL001-P18-001 / CWE-78)"
 else
