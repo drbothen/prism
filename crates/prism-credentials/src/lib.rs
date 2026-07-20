@@ -30,8 +30,13 @@
 // keyring-windows-native, keyring-linux-native-sync-persistent, keyring-linux-native)
 // which are declared in [features] and enable the corresponding keyring backend features.
 //
-// Two-place update invariant: removing a backend feature from [dependencies].keyring.features
-// AND the pass-through feature from [features] will trip these guards on the next build.
+// Two-place update invariant (linux-gnu): the linux-native-sync-persistent backend is
+// activated via [target.'cfg(all(target_os = "linux", not(target_env = "musl")))'.dependencies],
+// NOT via the [features] default. Removing that target-cfg block will NOT trip this guard
+// (because keyring-linux-native remains in default). However it will silently downgrade
+// linux-gnu to keyutils-only (no persistent Secret Service). Removing keyring-linux-native
+// from [features] default WILL trip the Linux guard on all Linux targets.
+// musl: keyring-linux-native in [features] default is the sole backend; no dbus.
 //
 // guard: macOS — keyring-apple-native (security-framework, Keychain) required.
 #[cfg(all(target_os = "macos", not(feature = "keyring-apple-native")))]

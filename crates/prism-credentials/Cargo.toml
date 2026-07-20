@@ -35,7 +35,10 @@ test-helpers = []
 default = [
     "keyring-apple-native",
     "keyring-windows-native",
-    "keyring-linux-native-sync-persistent",
+    # keyring-linux-native-sync-persistent removed from default — activated via
+    # [target.'cfg(all(target_os = "linux", not(target_env = "musl")))'.dependencies]
+    # for linux-gnu only (see below). musl uses linux-native (kernel-keyutils) without
+    # dbus per ADR-034/BC-2.06.003.
     "keyring-linux-native",
 ]
 keyring-apple-native = ["keyring/apple-native"]
@@ -100,6 +103,14 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # uuid v7 for time-ordered confirmation tokens (TD-S-1.07-02)
 uuid = { version = "1", features = ["v7"] }
+
+# Linux gnu (glibc): persistent Secret Service backend — kernel-keyutils + dbus-secret-service.
+# linux-native-sync-persistent pulls dbus-secret-service → dbus → libdbus-sys (C-linked,
+# pkg-config). pkg-config cross-compile mode refuses when host != target triple, so this
+# feature MUST NOT be activated for the musl cross-compile target. ADR-034/BC-2.06.003.
+# musl: linux-native (kernel-keyutils only) satisfies the F-P10-CRIT-001 guard without dbus.
+[target.'cfg(all(target_os = "linux", not(target_env = "musl")))'.dependencies]
+keyring = { version = "3", default-features = false, features = ["linux-native-sync-persistent", "crypto-rust"] }
 
 [dev-dependencies]
 proptest = "1"
