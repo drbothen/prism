@@ -22,9 +22,19 @@
 #                                   # prompts. Custom policies (10+) MUST include steps
 #                                   # here so the adversary knows HOW to verify them.
 
+document_type: governance-policy-registry
+version: "1.35"
+last_amended: 2026-07-20
+
 metadata:
-  version: "1.34"
+  version: "1.35"
   changelog:
+    - version: "1.35"
+      date: 2026-07-20
+      burst: D-1884-infra-only-holdout-exemption
+      decision: D-1884
+      findings: [D-1880-holdout-process-gap]
+      change: "v1.34 → v1.35 2026-07-20 — POL-35 holdout_gate_infra_only_exemption registered. Codified from D-1880 holdout process-gap (D-1884 human adjudication 2026-07-20). Stories whose behavioral_contracts: frontmatter is empty (pure infra/release/CI scope) are exempt from the story-level holdout gate; holdout_scenarios: [] is compliant for such stories. Any story with ≥1 BC still requires holdout authoring at story-materialization time."
     - version: "1.34"
       date: 2026-07-15
       burst: D-1780-PR-LEVEL-pass-5-fix-burst-38
@@ -218,6 +228,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, consistency-validator]
     scope: [bc, vp, di, cap, story, hs, td, pol]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "Scan all index files for retired/removed IDs — verify no active artifact reuses a retired ID"
@@ -231,6 +242,7 @@ policies:
     severity: MEDIUM
     enforced_by: [adversary-prompt, consistency-validator]
     scope: [di, bc]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "Read domain-spec/invariants.md — extract all DI-NNN IDs"
@@ -245,6 +257,7 @@ policies:
     severity: HIGH
     enforced_by: [orchestrator-rule]
     scope: [story, bc, vp, architecture]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "Review burst commit history — state-manager commits must come after all other agents"
@@ -257,6 +270,7 @@ policies:
     severity: MEDIUM
     enforced_by: [adversary-prompt, consistency-validator]
     scope: [bc, vp, story, architecture]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "For each BC, verify declared capability actually describes the BC's purpose per capabilities.md"
@@ -271,6 +285,7 @@ policies:
     severity: MEDIUM
     enforced_by: [adversary-prompt]
     scope: [bc, vp, story, cap, architecture]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "Check that BC→CAP anchors include justification citing capabilities.md"
@@ -285,6 +300,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, consistency-validator]
     scope: [bc, story, prd, architecture]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "Read ARCH-INDEX Subsystem Registry for canonical subsystem names"
@@ -299,6 +315,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, consistency-validator]
     scope: [bc, story, prd]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "Sample 10+ BCs — read H1 heading and compare to BC-INDEX title column"
@@ -316,6 +333,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, consistency-validator]
     scope: [story, bc]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "Sample 5+ stories — for each BC in behavioral_contracts: frontmatter, verify it appears in body BC table"
@@ -330,6 +348,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, lint-hook, consistency-validator]
     scope: [vp, architecture]
+    codified_at: "D-472"
     lint_hook: hooks/validate-vp-consistency.sh
     verification_steps:
       - "Verify VP-INDEX arithmetic: total = sum of per-tool counts = row count"
@@ -346,6 +365,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, consistency-validator, pr-reviewer]
     scope: [story, demo-evidence, pr]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "For each story's feature branch, verify docs/demo-evidence/<STORY-ID>/ exists as a subfolder"
@@ -369,6 +389,7 @@ policies:
       - bc-index
       - vp-index
       - arch-index
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "Read the M-34-001 precedent (find the STORY-INDEX changelog entry titled 'M-34-001 fix burst' covering the v1.64→v1.65 prose backfill bump): prose-only backfill bumped the index version even though no spec content changed. The same precedent applies to BC-INDEX, VP-INDEX, and ARCH-INDEX."
@@ -387,6 +408,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, pre-merge-hook, code-reviewer]
     scope: [story, source-code]
+    codified_at: "D-472"
     lint_hook: hooks/check-stub-residue.sh
     references_adr: ADR-020
     verification_steps:
@@ -404,6 +426,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, pre-burst-hook, state-manager]
     scope: [story, story-index]
+    codified_at: "D-472"
     lint_hook: hooks/check-story-index-consistency.sh
     references_adr: ADR-020
     verification_steps:
@@ -420,6 +443,7 @@ policies:
     severity: HIGH
     enforced_by: [state-manager, post-merge-audit]
     scope: [bc, vp, story]
+    codified_at: "D-472"
     lint_hook: hooks/check-bc-promotion.sh
     references_adr: ADR-021
     verification_steps:
@@ -436,6 +460,7 @@ policies:
     severity: MEDIUM
     enforced_by: [scheduled-audit, wave-gate-hook]
     scope: [adr, architecture, runtime]
+    codified_at: "D-472"
     lint_hook: skills/audit-runtime-wiring/
     references_adr: ADR-021
     verification_steps:
@@ -452,6 +477,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, pre-merge-hook, test-writer-rule]
     scope: [story, source-code, test]
+    codified_at: "D-472"
     lint_hook: hooks/check-inverted-polarity.sh
     references_adr: ADR-020
     verification_steps:
@@ -476,6 +502,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, pre-merge-hook, code-reviewer]
     scope: [source-code, test, cargo-toml]
+    codified_at: null
     lint_hook: null
     citations:
       - "F-PASS2-MED-1 (S-WAVE5-PREP-01 pass-2 adversarial review)"
@@ -501,6 +528,7 @@ policies:
     severity: MEDIUM
     enforced_by: [adversary-prompt, consistency-validator]
     scope: [bc]
+    codified_at: null
     lint_hook: null
     citations:
       - "F-LP2-OBS-007 (S-PLUGIN-PREREQ-D pass-2 adversarial review)"
@@ -523,6 +551,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, consistency-validator]
     scope: [story, bc, architecture]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "For each §X citation in the story body, §References, and §Changelog: extract the document and section name."
@@ -541,6 +570,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt]
     scope: [story, bc, architecture]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "Phase A — Lexical-vs-semantic anchor-content verification: For every cited document anchor (ARTIFACT §SectionName or ARTIFACT §Rule) in the story body, grep the cited document's text for the cited rule. Substring match in the story body = INSUFFICIENT. Target-document grep = REQUIRED. If the target document does not contain the cited rule at the cited anchor, it is a phantom-anchor violation."
@@ -564,6 +594,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, story-writer-self-check, product-owner-self-check]
     scope: [story, bc]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "When a BC version bumps from vX.Y to vX.(Y+1): run grep -n 'BC-N.NN.NNN v<old_version>' across all story body files that reference this BC."
@@ -584,6 +615,7 @@ policies:
     severity: MEDIUM
     enforced_by: [adversary-prompt, story-writer-self-check]
     scope: [story, error-taxonomy]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "For each error code cited in story §Error Taxonomy Additions, grep error-taxonomy.md for the canonical message_template: field."
@@ -604,6 +636,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, product-owner-self-check, story-writer-self-check]
     scope: [story, bc, architecture, vp]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "After any fix-burst that updates a phrasing or anchor-string: run a workspace-wide grep for the OLD phrasing (before correction)."
@@ -629,6 +662,7 @@ policies:
     severity: MEDIUM
     enforced_by: [state-manager, adversary-prompt]
     scope: [story-index, bc-index, vp-index, arch-index]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "For every new §Changelog row being committed: count the pipe-delimited cells (excluding leading/trailing empty cells)."
@@ -649,6 +683,7 @@ policies:
     severity: MEDIUM
     enforced_by: [adversary-prompt, consistency-validator]
     scope: [bc]
+    codified_at: null
     lint_hook: null
     verification_steps:
       - "For each BC file, read the `modified:` frontmatter field."
@@ -685,6 +720,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, product-owner-self-check, architect-self-check, state-manager]
     scope: [bc, vp, story, hs, adr, architecture, prd, error-taxonomy, capabilities, invariants, story-index, bc-index, vp-index, arch-index]
+    codified_at: null
     lint_hook: null
     changelog:
       - version: "1.28 → 1.29"
@@ -720,6 +756,7 @@ policies:
     severity: MEDIUM
     enforced_by: [adversary-prompt, consistency-validator, state-manager]
     scope: [bc, vp, story, ic, story-index, bc-index, vp-index, error-taxonomy, prd-supplements, policies]
+    codified_at: null
     lint_hook: null
     references: [F-LP8-MED-001, F-LP9-MED-001, F-LP10-MED-001]
     rationale: |
@@ -757,6 +794,7 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, product-owner-self-check, state-manager]
     scope: [bc, story, source-code]
+    codified_at: null
     lint_hook: null
     references_finding: BPRL-P4-PG-01
     references_decision: D-1109
@@ -780,6 +818,7 @@ policies:
     severity: MEDIUM
     enforced_by: [adversary-prompt, state-manager-pre-commit-hook-proposed]
     scope: [vp]
+    codified_at: null
     lint_hook: null
     references_source: "F-P10-IMP-001 + F-P10-OBS-002 (impl-pass-10 cascade)"
     implementation_target: ".factory/hooks/validate-vp-proof-harness-skeleton-symbols.sh (TBD)"
@@ -815,6 +854,7 @@ policies:
     severity: MEDIUM
     enforced_by: [adversary-prompt, code-review]
     scope: [source-code, bc]
+    codified_at: null
     lint_hook: null
     rationale: |
       Codified after three recurrences in DEFECT-PQL-FNCALL-LHS-001 cascade where
@@ -837,3 +877,22 @@ policies:
       - "A debug_assert site where violation produces incorrect user-facing output AND the anchoring spec does NOT document release-mode fall-through → MEDIUM finding under POL-34. The fix path is: (a) structural enforcement (typed branch, match arm, Result propagation) — preferred; or (b) explicit ratification in anchoring BC/ADR including documented release-mode fall-through behavior — acceptable only when structural fix would require significant architectural change."
       - "debug_assert! that supplements (not sole-enforces) a release-active mechanism is PERMITTED. Example: a debug_assert after a match arm that already handles all cases structurally is a documentation aid, not sole enforcement."
       - "Exemptions: debug_assert sites inside #[cfg(test)] blocks; debug_assert sites enforcing invariants whose violation produces only an internal panic (no user-facing output, no incorrect behavior observable by callers) — document the exemption rationale inline in the code comment."
+
+  - id: 35
+    name: holdout_gate_infra_only_exemption
+    description: |
+      Stories whose `behavioral_contracts:` frontmatter array is empty (pure infra/release/CI
+      scope, no product-behavior surface) are exempt from the story-level holdout gate
+      (D-1715/D-1716 human-approved gate); `holdout_scenarios: []` is compliant for such
+      stories. Stories with ≥1 BC still require holdout authoring at story-materialization
+      time. Exemption does NOT extend to wave-level or Phase-4 holdout pools.
+    adopted: "D-1884-human-adjudication-of-D-1880-2026-07-20"
+    severity: MEDIUM
+    enforced_by: [orchestrator-rule, adversary-prompt]
+    scope: [story, hs]
+    codified_at: "D-1884"
+    lint_hook: null
+    verification_steps:
+      - "For each story with holdout_scenarios: [] in frontmatter, read behavioral_contracts: — an empty array means the story is exempt: PASS."
+      - "A story with non-empty behavioral_contracts: AND empty holdout_scenarios: is a HIGH violation — holdout authoring is owed before that story's TDD delivery."
+      - "Verify the exemption is not applied to wave-level or Phase-4 holdout pools — those remain mandatory and unchanged."
