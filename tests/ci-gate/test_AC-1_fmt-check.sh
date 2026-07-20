@@ -14,7 +14,7 @@ CI_YML="${WORKTREE}/.github/workflows/ci.yml"
 assert_file_exists "$CI_YML" "AC-1"
 
 # Must have a real `cargo fmt --check` run step, not a TODO echo.
-if grep -qE '^\s+run:\s+cargo fmt --check' "$CI_YML" 2>/dev/null; then
+if grep -qE '^[[:space:]]+run:[[:space:]]+cargo fmt --check' "$CI_YML" 2>/dev/null; then
   tap_pass "AC-1: ci.yml has real 'run: cargo fmt --check' step"
 else
   tap_fail "AC-1: ci.yml missing real 'cargo fmt --check' step" \

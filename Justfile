@@ -86,6 +86,14 @@ check-ci:
 shellcheck-demo:
     shellcheck scripts/demo-setup.sh scripts/demo-run.sh scripts/demo-teardown.sh
 
+# Run the S-REL-001 release-gate TAP test suite (S-REL-001 AC-012, F-REL001-P2-001).
+# Fails closed when actionlint is absent from PATH — the AC-011 test exits non-zero
+# rather than skipping. Install actionlint locally via: brew install actionlint
+# (NOT cargo install actionlint — actionlint is Go, not Rust; research U4).
+# Usage: just test-release-gate
+test-release-gate:
+    @bash tests/release-gate/run.sh
+
 # Standalone: cargo audit (supply-chain advisories)
 # Run manually ad-hoc or invoked by check-ci / CI pipeline.
 audit:

@@ -1,0 +1,16 @@
+# Hash-pinned pip requirements for the musl CI build leg.
+# Used by release.yml and (if musl build is ever added to ci.yml) ci.yml.
+#
+# ziglang: PyPI package maintained by the official Zig organization (ziglang/zig-pypi).
+# Version mirrors the Zig release version 1:1. 0.16.0 is the latest stable Zig release
+# as of 2026-07-19 (from ziglang.org). The wheel is a pure-Python package containing
+# the Zig compiler binary for the target platform — no secondary network download at
+# install time, so --require-hashes fully secures the Zig toolchain payload.
+#
+# Hash: x86_64 manylinux wheel (the platform used by ubuntu-latest GitHub Actions runners).
+# SHA-256 computed from the official PyPI release:
+#   https://pypi.org/project/ziglang/0.16.0/#files
+# Rationale for hash pinning: matches the CWE-494 discipline (SHA-pinned action refs)
+# applied to all GitHub Actions steps in release.yml. Delta 15-2, §15, delta-analysis.md.
+ziglang==0.16.0 \
+    --hash=sha256:9fcda73f62b851dd72a54b710ad40a209896db14cfb13649e62191243556342b

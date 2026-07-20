@@ -1,4 +1,4 @@
-# Release workflow — triggered by v* tags; 5-platform builds, GitHub Release, Homebrew tap, crates.io
+# Release workflow — triggered by v* tags; 5-platform builds, GitHub Release
 name: Release
 
 on:
@@ -7,12 +7,22 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read  # SEC-002: tightened — each job declares its own grant
+
+# chocolatey-publish removed (DEF-REL-002): packaging/chocolatey/ does not exist.
+# Chocolatey packaging is a v1.1+ consideration. When re-enabled, secrets.CHOCOLATEY_API_KEY required.
+
+# homebrew-update removed (DEF-REL-003): tap org 1898co/homebrew-tap does not exist.
+# Re-enable once tap is established. S-REL-008. When re-enabled, secrets.HOMEBREW_TAP_TOKEN required.
+
+# crates-io-publish removed (DEF-REL-004): all workspace crates carry publish = false.
+# crates.io publication deferred post-v1.0.0. When re-enabled, secrets.CRATES_IO_TOKEN required.
 
 jobs:
   build-release:
     name: Build release (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
     permissions:
       contents: read
       id-token: write      # required for OIDC attestation
@@ -25,6 +35,7 @@ jobs:
             target: aarch64-apple-darwin
             archive_ext: tar.gz
           - runner: macos-15-intel
+            # macos-15-intel: Intel macOS last runner; EOL Aug 2027.
             target: x86_64-apple-darwin
             archive_ext: tar.gz
           - runner: ubuntu-latest
@@ -36,37 +47,96 @@ jobs:
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
             archive_ext: zip
-    outputs:
-      binary_exists: ${{ steps.check_binary.outputs.binary_exists }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Check for binary crate
-        id: check_binary
+      # Delta 15-3 (§15, delta-analysis.md): cache the compiled cargo-zigbuild binary to
+      # avoid paying the 2-4 min cold-install cost on every tag push. Swatinem/rust-cache
+      # does not cache ~/.cargo/bin/; this step fills that gap for the musl leg only.
+      - name: Cache cargo-zigbuild binary
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cargo/bin/cargo-zigbuild
+          key: cargo-zigbuild-0.23.0-${{ runner.os }}
+      - name: Install Linux build deps
+        if: contains(matrix.target, 'linux')
         run: |
-          if [[ -d "crates/prism-bin" ]]; then
-            echo "binary_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "binary_exists=false" >> $GITHUB_OUTPUT
-            echo "::warning::No binary crate (crates/prism-bin) yet; release build steps will skip."
+          sudo apt-get update
+          # libdbus-1-dev: required by prism-credentials keyring-linux-native-sync-persistent
+          # → dbus-secret-service (C-linked libdbus). build.rs runs on glibc host even for
+          # musl cross-target. ADR-034/BC-2.06.003.
+          # clang removed per §15/F-REL001-P16-001: gnu dry-run passed pre-clang (cc-rs uses gcc/g++); musl uses zig's bundled toolchain; do not reintroduce (superseded attempt-3 CXX override).
+          sudo apt-get install -y musl-tools pkg-config libdbus-1-dev
+          if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-musl" ]]; then
+            # DEFECT-REL001-MUSL-LIBSTDCXX-001: clang++ (system) is compiled against glibc
+            # and links against glibc's libstdc++.a which references glibc-specific symbols
+            # (__libc_single_threaded, __isoc23_*, __memcpy_chk, arc4random, fopen64 etc.)
+            # that are absent from musl libc. This produces 117+ undefined-reference linker
+            # errors when building the musl static binary.
+            # Fix: cargo-zigbuild replaces cargo build for the musl leg. Zig provides its own
+            # musl-aware C++ toolchain and C++ runtime with no glibc symbol contamination.
+            # Delta 15-1 (§15): exact version pin; no --break-system-packages needed —
+            # runner image's system Python is not marked externally-managed (PEP 668)
+            # as of ubuntu-24.04 images; if a future image changes this, pip will fail
+            # with 'externally-managed-environment' — add --break-system-packages or
+            # switch to a venv at that point.
+            # Delta 15-2 (§15): --require-hashes matches CWE-494 SHA-pin discipline used
+            # for all GitHub Actions steps in this workflow. Hash covers the full Zig
+            # toolchain binary payload (pure-Python wheel, no secondary download at
+            # install time). Requirements file: .github/workflows/requirements-musl-ci.txt
+            pip3 install --require-hashes -r .github/workflows/requirements-musl-ci.txt
+            # Delta 15-3 (§15): skip cargo install on cache hit (actions/cache step above).
+            if [[ ! -f "$HOME/.cargo/bin/cargo-zigbuild" ]]; then
+              # --locked: use crate's own Cargo.lock for reproducible dep resolution.
+              # --locked + exact version is the maximum pinning cargo install supports (no --require-hashes equivalent); ratified §15 / F-REL001-P14-004 — CWE-494 posture accepted.
+              cargo install --locked cargo-zigbuild --version 0.23.0
+            fi
+            # F-REL001-PR6-002: cache-restore integrity — version-pin re-verification.
+            # Runs after both the cache-restore path (actions/cache above) and the fresh-install
+            # path (cargo install above). The actions/cache restore has no content-hash check;
+            # without this guard a stale or wrong-version binary could proceed to the build step
+            # silently. On version match (normal case): grep exits 0; no-op continuation.
+            # On mismatch: loud fail — a path that previously proceeded silently.
+            # Output format EMPIRICALLY VERIFIED 2026-07-20 (F-REL001-PR6-002):
+            # 'cargo-zigbuild --version' outputs "cargo-zigbuild 0.23.0" exactly.
+            # IMPORTANT: 'cargo zigbuild --version' (cargo subcommand form) rejects
+            # '--version' as an unknown argument (exits non-zero, empty stdout) and
+            # must NOT be used here — it would always false-fail the guard.
+            # Future hardening: full content-hash keying of the cache key noted.
+            cargo-zigbuild --version | grep -qF "cargo-zigbuild 0.23.0" || { echo "cargo-zigbuild version mismatch after cache restore"; exit 1; }
           fi
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-        if: steps.check_binary.outputs.binary_exists == 'true'
         with:
           targets: ${{ matrix.target }}
+      # DEFECT-REL001-PROTOC-MISSING-001: prism-ocsf build.rs invokes prost-build which
+      # requires protoc at compile time. All 5 matrix legs failed without this step.
+      # Dry-run evidence: https://github.com/drbothen/prism/actions/runs/29709483646
+      - name: Install protoc (required by prost-build for prism-ocsf)
+        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       # Optimization 1: Swatinem/rust-cache — per-target shared key for release cache isolation
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-        if: steps.check_binary.outputs.binary_exists == 'true'
         with:
           cache-on-failure: true
           shared-key: release-${{ matrix.target }}
       - name: Build release binary
-        if: steps.check_binary.outputs.binary_exists == 'true'
-        run: cargo build --release --locked --target ${{ matrix.target }}
+        shell: bash
+        run: |
+          # DEFECT-REL001-MUSL-LIBSTDCXX-001: musl leg uses cargo-zigbuild (Zig C++ toolchain,
+          # musl-aware, no glibc symbol contamination); all other targets use cargo build.
+          if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-musl" ]]; then
+            cargo zigbuild --release --locked --target ${{ matrix.target }} -p prism-bin -p prism-dtu-demo-server
+          else
+            cargo build --release --locked --target ${{ matrix.target }} -p prism-bin -p prism-dtu-demo-server
+          fi
       - name: Strip binary (Unix)
-        if: steps.check_binary.outputs.binary_exists == 'true' && runner.os != 'Windows'
+        if: runner.os != 'Windows'
         run: strip target/${{ matrix.target }}/release/prism 2>/dev/null || true
+      - name: Strip demo-server (Unix)
+        if: runner.os != 'Windows'
+        run: strip target/${{ matrix.target }}/release/prism-dtu-demo-server 2>/dev/null || true
       - name: Create archive
-        if: steps.check_binary.outputs.binary_exists == 'true'
         shell: bash
         run: |
           TAG="${GITHUB_REF_NAME}"
@@ -77,35 +147,53 @@ jobs:
           else
             tar czf "${ARCHIVE}" -C target/${{ matrix.target }}/release prism
           fi
-          echo "ARCHIVE=${ARCHIVE}" >> $GITHUB_ENV
-      - name: Compute SHA-256 checksum
-        if: steps.check_binary.outputs.binary_exists == 'true'
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
+      - name: Wrap prism-dtu-demo-server for artifact upload
         shell: bash
         run: |
-          if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum "${{ env.ARCHIVE }}" >> checksums.txt
+          if [ "${{ matrix.archive_ext }}" = "zip" ]; then
+            cd target/${{ matrix.target }}/release
+            7z a "../../../prism-dtu-demo-server-${{ matrix.target }}.zip" prism-dtu-demo-server.exe
           else
-            shasum -a 256 "${{ env.ARCHIVE }}" >> checksums.txt
+            tar czf prism-dtu-demo-server-${{ matrix.target }}.tar.gz \
+              -C target/${{ matrix.target }}/release prism-dtu-demo-server
+          fi
+      - name: Compute SHA-256 checksum
+        shell: bash
+        # F-REL001-P1-001 fix: ARCHIVE was set via GITHUB_ENV in the prior step and is available
+        # as a plain shell variable. Using "$ARCHIVE" (not "${{ env.ARCHIVE }}") prevents the
+        # Actions runner from textually substituting a tag-derived value into bash source code,
+        # eliminating the CWE-78 command injection path.
+        run: |
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$ARCHIVE" >> checksums.txt
+          else
+            shasum -a 256 "$ARCHIVE" >> checksums.txt
           fi
       - name: Attest build provenance
-        if: steps.check_binary.outputs.binary_exists == 'true'
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-path: ${{ env.ARCHIVE }}
       - name: Upload artifacts
-        if: steps.check_binary.outputs.binary_exists == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-${{ matrix.target }}
           path: |
             ${{ env.ARCHIVE }}
             checksums.txt
+      - name: Upload demo-server artifact (job-to-job)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: prism-dtu-demo-server-${{ matrix.target }}
+          path: prism-dtu-demo-server-${{ matrix.target }}.${{ matrix.archive_ext }}
 
   publish-release:
     name: Create GitHub Release
     needs: build-release
-    if: needs.build-release.outputs.binary_exists == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write  # SEC-002: least-privilege — gh release create/upload only
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Download all artifacts
@@ -120,86 +208,45 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${{ github.ref_name }}" --title "Prism ${{ github.ref_name }}" --generate-notes artifacts/release-*/*.tar.gz artifacts/release-*/*.zip checksums.txt
-
-  homebrew-update:
-    name: Update Homebrew formula
-    needs: build-release
-    if: needs.build-release.outputs.binary_exists == 'true'
-    runs-on: ubuntu-latest
-    # TD-WV0-11: no job-level env — HOMEBREW_TAP_TOKEN scoped to step-level only
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: 1898co/homebrew-tap
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          path: homebrew-tap
-      - name: Download macOS aarch64 artifact for checksum
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: release-aarch64-apple-darwin
-          path: artifacts/
-      - name: Update Formula/prism.rb
-        shell: bash
+          # F-REL001-P1-001 fix: bind tag via env: map so the value reaches bash as an
+          # environment variable rather than as textual substitution into bash source.
+          # An attacker-controlled tag like v1.0.0$(id) would execute via the old
+          # TAG="${{ github.ref_name }}" form; the env: binding eliminates that path.
+          TAG: ${{ github.ref_name }}
+        # Array form avoids empty positional arg when NOT prerelease.
+        # gh does NOT auto-detect --prerelease from tag format (research U3).
+        # F-REL001-P9-001: idempotent re-run guard — the 'gh release upload --clobber'
+        # path is reachable only when: (a) this publish step failed transiently AFTER
+        # 'gh release create' succeeded but before all assets were uploaded (e.g., an
+        # upload timeout on a later asset), (b) an operator manually re-runs an
+        # already-successful workflow, or (c) a tag was deleted and re-pushed while a
+        # prior release still exists. A failed build-release matrix leg means this
+        # step never ran (publish-release needs: build-release), so no release exists
+        # yet and the re-run takes the CREATE path — matrix leg failure is not a
+        # trigger for --clobber. Prerelease status on the existing release persists;
+        # upload --clobber is sufficient on the re-run path.
         run: |
-          TAG="${{ github.ref_name }}"
-          URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/prism-${TAG}-aarch64-apple-darwin.tar.gz"
-          SHA256=$(grep "aarch64-apple-darwin" artifacts/checksums.txt | awk '{print $1}')
-          sed -i "s|url \".*\"|url \"${URL}\"|" homebrew-tap/Formula/prism.rb
-          sed -i "s|sha256 \".*\"|sha256 \"${SHA256}\"|" homebrew-tap/Formula/prism.rb
-      - name: Commit formula changes
-        shell: bash
-        working-directory: homebrew-tap
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "update-prism-${{ github.ref_name }}"
-          git add Formula/prism.rb
-          git commit -m "prism ${{ github.ref_name }}"
-          git push origin "update-prism-${{ github.ref_name }}"
-      - name: Create Homebrew tap PR
-        shell: bash
-        working-directory: homebrew-tap
-        env:
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-        run: gh pr create --repo 1898co/homebrew-tap --title "Update prism to ${{ github.ref_name }}" --body "Automated formula update for Prism ${{ github.ref_name }}" --base main
-
-  chocolatey-publish:
-    name: Chocolatey publish
-    needs: build-release
-    if: needs.build-release.outputs.binary_exists == 'true'
-    runs-on: windows-latest
-    # TD-WV0-11: no job-level env — CHOCOLATEY_API_KEY scoped to step-level only
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Download Windows artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: release-x86_64-pc-windows-msvc
-          path: artifacts/
-      - name: Pack and push Chocolatey package
-        shell: pwsh
-        env:
-          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
-        run: |
-          choco pack packaging/chocolatey/prism.nuspec
-          choco push --source https://push.chocolatey.org/ --api-key $env:CHOCOLATEY_API_KEY
-
-  crates-io-publish:
-    name: Publish to crates.io
-    needs: build-release
-    if: needs.build-release.outputs.binary_exists == 'true'
-    runs-on: ubuntu-latest
-    # TD-WV0-11: no job-level env — CARGO_REGISTRY_TOKEN scoped to step-level only
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-      - name: Publish prism-spec-engine (only crate without publish = false)
-        # All other workspace crates carry `publish = false` in their Cargo.toml.
-        # prism-{core,ocsf,security,mcp,storage,credentials,dtu-*} are all publish = false.
-        # prism-{query,operations,bin} do not exist yet — add cargo publish lines here
-        # when those crates are created and ready for crates.io.
-        # TODO(future): add prism-core, prism-ocsf, prism-security once publish = false is removed
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-        run: cargo publish -p prism-spec-engine --no-verify
+          set -euo pipefail
+          PRERELEASE_ARGS=()
+          if [[ "$TAG" == *-* ]]; then
+            PRERELEASE_ARGS+=(--prerelease)
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # Asset globs guaranteed non-empty: needs: build-release admits only all-5-legs-success
+            # (4 tar.gz + 1 zip); if the matrix changes (e.g., Windows leg removed), revisit .zip glob. F-REL001-PR1-003
+            gh release upload "$TAG" --clobber \
+              artifacts/release-*/*.tar.gz \
+              artifacts/release-*/*.zip \
+              checksums.txt
+          else
+            # empty-array-safe under set -u on any bash; F-REL001-PR1-002
+            # Asset globs guaranteed non-empty: needs: build-release admits only all-5-legs-success
+            # (4 tar.gz + 1 zip); if the matrix changes (e.g., Windows leg removed), revisit .zip glob. F-REL001-PR1-003
+            gh release create "$TAG" \
+              --title "Prism $TAG" \
+              --generate-notes \
+              ${PRERELEASE_ARGS[@]+"${PRERELEASE_ARGS[@]}"} \
+              artifacts/release-*/*.tar.gz \
+              artifacts/release-*/*.zip \
+              checksums.txt
+          fi
