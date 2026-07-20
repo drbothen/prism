@@ -1,9 +1,10 @@
 # Evidence Report — S-REL-001
 ## devops: release.yml repair
 
-**Story version:** v0.22
+**Story version:** v0.24
 **Branch:** feature/S-REL-001
 **HEAD at evidence capture:** 384d520e
+**Representativeness:** Commits after 384d520e on this branch touch ONLY `docs/demo-evidence/S-REL-001/**` (evidence files themselves); the covered subjects — `.github/workflows/release.yml`, `.github/workflows/ci.yml`, `.github/workflows/requirements-musl-ci.txt`, `Justfile`, `crates/prism-credentials/`, `tests/ci-gate/`, `tests/release-gate/` — are byte-identical between 384d520e and the PR HEAD, so the 81/81 result is representative of the merged tree. Verified: `git diff 384d520e..HEAD --name-only` lists only `docs/demo-evidence/S-REL-001/*` files.
 **Date:** 2026-07-20
 **Produced by:** vsdd-factory:demo-recorder
 
@@ -349,8 +350,8 @@ Reference: `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md` (DO NOT MODIFY).
 | Gate | Outcome | Reference |
 |------|---------|-----------|
 | LOCAL adversarial cascade | CONVERGED — 3-CLEAN @ 75ce8cbf (23 passes, BC-5.39.001); evidence regenerated @ 384d520e (F-REL001-PR8-001) | .factory/STATE.md D-1880 |
-| TAP release-gate suite | GREEN — 81/81 @ 384d520e | This report §TAP Suite Full Output |
-| actionlint | GREEN — exit 0, zero findings @ 384d520e | This report §AC-011 |
+| TAP release-gate suite | GREEN — 81/81 @ 384d520e (representative of PR HEAD — see Representativeness note above) | This report §TAP Suite Full Output |
+| actionlint | GREEN — exit 0, zero findings @ 384d520e (representative of PR HEAD — covered subjects unchanged after capture HEAD) | This report §AC-011 |
 | Task-12 dry-run gate | GREEN — Attempt 6, run 29721841906 (2026-07-20) | fork-tag-dry-run.md §Attempt 6 |
 | Story-level holdout gate | HUMAN-DIRECTED WAIVER — D-1880 adjudication (2026-07-20): dry-run gate stands as observed-output evidence for this CI-infra story (no MCP stdio surface; holdout-evaluator cannot drive CI/CD workflow execution against live GitHub Actions) | .factory/STATE.md D-1880 |
 
