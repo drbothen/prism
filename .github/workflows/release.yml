@@ -7,7 +7,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read  # SEC-002: tightened — each job declares its own grant
 
 # chocolatey-publish removed (DEF-REL-002): packaging/chocolatey/ does not exist.
 # Chocolatey packaging is a v1.1+ consideration. When re-enabled, secrets.CHOCOLATEY_API_KEY required.
@@ -177,6 +177,8 @@ jobs:
     name: Create GitHub Release
     needs: build-release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # SEC-002: least-privilege — gh release create/upload only
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Download all artifacts
