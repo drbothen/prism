@@ -22,6 +22,7 @@ jobs:
   build-release:
     name: Build release (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
     permissions:
       contents: read
       id-token: write      # required for OIDC attestation
@@ -177,6 +178,7 @@ jobs:
     name: Create GitHub Release
     needs: build-release
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write  # SEC-002: least-privilege — gh release create/upload only
     steps:
@@ -210,4 +212,23 @@ jobs:
         # yet and the re-run takes the CREATE path — matrix leg failure is not a
         # trigger for --clobber. Prerelease status on the existing release persists;
         # upload --clobber is sufficient on the re-run path.
-        run: PRERELEASE_ARGS=(); if [[ "$TAG" == *-* ]]; then PRERELEASE_ARGS+=(--prerelease); fi; if gh release view "$TAG" >/dev/null 2>&1; then gh release upload "$TAG" --clobber artifacts/release-*/*.tar.gz artifacts/release-*/*.zip checksums.txt; else gh release create "$TAG" --title "Prism $TAG" --generate-notes "${PRERELEASE_ARGS[@]}" artifacts/release-*/*.tar.gz artifacts/release-*/*.zip checksums.txt; fi
+        run: |
+          set -euo pipefail
+          PRERELEASE_ARGS=()
+          if [[ "$TAG" == *-* ]]; then
+            PRERELEASE_ARGS+=(--prerelease)
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" --clobber \
+              artifacts/release-*/*.tar.gz \
+              artifacts/release-*/*.zip \
+              checksums.txt
+          else
+            gh release create "$TAG" \
+              --title "Prism $TAG" \
+              --generate-notes \
+              "${PRERELEASE_ARGS[@]}" \
+              artifacts/release-*/*.tar.gz \
+              artifacts/release-*/*.zip \
+              checksums.txt
+          fi
