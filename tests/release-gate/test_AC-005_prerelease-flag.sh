@@ -97,4 +97,123 @@ else
     "AC-005 FAIL: expected '\"\${PRERELEASE_ARGS[@]}\"' in release.yml — array populated but never passed to gh release create, --prerelease silently dropped"
 fi
 
+# ====================================================================
+# CWE-78 injection regression guard — F-REL001-P1-001 / F-REL001-P18-001
+#
+# F-REL001-P1-001 fix: ref/event-derived GitHub context values
+# (github.ref_name, github.event.*, github.head_ref) and env: re-exposure
+# values (env.ARCHIVE) are bound via an explicit env: map and accessed
+# inside run: scripts as plain shell variables ($TAG, $ARCHIVE).  They
+# must NEVER appear as ${{ }} textual substitutions inside run: script
+# bodies.  The GitHub Actions runner performs ${{ }} substitution BEFORE
+# passing the script text to bash; an attacker-controlled tag like
+# v1.0.0$(id) would therefore be interpolated into the bash source code
+# before bash sees it — the classic CWE-78 OS command injection path.
+#
+# F-REL001-P18-001 (MED): S-REL-003/004 will add more run: blocks;
+# without this regression guard the forbidden pattern could be silently
+# reintroduced.  This guard catches it mechanically on every suite run.
+#
+# Allowlist — correctly used inside run: bodies, not an injection risk:
+#   ${{ matrix.target }}, ${{ matrix.archive_ext }} — workflow-controlled
+#   matrix values defined in the jobs.*.strategy.matrix block, not
+#   reachable by an external attacker.
+#   ${{ secrets.* }} — repo-controlled, never set from user input.
+#   ${{ runner.* }} — runner-controlled metadata.
+#
+# Design: POSIX awk state machine extracts the text of every run: block
+# (both block-scalar "run: |" and inline "run: command" forms).  Four
+# separate negative assertions then check the extracted text for each
+# forbidden expression class.  A preflight assertion verifies the awk
+# produced non-empty output so a broken awk cannot create a false pass
+# on the negative checks.
+# ====================================================================
+
+# Extract all run: block bodies using a POSIX awk state machine.
+# Algorithm:
+#   - Detect "run:" key (followed by a space) at any indentation.
+#   - Record the indent depth of the "run:" key as run_indent.
+#   - For block-scalar forms ("run: |"), subsequent lines at strictly
+#     greater indent are the body; blank lines are retained.
+#   - For inline forms ("run: command"), the rest-of-line after "run: "
+#     is the body (one line).
+#   - Exit capture when a non-blank line at indent <= run_indent is seen.
+# Verified against release.yml: produces exactly 63 lines covering all
+# 9 run: blocks; all ${{ }} expressions in that output are matrix.* only.
+run_blocks=$(awk '
+  BEGIN { cap = 0; rind = 0 }
+  {
+    match($0, /^[[:space:]]*/); ci = RLENGTH
+    s = substr($0, ci + 1)
+    if (cap) {
+      if (s != "" && ci <= rind) { cap = 0 }
+      else { print; next }
+    }
+    if (!cap && s ~ /^run:[[:space:]]/) {
+      cap = 1; rind = ci
+      r = substr(s, 5)
+      match(r, /^[[:space:]]*/); r = substr(r, RLENGTH + 1)
+      if (r != "" && r !~ /^[|>]/) print r
+    }
+  }
+' "$REL_YML")
+
+# 8. Preflight: awk must produce non-empty output.
+# An empty result would silently false-pass assertions 9-12 (negative
+# checks against empty text always succeed).
+if [ -n "$run_blocks" ]; then
+  tap_pass "AC-005: run: block extraction non-empty (awk state-machine preflight)"
+else
+  tap_fail "AC-005: run: block extraction empty — awk state-machine broken" \
+    "AC-005 FAIL: awk produced no output from release.yml run: blocks — assertions 9-12 would false-pass; fix awk"
+fi
+
+# 9. No ${{ github.ref* }} in run: blocks.
+# Covers github.ref, github.ref_name, github.ref_type.
+# Correct pattern: bind via env: map (env: TAG: ${{ github.ref_name }}) and
+# use plain $TAG in run: bodies.  CWE-78 / F-REL001-P1-001 / F-REL001-P18-001.
+if echo "$run_blocks" | grep -qF '${{ github.ref' 2>/dev/null; then
+  tap_fail "AC-005: forbidden \${{ github.ref* }} in run: block (CWE-78 / F-REL001-P1-001 regression)" \
+    "AC-005 FAIL: '\${{ github.ref' must not appear in run: script bodies — bind via env: map and use plain \$TAG (F-REL001-P1-001 / F-REL001-P18-001 / CWE-78)"
+else
+  tap_pass "AC-005: \${{ github.ref* }} absent from all run: blocks (F-REL001-P1-001 / F-REL001-P18-001)"
+fi
+
+# 10. No ${{ github.event* }} in run: blocks.
+# github.event.* values (PR body, commit message, etc.) are fully
+# attacker-controlled via PR creation or commit authorship.
+# CWE-78 / F-REL001-P1-001 / F-REL001-P18-001.
+if echo "$run_blocks" | grep -qF '${{ github.event' 2>/dev/null; then
+  tap_fail "AC-005: forbidden \${{ github.event* }} in run: block (CWE-78 / F-REL001-P1-001 regression)" \
+    "AC-005 FAIL: '\${{ github.event' must not appear in run: script bodies — event-derived values are attacker-controlled via PR/commit"
+else
+  tap_pass "AC-005: \${{ github.event* }} absent from all run: blocks (F-REL001-P1-001 / F-REL001-P18-001)"
+fi
+
+# 11. No ${{ github.head_ref }} in run: blocks.
+# head_ref is the PR source branch name — attacker-controlled when a PR
+# is opened from a fork with an arbitrary branch name.
+# CWE-78 / F-REL001-P1-001 / F-REL001-P18-001.
+if echo "$run_blocks" | grep -qF '${{ github.head_ref' 2>/dev/null; then
+  tap_fail "AC-005: forbidden \${{ github.head_ref }} in run: block (CWE-78 / F-REL001-P1-001 regression)" \
+    "AC-005 FAIL: '\${{ github.head_ref' must not appear in run: script bodies — PR source branch name is attacker-controlled"
+else
+  tap_pass "AC-005: \${{ github.head_ref }} absent from all run: blocks (F-REL001-P1-001 / F-REL001-P18-001)"
+fi
+
+# 12. No ${{ env.* }} in run: blocks (env re-exposure vector).
+# If an env var (e.g. ARCHIVE) was transitively set from a ref-derived
+# expression, using ${{ env.ARCHIVE }} inside run: re-opens CWE-78:
+# the runner substitutes the env value textually into bash source before
+# bash sees it.  Correct pattern: use the plain shell variable form
+# ($ARCHIVE, $TAG) which bash receives as an already-resolved string.
+# The ${{ env.ARCHIVE }} form is allowed in with:/env: keys (not run:).
+# F-REL001-P1-001 / F-REL001-P18-001 / CWE-78.
+if echo "$run_blocks" | grep -qF '${{ env.' 2>/dev/null; then
+  tap_fail "AC-005: forbidden \${{ env.* }} in run: block (env re-exposure / F-REL001-P1-001 regression)" \
+    "AC-005 FAIL: '\${{ env.' must not appear in run: script bodies — use plain shell var (\$ARCHIVE, \$TAG) not \${{ env.VAR }} (F-REL001-P1-001 / F-REL001-P18-001 / CWE-78)"
+else
+  tap_pass "AC-005: \${{ env.* }} absent from all run: blocks (F-REL001-P1-001 / F-REL001-P18-001 env-re-exposure vector)"
+fi
+
 tap_done

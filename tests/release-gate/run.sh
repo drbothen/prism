@@ -30,7 +30,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # This floor exists so silent coverage shrink fails loud (F-REL001-P7-001).
 # Precedent: scripts/check-non-exhaustive.sh EXPECTED=92 pattern.
 EXPECTED_TEST_FILES=11
-EXPECTED_ASSERTIONS=75
+EXPECTED_ASSERTIONS=80
 
 PASS=0
 FAIL=0
