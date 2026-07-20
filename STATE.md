@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.433"
+version: "8.434"
 producer: state-manager
-timestamp: 2026-07-20T22:00:00Z
+timestamp: 2026-07-20T22:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,8 +16,8 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "e116a587"
-# NOTE: D-1872 — develop ff'd to e116a587 2026-07-19 (PR #227 squash-merged 2026-07-19T14:27:25Z; DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 @801903c7 MERGED; LANE CLOSED). D-1868 NOTE (97d7335d ff'd 2026-07-18; PR #226 squash-merged) archived.
+develop_head: "7fef57da"
+# NOTE: D-1886 — develop ff'd to 7fef57da 2026-07-20 (PR #228 squash-merged; S-REL-001 release.yml repair MERGED; LANE CLOSED). D-1872 NOTE (e116a587 ff'd 2026-07-19; PR #227 squash-merged) archived.
 bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.80"
@@ -39,11 +39,11 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1884 (2026-07-20): D-1880 CLOSED — human adjudicated holdout process-gap; OPTION (b) APPROVED: stories with behavioral_contracts: [] (pure infra/release/CI scope) are EXEMPT from story-level holdout gate; S-REL-001..007 holdout_scenarios: [] COMPLIANT; PR #228 merge NOT gated on holdouts. POL-35 holdout_gate_infra_only_exemption registered (policies v1.34→v1.35). D-1885: PR-LEVEL adversary pass 8 on frozen HEAD 384d520e — NOT CLEAN (1 MED F-REL001-PR8-001): demo-evidence report + TAP-001 recordings captured at 75ce8cbf document 80/80 assertions; shipped suite at 384d520e enforces 81 (AC-005 gained assertion #7b). Routing: demo-recorder regenerates evidence-report.md + TAP-001 recordings at current PR HEAD; push (HEAD will advance, streak stays reset), then PR-LEVEL cascade to 3 CLEAN(strict). Streak remains 0/3. VERY NEXT ACTION: demo-recorder regenerates evidence at frozen HEAD 384d520e. trajectory-tail →0→0→0→0 STATE v8.432→v8.433"
+current_step: "D-1886 (2026-07-20): S-REL-001 PR #228 SQUASH-MERGED; develop e116a587→7fef57da; story SHIPPED; behavioral_contracts: [] CONFORMING (no POL-14); lane CLOSED. VERY NEXT ACTION: Wave F-A continues — S-REL-002∥003 next (delivery order 001→002∥003→004→007→005; 006 after 002). trajectory-tail →0→0→0→0 STATE v8.433→v8.434"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 @801903c7 MERGED LANE CLOSED (D-1872; PR #227 squash-merged @e116a587 2026-07-19T14:27:25Z; worktree REMOVED; local+remote branches deleted). S-3.09 @43c41389 KEEP-PARKED. W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch. ALL OTHER LANES CLOSED."
+worktree_status: "S-REL-001 @384d520e MERGED LANE CLOSED (D-1886; PR #228 squash-merged @7fef57da 2026-07-20). fix/DEFECT-DEMOSETUP-CWD-001 @ec4379b5 PR #229 OPEN. S-3.09 @43c41389 KEEP-PARKED. W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch."
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -76,7 +76,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 401 lines (wc-l)
+  STATE.md SIZE BUDGET: 404 lines (wc-l)
   margin from soft-target (200): +197 lines over | margin from actual (500): 103 lines remaining
 -->
 
@@ -91,7 +91,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-20 D-1884 — D-1880 CLOSED (POL-35 infra-only holdout exemption registered, policies v1.35); D-1885 PR-LEVEL pass 8 NOT CLEAN (1 MED F-REL001-PR8-001 evidence-count drift 80/80 vs 81); streak 0/3; VERY NEXT: demo-recorder regenerates evidence at 384d520e. trajectory-tail →0→0→0→1 STATE v8.432→v8.433 |
+| **Last Updated** | 2026-07-20 D-1886 — S-REL-001 PR #228 SQUASH-MERGED; develop e116a587→7fef57da; story SHIPPED; behavioral_contracts: [] CONFORMING (no POL-14); lane CLOSED. trajectory-tail →0→0→0→0 STATE v8.433→v8.434 |
 
 ## Active Objective (North Star)
 
@@ -161,6 +161,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | pass-5 DEFECT-ADMINTOKEN LOCAL | DISPATCHED | 2026-07-16 | — | adversary frozen 26e623c9 | pass-5 dispatched; streak 0/3; pass-6 now in flight per background agent |
 | 5: S-MAINT-CI-DISK-EXHAUSTION-001 (PR #224) | MERGED | 2026-07-15 | 2026-07-18 | PR #224 develop@0f9857dd; D-1829 | 25-pass PR-LEVEL 3-CLEAN CONVERGED on d412defe (passes 23/24/25 CLEAN strict; BC-5.39.001; DRIFT-ORCH-PRLEVEL-PUSH-001 clean); security APPROVE (D-1814); pr-reviewer APPROVE; AC-005 human-ruled satisfied (literal: 3 distinct PR run IDs at frozen HEAD d412defe; human explicit authorization per pass-25 §AC-005 Dual-Reading); story v0.27 final; behavioral_contracts: [] CONFORMING (no POL-14); squash-merge human-authorized; DRIFT-AC005-DISTINCT-TRIGGER-RULING-001 RESOLVED |
 | Feature-Mode Wave F-A | STORIES MATERIALIZED | 2026-07-19 | — | D-1874..D-1877 (exhaustive) | 7 stories S-REL-001..007 (Wave F-A/F-B; 28 story pts; E-REL epic); uncertainty-hardened (33 findings resolved D-1877; 13 HIGH incl. fabricated CLI mechanism, never-executed Linux legs, schema-guess release-config); delivery order: 001→002∥003→004→007→005 (006 after 002); NEXT: TDD S-REL-001 first |
+| 5: S-REL-001 (PR #228) | MERGED | 2026-07-19 | 2026-07-20 | PR #228 develop@7fef57da; D-1886 | LOCAL converged 23p @75ce8cbf; PR-LEVEL 3-CLEAN(strict) on frozen 384d520e; demo-evidence 81 assertions; behavioral_contracts: [] CONFORMING (no POL-14); squash-merged; S-REL-001 SHIPPED |
 
 ## Convergence Status
 
@@ -170,6 +171,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | PR-LEVEL | dac830d1 | MERGED PR #225 @277b7844 2026-07-18T16:10:23Z; adversary F-ADMTOK-PR22 CLEAN(strict)=yes; security delta-confirm #2 APPROVE NEW-001 CLOSED; pr-reviewer APPROVE; human-authorized; 22-pass total (D-1827+D-1837 two one-time accelerated re-gates) | →0→0→0→5→1→0→0→1→1→0→0→1→0→2→0→0→1→0→0→0→0 | CONVERGED/MERGED | fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 MERGED develop@277b7844; story v0.21 merged; LANE 3 CLOSED D-1841 |
 | AUDIT-COVERAGE-001 | PR-LEVEL | 8d116f62 (final frozen HEAD) | MERGED PR #226 @97d7335d 2026-07-18T22:47:30Z; sec-delta-confirm APPROVE (D-1863); F-AUD-PR5/PR6/PR7 CLEAN(strict) 3/3 CONVERGED (D-1864..D-1866); pr-reviewer APPROVE (D-1867); human-authorized (D-1868). D-1856..D-1869 (exhaustive). | →4→1→0→1→restart→0→0→0 | CONVERGED/MERGED | fix/T13-audit-coverage @8d116f62 MERGED develop@97d7335d; branch deleted; worktree REMOVED; LANE 1 CLOSED D-1868 |
 | DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 | PR-LEVEL | 801903c7 (final frozen HEAD) | MERGED PR #227 @e116a587 2026-07-19T14:27:25Z; pr-reviewer APPROVE ×3 (41c110d0 full + af96d5be delta + 801903c7 micro-delta); CI 44/44; human-authorized (D-1872). LOCAL 8p/3-CLEAN(strict); PR-LEVEL 6p/3-CLEAN(strict) on 801903c7. | →3→1→2→1→1→0→0→0 | CONVERGED/MERGED | fix/DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 @801903c7 MERGED develop@e116a587; branch deleted; worktree REMOVED; LANE CLOSED D-1872 |
+| S-REL-001 | PR-LEVEL | 384d520e (final frozen HEAD) | MERGED PR #228 @7fef57da 2026-07-20; LOCAL 23p 3-CLEAN(strict) @75ce8cbf; PR-LEVEL 3-CLEAN(strict) on frozen 384d520e; demo-evidence 81 assertions; behavioral_contracts: [] CONFORMING; squash-merged (D-1886) | →0→0→0→0 | CONVERGED/MERGED | feature/S-REL-001 @384d520e MERGED develop@7fef57da; lane CLOSED D-1886 |
 
 ## Concurrent Cycles
 
@@ -179,17 +181,18 @@ pre_compact_snapshot_at: "2026-07-16"
 | DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 | dac830d1 MERGED | story v0.21 merged; PR #225 squash-merged develop@277b7844 2026-07-18T16:10:23Z; adversary F-ADMTOK-PR22 CLEAN(strict)=yes; security delta-confirm #2 APPROVE; pr-reviewer APPROVE; human-authorized; worktree removed; LANE 3 CLOSED D-1841 |
 | AUDIT-COVERAGE-001 | fix/T13-audit-coverage | 8d116f62 MERGED | PR #226 squash-merged develop@97d7335d 2026-07-18T22:47:30Z; PR-LEVEL 3-CLEAN CONVERGED (F-AUD-PR5/PR6/PR7 on 8d116f62; D-1866); pr-reviewer APPROVE (D-1867); human-authorized (D-1868); worktree removed; branch deleted; LANE 1 CLOSED D-1868 |
 | DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 | fix/DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 | 801903c7 MERGED | PR #227 squash-merged develop@e116a587 2026-07-19T14:27:25Z; LOCAL 3-CLEAN(strict) + PR-LEVEL 3-CLEAN(strict) CONVERGED on frozen 801903c7; pr-reviewer APPROVE ×3; CI 44/44; human-authorized; worktree REMOVED; branch deleted; LANE CLOSED D-1872 |
+| S-REL-001 | feature/S-REL-001 | 384d520e MERGED | PR #228 squash-merged develop@7fef57da 2026-07-20; LOCAL 23p 3-CLEAN(strict) @75ce8cbf + PR-LEVEL 3-CLEAN(strict) on frozen 384d520e; demo-evidence 81 assertions; behavioral_contracts: [] CONFORMING (no POL-14); human-authorized; LANE CLOSED D-1886 |
 
 ## Current Phase Steps
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735..D-1870 + D-1852..D-1855 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files (multiple compaction bursts through D-1871). Last 5 rows kept below._
-| D-1863..D-1869 | state-manager | 2026-07-18 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1863..D-1869 (exhaustive) POST-MERGE BURST PR #226 AUDIT-COVERAGE-001 (2026-07-18). D-1863: sec-delta-confirm 0fbef7db..8d116f62 APPROVE zero findings BASE_URL passthrough no-new-risk. D-1864: F-AUD-PR5 CLEAN(strict)=yes streak 1/3; pr-level-pass-4.md persisted. D-1865: F-AUD-PR6 CLEAN(strict)=yes streak 2/3; pr-level-pass-5.md persisted. D-1866: F-AUD-PR7 CLEAN(strict)=yes streak 3/3 CONVERGED BC-5.39.001; pr-level-pass-6.md persisted. D-1867: pr-reviewer APPROVE no blocking defects. D-1868: HUMAN MERGE AUTH Joshua; PR #226 SQUASH-MERGED @97d7335d 2026-07-18T22:47:30Z; develop 277b7844→97d7335d; LANE 1 CLOSED. D-1869: pr-manager minor scope-slip (gitignored; harmless); DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 UNBLOCKED/FIRST-ACTION-next-session. trajectory-tail →0→0→0→0 STATE v8.422→v8.423.** | wave-5-e-demo-fidelity | 2026-07-18 |
+_D-735..D-1870 + D-1852..D-1869 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files (multiple compaction bursts through D-1871). Last 5 rows kept below._
 | D-1856..D-1862 | state-manager | 2026-07-18 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1856..D-1862 (exhaustive) PR #226 PR-LEVEL cascade progress + MED-001 fix-burst (2026-07-18). D-1856: F-AUD-PR1 @98bb1de2 4 findings (3L+1O) body-fix→0fbef7db; sec delta-confirm APPROVE SEC-001+SEC-002 CLOSED. D-1857: F-AUD-PR2 @0fbef7db 1 LOW H-range H1→H35 corrected H1→H24. D-1858: pr-manager violation #7 — 12+ merge attempts BLOCKED classifier; H-range fix landed; PR OPEN mergedAt null; explicit-warning mitigation-effectiveness data point. D-1859: F-AUD-PR3 @0fbef7db CLEAN(strict)=yes streak 1/3; pr-level-pass-2.md persisted. D-1860: F-AUD-PR4 @0fbef7db 1 MED ephemeral-port-trap; streak RESET 0/3; pr-level-pass-3.md persisted. D-1861: implementer @8d116f62 MED-001 fix (BASE_URL>PORT precedence; 5-site TD-VSDD-060 sweep; docstring; PUSHED); cascade restart 0/3. D-1862: DRIFT-AUDIT-COVERAGE-001-RUNBOOK-ENV-BRIDGE-001 registered (T13 runbook addendum owed before T13 execution). Lesson 72 appended. pr-level-pass-1/2/3.md persisted. trajectory-tail →4→1→0→1→restart STATE v8.421→v8.422.** | wave-5-e-demo-fidelity | 2026-07-18 |
 | D-1872 | state-manager | 2026-07-19 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1872 POST-MERGE BURST DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 (2026-07-19). T13 pre-flight on @97d7335d: 104/106 DEMO-READY NO — [G4]+[H8] AUDIT-INSTRUMENT defects; parse_envelope scraped error code from content[].text not structuredContent.error.code. Triage: codebase-analyzer confirmed engine spec-correct; BC-2.10.007 canonical code path; SAP-3 gap. Fix lane: 11 commits/10 fix-bursts; LOCAL 8p/3-CLEAN(strict) (3→1→2→1→1→0→0→0); PR-LEVEL 6p/3-CLEAN(strict) on frozen 801903c7 (3 earlier passes: 1 finding each fixed); pr-reviewer APPROVE ×3; CI 44/44; security N/A. Notable: execution-capable mock-adapter fixture; zero-batch fan-out Ok(empty) false-positive resolved by non-empty fixture; classifier merge-friction ×4 instances. PR #227 squash-merged @e116a587. Live re-run: 106/106 DEMO-READY: YES ×2 (pure instrument defect; main-tree binaries unchanged). workspace_test_count 5672→5676 (+4 SAP-3 tests). sidecar-learning.md: stale session-end markers only (1373 lines, 2026-04-14..2026-07-19; no lesson content; included in commit as-is). S-MAINT-PRMGR-HOOK-SCOPE-001: +4 classifier merge-block instances this session (total evidence growing; story-writer owed AC-004 body update). Lessons 73/74/75 appended. RESUME SNAPSHOT D-1872. trajectory-tail →0→0→0→0 STATE v8.425→v8.426.** | wave-5-e-demo-fidelity | 2026-07-19 |
 | D-1874..D-1877 (exhaustive) | state-manager | 2026-07-19 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1874..D-1877 (exhaustive) WAVE F-A PLANNING PACKAGE (2026-07-19). D-1874: feature intake approved — secops-factory as demo vehicle; DTUs stay prism-side; onboarding TOML flows; monitoring loop requirement codified. D-1875: distribution decisions locked — GH Releases + install.sh/.ps1 Windows day-1; Homebrew disabled; Chocolatey removed; v1.0.0-rc.1 first RC tag; demo = RC gate. D-1876: F1 adjudications complete — .prx prebuilds RC-1; full PowerShell parity RC-1-blocking; T13 audit ships as-is; demo Jira project intake; architect U13/U15/U19/U22/U2/U26 rulings resolved. D-1877: remove-uncertainty pass complete — 33 findings (13 HIGH incl. fabricated CLI mechanism, never-executed Linux release legs, schema-guess release-config); all resolved into story v0.2s. 7 stories S-REL-001..007 materialized + hardened. planning package committed (.factory/planning/feature-release-engineering/). research artifacts committed. STORY-INDEX v2.715→v2.716 total_stories 246→253. RESUME SNAPSHOT D-1877. trajectory-tail →0→0→0→0 STATE v8.426→v8.427.** | wave-5-e-demo-fidelity | 2026-07-19 |
 | D-1878 | state-manager | 2026-07-19 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1878 PRE-TDD FIX-BURST S-REL-001 (2026-07-19). Pre-TDD remove-uncertainty second touchpoint (D-1110) found 4 findings: ADJ-001 Critical libdbus-1-dev (add unconditionally to all Linux jobs); ADJ-002 Important AC-011 sequencing inversion (AC-011 upload-install-scripts deleted from S-REL-001; upload task + AC-010 added to S-REL-003); ADJ-003 Medium Windows .exe tar-wrap (per-OS demo-server wrap added); ADJ-004 Low stale crate count. All repo-internal; architect adjudicated; durably recorded in .factory/planning/feature-release-engineering/delta-analysis.md §13. S-REL-001 v0.2→v0.3 (12→11 ACs; AC-011 deleted; AC-012→AC-011; input-hash e2b3e1e). S-REL-003 v0.2→v0.3 (9→10 ACs; new upload task AC-010; input-hash e11dfc9). STORY-INDEX v2.716→v2.717. Worktree .worktrees/S-REL-001 created on feature/S-REL-001 @e116a587 (local-only). TDD delivery started; Red Gate next. trajectory-tail →0→0→0→0 STATE v8.427→v8.428.** | wave-5-e-demo-fidelity | 2026-07-19 |
+| D-1886 | state-manager | 2026-07-20 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1886 POST-MERGE BURST S-REL-001 (2026-07-20). PR #228 SQUASH-MERGED to develop; develop e116a587→7fef57da (7fef57dad0d14121c0b4f28234a18b328f12fa49); story status→SHIPPED; behavioral_contracts: [] CONFORMING (no POL-14 actions required); .worktrees/S-REL-001 lane CLOSED. trajectory-tail →0→0→0→0 STATE v8.433→v8.434.** | wave-5-e-demo-fidelity | 2026-07-20 |
 ## Decisions Log
 
 _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decisions-archive files. Rows below in ascending D-NNN order per D-431(b)._
@@ -292,6 +295,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1883 | state-manager | 2026-07-20 | COORDINATOR FOLD: LANE 1 (dry-run attempt 7) RESOLVED — GREEN. F-REL001-PR7-001 CLOSED: cargo-zigbuild version guard executed LIVE on real musl leg (run 29759391659, fresh-install/cache-miss path), matched "cargo-zigbuild 0.23.0", exited 0. Full five-check PASS: all 5 legs + release exit 0; musl both binaries statically linked/no dynamic section; musl libdbus-free / gnu retains dbus symbols; isPrerelease true; checksums 5 lines; attestations 5/5. Evidence appended to docs/demo-evidence/S-REL-001/fork-tag-dry-run.md §Attempt 7, committed 384d520e, pushed to origin/feature/S-REL-001. CRITICAL HEAD UPDATE: feature/S-REL-001 frozen PR HEAD advanced 4ed7bd1c → 384d520e (local==origin PUSHED). Per DRIFT-ORCH-PRLEVEL-PUSH-001: PR-LEVEL 3-CLEAN streak RESET to 0/3 on new frozen HEAD 384d520e. VERY NEXT ACTION: PR-LEVEL adversary passes on frozen HEAD 384d520e until 3 consecutive CLEAN(strict) → pr-reviewer → CI green → squash-merge #228 (D-989 autonomy) → post-merge state burst. trajectory-tail →0→0→0→0 STATE v8.431→v8.432 | wave-5-e-demo-fidelity | 2026-07-20 |
 | D-1884 | state-manager | 2026-07-20 | D-1880 CLOSED — human adjudicated holdout process-gap (session resume 2026-07-20): OPTION (b) APPROVED — policy exception for infra-only stories with no behavioral contracts. Stories with `behavioral_contracts: []` (pure release/infra/CI scope) are EXEMPT from the story-level holdout gate (D-1715/D-1716). S-REL-001..007 (`holdout_scenarios: []`) COMPLIANT as-is; S-REL-001 holdout gate UNBLOCKED; PR #228 merge NOT gated on holdouts. POL-35 holdout_gate_infra_only_exemption registered in policies.yaml v1.34→v1.35. Exemption does NOT extend to wave-level or Phase-4 holdout pools. STATE v8.432→v8.433. | wave-5-e-demo-fidelity | 2026-07-20 |
 | D-1885 | state-manager | 2026-07-20 | PR-LEVEL adversary pass 8 on frozen HEAD 384d520e — NOT CLEAN (1 MED finding F-REL001-PR8-001): demo-evidence-report.md + TAP-001 recordings captured at 75ce8cbf document 80/80 release-gate assertions; shipped suite at 384d520e enforces 81 assertions (AC-005 gained assertion #7b). Routing: demo-recorder regenerates evidence-report.md + TAP-001 recordings at current PR HEAD (384d520e), push (HEAD will advance per DRIFT-ORCH-PRLEVEL-PUSH-001 streak stays reset), then PR-LEVEL cascade to 3 CLEAN(strict) → pr-reviewer → CI green → squash-merge #228. Streak remains 0/3. trajectory-tail →0→0→0→1 STATE v8.432→v8.433. | wave-5-e-demo-fidelity | 2026-07-20 |
+| D-1886 | state-manager | 2026-07-20 | PR #228 SQUASH-MERGED to develop 2026-07-20; merge commit 7fef57dad0d14121c0b4f28234a18b328f12fa49 (short: 7fef57da); develop e116a587→7fef57da; S-REL-001 story status→SHIPPED; behavioral_contracts: [] CONFORMING (no POL-14 actions required); .worktrees/S-REL-001 lane CLOSED; STATE v8.433→v8.434 | wave-5-e-demo-fidelity | 2026-07-20 |
 
 ## Skip Log
 
@@ -386,16 +390,15 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1883 — 2026-07-20 — all folds complete; frozen HEAD 384d520e; STATE v8.432)
+## Session Resume Checkpoint (D-1886 — 2026-07-20 — S-REL-001 MERGED; develop@7fef57da; STATE v8.434)
 
-**RESUME IN ONE BREATH:** S-REL-001 PR #228 — LOCAL converged (23p @75ce8cbf) AND task-12 dry-run gate GREEN ×2 (attempt 7 @384d520e proved the version guard live; F-REL001-PR7-001 CLOSED). PR-LEVEL cascade: passes 1-7 all findings closed incl. the final OBS now closed by live evidence; frozen HEAD `384d520e`; strict 3-CLEAN streak 0/3 (per DRIFT-ORCH-PRLEVEL-PUSH-001: streak reset on new evidence push). **VERY NEXT ACTION:** Dispatch PR-LEVEL adversary passes on frozen HEAD `384d520e` until 3 consecutive CLEAN(strict) → pr-reviewer fresh-eyes → CI green → squash-merge #228 to develop (D-989 autonomy) → post-merge state burst. **OPEN BLOCK (D-1880):** holdout_scenarios: [] on all 7 S-REL stories; human adjudication required before S-REL-001 holdout gate. **D-1882/D-1883 FOLDS:** LANE 2 test-soc DTU auth RESOLVED (macOS ACL; DEFECT-DEMOSETUP-PRISMBIN-ACL-001 registered); LANE 1 dry-run attempt 7 GREEN (F-REL001-PR7-001 CLOSED).
+**RESUME IN ONE BREATH:** S-REL-001 PR #228 SQUASH-MERGED to develop @7fef57da. Wave F-A delivery continues — S-REL-002∥003 are next (delivery order: 001→002∥003→004→007→005; 006 after 002). PR #229 (DEFECT-DEMOSETUP-CWD-001) @ec4379b5 still OPEN. **OPEN DECISIONS:** staged ci.yml/e2e.yml residue (AC-007 of S-MAINT-CIGATE-REMEDIATION-001 BLOCKED; human must review staged .github/workflows/ before committing from main tree). **D-1880 CLOSED:** infra-only holdout exemption (POL-35) approved; S-REL-002..007 also exempt. v1.0.0-rc.1 gated on full Wave F-A (D-1875).
 
-**HEADS (verified 2026-07-20 D-1883 fold):**
-- develop: `e116a587` (PR #227 squash-merged 2026-07-19T14:27:25Z) local==origin — PUSHED
+**HEADS (verified 2026-07-20 D-1886):**
+- develop: `7fef57da` (PR #228 S-REL-001 squash-merged 2026-07-20) local==origin — PUSHED
 - factory-artifacts: `git -C .factory log -1 --format='%h %s'` (do not hard-code)
-- `.worktrees/S-REL-001`: feature/S-REL-001 origin@`384d520e` — PUSHED; PR #228 OPEN; **frozen PR HEAD for PR-LEVEL cascade**
 - `.worktrees/fix-demosetup-cwd`: fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5` — PUSHED; PR #229 OPEN
 - `feature/S-3.09` @`43c41389` — KEEP-PARKED (LOCAL-ONLY)
 - `feature/W3-FIX-S307-001` @`fcab8717` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
 - Main tree residue (pre-existing): staged .github/workflows/ci.yml + e2e.yml (human must review — AC-007 of S-MAINT-CIGATE-REMEDIATION-001 BLOCKED); untracked .playwright-mcp/, drawio exports, mutants.out*, scripts/__pycache__
-- `develop` and `factory-artifacts` PUSHED; `feature/S-REL-001` + `fix/DEFECT-DEMOSETUP-CWD-001` PUSHED (PRs #228+#229 OPEN); all others LOCAL-ONLY
+- `develop` and `factory-artifacts` PUSHED; `fix/DEFECT-DEMOSETUP-CWD-001` PUSHED (PR #229 OPEN); all others LOCAL-ONLY
