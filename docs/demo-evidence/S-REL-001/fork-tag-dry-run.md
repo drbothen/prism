@@ -1419,3 +1419,238 @@ The `crates/prism-credentials/` tree is untouched by this commit. Any reader aud
 HEAD must extend the delta range from `339a0c04..<later HEAD>` — the invariant: enumerate any
 delta under `.github/workflows/release.yml` and `crates/prism-credentials/` with a
 behavior-preservation argument, or push a new re-verification attempt if the delta is non-additive.
+
+---
+
+## Attempt 7 — F-REL001-PR7-001: Version-Guard Live-Execution Proof
+
+**Tag:** `v0.0.1-rc.test` at commit `4ed7bd1c`
+
+**Branch push:** already up-to-date (ff-only sync; pre-push hooks ALL PASSED — fmt + clippy +
+nextest + non-exhaustive 92/92 gate; ~77s)
+
+**Tag push time (UTC):** 2026-07-20T16:23:32Z (tag appeared in GHA run list at this timestamp)
+
+**Run URL:** https://github.com/drbothen/prism/actions/runs/29759391659
+
+**Workflow completed:** 2026-07-20T17:29:35Z
+
+**Purpose:** Obtain EXECUTED PROOF that the F-REL001-PR6-002 `cargo-zigbuild --version | grep
+-qF "cargo-zigbuild 0.23.0"` version guard (added in Delta 8 at commit `4ed7bd1c`) fires
+correctly on the real musl build leg. The guard was never run live prior to this attempt;
+its invocation form was corrected from `cargo zigbuild --version` (cargo subcommand, would
+always false-fail) to `cargo-zigbuild --version` (direct binary, correct) in the same Delta 8
+commit. This attempt provides the first live execution of the corrected guard.
+
+---
+
+### Per-Leg Results Table
+
+| Target | Job ID | Conclusion | Duration | Job Link |
+|--------|--------|------------|----------|----------|
+| x86_64-unknown-linux-gnu | 88409918609 | PASS | 21m3s | https://github.com/drbothen/prism/actions/runs/29759391659/job/88409918609 |
+| x86_64-unknown-linux-musl | 88409918634 | PASS | 26m27s | https://github.com/drbothen/prism/actions/runs/29759391659/job/88409918634 |
+| aarch64-apple-darwin | 88409918647 | PASS | 26m56s | https://github.com/drbothen/prism/actions/runs/29759391659/job/88409918647 |
+| x86_64-apple-darwin | 88409918652 | PASS | 37m45s | https://github.com/drbothen/prism/actions/runs/29759391659/job/88409918652 |
+| x86_64-pc-windows-msvc | 88409918771 | PASS | 44m42s | https://github.com/drbothen/prism/actions/runs/29759391659/job/88409918771 |
+| Create GitHub Release (publish-release) | 88424900556 | PASS | 0m32s | https://github.com/drbothen/prism/actions/runs/29759391659/job/88424900556 |
+
+ALL 5 build-release legs PASSED. `Create GitHub Release` (publish-release) job PASSED.
+
+---
+
+### PRIMARY GATE — F-REL001-PR7-001: Version-Guard Live-Execution Evidence
+
+**Job:** Build release (x86_64-unknown-linux-musl), job ID 88409918634
+
+**Cache path taken:** FRESH INSTALL — cache miss on key `cargo-zigbuild-0.23.0-Linux`
+
+**Verbatim log excerpt (job 88409918634, "Install Linux build deps" step):**
+
+```
+2026-07-20T16:23:53.7814384Z Cache not found for input keys: cargo-zigbuild-0.23.0-Linux
+2026-07-20T16:23:53.7901106Z ##[group]Run sudo apt-get update
+[... apt-get and cargo install output ...]
+2026-07-20T16:24:29.3616800Z   Downloaded cargo-zigbuild v0.23.0
+2026-07-20T16:24:29.4132676Z   Installing cargo-zigbuild v0.23.0
+2026-07-20T16:25:00.7318591Z     Finished `release` profile [optimized] target(s) in 31.75s
+2026-07-20T16:25:00.7372437Z   Installing /home/runner/.cargo/bin/cargo-zigbuild
+2026-07-20T16:25:00.7377707Z    Installed package `cargo-zigbuild v0.23.0` (executable `cargo-zigbuild`)
+2026-07-20T16:25:00.7773168Z ##[group]Run dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+```
+
+**Version guard command echoed in step setup** (at 2026-07-20T16:23:53.7927741Z, before execution):
+
+```
+  cargo-zigbuild --version | grep -qF "cargo-zigbuild 0.23.0" || { echo "cargo-zigbuild version mismatch after cache restore"; exit 1; }
+```
+
+**Guard execution outcome:**
+- At 2026-07-20T16:25:00.7377707Z: `Installed package 'cargo-zigbuild v0.23.0'` (fresh-install
+  path completes; guard runs immediately after the `fi` closing the `if [[ ! -f ... ]]` block)
+- At 2026-07-20T16:25:00.7773168Z: Next step (`dtolnay/rust-toolchain`) begins — confirming the
+  "Install Linux build deps" step exited 0
+- NO "cargo-zigbuild version mismatch after cache restore" output appears anywhere in the log
+- `grep -qF` is quiet mode: on a successful match it exits 0 and produces no stdout — the
+  absence of the mismatch error IS the success signal
+
+**Guard result: PASSED** — `cargo-zigbuild --version` emitted "cargo-zigbuild 0.23.0" exactly,
+`grep -qF "cargo-zigbuild 0.23.0"` matched and exited 0, the `|| { echo ...; exit 1; }` arm was
+not reached, the step continued to completion.
+
+**Note on cache path:** This run took the FRESH INSTALL path (cache miss). Either path
+(cache-restore or fresh-install) is valid; the guard is intentionally positioned AFTER both
+paths to protect against stale cache restores. The fresh-install path is the highest-confidence
+confirmation that the binary being verified was just compiled from source at the pinned version.
+
+---
+
+### Five-Check Verification — Attempt 7 (ALL BLOCKING CHECKS PASS)
+
+| Check | Description | Result |
+|-------|-------------|--------|
+| (a) | All 5 legs exit 0; `Create GitHub Release` job exits 0 | PASS — all 6 jobs conclusion=success |
+| (b) | `file prism` (musl) reports "statically linked" | PASS — "ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, stripped" |
+| (c) | musl binary: no PT_DYNAMIC, no PT_INTERP (statically linked ELF) | PASS — PT_DYNAMIC: False, PT_INTERP: False; "STATIC: No PT_DYNAMIC or PT_INTERP — statically linked" |
+| (d) | musl binary: zero `dbus_*` function symbols (libdbus-free) | PASS — `strings prism \| grep "^dbus_"` → empty |
+| (e) | gnu binary: `dbus_*` symbols present (retains libdbus) | PASS — dbus_message_iter_open_container, dbus_message_iter_close_container, + 8 more |
+
+**Check (b) raw output:**
+```
+/tmp/prism-rc-test/prism: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, stripped
+```
+(confirmed by both `file` command and Python ELF header parse: PT_DYNAMIC=False, PT_INTERP=False)
+
+**Check (d) raw output:**
+```
+# musl binary dbus_ symbol check:
+strings /tmp/prism-rc-test/prism | grep "^dbus_"
+→ (empty — zero lines)
+```
+
+**Check (e) raw output (representative):**
+```
+# gnu binary dbus_ symbol check:
+strings /tmp/prism-rc-test/gnu-extract/prism | grep "^dbus_"
+dbus_message_iter_open_container
+dbus_message_iter_close_container
+dbus_message_iter_append_fixed_array
+dbus_message_iter_append_basic
+dbus_message_iter_get_arg_type
+dbus_message_iter_recurse
+dbus_message_iter_next
+dbus_message_iter_get_basic
+dbus_message_iter_get_element_type
+dbus_message_iter_get_fixed_array
+```
+
+---
+
+### Release Asset Listing (EC-001/AC-005)
+
+```
+tagName: v0.0.1-rc.test
+isPrerelease: true
+Assets (6 total):
+  checksums.txt (582 bytes)
+  prism-v0.0.1-rc.test-aarch64-apple-darwin.tar.gz (44101138 bytes)
+  prism-v0.0.1-rc.test-x86_64-apple-darwin.tar.gz (47675538 bytes)
+  prism-v0.0.1-rc.test-x86_64-pc-windows-msvc.zip (47008691 bytes)
+  prism-v0.0.1-rc.test-x86_64-unknown-linux-gnu.tar.gz (50483529 bytes)
+  prism-v0.0.1-rc.test-x86_64-unknown-linux-musl.tar.gz (48950177 bytes)
+```
+
+EC-001 (isPrerelease == true for `-` tags): PASS. 5-platform asset coverage: PASS.
+
+---
+
+### Checksums.txt Content (5 lines)
+
+```
+e316816dc1c80d288f432794040e0097ea97e64f808c60150799238cbdf00d4a  prism-v0.0.1-rc.test-aarch64-apple-darwin.tar.gz
+0f90bb88d700492a0b22cf0cb66421f42b9235b9fb29dd5050195505903e32e7  prism-v0.0.1-rc.test-x86_64-apple-darwin.tar.gz
+120496fb42eaa4d41f07eadb0cea5709bada0d510110a3551a423e3ed5e58fe9 *prism-v0.0.1-rc.test-x86_64-pc-windows-msvc.zip
+024fb53c5a2bf2871bac010d3bd17cd0b1df4d02e6a1bcc90ec0efa66306072a  prism-v0.0.1-rc.test-x86_64-unknown-linux-gnu.tar.gz
+c6305cb4579606441dc17fe31f29c360bb12693254a4065621ac920c40e97f24  prism-v0.0.1-rc.test-x86_64-unknown-linux-musl.tar.gz
+```
+
+5 lines, one per platform. EC-007: PASS.
+
+---
+
+### Attestation Step Outcome — Attempt 7
+
+All 5 binaries verified via `gh attestation verify <local-file> --repo drbothen/prism`:
+
+```
+prism-v0.0.1-rc.test-x86_64-unknown-linux-musl.tar.gz: EXIT 0
+prism-v0.0.1-rc.test-x86_64-unknown-linux-gnu.tar.gz: EXIT 0
+prism-v0.0.1-rc.test-aarch64-apple-darwin.tar.gz: EXIT 0
+prism-v0.0.1-rc.test-x86_64-apple-darwin.tar.gz: EXIT 0
+prism-v0.0.1-rc.test-x86_64-pc-windows-msvc.zip: EXIT 0
+```
+
+Attestations 5/5: PASS. All `gh attestation verify` calls exited 0.
+
+---
+
+### Cleanup Verification — Attempt 7
+
+1. GitHub Release deleted (Release ID 356893681):
+```
+gh api repos/drbothen/prism/releases/356893681 -X DELETE
+→ (no output, exit 0) "Release deleted via API"
+```
+
+2. Remote tag deleted:
+```
+gh api repos/drbothen/prism/git/refs/tags/v0.0.1-rc.test -X DELETE
+→ (no output, exit 0) "Remote tag deleted"
+```
+
+3. Local tag deleted:
+```
+git tag -d v0.0.1-rc.test
+Deleted tag 'v0.0.1-rc.test' (was 4ed7bd1c)
+```
+
+4. Verification:
+```
+gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"
+gh api repos/drbothen/prism/git/refs/tags/v0.0.1-rc.test → 404 Not Found
+git tag -l "v0.0.1-rc.test" → (empty)
+```
+
+All confirmed clean.
+
+---
+
+### Attempt 7 Gate Verdict
+
+**DRY-RUN GREEN**
+
+DEFECT-REL001-PROTOC-MISSING-001: FIXED (confirmed Attempts 2-7)
+DEFECT-REL001-MUSL-DBUS-001: FIXED (confirmed Attempts 3-7)
+DEFECT-REL001-MUSL-CXX-001: FIXED (confirmed Attempts 4-7)
+DEFECT-REL001-MUSL-LIBSTDCXX-001: FIXED (confirmed Attempts 5-7)
+F-REL001-P16-001 (clang-removal): GREEN (confirmed Attempts 6-7)
+F-REL001-PR7-001 (version-guard live-execution): **CLOSED — GUARD EXECUTED AND PASSED**
+
+The `cargo-zigbuild --version | grep -qF "cargo-zigbuild 0.23.0"` version guard (Delta 8,
+F-REL001-PR6-002) executed on the real musl build leg and PASSED. Fresh-install path taken
+(cache miss). Binary confirmed freshly installed at v0.23.0. Guard exited 0 silently (no
+mismatch output). Step completed. Musl build proceeded to completion.
+
+All 5 build-release legs passed. `Create GitHub Release` (publish-release) job passed.
+All five-check blocking criteria satisfied:
+- (a) All legs exit 0: PASS
+- (b) musl binary: "statically linked" per `file` + ELF parse: PASS
+- (c) musl binary: no PT_DYNAMIC, no PT_INTERP: PASS
+- (d) musl binary: zero `dbus_*` symbols (libdbus-free): PASS
+- (e) gnu binary: `dbus_*` symbols present (libdbus retained): PASS
+
+Release assets: 5 platform tarballs + checksums.txt (5 lines). isPrerelease=true. EC-001: PASS.
+Attestation: 5/5 (gh attestation verify exit 0 on all 5 binaries).
+Cleanup: release (ID 356893681), remote tag, local tag all deleted and verified gone.
+
+Task 12 gate: **DRY-RUN GREEN** — F-REL001-PR7-001 CLOSED
