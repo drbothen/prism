@@ -5,11 +5,15 @@ title: "devops: release.yml repair — remove dead jobs (DEF-REL-001 through DEF
 wave: F-A
 epic_id: E-REL
 priority: P0
-status: draft
+status: merged
 version: "0.24"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-19T00:00:00Z"
+updated: "2026-07-20"
+merged_sha: 7fef57da
+merged_pr: 228
+merged_date: "2026-07-20"
 tdd_mode: strict
 subsystems: []
 # Subsystem anchor justification:
