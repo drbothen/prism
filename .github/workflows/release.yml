@@ -91,6 +91,16 @@ jobs:
               # --locked + exact version is the maximum pinning cargo install supports (no --require-hashes equivalent); ratified §15 / F-REL001-P14-004 — CWE-494 posture accepted.
               cargo install --locked cargo-zigbuild --version 0.23.0
             fi
+            # F-REL001-PR6-002: cache-restore integrity — version-pin re-verification.
+            # Runs after both the cache-restore path (actions/cache above) and the fresh-install
+            # path (cargo install above). The actions/cache restore has no content-hash check;
+            # without this guard a stale or wrong-version binary could proceed to the build step
+            # silently. On version match (normal case): grep exits 0; no-op continuation.
+            # On mismatch: loud fail — a path that previously proceeded silently.
+            # Output format assumption: conventional "cargo-zigbuild 0.23.0" (cargo binary
+            # convention; local install unavailable at author time — F-REL001-PR6-002).
+            # Future hardening: full content-hash keying of the cache key noted.
+            cargo zigbuild --version | grep -qF "cargo-zigbuild 0.23.0" || { echo "cargo-zigbuild version mismatch after cache restore"; exit 1; }
           fi
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:

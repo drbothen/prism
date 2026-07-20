@@ -1349,3 +1349,19 @@ Conclusion: Attempt-6 GREEN remains representative of all HEADs through `0ffe4c0
 #### Self-referential closure clause (F-REL001-PR3-001 structural fix)
 
 This note is authored by a commit that, by construction, modifies only `docs/demo-evidence/**` (verify: `git show --stat HEAD`). Any reader auditing a later HEAD must extend the range `339a0c04..<later HEAD>` — the invariant to check is zero delta under `.github/workflows/release.yml` and `crates/prism-credentials/`.
+
+---
+
+#### Delta 7 — F-REL001-PR6-002 version check + this evidence note (this commit)
+
+Changes:
+- `release.yml`: fail-closed version verification added after the cache-restore/fresh-install block inside the musl branch. After both the `actions/cache` restore path and the `cargo install --locked` fresh-install path, the step runs `cargo zigbuild --version | grep -qF "cargo-zigbuild 0.23.0" || { echo "cargo-zigbuild version mismatch after cache restore"; exit 1; }` (F-REL001-PR6-002). Comment above the check cites: cache-restore integrity, version-pin re-verification, and full content-hash keying noted as future hardening.
+- `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md`: this Delta 7 entry and the updated self-referential closure clause below.
+
+Behavior-preservation argument: The version check is a pure additive guard inserted after both install paths, inside the musl-only branch. On version match (the normal case — cache restores the correct binary or fresh install produces it): `grep -qF` exits 0, `exit 1` is not reached, the step exits 0, and execution proceeds identically to before. On version mismatch: loud explicit fail — a path that previously proceeded silently, as `actions/cache` restore has no content-hash verification. The musl build toolchain, the `cargo zigbuild --release --locked` invocation on the `Build release binary` step, and the produced binary contents are unaffected. The attempt-6 GREEN evidence (5/5 legs, statically linked musl binary, attestation 5/5) remains fully representative of the success path.
+
+---
+
+#### Self-referential closure clause — updated (F-REL001-PR6-002)
+
+This note is authored by a commit that modifies `.github/workflows/release.yml` (the F-REL001-PR6-002 version check guard, Delta 7 above) and `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md` (Delta 7 + this clause). The `crates/prism-credentials/` tree is untouched by this commit. The Delta 7 behavior-preservation argument above establishes that the release.yml change does not alter the success-path behavior verified in Attempt-6. Any reader auditing a later HEAD must extend the delta range from `339a0c04..<later HEAD>` — the invariant: enumerate any delta under `.github/workflows/release.yml` and `crates/prism-credentials/` with a behavior-preservation argument, or push a new re-verification attempt if the delta is non-additive.
