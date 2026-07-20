@@ -1274,9 +1274,9 @@ Subsequent commits after the attempt-6 tag commit (339a0c04):
 
 Closes F-REL001-PR2-001 (MED, POL-32 audit-trail accuracy). The Attempt-6 section above stopped its diff verification at `acb718fb`, which predates four commits that modified `release.yml` and one that modified `crates/prism-credentials/`. This section closes that gap.
 
-**Authoritative diff:** `git diff 339a0c04..ea8b3e51 -- .github/workflows/release.yml crates/prism-credentials/`
+**Authoritative diff:** `git diff 339a0c04..0ffe4c0c -- .github/workflows/release.yml crates/prism-credentials/`
 
-All four release.yml-touching commits and one credentials-touching commit are enumerated below with behavior-preservation arguments.
+All four release.yml-touching commits, one credentials-touching commit, and one docs-only commit are enumerated below with behavior-preservation arguments.
 
 #### Delta 1 — SEC-002 permissions tightening `@a29ec812`
 
@@ -1286,7 +1286,7 @@ Changes:
 - Top-level `permissions: contents: write` → `permissions: contents: read` with comment "SEC-002: tightened — each job declares its own grant"
 - Added `permissions: { contents: write }` job-level block on the `publish-release` job (least-privilege: gh release create/upload only)
 
-Behavior-preservation argument: The `build-release` matrix job already carried an explicit `permissions: { contents: read, id-token: write }` block before this commit — its effective permissions are unchanged. The `publish-release` job retains `contents: write` at the job level, which is the only job that calls `gh release create` / `gh release upload`. The net change is a top-level cap from `write` to `read` (defense-in-depth, not a behavioral gate), with the one job that genuinely needs write preserving it explicitly. Build semantics are unaffected.
+Behavior-preservation argument: The `build-release` matrix job already carried an explicit three-grant permissions block before this commit — `contents: read`, `id-token: write`, and `attestations: write` (all three pre-existing; verified by `git show a29ec812^:.github/workflows/release.yml`, which shows all three grants on build-release at the parent commit; confirmed by attempt-6's 5/5 attestation successes at tag commit `339a0c04`, which predates the SEC-002 commit `a29ec812` in the branch history) — its effective permissions are unchanged. The `publish-release` job retains `contents: write` at the job level, which is the only job that calls `gh release create` / `gh release upload`. The net change is a top-level cap from `write` to `read` (defense-in-depth, not a behavioral gate), with the one job that genuinely needs write preserving it explicitly. Build semantics are unaffected.
 
 #### Delta 2 — CR-001/CR-002 timeout-minutes + CR-003 multiline publish conversion `@b0c8b140`
 
@@ -1321,20 +1321,31 @@ Changes: Two `compile_error!` guard messages and surrounding comments updated in
 
 Behavior-preservation argument: The `#[cfg(...)]` guard conditions themselves are unchanged. The compile-time guard fires on identical conditions before and after this commit. The `compile_error!` message text is informational only — it appears only when the guard fires (i.e., when a forbidden configuration is attempted); it has no effect on the produced binary. This is a documentation-only change.
 
-#### Delta 5 — HEAD commit `@ea8b3e51`
+#### Delta 5 — `@ea8b3e51`
 
 Commit: `test(S-REL-001): close F-REL001-PR2-OBS-1 splice-guard regression gap (80→81 assertions)`
 
 Files changed: `tests/release-gate/README.md`, `tests/release-gate/run.sh`, `tests/release-gate/test_AC-005_prerelease-flag.sh` only. Does NOT touch `.github/workflows/release.yml` or `crates/prism-credentials/`.
 
+#### Delta 6 — `@0ffe4c0c`
+
+Commit: `docs(S-REL-001): close F-REL001-PR2-001 — PR-LEVEL evidence-representativeness audit through HEAD`
+
+Verified: `git show --stat 0ffe4c0c` → `docs/demo-evidence/S-REL-001/fork-tag-dry-run.md | 69 ++++++++++++++++++++++++` (1 file changed, 69 insertions, 0 deletions). Does NOT touch `.github/workflows/release.yml` or `crates/prism-credentials/`.
+
 #### Conclusion
 
-`git diff 339a0c04..ea8b3e51 -- .github/workflows/release.yml crates/prism-credentials/` contains exactly the four deltas enumerated above. All are behavior-preserving by analysis:
+`git diff 339a0c04..0ffe4c0c -- .github/workflows/release.yml crates/prism-credentials/` contains exactly the five deltas enumerated above (four release.yml-touching, one credentials-touching, one docs-only). All are behavior-preserving by analysis:
 - Permissions/timeout changes do not alter build or publish semantics under the success path
 - The CR-003 multiline conversion preserves `if`-branch routing (POSIX `set -e` exemption for `if` condition)
 - The PR1-002 guarded splice is functionally identical to the naked form on bash 5; the equivalent create path ran GREEN in attempts 5 and 6
 - The credentials change is doc-comment only with unchanged `#[cfg(...)]` guard conditions
+- Delta-5 and Delta-6 are tests/docs only — zero delta on `.github/workflows/release.yml` or `crates/prism-credentials/`
 
 The attempt-6 build/cross-compile/artifact evidence (5 GREEN legs, `isPrerelease: true`, 5 platform tarballs + checksums.txt, attestation 5/5) remains fully representative of this HEAD's release pipeline behavior. The publish-step deltas are behavior-preserving by analysis and prior execution of equivalent forms.
 
-Conclusion: Attempt-6 GREEN remains representative of all HEADs including this commit. The current commit's ci.yml change affects the release-gate CI job (which validates ci.yml itself), not the release workflow (release.yml) that was the subject of the dry-run.
+Conclusion: Attempt-6 GREEN remains representative of all HEADs through `0ffe4c0c`.
+
+#### Self-referential closure clause (F-REL001-PR3-001 structural fix)
+
+This note is authored by a commit that, by construction, modifies only `docs/demo-evidence/**` (verify: `git show --stat HEAD`). Any reader auditing a later HEAD must extend the range `339a0c04..<later HEAD>` — the invariant to check is zero delta under `.github/workflows/release.yml` and `crates/prism-credentials/`.
