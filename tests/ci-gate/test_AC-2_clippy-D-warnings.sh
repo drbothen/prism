@@ -13,7 +13,7 @@ CI_YML="${WORKTREE}/.github/workflows/ci.yml"
 assert_file_exists "$CI_YML" "AC-2"
 
 # Must have real `cargo clippy -- -D warnings` step.
-if grep -qE '^\s+run:\s+cargo clippy' "$CI_YML" 2>/dev/null && \
+if grep -qE '^[[:space:]]+run:[[:space:]]+cargo clippy' "$CI_YML" 2>/dev/null && \
    grep -qF -- '-D warnings' "$CI_YML" 2>/dev/null; then
   tap_pass "AC-2: ci.yml has real 'cargo clippy -- -D warnings' step"
 else

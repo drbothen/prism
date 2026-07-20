@@ -1879,7 +1879,7 @@ jobs:
           echo "shellcheck: all demo scripts pass (S-DEMO-003 HIGH-2 / AC-014)"
 
   verify-workflow-structure:
-    name: Verify workflow structure (AC-5..AC-8 reachability)
+    name: Verify workflow structure (reachability + config invariants, 25 assertions)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -2079,4 +2079,74 @@ jobs:
             exit 1
           }
           echo "S-MAINT-CI-DISK-EXHAUSTION-001 post-reclaimer neutralization check passed: ${count} sites (≥2 required)."
-          echo 'All verify-workflow-structure assertions pass (22 total: 20 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-mirrors (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-mirrors (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-post-reclaimer-truncate (count≥2) — 20 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 22 total checks.'
+          # S-REL-001 release-gate job reachability assertion (F-REL001-P3-OBS-002):
+          # The release-gate job is the SOLE CI enforcement for tests/release-gate/ suite on every
+          # PR/push. A future PR removing this job block would silently disable release criteria validation.
+          grep -qE '^  release-gate:' .github/workflows/ci.yml || {
+            echo "::error::F-REL001-P3-OBS-002: 'release-gate' job is missing from ci.yml — release criteria validation gate removed (S-REL-001 AC-012)"
+            exit 1
+          }
+          echo 'F-REL001-P3-OBS-002 reachability check passed: release-gate job definition present.'
+          # S-REL-001 release-gate suite run assertion — SCOPED (F-REL001-P3-OBS-002 / F-REL001-P11-001 fix):
+          # Scoped to the release-gate job block only to prevent self-matching against this assertion line.
+          # awk range: sets f=1 on the line after '^  release-gate:', sets f=0 on the next 2-space-indented
+          # job header ('^  [a-z][a-zA-Z-]*:'), prints lines where f=1.  This is NEXT-JOB-BOUNDED:
+          # 4-space-indented keys (    steps:, etc.) do NOT match the stop pattern, so they do not
+          # prematurely terminate the range.  If a new job is appended after release-gate, the range
+          # stops at that job's header rather than spanning to EOF — closes F-REL001-P12-OBS-001.
+          # grep then checks for the exact indented bash invocation within that bounded block only.
+          # Deletion proof: removing 'bash tests/release-gate/run.sh' from the release-gate job makes this FAIL.
+          # Relocation proof: moving 'bash tests/release-gate/run.sh' into an appended job also makes this FAIL.
+          RELEASE_GATE_BLOCK=$(awk '/^  release-gate:/{f=1;next} /^  [a-z][a-zA-Z-]*:/{f=0} f' .github/workflows/ci.yml)
+          echo "$RELEASE_GATE_BLOCK" | grep -qE '^\s+bash tests/release-gate/run\.sh\s*$' || {
+            echo "::error::F-REL001-P3-OBS-002: 'bash tests/release-gate/run.sh' run step missing from release-gate job block — release-gate suite no longer runs (S-REL-001 AC-012)"
+            exit 1
+          }
+          echo 'F-REL001-P3-OBS-002 scoped run assertion passed: bash tests/release-gate/run.sh present in release-gate job block.'
+          # F-REL001-P11-001 fix: AC-012 Justfile recipe guard.
+          # verify-workflow-structure runs from checkout root — Justfile is at repo root, path resolves.
+          # Guards the AC-012 local-run clause (previously verified by inspection only).
+          grep -qE '^test-release-gate:' Justfile || {
+            echo "::error::F-REL001-P11-001: 'test-release-gate:' recipe missing from Justfile — AC-012 local run recipe removed (S-REL-001 AC-012)"
+            exit 1
+          }
+          echo 'F-REL001-P11-001 Justfile recipe assertion passed: test-release-gate recipe present.'
+          echo 'All verify-workflow-structure assertions pass (25 total: 23 reachability + 2 config-invariant): AC-5-TARGET_COUNT + AC-6-deny/audit + AC-7-semver-checks + AC-8-test-no-default-features + AC-5-non-exhaustive-job + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 + F-MCPNULL-P2-OBS-002 + F-MCPRS-PRL14-LOW-001 (×2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-001 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-002 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006 (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-006-mirrors (count≥12) + S-MAINT-CI-DISK-EXHAUSTION-001-AC-007 (count≥2) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006 (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-e2e-AC-006-mirrors (count≥1) + S-MAINT-CI-DISK-EXHAUSTION-001-post-reclaimer-truncate (count≥2) + F-REL001-P3-OBS-002 (×2, scoped) + F-REL001-P11-001 (Justfile) — 23 reachability assertions (anchored job-definition patterns, F-MCPNULL-P3-LOW-003, all self-match-proof) + AC-003 .cargo/config.toml invariant assertions (2 config-invariant) = 25 total checks.'
+
+  release-gate:
+    name: Release gate (S-REL-001 AC-012)
+    # F-REL001-P2-001: automated enforcement for tests/release-gate/ suite on every
+    # PR/push. Installs actionlint via direct pinned-tarball download (F-REL001-P20-003;
+    # NOT brew — unavailable on ubuntu-latest; NOT cargo install — actionlint is Go,
+    # not Rust; research U4). Fails closed when actionlint is absent from PATH
+    # (AC-012 fail-closed gate, POL-34). No Rust toolchain needed — lightweight
+    # YAML/shell validation only.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install actionlint
+        run: |
+          set -euo pipefail
+          # Pin to 1.7.12 — minimum confirmed working version per S-REL-001 risk_mitigations.
+          # F-REL001-P20-003 / CWE-494: direct pinned-tarball download with SHA-256 verification
+          # of the release asset before extraction. Replaces the prior approach (download-actionlint.bash
+          # script + script-hash check) — that approach verified the downloader script but not the
+          # binary tarball it subsequently fetched, leaving an unverified download in the chain.
+          # This approach verifies the binary tarball directly, closing the gap (CWE-494).
+          # Runner: ubuntu-latest (x86_64 linux). Tarball layout: actionlint at root (no subdirectory).
+          # Checksum source: downloaded from GitHub releases over HTTPS and computed 2026-07-20.
+          EXPECTED_SHA256="8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+          curl -fsSL \
+            "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz" \
+            -o /tmp/actionlint.tar.gz
+          echo "${EXPECTED_SHA256}  /tmp/actionlint.tar.gz" | sha256sum -c
+          tar -xz -f /tmp/actionlint.tar.gz -C /usr/local/bin actionlint
+          rm /tmp/actionlint.tar.gz
+          actionlint --version
+      - name: Run release-gate suite
+        run: |
+          set -euo pipefail
+          bash tests/release-gate/run.sh

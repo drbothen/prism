@@ -20,7 +20,7 @@ else
 fi
 
 # kani-proofs job must exist with real cargo kani invocation (not an echo).
-if grep -qE '^\s+run:\s+cargo kani' "$PM_YML" 2>/dev/null; then
+if grep -qE '^[[:space:]]+run:[[:space:]]+cargo kani' "$PM_YML" 2>/dev/null; then
   tap_pass "AC-5: kani-proofs job has real 'run: cargo kani' step"
 else
   tap_fail "AC-5: kani-proofs job missing real 'run: cargo kani' step" \
@@ -52,7 +52,7 @@ else
 fi
 
 # Artifact upload step must reference kani-report (real uses: action, not echo).
-if grep -qE 'uses:\s+actions/upload-artifact' "$PM_YML" 2>/dev/null && \
+if grep -qE 'uses:[[:space:]]+actions/upload-artifact' "$PM_YML" 2>/dev/null && \
    grep -qF "kani-report" "$PM_YML" 2>/dev/null; then
   tap_pass "AC-5: kani-report artifact upload step present (uses: actions/upload-artifact)"
 else
