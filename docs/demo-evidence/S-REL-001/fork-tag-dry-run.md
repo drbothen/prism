@@ -538,3 +538,222 @@ x86_64-pc-windows-msvc) passed with correct artifact upload and attestation.
 Checks (d) and (e) confirm the DEFECT-REL001-MUSL-DBUS-001 dependency-graph fix is
 structurally correct. Checks (b), (c) (artifact linkage gate) and (a) full pass remain
 blocked pending Attempt 4 with DEFECT-REL001-MUSL-CXX-001 fix.
+
+---
+
+## Attempt 4 — DEFECT-REL001-MUSL-CXX-001 Verification
+
+**Tag:** `v0.0.1-rc.test` at commit `01b7ecee`
+
+**Tag push time (UTC):** 2026-07-20T03:10:02Z
+
+**Run URL:** https://github.com/drbothen/prism/actions/runs/29714047923
+
+**Pre-push hooks:** ALL PASSED (fmt + clippy + nextest + non-exhaustive 92/92 gate; ~72s)
+
+---
+
+### Per-Leg Results Table
+
+| Target | Job ID | Conclusion | Duration | Job Link |
+|--------|--------|------------|----------|----------|
+| x86_64-unknown-linux-gnu | 88263391460 | PASS | 4m18s | https://github.com/drbothen/prism/actions/runs/29714047923/job/88263391460 |
+| x86_64-unknown-linux-musl | 88263391440 | FAIL | 24m43s | https://github.com/drbothen/prism/actions/runs/29714047923/job/88263391440 |
+| x86_64-pc-windows-msvc | 88263391422 | PASS | 8m4s | https://github.com/drbothen/prism/actions/runs/29714047923/job/88263391422 |
+| aarch64-apple-darwin | 88263391474 | PASS | 6m15s | https://github.com/drbothen/prism/actions/runs/29714047923/job/88263391474 |
+| x86_64-apple-darwin | 88263391475 | PASS | 6m23s | https://github.com/drbothen/prism/actions/runs/29714047923/job/88263391475 |
+| publish-release (Create GitHub Release) | 88266291087 | SKIPPED | 0s | N/A |
+
+4 of 5 build-release legs passed. DEFECT-REL001-MUSL-CXX-001 CONFIRMED PARTIALLY FIXED:
+the musl leg advanced to the LINK phase (24m43s — full compile completed) before failing,
+confirming that the C++ *compiler* issue is resolved. The new failure is a *linker* issue.
+
+---
+
+### DEFECT-REL001-MUSL-CXX-001 Closure Confirmation
+
+The musl leg ran `cargo build` for ~24 minutes and compiled all crates successfully before
+failing at the link step. The previous `ToolNotFound: x86_64-linux-musl-g++` error is
+completely absent. The C++ compile phase (cc-rs invoking clang++ for librocksdb-sys)
+succeeded. Confirmed fixed.
+
+---
+
+### NEW REAL DEFECT — DEFECT-REL001-MUSL-LIBSTDCXX-001: glibc libstdc++ contamination
+
+**Label:** REAL DEFECT (deterministic — 117 linker errors, reproducible root cause)
+
+**Failure step:** `Build release binary` — exit code 101 (linker failure, not compiler)
+
+**Failure timing:** After 24m43s (full workspace compilation succeeded; fail at final link stage)
+
+**Root cause:** The DEFECT-REL001-MUSL-CXX-001 fix correctly resolved the C++ *compilation*
+problem (librocksdb-sys can now compile its C++ source with clang++). However, the C++
+*link* phase introduces a new failure: the system linker pulls in
+`/usr/lib/gcc/x86_64-linux-gnu/13/libstdc++.a` which is compiled against glibc and contains
+117+ references to glibc-specific symbols absent from musl libc:
+
+```
+undefined reference to `__libc_single_threaded'
+undefined reference to `__isoc23_strtoul'
+undefined reference to `__memcpy_chk'
+undefined reference to `__mbsrtowcs_chk'
+undefined reference to `__cxa_thread_atexit_impl'
+undefined reference to `arc4random'
+undefined reference to `fopen64'
+```
+
+The complete set of 19 distinct undefined symbol patterns (117 total references):
+
+```
+__cxa_thread_atexit_impl
+__isoc23_sscanf
+__isoc23_strtol
+__isoc23_strtoll
+__isoc23_strtoul
+__isoc23_strtoull
+__libc_single_threaded
+__mbsnrtowcs_chk
+__mbsrtowcs_chk
+__memcpy_chk
+__read_chk
+__sprintf_chk
+__wmemset_chk
+arc4random
+fopen64
+fseeko64
+fstat64
+ftello64
+lseek64
+```
+
+**Why clang++ doesn't fix this:** `clang++` on Ubuntu resolves the C++ compilation correctly,
+but the link step uses `-lstdc++` which resolves to `/usr/lib/gcc/x86_64-linux-gnu/13/libstdc++.a`
+— glibc-compiled. The C++ runtime library itself contains glibc-specific symbols that musl
+does not expose.
+
+**Precise log excerpts (job 88263391440, Build release binary step):**
+
+```
+2026-07-20T03:34:32.7332467Z (.text.startup._GLOBAL__sub_I_eh_alloc.cc+0x1d9):
+  undefined reference to `__isoc23_strtoul'
+2026-07-20T03:34:32.7334422Z (.text.__cxa_guard_acquire+0x1a):
+  undefined reference to `__libc_single_threaded'
+2026-07-20T03:34:32.7353311Z (.text._ZNSt7__cxx1110moneypunctIcLb1EE24_M_initialize_moneypunctEP15__locale_structPKc+0x372):
+  undefined reference to `__memcpy_chk'
+2026-07-20T03:34:32.7367936Z (.text._ZNSt7__cxx1110moneypunctIwLb1EE24_M_initialize_moneypunctEP15__locale_structPKc+0x3fe):
+  undefined reference to `__memcpy_chk'
+2026-07-20T03:34:32.7350094Z /usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/13/libstdc++.a(ios_init.o):
+  more undefined references to `__libc_single_threaded' follow
+##[error]Process completed with exit code 101.
+```
+
+**Fix applied in scope (devops-engineer domain — CI/CD workflow):**
+
+`cargo-zigbuild` replaces `cargo build` for the musl leg. Zig provides its own musl-aware
+C++ toolchain and runtime with no glibc symbol contamination. The fix:
+
+1. In "Install Linux build deps", musl branch:
+   - Removed: `echo "CXX_x86_64_unknown_linux_musl=clang++" >> "$GITHUB_ENV"`
+   - Added: `pip3 install ziglang --break-system-packages && cargo install cargo-zigbuild`
+
+2. "Build release binary" step now uses a conditional:
+   ```bash
+   if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-musl" ]]; then
+     cargo zigbuild --release --locked --target ${{ matrix.target }} -p prism-bin -p prism-dtu-demo-server
+   else
+     cargo build --release --locked --target ${{ matrix.target }} -p prism-bin -p prism-dtu-demo-server
+   fi
+   ```
+
+This fix is committed in the Attempt 4 evidence commit for verification in Attempt 5.
+
+---
+
+### Five-Check Verification — Attempt 4
+
+| Check | Description | Result |
+|-------|-------------|--------|
+| (a) | Build exit 0 on all 5 legs | FAIL — musl leg: exit 101 (DEFECT-REL001-MUSL-LIBSTDCXX-001) |
+| (b) | MUSL artifact linkage gate: `file` reports "statically linked" | NOT APPLICABLE — no artifact published (publish-release skipped) |
+| (c) | MUSL ELF dynamic section: no libdbus-1.so NEEDED entries | NOT APPLICABLE — no artifact published (publish-release skipped) |
+| (d) | `cargo tree --target x86_64-unknown-linux-musl -p prism-credentials -i libdbus-sys` → empty | PASS (unchanged from Attempt 3; dependency graph unmodified) |
+| (e) | `cargo tree --target x86_64-unknown-linux-gnu -p prism-credentials -i libdbus-sys` → present | PASS (unchanged from Attempt 3; dependency graph unmodified) |
+
+Checks (d) and (e) remain valid — the dependency graph was not changed in this attempt.
+
+---
+
+### Release Asset Listing (EC-001/AC-005) — Attempt 4
+
+**Not applicable.** The `publish-release` (Create GitHub Release) job was SKIPPED
+because the musl `build-release` matrix leg failed (`needs: build-release`). No
+GitHub Release was created for `v0.0.1-rc.test`.
+
+EC-001/AC-005 (prerelease flag must be true for `-` tags) wire proof remains blocked.
+Blocked by DEFECT-REL001-MUSL-LIBSTDCXX-001 (fixed in this commit for Attempt 5).
+
+---
+
+### Idempotency Spot-Check (EC-009) — Attempt 4
+
+**Not applicable.** No release was created; publish-release was skipped.
+
+---
+
+### Attestation Step Outcome — Attempt 4
+
+The `actions/attest-build-provenance` step ran and SUCCEEDED on all 4 passing legs
+(x86_64-unknown-linux-gnu, x86_64-pc-windows-msvc, aarch64-apple-darwin,
+x86_64-apple-darwin). The step was not reached on the musl leg (build failed before
+the archive step). OIDC token (`id-token: write` permission) was available on all legs.
+
+---
+
+### Cleanup Verification — Attempt 4
+
+1. GitHub Release deleted: N/A — no release was created (publish-release was skipped).
+2. Remote tag deleted:
+
+```
+git push origin :refs/tags/v0.0.1-rc.test
+To https://github.com/drbothen/prism.git
+ - [deleted]           v0.0.1-rc.test
+```
+
+3. Local tag deleted:
+
+```
+git tag -d v0.0.1-rc.test
+Deleted tag 'v0.0.1-rc.test' (was 01b7ecee)
+```
+
+4. Verification:
+
+```
+git ls-remote origin refs/tags/v0.0.1-rc.test → (empty)
+git tag -l "v0.0.1-rc.test" → (empty)
+gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"
+```
+
+All confirmed clean.
+
+---
+
+### Attempt 4 Gate Verdict
+
+**DRY-RUN FAILED**
+
+DEFECT-REL001-PROTOC-MISSING-001: FIXED (confirmed Attempts 2-4)
+DEFECT-REL001-MUSL-DBUS-001: FIXED (confirmed Attempts 3-4)
+DEFECT-REL001-MUSL-CXX-001: FIXED (confirmed — musl leg compiled 24m43s of C++ successfully)
+
+Failing leg: x86_64-unknown-linux-musl (1 of 5)
+
+New root cause: DEFECT-REL001-MUSL-LIBSTDCXX-001 — system `libstdc++.a` (glibc-compiled)
+linked into musl binary; 117 undefined references to glibc-specific symbols. Fix applied
+in scope: `cargo-zigbuild` replaces `cargo build` for musl leg (Zig provides musl-aware
+C++ runtime with no glibc symbol contamination). Released fix targets Attempt 5.
+
+4 of 5 legs (x86_64-unknown-linux-gnu, x86_64-pc-windows-msvc, aarch64-apple-darwin,
+x86_64-apple-darwin) passed with correct artifact upload and attestation.

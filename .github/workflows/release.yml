@@ -55,13 +55,18 @@ jobs:
           # libdbus-1-dev: required by prism-credentials keyring-linux-native-sync-persistent
           # → dbus-secret-service (C-linked libdbus). build.rs runs on glibc host even for
           # musl cross-target. ADR-034/BC-2.06.003.
-          # clang: C++ cross-compiler for musl leg — musl-tools provides x86_64-linux-musl-gcc
-          # (C only); librocksdb-sys build.rs (via cc-rs) requires a C++ compiler and looks for
-          # x86_64-linux-musl-g++ which does not exist in the Ubuntu package set.
-          # DEFECT-REL001-MUSL-CXX-001: fixed by pointing cc-rs to clang++ via env override.
+          # clang: retained for any build.rs scripts that invoke cc-rs on the host.
           sudo apt-get install -y musl-tools pkg-config libdbus-1-dev clang
           if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-musl" ]]; then
-            echo "CXX_x86_64_unknown_linux_musl=clang++" >> "$GITHUB_ENV"
+            # DEFECT-REL001-MUSL-LIBSTDCXX-001: clang++ (system) is compiled against glibc
+            # and links against glibc's libstdc++.a which references glibc-specific symbols
+            # (__libc_single_threaded, __isoc23_*, __memcpy_chk, arc4random, fopen64 etc.)
+            # that are absent from musl libc. This produces 117+ undefined-reference linker
+            # errors when building the musl static binary.
+            # Fix: cargo-zigbuild replaces cargo build for the musl leg. Zig provides its own
+            # musl-aware C++ toolchain and C++ runtime with no glibc symbol contamination.
+            pip3 install ziglang --break-system-packages
+            cargo install cargo-zigbuild
           fi
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
@@ -79,7 +84,15 @@ jobs:
           cache-on-failure: true
           shared-key: release-${{ matrix.target }}
       - name: Build release binary
-        run: cargo build --release --locked --target ${{ matrix.target }} -p prism-bin -p prism-dtu-demo-server
+        shell: bash
+        run: |
+          # DEFECT-REL001-MUSL-LIBSTDCXX-001: musl leg uses cargo-zigbuild (Zig C++ toolchain,
+          # musl-aware, no glibc symbol contamination); all other targets use cargo build.
+          if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-musl" ]]; then
+            cargo zigbuild --release --locked --target ${{ matrix.target }} -p prism-bin -p prism-dtu-demo-server
+          else
+            cargo build --release --locked --target ${{ matrix.target }} -p prism-bin -p prism-dtu-demo-server
+          fi
       - name: Strip binary (Unix)
         if: runner.os != 'Windows'
         run: strip target/${{ matrix.target }}/release/prism 2>/dev/null || true
