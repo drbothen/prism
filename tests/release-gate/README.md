@@ -58,7 +58,7 @@ in the original release.yml (the original workflow already had the correct matri
 shape for those checks).
 See `.factory/cycles/v1.0.0-release-engineering/S-REL-001/implementation/red-gate-log.md` for details.
 
-After implementation, all 80 assertions should pass. actionlint must be installed
+After implementation, all 81 assertions should pass. actionlint must be installed
 (absent actionlint is a hard failure, not a skip — the gate fails closed).
 
 ## Floor Constants (F-REL001-P7-001)
@@ -69,7 +69,7 @@ or losing assertions causes a loud harness failure rather than a silent pass:
 | Constant | Value | Meaning |
 |----------|-------|---------|
 | `EXPECTED_TEST_FILES` | 11 | Number of `test_AC-*.sh` files that must be executed |
-| `EXPECTED_ASSERTIONS` | 80 | Total TAP assertions across all test files |
+| `EXPECTED_ASSERTIONS` | 81 | Total TAP assertions across all test files |
 
 Exact equality is used (not `>=`), following the `scripts/check-non-exhaustive.sh
 EXPECTED=92` precedent. An unexpected *increase* also requires a conscious constant

@@ -97,6 +97,21 @@ else
     "AC-005 FAIL: expected '\"\${PRERELEASE_ARGS[@]}\"' in release.yml — array populated but never passed to gh release create, --prerelease silently dropped"
 fi
 
+# 7b. F-REL001-PR2-OBS-1 / SID-2: full set-u-safe splice guard form.
+# Assertion 7 greps '"${PRERELEASE_ARGS[@]}"' (inner substring), which matches BOTH
+# the naked splice '"${PRERELEASE_ARGS[@]}"' AND the guarded form
+# '${PRERELEASE_ARGS[@]+"${PRERELEASE_ARGS[@]}"}' — a revert to naked would false-pass
+# assertion 7 while the guard was silently removed (OBS-1 gap).
+# This assertion requires the COMPLETE +word-expansion prefix; reverting to the naked
+# form causes this assertion to FAIL while assertion 7 still passes (proves the gap).
+# F-REL001-PR1-002 introduced the guard; this test regression-protects it.
+if grep -qF '${PRERELEASE_ARGS[@]+"${PRERELEASE_ARGS[@]}"}' "$REL_YML" 2>/dev/null; then
+  tap_pass "AC-005: set-u-safe splice guard full form present (F-REL001-PR2-OBS-1 / SID-2)"
+else
+  tap_fail "AC-005: set-u-safe splice guard full form absent (F-REL001-PR2-OBS-1 / SID-2)" \
+    "AC-005 FAIL: expected '\${PRERELEASE_ARGS[@]+\"\${PRERELEASE_ARGS[@]}\"}' in release.yml — naked '\"\${PRERELEASE_ARGS[@]}\"' fails set -u when array is empty (F-REL001-PR1-002)"
+fi
+
 # ====================================================================
 # CWE-78 injection regression guard — F-REL001-P1-001 / F-REL001-P18-001
 #
