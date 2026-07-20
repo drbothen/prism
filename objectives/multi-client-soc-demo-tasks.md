@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.46"
+version: "1.47"
 producer: state-manager
 status: active
-timestamp: 2026-06-30T23:00:00Z
+timestamp: 2026-07-20T21:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -293,6 +293,7 @@ Per-story delivery tasks (T6, T7, T10, T12) follow the canonical 12-gate per-sto
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.47 | 2026-07-20 | state-manager | D-1882 COORDINATOR FOLD (TD-VSDD-053 single-commit). (1) Frontmatter bumped v1.46→v1.47; timestamp 2026-07-20T21:00:00Z. (2) DEFECT-DEMOSETUP-PRISMBIN-ACL-001 registered as open follow-up: macOS Keychain ACL keyed to WRITING binary; demo-setup.sh hardcoded PRISM_BIN=target/release/prism; deployed server = test-soc/bin/prism → different app identity → ACL mismatch → Ok(None) reads for armis/claroty bearer_token + cyberint api_key → E-SENSOR-030 AllTargetsFailed; runtime fixed by re-storing all 10 creds via test-soc/bin/prism; code fix (--prism-bin PATH arg in demo-setup.sh) folds into PR #229 (DEFECT-DEMOSETUP-CWD-001) or sibling; correct invocation: bash /Users/jmagady/Dev/prism/scripts/demo-setup.sh --config-dir /Users/jmagady/Dev/test-soc/.prism --prism-bin /Users/jmagady/Dev/test-soc/bin/prism. (3) SESSION-HANDOFF.md §RESUME SNAPSHOT D-1881 amended: PER-WORKSTREAM NEXT-ACTIONS #4/#5 updated (test-soc DTU auth RESOLVED + defect registered; correct invocation); DEMO-RELEASE ROADMAP invocation updated with --prism-bin; DECISION DELTA extended with D-1882. STATE v8.430→v8.431. develop_head UNCHANGED e116a587. total_stories UNCHANGED 254. |
 | 1.46 | 2026-06-30 | state-manager | D-1435 PIVOT BURST (TD-VSDD-053 single-commit). (1) Frontmatter bumped v1.45→v1.46; timestamp 2026-06-30T23:00:00Z. (2) T-PERF-PROFILE row updated: status not-started→in-progress; depends-on changed from "PR #208 MERGED" to "NONE (running NOW)"; description expanded with confirmed scope — (a) baseline profiling in-flight [performance-engineer], (b) WASMtime shared-Engine fix [stash@{0} prototype WARNING: uses .expect()], (c) deterministic stage-control for 4 quarantined tests, (d) full per-group optimization; BLOCKER for PR #208. (3) STATE D-1435 decision-log + Current Phase Steps rows added; Session Resume Checkpoint updated D-1433→D-1435; develop_head NOTE-CORRECTION added (test-speed initiative INCOMPLETE/SUPERSEDED by T-PERF-PROFILE). STATE v8.062→v8.063. develop_head UNCHANGED 8bc0404e. total_stories UNCHANGED 222. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STORY-INDEX UNCHANGED v2.533. |
 | 1.45 | 2026-06-30 | state-manager | D-1434 HUMAN-DIRECTED FOLLOW-UP BURST (TD-VSDD-053 single-commit). (1) Frontmatter bumped v1.44→v1.45; timestamp 2026-06-30T22:15:00Z. (2) T-PERF-PROFILE row added to TASK LEDGER (not-started; POST-S-DEMO-FIDELITY-REMEDIATION-001-MERGE; human-directed D-1434 2026-06-30; story family S-PERF-TEST-PROFILE-NNN; depends-on PR #208 merge). (3) STATE D-1434 decision-log row added (Current Phase Steps + Decisions Log); STATE v8.061→v8.062. develop_head UNCHANGED 8bc0404e. total_stories UNCHANGED 222. BC-INDEX UNCHANGED v7.26. ARCH-INDEX UNCHANGED v2.150. active_contracts UNCHANGED 254. STORY-INDEX UNCHANGED v2.533. |
 | 1.44 | 2026-06-21 | state-manager | D-1280 CORRECTION-2 BURST (TD-VSDD-053 single-commit). (1) Frontmatter bumped v1.43→v1.44; timestamp 2026-06-21T13:00:00Z. (2) CURRENT POINTER updated: D-1279 → D-1280 pointer line. 001-B v1.4 TDD-READY; stubs committed 1c23bb03 on feature/S-DEMO-PRISMQL-ONBOARDING-001-B. CORRECTION-2 adjudicated: ColumnNotFoundDetails boxed struct required; EXPECTED 82→83 (implementer obligation); CLAUDE.md 82→83 + enum_violations.rs (merge-time obligations). NEXT = test-writer Red Gate tests then implementer TDD. develop_head UNCHANGED fc954300. total_stories 206 / active_contracts 238 / draft_contracts 5 UNCHANGED. STORY-INDEX v2.452→v2.453. STATE v7.908→v7.909. |
