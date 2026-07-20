@@ -172,7 +172,7 @@ fi
 # Covers github.ref, github.ref_name, github.ref_type.
 # Correct pattern: bind via env: map (env: TAG: ${{ github.ref_name }}) and
 # use plain $TAG in run: bodies.  CWE-78 / F-REL001-P1-001 / F-REL001-P18-001.
-if echo "$run_blocks" | grep -qF '${{ github.ref' 2>/dev/null; then
+if echo "$run_blocks" | grep -qE '\$\{\{[[:space:]]*github\.ref' 2>/dev/null; then
   tap_fail "AC-005: forbidden \${{ github.ref* }} in run: block (CWE-78 / F-REL001-P1-001 regression)" \
     "AC-005 FAIL: '\${{ github.ref' must not appear in run: script bodies — bind via env: map and use plain \$TAG (F-REL001-P1-001 / F-REL001-P18-001 / CWE-78)"
 else
@@ -183,7 +183,7 @@ fi
 # github.event.* values (PR body, commit message, etc.) are fully
 # attacker-controlled via PR creation or commit authorship.
 # CWE-78 / F-REL001-P1-001 / F-REL001-P18-001.
-if echo "$run_blocks" | grep -qF '${{ github.event' 2>/dev/null; then
+if echo "$run_blocks" | grep -qE '\$\{\{[[:space:]]*github\.event' 2>/dev/null; then
   tap_fail "AC-005: forbidden \${{ github.event* }} in run: block (CWE-78 / F-REL001-P1-001 regression)" \
     "AC-005 FAIL: '\${{ github.event' must not appear in run: script bodies — event-derived values are attacker-controlled via PR/commit"
 else
@@ -194,7 +194,7 @@ fi
 # head_ref is the PR source branch name — attacker-controlled when a PR
 # is opened from a fork with an arbitrary branch name.
 # CWE-78 / F-REL001-P1-001 / F-REL001-P18-001.
-if echo "$run_blocks" | grep -qF '${{ github.head_ref' 2>/dev/null; then
+if echo "$run_blocks" | grep -qE '\$\{\{[[:space:]]*github\.head_ref' 2>/dev/null; then
   tap_fail "AC-005: forbidden \${{ github.head_ref }} in run: block (CWE-78 / F-REL001-P1-001 regression)" \
     "AC-005 FAIL: '\${{ github.head_ref' must not appear in run: script bodies — PR source branch name is attacker-controlled"
 else
@@ -209,7 +209,7 @@ fi
 # ($ARCHIVE, $TAG) which bash receives as an already-resolved string.
 # The ${{ env.ARCHIVE }} form is allowed in with:/env: keys (not run:).
 # F-REL001-P1-001 / F-REL001-P18-001 / CWE-78.
-if echo "$run_blocks" | grep -qF '${{ env.' 2>/dev/null; then
+if echo "$run_blocks" | grep -qE '\$\{\{[[:space:]]*env\.' 2>/dev/null; then
   tap_fail "AC-005: forbidden \${{ env.* }} in run: block (env re-exposure / F-REL001-P1-001 regression)" \
     "AC-005 FAIL: '\${{ env.' must not appear in run: script bodies — use plain shell var (\$ARCHIVE, \$TAG) not \${{ env.VAR }} (F-REL001-P1-001 / F-REL001-P18-001 / CWE-78)"
 else
