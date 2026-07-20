@@ -64,8 +64,8 @@ jobs:
           # libdbus-1-dev: required by prism-credentials keyring-linux-native-sync-persistent
           # → dbus-secret-service (C-linked libdbus). build.rs runs on glibc host even for
           # musl cross-target. ADR-034/BC-2.06.003.
-          # clang: retained for any build.rs scripts that invoke cc-rs on the host.
-          sudo apt-get install -y musl-tools pkg-config libdbus-1-dev clang
+          # clang removed per §15/F-REL001-P16-001: gnu dry-run passed pre-clang (cc-rs uses gcc/g++); musl uses zig's bundled toolchain; do not reintroduce (superseded attempt-3 CXX override).
+          sudo apt-get install -y musl-tools pkg-config libdbus-1-dev
           if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-musl" ]]; then
             # DEFECT-REL001-MUSL-LIBSTDCXX-001: clang++ (system) is compiled against glibc
             # and links against glibc's libstdc++.a which references glibc-specific symbols
