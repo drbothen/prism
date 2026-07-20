@@ -1020,3 +1020,239 @@ Orchestrator verified `git diff fc430c4a..3659409d -- .github/workflows/release.
 - `crates/prism-credentials/src/lib.rs`: untouched (no diff)
 
 Conclusion: Attempt-5 GREEN remains representative of HEAD (3659409d). No logic changes to the release workflow or credentials crate between the Attempt-5 tag commit and current HEAD.
+
+---
+
+## Attempt 6 — F-REL001-P16-001 Clang-Removal Re-Verification (§15/story v0.21 Task 12 note)
+
+**Tag:** `v0.0.1-rc.test` at commit `339a0c04`
+
+**Branch push:** f46a9a28..339a0c04 (fast-forward; pre-push hooks ALL PASSED — fmt + clippy +
+nextest + non-exhaustive 92/92 gate; ~110s)
+
+**Tag push time (UTC):** 2026-07-20T06:29:38Z
+
+**Run URL:** https://github.com/drbothen/prism/actions/runs/29721841906
+
+**Pre-push hooks:** ALL PASSED (fmt + clippy + nextest + non-exhaustive 92/92 gate; ~110s)
+
+**Purpose:** Re-verify Attempt-5 GREEN remains valid after two commits removed clang from the
+`apt-get install` line (f5915d77: clang removed from apt step per §15/F-REL001-P16-001) and
+updated AC-010 assertion #9 to assert clang-absence as a negative regression guard (339a0c04).
+These commits change release.yml logic (one fewer package in apt install) and test assertions
+respectively; a live run is required to confirm the build still passes without clang.
+
+---
+
+### Per-Leg Results Table
+
+| Target | Job ID | Conclusion | Duration | Job Link |
+|--------|--------|------------|----------|----------|
+| x86_64-unknown-linux-gnu | 88286303293 | PASS | 24m 5s | https://github.com/drbothen/prism/actions/runs/29721841906/job/88286303293 |
+| x86_64-unknown-linux-musl | 88286303308 | PASS | 19m 6s | https://github.com/drbothen/prism/actions/runs/29721841906/job/88286303308 |
+| aarch64-apple-darwin | 88286303326 | PASS | 30m 13s | https://github.com/drbothen/prism/actions/runs/29721841906/job/88286303326 |
+| x86_64-pc-windows-msvc | 88286303334 | PASS | 6m 42s | https://github.com/drbothen/prism/actions/runs/29721841906/job/88286303334 |
+| x86_64-apple-darwin | 88286303337 | PASS | 5m 46s | https://github.com/drbothen/prism/actions/runs/29721841906/job/88286303337 |
+| Create GitHub Release (publish-release) | 88290498683 | PASS | 27s | https://github.com/drbothen/prism/actions/runs/29721841906/job/88290498683 |
+
+ALL 5 build-release legs PASSED. `Create GitHub Release` (publish-release) job PASSED.
+
+---
+
+### Clang-Absence Confirmation (§15/F-REL001-P16-001 — PRIMARY GATE)
+
+**Script echo line (both Linux legs):**
+```
+sudo apt-get install -y musl-tools pkg-config libdbus-1-dev
+```
+No `clang` on the command line. Confirmed from job logs:
+- musl leg (88286303308) at 2026-07-20T06:29:55.2101894Z
+- gnu leg (88286303293) at 2026-07-20T06:29:55.3570491Z
+
+**musl leg apt execution output (job 88286303308) — NEW packages installed:**
+```
+The following NEW packages will be installed:
+  libdbus-1-dev musl musl-dev musl-tools
+0 upgraded, 4 newly installed, 0 to remove and 24 not upgraded.
+```
+
+**gnu leg apt execution output (job 88286303293) — NEW packages installed:**
+```
+The following NEW packages will be installed:
+  libdbus-1-dev musl musl-dev musl-tools
+0 upgraded, 4 newly installed, 0 to remove and 24 not upgraded.
+```
+
+Packages installed on both Linux legs: `libdbus-1-dev`, `musl`, `musl-dev`, `musl-tools`. `clang`
+is ABSENT from both NEW packages lists and from all `Get:`/`Unpacking`/`Setting up` lines. The
+build succeeded without clang on both legs, confirming §15/F-REL001-P16-001's empirical claim:
+the gnu leg uses cc-rs/gcc (never needed clang), and the musl leg uses zig's bundled C++
+toolchain (also never needed system clang).
+
+---
+
+### Five-Check Verification — Attempt 6 (ALL BLOCKING CHECKS PASS)
+
+| Check | Description | Result |
+|-------|-------------|--------|
+| (a) | All 5 legs exit 0; `Create GitHub Release` job exits 0; clang absent from apt log on Linux legs | PASS — all 6 jobs conclusion=success; apt log confirms no clang on gnu or musl |
+| (b) | `file prism` (musl) reports "statically linked" | PASS — "ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, stripped" |
+| (b) | `file prism-dtu-demo-server` (musl) reports "statically linked" | PASS — "ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, stripped" |
+| (c) | `readelf -d prism` (musl) no dynamic section | PASS — "There is no dynamic section in this file." (pyelftools) |
+| (c) | `readelf -d prism-dtu-demo-server` (musl) no dynamic section | PASS — "There is no dynamic section in this file." (pyelftools) |
+| (d) | `cargo tree --target x86_64-unknown-linux-musl -i libdbus-sys` empty | PASS — "warning: nothing to print." EXIT: 0 |
+| (e) | `cargo tree --target x86_64-unknown-linux-gnu -i libdbus-sys` present | PASS — libdbus-sys v0.2.7 tree present EXIT: 0 |
+
+**Check (b) raw outputs:**
+
+```
+# prism (musl binary — extracted from prism-v0.0.1-rc.test-x86_64-unknown-linux-musl.tar.gz)
+file /tmp/s-rel-001-attempt6/musl/prism
+prism: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, stripped
+
+# prism-dtu-demo-server (musl binary — from prism-dtu-demo-server-x86_64-unknown-linux-musl GHA artifact)
+file /tmp/s-rel-001-attempt6/demo-server-musl/prism-dtu-demo-server
+prism-dtu-demo-server: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, stripped
+```
+
+**Check (c) raw outputs:**
+
+```
+# prism (musl)
+python3 -c "[pyelftools ELFFile check] /tmp/s-rel-001-attempt6/musl/prism"
+There is no dynamic section in this file.
+
+# prism-dtu-demo-server (musl)
+python3 -c "[pyelftools ELFFile check] /tmp/s-rel-001-attempt6/demo-server-musl/prism-dtu-demo-server"
+There is no dynamic section in this file.
+```
+
+**Check (d) raw output:**
+
+```
+cargo tree --target x86_64-unknown-linux-musl -i libdbus-sys
+warning: nothing to print.
+
+To find dependencies that require specific target platforms, try to use option
+`--target all` first, and then narrow your search scope accordingly.
+EXIT: 0
+```
+
+**Check (e) raw output (abbreviated — full tree includes all workspace crate dependents):**
+
+```
+cargo tree --target x86_64-unknown-linux-gnu -i libdbus-sys
+libdbus-sys v0.2.7
+└── dbus v0.9.11
+    └── dbus-secret-service v4.1.0
+        └── keyring v3.6.3
+            ├── prism-bin v0.1.0 (...)
+            └── prism-credentials v0.1.0 (...)
+EXIT: 0
+```
+
+---
+
+### Release Asset Listing (EC-001/AC-005)
+
+```
+gh release view v0.0.1-rc.test --repo drbothen/prism --json isPrerelease,assets,tagName
+tagName: v0.0.1-rc.test
+isPrerelease: true
+Assets (6 total):
+  checksums.txt (582 bytes)
+  prism-v0.0.1-rc.test-aarch64-apple-darwin.tar.gz (44101141 bytes)
+  prism-v0.0.1-rc.test-x86_64-apple-darwin.tar.gz (47675537 bytes)
+  prism-v0.0.1-rc.test-x86_64-pc-windows-msvc.zip (47008966 bytes)
+  prism-v0.0.1-rc.test-x86_64-unknown-linux-gnu.tar.gz (50483558 bytes)
+  prism-v0.0.1-rc.test-x86_64-unknown-linux-musl.tar.gz (48950177 bytes)
+```
+
+EC-001 (isPrerelease == true for `-` tags): PASS — `isPrerelease: true` confirmed.
+Release ID: 356544832. 5-platform asset coverage: PASS.
+
+---
+
+### Checksums.txt Content (5 lines)
+
+```
+b7c75527f6182b960628da70e9a4c77823b4f15b377ab98f695ade6a8c5a2886  prism-v0.0.1-rc.test-aarch64-apple-darwin.tar.gz
+c9f6348621820e1f4577d1737d2c347cf12e85ab8c9f91babb1c3cf84a311ade  prism-v0.0.1-rc.test-x86_64-apple-darwin.tar.gz
+133ffa75e29033611fcf2736cf664ffd76995b0575207ccf74d6b9fd2ce4e15f *prism-v0.0.1-rc.test-x86_64-pc-windows-msvc.zip
+6801ea16b1f92dd9c7c5888cf93a616dd33033bc7c30a10844daf705dcd366ee  prism-v0.0.1-rc.test-x86_64-unknown-linux-gnu.tar.gz
+4097a68f72df85c435466cfa98b6d7db2e7b70dbea93d0489fa8560e414a6f7c  prism-v0.0.1-rc.test-x86_64-unknown-linux-musl.tar.gz
+```
+
+5 lines, one per platform. EC-007: PASS.
+
+---
+
+### Attestation Step Outcome — Attempt 6
+
+```
+Build release (x86_64-unknown-linux-gnu):    Step "Attest build provenance" -> success
+Build release (x86_64-unknown-linux-musl):   Step "Attest build provenance" -> success
+Build release (aarch64-apple-darwin):        Step "Attest build provenance" -> success
+Build release (x86_64-pc-windows-msvc):      Step "Attest build provenance" -> success
+Build release (x86_64-apple-darwin):         Step "Attest build provenance" -> success
+```
+
+All 5 attestations: success. 5/5 PASS.
+
+---
+
+### Cleanup Verification — Attempt 6
+
+1. GitHub Release deleted:
+```
+gh api repos/drbothen/prism/releases/356544832 -X DELETE
+→ (no output, exit 0) "Release deleted via API"
+```
+
+2. Remote tag deleted:
+```
+gh api repos/drbothen/prism/git/refs/tags/v0.0.1-rc.test -X DELETE
+→ (no output, exit 0) "Remote tag deleted"
+```
+
+3. Local tag deleted:
+```
+git tag -d v0.0.1-rc.test
+Deleted tag 'v0.0.1-rc.test' (was 339a0c04)
+```
+
+4. Verification:
+```
+gh release view v0.0.1-rc.test --repo drbothen/prism → "release not found"  (exit 1)
+gh api repos/drbothen/prism/git/refs/tags/v0.0.1-rc.test → 404 Not Found  (exit 1)
+git tag -l "v0.0.1-rc.test" → (empty)  (0 entries)
+```
+
+All confirmed clean.
+
+---
+
+### Attempt 6 Gate Verdict
+
+**DRY-RUN GREEN**
+
+DEFECT-REL001-PROTOC-MISSING-001: FIXED (confirmed Attempts 2-6)
+DEFECT-REL001-MUSL-DBUS-001: FIXED (confirmed Attempts 3-6)
+DEFECT-REL001-MUSL-CXX-001: FIXED (confirmed Attempts 4-6)
+DEFECT-REL001-MUSL-LIBSTDCXX-001: FIXED (confirmed Attempts 5-6)
+F-REL001-P16-001 (clang-removal): CONFIRMED GREEN — build passes without clang;
+  apt log shows `libdbus-1-dev musl musl-dev musl-tools` only (no clang) on both Linux legs.
+
+All 5 build-release legs passed. `Create GitHub Release` (publish-release) job passed.
+All 5 five-check blocking criteria satisfied:
+- (a) All legs exit 0, clang absent from apt log: PASS
+- (b) Both musl binaries: "statically linked" per `file`: PASS
+- (c) Both musl binaries: no dynamic section (zero NEEDED entries): PASS
+- (d) cargo tree musl: libdbus-sys absent: PASS
+- (e) cargo tree gnu: libdbus-sys present: PASS
+
+Release assets: 5 platform tarballs + checksums.txt (5 lines). isPrerelease=true. EC-001: PASS.
+Attestation: 5/5 success.
+Cleanup: release, remote tag, local tag all deleted and verified gone.
+
+Task 12 gate: **DRY-RUN GREEN**
