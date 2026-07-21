@@ -5,7 +5,7 @@ title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2Cli
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.7"
+version: "0.8"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -487,6 +487,11 @@ All templates echo only config values (sensor_id, auth_type, field names), never
 | ADR-053 Rationale §Why custom_via_plugin | Update to reflect ADR-054's native declarative provider decision | D2 |
 | ADR-053 D5 manifest | Update BC-2.01.008 amendment description from `custom_via_plugin` + plugin to `token_exchange` + native provider | D1 |
 | ADR-026 §D3 (partial) | Note that `token_exchange` variant added to AuthType enum per ADR-054 D1; cross-reference frontmatter `amended_by` | D1 |
+| BC-2.01.016 §Related BCs | Update "one entry in the 5-value canonical auth_type set" → 6-value canonical auth_type set (`token_exchange` is the 6th variant per D1) | D1 |
+| BC-2.01.017 §Preconditions | Update "The 5-value canonical auth_type set (BC-2.01.016 §Postconditions)" → 6-value canonical auth_type set | D1 |
+| BC-2.01.017 §P3 (Auth Type Dispatch) | Update "the 5-value canonical auth_type set per BC-2.01.016 §Postconditions" → 6-value canonical auth_type set | D1 |
+| BC-2.01.017 §Related BCs | Update "the 5-value canonical auth_type set (including `"cookie_roundtrip"`)" → 6-value canonical auth_type set | D1 |
+| BC-2.16.009 §Validation Rules (Schema Validation, `auth_type` rule) | Add `token_exchange` to the enumerated allowed-values list; update "(5-value canonical set)" → "(6-value canonical set)" in the parenthetical | D1 |
 | ADR-028 §D13 consistency table | Update `oauth2_client_credentials` row: `PluginAuthProvider (WASM)` → `DeclarativeHttpAuthProvider (native)` when `[auth_acquisition]` present (per ADR-054 D2/D5 native migration); mark `crowdstrike-oauth2.prx` plugin as being retired per D5. Update §D2 and §D13 Armis blockquotes from `custom_via_plugin` + `armis-token-exchange.prx` → `token_exchange` + native `DeclarativeHttpAuthProvider`. Bidirectional: ADR-028 frontmatter gains `amended_by: [ADR-054 §D2/D5]` back-ref; ADR-028 added to ADR-054 `related_adrs` (already present). | D2, D5 |
 | **--- CrowdStrike plugin retirement blast-radius (atomic with D5 migration story) ---** | | |
 | `crates/prism-sensors/specs/crowdstrike.sensor.toml` | Drop `auth_plugin = "crowdstrike-oauth2"`; add `[auth_acquisition]` block with `token_path = "/oauth2/token"` and `credential_refs` (D2) | D5 |
@@ -664,6 +669,7 @@ do not proceed.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.8 | 2026-07-21 | architect | HIGH-1: D11 manifest extended with 5 downstream BC amendment rows for "5-value → 6-value" auth_type-set count corrections triggered by D1 (token_exchange as 6th variant): BC-2.01.016 §Related BCs, BC-2.01.017 §Preconditions, BC-2.01.017 §P3 Auth Type Dispatch, BC-2.01.017 §Related BCs, BC-2.16.009 §Validation Rules Schema Validation auth_type rule — all confirmed live normative sites by POL-29 grep sweep. |
 | 0.7 | 2026-07-21 | architect | OBS-1: D11 `.config/nextest.toml` retirement row extended to cover the profile-documentation comment enumerating `crowdstrike_oauth2_plugin_tests` (behavioral anchor: the profile-documentation comment enumerating `crowdstrike_oauth2_plugin_tests`) — prior row covered only the four filter-group expression occurrences. |
 | 0.6 | 2026-07-21 | architect | HIGH-1: ADR-028 added to `amends:` frontmatter (bidirectional symmetry with ADR-028 `amended_by` back-ref). MED-1: D2/D7/D10 internal contradiction resolved — D2 auth_plugin prohibition strengthened to unconditional for `{oauth2_client_credentials, token_exchange}` (consistent with D10(b)); D7 dispatch table row 2 annotated as validation-unreachable (D10(b) rejects at spec-load before step 9A executes); D10 cross-reference note added. OBS-2: ADR-023 §Status + §Rule 4 stale "no in-repo .prx plugin required" claims swept: acknowledge `crowdstrike-oauth2.prx` existence and ADR-054 D5 retirement. |
 | 0.5 | 2026-07-21 | architect | HIGH-2 (FIX-BURST): ADR-028 §D13 amendment row added to D11 manifest — `oauth2_client_credentials` consistency-table row must be updated from `PluginAuthProvider (WASM)` to `DeclarativeHttpAuthProvider (native)` when `[auth_acquisition]` present (per D2/D5); bidirectional: ADR-028 frontmatter carries `amended_by` back-ref for ADR-054. OBS-1 (FIX-BURST): ARCH-INDEX AD-001 crate-count note amended — clarifies 25 after ADR-054 alone; 24 once ADR-037 (prism-customer-config) also lands; whichever ADR lands second must update to the combined value. |

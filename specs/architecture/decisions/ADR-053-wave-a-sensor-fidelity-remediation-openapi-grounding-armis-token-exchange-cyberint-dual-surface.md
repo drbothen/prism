@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.12"
+version: "0.13"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -524,7 +524,7 @@ consequence of D1–D3. Each amendment is in-scope for the corresponding remedia
 | Artifact | Amendment required | Triggered by |
 |----------|-------------------|--------------|
 | BC-2.01.008 (`armis-bearer-aql`) | Title and contract-level auth premise invalidated — Armis auth is no longer `bearer_static`; the BC must be updated to reflect `token_exchange` (native `DeclarativeHttpAuthProvider` per ADR-054) + `header_scheme = "raw"` | D2 |
-| BC-2.01.017 §P2 dispatch table | Currently hardcodes `CustomViaPlugin → Authorization: Bearer {token}`. Must gain the `header_scheme`-based raw arm (or delegate dispatch to `header_scheme` entirely) to eliminate the spec-vs-spec conflict with D2's `header_scheme = "raw"` for Armis | D2 |
+| BC-2.01.017 §P2 dispatch table | The auth_type-keyed injection table must be replaced by `header_scheme`-driven dispatch — a mechanism-level replacement, not a per-arm patch. Two drivers: (1) `token_exchange` (new 6th AuthType variant per ADR-054 D1) has no arm in the current 4-row §P2 table; adding a 5th arm would be a per-variant patch that does not generalize to future variants; (2) `CustomViaPlugin → Authorization: Bearer {token}` is incoherent with `header_scheme = "raw"` for any `custom_via_plugin` sensor that declares raw injection. Aligns with D2 generalization directive: dispatch on the general `header_scheme` field, not per-auth-type special cases. | D2 |
 | BC-2.01.017 INV-COOKIE-004 | Cookie injection invariant references `auth_type = "cookie_roundtrip"` as the dispatch trigger; must be re-grounded on `header_scheme = "cookie:<name>"` | D2 |
 | BC-2.01.017 TV-BC-2.01.017-008 | Test vector grounded on `auth_type`-based cookie dispatch; must be re-grounded on `header_scheme = "cookie:access_token"` dispatch | D2 |
 | BC-2.01.006 | Split scope: rename/restrict existing Cyberint BC to Assets surface only; author new Cyberint Alerts BC covering the `/alert` surface auth and endpoints | D3 |
@@ -702,6 +702,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.13 | 2026-07-21 | architect | OBS-1: D5 manifest BC-2.01.017 §P2 dispatch table row rationale rewritten — pre-v0.7 "eliminate spec-vs-spec conflict with D2's header_scheme=raw for Armis via CustomViaPlugin arm" framing replaced with current truth: mechanism-level replacement driven by (1) token_exchange (6th variant, no §P2 arm) and (2) CustomViaPlugin hardcoded Bearer incoherent with header_scheme=raw generally; actionable instruction (delegate to header_scheme) unchanged. |
 | 0.12 | 2026-07-21 | architect | HIGH-1 (x2): re-anchor both `validate_and_construct_auth_providers` construction-site claims to `step9a_populate_adapter_registry` in `crates/prism-bin/src/spec_driven_adapter.rs` — the real auth_type-keyed dispatch site; clarify `validate_and_construct_auth_providers` (boot.rs) is plugin-only. HIGH-2: TOML block corrected — `token_url = "${env.ARMIS_INSTANCE_URL}/api/v1/access_token/"` replaced with `token_path = "/api/v1/access_token/"` (relative) + `# base_url` comment at sensor level per ADR-054 §D3 canonical schema. |
 | 0.11 | 2026-07-21 | architect | MED-2: `related_bcs_planned: [BC-2.16.014]` added to frontmatter; `[PLANNED]` markers added at D2 VP-assignment BC-2.16.014 citation and D5 manifest BC-2.16.014 row — mirrors ADR-054's POL-21/22 phantom-anchor hygiene. OBS-1: D2 coherence matrix `custom_via_plugin` row "Canonical value" cell corrected from sensor-specific Armis parenthetical to sensor-agnostic `"raw" or "bearer" per plugin declaration`. |
 | 0.10 | 2026-07-21 | architect | HIGH-1 (FIX-BURST): VP-assignment paragraph (D2, §DRIFT-D849-002) rewritten — stale "Armis plugin" / "plugin's `acquire_token()`" framing replaced with `DeclarativeHttpAuthProvider` lazy-acquisition invariant (ADR-054 D4/D8 P1; BC-2.16.014 P1). Consequences/Positive rewritten — "Armis token-exchange plugin follows the established CrowdStrike-oauth2 plugin pattern" replaced with native `DeclarativeHttpAuthProvider` framing; `crowdstrike-oauth2.prx` is being RETIRED by ADR-054 D5, not extended as a pattern. |
