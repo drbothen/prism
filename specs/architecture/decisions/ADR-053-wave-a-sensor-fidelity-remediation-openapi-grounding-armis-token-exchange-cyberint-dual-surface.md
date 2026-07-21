@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.11"
+version: "0.12"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -212,9 +212,11 @@ in pure host Rust (reqwest, ADR-050 compliant, 30s timeout, rustls-tls).
 sensor_id = "armis"
 auth_type = "token_exchange"       # native declarative provider (ADR-054 D1)
 header_scheme = "raw"              # Authorization: {token} — no Bearer prefix
+# base_url = "${env.ARMIS_INSTANCE_URL}" (per-org resolved; overlays flow to token URL)
 
 [auth_acquisition]
-token_url = "${env.ARMIS_INSTANCE_URL}/api/v1/access_token/"
+token_path = "/api/v1/access_token/"
+# Token URL derived per-org: base_url + "/api/v1/access_token/"
 credential_body_field = "secret_key"        # form body: secret_key={resolved_value}
 token_response_path = "data.access_token"   # $.data.access_token
 expiry_field = "data.expiration_utc"        # $.data.expiration_utc (absolute UTC string)
@@ -225,8 +227,9 @@ expiry_mode = "absolute_utc_string"
 name = "secret_key"                # resolved via BC-2.06.003 four-tier per-client chain (PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF})
 ```
 
-`boot.rs::validate_and_construct_auth_providers` constructs a `DeclarativeHttpAuthProvider(TokenExchange, ...)`
-for `auth_type = "token_exchange"`. No `auth_plugin` field; no `BootError::UnknownAuthPlugin` path.
+`step9a_populate_adapter_registry` (`crates/prism-bin/src/spec_driven_adapter.rs`) constructs a `DeclarativeHttpAuthProvider(TokenExchange, ...)`
+for `auth_type = "token_exchange"` (auth_type-keyed dispatch). No `auth_plugin` field; no `BootError::UnknownAuthPlugin` path.
+`validate_and_construct_auth_providers` (boot.rs) is plugin-only and does not participate in this path.
 E-SPEC-028 (ADR-054 D10) validates the `[auth_acquisition]` block at spec-load time.
 
 The `DeclarativeHttpAuthProvider::acquire_token()` implementation (per ADR-054 D4):
@@ -564,9 +567,11 @@ preserved as an escape hatch for genuinely non-standard auth; Armis token-exchan
 genuinely non-standard — it is a standard HTTP POST for a short-lived credential.
 
 `token_exchange` is the correct semantic label (distinct from `oauth2_client_credentials`
-which follows RFC 6749 fixed form body + response format). `boot.rs::validate_and_construct_auth_providers`
-constructs `DeclarativeHttpAuthProvider(TokenExchange, ...)` for `auth_type = "token_exchange"`,
-driven by `auth_type` (not `auth_plugin.is_some()`). The BC-2.01.016 closed-enum amendment
+which follows RFC 6749 fixed form body + response format). `step9a_populate_adapter_registry`
+(`crates/prism-bin/src/spec_driven_adapter.rs`) constructs `DeclarativeHttpAuthProvider(TokenExchange, ...)`
+for `auth_type = "token_exchange"`, driven by auth_type-keyed dispatch (not `auth_plugin.is_some()` —
+that path belongs to `validate_and_construct_auth_providers` in boot.rs, which is plugin-provider-only).
+The BC-2.01.016 closed-enum amendment
 (E-SPEC-012 + spec_parser `VALID_AUTH_TYPES`) is a small, correct change per ADR-054 D1.
 
 ### Why two sensor definitions for Cyberint?
@@ -697,6 +702,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.12 | 2026-07-21 | architect | HIGH-1 (x2): re-anchor both `validate_and_construct_auth_providers` construction-site claims to `step9a_populate_adapter_registry` in `crates/prism-bin/src/spec_driven_adapter.rs` — the real auth_type-keyed dispatch site; clarify `validate_and_construct_auth_providers` (boot.rs) is plugin-only. HIGH-2: TOML block corrected — `token_url = "${env.ARMIS_INSTANCE_URL}/api/v1/access_token/"` replaced with `token_path = "/api/v1/access_token/"` (relative) + `# base_url` comment at sensor level per ADR-054 §D3 canonical schema. |
 | 0.11 | 2026-07-21 | architect | MED-2: `related_bcs_planned: [BC-2.16.014]` added to frontmatter; `[PLANNED]` markers added at D2 VP-assignment BC-2.16.014 citation and D5 manifest BC-2.16.014 row — mirrors ADR-054's POL-21/22 phantom-anchor hygiene. OBS-1: D2 coherence matrix `custom_via_plugin` row "Canonical value" cell corrected from sensor-specific Armis parenthetical to sensor-agnostic `"raw" or "bearer" per plugin declaration`. |
 | 0.10 | 2026-07-21 | architect | HIGH-1 (FIX-BURST): VP-assignment paragraph (D2, §DRIFT-D849-002) rewritten — stale "Armis plugin" / "plugin's `acquire_token()`" framing replaced with `DeclarativeHttpAuthProvider` lazy-acquisition invariant (ADR-054 D4/D8 P1; BC-2.16.014 P1). Consequences/Positive rewritten — "Armis token-exchange plugin follows the established CrowdStrike-oauth2 plugin pattern" replaced with native `DeclarativeHttpAuthProvider` framing; `crowdstrike-oauth2.prx` is being RETIRED by ADR-054 D5, not extended as a pattern. |
 | 0.9 | 2026-07-21 | architect | HIGH-1: BC-2.16.014 anchoring corrected (prior drafts had mis-anchored the planned declarative-auth BC to non-existent SS-23; retargeted to next-free BC-2.16.014 in SS-16/prism-spec-engine); swept D5 manifest row, Status section, and Changelog v0.7 entry. HIGH-2: D2 section header corrected from "Token-Exchange via WASM Plugin" to "Token-Exchange via Native DeclarativeHttpAuthProvider" (body already described native path; header was stale from pre-D-1895 text). A-6 prerequisite: CrowdStrike Alerts-v2 credential scope prerequisite note added to D1 CrowdStrike implementation note (Alerts:READ scope required; Detects:READ alone fails at implementation with a scope error; source: prism-crowdstrike-endpoint-plan.md Gap G9). |
