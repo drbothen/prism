@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.437"
+version: "8.438"
 producer: state-manager
-timestamp: 2026-07-20T23:58:00Z
+timestamp: 2026-07-21T00:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.80"
 story_index_version: "v2.719"
-arch_index_version: "2.193"
+arch_index_version: "2.194"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1889 (2026-07-20): FINDINGS TRIAGE CAPTURE — 7-reader fan-out triaged; 36 findings registered (18 engine + 12 sensor + 6 DTU scenarios); 8 CRIT total (F1/F10/G4 engine + 5 sensor); systemic root cause ADR-028 spec←DTU circular grounding; 5 wrong-direction stories flagged; 5 open human-gate decisions (LOCKED D-747 overturn, incidents retire/build conflict, ADR-028 supersession, cycle structure); triage-capture.md at planning/findings-remediation-2026-07-20/. VERY NEXT ACTION: human sign-off on 5 open decisions → dispatch routing chain. trajectory-tail →0→0→0→0 STATE v8.436→v8.437"
+current_step: "D-1890 (2026-07-20): WAVE-A ADR BURST COMMITTED — ADR-053 authored (status: proposed) covering D1 grounding-order flip (supersedes ADR-028 §D1/§D2/§D5), D2 Armis token-exchange via custom_via_plugin armis-token-exchange.prx (supersedes D-747 + ADR-028 §D2), D3 Cyberint dual-surface split cyberint-alerts + cyberint-assets (supersedes LOCKED #4 + ADR-031 §D3-a). ADR-028 TD-VSDD-091 volatile cite remediated to behavioral anchor. Bidirectional supersession intact ADR-053↔028/031. ARCH-INDEX v2.193→v2.194. VERY NEXT ACTION: fresh-context review triad (spec-reviewer + adversary + consistency-validator) on ADR-053, then human approval gate; research-agent Cyberint Alerts auth-header confirmation in flight. BLOCKING preconditions before Wave-A stories: (a) human approval of ADR-053 [pending], (b) research-agent Cyberint Alerts auth confirmation, (c) DRIFT-D849-002 VP folded into Armis plugin. trajectory-tail →0→0→0→0 STATE v8.437→v8.438"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -65,10 +65,10 @@ current_cycle: wave-5-e-demo-fidelity
 
 # ── LOCKED ARCHITECTURAL DECISIONS ──
 architectural_decisions_locked:
-  - "1 LOCKED Option-A: TOML spec URLs ground against DTU clone routes (real-API canonical), NOT production Rust adapter URLs"
+  - "1 LOCKED Option-A: TOML spec URLs ground against DTU clone routes (real-API canonical), NOT production Rust adapter URLs [PENDING supersession by ADR-053 §D1 grounding-order flip (proposed; D-1889-authorized 2026-07-20; final ADR approval gate pending) — LOCKED until ADR-053 approved]"
   - "2 LOCKED Option-B: Parity test loads reference OCSF from committed fixture JSON"
   - "3 LOCKED Option-A: Expand PLUGIN-MIGRATION-001-D scope to include SpecErrorCode::ESpec017 variant in prism-core + filename-stem validation"
-  - "4 LOCKED Option-A: TOML auth_type declares REAL behavior (cyberint=cookie_roundtrip, claroty=bearer_static)"
+  - "4 LOCKED Option-A: TOML auth_type declares REAL behavior (cyberint=cookie_roundtrip, claroty=bearer_static) [PENDING supersession by ADR-053 §D3 Cyberint dual-surface split (proposed; D-1889-authorized 2026-07-20; final ADR approval gate pending) — LOCKED until ADR-053 approved]"
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
@@ -77,8 +77,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 412 lines (wc-l)
-  margin from soft-target (200): +209 lines over | margin from actual (500): 91 lines remaining
+  STATE.md SIZE BUDGET: 413 lines (wc-l)
+  margin from soft-target (200): +210 lines over | margin from actual (500): 90 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-20 D-1889 — FINDINGS TRIAGE CAPTURE: 36 findings registered (18 engine + 12 sensor); 8 CRIT; systemic root cause ADR-028; 5 wrong-direction stories flagged; 5 open human-gate decisions. triage-capture.md at planning/findings-remediation-2026-07-20/. trajectory-tail →0→0→0→0 STATE v8.436→v8.437 |
+| **Last Updated** | 2026-07-20 D-1890 — WAVE-A ADR BURST: ADR-053 authored (proposed) — grounding-order flip + Armis token-exchange + Cyberint dual-surface split; bidirectional supersession ADR-053↔028/031; ADR-028 TD-VSDD-091 volatile cite remediated; ARCH-INDEX v2.193→v2.194. NEXT: review triad on ADR-053 → human approval gate. trajectory-tail →0→0→0→0 STATE v8.437→v8.438 |
 
 ## Active Objective (North Star)
 
@@ -302,6 +302,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1887 | state-manager | 2026-07-20 | POST-MERGE RECONCILIATION BURST (TD-VSDD-053): repaired pr-manager b23f5e70 frozen-HEAD error (384d520e→e16f5e6a in Phase Progress + Convergence Status + Concurrent Cycles; actual final 3-CLEAN frozen HEAD; 12 passes total). S-REL-001 story status draft→merged (POL-13; merged_sha 7fef57da; merged_pr 228; merged_date 2026-07-20). STORY-INDEX v2.718→v2.719: S-REL-001 row merged v0.24 @7fef57da; S-REL-004 v0.1→v0.3; S-REL-005 v0.1→v0.3. SESSION-HANDOFF D-1881 amended by D-1887. 2 process-gaps: PG-PRMGR-MERGE-AUTHORITY-001 [HIGH] + PG-PRMGR-STATEMD-DIRECT-EDIT-001 [MED]. Lessons 80+81 appended. STATE v8.434→v8.435 | wave-5-e-demo-fidelity | 2026-07-20 |
 | D-1888 | state-manager | 2026-07-20 | SESSION WRAP — PRIORITY PIVOT (human-directed 2026-07-20): findings-first before Wave F-A. api-specs reference folder created: .factory/reference/api-specs/ (cyberint_alerts_openapi_06.20.2026.json, cyberint_assets_openapi_06.20.2026.json, xdome_openapi_06.20.2026.json; canonical vendor OpenAPI specs for DTU fidelity remediation; human-supplied). Armis: no OpenAPI file — canonical API docs at https://dev.armis.com/reference/post_oauth_token_post. RESUME SNAPSHOT D-1888 authored (supersedes D-1881 [AMENDED by D-1886/D-1887]). SESSION-HANDOFF.md priority banner updated to reference D-1888; D-1881 marked [SUPERSEDED by D-1888]. STATE v8.435→v8.436 | wave-5-e-demo-fidelity | 2026-07-20 |
 | D-1889 | state-manager | 2026-07-20 | FINDINGS TRIAGE CAPTURE (7-reader fan-out, D-1888-directed): 36 findings registered; 8 CRIT total (F1=DEFECT-PQL-SUBQUERY-FANOUT-001, F10=DEFECT-ADAPTER-TLS-XDOME-LIVE-001, G4=DEFECT-QUERY-TIMEOUT-ORPHAN-SWEEP-001 engine + 5 sensor: S-ARMIS-AUTH-FIDELITY-001, S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001, S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001, DEFECT-CYBERINT-SPEC-FIDELITY-001, ARCH-CYBERINT-AUTH-READJUDICATION-001); systemic root cause ADR-028 spec←DTU circular grounding; 5 wrong-direction stories flagged for PO adjudication (do NOT retire yet); 5 open human-gate decisions (ADR-028 supersession, LOCKED D-747 cyberint/armis auth overturns, incidents retire-vs-build conflict, cycle structure); sidecar-learning.md dirty pre-burst rides along. Full inventory at planning/findings-remediation-2026-07-20/triage-capture.md. STATE v8.436→v8.437 | wave-5-e-demo-fidelity | 2026-07-20 |
+| D-1890 | state-manager | 2026-07-20 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — WAVE-A ADR BURST. Human adjudications D-1889 RESOLVED (2026-07-20): (1) grounding+auth = Authorize full correction; (2) incidents = Retire + derive from CrowdStrike Alerts v2 aggregate_id; (3) cycle structure = one cycle, 4 waves (A grounding+auth / B endpoint fidelity / C engine+pushdown / D coverage+scenarios). ADR-053 authored (status: proposed) — D1 grounding-order flip (spec←OpenAPI←DTU, supersedes ADR-028 §D1/§D2/§D5), D2 Armis token-exchange via custom_via_plugin armis-token-exchange.prx (supersedes D-747 Armis + ADR-028 §D2; requires pipeline build_request raw-token header arm), D3 Cyberint dual-surface split into cyberint-alerts + cyberint-assets sensor defs (supersedes LOCKED #4 + ADR-031 §D3-a; Assets cookie_roundtrip confirmed, Alerts X-Api-Key UNCONFIRMED). ADR-028 TD-VSDD-091 volatile cite (pipeline.rs:1495) remediated to behavioral anchor. Bidirectional supersession intact ADR-053↔028/031. ARCH-INDEX v2.193→v2.194 (ADR-053 registry row inserted after ADR-052). BLOCKING preconditions before Wave-A stories: (a) human approval of ADR-053 [final gate pending], (b) research-agent Cyberint Alerts auth-header confirmation, (c) DRIFT-D849-002 VP folded into Armis plugin. F10 transport deferred to Wave-C (ADR-050-compliant only). trajectory-tail →0→0→0→0 STATE v8.437→v8.438 | wave-5-e-demo-fidelity | 2026-07-20 |
 
 ## Skip Log
 

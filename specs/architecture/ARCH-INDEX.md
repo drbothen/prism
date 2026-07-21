@@ -1,10 +1,10 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.193"
+version: "2.194"
 status: draft
 producer: architect
-timestamp: 2026-07-15T12:00:00Z
+timestamp: 2026-07-21T00:30:00Z
 phase: 1b
 inputs: [domain-spec/L2-INDEX.md, prd.md, prd-supplements/interface-definitions.md, prd-supplements/nfr-catalog.md, prd-supplements/error-taxonomy.md]
 traces_to: prd.md
@@ -119,6 +119,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 | ADR-050 | Workspace reqwest TLS Backend — rustls-tls Mandatory, native-tls Forbidden | ACCEPTED v1.1 | 2026-07-03 | decisions/ADR-050-workspace-reqwest-tls-backend.md |
 | ADR-051 | Typed & Consistent Enrichment UDF Output — output_type→Arrow DataType Mapping, Mandatory source_column, Scalar-Input Rule, and INV-ENRICH-TYPED-001 | ACCEPTED v1.5 (human-ratified 2026-07-05; datetime=Timestamp(µs,UTC) per ADR-052; v1.4 2026-07-06: column_type examples PascalCase→lowercase snake_case; v1.5 2026-07-13: §D2 null-input guard sub-clause + §D4 POL-22 code-truth correction — source IS called for JSON-list-to-typed path) | 2026-07-13 | decisions/ADR-051-typed-consistent-enrichment-udf-output.md |
 | ADR-052 | PrismQL Native Temporal Typing — Datetime Columns and Literals from Arrow Utf8 to Timestamp(Microsecond, UTC); supersedes ADR-044 §D4 | ACCEPTED v1.15 (D-1721 2026-07-13: F-PQLFN-P9-OBS-002 — "1.1 (ratified)" changelog row renamed "1.1-r" and relocated between 1.2 and 1.1 (monotonic ordering repair); v1.14: D-1720 2026-07-13: six callers/positions normative language — six predicate positions vs. five (F-PQLFN-P8-HIGH-002 sibling sweep); BC-2.11.004 v1.35→v1.36 + BC-2.11.019 v1.10→v1.12 co-amendments; v1.13: D-1718 2026-07-13: DEFECT-PQL-FNCALL-LHS-001 cascade closure — §D.7 aggregate LHS plan-time gate cross-wiring with ADR-048 v1.5; E-QUERY-042 arm 4 refinement; BC-2.11.004 v1.35 + BC-2.11.019 v1.10 co-amendments; v1.12: D-1717 2026-07-13: DEFECT-PQL-FNCALL-LHS-001 — §D4 NonColumnLhsComparison grammar-reachability: fn_call_comparison production added to pipe grammar; BC-2.11.004 arm (4) NonColumnLhsComparison now grammar-reachable via fn_call_comparison WHERE LHS; blast-radius row 14 added; architect adjudicated Option A grammar extension per spec-wins rule; @84ba834d; §D4 human-ratified 2026-07-04, Option A + String-column coercion; v1.4 pre-TDD: `is_date_like` 7 format strings; v1.5–v1.11 intermediate rounds) | 2026-07-05 | decisions/ADR-052-prismql-native-temporal-typing-utf8-to-arrow-timestamp.md |
+| ADR-053 | Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Exchange Auth, and Cyberint Dual-Surface Split | PROPOSED v0.1 (D-1889 2026-07-20: human-authorized correction of LOCKED decisions D-747 Armis/Cyberint + ADR-028 §D1/§D2/§D5 grounding order; final approval gate pending before spec/BC work) | 2026-07-20 | decisions/ADR-053-wave-a-sensor-fidelity-remediation-openapi-grounding-armis-token-exchange-cyberint-dual-surface.md |
 
 ## Architecture Decisions
 

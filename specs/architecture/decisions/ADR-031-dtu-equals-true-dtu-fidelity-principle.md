@@ -9,10 +9,10 @@ version: "1.2"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-028 §D12 (Cyberint cookie auth real-API vs DTU model divergence — DTU-shortcut acceptance SUPERSEDED)"]
-superseded_by: null
+superseded_by: "ADR-053 §D3-a (partial — Cyberint Alerts cookie_roundtrip model superseded by dual-surface split; Alerts auth PENDING research confirmation; authorized D-1889 2026-07-20; final ADR approval gate pending)"
 amends: null
 anchor_stories: [S-DTU-CYBERINT-AUTH-FIDELITY-001]
-related_adrs: [ADR-003, ADR-023, ADR-028]
+related_adrs: [ADR-003, ADR-023, ADR-028, ADR-053]
 related_bcs: [BC-2.16.013]
 locked_decisions: []
 user_directive_date: "2026-05-29"
@@ -517,6 +517,28 @@ no new BC is needed.
 
 ---
 
+## Rationale
+
+The DTU = True-DTU principle rests on a single claim: a test that passes against a DTU with
+the wrong auth model or wrong cookie name proves nothing about real-API compatibility. The
+Cyberint `cyberint_session` vs `access_token` discrepancy (the immediate trigger for this
+ADR) is exactly this failure: every parity test that passed gave false confidence because the
+DTU enforced a different cookie name than the real API. A demo that "works" by talking to its
+own fabricated DTU does not constitute evidence that Prism works against the real sensor.
+
+The user directive (2026-05-29) that establishes this ADR is unambiguous: real-API fidelity
+is not a post-demo enhancement; it is the definition of correctness. The demo's evidentiary
+value — its ability to demonstrate to customers and engineers that Prism correctly connects
+to real sensors — depends entirely on the DTU being a faithful representation. Approximate
+fidelity and deliberate divergence are indistinguishable from bugs to a downstream observer.
+
+The alternative (defer real-API fidelity to follow-up stories) was explicitly evaluated and
+rejected. Deferral creates a class of tests that pass and a class of runtime behaviors that
+fail — exactly the failure mode that caused S-DEMO-001's auth outage. The only acceptable
+approach is that DTU fidelity is the invariant, not the goal.
+
+---
+
 ## Consequences
 
 ### Positive
@@ -581,6 +603,21 @@ non-standard cookie names, but it does not resolve the DTU fidelity problem.
 
 ---
 
+## Source / Origin
+
+- **User directive (2026-05-29):** Explicit direction to fix the Cyberint auth fidelity
+  pre-demo. Establishes the DTU=True-DTU principle as binding across all four sensors.
+  Recorded in STATE.md and confirmed in orchestrator adjudication session leading to this ADR.
+- **Behavioral contracts:** BC-2.16.013 (sensor spec correctness contract), BC-2.01.006
+  (Cyberint auth contract), BC-2.16.001 (parity test contract).
+- **Reference implementation:** `.factory/semport/poller-express/poller-express-broad-sweep.md §2.1`
+  — Go `cookieTransport` implementation confirming `access_token` cookie injection without
+  login step. This is the canonical real-API behavioral evidence.
+- **Prior art:** ADR-028 §D12 (the superseded decision) and ADR-003 (DTU Reset Lookup and
+  Fidelity Auth) — the predecessor DTU fidelity framework that this ADR extends.
+
+---
+
 ## Related Decisions
 
 - **Supersedes ADR-028 §D12** (Cyberint cookie auth real-API vs DTU model divergence — the
@@ -600,6 +637,6 @@ non-standard cookie names, but it does not resolve the DTU fidelity problem.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
-| 1.0 | 2026-05-29 | architect | Initial version — establishes DTU=True-DTU as binding architectural principle per user directive 2026-05-29. Supersedes ADR-028 §D12. Defines D1 (six fidelity requirements), D2 (exhaustive list of permitted divergences), D3 (Cyberint DTU correction), D4 (§D12 supersession), D5 (validation discipline), D6 (cross-sensor applicability). Anchor story: S-DTU-CYBERINT-AUTH-FIDELITY-001 (reclassified from P2-post-demo to P0-pre-demo-BLOCKING). |
-| 1.1 | 2026-05-30 | architect | Scope expansion amendment — adds §D7 extending DTU=true-DTU binding to all harness-clone paths (`crates/prism-dtu-harness/src/clones/{sensor}.rs`) per F-LP1-OBS-001 [process-gap] from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 1 LOCAL adversary cascade. Harness audit (`HARNESS-DTU-FIDELITY-AUDIT-2026-05-30.md`): Cyberint CRITICAL violations (4 CRIT + 1 HIGH; fixed in S-DTU-CYBERINT-AUTH-FIDELITY-001 expanded scope); Claroty HIGH gap (audit_log route, co-scoped with S-DEMO-CLAROTY-AUDIT-DTU-001); CrowdStrike and Armis CLEAN. Remediation pattern: Pattern B (in-place rewrite). Scope decision: Scope-1 for Cyberint. Process-gap lesson 54 codified. |
 | 1.2 | 2026-05-31 | architect | Wave 5 fidelity reclassification — per user directive 2026-05-31 ("all sensors, best-in-class, no scope compromises"), three sensor-specific divergences incorrectly classified as D2-permitted in §D6 v1.0/v1.1 are reclassified as REQUIRED fidelity: (1) Armis AQL endpoint (Gap-AR-001/DTU-EXT-003/004) → `S-DEMO-ARMIS-AQL-001` Wave 5 required; (2) Claroty trailing-slash route paths (Gap-CL-001) → `S-DEMO-CLAROTY-TRAILING-SLASH-001` Wave 5 required; (3) CrowdStrike multi-region `base_url` (Gap-CS-003) → `S-DEMO-CROWDSTRIKE-MULTIREGION-001` Wave 5 required. §D2 amended to close the three sensor-specific loopholes (D2-a..d unchanged). §D6 Cross-Sensor Applicability table updated to reflect REQUIRED status. New §D8 Wave 5 Fidelity Reclassification section documents precise scope, current DTU gap, TOML impact, and per-story requirements for each of the three reclassified stories. |
+| 1.1 | 2026-05-30 | architect | Scope expansion amendment — adds §D7 extending DTU=true-DTU binding to all harness-clone paths (`crates/prism-dtu-harness/src/clones/{sensor}.rs`) per F-LP1-OBS-001 [process-gap] from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 1 LOCAL adversary cascade. Harness audit (`HARNESS-DTU-FIDELITY-AUDIT-2026-05-30.md`): Cyberint CRITICAL violations (4 CRIT + 1 HIGH; fixed in S-DTU-CYBERINT-AUTH-FIDELITY-001 expanded scope); Claroty HIGH gap (audit_log route, co-scoped with S-DEMO-CLAROTY-AUDIT-DTU-001); CrowdStrike and Armis CLEAN. Remediation pattern: Pattern B (in-place rewrite). Scope decision: Scope-1 for Cyberint. Process-gap lesson 54 codified. |
+| 1.0 | 2026-05-29 | architect | Initial version — establishes DTU=True-DTU as binding architectural principle per user directive 2026-05-29. Supersedes ADR-028 §D12. Defines D1 (six fidelity requirements), D2 (exhaustive list of permitted divergences), D3 (Cyberint DTU correction), D4 (§D12 supersession), D5 (validation discipline), D6 (cross-sensor applicability). Anchor story: S-DTU-CYBERINT-AUTH-FIDELITY-001 (reclassified from P2-post-demo to P0-pre-demo-BLOCKING). |

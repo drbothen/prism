@@ -9,10 +9,12 @@ version: "1.14"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
-superseded_by: "ADR-031 §D4 (partial — §D12 only: Cyberint cookie auth DTU-shortcut acceptance reversed by DTU=true-DTU principle 2026-05-29)"
+superseded_by:
+  - "ADR-031 §D4 (partial — §D12 only: Cyberint cookie auth DTU-shortcut acceptance reversed by DTU=true-DTU principle 2026-05-29)"
+  - "ADR-053 §D1/§D2/§D5 (partial — grounding order §D1/§D2/§D5 superseded: spec grounds FROM vendor OpenAPI, not DTU; Armis LOCKED auth_type D-747 superseded; Cyberint LOCKED auth_type D-747 superseded; authorized D-1889 2026-07-20; final ADR approval gate pending)"
 amends: null
 anchor_stories: [PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-B, PLUGIN-MIGRATION-001-C, PLUGIN-MIGRATION-001-E, S-DEMO-001, S-DEMO-002]
-related_adrs: [ADR-003, ADR-023, ADR-027]
+related_adrs: [ADR-003, ADR-023, ADR-027, ADR-053]
 related_bcs: [BC-2.16.013, BC-2.16.001, BC-2.16.009, BC-2.01.016]
 locked_decisions: ["D-737 Decision 1", "D-737 Decision 4"]
 wiring_deferred_to: null
@@ -191,7 +193,7 @@ DTU evidence (`crates/prism-dtu-armis/src/types.rs`): `DeviceRecord` has `last_s
 
 Canonical fallback chain (locked, v1.10 amendment per F-LP2-HIGH-004): `first_seen` → `DateTime::now()` (fetch-time UTC).
 
-**Amendment rationale (FB-IMPL-2):** The original §D8-B locked chain listed `["last_seen", "first_seen"]`. Listing the primary column name (`last_seen`) as the first chain entry is a semantic no-op: the fallback chain executes ONLY when `last_seen` is already confirmed null/absent, so re-fetching `last_seen` from the same row yields the same null. The doc-comment "Skip the primary field itself when it appears in the chain" at pipeline.rs:1495 was false — no such skip existed. The correct canonical chain is `["first_seen"]` only. The pipeline MUST also add a defensive skip guard (`if fb_field == &col.name { continue; }`) to protect against future TOML authors who mistakenly include the primary column in the chain.
+**Amendment rationale (FB-IMPL-2):** The original §D8-B locked chain listed `["last_seen", "first_seen"]`. Listing the primary column name (`last_seen`) as the first chain entry is a semantic no-op: the fallback chain executes ONLY when `last_seen` is already confirmed null/absent, so re-fetching `last_seen` from the same row yields the same null. The doc-comment "Skip the primary field itself when it appears in the chain" in the `PipelineExecutor` timestamp fallback-chain loop (`pipeline.rs`) was false — no such skip existed. The correct canonical chain is `["first_seen"]` only. The pipeline MUST also add a defensive skip guard (`if fb_field == &col.name { continue; }`) to protect against future TOML authors who mistakenly include the primary column in the chain.
 
 The TOML spec declares `timestamp_fallback_chain = ["first_seen"]` on the primary `last_seen` column. The normalization layer applies the chain in order; if all named columns are null/absent, falls back to `DateTime::now()` (fetch-time UTC). A `tracing::warn!` is emitted when the `now()` fallback is taken, preserving the existing audit signal (BC-2.16.013 §Postconditions §1 Armis).
 
@@ -548,6 +550,20 @@ All `AuthProvider` implementations are fail-closed: a missing credential at `acq
 
 ---
 
+## Rationale
+
+The DTU clone routes are the correct and only viable grounding reference for TOML sensor spec URLs and auth_type values for four compounding reasons:
+
+1. **Legacy adapter code is demonstrably wrong.** Pass-4 cross-checks confirmed all four sensor adapters carry URL simplification bugs (e.g., `/queries/detections` vs. the real `/detects/queries/detects/v1`). Grounding specs against a buggy reference propagates the bug into every downstream BC, story, holdout scenario, and parity test — defeating the purpose of spec-first development.
+
+2. **DTU clones derive from real API documentation (ADR-003).** DTU routes are authored against real third-party API specs, not against Rust adapter code. They are the closest executable proxy to the real APIs that CI can reach. Grounding against DTU routes is equivalent to grounding against real API docs; where they diverge, a DTU extension story is the correct resolution (§D5).
+
+3. **DTU routes are executable and CI-verifiable.** Real API documentation is not executable in CI. Legacy adapter code is deleted by PLUGIN-MIGRATION-001-A. The fixture JSON and DTU clone routes are the only durable, CI-verifiable reference surfaces available after 001-A merges.
+
+4. **CLAUDE.md §Source-of-Truth Precedence #7 extends to reference selection.** The SPEC wins on code-vs-spec conflicts. This principle extends one layer up: when the code used to author a spec is itself wrong, the spec must ground against the correct reference (DTU routes) rather than canonizing the latent bug. The purity of the parity tests depends on this grounding decision being correct.
+
+---
+
 ## Consequences
 
 ### Positive
@@ -581,6 +597,18 @@ All `AuthProvider` implementations are fail-closed: a missing credential at `acq
 ### Alt 3: Defer the URL grounding decision to PLUGIN-MIGRATION-001-A
 
 **Rejected.** PLUGIN-MIGRATION-001-D ships the TOML sensor specs AND the parity tests that validate them. If the specs contain wrong URLs when 001-D ships, the parity tests cannot validate the plugin runtime — they would test the plugin's ability to hit nonexistent routes. Deferral would mean 001-D ships with unverifiable acceptance criteria, which is a production-grade violation under CLAUDE.md §Canonical Principle.
+
+---
+
+## Source / Origin
+
+This ADR was authored during the PLUGIN-MIGRATION-001-D LOCAL adversarial cascade, pass-4 (2026-05-20), when the fresh-context adversary surfaced a systemic regression: TOML specs had been re-grounded against production Rust adapter URLs during pass-3 closures, but those adapters themselves carried latent URL simplification bugs. The root cause was the absence of an explicit grounding rule — each spec author chose a reference independently and chose the wrong one.
+
+D-737 (STATE.md v7.424 `architectural_decisions_locked`) records the user-adjudicated Decisions 1 and 4 that established the DTU-grounding principle and prohibited adapter-as-reference. This ADR is the durable spec codification of those locked decisions.
+
+Subsequent amendments (§D6 through §D13) were authored during PLUGIN-MIGRATION-001-A through PLUGIN-MIGRATION-001-E and S-DEMO-001/002 cascades as the principle was extended to cover auth_type grounding, credential substitution, co-merge contracts, and the BearerStatic auth provider pattern. Each amendment is attributable to a specific cascade pass and adjudication decision in STATE.md.
+
+ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 grounding rules of this ADR: the new authority chain is vendor OpenAPI → spec → DTU (replacing DTU → spec), with dtu-validator scoring DTU fidelity against OpenAPI rather than DTU serving as the ground-truth source.
 
 ---
 
