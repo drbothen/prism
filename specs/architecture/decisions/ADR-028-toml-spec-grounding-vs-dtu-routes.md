@@ -5,7 +5,7 @@ title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API C
 status: Proposed
 date: "2026-05-20"
 modified: "2026-07-21"  # v1.18 HIGH-2 (FIX-BURST): §D2 Armis blockquote, §D13 env-var blockquote, §D13 Armis consistency-table blockquote corrected custom_via_plugin→token_exchange + native DeclarativeHttpAuthProvider; §D13 oauth2_client_credentials row corrected PluginAuthProvider(WASM)→DeclarativeHttpAuthProvider(native) per ADR-054 D2/D5; amended_by back-ref + ADR-054 added to related_adrs
-version: "1.18"
+version: "1.19"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -158,7 +158,7 @@ Until PLUGIN-MIGRATION-001-A merges, code in `crates/prism-sensors/src/auth/{cyb
 
 **Adjudicated in FB-IMPL-P17-ARCH (2026-05-20), closing F-LP17-HIGH-002 (12th coherence-axis class: sample-biased sibling-convention closures).**
 
-Each ADR's §Changelog table ordering convention (ascending oldest-to-newest, or descending newest-to-oldest) is **locked at the ADR's authoring time**. Subsequent fix-bursts MUST preserve the file's existing order. POL-26 monotonic-ordering enforcement targets ROW POSITIONS within the established convention — it does not authorize flipping the convention itself.
+Each ADR's §Changelog table ordering convention (ascending oldest-to-newest, or descending newest-to-oldest) is **locked at the ADR's authoring time**. Subsequent fix-bursts MUST preserve the file's existing order. POL-26 monotonic-ordering enforcement targets ROW POSITIONS within the established convention — it does not authorize unilateral flipping. **Exception:** POL-32 (`changelog_monotonic_descending`) supersedes the per-file lock when an ADR explicitly reorders under that policy's authorization. ADR-026 v1.35 (2026-07-20) exercised this exception — see table row below.
 
 Project does NOT have a single canonical §Changelog direction. Observed per-file conventions:
 
@@ -166,7 +166,7 @@ Project does NOT have a single canonical §Changelog direction. Observed per-fil
 |-----|---------------------|---------|
 | ADR-019 | DESCENDING (newest top) | v0.4 at top, v0.1 at bottom |
 | ADR-022 | DESCENDING (newest top) | v1.12 top → v1.0 bottom; 6 explicit POL-26 "repaired to strict descending" enforcement records (D-611/D-628/D-635/D-659/D-670/D-671) |
-| ADR-026 | ASCENDING (oldest top) | v1.0 top → v1.32 bottom; POL-26 closures enforced ascending within this file |
+| ADR-026 | **DESCENDING (newest top) as of v1.35 (2026-07-20)** | Reordered from ascending (v1.0–v1.34) to descending per POL-32 `changelog_monotonic_descending` authorization; prior ascending convention (v1.0 top → v1.34 bottom) documented here for historical reference |
 | ADR-027 | ASCENDING (oldest top) | v1.0 top → v1.9 bottom |
 | ADR-028 | DESCENDING (newest top) | v1.0 was sole row at authoring; each new row must be prepended above the previous |
 
@@ -547,7 +547,7 @@ The implementation contract:
 
 #### Canonical Credential Reference Name
 
-The canonical `credential_ref` name for `bearer_static` sensors is `bearer_token`. Operator environment variable convention: `<SENSOR_ID_UPPER>_BEARER_TOKEN` (e.g., `CLAROTY_BEARER_TOKEN`). This follows the three-tier resolution chain defined in BC-2.06.003.
+The canonical `credential_ref` name for `bearer_static` sensors is `bearer_token`. Operator environment variable convention: `<SENSOR_ID_UPPER>_BEARER_TOKEN` (e.g., `CLAROTY_BEARER_TOKEN`). This follows the four-tier per-client resolution chain defined in BC-2.06.003.
 
 > **[ADR-032 SUPERSEDES env-var format (per-client convention):]** The `<SENSOR_ID_UPPER>_BEARER_TOKEN`
 > global format above is the LEGACY env-var convention from before ADR-032. ADR-032 (per-client
@@ -657,6 +657,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.19 | 2026-07-21 | architect | MED-3: §D7 ADR-026 convention-table row updated — ADR-026 reordered from ascending to descending at v1.35 (2026-07-20) per POL-32 `changelog_monotonic_descending`; table row and §D7 lock rule amended to reflect POL-32 as authorizing policy for deliberate convention reorders. MED-4: §D13 "three-tier resolution chain" corrected to "four-tier" (BC-2.06.003 is authoritatively four-tier; consistent with ADR-053/054). |
 | 1.18 | 2026-07-21 | architect | HIGH-2 (FIX-BURST): §D2 Armis inline supersession blockquote corrected — `custom_via_plugin` (token-exchange via `armis-token-exchange.prx` WASM plugin) → `auth_type = "token_exchange"` with native `DeclarativeHttpAuthProvider` (ADR-054 D1/D4, D-1895); no WASM plugin. §D13 env-var blockquote corrected — `custom_via_plugin + credential_ref = "secret_key"` → `token_exchange + native DeclarativeHttpAuthProvider + credential_ref = "secret_key"`. §D13 oauth2_client_credentials consistency-table row corrected — `PluginAuthProvider (WASM)` → `DeclarativeHttpAuthProvider (native)` when `[auth_acquisition]` present (ADR-054 D2/D5; crowdstrike-oauth2.prx retired). §D13 Armis consistency-table blockquote corrected — `custom_via_plugin (armis-token-exchange.prx, ...)` → `token_exchange, native DeclarativeHttpAuthProvider` (ADR-054 D1/D4). MED-1: `amended_by` back-ref for ADR-054 added to frontmatter; ADR-054 added to `related_adrs`. |
 | 1.17 | 2026-07-20 | architect | OBS-2 (ADR-053 pass-3): §D13 "Canonical Credential Reference Name" — ADR-032 per-client env-var supersession note added. The legacy `<SENSOR_ID_UPPER>_BEARER_TOKEN` global format (e.g., `ARMIS_BEARER_TOKEN`) is retired in favour of `PRISM_CLIENTS_{ORG}_SENSORS_{SENSOR}_BEARER_TOKEN`; new specs/docs must use per-client format. `ARMIS_BEARER_TOKEN` example annotated stale (Armis reclassified to `custom_via_plugin` + `secret_key` by ADR-053 §D2); `CLAROTY_BEARER_TOKEN` valid only as legacy alias. |
 | 1.16 | 2026-07-20 | architect | LOW-1: §D2 Armis row — inline supersession blockquote added pointing to ADR-053 §D2 (2026-07-20, D-1889). Armis `bearer_static` row now carries explicit at-point warning: reclassified to `custom_via_plugin` + token-exchange + `header_scheme = "raw"` + `credential_ref = "secret_key"`; `bearer_static` MUST NOT be used for Armis. Closes pass-2 adversary LOW-1 finding. |

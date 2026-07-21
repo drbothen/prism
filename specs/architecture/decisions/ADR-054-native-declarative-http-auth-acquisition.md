@@ -5,7 +5,7 @@ title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2Cli
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.5"
+version: "0.6"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -13,6 +13,7 @@ superseded_by: null
 amends:
   - "ADR-023 (partial — §Rule 4 walk-back: standard HTTP token-acquisition flows do not require WASM plugins; custom_via_plugin escape hatch preserved for genuinely non-standard auth)"
   - "ADR-026 (partial — §D3: AuthType closed enum gains token_exchange variant; affects E-SPEC-012 enum validation and step9a_populate_adapter_registry dispatch)"
+  - "ADR-028 (partial — §D13 oauth2_client_credentials consistency-table row migrated from PluginAuthProvider (WASM) to native DeclarativeHttpAuthProvider when [auth_acquisition] present; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; crowdstrike-oauth2.prx plugin retired per D5)"
 related_adrs: [ADR-023, ADR-026, ADR-028, ADR-031, ADR-032, ADR-050, ADR-053]
 related_bcs: [BC-2.01.016, BC-2.06.003, BC-2.16.009]
 related_bcs_planned: [BC-2.16.014]
@@ -155,8 +156,10 @@ Absent block → E-SPEC-028(a) (see D10).
 
 `auth_type = "oauth2_client_credentials"` without an `auth_plugin` field now routes to
 `DeclarativeHttpAuthProvider(Oauth2ClientCredentials)` at boot time (see D4). The `auth_plugin`
-field MUST NOT be present when `[auth_acquisition]` is declared; combining both is a D10 E-SPEC-028
-validation error.
+field MUST NOT be present for `auth_type ∈ {oauth2_client_credentials, token_exchange}` —
+the combination is a D10 E-SPEC-028(b) validation error **regardless of whether `[auth_acquisition]`
+is declared**. A spec with either of these auth_types and `auth_plugin` present is rejected at
+spec-load time. (See D10(b) for the error message; D7 for the unreachable dispatch implication.)
 
 `oauth2_client_credentials` semantics in declarative mode: the engine performs an RFC 6749 §4.4
 client credentials POST. Form body: `client_id={}&client_secret={}&grant_type=client_credentials`
@@ -348,7 +351,7 @@ which is plugin-provider construction only — see Context §Auth Strategy Dispa
 | `auth_type` match arm | Auth strategy constructed at step 9A |
 |-----------------------|--------------------------------------|
 | `Oauth2ClientCredentials` AND `auth_acquisition.is_some()` (post-migration) | Construct `DeclarativeHttpAuthProvider(Oauth2ClientCredentials)` with `token_url = base_url + token_path` — **new behavior; replaces per-org `PluginAuthProvider` construction** |
-| `Oauth2ClientCredentials` AND `auth_plugin.is_some()` (pre-migration / other sensors) | Build per-org `PluginAuthProvider` from global step-7.5b map — unchanged until plugin retired |
+| `Oauth2ClientCredentials` AND `auth_plugin.is_some()` | **[VALIDATION-UNREACHABLE — defense-in-depth only]** D10(b) rejects any spec with `auth_type = oauth2_client_credentials` AND `auth_plugin` present before step 9A executes; no valid spec reaches this arm. Retained as defense-in-depth for test paths that bypass spec validation. |
 | `TokenExchange` | Construct `DeclarativeHttpAuthProvider(TokenExchange)` with `token_url = base_url + token_path` — **new arm** |
 | `CustomViaPlugin` | Look up pre-built `PluginAuthProvider` from step-7.5b map (unchanged) |
 | `BearerStatic` | Construct `BearerStaticCredentialAuthProvider` (resolves bearer token from credential store at acquire_token time; no HTTP call — unchanged) |
@@ -435,6 +438,11 @@ Fires when: `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `[au
 **(b) Conflicting auth_plugin:**
 `"sensor '{sensor_id}': auth_type = '{auth_type}' uses native declarative provider and does not accept auth_plugin. Remove auth_plugin or change auth_type to custom_via_plugin."`
 Fires when: `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `auth_plugin` is present.
+
+> **D2/D7 consistency note:** D2 states the `auth_plugin` prohibition **unconditionally** for these
+> auth_types (not only when `[auth_acquisition]` is declared). D7's dispatch table row for
+> `Oauth2ClientCredentials AND auth_plugin.is_some()` is therefore validation-unreachable from any
+> valid spec — this arm exists as defense-in-depth only. D2, D7, and D10(b) are now consistent.
 
 **(c) Unknown expiry_mode:**
 `"sensor '{sensor_id}': [auth_acquisition].expiry_mode = '{value}' is not valid. Accepted values: absolute_utc_string, relative_seconds."`
@@ -656,6 +664,7 @@ do not proceed.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.6 | 2026-07-21 | architect | HIGH-1: ADR-028 added to `amends:` frontmatter (bidirectional symmetry with ADR-028 `amended_by` back-ref). MED-1: D2/D7/D10 internal contradiction resolved — D2 auth_plugin prohibition strengthened to unconditional for `{oauth2_client_credentials, token_exchange}` (consistent with D10(b)); D7 dispatch table row 2 annotated as validation-unreachable (D10(b) rejects at spec-load before step 9A executes); D10 cross-reference note added. OBS-2: ADR-023 §Status + §Rule 4 stale "no in-repo .prx plugin required" claims swept: acknowledge `crowdstrike-oauth2.prx` existence and ADR-054 D5 retirement. |
 | 0.5 | 2026-07-21 | architect | HIGH-2 (FIX-BURST): ADR-028 §D13 amendment row added to D11 manifest — `oauth2_client_credentials` consistency-table row must be updated from `PluginAuthProvider (WASM)` to `DeclarativeHttpAuthProvider (native)` when `[auth_acquisition]` present (per D2/D5); bidirectional: ADR-028 frontmatter carries `amended_by` back-ref for ADR-054. OBS-1 (FIX-BURST): ARCH-INDEX AD-001 crate-count note amended — clarifies 25 after ADR-054 alone; 24 once ADR-037 (prism-customer-config) also lands; whichever ADR lands second must update to the combined value. |
 | 0.4 | 2026-07-21 | architect | HIGH-1: BC-2.16.014 anchoring corrected (prior drafts had mis-anchored the planned declarative-auth BC to non-existent SS-23; retargeted to next-free BC-2.16.014 in SS-16/prism-spec-engine); swept all occurrences in frontmatter `related_bcs_planned`, D8 section header + body, D9, D11 manifest row, Consequences section, and Changelog v0.3 entry. MED-1: `tests/fixtures/README.md` added to D11 retirement manifest (H2 section heading `crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx` becomes stale post-retirement; `wasi_snapshot_preview1.wasm` preserved for remaining `custom_via_plugin` plugins). LOW-1: `test_F_LP7_MED_001_host_dispatch_acquire_token_component_model_path_emits_audit_event` added to D11 (`#[ignore]`/`todo!()` integration test requires pre-built `crowdstrike-oauth2.prx`; post-retirement the binary no longer exists; behavioral coverage superseded by `DeclarativeHttpAuthProvider` unit tests). OBS-1: doc-hygiene-sweep row added to D11 covering five preserved-infrastructure files (`spec_parser.rs`, `plugin_auth_provider.rs`, `error.rs`, `plugin/discovery.rs`, `plugin/host_functions.rs`) with stale `crowdstrike-oauth2` doc examples. |
 | 0.3 | 2026-07-21 | architect | HIGH-1: add `crates/prism-spec-engine/Cargo.toml` to D11 retirement manifest (`[[test]]` crowdstrike_oauth2_plugin_tests block + async-trait dev-dep). HIGH-2: add second ci.yml self-guard row (grep `F-MCPRS-PRL14-LOW-001 PASS: committed crowdstrike`). HIGH-3: add `bc_2_16_013_crowdstrike_multiregion.rs` to D11 — D-747-LOCKED auth_plugin assertion must be retargeted to native declarative auth. HIGH-4: add `scripts/demo-setup.sh` and `scripts/demo-run.sh` to D11 (crowdstrike-oauth2.prx copy + manifest steps break post-retirement). HIGH-5: D1/D2 section headers corrected from "(supersedes ADR-026/023…)" to "(amends …)"; Source §ADR-023 reference corrected from "partially superseded" to "partially amended". MED-1: add `scripts/t13-preflight-audit.py` to D11 (`[A20]` plugin_status probe for crowdstrike-oauth2 must be retargeted). MED-2: add `docs/DEMO-RUNBOOK.md` to D11 (.prx + manifest.toml documentation stale). LOW-1: fix D2 prose + D4 step-2 form-body field order to match plugin actual order `client_id={}&client_secret={}&grant_type=client_credentials`. LOW-2: split BC-2.16.014 out of `related_bcs` into `related_bcs_planned` to prevent POL-21 phantom-anchor false-positive. OBS-1: assign ADR-054 auth-coherence check as BC-2.16.009 Rule 10 (Rule 9 reserved by ADR-053 D2 for header_scheme); update D7/D10/D11 accordingly. OBS-2: replace volatile `~line NNN` anchors in D11 with behavioral anchors (recipe name / step title / grep string / function name / filter expression) per TD-VSDD-091. |

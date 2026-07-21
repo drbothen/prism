@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.10"
+version: "0.11"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -17,6 +17,7 @@ superseded_by: null
 amends: null
 related_adrs: [ADR-026, ADR-028, ADR-031, ADR-032, ADR-050, ADR-054]
 related_bcs: [BC-2.01.006, BC-2.01.008, BC-2.01.016, BC-2.01.017, BC-2.06.003]
+related_bcs_planned: [BC-2.16.014]
 human_authorization: "D-1889 (2026-07-20) — 'Authorize full correction'; final ADR approval gate pending before any spec/BC work begins"
 wave_scope: "Wave-A only (grounding order + sensor auth models); transport/TLS (F10) is Wave-C"
 ---
@@ -338,7 +339,7 @@ Incoherent combinations emit E-SPEC-027 template (b) and reject the spec at load
 | `bearer_static` | `"bearer"`, `"raw"` | `"bearer"` |
 | `oauth2_client_credentials` | `"bearer"`, `"raw"` | `"bearer"` |
 | `cookie_roundtrip` | `"cookie:<name>"` **only** | `"cookie:access_token"` |
-| `custom_via_plugin` | `"bearer"`, `"raw"` | `"raw"` for Armis (historical; Armis now uses `token_exchange`) |
+| `custom_via_plugin` | `"bearer"`, `"raw"` | `"raw"` or `"bearer"` per plugin declaration (escape hatch for genuinely non-standard auth) |
 | `api_key` | `"bearer"` (Wave-A scope) | `"bearer"` |
 | `token_exchange` (new per ADR-054) | `"bearer"`, `"raw"` | `"raw"` for Armis v1 (raw-token, no Bearer prefix) |
 
@@ -382,8 +383,9 @@ has landed.
 **VP assignment (DRIFT-D849-002):** The VP that `acquire_token()` makes no network calls
 during spec-load applies to the Armis `DeclarativeHttpAuthProvider`. The provider MUST
 lazy-acquire on first sensor request, not at spec-parsing or boot time (ADR-054 D4/D8 P1;
-BC-2.16.014 P1: `DeclarativeHttpAuthProvider::new()` makes ZERO network calls; token
-acquired lazily on first `acquire_token()` call). Implementation evidence must be cited
+`BC-2.16.014` [PLANNED] P1: `DeclarativeHttpAuthProvider::new()` makes ZERO network calls; token
+acquired lazily on first `acquire_token()` call — BC does not yet exist; will be authored during
+Wave-A implementation per ADR-054 D8). Implementation evidence must be cited
 in the provider's `acquire_token()` function via behavioral anchor before this ADR is
 accepted.
 
@@ -529,7 +531,7 @@ consequence of D1–D3. Each amendment is in-scope for the corresponding remedia
 | BC-2.16.009 Rule 9 (new) | Author new Rule 9 — `header_scheme` field validation (unknown/malformed → E-SPEC-027 template a; well-formed-but-incoherent with auth_type → E-SPEC-027 template b); rules numbered after Rule 8 probe_table (E-SPEC-026). Rule 9 is in-scope for the Wave-A engine story that adds `SensorSpec::header_scheme`. | D2 |
 | `error-taxonomy.md` | Register E-SPEC-027 with both message templates: (a) unknown/malformed `header_scheme` value; (b) well-formed value incoherent with `auth_type` (generalized form — `sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}`). Registration is in-scope for the standalone Wave-A engine story. | D2 |
 | `error-taxonomy.md` | Register E-SPEC-028 (declarative auth acquisition validation errors — 7 message templates per ADR-054 D10): (a) required block absent; (b) conflicting auth_plugin; (c) unknown expiry_mode; (d) token_exchange missing required fields; (e) credential_body_field undeclared; (f) oauth2_client_credentials missing client_id/client_secret refs; (g) auth_acquisition declared for non-declarative auth_type. Registration is in-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story. | D2 (via ADR-054) |
-| New `BC-2.16.014` | Author BC-2.16.014 — Declarative Auth Acquisition Token Lifecycle: `DeclarativeHttpAuthProvider` lazy-acquire, cache-hit, cache-refresh, and AD-017 credential-opacity invariants (ADR-054 D8). In-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story. | D2 (via ADR-054) |
+| New `BC-2.16.014` [PLANNED] | Author BC-2.16.014 — Declarative Auth Acquisition Token Lifecycle: `DeclarativeHttpAuthProvider` lazy-acquire, cache-hit, cache-refresh, and AD-017 credential-opacity invariants (ADR-054 D8). In-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story. | D2 (via ADR-054) |
 
 Additional artifacts requiring audit (not BC amendments, but must not contain contradicted values):
 - Any story, holdout scenario, or test grounded on the old Armis `bearer_static` or
@@ -695,6 +697,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.11 | 2026-07-21 | architect | MED-2: `related_bcs_planned: [BC-2.16.014]` added to frontmatter; `[PLANNED]` markers added at D2 VP-assignment BC-2.16.014 citation and D5 manifest BC-2.16.014 row — mirrors ADR-054's POL-21/22 phantom-anchor hygiene. OBS-1: D2 coherence matrix `custom_via_plugin` row "Canonical value" cell corrected from sensor-specific Armis parenthetical to sensor-agnostic `"raw" or "bearer" per plugin declaration`. |
 | 0.10 | 2026-07-21 | architect | HIGH-1 (FIX-BURST): VP-assignment paragraph (D2, §DRIFT-D849-002) rewritten — stale "Armis plugin" / "plugin's `acquire_token()`" framing replaced with `DeclarativeHttpAuthProvider` lazy-acquisition invariant (ADR-054 D4/D8 P1; BC-2.16.014 P1). Consequences/Positive rewritten — "Armis token-exchange plugin follows the established CrowdStrike-oauth2 plugin pattern" replaced with native `DeclarativeHttpAuthProvider` framing; `crowdstrike-oauth2.prx` is being RETIRED by ADR-054 D5, not extended as a pattern. |
 | 0.9 | 2026-07-21 | architect | HIGH-1: BC-2.16.014 anchoring corrected (prior drafts had mis-anchored the planned declarative-auth BC to non-existent SS-23; retargeted to next-free BC-2.16.014 in SS-16/prism-spec-engine); swept D5 manifest row, Status section, and Changelog v0.7 entry. HIGH-2: D2 section header corrected from "Token-Exchange via WASM Plugin" to "Token-Exchange via Native DeclarativeHttpAuthProvider" (body already described native path; header was stale from pre-D-1895 text). A-6 prerequisite: CrowdStrike Alerts-v2 credential scope prerequisite note added to D1 CrowdStrike implementation note (Alerts:READ scope required; Detects:READ alone fails at implementation with a scope error; source: prism-crowdstrike-endpoint-plan.md Gap G9). |
 | 0.8 | 2026-07-20 | architect | LOW-3: E-SPEC-027 template (b) `{allowed_set}` prose enumeration (lines after the template definition) now includes `token_exchange → bearer, raw` — was omitted while the coherence matrix already contained the row, creating an inconsistency between the matrix and the narrative. No behavioral change; prose aligns to matrix. |

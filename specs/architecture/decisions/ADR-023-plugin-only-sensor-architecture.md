@@ -5,7 +5,7 @@ title: "Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, 
 status: COMMITTED
 date: "2026-05-10"
 modified: "2026-07-20"
-version: "v1.20"
+version: "v1.21"
 producer: architect
 amended_by: "ADR-054 (partial — §Rule 4 walk-back: standard HTTP token-acquisition flows are now native declarative per DeclarativeHttpAuthProvider; custom_via_plugin escape hatch preserved for genuinely non-standard auth; effective at Wave-A per D-1895 2026-07-20)"
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
@@ -83,7 +83,7 @@ COMMITTED 2026-05-10, v1.20 per §Changelog (initial proposal v1.0). Status is `
 infrastructure prerequisites (Constraints C1–C5 plus Wave 0/F BC+DI amendments) must land
 before the hardcoded sensor adapters can be deleted. Once all prerequisite stories ship and
 pass their gates, this ADR transitions to `ACCEPTED`. Implementation is tracked by
-PLUGIN-MIGRATION-001 (13 stories, Waves 0/1/2, approximately 95–146 SP (Wave 0: 45–67, Wave 1: 38–60 after Wave 1/E removal, Wave 2: 12–19). Wave 1/E removed per v1.3 Rule 4 rescope — CrowdStrike OAuth2 refresh is fully declarative TOML; no in-repo .prx plugin required).
+PLUGIN-MIGRATION-001 (13 stories, Waves 0/1/2, approximately 95–146 SP (Wave 0: 45–67, Wave 1: 38–60 after Wave 1/E removal, Wave 2: 12–19). Wave 1/E removed per v1.3 Rule 4 rescope — CrowdStrike OAuth2 **retry-on-401** is fully declarative TOML via `[fetch_step.retry]`; no in-repo `.prx` plugin required **for the retry**. [**Note:** CrowdStrike initial token **acquisition** used `crowdstrike-oauth2.prx`; that plugin is retired by ADR-054 D5 in Wave-A.]).
 
 This ADR amends ADR-022 at two sites referencing the four built-in sensor adapters
 (F-PASS3-MED-003): (a) ADR-022 line 65 ("the four built-in sensors; no concrete override
@@ -144,7 +144,9 @@ expressed exclusively through (a) declarative TOML spec files loaded by `prism-s
 and (b) sandboxed `.prx` WASM plugins for genuinely non-declarative cases (binary protocols,
 exotic cryptographic proofs, branching state machines). The four initial sensors (CrowdStrike,
 Cyberint, Claroty, Armis) ship as pure TOML specs — no sensor-specific in-repo `.prx` WASM
-plugins required for v1.0. (First-party OCSF complex-transform `.prx` plugins per Rule 1 are
+plugins required for v1.0 for complex transforms. [**ADR-054 D5 amendment:** `crowdstrike-oauth2.prx`
+handled CrowdStrike initial token acquisition; retired in Wave-A by ADR-054 D5.] (First-party OCSF
+complex-transform `.prx` plugins per Rule 1 are
 loaded by PluginRuntime in v1.0.) The platform team eats its own dog food — Prism's own sensor
 specs flow through the same authorship pipeline as external sensor authors. WASM plugin
 infrastructure (PREREQ-D) is delivered for v1.0 first-party OCSF complex-transform plugins AND
@@ -267,11 +269,13 @@ The TOML grammar extended in PREREQ-C is expressive enough to handle OAuth2 toke
 401-refresh retry policies (via `[fetch_step.retry] retry_action = "refresh_auth"`), two-step
 batched fetch with ID extraction (via `[fetch_step.batch]`), cloud-region URL templating,
 JSONPath response extraction, and offset/cursor pagination. No sensor-specific in-repo `.prx`
-WASM plugins are required for the four initial sensors. (OCSF complex-transform plugins per
-Rule 1 are addressed by `(sensor_id, table)` and are separate.) The CrowdStrike OAuth2
-refresh-on-401 flow is fully
-expressible declaratively once `[fetch_step.retry]` lands in PREREQ-C. Wave 1/E (the former
-in-repo CrowdStrike `.prx` plugin story) is removed from the migration plan.
+WASM plugins are required for the four initial sensors for complex transforms. (OCSF
+complex-transform plugins per Rule 1 are addressed by `(sensor_id, table)` and are separate.)
+[**ADR-054 D5 amendment:** `crowdstrike-oauth2.prx` for CrowdStrike initial token acquisition is
+the exception; it is retired by ADR-054 D5 in Wave-A, after which this statement is fully
+accurate.] The CrowdStrike OAuth2 retry-on-401 flow is fully expressible declaratively once
+`[fetch_step.retry]` lands in PREREQ-C. Wave 1/E (the former in-repo CrowdStrike `.prx` plugin
+story for the retry) is removed from the migration plan.
 
 WASM is reserved for genuinely non-declarative cases that cannot be expressed in the TOML
 grammar: binary protocols, custom cryptographic proofs beyond standard OAuth2 client credentials,
@@ -294,10 +298,11 @@ credentials and similar token-exchange patterns declared via an `[auth_acquisiti
 without routing through `custom_via_plugin`. This narrows — but does not eliminate — the
 `custom_via_plugin` escape hatch: sensors with genuinely non-standard auth (binary protocols,
 custom cryptographic proofs, multi-stage stateful state machines) continue to use `.prx` WASM
-plugins per the original Rule 4 + Rule 5 design. The statement "No sensor-specific in-repo `.prx`
-WASM plugins are required for the four initial sensors" is strengthened by this amendment — the
-OAuth2 client credentials flow for CrowdStrike is now explicitly native rather than implicitly
-handled via the PluginRuntime escape hatch.
+plugins per the original Rule 4 + Rule 5 design. ADR-054 D5 retires `crowdstrike-oauth2.prx` (the
+in-repo plugin that handled CrowdStrike initial token acquisition). After that Wave-A retirement,
+the statement "No sensor-specific in-repo `.prx` WASM plugins are required for the four initial
+sensors" becomes fully accurate — CrowdStrike's OAuth2 client credentials flow uses native
+`DeclarativeHttpAuthProvider` without any `.prx` plugin.
 
 **Rule 5 — CustomAdapter Rust Trait Retirement**
 
@@ -1074,6 +1079,7 @@ TD-FACTORY-HOOK-BYPASS-001 was first registered at P1 after fix-burst-3 (v1.3 am
 
 | Version | Date | Description |
 |---------|------|-------------|
+| v1.21 | 2026-07-21 | OBS-2 (FIX-BURST): §Status Wave 1/E parenthetical clarified — "no in-repo .prx plugin required" was specifically about the retry-on-401 mechanism; initial CrowdStrike token acquisition used `crowdstrike-oauth2.prx` (retired by ADR-054 D5 in Wave-A). Decision body §Context line clarified same. Rule 4 body "No sensor-specific in-repo .prx WASM plugins are required" annotated: `crowdstrike-oauth2.prx` is the exception, retired by ADR-054 D5 Wave-A. Rule 4 amendment note rewritten: "strengthened by this amendment" replaced with accurate framing — statement becomes fully accurate after ADR-054 D5 retires `crowdstrike-oauth2.prx`. |
 | v1.20 | 2026-07-20 | D-1895 ADR-054 bidirectional backref: `amended_by` field added pointing to ADR-054 (§Rule 4 walk-back — standard HTTP token-acquisition flows now native declarative via `DeclarativeHttpAuthProvider`; `custom_via_plugin` escape hatch preserved for genuinely non-standard auth; effective at Wave-A). `modified` field added (2026-07-20). §Status version stamp advanced to v1.20. Rule 4 amendment note added. |
 | v1.19 | 2026-05-15 | OBS-LP35-001 closure (D-571 cycle-close immediate-dispatch): §E VP-PLUGIN-007 prose block rewritten from pre-AC-7 "allowed_urls = None" / "allowlist not-None" Option-semantics to post-AC-7 `Vec<String>` explicit-field semantics. Manifest omitting the field is rejected at `PluginRuntime::load_plugin`; `allowed_urls: []` (empty Vec) = default-deny; non-empty = exact-match allowlist per BC-2.17.002 EC-17-007 + AC-7 of S-PLUGIN-PREREQ-D. Sibling verification-architecture.md VP-152 row updated in same burst (v1.31). |
 | v1.18 | 2026-05-11 | F-LP2-LOW-002 closure — C1 crate enumeration corrected from "four crates (prism-core, prism-sensors, prism-query, prism-ocsf)" to "production crates including DTU generators"; prism-ocsf has zero SensorType references; actual fourth crate set is the DTU generators. Verified via `grep -rn 'SensorType' crates/prism-ocsf/` returns zero. Body version sweep v1.17→v1.18. **THIS BURST USES EDIT/WRITE TOOLS ONLY — no bash, no Python, no sed.** |
