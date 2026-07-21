@@ -5,17 +5,17 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-20"
-version: "0.6"
+version: "0.7"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
   - "ADR-028 §D1/§D2/§D5 (grounding order rules: DTU→OpenAPI as canonical; effective on ADR-053 acceptance)"
-  - "ADR-028 LOCKED Armis auth_type D-747 (bearer_static→custom_via_plugin token-exchange)"
+  - "ADR-028 LOCKED Armis auth_type D-747 (bearer_static→token_exchange native declarative per ADR-054)"
   - "ADR-028 LOCKED Cyberint auth_type D-747 (combined cookie_roundtrip spec→dual-surface split)"
   - "ADR-031 §D3 (scope-narrowing only: single-surface assumption narrowed to Assets; §D3-b items 1-2 StaticCookieAuthProvider provider contract PRESERVED; §D3-b item 3 auth_type-keyed dispatch table superseded by header_scheme dispatch — see D2/D5; §D3-a DTU changes unaffected; §D3-b item 4 S-DEMO-001 story-scope note moot/historical — delivered)"
 superseded_by: null
 amends: null
-related_adrs: [ADR-026, ADR-028, ADR-031, ADR-032, ADR-050]
+related_adrs: [ADR-026, ADR-028, ADR-031, ADR-032, ADR-050, ADR-054]
 related_bcs: [BC-2.01.006, BC-2.01.008, BC-2.01.016, BC-2.01.017, BC-2.06.003]
 human_authorization: "D-1889 (2026-07-20) — 'Authorize full correction'; final ADR approval gate pending before any spec/BC work begins"
 wave_scope: "Wave-A only (grounding order + sensor auth models); transport/TLS (F10) is Wave-C"
@@ -31,12 +31,12 @@ wave_scope: "Wave-A only (grounding order + sensor auth models); transport/TLS (
 
 ## Status
 
-Proposed 2026-07-20, v0.6 (revised after pass-5 adversary findings: HIGH-1 BC-2.03.006 →
-BC-2.06.003 + "four-tier per-client" in TOML comment. HIGH-2 E-SPEC-027 template (b)
-generalized to all 6 incoherence directions. MED-1 story-ownership contradiction resolved —
-engine change is standalone Wave-A engine story; dependency ordering replaces "same-commit".
-MED-2 EC-016-002/EC-016-005/E-SPEC-012/BootError miscite corrected. OBS-2 ADR-031 §D3-b
-item 4 moot note added to frontmatter. Full citation audit completed).
+Proposed 2026-07-20, v0.7 (v0.6: pass-5 adversary remediation + full citation audit. v0.7
+per D-1895 human decision: D2 rewritten — Armis uses `token_exchange` auth_type +
+`[auth_acquisition]` block per companion ADR-054; `custom_via_plugin` + plugin approach removed.
+Coherence matrix updated (`token_exchange → bearer, raw`). ADR-054 added to `related_adrs`.
+D5 manifest updated: BC-2.01.008 amendment reflects `token_exchange` native provider; BC-2.23.001
+authoring row and E-SPEC-028 registration row added).
 Awaiting human approval gate before proceeding to spec/BC work.
 Authored by architect under D-1889 authorization. Locks three Wave-A architectural corrections:
 D1 (OpenAPI grounding order), D2 (Armis token-exchange + `header_scheme` injection), D3 (Cyberint
@@ -186,37 +186,43 @@ naming convention, bare ref name with sensor segment separate; env var
 `bearer_token` credential_ref go stale under this decision and must be updated in the
 remediation story (see MED-1 note; `related_adrs` carries ADR-032 for tracking).
 
-**Implementation approach: `auth_type = "custom_via_plugin"` with `armis-token-exchange.prx`.**
+**Implementation approach: `auth_type = "token_exchange"` with native `DeclarativeHttpAuthProvider` (ADR-054).**
 
-This follows the CrowdStrike-oauth2 plugin precedent (`crowdstrike-oauth2.prx`). The
-CrowdStrike-oauth2 plugin performs HTTP POST → token acquisition → cached token use → re-
-exchange on expiry. The Armis token-exchange flow is structurally identical: the differences
-are endpoint, form-encoded vs JSON body, and raw-vs-Bearer header injection. The WASM plugin
-handles ACQUISITION; the engine handles INJECTION (see `header_scheme` below).
+Per human decision D-1895 and companion ADR-054: Armis auth uses the new native `token_exchange`
+auth_type backed by `DeclarativeHttpAuthProvider` in `crates/prism-spec-engine/src/auth/`.
+No WASM plugin is required. The `token_exchange` variant is added to the `AuthType` closed enum
+per ADR-054 D1. `DeclarativeHttpAuthProvider` handles HTTP POST → token extraction → TTL caching
+in pure host Rust (reqwest, ADR-050 compliant, 30s timeout, rustls-tls).
 
-**TOML wiring for Armis (`auth_plugin` field — SR-005):**
+**TOML wiring for Armis (`[auth_acquisition]` block — per ADR-054 D3):**
 
 ```toml
 sensor_id = "armis"
-auth_type = "custom_via_plugin"
-auth_plugin = "armis-token-exchange"   # names the registered WASM plugin
-header_scheme = "raw"                  # Authorization: {token} — no Bearer prefix
+auth_type = "token_exchange"       # native declarative provider (ADR-054 D1)
+header_scheme = "raw"              # Authorization: {token} — no Bearer prefix
+
+[auth_acquisition]
+token_url = "${env.ARMIS_INSTANCE_URL}/api/v1/access_token/"
+credential_body_field = "secret_key"        # form body: secret_key={resolved_value}
+token_response_path = "data.access_token"   # $.data.access_token
+expiry_field = "data.expiration_utc"        # $.data.expiration_utc (absolute UTC string)
+expiry_mode = "absolute_utc_string"
+# ttl_buffer_secs = 30 (default)
 
 [[credential_refs]]
-name = "secret_key"                    # resolved via BC-2.06.003 four-tier per-client chain (PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF})
+name = "secret_key"                # resolved via BC-2.06.003 four-tier per-client chain (PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF})
 ```
 
-The `auth_plugin` field names the registered WASM plugin. If the plugin is not registered at
-boot time, `BootError::UnknownAuthPlugin` is raised per BC-2.01.016 EC-016-005 (unregistered
-custom plugin → spec tables not made available). This maps to the E-SPEC-012 `UnknownAuthPlugin`
-variant (added PLUGIN-MIGRATION-001-E F-LP1-CRIT-003; the primary E-SPEC-012 variant covers
-auth_type cross-composition). EC-016-002 is the happy path (plugin resolved via `PluginRuntime`).
-This matches the existing CrowdStrike-oauth2 registration contract.
+`boot.rs::validate_and_construct_auth_providers` constructs a `DeclarativeHttpAuthProvider(TokenExchange, ...)`
+for `auth_type = "token_exchange"`. No `auth_plugin` field; no `BootError::UnknownAuthPlugin` path.
+E-SPEC-028 (ADR-054 D10) validates the `[auth_acquisition]` block at spec-load time.
 
-The `armis-token-exchange.prx` plugin's `acquire_token()` implementation:
-- Performs `POST /api/v1/access_token/` with form-encoded `secret_key=<credential>`
-- Parses `$.data.access_token` from the JSON response
-- Records `$.data.expiration_utc` for expiry-based re-exchange
+The `DeclarativeHttpAuthProvider::acquire_token()` implementation (per ADR-054 D4):
+- Resolves the `secret_key` credential reference via BC-2.06.003 at call time (lazy — never at construction)
+- Performs `POST /api/v1/access_token/` with form body `secret_key={resolved_value}` (RFC-3986 percent-encoded)
+- Parses `$.data.access_token` from the JSON response (via `token_response_path = "data.access_token"`)
+- Computes expiry from `$.data.expiration_utc` as absolute UTC → Unix timestamp, minus `ttl_buffer_secs` (30s)
+- Caches token + expiry in in-memory ArcSwap (no plugin KV store)
 - Returns the raw token to the pipeline
 
 **Header injection selection mechanism: `header_scheme` TOML field.**
@@ -224,9 +230,9 @@ The `armis-token-exchange.prx` plugin's `acquire_token()` implementation:
 The current `PipelineExecutor::build_request()` (in `crates/prism-spec-engine/src/pipeline.rs`)
 dispatches on `auth_type` with two arms: `CookieRoundtrip → Cookie: access_token={token}` and
 a catch-all `→ Authorization: Bearer {token}`. This is incorrect for Armis v1 (raw token, no
-prefix), and it is ambiguous for `custom_via_plugin` — the host cannot distinguish "CrowdStrike
-custom_via_plugin (needs Bearer)" from "Armis custom_via_plugin (needs raw token)" using
-`auth_type` alone.
+prefix). The `auth_type`-based dispatch is also insufficient as a general injection key because
+multiple auth_types (including `oauth2_client_credentials` and `token_exchange`) may need
+different injection schemes. `header_scheme` decouples injection from acquisition.
 
 The selection key is a new `header_scheme` TOML field on `SensorSpec`. Values:
 
@@ -320,8 +326,9 @@ Incoherent combinations emit E-SPEC-027 template (b) and reject the spec at load
 | `bearer_static` | `"bearer"`, `"raw"` | `"bearer"` |
 | `oauth2_client_credentials` | `"bearer"`, `"raw"` | `"bearer"` |
 | `cookie_roundtrip` | `"cookie:<name>"` **only** | `"cookie:access_token"` |
-| `custom_via_plugin` | `"bearer"`, `"raw"` | `"raw"` for Armis |
+| `custom_via_plugin` | `"bearer"`, `"raw"` | `"raw"` for Armis (historical; Armis now uses `token_exchange`) |
 | `api_key` | `"bearer"` (Wave-A scope) | `"bearer"` |
+| `token_exchange` (new per ADR-054) | `"bearer"`, `"raw"` | `"raw"` for Armis v1 (raw-token, no Bearer prefix) |
 
 **Critical restriction:** `cookie_roundtrip` MUST use a `cookie:<name>` `header_scheme`.
 Using `"bearer"` or `"raw"` with `cookie_roundtrip` would inject an Authorization header
@@ -335,26 +342,21 @@ permanent exclusion. A Wave-B ADR may extend allowed `header_scheme` values for 
 (e.g., a future `"header:<name>"` or `"query:<name>"` value). No `api_key` sensor is in
 Wave-A scope; this restriction does not foreclose future sensors.
 
-**Why `header_scheme` over a new `token_exchange` `AuthType` closed-enum variant:**
+**`header_scheme` governs INJECTION; `auth_type` governs ACQUISITION (separation of concerns):**
 
 `header_scheme` governs INJECTION — how the acquired token is placed in the HTTP request.
-`AuthType` (spec_parser.rs / E-SPEC-012) provides semantic labeling for the acquisition
-mechanism and is validated against the closed enum at load time, but does NOT dispatch provider
-construction at boot time — that is driven by `auth_plugin.is_some()` in
-`boot.rs::validate_and_construct_auth_providers`, independent of `auth_type`. Both CrowdStrike
-(`auth_type = "oauth2_client_credentials"` + `auth_plugin = "crowdstrike-oauth2"`) and Armis
-(`auth_type = "custom_via_plugin"` + `auth_plugin = "armis-token-exchange"`) receive
-`PluginAuthProvider` via the same `auth_plugin.is_some()` boot path. `oauth2_client_credentials`
-accurately labels CrowdStrike's standard OAuth2 flow; `custom_via_plugin` accurately labels
-Armis's non-standard token-exchange. These are orthogonal to the injection concern addressed
-by `header_scheme`.
+`auth_type` governs ACQUISITION — how the token is obtained. These two axes are orthogonal:
+`token_exchange` (Armis acquisition) + `header_scheme = "raw"` (Armis injection) are independent
+declarations. A future Armis v3 that used `oauth2_client_credentials` acquisition but still
+needed raw-token injection would express that via `auth_type = "oauth2_client_credentials"` +
+`header_scheme = "raw"` — no change to the dispatch logic.
 
-Adding a `token_exchange` variant to `AuthType` would NOT change provider construction (still
-`auth_plugin.is_some()`-driven), would require BC-2.01.016 enum amendment + E-SPEC-012 + spec_parser
-changes for no behavioral benefit in Wave-A, and would conflate acquisition labeling with
-injection pattern. `custom_via_plugin` is already the correct semantic label for non-standard
-acquisition flows. A native `token_exchange` `AuthType` variant remains viable for Wave-B if
-additional sensors require a dedicated native provider.
+**v0.7 note:** The v0.1–v0.6 text at this section argued against adding `token_exchange` to
+the `AuthType` enum, on the grounds that provider construction was `auth_plugin.is_some()`-driven.
+That argument is superseded by D-1895 and ADR-054: provider construction for declarative auth
+types is now `auth_type`-driven (`DeclarativeHttpAuthProvider` for `token_exchange` and
+`oauth2_client_credentials` with `[auth_acquisition]`). The `header_scheme` / `auth_type`
+separation-of-concerns principle remains valid and unchanged.
 
 **Required engine change (standalone Wave-A engine story):** `SensorSpec` gains the
 `header_scheme` field (with `#[serde(default)]` defaulting to `"bearer"`).
@@ -501,7 +503,7 @@ consequence of D1–D3. Each amendment is in-scope for the corresponding remedia
 
 | Artifact | Amendment required | Triggered by |
 |----------|-------------------|--------------|
-| BC-2.01.008 (`armis-bearer-aql`) | Title and contract-level auth premise invalidated — Armis auth is no longer `bearer_static`; the BC must be updated to reflect `custom_via_plugin` + token-exchange + `header_scheme = "raw"` | D2 |
+| BC-2.01.008 (`armis-bearer-aql`) | Title and contract-level auth premise invalidated — Armis auth is no longer `bearer_static`; the BC must be updated to reflect `token_exchange` (native `DeclarativeHttpAuthProvider` per ADR-054) + `header_scheme = "raw"` | D2 |
 | BC-2.01.017 §P2 dispatch table | Currently hardcodes `CustomViaPlugin → Authorization: Bearer {token}`. Must gain the `header_scheme`-based raw arm (or delegate dispatch to `header_scheme` entirely) to eliminate the spec-vs-spec conflict with D2's `header_scheme = "raw"` for Armis | D2 |
 | BC-2.01.017 INV-COOKIE-004 | Cookie injection invariant references `auth_type = "cookie_roundtrip"` as the dispatch trigger; must be re-grounded on `header_scheme = "cookie:<name>"` | D2 |
 | BC-2.01.017 TV-BC-2.01.017-008 | Test vector grounded on `auth_type`-based cookie dispatch; must be re-grounded on `header_scheme = "cookie:access_token"` dispatch | D2 |
@@ -511,6 +513,8 @@ consequence of D1–D3. Each amendment is in-scope for the corresponding remedia
 | ADR-032 Cyberint credential rows audit | ADR-032 rows referencing `cyberint.sensor.toml` with `[[credential_refs]]` `name = "api_key"` / env var `CYBERINT_API_KEY` are stale post-deletion of `cyberint.sensor.toml`. Must be updated to reflect two new spec files with `[[credential_refs]]` `name = "access_token"` and corresponding per-client env vars. | D3 |
 | BC-2.16.009 Rule 9 (new) | Author new Rule 9 — `header_scheme` field validation (unknown/malformed → E-SPEC-027 template a; well-formed-but-incoherent with auth_type → E-SPEC-027 template b); rules numbered after Rule 8 probe_table (E-SPEC-026). Rule 9 is in-scope for the Wave-A engine story that adds `SensorSpec::header_scheme`. | D2 |
 | `error-taxonomy.md` | Register E-SPEC-027 with both message templates: (a) unknown/malformed `header_scheme` value; (b) well-formed value incoherent with `auth_type` (generalized form — `sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}`). Registration is in-scope for the standalone Wave-A engine story. | D2 |
+| `error-taxonomy.md` | Register E-SPEC-028 (declarative auth acquisition validation errors — 7 message templates per ADR-054 D10): (a) required block absent; (b) conflicting auth_plugin; (c) unknown expiry_mode; (d) token_exchange missing required fields; (e) credential_body_field undeclared; (f) oauth2_client_credentials missing client_id/client_secret refs; (g) auth_acquisition declared for non-declarative auth_type. Registration is in-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story. | D2 (via ADR-054) |
+| New `BC-2.23.001` | Author BC-2.23.001 — Declarative Auth Acquisition Token Lifecycle: `DeclarativeHttpAuthProvider` lazy-acquire, cache-hit, cache-refresh, and AD-017 credential-opacity invariants (ADR-054 D8). In-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story. | D2 (via ADR-054) |
 
 Additional artifacts requiring audit (not BC amendments, but must not contain contradicted values):
 - Any story, holdout scenario, or test grounded on the old Armis `bearer_static` or
@@ -532,26 +536,21 @@ the API. The grounding order should reflect the most stable, authoritative sourc
 OpenAPI → spec → DTU (DTU scored against OpenAPI by dtu-validator). This mirrors ADR-031's
 direction (DTU must match real API) but makes it structural rather than aspirational.
 
-### Why `custom_via_plugin` for Armis token-exchange acquisition?
+### Why native `token_exchange` for Armis (not `custom_via_plugin` + plugin)?
 
-The WASM plugin approach (D2) follows ADR-023's plugin-only sensor architecture: complex
-sensor-specific HTTP logic (token acquisition, credential handling, expiry tracking) belongs
-in the WASM sandbox, not in spec-engine code. The CrowdStrike-oauth2 plugin is the proven
-production precedent for HTTP-at-acquire_token. The Armis token-exchange flow is structurally
-identical; the plugin handles the acquisition without spec-engine changes.
+Per human decision D-1895, standard HTTP token-acquisition flows MUST NOT require a WASM
+plugin. ADR-054 provides the full design rationale; the summary for this ADR: the Armis
+token-exchange flow (HTTP POST → JSON parse → TTL cache) is structurally identical to the
+CrowdStrike-oauth2 plugin's behavior. A WASM plugin is unnecessary overhead for a flow that
+the engine can express natively via `DeclarativeHttpAuthProvider`. `custom_via_plugin` is
+preserved as an escape hatch for genuinely non-standard auth; Armis token-exchange is not
+genuinely non-standard — it is a standard HTTP POST for a short-lived credential.
 
-Provider construction is `auth_plugin.is_some()`-driven (`boot.rs::validate_and_construct_auth_providers`),
-not `auth_type`-driven. `custom_via_plugin` is the correct `auth_type` for Armis because
-the token-exchange mechanism is non-standard and needs explicit labeling, in contrast to
-CrowdStrike's `oauth2_client_credentials` (which IS standard OAuth2). Both receive the same
-`PluginAuthProvider` at boot time via `auth_plugin`; the `auth_type` is a semantic declaration
-for humans and E-SPEC-012 closed-enum validation.
-
-Option C rejection: a native `token_exchange` `AuthType` variant would NOT change provider
-construction (still `auth_plugin.is_some()`-driven), would require BC-2.01.016 enum amendment
-+ E-SPEC-012 + spec_parser changes, and provides no behavioral benefit in Wave-A when
-`custom_via_plugin` already correctly labels the mechanism. Remains viable for Wave-B if
-additional sensors require a dedicated native provider.
+`token_exchange` is the correct semantic label (distinct from `oauth2_client_credentials`
+which follows RFC 6749 fixed form body + response format). `boot.rs::validate_and_construct_auth_providers`
+constructs `DeclarativeHttpAuthProvider(TokenExchange, ...)` for `auth_type = "token_exchange"`,
+driven by `auth_type` (not `auth_plugin.is_some()`). The BC-2.01.016 closed-enum amendment
+(E-SPEC-012 + spec_parser `VALID_AUTH_TYPES`) is a small, correct change per ADR-054 D1.
 
 ### Why two sensor definitions for Cyberint?
 
@@ -629,16 +628,12 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
   Rejected because this preserves the circular dependency: future DTU drift will again
   propagate into specs. The live audit is evidence this happens in practice.
 
-- **Option C (rejected — native `token_exchange` `AuthType` variant for Armis):** Add a new
-  `token_exchange` variant to the `AuthType` closed enum (BC-2.01.016 E-SPEC-012), implement
-  a `TokenExchangeAuthProvider` in prism-spec-engine. Rejected for Wave-A because provider
-  construction is `auth_plugin.is_some()`-driven, not `auth_type`-driven — a new auth_type
-  variant would NOT change which provider is constructed (still `PluginAuthProvider` via
-  `auth_plugin`). The acquisition pattern (HTTP POST → token cache → expiry refresh) is
-  correctly handled by the WASM plugin. Adding a `token_exchange` enum variant requires
-  BC-2.01.016 + E-SPEC-012 amendments for no behavioral benefit in Wave-A. `custom_via_plugin`
-  already correctly labels the non-standard acquisition mechanism. Remains viable for Wave-B
-  if additional sensors require token-exchange acquisition with a dedicated native provider.
+- **Option C (ACCEPTED — native `token_exchange` `AuthType` variant for Armis, per D-1895):**
+  This option was initially deferred in v0.1–v0.6 but was elevated to the chosen approach by
+  human architectural decision D-1895. ADR-054 ("Native Declarative HTTP Auth Acquisition")
+  provides the full design for the `token_exchange` AuthType variant, `DeclarativeHttpAuthProvider`,
+  `[auth_acquisition]` TOML block schema, and `crowdstrike-oauth2.prx` retirement. D2 of this
+  ADR (v0.7) is updated to use `token_exchange` + `[auth_acquisition]` for Armis.
 
 - **Option D (rejected — per-table auth overrides for Cyberint):** Add per-table `auth_type`
   and `base_url` override fields to `SensorSpec`. This is the cleanest long-term schema but
@@ -683,6 +678,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.7 | 2026-07-20 | architect | D-1895 Armis native declarative auth (ADR-054): D2 rewritten — Armis uses `token_exchange` auth_type + `[auth_acquisition]` block per ADR-054; `custom_via_plugin` + `armis-token-exchange.prx` approach removed. Coherence matrix updated: `token_exchange → bearer, raw` row added. ADR-054 added to `related_adrs`. D5 manifest: BC-2.01.008 amendment description updated to reflect `token_exchange` native provider; BC-2.23.001 authoring row added; E-SPEC-028 registration row added. Rationale §Why custom_via_plugin updated to §Why native declarative provider per ADR-054. |
 | 0.6 | 2026-07-20 | architect | Pass-5 adversary remediation + complete anchor/citation audit. HIGH-1: TOML block credential comment corrected — BC-2.03.006 (query-time resolution) → BC-2.06.003 (config-resolve chain); "three-tier" → "four-tier per-client" matching BC-2.06.003 v1.11. HIGH-2: E-SPEC-027 template (b) generalized to cover all 6 incoherence directions — `sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}` (allowed_set from coherence matrix). MED-1: three-way story-ownership contradiction resolved — engine change is now a STANDALONE Wave-A engine story; "same-commit" Cyberint constraint replaced with story-level dependency-ordering; D2/D3/D5 consistent. MED-2: BC-2.01.016 EC miscite corrected — EC-016-002 is happy path (PluginRuntime resolution); EC-016-005 is unregistered-plugin rejection; E-SPEC-012 is auth_type validation; real unregistered-plugin error is `BootError::UnknownAuthPlugin`. OBS-2: ADR-031 §D3-b item 4 moot/historical note added to frontmatter supersedes. Citation audit completed — all BC IDs, EC numbers, error codes, symbols, crate paths, TOML grammar, tier counts verified. |
 | 0.5 | 2026-07-20 | architect | Pass-4 adversary remediation. HIGH-1: D2 `header_scheme` validation rule-number corrected — "Rule 7 order" → "a new Rule 9 (after Rule 8 probe_table, per BC-2.16.009)"; D5 manifest row added for BC-2.16.009 Rule 9 authorship. MED-1: phantom symbol `construct_plugin_auth_providers` replaced with real symbol `validate_and_construct_auth_providers` in D2 body and Rationale (two sites). MED-2: D2 Armis TOML block rewritten — removed `[sensor]` table header, replaced scalar `credential_ref = "secret_key"` with `[[credential_refs]]` block + `name = "secret_key"` matching real SensorSpec grammar; D3-a/D3-d `credential_ref` prose corrected to reference `[[credential_refs]]` entry; D5 normative Cyberint instruction updated from scalar `credential_ref = "access_token"` to `[[credential_refs]]` entry with `name = "access_token"`. OBS-1: D5 manifest row added for `error-taxonomy.md` E-SPEC-027 dual-template registration (deferred to Wave-A engine story). |
 | 0.4 | 2026-07-20 | architect | Pass-3 adversary remediation. HIGH-1 (paper-fix remediation): §D3-a/§D3-b attribution corrected throughout — §D3-a is DTU-only (no StaticCookieAuthProvider); §D3-b items 1-2 are the Prism provider contract (PRESERVED); §D3-b item 3 is the dispatch table (superseded). All sites corrected: frontmatter `supersedes[3]`, D3-c `(§D3-b items 1-2)`, D3 supersession scope `PRESERVED from §D3-b items 1-2 / CHANGES from §D3-b item 3`, explicit §D3-a unaffected callout. ADR-031 `superseded_by` frontmatter synced in ADR-031 v1.5. MED-1: E-SPEC-027 split into two message templates — (a) unknown/malformed value; (b) well-formed-but-incoherent (`auth_type = 'X' requires header_scheme = 'cookie:<name>'; got 'Y'`) — avoids self-contradiction where a valid value is rejected via coherence. MED-2: D5 expanded — Cyberint `credential_ref` rename decision (api_key→access_token; rationale: wire cookie name match + ADR-028 §D13 consistency table + ADR-031 §D3-b items 1-2) + env-var derivation; ADR-032 Cyberint stale-rows audit target. OBS-1: coherence matrix `api_key` row: Wave-B non-Bearer extension note added. OBS-2 addressed in ADR-028 v1.17 (§D13 env-var convention supersession note). |

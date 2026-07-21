@@ -4,8 +4,10 @@ adr_id: "ADR-023"
 title: "Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait"
 status: COMMITTED
 date: "2026-05-10"
-version: "v1.19"
+modified: "2026-07-20"
+version: "v1.20"
 producer: architect
+amended_by: "ADR-054 (partial — §Rule 4 walk-back: standard HTTP token-acquisition flows are now native declarative per DeclarativeHttpAuthProvider; custom_via_plugin escape hatch preserved for genuinely non-standard auth; effective at Wave-A per D-1895 2026-07-20)"
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
 supersedes: null
 superseded_by: null
@@ -77,7 +79,7 @@ input-hash: "2f64319"
 
 ## Status
 
-COMMITTED 2026-05-10, v1.18. Status is `COMMITTED` rather than `ACCEPTED` because six
+COMMITTED 2026-05-10, v1.20 per §Changelog (initial proposal v1.0). Status is `COMMITTED` rather than `ACCEPTED` because six
 infrastructure prerequisites (Constraints C1–C5 plus Wave 0/F BC+DI amendments) must land
 before the hardcoded sensor adapters can be deleted. Once all prerequisite stories ship and
 pass their gates, this ADR transitions to `ACCEPTED`. Implementation is tracked by
@@ -283,6 +285,19 @@ expressible once PREREQ-C grammar extensions land. Plugin signing deferral (TD-P
 remains in force for any future third-party WASM plugins. The PluginRuntime infrastructure
 delivered by PREREQ-D remains in the plan — it is required for future third-party plugin support
 even though v1.0 ships zero third-party plugins; first-party OCSF complex-transform plugins are loaded per Rule 1.
+
+**Amendment — ADR-054 §Rule 4 walk-back (D-1895, 2026-07-20, effective Wave-A):** ADR-054
+(Native Declarative HTTP Auth Acquisition) partially walks back Rule 4 for the specific case of
+standard HTTP token-acquisition flows. A new native `DeclarativeHttpAuthProvider` struct
+(proposed path: `crates/prism-spec-engine/src/auth/declarative_http.rs`) handles OAuth2 client
+credentials and similar token-exchange patterns declared via an `[auth_acquisition]` TOML block,
+without routing through `custom_via_plugin`. This narrows — but does not eliminate — the
+`custom_via_plugin` escape hatch: sensors with genuinely non-standard auth (binary protocols,
+custom cryptographic proofs, multi-stage stateful state machines) continue to use `.prx` WASM
+plugins per the original Rule 4 + Rule 5 design. The statement "No sensor-specific in-repo `.prx`
+WASM plugins are required for the four initial sensors" is strengthened by this amendment — the
+OAuth2 client credentials flow for CrowdStrike is now explicitly native rather than implicitly
+handled via the PluginRuntime escape hatch.
 
 **Rule 5 — CustomAdapter Rust Trait Retirement**
 
@@ -861,7 +876,7 @@ production system.
 
 ### Status as of 2026-05-10
 
-COMMITTED v1.18, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
+COMMITTED v1.20 per §Changelog, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
 (PLUGIN-MIGRATION-001 Wave 0 — 6 stories total: PREREQ-F, A, B, C, D, E). The four hardcoded
 sensor auth modules, the four OCSF mapper modules, the `SensorType` enum, and the `CustomAdapter`
 trait all remain in the codebase until their corresponding Wave 0/1 stories ship and pass
@@ -1059,6 +1074,7 @@ TD-FACTORY-HOOK-BYPASS-001 was first registered at P1 after fix-burst-3 (v1.3 am
 
 | Version | Date | Description |
 |---------|------|-------------|
+| v1.20 | 2026-07-20 | D-1895 ADR-054 bidirectional backref: `amended_by` field added pointing to ADR-054 (§Rule 4 walk-back — standard HTTP token-acquisition flows now native declarative via `DeclarativeHttpAuthProvider`; `custom_via_plugin` escape hatch preserved for genuinely non-standard auth; effective at Wave-A). `modified` field added (2026-07-20). §Status version stamp advanced to v1.20. Rule 4 amendment note added. |
 | v1.19 | 2026-05-15 | OBS-LP35-001 closure (D-571 cycle-close immediate-dispatch): §E VP-PLUGIN-007 prose block rewritten from pre-AC-7 "allowed_urls = None" / "allowlist not-None" Option-semantics to post-AC-7 `Vec<String>` explicit-field semantics. Manifest omitting the field is rejected at `PluginRuntime::load_plugin`; `allowed_urls: []` (empty Vec) = default-deny; non-empty = exact-match allowlist per BC-2.17.002 EC-17-007 + AC-7 of S-PLUGIN-PREREQ-D. Sibling verification-architecture.md VP-152 row updated in same burst (v1.31). |
 | v1.18 | 2026-05-11 | F-LP2-LOW-002 closure — C1 crate enumeration corrected from "four crates (prism-core, prism-sensors, prism-query, prism-ocsf)" to "production crates including DTU generators"; prism-ocsf has zero SensorType references; actual fourth crate set is the DTU generators. Verified via `grep -rn 'SensorType' crates/prism-ocsf/` returns zero. Body version sweep v1.17→v1.18. **THIS BURST USES EDIT/WRITE TOOLS ONLY — no bash, no Python, no sed.** |
 | v1.17 | 2026-05-10 | Closes 3 pass-22 content findings (F-PASS22-CRIT-001 cannot be closed by fix-burst — it is a recurrence count). F-PASS22-HIGH-001: Process-Gap Awareness narrative L1050+L1053 acknowledges 3rd recurrence + TD-VSDD-055/056 filings. F-PASS22-HIGH-002: v1.16 changelog row corrected to honestly document sed bypass. F-PASS22-MED-001: title sync — frontmatter + H1 updated to ARCH-INDEX tagline. TD-VSDD-055 P0 (write-tool-only PreToolUse hook) and TD-VSDD-056 P1 (maintenance-burst dispatch type) filed. Body version sweep v1.16→v1.17. **THIS BURST USES EDIT/WRITE TOOLS ONLY — no bash, no Python, no sed.** |
