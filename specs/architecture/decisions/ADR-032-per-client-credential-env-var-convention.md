@@ -8,15 +8,20 @@ author: architect
 decision_made_by: human (Option-A selection, 2026-06-03)
 supersedes: null
 superseded_by: null
-related_adrs: ["ADR-029", "ADR-022", "ADR-026"]
+subsystems_affected: []
+related_adrs: ["ADR-029", "ADR-022", "ADR-026", "ADR-053", "ADR-054"]
 related_bcs: ["BC-2.06.003", "BC-2.03.006", "BC-3.2.002", "BC-2.03.013"]
+version: "1.1"
+modified: "2026-07-21"
 ---
 
 # ADR-032: Per-Client Credential Env-Var Convention (Multi-Tenant Correct)
 
 ## Status
 
-Accepted (human-selected Option A, 2026-06-03).
+Accepted (human-selected Option A, 2026-06-03; current version per §Changelog top row).
+
+**Partial supersession pending (ADR-053 acceptance, Wave-A):** ADR-053 §D2 supersedes the Armis credential-ref name in this ADR's §Implementer Blast Radius tables (`bearer_token` → `secret_key` via `auth_type = "token_exchange"`). ADR-053 §D3 supersedes the Cyberint credential-ref name (`api_key` → `access_token`) and deletes `cyberint.sensor.toml`, replacing it with a dual-surface split (`cyberint-alerts.sensor.toml` + `cyberint-assets.sensor.toml`). ADR-054 §D2 further amends CrowdStrike `oauth2_client_credentials` handling (native `DeclarativeHttpAuthProvider` replaces the plugin path). This ADR is **not** wholly superseded — the per-client env-var convention itself is unchanged; only the Armis and Cyberint credential-ref rows are affected. At-point annotations on the affected table rows are the reader-facing signal; ADR-053 D5 deferred rewrite manifest is the executing mechanism.
 
 ## Context
 
@@ -85,6 +90,14 @@ before failing.
 This design is correct: TYPE specs are shared across orgs; per-org credential absence
 at boot time is only an error if ALL orgs lack the ref.
 
+## Rationale
+
+The per-client env-var format satisfies DI-002 (credential isolation invariant): in a multi-tenant MSSP deployment, credentials for different orgs must be independently configurable without cross-contamination. The global `{SENSOR}_{REF}` format cannot satisfy this invariant for env-var-sourced credentials — there is no org discriminant in the variable name, so two orgs sharing a host would resolve the same env var.
+
+This approach mirrors the pattern established by ADR-029 for per-client `base_url` env-vars, making the operator mental model uniform: every per-client config key starts with `PRISM_CLIENTS_{ID}_`.
+
+The human selection of Option A over Option B (retract BC-2.06.003) reflects the correctness-first principle codified in the Canonical Principle: deferring DI-002 compliance for env-var credentials would leave a known invariant violation in the system indefinitely.
+
 ## Consequences
 
 ### Positive
@@ -97,7 +110,7 @@ at boot time is only an error if ALL orgs lack the ref.
 
 ### Negative / Migration cost
 - Operators who configured the global format (`ARMIS_BEARER_TOKEN`) must migrate to
-  `PRISM_CLIENTS_{ORG_ID}_SENSORS_ARMIS_BEARER_TOKEN` per org. This is a breaking
+  `PRISM_CLIENTS_{ID}_SENSORS_ARMIS_BEARER_TOKEN` per org. This is a breaking
   change in the env-var API. Since Prism is pre-GA, no production migration is required
   — documentation and tooling are updated as part of S-DEMO-002 implementation.
 - DTU E2E test env setters in `prism-bin/tests/helpers/mod.rs` and all landing tests
@@ -125,27 +138,27 @@ BC-2.06.003 v1.3 spec):
 
 | File | Missing refs to add |
 |------|---------------------|
-| `sensors/armis.sensor.toml` | `[[credential_refs]] name = "bearer_token"` |
+| `sensors/armis.sensor.toml` | `[[credential_refs]] name = "bearer_token"` [ADR-053 §D2 SUPERSEDES on acceptance: `name = "secret_key"` via `auth_type = "token_exchange"`; ADR-053 D5 rewrite manifest executes the spec file update] |
 | `sensors/claroty.sensor.toml` | `[[credential_refs]] name = "bearer_token"` |
-| `sensors/cyberint.sensor.toml` | `[[credential_refs]] name = "api_key"` |
+| `sensors/cyberint.sensor.toml` | `[[credential_refs]] name = "api_key"` [ADR-053 §D3 SUPERSEDES on acceptance: `name = "access_token"`; `cyberint.sensor.toml` DELETED + split into `cyberint-alerts.sensor.toml` + `cyberint-assets.sensor.toml`; ADR-053 D5 rewrite manifest executes] |
 | `sensors/crowdstrike.sensor.toml` | `[[credential_refs]] name = "client_id"` + `[[credential_refs]] name = "client_secret"` |
-| `crates/prism-sensors/specs/armis.sensor.toml` | Same as above (mirror copy) |
+| `crates/prism-sensors/specs/armis.sensor.toml` | Same as above (mirror copy) [same ADR-053 §D2 supersession applies] |
 | `crates/prism-sensors/specs/claroty.sensor.toml` | Same |
-| `crates/prism-sensors/specs/cyberint.sensor.toml` | Same |
+| `crates/prism-sensors/specs/cyberint.sensor.toml` | Same [same ADR-053 §D3 supersession applies; file deleted + split] |
 | `crates/prism-sensors/specs/crowdstrike.sensor.toml` | Same |
 
 ### DTU E2E test env-var setters
 
 | File | Old env var | New env var (example org `acme`) |
 |------|-------------|----------------------------------|
-| `crates/prism-bin/tests/helpers/mod.rs` — `launch_prism_bin` | `ARMIS_BEARER_TOKEN` | `PRISM_CLIENTS_ACME_SENSORS_ARMIS_BEARER_TOKEN` |
+| `crates/prism-bin/tests/helpers/mod.rs` — `launch_prism_bin` | `ARMIS_BEARER_TOKEN` | `PRISM_CLIENTS_ACME_SENSORS_ARMIS_BEARER_TOKEN` [ADR-053 §D2 SUPERSEDES on acceptance: credential_ref `bearer_token` → `secret_key`; new env var → `PRISM_CLIENTS_ACME_SENSORS_ARMIS_SECRET_KEY`] |
 | `crates/prism-bin/tests/helpers/mod.rs` | `CLAROTY_BEARER_TOKEN` | `PRISM_CLIENTS_ACME_SENSORS_CLAROTY_BEARER_TOKEN` |
-| `crates/prism-bin/tests/helpers/mod.rs` | `CYBERINT_API_KEY` | `PRISM_CLIENTS_ACME_SENSORS_CYBERINT_API_KEY` |
+| `crates/prism-bin/tests/helpers/mod.rs` | `CYBERINT_API_KEY` | `PRISM_CLIENTS_ACME_SENSORS_CYBERINT_API_KEY` [ADR-053 §D3 SUPERSEDES on acceptance: credential_ref `api_key` → `access_token`; `cyberint` sensor_id splits into `cyberint-alerts`/`cyberint-assets`; new env vars → `PRISM_CLIENTS_ACME_SENSORS_CYBERINT_ALERTS_ACCESS_TOKEN` / `PRISM_CLIENTS_ACME_SENSORS_CYBERINT_ASSETS_ACCESS_TOKEN`] |
 | `crates/prism-bin/tests/helpers/mod.rs` | `CROWDSTRIKE_CLIENT_ID` | `PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_ID` |
 | `crates/prism-bin/tests/helpers/mod.rs` | `CROWDSTRIKE_CLIENT_SECRET` | `PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_SECRET` |
 | `crates/prism-credentials/tests/bc_2_03_006_credential_resolution.rs` | `CROWDSTRIKE_API_KEY`, `CROWDSTRIKE_CLIENT_ID`, `CROWDSTRIKE_CLIENT_SECRET` (all using org `"acme"`) | `PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_*` per per-client format |
 | `crates/prism-spec-engine/tests/crowdstrike_oauth2_plugin_tests.rs` | `CROWDSTRIKE_CLIENT_ID`, `CROWDSTRIKE_CLIENT_SECRET` | Per-client format (test must declare which org is being simulated) |
-| `crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs` | `ARMIS_BEARER_TOKEN` | `PRISM_CLIENTS_{ORG_ID}_SENSORS_ARMIS_BEARER_TOKEN` |
+| `crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs` | `ARMIS_BEARER_TOKEN` | `PRISM_CLIENTS_{ID}_SENSORS_ARMIS_BEARER_TOKEN` [ADR-053 §D2 SUPERSEDES on acceptance: `SECRET_KEY` suffix → `PRISM_CLIENTS_{ID}_SENSORS_ARMIS_SECRET_KEY`] |
 
 Note: The exact org slug used in test env vars is determined by the test fixture config
 (typically `acme` or `demo-org-a` per the prism.toml fixture in that test's config dir).
@@ -154,7 +167,7 @@ The implementer MUST read the test's fixture `prism.toml` to derive the correct 
 ### Unit tests in `resolve_credential` test suite
 
 The unit tests in `bc_2_03_006_credential_resolution.rs` must:
-1. Set env vars using the per-client format: `PRISM_CLIENTS_{ORG}_SENSORS_{SENSOR}_{REF}`.
+1. Set env vars using the per-client format: `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}`.
 2. Pass the org slug as `client_id` to `resolve_credential`.
 3. Verify the NOT-FOUND error message cites the per-client env var name.
 
@@ -170,6 +183,13 @@ per-client requirement, file tech-debt entry. Rejected because: (a) violates DI-
 env-var-sourced credentials; (b) the tech-debt model would defer a correctness issue
 indefinitely; (c) the human explicitly selected Option A.
 
+## Source / Origin
+
+- **Adversarial finding:** `F-SDEMO002-P-MED-001` — surfaced during adversarial review of S-DEMO-002; `resolve_credential` was computing `{SENSOR_UPPER}_{REF_UPPER}` env-var names with no org discriminant, directly violating DI-002 for env-var-sourced credentials
+- **Human adjudication:** Option A selected 2026-06-03; `decision_made_by: human (Option-A selection, 2026-06-03)` recorded in frontmatter
+- **Behavioral contracts:** BC-2.06.003 v1.3 — canonical per-client credential convention + slug transform; this ADR brings code into alignment with the BC
+- **Code as-built:** `crates/prism-credentials/src/resolution.rs` — `resolve_credential` function (pre-ADR-032 global-format site); `crates/prism-bin/src/boot.rs` — `KeyringCredentialProbe::probe` and `step5_init_credential_store_with_probe` (boot-time credential probe, org-registry threading)
+
 ## References
 
 - BC-2.06.003 v1.3 — canonical per-client credential convention + slug transform
@@ -179,3 +199,12 @@ indefinitely; (c) the human explicitly selected Option A.
 - ADR-029 — per-client `base_url` env-var pattern (this ADR mirrors that pattern)
 - ADR-022 — production runtime wiring (OrgRegistry threading requirement)
 - DI-002 — credential isolation invariant (the motivating correctness requirement)
+
+---
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.1 | 2026-07-21 | architect | FIX-BURST 8 (MED-1/OBS-1): §Sensor spec files table — Armis row annotated with ADR-053 §D2 supersession (credential_ref `bearer_token` → `secret_key` via `token_exchange`); Cyberint row annotated with ADR-053 §D3 supersession (credential_ref `api_key` → `access_token`; `cyberint.sensor.toml` DELETED + split into `cyberint-alerts.sensor.toml` + `cyberint-assets.sensor.toml`); mirror-copy rows annotated. DTU E2E test env-var migration table: Armis row and Cyberint row annotated; Armis `bc_2_01_013` row `{ORG_ID}` → `{ID}` (OBS-1). §Consequences/Migration cost: `{ORG_ID}` → `{ID}` (OBS-1). §Unit tests: `{ORG}` → `{ID}` (OBS-1). §Status: partial-supersession-pending note added. Frontmatter: `version` + `modified` fields added; `related_adrs` extended with ADR-053 + ADR-054. POL-29: zero live `{ORG_ID}`/`{ORG}` hits post-fix. |
+| 1.0 | 2026-06-03 | architect | Initial ADR — per-client credential env-var convention adopted (human-selected Option A, D-SDEMO002-P-MED-001). |
