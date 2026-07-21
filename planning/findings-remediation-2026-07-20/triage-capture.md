@@ -73,6 +73,8 @@ Proposed story IDs with routing and human-gate flags.
 
 **Total CRIT (engine + sensor): 8**
 
+> **Cyberint Alerts auth CONFIRMED (research 2026-07-20, 6 sources):** static Cookie:access_token (NOT X-Api-Key); X-Api-Key hypothesis REJECTED. D3-c precondition RESOLVED — ARCH-CYBERINT-AUTH-READJUDICATION-001 auth-header uncertainty removed; ADR-053 §D3 Cyberint Alerts header_scheme=cookie:access_token ratified in v0.2.
+
 ---
 
 ## DTU Fidelity + Scenario Enhancements
