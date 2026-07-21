@@ -5,14 +5,14 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-20"
-version: "0.2"
+version: "0.3"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
   - "ADR-028 §D1/§D2/§D5 (grounding order rules: DTU→OpenAPI as canonical; effective on ADR-053 acceptance)"
   - "ADR-028 LOCKED Armis auth_type D-747 (bearer_static→custom_via_plugin token-exchange)"
   - "ADR-028 LOCKED Cyberint auth_type D-747 (combined cookie_roundtrip spec→dual-surface split)"
-  - "ADR-031 §D3 (scope-narrowing only: single-surface cookie_roundtrip assumption narrowed to Assets; §D3-a/b Assets static-cookie contract PRESERVED; Alerts becomes separate surface definition)"
+  - "ADR-031 §D3 (scope-narrowing only: single-surface cookie_roundtrip assumption narrowed to Assets; §D3-a static-cookie CONTRACT PRESERVED; §D3-b auth_type-keyed dispatch table superseded by header_scheme dispatch — see D2/D5)"
 superseded_by: null
 amends: null
 related_adrs: [ADR-026, ADR-028, ADR-031, ADR-032, ADR-050]
@@ -31,8 +31,11 @@ wave_scope: "Wave-A only (grounding order + sensor auth models); transport/TLS (
 
 ## Status
 
-Proposed 2026-07-20, v0.2 (revised after adversary/spec-reviewer/consistency-validator triad + Cyberint
-Alerts auth research confirmation). Awaiting human approval gate before proceeding to spec/BC work.
+Proposed 2026-07-20, v0.3 (revised after pass-2 adversary findings: HIGH-5 phantom crate path
+corrected throughout, HIGH-3 backward-compat claim corrected + co-land sequencing added, HIGH-4
+`header_scheme` validation spec added, HIGH-1 §D3-a/b contract-vs-dispatch split, HIGH-2 D5
+manifest expanded, MED-1 `auth_plugin.is_some()` provider-construction rationale corrected).
+Awaiting human approval gate before proceeding to spec/BC work.
 Authored by architect under D-1889 authorization. Locks three Wave-A architectural corrections:
 D1 (OpenAPI grounding order), D2 (Armis token-exchange + `header_scheme` injection), D3 (Cyberint
 dual-surface split with both surfaces CONFIRMED cookie auth).
@@ -212,11 +215,12 @@ The `armis-token-exchange.prx` plugin's `acquire_token()` implementation:
 
 **Header injection selection mechanism: `header_scheme` TOML field.**
 
-The current `PipelineExecutor::build_request()` dispatches on `auth_type` with two arms:
-`CookieRoundtrip → Cookie: access_token={token}` and a catch-all `→ Authorization: Bearer
-{token}`. This is incorrect for Armis v1 (raw token, no prefix), and it is ambiguous for
-`custom_via_plugin` — the host cannot distinguish "CrowdStrike custom_via_plugin (needs Bearer)"
-from "Armis custom_via_plugin (needs raw token)" using `auth_type` alone.
+The current `PipelineExecutor::build_request()` (in `crates/prism-spec-engine/src/pipeline.rs`)
+dispatches on `auth_type` with two arms: `CookieRoundtrip → Cookie: access_token={token}` and
+a catch-all `→ Authorization: Bearer {token}`. This is incorrect for Armis v1 (raw token, no
+prefix), and it is ambiguous for `custom_via_plugin` — the host cannot distinguish "CrowdStrike
+custom_via_plugin (needs Bearer)" from "Armis custom_via_plugin (needs raw token)" using
+`auth_type` alone.
 
 The selection key is a new `header_scheme` TOML field on `SensorSpec`. Values:
 
@@ -226,29 +230,103 @@ The selection key is a new `header_scheme` TOML field on `SensorSpec`. Values:
 | `"raw"` | `Authorization: {token}` (no prefix) | Armis v1 raw-token |
 | `"cookie:<name>"` | `Cookie: <name>={token}` | Cyberint (both surfaces, parameterized) |
 
-`build_request()` reads `spec.header_scheme` (defaulting to `"bearer"` for backward
-compatibility) and dispatches on it. The existing `auth_type`-based cookie arm is replaced by
-the `"cookie:access_token"` value in `header_scheme`. This is a single, backward-compatible
-engine change: all existing sensors that do not declare `header_scheme` continue to receive
-`Authorization: Bearer {token}` unchanged.
+`build_request()` reads `spec.header_scheme` (defaulting to `"bearer"` when field is absent)
+and dispatches on it. The existing `auth_type`-based cookie arm is replaced by the
+`"cookie:access_token"` `header_scheme` value.
+
+**Backward-compatibility scope and co-land sequencing requirement:**
+
+Sensors that currently inject bearer tokens (`auth_type` ≠ `cookie_roundtrip`) and do not
+declare `header_scheme` continue to receive `Authorization: Bearer {token}` unchanged (default
+`"bearer"`). The exception is `cyberint.sensor.toml`: it currently uses
+`auth_type = "cookie_roundtrip"`, which drives the old `auth_type`-based cookie arm in
+`build_request()`. Under `header_scheme` dispatch, without an explicit `header_scheme` field,
+it would default to `"bearer"` and break live Cyberint auth.
+
+Because `cyberint.sensor.toml` is superseded and DELETED by the Cyberint remediation story
+(D3-a), this is not a sensor-migration issue — but the timing is critical:
+
+The `build_request()` dispatch switch MUST land in the same commit as:
+- The deletion of `cyberint.sensor.toml`
+- The creation of `cyberint-alerts.sensor.toml` (with `header_scheme = "cookie:access_token"`)
+- The creation of `cyberint-assets.sensor.toml` (with `header_scheme = "cookie:access_token"`)
+
+This is an atomic co-land sequencing requirement, parallel to the Armis DTU re-clone
+constraint (SR-003 / Consequences §Negative). Violating this sequencing produces a window
+where live Cyberint auth breaks in any deployment that updated the engine but has not yet
+replaced the Cyberint spec.
+
+**`header_scheme` validation (spec_parser.rs, load time):**
+
+The `header_scheme` field is validated at spec-load time in the same multi-error pass as other
+field validations (Rule 7 order per BC-2.16.009). An unrecognized `header_scheme` value is a
+load-time error — no silent fallthrough to `"bearer"` (SOUL.md #4 anti-silent-failure).
+
+Closed value set:
+
+| `header_scheme` value | Valid | Rejection reason if invalid |
+|-----------------------|-------|-----------------------------|
+| `"bearer"` | Yes | — (default when field absent) |
+| `"raw"` | Yes | — |
+| `"cookie:<name>"` | Yes | `<name>` must be non-empty; must not contain a colon |
+| `"cookie:"` (empty name) | No | Cookie name required (`E-SPEC-027`) |
+| `"cookie"` (no colon separator) | No | Must be `cookie:<name>` form (`E-SPEC-027`) |
+| `"cookie:a:b"` (colon in name) | No | Cookie name must not contain a colon (`E-SPEC-027`) |
+| Any other value | No | Not in closed set (`E-SPEC-027`) |
+
+**Error code E-SPEC-027** (new, next free per append_only_numbering DF-030):
+`"sensor '{sensor_id}' has invalid header_scheme = '{value}'. Valid values: bearer, raw,
+cookie:<name> (non-empty name required, no colon in name)"`. Emitted by `spec_parser.rs` (or
+`validation.rs`) at load time. Spec rejected; boot fails with exit code 2; non-retryable.
+The `{value}` field is config text (not a credential per AD-017) and is safe to echo. Must be
+registered in `error-taxonomy.md` as part of the engine change story (same commit as
+`SensorSpec::header_scheme` addition).
+
+**`auth_type × header_scheme` coherence matrix (load-time validation):**
+
+The spec_parser validates that the declared `auth_type` and `header_scheme` are coherent.
+Incoherent combinations emit E-SPEC-027 and reject the spec at load time.
+
+| `auth_type` | Allowed `header_scheme` values | Canonical value |
+|-------------|-------------------------------|-----------------|
+| `bearer_static` | `"bearer"`, `"raw"` | `"bearer"` |
+| `oauth2_client_credentials` | `"bearer"`, `"raw"` | `"bearer"` |
+| `cookie_roundtrip` | `"cookie:<name>"` **only** | `"cookie:access_token"` |
+| `custom_via_plugin` | `"bearer"`, `"raw"` | `"raw"` for Armis |
+| `api_key` | `"bearer"` | `"bearer"` |
+
+**Critical restriction:** `cookie_roundtrip` MUST use a `cookie:<name>` `header_scheme`.
+Using `"bearer"` or `"raw"` with `cookie_roundtrip` would inject an Authorization header
+instead of a Cookie header, silently breaking auth (SOUL.md #4). This combination is rejected
+at load time with E-SPEC-027.
 
 **Why `header_scheme` over a new `token_exchange` `AuthType` closed-enum variant:**
-`AuthType` (spec_parser.rs) / the E-SPEC-012 canonical auth_type set governs ACQUISITION —
-which AuthProvider is constructed at spec-load time (e.g., `PluginAuthProvider` for
-`custom_via_plugin`). `header_scheme` governs INJECTION — how the acquired token is placed in
-the HTTP request. These are orthogonal concerns. Adding a `token_exchange` variant to
-`AuthType` would conflate both, require BC-2.01.016 enum amendment, E-SPEC-012 new code,
-and a new `TokenExchangeAuthProvider` in prism-spec-engine — all without changing the
-acquisition pattern (the WASM plugin already handles it). `header_scheme` is the correct
-abstraction boundary.
 
-A native `token_exchange` `AuthType` variant remains viable for Wave-B if two or more
-additional sensors exhibit the token-exchange acquisition pattern.
+`header_scheme` governs INJECTION — how the acquired token is placed in the HTTP request.
+`AuthType` (spec_parser.rs / E-SPEC-012) provides semantic labeling for the acquisition
+mechanism and is validated against the closed enum at load time, but does NOT dispatch provider
+construction at boot time — that is driven by `auth_plugin.is_some()` in
+`boot.rs::construct_plugin_auth_providers`, independent of `auth_type`. Both CrowdStrike
+(`auth_type = "oauth2_client_credentials"` + `auth_plugin = "crowdstrike-oauth2"`) and Armis
+(`auth_type = "custom_via_plugin"` + `auth_plugin = "armis-token-exchange"`) receive
+`PluginAuthProvider` via the same `auth_plugin.is_some()` boot path. `oauth2_client_credentials`
+accurately labels CrowdStrike's standard OAuth2 flow; `custom_via_plugin` accurately labels
+Armis's non-standard token-exchange. These are orthogonal to the injection concern addressed
+by `header_scheme`.
+
+Adding a `token_exchange` variant to `AuthType` would NOT change provider construction (still
+`auth_plugin.is_some()`-driven), would require BC-2.01.016 enum amendment + E-SPEC-012 + spec_parser
+changes for no behavioral benefit in Wave-A, and would conflate acquisition labeling with
+injection pattern. `custom_via_plugin` is already the correct semantic label for non-standard
+acquisition flows. A native `token_exchange` `AuthType` variant remains viable for Wave-B if
+two or more additional sensors exhibit token-exchange acquisition with a dedicated native
+provider.
 
 **Required engine change:** `SensorSpec` gains the `header_scheme` field (with `#[serde(default)]`
-defaulting to `"bearer"`). `PipelineExecutor::build_request()` switches from `auth_type`-based
-dispatch to `header_scheme`-based dispatch. This engine change MUST land before the Armis
-sensor spec can be authored or validated end-to-end, and is in-scope for the Armis auth story.
+defaulting to `"bearer"`). `PipelineExecutor::build_request()` (in
+`crates/prism-spec-engine/src/pipeline.rs`) switches from `auth_type`-based dispatch to
+`header_scheme`-based dispatch. This engine change MUST land before the Armis sensor spec can
+be authored or validated end-to-end, and is in-scope for the Armis auth story.
 
 **VP assignment (DRIFT-D849-002):** The VP that `acquire_token()` makes no network calls
 during spec-load applies to the Armis plugin. The plugin MUST lazy-acquire on first sensor
@@ -305,7 +383,7 @@ the `header_scheme` field introduced in D2.
 Research-agent confirmation: Cyberint Alerts API uses static `Cookie: access_token=<token>`
 injection on every request. The credential is a portal-generated static API key — there is
 NO login round-trip, NO session exchange, and NO token expiry. This is identical to the
-Assets surface mechanism and matches the `StaticCookieAuthProvider` pattern (ADR-031 §D3-a/b,
+Assets surface mechanism and matches the `StaticCookieAuthProvider` pattern (ADR-031 §D3-a,
 BC-2.01.017 §P2). Confirmed by: Alerts OpenAPI info.description authentication prose (the
 securitySchemes omission was a doc-gen artifact), IBM QRadar connector, qmasters integration,
 ThreatQ adapter, XSOAR integration, and Axonius connector — all hitting `/alert/api/v1/alerts`
@@ -316,7 +394,7 @@ spec authoring is RESOLVED.
 
 **Sub-question resolved:** Both Cyberint surfaces use the same static-cookie mechanism
 (no login roundtrip). This is consistent with BC-2.01.017 §P2's `StaticCookieAuthProvider`
-(no-login, static credential, `access_token` cookie) and ADR-031 §D3-a/b. The
+(no-login, static credential, `access_token` cookie) and ADR-031 §D3-a. The
 `cookie_roundtrip` auth_type label remains correct — it names the cookie-injection behavior,
 not a login exchange.
 
@@ -334,10 +412,20 @@ fix is isolating this to a dedicated `cyberint-assets.sensor.toml` spec file.
 **Supersession scope:** ADR-028 LOCKED Cyberint decision (D-747, combined `cookie_roundtrip`
 spec) is superseded in the sense that the combined spec is split. Both surfaces continue to
 use `cookie_roundtrip` with static-cookie injection. ADR-031 §D3 (scope-narrowed, not
-reversed) — §D3's single-surface assumption is narrowed to the Assets definition only. The
-§D3-a/b Assets static-cookie contract (`StaticCookieAuthProvider`, `access_token` cookie,
-no login step) is PRESERVED and unchanged. The Alerts surface becomes a separate sensor
-definition under D3-a above, not governed by ADR-031 §D3.
+reversed) — §D3's single-surface assumption is narrowed to the Assets definition only.
+
+**What is PRESERVED from ADR-031 §D3-a:** the static-cookie CONTRACT — `StaticCookieAuthProvider`
+behavior, `access_token` cookie name, no login step, no token expiry. This is unchanged.
+
+**What CHANGES from ADR-031 §D3-b:** the dispatch mechanism. §D3-b's `auth_type`-keyed
+dispatch table (the `CookieRoundtrip → Cookie: access_token={token}` arm) is replaced by
+`header_scheme`-based dispatch (the `"cookie:access_token"` value in `header_scheme`). The
+`cookie_roundtrip` auth_type continues to signal "cookie injection" semantically, but
+`build_request()` reads `header_scheme`, not `auth_type`, for the injection decision after
+D2 lands. ADR-031 §D3-b's dispatch table is therefore a D5 Spec Amendment Manifest target
+(see §D5).
+
+The Alerts surface becomes a separate sensor definition under D3-a above.
 
 **Human authorization:** D-1889 (2026-07-20). Final ADR approval gate pending.
 
@@ -353,14 +441,17 @@ No spec, BC, or story for F10 may be authored before a Wave-C transport ADR is a
 
 ### D5 — Spec Amendment Manifest
 
-The following BCs require amendment as a direct consequence of D1–D3. Each amendment is
-in-scope for the corresponding remediation story.
+The following BCs and ADR sections require amendment as a direct consequence of D1–D3. Each
+amendment is in-scope for the corresponding remediation story.
 
-| BC | Amendment required | Triggered by |
-|----|-------------------|--------------|
+| Artifact | Amendment required | Triggered by |
+|----------|-------------------|--------------|
 | BC-2.01.008 (`armis-bearer-aql`) | Title and contract-level auth premise invalidated — Armis auth is no longer `bearer_static`; the BC must be updated to reflect `custom_via_plugin` + token-exchange + `header_scheme = "raw"` | D2 |
 | BC-2.01.017 §P2 dispatch table | Currently hardcodes `CustomViaPlugin → Authorization: Bearer {token}`. Must gain the `header_scheme`-based raw arm (or delegate dispatch to `header_scheme` entirely) to eliminate the spec-vs-spec conflict with D2's `header_scheme = "raw"` for Armis | D2 |
+| BC-2.01.017 INV-COOKIE-004 | Cookie injection invariant references `auth_type = "cookie_roundtrip"` as the dispatch trigger; must be re-grounded on `header_scheme = "cookie:<name>"` | D2 |
+| BC-2.01.017 TV-BC-2.01.017-008 | Test vector grounded on `auth_type`-based cookie dispatch; must be re-grounded on `header_scheme = "cookie:access_token"` dispatch | D2 |
 | BC-2.01.006 | Split scope: rename/restrict existing Cyberint BC to Assets surface only; author new Cyberint Alerts BC covering the `/alert` surface auth and endpoints | D3 |
+| ADR-031 §D3-b (dispatch table) | The `auth_type`-keyed 4-row dispatch table (`CookieRoundtrip → Cookie: access_token={token}` arm) becomes stale under `header_scheme` dispatch; amendment required to reflect `header_scheme = "cookie:<name>"` as the injection dispatch key, replacing the `auth_type = "cookie_roundtrip"` arm | D2 |
 
 Additional artifacts requiring audit (not BC amendments, but must not contain contradicted values):
 - Any story, holdout scenario, or test grounded on the old Armis `bearer_static` or
@@ -390,18 +481,18 @@ in the WASM sandbox, not in spec-engine code. The CrowdStrike-oauth2 plugin is t
 production precedent for HTTP-at-acquire_token. The Armis token-exchange flow is structurally
 identical; the plugin handles the acquisition without spec-engine changes.
 
-A native `token_exchange` `AuthType` variant (Option C, Alternatives) would conflate
-acquisition pattern with injection pattern — adding spec-engine code, E-SPEC-012 amendments,
-and BC-2.01.016 changes without changing the acquisition behavior. If two or more additional
-sensors exhibit token-exchange acquisition, the cost/benefit shifts and a native auth_type
-should be evaluated.
+Provider construction is `auth_plugin.is_some()`-driven (`boot.rs::construct_plugin_auth_providers`),
+not `auth_type`-driven. `custom_via_plugin` is the correct `auth_type` for Armis because
+the token-exchange mechanism is non-standard and needs explicit labeling, in contrast to
+CrowdStrike's `oauth2_client_credentials` (which IS standard OAuth2). Both receive the same
+`PluginAuthProvider` at boot time via `auth_plugin`; the `auth_type` is a semantic declaration
+for humans and E-SPEC-012 closed-enum validation.
 
-**The real engine cost (corrected from v0.1 rationale):** D2 does require an engine change —
-the `header_scheme` TOML field and the `build_request()` dispatch change. This was always
-required for raw-token injection; the v0.1 "zero engine change" rationale was false. The
-`header_scheme` field is the correct approach because it decouples the header shape (injection)
-from the provider type (acquisition), keeps `AuthType` closed, and fixes ALL current and
-future non-Bearer sensors in a single backward-compatible change.
+Option C rejection: a native `token_exchange` `AuthType` variant would NOT change provider
+construction (still `auth_plugin.is_some()`-driven), would require BC-2.01.016 enum amendment
++ E-SPEC-012 + spec_parser changes, and provides no behavioral benefit in Wave-A when
+`custom_via_plugin` already correctly labels the mechanism. Remains viable for Wave-B if
+additional sensors require a dedicated native provider.
 
 ### Why two sensor definitions for Cyberint?
 
@@ -437,9 +528,10 @@ vs one) with zero auth-complexity overhead.
 ### Negative / Trade-offs
 
 - **Engine change required (D2):** `SensorSpec` must gain `header_scheme` field and
-  `PipelineExecutor::build_request()` must be updated to dispatch on it. This MUST land
-  before any Armis live-client spec can be validated end-to-end.
-- **Atomic DTU re-clone required (Armis — SR-003):** The existing Armis DTU enforces
+  `PipelineExecutor::build_request()` (in `crates/prism-spec-engine/src/pipeline.rs`) must be
+  updated to dispatch on it. This MUST land before any Armis live-client spec can be validated
+  end-to-end.
+- **Atomic co-land sequencing — Armis DTU re-clone (SR-003):** The existing Armis DTU enforces
   `Authorization: Bearer <non-empty>` (HTTP 403 on non-Bearer). As of D2, the spec will
   declare `header_scheme = "raw"`, injecting `Authorization: <raw_token>` (no Bearer prefix).
   This means ALL Armis DTU tests will fail at the transition point if the DTU is not
@@ -448,6 +540,10 @@ vs one) with zero auth-complexity overhead.
   Authorization headers. The spec flip and DTU re-clone MUST land in the SAME story commit
   sequence. Splitting them across separate stories risks a period where all Armis DTU tests
   403-fail on the new spec.
+- **Atomic co-land sequencing — Cyberint dispatch switch:** The `build_request()` dispatch
+  switch from `auth_type`-based to `header_scheme`-based MUST land in the same commit as the
+  deletion of `cyberint.sensor.toml` and creation of both new Cyberint spec files (each with
+  explicit `header_scheme = "cookie:access_token"`). See D2 backward-compat discussion.
 - Two Cyberint sensor definitions (not one) increase the config surface. Operators running
   Cyberint must configure two TOML entries with separate `base_url` values.
 - LOCKED decisions D-747 (Armis bearer_static; Cyberint combined cookie_roundtrip) are
@@ -476,14 +572,14 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 - **Option C (rejected — native `token_exchange` `AuthType` variant for Armis):** Add a new
   `token_exchange` variant to the `AuthType` closed enum (BC-2.01.016 E-SPEC-012), implement
-  a `TokenExchangeAuthProvider` in prism-spec-engine. Rejected for Wave-A because `AuthType`
-  governs acquisition pattern (provider dispatch at spec-load), not injection pattern (header
-  shape at request time). The acquisition pattern (HTTP POST → token cache → expiry refresh)
-  is correctly handled by the WASM plugin, which is already the existing model for
-  `custom_via_plugin`. Adding a `token_exchange` enum variant would change the provider
-  dispatch without changing the acquisition behavior, requiring BC-2.01.016 + E-SPEC-012
-  amendments for no behavioral benefit. Remains viable for Wave-B if additional sensors
-  require token-exchange acquisition with a dedicated native provider.
+  a `TokenExchangeAuthProvider` in prism-spec-engine. Rejected for Wave-A because provider
+  construction is `auth_plugin.is_some()`-driven, not `auth_type`-driven — a new auth_type
+  variant would NOT change which provider is constructed (still `PluginAuthProvider` via
+  `auth_plugin`). The acquisition pattern (HTTP POST → token cache → expiry refresh) is
+  correctly handled by the WASM plugin. Adding a `token_exchange` enum variant requires
+  BC-2.01.016 + E-SPEC-012 amendments for no behavioral benefit in Wave-A. `custom_via_plugin`
+  already correctly labels the non-standard acquisition mechanism. Remains viable for Wave-B
+  if additional sensors require token-exchange acquisition with a dedicated native provider.
 
 - **Option D (rejected — per-table auth overrides for Cyberint):** Add per-table `auth_type`
   and `base_url` override fields to `SensorSpec`. This is the cleanest long-term schema but
@@ -515,7 +611,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 - **Cyberint Alerts auth confirmation (research-agent, 2026-07-20):** Confirmed `Cookie: access_token=<static token>`, no login step, via Alerts OpenAPI info.description + IBM QRadar + qmasters + ThreatQ + XSOAR + Axonius connectors. X-Api-Key hypothesis rejected.
 - **OpenAPI files (Cyberint):** `.factory/reference/api-specs/cyberint_alerts_openapi_06.20.2026.json`
   and `cyberint_assets_openapi_06.20.2026.json` (both dated 2026-06-20)
-- **Engine location (Authorization header injection):** `crates/prism-sensors/src/pipeline.rs` —
+- **Engine location (Authorization header injection):** `crates/prism-spec-engine/src/pipeline.rs` —
   `PipelineExecutor::build_request()` function; Bearer prefix hardcoded for non-cookie auth
   (cite function name + behavioral anchor at D2 acceptance time)
 - **CrowdStrike-oauth2 plugin precedent:** `crowdstrike-oauth2/` WASM plugin; `acquire_token()`
@@ -528,5 +624,6 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.3 | 2026-07-20 | architect | Pass-2 adversary remediation. HIGH-5: phantom crate path corrected — `crates/prism-sensors/src/pipeline.rs` → `crates/prism-spec-engine/src/pipeline.rs` in §Source/Origin and D2. HIGH-3: "all existing sensors unchanged" backward-compat claim corrected — `cyberint.sensor.toml` is the one exception (cookie_roundtrip without `header_scheme` would default to bearer, breaking auth); atomic co-land sequencing requirement added for dispatch switch + Cyberint spec files. HIGH-4: `header_scheme` validation spec added — closed value set, E-SPEC-027 (new, next free per DF-030), malformed `cookie:<name>` handling, `auth_type × header_scheme` coherence matrix with `cookie_roundtrip`-must-use-cookie restriction. HIGH-1: D3 supersession scope split into CONTRACT (preserved from §D3-a) vs DISPATCH MECHANISM (changed — §D3-b dispatch table is D5 amendment target); D3-c reference corrected from `§D3-a/b` to `§D3-a`. HIGH-2: D5 Spec Amendment Manifest expanded — added ADR-031 §D3-b dispatch table, BC-2.01.017 INV-COOKIE-004, BC-2.01.017 TV-BC-2.01.017-008. MED-1: D2 `header_scheme` rationale corrected — `auth_plugin.is_some()` (not `auth_type`) drives `PluginAuthProvider` construction at boot; Armis `custom_via_plugin` vs CrowdStrike `oauth2_client_credentials` distinction explained; ADR-031 §D3 supersedes frontmatter updated to reflect §D3-a/b split. |
 | 0.2 | 2026-07-20 | architect | Central design decision: header injection mechanism resolved — `header_scheme` TOML field (`bearer`/`raw`/`cookie:<name>`) replaces `auth_type`-based dispatch in `build_request()`; keeps `AuthType` closed; fixes Armis raw-token + generalizes to future sensors. Armis TOML wiring specified: `auth_plugin = "armis-token-exchange"`, `header_scheme = "raw"`, `credential_ref = "secret_key"` (HIGH-4: was `armis_secret_key` — doubled sensor segment). D3-c CONFIRMED: Cyberint Alerts auth is static `Cookie: access_token` (no login step); X-Api-Key hypothesis rejected; research-agent citation added. HIGH-2 fix: ADR-031 §D3 supersession reframed as scope-narrowing (Assets only), not reversal — §D3-a/b static-cookie contract PRESERVED. D5 Spec Amendment Manifest added (BC-2.01.008, BC-2.01.017 §P2, BC-2.01.006). SR-003 Armis DTU atomic-sequencing consequence added. SR-004: SensorAuth→`AuthType` (`spec_parser.rs`)/E-SPEC-012 correction throughout. SR-005: `auth_plugin` TOML field wiring + BC-2.01.016 EC-016-002/005 cited. SR-006: Spec Amendment Manifest. SR-007: No-OpenAPI governance sentence (Confirmed/Partial tiers). SR-008: C2-class Cyberint mechanical fixes noted in D1. F3: §Source/Origin cite instructions changed from file:line to function+anchor. F4: "EIGHT of the four sensors" → "eight CRIT findings across all four sensors". OBS-5: §Changelog promoted to top-level ## Changelog. MED-1: ADR-032 added to related_adrs. |
 | 0.1 | 2026-07-20 | architect | Initial proposal under D-1889 authorization |

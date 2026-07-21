@@ -4,8 +4,8 @@ adr_id: "ADR-028"
 title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs"
 status: Proposed
 date: "2026-05-20"
-modified: "2026-07-20"  # v1.15 ADR-053 §D1/§D2/§D5 supersession linkage + §D13 Armis row narrowed to Claroty-only
-version: "1.15"
+modified: "2026-07-20"  # v1.16 LOW-1: §D2 Armis row inline supersession blockquote → ADR-053 §D2
+version: "1.16"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -89,6 +89,13 @@ TOML sensor spec `auth_type` values MUST be derived from DTU clone authenticatio
 - **Claroty:** `crates/prism-dtu-claroty/src/clone.rs` enforces `Authorization: Bearer` header → spec declares `auth_type = "bearer_static"`
 - **CrowdStrike:** OAuth2 client credentials flow per DTU enforcement → spec declares `auth_type = "oauth2_client_credentials"`
 - **Armis:** Bearer token header per DTU enforcement (HTTP 403 on missing/invalid `Authorization: Bearer {non-empty}` per `crates/prism-dtu-armis/src/lib.rs` module-level `//!` doc-comment (Armis Centrix BearerStatic API contract)) → spec declares `auth_type = "bearer_static"`. Legacy `ArmisAuth::auth_type_name()` returns `"api_key"` — this is the latent label bug §D2 was authored to immunize against.
+
+> **[ADR-053 §D2 SUPERSEDES this Armis row (2026-07-20, D-1889)]:** Armis is reclassified from
+> `bearer_static` to `custom_via_plugin` (token-exchange via `armis-token-exchange.prx` WASM
+> plugin) with `header_scheme = "raw"` and `credential_ref = "secret_key"`. The real Armis v1
+> API uses token-exchange auth (POST `secret_key` → short-lived `access_token`) and raw-token
+> header injection with NO "Bearer" prefix. `auth_type = "bearer_static"` for Armis is
+> superseded and MUST NOT be used. The operative contract is ADR-053 §D2. D-1889 authorization.
 
 Legacy `auth_type_name()` return strings in production Rust adapters are NOT a grounding reference. The observed code-vs-label inconsistencies (Cyberint adapter uses cookies but `auth_type_name()` returns `"bearer_static"`; Claroty adapter uses bearer but `auth_type_name()` returns `"cookie_roundtrip"`) are latent bugs in code deleted by PLUGIN-MIGRATION-001-A. No tech-debt entry is required for these bugs; they become moot at deletion.
 
@@ -634,6 +641,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.16 | 2026-07-20 | architect | LOW-1: §D2 Armis row — inline supersession blockquote added pointing to ADR-053 §D2 (2026-07-20, D-1889). Armis `bearer_static` row now carries explicit at-point warning: reclassified to `custom_via_plugin` + token-exchange + `header_scheme = "raw"` + `credential_ref = "secret_key"`; `bearer_static` MUST NOT be used for Armis. Closes pass-2 adversary LOW-1 finding. |
 | 1.15 | 2026-07-20 | architect | ADR-053 §D1/§D2/§D5 supersession linkage: `superseded_by:` converted to YAML list with ADR-053 §D1/§D2/§D5 entry (grounding order superseded by OpenAPI-first; Armis LOCKED auth_type D-747 + Cyberint LOCKED auth_type D-747 superseded; D-1889 2026-07-20). `related_adrs` updated to include ADR-053. §Source/Origin + §Rationale sections added (template compliance). TD-VSDD-091 volatile cite remediated at §D8-B (stable behavioral anchor substituted). §D13 consistency table Armis row narrowed to Claroty-only (HIGH-1 fix): ADR-053 §D2 supersedes Armis `bearer_static`; Armis reclassified to `custom_via_plugin` (`armis-token-exchange.prx`, `header_scheme = "raw"`, `credential_ref = "secret_key"`). |
 | 1.14 | 2026-06-03 | architect | §D13 ADDED — BearerStaticCredentialAuthProvider pattern clarifying note (ADV-SDEMO002-P01-CRIT-001 disposition). Documents that `bearer_static` sensors now resolve credentials via `BearerStaticCredentialAuthProvider` (AuthProvider pattern, async `acquire_token` → `resolve_credential("bearer_token")`, fail-closed on missing credential), held as `AdapterAuthStrategy::Plugin`. Retires bare `AdapterAuthStrategy::BearerStatic` constructor path (defect: sync placeholder resolver, resolution at construction time rather than request time). Canonical `credential_ref` name `bearer_token`, operator env var `<SENSOR>_BEARER_TOKEN`. Consistency table added. anchor_stories += S-DEMO-002. |
 | 1.13 | 2026-05-29 | architect | §D12 SUPERSEDED — ADR-031 §D4 reverses the DTU-shortcut acceptance. §D12 body annotated `[SUPERSEDED by ADR-031 §D4 2026-05-29 — DTU=true-DTU principle adoption]`. Correct contract is now ADR-031 §D3: `access_token` cookie (not `cyberint_session`), `StaticCookieAuthProvider` (no login step), `build_request` dispatches `CookieRoundtrip → Cookie: access_token={token}`. frontmatter `superseded_by:` updated. frontmatter `version:` bumped v1.12→v1.13. |
