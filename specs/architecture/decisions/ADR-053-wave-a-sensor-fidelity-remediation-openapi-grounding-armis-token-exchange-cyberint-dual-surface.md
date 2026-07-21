@@ -5,14 +5,14 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-20"
-version: "0.5"
+version: "0.6"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
   - "ADR-028 §D1/§D2/§D5 (grounding order rules: DTU→OpenAPI as canonical; effective on ADR-053 acceptance)"
   - "ADR-028 LOCKED Armis auth_type D-747 (bearer_static→custom_via_plugin token-exchange)"
   - "ADR-028 LOCKED Cyberint auth_type D-747 (combined cookie_roundtrip spec→dual-surface split)"
-  - "ADR-031 §D3 (scope-narrowing only: single-surface assumption narrowed to Assets; §D3-b items 1-2 StaticCookieAuthProvider provider contract PRESERVED; §D3-b item 3 auth_type-keyed dispatch table superseded by header_scheme dispatch — see D2/D5; §D3-a DTU changes unaffected)"
+  - "ADR-031 §D3 (scope-narrowing only: single-surface assumption narrowed to Assets; §D3-b items 1-2 StaticCookieAuthProvider provider contract PRESERVED; §D3-b item 3 auth_type-keyed dispatch table superseded by header_scheme dispatch — see D2/D5; §D3-a DTU changes unaffected; §D3-b item 4 S-DEMO-001 story-scope note moot/historical — delivered)"
 superseded_by: null
 amends: null
 related_adrs: [ADR-026, ADR-028, ADR-031, ADR-032, ADR-050]
@@ -31,13 +31,12 @@ wave_scope: "Wave-A only (grounding order + sensor auth models); transport/TLS (
 
 ## Status
 
-Proposed 2026-07-20, v0.5 (revised after pass-4 adversary findings: HIGH-1 D2 rule-number
-corrected — `header_scheme` validation is new Rule 9 after Rule 8 probe_table per BC-2.16.009,
-not Rule 7; D5 manifest row added for BC-2.16.009 Rule 9. MED-1 phantom symbol corrected —
-`validate_and_construct_auth_providers` in D2 body and Rationale. MED-2 TOML grammar corrected
-throughout — D2 Armis block now uses top-level keys + `[[credential_refs]]` block with `name =
-"secret_key"`; D3-a/D3-d prose corrected to reference `[[credential_refs]]` entry; D5 normative
-instruction updated accordingly. OBS-1 D5 row added for error-taxonomy.md E-SPEC-027 registration).
+Proposed 2026-07-20, v0.6 (revised after pass-5 adversary findings: HIGH-1 BC-2.03.006 →
+BC-2.06.003 + "four-tier per-client" in TOML comment. HIGH-2 E-SPEC-027 template (b)
+generalized to all 6 incoherence directions. MED-1 story-ownership contradiction resolved —
+engine change is standalone Wave-A engine story; dependency ordering replaces "same-commit".
+MED-2 EC-016-002/EC-016-005/E-SPEC-012/BootError miscite corrected. OBS-2 ADR-031 §D3-b
+item 4 moot note added to frontmatter. Full citation audit completed).
 Awaiting human approval gate before proceeding to spec/BC work.
 Authored by architect under D-1889 authorization. Locks three Wave-A architectural corrections:
 D1 (OpenAPI grounding order), D2 (Armis token-exchange + `header_scheme` injection), D3 (Cyberint
@@ -204,13 +203,15 @@ auth_plugin = "armis-token-exchange"   # names the registered WASM plugin
 header_scheme = "raw"                  # Authorization: {token} — no Bearer prefix
 
 [[credential_refs]]
-name = "secret_key"                    # resolved via BC-2.03.006 three-tier chain
+name = "secret_key"                    # resolved via BC-2.06.003 four-tier per-client chain (PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF})
 ```
 
 The `auth_plugin` field names the registered WASM plugin. If the plugin is not registered at
-spec-load time, `E-SPEC-012` is emitted per BC-2.01.016 EC-016-002 (plugin auth requires
-registered plugin) and EC-016-005 (unregistered plugin → spec rejected). This matches the
-existing CrowdStrike-oauth2 registration contract.
+boot time, `BootError::UnknownAuthPlugin` is raised per BC-2.01.016 EC-016-005 (unregistered
+custom plugin → spec tables not made available). This maps to the E-SPEC-012 `UnknownAuthPlugin`
+variant (added PLUGIN-MIGRATION-001-E F-LP1-CRIT-003; the primary E-SPEC-012 variant covers
+auth_type cross-composition). EC-016-002 is the happy path (plugin resolved via `PluginRuntime`).
+This matches the existing CrowdStrike-oauth2 registration contract.
 
 The `armis-token-exchange.prx` plugin's `acquire_token()` implementation:
 - Performs `POST /api/v1/access_token/` with form-encoded `secret_key=<credential>`
@@ -248,18 +249,21 @@ declare `header_scheme` continue to receive `Authorization: Bearer {token}` unch
 `build_request()`. Under `header_scheme` dispatch, without an explicit `header_scheme` field,
 it would default to `"bearer"` and break live Cyberint auth.
 
-Because `cyberint.sensor.toml` is superseded and DELETED by the Cyberint remediation story
-(D3-a), this is not a sensor-migration issue — but the timing is critical:
+Because `cyberint.sensor.toml` is superseded and DELETED by the Cyberint spec migration story
+(D3-a), this is not a sensor-migration issue — but story-ordering is critical:
 
-The `build_request()` dispatch switch MUST land in the same commit as:
-- The deletion of `cyberint.sensor.toml`
-- The creation of `cyberint-alerts.sensor.toml` (with `header_scheme = "cookie:access_token"`)
-- The creation of `cyberint-assets.sensor.toml` (with `header_scheme = "cookie:access_token"`)
+The Cyberint spec migration story MUST NOT merge before the standalone Wave-A engine story
+has landed (adding `header_scheme` to `SensorSpec` and switching `build_request()` dispatch
+to `header_scheme`-based). When the Cyberint spec migration story lands it MUST atomically:
+- Delete `cyberint.sensor.toml`
+- Create `cyberint-alerts.sensor.toml` (with `header_scheme = "cookie:access_token"`)
+- Create `cyberint-assets.sensor.toml` (with `header_scheme = "cookie:access_token"`)
 
-This is an atomic co-land sequencing requirement, parallel to the Armis DTU re-clone
-constraint (SR-003 / Consequences §Negative). Violating this sequencing produces a window
-where live Cyberint auth breaks in any deployment that updated the engine but has not yet
-replaced the Cyberint spec.
+This story-level dependency ordering (engine story → Cyberint spec migration story) replaces
+any literal "same commit" constraint. The risk of a deployment window where live Cyberint auth
+breaks is closed by the story-dependency gate: once the engine story is merged, deployments
+that include it will also include the new Cyberint spec files (both declaring explicit
+`header_scheme = "cookie:access_token"`) because both ship in the same story merge window.
 
 **`header_scheme` validation (spec_parser.rs, load time):**
 
@@ -287,17 +291,24 @@ templates are required to avoid self-contradiction on well-formed-but-incoherent
 `"sensor '{sensor_id}' has invalid header_scheme = '{value}'. Valid values: bearer, raw, cookie:<name> (non-empty name required, no colon in name)"`
 
 **(b) Well-formed value, incoherent with auth_type:**
-`"sensor '{sensor_id}' auth_type = '{auth_type}' requires header_scheme = 'cookie:<name>'; got '{value}'"`
+`"sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}"`
+
+where `{allowed_set}` is derived from the coherence matrix: `bearer_static` → `bearer, raw`;
+`oauth2_client_credentials` → `bearer, raw`; `cookie_roundtrip` → `cookie:<name>`;
+`custom_via_plugin` → `bearer, raw`; `api_key` → `bearer` (Wave-A scope).
+
+This generalized form produces a correct, actionable message for every incoherent cell:
+- `cookie_roundtrip` + `"bearer"` → "...does not permit header_scheme = 'bearer'; allowed: cookie:<name>"
+- `bearer_static` + `"cookie:x"` → "...does not permit header_scheme = 'cookie:x'; allowed: bearer, raw"
+- `api_key` + `"raw"` → "...does not permit header_scheme = 'raw'; allowed: bearer"
+(and so on for all 6 directions — none falsely claims the other direction's constraint)
 
 Template (a) fires when `{value}` is not in the closed value set or is malformed. Template (b)
-fires when `{value}` is well-formed but violates the `auth_type × header_scheme` coherence
-matrix (e.g., `cookie_roundtrip` + `header_scheme = "bearer"` — reporting `"bearer"` as
-"invalid" via template (a) would be self-contradictory since `"bearer"` IS a valid value;
-template (b) names the violated constraint instead). Both are load-time errors; spec rejected;
-boot fails exit code 2; non-retryable. The `{value}` and `{auth_type}` fields are config text
-(not credentials per AD-017) and safe to echo. Must be registered in `error-taxonomy.md` with
-both templates as part of the engine change story (same commit as `SensorSpec::header_scheme`
-addition).
+fires when `{value}` is well-formed but violates the coherence matrix. Both are load-time
+errors; spec rejected; boot fails exit code 2; non-retryable. The `{value}`, `{auth_type}`,
+and `{allowed_set}` fields are config text (not credentials per AD-017) and safe to echo.
+Must be registered in `error-taxonomy.md` with both templates as part of the standalone Wave-A
+engine story (same story as `SensorSpec::header_scheme` addition).
 
 **`auth_type × header_scheme` coherence matrix (load-time validation):**
 
@@ -345,11 +356,14 @@ injection pattern. `custom_via_plugin` is already the correct semantic label for
 acquisition flows. A native `token_exchange` `AuthType` variant remains viable for Wave-B if
 additional sensors require a dedicated native provider.
 
-**Required engine change:** `SensorSpec` gains the `header_scheme` field (with `#[serde(default)]`
-defaulting to `"bearer"`). `PipelineExecutor::build_request()` (in
-`crates/prism-spec-engine/src/pipeline.rs`) switches from `auth_type`-based dispatch to
-`header_scheme`-based dispatch. This engine change MUST land before the Armis sensor spec can
-be authored or validated end-to-end, and is in-scope for the Armis auth story.
+**Required engine change (standalone Wave-A engine story):** `SensorSpec` gains the
+`header_scheme` field (with `#[serde(default)]` defaulting to `"bearer"`).
+`PipelineExecutor::build_request()` (in `crates/prism-spec-engine/src/pipeline.rs`) switches
+from `auth_type`-based dispatch to `header_scheme`-based dispatch. E-SPEC-027 (both message
+templates), BC-2.16.009 Rule 9, and `error-taxonomy.md` registration are all in-scope for
+this standalone engine story. The Armis auth story and the Cyberint spec migration story both
+declare a merge-dependency on this engine story — neither may merge until the engine story
+has landed.
 
 **VP assignment (DRIFT-D849-002):** The VP that `acquire_token()` makes no network calls
 during spec-load applies to the Armis plugin. The plugin MUST lazy-acquire on first sensor
@@ -496,7 +510,7 @@ consequence of D1–D3. Each amendment is in-scope for the corresponding remedia
 | Cyberint `[[credential_refs]]` name rename (`api_key` → `access_token`) | Both new Cyberint spec files (`cyberint-alerts.sensor.toml` and `cyberint-assets.sensor.toml`) MUST use a `[[credential_refs]]` block with `name = "access_token"` (renamed from the `api_key` `[[credential_refs]]` entry in `cyberint.sensor.toml`). Rationale: `access_token` is the wire cookie name (OpenAPI securityScheme, ADR-028 §D13 consistency table, ADR-031 §D3-b items 1-2). Env vars change from `PRISM_CLIENTS_{ORG}_SENSORS_CYBERINT_API_KEY` to `PRISM_CLIENTS_{ORG}_SENSORS_CYBERINT_ALERTS_ACCESS_TOKEN` / `PRISM_CLIENTS_{ORG}_SENSORS_CYBERINT_ASSETS_ACCESS_TOKEN` (per ADR-032 per-client format). | D3 |
 | ADR-032 Cyberint credential rows audit | ADR-032 rows referencing `cyberint.sensor.toml` with `[[credential_refs]]` `name = "api_key"` / env var `CYBERINT_API_KEY` are stale post-deletion of `cyberint.sensor.toml`. Must be updated to reflect two new spec files with `[[credential_refs]]` `name = "access_token"` and corresponding per-client env vars. | D3 |
 | BC-2.16.009 Rule 9 (new) | Author new Rule 9 — `header_scheme` field validation (unknown/malformed → E-SPEC-027 template a; well-formed-but-incoherent with auth_type → E-SPEC-027 template b); rules numbered after Rule 8 probe_table (E-SPEC-026). Rule 9 is in-scope for the Wave-A engine story that adds `SensorSpec::header_scheme`. | D2 |
-| `error-taxonomy.md` | Register E-SPEC-027 with both message templates: (a) unknown/malformed `header_scheme` value; (b) well-formed value incoherent with `auth_type`. Registration is in-scope for the Wave-A engine story (same commit as `SensorSpec::header_scheme` addition). | D2 |
+| `error-taxonomy.md` | Register E-SPEC-027 with both message templates: (a) unknown/malformed `header_scheme` value; (b) well-formed value incoherent with `auth_type` (generalized form — `sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}`). Registration is in-scope for the standalone Wave-A engine story. | D2 |
 
 Additional artifacts requiring audit (not BC amendments, but must not contain contradicted values):
 - Any story, holdout scenario, or test grounded on the old Armis `bearer_static` or
@@ -669,6 +683,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.6 | 2026-07-20 | architect | Pass-5 adversary remediation + complete anchor/citation audit. HIGH-1: TOML block credential comment corrected — BC-2.03.006 (query-time resolution) → BC-2.06.003 (config-resolve chain); "three-tier" → "four-tier per-client" matching BC-2.06.003 v1.11. HIGH-2: E-SPEC-027 template (b) generalized to cover all 6 incoherence directions — `sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}` (allowed_set from coherence matrix). MED-1: three-way story-ownership contradiction resolved — engine change is now a STANDALONE Wave-A engine story; "same-commit" Cyberint constraint replaced with story-level dependency-ordering; D2/D3/D5 consistent. MED-2: BC-2.01.016 EC miscite corrected — EC-016-002 is happy path (PluginRuntime resolution); EC-016-005 is unregistered-plugin rejection; E-SPEC-012 is auth_type validation; real unregistered-plugin error is `BootError::UnknownAuthPlugin`. OBS-2: ADR-031 §D3-b item 4 moot/historical note added to frontmatter supersedes. Citation audit completed — all BC IDs, EC numbers, error codes, symbols, crate paths, TOML grammar, tier counts verified. |
 | 0.5 | 2026-07-20 | architect | Pass-4 adversary remediation. HIGH-1: D2 `header_scheme` validation rule-number corrected — "Rule 7 order" → "a new Rule 9 (after Rule 8 probe_table, per BC-2.16.009)"; D5 manifest row added for BC-2.16.009 Rule 9 authorship. MED-1: phantom symbol `construct_plugin_auth_providers` replaced with real symbol `validate_and_construct_auth_providers` in D2 body and Rationale (two sites). MED-2: D2 Armis TOML block rewritten — removed `[sensor]` table header, replaced scalar `credential_ref = "secret_key"` with `[[credential_refs]]` block + `name = "secret_key"` matching real SensorSpec grammar; D3-a/D3-d `credential_ref` prose corrected to reference `[[credential_refs]]` entry; D5 normative Cyberint instruction updated from scalar `credential_ref = "access_token"` to `[[credential_refs]]` entry with `name = "access_token"`. OBS-1: D5 manifest row added for `error-taxonomy.md` E-SPEC-027 dual-template registration (deferred to Wave-A engine story). |
 | 0.4 | 2026-07-20 | architect | Pass-3 adversary remediation. HIGH-1 (paper-fix remediation): §D3-a/§D3-b attribution corrected throughout — §D3-a is DTU-only (no StaticCookieAuthProvider); §D3-b items 1-2 are the Prism provider contract (PRESERVED); §D3-b item 3 is the dispatch table (superseded). All sites corrected: frontmatter `supersedes[3]`, D3-c `(§D3-b items 1-2)`, D3 supersession scope `PRESERVED from §D3-b items 1-2 / CHANGES from §D3-b item 3`, explicit §D3-a unaffected callout. ADR-031 `superseded_by` frontmatter synced in ADR-031 v1.5. MED-1: E-SPEC-027 split into two message templates — (a) unknown/malformed value; (b) well-formed-but-incoherent (`auth_type = 'X' requires header_scheme = 'cookie:<name>'; got 'Y'`) — avoids self-contradiction where a valid value is rejected via coherence. MED-2: D5 expanded — Cyberint `credential_ref` rename decision (api_key→access_token; rationale: wire cookie name match + ADR-028 §D13 consistency table + ADR-031 §D3-b items 1-2) + env-var derivation; ADR-032 Cyberint stale-rows audit target. OBS-1: coherence matrix `api_key` row: Wave-B non-Bearer extension note added. OBS-2 addressed in ADR-028 v1.17 (§D13 env-var convention supersession note). |
 | 0.3 | 2026-07-20 | architect | Pass-2 adversary remediation. HIGH-5: phantom crate path corrected — `crates/prism-sensors/src/pipeline.rs` → `crates/prism-spec-engine/src/pipeline.rs` in §Source/Origin and D2. HIGH-3: "all existing sensors unchanged" backward-compat claim corrected — `cyberint.sensor.toml` is the one exception (cookie_roundtrip without `header_scheme` would default to bearer, breaking auth); atomic co-land sequencing requirement added for dispatch switch + Cyberint spec files. HIGH-4: `header_scheme` validation spec added — closed value set, E-SPEC-027 (new, next free per DF-030), malformed `cookie:<name>` handling, `auth_type × header_scheme` coherence matrix with `cookie_roundtrip`-must-use-cookie restriction. HIGH-1: D3 supersession scope split into CONTRACT (preserved from §D3-a) vs DISPATCH MECHANISM (changed — §D3-b dispatch table is D5 amendment target); D3-c reference corrected from `§D3-a/b` to `§D3-a`. HIGH-2: D5 Spec Amendment Manifest expanded — added ADR-031 §D3-b dispatch table, BC-2.01.017 INV-COOKIE-004, BC-2.01.017 TV-BC-2.01.017-008. MED-1: D2 `header_scheme` rationale corrected — `auth_plugin.is_some()` (not `auth_type`) drives `PluginAuthProvider` construction at boot; Armis `custom_via_plugin` vs CrowdStrike `oauth2_client_credentials` distinction explained; ADR-031 §D3 supersedes frontmatter updated to reflect §D3-a/b split. |

@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.442"
+version: "8.443"
 producer: state-manager
-timestamp: 2026-07-21T04:30:00Z
+timestamp: 2026-07-21T05:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.80"
 story_index_version: "v2.719"
-arch_index_version: "2.198"
+arch_index_version: "2.199"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1894 (2026-07-21): ADR-053 v0.5 PASS-4 REMEDIATION BURST COMMITTED — adversary spec pass-4 NOT CLEAN(strict) 1H+2M+2OBS; ALL closed in v0.5: HIGH-1 D2 Rule 9 after Rule 8 probe_table is NEW BC-2.16.009 Rule 9 (not occupied Rule 7=HTTP-method whitelist) + D5 BC-2.16.009 Rule-9 manifest row; MED-1 phantom symbol construct_plugin_auth_providers→validate_and_construct_auth_providers corrected (D2 + Rationale); MED-2 TOML wiring blocks corrected to real SensorSpec grammar (top-level keys + [[credential_refs]] name=); OBS-1 D5 E-SPEC-027 registration deferred Wave-A; OBS-2 [process-gap] spec_parser.rs doc-comment DRIFT registered DRIFT-SPECPARSER-DOCCOMMENT-TOML-001 (implementer/Wave-A). ARCH-INDEX v2.197→v2.198. streak 0/3. NEXT: adversary spec pass-5 (fresh) on committed v0.5 toward BC-5.39.001 3-CLEAN, then human ADR approval gate. trajectory-tail →6→8→3→3→(pass-5 pending) STATE v8.441→v8.442"
+current_step: "D-1895 (2026-07-21): ADR-053 v0.6 COMMITTED (pass-5 remediation + full citation audit) + USER ARCHITECTURAL DECISION: Armis native declarative HTTP auth — native token-exchange (Armis) + oauth2 client-credentials (CrowdStrike) all declarable in TOML; CrowdStrike migrates off crowdstrike-oauth2.prx; plugin RETIRED; custom_via_plugin retained as escape hatch only; RESHAPES ADR-053 D2 (custom_via_plugin → native declarative auth_type). Planned: companion ADR-054 'Native Declarative HTTP Auth Acquisition' (supersedes plugin-based STANDARD auth; reconciles ADR-023 + ADR-026). ARCH-INDEX v2.198→v2.199. streak 0/3. NEXT: architect designs ADR-054 + rewrites ADR-053 D2, then adversarial cascade re-runs on reshaped ADR set. trajectory-tail →8→3→3→5 STATE v8.442→v8.443"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,8 +77,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 419 lines (wc-l)
-  margin from soft-target (200): +216 lines over | margin from actual (500): 84 lines remaining
+  STATE.md SIZE BUDGET: 420 lines (wc-l)
+  margin from soft-target (200): +217 lines over | margin from actual (500): 83 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-21 D-1894 — ADR-053 v0.5 PASS-4 REMEDIATION: adversary pass-4 NOT CLEAN(strict) 1H+2M+2OBS; ALL closed in v0.5 — HIGH-1 D2 Rule 9 NEW BC-2.16.009 Rule 9 + D5 manifest row; MED-1 phantom symbol validate_and_construct_auth_providers; MED-2 TOML grammar corrected (top-level + [[credential_refs]]); OBS-1 E-SPEC-027 deferred Wave-A; OBS-2 DRIFT-SPECPARSER-DOCCOMMENT-TOML-001 registered. ARCH-INDEX v2.197→v2.198. trajectory-tail →6→8→3→3→(pass-5 pending) STATE v8.441→v8.442 |
+| **Last Updated** | 2026-07-21 D-1895 — ADR-053 v0.6 pass-5 remediation + full citation audit (2H+2M+1OBS all closed); USER ARCHITECTURAL DECISION: Armis native declarative HTTP auth (no plugin), CrowdStrike oauth2 migration, crowdstrike-oauth2.prx retirement, custom_via_plugin retained as escape hatch; RESHAPES ADR-053 D2; ADR-054 planned. ARCH-INDEX v2.198→v2.199. trajectory-tail →8→3→3→5 STATE v8.442→v8.443 |
 
 ## Active Objective (North Star)
 
@@ -307,6 +307,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1892 | state-manager | 2026-07-20 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — ADR-053 v0.3 PASS-2 REMEDIATION BURST. Fresh adversary spec pass-2 on 8f091786 (v0.2) NOT CLEAN(strict) 5 HIGH + 1 MED + LOW-1 + OBS-1. ALL closed in v0.3: HIGH-1 D3 preserve(contract)/change(dispatch) split; HIGH-2 D5 manifest expanded to 6 amendment targets (ADR-031 §D3-b table, BC-2.01.017 INV-COOKIE-004 + TV-008); HIGH-3 Cyberint backward-compat regression — atomic co-land of build_request dispatch switch + cyberint spec header_scheme required; HIGH-4 header_scheme validation (closed value set, E-SPEC-027 assigned, malformed cookie: rejection, auth_type×header_scheme coherence matrix — cookie_roundtrip MUST use cookie:<name>; no silent Bearer fallthrough per SOUL #4); HIGH-5 phantom crate path prism-sensors→prism-spec-engine; MED-1 provider-selection rationale corrected (auth_plugin.is_some()-driven, not auth_type); LOW-1 ADR-028 §D2 inline supersession blockquote (→v1.16); OBS-1 ADR-031 status Proposed→accepted (→v1.4, closes DRIFT-ADR031-STATUS-001). ARCH-INDEX v2.195→v2.196. E-SPEC-027 RESERVED by ADR-053; taxonomy registration deferred to Wave-A engine-change story (no error_taxonomy_version bump). streak 0/3. NEXT: adversary spec pass-3 (fresh) on committed v0.3 toward BC-5.39.001 3-CLEAN, then human ADR approval gate. trajectory-tail →0→0→0→0 STATE v8.439→v8.440 | wave-5-e-demo-fidelity | 2026-07-20 |
 | D-1893 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — ADR-053 v0.4 PASS-3 REMEDIATION BURST. Fresh adversary spec pass-3 on f8c641c9 (v0.3) NOT CLEAN(strict) 1 HIGH + 2 MED + 2 OBS. ALL closed in v0.4: HIGH-1 D3 preserve/change split was a pass-2 paper-fix (mis-attributed ADR-031 §D3-a vs §D3-b) — corrected: StaticCookieAuthProvider contract is §D3-b items 1-2 (PRESERVED), auth_type dispatch table is §D3-b item 3 (SUPERSEDED), §D3-a DTU-changes unaffected; ADR-031 superseded_by synced (→v1.5); MED-1 E-SPEC-027 dual message templates (unknown-value + incoherent-combination, no self-contradiction); MED-2 D5 +Cyberint credential_ref rename api_key→access_token +ADR-032 stale-row audit; OBS-1 api_key non-Bearer=Wave-B; OBS-2 ADR-028 §D13 legacy env-var convention superseded by ADR-032 per-client format (→v1.17). ARCH-INDEX v2.196→v2.197. streak 0/3. NEXT: adversary spec pass-4 (fresh) on committed v0.4 toward BC-5.39.001 3-CLEAN, then human ADR approval gate. trajectory-tail →6→8→3→0 STATE v8.440→v8.441 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1894 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — ADR-053 v0.5 PASS-4 REMEDIATION BURST. Fresh adversary spec pass-4 on d4e7cbcd (v0.4) NOT CLEAN(strict) 1 HIGH + 2 MED + 2 OBS. ALL closed in v0.5: HIGH-1 header_scheme validation is a NEW BC-2.16.009 Rule 9 (not the occupied Rule 7 = HTTP-method whitelist) + D5 manifest BC-2.16.009 Rule-9 row added; MED-1 phantom symbol construct_plugin_auth_providers → validate_and_construct_auth_providers corrected at both D2 + Rationale sites (boot.rs:441); MED-2 ADR-053 TOML wiring blocks corrected to real SensorSpec grammar (top-level keys + [[credential_refs]] name=, no [sensor] table/scalar credential_ref — literal-copy would have hit E-SPEC-013); OBS-1 D5 error-taxonomy.md E-SPEC-027 registration row deferred to Wave-A engine-change story (out-of-ADR-perimeter); OBS-2 [process-gap] pre-existing spec_parser.rs doc-comment defect registered as DRIFT-SPECPARSER-DOCCOMMENT-TOML-001 (implementer, Wave-A). ARCH-INDEX v2.197→v2.198. streak 0/3. NEXT: adversary spec pass-5 (fresh) on committed v0.5 toward BC-5.39.001 3-CLEAN, then human ADR approval gate. trajectory-tail: findings 6→8→3→3→(pass-5 pending), severity ceiling now doc-accuracy (core design stable/verified across passes 3-4). STATE v8.441→v8.442 | wave-5-e-demo-fidelity | 2026-07-21 |
+| D-1895 | human+state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — ADR-053 v0.6 PASS-5 REMEDIATION + FULL CITATION AUDIT + USER ARCHITECTURAL DECISION (2026-07-20). ADR-053 v0.6 committed: adversary spec pass-5 NOT CLEAN(strict) 2H+2M+1OBS; ALL closed in v0.6 — HIGH-1 BC-2.03.006→BC-2.06.003 four-tier chain corrected; HIGH-2 E-SPEC-027 template (b) generalized to derive allowed_set from coherence matrix (correct for all 6 incoherence directions); MED-1 story-ownership resolved: standalone Wave-A engine story owns header_scheme+build_request dispatch+E-SPEC-027+BC-2.16.009 Rule 9; Armis auth story + Cyberint migration story declare merge-dependency on it; MED-2 BootError::UnknownAuthPlugin per EC-016-005 maps to E-SPEC-012 UnknownAuthPlugin variant (EC-016-002=happy path); OBS-2 §D3-b item 4 moot note in supersedes. Changelog row prepended; ADR-028/031 untouched. USER ARCHITECTURAL DECISION (2026-07-20, senior-architect ruling): Armis auth must NOT require a plugin — TOML engine to be completed to express standard HTTP auth acquisition DECLARATIVELY. Chosen scope: 'Native + retire oauth2 plugin too'. Native declarative HTTP auth-acquisition covering BOTH token-exchange (Armis: form-POST secret_key → $.data.access_token + $.data.expiration_utc, refresh on expiry) AND oauth2 client-credentials (CrowdStrike: client_id/client_secret → token endpoint → bearer+expiry) — all declarable in TOML; injection via header_scheme. Migrate CrowdStrike off crowdstrike-oauth2.prx to native; RETIRE that plugin. custom_via_plugin RETAINED as escape hatch for genuinely arbitrary auth ONLY. RESHAPES ADR-053 D2 (Armis: custom_via_plugin → native declarative auth_type). Planned: companion ADR-054 'Native Declarative HTTP Auth Acquisition' (supersedes plugin-based STANDARD auth; reconciles ADR-023 plugin-only architecture + ADR-026 closed auth_type enum); reuses existing multi-step fetch pipeline machinery (BC-2.16.002). ADDED Wave-A scope: (a) native token-exchange/oauth2 auth provider + declarative schema + validation + expiry/refresh; (b) CrowdStrike auth-migration story; (c) crowdstrike-oauth2.prx retirement (regression surface — shipped via PLUGIN-MIGRATION-001-E; boot path + tests must migrate). NEXT: architect designs ADR-054 + rewrites ADR-053 D2, then adversarial cascade re-runs on reshaped ADR set. ARCH-INDEX v2.198→v2.199. streak 0/3. trajectory-tail →8→3→3→5 STATE v8.442→v8.443 | wave-5-e-demo-fidelity | 2026-07-21 |
 
 ## Skip Log
 
