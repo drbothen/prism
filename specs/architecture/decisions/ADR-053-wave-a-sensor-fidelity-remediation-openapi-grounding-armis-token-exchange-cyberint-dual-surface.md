@@ -4,8 +4,8 @@ adr_id: "ADR-053"
 title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Exchange Auth, and Cyberint Dual-Surface Split"
 status: proposed
 date: "2026-07-20"
-modified: "2026-07-20"
-version: "0.9"
+modified: "2026-07-21"
+version: "0.10"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -380,9 +380,12 @@ declare a merge-dependency on this engine story — neither may merge until the 
 has landed.
 
 **VP assignment (DRIFT-D849-002):** The VP that `acquire_token()` makes no network calls
-during spec-load applies to the Armis plugin. The plugin MUST lazy-acquire on first sensor
-request, not at spec-parsing or boot time. Implementation evidence must be cited in the
-plugin's `acquire_token()` function via behavioral anchor before this ADR is accepted.
+during spec-load applies to the Armis `DeclarativeHttpAuthProvider`. The provider MUST
+lazy-acquire on first sensor request, not at spec-parsing or boot time (ADR-054 D4/D8 P1;
+BC-2.16.014 P1: `DeclarativeHttpAuthProvider::new()` makes ZERO network calls; token
+acquired lazily on first `acquire_token()` call). Implementation evidence must be cited
+in the provider's `acquire_token()` function via behavioral anchor before this ADR is
+accepted.
 
 **Supersession scope:** ADR-028 LOCKED Armis decision (D-747, `bearer_static`) is superseded.
 ADR-028 §D13's consistency table row `bearer_static (Armis, Claroty)` is narrowed — see §D13
@@ -584,9 +587,11 @@ vs one) with zero auth-complexity overhead.
 - All Wave-A spec authoring for Armis and Cyberint is grounded on vendor OpenAPI, not DTU
   circular references. Drift detection becomes dtu-validator's job (OpenAPI vs DTU), not a
   manual audit activity.
-- Armis token-exchange plugin follows the established CrowdStrike-oauth2 plugin pattern.
-  The `header_scheme = "raw"` field resolves the raw-token injection gap at the engine level
-  in a single backward-compatible change that also benefits any future non-Bearer sensor.
+- Armis token-exchange uses the native `DeclarativeHttpAuthProvider` (ADR-054 D4) — no WASM
+  plugin required. Note: `crowdstrike-oauth2.prx` is being RETIRED by ADR-054 D5, not
+  extended as a pattern. The `header_scheme = "raw"` field resolves the raw-token injection
+  gap at the engine level in a single backward-compatible change that also benefits any
+  future non-Bearer sensor.
 - Both Cyberint surfaces now have confirmed auth: static `access_token` cookie, no login step,
   no token-exchange complexity. The split is purely structural (two `base_url` values).
 - The phantom Cyberint `incidents` table (DEFECT-CYBERINT-SPEC-FIDELITY-001) is eliminated
@@ -690,6 +695,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.10 | 2026-07-21 | architect | HIGH-1 (FIX-BURST): VP-assignment paragraph (D2, §DRIFT-D849-002) rewritten — stale "Armis plugin" / "plugin's `acquire_token()`" framing replaced with `DeclarativeHttpAuthProvider` lazy-acquisition invariant (ADR-054 D4/D8 P1; BC-2.16.014 P1). Consequences/Positive rewritten — "Armis token-exchange plugin follows the established CrowdStrike-oauth2 plugin pattern" replaced with native `DeclarativeHttpAuthProvider` framing; `crowdstrike-oauth2.prx` is being RETIRED by ADR-054 D5, not extended as a pattern. |
 | 0.9 | 2026-07-21 | architect | HIGH-1: BC-2.16.014 anchoring corrected (prior drafts had mis-anchored the planned declarative-auth BC to non-existent SS-23; retargeted to next-free BC-2.16.014 in SS-16/prism-spec-engine); swept D5 manifest row, Status section, and Changelog v0.7 entry. HIGH-2: D2 section header corrected from "Token-Exchange via WASM Plugin" to "Token-Exchange via Native DeclarativeHttpAuthProvider" (body already described native path; header was stale from pre-D-1895 text). A-6 prerequisite: CrowdStrike Alerts-v2 credential scope prerequisite note added to D1 CrowdStrike implementation note (Alerts:READ scope required; Detects:READ alone fails at implementation with a scope error; source: prism-crowdstrike-endpoint-plan.md Gap G9). |
 | 0.8 | 2026-07-20 | architect | LOW-3: E-SPEC-027 template (b) `{allowed_set}` prose enumeration (lines after the template definition) now includes `token_exchange → bearer, raw` — was omitted while the coherence matrix already contained the row, creating an inconsistency between the matrix and the narrative. No behavioral change; prose aligns to matrix. |
 | 0.7 | 2026-07-20 | architect | D-1895 Armis native declarative auth (ADR-054): D2 rewritten — Armis uses `token_exchange` auth_type + `[auth_acquisition]` block per ADR-054; `custom_via_plugin` + `armis-token-exchange.prx` approach removed. Coherence matrix updated: `token_exchange → bearer, raw` row added. ADR-054 added to `related_adrs`. D5 manifest: BC-2.01.008 amendment description updated to reflect `token_exchange` native provider; BC-2.16.014 authoring row added; E-SPEC-028 registration row added. Rationale §Why custom_via_plugin updated to §Why native declarative provider per ADR-054. |

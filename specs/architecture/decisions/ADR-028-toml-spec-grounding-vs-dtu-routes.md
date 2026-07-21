@@ -4,8 +4,8 @@ adr_id: "ADR-028"
 title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs"
 status: Proposed
 date: "2026-05-20"
-modified: "2026-07-20"  # v1.17 OBS-2: §D13 env-var ADR-032 supersession note; ARMIS_BEARER_TOKEN stale callout
-version: "1.17"
+modified: "2026-07-21"  # v1.18 HIGH-2 (FIX-BURST): §D2 Armis blockquote, §D13 env-var blockquote, §D13 Armis consistency-table blockquote corrected custom_via_plugin→token_exchange + native DeclarativeHttpAuthProvider; §D13 oauth2_client_credentials row corrected PluginAuthProvider(WASM)→DeclarativeHttpAuthProvider(native) per ADR-054 D2/D5; amended_by back-ref + ADR-054 added to related_adrs
+version: "1.18"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -13,8 +13,10 @@ superseded_by:
   - "ADR-031 §D4 (partial — §D12 only: Cyberint cookie auth DTU-shortcut acceptance reversed by DTU=true-DTU principle 2026-05-29)"
   - "ADR-053 §D1/§D2/§D5 (partial — grounding order §D1/§D2/§D5 superseded: spec grounds FROM vendor OpenAPI, not DTU; Armis LOCKED auth_type D-747 superseded; Cyberint LOCKED auth_type D-747 superseded; authorized D-1889 2026-07-20; final ADR approval gate pending)"
 amends: null
+amended_by:
+  - "ADR-054 §D2/D5 (partial — §D13 oauth2_client_credentials AuthProvider migrated from PluginAuthProvider (WASM) to native DeclarativeHttpAuthProvider when [auth_acquisition] present; crowdstrike-oauth2.prx plugin retired; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; effective on ADR-054 acceptance)"
 anchor_stories: [PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-B, PLUGIN-MIGRATION-001-C, PLUGIN-MIGRATION-001-E, S-DEMO-001, S-DEMO-002]
-related_adrs: [ADR-003, ADR-023, ADR-027, ADR-053]
+related_adrs: [ADR-003, ADR-023, ADR-027, ADR-053, ADR-054]
 related_bcs: [BC-2.16.013, BC-2.16.001, BC-2.16.009, BC-2.01.016]
 locked_decisions: ["D-737 Decision 1", "D-737 Decision 4"]
 wiring_deferred_to: null
@@ -90,12 +92,14 @@ TOML sensor spec `auth_type` values MUST be derived from DTU clone authenticatio
 - **CrowdStrike:** OAuth2 client credentials flow per DTU enforcement → spec declares `auth_type = "oauth2_client_credentials"`
 - **Armis:** Bearer token header per DTU enforcement (HTTP 403 on missing/invalid `Authorization: Bearer {non-empty}` per `crates/prism-dtu-armis/src/lib.rs` module-level `//!` doc-comment (Armis Centrix BearerStatic API contract)) → spec declares `auth_type = "bearer_static"`. Legacy `ArmisAuth::auth_type_name()` returns `"api_key"` — this is the latent label bug §D2 was authored to immunize against.
 
-> **[ADR-053 §D2 SUPERSEDES this Armis row (2026-07-20, D-1889)]:** Armis is reclassified from
-> `bearer_static` to `custom_via_plugin` (token-exchange via `armis-token-exchange.prx` WASM
-> plugin) with `header_scheme = "raw"` and `credential_ref = "secret_key"`. The real Armis v1
-> API uses token-exchange auth (POST `secret_key` → short-lived `access_token`) and raw-token
-> header injection with NO "Bearer" prefix. `auth_type = "bearer_static"` for Armis is
-> superseded and MUST NOT be used. The operative contract is ADR-053 §D2. D-1889 authorization.
+> **[ADR-053 §D2 SUPERSEDES this Armis row (2026-07-20, D-1889); ADR-054 D1 amends auth
+> mechanism (2026-07-21, D-1895):]** Armis is reclassified from `bearer_static` to
+> `auth_type = "token_exchange"` with native `DeclarativeHttpAuthProvider` (ADR-054 D1/D4 —
+> no WASM plugin), `header_scheme = "raw"`, and `credential_ref = "secret_key"`. The real
+> Armis v1 API uses token-exchange auth (POST `secret_key` → short-lived `access_token`) and
+> raw-token Authorization header injection with NO "Bearer" prefix. `auth_type = "bearer_static"`
+> for Armis is superseded and MUST NOT be used. The operative contract is ADR-053 §D2 +
+> ADR-054 D1. D-1889 authorization; D-1895 native-provider ruling.
 
 Legacy `auth_type_name()` return strings in production Rust adapters are NOT a grounding reference. The observed code-vs-label inconsistencies (Cyberint adapter uses cookies but `auth_type_name()` returns `"bearer_static"`; Claroty adapter uses bearer but `auth_type_name()` returns `"cookie_roundtrip"`) are latent bugs in code deleted by PLUGIN-MIGRATION-001-A. No tech-debt entry is required for these bugs; they become moot at deletion.
 
@@ -551,23 +555,25 @@ The canonical `credential_ref` name for `bearer_static` sensors is `bearer_token
 > canonical operator env-var format (e.g., `PRISM_CLIENTS_ACMECORP_SENSORS_CLAROTY_BEARER_TOKEN`).
 > New operator documentation and sensor spec comments MUST use the ADR-032 per-client format;
 > the global format is accepted only for backward-compat. The `ARMIS_BEARER_TOKEN` example
-> previously in this section is now stale — Armis is reclassified to `custom_via_plugin` +
-> `credential_ref = "secret_key"` by ADR-053 §D2; `CLAROTY_BEARER_TOKEN` remains valid as a
-> legacy alias only.
+> previously in this section is now stale — Armis is reclassified to
+> `auth_type = "token_exchange"` + native `DeclarativeHttpAuthProvider` +
+> `credential_ref = "secret_key"` by ADR-053 §D2 + ADR-054 D1 (D-1895);
+> `CLAROTY_BEARER_TOKEN` remains valid as a legacy alias only.
 
 #### Consistency with Existing AuthProvider Patterns
 
 | Sensor auth_type | AuthProvider | credential_ref | resolve_credential key |
 |------------------|--------------|----------------|------------------------|
-| `oauth2_client_credentials` | `PluginAuthProvider` (WASM) | n/a (resolved in plugin dispatch per §D11) | `client_id`, `client_secret` |
+| `oauth2_client_credentials` | `DeclarativeHttpAuthProvider` (native, when `[auth_acquisition]` present per ADR-054 D2/D5); `PluginAuthProvider` (WASM, for pre-migration config with `auth_plugin` still present — `crowdstrike-oauth2.prx` being retired) | `client_id`, `client_secret` (resolved via per-org credential chain per §D11; same in both paths) | `client_id`, `client_secret` |
 | `cookie_roundtrip` (Cyberint) | `StaticCookieAuthProvider` | `access_token` (per ADR-031 §D3) | `access_token` |
 | `bearer_static` (Claroty) | `BearerStaticCredentialAuthProvider` | `bearer_token` | `bearer_token` |
 
-> **[ADR-053 §D2 SUPERSEDES Armis row (2026-07-20, D-1889)]:** Armis is reclassified to
-> `custom_via_plugin` (`armis-token-exchange.prx`, `header_scheme = "raw"`,
-> `credential_ref = "secret_key"`). The `bearer_static` row above is narrowed to Claroty only.
+> **[ADR-053 §D2 SUPERSEDES Armis row (2026-07-20, D-1889); ADR-054 D1 amends auth
+> mechanism (2026-07-21, D-1895):]** Armis is reclassified to `auth_type = "token_exchange"`
+> with native `DeclarativeHttpAuthProvider` (no WASM plugin), `header_scheme = "raw"`,
+> `credential_ref = "secret_key"`. The `bearer_static` row above is narrowed to Claroty only.
 > Implementers building Armis MUST NOT use `bearer_static` + `BearerStaticCredentialAuthProvider`.
-> The operative contract is ADR-053 §D2.
+> The operative contract is ADR-053 §D2 + ADR-054 D1.
 
 All `AuthProvider` implementations are fail-closed: a missing credential at `acquire_token` time returns an error that propagates to `PipelineExecutor` and surfaces as `E-SENSOR-NNN` to the caller. No partial or default token values are returned.
 
@@ -651,6 +657,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.18 | 2026-07-21 | architect | HIGH-2 (FIX-BURST): §D2 Armis inline supersession blockquote corrected — `custom_via_plugin` (token-exchange via `armis-token-exchange.prx` WASM plugin) → `auth_type = "token_exchange"` with native `DeclarativeHttpAuthProvider` (ADR-054 D1/D4, D-1895); no WASM plugin. §D13 env-var blockquote corrected — `custom_via_plugin + credential_ref = "secret_key"` → `token_exchange + native DeclarativeHttpAuthProvider + credential_ref = "secret_key"`. §D13 oauth2_client_credentials consistency-table row corrected — `PluginAuthProvider (WASM)` → `DeclarativeHttpAuthProvider (native)` when `[auth_acquisition]` present (ADR-054 D2/D5; crowdstrike-oauth2.prx retired). §D13 Armis consistency-table blockquote corrected — `custom_via_plugin (armis-token-exchange.prx, ...)` → `token_exchange, native DeclarativeHttpAuthProvider` (ADR-054 D1/D4). MED-1: `amended_by` back-ref for ADR-054 added to frontmatter; ADR-054 added to `related_adrs`. |
 | 1.17 | 2026-07-20 | architect | OBS-2 (ADR-053 pass-3): §D13 "Canonical Credential Reference Name" — ADR-032 per-client env-var supersession note added. The legacy `<SENSOR_ID_UPPER>_BEARER_TOKEN` global format (e.g., `ARMIS_BEARER_TOKEN`) is retired in favour of `PRISM_CLIENTS_{ORG}_SENSORS_{SENSOR}_BEARER_TOKEN`; new specs/docs must use per-client format. `ARMIS_BEARER_TOKEN` example annotated stale (Armis reclassified to `custom_via_plugin` + `secret_key` by ADR-053 §D2); `CLAROTY_BEARER_TOKEN` valid only as legacy alias. |
 | 1.16 | 2026-07-20 | architect | LOW-1: §D2 Armis row — inline supersession blockquote added pointing to ADR-053 §D2 (2026-07-20, D-1889). Armis `bearer_static` row now carries explicit at-point warning: reclassified to `custom_via_plugin` + token-exchange + `header_scheme = "raw"` + `credential_ref = "secret_key"`; `bearer_static` MUST NOT be used for Armis. Closes pass-2 adversary LOW-1 finding. |
 | 1.15 | 2026-07-20 | architect | ADR-053 §D1/§D2/§D5 supersession linkage: `superseded_by:` converted to YAML list with ADR-053 §D1/§D2/§D5 entry (grounding order superseded by OpenAPI-first; Armis LOCKED auth_type D-747 + Cyberint LOCKED auth_type D-747 superseded; D-1889 2026-07-20). `related_adrs` updated to include ADR-053. §Source/Origin + §Rationale sections added (template compliance). TD-VSDD-091 volatile cite remediated at §D8-B (stable behavioral anchor substituted). §D13 consistency table Armis row narrowed to Claroty-only (HIGH-1 fix): ADR-053 §D2 supersedes Armis `bearer_static`; Armis reclassified to `custom_via_plugin` (`armis-token-exchange.prx`, `header_scheme = "raw"`, `credential_ref = "secret_key"`). |
