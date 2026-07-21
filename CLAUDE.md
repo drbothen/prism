@@ -256,6 +256,18 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 
 - **Wire-shape assertion discipline (2026-07-13, human-approved).** Any test covering an MCP-visible surface (tool responses, resources) must include at least one assertion on the **serialized JSON output** — the exact envelope/row bytes the LLM agent consumes — not only pre-serialization Rust structures. NULL vs absent vs empty distinctions MUST be asserted at the wire level (BC-2.11.001 EC-11-079 row-shape null-not-absent). Origin: live-audit [C3]/[H20] escape — `arrow_json` `explicit_nulls` default silently omitted NULL keys; 5,483 tests (workspace test count at the D-1715 live-audit triage, 2026-07-13) missed it because none asserted serialized row shape.
 
+### File size & module splitting
+
+**No CI-enforced file-size gate exists in prism today.** Function-level complexity is gated via `clippy.toml` (`cognitive-complexity-threshold = 30`, `too-many-arguments-threshold = 8`). There is no file-level line-count check in CI, in the Justfile, or anywhere in the workspace — no `xtask` crate, no `tokei` gate, no allowlist file.
+
+Several prism files are deliberately large because their scope is genuinely cohesive: `engine.rs` (~17k lines) owns the full query-execution state machine; `server.rs` (~11k lines) owns the complete MCP tool-dispatch surface. These are not violations — they reflect that file size is a symptom of structural problems, not the cause.
+
+**Authoring-time heuristic — split by cohesion, not by count.** When adding new code to an existing module, ask: "does this new code belong to the same single responsibility?" If yes, keep it in the same file. If no — the file now genuinely serves two distinct concerns — split along the concern boundary, placing each cohesive unit in its own named file. Over-splitting into many ~100-line files is an anti-pattern: a Rust file is a module is a privacy boundary, and fragmentation creates grep-hostile `pub(crate)` noise without improving reviewability.
+
+**`mod.rs` convention:** prism uses `mod.rs` for both re-exports and module-level logic (middleware, trait implementations, route builders). This is intentional and consistent across the workspace — `routes/mod.rs` files own the router builder and shared middleware; `auth/mod.rs` owns the `SensorAuth` open trait. Do not enforce a re-export-only constraint; it contradicts the codebase.
+
+**If a future story introduces a file-size gate** (proposed, not yet planned), the gating tool, threshold calibration, and allowlist mechanism must be defined in that story's spec before any enforcement. Any thresholds must be calibrated against the existing large-but-cohesive files rather than imported from another project.
+
 ### Forbidden patterns
 
 | Pattern | Reason |
