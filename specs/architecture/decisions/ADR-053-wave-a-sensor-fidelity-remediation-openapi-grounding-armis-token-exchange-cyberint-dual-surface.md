@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.16"
+version: "0.17"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -306,14 +306,14 @@ templates are required to avoid self-contradiction on well-formed-but-incoherent
 
 where `{allowed_set}` is derived from the coherence matrix: `bearer_static` → `bearer, raw`;
 `oauth2_client_credentials` → `bearer, raw`; `cookie_roundtrip` → `cookie:<name>`;
-`custom_via_plugin` → `bearer, raw`; `token_exchange` → `bearer, raw`;
+`custom_via_plugin` → `bearer, raw`; `token_exchange` → `bearer, raw` **[ADR-054 story scope]**;
 `api_key` → `bearer` (Wave-A scope).
 
 This generalized form produces a correct, actionable message for every incoherent cell:
 - `cookie_roundtrip` + `"bearer"` → "...does not permit header_scheme = 'bearer'; allowed: cookie:<name>"
 - `bearer_static` + `"cookie:x"` → "...does not permit header_scheme = 'cookie:x'; allowed: bearer, raw"
 - `api_key` + `"raw"` → "...does not permit header_scheme = 'raw'; allowed: bearer"
-(and so on for all 6 directions — none falsely claims the other direction's constraint)
+(and so on for all 6 directions post-both-stories — the `token_exchange` entry is added by the ADR-054 story; the standalone engine story authors E-SPEC-027 for the 5-entry derivation list only)
 
 Template (a) fires when `{value}` is not in the closed value set or is malformed. Template (b)
 fires when `{value}` is well-formed but violates the coherence matrix. Both are load-time
@@ -696,6 +696,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.17 | 2026-07-21 | architect | LOW-1: at-point ADR-054-story-scope caveat added to D2 E-SPEC-027 template (b) `{allowed_set}` derivation list — `token_exchange` entry annotated "[ADR-054 story scope]" inline; "all 6 directions" parenthetical updated to note the token_exchange entry ships with ADR-054 story (not standalone engine story). |
 | 0.16 | 2026-07-21 | architect | MED-1: D2 coherence matrix `token_exchange` row annotated — "[ADR-054 story scope — ships with `AuthType::TokenExchange` addition, not with standalone engine story]"; D2 engine story scope paragraph updated — E-SPEC-027 + coherence matrix covers 5 existing auth_type variants only; token_exchange row and allowed_set entry ship with ADR-054 story atomically. LOW-1: D5 manifest E-SPEC-028 registration row updated — "7 message templates" → "8 message templates"; template (h) (token_exchange-only fields on non-token_exchange block) appended to list. LOW-2: D2 §Supersession scope note corrected — "superseded by ADR-028 §D6" → "ADR-028 §D2 (operationalized by §D6)". |
 | 0.15 | 2026-07-21 | architect | LOW-1: v0.14 changelog row description corrected — replace_all corrupted `{ORG} → {ID}` to `{ID} → {ID}` (no-op); restored to `{ORG} → {ID}`. LOW-2: §Status refreshed to current-version highlights (construction dispatch site, token_path schema, header_scheme mechanism-level replacement; non-volatile "current version per §Changelog" form). |
 | 0.14 | 2026-07-21 | architect | OBS-1: env-var placeholder harmonized — `{ORG}` → `{ID}` at all ADR-053 occurrences (Armis and Cyberint sites; D5 manifest row; per ADR-032 canonical `{ID}` token). MED-1: BC-2.16.009 added to `related_bcs` frontmatter (D5 manifest targets Rule 9 authoring in BC-2.16.009; was missing from related_bcs). |

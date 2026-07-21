@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.460"
+version: "8.461"
 producer: state-manager
-timestamp: 2026-07-21T18:30:00Z
+timestamp: 2026-07-21T19:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.80"
 story_index_version: "v2.719"
-arch_index_version: "2.214"
+arch_index_version: "2.215"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1912 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1912 adversary re-gate pass-10 fix-burst (Wave-A re-gate cascade). NOT CLEAN — HIGH-1 (VP-153 omitted from 5→6 sweep: 3 amendment rows + E-SPEC-012 message assertion + 25→30 pairs + arb_auth_type() TokenExchange arm), MED-1 (coherence-matrix cross-story forward-reference; resolved: TokenExchange row ships atomically with ADR-054 story), LOW-1 (E-SPEC-028 template (h) added — fail-loud for misplaced token_exchange-only fields; 7→8 templates), LOW-2 (ADR-028 §D2 citation fix), OBS-1 (at-point 6th-variant annotations ADR-026+ADR-023). VP-layer sweep: VP-153 sole carrier. Generalization probe: PASS (7th consecutive). Fix-burst: ADR-054 v0.11 + ADR-053 v0.16 + ADR-026 v1.38 + ADR-023 v1.23. ARCH-INDEX v2.213→v2.214. Streak 0/3; next fresh adversary pass on new frozen HEAD. trajectory-tail →4→4→1→5→? STATE v8.459→v8.460"
+current_step: "D-1913 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1913 adversary re-gate pass-11 fix-burst (Wave-A re-gate cascade). NOT CLEAN — HIGH-1 (canonical error-taxonomy E-SPEC-012 template missing from 5→6 manifest; POL-24 atomicity constraint added to D11 source+2 copies), LOW-1 (allowed_set prose scope caveat given ADR-054-story-scope), LOW-2 (volatile line pins stripped from VP-153 rows), OBS-1 (E-SPEC-005 legacy-message hygiene row registered). 'Valid values' carrier enumeration complete: source+2 copies all manifested. Generalization probe: PASS (8th consecutive). Fix-burst: ADR-054 v0.12 + ADR-053 v0.17. ARCH-INDEX v2.214→v2.215. Streak 0/3; next fresh adversary pass on new frozen HEAD. trajectory-tail →4→4→1→5→? STATE v8.460→v8.461"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 438 lines (wc-l)
+  STATE.md SIZE BUDGET: 439 lines (wc-l)
   margin from soft-target (200): +233 lines over | margin from actual (500): 67 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-21 D-1912 — pass-10 fix-burst: HIGH-1 (VP-153 3 amendment rows + E-SPEC-012 + 25→30 pairs + arb_auth_type TokenExchange), MED-1 (coherence-matrix scope boundary), LOW-1 (E-SPEC-028 template (h); 7→8), LOW-2 (ADR-028 §D2 citation), OBS-1 (at-point 6th-variant annotations). Generalization probe PASS (7th). ADR-054 v0.11 + ADR-053 v0.16 + ADR-026 v1.38 + ADR-023 v1.23. ARCH-INDEX v2.213→v2.214. STATE v8.459→v8.460. trajectory-tail →4→4→1→5→? |
+| **Last Updated** | 2026-07-21 D-1913 — pass-11 fix-burst: HIGH-1 (E-SPEC-012 POL-24 atomicity; source+2 copies manifested), LOW-1 (allowed_set scope caveat), LOW-2 (VP-153 volatile pins stripped), OBS-1 (E-SPEC-005 hygiene). Generalization probe PASS (8th). ADR-054 v0.12 + ADR-053 v0.17. ARCH-INDEX v2.214→v2.215. STATE v8.460→v8.461. trajectory-tail →4→4→1→5→? |
 
 ## Active Objective (North Star)
 
@@ -325,6 +325,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1910 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 8 on 5df3ee8e: NOT CLEAN(strict) — MED-1 (ADR-032 un-swept: superseded credential-ref rows without supersession signal; asymmetric vs ADR-028 §D13 at-point annotations), OBS-1 (ADR-032 {ORG_ID}/{ORG}→{ID} placeholder drift). Fix-burst applied: ADR-032 v1.1 (8 at-point supersession annotations on all affected credential-ref sites — Armis bearer_token→secret_key per ADR-053 §D2, Cyberint api_key→access_token + dual-surface split per ADR-053 §D3; related_adrs ADR-053/ADR-054 added; at-point annotation parity with ADR-028 §D13; OBS-1 {ORG_ID}/{ORG}→{ID} ×3 per ADR-032 canonical form). Template conformance: version field, changelog table, subsystems_affected, Rationale, Source sections added. All reachable sibling ADRs swept. Generalization probe: PASS (5th consecutive). CLEAN(strict)=no. ARCH-INDEX v2.211→v2.212. Streak 0/3; next fresh adversary pass on new frozen HEAD targets CLEAN(strict) 1/3. STATE v8.457→v8.458 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1911 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 9 on 534cbcbf: CLEAN(PR-merge)=yes, CLEAN(strict)=no — single OBS (ADR-028 modified-field stale inline comment). Fix-burst applied: ADR-028 v1.23 (OBS-1 modified-field inline comment → non-volatile anchor — # see §Changelog top row; POL-29 class sweep confirmed ADR-028 was the ONLY Wave-A perimeter carrier). Primaries (ADR-053 v0.15/ADR-054 v0.10) zero findings 3 consecutive passes; generalization probe PASS (6th consecutive). Streak 0/3; next fresh adversary pass on new frozen HEAD targets CLEAN(strict) 1/3. ARCH-INDEX v2.212→v2.213. STATE v8.458→v8.459 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1912 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 10 on 861d627d: NOT CLEAN — HIGH-1 (VP-153 omitted from 5→6 sweep: load-bearing E-SPEC-012 message assertion + 25→30 pairs + arb_auth_type() TokenExchange arm), MED-1 (coherence-matrix cross-story forward-reference; resolved: TokenExchange row ships atomically with ADR-054 story), LOW-1 (new E-SPEC-028 template (h) fail-loud for misplaced token_exchange-only fields; 7→8 templates), LOW-2 (§D2-canonical citation), OBS-1 (at-point 6th-variant annotations ADR-026+ADR-023). VP-layer sweep: VP-153 sole carrier. Generalization probe PASS (7th consecutive). Fix-burst applied: ADR-054 v0.11 + ADR-053 v0.16 + ADR-026 v1.38 + ADR-023 v1.23. Streak 0/3; next fresh adversary pass on new frozen HEAD. ARCH-INDEX v2.213→v2.214. STATE v8.459→v8.460. trajectory-tail →4→4→1→5→? | wave-5-e-demo-fidelity | 2026-07-21 |
+| D-1913 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 11 on a4b6f9be: NOT CLEAN — HIGH-1 (canonical error-taxonomy E-SPEC-012 template missing from 5→6 manifest; POL-24 atomicity constraint added to D11 source+2 copies), LOW-1 (allowed_set prose scope caveat given ADR-054-story-scope), LOW-2 (volatile line pins stripped from VP-153 rows per TD-VSDD-091), OBS-1 (E-SPEC-005 legacy-message modernization hygiene row registered in D11). 'Valid values' carrier enumeration complete: source+2 copies all manifested. Generalization probe PASS (8th consecutive). Fix-burst applied: ADR-054 v0.12 + ADR-053 v0.17. Streak 0/3; next fresh adversary pass on new frozen HEAD. ARCH-INDEX v2.214→v2.215. STATE v8.460→v8.461. trajectory-tail →4→4→1→5→? | wave-5-e-demo-fidelity | 2026-07-21 |
 
 ## Skip Log
 
