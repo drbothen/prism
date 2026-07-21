@@ -4,8 +4,8 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-18"
-modified: "2026-07-20"
-version: "1.36"
+modified: "2026-07-21"
+version: "1.37"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
@@ -13,7 +13,7 @@ superseded_by: ["ADR-028 §D2 (partial — non-CrowdStrike auth_type_name() retu
 amends: ADR-023
 amended_by:
   - ADR-026-AMENDMENT-rule-c-keyring-scope.md
-  - "ADR-054 (token_exchange AuthType variant added to §D3 closed enum; oauth2_client_credentials reclassified plugin→native DeclarativeHttpAuthProvider when [auth_acquisition] present per ADR-054 D1/D2; effective at Wave-A implementation per D-1895 2026-07-20)"
+  - "ADR-054 (token_exchange AuthType variant added to §D3 closed enum; oauth2_client_credentials reclassified plugin→native DeclarativeHttpAuthProvider unconditionally per ADR-054 D1/D2/D10(b); effective at Wave-A implementation per D-1895 2026-07-20)"
 anchor_stories: [S-PLUGIN-PREREQ-E]
 runtime_deliverables:
   - "Remove private::Sealed and mod private from crates/prism-sensors/src/auth/mod.rs"
@@ -237,15 +237,18 @@ partially amends §D3 in two respects, effective at Wave-A implementation:
    Wave-A code lands, `"token_exchange"` is still rejected by the existing validation gate —
    this is intentional (no half-wired paths).
 
-2. **`oauth2_client_credentials` reclassified plugin→native (conditional).** ADR-054 §D2
-   specifies that when a sensor spec includes an `[auth_acquisition]` TOML block, the
-   `oauth2_client_credentials` auth flow is handled natively by `DeclarativeHttpAuthProvider`
-   (a new struct authored in Wave-A, proposed at
-   `crates/prism-spec-engine/src/auth/declarative_http.rs`) instead of routing through
-   `custom_via_plugin`. Sensors without an `[auth_acquisition]` block continue to use the
-   existing `custom_via_plugin` escape hatch. This reclassification does not alter Rule A's
-   enumerated set — `oauth2_client_credentials` remains a valid variant; only its runtime
-   fulfillment path changes.
+2. **`oauth2_client_credentials` reclassified plugin→native (unconditional).** ADR-054 §D2
+   and D10(b) specify that `oauth2_client_credentials` auth is handled natively by
+   `DeclarativeHttpAuthProvider` (a new struct authored in Wave-A, at
+   `crates/prism-spec-engine/src/auth/declarative.rs`) — the reclassification is unconditional.
+   The `[auth_acquisition]` TOML block is **required** for declarative auth_types: its absence
+   triggers spec-load error E-SPEC-028(a). Presence of `auth_plugin` alongside
+   `auth_type ∈ {oauth2_client_credentials, token_exchange}` is **unconditionally rejected**
+   with E-SPEC-028(b) at spec-load — there is no fallback to `custom_via_plugin`.
+   (`custom_via_plugin` is a distinct `auth_type`, not an escape hatch for sensors whose
+   declarative auth_type already has a native provider.) This reclassification does not alter
+   Rule A's enumerated set — `oauth2_client_credentials` remains a valid variant; only its
+   runtime fulfillment path changes.
 
 The Rule C Backend Scope paragraph above is unaffected by this amendment.
 
@@ -513,6 +516,7 @@ modes and security implications. The open trait approach reuses the existing typ
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.37 | 2026-07-21 | architect | FIX-BURST 7 (HIGH-1/MED-1/LOW-1): §D3 amendment item 2 rewritten — "(conditional)" removed; unconditional model per ADR-054 D10(b): absent `[auth_acquisition]` for declarative auth_types → E-SPEC-028(a) spec-load error; `auth_plugin` present for `auth_type ∈ {oauth2_client_credentials, token_exchange}` → E-SPEC-028(b) unconditional rejection; no fallback to `custom_via_plugin` (`custom_via_plugin` is a distinct auth_type). `declarative_http.rs` → `declarative.rs` filename corrected (MED-1). Frontmatter `amended_by` ADR-054 entry: "when [auth_acquisition] present" conditional phrase dropped; replaced with "unconditionally per ADR-054 D1/D2/D10(b)" (LOW-1). `modified` advanced to 2026-07-21. |
 | 1.36 | 2026-07-21 | architect | OBS-1: §Status stale self-cite corrected — "current frontmatter v1.32 per §Changelog" replaced with non-volatile form "current version per §Changelog top row" (permanently retires this staleness class). |
 | 1.35 | 2026-07-20 | architect | D-1895 ADR-054 bidirectional backref: `amended_by` updated to include ADR-054 (§D3 partial — `token_exchange` variant added to `AuthType` closed enum; `oauth2_client_credentials` reclassified plugin→native `DeclarativeHttpAuthProvider` when `[auth_acquisition]` present per ADR-054 D1/D2). §D3 amendment note added. `modified` date advanced to 2026-07-20. Changelog reordered newest-first (pre-existing ascending-order violation corrected in same burst). |
 | 1.34 | 2026-05-21 | architect | (D-FB-IMPL-5-ADR-026-PIN) BC-2.16.002 cite-pin advance v1.36→v1.37 per FB-IMPL-5 PO burst a2ef75e1. POL-29 sibling-sweep closure for ADR-026 within-file sites. No semantic change. Recurrence: same pattern as f9f6feed (v1.32→v1.33) — this is the 2nd time this cite-pin propagation cascaded through architect. |

@@ -4,8 +4,8 @@ adr_id: "ADR-023"
 title: "Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait"
 status: COMMITTED
 date: "2026-05-10"
-modified: "2026-07-20"
-version: "v1.21"
+modified: "2026-07-21"
+version: "v1.22"
 producer: architect
 amended_by: "ADR-054 (partial — §Rule 4 walk-back: standard HTTP token-acquisition flows are now native declarative per DeclarativeHttpAuthProvider; custom_via_plugin escape hatch preserved for genuinely non-standard auth; effective at Wave-A per D-1895 2026-07-20)"
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
@@ -293,7 +293,7 @@ even though v1.0 ships zero third-party plugins; first-party OCSF complex-transf
 **Amendment — ADR-054 §Rule 4 walk-back (D-1895, 2026-07-20, effective Wave-A):** ADR-054
 (Native Declarative HTTP Auth Acquisition) partially walks back Rule 4 for the specific case of
 standard HTTP token-acquisition flows. A new native `DeclarativeHttpAuthProvider` struct
-(proposed path: `crates/prism-spec-engine/src/auth/declarative_http.rs`) handles OAuth2 client
+(at `crates/prism-spec-engine/src/auth/declarative.rs`) handles OAuth2 client
 credentials and similar token-exchange patterns declared via an `[auth_acquisition]` TOML block,
 without routing through `custom_via_plugin`. This narrows — but does not eliminate — the
 `custom_via_plugin` escape hatch: sensors with genuinely non-standard auth (binary protocols,
@@ -1079,6 +1079,7 @@ TD-FACTORY-HOOK-BYPASS-001 was first registered at P1 after fix-burst-3 (v1.3 am
 
 | Version | Date | Description |
 |---------|------|-------------|
+| v1.22 | 2026-07-21 | FIX-BURST 7 (MED-1): §Rule-4-walk-back amendment note filename corrected — `auth/declarative_http.rs` → `auth/declarative.rs` per ADR-054 canonical path (source-of-truth precedence). `modified` advanced to 2026-07-21. |
 | v1.21 | 2026-07-21 | OBS-2 (FIX-BURST): §Status Wave 1/E parenthetical clarified — "no in-repo .prx plugin required" was specifically about the retry-on-401 mechanism; initial CrowdStrike token acquisition used `crowdstrike-oauth2.prx` (retired by ADR-054 D5 in Wave-A). Decision body §Context line clarified same. Rule 4 body "No sensor-specific in-repo .prx WASM plugins are required" annotated: `crowdstrike-oauth2.prx` is the exception, retired by ADR-054 D5 Wave-A. Rule 4 amendment note rewritten: "strengthened by this amendment" replaced with accurate framing — statement becomes fully accurate after ADR-054 D5 retires `crowdstrike-oauth2.prx`. |
 | v1.20 | 2026-07-20 | D-1895 ADR-054 bidirectional backref: `amended_by` field added pointing to ADR-054 (§Rule 4 walk-back — standard HTTP token-acquisition flows now native declarative via `DeclarativeHttpAuthProvider`; `custom_via_plugin` escape hatch preserved for genuinely non-standard auth; effective at Wave-A). `modified` field added (2026-07-20). §Status version stamp advanced to v1.20. Rule 4 amendment note added. |
 | v1.19 | 2026-05-15 | OBS-LP35-001 closure (D-571 cycle-close immediate-dispatch): §E VP-PLUGIN-007 prose block rewritten from pre-AC-7 "allowed_urls = None" / "allowlist not-None" Option-semantics to post-AC-7 `Vec<String>` explicit-field semantics. Manifest omitting the field is rejected at `PluginRuntime::load_plugin`; `allowed_urls: []` (empty Vec) = default-deny; non-empty = exact-match allowlist per BC-2.17.002 EC-17-007 + AC-7 of S-PLUGIN-PREREQ-D. Sibling verification-architecture.md VP-152 row updated in same burst (v1.31). |

@@ -5,7 +5,7 @@ title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API C
 status: Proposed
 date: "2026-05-20"
 modified: "2026-07-21"  # v1.18 HIGH-2 (FIX-BURST): §D2 Armis blockquote, §D13 env-var blockquote, §D13 Armis consistency-table blockquote corrected custom_via_plugin→token_exchange + native DeclarativeHttpAuthProvider; §D13 oauth2_client_credentials row corrected PluginAuthProvider(WASM)→DeclarativeHttpAuthProvider(native) per ADR-054 D2/D5; amended_by back-ref + ADR-054 added to related_adrs
-version: "1.21"
+version: "1.22"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -95,7 +95,7 @@ TOML sensor spec `auth_type` values MUST be derived from DTU clone authenticatio
 > **[ADR-053 §D2 SUPERSEDES this Armis row (2026-07-20, D-1889); ADR-054 D1 amends auth
 > mechanism (2026-07-21, D-1895):]** Armis is reclassified from `bearer_static` to
 > `auth_type = "token_exchange"` with native `DeclarativeHttpAuthProvider` (ADR-054 D1/D4 —
-> no WASM plugin), `header_scheme = "raw"`, and `credential_ref = "secret_key"`. The real
+> no WASM plugin), `header_scheme = "raw"`, and a `[[credential_refs]]` block with `name = "secret_key"`. The real
 > Armis v1 API uses token-exchange auth (POST `secret_key` → short-lived `access_token`) and
 > raw-token Authorization header injection with NO "Bearer" prefix. `auth_type = "bearer_static"`
 > for Armis is superseded and MUST NOT be used. The operative contract is ADR-053 §D2 +
@@ -557,7 +557,7 @@ The canonical `credential_ref` name for `bearer_static` sensors is `bearer_token
 > the global format is accepted only for backward-compat. The `ARMIS_BEARER_TOKEN` example
 > previously in this section is now stale — Armis is reclassified to
 > `auth_type = "token_exchange"` + native `DeclarativeHttpAuthProvider` +
-> `credential_ref = "secret_key"` by ADR-053 §D2 + ADR-054 D1 (D-1895);
+> `[[credential_refs]]` block with `name = "secret_key"` by ADR-053 §D2 + ADR-054 D1 (D-1895);
 > `CLAROTY_BEARER_TOKEN` remains valid as a legacy alias only.
 
 #### Consistency with Existing AuthProvider Patterns
@@ -571,7 +571,7 @@ The canonical `credential_ref` name for `bearer_static` sensors is `bearer_token
 > **[ADR-053 §D2 SUPERSEDES Armis row (2026-07-20, D-1889); ADR-054 D1 amends auth
 > mechanism (2026-07-21, D-1895):]** Armis is reclassified to `auth_type = "token_exchange"`
 > with native `DeclarativeHttpAuthProvider` (no WASM plugin), `header_scheme = "raw"`,
-> `credential_ref = "secret_key"`. The `bearer_static` row above is narrowed to Claroty only.
+> `[[credential_refs]]` block with `name = "secret_key"`. The `bearer_static` row above is narrowed to Claroty only.
 > Implementers building Armis MUST NOT use `bearer_static` + `BearerStaticCredentialAuthProvider`.
 > The operative contract is ADR-053 §D2 + ADR-054 D1.
 
@@ -657,6 +657,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.22 | 2026-07-21 | architect | FIX-BURST 7 (OBS-1): §D2 Armis supersession blockquote and §D13 env-var blockquote + §D13 Armis consistency-table blockquote — scalar `credential_ref = "secret_key"` replaced with canonical `[[credential_refs]]` block form with `name = "secret_key"` (3 occurrences; `credential_ref` is the old scalar grammar; `[[credential_refs]]` with `name =` is the canonical array-of-tables form per ADR-054 §D3). POL-29 sweep: zero live scalar `credential_ref = "secret_key"` hits remain in live content sections. `modified` comment updated. |
 | 1.21 | 2026-07-21 | architect | OBS-1: §Status stale self-cite corrected — "current frontmatter v1.10 per §Changelog" replaced with non-volatile form "current version per §Changelog top row" (permanently retires this staleness class). |
 | 1.20 | 2026-07-21 | architect | MED-2: §D13 oauth2_client_credentials consistency-table row updated — `PluginAuthProvider` (WASM) path marked spec-load-rejected per ADR-054 D10(b) (E-SPEC-028(b) unconditional rejection for auth_type ∈ {oauth2_client_credentials, token_exchange} + auth_plugin present); `DeclarativeHttpAuthProvider` (native) is the sole live path; "when [auth_acquisition] present" conditional framing removed (superseded by D10(b)'s unconditional rule). Frontmatter `amended_by` framing updated to reflect D10(b) unconditional rejection. |
 | 1.19 | 2026-07-21 | architect | MED-3: §D7 ADR-026 convention-table row updated — ADR-026 reordered from ascending to descending at v1.35 (2026-07-20) per POL-32 `changelog_monotonic_descending`; table row and §D7 lock rule amended to reflect POL-32 as authorizing policy for deliberate convention reorders. MED-4: §D13 "three-tier resolution chain" corrected to "four-tier" (BC-2.06.003 is authoritatively four-tier; consistent with ADR-053/054). |
