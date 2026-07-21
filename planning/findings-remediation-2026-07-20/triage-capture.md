@@ -36,7 +36,7 @@ Source: findings/prism-pql-deficiencies.md + findings/prism-pushdown-audit.md
 | DEFECT-PIPE-WHERE-PUSHDOWN-001 (F7=G1) | HIGH | Ast::Pipe/Filter get zero pushdown | BC-2.11.007/020 | PO→impl | NEW |
 | DEFECT-SPEC-ARRAY-COLUMN-TYPE-001 (F8=GAP-2c) | HIGH | no array ColumnType; ip_list/mac_list dropped; real-client impact; unregistered promised story (Rule-3 violation) | new BC + prism-core | architect+PO→SW→impl | NEW |
 | DEFECT-SENSOR-ERROR-FLATTEN-001 (F9) | HIGH | all SpecEngineError flattened to Internal; 401 misreported as unreachable | BC-2.08.002 | implementer+PO | NEW |
-| DEFECT-ADAPTER-TLS-XDOME-LIVE-001 (F10) | CRIT | live xDome HTTPS fails (WAF profile: h1-only,no UA); native-tls fix CONFLICTS w/ADR-050 | new BC/ADR | architect FIRST→impl | NEW |
+| DEFECT-ADAPTER-TLS-XDOME-LIVE-001 (F10) | CRIT | live xDome HTTPS fails (WAF profile: h1-only, no UA); primary fix = add http2 reqwest feature + user-agent (ADR-050 compliant, source-recommended); secondary option native-tls CONFLICTS w/ADR-050 → architect decides between options. Source F10 also requires: capture error source-chains + surface per-target errors. (consistency-validator cross-check 2026-07-21: original note distorted primary fix path — prism-pql-deficiencies.md §Finding 10 source dive shows http2 not compiled in + no User-Agent in any production crate; native-tls was listed as alternative, not primary) | new BC/ADR | architect FIRST→impl | NEW |
 | DEFECT-RELOAD-OVERLAY-ADAPTER-FREEZE-001 (F11) | MED | reload_config non-recursive scan misses overlays + never rebuilds AdapterRegistry; unanchored boot.rs deferral (Rule-3) | BC-2.16.005/007 | PO→SW→impl | PARTIAL |
 | DEFECT-PAGINATION-ROW-BUDGET-001 (F12=G3) | HIGH | no row budget; limit 5→148 upstream reqs | BC-2.07.001/002+2.11.006 | architect+PO→SW→impl | NEW |
 | DEFECT-QUERY-TIMEOUT-ORPHAN-SWEEP-001 (G4) | CRIT/HIGH | query timeout drops parent future; detached tokio::spawn fan-out keeps hitting live tenant API; retry re-sweeps offset 0 | BC-2.11.006 | architect+impl | NEW (split from F12) |
@@ -133,6 +133,17 @@ All 5 are OPEN — no dispatch until sign-off received.
 
 ---
 
+## Wave Assignments (D-1889 human-adjudicated 4-wave structure; annotated 2026-07-21 per D-1900 resume cross-check)
+
+| Wave | Theme | Items |
+|---|---|---|
+| **Wave A — grounding+auth** | Grounding flip ADR (ADR-054 native-auth-acquisition + ADR-053 grounding+auth-shape); native declarative HTTP auth acquisition + crowdstrike-oauth2.prx retirement (D-1895); S-ARMIS-AUTH-FIDELITY-001 (Armis token-exchange); S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001 + S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001 (Alerts-v2 migration + incidents retire+derive from Alerts aggregate_id); DEFECT-CYBERINT-SPEC-FIDELITY-001 + ARCH-CYBERINT-AUTH-READJUDICATION-001 (Cyberint dual-surface split, alerts vs assets auth); xDome live-drift backport (S-DEMO-CLAROTY-LIVE-DRIFT-BACKPORT-001). | ADR-054 + ADR-053 cascade; 6 sensor/auth stories |
+| **Wave B — endpoint fidelity** | CrowdStrike Spotlight vulnerabilities (S-CROWDSTRIKE-SPOTLIGHT-VULNS-001); xDome device enrich (S-DEMO-CLAROTY-DEVICE-ENRICH-001) + device_alert_relations (S-DEMO-CLAROTY-RELATIONS-001) + vuln layer (S-DEMO-CLAROTY-VULN-LAYER-001; includes claroty_device_vuln_relations vs claroty_vulnerabilities disambiguation + claroty_ot_activity_events Tier-1 table — see addendum item 9); Armis collections (S-ARMIS-COLLECTIONS-001). | 6 stories |
+| **Wave C — Bucket-B engine** | F1 subquery-fanout CRIT (DEFECT-PQL-SUBQUERY-FANOUT-001); F7 pipe-where pushdown (DEFECT-PIPE-WHERE-PUSHDOWN-001); F9 error-flatten (DEFECT-SENSOR-ERROR-FLATTEN-001); F10 xDome TLS CRIT (DEFECT-ADAPTER-TLS-XDOME-LIVE-001 — ADR-050-compliant path only; architect decides http2 vs native-tls in ADR/story scope); F12 row-budget (DEFECT-PAGINATION-ROW-BUDGET-001); G4 timeout-orphan-sweep CRIT (DEFECT-QUERY-TIMEOUT-ORPHAN-SWEEP-001). | 6 engine stories |
+| **Wave D — extended coverage + scenario/DTU-fidelity** | S-ARMIS-FIELD-FIDELITY-001; remaining DTU scenario enhancements (E1–E6); DTU attribution open question (see addendum item 10); extended sensor coverage gaps from addendum items 2–8 (as prioritized at backlog opening). | TBD at backlog opening |
+
+---
+
 ## Summary Counts
 
 | Category | Count |
@@ -145,3 +156,22 @@ All 5 are OPEN — no dispatch until sign-off received.
 | **Total findings registered** | **36** |
 | CRIT total | 8 (F1, F10, G4 engine + 5 sensor) |
 | Systemic root cause | ADR-028 spec←DTU circular grounding |
+
+---
+
+## Cross-Check Addendum 2026-07-21 (consistency-validator coverage gaps vs source findings)
+
+Additional items identified by fresh-context consistency-validator cross-check (D-1900 resume, pre-architect-dispatch). Not in original triage table. Each item carries source citation, severity, and disposition. These are ADVISORY registrations — not blocking current Wave-A dispatch.
+
+| # | Sev | Item | Source | Disposition |
+|---|---|---|---|---|
+| 1 | LOW | F3-minor: stale credential CLI usage strings — `credential_cli.rs:69` and `cli.rs:107` omit `--org-slug` in help text; print appears above clap usage block. | prism-pql-deficiencies.md §Finding 3 minor item | Fold into DEFECT-REFERENCE-JOIN-BNF-001 scope, or standalone LOW story at Wave-B/C backlog opening |
+| 2 | MED | CrowdStrike G4: no threat intel domain (indicators, actors, reports) — unmodeled API surface. | prism-crowdstrike-endpoint-plan.md §Tier 2 G4 | Wave B+/unassigned; register at backlog opening |
+| 3 | MED | CrowdStrike G5: no IOC management pivot. | Same file G5 | Wave B+/unassigned |
+| 4 | MED | CrowdStrike G6: no Identity Protection (needs GraphQL adapter). | Same file G6 | Wave B+/unassigned |
+| 5 | LOW | CrowdStrike G8: no hidden-hosts / host-groups. | Same file G8 | Wave B+/unassigned |
+| 6 | LOW-MED (WAVE-A PREREQUISITE) | CrowdStrike G9: not region-aware; `Alerts:READ` scope required for Alerts-v2 migration — if tenant credential only has `Detects:READ`, S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001 blocks at implementation with a scope error. | Same file G9 | Prerequisite note for ADR-053 §D / S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001 (Wave A); mention in story acceptance criteria |
+| 7 | MED (WAVE-A SCOPE NOTE) | Cyberint C7: AlertSeverity returns lowercase `low/medium/high/very_high` (OCSF Title-case convention violation; distinct from F5 status-vocab issue); AlertStatus has no 1:1 OCSF mapping. | prism-cyberint-endpoint-plan.md §Gaps C7 | Add to DEFECT-CYBERINT-SPEC-FIDELITY-001 scope (Wave A) or combine with F5 follow-up story |
+| 8 | MED | Cyberint C8: entire ASM/assets/technologies/analytics/credentials read domain unmodeled (net-new value surface). | Same file C8 | Wave B+/unassigned |
+| 9 | (WAVE-B SCOPING) | xDome: `claroty_ot_activity_events` (POST `/api/v1/ot_activity_events/`) is a distinct Tier-1 table not mentioned in current triage; S-DEMO-CLAROTY-VULN-LAYER-001 may conflate `claroty_vulnerabilities` (CVE catalog) with `claroty_device_vuln_relations` (214-field device↔CVE join) — these are separate tables. | prism-xdome-endpoint-plan.md §Tier 1 | Disambiguate at Wave-B story scoping before S-DEMO-CLAROTY-VULN-LAYER-001 is written; add claroty_ot_activity_events as Wave-B story |
+| 10 | OPEN QUESTION | DTU attribution: short-lived node processes (PIDs 76231/76309, 17:27–17:35 UTC) deleted 59 org-c ticket files + part of mock-JIRA log then reconstructed them. DTU owners must confirm whether this is expected tooling behavior or anomalous. | dtu-fidelity-gaps.md §Open attribution question | Route to dtu-validator at Wave-D / DTU-fidelity work; track as open question pending DTU owner confirmation |
