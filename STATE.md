@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.463"
+version: "8.464"
 producer: state-manager
 timestamp: 2026-07-21T20:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.81"
 story_index_version: "v2.719"
-arch_index_version: "2.217"
+arch_index_version: "2.218"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1915 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1915 adversary re-gate pass-15 fix-burst (Wave-A re-gate cascade). Pass 15 NOT CLEAN — HIGH-1 (DI-012 domain-root pipe-delimited enumeration missing from ADR-054 D11; third syntactic carrier form), OBS-1 (VP-153 §Changelog row order v0.16/v0.15 inverted, pre-existing, fixed via state-manager bookkeeping). Fix-burst applied: ADR-054 v0.14 (DI-012 D11 row + exhaustive 14-carrier enumeration census, class closed) + VP-153 v0.19 (changelog to newest-first) + VP-INDEX v1.81. Generalization probe PASS (12th consecutive). Streak 0/3; next fresh adversary pass on new frozen HEAD. ARCH-INDEX v2.216→v2.217. trajectory-tail →4→0→0→1→? STATE v8.462→v8.463"
+current_step: "D-1916 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1916 adversary re-gate pass-16 fix-burst (Wave-A re-gate cascade). Pass 16 NOT CLEAN — MED-1 (BC-2.16.001 legacy-shorthand auth_type sites uncovered by custom_via_plugin-tracer census; class predates canonical member). Fix-burst applied: ADR-054 v0.15 — BC-2.16.001 D11 row + related_bcs + 6-tracer-class second census (enumeration class now closed verifiably). Generalization probe PASS (13th consecutive). Streak 0/3; next fresh adversary pass on new frozen HEAD. ARCH-INDEX v2.217→v2.218. trajectory-tail →0→1→2→1 STATE v8.463→v8.464"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 441 lines (wc-l)
+  STATE.md SIZE BUDGET: 442 lines (wc-l)
   margin from soft-target (200): +241 lines over | margin from actual (500): 59 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-21 D-1915 — pass-15 fix-burst: HIGH-1 DI-012 root enumeration in ADR-054 D11 + 14-carrier census (class closed); OBS-1 VP-153 changelog order (pre-existing). ADR-054 v0.14. VP-153 v0.19. VP-INDEX v1.81. Generalization probe PASS (12th). ARCH-INDEX v2.216→v2.217. STATE v8.462→v8.463. trajectory-tail →0→0→1→2 |
+| **Last Updated** | 2026-07-21 D-1916 — pass-16 fix-burst: MED-1 BC-2.16.001 legacy-shorthand D11 row + related_bcs + 6-tracer-class second census (class closed). ADR-054 v0.15. Generalization probe PASS (13th). ARCH-INDEX v2.217→v2.218. STATE v8.463→v8.464. trajectory-tail →0→1→2→1 |
 
 ## Active Objective (North Star)
 
@@ -328,6 +328,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1913 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 11 on a4b6f9be: NOT CLEAN — HIGH-1 (canonical error-taxonomy E-SPEC-012 template missing from 5→6 manifest; POL-24 atomicity constraint added to D11 source+2 copies), LOW-1 (allowed_set prose scope caveat given ADR-054-story-scope), LOW-2 (volatile line pins stripped from VP-153 rows per TD-VSDD-091), OBS-1 (E-SPEC-005 legacy-message modernization hygiene row registered in D11). 'Valid values' carrier enumeration complete: source+2 copies all manifested. Generalization probe PASS (8th consecutive). Fix-burst applied: ADR-054 v0.12 + ADR-053 v0.17. Streak 0/3; next fresh adversary pass on new frozen HEAD. ARCH-INDEX v2.214→v2.215. STATE v8.460→v8.461. trajectory-tail →4→4→1→5→? | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1914 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate passes 12-14 on frozen HEAD 809ec903: pass 12 CLEAN(strict) 1/3, pass 13 CLEAN(strict) 2/3, pass 14 NOT CLEAN — MED-1 (phantom proptest construct citations in D11 VP-153 harness row: proptest::sample::select()/prop_compose! vs actual prop_oneof!/proptest!); STREAK RESET 2/3→0/3 per BC-5.39.001. Fix-burst applied: ADR-054 v0.13 incl. self-discovered prop_filter out-of-set exclusion-list addition. Generalization probe PASS (9th/10th/11th consecutive). Next: fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.215→v2.216. STATE v8.461→v8.462. trajectory-tail →4→0→0→1 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1915 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 15 on f293e199: NOT CLEAN — HIGH-1 (DI-012 domain-root pipe-delimited enumeration missing from ADR-054 D11; third syntactic carrier form), OBS-1 (VP-153 §Changelog row order v0.16/v0.15 inverted, pre-existing defect NOT introduced by the ADRs, fixed via state-manager bookkeeping). Fix-burst applied: ADR-054 v0.14 (DI-012 D11 enumeration row + exhaustive 14-carrier census, class closed) + VP-153 v0.19 (changelog newest-first) + VP-INDEX v1.81. Generalization probe PASS (12th consecutive). Streak 0/3; next fresh adversary pass on new frozen HEAD. ARCH-INDEX v2.216→v2.217. STATE v8.462→v8.463. trajectory-tail →0→0→1→2 | wave-5-e-demo-fidelity | 2026-07-21 |
+| D-1916 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 16 on 941d2862: NOT CLEAN — MED-1 (BC-2.16.001 legacy-shorthand auth_type sites uncovered by custom_via_plugin-tracer census; class predates canonical member). Fix-burst applied: ADR-054 v0.15 — BC-2.16.001 D11 row + related_bcs + 6-tracer-class second census (enumeration class now closed verifiably). Generalization probe PASS (13th consecutive). Streak 0/3; next fresh adversary pass on new frozen HEAD. ARCH-INDEX v2.217→v2.218. STATE v8.463→v8.464. trajectory-tail →0→1→2→1 | wave-5-e-demo-fidelity | 2026-07-21 |
 
 ## Skip Log
 
