@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.15"
+version: "0.16"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -334,7 +334,7 @@ Incoherent combinations emit E-SPEC-027 template (b) and reject the spec at load
 | `cookie_roundtrip` | `"cookie:<name>"` **only** | `"cookie:access_token"` |
 | `custom_via_plugin` | `"bearer"`, `"raw"` | `"raw"` or `"bearer"` per plugin declaration (escape hatch for genuinely non-standard auth) |
 | `api_key` | `"bearer"` (Wave-A scope) | `"bearer"` |
-| `token_exchange` (new per ADR-054) | `"bearer"`, `"raw"` | `"raw"` for Armis v1 (raw-token, no Bearer prefix) |
+| `token_exchange` (new per ADR-054) | `"bearer"`, `"raw"` | `"raw"` for Armis v1 (raw-token, no Bearer prefix); **[ADR-054 story scope — ships with `AuthType::TokenExchange` addition, not with standalone engine story]** |
 
 **Critical restriction:** `cookie_roundtrip` MUST use a `cookie:<name>` `header_scheme`.
 Using `"bearer"` or `"raw"` with `cookie_roundtrip` would inject an Authorization header
@@ -368,10 +368,14 @@ separation-of-concerns principle remains valid and unchanged.
 `header_scheme` field (with `#[serde(default)]` defaulting to `"bearer"`).
 `PipelineExecutor::build_request()` (in `crates/prism-spec-engine/src/pipeline.rs`) switches
 from `auth_type`-based dispatch to `header_scheme`-based dispatch. E-SPEC-027 (both message
-templates), BC-2.16.009 Rule 9, and `error-taxonomy.md` registration are all in-scope for
-this standalone engine story. The Armis auth story and the Cyberint spec migration story both
-declare a merge-dependency on this engine story — neither may merge until the engine story
-has landed.
+templates) for the **5 existing auth_type variants** (bearer_static, oauth2_client_credentials,
+cookie_roundtrip, custom_via_plugin, api_key), BC-2.16.009 Rule 9, and `error-taxonomy.md`
+registration are all in-scope for this standalone engine story. **The `token_exchange`
+coherence-matrix row and its E-SPEC-027 `{allowed_set}` entry are NOT in scope for the
+standalone engine story — they ship atomically with the ADR-054 story that adds
+`AuthType::TokenExchange` to the enum (lands second).** The Armis auth story and the Cyberint
+spec migration story both declare a merge-dependency on this engine story — neither may merge
+until the engine story has landed.
 
 **VP assignment (DRIFT-D849-002):** The VP that `acquire_token()` makes no network calls
 during spec-load applies to the Armis `DeclarativeHttpAuthProvider`. The provider MUST
@@ -385,7 +389,7 @@ accepted.
 **Supersession scope:** ADR-028 LOCKED Armis decision (D-747, `bearer_static`) is superseded.
 ADR-028 §D13's consistency table row `bearer_static (Armis, Claroty)` is narrowed — see §D13
 supersession blockquote. ADR-026 §D3's `ArmisAuth::auth_type_name() → "api_key"` was already
-superseded by ADR-028 §D6; the legacy struct was deleted by PLUGIN-MIGRATION-001-A and is moot.
+superseded by ADR-028 §D2 (operationalized by §D6); the legacy struct was deleted by PLUGIN-MIGRATION-001-A and is moot.
 
 **Armis v1 vs v3 (no conflict):** Armis states v1/v2 are NOT deprecated. Prism's v1 targeting
 is valid. v3 (true OAuth2 client-credentials, Bearer prefix, structured `/v3/assets/_search`)
@@ -523,7 +527,7 @@ consequence of D1–D3. Each amendment is in-scope for the corresponding remedia
 | ADR-032 Cyberint credential rows audit | ADR-032 rows referencing `cyberint.sensor.toml` with `[[credential_refs]]` `name = "api_key"` / env var `CYBERINT_API_KEY` are stale post-deletion of `cyberint.sensor.toml`. Must be updated to reflect two new spec files with `[[credential_refs]]` `name = "access_token"` and corresponding per-client env vars. | D3 |
 | BC-2.16.009 Rule 9 (new) | Author new Rule 9 — `header_scheme` field validation (unknown/malformed → E-SPEC-027 template a; well-formed-but-incoherent with auth_type → E-SPEC-027 template b); rules numbered after Rule 8 probe_table (E-SPEC-026). Rule 9 is in-scope for the Wave-A engine story that adds `SensorSpec::header_scheme`. | D2 |
 | `error-taxonomy.md` | Register E-SPEC-027 with both message templates: (a) unknown/malformed `header_scheme` value; (b) well-formed value incoherent with `auth_type` (generalized form — `sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}`). Registration is in-scope for the standalone Wave-A engine story. | D2 |
-| `error-taxonomy.md` | Register E-SPEC-028 (declarative auth acquisition validation errors — 7 message templates per ADR-054 D10): (a) required block absent; (b) conflicting auth_plugin; (c) unknown expiry_mode; (d) token_exchange missing required fields; (e) credential_body_field undeclared; (f) oauth2_client_credentials missing client_id/client_secret refs; (g) auth_acquisition declared for non-declarative auth_type. Registration is in-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story. | D2 (via ADR-054) |
+| `error-taxonomy.md` | Register E-SPEC-028 (declarative auth acquisition validation errors — 8 message templates per ADR-054 D10): (a) required block absent; (b) conflicting auth_plugin; (c) unknown expiry_mode; (d) token_exchange missing required fields; (e) credential_body_field undeclared; (f) oauth2_client_credentials missing client_id/client_secret refs; (g) auth_acquisition declared for non-declarative auth_type; (h) token_exchange-only fields on non-token_exchange block. Registration is in-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story. | D2 (via ADR-054) |
 | New `BC-2.16.014` [PLANNED] | Author BC-2.16.014 — Declarative Auth Acquisition Token Lifecycle: `DeclarativeHttpAuthProvider` lazy-acquire, cache-hit, cache-refresh, and AD-017 credential-opacity invariants (ADR-054 D8). In-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story. | D2 (via ADR-054) |
 
 Additional artifacts requiring audit (not BC amendments, but must not contain contradicted values):
@@ -692,6 +696,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.16 | 2026-07-21 | architect | MED-1: D2 coherence matrix `token_exchange` row annotated — "[ADR-054 story scope — ships with `AuthType::TokenExchange` addition, not with standalone engine story]"; D2 engine story scope paragraph updated — E-SPEC-027 + coherence matrix covers 5 existing auth_type variants only; token_exchange row and allowed_set entry ship with ADR-054 story atomically. LOW-1: D5 manifest E-SPEC-028 registration row updated — "7 message templates" → "8 message templates"; template (h) (token_exchange-only fields on non-token_exchange block) appended to list. LOW-2: D2 §Supersession scope note corrected — "superseded by ADR-028 §D6" → "ADR-028 §D2 (operationalized by §D6)". |
 | 0.15 | 2026-07-21 | architect | LOW-1: v0.14 changelog row description corrected — replace_all corrupted `{ORG} → {ID}` to `{ID} → {ID}` (no-op); restored to `{ORG} → {ID}`. LOW-2: §Status refreshed to current-version highlights (construction dispatch site, token_path schema, header_scheme mechanism-level replacement; non-volatile "current version per §Changelog" form). |
 | 0.14 | 2026-07-21 | architect | OBS-1: env-var placeholder harmonized — `{ORG}` → `{ID}` at all ADR-053 occurrences (Armis and Cyberint sites; D5 manifest row; per ADR-032 canonical `{ID}` token). MED-1: BC-2.16.009 added to `related_bcs` frontmatter (D5 manifest targets Rule 9 authoring in BC-2.16.009; was missing from related_bcs). |
 | 0.13 | 2026-07-21 | architect | OBS-1: D5 manifest BC-2.01.017 §P2 dispatch table row rationale rewritten — pre-v0.7 "eliminate spec-vs-spec conflict with D2's header_scheme=raw for Armis via CustomViaPlugin arm" framing replaced with current truth: mechanism-level replacement driven by (1) token_exchange (6th variant, no §P2 arm) and (2) CustomViaPlugin hardcoded Bearer incoherent with header_scheme=raw generally; actionable instruction (delegate to header_scheme) unchanged. |

@@ -5,7 +5,7 @@ title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2Cli
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.10"
+version: "0.11"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -364,7 +364,13 @@ Rule 10, see D10 E-SPEC-028) before step 9A. By the time step 9A runs, specs are
 > (this ADR's `[auth_acquisition]` coherence check, E-SPEC-028) runs in the same
 > `BC-2.16.009` validation pass and depends on the `spec_parser.rs` extension authored in
 > that engine story. The story-writer MUST encode this as an explicit story-level merge
-> dependency in the Wave-A dependency graph.
+> dependency in the Wave-A dependency graph. **Coherence matrix scope boundary:** the
+> standalone engine story authors E-SPEC-027 and the `auth_type × header_scheme` coherence
+> matrix rows for the **5 existing variants** (bearer_static, oauth2_client_credentials,
+> cookie_roundtrip, custom_via_plugin, api_key) only — `AuthType::TokenExchange`, its
+> coherence-matrix row, and its E-SPEC-027 `{allowed_set}` entry ship atomically with the
+> ADR-054 story (lands second), ensuring no forward-reference where a coherence row predates
+> its enum variant.
 
 ### D8 — BC-2.16.014: Declarative Auth Acquisition Token Lifecycle
 
@@ -465,6 +471,10 @@ Fires when `auth_type = "oauth2_client_credentials"` and one or both of `client_
 `"sensor '{sensor_id}': auth_type = '{auth_type}' does not use [auth_acquisition]. Remove the [auth_acquisition] block or change auth_type to oauth2_client_credentials or token_exchange."`
 Fires when `[auth_acquisition]` is present for `auth_type ∈ {bearer_static, cookie_roundtrip, api_key, custom_via_plugin}`.
 
+**(h) token_exchange-only fields on non-token_exchange block:**
+`"sensor '{sensor_id}': [auth_acquisition].{field_name} is only valid when auth_type = 'token_exchange'. Remove '{field_name}' or change auth_type to 'token_exchange'."`
+Fires when any of `credential_body_field`, `token_response_path`, `expiry_field`, or `expiry_mode` is present in an `[auth_acquisition]` block whose `auth_type` is not `token_exchange`. Prevents token_exchange-only fields from being silently ignored when misconfigured on an `oauth2_client_credentials` block (SOUL.md #4 violation class).
+
 All templates echo only config values (sensor_id, auth_type, field names), never credential values
 (AD-017). Emitted via `SpecErrorCode::ESpec028` (additive variant — no semver break per `#[non_exhaustive]`).
 
@@ -493,6 +503,9 @@ All templates echo only config values (sensor_id, auth_type, field names), never
 | BC-2.01.017 §P3 (Auth Type Dispatch) | Update "the 5-value canonical auth_type set per BC-2.01.016 §Postconditions" → 6-value canonical auth_type set | D1 |
 | BC-2.01.017 §Related BCs | Update "the 5-value canonical auth_type set (including `"cookie_roundtrip"`)" → 6-value canonical auth_type set | D1 |
 | BC-2.16.009 §Validation Rules (Schema Validation, `auth_type` rule) | Add `token_exchange` to the enumerated allowed-values list; update "(5-value canonical set)" → "(6-value canonical set)" in the parenthetical | D1 |
+| `VP-153` §Property Statement Rule A enumerated set + E-SPEC-012 expected message string (lines 47-51) | Add `token_exchange` to the Rule A 5-value enumerated set `{oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key, custom_via_plugin}`; update E-SPEC-012 expected message "Valid values: oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key, custom_via_plugin" to include `token_exchange` as the 6th variant. Both sites in `vp-153-sensorauth-runtime-cross-composition-prevention.md` §Property Statement Rule A section. | D1 |
+| `VP-153` §Feasibility Assessment (line 259) | Update "5 auth_type variants × 5 credential structural shapes = 25 pairs; all enumerable" → "6 auth_type variants × 5 credential structural shapes = 30 pairs; all enumerable" | D1 |
+| `VP-153` §Proof Harness Skeleton `arb_auth_type()` (lines 113-121) + inline E-SPEC-012 message comment (line 169) | Add `AuthType::TokenExchange` arm to the `proptest::sample::select()` call in `arb_auth_type()`; update the inline E-SPEC-012 message comment at line 169 to include `token_exchange` in the "Valid values:" list | D1 |
 | ADR-028 §D13 consistency table | Update `oauth2_client_credentials` row: mark `PluginAuthProvider` (WASM) path as **spec-load-rejected** per D10(b) — E-SPEC-028(b) unconditional rejection for `auth_type ∈ {oauth2_client_credentials, token_exchange}` + `auth_plugin` present; `DeclarativeHttpAuthProvider` (native) is the sole live path; drop the conditional "when `[auth_acquisition]` present" framing (superseded by D10(b)'s unconditional rule). Mark `crowdstrike-oauth2.prx` as retired per D5. Update §D2 and §D13 Armis blockquotes from `custom_via_plugin` + `armis-token-exchange.prx` → `token_exchange` + native `DeclarativeHttpAuthProvider`. Update ADR-028 frontmatter `amended_by` framing to reflect D10(b) unconditional rejection. ADR-028 `amended_by` back-ref already present (ADR-028 v1.18); ADR-028 in ADR-054 `related_adrs` (already present). | D2, D5, D10 |
 | **--- CrowdStrike plugin retirement blast-radius (atomic with D5 migration story) ---** | | |
 | `crates/prism-sensors/specs/crowdstrike.sensor.toml` | Drop `auth_plugin = "crowdstrike-oauth2"`; add `[auth_acquisition]` block with `token_path = "/oauth2/token"` and `credential_refs` (D2) | D5 |
@@ -670,6 +683,7 @@ do not proceed.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.11 | 2026-07-21 | architect | HIGH-1: VP-153 (vp-153-sensorauth-runtime-cross-composition-prevention) added to D11 amendment manifest with 3 stale-site classes when token_exchange lands: (1) §Property Statement Rule A enumerated set + E-SPEC-012 expected message string (lines 47-51) — add token_exchange to 5-value set and to "Valid values: …" message; (2) §Feasibility Assessment "25 pairs" → 6×5=30 pairs (line 259); (3) §Proof Harness Skeleton arb_auth_type() (lines 113-121) + inline E-SPEC-012 message comment (line 169) — add TokenExchange arm. POL-29 VP-layer sweep: only VP-153 has live auth_type enumeration / E-SPEC-012 message hits. LOW-1: E-SPEC-028 template (h) added to D10 — fires when token_exchange-only fields (credential_body_field, token_response_path, expiry_field, expiry_mode) are present in [auth_acquisition] block for non-token_exchange auth_type; prevents silent-ignore class (SOUL.md #4). MED-1: D7 sequencing note updated — engine story authors E-SPEC-027 + coherence matrix for 5 existing auth_type variants only; ADR-054 story adds AuthType::TokenExchange + coherence-matrix row + allowed_set entry atomically (prevents forward-reference where token_exchange coherence row predates its enum variant). |
 | 0.10 | 2026-07-21 | architect | LOW-2: §Status refreshed to current-version highlights (6th variant, E-SPEC-028(f)/(b), D5 retirement, 5→6-value downstream BCs, story sequencing dependency). OBS-2: explicit sequencing coordination note added to §D7 — ADR-054 stories land AFTER ADR-053 standalone engine story (Rule 9/E-SPEC-027 before Rule 10/E-SPEC-028). |
 | 0.9 | 2026-07-21 | architect | HIGH-1: E-SPEC-028(h) → E-SPEC-028(f) in §D2 (credential-ref rule for oauth2_client_credentials; D10 enumerates only (a)–(g); (f) is "oauth2_client_credentials missing required credential_refs client_id and client_secret"). MED-1: BC-2.01.017 added to `related_bcs` frontmatter (3 D11 amendment rows target BC-2.01.017; was missing). LOW-1: D11 ADR-053 D2 and ADR-053 Rationale rows marked COMPLETED (ADR-053 v0.7); stale §Why custom_via_plugin anchor updated to current heading. MED-2: D11 amendment-instruction row for ADR-028 §D13 updated — removed "when [auth_acquisition] present" conditional framing; substituted D10(b) unconditional spec-load-rejection framing (E-SPEC-028(b)). |
 | 0.8 | 2026-07-21 | architect | HIGH-1: D11 manifest extended with 5 downstream BC amendment rows for "5-value → 6-value" auth_type-set count corrections triggered by D1 (token_exchange as 6th variant): BC-2.01.016 §Related BCs, BC-2.01.017 §Preconditions, BC-2.01.017 §P3 Auth Type Dispatch, BC-2.01.017 §Related BCs, BC-2.16.009 §Validation Rules Schema Validation auth_type rule — all confirmed live normative sites by POL-29 grep sweep. |

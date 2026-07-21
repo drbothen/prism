@@ -5,7 +5,7 @@ title: "Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, 
 status: COMMITTED
 date: "2026-05-10"
 modified: "2026-07-21"
-version: "v1.22"
+version: "v1.23"
 producer: architect
 amended_by: "ADR-054 (partial — §Rule 4 walk-back: standard HTTP token-acquisition flows are now native declarative per DeclarativeHttpAuthProvider; custom_via_plugin escape hatch preserved for genuinely non-standard auth; effective at Wave-A per D-1895 2026-07-20)"
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
@@ -233,6 +233,7 @@ replace the sealed trait are:
 
 - The spec `auth_type` field must be a single value from the enumerated set
   `{oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key, custom_via_plugin}`.
+  [ADR-054 D1 adds `token_exchange` as 6th variant on acceptance.]
   Mixed auth types in one spec are rejected at TOML load time.
 - The `credential_refs` field must reference exactly one credential per auth method. Multiple
   credential types in one spec are rejected at TOML load time.
@@ -1079,6 +1080,7 @@ TD-FACTORY-HOOK-BYPASS-001 was first registered at P1 after fix-burst-3 (v1.3 am
 
 | Version | Date | Description |
 |---------|------|-------------|
+| v1.23 | 2026-07-21 | FIX-BURST 10 (OBS-1): at-point annotation added to §Rule A enumerated set — "[ADR-054 D1 adds `token_exchange` as 6th variant on acceptance]" inserted immediately after the 5-value set declaration, so the amendment note is co-located with the enumeration it modifies rather than 40+ lines away. |
 | v1.22 | 2026-07-21 | FIX-BURST 7 (MED-1): §Rule-4-walk-back amendment note filename corrected — `auth/declarative_http.rs` → `auth/declarative.rs` per ADR-054 canonical path (source-of-truth precedence). `modified` advanced to 2026-07-21. |
 | v1.21 | 2026-07-21 | OBS-2 (FIX-BURST): §Status Wave 1/E parenthetical clarified — "no in-repo .prx plugin required" was specifically about the retry-on-401 mechanism; initial CrowdStrike token acquisition used `crowdstrike-oauth2.prx` (retired by ADR-054 D5 in Wave-A). Decision body §Context line clarified same. Rule 4 body "No sensor-specific in-repo .prx WASM plugins are required" annotated: `crowdstrike-oauth2.prx` is the exception, retired by ADR-054 D5 Wave-A. Rule 4 amendment note rewritten: "strengthened by this amendment" replaced with accurate framing — statement becomes fully accurate after ADR-054 D5 retires `crowdstrike-oauth2.prx`. |
 | v1.20 | 2026-07-20 | D-1895 ADR-054 bidirectional backref: `amended_by` field added pointing to ADR-054 (§Rule 4 walk-back — standard HTTP token-acquisition flows now native declarative via `DeclarativeHttpAuthProvider`; `custom_via_plugin` escape hatch preserved for genuinely non-standard auth; effective at Wave-A). `modified` field added (2026-07-20). §Status version stamp advanced to v1.20. Rule 4 amendment note added. |

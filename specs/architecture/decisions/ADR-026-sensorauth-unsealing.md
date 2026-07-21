@@ -5,7 +5,7 @@ title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Au
 status: Proposed
 date: "2026-05-18"
 modified: "2026-07-21"
-version: "1.37"
+version: "1.38"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
@@ -185,6 +185,7 @@ The three runtime rules that replace compile-time sealing (ADR-023 Rule 2) are e
 
 1. `auth_type` in a sensor spec must be a single value from the enumerated set
    `{oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key, custom_via_plugin}`.
+   [ADR-054 D1 adds `token_exchange` as 6th variant on acceptance.]
    Multiple values or values outside the enumerated set are rejected at spec-load time.
    Error code: **E-SPEC-012** (auth_type cross-composition; see §Error Code Assignment Note below).
 2. `credential_refs` must reference exactly one credential per auth method.
@@ -516,6 +517,7 @@ modes and security implications. The open trait approach reuses the existing typ
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.38 | 2026-07-21 | architect | FIX-BURST 10 (OBS-1): at-point annotation added to §D3 Rule A enumerated set — "[ADR-054 D1 adds `token_exchange` as 6th variant on acceptance]" inserted immediately after the 5-value set declaration, so the amendment note is co-located with the enumeration it modifies rather than 40+ lines away. |
 | 1.37 | 2026-07-21 | architect | FIX-BURST 7 (HIGH-1/MED-1/LOW-1): §D3 amendment item 2 rewritten — "(conditional)" removed; unconditional model per ADR-054 D10(b): absent `[auth_acquisition]` for declarative auth_types → E-SPEC-028(a) spec-load error; `auth_plugin` present for `auth_type ∈ {oauth2_client_credentials, token_exchange}` → E-SPEC-028(b) unconditional rejection; no fallback to `custom_via_plugin` (`custom_via_plugin` is a distinct auth_type). `declarative_http.rs` → `declarative.rs` filename corrected (MED-1). Frontmatter `amended_by` ADR-054 entry: "when [auth_acquisition] present" conditional phrase dropped; replaced with "unconditionally per ADR-054 D1/D2/D10(b)" (LOW-1). `modified` advanced to 2026-07-21. |
 | 1.36 | 2026-07-21 | architect | OBS-1: §Status stale self-cite corrected — "current frontmatter v1.32 per §Changelog" replaced with non-volatile form "current version per §Changelog top row" (permanently retires this staleness class). |
 | 1.35 | 2026-07-20 | architect | D-1895 ADR-054 bidirectional backref: `amended_by` updated to include ADR-054 (§D3 partial — `token_exchange` variant added to `AuthType` closed enum; `oauth2_client_credentials` reclassified plugin→native `DeclarativeHttpAuthProvider` when `[auth_acquisition]` present per ADR-054 D1/D2). §D3 amendment note added. `modified` date advanced to 2026-07-20. Changelog reordered newest-first (pre-existing ascending-order violation corrected in same burst). |
