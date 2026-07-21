@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.449"
+version: "8.450"
 producer: state-manager
 timestamp: 2026-07-21T13:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.80"
 story_index_version: "v2.719"
-arch_index_version: "2.203"
+arch_index_version: "2.204"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1901 (2026-07-21): SINGLE-COMMIT BURST COMPLETE — triage-capture cross-check remediation (D-1900 resume). F10 fix-path corrected (http2+UA primary, native-tls secondary/ADR-050-conflict), D-1889 4-wave assignments annotated, 10 coverage gaps registered as addendum. Verdict: DISCREPANCIES-FOUND — cleared for architect dispatch. NEXT: dispatch FRESH architect (NOT a5234272-RETIRED) for ADR-054 v0.4+ADR-053 v0.9 (5 open findings: HIGH-1 BC-2.23.001 SS-23 retarget, HIGH-2 ADR-053 D2 header, MED-1 tests/fixtures/README D11, LOW-1 plugin/mod.rs crowdstrike-oauth2 D11, OBS-1 doc-hygiene-sweep) → state burst → adversary re-gate → strict 3-CLEAN (BC-5.39.001) → human Wave-A approval gate (053+054+amended 023/026). PRIORITY = test-soc findings remediation. trajectory-tail →3→5→10→10 STATE v8.448→v8.449"
+current_step: "D-1902 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — ADR-054 v0.4 + ADR-053 v0.9 committed. Closures: HIGH-1 (BC-2.16.014 retarget from non-existent SS-23 → SS-16; swept both ADRs), HIGH-2 (ADR-053 D2 header → 'via Native DeclarativeHttpAuthProvider'), MED-1 (tests/fixtures/README.md → D11 manifest), LOW-1 (test_F_LP7_MED_001_host_dispatch_acquire_token_component_model_path_emits_audit_event → D11), OBS-1 (doc-hygiene-sweep row, 5 preserved-infra files), A-6 (CrowdStrike Alerts:READ scope prerequisite in ADR-053 D1). BC-2.23.001 zero occurrences verified in both ADRs (frozen historical ARCH-INDEX changelog rows exempt). ARCH-INDEX v2.203→v2.204. NEXT: fresh adversary re-gate on this frozen HEAD, streak 0/3 per BC-5.39.001 → human Wave-A approval gate (053+054+amended 023/026). trajectory-tail →3→5→10→10 STATE v8.449→v8.450"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,8 +77,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 427 lines (wc-l)
-  margin from soft-target (200): +227 lines over | margin from actual (500): 73 lines remaining
+  STATE.md SIZE BUDGET: 428 lines (wc-l)
+  margin from soft-target (200): +228 lines over | margin from actual (500): 72 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-21 D-1901 — triage-capture cross-check remediation: F10 fix-path corrected, D-1889 wave assignments annotated, 10 coverage gaps registered. Cleared for ADR-054 v0.4+ADR-053 v0.9 architect dispatch. trajectory-tail →3→5→10→10 STATE v8.448→v8.449 |
+| **Last Updated** | 2026-07-21 D-1902 — ADR-054 v0.4 + ADR-053 v0.9 committed: BC-2.16.014 retarget (SS-23→SS-16), D2 header fix, D11 manifest + doc-hygiene closures. ARCH-INDEX v2.203→v2.204. trajectory-tail →3→5→10→10 STATE v8.449→v8.450 |
 
 ## Active Objective (North Star)
 
@@ -314,6 +314,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1899 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — FILE-SIZE GOVERNANCE PARKED. Human adjudicated production-grade file-size stance (Track+ratchet+schedule) 2026-07-21, superseding the prior passive stance. CLAUDE.md §File size updated to truthful+active (no gate today = tracked debt; soft ~800; proposed 1,500-line ratchet gate w/ day-1 allowlist of the 12 giants; oversized files = scheduled debt, not cohesion exceptions) via PR #230 (devops burst). TD-DECOMP-RATCHET-001 (P2) filed: no file-size CI gate; just check-file-sizes + .factory/file-size-allowlist.toml + S-DECOMP-RATCHET-GATE anchor post-Wave-A. TD-DECOMP-EPIC-001 (P3 umbrella, 12 files) filed: engine.rs(17,041)/server.rs(11,429)/materialization.rs(7,083)/error_mapping.rs(5,855)/pipeline.rs(4,578)/boot.rs(4,023)/ast.rs(3,560)/infusion_udf.rs(3,170)/spec_driven_adapter.rs(2,961)/error.rs(2,478)/filter_parser.rs(2,389)/prism_describe.rs(2,208); per-file split-boundary hypotheses + epic tree persisted to planning/file-size-decomposition-plan-2026-07-21.md. tech-debt-register.md v2.23→v2.25 (5 pre-existing pipe violations fixed in-scope). Story materialization + gate implementation PARKED — feature-ordered AFTER test-soc findings remediation per human priority directive 2026-07-21. Origin: PG-ARCHITECT-CLAUDEMD-CONTAMINATION-001. trajectory-tail →3→5→10→10 STATE v8.446→v8.447 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1900 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — SESSION WRAP D-1900. Wave-A ADR convergence mid-cascade: last committed a8464b71 (ADR-054 v0.3 + ADR-053 v0.8 + ADR-026 v1.35 + ADR-023 v1.20 + ARCH-INDEX v2.203); streak 0/3 adversary re-gate NOT CLEAN(strict). 5 open findings for ADR-054 v0.4+ADR-053 v0.9: HIGH-1 BC-2.23.001 mis-anchors to non-existent SS-23 (retarget BC-2.16.NNN, sweep ADR-054 related_bcs_planned+D8/D9/D11 + ADR-053 D5); HIGH-2 ADR-053 D2 header still "Token-Exchange via WASM Plugin" (fix to "via Native DeclarativeHttpAuthProvider"); MED-1 tests/fixtures/README.md missing from D11 retirement manifest; LOW-1 plugin/mod.rs crowdstrike-oauth2.prx #[ignore]/todo!() test (~line 1732) missing from D11; OBS-1 doc-hygiene-sweep row needed (spec_parser.rs:460 auth_plugin example, plugin_auth_provider.rs, error.rs, plugin/discovery.rs, plugin/host_functions.rs WIT examples). NEXT-ACTION: FRESH architect (NOT a5234272-RETIRED/contaminated) for v0.4+v0.9 → state burst → adversary re-gate → strict 3-CLEAN → human Wave-A gate (053+054+amended 023+026). THEN Wave-A spec evolution: BC-2.16.NNN + VP-159 + story decomp + TDD. PRIORITY = test-soc findings remediation (4-wave plan A/B/C/D; 8 CRITICALs). Open PRs: #229 (DEFECT-DEMOSETUP-CWD-001 @ec4379b5 PUSHED), #230 (CLAUDE.md file-size @426c77cd awaiting HUMAN merge). Develop CI stuck 'queued' on 7fef57da. DRIFT-LOCAL-DEVELOP-FF-001 OPEN. §RESUME SNAPSHOT D-1900 authored (supersedes D-1888). trajectory-tail →3→5→10→10 STATE v8.447→v8.448 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1901 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1900 RESUME CROSS-CHECK REMEDIATION. Fresh-context consistency-validator cross-check of findings vs triage-capture.md: DISCREPANCIES-FOUND. Three remediations applied: (1) F10 fidelity corrected — original summary mischaracterized primary fix path as native-tls; source prism-pql-deficiencies.md §Finding 10 shows primary fix = add http2 reqwest feature + User-Agent header (ADR-050 compliant, source-recommended); native-tls is secondary/architect-decision only; F10 also requires error source-chain capture + per-target error surfacing; (2) D-1889 4-wave structure annotated in triage-capture.md — Wave A grounding+auth (ADR-054/053+native-auth+crowdstrike-oauth2.prx retirement+Armis auth+Alerts-v2+Incidents retire+Cyberint dual-surface+xDome live-drift backport), Wave B endpoint fidelity (Spotlight vulns+xDome device/relations/vuln+Armis collections; claroty_ot_activity_events disambiguated), Wave C Bucket-B engine (F1/F7/F9/F10/F12/G4), Wave D extended coverage+scenario/DTU-fidelity; (3) 10 coverage gaps registered in Cross-Check Addendum 2026-07-21 section: LOW F3-minor stale CLI strings, MED G4 CrowdStrike threat-intel domain, MED G5 IOC management, MED G6 Identity Protection, LOW G8 hidden-hosts, LOW-MED G9 Alerts:READ scope prereq (Wave-A blocker note), MED C7 AlertSeverity case convention (Wave-A scope note), MED C8 Cyberint ASM surface, Wave-B scoping note for xDome claroty_ot_activity_events + vuln-table disambiguation, OPEN QUESTION DTU attribution (PIDs 76231/76309 ticket-file deletion). Verdict: cleared for architect dispatch ADR-054 v0.4+ADR-053 v0.9. trajectory-tail →3→5→10→10 STATE v8.448→v8.449 | wave-5-e-demo-fidelity | 2026-07-21 |
+| D-1902 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — ADR-054 v0.4 + ADR-053 v0.9 committed. Closures: HIGH-1 (BC-2.16.014 retarget from non-existent SS-23 → SS-16; swept both ADRs), HIGH-2 (ADR-053 D2 header → "via Native DeclarativeHttpAuthProvider"), MED-1 (tests/fixtures/README.md → D11 manifest), LOW-1 (test_F_LP7_MED_001_host_dispatch_acquire_token_component_model_path_emits_audit_event → D11), OBS-1 (doc-hygiene-sweep row, 5 preserved-infra files), A-6 (CrowdStrike Alerts:READ scope prerequisite in ADR-053 D1). BC-2.23.001 zero occurrences verified in both ADRs (frozen historical ARCH-INDEX changelog rows exempt). ARCH-INDEX v2.203→v2.204. Next: fresh adversary re-gate on this frozen HEAD, streak 0/3 per BC-5.39.001. trajectory-tail →3→5→10→10 STATE v8.449→v8.450 | wave-5-e-demo-fidelity | 2026-07-21 |
 
 ## Skip Log
 

@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-20"
-version: "0.8"
+version: "0.9"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -31,12 +31,15 @@ wave_scope: "Wave-A only (grounding order + sensor auth models); transport/TLS (
 
 ## Status
 
-Proposed 2026-07-20, v0.7 (v0.6: pass-5 adversary remediation + full citation audit. v0.7
-per D-1895 human decision: D2 rewritten — Armis uses `token_exchange` auth_type +
-`[auth_acquisition]` block per companion ADR-054; `custom_via_plugin` + plugin approach removed.
-Coherence matrix updated (`token_exchange → bearer, raw`). ADR-054 added to `related_adrs`.
-D5 manifest updated: BC-2.01.008 amendment reflects `token_exchange` native provider; BC-2.23.001
-authoring row and E-SPEC-028 registration row added).
+Proposed 2026-07-20. v0.9 (2026-07-21): Wave-A cascade re-gate closures — BC-2.16.014 anchoring corrected
+(planned declarative-auth BC was mis-anchored to non-existent SS-23; retargeted to SS-16 as BC-2.16.014); D2 header corrected to "Native
+DeclarativeHttpAuthProvider"; CrowdStrike Alerts-v2 Alerts:READ scope prerequisite added to D1.
+v0.8 (2026-07-20): LOW-3 E-SPEC-027 coherence matrix prose aligned. v0.7 (D-1895): D2 rewritten
+— Armis uses `token_exchange` auth_type + `[auth_acquisition]` block per companion ADR-054;
+`custom_via_plugin` + plugin approach removed. Coherence matrix updated. ADR-054 added to
+`related_adrs`. D5 manifest updated: BC-2.01.008 amendment reflects `token_exchange` native
+provider; BC-2.16.014 authoring row and E-SPEC-028 registration row added.
+v0.6: pass-5 adversary remediation + full citation audit.
 Awaiting human approval gate before proceeding to spec/BC work.
 Authored by architect under D-1889 authorization. Locks three Wave-A architectural corrections:
 D1 (OpenAPI grounding order), D2 (Armis token-exchange + `header_scheme` injection), D3 (Cyberint
@@ -165,9 +168,17 @@ These corrections are in-scope for the Cyberint Alerts remediation story.
 with real API behavior per the live audit. The grounding-order correction primarily affects
 Armis and Cyberint spec authoring for Wave-A.
 
+**CrowdStrike Alerts-v2 credential scope prerequisite (source: prism-crowdstrike-endpoint-plan.md Gap G9):**
+`S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001` requires the CrowdStrike API credential to carry the
+`Alerts:READ` scope. A credential provisioned with only `Detects:READ` (the legacy scope for
+the retired v1 Detections API) will fail at implementation with a scope/permission error from
+the Alerts-v2 endpoints — this is a scope-configuration error, not a code defect. The
+implementer must verify the tenant credential scope before proceeding with the migration.
+This prerequisite must be captured in the Wave-A Alerts-v2 story acceptance criteria.
+
 **Human authorization:** D-1889 (2026-07-20). Final ADR approval gate pending.
 
-### D2 — Armis Auth Model: Token-Exchange via WASM Plugin + `header_scheme` Field (supersedes ADR-028 LOCKED Armis, D-747)
+### D2 — Armis Auth Model: Token-Exchange via Native DeclarativeHttpAuthProvider + `header_scheme` Field (supersedes ADR-028 LOCKED Armis, D-747)
 
 The real Armis v1 API (`https://<tenant>.armis.com/api/v1/`) uses token-exchange
 authentication, not bearer-static. The exact flow is:
@@ -515,7 +526,7 @@ consequence of D1–D3. Each amendment is in-scope for the corresponding remedia
 | BC-2.16.009 Rule 9 (new) | Author new Rule 9 — `header_scheme` field validation (unknown/malformed → E-SPEC-027 template a; well-formed-but-incoherent with auth_type → E-SPEC-027 template b); rules numbered after Rule 8 probe_table (E-SPEC-026). Rule 9 is in-scope for the Wave-A engine story that adds `SensorSpec::header_scheme`. | D2 |
 | `error-taxonomy.md` | Register E-SPEC-027 with both message templates: (a) unknown/malformed `header_scheme` value; (b) well-formed value incoherent with `auth_type` (generalized form — `sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}`). Registration is in-scope for the standalone Wave-A engine story. | D2 |
 | `error-taxonomy.md` | Register E-SPEC-028 (declarative auth acquisition validation errors — 7 message templates per ADR-054 D10): (a) required block absent; (b) conflicting auth_plugin; (c) unknown expiry_mode; (d) token_exchange missing required fields; (e) credential_body_field undeclared; (f) oauth2_client_credentials missing client_id/client_secret refs; (g) auth_acquisition declared for non-declarative auth_type. Registration is in-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story. | D2 (via ADR-054) |
-| New `BC-2.23.001` | Author BC-2.23.001 — Declarative Auth Acquisition Token Lifecycle: `DeclarativeHttpAuthProvider` lazy-acquire, cache-hit, cache-refresh, and AD-017 credential-opacity invariants (ADR-054 D8). In-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story. | D2 (via ADR-054) |
+| New `BC-2.16.014` | Author BC-2.16.014 — Declarative Auth Acquisition Token Lifecycle: `DeclarativeHttpAuthProvider` lazy-acquire, cache-hit, cache-refresh, and AD-017 credential-opacity invariants (ADR-054 D8). In-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story. | D2 (via ADR-054) |
 
 Additional artifacts requiring audit (not BC amendments, but must not contain contradicted values):
 - Any story, holdout scenario, or test grounded on the old Armis `bearer_static` or
@@ -679,8 +690,9 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.9 | 2026-07-21 | architect | HIGH-1: BC-2.16.014 anchoring corrected (prior drafts had mis-anchored the planned declarative-auth BC to non-existent SS-23; retargeted to next-free BC-2.16.014 in SS-16/prism-spec-engine); swept D5 manifest row, Status section, and Changelog v0.7 entry. HIGH-2: D2 section header corrected from "Token-Exchange via WASM Plugin" to "Token-Exchange via Native DeclarativeHttpAuthProvider" (body already described native path; header was stale from pre-D-1895 text). A-6 prerequisite: CrowdStrike Alerts-v2 credential scope prerequisite note added to D1 CrowdStrike implementation note (Alerts:READ scope required; Detects:READ alone fails at implementation with a scope error; source: prism-crowdstrike-endpoint-plan.md Gap G9). |
 | 0.8 | 2026-07-20 | architect | LOW-3: E-SPEC-027 template (b) `{allowed_set}` prose enumeration (lines after the template definition) now includes `token_exchange → bearer, raw` — was omitted while the coherence matrix already contained the row, creating an inconsistency between the matrix and the narrative. No behavioral change; prose aligns to matrix. |
-| 0.7 | 2026-07-20 | architect | D-1895 Armis native declarative auth (ADR-054): D2 rewritten — Armis uses `token_exchange` auth_type + `[auth_acquisition]` block per ADR-054; `custom_via_plugin` + `armis-token-exchange.prx` approach removed. Coherence matrix updated: `token_exchange → bearer, raw` row added. ADR-054 added to `related_adrs`. D5 manifest: BC-2.01.008 amendment description updated to reflect `token_exchange` native provider; BC-2.23.001 authoring row added; E-SPEC-028 registration row added. Rationale §Why custom_via_plugin updated to §Why native declarative provider per ADR-054. |
+| 0.7 | 2026-07-20 | architect | D-1895 Armis native declarative auth (ADR-054): D2 rewritten — Armis uses `token_exchange` auth_type + `[auth_acquisition]` block per ADR-054; `custom_via_plugin` + `armis-token-exchange.prx` approach removed. Coherence matrix updated: `token_exchange → bearer, raw` row added. ADR-054 added to `related_adrs`. D5 manifest: BC-2.01.008 amendment description updated to reflect `token_exchange` native provider; BC-2.16.014 authoring row added; E-SPEC-028 registration row added. Rationale §Why custom_via_plugin updated to §Why native declarative provider per ADR-054. |
 | 0.6 | 2026-07-20 | architect | Pass-5 adversary remediation + complete anchor/citation audit. HIGH-1: TOML block credential comment corrected — BC-2.03.006 (query-time resolution) → BC-2.06.003 (config-resolve chain); "three-tier" → "four-tier per-client" matching BC-2.06.003 v1.11. HIGH-2: E-SPEC-027 template (b) generalized to cover all 6 incoherence directions — `sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}` (allowed_set from coherence matrix). MED-1: three-way story-ownership contradiction resolved — engine change is now a STANDALONE Wave-A engine story; "same-commit" Cyberint constraint replaced with story-level dependency-ordering; D2/D3/D5 consistent. MED-2: BC-2.01.016 EC miscite corrected — EC-016-002 is happy path (PluginRuntime resolution); EC-016-005 is unregistered-plugin rejection; E-SPEC-012 is auth_type validation; real unregistered-plugin error is `BootError::UnknownAuthPlugin`. OBS-2: ADR-031 §D3-b item 4 moot/historical note added to frontmatter supersedes. Citation audit completed — all BC IDs, EC numbers, error codes, symbols, crate paths, TOML grammar, tier counts verified. |
 | 0.5 | 2026-07-20 | architect | Pass-4 adversary remediation. HIGH-1: D2 `header_scheme` validation rule-number corrected — "Rule 7 order" → "a new Rule 9 (after Rule 8 probe_table, per BC-2.16.009)"; D5 manifest row added for BC-2.16.009 Rule 9 authorship. MED-1: phantom symbol `construct_plugin_auth_providers` replaced with real symbol `validate_and_construct_auth_providers` in D2 body and Rationale (two sites). MED-2: D2 Armis TOML block rewritten — removed `[sensor]` table header, replaced scalar `credential_ref = "secret_key"` with `[[credential_refs]]` block + `name = "secret_key"` matching real SensorSpec grammar; D3-a/D3-d `credential_ref` prose corrected to reference `[[credential_refs]]` entry; D5 normative Cyberint instruction updated from scalar `credential_ref = "access_token"` to `[[credential_refs]]` entry with `name = "access_token"`. OBS-1: D5 manifest row added for `error-taxonomy.md` E-SPEC-027 dual-template registration (deferred to Wave-A engine story). |
 | 0.4 | 2026-07-20 | architect | Pass-3 adversary remediation. HIGH-1 (paper-fix remediation): §D3-a/§D3-b attribution corrected throughout — §D3-a is DTU-only (no StaticCookieAuthProvider); §D3-b items 1-2 are the Prism provider contract (PRESERVED); §D3-b item 3 is the dispatch table (superseded). All sites corrected: frontmatter `supersedes[3]`, D3-c `(§D3-b items 1-2)`, D3 supersession scope `PRESERVED from §D3-b items 1-2 / CHANGES from §D3-b item 3`, explicit §D3-a unaffected callout. ADR-031 `superseded_by` frontmatter synced in ADR-031 v1.5. MED-1: E-SPEC-027 split into two message templates — (a) unknown/malformed value; (b) well-formed-but-incoherent (`auth_type = 'X' requires header_scheme = 'cookie:<name>'; got 'Y'`) — avoids self-contradiction where a valid value is rejected via coherence. MED-2: D5 expanded — Cyberint `credential_ref` rename decision (api_key→access_token; rationale: wire cookie name match + ADR-028 §D13 consistency table + ADR-031 §D3-b items 1-2) + env-var derivation; ADR-032 Cyberint stale-rows audit target. OBS-1: coherence matrix `api_key` row: Wave-B non-Bearer extension note added. OBS-2 addressed in ADR-028 v1.17 (§D13 env-var convention supersession note). |

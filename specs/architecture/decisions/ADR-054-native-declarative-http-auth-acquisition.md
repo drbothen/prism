@@ -5,7 +5,7 @@ title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2Cli
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.3"
+version: "0.4"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -15,7 +15,7 @@ amends:
   - "ADR-026 (partial — §D3: AuthType closed enum gains token_exchange variant; affects E-SPEC-012 enum validation and step9a_populate_adapter_registry dispatch)"
 related_adrs: [ADR-023, ADR-026, ADR-028, ADR-031, ADR-032, ADR-050, ADR-053]
 related_bcs: [BC-2.01.016, BC-2.06.003, BC-2.16.009]
-related_bcs_planned: [BC-2.23.001]
+related_bcs_planned: [BC-2.16.014]
 human_authorization: "D-1895 (2026-07-20) — 'Armis auth must NOT require a plugin. Complete the TOML engine to express standard HTTP auth acquisition DECLARATIVELY; retire crowdstrike-oauth2.prx; custom_via_plugin stays only as escape hatch for genuinely arbitrary auth'"
 wave_scope: "Wave-A — applies to Armis token-exchange (new sensor) and CrowdStrike oauth2 migration (remove plugin dependency)"
 ---
@@ -40,7 +40,7 @@ dispatch table corrections (MED-1/MED-2), supersedes→amends (MED-3). Revised v
 ci.yml self-guard, bc_2_16_013_crowdstrike_multiregion.rs D-747-lock retarget, demo-setup/run.sh,
 t13-preflight-audit.py, DEMO-RUNBOOK.md; D2/D4 form-body field order corrected to match plugin;
 BC-2.16.009 Rule 10 assigned (Rule 9 reserved by ADR-053); related_bcs_planned split; volatile
-~line anchors replaced with behavioral anchors. This ADR amends ADR-023 §Rule 4 and ADR-026 §D3
+~line anchors replaced with behavioral anchors. Revised v0.4 (2026-07-21) — Wave-A cascade re-gate closures: BC-2.16.014 anchoring corrected (planned declarative-auth BC was mis-anchored to non-existent SS-23; retargeted to SS-16); D11 manifest extended with `tests/fixtures/README.md`, `test_F_LP7_MED_001_host_dispatch_acquire_token_component_model_path_emits_audit_event` test, and doc-hygiene-sweep row for five preserved-infrastructure files. This ADR amends ADR-023 §Rule 4 and ADR-026 §D3
 (partial sub-section changes; not supersessions). It is a companion to ADR-053 (Wave-A Sensor
 Fidelity Remediation). Awaiting human approval gate before implementation begins.
 
@@ -362,16 +362,16 @@ Rule 10, see D10 E-SPEC-028) before step 9A. By the time step 9A runs, specs are
 > `[auth_acquisition]` coherence check is therefore Rule 10 — the next available rule number in
 > BC-2.16.009's sequential rule set.
 
-### D8 — BC-2.23.001: Declarative Auth Acquisition Token Lifecycle
+### D8 — BC-2.16.014: Declarative Auth Acquisition Token Lifecycle
 
-> **[PLANNED — Wave-A spec evolution]** `BC-2.23.001` does not yet exist. It will be authored
+> **[PLANNED — Wave-A spec evolution]** `BC-2.16.014` does not yet exist. It will be authored
 > by the product-owner during the Wave-A implementation story that delivers
 > `DeclarativeHttpAuthProvider`. The postconditions P1–P8 below are the **authoring source** —
 > the product-owner uses this section as the behavioral specification when writing the BC file.
-> Until that story ships, `BC-2.23.001` is a forward reference only; no
-> `.factory/specs/behavioral-contracts/BC-2.23.001-*.md` file exists and no BC-INDEX row exists.
+> Until that story ships, `BC-2.16.014` is a forward reference only; no
+> `.factory/specs/behavioral-contracts/BC-2.16.014-*.md` file exists and no BC-INDEX row exists.
 
-A new BC `BC-2.23.001` will be authored covering the behavioral contract for
+A new BC `BC-2.16.014` will be authored covering the behavioral contract for
 `DeclarativeHttpAuthProvider`:
 
 **Preconditions:**
@@ -380,7 +380,7 @@ A new BC `BC-2.23.001` will be authored covering the behavioral contract for
 - `DeclarativeHttpAuthProvider` is constructed per (org, sensor) during boot step 9A
   (`step9a_populate_adapter_registry` in `spec_driven_adapter.rs`)
 
-**Postconditions (summary — BC-2.23.001 will be authoritative once authored):**
+**Postconditions (summary — BC-2.16.014 will be authoritative once authored):**
 - P1: `DeclarativeHttpAuthProvider::new()` makes ZERO network calls (lazy acquisition invariant)
 - P2: First `get_token()` call issues exactly ONE HTTP POST to the derived token URL (`base_url + token_path`, stored in provider at construction) and caches the result
 - P3: Subsequent `get_token()` calls within TTL return the cached token without issuing an HTTP request
@@ -396,7 +396,7 @@ A new BC `BC-2.23.001` will be authored covering the behavioral contract for
 
 > **[PLANNED — Wave-A spec evolution]** `VP-159` does not yet exist. It will be registered in
 > `VP-INDEX.md` by the architect during the Wave-A implementation story that delivers
-> `DeclarativeHttpAuthProvider`, after `BC-2.23.001` is authored and its postconditions are
+> `DeclarativeHttpAuthProvider`, after `BC-2.16.014` is authored and its postconditions are
 > confirmed. The properties listed below are the **authoring source** for VP-159. Until that
 > story ships, VP-159 is a forward reference only; no `vp-159-*.md` file exists and no
 > VP-INDEX row exists.
@@ -406,7 +406,7 @@ A new verification property `VP-159` will cover the network-call invariants of `
 - **Module:** `prism-spec-engine`
 - **Tool:** `unit_test` (MockHttpClient for network isolation)
 - **Phase:** P1
-- **BC:** BC-2.23.001 (primary; forward reference — see D8)
+- **BC:** BC-2.16.014 (primary; forward reference — see D8)
 - **Properties:**
   - `acquire_token()` makes exactly one HTTP POST (no cached-token bypass)
   - `get_token()` on cold cache → exactly one HTTP POST; on warm cache → zero HTTP POSTs
@@ -473,8 +473,8 @@ All templates echo only config values (sensor_id, auth_type, field names), never
 | `crates/prism-bin/src/spec_driven_adapter.rs` `step9a_populate_adapter_registry` | Add new `TokenExchange` arm: construct `DeclarativeHttpAuthProvider(TokenExchange)` with `token_url = base_url + token_path` | D1, D7 |
 | `BC-2.16.009` Rule set | Add `[auth_acquisition]` coherence validation as **Rule 10** (after ADR-053 D2's Rule 9 for `header_scheme`); E-SPEC-028 error suite per D10 | D10 |
 | `error-taxonomy.md` | Register E-SPEC-028 with all message templates (D10) | D10 |
-| New `BC-2.23.001` `[PLANNED]` | Author Declarative Auth Acquisition Token Lifecycle contract (D8) during Wave-A implementation story; postconditions P1–P8 specified in §D8 above are the authoring source | D8 |
-| `VP-INDEX.md` `[PLANNED]` | Register VP-159 (D9) during Wave-A implementation story, after BC-2.23.001 is authored | D9 |
+| New `BC-2.16.014` `[PLANNED]` | Author Declarative Auth Acquisition Token Lifecycle contract (D8) during Wave-A implementation story; postconditions P1–P8 specified in §D8 above are the authoring source | D8 |
+| `VP-INDEX.md` `[PLANNED]` | Register VP-159 (D9) during Wave-A implementation story, after BC-2.16.014 is authored | D9 |
 | ADR-053 D2 | Rewrite Armis TOML block: `custom_via_plugin` + `auth_plugin` → `token_exchange` + `[auth_acquisition]` block; update coherence matrix to include `token_exchange → bearer, raw`; update Rationale §Why custom_via_plugin → §Why native declarative provider | D1, D3 |
 | ADR-053 Rationale §Why custom_via_plugin | Update to reflect ADR-054's native declarative provider decision | D2 |
 | ADR-053 D5 manifest | Update BC-2.01.008 amendment description from `custom_via_plugin` + plugin to `token_exchange` + native provider | D1 |
@@ -500,6 +500,9 @@ All templates echo only config values (sensor_id, auth_type, field names), never
 | `docs/DEMO-RUNBOOK.md` | Update the setup step list: remove item "Copies `crowdstrike-oauth2.prx` plugin artifact" and "Writes `crowdstrike-oauth2.manifest.toml`" (behavioral anchors: the step description strings); remove the `crowdstrike-oauth2` plugin manifest SEC-003 `allowed_urls` explanation; update the `CROWDSTRIKE_BASE_URL` constraint note to remove the plugin-manifest host-check rationale | D5 |
 | ARCH-INDEX `adr_registry` AD-001 | Update "26 member workspace" / "crowdstrike-oauth2 plugin member" narrative → 25-crate workspace; `root Cargo.toml members` is source of truth | D5 (architect-owned) |
 | `CLAUDE.md` "26-crate workspace" count | Update `26-crate workspace (25 once ADR-037 retires...)` count — **HUMAN-FOLLOW-UP**: CLAUDE.md is human-maintained per project git rules; do NOT auto-edit; flag to human at PR time | D5 (human-follow-up) |
+| `tests/fixtures/README.md` | Remove the H2 section `## \`crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx\`` and its full body (behavioral anchor: H2 section heading containing `crowdstrike-oauth2.prx`); update `wasi_snapshot_preview1.wasm` "How to update" step-3 reference to `just build-plugin-crowdstrike-oauth2` — stale post-retirement; `wasi_snapshot_preview1.wasm` itself is preserved for remaining `custom_via_plugin` plugins | D5 |
+| `crates/prism-spec-engine/src/plugin/mod.rs` `test_F_LP7_MED_001_host_dispatch_acquire_token_component_model_path_emits_audit_event` | Remove or retarget this `#[ignore]` / `todo!()` integration test (behavioral anchor: function name `test_F_LP7_MED_001_host_dispatch_acquire_token_component_model_path_emits_audit_event`); test body requires a pre-built `crowdstrike-oauth2.prx` — post-retirement the plugin binary no longer exists; behavioral coverage migrates to `DeclarativeHttpAuthProvider` unit tests per the EC-001 through EC-006c port obligation above | D5 |
+| Doc-hygiene sweep — preserved plugin-infrastructure files with stale `crowdstrike-oauth2` doc examples | Update or generalize `crowdstrike-oauth2` references in five preserved-infrastructure files: `crates/prism-spec-engine/src/spec_parser.rs` (`SensorSpec::auth_plugin` field doc-comment example `auth_plugin = "crowdstrike-oauth2"`); `crates/prism-spec-engine/src/plugin_auth_provider.rs` (module-level preamble doc + `PluginAuthProvider` struct `plugin_id` field doc — both cite `"crowdstrike-oauth2"` as canonical example); `crates/prism-spec-engine/src/error.rs` (`UnknownAuthPlugin` variant doc + `PluginAuthDispatchError::plugin_id` field doc — both cite `"crowdstrike-oauth2"`); `crates/prism-spec-engine/src/plugin/discovery.rs` (module-doc "crowdstrike-oauth2 plugin exports" + `find_host_interface_name` function doc + `validate_wit_interface` function doc — all cite `"prism:crowdstrike-oauth2/..."` WIT namespaces); `crates/prism-spec-engine/src/plugin/host_functions.rs` (`register_host_functions` function doc — two sites citing `"prism:crowdstrike-oauth2/host@0.1.0"`). Update examples to reference the remaining `custom_via_plugin` escape-hatch context or a hypothetical non-crowdstrike plugin | D5 (doc-hygiene) |
 
 ---
 
@@ -580,7 +583,7 @@ depending on whether `auth_plugin` is present.
   support at zero additional plugin cost
 - Plugin infrastructure is preserved for `custom_via_plugin` sensors; the escape hatch is real
   and unimpeded
-- `[PLANNED]` BC-2.23.001 will formalize the token-lifecycle contract that was previously only implicit in the
+- `[PLANNED]` BC-2.16.014 will formalize the token-lifecycle contract that was previously only implicit in the
   WASM plugin source, making it testable and verifiable via VP-159 (both authored during Wave-A; see D8/D9)
 
 ### Negative / Trade-offs
@@ -652,6 +655,7 @@ do not proceed.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
-| 0.3 | 2026-07-21 | architect | HIGH-1: add `crates/prism-spec-engine/Cargo.toml` to D11 retirement manifest (`[[test]]` crowdstrike_oauth2_plugin_tests block + async-trait dev-dep). HIGH-2: add second ci.yml self-guard row (grep `F-MCPRS-PRL14-LOW-001 PASS: committed crowdstrike`). HIGH-3: add `bc_2_16_013_crowdstrike_multiregion.rs` to D11 — D-747-LOCKED auth_plugin assertion must be retargeted to native declarative auth. HIGH-4: add `scripts/demo-setup.sh` and `scripts/demo-run.sh` to D11 (crowdstrike-oauth2.prx copy + manifest steps break post-retirement). HIGH-5: D1/D2 section headers corrected from "(supersedes ADR-026/023…)" to "(amends …)"; Source §ADR-023 reference corrected from "partially superseded" to "partially amended". MED-1: add `scripts/t13-preflight-audit.py` to D11 (`[A20]` plugin_status probe for crowdstrike-oauth2 must be retargeted). MED-2: add `docs/DEMO-RUNBOOK.md` to D11 (.prx + manifest.toml documentation stale). LOW-1: fix D2 prose + D4 step-2 form-body field order to match plugin actual order `client_id={}&client_secret={}&grant_type=client_credentials`. LOW-2: split BC-2.23.001 out of `related_bcs` into `related_bcs_planned` to prevent POL-21 phantom-anchor false-positive. OBS-1: assign ADR-054 auth-coherence check as BC-2.16.009 Rule 10 (Rule 9 reserved by ADR-053 D2 for header_scheme); update D7/D10/D11 accordingly. OBS-2: replace volatile `~line NNN` anchors in D11 with behavioral anchors (recipe name / step title / grep string / function name / filter expression) per TD-VSDD-091. |
+| 0.4 | 2026-07-21 | architect | HIGH-1: BC-2.16.014 anchoring corrected (prior drafts had mis-anchored the planned declarative-auth BC to non-existent SS-23; retargeted to next-free BC-2.16.014 in SS-16/prism-spec-engine); swept all occurrences in frontmatter `related_bcs_planned`, D8 section header + body, D9, D11 manifest row, Consequences section, and Changelog v0.3 entry. MED-1: `tests/fixtures/README.md` added to D11 retirement manifest (H2 section heading `crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx` becomes stale post-retirement; `wasi_snapshot_preview1.wasm` preserved for remaining `custom_via_plugin` plugins). LOW-1: `test_F_LP7_MED_001_host_dispatch_acquire_token_component_model_path_emits_audit_event` added to D11 (`#[ignore]`/`todo!()` integration test requires pre-built `crowdstrike-oauth2.prx`; post-retirement the binary no longer exists; behavioral coverage superseded by `DeclarativeHttpAuthProvider` unit tests). OBS-1: doc-hygiene-sweep row added to D11 covering five preserved-infrastructure files (`spec_parser.rs`, `plugin_auth_provider.rs`, `error.rs`, `plugin/discovery.rs`, `plugin/host_functions.rs`) with stale `crowdstrike-oauth2` doc examples. |
+| 0.3 | 2026-07-21 | architect | HIGH-1: add `crates/prism-spec-engine/Cargo.toml` to D11 retirement manifest (`[[test]]` crowdstrike_oauth2_plugin_tests block + async-trait dev-dep). HIGH-2: add second ci.yml self-guard row (grep `F-MCPRS-PRL14-LOW-001 PASS: committed crowdstrike`). HIGH-3: add `bc_2_16_013_crowdstrike_multiregion.rs` to D11 — D-747-LOCKED auth_plugin assertion must be retargeted to native declarative auth. HIGH-4: add `scripts/demo-setup.sh` and `scripts/demo-run.sh` to D11 (crowdstrike-oauth2.prx copy + manifest steps break post-retirement). HIGH-5: D1/D2 section headers corrected from "(supersedes ADR-026/023…)" to "(amends …)"; Source §ADR-023 reference corrected from "partially superseded" to "partially amended". MED-1: add `scripts/t13-preflight-audit.py` to D11 (`[A20]` plugin_status probe for crowdstrike-oauth2 must be retargeted). MED-2: add `docs/DEMO-RUNBOOK.md` to D11 (.prx + manifest.toml documentation stale). LOW-1: fix D2 prose + D4 step-2 form-body field order to match plugin actual order `client_id={}&client_secret={}&grant_type=client_credentials`. LOW-2: split BC-2.16.014 out of `related_bcs` into `related_bcs_planned` to prevent POL-21 phantom-anchor false-positive. OBS-1: assign ADR-054 auth-coherence check as BC-2.16.009 Rule 10 (Rule 9 reserved by ADR-053 D2 for header_scheme); update D7/D10/D11 accordingly. OBS-2: replace volatile `~line NNN` anchors in D11 with behavioral anchors (recipe name / step title / grep string / function name / filter expression) per TD-VSDD-091. |
 | 0.2 | 2026-07-20 | architect | CRIT-1: retarget D5/D7/D11 from `validate_and_construct_auth_providers` to `step9a_populate_adapter_registry` (the real auth_type dispatch site in `spec_driven_adapter.rs`). HIGH-1: replace absolute `token_url` with relative `token_path` derived per-org from `resolved_spec.spec.base_url` at step 9A construction time. HIGH-2: complete D11 retirement manifest with Justfile, ci.yml (build steps + CI self-guard + committed-.prx validation), nextest.toml binary filters, crowdstrike_oauth2_plugin_tests.rs, plugin_boot_tests.rs, helpers/mod.rs staging functions, fixtures, and ARCH-INDEX/CLAUDE.md crate-count staleness. MED-1: remove phantom api_key → ApiKeyAuthProvider (api_key falls into other=> branch at step 9A → E-SPEC-012 skip). MED-2: correct bearer_static provider name to BearerStaticCredentialAuthProvider. MED-3: supersedes→amends in frontmatter (partial sub-section change is an amendment per CLAUDE.md). LOW-1: remove "replicates exactly" language. LOW-2: fix VP-159 TTL formula to match plugin's saturating_sub arithmetic; remove dead .max(1). |
 | 0.1 | 2026-07-20 | architect | Initial draft per human decision D-1895 |
