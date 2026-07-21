@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-20"
-version: "0.7"
+version: "0.8"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -301,7 +301,8 @@ templates are required to avoid self-contradiction on well-formed-but-incoherent
 
 where `{allowed_set}` is derived from the coherence matrix: `bearer_static` → `bearer, raw`;
 `oauth2_client_credentials` → `bearer, raw`; `cookie_roundtrip` → `cookie:<name>`;
-`custom_via_plugin` → `bearer, raw`; `api_key` → `bearer` (Wave-A scope).
+`custom_via_plugin` → `bearer, raw`; `token_exchange` → `bearer, raw`;
+`api_key` → `bearer` (Wave-A scope).
 
 This generalized form produces a correct, actionable message for every incoherent cell:
 - `cookie_roundtrip` + `"bearer"` → "...does not permit header_scheme = 'bearer'; allowed: cookie:<name>"
@@ -678,6 +679,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.8 | 2026-07-20 | architect | LOW-3: E-SPEC-027 template (b) `{allowed_set}` prose enumeration (lines after the template definition) now includes `token_exchange → bearer, raw` — was omitted while the coherence matrix already contained the row, creating an inconsistency between the matrix and the narrative. No behavioral change; prose aligns to matrix. |
 | 0.7 | 2026-07-20 | architect | D-1895 Armis native declarative auth (ADR-054): D2 rewritten — Armis uses `token_exchange` auth_type + `[auth_acquisition]` block per ADR-054; `custom_via_plugin` + `armis-token-exchange.prx` approach removed. Coherence matrix updated: `token_exchange → bearer, raw` row added. ADR-054 added to `related_adrs`. D5 manifest: BC-2.01.008 amendment description updated to reflect `token_exchange` native provider; BC-2.23.001 authoring row added; E-SPEC-028 registration row added. Rationale §Why custom_via_plugin updated to §Why native declarative provider per ADR-054. |
 | 0.6 | 2026-07-20 | architect | Pass-5 adversary remediation + complete anchor/citation audit. HIGH-1: TOML block credential comment corrected — BC-2.03.006 (query-time resolution) → BC-2.06.003 (config-resolve chain); "three-tier" → "four-tier per-client" matching BC-2.06.003 v1.11. HIGH-2: E-SPEC-027 template (b) generalized to cover all 6 incoherence directions — `sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}` (allowed_set from coherence matrix). MED-1: three-way story-ownership contradiction resolved — engine change is now a STANDALONE Wave-A engine story; "same-commit" Cyberint constraint replaced with story-level dependency-ordering; D2/D3/D5 consistent. MED-2: BC-2.01.016 EC miscite corrected — EC-016-002 is happy path (PluginRuntime resolution); EC-016-005 is unregistered-plugin rejection; E-SPEC-012 is auth_type validation; real unregistered-plugin error is `BootError::UnknownAuthPlugin`. OBS-2: ADR-031 §D3-b item 4 moot/historical note added to frontmatter supersedes. Citation audit completed — all BC IDs, EC numbers, error codes, symbols, crate paths, TOML grammar, tier counts verified. |
 | 0.5 | 2026-07-20 | architect | Pass-4 adversary remediation. HIGH-1: D2 `header_scheme` validation rule-number corrected — "Rule 7 order" → "a new Rule 9 (after Rule 8 probe_table, per BC-2.16.009)"; D5 manifest row added for BC-2.16.009 Rule 9 authorship. MED-1: phantom symbol `construct_plugin_auth_providers` replaced with real symbol `validate_and_construct_auth_providers` in D2 body and Rationale (two sites). MED-2: D2 Armis TOML block rewritten — removed `[sensor]` table header, replaced scalar `credential_ref = "secret_key"` with `[[credential_refs]]` block + `name = "secret_key"` matching real SensorSpec grammar; D3-a/D3-d `credential_ref` prose corrected to reference `[[credential_refs]]` entry; D5 normative Cyberint instruction updated from scalar `credential_ref = "access_token"` to `[[credential_refs]]` entry with `name = "access_token"`. OBS-1: D5 manifest row added for `error-taxonomy.md` E-SPEC-027 dual-template registration (deferred to Wave-A engine story). |
