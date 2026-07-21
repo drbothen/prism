@@ -4,8 +4,8 @@ adr_id: "ADR-028"
 title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs"
 status: Proposed
 date: "2026-05-20"
-modified: "2026-07-21"  # v1.18 HIGH-2 (FIX-BURST): §D2 Armis blockquote, §D13 env-var blockquote, §D13 Armis consistency-table blockquote corrected custom_via_plugin→token_exchange + native DeclarativeHttpAuthProvider; §D13 oauth2_client_credentials row corrected PluginAuthProvider(WASM)→DeclarativeHttpAuthProvider(native) per ADR-054 D2/D5; amended_by back-ref + ADR-054 added to related_adrs
-version: "1.22"
+modified: "2026-07-21"  # see §Changelog top row
+version: "1.23"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -657,6 +657,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.23 | 2026-07-21 | architect | FIX-BURST 9 (OBS-1): `modified:` frontmatter inline comment `# v1.18 HIGH-2 (FIX-BURST): …` removed — version-pinned narrative in frontmatter fields is the same self-cite volatility class closed at PG-ADR-STATUS-SELFCITE-001; replaced with non-volatile `# see §Changelog top row`. POL-29 class sweep: only this file carried the defect in the Wave-A perimeter; full decisions/ sweep confirms no other frontmatter-field version-pinned inline comments exist. |
 | 1.22 | 2026-07-21 | architect | FIX-BURST 7 (OBS-1): §D2 Armis supersession blockquote and §D13 env-var blockquote + §D13 Armis consistency-table blockquote — scalar `credential_ref = "secret_key"` replaced with canonical `[[credential_refs]]` block form with `name = "secret_key"` (3 occurrences; `credential_ref` is the old scalar grammar; `[[credential_refs]]` with `name =` is the canonical array-of-tables form per ADR-054 §D3). POL-29 sweep: zero live scalar `credential_ref = "secret_key"` hits remain in live content sections. `modified` comment updated. |
 | 1.21 | 2026-07-21 | architect | OBS-1: §Status stale self-cite corrected — "current frontmatter v1.10 per §Changelog" replaced with non-volatile form "current version per §Changelog top row" (permanently retires this staleness class). |
 | 1.20 | 2026-07-21 | architect | MED-2: §D13 oauth2_client_credentials consistency-table row updated — `PluginAuthProvider` (WASM) path marked spec-load-rejected per ADR-054 D10(b) (E-SPEC-028(b) unconditional rejection for auth_type ∈ {oauth2_client_credentials, token_exchange} + auth_plugin present); `DeclarativeHttpAuthProvider` (native) is the sole live path; "when [auth_acquisition] present" conditional framing removed (superseded by D10(b)'s unconditional rule). Frontmatter `amended_by` framing updated to reflect D10(b) unconditional rejection. |
