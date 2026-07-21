@@ -5,7 +5,7 @@ title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2Cli
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.9"
+version: "0.10"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -34,16 +34,9 @@ wave_scope: "Wave-A — applies to Armis token-exchange (new sensor) and CrowdSt
 
 ## Status
 
-Proposed 2026-07-20, v0.1 (initial draft per D-1895); revised v0.2 (2026-07-20) — step 9A
-retargeting (CRIT-1), per-org token_path schema (HIGH-1), complete retirement manifest (HIGH-2),
-dispatch table corrections (MED-1/MED-2), supersedes→amends (MED-3). Revised v0.3 (2026-07-21)
-— adversarial pass closures: D11 retirement manifest extended with Cargo.toml test block, second
-ci.yml self-guard, bc_2_16_013_crowdstrike_multiregion.rs D-747-lock retarget, demo-setup/run.sh,
-t13-preflight-audit.py, DEMO-RUNBOOK.md; D2/D4 form-body field order corrected to match plugin;
-BC-2.16.009 Rule 10 assigned (Rule 9 reserved by ADR-053); related_bcs_planned split; volatile
-~line anchors replaced with behavioral anchors. Revised v0.4 (2026-07-21) — Wave-A cascade re-gate closures: BC-2.16.014 anchoring corrected (planned declarative-auth BC was mis-anchored to non-existent SS-23; retargeted to SS-16); D11 manifest extended with `tests/fixtures/README.md`, `test_F_LP7_MED_001_host_dispatch_acquire_token_component_model_path_emits_audit_event` test, and doc-hygiene-sweep row for five preserved-infrastructure files. This ADR amends ADR-023 §Rule 4 and ADR-026 §D3
-(partial sub-section changes; not supersessions). It is a companion to ADR-053 (Wave-A Sensor
-Fidelity Remediation). Awaiting human approval gate before implementation begins.
+Proposed 2026-07-20. Current version per §Changelog. Amends ADR-023 §Rule 4 (standard HTTP token-acquisition flows do not require WASM plugins; `custom_via_plugin` preserved for genuinely non-standard auth) and ADR-026 §D3 (partial — `AuthType` gains `token_exchange` as 6th variant). Companion to ADR-053. Awaiting human approval gate before implementation begins.
+
+Current contract highlights: D1 adds `token_exchange` as the 6th AuthType variant; E-SPEC-028(f) validates `client_id`/`client_secret` credential refs for `oauth2_client_credentials`; E-SPEC-028(b) unconditionally rejects `auth_plugin` for declarative auth_types per D10(b) — no "when `[auth_acquisition]` present" conditional. D2 makes `oauth2_client_credentials` native via `DeclarativeHttpAuthProvider`. D5 retires `crowdstrike-oauth2.prx`. D11 amendment manifest includes 5 downstream "5→6-value" BC count corrections (BC-2.01.016 §Related BCs, BC-2.01.017 §Preconditions/§P3/§Related BCs, BC-2.16.009 §Validation Rules). ADR-054 implementation stories land AFTER ADR-053's standalone Wave-A engine story (Rule 9/E-SPEC-027 must be registered before Rule 10/E-SPEC-028 — see §D7). See §Changelog for full revision history.
 
 ---
 
@@ -365,6 +358,14 @@ Rule 10, see D10 E-SPEC-028) before step 9A. By the time step 9A runs, specs are
 > `[auth_acquisition]` coherence check is therefore Rule 10 — the next available rule number in
 > BC-2.16.009's sequential rule set.
 
+> **Story sequencing dependency:** ADR-054's CrowdStrike-retirement / Armis-token-exchange
+> implementation stories MUST merge AFTER the ADR-053 standalone Wave-A engine story that
+> delivers `SensorSpec::header_scheme` and authors BC-2.16.009 Rule 9 / E-SPEC-027. Rule 10
+> (this ADR's `[auth_acquisition]` coherence check, E-SPEC-028) runs in the same
+> `BC-2.16.009` validation pass and depends on the `spec_parser.rs` extension authored in
+> that engine story. The story-writer MUST encode this as an explicit story-level merge
+> dependency in the Wave-A dependency graph.
+
 ### D8 — BC-2.16.014: Declarative Auth Acquisition Token Lifecycle
 
 > **[PLANNED — Wave-A spec evolution]** `BC-2.16.014` does not yet exist. It will be authored
@@ -669,6 +670,7 @@ do not proceed.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.10 | 2026-07-21 | architect | LOW-2: §Status refreshed to current-version highlights (6th variant, E-SPEC-028(f)/(b), D5 retirement, 5→6-value downstream BCs, story sequencing dependency). OBS-2: explicit sequencing coordination note added to §D7 — ADR-054 stories land AFTER ADR-053 standalone engine story (Rule 9/E-SPEC-027 before Rule 10/E-SPEC-028). |
 | 0.9 | 2026-07-21 | architect | HIGH-1: E-SPEC-028(h) → E-SPEC-028(f) in §D2 (credential-ref rule for oauth2_client_credentials; D10 enumerates only (a)–(g); (f) is "oauth2_client_credentials missing required credential_refs client_id and client_secret"). MED-1: BC-2.01.017 added to `related_bcs` frontmatter (3 D11 amendment rows target BC-2.01.017; was missing). LOW-1: D11 ADR-053 D2 and ADR-053 Rationale rows marked COMPLETED (ADR-053 v0.7); stale §Why custom_via_plugin anchor updated to current heading. MED-2: D11 amendment-instruction row for ADR-028 §D13 updated — removed "when [auth_acquisition] present" conditional framing; substituted D10(b) unconditional spec-load-rejection framing (E-SPEC-028(b)). |
 | 0.8 | 2026-07-21 | architect | HIGH-1: D11 manifest extended with 5 downstream BC amendment rows for "5-value → 6-value" auth_type-set count corrections triggered by D1 (token_exchange as 6th variant): BC-2.01.016 §Related BCs, BC-2.01.017 §Preconditions, BC-2.01.017 §P3 Auth Type Dispatch, BC-2.01.017 §Related BCs, BC-2.16.009 §Validation Rules Schema Validation auth_type rule — all confirmed live normative sites by POL-29 grep sweep. |
 | 0.7 | 2026-07-21 | architect | OBS-1: D11 `.config/nextest.toml` retirement row extended to cover the profile-documentation comment enumerating `crowdstrike_oauth2_plugin_tests` (behavioral anchor: the profile-documentation comment enumerating `crowdstrike_oauth2_plugin_tests`) — prior row covered only the four filter-group expression occurrences. |

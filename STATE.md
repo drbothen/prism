@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.455"
+version: "8.456"
 producer: state-manager
 timestamp: 2026-07-21T14:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.80"
 story_index_version: "v2.719"
-arch_index_version: "2.209"
+arch_index_version: "2.210"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1907 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1907 adversary pass-5 fix-burst (Wave-A re-gate cascade). ADR-053 v0.14 + ADR-054 v0.9 + ADR-028 v1.20: HIGH-1 (phantom E-SPEC-028(h) cite → (f) in ADR-054 §D2); MED-1 (related_bcs omissions: BC-2.01.017 in ADR-054, BC-2.16.009 in ADR-053); MED-2 (ADR-028 §D13 live-WASM framing → spec-load-rejected per D10(b)); LOW-1 (ADR-054 D11 ADR-053 rows marked COMPLETED + stale anchor updated); OBS-1 ({ORG}→{ID} placeholder harmonization ×4 in ADR-053 per ADR-032 canonical). Generalization probe: PASS (2nd consecutive). ARCH-INDEX v2.208→v2.209. Streak 0/3; next fresh adversary pass on new frozen HEAD. trajectory-tail →3→5→10→10 STATE v8.454→v8.455"
+current_step: "D-1908 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1908 adversary pass-6 fix-burst (Wave-A re-gate cascade). ADR-053 v0.15 + ADR-054 v0.10 + ADR-026 v1.36 + ADR-028 v1.21: LOW-1 (ADR-053 corrupted v0.14 changelog row restored to {ORG}→{ID} prose); LOW-2 (ADR-053 §Status refreshed; ADR-054 §Status refreshed); OBS-1 (ADR-026 §Status self-cite → non-volatile; ADR-028 §Status self-cite → non-volatile [PG-ADR-STATUS-SELFCITE-001]); OBS-2 (ADR-054 §D7 story-sequencing note — ADR-054 impl merges AFTER Wave-A engine story delivering Rule 9/E-SPEC-027). Generalization probe: PASS (3rd consecutive). CLEAN(PR-merge)=yes CLEAN(strict)=no. Substantive convergence reached. ARCH-INDEX v2.209→v2.210. Streak 0/3; next fresh adversary pass on new frozen HEAD targets CLEAN(strict) 1/3. trajectory-tail →5→10→10→4 STATE v8.455→v8.456"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 433 lines (wc-l)
+  STATE.md SIZE BUDGET: 434 lines (wc-l)
   margin from soft-target (200): +233 lines over | margin from actual (500): 67 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-21 D-1907 — ADR-053 v0.14 + ADR-054 v0.9 + ADR-028 v1.20 pass-5 fix-burst: HIGH-1 E-SPEC-028(h)→(f) phantom cite (ADR-054 §D2); MED-1 related_bcs omissions (BC-2.01.017 in ADR-054, BC-2.16.009 in ADR-053); MED-2 ADR-028 §D13 live-WASM framing → spec-load-rejected per ADR-054 D10(b); LOW-1 ADR-054 D11 ADR-053 rows COMPLETED + stale anchor; OBS-1 {ORG}→{ID} ×4 in ADR-053. Generalization probe: PASS (2nd consecutive). ARCH-INDEX v2.208→v2.209. trajectory-tail →3→5→10→10 STATE v8.454→v8.455 |
+| **Last Updated** | 2026-07-21 D-1908 — ADR-053 v0.15 + ADR-054 v0.10 + ADR-026 v1.36 + ADR-028 v1.21 pass-6 fix-burst: LOW-1 ADR-053 corrupted changelog row restored; LOW-2 §Status refreshed (ADR-053 + ADR-054); OBS-1 §Status self-cites → non-volatile (ADR-026 + ADR-028) [PG-ADR-STATUS-SELFCITE-001]; OBS-2 ADR-054 §D7 story-sequencing note. Generalization probe: PASS (3rd consecutive). CLEAN(PR-merge)=yes CLEAN(strict)=no. ARCH-INDEX v2.209→v2.210. trajectory-tail →5→10→10→4 STATE v8.455→v8.456 |
 
 ## Active Objective (North Star)
 
@@ -320,6 +320,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1905 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1905 adversary re-gate pass 3 fix-burst (Wave-A re-gate cascade). NOT CLEAN(strict) — HIGH-1 (ADR-053 §D2 + Rationale cited boot.rs::validate_and_construct_auth_providers as construction site; that function is plugin-only; re-anchored to step9a_populate_adapter_registry at both sites with plugin-only clarification), HIGH-2 (ADR-053 Armis TOML block used token_url absolute literal; corrected to token_path relative literal + base_url sensor-level comment per ADR-054 §D3 per-org derivation contract), OBS-1 (ADR-054 D11 nextest.toml retirement row covered file removal only; extended to cover the profile-documentation comment enumerating crowdstrike_oauth2_plugin_tests). Fix-burst applied: ADR-053 v0.12 + ADR-054 v0.7. ARCH-INDEX v2.206→v2.207. Streak 0/3; next fresh adversary pass on new frozen HEAD per BC-5.39.001. trajectory-tail →3→5→10→10 STATE v8.452→v8.453 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1906 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1906 adversary pass-4 fix-burst (Wave-A re-gate cascade). Adversary re-gate pass 4 on eeab745e: NOT CLEAN(strict) — HIGH-1 (5-value→6-value auth_type-set count unmanifested at 3 BC sites; POL-29 sweep found 5 total sites beyond the 3 the adversary named; ADR-054 D11 manifest extended with 5 downstream BC amendment rows: BC-2.01.016 §Related BCs, BC-2.01.017 §Preconditions + §P3 + §Related BCs, BC-2.16.009 §Validation Rules), OBS-1 (ADR-053 D5 manifest BC-2.01.017 §P2 row stale Armis-conflict framing; rationale rewritten to mechanism-level replacement framing — token_exchange 6th variant has no §P2 arm; CustomViaPlugin hardcoded Bearer incoherent with header_scheme=raw generally). Generalization probe (human directive 2026-07-21): PASS — no sensor-conditional engine behavior in decided mechanism. Fix-burst applied: ADR-053 v0.13 + ADR-054 v0.8. ARCH-INDEX v2.207→v2.208. Streak 0/3; next fresh adversary pass on new frozen HEAD per BC-5.39.001. trajectory-tail →3→5→10→10 STATE v8.453→v8.454 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1907 | state-manager | 2026-07-21 | Adversary re-gate pass 5 on 101a52e9: NOT CLEAN(strict) — HIGH-1 (phantom E-SPEC-028(h) cite → (f) in ADR-054 §D2), MED-1 (related_bcs omissions: BC-2.01.017 in ADR-054, BC-2.16.009 in ADR-053), MED-2 (ADR-028 §D13 live-WASM framing → spec-load-rejected per ADR-054 D10(b)), LOW-1 (ADR-054 D11 ADR-053 rows marked COMPLETED + stale anchor updated), OBS-1 ({ORG}→{ID} placeholder harmonization ×4 in ADR-053 per ADR-032 canonical). Generalization probe: PASS (2nd consecutive). Fix-burst applied: ADR-053 v0.14 + ADR-054 v0.9 + ADR-028 v1.20. ARCH-INDEX v2.208→v2.209. Streak 0/3; next fresh adversary pass on new frozen HEAD. STATE v8.454→v8.455 | wave-5-e-demo-fidelity | 2026-07-21 |
+| D-1908 | state-manager | 2026-07-21 | Adversary re-gate pass 6 on 4ffd362a: CLEAN(PR-merge)=yes, CLEAN(strict)=no — 2 LOW + 2 OBS doc-hygiene only (corrupted changelog row, §Status staleness, stale frontmatter self-cites [process-gap PG-ADR-STATUS-SELFCITE-001], implicit story ordering). Substantive convergence reached; generalization probe PASS (3rd consecutive). Fix-burst applied: ADR-053 v0.15 + ADR-054 v0.10 + ADR-026 v1.36 + ADR-028 v1.21; self-cites made non-volatile. Streak 0/3; next fresh adversary pass on new frozen HEAD targets CLEAN(strict) 1/3. ARCH-INDEX v2.209→v2.210. STATE v8.455→v8.456 | wave-5-e-demo-fidelity | 2026-07-21 |
 
 ## Skip Log
 

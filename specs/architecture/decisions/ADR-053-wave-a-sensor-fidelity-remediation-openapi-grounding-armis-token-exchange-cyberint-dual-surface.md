@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.14"
+version: "0.15"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -32,19 +32,9 @@ wave_scope: "Wave-A only (grounding order + sensor auth models); transport/TLS (
 
 ## Status
 
-Proposed 2026-07-20. v0.9 (2026-07-21): Wave-A cascade re-gate closures — BC-2.16.014 anchoring corrected
-(planned declarative-auth BC was mis-anchored to non-existent SS-23; retargeted to SS-16 as BC-2.16.014); D2 header corrected to "Native
-DeclarativeHttpAuthProvider"; CrowdStrike Alerts-v2 Alerts:READ scope prerequisite added to D1.
-v0.8 (2026-07-20): LOW-3 E-SPEC-027 coherence matrix prose aligned. v0.7 (D-1895): D2 rewritten
-— Armis uses `token_exchange` auth_type + `[auth_acquisition]` block per companion ADR-054;
-`custom_via_plugin` + plugin approach removed. Coherence matrix updated. ADR-054 added to
-`related_adrs`. D5 manifest updated: BC-2.01.008 amendment reflects `token_exchange` native
-provider; BC-2.16.014 authoring row and E-SPEC-028 registration row added.
-v0.6: pass-5 adversary remediation + full citation audit.
-Awaiting human approval gate before proceeding to spec/BC work.
-Authored by architect under D-1889 authorization. Locks three Wave-A architectural corrections:
-D1 (OpenAPI grounding order), D2 (Armis token-exchange + `header_scheme` injection), D3 (Cyberint
-dual-surface split with both surfaces CONFIRMED cookie auth).
+Proposed 2026-07-20. Current version per §Changelog. Awaiting human approval gate before proceeding to spec/BC work. Authored by architect under D-1889 authorization.
+
+Locks three Wave-A architectural corrections: D1 (OpenAPI grounding order — vendor OpenAPI as ground truth; DTU follows spec), D2 (Armis `token_exchange` + `[auth_acquisition]` block + `header_scheme = "raw"` via native `DeclarativeHttpAuthProvider` per ADR-054; construction dispatch site is `step9a_populate_adapter_registry` in `crates/prism-bin/src/spec_driven_adapter.rs`; canonical TOML field is `token_path`, not `token_url`), D3 (Cyberint dual-surface split — both surfaces CONFIRMED static-cookie auth). D5 amendment manifest: BC-2.01.017 §P2 `header_scheme`-driven dispatch replaces auth_type-keyed injection table (mechanism-level replacement, not per-arm patch — `token_exchange` as 6th variant has no arm; `CustomViaPlugin` hardcoded Bearer is incoherent with `header_scheme = "raw"` generally). See §Changelog for full revision history.
 
 ---
 
@@ -702,7 +692,8 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
-| 0.14 | 2026-07-21 | architect | OBS-1: env-var placeholder harmonized — `{ID}` → `{ID}` at all ADR-053 occurrences (Armis and Cyberint sites; D5 manifest row; per ADR-032 canonical `{ID}` token). MED-1: BC-2.16.009 added to `related_bcs` frontmatter (D5 manifest targets Rule 9 authoring in BC-2.16.009; was missing from related_bcs). |
+| 0.15 | 2026-07-21 | architect | LOW-1: v0.14 changelog row description corrected — replace_all corrupted `{ORG} → {ID}` to `{ID} → {ID}` (no-op); restored to `{ORG} → {ID}`. LOW-2: §Status refreshed to current-version highlights (construction dispatch site, token_path schema, header_scheme mechanism-level replacement; non-volatile "current version per §Changelog" form). |
+| 0.14 | 2026-07-21 | architect | OBS-1: env-var placeholder harmonized — `{ORG}` → `{ID}` at all ADR-053 occurrences (Armis and Cyberint sites; D5 manifest row; per ADR-032 canonical `{ID}` token). MED-1: BC-2.16.009 added to `related_bcs` frontmatter (D5 manifest targets Rule 9 authoring in BC-2.16.009; was missing from related_bcs). |
 | 0.13 | 2026-07-21 | architect | OBS-1: D5 manifest BC-2.01.017 §P2 dispatch table row rationale rewritten — pre-v0.7 "eliminate spec-vs-spec conflict with D2's header_scheme=raw for Armis via CustomViaPlugin arm" framing replaced with current truth: mechanism-level replacement driven by (1) token_exchange (6th variant, no §P2 arm) and (2) CustomViaPlugin hardcoded Bearer incoherent with header_scheme=raw generally; actionable instruction (delegate to header_scheme) unchanged. |
 | 0.12 | 2026-07-21 | architect | HIGH-1 (x2): re-anchor both `validate_and_construct_auth_providers` construction-site claims to `step9a_populate_adapter_registry` in `crates/prism-bin/src/spec_driven_adapter.rs` — the real auth_type-keyed dispatch site; clarify `validate_and_construct_auth_providers` (boot.rs) is plugin-only. HIGH-2: TOML block corrected — `token_url = "${env.ARMIS_INSTANCE_URL}/api/v1/access_token/"` replaced with `token_path = "/api/v1/access_token/"` (relative) + `# base_url` comment at sensor level per ADR-054 §D3 canonical schema. |
 | 0.11 | 2026-07-21 | architect | MED-2: `related_bcs_planned: [BC-2.16.014]` added to frontmatter; `[PLANNED]` markers added at D2 VP-assignment BC-2.16.014 citation and D5 manifest BC-2.16.014 row — mirrors ADR-054's POL-21/22 phantom-anchor hygiene. OBS-1: D2 coherence matrix `custom_via_plugin` row "Canonical value" cell corrected from sensor-specific Armis parenthetical to sensor-agnostic `"raw" or "bearer" per plugin declaration`. |

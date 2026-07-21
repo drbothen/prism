@@ -5,7 +5,7 @@ title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Au
 status: Proposed
 date: "2026-05-18"
 modified: "2026-07-20"
-version: "1.35"
+version: "1.36"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
@@ -33,7 +33,7 @@ wiring_deferred_to: null
 
 ## Status
 
-Proposed 2026-05-15, v1.0 (initial proposal version; current frontmatter v1.32 per §Changelog). Governs the PLUGIN-PREREQ-E delivery of the SensorAuth unsealing
+Proposed 2026-05-15, v1.0 (initial proposal version; current version per §Changelog top row). Governs the PLUGIN-PREREQ-E delivery of the SensorAuth unsealing
 (Constraint C5 per ADR-023 §Architectural Constraints). Implementation is tracked by
 S-PLUGIN-PREREQ-E.
 
@@ -513,6 +513,7 @@ modes and security implications. The open trait approach reuses the existing typ
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.36 | 2026-07-21 | architect | OBS-1: §Status stale self-cite corrected — "current frontmatter v1.32 per §Changelog" replaced with non-volatile form "current version per §Changelog top row" (permanently retires this staleness class). |
 | 1.35 | 2026-07-20 | architect | D-1895 ADR-054 bidirectional backref: `amended_by` updated to include ADR-054 (§D3 partial — `token_exchange` variant added to `AuthType` closed enum; `oauth2_client_credentials` reclassified plugin→native `DeclarativeHttpAuthProvider` when `[auth_acquisition]` present per ADR-054 D1/D2). §D3 amendment note added. `modified` date advanced to 2026-07-20. Changelog reordered newest-first (pre-existing ascending-order violation corrected in same burst). |
 | 1.34 | 2026-05-21 | architect | (D-FB-IMPL-5-ADR-026-PIN) BC-2.16.002 cite-pin advance v1.36→v1.37 per FB-IMPL-5 PO burst a2ef75e1. POL-29 sibling-sweep closure for ADR-026 within-file sites. No semantic change. Recurrence: same pattern as f9f6feed (v1.32→v1.33) — this is the 2nd time this cite-pin propagation cascaded through architect. |
 | 1.33 | 2026-05-21 | architect | (D-FB-IMPL-1-ADR-026-PIN) BC-2.16.002 cite-pin advance v1.35→v1.36 per FB-IMPL-1 PO burst b3989982 catalog row addition. POL-29 sibling-sweep closure for ADR-026 within-file sites. No semantic change. |
