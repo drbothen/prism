@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.447"
+version: "8.448"
 producer: state-manager
-timestamp: 2026-07-21T10:00:00Z
+timestamp: 2026-07-21T11:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1899 (2026-07-21): FILE-SIZE GOVERNANCE PARKED — human adjudicated production-grade stance (Track+ratchet+schedule) 2026-07-21; CLAUDE.md §File size updated (no gate today=tracked debt; soft ~800; proposed 1,500-line ratchet gate w/ day-1 allowlist of 12 giants; oversized files=scheduled debt not cohesion exceptions); TD-DECOMP-RATCHET-001 (P2) + TD-DECOMP-EPIC-001 (P3 umbrella, 12 files) filed in tech-debt-register.md v2.25; planning/file-size-decomposition-plan-2026-07-21.md persisted. Story materialization + gate implementation PARKED — feature-ordered AFTER test-soc findings remediation per human priority directive 2026-07-21. Origin: PG-ARCHITECT-CLAUDEMD-CONTAMINATION-001. PRIORITY = test-soc findings remediation (Wave-A ADR-053/054 convergence in flight; streak 0/3). trajectory-tail →3→5→10→10 STATE v8.446→v8.447"
+current_step: "D-1900 (2026-07-21): SESSION WRAP — Wave-A ADR convergence mid-cascade; streak 0/3 on a8464b71 (NOT CLEAN strict); OPEN findings to close in ADR-054 v0.4+ADR-053 v0.9: HIGH-1 BC-2.23.001 mis-anchors SS-23 (retarget SS-16), HIGH-2 ADR-053 D2 header still WASM (fix to Native), MED-1 tests/fixtures/README missing D11, LOW-1 plugin/mod.rs crowdstrike-oauth2 test missing D11, OBS-1 doc-hygiene-sweep row; NEXT: dispatch FRESH architect (NOT a5234272-RETIRED) for v0.4+v0.9 → state burst → adversary re-gate → strict 3-CLEAN (BC-5.39.001) → human Wave-A approval gate (053+054+amended 023/026). PRIORITY = test-soc findings remediation (4-wave plan; 8 CRITICALs). RESUME SNAPSHOT D-1900 authored. trajectory-tail →3→5→10→10 STATE v8.447→v8.448"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,8 +77,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 425 lines (wc-l)
-  margin from soft-target (200): +224 lines over | margin from actual (500): 76 lines remaining
+  STATE.md SIZE BUDGET: 426 lines (wc-l)
+  margin from soft-target (200): +225 lines over | margin from actual (500): 75 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-21 D-1899 — FILE-SIZE GOVERNANCE PARKED: production-grade stance adopted; TD-DECOMP-RATCHET-001 (P2) + TD-DECOMP-EPIC-001 (P3 umbrella, 12 files) filed; planning/file-size-decomposition-plan-2026-07-21.md persisted; PARKED post-Wave-A; PRIORITY test-soc remediation. trajectory-tail →3→5→10→10 STATE v8.446→v8.447 |
+| **Last Updated** | 2026-07-21 D-1900 — SESSION WRAP: Wave-A ADR convergence mid-cascade (streak 0/3 on a8464b71); RESUME SNAPSHOT D-1900 authored; 5 open findings for ADR-054 v0.4+ADR-053 v0.9; PRIORITY test-soc findings remediation (4-wave, 8 CRITICALs). trajectory-tail →3→5→10→10 STATE v8.447→v8.448 |
 
 ## Active Objective (North Star)
 
@@ -312,6 +312,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1897 | state-manager | 2026-07-20 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — ADR-054 v0.2 / ADR-053 v0.8 ADVERSARY REMEDIATION BURST. Fresh code-grounded adversary pass on e5f94eb8 (native-auth reshape): NOT CLEAN(strict) 1 CRIT + 2 HIGH + 3 MED + 3 LOW + 1 OBS. CRIT-1: migration mis-targeted validate_and_construct_auth_providers (plugin-provider-only) instead of step9a_populate_adapter_registry (real auth_type dispatch) — as written, removing crowdstrike auth_plugin would de-register CrowdStrike (AdapterNotFound). HIGH-1: absolute token_url from global env broke per-org/multi-region base_url overlays — changed to relative token_path derived per-org from resolved base_url at step 9A. HIGH-2: retirement manifest missed live crowdstrike-oauth2 refs (Justfile, ci.yml build+self-guard, nextest, plugin tests, helpers staging) — CI would hard-fail; manifest completed. MED-1 phantom ApiKeyAuthProvider removed — api_key→other=>E-SPEC-012 skip; MED-2 BearerStaticCredentialAuthProvider name corrected; MED-3 frontmatter supersedes→null, amends:[ADR-023,ADR-026]; LOW-1 softened exactly-claim; LOW-2 VP-159 TTL saturating_sub dead .max(1) removed; LOW-3 (ADR-053 v0.8) E-SPEC-027 allowed_set prose +token_exchange→bearer,raw; OBS-1 crate-count 26→25 narrative + CLAUDE.md human-follow-up added to manifest. Positives confirmed: E-SPEC-028 next-free, AuthType enum match, version propagation. ARCH-INDEX v2.201→v2.202. streak 0/3. NEXT: adversary fresh-context pass on committed ADR-054 v0.2 + ADR-053 v0.8 toward BC-5.39.001 3-CLEAN, then human approval gate on the Wave-A ADR set (053+054+amended 023/026). trajectory: CrowdStrike-de-registration CRIT caught pre-implementation. trajectory-tail →3→3→5→10 STATE v8.444→v8.445 | wave-5-e-demo-fidelity | 2026-07-20 |
 | D-1898 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — ADR-054 v0.3 RE-GATE REMEDIATION BURST (2026-07-21). Fresh code-grounded adversary pass on af6b611d (ADR-054 v0.2): core design HOLDS (CRIT-1 step9a retarget, HIGH-1 per-org token_path, MED-1/2/3, LOW-2/3 confirmed by adversary); NOT CLEAN(strict) 5 HIGH + 2 MED + 1 LOW + 2 process-gaps — all manifest-completeness/header residue, closed in v0.3: 6 missed crowdstrike-oauth2 retirement refs enumerated (prism-spec-engine/Cargo.toml [[test]] block + async-trait dev-dep; ci.yml 2nd self-guard F-MCPRS-PRL14-LOW-001 PASS grep; bc_2_16_013_crowdstrike_multiregion.rs D-747-LOCKED auth_plugin assertion → retarget to auth_acquisition.token_path; scripts/demo-setup.sh + demo-run.sh; scripts/t13-preflight-audit.py [A20] plugin_status probe; docs/DEMO-RUNBOOK.md); HIGH-5 supersedes→amends fixed in D1/D2 section headers + Source/Origin (frontmatter was already amends); LOW-1 form-body order client_id&client_secret&grant_type; LOW-2 related_bcs_planned:[BC-2.23.001] split; OBS-1 ADR-054 BC-2.16.009 auth-coherence check assigned explicit Rule 10 (ADR-053 reserves Rule 9); OBS-2 D11 manifest volatile ~line anchors de-volatilized to behavioral anchors per TD-VSDD-091. PG-ARCHITECT-CLAUDEMD-CONTAMINATION-001 [HIGH] registered (reused architect agent made unauthorized CLAUDE.md edit cross-contaminated from ferrochain; working-tree only, never committed; contaminated agent retired; lessons appended to cycles/wave-5-e-demo-fidelity/lessons.md). ARCH-INDEX v2.202→v2.203. streak 0/3. NEXT: adversary fresh pass on committed v0.3 toward BC-5.39.001 3-CLEAN, then human approval gate on Wave-A ADR set (053+054+amended 023/026). trajectory-tail →3→5→10→10 STATE v8.445→v8.446 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1899 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — FILE-SIZE GOVERNANCE PARKED. Human adjudicated production-grade file-size stance (Track+ratchet+schedule) 2026-07-21, superseding the prior passive stance. CLAUDE.md §File size updated to truthful+active (no gate today = tracked debt; soft ~800; proposed 1,500-line ratchet gate w/ day-1 allowlist of the 12 giants; oversized files = scheduled debt, not cohesion exceptions) via PR #230 (devops burst). TD-DECOMP-RATCHET-001 (P2) filed: no file-size CI gate; just check-file-sizes + .factory/file-size-allowlist.toml + S-DECOMP-RATCHET-GATE anchor post-Wave-A. TD-DECOMP-EPIC-001 (P3 umbrella, 12 files) filed: engine.rs(17,041)/server.rs(11,429)/materialization.rs(7,083)/error_mapping.rs(5,855)/pipeline.rs(4,578)/boot.rs(4,023)/ast.rs(3,560)/infusion_udf.rs(3,170)/spec_driven_adapter.rs(2,961)/error.rs(2,478)/filter_parser.rs(2,389)/prism_describe.rs(2,208); per-file split-boundary hypotheses + epic tree persisted to planning/file-size-decomposition-plan-2026-07-21.md. tech-debt-register.md v2.23→v2.25 (5 pre-existing pipe violations fixed in-scope). Story materialization + gate implementation PARKED — feature-ordered AFTER test-soc findings remediation per human priority directive 2026-07-21. Origin: PG-ARCHITECT-CLAUDEMD-CONTAMINATION-001. trajectory-tail →3→5→10→10 STATE v8.446→v8.447 | wave-5-e-demo-fidelity | 2026-07-21 |
+| D-1900 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — SESSION WRAP D-1900. Wave-A ADR convergence mid-cascade: last committed a8464b71 (ADR-054 v0.3 + ADR-053 v0.8 + ADR-026 v1.35 + ADR-023 v1.20 + ARCH-INDEX v2.203); streak 0/3 adversary re-gate NOT CLEAN(strict). 5 open findings for ADR-054 v0.4+ADR-053 v0.9: HIGH-1 BC-2.23.001 mis-anchors to non-existent SS-23 (retarget BC-2.16.NNN, sweep ADR-054 related_bcs_planned+D8/D9/D11 + ADR-053 D5); HIGH-2 ADR-053 D2 header still "Token-Exchange via WASM Plugin" (fix to "via Native DeclarativeHttpAuthProvider"); MED-1 tests/fixtures/README.md missing from D11 retirement manifest; LOW-1 plugin/mod.rs crowdstrike-oauth2.prx #[ignore]/todo!() test (~line 1732) missing from D11; OBS-1 doc-hygiene-sweep row needed (spec_parser.rs:460 auth_plugin example, plugin_auth_provider.rs, error.rs, plugin/discovery.rs, plugin/host_functions.rs WIT examples). NEXT-ACTION: FRESH architect (NOT a5234272-RETIRED/contaminated) for v0.4+v0.9 → state burst → adversary re-gate → strict 3-CLEAN → human Wave-A gate (053+054+amended 023+026). THEN Wave-A spec evolution: BC-2.16.NNN + VP-159 + story decomp + TDD. PRIORITY = test-soc findings remediation (4-wave plan A/B/C/D; 8 CRITICALs). Open PRs: #229 (DEFECT-DEMOSETUP-CWD-001 @ec4379b5 PUSHED), #230 (CLAUDE.md file-size @426c77cd awaiting HUMAN merge). Develop CI stuck 'queued' on 7fef57da. DRIFT-LOCAL-DEVELOP-FF-001 OPEN. §RESUME SNAPSHOT D-1900 authored (supersedes D-1888). trajectory-tail →3→5→10→10 STATE v8.447→v8.448 | wave-5-e-demo-fidelity | 2026-07-21 |
 
 ## Skip Log
 
@@ -412,14 +413,14 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1888 — 2026-07-20 — PRIORITY PIVOT + SESSION WRAP; develop@7fef57da; STATE v8.436)
+## Session Resume Checkpoint (D-1900 — 2026-07-21 — SESSION WRAP; Wave-A ADR mid-cascade; develop@e116a587 local/7fef57da origin; STATE v8.448)
 
-**RESUME IN ONE BREATH:** S-REL-001 SHIPPED (PR #228 squash-merged @7fef57da; 3-CLEAN strict on e16f5e6a). PRIORITY PIVOT (human-directed 2026-07-20): NEXT session fixes LIVE-DEMO/DTU findings corpus FIRST (10 files at `/Users/jmagady/Dev/test-soc/demo-soc/findings/`), DTU remediation grounds against `.factory/reference/api-specs/`; Wave F-A RESUMES AFTER. **VERY NEXT ACTION:** (1) `gh run list --branch develop` — verify CI on 7fef57da green; (2) read findings README + 9 docs, triage defects/stories. **OPEN DECISIONS:** staged ci.yml/e2e.yml (AC-007 S-MAINT-CIGATE-REMEDIATION-001 BLOCKED; human review). v1.0.0-rc.1 gated on full Wave F-A (D-1875).
+**RESUME IN ONE BREATH:** Wave-A ADR convergence mid-cascade on auth/grounding ADRs. NEXT SESSION FIRST re-read `/Users/jmagady/Dev/test-soc/demo-soc/findings/` (10 files) to reground + cross-check `.factory/planning/findings-remediation-2026-07-20/triage-capture.md` (D-1889); then dispatch a FRESH architect (NOT a5234272-RETIRED) for ADR-054 v0.4 + ADR-053 v0.9 to close 5 open re-gate findings (HIGH-1 BC-2.23.001 SS-23 misanchor; HIGH-2 ADR-053 D2 header still WASM; MED-1 fixtures README; LOW-1 plugin/mod.rs test; OBS-1 doc-hygiene row), commit, and continue adversary cascade toward strict 3-CLEAN → human Wave-A approval gate.
 
-**HEADS (verified 2026-07-20 D-1888):**
-- origin/develop: `7fef57da` — PUSHED; LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001)
+**HEADS (verified 2026-07-21 D-1900):**
+- origin/develop: `7fef57da` — PUSHED; LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001, do NOT auto-FF)
 - factory-artifacts: `git -C .factory log -1 --format='%h %s'` (do not hard-code)
 - `.worktrees/fix-demosetup-cwd`: fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5` — PUSHED; PR #229 OPEN
-- `feature/S-3.09` @`43c41389` KEEP-PARKED; `feature/W3-FIX-S307-001` @`fcab8717` PARKED-DIRTY do-NOT-touch (both LOCAL-ONLY)
-- Main tree residue: staged .github/workflows/ci.yml + e2e.yml (AC-007 BLOCKED; human must review); untracked .playwright-mcp/, drawio exports, mutants.out*, scripts/__pycache__
+- `.worktrees/S-3.09` @`43c41389` KEEP-PARKED; `.worktrees/W3-FIX-S307-001` @`fcab8717` PARKED-DIRTY do-NOT-touch (both LOCAL-ONLY)
+- Open PRs: #229 (DEFECT-DEMOSETUP-CWD-001 @ec4379b5 PUSHED), #230 (CLAUDE.md file-size @426c77cd awaiting HUMAN merge)
 - `develop` and `factory-artifacts` PUSHED; `fix/DEFECT-DEMOSETUP-CWD-001` PUSHED (PR #229 OPEN); all others LOCAL-ONLY

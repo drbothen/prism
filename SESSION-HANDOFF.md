@@ -124,13 +124,75 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1888 (session wrap — findings-first priority pivot) — S-REL-001 SHIPPED (PR #228 @7fef57da). PRIORITY PIVOT (human-directed 2026-07-20): NEXT session addresses LIVE-DEMO / LIVE-SENSORS-vs-DTU findings corpus FIRST (10 files at `/Users/jmagady/Dev/test-soc/demo-soc/findings/`), including DTU fidelity fixes grounded in vendor OpenAPI specs at `.factory/reference/api-specs/`; ONLY THEN return to Wave F-A. VERY FIRST ACTION next session: verify develop CI on 7fef57da, then read findings corpus README and triage.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1888 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1888 (this wrap) is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da` after PR #228 merge; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.436. D-1888 session wrap complete; findings-first priority pivot recorded. VERY NEXT: verify CI on 7fef57da → read findings corpus → triage defects/stories.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1900 (session wrap — Wave-A ADR convergence mid-cascade; test-soc findings remediation SOLE priority). VERY FIRST ACTION next session: re-read `/Users/jmagady/Dev/test-soc/demo-soc/findings/` (10 files) to reground + cross-check `.factory/planning/findings-remediation-2026-07-20/triage-capture.md` (D-1889); dispatch FRESH architect for ADR-054 v0.4 + ADR-053 v0.9 (5 open findings); state burst → adversary re-gate → strict 3-CLEAN → human Wave-A gate.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1900 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1900 (this wrap) is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.448. D-1900 session wrap complete; Wave-A mid-cascade; findings-first priority recorded. NEXT: re-read findings → fresh architect ADR-054 v0.4+ADR-053 v0.9 → cascade → 3-CLEAN.
 
 ---
 
-## §RESUME SNAPSHOT — D-1888 (2026-07-20 — SESSION WRAP; findings-first priority pivot; api-specs reference created; STATE v8.436) [SUPERSEDES D-1881]
+## §RESUME SNAPSHOT — D-1900 (2026-07-21 — SESSION WRAP; Wave-A ADR convergence mid-cascade; STATE v8.448) [SUPERSEDES D-1888]
+
+### RESUME IN ONE BREATH
+Wave-A of the test-soc findings remediation is mid-adversarial-convergence on the auth/grounding ADRs. NEXT SESSION FIRST re-read `/Users/jmagady/Dev/test-soc/demo-soc/findings/` (10 files) to reground + cross-check `.factory/planning/findings-remediation-2026-07-20/triage-capture.md` (D-1889); then dispatch a FRESH architect for ADR-054 v0.4 + ADR-053 v0.9 to close the open re-gate findings, commit, and continue the adversary cascade toward strict 3-CLEAN → human Wave-A approval gate.
+
+### HEADS (verified 2026-07-21 at wrap)
+- origin/develop: `7fef57da` — PUSHED
+- LOCAL develop: `e116a587` — STALE; NOT ff'd (DRIFT-LOCAL-DEVELOP-FF-001, human-gated — do NOT auto-FF)
+- factory-artifacts: `git -C .factory log -1 --format='%h %s'` (do not hard-code; pre-wrap was d91956c6)
+- `.worktrees/fix-demosetup-cwd`: fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5` — PUSHED; PR #229 OPEN
+- `.worktrees/S-3.09`: feature/S-3.09 @`43c41389` — LOCAL-ONLY, KEEP-PARKED
+- `.worktrees/W3-FIX-S307-001`: feature/W3-FIX-S307-001 @`fcab8717` dirty=1 — LOCAL-ONLY, PARKED-DIRTY do-NOT-touch
+- Open PRs: #230 (CLAUDE.md file-size stance, branch docs/claude-md-file-size-convention @426c77cd, awaiting HUMAN merge); #229 (fix/DEFECT-DEMOSETUP-CWD-001 @ec4379b5)
+- Everything pushed except the two parked local-only worktrees
+
+### WORKSTREAM — WAVE-A ADR CONVERGENCE (IN PROGRESS — SOLE PRIORITY)
+
+Last committed: `a8464b71` = ADR-053 v0.8 + ADR-054 v0.3 (proposed) + ADR-026 v1.35 + ADR-023 v1.20 (amended by ADR-054); ARCH-INDEX v2.203. Last adversary re-gate on a8464b71 = NOT CLEAN(strict), streak 0/3. ALL prior fixes verified HOLDING (core design sound: grounding flip spec←OpenAPI D1; native declarative HTTP auth acquisition per D-1895; Cyberint dual-surface both cookie-static; CrowdStrike Alerts-v2 migration + crowdstrike-oauth2.prx retirement).
+
+OPEN findings to close in ADR-054 v0.4 + ADR-053 v0.9:
+- **(HIGH-1)** PLANNED BC-2.23.001 mis-anchors to non-existent subsystem SS-23 — retarget to BC-2.16.NNN (next-free in SS-16; provider lives in prism-spec-engine/src/auth = SS-16); sweep BOTH ADR-054 (related_bcs_planned + D8/D9/D11) AND ADR-053 D5.
+- **(HIGH-2)** ADR-053 D2 section HEADER still says "Token-Exchange via WASM Plugin" — fix to "via Native DeclarativeHttpAuthProvider" (body already native).
+- **(MED-1)** add tests/fixtures/README.md to D11 retirement manifest.
+- **(LOW-1)** add plugin/mod.rs #[ignore]/todo!() crowdstrike-oauth2.prx test (~line 1732) to D11.
+- **(OBS-1)** add a doc-hygiene-sweep row for preserved-infra stale examples (spec_parser.rs:460 auth_plugin doc example, plugin_auth_provider.rs, error.rs, plugin/discovery.rs, plugin/host_functions.rs WIT examples).
+
+**RESUME NEXT-ACTION (Wave-A):** dispatch a FRESH architect (NOT a5234272 — RETIRED/contaminated) for ADR-054 v0.4 + ADR-053 v0.9 closing those 5 findings (find next-free BC-2.16.NNN via BC-INDEX; full citation self-check); → state-manager commit → fresh adversary re-gate on the new frozen HEAD → strict 3-CLEAN (BC-5.39.001) → HUMAN Wave-A approval gate on the ADR set (053+054+amended 023/026). THEN Wave-A spec evolution: author PLANNED BC-2.16.NNN (Declarative Auth Acquisition Token Lifecycle, P1-P8 in ADR-054 §D8) + VP-159 (acquire-no-network-until-use/refresh-on-expiry; folds DRIFT-D849-002) + auth/grounding/Cyberint BC amendments (ADR-054 D11 + ADR-053 D5 manifests); mandatory remove-uncertainty pass per user directive; retire wrong-direction stories (S-DEMO-CYBERINT-INCIDENTS-SEEDING-001, S-DTU-CROWDSTRIKE-INCIDENTS-ROUTE-001, DTU-EXT-001/005); then story decomposition + TDD.
+
+**WAVE PLAN (findings, feature-ordered):** A grounding+auth (IN PROGRESS) → auth/grounding/Cyberint spec evolution → Armis token-exchange, CrowdStrike Alerts-v2 migration + plugin retirement, Cyberint dual-surface, xDome live-drift backport. B endpoint fidelity (CrowdStrike Spotlight vulns, xDome device/relations/vuln enrich, Armis collections). C Bucket-B engine (F1 subquery-fanout CRIT, F7 pipe-where pushdown, F9 error-flatten, F10 xDome-TLS CRIT, F12 row-budget, G4 timeout-orphan-sweep). D extended coverage + scenario/DTU-fidelity. 8 CRITICALs total.
+
+**PR #229 (DEFECT-DEMOSETUP-CWD-001)** — OPEN @`ec4379b5`; deliver during findings phase (same demo-tooling scope).
+
+**PARKED (do NOT work until findings remediated):** file-size decomposition — TD-DECOMP-EPIC-001 (12 files >2k) + TD-DECOMP-RATCHET-001 (P2 ratchet gate); plan at `.factory/planning/file-size-decomposition-plan-2026-07-21.md`; CLAUDE.md stance in PR #230.
+
+### PENDING USER-APPROVED / UNSTARTED
+- (a) Native declarative HTTP auth-acquisition + crowdstrike-oauth2.prx retirement (D-1895 — approved, being specced in ADR-054).
+- (b) Grounding flip + Armis/Cyberint locked-decision overturns (D-1889 — approved).
+- (c) Incidents = retire+derive (D-1889 — approved).
+- (d) File-size production-grade stance (D-1899 — approved, executed, PARKED).
+- Wave-A ADR set still needs the final HUMAN approval gate AFTER 3-CLEAN (not yet given).
+
+### WORKTREE INVENTORY
+
+| Path | Branch | HEAD | Status |
+|------|--------|------|--------|
+| `.worktrees/fix-demosetup-cwd` | fix/DEFECT-DEMOSETUP-CWD-001 | ec4379b5 | ACTIVE — PR #229 OPEN, PUSHED |
+| `.worktrees/S-3.09` | feature/S-3.09 | 43c41389 | KEEP-PARKED, LOCAL-ONLY |
+| `.worktrees/W3-FIX-S307-001` | feature/W3-FIX-S307-001 | fcab8717 | PARKED-DIRTY do-NOT-touch, LOCAL-ONLY |
+
+### DISCIPLINE / PROCESS GAPS
+- **PG-ARCHITECT-CLAUDEMD-CONTAMINATION-001** (HIGH, RESOLVED this session) — reused architect a5234272 made unauthorized cross-project (ferrochain) CLAUDE.md edit. Do NOT reuse a5234272. Lesson: prefer FRESH agents per major task; orchestrator MUST audit all agent output for scope creep, especially governance-file edits.
+
+### OTHER OPEN ITEMS
+- develop CI stuck 'queued' on 7fef57da (runner starvation; Crate Layout + E2E Red Gate green, main CI never ran) — re-trigger/investigate on return.
+- Staged ci.yml/e2e.yml residue in main worktree (S-MAINT-CIGATE-REMEDIATION-001 AC-007, human-gated).
+- Local develop FF blocked (DRIFT-LOCAL-DEVELOP-FF-001).
+
+### DECISION DELTA (this session, 2026-07-20/21)
+D-1889 (findings triage + human adjudications: grounding flip / Armis+Cyberint locked-decision overturns / incidents retire+derive / 4-wave structure), D-1890 (ADR-053 v0.1 proposed), D-1891..D-1894 (ADR-053 convergence v0.2→v0.5 + ADR-028/031 amendments), D-1895 (native-auth human decision), D-1896 (ADR-054 v0.1 + ADR-053 v0.7), D-1897 (ADR-054 v0.2 + ADR-053 v0.8), D-1898 (ADR-054 v0.3 + PG-ARCHITECT-CLAUDEMD-CONTAMINATION-001), D-1899 (file-size governance PARKED), D-1900 (this wrap).
+
+---
+
+## §RESUME SNAPSHOT — D-1888 (2026-07-20 — SESSION WRAP; findings-first priority pivot; api-specs reference created; STATE v8.436) [SUPERSEDES D-1881] [SUPERSEDED by D-1900]
 
 ### RESUME IN ONE BREATH
 S-REL-001 SHIPPED (PR #228 squash-merged, develop@7fef57da, PR-LEVEL 12p converged 3-CLEAN strict on e16f5e6a; worktree cleaned). PRIORITY PIVOT (human-directed 2026-07-20): next session addresses the LIVE-DEMO / LIVE-SENSORS-vs-DTU findings FIRST — findings corpus at `/Users/jmagady/Dev/test-soc/demo-soc/findings/` (10 files) — including DTU fidelity fixes grounded in the vendor OpenAPI specs now at `.factory/reference/api-specs/`; ONLY THEN return to Wave F-A (S-REL-002..007). VERY FIRST ACTION next session: verify develop CI on 7fef57da went green (main CI workflow was queued at wrap; Crate Layout + E2E Red Gate already SUCCESS), then read the findings corpus README and triage into registered defects/stories.
