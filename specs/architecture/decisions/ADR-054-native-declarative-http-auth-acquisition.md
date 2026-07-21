@@ -5,7 +5,7 @@ title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2Cli
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.8"
+version: "0.9"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -13,9 +13,9 @@ superseded_by: null
 amends:
   - "ADR-023 (partial — §Rule 4 walk-back: standard HTTP token-acquisition flows do not require WASM plugins; custom_via_plugin escape hatch preserved for genuinely non-standard auth)"
   - "ADR-026 (partial — §D3: AuthType closed enum gains token_exchange variant; affects E-SPEC-012 enum validation and step9a_populate_adapter_registry dispatch)"
-  - "ADR-028 (partial — §D13 oauth2_client_credentials consistency-table row migrated from PluginAuthProvider (WASM) to native DeclarativeHttpAuthProvider when [auth_acquisition] present; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; crowdstrike-oauth2.prx plugin retired per D5)"
+  - "ADR-028 (partial — §D13 oauth2_client_credentials: PluginAuthProvider (WASM) path spec-load-rejected per D10(b) E-SPEC-028(b) unconditional; DeclarativeHttpAuthProvider (native) is the sole live path; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; crowdstrike-oauth2.prx plugin retired per D5)"
 related_adrs: [ADR-023, ADR-026, ADR-028, ADR-031, ADR-032, ADR-050, ADR-053]
-related_bcs: [BC-2.01.016, BC-2.06.003, BC-2.16.009]
+related_bcs: [BC-2.01.016, BC-2.01.017, BC-2.06.003, BC-2.16.009]
 related_bcs_planned: [BC-2.16.014]
 human_authorization: "D-1895 (2026-07-20) — 'Armis auth must NOT require a plugin. Complete the TOML engine to express standard HTTP auth acquisition DECLARATIVELY; retire crowdstrike-oauth2.prx; custom_via_plugin stays only as escape hatch for genuinely arbitrary auth'"
 wave_scope: "Wave-A — applies to Armis token-exchange (new sensor) and CrowdStrike oauth2 migration (remove plugin dependency)"
@@ -167,7 +167,7 @@ client credentials POST. Form body: `client_id={}&client_secret={}&grant_type=cl
 `crowdstrike-oauth2/src/lib.rs` `acquire_token()`). Response: `$.access_token` (string, required);
 `$.expires_in` (u64 seconds, default 1799 when absent or zero); `ttl_buffer_secs` (default 30)
 subtracted from the computed `expires_at`. Credential refs MUST include one named `client_id`
-and one named `client_secret` — validated by E-SPEC-028(h) at spec-load time.
+and one named `client_secret` — validated by E-SPEC-028(f) at spec-load time.
 
 **CrowdStrike migration:** `crowdstrike.sensor.toml` drops `auth_plugin = "crowdstrike-oauth2"`
 and gains:
@@ -483,8 +483,8 @@ All templates echo only config values (sensor_id, auth_type, field names), never
 | `error-taxonomy.md` | Register E-SPEC-028 with all message templates (D10) | D10 |
 | New `BC-2.16.014` `[PLANNED]` | Author Declarative Auth Acquisition Token Lifecycle contract (D8) during Wave-A implementation story; postconditions P1–P8 specified in §D8 above are the authoring source | D8 |
 | `VP-INDEX.md` `[PLANNED]` | Register VP-159 (D9) during Wave-A implementation story, after BC-2.16.014 is authored | D9 |
-| ADR-053 D2 | Rewrite Armis TOML block: `custom_via_plugin` + `auth_plugin` → `token_exchange` + `[auth_acquisition]` block; update coherence matrix to include `token_exchange → bearer, raw`; update Rationale §Why custom_via_plugin → §Why native declarative provider | D1, D3 |
-| ADR-053 Rationale §Why custom_via_plugin | Update to reflect ADR-054's native declarative provider decision | D2 |
+| ADR-053 D2 | **[COMPLETED — ADR-053 v0.7]** Armis TOML block rewritten from `custom_via_plugin` + `auth_plugin` to `token_exchange` + `[auth_acquisition]` block; coherence matrix updated with `token_exchange → bearer, raw` row; rationale section rewritten. | D1, D3 |
+| ADR-053 §Why native `token_exchange` for Armis (not `custom_via_plugin` + plugin)? | **[COMPLETED — ADR-053 v0.7/v0.12]** Rationale updated to reflect native declarative provider decision; heading renamed from `§Why custom_via_plugin` (retired per POL-21) to current heading `§Why native token_exchange for Armis (not custom_via_plugin + plugin)?`. | D2 |
 | ADR-053 D5 manifest | Update BC-2.01.008 amendment description from `custom_via_plugin` + plugin to `token_exchange` + native provider | D1 |
 | ADR-026 §D3 (partial) | Note that `token_exchange` variant added to AuthType enum per ADR-054 D1; cross-reference frontmatter `amended_by` | D1 |
 | BC-2.01.016 §Related BCs | Update "one entry in the 5-value canonical auth_type set" → 6-value canonical auth_type set (`token_exchange` is the 6th variant per D1) | D1 |
@@ -492,7 +492,7 @@ All templates echo only config values (sensor_id, auth_type, field names), never
 | BC-2.01.017 §P3 (Auth Type Dispatch) | Update "the 5-value canonical auth_type set per BC-2.01.016 §Postconditions" → 6-value canonical auth_type set | D1 |
 | BC-2.01.017 §Related BCs | Update "the 5-value canonical auth_type set (including `"cookie_roundtrip"`)" → 6-value canonical auth_type set | D1 |
 | BC-2.16.009 §Validation Rules (Schema Validation, `auth_type` rule) | Add `token_exchange` to the enumerated allowed-values list; update "(5-value canonical set)" → "(6-value canonical set)" in the parenthetical | D1 |
-| ADR-028 §D13 consistency table | Update `oauth2_client_credentials` row: `PluginAuthProvider (WASM)` → `DeclarativeHttpAuthProvider (native)` when `[auth_acquisition]` present (per ADR-054 D2/D5 native migration); mark `crowdstrike-oauth2.prx` plugin as being retired per D5. Update §D2 and §D13 Armis blockquotes from `custom_via_plugin` + `armis-token-exchange.prx` → `token_exchange` + native `DeclarativeHttpAuthProvider`. Bidirectional: ADR-028 frontmatter gains `amended_by: [ADR-054 §D2/D5]` back-ref; ADR-028 added to ADR-054 `related_adrs` (already present). | D2, D5 |
+| ADR-028 §D13 consistency table | Update `oauth2_client_credentials` row: mark `PluginAuthProvider` (WASM) path as **spec-load-rejected** per D10(b) — E-SPEC-028(b) unconditional rejection for `auth_type ∈ {oauth2_client_credentials, token_exchange}` + `auth_plugin` present; `DeclarativeHttpAuthProvider` (native) is the sole live path; drop the conditional "when `[auth_acquisition]` present" framing (superseded by D10(b)'s unconditional rule). Mark `crowdstrike-oauth2.prx` as retired per D5. Update §D2 and §D13 Armis blockquotes from `custom_via_plugin` + `armis-token-exchange.prx` → `token_exchange` + native `DeclarativeHttpAuthProvider`. Update ADR-028 frontmatter `amended_by` framing to reflect D10(b) unconditional rejection. ADR-028 `amended_by` back-ref already present (ADR-028 v1.18); ADR-028 in ADR-054 `related_adrs` (already present). | D2, D5, D10 |
 | **--- CrowdStrike plugin retirement blast-radius (atomic with D5 migration story) ---** | | |
 | `crates/prism-sensors/specs/crowdstrike.sensor.toml` | Drop `auth_plugin = "crowdstrike-oauth2"`; add `[auth_acquisition]` block with `token_path = "/oauth2/token"` and `credential_refs` (D2) | D5 |
 | `crates/prism-spec-engine/plugins/crowdstrike-oauth2/` (entire crate dir) | Delete source, `Cargo.toml`, WIT, committed `.prx` binary | D5 |
@@ -669,6 +669,7 @@ do not proceed.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.9 | 2026-07-21 | architect | HIGH-1: E-SPEC-028(h) → E-SPEC-028(f) in §D2 (credential-ref rule for oauth2_client_credentials; D10 enumerates only (a)–(g); (f) is "oauth2_client_credentials missing required credential_refs client_id and client_secret"). MED-1: BC-2.01.017 added to `related_bcs` frontmatter (3 D11 amendment rows target BC-2.01.017; was missing). LOW-1: D11 ADR-053 D2 and ADR-053 Rationale rows marked COMPLETED (ADR-053 v0.7); stale §Why custom_via_plugin anchor updated to current heading. MED-2: D11 amendment-instruction row for ADR-028 §D13 updated — removed "when [auth_acquisition] present" conditional framing; substituted D10(b) unconditional spec-load-rejection framing (E-SPEC-028(b)). |
 | 0.8 | 2026-07-21 | architect | HIGH-1: D11 manifest extended with 5 downstream BC amendment rows for "5-value → 6-value" auth_type-set count corrections triggered by D1 (token_exchange as 6th variant): BC-2.01.016 §Related BCs, BC-2.01.017 §Preconditions, BC-2.01.017 §P3 Auth Type Dispatch, BC-2.01.017 §Related BCs, BC-2.16.009 §Validation Rules Schema Validation auth_type rule — all confirmed live normative sites by POL-29 grep sweep. |
 | 0.7 | 2026-07-21 | architect | OBS-1: D11 `.config/nextest.toml` retirement row extended to cover the profile-documentation comment enumerating `crowdstrike_oauth2_plugin_tests` (behavioral anchor: the profile-documentation comment enumerating `crowdstrike_oauth2_plugin_tests`) — prior row covered only the four filter-group expression occurrences. |
 | 0.6 | 2026-07-21 | architect | HIGH-1: ADR-028 added to `amends:` frontmatter (bidirectional symmetry with ADR-028 `amended_by` back-ref). MED-1: D2/D7/D10 internal contradiction resolved — D2 auth_plugin prohibition strengthened to unconditional for `{oauth2_client_credentials, token_exchange}` (consistent with D10(b)); D7 dispatch table row 2 annotated as validation-unreachable (D10(b) rejects at spec-load before step 9A executes); D10 cross-reference note added. OBS-2: ADR-023 §Status + §Rule 4 stale "no in-repo .prx plugin required" claims swept: acknowledge `crowdstrike-oauth2.prx` existence and ADR-054 D5 retirement. |

@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.13"
+version: "0.14"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -16,7 +16,7 @@ supersedes:
 superseded_by: null
 amends: null
 related_adrs: [ADR-026, ADR-028, ADR-031, ADR-032, ADR-050, ADR-054]
-related_bcs: [BC-2.01.006, BC-2.01.008, BC-2.01.016, BC-2.01.017, BC-2.06.003]
+related_bcs: [BC-2.01.006, BC-2.01.008, BC-2.01.016, BC-2.01.017, BC-2.06.003, BC-2.16.009]
 related_bcs_planned: [BC-2.16.014]
 human_authorization: "D-1889 (2026-07-20) — 'Authorize full correction'; final ADR approval gate pending before any spec/BC work begins"
 wave_scope: "Wave-A only (grounding order + sensor auth models); transport/TLS (F10) is Wave-C"
@@ -194,7 +194,7 @@ authentication, not bearer-static. The exact flow is:
 
 The credential reference for the secret_key is `secret_key` (per ADR-032 credential-ref
 naming convention, bare ref name with sensor segment separate; env var
-`PRISM_CLIENTS_{ORG}_SENSORS_ARMIS_SECRET_KEY`). ADR-032 Armis rows that reference
+`PRISM_CLIENTS_{ID}_SENSORS_ARMIS_SECRET_KEY`). ADR-032 Armis rows that reference
 `bearer_token` credential_ref go stale under this decision and must be updated in the
 remediation story (see MED-1 note; `related_adrs` carries ADR-032 for tracking).
 
@@ -432,9 +432,9 @@ Note: the `[[credential_refs]]` entry `name` field is changed from the current `
 securityScheme, ADR-031 §D3-b items 1-2, and ADR-028 §D13 consistency table), and is the
 exact value injected by `header_scheme = "cookie:access_token"`. `api_key` was a generic
 placeholder that did not match the wire name. Env vars change from
-`PRISM_CLIENTS_{ORG}_SENSORS_CYBERINT_API_KEY` to
-`PRISM_CLIENTS_{ORG}_SENSORS_CYBERINT_ALERTS_ACCESS_TOKEN` and
-`PRISM_CLIENTS_{ORG}_SENSORS_CYBERINT_ASSETS_ACCESS_TOKEN` (per ADR-032 per-client format).
+`PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY` to
+`PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_ALERTS_ACCESS_TOKEN` and
+`PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_ASSETS_ACCESS_TOKEN` (per ADR-032 per-client format).
 
 The existing `cyberint.sensor.toml` is superseded and deleted as part of the remediation story.
 
@@ -529,7 +529,7 @@ consequence of D1–D3. Each amendment is in-scope for the corresponding remedia
 | BC-2.01.017 TV-BC-2.01.017-008 | Test vector grounded on `auth_type`-based cookie dispatch; must be re-grounded on `header_scheme = "cookie:access_token"` dispatch | D2 |
 | BC-2.01.006 | Split scope: rename/restrict existing Cyberint BC to Assets surface only; author new Cyberint Alerts BC covering the `/alert` surface auth and endpoints | D3 |
 | ADR-031 §D3-b item 3 (dispatch table) | The `auth_type`-keyed 4-row dispatch table (`CookieRoundtrip → Cookie: access_token={token}` arm) becomes stale under `header_scheme` dispatch; amendment required to reflect `header_scheme = "cookie:<name>"` as the injection dispatch key, replacing the `auth_type = "cookie_roundtrip"` arm. §D3-b items 1-2 (StaticCookieAuthProvider provider contract) are PRESERVED and do not require amendment. | D2 |
-| Cyberint `[[credential_refs]]` name rename (`api_key` → `access_token`) | Both new Cyberint spec files (`cyberint-alerts.sensor.toml` and `cyberint-assets.sensor.toml`) MUST use a `[[credential_refs]]` block with `name = "access_token"` (renamed from the `api_key` `[[credential_refs]]` entry in `cyberint.sensor.toml`). Rationale: `access_token` is the wire cookie name (OpenAPI securityScheme, ADR-028 §D13 consistency table, ADR-031 §D3-b items 1-2). Env vars change from `PRISM_CLIENTS_{ORG}_SENSORS_CYBERINT_API_KEY` to `PRISM_CLIENTS_{ORG}_SENSORS_CYBERINT_ALERTS_ACCESS_TOKEN` / `PRISM_CLIENTS_{ORG}_SENSORS_CYBERINT_ASSETS_ACCESS_TOKEN` (per ADR-032 per-client format). | D3 |
+| Cyberint `[[credential_refs]]` name rename (`api_key` → `access_token`) | Both new Cyberint spec files (`cyberint-alerts.sensor.toml` and `cyberint-assets.sensor.toml`) MUST use a `[[credential_refs]]` block with `name = "access_token"` (renamed from the `api_key` `[[credential_refs]]` entry in `cyberint.sensor.toml`). Rationale: `access_token` is the wire cookie name (OpenAPI securityScheme, ADR-028 §D13 consistency table, ADR-031 §D3-b items 1-2). Env vars change from `PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY` to `PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_ALERTS_ACCESS_TOKEN` / `PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_ASSETS_ACCESS_TOKEN` (per ADR-032 per-client format). | D3 |
 | ADR-032 Cyberint credential rows audit | ADR-032 rows referencing `cyberint.sensor.toml` with `[[credential_refs]]` `name = "api_key"` / env var `CYBERINT_API_KEY` are stale post-deletion of `cyberint.sensor.toml`. Must be updated to reflect two new spec files with `[[credential_refs]]` `name = "access_token"` and corresponding per-client env vars. | D3 |
 | BC-2.16.009 Rule 9 (new) | Author new Rule 9 — `header_scheme` field validation (unknown/malformed → E-SPEC-027 template a; well-formed-but-incoherent with auth_type → E-SPEC-027 template b); rules numbered after Rule 8 probe_table (E-SPEC-026). Rule 9 is in-scope for the Wave-A engine story that adds `SensorSpec::header_scheme`. | D2 |
 | `error-taxonomy.md` | Register E-SPEC-027 with both message templates: (a) unknown/malformed `header_scheme` value; (b) well-formed value incoherent with `auth_type` (generalized form — `sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}`). Registration is in-scope for the standalone Wave-A engine story. | D2 |
@@ -702,6 +702,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.14 | 2026-07-21 | architect | OBS-1: env-var placeholder harmonized — `{ID}` → `{ID}` at all ADR-053 occurrences (Armis and Cyberint sites; D5 manifest row; per ADR-032 canonical `{ID}` token). MED-1: BC-2.16.009 added to `related_bcs` frontmatter (D5 manifest targets Rule 9 authoring in BC-2.16.009; was missing from related_bcs). |
 | 0.13 | 2026-07-21 | architect | OBS-1: D5 manifest BC-2.01.017 §P2 dispatch table row rationale rewritten — pre-v0.7 "eliminate spec-vs-spec conflict with D2's header_scheme=raw for Armis via CustomViaPlugin arm" framing replaced with current truth: mechanism-level replacement driven by (1) token_exchange (6th variant, no §P2 arm) and (2) CustomViaPlugin hardcoded Bearer incoherent with header_scheme=raw generally; actionable instruction (delegate to header_scheme) unchanged. |
 | 0.12 | 2026-07-21 | architect | HIGH-1 (x2): re-anchor both `validate_and_construct_auth_providers` construction-site claims to `step9a_populate_adapter_registry` in `crates/prism-bin/src/spec_driven_adapter.rs` — the real auth_type-keyed dispatch site; clarify `validate_and_construct_auth_providers` (boot.rs) is plugin-only. HIGH-2: TOML block corrected — `token_url = "${env.ARMIS_INSTANCE_URL}/api/v1/access_token/"` replaced with `token_path = "/api/v1/access_token/"` (relative) + `# base_url` comment at sensor level per ADR-054 §D3 canonical schema. |
 | 0.11 | 2026-07-21 | architect | MED-2: `related_bcs_planned: [BC-2.16.014]` added to frontmatter; `[PLANNED]` markers added at D2 VP-assignment BC-2.16.014 citation and D5 manifest BC-2.16.014 row — mirrors ADR-054's POL-21/22 phantom-anchor hygiene. OBS-1: D2 coherence matrix `custom_via_plugin` row "Canonical value" cell corrected from sensor-specific Armis parenthetical to sensor-agnostic `"raw" or "bearer" per plugin declaration`. |

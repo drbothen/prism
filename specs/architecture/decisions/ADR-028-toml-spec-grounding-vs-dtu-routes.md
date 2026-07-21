@@ -5,7 +5,7 @@ title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API C
 status: Proposed
 date: "2026-05-20"
 modified: "2026-07-21"  # v1.18 HIGH-2 (FIX-BURST): §D2 Armis blockquote, §D13 env-var blockquote, §D13 Armis consistency-table blockquote corrected custom_via_plugin→token_exchange + native DeclarativeHttpAuthProvider; §D13 oauth2_client_credentials row corrected PluginAuthProvider(WASM)→DeclarativeHttpAuthProvider(native) per ADR-054 D2/D5; amended_by back-ref + ADR-054 added to related_adrs
-version: "1.19"
+version: "1.20"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -14,7 +14,7 @@ superseded_by:
   - "ADR-053 §D1/§D2/§D5 (partial — grounding order §D1/§D2/§D5 superseded: spec grounds FROM vendor OpenAPI, not DTU; Armis LOCKED auth_type D-747 superseded; Cyberint LOCKED auth_type D-747 superseded; authorized D-1889 2026-07-20; final ADR approval gate pending)"
 amends: null
 amended_by:
-  - "ADR-054 §D2/D5 (partial — §D13 oauth2_client_credentials AuthProvider migrated from PluginAuthProvider (WASM) to native DeclarativeHttpAuthProvider when [auth_acquisition] present; crowdstrike-oauth2.prx plugin retired; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; effective on ADR-054 acceptance)"
+  - "ADR-054 §D2/D5/D10 (partial — §D13 oauth2_client_credentials: PluginAuthProvider (WASM) path is spec-load-rejected per D10(b) E-SPEC-028(b) unconditional rejection for auth_type ∈ {oauth2_client_credentials, token_exchange} + auth_plugin present; DeclarativeHttpAuthProvider (native) is the sole live path; crowdstrike-oauth2.prx plugin retired; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; effective on ADR-054 acceptance)"
 anchor_stories: [PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-B, PLUGIN-MIGRATION-001-C, PLUGIN-MIGRATION-001-E, S-DEMO-001, S-DEMO-002]
 related_adrs: [ADR-003, ADR-023, ADR-027, ADR-053, ADR-054]
 related_bcs: [BC-2.16.013, BC-2.16.001, BC-2.16.009, BC-2.01.016]
@@ -564,7 +564,7 @@ The canonical `credential_ref` name for `bearer_static` sensors is `bearer_token
 
 | Sensor auth_type | AuthProvider | credential_ref | resolve_credential key |
 |------------------|--------------|----------------|------------------------|
-| `oauth2_client_credentials` | `DeclarativeHttpAuthProvider` (native, when `[auth_acquisition]` present per ADR-054 D2/D5); `PluginAuthProvider` (WASM, for pre-migration config with `auth_plugin` still present — `crowdstrike-oauth2.prx` being retired) | `client_id`, `client_secret` (resolved via per-org credential chain per §D11; same in both paths) | `client_id`, `client_secret` |
+| `oauth2_client_credentials` | `DeclarativeHttpAuthProvider` (native — sole live path; per ADR-054 D2/D5). `PluginAuthProvider` (WASM) via `auth_plugin` is **spec-load-rejected** post-ADR-054: `auth_type = "oauth2_client_credentials"` + `auth_plugin` present → E-SPEC-028(b) unconditional rejection at spec-load per ADR-054 D10(b). The "when `[auth_acquisition]` present" conditional framing is superseded; there is no live WASM dispatch path. (`crowdstrike-oauth2.prx` retired by ADR-054 D5.) | `client_id`, `client_secret` (resolved via per-org credential chain per §D11) | `client_id`, `client_secret` |
 | `cookie_roundtrip` (Cyberint) | `StaticCookieAuthProvider` | `access_token` (per ADR-031 §D3) | `access_token` |
 | `bearer_static` (Claroty) | `BearerStaticCredentialAuthProvider` | `bearer_token` | `bearer_token` |
 
@@ -657,6 +657,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.20 | 2026-07-21 | architect | MED-2: §D13 oauth2_client_credentials consistency-table row updated — `PluginAuthProvider` (WASM) path marked spec-load-rejected per ADR-054 D10(b) (E-SPEC-028(b) unconditional rejection for auth_type ∈ {oauth2_client_credentials, token_exchange} + auth_plugin present); `DeclarativeHttpAuthProvider` (native) is the sole live path; "when [auth_acquisition] present" conditional framing removed (superseded by D10(b)'s unconditional rule). Frontmatter `amended_by` framing updated to reflect D10(b) unconditional rejection. |
 | 1.19 | 2026-07-21 | architect | MED-3: §D7 ADR-026 convention-table row updated — ADR-026 reordered from ascending to descending at v1.35 (2026-07-20) per POL-32 `changelog_monotonic_descending`; table row and §D7 lock rule amended to reflect POL-32 as authorizing policy for deliberate convention reorders. MED-4: §D13 "three-tier resolution chain" corrected to "four-tier" (BC-2.06.003 is authoritatively four-tier; consistent with ADR-053/054). |
 | 1.18 | 2026-07-21 | architect | HIGH-2 (FIX-BURST): §D2 Armis inline supersession blockquote corrected — `custom_via_plugin` (token-exchange via `armis-token-exchange.prx` WASM plugin) → `auth_type = "token_exchange"` with native `DeclarativeHttpAuthProvider` (ADR-054 D1/D4, D-1895); no WASM plugin. §D13 env-var blockquote corrected — `custom_via_plugin + credential_ref = "secret_key"` → `token_exchange + native DeclarativeHttpAuthProvider + credential_ref = "secret_key"`. §D13 oauth2_client_credentials consistency-table row corrected — `PluginAuthProvider (WASM)` → `DeclarativeHttpAuthProvider (native)` when `[auth_acquisition]` present (ADR-054 D2/D5; crowdstrike-oauth2.prx retired). §D13 Armis consistency-table blockquote corrected — `custom_via_plugin (armis-token-exchange.prx, ...)` → `token_exchange, native DeclarativeHttpAuthProvider` (ADR-054 D1/D4). MED-1: `amended_by` back-ref for ADR-054 added to frontmatter; ADR-054 added to `related_adrs`. |
 | 1.17 | 2026-07-20 | architect | OBS-2 (ADR-053 pass-3): §D13 "Canonical Credential Reference Name" — ADR-032 per-client env-var supersession note added. The legacy `<SENSOR_ID_UPPER>_BEARER_TOKEN` global format (e.g., `ARMIS_BEARER_TOKEN`) is retired in favour of `PRISM_CLIENTS_{ORG}_SENSORS_{SENSOR}_BEARER_TOKEN`; new specs/docs must use per-client format. `ARMIS_BEARER_TOKEN` example annotated stale (Armis reclassified to `custom_via_plugin` + `secret_key` by ADR-053 §D2); `CLAROTY_BEARER_TOKEN` valid only as legacy alias. |
