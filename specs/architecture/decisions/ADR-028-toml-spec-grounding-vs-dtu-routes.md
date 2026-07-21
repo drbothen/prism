@@ -4,8 +4,8 @@ adr_id: "ADR-028"
 title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs"
 status: Proposed
 date: "2026-05-20"
-modified: "2026-07-20"  # v1.16 LOW-1: §D2 Armis row inline supersession blockquote → ADR-053 §D2
-version: "1.16"
+modified: "2026-07-20"  # v1.17 OBS-2: §D13 env-var ADR-032 supersession note; ARMIS_BEARER_TOKEN stale callout
+version: "1.17"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -543,7 +543,17 @@ The implementation contract:
 
 #### Canonical Credential Reference Name
 
-The canonical `credential_ref` name for `bearer_static` sensors is `bearer_token`. Operator environment variable convention: `<SENSOR_ID_UPPER>_BEARER_TOKEN` (e.g., `ARMIS_BEARER_TOKEN`, `CLAROTY_BEARER_TOKEN`). This follows the three-tier resolution chain defined in BC-2.06.003.
+The canonical `credential_ref` name for `bearer_static` sensors is `bearer_token`. Operator environment variable convention: `<SENSOR_ID_UPPER>_BEARER_TOKEN` (e.g., `CLAROTY_BEARER_TOKEN`). This follows the three-tier resolution chain defined in BC-2.06.003.
+
+> **[ADR-032 SUPERSEDES env-var format (per-client convention):]** The `<SENSOR_ID_UPPER>_BEARER_TOKEN`
+> global format above is the LEGACY env-var convention from before ADR-032. ADR-032 (per-client
+> credential format) introduced `PRISM_CLIENTS_{ORG}_SENSORS_{SENSOR}_BEARER_TOKEN` as the
+> canonical operator env-var format (e.g., `PRISM_CLIENTS_ACMECORP_SENSORS_CLAROTY_BEARER_TOKEN`).
+> New operator documentation and sensor spec comments MUST use the ADR-032 per-client format;
+> the global format is accepted only for backward-compat. The `ARMIS_BEARER_TOKEN` example
+> previously in this section is now stale — Armis is reclassified to `custom_via_plugin` +
+> `credential_ref = "secret_key"` by ADR-053 §D2; `CLAROTY_BEARER_TOKEN` remains valid as a
+> legacy alias only.
 
 #### Consistency with Existing AuthProvider Patterns
 
@@ -641,6 +651,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.17 | 2026-07-20 | architect | OBS-2 (ADR-053 pass-3): §D13 "Canonical Credential Reference Name" — ADR-032 per-client env-var supersession note added. The legacy `<SENSOR_ID_UPPER>_BEARER_TOKEN` global format (e.g., `ARMIS_BEARER_TOKEN`) is retired in favour of `PRISM_CLIENTS_{ORG}_SENSORS_{SENSOR}_BEARER_TOKEN`; new specs/docs must use per-client format. `ARMIS_BEARER_TOKEN` example annotated stale (Armis reclassified to `custom_via_plugin` + `secret_key` by ADR-053 §D2); `CLAROTY_BEARER_TOKEN` valid only as legacy alias. |
 | 1.16 | 2026-07-20 | architect | LOW-1: §D2 Armis row — inline supersession blockquote added pointing to ADR-053 §D2 (2026-07-20, D-1889). Armis `bearer_static` row now carries explicit at-point warning: reclassified to `custom_via_plugin` + token-exchange + `header_scheme = "raw"` + `credential_ref = "secret_key"`; `bearer_static` MUST NOT be used for Armis. Closes pass-2 adversary LOW-1 finding. |
 | 1.15 | 2026-07-20 | architect | ADR-053 §D1/§D2/§D5 supersession linkage: `superseded_by:` converted to YAML list with ADR-053 §D1/§D2/§D5 entry (grounding order superseded by OpenAPI-first; Armis LOCKED auth_type D-747 + Cyberint LOCKED auth_type D-747 superseded; D-1889 2026-07-20). `related_adrs` updated to include ADR-053. §Source/Origin + §Rationale sections added (template compliance). TD-VSDD-091 volatile cite remediated at §D8-B (stable behavioral anchor substituted). §D13 consistency table Armis row narrowed to Claroty-only (HIGH-1 fix): ADR-053 §D2 supersedes Armis `bearer_static`; Armis reclassified to `custom_via_plugin` (`armis-token-exchange.prx`, `header_scheme = "raw"`, `credential_ref = "secret_key"`). |
 | 1.14 | 2026-06-03 | architect | §D13 ADDED — BearerStaticCredentialAuthProvider pattern clarifying note (ADV-SDEMO002-P01-CRIT-001 disposition). Documents that `bearer_static` sensors now resolve credentials via `BearerStaticCredentialAuthProvider` (AuthProvider pattern, async `acquire_token` → `resolve_credential("bearer_token")`, fail-closed on missing credential), held as `AdapterAuthStrategy::Plugin`. Retires bare `AdapterAuthStrategy::BearerStatic` constructor path (defect: sync placeholder resolver, resolution at construction time rather than request time). Canonical `credential_ref` name `bearer_token`, operator env var `<SENSOR>_BEARER_TOKEN`. Consistency table added. anchor_stories += S-DEMO-002. |

@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.440"
+version: "8.441"
 producer: state-manager
 timestamp: 2026-07-21T03:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.80"
 story_index_version: "v2.719"
-arch_index_version: "2.196"
+arch_index_version: "2.197"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1892 (2026-07-20): ADR-053 v0.3 PASS-2 REMEDIATION BURST COMMITTED — adversary spec pass-2 on v0.2 NOT CLEAN(strict) 5H+1M+LOW-1+OBS-1; ALL closed in v0.3: HIGH-1 D3 preserve(contract)/change(dispatch) split; HIGH-2 D5 manifest expanded to 6 targets; HIGH-3 Cyberint atomic co-land; HIGH-4 header_scheme validation+E-SPEC-027+coherence matrix; HIGH-5 phantom crate path; MED-1 provider-selection rationale; LOW-1 ADR-028→v1.16; OBS-1 ADR-031 status→accepted→v1.4 (DRIFT-ADR031-STATUS-001 CLOSED). ARCH-INDEX v2.195→v2.196. streak 0/3. NEXT: adversary spec pass-3 (fresh) on committed v0.3 toward BC-5.39.001 3-CLEAN, then human ADR approval gate. trajectory-tail →0→0→0→0 STATE v8.439→v8.440"
+current_step: "D-1893 (2026-07-21): ADR-053 v0.4 PASS-3 REMEDIATION BURST COMMITTED — adversary spec pass-3 NOT CLEAN(strict) 1H+2M+2OBS; ALL closed in v0.4: HIGH-1 D3 preserve/change attribution paper-fix corrected (§D3-b items-1-2=PRESERVED StaticCookieAuthProvider / item-3=SUPERSEDED auth_type dispatch table; §D3-a DTU-changes unaffected); MED-1 E-SPEC-027 dual message templates (unknown-value + incoherent-combination); MED-2 D5 +Cyberint credential_ref rename api_key→access_token +ADR-032 stale-row audit; OBS-1 api_key non-Bearer=Wave-B; OBS-2 ADR-028 §D13 legacy env-var superseded-by-ADR-032 (→v1.17); ADR-031→v1.5. ARCH-INDEX v2.196→v2.197. streak 0/3. NEXT: adversary spec pass-4 (fresh) on committed v0.4 toward BC-5.39.001 3-CLEAN, then human ADR approval gate. trajectory-tail →6→8→3→0 (finding counts pass-1/2/3/pass-4-pending) STATE v8.440→v8.441"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 416 lines (wc-l)
+  STATE.md SIZE BUDGET: 417 lines (wc-l)
   margin from soft-target (200): +216 lines over | margin from actual (500): 84 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-20 D-1892 — ADR-053 v0.3 PASS-2 REMEDIATION: adversary pass-2 NOT CLEAN 5H+1M+LOW-1+OBS-1; ALL closed in v0.3 — D3 preserve/change split, D5 manifest expanded, Cyberint atomic co-land, header_scheme validation+E-SPEC-027+coherence matrix, phantom crate path, provider-selection rationale; ADR-028→v1.16; ADR-031 status→accepted→v1.4; DRIFT-ADR031-STATUS-001 CLOSED. ARCH-INDEX v2.195→v2.196. trajectory-tail →0→0→0→0 STATE v8.439→v8.440 |
+| **Last Updated** | 2026-07-21 D-1893 — ADR-053 v0.4 PASS-3 REMEDIATION: adversary pass-3 NOT CLEAN(strict) 1H+2M+2OBS; ALL closed in v0.4 — HIGH-1 D3 preserve/change attribution paper-fix corrected (§D3-b items-1-2=PRESERVED StaticCookieAuthProvider / item-3=SUPERSEDED auth_type dispatch table; §D3-a DTU-changes unaffected); MED-1 E-SPEC-027 dual message templates (unknown-value + incoherent-combination); MED-2 D5 +Cyberint credential_ref rename api_key→access_token +ADR-032 stale-row audit; OBS-1 api_key non-Bearer=Wave-B; OBS-2 ADR-028 §D13 legacy env-var superseded-by-ADR-032 (→v1.17); ADR-031→v1.5. ARCH-INDEX v2.196→v2.197. trajectory-tail →6→8→3→0 STATE v8.440→v8.441 |
 
 ## Active Objective (North Star)
 
@@ -305,6 +305,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1890 | state-manager | 2026-07-20 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — WAVE-A ADR BURST. Human adjudications D-1889 RESOLVED (2026-07-20): (1) grounding+auth = Authorize full correction; (2) incidents = Retire + derive from CrowdStrike Alerts v2 aggregate_id; (3) cycle structure = one cycle, 4 waves (A grounding+auth / B endpoint fidelity / C engine+pushdown / D coverage+scenarios). ADR-053 authored (status: proposed) — D1 grounding-order flip (spec←OpenAPI←DTU, supersedes ADR-028 §D1/§D2/§D5), D2 Armis token-exchange via custom_via_plugin armis-token-exchange.prx (supersedes D-747 Armis + ADR-028 §D2; requires pipeline build_request raw-token header arm), D3 Cyberint dual-surface split into cyberint-alerts + cyberint-assets sensor defs (supersedes LOCKED #4 + ADR-031 §D3-a; Assets cookie_roundtrip confirmed, Alerts X-Api-Key UNCONFIRMED). ADR-028 TD-VSDD-091 volatile cite (pipeline.rs:1495) remediated to behavioral anchor. Bidirectional supersession intact ADR-053↔028/031. ARCH-INDEX v2.193→v2.194 (ADR-053 registry row inserted after ADR-052). BLOCKING preconditions before Wave-A stories: (a) human approval of ADR-053 [final gate pending], (b) research-agent Cyberint Alerts auth-header confirmation, (c) DRIFT-D849-002 VP folded into Armis plugin. F10 transport deferred to Wave-C (ADR-050-compliant only). trajectory-tail →0→0→0→0 STATE v8.437→v8.438 | wave-5-e-demo-fidelity | 2026-07-20 |
 | D-1891 | state-manager | 2026-07-20 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — ADR-053 v0.2 REVIEW-CASCADE BURST. Fresh-context triad (spec-reviewer + adversary + consistency-validator) + research-agent on ADR-053 @197939eb. Adversary spec pass-1 NOT CLEAN(strict) (5 HIGH + 1 MED; streak 0/3): HIGH-1 ADR-028 §D13 Armis-row contradiction, HIGH-2 ADR-031 §D3-a inverted supersession, HIGH-3 ADR-028/031 version-propagation, HIGH-4 armis_secret_key doubled env-var, HIGH-5 header-injection-selection unspecified, MED-1 ADR-032 related_adrs. Spec-reviewer SOUND-WITH-CHANGES (SR-001..008). Consistency 4 MINOR (F1/F2 ARCH-INDEX rows + 2 pre-existing ADR-031 drift). Research CONFIRMED Cyberint Alerts = static Cookie:access_token (NOT X-Api-Key; 6 sources; D3-c precondition RESOLVED). ALL findings closed in v0.2: header_scheme TOML field (bearer/raw/cookie:<name>) separates acquisition (auth_type) from injection (build_request dispatch arm) — Armis auth_type=custom_via_plugin + auth_plugin=armis-token-exchange + header_scheme=raw + credential_ref=secret_key; ADR-028→v1.15 (§D13 Armis→Claroty-only + supersession blockquote); ADR-031→v1.3 (§D3-a reframed static-cookie PRESERVED); ADR-053→v0.2 (spec-amendment manifest, no-OpenAPI grounding governance, atomic-DTU-reclone sequencing, ADR-032 related_adrs). ARCH-INDEX v2.194→v2.195 (ADR-053 row v0.1→v0.2; ADR-028 row v1.14→v1.15; ADR-031 row ACCEPTED v1.2→PROPOSED v1.3; v2.194 changelog row backfilled; DRIFT-ADR031-STATUS-001 registered). architectural_decisions_locked #5 PENDING annotation added. NEXT: adversary spec pass-2 (fresh) on committed v0.2 toward BC-5.39.001 3-CLEAN, then human ADR approval gate. trajectory-tail →0→0→0→0 STATE v8.438→v8.439 | wave-5-e-demo-fidelity | 2026-07-20 |
 | D-1892 | state-manager | 2026-07-20 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — ADR-053 v0.3 PASS-2 REMEDIATION BURST. Fresh adversary spec pass-2 on 8f091786 (v0.2) NOT CLEAN(strict) 5 HIGH + 1 MED + LOW-1 + OBS-1. ALL closed in v0.3: HIGH-1 D3 preserve(contract)/change(dispatch) split; HIGH-2 D5 manifest expanded to 6 amendment targets (ADR-031 §D3-b table, BC-2.01.017 INV-COOKIE-004 + TV-008); HIGH-3 Cyberint backward-compat regression — atomic co-land of build_request dispatch switch + cyberint spec header_scheme required; HIGH-4 header_scheme validation (closed value set, E-SPEC-027 assigned, malformed cookie: rejection, auth_type×header_scheme coherence matrix — cookie_roundtrip MUST use cookie:<name>; no silent Bearer fallthrough per SOUL #4); HIGH-5 phantom crate path prism-sensors→prism-spec-engine; MED-1 provider-selection rationale corrected (auth_plugin.is_some()-driven, not auth_type); LOW-1 ADR-028 §D2 inline supersession blockquote (→v1.16); OBS-1 ADR-031 status Proposed→accepted (→v1.4, closes DRIFT-ADR031-STATUS-001). ARCH-INDEX v2.195→v2.196. E-SPEC-027 RESERVED by ADR-053; taxonomy registration deferred to Wave-A engine-change story (no error_taxonomy_version bump). streak 0/3. NEXT: adversary spec pass-3 (fresh) on committed v0.3 toward BC-5.39.001 3-CLEAN, then human ADR approval gate. trajectory-tail →0→0→0→0 STATE v8.439→v8.440 | wave-5-e-demo-fidelity | 2026-07-20 |
+| D-1893 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — ADR-053 v0.4 PASS-3 REMEDIATION BURST. Fresh adversary spec pass-3 on f8c641c9 (v0.3) NOT CLEAN(strict) 1 HIGH + 2 MED + 2 OBS. ALL closed in v0.4: HIGH-1 D3 preserve/change split was a pass-2 paper-fix (mis-attributed ADR-031 §D3-a vs §D3-b) — corrected: StaticCookieAuthProvider contract is §D3-b items 1-2 (PRESERVED), auth_type dispatch table is §D3-b item 3 (SUPERSEDED), §D3-a DTU-changes unaffected; ADR-031 superseded_by synced (→v1.5); MED-1 E-SPEC-027 dual message templates (unknown-value + incoherent-combination, no self-contradiction); MED-2 D5 +Cyberint credential_ref rename api_key→access_token +ADR-032 stale-row audit; OBS-1 api_key non-Bearer=Wave-B; OBS-2 ADR-028 §D13 legacy env-var convention superseded by ADR-032 per-client format (→v1.17). ARCH-INDEX v2.196→v2.197. streak 0/3. NEXT: adversary spec pass-4 (fresh) on committed v0.4 toward BC-5.39.001 3-CLEAN, then human ADR approval gate. trajectory-tail →6→8→3→0 STATE v8.440→v8.441 | wave-5-e-demo-fidelity | 2026-07-21 |
 
 ## Skip Log
 
