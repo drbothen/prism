@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.20"
+version: "0.21"
 status: active
 producer: architect
 timestamp: 2026-05-16T16:00:00Z
@@ -24,7 +24,7 @@ proof_completed_date: "2026-05-18"
 proof_file_hash: null
 lifecycle_status: active
 introduced: "2026-05-15"
-modified: "2026-07-21"
+modified: "2026-07-22"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -45,10 +45,10 @@ prevention transitions from compile-time to runtime enforcement. The spec-valida
 
 1. **Rule A — Single auth_type:** A sensor spec with more than one `auth_type` value, or with
    an `auth_type` value not in the enumerated set `{oauth2_client_credentials, bearer_static,
-   cookie_roundtrip, api_key, custom_via_plugin}`, MUST be rejected at spec-load time with
+   cookie_roundtrip, api_key, custom_via_plugin, token_exchange}`, MUST be rejected at spec-load time with
    structured error **E-SPEC-012** ("auth_type for sensor '{sensor_id}' must be a single value;
    got: {value}. Valid values: oauth2_client_credentials, bearer_static, cookie_roundtrip,
-   api_key, custom_via_plugin").
+   api_key, custom_via_plugin, token_exchange").
 
 2. **Rule B — One credential per method:** A sensor spec where `credential_refs` references
    more than one credential per auth method MUST be rejected at spec-load time with
@@ -83,7 +83,7 @@ message text (AD-017 AI-opaque credential model).
 |--------|------|----------|----------|
 | proptest | proptest 1.x | Yes — finite (auth_type × credential_type) space | All valid and invalid (auth_type, credential_type) pairs per ADR-026 D3 |
 
-**Feasibility:** The valid `auth_type` enumerated set has 5 members. The credential structural
+**Feasibility:** The valid `auth_type` enumerated set has 6 members. The credential structural
 types are similarly finite (OAuth2 token, bearer token, cookie session, API key, WASM plugin
 token). The Cartesian product is small and fully enumerable. proptest can cover all pairs
 deterministically with a small strategy and provide regression coverage for the invariant.
@@ -100,13 +100,14 @@ deterministically with a small strategy and provide regression coverage for the 
 //   const VALID_AUTH_TYPES: &[&str] = &[
 //       "oauth2_client_credentials", "bearer_static", "cookie_roundtrip",
 //       "api_key", "custom_via_plugin",
-//   ]; // 5 members (add "token_exchange" as 6th when ADR-054 D1 lands — see D11)
+//       "token_exchange",  // [PLANNED — ADR-054 D1 engine story]
+//   ]; // 6 members — "token_exchange" added per ADR-054 D1
 //
 // Generators:
 //   fn arb_valid_auth_type() -> impl Strategy<Value = &'static str>
 //     — prop_oneof![ Just("oauth2_client_credentials"), Just("bearer_static"),
-//         Just("cookie_roundtrip"), Just("api_key"), Just("custom_via_plugin") ]
-//     — (add Just("token_exchange") when ADR-054 D1 lands)
+//         Just("cookie_roundtrip"), Just("api_key"), Just("custom_via_plugin"),
+//         Just("token_exchange") ]  // [PLANNED — ADR-054 D1 engine story]
 //
 //   fn arb_invalid_auth_type() -> impl Strategy<Value = String>
 //     — generates invalid auth_type strings across 7 classes:
@@ -158,8 +159,7 @@ deterministically with a small strategy and provide regression coverage for the 
 // (ADR-026 §D3 Rule C Backend Scope / D-706)
 //
 // Constants:
-//   const VALID_AUTH_TYPES: &[&str] = &[...same 5 members as FILE 1...];
-//   // (add "token_exchange" as 6th when ADR-054 D1 lands — see D11)
+//   const VALID_AUTH_TYPES: &[&str] = &[...same 6 members as FILE 1, incl. "token_exchange" per ADR-054 D1 (Wave-A; [PLANNED — engine story])...];
 //
 // Test fixture:
 //   struct ShapedProbe { reported_shape: String }
@@ -168,13 +168,12 @@ deterministically with a small strategy and provide regression coverage for the 
 //
 // Generators:
 //   fn arb_mismatched_auth_type_pair() -> impl Strategy<Value = (&'static str, &'static str)>
-//     — (0usize..5, 0usize..4).prop_map(|(spec_idx, offset)| ...)
-//     — covers all 20 ordered mismatched pairs (5×4) from VALID_AUTH_TYPES
-//     — (update to (0..6, 0..5) when ADR-054 D1 lands — covers 6×5=30 pairs)
+//     — (0usize..6, 0usize..5).prop_map(|(spec_idx, offset)| ...)  // updated per ADR-054 D1 ([PLANNED — engine story])
+//     — covers all 30 ordered mismatched pairs (6×5) from VALID_AUTH_TYPES
 //
 //   fn arb_matching_auth_type() -> impl Strategy<Value = &'static str>
-//     — prop_oneof![ Just("oauth2_client_credentials"), ..., Just("custom_via_plugin") ]
-//     — (add Just("token_exchange") when ADR-054 D1 lands)
+//     — prop_oneof![ Just("oauth2_client_credentials"), ..., Just("custom_via_plugin"),
+//         Just("token_exchange") ]  // [PLANNED — ADR-054 D1 engine story]
 //
 // Target function:
 //   step5_init_credential_store_with_probe(
@@ -201,7 +200,7 @@ deterministically with a small strategy and provide regression coverage for the 
 
 | Factor | Assessment | Notes |
 |--------|-----------|-------|
-| Input space size | Small and finite | 5 auth_type variants × 5 credential structural shapes = 25 pairs; all enumerable |
+| Input space size | Small and finite | 6 auth_type variants × 5 credential structural shapes = 30 pairs; all enumerable |
 | Proof complexity | Low–medium | Boolean accept/reject plus error-message redaction check |
 | Tool support | Full | proptest 1.x; no special infrastructure needed |
 | Harness dependencies | Moderate | Requires `SpecLoader::validate_cross_composition` — as-built in `crates/prism-spec-engine/src/spec_loader.rs` (callable as pure function per proof-completed-date 2026-05-18) |
@@ -225,6 +224,7 @@ deterministically with a small strategy and provide regression coverage for the 
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 0.21 | Wave-A-spec-evolution-burst-3 | 2026-07-22 | architect | ADR-054 D11 manifest execution (POL-24 same-commit atomicity with error-taxonomy.md v2.57 E-SPEC-012 amendment). §Property Statement Rule A: (1) enumerated set expanded 5→6 values — `token_exchange` appended; (2) E-SPEC-012 "Valid values:" clause updated verbatim from error-taxonomy.md v2.57 source of truth (POL-24). §Proof Method: "5 members" → "6 members" (D11 §Proof Method member-count row). §Feasibility Assessment table: "5 auth_type variants × 5 credential structural shapes = 25 pairs" → "6 auth_type variants × 5 credential structural shapes = 30 pairs" (D11 §Feasibility Assessment row). §Proof Harness Skeleton FILE 1: `VALID_AUTH_TYPES` gains `"token_exchange"` as 6th entry `[PLANNED — ADR-054 D1 engine story]`; `arb_valid_auth_type()` `prop_oneof!` gains `Just("token_exchange")` arm `[PLANNED]`; `arb_invalid_auth_type()` filter unchanged (auto-expands via VALID_AUTH_TYPES reference) (D11 §Proof Harness Skeleton row). FILE 2: `VALID_AUTH_TYPES` comment updated to note 6 members; `arb_mismatched_auth_type_pair()` range `(0..5, 0..4)→(0..6, 0..5)` covers 30 ordered pairs; `arb_matching_auth_type()` gains `Just("token_exchange")` arm `[PLANNED]` (D11 §Proof Harness Skeleton row). `modified:` synced to 2026-07-22. |
 | 0.20 | FIX-BURST 24 | 2026-07-21 | architect | MED root fix (adversary pass 30): §Proof Harness Skeleton reconciled to as-built harness — replaced entire divergent pseudocode block (phantom typed-enum constructs `arb_auth_type()`, `AuthType`, `MockCredentialType`, `is_coherent_pair`, `matching_credential_for`, `arb_credential_type()`, `valid_auth_type_credential_pairs_accepted`, `mismatched_auth_type_credential_rejected`, `build_spec_with`, `credential_value_str`) with accurate as-built documentation of the real constructs: `VALID_AUTH_TYPES: &[&str]`, `arb_valid_auth_type()`, `arb_invalid_auth_type()`, `arb_multi_credential_count()`, `SpecLoader::validate_cross_composition()` (FILE 1, Rules A+B) and `ShapedProbe`, `arb_mismatched_auth_type_pair()`, `arb_matching_auth_type()`, `step5_init_credential_store_with_probe()` (FILE 2, Rule C). §Proof Method / §Feasibility prose unchanged (5-member count and 25-pairs statements are current-truth pending ADR-054 D1 amendment). POL-22 Phase C: all symbols cited verified present in as-built test files. |
 | 0.19 | D-1915 | 2026-07-21 | state-manager | OBS-1 (adversary pass-15, pre-existing defect NOT introduced by the ADRs): §Changelog rows v0.16 (FB75) and v0.15 (FB71) were out of monotonic order — v0.16 appeared above v0.15 in the table (both dated 2026-05-17; in ascending convention v0.15 must precede v0.16; the pair was inverted). Changelog table converted to newest-first (descending) convention per validate-changelog-monotonicity hook enforcement; v0.15/v0.16 now correctly ordered in descending layout (v0.16 > v0.15 → v0.16 appears first). POL-26/POL-32. Bump v0.18→v0.19. |
 | 0.18 | pass-10-spec-hygiene | 2026-05-18 | product-owner | F-LP-IMPL-P10-IMP-001 closure: §Proof Harness Skeleton stale symbol corrections. (1) Rule A assertion line: `SpecEngineError::AuthTypeInvalid { .. }` → `SpecEngineError::AuthTypeCrossComposition { .. }` (as-built enum variant name in `crates/prism-spec-engine/src/error.rs`). (2) Rule C skeleton: `validate_auth_coherence(&spec)` → `SpecLoader::validate_cross_composition(&spec)` (2 occurrences; as-built API callable as pure function). (3) Feasibility Assessment harness-dependencies row and Harness authoring note updated to reflect as-built proof state (proof-completed-date 2026-05-18; 8 proptests PASS across 2 crates). Spec brought into alignment with code per CLAUDE.md Source-of-Truth Precedence Rule 7. |

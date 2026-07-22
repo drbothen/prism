@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.11"
+version: "1.12"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-06"
 capability: "CAP-009"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-06-08
+modified: "2026-07-22"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -19,7 +19,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "fc9d874"
 traces_to: ["CAP-009"]
 extracted_from: ".factory/specs/prd.md"
 ---
@@ -95,9 +95,10 @@ For a given `(org_slug, sensor_id, credential_ref_name)` triple:
 
 | org_slug | sensor_id | ref_name | Tier 2 env var | Tier 1 env var |
 |----------|-----------|----------|----------------|----------------|
-| `demo-org-a` | `armis` | `bearer_token` | `PRISM_CLIENTS_DEMO_ORG_A_SENSORS_ARMIS_BEARER_TOKEN` | `PRISM_CLIENTS_DEMO_ORG_A_SENSORS_ARMIS_BEARER_TOKEN_FILE` |
+| `demo-org-a` | `armis` | `secret_key` | `PRISM_CLIENTS_DEMO_ORG_A_SENSORS_ARMIS_SECRET_KEY` | `PRISM_CLIENTS_DEMO_ORG_A_SENSORS_ARMIS_SECRET_KEY_FILE` |
 | `acme` | `claroty` | `bearer_token` | `PRISM_CLIENTS_ACME_SENSORS_CLAROTY_BEARER_TOKEN` | `PRISM_CLIENTS_ACME_SENSORS_CLAROTY_BEARER_TOKEN_FILE` |
-| `acme` | `cyberint` | `api_key` | `PRISM_CLIENTS_ACME_SENSORS_CYBERINT_API_KEY` | `PRISM_CLIENTS_ACME_SENSORS_CYBERINT_API_KEY_FILE` |
+| `acme` | `cyberint-alerts` | `access_token` | `PRISM_CLIENTS_ACME_SENSORS_CYBERINT_ALERTS_ACCESS_TOKEN` | `PRISM_CLIENTS_ACME_SENSORS_CYBERINT_ALERTS_ACCESS_TOKEN_FILE` |
+| `acme` | `cyberint-assets` | `access_token` | `PRISM_CLIENTS_ACME_SENSORS_CYBERINT_ASSETS_ACCESS_TOKEN` | `PRISM_CLIENTS_ACME_SENSORS_CYBERINT_ASSETS_ACCESS_TOKEN_FILE` |
 | `acme` | `crowdstrike` | `client_id` | `PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_ID` | `PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_ID_FILE` |
 | `acme` | `crowdstrike` | `client_secret` | `PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_SECRET` | `PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_SECRET_FILE` |
 
@@ -146,17 +147,18 @@ The `name` field in `[[credential_refs]]` is the `credential_ref_name` passed to
 
 | Sensor | `auth_type` | Required `[[credential_refs]]` names | Auth provider |
 |--------|------------|--------------------------------------|---------------|
-| `armis` | `bearer_static` | `bearer_token` | `BearerStaticCredentialAuthProvider` — passes `"bearer_token"` |
+| `armis` | `token_exchange` | `secret_key` | `DeclarativeHttpAuthProvider(TokenExchange)` — passes `"secret_key"` |
 | `claroty` | `bearer_static` | `bearer_token` | `BearerStaticCredentialAuthProvider` — passes `"bearer_token"` |
-| `cyberint` | `cookie_roundtrip` | `api_key` | `StaticCookieAuthProvider` — passes `"api_key"` |
-| `crowdstrike` | `oauth2_client_credentials` | `client_id`, `client_secret` | `crowdstrike-oauth2` WASM plugin — resolves both |
+| `cyberint-alerts` | `cookie_roundtrip` | `access_token` | `StaticCookieAuthProvider` — passes `"access_token"` |
+| `cyberint-assets` | `cookie_roundtrip` | `access_token` | `StaticCookieAuthProvider` — passes `"access_token"` |
+| `crowdstrike` | `oauth2_client_credentials` | `client_id`, `client_secret` | `DeclarativeHttpAuthProvider(Oauth2ClientCredentials)` — resolves both |
 
 TOML declaration format (example for armis):
 
 ```toml
 [[credential_refs]]
-name = "bearer_token"
-description = "Armis API bearer token"
+name = "secret_key"
+description = "Armis long-lived secret key exchanged for access token via token_exchange"
 ```
 
 CrowdStrike requires two `[[credential_refs]]` blocks:
@@ -343,15 +345,15 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors 
 
 | Scenario | org_slug | sensor | ref | Setup / Env | Expected |
 |----------|----------|--------|-----|------------|---------|
-| Tier 1 file | `acme` | `armis` | `bearer_token` | `PRISM_CLIENTS_ACME_SENSORS_ARMIS_BEARER_TOKEN_FILE=/run/secrets/tok` | File contents (trimmed) as `SecretString` |
-| Tier 2 direct | `acme` | `armis` | `bearer_token` | `PRISM_CLIENTS_ACME_SENSORS_ARMIS_BEARER_TOKEN=abc123` | Env value as `SecretString` |
-| Tier 2 hyphen-slug | `demo-org-a` | `armis` | `bearer_token` | `PRISM_CLIENTS_DEMO_ORG_A_SENSORS_ARMIS_BEARER_TOKEN=tok` | Env value; slug hyphens → underscores |
-| **Tier 3 keyring (OrgId-keyed write→resolution)** | `acme` (org_id: `f47ac10b-58cc-4372-a567-0e02b2c3d479`) | `armis` | `bearer_token` | `KeyringBackend::set_by_org(org_id, "armis", "bearer_token", "secret-value")` via `CredentialStoreOrgId`; no env var set; keyring entry at OrgId-keyed key `f47ac10b-58cc-4372-a567-0e02b2c3d479/armis/bearer_token` | `resolve_credential("acme", "armis", "bearer_token", Some(&org_id), Some(&keyring))` → `Ok(SecretString("secret-value"))` + audit "keyring". (RG-034-001 per ADR-034.) |
-| Tier 3 keyring miss → Tier 4 | `acme` | `armis` | `bearer_token` | No env var; keyring has no entry for the OrgId-keyed key; CRUD store empty | `CredentialResolutionError::NotFound` — Tier 3 miss falls through to Tier 4, Tier 4 miss → `NotFound`. (RG-034-002 per ADR-034.) |
-| Tier 3 None org_id → Tier 4 | `acme` | `armis` | `bearer_token` | No env var; `org_id: None` passed to `resolve_credential`; CRUD store empty | Tier 3 skipped silently; falls to Tier 4 → `CredentialResolutionError::NotFound` |
-| Tier 3 keyring backend error → hard error | `acme` | `armis` | `bearer_token` | No env var; keyring returns `Err(NoStorageAccess)` | `CredentialResolutionError::BackendUnavailable { detail: "E-CRED-008: OS keyring unavailable: NoStorageAccess" }` — does NOT fall through to Tier 4 (ADR-034 §D4; E-CRED-008 is the canonical keyring-unavailable code per ADR-035 §D2) |
-| Not found | `acme` | `armis` | `bearer_token` | No env var, no keyring | `CredentialResolutionError::NotFound` with Tier 2 env var name in message |
-| Tier 1 precedence | `acme` | `armis` | `bearer_token` | Both `_FILE` and direct env var set | Tier 1 (file) wins; Tier 2 ignored |
+| Tier 1 file | `acme` | `claroty` | `bearer_token` | `PRISM_CLIENTS_ACME_SENSORS_CLAROTY_BEARER_TOKEN_FILE=/run/secrets/tok` | File contents (trimmed) as `SecretString` |
+| Tier 2 direct | `acme` | `claroty` | `bearer_token` | `PRISM_CLIENTS_ACME_SENSORS_CLAROTY_BEARER_TOKEN=abc123` | Env value as `SecretString` |
+| Tier 2 hyphen-slug | `demo-org-a` | `claroty` | `bearer_token` | `PRISM_CLIENTS_DEMO_ORG_A_SENSORS_CLAROTY_BEARER_TOKEN=tok` | Env value; slug hyphens → underscores |
+| **Tier 3 keyring (OrgId-keyed write→resolution)** | `acme` (org_id: `f47ac10b-58cc-4372-a567-0e02b2c3d479`) | `claroty` | `bearer_token` | `KeyringBackend::set_by_org(org_id, "claroty", "bearer_token", "secret-value")` via `CredentialStoreOrgId`; no env var set; keyring entry at OrgId-keyed key `f47ac10b-58cc-4372-a567-0e02b2c3d479/claroty/bearer_token` | `resolve_credential("acme", "claroty", "bearer_token", Some(&org_id), Some(&keyring))` → `Ok(SecretString("secret-value"))` + audit "keyring". (RG-034-001 per ADR-034.) |
+| Tier 3 keyring miss → Tier 4 | `acme` | `claroty` | `bearer_token` | No env var; keyring has no entry for the OrgId-keyed key; CRUD store empty | `CredentialResolutionError::NotFound` — Tier 3 miss falls through to Tier 4, Tier 4 miss → `NotFound`. (RG-034-002 per ADR-034.) |
+| Tier 3 None org_id → Tier 4 | `acme` | `claroty` | `bearer_token` | No env var; `org_id: None` passed to `resolve_credential`; CRUD store empty | Tier 3 skipped silently; falls to Tier 4 → `CredentialResolutionError::NotFound` |
+| Tier 3 keyring backend error → hard error | `acme` | `claroty` | `bearer_token` | No env var; keyring returns `Err(NoStorageAccess)` | `CredentialResolutionError::BackendUnavailable { detail: "E-CRED-008: OS keyring unavailable: NoStorageAccess" }` — does NOT fall through to Tier 4 (ADR-034 §D4; E-CRED-008 is the canonical keyring-unavailable code per ADR-035 §D2) |
+| Not found | `acme` | `claroty` | `bearer_token` | No env var, no keyring | `CredentialResolutionError::NotFound` with Tier 2 env var name in message |
+| Tier 1 precedence | `acme` | `claroty` | `bearer_token` | Both `_FILE` and direct env var set | Tier 1 (file) wins; Tier 2 ignored |
 | Invalid ref name | any | any | `my key!` | — | `PrismError::InvalidInput`: must match pattern |
 | CrowdStrike `client_id` | `acme` | `crowdstrike` | `client_id` | `PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_ID=id-value` | Env value as `SecretString` |
 | CrowdStrike `client_secret` | `acme` | `crowdstrike` | `client_secret` | `PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_SECRET=secret-value` | Env value as `SecretString` |
@@ -362,11 +364,11 @@ These vectors specifically test the boot probe, which must discover credentials 
 
 | Scenario | org_registry | sensor | ref | Keyring State | Expected probe result |
 |----------|-------------|--------|-----|---------------|----------------------|
-| **TV-BOOT-P-001 — OrgId-keyed entry found (canonical path, EC-06-006)** | `{slug="demo-org", org_id="f47ac10b-…"}` | `armis` | `bearer_token` | `set_by_org(org_id, "armis", "bearer_token", _)` called; OrgId-keyed key `f47ac10b-…/armis/bearer_token` exists. No env vars. No legacy key. | `Ok(None)` — probe succeeds; Tier 3a hit. Credential value discarded (AD-017). Boot step 5 passes. |
-| **TV-BOOT-P-002 — Legacy key found, no OrgId entry (EC-06-007, backward compat)** | `{slug="demo-org", org_id="f47ac10b-…"}` | `armis` | `bearer_token` | Only legacy key `armis/bearer_token` exists in keyring. No OrgId-keyed key. No env vars. | Tier 1/2 miss → Tier 3a `get_by_org` → `Ok(None)` for all orgs → Tier 3b: `keyring::Entry::new("prism", "armis/bearer_token")` → `Ok(_)` → `Ok(None)` — probe succeeds. |
-| **TV-BOOT-P-003 — All tiers miss → CredentialRefInvalid** | `{slug="demo-org", org_id="f47ac10b-…"}` | `armis` | `bearer_token` | No env vars. No OrgId-keyed entry. No legacy entry. | `Err(BootError::CredentialRefInvalid(...))` — error message cites env var format, OrgId-keyed keyring format, and legacy keyring format. |
-| **TV-BOOT-P-004 — Keyring backend error during Tier 3a (EC-06-008)** | `{slug="demo-org", org_id="f47ac10b-…"}` | `armis` | `bearer_token` | `get_by_org` returns `Err(NoStorageAccess)`. No env vars. | `Err(BootError::CredentialPermissionDenied(...))` — hard error; does NOT fall through to Tier 3b. |
-| **TV-BOOT-P-005 — Tier 2 env var hit (existing behavior, unchanged)** | `{slug="demo-org", org_id="f47ac10b-…"}` | `armis` | `bearer_token` | No keyring entries. `PRISM_CLIENTS_DEMO_ORG_SENSORS_ARMIS_BEARER_TOKEN=abc123` set. | `Ok(None)` — Tier 2 hit; probe succeeds without touching keyring. |
+| **TV-BOOT-P-001 — OrgId-keyed entry found (canonical path, EC-06-006)** | `{slug="demo-org", org_id="f47ac10b-…"}` | `claroty` | `bearer_token` | `set_by_org(org_id, "claroty", "bearer_token", _)` called; OrgId-keyed key `f47ac10b-…/claroty/bearer_token` exists. No env vars. No legacy key. | `Ok(None)` — probe succeeds; Tier 3a hit. Credential value discarded (AD-017). Boot step 5 passes. |
+| **TV-BOOT-P-002 — Legacy key found, no OrgId entry (EC-06-007, backward compat)** | `{slug="demo-org", org_id="f47ac10b-…"}` | `claroty` | `bearer_token` | Only legacy key `claroty/bearer_token` exists in keyring. No OrgId-keyed key. No env vars. | Tier 1/2 miss → Tier 3a `get_by_org` → `Ok(None)` for all orgs → Tier 3b: `keyring::Entry::new("prism", "claroty/bearer_token")` → `Ok(_)` → `Ok(None)` — probe succeeds. |
+| **TV-BOOT-P-003 — All tiers miss → CredentialRefInvalid** | `{slug="demo-org", org_id="f47ac10b-…"}` | `claroty` | `bearer_token` | No env vars. No OrgId-keyed entry. No legacy entry. | `Err(BootError::CredentialRefInvalid(...))` — error message cites env var format, OrgId-keyed keyring format, and legacy keyring format. |
+| **TV-BOOT-P-004 — Keyring backend error during Tier 3a (EC-06-008)** | `{slug="demo-org", org_id="f47ac10b-…"}` | `claroty` | `bearer_token` | `get_by_org` returns `Err(NoStorageAccess)`. No env vars. | `Err(BootError::CredentialPermissionDenied(...))` — hard error; does NOT fall through to Tier 3b. |
+| **TV-BOOT-P-005 — Tier 2 env var hit (existing behavior, unchanged)** | `{slug="demo-org", org_id="f47ac10b-…"}` | `claroty` | `bearer_token` | No keyring entries. `PRISM_CLIENTS_DEMO_ORG_SENSORS_CLAROTY_BEARER_TOKEN=abc123` set. | `Ok(None)` — Tier 2 hit; probe succeeds without touching keyring. |
 
 ---
 
@@ -389,6 +391,7 @@ No VPs in VP-INDEX directly verify credential reference resolution. Placeholder 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.12 | wave-a-spec-evolution-burst-3 | 2026-07-22 | product-owner | ADR-053 D2+D3 + ADR-054 D1 amendment: §Per-Sensor table: armis auth_type `bearer_static`→`token_exchange`, credential ref `bearer_token`→`secret_key`, provider `BearerStaticCredentialAuthProvider`→`DeclarativeHttpAuthProvider(TokenExchange)`; cyberint row split into `cyberint-alerts` + `cyberint-assets` (ADR-053 D3 dual-surface), both `cookie_roundtrip` + `access_token` + `StaticCookieAuthProvider`; crowdstrike provider `crowdstrike-oauth2 WASM plugin`→`DeclarativeHttpAuthProvider(Oauth2ClientCredentials)` (ADR-054 D1). §TOML example: armis `bearer_token`→`secret_key` with updated description. §Env-Var Worked examples: armis row updated (ARMIS_BEARER_TOKEN→ARMIS_SECRET_KEY); cyberint row split into cyberint-alerts and cyberint-assets rows (CYBERINT_ALERTS_ACCESS_TOKEN + CYBERINT_ASSETS_ACCESS_TOKEN). §Query-Time Resolution (9 rows): armis+ARMIS→claroty+CLAROTY (re-pointed to preserve four-tier resolution chain examples; claroty still uses bearer_token credential ref — no armis bearer_token reference survives). §Boot-Step-5 Probe TV-BOOT-P-001..005: armis+ARMIS→claroty+CLAROTY throughout. modified date 2026-07-22. |
 | 1.11 | S-DEMO-003-merged-PR-176 | 2026-06-08 | state-manager | **POL-14 auto-promotion draft→active (D-1055).** S-DEMO-003 squash-merged PR #176 into develop@a42e3eaf. `status: draft → active` (synced with `lifecycle_status: active` which was already correct per ADR-025 ground truth; the `status:` inconsistency was an ADR-025 drift introduced before the D-1047 durable snapshot). E-CRED-008 emitter + boot Tier-3a `KeyringCredentialProbe::probe` (OrgId-keyed via `get_by_org` per ADR-034 §D3) are now in merged production code. BC H1 title UNCHANGED (POL-7). BC v1.10 → v1.11. |
 | 1.10 | S-DEMO-003-F-P16-MED-001 | 2026-06-07 | product-owner | **F-P16-MED-001 — cyberint auth_type drift api_key → cookie_roundtrip (D-747 LOCKED).** §Per-Sensor `[[credential_refs]]` Declarations table, cyberint row: `auth_type` column corrected from `api_key` → `cookie_roundtrip`. Root cause: `api_key` is the credential-ref NAME for cyberint (correct in the `Required [[credential_refs]] names` column), not the auth_type; the auth_type cell was incorrectly populated with the credential name. Canonical source: `crates/prism-sensors/specs/cyberint.sensor.toml:26` declares `auth_type = "cookie_roundtrip"` (D-747 LOCKED; the legacy `bearer_static` label for cyberint was a known latent label bug — `cookie_roundtrip` is the locked canonical value per ADR-028 §D2 / ADR-031 §D3-a). Corroboration: provider column `StaticCookieAuthProvider` (cookie-based) and story Open Question 3 both confirm `cookie_roundtrip`. The `Required [[credential_refs]] names` column (`api_key`), provider column (`StaticCookieAuthProvider`), and all sibling rows (armis `bearer_static`, claroty `bearer_static`, crowdstrike `oauth2_client_credentials`) are unchanged and correct. H1 title UNCHANGED (POL-7). Status remains draft (POL-14). |
 | 1.9 | S-DEMO-003-F-P15-HIGH-002 | 2026-06-07 | product-owner | **F-P15-HIGH-002 — Async signature correction.** Corrected §OrgRegistry and KeyringStore Threading: removed false claim that "`CredentialRefProbe` trait and `CredentialRefProbe::probe` method signature are UNCHANGED from v1.3" and "no signature blast radius." The pass-14 implementation (commit 0941c0e0) converted `probe` to `async` via `#[async_trait]` — this IS a method-signature change. All 5 impls (production `KeyringCredentialProbe` + 4 test doubles in `tests/bc_2_03_013_credential_init.rs` and `tests/vp153_rule_c_shaped_probe.rs`) were required to adopt `#[async_trait]` + `async fn probe`, and all call sites required `.await`. The `org_registry: &OrgRegistry` parameter was already present from v1.3 (unchanged). The async conversion is correct and necessary: a synchronous `probe` cannot `.await get_by_org`. The construction prescription (probe and store share ONE `Arc<KeyringBackend>` per ADR-034 §D5) and the `Arc::clone(&keyring_backend)` sharing example in the code block are unchanged and correct. BC H1 title UNCHANGED (POL-7). Status remains draft (POL-14). |

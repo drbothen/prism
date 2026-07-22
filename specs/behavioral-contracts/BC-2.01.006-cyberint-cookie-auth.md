@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -13,13 +13,13 @@ lifecycle_status: active
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "76729b7"
+input-hash: "fc9d874"
 traces_to: ["CAP-001"]
 extracted_from: ".factory/specs/prd.md"
-scheduled_amendment_in: ADR-023
+scheduled_amendment_in: null
 amendment_lifecycle: null
 introduced: cycle-1
-modified: "2026-05-27"
+modified: "2026-07-22"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -28,38 +28,67 @@ removed: null
 removal_reason: null
 ---
 
-# BC-2.01.006: Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing
+# BC-2.01.006: Cyberint Assets Cookie-Based Authentication and Multi-Format Timestamp Parsing
 
 ## Description
+
+> **Amendment — ADR-053 D3 (Wave-A spec evolution burst 3):** This BC's scope has been
+> restricted to the **Cyberint Assets** surface (`/asset-configuration` server, spec file
+> `cyberint-assets.sensor.toml`). The Cyberint platform exposes two logically separate API
+> servers: the Alerts surface (`/alert` endpoint, `cyberint-alerts.sensor.toml`, covered by
+> **BC-2.01.018**) and the Assets surface (`/asset-configuration` endpoint,
+> `cyberint-assets.sensor.toml`, covered by this BC). Both surfaces share the same
+> `cookie_roundtrip` auth mechanism and `[[credential_refs]] name = "access_token"`, but have
+> distinct base URLs and data schemas. The `header_scheme = "cookie:access_token"` TOML field
+> (per ADR-053 D2) governs header injection for both surfaces. POL-36: both Cyberint specs
+> are general mechanism examples, not hardcoded sensor-specific behaviour.
 
 > **Amendment — ADR-023 (PLUGIN-MIGRATION-001-G):** This BC previously described a
 > hardcoded Rust adapter (`CyberintAuth`). That implementation was deleted in
 > PLUGIN-MIGRATION-001-A (PR #156). The auth behavior described here is now delivered by the
-> Cyberint TOML sensor spec (`.prism/specs/sensors/cyberint.sensor.toml`)
-> with `auth_type = "cookie_roundtrip"` (declarative TOML; no `.prx` WASM plugin required
-> for this auth mechanism). The behavioral contract itself is unchanged — preconditions,
-> postconditions, and invariants describe what the system must do, not how. The `SensorAuth`
-> open trait (BC-2.01.016) is the runtime interface.
+> Cyberint Assets TOML sensor spec (`.prism/specs/sensors/cyberint-assets.sensor.toml`)
+> with `auth_type = "cookie_roundtrip"` and `header_scheme = "cookie:access_token"`
+> (declarative TOML; no `.prx` WASM plugin required for this auth mechanism). The
+> behavioral contract itself is unchanged — preconditions, postconditions, and invariants
+> describe what the system must do, not how. The `SensorAuth` open trait
+> (BC-2.01.016) is the runtime interface.
 
-The Cyberint sensor authenticates via an `access_token` cookie declared in the TOML spec under `auth_type = "cookie_roundtrip"`. Because Cyberint responses use inconsistent timestamp formats, the spec-driven adapter employs a 4-format CyberintTime parser (ISO 8601, RFC 3339, Unix epoch seconds, Cyberint custom format) and maintains a `(Timestamp, RecordID)` 2-tuple cursor. Timestamps that cannot be parsed through any format fall back to the fetch timestamp, with the raw string preserved in `raw_extensions`.
+The Cyberint Assets sensor authenticates via an `access_token` cookie declared in the TOML
+spec under `auth_type = "cookie_roundtrip"` with `header_scheme = "cookie:access_token"`.
+This BC covers the Assets surface only: the `/asset-configuration` API server that provides
+asset inventory and configuration data. Because Cyberint asset responses use inconsistent
+timestamp formats, the spec-driven adapter employs a 4-format CyberintTime parser (ISO 8601,
+RFC 3339, Unix epoch seconds, Cyberint custom format) and maintains a `(Timestamp, AssetID)`
+2-tuple cursor. Timestamps that cannot be parsed through any format fall back to the fetch
+timestamp, with the raw string preserved in `raw_extensions`. The Alerts surface is a
+separate server with a distinct sensor spec and is covered by BC-2.01.018.
 
 ## Preconditions
-- Cyberint sensor is configured with an `access_token` credential
-- The `access_token` is injected as a cookie via the Cookie RoundTripper middleware
+- Cyberint Assets sensor spec (`cyberint-assets.sensor.toml`) is configured with
+  `auth_type = "cookie_roundtrip"`, `header_scheme = "cookie:access_token"`, and a
+  `[[credential_refs]]` block with `name = "access_token"` that resolves to a valid
+  Cyberint API access token
+- The resolved `access_token` credential is available via the per-client credential store
+  (BC-2.06.003 four-tier resolution chain)
 
 ## Postconditions
-- All Cyberint API requests include the `access_token` cookie header
-- Timestamps in Cyberint responses are parsed using the CyberintTime 4-format parser (ISO 8601, RFC 3339, Unix epoch seconds, Cyberint custom format)
-- Cursor is a `(Timestamp, RecordID)` 2-tuple extracted from each alert/asset record
+- All Cyberint Assets API requests include the `Cookie: access_token={token}` header,
+  injected via `StaticCookieAuthProvider` per `header_scheme = "cookie:access_token"`
+- The `Authorization` header is NOT set for `cookie_roundtrip` sensors
+- Timestamps in Cyberint Assets responses are parsed using the CyberintTime 4-format parser
+  (ISO 8601, RFC 3339, Unix epoch seconds, Cyberint custom format)
+- Cursor is a `(Timestamp, AssetID)` 2-tuple extracted from each asset record
 
 ## Invariants
-- DI-012 (retired in S-PLUGIN-PREREQ-E): The sealed auth trait that prevented cross-composition has been replaced by `SpecLoader::validate_cross_composition()` runtime enforcement per BC-2.01.016 §Invariants. Cyberint cookie auth cannot be composed with other sensor auth mechanisms — this invariant is now enforced at spec-load time, not via a sealed trait.
+- DI-012 (6-value canonical auth_type set per ADR-054 D1): `cookie_roundtrip` is one of
+  the six valid auth_type values. Cross-sensor auth composition is prevented at spec-load
+  time by `SpecLoader::validate_cross_composition()` per BC-2.01.016 §Invariants.
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `PrismError::Sensor` | Cookie auth rejected (HTTP 401 or 403) | `category: "authentication"`, suggestion: "Verify Cyberint access_token in credential store; token may have expired" |
-| `PrismError::Sensor` | Cyberint API returns HTTP 429 (rate limited) | Backoff with exponential retry (2s base, 30s max); if exhausted, return partial results with `truncation_reason: "rate_limited"` |
+| `PrismError::Sensor` | Cyberint Assets API returns HTTP 429 (rate limited) | Backoff with exponential retry (2s base, 30s max); if exhausted, return partial results with `truncation_reason: "rate_limited"` |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -71,7 +100,7 @@ The Cyberint sensor authenticates via an `access_token` cookie declared in the T
 
 | Test Vector ID | Description | Expected |
 |----------------|-------------|----------|
-| TV-BC-2.01.006-001 | Valid access_token cookie; standard ISO 8601 timestamp in response | Record parsed; `(Timestamp, RecordID)` cursor set; alert returned |
+| TV-BC-2.01.006-001 | Valid access_token cookie; standard ISO 8601 timestamp in Cyberint asset response | Asset record parsed; `(Timestamp, AssetID)` cursor set; `Cookie: access_token={token}` header present in request |
 | TV-BC-2.01.006-002 | Timestamp in Cyberint custom format (4th format) | CyberintTime parser succeeds on 4th attempt; timestamp correctly extracted |
 | TV-BC-2.01.006-003 | Timestamp in unknown 5th format (DEC-015) | Parse fails; fallback to fetch timestamp; raw string in `raw_extensions`; warning logged |
 | TV-BC-2.01.006-004 | HTTP 401 cookie rejection | `PrismError::Sensor` with `category: "authentication"` and token refresh suggestion |
@@ -87,6 +116,7 @@ The Cyberint sensor authenticates via an `access_token` cookie declared in the T
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-001 |
+| Capability Anchor Justification | CAP-001 ("Sensor Adapter Layer (Internal)") per capabilities.md §CAP-001. This BC specifies the authentication mechanism and timestamp-parsing behavior for the Cyberint Assets sensor adapter — exactly what CAP-001 defines for the sensor adapter layer (auth, data fetch, cursor management for sensor APIs). |
 | L2 Invariants | DI-012 |
 | Priority | P0 |
 
@@ -94,6 +124,7 @@ The Cyberint sensor authenticates via an `access_token` cookie declared in the T
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | wave-a-spec-evolution-burst-3 | 2026-07-22 | product-owner | ADR-053 D3 amendment: BC scope restricted to Cyberint Assets surface only (`cyberint-assets.sensor.toml`, `/asset-configuration` server). H1 title updated (added "Assets"). Amendment note added citing ADR-053 D3 split rationale and BC-2.01.018 as the Alerts-surface sibling BC. Description prose updated to Cyberint Assets sensor with `/asset-configuration` server scope. Preconditions updated to `cyberint-assets.sensor.toml` with `header_scheme = "cookie:access_token"` per ADR-053 D2. Postconditions updated: `StaticCookieAuthProvider` + `header_scheme = "cookie:access_token"` + `(Timestamp, AssetID)` cursor. DI-012 invariant note updated to 6-value canonical auth_type set per ADR-054 D1. Capability Anchor Justification added per adversary policy 5. scheduled_amendment_in cleared (ADR-023 complete in v1.5). modified date 2026-07-22. |
 | 1.5 | PLUGIN-MIGRATION-001-G | 2026-05-27 | product-owner | ADR-023 amendment: removed PENDING AMENDMENT banner; added Amendment Note to Description; updated Description prose from deleted `CyberintAuth` Rust adapter to TOML spec `auth_type = "cookie_roundtrip"` declarative language; updated DI-012 invariant from sealed-trait to `SpecLoader::validate_cross_composition()` runtime enforcement per BC-2.01.016; set amendment_lifecycle to null; bumped status draft→active. Behavioral semantics (preconditions, postconditions, error cases, test vectors) unchanged. |
 | 1.4 | prereq-f | 2026-05-11 | product-owner | PREREQ-F prefix note: added PENDING AMENDMENT — ADR-023 callout under H1 per ADR-023 L370 wording; added scheduled_amendment_in: ADR-023 and amendment_lifecycle: pending to frontmatter. No semantic change to BC body. Full amendment in Wave 2/G. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

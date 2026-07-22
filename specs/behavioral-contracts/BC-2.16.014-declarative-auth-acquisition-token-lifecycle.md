@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -25,7 +25,7 @@ inputs:
   - ".factory/specs/domain-spec/invariants.md"
   - "crates/prism-spec-engine/src/auth_provider.rs"
   - "crates/prism-spec-engine/src/error.rs"
-input-hash: "827ac61"
+input-hash: "bc9f412"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -50,7 +50,7 @@ and `relative_seconds` expiry modes. All behavior is parameterized through the s
 `[auth_acquisition]` TOML block; no sensor-name-conditional engine logic is permitted (POL-36).
 Sensor names appear only in TOML spec files and test fixtures.
 
-This BC is the source authority for VP-159 (planned, see ADR-054 §D9) and the behavioral
+This BC is the source authority for VP-159 (authored v1.0, D-1947; registered in VP-INDEX v1.83) and the behavioral
 specification for the `DeclarativeHttpAuthProvider` implementation story in Wave-A.
 
 ## Preconditions
@@ -322,7 +322,7 @@ before this migration).
 
 | VP ID | Description |
 |-------|-------------|
-| VP-159 (PLANNED — see ADR-054 §D9) | Lazy acquisition and refresh-on-expiry invariants for `DeclarativeHttpAuthProvider`. Integration tests with a `MockHttpClient` (network isolation — behavioral state-transition sequences). Module: `prism-spec-engine`. Tool: `integration_test`. BC: BC-2.16.014 (this contract). Properties verified: (a) `::new()` makes zero network calls; (b) cold `get_token()` → exactly one HTTP POST; (c) warm `get_token()` (within TTL) → zero HTTP POSTs; (d) stale `get_token()` (past TTL) → exactly one HTTP POST re-acquisition; (e) empty-token `get_token()` → exactly one HTTP POST (same as cold); (f) direct `acquire_token()` → exactly one HTTP POST (cache bypass); (g) TTL arithmetic correctness for both `absolute_utc_string` and `relative_seconds` expiry modes; (h) `CachedAuthToken` never stores credential values (AD-017 assertion). VP-159 will be registered in VP-INDEX by the architect after implementation begins per ADR-054 §D9. |
+| VP-159 | Lazy acquisition and refresh-on-expiry invariants for `DeclarativeHttpAuthProvider`. Integration tests with a `MockHttpClient` (network isolation — behavioral state-transition sequences). Module: `prism-spec-engine`. Tool: `integration_test`. BC: BC-2.16.014 (this contract). Properties verified: (a) `::new()` makes zero network calls; (b) cold `get_token()` → exactly one HTTP POST; (c) warm `get_token()` (within TTL) → zero HTTP POSTs; (d) stale `get_token()` (past TTL) → exactly one HTTP POST re-acquisition; (e) empty-token `get_token()` → exactly one HTTP POST (same as cold); (f) direct `acquire_token()` → exactly one HTTP POST (cache bypass); (g) TTL arithmetic correctness for both `absolute_utc_string` and `relative_seconds` expiry modes; (h) `CachedAuthToken` never stores credential values (AD-017 assertion). Authored v1.0 (vp-159-declarative-http-auth-lazy-acquisition-and-refresh-on-expiry.md); registered in VP-INDEX v1.83 per D-1947. |
 
 ## Related BCs
 
@@ -387,8 +387,9 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 ## VP Anchors
 
-- VP-159 (PLANNED — see ADR-054 §D9): lazy acquisition and refresh-on-expiry integration tests;
-  to be registered in VP-INDEX by architect after implementation story is authored
+- VP-159: lazy acquisition and refresh-on-expiry integration tests; authored v1.0
+  (vp-159-declarative-http-auth-lazy-acquisition-and-refresh-on-expiry.md); registered in
+  VP-INDEX v1.83 per D-1947
 
 ## Traceability
 
@@ -406,4 +407,5 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | wave-a-spec-evolution-burst-3-correction | 2026-07-22 | product-owner | ADR-054 v0.33 D10(c) adjudication applied: §Description VP-159 reference updated from "(planned, see ADR-054 §D9)" to "(authored v1.0, D-1947; registered in VP-INDEX v1.83)"; §Verification Properties VP-159 row updated to present tense — removed "(PLANNED — see ADR-054 §D9)" label and "VP-159 will be registered in VP-INDEX by the architect after implementation begins per ADR-054 §D9" future-tense sentence, replaced with "Authored v1.0 (vp-159-declarative-http-auth-lazy-acquisition-and-refresh-on-expiry.md); registered in VP-INDEX v1.83 per D-1947"; §VP Anchors updated to present tense referencing the authored VP file and VP-INDEX registration. D-1947 authorship event. input-hash 827ac61→bc9f412. |
 | 1.0 | D-1943 Wave-A spec-evolution BC authoring | 2026-07-22 | product-owner | Initial draft — BC anchor for `DeclarativeHttpAuthProvider` token lifecycle. Postconditions P1–P8 authored from ADR-054 §D8 (authoritative source). Preconditions from ADR-054 §D3/D4/D7/D8. Invariants INV-014-001..008 (POL-36 generalization constraint, per-org token URL derivation, AD-017 credential safety, ArcSwap atomicity, DI-012 compliance, ADR-050 reqwest compliance, E-SPEC-028 spec-load gate). Edge cases EC-016-014-001..015. Error conditions referencing E-SPEC-028(a)–(h), E-AUTH-001/002/005, E-SPEC-024. Canonical test vectors TV-1..10. VP-159 planned per ADR-054 §D9 (not authored here — architect scope). ADR-054 D11 amendment manifest items NOT executed here — separate burst. BC-INDEX registration NOT performed here — separate burst. |
