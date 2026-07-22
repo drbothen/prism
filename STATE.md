@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.486"
+version: "8.487"
 producer: state-manager
 timestamp: 2026-07-22T00:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.82"
 story_index_version: "v2.719"
-arch_index_version: "2.240"
+arch_index_version: "2.241"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1938 (2026-07-22): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 43 on 43626da6: NOT CLEAN — MED-1 (AuthType::as_str() exhaustive-match carrier unmanifested; compile-enforced class not yet in census taxonomy). Fix applied: ADR-054 v0.28 — as_str() D11 row + census trichotomy (manifested / E0004-enforced / dispositioned-wildcard; zero unmanifested carriers, claim now verifiable). Generalization probe PASS (40th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.239→v2.240. trajectory-tail →0→1→1→1 STATE v8.485→v8.486"
+current_step: "D-1939 (2026-07-22): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 44: NOT CLEAN(strict), CLEAN(PR-merge) — single LOW (ADR-053 §D2 dangling 'see MED-1 note' prose pointer repointed to D5 manifest ADR-032 row; finding-label-pointer class sweep both primaries PASS). Fix applied: ADR-053 v0.24. Generalization probe PASS (41st consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.240→v2.241. trajectory-tail →0→1→1→1 STATE v8.486→v8.487"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 464 lines (wc-l)
+  STATE.md SIZE BUDGET: 465 lines (wc-l)
   margin from soft-target (200): +263 lines over | margin from actual (500): 37 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-22 D-1938 — ADR-054 v0.28 as_str() D11 row + census trichotomy (manifested/E0004-enforced/dispositioned-wildcard). ARCH-INDEX v2.239→v2.240. Streak 0/3. trajectory-tail →0→1→1→1 STATE v8.485→v8.486 |
+| **Last Updated** | 2026-07-22 D-1939 — ADR-053 v0.24 §D2 dangling note-pointer repoint; finding-label-pointer class sweep both primaries CLEAN. ARCH-INDEX v2.240→v2.241. Streak 0/3. trajectory-tail →0→1→1→1 STATE v8.486→v8.487 |
 
 ## Active Objective (North Star)
 
@@ -351,6 +351,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1936 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1935 self-check follow-through: 3 pre-existing out-of-perimeter registry version-cell mismatches reconciled (ADR-002 v1.2→v1.3 per file-frontmatter + changelog top-row; ADR-036 v2.2→v2.3 per file-frontmatter + changelog top-row; ADR-045 file-frontmatter v1.0→v1.1 synced to changelog top-row v1.1 — registry cell already correct at v1.1, no registry cell edit). ADR-045 changelog row "v" prefix normalized to bare version (1.1/1.0) matching project convention. ADR-033/034/035/038 no-version-field structural class registered as cycle-close hygiene follow-up (anchored in cycle lessons). Streak 0/3; next fresh adversary pass on new frozen HEAD. ARCH-INDEX v2.237→v2.238. STATE v8.483→v8.484 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1937 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 42 on c2e6c1d6: NOT CLEAN(strict), CLEAN(PR-merge) — single OBS (ADR-023 frontmatter version-string format embedded-v 'v1.23'; lone outlier vs bare-numeric convention across all 54 decision files). Fix applied: ADR-023 v1.24 — frontmatter version: "v1.23"→"1.24", modified: 2026-07-21→2026-07-22, changelog row 1.24 prepended. Class sweep CLEAN: 54 decision files scanned; ADR-023 was sole embedded-v hit. Generalization probe PASS (39th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.238→v2.239. trajectory-tail →1→0→1→1 STATE v8.484→v8.485 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1938 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 43 on 43626da6: NOT CLEAN — MED-1 (AuthType::as_str() exhaustive-match carrier unmanifested in ADR-054 D11 census; compile-enforced class not yet in census taxonomy). Fix applied: ADR-054 v0.27→v0.28 — as_str() D11 row added (TokenExchange arm, E0004-compile-enforced, checklist-completeness); census rescoped into verifiable trichotomy: (i) manifested per-site rows [7 brace-list carriers], (ii) E0004 compile-enforced class [as_str() sole member, grep-confirmed], (iii) wildcard behavior-reviewed sites [step9a other=>, build_request _=>, dispositioned via D7]; zero unmanifested carriers remain, claim now verifiable. Generalization probe PASS (40th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.239→v2.240. trajectory-tail →0→1→1→1 STATE v8.485→v8.486 | wave-5-e-demo-fidelity | 2026-07-22 |
+| D-1939 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 44 on e9cd320e: NOT CLEAN(strict), CLEAN(PR-merge) — single LOW (ADR-053 §D2 dangling "see MED-1 note" prose pointer; MED-1 no longer exists in body; repointed to "(see the D5 manifest ADR-032 row for the deliberate related_adrs-tracking rationale)"). Finding-label-pointer class sweep both primaries: ADR-053 sole hit (line 189 body); ADR-054 zero hits. Fix applied: ADR-053 v0.24. Generalization probe PASS (41st consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.240→v2.241. STATE v8.486→v8.487 | wave-5-e-demo-fidelity | 2026-07-22 |
 
 ## Skip Log
 
