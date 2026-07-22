@@ -5,7 +5,7 @@ title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2Cli
 status: accepted
 date: "2026-07-20"
 modified: "2026-07-22"
-version: "0.34"
+version: "0.35"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -13,7 +13,7 @@ superseded_by: null
 amends:
   - "ADR-023 (partial — §Rule 4 walk-back: standard HTTP token-acquisition flows do not require WASM plugins; custom_via_plugin escape hatch preserved for genuinely non-standard auth)"
   - "ADR-026 (partial — §D3: AuthType closed enum gains token_exchange variant; affects E-SPEC-012 enum validation and step9a_populate_adapter_registry dispatch)"
-  - "ADR-028 (partial — §D13 oauth2_client_credentials: PluginAuthProvider (WASM) path spec-load-rejected per D10(b) E-SPEC-028(b) unconditional; DeclarativeHttpAuthProvider (native) is the sole live path; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; crowdstrike-oauth2.prx plugin retired per D5)"
+  - "ADR-028 (partial — §D13 oauth2_client_credentials: PluginAuthProvider (WASM) path spec-load-rejected per D10(b) E-SPEC-028(b) — fires for auth_type ∈ {oauth2_client_credentials, token_exchange} + auth_plugin present regardless of [auth_acquisition] (Definition 1, adjudicated F-WASE-P2-HIGH-001); DeclarativeHttpAuthProvider (native) is the sole live path; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; crowdstrike-oauth2.prx plugin retired per D5)"
 related_adrs: [ADR-023, ADR-026, ADR-028, ADR-031, ADR-032, ADR-050, ADR-053]
 related_bcs: [BC-2.01.016, BC-2.01.017, BC-2.06.003, BC-2.16.001, BC-2.16.009, BC-2.16.014]
 amends_dis: ["DI-012"]
@@ -440,18 +440,40 @@ pass as other spec-file validation rules (BC-2.16.009 **Rule 10** — after ADR-
 
 **Message templates:**
 
+> **Canonical source for message templates (F-WASE-P2-MED-001):** `error-taxonomy.md` E-SPEC-028 is the canonical source of truth for message template text. The text in §D10 sub-conditions below represents condition-authoring intent (trigger logic, parameter substitution, sub-condition labeling). On any wording-only conflict between §D10 and the taxonomy, the taxonomy wins. Exception: sub-condition (b) is explicitly adjudicated below (F-WASE-P2-HIGH-001); §D10(b) is the authoritative semantic source and the taxonomy must be updated to match it.
+
 **(a) Required block absent:**
 `"sensor '{sensor_id}': auth_type = '{auth_type}' requires an [auth_acquisition] block with token_path. Add an [auth_acquisition] block."`
 Fires when: `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND (`[auth_acquisition]` absent OR `token_path` absent).
 
 **(b) Conflicting auth_plugin:**
 `"sensor '{sensor_id}': auth_type = '{auth_type}' uses native declarative provider and does not accept auth_plugin. Remove auth_plugin or change auth_type to custom_via_plugin."`
-Fires when: `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `auth_plugin` is present.
 
-> **D2/D7 consistency note:** D2 states the `auth_plugin` prohibition **unconditionally** for these
-> auth_types (not only when `[auth_acquisition]` is declared). D7's dispatch table row for
-> `Oauth2ClientCredentials AND auth_plugin.is_some()` is therefore validation-unreachable from any
-> valid spec — this arm exists as defense-in-depth only. D2, D7, and D10(b) are now consistent.
+**Fires when:** `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `auth_plugin` is present — regardless of whether `[auth_acquisition]` is declared.
+
+> **F-WASE-P2-HIGH-001 adjudication (2026-07-22) — §D10(b) is the authoritative source; taxonomy must follow:**
+>
+> Two conflicting trigger definitions existed across the package:
+>
+> - **Definition 1** (this §D10(b), §D2, §D7, BC-2.16.014 Precondition 5): fires when `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `auth_plugin` present — **regardless of `[auth_acquisition]`**.
+> - **Definition 2** (error-taxonomy.md E-SPEC-028(b) prior to this adjudication, marked "UNCONDITIONAL"): fires when `auth_plugin` AND `[auth_acquisition]` BOTH declared — regardless of `auth_type`.
+>
+> **Definition 1 is canonical.** Four independent reasons:
+>
+> 1. **§D2 design intent is explicit and unambiguous:** "The `auth_plugin` field MUST NOT be present for `auth_type ∈ {oauth2_client_credentials, token_exchange}` ... regardless of whether `[auth_acquisition]` is declared." Definition 2 contradicts this.
+>
+> 2. **§D7 validation-unreachable claim depends on Definition 1:** The §D7 dispatch table annotates the `Oauth2ClientCredentials AND auth_plugin.is_some()` arm as "VALIDATION-UNREACHABLE — defense-in-depth only" because D10(b) rejects that spec before step 9A runs. Under Definition 2, a spec with `auth_type = oauth2_client_credentials` + `auth_plugin` + **no** `[auth_acquisition]` would NOT be caught by (b) — only by (a). That leaves the §D7 unreachable annotation incomplete. Under Definition 1, D10(b) fires regardless, maintaining the §D7 guarantee.
+>
+> 3. **Definition 2 is redundant given (g):** `auth_plugin` + `[auth_acquisition]` on non-declarative auth_types (`bearer_static`, `cookie_roundtrip`, `api_key`, `custom_via_plugin`) is already fully caught by sub-condition (g) (`[auth_acquisition]` present for non-declarative auth_type). Definition 2 would make (b) a partial duplicate of (g) for those cases, while still missing the critical declarative-type + auth_plugin case where `[auth_acquisition]` is absent.
+>
+> 4. **The message template is auth_type-centric:** the message text "auth_type = '{auth_type}' uses native declarative provider and does not accept auth_plugin" signals the auth_type as the discriminating criterion, not the presence of `[auth_acquisition]`. Consistent only with Definition 1.
+>
+> **Required error-taxonomy.md update (PO sweep — immediately after this ADR fix-burst, F-WASE-P2-HIGH-001):**
+> - Replace E-SPEC-028(b) `message_template` with: `"sensor '{sensor_id}': auth_type = '{auth_type}' uses native declarative provider and does not accept auth_plugin. Remove auth_plugin or change auth_type to custom_via_plugin."`
+> - Replace E-SPEC-028(b) Description sub-condition text with: fires when `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `auth_plugin` is present — regardless of whether `[auth_acquisition]` is declared.
+> - Remove the "UNCONDITIONAL (fires whenever both coexist, regardless of auth_type)" language — that described Definition 2 and is superseded.
+>
+> §D2, §D7, and §D10(b) are all consistent under Definition 1.
 
 **(c) Unknown expiry_mode:**
 `"sensor '{sensor_id}': [auth_acquisition].expiry_mode = '{value}' is not valid. Accepted values: absolute_utc_string, relative_seconds."`
@@ -484,8 +506,8 @@ Fires when `auth_type = "oauth2_client_credentials"` and one or both of `client_
 Fires when `[auth_acquisition]` is present for `auth_type ∈ {bearer_static, cookie_roundtrip, api_key, custom_via_plugin}`.
 
 **(h) token_exchange-only fields on non-token_exchange block:**
-`"sensor '{sensor_id}': [auth_acquisition].{field_name} is only valid when auth_type = 'token_exchange'. Remove '{field_name}' or change auth_type to 'token_exchange'."`
-Fires when any of `credential_body_field`, `token_response_path`, `expiry_field`, or `expiry_mode` is present in an `[auth_acquisition]` block whose `auth_type` is not `token_exchange`. Prevents token_exchange-only fields from being silently ignored when misconfigured on an `oauth2_client_credentials` block (SOUL.md #4 violation class).
+`"sensor '{sensor_id}' [auth_acquisition] contains token_exchange-only fields ({field_list}) but auth_type = '{auth_type}'"`
+Fires as a **single aggregated emission** when one or more of `credential_body_field`, `token_response_path`, `expiry_field`, or `expiry_mode` is present in an `[auth_acquisition]` block whose `auth_type` is not `token_exchange`; `{field_list}` is a comma-separated list of all offending field names and `{auth_type}` is the declared auth_type. Prevents token_exchange-only fields from being silently ignored when misconfigured on an `oauth2_client_credentials` block (SOUL.md #4 violation class). Note (F-WASE-P2-MED-001): prior §D10(h) used per-field `{field_name}` emission (one error per offending field); aligned to taxonomy E-SPEC-028(h) single-aggregated-emission cardinality.
 
 All templates echo only config values (sensor_id, auth_type, field names), never credential values
 (AD-017). Emitted via `SpecErrorCode::ESpec028` (additive variant — no semver break per `#[non_exhaustive]`).
@@ -711,6 +733,7 @@ the ADR-053 standalone Wave-A engine story per §D7 merge-dependency.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.35 | 2026-07-22 | architect | F-WASE-P2-HIGH-001 + F-WASE-P2-MED-001: (HIGH-001) §D10(b) adjudicated — Definition 1 (`auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `auth_plugin` present, regardless of `[auth_acquisition]`) is canonical; Definition 2 (taxonomy's prior "auth_plugin + [auth_acquisition] both declared, regardless of auth_type") is superseded. Expanded §D10(b) with explicit "Fires when:" wording, adjudication note citing four rationale points (§D2 design intent, §D7 unreachable-claim dependency, (g) redundancy under Def-2, message template auth_type-centricity), and PO sweep directive for required taxonomy update. (MED-001) Added meta-note block at top of §D10 message templates: taxonomy wins on wording conflicts; §D10 is condition-authoring intent; §D10(b) is the stated exception where taxonomy must follow §D10. §D10(h) semantics aligned to taxonomy: changed from per-field emission (`{field_name}` singular) to single aggregated emission (`{field_list}`, matching taxonomy v2.57 E-SPEC-028(h) cardinality). |
 | 0.34 | 2026-07-22 | architect | F-WASE-P1-MED-001: §D8 blockquote burst attribution corrected burst 2→burst 1 for BC-2.16.014 (D-1946 is burst 1); §D9 blockquote marker corrected [AUTHORED — D-1946]→[AUTHORED — D-1947] + "decision D-1946, simultaneously with BC-2.16.014"→"decision D-1947; authored after BC-2.16.014 (burst 1, D-1946)"; §D11 BC-2.16.014 row burst 2→burst 1; §D11 VP-INDEX.md row [REGISTERED — D-1946]→[REGISTERED — D-1947] + "simultaneously with BC-2.16.014 authoring" corrected. F-WASE-P1-MED-002: §D11 error-taxonomy.md E-SPEC-028(c) row and BC-2.16.009 Rule 10(c)/EC-009-038 row both updated [PO FOLLOW-UP REQUIRED — Wave-A burst 3 adjudication]→[COMPLETED — D-1948] with past-tense descriptions; §D10(c) note past-tensed and stale v2.57 reference updated to v2.58/v1.13 (D-1948). |
 | 0.33 | 2026-07-22 | architect | Wave-A burst 3 expiry_mode adjudication (Task 2): D10(c) ratification note added confirming `absolute_utc_string` and `relative_seconds` as the sole ratified `expiry_mode` values — all three design-authority sites self-consistent: D3 field table (`"absolute_utc_string"` or `"relative_seconds"`), D4 algorithm (RFC-3339 parse / u64 TTL default 1799), and Armis wiring example (`expiry_mode = "absolute_utc_string"`). BC-2.01.008's use of `expiry_mode = "absolute_utc_string"` is CORRECT per D3. Root cause of conflict: error-taxonomy.md v2.57 E-SPEC-028(c) and BC-2.16.009 Rule 10(c)/EC-009-038 were authored with incorrect values `absolute_epoch_secs, ttl_secs` during burst 3 (PO authoring errors). Two D11 PO follow-up rows added: (1) error-taxonomy.md E-SPEC-028(c) `valid values:` clause correction → `absolute_utc_string, relative_seconds`; (2) BC-2.16.009 Rule 10(c)/EC-009-038 correction → `{absolute_utc_string, relative_seconds}`. Both routed to product-owner. |
 | 0.32 | 2026-07-22 | architect | Wave-A spec evolution burst 2 (D-1946): §D4 error-variant corrected — acquisition-level failures use `AuthAcquisitionFailed` (E-AUTH-001), not `AuthRefreshFailed`; `AuthRefreshFailed` (E-AUTH-002) is double-401 only. BC-2.16.014 and VP-159 [PLANNED] markers cleared — 8 sites: frontmatter `related_bcs_planned` removed (BC-2.16.014 moved to `related_bcs`); D8 blockquote → [AUTHORED — D-1946]; D8 postconditions summary note updated to present tense; D9 blockquote → [AUTHORED — D-1946]; D9 prose "will cover" → "covers"; D9 tail "will be created as DRAFT" → "is registered as DRAFT; D11 manifest rows [PLANNED] → [AUTHORED/REGISTERED — D-1946]; Consequences [PLANNED] prefix removed. |
