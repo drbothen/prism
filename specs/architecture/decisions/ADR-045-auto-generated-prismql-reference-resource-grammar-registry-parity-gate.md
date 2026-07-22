@@ -4,7 +4,7 @@ adr_id: "ADR-045"
 title: "Auto-Generated prismql://reference — Grammar-Registry Parity Gate via Runtime Assembly"
 status: accepted
 date: "2026-06-24"
-version: "1.0"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-10, SS-11]
 supersedes: null
@@ -263,8 +263,8 @@ analysis; PRQL book compile-test pattern; Chumsky/DataFusion CI gate patterns).
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
-| v1.1 | 2026-06-24 | architect | HRG ratification burst. HRG-3: HYBRID ratified; D3 CI gate expanded to shared `&'static str` example array with positive round-trip gate + negative E-QUERY-040 gate + registry-parity gate; build-time codegen formally rejected. Status PROPOSED→ACCEPTED. Research basis: `.factory/research/prismql-composition-and-reference-research-2026-06-24.md`. |
-| v1.0 | 2026-06-24 | architect | Initial draft. PROPOSED. HRG-3 pending human ratification. |
+| 1.1 | 2026-06-24 | architect | HRG ratification burst. HRG-3: HYBRID ratified; D3 CI gate expanded to shared `&'static str` example array with positive round-trip gate + negative E-QUERY-040 gate + registry-parity gate; build-time codegen formally rejected. Status PROPOSED→ACCEPTED. Research basis: `.factory/research/prismql-composition-and-reference-research-2026-06-24.md`. |
+| 1.0 | 2026-06-24 | architect | Initial draft. PROPOSED. HRG-3 pending human ratification. |
 
 ---
 

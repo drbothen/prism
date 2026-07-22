@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.237"
+version: "2.238"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -67,7 +67,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 | ID | Title | Status | Date | File |
 |----|-------|--------|------|------|
 | ADR-001 | DTU Rate-Limit Pattern | ACCEPTED v1.2 | 2026-04-22 | decisions/ADR-001-dtu-rate-limit-pattern.md |
-| ADR-002 | L2 DTU Clone Template | ACCEPTED v1.2 | 2026-04-22 | decisions/ADR-002-l2-dtu-clone-template.md |
+| ADR-002 | L2 DTU Clone Template | ACCEPTED v1.3 | 2026-04-22 | decisions/ADR-002-l2-dtu-clone-template.md |
 | ADR-003 | DTU Reset Lookup and Fidelity Auth | ACCEPTED v1.5 | 2026-04-22 | decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md |
 | ADR-004 | Kani Arbitrary Policy — Which Types Carry kani::Arbitrary | PROPOSED v0.2 | 2026-05-17 | decisions/ADR-004-kani-arbitrary-policy.md |
 | ADR-005 | AQL Injection Mitigation — Armis Adapter Query Trust Model | ACCEPTED v0.3 | 2026-04-26 | decisions/ADR-005-aql-injection-mitigation.md |
@@ -102,7 +102,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 | ADR-033 | Push-Down Time-Window Extraction Strategy — Pre-Fan-Out Heuristic (T1) vs Post-Resolution classify_predicates (T2) | ACCEPTED v1.0 | 2026-06-05 | decisions/ADR-033-push-down-time-window-extraction-strategy-pre-fan-out-heuristic.md |
 | ADR-034 | Tier-3 Keyring Resolution — OrgId Threading via Injected OrgRegistry, OrgId-Keyed Write Reconciliation, and Async Safety | ACCEPTED v1.2 | 2026-06-06 | decisions/ADR-034-tier3-keyring-resolution-org-id-threading.md |
 | ADR-035 | E-CRED Namespace Reconciliation — Canonical E-CRED-001..010 Error Codes, Collision Resolution, and Migration Mapping | ACCEPTED v1.2 | 2026-06-07 | decisions/ADR-035-e-cred-namespace-reconciliation.md |
-| ADR-036 | Deterministic Scenario-Progression Engine — IncidentTimeline, Per-DTU Projection, and Cross-DTU Entity Coherence for Live Demo | ACCEPTED v2.2 | 2026-06-09 | decisions/ADR-036-deterministic-scenario-progression-engine.md |
+| ADR-036 | Deterministic Scenario-Progression Engine — IncidentTimeline, Per-DTU Projection, and Cross-DTU Entity Coherence for Live Demo | ACCEPTED v2.3 | 2026-06-09 | decisions/ADR-036-deterministic-scenario-progression-engine.md |
 | ADR-037 | prism-customer-config Crate Retirement — Superseded by Boot Step 3 OrgRegistry (BC-2.21.001), Spec-Engine Per-Org Overlays (ADR-029), and Per-Client Credential Convention (ADR-032) | ACCEPTED v1.0 | 2026-06-10 | decisions/ADR-037-prism-customer-config-crate-retirement.md |
 | ADR-038 | E-CFG Runtime Namespace Reconciliation — Canonical E-CFG-100..106 Runtime Codes, PrismError Renumber Map, and Client-Not-Found Variant Split | ACCEPTED v1.5 | 2026-06-11 | decisions/ADR-038-e-cfg-runtime-namespace-reconciliation.md |
 | ADR-039 | Org-Scoped TableRegistry Error Filtering — Filter E-QUERY-037 available_sensors/available_tables to Requesting Org's Registered Tables (SEC-001/CWE-200 fix) | ACCEPTED v1.1 | 2026-06-16 | decisions/ADR-039-org-scoped-table-registry-error-filtering.md |
@@ -180,6 +180,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.238 | D-1936 | 2026-07-22 | state-manager | D-1935 self-check follow-through: 3 pre-existing registry version-cell mismatches reconciled (ADR-002 v1.2→v1.3 per file-frontmatter + changelog top-row; ADR-036 v2.2→v2.3 per file-frontmatter + changelog top-row; ADR-045 file-frontmatter v1.0→v1.1 synced to changelog top-row v1.1 — registry cell already correct at v1.1, no registry edit). ADR-033/034/035/038 use pre-version-field frontmatter template; version-cell verification cannot cover them; template-conformance backfill deferred to Wave-A cycle-close hygiene follow-up (anchored in cycle lessons). ARCH-INDEX v2.237→v2.238. |
 | 2.237 | D-1935 | 2026-07-22 | state-manager | Adversary re-gate pass-41 fix-burst (D-1935 2026-07-22): MED-1 ADR-053 registry cell stale at v0.22 after D-1934's own v0.23 bump (state-manager self-miss); cell updated to PROPOSED v0.23 with D-1934 annotation. Full-registry version-cell sweep: 54 ADR rows verified (ADR-001..ADR-054 incl. ADR-026-AMENDMENT); 3 additional pre-existing mismatches noted as out-of-scope findings (ADR-002 registry v1.2 vs file v1.3; ADR-036 registry v2.2 vs file v2.3; ADR-045 registry v1.1 vs file v1.0); ADR-033/034/035/038 have no version field in frontmatter (structural gap class, different from version-cell drift). ARCH-INDEX v2.236→v2.237. |
 | 2.236 | D-1934 | 2026-07-22 | state-manager | Adversary re-gate pass-40 fix-burst (D-1934 2026-07-22): LOW-2 ADR-023 registry-row annotation phantom §D3 label corrected — "at-point token_exchange 6th-variant annotation on §D3 Rule A set" → "on Rule 2 (Rule A) enumerated set" (ADR-023 has no §D3; annotation annotates the Decision Rules Rule 2 (Rule A) enumerated set; §D3 was copy-pasted from ADR-026 sibling). LOW-1 ADR-053 v0.22→v0.23 registry-row version bump (v0.22 changelog row 'before' string erroneously repeated the qualified 'after' form; v0.23 correction row added). ARCH-INDEX v2.235→v2.236. |
 | 2.235 | D-1933 | 2026-07-22 | state-manager | Adversary re-gate pass-39 fix-burst (D-1933 2026-07-22): ADR-054 v0.26→v0.27 (HIGH-1: three doc/inline-comment enumeration carriers hidden by FB-26 file-level census exclusion — `validate_cross_composition` fn doc, spec_parser.rs inline comment, vp153 module `//!` doc; census re-run at per-SITE granularity; all 7 brace-list carriers dispositioned; zero unmanifested carriers remain); ADR-053 v0.21→v0.22 (LOW-1: §Canonical Test Vectors anchor in D5 BC-2.06.003 row §(3) qualified to "§Canonical Test Vectors → Query-Time Resolution (`resolve_credential`)" ×2 — 14 total armis \| bearer_token rows, 9 in QT-Resolution + 5 in Boot-Step-5 Probe). ADR-053 modified: synced 2026-07-21→2026-07-22. Generalization probe PASS (36th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.234→v2.235. |
