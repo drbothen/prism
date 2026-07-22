@@ -124,13 +124,52 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1900 (session wrap — Wave-A ADR convergence mid-cascade; test-soc findings remediation SOLE priority). VERY FIRST ACTION next session: re-read `/Users/jmagady/Dev/test-soc/demo-soc/findings/` (10 files) to reground + cross-check `.factory/planning/findings-remediation-2026-07-20/triage-capture.md` (D-1889); dispatch FRESH architect for ADR-054 v0.4 + ADR-053 v0.9 (5 open findings); state burst → adversary re-gate → strict 3-CLEAN → human Wave-A gate.** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1900 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1900 (this wrap) is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.448. D-1900 session wrap complete; Wave-A mid-cascade; findings-first priority recorded. NEXT: re-read findings → fresh architect ADR-054 v0.4+ADR-053 v0.9 → cascade → 3-CLEAN.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1944 (session wrap — Wave-A ADR set ACCEPTED (D-1943); VERY FIRST ACTION next session = dispatch Wave-A spec evolution (BC-2.16.014 + VP-159 + manifest execution + story retirements + remove-uncertainty + story decomp + TDD).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1944 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1944 (this wrap) is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.492. D-1944 session wrap complete; Wave-A ADR set ACCEPTED; spec evolution NEXT.
 
 ---
 
-## §RESUME SNAPSHOT — D-1900 (2026-07-21 — SESSION WRAP; Wave-A ADR convergence mid-cascade; STATE v8.448) [SUPERSEDES D-1888]
+## §RESUME SNAPSHOT — D-1944 (2026-07-22 — SESSION WRAP; Wave-A ADR set ACCEPTED at human gate; STATE v8.492) [SUPERSEDES D-1900]
+
+### RESUME IN ONE BREATH
+Wave-A ADR set (ADR-053 v0.26 + ADR-054 v0.31 + amended parents) reached BC-5.39.001 strict 3-CLEAN (passes 48-50 @46c1c802 after 50 passes/30 fix-bursts) and was HUMAN-APPROVED + ACCEPTED (D-1943 @5b0e4645). NEXT: dispatch Wave-A SPEC EVOLUTION — author PLANNED BC-2.16.014 (product-owner, from ADR-054 D8) + VP-159 (architect, D9, tool integration_test); execute ADR-053 D5 + ADR-054 D11 amendment manifests; retire the 4 wrong-direction stories; mandatory remove-uncertainty pass; then story decomposition + TDD.
+
+### HEADS (verified 2026-07-22 at wrap)
+- origin/develop: 7fef57da — PUSHED. LOCAL develop: e116a587 — STALE, ff BLOCKED (DRIFT-LOCAL-DEVELOP-FF-001, human-gated, unchanged).
+- factory-artifacts: 5b0e4645 (D-1943 acceptance) — PUSHED; this wrap commit supersedes as HEAD.
+- Main worktree: docs/claude-md-file-size-convention @426c77cd (PR #230 OPEN, awaiting HUMAN merge).
+- .worktrees/fix-demosetup-cwd: fix/DEFECT-DEMOSETUP-CWD-001 @ec4379b5 — PUSHED, PR #229 OPEN (deliver during findings phase).
+- .worktrees/S-3.09 @43c41389 — LOCAL-ONLY, KEEP-PARKED. .worktrees/W3-FIX-S307-001 @fcab8717 dirty — LOCAL-ONLY, PARKED-DIRTY do-NOT-touch.
+- verify-sha-currency.sh: PASS (1 non-blocking WARN) at wrap.
+
+### WORKSTREAM — WAVE-A FINDINGS REMEDIATION
+ADR convergence phase COMPLETE: 50 fresh-context adversarial passes, 30 fix-bursts (D-1902..D-1941 (exhaustive)), strict 3-CLEAN on frozen 46c1c802 (passes 48/49/50), convergence recorded D-1942, human gate APPROVED + acceptance transition D-1943 (ADR-053 v0.26 ACCEPTED, ADR-054 v0.31 ACCEPTED, ARCH-INDEX v2.244; supersessions EFFECTIVE: ADR-028 §D1/§D2/§D5 grounding flip spec←OpenAPI, ADR-031 §D3 narrowed, LOCKED D-747 + Cyberint single-surface OVERTURNED; STATE locked entries updated).
+
+**RESUME NEXT-ACTION (spec evolution):** Dispatch in order: (1) product-owner: author BC-2.16.014 (Declarative Auth Acquisition Token Lifecycle; authoring source = ADR-054 D8 P1-P8; [PLANNED] markers to be cleared; register in BC-INDEX); (2) architect: author VP-159 (D9 authoring source; acquire-no-network-until-use/refresh-on-expiry; folds DRIFT-D849-002; tool integration_test; register in VP-INDEX + verification-architecture + coverage-matrix per POL-9); (3) execute amendment manifests — ADR-053 D5 + ADR-054 D11 rows route: BC amendments → product-owner; VP-153 amendment → architect (POL-24 same-commit atomicity: error-taxonomy E-SPEC-012 source + VP-153 copies + DI-012 in ONE commit); error-taxonomy E-SPEC-027/028 registration + E-SPEC-005 modernization → product-owner; DI-012 → business-analyst or product-owner with ADR-054 amended_by back-ref; code doc-comment carriers → implementer at engine-story time; (4) STORY RETIREMENTS — CRITICAL GAP-1 (perimeter audit): the 4 retirement targets are NOT in the ADR manifests; read triage-capture.md §Wrong-Direction Stories: S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 retire, S-DTU-CROWDSTRIKE-INCIDENTS-ROUTE-001 re-scope/retire, DTU-EXT-005 retire, DTU-EXT-001 re-adjudicate (story-writer + state-manager STORY-INDEX); (5) MANDATORY remove-uncertainty pass (user directive) on new/changed specs; (6) story decomposition (story-writer; ADR-054 D7 sequencing: engine story FIRST [E-SPEC-027 + matrix for 5 existing variants], ADR-054 story SECOND [TokenExchange + matrix row + allowed_set atomically], then sensor stories) → TDD per-story delivery.
+
+### STANDING USER DIRECTIVES (this session)
+- GENERALIZATION DIRECTIVE (2026-07-21, mirrored+confirmed): ALL fixes must be general mechanisms consumed via spec/config surface; sensor-specific behavior lives in TOML specs + DTU clones; NEVER sensor-name-conditional engine code. Enforced as standing adversary probe all cascade passes (PASS throughout). OPEN OFFER: codify as POL-36 in policies.yaml (user hasn't decided — ask at next opportunity or fold into spec-evolution adversary dispatches manually).
+
+### WAVE PLAN (unchanged): A grounding+auth (ADR phase DONE → spec evolution NEXT) → B endpoint fidelity → C Bucket-B engine (F1/F10 CRITs) → D extended coverage + DTU-fidelity. DTU-side work captured per-wave (Armis access_token route + Cyberint re-clone in A; SAP-2 enforces parity at story level).
+
+### PROCESS-GAP / CYCLE-CLOSE CARRIES
+- PG-VP-SKELETON-ASBUILT-001: VP §Proof Harness Skeleton diverged from as-built tests; POL-31 enforcement hook still TBD — codification follow-up required at cycle close (S-7.02).
+- ADR-033/034/035/038 pre-version-field template backfill (registered ARCH-INDEX v2.238).
+- Lesson: census/verification claims must be verified against code at write time (FB-22 'as-built' claim + FB-28 phantom symbol both escaped; fixed pattern: read-target-before-write mandated in dispatches).
+
+### OTHER OPEN ITEMS (carried, unchanged)
+- develop CI stuck 'queued' on 7fef57da — re-trigger/investigate.
+- PR #230 (CLAUDE.md file-size stance) awaiting HUMAN merge; PR #229 open.
+- Staged ci.yml/e2e.yml residue in main worktree (S-MAINT AC-007, human-gated). Local develop FF blocked (human-gated).
+- File-size decomposition PARKED (TD-DECOMP-EPIC-001/RATCHET-001) until findings remediated.
+
+### DECISION DELTA (this session, 2026-07-21/22)
+D-1901 (triage cross-check remediation), D-1902..D-1941 (exhaustive) (Wave-A ADR adversarial cascade: 50 passes, 30 fix-bursts), D-1942 (3-CLEAN convergence @46c1c802), D-1943 (HUMAN GATE APPROVED — ADRs ACCEPTED, supersessions effective), D-1944 (this wrap).
+
+---
+
+## §RESUME SNAPSHOT — D-1900 (2026-07-21 — SESSION WRAP; Wave-A ADR convergence mid-cascade; STATE v8.448) [SUPERSEDES D-1888] [SUPERSEDED by D-1944]
 
 ### RESUME IN ONE BREATH
 Wave-A of the test-soc findings remediation is mid-adversarial-convergence on the auth/grounding ADRs. NEXT SESSION FIRST re-read `/Users/jmagady/Dev/test-soc/demo-soc/findings/` (10 files) to reground + cross-check `.factory/planning/findings-remediation-2026-07-20/triage-capture.md` (D-1889); then dispatch a FRESH architect for ADR-054 v0.4 + ADR-053 v0.9 to close the open re-gate findings, commit, and continue the adversary cascade toward strict 3-CLEAN → human Wave-A approval gate.

@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.491"
+version: "8.492"
 producer: state-manager
 timestamp: 2026-07-22T00:00:00Z
 inputs: []
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "Wave-A ADR-053 + ADR-054 ACCEPTED (D-1943, human gate 2026-07-22). Supersessions EFFECTIVE. NEXT: Wave-A spec evolution → story decomp → TDD. trajectory-tail →3→0→0→0 STATE v8.490→v8.491"
+current_step: "WRAPPED @D-1944 — next: Wave-A spec evolution (BC-2.16.014 + VP-159 + manifests + story retirements + remove-uncertainty + story decomp + TDD). ADR-053 v0.26 + ADR-054 v0.31 ACCEPTED (D-1943 2026-07-22). trajectory-tail →3→0→0→0 STATE v8.491→v8.492"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,8 +77,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 469 lines (wc-l)
-  margin from soft-target (200): +268 lines over | margin from actual (500): 32 lines remaining
+  STATE.md SIZE BUDGET: 470 lines (wc-l)
+  margin from soft-target (200): +270 lines over | margin from actual (500): 30 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -356,6 +356,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1941 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 47 on 42f7a08c: NOT CLEAN(strict), CLEAN(PR-merge) — 3 OBS (TD-VSDD-091 line-pin regression in FB-27/28 rows [11 pins stripped], shape-count prose conflation, v0.26 false sweep-justification). Fix-burst applied: ADR-054 v0.30. Streak reset 1/3→0/3 (pass 46 was CLEAN). Generalization probe PASS (44th consecutive). Next: fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.242→v2.243. STATE v8.488→v8.489 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1942 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — WAVE-A ADR ADVERSARIAL CONVERGENCE: passes 48/49/50 CLEAN(strict) 3/3 on frozen HEAD 46c1c802 per BC-5.39.001. Cascade totals: 50 passes, 30 fix-bursts (D-1902..D-1941 (exhaustive)). ADR set: ADR-053 v0.25 + ADR-054 v0.30 (+ amended ADR-023 v1.24, ADR-026 v1.38, ADR-028 v1.24, ADR-031 v1.6, ADR-032 v1.3). Generalization probe PASS throughout (45th/46th/47th consecutive on passes 48/49/50). STATUS: CONVERGED — pending HUMAN Wave-A approval gate. Process-gap codification items for cycle close: PG-ADR-STATUS-SELFCITE-001 (resolved via non-volatile self-cites), PG-VP-SKELETON-ASBUILT-001 (POL-31 enforcement hook still TBD — carry to lessons). trajectory-tail →3→0→0→0 STATE v8.489→v8.490 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1943 | human+state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — HUMAN WAVE-A APPROVAL GATE: APPROVED 2026-07-22. ADR-053 v0.25→v0.26 ACCEPTED + ADR-054 v0.30→v0.31 ACCEPTED. Supersessions effective: ADR-028 §D1/§D2/§D5 (grounding spec←OpenAPI), ADR-031 §D3 (scope-narrowed), LOCKED D-747 + Cyberint single-surface OVERTURNED. Locked-decision entries 1/4/5 updated PENDING→SUPERSEDED. GAP-1 (perimeter audit): spec-evolution story must read BOTH the ADR D5/D11 manifests AND triage-capture §Wrong-Direction Stories for the 4 retirements — orchestrator carries this into the dispatch. NEXT: Wave-A spec evolution (BC-2.16.014 + VP-159 authoring, manifest execution, story retirements, mandatory remove-uncertainty pass) → story decomposition → TDD. ARCH-INDEX v2.243→v2.244. trajectory-tail →3→0→0→0 STATE v8.490→v8.491 | wave-5-e-demo-fidelity | 2026-07-22 |
+| D-1944 | state-manager | 2026-07-22 | SESSION WRAP — RESUME SNAPSHOT D-1944 (2026-07-22). Wave-A ADR set convergence complete + ACCEPTED (D-1943). ADR-053 v0.26 + ADR-054 v0.31 ACCEPTED; strict 3-CLEAN on frozen 46c1c802 (passes 48/49/50; cascade totals: 50 passes, 30 fix-bursts D-1902..D-1941 (exhaustive)). Supersessions effective. Session-handoff §RESUME SNAPSHOT D-1944 authored (supersedes D-1900). NEXT: Wave-A spec evolution (BC-2.16.014 + VP-159 authoring, manifest execution, story retirements, remove-uncertainty pass, story decomposition, TDD). sidecar-learning.md: session-end markers 1373→1613 lines; included in commit. trajectory-tail →3→0→0→0 STATE v8.491→v8.492 | wave-5-e-demo-fidelity | 2026-07-22 |
 
 ## Skip Log
 
@@ -456,11 +457,11 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1900 — 2026-07-21 — SESSION WRAP; Wave-A ADR mid-cascade; develop@e116a587 local/7fef57da origin; STATE v8.448)
+## Session Resume Checkpoint (D-1944 — 2026-07-22 — SESSION WRAP; Wave-A ADR set ACCEPTED; develop@e116a587 local/7fef57da origin; STATE v8.492)
 
-**RESUME IN ONE BREATH:** Wave-A ADR convergence mid-cascade on auth/grounding ADRs. NEXT SESSION FIRST re-read `/Users/jmagady/Dev/test-soc/demo-soc/findings/` (10 files) to reground + cross-check `.factory/planning/findings-remediation-2026-07-20/triage-capture.md` (D-1889); then dispatch a FRESH architect (NOT a5234272-RETIRED) for ADR-054 v0.4 + ADR-053 v0.9 to close 5 open re-gate findings (HIGH-1 BC-2.23.001 SS-23 misanchor; HIGH-2 ADR-053 D2 header still WASM; MED-1 fixtures README; LOW-1 plugin/mod.rs test; OBS-1 doc-hygiene row), commit, and continue adversary cascade toward strict 3-CLEAN → human Wave-A approval gate.
+**RESUME IN ONE BREATH:** Wave-A ADR set ACCEPTED (D-1943 2026-07-22). ADR-053 v0.26 + ADR-054 v0.31 ACCEPTED after strict 3-CLEAN on frozen 46c1c802 (50 passes / 30 fix-bursts D-1902..D-1941 (exhaustive)). VERY NEXT ACTION: dispatch Wave-A spec evolution — (1) product-owner: BC-2.16.014 (Declarative Auth Acquisition Token Lifecycle; ADR-054 D8 P1-P8); (2) architect: VP-159 (ADR-054 D9; folds DRIFT-D849-002; tool integration_test); (3) execute amendment manifests (ADR-053 D5 + ADR-054 D11); (4) story retirements (triage-capture §Wrong-Direction Stories: 4 targets); (5) remove-uncertainty pass; (6) story decomposition + TDD.
 
-**HEADS (verified 2026-07-21 D-1900):**
+**HEADS (verified 2026-07-22 D-1944):**
 - origin/develop: `7fef57da` — PUSHED; LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001, do NOT auto-FF)
 - factory-artifacts: `git -C .factory log -1 --format='%h %s'` (do not hard-code)
 - `.worktrees/fix-demosetup-cwd`: fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5` — PUSHED; PR #229 OPEN
