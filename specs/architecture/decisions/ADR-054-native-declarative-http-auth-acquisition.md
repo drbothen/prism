@@ -5,7 +5,7 @@ title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2Cli
 status: accepted
 date: "2026-07-20"
 modified: "2026-07-22"
-version: "0.31"
+version: "0.32"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -15,8 +15,7 @@ amends:
   - "ADR-026 (partial — §D3: AuthType closed enum gains token_exchange variant; affects E-SPEC-012 enum validation and step9a_populate_adapter_registry dispatch)"
   - "ADR-028 (partial — §D13 oauth2_client_credentials: PluginAuthProvider (WASM) path spec-load-rejected per D10(b) E-SPEC-028(b) unconditional; DeclarativeHttpAuthProvider (native) is the sole live path; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; crowdstrike-oauth2.prx plugin retired per D5)"
 related_adrs: [ADR-023, ADR-026, ADR-028, ADR-031, ADR-032, ADR-050, ADR-053]
-related_bcs: [BC-2.01.016, BC-2.01.017, BC-2.06.003, BC-2.16.001, BC-2.16.009]
-related_bcs_planned: [BC-2.16.014]
+related_bcs: [BC-2.01.016, BC-2.01.017, BC-2.06.003, BC-2.16.001, BC-2.16.009, BC-2.16.014]
 amends_dis: ["DI-012"]
 human_authorization: "D-1895 (2026-07-20) — 'Armis auth must NOT require a plugin. Complete the TOML engine to express standard HTTP auth acquisition DECLARATIVELY; retire crowdstrike-oauth2.prx; custom_via_plugin stays only as escape hatch for genuinely arbitrary auth'"
 wave_scope: "Wave-A — applies to Armis token-exchange (new sensor) and CrowdStrike oauth2 migration (remove plugin dependency)"
@@ -295,9 +294,11 @@ and `StaticCookieAuthProvider` also implement). The construction site for
 2. If `Some(cached)` and `unix_now() < cached.expires_at` and `!cached.token.is_empty()` → return cached token (zero network calls)
 3. Otherwise → call `acquire_token()` (refreshes cache atomically via ArcSwap)
 
-**Error handling:** All acquisition errors propagate as `SpecEngineError::AuthRefreshFailed`
-(reusing the existing error variant per error-taxonomy discipline — no new error variant needed
-for the acquisition-level failure; E-SPEC-028 covers spec-load validation failures only).
+**Error handling:** Acquisition-level failures propagate as `SpecEngineError::AuthAcquisitionFailed`
+(E-AUTH-001 — the existing error variant for token acquisition failures; no new error variant
+needed). Double-401 from the sensor endpoint — PipelineExecutor retries once after a 401; a
+second consecutive 401 — propagates as `SpecEngineError::AuthRefreshFailed` (E-AUTH-002) per P6.
+E-SPEC-028 covers spec-load validation failures only.
 
 **Security:** Credential values are resolved at `acquire_token()` time, not at construction.
 They are NEVER stored beyond the scope of the HTTP POST call. Token strings are cached but
@@ -379,12 +380,10 @@ Rule 10, see D10 E-SPEC-028) before step 9A. By the time step 9A runs, specs are
 
 ### D8 — BC-2.16.014: Declarative Auth Acquisition Token Lifecycle
 
-> **[PLANNED — Wave-A spec evolution]** `BC-2.16.014` does not yet exist. It will be authored
-> by the product-owner during the Wave-A implementation story that delivers
-> `DeclarativeHttpAuthProvider`. The postconditions P1–P8 below are the **authoring source** —
-> the product-owner uses this section as the behavioral specification when writing the BC file.
-> Until that story ships, `BC-2.16.014` is a forward reference only; no
-> `.factory/specs/behavioral-contracts/BC-2.16.014-*.md` file exists and no BC-INDEX row exists.
+> **[AUTHORED — D-1946 2026-07-22]** `BC-2.16.014` was authored by the product-owner during
+> Wave-A spec evolution burst 2 (decision D-1946). The postconditions P1–P8 below served as the
+> **authoring source**; `BC-2.16.014` is now the authoritative behavioral contract.
+> File: `.factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md`
 
 A new BC `BC-2.16.014` will be authored covering the behavioral contract for
 `DeclarativeHttpAuthProvider`:
@@ -395,7 +394,7 @@ A new BC `BC-2.16.014` will be authored covering the behavioral contract for
 - `DeclarativeHttpAuthProvider` is constructed per (org, sensor) during boot step 9A
   (`step9a_populate_adapter_registry` in `spec_driven_adapter.rs`)
 
-**Postconditions (summary — BC-2.16.014 will be authoritative once authored):**
+**Postconditions (summary — BC-2.16.014 is authoritative; this section is the historical authoring source):**
 - P1: `DeclarativeHttpAuthProvider::new()` makes ZERO network calls (lazy acquisition invariant)
 - P2: First `get_token()` call issues exactly ONE HTTP POST to the derived token URL (`base_url + token_path`, stored in provider at construction) and caches the result
 - P3: Subsequent `get_token()` calls within TTL return the cached token without issuing an HTTP request
@@ -409,14 +408,12 @@ A new BC `BC-2.16.014` will be authored covering the behavioral contract for
 
 ### D9 — VP-159: Lazy Acquisition and Refresh-on-Expiry Invariants
 
-> **[PLANNED — Wave-A spec evolution]** `VP-159` does not yet exist. It will be registered in
-> `VP-INDEX.md` by the architect during the Wave-A implementation story that delivers
-> `DeclarativeHttpAuthProvider`, after `BC-2.16.014` is authored and its postconditions are
-> confirmed. The properties listed below are the **authoring source** for VP-159. Until that
-> story ships, VP-159 is a forward reference only; no `vp-159-*.md` file exists and no
-> VP-INDEX row exists.
+> **[AUTHORED — D-1946 2026-07-22]** `VP-159` was registered in `VP-INDEX.md` by the architect
+> during Wave-A spec evolution burst 2 (decision D-1946), simultaneously with `BC-2.16.014`.
+> The properties listed below served as the **authoring source**; VP-159 is now registered as DRAFT.
+> File: `.factory/specs/verification-properties/vp-159-declarative-http-auth-lazy-acquisition-and-refresh-on-expiry.md`
 
-A new verification property `VP-159` will cover the network-call invariants of `DeclarativeHttpAuthProvider`:
+Verification property `VP-159` covers the network-call invariants of `DeclarativeHttpAuthProvider`:
 
 - **Module:** `prism-spec-engine`
 - **Tool:** `integration_test` (MockHttpClient for network isolation — behavioral state-transition sequences, not combinatorial input generation; analogous to VP-033/VP-036)
@@ -431,8 +428,8 @@ A new verification property `VP-159` will cover the network-call invariants of `
   - TTL arithmetic for `relative_seconds` expiry mode: `expires_at = now + expires_in.saturating_sub(ttl_buffer_secs)` where `expires_in` is defaulted to 1799 when absent or zero (matches the plugin's `saturating_sub(30)` arithmetic; `.max(1)` is omitted as dead code when the absent/zero default is already 1799)
   - Credential values are not stored in `CachedAuthToken` (AD-017 assertion)
 
-VP-159 will be created as DRAFT; promoted to ACTIVE when the implementation story (D5 retirement story)
-ships and the unit tests are green.
+VP-159 is registered as DRAFT; it will be promoted to ACTIVE when the implementation story (D5 retirement story)
+ships and the integration tests are green.
 
 ### D10 — E-SPEC-028: Declarative Auth Acquisition Validation Errors
 
@@ -500,8 +497,8 @@ All templates echo only config values (sensor_id, auth_type, field names), never
 | `crates/prism-bin/src/spec_driven_adapter.rs` `step9a_populate_adapter_registry` | Add new `TokenExchange` arm: construct `DeclarativeHttpAuthProvider(TokenExchange)` with `token_url = base_url + token_path` | D1, D7 |
 | `BC-2.16.009` Rule set | Add `[auth_acquisition]` coherence validation as **Rule 10** (after ADR-053 D2's Rule 9 for `header_scheme`); E-SPEC-028 error suite per D10 | D10 |
 | `error-taxonomy.md` | Register E-SPEC-028 with all message templates (D10) | D10 |
-| New `BC-2.16.014` `[PLANNED]` | Author Declarative Auth Acquisition Token Lifecycle contract (D8) during Wave-A implementation story; postconditions P1–P8 specified in §D8 above are the authoring source | D8 |
-| `VP-INDEX.md` `[PLANNED]` | Register VP-159 (D9) during Wave-A implementation story, after BC-2.16.014 is authored | D9 |
+| New `BC-2.16.014` **[AUTHORED — D-1946]** | Declarative Auth Acquisition Token Lifecycle contract authored during Wave-A spec evolution burst 2; postconditions P1–P8 specified in §D8 above were the authoring source | D8 |
+| `VP-INDEX.md` **[REGISTERED — D-1946]** | VP-159 registered (D9) during Wave-A spec evolution burst 2, simultaneously with BC-2.16.014 authoring | D9 |
 | ADR-053 D2 | **[COMPLETED — ADR-053 v0.7]** Armis TOML block rewritten from `custom_via_plugin` + `auth_plugin` to `token_exchange` + `[auth_acquisition]` block; coherence matrix updated with `token_exchange → bearer, raw` row; rationale section rewritten. | D1, D3 |
 | ADR-053 §Why native `token_exchange` for Armis (not `custom_via_plugin` + plugin)? | **[COMPLETED — ADR-053 v0.7/v0.12]** Rationale updated to reflect native declarative provider decision; heading renamed from `§Why custom_via_plugin` (retired per POL-21) to current heading `§Why native token_exchange for Armis (not custom_via_plugin + plugin)?`. | D2 |
 | ADR-053 D5 manifest | Update BC-2.01.008 amendment description from `custom_via_plugin` + plugin to `token_exchange` + native provider | D1 |
@@ -630,8 +627,8 @@ depending on whether `auth_plugin` is present.
   support at zero additional plugin cost
 - Plugin infrastructure is preserved for `custom_via_plugin` sensors; the escape hatch is real
   and unimpeded
-- `[PLANNED]` BC-2.16.014 will formalize the token-lifecycle contract that was previously only implicit in the
-  WASM plugin source, making it testable and verifiable via VP-159 (both authored during Wave-A; see D8/D9)
+- BC-2.16.014 formalizes the token-lifecycle contract that was previously only implicit in the
+  WASM plugin source, making it testable and verifiable via VP-159 (both authored in D-1946; see D8/D9)
 
 ### Negative / Trade-offs
 
@@ -702,6 +699,7 @@ the ADR-053 standalone Wave-A engine story per §D7 merge-dependency.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.32 | 2026-07-22 | architect | Wave-A spec evolution burst 2 (D-1946): §D4 error-variant corrected — acquisition-level failures use `AuthAcquisitionFailed` (E-AUTH-001), not `AuthRefreshFailed`; `AuthRefreshFailed` (E-AUTH-002) is double-401 only. BC-2.16.014 and VP-159 [PLANNED] markers cleared — 8 sites: frontmatter `related_bcs_planned` removed (BC-2.16.014 moved to `related_bcs`); D8 blockquote → [AUTHORED — D-1946]; D8 postconditions summary note updated to present tense; D9 blockquote → [AUTHORED — D-1946]; D9 prose "will cover" → "covers"; D9 tail "will be created as DRAFT" → "is registered as DRAFT; D11 manifest rows [PLANNED] → [AUTHORED/REGISTERED — D-1946]; Consequences [PLANNED] prefix removed. |
 | 0.31 | 2026-07-22 | state-manager | STATUS → ACCEPTED — human Wave-A approval gate 2026-07-22 (D-1943). Amendments to ADR-023/026/028 and amends_dis DI-012 now EFFECTIVE (DI-012 content amendment itself executes in the spec-evolution story per D11). |
 | 0.30 | 2026-07-22 | architect | FIX-BURST 30 (OBS-2 + OBS-3 + OBS-1 forward-correction): [OBS-2] Stripped 11 volatile line pins from live D11 rows + census note per TD-VSDD-091 — D11 rows for `validate_cross_composition` fn doc-comment, `validate_cross_composition` inline comment, vp153 `//!` module doc, and `AuthTypeCrossComposition` doc-comment; census note 7-site list. Pins replaced with grep-recoverable behavioral anchors (function names + quoted brace-list text). [OBS-3] VP-153 §Feasibility Assessment D11 row rationale rewritten to separate the two counting models: typed structural shapes stay at 5 (token_exchange reuses ApiKey single-string shape); string-harness auth_type identifier set grows 5→6; hence 6×5=30 pair space. Removed conflating sentence "Credential string-shape space stays at 5+1=6 string identifiers." [OBS-1 forward-correction] v0.26 changelog justification "VP-153 uses timestamp: not modified: (no mismatch possible)" was inaccurate — VP-153 carries BOTH `timestamp:` (line 7) AND `modified:` (line 27); the v0.26 sweep coincidentally found them in-sync (modified: 2026-07-21 matches top changelog row 0.20 \| 2026-07-21, verified). Historical v0.26 row is unchanged per forward-correction pattern. ADR-053 live-body line-pin sweep: zero hits (clean). |
 | 0.29 | 2026-07-22 | architect | FIX-BURST 29 (HIGH-1): Census note wildcard-site symbol corrected — `build_request_with_auth` does not exist in the repo; the real symbol is the module-level free function `build_request` (`crates/prism-spec-engine/src/pipeline.rs`, 8 params, no `&self`, `_ =>` Bearer catch-all at auth_type match). Three occurrences in census note body updated: (1) grep-confirms sentence; (2) wildcard-site (2) bullet; (3) census completeness claim `(iii)` list. v0.28 changelog reference to `build_request_with_auth _ =>` is historical — left as-is per forward-correction pattern. |

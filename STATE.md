@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.494"
+version: "8.495"
 producer: state-manager
-timestamp: 2026-07-22T00:00:00Z
+timestamp: 2026-07-22T01:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -20,9 +20,9 @@ develop_head: "e116a587"
 # NOTE: D-1887 — local develop is at e116a587 (NOT YET FF'd; unstaged S-MAINT ci.yml residue in main worktree blocks fast-forward). origin/develop = 7fef57da (PR #228 S-REL-001 squash-merged 2026-07-20; DRIFT-LOCAL-DEVELOP-FF-001 registered). D-1886 NOTE (pr-manager set 7fef57da) corrected to local HEAD for verify-sha-currency.sh compliance. D-1872 NOTE (e116a587 ff'd 2026-07-19; PR #227 squash-merged) still local HEAD.
 bc_index_version: "8.36"
 # NOTE: D-1946 — BC-INDEX v8.35→v8.36: BC-2.16.014 v1.0 (Declarative Auth Acquisition Token Lifecycle) registered; Wave-A spec-evolution burst 1; draft_contracts 0→1, bc_count_corrected 266→267. D-1841 NOTE (v8.35 BC-3.6.001 legacy-sync BLOCKED) archived.
-vp_index_version: "1.82"
+vp_index_version: "1.83"
 story_index_version: "v2.719"
-arch_index_version: "2.244"
+arch_index_version: "2.245"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -32,14 +32,14 @@ retired_contracts: 6
 prd_version: "1.13"
 policies_version: "1.36"
 subsystem_count: 22
-vp_count: 157
+vp_count: 158
 bc_count_corrected: 267
 workspace_test_count: 5676
 # NOTE: D-1872 — 5672→5676: DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 PR #227 adds +4 SAP-3 end-to-end tests (crates/prism-mcp/tests/defect_t13_audit_ecode_sap3_test.rs: 2 end-to-end via QueryEngine::execute, 2 labeled defense-in-depth wire-shape; CI 44/44 verified). D-1834 NOTE (5671→5672 @dac830d1) archived.
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1946 COMPLETE — BC-2.16.014 v1.0 registered in BC-INDEX v8.36; open adjudication: ADR-054 §D4 misstatement (architect). NEXT: VP-159 (architect) + ADR-053 D5/ADR-054 D11 amendment manifests + 4 story retirements + mandatory remove-uncertainty pass + Wave-A story decomp + TDD. ADR-053 v0.26 + ADR-054 v0.31 ACCEPTED. trajectory-tail →3→0→0→0 STATE v8.493→v8.494"
+current_step: "D-1947 COMPLETE — VP-159 v1.0 authored (declarative HTTP auth lazy-acquisition + refresh-on-expiry; integration_test; folds DRIFT-D849-002); POL-9 registrations: VP-INDEX v1.83, verification-architecture v1.45, coverage-matrix v1.46; ADR-054 v0.32 (§D4 AuthAcquisitionFailed corrected, [PLANNED] cleared); ADR-053 v0.27 ([PLANNED] cleared); ARCH-INDEX v2.245. NEXT: ADR-053 D5 + ADR-054 D11 amendment manifests + 4 story retirements + mandatory remove-uncertainty pass + Wave-A story decomp + TDD. trajectory-tail →3→0→0→0 STATE v8.494→v8.495"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 472 lines (wc-l)
+  STATE.md SIZE BUDGET: 473 lines (wc-l)
   margin from soft-target (200): +270 lines over | margin from actual (500): 30 lines remaining
 -->
 
@@ -359,6 +359,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1944 | state-manager | 2026-07-22 | SESSION WRAP — RESUME SNAPSHOT D-1944 (2026-07-22). Wave-A ADR set convergence complete + ACCEPTED (D-1943). ADR-053 v0.26 + ADR-054 v0.31 ACCEPTED; strict 3-CLEAN on frozen 46c1c802 (passes 48/49/50; cascade totals: 50 passes, 30 fix-bursts D-1902..D-1941 (exhaustive)). Supersessions effective. Session-handoff §RESUME SNAPSHOT D-1944 authored (supersedes D-1900). NEXT: Wave-A spec evolution (BC-2.16.014 + VP-159 authoring, manifest execution, story retirements, remove-uncertainty pass, story decomposition, TDD). sidecar-learning.md: session-end markers 1373→1613 lines; included in commit. trajectory-tail →3→0→0→0 STATE v8.491→v8.492 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1945 | state-manager | 2026-07-22 | POL-36 generalization_directive_no_sensor_conditional_engine_code registered (human-approved codification of the 2026-07-21 standing generalization directive; closes the D-1944 OPEN OFFER). policies.yaml v1.35→v1.36. Sensor-name-conditional control flow in engine code forbidden (HIGH); sensor-specific behavior lives exclusively in TOML sensor specs + DTU clones; enforced as standing adversary probe throughout Wave-A ADR cascade (50 passes, PASS throughout). sidecar-learning.md session-end marker appended (1613→1614 lines; legitimate append-only content). trajectory-tail →3→0→0→0 STATE v8.492→v8.493 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1946 | state-manager | 2026-07-22 | Wave-A spec evolution burst 1 — BC-2.16.014 v1.0 (Declarative Auth Acquisition Token Lifecycle) authored by product-owner from ADR-054 D8 P1-P8 and registered in BC-INDEX v8.36. Open adjudication routed to architect: ADR-054 §D4 misstatement (acquisition errors should propagate as AuthAcquisitionFailed E-AUTH-001, not AuthRefreshFailed E-AUTH-002 which is double-401-only; BC uses correct semantics). draft_contracts 0→1, bc_count_corrected 266→267, bc_index_version 8.35→8.36. STATE v8.493→v8.494 | wave-5-e-demo-fidelity | 2026-07-22 |
+| D-1947 | state-manager | 2026-07-22 | Wave-A spec evolution burst 2 — VP-159 v1.0 authored (declarative HTTP auth lazy-acquisition + refresh-on-expiry; proof_method: integration_test; source_bc: BC-2.16.014; source_invariant: DI-012; folds DRIFT-D849-002); POL-9 registrations: VP-INDEX v1.82→v1.83, verification-architecture v1.44→v1.45, coverage-matrix v1.45→v1.46; ADR-054 v0.31→v0.32 (§D4 acquisition-error variant corrected to AuthAcquisitionFailed E-AUTH-001; 8 [PLANNED] markers cleared); ADR-053 v0.26→v0.27 (3 [PLANNED] markers cleared); ARCH-INDEX v2.244→v2.245. vp_count 157→158. DRIFT-D849-002 folded into VP-159; closure pending at engine-story implementation. STATE v8.494→v8.495 | wave-5-e-demo-fidelity | 2026-07-22 |
 
 ## Skip Log
 
@@ -396,7 +397,7 @@ _Closed items: `cycles/wave-5-e-demo-fidelity/drift-items-resolved.md`. Deferred
 | DRIFT-001A-PROCESS-GAP-REDGATE-FULLGREP-001 [process-gap, RECURRING] | POL-21 phantom-anchor / Red Gate full-table re-grep gap: citation sweeps must check ALL rows (name + behavior description), not just delta rows — recurred v1.7→v1.8→v1.10 in 001-A (F-PR197-RG3-P3-MED-001 survived v1.8 "complete sweep"). The root pattern: the adversary's grep finds the identifier in the NAME column, marks it found, and does NOT check whether the BEHAVIOR DESCRIPTION column also cites it in a way that creates phantom-anchor drift. Full-table re-grep must check both columns. | Rule codified in cycles/wave-5-e-demo-fidelity/lessons.md (D-1277 S-7.02 cycle-close); apply to all future story story-writer Red Gate citation work; no separate follow-up story required. | ongoing (per-story rule) |
 | ~~DRIFT-ADR031-STATUS-001~~ [RESOLVED D-1892] | ADR-031 status confirmed accepted by architect: frontmatter `status: accepted` + `version: "1.4"` (D-1892 burst OBS-1). ARCH-INDEX row updated PROPOSED v1.3 → ACCEPTED v1.4. An accepted ADR can be partially superseded by ADR-053 §D3 — resolved. | DONE | RESOLVED D-1892 |
 | DRIFT-D849-001 [spec-drift; D-849; owner: architect; status: OPEN] | ADR-031 (`adr/ADR-031-plugin-sandbox.md`) documents the plugin sandbox architecture and refers to related BCs in its `related_bcs` frontmatter, but does NOT include BC-2.01.017 (plugin failure isolation). BC-2.01.017 was authored during the S-PLUGIN-PREREQ-B wave after ADR-031 was committed; the ADR's `related_bcs` list was never backfilled to include the new BC. The fix is a 5-minute architect dispatch: append `BC-2.01.017` to the `related_bcs` list in ADR-031 frontmatter and bump the ADR version. No substantive content change required; the ADR's §Consequences and §Context already describe the failure-isolation behavior — the gap is purely the reverse-cite link. | Architect to amend ADR-031 frontmatter `related_bcs` to append BC-2.01.017; bump ADR version. | next architect dispatch |
-| DRIFT-D849-002 [spec-drift; D-849; owner: architect/formal-verifier; status: OPEN] | `StaticCookieAuthProvider::acquire_token()` (prism-spec-engine, `crates/prism-spec-engine/src/auth/cookie.rs`) performs an HTTP POST to obtain the session cookie for cookie-roundtrip auth sensors (e.g., Cyberint). A VP-TBD was proposed during the D-849 session to formally verify the invariant that `acquire_token()` makes NO network calls during the spec-load phase (only during the execution/fetch phase). This verification property was discussed but not assigned a VP-NNN number. An architect dispatch is needed to: (a) confirm whether this invariant is already covered by existing VPs (VP-014 or VP-015 scope), (b) if not, assign VP-NNN and add to VP-INDEX.md, (c) determine whether the verification is Kani-provable or unit-test-only. | Architect to assign VP-NNN and draft the verification property; formal-verifier to implement harness. | next architect dispatch |
+| DRIFT-D849-002 [spec-drift; D-849; owner: architect/formal-verifier; status: FOLDED — VP-159 authored D-1947; closure at engine-story implementation] | `StaticCookieAuthProvider::acquire_token()` (prism-spec-engine, `crates/prism-spec-engine/src/auth/cookie.rs`) performs an HTTP POST to obtain the session cookie for cookie-roundtrip auth sensors (e.g., Cyberint). A VP-TBD was proposed during the D-849 session to formally verify the invariant that `acquire_token()` makes NO network calls during the spec-load phase (only during the execution/fetch phase). RESOLVED D-1947: VP-159 v1.0 authored — declarative HTTP auth lazy-acquisition + refresh-on-expiry; proof_method: integration_test; source_bc: BC-2.16.014; source_invariant: DI-012. VP-INDEX v1.83. Harness implementation due at Wave-A engine-change story (DeclarativeHttpAuthProvider). | FOLDED into VP-159 (D-1947); formal-verifier implements harness at Wave-A engine-change story. | Wave-A engine-change story |
 | DRIFT-D916-001 [process-gap, codified] | POL-14 auto-promotes `draft → active` lifecycle_status on BCs referenced in a merged story's `behavioral_contracts` frontmatter. However, the story-status field in the story's own frontmatter is NOT automatically updated from `in-progress` to `merged` — this requires a manual state-manager burst. S-POL-14-STATUS-SYNC-001 was filed (D-918) to automate this via a post-merge hook or state-manager rule. Until S-POL-14-STATUS-SYNC-001 ships, the state-manager manually updates the story status after each PR merge as part of the post-merge burst. This has been consistently executed in the D-1795 era; the gap is in the automation, not the manual process discipline. | S-POL-14-STATUS-SYNC-001 filed (D-918) | — |
 | DRIFT-D904-001 [process-gap, JUSTIFIED DEFERRAL; D-904] | OBS-PR1-001 adversary diff-tooling limitation: the vsdd-factory adversary agent receives PR diffs via `gh pr diff` CLI output but lacks the ability to interactively navigate to specific line contexts within large diffs. For PRs with 1,000+ line diffs, the adversary must read individual files to verify whether a changed hunk was intentional or accidental. The dispatch tuple (worktree-abs-path, feature-HEAD-SHA, story-id, canonical-repo-root) partially mitigates this by ensuring the adversary can read the feature worktree's full files, but it does not eliminate the diff-navigation limitation for very large diffs. Tracked in drbothen/vsdd-factory upstream issue tracker. | Track in drbothen/vsdd-factory upstream | upstream |
 | DRIFT-D904-002 [process-gap, JUSTIFIED DEFERRAL; D-904] | OBS-PR2 worktree-path-resolution hazard: agents dispatched to read feature-branch code without an explicit worktree path in their dispatch tuple may accidentally read from the develop checkout rather than the feature worktree. This has occurred at least once (S-5.02 OBS-3 PO pass, D-1197) where the product-owner agent read develop and wrongly concluded that `to_error_data_with_retry` was unimplemented. The recommended workaround — codified as DRIFT-ORCH-ADVERSARY-TUPLE-001 and DRIFT-ORCH-AGENT-WORKTREE-READ-001 — is for the orchestrator to always embed the absolute worktree path, feature HEAD SHA, and story-id in every feature-code-reading dispatch. Tracked in drbothen/vsdd-factory upstream issue tracker. | Track in drbothen/vsdd-factory upstream | upstream |
