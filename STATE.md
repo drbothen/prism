@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.467"
+version: "8.468"
 producer: state-manager
 timestamp: 2026-07-21T22:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.81"
 story_index_version: "v2.719"
-arch_index_version: "2.221"
+arch_index_version: "2.222"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1919 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1919 adversary re-gate passes 20-21 fix-burst (Wave-A re-gate cascade). Pass 20 CLEAN(strict) 1/3; Pass 21 NOT CLEAN(strict), CLEAN(PR-merge) — single OBS (ADR-032 subsystems_affected empty vs v1.1 changelog claim). STREAK RESET 1/3→0/3 per BC-5.39.001. Fix-burst applied: ADR-032 v1.2 (SS-03/SS-06/SS-22 populated per registry). Generalization probe PASS (17th/18th consecutive). Next: fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.220→v2.221. trajectory-tail →0→2→0→1 STATE v8.466→v8.467"
+current_step: "D-1920 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1920 adversary re-gate pass 22 fix-burst (Wave-A re-gate cascade). Pass 22 NOT CLEAN — MED-1 (sole live {ORG} in ADR-028 §D13 misstating ADR-032 canonical {ID}), LOW-1 (ADR-023 §Rule A D11-row asymmetry; orchestrator-adjudicated intentional, rationale recorded in census). Fix-burst applied: ADR-028 v1.24 + ADR-054 v0.18. Generalization probe PASS (19th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.221→v2.222. trajectory-tail →2→0→1→2 STATE v8.467→v8.468"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 445 lines (wc-l)
+  STATE.md SIZE BUDGET: 446 lines (wc-l)
   margin from soft-target (200): +245 lines over | margin from actual (500): 55 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-21 D-1919 — passes 20-21 fix-burst: pass 20 CLEAN(strict) 1/3; pass 21 OBS-1 ADR-032 subsystems_affected empty. ADR-032 v1.2 (SS-03/SS-06/SS-22 populated). Generalization probe PASS (17th/18th). ARCH-INDEX v2.220→v2.221. STATE v8.466→v8.467. trajectory-tail →0→2→0→1 |
+| **Last Updated** | 2026-07-21 D-1920 — pass 22 fix-burst: MED-1 ADR-028 §D13 {ORG}→{ID}; LOW-1 ADR-054 D11 census note adjudicated intentional. ADR-028 v1.24 + ADR-054 v0.18. Generalization probe PASS (19th). ARCH-INDEX v2.221→v2.222. STATE v8.467→v8.468. trajectory-tail →2→0→1→2 |
 
 ## Active Objective (North Star)
 
@@ -332,6 +332,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1917 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 17 on 2f340f91: NOT CLEAN — HIGH-1 (BC-2.06.003 canonical credential-ref tables contradicted by all three decisions, unmanifested), MED-1 (D4 SensorAuth/boot.rs mis-anchor → AuthProvider/step9a), OBS-1 (ADR-031 related_adrs symmetry), OBS-2 (matrix Wave-A scope + Wave-B extension note). Fix-burst applied: ADR-053 v0.18 (BC-2.06.003 D5 manifest row — armis token_exchange/secret_key + cyberint dual-surface/access_token + worked examples; OBS-2 custom_via_plugin matrix Wave-A scope + Wave-B extension note) + ADR-054 v0.16 (BC-2.06.003 D11 crowdstrike-provider row; MED-1 D4 AuthProvider auth_provider.rs re-anchor + step9a construction site) + ADR-031 v1.6 (OBS-1 ADR-054 added to related_adrs; modified date synced). Generalization probe PASS (14th consecutive). Streak 0/3; next fresh adversary pass on new frozen HEAD. ARCH-INDEX v2.218→v2.219. STATE v8.464→v8.465. trajectory-tail →1→2→1→4 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1918 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate passes 18-19 on frozen HEAD 54fbc14a: pass 18 CLEAN(strict) 1/3; pass 19 NOT CLEAN(strict), CLEAN(PR-merge) — OBS-1 (ADR-053 BC-2.06.003 D5 "§Worked examples" anchor ambiguous — multiple anchors named "Worked examples" at different headings violates POL-21 unique resolution; qualified to "§Env-Var Name Derivation → Worked examples" ×3), OBS-2 (ADR-054 VP-153 §Feasibility row Rule-C structural-shape decision for token_exchange secret_key unstated — resolved: reuses MockCredentialType::ApiKey shape, static opaque string exchange credential, NOT BearerToken which is the resulting access token; credential space stays 5 shapes; 6×5=30 confirmed; is_coherent_pair + prop_filter amendment directions added). STREAK RESET 1/3→0/3 per BC-5.39.001. Fix-burst applied: ADR-053 v0.19 + ADR-054 v0.17. Generalization probe PASS (15th/16th consecutive). Next: fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.219→v2.220. STATE v8.465→v8.466. trajectory-tail →1→4→0→2 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1919 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate passes 20-21 on frozen HEAD 494b6df5: pass 20 CLEAN(strict) 1/3; pass 21 NOT CLEAN(strict), CLEAN(PR-merge) — single OBS (ADR-032 subsystems_affected empty vs v1.1 changelog claim — v1.1 introduced subsystems_affected section header but left the value as empty list); STREAK RESET 1/3→0/3 per BC-5.39.001. Fix-burst applied: ADR-032 v1.2 — subsystems_affected populated ["SS-03","SS-06","SS-22"] per POL-6 verbatim registry names: SS-03 Credential Management (primary implementer), SS-06 Client Configuration (credential_refs surface), SS-22 Process Lifecycle (boot probe); SS-08 deliberately excluded per ADR-034 ownership. Generalization probe PASS (17th/18th consecutive). Next: fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.220→v2.221. STATE v8.466→v8.467. trajectory-tail →0→2→0→1 | wave-5-e-demo-fidelity | 2026-07-21 |
+| D-1920 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 22 on frozen HEAD 0333bd62: NOT CLEAN — MED-1 (sole live {ORG} in ADR-028 §D13 env-var blockquote misstating ADR-032 canonical {ID}); LOW-1 (ADR-054 D11 census note — ADR-023 §Rule A covered-by-annotation-only by design, restating site; ADR-026 §D3 is defining site with formal row; orchestrator-adjudicated intentional, rationale recorded in census). STREAK 0/3. Fix-burst applied: ADR-028 v1.24 ({ORG}→{ID} in §D13 env-var blockquote; POL-29 census: zero live {ORG}/{ORG_ID} in decisions/ outside changelogs — class CLOSED) + ADR-054 v0.18 (LOW-1 adjudication recorded). Generalization probe PASS (19th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.221→v2.222. STATE v8.467→v8.468. trajectory-tail →2→0→1→2 | wave-5-e-demo-fidelity | 2026-07-21 |
 
 ## Skip Log
 

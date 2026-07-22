@@ -5,7 +5,7 @@ title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API C
 status: Proposed
 date: "2026-05-20"
 modified: "2026-07-21"  # see §Changelog top row
-version: "1.23"
+version: "1.24"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -551,7 +551,7 @@ The canonical `credential_ref` name for `bearer_static` sensors is `bearer_token
 
 > **[ADR-032 SUPERSEDES env-var format (per-client convention):]** The `<SENSOR_ID_UPPER>_BEARER_TOKEN`
 > global format above is the LEGACY env-var convention from before ADR-032. ADR-032 (per-client
-> credential format) introduced `PRISM_CLIENTS_{ORG}_SENSORS_{SENSOR}_BEARER_TOKEN` as the
+> credential format) introduced `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_BEARER_TOKEN` as the
 > canonical operator env-var format (e.g., `PRISM_CLIENTS_ACMECORP_SENSORS_CLAROTY_BEARER_TOKEN`).
 > New operator documentation and sensor spec comments MUST use the ADR-032 per-client format;
 > the global format is accepted only for backward-compat. The `ARMIS_BEARER_TOKEN` example
@@ -657,6 +657,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.24 | 2026-07-21 | architect | FIX-BURST 18 (MED-1): §D13 env-var blockquote `{ORG}` → `{ID}` — corrected `PRISM_CLIENTS_{ORG}_SENSORS_{SENSOR}_BEARER_TOKEN` to `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_BEARER_TOKEN` per ADR-032 canonical convention (ADR-032 uses `{ID}` throughout; `{ORG}` was the pre-ADR-032 FIX-BURST-17 stale token). POL-29 sweep (decisions/): zero remaining live `{ORG}`/`{ORG_ID}` hits in non-changelog content. |
 | 1.23 | 2026-07-21 | architect | FIX-BURST 9 (OBS-1): `modified:` frontmatter inline comment `# v1.18 HIGH-2 (FIX-BURST): …` removed — version-pinned narrative in frontmatter fields is the same self-cite volatility class closed at PG-ADR-STATUS-SELFCITE-001; replaced with non-volatile `# see §Changelog top row`. POL-29 class sweep: only this file carried the defect in the Wave-A perimeter; full decisions/ sweep confirms no other frontmatter-field version-pinned inline comments exist. |
 | 1.22 | 2026-07-21 | architect | FIX-BURST 7 (OBS-1): §D2 Armis supersession blockquote and §D13 env-var blockquote + §D13 Armis consistency-table blockquote — scalar `credential_ref = "secret_key"` replaced with canonical `[[credential_refs]]` block form with `name = "secret_key"` (3 occurrences; `credential_ref` is the old scalar grammar; `[[credential_refs]]` with `name =` is the canonical array-of-tables form per ADR-054 §D3). POL-29 sweep: zero live scalar `credential_ref = "secret_key"` hits remain in live content sections. `modified` comment updated. |
 | 1.21 | 2026-07-21 | architect | OBS-1: §Status stale self-cite corrected — "current frontmatter v1.10 per §Changelog" replaced with non-volatile form "current version per §Changelog top row" (permanently retires this staleness class). |
