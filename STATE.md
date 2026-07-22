@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.478"
+version: "8.479"
 producer: state-manager
 timestamp: 2026-07-22T00:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.82"
 story_index_version: "v2.719"
-arch_index_version: "2.232"
+arch_index_version: "2.233"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1930 (2026-07-22): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 37 on c96da954: NOT CLEAN — MED-1 (ADR-054 frontmatter modified: 2026-07-21 stale vs v0.25 changelog top-row 2026-07-22; v0.25 edit crossed midnight during FIX-BURST-26). Fix: ADR-054 v0.26 modified-date sync + class sweep CLEAN (ADR-023/026/028/031/032/053 all match; VP-153 no modified field). Generalization probe PASS (34th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.231→v2.232. trajectory-tail →0→0→1→1 STATE v8.477→v8.478"
+current_step: "D-1931 (2026-07-22): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary pass-38 fix-burst on 247df294: NOT CLEAN(strict), CLEAN(PR-merge) — single OBS-1 (ARCH-INDEX Date column drift on ADR-053/054 rows; registry 2026-07-21 vs frontmatter date 2026-07-20). Convention adjudicated: Date column = ADR frontmatter creation date. Fix: ARCH-INDEX v2.233 — ADR-053/054 corrected + 8-row class sweep (ADR-031/042/043/046/048/049/050/052). Larger-discrepancy mismatches deferred (different class). Generalization probe PASS (35th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. trajectory-tail →0→0→1→0 STATE v8.478→v8.479"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 456 lines (wc-l)
+  STATE.md SIZE BUDGET: 457 lines (wc-l)
   margin from soft-target (200): +252 lines over | margin from actual (500): 48 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-22 D-1929 — passes 34-36 on frozen HEAD 4a3e1308: passes 34-35 CLEAN(strict) 2/3; pass 36 NOT CLEAN MED-1 (SensorAuth::auth_type_name() rustdoc 5-value carrier, code-doc-comment domain unswept). Fix: ADR-054 v0.25 — direction (b) SensorAuth exclusion + census pass 3 (crates/ doc-comments; domain closed). STREAK RESET 2/3→0/3. Generalization probe PASS (31st/32nd/33rd consecutive). trajectory-tail →1→0→0→1 STATE v8.476→v8.477 |
+| **Last Updated** | 2026-07-22 D-1931 — pass 38 on frozen HEAD 247df294: NOT CLEAN(strict), CLEAN(PR-merge) — OBS-1 (ARCH-INDEX Date column drift ADR-053/054). Fix: ARCH-INDEX v2.233 Date-column convention (ADR-053/054 + 8-row class sweep). Generalization probe PASS (35th consecutive). Streak 0/3. trajectory-tail →0→0→1→0 STATE v8.478→v8.479 |
 
 ## Active Objective (North Star)
 
@@ -343,6 +343,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1928 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate passes 32-33 on frozen HEAD 253c81a2: pass 32 CLEAN(strict) 1/3; pass 33 NOT CLEAN — MED-1 (ARCH-INDEX ADR-053 registry row annotation unescaped pipe: armis \| bearer_token copy-without-escaping propagation from ADR-053 source text where same text is escaped; POL-26 cell-integrity; state-manager-owned). STREAK RESET 1/3→0/3 per BC-5.39.001. Fix applied: ARCH-INDEX v2.230 — ADR-053 registry row + changelog v2.229 row both escaped (2 cells fixed). POL-26 class sweep (v2.220+): all other annotation cells verified clean. Generalization probe PASS (29th/30th consecutive). Next: fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.229→v2.230. trajectory-tail →3→3→0→1 STATE v8.475→v8.476 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1929 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate passes 34-36 on frozen HEAD 4a3e1308: passes 34-35 CLEAN(strict) 2/3; pass 36 NOT CLEAN — MED-1 (SensorAuth::auth_type_name() rustdoc 5-value carrier citing ADR-026 §D3, code-doc-comment domain unswept); STREAK RESET 2/3→0/3 per BC-5.39.001. Fix-burst applied: ADR-054 v0.25 — direction (b) SensorAuth exclusion + census pass 3 (crates/ doc-comments; 2nd carrier error.rs AuthTypeCrossComposition found+manifested; domain closed). Generalization probe PASS (31st/32nd/33rd consecutive). Next: fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.230→v2.231. trajectory-tail →1→0→0→1 STATE v8.476→v8.477 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1930 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 37 on c96da954: NOT CLEAN — MED-1 (ADR-054 frontmatter `modified: "2026-07-21"` stale vs v0.25 changelog top-row date 2026-07-22; root cause: FIX-BURST-26 edit crossed midnight date rollover; state-manager-owned frontmatter sync). Fix applied: ADR-054 v0.25→v0.26 — `modified:` 2026-07-21→2026-07-22 + v0.26 changelog row. Class sweep PASS: ADR-023 v1.23 modified/changelog match 2026-07-21; ADR-026 v1.38 match 2026-07-21; ADR-028 v1.24 match 2026-07-21; ADR-031 v1.6 match 2026-07-21; ADR-032 v1.3 match 2026-07-21; ADR-053 v0.21 match 2026-07-21; VP-153 uses `timestamp:` not `modified:` (no mismatch possible). Zero sibling mismatches. Generalization probe PASS (34th consecutive). STREAK 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.231→v2.232. trajectory-tail →0→0→1→1 STATE v8.477→v8.478 | wave-5-e-demo-fidelity | 2026-07-22 |
+| D-1931 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary pass-38 fix-burst on frozen HEAD 247df294: NOT CLEAN(strict), CLEAN(PR-merge) — single low-confidence OBS-1 (ARCH-INDEX Date column drift on ADR-053/054 rows; registry showed 2026-07-21 vs frontmatter date: "2026-07-20"). Convention adjudicated: Date column = ADR frontmatter creation date. Fix applied: ARCH-INDEX v2.233 — ADR-053 2026-07-21→2026-07-20, ADR-054 2026-07-21→2026-07-20. Class sweep: 8 additional same-class mismatches (registry date 1-2 days after frontmatter) fixed: ADR-031 (2026-05-31→2026-05-29), ADR-042 (2026-06-21→2026-06-20), ADR-043 (2026-06-25→2026-06-24), ADR-046 (2026-06-26→2026-06-24), ADR-048 (2026-06-29→2026-06-28), ADR-049 (2026-07-02→2026-07-01), ADR-050 (2026-07-03→2026-07-02), ADR-052 (2026-07-05→2026-07-03). Larger-discrepancy mismatches (ADR-022 +24d, ADR-023 +5d, ADR-028 +14d, ADR-041 +4d, ADR-047 +9d, ADR-051 +10d) and opposite-direction mismatches (ADR-004, ADR-006–ADR-012, ADR-016: registry < frontmatter) noted as different-class; require separate architect adjudication; deferred. Note: adversary examples "ADR-022 2026-06-10, ADR-052 2026-07-05, ADR-031 2026-05-31 — all match" were incorrect (none match frontmatter creation date:). Generalization probe PASS (35th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.232→v2.233. trajectory-tail →0→0→1→0 STATE v8.478→v8.479 | wave-5-e-demo-fidelity | 2026-07-22 |
 
 ## Skip Log
 
