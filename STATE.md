@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.482"
+version: "8.483"
 producer: state-manager
 timestamp: 2026-07-22T00:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.82"
 story_index_version: "v2.719"
-arch_index_version: "2.236"
+arch_index_version: "2.237"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1934 (2026-07-22): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 40 on 4226f5f3: NOT CLEAN(strict), CLEAN(PR-merge) — 2 LOW audit-trail label defects (ADR-053 v0.22 no-op changelog description; ARCH-INDEX ADR-023 annotation phantom §D3 label). Fixes applied: ADR-053 v0.23 + ARCH-INDEX v2.236. Generalization probe PASS (37th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. trajectory-tail →0→0→1→0 STATE v8.481→v8.482"
+current_step: "D-1935 (2026-07-22): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 41 on a9367e3c: NOT CLEAN — MED-1 (ARCH-INDEX ADR-053 cell stale at v0.22 after D-1934's own v0.23 bump; state-manager self-miss). Fix applied: ARCH-INDEX v2.237 ADR-053 cell→v0.23. Full-registry sweep: 54 rows verified; 3 pre-existing out-of-scope mismatches noted. Generalization probe PASS (38th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. trajectory-tail →0→1→0→1 STATE v8.482→v8.483"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 460 lines (wc-l)
+  STATE.md SIZE BUDGET: 461 lines (wc-l)
   margin from soft-target (200): +253 lines over | margin from actual (500): 47 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-22 D-1934 — adversary re-gate pass-40 fix-burst: NOT CLEAN(strict) CLEAN(PR-merge) — 2 LOW audit-trail label defects (ADR-053 v0.22 no-op changelog description; ARCH-INDEX ADR-023 annotation phantom §D3 label). ADR-053 v0.23 + ARCH-INDEX v2.236. Generalization probe PASS (37th consecutive). Streak 0/3. trajectory-tail →0→0→1→0 STATE v8.481→v8.482 |
+| **Last Updated** | 2026-07-22 D-1935 — adversary re-gate pass-41 fix-burst: NOT CLEAN — MED-1 (ARCH-INDEX ADR-053 cell stale at v0.22 after D-1934's own v0.23 bump; state-manager self-miss). ARCH-INDEX v2.237 ADR-053 cell→v0.23. Full-registry sweep 54 rows; 3 pre-existing out-of-scope mismatches noted. Generalization probe PASS (38th consecutive). Streak 0/3. trajectory-tail →0→1→0→1 STATE v8.482→v8.483 |
 
 ## Active Objective (North Star)
 
@@ -347,6 +347,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1932 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1931 Date-column deferral resolved by orchestrator ruling: convention is mechanical (cell = frontmatter date: verbatim); no architect adjudication required; Canonical Principle Rule 3 forbids 16 convention-violating rows with no story anchor. Fixed all 16 deferred rows: ADR-004 (2026-04-26→2026-05-17), ADR-006/007/008/009/010/011/012 (2026-04-27→2026-05-01), ADR-016 (2026-05-02→2026-05-03), ADR-022 (2026-06-10→2026-05-17), ADR-023 (2026-05-15→2026-05-10), ADR-026 (2026-05-21→2026-05-18), ADR-028 (2026-06-03→2026-05-20), ADR-041 (2026-06-23→2026-06-19), ADR-047 (2026-07-06→2026-06-27), ADR-051 (2026-07-13→2026-07-03). Full registry verified: 10 already-correct rows from D-1931 (ADR-031/042/043/046/048/049/050/052/053/054) confirmed still matching; ADR-001/002/003 (timestamp-based, no date: field) confirmed via head-match; ADR-026-AMENDMENT (modified: field) confirmed; all remaining rows confirmed. Zero exceptions remain. ARCH-INDEX v2.233→v2.234. Streak 0/3; next fresh adversary pass on new frozen HEAD. trajectory-tail →0→0→1→0 STATE v8.479→v8.480 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1933 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 39 on 7bc3a696: NOT CLEAN — HIGH-1 (3 doc/inline-comment carriers hidden by FB-26 file-level census exclusion; census re-run at per-SITE granularity, 7 carriers dispositioned, zero unmanifested), LOW-1 (Query-Time Resolution anchor qualifier ×2). Fix-burst applied: ADR-054 v0.27 + ADR-053 v0.22. ADR-053 modified-date synced 2026-07-21→2026-07-22. Generalization probe PASS (36th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.234→v2.235. trajectory-tail →0→0→1→0 STATE v8.480→v8.481 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1934 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 40 on 4226f5f3: NOT CLEAN(strict), CLEAN(PR-merge) — 2 LOW audit-trail label defects (ADR-053 v0.22 no-op changelog description; ARCH-INDEX ADR-023 annotation phantom §D3 label). Fixes applied: ADR-053 v0.23 + ARCH-INDEX v2.236. Generalization probe PASS (37th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. trajectory-tail →0→0→1→0 STATE v8.481→v8.482 | wave-5-e-demo-fidelity | 2026-07-22 |
+| D-1935 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 41 on a9367e3c: NOT CLEAN — MED-1 (ARCH-INDEX ADR-053 registry cell stale at v0.22 after D-1934's own v0.23 bump; state-manager self-miss). Fix applied: ARCH-INDEX v2.237 ADR-053 cell synced to v0.23 with D-1934 annotation. Full-registry version-cell sweep (54 rows): 3 pre-existing out-of-scope mismatches noted (ADR-002 registry v1.2 vs file v1.3; ADR-036 registry v2.2 vs file v2.3; ADR-045 registry v1.1 vs file v1.0); ADR-033/034/035/038 no-version-field structural gap. Generalization probe PASS (38th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. trajectory-tail →0→1→0→1 STATE v8.482→v8.483 | wave-5-e-demo-fidelity | 2026-07-22 |
 
 ## Skip Log
 
