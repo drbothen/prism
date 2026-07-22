@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.488"
+version: "8.489"
 producer: state-manager
 timestamp: 2026-07-22T00:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.82"
 story_index_version: "v2.719"
-arch_index_version: "2.242"
+arch_index_version: "2.243"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1940 (2026-07-22): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 45 on b781df06: NOT CLEAN — HIGH-1 (census phantom symbol build_request_with_auth; real site = free fn build_request at pipeline.rs:975), LOW-1 (PipelineExecutor:: phantom qualifier, 4 sites — architect found 4th site in §Consequences beyond 3 flagged; bare build_request() with free-function clarification at first mention). Fix-burst applied: ADR-054 v0.29 + ADR-053 v0.25, all symbols verified against pipeline.rs. Generalization probe PASS (42nd consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.241→v2.242. trajectory-tail →1→1→1→2 STATE v8.487→v8.488"
+current_step: "D-1941 (2026-07-22): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 47 on 42f7a08c: NOT CLEAN(strict), CLEAN(PR-merge) — 3 OBS (TD-VSDD-091 line-pin regression in FB-27/28 rows [11 pins stripped], shape-count prose conflation, v0.26 false sweep justification). Fix-burst applied: ADR-054 v0.30. Streak reset 1/3→0/3 (pass 46 was CLEAN). Generalization probe PASS (44th consecutive). Next: fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.242→v2.243. trajectory-tail →1→2→0→3 STATE v8.488→v8.489"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,8 +77,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 466 lines (wc-l)
-  margin from soft-target (200): +264 lines over | margin from actual (500): 34 lines remaining
+  STATE.md SIZE BUDGET: 467 lines (wc-l)
+  margin from soft-target (200): +267 lines over | margin from actual (500): 33 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-22 D-1940 — ADR-054 v0.29 + ADR-053 v0.25; HIGH-1 phantom build_request_with_auth→build_request ×3 + LOW-1 PipelineExecutor:: phantom qualifier ×4; both symbols verified against pipeline.rs. ARCH-INDEX v2.241→v2.242. Streak 0/3. trajectory-tail →1→1→1→2 STATE v8.487→v8.488 |
+| **Last Updated** | 2026-07-22 D-1941 — ADR-054 v0.30; 3 OBS (TD-VSDD-091 line-pin regression [11 pins stripped], shape-count prose conflation, v0.26 false sweep justification). ARCH-INDEX v2.242→v2.243. Streak reset 1/3→0/3. trajectory-tail →1→2→0→3 STATE v8.488→v8.489 |
 
 ## Active Objective (North Star)
 
@@ -353,6 +353,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1938 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 43 on 43626da6: NOT CLEAN — MED-1 (AuthType::as_str() exhaustive-match carrier unmanifested in ADR-054 D11 census; compile-enforced class not yet in census taxonomy). Fix applied: ADR-054 v0.27→v0.28 — as_str() D11 row added (TokenExchange arm, E0004-compile-enforced, checklist-completeness); census rescoped into verifiable trichotomy: (i) manifested per-site rows [7 brace-list carriers], (ii) E0004 compile-enforced class [as_str() sole member, grep-confirmed], (iii) wildcard behavior-reviewed sites [step9a other=>, build_request _=>, dispositioned via D7]; zero unmanifested carriers remain, claim now verifiable. Generalization probe PASS (40th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.239→v2.240. trajectory-tail →0→1→1→1 STATE v8.485→v8.486 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1939 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 44 on e9cd320e: NOT CLEAN(strict), CLEAN(PR-merge) — single LOW (ADR-053 §D2 dangling "see MED-1 note" prose pointer; MED-1 no longer exists in body; repointed to "(see the D5 manifest ADR-032 row for the deliberate related_adrs-tracking rationale)"). Finding-label-pointer class sweep both primaries: ADR-053 sole hit (line 189 body); ADR-054 zero hits. Fix applied: ADR-053 v0.24. Generalization probe PASS (41st consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.240→v2.241. STATE v8.486→v8.487 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1940 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 45 on b781df06: NOT CLEAN — HIGH-1 (census phantom symbol build_request_with_auth; real site = free fn build_request at pipeline.rs:975), LOW-1 (PipelineExecutor:: phantom qualifier, 4 sites — architect found 4th site in §Consequences beyond 3 flagged; bare build_request() with free-function clarification at first mention). Fix-burst applied: ADR-054 v0.29 + ADR-053 v0.25, all symbols verified against pipeline.rs. Generalization probe PASS (42nd consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.241→v2.242. STATE v8.487→v8.488 | wave-5-e-demo-fidelity | 2026-07-22 |
+| D-1941 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 47 on 42f7a08c: NOT CLEAN(strict), CLEAN(PR-merge) — 3 OBS (TD-VSDD-091 line-pin regression in FB-27/28 rows [11 pins stripped], shape-count prose conflation, v0.26 false sweep-justification). Fix-burst applied: ADR-054 v0.30. Streak reset 1/3→0/3 (pass 46 was CLEAN). Generalization probe PASS (44th consecutive). Next: fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.242→v2.243. STATE v8.488→v8.489 | wave-5-e-demo-fidelity | 2026-07-22 |
 
 ## Skip Log
 
