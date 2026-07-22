@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.81"
+version: "1.82"
 status: draft
 producer: state-manager
 timestamp: 2026-06-12T00:00:00Z
@@ -269,6 +269,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.82 | D-1926 | 2026-07-21 | state-manager | VP-153 v0.19→v0.20 (D-1926 adversary pass-30 MED root fix: §Proof Harness Skeleton reconciled from divergent typed-enum pseudocode to AS-BUILT two-file design — vp153_sensorauth_cross_composition.rs Rules A+B constructs + vp153_rule_c_shaped_probe.rs Rule C constructs, all verified in source; phantom-helper references removed from live text; POL-31 closure). VP-INDEX v1.81→v1.82. |
 | 1.81 | D-1915 | 2026-07-21 | state-manager | VP-153 v0.18→v0.19 (D-1915 adversary pass-15 OBS-1 bookkeeping fix): §Changelog rows v0.16 (FB75) and v0.15 (FB71) were out of monotonic order; changelog converted to newest-first (descending) convention per validate-changelog-monotonicity hook. No property semantics changed. VP-INDEX v1.80→v1.81. |
 | 1.80 | demo-readiness-2026-06-24 | 2026-06-24 | state-manager | POL-9 back-link propagation for D-1317 demo-readiness contract layer: VP-014 v1.6→v1.7 (BC-2.11.020 "Also cited by" added — SqlPipe FORBID-BOTH composed queries subject to same 64KB size limit); VP-021 v1.4→v1.5 (BC-2.11.020, BC-2.11.021, BC-2.11.022, BC-2.11.023 "Also cited by" added — new parse entry points + mode-bridge paths must not panic). No new VP IDs allocated. No property semantics changed. VP-INDEX v1.79→v1.80. |
 | 1.79 | BC-2.06.019-vp-propagation | 2026-06-12 | architect | BC-2.06.019 v1.2 OBS-1 VP propagation (POL-9 same-burst): VP-158 added (unit_test, P1, prism-dtu-demo-server, BC-2.06.019 PRE-6, S-DEMO-DTU-LIVE-SCENARIO-001-B) — E-DEMO-006 org_id-equality guard; named alias VP-019-I. Summary: Unit test 5→6, Total 157→158, P1 35→36. Active basis: 144→145 VPs, active P1 = 36. POL-9 same-burst propagation: verification-architecture.md v1.43→v1.44, verification-coverage-matrix.md v1.44→v1.45. VP-INDEX v1.78→v1.79. |

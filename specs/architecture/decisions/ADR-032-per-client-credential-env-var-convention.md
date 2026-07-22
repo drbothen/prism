@@ -11,7 +11,7 @@ superseded_by: null
 subsystems_affected: ["SS-03", "SS-06", "SS-22"]
 related_adrs: ["ADR-029", "ADR-022", "ADR-026", "ADR-053", "ADR-054"]
 related_bcs: ["BC-2.06.003", "BC-2.03.006", "BC-3.2.002", "BC-2.03.013"]
-version: "1.2"
+version: "1.3"
 modified: "2026-07-21"
 ---
 
@@ -21,7 +21,7 @@ modified: "2026-07-21"
 
 Accepted (human-selected Option A, 2026-06-03; current version per §Changelog top row).
 
-**Partial supersession pending (ADR-053 acceptance, Wave-A):** ADR-053 §D2 supersedes the Armis credential-ref name in this ADR's §Implementer Blast Radius tables (`bearer_token` → `secret_key` via `auth_type = "token_exchange"`). ADR-053 §D3 supersedes the Cyberint credential-ref name (`api_key` → `access_token`) and deletes `cyberint.sensor.toml`, replacing it with a dual-surface split (`cyberint-alerts.sensor.toml` + `cyberint-assets.sensor.toml`). ADR-054 §D2 further amends CrowdStrike `oauth2_client_credentials` handling (native `DeclarativeHttpAuthProvider` replaces the plugin path). This ADR is **not** wholly superseded — the per-client env-var convention itself is unchanged; only the Armis and Cyberint credential-ref rows are affected. At-point annotations on the affected table rows are the reader-facing signal; ADR-053 D5 deferred rewrite manifest is the executing mechanism.
+**Partial amendment pending (ADR-053 acceptance, Wave-A):** ADR-053 §D2 amends the Armis credential-ref name in this ADR's §Implementer Blast Radius tables (`bearer_token` → `secret_key` via `auth_type = "token_exchange"`). ADR-053 §D3 amends the Cyberint credential-ref name (`api_key` → `access_token`) and deletes `cyberint.sensor.toml`, replacing it with a dual-surface split (`cyberint-alerts.sensor.toml` + `cyberint-assets.sensor.toml`). ADR-054 §D2 further amends CrowdStrike `oauth2_client_credentials` handling (native `DeclarativeHttpAuthProvider` replaces the plugin path). This ADR is **not** wholly superseded — the per-client env-var convention itself is unchanged; only the Armis and Cyberint credential-ref rows are affected. At-point annotations on the affected table rows are the reader-facing signal; ADR-053 D5 deferred rewrite manifest is the executing mechanism.
 
 ## Context
 
@@ -206,6 +206,7 @@ indefinitely; (c) the human explicitly selected Option A.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-07-21 | architect | FIX-BURST 24 (OBS-1): §Status blockquote — "supersedes" corrected to "amends" for partial sub-section changes per project convention (ADR "supersedes" = full ADR replacement; "amends" = partial sub-section change). Three sites in the §Status blockquote: (1) heading "Partial supersession pending" → "Partial amendment pending"; (2) "ADR-053 §D2 supersedes the Armis credential-ref name" → "amends"; (3) "ADR-053 §D3 supersedes the Cyberint credential-ref name" → "amends". "This ADR is not wholly superseded" unchanged — that usage refers to ADR-level lifecycle status (not replaced by another ADR), a correct use of "superseded." POL-29: §Status blockquote sweep — zero remaining "supersedes" misuse of the partial-sub-section class. |
 | 1.2 | 2026-07-21 | architect | FIX-BURST 17 (OBS-1): `subsystems_affected` field populated — `[SS-03, SS-06, SS-22]` (Credential Management, Client Configuration, Process Lifecycle); field was empty in v1.1 despite that version's frontmatter adding the field. |
 | 1.1 | 2026-07-21 | architect | FIX-BURST 8 (MED-1/OBS-1): §Sensor spec files table — Armis row annotated with ADR-053 §D2 supersession (credential_ref `bearer_token` → `secret_key` via `token_exchange`); Cyberint row annotated with ADR-053 §D3 supersession (credential_ref `api_key` → `access_token`; `cyberint.sensor.toml` DELETED + split into `cyberint-alerts.sensor.toml` + `cyberint-assets.sensor.toml`); mirror-copy rows annotated. DTU E2E test env-var migration table: Armis row and Cyberint row annotated; Armis `bc_2_01_013` row `{ORG_ID}` → `{ID}` (OBS-1). §Consequences/Migration cost: `{ORG_ID}` → `{ID}` (OBS-1). §Unit tests: `{ORG}` → `{ID}` (OBS-1). §Status: partial-supersession-pending note added. Frontmatter: `version` + `modified` fields added; `related_adrs` extended with ADR-053 + ADR-054. POL-29: zero live `{ORG_ID}`/`{ORG}` hits post-fix. |
 | 1.0 | 2026-06-03 | architect | Initial ADR — per-client credential env-var convention adopted (human-selected Option A, D-SDEMO002-P-MED-001). |

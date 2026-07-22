@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.473"
+version: "8.474"
 producer: state-manager
 timestamp: 2026-07-21T23:00:00Z
 inputs: []
@@ -20,9 +20,9 @@ develop_head: "e116a587"
 # NOTE: D-1887 — local develop is at e116a587 (NOT YET FF'd; unstaged S-MAINT ci.yml residue in main worktree blocks fast-forward). origin/develop = 7fef57da (PR #228 S-REL-001 squash-merged 2026-07-20; DRIFT-LOCAL-DEVELOP-FF-001 registered). D-1886 NOTE (pr-manager set 7fef57da) corrected to local HEAD for verify-sha-currency.sh compliance. D-1872 NOTE (e116a587 ff'd 2026-07-19; PR #227 squash-merged) still local HEAD.
 bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
-vp_index_version: "1.81"
+vp_index_version: "1.82"
 story_index_version: "v2.719"
-arch_index_version: "2.227"
+arch_index_version: "2.228"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1925 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1925 adversary re-gate passes 28-29 fix-burst (Wave-A re-gate cascade). Pass 28 CLEAN(strict) 1/3; pass 29 NOT CLEAN(strict) — MED-1 (ADR-054 VP-153 §Proof Method member-count sentence 5→6; fourth VP-153 D11 row; in-file census: 2 count-bearing sites both now covered, 2 non-count hits dispositioned); LOW-1 (ADR-053 BC-2.06.003 TV rows re-point to claroty/bearer_token adjudicated option (i); §Canonical Test Vectors + §Boot-Step-5 Probe armis/bearer_token example rows re-point to claroty/bearer_token, permanently stable, mechanics-not-armis rationale); STREAK RESET 1/3→0/3 per BC-5.39.001. Fix-burst applied: ADR-054 v0.23 + ADR-053 v0.20. Generalization probe PASS (25th/26th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.226→v2.227. trajectory-tail →2→3→0→1 STATE v8.472→v8.473"
+current_step: "D-1926 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1926 adversary re-gate pass 30 fix-burst (Wave-A re-gate cascade). Pass 30 NOT CLEAN(strict) — MED (VP-153 §Proof Harness Skeleton diverged from as-built tests; phantom typed-pair helpers propagated into D11 rows; FB-22 'as-built' claim was unverified against crates/ — paper-verification escape); OBS-1 (ADR-032 v1.3 §Status supersedes/amends terminology audit — blockquote class clean); OBS-2 [process-gap] PG-VP-SKELETON-ASBUILT-001 (POL-31 has no enforcement hook; codification item carried to Wave-A cycle close); STREAK still 0/3. Fix-burst applied: VP-153 v0.20 §Proof Harness Skeleton reconciliation (vp153_sensorauth_cross_composition.rs Rules A+B + vp153_rule_c_shaped_probe.rs Rule C, all verified in source) + ADR-054 v0.24 D11 VP-153 harness rows rewritten against as-built constructs (VALID_AUTH_TYPES both files, arb_valid_auth_type/arb_matching_auth_type prop_oneof! arms, arb_invalid_auth_type auto-expansion, Rule B else-branch coverage, arb_mismatched_auth_type_pair bounds (0..6,0..5)=30 pairs; all phantom-helper references removed) + ADR-032 v1.3. Generalization probe PASS (27th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). VP-INDEX v1.81→v1.82. ARCH-INDEX v2.227→v2.228. trajectory-tail →1→0→2→3 STATE v8.473→v8.474"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 451 lines (wc-l)
+  STATE.md SIZE BUDGET: 452 lines (wc-l)
   margin from soft-target (200): +251 lines over | margin from actual (500): 49 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-21 D-1925 — passes 28-29 fix-burst: pass 28 CLEAN(strict) 1/3; pass 29 MED-1 VP-153 §Proof Method count 5→6 + LOW-1 BC-2.06.003 TV claroty re-point adjudicated. ADR-054 v0.23 + ADR-053 v0.20. Generalization probe PASS (25th/26th). ARCH-INDEX v2.226→v2.227. STATE v8.472→v8.473. trajectory-tail →2→3→0→1 |
+| **Last Updated** | 2026-07-21 D-1926 — pass 30 NOT CLEAN: MED VP-153 §Proof Harness Skeleton as-built divergence (POL-31 paper-verification escape) + OBS-1 ADR-032 v1.3 terminology audit + OBS-2 PG-VP-SKELETON-ASBUILT-001. Fix-burst: VP-153 v0.20 + ADR-054 v0.24 + ADR-032 v1.3. Generalization probe PASS (27th consecutive). VP-INDEX v1.81→v1.82. ARCH-INDEX v2.227→v2.228. STATE v8.473→v8.474. trajectory-tail →1→0→2→3 Streak 0/3 |
 
 ## Active Objective (North Star)
 
@@ -338,6 +338,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1923 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 25 on frozen HEAD 79e5f393: NOT CLEAN — HIGH-1 (Consequences bullet "update boot.rs dispatch" mis-anchored to retired construction site; corrected to "rewrite step9a_populate_adapter_registry dispatch (spec_driven_adapter.rs)" — v0.2-class residue surviving 24 passes in checklist prose; sole surviving instance per file-wide POL-29 sweep); LOW-1 (amends_dis ["DI-012"] frontmatter field added + D11 DI-012 row back-ref direction amended to bidirectional sibling-convention symmetry; adjudicated correct fix); OBS-1 (v0.20 changelog vocabulary-claim inaccuracy corrected forward — authoring-source correction rationale text; tool decision stands on VP-033/VP-036 analogy). STREAK 0/3. Fix-burst applied: ADR-054 v0.21. Generalization probe PASS (22nd consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.224→v2.225. STATE v8.470→v8.471. trajectory-tail →0→1→2→1 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1924 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate passes 26-27 on new frozen HEAD (post-D-1923 ADR-054 v0.21): pass 26 CLEAN(strict) 1/3; pass 27 NOT CLEAN(strict), CLEAN(PR-merge) — OBS-1 (VP-153 §Feasibility harness-amendment list rewritten against actual harness constructs — phantom prop_filter-exclusion item removed; load-bearing matching_credential_for TokenExchange→ApiKey arm added; prop_assume! auto-exclusion note; all verified against VP-153 harness text); STREAK RESET 1/3→0/3 per BC-5.39.001. Generalization probe PASS (23rd/24th consecutive). Fix-burst applied: ADR-054 v0.22. Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.225→v2.226. STATE v8.471→v8.472. trajectory-tail →2→3→0→1 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1925 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate passes 28-29 on frozen HEAD df9e2053: pass 28 CLEAN(strict) 1/3; pass 29 NOT CLEAN(strict) — MED-1 (ADR-054 VP-153 §Proof Method member-count sentence 5→6; fourth VP-153 D11 row; in-file census: 2 count-bearing sites both now covered, 2 non-count hits dispositioned); LOW-1 (ADR-053 BC-2.06.003 TV rows claroty re-point adjudicated option (i): §Canonical Test Vectors + §Boot-Step-5 Probe armis/bearer_token example rows re-point to claroty/bearer_token, permanently stable, mechanics-not-armis rationale); STREAK RESET 1/3→0/3 per BC-5.39.001. Fix-burst applied: ADR-054 v0.23 + ADR-053 v0.20. Generalization probe PASS (25th/26th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.226→v2.227. STATE v8.472→v8.473. trajectory-tail →2→3→0→1 | wave-5-e-demo-fidelity | 2026-07-21 |
+| D-1926 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 30 on 03165dfe: NOT CLEAN — MED (VP-153 §Proof Harness Skeleton diverged from as-built tests; phantom typed-pair helpers propagated into D11 rows; FB-22 'as-built' claim was unverified against crates/ — paper-verification escape), OBS-1 (ADR-032 v1.3 §Status supersedes/amends terminology audit — blockquote class clean; changelog row records the audit), OBS-2 [process-gap] PG-VP-SKELETON-ASBUILT-001: POL-31 has no enforcement hook; codification item carried to Wave-A cycle close. Fix-burst applied: VP-153 v0.20 skeleton reconciliation (§Proof Harness Skeleton reconciled from divergent typed-enum pseudocode to AS-BUILT two-file design — vp153_sensorauth_cross_composition.rs Rules A+B + vp153_rule_c_shaped_probe.rs Rule C, all verified in source) + ADR-054 v0.24 D11 VP-153 harness rows rewritten against as-built constructs (VALID_AUTH_TYPES both files, arb_valid_auth_type/arb_matching_auth_type prop_oneof! arms, arb_invalid_auth_type auto-expansion, Rule B else-branch coverage, arb_mismatched_auth_type_pair bounds (0..6,0..5)=30 pairs; all phantom-helper references removed) + ADR-032 v1.3. Generalization probe PASS (27th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). VP-INDEX v1.81→v1.82. ARCH-INDEX v2.227→v2.228. STATE v8.473→v8.474. trajectory-tail →1→0→2→3 | wave-5-e-demo-fidelity | 2026-07-21 |
 
 ## Skip Log
 

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.19"
+version: "0.20"
 status: active
 producer: architect
 timestamp: 2026-05-16T16:00:00Z
@@ -91,165 +91,110 @@ deterministically with a small strategy and provide regression coverage for the 
 ## Proof Harness Skeleton
 
 ```rust
+// AS-BUILT HARNESS (proof-completed-date 2026-05-18; all 8 proptests PASS)
+//
+// ── FILE 1 (Rules A + B) ─────────────────────────────────────────────────────
 // crates/prism-spec-engine/tests/vp153_sensorauth_cross_composition.rs
 //
-// VP-153: SensorAuth runtime cross-composition prevention — ALL 3 RULES
-// Rule A (E-SPEC-012): multi-valued or out-of-set auth_type → spec-load rejection
-// Rule B (E-SPEC-013): multiple credential_refs per auth method → spec-load rejection
-// Rule C (E-SPEC-014): auth_type/credential structural mismatch → credential-resolution rejection
+// Constants:
+//   const VALID_AUTH_TYPES: &[&str] = &[
+//       "oauth2_client_credentials", "bearer_static", "cookie_roundtrip",
+//       "api_key", "custom_via_plugin",
+//   ]; // 5 members (add "token_exchange" as 6th when ADR-054 D1 lands — see D11)
 //
-// NOTE (FB34): File name predates Rule A/B scaffolding (originally Rule-C-only); it is kept
-// as-is (`vp153_sensorauth_cross_composition.rs`) for continuity with test infrastructure
-// references. The test-writer may rename to `vp153_sensorauth_runtime_cross_composition_prevention.rs`
-// to match the VP slug if no downstream tooling depends on the current name.
+// Generators:
+//   fn arb_valid_auth_type() -> impl Strategy<Value = &'static str>
+//     — prop_oneof![ Just("oauth2_client_credentials"), Just("bearer_static"),
+//         Just("cookie_roundtrip"), Just("api_key"), Just("custom_via_plugin") ]
+//     — (add Just("token_exchange") when ADR-054 D1 lands)
 //
-// Method: proptest
-// Target: prism_spec_engine::spec_parser (or pipeline validation pass)
+//   fn arb_invalid_auth_type() -> impl Strategy<Value = String>
+//     — generates invalid auth_type strings across 7 classes:
+//       (a) random lowercase+underscore strings; (b) empty string; (c) whitespace-only;
+//       (d) capitalised near-misses ("BEARER_STATIC", "ApiKey", etc.);
+//       (e) dot/slash-prefixed (".oauth2_client_credentials"); (f) arbitrary Unicode;
+//       (g) composite array-repr strings ("[oauth2_client_credentials,bearer_static]")
+//     — .prop_filter("must not accidentally be a valid auth_type",
+//         |s| !VALID_AUTH_TYPES.contains(&s.as_str()))
+//     — (filter auto-expands when VALID_AUTH_TYPES gains "token_exchange" — no separate edit)
 //
-// use proptest::prelude::*;
-// use prism_spec_engine::spec_parser::{AuthType, SensorSpec};
-// use prism_core::error::SpecEngineError;
+//   fn arb_multi_credential_count() -> impl Strategy<Value = usize>
+//     — range 2usize..=8usize (violates Rule B for non-oauth2; see also prop 6 range 2..=32)
 //
-// fn arb_auth_type() -> impl Strategy<Value = AuthType> {
-//     prop_oneof![
-//         Just(AuthType::Oauth2ClientCredentials),
-//         Just(AuthType::BearerStatic),
-//         Just(AuthType::CookieRoundtrip),
-//         Just(AuthType::ApiKey),
-//         Just(AuthType::CustomViaPlugin),
-//     ]
-// }
+// Target function:
+//   SpecLoader::validate_cross_composition(
+//       sensor_id: &str, auth_type: &str, count: usize,
+//       expected_shape: &str, actual_shape: &str,
+//   ) -> Result<(), SpecEngineError>
+//   Pure function; no I/O. Rules A+B fire on auth_type + count inputs.
+//   Rule C gate (actual_shape != expected_shape) is exercised in FILE 2 via ShapedProbe.
+//   oauth2_client_credentials allowed_count = 2; all others = 1.
 //
-// fn arb_credential_type() -> impl Strategy<Value = MockCredentialType> {
-//     // MockCredentialType enumerates the structural credential shapes
-//     prop_oneof![
-//         Just(MockCredentialType::Oauth2ClientCredentials { client_id: "x", client_secret: "y" }),
-//         Just(MockCredentialType::BearerToken("token")),
-//         Just(MockCredentialType::CookieSession("session")),
-//         Just(MockCredentialType::ApiKey("key")),
-//         Just(MockCredentialType::PluginToken("plugin-id")),
-//     ]
-// }
+// Proptests (6):
+//   1. prop_rule_a_invalid_auth_type_rejected_with_e_spec_012
+//      arb_invalid_auth_type() → validate_cross_composition(count=1, same_shapes)
+//      → result.is_err() + err_str.contains("E-SPEC-012")
+//   2. prop_rule_a_valid_auth_type_accepted
+//      arb_valid_auth_type() → allowed_count = if valid_type == "oauth2_client_credentials" { 2 } else { 1 }
+//      → validate_cross_composition(count=allowed_count, same_shapes) → result.is_ok()
+//   3. prop_rule_b_multi_credential_refs_rejected_with_e_spec_013
+//      (arb_valid_auth_type(), arb_multi_credential_count())
+//      + prop_assume!(count != allowed_count)  // skips valid (oauth2_client_credentials, 2) pair
+//      → validate_cross_composition → err_str.contains("E-SPEC-013")
+//   4. prop_rule_b_single_credential_ref_accepted
+//      arb_valid_auth_type() → allowed_count → validate_cross_composition → result.is_ok()
+//   5. prop_rule_a_boundary_whitespace_and_empty_rejected
+//      prop_oneof!["", " ", "  ", "\t", "\n"] → validate_cross_composition(count=1, same_shapes)
+//      → result.is_err() + err_str.contains("E-SPEC-012")
+//   6. prop_rule_b_credential_count_boundary
+//      (arb_valid_auth_type(), 2usize..=32)
+//      + prop_assume!(count != allowed_count)
+//      → validate_cross_composition → err_str.contains("E-SPEC-013")
 //
-// // ── Rule A (E-SPEC-012) ──────────────────────────────────────────────────────
+// ── FILE 2 (Rule C) ──────────────────────────────────────────────────────────
+// crates/prism-bin/tests/vp153_rule_c_shaped_probe.rs
+// Lives in prism-bin to avoid workspace cycle: prism-bin depends on prism-spec-engine;
+// adding prism-bin as prism-spec-engine dev-dep would create a cycle.
+// (ADR-026 §D3 Rule C Backend Scope / D-706)
 //
-// proptest! {
-//     #[test]
-//     fn multi_valued_or_out_of_set_auth_type_rejected_with_e_spec_012(
-//         // Strategy produces one of two invalid auth_type shapes:
-//         //   (a) a TOML array value, e.g. `auth_type = ["oauth2_client_credentials", "bearer_static"]`
-//         //   (b) an arbitrary string outside the canonical set, e.g. `auth_type = "unknown_strategy"`
-//         // The test-writer selects whichever TOML construction path is simpler given the
-//         // actual parse API (string-template TOML or typed builder).
-//         raw_auth_value in prop_oneof![
-//             // (a) multi-valued array: 2+ valid members to trigger array-detection branch
-//             Just(r#"["oauth2_client_credentials", "bearer_static"]"#.to_string()),
-//             // (b) out-of-set string: proptest generates arbitrary non-empty strings that are
-//             //     not members of the canonical set; use prop_filter to exclude valid values
-//             "[a-z_]{1,32}".prop_filter("must not be a valid auth_type", |s| {
-//                 !matches!(s.as_str(),
-//                     "oauth2_client_credentials" | "bearer_static" |
-//                     "cookie_roundtrip" | "api_key" | "custom_via_plugin")
-//             }),
-//         ]
-//     ) {
-//         let toml = format!(r#"
-//             [sensor]
-//             sensor_id = "test-sensor"
-//             auth_type = {}
-//             [[sensor.credential_refs]]
-//             name = "my-cred"
-//         "#, raw_auth_value);
-//         let result = SpecParser::parse_str(&toml);
-//         prop_assert!(result.is_err(), "invalid auth_type {:?} was accepted", raw_auth_value);
-//         let err = result.unwrap_err();
-//         // Assertion: error must be AuthTypeInvalid variant with E-SPEC-012 message_template
-//         // byte-verbatim per error-taxonomy.md v1.38:
-//         //   "auth_type for sensor '{sensor_id}' must be a single value; got: {value}.
-//         //    Valid values: oauth2_client_credentials, bearer_static, cookie_roundtrip,
-//         //    api_key, custom_via_plugin"
-//         prop_assert!(matches!(err, SpecEngineError::AuthTypeCrossComposition { .. }),
-//             "wrong error variant for Rule A: {:?}", err);
-//         let err_msg = err.to_string();
-//         prop_assert!(err_msg.contains("must be a single value"),
-//             "E-SPEC-012 message_template substring not found in: {}", err_msg);
-//     }
-// }
+// Constants:
+//   const VALID_AUTH_TYPES: &[&str] = &[...same 5 members as FILE 1...];
+//   // (add "token_exchange" as 6th when ADR-054 D1 lands — see D11)
 //
-// // ── Rule B (E-SPEC-013) ──────────────────────────────────────────────────────
+// Test fixture:
+//   struct ShapedProbe { reported_shape: String }
+//     — implements CredentialRefProbe; returns Ok(Some(self.reported_shape.clone()))
+//     — AD-017: reported_shape is always a canonical auth_type identifier, never a credential value
 //
-// proptest! {
-//     #[test]
-//     fn multiple_credential_refs_per_method_rejected_with_e_spec_013(
-//         // Strategy: produce a sensor spec TOML with >1 credential_refs entries under a
-//         // single auth method. The count is drawn from [2..=5] to exercise the error path
-//         // across different cardinalities.
-//         extra_ref_count in 1usize..=4,  // total refs = extra_ref_count + 1 (always ≥ 2)
-//         auth_type in arb_auth_type(),
-//     ) {
-//         // Build a TOML string with (extra_ref_count + 1) credential_refs entries
-//         let mut cred_refs = String::new();
-//         for i in 0..=(extra_ref_count) {
-//             cred_refs.push_str(&format!(
-//                 r#"[[sensor.credential_refs]]
-//                 name = "cred-{}"
-//                 "#, i
-//             ));
-//         }
-//         let toml = format!(r#"
-//             [sensor]
-//             sensor_id = "test-sensor"
-//             auth_type = "{}"
-//             {}
-//         "#, auth_type.as_str(), cred_refs);
-//         let result = SpecParser::parse_str(&toml);
-//         prop_assert!(result.is_err(),
-//             "spec with {} credential_refs was accepted (Rule B violation)", extra_ref_count + 1);
-//         let err = result.unwrap_err();
-//         // Assertion: error must be MultipleCredentialRefs variant with E-SPEC-013 message_template
-//         // byte-verbatim per error-taxonomy.md v1.38:
-//         //   "auth method for sensor '{sensor_id}' declares {count} credential_refs;
-//         //    exactly one is required"
-//         prop_assert!(matches!(err, SpecEngineError::MultipleCredentialRefs { .. }),
-//             "wrong error variant for Rule B: {:?}", err);
-//         let err_msg = err.to_string();
-//         prop_assert!(err_msg.contains("exactly one is required"),
-//             "E-SPEC-013 message_template substring not found in: {}", err_msg);
-//     }
-// }
+// Generators:
+//   fn arb_mismatched_auth_type_pair() -> impl Strategy<Value = (&'static str, &'static str)>
+//     — (0usize..5, 0usize..4).prop_map(|(spec_idx, offset)| ...)
+//     — covers all 20 ordered mismatched pairs (5×4) from VALID_AUTH_TYPES
+//     — (update to (0..6, 0..5) when ADR-054 D1 lands — covers 6×5=30 pairs)
 //
-// // ── Rule C (E-SPEC-014) ──────────────────────────────────────────────────────
+//   fn arb_matching_auth_type() -> impl Strategy<Value = &'static str>
+//     — prop_oneof![ Just("oauth2_client_credentials"), ..., Just("custom_via_plugin") ]
+//     — (add Just("token_exchange") when ADR-054 D1 lands)
 //
-// proptest! {
-//     #[test]
-//     fn valid_auth_type_credential_pairs_accepted(
-//         auth_type in arb_auth_type(),
-//     ) {
-//         let matching_credential = matching_credential_for(&auth_type);
-//         let spec = build_spec_with(auth_type.clone(), matching_credential);
-//         let result = SpecLoader::validate_cross_composition(&spec);
-//         prop_assert!(result.is_ok(),
-//             "valid (auth_type={:?}, credential=matching) was rejected: {:?}",
-//             auth_type, result);
-//     }
+// Target function:
+//   step5_init_credential_store_with_probe(
+//       config: &PrismConfig, config_manager: &Arc<ArcSwap<ConfigManager>>,
+//       org_registry: &Arc<OrgRegistry>, probe: &dyn CredentialRefProbe,
+//   ) -> Result<Arc<dyn CredentialStore>, BootError>
+//   (defined in crates/prism-bin/src/boot.rs)
 //
-//     #[test]
-//     fn mismatched_auth_type_credential_rejected(
-//         auth_type in arb_auth_type(),
-//         credential_type in arb_credential_type(),
-//     ) {
-//         prop_assume!(!is_coherent_pair(&auth_type, &credential_type));
-//         let spec = build_spec_with(auth_type.clone(), credential_type.clone());
-//         let result = SpecLoader::validate_cross_composition(&spec);
-//         prop_assert!(result.is_err(),
-//             "invalid (auth_type={:?}, credential={:?}) was accepted",
-//             auth_type, credential_type);
-//         // AD-017: error message must not contain credential values
-//         let err_msg = result.unwrap_err().to_string();
-//         prop_assert!(!err_msg.contains(credential_value_str(&credential_type)),
-//             "error message leaks credential value: {}", err_msg);
-//     }
-// }
+// Proptests (2):
+//   1. prop_rule_c_shape_mismatch_rejected_via_shaped_probe
+//      arb_mismatched_auth_type_pair() → ShapedProbe { reported_shape: probe_shape }
+//      where probe_shape != spec_auth_type
+//      → step5_init_credential_store_with_probe
+//      → Err(BootError::AuthTypeCredentialMismatch { .. })
+//      + err_str.contains("E-SPEC-014")
+//      + err_str.contains(spec_auth_type) + err_str.contains(probe_shape)
+//   2. prop_rule_c_shape_match_accepted_via_shaped_probe
+//      arb_matching_auth_type() → ShapedProbe { reported_shape: auth_type }
+//      where probe_shape == spec_auth_type
+//      → step5_init_credential_store_with_probe → result.is_ok()
 ```
 
 ## Feasibility Assessment
@@ -280,6 +225,7 @@ deterministically with a small strategy and provide regression coverage for the 
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 0.20 | FIX-BURST 24 | 2026-07-21 | architect | MED root fix (adversary pass 30): §Proof Harness Skeleton reconciled to as-built harness — replaced entire divergent pseudocode block (phantom typed-enum constructs `arb_auth_type()`, `AuthType`, `MockCredentialType`, `is_coherent_pair`, `matching_credential_for`, `arb_credential_type()`, `valid_auth_type_credential_pairs_accepted`, `mismatched_auth_type_credential_rejected`, `build_spec_with`, `credential_value_str`) with accurate as-built documentation of the real constructs: `VALID_AUTH_TYPES: &[&str]`, `arb_valid_auth_type()`, `arb_invalid_auth_type()`, `arb_multi_credential_count()`, `SpecLoader::validate_cross_composition()` (FILE 1, Rules A+B) and `ShapedProbe`, `arb_mismatched_auth_type_pair()`, `arb_matching_auth_type()`, `step5_init_credential_store_with_probe()` (FILE 2, Rule C). §Proof Method / §Feasibility prose unchanged (5-member count and 25-pairs statements are current-truth pending ADR-054 D1 amendment). POL-22 Phase C: all symbols cited verified present in as-built test files. |
 | 0.19 | D-1915 | 2026-07-21 | state-manager | OBS-1 (adversary pass-15, pre-existing defect NOT introduced by the ADRs): §Changelog rows v0.16 (FB75) and v0.15 (FB71) were out of monotonic order — v0.16 appeared above v0.15 in the table (both dated 2026-05-17; in ascending convention v0.15 must precede v0.16; the pair was inverted). Changelog table converted to newest-first (descending) convention per validate-changelog-monotonicity hook enforcement; v0.15/v0.16 now correctly ordered in descending layout (v0.16 > v0.15 → v0.16 appears first). POL-26/POL-32. Bump v0.18→v0.19. |
 | 0.18 | pass-10-spec-hygiene | 2026-05-18 | product-owner | F-LP-IMPL-P10-IMP-001 closure: §Proof Harness Skeleton stale symbol corrections. (1) Rule A assertion line: `SpecEngineError::AuthTypeInvalid { .. }` → `SpecEngineError::AuthTypeCrossComposition { .. }` (as-built enum variant name in `crates/prism-spec-engine/src/error.rs`). (2) Rule C skeleton: `validate_auth_coherence(&spec)` → `SpecLoader::validate_cross_composition(&spec)` (2 occurrences; as-built API callable as pure function). (3) Feasibility Assessment harness-dependencies row and Harness authoring note updated to reflect as-built proof state (proof-completed-date 2026-05-18; 8 proptests PASS across 2 crates). Spec brought into alignment with code per CLAUDE.md Source-of-Truth Precedence Rule 7. |
 | 0.17 | FB-IMPL-6 | 2026-05-18 | test-writer | F-LP-IMPL-P8-IMP-001 closure: proptest harness authored and passing. Rules A+B (E-SPEC-012/013) in `crates/prism-spec-engine/tests/vp153_sensorauth_cross_composition.rs` (6 proptests via `SpecLoader::validate_cross_composition`). Rule C (E-SPEC-014) via ShapedProbe in `crates/prism-bin/tests/vp153_rule_c_shaped_probe.rs` (2 proptests via `step5_init_credential_store_with_probe`). Rule C lives in prism-bin due to dependency direction — prism-bin depends on prism-spec-engine; adding prism-bin as prism-spec-engine dev-dep would create a workspace cycle. Per ADR-026 §D3 Rule C Backend Scope (D-706): Rule C exercises the ShapedProbe injection path (architecturally-sanctioned test fixture; keyring backend returns Ok(None) in production until PLUGIN-MIGRATION-001-A). `lifecycle_status: draft → active`. `proof_completed_date: "2026-05-18"`. All 8 proptests PASS. Pass-8 adversary caught this blind spot; passes 1-7 audited validator logic but never verified the P0 artifact existed. |
