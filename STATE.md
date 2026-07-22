@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.496"
+version: "8.497"
 producer: state-manager
 timestamp: 2026-07-22T01:00:00Z
 inputs: []
@@ -18,10 +18,10 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "e116a587"
 # NOTE: D-1887 — local develop is at e116a587 (NOT YET FF'd; unstaged S-MAINT ci.yml residue in main worktree blocks fast-forward). origin/develop = 7fef57da (PR #228 S-REL-001 squash-merged 2026-07-20; DRIFT-LOCAL-DEVELOP-FF-001 registered). D-1886 NOTE (pr-manager set 7fef57da) corrected to local HEAD for verify-sha-currency.sh compliance. D-1872 NOTE (e116a587 ff'd 2026-07-19; PR #227 squash-merged) still local HEAD.
-bc_index_version: "8.37"
-# NOTE: D-1948 — BC-INDEX v8.36→v8.37: BC-2.01.018 v1.0 (Cyberint Alerts Cookie-Based Auth) registered (active); BC-2.16.009 v1.12→v1.13 + BC-2.16.014 v1.0→v1.1; active_contracts 257→258, bc_count_corrected 267→268. D-1946 NOTE (v8.35→v8.36 BC-2.16.014) archived.
+bc_index_version: "8.38"
+# NOTE: D-1949 — BC-INDEX v8.37→v8.38: BC-2.06.018 v1.6→v1.7 (S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 RETIRED per D-1889; §Scope Boundary annotation added); BC-2.16.013 v1.32→v1.33 (DTU-EXT-001 + DTU-EXT-005 RETIRED per D-1889). D-1948 NOTE (v8.36→v8.37 BC-2.01.018 + BC-2.16.009 + BC-2.16.014) archived.
 vp_index_version: "1.83"
-story_index_version: "v2.719"
+story_index_version: "v2.720"
 arch_index_version: "2.246"
 error_taxonomy_version: "2.58"
 # NOTE: D-1948 — v2.56→v2.58: E-SPEC-027 (header_scheme validation, closed value set) + E-SPEC-028 (auth_type coherence matrix violations) registered; E-SPEC-005 legacy message modernized; E-SPEC-012 token_exchange message template (POL-24 atomic). D-1847 NOTE (v2.55→v2.56 E-SENSOR rows) archived.
@@ -31,7 +31,7 @@ draft_contracts: 1
 retired_contracts: 6
 prd_version: "1.13"
 policies_version: "1.36"
-subsystem_count: 22
+subsystem_count: 22  # 22 subsystems (SS-01..SS-22)
 vp_count: 158
 bc_count_corrected: 268
 workspace_test_count: 5676
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1948 COMPLETE — Wave-A spec-evolution burst 3: ADR-053 D5 + ADR-054 D11 amendment manifests EXECUTED. BC-2.01.018 v1.0 NEW (Cyberint Alerts surface, ADR-053 D3); BC-2.16.009 v1.13 (expiry_mode D10(c)); BC-2.16.014 v1.1 (VP-159 traceability); DI-012 v1.8 (6-value set); error-taxonomy v2.58 (E-SPEC-027/028+E-SPEC-005+E-SPEC-012); VP-153 v0.21 (POL-24-atomic); ADR-054 v0.33 (D10(c) + D11 rows); VP-159 input-hash e6e76de. BC-INDEX v8.37, ARCH-INDEX v2.246. Remaining D11 carriers: code doc-comments → implementer at engine-story time. NEXT: 4 story retirements + mandatory remove-uncertainty pass + Wave-A story decomp + TDD. trajectory-tail →3→0→0→0 STATE v8.495→v8.496"
+current_step: "D-1949 COMPLETE — Wave-A spec-evolution burst 4 (story retirements): S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 + S-DTU-CROWDSTRIKE-INCIDENTS-ROUTE-001 RETIRED per D-1889 (ADR-053 §Finding-1 phantom endpoint + CrowdStrike Incidents API removal ~2026-03). STORY-INDEX v2.720 (2 rows retired; depends_on edge S-DEMO-CYBERINT-INCIDENTS-SEEDING-001→S-DEMO-DTU-LIVE-SCENARIO-001-A severed). BC-2.06.018 v1.7 + BC-2.16.013 v1.33. BC-INDEX v8.38. NEXT: mandatory remove-uncertainty pass + Wave-A story decomp + TDD. trajectory-tail →3→0→0→0 STATE v8.496→v8.497"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 474 lines (wc-l)
+  STATE.md SIZE BUDGET: 475 lines (wc-l)
   margin from soft-target (200): +270 lines over | margin from actual (500): 30 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-22 D-1945 — POL-36 generalization_directive_no_sensor_conditional_engine_code registered (human-approved codification; policies.yaml v1.35→v1.36). trajectory-tail →3→0→0→0 STATE v8.492→v8.493 |
+| **Last Updated** | 2026-07-22 D-1949 — Wave-A spec-evolution burst 4: S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 + S-DTU-CROWDSTRIKE-INCIDENTS-ROUTE-001 RETIRED per D-1889. STORY-INDEX v2.720, BC-INDEX v8.38. trajectory-tail →3→0→0→0 STATE v8.496→v8.497 |
 
 ## Active Objective (North Star)
 
@@ -361,6 +361,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1946 | state-manager | 2026-07-22 | Wave-A spec evolution burst 1 — BC-2.16.014 v1.0 (Declarative Auth Acquisition Token Lifecycle) authored by product-owner from ADR-054 D8 P1-P8 and registered in BC-INDEX v8.36. Open adjudication routed to architect: ADR-054 §D4 misstatement (acquisition errors should propagate as AuthAcquisitionFailed E-AUTH-001, not AuthRefreshFailed E-AUTH-002 which is double-401-only; BC uses correct semantics). draft_contracts 0→1, bc_count_corrected 266→267, bc_index_version 8.35→8.36. STATE v8.493→v8.494 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1947 | state-manager | 2026-07-22 | Wave-A spec evolution burst 2 — VP-159 v1.0 authored (declarative HTTP auth lazy-acquisition + refresh-on-expiry; proof_method: integration_test; source_bc: BC-2.16.014; source_invariant: DI-012; folds DRIFT-D849-002); POL-9 registrations: VP-INDEX v1.82→v1.83, verification-architecture v1.44→v1.45, coverage-matrix v1.45→v1.46; ADR-054 v0.31→v0.32 (§D4 acquisition-error variant corrected to AuthAcquisitionFailed E-AUTH-001; 8 [PLANNED] markers cleared); ADR-053 v0.26→v0.27 (3 [PLANNED] markers cleared); ARCH-INDEX v2.244→v2.245. vp_count 157→158. DRIFT-D849-002 folded into VP-159; closure pending at engine-story implementation. STATE v8.494→v8.495 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1948 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution burst 3: ADR-053 D5 + ADR-054 D11 amendment manifests EXECUTED. Files committed: BC-2.01.018 v1.0 NEW (Cyberint Alerts Cookie-Based Authentication and Multi-Format Timestamp Parsing, active, ADR-053 D3 Cyberint dual-surface split); BC-2.16.009 v1.12→v1.13 (expiry_mode D10(c) ratification — ratified set {absolute_utc_string, relative_seconds}; PO authoring errors corrected); BC-2.16.014 v1.0→v1.1 (VP-159 present-tense traceability); domain-spec/invariants.md v1.7→v1.8 (DI-012 6-value set + ADR-054 back-ref); error-taxonomy v2.56→v2.58 (E-SPEC-027/028 registered, E-SPEC-005 modernized, E-SPEC-012 token_exchange POL-24-atomic); VP-153 v0.20→v0.21 (DI-012 6-value set, E-SPEC-012 verbatim copies per POL-24); ADR-054 v0.32→v0.33 (D10(c) expiry_mode ratification + 2 D11 PO follow-up rows EXECUTED); VP-159 input-hash "[pending-recompute]"→"e6e76de"; also amended: BC-2.01.006 v1.6, BC-2.01.008 v1.7, BC-2.01.016 v1.13, BC-2.01.017 v1.8, BC-2.06.003 v1.12, BC-2.16.001 v1.9. Remaining ADR-054 D11 carriers: code doc-comments → implementer at engine-story time. bc_index_version 8.36→8.37; arch_index_version 2.245→2.246; error_taxonomy_version 2.56→2.58; active_contracts 257→258; bc_count_corrected 267→268. STATE v8.495→v8.496 | wave-5-e-demo-fidelity | 2026-07-22 |
+| D-1949 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution burst 4 (story retirements): S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 RETIRED per D-1889 ADR-053 §Finding-1 (Cyberint API has no incidents object — phantom endpoint; everything is an alert; superseded by DEFECT-CYBERINT-SPEC-FIDELITY-001); S-DTU-CROWDSTRIKE-INCIDENTS-ROUTE-001 RETIRED per D-1889 (CrowdStrike Incidents API removed ~2026-03; DTU-EXT-001 RETIRED in BC-2.16.013 v1.33; superseded by S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001). STORY-INDEX v2.719→v2.720: 2 rows retired, depends_on edge S-DEMO-CYBERINT-INCIDENTS-SEEDING-001→S-DEMO-DTU-LIVE-SCENARIO-001-A severed, stub files authored. BC-2.06.018 v1.6→v1.7 (§Scope Boundary annotation added). BC-2.16.013 v1.32→v1.33 (DTU-EXT-001 + DTU-EXT-005 RETIRED). BC-INDEX v8.37→v8.38. story_index_version v2.719→v2.720; bc_index_version 8.37→8.38. Input-hash 3000000 on BC-2.06.018 confirmed correct via compute-input-hash --update. STATE v8.496→v8.497 | wave-5-e-demo-fidelity | 2026-07-22 |
 
 ## Skip Log
 

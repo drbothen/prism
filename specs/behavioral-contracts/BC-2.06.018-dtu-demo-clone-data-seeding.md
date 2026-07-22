@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.018"
-version: "1.6"
+version: "1.7"
 status: active
 lifecycle_status: active
 producer: product-owner
@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-036"
 introduced: "2026-06-09"
-modified: "2026-06-09"
+modified: "2026-07-22"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,7 +30,7 @@ inputs:
   - "crates/prism-dtu-common/src/generator/rng.rs"
   - ".factory/specs/behavioral-contracts/BC-3.4.001.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: ""
+input-hash: "3000000"
 traces_to:
   - "CAP-036"
   - "BC-3.4.001"
@@ -350,6 +350,12 @@ separate gap:
    to emit incident records and register the `/api/v1/incidents` route in `prism-dtu-cyberint`,
    at which point this scope boundary will be lifted and this subsection updated.
 
+   **Amendment (D-1889 / ADR-053 §Finding-1):** `S-DEMO-CYBERINT-INCIDENTS-SEEDING-001` has
+   been RETIRED. ADR-053 §Finding-1 determined the Cyberint API exposes no real incidents
+   endpoint (phantom endpoint). The incidents gap is closed by `DEFECT-CYBERINT-SPEC-FIDELITY-001`,
+   which deletes the `incidents` table from `cyberint.sensor.toml`. This scope boundary stands
+   permanently — no route will be added.
+
 ## Error Codes
 
 ### E-DEMO-001 — Unrecognized fixture_set Name
@@ -470,6 +476,7 @@ None at BC authoring time. The architect decision (this session) resolved:
 
 | Version | Change |
 |---------|--------|
+| v1.7 | 2026-07-22 — Annotate §Cyberint `incidents` Table item 4: `S-DEMO-CYBERINT-INCIDENTS-SEEDING-001` RETIRED per D-1889 / ADR-053 §Finding-1 (phantom Cyberint incidents endpoint). Incidents gap closed by `DEFECT-CYBERINT-SPEC-FIDELITY-001` (table deletion from `cyberint.sensor.toml`). Scope boundary stands permanently. Input-hash populated (was empty). |
 | v1.6 | 2026-06-10 — POL-14 lifecycle promotion (D-1089). S-DEMO-DTU-LIVE-SCENARIO-001-A (T4-A) squash-merged via PR #181 develop@c287b00d. BC promoted draft→active per POL-14 auto-promotion policy. All Postconditions and Invariants are now implemented in develop. status: draft→active; lifecycle_status: draft→active. |
 | v1.5 | 2026-06-09 — Internal contradiction fix (F-P6-HIGH-001, LOCAL adversary pass 6; user decision: implement full 8-archetype support; ADR-036 v2.2 reconciliation). §Story A RETROFIT paragraph (line ~75) carried a **2-arg** `new_with_seed(seed: u64, org_id: OrgId)` form that contradicted the canonical **3-arg** `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` specified by Postcondition 1, INV-FIXTURE-SET-ARCHETYPE-MAP-001, EC-018-003/005, TV-018-005/006, and VP-018-C. The 2-arg form was ADR-036 drift that the implementation followed, hardcoding `CompromisedEndpoint`. Fixed: §Story A RETROFIT now cites the canonical 3-arg signature with return-type note (CrowdStrike/Claroty return `Self`; Armis/Cyberint return `anyhow::Result<Self>`) per ADR-036 v2.2. All other live-narrative `new_with_seed` occurrences (lines 46, 105, 119, 135, 175, 185, 381, 421, 464) were already 3-arg or reference-only and required no change. PC-1, INV-FIXTURE-SET-ARCHETYPE-MAP-001, EC-018-003 (dormant→empty), EC-018-005 (large_scale→10 000), TV-018-005 (compromised→≥3 alerts severity≥4), TV-018-006 (dormant→empty list), and VP-018-C (exhaustive 8-variant mapping) verified internally consistent — no further changes needed. lifecycle_status remains draft. |
 | v1.4 | 2026-06-09 — Phantom story-anchor correction (F-P5-HIGH-001, `S-DEMO-DTU-LIVE-SCENARIO-001-A` pass 5). All six live narrative sites referencing the non-existent planning-era story ID `S-DEMO-DTU-DATA-SEEDING-001` replaced with the real implementing story `S-DEMO-DTU-LIVE-SCENARIO-001-A` per STORY-INDEX (D-1077 split). Sites updated: frontmatter `anchored_stories`, Postcondition 4 prose, INV-DISTINCT-DATA-001 prose, §Traceability `Stories` row, §Story Anchor, §VP Anchors. Changelog rows untouched (TD-VSDD-091 exempt). lifecycle_status remains draft. |

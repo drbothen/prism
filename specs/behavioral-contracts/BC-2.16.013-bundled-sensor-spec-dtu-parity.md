@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.32"
+version: "1.33"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-07-11"  # v1.32: DRIFT-HARNESS-ADMIN-TOKEN-CT-001 — INV-HARNESS-ROUTE-PARITY constant-time admin-token bearer comparison requirement (CWE-208, D-1666)
+modified: "2026-07-22"  # v1.33: D-1889 wrong-direction retirements — DTU-EXT-001 + DTU-EXT-005 RETIRED in §Known Gaps; TD-VSDD-091 volatile-pin fixes (alerts.rs::AlertListParams, spec_parser.rs::SpecLoader::parse)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,7 +30,7 @@ inputs:
   - "crates/prism-dtu-cyberint/src/routes/alerts.rs"
   - "crates/prism-dtu-armis/src/clone.rs"
   - "crates/prism-dtu-armis/src/lib.rs"
-input-hash: null
+input-hash: "b73845f"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -164,8 +164,9 @@ authentication enforcement behavior, which reflects the real third-party API's a
     handler enforces the same empty-ids 400 guard as the standalone. This parity obligation
     closes F-CSD-P9-001 (v1.26 documented the standalone 9-endpoint surface but omitted the
     corresponding harness-clone update required by this invariant).
-  - `incidents` — **See §Known Gaps: DTU-EXT-001.** No DTU route registered for incidents.
-    This table entry is deferred until the DTU clone is extended (ADR-028 §D5).
+  - `incidents` — **See §Known Gaps: DTU-EXT-001 (RETIRED).** Incidents table retired per
+    D-1889; CrowdStrike Incidents API removed ~2026-03. Incidents are derived from Alerts via
+    `aggregate_id` per S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001.
   Each table's columns match the Arrow schema produced by the prior Rust adapter (BC-2.01.005
   field enumeration); OCSF field mappings reproduce the prior `CrowdStrikeAdapter::fetch()`
   (`SensorAdapter::fetch` trait method) normalization. Version: `"1.0.0"`. Rate limit hints: `requests_per_second: 10.0`.
@@ -262,11 +263,11 @@ PLUGIN-MIGRATION-001-D cascade convergence (pass-5 will independently verify sta
 
 | Gap ID | Sensor | Table | BC Entry | DTU Status | Recommended Resolution |
 |--------|--------|-------|----------|------------|----------------------|
-| DTU-EXT-001 | CrowdStrike | `incidents` | No DTU route registered | No incidents route in `prism-dtu-crowdstrike/src/routes/mod.rs` | Extend `prism-dtu-crowdstrike` with incidents routes in a follow-up story (Falcon Detects/Incidents API exists in real API) OR remove incidents table from 001-D BC scope |
+| DTU-EXT-001 | ~~CrowdStrike~~ | ~~`incidents`~~ | **RETIRED (2026-07-22, D-1889)** — No DTU route was registered | ~~No incidents route in `prism-dtu-crowdstrike/src/routes/mod.rs`~~ CrowdStrike Incidents API removed ~2026-03; incidents table retired; incidents derived from Alerts via `aggregate_id`. | ~~Extend `prism-dtu-crowdstrike` with incidents routes.~~ Retired per D-1889 (incidents=retire+derive). S-DTU-CROWDSTRIKE-INCIDENTS-ROUTE-001 RETIRED. Superseded by S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001. |
 | DTU-EXT-002 | Claroty | `assets` | DTU has `/api/v1/devices`; BC had `/api/v1/assets` | `prism-dtu-claroty/src/clone.rs` line 85: `/api/v1/devices` registered | Extend `prism-dtu-claroty` with `/api/v1/assets` route OR reconcile that Claroty "assets" table maps to `/api/v1/devices` (table name vs endpoint may differ per xDome API) |
 | DTU-EXT-003 | Armis | `devices` | ~~DTU had `/api/v1/devices` (GET); BC had `/api/v1/search` w/ AQL~~ **Implementation COMPLETE on `feature/S-DEMO-ARMIS-AQL-001`; OPEN on develop until story merges** | `prism-dtu-armis/src/clone.rs` `build_router()` registers `GET /api/v1/search` (AQL-search endpoint) per ADR-031 §D8-a on feature branch. Not yet on develop (S-DEMO-ARMIS-AQL-001 status: in-progress). | Gap closes automatically when S-DEMO-ARMIS-AQL-001 merges to develop. No separate DTU extension story needed. |
 | DTU-EXT-004 | Armis | `alerts` | ~~DTU had `/api/v1/alerts` (GET); BC had `/api/v1/search` w/ AQL~~ **Implementation COMPLETE on `feature/S-DEMO-ARMIS-AQL-001`; OPEN on develop until story merges** | `prism-dtu-armis/src/clone.rs` `build_router()` registers `GET /api/v1/search` (AQL-search endpoint) per ADR-031 §D8-a on feature branch. Not yet on develop (S-DEMO-ARMIS-AQL-001 status: in-progress). | Gap closes automatically when S-DEMO-ARMIS-AQL-001 merges to develop. No separate DTU extension story needed. |
-| DTU-EXT-005 | Cyberint | `alerts` pagination `page_size` | `AlertListParams` struct (`crates/prism-dtu-cyberint/src/routes/alerts.rs:38-40`) has no `page_size` field; `page_size = 100` in cyberint.sensor.toml is unvalidated by DTU | Confirmed: struct has only `cursor: Option<String>` field. `page_size` REMOVED from TOML per ADR-028 §D9 scope clarification (FB-IMPL-2). Future story must extend `AlertListParams` + DTU handler to accept `page_size`, then restore the TOML field. |
+| DTU-EXT-005 | ~~Cyberint~~ | ~~`alerts` pagination `page_size`~~ | **RETIRED (2026-07-22, D-1889)** — `AlertListParams` struct (in `crates/prism-dtu-cyberint/src/routes/alerts.rs`) had no `page_size` field; `page_size = 100` in cyberint.sensor.toml was unvalidated by DTU | ~~Confirmed: struct has only `cursor: Option<String>` field. `page_size` REMOVED from TOML per ADR-028 §D9 (FB-IMPL-2).~~ Retired per D-1889; Cyberint alerts endpoint is `POST /alert/api/v1/alerts` with `page/size` pagination per ADR-053 §Finding-1. | ~~Extend `AlertListParams` + DTU handler to accept `page_size`, then restore the TOML field.~~ Retired per D-1889 (Cyberint=retire+reclone). DEFECT-CYBERINT-SPEC-FIDELITY-001 supersedes. S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 also RETIRED. |
 
 All four specs pass BC-2.16.009 validation (no schema errors, no variable reference errors)
 and are loaded by BC-2.16.001 at startup when `sensor_specs_dir` includes `crates/prism-sensors/specs/`.
@@ -291,7 +292,7 @@ For each `(sensor_id, table)` pair with non-SKIP status:
      ) -> anyhow::Result<SocketAddr>
      ```
      The returned `SocketAddr` is used to construct the test-override base URL.
-  2. Load the bundled TOML spec via `SpecLoader::parse(toml_input: &str)` (spec_parser.rs:655)
+  2. Load the bundled TOML spec via `SpecLoader::parse(toml_input: &str)` (spec_parser.rs::SpecLoader::parse)
      — read the spec file content to a string, then parse via `SpecLoader::parse(&content)`;
      override the spec's `base_url` field to the DTU `SocketAddr` via test-only config injection
   3. Execute `PipelineExecutor::execute()` with a `NullAuthProvider` (DTU does not validate tokens)
@@ -491,7 +492,7 @@ never registered in error-taxonomy.md and does not exist as a runtime error.)
 | Cyberint alerts happy path | cyberint | DTU stub: 5 alert records from `GET /api/v1/alerts` with ISO-8601 timestamps; auth via `cyberint_session` cookie | Parity PASS: timestamps normalized to UTC per Rule C; OCSF fields match; reference loaded from `crates/prism-dtu-cyberint/fixtures/parity/reference-ocsf/alerts.json` |
 | Armis devices timestamp fallback | armis | DTU stub: device record with no `firstSeen` or `lastSeen` fields | Parity PASS by Rule C convention (both sides take fetch-time timestamp fallback path); WARN logged |
 | Armis AQL forwarding | armis | Query with custom AQL expression passed in `${query.filter.aql}` (caller sets `FetchContext::query_filters["aql"]`) | Parity PASS: DTU receives verbatim AQL expression in `aql` parameter; response matches reference |
-| Spec load validation — crowdstrike | crowdstrike | `crowdstrike.sensor.toml` content passed through `SpecLoader::parse(toml_input: &str)` (spec_parser.rs:655) — NOTE: `SpecLoader::parse` has no filename context; filename-stem vs sensor_id validation requires `SpecLoader::load_all()` or `parse_spec_directory()` which supply the filename. See F-LP4-MED-002 closure in §Error Conditions note. | `Ok(SensorSpec)` with `sensor_id == "crowdstrike"`, `auth_type == "oauth2_client_credentials"`, correct table count (2 verified tables: detections, devices; incidents gated on DTU-EXT-001) |
+| Spec load validation — crowdstrike | crowdstrike | `crowdstrike.sensor.toml` content passed through `SpecLoader::parse(toml_input: &str)` (spec_parser.rs::SpecLoader::parse) — NOTE: `SpecLoader::parse` has no filename context; filename-stem vs sensor_id validation requires `SpecLoader::load_all()` or `parse_spec_directory()` which supply the filename. See F-LP4-MED-002 closure in §Error Conditions note. | `Ok(SensorSpec)` with `sensor_id == "crowdstrike"`, `auth_type == "oauth2_client_credentials"`, correct table count (2 verified tables: detections, devices; incidents table RETIRED per D-1889) |
 | Empty SKIP — cyberint.incidents | cyberint | Parity test targeting `cyberint.incidents` table | Test returns SKIP with message "cyberint incidents DTU gap — see TS-PLUGIN-PARITY-001 Cyberint DTU Gap Note" |
 
 ## Verification Properties
@@ -518,7 +519,7 @@ never registered in error-taxonomy.md and does not exist as a runtime error.)
 - ADR-028 v1.10 §D1 (URL grounding rule — TOML spec URL paths derived from DTU clone route registrations, not production Rust adapter code)
 - ADR-028 v1.10 §D2 (auth_type grounding rule — TOML spec auth_type derived from DTU clone enforcement behavior, which reflects the real third-party API's auth contract; §D2 supersedes ADR-026 §D3 per D-747)
 - ADR-028 v1.10 §D3 (parity reference OCSF grounding rule — committed fixture JSON at `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`; no prism-sensors dev-dep required)
-- ADR-028 v1.10 §D5 (DTU extension prerequisite — spec entry for a URL path with no DTU route registration is an architectural violation; DTU-EXT-001..005 identified; documented-gap exception per §D9)
+- ADR-028 v1.10 §D5 (DTU extension prerequisite — spec entry for a URL path with no DTU route registration is an architectural violation; DTU-EXT-001..005 identified; documented-gap exception per §D9; DTU-EXT-001 and DTU-EXT-005 RETIRED per D-1889)
 - ADR-028 v1.10 §D6 (scope expansion — PLUGIN-MIGRATION-001-A migrates live `*Auth::auth_type_name()` to match DTU-grounded auth_type values; auth divergence between TOML spec and live adapter return is intentional and tracked until 001-A merges)
 - ADR-028 v1.10 §D8 (O-001 LOCKED Option A — `ColumnSpec::timestamp_formats` + `ColumnSpec::timestamp_fallback_chain` grammar extension; Cyberint `["iso8601", "unix_epoch_seconds"]`; Armis `["first_seen"] → now()` (amended FB-IMPL-2 — prior `["last_seen", "first_seen"]` was semantic no-op); E-SPEC-018 registered)
 - ADR-028 v1.10 §D9 (documented-gap exception — incidents table retained in crowdstrike.sensor.toml as documented-gap entry; AC-001 `tables.len() == 3` stands; §D9 scope clarified: table-level gaps only, NOT parameter-level projections; `page_size` removed from cyberint.sensor.toml pagination block per F-LP2-MEDIUM-001)
@@ -546,13 +547,14 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 | L2 Invariants | DI-008 (client scoping — specs do not cross client boundaries), DI-030 (partial-failure isolation — one spec failure does not block others), DI-012 (auth composition prevention — each spec declares exactly one auth_type) |
 | L2 Entities | SensorSpec, TableSpec, ColumnSpec, PipelineResult |
 | Priority | P0 |
-| ADR anchors | ADR-028 v1.10 §D1 (URL grounding), §D2 (auth_type grounding; supersedes ADR-026 §D3 per D-747), §D3 (fixture-JSON parity reference), §D5 (DTU extension prerequisite; documented-gap exception per §D9), §D6 (001-A auth migration scope), §D8 (O-001 Option A LOCKED: timestamp_formats + timestamp_fallback_chain grammar extension; Armis chain amended to `["first_seen"]` per FB-IMPL-2), §D9 (documented-gap entries permitted with DTU-EXT-NNN blocker ref; parameter-level projections NOT covered), §D10 (co-merge contract: 001-D + 001-A must deploy simultaneously); ADR-023 §Decision Rules — Rule 1, §Decision Rules — Rule 3; ADR-023 §Architectural Constraints — C2; TS-PLUGIN-PARITY-001 Rules A–I |
+| ADR anchors | ADR-028 v1.10 §D1 (URL grounding), §D2 (auth_type grounding; supersedes ADR-026 §D3 per D-747), §D3 (fixture-JSON parity reference), §D5 (DTU extension prerequisite; documented-gap exception per §D9; DTU-EXT-001 + DTU-EXT-005 RETIRED D-1889), §D6 (001-A auth migration scope), §D8 (O-001 Option A LOCKED: timestamp_formats + timestamp_fallback_chain grammar extension; Armis chain amended to `["first_seen"]` per FB-IMPL-2), §D9 (documented-gap entries permitted with DTU-EXT-NNN blocker ref; parameter-level projections NOT covered), §D10 (co-merge contract: 001-D + 001-A must deploy simultaneously); ADR-023 §Decision Rules — Rule 1, §Decision Rules — Rule 3; ADR-023 §Architectural Constraints — C2; TS-PLUGIN-PARITY-001 Rules A–I |
 | Subsystem | SS-16 (Spec Engine) |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.33 | D-1889-wrong-direction-retirements | 2026-07-22 | story-writer | **D-1889 wrong-direction story retirements.** §Known Gaps: DTU-EXT-001 (CrowdStrike incidents) marked RETIRED — Incidents API removed ~2026-03; incidents table retired from crowdstrike.sensor.toml per S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001; incidents derived from Alerts `aggregate_id`. DTU-EXT-005 (Cyberint alerts pagination page_size) marked RETIRED — Cyberint alerts endpoint is `POST /alert/api/v1/alerts` with `page/size` pagination per ADR-053 §Finding-1; DEFECT-CYBERINT-SPEC-FIDELITY-001 supersedes. §Postconditions §1 CrowdStrike `incidents` row updated to reference DTU-EXT-001 RETIRED. §Canonical Test Vectors Spec load validation row updated to reflect incidents RETIRED. TD-VSDD-091 fixes: §Known Gaps DTU-EXT-005 `alerts.rs:38-40` → `alerts.rs::AlertListParams`; §Postconditions §2 step 2 + §Canonical Test Vectors `spec_parser.rs:655` → `spec_parser.rs::SpecLoader::parse`. BC v1.32→v1.33. POL-32. |
 | 1.32 | S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001-PO-CT-amendment | 2026-07-11 | product-owner | **DRIFT-HARNESS-ADMIN-TOKEN-CT-001 constant-time token comparison requirement (D-1666, 2026-07-10) — BC amendment closing OQ-001 (S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001).** §Invariants INV-HARNESS-ROUTE-PARITY: added explicit **Admin-token bearer comparison MUST use constant-time equality (`ct_compare_tokens`)** clause — every `Authorization: Bearer <token>` comparison in `prism-dtu-harness` that checks the provided token against the stored `admin_token` MUST use constant-time byte comparison via shared `ct_compare_tokens(provided: &str, expected: &str) -> bool` helper (implemented with `subtle::ConstantTimeEq`). Applies to all 13 comparison sites: `src/builder.rs` (`check_bearer`), `src/clone_server.rs`, and 7 per-clone modules. Addresses CWE-208 timing side-channel — non-constant-time `!=` / `==` string comparison leaks information about where the first differing byte occurs. Rationale: constant-time is the correct default even for test-context UUID tokens to prevent future promotion into security-sensitive contexts without regression. Frontmatter v1.31→v1.32; modified: 2026-07-11. |
 | 1.31 | F-CSD-P31-clarifications-PO-burst | 2026-07-11 | product-owner | F-CSD-P31-OBS-001 + F-CSD-P31-MED-001 clarifications — INV-HARNESS-ROUTE-PARITY detection_detail() clause: (1) `det_index` defined as canonical detection index parsed from `detection_id` trailing integer (`det-{org_slug}-{seed}-{NNN}` → NNN); detection→device mapping STABLE across all request batch shapes; batch-position-derived indices forbidden; same `detection_id` MUST always map to same `device_id`. (2) `severity` field MUST be a string label (`"Low"` / `"Medium"` / `"High"` / `"Critical"`) matching standalone DTU generator emission types and `crowdstrike.sensor.toml` `column_type = "string"`; numeric severity values forbidden in harness clone. BC v1.30 → v1.31. POL-27/POL-32. |
 | 1.30 | F-CSD-P30-OBS-003-PO-spec-note | 2026-07-11 | product-owner | F-CSD-P30-OBS-003 (architect Option A ruling 2026-07-11) — INV-HARNESS-ROUTE-PARITY CrowdStrike detection_detail() response-shape clause: added `device_id` host-pool constraint. `device_id` MUST be a valid host ID from `generate_host_ids(org_slug, seed)`, computed as `generate_host_ids(org_slug, seed)[det_index % HOST_COUNT]`. Literal placeholder strings not in the harness host pool are forbidden. A harness-mode JOIN `crowdstrike_detections JOIN crowdstrike_devices ON device_id = device_id` MUST return non-empty rows when both tables have data. Appended after the `ioc_description` sentence in the detection_detail() clause (v1.29). BC v1.29 → v1.30. POL-27/POL-32. |

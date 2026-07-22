@@ -9,6 +9,7 @@ phase: 1b
 inputs: [domain-spec/L2-INDEX.md, prd.md, prd-supplements/interface-definitions.md, prd-supplements/nfr-catalog.md, prd-supplements/error-taxonomy.md]
 traces_to: prd.md
 deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR-022 §A; shipped via S-WAVE5-PREP-01)
+# 22 subsystems registered (SS-01..SS-22)
 ---
 
 # Architecture Index: Prism
