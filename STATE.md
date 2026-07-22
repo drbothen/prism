@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.465"
+version: "8.466"
 producer: state-manager
-timestamp: 2026-07-21T20:00:00Z
+timestamp: 2026-07-21T21:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.81"
 story_index_version: "v2.719"
-arch_index_version: "2.219"
+arch_index_version: "2.220"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1917 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1917 adversary re-gate pass-17 fix-burst (Wave-A re-gate cascade). Pass 17 NOT CLEAN — HIGH-1 (BC-2.06.003 canonical credential-ref tables contradicted by all three decisions, unmanifested), MED-1 (D4 SensorAuth/boot.rs mis-anchor → AuthProvider/step9a), OBS-1 (ADR-031 related_adrs symmetry), OBS-2 (matrix Wave-A scope + Wave-B extension note). Fix-burst applied: ADR-053 v0.18 + ADR-054 v0.16 + ADR-031 v1.6. Generalization probe PASS (14th consecutive). Streak 0/3; next fresh adversary pass on new frozen HEAD. ARCH-INDEX v2.218→v2.219. trajectory-tail →1→2→1→4 STATE v8.464→v8.465"
+current_step: "D-1918 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1918 adversary re-gate passes 18-19 fix-burst (Wave-A re-gate cascade). Pass 18 CLEAN(strict) 1/3; Pass 19 NOT CLEAN — OBS-1 (ADR-053 BC-2.06.003 D5 ambiguous §Worked examples anchor; qualified to §Env-Var Name Derivation → Worked examples ×3, POL-21), OBS-2 (ADR-054 VP-153 §Feasibility Rule-C structural-shape decision for token_exchange unstated; resolved: secret_key reuses MockCredentialType::ApiKey shape, static opaque string, NOT BearerToken; 6×5=30 confirmed; is_coherent_pair + prop_filter amendment directions added). STREAK RESET 1/3→0/3 per BC-5.39.001. Fix-burst applied: ADR-053 v0.19 + ADR-054 v0.17. Generalization probe PASS (15th/16th consecutive). Next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.219→v2.220. trajectory-tail →1→4→0→2 STATE v8.465→v8.466"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,8 +77,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 443 lines (wc-l)
-  margin from soft-target (200): +243 lines over | margin from actual (500): 57 lines remaining
+  STATE.md SIZE BUDGET: 444 lines (wc-l)
+  margin from soft-target (200): +244 lines over | margin from actual (500): 56 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-21 D-1917 — pass-17 fix-burst: HIGH-1 BC-2.06.003 manifests (ADR-053 D5 + ADR-054 D11), MED-1 D4 AuthProvider re-anchor, OBS-1 ADR-031 related_adrs, OBS-2 matrix scope. ADR-053 v0.18 + ADR-054 v0.16 + ADR-031 v1.6. Generalization probe PASS (14th). ARCH-INDEX v2.218→v2.219. STATE v8.464→v8.465. trajectory-tail →1→2→1→4 |
+| **Last Updated** | 2026-07-21 D-1918 — passes 18-19 fix-burst: pass 18 CLEAN(strict) 1/3; pass 19 OBS-1 §Worked examples anchor + OBS-2 VP-153 Rule-C shape. ADR-053 v0.19 + ADR-054 v0.17. Generalization probe PASS (15th/16th). ARCH-INDEX v2.219→v2.220. STATE v8.465→v8.466. trajectory-tail →1→4→0→2 |
 
 ## Active Objective (North Star)
 
@@ -330,6 +330,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1915 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 15 on f293e199: NOT CLEAN — HIGH-1 (DI-012 domain-root pipe-delimited enumeration missing from ADR-054 D11; third syntactic carrier form), OBS-1 (VP-153 §Changelog row order v0.16/v0.15 inverted, pre-existing defect NOT introduced by the ADRs, fixed via state-manager bookkeeping). Fix-burst applied: ADR-054 v0.14 (DI-012 D11 enumeration row + exhaustive 14-carrier census, class closed) + VP-153 v0.19 (changelog newest-first) + VP-INDEX v1.81. Generalization probe PASS (12th consecutive). Streak 0/3; next fresh adversary pass on new frozen HEAD. ARCH-INDEX v2.216→v2.217. STATE v8.462→v8.463. trajectory-tail →0→0→1→2 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1916 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 16 on 941d2862: NOT CLEAN — MED-1 (BC-2.16.001 legacy-shorthand auth_type sites uncovered by custom_via_plugin-tracer census; class predates canonical member). Fix-burst applied: ADR-054 v0.15 — BC-2.16.001 D11 row + related_bcs + 6-tracer-class second census (enumeration class now closed verifiably). Generalization probe PASS (13th consecutive). Streak 0/3; next fresh adversary pass on new frozen HEAD. ARCH-INDEX v2.217→v2.218. STATE v8.463→v8.464. trajectory-tail →0→1→2→1 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1917 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 17 on 2f340f91: NOT CLEAN — HIGH-1 (BC-2.06.003 canonical credential-ref tables contradicted by all three decisions, unmanifested), MED-1 (D4 SensorAuth/boot.rs mis-anchor → AuthProvider/step9a), OBS-1 (ADR-031 related_adrs symmetry), OBS-2 (matrix Wave-A scope + Wave-B extension note). Fix-burst applied: ADR-053 v0.18 (BC-2.06.003 D5 manifest row — armis token_exchange/secret_key + cyberint dual-surface/access_token + worked examples; OBS-2 custom_via_plugin matrix Wave-A scope + Wave-B extension note) + ADR-054 v0.16 (BC-2.06.003 D11 crowdstrike-provider row; MED-1 D4 AuthProvider auth_provider.rs re-anchor + step9a construction site) + ADR-031 v1.6 (OBS-1 ADR-054 added to related_adrs; modified date synced). Generalization probe PASS (14th consecutive). Streak 0/3; next fresh adversary pass on new frozen HEAD. ARCH-INDEX v2.218→v2.219. STATE v8.464→v8.465. trajectory-tail →1→2→1→4 | wave-5-e-demo-fidelity | 2026-07-21 |
+| D-1918 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate passes 18-19 on frozen HEAD 54fbc14a: pass 18 CLEAN(strict) 1/3; pass 19 NOT CLEAN(strict), CLEAN(PR-merge) — OBS-1 (ADR-053 BC-2.06.003 D5 "§Worked examples" anchor ambiguous — multiple anchors named "Worked examples" at different headings violates POL-21 unique resolution; qualified to "§Env-Var Name Derivation → Worked examples" ×3), OBS-2 (ADR-054 VP-153 §Feasibility row Rule-C structural-shape decision for token_exchange secret_key unstated — resolved: reuses MockCredentialType::ApiKey shape, static opaque string exchange credential, NOT BearerToken which is the resulting access token; credential space stays 5 shapes; 6×5=30 confirmed; is_coherent_pair + prop_filter amendment directions added). STREAK RESET 1/3→0/3 per BC-5.39.001. Fix-burst applied: ADR-053 v0.19 + ADR-054 v0.17. Generalization probe PASS (15th/16th consecutive). Next: fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.219→v2.220. STATE v8.465→v8.466. trajectory-tail →1→4→0→2 | wave-5-e-demo-fidelity | 2026-07-21 |
 
 ## Skip Log
 
