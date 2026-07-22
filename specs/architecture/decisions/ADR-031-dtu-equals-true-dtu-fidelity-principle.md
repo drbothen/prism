@@ -4,15 +4,15 @@ adr_id: "ADR-031"
 title: "DTU = True DTU — Fidelity Principle for All Clone Implementations"
 status: accepted
 date: "2026-05-29"
-modified: "2026-07-20"
-version: "1.5"
+modified: "2026-07-21"
+version: "1.6"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-028 §D12 (Cyberint cookie auth real-API vs DTU model divergence — DTU-shortcut acceptance SUPERSEDED)"]
 superseded_by: "ADR-053 §D3 (scope-narrowing only: §D3 single-surface assumption narrowed to Assets; §D3-b items 1-2 StaticCookieAuthProvider provider contract PRESERVED — no-HTTP acquire_token, static-credential-read, no login step; §D3-b item 3 auth_type-keyed dispatch table superseded by header_scheme dispatch per ADR-053 D2/D5; §D3-a DTU changes unaffected; Alerts becomes separate surface; Alerts auth CONFIRMED static-cookie per research-agent 2026-07-20; authorized D-1889 2026-07-20; final ADR approval gate pending)"
 amends: null
 anchor_stories: [S-DTU-CYBERINT-AUTH-FIDELITY-001]
-related_adrs: [ADR-003, ADR-023, ADR-028, ADR-053]
+related_adrs: [ADR-003, ADR-023, ADR-028, ADR-053, ADR-054]
 related_bcs: [BC-2.16.013]
 locked_decisions: []
 user_directive_date: "2026-05-29"
@@ -637,6 +637,7 @@ non-standard cookie names, but it does not resolve the DTU fidelity problem.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.6 | 2026-07-21 | architect | OBS-1: ADR-054 added to `related_adrs` — soft symmetry with ADR-054's `related_adrs: [..., ADR-031]`; ADR-054 §D4 implementation contract references `AuthProvider` (the trait `StaticCookieAuthProvider` defined in ADR-031 §D3-b also implements). |
 | 1.5 | 2026-07-20 | architect | HIGH-1 (ADR-053 pass-3 paper-fix): `superseded_by` frontmatter corrected — §D3-a (DTU changes) is UNAFFECTED by ADR-053 dispatch change; §D3-b items 1-2 (StaticCookieAuthProvider provider contract) are PRESERVED; §D3-b item 3 (auth_type-keyed dispatch table) is superseded by header_scheme dispatch per ADR-053 D2/D5. Previous framing incorrectly cited `§D3-a static-cookie CONTRACT PRESERVED` — §D3-a is DTU-only and contains no StaticCookieAuthProvider. Correct attribution anchors the provider contract to §D3-b items 1-2 where it actually lives. Closes ADR-053 v0.4 HIGH-1. |
 | 1.4 | 2026-07-20 | architect | OBS-1 / DRIFT-ADR031-STATUS-001: `status: Proposed` → `status: accepted`. §D3-b (Cyberint static-cookie `build_request()` dispatch correction, `CookieRoundtrip → Cookie: access_token={token}`) is shipped and realized in `crates/prism-spec-engine/src/pipeline.rs` via `S-DTU-CYBERINT-AUTH-FIDELITY-001`. An accepted ADR can be partially superseded. `superseded_by` updated to reflect §D3-a/b split per ADR-053 v0.3: §D3-a static-cookie CONTRACT preserved; §D3-b auth_type-keyed dispatch table superseded by `header_scheme` dispatch (ADR-053 D2/D5). Closes DRIFT-ADR031-STATUS-001. |
 | 1.3 | 2026-07-20 | architect | ADR-053 §D3 supersession linkage applied: `superseded_by:` corrected from §D3-a framing (HIGH-2 fix — §D3-a is the DTU-correction direction, not the login-flow portion; the old framing risked an implementer reintroducing `POST /login`). Correct framing: §D3 scope-narrowed to Assets surface only; §D3-a/b static-cookie contract PRESERVED; Alerts becomes a separate surface under ADR-053 D3-a. `related_adrs` updated to include ADR-053 (previous session). Cyberint Alerts auth CONFIRMED: static `Cookie: access_token` (research-agent 2026-07-20), no login step — consistent with `StaticCookieAuthProvider` / BC-2.01.017. |

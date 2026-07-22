@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.17"
+version: "0.18"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -332,7 +332,7 @@ Incoherent combinations emit E-SPEC-027 template (b) and reject the spec at load
 | `bearer_static` | `"bearer"`, `"raw"` | `"bearer"` |
 | `oauth2_client_credentials` | `"bearer"`, `"raw"` | `"bearer"` |
 | `cookie_roundtrip` | `"cookie:<name>"` **only** | `"cookie:access_token"` |
-| `custom_via_plugin` | `"bearer"`, `"raw"` | `"raw"` or `"bearer"` per plugin declaration (escape hatch for genuinely non-standard auth) |
+| `custom_via_plugin` | `"bearer"`, `"raw"` (Wave-A scope) | `"raw"` or `"bearer"` per plugin declaration (escape hatch for genuinely non-standard auth) |
 | `api_key` | `"bearer"` (Wave-A scope) | `"bearer"` |
 | `token_exchange` (new per ADR-054) | `"bearer"`, `"raw"` | `"raw"` for Armis v1 (raw-token, no Bearer prefix); **[ADR-054 story scope — ships with `AuthType::TokenExchange` addition, not with standalone engine story]** |
 
@@ -347,6 +347,14 @@ The `api_key → "bearer"` restriction above is a conservative Wave-A scope boun
 permanent exclusion. A Wave-B ADR may extend allowed `header_scheme` values for `api_key`
 (e.g., a future `"header:<name>"` or `"query:<name>"` value). No `api_key` sensor is in
 Wave-A scope; this restriction does not foreclose future sensors.
+
+**`custom_via_plugin` + cookie or custom-header injection (Wave-B extension):** A genuinely
+non-standard-auth sensor using `custom_via_plugin` may need cookie injection (`cookie:<name>`)
+or a custom-header injection pattern in a future wave. The `custom_via_plugin → "bearer", "raw"`
+restriction above is a conservative Wave-A scope bound, not a permanent exclusion. No
+`custom_via_plugin` sensor is in Wave-A scope; this restriction does not foreclose future
+plugin-auth sensors that require non-Bearer injection. A Wave-B ADR may extend the allowed
+`header_scheme` values for `custom_via_plugin` without altering its escape-hatch semantics.
 
 **`header_scheme` governs INJECTION; `auth_type` governs ACQUISITION (separation of concerns):**
 
@@ -518,6 +526,7 @@ consequence of D1–D3. Each amendment is in-scope for the corresponding remedia
 | Artifact | Amendment required | Triggered by |
 |----------|-------------------|--------------|
 | BC-2.01.008 (`armis-bearer-aql`) | Title and contract-level auth premise invalidated — Armis auth is no longer `bearer_static`; the BC must be updated to reflect `token_exchange` (native `DeclarativeHttpAuthProvider` per ADR-054) + `header_scheme = "raw"` | D2 |
+| BC-2.06.003 §Per-Sensor `[[credential_refs]]` Declarations (Canonical) table + §Worked examples | Two sensor rows and their worked examples become stale post-D2/D3: **(1) Armis row (D2)** — `auth_type = "bearer_static"` → `"token_exchange"`; credential ref `bearer_token` → `secret_key`; auth provider `BearerStaticCredentialAuthProvider — passes "bearer_token"` → `DeclarativeHttpAuthProvider(TokenExchange)`. **(2) Cyberint row (D3)** — single `cyberint` row splits into two rows for `cyberint-alerts` and `cyberint-assets`; credential ref `api_key` → `access_token`; auth provider `StaticCookieAuthProvider — passes "api_key"` → passes `"access_token"`. §Worked examples: armis row `bearer_token` credential ref → `secret_key`; cyberint row `api_key` → two entries (one each for `cyberint-alerts` and `cyberint-assets`) with `access_token`. The `crowdstrike` row in this same table is stale via ADR-054 D5 (plugin retired → `DeclarativeHttpAuthProvider(Oauth2ClientCredentials)`) and is covered by the ADR-054 D11 manifest. Behavioral anchors: §Per-Sensor `[[credential_refs]]` Declarations (Canonical) table rows for `armis` and `cyberint`; §Worked examples table rows for `armis` and `cyberint`. | D2, D3 |
 | BC-2.01.017 §P2 dispatch table | The auth_type-keyed injection table must be replaced by `header_scheme`-driven dispatch — a mechanism-level replacement, not a per-arm patch. Two drivers: (1) `token_exchange` (new 6th AuthType variant per ADR-054 D1) has no arm in the current 4-row §P2 table; adding a 5th arm would be a per-variant patch that does not generalize to future variants; (2) `CustomViaPlugin → Authorization: Bearer {token}` is incoherent with `header_scheme = "raw"` for any `custom_via_plugin` sensor that declares raw injection. Aligns with D2 generalization directive: dispatch on the general `header_scheme` field, not per-auth-type special cases. | D2 |
 | BC-2.01.017 INV-COOKIE-004 | Cookie injection invariant references `auth_type = "cookie_roundtrip"` as the dispatch trigger; must be re-grounded on `header_scheme = "cookie:<name>"` | D2 |
 | BC-2.01.017 TV-BC-2.01.017-008 | Test vector grounded on `auth_type`-based cookie dispatch; must be re-grounded on `header_scheme = "cookie:access_token"` dispatch | D2 |
@@ -696,6 +705,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.18 | 2026-07-21 | architect | HIGH-1: BC-2.06.003 §Per-Sensor `[[credential_refs]]` Declarations (Canonical) table added to D5 Spec Amendment Manifest — armis row (D2): auth_type bearer_static→token_exchange, credential ref bearer_token→secret_key, provider BearerStaticCredentialAuthProvider→DeclarativeHttpAuthProvider(TokenExchange); cyberint row (D3): single row splits to cyberint-alerts + cyberint-assets, credential ref api_key→access_token; §Worked examples table rows for armis and cyberint stale correspondingly; crowdstrike row is ADR-054 D11 scope (noted). OBS-2: custom_via_plugin coherence matrix row updated — "(Wave-A scope)" qualifier added to allowed header_scheme values; Wave-B extension note added (a genuinely non-standard-auth sensor may need cookie/custom-header injection in a future wave; no Wave-A sensor affected). |
 | 0.17 | 2026-07-21 | architect | LOW-1: at-point ADR-054-story-scope caveat added to D2 E-SPEC-027 template (b) `{allowed_set}` derivation list — `token_exchange` entry annotated "[ADR-054 story scope]" inline; "all 6 directions" parenthetical updated to note the token_exchange entry ships with ADR-054 story (not standalone engine story). |
 | 0.16 | 2026-07-21 | architect | MED-1: D2 coherence matrix `token_exchange` row annotated — "[ADR-054 story scope — ships with `AuthType::TokenExchange` addition, not with standalone engine story]"; D2 engine story scope paragraph updated — E-SPEC-027 + coherence matrix covers 5 existing auth_type variants only; token_exchange row and allowed_set entry ship with ADR-054 story atomically. LOW-1: D5 manifest E-SPEC-028 registration row updated — "7 message templates" → "8 message templates"; template (h) (token_exchange-only fields on non-token_exchange block) appended to list. LOW-2: D2 §Supersession scope note corrected — "superseded by ADR-028 §D6" → "ADR-028 §D2 (operationalized by §D6)". |
 | 0.15 | 2026-07-21 | architect | LOW-1: v0.14 changelog row description corrected — replace_all corrupted `{ORG} → {ID}` to `{ID} → {ID}` (no-op); restored to `{ORG} → {ID}`. LOW-2: §Status refreshed to current-version highlights (construction dispatch site, token_path schema, header_scheme mechanism-level replacement; non-volatile "current version per §Changelog" form). |
