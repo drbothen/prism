@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.475"
+version: "8.476"
 producer: state-manager
-timestamp: 2026-07-21T23:00:00Z
+timestamp: 2026-07-21T23:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.82"
 story_index_version: "v2.719"
-arch_index_version: "2.229"
+arch_index_version: "2.230"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1927 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1927 adversary re-gate pass 31 fix-burst (Wave-A re-gate cascade). Pass 31 NOT CLEAN(strict) — MED-1 (ambiguous Boot-Step-5 anchor, duplicate-heading collision — qualified to §Canonical Test Vectors → Boot-Step-5 Probe (KeyringCredentialProbe::probe) ×2); MED-2 (phantom Tier-1–5 range in 4-tier chain ×3 → all 9 armis | bearer_token rows per actual D5 table); OBS-1 (ADR-032 related_adrs-tracking-is-deliberate rationale sentence added to D5 row) — all confined to v0.20-added D5 row text; VP-153 as-built reconciliation verified fully clean. Fix-burst applied: ADR-053 v0.21. Generalization probe PASS (28th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.228→v2.229. trajectory-tail →0→2→3→3 STATE v8.474→v8.475"
+current_step: "D-1928 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1928 adversary re-gate passes 32-33 (Wave-A re-gate cascade) on frozen HEAD 253c81a2. Pass 32 CLEAN(strict) 1/3; pass 33 NOT CLEAN — MED-1 (ARCH-INDEX ADR-053 registry row annotation unescaped pipe: armis | bearer_token → armis \\| bearer_token; copy-without-escaping propagation, POL-26; state-manager-owned). STREAK RESET 1/3→0/3 per BC-5.39.001. Fix applied: ARCH-INDEX v2.230 — ADR-053 registry row + changelog v2.229 row both escaped; POL-26 class sweep (v2.220+) confirmed 2 cells fixed, all other rows clean. Generalization probe PASS (29th/30th consecutive). Next: fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.229→v2.230. trajectory-tail →3→3→0→1 STATE v8.475→v8.476"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 453 lines (wc-l)
+  STATE.md SIZE BUDGET: 454 lines (wc-l)
   margin from soft-target (200): +251 lines over | margin from actual (500): 49 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-21 D-1927 — pass 31 NOT CLEAN: MED-1 Boot-Step-5 anchor ambiguous + MED-2 phantom Tier-1–5 + OBS-1 ADR-032 D5 rationale. Fix-burst: ADR-053 v0.21. Generalization probe PASS (28th consecutive). ARCH-INDEX v2.228→v2.229. STATE v8.474→v8.475. trajectory-tail →0→2→3→3 Streak 0/3 |
+| **Last Updated** | 2026-07-21 D-1928 — passes 32-33 on frozen HEAD 253c81a2: pass 32 CLEAN(strict) 1/3; pass 33 NOT CLEAN MED-1 (ARCH-INDEX ADR-053 annotation unescaped pipe, POL-26; state-manager-owned). Fix: ARCH-INDEX v2.230 pipe escaping + class sweep (2 cells). STREAK RESET 1/3→0/3. Generalization probe PASS (29th/30th consecutive). trajectory-tail →3→3→0→1 STATE v8.475→v8.476 |
 
 ## Active Objective (North Star)
 
@@ -340,6 +340,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1925 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate passes 28-29 on frozen HEAD df9e2053: pass 28 CLEAN(strict) 1/3; pass 29 NOT CLEAN(strict) — MED-1 (ADR-054 VP-153 §Proof Method member-count sentence 5→6; fourth VP-153 D11 row; in-file census: 2 count-bearing sites both now covered, 2 non-count hits dispositioned); LOW-1 (ADR-053 BC-2.06.003 TV rows claroty re-point adjudicated option (i): §Canonical Test Vectors + §Boot-Step-5 Probe armis/bearer_token example rows re-point to claroty/bearer_token, permanently stable, mechanics-not-armis rationale); STREAK RESET 1/3→0/3 per BC-5.39.001. Fix-burst applied: ADR-054 v0.23 + ADR-053 v0.20. Generalization probe PASS (25th/26th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.226→v2.227. STATE v8.472→v8.473. trajectory-tail →2→3→0→1 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1926 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 30 on 03165dfe: NOT CLEAN — MED (VP-153 §Proof Harness Skeleton diverged from as-built tests; phantom typed-pair helpers propagated into D11 rows; FB-22 'as-built' claim was unverified against crates/ — paper-verification escape), OBS-1 (ADR-032 v1.3 §Status supersedes/amends terminology audit — blockquote class clean; changelog row records the audit), OBS-2 [process-gap] PG-VP-SKELETON-ASBUILT-001: POL-31 has no enforcement hook; codification item carried to Wave-A cycle close. Fix-burst applied: VP-153 v0.20 skeleton reconciliation (§Proof Harness Skeleton reconciled from divergent typed-enum pseudocode to AS-BUILT two-file design — vp153_sensorauth_cross_composition.rs Rules A+B + vp153_rule_c_shaped_probe.rs Rule C, all verified in source) + ADR-054 v0.24 D11 VP-153 harness rows rewritten against as-built constructs (VALID_AUTH_TYPES both files, arb_valid_auth_type/arb_matching_auth_type prop_oneof! arms, arb_invalid_auth_type auto-expansion, Rule B else-branch coverage, arb_mismatched_auth_type_pair bounds (0..6,0..5)=30 pairs; all phantom-helper references removed) + ADR-032 v1.3. Generalization probe PASS (27th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). VP-INDEX v1.81→v1.82. ARCH-INDEX v2.227→v2.228. STATE v8.473→v8.474. trajectory-tail →1→0→2→3 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1927 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 31 on 651c8d0d: NOT CLEAN — MED-1 (ambiguous Boot-Step-5 anchor, duplicate-heading collision — fully qualified to "§Canonical Test Vectors → Boot-Step-5 Probe (KeyringCredentialProbe::probe)" ×2 per POL-21 unique resolution), MED-2 (phantom "Tier 1–5" range in 4-tier chain ×3 → "all 9 armis \| bearer_token rows" per actual D5 table), OBS-1 (ADR-032 related_adrs-tracking-is-deliberate rationale sentence added to D5 row) — all confined to v0.20-added D5 row text; VP-153 as-built reconciliation verified fully clean. Fix-burst applied: ADR-053 v0.21. Generalization probe PASS (28th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.228→v2.229. STATE v8.474→v8.475. trajectory-tail →0→2→3→3 | wave-5-e-demo-fidelity | 2026-07-21 |
+| D-1928 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate passes 32-33 on frozen HEAD 253c81a2: pass 32 CLEAN(strict) 1/3; pass 33 NOT CLEAN — MED-1 (ARCH-INDEX ADR-053 registry row annotation unescaped pipe: armis \| bearer_token copy-without-escaping propagation from ADR-053 source text where same text is escaped; POL-26 cell-integrity; state-manager-owned). STREAK RESET 1/3→0/3 per BC-5.39.001. Fix applied: ARCH-INDEX v2.230 — ADR-053 registry row + changelog v2.229 row both escaped (2 cells fixed). POL-26 class sweep (v2.220+): all other annotation cells verified clean. Generalization probe PASS (29th/30th consecutive). Next: fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.229→v2.230. trajectory-tail →3→3→0→1 STATE v8.475→v8.476 | wave-5-e-demo-fidelity | 2026-07-21 |
 
 ## Skip Log
 
