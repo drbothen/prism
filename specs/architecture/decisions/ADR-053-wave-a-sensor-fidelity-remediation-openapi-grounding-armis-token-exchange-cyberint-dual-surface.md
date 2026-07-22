@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-22"
-version: "0.24"
+version: "0.25"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -232,7 +232,7 @@ The `DeclarativeHttpAuthProvider::acquire_token()` implementation (per ADR-054 D
 
 **Header injection selection mechanism: `header_scheme` TOML field.**
 
-The current `PipelineExecutor::build_request()` (in `crates/prism-spec-engine/src/pipeline.rs`)
+The current `build_request()` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`)
 dispatches on `auth_type` with two arms: `CookieRoundtrip → Cookie: access_token={token}` and
 a catch-all `→ Authorization: Bearer {token}`. This is incorrect for Armis v1 (raw token, no
 prefix). The `auth_type`-based dispatch is also insufficient as a general injection key because
@@ -374,7 +374,7 @@ separation-of-concerns principle remains valid and unchanged.
 
 **Required engine change (standalone Wave-A engine story):** `SensorSpec` gains the
 `header_scheme` field (with `#[serde(default)]` defaulting to `"bearer"`).
-`PipelineExecutor::build_request()` (in `crates/prism-spec-engine/src/pipeline.rs`) switches
+`build_request()` switches
 from `auth_type`-based dispatch to `header_scheme`-based dispatch. E-SPEC-027 (both message
 templates) for the **5 existing auth_type variants** (bearer_static, oauth2_client_credentials,
 cookie_roundtrip, custom_via_plugin, api_key), BC-2.16.009 Rule 9, and `error-taxonomy.md`
@@ -613,7 +613,7 @@ vs one) with zero auth-complexity overhead.
 ### Negative / Trade-offs
 
 - **Engine change required (D2):** `SensorSpec` must gain `header_scheme` field and
-  `PipelineExecutor::build_request()` (in `crates/prism-spec-engine/src/pipeline.rs`) must be
+  `build_request()` must be
   updated to dispatch on it. This MUST land before any Armis live-client spec can be validated
   end-to-end.
 - **Atomic co-land sequencing — Armis DTU re-clone (SR-003):** The existing Armis DTU enforces
@@ -693,7 +693,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 - **OpenAPI files (Cyberint):** `.factory/reference/api-specs/cyberint_alerts_openapi_06.20.2026.json`
   and `cyberint_assets_openapi_06.20.2026.json` (both dated 2026-06-20)
 - **Engine location (Authorization header injection):** `crates/prism-spec-engine/src/pipeline.rs` —
-  `PipelineExecutor::build_request()` function; Bearer prefix hardcoded for non-cookie auth
+  `build_request()` free function; Bearer prefix hardcoded for non-cookie auth
   (cite function name + behavioral anchor at D2 acceptance time)
 - **CrowdStrike-oauth2 plugin precedent:** `crowdstrike-oauth2/` WASM plugin; `acquire_token()`
   HTTP-POST pattern — cite function name + behavioral anchor at D2 acceptance time
@@ -705,6 +705,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.25 | 2026-07-22 | architect | FIX-BURST 29 (LOW-1): `PipelineExecutor::build_request()` phantom qualifier dropped at all 4 live-text sites — `build_request` is a module-level free function (8 params, no `&self`) not a `PipelineExecutor` method; `PipelineExecutor::` prefix does not exist in the repo. Site 1 (line 235, §D2 first mention): changed to `build_request() (module-level free function in \`crates/prism-spec-engine/src/pipeline.rs\`)`. Sites 2–4 (lines 377/§D2, 616/§Consequences, 696/§Source-Origin): bare `build_request()`. Coordinator count was ×2 §D2 + ×1 §Source/Origin = 3; actual count was 4 (§Consequences line 616 additional site). All 4 corrected. POL-29: zero `PipelineExecutor::build_request` remain in live text. |
 | 0.24 | 2026-07-22 | state-manager | LOW-1 (pass 44): §D2 dangling prose pointer repointed — "(see MED-1 note; `related_adrs` carries ADR-032 for tracking)" → "(see the D5 manifest ADR-032 row for the deliberate related_adrs-tracking rationale)"; MED-1 no longer exists in body; rationale now lives inline in D5 manifest ADR-032 row and §Consequences. Finding-label-pointer class sweep both primaries: ADR-053 sole hit (line 189); ADR-054 zero hits. |
 | 0.23 | 2026-07-22 | state-manager | LOW-1 (pass 40): v0.22 changelog row description corrected — its 'before' string erroneously repeated the qualified 'after' form; actual v0.22 change added the '→ Query-Time Resolution (`resolve_credential`)' qualifier to the previously-unqualified '§Canonical Test Vectors all 9 armis \| bearer_token rows' anchor (×2). Normative D5 content was and is correct. |
 | 0.22 | 2026-07-22 | architect | FIX-BURST 27 (LOW-1): D5 BC-2.06.003 row §(3) — both occurrences of "§Canonical Test Vectors → Query-Time Resolution (`resolve_credential`) all 9 armis \| bearer_token rows" qualified to "§Canonical Test Vectors → Query-Time Resolution (`resolve_credential`) all 9 armis \| bearer_token rows" to disambiguate from the 5-row Boot-Step-5 Probe subsection within §Canonical Test Vectors (BC-2.06.003 has 14 total armis \| bearer_token rows: 9 in `### Query-Time Resolution (\`resolve_credential\`)` + 5 in `### Boot-Step-5 Probe (\`KeyringCredentialProbe::probe\`)` — the unqualified "all 9 armis" claim was under-qualified). |
