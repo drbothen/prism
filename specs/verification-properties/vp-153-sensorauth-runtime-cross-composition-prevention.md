@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.21"
+version: "0.22"
 status: active
 producer: architect
 timestamp: 2026-05-16T16:00:00Z
@@ -196,6 +196,17 @@ deterministically with a small strategy and provide regression coverage for the 
 //      → step5_init_credential_store_with_probe → result.is_ok()
 ```
 
+## Re-verification Gate
+
+> **Re-verification gate (F-WASE-P4-OBS-002):** The ADR-054 engine story MUST re-run VP-153
+> with the `token_exchange` proptest arms **activated** (dropping `[PLANNED — ADR-054 D1 engine
+> story]` markers from `Just("token_exchange")` in `arb_valid_auth_type()` and
+> `arb_matching_auth_type()`, and from the updated `arb_mismatched_auth_type_pair()` range bounds
+> in both FILE 1 and FILE 2) as an **explicit story gate before the engine story PR can merge**.
+> Until the engine story lands, the current green proof (proof-completed-date 2026-05-18) covers
+> the **5-value as-built set**; the `token_exchange` arms are spec-only scaffolding that have not
+> yet executed. See ADR-054 §D11 for the harness-amendment checklist.
+
 ## Feasibility Assessment
 
 | Factor | Assessment | Notes |
@@ -224,6 +235,7 @@ deterministically with a small strategy and provide regression coverage for the 
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 0.22 | Wave-A-fix-burst-4 | 2026-07-22 | architect | F-WASE-P4-OBS-002: §Re-verification Gate section added — explicit engine-story gate note stating that the ADR-054 engine story MUST re-run all 8 VP-153 proptests with the `token_exchange` arms activated (dropping `[PLANNED]` markers from `Just("token_exchange")` in `arb_valid_auth_type()`, `arb_matching_auth_type()`, and the updated `arb_mismatched_auth_type_pair()` range bounds) before the engine story PR can merge; until then the green proof covers the 5-value as-built set. See ADR-054 §D11 for companion engine-story gate row (added in ADR-054 v0.37). |
 | 0.21 | Wave-A-spec-evolution-burst-3 | 2026-07-22 | architect | ADR-054 D11 manifest execution (POL-24 same-commit atomicity with error-taxonomy.md v2.57 E-SPEC-012 amendment). §Property Statement Rule A: (1) enumerated set expanded 5→6 values — `token_exchange` appended; (2) E-SPEC-012 "Valid values:" clause updated verbatim from error-taxonomy.md v2.57 source of truth (POL-24). §Proof Method: "5 members" → "6 members" (D11 §Proof Method member-count row). §Feasibility Assessment table: "5 auth_type variants × 5 credential structural shapes = 25 pairs" → "6 auth_type variants × 5 credential structural shapes = 30 pairs" (D11 §Feasibility Assessment row). §Proof Harness Skeleton FILE 1: `VALID_AUTH_TYPES` gains `"token_exchange"` as 6th entry `[PLANNED — ADR-054 D1 engine story]`; `arb_valid_auth_type()` `prop_oneof!` gains `Just("token_exchange")` arm `[PLANNED]`; `arb_invalid_auth_type()` filter unchanged (auto-expands via VALID_AUTH_TYPES reference) (D11 §Proof Harness Skeleton row). FILE 2: `VALID_AUTH_TYPES` comment updated to note 6 members; `arb_mismatched_auth_type_pair()` range `(0..5, 0..4)→(0..6, 0..5)` covers 30 ordered pairs; `arb_matching_auth_type()` gains `Just("token_exchange")` arm `[PLANNED]` (D11 §Proof Harness Skeleton row). `modified:` synced to 2026-07-22. |
 | 0.20 | FIX-BURST 24 | 2026-07-21 | architect | MED root fix (adversary pass 30): §Proof Harness Skeleton reconciled to as-built harness — replaced entire divergent pseudocode block (phantom typed-enum constructs `arb_auth_type()`, `AuthType`, `MockCredentialType`, `is_coherent_pair`, `matching_credential_for`, `arb_credential_type()`, `valid_auth_type_credential_pairs_accepted`, `mismatched_auth_type_credential_rejected`, `build_spec_with`, `credential_value_str`) with accurate as-built documentation of the real constructs: `VALID_AUTH_TYPES: &[&str]`, `arb_valid_auth_type()`, `arb_invalid_auth_type()`, `arb_multi_credential_count()`, `SpecLoader::validate_cross_composition()` (FILE 1, Rules A+B) and `ShapedProbe`, `arb_mismatched_auth_type_pair()`, `arb_matching_auth_type()`, `step5_init_credential_store_with_probe()` (FILE 2, Rule C). §Proof Method / §Feasibility prose unchanged (5-member count and 25-pairs statements are current-truth pending ADR-054 D1 amendment). POL-22 Phase C: all symbols cited verified present in as-built test files. |
 | 0.19 | D-1915 | 2026-07-21 | state-manager | OBS-1 (adversary pass-15, pre-existing defect NOT introduced by the ADRs): §Changelog rows v0.16 (FB75) and v0.15 (FB71) were out of monotonic order — v0.16 appeared above v0.15 in the table (both dated 2026-05-17; in ascending convention v0.15 must precede v0.16; the pair was inverted). Changelog table converted to newest-first (descending) convention per validate-changelog-monotonicity hook enforcement; v0.15/v0.16 now correctly ordered in descending layout (v0.16 > v0.15 → v0.16 appears first). POL-26/POL-32. Bump v0.18→v0.19. |

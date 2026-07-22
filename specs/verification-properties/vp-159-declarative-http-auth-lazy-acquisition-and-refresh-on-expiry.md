@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -9,7 +9,7 @@ phase: wave-a
 inputs:
   - .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
   - .factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md
-input-hash: "0fcf6c0"
+input-hash: "f761188"
 traces_to: .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
 source_bc: BC-2.16.014
 source_adr: ADR-054
@@ -150,7 +150,9 @@ asserts:
 ## Source Contract
 
 - **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) — postconditions P1–P8
-  are the primary authoring source for this VP. INV-014-003 (BC-local invariant:
+  are the primary **authoring source** for this VP; the verified set is P1–P5, P7 (plus
+  P4-TTL-a/b sub-properties) — see §Property Statement scope note for P6/P8 coverage.
+  INV-014-003 (BC-local invariant:
   "Credential Lazy Resolution — AD-017") specifically governs the credential-opacity property
   verified by AC-8. Note: INV-014-003 is a BC-scoped invariant identifier; it is cited in
   body prose only and does not populate `source_invariant:` per VP-INDEX source_invariant schema
@@ -331,6 +333,167 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             "VP-159 AC-5: acquire_token must issue exactly one HTTP POST regardless of cache (BC-2.16.014 P5)");
 //     }
 //
+//     // AC-6 (P4-TTL-a): absolute_utc_string expiry arithmetic
+//     // Formula: expires_at = parse_rfc3339(expiry_value).as_unix_secs().saturating_sub(ttl_buffer_secs)
+//     // Verifies formula correctness by advancing mock clock to just before and then past expires_at.
+//     // MockHttpClient::with_token_exchange_response [PLANNED — engine story] returns token + RFC-3339 expiry field.
+//     // See BC-2.16.014 TV-2 for the canonical test vector (Armis-style token_exchange with absolute_utc expiry).
+//     #[tokio::test]
+//     async fn test_vp159_ac6_absolute_utc_expiry_ttl_arithmetic() {
+//         // "2099-01-01T00:00:00Z" parse → Unix secs ≈ 4_070_908_800; ttl_buffer_secs=30 → expires_at ≈ 4_070_908_770
+//         let expiry_utc = "2099-01-01T00:00:00Z";
+//         let ttl_buffer_secs: u64 = 30;
+//         let mock_http = MockHttpClient::with_token_exchange_response(  // [PLANNED — engine story]
+//             "arm-tok",
+//             expiry_utc,
+//             // Response shape: {"success":true,"data":{"access_token":"arm-tok","expiration_utc":"<expiry_utc>"}}
+//         );
+//         let creds = MockCredentialResolver::with_secret("long_lived_secret");
+//         let config = AuthAcquisitionConfig {  // [PLANNED]
+//             token_path: "/api/v1/access_token/".to_string(),
+//             credential_body_field: "secret_key".to_string(),
+//             token_response_path: "data.access_token".to_string(),
+//             expiry_field: "data.expiration_utc".to_string(),
+//             expiry_mode: ExpiryMode::AbsoluteUtcString,  // [PLANNED]
+//             ttl_buffer_secs,
+//             ..Default::default()
+//         };
+//         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
+//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//         );
+//         let _ = provider.get_token("test-org").await  // [PLANNED] — warms cache
+//             .expect("VP-159 AC-6: absolute_utc_string get_token must succeed on well-formed expiry");
+//         let calls_after_warm = mock_http.post_call_count();
+//         // Advance clock to just before expires_at — no re-acquisition expected
+//         // [PLANNED] advance_clock_to_before_expires_at sets mock time to (parse_rfc3339(expiry_utc) - ttl_buffer_secs - 10)
+//         mock_http.advance_clock_to_before_expires_at(expiry_utc, ttl_buffer_secs);  // [PLANNED — engine story]
+//         let _ = provider.get_token("test-org").await.expect("still warm pre-expiry");  // [PLANNED]
+//         assert_eq!(mock_http.post_call_count(), calls_after_warm,
+//             "VP-159 AC-6: clock before expires_at → cache valid, zero additional HTTP POSTs \
+//              (BC-2.16.014 P3/P4-TTL-a)");
+//         // Advance clock past expires_at — re-acquisition must fire
+//         // [PLANNED] advance_clock_past_expires_at sets mock time to (parse_rfc3339(expiry_utc) - ttl_buffer_secs + 10)
+//         mock_http.advance_clock_past_expires_at(expiry_utc, ttl_buffer_secs);  // [PLANNED — engine story]
+//         let calls_before_stale = mock_http.post_call_count();
+//         let _ = provider.get_token("test-org").await.expect("stale — re-acquisition");  // [PLANNED]
+//         assert_eq!(mock_http.post_call_count(), calls_before_stale + 1,
+//             "VP-159 AC-6: clock past expires_at → one HTTP POST re-acquisition \
+//              (BC-2.16.014 P4 / P4-TTL-a: expires_at = parse_rfc3339(expiry_str).as_unix_secs().saturating_sub(ttl_buffer_secs))");
+//     }
+//
+//     // AC-6b (EC-016-014-003): malformed RFC-3339 expiry string → AuthAcquisitionFailed (E-AUTH-001)
+//     // No token cached when parse fails — acquire_token returns Err immediately (BC-2.16.014 P4-TTL-a).
+//     #[tokio::test]
+//     async fn test_vp159_ac6b_malformed_rfc3339_expiry_returns_auth_acquisition_failed() {
+//         let mock_http = MockHttpClient::with_token_exchange_response(  // [PLANNED — engine story]
+//             "arm-tok",
+//             "not-a-date",  // malformed RFC-3339 value — parse must fail
+//         );
+//         let creds = MockCredentialResolver::with_secret("long_lived_secret");
+//         let config = AuthAcquisitionConfig {  // [PLANNED]
+//             token_path: "/api/v1/access_token/".to_string(),
+//             credential_body_field: "secret_key".to_string(),
+//             token_response_path: "data.access_token".to_string(),
+//             expiry_field: "data.expiration_utc".to_string(),
+//             expiry_mode: ExpiryMode::AbsoluteUtcString,  // [PLANNED]
+//             ttl_buffer_secs: 30,
+//             ..Default::default()
+//         };
+//         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
+//             config, Arc::new(mock_http), Arc::new(creds),
+//         );
+//         let result = provider.get_token("test-org").await;  // [PLANNED]
+//         assert!(
+//             matches!(result, Err(SpecEngineError::AuthAcquisitionFailed { .. })),
+//             "VP-159 AC-6b: malformed RFC-3339 expiry must return AuthAcquisitionFailed \
+//              (E-AUTH-001; EC-016-014-003; BC-2.16.014 P4-TTL-a)"
+//         );
+//     }
+//
+//     // AC-7 (P4-TTL-b): relative_seconds expiry arithmetic — verify formula + absent/zero → default 1799
+//     // Formula: expires_at = unix_now() + expires_in.saturating_sub(ttl_buffer_secs)
+//     //          where expires_in defaults to 1799 when absent or zero (EC-016-014-001 / EC-016-014-002)
+//     // Sub-case 7a: normal expires_in (3600s) — verify clock-based re-acquisition timing
+//     #[tokio::test]
+//     async fn test_vp159_ac7_relative_seconds_expiry_ttl_arithmetic() {
+//         let expires_in: u64 = 3600;
+//         let ttl_buffer_secs: u64 = 30;
+//         // expires_at ≈ unix_now() + 3600.saturating_sub(30) = unix_now() + 3570
+//         let mock_http = MockHttpClient::with_response("bearer_tok_rel", expires_in);  // [PLANNED]
+//         let creds = MockCredentialResolver::default();
+//         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs });  // [PLANNED]
+//         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
+//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//         );
+//         let _ = provider.get_token("test-org").await.expect("warms cache");  // [PLANNED]
+//         let calls_after_warm = mock_http.post_call_count();
+//         mock_http.advance_clock_secs(3500);  // [PLANNED] 3500s < 3570s (expires_in 3600 − ttl_buffer 30)
+//         let _ = provider.get_token("test-org").await.expect("still warm at 3500s");  // [PLANNED]
+//         assert_eq!(mock_http.post_call_count(), calls_after_warm,
+//             "VP-159 AC-7a: 3500s < 3570s expires_at → cache valid (BC-2.16.014 P4-TTL-b)");
+//         mock_http.advance_clock_secs(100);  // [PLANNED] total 3600s > 3570s → stale
+//         let calls_before_stale = mock_http.post_call_count();
+//         let _ = provider.get_token("test-org").await.expect("stale at 3600s");  // [PLANNED]
+//         assert_eq!(mock_http.post_call_count(), calls_before_stale + 1,
+//             "VP-159 AC-7a: 3600s > 3570s expires_at → re-acquisition \
+//              (BC-2.16.014 P4-TTL-b: expires_at = unix_now() + expires_in.saturating_sub(ttl_buffer_secs))");
+//     }
+//
+//     // AC-7b (EC-016-014-001): absent expires_in → default 1799 before saturating_sub
+//     // expires_at = unix_now() + 1799.saturating_sub(30) = unix_now() + 1769
+//     // [PLANNED] MockHttpClient::with_absent_expires_in: response omits the expires_in key entirely
+//     #[tokio::test]
+//     async fn test_vp159_ac7b_absent_expires_in_defaults_to_1799() {
+//         let ttl_buffer_secs: u64 = 30;
+//         let mock_http = MockHttpClient::with_absent_expires_in("tok-noexp");  // [PLANNED — engine story]
+//         let creds = MockCredentialResolver::default();
+//         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs });  // [PLANNED]
+//         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
+//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//         );
+//         let _ = provider.get_token("test-org").await  // [PLANNED] cold — absent expires_in defaults to 1799
+//             .expect("VP-159 AC-7b: absent expires_in must succeed with default 1799 TTL");
+//         let calls_after_warm = mock_http.post_call_count();
+//         mock_http.advance_clock_secs(1700);  // [PLANNED] 1700s < 1769s (1799 − 30) → still warm
+//         let _ = provider.get_token("test-org").await.expect("still warm at 1700s");  // [PLANNED]
+//         assert_eq!(mock_http.post_call_count(), calls_after_warm,
+//             "VP-159 AC-7b: absent expires_in → 1799 default; 1700s < 1769s expires_at → cache valid \
+//              (EC-016-014-001; BC-2.16.014 P4-TTL-b)");
+//         mock_http.advance_clock_secs(100);  // [PLANNED] total 1800s > 1769s → stale
+//         let calls_before_stale = mock_http.post_call_count();
+//         let _ = provider.get_token("test-org").await.expect("stale at 1800s");  // [PLANNED]
+//         assert_eq!(mock_http.post_call_count(), calls_before_stale + 1,
+//             "VP-159 AC-7b: absent expires_in → 1799 default; 1800s > 1769s expires_at → re-acquisition \
+//              (EC-016-014-001; BC-2.16.014 P4-TTL-b)");
+//     }
+//
+//     // AC-7c (EC-016-014-002): zero expires_in → same default 1799 as absent
+//     // MockHttpClient::with_response("tok-zeroexp", 0u64) supplies expires_in: 0 in response JSON
+//     #[tokio::test]
+//     async fn test_vp159_ac7c_zero_expires_in_defaults_to_1799() {
+//         let ttl_buffer_secs: u64 = 30;
+//         let mock_http = MockHttpClient::with_response("tok-zeroexp", 0u64);  // [PLANNED] expires_in: 0
+//         let creds = MockCredentialResolver::default();
+//         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs });  // [PLANNED]
+//         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
+//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//         );
+//         let _ = provider.get_token("test-org").await  // [PLANNED] cold — zero expires_in defaults to 1799
+//             .expect("VP-159 AC-7c: zero expires_in must succeed with default 1799 TTL");
+//         let calls_after_warm = mock_http.post_call_count();
+//         mock_http.advance_clock_secs(1700);  // [PLANNED] still warm
+//         let _ = provider.get_token("test-org").await.expect("still warm at 1700s");  // [PLANNED]
+//         assert_eq!(mock_http.post_call_count(), calls_after_warm,
+//             "VP-159 AC-7c: zero expires_in → 1799 default; 1700s < 1769s expires_at → cache valid \
+//              (EC-016-014-002; BC-2.16.014 P4-TTL-b)");
+//         mock_http.advance_clock_secs(100);  // [PLANNED] total 1800s → stale
+//         let calls_before_stale = mock_http.post_call_count();
+//         let _ = provider.get_token("test-org").await.expect("stale at 1800s");  // [PLANNED]
+//         assert_eq!(mock_http.post_call_count(), calls_before_stale + 1,
+//             "VP-159 AC-7c: zero expires_in → 1799 default; 1800s > 1769s expires_at → re-acquisition \
+//              (EC-016-014-002; BC-2.16.014 P4-TTL-b)");
+//     }
+//
 //     // AC-8 (P7): CachedAuthToken never stores credential values — structural assertion
 //     #[test]
 //     fn test_vp159_ac8_cached_token_no_credential_field() {
@@ -371,5 +534,6 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | Wave-A fix-burst 4 | 2026-07-22 | architect | F-WASE-P4-OBS-001: §Proof Harness Skeleton — added skeleton test functions for AC-6 (P4-TTL-a `absolute_utc_string` expiry arithmetic, including AC-6b malformed-RFC-3339 → `AuthAcquisitionFailed` per EC-016-014-003) and AC-7 (P4-TTL-b `relative_seconds` expiry arithmetic, including AC-7b absent `expires_in` → default 1799 per EC-016-014-001 and AC-7c zero `expires_in` → default 1799 per EC-016-014-002). All new symbols marked `[PLANNED — engine story]` per POL-31. F-WASE-P4-OBS-003: §Source Contract P1–P8 authoring-source sentence disambiguated — "P1–P8 are the primary **authoring source**" now explicitly followed by "the verified set is P1–P5, P7 (plus P4-TTL-a/b sub-properties) — see §Property Statement scope note for P6/P8 coverage"; eliminates the false-verified-set reading. input-hash updated to `3af7dc1` (inputs unchanged; hash recomputed after prior edit). |
 | 1.1 | D-1947/D-1948 Wave-A fix-burst 1 | 2026-07-22 | architect | F-WASE-P1-MED-001: burst attribution corrected D-1946→D-1947 in Lifecycle table and v1.0 Burst cell (VP-159/VP-INDEX authoring is burst 2, D-1947; BC-2.16.014 authoring is burst 1, D-1946). F-WASE-P1-LOW-002: §Property Statement preamble narrowed from P1–P8 to P1–P5, P7 (P4-TTL-a/b sub-properties); scope note added after P7 for P6 (inherent in acquire_token() contract per AuthProvider trait, verified via AC-5 + error-path assertions in engine implementation story) and P8 (spec-load validation property per BC-2.16.009 Rule 6 / E-SPEC-024, deferred to spec-engine validation story — not a runtime lifecycle invariant of DeclarativeHttpAuthProvider). F-WASE-P1-OBS-002 closure: new_unchecked_audit.rs allowlist-entry note added to AC-5 harness skeleton for OrgSlug::new_unchecked per CLAUDE.md credential-safety convention. |
 | 1.0 | D-1947 Wave-A spec-evolution burst 2 | 2026-07-22 | architect | Initial authoring. Authoring source: ADR-054 §D9. BC-2.16.014 P1–P8 all covered (P6 — double-401 → AuthRefreshFailed (E-AUTH-002) — is inherent in acquire_token() contract per AuthProvider trait; verified via AC-5 + error-path assertions in the implementation story). DRIFT-D849-002 folded: StaticCookieAuthProvider zero-HTTP is structural (no reqwest::Client field, confirmed in codebase), covered by BC-2.01.017 §P1 (INV-COOKIE-001); VP-159 covers the equivalent invariant for DeclarativeHttpAuthProvider [PLANNED]. All DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode / MockHttpClient symbols marked [PLANNED — engine story] per POL-31 (crates/prism-spec-engine/src/auth/ directory does not exist at authoring time). Existing verified symbols: AuthProvider trait, CredentialResolver trait, MockCredentialResolver, SpecEngineError::AuthAcquisitionFailed (E-AUTH-001), SpecEngineError::AuthRefreshFailed (E-AUTH-002). source_invariant: DI-012 (workspace canonical, domain-spec/invariants.md); INV-014-003 (BC-local credential-opacity invariant) cited in §Source Contract body prose only per VP-INDEX source_invariant schema convention. |
