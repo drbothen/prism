@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.472"
+version: "8.473"
 producer: state-manager
 timestamp: 2026-07-21T23:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.81"
 story_index_version: "v2.719"
-arch_index_version: "2.226"
+arch_index_version: "2.227"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1924 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1924 adversary re-gate passes 26-27 fix-burst (Wave-A re-gate cascade). Pass 26 CLEAN(strict) 1/3; pass 27 NOT CLEAN(strict), CLEAN(PR-merge) — OBS-1 (VP-153 §Feasibility harness-amendment list rewritten against actual harness constructs — phantom prop_filter-exclusion item removed; load-bearing matching_credential_for TokenExchange→ApiKey arm added; prop_assume! auto-exclusion note; all verified against VP-153 harness text); STREAK RESET 1/3→0/3 per BC-5.39.001. Fix-burst applied: ADR-054 v0.22. Generalization probe PASS (23rd/24th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.225→v2.226. trajectory-tail →2→3→0→1 STATE v8.471→v8.472"
+current_step: "D-1925 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1925 adversary re-gate passes 28-29 fix-burst (Wave-A re-gate cascade). Pass 28 CLEAN(strict) 1/3; pass 29 NOT CLEAN(strict) — MED-1 (ADR-054 VP-153 §Proof Method member-count sentence 5→6; fourth VP-153 D11 row; in-file census: 2 count-bearing sites both now covered, 2 non-count hits dispositioned); LOW-1 (ADR-053 BC-2.06.003 TV rows re-point to claroty/bearer_token adjudicated option (i); §Canonical Test Vectors + §Boot-Step-5 Probe armis/bearer_token example rows re-point to claroty/bearer_token, permanently stable, mechanics-not-armis rationale); STREAK RESET 1/3→0/3 per BC-5.39.001. Fix-burst applied: ADR-054 v0.23 + ADR-053 v0.20. Generalization probe PASS (25th/26th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.226→v2.227. trajectory-tail →2→3→0→1 STATE v8.472→v8.473"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,8 +77,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 450 lines (wc-l)
-  margin from soft-target (200): +247 lines over | margin from actual (500): 53 lines remaining
+  STATE.md SIZE BUDGET: 451 lines (wc-l)
+  margin from soft-target (200): +251 lines over | margin from actual (500): 49 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-21 D-1924 — passes 26-27 fix-burst: pass 26 CLEAN(strict) 1/3; pass 27 OBS-1 VP-153 harness precision (phantom prop_filter-exclusion removed; load-bearing matching_credential_for arm added). ADR-054 v0.22. Generalization probe PASS (23rd/24th). ARCH-INDEX v2.225→v2.226. STATE v8.471→v8.472. trajectory-tail →2→3→0→1 |
+| **Last Updated** | 2026-07-21 D-1925 — passes 28-29 fix-burst: pass 28 CLEAN(strict) 1/3; pass 29 MED-1 VP-153 §Proof Method count 5→6 + LOW-1 BC-2.06.003 TV claroty re-point adjudicated. ADR-054 v0.23 + ADR-053 v0.20. Generalization probe PASS (25th/26th). ARCH-INDEX v2.226→v2.227. STATE v8.472→v8.473. trajectory-tail →2→3→0→1 |
 
 ## Active Objective (North Star)
 
@@ -337,6 +337,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1922 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 24 on frozen HEAD adb4f28c: NOT CLEAN — LOW-1 (VP-159 authoring-source tool value cited as unit_test; corrected to integration_test with rationale — deterministic boundary assertions per VP-033/VP-036 pattern, per VP-INDEX canonical vocabulary); OBS-2 (D10(a) firing condition parenthesized to A AND (B OR C) for explicit boolean precedence; D10(b)-(h) precedence class sweep clean); OBS-1 (ADR-053 related_bcs omission adjudicated correct-by-design, no edit). STREAK 0/3. Fix-burst applied: ADR-054 v0.20 (VP-159 tool value unit_test→integration_test + rationale; D10(a) parenthesization). Generalization probe PASS (21st consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.223→v2.224. STATE v8.469→v8.470. trajectory-tail →0→1→2→1 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1923 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 25 on frozen HEAD 79e5f393: NOT CLEAN — HIGH-1 (Consequences bullet "update boot.rs dispatch" mis-anchored to retired construction site; corrected to "rewrite step9a_populate_adapter_registry dispatch (spec_driven_adapter.rs)" — v0.2-class residue surviving 24 passes in checklist prose; sole surviving instance per file-wide POL-29 sweep); LOW-1 (amends_dis ["DI-012"] frontmatter field added + D11 DI-012 row back-ref direction amended to bidirectional sibling-convention symmetry; adjudicated correct fix); OBS-1 (v0.20 changelog vocabulary-claim inaccuracy corrected forward — authoring-source correction rationale text; tool decision stands on VP-033/VP-036 analogy). STREAK 0/3. Fix-burst applied: ADR-054 v0.21. Generalization probe PASS (22nd consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.224→v2.225. STATE v8.470→v8.471. trajectory-tail →0→1→2→1 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1924 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate passes 26-27 on new frozen HEAD (post-D-1923 ADR-054 v0.21): pass 26 CLEAN(strict) 1/3; pass 27 NOT CLEAN(strict), CLEAN(PR-merge) — OBS-1 (VP-153 §Feasibility harness-amendment list rewritten against actual harness constructs — phantom prop_filter-exclusion item removed; load-bearing matching_credential_for TokenExchange→ApiKey arm added; prop_assume! auto-exclusion note; all verified against VP-153 harness text); STREAK RESET 1/3→0/3 per BC-5.39.001. Generalization probe PASS (23rd/24th consecutive). Fix-burst applied: ADR-054 v0.22. Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.225→v2.226. STATE v8.471→v8.472. trajectory-tail →2→3→0→1 | wave-5-e-demo-fidelity | 2026-07-21 |
+| D-1925 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate passes 28-29 on frozen HEAD df9e2053: pass 28 CLEAN(strict) 1/3; pass 29 NOT CLEAN(strict) — MED-1 (ADR-054 VP-153 §Proof Method member-count sentence 5→6; fourth VP-153 D11 row; in-file census: 2 count-bearing sites both now covered, 2 non-count hits dispositioned); LOW-1 (ADR-053 BC-2.06.003 TV rows claroty re-point adjudicated option (i): §Canonical Test Vectors + §Boot-Step-5 Probe armis/bearer_token example rows re-point to claroty/bearer_token, permanently stable, mechanics-not-armis rationale); STREAK RESET 1/3→0/3 per BC-5.39.001. Fix-burst applied: ADR-054 v0.23 + ADR-053 v0.20. Generalization probe PASS (25th/26th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.226→v2.227. STATE v8.472→v8.473. trajectory-tail →2→3→0→1 | wave-5-e-demo-fidelity | 2026-07-21 |
 
 ## Skip Log
 
