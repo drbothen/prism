@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.490"
+version: "8.491"
 producer: state-manager
 timestamp: 2026-07-22T00:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.82"
 story_index_version: "v2.719"
-arch_index_version: "2.243"
+arch_index_version: "2.244"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "Wave-A ADR set CONVERGED @46c1c802 — awaiting human approval gate (D-1942 2026-07-22). trajectory-tail →3→0→0→0 STATE v8.489→v8.490"
+current_step: "Wave-A ADR-053 + ADR-054 ACCEPTED (D-1943, human gate 2026-07-22). Supersessions EFFECTIVE. NEXT: Wave-A spec evolution → story decomp → TDD. trajectory-tail →3→0→0→0 STATE v8.490→v8.491"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -65,11 +65,11 @@ current_cycle: wave-5-e-demo-fidelity
 
 # ── LOCKED ARCHITECTURAL DECISIONS ──
 architectural_decisions_locked:
-  - "1 LOCKED Option-A: TOML spec URLs ground against DTU clone routes (real-API canonical), NOT production Rust adapter URLs [PENDING supersession by ADR-053 §D1 grounding-order flip (proposed; D-1889-authorized 2026-07-20; final ADR approval gate pending) — LOCKED until ADR-053 approved]"
+  - "1 LOCKED Option-A: TOML spec URLs ground against DTU clone routes (real-API canonical), NOT production Rust adapter URLs [SUPERSEDED by ADR-053 §D1 (ACCEPTED 2026-07-22, D-1943) — grounding-order flip (OpenAPI→spec→DTU) EFFECTIVE; was PENDING D-1889-authorized 2026-07-20]"
   - "2 LOCKED Option-B: Parity test loads reference OCSF from committed fixture JSON"
   - "3 LOCKED Option-A: Expand PLUGIN-MIGRATION-001-D scope to include SpecErrorCode::ESpec017 variant in prism-core + filename-stem validation"
-  - "4 LOCKED Option-A: TOML auth_type declares REAL behavior (cyberint=cookie_roundtrip, claroty=bearer_static) [PENDING supersession by ADR-053 §D3 Cyberint dual-surface split (proposed; D-1889-authorized 2026-07-20; final ADR approval gate pending) — LOCKED until ADR-053 approved]"
-  - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial [PENDING supersession by ADR-053 §D2 Armis token-exchange (proposed; D-1889-authorized 2026-07-20; bearer_static→token_exchange (native DeclarativeHttpAuthProvider, header_scheme=raw) pending ADR-053 approval)]"
+  - "4 LOCKED Option-A: TOML auth_type declares REAL behavior (cyberint=cookie_roundtrip, claroty=bearer_static) [SUPERSEDED by ADR-053 §D3 (ACCEPTED 2026-07-22, D-1943) — Cyberint dual-surface split EFFECTIVE; was PENDING D-1889-authorized 2026-07-20]"
+  - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial [SUPERSEDED by ADR-053 §D2 (ACCEPTED 2026-07-22, D-1943) — Armis token_exchange (native DeclarativeHttpAuthProvider, header_scheme=raw) EFFECTIVE; was PENDING D-1889-authorized 2026-07-20]"
 
 # ── COMPACTION RECORD ──
 pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 zero-context restart 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). D-1794 compaction (2026-07-16): frontmatter SHA/test-count/bc-index NOTE chains trimmed; Current Phase Steps archive stubs (D-1709..D-1788) (exhaustive) removed; Decisions Log archive paragraph + stubs + rows D-1785..D-1788 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/burst-log.md. Last preserved decision before D-1795: D-1789. Git history on factory-artifacts preserves all prior content."
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 468 lines (wc-l)
+  STATE.md SIZE BUDGET: 469 lines (wc-l)
   margin from soft-target (200): +268 lines over | margin from actual (500): 32 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-22 D-1942 — Wave-A ADR adversarial convergence: passes 48/49/50 CLEAN(strict) 3/3 on frozen HEAD 46c1c802 (BC-5.39.001). ADR set: ADR-053 v0.25 + ADR-054 v0.30 (+ amended ADR-023 v1.24 / ADR-026 v1.38 / ADR-028 v1.24 / ADR-031 v1.6 / ADR-032 v1.3). Cascade: 50 passes, 30 fix-bursts (D-1902..D-1941 (exhaustive)). Generalization probe PASS throughout. STATUS: CONVERGED — pending human Wave-A approval gate. trajectory-tail →3→0→0→0 STATE v8.489→v8.490 |
+| **Last Updated** | 2026-07-22 D-1943 — HUMAN WAVE-A APPROVAL GATE APPROVED: ADR-053 v0.26 + ADR-054 v0.31 ACCEPTED. Supersessions effective: ADR-028 §D1/§D2/§D5 (grounding spec←OpenAPI), ADR-031 §D3 (scope-narrowed), LOCKED D-747 + Cyberint single-surface OVERTURNED. ARCH-INDEX v2.243→v2.244. trajectory-tail →3→0→0→0 STATE v8.490→v8.491 |
 
 ## Active Objective (North Star)
 
@@ -355,6 +355,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1940 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 45 on b781df06: NOT CLEAN — HIGH-1 (census phantom symbol build_request_with_auth; real site = free fn build_request at pipeline.rs:975), LOW-1 (PipelineExecutor:: phantom qualifier, 4 sites — architect found 4th site in §Consequences beyond 3 flagged; bare build_request() with free-function clarification at first mention). Fix-burst applied: ADR-054 v0.29 + ADR-053 v0.25, all symbols verified against pipeline.rs. Generalization probe PASS (42nd consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.241→v2.242. STATE v8.487→v8.488 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1941 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 47 on 42f7a08c: NOT CLEAN(strict), CLEAN(PR-merge) — 3 OBS (TD-VSDD-091 line-pin regression in FB-27/28 rows [11 pins stripped], shape-count prose conflation, v0.26 false sweep-justification). Fix-burst applied: ADR-054 v0.30. Streak reset 1/3→0/3 (pass 46 was CLEAN). Generalization probe PASS (44th consecutive). Next: fresh adversary passes on new frozen HEAD. ARCH-INDEX v2.242→v2.243. STATE v8.488→v8.489 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1942 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — WAVE-A ADR ADVERSARIAL CONVERGENCE: passes 48/49/50 CLEAN(strict) 3/3 on frozen HEAD 46c1c802 per BC-5.39.001. Cascade totals: 50 passes, 30 fix-bursts (D-1902..D-1941 (exhaustive)). ADR set: ADR-053 v0.25 + ADR-054 v0.30 (+ amended ADR-023 v1.24, ADR-026 v1.38, ADR-028 v1.24, ADR-031 v1.6, ADR-032 v1.3). Generalization probe PASS throughout (45th/46th/47th consecutive on passes 48/49/50). STATUS: CONVERGED — pending HUMAN Wave-A approval gate. Process-gap codification items for cycle close: PG-ADR-STATUS-SELFCITE-001 (resolved via non-volatile self-cites), PG-VP-SKELETON-ASBUILT-001 (POL-31 enforcement hook still TBD — carry to lessons). trajectory-tail →3→0→0→0 STATE v8.489→v8.490 | wave-5-e-demo-fidelity | 2026-07-22 |
+| D-1943 | human+state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — HUMAN WAVE-A APPROVAL GATE: APPROVED 2026-07-22. ADR-053 v0.25→v0.26 ACCEPTED + ADR-054 v0.30→v0.31 ACCEPTED. Supersessions effective: ADR-028 §D1/§D2/§D5 (grounding spec←OpenAPI), ADR-031 §D3 (scope-narrowed), LOCKED D-747 + Cyberint single-surface OVERTURNED. Locked-decision entries 1/4/5 updated PENDING→SUPERSEDED. GAP-1 (perimeter audit): spec-evolution story must read BOTH the ADR D5/D11 manifests AND triage-capture §Wrong-Direction Stories for the 4 retirements — orchestrator carries this into the dispatch. NEXT: Wave-A spec evolution (BC-2.16.014 + VP-159 authoring, manifest execution, story retirements, mandatory remove-uncertainty pass) → story decomposition → TDD. ARCH-INDEX v2.243→v2.244. trajectory-tail →3→0→0→0 STATE v8.490→v8.491 | wave-5-e-demo-fidelity | 2026-07-22 |
 
 ## Skip Log
 

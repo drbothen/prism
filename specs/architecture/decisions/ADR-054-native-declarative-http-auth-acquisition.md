@@ -2,10 +2,10 @@
 document_type: adr
 adr_id: "ADR-054"
 title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2ClientCredentials via DeclarativeHttpAuthProvider; Retire crowdstrike-oauth2.prx"
-status: proposed
+status: accepted
 date: "2026-07-20"
 modified: "2026-07-22"
-version: "0.30"
+version: "0.31"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -35,7 +35,7 @@ wave_scope: "Wave-A — applies to Armis token-exchange (new sensor) and CrowdSt
 
 ## Status
 
-Proposed 2026-07-20. Current version per §Changelog. Amends ADR-023 §Rule 4 (standard HTTP token-acquisition flows do not require WASM plugins; `custom_via_plugin` preserved for genuinely non-standard auth) and ADR-026 §D3 (partial — `AuthType` gains `token_exchange` as 6th variant). Companion to ADR-053. Awaiting human approval gate before implementation begins.
+Accepted 2026-07-22 (D-1943, human Wave-A approval gate). Amendments to ADR-023/026/028 and amends_dis DI-012 are now EFFECTIVE. Implementation of ADR-054 stories may proceed after the ADR-053 standalone Wave-A engine story lands first, per §D7 merge-dependency.
 
 Current contract highlights: D1 adds `token_exchange` as the 6th AuthType variant; E-SPEC-028(f) validates `client_id`/`client_secret` credential refs for `oauth2_client_credentials`; E-SPEC-028(b) unconditionally rejects `auth_plugin` for declarative auth_types per D10(b) — no "when `[auth_acquisition]` present" conditional. D2 makes `oauth2_client_credentials` native via `DeclarativeHttpAuthProvider`. D5 retires `crowdstrike-oauth2.prx`. D11 amendment manifest includes 5 downstream "5→6-value" BC count corrections (BC-2.01.016 §Related BCs, BC-2.01.017 §Preconditions/§P3/§Related BCs, BC-2.16.009 §Validation Rules). ADR-054 implementation stories land AFTER ADR-053's standalone Wave-A engine story (Rule 9/E-SPEC-027 must be registered before Rule 10/E-SPEC-028 — see §D7). See §Changelog for full revision history.
 
@@ -648,12 +648,12 @@ depending on whether `auth_plugin` is present.
   `oauth2_client_credentials` and `token_exchange`; any existing spec without the block fails.
   The only existing affected spec is `crowdstrike.sensor.toml` (migrated in the retirement story).
 
-### Status as of 2026-07-20
+### Status as of 2026-07-22
 
-Proposed. Not in effect. Implementation gated on this ADR reaching Accepted status (human
-approval gate). Until accepted, ADR-053 v0.7 (Armis TOML block rewritten to use `token_exchange`
-+ `[auth_acquisition]`) captures the intent, but the CrowdStrike migration and plugin retirement
-do not proceed.
+Accepted (D-1943, human Wave-A approval gate 2026-07-22). Amendments to ADR-023 §Rule 4,
+ADR-026 §D3, ADR-028 §D13, and amends_dis DI-012 are now OPERATIVE. CrowdStrike oauth2 migration
+and `crowdstrike-oauth2.prx` retirement per D5 may proceed. Implementation stories land after
+the ADR-053 standalone Wave-A engine story per §D7 merge-dependency.
 
 ---
 
@@ -702,6 +702,7 @@ do not proceed.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.31 | 2026-07-22 | state-manager | STATUS → ACCEPTED — human Wave-A approval gate 2026-07-22 (D-1943). Amendments to ADR-023/026/028 and amends_dis DI-012 now EFFECTIVE (DI-012 content amendment itself executes in the spec-evolution story per D11). |
 | 0.30 | 2026-07-22 | architect | FIX-BURST 30 (OBS-2 + OBS-3 + OBS-1 forward-correction): [OBS-2] Stripped 11 volatile line pins from live D11 rows + census note per TD-VSDD-091 — D11 rows for `validate_cross_composition` fn doc-comment, `validate_cross_composition` inline comment, vp153 `//!` module doc, and `AuthTypeCrossComposition` doc-comment; census note 7-site list. Pins replaced with grep-recoverable behavioral anchors (function names + quoted brace-list text). [OBS-3] VP-153 §Feasibility Assessment D11 row rationale rewritten to separate the two counting models: typed structural shapes stay at 5 (token_exchange reuses ApiKey single-string shape); string-harness auth_type identifier set grows 5→6; hence 6×5=30 pair space. Removed conflating sentence "Credential string-shape space stays at 5+1=6 string identifiers." [OBS-1 forward-correction] v0.26 changelog justification "VP-153 uses timestamp: not modified: (no mismatch possible)" was inaccurate — VP-153 carries BOTH `timestamp:` (line 7) AND `modified:` (line 27); the v0.26 sweep coincidentally found them in-sync (modified: 2026-07-21 matches top changelog row 0.20 \| 2026-07-21, verified). Historical v0.26 row is unchanged per forward-correction pattern. ADR-053 live-body line-pin sweep: zero hits (clean). |
 | 0.29 | 2026-07-22 | architect | FIX-BURST 29 (HIGH-1): Census note wildcard-site symbol corrected — `build_request_with_auth` does not exist in the repo; the real symbol is the module-level free function `build_request` (`crates/prism-spec-engine/src/pipeline.rs`, 8 params, no `&self`, `_ =>` Bearer catch-all at auth_type match). Three occurrences in census note body updated: (1) grep-confirms sentence; (2) wildcard-site (2) bullet; (3) census completeness claim `(iii)` list. v0.28 changelog reference to `build_request_with_auth _ =>` is historical — left as-is per forward-correction pattern. |
 | 0.28 | 2026-07-22 | architect | FIX-BURST 28 (MED-1 + compile-enforced class): `AuthType::as_str()` exhaustive no-wildcard match in `impl AuthType` (`spec_parser.rs`) added as D11 row — sole E0004-compile-enforced AuthType match site; `TokenExchange => "token_exchange"` arm required; row exists for story-checklist completeness (compiler catches omission). Census note row rescoped: per-site census scope covers docs/comments/string literals/spec prose (the NOT-E0004 domain); compile-enforced no-wildcard matches form a separate class listed in the census. Full no-wildcard match enumeration: only `as_str()` in `impl AuthType` (1 site); all other AuthType matches (`step9a_populate_adapter_registry other =>` in `spec_driven_adapter.rs`, `build_request_with_auth _ =>` in `pipeline.rs`) carry wildcards and are behavior-reviewed. |

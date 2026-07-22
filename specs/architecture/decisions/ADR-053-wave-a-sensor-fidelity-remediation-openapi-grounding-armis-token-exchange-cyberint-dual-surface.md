@@ -2,10 +2,10 @@
 document_type: adr
 adr_id: "ADR-053"
 title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Exchange Auth, and Cyberint Dual-Surface Split"
-status: proposed
+status: accepted
 date: "2026-07-20"
 modified: "2026-07-22"
-version: "0.25"
+version: "0.26"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -32,7 +32,7 @@ wave_scope: "Wave-A only (grounding order + sensor auth models); transport/TLS (
 
 ## Status
 
-Proposed 2026-07-20. Current version per §Changelog. Awaiting human approval gate before proceeding to spec/BC work. Authored by architect under D-1889 authorization.
+Accepted 2026-07-22 (D-1943, human Wave-A approval gate). Supersessions of ADR-028 §D1/§D2/§D5, ADR-031 §D3, and LOCKED D-747/Cyberint-single-surface are now EFFECTIVE. Spec authoring, BC amendment, and story decomposition for Wave-A sensor remediation may now proceed.
 
 Locks three Wave-A architectural corrections: D1 (OpenAPI grounding order — vendor OpenAPI as ground truth; DTU follows spec), D2 (Armis `token_exchange` + `[auth_acquisition]` block + `header_scheme = "raw"` via native `DeclarativeHttpAuthProvider` per ADR-054; construction dispatch site is `step9a_populate_adapter_registry` in `crates/prism-bin/src/spec_driven_adapter.rs`; canonical TOML field is `token_path`, not `token_url`), D3 (Cyberint dual-surface split — both surfaces CONFIRMED static-cookie auth). D5 amendment manifest: BC-2.01.017 §P2 `header_scheme`-driven dispatch replaces auth_type-keyed injection table (mechanism-level replacement, not per-arm patch — `token_exchange` as 6th variant has no arm; `CustomViaPlugin` hardcoded Bearer is incoherent with `header_scheme = "raw"` generally). See §Changelog for full revision history.
 
@@ -637,11 +637,12 @@ vs one) with zero auth-complexity overhead.
 - ADR-032 Armis credential rows (`bearer_token`) are now stale and must be updated to
   `secret_key` in the Armis remediation story.
 
-### Status as of 2026-07-20
+### Status as of 2026-07-22
 
-Proposed. Not in effect. Awaiting human approval gate before any spec/BC work, story
-decomposition, or implementation begins. The three locked decisions (ADR-028 §D1/§D2/§D5,
-Armis D-747, Cyberint D-747) are still the operative constraints until this ADR is accepted.
+Accepted (D-1943, human Wave-A approval gate 2026-07-22). The three supersessions — ADR-028
+§D1/§D2/§D5, Armis D-747 (bearer_static→token_exchange), and Cyberint D-747 (combined
+spec→dual-surface split) — are now OPERATIVE. Spec authoring, BC amendments per §D5 manifest,
+and story decomposition for Wave-A sensor remediation may now proceed.
 
 ---
 
@@ -705,6 +706,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.26 | 2026-07-22 | state-manager | STATUS → ACCEPTED — human Wave-A approval gate 2026-07-22 (D-1943) after BC-5.39.001 strict 3-CLEAN (passes 48-50 @46c1c802). Supersessions of ADR-028 §D1/§D2/§D5, ADR-031 §D3, and LOCKED D-747/Cyberint-single-surface now EFFECTIVE. |
 | 0.25 | 2026-07-22 | architect | FIX-BURST 29 (LOW-1): `PipelineExecutor::build_request()` phantom qualifier dropped at all 4 live-text sites — `build_request` is a module-level free function (8 params, no `&self`) not a `PipelineExecutor` method; `PipelineExecutor::` prefix does not exist in the repo. Site 1 (line 235, §D2 first mention): changed to `build_request() (module-level free function in \`crates/prism-spec-engine/src/pipeline.rs\`)`. Sites 2–4 (lines 377/§D2, 616/§Consequences, 696/§Source-Origin): bare `build_request()`. Coordinator count was ×2 §D2 + ×1 §Source/Origin = 3; actual count was 4 (§Consequences line 616 additional site). All 4 corrected. POL-29: zero `PipelineExecutor::build_request` remain in live text. |
 | 0.24 | 2026-07-22 | state-manager | LOW-1 (pass 44): §D2 dangling prose pointer repointed — "(see MED-1 note; `related_adrs` carries ADR-032 for tracking)" → "(see the D5 manifest ADR-032 row for the deliberate related_adrs-tracking rationale)"; MED-1 no longer exists in body; rationale now lives inline in D5 manifest ADR-032 row and §Consequences. Finding-label-pointer class sweep both primaries: ADR-053 sole hit (line 189); ADR-054 zero hits. |
 | 0.23 | 2026-07-22 | state-manager | LOW-1 (pass 40): v0.22 changelog row description corrected — its 'before' string erroneously repeated the qualified 'after' form; actual v0.22 change added the '→ Query-Time Resolution (`resolve_credential`)' qualifier to the previously-unqualified '§Canonical Test Vectors all 9 armis \| bearer_token rows' anchor (×2). Normative D5 content was and is correct. |
