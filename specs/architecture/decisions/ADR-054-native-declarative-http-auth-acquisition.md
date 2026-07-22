@@ -5,7 +5,7 @@ title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2Cli
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-21"
-version: "0.19"
+version: "0.20"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -418,7 +418,7 @@ A new BC `BC-2.16.014` will be authored covering the behavioral contract for
 A new verification property `VP-159` will cover the network-call invariants of `DeclarativeHttpAuthProvider`:
 
 - **Module:** `prism-spec-engine`
-- **Tool:** `unit_test` (MockHttpClient for network isolation)
+- **Tool:** `integration_test` (MockHttpClient for network isolation — behavioral state-transition sequences, not combinatorial input generation; analogous to VP-033/VP-036)
 - **Phase:** P1
 - **BC:** BC-2.16.014 (primary; forward reference — see D8)
 - **Properties:**
@@ -444,7 +444,7 @@ pass as other spec-file validation rules (BC-2.16.009 **Rule 10** — after ADR-
 
 **(a) Required block absent:**
 `"sensor '{sensor_id}': auth_type = '{auth_type}' requires an [auth_acquisition] block with token_path. Add an [auth_acquisition] block."`
-Fires when: `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `[auth_acquisition]` absent OR `token_path` absent.
+Fires when: `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND (`[auth_acquisition]` absent OR `token_path` absent).
 
 **(b) Conflicting auth_plugin:**
 `"sensor '{sensor_id}': auth_type = '{auth_type}' uses native declarative provider and does not accept auth_plugin. Remove auth_plugin or change auth_type to custom_via_plugin."`
@@ -693,6 +693,7 @@ do not proceed.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.20 | 2026-07-21 | architect | FIX-BURST 20 (LOW-1): §D9 VP-159 tool corrected — `unit_test` → `integration_test` (canonical VP-INDEX tool vocabulary is {kani, proptest, integration_test, fuzz}; `unit_test` is not a valid VP-INDEX tool token; VP-159's behavioral state-transition sequences — cold/warm/stale cache — are deterministic MockHttpClient assertions, not combinatorial proptest input generation; analogous to VP-033/VP-036 which use `integration_test` for network-boundary invariants). (OBS-2): §D10(a) firing-condition precedence parenthesized — `A AND B OR C` → `A AND (B OR C)` making `A = auth_type ∈ {...}` bind to both conditions; D10(b)–(h) class sweep: zero other AND/OR precedence-ambiguity instances in D10. |
 | 0.19 | 2026-07-21 | architect | FIX-BURST 19 (OBS-1): D11 census note row citation normalized — "ADR-023 §Rule A" → "ADR-023 Rule 2 (Rule A)" at all three occurrences in the census note cell (row label + 2 body mentions); ADR-023's Decision Rules are numbered Rule 1–5; the auth_type enumerated set with the at-point annotation lives in Rule 2 (§SensorAuth Trait Un-Sealing); "Rule A" is the project semantic label for the single-auth_type invariant (E-SPEC-012/ADR-026 §D3/VP-153); dual form "Rule 2 (Rule A)" removes the fresh-reader ambiguity. POL-29 (ADR-054 + ADR-053): zero remaining bare "ADR-023 §Rule A" hits in live text. |
 | 0.18 | 2026-07-21 | architect | FIX-BURST 18 (LOW-1, adjudicated): D11 census note added for ADR-023 §Rule A — covered-by-annotation-only by design (restating site, not defining site); defining-site amendment is the ADR-026 §D3 D11 row; at-point annotation already present on ADR-023 §Rule A is the correct mechanism; formal D11 row is intentionally absent. Note added inline in D11 table to make the intent explicit for future fresh-context reviewers. |
 | 0.17 | 2026-07-21 | architect | OBS-2: VP-153 §Feasibility Assessment D11 row amended — shape decision stated: token_exchange credential is a single secret string (credential_body_field → [[credential_refs]] name="secret_key"; ADR-054 D3/ADR-053 D2), structurally matching MockCredentialType::ApiKey("key") (static single-string credential); token_exchange reuses ApiKey structural shape; no new MockCredentialType variant required; credential space stays at 5 shapes; 6×5=30 arithmetic confirmed. is_coherent_pair and prop_filter amendment directions added. OBS-1 (ADR-054 scope): BC-2.06.003 D11 row has no §Worked examples reference (crowdstrike row only updates auth provider column, not env-var derivation examples); no fix needed. |
