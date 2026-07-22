@@ -2,13 +2,13 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.46"
+version: "1.47"
 status: draft
 producer: architect
 timestamp: 2026-06-12T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
-input-hash: "654319d"
+input-hash: "a1cf763"
 traces_to: ARCH-INDEX.md
 ---
 
@@ -52,7 +52,7 @@ See detailed tables below.
 | Integration test VPs | 29 | 24 | 5 | 1 | 28 |
 | **Total VPs** | **159** | **122** | **37** | **13** | **146** |
 
-> **Count basis (POL-1):** Planned Count / P0 / P1 columns are row-count basis — retired rows are never deleted and remain counted (preserves Coverage-by-Module column-sum symmetry with VP-INDEX Summary). The 13 ADR-037-retired VPs (VP-095..VP-107, all P0, all prism-spec-engine) are excluded from the release verification gate: **active P0 = 109** (Kani 23, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 37 (VP-157 unit_test P1 added D-1099; VP-158 unit_test P1 added 2026-06-12; VP-159 integration_test P1 added D-1946 2026-07-22). Active basis: 146/109P0/37P1. Per-VP disposition: VP-INDEX §ADR-037 Retirement.
+> **Count basis (POL-1):** Planned Count / P0 / P1 columns are row-count basis — retired rows are never deleted and remain counted (preserves Coverage-by-Module column-sum symmetry with VP-INDEX Summary). The 13 ADR-037-retired VPs (VP-095..VP-107, all P0, all prism-spec-engine) are excluded from the release verification gate: **active P0 = 109** (Kani 23, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 37 (VP-157 unit_test P1 added D-1099; VP-158 unit_test P1 added 2026-06-12; VP-159 integration_test P1 added D-1947 2026-07-22). Active basis: 146/109P0/37P1. Per-VP disposition: VP-INDEX §ADR-037 Retirement.
 
 <!-- P0/P1 per-method breakdown from VP-INDEX v1.22 recount (Wave 4 Phase 3 ADR burst):
      Kani: 23 P0 / 7 P1; Proptest: 64 P0 / 21 P1; Unit test: 4 P0 / 0 P1;
@@ -68,7 +68,7 @@ See detailed tables below.
      unchanged (POL-1 append-only); Retired/Active columns added; active basis 143 VPs / 109 P0 / 34 P1.
      VP-157 added D-1099 2026-06-11 (unit_test P1, prism-dtu-harness, BC-3.6.001): Unit test 4→5, Total 156→157, P1 34→35; active basis 144/109P0/35P1.
      VP-158 added 2026-06-12 (unit_test P1, prism-dtu-demo-server, BC-2.06.019 PRE-6 / VP-019-I alias): Unit test 5→6, Total 157→158, P1 35→36; active basis 145/109P0/36P1.
-     VP-159 added D-1946 2026-07-22 (integration_test P1, prism-spec-engine, BC-2.16.014 — DeclarativeHttpAuthProvider lazy acquisition + refresh-on-expiry; folds DRIFT-D849-002): Integration test 28→29, Total 158→159, P1 36→37; active basis 146/109P0/37P1. -->
+     VP-159 added D-1947 2026-07-22 (integration_test P1, prism-spec-engine, BC-2.16.014 — DeclarativeHttpAuthProvider lazy acquisition + refresh-on-expiry; folds DRIFT-D849-002): Integration test 28→29, Total 158→159, P1 36→37; active basis 146/109P0/37P1. -->
 
 
 ## Coverage Gaps and Mitigations
@@ -151,6 +151,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.47 | architect | 2026-07-22 | F-WASE-P3-HIGH-001: VP-159 burst attribution corrected D-1946→D-1947 at two live-body sites: (1) count-basis blockquote (active P1 inline, line 55); (2) HTML audit-trail comment (line 71). Forward-correction note: v1.46 changelog row incorrectly cited D-1946 for VP-159 addition — VP-159 was registered in D-1947 (burst 2); BC-2.16.014 was authored in D-1946 (burst 1); v1.46 row is immutable per POL-1. |
 | 1.46 | architect | 2026-07-22 | D-1946 Wave-A spec-evolution burst 2: VP-159 added (integration_test, P1, prism-spec-engine, BC-2.16.014 — DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry; folds DRIFT-D849-002). prism-spec-engine row: Integration 10→11 (VP-159 appended to integration_test list). Totals row: Integration VPs 28→29, Total VPs 158→159. Totals method table: Integration test VPs 28→29 / P1 4→5 / Active 27→28; Total VPs 158→159 / P1 36→37 / Active 145→146. Count-basis note: active P1 36→37; active basis 146/109P0/37P1; HTML audit-trail comment appended. POL-9 same-burst with VP-INDEX v1.82→v1.83 + verification-architecture v1.44→v1.45. |
 | 1.45 | state-manager | 2026-06-12 | VP-158 addition (BC-2.06.019 E-DEMO-006 guard, unit_test P1, prism-dtu-demo-server — VP-019-I alias). prism-dtu-demo-server row added: Unit test 1. Totals row: Unit test VPs 5→6, Total VPs 157→158. Totals method table: Unit test VPs 5→6 / P1 1→2 / Active 1→2; Total VPs 157→158 / P1 35→36 / Active 144→145. Count-basis note: active P1 35→36; active basis 145/109P0/36P1. POL-9 same-burst with VP-INDEX v1.79 + verification-architecture v1.44. |
 | 1.44 | state-manager | 2026-06-11 | D-1099 BC-3.6.001 v0.5 POL-9 same-burst propagation: VP-157 (unit_test, P1, prism-dtu-harness) added. prism-dtu-harness row: Unit Tests 0→1; VP cell updated. Totals row: Unit test VPs 4→5, Total VPs 156→157. Totals method table: Unit test 4→5 / P1 0→1 / Active 0→1; Total VPs 156→157 / P1 34→35 / Active 143→144. Count-basis note: active P1 34→35. POL-9 same-burst with VP-INDEX v1.78 + verification-architecture v1.43. |

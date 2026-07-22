@@ -1,15 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
-status: active
+version: "1.1"
+status: draft
 producer: product-owner
-timestamp: 2026-07-22T00:00:00
+timestamp: 2026-07-22T00:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-001"
-lifecycle_status: active
+lifecycle_status: draft
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
@@ -18,7 +18,7 @@ traces_to: ["CAP-001"]
 extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: null
 amendment_lifecycle: null
-introduced: wave-a-spec-evolution-burst-3
+introduced: "2026-07-22"
 modified: "2026-07-22"
 deprecated: null
 deprecated_by: null
@@ -117,7 +117,18 @@ and is covered by BC-2.01.006.
 - ADR-054 D1: 6-value canonical auth_type set
 
 ## Story Anchor
-(filled after story decomposition — Wave-A sensor fidelity remediation story)
+(pending — Wave-A story decomposition, Task #8)
+
+**Interim draft rationale (F-WASE-P3-LOW-001):** This BC was created by ADR-053 D3 (dual-surface
+split) as a spec-before-code artifact. The contracted behaviors — `cyberint-alerts.sensor.toml`,
+`SensorSpec::header_scheme = "cookie:access_token"`, credential ref renamed `api_key` →
+`access_token`, `(Timestamp, AlertID)` 2-tuple cursor, and 4-format timestamp parser — are NOT
+yet shipped. Evidence: only `cyberint.sensor.toml` (monolithic, sensor_id = "cyberint") exists;
+`SensorSpec::header_scheme` field absent from spec-engine source; current TOML uses `name =
+"api_key"` and `cursor_token`/`$.next_cursor` pagination; spec-engine `timestamp_formats`
+supports only `iso8601`, `unix_epoch_seconds`, `unix_epoch_millis` (3 values, no Cyberint custom
+format). BC status set to `draft` per POL-14. Will promote to `active` when the Wave-A Cyberint
+Alerts remediation story merges (POL-14 auto-promotion at merge).
 
 ## VP Anchors
 (filled after VP creation — see VP-INDEX.md for current coverage)
@@ -134,4 +145,5 @@ and is covered by BC-2.01.006.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | wave-a-spec-evolution-burst-3 | 2026-07-22 | product-owner | F-WASE-P3-MED-001: `introduced` corrected from `wave-a-spec-evolution-burst-3` to `"2026-07-22"` (POL-20 pattern `^(cycle-[0-9]+\|[0-9]{4}-[0-9]{2}-[0-9]{2})$`). F-WASE-P3-MED-002: `timestamp` corrected from `2026-07-22T00:00:00` to `2026-07-22T00:00:00Z` (POL-23 Z-suffix required for new BCs). F-WASE-P3-LOW-001: status/lifecycle_status set to `draft` (was `active`). Adjudication verdict: contracted behavior NOT yet shipped — `cyberint-alerts.sensor.toml` does not exist, `SensorSpec::header_scheme` field does not exist in engine, credential ref name `access_token` not yet renamed from `api_key`, `(Timestamp, AlertID)` 2-tuple cursor not yet implemented (current spec uses `cursor_token`/`$.next_cursor`), 4-format CyberintTime parser not implemented (engine supports only `iso8601`/`unix_epoch_seconds`/`unix_epoch_millis`). Wave-A remediation stories (Task #8, pending) will implement these behaviors; BC promotes to active when anchor story merges (POL-14). §Story Anchor updated with interim rationale. |
 | 1.0 | wave-a-spec-evolution-burst-3 | 2026-07-22 | product-owner | Initial contract. Created by ADR-053 D3 split of BC-2.01.006 (formerly "Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing") into two surface-specific BCs. This BC covers the Cyberint Alerts surface (`cyberint-alerts.sensor.toml`, `/alert` server, `(Timestamp, AlertID)` cursor). BC-2.01.006 covers the Cyberint Assets surface (`cyberint-assets.sensor.toml`, `/asset-configuration` server, `(Timestamp, AssetID)` cursor). Both surfaces: auth_type = "cookie_roundtrip", header_scheme = "cookie:access_token", StaticCookieAuthProvider. DI-012 invariant: 6-value canonical auth_type set per ADR-054 D1. |

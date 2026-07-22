@@ -5,7 +5,7 @@ title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2Cli
 status: accepted
 date: "2026-07-20"
 modified: "2026-07-22"
-version: "0.35"
+version: "0.36"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -662,7 +662,7 @@ depending on whether `auth_plugin` is present.
 - Plugin infrastructure is preserved for `custom_via_plugin` sensors; the escape hatch is real
   and unimpeded
 - BC-2.16.014 formalizes the token-lifecycle contract that was previously only implicit in the
-  WASM plugin source, making it testable and verifiable via VP-159 (both authored in D-1946; see D8/D9)
+  WASM plugin source, making it testable and verifiable via VP-159 (BC-2.16.014 authored D-1946, VP-159 authored D-1947; see D8/D9)
 
 ### Negative / Trade-offs
 
@@ -733,6 +733,7 @@ the ADR-053 standalone Wave-A engine story per §D7 merge-dependency.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.36 | 2026-07-22 | architect | F-WASE-P3-HIGH-001: §Consequences Positive burst attribution corrected — "(both authored in D-1946; see D8/D9)" → "(BC-2.16.014 authored D-1946, VP-159 authored D-1947; see D8/D9)". Sibling of D9 blockquote fix at v0.34 (D-1950). |
 | 0.35 | 2026-07-22 | architect | F-WASE-P2-HIGH-001 + F-WASE-P2-MED-001: (HIGH-001) §D10(b) adjudicated — Definition 1 (`auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `auth_plugin` present, regardless of `[auth_acquisition]`) is canonical; Definition 2 (taxonomy's prior "auth_plugin + [auth_acquisition] both declared, regardless of auth_type") is superseded. Expanded §D10(b) with explicit "Fires when:" wording, adjudication note citing four rationale points (§D2 design intent, §D7 unreachable-claim dependency, (g) redundancy under Def-2, message template auth_type-centricity), and PO sweep directive for required taxonomy update. (MED-001) Added meta-note block at top of §D10 message templates: taxonomy wins on wording conflicts; §D10 is condition-authoring intent; §D10(b) is the stated exception where taxonomy must follow §D10. §D10(h) semantics aligned to taxonomy: changed from per-field emission (`{field_name}` singular) to single aggregated emission (`{field_list}`, matching taxonomy v2.57 E-SPEC-028(h) cardinality). |
 | 0.34 | 2026-07-22 | architect | F-WASE-P1-MED-001: §D8 blockquote burst attribution corrected burst 2→burst 1 for BC-2.16.014 (D-1946 is burst 1); §D9 blockquote marker corrected [AUTHORED — D-1946]→[AUTHORED — D-1947] + "decision D-1946, simultaneously with BC-2.16.014"→"decision D-1947; authored after BC-2.16.014 (burst 1, D-1946)"; §D11 BC-2.16.014 row burst 2→burst 1; §D11 VP-INDEX.md row [REGISTERED — D-1946]→[REGISTERED — D-1947] + "simultaneously with BC-2.16.014 authoring" corrected. F-WASE-P1-MED-002: §D11 error-taxonomy.md E-SPEC-028(c) row and BC-2.16.009 Rule 10(c)/EC-009-038 row both updated [PO FOLLOW-UP REQUIRED — Wave-A burst 3 adjudication]→[COMPLETED — D-1948] with past-tense descriptions; §D10(c) note past-tensed and stale v2.57 reference updated to v2.58/v1.13 (D-1948). |
 | 0.33 | 2026-07-22 | architect | Wave-A burst 3 expiry_mode adjudication (Task 2): D10(c) ratification note added confirming `absolute_utc_string` and `relative_seconds` as the sole ratified `expiry_mode` values — all three design-authority sites self-consistent: D3 field table (`"absolute_utc_string"` or `"relative_seconds"`), D4 algorithm (RFC-3339 parse / u64 TTL default 1799), and Armis wiring example (`expiry_mode = "absolute_utc_string"`). BC-2.01.008's use of `expiry_mode = "absolute_utc_string"` is CORRECT per D3. Root cause of conflict: error-taxonomy.md v2.57 E-SPEC-028(c) and BC-2.16.009 Rule 10(c)/EC-009-038 were authored with incorrect values `absolute_epoch_secs, ttl_secs` during burst 3 (PO authoring errors). Two D11 PO follow-up rows added: (1) error-taxonomy.md E-SPEC-028(c) `valid values:` clause correction → `absolute_utc_string, relative_seconds`; (2) BC-2.16.009 Rule 10(c)/EC-009-038 correction → `{absolute_utc_string, relative_seconds}`. Both routed to product-owner. |

@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.499"
+version: "8.500"
 producer: state-manager
 timestamp: 2026-07-22T02:00:00Z
 inputs: []
@@ -18,16 +18,16 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "e116a587"
 # NOTE: D-1887 — local develop is at e116a587 (NOT YET FF'd; unstaged S-MAINT ci.yml residue in main worktree blocks fast-forward). origin/develop = 7fef57da (PR #228 S-REL-001 squash-merged 2026-07-20; DRIFT-LOCAL-DEVELOP-FF-001 registered). D-1886 NOTE (pr-manager set 7fef57da) corrected to local HEAD for verify-sha-currency.sh compliance. D-1872 NOTE (e116a587 ff'd 2026-07-19; PR #227 squash-merged) still local HEAD.
-bc_index_version: "8.40"
-# NOTE: D-1951 — BC-INDEX v8.39→v8.40: BC-2.16.009 v1.14→v1.15 (F-WASE-P2-HIGH-001 Rule 10(b)/(f)/(h) corrected; EC-009-036 updated; EC-009-041 NEW); BC-2.16.014 priority P1→P0 (F-WASE-P2-MED-002 PO confirmed). D-1950 NOTE (v8.38→v8.39 WASE-P1-CRIT-001 fix-burst-1) archived.
+bc_index_version: "8.41"
+# NOTE: D-1952 — BC-INDEX v8.40→v8.41: BC-2.01.018 v1.0→v1.1 (F-WASE-P3-LOW-001 adjudicated active→draft; unshipped Wave-A deliverables; F-WASE-P3-MED-001 introduced 2026-07-22; F-WASE-P3-MED-002 timestamp Z suffix); active_contracts 258→257; draft_contracts 1→2. D-1951 NOTE (v8.39→v8.40 F-WASE-P2-HIGH-001/MED-002 fixes) archived.
 vp_index_version: "1.84"
 story_index_version: "v2.721"
-arch_index_version: "2.248"
+arch_index_version: "2.249"
 error_taxonomy_version: "2.60"
 # NOTE: D-1951 — v2.59→v2.60: E-SPEC-028(b) Definition 1 (client_secret-less oauth2 validation). D-1950 NOTE (v2.58→v2.59 E-SPEC-028(a)/(d) corrected) archived.
 total_stories: 254
-active_contracts: 258
-draft_contracts: 1
+active_contracts: 257
+draft_contracts: 2
 retired_contracts: 6
 prd_version: "1.13"
 policies_version: "1.36"
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1951 COMPLETE — Wave-A spec-evolution LOCAL adversary pass-2 FIX-BURST 2 (all findings closed): ADR-054 v0.35 (F-WASE-P2-HIGH-001 D10(b) Definition-1 ratification auth_type-conditional; (b)/(g) disjointness verified; F-WASE-P2-MED-001 canonical-template meta-note; D10(h) cardinality fix single {field_list}); error-taxonomy v2.60 (E-SPEC-028(b) Definition 1 client_secret-less oauth2); BC-2.16.009 v1.15 (Rule 10(b)/(f)/(h) corrected; EC-009-036 updated; EC-009-041 NEW); BC-2.16.014 priority P1→P0 (F-WASE-P2-MED-002 PO confirmed). BC-INDEX v8.40, ARCH-INDEX v2.248, STORY-INDEX v2.721. Streak 0/3; next = pass 3 on new frozen HEAD. trajectory-tail →3→0→0→0 STATE v8.498→v8.499"
+current_step: "D-1952 COMPLETE — Wave-A spec-evolution LOCAL adversary pass-3 FIX-BURST 3 (all findings closed): ADR-054 v0.36 (F-WASE-P3-HIGH-001 §Consequences provenance sweep D-1946→D-1947 sibling site); ADR-053 v0.28 (D5 manifest burst label burst 2→burst 1); coverage-matrix v1.47 (2 provenance sites D-1946→D-1947); BC-2.01.018 v1.1 (F-WASE-P3-MED-001 introduced 2026-07-22; F-WASE-P3-MED-002 timestamp Z suffix; F-WASE-P3-LOW-001 adjudicated active→DRAFT — unshipped Wave-A deliverables). BC-INDEX v8.41 (draft_contracts 1→2; active_contracts 258→257); ARCH-INDEX v2.249. Streak 0/3; novelty MEDIUM declining; next = pass 4 on new frozen HEAD. trajectory-tail →3→0→0→0 STATE v8.499→v8.500"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,8 +77,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 477 lines (wc-l)
-  margin from soft-target (200): +270 lines over | margin from actual (500): 30 lines remaining
+  STATE.md SIZE BUDGET: 478 lines (wc-l)
+  margin from soft-target (200): +278 lines over | margin from actual (500): 22 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-22 D-1951 — Wave-A spec-evolution LOCAL adversary pass-2 FIX-BURST 2 closed: ADR-054 v0.35 (D10(b) Definition-1 ratification + D10(h) cardinality fix + MED-001 meta-note), error-taxonomy v2.60 (E-SPEC-028(b)), BC-2.16.009 v1.15 (Rules 10(b)/(f)/(h); EC-009-036/041), BC-2.16.014 priority P1→P0. BC-INDEX v8.40, ARCH-INDEX v2.248, STORY-INDEX v2.721. trajectory-tail →3→0→0→0 Streak 0/3; STATE v8.498→v8.499 |
+| **Last Updated** | 2026-07-22 D-1952 — Wave-A spec-evolution LOCAL adversary pass-3 FIX-BURST 3 closed: ADR-054 v0.36 (F-WASE-P3-HIGH-001 provenance sweep D-1946→D-1947); ADR-053 v0.28 (D5 burst-label fix); coverage-matrix v1.47; BC-2.01.018 v1.1 (introduced 2026-07-22; adjudicated DRAFT). BC-INDEX v8.41 (draft 1→2; active 258→257); ARCH-INDEX v2.249. trajectory-tail →3→0→0→0 Streak 0/3; STATE v8.499→v8.500 |
 
 ## Active Objective (North Star)
 
@@ -364,6 +364,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1949 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution burst 4 (story retirements): S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 RETIRED per D-1889 ADR-053 §Finding-1 (Cyberint API has no incidents object — phantom endpoint; everything is an alert; superseded by DEFECT-CYBERINT-SPEC-FIDELITY-001); S-DTU-CROWDSTRIKE-INCIDENTS-ROUTE-001 RETIRED per D-1889 (CrowdStrike Incidents API removed ~2026-03; DTU-EXT-001 RETIRED in BC-2.16.013 v1.33; superseded by S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001). STORY-INDEX v2.719→v2.720: 2 rows retired, depends_on edge S-DEMO-CYBERINT-INCIDENTS-SEEDING-001→S-DEMO-DTU-LIVE-SCENARIO-001-A severed, stub files authored. BC-2.06.018 v1.6→v1.7 (§Scope Boundary annotation added). BC-2.16.013 v1.32→v1.33 (DTU-EXT-001 + DTU-EXT-005 RETIRED). BC-INDEX v8.37→v8.38. story_index_version v2.719→v2.720; bc_index_version 8.37→8.38. Input-hash 3000000 on BC-2.06.018 confirmed correct via compute-input-hash --update. STATE v8.496→v8.497 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1950 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-1 FIX-BURST 1 (2026-07-22). Pass-1 on frozen 47736ebf2 = NOT CLEAN(strict): 1 CRIT (F-WASE-P1-CRIT-001 E-SPEC-028(a)/(d) semantics vs ADR-054 D10/D3 — ttl_buffer_secs wrongly required + four token_exchange fields unchecked) + 2 MED + 3 LOW + 2 OBS. FIX-BURST 1 closed ALL findings: BC-2.16.009 v1.14, error-taxonomy v2.59, BC-2.16.014 v1.2, VP-159 v1.1, VP-INDEX v1.84, ADR-054 v0.34, story stub v1.1. Input-hash refreshes: VP-159 e6e76de→a62cdb1; VP-153 [pending-recompute]→18485b2. BC-INDEX v8.39; ARCH-INDEX v2.247; STORY-INDEX v2.721. bc_index_version 8.38→8.39; vp_index_version 1.83→1.84; story_index_version v2.720→v2.721; arch_index_version 2.246→2.247; error_taxonomy_version 2.58→2.59. Streak 0/3; next = pass 2 on new frozen HEAD. trajectory-tail →3→0→0→0 STATE v8.497→v8.498 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1951 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-2 FIX-BURST 2 (2026-07-22). Pass-2 on frozen d8eccd1d6 = NOT CLEAN(strict): 2 HIGH (F-WASE-P2-HIGH-001 E-SPEC-028(b) dual-definition contradiction — ADR-054 D10(b) Definition-1 and D10(g) not aligned, auth_type-conditional trigger unratified; F-WASE-P2-HIGH-002 Rule 10(f) too weak, client_secret-less oauth2 spec passed validation) + 2 MED (F-WASE-P2-MED-001 canonical-template meta-note missing; F-WASE-P2-MED-002 BC-2.16.014 INDEX priority cell P1 vs §Traceability P0). FIX-BURST 2 closed ALL 4: ADR-054 v0.35 (architect ratified Definition 1 D10(b) auth_type-conditional trigger; (b)/(g) disjointness verified; D10 canonical-template meta-note added; D10(h) single aggregated {field_list} emission); error-taxonomy v2.60 (E-SPEC-028(b) Definition 1 client_secret-less oauth2); BC-2.16.009 v1.15 (Rule 10(b)/(f)/(h) corrected; EC-009-036 updated; EC-009-041 NEW client_secret-missing case); BC-2.16.014 priority P1→P0 adjudicated (BC-INDEX synced). BC-INDEX v8.40; ARCH-INDEX v2.248; STORY-INDEX v2.721. bc_index_version 8.39→8.40; arch_index_version 2.247→2.248; error_taxonomy_version 2.59→2.60. Streak 0/3; next = pass 3 on new frozen HEAD. trajectory-tail →3→0→0→0 STATE v8.498→v8.499 | wave-5-e-demo-fidelity | 2026-07-22 |
+| D-1952 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-3 FIX-BURST 3 (2026-07-22). Pass-3 on frozen abf467a11 = NOT CLEAN(strict): 1 HIGH (F-WASE-P3-HIGH-001 D-1946→D-1947 provenance sweep missed sibling sites in ADR-054 §Consequences + ADR-053 D5 manifest burst label) + 2 MED (F-WASE-P3-MED-001 BC-2.01.018 introduced field missing/wrong format per POL-20; F-WASE-P3-MED-002 timestamp Z suffix) + 1 LOW (F-WASE-P3-LOW-001 BC-2.01.018 active-without-anchor adjudicated DRAFT — PO code-evidence: cyberint-alerts.sensor.toml, header_scheme field, access_token cred-ref, 2-tuple cursor, 4-format parser all unshipped Wave-A deliverables). FIX-BURST 3 closed all 4: ADR-054 v0.36 (§Consequences provenance corrected D-1946→D-1947); ADR-053 v0.28 (D5 manifest burst label burst 2→burst 1); verification-coverage-matrix v1.47 (full D-1946 sweep: 2 provenance sites corrected D-1946→D-1947; zero live-body wrong attributions remain); BC-2.01.018 v1.1 frontmatter fixed (introduced 2026-07-22; timestamp Z suffix) + adjudicated DRAFT per PO code-evidence. BC-INDEX v8.41 (active_contracts 258→257; draft_contracts 1→2); ARCH-INDEX v2.249. bc_index_version 8.40→8.41; arch_index_version 2.248→2.249; active_contracts 258→257; draft_contracts 1→2. Streak 0/3; novelty MEDIUM declining; next = pass 4 on new frozen HEAD. trajectory-tail →3→0→0→0 STATE v8.499→v8.500 | wave-5-e-demo-fidelity | 2026-07-22 |
 
 ## Skip Log
 

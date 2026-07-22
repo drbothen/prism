@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: accepted
 date: "2026-07-20"
 modified: "2026-07-22"
-version: "0.27"
+version: "0.28"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -535,7 +535,7 @@ consequence of D1–D3. Each amendment is in-scope for the corresponding remedia
 | BC-2.16.009 Rule 9 (new) | Author new Rule 9 — `header_scheme` field validation (unknown/malformed → E-SPEC-027 template a; well-formed-but-incoherent with auth_type → E-SPEC-027 template b); rules numbered after Rule 8 probe_table (E-SPEC-026). Rule 9 is in-scope for the Wave-A engine story that adds `SensorSpec::header_scheme`. | D2 |
 | `error-taxonomy.md` | Register E-SPEC-027 with both message templates: (a) unknown/malformed `header_scheme` value; (b) well-formed value incoherent with `auth_type` (generalized form — `sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}`). Registration is in-scope for the standalone Wave-A engine story. | D2 |
 | `error-taxonomy.md` | Register E-SPEC-028 (declarative auth acquisition validation errors — 8 message templates per ADR-054 D10): (a) required block absent; (b) conflicting auth_plugin; (c) unknown expiry_mode; (d) token_exchange missing required fields; (e) credential_body_field undeclared; (f) oauth2_client_credentials missing client_id/client_secret refs; (g) auth_acquisition declared for non-declarative auth_type; (h) token_exchange-only fields on non-token_exchange block. Registration is in-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story. | D2 (via ADR-054) |
-| New `BC-2.16.014` **[AUTHORED — D-1946]** | BC-2.16.014 authored during Wave-A spec evolution burst 2 — Declarative Auth Acquisition Token Lifecycle: `DeclarativeHttpAuthProvider` lazy-acquire, cache-hit, cache-refresh, and AD-017 credential-opacity invariants (ADR-054 D8). | D2 (via ADR-054) |
+| New `BC-2.16.014` **[AUTHORED — D-1946]** | BC-2.16.014 authored during Wave-A spec evolution burst 1 — Declarative Auth Acquisition Token Lifecycle: `DeclarativeHttpAuthProvider` lazy-acquire, cache-hit, cache-refresh, and AD-017 credential-opacity invariants (ADR-054 D8). | D2 (via ADR-054) |
 
 Additional artifacts requiring audit (not BC amendments, but must not contain contradicted values):
 - Any story, holdout scenario, or test grounded on the old Armis `bearer_static` or
@@ -704,6 +704,7 @@ and story decomposition for Wave-A sensor remediation may now proceed.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.28 | 2026-07-22 | architect | F-WASE-P3-HIGH-001 sibling sweep: D5 manifest row BC-2.16.014 burst label corrected "burst 2" → "burst 1" (D-1946 = burst 1; BC-2.16.014 authored burst 1/D-1946). v0.27 changelog row (CHANGELOG-IMMUTABLE) retains the original wrong label per POL-1. |
 | 0.27 | 2026-07-22 | architect | Wave-A spec evolution burst 2 (D-1946): BC-2.16.014 [PLANNED] markers cleared — 3 sites: frontmatter `related_bcs_planned` removed (BC-2.16.014 moved to `related_bcs`); D2 VP-assignment citation updated (BC-2.16.014 authored D-1946; [PLANNED] suffix removed); D5 manifest row [PLANNED] → [AUTHORED — D-1946]. |
 | 0.26 | 2026-07-22 | state-manager | STATUS → ACCEPTED — human Wave-A approval gate 2026-07-22 (D-1943) after BC-5.39.001 strict 3-CLEAN (passes 48-50 @46c1c802). Supersessions of ADR-028 §D1/§D2/§D5, ADR-031 §D3, and LOCKED D-747/Cyberint-single-surface now EFFECTIVE. |
 | 0.25 | 2026-07-22 | architect | FIX-BURST 29 (LOW-1): `PipelineExecutor::build_request()` phantom qualifier dropped at all 4 live-text sites — `build_request` is a module-level free function (8 params, no `&self`) not a `PipelineExecutor` method; `PipelineExecutor::` prefix does not exist in the repo. Site 1 (line 235, §D2 first mention): changed to `build_request() (module-level free function in \`crates/prism-spec-engine/src/pipeline.rs\`)`. Sites 2–4 (lines 377/§D2, 616/§Consequences, 696/§Source-Origin): bare `build_request()`. Coordinator count was ×2 §D2 + ×1 §Source/Origin = 3; actual count was 4 (§Consequences line 616 additional site). All 4 corrected. POL-29: zero `PipelineExecutor::build_request` remain in live text. |
