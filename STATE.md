@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.470"
+version: "8.471"
 producer: state-manager
 timestamp: 2026-07-21T23:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ bc_index_version: "8.35"
 # NOTE: D-1841 — BC-INDEX stays v8.35 (BC-3.6.001 POL-14 legacy-sync BLOCKED by pre-existing TD-031 violations in BC body; product-owner fix-burst owed; lifecycle_status already active — no count impact; DRIFT-ADMINTOKEN-BC361-TD031-001 registered). D-1799 NOTE: v8.34→v8.35 archived.
 vp_index_version: "1.81"
 story_index_version: "v2.719"
-arch_index_version: "2.224"
+arch_index_version: "2.225"
 error_taxonomy_version: "2.56"
 # NOTE: D-1847 — v2.55→v2.56: F-AUD-R1-DEFER-001 CLOSED same-session — PO +6 E-SENSOR rows (E-SENSOR-030 AllTargetsFailed / 031 ConnectionPoolExhausted / 032 RetryBudgetExhausted / 040 UnparseableTimestamp / 050 ConfigValidation / 070 WriteNotImplemented); POL-29 sweep clean; WASM fuel-ceiling hook bypass HUMAN-authorized (scoped). D-1817 NOTE (v2.54→v2.55) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1922 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1922 adversary re-gate pass 24 fix-burst (Wave-A re-gate cascade). Pass 24 NOT CLEAN — LOW-1 (VP-159 authoring-source tool value unit_test → integration_test with rationale, per VP-033/VP-036 pattern + VP-INDEX canonical vocabulary), OBS-2 (D10(a) firing condition parenthesized to A AND (B OR C)). OBS-1 (ADR-053 related_bcs omission adjudicated correct-by-design, no edit). Fix-burst applied: ADR-054 v0.20. Generalization probe PASS (21st consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.223→v2.224. trajectory-tail →0→1→2→1 STATE v8.469→v8.470"
+current_step: "D-1923 (2026-07-21): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — D-1923 adversary re-gate pass 25 fix-burst (Wave-A re-gate cascade). Pass 25 NOT CLEAN — HIGH-1 (Consequences bullet 'update boot.rs dispatch' → 'rewrite step9a_populate_adapter_registry dispatch (spec_driven_adapter.rs)' — v0.2-class construction-site mis-anchor sole surviving instance per POL-29 sweep), LOW-1 (amends_dis [DI-012] frontmatter + D11 DI-012 row bidirectional back-ref direction; adjudicated), OBS-1 (v0.20 changelog vocabulary-claim corrected forward; tool decision stands on VP-033/VP-036 analogy). Fix-burst applied: ADR-054 v0.21. Generalization probe PASS (22nd consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.224→v2.225. trajectory-tail →0→1→2→1 STATE v8.470→v8.471"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 448 lines (wc-l)
+  STATE.md SIZE BUDGET: 449 lines (wc-l)
   margin from soft-target (200): +247 lines over | margin from actual (500): 53 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-21 D-1922 — pass 24 fix-burst: LOW-1 VP-159 tool value unit_test→integration_test; OBS-2 D10(a) parenthesized; OBS-1 ADR-053 related_bcs correct-by-design. ADR-054 v0.20. Generalization probe PASS (21st). ARCH-INDEX v2.223→v2.224. STATE v8.469→v8.470. trajectory-tail →0→1→2→1 |
+| **Last Updated** | 2026-07-21 D-1923 — pass 25 fix-burst: HIGH-1 Consequences boot.rs→step9a_populate_adapter_registry construction-site; LOW-1 amends_dis DI-012 bidirectional; OBS-1 v0.20 changelog corrected. ADR-054 v0.21. Generalization probe PASS (22nd). ARCH-INDEX v2.224→v2.225. STATE v8.470→v8.471. trajectory-tail →0→1→2→1 |
 
 ## Active Objective (North Star)
 
@@ -335,6 +335,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1920 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 22 on frozen HEAD 0333bd62: NOT CLEAN — MED-1 (sole live {ORG} in ADR-028 §D13 env-var blockquote misstating ADR-032 canonical {ID}); LOW-1 (ADR-054 D11 census note — ADR-023 §Rule A covered-by-annotation-only by design, restating site; ADR-026 §D3 is defining site with formal row; orchestrator-adjudicated intentional, rationale recorded in census). STREAK 0/3. Fix-burst applied: ADR-028 v1.24 ({ORG}→{ID} in §D13 env-var blockquote; POL-29 census: zero live {ORG}/{ORG_ID} in decisions/ outside changelogs — class CLOSED) + ADR-054 v0.18 (LOW-1 adjudication recorded). Generalization probe PASS (19th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.221→v2.222. STATE v8.467→v8.468. trajectory-tail →2→0→1→2 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1921 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 23 on frozen HEAD 8696bce6: NOT CLEAN(strict), CLEAN(PR-merge) — single non-blocking OBS (D11 census note in ADR-054 cited "ADR-023 §Rule A" three times using bare §Rule-A label; normalized to canonical "ADR-023 Rule 2 (Rule A)" form per POL-29; zero bare citations remain in live text of either primary). STREAK 0/3. Fix-burst applied: ADR-054 v0.19 (three §Rule A labels in D11 census note → "Rule 2 (Rule A)"; POL-29 sweep: zero bare citations remain). Generalization probe PASS (20th consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.222→v2.223. STATE v8.468→v8.469. trajectory-tail →0→1→2→1 | wave-5-e-demo-fidelity | 2026-07-21 |
 | D-1922 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 24 on frozen HEAD adb4f28c: NOT CLEAN — LOW-1 (VP-159 authoring-source tool value cited as unit_test; corrected to integration_test with rationale — deterministic boundary assertions per VP-033/VP-036 pattern, per VP-INDEX canonical vocabulary); OBS-2 (D10(a) firing condition parenthesized to A AND (B OR C) for explicit boolean precedence; D10(b)-(h) precedence class sweep clean); OBS-1 (ADR-053 related_bcs omission adjudicated correct-by-design, no edit). STREAK 0/3. Fix-burst applied: ADR-054 v0.20 (VP-159 tool value unit_test→integration_test + rationale; D10(a) parenthesization). Generalization probe PASS (21st consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.223→v2.224. STATE v8.469→v8.470. trajectory-tail →0→1→2→1 | wave-5-e-demo-fidelity | 2026-07-21 |
+| D-1923 | state-manager | 2026-07-21 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Adversary re-gate pass 25 on frozen HEAD 79e5f393: NOT CLEAN — HIGH-1 (Consequences bullet "update boot.rs dispatch" mis-anchored to retired construction site; corrected to "rewrite step9a_populate_adapter_registry dispatch (spec_driven_adapter.rs)" — v0.2-class residue surviving 24 passes in checklist prose; sole surviving instance per file-wide POL-29 sweep); LOW-1 (amends_dis ["DI-012"] frontmatter field added + D11 DI-012 row back-ref direction amended to bidirectional sibling-convention symmetry; adjudicated correct fix); OBS-1 (v0.20 changelog vocabulary-claim inaccuracy corrected forward — authoring-source correction rationale text; tool decision stands on VP-033/VP-036 analogy). STREAK 0/3. Fix-burst applied: ADR-054 v0.21. Generalization probe PASS (22nd consecutive). Streak 0/3; next fresh adversary passes on new frozen HEAD targeting 3 consecutive CLEAN(strict). ARCH-INDEX v2.224→v2.225. STATE v8.470→v8.471. trajectory-tail →0→1→2→1 | wave-5-e-demo-fidelity | 2026-07-21 |
 
 ## Skip Log
 
