@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.85"
+version: "1.86"
 status: draft
 producer: state-manager
 timestamp: 2026-06-12T00:00:00Z
@@ -270,6 +270,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.86 | wave-a-spec-evolution-fix-burst-5 | 2026-07-22 | state-manager | VP-159 v1.2→v1.3 (F-WASE-P5-MED-001: input-hash trail reconciliation — generic at-commit-time wording replaces explicit hash citations in v1.3 changelog row to prevent future frontmatter-vs-row contradictions; LESSON: changelog rows must use generic wording for current-burst hash changes; F-WASE-P5-LOW-001: §Proof Harness Skeleton constructor fixes — 10 MockCredentialResolver::default()/with_secret() sites rewritten to as-built ::new(...) constructor). VP-INDEX v1.85→v1.86. |
 | 1.85 | D-1953 | 2026-07-22 | state-manager | VP-159 v1.1→v1.2 (F-WASE-P4-OBS-001: 5 new TTL-arithmetic skeleton fns for AC-6/AC-7 incl. malformed-RFC-3339 + default-1799 branches; OBS-003: §Source Contract authoring-source vs verified-set disambiguation); VP-153 v0.21→v0.22 (F-WASE-P4-OBS-002: §Re-verification Gate — engine story must re-run all 8 proptests with token_exchange arms activated, merge-blocking). VP-INDEX v1.84→v1.85. |
 | 1.84 | D-1947/D-1948 Wave-A fix-burst 1 | 2026-07-22 | architect | F-WASE-P1-MED-001: v1.83 Burst cell corrected D-1946→D-1947; §Note and §Count-basis burst references updated D-1946→D-1947 (VP-159 and VP-INDEX registration is burst 2, D-1947; BC-2.16.014 authoring is burst 1, D-1946). |
 | 1.83 | D-1947 | 2026-07-22 | architect | VP-159 added (integration_test, P1, prism-spec-engine, BC-2.16.014, source_invariant DI-012 — DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry; folds DRIFT-D849-002). Summary: Integration test 28→29 (P1 4→5), Total 158→159 (P1 36→37). Active basis: 145→146 VPs, active P1 36→37. POL-9 same-burst: verification-architecture.md v1.44→v1.45, verification-coverage-matrix.md v1.45→v1.46. VP-INDEX v1.82→v1.83. |

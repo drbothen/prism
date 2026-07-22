@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -9,7 +9,7 @@ phase: wave-a
 inputs:
   - .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
   - .factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md
-input-hash: "f761188"
+input-hash: "c654d8d"
 traces_to: .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
 source_bc: BC-2.16.014
 source_adr: ADR-054
@@ -248,7 +248,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //     #[tokio::test]
 //     async fn test_vp159_ac1_zero_network_at_construction() {
 //         let mock_http = MockHttpClient::new();   // [PLANNED]
-//         let creds = MockCredentialResolver::default();
+//         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
 //         let _provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config,
@@ -263,7 +263,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //     #[tokio::test]
 //     async fn test_vp159_ac2_cold_cache_one_post() {
 //         let mock_http = MockHttpClient::with_response("bearer_token_abc", 3600); // [PLANNED]
-//         let creds = MockCredentialResolver::with_secret("client_secret_xyz");
+//         let creds = MockCredentialResolver::new("client_secret_xyz");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
@@ -278,7 +278,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //     #[tokio::test]
 //     async fn test_vp159_ac3_warm_cache_zero_post() {
 //         let mock_http = MockHttpClient::with_response("bearer_token_abc", 3600); // [PLANNED]
-//         let creds = MockCredentialResolver::default();
+//         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
@@ -295,7 +295,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //     async fn test_vp159_ac4_stale_cache_one_post() {
 //         // [PLANNED] MockHttpClient supports mock_clock::advance() to simulate TTL expiry
 //         let mock_http = MockHttpClient::with_response("bearer_token_abc", 60); // [PLANNED] 60s TTL
-//         let creds = MockCredentialResolver::default();
+//         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 0 }); // [PLANNED]
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
@@ -312,7 +312,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //     #[tokio::test]
 //     async fn test_vp159_ac5_acquire_token_cache_bypass() {
 //         let mock_http = MockHttpClient::with_response("acquired_token", 3600); // [PLANNED]
-//         let creds = MockCredentialResolver::default();
+//         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
@@ -348,7 +348,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             expiry_utc,
 //             // Response shape: {"success":true,"data":{"access_token":"arm-tok","expiration_utc":"<expiry_utc>"}}
 //         );
-//         let creds = MockCredentialResolver::with_secret("long_lived_secret");
+//         let creds = MockCredentialResolver::new("long_lived_secret");
 //         let config = AuthAcquisitionConfig {  // [PLANNED]
 //             token_path: "/api/v1/access_token/".to_string(),
 //             credential_body_field: "secret_key".to_string(),
@@ -389,7 +389,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             "arm-tok",
 //             "not-a-date",  // malformed RFC-3339 value — parse must fail
 //         );
-//         let creds = MockCredentialResolver::with_secret("long_lived_secret");
+//         let creds = MockCredentialResolver::new("long_lived_secret");
 //         let config = AuthAcquisitionConfig {  // [PLANNED]
 //             token_path: "/api/v1/access_token/".to_string(),
 //             credential_body_field: "secret_key".to_string(),
@@ -420,7 +420,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let ttl_buffer_secs: u64 = 30;
 //         // expires_at ≈ unix_now() + 3600.saturating_sub(30) = unix_now() + 3570
 //         let mock_http = MockHttpClient::with_response("bearer_tok_rel", expires_in);  // [PLANNED]
-//         let creds = MockCredentialResolver::default();
+//         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs });  // [PLANNED]
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
@@ -446,7 +446,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //     async fn test_vp159_ac7b_absent_expires_in_defaults_to_1799() {
 //         let ttl_buffer_secs: u64 = 30;
 //         let mock_http = MockHttpClient::with_absent_expires_in("tok-noexp");  // [PLANNED — engine story]
-//         let creds = MockCredentialResolver::default();
+//         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs });  // [PLANNED]
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
@@ -473,7 +473,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //     async fn test_vp159_ac7c_zero_expires_in_defaults_to_1799() {
 //         let ttl_buffer_secs: u64 = 30;
 //         let mock_http = MockHttpClient::with_response("tok-zeroexp", 0u64);  // [PLANNED] expires_in: 0
-//         let creds = MockCredentialResolver::default();
+//         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs });  // [PLANNED]
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
@@ -534,6 +534,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.3 | Wave-A fix-burst 5 | 2026-07-22 | architect | F-WASE-P5-MED-001: input-hash trail reconciliation — v1.2 changelog row recorded `3af7dc1` as the post-v1.2 input-hash; frontmatter `f761188` is the authoritative current value (recomputed at D-1953 burst immediately after v1.2 was authored, when ADR-054 v0.37 was edited in that same burst; the 3af7dc1→f761188 transition was not captured in the v1.2 row — v1.2 row left immutable per changelog policy). F-WASE-P5-LOW-001: §Proof Harness Skeleton constructor fixes — `MockCredentialResolver::default()` (7 confirmed sites: AC-1, AC-3, AC-4, AC-5, AC-7a, AC-7b, AC-7c; finding cited 8 — 1 discrepancy, all located sites fixed) rewritten to `MockCredentialResolver::new("test-credential")`; `MockCredentialResolver::with_secret("client_secret_xyz")` (AC-2) and `MockCredentialResolver::with_secret("long_lived_secret")` (AC-6, AC-6b) rewritten to `MockCredentialResolver::new("...")` with identical argument value. All 10 sites resolved using the existing `pub fn new(value: impl Into<String>) -> Self` constructor — no new `MockCredentialResolver` extension required. input-hash trail: f761188 (D-1953 committed) → recomputed to current frontmatter value at commit time (hook-detected drift — ADR-054 or BC-2.16.014 changed since D-1953; updated via `compute-input-hash --update`; see frontmatter for settled value). |
 | 1.2 | Wave-A fix-burst 4 | 2026-07-22 | architect | F-WASE-P4-OBS-001: §Proof Harness Skeleton — added skeleton test functions for AC-6 (P4-TTL-a `absolute_utc_string` expiry arithmetic, including AC-6b malformed-RFC-3339 → `AuthAcquisitionFailed` per EC-016-014-003) and AC-7 (P4-TTL-b `relative_seconds` expiry arithmetic, including AC-7b absent `expires_in` → default 1799 per EC-016-014-001 and AC-7c zero `expires_in` → default 1799 per EC-016-014-002). All new symbols marked `[PLANNED — engine story]` per POL-31. F-WASE-P4-OBS-003: §Source Contract P1–P8 authoring-source sentence disambiguated — "P1–P8 are the primary **authoring source**" now explicitly followed by "the verified set is P1–P5, P7 (plus P4-TTL-a/b sub-properties) — see §Property Statement scope note for P6/P8 coverage"; eliminates the false-verified-set reading. input-hash updated to `3af7dc1` (inputs unchanged; hash recomputed after prior edit). |
 | 1.1 | D-1947/D-1948 Wave-A fix-burst 1 | 2026-07-22 | architect | F-WASE-P1-MED-001: burst attribution corrected D-1946→D-1947 in Lifecycle table and v1.0 Burst cell (VP-159/VP-INDEX authoring is burst 2, D-1947; BC-2.16.014 authoring is burst 1, D-1946). F-WASE-P1-LOW-002: §Property Statement preamble narrowed from P1–P8 to P1–P5, P7 (P4-TTL-a/b sub-properties); scope note added after P7 for P6 (inherent in acquire_token() contract per AuthProvider trait, verified via AC-5 + error-path assertions in engine implementation story) and P8 (spec-load validation property per BC-2.16.009 Rule 6 / E-SPEC-024, deferred to spec-engine validation story — not a runtime lifecycle invariant of DeclarativeHttpAuthProvider). F-WASE-P1-OBS-002 closure: new_unchecked_audit.rs allowlist-entry note added to AC-5 harness skeleton for OrgSlug::new_unchecked per CLAUDE.md credential-safety convention. |
 | 1.0 | D-1947 Wave-A spec-evolution burst 2 | 2026-07-22 | architect | Initial authoring. Authoring source: ADR-054 §D9. BC-2.16.014 P1–P8 all covered (P6 — double-401 → AuthRefreshFailed (E-AUTH-002) — is inherent in acquire_token() contract per AuthProvider trait; verified via AC-5 + error-path assertions in the implementation story). DRIFT-D849-002 folded: StaticCookieAuthProvider zero-HTTP is structural (no reqwest::Client field, confirmed in codebase), covered by BC-2.01.017 §P1 (INV-COOKIE-001); VP-159 covers the equivalent invariant for DeclarativeHttpAuthProvider [PLANNED]. All DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode / MockHttpClient symbols marked [PLANNED — engine story] per POL-31 (crates/prism-spec-engine/src/auth/ directory does not exist at authoring time). Existing verified symbols: AuthProvider trait, CredentialResolver trait, MockCredentialResolver, SpecEngineError::AuthAcquisitionFailed (E-AUTH-001), SpecEngineError::AuthRefreshFailed (E-AUTH-002). source_invariant: DI-012 (workspace canonical, domain-spec/invariants.md); INV-014-003 (BC-local credential-opacity invariant) cited in §Source Contract body prose only per VP-INDEX source_invariant schema convention. |
