@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: proposed
 date: "2026-07-20"
 modified: "2026-07-22"
-version: "0.22"
+version: "0.23"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -705,6 +705,7 @@ Armis D-747, Cyberint D-747) are still the operative constraints until this ADR 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.23 | 2026-07-22 | state-manager | LOW-1 (pass 40): v0.22 changelog row description corrected — its 'before' string erroneously repeated the qualified 'after' form; actual v0.22 change added the '→ Query-Time Resolution (`resolve_credential`)' qualifier to the previously-unqualified '§Canonical Test Vectors all 9 armis \| bearer_token rows' anchor (×2). Normative D5 content was and is correct. |
 | 0.22 | 2026-07-22 | architect | FIX-BURST 27 (LOW-1): D5 BC-2.06.003 row §(3) — both occurrences of "§Canonical Test Vectors → Query-Time Resolution (`resolve_credential`) all 9 armis \| bearer_token rows" qualified to "§Canonical Test Vectors → Query-Time Resolution (`resolve_credential`) all 9 armis \| bearer_token rows" to disambiguate from the 5-row Boot-Step-5 Probe subsection within §Canonical Test Vectors (BC-2.06.003 has 14 total armis \| bearer_token rows: 9 in `### Query-Time Resolution (\`resolve_credential\`)` + 5 in `### Boot-Step-5 Probe (\`KeyringCredentialProbe::probe\`)` — the unqualified "all 9 armis" claim was under-qualified). |
 | 0.21 | 2026-07-21 | architect | FIX-BURST 25 (MED-1, MED-2, OBS-1): D5 BC-2.06.003 row §(3) — "§Boot-Step-5 Probe (`KeyringCredentialProbe`)" qualified as "§Canonical Test Vectors → Boot-Step-5 Probe (`KeyringCredentialProbe::probe`)" at both occurrences (MED-1 heading-collision fix); "Tier 1–5 rows" replaced with "all 9 armis \| bearer_token rows" at all occurrences and "full Tier 1–5 + probe" replaced with "full 9-row §Canonical Test Vectors + probe" (MED-2 tier-count accuracy); D5 ADR-032 row description extended with rationale electing related_adrs + D5 manifest tracking over amends:/amended_by: pair (OBS-1). |
 | 0.20 | 2026-07-21 | architect | FIX-BURST 23 (LOW-1, adjudicated option i): D5 BC-2.06.003 row extended — §Canonical Test Vectors (Tier 1–5) + §Boot-Step-5 Probe (TV-BOOT-P-001..005) re-point `armis \| bearer_token` rows to `claroty \| bearer_token`; once D2 lands armis no longer declares `bearer_token` credential_ref (renamed to `secret_key`), creating intra-BC inconsistency; claroty is permanently `bearer_static/bearer_token` (no Wave-A reclassification); TVs demonstrate env-var derivation mechanics — sensor identity is illustrative; option (i) chosen over (ii) armis/secret_key or (iii) annotate-only: permanently stable, no Wave-B re-work risk, full Tier 1–5 + probe coverage preserved. Pipes in TV cell escaped `\|` (table-cell-count guard). Behavioral anchors extended with §Canonical Test Vectors tier-row sensor column + §Boot-Step-5 Probe TV-BOOT-P-001..005 sensor column. |
