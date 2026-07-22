@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.83"
+version: "1.84"
 status: draft
 producer: state-manager
 timestamp: 2026-06-12T00:00:00Z
@@ -217,9 +217,9 @@ F-PASS3-HIGH-001. The numeric VP-146..VP-152 entries above are the sequential in
 | Integration test | 29 | 24 | 5 |
 | **Total** | **159** | **122** | **37** |
 
-> Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. VP-019-I is a BC-2.06.019 named alias for VP-158; it does not add to the sequential count. Total sequential VPs is 159 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15; VP-156 added in prereq-e-fix-burst-1 2026-05-15; VP-157 added D-1099 2026-06-11; VP-158 added 2026-06-12 BC-2.06.019 E-DEMO-006 guard; VP-159 added D-1946 2026-07-22 BC-2.16.014 DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry).
+> Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. VP-019-I is a BC-2.06.019 named alias for VP-158; it does not add to the sequential count. Total sequential VPs is 159 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15; VP-156 added in prereq-e-fix-burst-1 2026-05-15; VP-157 added D-1099 2026-06-11; VP-158 added 2026-06-12 BC-2.06.019 E-DEMO-006 guard; VP-159 added D-1947 2026-07-22 BC-2.16.014 DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry).
 
-> **Count basis (POL-1 append-only):** The table above counts REGISTERED rows — retired VPs are never deleted. Of the 159 rows, 13 are retired per ADR-037 (2026-06-10): VP-095..VP-098 (unit_test, P0), VP-099..VP-106 (proptest, P0), VP-107 (integration_test, P0). **Active basis: 146 VPs; active P0 = 109** (Kani 23, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 37 (VP-157 unit_test P1 added D-1099; VP-158 unit_test P1 added 2026-06-12; VP-159 integration_test P1 added D-1946 2026-07-22). Retired VPs are excluded from the release verification gate. Per-VP disposition: see §ADR-037 Retirement below.
+> **Count basis (POL-1 append-only):** The table above counts REGISTERED rows — retired VPs are never deleted. Of the 159 rows, 13 are retired per ADR-037 (2026-06-10): VP-095..VP-098 (unit_test, P0), VP-099..VP-106 (proptest, P0), VP-107 (integration_test, P0). **Active basis: 146 VPs; active P0 = 109** (Kani 23, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 37 (VP-157 unit_test P1 added D-1099; VP-158 unit_test P1 added 2026-06-12; VP-159 integration_test P1 added D-1947 2026-07-22). Retired VPs are excluded from the release verification gate. Per-VP disposition: see §ADR-037 Retirement below.
 
 ### ADR-037 Retirement (2026-06-10) — BC-3.3.001..004 VPs
 
@@ -270,7 +270,8 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.83 | D-1946 | 2026-07-22 | architect | VP-159 added (integration_test, P1, prism-spec-engine, BC-2.16.014, source_invariant DI-012 — DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry; folds DRIFT-D849-002). Summary: Integration test 28→29 (P1 4→5), Total 158→159 (P1 36→37). Active basis: 145→146 VPs, active P1 36→37. POL-9 same-burst: verification-architecture.md v1.44→v1.45, verification-coverage-matrix.md v1.45→v1.46. VP-INDEX v1.82→v1.83. |
+| 1.84 | D-1947/D-1948 Wave-A fix-burst 1 | 2026-07-22 | architect | F-WASE-P1-MED-001: v1.83 Burst cell corrected D-1946→D-1947; §Note and §Count-basis burst references updated D-1946→D-1947 (VP-159 and VP-INDEX registration is burst 2, D-1947; BC-2.16.014 authoring is burst 1, D-1946). |
+| 1.83 | D-1947 | 2026-07-22 | architect | VP-159 added (integration_test, P1, prism-spec-engine, BC-2.16.014, source_invariant DI-012 — DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry; folds DRIFT-D849-002). Summary: Integration test 28→29 (P1 4→5), Total 158→159 (P1 36→37). Active basis: 145→146 VPs, active P1 36→37. POL-9 same-burst: verification-architecture.md v1.44→v1.45, verification-coverage-matrix.md v1.45→v1.46. VP-INDEX v1.82→v1.83. |
 | 1.82 | D-1926 | 2026-07-21 | state-manager | VP-153 v0.19→v0.20 (D-1926 adversary pass-30 MED root fix: §Proof Harness Skeleton reconciled from divergent typed-enum pseudocode to AS-BUILT two-file design — vp153_sensorauth_cross_composition.rs Rules A+B constructs + vp153_rule_c_shaped_probe.rs Rule C constructs, all verified in source; phantom-helper references removed from live text; POL-31 closure). VP-INDEX v1.81→v1.82. |
 | 1.81 | D-1915 | 2026-07-21 | state-manager | VP-153 v0.18→v0.19 (D-1915 adversary pass-15 OBS-1 bookkeeping fix): §Changelog rows v0.16 (FB75) and v0.15 (FB71) were out of monotonic order; changelog converted to newest-first (descending) convention per validate-changelog-monotonicity hook. No property semantics changed. VP-INDEX v1.80→v1.81. |
 | 1.80 | demo-readiness-2026-06-24 | 2026-06-24 | state-manager | POL-9 back-link propagation for D-1317 demo-readiness contract layer: VP-014 v1.6→v1.7 (BC-2.11.020 "Also cited by" added — SqlPipe FORBID-BOTH composed queries subject to same 64KB size limit); VP-021 v1.4→v1.5 (BC-2.11.020, BC-2.11.021, BC-2.11.022, BC-2.11.023 "Also cited by" added — new parse entry points + mode-bridge paths must not panic). No new VP IDs allocated. No property semantics changed. VP-INDEX v1.79→v1.80. |

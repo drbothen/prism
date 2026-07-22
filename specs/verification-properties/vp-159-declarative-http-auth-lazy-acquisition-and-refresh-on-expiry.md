@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -9,7 +9,7 @@ phase: wave-a
 inputs:
   - .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
   - .factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md
-input-hash: "e6e76de"
+input-hash: "a62cdb1"
 traces_to: .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
 source_bc: BC-2.16.014
 source_adr: ADR-054
@@ -42,7 +42,7 @@ removal_reason: null
 `DeclarativeHttpAuthProvider` [PLANNED — engine story:
 `crates/prism-spec-engine/src/auth/declarative.rs`], implementing the `AuthProvider` trait
 (confirmed in `crates/prism-spec-engine/src/auth_provider.rs`), MUST satisfy the following
-network-isolation and cache-lifecycle invariants (ADR-054 §D9; BC-2.16.014 P1–P8):
+network-isolation and cache-lifecycle invariants (ADR-054 §D9; BC-2.16.014 P1–P5, P7; TTL sub-properties P4-TTL-a/b):
 
 **Network-isolation invariants:**
 
@@ -87,6 +87,14 @@ network-isolation and cache-lifecycle invariants (ADR-054 §D9; BC-2.16.014 P1�
    (confirmed in `crates/prism-spec-engine/src/auth_provider.rs`) are NEVER stored in
    `CachedAuthToken` fields. Violating this invariant leaks credentials to process memory and
    log drains (AD-017).
+
+> **Scope note — P6 and P8:** P6 (double-401 → `AuthRefreshFailed`, E-AUTH-002) is inherent in the
+> `acquire_token()` contract per the confirmed `AuthProvider` trait and is verified via AC-5 +
+> error-path assertions in the engine implementation story (not directly asserted by VP-159's
+> mock-HTTP harness). P8 (`base_url` env-var interpolation obeys BC-2.16.009 Rule 6 / E-SPEC-024;
+> `token_path` is a literal relative path and does not undergo env-var interpolation) is a spec-load
+> validation property, not a runtime lifecycle invariant of `DeclarativeHttpAuthProvider`; deferred
+> to the spec-engine validation story's error-path assertions.
 
 ---
 
@@ -200,7 +208,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 // Method: integration_test (MockHttpClient for network isolation)
 // Target module: prism-spec-engine
 // Target path: crates/prism-spec-engine/src/auth/declarative.rs [PLANNED — engine story]
-// BC: BC-2.16.014 (P1–P8); ADR: ADR-054 §D9; source_invariant: DI-012
+// BC: BC-2.16.014 (P1–P5, P7; P4-TTL-a/b sub-properties; P6/P8 deferred — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
 //
 // ALL DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode /
 // MockHttpClient symbols below are [PLANNED — engine story].
@@ -312,6 +320,10 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         // acquire_token() is the AuthProvider::acquire_token() method (confirmed symbol)
 //         // Called with test SensorSpec and OrgSlug [PLANNED test helpers]
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
+//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
+//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
+//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
+//         // credential-safety convention before the PR can merge.
 //         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
 //         let _token = provider.acquire_token(&sensor_spec, &org_slug).await
 //             .expect("VP-159 AC-5: acquire_token must succeed even on warm cache");
@@ -353,10 +365,11 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Event | Date | Actor |
 |-------|------|-------|
-| introduced | 2026-07-22 | architect (D-1946 Wave-A spec-evolution burst 2) |
+| introduced | 2026-07-22 | architect (D-1947 Wave-A spec-evolution burst 2) |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
-| 1.0 | D-1946 Wave-A spec-evolution burst 2 | 2026-07-22 | architect | Initial authoring. Authoring source: ADR-054 §D9. BC-2.16.014 P1–P8 all covered (P6 — double-401 → AuthRefreshFailed (E-AUTH-002) — is inherent in acquire_token() contract per AuthProvider trait; verified via AC-5 + error-path assertions in the implementation story). DRIFT-D849-002 folded: StaticCookieAuthProvider zero-HTTP is structural (no reqwest::Client field, confirmed in codebase), covered by BC-2.01.017 §P1 (INV-COOKIE-001); VP-159 covers the equivalent invariant for DeclarativeHttpAuthProvider [PLANNED]. All DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode / MockHttpClient symbols marked [PLANNED — engine story] per POL-31 (crates/prism-spec-engine/src/auth/ directory does not exist at authoring time). Existing verified symbols: AuthProvider trait, CredentialResolver trait, MockCredentialResolver, SpecEngineError::AuthAcquisitionFailed (E-AUTH-001), SpecEngineError::AuthRefreshFailed (E-AUTH-002). source_invariant: DI-012 (workspace canonical, domain-spec/invariants.md); INV-014-003 (BC-local credential-opacity invariant) cited in §Source Contract body prose only per VP-INDEX source_invariant schema convention. |
+| 1.1 | D-1947/D-1948 Wave-A fix-burst 1 | 2026-07-22 | architect | F-WASE-P1-MED-001: burst attribution corrected D-1946→D-1947 in Lifecycle table and v1.0 Burst cell (VP-159/VP-INDEX authoring is burst 2, D-1947; BC-2.16.014 authoring is burst 1, D-1946). F-WASE-P1-LOW-002: §Property Statement preamble narrowed from P1–P8 to P1–P5, P7 (P4-TTL-a/b sub-properties); scope note added after P7 for P6 (inherent in acquire_token() contract per AuthProvider trait, verified via AC-5 + error-path assertions in engine implementation story) and P8 (spec-load validation property per BC-2.16.009 Rule 6 / E-SPEC-024, deferred to spec-engine validation story — not a runtime lifecycle invariant of DeclarativeHttpAuthProvider). F-WASE-P1-OBS-002 closure: new_unchecked_audit.rs allowlist-entry note added to AC-5 harness skeleton for OrgSlug::new_unchecked per CLAUDE.md credential-safety convention. |
+| 1.0 | D-1947 Wave-A spec-evolution burst 2 | 2026-07-22 | architect | Initial authoring. Authoring source: ADR-054 §D9. BC-2.16.014 P1–P8 all covered (P6 — double-401 → AuthRefreshFailed (E-AUTH-002) — is inherent in acquire_token() contract per AuthProvider trait; verified via AC-5 + error-path assertions in the implementation story). DRIFT-D849-002 folded: StaticCookieAuthProvider zero-HTTP is structural (no reqwest::Client field, confirmed in codebase), covered by BC-2.01.017 §P1 (INV-COOKIE-001); VP-159 covers the equivalent invariant for DeclarativeHttpAuthProvider [PLANNED]. All DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode / MockHttpClient symbols marked [PLANNED — engine story] per POL-31 (crates/prism-spec-engine/src/auth/ directory does not exist at authoring time). Existing verified symbols: AuthProvider trait, CredentialResolver trait, MockCredentialResolver, SpecEngineError::AuthAcquisitionFailed (E-AUTH-001), SpecEngineError::AuthRefreshFailed (E-AUTH-002). source_invariant: DI-012 (workspace canonical, domain-spec/invariants.md); INV-014-003 (BC-local credential-opacity invariant) cited in §Source Contract body prose only per VP-INDEX source_invariant schema convention. |

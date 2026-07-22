@@ -6,7 +6,7 @@ wave: null
 epic_id: E-DTU
 priority: P2
 status: retired
-version: "v1.0"
+version: "v1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
@@ -22,7 +22,8 @@ verification_properties: []
 depends_on: []
 blocks: []
 points: 0
-crates_touched: [prism-dtu-crowdstrike, prism-sensors]
+crates_touched: []
+# Pre-retirement intended crates: prism-dtu-crowdstrike, prism-sensors (never materialized; retired before dispatch per D-1889)
 estimated_days: 0
 inputs:
   - planning/findings-remediation-2026-07-20/triage-capture.md
@@ -164,4 +165,5 @@ N/A — Story retired before materialization. No files will be created or modifi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| v1.1 | F-WASE-P1-OBS-001 | 2026-07-22 | story-writer | Fix crates_touched: retired-before-materialization stories touch no crates — zeroed per adversary pass-1 F-WASE-P1-OBS-001 orchestrator adjudication (POL-32). Pre-retirement intended crates noted in frontmatter comment. |
 | v1.0 | D-1889-retirement | 2026-07-22 | story-writer | Initial file creation as retirement stub. Story was previously STORY-INDEX-only (registered 2026-06-12 D-1103; `file: not-yet-authored`; PRODUCT-DECISION-PENDING). Retired per triage-capture.md §Wrong-Direction Stories + D-1889 human adjudication (incidents=retire+derive). CrowdStrike Incidents API removed ~2026-03. DTU-EXT-001 RETIRED separately in BC-2.16.013. Superseded by S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: draft
 introduced: "2026-07-22"
-modified: null
+modified: "2026-07-22"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -25,7 +25,7 @@ inputs:
   - ".factory/specs/domain-spec/invariants.md"
   - "crates/prism-spec-engine/src/auth_provider.rs"
   - "crates/prism-spec-engine/src/error.rs"
-input-hash: "bc9f412"
+input-hash: "5bd2181"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -61,7 +61,7 @@ specification for the `DeclarativeHttpAuthProvider` implementation story in Wave
 2. An `[auth_acquisition]` block is present in the sensor spec and has passed `E-SPEC-028`
    validation (BC-2.16.009 Rule 10) at spec-load time. Boot has succeeded past Rule 10.
 
-3. For `auth_type = "token_exchange"`: `[auth_acquisition]` declares all four required fields:
+3. For `auth_type = "token_exchange"`: `[auth_acquisition]` declares all five required fields:
    `token_path`, `credential_body_field`, `token_response_path`, `expiry_field`, and
    `expiry_mode` (value is one of `"absolute_utc_string"` or `"relative_seconds"`).
 
@@ -407,5 +407,6 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.1 | wave-a-spec-evolution-burst-3-correction | 2026-07-22 | product-owner | ADR-054 v0.33 D10(c) adjudication applied: §Description VP-159 reference updated from "(planned, see ADR-054 §D9)" to "(authored v1.0, D-1947; registered in VP-INDEX v1.83)"; §Verification Properties VP-159 row updated to present tense — removed "(PLANNED — see ADR-054 §D9)" label and "VP-159 will be registered in VP-INDEX by the architect after implementation begins per ADR-054 §D9" future-tense sentence, replaced with "Authored v1.0 (vp-159-declarative-http-auth-lazy-acquisition-and-refresh-on-expiry.md); registered in VP-INDEX v1.83 per D-1947"; §VP Anchors updated to present tense referencing the authored VP file and VP-INDEX registration. D-1947 authorship event. input-hash 827ac61→bc9f412. |
-| 1.0 | D-1943 Wave-A spec-evolution BC authoring | 2026-07-22 | product-owner | Initial draft — BC anchor for `DeclarativeHttpAuthProvider` token lifecycle. Postconditions P1–P8 authored from ADR-054 §D8 (authoritative source). Preconditions from ADR-054 §D3/D4/D7/D8. Invariants INV-014-001..008 (POL-36 generalization constraint, per-org token URL derivation, AD-017 credential safety, ArcSwap atomicity, DI-012 compliance, ADR-050 reqwest compliance, E-SPEC-028 spec-load gate). Edge cases EC-016-014-001..015. Error conditions referencing E-SPEC-028(a)–(h), E-AUTH-001/002/005, E-SPEC-024. Canonical test vectors TV-1..10. VP-159 planned per ADR-054 §D9 (not authored here — architect scope). ADR-054 D11 amendment manifest items NOT executed here — separate burst. BC-INDEX registration NOT performed here — separate burst. |
+| 1.2 | wave-a-fix-burst-1 | 2026-07-22 | product-owner | F-WASE-P1-LOW-003: §Preconditions item 3 count corrected "four" → "five" (the item lists five fields: `token_path`, `credential_body_field`, `token_response_path`, `expiry_field`, `expiry_mode`). F-WASE-P1-MED-001: §Changelog v1.0 burst corrected from "D-1943 Wave-A spec-evolution BC authoring" → "D-1946 Wave-A spec-evolution BC authoring" (D-1943 was the ADR acceptance decision, not the BC authoring decision); §Changelog v1.1 Change description "D-1947 authorship event" corrected to "D-1948 authorship event" (D-1947 was VP-159 registration, not the v1.1 burst decision; VP-159 citations in §Description/§Verification Properties/§VP Anchors citing "per D-1947" are CORRECT and left unchanged). |
+| 1.1 | wave-a-spec-evolution-burst-3-correction | 2026-07-22 | product-owner | ADR-054 v0.33 D10(c) adjudication applied: §Description VP-159 reference updated from "(planned, see ADR-054 §D9)" to "(authored v1.0, D-1947; registered in VP-INDEX v1.83)"; §Verification Properties VP-159 row updated to present tense — removed "(PLANNED — see ADR-054 §D9)" label and "VP-159 will be registered in VP-INDEX by the architect after implementation begins per ADR-054 §D9" future-tense sentence, replaced with "Authored v1.0 (vp-159-declarative-http-auth-lazy-acquisition-and-refresh-on-expiry.md); registered in VP-INDEX v1.83 per D-1947"; §VP Anchors updated to present tense referencing the authored VP file and VP-INDEX registration. D-1948 authorship event. input-hash 827ac61→bc9f412. |
+| 1.0 | D-1946 Wave-A spec-evolution BC authoring | 2026-07-22 | product-owner | Initial draft — BC anchor for `DeclarativeHttpAuthProvider` token lifecycle. Postconditions P1–P8 authored from ADR-054 §D8 (authoritative source). Preconditions from ADR-054 §D3/D4/D7/D8. Invariants INV-014-001..008 (POL-36 generalization constraint, per-org token URL derivation, AD-017 credential safety, ArcSwap atomicity, DI-012 compliance, ADR-050 reqwest compliance, E-SPEC-028 spec-load gate). Edge cases EC-016-014-001..015. Error conditions referencing E-SPEC-028(a)–(h), E-AUTH-001/002/005, E-SPEC-024. Canonical test vectors TV-1..10. VP-159 planned per ADR-054 §D9 (not authored here — architect scope). ADR-054 D11 amendment manifest items NOT executed here — separate burst. BC-INDEX registration NOT performed here — separate burst. |

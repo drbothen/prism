@@ -9,7 +9,7 @@ phase: prereq-e
 inputs:
   - .factory/specs/architecture/decisions/ADR-026-sensorauth-unsealing.md
   - .factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md
-input-hash: "[pending-recompute]"
+input-hash: "18485b2"
 traces_to: .factory/specs/architecture/decisions/ADR-026-sensorauth-unsealing.md
 source_bc: BC-2.01.016
 source_adr: ADR-026
