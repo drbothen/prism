@@ -23,12 +23,18 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 document_type: governance-policy-registry
-version: "1.35"
-last_amended: 2026-07-20
+version: "1.36"
+last_amended: 2026-07-22
 
 metadata:
-  version: "1.35"
+  version: "1.36"
   changelog:
+    - version: "1.36"
+      date: 2026-07-22
+      burst: D-1945-pol36-generalization-directive
+      decision: D-1945
+      findings: []
+      change: "v1.35 → v1.36 2026-07-22 — POL-36 generalization_directive_no_sensor_conditional_engine_code registered. Human-approved codification (D-1945 2026-07-22) of the 2026-07-21 standing generalization directive (D-1944 §STANDING USER DIRECTIVES). Sensor-name-conditional control flow in engine code (prism-core, prism-spec-engine, prism-query, prism-sensors, prism-mcp) is forbidden; sensor-specific behavior lives exclusively in TOML sensor specs and DTU clones. Enforced as standing adversary probe throughout Wave-A ADR cascade (50 passes, PASS throughout)."
     - version: "1.35"
       date: 2026-07-20
       burst: D-1884-infra-only-holdout-exemption
@@ -896,3 +902,25 @@ policies:
       - "For each story with holdout_scenarios: [] in frontmatter, read behavioral_contracts: — an empty array means the story is exempt: PASS."
       - "A story with non-empty behavioral_contracts: AND empty holdout_scenarios: is a HIGH violation — holdout authoring is owed before that story's TDD delivery."
       - "Verify the exemption is not applied to wave-level or Phase-4 holdout pools — those remain mandatory and unchanged."
+
+  - id: 36
+    name: generalization_directive_no_sensor_conditional_engine_code
+    description: |
+      All fixes and features must be implemented as GENERAL mechanisms consumed via the
+      spec/config surface. Sensor-specific behavior lives exclusively in TOML sensor specs
+      (.prism/specs/sensors/) and DTU clones (crates/prism-dtu-*). Sensor-name-conditional
+      control flow in engine code (prism-core, prism-spec-engine, prism-query, prism-sensors,
+      prism-mcp) is forbidden. Origin: user standing directive 2026-07-21 (D-1944 §STANDING
+      USER DIRECTIVES), enforced as standing adversary probe throughout the Wave-A ADR
+      cascade (50 passes, PASS throughout); human approved codification 2026-07-22 (D-1945).
+    adopted: "D-1945-human-approved-codification-2026-07-22"
+    severity: HIGH
+    enforced_by: [adversary-prompt, orchestrator-rule]
+    scope: [source-code, architecture, bc, story]
+    codified_at: "D-1945"
+    lint_hook: null
+    verification_steps:
+      - "Run rg -i 'crowdstrike|cyberint|claroty|armis|xdome' over production .rs sources in crates/prism-core, crates/prism-spec-engine, crates/prism-query, crates/prism-sensors, crates/prism-mcp (exclude #[cfg(test)] modules, tests/, fixtures, doc comments, and DTU clone crates). Any hit inside production control flow (match arm, if/else condition, map key dispatch keyed on sensor identity) is a HIGH violation."
+      - "For any diff/spec introducing sensor-specific behavior, verify the mechanism is a general engine capability parameterized via the TOML sensor-spec surface or DTU clone — not engine-side branching on sensor name/identity."
+      - "For ADR/BC/story artifacts: verify prescribed fixes are stated as general mechanisms; sensor specifics may appear only as spec/config examples consuming the general mechanism, never as engine special-cases."
+      - "Test-only or fixture usage of sensor names is PASS. DTU clone crates (crates/prism-dtu-*) are by definition sensor-specific and exempt."

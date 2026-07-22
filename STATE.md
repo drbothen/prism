@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.492"
+version: "8.493"
 producer: state-manager
 timestamp: 2026-07-22T00:00:00Z
 inputs: []
@@ -30,7 +30,7 @@ active_contracts: 257
 draft_contracts: 0
 retired_contracts: 6
 prd_version: "1.13"
-policies_version: "1.35"
+policies_version: "1.36"
 subsystem_count: 22
 vp_count: 157
 bc_count_corrected: 266
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "WRAPPED @D-1944 — next: Wave-A spec evolution (BC-2.16.014 + VP-159 + manifests + story retirements + remove-uncertainty + story decomp + TDD). ADR-053 v0.26 + ADR-054 v0.31 ACCEPTED (D-1943 2026-07-22). trajectory-tail →3→0→0→0 STATE v8.491→v8.492"
+current_step: "WRAPPED @D-1944 → D-1945 POL-36 registered — next: Wave-A spec evolution (BC-2.16.014 + VP-159 + manifests + story retirements + remove-uncertainty + story decomp + TDD). ADR-053 v0.26 + ADR-054 v0.31 ACCEPTED (D-1943 2026-07-22). policies.yaml v1.35→v1.36. trajectory-tail →3→0→0→0 STATE v8.492→v8.493"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 470 lines (wc-l)
+  STATE.md SIZE BUDGET: 471 lines (wc-l)
   margin from soft-target (200): +270 lines over | margin from actual (500): 30 lines remaining
 -->
 
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-22 D-1943 — HUMAN WAVE-A APPROVAL GATE APPROVED: ADR-053 v0.26 + ADR-054 v0.31 ACCEPTED. Supersessions effective: ADR-028 §D1/§D2/§D5 (grounding spec←OpenAPI), ADR-031 §D3 (scope-narrowed), LOCKED D-747 + Cyberint single-surface OVERTURNED. ARCH-INDEX v2.243→v2.244. trajectory-tail →3→0→0→0 STATE v8.490→v8.491 |
+| **Last Updated** | 2026-07-22 D-1945 — POL-36 generalization_directive_no_sensor_conditional_engine_code registered (human-approved codification; policies.yaml v1.35→v1.36). trajectory-tail →3→0→0→0 STATE v8.492→v8.493 |
 
 ## Active Objective (North Star)
 
@@ -357,6 +357,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1942 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — WAVE-A ADR ADVERSARIAL CONVERGENCE: passes 48/49/50 CLEAN(strict) 3/3 on frozen HEAD 46c1c802 per BC-5.39.001. Cascade totals: 50 passes, 30 fix-bursts (D-1902..D-1941 (exhaustive)). ADR set: ADR-053 v0.25 + ADR-054 v0.30 (+ amended ADR-023 v1.24, ADR-026 v1.38, ADR-028 v1.24, ADR-031 v1.6, ADR-032 v1.3). Generalization probe PASS throughout (45th/46th/47th consecutive on passes 48/49/50). STATUS: CONVERGED — pending HUMAN Wave-A approval gate. Process-gap codification items for cycle close: PG-ADR-STATUS-SELFCITE-001 (resolved via non-volatile self-cites), PG-VP-SKELETON-ASBUILT-001 (POL-31 enforcement hook still TBD — carry to lessons). trajectory-tail →3→0→0→0 STATE v8.489→v8.490 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1943 | human+state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — HUMAN WAVE-A APPROVAL GATE: APPROVED 2026-07-22. ADR-053 v0.25→v0.26 ACCEPTED + ADR-054 v0.30→v0.31 ACCEPTED. Supersessions effective: ADR-028 §D1/§D2/§D5 (grounding spec←OpenAPI), ADR-031 §D3 (scope-narrowed), LOCKED D-747 + Cyberint single-surface OVERTURNED. Locked-decision entries 1/4/5 updated PENDING→SUPERSEDED. GAP-1 (perimeter audit): spec-evolution story must read BOTH the ADR D5/D11 manifests AND triage-capture §Wrong-Direction Stories for the 4 retirements — orchestrator carries this into the dispatch. NEXT: Wave-A spec evolution (BC-2.16.014 + VP-159 authoring, manifest execution, story retirements, mandatory remove-uncertainty pass) → story decomposition → TDD. ARCH-INDEX v2.243→v2.244. trajectory-tail →3→0→0→0 STATE v8.490→v8.491 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1944 | state-manager | 2026-07-22 | SESSION WRAP — RESUME SNAPSHOT D-1944 (2026-07-22). Wave-A ADR set convergence complete + ACCEPTED (D-1943). ADR-053 v0.26 + ADR-054 v0.31 ACCEPTED; strict 3-CLEAN on frozen 46c1c802 (passes 48/49/50; cascade totals: 50 passes, 30 fix-bursts D-1902..D-1941 (exhaustive)). Supersessions effective. Session-handoff §RESUME SNAPSHOT D-1944 authored (supersedes D-1900). NEXT: Wave-A spec evolution (BC-2.16.014 + VP-159 authoring, manifest execution, story retirements, remove-uncertainty pass, story decomposition, TDD). sidecar-learning.md: session-end markers 1373→1613 lines; included in commit. trajectory-tail →3→0→0→0 STATE v8.491→v8.492 | wave-5-e-demo-fidelity | 2026-07-22 |
+| D-1945 | state-manager | 2026-07-22 | POL-36 generalization_directive_no_sensor_conditional_engine_code registered (human-approved codification of the 2026-07-21 standing generalization directive; closes the D-1944 OPEN OFFER). policies.yaml v1.35→v1.36. Sensor-name-conditional control flow in engine code forbidden (HIGH); sensor-specific behavior lives exclusively in TOML sensor specs + DTU clones; enforced as standing adversary probe throughout Wave-A ADR cascade (50 passes, PASS throughout). sidecar-learning.md session-end marker appended (1613→1614 lines; legitimate append-only content). trajectory-tail →3→0→0→0 STATE v8.492→v8.493 | wave-5-e-demo-fidelity | 2026-07-22 |
 
 ## Skip Log
 
