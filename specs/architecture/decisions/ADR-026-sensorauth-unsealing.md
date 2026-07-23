@@ -4,8 +4,8 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-18"
-modified: "2026-07-21"
-version: "1.38"
+modified: "2026-07-23"
+version: "1.39"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
@@ -244,7 +244,7 @@ partially amends §D3 in two respects, effective at Wave-A implementation:
    `crates/prism-spec-engine/src/auth/declarative.rs`) — the reclassification is unconditional.
    The `[auth_acquisition]` TOML block is **required** for declarative auth_types: its absence
    triggers spec-load error E-SPEC-028(a). Presence of `auth_plugin` alongside
-   `auth_type ∈ {oauth2_client_credentials, token_exchange}` is **unconditionally rejected**
+   `auth_type ∈ {oauth2_client_credentials, token_exchange}` is **rejected regardless of whether [auth_acquisition] is declared (Definition 1, ADR-054 §D10(b))**
    with E-SPEC-028(b) at spec-load — there is no fallback to `custom_via_plugin`.
    (`custom_via_plugin` is a distinct `auth_type`, not an escape hatch for sensors whose
    declarative auth_type already has a native provider.) This reclassification does not alter
@@ -517,6 +517,7 @@ modes and security implications. The open trait approach reuses the existing typ
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.39 | 2026-07-23 | architect | F-WASE-P23-LOW-001 (FIX-BURST 22): §D3 amendment item 2 — Definition-1 purge of E-SPEC-028(b) unconditional language: "is **unconditionally rejected** with E-SPEC-028(b)" → "is **rejected regardless of whether [auth_acquisition] is declared (Definition 1, ADR-054 §D10(b))** with E-SPEC-028(b)". At-commit-time hash per POL-32. |
 | 1.38 | 2026-07-21 | architect | FIX-BURST 10 (OBS-1): at-point annotation added to §D3 Rule A enumerated set — "[ADR-054 D1 adds `token_exchange` as 6th variant on acceptance]" inserted immediately after the 5-value set declaration, so the amendment note is co-located with the enumeration it modifies rather than 40+ lines away. |
 | 1.37 | 2026-07-21 | architect | FIX-BURST 7 (HIGH-1/MED-1/LOW-1): §D3 amendment item 2 rewritten — "(conditional)" removed; unconditional model per ADR-054 D10(b): absent `[auth_acquisition]` for declarative auth_types → E-SPEC-028(a) spec-load error; `auth_plugin` present for `auth_type ∈ {oauth2_client_credentials, token_exchange}` → E-SPEC-028(b) unconditional rejection; no fallback to `custom_via_plugin` (`custom_via_plugin` is a distinct auth_type). `declarative_http.rs` → `declarative.rs` filename corrected (MED-1). Frontmatter `amended_by` ADR-054 entry: "when [auth_acquisition] present" conditional phrase dropped; replaced with "unconditionally per ADR-054 D1/D2/D10(b)" (LOW-1). `modified` advanced to 2026-07-21. |
 | 1.36 | 2026-07-21 | architect | OBS-1: §Status stale self-cite corrected — "current frontmatter v1.32 per §Changelog" replaced with non-volatile form "current version per §Changelog top row" (permanently retires this staleness class). |

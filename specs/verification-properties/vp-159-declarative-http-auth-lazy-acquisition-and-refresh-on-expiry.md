@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.16"
+version: "1.17"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -9,7 +9,7 @@ phase: wave-a
 inputs:
   - .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
   - .factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md
-input-hash: "dc3b3bd"
+input-hash: "9491150"
 traces_to: .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
 source_bc: BC-2.16.014
 source_adr: ADR-054
@@ -217,8 +217,8 @@ asserts:
 
 ## Source Contract
 
-- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.13 — postconditions P1–P9
-  (BC-2.16.014 v1.13) are the primary **authoring source** for this VP; the verified set is
+- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.14 — postconditions P1–P9
+  (BC-2.16.014 v1.14) are the primary **authoring source** for this VP; the verified set is
   P1–P5, P7, P9 (plus P4-TTL-a/b sub-properties) — see §Property Statement scope note for
   P6/P8 (deferred) and P9-via-AC-9 (verified) coverage.
   INV-014-003 (BC-local invariant:
@@ -279,7 +279,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 // Method: integration_test (wiremock for HTTP interception; now_fn clock seam for TTL control)
 // Target module: prism-spec-engine
 // Target path: crates/prism-spec-engine/src/auth/declarative.rs [PLANNED — engine story]
-// BC: BC-2.16.014 v1.13 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
+// BC: BC-2.16.014 v1.14 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
 //
 // ALL DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode /
 // DeclarativeHttpAuthProvider::new_for_test (cfg(any(test, feature = "test-helpers")))
@@ -950,6 +950,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.17 | wave-a-spec-evolution-fix-burst-22 | 2026-07-23 | architect | STANDING PIN SWEEP (FIX-BURST 22): 3 live-body BC-2.16.014 pins advanced v1.13→v1.14 (PO bumped BC-2.16.014 v1.13→v1.14 in parallel) — §Source Contract first occurrence `Token Lifecycle) v1.13`, §Source Contract inline restatement `(BC-2.16.014 v1.13)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.13` — all now v1.14. input-hash updated dc3b3bd→9491150 (BC-2.16.014 input drifted since last hash). At-commit-time hash per POL-32. |
 | 1.16 | wave-a-fix-burst-21 | 2026-07-23 | architect | F-WASE-P21-HIGH-001(a): §Property Statement P4-TTL-b — removed present-tense "retired" from "matching the retired crowdstrike-oauth2 plugin's arithmetic" → "matching the crowdstrike-oauth2 plugin's arithmetic"; forward framing matches ADR-054 §D9 source ("matches the plugin's", no "retired"). F-WASE-P21-LOW-001: §Property Statement P4-TTL-b dead-code note — "per ADR-054 §D4 note" → "per ADR-054 §D9 note" (the note lives in §D9, not §D4). Standing pin sweep: BC-2.16.014 v1.12→v1.13 at all 3 live-body pins — §Source Contract first occurrence `Token Lifecycle) v1.12`, §Source Contract inline restatement `(BC-2.16.014 v1.12)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.12` — all now v1.13. input-hash: at-commit-time hash per POL-32. |
 | 1.15 | wave-a-fix-burst-19 | 2026-07-23 | architect | Pin sweep only (POL-32). BC-2.16.014 v1.11→v1.12 bump: 3 live-body pins updated — §Source Contract first occurrence `Token Lifecycle) v1.11`, §Source Contract inline restatement `(BC-2.16.014 v1.11)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.11` — all now v1.12. No behavioral content changed. input-hash: at-commit-time hash per POL-32. |
 | 1.14 | wave-a-fix-burst-18 | 2026-07-23 | architect | F-WASE-P18-LOW-001: §Proof Harness Skeleton — all 11 `prism_core::OrgSlug::new_unchecked("test-org")` call sites replaced with `prism_core::OrgSlug::new("test-org")`. `OrgSlug::new` is infallible (`pub fn new(s: impl AsRef<str>) -> Self`, confirmed `crates/prism-core/src/tenant.rs`); returns `Self` directly — no `.unwrap()` required; "test-org" satisfies `^[a-zA-Z0-9_-]{1,64}$`; sibling idiom in `crates/prism-spec-engine/src/pipeline.rs` tests is `OrgSlug::new("test-org")` (10 occurrences confirmed). Sites fixed: AC-2 (1), AC-3 (1), AC-4 (1), AC-5 (1), AC-6 (1), AC-6b (1), AC-7a (1), AC-7b (1), AC-7c (1), AC-9 (1), AC-9b (1) — 11 total (finding cited 6; sweep found 5 additional in AC-7a/7b/7c/AC-9/AC-9b). All ALLOWLIST-REQUIRED notes deleted: 4-line block in AC-2, 8 one-line "see AC-2 note above" notes in AC-3/4/5/6/6b/7a/7b/7c, 2-line note after FetchContext::new in AC-9, 2-line note after FetchContext::new in AC-9b. Sweep result: zero `new_unchecked` or `ALLOWLIST REQUIRED` in code or prose; changelog rows (lines 957, 965) exempt and unchanged. input-hash: at-commit-time hash per POL-32. |

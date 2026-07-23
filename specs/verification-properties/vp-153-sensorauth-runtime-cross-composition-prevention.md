@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.24"
+version: "0.25"
 status: active
 producer: architect
 timestamp: 2026-05-16T16:00:00Z
@@ -9,7 +9,7 @@ phase: prereq-e
 inputs:
   - .factory/specs/architecture/decisions/ADR-026-sensorauth-unsealing.md
   - .factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md
-input-hash: "18485b2"
+input-hash: "ab5fe91"
 traces_to: .factory/specs/architecture/decisions/ADR-026-sensorauth-unsealing.md
 source_bc: BC-2.01.016
 source_adr: ADR-026
@@ -24,7 +24,7 @@ proof_completed_date: "2026-05-18"
 proof_file_hash: null
 lifecycle_status: active
 introduced: "2026-05-15"
-modified: "2026-07-22"
+modified: "2026-07-23"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -89,7 +89,7 @@ message text (AD-017 AI-opaque credential model).
 
 **Feasibility:** The valid `auth_type` enumerated set has 6 members (5 as-built; `token_exchange` is the 6th [PLANNED — ADR-054 D1 engine story]). The credential structural
 types are similarly finite (OAuth2 token, bearer token, cookie session, API key, WASM plugin
-token). The Cartesian product is small and fully enumerable. proptest can cover all pairs
+token, token-exchange secret [PLANNED — ADR-054 D1 engine story]). The Cartesian product is small and fully enumerable. proptest can cover all pairs
 deterministically with a small strategy and provide regression coverage for the invariant.
 
 ## Proof Harness Skeleton
@@ -239,6 +239,7 @@ deterministically with a small strategy and provide regression coverage for the 
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 0.25 | wave-a-spec-evolution-fix-burst-22 | 2026-07-23 | architect | F-WASE-P23-OBS-001: §Proof Method credential-shape enumeration — appended 6th shape "token-exchange secret [PLANNED — ADR-054 D1 engine story]" for parity with DI-012 Rule 3 and §Feasibility 6×5=30 pair arithmetic. input-hash updated from 18485b2 → ab5fe91 (ADR-026 input drifted since last hash). At-commit-time hash per POL-32. |
 | 0.24 | wave-a-spec-evolution-fix-burst-9 | 2026-07-22 | architect | F-WASE-P9-OBS-001: Added [PLANNED — ADR-054 D1 engine story] qualifiers to §Property Statement Rule A: (1) enumerated set `{..., token_exchange [PLANNED — ADR-054 D1 engine story]}` — makes it explicit that `token_exchange` is in the set but proptest arm not yet green; (2) post-message note added — "`token_exchange` appears in the E-SPEC-012 message template (POL-24 source of truth) but its proptest validation arm is [PLANNED — ADR-054 D1 engine story]; see §Re-verification Gate." §Proof Method: "has 6 members" → "has 6 members (5 as-built; `token_exchange` is the 6th [PLANNED — ADR-054 D1 engine story])". §Feasibility Assessment `Input space size` row: "6 auth_type variants × 5 credential structural shapes = 30 pairs; all enumerable" → "6 auth_type variants (5 as-built + `token_exchange` [PLANNED]) × 5 credential structural shapes = 30 ordered mismatched pairs (6×5) once `token_exchange` lands; current green proof (proof-completed-date 2026-05-18) covers 20 ordered mismatched pairs (5×4) over the 5-member as-built set". As-built pair arithmetic verified: `arb_mismatched_auth_type_pair()` current range `(0usize..5, 0usize..4)` = 5×4=20; future range `(0usize..6, 0usize..5)` = 6×5=30. The §Re-verification Gate (F-WASE-P4-OBS-002) already documents the constraint; these edits propagate consistent [PLANNED] markers to the prose-facing enumeration sites that lacked them. input-hash: no inputs changed; hash unchanged at commit time (at-commit-time hash wording per POL-32). |
 | 0.23 | Wave-A-spec-evolution-fix-burst-6 | 2026-07-22 | architect | F-WASE-P6-MED-001: §Feasibility Assessment "Harness dependencies" row — stale file path `spec_loader.rs` corrected to `spec_parser.rs` (file does not exist; `SpecLoader::validate_cross_composition` is as-built in `crates/prism-spec-engine/src/spec_parser.rs` at line 1382, inside `impl SpecLoader`). §Source Contract and §Proof Harness Skeleton already cited `spec_parser.rs` correctly; this row was the sole stale reference. Sweep confirmed: only one `spec_loader` hit across all of `.factory/specs/`. POL-32. |
 | 0.22 | Wave-A-fix-burst-4 | 2026-07-22 | architect | F-WASE-P4-OBS-002: §Re-verification Gate section added — explicit engine-story gate note stating that the ADR-054 engine story MUST re-run all 8 VP-153 proptests with the `token_exchange` arms activated (dropping `[PLANNED]` markers from `Just("token_exchange")` in `arb_valid_auth_type()`, `arb_matching_auth_type()`, and the updated `arb_mismatched_auth_type_pair()` range bounds) before the engine story PR can merge; until then the green proof covers the 5-value as-built set. See ADR-054 §D11 for companion engine-story gate row (added in ADR-054 v0.37). |

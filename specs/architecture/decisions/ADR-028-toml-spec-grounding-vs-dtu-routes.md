@@ -4,8 +4,8 @@ adr_id: "ADR-028"
 title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs"
 status: Proposed
 date: "2026-05-20"
-modified: "2026-07-21"  # see §Changelog top row
-version: "1.24"
+modified: "2026-07-23"  # see §Changelog top row
+version: "1.25"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -14,7 +14,7 @@ superseded_by:
   - "ADR-053 §D1/§D2/§D5 (partial — grounding order §D1/§D2/§D5 superseded: spec grounds FROM vendor OpenAPI, not DTU; Armis LOCKED auth_type D-747 superseded; Cyberint LOCKED auth_type D-747 superseded; authorized D-1889 2026-07-20; final ADR approval gate pending)"
 amends: null
 amended_by:
-  - "ADR-054 §D2/D5/D10 (partial — §D13 oauth2_client_credentials: PluginAuthProvider (WASM) path is spec-load-rejected per D10(b) E-SPEC-028(b) unconditional rejection for auth_type ∈ {oauth2_client_credentials, token_exchange} + auth_plugin present; DeclarativeHttpAuthProvider (native) is the sole live path; crowdstrike-oauth2.prx plugin retired; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; effective on ADR-054 acceptance)"
+  - "ADR-054 §D2/D5/D10 (partial — §D13 oauth2_client_credentials: PluginAuthProvider (WASM) path is spec-load-rejected per D10(b) E-SPEC-028(b) rejection regardless of [auth_acquisition] presence (Definition 1) for auth_type ∈ {oauth2_client_credentials, token_exchange} + auth_plugin present; DeclarativeHttpAuthProvider (native) is the sole live path; crowdstrike-oauth2.prx plugin retired; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; effective on ADR-054 acceptance)"
 anchor_stories: [PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-B, PLUGIN-MIGRATION-001-C, PLUGIN-MIGRATION-001-E, S-DEMO-001, S-DEMO-002]
 related_adrs: [ADR-003, ADR-023, ADR-027, ADR-053, ADR-054]
 related_bcs: [BC-2.16.013, BC-2.16.001, BC-2.16.009, BC-2.01.016]
@@ -564,7 +564,7 @@ The canonical `credential_ref` name for `bearer_static` sensors is `bearer_token
 
 | Sensor auth_type | AuthProvider | credential_ref | resolve_credential key |
 |------------------|--------------|----------------|------------------------|
-| `oauth2_client_credentials` | `DeclarativeHttpAuthProvider` (native — sole live path; per ADR-054 D2/D5). `PluginAuthProvider` (WASM) via `auth_plugin` is **spec-load-rejected** post-ADR-054: `auth_type = "oauth2_client_credentials"` + `auth_plugin` present → E-SPEC-028(b) unconditional rejection at spec-load per ADR-054 D10(b). The "when `[auth_acquisition]` present" conditional framing is superseded; there is no live WASM dispatch path. (`crowdstrike-oauth2.prx` retired by ADR-054 D5.) | `client_id`, `client_secret` (resolved via per-org credential chain per §D11) | `client_id`, `client_secret` |
+| `oauth2_client_credentials` | `DeclarativeHttpAuthProvider` (native — sole live path; per ADR-054 D2/D5). `PluginAuthProvider` (WASM) via `auth_plugin` is **spec-load-rejected** post-ADR-054: `auth_type = "oauth2_client_credentials"` + `auth_plugin` present → E-SPEC-028(b) rejection regardless of `[auth_acquisition]` presence (Definition 1, ADR-054 D10(b)). The "when `[auth_acquisition]` present" conditional framing is superseded; there is no live WASM dispatch path. (`crowdstrike-oauth2.prx` retired by ADR-054 D5.) | `client_id`, `client_secret` (resolved via per-org credential chain per §D11) | `client_id`, `client_secret` |
 | `cookie_roundtrip` (Cyberint) | `StaticCookieAuthProvider` | `access_token` (per ADR-031 §D3) | `access_token` |
 | `bearer_static` (Claroty) | `BearerStaticCredentialAuthProvider` | `bearer_token` | `bearer_token` |
 
@@ -657,6 +657,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.25 | 2026-07-23 | architect | F-WASE-P23-LOW-001 (FIX-BURST 22): Definition-1 purge of E-SPEC-028(b) unconditional language — (1) frontmatter `amended_by` ADR-054 entry: "E-SPEC-028(b) unconditional rejection" → "E-SPEC-028(b) rejection regardless of [auth_acquisition] presence (Definition 1)"; (2) §D13 consistency-table body: "E-SPEC-028(b) unconditional rejection at spec-load per ADR-054 D10(b)" → "E-SPEC-028(b) rejection regardless of `[auth_acquisition]` presence (Definition 1, ADR-054 D10(b))". At-commit-time hash per POL-32. |
 | 1.24 | 2026-07-21 | architect | FIX-BURST 18 (MED-1): §D13 env-var blockquote `{ORG}` → `{ID}` — corrected `PRISM_CLIENTS_{ORG}_SENSORS_{SENSOR}_BEARER_TOKEN` to `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_BEARER_TOKEN` per ADR-032 canonical convention (ADR-032 uses `{ID}` throughout; `{ORG}` was the pre-ADR-032 FIX-BURST-17 stale token). POL-29 sweep (decisions/): zero remaining live `{ORG}`/`{ORG_ID}` hits in non-changelog content. |
 | 1.23 | 2026-07-21 | architect | FIX-BURST 9 (OBS-1): `modified:` frontmatter inline comment `# v1.18 HIGH-2 (FIX-BURST): …` removed — version-pinned narrative in frontmatter fields is the same self-cite volatility class closed at PG-ADR-STATUS-SELFCITE-001; replaced with non-volatile `# see §Changelog top row`. POL-29 class sweep: only this file carried the defect in the Wave-A perimeter; full decisions/ sweep confirms no other frontmatter-field version-pinned inline comments exist. |
 | 1.22 | 2026-07-21 | architect | FIX-BURST 7 (OBS-1): §D2 Armis supersession blockquote and §D13 env-var blockquote + §D13 Armis consistency-table blockquote — scalar `credential_ref = "secret_key"` replaced with canonical `[[credential_refs]]` block form with `name = "secret_key"` (3 occurrences; `credential_ref` is the old scalar grammar; `[[credential_refs]]` with `name =` is the canonical array-of-tables form per ADR-054 §D3). POL-29 sweep: zero live scalar `credential_ref = "secret_key"` hits remain in live content sections. `modified` comment updated. |
