@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -25,7 +25,7 @@ inputs:
   - ".factory/specs/domain-spec/invariants.md"
   - "crates/prism-spec-engine/src/auth_provider.rs"
   - "crates/prism-spec-engine/src/error.rs"
-input-hash: "e151a0d"
+input-hash: "1e9930c"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -375,7 +375,7 @@ would return the same stale or revoked token from the warm cache).
   Canonical Structured Event Catalog rows (PG-LP11-001) (composes with)
 - BC-2.16.013: Bundled Sensor Spec DTU Parity — TOML specs for the 4 initial sensors that
   gain `[auth_acquisition]` blocks are governed by both this BC and BC-2.16.013 (composes with)
-- BC-2.01.016: Plugin Auth Provider Construction — the plugin-based path this BC supersedes
+- BC-2.01.016: SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) — the plugin-based path this BC supersedes
   for `oauth2_client_credentials`; `custom_via_plugin` + `PluginAuthProvider` path is preserved
   (supersedes within declarative-native oauth2_client_credentials scope)
 - BC-2.01.017: StaticCookieAuthProvider Contract — sibling auth provider implementing the same
@@ -447,6 +447,7 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | wave-a-spec-evolution-fix-burst-12 | 2026-07-22 | product-owner | F-WASE-P12-LOW-001: §Related BCs label for BC-2.01.016 corrected from "Plugin Auth Provider Construction" to canonical H1 title "SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker)". The old label was a stale paraphrase; H1 is the authoritative title source per bc_h1_is_title_source_of_truth policy. Relationship description and supersedes rationale preserved unchanged. input-hash updated at commit time. |
 | 1.7 | wave-a-spec-evolution-fix-burst-9 | 2026-07-22 | product-owner | F-WASE-P9-OBS-002: §Error Conditions E-AUTH-005 row trailing claim "aligned with `StaticCookieAuthProvider` pattern (BC-2.01.017 EC-017-003) generalized for variable ref names" reworded to "generalizes the `StaticCookieAuthProvider` E-AUTH-005-in-detail pattern (BC-2.01.017 EC-017-003) with ref-name-agnostic placeholders" — the as-built sibling detail differs materially (hardcoded `api_key` wording plus trailing `configure_credential_source` guidance); the new wording is precise about the relationship without overstating alignment fidelity. input-hash updated at commit time. |
 | 1.6 | wave-a-spec-evolution-fix-burst-8 | 2026-07-22 | product-owner | F-WASE-P8-LOW-001: reordered §Postconditions so P8 precedes P9 (P9 was inserted between P7 and P8 at v1.5; P8 section block moved before P9; IDs not renumbered per append-only-numbering policy; ADR-054 D4/D11 and VP-159 AC-9 references to P9 identity remain valid). F-WASE-P8-LOW-002: §Traceability ADR anchors cell updated from "source authority for all postconditions P1–P8" to P1–P9, noting P9's source authority as ADR-054 §D4/§D11 (P1–P8 source authority remains §D1/D2/D3/D4/D7/D10). Live-body sweep for "P1–P8": one instance found and fixed (ADR anchors cell); changelog rows exempt. input-hash updated at commit time. |
 | 1.5 | wave-a-spec-evolution-fix-burst-7 | 2026-07-22 | product-owner | F-WASE-P7-HIGH-001: P5 caller list reconciled with ADR-054 v0.38 §D4 — bullet 1 changed "By" to "Internally by"; bullet 2 expanded to name `issue_request_with_retry` as the dispatch site and adds explicit note that the 401-refresh arm MUST call `acquire_token()` NOT `get_token()`. P6 updated to name `issue_request_with_retry` in heading; step 1 adds NOT-`get_token()` rationale; step 3 adds "with an intervening `acquire_token()` call between the two 401s" to specify the exact E-AUTH-002 trigger condition; appended paragraph making acquire_token()-not-get_token() explicit and tracing the two-401 sequence. P9 added: get_token() production callers (PipelineExecutor::execute_impl and execute_step, both marked [PLANNED — engine story] per ADR-054 D11). F-WASE-P7-LOW-001: E-AUTH-005 detail template specified at all three sites (EC-016-014-009, §Error Conditions E-AUTH-005 row, TV-9): `"E-AUTH-005: credential not found — no credential configured for ({client_id}, {sensor_id}) ref '{ref_name}'"` aligned with canonical error-taxonomy §E-AUTH-005 and StaticCookieAuthProvider pattern (BC-2.01.017 EC-017-003) generalized for variable ref names. |

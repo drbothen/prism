@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -107,7 +107,7 @@ and is covered by BC-2.01.006.
 
 ## Related BCs
 - BC-2.01.006: Cyberint Assets cookie auth (sibling BC; same auth mechanism, different surface and cursor key)
-- BC-2.01.016: SensorAuth open trait contract (composes with — StaticCookieAuthProvider implements SensorAuth)
+- BC-2.01.016: SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) (composes with — StaticCookieAuthProvider implements the AuthProvider trait (the runtime SensorAuth replacement governed by BC-2.01.016))
 - BC-2.01.017: StaticCookieAuthProvider dispatch table (composes with — header_scheme = "cookie:<name>" dispatch)
 - BC-2.06.003: Credential reference resolution (depends on — access_token credential ref resolution)
 
@@ -145,5 +145,6 @@ Alerts remediation story merges (POL-14 auto-promotion at merge).
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | wave-a-spec-evolution-fix-burst-12 | 2026-07-22 | product-owner | F-WASE-P12-MED-002: §Related BCs line for BC-2.01.016 corrected — false claim "StaticCookieAuthProvider implements SensorAuth" removed. `StaticCookieAuthProvider` implements the `AuthProvider` trait (`crates/prism-spec-engine/src/auth_provider.rs`); `SensorAuth` lives in `prism-sensors` and `prism-spec-engine` is forbidden from importing it. Rewording follows the specified correction: "StaticCookieAuthProvider implements the AuthProvider trait (the runtime SensorAuth replacement governed by BC-2.01.016)". BC-2.01.016 label aligned to canonical H1 title "SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker)". Sibling sweep (TD-VSDD-060): BC-2.01.006 — CLEAN (no hit). architecture/sensor-adapters.md — 2 hits but both are factually correct descriptions of the WASM plugin model (architect scope, not product-owner scope). input-hash updated at commit time. |
 | 1.1 | wave-a-spec-evolution-burst-3 | 2026-07-22 | product-owner | F-WASE-P3-MED-001: `introduced` corrected from `wave-a-spec-evolution-burst-3` to `"2026-07-22"` (POL-20 pattern `^(cycle-[0-9]+\|[0-9]{4}-[0-9]{2}-[0-9]{2})$`). F-WASE-P3-MED-002: `timestamp` corrected from `2026-07-22T00:00:00` to `2026-07-22T00:00:00Z` (POL-23 Z-suffix required for new BCs). F-WASE-P3-LOW-001: status/lifecycle_status set to `draft` (was `active`). Adjudication verdict: contracted behavior NOT yet shipped — `cyberint-alerts.sensor.toml` does not exist, `SensorSpec::header_scheme` field does not exist in engine, credential ref name `access_token` not yet renamed from `api_key`, `(Timestamp, AlertID)` 2-tuple cursor not yet implemented (current spec uses `cursor_token`/`$.next_cursor`), 4-format CyberintTime parser not implemented (engine supports only `iso8601`/`unix_epoch_seconds`/`unix_epoch_millis`). Wave-A remediation stories (Task #8, pending) will implement these behaviors; BC promotes to active when anchor story merges (POL-14). §Story Anchor updated with interim rationale. |
 | 1.0 | wave-a-spec-evolution-burst-3 | 2026-07-22 | product-owner | Initial contract. Created by ADR-053 D3 split of BC-2.01.006 (formerly "Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing") into two surface-specific BCs. This BC covers the Cyberint Alerts surface (`cyberint-alerts.sensor.toml`, `/alert` server, `(Timestamp, AlertID)` cursor). BC-2.01.006 covers the Cyberint Assets surface (`cyberint-assets.sensor.toml`, `/asset-configuration` server, `(Timestamp, AssetID)` cursor). Both surfaces: auth_type = "cookie_roundtrip", header_scheme = "cookie:access_token", StaticCookieAuthProvider. DI-012 invariant: 6-value canonical auth_type set per ADR-054 D1. |

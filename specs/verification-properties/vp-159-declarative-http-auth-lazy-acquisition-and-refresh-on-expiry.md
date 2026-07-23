@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.8"
+version: "1.9"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -9,7 +9,7 @@ phase: wave-a
 inputs:
   - .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
   - .factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md
-input-hash: "f9726cc"
+input-hash: "8a305d3"
 traces_to: .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
 source_bc: BC-2.16.014
 source_adr: ADR-054
@@ -208,8 +208,8 @@ asserts:
 
 ## Source Contract
 
-- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.7 — postconditions P1–P9
-  (BC-2.16.014 v1.7) are the primary **authoring source** for this VP; the verified set is
+- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.8 — postconditions P1–P9
+  (BC-2.16.014 v1.8) are the primary **authoring source** for this VP; the verified set is
   P1–P5, P7, P9 (plus P4-TTL-a/b sub-properties) — see §Property Statement scope note for
   P6/P8 (deferred) and P9-via-AC-9 (verified) coverage.
   INV-014-003 (BC-local invariant:
@@ -270,7 +270,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 // Method: integration_test (MockHttpClient for network isolation)
 // Target module: prism-spec-engine
 // Target path: crates/prism-spec-engine/src/auth/declarative.rs [PLANNED — engine story]
-// BC: BC-2.16.014 v1.7 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
+// BC: BC-2.16.014 v1.8 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
 //
 // ALL DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode /
 // MockHttpClient symbols below are [PLANNED — engine story].
@@ -328,7 +328,13 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
 //         );
-//         let _token = provider.get_token("test-org").await  // [PLANNED]
+//         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
+//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
+//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
+//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
+//         // credential-safety convention before the PR can merge.
+//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let _token = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED]
 //             .expect("VP-159 AC-2: cold get_token must succeed");
 //         assert_eq!(mock_http.post_call_count(), 1,
 //             "VP-159 AC-2: cold get_token must issue exactly one HTTP POST (BC-2.16.014 P2)");
@@ -343,9 +349,15 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
 //         );
-//         let _ = provider.get_token("test-org").await.expect("first call");  // [PLANNED] warms cache
+//         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
+//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
+//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
+//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
+//         // credential-safety convention before the PR can merge.
+//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("first call");  // [PLANNED] warms cache
 //         let calls_after_warm = mock_http.post_call_count();
-//         let _ = provider.get_token("test-org").await.expect("second call");  // [PLANNED]
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("second call");  // [PLANNED]
 //         assert_eq!(mock_http.post_call_count(), calls_after_warm,
 //             "VP-159 AC-3: warm get_token must make zero HTTP calls (BC-2.16.014 P3)");
 //     }
@@ -360,10 +372,16 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
 //         );
-//         let _ = provider.get_token("test-org").await.expect("cold call");  // [PLANNED] warms cache
+//         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
+//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
+//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
+//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
+//         // credential-safety convention before the PR can merge.
+//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("cold call");  // [PLANNED] warms cache
 //         mock_http.advance_clock_secs(120); // [PLANNED] advance past expires_at
 //         let calls_before_stale_refresh = mock_http.post_call_count();
-//         let _ = provider.get_token("test-org").await.expect("stale call");  // [PLANNED]
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("stale call");  // [PLANNED]
 //         assert_eq!(mock_http.post_call_count(), calls_before_stale_refresh + 1,
 //             "VP-159 AC-4: stale get_token must issue exactly one HTTP POST (BC-2.16.014 P4)");
 //     }
@@ -377,16 +395,15 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
 //         );
-//         let _ = provider.get_token("test-org").await.expect("warm cache");  // [PLANNED]
-//         let calls_after_warm = mock_http.post_call_count();
-//         // acquire_token() is the AuthProvider::acquire_token() method (confirmed symbol)
-//         // Called with test SensorSpec and OrgSlug [PLANNED test helpers]
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
 //         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
 //         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
 //         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
 //         // credential-safety convention before the PR can merge.
 //         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("warm cache");  // [PLANNED]
+//         let calls_after_warm = mock_http.post_call_count();
+//         // acquire_token() is the AuthProvider::acquire_token() method (confirmed symbol)
 //         let _token = provider.acquire_token(&sensor_spec, &org_slug).await
 //             .expect("VP-159 AC-5: acquire_token must succeed even on warm cache");
 //         assert_eq!(mock_http.post_call_count(), calls_after_warm + 1,
@@ -421,13 +438,19 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
 //         );
-//         let _ = provider.get_token("test-org").await  // [PLANNED] — warms cache
+//         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
+//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
+//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
+//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
+//         // credential-safety convention before the PR can merge.
+//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED] — warms cache
 //             .expect("VP-159 AC-6: absolute_utc_string get_token must succeed on well-formed expiry");
 //         let calls_after_warm = mock_http.post_call_count();
 //         // Advance clock to just before expires_at — no re-acquisition expected
 //         // [PLANNED] advance_clock_to_before_expires_at sets mock time to (parse_rfc3339(expiry_utc) - ttl_buffer_secs - 10)
 //         mock_http.advance_clock_to_before_expires_at(expiry_utc, ttl_buffer_secs);  // [PLANNED — engine story]
-//         let _ = provider.get_token("test-org").await.expect("still warm pre-expiry");  // [PLANNED]
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("still warm pre-expiry");  // [PLANNED]
 //         assert_eq!(mock_http.post_call_count(), calls_after_warm,
 //             "VP-159 AC-6: clock before expires_at → cache valid, zero additional HTTP POSTs \
 //              (BC-2.16.014 P3/P4-TTL-a)");
@@ -435,7 +458,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         // [PLANNED] advance_clock_past_expires_at sets mock time to (parse_rfc3339(expiry_utc) - ttl_buffer_secs + 10)
 //         mock_http.advance_clock_past_expires_at(expiry_utc, ttl_buffer_secs);  // [PLANNED — engine story]
 //         let calls_before_stale = mock_http.post_call_count();
-//         let _ = provider.get_token("test-org").await.expect("stale — re-acquisition");  // [PLANNED]
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("stale — re-acquisition");  // [PLANNED]
 //         assert_eq!(mock_http.post_call_count(), calls_before_stale + 1,
 //             "VP-159 AC-6: clock past expires_at → one HTTP POST re-acquisition \
 //              (BC-2.16.014 P4 / P4-TTL-a: expires_at = parse_rfc3339(expiry_str).as_unix_secs().saturating_sub(ttl_buffer_secs))");
@@ -462,7 +485,13 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http), Arc::new(creds),
 //         );
-//         let result = provider.get_token("test-org").await;  // [PLANNED]
+//         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
+//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
+//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
+//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
+//         // credential-safety convention before the PR can merge.
+//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let result = provider.get_token(&sensor_spec, &org_slug).await;  // [PLANNED]
 //         assert!(
 //             matches!(result, Err(SpecEngineError::AuthAcquisitionFailed { .. })),
 //             "VP-159 AC-6b: malformed RFC-3339 expiry must return AuthAcquisitionFailed \
@@ -485,15 +514,21 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
 //         );
-//         let _ = provider.get_token("test-org").await.expect("warms cache");  // [PLANNED]
+//         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
+//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
+//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
+//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
+//         // credential-safety convention before the PR can merge.
+//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("warms cache");  // [PLANNED]
 //         let calls_after_warm = mock_http.post_call_count();
 //         mock_http.advance_clock_secs(3500);  // [PLANNED] 3500s < 3570s (expires_in 3600 − ttl_buffer 30)
-//         let _ = provider.get_token("test-org").await.expect("still warm at 3500s");  // [PLANNED]
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("still warm at 3500s");  // [PLANNED]
 //         assert_eq!(mock_http.post_call_count(), calls_after_warm,
 //             "VP-159 AC-7a: 3500s < 3570s expires_at → cache valid (BC-2.16.014 P4-TTL-b)");
 //         mock_http.advance_clock_secs(100);  // [PLANNED] total 3600s > 3570s → stale
 //         let calls_before_stale = mock_http.post_call_count();
-//         let _ = provider.get_token("test-org").await.expect("stale at 3600s");  // [PLANNED]
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("stale at 3600s");  // [PLANNED]
 //         assert_eq!(mock_http.post_call_count(), calls_before_stale + 1,
 //             "VP-159 AC-7a: 3600s > 3570s expires_at → re-acquisition \
 //              (BC-2.16.014 P4-TTL-b: expires_at = unix_now() + expires_in.saturating_sub(ttl_buffer_secs))");
@@ -511,17 +546,23 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
 //         );
-//         let _ = provider.get_token("test-org").await  // [PLANNED] cold — absent expires_in defaults to 1799
+//         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
+//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
+//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
+//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
+//         // credential-safety convention before the PR can merge.
+//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED] cold — absent expires_in defaults to 1799
 //             .expect("VP-159 AC-7b: absent expires_in must succeed with default 1799 TTL");
 //         let calls_after_warm = mock_http.post_call_count();
 //         mock_http.advance_clock_secs(1700);  // [PLANNED] 1700s < 1769s (1799 − 30) → still warm
-//         let _ = provider.get_token("test-org").await.expect("still warm at 1700s");  // [PLANNED]
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("still warm at 1700s");  // [PLANNED]
 //         assert_eq!(mock_http.post_call_count(), calls_after_warm,
 //             "VP-159 AC-7b: absent expires_in → 1799 default; 1700s < 1769s expires_at → cache valid \
 //              (EC-016-014-001; BC-2.16.014 P4-TTL-b)");
 //         mock_http.advance_clock_secs(100);  // [PLANNED] total 1800s > 1769s → stale
 //         let calls_before_stale = mock_http.post_call_count();
-//         let _ = provider.get_token("test-org").await.expect("stale at 1800s");  // [PLANNED]
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("stale at 1800s");  // [PLANNED]
 //         assert_eq!(mock_http.post_call_count(), calls_before_stale + 1,
 //             "VP-159 AC-7b: absent expires_in → 1799 default; 1800s > 1769s expires_at → re-acquisition \
 //              (EC-016-014-001; BC-2.16.014 P4-TTL-b)");
@@ -538,17 +579,23 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             config, Arc::new(mock_http.clone()), Arc::new(creds),
 //         );
-//         let _ = provider.get_token("test-org").await  // [PLANNED] cold — zero expires_in defaults to 1799
+//         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
+//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
+//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
+//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
+//         // credential-safety convention before the PR can merge.
+//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED] cold — zero expires_in defaults to 1799
 //             .expect("VP-159 AC-7c: zero expires_in must succeed with default 1799 TTL");
 //         let calls_after_warm = mock_http.post_call_count();
 //         mock_http.advance_clock_secs(1700);  // [PLANNED] still warm
-//         let _ = provider.get_token("test-org").await.expect("still warm at 1700s");  // [PLANNED]
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("still warm at 1700s");  // [PLANNED]
 //         assert_eq!(mock_http.post_call_count(), calls_after_warm,
 //             "VP-159 AC-7c: zero expires_in → 1799 default; 1700s < 1769s expires_at → cache valid \
 //              (EC-016-014-002; BC-2.16.014 P4-TTL-b)");
 //         mock_http.advance_clock_secs(100);  // [PLANNED] total 1800s → stale
 //         let calls_before_stale = mock_http.post_call_count();
-//         let _ = provider.get_token("test-org").await.expect("stale at 1800s");  // [PLANNED]
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("stale at 1800s");  // [PLANNED]
 //         assert_eq!(mock_http.post_call_count(), calls_before_stale + 1,
 //             "VP-159 AC-7c: zero expires_in → 1799 default; 1800s > 1769s expires_at → re-acquisition \
 //              (EC-016-014-002; BC-2.16.014 P4-TTL-b)");
@@ -737,6 +784,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.9 | wave-a-spec-evolution-fix-burst-12 | 2026-07-22 | architect | F-WASE-P12-MED-001: §Proof Harness Skeleton — all 19 single-arg `get_token("test-org")` call sites across 9 test functions (AC-2, AC-3, AC-4, AC-5, AC-6, AC-6b, AC-7a, AC-7b, AC-7c) updated to the 2-arg ADR-054 §D4 trait form `get_token(&sensor_spec, &org_slug)`. Per-function: `build_test_sensor_spec_token_exchange()` [PLANNED] and `prism_core::OrgSlug::new_unchecked("test-org")` declarations added before the first `get_token` call in each function; ALLOWLIST note added per CLAUDE.md credential-safety convention. AC-5: hoisted `sensor_spec` + ALLOWLIST + `org_slug` declarations before the warm-cache `get_token` call (previously placed only before `acquire_token`, leaving the `get_token` call above them with wrong single-arg form). Prose verification: all P-statement and AC prose uses `get_token()` without args as behavior description — no wrong single-arg signature stated; no prose change required. Adversary-missed sites swept: AC-5 (~380), AC-7a third site (~496), AC-7b third site (~524), AC-7c third site (~551) — adversary cited 9 grouped locations; sweep found 19 individual code sites; all fixed. input-hash drift resolved: stored f9726cc → computed 8a305d3 (ADR-054 or BC-2.16.014 changed since v1.8 burst; updated via `compute-input-hash --update`). BC-2.16.014 live-body pin sweep (parallel PO bump v1.7→v1.8 in same burst): 3 sites updated — §Source Contract authoring-source first occurrence `Token Lifecycle) v1.7`, §Source Contract inline restatement `(BC-2.16.014 v1.7)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.7` — all now read v1.8. input-hash for this burst: at-commit-time hash per POL-32. |
 | 1.8 | wave-a-spec-evolution-fix-burst-11 | 2026-07-22 | architect | F-WASE-P11-MED-001: AC-9 and AC-9b `[PLANNED — engine story]` qualifiers moved off the executor-method symbols onto their `get_token()` cache-aware wiring. `PipelineExecutor::execute` confirmed in `crates/prism-spec-engine/src/pipeline.rs` (~line 138); `PipelineExecutor::execute_step` confirmed (~line 605). What is [PLANNED] is the ADR-054 §D4/§D11 wiring inside them, not the methods themselves. AC-9 prose updated: "drives `PipelineExecutor::execute` (confirmed in `pipeline.rs`; its `get_token()` cache-aware wiring is [PLANNED — engine story] per ADR-054 §D4)". AC-9b prose updated: "drives `PipelineExecutor::execute_step` (confirmed in `pipeline.rs`; its `get_token()` cache-aware wiring is [PLANNED — engine story] per ADR-054 §D11) directly". Per-marker audit: all other [PLANNED] markers verified on genuinely-absent symbols (DeclarativeHttpAuthProvider, get_token(), CachedAuthToken, ExpiryMode, AuthAcquisitionConfig, MockHttpClient, auth/declarative.rs path, mock clock methods, test helper fns) — all correct. Pin sweep: VP-INDEX.md status cell `draft — v1.7` → `draft — v1.8` (state-manager scope; no live body prose pins to VP-159 v1.7 found). input-hash unchanged (ADR-054 and BC-2.16.014 not modified in this burst; frontmatter value f9726cc remains valid per POL-32 at-commit-time wording). |
 | 1.7 | wave-a-spec-evolution-fix-burst-10 | 2026-07-22 | architect | F-WASE-P10-MED-001: BC-2.16.014 pin updated v1.6→v1.7 at all three live-body sites: §Source Contract authoring-source bullet first occurrence (`BC-2.16.014 Token Lifecycle) v1.6`), §Source Contract inline restatement `(BC-2.16.014 v1.6)`, and §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.6`. Pin strategy: all three pins retain exact version (no unversioned substitution) — rationale: all three serve authoring-context purposes (§Source Contract: "authored against v1.7"; harness comment: implementer-visible as-of-authoring marker); POL-23 sweep cost for a single-file VP with 3 co-located pins is minimal; consistency within the §Source Contract bullet (line 209 and 210 both in the same sentence) requires both to carry the same version. input-hash recomputed d0f0001→f9726cc (BC-2.16.014 content changed as part of the v1.7 bump; hash updated via validator-reported value per POL-32). |
 | 1.6 | wave-a-spec-evolution-fix-burst-9 | 2026-07-22 | architect | F-WASE-P9-MED-002: AC-9b description updated — "struct literal" → `prism_spec_engine::spec_parser::FetchStep::new(name, method, path_template, body_template, response_path, pagination_cursor_path, variables_produced, fan_out_batch_size, pagination)` with note that struct-literal is E0639-impossible from `tests/` (`FetchStep` is `#[non_exhaustive]`; confirmed at `spec_parser.rs`). Harness skeleton: comment "FetchStep struct-literal fields confirmed" → "FetchStep::new(...) — struct-literal is E0639-impossible: FetchStep is #[non_exhaustive]" with full `pub fn new` parameter list confirmed from `spec_parser.rs`; skeleton construction changed from `crate::spec_parser::FetchStep { ... }` struct-literal to `prism_spec_engine::spec_parser::FetchStep::new("main", "GET", "/items", None, "$.items", None, vec![], None, None)` with correct external-crate path. F-WASE-P9-MED-003: AC-9 + AC-9b `http_client` construction updated — `crate::pipeline::build_http_client_with_timeout().expect(...)` replaced with `reqwest::Client::builder().timeout(Duration::from_secs(30)).build().expect("test client")` (direct construction per CLAUDE.md ADR-050; `build_http_client_with_timeout` is `pub(crate)` and inaccessible from `tests/`; confirmed return type is `reqwest::Client` not `Result` — `.expect()` would not compile on the original). "confirmed helper (closed TD-S-PLUGIN-PREREQ-B-005)" mislabel removed. input-hash recomputed to d0f0001 (ADR-054 content changed since v1.5; updated via `compute-input-hash --update`). |
