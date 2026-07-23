@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.4"
+version: "1.5"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -9,7 +9,7 @@ phase: wave-a
 inputs:
   - .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
   - .factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md
-input-hash: "043b10a"
+input-hash: "910b248"
 traces_to: .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
 source_bc: BC-2.16.014
 source_adr: ADR-054
@@ -88,16 +88,19 @@ network-isolation and cache-lifecycle invariants (ADR-054 §D9; BC-2.16.014 P1�
    `CachedAuthToken` fields. Violating this invariant leaks credentials to process memory and
    log drains (AD-017).
 
-> **Scope note — P6 and P8 (deferred); P9 (verified via AC-9):** P9 (`get_token()` production
-> callers — `PipelineExecutor::execute_impl` and `execute_step` eager-acquisition paths per
-> ADR-054 v0.38 §D4/D11; `[PLANNED — engine story]`) is verified by AC-9 (SAP-3 executor
-> reachability test). P6 (double-401 → `AuthRefreshFailed`, E-AUTH-002) is inherent in the
-> `acquire_token()` contract per the confirmed `AuthProvider` trait and is verified via AC-5 +
-> error-path assertions in the engine implementation story (not directly asserted by VP-159's
-> mock-HTTP harness). P8 (`base_url` env-var interpolation obeys BC-2.16.009 Rule 6 / E-SPEC-024;
-> `token_path` is a literal relative path and does not undergo env-var interpolation) is a spec-load
-> validation property, not a runtime lifecycle invariant of `DeclarativeHttpAuthProvider`; deferred
-> to the spec-engine validation story's error-path assertions.
+> **Scope note — P6 and P8 (deferred); P9 (verified via AC-9 + AC-9b):** P9 (`get_token()`
+> production callers per ADR-054 v0.38 §D4/D11; `[PLANNED — engine story]`) is split across two
+> production-reachable paths: the `PipelineExecutor::execute` → `execute_impl` path is verified by
+> AC-9 (SAP-3 executor reachability test for the execute path); the `PipelineExecutor::execute_step`
+> direct-call path (plugin-runtime entry point per ADR-054 v0.38 §D11) is verified by AC-9b (SAP-3
+> execute_step reachability test). Together AC-9 and AC-9b fully cover P9. P6 (double-401 →
+> `AuthRefreshFailed`, E-AUTH-002) is inherent in the `acquire_token()` contract per the confirmed
+> `AuthProvider` trait and is verified via AC-5 + error-path assertions in the engine
+> implementation story (not directly asserted by VP-159's mock-HTTP harness). P8 (`base_url`
+> env-var interpolation obeys BC-2.16.009 Rule 6 / E-SPEC-024; `token_path` is a literal relative
+> path and does not undergo env-var interpolation) is a spec-load validation property, not a
+> runtime lifecycle invariant of `DeclarativeHttpAuthProvider`; deferred to the spec-engine
+> validation story's error-path assertions.
 
 ---
 
@@ -150,31 +153,59 @@ asserts:
   credential and mock token values to be distinct strings, enabling a negative assertion that the
   cached token does not equal the resolved credential.
 
-- **AC-9 (P9; SAP-3 executor reachability):** An end-to-end test drives `PipelineExecutor::execute`
-  [PLANNED — engine story] with a `DeclarativeHttpAuthProvider` [PLANNED] instance. Two consecutive
-  `PipelineExecutor::execute` calls are issued against the same provider (same org, same sensor),
-  with the mock token server configured to return a long-lived TTL (e.g., `expires_in = 3600`).
-  The mock token server records exactly ONE POST to the token endpoint across both `execute` calls —
-  confirming that the second execution returns the cached token via `get_token()` (cache-aware path)
-  rather than force-refreshing via `acquire_token()`. This test is the SAP-3 end-to-end reachability
-  requirement for BC-2.16.014 P9 (`get_token()` production callers: `PipelineExecutor::execute_impl`
-  and `execute_step` eager-acquisition paths per ADR-054 v0.38 §D4/D11): it proves `get_token()` is
-  reached through the production `PipelineExecutor::execute` caller path, not only by direct mock
-  invocation.
+- **AC-9 (P9-execute_impl path; SAP-3 execute reachability):** An end-to-end test drives
+  `PipelineExecutor::execute` [PLANNED — engine story] with a `DeclarativeHttpAuthProvider`
+  [PLANNED] instance. Two consecutive `PipelineExecutor::execute` calls are issued against the
+  same provider (same org, same sensor), with the mock token server configured to return a
+  long-lived TTL (e.g., `expires_in = 3600`). The mock token server records exactly ONE POST to
+  the token endpoint across both `execute` calls — confirming that the second execution returns
+  the cached token via `get_token()` (cache-aware path) rather than force-refreshing via
+  `acquire_token()`. This test is the SAP-3 end-to-end reachability requirement for BC-2.16.014
+  P9 `execute_impl` path (`PipelineExecutor::execute` → `execute_impl` per ADR-054 v0.38 §D4):
+  it proves `get_token()` is reached through the production `execute_impl` caller path, not only
+  by direct mock invocation. The `execute_step` path is separately verified by AC-9b.
 
   **SAP-3 note (CLAUDE.md Standing Adversary Probes §SAP-3):** AC-2/3/4 verify `get_token()` by
   direct invocation on `DeclarativeHttpAuthProvider` — they provide precise state-machine coverage
-  of the cache lifecycle but are synthetic-invocation tests. Per SAP-3, at least one test must
-  reach the arm end-to-end from the public surface (`PipelineExecutor::execute` or `execute_step`).
-  AC-9 is that SAP-3 reachability test. Both AC-2/3/4 (isolation) and AC-9 (reachability) are
-  required. Without AC-9, the `get_token()` cache path is covered only by direct invocation; a
-  mis-wiring in the `execute_impl` call-site (e.g., accidentally leaving `acquire_token` instead
-  of `get_token`) would pass AC-2/3/4 but fail AC-9, exposing the defect.
+  of the cache lifecycle but are synthetic-invocation tests. Per SAP-3, each production-reachable
+  path must have at least one end-to-end test from the public surface. AC-9 covers the
+  `PipelineExecutor::execute` → `execute_impl` path; AC-9b (below) covers the
+  `PipelineExecutor::execute_step` direct-call path. Both AC-2/3/4 (isolation) and AC-9 + AC-9b
+  (reachability) are required. Without AC-9, a mis-wiring in `execute_impl` would pass AC-2/3/4;
+  without AC-9b, a mis-wiring in `execute_step` would pass AC-9 and AC-2/3/4 undetected.
+
+- **AC-9b (P9-execute_step path; SAP-3 execute_step reachability):** An end-to-end test drives
+  `PipelineExecutor::execute_step` [PLANNED — engine story] directly — the plugin-runtime entry
+  point per ADR-054 v0.38 §D11. A `FetchStep` is constructed directly via struct literal (all
+  fields confirmed from `spec_parser::FetchStep`: `name`, `method`, `path_template`,
+  `body_template`, `response_path`, `pagination_cursor_path`, `variables_produced`,
+  `fan_out_batch_size`, `pagination`). Two consecutive `PipelineExecutor::execute_step` calls are
+  issued with the same `DeclarativeHttpAuthProvider` [PLANNED] instance, the same
+  `MockHttpClient` [PLANNED], and `prior_vars: HashMap::new()` (no cross-step variable
+  dependencies required for a single-step reachability test). The mock token server is configured
+  with long-lived TTL (`expires_in = 3600`). The mock token server records exactly ONE POST to the
+  token endpoint across both `execute_step` calls — confirming that the second call returns the
+  cached token via `get_token()` (cache-aware path) rather than force-refreshing via
+  `acquire_token()`. A mis-wiring that leaves `acquire_token()` in `execute_step` (the current
+  pre-engine-story state, confirmed in `crates/prism-spec-engine/src/pipeline.rs`) produces 2
+  POSTs and FAILS this test, exposing the defect that AC-9 cannot detect (AC-9 drives only
+  `execute` → `execute_impl` and never calls `execute_step`).
+
+  **Signature note:** `PipelineExecutor::execute_step` takes `(step: &FetchStep, spec: &SensorSpec,
+  prior_vars: &std::collections::HashMap<String, serde_json::Value>, context: &FetchContext,
+  http_client: &reqwest::Client, auth_provider: &dyn AuthProvider)` returning
+  `Result<serde_json::Value, SpecEngineError>` — confirmed from `PipelineExecutor::execute_step`
+  in `crates/prism-spec-engine/src/pipeline.rs`. The `http_client` parameter is the sensor API
+  client (separate from `MockHttpClient` [PLANNED] held inside `DeclarativeHttpAuthProvider`); the
+  sensor API mock endpoint (GET `/items` → `{"items": [{"id": 1}]}`) uses wiremock (confirmed
+  dev-dependency in `prism-spec-engine`) alongside `MockHttpClient` [PLANNED] for the token
+  endpoint. `FetchContext::new` is the confirmed non-exhaustive constructor (`OrgSlug`,
+  `HashMap<String, String>`).
 
 ## Source Contract
 
-- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.5 — postconditions P1–P9
-  (BC-2.16.014 v1.5) are the primary **authoring source** for this VP; the verified set is
+- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.6 — postconditions P1–P9
+  (BC-2.16.014 v1.6) are the primary **authoring source** for this VP; the verified set is
   P1–P5, P7, P9 (plus P4-TTL-a/b sub-properties) — see §Property Statement scope note for
   P6/P8 (deferred) and P9-via-AC-9 (verified) coverage.
   INV-014-003 (BC-local invariant:
@@ -235,7 +266,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 // Method: integration_test (MockHttpClient for network isolation)
 // Target module: prism-spec-engine
 // Target path: crates/prism-spec-engine/src/auth/declarative.rs [PLANNED — engine story]
-// BC: BC-2.16.014 v1.5 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9 verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
+// BC: BC-2.16.014 v1.6 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
 //
 // ALL DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode /
 // MockHttpClient symbols below are [PLANNED — engine story].
@@ -536,6 +567,137 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         // The exhaustive struct literal above is the load-bearing assertion:
 //         // CachedAuthToken has exactly {token, expires_at} — no credential field.
 //     }
+//
+//     // AC-9 (P9-execute_impl path; SAP-3 execute reachability):
+//     // PipelineExecutor::execute called twice, same warm DeclarativeHttpAuthProvider [PLANNED],
+//     // long TTL → exactly 1 token-endpoint POST total across both calls.
+//     // [PLANNED — engine story]: DeclarativeHttpAuthProvider, MockHttpClient,
+//     //   build_test_sensor_spec_token_exchange, build_test_table_spec
+//     #[tokio::test]
+//     async fn test_vp159_ac9_execute_impl_path_cache_sharing() {
+//         use wiremock::{MockServer, Mock as WmMock, ResponseTemplate,
+//                        matchers::{method as wm_method, path as wm_path}};
+//         // Token endpoint mock via MockHttpClient [PLANNED — engine story]:
+//         // records POST call count and returns {"access_token": "...", "expires_in": 3600}
+//         let mock_http = MockHttpClient::with_response("bearer_token_ac9", 3600); // [PLANNED]
+//         let creds = MockCredentialResolver::new("client_secret_ac9");
+//         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
+//         let provider = Arc::new(DeclarativeHttpAuthProvider::new(  // [PLANNED]
+//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//         ));
+//         // Sensor API mock via wiremock (confirmed dev-dep in prism-spec-engine):
+//         // serves GET /items → {"items": [{"id": 1}]}
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("GET"))
+//             .and(wm_path("/items"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({"items": [{"id": 1}]})),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let spec = build_test_sensor_spec_token_exchange(); // [PLANNED — engine story helper]
+//         // build_test_sensor_spec_token_exchange() sets base_url = mock_server.uri()
+//         let table = build_test_table_spec(); // [PLANNED — engine story helper]
+//         let context = FetchContext::new(
+//             prism_core::OrgSlug::new_unchecked("test-org"),
+//             std::collections::HashMap::new(),
+//         );
+//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked in this harness must be entered in
+//         // crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md credential-safety convention.
+//         let http_client = crate::pipeline::build_http_client_with_timeout()
+//             .expect("test client"); // confirmed helper (closed TD-S-PLUGIN-PREREQ-B-005)
+//         // First execute call: cold cache → 1 POST to token endpoint
+//         let _ = PipelineExecutor::execute(&spec, &table, &context, &http_client, provider.as_ref())
+//             .await.expect("VP-159 AC-9: first execute call must succeed");
+//         assert_eq!(mock_http.post_call_count(), 1,
+//             "VP-159 AC-9: first execute call must issue exactly 1 token-endpoint POST");
+//         // Second execute call: warm cache (TTL 3600s >> 0 elapsed) → 0 additional POSTs
+//         let _ = PipelineExecutor::execute(&spec, &table, &context, &http_client, provider.as_ref())
+//             .await.expect("VP-159 AC-9: second execute call must succeed");
+//         assert_eq!(mock_http.post_call_count(), 1,
+//             "VP-159 AC-9: second execute call must use cached token — zero additional \
+//              token-endpoint POSTs (BC-2.16.014 P9 execute_impl path; ADR-054 §D4)");
+//     }
+//
+//     // AC-9b (P9-execute_step path; SAP-3 execute_step reachability):
+//     // PipelineExecutor::execute_step called twice directly (plugin-runtime entry point per
+//     // ADR-054 §D11), same warm DeclarativeHttpAuthProvider [PLANNED], long TTL → exactly 1
+//     // token-endpoint POST total across both calls.
+//     //
+//     // execute_step signature (confirmed: PipelineExecutor::execute_step in prism-spec-engine):
+//     //   (step: &FetchStep, spec: &SensorSpec,
+//     //    prior_vars: &std::collections::HashMap<String, serde_json::Value>,
+//     //    context: &FetchContext, http_client: &reqwest::Client,
+//     //    auth_provider: &dyn AuthProvider) -> Result<serde_json::Value, SpecEngineError>
+//     //
+//     // FetchStep struct-literal fields confirmed from spec_parser::FetchStep:
+//     //   name, method, path_template, body_template, response_path,
+//     //   pagination_cursor_path, variables_produced, fan_out_batch_size, pagination
+//     //
+//     // [PLANNED — engine story]: DeclarativeHttpAuthProvider, MockHttpClient,
+//     //   build_test_sensor_spec_token_exchange
+//     #[tokio::test]
+//     async fn test_vp159_ac9b_execute_step_path_cache_sharing() {
+//         use wiremock::{MockServer, Mock as WmMock, ResponseTemplate,
+//                        matchers::{method as wm_method, path as wm_path}};
+//         // Token endpoint mock via MockHttpClient [PLANNED — engine story]
+//         let mock_http = MockHttpClient::with_response("bearer_token_ac9b", 3600); // [PLANNED]
+//         let creds = MockCredentialResolver::new("client_secret_ac9b");
+//         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
+//         let provider = Arc::new(DeclarativeHttpAuthProvider::new(  // [PLANNED]
+//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//         ));
+//         // Sensor API mock via wiremock — execute_step uses the injected reqwest::Client
+//         // (separate from MockHttpClient which is held inside DeclarativeHttpAuthProvider)
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("GET"))
+//             .and(wm_path("/items"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({"items": [{"id": 1}]})),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         // FetchStep struct-literal — all fields confirmed from spec_parser::FetchStep
+//         let step = crate::spec_parser::FetchStep {
+//             name: "main".to_string(),
+//             method: "GET".to_string(),
+//             path_template: "/items".to_string(),
+//             body_template: None,
+//             response_path: "$.items".to_string(),
+//             pagination_cursor_path: None,
+//             variables_produced: vec![],
+//             fan_out_batch_size: None,
+//             pagination: None,
+//         };
+//         let spec = build_test_sensor_spec_token_exchange(); // [PLANNED — engine story helper]
+//         // build_test_sensor_spec_token_exchange() sets base_url = mock_server.uri()
+//         let prior_vars: std::collections::HashMap<String, serde_json::Value> =
+//             std::collections::HashMap::new(); // no cross-step variable dependencies
+//         let context = FetchContext::new(
+//             prism_core::OrgSlug::new_unchecked("test-org"),
+//             std::collections::HashMap::new(),
+//         );
+//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked in this harness must be entered in
+//         // crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md credential-safety convention.
+//         let http_client = crate::pipeline::build_http_client_with_timeout()
+//             .expect("test client");
+//         // First execute_step call: cold cache → 1 POST to token endpoint
+//         let _ = PipelineExecutor::execute_step(
+//             &step, &spec, &prior_vars, &context, &http_client, provider.as_ref(),
+//         ).await.expect("VP-159 AC-9b: first execute_step call must succeed");
+//         assert_eq!(mock_http.post_call_count(), 1,
+//             "VP-159 AC-9b: first execute_step call must issue exactly 1 token-endpoint POST");
+//         // Second execute_step call: warm cache (TTL 3600s >> 0 elapsed) → 0 additional POSTs
+//         let _ = PipelineExecutor::execute_step(
+//             &step, &spec, &prior_vars, &context, &http_client, provider.as_ref(),
+//         ).await.expect("VP-159 AC-9b: second execute_step call must succeed");
+//         assert_eq!(mock_http.post_call_count(), 1,
+//             "VP-159 AC-9b: second execute_step call must use cached token — zero additional \
+//              token-endpoint POSTs (BC-2.16.014 P9 execute_step path; ADR-054 §D11; \
+//              a mis-wiring leaving acquire_token in execute_step produces 2 POSTs and FAILS here)");
+//     }
 // }
 ```
 
@@ -559,6 +721,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.5 | wave-a-spec-evolution-fix-burst-8 | 2026-07-22 | architect | F-WASE-P8-MED-001: AC-9b added (SAP-3 execute_step reachability for P9). Scope note updated: P9 now explicitly split across AC-9 (execute → execute_impl path) and AC-9b (execute_step direct-call path; confirmed sig: `PipelineExecutor::execute_step`). AC-9 heading narrowed to `(P9-execute_impl path; SAP-3 execute reachability)`; AC-9 first-paragraph closing sentence narrowed to cite execute_impl path only (not execute_step); AC-9 SAP-3 note updated to reference AC-9b as the execute_step complement. AC-9b added: drives `PipelineExecutor::execute_step` twice with the same `DeclarativeHttpAuthProvider` [PLANNED] instance and long-lived TTL (3600s), asserts exactly 1 token-endpoint POST total; a mis-wiring leaving `acquire_token` in `execute_step` produces 2 POSTs and fails this test. `FetchStep` struct-literal fields confirmed from `spec_parser::FetchStep`; `FetchContext::new` confirmed non-exhaustive constructor. Sensor API mock uses wiremock (confirmed dev-dep) alongside `MockHttpClient` [PLANNED] for the token endpoint. Harness skeleton: AC-9 skeleton added (`test_vp159_ac9_execute_impl_path_cache_sharing`); AC-9b skeleton added (`test_vp159_ac9b_execute_step_path_cache_sharing`). §Proof Harness header updated: P9-via-AC-9 → P9-via-AC-9+AC-9b. input-hash recomputed to current frontmatter value at commit time (at-commit-time hash wording per POL-32). |
 | 1.4 | wave-a-spec-evolution-fix-burst-7 | 2026-07-22 | architect | F-WASE-P7-MED-001: AC-9 added (SAP-3 executor reachability). AC-2/3/4 verify `get_token()` by direct invocation (isolation; defense-in-depth). AC-9 requires an end-to-end test driving `PipelineExecutor::execute` twice against the same `DeclarativeHttpAuthProvider` instance; the second call must record zero additional token-endpoint POSTs, confirming the cache is reached through the production executor call-path. SAP-3 note added in AC-9 text: both AC-2/3/4 (isolation) and AC-9 (reachability) are required. Production caller: `PipelineExecutor::execute_impl` calls `get_token()` per ADR-054 v0.38 §D4 PipelineExecutor call-site dispatch table and §D11 engine-story wiring rows. P9 reconciliation (BC-2.16.014 v1.5): §Source Contract authoring-source updated P1–P8 → P1–P9 (BC-2.16.014 v1.5); §Property Statement preamble updated to P1–P5, P7, P9; scope note heading updated "P6 and P8 (deferred); P9 (verified via AC-9)" with P9 caller text added; AC-9 heading updated to `(P9; SAP-3 executor reachability)` and body cites BC-2.16.014 P9 explicitly; §Proof Harness Skeleton header comment updated to `BC-2.16.014 v1.5 (P1–P5, P7, P9; ...)`. Verified set: P1–P5, P7, P9 (plus P4-TTL-a/b sub-properties); P6/P8 remain deferred. input-hash recomputed to 043b10a (BC-2.16.014 v1.5 content change). |
 | 1.3 | Wave-A fix-burst 5 | 2026-07-22 | architect | F-WASE-P5-MED-001: input-hash trail reconciliation — v1.2 changelog row recorded `3af7dc1` as the post-v1.2 input-hash; frontmatter `f761188` is the authoritative current value (recomputed at D-1953 burst immediately after v1.2 was authored, when ADR-054 v0.37 was edited in that same burst; the 3af7dc1→f761188 transition was not captured in the v1.2 row — v1.2 row left immutable per changelog policy). F-WASE-P5-LOW-001: §Proof Harness Skeleton constructor fixes — `MockCredentialResolver::default()` (7 confirmed sites: AC-1, AC-3, AC-4, AC-5, AC-7a, AC-7b, AC-7c; finding cited 8 — 1 discrepancy, all located sites fixed) rewritten to `MockCredentialResolver::new("test-credential")`; `MockCredentialResolver::with_secret("client_secret_xyz")` (AC-2) and `MockCredentialResolver::with_secret("long_lived_secret")` (AC-6, AC-6b) rewritten to `MockCredentialResolver::new("...")` with identical argument value. All 10 sites resolved using the existing `pub fn new(value: impl Into<String>) -> Self` constructor — no new `MockCredentialResolver` extension required. input-hash trail: f761188 (D-1953 committed) → recomputed to current frontmatter value at commit time (hook-detected drift — ADR-054 or BC-2.16.014 changed since D-1953; updated via `compute-input-hash --update`; see frontmatter for settled value). |
 | 1.2 | Wave-A fix-burst 4 | 2026-07-22 | architect | F-WASE-P4-OBS-001: §Proof Harness Skeleton — added skeleton test functions for AC-6 (P4-TTL-a `absolute_utc_string` expiry arithmetic, including AC-6b malformed-RFC-3339 → `AuthAcquisitionFailed` per EC-016-014-003) and AC-7 (P4-TTL-b `relative_seconds` expiry arithmetic, including AC-7b absent `expires_in` → default 1799 per EC-016-014-001 and AC-7c zero `expires_in` → default 1799 per EC-016-014-002). All new symbols marked `[PLANNED — engine story]` per POL-31. F-WASE-P4-OBS-003: §Source Contract P1–P8 authoring-source sentence disambiguated — "P1–P8 are the primary **authoring source**" now explicitly followed by "the verified set is P1–P5, P7 (plus P4-TTL-a/b sub-properties) — see §Property Statement scope note for P6/P8 coverage"; eliminates the false-verified-set reading. input-hash updated to `3af7dc1` (inputs unchanged; hash recomputed after prior edit). |

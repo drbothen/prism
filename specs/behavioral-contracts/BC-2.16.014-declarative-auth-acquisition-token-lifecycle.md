@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -206,6 +206,26 @@ beyond the scope of that operation. They are not stored as struct fields, are no
 applies where the credential store returns `secrecy::SecretString` (which implements
 `Zeroize` on drop).
 
+### P8 — `base_url` Interpolated; `token_path` Literal (BC-2.16.009 Rule 6 / E-SPEC-024)
+
+`base_url` in the parent `SensorSpec` undergoes env-var interpolation per BC-2.16.009 Rule 6.
+An unresolved `${env.VARIABLE}` reference in `base_url` emits `E-SPEC-024` at spec-load time
+and rejects the spec. By the time `step9a_populate_adapter_registry` constructs a
+`DeclarativeHttpAuthProvider`, `base_url` is fully resolved with any per-org overlay applied.
+
+`token_path` in `[auth_acquisition]` is a LITERAL relative path string and does NOT undergo
+env-var interpolation. A `${env.FOO}` placeholder in `token_path` is treated as literal URL
+path characters; it is concatenated verbatim into the token URL, which will likely result in
+an HTTP error at acquisition time. This is intentional: silent env-var lookup beyond the
+documented Rule 6 surface is a SOUL.md §4 violation.
+
+The full token URL is constructed once at provider construction time:
+`format!("{}{}", resolved_per_org_base_url, auth_acquisition.token_path)`. The per-org
+`base_url` overlay — e.g., DTU clone endpoints in tests, regional tenant URLs in production —
+flows through automatically because `step9a_populate_adapter_registry` uses the overlay-resolved
+`base_url` (the same per-org derivation used by the existing `Oauth2ClientCredentials` arm
+before this migration).
+
 ### P9 — `get_token()` Production Callers: Eager Acquisition Before Step Execution [PLANNED — engine story]
 
 `get_token()` is the cache-aware method added to the `AuthProvider` trait with a default
@@ -233,26 +253,6 @@ engine story merges: `execute_impl` and `execute_step` call `get_token()` (cache
 while `issue_request_with_retry`'s 401 arm continues to call `acquire_token()` directly
 (force-refresh, per P5/P6 — calling `get_token()` on the 401 path is incorrect because it
 would return the same stale or revoked token from the warm cache).
-
-### P8 — `base_url` Interpolated; `token_path` Literal (BC-2.16.009 Rule 6 / E-SPEC-024)
-
-`base_url` in the parent `SensorSpec` undergoes env-var interpolation per BC-2.16.009 Rule 6.
-An unresolved `${env.VARIABLE}` reference in `base_url` emits `E-SPEC-024` at spec-load time
-and rejects the spec. By the time `step9a_populate_adapter_registry` constructs a
-`DeclarativeHttpAuthProvider`, `base_url` is fully resolved with any per-org overlay applied.
-
-`token_path` in `[auth_acquisition]` is a LITERAL relative path string and does NOT undergo
-env-var interpolation. A `${env.FOO}` placeholder in `token_path` is treated as literal URL
-path characters; it is concatenated verbatim into the token URL, which will likely result in
-an HTTP error at acquisition time. This is intentional: silent env-var lookup beyond the
-documented Rule 6 surface is a SOUL.md §4 violation.
-
-The full token URL is constructed once at provider construction time:
-`format!("{}{}", resolved_per_org_base_url, auth_acquisition.token_path)`. The per-org
-`base_url` overlay — e.g., DTU clone endpoints in tests, regional tenant URLs in production —
-flows through automatically because `step9a_populate_adapter_registry` uses the overlay-resolved
-`base_url` (the same per-org derivation used by the existing `Oauth2ClientCredentials` arm
-before this migration).
 
 ## Invariants
 
@@ -440,13 +440,14 @@ story IDs to be assigned during Wave-A story decomposition.]`
 | L2 Invariants | DI-012 ("Spec-Driven Auth With Runtime Composition Guards") per invariants.md — ADR-054 amends DI-012 (`amends_dis: ["DI-012"]`) by adding `token_exchange` as the 6th valid `auth_type` variant; this BC enforces that `DeclarativeHttpAuthProvider` handles both declarative variants without sensor-name-conditional logic (INV-014-001, POL-36), directly implementing DI-012's "config-driven, not code-driven" invariant for the new auth type |
 | L2 Entities | SensorSpec, AuthAcquisitionConfig, DeclarativeHttpAuthProvider, CachedAuthToken |
 | Priority | P0 |
-| ADR anchors | ADR-054 §D1/D2/D3/D4/D7/D10 (source authority for all postconditions P1–P8); ADR-053 §D2 (Armis wiring as TOML config example); ADR-050 §D3 (reqwest rustls-tls); ADR-034 §D1 (credential resolver construction); AD-017 (credential safety); ADR-023 §Rule 4 (amended — standard flows do not require WASM) |
+| ADR anchors | ADR-054 §D1/D2/D3/D4/D7/D10 (source authority for postconditions P1–P8); ADR-054 §D4/§D11 (source authority for P9 — get_token() PipelineExecutor production call sites, PLANNED per engine story); ADR-053 §D2 (Armis wiring as TOML config example); ADR-050 §D3 (reqwest rustls-tls); ADR-034 §D1 (credential resolver construction); AD-017 (credential safety); ADR-023 §Rule 4 (amended — standard flows do not require WASM) |
 | Subsystem | SS-16 (Spec Engine) |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | wave-a-spec-evolution-fix-burst-8 | 2026-07-22 | product-owner | F-WASE-P8-LOW-001: reordered §Postconditions so P8 precedes P9 (P9 was inserted between P7 and P8 at v1.5; P8 section block moved before P9; IDs not renumbered per append-only-numbering policy; ADR-054 D4/D11 and VP-159 AC-9 references to P9 identity remain valid). F-WASE-P8-LOW-002: §Traceability ADR anchors cell updated from "source authority for all postconditions P1–P8" to P1–P9, noting P9's source authority as ADR-054 §D4/§D11 (P1–P8 source authority remains §D1/D2/D3/D4/D7/D10). Live-body sweep for "P1–P8": one instance found and fixed (ADR anchors cell); changelog rows exempt. input-hash updated at commit time. |
 | 1.5 | wave-a-spec-evolution-fix-burst-7 | 2026-07-22 | product-owner | F-WASE-P7-HIGH-001: P5 caller list reconciled with ADR-054 v0.38 §D4 — bullet 1 changed "By" to "Internally by"; bullet 2 expanded to name `issue_request_with_retry` as the dispatch site and adds explicit note that the 401-refresh arm MUST call `acquire_token()` NOT `get_token()`. P6 updated to name `issue_request_with_retry` in heading; step 1 adds NOT-`get_token()` rationale; step 3 adds "with an intervening `acquire_token()` call between the two 401s" to specify the exact E-AUTH-002 trigger condition; appended paragraph making acquire_token()-not-get_token() explicit and tracing the two-401 sequence. P9 added: get_token() production callers (PipelineExecutor::execute_impl and execute_step, both marked [PLANNED — engine story] per ADR-054 D11). F-WASE-P7-LOW-001: E-AUTH-005 detail template specified at all three sites (EC-016-014-009, §Error Conditions E-AUTH-005 row, TV-9): `"E-AUTH-005: credential not found — no credential configured for ({client_id}, {sensor_id}) ref '{ref_name}'"` aligned with canonical error-taxonomy §E-AUTH-005 and StaticCookieAuthProvider pattern (BC-2.01.017 EC-017-003) generalized for variable ref names. |
 | 1.4 | wave-a-spec-evolution-fix-burst-6 | 2026-07-22 | product-owner | F-WASE-P6-LOW-001: clarify E-AUTH-005 credential-not-found contract at all three sites. (1) §Error Conditions E-AUTH-005 row: removed "(detail within `E-AUTH-001`)" label — E-AUTH-005 is a standalone wire code per error-taxonomy.md §E-AUTH-005 and `CredentialResolver` trait ("Callers should map this to E-AUTH-005"); updated Behavior column to name the implementation vehicle (`AuthAcquisitionFailed` with E-AUTH-005 in `detail`) and cite BC-2.01.017 EC-017-003 as sibling pattern. (2) EC-016-014-009: replaced "E-AUTH-005 detail" with explicit statement that E-AUTH-005 is the standalone wire code carried in `AuthAcquisitionFailed.detail`. (3) TV-9: same phrasing fix — E-AUTH-005 is the standalone wire code, implementation vehicle is `AuthAcquisitionFailed` with E-AUTH-005 in `detail`. No as-built SpecEngineError variant gap exists: `AuthAcquisitionFailed{detail: "E-AUTH-005: ..."}` is the ratified mechanism (matches StaticCookieAuthProvider in BC-2.01.017 EC-017-003; confirmed in auth_provider.rs lines 516–526). |
 | 1.3 | wave-a-spec-evolution-fix-burst-5 | 2026-07-22 | product-owner | F-WASE-P5-MED-002: trail reconciliation — input-hash trail: bc9f412 (post-v1.1/D-1948) → recomputed to current frontmatter value at commit time (D-1951 upstream input edits: error-taxonomy v2.60, BC-2.16.009 v1.15; v1.2 changelog row did not document the D-1951 recompute; see frontmatter for settled value). No BC content changed. |
