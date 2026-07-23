@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.7"
+version: "1.8"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -154,7 +154,8 @@ asserts:
   cached token does not equal the resolved credential.
 
 - **AC-9 (P9-execute_impl path; SAP-3 execute reachability):** An end-to-end test drives
-  `PipelineExecutor::execute` [PLANNED — engine story] with a `DeclarativeHttpAuthProvider`
+  `PipelineExecutor::execute` (confirmed in `pipeline.rs`; its `get_token()` cache-aware wiring is
+  [PLANNED — engine story] per ADR-054 §D4) with a `DeclarativeHttpAuthProvider`
   [PLANNED] instance. Two consecutive `PipelineExecutor::execute` calls are issued against the
   same provider (same org, same sensor), with the mock token server configured to return a
   long-lived TTL (e.g., `expires_in = 3600`). The mock token server records exactly ONE POST to
@@ -175,7 +176,8 @@ asserts:
   without AC-9b, a mis-wiring in `execute_step` would pass AC-9 and AC-2/3/4 undetected.
 
 - **AC-9b (P9-execute_step path; SAP-3 execute_step reachability):** An end-to-end test drives
-  `PipelineExecutor::execute_step` [PLANNED — engine story] directly — the plugin-runtime entry
+  `PipelineExecutor::execute_step` (confirmed in `pipeline.rs`; its `get_token()` cache-aware
+  wiring is [PLANNED — engine story] per ADR-054 §D11) directly — the plugin-runtime entry
   point per ADR-054 v0.38 §D11. A `FetchStep` is constructed via
   `prism_spec_engine::spec_parser::FetchStep::new(name, method, path_template, body_template,
   response_path, pagination_cursor_path, variables_produced, fan_out_batch_size, pagination)`
@@ -735,6 +737,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.8 | wave-a-spec-evolution-fix-burst-11 | 2026-07-22 | architect | F-WASE-P11-MED-001: AC-9 and AC-9b `[PLANNED — engine story]` qualifiers moved off the executor-method symbols onto their `get_token()` cache-aware wiring. `PipelineExecutor::execute` confirmed in `crates/prism-spec-engine/src/pipeline.rs` (~line 138); `PipelineExecutor::execute_step` confirmed (~line 605). What is [PLANNED] is the ADR-054 §D4/§D11 wiring inside them, not the methods themselves. AC-9 prose updated: "drives `PipelineExecutor::execute` (confirmed in `pipeline.rs`; its `get_token()` cache-aware wiring is [PLANNED — engine story] per ADR-054 §D4)". AC-9b prose updated: "drives `PipelineExecutor::execute_step` (confirmed in `pipeline.rs`; its `get_token()` cache-aware wiring is [PLANNED — engine story] per ADR-054 §D11) directly". Per-marker audit: all other [PLANNED] markers verified on genuinely-absent symbols (DeclarativeHttpAuthProvider, get_token(), CachedAuthToken, ExpiryMode, AuthAcquisitionConfig, MockHttpClient, auth/declarative.rs path, mock clock methods, test helper fns) — all correct. Pin sweep: VP-INDEX.md status cell `draft — v1.7` → `draft — v1.8` (state-manager scope; no live body prose pins to VP-159 v1.7 found). input-hash unchanged (ADR-054 and BC-2.16.014 not modified in this burst; frontmatter value f9726cc remains valid per POL-32 at-commit-time wording). |
 | 1.7 | wave-a-spec-evolution-fix-burst-10 | 2026-07-22 | architect | F-WASE-P10-MED-001: BC-2.16.014 pin updated v1.6→v1.7 at all three live-body sites: §Source Contract authoring-source bullet first occurrence (`BC-2.16.014 Token Lifecycle) v1.6`), §Source Contract inline restatement `(BC-2.16.014 v1.6)`, and §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.6`. Pin strategy: all three pins retain exact version (no unversioned substitution) — rationale: all three serve authoring-context purposes (§Source Contract: "authored against v1.7"; harness comment: implementer-visible as-of-authoring marker); POL-23 sweep cost for a single-file VP with 3 co-located pins is minimal; consistency within the §Source Contract bullet (line 209 and 210 both in the same sentence) requires both to carry the same version. input-hash recomputed d0f0001→f9726cc (BC-2.16.014 content changed as part of the v1.7 bump; hash updated via validator-reported value per POL-32). |
 | 1.6 | wave-a-spec-evolution-fix-burst-9 | 2026-07-22 | architect | F-WASE-P9-MED-002: AC-9b description updated — "struct literal" → `prism_spec_engine::spec_parser::FetchStep::new(name, method, path_template, body_template, response_path, pagination_cursor_path, variables_produced, fan_out_batch_size, pagination)` with note that struct-literal is E0639-impossible from `tests/` (`FetchStep` is `#[non_exhaustive]`; confirmed at `spec_parser.rs`). Harness skeleton: comment "FetchStep struct-literal fields confirmed" → "FetchStep::new(...) — struct-literal is E0639-impossible: FetchStep is #[non_exhaustive]" with full `pub fn new` parameter list confirmed from `spec_parser.rs`; skeleton construction changed from `crate::spec_parser::FetchStep { ... }` struct-literal to `prism_spec_engine::spec_parser::FetchStep::new("main", "GET", "/items", None, "$.items", None, vec![], None, None)` with correct external-crate path. F-WASE-P9-MED-003: AC-9 + AC-9b `http_client` construction updated — `crate::pipeline::build_http_client_with_timeout().expect(...)` replaced with `reqwest::Client::builder().timeout(Duration::from_secs(30)).build().expect("test client")` (direct construction per CLAUDE.md ADR-050; `build_http_client_with_timeout` is `pub(crate)` and inaccessible from `tests/`; confirmed return type is `reqwest::Client` not `Result` — `.expect()` would not compile on the original). "confirmed helper (closed TD-S-PLUGIN-PREREQ-B-005)" mislabel removed. input-hash recomputed to d0f0001 (ADR-054 content changed since v1.5; updated via `compute-input-hash --update`). |
 | 1.5 | wave-a-spec-evolution-fix-burst-8 | 2026-07-22 | architect | F-WASE-P8-MED-001: AC-9b added (SAP-3 execute_step reachability for P9). Scope note updated: P9 now explicitly split across AC-9 (execute → execute_impl path) and AC-9b (execute_step direct-call path; confirmed sig: `PipelineExecutor::execute_step`). AC-9 heading narrowed to `(P9-execute_impl path; SAP-3 execute reachability)`; AC-9 first-paragraph closing sentence narrowed to cite execute_impl path only (not execute_step); AC-9 SAP-3 note updated to reference AC-9b as the execute_step complement. AC-9b added: drives `PipelineExecutor::execute_step` twice with the same `DeclarativeHttpAuthProvider` [PLANNED] instance and long-lived TTL (3600s), asserts exactly 1 token-endpoint POST total; a mis-wiring leaving `acquire_token` in `execute_step` produces 2 POSTs and fails this test. `FetchStep` struct-literal fields confirmed from `spec_parser::FetchStep`; `FetchContext::new` confirmed non-exhaustive constructor. Sensor API mock uses wiremock (confirmed dev-dep) alongside `MockHttpClient` [PLANNED] for the token endpoint. Harness skeleton: AC-9 skeleton added (`test_vp159_ac9_execute_impl_path_cache_sharing`); AC-9b skeleton added (`test_vp159_ac9b_execute_step_path_cache_sharing`). §Proof Harness header updated: P9-via-AC-9 → P9-via-AC-9+AC-9b. input-hash recomputed to current frontmatter value at commit time (at-commit-time hash wording per POL-32). |
