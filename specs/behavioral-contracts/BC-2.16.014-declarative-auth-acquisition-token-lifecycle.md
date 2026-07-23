@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.14"
+version: "1.15"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -25,7 +25,7 @@ inputs:
   - ".factory/specs/domain-spec/invariants.md"
   - "crates/prism-spec-engine/src/auth_provider.rs"
   - "crates/prism-spec-engine/src/error.rs"
-input-hash: "b45e34a"
+input-hash: "69e2ef9"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -291,8 +291,11 @@ would return the same stale or revoked token from the warm cache).
 - **INV-014-006 (DI-012 Compliance — `token_exchange` as 6th Variant):** Each sensor spec
   declares exactly one `auth_type`. ADR-054 amends DI-012 (amends_dis: DI-012) by adding
   `token_exchange` as the 6th valid variant to the `AuthType` closed enum. The three DI-012
-  runtime composition guards (single auth_type per spec, single credential_ref per method,
-  structural credential ⇆ auth_type match) continue to apply; E-SPEC-028 is the Rule 10
+  runtime composition guards (single auth_type per spec, single logical credential structure
+  per method, structural credential ⇆ auth_type match) continue to apply;
+  `oauth2_client_credentials` binds its single OAuth2 credential structure via two
+  `[[credential_refs]]` entries (`client_id` + `client_secret`) — `token_exchange` and all
+  other auth types use one `[[credential_refs]]` entry; E-SPEC-028 is the Rule 10
   enforcement gate for declarative auth coherence.
 
 - **INV-014-007 (reqwest ADR-050 Compliance):** The HTTP POST to the token endpoint uses a
@@ -453,6 +456,7 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.15 | wave-a-spec-evolution-fix-burst-25 | 2026-07-23 | product-owner | F-WASE-P27-LOW-001: INV-014-006 "single credential_ref per method" reworded to "single logical credential structure per method"; added explicit counting-unit note that `oauth2_client_credentials` binds its single OAuth2 credential structure via two `[[credential_refs]]` entries (`client_id` + `client_secret`) — `token_exchange` and all other auth types use one `[[credential_refs]]` entry. Prevents a literal read of "single credential_ref per method" from contradicting E-SPEC-028(f)'s two-ref requirement for `oauth2_client_credentials`. Parity with DI-012 Rule 2 v1.11 rewording. input-hash updated at commit time. |
 | 1.14 | wave-a-spec-evolution-fix-burst-22 | 2026-07-23 | product-owner | F-WASE-P23-MED-001: §Error Conditions E-SPEC-028(b) Behavior cell — replaced "Spec rejected at load time unconditionally. Boot fails exit code 2." with "Spec rejected at load time regardless of whether `[auth_acquisition]` is declared (Definition 1). Boot fails exit code 2." — canonical Definition-1 phrasing per adjudication (term "unconditionally" purged from E-SPEC-028(b)/Definition-1 contexts). Grep sweep verdict: (1) line 161 P5 "unconditionally issues exactly one HTTP POST" — P5 describes `acquire_token()` cache-bypass force-refresh behavior, not an E-SPEC-028(b)/Definition-1 context — EXEMPT (legitimate unrelated use); (2) line 456 v1.13 changelog row — CHANGELOG-EXEMPT. input-hash updated at commit time. |
 | 1.13 | wave-a-spec-evolution-fix-burst-20 | 2026-07-23 | product-owner | F-WASE-P21-OBS-001: §Preconditions item 5 — replaced "unconditionally rejects any such combination at spec-load time" with "rejects any such combination at spec-load time regardless of whether `[auth_acquisition]` is declared (Definition 1, ratified in ADR-054 v0.35 §D10(b))" — parity with canonical Definition-1 phrasing (term "unconditionally" deliberately purged from E-SPEC-028(b) definitions during F-WASE-P2-HIGH-001 adjudication). F-WASE-P21-OBS-002: §Error Conditions E-SPEC-028(h) row — appended "(the only reachable (h) case within this BC's declarative scope; the canonical trigger per BC-2.16.009 Rule 10(h) fires for any auth_type ≠ token_exchange)" to the Condition column, making explicit why the row is scoped to oauth2_client_credentials and preventing a contradiction read against the broader canonical trigger. input-hash updated at commit time. |
 | 1.12 | wave-a-spec-evolution-fix-burst-19 | 2026-07-23 | product-owner | F-WASE-P20-OBS-001: Reworded three present-tense "retired crowdstrike-oauth2.prx plugin" references to forward framing — retirement lands with the ADR-054 §D2 migration story, not yet. (1) §Description: "retired `crowdstrike-oauth2.prx` plugin" → "`crowdstrike-oauth2.prx` plugin (to be retired by the ADR-054 §D2 migration story)". (2) §P2 form body construction: "behavioral parity with the retired plugin" → "behavioral parity with the `crowdstrike-oauth2.prx` plugin (to be retired by the ADR-054 §D2 migration story)". (3) §P9 execute_impl rationale: "the caching behavior of the retired `crowdstrike-oauth2.prx` plugin" → same forward framing (in-scope sweep per production-grade principle). F-WASE-P20-LOW-001: §Verification Properties VP-159 row: appended P9 executor reachability clause — "(i) P9 executor reachability — get_token() wiring verified end-to-end via AC-9 (execute_impl path) and AC-9b (execute_step path)" — VP-159 v1.14 verifies P9 via AC-9/AC-9b SAP-3 executor reachability. input-hash updated at commit time. |
