@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.13"
+version: "1.14"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -24,7 +24,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: draft
 introduced: "2026-07-22"
-modified: "2026-07-22"
+modified: "2026-07-23"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -362,11 +362,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             token_url, config, Arc::new(creds),
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
-//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
-//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
-//         // credential-safety convention before the PR can merge.
-//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let org_slug = prism_core::OrgSlug::new("test-org");
 //         let _token = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED]
 //             .expect("VP-159 AC-2: cold get_token must succeed");
 //         let post_count = mock_server.received_requests().await.unwrap()
@@ -394,8 +390,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             token_url, config, Arc::new(creds),
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: see AC-2 note above.
-//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let org_slug = prism_core::OrgSlug::new("test-org");
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("first call");  // [PLANNED] warms cache
 //         let posts_after_warm = mock_server.received_requests().await.unwrap()
 //             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
@@ -433,8 +428,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             token_url, config, Arc::new(creds), mock_time_fn,
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: see AC-2 note above.
-//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let org_slug = prism_core::OrgSlug::new("test-org");
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("cold call");  // [PLANNED] warms cache
 //         // Advance clock past expires_at: base_time + 120 > base_time + 60
 //         now_secs.fetch_add(120, Ordering::SeqCst);
@@ -466,8 +460,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             token_url, config, Arc::new(creds),
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: see AC-2 note above.
-//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let org_slug = prism_core::OrgSlug::new("test-org");
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("warm cache");  // [PLANNED]
 //         let posts_after_warm = mock_server.received_requests().await.unwrap()
 //             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
@@ -526,8 +519,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             token_url, config, Arc::new(creds), mock_time_fn,
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: see AC-2 note above.
-//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let org_slug = prism_core::OrgSlug::new("test-org");
 //         // Phase 1: warms cache (now = 0, expires_at = 4_070_908_770 → warm)
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED]
 //             .expect("VP-159 AC-6: absolute_utc_string get_token must succeed on well-formed expiry");
@@ -587,8 +579,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             token_url, config, Arc::new(creds),
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: see AC-2 note above.
-//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let org_slug = prism_core::OrgSlug::new("test-org");
 //         let result = provider.get_token(&sensor_spec, &org_slug).await;  // [PLANNED]
 //         assert!(
 //             matches!(result, Err(SpecEngineError::AuthAcquisitionFailed { .. })),
@@ -629,8 +620,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             token_url, config, Arc::new(creds), mock_time_fn,
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: see AC-2 note above.
-//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let org_slug = prism_core::OrgSlug::new("test-org");
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("warms cache");  // [PLANNED]
 //         let posts_after_warm = mock_server.received_requests().await.unwrap()
 //             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
@@ -681,8 +671,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             token_url, config, Arc::new(creds), mock_time_fn,
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: see AC-2 note above.
-//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let org_slug = prism_core::OrgSlug::new("test-org");
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED] cold — absent expires_in defaults to 1799
 //             .expect("VP-159 AC-7b: absent expires_in must succeed with default 1799 TTL");
 //         let posts_after_warm = mock_server.received_requests().await.unwrap()
@@ -733,8 +722,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             token_url, config, Arc::new(creds), mock_time_fn,
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: see AC-2 note above.
-//         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
+//         let org_slug = prism_core::OrgSlug::new("test-org");
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED] cold — zero expires_in defaults to 1799
 //             .expect("VP-159 AC-7c: zero expires_in must succeed with default 1799 TTL");
 //         let posts_after_warm = mock_server.received_requests().await.unwrap()
@@ -814,11 +802,9 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         // build_test_sensor_spec_token_exchange() sets base_url = mock_server.uri()
 //         let table = build_test_table_spec(); // [PLANNED — engine story helper]
 //         let context = FetchContext::new(
-//             prism_core::OrgSlug::new_unchecked("test-org"),
+//             prism_core::OrgSlug::new("test-org"),
 //             std::collections::HashMap::new(),
 //         );
-//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked in this harness must be entered in
-//         // crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md credential-safety convention.
 //         let http_client = reqwest::Client::builder()
 //             .timeout(std::time::Duration::from_secs(30))
 //             .build()
@@ -914,11 +900,9 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let prior_vars: std::collections::HashMap<String, serde_json::Value> =
 //             std::collections::HashMap::new(); // no cross-step variable dependencies
 //         let context = FetchContext::new(
-//             prism_core::OrgSlug::new_unchecked("test-org"),
+//             prism_core::OrgSlug::new("test-org"),
 //             std::collections::HashMap::new(),
 //         );
-//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked in this harness must be entered in
-//         // crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md credential-safety convention.
 //         let http_client = reqwest::Client::builder()
 //             .timeout(std::time::Duration::from_secs(30))
 //             .build()
@@ -966,6 +950,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.14 | wave-a-fix-burst-18 | 2026-07-23 | architect | F-WASE-P18-LOW-001: §Proof Harness Skeleton — all 11 `prism_core::OrgSlug::new_unchecked("test-org")` call sites replaced with `prism_core::OrgSlug::new("test-org")`. `OrgSlug::new` is infallible (`pub fn new(s: impl AsRef<str>) -> Self`, confirmed `crates/prism-core/src/tenant.rs`); returns `Self` directly — no `.unwrap()` required; "test-org" satisfies `^[a-zA-Z0-9_-]{1,64}$`; sibling idiom in `crates/prism-spec-engine/src/pipeline.rs` tests is `OrgSlug::new("test-org")` (10 occurrences confirmed). Sites fixed: AC-2 (1), AC-3 (1), AC-4 (1), AC-5 (1), AC-6 (1), AC-6b (1), AC-7a (1), AC-7b (1), AC-7c (1), AC-9 (1), AC-9b (1) — 11 total (finding cited 6; sweep found 5 additional in AC-7a/7b/7c/AC-9/AC-9b). All ALLOWLIST-REQUIRED notes deleted: 4-line block in AC-2, 8 one-line "see AC-2 note above" notes in AC-3/4/5/6/6b/7a/7b/7c, 2-line note after FetchContext::new in AC-9, 2-line note after FetchContext::new in AC-9b. Sweep result: zero `new_unchecked` or `ALLOWLIST REQUIRED` in code or prose; changelog rows (lines 957, 965) exempt and unchanged. input-hash: at-commit-time hash per POL-32. |
 | 1.13 | wave-a-fix-burst-17 | 2026-07-23 | architect | Pin sweep only (POL-7 Related-BCs label sweep; POL-32). Parallel PO BC-2.16.014 v1.10→v1.11 bump: 3 live-body pins updated — §Source Contract authoring-source first occurrence `Token Lifecycle) v1.10`, §Source Contract inline restatement `(BC-2.16.014 v1.10)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.10` — all now v1.11. input-hash updated 48b9704→9b909f8 (input drift resolved). No behavioral content changed. input-hash: at-commit-time hash per POL-32. |
 | 1.12 | wave-a-spec-evolution-fix-burst-15 | 2026-07-22 | architect | Pin sweep only (F-WASE-P15 pin obligation; POL-32). Parallel PO BC-2.16.014 v1.9→v1.10 bump: 3 live-body pins updated — §Source Contract authoring-source first occurrence `Token Lifecycle) v1.9`, §Source Contract inline restatement `(BC-2.16.014 v1.9)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.9` — all now v1.10. No behavioral content changed. input-hash: at-commit-time hash per POL-32. |
 | 1.11 | wave-a-spec-evolution-fix-burst-14 | 2026-07-22 | architect | F-WASE-P14-MED-001 (fix-burst 14): `ExpiryMode::RelativeSeconds` struct-variant form corrected to unit-variant form throughout harness skeleton. Per ADR-054 §D3: `ttl_buffer_secs` is a common `AuthAcquisitionConfig` field (default 30), independent of `expiry_mode`; `ExpiryMode` variants are unit variants (no fields). `base_config` helper signature updated: `base_config(token_path: &str, expiry_mode: ExpiryMode)` → `base_config(token_path: &str, expiry_mode: ExpiryMode, ttl_buffer_secs: u64)`; `ttl_buffer_secs` field added to the returned `AuthAcquisitionConfig` struct body. All 10 call sites fixed — `ExpiryMode::RelativeSeconds { ttl_buffer_secs: N }` → `ExpiryMode::RelativeSeconds, N`: AC-1 (30), AC-2 (30), AC-3 (30), AC-4 (0), AC-5 (30), AC-7a (ttl_buffer_secs variable), AC-7b (ttl_buffer_secs variable), AC-7c (ttl_buffer_secs variable), AC-9 (30), AC-9b (30). AC-6 and AC-6b confirmed correct (explicit `AuthAcquisitionConfig` structs with `expiry_mode: ExpiryMode::AbsoluteUtcString` unit variant + `ttl_buffer_secs` as separate field — no changes). `rg 'RelativeSeconds \{'` sweep: zero struct-variant forms remain. Standing pin sweep (parallel PO BC-2.16.014 v1.8→v1.9 bump): 3 live-body sites updated — §Source Contract first pin `v1.8`, §Source Contract inline restatement `v1.8`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.8` — all now v1.9. input-hash: at-commit-time hash per POL-32. |
