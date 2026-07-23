@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.19"
+version: "1.20"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -147,15 +147,21 @@ asserts:
   exactly one additional POST request to the wiremock token endpoint. The refreshed token is
   returned.
 
-- **AC-4b (P4 — empty-token trigger):** Seed `DeclarativeHttpAuthProvider`'s `ArcSwap` cache
-  with an empty-string token (`CachedAuthToken { token: "".to_string(), expires_at: far_future }`)
-  via `DeclarativeHttpAuthProvider::seed_cache_for_test` [PLANNED — engine story;
-  `#[cfg(any(test, feature = "test-helpers"))]`] — a test seam that writes directly to the
-  `ArcSwap<Option<CachedAuthToken>>` internal field. `expires_at` is set far in the future
-  (e.g., `unix_now() + 86_400`) so the TTL check (`unix_now() >= expires_at`) does NOT fire —
-  only `cached.token.is_empty()` triggers re-acquisition, exercising that branch independently
-  of TTL expiry. The mock token server is configured to return a fresh non-empty token
-  `"fresh_token_4b"`. After calling `get_token(&sensor_spec, &org_slug)` [PLANNED], assert:
+- **AC-4b (P4 — empty-token trigger):** Construct via `DeclarativeHttpAuthProvider::new_for_test`
+  [PLANNED — engine story] with `now_fn` backed by `Arc<AtomicU64>` pinned at
+  `base_time = 1_700_000_000u64` (same pinned-clock pattern as AC-4, AC-6, AC-7). Seed
+  the provider's `ArcSwap` cache with a poisoned entry (`CachedAuthToken { token: "".to_string(),
+  expires_at: base_time + 86_400 }`) via `DeclarativeHttpAuthProvider::seed_cache_for_test`
+  [PLANNED — engine story; `#[cfg(any(test, feature = "test-helpers"))]`] — a test seam that
+  writes directly to the `ArcSwap<Option<CachedAuthToken>>` internal field. With the clock
+  pinned at `base_time`, the TTL predicate `(self.now_fn)() >= expires_at` evaluates to
+  `1_700_000_000 >= 1_700_086_400` = FALSE — the TTL check does NOT fire; only
+  `cached.token.is_empty()` triggers re-acquisition, exercising that branch independently of
+  TTL expiry. **Kill condition (mutation-thinking):** a TTL-only implementation that ignores
+  `is_empty()` would return the cached empty string and FAIL `== "fresh_token_4b"` — the
+  assertion is load-bearing precisely because the pinned clock keeps the TTL path inactive.
+  The mock token server is configured to return a fresh non-empty token `"fresh_token_4b"`.
+  After calling `get_token(&sensor_spec, &org_slug)` [PLANNED], assert:
   (1) exactly one POST request recorded by the wiremock server (`post_count == 1`), and
   (2) the returned token string equals `"fresh_token_4b"` — not the cached empty string
   (BC-2.16.014 P4 `is_empty()` branch).
@@ -458,12 +464,21 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //
 //     // AC-4b (P4 — empty-token trigger): poisoned cache (empty-string token, valid TTL) →
 //     // exactly one HTTP POST + returned token is the fresh one (not the empty cached string).
-//     // Cache seam: DeclarativeHttpAuthProvider::seed_cache_for_test [PLANNED — engine story;
+//     // Clock seam: Arc<AtomicU64> via now_fn in DeclarativeHttpAuthProvider::new_for_test [PLANNED]
+//     //   pinned at base_time = 1_700_000_000u64 (same pattern as AC-4, AC-6, AC-7). Cache seam:
+//     //   DeclarativeHttpAuthProvider::seed_cache_for_test [PLANNED — engine story;
 //     //   cfg(any(test, feature = "test-helpers"))] writes directly to the
 //     //   ArcSwap<Option<CachedAuthToken>> internal field. The production constructor never
 //     //   produces an empty-token entry; direct injection is the only test path for the
-//     //   is_empty() branch. expires_at is set far in the future so the TTL check does NOT
-//     //   trigger — only is_empty() drives re-acquisition (BC-2.16.014 P4).
+//     //   is_empty() branch.
+//     //
+//     // Kill condition (mutation-thinking): with pinned clock now_fn() = base_time =
+//     //   1_700_000_000 and expires_at = base_time + 86_400 = 1_700_086_400, the TTL
+//     //   predicate (self.now_fn)() >= expires_at evaluates to 1_700_000_000 >= 1_700_086_400
+//     //   = FALSE. Only cached.token.is_empty() can trigger re-acquisition. A TTL-only
+//     //   implementation (ignoring is_empty()) returns the cached empty string and
+//     //   FAILS == "fresh_token_4b" — the assertion is load-bearing because the pinned
+//     //   clock keeps the TTL path inactive (BC-2.16.014 P4).
 //     #[tokio::test]
 //     async fn test_vp159_ac4b_empty_token_reacquisition() {
 //         let mock_server = MockServer::start().await;
@@ -478,16 +493,25 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let token_url = format!("{}/oauth/token", mock_server.uri());
 //         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds, 30); // [PLANNED]
-//         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
-//             token_url, config, Arc::new(creds),
+//         // Pinned clock: base_time = 1_700_000_000; now_fn always returns base_time.
+//         // expires_at = base_time + 86_400 = 1_700_086_400 (genuinely far future relative to
+//         // pinned clock; TTL predicate 1_700_000_000 >= 1_700_086_400 is always FALSE here).
+//         let base_time = 1_700_000_000u64;
+//         let now_secs = Arc::new(AtomicU64::new(base_time));
+//         let mock_time_fn = {
+//             let t = Arc::clone(&now_secs);
+//             Arc::new(move || t.load(Ordering::SeqCst)) as Arc<dyn Fn() -> u64 + Send + Sync>
+//         };
+//         let provider = DeclarativeHttpAuthProvider::new_for_test(  // [PLANNED — engine story; cfg(test)]
+//             token_url, config, Arc::new(creds), mock_time_fn,
 //         );
-//         // Seed a poisoned-cache entry: empty token string, expires_at far in the future.
-//         // far_future = 1_700_000_000 + 86_400 ensures TTL is valid (now effectively 0 for a
-//         // no-clock-seam provider); only is_empty() triggers re-acquisition here.
-//         let far_future_expires_at: u64 = 1_700_000_000u64 + 86_400;
+//         // Seed a poisoned-cache entry: empty token string, expires_at = base_time + 86_400.
+//         // TTL predicate (1_700_000_000 >= 1_700_086_400) = FALSE → only is_empty() triggers
+//         // re-acquisition; a TTL-only implementation would return "" and fail the assertion.
+//         let expires_at: u64 = base_time + 86_400;
 //         let poisoned_entry = CachedAuthToken {  // [PLANNED]
 //             token: "".to_string(),   // empty-string token — the poisoned-cache case (BC-2.16.014 P4)
-//             expires_at: far_future_expires_at,
+//             expires_at,
 //         };
 //         // seed_cache_for_test [PLANNED — engine story; cfg(any(test, feature = "test-helpers"))]
 //         // writes poisoned_entry into the provider's ArcSwap<Option<CachedAuthToken>> directly.
@@ -500,7 +524,8 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
 //         assert_eq!(post_count, 1,
 //             "VP-159 AC-4b: empty-token cache must trigger exactly one re-acquisition POST \
-//              (BC-2.16.014 P4 is_empty() branch; independent of TTL)");
+//              (BC-2.16.014 P4 is_empty() branch; independent of TTL; pinned clock ensures \
+//              TTL path is inactive)");
 //         assert_eq!(token, "fresh_token_4b",
 //             "VP-159 AC-4b: get_token must return the freshly-acquired token, not the cached empty string \
 //              (BC-2.16.014 P4)");
@@ -1015,6 +1040,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.20 | wave-a-fix-burst-29 | 2026-07-23 | architect | F-WASE-P32-HIGH-001: AC-4b clock-domain defect — harness was constructing via production `new(...)` (real wall-clock) and seeding `expires_at = 1_700_000_000 + 86_400` (2023-11-15, a past date in 2026+). At any real run time (2026+), `unix_now() >= expires_at` was TRUE, so the TTL-stale branch fired regardless of `is_empty()` — AC-4b added zero marginal coverage. Fix: (1) §AC-4b prose rewritten — construction changed to `new_for_test` with `now_fn` pinned at `base_time = 1_700_000_000u64`; `expires_at = base_time + 86_400` is genuinely far future relative to pinned clock; kill-condition stated explicitly. (2) Harness skeleton `test_vp159_ac4b_empty_token_reacquisition` rewritten — `new(...)` → `new_for_test(token_url, config, Arc::new(creds), mock_time_fn)` with `Arc<AtomicU64>` at `base_time`; `far_future_expires_at` binding removed; `expires_at = base_time + 86_400`; kill-condition comment added. (3) POL-29 sweep: no other AC-4b-context occurrences of `1_700_000_000`-based far-future constants or "no-clock-seam ⇒ now effectively 0" premise found in VP-159 (the constant appears only in the fixed test and legitimately in AC-4/AC-7 as a `base_time` clock anchor, not as a "far future" assertion — those are correct). No BC-2.16.014 §VP row (e) edit needed (property (e) describes the `is_empty()` branch behavior, not harness mechanics). input-hash unchanged (inputs not modified in this burst). |
 | 1.19 | wave-a-fix-burst-25 | 2026-07-23 | architect | STANDING PIN SWEEP (FIX-BURST 25): BC-2.16.014 v1.14→v1.15 bump (DI-012 counting-unit clarification in INV-014-006). 3 live-body pins updated — §Source Contract first occurrence `Token Lifecycle) v1.14`, §Source Contract inline restatement `(BC-2.16.014 v1.14)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.14` — all now v1.15. input-hash updated 87576a4→f702703 (BC-2.16.014 input drifted since last hash). No behavioral content changed. input-hash: at-commit-time hash per POL-32 (modified: sync). |
 | 1.18 | wave-a-spec-evolution-fix-burst-24 | 2026-07-23 | architect | F-WASE-P26-LOW-001: (1) §Property Statement P4 heading and body extended from TTL-only trigger to include `cached.token.is_empty()` poisoned-cache trigger — "stale `get_token()`" → "stale or poisoned `get_token()`"; condition updated from `unix_now() >= expires_at` alone to `unix_now() >= cached.expires_at` OR `cached.token.is_empty()` (BC-2.16.014 P4 parity). (2) AC-4b prose bullet added between AC-4 and AC-5: seeds provider cache via `DeclarativeHttpAuthProvider::seed_cache_for_test` [PLANNED — engine story] with `CachedAuthToken { token: "".to_string(), expires_at: far_future }`, calls `get_token()`, asserts wiremock POST count == 1 and returned token == fresh non-empty value. (3) Harness skeleton `test_vp159_ac4b_empty_token_reacquisition` added after `test_vp159_ac4_stale_cache_one_post`; `seed_cache_for_test` seam marked [PLANNED — engine story; cfg(any(test, feature = "test-helpers"))]. (4) §Feasibility Assessment Harness dependencies row updated to list `DeclarativeHttpAuthProvider::seed_cache_for_test` [PLANNED] as additional test seam. No BC-2.16.014 changes — its (e) property claim at VP-159 row is already correct; AC-4b existence makes it verified. input-hash: at-commit-time hash per POL-32 (modified: sync). |
 | 1.17 | wave-a-spec-evolution-fix-burst-22 | 2026-07-23 | architect | STANDING PIN SWEEP (FIX-BURST 22): 3 live-body BC-2.16.014 pins advanced v1.13→v1.14 (PO bumped BC-2.16.014 v1.13→v1.14 in parallel) — §Source Contract first occurrence `Token Lifecycle) v1.13`, §Source Contract inline restatement `(BC-2.16.014 v1.13)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.13` — all now v1.14. input-hash updated dc3b3bd→9491150 (BC-2.16.014 input drifted since last hash). At-commit-time hash per POL-32. |
