@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.521"
+version: "8.522"
 producer: state-manager
-timestamp: 2026-07-23T01:15:00Z
+timestamp: 2026-07-23T02:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -18,14 +18,14 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "e116a587"
 # NOTE: D-1887 — local develop is at e116a587 (NOT YET FF'd; unstaged S-MAINT ci.yml residue in main worktree blocks fast-forward). origin/develop = 7fef57da (PR #228 S-REL-001 squash-merged 2026-07-20; DRIFT-LOCAL-DEVELOP-FF-001 registered). D-1886 NOTE (pr-manager set 7fef57da) corrected to local HEAD for verify-sha-currency.sh compliance. D-1872 NOTE (e116a587 ff'd 2026-07-19; PR #227 squash-merged) still local HEAD.
-bc_index_version: "8.55"
-# NOTE: D-1972 — BC-INDEX v8.54→v8.55: BC-2.16.014 v1.13→v1.14 (F-WASE-P23-MED-001) + ADR-026 v1.39 + ADR-028 v1.25 + ADR-054 v0.44 (F-WASE-P23-LOW-001: Definition-1 purge 4 ADR sites) + VP-153 v0.25 (F-WASE-P23-OBS-001: 6th shape) + VP-159 v1.17 (pin sweep). No count changes (active_contracts 257 / draft_contracts 2 / total_contracts 268 ALL UNCHANGED). D-1971 NOTE archived.
+bc_index_version: "8.56"
+# NOTE: D-1974 — BC-INDEX v8.55→v8.56: BC-2.16.009 v1.19→v1.20 (F-WASE-P25-MED-001: EC-009-036 split Branch A/B) + error-taxonomy.md v2.62→v2.63 (co-fire truth table) + input-hash settles (error-taxonomy 744ab83; BC-2.16.014 b45e34a; VP-159 87576a4). No count changes (active_contracts 257 / draft_contracts 2 / total_contracts 268 ALL UNCHANGED). D-1972/D-1973 NOTEs archived.
 vp_index_version: "2.01"
 # NOTE: D-1972 — VP-INDEX v2.00→v2.01: VP-153 v0.24→v0.25 (F-WASE-P23-OBS-001: 6th credential shape appended for DI-012 Rule 3 parity) + VP-159 v1.16→v1.17 (pin sweep: BC-2.16.014 v1.13→v1.14 per POL-23). D-1970 NOTE archived.
 story_index_version: "v2.721"
 arch_index_version: "2.257"
-error_taxonomy_version: "2.62"
-# NOTE: D-1969 — v2.61→v2.62: F-WASE-P20-OBS-002: E-SPEC-027/028 Emitted-by cells marked [PLANNED — Wave-A engine story per ADR-053 D2/ADR-054 D10]. D-1965 NOTE archived.
+error_taxonomy_version: "2.63"
+# NOTE: D-1974 — v2.62→v2.63: F-WASE-P25-MED-001: false "(b)/(g) disjoint from all others" claim replaced with correct truth table — (b)/(g) mutually exclusive of each other; co-fire pairs (a)∩(b), (a)∩(f), (b)∩(f), (c)∩(d), (d)∩(e), (g)∩(h) enumerated, marked illustrative. D-1969 NOTE archived.
 total_stories: 254
 active_contracts: 257
 draft_contracts: 2
@@ -40,7 +40,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1973 COMPLETE — Wave-A spec-evolution LOCAL adversary pass 24 on frozen f2fd1203f = CLEAN(strict) YES / CLEAN(PR-merge) YES — zero findings any severity. Fresh-context re-derivation confirmed all axes incl. code-citation honesty both directions, E-SPEC-028 four-site + Definition-1 phrasing everywhere, DI-012 triangle, POL-24 byte-verbatim, POL-9/27/32/36, crowdstrike-oauth2 forward-framing, [PLANNED] marker coherence. Two considered-and-dismissed items documented (§-sigil row convention; E-AUTH-002(b) e.g.-non-exhaustive). Novelty LOW. BC-5.39.001 strict streak = 1/3. Next = pass 25 on unchanged perimeter. trajectory-tail →5→3→3→0 STATE v8.520→v8.521"
+current_step: "D-1974 COMPLETE — Wave-A spec-evolution LOCAL adversary pass 25 on frozen f2fd1203f content = NOT CLEAN(strict) — 1 MED (F-WASE-P25-MED-001: v2.61 disjointness rewording itself logically false; first-principles truth-table derivation caught (a)∩(b) + (g)∩(h) co-fires). STREAK RESET 1/3→0/3 per BC-5.39.001. FIX-BURST 23 closed it: error-taxonomy v2.63 (correct co-fire truth table; co-fire pairs (a)∩(b)/(a)∩(f)/(b)∩(f)/(c)∩(d)/(d)∩(e)/(g)∩(h) enumerated illustrative); BC-2.16.009 v1.20 (EC-009-036 split Branch A (b)-only / Branch B (a)∩(b) co-fire two-error). Input-hash chain settled: error-taxonomy 744ab83; BC-2.16.014 b45e34a (pre-existing D-1971 drift); VP-159 87576a4. Streak 0/3; next = pass 26. trajectory-tail →3→3→0→1 STATE v8.521→v8.522"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -78,8 +78,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 500 lines (wc-l)
-  margin from soft-target (200): +300 lines over | margin from actual (500): 0 lines remaining
+  STATE.md SIZE BUDGET: 500 lines (wc-l) | margin from soft-target (200): +300 over | margin from actual (500): 0 remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -93,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-23 D-1973 — Wave-A spec-evolution LOCAL adversary pass 24 CLEAN(strict) YES / CLEAN(PR-merge) YES — zero findings. Streak 1/3. trajectory-tail →5→3→3→0 STATE v8.520→v8.521 |
+| **Last Updated** | 2026-07-23 D-1974 — Wave-A spec-evolution LOCAL adversary pass 25 NOT CLEAN(strict) — 1 MED F-WASE-P25-MED-001. FIX-BURST 23 closed: error-taxonomy v2.63 + BC-2.16.009 v1.20. Streak RESET 0/3. trajectory-tail →3→3→0→1 STATE v8.521→v8.522 |
 
 ## Active Objective (North Star)
 
@@ -387,6 +386,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1971 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-22 on frozen 6819c8ffb = NOT CLEAN(strict) — 1 HIGH (F-WASE-P22-HIGH-001: modified:-date stale on BC-2.16.014 + error-taxonomy.md; systematic state-manager sync miss — discipline adopted: modified-sync required in every burst touching a changelog) + 1 MED (F-WASE-P22-MED-001: BC-2.16.009 Rules 9/10 present-tense without [PLANNED]; 5 sites caveated) + 1 LOW/OBS (F-WASE-P22-LOW-OBS-001: DI-012 reverse-naming parity in invariants.md). FIX-BURST 21 closed all: BC-2.16.009 v1.19, invariants.md v1.10, BC-2.16.014 modified: synced 2026-07-22→2026-07-23, error-taxonomy.md modified: synced 2026-07-22→2026-07-23. BC-INDEX v8.53→v8.54. Streak 0/3; next = pass 23. STATE v8.518→v8.519 | wave-5-e-demo-fidelity | 2026-07-23 |
 | D-1972 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-23 on frozen 464f04458 = NOT CLEAN(strict) — 1 MED (F-WASE-P23-MED-001 'unconditionally' residual in §Error Conditions (b) row) + 1 LOW (ADR-026/028/054 narrative sites — Definition-1 purge extended workspace-wide, 4 sites) + 1 OBS (VP-153 6th-shape parity). FIX-BURST 22 closed all (BC-2.16.014 v1.14, ADR-026 v1.39, ADR-028 v1.25, ADR-054 v0.44, VP-153 v0.25, VP-159 v1.17). Architecture-tree 'unconditional' sweep: zero residual E-SPEC-028(b) trigger descriptions. Streak 0/3; next = pass 24. trajectory-tail →4→5→3→3 STATE v8.519→v8.520 | wave-5-e-demo-fidelity | 2026-07-23 |
 | D-1973 | state-manager | 2026-07-23 | Wave-A spec-evolution LOCAL adversary pass 24 on frozen f2fd1203f = CLEAN(strict) YES / CLEAN(PR-merge) YES — zero findings any severity. Fresh-context re-derivation confirmed all axes incl. code-citation honesty both directions, E-SPEC-028 four-site + Definition-1 phrasing everywhere, DI-012 triangle, POL-24 byte-verbatim, POL-9/27/32/36, crowdstrike-oauth2 forward-framing, [PLANNED] marker coherence. Two considered-and-dismissed items documented (§-sigil row convention; E-AUTH-002(b) e.g.-non-exhaustive). Novelty LOW. BC-5.39.001 strict streak = 1/3. Next = pass 25 on unchanged perimeter. trajectory-tail →5→3→3→0 STATE v8.520→v8.521 | wave-5-e-demo-fidelity | 2026-07-23 |
+| D-1974 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass 25 on frozen f2fd1203f content = NOT CLEAN(strict) — 1 MED (F-WASE-P25-MED-001: v2.61 "(b)/(g) disjoint from all others" claim is itself logically false — first-principles truth-table derivation by adversary caught that (a)∩(b) co-fires when oauth2_client_credentials spec has auth_plugin set but no [auth_acquisition] block; (g)∩(h) similarly reachable). STREAK RESET 1/3→0/3 per BC-5.39.001. FIX-BURST 23 closed the finding: error-taxonomy.md v2.62→v2.63 (correct truth table: (b)/(g) mutually exclusive of each other only; co-fire pairs (a)∩(b), (a)∩(f), (b)∩(f), (c)∩(d), (d)∩(e), (g)∩(h) enumerated, marked illustrative); BC-2.16.009 v1.19→v1.20 (EC-009-036 split into Branch A ((b)-only: oauth2+auth_plugin WITH [auth_acquisition]) / Branch B ((a)∩(b) co-fire: oauth2+auth_plugin WITHOUT [auth_acquisition]) — two distinct error outputs in Branch B; Rule 10 sweep clean). Input-hash chain settled: error-taxonomy.md a188eac→744ab83 (BC glob cascade); BC-2.16.014 eb1b5b0→b45e34a (pre-existing drift from invariants.md D-1971; no content change); VP-159 9491150→87576a4 (cascade from BC-2.16.014 frontmatter). BC-INDEX v8.55→v8.56. Streak 0/3; next = pass 26. trajectory-tail →3→3→0→1 STATE v8.521→v8.522 | wave-5-e-demo-fidelity | 2026-07-23 |
 
 ## Skip Log
 

@@ -25,7 +25,7 @@ inputs:
   - ".factory/specs/domain-spec/invariants.md"
   - "crates/prism-spec-engine/src/auth_provider.rs"
   - "crates/prism-spec-engine/src/error.rs"
-input-hash: "eb1b5b0"
+input-hash: "b45e34a"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
