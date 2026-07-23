@@ -6,11 +6,11 @@ version: "2.62"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
-modified: "2026-07-22"
+modified: "2026-07-23"
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
-input-hash: "9866b88"
+input-hash: "550190f"
 traces_to: [".factory/specs/prd.md"]
 ---
 

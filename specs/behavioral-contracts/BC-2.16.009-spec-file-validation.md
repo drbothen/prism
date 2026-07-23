@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.18"
+version: "1.19"
 status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-07-22"
+modified: "2026-07-23"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -40,9 +40,9 @@ limit hint validity, env-var token resolution (substituting `${env.VAR_NAME}` to
 in string fields before subsequent validation rules run), HTTP method whitelist
 validation (rejecting `step.method` values not in the 7-element allowed set),
 `header_scheme` validation (syntactic check against the three-form set plus auth_type
-coherence matrix per ADR-053 D2), and `[auth_acquisition]` coherence validation
+coherence matrix per ADR-053 D2) [PLANNED — Wave-A engine story per ADR-053 D2 / ADR-054 D10], and `[auth_acquisition]` coherence validation
 (block presence requirements, required fields, and type-scoped field restrictions
-per ADR-054 D10).
+per ADR-054 D10) [PLANNED — Wave-A engine story per ADR-053 D2 / ADR-054 D10].
 
 All errors and warnings are collected in a single pass and reported together in a
 multi-error format grouped by file, table, and field, including exact TOML paths for
@@ -239,7 +239,7 @@ This validation rule runs AFTER Rule 7 (HTTP method whitelist), immediately befo
 
 **Ordering:** Rule 8 MUST execute after Rule 7. Rule 8 is independent of Rules 1–7 and does not interact with env-var resolution or HTTP method validation.
 
-### 9. `header_scheme` Validation (E-SPEC-027) — Wave-A ADR-053 D2
+### 9. `header_scheme` Validation (E-SPEC-027) — Wave-A ADR-053 D2 [PLANNED — Wave-A engine story per ADR-053 D2 / ADR-054 D10]
 
 This validation rule runs AFTER Rule 8 (probe table reference validation). It validates the optional `header_scheme` TOML field. If `header_scheme` is absent from the sensor spec, Rule 9 passes silently (backward-compatible default applies at runtime).
 
@@ -270,7 +270,7 @@ A syntactically valid `header_scheme` that is incoherent with the declared `auth
 
 **Ordering:** Rule 9 runs after Rule 8 and before Rule 10. It is independent of Rules 1–8.
 
-### 10. `[auth_acquisition]` Coherence Validation (E-SPEC-028) — Wave-A ADR-054 D10
+### 10. `[auth_acquisition]` Coherence Validation (E-SPEC-028) — Wave-A ADR-054 D10 [PLANNED — Wave-A engine story per ADR-053 D2 / ADR-054 D10]
 
 This validation rule runs AFTER Rule 9 (`header_scheme` validation). It validates the optional `[auth_acquisition]` TOML sub-table when present, and checks required-block obligations for declarative auth types. All sub-conditions are checked in a single pass (no fail-fast); all errors are collected.
 
@@ -322,8 +322,8 @@ This validation rule runs AFTER Rule 9 (`header_scheme` validation). It validate
 | `E-SPEC-024` | `${env.VAR_NAME}` token in a string field (e.g., `base_url`) references an env var that is absent or empty at spec-load time | Spec rejected; error message includes var NAME and TOML path; var VALUE never included (AD-017); multiple tokens → multiple errors in same multi-error pass |
 | `E-SPEC-025` | `step.method` value (after env-var resolution) is not in the allowed HTTP method set (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`) | Spec rejected; error message includes step_name, sensor_id, table_name, and the invalid method value (method value is config text, not a credential per AD-017); multiple invalid steps → multiple E-SPEC-025 errors in same multi-error pass; absent `step.method` is NOT an error (defaults to GET at pipeline level) |
 | `E-SPEC-026` | `probe_table` is set (`Some(name)`) but `name` does not case-sensitively match any `table_name` in `[[tables]]`, OR `probe_table` is set but `spec.tables` is empty | Spec rejected; error message includes `sensor_id`, `probe_table` value, and sorted list of declared table names (empty list `""` when no tables); `{sensor_id}` and `{name}` are config values, not credentials (AD-017); emitted by `SpecLoader::parse()` Rule 8; `probe_table = None` (absent) is NOT an error — Rule 8 passes silently |
-| `E-SPEC-027` | `header_scheme` value is syntactically invalid (not `"bearer"`, `"raw"`, or `"cookie:<name>"` with non-empty name and no colon in name) OR is syntactically valid but incoherent with the declared `auth_type` (e.g., `auth_type = "cookie_roundtrip"` with `header_scheme = "bearer"`) | Spec rejected; syntactic error message includes `sensor_id`, `header_scheme` value, and corrective guidance; coherence error message includes `sensor_id`, `auth_type`, `header_scheme` value, and allowed set for that auth_type; `header_scheme` absent is NOT an error (backward-compatible default) |
-| `E-SPEC-028` | `[auth_acquisition]` block coherence violation — any of 8 sub-conditions: (a) `auth_type ∈ {oauth2_client_credentials, token_exchange}` with block absent OR `token_path` absent; (b) `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `auth_plugin` present (block presence not required — Definition 1, ADR-054 v0.35 §D10(b)); (c) invalid `expiry_mode`; (d) `token_exchange` missing any of `{credential_body_field, token_response_path, expiry_field, expiry_mode}` — one error per absent field; `ttl_buffer_secs` is optional; (e) `credential_body_field` not in `[[credential_refs]]`; (f) `oauth2_client_credentials` missing `client_id` or `client_secret` credential refs (one or both absent); (g) block on non-declarative auth_type; (h) `token_exchange`-only fields on non-`token_exchange` auth_type — single aggregated `{field_list}` emission | Spec rejected; error message includes `sensor_id`, specific sub-condition identifier, field name(s), and corrective guidance; all sub-condition errors collected in single multi-error pass |
+| `E-SPEC-027` | `header_scheme` value is syntactically invalid (not `"bearer"`, `"raw"`, or `"cookie:<name>"` with non-empty name and no colon in name) OR is syntactically valid but incoherent with the declared `auth_type` (e.g., `auth_type = "cookie_roundtrip"` with `header_scheme = "bearer"`) | [PLANNED — Wave-A engine story per ADR-053 D2 / ADR-054 D10] Spec rejected; syntactic error message includes `sensor_id`, `header_scheme` value, and corrective guidance; coherence error message includes `sensor_id`, `auth_type`, `header_scheme` value, and allowed set for that auth_type; `header_scheme` absent is NOT an error (backward-compatible default) |
+| `E-SPEC-028` | `[auth_acquisition]` block coherence violation — any of 8 sub-conditions: (a) `auth_type ∈ {oauth2_client_credentials, token_exchange}` with block absent OR `token_path` absent; (b) `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `auth_plugin` present (block presence not required — Definition 1, ADR-054 v0.35 §D10(b)); (c) invalid `expiry_mode`; (d) `token_exchange` missing any of `{credential_body_field, token_response_path, expiry_field, expiry_mode}` — one error per absent field; `ttl_buffer_secs` is optional; (e) `credential_body_field` not in `[[credential_refs]]`; (f) `oauth2_client_credentials` missing `client_id` or `client_secret` credential refs (one or both absent); (g) block on non-declarative auth_type; (h) `token_exchange`-only fields on non-`token_exchange` auth_type — single aggregated `{field_list}` emission | [PLANNED — Wave-A engine story per ADR-053 D2 / ADR-054 D10] Spec rejected; error message includes `sensor_id`, specific sub-condition identifier, field name(s), and corrective guidance; all sub-condition errors collected in single multi-error pass |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -430,6 +430,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.19 | wave-a-spec-evolution-fix-burst-21 | 2026-07-23 | product-owner | F-WASE-P22-MED-001: §Description "nine categories" sentence amended — `header_scheme` validation and `[auth_acquisition]` coherence validation entries both annotated [PLANNED — Wave-A engine story per ADR-053 D2 / ADR-054 D10] (mirroring the Rule 1 `token_exchange` [PLANNED] precedent). Rule 9 header and Rule 10 header each annotated [PLANNED — Wave-A engine story per ADR-053 D2 / ADR-054 D10]. Sweep: §Error Conditions E-SPEC-027 and E-SPEC-028 Behavior columns each annotated [PLANNED — Wave-A engine story per ADR-053 D2 / ADR-054 D10] (these rows make present-tense claims about errors firing; without the annotation they implied the rules are already built). No other live-body present-tense claims that Rules 9/10 are implemented were found; Postconditions/Invariants/Multi-Error sections are generic and not Rule-9/10-specific. input-hash updated at commit time. |
 | 1.18 | wave-a-spec-evolution-fix-burst-19 | 2026-07-23 | product-owner | F-WASE-P20-MED-001: Two misanchored ADR-054 D1 citations corrected to D10. (1) §Description line "per ADR-054 D1" — the `[auth_acquisition]` coherence validation rules are governed by ADR-054 D10 (not D1; D1 = token_exchange enum addition); changed to "per ADR-054 D10". (2) §Validation Rule 10 section header "Wave-A ADR-054 D1" → "Wave-A ADR-054 D10". D1 sweep verdict: all other ADR-054 D1 citations in .factory/specs/ correctly refer to the token_exchange enum addition (D1 = Add token_exchange to AuthType closed enum); no other mis-anchors found. input-hash updated at commit time. |
 | 1.17 | wave-a-spec-evolution-fix-burst-9 | 2026-07-22 | product-owner | F-WASE-P9-MED-001: Rule 1 auth_type parenthetical reworded from "(6-value canonical set; ... token_exchange is the 6th variant per ADR-054 D1)" to honest spec-first form: 6-value canonical TARGET set per ADR-054 D1; the as-built `VALID_AUTH_TYPES` in `spec_parser.rs::validate_cross_composition` is currently 5-value (confirmed) and is extended to 6 by the ADR-054 engine story; `token_exchange` annotated [PLANNED — engine story]. Sweep: no other live-body claim that `token_exchange` is already in code found beyond this parenthetical (Rules 9/10 references are target-spec definitions, not as-built code state assertions; changelog rows exempt). input-hash updated at commit time. |
 | 1.16 | wave-a-spec-evolution-fix-burst-7 | 2026-07-22 | product-owner | F-WASE-P7-LOW-002: Rule 10(b) heading cite reworded from "(Definition 1 — ADR-054 v0.35 §D10(b))" to "(Definition 1, ratified in ADR-054 v0.35 §D10(b))"; Rule 10(h) trailing cite reworded from "ADR-054 v0.35 §D10(h)." to "(cardinality ratified in ADR-054 v0.35 §D10(h))". Both changes use ratification-provenance form so the cites cannot be read as stale current-version pins. Version numbers unchanged — they are historically correct ratification points. No version-sweep of other ADR-054 v0.35 occurrences per orchestrator adjudication. |

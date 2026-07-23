@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: draft
 introduced: "2026-07-22"
-modified: "2026-07-22"
+modified: "2026-07-23"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -25,7 +25,7 @@ inputs:
   - ".factory/specs/domain-spec/invariants.md"
   - "crates/prism-spec-engine/src/auth_provider.rs"
   - "crates/prism-spec-engine/src/error.rs"
-input-hash: "dff1fe9"
+input-hash: "eb1b5b0"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"

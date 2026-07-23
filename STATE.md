@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.518"
+version: "8.519"
 producer: state-manager
 timestamp: 2026-07-23T00:01:00Z
 inputs: []
@@ -18,8 +18,8 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "e116a587"
 # NOTE: D-1887 — local develop is at e116a587 (NOT YET FF'd; unstaged S-MAINT ci.yml residue in main worktree blocks fast-forward). origin/develop = 7fef57da (PR #228 S-REL-001 squash-merged 2026-07-20; DRIFT-LOCAL-DEVELOP-FF-001 registered). D-1886 NOTE (pr-manager set 7fef57da) corrected to local HEAD for verify-sha-currency.sh compliance. D-1872 NOTE (e116a587 ff'd 2026-07-19; PR #227 squash-merged) still local HEAD.
-bc_index_version: "8.53"
-# NOTE: D-1970 — BC-INDEX v8.52→v8.53: BC-2.16.014 v1.12→v1.13 + ADR-054 v0.42→v0.43 + VP-159 v1.15→v1.16 (F-WASE-P21 FIX-BURST 20). No count changes (active_contracts 257 / draft_contracts 2 / total_contracts 268 ALL UNCHANGED). D-1969 NOTE archived.
+bc_index_version: "8.54"
+# NOTE: D-1971 — BC-INDEX v8.53→v8.54: BC-2.16.009 v1.18→v1.19 (F-WASE-P22-MED-001) + modified: dates synced BC-2.16.014+error-taxonomy.md (F-WASE-P22-HIGH-001) + invariants.md v1.9→v1.10 (F-WASE-P22-LOW-OBS-001). No count changes (active_contracts 257 / draft_contracts 2 / total_contracts 268 ALL UNCHANGED). D-1970 NOTE archived.
 vp_index_version: "2.00"
 # NOTE: D-1970 — VP-INDEX v1.99→v2.00: VP-159 v1.15→v1.16 (F-WASE-P21-HIGH-001(a) + LOW-001 fixes; BC-2.16.014 pins v1.12→v1.13 at 3 live-body sites per POL-23). D-1969 NOTE archived.
 story_index_version: "v2.721"
@@ -40,7 +40,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1970 COMPLETE — Wave-A spec-evolution LOCAL adversary pass-21 on frozen 52f94f99f = NOT CLEAN(strict) — 1 HIGH (F-WASE-P21-HIGH-001: mirror-image sibling gap not swept to VP-159+ADR-054) + 1 MED (BC-INDEX prose changelog gaps v8.52/v8.41) + 1 LOW (§D4→§D9 anchor) + 2 OBS. STREAK RESET 0/3. FIX-BURST 20 closed all 5: VP-159 v1.16, ADR-054 v0.43, BC-2.16.014 v1.13, BC-INDEX prose rows restored, indexes synced. BC-INDEX v8.52→v8.53; ARCH-INDEX v2.255→v2.256; VP-INDEX v1.99→v2.00. Next = pass 22. trajectory-tail →1→0→4→5 STATE v8.517→v8.518"
+current_step: "D-1971 COMPLETE — Wave-A spec-evolution LOCAL adversary pass-22 on frozen 6819c8ffb = NOT CLEAN(strict) — 1 HIGH (F-WASE-P22-HIGH-001: modified:-date stale on 2 sibling BCs; systematic state-manager sync miss — discipline adopted: modified-sync in every burst) + 1 MED (F-WASE-P22-MED-001: Rules 9/10 present-tense without [PLANNED]; 5 sites caveated) + 1 LOW/OBS (F-WASE-P22-LOW-OBS-001: DI-012 reverse-naming parity). STREAK 0/3. FIX-BURST 21 closed all: BC-2.16.009 v1.19, invariants v1.10, modified: dates synced package-wide. BC-INDEX v8.53→v8.54. Next = pass 23. trajectory-tail →0→4→5→3 STATE v8.518→v8.519"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -78,8 +78,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 497 lines (wc-l)
-  margin from soft-target (200): +295 lines over | margin from actual (500): 5 lines remaining
+  STATE.md SIZE BUDGET: 498 lines (wc-l)
+  margin from soft-target (200): +298 lines over | margin from actual (500): 2 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -93,7 +93,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-23 D-1970 — Wave-A spec-evolution LOCAL adversary pass-21 NOT CLEAN(strict) (1 HIGH+1 MED+1 LOW+2 OBS); STREAK RESET 0/3. FIX-BURST 20 closed all 5. trajectory-tail →1→0→4→5 STATE v8.517→v8.518 |
+| **Last Updated** | 2026-07-23 D-1971 — Wave-A spec-evolution LOCAL adversary pass-22 NOT CLEAN(strict) (1 HIGH+1 MED+1 LOW/OBS); STREAK 0/3. FIX-BURST 21 closed all 3. BC-INDEX v8.53→v8.54. trajectory-tail →0→4→5→3 STATE v8.518→v8.519 |
 
 ## Active Objective (North Star)
 
@@ -384,6 +384,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1968 | state-manager | 2026-07-23 | Wave-A spec-evolution LOCAL adversary pass 19 on frozen af9bb9cc3 = CLEAN(strict) YES / CLEAN(PR-merge) YES — ZERO findings of any severity. Fresh-context re-derivation confirmed all axes: spec-vs-code honesty both directions (every [PLANNED] on genuinely-absent symbol; every confirmed symbol present with matching signature/visibility/return type), §D4 OPTION-(b) 6-field coherence, E-SPEC-028 four-site semantics + cardinality, DI-012 6-value, E-AUTH-005 template, POL-7/9/14/20/23/24/27/31/32/36, VP-INDEX arithmetic, TTL formulas (AC-6 epoch constant independently recomputed). Novelty LOW — no gaps. BC-5.39.001 strict streak = 1/3. Next = pass 20 on unchanged spec perimeter. trajectory-tail →3→1→1→0 STATE v8.515→v8.516 | wave-5-e-demo-fidelity | 2026-07-23 |
 | D-1969 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-20 on frozen ccca20a0a = NOT CLEAN(strict) — 1 MED (F-WASE-P20-MED-001 Rule 10 header D1→D10 mis-anchor) + 1 LOW (F-WASE-P20-LOW-001) + 2 OBS (F-WASE-P20-OBS-001, F-WASE-P20-OBS-002). STREAK RESET 1/3→0/3 per BC-5.39.001. FIX-BURST 19 closed all 4: BC-2.16.009 v1.18 (D1 cite corrected), BC-2.16.014 v1.12 (forward-framing + VP-159 P9 clause), error-taxonomy v2.62 (PLANNED markers), VP-159 v1.15 (pin sweep). BC-INDEX v8.51→v8.52; VP-INDEX v1.98→v1.99. Verified-clean axes at pass 20: TTL arithmetic incl. epoch constant, oauth2 plugin parity byte-exact, E-SPEC-028 four-site, DI-012, POL-7 all verbatim. Next = pass 21 (fresh streak). STATE v8.516→v8.517 | wave-5-e-demo-fidelity | 2026-07-23 |
 | D-1970 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-21 on frozen 52f94f99f = NOT CLEAN(strict) — 1 HIGH (F-WASE-P21-HIGH-001: pass-20 forward-framing fix not swept to VP-159+ADR-054 — mirror-image sibling gap) + 1 MED (F-WASE-P21-MED-001: BC-INDEX prose changelog v8.52/v8.41 gaps) + 1 LOW (F-WASE-P21-LOW-001: §D4→§D9 anchor) + 2 OBS (F-WASE-P21-OBS-001 Definition-1 wording parity; F-WASE-P21-OBS-002 (h)-scoping justification). STREAK RESET 0/3. FIX-BURST 20 closed all 5: VP-159 v1.16 (HIGH-001(a) + LOW-001), ADR-054 v0.43 (HIGH-001(b)), BC-2.16.014 v1.13 (OBS-001+OBS-002), BC-INDEX prose rows restored (MED-001), indexes synced. BC-INDEX v8.52→v8.53; ARCH-INDEX v2.255→v2.256; VP-INDEX v1.99→v2.00. Streak 0/3; next = pass 22. STATE v8.517→v8.518 | wave-5-e-demo-fidelity | 2026-07-23 |
+| D-1971 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-22 on frozen 6819c8ffb = NOT CLEAN(strict) — 1 HIGH (F-WASE-P22-HIGH-001: modified:-date stale on BC-2.16.014 + error-taxonomy.md; systematic state-manager sync miss — discipline adopted: modified-sync required in every burst touching a changelog) + 1 MED (F-WASE-P22-MED-001: BC-2.16.009 Rules 9/10 present-tense without [PLANNED]; 5 sites caveated) + 1 LOW/OBS (F-WASE-P22-LOW-OBS-001: DI-012 reverse-naming parity in invariants.md). FIX-BURST 21 closed all: BC-2.16.009 v1.19, invariants.md v1.10, BC-2.16.014 modified: synced 2026-07-22→2026-07-23, error-taxonomy.md modified: synced 2026-07-22→2026-07-23. BC-INDEX v8.53→v8.54. Streak 0/3; next = pass 23. STATE v8.518→v8.519 | wave-5-e-demo-fidelity | 2026-07-23 |
 
 ## Skip Log
 
