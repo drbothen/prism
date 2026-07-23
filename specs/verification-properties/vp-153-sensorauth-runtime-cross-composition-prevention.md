@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.23"
+version: "0.24"
 status: active
 producer: architect
 timestamp: 2026-05-16T16:00:00Z
@@ -45,10 +45,14 @@ prevention transitions from compile-time to runtime enforcement. The spec-valida
 
 1. **Rule A — Single auth_type:** A sensor spec with more than one `auth_type` value, or with
    an `auth_type` value not in the enumerated set `{oauth2_client_credentials, bearer_static,
-   cookie_roundtrip, api_key, custom_via_plugin, token_exchange}`, MUST be rejected at spec-load time with
+   cookie_roundtrip, api_key, custom_via_plugin, token_exchange [PLANNED — ADR-054 D1 engine story]}`,
+   MUST be rejected at spec-load time with
    structured error **E-SPEC-012** ("auth_type for sensor '{sensor_id}' must be a single value;
    got: {value}. Valid values: oauth2_client_credentials, bearer_static, cookie_roundtrip,
-   api_key, custom_via_plugin, token_exchange").
+   api_key, custom_via_plugin, token_exchange"). Note: `token_exchange` appears in the
+   E-SPEC-012 message template (error-taxonomy.md source of truth per POL-24), but the proptest
+   arm that validates `token_exchange` acceptance/rejection is [PLANNED — ADR-054 D1 engine
+   story]; see §Re-verification Gate below.
 
 2. **Rule B — One credential per method:** A sensor spec where `credential_refs` references
    more than one credential per auth method MUST be rejected at spec-load time with
@@ -83,7 +87,7 @@ message text (AD-017 AI-opaque credential model).
 |--------|------|----------|----------|
 | proptest | proptest 1.x | Yes — finite (auth_type × credential_type) space | All valid and invalid (auth_type, credential_type) pairs per ADR-026 D3 |
 
-**Feasibility:** The valid `auth_type` enumerated set has 6 members. The credential structural
+**Feasibility:** The valid `auth_type` enumerated set has 6 members (5 as-built; `token_exchange` is the 6th [PLANNED — ADR-054 D1 engine story]). The credential structural
 types are similarly finite (OAuth2 token, bearer token, cookie session, API key, WASM plugin
 token). The Cartesian product is small and fully enumerable. proptest can cover all pairs
 deterministically with a small strategy and provide regression coverage for the invariant.
@@ -211,7 +215,7 @@ deterministically with a small strategy and provide regression coverage for the 
 
 | Factor | Assessment | Notes |
 |--------|-----------|-------|
-| Input space size | Small and finite | 6 auth_type variants × 5 credential structural shapes = 30 pairs; all enumerable |
+| Input space size | Small and finite | 6 auth_type variants (5 as-built + `token_exchange` [PLANNED — ADR-054 D1 engine story]) × 5 credential structural shapes = 30 ordered mismatched pairs (6×5) once `token_exchange` lands; current green proof (proof-completed-date 2026-05-18) covers 20 ordered mismatched pairs (5×4) over the 5-member as-built set |
 | Proof complexity | Low–medium | Boolean accept/reject plus error-message redaction check |
 | Tool support | Full | proptest 1.x; no special infrastructure needed |
 | Harness dependencies | Moderate | Requires `SpecLoader::validate_cross_composition` — as-built in `crates/prism-spec-engine/src/spec_parser.rs` (callable as pure function per proof-completed-date 2026-05-18) |
@@ -235,6 +239,7 @@ deterministically with a small strategy and provide regression coverage for the 
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 0.24 | wave-a-spec-evolution-fix-burst-9 | 2026-07-22 | architect | F-WASE-P9-OBS-001: Added [PLANNED — ADR-054 D1 engine story] qualifiers to §Property Statement Rule A: (1) enumerated set `{..., token_exchange [PLANNED — ADR-054 D1 engine story]}` — makes it explicit that `token_exchange` is in the set but proptest arm not yet green; (2) post-message note added — "`token_exchange` appears in the E-SPEC-012 message template (POL-24 source of truth) but its proptest validation arm is [PLANNED — ADR-054 D1 engine story]; see §Re-verification Gate." §Proof Method: "has 6 members" → "has 6 members (5 as-built; `token_exchange` is the 6th [PLANNED — ADR-054 D1 engine story])". §Feasibility Assessment `Input space size` row: "6 auth_type variants × 5 credential structural shapes = 30 pairs; all enumerable" → "6 auth_type variants (5 as-built + `token_exchange` [PLANNED]) × 5 credential structural shapes = 30 ordered mismatched pairs (6×5) once `token_exchange` lands; current green proof (proof-completed-date 2026-05-18) covers 20 ordered mismatched pairs (5×4) over the 5-member as-built set". As-built pair arithmetic verified: `arb_mismatched_auth_type_pair()` current range `(0usize..5, 0usize..4)` = 5×4=20; future range `(0usize..6, 0usize..5)` = 6×5=30. The §Re-verification Gate (F-WASE-P4-OBS-002) already documents the constraint; these edits propagate consistent [PLANNED] markers to the prose-facing enumeration sites that lacked them. input-hash: no inputs changed; hash unchanged at commit time (at-commit-time hash wording per POL-32). |
 | 0.23 | Wave-A-spec-evolution-fix-burst-6 | 2026-07-22 | architect | F-WASE-P6-MED-001: §Feasibility Assessment "Harness dependencies" row — stale file path `spec_loader.rs` corrected to `spec_parser.rs` (file does not exist; `SpecLoader::validate_cross_composition` is as-built in `crates/prism-spec-engine/src/spec_parser.rs` at line 1382, inside `impl SpecLoader`). §Source Contract and §Proof Harness Skeleton already cited `spec_parser.rs` correctly; this row was the sole stale reference. Sweep confirmed: only one `spec_loader` hit across all of `.factory/specs/`. POL-32. |
 | 0.22 | Wave-A-fix-burst-4 | 2026-07-22 | architect | F-WASE-P4-OBS-002: §Re-verification Gate section added — explicit engine-story gate note stating that the ADR-054 engine story MUST re-run all 8 VP-153 proptests with the `token_exchange` arms activated (dropping `[PLANNED]` markers from `Just("token_exchange")` in `arb_valid_auth_type()`, `arb_matching_auth_type()`, and the updated `arb_mismatched_auth_type_pair()` range bounds) before the engine story PR can merge; until then the green proof covers the 5-value as-built set. See ADR-054 §D11 for companion engine-story gate row (added in ADR-054 v0.37). |
 | 0.21 | Wave-A-spec-evolution-burst-3 | 2026-07-22 | architect | ADR-054 D11 manifest execution (POL-24 same-commit atomicity with error-taxonomy.md v2.57 E-SPEC-012 amendment). §Property Statement Rule A: (1) enumerated set expanded 5→6 values — `token_exchange` appended; (2) E-SPEC-012 "Valid values:" clause updated verbatim from error-taxonomy.md v2.57 source of truth (POL-24). §Proof Method: "5 members" → "6 members" (D11 §Proof Method member-count row). §Feasibility Assessment table: "5 auth_type variants × 5 credential structural shapes = 25 pairs" → "6 auth_type variants × 5 credential structural shapes = 30 pairs" (D11 §Feasibility Assessment row). §Proof Harness Skeleton FILE 1: `VALID_AUTH_TYPES` gains `"token_exchange"` as 6th entry `[PLANNED — ADR-054 D1 engine story]`; `arb_valid_auth_type()` `prop_oneof!` gains `Just("token_exchange")` arm `[PLANNED]`; `arb_invalid_auth_type()` filter unchanged (auto-expands via VALID_AUTH_TYPES reference) (D11 §Proof Harness Skeleton row). FILE 2: `VALID_AUTH_TYPES` comment updated to note 6 members; `arb_mismatched_auth_type_pair()` range `(0..5, 0..4)→(0..6, 0..5)` covers 30 ordered pairs; `arb_matching_auth_type()` gains `Just("token_exchange")` arm `[PLANNED]` (D11 §Proof Harness Skeleton row). `modified:` synced to 2026-07-22. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.16"
+version: "1.17"
 status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -57,7 +57,7 @@ actionable correction. Warnings do not prevent loading; errors do.
 ### 1. Schema Validation
 - `sensor_id` must match `^[a-z][a-z0-9_-]*$` — same character set as client_id (BC-2.06.010)
 - `name` must be non-empty
-- `auth_type` must be one of: `oauth2_client_credentials`, `bearer_static`, `cookie_roundtrip`, `api_key`, `custom_via_plugin`, `token_exchange` — per `VALID_AUTH_TYPES` in `spec_parser.rs::validate_cross_composition` (6-value canonical set; `custom_via_plugin` permits external plugin-registered auth strategies per S-PLUGIN-PREREQ-E / ADR-026; `token_exchange` is the 6th variant per ADR-054 D1)
+- `auth_type` must be one of: `oauth2_client_credentials`, `bearer_static`, `cookie_roundtrip`, `api_key`, `custom_via_plugin`, `token_exchange` — 6-value canonical TARGET set per ADR-054 D1 (`custom_via_plugin` permits external plugin-registered auth strategies per S-PLUGIN-PREREQ-E / ADR-026; `token_exchange` is the 6th variant [PLANNED — engine story]; the as-built `VALID_AUTH_TYPES` in `spec_parser.rs::validate_cross_composition` is currently 5-value and is extended to 6 by the ADR-054 engine story)
 - `base_url` must be a valid URL (parsed by `url::Url`)
 - `version` must be a valid semver string
 - Each table must have a non-empty `table_name` matching `[a-zA-Z0-9_]+`
@@ -430,6 +430,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.17 | wave-a-spec-evolution-fix-burst-9 | 2026-07-22 | product-owner | F-WASE-P9-MED-001: Rule 1 auth_type parenthetical reworded from "(6-value canonical set; ... token_exchange is the 6th variant per ADR-054 D1)" to honest spec-first form: 6-value canonical TARGET set per ADR-054 D1; the as-built `VALID_AUTH_TYPES` in `spec_parser.rs::validate_cross_composition` is currently 5-value (confirmed) and is extended to 6 by the ADR-054 engine story; `token_exchange` annotated [PLANNED — engine story]. Sweep: no other live-body claim that `token_exchange` is already in code found beyond this parenthetical (Rules 9/10 references are target-spec definitions, not as-built code state assertions; changelog rows exempt). input-hash updated at commit time. |
 | 1.16 | wave-a-spec-evolution-fix-burst-7 | 2026-07-22 | product-owner | F-WASE-P7-LOW-002: Rule 10(b) heading cite reworded from "(Definition 1 — ADR-054 v0.35 §D10(b))" to "(Definition 1, ratified in ADR-054 v0.35 §D10(b))"; Rule 10(h) trailing cite reworded from "ADR-054 v0.35 §D10(h)." to "(cardinality ratified in ADR-054 v0.35 §D10(h))". Both changes use ratification-provenance form so the cites cannot be read as stale current-version pins. Version numbers unchanged — they are historically correct ratification points. No version-sweep of other ADR-054 v0.35 occurrences per orchestrator adjudication. |
 | 1.15 | wave-a-spec-evolution-fix-burst-2 | 2026-07-22 | product-owner | F-WASE-P2-HIGH-001: Rule 10(b) rewritten to ADR-054 v0.35 §D10(b) Definition 1 — fires when `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `auth_plugin` is present (regardless of `[auth_acquisition]` presence); removed UNCONDITIONAL framing; message template updated to `"sensor '{sensor_id}': auth_type = '{auth_type}' uses native declarative provider and does not accept auth_plugin. Remove auth_plugin or change auth_type to custom_via_plugin."` Disjointness note with (g) added (b=declarative auth_types, g=non-declarative). F-WASE-P2-HIGH-002: Rule 10(f) trigger corrected from "no [[credential_refs]] blocks declared" → "one or both of client_id, client_secret entries absent from [[credential_refs]]"; EC-009-041 added (client_secret-missing case). Rule 10(h) cardinality corrected to single aggregated emission with `{field_list}` (was "citing the mismatched field name" singular). Error Conditions E-SPEC-028 row updated: (b) and (f) summaries corrected. EC-009-036 updated to Definition 1 trigger. Companion: error-taxonomy.md v2.60. |
 | 1.14 | wave-a-fix-burst-1 | 2026-07-22 | product-owner | F-WASE-P1-CRIT-001: Rule 10(a) expanded to fire for `auth_type ∈ {oauth2_client_credentials, token_exchange}` when `[auth_acquisition]` block is absent OR `token_path` is absent (previously: token_exchange block-absence only). Rule 10(d) corrected to check the four token_exchange-specific required fields (`credential_body_field`, `token_response_path`, `expiry_field`, `expiry_mode`); `ttl_buffer_secs` downgraded to OPTIONAL (default 30, ADR-054 §D3) — was wrongly required, which would have rejected the ADR-054 §D3 Armis wiring example. Error Conditions E-SPEC-028(a)/(d) rows updated to match. EC-009-035 rule reference corrected from Rule 10(d) → Rule 10(a) (`token_path` absent is a 10(a) condition, not 10(d)). EC-009-039 (oauth2_client_credentials block absent → Rule 10(a)) and EC-009-040 (token_exchange `token_response_path` absent → Rule 10(d)) added. |

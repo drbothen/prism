@@ -3856,3 +3856,22 @@ The static adversary passes were not useless — they caught spec-level defects,
 **Closes:** PG-PRMGR-STATEMD-DIRECT-EDIT-001 [OPEN — upstream agent-prompt canonicalization pending] (D-1887)
 
 **Source:** D-1887 (2026-07-20) — S-REL-001 PR #228 post-merge; pr-manager commit b23f5e70; frozen-HEAD error 384d520e→e16f5e6a repair.
+
+---
+
+### Lesson 82 — [codified] Code doc-comments are spec-adjacent inputs — VP harness authors must verify constructor guidance against `#[non_exhaustive]` reality, not rustdoc claims (F-WASE-P9-OBS-003, D-1958)
+
+**Finding:** VP-159 AC-9b's harness skeleton used an E0639-invalid struct-literal construction pattern (`FetchStep { name: "fetch".to_string(), ..Default::default() }`) because the `FetchStep` struct doc-comment and `Default for FetchStep` impl doc-comment both advised "use the `Default` impl or builder pattern for external construction." This guidance directly contradicted the `#[non_exhaustive]` attribute on `FetchStep`, which makes struct-literal construction impossible from external crates (E0639). The mislabeled doc guidance caused F-WASE-P9-MED-002 (harness uses E0639-invalid syntax) — caught only by the adversary's direct inspection of `spec_parser.rs`, not by any test.
+
+**Root cause:** VP harness authors read the rustdoc claim ("use `Default` impl") without cross-checking the `#[non_exhaustive]` attribute on the same struct. Doc-comments in production code are spec-adjacent inputs that VP harness authors consume as authoritative; when they are wrong, they propagate errors into verification artifacts.
+
+**Codified rule:**
+
+1. **Code doc-comments are spec-adjacent inputs.** VP harness authors MUST verify constructor guidance in doc-comments against the actual struct definition (check for `#[non_exhaustive]`, visibility modifiers, and available constructors) before writing harness skeleton code. Rustdoc claims are NOT authoritative — the struct definition is.
+2. **`#[non_exhaustive]` means struct-literal construction is E0639-impossible from external crates.** Any doc-comment advising "use struct literal" or "use `..Default::default()`" on a `#[non_exhaustive]` type is incorrect. The correct guidance is "use the `new(...)` constructor" (or equivalent `pub` constructor function).
+3. **The fix is anchored to the code, not the spec.** The `FetchStep` struct doc-comment and `Default for FetchStep` impl doc-comment carry the wrong guidance. This is a code-level doc-hygiene defect tracked via ADR-054 v0.39 D11 new row — the correction executes at engine-story time when `DeclarativeHttpAuthProvider` is authored (same story that constructs `FetchStep` externally and will confirm the `FetchStep::new(...)` API).
+4. **Prevention:** Before writing any VP harness skeleton that constructs an external-crate type, check the type for `#[non_exhaustive]` and use only `pub` constructor functions. The `scripts/check-non-exhaustive.sh` inventory is the authority on which types carry this attribute.
+
+**Companion finding:** F-WASE-P9-MED-003 — same harness used `crate::pipeline::build_http_client_with_timeout()`, a `pub(crate)` helper inaccessible from `tests/`. The same lesson applies: harness authors must verify visibility of referenced symbols, not assume `pub` from naming convention.
+
+**Source:** D-1958 (2026-07-22) — Wave-A spec-evolution LOCAL adversary pass-9 FIX-BURST 9; F-WASE-P9-OBS-003 [process-gap]; ADR-054 v0.39 D11 FetchStep doc-comment correction row.
