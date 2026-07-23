@@ -130,7 +130,41 @@ timestamp: 2026-07-19T14:30:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-1944 (2026-07-22 — SESSION WRAP; Wave-A ADR set ACCEPTED at human gate; STATE v8.492) [SUPERSEDES D-1900]
+## §RESUME SNAPSHOT — D-1979 (2026-07-23 — SESSION WRAP; Wave-A spec evolution COMPLETE through adversarial pass 29; STATE v8.527) [SUPERSEDES D-1944]
+
+### RESUME IN ONE BREATH
+Wave-A spec evolution (D-1944 plan steps 1-4) is DONE: POL-36 codified (D-1945); BC-2.16.014 authored (now v1.15) + VP-159 (v1.19) + amendment manifests executed + 4 wrong-direction stories retired. The LOCAL adversarial cascade on the spec-evolution package stands at 29 passes / 27 fix-bursts, strict streak 0/3 (best 1/3 twice, passes 19 and 24 were CLEAN(strict)). NEXT SESSION FIRST ACTION: dispatch fresh-context adversary pass 30 on the new frozen factory-artifacts HEAD (the D-1978 commit) using the pass-29 dispatch template recorded below, continue BC-5.39.001 to strict 3-CLEAN, then remove-uncertainty pass (D-1944 step 5) → Wave-A story decomposition (step 6, ADR-054 D7 sequencing: engine story FIRST, ADR-054 story SECOND, sensor stories after).
+
+### HEADS (verified 2026-07-23 at wrap)
+- origin/develop: 7fef57dad — PUSHED. LOCAL develop: e116a5879 — STALE, ff BLOCKED (DRIFT-LOCAL-DEVELOP-FF-001, human-gated, unchanged).
+- factory-artifacts: this wrap's two commits (D-1978 fix-burst 27 + D-1979 wrap) — PUSHED.
+- Main worktree: docs/claude-md-file-size-convention @426c77cde (PR #230 OPEN, awaiting HUMAN merge).
+- .worktrees/fix-demosetup-cwd @ec4379b5 — PUSHED, PR #229 OPEN. .worktrees/S-3.09 @43c41389 LOCAL-ONLY KEEP-PARKED. .worktrees/W3-FIX-S307-001 @fcab8717 dirty LOCAL-ONLY PARKED-DIRTY do-NOT-touch.
+- verify-sha-currency.sh: PASS (1 non-blocking WARN) at wrap. No background agents in flight.
+
+### WORKSTREAM — WAVE-A SPEC-EVOLUTION ADVERSARIAL CASCADE (SOLE ACTIVE)
+Package versions at freeze: BC-2.16.014 v1.15, VP-159 v1.19, BC-2.01.018 v1.3 (draft), VP-153 v0.27, BC-2.16.009 v1.21, error-taxonomy v2.63, invariants v1.11 (DI-012), ADR-054 v0.45, ADR-053 v0.28, ADR-026 v1.39, ADR-028 v1.25. Indexes: BC-INDEX v8.58, VP-INDEX v2.04, ARCH-INDEX (post-D-1978 sync), STORY-INDEX v2.721.
+Cascade history: passes 1-29 = D-1950..D-1978 decision rows (findings decayed CRIT→HIGH→MED→LOW/OBS; passes 19+24 CLEAN(strict); every reset caused by fix-burst propagation gaps — countermeasures now standing: cross-artifact pin-sweep in every fix-burst dispatch, modified:-sync every state burst, at-commit-time hash wording, in-burst verification walks for logical claims).
+RESUME NEXT-ACTION: dispatch vsdd-factory:adversary, fresh context, LOCAL pass 30 on the frozen post-D-1978 HEAD with the standard perimeter + policy rubric (policies.yaml v1.36, POL-1..36) + standing probes (E-SPEC-028 four-site + Definition-1 + co-fire table + EC-009-036 counterfactual; DI-012 6-value + logical-credential-structure unit; §D4 OPTION (b); P4 stale-or-poisoned ↔ AC-4b; VP-153 mixed as-built/PLANNED harness framing; F-WASE-P29-OBS-001 now D11-anchored — treat the vp153 docstring nit as TRACKED). Report format F-WASE-P30-<SEV>-NNN + CLEAN(strict)/CLEAN(PR-merge). On CLEAN(strict) ×3 consecutive on unchanged spec perimeter → cascade CONVERGED → then D-1944 step 5 remove-uncertainty pass on all new/changed specs (user standing directive) → step 6 story decomposition.
+
+### STANDING USER DIRECTIVES
+- GENERALIZATION DIRECTIVE codified as POL-36 (D-1945) — auto-loads via policy rubric; OPEN OFFER from D-1944 is CLOSED.
+- Mandatory remove-uncertainty pass before story decomposition (unchanged).
+- No pragmatic convergence; production-grade default (unchanged).
+
+### PENDING USER-APPROVED / CARRIED ITEMS (unchanged from D-1944)
+- PR #230 (CLAUDE.md file-size stance) awaiting HUMAN merge; PR #229 open (deliver during findings phase).
+- develop CI stuck 'queued' on 7fef57da — re-trigger/investigate.
+- Staged ci.yml/e2e.yml residue in main worktree (S-MAINT AC-007, human-gated). Local develop FF blocked (human-gated).
+- File-size decomposition PARKED (TD-DECOMP-EPIC-001/RATCHET-001) until findings remediated.
+- PG-VP-SKELETON-ASBUILT-001 codification follow-up at cycle close (S-7.02); ADR-033/034/035/038 template backfill carry.
+
+### DECISION DELTA (this session, 2026-07-22/23)
+D-1945 (POL-36 codified), D-1946 (BC-2.16.014 v1.0 burst 1), D-1947 (VP-159 burst 2), D-1948 (amendment manifests burst 3 + expiry_mode adjudication), D-1949 (4 retirements burst 4), D-1950..D-1978 (adversarial passes 1-29 + fix-bursts 1-27; notable: D-1956 get_token trait-extension design HIGH; D-1962 OPTION-(b) HTTP-client DI ratification; D-1966 POL-7 label class kill 16 labels; D-1974 co-fire truth-table correction), D-1979 (this wrap).
+
+---
+
+## §RESUME SNAPSHOT — D-1944 (2026-07-22 — SESSION WRAP; Wave-A ADR set ACCEPTED at human gate; STATE v8.492) [SUPERSEDES D-1900] [SUPERSEDED by D-1979]
 
 ### RESUME IN ONE BREATH
 Wave-A ADR set (ADR-053 v0.26 + ADR-054 v0.31 + amended parents) reached BC-5.39.001 strict 3-CLEAN (passes 48-50 @46c1c802 after 50 passes/30 fix-bursts) and was HUMAN-APPROVED + ACCEPTED (D-1943 @5b0e4645). NEXT: dispatch Wave-A SPEC EVOLUTION — author PLANNED BC-2.16.014 (product-owner, from ADR-054 D8) + VP-159 (architect, D9, tool integration_test); execute ADR-053 D5 + ADR-054 D11 amendment manifests; retire the 4 wrong-direction stories; mandatory remove-uncertainty pass; then story decomposition + TDD.

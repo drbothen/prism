@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.526"
+version: "8.527"
 producer: state-manager
-timestamp: 2026-07-23T09:00:00Z
+timestamp: 2026-07-23T10:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -40,7 +40,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1978 COMPLETE — Wave-A spec-evolution LOCAL adversary pass 29 on frozen 39aa305df = NOT CLEAN(strict)/CLEAN(PR-merge) — 1 OBS only (F-WASE-P29-OBS-001: pre-existing CODE docstring nit in vp153 test-inventory table fn-name, outside spec diff). FIX-BURST 27 closed via ADR-054 v0.45 D11 story-anchor row (implementer fixes at engine-story time; same file already in D11 manifest). Spec-perimeter substantive axes fully clean at pass 29. ARCH-INDEX v2.257→v2.258. Streak 0/3; next = pass 30. trajectory-tail →2→2→1→1 STATE v8.525→v8.526"
+current_step: "D-1979 SESSION WRAP — Wave-A spec-evolution complete through pass 29 / fix-burst 27. Awaiting pass 30 on frozen post-D-1978 HEAD. Streak 0/3; next = pass 30 (fresh-context adversary). trajectory-tail →2→2→1→1 STATE v8.526→v8.527"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -78,7 +78,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 495 lines (wc-l) | margin from soft-target (200): +295 over | margin from actual (500): 5 remaining -->
+  STATE.md SIZE BUDGET: 496 lines (wc-l) | margin from soft-target (200): +296 over | margin from actual (500): 4 remaining -->
 
 
 # VSDD Pipeline State — Prism
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-23 D-1978 — Wave-A spec-evolution LOCAL adversary pass 29 NOT CLEAN(strict)/CLEAN(PR-merge) — 1 OBS only F-WASE-P29-OBS-001 (vp153 test-inventory docstring fn-name nit, outside spec diff). FIX-BURST 27 closed via ADR-054 v0.45 D11 anchor. ARCH-INDEX v2.258. Streak 0/3; next = pass 30. trajectory-tail →2→2→1→1 STATE v8.525→v8.526 |
+| **Last Updated** | 2026-07-23 D-1979 SESSION WRAP — Wave-A spec-evolution through pass 29 / fix-burst 27. Awaiting pass 30. Streak 0/3. trajectory-tail →2→2→1→1 STATE v8.526→v8.527 |
 
 ## Active Objective (North Star)
 
@@ -382,6 +382,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1976 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass 27 on frozen 6619f6e25 = NOT CLEAN(strict) — 1 MED (F-WASE-P27-MED-001: VP-153 v0.25 §Feasibility Assessment "Input space size" row label "5 mismatched shapes per variant" was ambiguous vs §Proof Method 6-shape enumeration; fix-burst propagation gap from FB-22 as-built reconciliation) + 1 LOW (F-WASE-P27-LOW-001: DI-012 Rule 2 "Single credential_ref per method" contradicted as-built allowed_count=2 for oauth2_client_credentials; adjudicated: unit is logical credential structure, not individual credential_ref entry; verified vs harness). FIX-BURST 25 closed both: VP-153 v0.26 (§Feasibility "Input space size" row relabeled "5 mismatched shapes per variant (of the 6 total credential structural shapes, excluding the matching one)"); invariants.md v1.11 (DI-012 Rule 2 renamed "Single logical credential structure per method" + oauth2 two-entry counting-unit note; verified vs allowed_count=2 harness); BC-2.16.014 v1.15 (INV-014-006 parity with DI-012 Rule 2 v1.11 rewording; input-hash 69e2ef9); VP-159 v1.19 (standing pin sweep BC-2.16.014 v1.14→v1.15 at 3 live-body sites per POL-23; input-hash f702703). VP-INDEX v2.02→v2.03; BC-INDEX v8.57→v8.58. Streak 0/3; next = pass 28. trajectory-tail →0→1→2→2 STATE v8.523→v8.524 | wave-5-e-demo-fidelity | 2026-07-23 |
 | D-1977 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass 28 on frozen c86681a13 = NOT CLEAN(strict)/CLEAN(PR-merge) — 1 LOW only (F-WASE-P28-LOW-001: VP-153 §Proof Harness Skeleton block header comment read "AS-BUILT HARNESS (proof-completed-date 2026-05-18; all 8 proptests PASS)" but was immediately adjacent to PLANNED 6-member/30-pair content — mixed as-built/PLANNED framing in a single unlabeled block; adversary correctly flagged the label as misleading). All substantive axes re-verified clean at pass 28 incl. E-SPEC-013 vs E-SPEC-028(f) non-co-fire subtlety and code-grounded counting-unit check. FIX-BURST 26 closed it: VP-153 v0.27 (§Proof Harness Skeleton block header retitled to "HARNESS — as-built 5-value core (proof-completed 2026-05-18; all 8 proptests PASS on the 5-value/20-pair set) + [PLANNED] token_exchange arms (6-value/30-pair once ADR-054 D1 engine story lands)"; FILE 1 "// 6 members" → "// 6 members (5 as-built + 1 [PLANNED])"; FILE 2 30-pair range comment annotated "// 30 pairs target; as-built range is (0..5, 0..4) = 20 pairs"; all existing [PLANNED] inline markers preserved; input-hash ab5fe91 per hook computation). VP-INDEX v2.03→v2.04 (VP-153 status cell active — v0.26 → active — v0.27). Streak 0/3; next = pass 29 (streak start expected). trajectory-tail →1→2→2→1 STATE v8.524→v8.525 | wave-5-e-demo-fidelity | 2026-07-23 |
 | D-1978 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass 29 on frozen 39aa305df = NOT CLEAN(strict)/CLEAN(PR-merge) — 1 OBS only (F-WASE-P29-OBS-001: pre-existing CODE docstring nit in vp153 test-inventory table fn-name, outside spec diff; spec-perimeter substantive axes FULLY CLEAN). FIX-BURST 27 closed: ADR-054 v0.44→v0.45 (D11 story-anchor row added — vp153 test-inventory docstring fn-name correction anchored to engine story; implementer fixes at engine-story time; same file already in D11 manifest). ARCH-INDEX v2.257→v2.258. Streak 0/3; next = pass 30 (streak start expected). trajectory-tail →2→2→1→1 STATE v8.525→v8.526 | wave-5-e-demo-fidelity | 2026-07-23 |
+| D-1979 | state-manager | 2026-07-23 | SESSION WRAP — RESUME SNAPSHOT D-1979 authored (supersedes D-1944). Wave-A spec-evolution complete through pass 29 / fix-burst 27: cascade at 29 passes, 27 fix-bursts, strict streak 0/3 (best 1/3 at passes 19 and 24). SESSION-HANDOFF §RESUME SNAPSHOT D-1979 prepended; D-1944 marked [SUPERSEDED by D-1979]. Session Resume Checkpoint updated. Factory-artifacts HEAD: git -C .factory log -1. trajectory-tail →2→2→1→1 STATE v8.526→v8.527 | wave-5-e-demo-fidelity | 2026-07-23 |
 
 ## Skip Log
 
@@ -482,14 +483,14 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-1944 — 2026-07-22 — SESSION WRAP; Wave-A ADR set ACCEPTED; develop@e116a587 local/7fef57da origin; STATE v8.492)
+## Session Resume Checkpoint (D-1979 — 2026-07-23 — SESSION WRAP; Wave-A spec evolution COMPLETE through pass 29; STATE v8.527)
 
-**RESUME IN ONE BREATH:** Wave-A ADR set ACCEPTED (D-1943 2026-07-22). ADR-053 v0.26 + ADR-054 v0.31 ACCEPTED after strict 3-CLEAN on frozen 46c1c802 (50 passes / 30 fix-bursts D-1902..D-1941 (exhaustive)). VERY NEXT ACTION: dispatch Wave-A spec evolution — (1) product-owner: BC-2.16.014 (Declarative Auth Acquisition Token Lifecycle; ADR-054 D8 P1-P8); (2) architect: VP-159 (ADR-054 D9; folds DRIFT-D849-002; tool integration_test); (3) execute amendment manifests (ADR-053 D5 + ADR-054 D11); (4) story retirements (triage-capture §Wrong-Direction Stories: 4 targets); (5) remove-uncertainty pass; (6) story decomposition + TDD.
+**RESUME IN ONE BREATH:** Wave-A spec evolution (D-1944 plan steps 1-4) DONE: POL-36 codified (D-1945); BC-2.16.014 (v1.15) + VP-159 (v1.19) + amendment manifests executed + 4 wrong-direction stories retired. LOCAL cascade 29 passes / 27 fix-bursts, strict streak 0/3 (best 1/3 at passes 19+24). NEXT: pass 30 on post-D-1979 frozen factory-artifacts HEAD → 3-CLEAN → remove-uncertainty → story decomposition.
 
-**HEADS (verified 2026-07-22 D-1944):**
+**HEADS (verified 2026-07-23 D-1979):**
 - origin/develop: `7fef57da` — PUSHED; LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001, do NOT auto-FF)
 - factory-artifacts: `git -C .factory log -1 --format='%h %s'` (do not hard-code)
-- `.worktrees/fix-demosetup-cwd`: fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5` — PUSHED; PR #229 OPEN
-- `.worktrees/S-3.09` @`43c41389` KEEP-PARKED; `.worktrees/W3-FIX-S307-001` @`fcab8717` PARKED-DIRTY do-NOT-touch (both LOCAL-ONLY)
-- Open PRs: #229 (DEFECT-DEMOSETUP-CWD-001 @ec4379b5 PUSHED), #230 (CLAUDE.md file-size @426c77cd awaiting HUMAN merge)
-- `develop` and `factory-artifacts` PUSHED; `fix/DEFECT-DEMOSETUP-CWD-001` PUSHED (PR #229 OPEN); all others LOCAL-ONLY
+- Main worktree: docs/claude-md-file-size-convention @`426c77cde` (PR #230 OPEN, awaiting HUMAN merge)
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5` — PUSHED, PR #229 OPEN; `.worktrees/S-3.09` @`43c41389` KEEP-PARKED
+- `.worktrees/W3-FIX-S307-001` @`fcab8717` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY); verify-sha-currency.sh: PASS (1 WARN)
+- Open PRs: #229 (@ec4379b5), #230 (CLAUDE.md file-size @426c77cde awaiting HUMAN merge); no background agents in flight
