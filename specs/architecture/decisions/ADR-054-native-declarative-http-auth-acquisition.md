@@ -5,7 +5,7 @@ title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2Cli
 status: accepted
 date: "2026-07-20"
 modified: "2026-07-22"
-version: "0.39"
+version: "0.40"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -267,6 +267,21 @@ and `StaticCookieAuthProvider` also implement). The construction site for
 - `credential_resolver: Arc<dyn CredentialResolver>` — for resolving credential_ref values
   at token-acquisition time (lazy, per AD-017: never at construction)
 - `cached_token: ArcSwap<Option<CachedAuthToken>>` — in-memory token cache (no plugin KV store)
+- `token_url: String` — per-org derived token URL, computed at step 9A as
+  `format!("{}{}", resolved_base_url, config.token_path)` and passed to the constructor;
+  immutable after construction (OBS-P13-001 — was referenced in algorithm prose and
+  BC-2.16.014 P1/INV-014-002 but absent from this field enumeration prior to v0.40)
+- `http_client: reqwest::Client` — ADR-050-compliant client (rustls-tls, 30s timeout),
+  constructed internally inside `new()` using `build_http_client_with_timeout()` (confirmed
+  `pub(crate)` helper in `crates/prism-spec-engine/src/pipeline.rs`, closed TD-S-PLUGIN-PREREQ-B-005);
+  NOT exposed in the production constructor API — no test-only HTTP injection seam
+  (F-WASE-P13-MED-001; see Constructor note below)
+- `now_fn: Arc<dyn Fn() -> u64 + Send + Sync>` — returns current Unix timestamp (seconds
+  since UNIX_EPOCH); production default: `SystemTime::now().duration_since(UNIX_EPOCH)
+  .unwrap_or_default().as_secs()`; overridable in test builds exclusively via the
+  `new_for_test` constructor gated `#[cfg(any(test, feature = "test-helpers"))]` — this
+  is the SOLE test seam; the HTTP client (`self.http_client`) is NOT injectable
+  (F-WASE-P13-MED-001)
 
 **CachedAuthToken** holds:
 - `token: String` — the acquired access token (opaque bytes; never logged per AD-017)
@@ -277,10 +292,10 @@ and `StaticCookieAuthProvider` also implement). The construction site for
 2. Build form body (RFC-3986 percent-encoded):
    - `oauth2_client_credentials`: `client_id={}&client_secret={}&grant_type=client_credentials`
    - `token_exchange`: `{credential_body_field}={resolved_value}`
-3. POST to the per-org derived token URL (`format!("{}{}", resolved_spec.spec.base_url, config.token_path)`,
-   computed at step 9A construction time and stored as `self.token_url` in the provider)
-   with `Content-Type: application/x-www-form-urlencoded`
-   (using the workspace reqwest client per ADR-050: `rustls-tls`, 30s timeout)
+3. POST to `self.token_url` (per-org derived URL, stored immutably at construction)
+   with `Content-Type: application/x-www-form-urlencoded`,
+   using `self.http_client` (internally constructed per ADR-050: rustls-tls, 30s timeout;
+   not exposed in the production constructor — see Constructor note below)
 4. Parse response:
    - `oauth2_client_credentials`: extract `$.access_token`; compute TTL from `$.expires_in` (default 1799 if absent/zero) minus `ttl_buffer_secs`
    - `token_exchange`: extract at `token_response_path`; parse expiry at `expiry_field` per `expiry_mode`:
@@ -291,8 +306,38 @@ and `StaticCookieAuthProvider` also implement). The construction site for
 
 **`get_token()` (cache-aware):**
 1. Load `cached_token` snapshot
-2. If `Some(cached)` and `unix_now() < cached.expires_at` and `!cached.token.is_empty()` → return cached token (zero network calls)
+2. If `Some(cached)` and `(self.now_fn)() < cached.expires_at` and `!cached.token.is_empty()` → return cached token (zero network calls)
 3. Otherwise → call `acquire_token()` (refreshes cache atomically via ArcSwap)
+
+**Constructor (F-WASE-P13-MED-001):**
+
+Production constructor:
+```rust
+pub fn new(
+    token_url: String,                          // step 9A: format!("{}{}", resolved_base_url, config.token_path)
+    config: AuthAcquisitionConfig,
+    credential_resolver: Arc<dyn CredentialResolver>,
+) -> Self
+```
+Constructs `self.http_client` internally via `build_http_client_with_timeout()` (ADR-050;
+no HTTP client injection seam — VP-159 uses wiremock to intercept the token endpoint by
+setting `token_url = wiremock_server_uri + token_path` at test construction time).
+Sets `self.now_fn` to the real-time function. The `token_url` parameter is computed
+externally at `step9a_populate_adapter_registry` and passed in.
+
+Test constructor (gated — NOT in production builds):
+```rust
+#[cfg(any(test, feature = "test-helpers"))]
+pub fn new_for_test(
+    token_url: String,
+    config: AuthAcquisitionConfig,
+    credential_resolver: Arc<dyn CredentialResolver>,
+    now_fn: Arc<dyn Fn() -> u64 + Send + Sync>,
+) -> Self
+```
+Accepts a custom clock function (typically wrapping an `Arc<AtomicU64>`) for deterministic
+TTL testing. Tests advance the clock via `Arc<AtomicU64>::fetch_add()` between calls.
+This is the ONLY non-production seam; `self.http_client` is ALWAYS internally constructed.
 
 **`AuthProvider` trait extension — `get_token()` addition (F-WASE-P7-HIGH-001):**
 
@@ -781,6 +826,7 @@ the ADR-053 standalone Wave-A engine story per §D7 merge-dependency.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.40 | 2026-07-22 | architect | F-WASE-P13-MED-001 + OBS-P13-001 (fix-burst 13): §D4 Internal state completeness + HTTP-client/clock interception resolution. (F-WASE-P13-MED-001) Ratified OPTION (b) — internal reqwest client, no HTTP injection seam in production constructor. §D4 Internal state list extended with three new fields: `token_url: String` (per-org derived at step 9A, immutable after construction); `http_client: reqwest::Client` (ADR-050-compliant, internally constructed via `build_http_client_with_timeout()`, not exposed in production constructor API); `now_fn: Arc<dyn Fn() -> u64 + Send + Sync>` (narrow clock seam — production default = real SystemTime; overridable ONLY via `new_for_test` test constructor gated `#[cfg(any(test, feature = "test-helpers"))]`). §D4 acquire_token step 3 updated: "using the workspace reqwest client per ADR-050" → "using `self.http_client` (internally constructed per ADR-050; not exposed in production constructor)". §D4 get_token step 2 updated: `unix_now()` → `(self.now_fn)()`. §D4 Constructor paragraph added documenting the 3-arg production constructor, the gated `new_for_test` constructor, and the wiremock test-interception pattern (token_url → wiremock server URI; no MockHttpClient). (OBS-P13-001) `token_url: String` field added to Internal state — it was referenced in §D4 algorithm prose ("POST to `self.token_url`") and BC-2.16.014 P1/INV-014-002 but absent from the enumeration prior to this version. BC-2.16.014 INV-014-007 is already consistent with OPTION (b) — no BC follow-up needed. |
 | 0.39 | 2026-07-22 | architect | F-WASE-P9-OBS-003: §D11 new row added — `FetchStep` struct doc-comment + `Default for FetchStep` impl doc-comment correction: both carry struct-literal + `..Default::default()` construction guidance that is E0639-impossible from external crates (`FetchStep` is `#[non_exhaustive]`; confirmed at `spec_parser.rs`). The misleading doc guidance caused VP-159 AC-9b's harness skeleton to use E0639-invalid struct-literal syntax (F-WASE-P9-MED-002). New D11 row directs replacement with `FetchStep::new(...)` guidance at engine-story time. Behavioral anchors: "use the `Default` impl or builder pattern for external construction" sentence in `FetchStep` struct doc-comment; `FetchStep { name: "fetch".to_string(), ..Default::default() }` example in `Default for FetchStep` impl doc-comment. |
 | 0.38 | 2026-07-22 | architect | F-WASE-P7-HIGH-001: §D4 amended — added `AuthProvider` trait extension subsection and `PipelineExecutor` call-site dispatch table. `get_token()` is added to the `AuthProvider` trait with a default impl delegating to `acquire_token()`; all 7 existing implementors are unaffected. `execute_impl` and `execute_step` normal eager paths change to `get_token()` (cache-aware; zero token-POST on warm cache); `issue_request_with_retry` 401-refresh path remains `acquire_token()` (force-refresh). §D11 four new engine-story rows added: (a) `AuthProvider` trait `get_token` addition in `auth_provider.rs`; (b) `execute_impl` normal-path call-site change; (c) `execute_step` normal-path call-site change; (d) `issue_request_with_retry` 401-path no-change note (intentional). |
 | 0.37 | 2026-07-22 | architect | F-WASE-P4-OBS-002: §D11 engine-story gate row added — `VP-153` proof re-run obligation: after the engine story activates the `token_exchange` proptest arms (dropping `[PLANNED]` markers per the existing §Proof Harness Skeleton and §Feasibility Assessment D11 rows), the engine story MUST re-run all 8 VP-153 proptests with those arms active as an explicit story gate before the PR merges. Behavioral anchors: `Just("token_exchange")` in `arb_valid_auth_type()` (FILE 1); `Just("token_exchange")` in `arb_matching_auth_type()` and `(0usize..6, 0usize..5)` in `arb_mismatched_auth_type_pair()` (FILE 2). Companion change: VP-153 v0.22 §Re-verification Gate section added. |

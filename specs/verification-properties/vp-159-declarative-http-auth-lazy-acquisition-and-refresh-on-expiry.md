@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.9"
+version: "1.10"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -9,7 +9,7 @@ phase: wave-a
 inputs:
   - .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
   - .factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md
-input-hash: "8a305d3"
+input-hash: "232a706"
 traces_to: .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
 source_bc: BC-2.16.014
 source_adr: ADR-054
@@ -117,28 +117,36 @@ DRIFT-D849-002 status: **FOLDED into VP-159**.
 
 ## Acceptance Criteria
 
-The integration test harness uses `MockHttpClient` [PLANNED — engine story] to intercept all
-outbound HTTP calls without requiring a real network. `MockCredentialResolver` (confirmed in
+The integration test harness uses `wiremock` (confirmed dev-dependency in
+`crates/prism-spec-engine`) to intercept all outbound HTTP calls at the token endpoint by
+setting `token_url = wiremock_server.uri() + token_path` in each test — no `MockHttpClient`
+injection is needed in the production constructor. Tests that require deterministic TTL
+expiry control use `DeclarativeHttpAuthProvider::new_for_test` [PLANNED — engine story;
+`#[cfg(any(test, feature = "test-helpers"))]`], which accepts a
+`now_fn: Arc<dyn Fn() -> u64 + Send + Sync>` backed by an `Arc<AtomicU64>` that the test
+advances directly. `MockCredentialResolver` (confirmed in
 `crates/prism-spec-engine/src/auth_provider.rs`, gated
 `#[cfg(any(test, feature = "test-helpers"))]`) is used for credential injection. The harness
 asserts:
 
-- **AC-1 (P1):** Calling `DeclarativeHttpAuthProvider::new()` [PLANNED] with a valid
-  `AuthAcquisitionConfig` [PLANNED] results in zero calls recorded by `MockHttpClient`
-  [PLANNED].
+- **AC-1 (P1):** Constructing `DeclarativeHttpAuthProvider::new()` [PLANNED] with a valid
+  `token_url` (pointing at a wiremock server), `AuthAcquisitionConfig` [PLANNED], and
+  `MockCredentialResolver` results in zero requests received by the wiremock server.
 
 - **AC-2 (P2):** After construction, calling `get_token()` [PLANNED] once on a cold cache
-  results in exactly one `MockHttpClient` POST call. The returned token matches the mock
-  response body.
+  results in exactly one POST request to the wiremock token endpoint. The returned token
+  matches the mock response body.
 
 - **AC-3 (P3):** Calling `get_token()` [PLANNED] again within TTL results in zero additional
-  `MockHttpClient` calls. The same token string is returned.
+  requests to the wiremock token endpoint. The same token string is returned.
 
-- **AC-4 (P4):** Advancing the mock clock past `expires_at` and calling `get_token()` [PLANNED]
-  results in exactly one additional `MockHttpClient` POST call. The refreshed token is returned.
+- **AC-4 (P4):** Advancing the mock clock (`Arc<AtomicU64>` passed via `now_fn` to
+  `new_for_test` [PLANNED]) past `expires_at` and calling `get_token()` [PLANNED] results in
+  exactly one additional POST request to the wiremock token endpoint. The refreshed token is
+  returned.
 
 - **AC-5 (P5):** Calling `acquire_token()` on a warm-cache provider results in exactly one
-  `MockHttpClient` POST call (bypasses TTL check regardless of cache state).
+  POST request to the wiremock token endpoint (bypasses TTL check regardless of cache state).
 
 - **AC-6 (P4-TTL-a):** For `ExpiryMode::AbsoluteUtcString` [PLANNED], the computed `expires_at`
   equals `parse_rfc3339(response_expiry_field).as_unix_secs().saturating_sub(ttl_buffer_secs)`.
@@ -184,8 +192,8 @@ asserts:
   (confirmed `pub fn new` signature at `crates/prism-spec-engine/src/spec_parser.rs`; struct-literal
   construction is E0639-impossible from `tests/` because `FetchStep` is `#[non_exhaustive]`). Two
   consecutive `PipelineExecutor::execute_step` calls are
-  issued with the same `DeclarativeHttpAuthProvider` [PLANNED] instance, the same
-  `MockHttpClient` [PLANNED], and `prior_vars: HashMap::new()` (no cross-step variable
+  issued with the same `DeclarativeHttpAuthProvider` [PLANNED] instance and
+  `prior_vars: HashMap::new()` (no cross-step variable
   dependencies required for a single-step reachability test). The mock token server is configured
   with long-lived TTL (`expires_in = 3600`). The mock token server records exactly ONE POST to the
   token endpoint across both `execute_step` calls — confirming that the second call returns the
@@ -200,10 +208,11 @@ asserts:
   http_client: &reqwest::Client, auth_provider: &dyn AuthProvider)` returning
   `Result<serde_json::Value, SpecEngineError>` — confirmed from `PipelineExecutor::execute_step`
   in `crates/prism-spec-engine/src/pipeline.rs`. The `http_client` parameter is the sensor API
-  client (separate from `MockHttpClient` [PLANNED] held inside `DeclarativeHttpAuthProvider`); the
-  sensor API mock endpoint (GET `/items` → `{"items": [{"id": 1}]}`) uses wiremock (confirmed
-  dev-dependency in `prism-spec-engine`) alongside `MockHttpClient` [PLANNED] for the token
-  endpoint. `FetchContext::new` is the confirmed non-exhaustive constructor (`OrgSlug`,
+  client (the sensor API reqwest::Client passed into execute_step, distinct from the internally-
+  constructed ADR-050 client held inside `DeclarativeHttpAuthProvider`); both the token endpoint
+  (POST `/oauth/token`) and the sensor API mock endpoint (GET `/items` → `{"items": [{"id": 1}]}`)
+  are served by a single wiremock (confirmed dev-dependency in `prism-spec-engine`) server — no
+  separate `MockHttpClient` needed. `FetchContext::new` is the confirmed non-exhaustive constructor (`OrgSlug`,
   `HashMap<String, String>`).
 
 ## Source Contract
@@ -248,7 +257,7 @@ asserts:
 
 | Method | Tool | Bounded? | Coverage |
 |--------|------|----------|----------|
-| integration_test | `MockHttpClient` [PLANNED — engine story] for HTTP interception with call-count tracking; `MockCredentialResolver` (confirmed in `crates/prism-spec-engine/src/auth_provider.rs`) for credential injection; mock clock for deterministic TTL expiry | Deterministic — fixed scenario sequences covering each cache state; not combinatorial | Cold → warm → stale → refresh state machine; both ExpiryMode variants; cache-bypass via acquire_token; credential-opacity structural assertion |
+| integration_test | `wiremock` (confirmed dev-dep in `crates/prism-spec-engine`) for HTTP interception — token endpoint set to `wiremock_server.uri() + token_path`; `MockCredentialResolver` (confirmed in `crates/prism-spec-engine/src/auth_provider.rs`) for credential injection; `Arc<AtomicU64>` clock via `now_fn` seam in `DeclarativeHttpAuthProvider::new_for_test` [PLANNED — engine story; `#[cfg(any(test, feature = "test-helpers"))]`] for deterministic TTL expiry — no `MockHttpClient` needed | Deterministic — fixed scenario sequences covering each cache state; not combinatorial | Cold → warm → stale → refresh state machine; both ExpiryMode variants; cache-bypass via acquire_token; credential-opacity structural assertion |
 
 **Why integration_test over Kani:** The VP covers a behavioral state machine with I/O interaction
 (HTTP) and time-dependent cache state. Kani model-checks bounded numeric state spaces but cannot
@@ -267,13 +276,17 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 // crates/prism-spec-engine/tests/vp159_declarative_auth_lazy_acquisition.rs
 //
 // VP-159: DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry
-// Method: integration_test (MockHttpClient for network isolation)
+// Method: integration_test (wiremock for HTTP interception; now_fn clock seam for TTL control)
 // Target module: prism-spec-engine
 // Target path: crates/prism-spec-engine/src/auth/declarative.rs [PLANNED — engine story]
 // BC: BC-2.16.014 v1.8 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
 //
 // ALL DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode /
-// MockHttpClient symbols below are [PLANNED — engine story].
+// DeclarativeHttpAuthProvider::new_for_test (cfg(any(test, feature = "test-helpers")))
+// symbols below are [PLANNED — engine story].
+// MockHttpClient is NOT used; wiremock (confirmed dev-dep in prism-spec-engine) handles
+// HTTP interception by pointing token_url at the wiremock server. Clock seam (now_fn:
+// Arc<dyn Fn() -> u64 + Send + Sync>) handles deterministic TTL expiry testing.
 //
 // Confirmed existing symbols used:
 //   AuthProvider trait:        crates/prism-spec-engine/src/auth_provider.rs
@@ -281,11 +294,14 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //                              (cfg(any(test, feature = "test-helpers")))
 //   SpecEngineError::AuthAcquisitionFailed: crates/prism-spec-engine/src/error.rs (E-AUTH-001)
 //   SpecEngineError::AuthRefreshFailed:     crates/prism-spec-engine/src/error.rs (E-AUTH-002)
+//   wiremock:                  dev-dep in crates/prism-spec-engine/Cargo.toml
 //   ArcSwap:                   arc_swap crate (external)
 
 // #[cfg(test)]
 // mod vp159_tests {
-//     use std::sync::Arc;
+//     use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
+//     use wiremock::{MockServer, Mock as WmMock, ResponseTemplate,
+//                    matchers::{method as wm_method, path as wm_path}};
 //     use prism_spec_engine::auth::declarative::{
 //         DeclarativeHttpAuthProvider,  // [PLANNED]
 //         AuthAcquisitionConfig,        // [PLANNED]
@@ -293,40 +309,56 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         CachedAuthToken,              // [PLANNED]
 //     };
 //     use prism_spec_engine::auth_provider::{AuthProvider, MockCredentialResolver};
-//     // MockHttpClient tracks POST call count and returns configurable responses [PLANNED]:
-//     use prism_spec_engine::auth::test_helpers::MockHttpClient;  // [PLANNED]
 //
 //     fn base_config(token_path: &str, expiry_mode: ExpiryMode) -> AuthAcquisitionConfig { // [PLANNED]
 //         AuthAcquisitionConfig {
-//             token_path: token_path.to_string(),
+//             token_path: token_path.to_string(),  // metadata; full token_url passed directly to constructor
 //             expiry_mode,
 //             ..Default::default()
 //         }
 //     }
 //
 //     // AC-1 (P1): zero network calls at construction
+//     // wiremock records all received requests — zero at construction proves P1.
 //     #[tokio::test]
 //     async fn test_vp159_ac1_zero_network_at_construction() {
-//         let mock_http = MockHttpClient::new();   // [PLANNED]
+//         let mock_server = MockServer::start().await;  // confirmed dev-dep
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/token"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({"access_token": "tok", "expires_in": 3600})),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/token", mock_server.uri());  // token endpoint → wiremock
 //         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
-//         let _provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
-//             config,
-//             Arc::new(mock_http.clone()),
-//             Arc::new(creds),
+//         let _provider = DeclarativeHttpAuthProvider::new(  // [PLANNED] 3-arg: token_url + config + creds
+//             token_url, config, Arc::new(creds),
 //         );
-//         assert_eq!(mock_http.post_call_count(), 0,
+//         let received = mock_server.received_requests().await.unwrap();
+//         assert_eq!(received.len(), 0,
 //             "VP-159 AC-1: construction must make zero network calls (BC-2.16.014 P1)");
 //     }
 //
 //     // AC-2 (P2): cold get_token → exactly one HTTP POST
 //     #[tokio::test]
 //     async fn test_vp159_ac2_cold_cache_one_post() {
-//         let mock_http = MockHttpClient::with_response("bearer_token_abc", 3600); // [PLANNED]
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/oauth/token"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({"access_token": "bearer_token_abc", "expires_in": 3600})),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/oauth/token", mock_server.uri());
 //         let creds = MockCredentialResolver::new("client_secret_xyz");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
-//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//             token_url, config, Arc::new(creds),
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
 //         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
@@ -336,95 +368,143 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
 //         let _token = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED]
 //             .expect("VP-159 AC-2: cold get_token must succeed");
-//         assert_eq!(mock_http.post_call_count(), 1,
+//         let post_count = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(post_count, 1,
 //             "VP-159 AC-2: cold get_token must issue exactly one HTTP POST (BC-2.16.014 P2)");
 //     }
 //
 //     // AC-3 (P3): warm get_token → zero additional HTTP calls
 //     #[tokio::test]
 //     async fn test_vp159_ac3_warm_cache_zero_post() {
-//         let mock_http = MockHttpClient::with_response("bearer_token_abc", 3600); // [PLANNED]
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/oauth/token"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({"access_token": "bearer_token_abc", "expires_in": 3600})),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/oauth/token", mock_server.uri());
 //         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
-//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//             token_url, config, Arc::new(creds),
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
-//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
-//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
-//         // credential-safety convention before the PR can merge.
+//         // ALLOWLIST REQUIRED: see AC-2 note above.
 //         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("first call");  // [PLANNED] warms cache
-//         let calls_after_warm = mock_http.post_call_count();
+//         let posts_after_warm = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("second call");  // [PLANNED]
-//         assert_eq!(mock_http.post_call_count(), calls_after_warm,
-//             "VP-159 AC-3: warm get_token must make zero HTTP calls (BC-2.16.014 P3)");
+//         let posts_after_second = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_after_second, posts_after_warm,
+//             "VP-159 AC-3: warm get_token must make zero additional HTTP POSTs (BC-2.16.014 P3)");
 //     }
 //
 //     // AC-4 (P4): stale get_token → exactly one additional HTTP POST
+//     // Clock seam: Arc<AtomicU64> via now_fn in DeclarativeHttpAuthProvider::new_for_test [PLANNED]
 //     #[tokio::test]
 //     async fn test_vp159_ac4_stale_cache_one_post() {
-//         // [PLANNED] MockHttpClient supports mock_clock::advance() to simulate TTL expiry
-//         let mock_http = MockHttpClient::with_response("bearer_token_abc", 60); // [PLANNED] 60s TTL
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/oauth/token"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({"access_token": "bearer_token_abc", "expires_in": 60})),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/oauth/token", mock_server.uri());
 //         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 0 }); // [PLANNED]
-//         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
-//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//         // Mock clock: base_time = 1_700_000_000; expires_at = base_time + 60.saturating_sub(0) = base_time + 60
+//         let base_time = 1_700_000_000u64;
+//         let now_secs = Arc::new(AtomicU64::new(base_time));
+//         let mock_time_fn = {
+//             let t = Arc::clone(&now_secs);
+//             Arc::new(move || t.load(Ordering::SeqCst)) as Arc<dyn Fn() -> u64 + Send + Sync>
+//         };
+//         let provider = DeclarativeHttpAuthProvider::new_for_test(  // [PLANNED — engine story; cfg(test)]
+//             token_url, config, Arc::new(creds), mock_time_fn,
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
-//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
-//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
-//         // credential-safety convention before the PR can merge.
+//         // ALLOWLIST REQUIRED: see AC-2 note above.
 //         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("cold call");  // [PLANNED] warms cache
-//         mock_http.advance_clock_secs(120); // [PLANNED] advance past expires_at
-//         let calls_before_stale_refresh = mock_http.post_call_count();
+//         // Advance clock past expires_at: base_time + 120 > base_time + 60
+//         now_secs.fetch_add(120, Ordering::SeqCst);
+//         let posts_before_stale_refresh = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("stale call");  // [PLANNED]
-//         assert_eq!(mock_http.post_call_count(), calls_before_stale_refresh + 1,
+//         let posts_after_stale_refresh = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_after_stale_refresh, posts_before_stale_refresh + 1,
 //             "VP-159 AC-4: stale get_token must issue exactly one HTTP POST (BC-2.16.014 P4)");
 //     }
 //
 //     // AC-5 (P5): acquire_token bypasses cache → exactly one HTTP POST
 //     #[tokio::test]
 //     async fn test_vp159_ac5_acquire_token_cache_bypass() {
-//         let mock_http = MockHttpClient::with_response("acquired_token", 3600); // [PLANNED]
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/oauth/token"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({"access_token": "acquired_token", "expires_in": 3600})),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/oauth/token", mock_server.uri());
 //         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
-//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//             token_url, config, Arc::new(creds),
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
-//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
-//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
-//         // credential-safety convention before the PR can merge.
+//         // ALLOWLIST REQUIRED: see AC-2 note above.
 //         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("warm cache");  // [PLANNED]
-//         let calls_after_warm = mock_http.post_call_count();
+//         let posts_after_warm = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
 //         // acquire_token() is the AuthProvider::acquire_token() method (confirmed symbol)
 //         let _token = provider.acquire_token(&sensor_spec, &org_slug).await
 //             .expect("VP-159 AC-5: acquire_token must succeed even on warm cache");
-//         assert_eq!(mock_http.post_call_count(), calls_after_warm + 1,
+//         let posts_after_force_refresh = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_after_force_refresh, posts_after_warm + 1,
 //             "VP-159 AC-5: acquire_token must issue exactly one HTTP POST regardless of cache (BC-2.16.014 P5)");
 //     }
 //
 //     // AC-6 (P4-TTL-a): absolute_utc_string expiry arithmetic
 //     // Formula: expires_at = parse_rfc3339(expiry_value).as_unix_secs().saturating_sub(ttl_buffer_secs)
-//     // Verifies formula correctness by advancing mock clock to just before and then past expires_at.
-//     // MockHttpClient::with_token_exchange_response [PLANNED — engine story] returns token + RFC-3339 expiry field.
-//     // See BC-2.16.014 TV-2 for the canonical test vector (Armis-style token_exchange with absolute_utc expiry).
+//     // "2099-01-01T00:00:00Z" ≈ Unix 4_070_908_800; ttl_buffer=30 → expires_at ≈ 4_070_908_770
+//     // Clock seam: Arc<AtomicU64> via now_fn in DeclarativeHttpAuthProvider::new_for_test [PLANNED]
 //     #[tokio::test]
 //     async fn test_vp159_ac6_absolute_utc_expiry_ttl_arithmetic() {
-//         // "2099-01-01T00:00:00Z" parse → Unix secs ≈ 4_070_908_800; ttl_buffer_secs=30 → expires_at ≈ 4_070_908_770
 //         let expiry_utc = "2099-01-01T00:00:00Z";
+//         let expiry_unix: u64 = 4_070_908_800;   // parse_rfc3339("2099-01-01T00:00:00Z")
 //         let ttl_buffer_secs: u64 = 30;
-//         let mock_http = MockHttpClient::with_token_exchange_response(  // [PLANNED — engine story]
-//             "arm-tok",
-//             expiry_utc,
-//             // Response shape: {"success":true,"data":{"access_token":"arm-tok","expiration_utc":"<expiry_utc>"}}
-//         );
+//         let expires_at = expiry_unix - ttl_buffer_secs;  // = 4_070_908_770
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/api/v1/access_token/"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({
+//                         "success": true,
+//                         "data": {
+//                             "access_token": "arm-tok",
+//                             "expiration_utc": expiry_utc
+//                         }
+//                     })),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/api/v1/access_token/", mock_server.uri());
 //         let creds = MockCredentialResolver::new("long_lived_secret");
 //         let config = AuthAcquisitionConfig {  // [PLANNED]
 //             token_path: "/api/v1/access_token/".to_string(),
@@ -435,31 +515,39 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             ttl_buffer_secs,
 //             ..Default::default()
 //         };
-//         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
-//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//         // Mock clock starts at 0 (well before expires_at = 4_070_908_770)
+//         let now_secs = Arc::new(AtomicU64::new(0u64));
+//         let mock_time_fn = {
+//             let t = Arc::clone(&now_secs);
+//             Arc::new(move || t.load(Ordering::SeqCst)) as Arc<dyn Fn() -> u64 + Send + Sync>
+//         };
+//         let provider = DeclarativeHttpAuthProvider::new_for_test(  // [PLANNED — engine story; cfg(test)]
+//             token_url, config, Arc::new(creds), mock_time_fn,
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
-//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
-//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
-//         // credential-safety convention before the PR can merge.
+//         // ALLOWLIST REQUIRED: see AC-2 note above.
 //         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
-//         let _ = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED] — warms cache
+//         // Phase 1: warms cache (now = 0, expires_at = 4_070_908_770 → warm)
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED]
 //             .expect("VP-159 AC-6: absolute_utc_string get_token must succeed on well-formed expiry");
-//         let calls_after_warm = mock_http.post_call_count();
-//         // Advance clock to just before expires_at — no re-acquisition expected
-//         // [PLANNED] advance_clock_to_before_expires_at sets mock time to (parse_rfc3339(expiry_utc) - ttl_buffer_secs - 10)
-//         mock_http.advance_clock_to_before_expires_at(expiry_utc, ttl_buffer_secs);  // [PLANNED — engine story]
+//         let posts_after_warm = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         // Phase 2: advance clock to just before expires_at (expires_at - 10) → still warm
+//         now_secs.store(expires_at - 10, Ordering::SeqCst);
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("still warm pre-expiry");  // [PLANNED]
-//         assert_eq!(mock_http.post_call_count(), calls_after_warm,
+//         let posts_still_warm = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_still_warm, posts_after_warm,
 //             "VP-159 AC-6: clock before expires_at → cache valid, zero additional HTTP POSTs \
 //              (BC-2.16.014 P3/P4-TTL-a)");
-//         // Advance clock past expires_at — re-acquisition must fire
-//         // [PLANNED] advance_clock_past_expires_at sets mock time to (parse_rfc3339(expiry_utc) - ttl_buffer_secs + 10)
-//         mock_http.advance_clock_past_expires_at(expiry_utc, ttl_buffer_secs);  // [PLANNED — engine story]
-//         let calls_before_stale = mock_http.post_call_count();
+//         // Phase 3: advance clock past expires_at (expires_at + 10) → stale → one more POST
+//         now_secs.store(expires_at + 10, Ordering::SeqCst);
+//         let posts_before_stale = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("stale — re-acquisition");  // [PLANNED]
-//         assert_eq!(mock_http.post_call_count(), calls_before_stale + 1,
+//         let posts_after_stale = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_after_stale, posts_before_stale + 1,
 //             "VP-159 AC-6: clock past expires_at → one HTTP POST re-acquisition \
 //              (BC-2.16.014 P4 / P4-TTL-a: expires_at = parse_rfc3339(expiry_str).as_unix_secs().saturating_sub(ttl_buffer_secs))");
 //     }
@@ -468,10 +556,22 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //     // No token cached when parse fails — acquire_token returns Err immediately (BC-2.16.014 P4-TTL-a).
 //     #[tokio::test]
 //     async fn test_vp159_ac6b_malformed_rfc3339_expiry_returns_auth_acquisition_failed() {
-//         let mock_http = MockHttpClient::with_token_exchange_response(  // [PLANNED — engine story]
-//             "arm-tok",
-//             "not-a-date",  // malformed RFC-3339 value — parse must fail
-//         );
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/api/v1/access_token/"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({
+//                         "success": true,
+//                         "data": {
+//                             "access_token": "arm-tok",
+//                             "expiration_utc": "not-a-date"  // malformed RFC-3339 value — parse must fail
+//                         }
+//                     })),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/api/v1/access_token/", mock_server.uri());
 //         let creds = MockCredentialResolver::new("long_lived_secret");
 //         let config = AuthAcquisitionConfig {  // [PLANNED]
 //             token_path: "/api/v1/access_token/".to_string(),
@@ -483,13 +583,10 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             ..Default::default()
 //         };
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
-//             config, Arc::new(mock_http), Arc::new(creds),
+//             token_url, config, Arc::new(creds),
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
-//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
-//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
-//         // credential-safety convention before the PR can merge.
+//         // ALLOWLIST REQUIRED: see AC-2 note above.
 //         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
 //         let result = provider.get_token(&sensor_spec, &org_slug).await;  // [PLANNED]
 //         assert!(
@@ -500,103 +597,161 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //     }
 //
 //     // AC-7 (P4-TTL-b): relative_seconds expiry arithmetic — verify formula + absent/zero → default 1799
-//     // Formula: expires_at = unix_now() + expires_in.saturating_sub(ttl_buffer_secs)
+//     // Formula: expires_at = (self.now_fn)() + expires_in.saturating_sub(ttl_buffer_secs)
 //     //          where expires_in defaults to 1799 when absent or zero (EC-016-014-001 / EC-016-014-002)
 //     // Sub-case 7a: normal expires_in (3600s) — verify clock-based re-acquisition timing
+//     // Clock seam: Arc<AtomicU64> via now_fn in DeclarativeHttpAuthProvider::new_for_test [PLANNED]
 //     #[tokio::test]
 //     async fn test_vp159_ac7_relative_seconds_expiry_ttl_arithmetic() {
 //         let expires_in: u64 = 3600;
 //         let ttl_buffer_secs: u64 = 30;
-//         // expires_at ≈ unix_now() + 3600.saturating_sub(30) = unix_now() + 3570
-//         let mock_http = MockHttpClient::with_response("bearer_tok_rel", expires_in);  // [PLANNED]
+//         // expires_at = base_time + 3600.saturating_sub(30) = base_time + 3570
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/oauth/token"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({"access_token": "bearer_tok_rel", "expires_in": expires_in})),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/oauth/token", mock_server.uri());
 //         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs });  // [PLANNED]
-//         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
-//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//         let base_time = 1_700_000_000u64;
+//         let now_secs = Arc::new(AtomicU64::new(base_time));
+//         let mock_time_fn = {
+//             let t = Arc::clone(&now_secs);
+//             Arc::new(move || t.load(Ordering::SeqCst)) as Arc<dyn Fn() -> u64 + Send + Sync>
+//         };
+//         let provider = DeclarativeHttpAuthProvider::new_for_test(  // [PLANNED — engine story; cfg(test)]
+//             token_url, config, Arc::new(creds), mock_time_fn,
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
-//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
-//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
-//         // credential-safety convention before the PR can merge.
+//         // ALLOWLIST REQUIRED: see AC-2 note above.
 //         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("warms cache");  // [PLANNED]
-//         let calls_after_warm = mock_http.post_call_count();
-//         mock_http.advance_clock_secs(3500);  // [PLANNED] 3500s < 3570s (expires_in 3600 − ttl_buffer 30)
+//         let posts_after_warm = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         now_secs.fetch_add(3500, Ordering::SeqCst);  // 3500s < 3570s (expires_in 3600 − ttl_buffer 30)
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("still warm at 3500s");  // [PLANNED]
-//         assert_eq!(mock_http.post_call_count(), calls_after_warm,
+//         let posts_still_warm = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_still_warm, posts_after_warm,
 //             "VP-159 AC-7a: 3500s < 3570s expires_at → cache valid (BC-2.16.014 P4-TTL-b)");
-//         mock_http.advance_clock_secs(100);  // [PLANNED] total 3600s > 3570s → stale
-//         let calls_before_stale = mock_http.post_call_count();
+//         now_secs.fetch_add(100, Ordering::SeqCst);  // total +3600s > +3570s → stale
+//         let posts_before_stale = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("stale at 3600s");  // [PLANNED]
-//         assert_eq!(mock_http.post_call_count(), calls_before_stale + 1,
+//         let posts_after_stale = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_after_stale, posts_before_stale + 1,
 //             "VP-159 AC-7a: 3600s > 3570s expires_at → re-acquisition \
-//              (BC-2.16.014 P4-TTL-b: expires_at = unix_now() + expires_in.saturating_sub(ttl_buffer_secs))");
+//              (BC-2.16.014 P4-TTL-b: expires_at = (self.now_fn)() + expires_in.saturating_sub(ttl_buffer_secs))");
 //     }
 //
 //     // AC-7b (EC-016-014-001): absent expires_in → default 1799 before saturating_sub
-//     // expires_at = unix_now() + 1799.saturating_sub(30) = unix_now() + 1769
-//     // [PLANNED] MockHttpClient::with_absent_expires_in: response omits the expires_in key entirely
+//     // expires_at = base_time + 1799.saturating_sub(30) = base_time + 1769
+//     // wiremock responds with a body that omits the "expires_in" key entirely
+//     // Clock seam: Arc<AtomicU64> via now_fn in DeclarativeHttpAuthProvider::new_for_test [PLANNED]
 //     #[tokio::test]
 //     async fn test_vp159_ac7b_absent_expires_in_defaults_to_1799() {
 //         let ttl_buffer_secs: u64 = 30;
-//         let mock_http = MockHttpClient::with_absent_expires_in("tok-noexp");  // [PLANNED — engine story]
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/oauth/token"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     // Response omits "expires_in" key entirely — absent case (EC-016-014-001)
+//                     .set_body_json(serde_json::json!({"access_token": "tok-noexp"})),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/oauth/token", mock_server.uri());
 //         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs });  // [PLANNED]
-//         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
-//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//         let base_time = 1_700_000_000u64;
+//         let now_secs = Arc::new(AtomicU64::new(base_time));
+//         let mock_time_fn = {
+//             let t = Arc::clone(&now_secs);
+//             Arc::new(move || t.load(Ordering::SeqCst)) as Arc<dyn Fn() -> u64 + Send + Sync>
+//         };
+//         let provider = DeclarativeHttpAuthProvider::new_for_test(  // [PLANNED — engine story; cfg(test)]
+//             token_url, config, Arc::new(creds), mock_time_fn,
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
-//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
-//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
-//         // credential-safety convention before the PR can merge.
+//         // ALLOWLIST REQUIRED: see AC-2 note above.
 //         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED] cold — absent expires_in defaults to 1799
 //             .expect("VP-159 AC-7b: absent expires_in must succeed with default 1799 TTL");
-//         let calls_after_warm = mock_http.post_call_count();
-//         mock_http.advance_clock_secs(1700);  // [PLANNED] 1700s < 1769s (1799 − 30) → still warm
+//         let posts_after_warm = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         now_secs.fetch_add(1700, Ordering::SeqCst);  // 1700s < 1769s (1799 − 30) → still warm
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("still warm at 1700s");  // [PLANNED]
-//         assert_eq!(mock_http.post_call_count(), calls_after_warm,
+//         let posts_still_warm = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_still_warm, posts_after_warm,
 //             "VP-159 AC-7b: absent expires_in → 1799 default; 1700s < 1769s expires_at → cache valid \
 //              (EC-016-014-001; BC-2.16.014 P4-TTL-b)");
-//         mock_http.advance_clock_secs(100);  // [PLANNED] total 1800s > 1769s → stale
-//         let calls_before_stale = mock_http.post_call_count();
+//         now_secs.fetch_add(100, Ordering::SeqCst);  // total +1800s > +1769s → stale
+//         let posts_before_stale = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("stale at 1800s");  // [PLANNED]
-//         assert_eq!(mock_http.post_call_count(), calls_before_stale + 1,
+//         let posts_after_stale = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_after_stale, posts_before_stale + 1,
 //             "VP-159 AC-7b: absent expires_in → 1799 default; 1800s > 1769s expires_at → re-acquisition \
 //              (EC-016-014-001; BC-2.16.014 P4-TTL-b)");
 //     }
 //
 //     // AC-7c (EC-016-014-002): zero expires_in → same default 1799 as absent
-//     // MockHttpClient::with_response("tok-zeroexp", 0u64) supplies expires_in: 0 in response JSON
+//     // wiremock responds with expires_in: 0 in response JSON
+//     // Clock seam: Arc<AtomicU64> via now_fn in DeclarativeHttpAuthProvider::new_for_test [PLANNED]
 //     #[tokio::test]
 //     async fn test_vp159_ac7c_zero_expires_in_defaults_to_1799() {
 //         let ttl_buffer_secs: u64 = 30;
-//         let mock_http = MockHttpClient::with_response("tok-zeroexp", 0u64);  // [PLANNED] expires_in: 0
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/oauth/token"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({"access_token": "tok-zeroexp", "expires_in": 0u64})),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/oauth/token", mock_server.uri());
 //         let creds = MockCredentialResolver::new("test-credential");
 //         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs });  // [PLANNED]
-//         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
-//             config, Arc::new(mock_http.clone()), Arc::new(creds),
+//         let base_time = 1_700_000_000u64;
+//         let now_secs = Arc::new(AtomicU64::new(base_time));
+//         let mock_time_fn = {
+//             let t = Arc::clone(&now_secs);
+//             Arc::new(move || t.load(Ordering::SeqCst)) as Arc<dyn Fn() -> u64 + Send + Sync>
+//         };
+//         let provider = DeclarativeHttpAuthProvider::new_for_test(  // [PLANNED — engine story; cfg(test)]
+//             token_url, config, Arc::new(creds), mock_time_fn,
 //         );
 //         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
-//         // ALLOWLIST REQUIRED: OrgSlug::new_unchecked is used in this proof harness.
-//         // The engine story implementing DeclarativeHttpAuthProvider MUST add this call site
-//         // to crates/prism-core/tests/new_unchecked_audit.rs per CLAUDE.md
-//         // credential-safety convention before the PR can merge.
+//         // ALLOWLIST REQUIRED: see AC-2 note above.
 //         let org_slug = prism_core::OrgSlug::new_unchecked("test-org");
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED] cold — zero expires_in defaults to 1799
 //             .expect("VP-159 AC-7c: zero expires_in must succeed with default 1799 TTL");
-//         let calls_after_warm = mock_http.post_call_count();
-//         mock_http.advance_clock_secs(1700);  // [PLANNED] still warm
+//         let posts_after_warm = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         now_secs.fetch_add(1700, Ordering::SeqCst);  // still warm
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("still warm at 1700s");  // [PLANNED]
-//         assert_eq!(mock_http.post_call_count(), calls_after_warm,
+//         let posts_still_warm = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_still_warm, posts_after_warm,
 //             "VP-159 AC-7c: zero expires_in → 1799 default; 1700s < 1769s expires_at → cache valid \
 //              (EC-016-014-002; BC-2.16.014 P4-TTL-b)");
-//         mock_http.advance_clock_secs(100);  // [PLANNED] total 1800s → stale
-//         let calls_before_stale = mock_http.post_call_count();
+//         now_secs.fetch_add(100, Ordering::SeqCst);  // total +1800s → stale
+//         let posts_before_stale = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("stale at 1800s");  // [PLANNED]
-//         assert_eq!(mock_http.post_call_count(), calls_before_stale + 1,
+//         let posts_after_stale = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_after_stale, posts_before_stale + 1,
 //             "VP-159 AC-7c: zero expires_in → 1799 default; 1800s > 1769s expires_at → re-acquisition \
 //              (EC-016-014-002; BC-2.16.014 P4-TTL-b)");
 //     }
@@ -622,23 +777,24 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //     // AC-9 (P9-execute_impl path; SAP-3 execute reachability):
 //     // PipelineExecutor::execute called twice, same warm DeclarativeHttpAuthProvider [PLANNED],
 //     // long TTL → exactly 1 token-endpoint POST total across both calls.
-//     // [PLANNED — engine story]: DeclarativeHttpAuthProvider, MockHttpClient,
-//     //   build_test_sensor_spec_token_exchange, build_test_table_spec
+//     // Single wiremock server hosts both POST /oauth/token (token endpoint) and
+//     // GET /items (sensor API). POST count via received_requests() filter.
+//     // [PLANNED — engine story]: DeclarativeHttpAuthProvider, build_test_sensor_spec_token_exchange,
+//     //   build_test_table_spec
 //     #[tokio::test]
 //     async fn test_vp159_ac9_execute_impl_path_cache_sharing() {
-//         use wiremock::{MockServer, Mock as WmMock, ResponseTemplate,
-//                        matchers::{method as wm_method, path as wm_path}};
-//         // Token endpoint mock via MockHttpClient [PLANNED — engine story]:
-//         // records POST call count and returns {"access_token": "...", "expires_in": 3600}
-//         let mock_http = MockHttpClient::with_response("bearer_token_ac9", 3600); // [PLANNED]
-//         let creds = MockCredentialResolver::new("client_secret_ac9");
-//         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
-//         let provider = Arc::new(DeclarativeHttpAuthProvider::new(  // [PLANNED]
-//             config, Arc::new(mock_http.clone()), Arc::new(creds),
-//         ));
-//         // Sensor API mock via wiremock (confirmed dev-dep in prism-spec-engine):
-//         // serves GET /items → {"items": [{"id": 1}]}
+//         // Single wiremock server hosts both endpoints:
+//         //   POST /oauth/token → token exchange response (token endpoint)
+//         //   GET  /items       → sensor API response (sensor API mock)
 //         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/oauth/token"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({"access_token": "bearer_token_ac9", "expires_in": 3600})),
+//             )
+//             .mount(&mock_server)
+//             .await;
 //         WmMock::given(wm_method("GET"))
 //             .and(wm_path("/items"))
 //             .respond_with(
@@ -647,6 +803,12 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             )
 //             .mount(&mock_server)
 //             .await;
+//         let token_url = format!("{}/oauth/token", mock_server.uri());
+//         let creds = MockCredentialResolver::new("client_secret_ac9");
+//         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
+//         let provider = Arc::new(DeclarativeHttpAuthProvider::new(  // [PLANNED]
+//             token_url, config, Arc::new(creds),
+//         ));
 //         let spec = build_test_sensor_spec_token_exchange(); // [PLANNED — engine story helper]
 //         // build_test_sensor_spec_token_exchange() sets base_url = mock_server.uri()
 //         let table = build_test_table_spec(); // [PLANNED — engine story helper]
@@ -664,12 +826,16 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         // First execute call: cold cache → 1 POST to token endpoint
 //         let _ = PipelineExecutor::execute(&spec, &table, &context, &http_client, provider.as_ref())
 //             .await.expect("VP-159 AC-9: first execute call must succeed");
-//         assert_eq!(mock_http.post_call_count(), 1,
+//         let posts_after_first = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_after_first, 1,
 //             "VP-159 AC-9: first execute call must issue exactly 1 token-endpoint POST");
 //         // Second execute call: warm cache (TTL 3600s >> 0 elapsed) → 0 additional POSTs
 //         let _ = PipelineExecutor::execute(&spec, &table, &context, &http_client, provider.as_ref())
 //             .await.expect("VP-159 AC-9: second execute call must succeed");
-//         assert_eq!(mock_http.post_call_count(), 1,
+//         let posts_after_second = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_after_second, 1,
 //             "VP-159 AC-9: second execute call must use cached token — zero additional \
 //              token-endpoint POSTs (BC-2.16.014 P9 execute_impl path; ADR-054 §D4)");
 //     }
@@ -678,6 +844,8 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //     // PipelineExecutor::execute_step called twice directly (plugin-runtime entry point per
 //     // ADR-054 §D11), same warm DeclarativeHttpAuthProvider [PLANNED], long TTL → exactly 1
 //     // token-endpoint POST total across both calls.
+//     // Single wiremock server hosts both POST /oauth/token (token endpoint) and
+//     // GET /items (sensor API). No MockHttpClient needed.
 //     //
 //     // execute_step signature (confirmed: PipelineExecutor::execute_step in prism-spec-engine):
 //     //   (step: &FetchStep, spec: &SensorSpec,
@@ -692,22 +860,25 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //     //   pagination_cursor_path: Option<String>, variables_produced: Vec<String>,
 //     //   fan_out_batch_size: Option<u32>, pagination: Option<PaginationConfig> -> Self
 //     //
-//     // [PLANNED — engine story]: DeclarativeHttpAuthProvider, MockHttpClient,
-//     //   build_test_sensor_spec_token_exchange
+//     // [PLANNED — engine story]: DeclarativeHttpAuthProvider, build_test_sensor_spec_token_exchange
 //     #[tokio::test]
 //     async fn test_vp159_ac9b_execute_step_path_cache_sharing() {
-//         use wiremock::{MockServer, Mock as WmMock, ResponseTemplate,
-//                        matchers::{method as wm_method, path as wm_path}};
-//         // Token endpoint mock via MockHttpClient [PLANNED — engine story]
-//         let mock_http = MockHttpClient::with_response("bearer_token_ac9b", 3600); // [PLANNED]
-//         let creds = MockCredentialResolver::new("client_secret_ac9b");
-//         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
-//         let provider = Arc::new(DeclarativeHttpAuthProvider::new(  // [PLANNED]
-//             config, Arc::new(mock_http.clone()), Arc::new(creds),
-//         ));
-//         // Sensor API mock via wiremock — execute_step uses the injected reqwest::Client
-//         // (separate from MockHttpClient which is held inside DeclarativeHttpAuthProvider)
+//         // Single wiremock server hosts both endpoints:
+//         //   POST /oauth/token → token exchange response (token endpoint)
+//         //   GET  /items       → sensor API response (sensor API mock)
+//         // The http_client parameter to execute_step is the sensor API client; it uses
+//         // the same wiremock server URI as base_url for the sensor API GET /items call.
+//         // The token_url inside DeclarativeHttpAuthProvider also points at this server's
+//         // POST /oauth/token — no separate MockHttpClient needed.
 //         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/oauth/token"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({"access_token": "bearer_token_ac9b", "expires_in": 3600})),
+//             )
+//             .mount(&mock_server)
+//             .await;
 //         WmMock::given(wm_method("GET"))
 //             .and(wm_path("/items"))
 //             .respond_with(
@@ -716,6 +887,12 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             )
 //             .mount(&mock_server)
 //             .await;
+//         let token_url = format!("{}/oauth/token", mock_server.uri());
+//         let creds = MockCredentialResolver::new("client_secret_ac9b");
+//         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds { ttl_buffer_secs: 30 }); // [PLANNED]
+//         let provider = Arc::new(DeclarativeHttpAuthProvider::new(  // [PLANNED]
+//             token_url, config, Arc::new(creds),
+//         ));
 //         // FetchStep::new — struct-literal is E0639-impossible: FetchStep is #[non_exhaustive]
 //         // pub fn new(name, method, path_template, body_template, response_path,
 //         //   pagination_cursor_path, variables_produced, fan_out_batch_size, pagination)
@@ -750,13 +927,17 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let _ = PipelineExecutor::execute_step(
 //             &step, &spec, &prior_vars, &context, &http_client, provider.as_ref(),
 //         ).await.expect("VP-159 AC-9b: first execute_step call must succeed");
-//         assert_eq!(mock_http.post_call_count(), 1,
+//         let posts_after_first = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_after_first, 1,
 //             "VP-159 AC-9b: first execute_step call must issue exactly 1 token-endpoint POST");
 //         // Second execute_step call: warm cache (TTL 3600s >> 0 elapsed) → 0 additional POSTs
 //         let _ = PipelineExecutor::execute_step(
 //             &step, &spec, &prior_vars, &context, &http_client, provider.as_ref(),
 //         ).await.expect("VP-159 AC-9b: second execute_step call must succeed");
-//         assert_eq!(mock_http.post_call_count(), 1,
+//         let posts_after_second = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_after_second, 1,
 //             "VP-159 AC-9b: second execute_step call must use cached token — zero additional \
 //              token-endpoint POSTs (BC-2.16.014 P9 execute_step path; ADR-054 §D11; \
 //              a mis-wiring leaving acquire_token in execute_step produces 2 POSTs and FAILS here)");
@@ -769,9 +950,9 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 | Factor | Assessment | Notes |
 |--------|-----------|-------|
 | Input space size | Deterministic | Fixed mock scenarios for each cache state (cold, warm, stale, bypass); no combinatorial generation |
-| Proof complexity | Medium | Requires `MockHttpClient` with call-count tracking and mock clock injection; both are standard test-helper patterns in the prism-spec-engine test suite |
-| Tool support | Full | `MockCredentialResolver` is confirmed at `crates/prism-spec-engine/src/auth_provider.rs` (test-helpers gate); `MockHttpClient` and mock clock are co-located with `DeclarativeHttpAuthProvider` [PLANNED] implementation in the same story |
-| Harness dependencies | Medium (planned) | `DeclarativeHttpAuthProvider`, `AuthAcquisitionConfig`, `ExpiryMode`, `CachedAuthToken`, `MockHttpClient` are all [PLANNED — engine story]; harness is authored in the same Wave-A story as the implementation |
+| Proof complexity | Medium | Requires wiremock server for HTTP interception and `Arc<AtomicU64>` clock seam for TTL testing; both are straightforward patterns in the prism-spec-engine test suite |
+| Tool support | Full | `MockCredentialResolver` is confirmed at `crates/prism-spec-engine/src/auth_provider.rs` (test-helpers gate); `wiremock` is a confirmed dev-dep in `crates/prism-spec-engine/Cargo.toml`; `DeclarativeHttpAuthProvider::new_for_test` and `Arc<AtomicU64>` clock seam are co-located with `DeclarativeHttpAuthProvider` [PLANNED] implementation in the same story — no `MockHttpClient` needed |
+| Harness dependencies | Medium (planned) | `DeclarativeHttpAuthProvider`, `AuthAcquisitionConfig`, `ExpiryMode`, `CachedAuthToken` are all [PLANNED — engine story]; `wiremock` and `Arc<AtomicU64>` (from std) are confirmed; harness is authored in the same Wave-A story as the implementation |
 | Estimated proof time | < 1 second | Deterministic async scenarios with mock I/O; no real network, no real clock dependency |
 
 ## Lifecycle
@@ -784,6 +965,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.10 | wave-a-spec-evolution-fix-burst-13 | 2026-07-22 | architect | F-WASE-P13-MED-001 + OBS-P13-001 (fix-burst 13): Ratified OPTION (b) — internal reqwest client, no HTTP injection seam. §Acceptance Criteria header: `MockHttpClient` [PLANNED] → wiremock (confirmed dev-dep) for all HTTP interception; `DeclarativeHttpAuthProvider::new_for_test` [PLANNED] clock seam noted. AC-1 prose: "zero calls recorded by `MockHttpClient`" → "zero requests received by the wiremock server". AC-2 prose: "one `MockHttpClient` POST call" → "one POST request to the wiremock token endpoint". AC-3 prose: "zero additional `MockHttpClient` calls" → "zero additional requests to the wiremock token endpoint". AC-4 prose: "Advancing the mock clock" → "Advancing the mock clock (`Arc<AtomicU64>` passed via `now_fn`)"; "one additional `MockHttpClient` POST call" → "one additional POST request to the wiremock token endpoint". AC-5 prose: "one `MockHttpClient` POST call" → "one POST request to the wiremock token endpoint". §Proof Method table: `MockHttpClient` [PLANNED] for HTTP interception → `wiremock` (confirmed dev-dep) for HTTP interception; `mock clock` → `Arc<AtomicU64>` via `now_fn` clock seam (`new_for_test` [PLANNED]). §Feasibility Assessment Tool support: `MockHttpClient` and mock clock → `wiremock` confirmed dev-dep + `new_for_test`/`Arc<AtomicU64>` clock seam [PLANNED]. §Proof Harness Skeleton: full rewrite — `MockHttpClient` eliminated; all ACs (AC-1 through AC-9b) use wiremock `MockServer` for HTTP interception (`token_url = mock_server.uri() + path`); post-counts via `mock_server.received_requests().await.unwrap().iter().filter(POST).count()`; constructor changed from 3-arg `new(config, Arc::new(mock_http), Arc::new(creds))` to 3-arg `new(token_url, config, Arc::new(creds))`; clock-sensitive tests (AC-4, AC-6, AC-7a/b/c) use `new_for_test(token_url, config, creds, mock_time_fn)` with `Arc<AtomicU64>` clock advanced via `fetch_add()`; AC-6 `advance_clock_to_before/past_expires_at` replaced with `now_secs.store(expires_at ∓ 10)`; AC-9/9b use single wiremock server hosting both `POST /oauth/token` and `GET /items` endpoints — no `MockHttpClient` needed for executor reachability tests. `[PLANNED]` marker audit: `MockHttpClient` references removed; `DeclarativeHttpAuthProvider::new_for_test` marked `[PLANNED — engine story; cfg(test)]`; `wiremock` confirmed dev-dep (no [PLANNED]); `Arc<AtomicU64>` from std (no [PLANNED]). input-hash recomputed 8a305d3 → 232a706 (ADR-054 changed: §D4 Internal state + Constructor added in same burst). BC-2.16.014 INV-014-007 already consistent with OPTION (b) — no BC-2.16.014 edits required. |
 | 1.9 | wave-a-spec-evolution-fix-burst-12 | 2026-07-22 | architect | F-WASE-P12-MED-001: §Proof Harness Skeleton — all 19 single-arg `get_token("test-org")` call sites across 9 test functions (AC-2, AC-3, AC-4, AC-5, AC-6, AC-6b, AC-7a, AC-7b, AC-7c) updated to the 2-arg ADR-054 §D4 trait form `get_token(&sensor_spec, &org_slug)`. Per-function: `build_test_sensor_spec_token_exchange()` [PLANNED] and `prism_core::OrgSlug::new_unchecked("test-org")` declarations added before the first `get_token` call in each function; ALLOWLIST note added per CLAUDE.md credential-safety convention. AC-5: hoisted `sensor_spec` + ALLOWLIST + `org_slug` declarations before the warm-cache `get_token` call (previously placed only before `acquire_token`, leaving the `get_token` call above them with wrong single-arg form). Prose verification: all P-statement and AC prose uses `get_token()` without args as behavior description — no wrong single-arg signature stated; no prose change required. Adversary-missed sites swept: AC-5 (~380), AC-7a third site (~496), AC-7b third site (~524), AC-7c third site (~551) — adversary cited 9 grouped locations; sweep found 19 individual code sites; all fixed. input-hash drift resolved: stored f9726cc → computed 8a305d3 (ADR-054 or BC-2.16.014 changed since v1.8 burst; updated via `compute-input-hash --update`). BC-2.16.014 live-body pin sweep (parallel PO bump v1.7→v1.8 in same burst): 3 sites updated — §Source Contract authoring-source first occurrence `Token Lifecycle) v1.7`, §Source Contract inline restatement `(BC-2.16.014 v1.7)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.7` — all now read v1.8. input-hash for this burst: at-commit-time hash per POL-32. |
 | 1.8 | wave-a-spec-evolution-fix-burst-11 | 2026-07-22 | architect | F-WASE-P11-MED-001: AC-9 and AC-9b `[PLANNED — engine story]` qualifiers moved off the executor-method symbols onto their `get_token()` cache-aware wiring. `PipelineExecutor::execute` confirmed in `crates/prism-spec-engine/src/pipeline.rs` (~line 138); `PipelineExecutor::execute_step` confirmed (~line 605). What is [PLANNED] is the ADR-054 §D4/§D11 wiring inside them, not the methods themselves. AC-9 prose updated: "drives `PipelineExecutor::execute` (confirmed in `pipeline.rs`; its `get_token()` cache-aware wiring is [PLANNED — engine story] per ADR-054 §D4)". AC-9b prose updated: "drives `PipelineExecutor::execute_step` (confirmed in `pipeline.rs`; its `get_token()` cache-aware wiring is [PLANNED — engine story] per ADR-054 §D11) directly". Per-marker audit: all other [PLANNED] markers verified on genuinely-absent symbols (DeclarativeHttpAuthProvider, get_token(), CachedAuthToken, ExpiryMode, AuthAcquisitionConfig, MockHttpClient, auth/declarative.rs path, mock clock methods, test helper fns) — all correct. Pin sweep: VP-INDEX.md status cell `draft — v1.7` → `draft — v1.8` (state-manager scope; no live body prose pins to VP-159 v1.7 found). input-hash unchanged (ADR-054 and BC-2.16.014 not modified in this burst; frontmatter value f9726cc remains valid per POL-32 at-commit-time wording). |
 | 1.7 | wave-a-spec-evolution-fix-burst-10 | 2026-07-22 | architect | F-WASE-P10-MED-001: BC-2.16.014 pin updated v1.6→v1.7 at all three live-body sites: §Source Contract authoring-source bullet first occurrence (`BC-2.16.014 Token Lifecycle) v1.6`), §Source Contract inline restatement `(BC-2.16.014 v1.6)`, and §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.6`. Pin strategy: all three pins retain exact version (no unversioned substitution) — rationale: all three serve authoring-context purposes (§Source Contract: "authored against v1.7"; harness comment: implementer-visible as-of-authoring marker); POL-23 sweep cost for a single-file VP with 3 co-located pins is minimal; consistency within the §Source Contract bullet (line 209 and 210 both in the same sentence) requires both to carry the same version. input-hash recomputed d0f0001→f9726cc (BC-2.16.014 content changed as part of the v1.7 bump; hash updated via validator-reported value per POL-32). |
