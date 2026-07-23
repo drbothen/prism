@@ -10,7 +10,7 @@ modified: "2026-07-23"
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
-input-hash: "744ab83"
+input-hash: "707deea"
 traces_to: [".factory/specs/prd.md"]
 ---
 

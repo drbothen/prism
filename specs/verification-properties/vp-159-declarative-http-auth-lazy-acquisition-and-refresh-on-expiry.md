@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.17"
+version: "1.18"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -59,9 +59,11 @@ network-isolation and cache-lifecycle invariants (ADR-054 §D9; BC-2.16.014 P1�
 3. **P3 — warm `get_token()` — zero HTTP requests:** Subsequent `get_token()` [PLANNED] calls
    issued before `unix_now() >= expires_at` return the cached token and issue ZERO HTTP requests.
 
-4. **P4 — stale `get_token()` — exactly one HTTP POST:** A `get_token()` [PLANNED] call when
-   the cache entry's `expires_at` timestamp is in the past (i.e., `unix_now() >= expires_at`)
-   issues exactly ONE HTTP POST and refreshes the cache atomically.
+4. **P4 — stale or poisoned `get_token()` — exactly one HTTP POST:** A `get_token()` [PLANNED]
+   call when `unix_now() >= cached.expires_at` (TTL elapsed) OR `cached.token.is_empty()`
+   (poisoned cache entry — stored token is the empty string) issues exactly ONE HTTP POST and
+   refreshes the cache atomically. Both triggers are equivalent re-acquisition paths
+   (BC-2.16.014 P4).
 
 5. **P5 — `acquire_token()` — always exactly one HTTP POST (cache bypass):** The `acquire_token()`
    method (satisfying the `AuthProvider` trait confirmed in
@@ -144,6 +146,19 @@ asserts:
   `new_for_test` [PLANNED]) past `expires_at` and calling `get_token()` [PLANNED] results in
   exactly one additional POST request to the wiremock token endpoint. The refreshed token is
   returned.
+
+- **AC-4b (P4 — empty-token trigger):** Seed `DeclarativeHttpAuthProvider`'s `ArcSwap` cache
+  with an empty-string token (`CachedAuthToken { token: "".to_string(), expires_at: far_future }`)
+  via `DeclarativeHttpAuthProvider::seed_cache_for_test` [PLANNED — engine story;
+  `#[cfg(any(test, feature = "test-helpers"))]`] — a test seam that writes directly to the
+  `ArcSwap<Option<CachedAuthToken>>` internal field. `expires_at` is set far in the future
+  (e.g., `unix_now() + 86_400`) so the TTL check (`unix_now() >= expires_at`) does NOT fire —
+  only `cached.token.is_empty()` triggers re-acquisition, exercising that branch independently
+  of TTL expiry. The mock token server is configured to return a fresh non-empty token
+  `"fresh_token_4b"`. After calling `get_token(&sensor_spec, &org_slug)` [PLANNED], assert:
+  (1) exactly one POST request recorded by the wiremock server (`post_count == 1`), and
+  (2) the returned token string equals `"fresh_token_4b"` — not the cached empty string
+  (BC-2.16.014 P4 `is_empty()` branch).
 
 - **AC-5 (P5):** Calling `acquire_token()` on a warm-cache provider results in exactly one
   POST request to the wiremock token endpoint (bypasses TTL check regardless of cache state).
@@ -439,6 +454,56 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
 //         assert_eq!(posts_after_stale_refresh, posts_before_stale_refresh + 1,
 //             "VP-159 AC-4: stale get_token must issue exactly one HTTP POST (BC-2.16.014 P4)");
+//     }
+//
+//     // AC-4b (P4 — empty-token trigger): poisoned cache (empty-string token, valid TTL) →
+//     // exactly one HTTP POST + returned token is the fresh one (not the empty cached string).
+//     // Cache seam: DeclarativeHttpAuthProvider::seed_cache_for_test [PLANNED — engine story;
+//     //   cfg(any(test, feature = "test-helpers"))] writes directly to the
+//     //   ArcSwap<Option<CachedAuthToken>> internal field. The production constructor never
+//     //   produces an empty-token entry; direct injection is the only test path for the
+//     //   is_empty() branch. expires_at is set far in the future so the TTL check does NOT
+//     //   trigger — only is_empty() drives re-acquisition (BC-2.16.014 P4).
+//     #[tokio::test]
+//     async fn test_vp159_ac4b_empty_token_reacquisition() {
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/oauth/token"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({"access_token": "fresh_token_4b", "expires_in": 3600})),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/oauth/token", mock_server.uri());
+//         let creds = MockCredentialResolver::new("test-credential");
+//         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds, 30); // [PLANNED]
+//         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
+//             token_url, config, Arc::new(creds),
+//         );
+//         // Seed a poisoned-cache entry: empty token string, expires_at far in the future.
+//         // far_future = 1_700_000_000 + 86_400 ensures TTL is valid (now effectively 0 for a
+//         // no-clock-seam provider); only is_empty() triggers re-acquisition here.
+//         let far_future_expires_at: u64 = 1_700_000_000u64 + 86_400;
+//         let poisoned_entry = CachedAuthToken {  // [PLANNED]
+//             token: "".to_string(),   // empty-string token — the poisoned-cache case (BC-2.16.014 P4)
+//             expires_at: far_future_expires_at,
+//         };
+//         // seed_cache_for_test [PLANNED — engine story; cfg(any(test, feature = "test-helpers"))]
+//         // writes poisoned_entry into the provider's ArcSwap<Option<CachedAuthToken>> directly.
+//         provider.seed_cache_for_test(Some(poisoned_entry));  // [PLANNED]
+//         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
+//         let org_slug = prism_core::OrgSlug::new("test-org");
+//         let token = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED]
+//             .expect("VP-159 AC-4b: get_token with poisoned cache (empty token, valid TTL) must succeed");
+//         let post_count = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(post_count, 1,
+//             "VP-159 AC-4b: empty-token cache must trigger exactly one re-acquisition POST \
+//              (BC-2.16.014 P4 is_empty() branch; independent of TTL)");
+//         assert_eq!(token, "fresh_token_4b",
+//             "VP-159 AC-4b: get_token must return the freshly-acquired token, not the cached empty string \
+//              (BC-2.16.014 P4)");
 //     }
 //
 //     // AC-5 (P5): acquire_token bypasses cache → exactly one HTTP POST
@@ -937,7 +1002,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 | Input space size | Deterministic | Fixed mock scenarios for each cache state (cold, warm, stale, bypass); no combinatorial generation |
 | Proof complexity | Medium | Requires wiremock server for HTTP interception and `Arc<AtomicU64>` clock seam for TTL testing; both are straightforward patterns in the prism-spec-engine test suite |
 | Tool support | Full | `MockCredentialResolver` is confirmed at `crates/prism-spec-engine/src/auth_provider.rs` (test-helpers gate); `wiremock` is a confirmed dev-dep in `crates/prism-spec-engine/Cargo.toml`; `DeclarativeHttpAuthProvider::new_for_test` and `Arc<AtomicU64>` clock seam are co-located with `DeclarativeHttpAuthProvider` [PLANNED] implementation in the same story — no `MockHttpClient` needed |
-| Harness dependencies | Medium (planned) | `DeclarativeHttpAuthProvider`, `AuthAcquisitionConfig`, `ExpiryMode`, `CachedAuthToken` are all [PLANNED — engine story]; `wiremock` and `Arc<AtomicU64>` (from std) are confirmed; harness is authored in the same Wave-A story as the implementation |
+| Harness dependencies | Medium (planned) | `DeclarativeHttpAuthProvider`, `AuthAcquisitionConfig`, `ExpiryMode`, `CachedAuthToken` are all [PLANNED — engine story]; `DeclarativeHttpAuthProvider::seed_cache_for_test` [PLANNED — engine story; `cfg(any(test, feature = "test-helpers"))`] required by AC-4b to inject a poisoned-cache entry (empty-string token with valid TTL) directly into the `ArcSwap` — co-located with the implementation in the same story; `wiremock` and `Arc<AtomicU64>` (from std) are confirmed; harness is authored in the same Wave-A story as the implementation |
 | Estimated proof time | < 1 second | Deterministic async scenarios with mock I/O; no real network, no real clock dependency |
 
 ## Lifecycle
@@ -950,6 +1015,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.18 | wave-a-spec-evolution-fix-burst-24 | 2026-07-23 | architect | F-WASE-P26-LOW-001: (1) §Property Statement P4 heading and body extended from TTL-only trigger to include `cached.token.is_empty()` poisoned-cache trigger — "stale `get_token()`" → "stale or poisoned `get_token()`"; condition updated from `unix_now() >= expires_at` alone to `unix_now() >= cached.expires_at` OR `cached.token.is_empty()` (BC-2.16.014 P4 parity). (2) AC-4b prose bullet added between AC-4 and AC-5: seeds provider cache via `DeclarativeHttpAuthProvider::seed_cache_for_test` [PLANNED — engine story] with `CachedAuthToken { token: "".to_string(), expires_at: far_future }`, calls `get_token()`, asserts wiremock POST count == 1 and returned token == fresh non-empty value. (3) Harness skeleton `test_vp159_ac4b_empty_token_reacquisition` added after `test_vp159_ac4_stale_cache_one_post`; `seed_cache_for_test` seam marked [PLANNED — engine story; cfg(any(test, feature = "test-helpers"))]. (4) §Feasibility Assessment Harness dependencies row updated to list `DeclarativeHttpAuthProvider::seed_cache_for_test` [PLANNED] as additional test seam. No BC-2.16.014 changes — its (e) property claim at VP-159 row is already correct; AC-4b existence makes it verified. input-hash: at-commit-time hash per POL-32 (modified: sync). |
 | 1.17 | wave-a-spec-evolution-fix-burst-22 | 2026-07-23 | architect | STANDING PIN SWEEP (FIX-BURST 22): 3 live-body BC-2.16.014 pins advanced v1.13→v1.14 (PO bumped BC-2.16.014 v1.13→v1.14 in parallel) — §Source Contract first occurrence `Token Lifecycle) v1.13`, §Source Contract inline restatement `(BC-2.16.014 v1.13)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.13` — all now v1.14. input-hash updated dc3b3bd→9491150 (BC-2.16.014 input drifted since last hash). At-commit-time hash per POL-32. |
 | 1.16 | wave-a-fix-burst-21 | 2026-07-23 | architect | F-WASE-P21-HIGH-001(a): §Property Statement P4-TTL-b — removed present-tense "retired" from "matching the retired crowdstrike-oauth2 plugin's arithmetic" → "matching the crowdstrike-oauth2 plugin's arithmetic"; forward framing matches ADR-054 §D9 source ("matches the plugin's", no "retired"). F-WASE-P21-LOW-001: §Property Statement P4-TTL-b dead-code note — "per ADR-054 §D4 note" → "per ADR-054 §D9 note" (the note lives in §D9, not §D4). Standing pin sweep: BC-2.16.014 v1.12→v1.13 at all 3 live-body pins — §Source Contract first occurrence `Token Lifecycle) v1.12`, §Source Contract inline restatement `(BC-2.16.014 v1.12)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.12` — all now v1.13. input-hash: at-commit-time hash per POL-32. |
 | 1.15 | wave-a-fix-burst-19 | 2026-07-23 | architect | Pin sweep only (POL-32). BC-2.16.014 v1.11→v1.12 bump: 3 live-body pins updated — §Source Contract first occurrence `Token Lifecycle) v1.11`, §Source Contract inline restatement `(BC-2.16.014 v1.11)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.11` — all now v1.12. No behavioral content changed. input-hash: at-commit-time hash per POL-32. |
