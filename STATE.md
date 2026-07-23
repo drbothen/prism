@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.520"
+version: "8.521"
 producer: state-manager
-timestamp: 2026-07-23T00:03:00Z
+timestamp: 2026-07-23T01:15:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -40,7 +40,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1972 COMPLETE — Wave-A spec-evolution LOCAL adversary pass-23 on frozen 464f04458 = NOT CLEAN(strict) — 1 MED (F-WASE-P23-MED-001: 'unconditionally' residual in §Error Conditions E-SPEC-028(b) Behavior cell) + 1 LOW (F-WASE-P23-LOW-001: ADR-026/028/054 narrative sites — Definition-1 purge workspace-wide, 4 sites) + 1 OBS (F-WASE-P23-OBS-001: VP-153 6th-shape parity). FIX-BURST 22 closed all: BC-2.16.014 v1.14, ADR-026 v1.39, ADR-028 v1.25, ADR-054 v0.44, VP-153 v0.25, VP-159 v1.17. Architecture-tree 'unconditional' sweep: zero residual E-SPEC-028(b) trigger descriptions. BC-INDEX v8.54→v8.55; VP-INDEX v2.00→v2.01; ARCH-INDEX v2.256→v2.257. Streak 0/3; next = pass 24. trajectory-tail →4→5→3→3 STATE v8.519→v8.520"
+current_step: "D-1973 COMPLETE — Wave-A spec-evolution LOCAL adversary pass 24 on frozen f2fd1203f = CLEAN(strict) YES / CLEAN(PR-merge) YES — zero findings any severity. Fresh-context re-derivation confirmed all axes incl. code-citation honesty both directions, E-SPEC-028 four-site + Definition-1 phrasing everywhere, DI-012 triangle, POL-24 byte-verbatim, POL-9/27/32/36, crowdstrike-oauth2 forward-framing, [PLANNED] marker coherence. Two considered-and-dismissed items documented (§-sigil row convention; E-AUTH-002(b) e.g.-non-exhaustive). Novelty LOW. BC-5.39.001 strict streak = 1/3. Next = pass 25 on unchanged perimeter. trajectory-tail →5→3→3→0 STATE v8.520→v8.521"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -78,8 +78,8 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 499 lines (wc-l)
-  margin from soft-target (200): +299 lines over | margin from actual (500): 1 line remaining
+  STATE.md SIZE BUDGET: 500 lines (wc-l)
+  margin from soft-target (200): +300 lines over | margin from actual (500): 0 lines remaining
 -->
 
 # VSDD Pipeline State — Prism
@@ -93,7 +93,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-23 D-1972 — Wave-A spec-evolution LOCAL adversary pass-23 NOT CLEAN(strict) (1 MED+1 LOW+1 OBS); STREAK 0/3. FIX-BURST 22 closed all 3. BC-INDEX v8.54→v8.55; VP-INDEX v2.00→v2.01; ARCH-INDEX v2.256→v2.257. trajectory-tail →4→5→3→3 STATE v8.519→v8.520 |
+| **Last Updated** | 2026-07-23 D-1973 — Wave-A spec-evolution LOCAL adversary pass 24 CLEAN(strict) YES / CLEAN(PR-merge) YES — zero findings. Streak 1/3. trajectory-tail →5→3→3→0 STATE v8.520→v8.521 |
 
 ## Active Objective (North Star)
 
@@ -386,6 +386,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1970 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-21 on frozen 52f94f99f = NOT CLEAN(strict) — 1 HIGH (F-WASE-P21-HIGH-001: pass-20 forward-framing fix not swept to VP-159+ADR-054 — mirror-image sibling gap) + 1 MED (F-WASE-P21-MED-001: BC-INDEX prose changelog v8.52/v8.41 gaps) + 1 LOW (F-WASE-P21-LOW-001: §D4→§D9 anchor) + 2 OBS (F-WASE-P21-OBS-001 Definition-1 wording parity; F-WASE-P21-OBS-002 (h)-scoping justification). STREAK RESET 0/3. FIX-BURST 20 closed all 5: VP-159 v1.16 (HIGH-001(a) + LOW-001), ADR-054 v0.43 (HIGH-001(b)), BC-2.16.014 v1.13 (OBS-001+OBS-002), BC-INDEX prose rows restored (MED-001), indexes synced. BC-INDEX v8.52→v8.53; ARCH-INDEX v2.255→v2.256; VP-INDEX v1.99→v2.00. Streak 0/3; next = pass 22. STATE v8.517→v8.518 | wave-5-e-demo-fidelity | 2026-07-23 |
 | D-1971 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-22 on frozen 6819c8ffb = NOT CLEAN(strict) — 1 HIGH (F-WASE-P22-HIGH-001: modified:-date stale on BC-2.16.014 + error-taxonomy.md; systematic state-manager sync miss — discipline adopted: modified-sync required in every burst touching a changelog) + 1 MED (F-WASE-P22-MED-001: BC-2.16.009 Rules 9/10 present-tense without [PLANNED]; 5 sites caveated) + 1 LOW/OBS (F-WASE-P22-LOW-OBS-001: DI-012 reverse-naming parity in invariants.md). FIX-BURST 21 closed all: BC-2.16.009 v1.19, invariants.md v1.10, BC-2.16.014 modified: synced 2026-07-22→2026-07-23, error-taxonomy.md modified: synced 2026-07-22→2026-07-23. BC-INDEX v8.53→v8.54. Streak 0/3; next = pass 23. STATE v8.518→v8.519 | wave-5-e-demo-fidelity | 2026-07-23 |
 | D-1972 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-23 on frozen 464f04458 = NOT CLEAN(strict) — 1 MED (F-WASE-P23-MED-001 'unconditionally' residual in §Error Conditions (b) row) + 1 LOW (ADR-026/028/054 narrative sites — Definition-1 purge extended workspace-wide, 4 sites) + 1 OBS (VP-153 6th-shape parity). FIX-BURST 22 closed all (BC-2.16.014 v1.14, ADR-026 v1.39, ADR-028 v1.25, ADR-054 v0.44, VP-153 v0.25, VP-159 v1.17). Architecture-tree 'unconditional' sweep: zero residual E-SPEC-028(b) trigger descriptions. Streak 0/3; next = pass 24. trajectory-tail →4→5→3→3 STATE v8.519→v8.520 | wave-5-e-demo-fidelity | 2026-07-23 |
+| D-1973 | state-manager | 2026-07-23 | Wave-A spec-evolution LOCAL adversary pass 24 on frozen f2fd1203f = CLEAN(strict) YES / CLEAN(PR-merge) YES — zero findings any severity. Fresh-context re-derivation confirmed all axes incl. code-citation honesty both directions, E-SPEC-028 four-site + Definition-1 phrasing everywhere, DI-012 triangle, POL-24 byte-verbatim, POL-9/27/32/36, crowdstrike-oauth2 forward-framing, [PLANNED] marker coherence. Two considered-and-dismissed items documented (§-sigil row convention; E-AUTH-002(b) e.g.-non-exhaustive). Novelty LOW. BC-5.39.001 strict streak = 1/3. Next = pass 25 on unchanged perimeter. trajectory-tail →5→3→3→0 STATE v8.520→v8.521 | wave-5-e-demo-fidelity | 2026-07-23 |
 
 ## Skip Log
 
