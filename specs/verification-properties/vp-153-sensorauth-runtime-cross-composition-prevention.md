@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.26"
+version: "0.27"
 status: active
 producer: architect
 timestamp: 2026-05-16T16:00:00Z
@@ -95,7 +95,7 @@ deterministically with a small strategy and provide regression coverage for the 
 ## Proof Harness Skeleton
 
 ```rust
-// AS-BUILT HARNESS (proof-completed-date 2026-05-18; all 8 proptests PASS)
+// HARNESS — as-built 5-value core (proof-completed 2026-05-18; all 8 proptests PASS on the 5-value/20-pair set) + [PLANNED] token_exchange arms (6-value/30-pair once ADR-054 D1 engine story lands)
 //
 // ── FILE 1 (Rules A + B) ─────────────────────────────────────────────────────
 // crates/prism-spec-engine/tests/vp153_sensorauth_cross_composition.rs
@@ -105,7 +105,7 @@ deterministically with a small strategy and provide regression coverage for the 
 //       "oauth2_client_credentials", "bearer_static", "cookie_roundtrip",
 //       "api_key", "custom_via_plugin",
 //       "token_exchange",  // [PLANNED — ADR-054 D1 engine story]
-//   ]; // 6 members — "token_exchange" added per ADR-054 D1
+//   ]; // 6 members (5 as-built + 1 [PLANNED])
 //
 // Generators:
 //   fn arb_valid_auth_type() -> impl Strategy<Value = &'static str>
@@ -173,7 +173,7 @@ deterministically with a small strategy and provide regression coverage for the 
 // Generators:
 //   fn arb_mismatched_auth_type_pair() -> impl Strategy<Value = (&'static str, &'static str)>
 //     — (0usize..6, 0usize..5).prop_map(|(spec_idx, offset)| ...)  // updated per ADR-054 D1 ([PLANNED — engine story])
-//     — covers all 30 ordered mismatched pairs (6×5) from VALID_AUTH_TYPES
+//     — covers all 30 ordered mismatched pairs (6×5) from VALID_AUTH_TYPES  // 30 pairs target; as-built range is (0..5, 0..4) = 20 pairs
 //
 //   fn arb_matching_auth_type() -> impl Strategy<Value = &'static str>
 //     — prop_oneof![ Just("oauth2_client_credentials"), ..., Just("custom_via_plugin"),
@@ -239,6 +239,7 @@ deterministically with a small strategy and provide regression coverage for the 
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 0.27 | wave-a-spec-evolution-fix-burst-26 | 2026-07-23 | architect | F-WASE-P28-LOW-001: §Proof Harness Skeleton block header — retitled from "AS-BUILT HARNESS (proof-completed-date 2026-05-18; all 8 proptests PASS)" to "HARNESS — as-built 5-value core (proof-completed 2026-05-18; all 8 proptests PASS on the 5-value/20-pair set) + [PLANNED] token_exchange arms (6-value/30-pair once ADR-054 D1 engine story lands)" to distinguish the proven 5-value core from the unexecuted [PLANNED] token_exchange scaffolding. Annotated FILE 1 "// 6 members" → "// 6 members (5 as-built + 1 [PLANNED])". Annotated FILE 2 30-pair range comment to add "// 30 pairs target; as-built range is (0..5, 0..4) = 20 pairs". All existing [PLANNED] inline markers preserved. At-commit-time hash per POL-32; modified: sync. |
 | 0.26 | wave-a-spec-evolution-fix-burst-25 | 2026-07-23 | architect | F-WASE-P27-MED-001: §Feasibility Assessment "Input space size" row — "× 5 credential structural shapes" relabeled to "× 5 mismatched shapes per variant (of the 6 total credential structural shapes, excluding the matching one)" to distinguish the mismatch multiplier from the total shape-set cardinality, resolving the contradiction with §Proof Method's 6-shape enumeration. Sweep confirmed: one non-changelog occurrence at line 218 (fixed); all remaining occurrences of "5 credential structural shapes" are in changelog rows (exempt). At-commit-time hash per POL-32; modified: sync. |
 | 0.25 | wave-a-spec-evolution-fix-burst-22 | 2026-07-23 | architect | F-WASE-P23-OBS-001: §Proof Method credential-shape enumeration — appended 6th shape "token-exchange secret [PLANNED — ADR-054 D1 engine story]" for parity with DI-012 Rule 3 and §Feasibility 6×5=30 pair arithmetic. input-hash updated from 18485b2 → ab5fe91 (ADR-026 input drifted since last hash). At-commit-time hash per POL-32. |
 | 0.24 | wave-a-spec-evolution-fix-burst-9 | 2026-07-22 | architect | F-WASE-P9-OBS-001: Added [PLANNED — ADR-054 D1 engine story] qualifiers to §Property Statement Rule A: (1) enumerated set `{..., token_exchange [PLANNED — ADR-054 D1 engine story]}` — makes it explicit that `token_exchange` is in the set but proptest arm not yet green; (2) post-message note added — "`token_exchange` appears in the E-SPEC-012 message template (POL-24 source of truth) but its proptest validation arm is [PLANNED — ADR-054 D1 engine story]; see §Re-verification Gate." §Proof Method: "has 6 members" → "has 6 members (5 as-built; `token_exchange` is the 6th [PLANNED — ADR-054 D1 engine story])". §Feasibility Assessment `Input space size` row: "6 auth_type variants × 5 credential structural shapes = 30 pairs; all enumerable" → "6 auth_type variants (5 as-built + `token_exchange` [PLANNED]) × 5 credential structural shapes = 30 ordered mismatched pairs (6×5) once `token_exchange` lands; current green proof (proof-completed-date 2026-05-18) covers 20 ordered mismatched pairs (5×4) over the 5-member as-built set". As-built pair arithmetic verified: `arb_mismatched_auth_type_pair()` current range `(0usize..5, 0usize..4)` = 5×4=20; future range `(0usize..6, 0usize..5)` = 6×5=30. The §Re-verification Gate (F-WASE-P4-OBS-002) already documents the constraint; these edits propagate consistent [PLANNED] markers to the prose-facing enumeration sites that lacked them. input-hash: no inputs changed; hash unchanged at commit time (at-commit-time hash wording per POL-32). |

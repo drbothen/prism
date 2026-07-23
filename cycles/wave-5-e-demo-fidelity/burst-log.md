@@ -336,3 +336,25 @@ T14 BLOCKED (D-1873): demo will run through the secops-factory plugin; architect
 **Closes:**
 - D-1872: DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 MERGED PR #227 @e116a587; LANE CLOSED; workspace_test_count 5676; DEMO-READY: YES ×2
 - D-1873: T14 BLOCKED — secops-factory integration planning initiated; T13 capstone to proceed during wait
+
+---
+
+## Compaction Archive — Extracted from STATE.md Phase Progress on 2026-07-23 (fix-burst-26 compact-state)
+
+Intermediate sub-step rows for DEFECT-ADMINTOKEN and S-MAINT-CI-DISK-EXHAUSTION-001 archived here.
+All superseded by final MERGED rows retained in STATE.md (PR #224 @0f9857dd and PR #225 @277b7844).
+
+| Step | Status | Started | Completed | Gate | Notes |
+|------|--------|---------|-----------|------|-------|
+| pass-9 S-MAINT PR-LEVEL | NOT CLEAN | 2026-07-16 | 2026-07-16 | adversary frozen bd65e93a | CLEAN(strict)=NO; 2H+1M+2L+2O; F-HIGH-001 sed over-match corrupts third-party sources; F-HIGH-002 HTTP-only fallback structurally cannot succeed; →0→0→9→7 |
+| S-MAINT fix burst 13 spec | SPEC DONE | 2026-07-16 | — | story-writer @b54af749 | story v0.17→v0.18; AC-006 redesign: third-party-source-list removal + host-anchored sed + http:// scheme |
+| S-MAINT fix burst 13 code | CODE DONE | 2026-07-16 | — | implementer @0939973f | 13/13 sites v0.18 fallback; RG-5b/RG-7b; echo 21/19; PR body refreshed; AC-005 restarted on 0939973f |
+| pass-10 S-MAINT PR-LEVEL | NOT CLEAN | 2026-07-16 | 2026-07-16 | adversary frozen 0939973f | CLEAN(strict)=NO; 1C+1H+2M+2L+2O+1PG; F-CRIT Mirrorlist-blind fallback (both CI runs failed live); F-HIGH azure-cli.sources missed; empirical runner apt-config probe DONE; →0→9→7→9 |
+| S-MAINT story v0.19 amendment | DISPATCHED | 2026-07-16 | — | story-writer in flight | AC-006 apt-mirrors.txt overwrite strategy per empirical probe; ubuntu.sources mirror+file:/etc/apt/apt-mirrors.txt canonical path |
+| DEFECT-ADMINTOKEN pass-2 LOCAL | NOT CLEAN | 2026-07-16 | 2026-07-16 | adversary frozen 7aad8a0f | CLEAN(strict)=NO; 1M+1L+2O; F-ADMTOK-P2-MED-001 token sidecars missing from .gitignore; →0→0→9→4 |
+| DEFECT-ADMINTOKEN fix burst 2 | CODE DONE | 2026-07-16 | — | story @79220456 + impl @3c8607d9 | story v0.4 EC-005 anchor fix; .gitignore token-sidecar patterns w/ check-ignore evidence; KillGuard RAII on 4 subprocess tests; TD-VSDD-060 sibling sweep; Test A payload aligned to AC literal |
+| pass-3 DEFECT-ADMINTOKEN LOCAL | NOT CLEAN | 2026-07-16 | 2026-07-16 | adversary frozen 3c8607d9 | CLEAN(strict)=NO; fb-3 dispatched (rustdoc gaps + missing E2E tests) |
+| DEFECT-ADMINTOKEN fix burst 3 | CODE DONE | 2026-07-16 | — | impl @001a58ba (rustdoc) + @e37417c4 (tests) | start-multi binary E2E Test G; T-09 shutdown locks; Test D format lock |
+| pass-4 DEFECT-ADMINTOKEN LOCAL | NOT CLEAN | 2026-07-16 | 2026-07-16 | adversary frozen e37417c4 | CLEAN(strict)=NO; 1M+1L+1OBS; F-MED fabricated ADR quote POL-22; F-LOW gitignore URL-tmp gap; F-OBS pre-existing doc |
+| DEFECT-ADMINTOKEN fix burst 4 | CODE DONE | 2026-07-16 | — | story @1647e999 v0.4→v0.5 + impl @26e623c9 | verbatim ADR quotes in story; doc-hygiene line in prism-bin helpers |
+| pass-5 DEFECT-ADMINTOKEN LOCAL | DISPATCHED | 2026-07-16 | — | adversary frozen 26e623c9 | pass-5 dispatched; streak 0/3; pass-6 now in flight per background agent |

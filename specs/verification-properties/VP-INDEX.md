@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "2.03"
+version: "2.04"
 status: draft
 producer: state-manager
 timestamp: 2026-07-23T00:00:00Z
@@ -182,7 +182,7 @@ retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..00
 | VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) — VP-PLUGIN-005 alias | prism-spec-engine | integration_test | P0 | draft | S-PLUGIN-PREREQ-B |
 | VP-151 | OCSF column mapping fixture catalog (6 representative cases, SpecDrivenMapper) — VP-PLUGIN-006 alias | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-C |
 | VP-152 | Plugin manifest allowlist explicit Vec<String> after PREREQ-D (allowed_urls enforcement under default-deny semantics) — VP-PLUGIN-007 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
-| VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values | prism-spec-engine | proptest | P0 | active — v0.26 | S-PLUGIN-PREREQ-E |
+| VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values | prism-spec-engine | proptest | P0 | active — v0.27 | S-PLUGIN-PREREQ-E |
 | VP-154 | CustomAdapter behavioral equivalence: PluginRuntime WASM dispatch produces non-empty records matching plugin fixture output; TOML fallthrough when no plugin registered | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-A |
 | VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
 | VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | active — v0.24 | S-PLUGIN-PREREQ-E |
@@ -270,6 +270,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.04 | wave-a-spec-evolution-fix-burst-26 | 2026-07-23 | state-manager | VP-153 v0.26→v0.27 (F-WASE-P28-LOW-001: §Proof Harness Skeleton block header retitled to mixed as-built-5-value/PLANNED-6-value framing; 6-member + 30-pair comments annotated with as-built reality). VP-INDEX VP-153 status cell updated: `active — v0.26` → `active — v0.27`. VP-INDEX v2.03→v2.04. |
 | 2.03 | wave-a-spec-evolution-fix-burst-25 | 2026-07-23 | state-manager | VP-153 v0.25→v0.26 (F-WASE-P27-MED-001: §Feasibility Assessment "Input space size" row — "5 mismatched shapes per variant" relabeled to "5 mismatched shapes per variant (of the 6 total credential structural shapes, excluding the matching one)" to disambiguate the mismatch multiplier from the total shape-set cardinality; resolves contradiction with §Proof Method's 6-shape enumeration). VP-159 v1.18→v1.19 (standing pin sweep: BC-2.16.014 v1.14→v1.15 at §Source Contract first occurrence, §Source Contract inline citation, and §Proof Harness Skeleton header comment; input-hash f702703 updated at commit time per POL-32). VP-INDEX VP-153 status cell updated: `active — v0.25` → `active — v0.26`. VP-INDEX VP-159 status cell updated: `draft — v1.18` → `draft — v1.19`. VP-INDEX v2.02→v2.03. |
 | 2.02 | wave-a-spec-evolution-fix-burst-24 | 2026-07-23 | state-manager | VP-159 v1.17→v1.18 (F-WASE-P26-LOW-001: P4 heading extended from "stale `get_token()`" to "stale or poisoned `get_token()`"; P4 body adds `cached.token.is_empty()` as co-trigger alongside TTL per BC-2.16.014 P4; AC-4b prose added: `seed_cache_for_test` [PLANNED — engine story; `cfg(any(test, feature = "test-helpers"))`] injects `CachedAuthToken { token: "".to_string(), expires_at: far_future }`; skeleton `test_vp159_ac4b_empty_token_reacquisition` added in §Proof Harness Skeleton; §Feasibility Assessment Harness dependencies updated; zero BC pin churn confirmed — inputs ADR-054 + BC-2.16.014 stable; input-hash 87576a4 unchanged). VP-INDEX VP-159 status cell updated: `draft — v1.17` → `draft — v1.18`. VP-INDEX v2.01→v2.02. |
 | 2.01 | wave-a-spec-evolution-fix-burst-22 | 2026-07-23 | state-manager | VP-153 v0.24→v0.25 (F-WASE-P23-OBS-001: §Proof Method credential-shape enumeration — appended 6th shape 'token-exchange secret [PLANNED — ADR-054 D1 engine story]' for parity with DI-012 Rule 3 + §Feasibility 6×5=30 pair arithmetic; input-hash updated ab5fe91). VP-159 v1.16→v1.17 (standing pin sweep: BC-2.16.014 v1.13→v1.14 at 3 live-body sites per POL-23; input-hash updated 9491150). VP-INDEX VP-153 status cell updated: `active — v0.24` → `active — v0.25`. VP-INDEX VP-159 status cell updated: `draft — v1.16` → `draft — v1.17`. VP-INDEX v2.00→v2.01. |
