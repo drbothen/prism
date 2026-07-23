@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.515"
+version: "8.516"
 producer: state-manager
-timestamp: 2026-07-23T00:00:00Z
+timestamp: 2026-07-23T00:01:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -40,7 +40,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1967 COMPLETE — Wave-A spec-evolution LOCAL adversary pass-18 FIX-BURST 18: VP-159 v1.13→v1.14 (F-WASE-P18-LOW-001: 11 OrgSlug::new_unchecked sites replaced with infallible OrgSlug::new sibling idiom; architect full-sweep found 5 beyond initial 6 flagged; zero new_unchecked remain in live body). VP-INDEX v1.98. Streak 0/3; next = pass 19 (streak start expected). trajectory-tail →0→3→1→1 STATE v8.514→v8.515"
+current_step: "D-1968 COMPLETE — Wave-A spec-evolution LOCAL adversary pass-19 on frozen af9bb9cc3 = CLEAN(strict) YES / CLEAN(PR-merge) YES — ZERO findings of any severity. Fresh-context re-derivation confirmed all axes. Novelty LOW. BC-5.39.001 strict streak = 1/3. Next = pass 20 on unchanged spec perimeter. trajectory-tail →3→1→1→0 STATE v8.515→v8.516"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -78,7 +78,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 494 lines (wc-l)
+  STATE.md SIZE BUDGET: 495 lines (wc-l)
   margin from soft-target (200): +294 lines over | margin from actual (500): 6 lines remaining
 -->
 
@@ -93,7 +93,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-23 D-1967 — Wave-A spec-evolution LOCAL adversary pass-18 FIX-BURST 18: VP-159 v1.13→v1.14 (F-WASE-P18-LOW-001: 11 OrgSlug::new_unchecked sites → OrgSlug::new; architect full-sweep 11 total). VP-INDEX v1.98. trajectory-tail →0→3→1→1 Streak 0/3; STATE v8.514→v8.515 |
+| **Last Updated** | 2026-07-23 D-1968 — Wave-A spec-evolution LOCAL adversary pass-19 CLEAN(strict) YES / CLEAN(PR-merge) YES — ZERO findings on frozen af9bb9cc3. Streak 1/3; trajectory-tail →3→1→1→0 STATE v8.515→v8.516 |
 
 ## Active Objective (North Star)
 
@@ -381,6 +381,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1965 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-16 FIX-BURST 16 (2026-07-22). Pass-16 on frozen b6dfd255f = NOT CLEAN(strict)/CLEAN(PR-merge) — 1 LOW (3 stale §Related BCs labels) + 2 actionable OBS (disjoint-overclaim wording; D11 E-SPEC-012 full-wording-delta scope). OBS-002 (immutable v1.8 changelog mis-cite) noted-only per POL-32 immutability. FIX-BURST 16 closed all actionable findings: BC-2.01.018 v1.2→v1.3 (F-WASE-P16-LOW-001: §Related BCs full 4-row sweep — 3 stale labels corrected to canonical H1s: BC-2.01.006, BC-2.01.017, BC-2.06.003); error-taxonomy.md v2.60→v2.61 (F-WASE-P16-OBS-001: "Eight disjoint" → "Eight independent" with (b)/(g)-scoped disjointness + co-fire pairs named); ADR-054 v0.41→v0.42 (F-WASE-P16-OBS-003: §D11 E-SPEC-012 row expanded to full wording-delta rewrite obligation, 3-site POL-24 atomicity, {provided_value}/{value} variable divergence). BC-2.16.014 + VP-159 input-hashes recomputed (ADR-054 input drift: 4c73bb6→88a7cdb; 83f2f4d→ec52494). BC-INDEX v8.49→v8.50; ARCH-INDEX v2.254→v2.255. Novelty LOW-MODERATE. Streak 0/3; next = pass 17. trajectory-tail →2→2→0→3 STATE v8.512→v8.513 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1966 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-17 FIX-BURST 17 (2026-07-23). Pass-17 on frozen b7c6aad1d = NOT CLEAN(strict) — 1 MED (F-WASE-P17-MED-001: BC-2.16.014 §Related BCs 6/7 entries violated POL-7 verbatim-H1; sibling-sweep gap from v1.8 single-entry fix left 6 remaining stale labels). FIX-BURST 17 killed the ENTIRE class: BC-2.16.014 v1.10→v1.11 (F-WASE-P17-MED-001: 6 §Related BCs labels corrected to canonical H1 titles: BC-2.16.009, BC-2.16.001, BC-2.16.002, BC-2.16.013, BC-2.01.017, BC-2.06.003; BC-2.01.016 confirmed CLEAN — already fixed v1.8; BC-2.16.009 confirmed no §Related BCs section — nothing to fix; 7/7 CLEAN); BC-2.16.013 v1.33→v1.34 (orchestrator-directed expansion beyond the adversary-flagged instance: 9 stale §Related BCs labels corrected; 10/10 entries CLEAN on final sweep); BC-2.13.014 v1.3→v1.4 (1 label corrected: BC-2.16.009 "Spec File Validation" → canonical H1; input-hash drift c36ec87→fc9d874 resolved); VP-159 v1.12→v1.13 (standing pin sweep: BC-2.16.014 pins v1.10→v1.11 at 3 live-body sites per POL-23; input-hash updated at commit time). BC-INDEX v8.50→v8.51; VP-INDEX v1.96→v1.97. bc_index_version 8.50→8.51; vp_index_version 1.96→1.97. Streak 0/3; next = pass 18. trajectory-tail →2→0→3→1 STATE v8.513→v8.514 | wave-5-e-demo-fidelity | 2026-07-23 |
 | D-1967 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-18 FIX-BURST 18 (2026-07-23). Pass-18 on frozen 8749e6f0e = NOT CLEAN(strict)/CLEAN(PR-merge) — 1 LOW only (F-WASE-P18-LOW-001: VP-159 §Proof Harness Skeleton prescribed OrgSlug::new_unchecked at 11 sites — gratuitous validation-bypass pattern; OrgSlug::new is the infallible sibling idiom and requires no ALLOWLIST entry; ALLOWLIST-REQUIRED notes deleted). All other axes verified clean at pass 18. FIX-BURST 18 closed F-WASE-P18-LOW-001: VP-159 v1.13→v1.14 (11 new_unchecked sites replaced with OrgSlug::new; architect full-sweep found 5 sites beyond the initial 6 flagged by adversary; zero new_unchecked remain in VP-159 live body; input-hash settled 9b909f8 — ADR-054 + BC-2.16.014 inputs unchanged this burst). VP-INDEX v1.97→v1.98 (VP-159 status cell `draft — v1.13` → `draft — v1.14`; v1.98 changelog row prepended). vp_index_version 1.97→1.98. Streak 0/3; next = pass 19 (streak start expected). trajectory-tail →0→3→1→1 STATE v8.514→v8.515 | wave-5-e-demo-fidelity | 2026-07-23 |
+| D-1968 | state-manager | 2026-07-23 | Wave-A spec-evolution LOCAL adversary pass 19 on frozen af9bb9cc3 = CLEAN(strict) YES / CLEAN(PR-merge) YES — ZERO findings of any severity. Fresh-context re-derivation confirmed all axes: spec-vs-code honesty both directions (every [PLANNED] on genuinely-absent symbol; every confirmed symbol present with matching signature/visibility/return type), §D4 OPTION-(b) 6-field coherence, E-SPEC-028 four-site semantics + cardinality, DI-012 6-value, E-AUTH-005 template, POL-7/9/14/20/23/24/27/31/32/36, VP-INDEX arithmetic, TTL formulas (AC-6 epoch constant independently recomputed). Novelty LOW — no gaps. BC-5.39.001 strict streak = 1/3. Next = pass 20 on unchanged spec perimeter. trajectory-tail →3→1→1→0 STATE v8.515→v8.516 | wave-5-e-demo-fidelity | 2026-07-23 |
 
 ## Skip Log
 
