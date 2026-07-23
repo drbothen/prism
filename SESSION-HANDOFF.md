@@ -124,13 +124,50 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1991 (session wrap — Wave-A spec-evolution pass 41 CLEAN(strict); streak 1/3 on frozen 627e4216 perimeter; VERY FIRST ACTION next session = dispatch fresh-context adversary pass 42 on unchanged spec perimeter).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1991 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1991 (this wrap) is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.539. D-1991 session wrap complete; Wave-A spec-evolution pass 41 CLEAN(strict) streak 1/3; pass 42 NEXT.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1993 (session wrap — Wave-A spec-evolution pass 43 NOT CLEAN(strict) / FIX-BURST 35 CLOSED ADR-054 v0.50; streak 0/3; VERY FIRST ACTION next session = dispatch fresh-context adversary pass 44 on frozen post-D-1993 spec perimeter).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1993 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1993 (this wrap) is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.541. D-1993 session wrap complete; Wave-A spec-evolution pass 43 NOT CLEAN(strict), FIX-BURST 35 ADR-054 v0.50 closed it, streak 0/3; pass 44 NEXT.
 
 ---
 
-## §RESUME SNAPSHOT — D-1991 (2026-07-23 — SESSION WRAP; Wave-A spec-evolution through pass 41 / fix-burst 34; STATE v8.539) [SUPERSEDES D-1979]
+## §RESUME SNAPSHOT — D-1993 (2026-07-23 — SESSION WRAP; Wave-A spec-evolution through pass 43 / fix-burst 35; STATE v8.541) [SUPERSEDES D-1991]
+
+### RESUME IN ONE BREATH
+Wave-A spec evolution (D-1944 plan steps 1-4) is DONE: POL-36 codified (D-1945); BC-2.16.014 (v1.16) + VP-159 (v1.22) + amendment manifests executed + 4 wrong-direction stories retired. LOCAL adversarial cascade: 43 passes / 35 fix-bursts, strict streak 0/3 (CLEAN passes at: 19/24/30/33/36/39/41/42). Pass 43 NOT CLEAN(strict) — 1 MED F-WASE-P43-MED-001 (ADR-054 §D11 row 669 shape-cardinality contradiction vs VP-153 6-distinct-shape identifier model; "ApiKey stays at 5" claim conflated record-schema with structural-shape model). FIX-BURST 35 CLOSED: ADR-054 v0.49→v0.50 (§D11 row 669 reworded — token_exchange is a DISTINCT 6th credential structural shape; record-schema-vs-shape-model distinction explicit; 6×5=30 coherent; POL-29 sweep clean). STREAK RESET 2/3→0/3. NEXT SESSION FIRST ACTION: dispatch fresh-context adversary pass 44 on the frozen post-D-1993 spec perimeter, continue BC-5.39.001 to strict 3-CLEAN, then remove-uncertainty pass (D-1944 step 5) → Wave-A story decomposition (step 6; ADR-054 D7 sequencing: engine story FIRST, ADR-054 story SECOND, sensor stories after).
+
+### TRACKED DO-NOT-RE-RAISE (adversary findings closed; do not relitigate unless new evidence)
+**(a)** VP-159 P1/P2 formula-and-clock proofs VERIFIED (D-1955+). **(b)** get_token trait extension design ACCEPTED — OPTION (b) HTTP-client DI ratified (D-1962/D-1963). **(c)** E-SPEC-028 trigger-scope NARROW (token_exchange-GATED per ADR-054 v0.49 adjudication D-1990); consistent at all three sites (ADR-054 v0.50 / BC-2.16.009 v1.22 / error-taxonomy v2.65). **(d)** DI-012 counting unit (per-credential-per-sensor) + INV-014-006 parity VERIFIED. **(e)** VP-159 AC-4b/AC-6/AC-7 arithmetic correct. **(f)** VP-153 mixed as-built/[PLANNED] framing HONEST; get_token genuinely absent from AuthProvider trait. **(g)** VP-159 AC-8 runtime-inequality assertion with constructor harness (zero external struct-literals) — E0639-clean. **(h)** EC-009-036/038 correct (input field routing + auth_type-scoped context). **(i)** BC-INDEX four-representation coherence (268/251/4) VERIFIED. **(j)** POL-24 byte-verbatim E-SPEC-012/013 VERIFIED. **(k)** POL-36 auto-loads; generalization directive CLOSED. **(l)** TV-9 NotFoundCredentialResolver VERIFIED. **(m)** D11 markers for FetchStep + AuthAcquisitionConfig + CachedAuthToken ACCURATE. **(n)** Retired literals (absolute_epoch_secs/ttl_secs) zero live hits — no stale usage. **(o)** co-fire truth table under NARROW scope: (c)∩(h)/(c)∩(g) correctly impossible; (c)∩(d) valid. **(p)** Rule-B expected-count stale "exactly 1" Display for VALID_AUTH_TYPES on WASM path ACKNOWLEDGED as LATENT — only oauth2/CrowdStrike on WASM path pre-ADR-054 engine story; not a current spec divergence; do not re-raise before engine story ships. **(q)** (a)∩(b) co-fire ↔ EC-009-036 Branch B coherence VERIFIED; RFC-3339 epoch arithmetic independently recomputed and matches spec. **(r)** ADR-054 §D11 row 669 record-schema-vs-shape-model distinction now explicit (FB-35; ADR-054 v0.50) — do not re-litigate.
+
+### HEADS (verified 2026-07-23 D-1993)
+- origin/develop: `7fef57da` — PUSHED. LOCAL develop: `e116a587` — STALE, ff BLOCKED (DRIFT-LOCAL-DEVELOP-FF-001, human-gated, unchanged).
+- factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code — this wrap's commit is the authoritative HEAD).
+- Main worktree: docs/claude-md-file-size-convention @`426c77cde` (PR #230 OPEN, awaiting HUMAN merge).
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5` — PUSHED, PR #229 OPEN. `.worktrees/S-3.09` @`43c41389` LOCAL-ONLY KEEP-PARKED. `.worktrees/W3-FIX-S307-001` @`fcab8717` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY).
+- verify-sha-currency.sh: PASS (1 non-blocking WARN) at wrap. No background agents in flight.
+
+### WORKSTREAM — WAVE-A SPEC-EVOLUTION ADVERSARIAL CASCADE (SOLE ACTIVE)
+Package versions at spec-perimeter freeze (post-D-1993): BC-2.16.014 v1.16, VP-159 v1.22, BC-2.01.018 v1.3 (draft), VP-153 v0.28, BC-2.16.009 v1.22, BC-2.01.016 v1.14, BC-2.01.017 v1.9, error-taxonomy v2.65, invariants v1.11 (DI-012), ADR-054 v0.50, ADR-053 v0.28, ADR-026 v1.40, ADR-028 v1.25. Indexes: BC-INDEX v8.64, VP-INDEX v2.08, ARCH-INDEX v2.263, STORY-INDEX v2.721.
+Cascade history: 43 passes / 35 fix-bursts (D-1950..D-1993 decision rows). Findings decayed CRIT→HIGH→MED→LOW/OBS; CLEAN(strict) passes at 19/24/30/33/36/39/41/42. Pass 43 reset the streak with 1 MED.
+RESUME NEXT-ACTION: dispatch vsdd-factory:adversary, fresh context, LOCAL pass 44 on the frozen post-D-1993 spec perimeter with standard perimeter + policy rubric (policies.yaml, POL-1..36) + standing probes SAP-1/SAP-2/SAP-3. Report format F-WASE-P44-<SEV>-NNN + CLEAN(strict)/CLEAN(PR-merge). On CLEAN(strict) ×3 consecutive on unchanged spec perimeter → cascade CONVERGED → D-1944 step 5 remove-uncertainty → step 6 story decomposition.
+
+### STANDING USER DIRECTIVES
+- GENERALIZATION DIRECTIVE codified as POL-36 (D-1945) — auto-loads via policy rubric; OPEN OFFER from D-1944 is CLOSED.
+- Mandatory remove-uncertainty pass before story decomposition (unchanged).
+- No pragmatic convergence; production-grade default (unchanged).
+
+### PENDING USER-APPROVED / CARRIED ITEMS (unchanged from D-1991)
+- PR #230 (CLAUDE.md file-size stance) awaiting HUMAN merge; PR #229 open (deliver during findings phase).
+- develop CI stuck 'queued' on 7fef57da — re-trigger/investigate.
+- Staged ci.yml/e2e.yml residue in main worktree (S-MAINT AC-007, human-gated). Local develop FF blocked (human-gated).
+- File-size decomposition PARKED (TD-DECOMP-EPIC-001/RATCHET-001) until findings remediated.
+- PG-VP-SKELETON-ASBUILT-001 codification follow-up at cycle close (S-7.02); ADR-033/034/035/038 template backfill carry.
+
+### DECISION DELTA (this session, 2026-07-23)
+D-1992 (pass 42 CLEAN(strict) streak 2/3), D-1993 (this wrap: pass 43 NOT CLEAN 1 MED F-WASE-P43-MED-001; FIX-BURST 35 ADR-054 v0.50; streak reset 0/3; BC-INDEX.md frontmatter sync miss corrected; ARCH-INDEX v2.263).
+
+---
+
+## §RESUME SNAPSHOT — D-1991 (2026-07-23 — SESSION WRAP; Wave-A spec-evolution through pass 41 / fix-burst 34; STATE v8.539) [SUPERSEDES D-1979] [SUPERSEDED by D-1993]
 
 ### RESUME IN ONE BREATH
 Wave-A spec evolution (D-1944 plan steps 1-4) is DONE: POL-36 codified (D-1945); BC-2.16.014 (v1.16) + VP-159 (v1.22) + amendment manifests executed + 4 wrong-direction stories retired. LOCAL adversarial cascade: 41 passes / 34 fix-bursts, strict streak 1/3 (CLEAN passes at: 19/24/30/33/36/39/41). Pass 41 CLEAN(strict)=YES / CLEAN(PR-merge)=YES on frozen factory-artifacts HEAD 627e4216 — ZERO findings any severity. NEXT SESSION FIRST ACTION: dispatch fresh-context adversary pass 42 on the unchanged frozen spec perimeter (factory-artifacts HEAD 627e4216), continue BC-5.39.001 to strict 3-CLEAN (need 2 more consecutive), then remove-uncertainty pass (D-1944 step 5) → Wave-A story decomposition (step 6; ADR-054 D7 sequencing: engine story FIRST, ADR-054 story SECOND, sensor stories after).

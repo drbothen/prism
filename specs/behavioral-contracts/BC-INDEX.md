@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "8.63"
+version: "8.64"
 status: draft
 producer: state-manager
 timestamp: 2026-07-23T18:00:00Z
