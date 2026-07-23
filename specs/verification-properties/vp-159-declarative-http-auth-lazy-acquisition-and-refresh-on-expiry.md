@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.11"
+version: "1.12"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -9,7 +9,7 @@ phase: wave-a
 inputs:
   - .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
   - .factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md
-input-hash: "9ce86b1"
+input-hash: "83f2f4d"
 traces_to: .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
 source_bc: BC-2.16.014
 source_adr: ADR-054
@@ -217,8 +217,8 @@ asserts:
 
 ## Source Contract
 
-- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.9 — postconditions P1–P9
-  (BC-2.16.014 v1.9) are the primary **authoring source** for this VP; the verified set is
+- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.10 — postconditions P1–P9
+  (BC-2.16.014 v1.10) are the primary **authoring source** for this VP; the verified set is
   P1–P5, P7, P9 (plus P4-TTL-a/b sub-properties) — see §Property Statement scope note for
   P6/P8 (deferred) and P9-via-AC-9 (verified) coverage.
   INV-014-003 (BC-local invariant:
@@ -279,7 +279,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 // Method: integration_test (wiremock for HTTP interception; now_fn clock seam for TTL control)
 // Target module: prism-spec-engine
 // Target path: crates/prism-spec-engine/src/auth/declarative.rs [PLANNED — engine story]
-// BC: BC-2.16.014 v1.9 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
+// BC: BC-2.16.014 v1.10 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
 //
 // ALL DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode /
 // DeclarativeHttpAuthProvider::new_for_test (cfg(any(test, feature = "test-helpers")))
@@ -966,6 +966,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.12 | wave-a-spec-evolution-fix-burst-15 | 2026-07-22 | architect | Pin sweep only (F-WASE-P15 pin obligation; POL-32). Parallel PO BC-2.16.014 v1.9→v1.10 bump: 3 live-body pins updated — §Source Contract authoring-source first occurrence `Token Lifecycle) v1.9`, §Source Contract inline restatement `(BC-2.16.014 v1.9)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.9` — all now v1.10. No behavioral content changed. input-hash: at-commit-time hash per POL-32. |
 | 1.11 | wave-a-spec-evolution-fix-burst-14 | 2026-07-22 | architect | F-WASE-P14-MED-001 (fix-burst 14): `ExpiryMode::RelativeSeconds` struct-variant form corrected to unit-variant form throughout harness skeleton. Per ADR-054 §D3: `ttl_buffer_secs` is a common `AuthAcquisitionConfig` field (default 30), independent of `expiry_mode`; `ExpiryMode` variants are unit variants (no fields). `base_config` helper signature updated: `base_config(token_path: &str, expiry_mode: ExpiryMode)` → `base_config(token_path: &str, expiry_mode: ExpiryMode, ttl_buffer_secs: u64)`; `ttl_buffer_secs` field added to the returned `AuthAcquisitionConfig` struct body. All 10 call sites fixed — `ExpiryMode::RelativeSeconds { ttl_buffer_secs: N }` → `ExpiryMode::RelativeSeconds, N`: AC-1 (30), AC-2 (30), AC-3 (30), AC-4 (0), AC-5 (30), AC-7a (ttl_buffer_secs variable), AC-7b (ttl_buffer_secs variable), AC-7c (ttl_buffer_secs variable), AC-9 (30), AC-9b (30). AC-6 and AC-6b confirmed correct (explicit `AuthAcquisitionConfig` structs with `expiry_mode: ExpiryMode::AbsoluteUtcString` unit variant + `ttl_buffer_secs` as separate field — no changes). `rg 'RelativeSeconds \{'` sweep: zero struct-variant forms remain. Standing pin sweep (parallel PO BC-2.16.014 v1.8→v1.9 bump): 3 live-body sites updated — §Source Contract first pin `v1.8`, §Source Contract inline restatement `v1.8`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.8` — all now v1.9. input-hash: at-commit-time hash per POL-32. |
 | 1.10 | wave-a-spec-evolution-fix-burst-13 | 2026-07-22 | architect | F-WASE-P13-MED-001 + OBS-P13-001 (fix-burst 13): Ratified OPTION (b) — internal reqwest client, no HTTP injection seam. §Acceptance Criteria header: `MockHttpClient` [PLANNED] → wiremock (confirmed dev-dep) for all HTTP interception; `DeclarativeHttpAuthProvider::new_for_test` [PLANNED] clock seam noted. AC-1 prose: "zero calls recorded by `MockHttpClient`" → "zero requests received by the wiremock server". AC-2 prose: "one `MockHttpClient` POST call" → "one POST request to the wiremock token endpoint". AC-3 prose: "zero additional `MockHttpClient` calls" → "zero additional requests to the wiremock token endpoint". AC-4 prose: "Advancing the mock clock" → "Advancing the mock clock (`Arc<AtomicU64>` passed via `now_fn`)"; "one additional `MockHttpClient` POST call" → "one additional POST request to the wiremock token endpoint". AC-5 prose: "one `MockHttpClient` POST call" → "one POST request to the wiremock token endpoint". §Proof Method table: `MockHttpClient` [PLANNED] for HTTP interception → `wiremock` (confirmed dev-dep) for HTTP interception; `mock clock` → `Arc<AtomicU64>` via `now_fn` clock seam (`new_for_test` [PLANNED]). §Feasibility Assessment Tool support: `MockHttpClient` and mock clock → `wiremock` confirmed dev-dep + `new_for_test`/`Arc<AtomicU64>` clock seam [PLANNED]. §Proof Harness Skeleton: full rewrite — `MockHttpClient` eliminated; all ACs (AC-1 through AC-9b) use wiremock `MockServer` for HTTP interception (`token_url = mock_server.uri() + path`); post-counts via `mock_server.received_requests().await.unwrap().iter().filter(POST).count()`; constructor changed from 3-arg `new(config, Arc::new(mock_http), Arc::new(creds))` to 3-arg `new(token_url, config, Arc::new(creds))`; clock-sensitive tests (AC-4, AC-6, AC-7a/b/c) use `new_for_test(token_url, config, creds, mock_time_fn)` with `Arc<AtomicU64>` clock advanced via `fetch_add()`; AC-6 `advance_clock_to_before/past_expires_at` replaced with `now_secs.store(expires_at ∓ 10)`; AC-9/9b use single wiremock server hosting both `POST /oauth/token` and `GET /items` endpoints — no `MockHttpClient` needed for executor reachability tests. `[PLANNED]` marker audit: `MockHttpClient` references removed; `DeclarativeHttpAuthProvider::new_for_test` marked `[PLANNED — engine story; cfg(test)]`; `wiremock` confirmed dev-dep (no [PLANNED]); `Arc<AtomicU64>` from std (no [PLANNED]). input-hash recomputed 8a305d3 → 232a706 (ADR-054 changed: §D4 Internal state + Constructor added in same burst). BC-2.16.014 INV-014-007 already consistent with OPTION (b) — no BC-2.16.014 edits required. |
 | 1.9 | wave-a-spec-evolution-fix-burst-12 | 2026-07-22 | architect | F-WASE-P12-MED-001: §Proof Harness Skeleton — all 19 single-arg `get_token("test-org")` call sites across 9 test functions (AC-2, AC-3, AC-4, AC-5, AC-6, AC-6b, AC-7a, AC-7b, AC-7c) updated to the 2-arg ADR-054 §D4 trait form `get_token(&sensor_spec, &org_slug)`. Per-function: `build_test_sensor_spec_token_exchange()` [PLANNED] and `prism_core::OrgSlug::new_unchecked("test-org")` declarations added before the first `get_token` call in each function; ALLOWLIST note added per CLAUDE.md credential-safety convention. AC-5: hoisted `sensor_spec` + ALLOWLIST + `org_slug` declarations before the warm-cache `get_token` call (previously placed only before `acquire_token`, leaving the `get_token` call above them with wrong single-arg form). Prose verification: all P-statement and AC prose uses `get_token()` without args as behavior description — no wrong single-arg signature stated; no prose change required. Adversary-missed sites swept: AC-5 (~380), AC-7a third site (~496), AC-7b third site (~524), AC-7c third site (~551) — adversary cited 9 grouped locations; sweep found 19 individual code sites; all fixed. input-hash drift resolved: stored f9726cc → computed 8a305d3 (ADR-054 or BC-2.16.014 changed since v1.8 burst; updated via `compute-input-hash --update`). BC-2.16.014 live-body pin sweep (parallel PO bump v1.7→v1.8 in same burst): 3 sites updated — §Source Contract authoring-source first occurrence `Token Lifecycle) v1.7`, §Source Contract inline restatement `(BC-2.16.014 v1.7)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.7` — all now read v1.8. input-hash for this burst: at-commit-time hash per POL-32. |

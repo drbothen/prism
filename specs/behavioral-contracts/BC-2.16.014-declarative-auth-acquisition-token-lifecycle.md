@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.9"
+version: "1.10"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -25,7 +25,7 @@ inputs:
   - ".factory/specs/domain-spec/invariants.md"
   - "crates/prism-spec-engine/src/auth_provider.rs"
   - "crates/prism-spec-engine/src/error.rs"
-input-hash: "5c2c928"
+input-hash: "4c73bb6"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -398,8 +398,13 @@ would return the same stale or revoked token from the warm cache).
   `token_path` is a literal string; `ttl_buffer_secs` defaults to 30; `token_exchange`-only
   fields: `credential_body_field`, `token_response_path`, `expiry_field`, `expiry_mode`
 - ADR-054 §D4 — `DeclarativeHttpAuthProvider` implementation contract (planned location:
-  `crates/prism-spec-engine/src/auth/declarative.rs`); internal state: `config`,
-  `credential_resolver: Arc<dyn CredentialResolver>`, `cached_token: ArcSwap<Option<CachedAuthToken>>`;
+  `crates/prism-spec-engine/src/auth/declarative.rs`); internal state (all 6 fields per §D4):
+  `config: AuthAcquisitionConfig`, `credential_resolver: Arc<dyn CredentialResolver>`,
+  `cached_token: ArcSwap<Option<CachedAuthToken>>`, `token_url: String` (per-org derived,
+  `format!("{}{}", resolved_base_url, config.token_path)`),
+  `http_client: reqwest::Client` (ADR-050-compliant, internally constructed via
+  `build_http_client_with_timeout()`; NOT injectable — no HTTP injection seam in production
+  constructor), `now_fn: Arc<dyn Fn() -> u64 + Send + Sync>` (clock seam; sole test seam);
   `acquire_token()` and `get_token()` step sequences; `AuthProvider` trait from
   `crates/prism-spec-engine/src/auth_provider.rs`
 - ADR-054 §D7 — auth strategy dispatch table for `step9a_populate_adapter_registry`
@@ -447,6 +452,7 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | wave-a-spec-evolution-fix-burst-15 | 2026-07-22 | product-owner | F-WASE-P15-LOW-001: §Architecture Anchors ADR-054 §D4 bullet extended from 3 internal-state fields to the full 6 ratified by ADR-054 v0.41 §D4: added `token_url: String` (per-org derived, `format!("{}{}", resolved_base_url, config.token_path)`), `http_client: reqwest::Client` (ADR-050-compliant, internally constructed via `build_http_client_with_timeout()`; NOT injectable), `now_fn: Arc<dyn Fn() -> u64 + Send + Sync>` (clock seam; sole test seam). input-hash updated at commit time. |
 | 1.9 | wave-a-spec-evolution-fix-burst-14 | 2026-07-22 | product-owner | F-WASE-P14-HIGH-001: §Verification Properties VP-159 row rewritten — replaced abandoned `MockHttpClient` network-isolation description with the ratified ADR-054 v0.40 §D4 OPTION (b) model: wiremock (`MockServer`) for HTTP interception (`token_url` routed to `MockServer` URI at `new_for_test` construction time; no `MockHttpClient`; no HTTP injection seam in production constructor) plus `now_fn` clock seam (`Arc<dyn Fn() -> u64 + Send + Sync>`, typically `Arc<AtomicU64>`) for deterministic TTL expiry assertions. Sweep: one live-body `MockHttpClient` hit found (§Verification Properties row, line 365) and fixed; no changelog rows contained `MockHttpClient` (exempt). input-hash updated at commit time. |
 | 1.8 | wave-a-spec-evolution-fix-burst-12 | 2026-07-22 | product-owner | F-WASE-P12-LOW-001: §Related BCs label for BC-2.01.016 corrected from "Plugin Auth Provider Construction" to canonical H1 title "SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker)". The old label was a stale paraphrase; H1 is the authoritative title source per bc_h1_is_title_source_of_truth policy. Relationship description and supersedes rationale preserved unchanged. input-hash updated at commit time. |
 | 1.7 | wave-a-spec-evolution-fix-burst-9 | 2026-07-22 | product-owner | F-WASE-P9-OBS-002: §Error Conditions E-AUTH-005 row trailing claim "aligned with `StaticCookieAuthProvider` pattern (BC-2.01.017 EC-017-003) generalized for variable ref names" reworded to "generalizes the `StaticCookieAuthProvider` E-AUTH-005-in-detail pattern (BC-2.01.017 EC-017-003) with ref-name-agnostic placeholders" — the as-built sibling detail differs materially (hardcoded `api_key` wording plus trailing `configure_credential_source` guidance); the new wording is precise about the relationship without overstating alignment fidelity. input-hash updated at commit time. |
