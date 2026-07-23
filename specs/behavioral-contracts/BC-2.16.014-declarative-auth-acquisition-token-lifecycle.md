@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.8"
+version: "1.9"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -25,7 +25,7 @@ inputs:
   - ".factory/specs/domain-spec/invariants.md"
   - "crates/prism-spec-engine/src/auth_provider.rs"
   - "crates/prism-spec-engine/src/error.rs"
-input-hash: "1e9930c"
+input-hash: "5c2c928"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -362,7 +362,7 @@ would return the same stale or revoked token from the warm cache).
 
 | VP ID | Description |
 |-------|-------------|
-| VP-159 | Lazy acquisition and refresh-on-expiry invariants for `DeclarativeHttpAuthProvider`. Integration tests with a `MockHttpClient` (network isolation — behavioral state-transition sequences). Module: `prism-spec-engine`. Tool: `integration_test`. BC: BC-2.16.014 (this contract). Properties verified: (a) `::new()` makes zero network calls; (b) cold `get_token()` → exactly one HTTP POST; (c) warm `get_token()` (within TTL) → zero HTTP POSTs; (d) stale `get_token()` (past TTL) → exactly one HTTP POST re-acquisition; (e) empty-token `get_token()` → exactly one HTTP POST (same as cold); (f) direct `acquire_token()` → exactly one HTTP POST (cache bypass); (g) TTL arithmetic correctness for both `absolute_utc_string` and `relative_seconds` expiry modes; (h) `CachedAuthToken` never stores credential values (AD-017 assertion). Authored v1.0 (vp-159-declarative-http-auth-lazy-acquisition-and-refresh-on-expiry.md); registered in VP-INDEX v1.83 per D-1947. |
+| VP-159 | Lazy acquisition and refresh-on-expiry invariants for `DeclarativeHttpAuthProvider`. Integration tests via wiremock (`MockServer`) for network isolation — `token_url` is set to the `MockServer` URI at `new_for_test` construction time (ADR-054 §D4 OPTION (b): internally-constructed ADR-050 reqwest client; no `MockHttpClient`; no HTTP injection seam in the production constructor). Clock seam: `now_fn` parameter on `new_for_test` (`Arc<dyn Fn() -> u64 + Send + Sync>`, typically wrapping `Arc<AtomicU64>`) advances time deterministically for TTL expiry assertions. Behavioral state-transition sequences. Module: `prism-spec-engine`. Tool: `integration_test`. BC: BC-2.16.014 (this contract). Properties verified: (a) `::new()` makes zero network calls; (b) cold `get_token()` → exactly one HTTP POST; (c) warm `get_token()` (within TTL) → zero HTTP POSTs; (d) stale `get_token()` (past TTL) → exactly one HTTP POST re-acquisition; (e) empty-token `get_token()` → exactly one HTTP POST (same as cold); (f) direct `acquire_token()` → exactly one HTTP POST (cache bypass); (g) TTL arithmetic correctness for both `absolute_utc_string` and `relative_seconds` expiry modes; (h) `CachedAuthToken` never stores credential values (AD-017 assertion). Authored v1.0 (vp-159-declarative-http-auth-lazy-acquisition-and-refresh-on-expiry.md); registered in VP-INDEX v1.83 per D-1947. |
 
 ## Related BCs
 
@@ -447,6 +447,7 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | wave-a-spec-evolution-fix-burst-14 | 2026-07-22 | product-owner | F-WASE-P14-HIGH-001: §Verification Properties VP-159 row rewritten — replaced abandoned `MockHttpClient` network-isolation description with the ratified ADR-054 v0.40 §D4 OPTION (b) model: wiremock (`MockServer`) for HTTP interception (`token_url` routed to `MockServer` URI at `new_for_test` construction time; no `MockHttpClient`; no HTTP injection seam in production constructor) plus `now_fn` clock seam (`Arc<dyn Fn() -> u64 + Send + Sync>`, typically `Arc<AtomicU64>`) for deterministic TTL expiry assertions. Sweep: one live-body `MockHttpClient` hit found (§Verification Properties row, line 365) and fixed; no changelog rows contained `MockHttpClient` (exempt). input-hash updated at commit time. |
 | 1.8 | wave-a-spec-evolution-fix-burst-12 | 2026-07-22 | product-owner | F-WASE-P12-LOW-001: §Related BCs label for BC-2.01.016 corrected from "Plugin Auth Provider Construction" to canonical H1 title "SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker)". The old label was a stale paraphrase; H1 is the authoritative title source per bc_h1_is_title_source_of_truth policy. Relationship description and supersedes rationale preserved unchanged. input-hash updated at commit time. |
 | 1.7 | wave-a-spec-evolution-fix-burst-9 | 2026-07-22 | product-owner | F-WASE-P9-OBS-002: §Error Conditions E-AUTH-005 row trailing claim "aligned with `StaticCookieAuthProvider` pattern (BC-2.01.017 EC-017-003) generalized for variable ref names" reworded to "generalizes the `StaticCookieAuthProvider` E-AUTH-005-in-detail pattern (BC-2.01.017 EC-017-003) with ref-name-agnostic placeholders" — the as-built sibling detail differs materially (hardcoded `api_key` wording plus trailing `configure_credential_source` guidance); the new wording is precise about the relationship without overstating alignment fidelity. input-hash updated at commit time. |
 | 1.6 | wave-a-spec-evolution-fix-burst-8 | 2026-07-22 | product-owner | F-WASE-P8-LOW-001: reordered §Postconditions so P8 precedes P9 (P9 was inserted between P7 and P8 at v1.5; P8 section block moved before P9; IDs not renumbered per append-only-numbering policy; ADR-054 D4/D11 and VP-159 AC-9 references to P9 identity remain valid). F-WASE-P8-LOW-002: §Traceability ADR anchors cell updated from "source authority for all postconditions P1–P8" to P1–P9, noting P9's source authority as ADR-054 §D4/§D11 (P1–P8 source authority remains §D1/D2/D3/D4/D7/D10). Live-body sweep for "P1–P8": one instance found and fixed (ADR anchors cell); changelog rows exempt. input-hash updated at commit time. |
