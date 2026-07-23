@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.17"
+version: "1.18"
 status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -42,7 +42,7 @@ validation (rejecting `step.method` values not in the 7-element allowed set),
 `header_scheme` validation (syntactic check against the three-form set plus auth_type
 coherence matrix per ADR-053 D2), and `[auth_acquisition]` coherence validation
 (block presence requirements, required fields, and type-scoped field restrictions
-per ADR-054 D1).
+per ADR-054 D10).
 
 All errors and warnings are collected in a single pass and reported together in a
 multi-error format grouped by file, table, and field, including exact TOML paths for
@@ -270,7 +270,7 @@ A syntactically valid `header_scheme` that is incoherent with the declared `auth
 
 **Ordering:** Rule 9 runs after Rule 8 and before Rule 10. It is independent of Rules 1–8.
 
-### 10. `[auth_acquisition]` Coherence Validation (E-SPEC-028) — Wave-A ADR-054 D1
+### 10. `[auth_acquisition]` Coherence Validation (E-SPEC-028) — Wave-A ADR-054 D10
 
 This validation rule runs AFTER Rule 9 (`header_scheme` validation). It validates the optional `[auth_acquisition]` TOML sub-table when present, and checks required-block obligations for declarative auth types. All sub-conditions are checked in a single pass (no fail-fast); all errors are collected.
 
@@ -430,6 +430,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.18 | wave-a-spec-evolution-fix-burst-19 | 2026-07-23 | product-owner | F-WASE-P20-MED-001: Two misanchored ADR-054 D1 citations corrected to D10. (1) §Description line "per ADR-054 D1" — the `[auth_acquisition]` coherence validation rules are governed by ADR-054 D10 (not D1; D1 = token_exchange enum addition); changed to "per ADR-054 D10". (2) §Validation Rule 10 section header "Wave-A ADR-054 D1" → "Wave-A ADR-054 D10". D1 sweep verdict: all other ADR-054 D1 citations in .factory/specs/ correctly refer to the token_exchange enum addition (D1 = Add token_exchange to AuthType closed enum); no other mis-anchors found. input-hash updated at commit time. |
 | 1.17 | wave-a-spec-evolution-fix-burst-9 | 2026-07-22 | product-owner | F-WASE-P9-MED-001: Rule 1 auth_type parenthetical reworded from "(6-value canonical set; ... token_exchange is the 6th variant per ADR-054 D1)" to honest spec-first form: 6-value canonical TARGET set per ADR-054 D1; the as-built `VALID_AUTH_TYPES` in `spec_parser.rs::validate_cross_composition` is currently 5-value (confirmed) and is extended to 6 by the ADR-054 engine story; `token_exchange` annotated [PLANNED — engine story]. Sweep: no other live-body claim that `token_exchange` is already in code found beyond this parenthetical (Rules 9/10 references are target-spec definitions, not as-built code state assertions; changelog rows exempt). input-hash updated at commit time. |
 | 1.16 | wave-a-spec-evolution-fix-burst-7 | 2026-07-22 | product-owner | F-WASE-P7-LOW-002: Rule 10(b) heading cite reworded from "(Definition 1 — ADR-054 v0.35 §D10(b))" to "(Definition 1, ratified in ADR-054 v0.35 §D10(b))"; Rule 10(h) trailing cite reworded from "ADR-054 v0.35 §D10(h)." to "(cardinality ratified in ADR-054 v0.35 §D10(h))". Both changes use ratification-provenance form so the cites cannot be read as stale current-version pins. Version numbers unchanged — they are historically correct ratification points. No version-sweep of other ADR-054 v0.35 occurrences per orchestrator adjudication. |
 | 1.15 | wave-a-spec-evolution-fix-burst-2 | 2026-07-22 | product-owner | F-WASE-P2-HIGH-001: Rule 10(b) rewritten to ADR-054 v0.35 §D10(b) Definition 1 — fires when `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `auth_plugin` is present (regardless of `[auth_acquisition]` presence); removed UNCONDITIONAL framing; message template updated to `"sensor '{sensor_id}': auth_type = '{auth_type}' uses native declarative provider and does not accept auth_plugin. Remove auth_plugin or change auth_type to custom_via_plugin."` Disjointness note with (g) added (b=declarative auth_types, g=non-declarative). F-WASE-P2-HIGH-002: Rule 10(f) trigger corrected from "no [[credential_refs]] blocks declared" → "one or both of client_id, client_secret entries absent from [[credential_refs]]"; EC-009-041 added (client_secret-missing case). Rule 10(h) cardinality corrected to single aggregated emission with `{field_list}` (was "citing the mismatched field name" singular). Error Conditions E-SPEC-028 row updated: (b) and (f) summaries corrected. EC-009-036 updated to Definition 1 trigger. Companion: error-taxonomy.md v2.60. |

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.14"
+version: "1.15"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -9,7 +9,7 @@ phase: wave-a
 inputs:
   - .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
   - .factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md
-input-hash: "9b909f8"
+input-hash: "29cb0f1"
 traces_to: .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
 source_bc: BC-2.16.014
 source_adr: ADR-054
@@ -217,8 +217,8 @@ asserts:
 
 ## Source Contract
 
-- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.11 — postconditions P1–P9
-  (BC-2.16.014 v1.11) are the primary **authoring source** for this VP; the verified set is
+- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.12 — postconditions P1–P9
+  (BC-2.16.014 v1.12) are the primary **authoring source** for this VP; the verified set is
   P1–P5, P7, P9 (plus P4-TTL-a/b sub-properties) — see §Property Statement scope note for
   P6/P8 (deferred) and P9-via-AC-9 (verified) coverage.
   INV-014-003 (BC-local invariant:
@@ -279,7 +279,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 // Method: integration_test (wiremock for HTTP interception; now_fn clock seam for TTL control)
 // Target module: prism-spec-engine
 // Target path: crates/prism-spec-engine/src/auth/declarative.rs [PLANNED — engine story]
-// BC: BC-2.16.014 v1.11 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
+// BC: BC-2.16.014 v1.12 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
 //
 // ALL DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode /
 // DeclarativeHttpAuthProvider::new_for_test (cfg(any(test, feature = "test-helpers")))
@@ -950,6 +950,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.15 | wave-a-fix-burst-19 | 2026-07-23 | architect | Pin sweep only (POL-32). BC-2.16.014 v1.11→v1.12 bump: 3 live-body pins updated — §Source Contract first occurrence `Token Lifecycle) v1.11`, §Source Contract inline restatement `(BC-2.16.014 v1.11)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.11` — all now v1.12. No behavioral content changed. input-hash: at-commit-time hash per POL-32. |
 | 1.14 | wave-a-fix-burst-18 | 2026-07-23 | architect | F-WASE-P18-LOW-001: §Proof Harness Skeleton — all 11 `prism_core::OrgSlug::new_unchecked("test-org")` call sites replaced with `prism_core::OrgSlug::new("test-org")`. `OrgSlug::new` is infallible (`pub fn new(s: impl AsRef<str>) -> Self`, confirmed `crates/prism-core/src/tenant.rs`); returns `Self` directly — no `.unwrap()` required; "test-org" satisfies `^[a-zA-Z0-9_-]{1,64}$`; sibling idiom in `crates/prism-spec-engine/src/pipeline.rs` tests is `OrgSlug::new("test-org")` (10 occurrences confirmed). Sites fixed: AC-2 (1), AC-3 (1), AC-4 (1), AC-5 (1), AC-6 (1), AC-6b (1), AC-7a (1), AC-7b (1), AC-7c (1), AC-9 (1), AC-9b (1) — 11 total (finding cited 6; sweep found 5 additional in AC-7a/7b/7c/AC-9/AC-9b). All ALLOWLIST-REQUIRED notes deleted: 4-line block in AC-2, 8 one-line "see AC-2 note above" notes in AC-3/4/5/6/6b/7a/7b/7c, 2-line note after FetchContext::new in AC-9, 2-line note after FetchContext::new in AC-9b. Sweep result: zero `new_unchecked` or `ALLOWLIST REQUIRED` in code or prose; changelog rows (lines 957, 965) exempt and unchanged. input-hash: at-commit-time hash per POL-32. |
 | 1.13 | wave-a-fix-burst-17 | 2026-07-23 | architect | Pin sweep only (POL-7 Related-BCs label sweep; POL-32). Parallel PO BC-2.16.014 v1.10→v1.11 bump: 3 live-body pins updated — §Source Contract authoring-source first occurrence `Token Lifecycle) v1.10`, §Source Contract inline restatement `(BC-2.16.014 v1.10)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.10` — all now v1.11. input-hash updated 48b9704→9b909f8 (input drift resolved). No behavioral content changed. input-hash: at-commit-time hash per POL-32. |
 | 1.12 | wave-a-spec-evolution-fix-burst-15 | 2026-07-22 | architect | Pin sweep only (F-WASE-P15 pin obligation; POL-32). Parallel PO BC-2.16.014 v1.9→v1.10 bump: 3 live-body pins updated — §Source Contract authoring-source first occurrence `Token Lifecycle) v1.9`, §Source Contract inline restatement `(BC-2.16.014 v1.9)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.9` — all now v1.10. No behavioral content changed. input-hash: at-commit-time hash per POL-32. |

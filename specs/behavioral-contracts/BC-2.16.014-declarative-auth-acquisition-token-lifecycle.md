@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.11"
+version: "1.12"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -39,7 +39,7 @@ extracted_from: ".factory/specs/prd.md"
 flows declaratively from TOML sensor spec fields, without a WASM plugin. It handles two
 `auth_type` variants: `token_exchange` (parameterized form-field → dotted-path response extraction)
 and `oauth2_client_credentials` (RFC 6749 §4.4 client credentials, replicating the behavior of the
-retired `crowdstrike-oauth2.prx` plugin). The provider implements the existing `AuthProvider` trait
+`crowdstrike-oauth2.prx` plugin (to be retired by the ADR-054 §D2 migration story)). The provider implements the existing `AuthProvider` trait
 defined in `crates/prism-spec-engine/src/auth_provider.rs` and is constructed per (org, sensor) at
 boot step 9A (`step9a_populate_adapter_registry` in `crates/prism-bin/src/spec_driven_adapter.rs`).
 
@@ -115,7 +115,7 @@ or an entry with an empty token string), the provider calls `acquire_token()` in
 
 - `oauth2_client_credentials`: `client_id={}&client_secret={}&grant_type=client_credentials`
   (three fields in this order; values RFC-3986 §2.3 percent-encoded; field order matches
-  `crowdstrike-oauth2/src/lib.rs::acquire_token()` for behavioral parity with the retired plugin)
+  `crowdstrike-oauth2/src/lib.rs::acquire_token()` for behavioral parity with the `crowdstrike-oauth2.prx` plugin (to be retired by the ADR-054 §D2 migration story))
 - `token_exchange`: `{credential_body_field}={resolved_credential_value}` (single form field;
   `credential_body_field` from `[auth_acquisition]`; value RFC-3986 §2.3 percent-encoded)
 
@@ -243,7 +243,7 @@ rather than `acquire_token()` (force-refresh) once the engine story lands:
 - `execute_impl` — eager acquisition before the `'steps:` loop (before any HTTP request is
   issued to the sensor). Calling `get_token()` here means warm pipeline executions (within
   the token's TTL window) return the cached token with zero token-POST overhead, restoring
-  the caching behavior of the retired `crowdstrike-oauth2.prx` plugin.
+  the caching behavior of the `crowdstrike-oauth2.prx` plugin (to be retired by the ADR-054 §D2 migration story).
 - `execute_step` — eager acquisition before single-request dispatch. Same rationale as
   `execute_impl`; symmetric eager-acquisition semantics across both executor entry points.
 
@@ -362,7 +362,7 @@ would return the same stale or revoked token from the warm cache).
 
 | VP ID | Description |
 |-------|-------------|
-| VP-159 | Lazy acquisition and refresh-on-expiry invariants for `DeclarativeHttpAuthProvider`. Integration tests via wiremock (`MockServer`) for network isolation — `token_url` is set to the `MockServer` URI at `new_for_test` construction time (ADR-054 §D4 OPTION (b): internally-constructed ADR-050 reqwest client; no `MockHttpClient`; no HTTP injection seam in the production constructor). Clock seam: `now_fn` parameter on `new_for_test` (`Arc<dyn Fn() -> u64 + Send + Sync>`, typically wrapping `Arc<AtomicU64>`) advances time deterministically for TTL expiry assertions. Behavioral state-transition sequences. Module: `prism-spec-engine`. Tool: `integration_test`. BC: BC-2.16.014 (this contract). Properties verified: (a) `::new()` makes zero network calls; (b) cold `get_token()` → exactly one HTTP POST; (c) warm `get_token()` (within TTL) → zero HTTP POSTs; (d) stale `get_token()` (past TTL) → exactly one HTTP POST re-acquisition; (e) empty-token `get_token()` → exactly one HTTP POST (same as cold); (f) direct `acquire_token()` → exactly one HTTP POST (cache bypass); (g) TTL arithmetic correctness for both `absolute_utc_string` and `relative_seconds` expiry modes; (h) `CachedAuthToken` never stores credential values (AD-017 assertion). Authored v1.0 (vp-159-declarative-http-auth-lazy-acquisition-and-refresh-on-expiry.md); registered in VP-INDEX v1.83 per D-1947. |
+| VP-159 | Lazy acquisition and refresh-on-expiry invariants for `DeclarativeHttpAuthProvider`. Integration tests via wiremock (`MockServer`) for network isolation — `token_url` is set to the `MockServer` URI at `new_for_test` construction time (ADR-054 §D4 OPTION (b): internally-constructed ADR-050 reqwest client; no `MockHttpClient`; no HTTP injection seam in the production constructor). Clock seam: `now_fn` parameter on `new_for_test` (`Arc<dyn Fn() -> u64 + Send + Sync>`, typically wrapping `Arc<AtomicU64>`) advances time deterministically for TTL expiry assertions. Behavioral state-transition sequences. Module: `prism-spec-engine`. Tool: `integration_test`. BC: BC-2.16.014 (this contract). Properties verified: (a) `::new()` makes zero network calls; (b) cold `get_token()` → exactly one HTTP POST; (c) warm `get_token()` (within TTL) → zero HTTP POSTs; (d) stale `get_token()` (past TTL) → exactly one HTTP POST re-acquisition; (e) empty-token `get_token()` → exactly one HTTP POST (same as cold); (f) direct `acquire_token()` → exactly one HTTP POST (cache bypass); (g) TTL arithmetic correctness for both `absolute_utc_string` and `relative_seconds` expiry modes; (h) `CachedAuthToken` never stores credential values (AD-017 assertion); (i) P9 executor reachability — get_token() wiring verified end-to-end via AC-9 (execute_impl path) and AC-9b (execute_step path). Authored v1.0 (vp-159-declarative-http-auth-lazy-acquisition-and-refresh-on-expiry.md); registered in VP-INDEX v1.83 per D-1947. |
 
 ## Related BCs
 
@@ -452,6 +452,7 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.12 | wave-a-spec-evolution-fix-burst-19 | 2026-07-23 | product-owner | F-WASE-P20-OBS-001: Reworded three present-tense "retired crowdstrike-oauth2.prx plugin" references to forward framing — retirement lands with the ADR-054 §D2 migration story, not yet. (1) §Description: "retired `crowdstrike-oauth2.prx` plugin" → "`crowdstrike-oauth2.prx` plugin (to be retired by the ADR-054 §D2 migration story)". (2) §P2 form body construction: "behavioral parity with the retired plugin" → "behavioral parity with the `crowdstrike-oauth2.prx` plugin (to be retired by the ADR-054 §D2 migration story)". (3) §P9 execute_impl rationale: "the caching behavior of the retired `crowdstrike-oauth2.prx` plugin" → same forward framing (in-scope sweep per production-grade principle). F-WASE-P20-LOW-001: §Verification Properties VP-159 row: appended P9 executor reachability clause — "(i) P9 executor reachability — get_token() wiring verified end-to-end via AC-9 (execute_impl path) and AC-9b (execute_step path)" — VP-159 v1.14 verifies P9 via AC-9/AC-9b SAP-3 executor reachability. input-hash updated at commit time. |
 | 1.11 | wave-a-spec-evolution-fix-burst-17 | 2026-07-22 | product-owner | F-WASE-P17-MED-001: §Related BCs full class-kill sweep — 6 of 7 entries corrected to canonical H1 titles (POL-7 bc_h1_is_title_source_of_truth). (1) BC-2.16.009 label "Sensor Spec File Validation" → "Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation"; (2) BC-2.16.001 label "Sensor Spec File Loading" → "Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables"; (3) BC-2.16.002 label "Multi-Step Fetch Pipeline Execution" → "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation"; (4) BC-2.16.013 label "Bundled Sensor Spec DTU Parity" → "Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors"; (5) BC-2.01.017 label "StaticCookieAuthProvider Contract" → "StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection"; (6) BC-2.06.003 label "Four-Tier Per-Client Credential Resolution" → "Credential References in Config Resolve to Credential Store Entries". BC-2.01.016 CLEAN (already fixed in v1.8). BC-2.16.009 confirmed no §Related BCs section (class-sweep: nothing to fix). BC-2.01.018 v1.3 confirmed CLEAN (swept in burst-16). input-hash updated at commit time. |
 | 1.10 | wave-a-spec-evolution-fix-burst-15 | 2026-07-22 | product-owner | F-WASE-P15-LOW-001: §Architecture Anchors ADR-054 §D4 bullet extended from 3 internal-state fields to the full 6 ratified by ADR-054 v0.41 §D4: added `token_url: String` (per-org derived, `format!("{}{}", resolved_base_url, config.token_path)`), `http_client: reqwest::Client` (ADR-050-compliant, internally constructed via `build_http_client_with_timeout()`; NOT injectable), `now_fn: Arc<dyn Fn() -> u64 + Send + Sync>` (clock seam; sole test seam). input-hash updated at commit time. |
 | 1.9 | wave-a-spec-evolution-fix-burst-14 | 2026-07-22 | product-owner | F-WASE-P14-HIGH-001: §Verification Properties VP-159 row rewritten — replaced abandoned `MockHttpClient` network-isolation description with the ratified ADR-054 v0.40 §D4 OPTION (b) model: wiremock (`MockServer`) for HTTP interception (`token_url` routed to `MockServer` URI at `new_for_test` construction time; no `MockHttpClient`; no HTTP injection seam in production constructor) plus `now_fn` clock seam (`Arc<dyn Fn() -> u64 + Send + Sync>`, typically `Arc<AtomicU64>`) for deterministic TTL expiry assertions. Sweep: one live-body `MockHttpClient` hit found (§Verification Properties row, line 365) and fixed; no changelog rows contained `MockHttpClient` (exempt). input-hash updated at commit time. |
