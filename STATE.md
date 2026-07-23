@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.503"
+version: "8.504"
 producer: state-manager
-timestamp: 2026-07-22T04:00:00Z
+timestamp: 2026-07-22T05:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -18,11 +18,11 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "e116a587"
 # NOTE: D-1887 — local develop is at e116a587 (NOT YET FF'd; unstaged S-MAINT ci.yml residue in main worktree blocks fast-forward). origin/develop = 7fef57da (PR #228 S-REL-001 squash-merged 2026-07-20; DRIFT-LOCAL-DEVELOP-FF-001 registered). D-1886 NOTE (pr-manager set 7fef57da) corrected to local HEAD for verify-sha-currency.sh compliance. D-1872 NOTE (e116a587 ff'd 2026-07-19; PR #227 squash-merged) still local HEAD.
-bc_index_version: "8.43"
-# NOTE: D-1955 — BC-INDEX v8.42→v8.43: BC-2.16.014 v1.3→v1.4 (F-WASE-P6-LOW-001 E-AUTH-005 standalone wire code clarified at 3 sites); no count changes. D-1954 NOTE (v8.41→v8.42 BC-2.16.014 v1.2→v1.3 hash-trail reconciliation; VP-159 v1.2→v1.3; error-taxonomy housekeeping) archived.
-vp_index_version: "1.87"
+bc_index_version: "8.44"
+# NOTE: D-1956 — BC-INDEX v8.43→v8.44: BC-2.16.014 v1.4→v1.5 (F-WASE-P7-HIGH-001 P5/P6 caller lists reconciled with ADR-054 v0.38 §D4; NEW P9 get_token() production callers [PLANNED — engine story]; F-WASE-P7-LOW-001 E-AUTH-005 ref-name-agnostic detail template at 3 sites); BC-2.16.009 v1.15→v1.16 (F-WASE-P7-LOW-002 2 provenance cites reworded to "ratified in ADR-054 v0.35" form); no count changes (active_contracts 257 / draft_contracts 2 / total_contracts 268 ALL UNCHANGED). D-1955 NOTE (v8.42→v8.43 BC-2.16.014 v1.3→v1.4 F-WASE-P6-LOW-001) archived.
+vp_index_version: "1.88"
 story_index_version: "v2.721"
-arch_index_version: "2.250"
+arch_index_version: "2.251"
 error_taxonomy_version: "2.60"
 # NOTE: D-1951 — v2.59→v2.60: E-SPEC-028(b) Definition 1 (client_secret-less oauth2 validation). D-1950 NOTE (v2.58→v2.59 E-SPEC-028(a)/(d) corrected) archived.
 total_stories: 254
@@ -39,7 +39,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1955 COMPLETE — Wave-A spec-evolution LOCAL adversary pass-6 FIX-BURST 6: VP-153 v0.23 (F-WASE-P6-MED-001 §Feasibility stale spec_loader.rs→spec_parser.rs; sole occurrence confirmed by workspace sweep); BC-2.16.014 v1.4 (F-WASE-P6-LOW-001 E-AUTH-005 standalone wire code clarified at 3 sites). VP-INDEX v1.87; BC-INDEX v8.43. Streak 0/3; next = pass 7. trajectory-tail →0→3→3→2 STATE v8.502→v8.503"
+current_step: "D-1956 COMPLETE — Wave-A spec-evolution LOCAL adversary pass-7 FIX-BURST 7: ADR-054 v0.38 (F-WASE-P7-HIGH-001 §D4 AuthProvider trait get_token() default-impl extension + PipelineExecutor call-site dispatch table; §D11 4 engine-story rows); BC-2.16.014 v1.5 (P5/P6 reconciled, NEW P9, E-AUTH-005 ref-name-agnostic template); VP-159 v1.4 (AC-9 SAP-3 end-to-end executor reachability ↔ P9); BC-2.16.009 v1.16 (ratified-in provenance wording). ARCH-INDEX v2.251; VP-INDEX v1.88; BC-INDEX v8.44. Streak 0/3; next = pass 8. trajectory-tail →3→3→2→4 STATE v8.503→v8.504"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +77,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 481 lines (wc-l)
+  STATE.md SIZE BUDGET: 482 lines (wc-l)
   margin from soft-target (200): +278 lines over | margin from actual (500): 22 lines remaining
 -->
 
@@ -368,6 +368,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1953 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-4 FIX-BURST 4 (2026-07-22). Pass-4 on frozen 24b88a35f = NOT CLEAN(strict)/CLEAN(PR-merge) — 0 CRIT/HIGH/MED, 3 LOW/OBS; novelty LOW. FIX-BURST 4 closed all 3: VP-159 v1.2 (F-WASE-P4-OBS-001: 5 new TTL-arithmetic skeleton fns for AC-6/AC-7 incl. malformed-RFC-3339 + default-1799 branches; OBS-003: §Source Contract authoring-source vs verified-set disambiguation); VP-153 v0.22 (F-WASE-P4-OBS-002: §Re-verification Gate section — engine story must re-run all 8 proptests with token_exchange arms activated, merge-blocking); ADR-054 v0.37 (OBS-002: D11 row "VP-153 proof re-run — engine story gate"). VP-INDEX v1.85 (changelog entry); ARCH-INDEX v2.250. Input-hash: VP-159 3af7dc1→f761188 (ADR-054 changed); VP-153 18485b2 unchanged. vp_index_version 1.84→1.85; arch_index_version 2.249→2.250. Streak 0/3; next = pass 5 on new frozen HEAD (expecting streak start). trajectory-tail →0→0→0→3 STATE v8.500→v8.501 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1954 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-5 FIX-BURST 5 (2026-07-22). Pass-5 on frozen 54d12dc5e = NOT CLEAN(strict) — 2 MED (F-WASE-P5-MED-001 input-hash frontmatter-vs-changelog trail contradiction in VP-159: v1.3 row cited explicit hash end-value that could post-date a future hook recompute; F-WASE-P5-MED-002 same defect class in BC-2.16.014 v1.3 — explicit hash trail bc9f412→6874b38 in row contradicts frontmatter bdebf51) + 1 LOW (F-WASE-P5-LOW-001 VP-159 §Proof Harness Skeleton used non-existent MockCredentialResolver::default()/with_secret() at 10 constructor sites; as-built constructor is ::new(value)). FIX-BURST 5 closed all 3: VP-159 v1.2→v1.3 (generic at-commit-time hash wording in changelog row; 10 constructor sites → ::new("...")); BC-2.16.014 v1.2→v1.3 (generic at-commit-time hash wording in changelog row; no BC content change); error-taxonomy input-hash housekeeping recompute ce24e74→b0888de (pre-existing drift from BC glob input edits in prior committed bursts; no content change). Hash trails settled: VP-159 input-hash c654d8d (current; confirmed via compute-input-hash --check exit 0); BC-2.16.014 input-hash bdebf51 (current; confirmed). LESSON (process): changelog rows must not pin explicit current-burst input-hash end-values — hooks may recompute frontmatter later in the same burst, post-dating the row's cited value; use generic at-commit-time wording; state-manager settles hashes LAST before commit. VP-INDEX v1.85→v1.86; BC-INDEX v8.41→v8.42. bc_index_version 8.41→8.42; vp_index_version 1.85→1.86. Streak 0/3; next = pass 6. trajectory-tail →0→0→3→3 STATE v8.501→v8.502 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1955 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-6 FIX-BURST 6 (2026-07-22). Pass-6 on frozen a98c07dde = NOT CLEAN(strict) — 1 MED (F-WASE-P6-MED-001 VP-153 §Feasibility Assessment "Harness dependencies" row cited stale file path `spec_loader.rs`; SpecLoader::validate_cross_composition is as-built in `crates/prism-spec-engine/src/spec_parser.rs` at line 1382; §Source Contract and §Proof Harness Skeleton already cited spec_parser.rs correctly; workspace sweep confirmed sole occurrence under .factory/specs/; pre-Wave-A residual) + 1 LOW (F-WASE-P6-LOW-001 BC-2.16.014 E-AUTH-005 presented as "(detail within E-AUTH-001)" at 3 sites — EC-016-014-009, §Error Conditions row, TV-9 — contradicting error-taxonomy.md §E-AUTH-005 standalone wire code and CredentialResolver trait "Callers should map this to E-AUTH-005"; implementation pattern matches BC-2.01.017 EC-017-003 StaticCookieAuthProvider). FIX-BURST 6 closed both: VP-153 v0.22→v0.23 (sole stale spec_loader.rs reference corrected to spec_parser.rs; workspace sweep confirmed); BC-2.16.014 v1.3→v1.4 (E-AUTH-005 standalone wire code clarified at all 3 sites; AuthAcquisitionFailed{detail: "E-AUTH-005: ..."} is ratified mechanism matching StaticCookieAuthProvider in BC-2.01.017 EC-017-003). Input-hashes settled: VP-153 input-hash 18485b2 unchanged (ADR-026 + ADR-023 inputs not modified this burst); BC-2.16.014 input-hash bdebf51 unchanged (ADR-054/053 + domain-spec + crate inputs not modified this burst). Novelty LOW-to-MODERATE and shrinking. VP-INDEX v1.86→v1.87 (VP-153 status active→active — v0.23); BC-INDEX v8.42→v8.43 (BC-2.16.014 inline row v1.3→v1.4). bc_index_version 8.42→8.43; vp_index_version 1.86→1.87. Streak 0/3; next = pass 7. trajectory-tail →0→3→3→2 STATE v8.502→v8.503 | wave-5-e-demo-fidelity | 2026-07-22 |
+| D-1956 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-7 FIX-BURST 7 (2026-07-22). Pass-7 on frozen dc7dce638 = NOT CLEAN(strict) — 1 HIGH (F-WASE-P7-HIGH-001: specified token cache unreachable in production — AuthProvider trait exposes only acquire_token and PipelineExecutor eagerly force-POSTs every execution; caching dead code as specced) + 1 MED (VP-159 SAP-3 get_token reachability) + 2 LOW. FIX-BURST 7 closed all 4: ADR-054 v0.38 ratifies get_token() trait extension (default impl delegates to acquire_token; 7 existing impls unchanged; DeclarativeHttpAuthProvider overrides) + executor dispatch table + 4 D11 engine-story rows; BC-2.16.014 v1.5 (P5/P6 reconciled, NEW P9, E-AUTH-005 ref-name-agnostic template); VP-159 v1.4 (AC-9 end-to-end executor reachability ↔ P9); BC-2.16.009 v1.16 (ratified-in provenance wording). Streak 0/3; next = pass 8. trajectory-tail →3→3→2→4 STATE v8.503→v8.504 | wave-5-e-demo-fidelity | 2026-07-22 |
 
 ## Skip Log
 

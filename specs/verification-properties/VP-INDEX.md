@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.87"
+version: "1.88"
 status: draft
 producer: state-manager
 timestamp: 2026-06-12T00:00:00Z
@@ -188,7 +188,7 @@ retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..00
 | VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | active — v0.24 | S-PLUGIN-PREREQ-E |
 | VP-157 | [BC-3.6.001] POST /dtu/configure with unsupported mode returns HTTP 400 with unsupported_failure_mode error; no state change | prism-dtu-harness | unit_test | P1 | draft | S-3.6.01 |
 | VP-158 | [BC-2.06.019] E-DEMO-006 fires when two scenario-enabled clones share same seed but have different org_ids; no clone constructed — VP-019-I alias | prism-dtu-demo-server | unit_test | P1 | draft | S-DEMO-DTU-LIVE-SCENARIO-001-B |
-| VP-159 | [BC-2.16.014] DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry: zero network at construction; cold get_token → one HTTP POST + cache; warm get_token within TTL → zero HTTP POSTs; stale get_token → one HTTP POST re-acquisition; acquire_token → one HTTP POST cache bypass; TTL arithmetic for both ExpiryMode variants (absolute_utc_string, relative_seconds); CachedAuthToken never stores credential values (AD-017) | prism-spec-engine | integration_test | P1 | draft | [PLANNED — Wave-A CrowdStrike retirement / Armis token-exchange engine story] |
+| VP-159 | [BC-2.16.014] DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry: zero network at construction; cold get_token → one HTTP POST + cache; warm get_token within TTL → zero HTTP POSTs; stale get_token → one HTTP POST re-acquisition; acquire_token → one HTTP POST cache bypass; TTL arithmetic for both ExpiryMode variants (absolute_utc_string, relative_seconds); CachedAuthToken never stores credential values (AD-017); AC-9 SAP-3 executor reachability: PipelineExecutor::execute end-to-end drives get_token() via execute_impl/execute_step (BC-2.16.014 P9) | prism-spec-engine | integration_test | P1 | draft | [PLANNED — Wave-A CrowdStrike retirement / Armis token-exchange engine story] |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -271,6 +271,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.87 | wave-a-spec-evolution-fix-burst-6 | 2026-07-22 | state-manager | VP-153 v0.22→v0.23 (F-WASE-P6-MED-001: §Feasibility Assessment "Harness dependencies" row — stale file path `spec_loader.rs` corrected to `spec_parser.rs`; sole stale reference confirmed by workspace sweep across .factory/specs/). Status cell updated to `active — v0.23`. VP-INDEX v1.86→v1.87. |
+| 1.88 | wave-a-spec-evolution-fix-burst-7 | 2026-07-22 | state-manager | VP-159 v1.3→v1.4 (F-WASE-P7-MED-001: AC-9 added — SAP-3 end-to-end executor reachability: two consecutive PipelineExecutor::execute calls against same DeclarativeHttpAuthProvider instance; second call must record zero additional token-endpoint POSTs confirming get_token() cache path reached via production execute_impl/execute_step; source set BC-2.16.014 P1–P9 (P6/P8 deferred); SAP-3 note in AC-9 text distinguishing isolation [AC-2/3/4] vs reachability [AC-9] roles; proof harness skeleton comment updated; §Source Contract authoring-source updated P1–P8→P1–P9; §Property Statement preamble updated to P1–P5/P7/P9; scope note updated "P6 and P8 (deferred); P9 (verified via AC-9)"; input-hash recomputed to current frontmatter value at commit time). VP-INDEX row: description extended with AC-9 SAP-3 executor reachability note. VP-INDEX v1.87→v1.88. |
 | 1.86 | wave-a-spec-evolution-fix-burst-5 | 2026-07-22 | state-manager | VP-159 v1.2→v1.3 (F-WASE-P5-MED-001: input-hash trail reconciliation — generic at-commit-time wording replaces explicit hash citations in v1.3 changelog row to prevent future frontmatter-vs-row contradictions; LESSON: changelog rows must use generic wording for current-burst hash changes; F-WASE-P5-LOW-001: §Proof Harness Skeleton constructor fixes — 10 MockCredentialResolver::default()/with_secret() sites rewritten to as-built ::new(...) constructor). VP-INDEX v1.85→v1.86. |
 | 1.85 | D-1953 | 2026-07-22 | state-manager | VP-159 v1.1→v1.2 (F-WASE-P4-OBS-001: 5 new TTL-arithmetic skeleton fns for AC-6/AC-7 incl. malformed-RFC-3339 + default-1799 branches; OBS-003: §Source Contract authoring-source vs verified-set disambiguation); VP-153 v0.21→v0.22 (F-WASE-P4-OBS-002: §Re-verification Gate — engine story must re-run all 8 proptests with token_exchange arms activated, merge-blocking). VP-INDEX v1.84→v1.85. |
 | 1.84 | D-1947/D-1948 Wave-A fix-burst 1 | 2026-07-22 | architect | F-WASE-P1-MED-001: v1.83 Burst cell corrected D-1946→D-1947; §Note and §Count-basis burst references updated D-1946→D-1947 (VP-159 and VP-INDEX registration is burst 2, D-1947; BC-2.16.014 authoring is burst 1, D-1946). |

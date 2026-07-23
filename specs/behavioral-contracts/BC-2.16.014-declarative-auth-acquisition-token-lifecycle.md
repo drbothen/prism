@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -25,7 +25,7 @@ inputs:
   - ".factory/specs/domain-spec/invariants.md"
   - "crates/prism-spec-engine/src/auth_provider.rs"
   - "crates/prism-spec-engine/src/error.rs"
-input-hash: "bdebf51"
+input-hash: "e151a0d"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -160,20 +160,32 @@ The re-acquisition execution path is identical to P2.
 `acquire_token()` is the force-refresh / cache-bypass path. It unconditionally issues exactly
 one HTTP POST to `self.token_url` regardless of cache state, and always overwrites the cache
 with the fresh result via `ArcSwap`. It is called:
-- By `get_token()` on cold or stale cache (P2, P4 paths).
-- Directly by `PipelineExecutor` on HTTP 401 from a sensor endpoint (P6 401-retry path).
+- Internally by `get_token()` on cold or stale cache (P2, P4 paths).
+- Directly by `PipelineExecutor` via `issue_request_with_retry` on HTTP 401 from a sensor
+  endpoint (force-refresh, cache-bypass — the 401-refresh path MUST call `acquire_token()`
+  directly, NOT `get_token()`, because `get_token()` would return the same stale or revoked
+  token from the warm cache; see P6).
 - By test code to drive acquisition without going through `get_token()`.
 
 ### P6 — 401 Retry: Single Force-Refresh; Double-401 Fails Non-Retryably
 
-On HTTP 401 from a sensor API endpoint during pipeline execution:
+On HTTP 401 from a sensor API endpoint during pipeline execution, dispatched via
+`issue_request_with_retry`:
 
-1. `PipelineExecutor` calls `DeclarativeHttpAuthProvider::acquire_token()` (force-refresh,
-   bypassing cache). Exactly one HTTP POST to the token URL.
+1. `PipelineExecutor` calls `DeclarativeHttpAuthProvider::acquire_token()` directly (force-
+   refresh, cache-bypass — NOT `get_token()`, which would return the same stale or revoked
+   token from the warm cache). Exactly one HTTP POST to the token URL.
 2. The sensor request is retried with the newly acquired token.
-3. If the retried sensor request also returns HTTP 401 (second consecutive 401): the pipeline
-   fails with `SpecEngineError::AuthRefreshFailed` (E-AUTH-002). No further retry is issued.
-   The failure is non-retryable at the pipeline level.
+3. If the retried sensor request also returns HTTP 401 (second consecutive 401, with an
+   intervening `acquire_token()` call between the two 401s): the pipeline fails with
+   `SpecEngineError::AuthRefreshFailed` (E-AUTH-002). No further retry is issued. The failure
+   is non-retryable at the pipeline level.
+
+`PipelineExecutor` explicitly calls `acquire_token()` (not `get_token()`) on HTTP 401, so
+two consecutive 401s from the sensor endpoint — with a single `acquire_token()` call between
+them — constitute the E-AUTH-002 double-401 condition. A first 401 on the original request
+triggers `acquire_token()` via `issue_request_with_retry`; a second 401 on the retried
+request triggers E-AUTH-002.
 
 This protocol prevents infinite retry loops on permanently invalid or expired credentials.
 It preserves the existing double-401 abort semantics established for `PluginAuthProvider`-based
@@ -193,6 +205,34 @@ beyond the scope of that operation. They are not stored as struct fields, are no
 `CachedAuthToken`, and are never persisted to any store. The `Zeroizing<String>` wrapper
 applies where the credential store returns `secrecy::SecretString` (which implements
 `Zeroize` on drop).
+
+### P9 — `get_token()` Production Callers: Eager Acquisition Before Step Execution [PLANNED — engine story]
+
+`get_token()` is the cache-aware method added to the `AuthProvider` trait with a default
+implementation that delegates to `self.acquire_token()` (ADR-054 §D4). All existing
+`AuthProvider` implementors (`NullAuthProvider`, `MockAuthProvider`, `StaticCookieAuthProvider`,
+`FailingAuthProvider`, `ChainAuthProvider`, `BearerStaticCredentialAuthProvider`,
+`PluginAuthProvider`) inherit the default — each effectively becomes a force-refresh path
+on every `get_token()` call, which is correct for non-caching providers. `DeclarativeHttpAuthProvider`
+overrides `get_token()` with the ArcSwap cache-aware logic described in P2–P4.
+
+**[PLANNED — engine story per ADR-054 D11]** The following `PipelineExecutor` call sites in
+`crates/prism-spec-engine/src/pipeline.rs` are scheduled to call `get_token()` (cache-aware)
+rather than `acquire_token()` (force-refresh) once the engine story lands:
+
+- `execute_impl` — eager acquisition before the `'steps:` loop (before any HTTP request is
+  issued to the sensor). Calling `get_token()` here means warm pipeline executions (within
+  the token's TTL window) return the cached token with zero token-POST overhead, restoring
+  the caching behavior of the retired `crowdstrike-oauth2.prx` plugin.
+- `execute_step` — eager acquisition before single-request dispatch. Same rationale as
+  `execute_impl`; symmetric eager-acquisition semantics across both executor entry points.
+
+Until the engine story lands, the as-built `pipeline.rs` continues to call `acquire_token()`
+at these two sites (consistent with all existing `AuthProvider` trait callers). After the
+engine story merges: `execute_impl` and `execute_step` call `get_token()` (cache-aware),
+while `issue_request_with_retry`'s 401 arm continues to call `acquire_token()` directly
+(force-refresh, per P5/P6 — calling `get_token()` on the 401 path is incorrect because it
+would return the same stale or revoked token from the warm cache).
 
 ### P8 — `base_url` Interpolated; `token_path` Literal (BC-2.16.009 Rule 6 / E-SPEC-024)
 
@@ -278,7 +318,7 @@ before this migration).
 | EC-016-014-006 | Token POST response body is not valid JSON or not a JSON object | `acquire_token()` returns `SpecEngineError::AuthAcquisitionFailed` (E-AUTH-001). |
 | EC-016-014-007 | `token_exchange`: `token_response_path` field absent or null in the response JSON | `acquire_token()` returns `SpecEngineError::AuthAcquisitionFailed` (E-AUTH-001). |
 | EC-016-014-008 | `oauth2_client_credentials`: `$.access_token` absent or null in the response JSON | `acquire_token()` returns `SpecEngineError::AuthAcquisitionFailed` (E-AUTH-001). |
-| EC-016-014-009 | `CredentialResolver::resolve()` returns `NotFound` for any required credential ref | `acquire_token()` returns `SpecEngineError::AuthAcquisitionFailed` carrying the E-AUTH-005 message in its `detail` field. E-AUTH-005 is the standalone wire code per error-taxonomy.md §E-AUTH-005 and the `CredentialResolver` trait: "Callers should map this to `E-AUTH-005`." Zero HTTP POSTs are issued. |
+| EC-016-014-009 | `CredentialResolver::resolve()` returns `NotFound` for any required credential ref | `acquire_token()` returns `SpecEngineError::AuthAcquisitionFailed` with `detail = "E-AUTH-005: credential not found — no credential configured for ({client_id}, {sensor_id}) ref '{ref_name}'"`, where `{ref_name}` is the specific credential ref being resolved (e.g., `secret_key` for `token_exchange`; `client_id` or `client_secret` for `oauth2_client_credentials`). E-AUTH-005 is the standalone wire code per error-taxonomy.md §E-AUTH-005 and the `CredentialResolver` trait: "Callers should map this to `E-AUTH-005`." Zero HTTP POSTs are issued. |
 | EC-016-014-010 | HTTP 401 from sensor endpoint (single occurrence) | `PipelineExecutor` calls `acquire_token()` (force-refresh). Request retried with new token. If retry succeeds, pipeline continues normally. |
 | EC-016-014-011 | HTTP 401 from sensor endpoint after force-refresh (second consecutive 401) | Pipeline fails with `SpecEngineError::AuthRefreshFailed` (E-AUTH-002). No further retry. Non-retryable. |
 | EC-016-014-012 | `ttl_buffer_secs` >= effective TTL value (e.g., buffer 60, `expires_in` 30) | `saturating_sub` produces `expires_at = unix_now()` or less. Token is stored but immediately stale. Every `get_token()` call triggers P4 re-acquisition. Non-fatal but causes one HTTP POST per request. |
@@ -300,7 +340,7 @@ before this migration).
 | `E-SPEC-028(h)` | `token_exchange`-only fields present in an `oauth2_client_credentials` `[auth_acquisition]` block | Spec rejected (prevents silent ignore of misconfigured fields; SOUL.md §4). Boot fails exit code 2. |
 | `E-AUTH-001` (`AuthAcquisitionFailed`) | Any acquisition-level failure at `acquire_token()` time: token POST non-200, malformed JSON response, missing token field at declared path, malformed expiry string, credential resolver error | `acquire_token()` returns `SpecEngineError::AuthAcquisitionFailed`. No token cached. Pipeline aborts for this `(org, sensor)` request. |
 | `E-AUTH-002` (`AuthRefreshFailed`) | Double-401: sensor endpoint returns 401 both before and after force-refresh (`acquire_token()`) | `PipelineExecutor` propagates `SpecEngineError::AuthRefreshFailed`. Non-retryable. |
-| `E-AUTH-005` (standalone — `CredentialResolutionError::NotFound`) | `CredentialResolver::resolve()` returns `CredentialResolutionError::NotFound` for any required credential ref during acquisition | `acquire_token()` returns `SpecEngineError::AuthAcquisitionFailed` carrying the E-AUTH-005 message in its `detail` field. E-AUTH-005 is the canonical standalone wire code (error-taxonomy.md §E-AUTH-005; `CredentialResolver` trait: "Callers should map this to `E-AUTH-005`"). Zero HTTP POSTs issued. Implementation pattern matches BC-2.01.017 EC-017-003 (StaticCookieAuthProvider). |
+| `E-AUTH-005` (standalone — `CredentialResolutionError::NotFound`) | `CredentialResolver::resolve()` returns `CredentialResolutionError::NotFound` for any required credential ref during acquisition | `acquire_token()` returns `SpecEngineError::AuthAcquisitionFailed` with `detail = "E-AUTH-005: credential not found — no credential configured for ({client_id}, {sensor_id}) ref '{ref_name}'"` (where `{ref_name}` is the specific credential ref being resolved — e.g., `secret_key` for `token_exchange`; `client_id` or `client_secret` for `oauth2_client_credentials`). E-AUTH-005 is the canonical standalone wire code (error-taxonomy.md §E-AUTH-005: "Credentials not found for ({client_id}, {sensor_id})"; `CredentialResolver` trait: "Callers should map this to `E-AUTH-005`"). Zero HTTP POSTs issued. Detail template aligned with `StaticCookieAuthProvider` pattern (BC-2.01.017 EC-017-003) generalized for variable ref names. |
 | `E-SPEC-024` | `base_url` in the sensor spec contains an unresolved env-var interpolation placeholder | Spec rejected at load time per BC-2.16.009 Rule 6. Boot fails exit code 2. `DeclarativeHttpAuthProvider` never constructed. |
 
 ## Canonical Test Vectors
@@ -315,7 +355,7 @@ before this migration).
 | **TV-6** Stale cache triggers re-acquisition | `oauth2_client_credentials` | First acquisition: `{"access_token":"tok-v1","expires_in":0}` (zero → default 1799 → `expires_at = unix_now() + 1769`); advance simulated clock past `expires_at`; second `get_token()` call | Second call issues one new HTTP POST; returns fresh token; total HTTP POST count = 2 |
 | **TV-7** Direct `acquire_token()` — cache bypass | Either | Warm cache with valid token; call `acquire_token()` directly | Issues exactly one HTTP POST regardless of warm cache; updates cache with new token |
 | **TV-8** Double-401 auth refresh failure | Either | Sensor endpoint always returns HTTP 401; `PipelineExecutor` calls `acquire_token()` after first 401; retried request also returns 401 | `PipelineExecutor` propagates `SpecEngineError::AuthRefreshFailed` (E-AUTH-002); no additional acquisition attempt; HTTP POST count = 1 (force-refresh) |
-| **TV-9** Credential not found | Either | `MockCredentialResolver` returns `CredentialResolutionError::NotFound` | `acquire_token()` returns `SpecEngineError::AuthAcquisitionFailed` carrying the E-AUTH-005 message in its `detail` field (E-AUTH-005 is the standalone wire code); zero HTTP POSTs issued |
+| **TV-9** Credential not found | Either | `MockCredentialResolver` returns `CredentialResolutionError::NotFound` | `acquire_token()` returns `SpecEngineError::AuthAcquisitionFailed` with `detail = "E-AUTH-005: credential not found — no credential configured for ({client_id}, {sensor_id}) ref '{ref_name}'"` (E-AUTH-005 standalone wire code per error-taxonomy.md §E-AUTH-005); zero HTTP POSTs issued |
 | **TV-10** Token POST returns HTTP 500 | Either | Mock token server returns HTTP 500 for all requests | `acquire_token()` returns `AuthAcquisitionFailed` (E-AUTH-001); no token cached; no retry of the token POST |
 
 ## Verification Properties
@@ -407,6 +447,7 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | wave-a-spec-evolution-fix-burst-7 | 2026-07-22 | product-owner | F-WASE-P7-HIGH-001: P5 caller list reconciled with ADR-054 v0.38 §D4 — bullet 1 changed "By" to "Internally by"; bullet 2 expanded to name `issue_request_with_retry` as the dispatch site and adds explicit note that the 401-refresh arm MUST call `acquire_token()` NOT `get_token()`. P6 updated to name `issue_request_with_retry` in heading; step 1 adds NOT-`get_token()` rationale; step 3 adds "with an intervening `acquire_token()` call between the two 401s" to specify the exact E-AUTH-002 trigger condition; appended paragraph making acquire_token()-not-get_token() explicit and tracing the two-401 sequence. P9 added: get_token() production callers (PipelineExecutor::execute_impl and execute_step, both marked [PLANNED — engine story] per ADR-054 D11). F-WASE-P7-LOW-001: E-AUTH-005 detail template specified at all three sites (EC-016-014-009, §Error Conditions E-AUTH-005 row, TV-9): `"E-AUTH-005: credential not found — no credential configured for ({client_id}, {sensor_id}) ref '{ref_name}'"` aligned with canonical error-taxonomy §E-AUTH-005 and StaticCookieAuthProvider pattern (BC-2.01.017 EC-017-003) generalized for variable ref names. |
 | 1.4 | wave-a-spec-evolution-fix-burst-6 | 2026-07-22 | product-owner | F-WASE-P6-LOW-001: clarify E-AUTH-005 credential-not-found contract at all three sites. (1) §Error Conditions E-AUTH-005 row: removed "(detail within `E-AUTH-001`)" label — E-AUTH-005 is a standalone wire code per error-taxonomy.md §E-AUTH-005 and `CredentialResolver` trait ("Callers should map this to E-AUTH-005"); updated Behavior column to name the implementation vehicle (`AuthAcquisitionFailed` with E-AUTH-005 in `detail`) and cite BC-2.01.017 EC-017-003 as sibling pattern. (2) EC-016-014-009: replaced "E-AUTH-005 detail" with explicit statement that E-AUTH-005 is the standalone wire code carried in `AuthAcquisitionFailed.detail`. (3) TV-9: same phrasing fix — E-AUTH-005 is the standalone wire code, implementation vehicle is `AuthAcquisitionFailed` with E-AUTH-005 in `detail`. No as-built SpecEngineError variant gap exists: `AuthAcquisitionFailed{detail: "E-AUTH-005: ..."}` is the ratified mechanism (matches StaticCookieAuthProvider in BC-2.01.017 EC-017-003; confirmed in auth_provider.rs lines 516–526). |
 | 1.3 | wave-a-spec-evolution-fix-burst-5 | 2026-07-22 | product-owner | F-WASE-P5-MED-002: trail reconciliation — input-hash trail: bc9f412 (post-v1.1/D-1948) → recomputed to current frontmatter value at commit time (D-1951 upstream input edits: error-taxonomy v2.60, BC-2.16.009 v1.15; v1.2 changelog row did not document the D-1951 recompute; see frontmatter for settled value). No BC content changed. |
 | 1.2 | wave-a-fix-burst-1 | 2026-07-22 | product-owner | F-WASE-P1-LOW-003: §Preconditions item 3 count corrected "four" → "five" (the item lists five fields: `token_path`, `credential_body_field`, `token_response_path`, `expiry_field`, `expiry_mode`). F-WASE-P1-MED-001: §Changelog v1.0 burst corrected from "D-1943 Wave-A spec-evolution BC authoring" → "D-1946 Wave-A spec-evolution BC authoring" (D-1943 was the ADR acceptance decision, not the BC authoring decision); §Changelog v1.1 Change description "D-1947 authorship event" corrected to "D-1948 authorship event" (D-1947 was VP-159 registration, not the v1.1 burst decision; VP-159 citations in §Description/§Verification Properties/§VP Anchors citing "per D-1947" are CORRECT and left unchanged). |

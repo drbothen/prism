@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.3"
+version: "1.4"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -9,7 +9,7 @@ phase: wave-a
 inputs:
   - .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
   - .factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md
-input-hash: "c654d8d"
+input-hash: "043b10a"
 traces_to: .factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md
 source_bc: BC-2.16.014
 source_adr: ADR-054
@@ -42,7 +42,7 @@ removal_reason: null
 `DeclarativeHttpAuthProvider` [PLANNED — engine story:
 `crates/prism-spec-engine/src/auth/declarative.rs`], implementing the `AuthProvider` trait
 (confirmed in `crates/prism-spec-engine/src/auth_provider.rs`), MUST satisfy the following
-network-isolation and cache-lifecycle invariants (ADR-054 §D9; BC-2.16.014 P1–P5, P7; TTL sub-properties P4-TTL-a/b):
+network-isolation and cache-lifecycle invariants (ADR-054 §D9; BC-2.16.014 P1–P5, P7, P9; TTL sub-properties P4-TTL-a/b):
 
 **Network-isolation invariants:**
 
@@ -88,7 +88,10 @@ network-isolation and cache-lifecycle invariants (ADR-054 §D9; BC-2.16.014 P1�
    `CachedAuthToken` fields. Violating this invariant leaks credentials to process memory and
    log drains (AD-017).
 
-> **Scope note — P6 and P8:** P6 (double-401 → `AuthRefreshFailed`, E-AUTH-002) is inherent in the
+> **Scope note — P6 and P8 (deferred); P9 (verified via AC-9):** P9 (`get_token()` production
+> callers — `PipelineExecutor::execute_impl` and `execute_step` eager-acquisition paths per
+> ADR-054 v0.38 §D4/D11; `[PLANNED — engine story]`) is verified by AC-9 (SAP-3 executor
+> reachability test). P6 (double-401 → `AuthRefreshFailed`, E-AUTH-002) is inherent in the
 > `acquire_token()` contract per the confirmed `AuthProvider` trait and is verified via AC-5 +
 > error-path assertions in the engine implementation story (not directly asserted by VP-159's
 > mock-HTTP harness). P8 (`base_url` env-var interpolation obeys BC-2.16.009 Rule 6 / E-SPEC-024;
@@ -147,11 +150,33 @@ asserts:
   credential and mock token values to be distinct strings, enabling a negative assertion that the
   cached token does not equal the resolved credential.
 
+- **AC-9 (P9; SAP-3 executor reachability):** An end-to-end test drives `PipelineExecutor::execute`
+  [PLANNED — engine story] with a `DeclarativeHttpAuthProvider` [PLANNED] instance. Two consecutive
+  `PipelineExecutor::execute` calls are issued against the same provider (same org, same sensor),
+  with the mock token server configured to return a long-lived TTL (e.g., `expires_in = 3600`).
+  The mock token server records exactly ONE POST to the token endpoint across both `execute` calls —
+  confirming that the second execution returns the cached token via `get_token()` (cache-aware path)
+  rather than force-refreshing via `acquire_token()`. This test is the SAP-3 end-to-end reachability
+  requirement for BC-2.16.014 P9 (`get_token()` production callers: `PipelineExecutor::execute_impl`
+  and `execute_step` eager-acquisition paths per ADR-054 v0.38 §D4/D11): it proves `get_token()` is
+  reached through the production `PipelineExecutor::execute` caller path, not only by direct mock
+  invocation.
+
+  **SAP-3 note (CLAUDE.md Standing Adversary Probes §SAP-3):** AC-2/3/4 verify `get_token()` by
+  direct invocation on `DeclarativeHttpAuthProvider` — they provide precise state-machine coverage
+  of the cache lifecycle but are synthetic-invocation tests. Per SAP-3, at least one test must
+  reach the arm end-to-end from the public surface (`PipelineExecutor::execute` or `execute_step`).
+  AC-9 is that SAP-3 reachability test. Both AC-2/3/4 (isolation) and AC-9 (reachability) are
+  required. Without AC-9, the `get_token()` cache path is covered only by direct invocation; a
+  mis-wiring in the `execute_impl` call-site (e.g., accidentally leaving `acquire_token` instead
+  of `get_token`) would pass AC-2/3/4 but fail AC-9, exposing the defect.
+
 ## Source Contract
 
-- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) — postconditions P1–P8
-  are the primary **authoring source** for this VP; the verified set is P1–P5, P7 (plus
-  P4-TTL-a/b sub-properties) — see §Property Statement scope note for P6/P8 coverage.
+- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.5 — postconditions P1–P9
+  (BC-2.16.014 v1.5) are the primary **authoring source** for this VP; the verified set is
+  P1–P5, P7, P9 (plus P4-TTL-a/b sub-properties) — see §Property Statement scope note for
+  P6/P8 (deferred) and P9-via-AC-9 (verified) coverage.
   INV-014-003 (BC-local invariant:
   "Credential Lazy Resolution — AD-017") specifically governs the credential-opacity property
   verified by AC-8. Note: INV-014-003 is a BC-scoped invariant identifier; it is cited in
@@ -210,7 +235,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 // Method: integration_test (MockHttpClient for network isolation)
 // Target module: prism-spec-engine
 // Target path: crates/prism-spec-engine/src/auth/declarative.rs [PLANNED — engine story]
-// BC: BC-2.16.014 (P1–P5, P7; P4-TTL-a/b sub-properties; P6/P8 deferred — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
+// BC: BC-2.16.014 v1.5 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9 verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
 //
 // ALL DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode /
 // MockHttpClient symbols below are [PLANNED — engine story].
@@ -534,6 +559,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.4 | wave-a-spec-evolution-fix-burst-7 | 2026-07-22 | architect | F-WASE-P7-MED-001: AC-9 added (SAP-3 executor reachability). AC-2/3/4 verify `get_token()` by direct invocation (isolation; defense-in-depth). AC-9 requires an end-to-end test driving `PipelineExecutor::execute` twice against the same `DeclarativeHttpAuthProvider` instance; the second call must record zero additional token-endpoint POSTs, confirming the cache is reached through the production executor call-path. SAP-3 note added in AC-9 text: both AC-2/3/4 (isolation) and AC-9 (reachability) are required. Production caller: `PipelineExecutor::execute_impl` calls `get_token()` per ADR-054 v0.38 §D4 PipelineExecutor call-site dispatch table and §D11 engine-story wiring rows. P9 reconciliation (BC-2.16.014 v1.5): §Source Contract authoring-source updated P1–P8 → P1–P9 (BC-2.16.014 v1.5); §Property Statement preamble updated to P1–P5, P7, P9; scope note heading updated "P6 and P8 (deferred); P9 (verified via AC-9)" with P9 caller text added; AC-9 heading updated to `(P9; SAP-3 executor reachability)` and body cites BC-2.16.014 P9 explicitly; §Proof Harness Skeleton header comment updated to `BC-2.16.014 v1.5 (P1–P5, P7, P9; ...)`. Verified set: P1–P5, P7, P9 (plus P4-TTL-a/b sub-properties); P6/P8 remain deferred. input-hash recomputed to 043b10a (BC-2.16.014 v1.5 content change). |
 | 1.3 | Wave-A fix-burst 5 | 2026-07-22 | architect | F-WASE-P5-MED-001: input-hash trail reconciliation — v1.2 changelog row recorded `3af7dc1` as the post-v1.2 input-hash; frontmatter `f761188` is the authoritative current value (recomputed at D-1953 burst immediately after v1.2 was authored, when ADR-054 v0.37 was edited in that same burst; the 3af7dc1→f761188 transition was not captured in the v1.2 row — v1.2 row left immutable per changelog policy). F-WASE-P5-LOW-001: §Proof Harness Skeleton constructor fixes — `MockCredentialResolver::default()` (7 confirmed sites: AC-1, AC-3, AC-4, AC-5, AC-7a, AC-7b, AC-7c; finding cited 8 — 1 discrepancy, all located sites fixed) rewritten to `MockCredentialResolver::new("test-credential")`; `MockCredentialResolver::with_secret("client_secret_xyz")` (AC-2) and `MockCredentialResolver::with_secret("long_lived_secret")` (AC-6, AC-6b) rewritten to `MockCredentialResolver::new("...")` with identical argument value. All 10 sites resolved using the existing `pub fn new(value: impl Into<String>) -> Self` constructor — no new `MockCredentialResolver` extension required. input-hash trail: f761188 (D-1953 committed) → recomputed to current frontmatter value at commit time (hook-detected drift — ADR-054 or BC-2.16.014 changed since D-1953; updated via `compute-input-hash --update`; see frontmatter for settled value). |
 | 1.2 | Wave-A fix-burst 4 | 2026-07-22 | architect | F-WASE-P4-OBS-001: §Proof Harness Skeleton — added skeleton test functions for AC-6 (P4-TTL-a `absolute_utc_string` expiry arithmetic, including AC-6b malformed-RFC-3339 → `AuthAcquisitionFailed` per EC-016-014-003) and AC-7 (P4-TTL-b `relative_seconds` expiry arithmetic, including AC-7b absent `expires_in` → default 1799 per EC-016-014-001 and AC-7c zero `expires_in` → default 1799 per EC-016-014-002). All new symbols marked `[PLANNED — engine story]` per POL-31. F-WASE-P4-OBS-003: §Source Contract P1–P8 authoring-source sentence disambiguated — "P1–P8 are the primary **authoring source**" now explicitly followed by "the verified set is P1–P5, P7 (plus P4-TTL-a/b sub-properties) — see §Property Statement scope note for P6/P8 coverage"; eliminates the false-verified-set reading. input-hash updated to `3af7dc1` (inputs unchanged; hash recomputed after prior edit). |
 | 1.1 | D-1947/D-1948 Wave-A fix-burst 1 | 2026-07-22 | architect | F-WASE-P1-MED-001: burst attribution corrected D-1946→D-1947 in Lifecycle table and v1.0 Burst cell (VP-159/VP-INDEX authoring is burst 2, D-1947; BC-2.16.014 authoring is burst 1, D-1946). F-WASE-P1-LOW-002: §Property Statement preamble narrowed from P1–P8 to P1–P5, P7 (P4-TTL-a/b sub-properties); scope note added after P7 for P6 (inherent in acquire_token() contract per AuthProvider trait, verified via AC-5 + error-path assertions in engine implementation story) and P8 (spec-load validation property per BC-2.16.009 Rule 6 / E-SPEC-024, deferred to spec-engine validation story — not a runtime lifecycle invariant of DeclarativeHttpAuthProvider). F-WASE-P1-OBS-002 closure: new_unchecked_audit.rs allowlist-entry note added to AC-5 harness skeleton for OrgSlug::new_unchecked per CLAUDE.md credential-safety convention. |
