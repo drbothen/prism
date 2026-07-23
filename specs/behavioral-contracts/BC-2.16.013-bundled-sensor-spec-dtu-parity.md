@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.33"
+version: "1.34"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -503,15 +503,15 @@ never registered in error-taxonomy.md and does not exist as a runtime error.)
 
 ## Related BCs
 
-- BC-2.16.001: Sensor Spec File Loading — the mechanism by which bundled specs are discovered and loaded (composing with)
-- BC-2.16.002: Multi-Step Fetch Pipeline — the execution engine for the CrowdStrike two-step spec (depends on)
-- BC-2.16.009: Spec File Validation — the validator that each bundled spec must pass at load time (depends on)
-- BC-2.16.012: PluginRegistry Dispatch — the dispatch mechanism whose behavioral output this BC asserts parity for (depends on)
-- BC-2.01.013: DataSource Trait — the runtime adapter contract that TOML specs satisfy post-migration (composes with)
-- BC-2.01.005: CrowdStrike OAuth2 Auth and Two-Step Fetch — the prior Rust implementation whose behavior this BC preserves (supersedes within spec-driven scope)
-- BC-2.01.006: Cyberint Cookie-Based Auth — prior implementation preserved by cyberint.sensor.toml (supersedes within spec-driven scope)
-- BC-2.01.007: Claroty Bearer Token Auth — prior implementation preserved by claroty.sensor.toml (supersedes within spec-driven scope)
-- BC-2.01.008: Armis Bearer Token Auth — prior implementation preserved by armis.sensor.toml (supersedes within spec-driven scope)
+- BC-2.16.001: Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables — the mechanism by which bundled specs are discovered and loaded (composing with)
+- BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation — the execution engine for the CrowdStrike two-step spec (depends on)
+- BC-2.16.009: Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation — the validator that each bundled spec must pass at load time (depends on)
+- BC-2.16.012: PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup — the dispatch mechanism whose behavioral output this BC asserts parity for (depends on)
+- BC-2.01.013: DataSource Trait Eliminates Per-Sensor Code Duplication — the runtime adapter contract that TOML specs satisfy post-migration (composes with)
+- BC-2.01.005: CrowdStrike OAuth2 Authentication and Two-Step Fetch — the prior Rust implementation whose behavior this BC preserves (supersedes within spec-driven scope)
+- BC-2.01.006: Cyberint Assets Cookie-Based Authentication and Multi-Format Timestamp Parsing — prior implementation preserved by cyberint.sensor.toml (supersedes within spec-driven scope)
+- BC-2.01.007: Claroty Bearer Token Auth with Polymorphic ID Handling — prior implementation preserved by claroty.sensor.toml (supersedes within spec-driven scope)
+- BC-2.01.008: Armis Token Exchange Auth with AQL Query Forwarding and Timestamp Fallback — prior implementation preserved by armis.sensor.toml (supersedes within spec-driven scope)
 - BC-2.01.017: StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection: sibling contract specifying the corrected Cyberint auth behavior per ADR-031 §D3. The DTU-parity test family for Cyberint (VP-PLUGIN-003 / VP-148) MUST assert `Cookie: access_token=...` header shape per BC-2.01.017 TV-BC-2.01.017-002/003; test vectors that pass with `cyberint_session` are not DTU-parity evidence under ADR-031 §D5.
 
 ## Architecture Anchors
@@ -554,6 +554,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.34 | wave-a-spec-evolution-fix-burst-17 | 2026-07-23 | product-owner | F-WASE-P17-MED-001: §Related BCs — 9 of 10 entries corrected to canonical H1s (POL-7 bc_h1_is_title_source_of_truth class sweep). (1) BC-2.16.009 "Spec File Validation" → "Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation"; (2) BC-2.16.001 "Sensor Spec File Loading" → "Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables"; (3) BC-2.16.002 "Multi-Step Fetch Pipeline" → "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation"; (4) BC-2.16.012 "PluginRegistry Dispatch" → "PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup"; (5) BC-2.01.013 "DataSource Trait" → "DataSource Trait Eliminates Per-Sensor Code Duplication"; (6) BC-2.01.005 "CrowdStrike OAuth2 Auth and Two-Step Fetch" → "CrowdStrike OAuth2 Authentication and Two-Step Fetch"; (7) BC-2.01.006 "Cyberint Cookie-Based Auth" → "Cyberint Assets Cookie-Based Authentication and Multi-Format Timestamp Parsing"; (8) BC-2.01.007 "Claroty Bearer Token Auth" → "Claroty Bearer Token Auth with Polymorphic ID Handling"; (9) BC-2.01.008 "Armis Bearer Token Auth" → "Armis Token Exchange Auth with AQL Query Forwarding and Timestamp Fallback". BC-2.01.017 pre-existing CLEAN. input-hash updated at commit time. |
 | 1.33 | D-1889-wrong-direction-retirements | 2026-07-22 | story-writer | **D-1889 wrong-direction story retirements.** §Known Gaps: DTU-EXT-001 (CrowdStrike incidents) marked RETIRED — Incidents API removed ~2026-03; incidents table retired from crowdstrike.sensor.toml per S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001; incidents derived from Alerts `aggregate_id`. DTU-EXT-005 (Cyberint alerts pagination page_size) marked RETIRED — Cyberint alerts endpoint is `POST /alert/api/v1/alerts` with `page/size` pagination per ADR-053 §Finding-1; DEFECT-CYBERINT-SPEC-FIDELITY-001 supersedes. §Postconditions §1 CrowdStrike `incidents` row updated to reference DTU-EXT-001 RETIRED. §Canonical Test Vectors Spec load validation row updated to reflect incidents RETIRED. TD-VSDD-091 fixes: §Known Gaps DTU-EXT-005 `alerts.rs:38-40` → `alerts.rs::AlertListParams`; §Postconditions §2 step 2 + §Canonical Test Vectors `spec_parser.rs:655` → `spec_parser.rs::SpecLoader::parse`. BC v1.32→v1.33. POL-32. |
 | 1.32 | S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001-PO-CT-amendment | 2026-07-11 | product-owner | **DRIFT-HARNESS-ADMIN-TOKEN-CT-001 constant-time token comparison requirement (D-1666, 2026-07-10) — BC amendment closing OQ-001 (S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001).** §Invariants INV-HARNESS-ROUTE-PARITY: added explicit **Admin-token bearer comparison MUST use constant-time equality (`ct_compare_tokens`)** clause — every `Authorization: Bearer <token>` comparison in `prism-dtu-harness` that checks the provided token against the stored `admin_token` MUST use constant-time byte comparison via shared `ct_compare_tokens(provided: &str, expected: &str) -> bool` helper (implemented with `subtle::ConstantTimeEq`). Applies to all 13 comparison sites: `src/builder.rs` (`check_bearer`), `src/clone_server.rs`, and 7 per-clone modules. Addresses CWE-208 timing side-channel — non-constant-time `!=` / `==` string comparison leaks information about where the first differing byte occurs. Rationale: constant-time is the correct default even for test-context UUID tokens to prevent future promotion into security-sensitive contexts without regression. Frontmatter v1.31→v1.32; modified: 2026-07-11. |
 | 1.31 | F-CSD-P31-clarifications-PO-burst | 2026-07-11 | product-owner | F-CSD-P31-OBS-001 + F-CSD-P31-MED-001 clarifications — INV-HARNESS-ROUTE-PARITY detection_detail() clause: (1) `det_index` defined as canonical detection index parsed from `detection_id` trailing integer (`det-{org_slug}-{seed}-{NNN}` → NNN); detection→device mapping STABLE across all request batch shapes; batch-position-derived indices forbidden; same `detection_id` MUST always map to same `device_id`. (2) `severity` field MUST be a string label (`"Low"` / `"Medium"` / `"High"` / `"Critical"`) matching standalone DTU generator emission types and `crowdstrike.sensor.toml` `column_type = "string"`; numeric severity values forbidden in harness clone. BC v1.30 → v1.31. POL-27/POL-32. |

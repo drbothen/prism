@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.513"
+version: "8.514"
 producer: state-manager
-timestamp: 2026-07-22T05:00:00Z
+timestamp: 2026-07-23T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -18,10 +18,10 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "e116a587"
 # NOTE: D-1887 — local develop is at e116a587 (NOT YET FF'd; unstaged S-MAINT ci.yml residue in main worktree blocks fast-forward). origin/develop = 7fef57da (PR #228 S-REL-001 squash-merged 2026-07-20; DRIFT-LOCAL-DEVELOP-FF-001 registered). D-1886 NOTE (pr-manager set 7fef57da) corrected to local HEAD for verify-sha-currency.sh compliance. D-1872 NOTE (e116a587 ff'd 2026-07-19; PR #227 squash-merged) still local HEAD.
-bc_index_version: "8.50"
-# NOTE: D-1965 — BC-INDEX v8.49→v8.50: BC-2.01.018 v1.2→v1.3 (F-WASE-P16-LOW-001: §Related BCs full 4-row sweep — 3 stale labels corrected to canonical H1s). No count changes (active_contracts 257 / draft_contracts 2 / total_contracts 268 ALL UNCHANGED). D-1964 NOTE (v8.48→v8.49 BC-2.16.014 v1.9→v1.10 F-WASE-P15-LOW-001) archived.
-vp_index_version: "1.96"
-# NOTE: D-1964 — VP-INDEX v1.95→v1.96: VP-159 v1.11→v1.12 (standing pin sweep: BC-2.16.014 pins v1.9→v1.10 at all 3 live-body citation sites; input-hash recomputed). invariants.md v1.8→v1.9 (DI-012 Scope corrected). D-1963 NOTE (v1.94→v1.95 VP-159 v1.10→v1.11 F-WASE-P14-MED-001) archived.
+bc_index_version: "8.51"
+# NOTE: D-1966 — BC-INDEX v8.50→v8.51: BC-2.16.014 v1.10→v1.11, BC-2.16.013 v1.33→v1.34, BC-2.13.014 v1.3→v1.4, VP-159 v1.12→v1.13 (F-WASE-P17-MED-001: §Related BCs POL-7 class sweep). No count changes (active_contracts 257 / draft_contracts 2 / total_contracts 268 ALL UNCHANGED). D-1965 NOTE (v8.49→v8.50 BC-2.01.018 v1.2→v1.3 F-WASE-P16-LOW-001) archived.
+vp_index_version: "1.97"
+# NOTE: D-1966 — VP-INDEX v1.96→v1.97: VP-159 v1.12→v1.13 (standing pin sweep: BC-2.16.014 pins v1.10→v1.11 at all 3 live-body citation sites; input-hash updated). D-1965 NOTE (v1.95→v1.96 VP-159 v1.11→v1.12 pin sweep) archived.
 story_index_version: "v2.721"
 arch_index_version: "2.255"
 error_taxonomy_version: "2.61"
@@ -40,7 +40,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1965 COMPLETE — Wave-A spec-evolution LOCAL adversary pass-16 FIX-BURST 16: BC-2.01.018 v1.3 (F-WASE-P16-LOW-001: §Related BCs 4-row sweep — 3 stale labels corrected to canonical H1s); error-taxonomy v2.61 (F-WASE-P16-OBS-001: Eight disjoint → Eight independent + (b)/(g) scoped disjointness); ADR-054 v0.42 (F-WASE-P16-OBS-003: D11 E-SPEC-012 full wording-delta rewrite obligation + 3-site POL-24 atomicity + {provided_value}/{value} divergence). OBS-002 noted-only (POL-32 immutability). BC-2.16.014 v1.10 + VP-159 v1.12 input-hashes recomputed (ADR-054 input drift). BC-INDEX v8.50; ARCH-INDEX v2.255. Streak 0/3; next = pass 17. trajectory-tail →2→2→2→0 STATE v8.512→v8.513"
+current_step: "D-1966 COMPLETE — Wave-A spec-evolution LOCAL adversary pass-17 FIX-BURST 17: BC-2.16.014 v1.11 (F-WASE-P17-MED-001: §Related BCs 6/7 class sweep — 6 stale labels corrected to canonical H1s; BC-2.01.016 CLEAN); BC-2.16.013 v1.34 (9-entry class sweep — 10/10 CLEAN final; orchestrator-directed expansion); BC-2.13.014 v1.4 (1 label corrected); VP-159 v1.13 (standing pin sweep: BC-2.16.014 pins v1.10→v1.11). BC-INDEX v8.51; VP-INDEX v1.97. Streak 0/3; next = pass 18. trajectory-tail →2→0→3→1 STATE v8.513→v8.514"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -78,7 +78,7 @@ pre_compact_snapshot_at: "2026-07-16"
 ---
 
 <!--
-  STATE.md SIZE BUDGET: 492 lines (wc-l)
+  STATE.md SIZE BUDGET: 493 lines (wc-l)
   margin from soft-target (200): +283 lines over | margin from actual (500): 17 lines remaining
 -->
 
@@ -93,7 +93,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-22 D-1965 — Wave-A spec-evolution LOCAL adversary pass-16 FIX-BURST 16: BC-2.01.018 v1.3 (F-WASE-P16-LOW-001: §Related BCs 4-row sweep); error-taxonomy v2.61 (F-WASE-P16-OBS-001: Eight independent); ADR-054 v0.42 (F-WASE-P16-OBS-003: E-SPEC-012 full wording-delta). BC-INDEX v8.50; ARCH-INDEX v2.255. trajectory-tail →2→2→0→3 Streak 0/3; STATE v8.512→v8.513 |
+| **Last Updated** | 2026-07-23 D-1966 — Wave-A spec-evolution LOCAL adversary pass-17 FIX-BURST 17: BC-2.16.014 v1.11, BC-2.16.013 v1.34, BC-2.13.014 v1.4 (F-WASE-P17-MED-001: §Related BCs POL-7 class sweep); VP-159 v1.13 (pin sweep). BC-INDEX v8.51; VP-INDEX v1.97. trajectory-tail →2→0→3→1 Streak 0/3; STATE v8.513→v8.514 |
 
 ## Active Objective (North Star)
 
@@ -379,6 +379,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1963 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-14 FIX-BURST 14 (2026-07-22). Pass-14 on frozen b5d116839 = NOT CLEAN(strict) — 1 HIGH (F-WASE-P14-HIGH-001: OPTION-(b) sweep gap — ADR-054 §D9 + BC-2.16.014 §Verification Properties still cited abandoned MockHttpClient design; §D4↔§D9 internal contradiction) + 1 MED (F-WASE-P14-MED-001: VP-159 modeled ttl_buffer_secs contradictorily as ExpiryMode variant field at 11 sites vs §D3 AuthAcquisitionConfig common field). FIX-BURST 14 closed both: ADR-054 v0.40→v0.41 (§D9 tool description swept to wiremock+now_fn model; full MockHttpClient sweep — zero positive refs remain in architect artifacts); VP-159 v1.10→v1.11 (11 ExpiryMode struct-variant sites corrected to unit-variant; ttl_buffer_secs is field on AuthAcquisitionConfig per §D3; BC pins swept v1.8→v1.9 per POL-23; input-hash recomputed to 9ce86b1); BC-2.16.014 v1.8→v1.9 (§Verification Properties VP-159 row rewritten — replaced abandoned MockHttpClient description with ratified OPTION (b) model: wiremock MockServer + now_fn clock seam; input-hash recomputed to 5c2c928). ARCH-INDEX v2.253→v2.254; VP-INDEX v1.94→v1.95; BC-INDEX v8.47→v8.48. arch_index_version 2.253→2.254; vp_index_version 1.94→1.95; bc_index_version 8.47→8.48. Streak 0/3; next = pass 15. trajectory-tail →3→2→2→0 STATE v8.510→v8.511 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1964 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-15 FIX-BURST 15 (2026-07-22). Pass-15 on frozen 362121a78 = NOT CLEAN(strict) / CLEAN(PR-merge) — 2 LOW only (F-WASE-P15-LOW-001: §Architecture Anchors ADR-054 §D4 bullet enumerated only 3-of-6 internal state fields — missing `token_url: String` (per-org derived), `http_client: reqwest::Client` (ADR-050-compliant, internally constructed via `build_http_client_with_timeout()`; NOT injectable), `now_fn: Arc<dyn Fn() -> u64 + Send + Sync>` (clock seam; sole test seam); F-WASE-P15-LOW-002: DI-012 Scope column cited `prism-sensors: runtime spec-load validation` instead of `prism-spec-engine: runtime spec-load validation (spec_parser.rs); SensorAuth trait defined in prism-sensors` — enforcement site `validate_cross_composition` + `VALID_AUTH_TYPES` lives in prism-spec-engine/spec_parser.rs, not prism-sensors). Novelty LOW; all substantive axes converged. FIX-BURST 15 closed both: BC-2.16.014 v1.9→v1.10 (F-WASE-P15-LOW-001: §Architecture Anchors ADR-054 §D4 bullet extended to full 6 internal state fields; input-hash settled 4c73bb6). invariants.md v1.8→v1.9 (F-WASE-P15-LOW-002: DI-012 Scope corrected; no change to invariant body or enforcement semantics; input-hash fca4a15). VP-159 v1.11→v1.12 (standing pin sweep: BC-2.16.014 pins updated v1.9→v1.10 at all 3 live-body citation sites per POL-23; input-hash settled 83f2f4d). BC-INDEX v8.48→v8.49; VP-INDEX v1.95→v1.96. bc_index_version 8.48→8.49; vp_index_version 1.95→v1.96. Streak 0/3; next = pass 16 (streak start expected). trajectory-tail →2→2→2→0 STATE v8.511→v8.512 | wave-5-e-demo-fidelity | 2026-07-22 |
 | D-1965 | state-manager | 2026-07-22 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-16 FIX-BURST 16 (2026-07-22). Pass-16 on frozen b6dfd255f = NOT CLEAN(strict)/CLEAN(PR-merge) — 1 LOW (3 stale §Related BCs labels) + 2 actionable OBS (disjoint-overclaim wording; D11 E-SPEC-012 full-wording-delta scope). OBS-002 (immutable v1.8 changelog mis-cite) noted-only per POL-32 immutability. FIX-BURST 16 closed all actionable findings: BC-2.01.018 v1.2→v1.3 (F-WASE-P16-LOW-001: §Related BCs full 4-row sweep — 3 stale labels corrected to canonical H1s: BC-2.01.006, BC-2.01.017, BC-2.06.003); error-taxonomy.md v2.60→v2.61 (F-WASE-P16-OBS-001: "Eight disjoint" → "Eight independent" with (b)/(g)-scoped disjointness + co-fire pairs named); ADR-054 v0.41→v0.42 (F-WASE-P16-OBS-003: §D11 E-SPEC-012 row expanded to full wording-delta rewrite obligation, 3-site POL-24 atomicity, {provided_value}/{value} variable divergence). BC-2.16.014 + VP-159 input-hashes recomputed (ADR-054 input drift: 4c73bb6→88a7cdb; 83f2f4d→ec52494). BC-INDEX v8.49→v8.50; ARCH-INDEX v2.254→v2.255. Novelty LOW-MODERATE. Streak 0/3; next = pass 17. trajectory-tail →2→2→0→3 STATE v8.512→v8.513 | wave-5-e-demo-fidelity | 2026-07-22 |
+| D-1966 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass-17 FIX-BURST 17 (2026-07-23). Pass-17 on frozen b7c6aad1d = NOT CLEAN(strict) — 1 MED (F-WASE-P17-MED-001: BC-2.16.014 §Related BCs 6/7 entries violated POL-7 verbatim-H1; sibling-sweep gap from v1.8 single-entry fix left 6 remaining stale labels). FIX-BURST 17 killed the ENTIRE class: BC-2.16.014 v1.10→v1.11 (F-WASE-P17-MED-001: 6 §Related BCs labels corrected to canonical H1 titles: BC-2.16.009, BC-2.16.001, BC-2.16.002, BC-2.16.013, BC-2.01.017, BC-2.06.003; BC-2.01.016 confirmed CLEAN — already fixed v1.8; BC-2.16.009 confirmed no §Related BCs section — nothing to fix; 7/7 CLEAN); BC-2.16.013 v1.33→v1.34 (orchestrator-directed expansion beyond the adversary-flagged instance: 9 stale §Related BCs labels corrected; 10/10 entries CLEAN on final sweep); BC-2.13.014 v1.3→v1.4 (1 label corrected: BC-2.16.009 "Spec File Validation" → canonical H1; input-hash drift c36ec87→fc9d874 resolved); VP-159 v1.12→v1.13 (standing pin sweep: BC-2.16.014 pins v1.10→v1.11 at 3 live-body sites per POL-23; input-hash updated at commit time). BC-INDEX v8.50→v8.51; VP-INDEX v1.96→v1.97. bc_index_version 8.50→8.51; vp_index_version 1.96→1.97. Streak 0/3; next = pass 18. trajectory-tail →2→0→3→1 STATE v8.513→v8.514 | wave-5-e-demo-fidelity | 2026-07-23 |
 
 ## Skip Log
 

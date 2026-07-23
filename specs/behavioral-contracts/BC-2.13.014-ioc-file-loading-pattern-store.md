@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -19,7 +19,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "fc9d874"
 traces_to: ["CAP-020"]
 extracted_from: ".factory/specs/prd.md"
 ---
@@ -160,7 +160,7 @@ Fuzz test: `fuzz/fuzz_ioc_load.rs` — "Arbitrary IOC file content → verify se
   backing store that `ioc_match` queries)
 - BC-2.13.002 — Single-Event Detection (detection rules use `ioc_match` in filter expressions)
 - BC-2.16.007 — Sensor Spec Hot Reload (same arc-swap pattern used for IOC hot reload)
-- BC-2.16.009 — Spec File Validation (same Tier 3 per-file independent validation pattern)
+- BC-2.16.009 — Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation (same Tier 3 per-file independent validation pattern)
 
 ## Architecture Anchors
 
@@ -202,6 +202,7 @@ Fuzz test: `fuzz/fuzz_ioc_load.rs` — "Arbitrary IOC file content → verify se
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | wave-a-spec-evolution-fix-burst-17 | 2026-07-23 | product-owner | F-WASE-P17-MED-001: §Related BCs BC-2.16.009 label corrected to canonical H1 (POL-7 bc_h1_is_title_source_of_truth class sweep): "Spec File Validation" → "Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation". input-hash updated at commit time (c36ec87→fc9d874). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

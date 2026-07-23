@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.10"
+version: "1.11"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -366,23 +366,23 @@ would return the same stale or revoked token from the warm cache).
 
 ## Related BCs
 
-- BC-2.16.009: Sensor Spec File Validation — Rule 10 is the E-SPEC-028 `[auth_acquisition]`
+- BC-2.16.009: Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation — Rule 10 is the E-SPEC-028 `[auth_acquisition]`
   coherence gate; all preconditions in this BC depend on Rule 10 having passed (depends on)
-- BC-2.16.001: Sensor Spec File Loading — discovery and loading of sensor specs containing
+- BC-2.16.001: Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables — discovery and loading of sensor specs containing
   `[auth_acquisition]` blocks (depends on)
-- BC-2.16.002: Multi-Step Fetch Pipeline Execution — `PipelineExecutor` owns the P6 401-retry
+- BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation — `PipelineExecutor` owns the P6 401-retry
   dispatch; any `event_type` tracing emissions added during acquisition require BC-2.16.002
   Canonical Structured Event Catalog rows (PG-LP11-001) (composes with)
-- BC-2.16.013: Bundled Sensor Spec DTU Parity — TOML specs for the 4 initial sensors that
+- BC-2.16.013: Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors — TOML specs for the 4 initial sensors that
   gain `[auth_acquisition]` blocks are governed by both this BC and BC-2.16.013 (composes with)
 - BC-2.01.016: SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) — the plugin-based path this BC supersedes
   for `oauth2_client_credentials`; `custom_via_plugin` + `PluginAuthProvider` path is preserved
   (supersedes within declarative-native oauth2_client_credentials scope)
-- BC-2.01.017: StaticCookieAuthProvider Contract — sibling auth provider implementing the same
+- BC-2.01.017: StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection — sibling auth provider implementing the same
   `AuthProvider` trait (`crates/prism-spec-engine/src/auth_provider.rs`) for `cookie_roundtrip`;
   reference pattern for trait-object-safe async trait, `CredentialResolver` DI, and AD-017
   credential safety (sibling pattern reference)
-- BC-2.06.003: Four-Tier Per-Client Credential Resolution — the credential resolution chain
+- BC-2.06.003: Credential References in Config Resolve to Credential Store Entries — the credential resolution chain
   invoked by `CredentialResolver::resolve()` at `acquire_token()` call time (depends on)
 
 ## Architecture Anchors
@@ -452,6 +452,7 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.11 | wave-a-spec-evolution-fix-burst-17 | 2026-07-22 | product-owner | F-WASE-P17-MED-001: §Related BCs full class-kill sweep — 6 of 7 entries corrected to canonical H1 titles (POL-7 bc_h1_is_title_source_of_truth). (1) BC-2.16.009 label "Sensor Spec File Validation" → "Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation"; (2) BC-2.16.001 label "Sensor Spec File Loading" → "Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables"; (3) BC-2.16.002 label "Multi-Step Fetch Pipeline Execution" → "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation"; (4) BC-2.16.013 label "Bundled Sensor Spec DTU Parity" → "Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors"; (5) BC-2.01.017 label "StaticCookieAuthProvider Contract" → "StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection"; (6) BC-2.06.003 label "Four-Tier Per-Client Credential Resolution" → "Credential References in Config Resolve to Credential Store Entries". BC-2.01.016 CLEAN (already fixed in v1.8). BC-2.16.009 confirmed no §Related BCs section (class-sweep: nothing to fix). BC-2.01.018 v1.3 confirmed CLEAN (swept in burst-16). input-hash updated at commit time. |
 | 1.10 | wave-a-spec-evolution-fix-burst-15 | 2026-07-22 | product-owner | F-WASE-P15-LOW-001: §Architecture Anchors ADR-054 §D4 bullet extended from 3 internal-state fields to the full 6 ratified by ADR-054 v0.41 §D4: added `token_url: String` (per-org derived, `format!("{}{}", resolved_base_url, config.token_path)`), `http_client: reqwest::Client` (ADR-050-compliant, internally constructed via `build_http_client_with_timeout()`; NOT injectable), `now_fn: Arc<dyn Fn() -> u64 + Send + Sync>` (clock seam; sole test seam). input-hash updated at commit time. |
 | 1.9 | wave-a-spec-evolution-fix-burst-14 | 2026-07-22 | product-owner | F-WASE-P14-HIGH-001: §Verification Properties VP-159 row rewritten — replaced abandoned `MockHttpClient` network-isolation description with the ratified ADR-054 v0.40 §D4 OPTION (b) model: wiremock (`MockServer`) for HTTP interception (`token_url` routed to `MockServer` URI at `new_for_test` construction time; no `MockHttpClient`; no HTTP injection seam in production constructor) plus `now_fn` clock seam (`Arc<dyn Fn() -> u64 + Send + Sync>`, typically `Arc<AtomicU64>`) for deterministic TTL expiry assertions. Sweep: one live-body `MockHttpClient` hit found (§Verification Properties row, line 365) and fixed; no changelog rows contained `MockHttpClient` (exempt). input-hash updated at commit time. |
 | 1.8 | wave-a-spec-evolution-fix-burst-12 | 2026-07-22 | product-owner | F-WASE-P12-LOW-001: §Related BCs label for BC-2.01.016 corrected from "Plugin Auth Provider Construction" to canonical H1 title "SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker)". The old label was a stale paraphrase; H1 is the authoritative title source per bc_h1_is_title_source_of_truth policy. Relationship description and supersedes rationale preserved unchanged. input-hash updated at commit time. |
