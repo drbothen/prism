@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.21"
+version: "1.22"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -152,8 +152,7 @@ asserts:
 - **AC-4b (P4 — empty-token trigger):** Construct via `DeclarativeHttpAuthProvider::new_for_test`
   [PLANNED — engine story] with `now_fn` backed by `Arc<AtomicU64>` pinned at
   `base_time = 1_700_000_000u64` (same pinned-clock pattern as AC-4, AC-6, AC-7). Seed
-  the provider's `ArcSwap` cache with a poisoned entry (`CachedAuthToken { token: "".to_string(),
-  expires_at: base_time + 86_400 }`) via `DeclarativeHttpAuthProvider::seed_cache_for_test`
+  the provider's `ArcSwap` cache with a poisoned entry (`CachedAuthToken::new("".to_string(), base_time + 86_400)`) [PLANNED] via `DeclarativeHttpAuthProvider::seed_cache_for_test`
   [PLANNED — engine story; `#[cfg(any(test, feature = "test-helpers"))]`] — a test seam that
   writes directly to the `ArcSwap<Option<CachedAuthToken>>` internal field. With the clock
   pinned at `base_time`, the TTL predicate `(self.now_fn)() >= expires_at` evaluates to
@@ -178,11 +177,15 @@ asserts:
   equals `unix_now() + expires_in.saturating_sub(ttl_buffer_secs)`, with `expires_in = 1799`
   when the response field is absent or zero.
 
-- **AC-8 (P7):** Inspecting the `CachedAuthToken` [PLANNED] fields after a successful
-  `get_token()` call reveals only `token: String` (opaque bearer/session string) and
-  `expires_at: u64` (Unix timestamp) — no credential field. The test fixture controls the mock
-  credential and mock token values to be distinct strings, enabling a negative assertion that the
-  cached token does not equal the resolved credential.
+- **AC-8 (P7):** After a successful `get_token()` [PLANNED] call with distinct mock credential
+  (`"mock_client_secret_P7"`) and mock token (`"opaque_bearer_P7"`) values, the returned token
+  equals `"opaque_bearer_P7"` (not the credential): `assert_eq!(returned, "opaque_bearer_P7")` AND
+  `assert_ne!(returned, "mock_client_secret_P7")`. Structural enforcement: `CachedAuthToken` [PLANNED]
+  is `#[non_exhaustive]` and its sole constructor `pub fn new(token: String, expires_at: u64) -> Self`
+  accepts no credential parameter — adding a credential field requires a constructor change, making
+  the omission architecturally documented. The runtime inequality assertion is the load-bearing check
+  that `get_token()` returns the acquired token, never the resolved credential (BC-2.16.014 P7,
+  AD-017, INV-014-003).
 
 - **AC-9 (P9-execute_impl path; SAP-3 execute reachability):** An end-to-end test drives
   `PipelineExecutor::execute` (confirmed in `pipeline.rs`; its `get_token()` cache-aware wiring is
@@ -334,12 +337,9 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //     use prism_spec_engine::auth_provider::{AuthProvider, MockCredentialResolver};
 //
 //     fn base_config(token_path: &str, expiry_mode: ExpiryMode, ttl_buffer_secs: u64) -> AuthAcquisitionConfig { // [PLANNED]
-//         AuthAcquisitionConfig {
-//             token_path: token_path.to_string(),  // metadata; full token_url passed directly to constructor
-//             expiry_mode,
-//             ttl_buffer_secs,
-//             ..Default::default()
-//         }
+//         // AuthAcquisitionConfig::new [PLANNED] — replaces struct-literal + ..Default::default()
+//         // (E0639-impossible from external tests/ crate under #[non_exhaustive]; F-WASE-P38-MED-001).
+//         AuthAcquisitionConfig::new(token_path, expiry_mode, ttl_buffer_secs)  // [PLANNED]
 //     }
 //
 //     // AC-1 (P1): zero network calls at construction
@@ -511,10 +511,9 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         // TTL predicate (1_700_000_000 >= 1_700_086_400) = FALSE → only is_empty() triggers
 //         // re-acquisition; a TTL-only implementation would return "" and fail the assertion.
 //         let expires_at: u64 = base_time + 86_400;
-//         let poisoned_entry = CachedAuthToken {  // [PLANNED]
-//             token: "".to_string(),   // empty-string token — the poisoned-cache case (BC-2.16.014 P4)
-//             expires_at,
-//         };
+//         // CachedAuthToken::new [PLANNED] — replaces struct-literal
+//         // (E0639-impossible from external tests/ crate under #[non_exhaustive]; F-WASE-P38-MED-001).
+//         let poisoned_entry = CachedAuthToken::new("".to_string(), expires_at);  // [PLANNED] empty-string token — poisoned-cache case (BC-2.16.014 P4)
 //         // seed_cache_for_test [PLANNED — engine story; cfg(any(test, feature = "test-helpers"))]
 //         // writes poisoned_entry into the provider's ArcSwap<Option<CachedAuthToken>> directly.
 //         provider.seed_cache_for_test(Some(poisoned_entry));  // [PLANNED]
@@ -592,15 +591,16 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             .await;
 //         let token_url = format!("{}/api/v1/access_token/", mock_server.uri());
 //         let creds = MockCredentialResolver::new("long_lived_secret");
-//         let config = AuthAcquisitionConfig {  // [PLANNED]
-//             token_path: "/api/v1/access_token/".to_string(),
-//             credential_body_field: "secret_key".to_string(),
-//             token_response_path: "data.access_token".to_string(),
-//             expiry_field: "data.expiration_utc".to_string(),
-//             expiry_mode: ExpiryMode::AbsoluteUtcString,  // [PLANNED]
+//         // AuthAcquisitionConfig::new_token_exchange [PLANNED] — replaces struct-literal
+//         // (E0639-impossible from external tests/ crate under #[non_exhaustive]; F-WASE-P38-MED-001).
+//         let config = AuthAcquisitionConfig::new_token_exchange(  // [PLANNED]
+//             "/api/v1/access_token/",
+//             "secret_key",
+//             "data.access_token",
+//             "data.expiration_utc",
+//             ExpiryMode::AbsoluteUtcString,  // [PLANNED]
 //             ttl_buffer_secs,
-//             ..Default::default()
-//         };
+//         );
 //         // Mock clock starts at 0 (well before expires_at = 4_070_908_770)
 //         let now_secs = Arc::new(AtomicU64::new(0u64));
 //         let mock_time_fn = {
@@ -658,15 +658,16 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             .await;
 //         let token_url = format!("{}/api/v1/access_token/", mock_server.uri());
 //         let creds = MockCredentialResolver::new("long_lived_secret");
-//         let config = AuthAcquisitionConfig {  // [PLANNED]
-//             token_path: "/api/v1/access_token/".to_string(),
-//             credential_body_field: "secret_key".to_string(),
-//             token_response_path: "data.access_token".to_string(),
-//             expiry_field: "data.expiration_utc".to_string(),
-//             expiry_mode: ExpiryMode::AbsoluteUtcString,  // [PLANNED]
-//             ttl_buffer_secs: 30,
-//             ..Default::default()
-//         };
+//         // AuthAcquisitionConfig::new_token_exchange [PLANNED] — replaces struct-literal
+//         // (E0639-impossible from external tests/ crate under #[non_exhaustive]; F-WASE-P38-MED-001).
+//         let config = AuthAcquisitionConfig::new_token_exchange(  // [PLANNED]
+//             "/api/v1/access_token/",
+//             "secret_key",
+//             "data.access_token",
+//             "data.expiration_utc",
+//             ExpiryMode::AbsoluteUtcString,  // [PLANNED]
+//             30,
+//         );
 //         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
 //             token_url, config, Arc::new(creds),
 //         );
@@ -837,22 +838,47 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //              (EC-016-014-002; BC-2.16.014 P4-TTL-b)");
 //     }
 //
-//     // AC-8 (P7): CachedAuthToken never stores credential values — structural assertion
-//     #[test]
-//     fn test_vp159_ac8_cached_token_no_credential_field() {
-//         // Exhaustive struct literal: if a 'credential' or 'secret' field were added
-//         // to CachedAuthToken [PLANNED], this literal would fail to compile — enforcing
-//         // the credential-opacity invariant at build time (BC-2.16.014 P7, AD-017).
-//         let cached = CachedAuthToken {  // [PLANNED]
-//             token: "opaque_bearer_token".to_string(),
-//             expires_at: 9_999_999_999u64,
-//         };
-//         assert!(!cached.token.is_empty(),
-//             "VP-159 AC-8: CachedAuthToken.token is the opaque token string, not empty");
-//         assert!(cached.expires_at > 0,
-//             "VP-159 AC-8: CachedAuthToken.expires_at is a valid Unix timestamp");
-//         // The exhaustive struct literal above is the load-bearing assertion:
-//         // CachedAuthToken has exactly {token, expires_at} — no credential field.
+//     // AC-8 (P7): CachedAuthToken never stores credential values — runtime inequality assertion.
+//     // Distinct mock credential ("mock_client_secret_P7") and mock token ("opaque_bearer_P7") values.
+//     // After get_token() [PLANNED]: returned_token == "opaque_bearer_P7" AND returned_token != credential.
+//     // Structural enforcement: CachedAuthToken::new(token, expires_at) [PLANNED] accepts no credential
+//     // parameter; #[non_exhaustive] prevents external struct literals — adding a credential field
+//     // forces a constructor change. Runtime assertion is the load-bearing check (BC-2.16.014 P7, AD-017).
+//     #[tokio::test]
+//     async fn test_vp159_ac8_cached_token_no_credential_value_stored() {
+//         let credential_value = "mock_client_secret_P7";  // distinct from mock token value
+//         let mock_token_value = "opaque_bearer_P7";        // distinct from credential
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/oauth/token"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({"access_token": mock_token_value, "expires_in": 3600})),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/oauth/token", mock_server.uri());
+//         let creds = MockCredentialResolver::new(credential_value);
+//         let config = AuthAcquisitionConfig::new("/oauth/token", ExpiryMode::RelativeSeconds, 30);  // [PLANNED]
+//         let provider = DeclarativeHttpAuthProvider::new(  // [PLANNED]
+//             token_url, config, Arc::new(creds),
+//         );
+//         let sensor_spec = build_test_sensor_spec_token_exchange();  // [PLANNED]
+//         let org_slug = prism_core::OrgSlug::new("test-org");
+//         let returned_token = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED]
+//             .expect("VP-159 AC-8: get_token must succeed (BC-2.16.014 P7 setup)");
+//         // Load-bearing runtime assertions: the returned token is the mock HTTP response value,
+//         // not the resolved credential value. Proves CachedAuthToken never stores credentials.
+//         assert_eq!(returned_token, mock_token_value,
+//             "VP-159 AC-8: get_token must return the acquired token value, not a credential value \
+//              (BC-2.16.014 P7; AD-017; INV-014-003)");
+//         assert_ne!(returned_token, credential_value,
+//             "VP-159 AC-8: returned token must NOT equal the resolved credential \
+//              (CachedAuthToken stores only token + expires_at — no credential field; \
+//               BC-2.16.014 P7; AD-017)");
+//         // Structural note: CachedAuthToken::new(token, expires_at) [PLANNED] accepts no credential
+//         // parameter. #[non_exhaustive] prevents external struct literals. These two properties
+//         // together enforce the credential-opacity invariant architecturally (BC-2.16.014 P7).
 //     }
 //
 //     // AC-9 (P9-execute_impl path; SAP-3 execute reachability):
@@ -1042,6 +1068,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.22 | wave-a-fix-burst-33 | 2026-07-23 | architect | F-WASE-P38-MED-001 + F-WASE-P38-LOW-001. **MED-001 — external struct-literal construction of `#[non_exhaustive]`-destined types (E0639).** 5 harness sites replaced with constructor-based construction: (1) `base_config` helper — `AuthAcquisitionConfig { token_path, expiry_mode, ttl_buffer_secs, ..Default::default() }` → `AuthAcquisitionConfig::new(token_path, expiry_mode, ttl_buffer_secs)` [PLANNED]; (2) AC-4b — `CachedAuthToken { token: "".to_string(), expires_at }` → `CachedAuthToken::new("".to_string(), expires_at)` [PLANNED]; (3) AC-6 — full token_exchange `AuthAcquisitionConfig` struct literal → `AuthAcquisitionConfig::new_token_exchange("/api/v1/access_token/", "secret_key", "data.access_token", "data.expiration_utc", ExpiryMode::AbsoluteUtcString, ttl_buffer_secs)` [PLANNED]; (4) AC-6b — same pattern with `ttl_buffer_secs = 30` literal; (5) AC-4b prose — `CachedAuthToken { token: "".to_string(), expires_at: base_time + 86_400 }` example → `CachedAuthToken::new("".to_string(), base_time + 86_400)` constructor call. Constructor signatures decided: `AuthAcquisitionConfig::new(token_path: impl Into<String>, expiry_mode: ExpiryMode, ttl_buffer_secs: u64) -> Self` (common fields; token-exchange-specific fields default to empty string); `AuthAcquisitionConfig::new_token_exchange(token_path, credential_body_field, token_response_path, expiry_field, expiry_mode, ttl_buffer_secs) -> Self` (full form); `CachedAuthToken::new(token: String, expires_at: u64) -> Self`. ADR-054 §D11 gains two new rows (v0.48). POL-29 sweep: `rg 'AuthAcquisitionConfig \{' .factory/` + `rg 'CachedAuthToken \{' .factory/` → zero external struct-literal constructions remain in VP-159, VP-153 (never constructs these types), BC-2.16.014 (spec prose, no Rust code). **LOW-001 — AC-8 prose ↔ skeleton drift.** Implemented stronger runtime assertion: AC-8 rewritten from synchronous `#[test] fn test_vp159_ac8_cached_token_no_credential_field` to async `#[tokio::test] async fn test_vp159_ac8_cached_token_no_credential_value_stored` — drives `get_token()` [PLANNED] with distinct mock credential `"mock_client_secret_P7"` and mock token `"opaque_bearer_P7"` values; asserts `returned_token == "opaque_bearer_P7"` AND `returned_token != "mock_client_secret_P7"` (the promised negative assertion; both load-bearing per SID-2). Old exhaustive-struct-literal rationale removed — it was vacuous under `#[non_exhaustive]` (external literals always impossible, so "this literal would fail to compile if a field were added" proved nothing about field absence). Structural note preserved: `CachedAuthToken::new(token, expires_at)` accepts no credential parameter — adding a credential field requires a constructor signature change, making omission architecturally documented. AC-8 prose updated to match skeleton. input-hash unchanged (inputs not modified in this burst). |
 | 1.21 | wave-a-fix-burst-30 | 2026-07-23 | architect | F-WASE-P34-LOW-001: §Property Statement P3 was missing the `!cached.token.is_empty()` conjunct — stated "issued before `unix_now() >= expires_at`" (TTL-only), while P4 fires on `(unix_now() >= cached.expires_at) OR (cached.token.is_empty())`. This created a gap state (now < expires_at AND token empty) where P3 asserted ZERO requests but P4 asserted ONE POST — an intra-document contradiction. Fix: P3 rewritten to "issued when `unix_now() < cached.expires_at` AND `!cached.token.is_empty()`", restoring P3/P4 as exact De Morgan complements. Complement totality: P4 = `(unix_now() >= cached.expires_at) OR (cached.token.is_empty())`; NOT(P4) = `(unix_now() < cached.expires_at) AND (!cached.token.is_empty())` = P3 ✓ (mutually exclusive and collectively exhaustive over cache-entry-present states). POL-29 sweep: AC-3 prose stated "within TTL" (TTL-only, missing `!is_empty()`) — updated to explicit dual-conjunct form `unix_now() < cached.expires_at AND !cached.token.is_empty()`. AC-6 harness assertion "clock before expires_at → cache valid" cites BC-2.16.014 P3 in a TTL-a scenario where the token is structurally non-empty (just acquired) — not a definitional restatement; left as-is. Harness header comment and AC-3 test assertion message use "warm" as shorthand (structurally non-empty by test flow) — not definitional restatements; left as-is. POL-23 pin sweep (BC-2.16.014 v1.15→v1.16 per PO bump in this burst for TV-9/F-WASE-P34-LOW-002): 3 live-body pins updated — §Source Contract first occurrence `Token Lifecycle) v1.15` → v1.16, §Source Contract inline restatement `(BC-2.16.014 v1.15)` → v1.16, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.15` → v1.16. Grep of all architect-owned artifacts (VPs, ADRs, verification-architecture.md, verification-coverage-matrix.md) confirms no other live v1.15 pins beyond these 3. Historical changelog rows untouched. |
 | 1.20 | wave-a-fix-burst-29 | 2026-07-23 | architect | F-WASE-P32-HIGH-001: AC-4b clock-domain defect — harness was constructing via production `new(...)` (real wall-clock) and seeding `expires_at = 1_700_000_000 + 86_400` (2023-11-15, a past date in 2026+). At any real run time (2026+), `unix_now() >= expires_at` was TRUE, so the TTL-stale branch fired regardless of `is_empty()` — AC-4b added zero marginal coverage. Fix: (1) §AC-4b prose rewritten — construction changed to `new_for_test` with `now_fn` pinned at `base_time = 1_700_000_000u64`; `expires_at = base_time + 86_400` is genuinely far future relative to pinned clock; kill-condition stated explicitly. (2) Harness skeleton `test_vp159_ac4b_empty_token_reacquisition` rewritten — `new(...)` → `new_for_test(token_url, config, Arc::new(creds), mock_time_fn)` with `Arc<AtomicU64>` at `base_time`; `far_future_expires_at` binding removed; `expires_at = base_time + 86_400`; kill-condition comment added. (3) POL-29 sweep: no other AC-4b-context occurrences of `1_700_000_000`-based far-future constants or "no-clock-seam ⇒ now effectively 0" premise found in VP-159 (the constant appears only in the fixed test and legitimately in AC-4/AC-7 as a `base_time` clock anchor, not as a "far future" assertion — those are correct). No BC-2.16.014 §VP row (e) edit needed (property (e) describes the `is_empty()` branch behavior, not harness mechanics). input-hash unchanged (inputs not modified in this burst). |
 | 1.19 | wave-a-fix-burst-25 | 2026-07-23 | architect | STANDING PIN SWEEP (FIX-BURST 25): BC-2.16.014 v1.14→v1.15 bump (DI-012 counting-unit clarification in INV-014-006). 3 live-body pins updated — §Source Contract first occurrence `Token Lifecycle) v1.14`, §Source Contract inline restatement `(BC-2.16.014 v1.14)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.14` — all now v1.15. input-hash updated 87576a4→f702703 (BC-2.16.014 input drifted since last hash). No behavioral content changed. input-hash: at-commit-time hash per POL-32 (modified: sync). |
