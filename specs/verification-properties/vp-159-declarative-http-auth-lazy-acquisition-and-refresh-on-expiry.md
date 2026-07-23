@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.20"
+version: "1.21"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -57,7 +57,8 @@ network-isolation and cache-lifecycle invariants (ADR-054 §D9; BC-2.16.014 P1�
    `ArcSwap<Option<CachedAuthToken>>` [PLANNED], and the token is returned.
 
 3. **P3 — warm `get_token()` — zero HTTP requests:** Subsequent `get_token()` [PLANNED] calls
-   issued before `unix_now() >= expires_at` return the cached token and issue ZERO HTTP requests.
+   issued when `unix_now() < cached.expires_at` AND `!cached.token.is_empty()` return the
+   cached token and issue ZERO HTTP requests.
 
 4. **P4 — stale or poisoned `get_token()` — exactly one HTTP POST:** A `get_token()` [PLANNED]
    call when `unix_now() >= cached.expires_at` (TTL elapsed) OR `cached.token.is_empty()`
@@ -139,8 +140,9 @@ asserts:
   results in exactly one POST request to the wiremock token endpoint. The returned token
   matches the mock response body.
 
-- **AC-3 (P3):** Calling `get_token()` [PLANNED] again within TTL results in zero additional
-  requests to the wiremock token endpoint. The same token string is returned.
+- **AC-3 (P3):** Calling `get_token()` [PLANNED] again when `unix_now() < cached.expires_at`
+  AND `!cached.token.is_empty()` results in zero additional requests to the wiremock token
+  endpoint. The same token string is returned.
 
 - **AC-4 (P4):** Advancing the mock clock (`Arc<AtomicU64>` passed via `now_fn` to
   `new_for_test` [PLANNED]) past `expires_at` and calling `get_token()` [PLANNED] results in
@@ -238,8 +240,8 @@ asserts:
 
 ## Source Contract
 
-- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.15 — postconditions P1–P9
-  (BC-2.16.014 v1.15) are the primary **authoring source** for this VP; the verified set is
+- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.16 — postconditions P1–P9
+  (BC-2.16.014 v1.16) are the primary **authoring source** for this VP; the verified set is
   P1–P5, P7, P9 (plus P4-TTL-a/b sub-properties) — see §Property Statement scope note for
   P6/P8 (deferred) and P9-via-AC-9 (verified) coverage.
   INV-014-003 (BC-local invariant:
@@ -300,7 +302,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 // Method: integration_test (wiremock for HTTP interception; now_fn clock seam for TTL control)
 // Target module: prism-spec-engine
 // Target path: crates/prism-spec-engine/src/auth/declarative.rs [PLANNED — engine story]
-// BC: BC-2.16.014 v1.15 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
+// BC: BC-2.16.014 v1.16 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
 //
 // ALL DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode /
 // DeclarativeHttpAuthProvider::new_for_test (cfg(any(test, feature = "test-helpers")))
@@ -1040,6 +1042,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.21 | wave-a-fix-burst-30 | 2026-07-23 | architect | F-WASE-P34-LOW-001: §Property Statement P3 was missing the `!cached.token.is_empty()` conjunct — stated "issued before `unix_now() >= expires_at`" (TTL-only), while P4 fires on `(unix_now() >= cached.expires_at) OR (cached.token.is_empty())`. This created a gap state (now < expires_at AND token empty) where P3 asserted ZERO requests but P4 asserted ONE POST — an intra-document contradiction. Fix: P3 rewritten to "issued when `unix_now() < cached.expires_at` AND `!cached.token.is_empty()`", restoring P3/P4 as exact De Morgan complements. Complement totality: P4 = `(unix_now() >= cached.expires_at) OR (cached.token.is_empty())`; NOT(P4) = `(unix_now() < cached.expires_at) AND (!cached.token.is_empty())` = P3 ✓ (mutually exclusive and collectively exhaustive over cache-entry-present states). POL-29 sweep: AC-3 prose stated "within TTL" (TTL-only, missing `!is_empty()`) — updated to explicit dual-conjunct form `unix_now() < cached.expires_at AND !cached.token.is_empty()`. AC-6 harness assertion "clock before expires_at → cache valid" cites BC-2.16.014 P3 in a TTL-a scenario where the token is structurally non-empty (just acquired) — not a definitional restatement; left as-is. Harness header comment and AC-3 test assertion message use "warm" as shorthand (structurally non-empty by test flow) — not definitional restatements; left as-is. POL-23 pin sweep (BC-2.16.014 v1.15→v1.16 per PO bump in this burst for TV-9/F-WASE-P34-LOW-002): 3 live-body pins updated — §Source Contract first occurrence `Token Lifecycle) v1.15` → v1.16, §Source Contract inline restatement `(BC-2.16.014 v1.15)` → v1.16, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.15` → v1.16. Grep of all architect-owned artifacts (VPs, ADRs, verification-architecture.md, verification-coverage-matrix.md) confirms no other live v1.15 pins beyond these 3. Historical changelog rows untouched. |
 | 1.20 | wave-a-fix-burst-29 | 2026-07-23 | architect | F-WASE-P32-HIGH-001: AC-4b clock-domain defect — harness was constructing via production `new(...)` (real wall-clock) and seeding `expires_at = 1_700_000_000 + 86_400` (2023-11-15, a past date in 2026+). At any real run time (2026+), `unix_now() >= expires_at` was TRUE, so the TTL-stale branch fired regardless of `is_empty()` — AC-4b added zero marginal coverage. Fix: (1) §AC-4b prose rewritten — construction changed to `new_for_test` with `now_fn` pinned at `base_time = 1_700_000_000u64`; `expires_at = base_time + 86_400` is genuinely far future relative to pinned clock; kill-condition stated explicitly. (2) Harness skeleton `test_vp159_ac4b_empty_token_reacquisition` rewritten — `new(...)` → `new_for_test(token_url, config, Arc::new(creds), mock_time_fn)` with `Arc<AtomicU64>` at `base_time`; `far_future_expires_at` binding removed; `expires_at = base_time + 86_400`; kill-condition comment added. (3) POL-29 sweep: no other AC-4b-context occurrences of `1_700_000_000`-based far-future constants or "no-clock-seam ⇒ now effectively 0" premise found in VP-159 (the constant appears only in the fixed test and legitimately in AC-4/AC-7 as a `base_time` clock anchor, not as a "far future" assertion — those are correct). No BC-2.16.014 §VP row (e) edit needed (property (e) describes the `is_empty()` branch behavior, not harness mechanics). input-hash unchanged (inputs not modified in this burst). |
 | 1.19 | wave-a-fix-burst-25 | 2026-07-23 | architect | STANDING PIN SWEEP (FIX-BURST 25): BC-2.16.014 v1.14→v1.15 bump (DI-012 counting-unit clarification in INV-014-006). 3 live-body pins updated — §Source Contract first occurrence `Token Lifecycle) v1.14`, §Source Contract inline restatement `(BC-2.16.014 v1.14)`, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.14` — all now v1.15. input-hash updated 87576a4→f702703 (BC-2.16.014 input drifted since last hash). No behavioral content changed. input-hash: at-commit-time hash per POL-32 (modified: sync). |
 | 1.18 | wave-a-spec-evolution-fix-burst-24 | 2026-07-23 | architect | F-WASE-P26-LOW-001: (1) §Property Statement P4 heading and body extended from TTL-only trigger to include `cached.token.is_empty()` poisoned-cache trigger — "stale `get_token()`" → "stale or poisoned `get_token()`"; condition updated from `unix_now() >= expires_at` alone to `unix_now() >= cached.expires_at` OR `cached.token.is_empty()` (BC-2.16.014 P4 parity). (2) AC-4b prose bullet added between AC-4 and AC-5: seeds provider cache via `DeclarativeHttpAuthProvider::seed_cache_for_test` [PLANNED — engine story] with `CachedAuthToken { token: "".to_string(), expires_at: far_future }`, calls `get_token()`, asserts wiremock POST count == 1 and returned token == fresh non-empty value. (3) Harness skeleton `test_vp159_ac4b_empty_token_reacquisition` added after `test_vp159_ac4_stale_cache_one_post`; `seed_cache_for_test` seam marked [PLANNED — engine story; cfg(any(test, feature = "test-helpers"))]. (4) §Feasibility Assessment Harness dependencies row updated to list `DeclarativeHttpAuthProvider::seed_cache_for_test` [PLANNED] as additional test seam. No BC-2.16.014 changes — its (e) property claim at VP-159 row is already correct; AC-4b existence makes it verified. input-hash: at-commit-time hash per POL-32 (modified: sync). |
