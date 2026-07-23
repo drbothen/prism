@@ -4,8 +4,8 @@ adr_id: "ADR-054"
 title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2ClientCredentials via DeclarativeHttpAuthProvider; Retire crowdstrike-oauth2.prx"
 status: accepted
 date: "2026-07-20"
-modified: "2026-07-22"
-version: "0.42"
+modified: "2026-07-23"
+version: "0.43"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -13,7 +13,7 @@ superseded_by: null
 amends:
   - "ADR-023 (partial — §Rule 4 walk-back: standard HTTP token-acquisition flows do not require WASM plugins; custom_via_plugin escape hatch preserved for genuinely non-standard auth)"
   - "ADR-026 (partial — §D3: AuthType closed enum gains token_exchange variant; affects E-SPEC-012 enum validation and step9a_populate_adapter_registry dispatch)"
-  - "ADR-028 (partial — §D13 oauth2_client_credentials: PluginAuthProvider (WASM) path spec-load-rejected per D10(b) E-SPEC-028(b) — fires for auth_type ∈ {oauth2_client_credentials, token_exchange} + auth_plugin present regardless of [auth_acquisition] (Definition 1, adjudicated F-WASE-P2-HIGH-001); DeclarativeHttpAuthProvider (native) is the sole live path; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; crowdstrike-oauth2.prx plugin retired per D5)"
+  - "ADR-028 (partial — §D13 oauth2_client_credentials: PluginAuthProvider (WASM) path spec-load-rejected per D10(b) E-SPEC-028(b) — fires for auth_type ∈ {oauth2_client_credentials, token_exchange} + auth_plugin present regardless of [auth_acquisition] (Definition 1, adjudicated F-WASE-P2-HIGH-001); DeclarativeHttpAuthProvider (native) is the sole live path; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; crowdstrike-oauth2.prx plugin to be retired per D5)"
 related_adrs: [ADR-023, ADR-026, ADR-028, ADR-031, ADR-032, ADR-050, ADR-053]
 related_bcs: [BC-2.01.016, BC-2.01.017, BC-2.06.003, BC-2.16.001, BC-2.16.009, BC-2.16.014]
 amends_dis: ["DI-012"]
@@ -373,8 +373,8 @@ fn get_token<'a>(
 
 The `auth_refresh_triggered` structured event fires only on HTTP 401 mid-pipeline (legitimate token
 expiry or revocation), not on every pipeline start. Warm pipeline executions (within the token's TTL
-window) issue zero token-POST requests — restoring the caching behavior of the retired
-`crowdstrike-oauth2.prx` plugin and fulfilling the performance commitment of §D2 and BC-2.16.014
+window) issue zero token-POST requests — restoring the caching behavior of the
+`crowdstrike-oauth2.prx` plugin (to be retired by the §D2/§D5 migration story) and fulfilling the performance commitment of §D2 and BC-2.16.014
 P2/P3. Behavioral anchors: `let mut bearer_token = match auth_provider.` block before the `'steps:`
 loop in `execute_impl`; `let bearer_token = match auth_provider.` block at the top of
 `execute_step`; `let fresh_token = match auth_provider.acquire_token` block in the
@@ -826,6 +826,7 @@ the ADR-053 standalone Wave-A engine story per §D7 merge-dependency.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.43 | 2026-07-23 | architect | F-WASE-P21-HIGH-001(b): (1) §D4 body — "restoring the caching behavior of the retired `crowdstrike-oauth2.prx` plugin" → "restoring the caching behavior of the `crowdstrike-oauth2.prx` plugin (to be retired by the §D2/§D5 migration story)" — forward framing; plugin is not yet retired. (2) Frontmatter `amends:` ADR-028 note — "crowdstrike-oauth2.prx plugin retired per D5" → "crowdstrike-oauth2.prx plugin to be retired per D5" — same forward framing. Source: both sites must match ADR-054 §D5 retirement-story prose framing (future action). (POL-32) |
 | 0.42 | 2026-07-23 | architect | F-WASE-P16-OBS-003: §D11 `error-taxonomy.md` E-SPEC-012 message template row amended — extended from "add `token_exchange` as 6th value" to cover the FULL wording delta between as-built `error.rs` `AuthTypeCrossComposition` Display and the taxonomy template. Row now: (1) states the divergence in BASE WORDING (not only missing `token_exchange`); (2) cites both current wordings verbatim as behavioral anchors (code `#[error(…)]` attribute wording vs taxonomy `message_template` column wording); (3) directs the engine story to rewrite the `AuthTypeCrossComposition` `#[error(…)]` attribute to match the taxonomy template VERBATIM under POL-24; (4) expands POL-24 atomicity obligation from two to three sites (error-taxonomy.md + error.rs + VP-153 §Property Statement, same commit). Field substitution variable divergence also called out (`{provided_value}` in code vs `{value}` in taxonomy). (POL-32) |
 | 0.41 | 2026-07-22 | architect | F-WASE-P14-HIGH-001 (fix-burst 14): §D9 Tool description corrected — "MockHttpClient for network isolation — behavioral state-transition sequences, not combinatorial input generation; analogous to VP-033/VP-036" → "wiremock network-level interception — token_url routed to MockServer; now_fn clock seam via new_for_test for TTL determinism". Stale reference from v0.20 (FIX-BURST 20) that predated OPTION (b) ratification in v0.40; v0.40 eliminated MockHttpClient from §D4/Constructor but missed the §D9 Tool bullet. MockHttpClient sweep across .factory/specs/: all remaining hits in ADR-054, VP-159, and VP-INDEX.md are immutable changelog rows or explicit negative references ("no MockHttpClient needed") — no further architect-owned positive/design references remain. PO-owned hit (BC-2.16.014 §Verification Properties row) reported to PO for parallel fix. POL-32: at-commit-time hash wording. |
 | 0.40 | 2026-07-22 | architect | F-WASE-P13-MED-001 + OBS-P13-001 (fix-burst 13): §D4 Internal state completeness + HTTP-client/clock interception resolution. (F-WASE-P13-MED-001) Ratified OPTION (b) — internal reqwest client, no HTTP injection seam in production constructor. §D4 Internal state list extended with three new fields: `token_url: String` (per-org derived at step 9A, immutable after construction); `http_client: reqwest::Client` (ADR-050-compliant, internally constructed via `build_http_client_with_timeout()`, not exposed in production constructor API); `now_fn: Arc<dyn Fn() -> u64 + Send + Sync>` (narrow clock seam — production default = real SystemTime; overridable ONLY via `new_for_test` test constructor gated `#[cfg(any(test, feature = "test-helpers"))]`). §D4 acquire_token step 3 updated: "using the workspace reqwest client per ADR-050" → "using `self.http_client` (internally constructed per ADR-050; not exposed in production constructor)". §D4 get_token step 2 updated: `unix_now()` → `(self.now_fn)()`. §D4 Constructor paragraph added documenting the 3-arg production constructor, the gated `new_for_test` constructor, and the wiremock test-interception pattern (token_url → wiremock server URI; no MockHttpClient). (OBS-P13-001) `token_url: String` field added to Internal state — it was referenced in §D4 algorithm prose ("POST to `self.token_url`") and BC-2.16.014 P1/INV-014-002 but absent from the enumeration prior to this version. BC-2.16.014 INV-014-007 is already consistent with OPTION (b) — no BC follow-up needed. |

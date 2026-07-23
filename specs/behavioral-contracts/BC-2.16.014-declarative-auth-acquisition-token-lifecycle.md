@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.12"
+version: "1.13"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -25,7 +25,7 @@ inputs:
   - ".factory/specs/domain-spec/invariants.md"
   - "crates/prism-spec-engine/src/auth_provider.rs"
   - "crates/prism-spec-engine/src/error.rs"
-input-hash: "88a7cdb"
+input-hash: "dff1fe9"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -70,8 +70,9 @@ specification for the `DeclarativeHttpAuthProvider` implementation story in Wave
    (validated by `E-SPEC-028(f)` at spec-load time).
 
 5. `auth_plugin` is NOT present in the spec for `auth_type ∈ {oauth2_client_credentials,
-   token_exchange}`. `E-SPEC-028(b)` unconditionally rejects any such combination at spec-load
-   time — this arm of `step9a_populate_adapter_registry` is validation-unreachable from any
+   token_exchange}`. `E-SPEC-028(b)` rejects any such combination at spec-load time regardless of whether
+   `[auth_acquisition]` is declared (Definition 1, ratified in ADR-054 v0.35 §D10(b)) —
+   this arm of `step9a_populate_adapter_registry` is validation-unreachable from any
    valid spec (retained as defense-in-depth only, per ADR-054 §D7).
 
 6. `base_url` in the parent `SensorSpec` resolves successfully via BC-2.16.009 Rule 6
@@ -337,7 +338,7 @@ would return the same stale or revoked token from the warm cache).
 | `E-SPEC-028(e)` | `[auth_acquisition].credential_body_field` names a ref not declared in `[[credential_refs]]` | Spec rejected at load time. Boot fails exit code 2. |
 | `E-SPEC-028(f)` | `auth_type = "oauth2_client_credentials"` with missing `client_id` or `client_secret` credential refs | Spec rejected at load time. Boot fails exit code 2. |
 | `E-SPEC-028(g)` | `[auth_acquisition]` block present for `auth_type ∈ {bearer_static, cookie_roundtrip, api_key, custom_via_plugin}` | Spec rejected (prevents silent ignore; SOUL.md §4). Boot fails exit code 2. |
-| `E-SPEC-028(h)` | `token_exchange`-only fields present in an `oauth2_client_credentials` `[auth_acquisition]` block | Spec rejected (prevents silent ignore of misconfigured fields; SOUL.md §4). Boot fails exit code 2. |
+| `E-SPEC-028(h)` | `token_exchange`-only fields present in an `oauth2_client_credentials` `[auth_acquisition]` block (the only reachable (h) case within this BC's declarative scope; the canonical trigger per BC-2.16.009 Rule 10(h) fires for any auth_type ≠ token_exchange) | Spec rejected (prevents silent ignore of misconfigured fields; SOUL.md §4). Boot fails exit code 2. |
 | `E-AUTH-001` (`AuthAcquisitionFailed`) | Any acquisition-level failure at `acquire_token()` time: token POST non-200, malformed JSON response, missing token field at declared path, malformed expiry string, credential resolver error | `acquire_token()` returns `SpecEngineError::AuthAcquisitionFailed`. No token cached. Pipeline aborts for this `(org, sensor)` request. |
 | `E-AUTH-002` (`AuthRefreshFailed`) | Double-401: sensor endpoint returns 401 both before and after force-refresh (`acquire_token()`) | `PipelineExecutor` propagates `SpecEngineError::AuthRefreshFailed`. Non-retryable. |
 | `E-AUTH-005` (standalone — `CredentialResolutionError::NotFound`) | `CredentialResolver::resolve()` returns `CredentialResolutionError::NotFound` for any required credential ref during acquisition | `acquire_token()` returns `SpecEngineError::AuthAcquisitionFailed` with `detail = "E-AUTH-005: credential not found — no credential configured for ({client_id}, {sensor_id}) ref '{ref_name}'"` (where `{ref_name}` is the specific credential ref being resolved — e.g., `secret_key` for `token_exchange`; `client_id` or `client_secret` for `oauth2_client_credentials`). E-AUTH-005 is the canonical standalone wire code (error-taxonomy.md §E-AUTH-005: "Credentials not found for ({client_id}, {sensor_id})"; `CredentialResolver` trait: "Callers should map this to `E-AUTH-005`"). Zero HTTP POSTs issued. Detail template generalizes the `StaticCookieAuthProvider` E-AUTH-005-in-detail pattern (BC-2.01.017 EC-017-003) with ref-name-agnostic placeholders. |
@@ -452,6 +453,7 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.13 | wave-a-spec-evolution-fix-burst-20 | 2026-07-23 | product-owner | F-WASE-P21-OBS-001: §Preconditions item 5 — replaced "unconditionally rejects any such combination at spec-load time" with "rejects any such combination at spec-load time regardless of whether `[auth_acquisition]` is declared (Definition 1, ratified in ADR-054 v0.35 §D10(b))" — parity with canonical Definition-1 phrasing (term "unconditionally" deliberately purged from E-SPEC-028(b) definitions during F-WASE-P2-HIGH-001 adjudication). F-WASE-P21-OBS-002: §Error Conditions E-SPEC-028(h) row — appended "(the only reachable (h) case within this BC's declarative scope; the canonical trigger per BC-2.16.009 Rule 10(h) fires for any auth_type ≠ token_exchange)" to the Condition column, making explicit why the row is scoped to oauth2_client_credentials and preventing a contradiction read against the broader canonical trigger. input-hash updated at commit time. |
 | 1.12 | wave-a-spec-evolution-fix-burst-19 | 2026-07-23 | product-owner | F-WASE-P20-OBS-001: Reworded three present-tense "retired crowdstrike-oauth2.prx plugin" references to forward framing — retirement lands with the ADR-054 §D2 migration story, not yet. (1) §Description: "retired `crowdstrike-oauth2.prx` plugin" → "`crowdstrike-oauth2.prx` plugin (to be retired by the ADR-054 §D2 migration story)". (2) §P2 form body construction: "behavioral parity with the retired plugin" → "behavioral parity with the `crowdstrike-oauth2.prx` plugin (to be retired by the ADR-054 §D2 migration story)". (3) §P9 execute_impl rationale: "the caching behavior of the retired `crowdstrike-oauth2.prx` plugin" → same forward framing (in-scope sweep per production-grade principle). F-WASE-P20-LOW-001: §Verification Properties VP-159 row: appended P9 executor reachability clause — "(i) P9 executor reachability — get_token() wiring verified end-to-end via AC-9 (execute_impl path) and AC-9b (execute_step path)" — VP-159 v1.14 verifies P9 via AC-9/AC-9b SAP-3 executor reachability. input-hash updated at commit time. |
 | 1.11 | wave-a-spec-evolution-fix-burst-17 | 2026-07-22 | product-owner | F-WASE-P17-MED-001: §Related BCs full class-kill sweep — 6 of 7 entries corrected to canonical H1 titles (POL-7 bc_h1_is_title_source_of_truth). (1) BC-2.16.009 label "Sensor Spec File Validation" → "Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation"; (2) BC-2.16.001 label "Sensor Spec File Loading" → "Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables"; (3) BC-2.16.002 label "Multi-Step Fetch Pipeline Execution" → "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation"; (4) BC-2.16.013 label "Bundled Sensor Spec DTU Parity" → "Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors"; (5) BC-2.01.017 label "StaticCookieAuthProvider Contract" → "StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection"; (6) BC-2.06.003 label "Four-Tier Per-Client Credential Resolution" → "Credential References in Config Resolve to Credential Store Entries". BC-2.01.016 CLEAN (already fixed in v1.8). BC-2.16.009 confirmed no §Related BCs section (class-sweep: nothing to fix). BC-2.01.018 v1.3 confirmed CLEAN (swept in burst-16). input-hash updated at commit time. |
 | 1.10 | wave-a-spec-evolution-fix-burst-15 | 2026-07-22 | product-owner | F-WASE-P15-LOW-001: §Architecture Anchors ADR-054 §D4 bullet extended from 3 internal-state fields to the full 6 ratified by ADR-054 v0.41 §D4: added `token_url: String` (per-org derived, `format!("{}{}", resolved_base_url, config.token_path)`), `http_client: reqwest::Client` (ADR-050-compliant, internally constructed via `build_http_client_with_timeout()`; NOT injectable), `now_fn: Arc<dyn Fn() -> u64 + Send + Sync>` (clock seam; sole test seam). input-hash updated at commit time. |
