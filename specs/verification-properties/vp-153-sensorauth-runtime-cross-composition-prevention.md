@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.27"
+version: "0.28"
 status: active
 producer: architect
 timestamp: 2026-05-16T16:00:00Z
@@ -54,10 +54,19 @@ prevention transitions from compile-time to runtime enforcement. The spec-valida
    arm that validates `token_exchange` acceptance/rejection is [PLANNED — ADR-054 D1 engine
    story]; see §Re-verification Gate below.
 
-2. **Rule B — One credential per method:** A sensor spec where `credential_refs` references
-   more than one credential per auth method MUST be rejected at spec-load time with
-   structured error **E-SPEC-013** ("auth method for sensor '{sensor_id}' declares {count}
-   credential_refs; exactly one is required").
+2. **Rule B — Expected credential count per auth method (DI-012 Rule 2 v1.11):** A sensor
+   spec where `credential_refs` count does not equal the expected count for the declared
+   `auth_type` MUST be rejected at spec-load time with structured error **E-SPEC-013**
+   ("auth method for sensor '{sensor_id}' declares {count} credential_refs; exactly
+   {expected} required for auth_type '{auth_type}'"). Expected counts per DI-012 Rule 2
+   v1.11: `oauth2_client_credentials` requires exactly 2 refs (`client_id` + `client_secret`
+   together form one logical credential structure); all other auth types require exactly
+   1 ref.
+   *[As-built code divergence: the as-built `MultipleCredentialRefs` Display in
+   `crates/prism-spec-engine/src/error.rs` emits "E-SPEC-013: sensor '{sensor_id}' declares
+   {credential_count} credential_refs — exactly 1 is required per BC-2.01.016 §Error Cases"
+   — hardcoded `1` with no `{auth_type}` or `{expected}` parameters; code alignment is
+   [PLANNED — ADR-054 D11 code-alignment row, engine story].]*
 
 3. **Rule C — Auth type / credential type coherence:** A sensor spec where the resolved
    credential type does not structurally match the spec's `auth_type` variant MUST be rejected
@@ -239,6 +248,7 @@ deterministically with a small strategy and provide regression coverage for the 
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 0.28 | wave-a-spec-evolution-fix-burst-28 | 2026-07-23 | architect | F-WASE-P31-MED-001: §Property Statement Rule B reworded to counting-unit-accurate form per DI-012 Rule 2 v1.11 — rejection triggers when credential_refs count != expected count for the declared auth_type (expected 2 for oauth2_client_credentials: client_id + client_secret as one logical credential structure per DI-012 Rule 2 v1.11; expected 1 for all other auth types). E-SPEC-013 message template updated to canonical error-taxonomy.md v2.64 verbatim per POL-24: "auth method for sensor '{sensor_id}' declares {count} credential_refs; exactly {expected} required for auth_type '{auth_type}'". As-built code divergence noted inline: MultipleCredentialRefs Display in error.rs still emits pre-v2.64 text with hardcoded 1 and no {auth_type}/{expected} parameters — [PLANNED — ADR-054 D11 code-alignment row, engine story]. POL-29 sweep: sole live-narrative "exactly one is required" occurrence was Rule B itself (lines 57–60); harness skeleton already carried counting-unit-accurate allowed_count logic (prop_assume!(count != allowed_count)); no other non-changelog hits. modified: 2026-07-23. |
 | 0.27 | wave-a-spec-evolution-fix-burst-26 | 2026-07-23 | architect | F-WASE-P28-LOW-001: §Proof Harness Skeleton block header — retitled from "AS-BUILT HARNESS (proof-completed-date 2026-05-18; all 8 proptests PASS)" to "HARNESS — as-built 5-value core (proof-completed 2026-05-18; all 8 proptests PASS on the 5-value/20-pair set) + [PLANNED] token_exchange arms (6-value/30-pair once ADR-054 D1 engine story lands)" to distinguish the proven 5-value core from the unexecuted [PLANNED] token_exchange scaffolding. Annotated FILE 1 "// 6 members" → "// 6 members (5 as-built + 1 [PLANNED])". Annotated FILE 2 30-pair range comment to add "// 30 pairs target; as-built range is (0..5, 0..4) = 20 pairs". All existing [PLANNED] inline markers preserved. At-commit-time hash per POL-32; modified: sync. |
 | 0.26 | wave-a-spec-evolution-fix-burst-25 | 2026-07-23 | architect | F-WASE-P27-MED-001: §Feasibility Assessment "Input space size" row — "× 5 credential structural shapes" relabeled to "× 5 mismatched shapes per variant (of the 6 total credential structural shapes, excluding the matching one)" to distinguish the mismatch multiplier from the total shape-set cardinality, resolving the contradiction with §Proof Method's 6-shape enumeration. Sweep confirmed: one non-changelog occurrence at line 218 (fixed); all remaining occurrences of "5 credential structural shapes" are in changelog rows (exempt). At-commit-time hash per POL-32; modified: sync. |
 | 0.25 | wave-a-spec-evolution-fix-burst-22 | 2026-07-23 | architect | F-WASE-P23-OBS-001: §Proof Method credential-shape enumeration — appended 6th shape "token-exchange secret [PLANNED — ADR-054 D1 engine story]" for parity with DI-012 Rule 3 and §Feasibility 6×5=30 pair arithmetic. input-hash updated from 18485b2 → ab5fe91 (ADR-026 input drifted since last hash). At-commit-time hash per POL-32. |

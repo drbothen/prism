@@ -5,7 +5,7 @@ title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Au
 status: Proposed
 date: "2026-05-18"
 modified: "2026-07-23"
-version: "1.39"
+version: "1.40"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
@@ -190,7 +190,7 @@ The three runtime rules that replace compile-time sealing (ADR-023 Rule 2) are e
    Error code: **E-SPEC-012** (auth_type cross-composition; see §Error Code Assignment Note below).
 2. `credential_refs` must reference exactly one credential per auth method.
    Multiple bindings per auth method are rejected at spec-load time.
-   Error code: **E-SPEC-013** (multiple credential_refs per auth method).
+   Error code: **E-SPEC-013** (multiple credential_refs per auth method — expected count is auth_type-dependent per DI-012 Rule 2 v1.11).
 3. The resolved credential type must structurally match the spec's `auth_type` variant.
    Mismatches are rejected at credential-resolution time, before any HTTP request.
    Error code: **E-SPEC-014** (auth_type / credential structural mismatch).
@@ -517,6 +517,7 @@ modes and security implications. The open trait approach reuses the existing typ
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.40 | 2026-07-23 | architect | F-WASE-P31-MED-001 companion (FIX-BURST 28): §D3 Rule 2 — E-SPEC-013 code citation parenthetical extended with counting-unit clarifier: "(multiple credential_refs per auth method)" → "(multiple credential_refs per auth method — expected count is auth_type-dependent per DI-012 Rule 2 v1.11)". Prevents blanket one-per-method misread of the code citation; aligns with DI-012 Rule 2 v1.11 and VP-153 v0.28 Rule B rewording. At-commit-time hash per POL-32. |
 | 1.39 | 2026-07-23 | architect | F-WASE-P23-LOW-001 (FIX-BURST 22): §D3 amendment item 2 — Definition-1 purge of E-SPEC-028(b) unconditional language: "is **unconditionally rejected** with E-SPEC-028(b)" → "is **rejected regardless of whether [auth_acquisition] is declared (Definition 1, ADR-054 §D10(b))** with E-SPEC-028(b)". At-commit-time hash per POL-32. |
 | 1.38 | 2026-07-21 | architect | FIX-BURST 10 (OBS-1): at-point annotation added to §D3 Rule A enumerated set — "[ADR-054 D1 adds `token_exchange` as 6th variant on acceptance]" inserted immediately after the 5-value set declaration, so the amendment note is co-located with the enumeration it modifies rather than 40+ lines away. |
 | 1.37 | 2026-07-21 | architect | FIX-BURST 7 (HIGH-1/MED-1/LOW-1): §D3 amendment item 2 rewritten — "(conditional)" removed; unconditional model per ADR-054 D10(b): absent `[auth_acquisition]` for declarative auth_types → E-SPEC-028(a) spec-load error; `auth_plugin` present for `auth_type ∈ {oauth2_client_credentials, token_exchange}` → E-SPEC-028(b) unconditional rejection; no fallback to `custom_via_plugin` (`custom_via_plugin` is a distinct auth_type). `declarative_http.rs` → `declarative.rs` filename corrected (MED-1). Frontmatter `amended_by` ADR-054 entry: "when [auth_acquisition] present" conditional phrase dropped; replaced with "unconditionally per ADR-054 D1/D2/D10(b)" (LOW-1). `modified` advanced to 2026-07-21. |

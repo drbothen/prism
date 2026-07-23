@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.13"
+version: "1.14"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T12:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-01"
 capability: "CAP-001"
 lifecycle_status: active
 introduced: "2026-05-15"
-modified: "2026-07-22"
+modified: "2026-07-23"
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -74,8 +74,12 @@ restriction.
   the three ADR-023 Rule 2 spec-validation rules:
   1. `SensorSpec.auth_type` must be a single value from the canonical enumerated set; arrays
      or mixed types are rejected at spec-load time (E-SPEC-012).
-  2. Each auth method declares exactly one `credential_ref` binding; multiple bindings are
-     rejected at spec-load time (E-SPEC-013).
+  2. Each auth method declares exactly one logical credential structure per DI-012 Rule 2
+     v1.11; `oauth2_client_credentials` binds its single OAuth2 credential structure via
+     two `[[credential_refs]]` entries (`client_id` + `client_secret`) while all other
+     auth types use exactly one `[[credential_refs]]` entry; a credential_refs count that
+     does not equal the expected count for the declared `auth_type` is rejected at
+     spec-load time (E-SPEC-013).
   3. The resolved credential type must structurally match the declared `auth_type`; mismatches
      are rejected at credential-resolution time (E-SPEC-014).
 - The four built-in sensor auth implementations (`CrowdStrikeAuth`, `CyberintAuth`,
@@ -105,7 +109,7 @@ restriction.
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-SPEC-012` | SensorSpec declares multiple auth types in the `auth_type` field, or declares a value outside the canonical enumerated set | Rejected at spec-load time; error cites ADR-023 Rule 2, Rule A. Credential value must not appear in error message (AD-017). |
-| `E-SPEC-013` | Auth method has more than one `credential_ref` binding | Rejected at spec-load time; error cites ADR-023 Rule 2, Rule B |
+| `E-SPEC-013` | Auth method declares a `[[credential_refs]]` count that does not equal the expected count for the declared `auth_type` (expected 2 for `oauth2_client_credentials`; expected 1 for all other auth types) | Rejected at spec-load time; error cites ADR-023 Rule 2, Rule B. Counting-unit per DI-012 Rule 2 v1.11. |
 | `E-SPEC-014` | Resolved credential structural type does not match declared `auth_type` | Rejected at credential-resolution time, before any HTTP request; error cites ADR-023 Rule 2, Rule C. Credential value must not appear in error message (AD-017). Backend qualification (D-706): Rule C fires when the credential backend exposes shape metadata via `CredentialRefProbe::probe()` returning `Some(shape)`. The current keyring backend returns `Ok(None)` (no shape metadata stored). Production enforcement is deferred to PLUGIN-MIGRATION-001-A; test-fixture enforcement (`ShapedProbe`) and VP-153 proptest provide regression coverage in PREREQ-E scope. |
 
 ## Edge Cases
@@ -169,6 +173,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.14 | wave-a-spec-evolution-fix-burst-28 | 2026-07-23 | product-owner | F-WASE-P31-MED-001 closure: §Postconditions Rule 2 rewritten to counting-unit-accurate phrasing per DI-012 Rule 2 v1.11 — "exactly one logical credential structure" replaces "exactly one `credential_ref` binding"; explicit note that `oauth2_client_credentials` binds two `[[credential_refs]]` entries (`client_id` + `client_secret`) forming one OAuth2 credential structure while all other auth types use one entry; rejection condition reworded to "count != expected count for the declared auth_type". §Error Cases E-SPEC-013 Condition column updated from "more than one `credential_ref` binding" to "count != expected count for declared auth_type (expected 2 for oauth2_client_credentials; 1 for all other auth types)"; DI-012 Rule 2 v1.11 citation added to Behavior cell. Companion: error-taxonomy.md v2.64 (E-SPEC-013 message template + description), BC-2.01.017 v1.9 (EC-017-008). |
 | 1.13 | wave-a-spec-evolution-burst-3 | 2026-07-22 | product-owner | ADR-054 D1 amendment: §Related BCs BC-2.01.017 reference updated from "5-value canonical auth_type set" to "6-value canonical auth_type set" — reflects addition of `token_exchange` as the 6th variant per ADR-054 D1 + DI-012 v1.8. modified date 2026-07-22. |
 | 1.12 | D-849 | 2026-05-29 | product-owner | §Related BCs: added BC-2.01.017 (StaticCookieAuthProvider — No-Login-Roundtrip Cookie Injection) as child contract; BC-2.01.017 operationalizes the `"cookie_roundtrip"` entry in the 5-value canonical auth_type set established here. Cross-reference added per bc_array_changes_propagate_to_body_and_acs anchor-back policy. |
 | 1.11 | D-776-post-merge | 2026-05-22 | state-manager | POL-14 verification (no-op confirm): PR #153 (PLUGIN-MIGRATION-001-D) squash-merged to develop@3f2de889 at 2026-05-22T09:05:47Z; status already active (promoted draft→active D-726 per POL-14 PR #151) — idempotent confirm. |
