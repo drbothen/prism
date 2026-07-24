@@ -3875,3 +3875,49 @@ The static adversary passes were not useless — they caught spec-level defects,
 **Companion finding:** F-WASE-P9-MED-003 — same harness used `crate::pipeline::build_http_client_with_timeout()`, a `pub(crate)` helper inaccessible from `tests/`. The same lesson applies: harness authors must verify visibility of referenced symbols, not assume `pub` from naming convention.
 
 **Source:** D-1958 (2026-07-22) — Wave-A spec-evolution LOCAL adversary pass-9 FIX-BURST 9; F-WASE-P9-OBS-003 [process-gap]; ADR-054 v0.39 D11 FetchStep doc-comment correction row.
+
+---
+
+### Lesson 83 — [process-gap] ADR lifecycle-status governance gap: no gate flips ADR status Proposed→accepted when runtime deliverables land (F-WASE-P44-OBS-001, D-1994)
+
+**Date recorded:** 2026-07-23
+**D-NNN anchor:** D-1994 (Wave-A spec-evolution pass-44 FIX-BURST 36; F-WASE-P44-OBS-001 process-gap closure)
+**Story:** Wave-A spec-evolution — adversary pass-44 finding
+**Tags:** [process-gap] [adr-lifecycle] [governance] [wave-gate] [s-7.02-codification-queued]
+**Classification:** PROCESS-GAP — ADR-026 sat at `PROPOSED` status through 40 revisions and 2+ months after its runtime deliverables shipped (S-PLUGIN-PREREQ-E PR #151, 2026-05-19), VP-153 proof completed (2026-05-18), and it was amended by an ACCEPTED ADR (ADR-054). The adversary surfaced this as F-WASE-P44-OBS-001.
+
+**Description:**
+
+ADR-026 (SensorAuth Trait Un-Sealing) was authored `PROPOSED` in May 2026. Over the following two months:
+- Its runtime deliverables shipped via S-PLUGIN-PREREQ-E PR #151 (2026-05-19)
+- VP-153 (the Kani proof associated with the auth-variant model) completed (2026-05-18)
+- ADR-054 (ACCEPTED 2026-07-22) amended ADR-026 substantively
+
+None of these events triggered a lifecycle-status flip. ADR-026 remained `PROPOSED` through v1.40 (40 revisions, approximately 65 days) — a state that misrepresents the project's actual architectural commitments to any reader of ARCH-INDEX.
+
+The adversary surfaced this as F-WASE-P44-OBS-001 at pass 44. The orchestrator ruled this a finding under BC-5.39.001 strict criterion (zero findings of ANY severity including OBS and process-gaps), resulting in pass 44 being counted NOT CLEAN(strict) with streak HELD at 0/3. FIX-BURST 36 closed it: ADR-026 v1.41 accepted retroactively with §Status rewritten to reflect the deliverables-shipped rationale.
+
+**Root cause:**
+
+No gate in the current pipeline automatically flips an ADR's `status` field when:
+1. The anchor story merges (the ADR's primary implementation ships)
+2. A VP associated with the ADR completes verification
+3. A downstream ACCEPTED ADR amends the original ADR
+
+The state-manager post-merge burst procedure (POL-14/BC-5.39.001 promotion) covers BC lifecycle transitions but has no equivalent for ADR lifecycle transitions.
+
+**Candidate codification (queued for S-7.02):**
+
+A POL-15-adjacent governance check should be added — either as a wave-gate step or a state-manager post-merge burst obligation — that evaluates:
+
+1. When a story merges whose `behavioral_contracts` list includes BCs that trace to a `PROPOSED` ADR, evaluate whether the ADR's deliverables are now shipped and flip status to `ACCEPTED`.
+2. When a VP listed in a `PROPOSED` ADR's rationale completes (VP-INDEX lifecycle_status → active/verified), flag the ADR for lifecycle review.
+3. When an ACCEPTED ADR's `amends:` or `supersedes:` field references a PROPOSED ADR, flag the referenced ADR for immediate lifecycle review — an ADR cannot be meaningfully amended-by-an-ACCEPTED-ADR while remaining PROPOSED.
+
+This is a **codification candidate for S-7.02 (Cycle-Closing Checklist)**, not a blocking issue. It is queued for session-reviewer adjudication at cycle close. The immediate fix (ADR-026 v1.41 ACCEPTED retroactive) closes the in-flight finding.
+
+**Outcome:**
+
+FIX-BURST 36 (D-1994): ADR-026 v1.40→v1.41 ACCEPTED; §Status rewritten with deliverables-shipped rationale; ARCH-INDEX v2.263→v2.264 (registry cell updated; changelog row appended). Pass 44 counted NOT CLEAN(strict); streak 0/3; next = pass 45.
+
+**Source:** D-1994 (2026-07-23) — Wave-A spec-evolution adversary pass-44 FIX-BURST 36; F-WASE-P44-OBS-001 [process-gap]; ADR-026 v1.41 ACCEPTED retroactive.

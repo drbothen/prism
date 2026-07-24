@@ -2,10 +2,10 @@
 document_type: adr
 adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
-status: Proposed
+status: accepted
 date: "2026-05-18"
 modified: "2026-07-23"
-version: "1.40"
+version: "1.41"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
@@ -33,8 +33,8 @@ wiring_deferred_to: null
 
 ## Status
 
-Proposed 2026-05-15, v1.0 (initial proposal version; current version per §Changelog top row). Governs the PLUGIN-PREREQ-E delivery of the SensorAuth unsealing
-(Constraint C5 per ADR-023 §Architectural Constraints). Implementation is tracked by
+**Accepted 2026-07-23, v1.41** (retroactive acceptance — F-WASE-P44-OBS-001). All runtime deliverables shipped: S-PLUGIN-PREREQ-E merged PR #151 (develop@80ebe794, 2026-05-19); VP-153 `proof_completed_date: 2026-05-18` (status: active); ADR-026 further amended by ADR-054 (accepted). Lifecycle-status inconsistency corrected at pass-44 detection; original proposal 2026-05-15, v1.0 (current version per §Changelog top row). Governs the PLUGIN-PREREQ-E delivery of the SensorAuth unsealing
+(Constraint C5 per ADR-023 §Architectural Constraints). Implementation delivered by
 S-PLUGIN-PREREQ-E.
 
 **Amended by:** [ADR-026-AMENDMENT-rule-c-keyring-scope.md](ADR-026-AMENDMENT-rule-c-keyring-scope.md) (D-706, 2026-05-18) — see §D3 Rule C Backend Scope qualification.
@@ -517,6 +517,7 @@ modes and security implications. The open trait approach reuses the existing typ
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.41 | 2026-07-23 | architect | F-WASE-P44-OBS-001 (FIX-BURST 36): retroactive acceptance — frontmatter `status: Proposed` → `status: accepted`; §Status updated with acceptance rationale citing deliverables shipped (S-PLUGIN-PREREQ-E PR #151 merged 2026-05-19, VP-153 proof_completed_date 2026-05-18, ADR-054 amendment accepted). Lifecycle-status inconsistency corrected at pass-44 detection. |
 | 1.40 | 2026-07-23 | architect | F-WASE-P31-MED-001 companion (FIX-BURST 28): §D3 Rule 2 — E-SPEC-013 code citation parenthetical extended with counting-unit clarifier: "(multiple credential_refs per auth method)" → "(multiple credential_refs per auth method — expected count is auth_type-dependent per DI-012 Rule 2 v1.11)". Prevents blanket one-per-method misread of the code citation; aligns with DI-012 Rule 2 v1.11 and VP-153 v0.28 Rule B rewording. At-commit-time hash per POL-32. |
 | 1.39 | 2026-07-23 | architect | F-WASE-P23-LOW-001 (FIX-BURST 22): §D3 amendment item 2 — Definition-1 purge of E-SPEC-028(b) unconditional language: "is **unconditionally rejected** with E-SPEC-028(b)" → "is **rejected regardless of whether [auth_acquisition] is declared (Definition 1, ADR-054 §D10(b))** with E-SPEC-028(b)". At-commit-time hash per POL-32. |
 | 1.38 | 2026-07-21 | architect | FIX-BURST 10 (OBS-1): at-point annotation added to §D3 Rule A enumerated set — "[ADR-054 D1 adds `token_exchange` as 6th variant on acceptance]" inserted immediately after the 5-value set declaration, so the amendment note is co-located with the enumeration it modifies rather than 40+ lines away. |
