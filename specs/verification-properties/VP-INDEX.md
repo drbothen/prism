@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "2.11"
+version: "2.12"
 status: draft
 producer: state-manager
 timestamp: 2026-07-24T12:00:00Z
@@ -188,7 +188,7 @@ retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..00
 | VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | active — v0.24 | S-PLUGIN-PREREQ-E |
 | VP-157 | [BC-3.6.001] POST /dtu/configure with unsupported mode returns HTTP 400 with unsupported_failure_mode error; no state change | prism-dtu-harness | unit_test | P1 | draft | S-3.6.01 |
 | VP-158 | [BC-2.06.019] E-DEMO-006 fires when two scenario-enabled clones share same seed but have different org_ids; no clone constructed — VP-019-I alias | prism-dtu-demo-server | unit_test | P1 | draft | S-DEMO-DTU-LIVE-SCENARIO-001-B |
-| VP-159 | [BC-2.16.014] DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry: zero network at construction; cold get_token → one HTTP POST + cache; warm get_token within TTL → zero HTTP POSTs; stale get_token → one HTTP POST re-acquisition; acquire_token → one HTTP POST cache bypass; TTL arithmetic for both ExpiryMode variants (absolute_utc_string, relative_seconds); CachedAuthToken never stores credential values (AD-017); AC-9 + AC-9b SAP-3 executor reachability: AC-9 drives PipelineExecutor::execute→execute_impl path; AC-9b drives PipelineExecutor::execute_step direct-call path (BC-2.16.014 P9 two-path coverage model) | prism-spec-engine | integration_test | P1 | draft — v1.25 | [PLANNED — Wave-A CrowdStrike retirement / Armis token-exchange engine story] |
+| VP-159 | [BC-2.16.014] DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry: zero network at construction; cold get_token → one HTTP POST + cache; warm get_token within TTL → zero HTTP POSTs; stale get_token → one HTTP POST re-acquisition; acquire_token → one HTTP POST cache bypass; TTL arithmetic for both ExpiryMode variants (absolute_utc_string, relative_seconds); CachedAuthToken never stores credential values (AD-017); AC-9 + AC-9b SAP-3 executor reachability: AC-9 drives PipelineExecutor::execute→execute_impl path; AC-9b drives PipelineExecutor::execute_step direct-call path (BC-2.16.014 P9 two-path coverage model) | prism-spec-engine | integration_test | P1 | draft — v1.26 | [PLANNED — Wave-A CrowdStrike retirement / Armis token-exchange engine story] |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -270,6 +270,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.12 | wave-a-spec-evolution-fix-burst-43 | 2026-07-24 | state-manager | (D-2007) VP-159 v1.25→v1.26 (F-WASE-P56-MED-001 traceability-only: VP-159 is the companion to ADR-054 §D11 fix — no harness content changed; AC-7d new_oauth2 constructor usage at ~L215/~L957/~L985 was already correct from FB42; changelog row aligns index with ADR-054 v0.52). VP-INDEX VP-159 status cell updated: draft — v1.25 → draft — v1.26. VP-INDEX v2.11→v2.12. |
 | 2.11 | wave-a-spec-evolution-fix-burst-42 | 2026-07-24 | state-manager | (D-2006) VP-159 v1.24→v1.25 (F-WASE-P55-MED-001 + F-WASE-P55-OBS-001. MED-001: AC-7d harness mis-modeled as token_exchange; architect adjudication branch (a) — RU-Q2 lenient $.expires_in parsing is oauth2_client_credentials-exclusive (ADR-054 §D2; BC-2.16.014 §P2; TV-11; EC-016-014-016); AC-7d heading updated to "P2 — oauth2_client_credentials string-typed $.expires_in, RU-Q2"; harness re-pointed to build_test_sensor_spec_oauth2() [PLANNED] + AuthAcquisitionConfig::new_oauth2("/oauth2/token", ttl_buffer_secs) [PLANNED]; mock path /oauth/token → /oauth2/token; assertion citation updated to BC-2.16.014 P2 + EC-016-014-016. OBS-001: §Property Statement "Scope note — auth-type harness split (F-WASE-P55-OBS-001)" added — ACs 1–9b drive token_exchange cache-lifecycle; AC-7d sole oauth2 harness for RU-Q2 lenient parse; oauth2 form/response shaping via BC-2.16.014 TVs; token_exchange relative_seconds plain-u64 boundary documented). ADR-054 UNCHANGED. BC files UNCHANGED. VP-INDEX VP-159 status cell updated: draft — v1.24 → draft — v1.25. VP-INDEX v2.10→v2.11. |
 | 2.10 | wave-a-spec-evolution-fix-burst-38 | 2026-07-24 | state-manager | (D-2000) VP-159 v1.23→v1.24 (F-WASE-P49-HIGH-001 POL-23 standing pin sweep: BC-2.16.014 pins v1.17→v1.18 at 3 live-body sites — §Source Contract authoring-source bullet, inline restatement, §Proof Harness Skeleton header comment; precedent BC-INDEX v8.55). VP-INDEX VP-159 status cell updated: draft — v1.23 → draft — v1.24. VP-INDEX v2.09→v2.10. |
 | 2.09 | wave-a-remove-uncertainty-amendment-burst | 2026-07-23 | state-manager | VP-159 v1.22→v1.23 (RU-Q1/Q2 lenient-parse alignment: NEW AC-6c space-separated-fixture kill condition; NEW AC-7d string-typed expires_in kill condition). VP-INDEX VP-159 status cell updated: draft — v1.22 → draft — v1.23. VP-INDEX v2.08→v2.09. |
