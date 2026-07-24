@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -18,7 +18,7 @@ traces_to: ["CAP-003"]
 extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: ADR-023
 introduced: cycle-1
-modified: "2026-05-27"
+modified: "2026-07-23"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -39,11 +39,11 @@ removal_reason: null
 > is unchanged — the same OCSF field mappings must be produced; they are now
 > data-driven via TOML annotations per ADR-023 Rule 1.
 
-`SpecDrivenMapper` reads `ocsf_field` column annotations from the Cyberint TOML sensor spec and converts alert and asset records fetched from the Cyberint Argos API to OCSF Detection Finding (class 2004) or other appropriate event classes. Timestamps are pre-processed by the CyberintTime 4-format parser before OCSF mapping. Severity string values ("high", "medium", "low") are mapped to OCSF `severity_id` enum integers per OCSF v1.x (`"high"` → `4` = "High", `"critical"` → `5` = "Critical"), with unrecognized values mapped to 99 (Other). Cyberint-specific fields (e.g., `threat_type`, `digital_asset_type`) are preserved in `raw_extensions`.
+`SpecDrivenMapper` reads `ocsf_field` column annotations from the Cyberint TOML sensor spec and converts alert and asset records fetched from the Cyberint Argos API to OCSF Detection Finding (class 2004) or other appropriate event classes. Timestamps are pre-processed by the CyberintTime 3-format parser (RFC-3339/ISO-8601, Unix epoch seconds, Unix epoch millis) before OCSF mapping. Severity string values ("high", "medium", "low") are mapped to OCSF `severity_id` enum integers per OCSF v1.x (`"high"` → `4` = "High", `"critical"` → `5` = "Critical"), with unrecognized values mapped to 99 (Other). Cyberint-specific fields (e.g., `threat_type`, `digital_asset_type`) are preserved in `raw_extensions`.
 
 ## Preconditions
 - A Cyberint alert or asset record has been fetched via the Cyberint Argos API
-- Timestamps have been parsed through the CyberintTime 4-format parser
+- Timestamps have been parsed through the CyberintTime 3-format parser (RFC-3339/ISO-8601, Unix epoch seconds, Unix epoch millis)
 
 ## Postconditions
 - Cyberint alert fields map to OCSF Detection Finding (class 2004, Security Finding 2001 deprecated) or appropriate event class
@@ -58,7 +58,7 @@ removal_reason: null
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | Warning | Unknown Cyberint severity string (not in known set) | Mapped to OCSF `severity_id: 99` (Other); warning logged |
-| Warning | CyberintTime parser fails on all 4 formats | OCSF `time` set to fetch timestamp; raw string preserved in `raw_extensions`; warning logged (DEC-015) |
+| Warning | CyberintTime parser fails on all 3 formats | OCSF `time` set to fetch timestamp; raw string preserved in `raw_extensions`; warning logged (DEC-015) |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -93,6 +93,7 @@ removal_reason: null
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | wave-a-rmu-amendment-burst-1 | 2026-07-23 | product-owner | POL-29 sweep: RU-Q5 parity amendment. "4-format" → "3-format" throughout (§Description, §Preconditions, §Error Cases). No "Cyberint custom format" exists per canonical Cyberint OpenAPI (`cyberint_alerts_openapi_06.20.2026.json`); parity with BC-2.01.018 v1.4 / BC-2.01.006 v1.7. |
 | 1.6 | PLUGIN-MIGRATION-001-G | 2026-05-27 | product-owner | AC-002 amendment: removed PENDING AMENDMENT banner; added Amendment Note to Description; updated mechanism language from deleted `prism-ocsf/src/mappers/cyberint.rs` to SpecDrivenMapper + ocsf_field TOML annotations; bumped status draft→active; removed amendment_lifecycle: pending. |
 | 1.5 | prereq-f | 2026-05-11 | product-owner | PREREQ-F prefix note: added PENDING AMENDMENT — ADR-023 callout under H1 per ADR-023 L370 wording; added scheduled_amendment_in: ADR-023 and amendment_lifecycle: pending to frontmatter. No semantic change to BC body. Full amendment in Wave 2/G. |
 | 1.4 | S-1.04-red-gate-fix | 2026-04-22 | product-owner | Corrected TV-001 annotation: severity_id 4 = "High" (was "Critical") per OCSF v1.x; updated Description and Postconditions to enumerate full severity mapping. |

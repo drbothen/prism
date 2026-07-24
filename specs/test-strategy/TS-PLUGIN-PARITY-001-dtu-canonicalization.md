@@ -1,11 +1,11 @@
 ---
 document_type: test-strategy
 id: TS-PLUGIN-PARITY-001
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
-modified: "2026-05-20"
+modified: "2026-07-23"
 phase: 0-F
 owners: [product-owner, test-writer]
 inputs:
@@ -83,7 +83,7 @@ All named OCSF fields are compared by equality with the following qualifications
 
 All timestamp fields are normalized to UTC ISO-8601 before comparison:
 
-- Input format: any of ISO 8601, RFC 3339, Unix epoch seconds (i64), Cyberint custom format
+- Input format: any of RFC 3339 / ISO 8601, Unix epoch seconds (i64), Unix epoch milliseconds (i64)
 - Output format: `YYYY-MM-DDTHH:MM:SS.sssZ` (millisecond precision, UTC)
 - Tolerance: timestamps within 1 second of each other are a parity PASS (accounts for
   fetch-time insertion used as fallback). Differences > 1 second are a parity FAIL.
@@ -167,5 +167,6 @@ endpoint before authoring parity tests for that table. Until then, parity tests 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-07-23 | architect | Wave-A remove-uncertainty RU-Q5 fix (POL-29): Rule C input-format bullet corrected from 4-format enumeration (included erroneous "Cyberint custom format") to the 3-format set ratified by BC-2.01.018 v1.4 / BC-2.01.006 v1.7 / BC-2.02.004 v1.7 — RFC 3339 / ISO 8601, Unix epoch seconds (i64), Unix epoch milliseconds (i64). Sibling sweep: no other "custom format" or "4 format" occurrences found in file. |
 | 1.1 | 2026-05-20 | product-owner | FB-IMPL-P4-PO fix-burst-4: F-LP4-HIGH-002 closure. Added §Reference OCSF Fixture Mechanism section (ADR-028 §D3) — reference OCSF loaded from committed fixture JSON at `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`; test loading via `serde_json::from_str`; byte-identical comparison after canonical JSON serialization; eliminates prism-sensors dev-dep on prism-spec-engine. Expanded §Scope to cite ADR-028 §D3 fixture path. Expanded Rule I to include reference-ocsf fixture JSON in both real-sensor and synthesized case descriptions. Added ADR-028 to §inputs. |
 | 1.0 | 2026-05-11 | product-owner | Initial draft — PREREQ-F deliverable. Defines Rules A–I for VP-PLUGIN-003 DTU-parity evaluation per ADR-023 Rule 3. |

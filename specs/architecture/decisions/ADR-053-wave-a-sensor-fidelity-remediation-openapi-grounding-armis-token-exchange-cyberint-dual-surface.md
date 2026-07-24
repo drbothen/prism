@@ -4,8 +4,8 @@ adr_id: "ADR-053"
 title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Exchange Auth, and Cyberint Dual-Surface Split"
 status: accepted
 date: "2026-07-20"
-modified: "2026-07-22"
-version: "0.28"
+modified: "2026-07-23"
+version: "0.29"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -225,7 +225,9 @@ The `DeclarativeHttpAuthProvider::acquire_token()` implementation (per ADR-054 D
 - Resolves the `secret_key` credential reference via BC-2.06.003 at call time (lazy — never at construction)
 - Performs `POST /api/v1/access_token/` with form body `secret_key={resolved_value}` (RFC-3986 percent-encoded)
 - Parses `$.data.access_token` from the JSON response (via `token_response_path = "data.access_token"`)
-- Computes expiry from `$.data.expiration_utc` as absolute UTC → Unix timestamp, minus `ttl_buffer_secs` (30s)
+- Computes expiry from `$.data.expiration_utc` as absolute UTC → Unix timestamp via lenient
+  chrono relaxed `FromStr` (`s.parse::<DateTime<FixedOffset>>()`, accepts both `T`-separator and
+  space-separated UTC strings) per ADR-054 §D4 step 4 adjudication (RU-Q1), minus `ttl_buffer_secs` (30s)
 - Caches token + expiry in in-memory ArcSwap (no plugin KV store)
 - Returns the raw token to the pipeline
 
@@ -372,7 +374,10 @@ types is now `auth_type`-driven (`DeclarativeHttpAuthProvider` for `token_exchan
 separation-of-concerns principle remains valid and unchanged.
 
 **Required engine change (standalone Wave-A engine story):** `SensorSpec` gains the
-`header_scheme` field (with `#[serde(default)]` defaulting to `"bearer"`).
+`header_scheme` field (with `#[serde(default = "default_header_scheme")]` where
+`fn default_header_scheme() -> String { "bearer".into() }` supplies the `"bearer"` default —
+bare `#[serde(default)]` on `String` yields `""` not `"bearer"` per serde field-attrs docs
+(RU-Q4)).
 `build_request()` switches
 from `auth_type`-based dispatch to `header_scheme`-based dispatch. E-SPEC-027 (both message
 templates) for the **5 existing auth_type variants** (bearer_static, oauth2_client_credentials,
@@ -704,6 +709,7 @@ and story decomposition for Wave-A sensor remediation may now proceed.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.29 | 2026-07-23 | architect | RU-Q4 + RU-Q1 alignment amendments (Wave-A remove-uncertainty burst D-1944 step 5): §D2 Required engine change — `#[serde(default)]` on `SensorSpec::header_scheme` corrected to `#[serde(default = "default_header_scheme")]` with `fn default_header_scheme() -> String { "bearer".into() }` (RU-Q4: bare `serde(default)` on `String` yields `""` not `"bearer"` per serde.rs field-attrs docs; research-confirmed REFUTATION). §D2 `acquire_token()` expiry bullet — aligned to ADR-054 §D4 lenient parse adjudication: "absolute UTC → Unix timestamp" pointer now explicitly states lenient chrono relaxed `FromStr` per RU-Q1 (POL-29 sibling sweep). modified: synced. |
 | 0.28 | 2026-07-22 | architect | F-WASE-P3-HIGH-001 sibling sweep: D5 manifest row BC-2.16.014 burst label corrected "burst 2" → "burst 1" (D-1946 = burst 1; BC-2.16.014 authored burst 1/D-1946). v0.27 changelog row (CHANGELOG-IMMUTABLE) retains the original wrong label per POL-1. |
 | 0.27 | 2026-07-22 | architect | Wave-A spec evolution burst 2 (D-1946): BC-2.16.014 [PLANNED] markers cleared — 3 sites: frontmatter `related_bcs_planned` removed (BC-2.16.014 moved to `related_bcs`); D2 VP-assignment citation updated (BC-2.16.014 authored D-1946; [PLANNED] suffix removed); D5 manifest row [PLANNED] → [AUTHORED — D-1946]. |
 | 0.26 | 2026-07-22 | state-manager | STATUS → ACCEPTED — human Wave-A approval gate 2026-07-22 (D-1943) after BC-5.39.001 strict 3-CLEAN (passes 48-50 @46c1c802). Supersessions of ADR-028 §D1/§D2/§D5, ADR-031 §D3, and LOCKED D-747/Cyberint-single-surface now EFFECTIVE. |

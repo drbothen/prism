@@ -5,7 +5,7 @@ title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2Cli
 status: accepted
 date: "2026-07-20"
 modified: "2026-07-23"
-version: "0.50"
+version: "0.51"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -36,7 +36,7 @@ wave_scope: "Wave-A — applies to Armis token-exchange (new sensor) and CrowdSt
 
 Accepted 2026-07-22 (D-1943, human Wave-A approval gate). Amendments to ADR-023/026/028 and amends_dis DI-012 are now EFFECTIVE. Implementation of ADR-054 stories may proceed after the ADR-053 standalone Wave-A engine story lands first, per §D7 merge-dependency.
 
-Current contract highlights: D1 adds `token_exchange` as the 6th AuthType variant; E-SPEC-028(f) validates `client_id`/`client_secret` credential refs for `oauth2_client_credentials`; E-SPEC-028(b) rejects `auth_plugin` for `auth_type ∈ {oauth2_client_credentials, token_exchange}` regardless of `[auth_acquisition]` presence (Definition 1, D10(b)) — no "when `[auth_acquisition]` present" conditional. D2 makes `oauth2_client_credentials` native via `DeclarativeHttpAuthProvider`. D5 retires `crowdstrike-oauth2.prx`. D11 amendment manifest includes 5 downstream "5→6-value" BC count corrections (BC-2.01.016 §Related BCs, BC-2.01.017 §Preconditions/§P3/§Related BCs, BC-2.16.009 §Validation Rules). ADR-054 implementation stories land AFTER ADR-053's standalone Wave-A engine story (Rule 9/E-SPEC-027 must be registered before Rule 10/E-SPEC-028 — see §D7). See §Changelog for full revision history.
+Current contract highlights: D1 adds `token_exchange` as the 6th AuthType variant; E-SPEC-028(f) validates `client_id`/`client_secret` credential refs for `oauth2_client_credentials`; E-SPEC-028(b) rejects `auth_plugin` for `auth_type ∈ {oauth2_client_credentials, token_exchange}` regardless of `[auth_acquisition]` presence (Definition 1, D10(b)) — no "when `[auth_acquisition]` present" conditional. D2 makes `oauth2_client_credentials` native via `DeclarativeHttpAuthProvider`. D5 retires `crowdstrike-oauth2.prx`. D11 amendment manifest includes 5 downstream "5→6-value" BC count corrections (BC-2.01.016 §Related BCs, BC-2.01.017 §Preconditions/§P3/§Related BCs, BC-2.16.009 §Validation Rules). ADR-054 implementation stories land AFTER ADR-053's standalone Wave-A engine story (Rule 9/E-SPEC-027 must be registered before Rule 10/E-SPEC-028 — see §D7). §D4 step 4 (absolute_utc_string): lenient chrono relaxed `FromStr` (space-separated + T-form) replaces strict `parse_from_rfc3339` per RU-Q1 (v0.51). §D2 `$.expires_in`: lenient deserialization (JSON number OR numeric string) per RU-Q2 (v0.51). Non-exhaustive gate EXPECTED bump 92→95 (AuthAcquisitionConfig/CachedAuthToken/ExpiryMode) documented in D11 per RU-Scanner-1 (v0.51). See §Changelog for full revision history.
 
 ---
 
@@ -157,8 +157,14 @@ spec-load time. (See D10(b) for the error message; D7 for the unreachable dispat
 `oauth2_client_credentials` semantics in declarative mode: the engine performs an RFC 6749 §4.4
 client credentials POST. Form body: `client_id={}&client_secret={}&grant_type=client_credentials`
 (values URL-form-encoded per RFC 3986 §2.3; field order matches the plugin implementation in
-`crowdstrike-oauth2/src/lib.rs` `acquire_token()`). Response: `$.access_token` (string, required);
-`$.expires_in` (u64 seconds, default 1799 when absent or zero); `ttl_buffer_secs` (default 30)
+`crowdstrike-oauth2/src/lib.rs` `acquire_token()`). **Wire-encoding note (RU-Q3):** reqwest
+`.form()` (internally `serde_urlencoded`) encodes `+`, `=`, and `/` identically to non-alphanumeric
+percent-encoding for these payload values; parity with the reference plugin implementation is
+preserved. Response: `$.access_token` (string, required);
+`$.expires_in` — **lenient deserialization (RU-Q2):** accept JSON number (`as_u64()`) OR numeric
+string (attempt `str.parse::<u64>()`); non-numeric string or any other wrong type treated as absent;
+default 1799 when absent, zero, or unparseable (RFC 6749 §5.1 does not fix the JSON type; confirmed
+providers such as Microsoft Entra ID emit `"3599"` as a string); `ttl_buffer_secs` (default 30)
 subtracted from the computed `expires_at`. Credential refs MUST include one named `client_id`
 and one named `client_secret` — validated by E-SPEC-028(f) at spec-load time.
 
@@ -300,7 +306,17 @@ and `StaticCookieAuthProvider` also implement). The construction site for
    - `oauth2_client_credentials`: extract `$.access_token`; compute TTL from `$.expires_in` (default 1799 if absent/zero) minus `ttl_buffer_secs`
    - `token_exchange`: extract at `token_response_path`; parse expiry at `expiry_field` per `expiry_mode`:
      - `"relative_seconds"`: u64 seconds, default 1799, minus `ttl_buffer_secs`
-     - `"absolute_utc_string"`: RFC-3339 parse → Unix timestamp, minus `ttl_buffer_secs`
+     - `"absolute_utc_string"`: lenient `s.parse::<DateTime<FixedOffset>>()` (chrono relaxed
+       `FromStr` — accepts both `T`-separator ISO-8601 `"2099-01-01T00:00:00Z"` AND
+       space-separated `"YYYY-MM-DD HH:MM:SS.ffffff+HH:MM"`; rejects only if even relaxed parse
+       fails → `E-AUTH-001`) → `.timestamp() as u64` → Unix timestamp, minus `ttl_buffer_secs`.
+       **Adjudication rationale (RU-Q1/Option B):** production Armis backend most likely emits
+       space-separated UTC strings (Python backend convention; XSOAR uses format-agnostic
+       dateparser); strict `parse_from_rfc3339` rejects space-separated values per chrono
+       Context7 docs; relaxed chrono `FromStr` accepts both forms. Option B (proactive TTL
+       via lenient parse + reactive P6 401-backstop) is chosen over Option A (reactive re-auth
+       only) because P2/P4/AC-6 are designed around proactive TTL; the 401 backstop (P6) is
+       preserved as defense-in-depth regardless.
 5. Store `CachedAuthToken` in `cached_token` ArcSwap
 6. Return `Ok(token_string)`
 
@@ -510,7 +526,7 @@ Verification property `VP-159` covers the network-call invariants of `Declarativ
   - `get_token()` on cold cache → exactly one HTTP POST; on warm cache → zero HTTP POSTs
   - `get_token()` on stale cache (expired TTL) → exactly one HTTP POST (re-acquisition)
   - `get_token()` on cache-hit with empty token string → exactly one HTTP POST (same as cold cache)
-  - TTL arithmetic for `absolute_utc_string` expiry mode: `expires_at = parse_rfc3339(expiry_str).as_unix_secs().saturating_sub(ttl_buffer_secs)`
+  - TTL arithmetic for `absolute_utc_string` expiry mode: `expires_at = expiry_str.parse::<DateTime<FixedOffset>>().map(|dt| dt.timestamp() as u64).saturating_sub(ttl_buffer_secs)` (lenient chrono relaxed `FromStr` — see §D4 step 4 v0.51)
   - TTL arithmetic for `relative_seconds` expiry mode: `expires_at = now + expires_in.saturating_sub(ttl_buffer_secs)` where `expires_in` is defaulted to 1799 when absent or zero (matches the plugin's `saturating_sub(30)` arithmetic; `.max(1)` is omitted as dead code when the absent/zero default is already 1799)
   - Credential values are not stored in `CachedAuthToken` (AD-017 assertion)
 
@@ -566,10 +582,11 @@ Fires when: `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND (`[a
 Fires for `token_exchange` when `expiry_mode` is present but not in the two-value closed set.
 
 > **expiry_mode ratified value set (Wave-A burst 3 adjudication — source of truth):** The two valid
-> values are `absolute_utc_string` (RFC-3339 UTC string, parsed at acquire_token time to Unix timestamp)
-> and `relative_seconds` (u64 seconds TTL). All three design-authority sites are self-consistent: D3
-> field table (`"absolute_utc_string"` or `"relative_seconds"`), D4 algorithm (`absolute_utc_string`:
-> RFC-3339 parse; `relative_seconds`: u64 default 1799), and the Armis wiring example
+> values are `absolute_utc_string` (UTC string, parsed at acquire_token time via lenient chrono relaxed
+> `FromStr` to Unix timestamp per §D4 v0.51) and `relative_seconds` (u64 seconds TTL). All three
+> design-authority sites are self-consistent: D3 field table (`"absolute_utc_string"` or
+> `"relative_seconds"`), D4 algorithm (`absolute_utc_string`: lenient chrono relaxed `FromStr` per
+> v0.51; `relative_seconds`: u64 default 1799), and the Armis wiring example
 > (`expiry_mode = "absolute_utc_string"`). BC-2.01.008's use of `expiry_mode = "absolute_utc_string"`
 > is CORRECT per D3. Note: error-taxonomy.md v2.57 E-SPEC-028(c) and BC-2.16.009 Rule 10(c)/EC-009-038
 > erroneously listed `absolute_epoch_secs, ttl_secs` — these were PO authoring errors from burst 3,
@@ -646,6 +663,7 @@ All templates echo only config values (sensor_id, auth_type, field names), never
 | New `crates/prism-spec-engine/src/auth/declarative.rs` | Implement `DeclarativeHttpAuthProvider` + `AuthAcquisitionConfig` + `ExpiryMode` | D4 |
 | `crates/prism-spec-engine/src/auth/declarative.rs` `AuthAcquisitionConfig` constructors (F-WASE-P38-MED-001) | Add `#[non_exhaustive]` attribute to `AuthAcquisitionConfig` (per CLAUDE.md convention for public TOML-deserialized types in prism-spec-engine). Implement two named constructors: (1) `pub fn new(token_path: impl Into<String>, expiry_mode: ExpiryMode, ttl_buffer_secs: u64) -> Self` — populates common fields; `credential_body_field`, `token_response_path`, and `expiry_field` default to empty string; used for `oauth2_client_credentials` and minimal harness configs; (2) `pub fn new_token_exchange(token_path: impl Into<String>, credential_body_field: impl Into<String>, token_response_path: impl Into<String>, expiry_field: impl Into<String>, expiry_mode: ExpiryMode, ttl_buffer_secs: u64) -> Self` — populates all fields for `token_exchange` auth_type. VP-159 harness uses these constructors throughout (not struct literals, which are E0639 from the external `tests/` crate under `#[non_exhaustive]`). Behavioral anchor: `AuthAcquisitionConfig` struct definition and `impl AuthAcquisitionConfig` block in `auth/declarative.rs` (grep `pub struct AuthAcquisitionConfig`; TD-VSDD-091). | D3, F-WASE-P38-MED-001 |
 | `crates/prism-spec-engine/src/auth/declarative.rs` `CachedAuthToken` constructor (F-WASE-P38-MED-001) | Add `#[non_exhaustive]` attribute to `CachedAuthToken` (per CLAUDE.md convention for new pub types in prism-spec-engine). Implement `pub fn new(token: String, expires_at: u64) -> Self` constructor. The signature enforces credential-opacity architecturally: it accepts only the token string and expiry timestamp — no credential parameter — making it impossible to store a credential value in `CachedAuthToken` without a deliberate constructor signature change (BC-2.16.014 P7, AD-017, INV-014-003). VP-159 harness uses `CachedAuthToken::new(...)` at AC-4b (poisoned-cache seeding) and the AC-8 structural note. Behavioral anchor: `CachedAuthToken` struct definition and `impl CachedAuthToken` block in `auth/declarative.rs` (grep `pub struct CachedAuthToken`; TD-VSDD-091). | D4, F-WASE-P38-MED-001 |
+| `scripts/check-non-exhaustive.sh` + `scripts/check-non-exhaustive-per-symbol.py` + `CLAUDE.md` — non-exhaustive gate EXPECTED bump (RU-Scanner-1) | Three new `#[non_exhaustive]` pub types added by the ADR-054 engine story: `AuthAcquisitionConfig`, `CachedAuthToken`, `ExpiryMode`. All **THREE** update sites are mandatory and must land atomically in the same commit: **(1)** `scripts/check-non-exhaustive.sh` EXPECTED value: `92 → 95`; **(2)** `scripts/check-non-exhaustive-per-symbol.py` `EXPECTED_COUNT = 92 → 95` AND append `AuthAcquisitionConfig`, `CachedAuthToken`, `ExpiryMode` to `EXPECTED_SYMBOLS`; **(3)** `CLAUDE.md` "92 types currently enforced" sentence — update count AND append new symbols to the inline list. Omitting any one of the three sites causes CI failure (shell script) or startup-assert failure (Python Layer-2 check). Behavioral anchors: `EXPECTED=92` in `check-non-exhaustive.sh`; `EXPECTED_COUNT = 92` + `EXPECTED_SYMBOLS` list in `check-non-exhaustive-per-symbol.py`; "92 types currently enforced" in CLAUDE.md. | D3, D4, RU-Scanner-1 |
 | `crates/prism-bin/src/spec_driven_adapter.rs` `step9a_populate_adapter_registry` `Oauth2ClientCredentials` arm | Rewrite from per-org `PluginAuthProvider` construction to `DeclarativeHttpAuthProvider` construction with `token_url = base_url + token_path` | D4, D7 |
 | `crates/prism-bin/src/spec_driven_adapter.rs` `step9a_populate_adapter_registry` | Add new `TokenExchange` arm: construct `DeclarativeHttpAuthProvider(TokenExchange)` with `token_url = base_url + token_path` | D1, D7 |
 | `BC-2.16.009` Rule set | **[EXECUTED — Wave-A spec evolution burst 3, 2026-07-22]** Add `[auth_acquisition]` coherence validation as **Rule 10** (after ADR-053 D2's Rule 9 for `header_scheme`); E-SPEC-028 error suite per D10 | D10 |
@@ -863,6 +881,7 @@ the ADR-053 standalone Wave-A engine story per §D7 merge-dependency.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.51 | 2026-07-23 | architect | RU-Q1/Q2/Q3 + RU-Scanner-1 amendments (Wave-A remove-uncertainty burst D-1944 step 5): §D4 step 4 `absolute_utc_string` parse — strict RFC-3339 (`parse_from_rfc3339`) replaced with lenient chrono relaxed `FromStr` (`s.parse::<DateTime<FixedOffset>>()`) accepting both `T`-separator ISO-8601 and space-separated UTC strings; rationale: Option B (proactive TTL + reactive P6 401-backstop) per RU-Q1; chrono Context7 docs confirm relaxed `FromStr` accepts space separator. §D2 `$.expires_in` — lenient deserialization added: accept JSON number (`as_u64()`) OR numeric string (str.parse::<u64>()); non-numeric/wrong type → default 1799 per RU-Q2 (Microsoft Entra ID confirmed emits string `"3599"`; RFC 6749 does not fix the JSON type). §D2 wire-encoding note added: reqwest `.form()` (serde_urlencoded) is byte-equivalent for `+/=` per RU-Q3. §D11 new row: non-exhaustive gate EXPECTED bump 92→95 for `AuthAcquisitionConfig`/`CachedAuthToken`/`ExpiryMode` (RU-Scanner-1); all-three-update-sites constraint documented. modified: synced (POL-27/32). |
 | 0.50 | 2026-07-23 | architect | F-WASE-P43-MED-001 (FIX-BURST 35): §D11 VP-153 §Feasibility Assessment row (line 669) — corrected cross-artifact contradiction with VP-153 source of truth (Source-of-Truth Precedence rule 4). Removed erroneous claim "token_exchange reuses the ApiKey single-string shape (structural shapes stay at 5)" — this conflated the credential RECORD-schema notion with VP-153's identifier-based SHAPE model. Root cause: v0.30 OBS-3 rewrite introduced the conflation when separating "typed structural shapes" (5) from "string-harness auth_type identifiers" (6); but VP-153's identifier-based model (reported_shape IS auth_type identifier per vp153_rule_c_shaped_probe.rs) makes token_exchange a DISTINCT 6th shape, not an ApiKey alias. Internal incoherence in removed text: "5 mismatched shapes per variant" is impossible with only 5 total shapes (max 4). Replacement states: token_exchange is a DISTINCT 6th credential structural shape in the harness model; record-schema similarity (single-string secret) is a RECORD-schema observation that does NOT alter the shape model; total shapes = 6; mismatched per variant = 5 (6 − 1 matching); 6 × 5 = 30 ordered pairs — now coherent with VP-153 §Feasibility v0.26 ("of the 6 total credential structural shapes, excluding the matching one"). POL-29 sweep: one live-body hit at row 669 (fixed); two changelog hits (v0.30 line 885, v0.17 line 898) — exempt per forward-correction pattern. ADR-053 sweep: zero hits — clean. At-commit-time hash per POL-32. |
 | 0.49 | 2026-07-23 | architect | F-WASE-P40-MED-001: §D10(c) trigger-scope adjudication — token_exchange-gating is canonical. Three artifacts had divergent trigger scope: §D10(c) (token_exchange-gated), BC-2.16.009 Rule 10(c) (any auth_type), error-taxonomy.md E-SPEC-028(c) (any auth_type). §D10(c) is declared authoritative for trigger logic per the §D10 meta-note (taxonomy wins on wording, §D10 wins on trigger logic). Four-reason rationale: (1) `expiry_mode` is token_exchange-only; sub-condition (h) already fires for wrong-position use and emitting (c) additionally would produce contradictory repair guidance for LLM-agent-consumed errors; (2) value-validity presupposes positional validity (structural parallel with §D10(b)'s scope); (3) co-fire list consistency — taxonomy illustrative list already omits `(c)∩(h)` and `(c)∩(g)`, consistent with narrow scope only; (4) clean (c)/(h) partition: value-validity for valid-position (`token_exchange`) vs position-validity for wrong-position (non-`token_exchange`). §D10(c) adjudication blockquote added (parallel form to §D10(b) F-WASE-P2-HIGH-001 note). PO sweep directives in adjudication note: (a) BC-2.16.009 Rule 10(c) narrowed to token_exchange-gated with exact replacement text; (b) BC-2.16.009 EC-009-038 auth_type clarification with exact replacement text; (c) error-taxonomy E-SPEC-028(c) description narrowed with exact replacement text; (d) co-fire list requires no changes. POL-29 sweep: VP-153/VP-159/ADR-053/ADR-026/ADR-028 have no (c)-trigger-scope prose — zero architect-owned sites beyond this ADR. At-commit-time hash per POL-32. |
 | 0.48 | 2026-07-23 | architect | F-WASE-P38-MED-001 (FIX-BURST 33): §D11 two new rows added for `AuthAcquisitionConfig` and `CachedAuthToken` constructors — both structs require `#[non_exhaustive]` per CLAUDE.md convention for public TOML-deserialized types and new pub types in prism-spec-engine; external struct-literal construction is E0639-impossible from the `tests/` crate. `AuthAcquisitionConfig` gains two named constructors: `new(token_path: impl Into<String>, expiry_mode: ExpiryMode, ttl_buffer_secs: u64) -> Self` (common fields only; token-exchange-specific fields default to empty string; used for `oauth2_client_credentials` and minimal harness configs) and `new_token_exchange(token_path, credential_body_field, token_response_path, expiry_field, expiry_mode, ttl_buffer_secs) -> Self` (full form for `token_exchange` auth_type). `CachedAuthToken` gains `new(token: String, expires_at: u64) -> Self`; no credential parameter in the constructor signature enforces BC-2.16.014 P7 / AD-017 / INV-014-003 credential-opacity architecturally. VP-159 v1.22 (companion burst) rewrites 5 harness sites to use these constructors (base_config helper, AC-4b, AC-6, AC-6b) and replaces the old AC-8 structural-assertion test with an async runtime-inequality test (`test_vp159_ac8_cached_token_no_credential_value_stored`). Symmetric to the FetchStep row (F-WASE-P9-OBS-003). At-commit-time hash per POL-32. |

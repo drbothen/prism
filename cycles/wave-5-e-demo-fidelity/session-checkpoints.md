@@ -227,3 +227,21 @@ _Archived to session-checkpoints.md by D-1659 burst (state-manager keep-last-1 d
 **HEADS:** develop `97d7335d` (PR #226 squash-merged 2026-07-18T22:47:30Z; local==origin — PUSHED); factory-artifacts: `git -C .factory log -1 --format='%h %s'`; feature/S-3.09 @43c41389 KEEP-PARKED (LOCAL-ONLY); feature/W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch (LOCAL-ONLY); develop and factory-artifacts PUSHED; all others LOCAL-ONLY. No open PRs.
 
 **NOTE: Superseded by D-1872 — DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 PR #227 MERGED @e116a587 2026-07-19T14:27:25Z; T13 audit instrument FIXED (structuredContent.error.code authoritative); DEMO-READY: YES ×2; workspace_test_count 5676; T14 BLOCKED pending secops-factory integration (D-1873). STATE v8.425→v8.426.**
+
+---
+
+## Archived: D-1997 — 2026-07-23 — SESSION WRAP; WAVE-A SPEC-EVOLUTION CASCADE CONVERGED; STATE v8.545
+
+_Archived to session-checkpoints.md by D-1998 burst (state-manager keep-last-1 discipline)._
+
+**RESUME IN ONE BREATH:** Wave-A spec evolution LOCAL adversarial cascade CONVERGED. BC-5.39.001 strict 3/3 at passes 45/46/47 on frozen aed65aae1 perimeter. 47 passes / 36 fix-bursts. CLEAN(strict) passes: 19/24/30/33/36/39/41/42/45/46/47. Converged spec package: BC-2.16.014 v1.16, VP-159 v1.22, BC-2.01.018 v1.3 (draft), VP-153 v0.28, BC-2.16.009 v1.22, BC-2.01.016 v1.14, BC-2.01.017 v1.9, error-taxonomy v2.65, invariants v1.11, ADR-054 v0.50, ADR-053 v0.28, ADR-026 v1.41 (accepted), ADR-028 v1.25. Indexes: BC-INDEX v8.64, VP-INDEX v2.08, ARCH-INDEX v2.264, STORY-INDEX v2.721. NEXT SESSION FIRST ACTION (at time): dispatch remove-uncertainty pass (dclaude:remove-uncertainty per user directive D-1110) scoped to Wave-A spec package files, then Wave-A story decomposition (step 6; engine story FIRST per ADR-054 D7, ADR-054 story SECOND, sensor stories after); per-story delivery per per-story-delivery.md with LOCAL 3-CLEAN + story-level holdout gates.
+
+**HEADS (verified 2026-07-23 D-1997):**
+- origin/develop: `7fef57da` — PUSHED; LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001, do NOT auto-FF)
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code)
+- Main worktree: docs/claude-md-file-size-convention @`426c77cde` (PR #230 OPEN, awaiting HUMAN merge)
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5` — PUSHED, PR #229 OPEN; `.worktrees/S-3.09` @`43c41389` KEEP-PARKED
+- `.worktrees/W3-FIX-S307-001` @`fcab8717` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY); verify-sha-currency.sh: PASS (1 WARN)
+- Open PRs: #229 (@ec4379b5), #230 (CLAUDE.md file-size @426c77cde awaiting HUMAN merge); no background agents in flight
+
+**NOTE: Superseded by D-1998 — Wave-A REMOVE-UNCERTAINTY AMENDMENT BURST COMPLETE (RU-Q1..Q5); spec perimeter reopened; BC-5.39.001 re-gate pass 48 required (fresh streak 0/3). STATE v8.545→v8.546.**

@@ -124,13 +124,50 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1997 (session wrap — WAVE-A SPEC-EVOLUTION CASCADE CONVERGED; BC-5.39.001 strict 3/3 at passes 45/46/47 on frozen aed65aae1; 47p/36fb; NEXT SESSION FIRST ACTION = dispatch dclaude:remove-uncertainty on Wave-A spec package per D-1110 directive).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1997 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1997 (this wrap) is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.545. D-1997 session wrap complete; WAVE-A SPEC-EVOLUTION LOCAL CASCADE CONVERGED (pass 47 CLEAN(strict) streak 3/3); NEXT = remove-uncertainty (D-1110) on Wave-A spec package → story decomposition.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-1998 (session wrap — Wave-A REMOVE-UNCERTAINTY COMPLETE; RU-Q1..Q5 amendments; spec perimeter REOPENED; BC-5.39.001 re-gate pass 48 required, fresh streak 0/3; NEXT = LOCAL adversary pass 48 on amended perimeter).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-1998 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-1998 (this wrap) is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.546. D-1998 session wrap complete; Wave-A REMOVE-UNCERTAINTY AMENDMENT BURST COMPLETE; spec perimeter REOPENED; NEXT = LOCAL adversary pass 48 (fresh streak 0/3) → on 3/3 CLEAN(strict) → step 6 story decomposition.
 
 ---
 
-## §RESUME SNAPSHOT — D-1997 (2026-07-23 — SESSION WRAP; WAVE-A SPEC-EVOLUTION CONVERGED; STATE v8.545) [SUPERSEDES D-1993]
+## §RESUME SNAPSHOT — D-1998 (2026-07-23 — SESSION WRAP; Wave-A REMOVE-UNCERTAINTY COMPLETE; perimeter reopened; STATE v8.546) [SUPERSEDES D-1997]
+
+### RESUME IN ONE BREATH
+Wave-A spec-evolution LOCAL cascade CONVERGED (47p/36fb; passes 45/46/47 CLEAN strict on frozen aed65aae1). Remove-uncertainty pass (D-1944 step 5) COMPLETE: RU-Q1..Q5 amendments authored and indexed. SPEC PERIMETER REOPENED — BC-5.39.001 re-gate REQUIRED. Amended spec package: BC-2.16.014 v1.17 (RU-Q1 lenient chrono FromStr for expiration_utc; RU-Q2 lenient expires_in number-or-numeric-string; EC-016-014-003 broadened; NEW EC-016-014-016 + TV-11; TV-2 T-form label), VP-159 v1.23 (RU-Q1/Q2 lenient-parse alignment; NEW AC-6c space-separated-fixture kill condition; NEW AC-7d string-typed expires_in kill condition), ADR-054 v0.51 (RU-Q1/Q2/Q3 lenient parse; RU-Q3 encoding-equivalence note; D11 non-exhaustive gate EXPECTED 92→95 all-three-sites), ADR-053 v0.29 (RU-Q4 serde named-fn default_header_scheme; expiration_utc sibling pointer), BC-2.01.018 v1.4 (RU-Q5 Cyberint Alerts 3-format CyberintTime), BC-2.01.006 v1.7 (RU-Q5 Cyberint Assets 3-format CyberintTime), BC-2.02.004 v1.7 (RU-Q5 Cyberint OCSF alert field mapping 3-format alignment), VP-153 v0.28, BC-2.16.009 v1.22, BC-2.01.016 v1.14, BC-2.01.017 v1.9, error-taxonomy v2.65 (NO CHANGE — format-agnostic verified), invariants v1.11, ADR-026 v1.41 (accepted), ADR-028 v1.25. Indexes: BC-INDEX v8.65, VP-INDEX v2.09, ARCH-INDEX v2.265, STORY-INDEX v2.721. NEXT SESSION FIRST ACTION: LOCAL adversary pass 48 (fresh streak 0/3) on amended spec perimeter (BLOCKING — BC-5.39.001). On 3/3 CLEAN(strict) on the amended perimeter → step 6 Wave-A story decomposition (engine story FIRST per ADR-054 D7, ADR-054 story SECOND, sensor stories after); per-story delivery per per-story-delivery.md with LOCAL 3-CLEAN + story-level holdout gates.
+
+### TRACKED DO-NOT-RE-RAISE (carried from D-1997; same perimeter scope + RU-amendments)
+All D-1997 do-not-re-raise items (a)–(w) remain valid. Additional closures from RU-amendments: **(x)** RU-Q1 expiration_utc strict-RFC-3339 UNSAFE — adjudicated; lenient chrono FromStr Option B adopted in BC-2.16.014 v1.17 + ADR-054 v0.51. **(y)** RU-Q2 expires_in string-type confirmed — lenient number-or-numeric-string toleration added at BC-2.16.014 + VP-159. **(z)** RU-Q4 bare `#[serde(default)]` UNSAFE — named-fn `default_header_scheme` ratified in ADR-053 v0.29. **(aa)** RU-Q5 Cyberint 4th time-format claim REFUTED — 3-format CyberintTime (RFC-3339, Unix-epoch-seconds, ISO-8601-no-tz) adopted in BC-2.01.018/006/002.004. **(bb)** error-taxonomy format-agnostic verification complete — NO structural change required; do not re-raise.
+
+### HEADS (verified 2026-07-23 D-1998)
+- origin/develop: `7fef57da` — PUSHED. LOCAL develop: `e116a587` — STALE, ff BLOCKED (DRIFT-LOCAL-DEVELOP-FF-001, human-gated, unchanged).
+- factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code — this wrap's commit is the authoritative HEAD).
+- Main worktree: docs/claude-md-file-size-convention @`426c77cde` (PR #230 OPEN, awaiting HUMAN merge).
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5` — PUSHED, PR #229 OPEN. `.worktrees/S-3.09` @`43c41389` LOCAL-ONLY KEEP-PARKED. `.worktrees/W3-FIX-S307-001` @`fcab8717` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY).
+- verify-sha-currency.sh: PASS (1 non-blocking WARN) at wrap. No background agents in flight.
+
+### WORKSTREAM — WAVE-A (REMOVE-UNCERTAINTY COMPLETE; NEXT: PASS 48 RE-GATE)
+Amended spec package versions: BC-2.16.014 v1.17, VP-159 v1.23, BC-2.01.018 v1.4 (draft), VP-153 v0.28, BC-2.16.009 v1.22, BC-2.01.016 v1.14, BC-2.01.017 v1.9, BC-2.01.006 v1.7, BC-2.02.004 v1.7, error-taxonomy v2.65, invariants v1.11 (DI-012), ADR-054 v0.51, ADR-053 v0.29, ADR-026 v1.41 (accepted), ADR-028 v1.25. Indexes: BC-INDEX v8.65, VP-INDEX v2.09, ARCH-INDEX v2.265, STORY-INDEX v2.721.
+Prior cascade history: 47 passes / 36 fix-bursts. CLEAN(strict) passes pre-RU: 19/24/30/33/36/39/41/42/45/46/47. BC-5.39.001 CONVERGED 3/3 on frozen aed65aae1 THEN perimeter REOPENED by RU-amendments → streak RESET 0/3 on amended perimeter.
+NEXT-ACTION: dispatch vsdd-factory:adversary, fresh context, LOCAL pass 48 on the amended spec perimeter. Report format F-WASE-P48-<SEV>-NNN + CLEAN(strict)/CLEAN(PR-merge). On CLEAN(strict) ×3 consecutive on unchanged amended perimeter → step 6 story decomposition (ADR-054 D7 sequencing).
+
+### STANDING USER DIRECTIVES
+- GENERALIZATION DIRECTIVE codified as POL-36 (D-1945) — auto-loads via policy rubric; OPEN OFFER from D-1944 is CLOSED.
+- BC-5.39.001 re-gate required after perimeter amendments (spec-level changes reset streak per BC-5.39.001).
+- No pragmatic convergence; production-grade default (unchanged).
+
+### PENDING USER-APPROVED / CARRIED ITEMS (unchanged from D-1997)
+- PR #230 (CLAUDE.md file-size stance) awaiting HUMAN merge; PR #229 open (deliver during findings phase).
+- develop CI stuck 'queued' on 7fef57da — re-trigger/investigate.
+- Staged ci.yml/e2e.yml residue in main worktree (S-MAINT AC-007, human-gated). Local develop FF blocked (human-gated).
+- File-size decomposition PARKED (TD-DECOMP-EPIC-001/RATCHET-001) until findings remediated.
+- PG-VP-SKELETON-ASBUILT-001 codification follow-up at cycle close (S-7.02); ADR-033/034/035/038 template backfill carry.
+
+### DECISION DELTA (this session, 2026-07-23 — D-1998)
+D-1998 (this wrap: Wave-A REMOVE-UNCERTAINTY AMENDMENT BURST COMPLETE — RU-Q1 expiration_utc lenient chrono; RU-Q2 expires_in lenient number-or-string; RU-Q3 encoding note; RU-Q4 serde default_header_scheme; RU-Q5 Cyberint 4-format→3-format. INDEX SYNCS: BC-INDEX v8.64→v8.65; VP-INDEX v2.08→v2.09; ARCH-INDEX v2.264→v2.265. POL-23 PIN SWEEP: 2 live-body sites updated in VP-159 (BC-2.16.014 v1.16→v1.17). D11 non-exhaustive gate EXPECTED 92→95 all-three-sites. SPEC PERIMETER REOPENED → BC-5.39.001 re-gate LOCAL adversary pass 48, fresh streak 0/3, REQUIRED before step 6 story decomposition. STATE v8.545→v8.546).
+
+---
+
+## §RESUME SNAPSHOT — D-1997 (2026-07-23 — SESSION WRAP; WAVE-A SPEC-EVOLUTION CONVERGED; STATE v8.545) [SUPERSEDES D-1993] [SUPERSEDED by D-1998]
 
 ### RESUME IN ONE BREATH
 Wave-A spec evolution LOCAL adversarial cascade CONVERGED. BC-5.39.001 strict 3/3 at passes 45/46/47 on frozen aed65aae1 perimeter. 47 passes / 36 fix-bursts (D-1950..D-1997). CLEAN(strict) passes: 19/24/30/33/36/39/41/42/45/46/47. Pass 47 CLEAN(strict) YES / CLEAN(PR-merge) YES — ZERO findings, novelty NONE. Novel angles: bidirectional symbol-existence audit (both directions clean); dual-partition count reconciliation (both 268-summing decompositions simultaneously consistent). Converged spec package: BC-2.16.014 v1.16, VP-159 v1.22, BC-2.01.018 v1.3 (draft), VP-153 v0.28, BC-2.16.009 v1.22, BC-2.01.016 v1.14, BC-2.01.017 v1.9, error-taxonomy v2.65, invariants v1.11, ADR-054 v0.50, ADR-053 v0.28, ADR-026 v1.41 (accepted), ADR-028 v1.25. Indexes: BC-INDEX v8.64, VP-INDEX v2.08, ARCH-INDEX v2.264, STORY-INDEX v2.721. NEXT SESSION FIRST ACTION: dispatch remove-uncertainty pass (`dclaude:remove-uncertainty` per user directive D-1110) scoped to Wave-A spec package files listed above — validate unpinned versions/API assumptions/feature claims via research. THEN Wave-A story decomposition (step 6, ADR-054 D7 sequencing: engine story FIRST [E-SPEC-027 + matrix for 5 existing variants], ADR-054 story SECOND [TokenExchange + matrix row + allowed_set atomically], sensor stories after); per-story delivery per per-story-delivery.md with LOCAL 3-CLEAN + story-level holdout gates.

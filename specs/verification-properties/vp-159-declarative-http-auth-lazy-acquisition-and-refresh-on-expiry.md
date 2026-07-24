@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.22"
+version: "1.23"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -74,7 +74,7 @@ network-isolation and cache-lifecycle invariants (ADR-054 §D9; BC-2.16.014 P1�
 **TTL arithmetic invariants:**
 
 6. **P4-TTL-a — `absolute_utc_string` expiry mode:** When `ExpiryMode` [PLANNED] is
-   `AbsoluteUtcString`, `expires_at = parse_rfc3339(expiry_str).as_unix_secs().saturating_sub(ttl_buffer_secs)`.
+   `AbsoluteUtcString`, `expires_at = expiry_str.parse::<DateTime<FixedOffset>>().map(|dt| dt.timestamp() as u64).saturating_sub(ttl_buffer_secs)` (lenient chrono relaxed `FromStr` per ADR-054 §D4 v0.51 — accepts both `T`-separator ISO-8601 and space-separated `"YYYY-MM-DD HH:MM:SS.ffffff+HH:MM"`; rejects only if even relaxed parse fails → E-AUTH-001). Kill condition for strict-parse impl: fixture `"2099-01-01 00:00:00.000000+00:00"` (space-separated) parses to the SAME epoch as `"2099-01-01T00:00:00Z"` under relaxed `FromStr`; a strict `parse_from_rfc3339`-only impl rejects it → `E-AUTH-001`, FAILING AC-6c's continuation assertion.
 
 7. **P4-TTL-b — `relative_seconds` expiry mode:** When `ExpiryMode` [PLANNED] is
    `RelativeSeconds`, `expires_at = unix_now() + expires_in.saturating_sub(ttl_buffer_secs)`,
@@ -171,11 +171,33 @@ asserts:
   POST request to the wiremock token endpoint (bypasses TTL check regardless of cache state).
 
 - **AC-6 (P4-TTL-a):** For `ExpiryMode::AbsoluteUtcString` [PLANNED], the computed `expires_at`
-  equals `parse_rfc3339(response_expiry_field).as_unix_secs().saturating_sub(ttl_buffer_secs)`.
+  equals `expiry_str.parse::<DateTime<FixedOffset>>().map(|dt| dt.timestamp() as u64).saturating_sub(ttl_buffer_secs)`
+  (lenient chrono relaxed `FromStr` per ADR-054 §D4 v0.51). Fixture uses RFC-3339 `T`-form
+  `"2099-01-01T00:00:00Z"` (see harness). See AC-6c for the space-separated form assertion.
+
+- **AC-6c (P4-TTL-a — space-separated fixture):** For `ExpiryMode::AbsoluteUtcString` [PLANNED],
+  the space-separated value `"2099-01-01 00:00:00.000000+00:00"` parses to the SAME Unix epoch as
+  `"2099-01-01T00:00:00Z"` (4_070_908_800). **Kill condition:** a strict `parse_from_rfc3339`-only
+  impl rejects the space-separated form and returns `E-AUTH-001` instead of proceeding; the
+  wiremock mock returns a long-lived TTL and a second `get_token()` call should serve from cache —
+  if the first call fails with `E-AUTH-001`, the cache is never populated and the test FAILS.
+  The two-POST count assertion (cold → stale → re-acquire) still applies; the expiry arithmetic
+  must match the `T`-form epoch (both forms represent the same instant).
 
 - **AC-7 (P4-TTL-b):** For `ExpiryMode::RelativeSeconds` [PLANNED], the computed `expires_at`
   equals `unix_now() + expires_in.saturating_sub(ttl_buffer_secs)`, with `expires_in = 1799`
   when the response field is absent or zero.
+
+- **AC-7d (P4-TTL-b — string-typed `expires_in`, RU-Q2):** For `ExpiryMode::RelativeSeconds`
+  [PLANNED], when the token endpoint response returns `expires_in` as a **JSON string** (e.g.,
+  `{"access_token": "tok-str-exp", "expires_in": "3599"}`) rather than a JSON number, the engine
+  must leniently parse `"3599"` → `u64 3599` and compute `expires_at = unix_now() + 3599.saturating_sub(30) = unix_now() + 3569`. **Kill condition:** a u64-only (non-lenient) `as_u64()` parser returns
+  `None` for a string value, triggering the default-1799 path; `expires_at` would then equal
+  `unix_now() + 1769` instead of `unix_now() + 3569`. Advancing the clock by 1800s (past the 1769
+  default but NOT past the 3569 correct value) and calling `get_token()` again would trigger an
+  extra POST if the default-1799 path was taken — the test asserts exactly zero additional POSTs
+  at that clock position, exposing the lenient-parse defect. The wiremock server is configured to
+  return `"expires_in": "3599"` (string-typed). Clock seam via `now_fn` / `new_for_test` [PLANNED].
 
 - **AC-8 (P7):** After a successful `get_token()` [PLANNED] call with distinct mock credential
   (`"mock_client_secret_P7"`) and mock token (`"opaque_bearer_P7"`) values, the returned token
@@ -243,8 +265,8 @@ asserts:
 
 ## Source Contract
 
-- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.16 — postconditions P1–P9
-  (BC-2.16.014 v1.16) are the primary **authoring source** for this VP; the verified set is
+- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.17 — postconditions P1–P9
+  (BC-2.16.014 v1.17) are the primary **authoring source** for this VP; the verified set is
   P1–P5, P7, P9 (plus P4-TTL-a/b sub-properties) — see §Property Statement scope note for
   P6/P8 (deferred) and P9-via-AC-9 (verified) coverage.
   INV-014-003 (BC-local invariant:
@@ -305,7 +327,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 // Method: integration_test (wiremock for HTTP interception; now_fn clock seam for TTL control)
 // Target module: prism-spec-engine
 // Target path: crates/prism-spec-engine/src/auth/declarative.rs [PLANNED — engine story]
-// BC: BC-2.16.014 v1.16 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
+// BC: BC-2.16.014 v1.17 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
 //
 // ALL DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode /
 // DeclarativeHttpAuthProvider::new_for_test (cfg(any(test, feature = "test-helpers")))
@@ -564,14 +586,16 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             "VP-159 AC-5: acquire_token must issue exactly one HTTP POST regardless of cache (BC-2.16.014 P5)");
 //     }
 //
-//     // AC-6 (P4-TTL-a): absolute_utc_string expiry arithmetic
-//     // Formula: expires_at = parse_rfc3339(expiry_value).as_unix_secs().saturating_sub(ttl_buffer_secs)
+//     // AC-6 (P4-TTL-a): absolute_utc_string expiry arithmetic (T-form fixture)
+//     // Formula: expires_at = expiry_str.parse::<DateTime<FixedOffset>>()..timestamp()..saturating_sub(ttl_buffer_secs)
+//     //   (lenient chrono relaxed FromStr — ADR-054 §D4 v0.51 RU-Q1)
 //     // "2099-01-01T00:00:00Z" ≈ Unix 4_070_908_800; ttl_buffer=30 → expires_at ≈ 4_070_908_770
+//     // For space-separated form see AC-6c below.
 //     // Clock seam: Arc<AtomicU64> via now_fn in DeclarativeHttpAuthProvider::new_for_test [PLANNED]
 //     #[tokio::test]
 //     async fn test_vp159_ac6_absolute_utc_expiry_ttl_arithmetic() {
 //         let expiry_utc = "2099-01-01T00:00:00Z";
-//         let expiry_unix: u64 = 4_070_908_800;   // parse_rfc3339("2099-01-01T00:00:00Z")
+//         let expiry_unix: u64 = 4_070_908_800;   // "2099-01-01T00:00:00Z".parse::<DateTime<FixedOffset>>()..timestamp()
 //         let ttl_buffer_secs: u64 = 30;
 //         let expires_at = expiry_unix - ttl_buffer_secs;  // = 4_070_908_770
 //         let mock_server = MockServer::start().await;
@@ -634,10 +658,75 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
 //         assert_eq!(posts_after_stale, posts_before_stale + 1,
 //             "VP-159 AC-6: clock past expires_at → one HTTP POST re-acquisition \
-//              (BC-2.16.014 P4 / P4-TTL-a: expires_at = parse_rfc3339(expiry_str).as_unix_secs().saturating_sub(ttl_buffer_secs))");
+//              (BC-2.16.014 P4 / P4-TTL-a: expires_at = expiry_str.parse::<DateTime<FixedOffset>>()..timestamp()..saturating_sub(ttl_buffer_secs))");
 //     }
 //
-//     // AC-6b (EC-016-014-003): malformed RFC-3339 expiry string → AuthAcquisitionFailed (E-AUTH-001)
+//     // AC-6c (P4-TTL-a — space-separated fixture): "2099-01-01 00:00:00.000000+00:00" parses to the
+//     // SAME epoch as "2099-01-01T00:00:00Z" (4_070_908_800) under lenient chrono relaxed FromStr.
+//     // Kill condition: strict parse_from_rfc3339-only impl rejects the space-separated form →
+//     // E-AUTH-001 on first get_token(); the cache is never populated; a second get_token() call
+//     // makes a SECOND POST (cache miss) instead of returning from cache — post_count == 2 not 1.
+//     // (ADR-054 §D4 v0.51 RU-Q1 adjudication)
+//     #[tokio::test]
+//     async fn test_vp159_ac6c_space_separated_expiry_parses_to_same_epoch() {
+//         let expiry_space = "2099-01-01 00:00:00.000000+00:00";  // space-separated UTC — lenient form
+//         let expiry_unix: u64 = 4_070_908_800;                   // same epoch as "2099-01-01T00:00:00Z"
+//         let ttl_buffer_secs: u64 = 30;
+//         let expires_at = expiry_unix - ttl_buffer_secs;          // = 4_070_908_770
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/api/v1/access_token/"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({
+//                         "success": true,
+//                         "data": {
+//                             "access_token": "arm-tok-space",
+//                             "expiration_utc": expiry_space  // space-separated UTC string
+//                         }
+//                     })),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/api/v1/access_token/", mock_server.uri());
+//         let creds = MockCredentialResolver::new("long_lived_secret");
+//         let config = AuthAcquisitionConfig::new_token_exchange(  // [PLANNED]
+//             "/api/v1/access_token/",
+//             "secret_key",
+//             "data.access_token",
+//             "data.expiration_utc",
+//             ExpiryMode::AbsoluteUtcString,  // [PLANNED]
+//             ttl_buffer_secs,
+//         );
+//         let now_secs = Arc::new(AtomicU64::new(0u64));
+//         let mock_time_fn = {
+//             let t = Arc::clone(&now_secs);
+//             Arc::new(move || t.load(Ordering::SeqCst)) as Arc<dyn Fn() -> u64 + Send + Sync>
+//         };
+//         let provider = DeclarativeHttpAuthProvider::new_for_test(  // [PLANNED — engine story; cfg(test)]
+//             token_url, config, Arc::new(creds), mock_time_fn,
+//         );
+//         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
+//         let org_slug = prism_core::OrgSlug::new("test-org");
+//         // Phase 1: cold call — lenient parse must succeed, not E-AUTH-001
+//         let tok = provider.get_token(&sensor_spec, &org_slug).await  // [PLANNED]
+//             .expect("VP-159 AC-6c: space-separated expiry must succeed with lenient parse \
+//                      (strict parse_from_rfc3339 would reject this form → E-AUTH-001)");
+//         assert_eq!(tok, "arm-tok-space",
+//             "VP-159 AC-6c: returned token must match mock response");
+//         let posts_after_cold = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_after_cold, 1, "VP-159 AC-6c: cold call must issue exactly 1 POST");
+//         // Phase 2: second call at clock=0 (well before expires_at = 4_070_908_770) → warm cache
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("still warm");  // [PLANNED]
+//         let posts_after_second = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_after_second, posts_after_cold,
+//             "VP-159 AC-6c: warm cache must issue 0 additional POSTs — confirms space-separated \
+//              expiry was parsed correctly to expires_at={} (not defaulted or errored)", expires_at);
+//     }
+//
+//     // AC-6b (EC-016-014-003): malformed expiry string → AuthAcquisitionFailed (E-AUTH-001)
 //     // No token cached when parse fails — acquire_token returns Err immediately (BC-2.16.014 P4-TTL-a).
 //     #[tokio::test]
 //     async fn test_vp159_ac6b_malformed_rfc3339_expiry_returns_auth_acquisition_failed() {
@@ -836,6 +925,61 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         assert_eq!(posts_after_stale, posts_before_stale + 1,
 //             "VP-159 AC-7c: zero expires_in → 1799 default; 1800s > 1769s expires_at → re-acquisition \
 //              (EC-016-014-002; BC-2.16.014 P4-TTL-b)");
+//     }
+//
+//     // AC-7d (P4-TTL-b — string-typed expires_in, RU-Q2): mock returns "expires_in": "3599" as JSON
+//     // string instead of number → engine must leniently parse "3599" → u64 3599.
+//     // Kill condition: as_u64() returns None for string values → default-1799 path →
+//     // expires_at = base_time + 1769; advancing clock by 1800s (> 1769 but < 3569) causes an
+//     // extra POST under the incorrect default path, which the zero-additional-POST assertion catches.
+//     // (ADR-054 §D2 RU-Q2 adjudication: RFC 6749 does not fix expires_in JSON type)
+//     #[tokio::test]
+//     async fn test_vp159_ac7d_string_typed_expires_in_lenient_parse() {
+//         let ttl_buffer_secs: u64 = 30;
+//         // mock returns "3599" as a JSON string — lenient parse must treat as u64 3599
+//         // expires_at = base_time + 3599.saturating_sub(30) = base_time + 3569
+//         let mock_server = MockServer::start().await;
+//         WmMock::given(wm_method("POST"))
+//             .and(wm_path("/oauth/token"))
+//             .respond_with(
+//                 ResponseTemplate::new(200)
+//                     .set_body_json(serde_json::json!({
+//                         "access_token": "tok-str-exp",
+//                         "expires_in": "3599"  // JSON STRING not number — lenient parse required
+//                     })),
+//             )
+//             .mount(&mock_server)
+//             .await;
+//         let token_url = format!("{}/oauth/token", mock_server.uri());
+//         let creds = MockCredentialResolver::new("test-credential");
+//         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds, ttl_buffer_secs);  // [PLANNED]
+//         let base_time = 1_700_000_000u64;
+//         let now_secs = Arc::new(AtomicU64::new(base_time));
+//         let mock_time_fn = {
+//             let t = Arc::clone(&now_secs);
+//             Arc::new(move || t.load(Ordering::SeqCst)) as Arc<dyn Fn() -> u64 + Send + Sync>
+//         };
+//         let provider = DeclarativeHttpAuthProvider::new_for_test(  // [PLANNED — engine story; cfg(test)]
+//             token_url, config, Arc::new(creds), mock_time_fn,
+//         );
+//         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
+//         let org_slug = prism_core::OrgSlug::new("test-org");
+//         // Cold call: lenient parse "3599" → 3599 → expires_at = base_time + 3569
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await
+//             .expect("VP-159 AC-7d: string-typed expires_in must succeed with lenient parse");
+//         let posts_after_warm = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         // Advance clock 1800s > 1769 (what default-1799 path would compute) but < 3569 (correct)
+//         // If lenient parse worked: clock 1_700_001_800 < expires_at 1_700_003_569 → still warm → 0 POSTs
+//         // If default-1799 path (bug): clock 1_700_001_800 > expires_at 1_700_001_769 → stale → 1 POST → FAIL
+//         now_secs.store(base_time + 1800, Ordering::SeqCst);
+//         let _ = provider.get_token(&sensor_spec, &org_slug).await.expect("still warm at 1800s");
+//         let posts_still_warm = mock_server.received_requests().await.unwrap()
+//             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
+//         assert_eq!(posts_still_warm, posts_after_warm,
+//             "VP-159 AC-7d: string-typed expires_in '3599' → 3599 (not default 1799); \
+//              at 1800s < 3569 expires_at, cache must still be valid, 0 additional POSTs \
+//              (RU-Q2; BC-2.16.014 P4-TTL-b)");
 //     }
 //
 //     // AC-8 (P7): CachedAuthToken never stores credential values — runtime inequality assertion.
@@ -1068,6 +1212,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.23 | wave-a-ru-amendment-D1944 | 2026-07-23 | architect | RU-Q1/Q2 + ADR-054 §D4 v0.51 alignment. §Property Statement P4-TTL-a formula updated: `parse_rfc3339` → lenient chrono relaxed `FromStr` (`expiry_str.parse::<DateTime<FixedOffset>>()`), accepts both `T`-separator ISO-8601 and space-separated UTC strings per ADR-054 §D4 v0.51 RU-Q1 adjudication; kill condition documented (space-separated fixture FAILS strict-parse-only impl). AC-6 prose updated to reference lenient parse formula. AC-6c added: new AC (prose + harness skeleton) asserting `"2099-01-01 00:00:00.000000+00:00"` parses to the same epoch as `"2099-01-01T00:00:00Z"` (kill condition: strict `parse_from_rfc3339`-only impl rejects space-separated form → test FAILS). AC-7d added: new AC (prose + harness skeleton) for string-typed `expires_in` `"3599"` (JSON string) → lenient parse to u64 3599; kill condition: `as_u64()`-only path defaults to 1799, clock advance 1800s > 1769 (default) but < 3569 (correct) triggers spurious re-acquire POST (RU-Q2; BC-2.16.014 P4-TTL-b). modified: synced. |
 | 1.22 | wave-a-fix-burst-33 | 2026-07-23 | architect | F-WASE-P38-MED-001 + F-WASE-P38-LOW-001. **MED-001 — external struct-literal construction of `#[non_exhaustive]`-destined types (E0639).** 5 harness sites replaced with constructor-based construction: (1) `base_config` helper — `AuthAcquisitionConfig { token_path, expiry_mode, ttl_buffer_secs, ..Default::default() }` → `AuthAcquisitionConfig::new(token_path, expiry_mode, ttl_buffer_secs)` [PLANNED]; (2) AC-4b — `CachedAuthToken { token: "".to_string(), expires_at }` → `CachedAuthToken::new("".to_string(), expires_at)` [PLANNED]; (3) AC-6 — full token_exchange `AuthAcquisitionConfig` struct literal → `AuthAcquisitionConfig::new_token_exchange("/api/v1/access_token/", "secret_key", "data.access_token", "data.expiration_utc", ExpiryMode::AbsoluteUtcString, ttl_buffer_secs)` [PLANNED]; (4) AC-6b — same pattern with `ttl_buffer_secs = 30` literal; (5) AC-4b prose — `CachedAuthToken { token: "".to_string(), expires_at: base_time + 86_400 }` example → `CachedAuthToken::new("".to_string(), base_time + 86_400)` constructor call. Constructor signatures decided: `AuthAcquisitionConfig::new(token_path: impl Into<String>, expiry_mode: ExpiryMode, ttl_buffer_secs: u64) -> Self` (common fields; token-exchange-specific fields default to empty string); `AuthAcquisitionConfig::new_token_exchange(token_path, credential_body_field, token_response_path, expiry_field, expiry_mode, ttl_buffer_secs) -> Self` (full form); `CachedAuthToken::new(token: String, expires_at: u64) -> Self`. ADR-054 §D11 gains two new rows (v0.48). POL-29 sweep: `rg 'AuthAcquisitionConfig \{' .factory/` + `rg 'CachedAuthToken \{' .factory/` → zero external struct-literal constructions remain in VP-159, VP-153 (never constructs these types), BC-2.16.014 (spec prose, no Rust code). **LOW-001 — AC-8 prose ↔ skeleton drift.** Implemented stronger runtime assertion: AC-8 rewritten from synchronous `#[test] fn test_vp159_ac8_cached_token_no_credential_field` to async `#[tokio::test] async fn test_vp159_ac8_cached_token_no_credential_value_stored` — drives `get_token()` [PLANNED] with distinct mock credential `"mock_client_secret_P7"` and mock token `"opaque_bearer_P7"` values; asserts `returned_token == "opaque_bearer_P7"` AND `returned_token != "mock_client_secret_P7"` (the promised negative assertion; both load-bearing per SID-2). Old exhaustive-struct-literal rationale removed — it was vacuous under `#[non_exhaustive]` (external literals always impossible, so "this literal would fail to compile if a field were added" proved nothing about field absence). Structural note preserved: `CachedAuthToken::new(token, expires_at)` accepts no credential parameter — adding a credential field requires a constructor signature change, making omission architecturally documented. AC-8 prose updated to match skeleton. input-hash unchanged (inputs not modified in this burst). |
 | 1.21 | wave-a-fix-burst-30 | 2026-07-23 | architect | F-WASE-P34-LOW-001: §Property Statement P3 was missing the `!cached.token.is_empty()` conjunct — stated "issued before `unix_now() >= expires_at`" (TTL-only), while P4 fires on `(unix_now() >= cached.expires_at) OR (cached.token.is_empty())`. This created a gap state (now < expires_at AND token empty) where P3 asserted ZERO requests but P4 asserted ONE POST — an intra-document contradiction. Fix: P3 rewritten to "issued when `unix_now() < cached.expires_at` AND `!cached.token.is_empty()`", restoring P3/P4 as exact De Morgan complements. Complement totality: P4 = `(unix_now() >= cached.expires_at) OR (cached.token.is_empty())`; NOT(P4) = `(unix_now() < cached.expires_at) AND (!cached.token.is_empty())` = P3 ✓ (mutually exclusive and collectively exhaustive over cache-entry-present states). POL-29 sweep: AC-3 prose stated "within TTL" (TTL-only, missing `!is_empty()`) — updated to explicit dual-conjunct form `unix_now() < cached.expires_at AND !cached.token.is_empty()`. AC-6 harness assertion "clock before expires_at → cache valid" cites BC-2.16.014 P3 in a TTL-a scenario where the token is structurally non-empty (just acquired) — not a definitional restatement; left as-is. Harness header comment and AC-3 test assertion message use "warm" as shorthand (structurally non-empty by test flow) — not definitional restatements; left as-is. POL-23 pin sweep (BC-2.16.014 v1.15→v1.16 per PO bump in this burst for TV-9/F-WASE-P34-LOW-002): 3 live-body pins updated — §Source Contract first occurrence `Token Lifecycle) v1.15` → v1.16, §Source Contract inline restatement `(BC-2.16.014 v1.15)` → v1.16, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.15` → v1.16. Grep of all architect-owned artifacts (VPs, ADRs, verification-architecture.md, verification-coverage-matrix.md) confirms no other live v1.15 pins beyond these 3. Historical changelog rows untouched. |
 | 1.20 | wave-a-fix-burst-29 | 2026-07-23 | architect | F-WASE-P32-HIGH-001: AC-4b clock-domain defect — harness was constructing via production `new(...)` (real wall-clock) and seeding `expires_at = 1_700_000_000 + 86_400` (2023-11-15, a past date in 2026+). At any real run time (2026+), `unix_now() >= expires_at` was TRUE, so the TTL-stale branch fired regardless of `is_empty()` — AC-4b added zero marginal coverage. Fix: (1) §AC-4b prose rewritten — construction changed to `new_for_test` with `now_fn` pinned at `base_time = 1_700_000_000u64`; `expires_at = base_time + 86_400` is genuinely far future relative to pinned clock; kill-condition stated explicitly. (2) Harness skeleton `test_vp159_ac4b_empty_token_reacquisition` rewritten — `new(...)` → `new_for_test(token_url, config, Arc::new(creds), mock_time_fn)` with `Arc<AtomicU64>` at `base_time`; `far_future_expires_at` binding removed; `expires_at = base_time + 86_400`; kill-condition comment added. (3) POL-29 sweep: no other AC-4b-context occurrences of `1_700_000_000`-based far-future constants or "no-clock-seam ⇒ now effectively 0" premise found in VP-159 (the constant appears only in the fixed test and legitimately in AC-4/AC-7 as a `base_time` clock anchor, not as a "far future" assertion — those are correct). No BC-2.16.014 §VP row (e) edit needed (property (e) describes the `is_empty()` branch behavior, not harness mechanics). input-hash unchanged (inputs not modified in this burst). |
