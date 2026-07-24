@@ -4,8 +4,8 @@ adr_id: "ADR-053"
 title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Exchange Auth, and Cyberint Dual-Surface Split"
 status: accepted
 date: "2026-07-20"
-modified: "2026-07-23"
-version: "0.29"
+modified: "2026-07-24"
+version: "0.30"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -244,25 +244,29 @@ The selection key is a new `header_scheme` TOML field on `SensorSpec`. Values:
 
 | `header_scheme` value | Header injected | Use case |
 |----------------------|-----------------|----------|
-| `"bearer"` (default) | `Authorization: Bearer {token}` | CrowdStrike, Claroty, existing sensors |
+| `"bearer"` (runtime default for absent field) | `Authorization: Bearer {token}` | CrowdStrike, Claroty, existing sensors |
 | `"raw"` | `Authorization: {token}` (no prefix) | Armis v1 raw-token |
 | `"cookie:<name>"` | `Cookie: <name>={token}` | Cyberint (both surfaces, parameterized) |
 
-`build_request()` reads `spec.header_scheme` (defaulting to `"bearer"` when field is absent)
-and dispatches on it. The existing `auth_type`-based cookie arm is replaced by the
-`"cookie:access_token"` `header_scheme` value.
+`build_request()` reads `spec.header_scheme.as_deref()` (matching `None | Some("bearer")` →
+bearer injection, `Some("raw")` → raw injection, `Some(h)` where `h` starts with `"cookie:"` →
+cookie injection) and dispatches on it. `None` (absent TOML field) is treated as `"bearer"` at
+the dispatch site for non-cookie auth types. The existing `auth_type`-based cookie arm is
+replaced by the `"cookie:<name>"` match arm.
 
 **Backward-compatibility scope and co-land sequencing requirement:**
 
 Sensors that currently inject bearer tokens (`auth_type` ≠ `cookie_roundtrip`) and do not
-declare `header_scheme` continue to receive `Authorization: Bearer {token}` unchanged (default
-`"bearer"`). The exception is `cyberint.sensor.toml`: it currently uses
-`auth_type = "cookie_roundtrip"`, which drives the old `auth_type`-based cookie arm in
-`build_request()`. Under `header_scheme` dispatch, without an explicit `header_scheme` field,
-it would default to `"bearer"` and break live Cyberint auth.
+declare `header_scheme` continue to receive `Authorization: Bearer {token}` unchanged
+(`header_scheme = None` → runtime `"bearer"` in `build_request()`). The exception is
+`cyberint.sensor.toml`: it uses `auth_type = "cookie_roundtrip"`. Under the `Option<String>`
+representation and Rule 9 enforcement (`cookie_roundtrip` + absent `header_scheme` → E-SPEC-027
+template (c) load-time error), `cyberint.sensor.toml` is REJECTED at spec-load time the
+moment the engine story lands — it cannot even be loaded. This is a stronger safety guarantee
+than silently injecting the wrong header, but it means story co-land sequencing is mandatory.
 
 Because `cyberint.sensor.toml` is superseded and DELETED by the Cyberint spec migration story
-(D3-a), this is not a sensor-migration issue — but story-ordering is critical:
+(D3-a), this is not a sensor-migration issue — but co-land sequencing is mandatory:
 
 The Cyberint spec migration story MUST NOT merge before the standalone Wave-A engine story
 has landed (adding `header_scheme` to `SensorSpec` and switching `build_request()` dispatch
@@ -273,9 +277,11 @@ to `header_scheme`-based). When the Cyberint spec migration story lands it MUST 
 
 This story-level dependency ordering (engine story → Cyberint spec migration story) replaces
 any literal "same commit" constraint. The risk of a deployment window where live Cyberint auth
-breaks is closed by the story-dependency gate: once the engine story is merged, deployments
-that include it will also include the new Cyberint spec files (both declaring explicit
-`header_scheme = "cookie:access_token"`) because both ship in the same story merge window.
+breaks is addressed by the story-dependency gate: once the engine story is merged, the
+Cyberint migration story MUST land before any deployment serving live Cyberint tenants, because
+the engine story causes `cyberint.sensor.toml` to be rejected at spec-load time (E-SPEC-027
+template (c)). Both new Cyberint spec files declare explicit `header_scheme = "cookie:access_token"`
+and therefore pass Rule 9.
 
 **`header_scheme` validation (spec_parser.rs, load time):**
 
@@ -288,7 +294,7 @@ Closed value set:
 
 | `header_scheme` value | Valid | Rejection reason if invalid |
 |-----------------------|-------|-----------------------------|
-| `"bearer"` | Yes | — (default when field absent) |
+| `"bearer"` | Yes | — (runtime default: `None` → bearer injection in `build_request()`) |
 | `"raw"` | Yes | — |
 | `"cookie:<name>"` | Yes | `<name>` must be non-empty; must not contain a colon |
 | `"cookie:"` (empty name) | No | Cookie name required (`E-SPEC-027` template a) |
@@ -296,8 +302,8 @@ Closed value set:
 | `"cookie:a:b"` (colon in name) | No | Cookie name must not contain a colon (`E-SPEC-027` template a) |
 | Any other value | No | Not in closed set (`E-SPEC-027` template a) |
 
-**Error code E-SPEC-027** (new, next free per append_only_numbering DF-030). Two message
-templates are required to avoid self-contradiction on well-formed-but-incoherent combinations:
+**Error code E-SPEC-027** (new, next free per append_only_numbering DF-030). Three message
+templates cover the three distinct rejection paths:
 
 **(a) Unknown or malformed value:**
 `"sensor '{sensor_id}' has invalid header_scheme = '{value}'. Valid values: bearer, raw, cookie:<name> (non-empty name required, no colon in name)"`
@@ -310,15 +316,23 @@ where `{allowed_set}` is derived from the coherence matrix: `bearer_static` → 
 `custom_via_plugin` → `bearer, raw`; `token_exchange` → `bearer, raw` **[ADR-054 story scope]**;
 `api_key` → `bearer` (Wave-A scope).
 
-This generalized form produces a correct, actionable message for every incoherent cell:
+**(c) Absent value (`None`) with `cookie_roundtrip` auth_type (F-WASE-P48-MED-003):**
+`"sensor '{sensor_id}': auth_type = 'cookie_roundtrip' requires an explicit header_scheme = 'cookie:<name>' value; absent header_scheme is not valid for cookie_roundtrip auth (cookie name unknown)"`
+
+Template (a) fires when `{value}` is not in the closed value set or is malformed. Template (b)
+fires when `{value}` is well-formed but violates the coherence matrix. Template (c) fires when
+`header_scheme` is absent (`None`) AND `auth_type = "cookie_roundtrip"` — the only auth_type
+for which absence is an error (no sensible cookie-name default exists; SOUL.md §4
+anti-silent-failure). For all other auth_types, absence is a silent pass (Rule 9 passes;
+runtime defaults to `"bearer"` injection in `build_request()`).
+
+Template (b) produces a correct, actionable message for every incoherent cell:
 - `cookie_roundtrip` + `"bearer"` → "...does not permit header_scheme = 'bearer'; allowed: cookie:<name>"
 - `bearer_static` + `"cookie:x"` → "...does not permit header_scheme = 'cookie:x'; allowed: bearer, raw"
 - `api_key` + `"raw"` → "...does not permit header_scheme = 'raw'; allowed: bearer"
 (and so on for all 6 directions post-both-stories — the `token_exchange` entry is added by the ADR-054 story; the standalone engine story authors E-SPEC-027 for the 5-entry derivation list only)
 
-Template (a) fires when `{value}` is not in the closed value set or is malformed. Template (b)
-fires when `{value}` is well-formed but violates the coherence matrix. Both are load-time
-errors; spec rejected; boot fails exit code 2; non-retryable. The `{value}`, `{auth_type}`,
+All three templates are load-time errors; spec rejected; boot fails exit code 2; non-retryable. The `{value}`, `{auth_type}`,
 and `{allowed_set}` fields are config text (not credentials per AD-017) and safe to echo.
 Must be registered in `error-taxonomy.md` with both templates as part of the standalone Wave-A
 engine story (same story as `SensorSpec::header_scheme` addition).
@@ -374,10 +388,25 @@ types is now `auth_type`-driven (`DeclarativeHttpAuthProvider` for `token_exchan
 separation-of-concerns principle remains valid and unchanged.
 
 **Required engine change (standalone Wave-A engine story):** `SensorSpec` gains the
-`header_scheme` field (with `#[serde(default = "default_header_scheme")]` where
-`fn default_header_scheme() -> String { "bearer".into() }` supplies the `"bearer"` default —
-bare `#[serde(default)]` on `String` yields `""` not `"bearer"` per serde field-attrs docs
-(RU-Q4)).
+`header_scheme` field as `Option<String>` with bare `#[serde(default)]` (yields `None` for
+absent TOML fields — `Default::default()` for `Option<T>` is `None` per Rust standard; no
+custom serde default function needed). The `"bearer"` runtime default for non-cookie auth_types
+applies at the consumption site (`build_request()` matches `None | Some("bearer")` → bearer
+injection), NOT at deserialization time (F-WASE-P48-MED-003 adjudication, supersedes RU-Q4).
+
+**Rationale for `Option<String>` over non-Option `String` + serde default (F-WASE-P48-MED-003):**
+The RU-Q4 non-Option `String` + `#[serde(default = "default_header_scheme")]` representation
+creates an unresolvable contradiction with BC-2.16.009 Rule 9: a `cookie_roundtrip` sensor
+that omits `header_scheme` receives `"bearer"` at deserialization time, and the Rule 9
+coherence check then fires E-SPEC-027 template (b) — directly contradicting Rule 9's
+"passes silently for absent" specification. `Option<String>` is the only representation that
+makes field absence observable post-deserialization, enabling the two-path absence logic:
+(1) `None` + non-cookie `auth_type` → silent runtime default `"bearer"` in `build_request()`
+(backward-compatible for all existing non-cookie sensors);
+(2) `None` + `cookie_roundtrip` → E-SPEC-027 template (c) load-time error (no sensible
+cookie-name default exists; SOUL.md §4 anti-silent-failure).
+The `default_header_scheme()` function is NOT added to the codebase.
+
 `build_request()` switches
 from `auth_type`-based dispatch to `header_scheme`-based dispatch. E-SPEC-027 (both message
 templates) for the **5 existing auth_type variants** (bearer_static, oauth2_client_credentials,
@@ -537,8 +566,8 @@ consequence of D1–D3. Each amendment is in-scope for the corresponding remedia
 | ADR-031 §D3-b item 3 (dispatch table) | The `auth_type`-keyed 4-row dispatch table (`CookieRoundtrip → Cookie: access_token={token}` arm) becomes stale under `header_scheme` dispatch; amendment required to reflect `header_scheme = "cookie:<name>"` as the injection dispatch key, replacing the `auth_type = "cookie_roundtrip"` arm. §D3-b items 1-2 (StaticCookieAuthProvider provider contract) are PRESERVED and do not require amendment. | D2 |
 | Cyberint `[[credential_refs]]` name rename (`api_key` → `access_token`) | Both new Cyberint spec files (`cyberint-alerts.sensor.toml` and `cyberint-assets.sensor.toml`) MUST use a `[[credential_refs]]` block with `name = "access_token"` (renamed from the `api_key` `[[credential_refs]]` entry in `cyberint.sensor.toml`). Rationale: `access_token` is the wire cookie name (OpenAPI securityScheme, ADR-028 §D13 consistency table, ADR-031 §D3-b items 1-2). Env vars change from `PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY` to `PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_ALERTS_ACCESS_TOKEN` / `PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_ASSETS_ACCESS_TOKEN` (per ADR-032 per-client format). | D3 |
 | ADR-032 Cyberint credential rows audit | ADR-032 rows referencing `cyberint.sensor.toml` with `[[credential_refs]]` `name = "api_key"` / env var `CYBERINT_API_KEY` are stale post-deletion of `cyberint.sensor.toml`. Must be updated to reflect two new spec files with `[[credential_refs]]` `name = "access_token"` and corresponding per-client env vars. Tracking via `related_adrs` + this D5 manifest is deliberate: the effect on ADR-032 is downstream staleness of illustrative rows, not amendment of a decided rule — the `amends:`/`amended_by:` pair is reserved for decided-rule changes (cf. ADR-054↔ADR-023/026/028). | D3 |
-| BC-2.16.009 Rule 9 (new) | Author new Rule 9 — `header_scheme` field validation (unknown/malformed → E-SPEC-027 template a; well-formed-but-incoherent with auth_type → E-SPEC-027 template b); rules numbered after Rule 8 probe_table (E-SPEC-026). Rule 9 is in-scope for the Wave-A engine story that adds `SensorSpec::header_scheme`. | D2 |
-| `error-taxonomy.md` | Register E-SPEC-027 with both message templates: (a) unknown/malformed `header_scheme` value; (b) well-formed value incoherent with `auth_type` (generalized form — `sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}`). Registration is in-scope for the standalone Wave-A engine story. | D2 |
+| BC-2.16.009 Rule 9 (new) | Author new Rule 9 — `header_scheme` field validation: (a) unknown/malformed → E-SPEC-027 template a; (b) well-formed-but-incoherent with auth_type → E-SPEC-027 template b; (c) absent + `auth_type = "cookie_roundtrip"` → E-SPEC-027 template c (F-WASE-P48-MED-003: no sensible cookie-name default; `cookie_roundtrip` requires explicit `header_scheme`); rules numbered after Rule 8 probe_table (E-SPEC-026). Rule 9 is in-scope for the Wave-A engine story that adds `SensorSpec::header_scheme`. | D2 |
+| `error-taxonomy.md` | Register E-SPEC-027 with three message templates (a)/(b)/(c): (a) unknown/malformed `header_scheme` value; (b) well-formed value incoherent with `auth_type` (generalized form — `sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}`); (c) absent `header_scheme` with `auth_type = "cookie_roundtrip"` — `sensor '{sensor_id}': auth_type = 'cookie_roundtrip' requires an explicit header_scheme = 'cookie:<name>' value; absent header_scheme is not valid for cookie_roundtrip auth (cookie name unknown)` (F-WASE-P48-MED-003). Registration is in-scope for the standalone Wave-A engine story. | D2 |
 | `error-taxonomy.md` | Register E-SPEC-028 (declarative auth acquisition validation errors — 8 message templates per ADR-054 D10): (a) required block absent; (b) conflicting auth_plugin; (c) unknown expiry_mode; (d) token_exchange missing required fields; (e) credential_body_field undeclared; (f) oauth2_client_credentials missing client_id/client_secret refs; (g) auth_acquisition declared for non-declarative auth_type; (h) token_exchange-only fields on non-token_exchange block. Registration is in-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story. | D2 (via ADR-054) |
 | New `BC-2.16.014` **[AUTHORED — D-1946]** | BC-2.16.014 authored during Wave-A spec evolution burst 1 — Declarative Auth Acquisition Token Lifecycle: `DeclarativeHttpAuthProvider` lazy-acquire, cache-hit, cache-refresh, and AD-017 credential-opacity invariants (ADR-054 D8). | D2 (via ADR-054) |
 
@@ -709,6 +738,7 @@ and story decomposition for Wave-A sensor remediation may now proceed.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.30 | 2026-07-24 | architect | F-WASE-P48-MED-003: `header_scheme` field representation corrected from non-Option `String` with `#[serde(default = "default_header_scheme")]` (RU-Q4) to `Option<String>` with bare `#[serde(default)]`. The RU-Q4 representation creates an unresolvable contradiction: a `cookie_roundtrip` sensor omitting `header_scheme` receives `"bearer"` at deserialization, then the Rule 9 coherence check fires E-SPEC-027 template (b) — directly contradicting BC-2.16.009 Rule 9's "passes silently for absent" specification. `Option<String>` makes absence observable post-deserialization; `None` + non-cookie auth_type → silent runtime `"bearer"` default in `build_request()`; `None` + `cookie_roundtrip` → E-SPEC-027 template (c) load-time error. E-SPEC-027 gains template (c): absent + `cookie_roundtrip` case. `build_request()` dispatch updated to `as_deref()` pattern. Backward-compat scope amended: `cookie_roundtrip` + absent `header_scheme` is now a load-time reject (not silent wrong-header injection). D5 manifest sync: BC-2.16.009 Rule 9 row updated from 2-template to 3-template enumeration (adds template c); `error-taxonomy.md` row updated from "both message templates" to "three message templates (a)/(b)/(c)" with template (c) full text. Selection key table, closed value set table, backward-compat prose, and D5 manifest swept (POL-29). `default_header_scheme()` function is NOT added to the codebase. |
 | 0.29 | 2026-07-23 | architect | RU-Q4 + RU-Q1 alignment amendments (Wave-A remove-uncertainty burst D-1944 step 5): §D2 Required engine change — `#[serde(default)]` on `SensorSpec::header_scheme` corrected to `#[serde(default = "default_header_scheme")]` with `fn default_header_scheme() -> String { "bearer".into() }` (RU-Q4: bare `serde(default)` on `String` yields `""` not `"bearer"` per serde.rs field-attrs docs; research-confirmed REFUTATION). §D2 `acquire_token()` expiry bullet — aligned to ADR-054 §D4 lenient parse adjudication: "absolute UTC → Unix timestamp" pointer now explicitly states lenient chrono relaxed `FromStr` per RU-Q1 (POL-29 sibling sweep). modified: synced. |
 | 0.28 | 2026-07-22 | architect | F-WASE-P3-HIGH-001 sibling sweep: D5 manifest row BC-2.16.014 burst label corrected "burst 2" → "burst 1" (D-1946 = burst 1; BC-2.16.014 authored burst 1/D-1946). v0.27 changelog row (CHANGELOG-IMMUTABLE) retains the original wrong label per POL-1. |
 | 0.27 | 2026-07-22 | architect | Wave-A spec evolution burst 2 (D-1946): BC-2.16.014 [PLANNED] markers cleared — 3 sites: frontmatter `related_bcs_planned` removed (BC-2.16.014 moved to `related_bcs`); D2 VP-assignment citation updated (BC-2.16.014 authored D-1946; [PLANNED] suffix removed); D5 manifest row [PLANNED] → [AUTHORED — D-1946]. |

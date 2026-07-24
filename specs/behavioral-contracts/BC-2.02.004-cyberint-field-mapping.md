@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -18,7 +18,7 @@ traces_to: ["CAP-003"]
 extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: ADR-023
 introduced: cycle-1
-modified: "2026-07-23"
+modified: "2026-07-24"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -63,7 +63,7 @@ removal_reason: null
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| DEC-015 | Timestamp in unexpected 5th format | Parse fails gracefully; fetch timestamp used as fallback; record not dropped |
+| DEC-015 | Timestamp value that cannot be parsed by any of the 3 CyberintTime formats (unparseable by all 3 CyberintTime formats) | Parse fails gracefully; fetch timestamp used as fallback; record not dropped |
 | EC-02-006 | Cyberint asset record (not alert) -- different field structure | Separate field mapping for assets; maps to appropriate OCSF event class |
 
 ## Canonical Test Vectors
@@ -72,7 +72,7 @@ removal_reason: null
 |----------------|-------------|----------|
 | TV-BC-2.02.004-001 | Cyberint alert with severity="high" and ISO 8601 timestamp | `severity_id: 4` (High), `time` in RFC 3339; alert mapped to Detection Finding 2004 |
 | TV-BC-2.02.004-002 | Unknown severity string "extreme" | `severity_id: 99` (Other); warning logged with raw value |
-| TV-BC-2.02.004-003 | Timestamp in unknown 5th format (DEC-015) | Fetch timestamp used; raw string in `raw_extensions`; warning logged; record not dropped |
+| TV-BC-2.02.004-003 | Timestamp string that fails all 3 CyberintTime formats (DEC-015) — e.g., `"Jan 01 2026 12:00"` | Fetch timestamp used; raw string in `raw_extensions`; warning logged; record not dropped |
 | TV-BC-2.02.004-004 | Cyberint asset record (different schema) | Asset-specific mapper applies; maps to appropriate OCSF class |
 
 ## Verification Properties
@@ -93,6 +93,7 @@ removal_reason: null
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | wave-a-spec-evolution-fix-burst-37 | 2026-07-24 | product-owner | F-WASE-P48-MED-001: §Edge Cases DEC-015 and §Canonical Test Vectors TV-BC-2.02.004-003 still contained "5th format" residue not covered by the v1.7 sweep (which fixed §Description, §Preconditions, §Error Cases only). DEC-015: "Timestamp in unexpected 5th format" → "Timestamp value that cannot be parsed by any of the 3 CyberintTime formats (unparseable by all 3 CyberintTime formats)". TV-003: "Timestamp in unknown 5th format (DEC-015)" → "Timestamp string that fails all 3 CyberintTime formats (DEC-015) — e.g., `"Jan 01 2026 12:00"`". Phrasing matches sibling BCs BC-2.01.006 and BC-2.01.018. POL-29 sweep: no remaining "4-format", "4 formats", "5th format", "fourth format" in live BC body (changelog rows exempt). |
 | 1.7 | wave-a-rmu-amendment-burst-1 | 2026-07-23 | product-owner | POL-29 sweep: RU-Q5 parity amendment. "4-format" → "3-format" throughout (§Description, §Preconditions, §Error Cases). No "Cyberint custom format" exists per canonical Cyberint OpenAPI (`cyberint_alerts_openapi_06.20.2026.json`); parity with BC-2.01.018 v1.4 / BC-2.01.006 v1.7. |
 | 1.6 | PLUGIN-MIGRATION-001-G | 2026-05-27 | product-owner | AC-002 amendment: removed PENDING AMENDMENT banner; added Amendment Note to Description; updated mechanism language from deleted `prism-ocsf/src/mappers/cyberint.rs` to SpecDrivenMapper + ocsf_field TOML annotations; bumped status draft→active; removed amendment_lifecycle: pending. |
 | 1.5 | prereq-f | 2026-05-11 | product-owner | PREREQ-F prefix note: added PENDING AMENDMENT — ADR-023 callout under H1 per ADR-023 L370 wording; added scheduled_amendment_in: ADR-023 and amendment_lifecycle: pending to frontmatter. No semantic change to BC body. Full amendment in Wave 2/G. |

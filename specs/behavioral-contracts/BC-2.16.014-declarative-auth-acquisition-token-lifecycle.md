@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.17"
+version: "1.18"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: draft
 introduced: "2026-07-22"
-modified: "2026-07-23"
+modified: "2026-07-24"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -371,7 +371,7 @@ would return the same stale or revoked token from the warm cache).
 | **TV-8** Double-401 auth refresh failure | Either | Sensor endpoint always returns HTTP 401; `PipelineExecutor` calls `acquire_token()` after first 401; retried request also returns 401 | `PipelineExecutor` propagates `SpecEngineError::AuthRefreshFailed` (E-AUTH-002); no additional acquisition attempt; HTTP POST count = 1 (force-refresh) |
 | **TV-9** Credential not found | Either | `NotFoundCredentialResolver` injected as the `CredentialResolver` at `new_for_test` construction time. (`NotFoundCredentialResolver` always returns `CredentialResolutionError::NotFound` — it is the correct test double for E-AUTH-005 scenarios; see `crates/prism-spec-engine/src/auth_provider.rs` §`NotFoundCredentialResolver`. The as-built `MockCredentialResolver` is always-Ok and CANNOT produce `NotFound` — it must NOT be used for this scenario.) | `acquire_token()` returns `SpecEngineError::AuthAcquisitionFailed` with `detail = "E-AUTH-005: credential not found — no credential configured for ({client_id}, {sensor_id}) ref '{ref_name}'"` (E-AUTH-005 standalone wire code per error-taxonomy.md §E-AUTH-005); zero HTTP POSTs issued |
 | **TV-10** Token POST returns HTTP 500 | Either | Mock token server returns HTTP 500 for all requests | `acquire_token()` returns `AuthAcquisitionFailed` (E-AUTH-001); no token cached; no retry of the token POST |
-| **TV-11** `expires_in` as numeric string | `oauth2_client_credentials` | Mock returns `{"access_token":"tok-str","expires_in":"3599"}` (`$.expires_in` is a JSON string, not a number) | `get_token()` returns `"tok-str"`; lenient extraction `str.parse::<u64>()` succeeds with value `3599`; `expires_at ≈ unix_now() + 3599 - 30 = unix_now() + 1769`; no error |
+| **TV-11** `expires_in` as numeric string | `oauth2_client_credentials` | Mock returns `{"access_token":"tok-str","expires_in":"3599"}` (`$.expires_in` is a JSON string, not a number) | `get_token()` returns `"tok-str"`; lenient extraction `str.parse::<u64>()` succeeds with value `3599`; `expires_at ≈ unix_now() + 3599 - 30 = unix_now() + 3569`; no error |
 
 ## Verification Properties
 
@@ -467,6 +467,7 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.18 | wave-a-spec-evolution-fix-burst-37 | 2026-07-24 | product-owner | F-WASE-P48-HIGH-001: TV-11 arithmetic corrected — `3599 - 30 = 3569` (not `1769`). The previous formula `unix_now() + 3599 - 30 = unix_now() + 1769` was wrong: 3599 − 30 = 3569; 1769 = 1799 − 30 (the default-path value in TV-5), so the error made TV-11 produce exactly the wrong-value that the VP-159 AC-7d kill-condition test is designed to detect. Fixed: `unix_now() + 3599 - 30 = unix_now() + 3569`. POL-29 sweep: VP-159 mentions of 1769 are all AC-7d deliberate wrong-value references (lines 196, 827, 933, 972 — not touched); TV-5 `unix_now() + 1769` is correct (1799 − 30); TV-6 `expires_at = unix_now() + 1769` is correct (zero→default 1799 path); changelog v1.17 row contains historical `1769` (exempt per POL-23). Only live body site fixed: TV-11 expected outcome cell. |
 | 1.17 | wave-a-rmu-amendment-burst-1 | 2026-07-23 | product-owner | RU-Q1/RU-Q2 alignment per ADR-054 §D4 v0.51. §P2 `absolute_utc_string` mode: replaced strict `parse_from_rfc3339` language with lenient `expiry_str.parse::<DateTime<FixedOffset>>()` (chrono relaxed `FromStr` — accepts both `T`-separator RFC-3339/ISO-8601 AND space-separated `"YYYY-MM-DD HH:MM:SS.ffffff+HH:MM"`; E-AUTH-001 only when even relaxed parse fails). §P2 `$.expires_in` extraction: amended to lenient deserialization — JSON number (`as_u64()`) OR numeric string (`str.parse::<u64>()`; e.g., Microsoft Entra ID `"3599"`, per RFC 6749 §5.1 which does not fix the JSON type); non-numeric/wrong-type treated as absent → 1799 default. EC-016-014-003: broadened from "non-RFC-3339-parseable" to "fails even lenient relaxed `FromStr`" with concrete examples. EC-016-014-016 added: numeric-string `$.expires_in` (e.g., `"3599"`) → same `expires_at` as equivalent JSON number. TV-2: updated label to "T-form"; replaced `parse_rfc3339(...)` formula with lenient `parse::<DateTime<FixedOffset>>()` formula + note that space-separated form yields same `expires_at` per ADR-054 §D4 v0.51/RU-Q1. TV-11 added: string-typed `"expires_in": "3599"` → `unix_now() + 1769`. |
 | 1.16 | wave-a-spec-evolution-fix-burst-30 | 2026-07-23 | product-owner | F-WASE-P34-LOW-002: §Canonical Test Vectors TV-9 "Input" cell reworded — replaced "`MockCredentialResolver` returns `CredentialResolutionError::NotFound`" with "`NotFoundCredentialResolver` injected as the `CredentialResolver` at `new_for_test` construction time" plus a MUST-NOT guidance note. The as-built `MockCredentialResolver` (lines ~253-283 of `auth_provider.rs`) unconditionally returns `Ok` and cannot produce `NotFound`; a test-writer taking TV-9 literally against `MockCredentialResolver` would never exercise the E-AUTH-005 path. `NotFoundCredentialResolver` (lines ~286-319) is the existing always-NotFound test double — no new type needed. POL-29 sweep: all VP-159 `MockCredentialResolver` references are always-Ok injection for successful-acquisition tests — no NotFound-capability assertions found in any PO-owned artifact; VP-159 sites reported to architect for v1.16 pin sweep per POL-23. |
 | 1.15 | wave-a-spec-evolution-fix-burst-25 | 2026-07-23 | product-owner | F-WASE-P27-LOW-001: INV-014-006 "single credential_ref per method" reworded to "single logical credential structure per method"; added explicit counting-unit note that `oauth2_client_credentials` binds its single OAuth2 credential structure via two `[[credential_refs]]` entries (`client_id` + `client_secret`) — `token_exchange` and all other auth types use one `[[credential_refs]]` entry. Prevents a literal read of "single credential_ref per method" from contradicting E-SPEC-028(f)'s two-ref requirement for `oauth2_client_credentials`. Parity with DI-012 Rule 2 v1.11 rewording. input-hash updated at commit time. |

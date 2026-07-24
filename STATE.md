@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.546"
+version: "8.547"
 producer: state-manager
-timestamp: 2026-07-23T23:59:00Z
+timestamp: 2026-07-24T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -18,15 +18,15 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "e116a587"
 # NOTE: D-1887 — local develop is at e116a587 (NOT YET FF'd; unstaged S-MAINT ci.yml residue in main worktree blocks fast-forward). origin/develop = 7fef57da (PR #228 S-REL-001 squash-merged 2026-07-20; DRIFT-LOCAL-DEVELOP-FF-001 registered). D-1886 NOTE (pr-manager set 7fef57da) corrected to local HEAD for verify-sha-currency.sh compliance. D-1872 NOTE (e116a587 ff'd 2026-07-19; PR #227 squash-merged) still local HEAD.
-bc_index_version: "8.65"
-# NOTE: D-1998 — BC-INDEX v8.64→v8.65: 4 BC row status cells updated (BC-2.16.014 v1.16→v1.17 RU-Q1/Q2; BC-2.01.018 v1.3→v1.4 RU-Q5; BC-2.01.006 v1.6→v1.7 RU-Q5; BC-2.02.004 v1.6→v1.7 RU-Q5) + v8.65 NOTE annotation added. D-1993 NOTE archived.
+bc_index_version: "8.66"
+# NOTE: D-1999 — BC-INDEX v8.65→v8.66: F-WASE-P48-HIGH-002 annotation corrected (RFC-3339/ISO-8601, Unix-epoch-seconds, Unix-epoch-millis) in BC-2.01.006 + BC-2.01.018; BC-2.16.014 v1.17→v1.18 (HIGH-001 TV-11 arithmetic); BC-2.02.004 v1.7→v1.8 (MED-001 5th-format residue); BC-2.01.006 v1.7→v1.8 (HIGH-002 annotation + grounding); BC-2.16.009 v1.22→v1.23 (MED-003 absence A/B + EC-009-042). D-1998 NOTE archived.
 vp_index_version: "2.09"
 # NOTE: D-1998 — VP-INDEX v2.08→v2.09: VP-159 v1.22→v1.23 (RU-Q1/Q2 lenient-parse alignment: NEW AC-6c space-separated-fixture kill condition; NEW AC-7d string-typed expires_in kill condition). VP-159 status cell: draft — v1.22 → draft — v1.23. D-1988 NOTE archived.
 story_index_version: "v2.721"
-arch_index_version: "2.265"
-# NOTE: D-1998 — ARCH-INDEX v2.264→v2.265: ADR-054 v0.50→v0.51 (RU-Q1 lenient chrono FromStr; RU-Q2 lenient expires_in; RU-Q3 encoding note; D11 non-exhaustive EXPECTED 92→95 all-three-sites); ADR-053 v0.28→v0.29 (RU-Q4 serde default_header_scheme; expiration_utc sibling pointer). D-1994 NOTE archived.
-error_taxonomy_version: "2.65"
-# NOTE: D-1990 — error-taxonomy v2.64→v2.65: E-SPEC-028(c) clause narrowed with does-NOT-fire note (NARROW token_exchange-gated scope per ADR-054 v0.49 adjudication); co-fire list unchanged. D-1981 NOTE archived.
+arch_index_version: "2.266"
+# NOTE: D-1999 — ARCH-INDEX v2.265→v2.266: ADR-053 v0.29→v0.30 (F-WASE-P48-MED-003 header_scheme Option<String> adjudication + D5 manifest 3-template sync; architect edited registry cell). D-1998 NOTE archived.
+error_taxonomy_version: "2.66"
+# NOTE: D-1999 — error-taxonomy v2.65→v2.66: E-SPEC-027 updated from 2 to 3 templates: template (c) header_scheme absent + cookie_roundtrip → byte-identical POL-24 message per BC-2.16.009 Rule 9 absence path B (ADR-053 v0.30 §D2). D-1990 NOTE archived.
 total_stories: 254
 active_contracts: 251
 # NOTE: D-1985 — active_contracts 257→251: file-enumeration ground truth (F-WASE-P35-MED-001). Prior pipeline-incremental counter drifted +6 over many promotion events. DERIVED COUNT from workspace BC file lifecycle_status frontmatter per VSDD canonical methodology wins.
@@ -43,7 +43,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1998 SESSION WRAP — Wave-A REMOVE-UNCERTAINTY PASS COMPLETE (D-1944 step 5): RU-Q1 expiration_utc lenient chrono; RU-Q2 expires_in lenient number-or-string; RU-Q3 encoding note; RU-Q4 serde default_header_scheme; RU-Q5 Cyberint 4-format→3-format. SPEC PERIMETER REOPENED: BC-2.16.014 v1.17 / VP-159 v1.23 / ADR-054 v0.51 / ADR-053 v0.29 / BC-2.01.018 v1.4 / BC-2.01.006 v1.7 / BC-2.02.004 v1.7. BC-5.39.001 re-gate REQUIRED: LOCAL adversary pass 48 fresh streak 0/3 BEFORE step 6 story decomposition."
+current_step: "D-1999 FIX-BURST 37 COMPLETE (pass 48 NOT CLEAN strict: F-WASE-P48-HIGH-001 TV-11 arithmetic self-defeat; HIGH-002 BC-INDEX 3-format drift; MED-001 BC-2.02.004 5th-format residue; MED-002 BC-2.01.006 assets-OpenAPI mis-grounding; MED-003 header_scheme Option<String> adjudication ADR-053 v0.30). Amended perimeter now: BC-2.16.014 v1.18 / BC-2.02.004 v1.8 / BC-2.01.006 v1.8 / BC-2.16.009 v1.23 / error-taxonomy v2.66 / ADR-053 v0.30 (unchanged: VP-159 v1.23, ADR-054 v0.51, BC-2.01.018 v1.4, VP-153 v0.28, BC-2.01.016 v1.14, BC-2.01.017 v1.9, invariants v1.11, ADR-026 v1.41, ADR-028 v1.25). BC-5.39.001 streak 0/3. NEXT = LOCAL adversary pass 49 on frozen post-FB37 perimeter."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -95,7 +95,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-23 D-1998 SESSION WRAP — Wave-A REMOVE-UNCERTAINTY PASS COMPLETE (D-1944 step 5): RU-Q1..Q5 amendments closed; perimeter reopened (BC-2.16.014 v1.17 / VP-159 v1.23 / ADR-054 v0.51 / ADR-053 v0.29); BC-5.39.001 re-gate: LOCAL pass 48 fresh streak 0/3. STATE v8.545→v8.546 |
+| **Last Updated** | 2026-07-24 D-1999 FIX-BURST 37 COMPLETE: pass-48 NOT CLEAN(strict) (2 HIGH + 3 MED); all 5 findings closed; perimeter now BC-2.16.014 v1.18 / BC-2.02.004 v1.8 / BC-2.01.006 v1.8 / BC-2.16.009 v1.23 / error-taxonomy v2.66 / ADR-053 v0.30. BC-5.39.001 streak 0/3; NEXT = pass 49. STATE v8.546→v8.547 |
 
 ## Active Objective (North Star)
 
@@ -187,6 +187,8 @@ pre_compact_snapshot_at: "2026-07-16"
 | Feature-Mode Wave F-A | STORIES MATERIALIZED | 2026-07-19 | — | D-1874..D-1877 (exhaustive) | 7 stories S-REL-001..007 (Wave F-A/F-B; 28 story pts; E-REL epic); uncertainty-hardened (33 findings resolved D-1877; 13 HIGH incl. fabricated CLI mechanism, never-executed Linux legs, schema-guess release-config); delivery order: 001→002∥003→004→007→005 (006 after 002); NEXT: TDD S-REL-001 first |
 | 5: S-REL-001 (PR #228) | MERGED | 2026-07-19 | 2026-07-20 | PR #228 develop@7fef57da; D-1886/D-1887 | LOCAL converged 23p @75ce8cbf; PR-LEVEL 12-pass 3-CLEAN(strict) on frozen e16f5e6a (passes 10/11/12 CLEAN strict); demo-evidence 81 assertions; behavioral_contracts: [] CONFORMING (no POL-14); squash-merged; S-REL-001 SHIPPED |
 | Wave-A remove-uncertainty amendment burst (D-1998) | COMPLETE | 2026-07-23 | 2026-07-23 | spec-perimeter reopened; BC-5.39.001 re-gate pass 48 required | RU-Q1..Q5 amendments: BC-2.16.014 v1.17 / VP-159 v1.23 / ADR-054 v0.51 / ADR-053 v0.29 / BC-2.01.018 v1.4 / BC-2.01.006 v1.7 / BC-2.02.004 v1.7; error-taxonomy NO CHANGE (format-agnostic verified) |
+| Wave-A spec-evolution pass-48 adversary | NOT CLEAN(strict)/CLEAN(PR-merge) | 2026-07-24 | 2026-07-24 | frozen post-D-1998 RU-amended perimeter | 2 HIGH + 3 MED (all in RU-delta scope; novelty HIGH): F-WASE-P48-HIGH-001 BC-2.16.014 TV-11 arithmetic self-defeat (1769→3569); HIGH-002 BC-INDEX 3-format annotation drift (ISO-8601-no-tz→ISO-8601 + Unix-epoch-millis); MED-001 BC-2.02.004 5th-format residue (DEC-015+TV-003); MED-002 BC-2.01.006 assets-OpenAPI mis-grounding (whois_created_date alerts-only); MED-003 header_scheme Option<String> adjudication. STREAK RESET 0/3. trajectory-tail →0→0→0→5 |
+| Wave-A spec-evolution fix burst 37 | COMPLETE | 2026-07-24 | 2026-07-24 | BC-2.16.014 v1.18 / BC-2.02.004 v1.8 / BC-2.01.006 v1.8 / BC-2.16.009 v1.23 / error-taxonomy v2.66 / ADR-053 v0.30 | all 5 F-WASE-P48 findings closed (architect MED-003 ADR-053; PO HIGH-001/MED-001/MED-002/MED-003-BC; SM HIGH-002 BC-INDEX); streak 0/3; NEXT = LOCAL adversary pass 49 on frozen post-FB37 perimeter |
 
 ## Convergence Status
 
@@ -436,6 +438,7 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-1996 | state-manager | 2026-07-23 | SINGLE-COMMIT BURST (TD-VSDD-053) COMPLETE — Wave-A spec-evolution LOCAL adversary pass 46 on frozen spec perimeter (aed65aae1 content; HEAD 610337083) = CLEAN(strict) YES / CLEAN(PR-merge) YES — ZERO findings. All 10 probes re-derived clean; novel angles: E-SPEC-028(f) {field_list} tri-site coherence (ADR-054 D10(f) / BC-2.16.009 Rule 10(f) / VP-159 harness); token_exchange required-field arithmetic (10a+10d=5, ttl_buffer_secs correctly excluded); relative-vs-absolute TTL formula divergence guard (absolute mode correctly omits unix_now() term at all 3 sites). Six dismissed items all TRACKED-list entries, item-j arithmetic verified (247 active-P0/P1 + 4 draft-P0/P1 = 251). BC-5.39.001 strict streak = 2/3. Next = pass 47 CONVERGENCE PASS on unchanged spec perimeter. trajectory-tail →1→1→0→0 STATE v8.543→v8.544 | wave-5-e-demo-fidelity | 2026-07-23 |
 | D-1997 | state-manager | 2026-07-23 | SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — Wave-A spec-evolution LOCAL adversary pass 47 on frozen spec perimeter (aed65aae1 content; HEAD 4de9fb273) = CLEAN(strict) YES / CLEAN(PR-merge) YES — ZERO findings, novelty NONE. Novel angles: bidirectional symbol-existence audit (both directions clean); dual-partition count reconciliation (both 268-summing decompositions simultaneously consistent). BC-5.39.001 strict streak = 3/3 (passes 45/46/47 all CLEAN(strict) on unchanged frozen aed65aae1 perimeter) → WAVE-A SPEC-EVOLUTION LOCAL ADVERSARIAL CASCADE CONVERGED. Cascade totals: 47 passes / 36 fix-bursts (D-1950..D-1997). CLEAN(strict) passes: 19/24/30/33/36/39/41/42/45/46/47. Finding trajectory decayed CRIT→HIGH→MED→LOW/OBS→zero; every finding class exhausted on closure. TRACKED adjudication list (a)-(w) carried to SESSION-HANDOFF D-1997. Process-gap ledger: Lesson 83 (F-WASE-P44-OBS-001 ADR-lifecycle governance gap) queued S-7.02. NEXT (D-1944 step 5): remove-uncertainty pass (dclaude:remove-uncertainty, D-1110 directive) on Wave-A spec package (BC-2.16.014, VP-159, BC-2.01.018, BC-2.16.009, BC-2.01.016, BC-2.01.017, VP-153, error-taxonomy, invariants, ADR-053, ADR-054) → step 6 story decomposition (ADR-054 D7: engine story FIRST, ADR-054 story SECOND, sensor stories after). trajectory-tail →1→0→0→0 STATE v8.544→v8.545 | wave-5-e-demo-fidelity | 2026-07-23 |
 | D-1998 | state-manager | 2026-07-23 | SESSION WRAP SINGLE-COMMIT BURST (TD-VSDD-053) — Wave-A REMOVE-UNCERTAINTY AMENDMENT BURST COMPLETE (D-1944 step 5). RU-Q1: Armis expiration_utc strict-RFC-3339 UNSAFE → lenient chrono FromStr Option B (ADR-054 v0.51, BC-2.16.014 v1.17, VP-159 v1.23). RU-Q2: expires_in string-type confirmed → lenient number-or-numeric-string toleration (ADR-054 v0.51, BC-2.16.014 v1.17, VP-159 v1.23 AC-7d). RU-Q3: encoding-equivalence note (ADR-054 v0.51, no structural change). RU-Q4: serde(default) bare annotation UNSAFE for header_scheme → named-fn default_header_scheme (ADR-053 v0.29). RU-Q5: Cyberint custom time format refuted → 3-format CyberintTime (RFC-3339, Unix-epoch-secs, ISO-8601-no-tz) across BC-2.01.006 v1.7, BC-2.01.018 v1.4, BC-2.02.004 v1.7, edge-cases.md v1.3, TS-PLUGIN-PARITY-001 v1.2. error-taxonomy: NO CHANGE (format-agnostic verified). INDEX SYNCS: BC-INDEX v8.64→v8.65 (4 BC row cells + v8.65 NOTE); VP-INDEX v2.08→v2.09 (VP-159 v1.22→v1.23); ARCH-INDEX v2.264→v2.265 (ADR-054 v0.51 + ADR-053 v0.29 rows + changelog v2.265). POL-23 PIN SWEEP: 2 live-body sites in VP-159 file updated (BC-2.16.014 v1.16→v1.17: §Source Contract + §Proof Harness Skeleton comment). D11 non-exhaustive gate EXPECTED 92→95 all-three-sites (scripts/check-non-exhaustive.sh + scripts/check-non-exhaustive-per-symbol.py + CLAUDE.md per ADR-054 v0.51). SPEC PERIMETER REOPENED → BC-5.39.001 re-gate: LOCAL adversary pass 48 (fresh streak 0/3) REQUIRED before step 6 story decomposition. RESUME SNAPSHOT D-1998 authored (supersedes D-1997). trajectory-tail →0→0→0→0 STATE v8.545→v8.546 | wave-5-e-demo-fidelity | 2026-07-23 |
+| D-1999 | state-manager | 2026-07-24 | SINGLE-COMMIT BURST (TD-VSDD-053) — D-1999 Wave-A FIX-BURST 37 COMPLETE. Pass-48 first re-gate on RU-amended perimeter: NOT CLEAN(strict) — 2 HIGH + 3 MED (all in RU-delta scope; novelty HIGH). Findings: F-WASE-P48-HIGH-001 BC-2.16.014 TV-11 arithmetic self-defeat (1769→3569; since 3599-30=3569 not 1769); F-WASE-P48-HIGH-002 BC-INDEX 3-format annotation drift (RFC-3339/ISO-8601, Unix-epoch-seconds, Unix-epoch-millis canonical set; was "RFC-3339, Unix-epoch-seconds, ISO-8601-no-tz"); F-WASE-P48-MED-001 BC-2.02.004 5th-format residue (DEC-015+TV-003); F-WASE-P48-MED-002 BC-2.01.006 assets-OpenAPI mis-grounding (whois_created_date alerts-only; cyberint_assets_openapi_06.20.2026.json corrected); F-WASE-P48-MED-003 header_scheme Option<String> adjudication (ADR-053 v0.29→v0.30; absence path A: None+non-cookie_roundtrip→silent "bearer" default at runtime; absence path B: None+cookie_roundtrip→E-SPEC-027 template (c) per §D2; byte-identical POL-24). Routing: architect owned MED-003 (ADR-053 v0.29→v0.30); product-owner owned HIGH-001/MED-001/MED-002/MED-003-BC-side (BC-2.16.014 v1.17→v1.18, BC-2.02.004 v1.7→v1.8, BC-2.01.006 v1.7→v1.8, BC-2.16.009 v1.22→v1.23, error-taxonomy v2.65→v2.66); state-manager owned HIGH-002 (BC-INDEX v8.65→v8.66 annotation corrected + version cells bumped). Final perimeter: BC-2.16.014 v1.18 / BC-2.02.004 v1.8 / BC-2.01.006 v1.8 / BC-2.16.009 v1.23 / error-taxonomy v2.66 / ADR-053 v0.30 (unchanged: VP-159 v1.23, ADR-054 v0.51, BC-2.01.018 v1.4, VP-153 v0.28, BC-2.01.016 v1.14, BC-2.01.017 v1.9, invariants v1.11, ADR-026 v1.41, ADR-028 v1.25). BC-5.39.001 streak 0/3. NEXT = LOCAL adversary pass 49 on frozen post-FB37 perimeter. STATE v8.546→v8.547. | wave-5-e-demo-fidelity | 2026-07-24 |
 
 ## Skip Log
 
