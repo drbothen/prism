@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: accepted
 date: "2026-07-20"
 modified: "2026-07-24"
-version: "0.30"
+version: "0.31"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -334,7 +334,7 @@ Template (b) produces a correct, actionable message for every incoherent cell:
 
 All three templates are load-time errors; spec rejected; boot fails exit code 2; non-retryable. The `{value}`, `{auth_type}`,
 and `{allowed_set}` fields are config text (not credentials per AD-017) and safe to echo.
-Must be registered in `error-taxonomy.md` with both templates as part of the standalone Wave-A
+Must be registered in `error-taxonomy.md` with all three templates as part of the standalone Wave-A
 engine story (same story as `SensorSpec::header_scheme` addition).
 
 **`auth_type × header_scheme` coherence matrix (load-time validation):**
@@ -408,7 +408,7 @@ cookie-name default exists; SOUL.md §4 anti-silent-failure).
 The `default_header_scheme()` function is NOT added to the codebase.
 
 `build_request()` switches
-from `auth_type`-based dispatch to `header_scheme`-based dispatch. E-SPEC-027 (both message
+from `auth_type`-based dispatch to `header_scheme`-based dispatch. E-SPEC-027 (all three message
 templates) for the **5 existing auth_type variants** (bearer_static, oauth2_client_credentials,
 cookie_roundtrip, custom_via_plugin, api_key), BC-2.16.009 Rule 9, and `error-taxonomy.md`
 registration are all in-scope for this standalone engine story. **The `token_exchange`
@@ -738,6 +738,7 @@ and story decomposition for Wave-A sensor remediation may now proceed.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.31 | 2026-07-24 | architect | F-WASE-P49-MED-001: two live-body sites missed by the v0.30 "both templates → three templates" sweep corrected. (1) Line ~337: "with **both templates** as part of the standalone Wave-A engine story" → "with **all three templates**". (2) Lines ~411-412: "E-SPEC-027 (**both message\ntemplates**) for the 5 existing auth_type variants" → "E-SPEC-027 (**all three message templates**)". POL-29 sweep post-edit: zero live-body occurrences of "both template", "both message template", "two template", "two message template", or "dual-template" remain outside changelog rows. |
 | 0.30 | 2026-07-24 | architect | F-WASE-P48-MED-003: `header_scheme` field representation corrected from non-Option `String` with `#[serde(default = "default_header_scheme")]` (RU-Q4) to `Option<String>` with bare `#[serde(default)]`. The RU-Q4 representation creates an unresolvable contradiction: a `cookie_roundtrip` sensor omitting `header_scheme` receives `"bearer"` at deserialization, then the Rule 9 coherence check fires E-SPEC-027 template (b) — directly contradicting BC-2.16.009 Rule 9's "passes silently for absent" specification. `Option<String>` makes absence observable post-deserialization; `None` + non-cookie auth_type → silent runtime `"bearer"` default in `build_request()`; `None` + `cookie_roundtrip` → E-SPEC-027 template (c) load-time error. E-SPEC-027 gains template (c): absent + `cookie_roundtrip` case. `build_request()` dispatch updated to `as_deref()` pattern. Backward-compat scope amended: `cookie_roundtrip` + absent `header_scheme` is now a load-time reject (not silent wrong-header injection). D5 manifest sync: BC-2.16.009 Rule 9 row updated from 2-template to 3-template enumeration (adds template c); `error-taxonomy.md` row updated from "both message templates" to "three message templates (a)/(b)/(c)" with template (c) full text. Selection key table, closed value set table, backward-compat prose, and D5 manifest swept (POL-29). `default_header_scheme()` function is NOT added to the codebase. |
 | 0.29 | 2026-07-23 | architect | RU-Q4 + RU-Q1 alignment amendments (Wave-A remove-uncertainty burst D-1944 step 5): §D2 Required engine change — `#[serde(default)]` on `SensorSpec::header_scheme` corrected to `#[serde(default = "default_header_scheme")]` with `fn default_header_scheme() -> String { "bearer".into() }` (RU-Q4: bare `serde(default)` on `String` yields `""` not `"bearer"` per serde.rs field-attrs docs; research-confirmed REFUTATION). §D2 `acquire_token()` expiry bullet — aligned to ADR-054 §D4 lenient parse adjudication: "absolute UTC → Unix timestamp" pointer now explicitly states lenient chrono relaxed `FromStr` per RU-Q1 (POL-29 sibling sweep). modified: synced. |
 | 0.28 | 2026-07-22 | architect | F-WASE-P3-HIGH-001 sibling sweep: D5 manifest row BC-2.16.014 burst label corrected "burst 2" → "burst 1" (D-1946 = burst 1; BC-2.16.014 authored burst 1/D-1946). v0.27 changelog row (CHANGELOG-IMMUTABLE) retains the original wrong label per POL-1. |

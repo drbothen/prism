@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.14"
+version: "1.15"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -16,10 +16,10 @@ inputs:
 input-hash: "76729b7"
 traces_to: ["CAP-001"]
 extracted_from: ".factory/specs/prd.md"
-scheduled_amendment_in: ADR-023
-amendment_lifecycle: pending
+scheduled_amendment_in: null
+amendment_lifecycle: null
 introduced: cycle-1
-modified: "2026-06-05"  # v1.14 S-DEMO-QUERY-PUSHDOWN-001-v2-armis-aql-full-wiring — Armis row: time-window push-down now IN scope via AQL-clause augmentation; anti-double-filter guard; DTU-honors-AQL-time-clause contract; ADR-033 + research-doc cited
+modified: "2026-07-24"
 amendment_burst: S-DEMO-QUERY-PUSHDOWN-001-v2-armis-aql-full-wiring
 deprecated: null
 deprecated_by: null
@@ -41,8 +41,8 @@ declarations at runtime; runtime validation (not compile-time sealing) prevents 
 composition per the three rules in ADR-023 Rule 2. Record types follow the `<sensor>_<entity>`
 naming convention (e.g., `crowdstrike_alert`, `armis_device`).
 
-> **PENDING AMENDMENT — ADR-023**: The sealed-trait enforcement of `SensorAuth` described in
-> earlier versions of this BC is superseded by spec-driven runtime validation. The `SensorAuth`
+> **Amendment — ADR-023 (PREREQ-F, v1.4, 2026-05-11):** The sealed-trait enforcement of `SensorAuth` described in
+> earlier versions of this BC was superseded in v1.4 (PREREQ-F) by spec-driven runtime validation. The `SensorAuth`
 > trait is no longer sealed. Cross-sensor auth-composition prevention is enforced at spec-load
 > time via three runtime rejection rules (see Rule 2 of ADR-023 and the amended DI-012).
 
@@ -178,6 +178,7 @@ naming convention (e.g., `crowdstrike_alert`, `armis_device`).
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.15 | wave-a-spec-evolution-fix-burst-38 | 2026-07-24 | product-owner | F-WASE-P49-LOW-001 sibling-sweep extension (adjudicated): ADR-023 amendment was substantively applied in v1.4 (PREREQ-F, 2026-05-11) — sealed-trait language removed, spec-driven runtime pattern installed; no PLUGIN-MIGRATION-001-G entry because this BC's amendment was front-loaded into PREREQ-F rather than Wave 2/G. Evidence: v1.4 changelog "removed sealed-trait language; replaced with spec-driven adapter pattern" is the full content of the ADR-023 amendment; body postconditions confirm spec-driven runtime validation is in place. Clearing `scheduled_amendment_in: null` and `amendment_lifecycle: null`. PENDING AMENDMENT banner converted to completion note (removed "PENDING", changed "is superseded" → "was superseded in v1.4 (PREREQ-F)"). `modified` inline comment (v1.14 reference) removed. |
 | 1.14 | S-DEMO-QUERY-PUSHDOWN-001-v2-armis-aql-full-wiring | 2026-06-05 | product-owner | Human directive 2026-06-05: "fully wire Armis AQL into our DTU and our scenarios." Armis row in per-sensor push-down translation table updated: Armis time-window push-down IS in scope via AQL-clause augmentation (v1.13 "passthrough only; no time-window" text superseded, preserved append-only per POLICY 1). New Armis mechanism: query-engine appends canonical Armis AQL time clause (`after:<ts>` / `before:<ts>` / `timeFrame:"<N> <unit>"`) to user's base AQL string; combined AQL forwarded via existing `${query.filter.aql}` path; prism-dtu-armis clone MUST honor time clause by filtering dataset (§8.3 of pushdown-redesign.md). Confirmed AQL syntax from research-doc `armis-aql-time-window-syntax-2026-06.md` (HIGH confidence): bare unquoted timezone-naive `YYYY-MM-DDTHH:MM:SS` timestamps; space-separated `after:` / `before:` keywords; `timeFrame:"<N> <unit>"` for relative. Anti-double-filter guard specified: if base AQL already contains `after:`, `before:`, or `timeFrame:`, no augmentation. Added TV-BC-2.01.013-007 (Armis bounded-range augmentation; load-bearing assertion: filtered_count < unfiltered_count). Added TV-BC-2.01.013-008 (anti-double-filter guard). Added research-doc to Traceability §Related Research. ADR-033 traceability note updated to cover Armis augmentation path. |
 | 1.13 | S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec | 2026-06-05 | product-owner | S-DEMO-QUERY-PUSHDOWN-001 v2 re-spec (LOCAL adversary passes 5/6 factual correction). Per-sensor push-down translation table corrected per pushdown-redesign.md §6+§1 and ADR-033 §Decision: (1) CrowdStrike — CORRECT direction preserved; table now makes explicit that both `start_time` AND `end_time` reach the FQL filter, and that wiring occurs via `run_materialization_pipeline` (ADR-033 Option T1 pre-fan-out heuristic), NOT via direct FetchContext construction; Step 2 (`fetch_detections`) receives no push-down. (2) Armis — REMOVED false `maxResults`/`timeFrame` claims; real mechanism is AQL verbatim passthrough only (BC-2.11.007 Mechanism B) with no separate time-window param; `SearchQueryParams` has no such fields. (3) Cyberint — REMOVED false POST-body `from_date`/`to_date`+`page_size` claims; real: GET endpoint, cursor-only (`AlertListParams.cursor`), no body_template, no time-window; `page_size` deferred to DTU-EXT-005. (4) Claroty — REMOVED false POST-body `limit`/`offset` claims; real: OffsetLimit URL params (existing behavior); body-based pagination deferred to `S-DEMO-CLAROTY-PAGINATION-001`; no time-window param. Superseded v1.12 table preserved append-only per POLICY 1 with rationale header. EC-01-027 updated: added CrowdStrike two-step clarification (Step 1 push-down only; Step 2 always `FetchContext::default()`). TV-BC-2.01.013-006 re-cast: now asserts BOTH `start_time` AND `end_time` reach the CrowdStrike FQL filter, and that wiring occurs via `run_materialization_pipeline` (not direct FetchContext construction at call site); SAP-2 production-TOML fixture mandate added to TV. ADR-033 added to Traceability §Related ADRs. |
 | 1.12 | F-PUSHDOWN-008-po-fix-burst | 2026-06-05 | product-owner | F-PUSHDOWN-008 closure (LOCAL adversary pass 1, S-DEMO-QUERY-PUSHDOWN-001 fix-burst): amended Pagination/Push-Down Scope Clause — the prior "EXPLICITLY OUT OF SCOPE" language is superseded by approved story S-DEMO-QUERY-PUSHDOWN-001 v1.1 (CLAUDE.md Source-of-Truth Precedence Rule 1; the more-specific approved story supersedes BC on implementation scope). Push-down IS now performed by `SpecDrivenSensorAdapter::fetch()` on the first/query-plan pipeline step: `limit`, `cursor`, `start_time`, `end_time` are threaded via `FetchContext` into `PipelineExecutor::build_request()` with per-sensor translation (CrowdStrike FQL, Cyberint POST-body, Claroty POST-body, Armis AQL). Hydration and entity-fetch steps receive `FetchContext::default()` and do NOT push down (F-PUSHDOWN-001 invariant). Unsupported params silently ignored. BC-2.11.007 result-equivalence invariant preserved. EC-01-027 re-cast: prior "push-down absence on all steps" conformance → new "hydration/entity-fetch steps do not push down even when FetchContext fields are set." TV-BC-2.01.013-006 re-cast: prior "no early termination due to limit" → new "CrowdStrike request carries limit and time-window on first/query-plan step." BC v1.11 → v1.12. |

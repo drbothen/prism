@@ -1,10 +1,10 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "2.09"
+version: "2.10"
 status: draft
 producer: state-manager
-timestamp: 2026-07-23T23:59:00Z
+timestamp: 2026-07-24T00:00:00Z
 phase: 2-patch
 inputs: [architecture/verification-architecture.md]
 traces_to: architecture/ARCH-INDEX.md
@@ -188,7 +188,7 @@ retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..00
 | VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | active — v0.24 | S-PLUGIN-PREREQ-E |
 | VP-157 | [BC-3.6.001] POST /dtu/configure with unsupported mode returns HTTP 400 with unsupported_failure_mode error; no state change | prism-dtu-harness | unit_test | P1 | draft | S-3.6.01 |
 | VP-158 | [BC-2.06.019] E-DEMO-006 fires when two scenario-enabled clones share same seed but have different org_ids; no clone constructed — VP-019-I alias | prism-dtu-demo-server | unit_test | P1 | draft | S-DEMO-DTU-LIVE-SCENARIO-001-B |
-| VP-159 | [BC-2.16.014] DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry: zero network at construction; cold get_token → one HTTP POST + cache; warm get_token within TTL → zero HTTP POSTs; stale get_token → one HTTP POST re-acquisition; acquire_token → one HTTP POST cache bypass; TTL arithmetic for both ExpiryMode variants (absolute_utc_string, relative_seconds); CachedAuthToken never stores credential values (AD-017); AC-9 + AC-9b SAP-3 executor reachability: AC-9 drives PipelineExecutor::execute→execute_impl path; AC-9b drives PipelineExecutor::execute_step direct-call path (BC-2.16.014 P9 two-path coverage model) | prism-spec-engine | integration_test | P1 | draft — v1.23 | [PLANNED — Wave-A CrowdStrike retirement / Armis token-exchange engine story] |
+| VP-159 | [BC-2.16.014] DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry: zero network at construction; cold get_token → one HTTP POST + cache; warm get_token within TTL → zero HTTP POSTs; stale get_token → one HTTP POST re-acquisition; acquire_token → one HTTP POST cache bypass; TTL arithmetic for both ExpiryMode variants (absolute_utc_string, relative_seconds); CachedAuthToken never stores credential values (AD-017); AC-9 + AC-9b SAP-3 executor reachability: AC-9 drives PipelineExecutor::execute→execute_impl path; AC-9b drives PipelineExecutor::execute_step direct-call path (BC-2.16.014 P9 two-path coverage model) | prism-spec-engine | integration_test | P1 | draft — v1.24 | [PLANNED — Wave-A CrowdStrike retirement / Armis token-exchange engine story] |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -270,6 +270,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.10 | wave-a-spec-evolution-fix-burst-38 | 2026-07-24 | state-manager | (D-2000) VP-159 v1.23→v1.24 (F-WASE-P49-HIGH-001 POL-23 standing pin sweep: BC-2.16.014 pins v1.17→v1.18 at 3 live-body sites — §Source Contract authoring-source bullet, inline restatement, §Proof Harness Skeleton header comment; precedent BC-INDEX v8.55). VP-INDEX VP-159 status cell updated: draft — v1.23 → draft — v1.24. VP-INDEX v2.09→v2.10. |
 | 2.09 | wave-a-remove-uncertainty-amendment-burst | 2026-07-23 | state-manager | VP-159 v1.22→v1.23 (RU-Q1/Q2 lenient-parse alignment: NEW AC-6c space-separated-fixture kill condition; NEW AC-7d string-typed expires_in kill condition). VP-INDEX VP-159 status cell updated: draft — v1.22 → draft — v1.23. VP-INDEX v2.08→v2.09. |
 | 2.08 | wave-a-spec-evolution-fix-burst-33 | 2026-07-23 | state-manager | VP-159 v1.21→v1.22 (F-WASE-P38-MED-001: all 5 external struct-literal harness sites replaced with constructor forms — AuthAcquisitionConfig::new / ::new_token_exchange, CachedAuthToken::new; E0639-compatible under mandatory #[non_exhaustive]; F-WASE-P38-LOW-001: AC-8 rewritten from structural-only to async runtime-inequality test asserting returned token == mock token AND != mock credential, AD-017/INV-014-003 load-bearing). VP-INDEX VP-159 status cell updated: `draft — v1.21` → `draft — v1.22`. VP-INDEX v2.07→v2.08. |
 | 2.07 | wave-a-spec-evolution-fix-burst-30 | 2026-07-23 | state-manager | VP-159 v1.20→v1.21 (F-WASE-P34-LOW-001: P3 tightened to "unix_now() < cached.expires_at AND !cached.token.is_empty()" — P3/P4 now exact De Morgan complements, verified; AC-3 prose aligned to dual-conjunct form; POL-23 sweep: 3 live-body BC-2.16.014 pins v1.15→v1.16). VP-INDEX VP-159 status cell updated: `draft — v1.20` → `draft — v1.21`. VP-INDEX v2.06→v2.07. |

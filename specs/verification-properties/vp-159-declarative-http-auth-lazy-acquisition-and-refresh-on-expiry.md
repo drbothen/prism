@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.23"
+version: "1.24"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -24,7 +24,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: draft
 introduced: "2026-07-22"
-modified: "2026-07-23"
+modified: "2026-07-24"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -265,8 +265,8 @@ asserts:
 
 ## Source Contract
 
-- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.17 — postconditions P1–P9
-  (BC-2.16.014 v1.17) are the primary **authoring source** for this VP; the verified set is
+- **BC:** BC-2.16.014 (`DeclarativeHttpAuthProvider` Token Lifecycle) v1.18 — postconditions P1–P9
+  (BC-2.16.014 v1.18) are the primary **authoring source** for this VP; the verified set is
   P1–P5, P7, P9 (plus P4-TTL-a/b sub-properties) — see §Property Statement scope note for
   P6/P8 (deferred) and P9-via-AC-9 (verified) coverage.
   INV-014-003 (BC-local invariant:
@@ -327,7 +327,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 // Method: integration_test (wiremock for HTTP interception; now_fn clock seam for TTL control)
 // Target module: prism-spec-engine
 // Target path: crates/prism-spec-engine/src/auth/declarative.rs [PLANNED — engine story]
-// BC: BC-2.16.014 v1.17 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
+// BC: BC-2.16.014 v1.18 (P1–P5, P7, P9; P4-TTL-a/b sub-properties; P6/P8 deferred, P9-via-AC-9+AC-9b verified — see §Property Statement scope note); ADR: ADR-054 §D9; source_invariant: DI-012
 //
 // ALL DeclarativeHttpAuthProvider / CachedAuthToken / AuthAcquisitionConfig / ExpiryMode /
 // DeclarativeHttpAuthProvider::new_for_test (cfg(any(test, feature = "test-helpers")))
@@ -1212,6 +1212,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.24 | wave-a-spec-evolution-fix-burst-38 | 2026-07-24 | state-manager | F-WASE-P49-HIGH-001: POL-23 standing pin sweep. BC-2.16.014 promoted to v1.18 (FB37 bump). Three live-body citation pins advanced v1.17→v1.18: §Source Contract authoring-source bullet, §Source Contract inline restatement, §Proof Harness Skeleton header comment. No behavioral content changed. Precedent: BC-INDEX v8.55 pin sweep. |
 | 1.23 | wave-a-ru-amendment-D1944 | 2026-07-23 | architect | RU-Q1/Q2 + ADR-054 §D4 v0.51 alignment. §Property Statement P4-TTL-a formula updated: `parse_rfc3339` → lenient chrono relaxed `FromStr` (`expiry_str.parse::<DateTime<FixedOffset>>()`), accepts both `T`-separator ISO-8601 and space-separated UTC strings per ADR-054 §D4 v0.51 RU-Q1 adjudication; kill condition documented (space-separated fixture FAILS strict-parse-only impl). AC-6 prose updated to reference lenient parse formula. AC-6c added: new AC (prose + harness skeleton) asserting `"2099-01-01 00:00:00.000000+00:00"` parses to the same epoch as `"2099-01-01T00:00:00Z"` (kill condition: strict `parse_from_rfc3339`-only impl rejects space-separated form → test FAILS). AC-7d added: new AC (prose + harness skeleton) for string-typed `expires_in` `"3599"` (JSON string) → lenient parse to u64 3599; kill condition: `as_u64()`-only path defaults to 1799, clock advance 1800s > 1769 (default) but < 3569 (correct) triggers spurious re-acquire POST (RU-Q2; BC-2.16.014 P4-TTL-b). modified: synced. |
 | 1.22 | wave-a-fix-burst-33 | 2026-07-23 | architect | F-WASE-P38-MED-001 + F-WASE-P38-LOW-001. **MED-001 — external struct-literal construction of `#[non_exhaustive]`-destined types (E0639).** 5 harness sites replaced with constructor-based construction: (1) `base_config` helper — `AuthAcquisitionConfig { token_path, expiry_mode, ttl_buffer_secs, ..Default::default() }` → `AuthAcquisitionConfig::new(token_path, expiry_mode, ttl_buffer_secs)` [PLANNED]; (2) AC-4b — `CachedAuthToken { token: "".to_string(), expires_at }` → `CachedAuthToken::new("".to_string(), expires_at)` [PLANNED]; (3) AC-6 — full token_exchange `AuthAcquisitionConfig` struct literal → `AuthAcquisitionConfig::new_token_exchange("/api/v1/access_token/", "secret_key", "data.access_token", "data.expiration_utc", ExpiryMode::AbsoluteUtcString, ttl_buffer_secs)` [PLANNED]; (4) AC-6b — same pattern with `ttl_buffer_secs = 30` literal; (5) AC-4b prose — `CachedAuthToken { token: "".to_string(), expires_at: base_time + 86_400 }` example → `CachedAuthToken::new("".to_string(), base_time + 86_400)` constructor call. Constructor signatures decided: `AuthAcquisitionConfig::new(token_path: impl Into<String>, expiry_mode: ExpiryMode, ttl_buffer_secs: u64) -> Self` (common fields; token-exchange-specific fields default to empty string); `AuthAcquisitionConfig::new_token_exchange(token_path, credential_body_field, token_response_path, expiry_field, expiry_mode, ttl_buffer_secs) -> Self` (full form); `CachedAuthToken::new(token: String, expires_at: u64) -> Self`. ADR-054 §D11 gains two new rows (v0.48). POL-29 sweep: `rg 'AuthAcquisitionConfig \{' .factory/` + `rg 'CachedAuthToken \{' .factory/` → zero external struct-literal constructions remain in VP-159, VP-153 (never constructs these types), BC-2.16.014 (spec prose, no Rust code). **LOW-001 — AC-8 prose ↔ skeleton drift.** Implemented stronger runtime assertion: AC-8 rewritten from synchronous `#[test] fn test_vp159_ac8_cached_token_no_credential_field` to async `#[tokio::test] async fn test_vp159_ac8_cached_token_no_credential_value_stored` — drives `get_token()` [PLANNED] with distinct mock credential `"mock_client_secret_P7"` and mock token `"opaque_bearer_P7"` values; asserts `returned_token == "opaque_bearer_P7"` AND `returned_token != "mock_client_secret_P7"` (the promised negative assertion; both load-bearing per SID-2). Old exhaustive-struct-literal rationale removed — it was vacuous under `#[non_exhaustive]` (external literals always impossible, so "this literal would fail to compile if a field were added" proved nothing about field absence). Structural note preserved: `CachedAuthToken::new(token, expires_at)` accepts no credential parameter — adding a credential field requires a constructor signature change, making omission architecturally documented. AC-8 prose updated to match skeleton. input-hash unchanged (inputs not modified in this burst). |
 | 1.21 | wave-a-fix-burst-30 | 2026-07-23 | architect | F-WASE-P34-LOW-001: §Property Statement P3 was missing the `!cached.token.is_empty()` conjunct — stated "issued before `unix_now() >= expires_at`" (TTL-only), while P4 fires on `(unix_now() >= cached.expires_at) OR (cached.token.is_empty())`. This created a gap state (now < expires_at AND token empty) where P3 asserted ZERO requests but P4 asserted ONE POST — an intra-document contradiction. Fix: P3 rewritten to "issued when `unix_now() < cached.expires_at` AND `!cached.token.is_empty()`", restoring P3/P4 as exact De Morgan complements. Complement totality: P4 = `(unix_now() >= cached.expires_at) OR (cached.token.is_empty())`; NOT(P4) = `(unix_now() < cached.expires_at) AND (!cached.token.is_empty())` = P3 ✓ (mutually exclusive and collectively exhaustive over cache-entry-present states). POL-29 sweep: AC-3 prose stated "within TTL" (TTL-only, missing `!is_empty()`) — updated to explicit dual-conjunct form `unix_now() < cached.expires_at AND !cached.token.is_empty()`. AC-6 harness assertion "clock before expires_at → cache valid" cites BC-2.16.014 P3 in a TTL-a scenario where the token is structurally non-empty (just acquired) — not a definitional restatement; left as-is. Harness header comment and AC-3 test assertion message use "warm" as shorthand (structurally non-empty by test flow) — not definitional restatements; left as-is. POL-23 pin sweep (BC-2.16.014 v1.15→v1.16 per PO bump in this burst for TV-9/F-WASE-P34-LOW-002): 3 live-body pins updated — §Source Contract first occurrence `Token Lifecycle) v1.15` → v1.16, §Source Contract inline restatement `(BC-2.16.014 v1.15)` → v1.16, §Proof Harness Skeleton header comment `// BC: BC-2.16.014 v1.15` → v1.16. Grep of all architect-owned artifacts (VPs, ADRs, verification-architecture.md, verification-coverage-matrix.md) confirms no other live v1.15 pins beyond these 3. Historical changelog rows untouched. |

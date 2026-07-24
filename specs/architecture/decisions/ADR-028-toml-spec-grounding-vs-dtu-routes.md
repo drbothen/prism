@@ -2,10 +2,10 @@
 document_type: adr
 adr_id: "ADR-028"
 title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs"
-status: Proposed
+status: accepted
 date: "2026-05-20"
-modified: "2026-07-23"  # see §Changelog top row
-version: "1.25"
+modified: "2026-07-24"  # see §Changelog top row
+version: "1.26"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -26,7 +26,7 @@ wiring_deferred_to: null
 
 ## Status
 
-Proposed 2026-05-20, v1.0 (initial proposal version; current version per §Changelog top row). Locks D-737 Decisions 1 and 4 as a durable architectural principle. Will be promoted to ACCEPTED after PLUGIN-MIGRATION-001-D LOCAL adversarial cascade reaches 3-CLEAN convergence per ADR-021 promotion lifecycle.
+Accepted (retroactive, F-WASE-P49-OBS-1, 2026-07-24). Originally proposed 2026-05-20, v1.0 as "pending PLUGIN-MIGRATION-001-D 3-CLEAN convergence per ADR-021." That convergence occurred and was recorded as locked (D-747); PLUGIN-MIGRATION-001-D subsequently delivered and merged. The `Proposed` frontmatter was never retroactively updated — an ADR-021 lifecycle omission identical to the ADR-026 v1.41 retroactive acceptance (D-1994). Evidence of effective-acceptance: (a) D-747 recorded §D1/§D2 rules as LOCKED architectural decisions; (b) ADR-053 §D1/§D2/§D5 (accepted 2026-07-22, D-1943) supersedes this ADR's grounding rules — one can only supersede rules that were effective; (c) ADR-054 (accepted) amends §D2/D5/D10/D13 of this ADR — amendment presupposes an accepted document. §D1/§D2/§D5 are now partially superseded by ADR-053; §D2/D5/D10/D13 are partially amended by ADR-054. Remaining clauses (§D3/§D4/§D6–§D11/§D13) remain operative as accepted rules. Current version per §Changelog top row.
 
 ---
 
@@ -657,6 +657,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.26 | 2026-07-24 | architect | F-WASE-P49-OBS-1: retroactive lifecycle correction — `status: Proposed` → `status: accepted`. Adjudication: PLUGIN-MIGRATION-001-D 3-CLEAN convergence occurred (D-747 LOCKED status; story delivered and merged); the ADR-021 lifecycle promotion step was omitted, not deferred. Three lines of evidence confirm effective-acceptance: (1) D-747 treated §D1/§D2 as LOCKED architectural decisions; (2) ADR-053 (accepted 2026-07-22) supersedes §D1/§D2/§D5 — supersession requires the source document to be effective; (3) ADR-054 (accepted) amends §D2/D5/D10/D13 — amendment presupposes an accepted document. Pattern: identical to ADR-026 v1.41 retroactive acceptance (D-1994). §Status section rewritten to reflect retroactive acceptance with supersession/amendment state. `modified` bumped to 2026-07-24. |
 | 1.25 | 2026-07-23 | architect | F-WASE-P23-LOW-001 (FIX-BURST 22): Definition-1 purge of E-SPEC-028(b) unconditional language — (1) frontmatter `amended_by` ADR-054 entry: "E-SPEC-028(b) unconditional rejection" → "E-SPEC-028(b) rejection regardless of [auth_acquisition] presence (Definition 1)"; (2) §D13 consistency-table body: "E-SPEC-028(b) unconditional rejection at spec-load per ADR-054 D10(b)" → "E-SPEC-028(b) rejection regardless of `[auth_acquisition]` presence (Definition 1, ADR-054 D10(b))". At-commit-time hash per POL-32. |
 | 1.24 | 2026-07-21 | architect | FIX-BURST 18 (MED-1): §D13 env-var blockquote `{ORG}` → `{ID}` — corrected `PRISM_CLIENTS_{ORG}_SENSORS_{SENSOR}_BEARER_TOKEN` to `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_BEARER_TOKEN` per ADR-032 canonical convention (ADR-032 uses `{ID}` throughout; `{ORG}` was the pre-ADR-032 FIX-BURST-17 stale token). POL-29 sweep (decisions/): zero remaining live `{ORG}`/`{ORG_ID}` hits in non-changelog content. |
 | 1.23 | 2026-07-21 | architect | FIX-BURST 9 (OBS-1): `modified:` frontmatter inline comment `# v1.18 HIGH-2 (FIX-BURST): …` removed — version-pinned narrative in frontmatter fields is the same self-cite volatility class closed at PG-ADR-STATUS-SELFCITE-001; replaced with non-volatile `# see §Changelog top row`. POL-29 class sweep: only this file carried the defect in the Wave-A perimeter; full decisions/ sweep confirms no other frontmatter-field version-pinned inline comments exist. |
