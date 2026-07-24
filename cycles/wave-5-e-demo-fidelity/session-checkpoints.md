@@ -11,6 +11,16 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 
 ---
 
+## Archived: D-2012 — 2026-07-24; STATE v8.560 — Wave-A RE-GATE CONVERGED; BC-5.39.001 strict 3/3
+
+**RESUME IN ONE BREATH:** Wave-A spec-evolution LOCAL adversary cascade RE-GATE CONVERGED — BC-5.39.001 strict 3/3 at passes 58/59/60 on frozen post-FB43/FB44 perimeter. 60 passes / 44 fix-bursts total. Converged spec package: BC-2.16.014 v1.18 / VP-159 v1.26 / ADR-054 v0.52 / ADR-053 v0.32 / BC-2.01.018 v1.4 / BC-2.01.006 v1.8 / BC-2.02.004 v1.10 / BC-2.16.009 v1.23 / error-taxonomy v2.66 / VP-153 v0.28 / BC-2.01.016 v1.14 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28. BC-INDEX v8.69 / VP-INDEX v2.12 / ARCH-INDEX v2.272 / STORY-INDEX v2.722. NEXT SESSION FIRST ACTION: D-1944 step 6 — Wave-A STORY DECOMPOSITION via story-writer (ADR-054 D7 sequencing: engine story FIRST, ADR-054 story SECOND, sensor stories after); dclaude:remove-uncertainty per D-1110 immediately after each story materializes AND again before TDD delivery; per-story delivery per per-story-delivery.md with LOCAL 3-CLEAN + story-level holdout gates.
+
+**HEADS (D-2012 2026-07-24):** origin/develop `7fef57da`; LOCAL develop `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001); factory-artifacts: `git -C .factory log -1`; Main worktree docs/claude-md-file-size-convention @`426c77cde` (PR #230 OPEN); `.worktrees/fix-demosetup-cwd` @`ec4379b5` PR #229 OPEN; `.worktrees/S-3.09` @`43c41389` KEEP-PARKED; `.worktrees/W3-FIX-S307-001` @`fcab8717` PARKED-DIRTY.
+
+**NOTE: Superseded by D-2013 — S-WAVE-A-ENGINE-001 registered; SEC-001 CWE-20/CWE-74 REOPENED spec-perimeter (BC-2.16.009 v1.24 / ADR-053 v0.33 / error-taxonomy v2.67); BC-5.39.001 streak RESET 3/3→0/3; adversary pass 61 required. STATE v8.560→v8.561.**
+
+---
+
 ## Archived: D-1844 — 2026-07-18; STATE v8.419 — LANE 3 ADMINTOKEN CLOSED
 
 **RESUME IN ONE BREATH:** BOTH LANES CLOSED. LANE 1 — S-MAINT-CI-DISK-EXHAUSTION-001 MERGED @0f9857dd (D-1829). LANE 3 — DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 MERGED @277b7844 (D-1841; PR #225 squash-merged 2026-07-18T16:10:23Z; story v0.21 final; BC-3.6.001 POL-14 legacy-sync BLOCKED-TD031 — product-owner fix-burst owed; DRIFT-ADMINTOKEN-BC361-TD031-001 open). **NEXT: AUDIT-COVERAGE-001 (fix/T13-audit-coverage @cd369b54 LOCAL-ONLY dirty=1) — devops-engineer rebase onto develop 277b7844, then LOCAL 3-CLEAN → push → PR. D-1811 story-writer dispatch (FM4 follow-up story) pending — was parked mid-provider-instability (D-1844).** D-1809 mitigation still in force.

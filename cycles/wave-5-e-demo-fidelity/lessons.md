@@ -3964,3 +3964,72 @@ All 44 ADR files with `status: accepted` frontmatter were audited for `## Status
 FIX-BURST 40 (D-2002): ADR-031 v1.7→v1.8 (§Status body synced — retroactive-acceptance pattern applied); ARCH-INDEX v2.268→v2.269 (registry cell updated; changelog row appended). Pass 51 counted NOT CLEAN(strict); streak 0/3; next = pass 52.
 
 **Source:** D-2002 (2026-07-24) — Wave-A spec-evolution adversary pass-51 FIX-BURST 40; F-WASE-P51-MED-001; 44-ADR class audit; ADR-031 v1.8 §Status retroactive-acceptance sync.
+
+---
+
+## Lesson 85 — Protocol-charset validation gap: spec-perimeter can converge on a constraint that permits protocol injection [process-gap; S-7.02]
+
+**Date:** 2026-07-24 (D-2013 remove-uncertainty pass; SEC-001 discovery)
+
+**What happened:**
+
+The Wave-A spec-evolution cascade reached BC-5.39.001 strict 3/3 convergence at passes 58/59/60 on a perimeter that included BC-2.16.009 Rule 9 cookie-auth template. All 60 adversary passes validated internal spec coherence — cross-artifact arithmetic, tri-site consistency, anchor coverage, process-gap completeness. None of the passes validated the Rule 9 charset constraint against the RFC it cited (RFC 6265). When the remove-uncertainty pass (D-2013) audited the `cookie:<name>` injection surface, it discovered that the Rule 9 constraint did not include the RFC 6265 §4.1.1 tchar charset restriction — meaning a cookie name with non-tchar characters (e.g., whitespace, semicolons, CR/LF) could be injected into an HTTP `Cookie:` header, constituting a CWE-20/CWE-74 violation. The perimeter was REOPENED under human authorization and the streak reset 3/3→0/3.
+
+**Root cause:**
+
+Adversarial cascades validate internal spec coherence (cross-artifact consistency, counting, arithmetic, structural completeness). They do NOT automatically validate that a spec's external references (RFC citations, wire-protocol grammars) are fully reflected in the spec's constraints. A constraint like "this value becomes a cookie name" implies the cookie name must satisfy RFC 6265 §4.1.1 tchar, but the adversary only validates that the constraint exists — not that it is complete against the referenced external standard.
+
+**Candidate standing probe (SAP-*):**
+
+When a spec constrains a value that is later interpolated into an HTTP protocol field (header name, cookie name, cookie value, URI component), verify the constraint against the protocol's charset/grammar RFC. Specific cases:
+- Cookie name → RFC 6265 §4.1.1 tchar
+- Cookie value → RFC 6265 §4.1.1 cookie-octet
+- Header name → RFC 7230 §3.2.6 token
+- URI path segment → RFC 3986 §3.3 pchar
+- Query parameter name/value → RFC 3986 §3.4
+
+**Going-forward rule:**
+
+Recommend this pattern as a new SAP (Standing Adversary Probe) for all future spec-evolution cascades where a spec value is interpolated into an HTTP wire field. The probe should be added to CLAUDE.md §Standing Adversary Probes at the next orchestrator governance pass.
+
+**Source:** D-2013 (2026-07-24) — Wave-A engine story remove-uncertainty pass; SEC-001 CWE-20/CWE-74 discovery; BC-2.16.009 v1.23→v1.24; BC-5.39.001 streak RESET 3/3→0/3.
+
+---
+
+## Lesson 86 — Remove-uncertainty D-1110 both-touchpoints rule is load-bearing, not ceremonial [process-gap]
+
+**Date:** 2026-07-24 (D-2013 remove-uncertainty pass)
+
+**What happened:**
+
+The remove-uncertainty pass for S-WAVE-A-ENGINE-001 (D-2013) was run immediately after story materialization, per D-1110's requirement to run both at materialization AND again before TDD delivery. The pass found 5 BLOCKERs, 4 of which were pure story-vs-code drift items where the story's assumptions about the as-built codebase (e.g., `validate_header_scheme` placement, `E-SPEC-027` routing, `AuthProvider::get_token` trait method naming) were wrong. The story was authored from the converged spec package — meaning the spec package was correct but the story's implementation assumptions about where things live in `crates/` were not.
+
+**Key observation:**
+
+A converged spec package guarantees spec coherence. It does NOT guarantee that a story materialized from that package has correct assumptions about the as-built implementation. The story-writer reads the spec (correct) and infers code structure (often wrong). D-1110's remove-uncertainty pass catches these inference errors before TDD begins — when they are cheap to fix in the story spec. If skip, they surface as test failures or Red Gate violations during implementation when they are 5-10x more expensive to resolve.
+
+**Going-forward rule:**
+
+D-1110's "both touchpoints" rule (run remove-uncertainty immediately after materialization AND again before TDD delivery) is mandatory for all stories touching prism-spec-engine or prism-core, and highly recommended for all stories. The first pass catches spec→code drift; the second pass catches any drift introduced by spec amendments between materialization and delivery. Skipping either touchpoint on the grounds that "the spec is converged" is incorrect — story-to-code grounding is a separate concern from spec coherence.
+
+**Source:** D-2013 (2026-07-24) — S-WAVE-A-ENGINE-001 remove-uncertainty pass; 5 BLOCKERs resolved (Q1-Q5); D-1110 both-touchpoints confirmation.
+
+---
+
+## Lesson 87 — [PLANNED] markers in VP harness skeletons do not represent as-built code state [grounding-discipline]
+
+**Date:** 2026-07-24 (D-2013 remove-uncertainty pass)
+
+**What happened:**
+
+During the S-WAVE-A-ENGINE-001 story materialization, a story-writer read `[PLANNED]` markers from VP-159's spec-document harness skeleton. The VP harness skeleton contains helper function stubs marked `[PLANNED]` to indicate future harness implementation points — e.g., `build_test_sensor_spec_oauth2()` was marked `[PLANNED]` because the engine story hasn't implemented `AuthAcquisitionConfig::new_oauth2` yet. The story-writer interpreted these `[PLANNED]` markers as evidence that the corresponding functions DO NOT EXIST in the codebase, and built story assumptions on that phantom absence. An orchestrator ruling was built on the phantom state. When the remove-uncertainty pass (Q6 adjudication) examined the actual `crates/`, the assumption was found to be wrong — the function exists and has a different signature than the story assumed.
+
+**Root cause:**
+
+VP harness skeletons are spec artifacts, not codebase state artifacts. Their `[PLANNED]` markers indicate: "this harness test helper needs to be implemented when the engine story delivers the corresponding constructor." They say nothing about whether the production code exists. The production code for `new_oauth2` exists (it was shipped in FB42); only the VP harness `build_test_sensor_spec_oauth2()` wrapper is planned.
+
+**Going-forward rule:**
+
+`[PLANNED]` markers in any spec artifact (VP harness skeleton, story task list, etc.) are implementation-latitude markers for the SPEC HARNESS, not evidence about as-built production code. Claims about as-built code state MUST be verified against `crates/` source (read the actual file). Spec harness skeletons are NOT authoritative for as-built behavior. This rule is codified as DO-NOT-RE-RAISE entry (zz) in SESSION-HANDOFF.md §RESUME SNAPSHOT D-2013.
+
+**Source:** D-2013 (2026-07-24) — S-WAVE-A-ENGINE-001 remove-uncertainty pass Q6 adjudication; VP-159 harness skeleton [PLANNED] marker misread; orchestrator ruling on phantom state.

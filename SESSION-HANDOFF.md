@@ -124,13 +124,39 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2012 (session wrap — Wave-A RE-GATE CONVERGED 60p/44fb; BC-5.39.001 strict 3/3 at passes 58/59/60; NEXT = Wave-A story decomposition per ADR-054 D7).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2012 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2012 (this wrap) is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.560. D-2012 session wrap complete; Wave-A RE-GATE CONVERGED (60p/44fb; BC-5.39.001 strict 3/3); NEXT = step 6 Wave-A story decomposition (ADR-054 D7 sequencing).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2013 (Wave-A engine story materialized + SEC-001 REOPENED; BC-5.39.001 streak RESET 0/3; NEXT = adversary pass 61 on amended perimeter).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2013 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2013 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.561. D-2013 burst complete; SEC-001 CWE-20/CWE-74 REOPENED spec-perimeter (BC-2.16.009 v1.24 / ADR-053 v0.33 / error-taxonomy v2.67); BC-5.39.001 streak RESET 3/3→0/3; NEXT = adversary pass 61.
 
 ---
 
-## §RESUME SNAPSHOT — D-2012 (2026-07-24 — SESSION WRAP; Wave-A RE-GATE CONVERGED 60p/44fb; STATE v8.560) [SUPERSEDES D-1998]
+## §RESUME SNAPSHOT — D-2013 (2026-07-24 — Wave-A ENGINE STORY MATERIALIZED + SEC-001 PERIMETER REOPENED; BC-5.39.001 streak RESET 0/3; STATE v8.561) [SUPERSEDES D-2012]
+
+### RESUME IN ONE BREATH
+D-2013 burst complete. S-WAVE-A-ENGINE-001 REGISTERED (draft v2.0; remove-uncertainty complete; 5 BLOCKERs resolved Q1-Q5; Q6 ADR-052↔ADR-054 adjudicated C-no-conflict; 19 ACs; 23 RGTs; 20 tasks; P1; tdd_mode: strict; blocks S-ADR054-WAVE-A-001 + S-WAVE-A-CYBERINT-SPEC-001 + S-WAVE-A-ARMIS-REMEDIATION-001). CONVERGENCE REGRESSION: SEC-001 CWE-20/CWE-74 cookie-name tchar fix (E-SPEC-027 template (b)/(c) cookie:<name> tchar gate; EC-009-046 load-time rejection; RFC 6265 §4.1.1) REOPENED spec-perimeter under human authorization. Amended specs: BC-2.16.009 v1.24 / ADR-053 v0.33 / error-taxonomy v2.67. BC-5.39.001 streak RESET 3/3→0/3. NEXT SESSION FIRST ACTION: dispatch fresh-context adversary pass 61 on amended perimeter (BC-2.16.009 v1.24 + ADR-053 v0.33 + error-taxonomy v2.67 + all prior converged package); 3 consecutive CLEAN(strict) passes required before Wave-A story delivery begins.
+
+### CONVERGED PACKAGE (with SEC-001 amendments)
+BC-2.16.009 v1.24 / ADR-053 v0.33 / error-taxonomy v2.67 / BC-2.16.014 v1.18 / VP-159 v1.26 / ADR-054 v0.52 / BC-2.01.018 v1.4 / BC-2.01.006 v1.8 / BC-2.02.004 v1.10 / VP-153 v0.28 / BC-2.01.016 v1.14 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28. Indexes: BC-INDEX v8.70 / VP-INDEX v2.12 / ARCH-INDEX v2.273 / STORY-INDEX v2.723.
+
+### HEADS (verified 2026-07-24 D-2013)
+- origin/develop: 7fef57da — PUSHED. LOCAL develop: e116a587 — STALE, ff BLOCKED (DRIFT-LOCAL-DEVELOP-FF-001, human-gated, unchanged).
+- factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code).
+- Main worktree: docs/claude-md-file-size-convention @426c77cde (PR #230 OPEN, awaiting HUMAN merge); pre-existing staged ci.yml/e2e.yml residue (S-MAINT AC-007, human-gated, untouched).
+- .worktrees/fix-demosetup-cwd @ec4379b5 PUSHED PR #229 OPEN; .worktrees/S-3.09 @43c41389 LOCAL-ONLY KEEP-PARKED; .worktrees/W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch (LOCAL-ONLY).
+- verify-sha-currency.sh: PASS (1 pre-existing WARN). No background agents in flight.
+
+### TRACKED DO-NOT-RE-RAISE (carry forward; D-2012 items (a)-(vv) remain valid; D-2013 additions below)
+**(ww)** tchar amendment closure: BC-2.16.009 v1.24 adds RFC 6265 §4.1.1 tchar constraint to Rule 9 templates (b)/(c) ONLY; template (a) bearer-header path is UNCHANGED; E-SPEC-027 template (b)/(c) cookie-name gate validated at load time via EC-009-046; SEC-002 side-effect-closed by EC-009-046. Do NOT re-raise as separate finding.
+**(xx)** ADR-053 de-normativization: ADR-053 §D2 is the normative source for templates (b)/(c) cookie-name charset rule; ADR-053 is NO LONGER the POL-24 carrier for E-SPEC-027 template (a) (engine story S-WAVE-A-ENGINE-001 delivers template (a) at the `build_request` dispatch site). Do NOT re-raise ADR-053 as POL-24 carrier for template (a).
+**(yy)** Q6 ADR-052↔ADR-054 cross-reference adjudicated (C) by architect: no functional conflict; ADR-054 §D9 defers to ADR-052 for expiry-field datetime parsing as designed; DRIFT-ADR052-ADR054-XREF-001 is a traceability nit only, NOT a blocker. Do NOT re-raise as a spec correctness issue.
+**(zz)** [PLANNED]-markers-do-not-exist: `[PLANNED]` markers in VP harness skeletons describe future harness implementation latitude, NOT as-built code state. Claims about code state must be verified against `crates/` source; spec harness skeletons are not authoritative for as-built behavior. Do NOT accept harness-skeleton content as evidence of as-built code state.
+
+### DECISION DELTA (this burst, 2026-07-24 — D-2013)
+D-2013 (state-manager burst: S-WAVE-A-ENGINE-001 registered; BC-2.16.009 v1.24; ADR-053 v0.33; error-taxonomy v2.67; BC-5.39.001 streak RESET 0/3; Lessons 85/86/87 appended; RESEARCH-INDEX +1 row; adversary pass 61 next).
+
+---
+
+## §RESUME SNAPSHOT — D-2012 (2026-07-24 — SESSION WRAP; Wave-A RE-GATE CONVERGED 60p/44fb; STATE v8.560) [SUPERSEDES D-1998] [SUPERSEDED by D-2013]
 
 ### RESUME IN ONE BREATH
 Wave-A spec-evolution BC-5.39.001 RE-GATE CONVERGED — strict 3/3 at passes 58/59/60 on frozen post-FB43/FB44 perimeter (60 passes / 44 fix-bursts total; re-gate on RU-amended perimeter ran passes 48-60 with fix-bursts FB37-FB44). Converged package: BC-2.16.014 v1.18 / VP-159 v1.26 / ADR-054 v0.52 / ADR-053 v0.32 / BC-2.01.018 v1.4 (draft) / BC-2.01.006 v1.8 / BC-2.02.004 v1.10 / BC-2.16.009 v1.23 / error-taxonomy v2.66 / VP-153 v0.28 / BC-2.01.016 v1.14 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28. Indexes: BC-INDEX v8.69 / VP-INDEX v2.12 / ARCH-INDEX v2.272 / STORY-INDEX v2.722. NEXT SESSION FIRST ACTION: D-1944 step 6 — Wave-A STORY DECOMPOSITION via story-writer (ADR-054 D7 sequencing: engine story FIRST [E-SPEC-027 all-three-templates + validation matrix for existing variants], ADR-054 story SECOND [TokenExchange + matrix row + allowed_set atomically], sensor stories after); dclaude:remove-uncertainty per D-1110 immediately after each story materializes AND again before TDD delivery; per-story delivery per per-story-delivery.md with LOCAL 3-CLEAN + story-level holdout gates (holdout authoring at materialization per POL-35 unless BC-empty).

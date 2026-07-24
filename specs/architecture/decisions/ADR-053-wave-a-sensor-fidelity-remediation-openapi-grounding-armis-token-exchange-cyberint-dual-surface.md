@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: accepted
 date: "2026-07-20"
 modified: "2026-07-24"
-version: "0.32"
+version: "0.33"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -296,17 +296,17 @@ Closed value set:
 |-----------------------|-------|-----------------------------|
 | `"bearer"` | Yes | — (runtime default: `None` → bearer injection in `build_request()`) |
 | `"raw"` | Yes | — |
-| `"cookie:<name>"` | Yes | `<name>` must be non-empty; must not contain a colon |
+| `"cookie:<name>"` | Yes | `<name>` must be non-empty; every byte must be a valid RFC 6265 `token` (tchar) character |
 | `"cookie:"` (empty name) | No | Cookie name required (`E-SPEC-027` template a) |
 | `"cookie"` (no colon separator) | No | Must be `cookie:<name>` form (`E-SPEC-027` template a) |
-| `"cookie:a:b"` (colon in name) | No | Cookie name must not contain a colon (`E-SPEC-027` template a) |
+| `"cookie:a:b"` (colon in name) | No | Cookie name contains `:` which is not a valid RFC 6265 tchar character (`E-SPEC-027` template a) |
 | Any other value | No | Not in closed set (`E-SPEC-027` template a) |
 
 **Error code E-SPEC-027** (new, next free per append_only_numbering DF-030). Three message
 templates cover the three distinct rejection paths:
 
 **(a) Unknown or malformed value:**
-`"sensor '{sensor_id}' has invalid header_scheme = '{value}'. Valid values: bearer, raw, cookie:<name> (non-empty name required, no colon in name)"`
+See BC-2.16.009 §Validation Rules 9 and error-taxonomy.md E-SPEC-027 for the canonical template (a) text. ADR-053 does not duplicate the message verbatim; BC-2.16.009 and error-taxonomy.md are the sole POL-24 carriers for template (a), structurally eliminating this site as a drift source on future amendments.
 
 **(b) Well-formed value, incoherent with auth_type:**
 `"sensor '{sensor_id}': auth_type = '{auth_type}' does not permit header_scheme = '{value}'; allowed for this auth_type: {allowed_set}"`
@@ -738,6 +738,7 @@ and story decomposition for Wave-A sensor remediation may now proceed.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.33 | 2026-07-24 | architect | SEC-001 / POL-24 closure (human Wave-A perimeter reopen authorization): §D2 closed-value-set table corrected at two sites — (1) `"cookie:<name>"` row "Rejection reason" cell: "must be non-empty; must not contain a colon" → tchar constraint aligned to RFC 6265 `token`/`cookie-name` charset per BC-2.16.009 v1.24 Rule 9; (2) `"cookie:a:b"` row "Rejection reason" cell: "Cookie name must not contain a colon" → "Cookie name contains `:` which is not a valid RFC 6265 tchar character" (correct rejection, corrected rationale — right-answer-wrong-reason class). §D2 template (a) verbatim message echo de-normativized per ruling (ii): replaced with anchor pointer to BC-2.16.009 §Validation Rules 9 and error-taxonomy.md E-SPEC-027 as sole POL-24 carriers; ADR-053 is no longer a POL-24 carrier for template (a), structurally eliminating the recurring duplication-drift class. POL-29 sweep post-edit: zero live occurrences of "no colon in name", "must not contain a colon" (name-constraint sense), or old template (a) message text remain outside CHANGELOG-IMMUTABLE rows. |
 | 0.32 | 2026-07-24 | architect | F-WASE-P50-MED-001: stale pre-acceptance gate language closed. Frontmatter `human_authorization`: "...pending before any spec/BC work begins" → "...PASSED 2026-07-22 (D-1943) — see §Status". Body blockquote: rewritten as historical/closed — "is required before...begins" → "was required before...began; gate PASSED 2026-07-22 (D-1943) — see §Status". Three decision footers (D1/D2/D3): "Final ADR approval gate pending" → "final ADR approval gate PASSED 2026-07-22 (D-1943)". Zero live assertions that the gate is pending or that the ADR is proposed. |
 | 0.31 | 2026-07-24 | architect | F-WASE-P49-MED-001: two live-body sites missed by the v0.30 "both templates → three templates" sweep corrected. (1) Line ~337: "with **both templates** as part of the standalone Wave-A engine story" → "with **all three templates**". (2) Lines ~411-412: "E-SPEC-027 (**both message\ntemplates**) for the 5 existing auth_type variants" → "E-SPEC-027 (**all three message templates**)". POL-29 sweep post-edit: zero live-body occurrences of "both template", "both message template", "two template", "two message template", or "dual-template" remain outside changelog rows. |
 | 0.30 | 2026-07-24 | architect | F-WASE-P48-MED-003: `header_scheme` field representation corrected from non-Option `String` with `#[serde(default = "default_header_scheme")]` (RU-Q4) to `Option<String>` with bare `#[serde(default)]`. The RU-Q4 representation creates an unresolvable contradiction: a `cookie_roundtrip` sensor omitting `header_scheme` receives `"bearer"` at deserialization, then the Rule 9 coherence check fires E-SPEC-027 template (b) — directly contradicting BC-2.16.009 Rule 9's "passes silently for absent" specification. `Option<String>` makes absence observable post-deserialization; `None` + non-cookie auth_type → silent runtime `"bearer"` default in `build_request()`; `None` + `cookie_roundtrip` → E-SPEC-027 template (c) load-time error. E-SPEC-027 gains template (c): absent + `cookie_roundtrip` case. `build_request()` dispatch updated to `as_deref()` pattern. Backward-compat scope amended: `cookie_roundtrip` + absent `header_scheme` is now a load-time reject (not silent wrong-header injection). D5 manifest sync: BC-2.16.009 Rule 9 row updated from 2-template to 3-template enumeration (adds template c); `error-taxonomy.md` row updated from "both message templates" to "three message templates (a)/(b)/(c)" with template (c) full text. Selection key table, closed value set table, backward-compat prose, and D5 manifest swept (POL-29). `default_header_scheme()` function is NOT added to the codebase. |
