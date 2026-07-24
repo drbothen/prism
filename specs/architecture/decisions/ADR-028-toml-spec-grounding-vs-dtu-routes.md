@@ -5,13 +5,13 @@ title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API C
 status: accepted
 date: "2026-05-20"
 modified: "2026-07-24"  # see §Changelog top row
-version: "1.26"
+version: "1.27"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
 superseded_by:
   - "ADR-031 §D4 (partial — §D12 only: Cyberint cookie auth DTU-shortcut acceptance reversed by DTU=true-DTU principle 2026-05-29)"
-  - "ADR-053 §D1/§D2/§D5 (partial — grounding order §D1/§D2/§D5 superseded: spec grounds FROM vendor OpenAPI, not DTU; Armis LOCKED auth_type D-747 superseded; Cyberint LOCKED auth_type D-747 superseded; authorized D-1889 2026-07-20; final ADR approval gate pending)"
+  - "ADR-053 §D1/§D2/§D5 (partial — grounding order §D1/§D2/§D5 superseded: spec grounds FROM vendor OpenAPI, not DTU; Armis LOCKED auth_type D-747 superseded; Cyberint LOCKED auth_type D-747 superseded; authorized D-1889 2026-07-20; final ADR approval gate PASSED 2026-07-22 (D-1943))"
 amends: null
 amended_by:
   - "ADR-054 §D2/D5/D10 (partial — §D13 oauth2_client_credentials: PluginAuthProvider (WASM) path is spec-load-rejected per D10(b) E-SPEC-028(b) rejection regardless of [auth_acquisition] presence (Definition 1) for auth_type ∈ {oauth2_client_credentials, token_exchange} + auth_plugin present; DeclarativeHttpAuthProvider (native) is the sole live path; crowdstrike-oauth2.prx plugin retired; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; effective on ADR-054 acceptance)"
@@ -657,6 +657,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.27 | 2026-07-24 | architect | F-WASE-P50-MED-001: `superseded_by` ADR-053 §D1/§D2/§D5 annotation — "final ADR approval gate pending" → "final ADR approval gate PASSED 2026-07-22 (D-1943)". |
 | 1.26 | 2026-07-24 | architect | F-WASE-P49-OBS-1: retroactive lifecycle correction — `status: Proposed` → `status: accepted`. Adjudication: PLUGIN-MIGRATION-001-D 3-CLEAN convergence occurred (D-747 LOCKED status; story delivered and merged); the ADR-021 lifecycle promotion step was omitted, not deferred. Three lines of evidence confirm effective-acceptance: (1) D-747 treated §D1/§D2 as LOCKED architectural decisions; (2) ADR-053 (accepted 2026-07-22) supersedes §D1/§D2/§D5 — supersession requires the source document to be effective; (3) ADR-054 (accepted) amends §D2/D5/D10/D13 — amendment presupposes an accepted document. Pattern: identical to ADR-026 v1.41 retroactive acceptance (D-1994). §Status section rewritten to reflect retroactive acceptance with supersession/amendment state. `modified` bumped to 2026-07-24. |
 | 1.25 | 2026-07-23 | architect | F-WASE-P23-LOW-001 (FIX-BURST 22): Definition-1 purge of E-SPEC-028(b) unconditional language — (1) frontmatter `amended_by` ADR-054 entry: "E-SPEC-028(b) unconditional rejection" → "E-SPEC-028(b) rejection regardless of [auth_acquisition] presence (Definition 1)"; (2) §D13 consistency-table body: "E-SPEC-028(b) unconditional rejection at spec-load per ADR-054 D10(b)" → "E-SPEC-028(b) rejection regardless of `[auth_acquisition]` presence (Definition 1, ADR-054 D10(b))". At-commit-time hash per POL-32. |
 | 1.24 | 2026-07-21 | architect | FIX-BURST 18 (MED-1): §D13 env-var blockquote `{ORG}` → `{ID}` — corrected `PRISM_CLIENTS_{ORG}_SENSORS_{SENSOR}_BEARER_TOKEN` to `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_BEARER_TOKEN` per ADR-032 canonical convention (ADR-032 uses `{ID}` throughout; `{ORG}` was the pre-ADR-032 FIX-BURST-17 stale token). POL-29 sweep (decisions/): zero remaining live `{ORG}`/`{ORG_ID}` hits in non-changelog content. |

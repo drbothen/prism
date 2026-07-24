@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: accepted
 date: "2026-07-20"
 modified: "2026-07-24"
-version: "0.31"
+version: "0.32"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -17,7 +17,7 @@ superseded_by: null
 amends: null
 related_adrs: [ADR-026, ADR-028, ADR-031, ADR-032, ADR-050, ADR-054]
 related_bcs: [BC-2.01.006, BC-2.01.008, BC-2.01.016, BC-2.01.017, BC-2.06.003, BC-2.16.009, BC-2.16.014]
-human_authorization: "D-1889 (2026-07-20) — 'Authorize full correction'; final ADR approval gate pending before any spec/BC work begins"
+human_authorization: "D-1889 (2026-07-20) — 'Authorize full correction'; final ADR approval gate PASSED 2026-07-22 (D-1943) — see §Status"
 wave_scope: "Wave-A only (grounding order + sensor auth models); transport/TLS (F10) is Wave-C"
 ---
 
@@ -26,8 +26,8 @@ wave_scope: "Wave-A only (grounding order + sensor auth models); transport/TLS (
 > **Human Authorization:** D-1889 (2026-07-20) — "Authorize full correction." This ADR supersedes
 > multiple LOCKED architectural decisions. The supersession is executed under explicit human
 > authorization, not by unilateral AI adjudication. Final ADR approval gate (human sign-off on
-> this proposed ADR) is required before any spec authoring, BC amendment, or story decomposition
-> begins on Wave-A sensor remediation items.
+> this ADR) was required before any spec authoring, BC amendment, or story decomposition
+> began on Wave-A sensor remediation items; gate PASSED 2026-07-22 (D-1943) — see §Status.
 
 ## Status
 
@@ -166,7 +166,7 @@ the Alerts-v2 endpoints — this is a scope-configuration error, not a code defe
 implementer must verify the tenant credential scope before proceeding with the migration.
 This prerequisite must be captured in the Wave-A Alerts-v2 story acceptance criteria.
 
-**Human authorization:** D-1889 (2026-07-20). Final ADR approval gate pending.
+**Human authorization:** D-1889 (2026-07-20); final ADR approval gate PASSED 2026-07-22 (D-1943).
 
 ### D2 — Armis Auth Model: Token-Exchange via Native DeclarativeHttpAuthProvider + `header_scheme` Field (supersedes ADR-028 LOCKED Armis, D-747)
 
@@ -435,7 +435,7 @@ superseded by ADR-028 §D2 (operationalized by §D6); the legacy struct was dele
 is valid. v3 (true OAuth2 client-credentials, Bearer prefix, structured `/v3/assets/_search`)
 could be adopted in a future wave; if adopted, it would use `auth_type = "oauth2_client_credentials"` (matching CrowdStrike). This ADR covers v1 only.
 
-**Human authorization:** D-1889 (2026-07-20). Final ADR approval gate pending.
+**Human authorization:** D-1889 (2026-07-20); final ADR approval gate PASSED 2026-07-22 (D-1943).
 
 ### D3 — Cyberint Dual-Surface Schema (supersedes ADR-028 LOCKED Cyberint D-747; ADR-031 §D3 scope-narrowing)
 
@@ -538,7 +538,7 @@ are orthogonal to the Prism-side dispatch change and are unaffected by this supe
 
 The Alerts surface becomes a separate sensor definition under D3-a above.
 
-**Human authorization:** D-1889 (2026-07-20). Final ADR approval gate pending.
+**Human authorization:** D-1889 (2026-07-20); final ADR approval gate PASSED 2026-07-22 (D-1943).
 
 ### D4 — Wave-C Out-of-Scope (TLS/Transport, F10)
 
@@ -738,6 +738,7 @@ and story decomposition for Wave-A sensor remediation may now proceed.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.32 | 2026-07-24 | architect | F-WASE-P50-MED-001: stale pre-acceptance gate language closed. Frontmatter `human_authorization`: "...pending before any spec/BC work begins" → "...PASSED 2026-07-22 (D-1943) — see §Status". Body blockquote: rewritten as historical/closed — "is required before...begins" → "was required before...began; gate PASSED 2026-07-22 (D-1943) — see §Status". Three decision footers (D1/D2/D3): "Final ADR approval gate pending" → "final ADR approval gate PASSED 2026-07-22 (D-1943)". Zero live assertions that the gate is pending or that the ADR is proposed. |
 | 0.31 | 2026-07-24 | architect | F-WASE-P49-MED-001: two live-body sites missed by the v0.30 "both templates → three templates" sweep corrected. (1) Line ~337: "with **both templates** as part of the standalone Wave-A engine story" → "with **all three templates**". (2) Lines ~411-412: "E-SPEC-027 (**both message\ntemplates**) for the 5 existing auth_type variants" → "E-SPEC-027 (**all three message templates**)". POL-29 sweep post-edit: zero live-body occurrences of "both template", "both message template", "two template", "two message template", or "dual-template" remain outside changelog rows. |
 | 0.30 | 2026-07-24 | architect | F-WASE-P48-MED-003: `header_scheme` field representation corrected from non-Option `String` with `#[serde(default = "default_header_scheme")]` (RU-Q4) to `Option<String>` with bare `#[serde(default)]`. The RU-Q4 representation creates an unresolvable contradiction: a `cookie_roundtrip` sensor omitting `header_scheme` receives `"bearer"` at deserialization, then the Rule 9 coherence check fires E-SPEC-027 template (b) — directly contradicting BC-2.16.009 Rule 9's "passes silently for absent" specification. `Option<String>` makes absence observable post-deserialization; `None` + non-cookie auth_type → silent runtime `"bearer"` default in `build_request()`; `None` + `cookie_roundtrip` → E-SPEC-027 template (c) load-time error. E-SPEC-027 gains template (c): absent + `cookie_roundtrip` case. `build_request()` dispatch updated to `as_deref()` pattern. Backward-compat scope amended: `cookie_roundtrip` + absent `header_scheme` is now a load-time reject (not silent wrong-header injection). D5 manifest sync: BC-2.16.009 Rule 9 row updated from 2-template to 3-template enumeration (adds template c); `error-taxonomy.md` row updated from "both message templates" to "three message templates (a)/(b)/(c)" with template (c) full text. Selection key table, closed value set table, backward-compat prose, and D5 manifest swept (POL-29). `default_header_scheme()` function is NOT added to the codebase. |
 | 0.29 | 2026-07-23 | architect | RU-Q4 + RU-Q1 alignment amendments (Wave-A remove-uncertainty burst D-1944 step 5): §D2 Required engine change — `#[serde(default)]` on `SensorSpec::header_scheme` corrected to `#[serde(default = "default_header_scheme")]` with `fn default_header_scheme() -> String { "bearer".into() }` (RU-Q4: bare `serde(default)` on `String` yields `""` not `"bearer"` per serde.rs field-attrs docs; research-confirmed REFUTATION). §D2 `acquire_token()` expiry bullet — aligned to ADR-054 §D4 lenient parse adjudication: "absolute UTC → Unix timestamp" pointer now explicitly states lenient chrono relaxed `FromStr` per RU-Q1 (POL-29 sibling sweep). modified: synced. |
