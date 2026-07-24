@@ -3921,3 +3921,46 @@ This is a **codification candidate for S-7.02 (Cycle-Closing Checklist)**, not a
 FIX-BURST 36 (D-1994): ADR-026 v1.40→v1.41 ACCEPTED; §Status rewritten with deliverables-shipped rationale; ARCH-INDEX v2.263→v2.264 (registry cell updated; changelog row appended). Pass 44 counted NOT CLEAN(strict); streak 0/3; next = pass 45.
 
 **Source:** D-1994 (2026-07-23) — Wave-A spec-evolution adversary pass-44 FIX-BURST 36; F-WASE-P44-OBS-001 [process-gap]; ADR-026 v1.41 ACCEPTED retroactive.
+
+---
+
+### Lesson 84 — [codified] Retroactive-acceptance frontmatter flips (Proposed→accepted) MUST sync the §Status body prose in the same burst (F-WASE-P51-MED-001, D-2002)
+
+**Date recorded:** 2026-07-24
+**D-NNN anchor:** D-2002 (Wave-A spec-evolution pass-51 FIX-BURST 40; F-WASE-P51-MED-001 closure)
+**Story:** Wave-A spec-evolution — adversary pass-51 finding
+**Tags:** [codified] [process-gap] [adr-lifecycle] [retroactive-acceptance] [§status-body-sync] [s-7.02]
+**Classification:** PROCESS-GAP [codified] — Pattern recurred 3× across the Wave-A cascade (ADR-026 F-WASE-P44-OBS-001, ADR-028 F-WASE-P49-OBS-1, ADR-031 F-WASE-P51-MED-001). Closed via one-time class audit (FB40, 2026-07-24): all 44 accepted ADRs verified §Status-coherent; zero inverse drift found.
+
+**Description:**
+
+When an ADR's `status:` frontmatter field is flipped from `Proposed` to `accepted` (a retroactive-acceptance event), the `## Status` body section prose must be updated in the **same burst**. This is the retroactive-acceptance pattern:
+
+- Frontmatter `status: accepted` is the machine-readable signal.
+- `## Status` body is the human-readable narrative. If left unchanged, it continues to read "Proposed YYYY-MM-DD, v1.0" — contradicting the frontmatter and misrepresenting the ADR's architectural standing to any reader.
+
+The pattern recurred three times in the Wave-A cascade:
+
+1. **ADR-026 v1.41 (F-WASE-P44-OBS-001, D-1994):** frontmatter flipped `accepted` at v1.4 (2026-07-20); §Status body still read "PROPOSED" through v1.40 (65 days, 40 revisions).
+2. **ADR-028 v1.27 (F-WASE-P49-OBS-1, D-2000):** frontmatter flipped during FB38; §Status body lagged.
+3. **ADR-031 v1.8 (F-WASE-P51-MED-001, D-2002):** frontmatter flipped `accepted` at v1.4 (2026-07-20, DRIFT-ADR031-STATUS-001); §Status body opening still read "Proposed 2026-05-29, v1.0" through v1.7 (4 revisions, 4 days).
+
+**Root cause:**
+
+The retroactive-acceptance procedure (triggered by Lesson 83's codification, the ADR-026/ADR-028 precedent, and DRIFT-ADR031-STATUS-001) documents the frontmatter flip obligation but does not explicitly list the `## Status` body sync as a mandatory same-burst step. The architect or state-manager updating the frontmatter can complete the task without opening the prose body.
+
+**Going-forward rule:**
+
+Any ADR `status:` frontmatter flip from `Proposed` to `accepted` — whether retroactive or contemporaneous — **MUST** include a same-burst `## Status` body update. The body must open with the retroactive-acceptance pattern, e.g.:
+
+> "Accepted (retroactive; frontmatter flipped vX.Y DATE per DRIFT-ADRXXX-STATUS-NNN; §Status body synced vA.B, FINDING-ID). ..."
+
+**Class audit outcome (FB40, 2026-07-24):**
+
+All 44 ADR files with `status: accepted` frontmatter were audited for `## Status` body coherence. ADR-031 was the sole drifted one. Zero inverse drift found (no `status: Proposed` ADR with an accepted-voice §Status body). Class CLOSED.
+
+**Outcome:**
+
+FIX-BURST 40 (D-2002): ADR-031 v1.7→v1.8 (§Status body synced — retroactive-acceptance pattern applied); ARCH-INDEX v2.268→v2.269 (registry cell updated; changelog row appended). Pass 51 counted NOT CLEAN(strict); streak 0/3; next = pass 52.
+
+**Source:** D-2002 (2026-07-24) — Wave-A spec-evolution adversary pass-51 FIX-BURST 40; F-WASE-P51-MED-001; 44-ADR class audit; ADR-031 v1.8 §Status retroactive-acceptance sync.

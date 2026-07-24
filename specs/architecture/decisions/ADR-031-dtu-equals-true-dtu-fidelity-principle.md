@@ -5,7 +5,7 @@ title: "DTU = True DTU — Fidelity Principle for All Clone Implementations"
 status: accepted
 date: "2026-05-29"
 modified: "2026-07-24"
-version: "1.7"
+version: "1.8"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-028 §D12 (Cyberint cookie auth real-API vs DTU model divergence — DTU-shortcut acceptance SUPERSEDED)"]
@@ -22,10 +22,12 @@ user_directive_date: "2026-05-29"
 
 ## Status
 
-Proposed 2026-05-29, v1.0. Established by explicit user direction 2026-05-29. Supersedes
-ADR-028 §D12, which accepted the Cyberint `access_token` vs `cyberint_session` divergence as
-deliberate and deferred real-API faithfulness to a post-demo follow-up story. That decision
-is reversed here.
+Accepted (retroactive; frontmatter flipped v1.4 2026-07-20 per DRIFT-ADR031-STATUS-001;
+§Status body synced v1.8, F-WASE-P51-MED-001). Scope-narrowed by accepted ADR-053 §D3 gate
+PASSED D-1943. Originally proposed 2026-05-29, v1.0. Established by explicit user direction
+2026-05-29. Supersedes ADR-028 §D12, which accepted the Cyberint `access_token` vs
+`cyberint_session` divergence as deliberate and deferred real-API faithfulness to a post-demo
+follow-up story. That decision is reversed here.
 
 ADR-028 §D12 is annotated `[SUPERSEDED by ADR-031 2026-05-29 — DTU=true-DTU principle adoption]`.
 The §D12 body text is preserved for traceability (per POL-1 append-only). ADR-028 frontmatter
@@ -637,6 +639,7 @@ non-standard cookie names, but it does not resolve the DTU fidelity problem.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.8 | 2026-07-24 | architect | F-WASE-P51-MED-001: §Status body synced to accepted state — frontmatter was flipped to `accepted` at v1.4 (DRIFT-ADR031-STATUS-001 2026-07-20) but §Status body opening still read "Proposed 2026-05-29, v1.0". Retroactive-acceptance pattern applied (mirrors ADR-026 v1.41 / ADR-028 v1.27). Scope-narrowed-by ADR-053 §D3 gate PASSED D-1943 noted in §Status opening. Class-closing audit confirmed ADR-031 is the only accepted ADR with this drift pattern. |
 | 1.7 | 2026-07-24 | architect | F-WASE-P50-MED-001: `superseded_by` ADR-053 §D3 annotation — "final ADR approval gate pending" → "final ADR approval gate PASSED 2026-07-22 (D-1943)". |
 | 1.6 | 2026-07-21 | architect | OBS-1: ADR-054 added to `related_adrs` — soft symmetry with ADR-054's `related_adrs: [..., ADR-031]`; ADR-054 §D4 implementation contract references `AuthProvider` (the trait `StaticCookieAuthProvider` defined in ADR-031 §D3-b also implements). |
 | 1.5 | 2026-07-20 | architect | HIGH-1 (ADR-053 pass-3 paper-fix): `superseded_by` frontmatter corrected — §D3-a (DTU changes) is UNAFFECTED by ADR-053 dispatch change; §D3-b items 1-2 (StaticCookieAuthProvider provider contract) are PRESERVED; §D3-b item 3 (auth_type-keyed dispatch table) is superseded by header_scheme dispatch per ADR-053 D2/D5. Previous framing incorrectly cited `§D3-a static-cookie CONTRACT PRESERVED` — §D3-a is DTU-only and contains no StaticCookieAuthProvider. Correct attribution anchors the provider contract to §D3-b items 1-2 where it actually lives. Closes ADR-053 v0.4 HIGH-1. |
