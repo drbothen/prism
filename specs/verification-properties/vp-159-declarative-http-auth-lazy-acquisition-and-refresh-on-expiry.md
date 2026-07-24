@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.24"
+version: "1.25"
 status: draft
 producer: architect
 timestamp: 2026-07-22T00:00:00Z
@@ -105,6 +105,17 @@ network-isolation and cache-lifecycle invariants (ADR-054 §D9; BC-2.16.014 P1�
 > runtime lifecycle invariant of `DeclarativeHttpAuthProvider`; deferred to the spec-engine
 > validation story's error-path assertions.
 
+> **Scope note — auth-type harness split (F-WASE-P55-OBS-001):** ACs 1–9b drive the
+> `token_exchange` path for cache-lifecycle invariants (P1–P5, P7, P9); the `oauth2_client_credentials`
+> path has identical cache-lifecycle behavior and is verified for form/response shaping via
+> BC-2.16.014 TV-1/TV-5/TV-6/TV-11 + EC-016-014-016 test vectors. AC-7d is the sole harness in
+> VP-159 that drives the `oauth2_client_credentials` path — it exclusively tests the RU-Q2 lenient
+> parse of `$.expires_in` (ADR-054 §D2), which is the one behavioral difference between the two
+> auth-type paths at the `DeclarativeHttpAuthProvider` level. The `token_exchange`
+> `relative_seconds` path uses plain u64 (ADR-054 §D4 step 4 L308; no lenient-parse qualifier);
+> extending lenient parsing to `token_exchange` would require a BC-2.16.014 §P2 amendment and new
+> TV — no such amendment is in scope (F-WASE-P55-MED-001 adjudication, branch (a)).
+
 ---
 
 **DRIFT-D849-002 fold note:** This VP resolves DRIFT-D849-002 ("VP for no-network calls during
@@ -188,16 +199,25 @@ asserts:
   equals `unix_now() + expires_in.saturating_sub(ttl_buffer_secs)`, with `expires_in = 1799`
   when the response field is absent or zero.
 
-- **AC-7d (P4-TTL-b — string-typed `expires_in`, RU-Q2):** For `ExpiryMode::RelativeSeconds`
-  [PLANNED], when the token endpoint response returns `expires_in` as a **JSON string** (e.g.,
-  `{"access_token": "tok-str-exp", "expires_in": "3599"}`) rather than a JSON number, the engine
-  must leniently parse `"3599"` → `u64 3599` and compute `expires_at = unix_now() + 3599.saturating_sub(30) = unix_now() + 3569`. **Kill condition:** a u64-only (non-lenient) `as_u64()` parser returns
-  `None` for a string value, triggering the default-1799 path; `expires_at` would then equal
-  `unix_now() + 1769` instead of `unix_now() + 3569`. Advancing the clock by 1800s (past the 1769
-  default but NOT past the 3569 correct value) and calling `get_token()` again would trigger an
-  extra POST if the default-1799 path was taken — the test asserts exactly zero additional POSTs
-  at that clock position, exposing the lenient-parse defect. The wiremock server is configured to
-  return `"expires_in": "3599"` (string-typed). Clock seam via `now_fn` / `new_for_test` [PLANNED].
+- **AC-7d (P2 — `oauth2_client_credentials` string-typed `$.expires_in`, RU-Q2):** For
+  `oauth2_client_credentials` [PLANNED], when the token endpoint response returns `$.expires_in` as
+  a **JSON string** (e.g., `{"access_token": "tok-str-exp", "expires_in": "3599"}`) rather than a
+  JSON number, the engine must leniently parse `"3599"` → `u64 3599` and compute
+  `expires_at = unix_now() + 3599.saturating_sub(30) = unix_now() + 3569`. **Kill condition:** a
+  u64-only (non-lenient) `as_u64()` parser returns `None` for a string value, triggering the
+  default-1799 path; `expires_at` would then equal `unix_now() + 1769` instead of
+  `unix_now() + 3569`. Advancing the clock by 1800s (past the 1769 default but NOT past the 3569
+  correct value) and calling `get_token()` again would trigger an extra POST if the default-1799
+  path was taken — the test asserts exactly zero additional POSTs at that clock position, exposing
+  the lenient-parse defect. The wiremock server is configured to return `"expires_in": "3599"`
+  (string-typed). Clock seam via `now_fn` / `new_for_test` [PLANNED]. Harness uses
+  `build_test_sensor_spec_oauth2()` [PLANNED — engine story] and
+  `AuthAcquisitionConfig::new_oauth2("/oauth2/token", ttl_buffer_secs)` [PLANNED — engine story]
+  (no `ExpiryMode` parameter — `oauth2_client_credentials` TTL is always relative seconds via
+  `$.expires_in`; no `expiry_mode` selector field per ADR-054 §D3). Scope: RU-Q2 lenient
+  deserialization is scoped EXCLUSIVELY to `oauth2_client_credentials` `$.expires_in` (ADR-054 §D2;
+  BC-2.16.014 §P2 oauth2 arm; EC-016-014-016). The `token_exchange` `relative_seconds` path uses
+  plain u64 (ADR-054 §D4 step 4 L308) — no lenient parse applies there.
 
 - **AC-8 (P7):** After a successful `get_token()` [PLANNED] call with distinct mock credential
   (`"mock_client_secret_P7"`) and mock token (`"opaque_bearer_P7"`) values, the returned token
@@ -927,32 +947,42 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //              (EC-016-014-002; BC-2.16.014 P4-TTL-b)");
 //     }
 //
-//     // AC-7d (P4-TTL-b — string-typed expires_in, RU-Q2): mock returns "expires_in": "3599" as JSON
-//     // string instead of number → engine must leniently parse "3599" → u64 3599.
+//     // AC-7d (P2 — oauth2_client_credentials string-typed $.expires_in, RU-Q2):
+//     // mock returns "expires_in": "3599" as JSON string instead of number →
+//     // engine must leniently parse "3599" → u64 3599 (ADR-054 §D2 RU-Q2; RFC 6749 does not fix
+//     // the JSON type; confirmed: Microsoft Entra ID emits string-typed expires_in).
+//     // Scope: RU-Q2 applies ONLY to oauth2_client_credentials $.expires_in (ADR-054 §D2);
+//     //   NOT to token_exchange relative_seconds (plain u64 per ADR-054 §D4 step 4).
+//     // Harness uses build_test_sensor_spec_oauth2() [PLANNED] +
+//     //   AuthAcquisitionConfig::new_oauth2("/oauth2/token", ttl_buffer_secs) [PLANNED] — NO ExpiryMode.
 //     // Kill condition: as_u64() returns None for string values → default-1799 path →
 //     // expires_at = base_time + 1769; advancing clock by 1800s (> 1769 but < 3569) causes an
 //     // extra POST under the incorrect default path, which the zero-additional-POST assertion catches.
-//     // (ADR-054 §D2 RU-Q2 adjudication: RFC 6749 does not fix expires_in JSON type)
 //     #[tokio::test]
 //     async fn test_vp159_ac7d_string_typed_expires_in_lenient_parse() {
 //         let ttl_buffer_secs: u64 = 30;
 //         // mock returns "3599" as a JSON string — lenient parse must treat as u64 3599
 //         // expires_at = base_time + 3599.saturating_sub(30) = base_time + 3569
+//         // Scope: oauth2_client_credentials $.expires_in lenient parse (RU-Q2; ADR-054 §D2).
+//         //   token_exchange relative_seconds uses plain u64 (ADR-054 §D4 step 4) — not tested here.
 //         let mock_server = MockServer::start().await;
 //         WmMock::given(wm_method("POST"))
-//             .and(wm_path("/oauth/token"))
+//             .and(wm_path("/oauth2/token"))  // oauth2_client_credentials token path (ADR-054 §D2 CrowdStrike example)
 //             .respond_with(
 //                 ResponseTemplate::new(200)
 //                     .set_body_json(serde_json::json!({
 //                         "access_token": "tok-str-exp",
-//                         "expires_in": "3599"  // JSON STRING not number — lenient parse required
+//                         "expires_in": "3599"  // JSON STRING not number — lenient parse required (RU-Q2)
 //                     })),
 //             )
 //             .mount(&mock_server)
 //             .await;
-//         let token_url = format!("{}/oauth/token", mock_server.uri());
+//         let token_url = format!("{}/oauth2/token", mock_server.uri());
 //         let creds = MockCredentialResolver::new("test-credential");
-//         let config = base_config("/oauth/token", ExpiryMode::RelativeSeconds, ttl_buffer_secs);  // [PLANNED]
+//         // AuthAcquisitionConfig::new_oauth2 [PLANNED — engine story]: oauth2_client_credentials
+//         // config — no ExpiryMode parameter (oauth2 TTL is always relative seconds via $.expires_in;
+//         // no expiry_mode selector field per ADR-054 §D3 common-fields table).
+//         let config = AuthAcquisitionConfig::new_oauth2("/oauth2/token", ttl_buffer_secs);  // [PLANNED — engine story]
 //         let base_time = 1_700_000_000u64;
 //         let now_secs = Arc::new(AtomicU64::new(base_time));
 //         let mock_time_fn = {
@@ -962,11 +992,14 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let provider = DeclarativeHttpAuthProvider::new_for_test(  // [PLANNED — engine story; cfg(test)]
 //             token_url, config, Arc::new(creds), mock_time_fn,
 //         );
-//         let sensor_spec = build_test_sensor_spec_token_exchange(); // [PLANNED]
+//         // build_test_sensor_spec_oauth2 [PLANNED — engine story]: creates an oauth2_client_credentials
+//         // sensor spec (auth_type = "oauth2_client_credentials", base_url = mock_server.uri()).
+//         // Distinct from build_test_sensor_spec_token_exchange() used by ACs 1-9b.
+//         let sensor_spec = build_test_sensor_spec_oauth2(); // [PLANNED — engine story]
 //         let org_slug = prism_core::OrgSlug::new("test-org");
 //         // Cold call: lenient parse "3599" → 3599 → expires_at = base_time + 3569
 //         let _ = provider.get_token(&sensor_spec, &org_slug).await
-//             .expect("VP-159 AC-7d: string-typed expires_in must succeed with lenient parse");
+//             .expect("VP-159 AC-7d: oauth2_client_credentials string-typed $.expires_in must succeed with lenient parse (RU-Q2)");
 //         let posts_after_warm = mock_server.received_requests().await.unwrap()
 //             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
 //         // Advance clock 1800s > 1769 (what default-1799 path would compute) but < 3569 (correct)
@@ -977,9 +1010,9 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 //         let posts_still_warm = mock_server.received_requests().await.unwrap()
 //             .iter().filter(|r| r.method == wiremock::http::Method::POST).count();
 //         assert_eq!(posts_still_warm, posts_after_warm,
-//             "VP-159 AC-7d: string-typed expires_in '3599' → 3599 (not default 1799); \
+//             "VP-159 AC-7d: oauth2_client_credentials string-typed $.expires_in '3599' → 3599 (not default 1799); \
 //              at 1800s < 3569 expires_at, cache must still be valid, 0 additional POSTs \
-//              (RU-Q2; BC-2.16.014 P4-TTL-b)");
+//              (RU-Q2; BC-2.16.014 P2 oauth2_client_credentials arm; EC-016-014-016)");
 //     }
 //
 //     // AC-8 (P7): CachedAuthToken never stores credential values — runtime inequality assertion.
@@ -1212,6 +1245,7 @@ combinatorial generation adds no coverage over a well-chosen set of deterministi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.25 | wave-a-spec-evolution-fix-burst-42 | 2026-07-24 | architect | F-WASE-P55-MED-001 + F-WASE-P55-OBS-001. **MED-001 — AC-7d harness mis-modeled as token_exchange; adjudication branch (a).** RU-Q2 lenient `$.expires_in` parsing is scoped EXCLUSIVELY to `oauth2_client_credentials` (ADR-054 §D2 L164-165; BC-2.16.014 §P2 oauth2 arm; TV-11; EC-016-014-016). `token_exchange` `relative_seconds` uses plain u64 (ADR-054 §D4 step 4 L308) — no lenient-parse qualifier. No api-spec evidence of any token_exchange endpoint returning string-typed relative-seconds values. Branch (b) rejected. AC-7d heading updated: `"P4-TTL-b — string-typed expires_in"` → `"P2 — oauth2_client_credentials string-typed $.expires_in, RU-Q2"`. AC-7d body rewritten to state oauth2 scope + ADR-054 §D2 citation + scope boundary note. Harness comment header rewritten: scope note added, "NOT to token_exchange relative_seconds" documented. Harness body: (1) wm_path `/oauth/token` → `/oauth2/token` (aligns with CrowdStrike migration example ADR-054 §D2); (2) token_url updated to `/oauth2/token`; (3) `base_config("/oauth/token", ExpiryMode::RelativeSeconds, ttl_buffer_secs)` → `AuthAcquisitionConfig::new_oauth2("/oauth2/token", ttl_buffer_secs)` [PLANNED — engine story] (no ExpiryMode parameter; oauth2 has no expiry_mode selector per ADR-054 §D3); (4) `build_test_sensor_spec_token_exchange()` → `build_test_sensor_spec_oauth2()` [PLANNED — engine story]; (5) assertion message citation updated from `BC-2.16.014 P4-TTL-b` → `BC-2.16.014 P2 oauth2_client_credentials arm; EC-016-014-016`. **OBS-001 — oauth2 harness coverage asymmetry.** Added §Property Statement scope note "Scope note — auth-type harness split (F-WASE-P55-OBS-001)" documenting: ACs 1–9b drive token_exchange path for cache-lifecycle (correct); AC-7d is the sole oauth2_client_credentials harness in VP-159 (RU-Q2 lenient parse); oauth2 form/response shaping delegated to BC-2.16.014 TV-1/TV-5/TV-6/TV-11 + EC-016-014-016; token_exchange relative_seconds plain-u64 boundary documented. POL-29 sweep: `rg 'token_exchange' .factory/specs/verification-properties/vp-159-` confirms no remaining token_exchange references inside AC-7d text or harness. All other ACs correctly retain build_test_sensor_spec_token_exchange() for cache-lifecycle coverage. AC-6c ExpiryMode::AbsoluteUtcString correctly scoped to token_exchange (RU-Q1 adjudication unchanged). No ADR-054 edits needed — §D2 and §D4 are already correct and consistent. No BC edits needed — product-owner owns BC content; no BC amendment required for branch (a). |
 | 1.24 | wave-a-spec-evolution-fix-burst-38 | 2026-07-24 | state-manager | F-WASE-P49-HIGH-001: POL-23 standing pin sweep. BC-2.16.014 promoted to v1.18 (FB37 bump). Three live-body citation pins advanced v1.17→v1.18: §Source Contract authoring-source bullet, §Source Contract inline restatement, §Proof Harness Skeleton header comment. No behavioral content changed. Precedent: BC-INDEX v8.55 pin sweep. |
 | 1.23 | wave-a-ru-amendment-D1944 | 2026-07-23 | architect | RU-Q1/Q2 + ADR-054 §D4 v0.51 alignment. §Property Statement P4-TTL-a formula updated: `parse_rfc3339` → lenient chrono relaxed `FromStr` (`expiry_str.parse::<DateTime<FixedOffset>>()`), accepts both `T`-separator ISO-8601 and space-separated UTC strings per ADR-054 §D4 v0.51 RU-Q1 adjudication; kill condition documented (space-separated fixture FAILS strict-parse-only impl). AC-6 prose updated to reference lenient parse formula. AC-6c added: new AC (prose + harness skeleton) asserting `"2099-01-01 00:00:00.000000+00:00"` parses to the same epoch as `"2099-01-01T00:00:00Z"` (kill condition: strict `parse_from_rfc3339`-only impl rejects space-separated form → test FAILS). AC-7d added: new AC (prose + harness skeleton) for string-typed `expires_in` `"3599"` (JSON string) → lenient parse to u64 3599; kill condition: `as_u64()`-only path defaults to 1799, clock advance 1800s > 1769 (default) but < 3569 (correct) triggers spurious re-acquire POST (RU-Q2; BC-2.16.014 P4-TTL-b). modified: synced. |
 | 1.22 | wave-a-fix-burst-33 | 2026-07-23 | architect | F-WASE-P38-MED-001 + F-WASE-P38-LOW-001. **MED-001 — external struct-literal construction of `#[non_exhaustive]`-destined types (E0639).** 5 harness sites replaced with constructor-based construction: (1) `base_config` helper — `AuthAcquisitionConfig { token_path, expiry_mode, ttl_buffer_secs, ..Default::default() }` → `AuthAcquisitionConfig::new(token_path, expiry_mode, ttl_buffer_secs)` [PLANNED]; (2) AC-4b — `CachedAuthToken { token: "".to_string(), expires_at }` → `CachedAuthToken::new("".to_string(), expires_at)` [PLANNED]; (3) AC-6 — full token_exchange `AuthAcquisitionConfig` struct literal → `AuthAcquisitionConfig::new_token_exchange("/api/v1/access_token/", "secret_key", "data.access_token", "data.expiration_utc", ExpiryMode::AbsoluteUtcString, ttl_buffer_secs)` [PLANNED]; (4) AC-6b — same pattern with `ttl_buffer_secs = 30` literal; (5) AC-4b prose — `CachedAuthToken { token: "".to_string(), expires_at: base_time + 86_400 }` example → `CachedAuthToken::new("".to_string(), base_time + 86_400)` constructor call. Constructor signatures decided: `AuthAcquisitionConfig::new(token_path: impl Into<String>, expiry_mode: ExpiryMode, ttl_buffer_secs: u64) -> Self` (common fields; token-exchange-specific fields default to empty string); `AuthAcquisitionConfig::new_token_exchange(token_path, credential_body_field, token_response_path, expiry_field, expiry_mode, ttl_buffer_secs) -> Self` (full form); `CachedAuthToken::new(token: String, expires_at: u64) -> Self`. ADR-054 §D11 gains two new rows (v0.48). POL-29 sweep: `rg 'AuthAcquisitionConfig \{' .factory/` + `rg 'CachedAuthToken \{' .factory/` → zero external struct-literal constructions remain in VP-159, VP-153 (never constructs these types), BC-2.16.014 (spec prose, no Rust code). **LOW-001 — AC-8 prose ↔ skeleton drift.** Implemented stronger runtime assertion: AC-8 rewritten from synchronous `#[test] fn test_vp159_ac8_cached_token_no_credential_field` to async `#[tokio::test] async fn test_vp159_ac8_cached_token_no_credential_value_stored` — drives `get_token()` [PLANNED] with distinct mock credential `"mock_client_secret_P7"` and mock token `"opaque_bearer_P7"` values; asserts `returned_token == "opaque_bearer_P7"` AND `returned_token != "mock_client_secret_P7"` (the promised negative assertion; both load-bearing per SID-2). Old exhaustive-struct-literal rationale removed — it was vacuous under `#[non_exhaustive]` (external literals always impossible, so "this literal would fail to compile if a field were added" proved nothing about field absence). Structural note preserved: `CachedAuthToken::new(token, expires_at)` accepts no credential parameter — adding a credential field requires a constructor signature change, making omission architecturally documented. AC-8 prose updated to match skeleton. input-hash unchanged (inputs not modified in this burst). |
