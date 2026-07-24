@@ -6,7 +6,8 @@ wave: wave-5-f
 epic_id: E-SPEC-ENGINE
 priority: P2
 status: draft
-version: "1.0"
+version: "1.1"
+updated: "2026-07-24"
 level: "L3"
 producer: story-writer
 timestamp: "2026-06-04T00:00:00Z"
@@ -94,7 +95,7 @@ inputs:
 input-hash: null
 traces_to: [SEC-002]
 # SEC-002 (CWE-440, expected-behavior violation): BC-2.16.009 §VR7 whitelist accepts HEAD
-# and OPTIONS but PipelineExecutor::build_request silently maps them to GET via `_ => GET`.
+# and OPTIONS but `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`) silently maps them to GET via `_ => GET`.
 # This story closes the CWE-440 gap by implementing faithful execution of whitelisted methods.
 cycle: "v1.0.0-brownfield"
 phase: 3
@@ -118,8 +119,7 @@ PR #172 (S-SPEC-HTTP-METHOD-VALIDATION-001) adversarial + security cascade findi
 
 > BC-2.16.009 §VR7 (added in v1.8) now whitelists 7 HTTP methods: GET, POST, PUT, PATCH,
 > DELETE, HEAD, OPTIONS. The whitelist is enforced at spec-load time by `validate_step_methods()`
-> in `validation.rs`. However, `PipelineExecutor::build_request` in `crates/prism-spec-engine/
-> src/pipeline.rs` only has match arms for GET, POST, PUT, PATCH, DELETE and falls through
+> in `validation.rs`. However, `build_request` only has match arms for GET, POST, PUT, PATCH, DELETE and falls through
 > `_ => reqwest::Method::GET` for any other value. A spec author writing `method = "HEAD"` passes
 > Rule 7 validation but the HTTP request is silently issued as GET — not HEAD. Same for OPTIONS.
 >
@@ -391,4 +391,5 @@ Well within budget. Single-story delivery.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-07-24 | story-writer | F-WASE-P52-LOW-001 POL-29 class sweep, burst wave-a-spec-evolution-fix-burst-41: 2 occurrences of stale `PipelineExecutor::build_request` qualifier corrected to free-function citation — first mention (frontmatter comment) uses `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`), second mention (body blockquote) plain `build_request`. No ACs, BCs, or behavioral semantics changed. |
 | 1.0 | 2026-06-04 | story-writer | Initial draft — anchors SEC-002 (CWE-440) from PR #172 adversarial cascade. PO gate required: BC-2.16.002 amendment (OQ-001/OQ-002 bodyless-response design) before dispatch. S-7.01 pending. |

@@ -12,7 +12,8 @@ status: merged
 # skill strict prereq. No content/maturity change. BC-2.01.017 will auto-promote draft→active
 # at this story's merge per POL-14. Prism precedent is draft-at-dispatch + POL-14-promote-at-merge;
 # this flip is purely to satisfy the vsdd-factory deliver-story skill's strict prereq gate.
-version: "1.9"
+version: "1.10"
+updated: "2026-07-24"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -199,7 +200,7 @@ After this story merges:
    a new `static_cookie_auth_provider.rs` module) as a `pub` production type (NOT
    feature-gated); it reads the API key from the credential store at `acquire_token()` time
    and returns it as an `AuthToken`; it makes NO HTTP call during `acquire_token`.
-6. `PipelineExecutor::build_request` injects `Cookie: access_token={token}` when
+6. `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`) injects `Cookie: access_token={token}` when
    `auth_type == AuthType::CookieRoundtrip` (replacing the former `Cookie: cyberint_session`
    injection, which was the ADR-028 §D12 value — now superseded by ADR-031 §D3-b).
 7. Boot wiring in `prism-bin/src/boot.rs` (or in S-DEMO-001's boot step 9A — these are
@@ -301,7 +302,7 @@ sensor is a credential read, not an HTTP exchange;
 Red Gate test: `test_BC_2_01_017_static_cookie_auth_provider_acquire_token_no_http_call`
 
 #### AC-007: build_request injects Cookie: access_token header for CookieRoundtrip
-`PipelineExecutor::build_request` dispatches the auth header based on `auth_type`:
+`build_request` dispatches the auth header based on `auth_type`:
 - `AuthType::CookieRoundtrip`: sets the HTTP request header `Cookie: access_token={token}`.
   NOT `Cookie: cyberint_session={token}` (that was the ADR-028 §D12 value, superseded).
   NOT `Authorization: Bearer {token}`.
@@ -472,7 +473,7 @@ recurrence policy. Zero uncatalogued `event_type` emissions are permitted.
     `SpecEngineError::AuthAcquisitionFailed` with **E-AUTH-005** message template
     (`"Credentials not found for ({client_id}, {sensor_id})"`). No HTTP fetch attempted.
     This is a `pub` type, NOT feature-gated (it is a production type per ADR-031 §D3-b).
-21. **Amend `PipelineExecutor::build_request`** in `pipeline.rs`:
+21. **Amend `build_request`** in `pipeline.rs`:
     - Add `auth_type: &AuthType` parameter (or read from the `SensorSpec` already in scope).
     - Add dispatch arm:
       ```rust
@@ -691,6 +692,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.10 | 2026-07-24 | story-writer | F-WASE-P52-LOW-001 POL-29 class sweep, burst wave-a-spec-evolution-fix-burst-41: 3 occurrences of stale `PipelineExecutor::build_request` qualifier corrected to free-function citation — first mention (§Acceptance Criteria item 6) uses `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`), subsequent mentions plain `build_request`. No ACs, BCs, or behavioral semantics changed. |
 | 1.9 | 2026-05-30 | story-writer FB-PR6 | F-P11-HIGH-001 closure (SS-17 mis-anchor drop): `subsystems:` corrected from `[SS-01, SS-16, SS-17]` to `[SS-01, SS-16]`. SS-17's canonical name per ARCH-INDEX Subsystem Registry is "WASM Plugin Runtime" (prism-spec-engine WASM tier, AD-019) — it does NOT own DTU clones. DTU clone work (prism-dtu-cyberint) is owned by SS-01 (Sensor Adapters), which was already the story's first anchor. Removed incorrect "SS-17 (DTU Clones) owns crates/prism-dtu-cyberint" justification comment; replaced with clarifying note citing ARCH-INDEX. SS-01 justification updated to explicitly name the DTU route/state/extract_access_token work as SS-01 scope. SS-16 anchor and justification preserved (PipelineExecutor + build_request dispatch are prism-spec-engine / SS-16 scope — correct). F-PR12-MED-001 closure (E-AUTH-007 propagation): AC-010 heading updated from `E-AUTH-005/E-AUTH-006` to `E-AUTH-005/E-AUTH-006/E-AUTH-007`; AC-010 body extended with `CredentialResolutionError::BackendUnavailable → E-AUTH-007` paragraph (traces to BC-2.01.017 §Error Cases row 3, EC-017-010, TV-BC-2.01.017-009); Edge Cases table: EC-009 added (BackendUnavailable → E-AUTH-007, no HTTP fetch, no retry); BC table BC-2.01.017 row updated to enumerate E-AUTH-007 alongside E-AUTH-005/006; frontmatter BC-2.01.017 comment updated to cite EC-017-010 and all three error codes. Sibling-sweep (TD-VSDD-060): no remaining "Static Cookie AuthProvider" split-symbol; no stale SensorAuth references. E-AUTH-004/005/006 semantics from prior fix-bursts preserved AS-IS. STORY-INDEX not touched (state-manager updates last). |
 | 1.8 | 2026-05-30 | story-writer FB-PR5 | F-PR8-LOW-001 closure (POL-7 BC-H1-verbatim, BC-2.01.017 title-symbol whitespace correction): replaced 3 occurrences of erroneous split-symbol form "Static Cookie AuthProvider" with canonical "StaticCookieAuthProvider" (no space — one code symbol). Locations: (1) frontmatter comment line ~37 (BC-2.01.017 annotation); (2) body BC table row line ~216 (BC title column); (3) changelog row 1.1 historical reference line ~689. Sibling-sweep (TD-VSDD-060): confirmed canonical (no-space) form at line ~604 and all other occurrences unchanged. No other content altered — ACs, BCs, error codes (E-AUTH-004/005/006), and behavioral semantics from prior fix-bursts preserved AS-IS. |
 | 1.7 | 2026-05-30 | story-writer FB-PR3 | OBS-PR3-002 closure (TD-VSDD-091 anti-volatile-pin): removed volatile `v1.53` version qualifiers from AC-010 body. (1) Line 337: `error-taxonomy.md v1.53 (NEW in v1.53 — introduced with BC-2.01.017)` → `the E-AUTH-006 entry in error-taxonomy.md (introduced with BC-2.01.017)`. (2) Line 340: `error-taxonomy.md v1.53 §E-AUTH-006` → `the E-AUTH-006 entry in error-taxonomy.md`. Sibling-sweep (TD-VSDD-060): changelog v1.1 row cites `error-taxonomy.md v1.53` as a historical record of what the v1.1 author referenced — exempt from TD-VSDD-091 (historical narrative, not live spec content). No error codes, behavioral claims, or BC traces changed. |

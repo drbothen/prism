@@ -6,7 +6,8 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.11"
+version: "1.12"
+updated: "2026-07-24"
 level: "L4"
 producer: story-writer
 revised_by: architect
@@ -100,7 +101,7 @@ risk_mitigations:
   - "BearerStatic auth: SpecDrivenSensorAdapter for Armis/Claroty holds an enum-strategy field
     (AuthStrategy::BearerStatic { token_from_sensor_auth: bool }) and constructs BearerStaticAuthProvider
     at fetch() call time from the SensorAuth argument. Token is not held at construction time."
-  - "CookieRoundtrip auth: PipelineExecutor::build_request must be amended to check spec.auth_type.
+  - "CookieRoundtrip auth: `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`) must be amended to check spec.auth_type.
     When AuthType::CookieRoundtrip, inject Cookie header (access_token={token}) instead of
     Authorization: Bearer {token}. StaticCookieAuthProvider is the production implementation;
     it reads the api_key from the credential store and returns the api_key string.
@@ -163,7 +164,7 @@ Claroty + Cyberint).
 - Armis: `bearer_static` auth via `BearerStaticAuthProvider` constructed per-fetch from `SensorAuth` arg.
 - Claroty: `bearer_static` auth via `BearerStaticAuthProvider` — same as Armis.
 - Cyberint: `cookie_roundtrip` auth via `StaticCookieAuthProvider` (new, replaces CookieLoginAuthProvider)
-  + `PipelineExecutor::build_request` amendment to inject `Cookie: access_token={token}`.
+  + `build_request` amendment to inject `Cookie: access_token={token}`.
   NOT `cyberint_session` as incorrectly specified in v1.1/v1.2.
 
 v1.1/v1.2 §Origin was incorrect on the Cyberint cookie name. It specified `cyberint_session` because
@@ -203,7 +204,7 @@ After this story merges:
    HTTP call during `acquire_token` (no login step); returns the raw API key as the token value.
    The DTU `prism-dtu-cyberint` has been corrected by S-DTU-CYBERINT-AUTH-FIDELITY-001 to
    accept `Cookie: access_token={api_key}` before this story is implemented.
-7. `PipelineExecutor::build_request` is amended to inject `Cookie: access_token={token}` when
+7. `build_request` is amended to inject `Cookie: access_token={token}` when
    `spec.auth_type == CookieRoundtrip` (NOT `cyberint_session` — see ADR-031 §D3-b).
 
 ---
@@ -260,14 +261,14 @@ The real API governs. The DTU must conform to the real API.
 - Makes NO HTTP call during `acquire_token()`. No login step.
 - Returns the raw API key string as the `AuthToken` value.
 
-`PipelineExecutor::build_request` injects the token as `Cookie: access_token={api_key}`.
+`build_request` injects the token as `Cookie: access_token={api_key}`.
 
 Prerequisite: `prism-dtu-cyberint` must be corrected by `S-DTU-CYBERINT-AUTH-FIDELITY-001`
 before this story is implemented. S-DEMO-001 depends_on that story.
 
 ### Pipeline-level fix: build_request must be auth-type-aware
 
-**Root cause:** `PipelineExecutor::build_request` injects ALL auth tokens as
+**Root cause:** `build_request` injects ALL auth tokens as
 `Authorization: Bearer {token}`, regardless of `spec.auth_type`. For `CookieRoundtrip`, the
 token must be injected as `Cookie: access_token={token}`.
 
@@ -540,7 +541,7 @@ from the error taxonomy); no panic; the response envelope wraps the error correc
 | `reqwest::Client` MUST set `.timeout(Duration::from_secs(30))` | CLAUDE.md Conventions | Adversary probes for missing timeout on every pass |
 | `boot.step9a.adapter_registry_populated` MUST have a BC-2.16.002 catalog row | SAP-1 (standing probe) | Adversary greps `event_type =` on every pass |
 | Boot step 9A MUST appear between steps 7.5b and 9 in ADR-022 §B table | BC-2.22.001 + ADR-022 | ADR-022 §B amendment required in same PR |
-| `PipelineExecutor::build_request` MUST dispatch header by auth_type | ADR-031 §D3-b + §Cyberint Cookie Auth Design | `CookieRoundtrip → Cookie: access_token={token}` (NOT `cyberint_session`); BearerStatic → Authorization: Bearer |
+| `build_request` MUST dispatch header by auth_type | ADR-031 §D3-b + §Cyberint Cookie Auth Design | `CookieRoundtrip → Cookie: access_token={token}` (NOT `cyberint_session`); BearerStatic → Authorization: Bearer |
 | `StaticCookieAuthProvider::acquire_token` MUST NOT make HTTP calls | ADR-031 D1-b | Static cookie injection requires no login step; any HTTP call during acquire_token is a fidelity violation |
 | Cookie name for CookieRoundtrip MUST be `access_token` | ADR-031 D1-a; poller-express `cookieTransport` | `cyberint_session` is WRONG; adversary probes for this specifically per SAP-2 |
 
@@ -706,6 +707,7 @@ if context pressure is felt during implementation.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.12 | 2026-07-24 | story-writer | F-WASE-P52-LOW-001 POL-29 class sweep, burst wave-a-spec-evolution-fix-burst-41: 6 occurrences of stale `PipelineExecutor::build_request` qualifier corrected to free-function citation — first mention uses `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`), subsequent mentions plain `build_request`. No ACs, BCs, or behavioral semantics changed. |
 | 1.11 | 2026-06-05 | story-writer | Minimal historical-accuracy correction (F-PUSHDOWN-008 cross-story drift, PO-surfaced): AC-010 SCOPE NOTE updated — stale "Test-writers MUST NOT assert fetch() passes limit/cursor" instruction now clarified as historical to S-DEMO-001 only; notes that push-down IS implemented by S-DEMO-QUERY-PUSHDOWN-001 per BC-2.01.013 v1.12. No ACs, BCs, or semantics changed. Story is MERGED (PR #166) — this is a documentation-only correction for auditable accuracy. |
 | 1.10 | 2026-06-01 | story-writer | OBS-P3-001 version-pin sweep: AC-010 heading, conformance test requirement label, traces-to line, and Pagination/Push-Down Scope Clause reference all updated from BC-2.01.013 v1.8 → v1.9. Historical changelog entries (1.5 and 1.6 rows) are untouched — they record what was written when the BC was at v1.8. |
 | 1.9 | 2026-05-31 | story-writer | POL-32 hygiene (F-PASS1-MED-002): changelog reordered to monotonic DESCENDING per POL-32 (newest first). AC-004 clarification (F-PASS1-OBS-002): N defined as (per-org × per-sensor specs) minus sensors skipped per EC-004 (missing PluginAuthProvider) or EC-007 (unsupported auth_type); aligns with Red Gate test expectation of 2 (armis×2; crowdstrike skipped). |

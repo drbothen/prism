@@ -5,7 +5,7 @@ title: "DTU = True DTU — Fidelity Principle for All Clone Implementations"
 status: accepted
 date: "2026-05-29"
 modified: "2026-07-24"
-version: "1.8"
+version: "1.9"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-028 §D12 (Cyberint cookie auth real-API vs DTU model divergence — DTU-shortcut acceptance SUPERSEDED)"]
@@ -241,7 +241,7 @@ for Cyberint MUST also change:
    - Returns the raw API key as the "token" value.
    - Does NOT perform any HTTP request during `acquire_token`.
 
-3. **`PipelineExecutor::build_request` dispatch for `CookieRoundtrip`.** Must inject
+3. **`build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`) dispatch for `CookieRoundtrip`.** Must inject
    `Cookie: access_token={token}` (NOT `Cookie: cyberint_session={token}`). The cookie name
    changes from `cyberint_session` to `access_token`.
 
@@ -639,6 +639,7 @@ non-standard cookie names, but it does not resolve the DTU fidelity problem.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.9 | 2026-07-24 | architect | F-WASE-P52-LOW-001 POL-29 class sweep: live-body `PipelineExecutor::build_request` citation at §D3 item 3 corrected to accurate free-function form — first mention in document expanded to `` `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`) ``. `PipelineExecutor::build_request` does not resolve; `build_request` is a module-level free function at `pipeline.rs:975` (8 params, no `&self`). `version` bumped 1.8→1.9. |
 | 1.8 | 2026-07-24 | architect | F-WASE-P51-MED-001: §Status body synced to accepted state — frontmatter was flipped to `accepted` at v1.4 (DRIFT-ADR031-STATUS-001 2026-07-20) but §Status body opening still read "Proposed 2026-05-29, v1.0". Retroactive-acceptance pattern applied (mirrors ADR-026 v1.41 / ADR-028 v1.27). Scope-narrowed-by ADR-053 §D3 gate PASSED D-1943 noted in §Status opening. Class-closing audit confirmed ADR-031 is the only accepted ADR with this drift pattern. |
 | 1.7 | 2026-07-24 | architect | F-WASE-P50-MED-001: `superseded_by` ADR-053 §D3 annotation — "final ADR approval gate pending" → "final ADR approval gate PASSED 2026-07-22 (D-1943)". |
 | 1.6 | 2026-07-21 | architect | OBS-1: ADR-054 added to `related_adrs` — soft symmetry with ADR-054's `related_adrs: [..., ADR-031]`; ADR-054 §D4 implementation contract references `AuthProvider` (the trait `StaticCookieAuthProvider` defined in ADR-031 §D3-b also implements). |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.9"
+version: "1.10"
 status: active
 producer: product-owner
 timestamp: 2026-05-29T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-01"
 capability: "CAP-001"
 lifecycle_status: active
 introduced: "2026-05-29"
-modified: "2026-07-23"
+modified: "2026-07-24"
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -51,7 +51,8 @@ injected as a named HTTP `Cookie` header on every request, with NO prior login s
 `StaticCookieAuthProvider` is defined in `crates/prism-spec-engine/src/auth_provider.rs` and
 selected by `PipelineExecutor` when `spec.auth_type == AuthType::CookieRoundtrip`. Its
 `acquire_token()` method reads the API key from the credential resolver and returns it directly
-as the token value — it makes zero HTTP calls. `PipelineExecutor::build_request` then injects
+as the token value — it makes zero HTTP calls. `build_request` (module-level free function in
+`crates/prism-spec-engine/src/pipeline.rs`, called from `issue_request_with_retry`) then injects
 `Cookie: {cookie_name}={token}` on every data-fetch request, where the cookie name is derived
 from the `header_scheme = "cookie:<name>"` TOML field (per ADR-053 D2). This is the correct auth
 implementation for Cyberint (where the real API uses `Cookie: access_token={api_key}` per
@@ -95,7 +96,7 @@ DTU=True-DTU fidelity principle).
 
 ### P2 — Request Header Injection (build_request)
 
-- `PipelineExecutor::build_request` derives the injection mode from the sensor's `header_scheme`
+- `build_request` derives the injection mode from the sensor's `header_scheme`
   TOML field (ADR-053 D2). The full dispatch table per `header_scheme` is:
 
   | `header_scheme` | Header injected | Notes |
@@ -215,7 +216,7 @@ DTU=True-DTU fidelity principle).
 - ADR-028 §D-747 LOCKED — `auth_type_label = "cookie_roundtrip"` is preserved (label not changed); behavior changes.
 - ADR-023 §PREREQ-B — `AuthProvider` trait definition (TOML-driven replacement for compile-time SensorAuth dispatch). `StaticCookieAuthProvider` implements `AuthProvider` with a single required method: `acquire_token(&self, spec: &SensorSpec, client_id: &OrgSlug)`. There is no `auth_type_name()` on `AuthProvider`; dispatch is TOML-driven via `spec.auth_type` enum comparison.
 - `crates/prism-spec-engine/src/auth_provider.rs` — `AuthProvider` trait definition and `StaticCookieAuthProvider` implementation site (constructors: `StaticCookieAuthProvider::new(sensor_id)` for production, `StaticCookieAuthProvider::new_with_resolver(sensor_id, Arc<dyn CredentialResolver>)` for test injection).
-- `crates/prism-spec-engine/src/pipeline.rs` — `PipelineExecutor::build_request` header injection site; uses `spec.header_scheme` to determine which header to set (ADR-053 D2).
+- `crates/prism-spec-engine/src/pipeline.rs` — `build_request` (module-level free function, 8 params, no `&self`) header injection site; uses `spec.header_scheme` to determine which header to set (ADR-053 D2).
 - `.factory/semport/poller-express/poller-express-broad-sweep.md §2.1` — canonical reference for `access_token` cookie name from real Cyberint API.
 
 ## Story Anchor
@@ -262,6 +263,7 @@ adjudication in `cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/p
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | wave-a-spec-evolution-fix-burst-41 | 2026-07-24 | product-owner | F-WASE-P52-LOW-001 closure: replaced phantom `PipelineExecutor::build_request` qualifier at all three live-body sites. §Description first mention expanded to `` `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`, called from `issue_request_with_retry`) ``; §P2 and §Architecture Anchors use bare `build_request` / `` `build_request` (module-level free function, 8 params, no `&self`) `` respectively. As-built verified: pipeline.rs:975 is `fn build_request(8 params, no &self)`, invoked at :781 and :871 from `issue_request_with_retry`. ADR-054 v0.29 ratified this distinction; ADR-053 v0.25 applied the same correction to that ADR. POL-29 sweep: companion edit to BC-2.01.013 v1.15→v1.16 (secondary POL-29 hit at its line 104). |
 | 1.9 | wave-a-spec-evolution-fix-burst-28 | 2026-07-23 | product-owner | F-WASE-P31-MED-001 closure: EC-017-008 Expected Behavior cell updated for counting-unit accuracy per DI-012 Rule 2 v1.11. Old phrasing "each auth method must declare exactly one `credential_ref`" implied a universal one-ref rule; new phrasing scopes the requirement to `cookie_roundtrip` explicitly: "count=0 does not equal expected count=1 for this auth_type". Description column extended to clarify the EC precondition (count=0 vs expected=1). No change to error code (E-SPEC-013) or rejection behavior (spec-load time, boot failure). Companion: error-taxonomy.md v2.64, BC-2.01.016 v1.14. |
 | 1.8 | wave-a-spec-evolution-burst-3 | 2026-07-22 | product-owner | ADR-053 D2 + ADR-054 D1 amendment: §Preconditions updated — cookie name now derived from `header_scheme = "cookie:<name>"` TOML field (not hardcoded); §P2 dispatch table replaced from 4-row auth_type-keyed table to 3-row header_scheme-keyed table (`"cookie:<name>"` / `"bearer"` / `"raw"`); `"raw"` row added for `token_exchange` (Armis); INV-COOKIE-002 updated — cookie name specified via `header_scheme = "cookie:access_token"`, not a separate field; INV-COOKIE-004 re-grounded from auth_type dispatch to `header_scheme = "cookie:<name>"` dispatch; §P3 updated 5-value → 6-value canonical auth_type set per ADR-054 D1; §Related BCs BC-2.01.016 reference updated 5-value → 6-value; §Related BCs BC-2.01.006 title updated to "Cyberint Assets..." per ADR-053 D3 split; TV-BC-2.01.017-008 updated to include `header_scheme = "cookie:access_token"` in SensorSpec construction and assert header_scheme-driven injection; §Architecture Anchors: added ADR-053 D2 anchor; pipeline.rs annotation updated to `header_scheme`; §Traceability ADR field: added ADR-053; §Notes for Implementers: added v1.8 pins guidance. modified date 2026-07-22. |
 | 1.7 | D-904 POL-14 auto-promotion | 2026-05-31 | state-manager | POL-14 auto-promotion at merge: PR #164 (S-DTU-CYBERINT-AUTH-FIDELITY-001) squash-merged to develop@e798e67c; status draft→active; lifecycle_status was already active (idempotent). BC-INDEX v5.64→v5.65 (active_contracts 236→237, draft_contracts 3→2). |

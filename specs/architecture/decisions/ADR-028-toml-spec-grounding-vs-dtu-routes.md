@@ -5,7 +5,7 @@ title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API C
 status: accepted
 date: "2026-05-20"
 modified: "2026-07-24"  # see §Changelog top row
-version: "1.27"
+version: "1.28"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -493,7 +493,7 @@ The two names are intentionally different. The DTU's `cyberint_session` name exe
 
 For the live demo (which runs against the DTU clone), the **DTU model governs**:
 - `CookieLoginAuthProvider` performs `POST {base_url}/login` → parses `Set-Cookie: cyberint_session={token}` → returns the token string.
-- `PipelineExecutor::build_request` (amended in S-DEMO-001) injects `Cookie: cyberint_session={token}` for `AuthType::CookieRoundtrip`.
+- `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`) (amended in S-DEMO-001) injects `Cookie: cyberint_session={token}` for `AuthType::CookieRoundtrip`.
 - The `CookieLoginAuthProvider` MUST use the `base_url` from `ResolvedSensorSpec` (with per-org overlay applied) — not the raw type-spec `base_url`. Failure here breaks demo routing to the DTU clone (see S-DEMO-001 EC-005).
 
 #### Production Path (Future Story)
@@ -508,7 +508,7 @@ For production Cyberint auth (real API), the correct model is static-cookie inje
 
 #### `build_request` Pipeline Amendment Scope
 
-`PipelineExecutor::build_request` currently injects ALL tokens as `Authorization: Bearer {token}`. For `AuthType::CookieRoundtrip`, it must inject `Cookie: cyberint_session={token}` instead. The amended function signature gains `auth_type: &AuthType` (passed from `issue_request_with_retry` which already has access to `spec`). Dispatch table:
+`build_request` currently injects ALL tokens as `Authorization: Bearer {token}`. For `AuthType::CookieRoundtrip`, it must inject `Cookie: cyberint_session={token}` instead. The amended function signature gains `auth_type: &AuthType` (passed from `issue_request_with_retry` which already has access to `spec`). Dispatch table:
 
 | AuthType | Header injected |
 |----------|----------------|
@@ -657,6 +657,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.28 | 2026-07-24 | architect | F-WASE-P52-LOW-001 POL-29 class sweep: two live-body `PipelineExecutor::build_request` citations corrected to accurate free-function form. Line 496 (§D12 S-DEMO-001 Scope Decision): first mention in document expanded to `` `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`) ``. Line 511 (§D12 build_request Pipeline Amendment Scope): subsequent mention replaced with plain `` `build_request` ``. `PipelineExecutor::build_request` does not resolve; `build_request` is a module-level free function at `pipeline.rs:975` (8 params, no `&self`). `version` bumped 1.27→1.28. |
 | 1.27 | 2026-07-24 | architect | F-WASE-P50-MED-001: `superseded_by` ADR-053 §D1/§D2/§D5 annotation — "final ADR approval gate pending" → "final ADR approval gate PASSED 2026-07-22 (D-1943)". |
 | 1.26 | 2026-07-24 | architect | F-WASE-P49-OBS-1: retroactive lifecycle correction — `status: Proposed` → `status: accepted`. Adjudication: PLUGIN-MIGRATION-001-D 3-CLEAN convergence occurred (D-747 LOCKED status; story delivered and merged); the ADR-021 lifecycle promotion step was omitted, not deferred. Three lines of evidence confirm effective-acceptance: (1) D-747 treated §D1/§D2 as LOCKED architectural decisions; (2) ADR-053 (accepted 2026-07-22) supersedes §D1/§D2/§D5 — supersession requires the source document to be effective; (3) ADR-054 (accepted) amends §D2/D5/D10/D13 — amendment presupposes an accepted document. Pattern: identical to ADR-026 v1.41 retroactive acceptance (D-1994). §Status section rewritten to reflect retroactive acceptance with supersession/amendment state. `modified` bumped to 2026-07-24. |
 | 1.25 | 2026-07-23 | architect | F-WASE-P23-LOW-001 (FIX-BURST 22): Definition-1 purge of E-SPEC-028(b) unconditional language — (1) frontmatter `amended_by` ADR-054 entry: "E-SPEC-028(b) unconditional rejection" → "E-SPEC-028(b) rejection regardless of [auth_acquisition] presence (Definition 1)"; (2) §D13 consistency-table body: "E-SPEC-028(b) unconditional rejection at spec-load per ADR-054 D10(b)" → "E-SPEC-028(b) rejection regardless of `[auth_acquisition]` presence (Definition 1, ADR-054 D10(b))". At-commit-time hash per POL-32. |
