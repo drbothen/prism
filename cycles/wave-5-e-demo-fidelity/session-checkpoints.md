@@ -255,3 +255,30 @@ _Archived to session-checkpoints.md by D-1998 burst (state-manager keep-last-1 d
 - Open PRs: #229 (@ec4379b5), #230 (CLAUDE.md file-size @426c77cde awaiting HUMAN merge); no background agents in flight
 
 **NOTE: Superseded by D-1998 — Wave-A REMOVE-UNCERTAINTY AMENDMENT BURST COMPLETE (RU-Q1..Q5); spec perimeter reopened; BC-5.39.001 re-gate pass 48 required (fresh streak 0/3). STATE v8.545→v8.546.**
+
+---
+
+## Archived: D-2019 — 2026-07-25 — FB47b RECORDS-ONLY MICRO-BURST; BC-5.39.001 streak 0/3; STATE v8.567
+
+_Archived to session-checkpoints.md by D-2020 burst (state-manager keep-last-1 discipline)._
+
+**RESUME IN ONE BREATH:** Wave-A spec-evolution cascade pass 63 fully closed (all 33 findings; FB47a + FB47b). D-2018 state-accuracy correction applied: local-pass-63.md had no deferred content findings; D-2018 premise retracted. FB47b closed the FB47a-seeded S-WAVE-A-ENGINE-001 L1 violation (ratchet-mode gate blind to unstaged frontmatter bumps; --full-scan surfaced it). Human process intervention rule still binding: small single-concern bursts only. NEXT = adversary pass 64 on frozen HEAD, pending human confirmation of burst sizing. Code lane: S-WAVE-A-CYBERINT-PATCH-001 must co-land with S-WAVE-A-ENGINE-001 (boot exit 2 risk unchanged).
+
+**PROCESS INTERVENTION RULE (human-directed — still binding):** Small single-concern fix bursts only. Each FB47x / FB48x must address ONE named spec-content target. Multi-leg sweeps are the cause of cascade divergence. Do NOT resume multi-leg sweeps. The precondition "do NOT run pass 64 until deferred content findings are closed via FB47b" is now SATISFIED — both vacuously (set was empty) and by closing the FB47a-seeded L1 defect.
+
+**SPEC PERIMETER (post-FB47b, unchanged from post-FB47a/FB46):** BC-2.16.009 v1.26 / ADR-053 v0.34 / error-taxonomy v2.69 / S-WAVE-A-ENGINE-001 v2.3 / BC-2.16.008 v1.6 / BC-2.16.014 v1.18 / VP-159 v1.26 / ADR-054 v0.52 / BC-2.01.018 v1.4 / BC-2.01.006 v1.8 / BC-2.02.004 v1.10 / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28 / VP-160 v1.0. S-WAVE-A-ENGINE-001 stays v2.3 (changelog caught up; version unchanged by FB47b). Indexes: BC-INDEX v8.73 / VP-INDEX v2.13 / ARCH-INDEX v2.276 / STORY-INDEX v2.726 (total_stories 263).
+
+**HEADS (verified 2026-07-25 D-2019):**
+- origin/develop: `7fef57da` — PUSHED; LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001, do NOT auto-FF)
+- factory-artifacts: D-2019 commit SHA — run `git -C .factory log -1 --format='%h'` for current value; pre-D-2019 was `afaae3ce1` (D-2018 session-wrap)
+- Main worktree: docs/claude-md-file-size-convention @`cdbbe81b4` (LOCAL-ONLY; 9 commits ahead of main; carries records-lint gate + governance docs — AT RISK)
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5b` — PUSHED, PR #229 OPEN; `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
+- Open PRs: #229 (@ec4379b5b PUSHED), #230 (LOCAL-ONLY @`cdbbe81b4` awaiting HUMAN push+merge); no background agents in flight
+
+**BACKUP BOUNDARY (D-2019):**
+- PUSHED: factory-artifacts (D-2019 SHA — see above); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); origin/develop @`7fef57dad`.
+- LOCAL-ONLY (AT RISK): docs/claude-md-file-size-convention @`cdbbe81b4` (9 unpushed commits — records-lint gate + TD-VSDD-091/092/096 governance); .worktrees/S-3.09 @`43c41389d`; .worktrees/W3-FIX-S307-001 @`fcab8717c`.
+- RECOMMENDED HUMAN ACTION: push docs/claude-md-file-size-convention to back up 9 LOCAL-ONLY commits (updates PR #230). Until then the records-lint gate and governance documentation exist on one machine only.
+
+**NOTE: Superseded by D-2020 — adversary pass 64 BLOCKED (34 findings; 5 CRIT / 8 HIGH / 17 MED / 2 LOW / 2 OBS); fix routing awaits human scope decision. SPEC PERIMETER version corrections applied (ADR-053 v0.34→v0.35, BC-2.16.014 v1.18→v1.19). STATE v8.567→v8.568.**
