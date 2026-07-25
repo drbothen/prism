@@ -239,6 +239,7 @@ S-DTU-CYBERINT-AUTH-FIDELITY-001
 | Priority | P0 |
 | ADR | ADR-031 (DTU = True DTU — Fidelity Principle), ADR-028 (TOML Spec Grounding vs DTU Routes), ADR-053 (header_scheme field) |
 | Story | S-DTU-CYBERINT-AUTH-FIDELITY-001 |
+| Stories | S-WAVE-A-ENGINE-001 |
 
 ## Notes for Implementers — Cite-pin convention
 

@@ -4033,3 +4033,81 @@ VP harness skeletons are spec artifacts, not codebase state artifacts. Their `[P
 `[PLANNED]` markers in any spec artifact (VP harness skeleton, story task list, etc.) are implementation-latitude markers for the SPEC HARNESS, not evidence about as-built production code. Claims about as-built code state MUST be verified against `crates/` source (read the actual file). Spec harness skeletons are NOT authoritative for as-built behavior. This rule is codified as DO-NOT-RE-RAISE entry (zz) in SESSION-HANDOFF.md §RESUME SNAPSHOT D-2013.
 
 **Source:** D-2013 (2026-07-24) — S-WAVE-A-ENGINE-001 remove-uncertainty pass Q6 adjudication; VP-159 harness skeleton [PLANNED] marker misread; orchestrator ruling on phantom state.
+
+---
+
+## Lesson 88 — Process-gap findings in adversary pass should be closed in-burst via TD-VSDD-096 records-only micro-burst, not deferred [codified]
+
+**Category:** process-gap, adversarial cascade protocol
+
+**Context:** Adversary pass 61 returned MED-006 (records-lint.sh CONFIG excludes prd-supplements/) and LOW-001 (L9 regex missing prose forms of volatile line cites). Both are pure process-gap / tooling findings with zero behavioral impact — they are records-tier under TD-VSDD-096 criteria (tooling correctness, not content/mechanism defects).
+
+**Going-forward rule:**
+
+Records-tier process-gap findings (tooling coverage gaps, CONFIG omissions, regex coverage holes) qualify for the TD-VSDD-096 records-only micro-burst: (1) ownership-routed fixer dispatched for the tooling fix; (2) state-manager lint-gated commit. They MUST NOT be deferred to a separate wave-gate or future story if they can be closed in the same FB without behavioral cascade risk. MED-006 and LOW-001 were both closed in FB45 via the same micro-burst channel.
+
+The qualifier: if the process-gap finding touches correctness, mechanism, algorithm, state machine, or API contract, it reverts to full ceremony (TD-VSDD-096 §2). Tooling-only findings like CONFIG inclusions and regex arms are unambiguously records-tier.
+
+**Source:** D-2015/FB45 (2026-07-24) — F-WASE-P61-MED-006 + F-WASE-P61-LOW-001 closure in FB45.
+
+---
+
+## Lesson 89 — POL-24 byte-identity scope must explicitly include story §Error Conditions message templates, not just BC + error-taxonomy [codified]
+
+**Category:** POL-24 enforcement, spec authoring
+
+**Context:** F-WASE-P61-HIGH-001 (tchar backtick omission) demonstrated that the BC-2.16.009 v1.24 amendment introduced a new error message template in the BC and the error-taxonomy (two POL-24 carriers) but the corresponding story (S-WAVE-A-ENGINE-001) §Error Conditions also contains message templates copied from the same source. When the BC was written with 14-char tchar set (backtick missing), the story inherited the defect silently — because POL-24 sweeps only check the canonical POL-24 carriers (BC + error-taxonomy + code `#[error(...)]`), not the story's derived copy.
+
+**Going-forward rule:**
+
+POL-24 sweep MUST also check story §Error Conditions tables when the story contains a verbatim copy of a BC error-message template. The story copy is not a POL-24 carrier (it doesn't define the template), but it is a propagation site — a stale copy there causes implementers to write tests against the wrong string. Add a S-7.02 check: on every BC error-message amendment, grep for the old string in all story files and update any verbatim copies.
+
+**Source:** D-2015/FB45 (2026-07-24) — F-WASE-P61-HIGH-001 tchar backtick BC→story propagation gap.
+
+---
+
+## Lesson 90 — Adversary agent tool profile is read-only; state-manager persists the adversary pass report as a factory process obligation [codified]
+
+**Category:** factory process, agent tool access
+
+**Context:** The vsdd-factory:adversary agent's tool profile grants only Read, Grep, and Glob — no Write or Edit. When the adversary completes its review, it produces the pass report as text output but cannot write the `.factory/cycles/.../adversarial-review/local-pass-N.md` file itself. This is by design (adversary must not modify the artifact state it is reviewing), but it created a process gap: the pass report existed only in the context window until state-manager persisted it.
+
+In pass 61, the adversary completed the review and the orchestrator received the report, but the report file needed to be created by state-manager in the FB45 burst. This is the correct factory process: adversary produces the report (text output); state-manager persists it to the cycle artifacts directory as part of the fix-burst commit.
+
+**Going-forward rule:**
+
+Every adversary pass report (LOCAL and PR-LEVEL) MUST be written to `.factory/cycles/<cycle>/adversarial-review/local-pass-N.md` (or `pr-pass-N.md`) by state-manager in the immediately-following burst. The report is not optional to persist — it is the evidentiary record of the cascade and is required for convergence-trajectory.md, SESSION-HANDOFF.md, and audit trail. If state-manager is dispatched in the same burst as the fix work, it writes the report file first (TASK 1), then applies fixes.
+
+**Source:** D-2015/FB45 (2026-07-24) — pass 61 report persistence; adversary read-only tool profile confirmed.
+
+---
+
+## Lesson 91 — Fresh-context value is highest for long-lived latent defects: MED-001 "nine categories" survived 60 passes [codified]
+
+**Category:** adversarial cascade, fresh-context diversity
+
+**Context:** F-WASE-P61-MED-001 found that BC-2.16.009 §Description said "nine categories" when there are actually ten (Rule 8 probe_table was added in v1.11 per D-1946 burst-4, but §Description was never updated). This defect survived all 60 prior adversary passes (passes 1–60) — 60 consecutive passes by fresh-context adversaries failed to catch it.
+
+The defect persisted because: (a) each adversary pass was primarily focused on the perimeter-changing amendments (Rules 9/10, E-SPEC-027/028, the multi-template architecture); (b) the §Description count mismatch is easy to overlook when the main validation logic is correct; (c) prior passes confirmed correctness of Rules 1–10 individually without re-counting them against the §Description summary.
+
+**Going-forward rule:**
+
+During every adversary pass, include at least one explicit **header-count reconciliation** probe: count the number of Rules/categories/items named in the §Description summary section, then count the actual items in the corresponding §Validation Rules (or equivalent body section), and verify they match. This probe is O(1) cost and catches count drift that compound-logic probes miss. The §Description is the "contract header" — if it's wrong, it misleads implementers before they read the body.
+
+**Source:** D-2015/FB45 (2026-07-24) — F-WASE-P61-MED-001 BC-2.16.009 §Description "nine categories" latent since v1.11 (D-1946 2026-07-22), survived passes 1–60.
+
+---
+
+## Lesson 92 — Surfacing an in-scope gap as an "advisory" is a routing failure, not diligence [codified]
+
+**Category:** production-grade principle, agent routing discipline
+
+**Context:** During the FB45 routing analysis, several findings were initially categorized by specialists as "advisory" or "note for future story" when they were fully in-scope, fixable in FB45, and assigned to the correct specialist. The pattern: a specialist finds a gap, labels it ADVISORY severity, and returns it to the orchestrator instead of fixing it. This is indistinguishable from the Canonical Principle's forbidden "surface as advisory instead of fixing" pattern — even when the agent is the correct specialist.
+
+The distinction: if the fix is in the agent's domain AND is achievable in current scope without infinite recursion, the agent MUST fix it. If the fix requires crossing into another specialist's domain, the agent surfaces it to the orchestrator for routing (correct-agent pattern, not defer-pattern). "Advisory" is not a severity that a specialist writes for their own domain — it's a report format for cross-domain findings that need routing.
+
+**Going-forward rule:**
+
+A specialist agent MUST NOT return an advisory finding for a defect that: (a) is in their own domain, AND (b) is fixable in current scope. If both conditions are true, the default action is to fix. The agent may PROPOSE a cheaper alternative ("would you like option B instead?") but the agent's DEFAULT action is the production-grade fix. Filing an advisory for an in-scope, in-domain defect is a Canonical Principle Rule 5 violation ("Default to cheap path is not acceptable").
+
+**Source:** D-2015/FB45 (2026-07-24) — Multiple findings initially surfaced as advisories by in-domain specialists; all fixed in-scope after orchestrator routing correction.

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.18"
+version: "1.19"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -462,11 +462,13 @@ story IDs to be assigned during Wave-A story decomposition.]`
 | Priority | P0 |
 | ADR anchors | ADR-054 §D1/D2/D3/D4/D7/D10 (source authority for postconditions P1–P8); ADR-054 §D4/§D11 (source authority for P9 — get_token() PipelineExecutor production call sites, PLANNED per engine story); ADR-053 §D2 (Armis wiring as TOML config example); ADR-050 §D3 (reqwest rustls-tls); ADR-034 §D1 (credential resolver construction); AD-017 (credential safety); ADR-023 §Rule 4 (amended — standard flows do not require WASM) |
 | Subsystem | SS-16 (Spec Engine) |
+| Stories | S-WAVE-A-ENGINE-001 |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.19 | FB45 | 2026-07-24 | product-owner | F-WASE-P61-MED-004: added `| Stories | S-WAVE-A-ENGINE-001 |` row to §Traceability. STORY-INDEX.md §BC → Story reverse map asserts S-WAVE-A-ENGINE-001 maps to this BC; the BC had no back-reference. Convention per BC-2.16.009 §Traceability (Stories rows populated at spec/story-prep time). |
 | 1.18 | wave-a-spec-evolution-fix-burst-37 | 2026-07-24 | product-owner | F-WASE-P48-HIGH-001: TV-11 arithmetic corrected — `3599 - 30 = 3569` (not `1769`). The previous formula `unix_now() + 3599 - 30 = unix_now() + 1769` was wrong: 3599 − 30 = 3569; 1769 = 1799 − 30 (the default-path value in TV-5), so the error made TV-11 produce exactly the wrong-value that the VP-159 AC-7d kill-condition test is designed to detect. Fixed: `unix_now() + 3599 - 30 = unix_now() + 3569`. POL-29 sweep: VP-159 mentions of 1769 are all AC-7d deliberate wrong-value references (lines 196, 827, 933, 972 — not touched); TV-5 `unix_now() + 1769` is correct (1799 − 30); TV-6 `expires_at = unix_now() + 1769` is correct (zero→default 1799 path); changelog v1.17 row contains historical `1769` (exempt per POL-23). Only live body site fixed: TV-11 expected outcome cell. |
 | 1.17 | wave-a-rmu-amendment-burst-1 | 2026-07-23 | product-owner | RU-Q1/RU-Q2 alignment per ADR-054 §D4 v0.51. §P2 `absolute_utc_string` mode: replaced strict `parse_from_rfc3339` language with lenient `expiry_str.parse::<DateTime<FixedOffset>>()` (chrono relaxed `FromStr` — accepts both `T`-separator RFC-3339/ISO-8601 AND space-separated `"YYYY-MM-DD HH:MM:SS.ffffff+HH:MM"`; E-AUTH-001 only when even relaxed parse fails). §P2 `$.expires_in` extraction: amended to lenient deserialization — JSON number (`as_u64()`) OR numeric string (`str.parse::<u64>()`; e.g., Microsoft Entra ID `"3599"`, per RFC 6749 §5.1 which does not fix the JSON type); non-numeric/wrong-type treated as absent → 1799 default. EC-016-014-003: broadened from "non-RFC-3339-parseable" to "fails even lenient relaxed `FromStr`" with concrete examples. EC-016-014-016 added: numeric-string `$.expires_in` (e.g., `"3599"`) → same `expires_at` as equivalent JSON number. TV-2: updated label to "T-form"; replaced `parse_rfc3339(...)` formula with lenient `parse::<DateTime<FixedOffset>>()` formula + note that space-separated form yields same `expires_at` per ADR-054 §D4 v0.51/RU-Q1. TV-11 added: string-typed `"expires_in": "3599"` → `unix_now() + 1769`. |
 | 1.16 | wave-a-spec-evolution-fix-burst-30 | 2026-07-23 | product-owner | F-WASE-P34-LOW-002: §Canonical Test Vectors TV-9 "Input" cell reworded — replaced "`MockCredentialResolver` returns `CredentialResolutionError::NotFound`" with "`NotFoundCredentialResolver` injected as the `CredentialResolver` at `new_for_test` construction time" plus a MUST-NOT guidance note. The as-built `MockCredentialResolver` (lines ~253-283 of `auth_provider.rs`) unconditionally returns `Ok` and cannot produce `NotFound`; a test-writer taking TV-9 literally against `MockCredentialResolver` would never exercise the E-AUTH-005 path. `NotFoundCredentialResolver` (lines ~286-319) is the existing always-NotFound test double — no new type needed. POL-29 sweep: all VP-159 `MockCredentialResolver` references are always-Ok injection for successful-acquisition tests — no NotFound-capability assertions found in any PO-owned artifact; VP-159 sites reported to architect for v1.16 pin sweep per POL-23. |

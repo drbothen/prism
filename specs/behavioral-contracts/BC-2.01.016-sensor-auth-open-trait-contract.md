@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.14"
+version: "1.15"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T12:00:00Z
@@ -168,11 +168,13 @@ S-PLUGIN-PREREQ-E
 | L2 Invariants | DI-012 (amended: compile-time sealed-trait → runtime spec-validation per ADR-023 Rule 2; this BC implements the runtime-enforcement side) |
 | Related BCs | BC-2.01.013 (parent adapter contract), BC-2.16.011 (CustomAdapter retirement), BC-2.16.012 (spec_parser migration) |
 | Priority | P0 |
+| Stories | S-WAVE-A-ENGINE-001 |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.15 | FB45 | 2026-07-24 | product-owner | F-WASE-P61-MED-004: added `| Stories | S-WAVE-A-ENGINE-001 |` row to §Traceability. STORY-INDEX.md §BC → Story reverse map asserts S-WAVE-A-ENGINE-001 maps to this BC; the BC had no back-reference. Convention per BC-2.16.009 §Traceability (Stories rows populated at spec/story-prep time). |
 | 1.14 | wave-a-spec-evolution-fix-burst-28 | 2026-07-23 | product-owner | F-WASE-P31-MED-001 closure: §Postconditions Rule 2 rewritten to counting-unit-accurate phrasing per DI-012 Rule 2 v1.11 — "exactly one logical credential structure" replaces "exactly one `credential_ref` binding"; explicit note that `oauth2_client_credentials` binds two `[[credential_refs]]` entries (`client_id` + `client_secret`) forming one OAuth2 credential structure while all other auth types use one entry; rejection condition reworded to "count != expected count for the declared auth_type". §Error Cases E-SPEC-013 Condition column updated from "more than one `credential_ref` binding" to "count != expected count for declared auth_type (expected 2 for oauth2_client_credentials; 1 for all other auth types)"; DI-012 Rule 2 v1.11 citation added to Behavior cell. Companion: error-taxonomy.md v2.64 (E-SPEC-013 message template + description), BC-2.01.017 v1.9 (EC-017-008). |
 | 1.13 | wave-a-spec-evolution-burst-3 | 2026-07-22 | product-owner | ADR-054 D1 amendment: §Related BCs BC-2.01.017 reference updated from "5-value canonical auth_type set" to "6-value canonical auth_type set" — reflects addition of `token_exchange` as the 6th variant per ADR-054 D1 + DI-012 v1.8. modified date 2026-07-22. |
 | 1.12 | D-849 | 2026-05-29 | product-owner | §Related BCs: added BC-2.01.017 (StaticCookieAuthProvider — No-Login-Roundtrip Cookie Injection) as child contract; BC-2.01.017 operationalizes the `"cookie_roundtrip"` entry in the 5-value canonical auth_type set established here. Cross-reference added per bc_array_changes_propagate_to_body_and_acs anchor-back policy. |
