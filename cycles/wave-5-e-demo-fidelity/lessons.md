@@ -4279,3 +4279,15 @@ When a verification grep or search produces an unexpected "discrepancy found" re
 A gate's capability boundary documentation must explicitly state: (a) what the gate checks; (b) what it does NOT check; (c) the specific topology/environment in which the check runs. Stating the boundary in the negative ("this gate does NOT check X, Y, Z") prevents consumers from assuming broader coverage than the gate provides. Over-claiming a gate's coverage is a defect in the gate itself — it causes downstream actors to skip verification steps they believe the gate already performed. When a gate is promoted to "required by policy," the gate's documented scope must match the policy's required scope exactly; any gap must be listed as a known gap with a tracking item.
 
 **Source:** DRIFT-L9-VACUOUS-GATE-001 + TD-VSDD-092 design review (D-2017/FB47a 2026-07-25).
+
+## Lesson 105 — A ratchet-mode-only gate cannot catch a frontmatter bump in an unstaged file; --full-scan is required to close the window [process-gap; codified]
+
+**Category:** gate design, ratchet-mode blind spots
+
+**Context:** FB47a bumped S-WAVE-A-ENGINE-001 frontmatter from v2.2 to v2.3 (adding `blocks: [S-WAVE-A-CYBERINT-PATCH-001]`) but did not stage S-WAVE-A-ENGINE-001 in the same commit — that file was not part of the FB47a commit scope. The TD-VSDD-092 L1 check runs in ratchet mode by default (staged-files-only); since S-WAVE-A-ENGINE-001 was not staged, the gate never evaluated it. The file emerged from FB47a with frontmatter `version: "2.3"` but a top changelog row still at `| 2.2 |`, an L1 violation that was invisible to the commit-time gate. Only `records-lint.sh --full-scan` surfaced it.
+
+**Going-forward rule:**
+
+When a fix-burst makes a change to a file (e.g., adding a frontmatter field) without staging that file in the burst commit, the L1/L7 gate is blind to any resulting drift in that file. The transferable form: a fix-burst that bumps frontmatter in one commit and edits the changelog in another (or not at all) leaves a window where L1 drift is invisible to the commit-time gate. After any fix-burst that touches spec artifact frontmatter as a side-effect, run `records-lint.sh --full-scan` before declaring the burst complete, not just the default ratchet-mode run on staged files.
+
+**Source:** FB47a→FB47b defect (D-2017/D-2019, 2026-07-25). Mechanism: DRIFT-CASCADE-DIVERGENCE-001 recurrence — ratchet-mode gate plus unstaged-file side-effect.
