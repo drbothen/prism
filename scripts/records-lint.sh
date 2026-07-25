@@ -80,28 +80,31 @@ VERSIONED_ARTIFACT_DIRS=(
                                                 # carry version: frontmatter + standard 5-col
                                                 # Changelog table and are ABOVE PRD prose in
                                                 # the Source-of-Truth precedence hierarchy)
+    ".factory/stories"                          # per-story spec files + STORY-INDEX.md
+                                                # (enabled after STORY-INDEX.md v-prefix was
+                                                # normalized v2.723→2.724 in D-2015/FB45).
+                                                # 13 files use v-prefixed versions (e.g. v1.1)
+                                                # but all 13 have no standard Changelog table
+                                                # and skip cleanly. 1 file has no YAML
+                                                # frontmatter and also skips cleanly.
+                                                # extract_frontmatter_version strips the
+                                                # v-prefix for robustness (future-proofing).
 )
 
 # Directories deliberately excluded from L1/L7 scanning. These are NOT silent
 # exclusions — they are printed at runtime so readers know what the gate does
 # not cover. A silent exclusion is a false-green vector (origin of F-WASE-P61-MED-006).
 #
-# Blocked: .factory/specs/architecture — non-decisions files (ARCH-INDEX.md and
-#   section documents) use inline prose changelog rows, not the standard 5-column
-#   Changelog table that extract_changelog_versions requires. Will parse as
-#   "no changelog" and silently skip. Add to VERSIONED_ARTIFACT_DIRS once those
-#   files migrate to the standard table format.
+# Blocked: .factory/specs/architecture — non-decisions section documents have
+#   mixed coverage: 6 files (config-schema.md, detection-rule-format.md,
+#   infusions.md, installation.md, prismql-case-insensitive-design-map.md,
+#   tooling-selection.md) carry no version: frontmatter and would skip silently;
+#   4 files (actions.md, dtu-assessment.md, operational-pipeline.md,
+#   write-operations.md) have pre-existing L1 violations. Excluded until a
+#   dedicated story standardizes these files.
 #   Note: ADR-*.md files ARE covered via .factory/specs/architecture/decisions above.
-#
-# Blocked: .factory/stories — STORY-INDEX.md uses a v-prefixed version string
-#   (e.g. version: "v2.723") that differs from the bare numeric format used by
-#   all other versioned artifacts. extract_frontmatter_version strips quotes but
-#   not the v-prefix; adding this dir produces false L1 failures unless the
-#   version convention is reconciled first. Per-story files do not use the
-#   standard 5-column Changelog table.
 SKIPPED_ARTIFACT_DIRS_NOTICE=(
-    ".factory/specs/architecture (inline prose changelog; ADR decisions dir IS covered above)"
-    ".factory/stories (v-prefixed version string, e.g. v2.723, incompatible with L1 bare-numeric check)"
+    ".factory/specs/architecture/non-decisions (6 files lack version: frontmatter; 4 files have pre-existing L1 violations; ADR decisions dir IS covered above)"
 )
 
 # L9 scope: staged additions under these paths trigger the line-cite ban.
@@ -148,6 +151,7 @@ extract_frontmatter_version() {
              line=$0
              gsub(/^version:[[:space:]]*/, "", line)
              gsub(/"/, "", line)
+             gsub(/^v/, "", line)   # strip optional v-prefix (story files use e.g. "v1.1")
              gsub(/[[:space:]].*/, "", line)
              print line
              exit
@@ -470,6 +474,44 @@ PROBE
         probe_failures+=("L7: INCORRECTLY flagged valid descending changelog — false-red")
     fi
 
+    # ── no-frontmatter file → L1 clean skip ──────────────────────────────────
+    # Story files without YAML frontmatter delimiters (e.g. S-3.04-FOLLOWUP-MCP-001.md)
+    # should skip cleanly: extract_frontmatter_version returns "" → return 0.
+    cat > "${tmpdir}/probe-no-fm.md" <<'PROBE'
+# Story: S-EXAMPLE-001
+**Version:** v1.0
+
+Content without YAML frontmatter delimiters (no opening ---).
+PROBE
+    if run_l1 "${tmpdir}/probe-no-fm.md" >/dev/null 2>&1; then
+        echo "L1 probe PASS: no-frontmatter file correctly skipped"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L1: INCORRECTLY flagged no-frontmatter file (no --- delimiters) — false-red")
+    fi
+
+    # ── v-prefixed version + no changelog → L1 clean skip ────────────────────
+    # 13 story files use v-prefixed versions (e.g. "v1.1") with no standard
+    # changelog table. extract_frontmatter_version strips the v-prefix →
+    # fm_ver="1.1"; no changelog → first_cl_ver="" → return 0 (skip cleanly).
+    cat > "${tmpdir}/probe-v-prefix-no-cl.md" <<'PROBE'
+---
+version: "v1.5"
+---
+# Story with v-prefixed version, no standard changelog table.
+
+## Notes
+
+This file has no Changelog section with the standard | N.M | table format.
+Should skip cleanly (no changelog → no L1 comparison possible).
+PROBE
+    if run_l1 "${tmpdir}/probe-v-prefix-no-cl.md" >/dev/null 2>&1; then
+        echo "L1 probe PASS: v-prefix version + no changelog correctly skipped"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L1: INCORRECTLY flagged v-prefix version with no changelog (should skip) — false-red")
+    fi
+
     # ── L9 arm-1 violation: staged addition with file.ext:NNN line-cite ──────
     # Creates an isolated git repo in a temp subdir (not touching prism's .factory/).
     local probe_repo="${tmpdir}/l9probe"
@@ -598,13 +640,15 @@ PROBE
     echo "SELF-PROBE PASS: all ${pass_count} checks correctly detect/pass synthetic violations."
     echo ""
     echo "Coverage notes (not self-probed; verify manually):"
-    echo "  L1: files with no frontmatter version (should skip)"
-    echo "  L1: files with no changelog table (should skip)"
+    echo "  L1: files with frontmatter but no version: key (should skip)"
     echo "  L7: single-row changelog (should pass — no ordering comparison possible)"
     echo "  L9: URL port http://host:8080 must NOT trigger arm-1 — validate manually"
     echo "  L9: unchanged line with file:NNN must NOT trigger — validate manually"
     echo "  L9: worktree bypass fix (git -C .factory diff --cached) is exercised at"
     echo "       runtime only; not replicable in self-probe temp repos (no nested worktree)."
+    echo "Self-probed cases added 2026-07-24 (story-directory shapes):"
+    echo "  L1: no-frontmatter file (no --- delimiters) → clean skip"
+    echo "  L1: v-prefixed version + no changelog table → clean skip"
     echo ""
     echo "Excluded directories (not L1/L7 checked):"
     for notice in "${SKIPPED_ARTIFACT_DIRS_NOTICE[@]}"; do
@@ -678,5 +722,5 @@ if [ "${checks_failed}" -ne 0 ]; then
     exit 1
 fi
 
-echo "records-lint: PASS [L1+L7 covered: behavioral-contracts, architecture/decisions, verification-properties, prd-supplements | excluded: architecture (prose changelog), stories (v-prefix version)]"
+echo "records-lint: PASS [L1+L7 covered: behavioral-contracts, architecture/decisions, verification-properties, prd-supplements, stories | excluded: architecture/non-decisions (mixed formats; pre-existing violations)]"
 exit 0
