@@ -124,13 +124,42 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2013 (Wave-A engine story materialized + SEC-001 REOPENED; BC-5.39.001 streak RESET 0/3; NEXT = adversary pass 61 on amended perimeter).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2013 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2013 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.561. D-2013 burst complete; SEC-001 CWE-20/CWE-74 REOPENED spec-perimeter (BC-2.16.009 v1.24 / ADR-053 v0.33 / error-taxonomy v2.67); BC-5.39.001 streak RESET 3/3→0/3; NEXT = adversary pass 61.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2014 (SESSION WRAP + HEADS CORRECTION + BACKUP BOUNDARY; BC-5.39.001 streak 0/3; NEXT = adversary pass 61 on amended perimeter; frozen-HEAD rule: streak genuinely starts 0/3 — perimeter was amended).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2014 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2014 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.562. D-2014 burst complete; HEADS CORRECTION (main-worktree @ffa06d859 LOCAL-ONLY; carries TD-VSDD-091/092/096); DRIFT-PR230-SCOPE-GROWTH-001 registered; RECOMMENDED HUMAN ACTION: push docs/claude-md-file-size-convention; NEXT = adversary pass 61.
 
 ---
 
-## §RESUME SNAPSHOT — D-2013 (2026-07-24 — Wave-A ENGINE STORY MATERIALIZED + SEC-001 PERIMETER REOPENED; BC-5.39.001 streak RESET 0/3; STATE v8.561) [SUPERSEDES D-2012]
+## §RESUME SNAPSHOT — D-2014 (2026-07-24 — SESSION WRAP + HEADS CORRECTION + BACKUP BOUNDARY; BC-5.39.001 streak 0/3; STATE v8.562) [SUPERSEDES D-2013]
+
+### RESUME IN ONE BREATH
+D-2014 burst complete. HEADS CORRECTION: D-2013 main-worktree SHA was stale (@426c77cde recorded in error); correct HEAD is @ffa06d859 (LOCAL-ONLY; 1 unpushed commit ahead of origin @426c77cde; carries TD-VSDD-091 amendment [changelog/record line-cite exception REVOKED] + TD-VSDD-092 records-lint.sh mechanical gate [script itself exists only in this commit] + TD-VSDD-096 records-only micro-burst). DRIFT-PR230-SCOPE-GROWTH-001 registered (PR #230 scope grew beyond CLAUDE.md file-size convention; human-gated; orchestrator did NOT push or edit PR). BACKUP BOUNDARY: PUSHED = factory-artifacts @3ca15f05c + fix/DEFECT-DEMOSETUP-CWD-001 @ec4379b5b (PR #229 OPEN) + origin/develop @7fef57dad. LOCAL-ONLY (AT RISK) = docs/claude-md-file-size-convention @ffa06d859 (governance rules + records-lint.sh script) + .worktrees/S-3.09 @43c41389d + .worktrees/W3-FIX-S307-001 @fcab8717c. RECOMMENDED HUMAN ACTION: push docs/claude-md-file-size-convention to back up governance work (updates PR #230); orchestrator did not push because it is the human's own commit on the human's PR awaiting merge. PRIOR D-2013 STATE: S-WAVE-A-ENGINE-001 REGISTERED (draft v2.0; 5 BLOCKERs resolved Q1-Q5; Q6 adjudicated C-no-conflict; 19 ACs; 23 RGTs; 20 tasks; P1; tdd_mode: strict; blocks S-ADR054-WAVE-A-001 + S-WAVE-A-CYBERINT-SPEC-001 + S-WAVE-A-ARMIS-REMEDIATION-001). SEC-001 CWE-20/CWE-74 cookie-name tchar fix (E-SPEC-027 template (b)/(c) cookie:<name> tchar gate; EC-009-046 load-time rejection; RFC 6265 §4.1.1) REOPENED spec-perimeter under human authorization. Amended specs: BC-2.16.009 v1.24 / ADR-053 v0.33 / error-taxonomy v2.67. BC-5.39.001 streak RESET 3/3→0/3. NEXT SESSION FIRST ACTION: dispatch fresh-context adversary pass 61 on amended perimeter (BC-2.16.009 v1.24 + ADR-053 v0.33 + error-taxonomy v2.67 + all prior converged package); 3 consecutive CLEAN(strict) passes required before Wave-A story delivery begins. FROZEN-HEAD RULE: next session MUST NOT count any pre-D-2014 streak (DRIFT-ORCH-PRLEVEL-PUSH-001 — perimeter was amended; streak genuinely starts at 0/3).
+
+### CONVERGED PACKAGE (with SEC-001 amendments)
+BC-2.16.009 v1.24 / ADR-053 v0.33 / error-taxonomy v2.67 / BC-2.16.014 v1.18 / VP-159 v1.26 / ADR-054 v0.52 / BC-2.01.018 v1.4 / BC-2.01.006 v1.8 / BC-2.02.004 v1.10 / VP-153 v0.28 / BC-2.01.016 v1.14 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28. Indexes: BC-INDEX v8.70 / VP-INDEX v2.12 / ARCH-INDEX v2.273 / STORY-INDEX v2.723.
+
+### HEADS (verified 2026-07-24 D-2014)
+- origin/develop: 7fef57da — PUSHED. LOCAL develop: e116a587 — STALE, ff BLOCKED (DRIFT-LOCAL-DEVELOP-FF-001, human-gated, unchanged).
+- factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code).
+- Main worktree: docs/claude-md-file-size-convention @ffa06d859 (LOCAL-ONLY; 1 commit ahead of origin @426c77cde; carries TD-VSDD-091 amendment + TD-VSDD-092 records-lint.sh gate + TD-VSDD-096); pre-existing staged ci.yml/e2e.yml residue (S-MAINT AC-007, human-gated, untouched).
+- .worktrees/fix-demosetup-cwd @ec4379b5 PUSHED PR #229 OPEN; .worktrees/S-3.09 @43c41389 LOCAL-ONLY KEEP-PARKED; .worktrees/W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch (LOCAL-ONLY).
+- verify-sha-currency.sh: PASS (1 pre-existing WARN). No background agents in flight.
+
+### BACKUP BOUNDARY (D-2014)
+- PUSHED: factory-artifacts @3ca15f05c; fix/DEFECT-DEMOSETUP-CWD-001 @ec4379b5b (PR #229 OPEN); origin/develop @7fef57dad.
+- LOCAL-ONLY (AT RISK): docs/claude-md-file-size-convention @ffa06d859 (carries TD-VSDD-091 amendment + TD-VSDD-092 records-lint.sh script + TD-VSDD-096 — governance rules and the mechanical gate enforcing them exist on this machine only); .worktrees/S-3.09 @43c41389d; .worktrees/W3-FIX-S307-001 @fcab8717c.
+- RECOMMENDED HUMAN ACTION: push docs/claude-md-file-size-convention (updates PR #230) to back up the governance work. The orchestrator deliberately did NOT push — it is the human's own commit on the human's PR, and pushing changes a PR awaiting human merge.
+
+### TRACKED DO-NOT-RE-RAISE (carry forward; D-2013 items (a)-(zz) remain valid; D-2014 additions below)
+**(aaa)** DRIFT-PR230-SCOPE-GROWTH-001 registered: PR #230 scope grew to include TD-VSDD-091/092/096. Do NOT raise as a spec-drift finding; it is a tracked drift item awaiting human action (push + PR review before merge).
+**(bbb)** Main-worktree ffa06d859 is LOCAL-ONLY. Do NOT assume it is available to any agent other than the human. All adversary dispatches should work from specs in .factory/ only; no code delivery needed for adversary pass 61.
+
+### DECISION DELTA (this burst, 2026-07-24 — D-2014)
+D-2014 (state-manager burst: HEADS correction @426c77cde→@ffa06d859; DRIFT-PR230-SCOPE-GROWTH-001 registered; BACKUP BOUNDARY disclosed; RESUME SNAPSHOT D-2014 authored; adversary pass 61 next; STATE v8.561→v8.562).
+
+---
+
+## §RESUME SNAPSHOT — D-2013 (2026-07-24 — Wave-A ENGINE STORY MATERIALIZED + SEC-001 PERIMETER REOPENED; BC-5.39.001 streak RESET 0/3; STATE v8.561) [SUPERSEDES D-2012] [SUPERSEDED by D-2014]
 
 ### RESUME IN ONE BREATH
 D-2013 burst complete. S-WAVE-A-ENGINE-001 REGISTERED (draft v2.0; remove-uncertainty complete; 5 BLOCKERs resolved Q1-Q5; Q6 ADR-052↔ADR-054 adjudicated C-no-conflict; 19 ACs; 23 RGTs; 20 tasks; P1; tdd_mode: strict; blocks S-ADR054-WAVE-A-001 + S-WAVE-A-CYBERINT-SPEC-001 + S-WAVE-A-ARMIS-REMEDIATION-001). CONVERGENCE REGRESSION: SEC-001 CWE-20/CWE-74 cookie-name tchar fix (E-SPEC-027 template (b)/(c) cookie:<name> tchar gate; EC-009-046 load-time rejection; RFC 6265 §4.1.1) REOPENED spec-perimeter under human authorization. Amended specs: BC-2.16.009 v1.24 / ADR-053 v0.33 / error-taxonomy v2.67. BC-5.39.001 streak RESET 3/3→0/3. NEXT SESSION FIRST ACTION: dispatch fresh-context adversary pass 61 on amended perimeter (BC-2.16.009 v1.24 + ADR-053 v0.33 + error-taxonomy v2.67 + all prior converged package); 3 consecutive CLEAN(strict) passes required before Wave-A story delivery begins.
@@ -138,10 +167,10 @@ D-2013 burst complete. S-WAVE-A-ENGINE-001 REGISTERED (draft v2.0; remove-uncert
 ### CONVERGED PACKAGE (with SEC-001 amendments)
 BC-2.16.009 v1.24 / ADR-053 v0.33 / error-taxonomy v2.67 / BC-2.16.014 v1.18 / VP-159 v1.26 / ADR-054 v0.52 / BC-2.01.018 v1.4 / BC-2.01.006 v1.8 / BC-2.02.004 v1.10 / VP-153 v0.28 / BC-2.01.016 v1.14 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28. Indexes: BC-INDEX v8.70 / VP-INDEX v2.12 / ARCH-INDEX v2.273 / STORY-INDEX v2.723.
 
-### HEADS (verified 2026-07-24 D-2013)
+### HEADS (verified 2026-07-24 D-2013; SHA CORRECTED by D-2014)
 - origin/develop: 7fef57da — PUSHED. LOCAL develop: e116a587 — STALE, ff BLOCKED (DRIFT-LOCAL-DEVELOP-FF-001, human-gated, unchanged).
 - factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code).
-- Main worktree: docs/claude-md-file-size-convention @426c77cde (PR #230 OPEN, awaiting HUMAN merge); pre-existing staged ci.yml/e2e.yml residue (S-MAINT AC-007, human-gated, untouched).
+- Main worktree: docs/claude-md-file-size-convention @ffa06d859 (LOCAL-ONLY; 1 commit ahead of origin @426c77cde; carries TD-VSDD-091 amendment + TD-VSDD-092 records-lint.sh gate + TD-VSDD-096; pre-existing staged ci.yml/e2e.yml residue S-MAINT AC-007 human-gated untouched).
 - .worktrees/fix-demosetup-cwd @ec4379b5 PUSHED PR #229 OPEN; .worktrees/S-3.09 @43c41389 LOCAL-ONLY KEEP-PARKED; .worktrees/W3-FIX-S307-001 @fcab8717 PARKED-DIRTY do-NOT-touch (LOCAL-ONLY).
 - verify-sha-currency.sh: PASS (1 pre-existing WARN). No background agents in flight.
 
