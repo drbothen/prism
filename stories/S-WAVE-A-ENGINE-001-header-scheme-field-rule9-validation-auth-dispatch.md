@@ -6,8 +6,8 @@ wave: wave-a
 epic_id: E-SPEC-ENGINE
 priority: P1
 status: draft
-version: "2.1"
-updated: "2026-07-24"
+version: "2.2"
+updated: "2026-07-25"
 level: "L3"
 producer: story-writer
 timestamp: "2026-07-24T00:00:00Z"
@@ -108,10 +108,10 @@ merge-dependency encoding.
 
 | BC | Title | Version | Scope in This Story |
 |----|-------|---------|---------------------|
-| BC-2.16.009 | Spec File Validation | v1.25 | Rule 9 only — `header_scheme` value validation, 3 E-SPEC-027 templates, coherence matrix (5 existing variants), absence paths A/B. Cookie name constraint: RFC 6265 tchar per SEC-001 CWE-20/CWE-74 fix (15-char set with backtick, RFC 9110 §5.6.2 order). New in v1.25: §Entry points and function coverage sub-section asserts `add_sensor_spec` MUST reach `SpecLoader::parse()` for Rule 9 coverage on the sole active injection vector. Rule 10 (`[auth_acquisition]`) is OUT OF SCOPE. |
+| BC-2.16.009 | Spec File Validation | v1.26 | Rule 9 only — `header_scheme` value validation, 3 E-SPEC-027 templates, coherence matrix (5 existing variants), absence paths A/B. Cookie name constraint: RFC 6265 tchar per SEC-001 CWE-20/CWE-74 fix (15-char set with backtick, RFC 9110 §5.6.2 order). §Entry points and function coverage sub-section asserts `add_sensor_spec` MUST reach `SpecLoader::parse()` for Rule 9 coverage on the sole active injection vector. New in v1.26: EC-009-047..EC-009-051 (overlong value echo cap CWE-400, CTL-byte `\xNN` hex escaping CWE-117, TAB in cookie name, high-byte byte-level predicate divergence probe, cookie name > 128 codepoints CWE-390). Rule 10 (`[auth_acquisition]`) is OUT OF SCOPE. |
 | BC-2.01.017 | StaticCookieAuthProvider — No Login Roundtrip | v1.10 | P2 dispatch table: build_request() switches from auth_type-keyed to header_scheme-keyed dispatch per ADR-053 D2. INV-COOKIE-004: no Authorization header for cookie injection. |
-| BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | v1.19 | P9 only — execute_impl and execute_step call sites change from `acquire_token()` to `get_token()`. issue_request_with_retry 401 path remains `acquire_token()`. |
-| BC-2.01.016 | SensorAuth Open Trait Contract | v1.15 | AuthProvider trait extension: `get_token()` default method added. Foundation for VP-153 re-verification gate (Rule A E-SPEC-012 Display alignment). |
+| BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | v1.19 | P9 only — `get_token()` default method added to `AuthProvider` trait (default body delegates to `acquire_token()`); execute_impl and execute_step call sites change from `acquire_token()` to `get_token()`. issue_request_with_retry 401 path remains `acquire_token()`. |
+| BC-2.01.016 | SensorAuth Open Trait Contract | v1.15 | Rule A/B E-SPEC-012/013 Display alignment (AC-017/AC-018); foundation for VP-153 re-verification gate. |
 
 ## Acceptance Criteria
 
@@ -158,7 +158,7 @@ assert_eq!(spec_err.message, expected_verbatim_string);
 **AC-005 — syntactically invalid value → E-SPEC-027 template (a)**
 A spec with `header_scheme = "garbage"` (not one of `bearer`, `raw`, `cookie:<name>`)
 is rejected at spec-load time. `spec_err.message` (extracted from `PrismError::Spec`)
-matches E-SPEC-027 template (a) VERBATIM per error-taxonomy.md v2.68:
+matches E-SPEC-027 template (a) VERBATIM per error-taxonomy.md v2.69:
 ``"sensor '{sensor_id}' has invalid header_scheme = '{value}'. Valid values: bearer, raw, cookie:<name> (non-empty name required, RFC 6265 token characters only: A-Z a-z 0-9 ! # $ % & ' * + - . ^ _ ` | ~)"``
 where `{sensor_id}` and `{value}` are substituted with the spec's values.
 (traces to BC-2.16.009 Rule 9 postcondition 2a: syntactically invalid value → E-SPEC-027(a))
@@ -292,10 +292,10 @@ execute_impl and execute_step use get_token(); 401 arm uses acquire_token())
 
 ### Tier 5 — E-SPEC-012 / E-SPEC-013 Display Alignment (POL-24 Code Alignment)
 
-**AC-017 — E-SPEC-012 Display matches error-taxonomy.md v2.68 verbatim (AuthTypeCrossComposition clause)**
+**AC-017 — E-SPEC-012 Display matches error-taxonomy.md v2.69 verbatim (AuthTypeCrossComposition clause)**
 The `SpecEngineError::AuthTypeCrossComposition` variant's `Display` output (emitted
 via `thiserror` `#[error(…)]`) matches the FIRST OR-clause of the E-SPEC-012
-`message_template` in error-taxonomy.md v2.68 BYTE-FOR-BYTE (the first clause covers
+`message_template` in error-taxonomy.md v2.69 BYTE-FOR-BYTE (the first clause covers
 `AuthTypeCrossComposition`; the second clause covers `UnknownAuthPlugin` and is NOT
 changed by this story):
 `"auth_type for sensor '{sensor_id}' must be a single value; got: {value}. Valid values: oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key, custom_via_plugin, token_exchange"`
@@ -314,9 +314,9 @@ Add the POL-24 comment at the `#[error(...)]` rewrite site per Q5 ruling:
 (traces to BC-2.01.016 Rule A postcondition: E-SPEC-012 emitted per POL-24 taxonomy
 source-of-truth; F-WASE-P16-OBS-003 engine-story D11 row)
 
-**AC-018 — E-SPEC-013 Display matches error-taxonomy.md v2.68 verbatim**
+**AC-018 — E-SPEC-013 Display matches error-taxonomy.md v2.69 verbatim**
 The `SpecEngineError::MultipleCredentialRefs` variant's `Display` output matches the
-E-SPEC-013 `message_template` in error-taxonomy.md v2.68:
+E-SPEC-013 `message_template` in error-taxonomy.md v2.69:
 `"auth method for sensor '{sensor_id}' declares {count} credential_refs; exactly {expected} required for auth_type '{auth_type}'"`
 The variant struct gains (or renames to) fields `sensor_id`, `count`, `expected`,
 `auth_type` to satisfy this template. The as-built "hardcoded 1 with no {auth_type}
@@ -344,22 +344,50 @@ RG-020..RG-023 each drive one of the four injection-class inputs through
 (traces to BC-2.16.009 Rule 9 postcondition 2a: non-tchar character in cookie name →
 E-SPEC-027(a); EC-009-043, EC-009-044, EC-009-045, EC-009-046)
 
-**AC-020 — non-tchar cookie name rejected via `add_sensor_spec` MCP tool surface (SAP-3 end-to-end wire-level coverage)**
-Calling the `add_sensor_spec` MCP tool with `toml_content` containing
-`header_scheme = "cookie:bad;name"` (`;` is not a tchar character) produces an MCP
-error response at the wire level. The serialized JSON envelope consumed by the LLM
-agent contains `structuredContent.error.code` matching `E-SPEC-027`. RG-024 drives this
-through the actual MCP stdio surface (an integration test that invokes the MCP binary
-endpoint, NOT a direct `SpecLoader::parse()` call) and asserts on the serialized JSON
-output per CLAUDE.md wire-shape assertion discipline (2026-07-13). This test verifies
-that the `add_sensor_spec` handler reaches `SpecLoader::parse()` so Rule 9 applies on
-the sole exploitable injection surface — an implementation that calls only
-`validate_sensor_spec()` in the handler bypasses Rules 8/9/10 and leaves the injection
-vector open. Per BC-2.16.008, `add_sensor_spec` uses "the same validation pipeline as
-startup loading"; this AC operationalizes that assertion at the wire level.
+**AC-020 — `add_sensor_spec` call path reaches `SpecLoader::parse()`, applying Rule 9 (SAP-3 end-to-end, prism-spec-engine API boundary)**
+Calling `add_sensor_spec(org_slug, toml_content)` in `prism-spec-engine` with `toml_content`
+containing `header_scheme = "cookie:bad;name"` (`;` is not a tchar character) returns
+`Ok(AddSensorSpecResult::ValidationFailed { errors })` where `errors` contains at least one
+entry whose text matches the E-SPEC-027 template (a) VERBATIM string. RG-024 drives this
+at the `prism-spec-engine` public API boundary — NOT a direct `SpecLoader::parse()` call,
+and NOT a `prism-mcp` integration test. This verifies that the `add_sensor_spec` handler
+reaches `SpecLoader::parse()` (per BC-2.16.009 Rule 9 §Entry points and function coverage),
+closing the CWE-20/CWE-74 injection vector on the handler path. An implementation that
+calls only `validate_sensor_spec()` in the handler bypasses Rules 8/9/10 per BC-2.16.009
+§Security requirement and leaves the injection vector open. **S-WAVE-A-MCP-001 carries
+the original wire-level intent** (BC-2.10.007 envelope mapping, `structuredContent.error.code`
+assertion at the MCP stdio surface); that story depends on this one. Per ADR-053 §D6
+(Option B), the current multi-error prose-string shape from `add_sensor_spec` is a gap,
+not an intended contract — do NOT assert `structuredContent.error.code` in this story.
+`prism-mcp` remains outside `crates_touched` and Files to MODIFY.
 (traces to BC-2.16.009 Rule 9 §Entry points and function coverage: `add_sensor_spec`
 MUST reach `SpecLoader::parse()` for Rule 9 to close the CWE-20/CWE-74 injection vector;
-SAP-3: end-to-end coverage from MCP tool surface, not synthetic internal invocation)
+SAP-3: end-to-end coverage at prism-spec-engine public API, not synthetic internal
+invocation; BC-2.16.008 v1.6: `add_sensor_spec` uses same validation pipeline as startup)
+
+**AC-021 — cookie name with all 15 RFC 6265 tchar special characters is ACCEPTED (HIGH-003 tchar positive coverage)**
+A spec with ``header_scheme = "cookie:a!#$%&'*+-.^_`|~9Z"`` (cookie name
+``a!#$%&'*+-.^_`|~9Z`` exercises all 15 tchar special characters: `! # $ % & ' * + - . ^ _`
+plus backtick, `| ~`, plus a digit `9` and uppercase letter `Z`) and
+`auth_type = "cookie_roundtrip"` passes Rule 9 validation. `SpecLoader::parse()` returns
+`Ok`. This test makes the permissive half of the tchar character set load-bearing in the
+test suite: an implementation of `is_valid_cookie_name_tchar` that used only `[A-Za-z0-9_]`
+(omitting all 15 special tchar characters) would FAIL this test. RG-025 lives in
+`spec_parser.rs`'s inline `#[cfg(test)] mod tests`.
+(traces to BC-2.16.009 Rule 9 postcondition: syntactically valid cookie name with all 15
+RFC 6265 tchar special characters is accepted; HIGH-003 tchar coverage gap)
+
+**AC-022 — high byte (U+00E9 'é' = 0xC3 0xA9) in cookie name is REJECTED (EC-009-050: byte-level predicate divergence probe)**
+A spec with `header_scheme = "cookie:caf\xc3\xa9"` (cookie name contains U+00E9 'é'
+as multi-byte UTF-8 bytes 0xC3 0xA9) is rejected at spec-load time. `spec_err.message`
+(extracted from `PrismError::Spec`) matches E-SPEC-027 template (a). This test distinguishes
+a correct byte-level tchar predicate (`name.bytes().all(|b| matches!(...))`) from a buggy
+unicode-aware implementation using `chars()` + `char::is_alphanumeric()`, which would treat
+'é' as alphabetic and accept it incorrectly. High bytes (0x80–0xFF) are outside the
+byte-level tchar set and must be rejected. RG-026 lives in `spec_parser.rs`'s inline
+`#[cfg(test)] mod tests`.
+(traces to BC-2.16.009 Rule 9 postcondition 2a: high byte fails byte-level tchar check;
+EC-009-050)
 
 ## `auth_type × header_scheme` Coherence Matrix (Rule 9 — 5 Existing Variants)
 
@@ -408,13 +436,13 @@ new variants on the existing SpecEngineError enum). Bump to 95 belongs to S-ADR0
 |----|-------------|-------------------|
 | EC-001 | `header_scheme = ""` (empty string) | E-SPEC-027(a) — empty string is neither bearer, raw, nor valid cookie:<name> |
 | EC-002 | `header_scheme = "BEARER"` (wrong case) | E-SPEC-027(a) — only lowercase "bearer" is valid |
-| EC-003 | `header_scheme = "cookie:a:b"` (`:` in name) | E-SPEC-027(a) — `:` is not an RFC 6265 tchar character (tchar excludes all RFC 9110 §5.6.2 delimiters) |
+| EC-009-033 | `header_scheme = "cookie:a:b"` (`:` in name) | E-SPEC-027(a) — `:` is not an RFC 6265 tchar character (tchar excludes all RFC 9110 §5.6.2 delimiters) |
 | EC-004 | `header_scheme = " bearer"` (leading space) | E-SPEC-027(a) — SP (0x20) is not a tchar character; whitespace-prefixed values are invalid |
-| EC-005 | `header_scheme = "bearer"` + `auth_type = "cookie_roundtrip"` | E-SPEC-027(b) — coherence violation |
+| EC-009-031 | `header_scheme = "bearer"` + `auth_type = "cookie_roundtrip"` | E-SPEC-027(b) — coherence violation |
 | EC-006 | `header_scheme = "raw"` + `auth_type = "api_key"` | E-SPEC-027(b) — api_key only permits bearer |
 | EC-007 | `header_scheme = "cookie:tok"` + `auth_type = "bearer_static"` | E-SPEC-027(b) — bearer_static only permits bearer/raw |
-| EC-008 | `auth_type = "cookie_roundtrip"` + no `header_scheme` key | E-SPEC-027(c) — absence path B; cookie name unknown |
-| EC-009 | `auth_type = "oauth2_client_credentials"` + no `header_scheme` key | loads OK (absence path A); bearer default at runtime |
+| EC-009-042 | `auth_type = "cookie_roundtrip"` + no `header_scheme` key | E-SPEC-027(c) — absence path B; cookie name unknown |
+| EC-014 | `auth_type = "oauth2_client_credentials"` + no `header_scheme` key | loads OK (absence path A); bearer default at runtime |
 | EC-010 | `header_scheme = "cookie:name"` + `auth_type = "oauth2_client_credentials"` | E-SPEC-027(b) — coherence violation; oauth2 does not permit cookie injection |
 | EC-011 | E-SPEC-027(c) message text has no credential value substituted | Verified by AC-010; `{sensor_id}` is config text (safe per AD-017) |
 | EC-012 | `build_request()` with `header_scheme = None` (after absence path A spec-load) | Silent bearer default applied; no error returned |
@@ -423,13 +451,18 @@ new variants on the existing SpecEngineError enum). Bump to 95 belongs to S-ADR0
 | EC-009-044 | `header_scheme = "cookie:a=b"` (`=` in name) | E-SPEC-027(a) — `=` is not tchar; corrupts `name=value` boundary in Cookie header |
 | EC-009-045 | `header_scheme = "cookie:a b"` (SP in name) | E-SPEC-027(a) — SP is not tchar; malformed cookie name on wire |
 | EC-009-046 | `header_scheme = "cookie:a\nb"` (LF/CTL in name — SEC-002 CWE-390 side effect) | E-SPEC-027(a) — CTL is not tchar; load-time rejection replaces prior deferred `"builder error"` from reqwest at `.send()` time |
+| EC-009-047 | `header_scheme` value > 64 codepoints (CWE-400 echo cap) | E-SPEC-027(a) — `{value}` substitution in the error message is capped at 64 codepoints (excess replaced with `…`) to prevent log flooding from untrusted input |
+| EC-009-048 | CTL byte (e.g., 0x01) in cookie name — message escaping (CWE-117) | E-SPEC-027(a) — CTL bytes in the echoed `{value}` are `\xNN`-escaped (uppercase hex) in the error message, preventing log injection via raw control characters |
+| EC-009-049 | TAB (0x09) in cookie name | E-SPEC-027(a) — TAB is a CTL byte (0x09), not tchar; spec rejected at load time (same mechanism as EC-009-046 LF case; TAB escapes as `\x09` per EC-009-048) |
+| EC-009-050 | High byte (U+00E9 'é' = 0xC3 0xA9) in cookie name | E-SPEC-027(a) — high bytes (0x80–0xFF) are outside the byte-level tchar set; the byte-level predicate (`name.bytes().all(...)`) rejects them; a buggy `char::is_alphanumeric()` implementation would wrongly accept 'é' |
+| EC-009-051 | Cookie name length > 128 codepoints (CWE-390) | E-SPEC-027(a) — cookie names exceeding 128 codepoints are rejected by Rule 9 length guard; the echoed value is additionally capped per EC-009-047 |
 
 ## Token Budget Estimate
 
 | Artifact | Estimated Tokens | Notes |
 |----------|-----------------|-------|
 | This story file | ~10,000 | |
-| BC-2.16.009 v1.25 (Rule 9 full text incl. §Entry points sub-section) | ~24,000 | Primary authoring source; grew in v1.24–v1.25 (tchar amendment + Entry points sub-section) |
+| BC-2.16.009 v1.26 (Rule 9 full text incl. §Entry points sub-section + EC-009-047..051) | ~25,000 | Primary authoring source; grew in v1.24–v1.25 (tchar amendment + Entry points sub-section), v1.26 (new ECs) |
 | BC-2.01.017 v1.10 (P2 dispatch table) | ~8,000 | Dispatch switch spec |
 | BC-2.16.014 v1.19 (P9 get_token callers) | ~18,000 | Call-site change spec |
 | BC-2.01.016 v1.15 (AuthProvider trait) | ~12,000 | |
@@ -482,15 +515,24 @@ context, deferring source-file reads to the implementation phase.
 - [ ] **RG-023**: `test_rule9_ctl_in_cookie_name_e_spec_027_template_a` — AC-019 / EC-009-046
   (`"cookie:a\nb"` — LF/CTL fails tchar; load-time rejection replaces prior deferred
   reqwest `"builder error"` at `.send()` time — SEC-002 CWE-390 side effect)
-- [ ] **RG-024**: `test_add_sensor_spec_mcp_tool_rejects_nontchar_cookie_name_wire_level` — AC-020
-  (SAP-3 end-to-end from MCP stdio surface: `add_sensor_spec` with `header_scheme = "cookie:bad;name"`;
-  assert `structuredContent.error.code == "E-SPEC-027"` on the serialized JSON envelope;
-  wire-shape assertion discipline per CLAUDE.md 2026-07-13; verifies `add_sensor_spec` reaches
-  `SpecLoader::parse()` per BC-2.16.009 Rule 9 §Entry points and function coverage)
+- [ ] **RG-024**: `test_add_sensor_spec_api_rejects_nontchar_cookie_name_rule9_path` — AC-020
+  (SAP-3 end-to-end at prism-spec-engine public API: `add_sensor_spec(org_slug, toml_content)`
+  with `header_scheme = "cookie:bad;name"`; assert `Ok(AddSensorSpecResult::ValidationFailed
+  { errors })` with an entry matching E-SPEC-027(a) verbatim text; verifies handler reaches
+  `SpecLoader::parse()` per BC-2.16.009 Rule 9 §Entry points; does NOT assert
+  `structuredContent.error.code` — S-WAVE-A-MCP-001 carries the wire-level MCP assertion
+  deferred by ADR-053 §D6 Option B)
+- [ ] **RG-025**: `test_rule9_all_tchar_special_chars_cookie_name_accepted` — AC-021
+  (HIGH-003: cookie name ``a!#$%&'*+-.^_`|~9Z`` exercises all 15 RFC 6265 tchar special
+  chars; any `is_valid_cookie_name_tchar` using only `[A-Za-z0-9_]` would fail this test)
+- [ ] **RG-026**: `test_rule9_high_byte_in_cookie_name_e_spec_027_template_a` — AC-022
+  (EC-009-050: cookie name `"caf\xc3\xa9"` — U+00E9 high-byte bytes fail the byte-level
+  tchar check; catches buggy `chars()`/`is_alphanumeric()` implementations that accept 'é')
 
-**Red Gate density check** (BC-5.38.001): **24 failing tests** before implementation begins.
+**Red Gate density check** (BC-5.38.001): **26 failing tests** before implementation begins.
 (19 original + RG-020..RG-023 for EC-009-043..046 per SEC-001 spec amendment + RG-024 for
-add_sensor_spec MCP surface per SAP-3 / AC-020.)
+add_sensor_spec prism-spec-engine API per SAP-3/AC-020 + RG-025 for AC-021 tchar positive
+coverage + RG-026 for AC-022 EC-009-050 high-byte predicate probe.)
 All non-trivial function bodies use `todo!()` stubs.
 
 ### Implementation tasks (to be executed by implementer after Red Gate)
@@ -506,15 +548,15 @@ All non-trivial function bodies use `todo!()` stubs.
   `SpecErrorCode` is `#[non_exhaustive]`; adding one variant is additive — no semver break,
   no `EXPECTED=92` gate bump (EXPECTED counts pub struct types, not enum variants):
   ```rust
-  /// E-SPEC-027: `header_scheme` field validation failure (Rule 9, BC-2.16.009 v1.25).
+  /// E-SPEC-027: `header_scheme` field validation failure (Rule 9, BC-2.16.009 v1.26).
   /// Three templates: (a) syntactically invalid value (not bearer/raw/cookie:<tchar-name>);
   /// (b) coherence violation with auth_type; (c) absent header_scheme when
   /// auth_type = "cookie_roundtrip" (absence path B).
-  /// See error-taxonomy.md v2.68 E-SPEC-027 for verbatim message templates.
+  /// See error-taxonomy.md v2.69 E-SPEC-027 for verbatim message templates.
   ESpec027,
   ```
 - [ ] **T-A02**: Rewrite `AuthTypeCrossComposition` `#[error(…)]` attribute to match the
-  FIRST OR-clause of E-SPEC-012 taxonomy template verbatim per error-taxonomy.md v2.68
+  FIRST OR-clause of E-SPEC-012 taxonomy template verbatim per error-taxonomy.md v2.69
   (rename field `provided_value` → `value` or adjust the `#[error(…)]` substitution token).
   Verify template includes `token_exchange` in the Valid values clause. POL-24 atomicity:
   taxonomy (already executed v2.57) + VP-153 prose (already executed v0.21) + this code
@@ -528,7 +570,7 @@ All non-trivial function bodies use `todo!()` stubs.
   (`UnknownAuthPlugin` path — verify which OR-clause applies and update accordingly).
   See Files to MODIFY table.
 - [ ] **T-A03**: Rewrite `MultipleCredentialRefs` `#[error(…)]` attribute to match E-SPEC-013
-  taxonomy template verbatim per error-taxonomy.md v2.68. Add/rename struct fields: `sensor_id`,
+  taxonomy template verbatim per error-taxonomy.md v2.69. Add/rename struct fields: `sensor_id`,
   `count`, `expected`, `auth_type`. Verify `Display` output has parameterized `{expected}`
   and `{auth_type}` (not hardcoded `1`). Update the construction site for this variant:
   there is exactly **one** construction site (in `validate_cross_composition`), which
@@ -583,7 +625,7 @@ All non-trivial function bodies use `todo!()` stubs.
      tchar) and additionally rejects `;`, `=`, SP, TAB, CTL chars, high bytes, and
      all RFC 9110 §5.6.2 delimiters (SEC-001 CWE-20/CWE-74 fix — closes SEC-002
      CWE-390 as side effect). Invalid syntax → Err(PrismError::Spec + ESpec027 +
-     template (a) message verbatim from error-taxonomy.md v2.68)
+     template (a) message verbatim from error-taxonomy.md v2.69)
   4. Coherence matrix `match auth_type` with exactly **5 exhaustive arms** and **NO
      wildcard** (Q4 rationale: forces `TokenExchange` arm addition in S-ADR054-WAVE-A-001):
      ```rust
@@ -613,9 +655,12 @@ All non-trivial function bodies use `todo!()` stubs.
   is fail-fast in `parse()` following the Rule 8 precedent; VP-059's multi-error collection
   semantics apply only to `validate_sensor_spec`. This is stated explicitly so reviewers
   do not re-raise it.
-- [ ] **T-B03**: Call `validate_header_scheme` from `SpecLoader::parse()` (or the validation
-  pass within spec_parser.rs) after all other field validations. Order: Rule 9 runs after
-  auth_type validation succeeds.
+- [ ] **T-B03**: Call `validate_header_scheme` from `SpecLoader::parse()` after all other
+  field validations, citing BC-2.16.009 §Validation Rules 9 §Security requirement. Order:
+  Rule 9 runs after auth_type validation succeeds (fail-fast: if Rule 8 fails, Rule 9 is
+  not reached). NOTE: `SpecLoader::parse()` is the unconditional call point — calling
+  `validate_header_scheme` only from `validate_sensor_spec()` bypasses Rules 8/9/10 and
+  leaves the CWE-20/CWE-74 injection vector open per BC-2.16.009 §Security requirement.
 - [ ] **T-B04**: Correct `FetchStep` struct doc-comment: replace "use the `Default` impl or
   builder pattern for external construction" with guidance to use `FetchStep::new(...)`.
   Correct `Default for FetchStep` impl doc-comment: remove the struct-literal +
@@ -708,34 +753,6 @@ All non-trivial function bodies use `todo!()` stubs.
   site in `crates/prism-bin/src/spec_driven_adapter.rs`) would be missed by
   `grep -rn "impl AuthProvider" crates/`.
 
-#### Phase G — SensorSpec exhaustive literal fixups (broken by header_scheme field addition)
-
-Adding `header_scheme: Option<String>` to `SensorSpec` breaks every exhaustive struct
-literal in the codebase. `SensorSpec` carries `#[non_exhaustive]` for external users, but
-internal `..` spread syntax requires `Default::default()` to be explicit — internal test
-literals that enumerate all fields WILL fail to compile. Fix the 5 known sites atomically
-with the field addition (T-B01). **DO NOT extend `SensorSpec::new()` arity** — the
-`probe_table` precedent (see S-SPEC-ENV-VAR-001 merge notes) keeps `new()` minimal;
-add the field via `..Default::default()` spread or direct assignment.
-
-- [ ] **T-G01**: `SensorSpec::default()` explicit-field construction site in
-  `crates/prism-spec-engine/src/spec_parser.rs` (inline test module) — add
-  `header_scheme: None` or switch to `..Default::default()` spread.
-- [ ] **T-G02**: `SensorSpec::new(...)` constructor body in
-  `crates/prism-spec-engine/src/spec_parser.rs` — add `header_scheme: None` field.
-  **Do NOT add `header_scheme` as a parameter** — `new()` uses positional minimal
-  construction per `probe_table` precedent.
-- [ ] **T-G03**: First inline test `SensorSpec { ... }` literal in
-  `crates/prism-spec-engine/src/pipeline.rs` (search for exhaustive literal by all-field
-  enumeration) — add `header_scheme: None`.
-- [ ] **T-G04**: Second inline test `SensorSpec { ... }` literal in
-  `crates/prism-spec-engine/src/pipeline.rs` — add `header_scheme: None`.
-- [ ] **T-G05**: `SensorSpec { ... }` literal in
-  `crates/prism-spec-engine/src/proofs/spec_validator.rs` — add `header_scheme: None`.
-
-TD-VSDD-060 sibling-site sweep: `grep -rn "SensorSpec {" crates/` to confirm these 5
-are the complete set and no sixth site was missed.
-
 #### Phase F — VP-153 harness amendments
 
 - [ ] **T-F01**: In `crates/prism-spec-engine/tests/vp153_sensorauth_cross_composition.rs`,
@@ -781,6 +798,34 @@ are the complete set and no sixth site was missed.
 >
 > **Former T-F04** (add `"token_exchange"` to `VALID_AUTH_TYPES` constant in both harness
 > files and in `spec_parser.rs`) → assigned to S-ADR054-WAVE-A-001.
+
+#### Phase G — SensorSpec exhaustive literal fixups (broken by header_scheme field addition)
+
+Adding `header_scheme: Option<String>` to `SensorSpec` breaks every exhaustive struct
+literal in the codebase. `SensorSpec` carries `#[non_exhaustive]` for external users, but
+internal `..` spread syntax requires `Default::default()` to be explicit — internal test
+literals that enumerate all fields WILL fail to compile. Fix the 5 known sites atomically
+with the field addition (T-B01). **DO NOT extend `SensorSpec::new()` arity** — the
+`probe_table` precedent (see S-SPEC-ENV-VAR-001 merge notes) keeps `new()` minimal;
+add the field via `..Default::default()` spread or direct assignment.
+
+- [ ] **T-G01**: `SensorSpec::default()` explicit-field construction site in
+  `crates/prism-spec-engine/src/spec_parser.rs` (inline test module) — add
+  `header_scheme: None` or switch to `..Default::default()` spread.
+- [ ] **T-G02**: `SensorSpec::new(...)` constructor body in
+  `crates/prism-spec-engine/src/spec_parser.rs` — add `header_scheme: None` field.
+  **Do NOT add `header_scheme` as a parameter** — `new()` uses positional minimal
+  construction per `probe_table` precedent.
+- [ ] **T-G03**: First inline test `SensorSpec { ... }` literal in
+  `crates/prism-spec-engine/src/pipeline.rs` (search for exhaustive literal by all-field
+  enumeration) — add `header_scheme: None`.
+- [ ] **T-G04**: Second inline test `SensorSpec { ... }` literal in
+  `crates/prism-spec-engine/src/pipeline.rs` — add `header_scheme: None`.
+- [ ] **T-G05**: `SensorSpec { ... }` literal in
+  `crates/prism-spec-engine/src/proofs/spec_validator.rs` — add `header_scheme: None`.
+
+TD-VSDD-060 sibling-site sweep: `grep -rn "SensorSpec {" crates/` to confirm these 5
+are the complete set and no sixth site was missed.
 
 ### Merge gate (required before PR can merge)
 
@@ -974,7 +1019,7 @@ None. This story modifies existing files only.
 
 | File | Reason |
 |------|--------|
-| `.factory/specs/prd-supplements/error-taxonomy.md` | Frozen at v2.68 for this story. E-SPEC-027 row (including backtick charset correction) completed in v2.68 by product-owner leg of FB45. E-SPEC-012 row already executed in v2.57. Spec is CONVERGED — do NOT amend. |
+| `.factory/specs/prd-supplements/error-taxonomy.md` | Frozen at v2.69 for this story. E-SPEC-027 row (including backtick charset correction) completed in v2.68 by product-owner leg of FB45; EC-009-047..051 added in v2.69. E-SPEC-012 row already executed in v2.57. Spec is CONVERGED — do NOT amend. |
 | `.factory/specs/behavioral-contracts/BC-2.16.009-spec-file-validation.md` | Frozen. Rule 9 fully specified. |
 | `.factory/specs/behavioral-contracts/BC-2.16.014-*.md` | Frozen. P9 call-site change is code, not spec amendment. |
 | `.factory/specs/architecture/decisions/ADR-054-*.md` | Frozen. D11 rows document what code to change; reading only. |
@@ -1062,6 +1107,7 @@ Rows explicitly NOT in scope for this story (belong to S-ADR054-WAVE-A-001):
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| 2.2 | 2026-07-25 | FB46 story-writer leg — closes 7 pass-62 findings. F-WASE-P62-CRIT-001: AC-020 + RG-024 restated from MCP wire-level assertion to prism-spec-engine API boundary; assert `Ok(AddSensorSpecResult::ValidationFailed { errors })` with E-SPEC-027(a) text match; `structuredContent.error.code` assertion removed (unsatisfiable per ADR-053 §D6 Option B); S-WAVE-A-MCP-001 noted as carrying wire-level intent; `prism-mcp` confirmed absent from `crates_touched` / Files to MODIFY. F-WASE-P62-HIGH-003: AC-021 (all 15 RFC 6265 tchar special chars accepted — ``"cookie:a!#$%&'*+-.^_`|~9Z"``) + RG-025 (`test_rule9_all_tchar_special_chars_cookie_name_accepted`) added; AC-022 (EC-009-050 high-byte U+00E9 predicate divergence probe rejection) + RG-026 (`test_rule9_high_byte_in_cookie_name_e_spec_027_template_a`) added; Red Gate density 24 → 26. F-WASE-P62-HIGH-004: T-B03 parenthetical "(or the validation pass within spec_parser.rs)" deleted; `SpecLoader::parse()` stated unconditionally with BC-2.16.009 §Security requirement cite; failure path note added. F-WASE-P62-MED-008: BC-2.01.016 §Behavioral Contracts row first sentence corrected — "AuthProvider trait extension: `get_token()` default method added" removed (belongs to BC-2.16.014 §P9); BC-2.01.016 scope now reads Rule A/B E-SPEC-012/013 Display alignment only; BC-2.16.014 scope updated to include get_token() trait method addition. F-WASE-P62-LOW-002: story-local EC-009 (oauth2 absent header_scheme, loads OK) renumbered to EC-014, eliminating prefix collision with BC-canonical EC-009-043..EC-009-051 range. F-WASE-P62-LOW-003: EC-003/EC-005/EC-008 canonicalized to BC-canonical IDs EC-009-033/EC-009-031/EC-009-042 (consistent with EC-043..046 treatment; decision: normalize all BC-mapped rows to BC-canonical IDs). F-WASE-P62-LOW-004: Phase F and Phase G task sections reordered to alphabetical (F before G); no task cross-references broken. VERSION PROPAGATION: BC-2.16.009 v1.25 → v1.26 (§Behavioral Contracts, §Token Budget); error-taxonomy v2.68 → v2.69 (AC-005, AC-017, AC-018, T-A01 comment, Files NOT to Modify); token budget BC-2.16.009 row updated with v1.26 EC additions. NEW EDGE CASES: EC-009-047..EC-009-051 added to §Edge Cases table (overlong value echo cap CWE-400, CTL-byte `\xNN` hex escaping CWE-117, TAB in cookie name, high-byte predicate divergence probe, cookie name > 128 codepoints CWE-390). AC COUNT: 21 → 23 (AC-001..AC-022 plus AC-014b). RGT COUNT: 24 → 26. |
 | 2.1 | 2026-07-24 | FB45 story-writer leg — closes F-WASE-P61-HIGH-001 (charset + version propagation), F-WASE-P61-HIGH-002 (add_sensor_spec injection vector coverage), F-WASE-P61-MED-002 (SEC-001 Red Gate tests gain AC coverage), F-WASE-P61-MED-003 (stale frozen-perimeter claims), F-WASE-P61-LOW-003 (discontinuous EC ID scheme), F-WASE-P61-LOW-004 (AC-015 compile-time postcondition). CHARSET: AC-005 + AC-007 tchar set corrected to 15-char RFC 9110 §5.6.2 order (backtick U+0060 restored, tail corrected to `^ _ ` \| ~`); double-backtick code spans per upstream convention; error-taxonomy.md pinned at v2.68. BC VERSIONS: BC-2.16.009 v1.24→v1.25, BC-2.16.014 v1.18→v1.19, BC-2.01.016 v1.14→v1.15 in §Behavioral Contracts table and §Token Budget Estimate table; BC-2.16.009 Token Budget row updated v1.23→v1.25 with token estimate bumped to ~24,000 (reflects v1.24–v1.25 Rule 9 growth). NEW ACs: AC-019 (non-tchar char rejection for SEC-001 injection classes; RG-020..023 re-anchored to AC-019 in addition to EC-009-043..046); AC-020 (add_sensor_spec MCP wire-level coverage per SAP-3 §Entry points). NEW RGT: RG-024 (add_sensor_spec MCP surface, wire-shape assertion on `structuredContent.error.code`). Red Gate density updated 23→24. AC COUNT: 19→21. AC-015 rewritten to specify delegation-counter runtime assertion; 8-implementor compile claim moved to build-gate note. EDGE CASES: EC-043..046 renamed to BC-canonical IDs EC-009-043..EC-009-046 to resolve anchor ambiguity (option a — BC references, not story-local). ARCH RULE 6: stale "FROZEN (3/3 CLEAN at passes 58/59/60)" premise replaced by accurate description of spec perimeter status post-FB45. FILES NOT TO MODIFY: error-taxonomy.md version reference updated to v2.68. Frontmatter points note updated 19→21 ACs. |
 | 2.0 | 2026-07-24 | Q1–Q6 architect rulings applied (wave-a-engine-story-adjudication-Q1-Q5): Q1 — ESpec027 added to SpecErrorCode in prism-core (NOT three SpecEngineError variants); error construction uses inline PrismError::Spec following Rule 8 precedent; crates_touched expanded to include prism-core. Q2 — Rule 9 is fail-fast in parse() per Rule 8 precedent; VP-059 explicitly excluded (stated in T-B02). Q3 — ADR-031 fidelity survives via spec-declared header_scheme; stale hardcoded-name comment removed from build_request() per TD-VSDD-091; ADR-031 cite added to T-C01. Q4 — validate_header_scheme parameter changed to `&AuthType` (NOT `&str`); SAP-3 defense-in-depth comment requirement added for Rule A path. Q5 — E-SPEC-012 Display includes `token_exchange` in Valid values clause now; POL-24 comment added at rewrite site (AC-017). Q6(C) — ADR-052 §D5 scope-exclusion forward constraint added as Architecture Compliance Rule 10. SEC-001 spec amendment (BC-2.16.009 v1.24): Rule 9 tchar charset replaces old no-colon rule; EC-043..046 added to Edge Cases; RG-020..023 added to Red Gate tests; Red Gate density updated 19→23. BLOCKER resolutions: BLOCKER 1 — MERGE-GATE-VP153-PARTIAL nextest filter corrected to binary(vp153_sensorauth_cross_composition); BLOCKER 2 — build_request return type corrected to reqwest::RequestBuilder throughout; BLOCKER 3 — three stale SpecEngineError variants replaced by ESpec027 in prism-core; BLOCKER 4 — test files bc_2_01_016_test and crowdstrike_oauth2_plugin_tests added to Files to MODIFY; BLOCKER 5 — ORCHESTRATOR RULING text corrected (token_exchange arm ADDITION, not marker removal; no [PLANNED] markers exist in harness code). Phase G added (T-G01..T-G05): five exhaustive SensorSpec literal sites broken by header_scheme field addition. T-E01 RQ-2 dyn-compatibility confirmation note added. T-E02 corrected to grep `impl .*AuthProvider for` and count 8 implementors (BearerStaticAuthProvider in prism-bin). T-E02 MERGE-GATE-JUST-CHECK reworded: ZERO new warnings relative to merge base (baseline has pre-existing unused-import warning). Files to MODIFY table rewritten: stale three-variant error.rs entry replaced with ESpec027-in-prism-core entry; three additional rows added (bc_2_01_016_test, crowdstrike_oauth2_plugin_tests, spec_validator). Files NOT to MODIFY vp153_rule_c_shaped_probe.rs entry corrected to say arm ADDITION. Architecture Mapping [PLANNED] language corrected. |
 | 1.1 | 2026-07-24 | Encode ORCHESTRATOR RULING (2026-07-24): token_exchange `VALID_AUTH_TYPES` addition and VP-153 token_exchange arm activation (former T-F02/T-F03/T-F04) ROUTED to S-ADR054-WAVE-A-001. Dual-path conditional in Phase F removed — story states ONE path: `VALID_AUTH_TYPES` is NOT touched here. `MERGE-GATE-VP153` narrowed to `MERGE-GATE-VP153-PARTIAL` (prism-spec-engine only, existing active arms, no token_exchange activation). Proof re-run split: satisfiable portion (Rule A/B/C active arms + E-SPEC-012 Display validation) stays here; full 8-proptest run with token_exchange arms is `MERGE-GATE-VP153-FULL` in S-ADR054-WAVE-A-001. Architecture Compliance Rule 9 added. `crates_touched` updated (prism-bin removed). Files to Modify table updated (vp153_rule_c_shaped_probe.rs moved to Files NOT to modify). D11 exclusions list expanded with three new routed items. AC count unchanged (19 ACs). D11 row count unchanged (9 rows, VP-153 row scoped to partial). |

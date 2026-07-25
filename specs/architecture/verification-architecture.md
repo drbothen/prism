@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.45"
+version: "1.46"
 status: draft
 producer: architect
 timestamp: 2026-06-12T00:00:00
@@ -26,7 +26,7 @@ Verification property (VP) priority tiers (P0/P1) reflect the formal-verificatio
 
 ```mermaid
 graph TB
-    subgraph TIER1["Tier 1: Kani — Formal Proofs (30 properties — VP-001..VP-012, VP-014, VP-015, VP-020, VP-025, VP-026, VP-029, VP-030, VP-039, VP-040, VP-044, VP-048, VP-051, VP-053, VP-057, VP-065, VP-070, VP-071, VP-108)"]
+    subgraph TIER1["Tier 1: Kani — Formal Proofs (31 properties — VP-001..VP-012, VP-014, VP-015, VP-020, VP-025, VP-026, VP-029, VP-030, VP-039, VP-040, VP-044, VP-048, VP-051, VP-053, VP-057, VP-065, VP-070, VP-071, VP-108, VP-160)"]
         K1["OrgSlug validation (VP-001)"]
         K2["Feature flag resolution (VP-002/003/004/020)"]
         K3["Case state machine (VP-005/006)"]
@@ -46,6 +46,7 @@ graph TB
         K17["No duplicate slug in OrgRegistry (VP-070)"]
         K18["No duplicate uuid in OrgRegistry (VP-071)"]
         K19["Generator idempotent (VP-108)"]
+        K20["Rule 9 cookie-name charset totality and injection rejection (VP-160)"]
     end
 
     subgraph TIER2["Tier 2: Proptest — Property-Based Testing (88 registered; 8 retired per ADR-037) + Unit Tests (4 — VP-095..VP-098, all retired per ADR-037)"]
@@ -109,7 +110,7 @@ graph TB
         U3["BC-2.06.019 E-DEMO-006 org_id-equality guard (VP-158 / VP-019-I alias — P1)"]
     end
 
-    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["159 Registered Properties — 146 active, 13 retired per ADR-037"]
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["160 Registered Properties — 147 active, 13 retired per ADR-037"]
     TIER2 -->|"Explores complex<br/>input spaces"| SAFE
     TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
     INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
@@ -299,10 +300,11 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-157 | POST /dtu/configure with unsupported mode returns HTTP 400 with unsupported_failure_mode error body; no state change (per Invariant 5 table — ops clones Jira, PagerDuty, Slack scope until full coverage ported) | prism-dtu-harness | unit_test | feasible | P1 | BC-3.6.001 |
 | VP-158 | E-DEMO-006 fires when two scenario-enabled clones share same seed but have different org_ids; build_clone_pairs returns Err containing E-DEMO-006 with both clone names and org_id values before any constructor called (VP-019-I alias) | prism-dtu-demo-server | unit_test | feasible | P1 | BC-2.06.019 PRE-6 |
 | VP-159 | DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry: zero network at construction; cold get_token → one HTTP POST + cache; warm get_token within TTL → zero HTTP POSTs; stale get_token → one HTTP POST re-acquisition; acquire_token → one HTTP POST cache bypass (BC-2.16.014 P1–P5); TTL arithmetic for both ExpiryMode variants; CachedAuthToken never stores credential values (BC-2.16.014 P7, AD-017, INV-014-003) | prism-spec-engine | integration_test | feasible | P1 | BC-2.16.014 |
+| VP-160 | Rule 9 cookie-name charset totality and injection rejection: `is_valid_cookie_name_tchar` returns true iff every byte is in the 77-character RFC 9110 §5.6.2 tchar set; semicolons, bare equals, spaces, TAB, CTL bytes, non-ASCII, and RFC 9110 delimiters are rejected (SEC-001 / ADR-053 §D2) | prism-spec-engine | kani | feasible | P0 | BC-2.16.009 |
 
 ## Verification Priority
 
-**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 (Phase 1-2 baseline, 43); plus Wave 3 P0: VP-063, VP-064, VP-066, VP-067, VP-068, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076, VP-077, VP-078, VP-079, VP-080, VP-081, VP-082, VP-083, VP-084, VP-085, VP-086, VP-087, VP-088, VP-089, VP-090, VP-091, VP-092, VP-093, VP-094, VP-108, VP-109, VP-110, VP-111, VP-112, VP-113, VP-114, VP-115, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121, VP-122, VP-123, VP-124, VP-125, VP-126, VP-127, VP-128, VP-129, VP-130, VP-131, VP-132, VP-133 (57); plus Wave 4 Phase 4.A pass-4 P0 elevation: VP-138 (1); plus ADR-023 plugin migration P0: VP-146, VP-147, VP-148, VP-149, VP-150, VP-152 (6); plus PREREQ-E ADR-026/ADR-027 P0: VP-153, VP-155 (2) — all safety-critical invariants and security properties. (**109 active P0**; additionally 13 P0 rows — VP-095..VP-107 — are retired per ADR-037 (2026-06-10) and excluded from the release gate while remaining registered rows, for 122 P0 rows total per VP-INDEX Summary row-count basis)
+**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 (Phase 1-2 baseline, 43); plus Wave 3 P0: VP-063, VP-064, VP-066, VP-067, VP-068, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076, VP-077, VP-078, VP-079, VP-080, VP-081, VP-082, VP-083, VP-084, VP-085, VP-086, VP-087, VP-088, VP-089, VP-090, VP-091, VP-092, VP-093, VP-094, VP-108, VP-109, VP-110, VP-111, VP-112, VP-113, VP-114, VP-115, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121, VP-122, VP-123, VP-124, VP-125, VP-126, VP-127, VP-128, VP-129, VP-130, VP-131, VP-132, VP-133 (57); plus Wave 4 Phase 4.A pass-4 P0 elevation: VP-138 (1); plus ADR-023 plugin migration P0: VP-146, VP-147, VP-148, VP-149, VP-150, VP-152 (6); plus PREREQ-E ADR-026/ADR-027 P0: VP-153, VP-155 (2); plus Wave-A Rule 9 cookie-name charset P0: VP-160 (1) — all safety-critical invariants and security properties. (**110 active P0**; additionally 13 P0 rows — VP-095..VP-107 — are retired per ADR-037 (2026-06-10) and excluded from the release gate while remaining registered rows, for 123 P0 rows total per VP-INDEX Summary row-count basis)
 
 **P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059, VP-061, VP-062 (Phase 1-2 baseline, 19); plus Wave 3 P1: VP-065, VP-134, VP-135, VP-136 (4); plus Wave 4 Phase 1 ADR P1: VP-137 (1); plus Wave 4 ADR P1: VP-139, VP-140, VP-141, VP-142, VP-143, VP-144, VP-145 (7); plus ADR-023 plugin migration P1: VP-151 (1); plus PREREQ-E ADR-027 P1: VP-154 (1); plus PREREQ-E fix-burst-1 P1: VP-156 (1); plus D-1099 BC-3.6.001 P1: VP-157 (1); plus BC-2.06.019 E-DEMO-006 guard P1: VP-158 (1); plus ADR-054 §D9 Wave-A declarative-auth P1: VP-159 (1) — correctness properties that are important but not safety-critical. (**37 total P1**)
 
@@ -327,6 +329,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.46 | fix-burst-46 | 2026-07-25 | architect | (F-WASE-P62-MED-004) VP-160 added to Provable Properties Catalog (prism-spec-engine, kani, P0, BC-2.16.009 Rule 9 — cookie-name charset totality and injection rejection; SEC-001 / ADR-053 §D2); TIER1 K20 node added; TIER1 header 30→31 properties + VP-160 appended to list; SAFE node 159→160 / 146→147; P0 enumeration updated 109→110 (added Wave-A Rule 9 charset P0: VP-160). POL-9 same-burst with VP-INDEX v2.12→v2.13 + verification-coverage-matrix v1.47→v1.48. |
 | 1.45 | D-1946 | 2026-07-22 | architect | Wave-A spec evolution burst 2 POL-9 same-burst propagation: VP-159 added to Provable Properties Catalog (prism-spec-engine, integration_test, P1, BC-2.16.014 — DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry; folds DRIFT-D849-002; source_invariant DI-012); INTEG subgraph I5 node added (Wave-A auth engine VPs); SAFE node 158→159; P1 enumeration updated 36→37 (added VP-159). POL-9 same-burst with VP-INDEX v1.82→v1.83 + verification-coverage-matrix v1.45→v1.46. |
 | 1.44 | BC-2.06.019-vp-propagation | 2026-06-12 | architect | BC-2.06.019 v1.2 OBS-1 POL-9 same-burst propagation: VP-158 added to Provable Properties Catalog (prism-dtu-demo-server, unit_test, P1, BC-2.06.019 PRE-6 — E-DEMO-006 org_id-equality guard; VP-019-I alias); UNIT subgraph U3 node added; SAFE node 157→158; P1 enumeration updated 35→36 (added VP-158). POL-9 same-burst with VP-INDEX v1.78→v1.79 + verification-coverage-matrix v1.44→v1.45. |
 | 1.43 | D-1099 | 2026-06-11 | state-manager | BC-3.6.001 v0.5 POL-9 same-burst propagation: VP-129 description updated (Invariant 5 per-clone scope qualifier); VP-157 added to Provable Properties Catalog (prism-dtu-harness, unit_test, P1, BC-3.6.001 — unsupported-mode 400 guard); UNIT subgraph added to Mermaid (VP-095..098 retired + VP-157); SAFE node 156→157; P1 enumeration updated 34→35 (added VP-157). POL-9 same-burst with VP-INDEX v1.77→v1.78 + verification-coverage-matrix v1.43→v1.44. |

@@ -1,15 +1,15 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "2.12"
+version: "2.13"
 status: draft
 producer: state-manager
-timestamp: 2026-07-24T12:00:00Z
+timestamp: 2026-07-25T00:00:00Z
 phase: 2-patch
 inputs: [architecture/verification-architecture.md]
 traces_to: architecture/ARCH-INDEX.md
-total_vps: 159
-active_vps: 146
+total_vps: 160
+active_vps: 147
 retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..004 retired); rows retained per POL-1
 ---
 
@@ -189,6 +189,7 @@ retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..00
 | VP-157 | [BC-3.6.001] POST /dtu/configure with unsupported mode returns HTTP 400 with unsupported_failure_mode error; no state change | prism-dtu-harness | unit_test | P1 | draft | S-3.6.01 |
 | VP-158 | [BC-2.06.019] E-DEMO-006 fires when two scenario-enabled clones share same seed but have different org_ids; no clone constructed — VP-019-I alias | prism-dtu-demo-server | unit_test | P1 | draft | S-DEMO-DTU-LIVE-SCENARIO-001-B |
 | VP-159 | [BC-2.16.014] DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry: zero network at construction; cold get_token → one HTTP POST + cache; warm get_token within TTL → zero HTTP POSTs; stale get_token → one HTTP POST re-acquisition; acquire_token → one HTTP POST cache bypass; TTL arithmetic for both ExpiryMode variants (absolute_utc_string, relative_seconds); CachedAuthToken never stores credential values (AD-017); AC-9 + AC-9b SAP-3 executor reachability: AC-9 drives PipelineExecutor::execute→execute_impl path; AC-9b drives PipelineExecutor::execute_step direct-call path (BC-2.16.014 P9 two-path coverage model) | prism-spec-engine | integration_test | P1 | draft — v1.26 | [PLANNED — Wave-A CrowdStrike retirement / Armis token-exchange engine story] |
+| VP-160 | [BC-2.16.009 Rule 9] cookie-name charset totality and injection rejection: `is_valid_cookie_name_tchar` returns true iff every byte is in the 77-character RFC 9110 §5.6.2 tchar set; semicolons, bare equals, spaces, TAB, CTL bytes (0x00–0x1F, 0x7F), non-ASCII bytes (0x80–0xFF), and RFC 9110 delimiters are rejected (SEC-001 / ADR-053 §D2) | prism-spec-engine | kani | P0 | draft | [PLANNED — Wave-A Rule 9 cookie-name charset story] |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -210,16 +211,16 @@ F-PASS3-HIGH-001. The numeric VP-146..VP-152 entries above are the sequential in
 
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
-| Kani | 30 | 23 | 7 |
+| Kani | 31 | 24 | 7 |
 | Proptest | 88 | 66 | 22 |
 | Unit test | 6 | 4 | 2 |
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 29 | 24 | 5 |
-| **Total** | **159** | **122** | **37** |
+| **Total** | **160** | **123** | **37** |
 
-> Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. VP-019-I is a BC-2.06.019 named alias for VP-158; it does not add to the sequential count. Total sequential VPs is 159 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15; VP-156 added in prereq-e-fix-burst-1 2026-05-15; VP-157 added D-1099 2026-06-11; VP-158 added 2026-06-12 BC-2.06.019 E-DEMO-006 guard; VP-159 added D-1947 2026-07-22 BC-2.16.014 DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry).
+> Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. VP-019-I is a BC-2.06.019 named alias for VP-158; it does not add to the sequential count. Total sequential VPs is 160 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15; VP-156 added in prereq-e-fix-burst-1 2026-05-15; VP-157 added D-1099 2026-06-11; VP-158 added 2026-06-12 BC-2.06.019 E-DEMO-006 guard; VP-159 added D-1947 2026-07-22 BC-2.16.014 DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry; VP-160 added fix-burst-46 2026-07-25 BC-2.16.009 Rule 9 cookie-name charset totality and injection rejection).
 
-> **Count basis (POL-1 append-only):** The table above counts REGISTERED rows — retired VPs are never deleted. Of the 159 rows, 13 are retired per ADR-037 (2026-06-10): VP-095..VP-098 (unit_test, P0), VP-099..VP-106 (proptest, P0), VP-107 (integration_test, P0). **Active basis: 146 VPs; active P0 = 109** (Kani 23, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 37 (VP-157 unit_test P1 added D-1099; VP-158 unit_test P1 added 2026-06-12; VP-159 integration_test P1 added D-1947 2026-07-22). Retired VPs are excluded from the release verification gate. Per-VP disposition: see §ADR-037 Retirement below.
+> **Count basis (POL-1 append-only):** The table above counts REGISTERED rows — retired VPs are never deleted. Of the 160 rows, 13 are retired per ADR-037 (2026-06-10): VP-095..VP-098 (unit_test, P0), VP-099..VP-106 (proptest, P0), VP-107 (integration_test, P0). **Active basis: 147 VPs; active P0 = 110** (Kani 24, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 37 (VP-157 unit_test P1 added D-1099; VP-158 unit_test P1 added 2026-06-12; VP-159 integration_test P1 added D-1947 2026-07-22). Retired VPs are excluded from the release verification gate. Per-VP disposition: see §ADR-037 Retirement below.
 
 ### ADR-037 Retirement (2026-06-10) — BC-3.3.001..004 VPs
 
@@ -270,7 +271,8 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 2.12 | wave-a-spec-evolution-fix-burst-43 | 2026-07-24 | state-manager | (D-2007) VP-159 v1.25→v1.26 (F-WASE-P56-MED-001 traceability-only: VP-159 is the companion to ADR-054 §D11 fix — no harness content changed; AC-7d new_oauth2 constructor usage at ~L215/~L957/~L985 was already correct from FB42; changelog row aligns index with ADR-054 v0.52). VP-INDEX VP-159 status cell updated: draft — v1.25 → draft — v1.26. VP-INDEX v2.11→v2.12. |
+| 2.13 | fix-burst-46 | 2026-07-25 | architect | (F-WASE-P62-MED-004) VP-160 registered: Rule 9 cookie-name charset totality and injection rejection (kani, P0, prism-spec-engine, BC-2.16.009 Rule 9 / SEC-001 / ADR-053 §D2). VP file created. Summary table: Kani 30→31; P0 23→24; Total 159→160; P0 total 122→123. Count basis: active P0 109→110 (Kani 23→24); active basis 147/110P0/37P1. POL-9 same-burst with verification-architecture v1.45→v1.46 + verification-coverage-matrix v1.47→v1.48. |
+| 2.12 | wave-a-spec-evolution-fix-burst-43 | 2026-07-24 | state-manager | (D-2007) VP-159 v1.25→v1.26 (F-WASE-P56-MED-001 traceability-only: VP-159 is the companion to ADR-054 §D11 fix — no harness content changed; AC-7d new_oauth2 constructor usage at the three AC-7d new_oauth2 constructor call sites in VP-159 §Harness was already correct from FB42; changelog row aligns index with ADR-054 v0.52). VP-INDEX VP-159 status cell updated: draft — v1.25 → draft — v1.26. VP-INDEX v2.11→v2.12. |
 | 2.11 | wave-a-spec-evolution-fix-burst-42 | 2026-07-24 | state-manager | (D-2006) VP-159 v1.24→v1.25 (F-WASE-P55-MED-001 + F-WASE-P55-OBS-001. MED-001: AC-7d harness mis-modeled as token_exchange; architect adjudication branch (a) — RU-Q2 lenient $.expires_in parsing is oauth2_client_credentials-exclusive (ADR-054 §D2; BC-2.16.014 §P2; TV-11; EC-016-014-016); AC-7d heading updated to "P2 — oauth2_client_credentials string-typed $.expires_in, RU-Q2"; harness re-pointed to build_test_sensor_spec_oauth2() [PLANNED] + AuthAcquisitionConfig::new_oauth2("/oauth2/token", ttl_buffer_secs) [PLANNED]; mock path /oauth/token → /oauth2/token; assertion citation updated to BC-2.16.014 P2 + EC-016-014-016. OBS-001: §Property Statement "Scope note — auth-type harness split (F-WASE-P55-OBS-001)" added — ACs 1–9b drive token_exchange cache-lifecycle; AC-7d sole oauth2 harness for RU-Q2 lenient parse; oauth2 form/response shaping via BC-2.16.014 TVs; token_exchange relative_seconds plain-u64 boundary documented). ADR-054 UNCHANGED. BC files UNCHANGED. VP-INDEX VP-159 status cell updated: draft — v1.24 → draft — v1.25. VP-INDEX v2.10→v2.11. |
 | 2.10 | wave-a-spec-evolution-fix-burst-38 | 2026-07-24 | state-manager | (D-2000) VP-159 v1.23→v1.24 (F-WASE-P49-HIGH-001 POL-23 standing pin sweep: BC-2.16.014 pins v1.17→v1.18 at 3 live-body sites — §Source Contract authoring-source bullet, inline restatement, §Proof Harness Skeleton header comment; precedent BC-INDEX v8.55). VP-INDEX VP-159 status cell updated: draft — v1.23 → draft — v1.24. VP-INDEX v2.09→v2.10. |
 | 2.09 | wave-a-remove-uncertainty-amendment-burst | 2026-07-23 | state-manager | VP-159 v1.22→v1.23 (RU-Q1/Q2 lenient-parse alignment: NEW AC-6c space-separated-fixture kill condition; NEW AC-7d string-typed expires_in kill condition). VP-INDEX VP-159 status cell updated: draft — v1.22 → draft — v1.23. VP-INDEX v2.08→v2.09. |

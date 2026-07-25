@@ -4111,3 +4111,101 @@ The distinction: if the fix is in the agent's domain AND is achievable in curren
 A specialist agent MUST NOT return an advisory finding for a defect that: (a) is in their own domain, AND (b) is fixable in current scope. If both conditions are true, the default action is to fix. The agent may PROPOSE a cheaper alternative ("would you like option B instead?") but the agent's DEFAULT action is the production-grade fix. Filing an advisory for an in-scope, in-domain defect is a Canonical Principle Rule 5 violation ("Default to cheap path is not acceptable").
 
 **Source:** D-2015/FB45 (2026-07-24) — Multiple findings initially surfaced as advisories by in-domain specialists; all fixed in-scope after orchestrator routing correction.
+
+---
+
+## Lesson 93 — A fix-burst is a defect-injection event; the burst's own output is the highest-risk surface on the next pass [codified]
+
+**Category:** adversarial cascade, fix-burst discipline
+
+**Context:** FB45 closed 16 findings; pass 62 found 21 new findings, several of which were defects introduced by FB45 itself (false call-graph in §Entry points, unbounded echo channel, unsatisfiable AC-020 binding to wrong surface, reopened escape hatch via T-B03 parenthetical, three index drifts). The fix-burst's output — not the original pre-burst perimeter — was the highest-concentration defect surface for pass 62.
+
+**Going-forward rule:**
+
+After every fix-burst, the adversary's FIRST probe target is the fix-burst's own output: verify that every specialist's changes are internally consistent, don't contradict each other, and don't reintroduce the defect class they were closing. "Does this fix introduce a new instance of the same defect class?" is a mandatory probe for every HIGH/CRIT finding closure.
+
+**Source:** D-2016/FB46 (2026-07-25) — Pass 62 found 21 findings; multiple traced to FB45 output.
+
+---
+
+## Lesson 94 — Advisory-instead-of-fix is a routing failure — 3 occurrences, 2 agents, 1 burst; in every case the re-dispatch found more than the advisory disclosed [codified]
+
+**Category:** production-grade principle, advisory anti-pattern
+
+**Context:** In FB45, architect twice (ADR-053 §D5 manifest row; §D2 provenance trail) and product-owner once (`E-IO-001` in BC-2.16.008 §Edge Cases) filed advisories instead of in-scope fixes. In every case the orchestrator re-dispatched the specialist who then found MORE than the advisory disclosed: the §D5 advisory hid 2 further stale rows; the `E-IO-001` advisory hid 2 further sites including one in a §Canonical Test Vectors table.
+
+**Going-forward rule:**
+
+An advisory in an in-scope domain signals that the specialist stopped at the first problem they saw without sweeping the same class across the artifact. Production-grade discipline requires both the fix AND a class-sweep (TD-VSDD-060 sibling-site sweep). When an advisory is filed, the orchestrator should not just request the fix — it should request "fix plus sweep for the same defect class across this artifact."
+
+**Source:** D-2016/FB46 (2026-07-25) — Three advisory occurrences in FB45 all expanded on re-dispatch.
+
+---
+
+## Lesson 95 — POL-24 byte-identity must enumerate ALL carriers including stories; version-propagation sweep must cover story §Behavioral Contracts tables [codified]
+
+**Category:** POL-24 atomicity, version-propagation discipline
+
+**Context:** FB45 verified BC-to-taxonomy byte-identity for the tchar charset and declared POL-24 complete. Pass 62 HIGH-003 found that the story's AC-005 + AC-007 still held the pre-fix 14-character list. The story was a POL-24 carrier that was missed in the sweep. The caught-by mechanism was orchestrator raw-byte verification (reading the story file directly), not self-certification from the product-owner.
+
+**Going-forward rule:**
+
+Every POL-24 sweep must include story §Behavioral Contracts tables and story §Edge Cases EC text, not only BC files and error-taxonomy.md. Story files are POL-24 carriers when they verbatim-cite BC message templates (AC rows, EC vectors, T-A01 task specs). The sweep command must include `stories/` alongside `behavioral-contracts/` and `prd-supplements/`.
+
+**Source:** D-2016/FB46 (2026-07-25) — AC-005/AC-007 story text held pre-fix 14-char list after BC+taxonomy POL-24 sweep declared complete.
+
+---
+
+## Lesson 96 — A defect class can survive multiple hand-offs: CRIT-001 shape recurred across orchestrator dispatch → adversary diagnosis → architect adjudication → product-owner fix [codified]
+
+**Category:** defect-class recurrence, production-grade discipline
+
+**Context:** CRIT-001 (requirement bound to a surface the story cannot reach) originated in the orchestrator's dispatch wording (AC-020 tied to MCP wire-level assertion without checking story's `crates_touched`), was diagnosed by the adversary, adjudicated by the architect (ADR-053 §D6 Option B), and then product-owner's initial fix attempted to re-bind the MUST contract to "when Rule 9 is implemented" — which again excluded `prism-mcp`. The defect class (requirement bound to an unreachable surface) recurred in the fix itself.
+
+**Going-forward rule:**
+
+When closing a finding, every agent must ask: "Does my fix contain an instance of the same defect class I was asked to fix?" This is distinct from the TD-VSDD-059 paper-fix check (which asks if the fix is load-bearing). The defect-class-recurrence check asks whether the new text structurally reproduces the same problem in a new location or under a new framing.
+
+**Source:** D-2016/FB46 (2026-07-25) — CRIT-001 recurred in product-owner's initial fix attempt.
+
+---
+
+## Lesson 97 — Converging prose is not converging behaviour; text convergence without a discriminating test is a paper fix [codified]
+
+**Category:** TD-VSDD-059 paper-fix detection, test-coverage discipline
+
+**Context:** Pass 61 spent an entire cascade on the missing backtick: four artifacts (BC, taxonomy, story, ADR) were verified to carry the correct 15-character list. Pass 62 HIGH-003 showed no Red Gate test discriminated the corrected set from `[A-Za-z0-9_]` — an implementation accepting only 62 characters would pass all 24 tests. The prose was right; the implementation gate was absent.
+
+**Going-forward rule:**
+
+After every charset/set correction, verify that at least one ACCEPTING test uses a value containing a character from the "newly permitted" half of the set that was previously absent. For the tchar backtick: a test that accepts `"cookie:foo` + backtick + `"` must exist. Without it, the charset fix is a paper fix. This check is now bundled into the post-fix adversary probe for every POL-24 charset correction.
+
+**Source:** D-2016/FB46 (2026-07-25) — Pass 62 HIGH-003 found zero tests accepting any of the 15 tchar specials.
+
+---
+
+## Lesson 98 — `--self-probe` green ≠ gate firing in the production topology; probe coverage must include the production git topology [codified]
+
+**Category:** TD-VSDD-092 gate coverage, records-lint discipline
+
+**Context:** L9 passed 6/6 on synthetic temp repos for its entire life while never scanning a single `.factory/` addition (DRIFT-L9-VACUOUS-GATE-001, FB45). L1/L7 excluded `.factory/stories/` from the full-scan corpus (MED-006 this pass). Both gaps were caught only by adversarial fresh-context review, not by the self-probe.
+
+**Going-forward rule:**
+
+`--self-probe` verifies the regex logic against synthetic inputs. It does NOT verify that the production topology (separate git worktree for `.factory/`, coverage of all artifact directories) is correctly wired. After any records-lint.sh change, run a manual end-to-end probe: stage a synthetic violation in the actual `.factory/` worktree and verify the gate fires. The self-probe and the production-topology probe are orthogonal — both are required.
+
+**Source:** D-2016/FB46 (2026-07-25) — Two separate gate-coverage gaps (L9 .factory/ worktree, L1/L7 stories/ dir) missed by self-probe.
+
+---
+
+## Lesson 99 — Orchestrator process notes: do not `--amend` on a branch with an open PR; orchestrator verification greps can produce false positives [codified]
+
+**Category:** orchestrator process discipline, git safety
+
+**Context:** During FB46 orchestrator coordination: (a) the orchestrator was tempted to instruct `--amend` to fix a typo in a PR branch commit — this would have force-pushed an open PR and potentially triggered spurious CI re-runs; (b) orchestrator grep verification of the tchar pattern `$%&` was shell-escaped differently than the pattern in the BC, producing three phantom discrepancies against story v2.2 that were not real defects.
+
+**Going-forward rule:**
+
+(a) On any branch with an open PR: prefer an additional commit over `--amend`; squash-merge will collapse it. Only use `--amend` + force-push on branches where no collaborators have pulled. (b) When orchestrator verification greps produce unexpected hits, verify the grep command itself is correctly escaped before declaring a defect. Shell escaping of special characters (`$%&'*+`) in regex patterns is a known source of false positives. Verify the verification before reporting.
+
+**Source:** D-2016/FB46 (2026-07-25) — Two orchestrator process observations codified per task instructions.
