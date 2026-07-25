@@ -17,6 +17,13 @@
 #         Enforces the TD-VSDD-091 amendment (2026-07-24): the original
 #         "pass-report changelogs" exception is retired; ALL record-tier text
 #         must use symbol/anchor cites only.
+#         WORKTREE NOTE: .factory/ is a git worktree on the factory-artifacts
+#         orphan branch with its own separate index. L9 must query that index
+#         directly (git -C .factory diff --cached), not the main project index,
+#         which is blind to .factory/ additions due to .gitignore and the
+#         separate worktree index. Failure to do so means L9 checks staged
+#         additions to the main project only (effectively a no-op for all
+#         .factory/ commits). Fixed in F-WASE-P61-LOW-001 (2026-07-24).
 #
 # Ratchet scoping (deliberate): L1 and L7 run only against STAGED versioned
 # artifact files (the files being committed right now), not the full artifact
@@ -67,15 +74,40 @@ VERSIONED_ARTIFACT_DIRS=(
     ".factory/specs/behavioral-contracts"       # BC-*.md files
     ".factory/specs/architecture/decisions"     # ADR-*.md files
     ".factory/specs/verification-properties"    # VP-*.md files
-    # TODO-parameterize: ".factory/specs/architecture" — add when ARCH-INDEX.md
-    #   and section files adopt the standard 5-col Changelog table format.
-    #   Currently those files use inline prose rows, not the table convention.
-    # TODO-parameterize: ".factory/stories" — add when stories adopt frontmatter
-    #   version: + standard Changelog table (currently use version: but no table).
+    ".factory/specs/prd-supplements"            # error-taxonomy, interface-definitions,
+                                                # nfr-catalog, test-vectors
+                                                # (added: F-WASE-P61-MED-006 — these files
+                                                # carry version: frontmatter + standard 5-col
+                                                # Changelog table and are ABOVE PRD prose in
+                                                # the Source-of-Truth precedence hierarchy)
+)
+
+# Directories deliberately excluded from L1/L7 scanning. These are NOT silent
+# exclusions — they are printed at runtime so readers know what the gate does
+# not cover. A silent exclusion is a false-green vector (origin of F-WASE-P61-MED-006).
+#
+# Blocked: .factory/specs/architecture — non-decisions files (ARCH-INDEX.md and
+#   section documents) use inline prose changelog rows, not the standard 5-column
+#   Changelog table that extract_changelog_versions requires. Will parse as
+#   "no changelog" and silently skip. Add to VERSIONED_ARTIFACT_DIRS once those
+#   files migrate to the standard table format.
+#   Note: ADR-*.md files ARE covered via .factory/specs/architecture/decisions above.
+#
+# Blocked: .factory/stories — STORY-INDEX.md uses a v-prefixed version string
+#   (e.g. version: "v2.723") that differs from the bare numeric format used by
+#   all other versioned artifacts. extract_frontmatter_version strips quotes but
+#   not the v-prefix; adding this dir produces false L1 failures unless the
+#   version convention is reconciled first. Per-story files do not use the
+#   standard 5-column Changelog table.
+SKIPPED_ARTIFACT_DIRS_NOTICE=(
+    ".factory/specs/architecture (inline prose changelog; ADR decisions dir IS covered above)"
+    ".factory/stories (v-prefixed version string, e.g. v2.723, incompatible with L1 bare-numeric check)"
 )
 
 # L9 scope: staged additions under these paths trigger the line-cite ban.
 # Covers all factory artifacts: BCs, ADRs, VPs, STATE.md, burst logs, etc.
+# NOTE: .factory/ is a git worktree with its own index; run_l9 handles this
+# automatically by querying git -C .factory diff --cached when applicable.
 RECORD_DIRS_L9=(
     ".factory"
 )
@@ -214,28 +246,99 @@ run_l7() {
     return "${exit_code}"
 }
 
-# ── L9 — New-text line-cite ban ───────────────────────────────────────────────
-# Staged additions to .factory/ files must not contain file:NNN line-cite patterns.
-# Pattern targets: word.extension:digits — e.g. pipeline.rs:142, bc-2.01.001.md:50
-# Excludes URL ports by requiring a specific file extension (not arbitrary hostname).
-# Uses a git dir parameter so the self-probe can override WORKSPACE_ROOT.
-L9_CITE_PATTERN='\b[A-Za-z0-9_][A-Za-z0-9_.-]*\.(rs|md|toml|yaml|yml|py|sh|txt|json|ts|tsx|js|jsx):[0-9]+'
+# ── L9 pattern construction ───────────────────────────────────────────────────
+# Four arms; each targets a distinct live form of volatile line-cite in the
+# prism .factory/ corpus. Enforces the TD-VSDD-091 amendment (2026-07-24):
+# ALL record-tier text must use symbol/anchor cites; line-number cites banned.
+#
+# Arm 1 — filename.ext:NNN  (e.g. pipeline.rs:142, bc-2.01.001.md:50)
+#   Original pattern. Excludes URL ports by requiring a known file extension
+#   before the colon.
+_L9_ARM1='\b[A-Za-z0-9_][A-Za-z0-9_.-]*\.(rs|md|toml|yaml|yml|py|sh|txt|json|ts|tsx|js|jsx):[0-9]+'
+#
+# Arm 2 — `path/to/file.ext` line(s) ~?NNN
+#   Backtick-quoted filename/path + "line" or "lines" keyword + optional ~ + number.
+#   Matches: `pipeline.rs` line ~975, `crates/prism-mcp/src/server.rs` lines 1742
+#   Path chars: letters, digits, underscore, dot, slash, hyphen (hyphen last = literal).
+_L9_ARM2='`[-A-Za-z0-9_./]+\.(rs|md|toml|yaml|yml|py|sh|txt|json|ts|tsx|js|jsx)`[[:space:]]+lines?[[:space:]]+~?[0-9]+'
+#
+# Arm 3 — Line(s) ~NNN  (e.g. Line ~975:, Lines ~410-412)
+#   Case-insensitive "line"/"Line"/"lines"/"Lines" + tilde + number.
+#   [Ll] covers the capitalised form found in ADR changelogs. Tilde required to
+#   distinguish from casual English use ("line 3 of the agenda", "the bottom line:").
+_L9_ARM3='\b[Ll]ines?[[:space:]]+~[0-9]+'
+#
+# Arm 4 — DOCNAME vX.Y:NNN  (e.g. ARCH-INDEX v2.193:154)
+#   All-caps document identifier + version + colon + line number (no file extension).
+#   Does NOT match: BC-2.16.009 v1.24 (no :NNN), v2.193:154 (no all-caps prefix),
+#   RFC 9110 §5.6.2 (no version component).
+_L9_ARM4='\b[A-Z][A-Z0-9_-]+[[:space:]]+v[0-9]+\.[0-9]+:[0-9]+'
 
+L9_CITE_PATTERN="(${_L9_ARM1}|${_L9_ARM2}|${_L9_ARM3}|${_L9_ARM4})"
+
+# ── L9 — New-text line-cite ban ───────────────────────────────────────────────
+# Staged additions to .factory/ files must not contain any of the L9_CITE_PATTERN
+# line-cite forms. Uses a git dir parameter so the self-probe can override
+# WORKSPACE_ROOT.
+#
+# WORKTREE BYPASS FIX (F-WASE-P61-LOW-001): .factory/ is a git worktree mounted
+# at WORKSPACE_ROOT/.factory on the factory-artifacts orphan branch. It has its
+# own separate git index (.git/worktrees/-factory/index). The main project has
+# .factory/ in its .gitignore, so `git -C WORKSPACE_ROOT diff --cached -- .factory`
+# always returns empty — the main index has no knowledge of .factory/ additions.
+# This caused a complete bypass: L9 returned 0 immediately on every commit since
+# the gate was introduced (TD-VSDD-092 / 2026-07-24). The fix: when git_root is
+# WORKSPACE_ROOT and WORKSPACE_ROOT/.factory/.git is a file (worktree link), query
+# the .factory/ worktree's own index directly via git -C .factory diff --cached.
+# The self-probe skips this branch (its temp repos have no nested worktree).
 run_l9() {
     local git_root="${1:-${WORKSPACE_ROOT}}"
     shift || true
     local record_dirs=("${@:-${RECORD_DIRS_L9[@]}}")
 
-    # Nothing staged in the record dirs → nothing to check
-    if git -C "${git_root}" diff --cached --quiet -- "${record_dirs[@]}" 2>/dev/null; then
-        return 0
+    # Accumulate diff output from all relevant git indexes.
+    local combined_diff=""
+
+    # 1. Standard diff from the specified git_root (main project or self-probe repo).
+    local main_diff
+    main_diff="$(
+        git -C "${git_root}" diff --cached --unified=0 -- "${record_dirs[@]}" 2>/dev/null \
+        || true
+    )"
+    if [ -n "${main_diff}" ]; then
+        combined_diff="${main_diff}"
     fi
 
+    # 2. .factory/ worktree diff (production only).
+    #    Skip when: self-probe has overridden git_root (temp repos have no nested
+    #    worktree), or when running on a repo where .factory/ is not a worktree.
+    if [ "${git_root}" = "${WORKSPACE_ROOT}" ] && \
+       [ -f "${WORKSPACE_ROOT}/.factory/.git" ]; then
+        local factory_diff
+        factory_diff="$(
+            git -C "${WORKSPACE_ROOT}/.factory" diff --cached --unified=0 2>/dev/null \
+            || true
+        )"
+        if [ -n "${factory_diff}" ]; then
+            # Prefix path headers with .factory/ so violation messages name the
+            # full project-relative path (e.g. .factory/specs/.../ADR-NNN.md).
+            factory_diff="$(
+                printf '%s\n' "${factory_diff}" \
+                | sed -e 's|^+++ b/|+++ b/.factory/|' \
+                      -e 's|^--- a/|--- a/.factory/|'
+            )"
+            if [ -n "${combined_diff}" ]; then
+                combined_diff="${combined_diff}"$'\n'"${factory_diff}"
+            else
+                combined_diff="${factory_diff}"
+            fi
+        fi
+    fi
+
+    # Nothing staged in any relevant index — nothing to check.
+    [ -z "${combined_diff}" ] && return 0
+
     local violations=() file_ctx=""
-    local diff_output
-    diff_output="$(
-        git -C "${git_root}" diff --cached --unified=0 -- "${record_dirs[@]}" 2>/dev/null
-    )"
 
     while IFS= read -r line; do
         # Track current file context from diff headers
@@ -256,7 +359,7 @@ run_l9() {
             violations+=("L9 FAIL [${file_ctx:-unknown}]: staged addition contains line-cite: ${cites}")
             violations+=("  Line: ${content:0:120}")
         fi
-    done <<< "${diff_output}"
+    done <<< "${combined_diff}"
 
     if [ "${#violations[@]}" -gt 0 ]; then
         for v in "${violations[@]}"; do
@@ -367,7 +470,7 @@ PROBE
         probe_failures+=("L7: INCORRECTLY flagged valid descending changelog — false-red")
     fi
 
-    # ── L9 violation: staged addition with file:NNN line-cite ────────────────
+    # ── L9 arm-1 violation: staged addition with file.ext:NNN line-cite ──────
     # Creates an isolated git repo in a temp subdir (not touching prism's .factory/).
     local probe_repo="${tmpdir}/l9probe"
     local probe_factory="${probe_repo}/fdir"
@@ -379,19 +482,19 @@ PROBE
     printf '# seed\n' > "${probe_factory}/seed.md"
     git -C "${probe_repo}" add fdir/seed.md 2>/dev/null
     git -C "${probe_repo}" -c commit.gpgsign=false commit -q -m "seed" 2>/dev/null
-    # Stage file containing a line-cite violation
+    # Stage file containing an arm-1 line-cite violation (filename.ext:NNN)
     printf '# Adversary pass\nThe issue is at pipeline.rs:142 under load.\n' \
         > "${probe_factory}/violation.md"
     git -C "${probe_repo}" add fdir/violation.md 2>/dev/null
 
     if run_l9 "${probe_repo}" "fdir" >/dev/null 2>&1; then
-        probe_failures+=("L9: MISSED file:NNN line-cite in staged addition (pipeline.rs:142) — false-green")
+        probe_failures+=("L9-arm1: MISSED file.ext:NNN line-cite in staged addition (pipeline.rs:142) — false-green")
     else
-        echo "L9 probe PASS: line-cite pattern correctly flagged"
+        echo "L9-arm1 probe PASS: file.ext:NNN line-cite correctly flagged"
         pass_count=$((pass_count+1))
     fi
 
-    # ── L9 clean: staged addition with symbol/anchor cite only ───────────────
+    # ── L9 arm-1 clean: staged addition with symbol/anchor cite only ─────────
     local probe_repo2="${tmpdir}/l9probe2"
     local probe_factory2="${probe_repo2}/fdir"
     mkdir -p "${probe_factory2}"
@@ -406,10 +509,70 @@ PROBE
     git -C "${probe_repo2}" add fdir/clean.md 2>/dev/null
 
     if run_l9 "${probe_repo2}" "fdir" >/dev/null 2>&1; then
-        echo "L9 probe PASS: symbol-anchor cite correctly cleared"
+        echo "L9-arm1 probe PASS: symbol-anchor cite correctly cleared"
         pass_count=$((pass_count+1))
     else
-        probe_failures+=("L9: INCORRECTLY flagged symbol-anchor cite (no file:NNN) — false-red")
+        probe_failures+=("L9-arm1: INCORRECTLY flagged symbol-anchor cite (no file:NNN) — false-red")
+    fi
+
+    # ── L9 arm-2 violation: backtick-quoted filename + "line" keyword + NNN ──
+    # e.g. `pipeline.rs` line ~975 — a common form in proposals and ADR changelogs.
+    local arm2_fail='The injection site is `pipeline.rs` line ~975 in the executor.'
+    if echo "${arm2_fail}" | grep -qE "${L9_CITE_PATTERN}" 2>/dev/null; then
+        echo "L9-arm2 probe PASS: backtick+line-keyword cite correctly flagged"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L9-arm2: MISSED backtick+line-keyword cite (\`pipeline.rs\` line ~975) — false-green")
+    fi
+
+    # ── L9 arm-2 near-miss: backtick symbol ref with no .ext + no "line" ─────
+    # `pipeline_executor::build_request` — function path, no file extension → safe
+    local arm2_clean='See `pipeline_executor::build_request` for the implementation.'
+    if echo "${arm2_clean}" | grep -qE "${L9_CITE_PATTERN}" 2>/dev/null; then
+        probe_failures+=("L9-arm2: INCORRECTLY flagged backtick function ref (no .ext + no line keyword) — false-red")
+    else
+        echo "L9-arm2 probe PASS: backtick function ref correctly cleared"
+        pass_count=$((pass_count+1))
+    fi
+
+    # ── L9 arm-3 violation: standalone "Line ~NNN" / "Lines ~NNN-NNN" ────────
+    # e.g. Line ~337: — from ADR-053 §Changelog v0.31 row
+    local arm3_fail='(1) Line ~337: "with both templates" should read "with all three templates".'
+    if echo "${arm3_fail}" | grep -qE "${L9_CITE_PATTERN}" 2>/dev/null; then
+        echo "L9-arm3 probe PASS: standalone Line ~NNN cite correctly flagged"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L9-arm3: MISSED standalone Line ~NNN cite (Line ~337) — false-green")
+    fi
+
+    # ── L9 arm-3 near-miss: "line" without tilde+number ─────────────────────
+    # "The bottom line:" — English phrase; no tilde+digit → must NOT trigger
+    local arm3_clean='The bottom line: implement the fix using symbol anchors only.'
+    if echo "${arm3_clean}" | grep -qE "${L9_CITE_PATTERN}" 2>/dev/null; then
+        probe_failures+=("L9-arm3: INCORRECTLY flagged English 'line' phrase (no tilde+number) — false-red")
+    else
+        echo "L9-arm3 probe PASS: English 'line' phrase correctly cleared"
+        pass_count=$((pass_count+1))
+    fi
+
+    # ── L9 arm-4 violation: DOCNAME vX.Y:NNN ─────────────────────────────────
+    # e.g. ARCH-INDEX v2.193:154 — from STORY-INDEX.md corpus
+    local arm4_fail='See ARCH-INDEX v2.193:154 for the full subsystem registry.'
+    if echo "${arm4_fail}" | grep -qE "${L9_CITE_PATTERN}" 2>/dev/null; then
+        echo "L9-arm4 probe PASS: DOCNAME vX.Y:NNN cite correctly flagged"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L9-arm4: MISSED DOCNAME vX.Y:NNN cite (ARCH-INDEX v2.193:154) — false-green")
+    fi
+
+    # ── L9 arm-4 near-miss: version ref without :NNN suffix ──────────────────
+    # "BC-2.16.009 v1.24" — version reference, no line number → must NOT trigger
+    local arm4_clean='Companion: BC-2.16.009 v1.24 carries the updated error template.'
+    if echo "${arm4_clean}" | grep -qE "${L9_CITE_PATTERN}" 2>/dev/null; then
+        probe_failures+=("L9-arm4: INCORRECTLY flagged version ref without :NNN (BC-2.16.009 v1.24) — false-red")
+    else
+        echo "L9-arm4 probe PASS: version-only ref correctly cleared"
+        pass_count=$((pass_count+1))
     fi
 
     # Cleanup temp dir (safe: it's /tmp/records-lint-probe.*, not prism's .factory/)
@@ -434,12 +597,19 @@ PROBE
     echo ""
     echo "SELF-PROBE PASS: all ${pass_count} checks correctly detect/pass synthetic violations."
     echo ""
-    echo "TODO-parameterize — edge cases not yet self-probed:"
+    echo "Coverage notes (not self-probed; verify manually):"
     echo "  L1: files with no frontmatter version (should skip)"
     echo "  L1: files with no changelog table (should skip)"
     echo "  L7: single-row changelog (should pass — no ordering comparison possible)"
-    echo "  L9: URL port http://host:8080 should NOT trigger — validate manually"
-    echo "  L9: unchanged line with file:NNN should NOT trigger — validate manually"
+    echo "  L9: URL port http://host:8080 must NOT trigger arm-1 — validate manually"
+    echo "  L9: unchanged line with file:NNN must NOT trigger — validate manually"
+    echo "  L9: worktree bypass fix (git -C .factory diff --cached) is exercised at"
+    echo "       runtime only; not replicable in self-probe temp repos (no nested worktree)."
+    echo ""
+    echo "Excluded directories (not L1/L7 checked):"
+    for notice in "${SKIPPED_ARTIFACT_DIRS_NOTICE[@]}"; do
+        echo "  SKIPPED: ${notice}"
+    done
     exit 0
 }
 
@@ -452,7 +622,18 @@ checks_failed=0
 
 if [ "${L9_ONLY}" -eq 0 ]; then
     if [ "${FULL_SCAN}" -eq 1 ]; then
-        # --full-scan: check every versioned artifact file (periodic audit mode)
+        # --full-scan: check every versioned artifact file (periodic audit mode).
+        # Print excluded dirs first so the audit report shows full coverage boundaries.
+        echo "records-lint --full-scan: L1+L7 on all versioned artifact directories."
+        echo "Covered:"
+        for dir in "${VERSIONED_ARTIFACT_DIRS[@]}"; do
+            echo "  ${dir}"
+        done
+        echo "Excluded (see CONFIG BLOCK for reasons):"
+        for notice in "${SKIPPED_ARTIFACT_DIRS_NOTICE[@]}"; do
+            echo "  SKIPPED: ${notice}"
+        done
+        echo ""
         for dir in "${VERSIONED_ARTIFACT_DIRS[@]}"; do
             abs_dir="${WORKSPACE_ROOT}/${dir}"
             [ -d "${abs_dir}" ] || continue
@@ -497,5 +678,5 @@ if [ "${checks_failed}" -ne 0 ]; then
     exit 1
 fi
 
-echo "records-lint: PASS"
+echo "records-lint: PASS [L1+L7 covered: behavioral-contracts, architecture/decisions, verification-properties, prd-supplements | excluded: architecture (prose changelog), stories (v-prefix version)]"
 exit 0
