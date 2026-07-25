@@ -89,23 +89,25 @@ VERSIONED_ARTIFACT_DIRS=(
                                                 # frontmatter and also skips cleanly.
                                                 # extract_frontmatter_version strips the
                                                 # v-prefix for robustness (future-proofing).
+                                                # Pre-existing: 7 L1 + 3 L7 violations
+                                                # (grandfathered by ratchet).
+    ".factory/specs/architecture"               # non-decisions section docs (flat, non-recursive;
+                                                # decisions/ is covered above as a separate entry).
+                                                # 25 files: 1 no-version (skip), 5 no-changelog
+                                                # (skip), 4 pre-existing L1+L7 violations
+                                                # (grandfathered), 15 clean L1+L7.
+                                                # Uses identical enable-with-ratchet rationale
+                                                # as .factory/stories above.
 )
 
 # Directories deliberately excluded from L1/L7 scanning. These are NOT silent
 # exclusions — they are printed at runtime so readers know what the gate does
 # not cover. A silent exclusion is a false-green vector (origin of F-WASE-P61-MED-006).
 #
-# Blocked: .factory/specs/architecture — non-decisions section documents have
-#   mixed coverage: 6 files (config-schema.md, detection-rule-format.md,
-#   infusions.md, installation.md, prismql-case-insensitive-design-map.md,
-#   tooling-selection.md) carry no version: frontmatter and would skip silently;
-#   4 files (actions.md, dtu-assessment.md, operational-pipeline.md,
-#   write-operations.md) have pre-existing L1 violations. Excluded until a
-#   dedicated story standardizes these files.
-#   Note: ADR-*.md files ARE covered via .factory/specs/architecture/decisions above.
-SKIPPED_ARTIFACT_DIRS_NOTICE=(
-    ".factory/specs/architecture/non-decisions (6 files lack version: frontmatter; 4 files have pre-existing L1 violations; ADR decisions dir IS covered above)"
-)
+# Currently empty: all known versioned artifact directories are covered above.
+# Keep this array in place — a future exclusion must go here with a real path
+# and a precise, truthful reason. Never advertise a path that does not exist on disk.
+SKIPPED_ARTIFACT_DIRS_NOTICE=()
 
 # L9 scope: staged additions under these paths trigger the line-cite ban.
 # Covers all factory artifacts: BCs, ADRs, VPs, STATE.md, burst logs, etc.
@@ -651,9 +653,13 @@ PROBE
     echo "  L1: v-prefixed version + no changelog table → clean skip"
     echo ""
     echo "Excluded directories (not L1/L7 checked):"
-    for notice in "${SKIPPED_ARTIFACT_DIRS_NOTICE[@]}"; do
-        echo "  SKIPPED: ${notice}"
-    done
+    if [ "${#SKIPPED_ARTIFACT_DIRS_NOTICE[@]}" -eq 0 ]; then
+        echo "  (none — all known versioned artifact directories are covered)"
+    else
+        for notice in "${SKIPPED_ARTIFACT_DIRS_NOTICE[@]}"; do
+            echo "  SKIPPED: ${notice}"
+        done
+    fi
     exit 0
 }
 
@@ -674,9 +680,13 @@ if [ "${L9_ONLY}" -eq 0 ]; then
             echo "  ${dir}"
         done
         echo "Excluded (see CONFIG BLOCK for reasons):"
-        for notice in "${SKIPPED_ARTIFACT_DIRS_NOTICE[@]}"; do
-            echo "  SKIPPED: ${notice}"
-        done
+        if [ "${#SKIPPED_ARTIFACT_DIRS_NOTICE[@]}" -eq 0 ]; then
+            echo "  (none)"
+        else
+            for notice in "${SKIPPED_ARTIFACT_DIRS_NOTICE[@]}"; do
+                echo "  SKIPPED: ${notice}"
+            done
+        fi
         echo ""
         for dir in "${VERSIONED_ARTIFACT_DIRS[@]}"; do
             abs_dir="${WORKSPACE_ROOT}/${dir}"
@@ -722,5 +732,5 @@ if [ "${checks_failed}" -ne 0 ]; then
     exit 1
 fi
 
-echo "records-lint: PASS [L1+L7 covered: behavioral-contracts, architecture/decisions, verification-properties, prd-supplements, stories | excluded: architecture/non-decisions (mixed formats; pre-existing violations)]"
+echo "records-lint: PASS [L1+L7 covered: behavioral-contracts, architecture/decisions, architecture (flat), verification-properties, prd-supplements, stories | excluded: none]"
 exit 0
