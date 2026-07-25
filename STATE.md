@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.565"
+version: "8.566"
 producer: state-manager
-timestamp: 2026-07-25T00:00:00Z
+timestamp: 2026-07-25T08:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -44,7 +44,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2017/FB47a — WAVE-A SPEC-EVOLUTION FIX-BURST 47a COMPLETE (records-correction + registration burst). Adversary pass 63 NOT CLEAN(strict): 33 findings (1 CRIT/8 HIGH/10 MED/7 LOW/5 OBS/2 PROCESS-GAP). All 33 closed in FB47a (records-only; no spec body changes). CRIT-001 BC-INDEX v8.72 NOTE phantom attributions retracted (BC-2.01.016 v1.15 + BC-2.16.014 v1.19 were FB45/F-WASE-P61-MED-004 §Traceability). HIGH-001..002 BC-INDEX v8.73 inline pins (BC-2.16.009 v1.26 + BC-2.16.008 v1.6). HIGH-003..004 ARCH-INDEX v2.276 doc-map (Verification Architecture v1.42→v1.46 + Coverage Matrix v1.43→v1.48). HIGH-005 ADR-053 v0.34→v0.35 cell. HIGH-006 ADR-055 row (PROPOSED v1.0; SS-06). HIGH-007 STORY-INDEX v2.726 6 stories registered (total_stories 257→263). HIGH-008 S-WAVE-A-ENGINE-001 v2.3 blocks += S-WAVE-A-CYBERINT-PATCH-001. OBS-001+002 POL-37+POL-38 codified. OBS-003 Lessons 100-104. BC-INDEX v8.72→v8.73 / ARCH-INDEX v2.275→v2.276 / STORY-INDEX v2.725→v2.726 (total 257→263). BC-5.39.001 streak 0/3 UNCHANGED. NEXT = dispatch fresh-context adversary pass 64 on same spec perimeter."
+current_step: "D-2018/SESSION-WRAP — SESSION WRAP COMPLETE. Pass 63 BLOCKED; cascade diverged 16→21→33 (FB45→FB46→FB47a); each fix-burst seeded defects for the next pass. Human process intervention: small single-concern bursts, NOT multi-leg sweeps. FB47a closed only records/index/registration findings (no spec body changes). Deferred content findings remain in local-pass-63.md. BC-5.39.001 streak 0/3. NEXT = FB47b (first single-concern spec-content burst; named targets from pass-63 deferred list). Code lane: S-WAVE-A-CYBERINT-PATCH-001 co-lands with S-WAVE-A-ENGINE-001 (cyberint.sensor.toml auth_type=cookie_roundtrip, no header_scheme → boot exit 2 without patch). Records-lint gate: docs/claude-md-file-size-convention LOCAL-ONLY (human must push PR #230 to back up gate). STATE v8.565→v8.566."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -96,7 +96,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-07-25 D-2017 FIX-BURST 47a COMPLETE — pass-63 33 findings (1 CRIT/8 HIGH/10 MED/7 LOW/5 OBS/2 PROCESS-GAP) all closed; BC-INDEX v8.73 (CRIT-001 phantom retracted); ARCH-INDEX v2.276 (ADR-055+VP docs); STORY-INDEX v2.726 (6 stories registered; total 263); POL-37+POL-38 codified; Lessons 100-104. STATE v8.564→v8.565 |
+| **Last Updated** | 2026-07-25 D-2018/SESSION-WRAP — Session wrap. Pass 63 BLOCKED (16→21→33 divergence across FB45/FB46/FB47a; human process intervention). New rule: small single-concern bursts, not multi-leg sweeps. STATE v8.565→v8.566 |
 
 ## Active Objective (North Star)
 
@@ -565,21 +565,23 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-2017/FB47a — 2026-07-25 — FIX-BURST 47a COMPLETE; BC-5.39.001 streak 0/3; NEXT: adversary pass 64; STATE v8.565) [supersedes D-2016]
+## Session Resume Checkpoint (D-2018/SESSION-WRAP — 2026-07-25 — SESSION WRAP; BC-5.39.001 streak 0/3; NEXT: FB47b spec-content burst; STATE v8.566) [supersedes D-2017]
 
-**RESUME IN ONE BREATH:** D-2017/FB47a complete. Adversary pass 63 NOT CLEAN(strict) — 33 findings (1 CRIT/8 HIGH/10 MED/7 LOW/5 OBS/2 PROCESS-GAP). All 33 closed in FB47a (records-correction + registration burst; no spec body changes). CRIT-001 BC-INDEX v8.72 NOTE phantom attributions retracted (BC-2.01.016 v1.15 + BC-2.16.014 v1.19 were FB45 §Traceability additions). 6 stories registered (total_stories 257→263). POL-37+POL-38 codified. BC-5.39.001 streak UNCHANGED at 0/3. NEXT SESSION FIRST ACTION: dispatch fresh-context adversary pass 64 on same spec perimeter. FROZEN-HEAD RULE: streak 0/3 — do NOT count any pre-pass-64 passes.
+**RESUME IN ONE BREATH:** Wave-A spec-evolution cascade BLOCKED at pass 63 (33 findings; divergence 16→21→33 across FB45/FB46/FB47a — each fix-burst seeded next pass). Human process intervention: small single-concern bursts only. FB47b is next (spec-content findings from local-pass-63.md). Code lane: S-WAVE-A-CYBERINT-PATCH-001 must co-land with S-WAVE-A-ENGINE-001 (boot exit 2 risk). Records-lint gate on docs/claude-md-file-size-convention LOCAL-ONLY (human push PR #230).
 
-**SPEC PERIMETER (post-FB47a, unchanged from post-FB46):** BC-2.16.009 v1.26 / ADR-053 v0.34 / error-taxonomy v2.69 / S-WAVE-A-ENGINE-001 v2.3 (19 ACs / 23 RGTs base; v2.2 adds +4; v2.3 adds CYBERINT-PATCH-001 blocks) / BC-2.16.008 v1.6 / BC-2.16.014 v1.18 / VP-159 v1.26 / ADR-054 v0.52 / BC-2.01.018 v1.4 / BC-2.01.006 v1.8 / BC-2.02.004 v1.10 / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28 / VP-160 v1.0. Indexes: BC-INDEX v8.73 / VP-INDEX v2.13 / ARCH-INDEX v2.276 / STORY-INDEX v2.726 (total_stories 263).
+**PROCESS INTERVENTION RULE (human-directed):** Small single-concern fix bursts only. Do NOT run pass 64 until deferred content findings from local-pass-63.md are closed via FB47b. Each FB47x addresses ONE named spec-content target. Multi-leg sweeps are the cause of cascade divergence.
 
-**HEADS (verified 2026-07-25 D-2017):**
+**SPEC PERIMETER (post-FB47a, unchanged from post-FB46):** BC-2.16.009 v1.26 / ADR-053 v0.34 / error-taxonomy v2.69 / S-WAVE-A-ENGINE-001 v2.3 / BC-2.16.008 v1.6 / BC-2.16.014 v1.18 / VP-159 v1.26 / ADR-054 v0.52 / BC-2.01.018 v1.4 / BC-2.01.006 v1.8 / BC-2.02.004 v1.10 / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28 / VP-160 v1.0. Indexes: BC-INDEX v8.73 / VP-INDEX v2.13 / ARCH-INDEX v2.276 / STORY-INDEX v2.726 (total_stories 263).
+
+**HEADS (verified 2026-07-25 D-2018):**
 - origin/develop: `7fef57da` — PUSHED; LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001, do NOT auto-FF)
-- factory-artifacts: `git -C .factory log -1 --format='%h %s'` (do not hard-code; FB47a commit pushed in this burst)
-- Main worktree: docs/claude-md-file-size-convention @`ffa06d859` (LOCAL-ONLY; carries TD-VSDD-091 amendment + TD-VSDD-092 records-lint.sh + TD-VSDD-096 — governance rules exist on this machine only)
-- `.worktrees/fix-demosetup-cwd` @`ec4379b5` — PUSHED, PR #229 OPEN; `.worktrees/S-3.09` @`43c41389` KEEP-PARKED
-- `.worktrees/W3-FIX-S307-001` @`fcab8717` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
-- Open PRs: #229 (@ec4379b5), #230 (CLAUDE.md+governance @`ffa06d859` LOCAL-ONLY awaiting HUMAN push+merge); no background agents in flight
+- factory-artifacts: `7132af11b` — PUSHED (FB47a); session-wrap D-2018 commit pending this burst
+- Main worktree: docs/claude-md-file-size-convention @`cdbbe81b4` (LOCAL-ONLY; 9 commits ahead of main; carries records-lint gate + governance docs — AT RISK)
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5b` — PUSHED, PR #229 OPEN; `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
+- Open PRs: #229 (@ec4379b5b PUSHED), #230 (LOCAL-ONLY @`cdbbe81b4` awaiting HUMAN push+merge); no background agents in flight
 
-**BACKUP BOUNDARY (D-2017):**
-- PUSHED: factory-artifacts (FB47a commit — see `git -C .factory log -1 --format='%h'`); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); origin/develop @`7fef57dad`.
-- LOCAL-ONLY (AT RISK): docs/claude-md-file-size-convention @`ffa06d859` (carries TD-VSDD-091 amendment + TD-VSDD-092 records-lint.sh script + TD-VSDD-096); .worktrees/S-3.09 @`43c41389d`; .worktrees/W3-FIX-S307-001 @`fcab8717c`.
-- RECOMMENDED HUMAN ACTION: push docs/claude-md-file-size-convention (updates PR #230) to back up governance work. Orchestrator deliberately did NOT push — human's own commit on human's PR awaiting merge.
+**BACKUP BOUNDARY (D-2018):**
+- PUSHED: factory-artifacts @`7132af11b` (FB47a; session-wrap D-2018 commit adds here after this burst); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); origin/develop @`7fef57dad`.
+- LOCAL-ONLY (AT RISK): docs/claude-md-file-size-convention @`cdbbe81b4` (9 unpushed commits — records-lint gate + TD-VSDD-091/092/096 governance); .worktrees/S-3.09 @`43c41389d`; .worktrees/W3-FIX-S307-001 @`fcab8717c`.
+- RECOMMENDED HUMAN ACTION: push docs/claude-md-file-size-convention to back up 9 LOCAL-ONLY commits (updates PR #230). Until then the records-lint gate and governance documentation exist on one machine only.

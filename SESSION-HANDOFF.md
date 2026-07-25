@@ -124,13 +124,76 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2014 (SESSION WRAP + HEADS CORRECTION + BACKUP BOUNDARY; BC-5.39.001 streak 0/3; NEXT = adversary pass 61 on amended perimeter; frozen-HEAD rule: streak genuinely starts 0/3 — perimeter was amended).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2014 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2014 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.562. D-2014 burst complete; HEADS CORRECTION (main-worktree @ffa06d859 LOCAL-ONLY; carries TD-VSDD-091/092/096); DRIFT-PR230-SCOPE-GROWTH-001 registered; RECOMMENDED HUMAN ACTION: push docs/claude-md-file-size-convention; NEXT = adversary pass 61.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2018 (SESSION WRAP; pass 63 BLOCKED 33 findings; cascade diverged 16→21→33; human process intervention — small single-concern bursts only; BC-5.39.001 streak 0/3; NEXT = FB47b spec-content burst).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2018 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2018 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.566. D-2018 session wrap complete; pass 63 BLOCKED (cascade diverged 16→21→33; human process intervention — small single-concern bursts); RECOMMENDED HUMAN ACTION: push docs/claude-md-file-size-convention (backs up 9 LOCAL-ONLY commits including records-lint gate); NEXT = FB47b spec-content burst.
 
 ---
 
-## §RESUME SNAPSHOT — D-2014 (2026-07-24 — SESSION WRAP + HEADS CORRECTION + BACKUP BOUNDARY; BC-5.39.001 streak 0/3; STATE v8.562) [SUPERSEDES D-2013]
+## §RESUME SNAPSHOT — D-2018 (2026-07-25 — SESSION WRAP; cascade diverged 16→21→33; process intervention; BC-5.39.001 streak 0/3; STATE v8.566) [SUPERSEDES D-2014]
+
+### RESUME IN ONE BREATH
+Wave-A spec-evolution cascade BLOCKED at pass 63 (33 findings; 16→21→33 divergence across FB45/FB46/FB47a — each fix-burst seeded next pass). Human process intervention active. NEXT ACTION: dispatch **FB47b** (first single-concern spec-content burst, working named targets from local-pass-63.md). Do NOT run adversary pass 64 until FB47b is closed.
+
+### HEADS (verified 2026-07-25 D-2018)
+- origin/develop: `7fef57dad` — PUSHED. LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001, do NOT auto-FF; blocked by unstaged ci.yml/e2e.yml residue in main worktree).
+- factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code).
+- Main worktree: docs/claude-md-file-size-convention @`cdbbe81b4` (LOCAL-ONLY; 9 commits ahead of origin @`426c77cde`; carries records-lint gate L10 + L9 .factory/ fix + governance docs TD-VSDD-091/092/096 amendments — AT RISK).
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5b` PUSHED, PR #229 OPEN.
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED, LOCAL-ONLY.
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch, LOCAL-ONLY.
+- Open PRs: **#230** (LOCAL-ONLY awaiting human push+merge) and **#229** (PUSHED).
+- verify-sha-currency.sh: PASS (1 pre-existing WARN — SESSION-HANDOFF in-progress narrative voice, long-standing). No background agents in flight.
+
+### BACKUP BOUNDARY (D-2018)
+- PUSHED: factory-artifacts @`7132af11b` (FB47a; session-wrap D-2018 commit lands here); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); origin/develop @`7fef57dad`.
+- LOCAL-ONLY (AT RISK): docs/claude-md-file-size-convention @`cdbbe81b4` (9 commits — ENTIRE records-lint gate + TD-VSDD-091/092/096 amendments + governance documentation exist on one machine only); .worktrees/S-3.09 @`43c41389d`; .worktrees/W3-FIX-S307-001 @`fcab8717c`.
+
+### WORKSTREAM NEXT-ACTIONS
+
+**Wave-A spec-evolution cascade (BLOCKED; streak 0/3):**
+- RESUME NEXT-ACTION: dispatch **FB47b** — first single-concern spec-content burst. Work the deferred findings listed in `local-pass-63.md`, each already carrying a named target. One concern per burst.
+- NEW RULE (human-directed): small single-concern bursts, not multi-leg sweeps. That is the process intervention. Multi-leg sweeps were the cause of cascade divergence.
+- Do NOT run adversary pass 64 until FB47b content findings are closed.
+- FROZEN-HEAD RULE: streak 0/3 — no pre-pass-64 passes count.
+
+**Code lane (S-WAVE-A-CYBERINT-PATCH-001 + S-WAVE-A-ENGINE-001 + S-ADR055-WAVE-A-001):**
+- RESUME NEXT-ACTION: deliver **S-WAVE-A-CYBERINT-PATCH-001** (~1 pt, P0). It MUST co-land atomically with S-WAVE-A-ENGINE-001: cyberint.sensor.toml declares `auth_type = "cookie_roundtrip"` with no `header_scheme`; once Rule 9 lands, absence path B fires E-SPEC-027(c) and boot fails exit 2. Sweep confirmed cyberint is the only affected spec.
+- After cyberint patch: deliver S-ADR055-WAVE-A-001 (ADR-055 wiring; needs BC-2.16.009 v1.27 doc correction + BC-2.16.002 `spec.validation_warning` catalog row per SAP-1).
+
+**Records-lint gate (docs/claude-md-file-size-convention branch):**
+- RESUME NEXT-ACTION: **human pushes `docs/claude-md-file-size-convention`** to back up 9 commits and update PR #230. Until then the gate and its documentation exist on one machine only.
+- Incidental finding: editing a BC-INDEX mega-cell rewrites the whole line and un-grandfathers its cites, so volatile-cite debt self-remediates incrementally wherever rows are touched — sequence S-MAINT-VOLATILE-CITE-001/002 to avoid colliding with that.
+
+**Volatile-cite backfill:**
+- S-MAINT-VOLATILE-CITE-001/002 registered; human approved full 537-site backfill. Pending human push of docs/claude-md-file-size-convention first (gate must be live before backfill begins).
+
+**PR #229 (fix/DEFECT-DEMOSETUP-CWD-001):**
+- Unchanged this session; PUSHED; waiting for review/merge.
+
+### PENDING USER-APPROVED-BUT-UNSTARTED WORK
+- Full volatile-cite backfill (S-MAINT-VOLATILE-CITE-001/002 registered, human-approved).
+- Delivery of 6 newly-registered Wave-A stories (S-WAVE-A-CYBERINT-PATCH-001, S-WAVE-A-ENGINE-001, S-ADR055-WAVE-A-001, S-WAVE-A-CYBERINT-SPEC-001, S-WAVE-A-ARMIS-SPEC-001, S-WAVE-A-ARMIS-REMEDIATION-001).
+
+### WORKTREE INVENTORY
+| Worktree | HEAD | Status |
+|---|---|---|
+| main (docs/claude-md-file-size-convention) | @`cdbbe81b4` | LOCAL-ONLY; 9 unpushed commits; AT RISK |
+| .worktrees/fix-demosetup-cwd | @`ec4379b5b` | PUSHED, PR #229 OPEN |
+| .worktrees/S-3.09 | @`43c41389d` | STALE — LEAVE as-is |
+| .worktrees/W3-FIX-S307-001 | @`fcab8717c` | PARKED-DIRTY — do-NOT-touch |
+
+### TRACKED ITEMS FOR NEXT SESSION
+- **DRIFT-BCINDEX-MEGACELL-001**: BC-INDEX status cells hold unbounded append-only version-history chains in one table cell — grep-hostile, unusable diffs, adversarial review difficult. Deferred to spec-steward.
+- **DRIFT-CASCADE-DIVERGENCE-001** (partially closed by POL-37+POL-38): story-registration gate between authoring and cascade phases still absent — orchestrator must verify STORY-INDEX and ARCH-INDEX completeness before each adversary pass dispatch.
+- **CRITERION FOR RESUMING NORMAL CASCADE**: After FB47b closes deferred content findings AND pass 64 runs CLEAN(strict), single-concern burst discipline may be relaxed back to normal cascade ceremony IF the next fix-burst touches ≤2 named spec files.
+
+### DECISION DELTA (this burst, 2026-07-25 — D-2018)
+D-2018 (state-manager session-wrap burst: STATE v8.565→v8.566; RESUME SNAPSHOT D-2018 authored; D-2014 superseded; process intervention rule recorded; adversary pass 64 gated on FB47b).
+
+---
+
+## §RESUME SNAPSHOT — D-2014 (2026-07-24 — SESSION WRAP + HEADS CORRECTION + BACKUP BOUNDARY; BC-5.39.001 streak 0/3; STATE v8.562) [SUPERSEDES D-2013] [SUPERSEDED by D-2018]
 
 ### RESUME IN ONE BREATH
 D-2014 burst complete. HEADS CORRECTION: D-2013 main-worktree SHA was stale (@426c77cde recorded in error); correct HEAD is @ffa06d859 (LOCAL-ONLY; 1 unpushed commit ahead of origin @426c77cde; carries TD-VSDD-091 amendment [changelog/record line-cite exception REVOKED] + TD-VSDD-092 records-lint.sh mechanical gate [script itself exists only in this commit] + TD-VSDD-096 records-only micro-burst). DRIFT-PR230-SCOPE-GROWTH-001 registered (PR #230 scope grew beyond CLAUDE.md file-size convention; human-gated; orchestrator did NOT push or edit PR). BACKUP BOUNDARY: PUSHED = factory-artifacts @3ca15f05c + fix/DEFECT-DEMOSETUP-CWD-001 @ec4379b5b (PR #229 OPEN) + origin/develop @7fef57dad. LOCAL-ONLY (AT RISK) = docs/claude-md-file-size-convention @ffa06d859 (governance rules + records-lint.sh script) + .worktrees/S-3.09 @43c41389d + .worktrees/W3-FIX-S307-001 @fcab8717c. RECOMMENDED HUMAN ACTION: push docs/claude-md-file-size-convention to back up governance work (updates PR #230); orchestrator did not push because it is the human's own commit on the human's PR awaiting merge. PRIOR D-2013 STATE: S-WAVE-A-ENGINE-001 REGISTERED (draft v2.0; 5 BLOCKERs resolved Q1-Q5; Q6 adjudicated C-no-conflict; 19 ACs; 23 RGTs; 20 tasks; P1; tdd_mode: strict; blocks S-ADR054-WAVE-A-001 + S-WAVE-A-CYBERINT-SPEC-001 + S-WAVE-A-ARMIS-REMEDIATION-001). SEC-001 CWE-20/CWE-74 cookie-name tchar fix (E-SPEC-027 template (b)/(c) cookie:<name> tchar gate; EC-009-046 load-time rejection; RFC 6265 §4.1.1) REOPENED spec-perimeter under human authorization. Amended specs: BC-2.16.009 v1.24 / ADR-053 v0.33 / error-taxonomy v2.67. BC-5.39.001 streak RESET 3/3→0/3. NEXT SESSION FIRST ACTION: dispatch fresh-context adversary pass 61 on amended perimeter (BC-2.16.009 v1.24 + ADR-053 v0.33 + error-taxonomy v2.67 + all prior converged package); 3 consecutive CLEAN(strict) passes required before Wave-A story delivery begins. FROZEN-HEAD RULE: next session MUST NOT count any pre-D-2014 streak (DRIFT-ORCH-PRLEVEL-PUSH-001 — perimeter was amended; streak genuinely starts at 0/3).
