@@ -91,8 +91,9 @@ VERSIONED_ARTIFACT_DIRS=(
                                                 # v-prefix for robustness (future-proofing).
                                                 # Pre-existing: 7 L1 + 3 L7 violations
                                                 # (grandfathered by ratchet).
-    ".factory/specs/architecture"               # non-decisions section docs (flat, non-recursive;
-                                                # decisions/ is covered above as a separate entry).
+    ".factory/specs/architecture"               # flat section docs (non-recursive; decisions/
+                                                # is covered above as a separate entry and is
+                                                # NOT re-scanned here — find -maxdepth 1 only).
                                                 # 25 files: 1 no-version (skip), 5 no-changelog
                                                 # (skip), 4 pre-existing L1+L7 violations
                                                 # (grandfathered), 15 clean L1+L7.
@@ -279,8 +280,24 @@ _L9_ARM3='\b[Ll]ines?[[:space:]]+~[0-9]+'
 #   Does NOT match: BC-2.16.009 v1.24 (no :NNN), v2.193:154 (no all-caps prefix),
 #   RFC 9110 §5.6.2 (no version component).
 _L9_ARM4='\b[A-Z][A-Z0-9_-]+[[:space:]]+v[0-9]+\.[0-9]+:[0-9]+'
+#
+# Arm 5 — ~L<NN+> and bare L<NN+>  (e.g. ~L215, L864)
+#   Covers two forms of positional line cite found in prism record-tier text:
+#   (a) ~L<NN+>: tilde + uppercase L + 2+ digits. Requires 2+ digits to exclude
+#       single-digit network-layer references (~L2, ~L3) and single-digit
+#       check-names (~L7, ~L9 from this script's own documentation). Matches
+#       the VP-INDEX v2.12 form: ~L215/~L957/~L985 (D-2007 2026-07-24).
+#   (b) \bL<NN+>\b: bare uppercase L + 2+ digits at word boundaries. Captures
+#       the burst-log/adversary-review form: L864, L850, L80, etc. Requires 2+
+#       digits to exclude L1/L7/L9 (records-lint check names) and L2/L3 (network
+#       layer references without tilde). Does NOT catch single-digit ~L7 (arm-5
+#       requires 2+ digits), nor bare slash-continuation digits like
+#       ~L500/535/558/662 where only the first segment has the L prefix.
+#   NOTE: arm-3 is complementary — it catches "Lines ~NNN" (keyword+tilde+digits);
+#   arm-5 catches ~L<NNN> and bare L<NNN> without any preceding keyword.
+_L9_ARM5='(~L[0-9]{2,}|\bL[0-9]{2,}\b)'
 
-L9_CITE_PATTERN="(${_L9_ARM1}|${_L9_ARM2}|${_L9_ARM3}|${_L9_ARM4})"
+L9_CITE_PATTERN="(${_L9_ARM1}|${_L9_ARM2}|${_L9_ARM3}|${_L9_ARM4}|${_L9_ARM5})"
 
 # ── L9 — New-text line-cite ban ───────────────────────────────────────────────
 # Staged additions to .factory/ files must not contain any of the L9_CITE_PATTERN
@@ -619,6 +636,52 @@ PROBE
         pass_count=$((pass_count+1))
     fi
 
+    # ── L9 arm-5 violation: ~L<NNN> tilde+L form ─────────────────────────────
+    # Covers the VP-INDEX v2.12 changelog row form (D-2007 2026-07-24):
+    #   "AC-7d new_oauth2 constructor usage at ~L215/~L957/~L985"
+    # The slash-delimited run has THREE separate arm-5 matches.
+    # arm-3 does NOT catch this — arm-3 requires "line" keyword before the tilde.
+    local arm5_tilde_fail='AC-7d new_oauth2 constructor usage at ~L215/~L957/~L985 was already correct.'
+    if echo "${arm5_tilde_fail}" | grep -qE "${L9_CITE_PATTERN}" 2>/dev/null; then
+        echo "L9-arm5 probe PASS: ~L<NNN> tilde+L line-cite correctly flagged"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L9-arm5: MISSED ~L<NNN> tilde+L line-cite (~L215/~L957/~L985) — false-green")
+    fi
+
+    # ── L9 arm-5 near-miss 1: ~L single-digit must NOT trigger ───────────────
+    # ~L2 / ~L3 appear as OSI/Purdue network layer references in research docs
+    # (e.g. "Building OT ~L2–L3"). Arm-5 requires 2+ digits to exclude these.
+    local arm5_tilde_near_miss='Building OT ~L2–L3 (Purdue network layers, not line cites).'
+    if echo "${arm5_tilde_near_miss}" | grep -qE "${L9_CITE_PATTERN}" 2>/dev/null; then
+        probe_failures+=("L9-arm5: INCORRECTLY flagged ~L2 single-digit (OSI/Purdue layer ref) — false-red")
+    else
+        echo "L9-arm5 probe PASS: ~L2 single-digit (network layer) correctly cleared"
+        pass_count=$((pass_count+1))
+    fi
+
+    # ── L9 arm-5 violation: bare L<NNN> form ─────────────────────────────────
+    # Covers burst-log/adversary-review form: "L864", "L850", "L80", etc.
+    # These appear as bare positional line cites without a tilde prefix.
+    local arm5_bare_fail='Body Status block retained version stamp at L864 + L850 (F-PASS7-HIGH-001).'
+    if echo "${arm5_bare_fail}" | grep -qE "${L9_CITE_PATTERN}" 2>/dev/null; then
+        echo "L9-arm5 probe PASS: bare L<NNN> line-cite correctly flagged"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L9-arm5: MISSED bare L<NNN> line-cite (L864, L850) — false-green")
+    fi
+
+    # ── L9 arm-5 near-miss 2: L1/L7/L9 check names and SS-01 ID must NOT match
+    # L7, L1, L9 are records-lint check names (single digit → excluded by 2+ rule).
+    # SS-01 is a finding ID format (no L prefix). None must trigger arm-5.
+    local arm5_bare_near_miss='L7 FAIL and L1 mismatch are records-lint check names; see also SS-01.'
+    if echo "${arm5_bare_near_miss}" | grep -qE "${L9_CITE_PATTERN}" 2>/dev/null; then
+        probe_failures+=("L9-arm5: INCORRECTLY flagged L7/L1/SS-01 near-miss (check names + finding ID) — false-red")
+    else
+        echo "L9-arm5 probe PASS: L7/L1/SS-01 near-miss correctly cleared"
+        pass_count=$((pass_count+1))
+    fi
+
     # Cleanup temp dir (safe: it's /tmp/records-lint-probe.*, not prism's .factory/)
     ( cd / && rm -rf "${tmpdir}" ) 2>/dev/null || true
 
@@ -648,9 +711,15 @@ PROBE
     echo "  L9: unchanged line with file:NNN must NOT trigger — validate manually"
     echo "  L9: worktree bypass fix (git -C .factory diff --cached) is exercised at"
     echo "       runtime only; not replicable in self-probe temp repos (no nested worktree)."
-    echo "Self-probed cases added 2026-07-24 (story-directory shapes):"
+    echo "  L9 arm-5 coverage gap: bare slash-continuation digits (e.g. ~L500/535/558/662 —"
+    echo "       segments after first slash have no L prefix and are not caught by arm-5)."
+    echo "Self-probed cases added 2026-07-24:"
     echo "  L1: no-frontmatter file (no --- delimiters) → clean skip"
     echo "  L1: v-prefixed version + no changelog table → clean skip"
+    echo "  L9 arm-5: ~L<NNN> tilde+L form (~L215/~L957/~L985) → flagged"
+    echo "  L9 arm-5: ~L2 single-digit (OSI layer) → cleared (2+ digit threshold)"
+    echo "  L9 arm-5: bare L<NNN> form (L864, L850) → flagged"
+    echo "  L9 arm-5: L7/L1/SS-01 near-miss (check names + finding ID) → cleared"
     echo ""
     echo "Excluded directories (not L1/L7 checked):"
     if [ "${#SKIPPED_ARTIFACT_DIRS_NOTICE[@]}" -eq 0 ]; then
