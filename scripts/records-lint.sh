@@ -24,6 +24,28 @@
 #         separate worktree index. Failure to do so means L9 checks staged
 #         additions to the main project only (effectively a no-op for all
 #         .factory/ commits). Fixed in F-WASE-P61-LOW-001 (2026-07-24).
+#   L10 — Cross-document index↔artifact version consistency gate: for each
+#         artifact referenced by a registry row in BC-INDEX.md, ARCH-INDEX.md,
+#         or VP-INDEX.md, the maximum version pin in that row must equal the
+#         artifact file's frontmatter version:. Detects two defect classes:
+#           STALE   — row's max pin < artifact version (index omitted a recent
+#                     amendment; the CRIT-001/MED-006 omission direction)
+#           PHANTOM — row's max pin > artifact version (index claims a version
+#                     that does not exist; the fabrication direction)
+#         BC-INDEX uses opening-paren "(v" extraction only: companion artifact
+#         version transitions ("BC-INDEX v7.62→v7.63", "error-taxonomy v2.47→v2.48")
+#         cannot be distinguished from BC own-history "→v" arrows syntactically;
+#         "(v" is safe and covers the dominant active-format convention.
+#         ARCH-INDEX uses first-v per row to avoid false PHANTOMs from sibling
+#         artifact version mentions in the history cell. VP-INDEX uses max-of-all-v
+#         per row but SKIPS draft rows and rows with no explicit version pin
+#         (draft VPs have no history file; description text may carry v-prefixed
+#         scope descriptors that are not version pins).
+#         Always emits a positive-coverage line so the check cannot go silently
+#         inert (lesson from L9's prior worktree-bypass blind spot).
+#         Origin: pass-63 CRIT-001 (BC-2.16.009 v1.25 index vs v1.26 file,
+#         BC-2.16.008 v0 index vs v1.6 file) + MED-006 (ADR-053 v0.34 index vs
+#         v0.35 file); three consecutive adversary passes found the same class.
 #
 # Ratchet scoping (deliberate): L1 and L7 run only against STAGED versioned
 # artifact files (the files being committed right now), not the full artifact
@@ -393,6 +415,346 @@ run_l9() {
     return 0
 }
 
+# ════════════════════════════════════════════════════════════════════════════════
+# L10 — Cross-document index↔artifact version consistency gate
+# ════════════════════════════════════════════════════════════════════════════════
+
+# Helper: extract the BC's own version pin from a BC-INDEX table row.
+# Extracts using two structural patterns that identify the BC's own version:
+#   (vX.Y SPACE ...  (active-format point: opening-paren version with space after)
+#   (vX.Y-vX.Z      (active-format range: opening-paren range; upper endpoint used)
+# The space-after-version requirement excludes content parentheticals like
+# "(v1.2)" or "(v1.2," that appear in row description text (output-descriptor
+# references, spec-section references). The "(v" prefix excludes companion artifact
+# references which always appear as "ARTIFACT_NAME v..." (no leading paren).
+# Returns the maximum of all extracted pins as a bare number (no 'v').
+# Returns "0" (sentinel) when no structural pin is found.
+#
+# DESIGN NOTE — why "(v" only, not "→v" or max-of-all-v:
+# BC rows embed companion artifact version transitions in their history cells:
+# "BC-INDEX v7.62→v7.63", "error-taxonomy v2.47→v2.48", "ADR-054 v0.35". These
+# companion transitions use the same "→v" arrow syntax as a BC's own draft-format
+# history ("v1.0→v1.1"). There is no reliable syntactic way to distinguish the
+# BC's own arrow transitions from companion artifact transitions in a single row
+# without full field-position parsing. The "→v" approach therefore produces false
+# PHANTOMs (e.g., BC-INDEX transition v7.62→v7.63 in a BC-2.16.002 row inflates
+# the pin to 7.63 > BC artifact v2.10). For safety, only the "(v" opening-paren
+# pattern is used; it matches the dominant active-format convention and produces
+# zero false positives. Rows with only "→v"-style history (draft-format only,
+# no active "(" entry) are counted as no-pin and skipped rather than guessed.
+_l10_bc_pin_from_row() {
+    local row="$1"
+    local max="0"
+    local ver
+    while IFS= read -r ver; do
+        [ -z "${ver}" ] && continue
+        if [ "$(semver_compare "${ver}" "${max}")" = "gt" ]; then
+            max="${ver}"
+        fi
+    done < <(
+        # Point-version active-format: "(v1.25 — description" → requires [space]
+        # after version number to exclude content parentheticals like "(v1.2)".
+        printf '%s\n' "${row}" \
+            | grep -oE '\(v[0-9]+\.[0-9]+(\.[0-9]+)?[[:space:]]' \
+            | sed 's/^.v//; s/[[:space:]]$//' 2>/dev/null
+        # Range active-format: "(v1.4-v1.6 — ..." → take upper (max) endpoint.
+        # Covers ASCII hyphen; en-dash variant handled below if present.
+        printf '%s\n' "${row}" \
+            | grep -oE '\(v[0-9]+\.[0-9]+(\.[0-9]+)?-v[0-9]+\.[0-9]+(\.[0-9]+)?' \
+            | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?$' 2>/dev/null
+    )
+    printf '%s\n' "${max}"
+}
+
+# Helper: extract the FIRST v\d+\.\d+ pin from a line, return bare (no 'v').
+# Returns empty string when no pin found.
+# Used for ARCH-INDEX rows where the first v-prefixed version is always the ADR's
+# current STATUS version (due to descending history order in the Status cell).
+# Using max-of-all would produce false PHANTOMs when companion artifact version
+# mentions appear later in the Status+History cell (e.g., "BC-2.16.009 v1.25→v1.26"
+# appearing inside an ADR-053 row would inflate max above the ADR's own version).
+_l10_first_pin_from_line() {
+    local line="$1"
+    printf '%s\n' "${line}" \
+        | grep -oE '\bv[0-9]+\.[0-9]+(\.[0-9]+)?\b' \
+        | head -1 \
+        | sed 's/^v//'
+}
+
+# Helper: extract all v\d+\.\d+ pins from a line, return the maximum (bare).
+# Returns "0" when no pin found. Used for VP-INDEX rows.
+# VP rows are simple (e.g. "active — v0.28") with no companion version references,
+# making max-of-all safe.
+_l10_max_pin_from_line() {
+    local line="$1"
+    local max="0"
+    local ver
+    while IFS= read -r ver; do
+        [ -z "${ver}" ] && continue
+        if [ "$(semver_compare "${ver}" "${max}")" = "gt" ]; then
+            max="${ver}"
+        fi
+    done < <(printf '%s\n' "${line}" \
+             | grep -oE '\bv[0-9]+\.[0-9]+(\.[0-9]+)?\b' \
+             | sed 's/^v//' 2>/dev/null)
+    printf '%s\n' "${max}"
+}
+
+# Helper: resolve an artifact ID to a file path in a directory via glob.
+# Returns the first match (full absolute path) or empty string.
+# Glob form: "${glob_pfx}-*.md" (e.g. "BC-2.16.009-*.md", "vp-153-*.md").
+#
+# AMENDMENT DISAMBIGUATION: when the ID itself does not contain "AMENDMENT",
+# AMENDMENT-suffixed files are excluded from the glob results. This prevents
+# alphabetical sort from selecting ADR-026-AMENDMENT-*.md before ADR-026-*.md
+# when both exist (uppercase 'A' sorts before lowercase 's'). For AMENDMENT IDs
+# (e.g. ADR-026-AMENDMENT), the filter is not applied — the AMENDMENT file
+# is the correct target.
+_l10_resolve_artifact() {
+    local abs_dir="$1"
+    local glob_pfx="$2"
+    if [[ "${glob_pfx}" != *AMENDMENT* ]]; then
+        find "${abs_dir}" -maxdepth 1 -name "${glob_pfx}-*.md" -print 2>/dev/null \
+            | grep -v 'AMENDMENT' | sort | head -1
+    else
+        find "${abs_dir}" -maxdepth 1 -name "${glob_pfx}-*.md" -print 2>/dev/null \
+            | sort | head -1
+    fi
+}
+
+# ── L10 ───────────────────────────────────────────────────────────────────────
+# Scans BC-INDEX.md, ARCH-INDEX.md, VP-INDEX.md for index rows that contain
+# version pins. For each pinned artifact, compares the index's version pin
+# against the artifact file's frontmatter version:
+#
+#   STALE     : pin < artifact version  (index omitted a recent amendment)
+#   PHANTOM   : pin > artifact version  (index claims a non-existent version)
+#   PASS      : pin == artifact version
+#   UNRESOLVED: artifact file not found on disk (cannot compare)
+#
+# NO-PIN rows (BC rows where no structural version pin is found) are SKIPPED
+# and counted separately in the coverage line. "No version claim made" is a
+# distinct category from "claim is outdated" — reporting no-pin as STALE would
+# generate hundreds of false positives for legitimately unpinned BC rows.
+# L10 can only catch the version-number half of index drift; content-falsification
+# (a row describing changes that don't exist in the artifact) is NOT detectable
+# by this check and must not be claimed as a capability.
+#
+# Always emits a positive-coverage line even when there are no violations,
+# so a silently-inert run is distinguishable from a clean run.
+#
+# Accepts an optional workspace root argument for self-probe isolation:
+#   run_l10 [workspace_root]
+# When omitted, uses WORKSPACE_ROOT from the CONFIG BLOCK.
+run_l10() {
+    local workspace="${1:-${WORKSPACE_ROOT}}"
+
+    local total_cells=0
+    local pass_count=0
+    local nopin_count=0
+    local stale_count=0
+    local phantom_count=0
+    local unresolved_count=0
+    local violations=()
+
+    # ── BC-INDEX ──────────────────────────────────────────────────────────────
+    # Pin extraction strategy: structural patterns only.
+    # _l10_bc_pin_from_row extracts versions using only the "(vX.Y" opening-paren
+    # pattern (active-format). The "→v" arrow pattern was found to produce false
+    # PHANTOMs from companion artifact transitions embedded in BC history descriptions
+    # (e.g., "BC-INDEX v7.62→v7.63", "error-taxonomy v2.47→v2.48") and was removed.
+    # Rows with no "(v" structural pin → nopin_count (skip, no violation);
+    # "no claim made" ≠ "claim is outdated."
+    local bc_index="${workspace}/.factory/specs/behavioral-contracts/BC-INDEX.md"
+    if [ -f "${bc_index}" ]; then
+        local bc_dir="${workspace}/.factory/specs/behavioral-contracts"
+        while IFS= read -r row; do
+            # Match table data rows: line starts with | followed by BC-N.NN.NNN
+            [[ "${row}" =~ ^[|][[:space:]]*(BC-[0-9]+\.[0-9]+\.[0-9]+)[[:space:]]*[|] ]] \
+                || continue
+            local aid="${BASH_REMATCH[1]}"
+            total_cells=$((total_cells + 1))
+
+            local bc_pin
+            bc_pin="$(_l10_bc_pin_from_row "${row}")"
+
+            # No structural pin found → skip this row (no version claim to verify)
+            if [ "${bc_pin}" = "0" ]; then
+                nopin_count=$((nopin_count + 1))
+                continue
+            fi
+
+            local af
+            af="$(_l10_resolve_artifact "${bc_dir}" "${aid}")"
+            if [ -z "${af}" ]; then
+                unresolved_count=$((unresolved_count + 1))
+                violations+=("L10 UNRESOLVED [${aid}]: no file matches ${aid}-*.md in behavioral-contracts/")
+                continue
+            fi
+
+            local fm
+            fm="$(extract_frontmatter_version "${af}")"
+            if [ -z "${fm}" ]; then
+                pass_count=$((pass_count + 1))
+                continue
+            fi
+
+            local cmp
+            cmp="$(semver_compare "${bc_pin}" "${fm}")"
+            if [ "${cmp}" = "lt" ]; then
+                stale_count=$((stale_count + 1))
+                violations+=("L10 STALE [${aid}]: index pin=${bc_pin} < artifact version=${fm}")
+            elif [ "${cmp}" = "gt" ]; then
+                phantom_count=$((phantom_count + 1))
+                violations+=("L10 PHANTOM [${aid}]: index pin=${bc_pin} > artifact version=${fm}")
+            else
+                pass_count=$((pass_count + 1))
+            fi
+        done < "${bc_index}"
+    fi
+
+    # ── ARCH-INDEX ────────────────────────────────────────────────────────────
+    # Pin extraction strategy: first-v-in-row.
+    # The Status+History cell opens with "ACCEPTED vX.Y (...)" so the first
+    # v-prefixed token in the full row is always the ADR's current version.
+    # Using first rather than max prevents false PHANTOMs from companion artifact
+    # version mentions that appear later in the history cell.
+    local arch_index="${workspace}/.factory/specs/architecture/ARCH-INDEX.md"
+    if [ -f "${arch_index}" ]; then
+        local adr_dir="${workspace}/.factory/specs/architecture/decisions"
+        while IFS= read -r row; do
+            # Match table data rows: line starts with | followed by ADR-NNN
+            # (including AMENDMENT suffixes like ADR-026-AMENDMENT)
+            [[ "${row}" =~ ^[|][[:space:]]*(ADR-[A-Z0-9_-]+)[[:space:]]*[|] ]] \
+                || continue
+            local aid="${BASH_REMATCH[1]}"
+            # Guard: skip the header row if it somehow matched (it shouldn't)
+            [[ "${aid}" = "ID" ]] && continue
+            total_cells=$((total_cells + 1))
+
+            local first_pin
+            first_pin="$(_l10_first_pin_from_line "${row}")"
+            if [ -z "${first_pin}" ]; then
+                unresolved_count=$((unresolved_count + 1))
+                violations+=("L10 UNRESOLVED [${aid}]: no version pin found in ARCH-INDEX row")
+                continue
+            fi
+
+            local af
+            af="$(_l10_resolve_artifact "${adr_dir}" "${aid}")"
+            if [ -z "${af}" ]; then
+                unresolved_count=$((unresolved_count + 1))
+                violations+=("L10 UNRESOLVED [${aid}]: no file matches ${aid}-*.md in decisions/")
+                continue
+            fi
+
+            local fm
+            fm="$(extract_frontmatter_version "${af}")"
+            if [ -z "${fm}" ]; then
+                pass_count=$((pass_count + 1))
+                continue
+            fi
+
+            local cmp
+            cmp="$(semver_compare "${first_pin}" "${fm}")"
+            if [ "${cmp}" = "lt" ]; then
+                stale_count=$((stale_count + 1))
+                violations+=("L10 STALE [${aid}]: index first_pin=${first_pin} < artifact version=${fm}")
+            elif [ "${cmp}" = "gt" ]; then
+                phantom_count=$((phantom_count + 1))
+                violations+=("L10 PHANTOM [${aid}]: index first_pin=${first_pin} > artifact version=${fm}")
+            else
+                pass_count=$((pass_count + 1))
+            fi
+        done < "${arch_index}"
+    fi
+
+    # ── VP-INDEX ──────────────────────────────────────────────────────────────
+    # Pin extraction strategy: max-of-all-v (safe for VP rows).
+    # VP rows are simple (e.g. "active — v0.28") with no companion references.
+    # Rows with no explicit version pin → skip (VP convention; most VP rows carry
+    # no version history — only actively-amended VPs include version pins).
+    # VP files use a lowercase prefix: VP-153 → vp-153-*.md
+    local vp_index="${workspace}/.factory/specs/verification-properties/VP-INDEX.md"
+    if [ -f "${vp_index}" ]; then
+        local vp_dir="${workspace}/.factory/specs/verification-properties"
+        while IFS= read -r row; do
+            [[ "${row}" =~ ^[|][[:space:]]*(VP-[0-9]+)[[:space:]]*[|] ]] || continue
+            local aid="${BASH_REMATCH[1]}"
+            total_cells=$((total_cells + 1))
+
+            # Skip draft VP rows: draft VPs have no version history file yet.
+            # Description text may contain v-prefixed scope descriptors (e.g.,
+            # "v1.0 scope") that are not version pins; skip before extraction
+            # to prevent false UNRESOLVEDs from scope-descriptor text.
+            if [[ "${row}" =~ \|[[:space:]]*draft[[:space:]]*\| ]]; then
+                nopin_count=$((nopin_count + 1))
+                continue
+            fi
+
+            local max_pin
+            max_pin="$(_l10_max_pin_from_line "${row}")"
+
+            # Skip rows with no explicit version pin (VP convention)
+            if [ "${max_pin}" = "0" ]; then
+                nopin_count=$((nopin_count + 1))
+                continue
+            fi
+
+            # VP files use lowercase prefix: VP-153 → vp-153-*.md
+            local num="${aid#VP-}"
+            local af
+            af="$(_l10_resolve_artifact "${vp_dir}" "vp-${num}")"
+            if [ -z "${af}" ]; then
+                unresolved_count=$((unresolved_count + 1))
+                violations+=("L10 UNRESOLVED [${aid}]: no file matches vp-${num}-*.md in verification-properties/")
+                continue
+            fi
+
+            local fm
+            fm="$(extract_frontmatter_version "${af}")"
+            if [ -z "${fm}" ]; then
+                pass_count=$((pass_count + 1))
+                continue
+            fi
+
+            local cmp
+            cmp="$(semver_compare "${max_pin}" "${fm}")"
+            if [ "${cmp}" = "lt" ]; then
+                stale_count=$((stale_count + 1))
+                violations+=("L10 STALE [${aid}]: index max_pin=${max_pin} < artifact version=${fm}")
+            elif [ "${cmp}" = "gt" ]; then
+                phantom_count=$((phantom_count + 1))
+                violations+=("L10 PHANTOM [${aid}]: index max_pin=${max_pin} > artifact version=${fm}")
+            else
+                pass_count=$((pass_count + 1))
+            fi
+        done < "${vp_index}"
+    fi
+
+    # STORY-INDEX: version comparison not implemented. STORY-INDEX is a narrative
+    # changelog list rather than a version-pinned registry table; there is no
+    # reliable per-story version pin structure to compare against story file
+    # frontmatter.
+
+    local mismatches=$((stale_count + phantom_count))
+    # Always emit coverage line — never let the check go silently inert.
+    echo "L10: ${total_cells} index cells checked, ${mismatches} mismatches" \
+         "(${stale_count} STALE, ${phantom_count} PHANTOM, ${unresolved_count} UNRESOLVED)"
+    # Advisory: always print no-pin count separately so "0 mismatches" is never
+    # mistaken for "every row verified." 433+ BC rows use formats L10 cannot parse
+    # (e.g. "vX.Y (D-NNN ...)" history); L10 reports them as unverifiable, not clean.
+    echo "L10-advisory: ${nopin_count} registry rows carry no version pin (cannot be verified by L10)"
+
+    if [ "${#violations[@]}" -gt 0 ]; then
+        for v in "${violations[@]}"; do
+            echo "  ${v}"
+        done
+        return 1
+    fi
+    return 0
+}
+
 # ── Self-probe ────────────────────────────────────────────────────────────────
 # Verify each check catches a synthetic violation and passes a clean case.
 # Per lesson MECHANICAL-GATE-COVERAGE-PARITY: every check a gate CLAIMS must be
@@ -682,6 +1044,304 @@ PROBE
         pass_count=$((pass_count+1))
     fi
 
+    # ── L10 self-probe ────────────────────────────────────────────────────────
+    # Probe set covers: BC STALE, BC PHANTOM, BC EQUAL-PASS, BC no-pin skip,
+    # BC UNRESOLVED, BC RANGE-PASS, BC RANGE-STALE, ADR STALE (first-v strategy),
+    # ADR PHANTOM false-positive prevention (sibling v-mention must not inflate to
+    # PHANTOM), VP EQUAL-PASS, VP no-pin skip, plus four near-miss patterns
+    # (RFC/CWE/E-SPEC/date).
+    local l10d="${tmpdir}/l10probe"
+    mkdir -p "${l10d}/.factory/specs/behavioral-contracts"
+    mkdir -p "${l10d}/.factory/specs/architecture/decisions"
+    mkdir -p "${l10d}/.factory/specs/verification-properties"
+
+    # BC artifacts at v1.6 (used for STALE, PHANTOM, PASS, NO-PIN, UNRESOLVED probes)
+    cat > "${l10d}/.factory/specs/behavioral-contracts/BC-99.01.001-stale-probe.md" <<'PROBEEOF'
+---
+version: "1.6"
+lifecycle_status: active
+status: active
+---
+## Changelog
+| 1.6 | 2026-01-01 | Latest |
+PROBEEOF
+    cat > "${l10d}/.factory/specs/behavioral-contracts/BC-99.01.002-phantom-probe.md" <<'PROBEEOF'
+---
+version: "1.6"
+lifecycle_status: active
+status: active
+---
+## Changelog
+| 1.6 | 2026-01-01 | Latest |
+PROBEEOF
+    cat > "${l10d}/.factory/specs/behavioral-contracts/BC-99.01.003-pass-probe.md" <<'PROBEEOF'
+---
+version: "1.6"
+lifecycle_status: active
+status: active
+---
+## Changelog
+| 1.6 | 2026-01-01 | Latest |
+PROBEEOF
+    cat > "${l10d}/.factory/specs/behavioral-contracts/BC-99.01.004-nopin-probe.md" <<'PROBEEOF'
+---
+version: "1.6"
+lifecycle_status: draft
+status: draft
+---
+## Changelog
+| 1.6 | 2026-01-01 | Latest |
+PROBEEOF
+    # BC-99.01.005: no file — UNRESOLVED (pin exists but artifact absent)
+    # BC-99.01.006: companion-only-pin probe — verify companion v2.5 NOT extracted
+    # BC-99.01.007: RANGE-PASS — range upper endpoint == artifact (must PASS)
+    # BC-99.01.008: RANGE-STALE — range upper endpoint < artifact (must STALE)
+    cat > "${l10d}/.factory/specs/behavioral-contracts/BC-99.01.007-range-pass-probe.md" <<'PROBEEOF'
+---
+version: "1.6"
+lifecycle_status: active
+status: active
+---
+## Changelog
+| 1.6 | 2026-01-01 | Latest |
+PROBEEOF
+    cat > "${l10d}/.factory/specs/behavioral-contracts/BC-99.01.008-range-stale-probe.md" <<'PROBEEOF'
+---
+version: "1.6"
+lifecycle_status: active
+status: active
+---
+## Changelog
+| 1.6 | 2026-01-01 | Latest |
+PROBEEOF
+
+    # BC-INDEX: structural pins to test each comparison outcome.
+    #   001: active (v1.5 — ...)  → _l10_bc_pin_from_row extracts (v1.5 → pin=1.5 < artifact=1.6 → STALE
+    #   002: active (v1.7 — ...; companion: some-doc.md v2.5)
+    #         → extracts (v1.7 → pin=1.7 > artifact=1.6 → PHANTOM
+    #         → companion v2.5 NOT extracted (no (v before it) — companion exclusion test
+    #   003: active (v1.6 — ...; per ADR-100 v0.35)
+    #         → extracts (v1.6 → pin=1.6 == artifact=1.6 → PASS
+    #         → ADR-100 v0.35 NOT extracted
+    #   004: draft (no parens)
+    #         → no (v → pin=0 → no-pin skip (no violation)
+    #   005: active (v1.0 — placeholder) → pin=1.0, but NO FILE → UNRESOLVED
+    #   006: active (companion: some-doc.md v2.5) → no (v after ( (text follows, not v) → pin=0 → no-pin skip
+    #   007: active (v1.4-v1.6 — ...) → range upper=1.6 == artifact=1.6 → PASS
+    #   008: active (v1.4-v1.5 — ...) → range upper=1.5 < artifact=1.6 → STALE
+    cat > "${l10d}/.factory/specs/behavioral-contracts/BC-INDEX.md" <<'PROBEEOF'
+---
+version: "1.0"
+document_type: behavioral-contract-index
+---
+| BC-99.01.001 | STALE probe | SS-01 | CAP-001 | P0 | active (v1.5 — prior amendment; v1.4 initial) |
+| BC-99.01.002 | PHANTOM probe | SS-01 | CAP-001 | P0 | active (v1.7 — claimed; v1.6 prior; companion: some-doc.md v2.5) |
+| BC-99.01.003 | PASS probe | SS-01 | CAP-001 | P0 | active (v1.6 — latest; per ADR-100 v0.35) |
+| BC-99.01.004 | NO-PIN probe | SS-01 | CAP-001 | P0 | draft |
+| BC-99.01.005 | UNRESOLVED probe | SS-01 | CAP-001 | P0 | active (v1.0 — placeholder) |
+| BC-99.01.006 | COMPANION-ONLY probe | SS-01 | CAP-001 | P0 | active (companion: some-doc.md v2.5) |
+| BC-99.01.007 | RANGE-PASS probe | SS-01 | CAP-001 | P0 | active (v1.4-v1.6 — range upper equals artifact) |
+| BC-99.01.008 | RANGE-STALE probe | SS-01 | CAP-001 | P0 | active (v1.4-v1.5 — range upper below artifact) |
+PROBEEOF
+
+    # ADR artifact at v0.35
+    cat > "${l10d}/.factory/specs/architecture/decisions/ADR-999-arch-stale-probe.md" <<'PROBEEOF'
+---
+version: "0.35"
+status: accepted
+---
+## Changelog
+| 0.35 | 2026-01-01 | Latest |
+PROBEEOF
+
+    # ARCH-INDEX: ADR-999 first-v=0.34 but artifact is 0.35 → STALE.
+    # The row also contains "companion ADR-100 v1.5" deeper in the history cell
+    # to verify that first-v (not max-v) is used — if max-v were used, we'd get
+    # PHANTOM (v1.5 > v0.35) instead of the correct STALE.
+    cat > "${l10d}/.factory/specs/architecture/ARCH-INDEX.md" <<'PROBEEOF'
+---
+version: "1.0"
+document_type: architecture-index
+---
+| ADR-999 | Arch STALE probe | ACCEPTED v0.34 (v0.33 prior; reference companion ADR-100 v1.5 noted for context) | 2026-01-01 | decisions/ADR-999-arch-stale-probe.md |
+PROBEEOF
+
+    # VP artifact at v0.28
+    cat > "${l10d}/.factory/specs/verification-properties/vp-999-pass-probe.md" <<'PROBEEOF'
+---
+version: "0.28"
+status: active
+---
+## Changelog
+| 0.28 | 2026-01-01 | Latest |
+PROBEEOF
+
+    # VP-INDEX: VP-999 with pin v0.28 (PASS), VP-998 with no pin (should SKIP)
+    cat > "${l10d}/.factory/specs/verification-properties/VP-INDEX.md" <<'PROBEEOF'
+---
+version: "1.0"
+document_type: verification-property-index
+---
+| VP-999 | VP PASS probe | prism-test | kani | P0 | active — v0.28 | S-1.01 |
+| VP-998 | VP no-pin probe | prism-test | kani | P0 | draft | S-1.02 |
+PROBEEOF
+
+    local l10_out
+    l10_out="$(run_l10 "${l10d}" 2>&1)"
+
+    # Case 1: BC STALE — structural pin v1.5 (from "(v1.5 — ...") < artifact v1.6
+    if echo "${l10_out}" | grep -q "STALE \[BC-99\.01\.001\]"; then
+        echo "L10 probe PASS: BC STALE correctly detected (structural pin=1.5 < artifact=1.6)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-STALE: MISSED BC STALE (structural pin=1.5 < artifact v1.6). Output: $(echo "${l10_out}" | head -3)")
+    fi
+
+    # Case 2: BC PHANTOM — structural pin v1.7 > artifact v1.6.
+    # Row also embeds "companion: some-doc.md v2.5" — must NOT produce PHANTOM from v2.5.
+    if echo "${l10_out}" | grep -q "PHANTOM \[BC-99\.01\.002\]"; then
+        echo "L10 probe PASS: BC PHANTOM correctly detected (structural pin=1.7 > artifact=1.6)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-PHANTOM: MISSED BC PHANTOM (structural pin=1.7 > artifact v1.6). Output: $(echo "${l10_out}" | head -3)")
+    fi
+
+    # Case 3: BC EQUAL-PASS — structural pin v1.6 == artifact v1.6, must NOT appear.
+    # Row embeds "per ADR-100 v0.35" — ADR reference must NOT be extracted.
+    if ! echo "${l10_out}" | grep -q "\[BC-99\.01\.003\]"; then
+        echo "L10 probe PASS: BC EQUAL-PASS correctly cleared (structural pin=1.6 == artifact=1.6)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-EQUAL-PASS: INCORRECTLY flagged matching versions for BC-99.01.003. Output: $(echo "${l10_out}" | grep 'BC-99.01.003')")
+    fi
+
+    # Case 4: BC NO-PIN SKIP — row has "draft" with no (v or →v → pin=0 → skipped.
+    # "No version claim made" ≠ "claim is outdated"; must NOT appear in violations.
+    if ! echo "${l10_out}" | grep -q "\[BC-99\.01\.004\]"; then
+        echo "L10 probe PASS: BC no-pin row correctly skipped (no structural pin in 'draft' row)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-NO-PIN-SKIP: INCORRECTLY flagged BC-99.01.004 no-pin row. Output: $(echo "${l10_out}" | grep 'BC-99.01.004')")
+    fi
+
+    # Case 5: BC UNRESOLVED — structural pin v1.0 found but artifact file absent.
+    if echo "${l10_out}" | grep -q "UNRESOLVED \[BC-99\.01\.005\]"; then
+        echo "L10 probe PASS: BC UNRESOLVED correctly detected (pin=1.0, artifact file absent)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-UNRESOLVED: MISSED UNRESOLVED for BC-99.01.005 (pin=1.0, no artifact file). Output: $(echo "${l10_out}" | head -3)")
+    fi
+
+    # Case 5b: BC companion-only row (BC-99.01.006) — "active (companion: some-doc.md v2.5)".
+    # "(companion:" has ( followed by "c" not "v", so no (v extraction; no →v arrows.
+    # → pin=0 → no-pin skip; must NOT appear in violations.
+    if ! echo "${l10_out}" | grep -q "\[BC-99\.01\.006\]"; then
+        echo "L10 probe PASS: BC companion-only row correctly skipped (no structural (v or →v)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-COMPANION-ONLY: INCORRECTLY flagged BC-99.01.006 companion-only row. Output: $(echo "${l10_out}" | grep 'BC-99.01.006')")
+    fi
+
+    # Case 6: ADR STALE — first_pin=0.34 < artifact=0.35
+    if echo "${l10_out}" | grep -q "STALE \[ADR-999\]"; then
+        echo "L10 probe PASS: ADR STALE correctly detected (first_pin=0.34 < artifact=0.35)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-ADR-STALE: MISSED ADR STALE (first_pin=0.34 < artifact v0.35). Output: $(echo "${l10_out}" | head -5)")
+    fi
+
+    # Case 7: ADR first-v PHANTOM false-positive prevention.
+    # The ARCH-INDEX row for ADR-999 contains "ADR-100 v1.5" deep in the history
+    # cell. If max-v were used instead of first-v, we'd get PHANTOM (1.5 > 0.35).
+    # Verify PHANTOM is NOT reported for ADR-999.
+    if echo "${l10_out}" | grep -q "PHANTOM \[ADR-999\]"; then
+        probe_failures+=("L10-ADR-FP: INCORRECTLY reported PHANTOM for ADR-999 due to sibling v1.5 mention (should use first-v, not max-v). Output: $(echo "${l10_out}" | grep 'ADR-999')")
+    else
+        echo "L10 probe PASS: ADR first-v correctly avoids PHANTOM from sibling v1.5 mention"
+        pass_count=$((pass_count+1))
+    fi
+
+    # Case 8: VP EQUAL-PASS — max_pin=0.28 == artifact=0.28, must NOT appear
+    if ! echo "${l10_out}" | grep -q "\[VP-999\]"; then
+        echo "L10 probe PASS: VP EQUAL-PASS correctly cleared (max_pin=0.28 == artifact=0.28)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-VP-PASS: INCORRECTLY flagged VP-999 matching versions. Output: $(echo "${l10_out}" | grep 'VP-999')")
+    fi
+
+    # Case 9: VP no-pin skip — VP-998 has only 'draft', no v-pin → must NOT appear
+    if ! echo "${l10_out}" | grep -q "\[VP-998\]"; then
+        echo "L10 probe PASS: VP no-pin row correctly skipped (VP-998 has no version pin)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-VP-NOPIN: INCORRECTLY flagged VP-998 no-pin row. Output: $(echo "${l10_out}" | grep 'VP-998')")
+    fi
+
+    # Case 10: BC RANGE-PASS — range upper endpoint v1.6 == artifact v1.6 → PASS.
+    # Row: "active (v1.4-v1.6 — range upper equals artifact)"
+    # Must NOT appear in violations (the upper endpoint matches the artifact).
+    if ! echo "${l10_out}" | grep -q "\[BC-99\.01\.007\]"; then
+        echo "L10 probe PASS: BC range PASS correctly cleared (range upper=1.6 == artifact=1.6)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-RANGE-PASS: INCORRECTLY flagged BC-99.01.007 range PASS. Output: $(echo "${l10_out}" | grep 'BC-99.01.007')")
+    fi
+
+    # Case 11: BC RANGE-STALE — range upper endpoint v1.5 < artifact v1.6 → STALE.
+    # Row: "active (v1.4-v1.5 — range upper below artifact)"
+    # Must appear as STALE (the index claims the BC stopped at v1.5 but file is v1.6).
+    if echo "${l10_out}" | grep -q "STALE \[BC-99\.01\.008\]"; then
+        echo "L10 probe PASS: BC range STALE correctly detected (range upper=1.5 < artifact=1.6)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-RANGE-STALE: MISSED BC range STALE (range upper=1.5 < artifact v1.6). Output: $(echo "${l10_out}" | head -3)")
+    fi
+
+    # ── L10 near-miss probes: false-positive prevention ───────────────────────
+    # These test that the v-prefixed pattern correctly excludes tokens that look
+    # like numbers but carry no 'v' prefix: RFC numbers, CWE IDs, error codes,
+    # and ISO dates. All must return the "0" sentinel (no pin found).
+
+    local rfc_line='This implements RFC 9110 section 5.6.2 for header validation compliance.'
+    local rfc_pin
+    rfc_pin="$(_l10_max_pin_from_line "${rfc_line}")"
+    if [ "${rfc_pin}" = "0" ]; then
+        echo "L10 near-miss PASS: RFC 9110 correctly yields no version pin (no v-prefix)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-RFC-FP: INCORRECTLY extracted version '${rfc_pin}' from RFC 9110 reference")
+    fi
+
+    local cwe_line='Mitigates CWE-208 constant-time comparison and CWE-20 input validation.'
+    local cwe_pin
+    cwe_pin="$(_l10_max_pin_from_line "${cwe_line}")"
+    if [ "${cwe_pin}" = "0" ]; then
+        echo "L10 near-miss PASS: CWE-208/CWE-20 correctly yield no version pin (no v-prefix)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-CWE-FP: INCORRECTLY extracted version '${cwe_pin}' from CWE ID references")
+    fi
+
+    local ecode_line='Emits E-SPEC-028(b) and E-SENSOR-014 when auth_type has wrong value.'
+    local ecode_pin
+    ecode_pin="$(_l10_max_pin_from_line "${ecode_line}")"
+    if [ "${ecode_pin}" = "0" ]; then
+        echo "L10 near-miss PASS: E-SPEC-028/E-SENSOR-014 correctly yield no version pin (no v-prefix)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-ECODE-FP: INCORRECTLY extracted version '${ecode_pin}' from error code references")
+    fi
+
+    local date_line='This was fixed on 2026-07-24 as part of decision D-2013.'
+    local date_pin
+    date_pin="$(_l10_max_pin_from_line "${date_line}")"
+    if [ "${date_pin}" = "0" ]; then
+        echo "L10 near-miss PASS: date 2026-07-24 correctly yields no version pin (no v-prefix)"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L10-DATE-FP: INCORRECTLY extracted version '${date_pin}' from date 2026-07-24")
+    fi
+
     # Cleanup temp dir (safe: it's /tmp/records-lint-probe.*, not prism's .factory/)
     ( cd / && rm -rf "${tmpdir}" ) 2>/dev/null || true
 
@@ -720,6 +1380,23 @@ PROBE
     echo "  L9 arm-5: ~L2 single-digit (OSI layer) → cleared (2+ digit threshold)"
     echo "  L9 arm-5: bare L<NNN> form (L864, L850) → flagged"
     echo "  L9 arm-5: L7/L1/SS-01 near-miss (check names + finding ID) → cleared"
+    echo "Self-probed cases added 2026-07-25 (L10):"
+    echo "  L10 BC STALE: structural pin=1.5 (from '(v1.5 — ...') < artifact=1.6 → flagged"
+    echo "  L10 BC PHANTOM: structural pin=1.7 > artifact=1.6; companion v2.5 excluded → flagged on 1.7"
+    echo "  L10 BC EQUAL-PASS: structural pin=1.6 == artifact=1.6; ADR-100 v0.35 excluded → cleared"
+    echo "  L10 BC no-pin SKIP: 'draft' row has no (v → pin=0 → skipped (not STALE)"
+    echo "  L10 BC UNRESOLVED: pin=1.0 found but artifact file absent → UNRESOLVED reported"
+    echo "  L10 BC companion-only: 'active (companion: doc v2.5)' → no (v pin → skipped"
+    echo "  L10 ADR STALE: first_pin=0.34 < artifact=0.35 → flagged"
+    echo "  L10 ADR first-v FP prevention: sibling v1.5 in row must not produce PHANTOM → cleared"
+    echo "  L10 VP EQUAL-PASS: max_pin=0.28 == artifact=0.28 → cleared"
+    echo "  L10 VP no-pin skip: row with only 'draft' (no v-pin) → skipped"
+    echo "  L10 BC RANGE-PASS: range '(v1.4-v1.6 — ...)' upper=1.6 == artifact=1.6 → cleared"
+    echo "  L10 BC RANGE-STALE: range '(v1.4-v1.5 — ...)' upper=1.5 < artifact=1.6 → flagged"
+    echo "  L10 near-miss RFC 9110: no v-prefix → no pin extracted"
+    echo "  L10 near-miss CWE-208/CWE-20: no v-prefix → no pin extracted"
+    echo "  L10 near-miss E-SPEC-028/E-SENSOR-014: no v-prefix → no pin extracted"
+    echo "  L10 near-miss date 2026-07-24: no v-prefix → no pin extracted"
     echo ""
     echo "Excluded directories (not L1/L7 checked):"
     if [ "${#SKIPPED_ARTIFACT_DIRS_NOTICE[@]}" -eq 0 ]; then
@@ -793,6 +1470,12 @@ fi
 
 if [ "${L1_L7_ONLY}" -eq 0 ]; then
     if ! run_l9; then checks_failed=1; fi
+    # L10: run corpus-wide (not staged-only) — cross-document consistency checks
+    # are always full-corpus because the index files themselves may not be staged.
+    # Skip when --l9-only is set (l9-only means only run L9).
+    if [ "${L9_ONLY}" -eq 0 ]; then
+        if ! run_l10; then checks_failed=1; fi
+    fi
 fi
 
 if [ "${checks_failed}" -ne 0 ]; then
@@ -801,5 +1484,5 @@ if [ "${checks_failed}" -ne 0 ]; then
     exit 1
 fi
 
-echo "records-lint: PASS [L1+L7 covered: behavioral-contracts, architecture/decisions, architecture (flat), verification-properties, prd-supplements, stories | excluded: none]"
+echo "records-lint: PASS [L1+L7 covered: behavioral-contracts, architecture/decisions, architecture (flat), verification-properties, prd-supplements, stories | L10 covered: BC-INDEX, ARCH-INDEX, VP-INDEX | excluded: none]"
 exit 0
