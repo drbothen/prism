@@ -23,12 +23,24 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 document_type: governance-policy-registry
-version: "1.36"
-last_amended: 2026-07-22
+version: "1.38"
+last_amended: 2026-07-25
 
 metadata:
-  version: "1.36"
+  version: "1.38"
   changelog:
+    - version: "1.38"
+      date: 2026-07-25
+      burst: D-2017-FB47a-pol38-bc-new-ec-obligation
+      decision: D-2017
+      findings: [F-WASE-P63-OBS-002, F-WASE-P63-PROCESS-GAP-002]
+      change: "v1.37 → v1.38 2026-07-25 — POL-38 bc_new_ec_story_ac_rgt_obligation registered. When a BC amendment adds an EC whose anchor story is draft + tdd_mode:strict, the same burst must add a corresponding AC and Red Gate test to that story, or record an explicit deferral with a concrete blocker and future story anchor. Severity HIGH. Scope: [bc, story, product-owner, story-writer]. Origin: F-WASE-P63-OBS-002 + PROCESS-GAP-002 (D-2017/FB47a): S-MAINT-VOLATILE-CITE-001/002 were registered with wrong AC counts because the story was authored without triggering this check against the BC amendments that introduced new ECs in the same burst."
+    - version: "1.37"
+      date: 2026-07-25
+      burst: D-2017-FB47a-pol37-ledger-from-frontmatter
+      decision: D-2017
+      findings: [F-WASE-P63-CRIT-001, F-WASE-P63-PROCESS-GAP-001]
+      change: "v1.36 → v1.37 2026-07-25 — POL-37 ledger_from_frontmatter registered. State-manager must generate every burst ledger row (BC-INDEX NOTEs, ARCH-INDEX changelog rows, STORY-INDEX changelog rows) by reading each touched file's frontmatter `version:` and top changelog row on disk AFTER specialist edits land — never from dispatch brief values or from the author's own description of what they changed. Severity HIGH. Scope: [state-manager, bc-index, arch-index, story-index]. Origin: F-WASE-P63-CRIT-001 + PROCESS-GAP-001 (D-2017/FB47a): BC-INDEX v8.72 NOTE was authored from dispatch brief values; both BC-2.01.016 v1.15 and BC-2.16.014 v1.19 were falsely attributed to FB46 (on-disk frontmatter clearly shows FB45 authorship for both)."
     - version: "1.36"
       date: 2026-07-22
       burst: D-1945-pol36-generalization-directive
@@ -924,3 +936,47 @@ policies:
       - "For any diff/spec introducing sensor-specific behavior, verify the mechanism is a general engine capability parameterized via the TOML sensor-spec surface or DTU clone — not engine-side branching on sensor name/identity."
       - "For ADR/BC/story artifacts: verify prescribed fixes are stated as general mechanisms; sensor specifics may appear only as spec/config examples consuming the general mechanism, never as engine special-cases."
       - "Test-only or fixture usage of sensor names is PASS. DTU clone crates (crates/prism-dtu-*) are by definition sensor-specific and exempt."
+
+  - id: 37
+    name: ledger_from_frontmatter
+    description: |
+      State-manager must generate every burst ledger row (BC-INDEX NOTEs, ARCH-INDEX changelog
+      rows, STORY-INDEX changelog rows, STATE.md NOTE fields) by reading each touched file's
+      frontmatter `version:` and top changelog row on disk AFTER specialist edits land — never
+      from dispatch brief values or from the author's stated description of what they changed.
+      Origin: F-WASE-P63-CRIT-001 (D-2017/FB47a) — BC-INDEX v8.72 NOTE falsely attributed
+      BC-2.01.016 v1.15 and BC-2.16.014 v1.19 to FB46; on-disk frontmatter showed FB45 authorship.
+    adopted: "D-2017-FB47a-pol37-ledger-from-frontmatter-2026-07-25"
+    severity: HIGH
+    enforced_by: [state-manager, adversary-prompt]
+    scope: [state-manager, bc-index, arch-index, story-index]
+    codified_at: "D-2017"
+    lint_hook: null
+    verification_steps:
+      - "For each file whose version pin appears in an INDEX NOTE or changelog row, run: Read the file's frontmatter `version:` field and compare to the version cited in the ledger row — they must match exactly."
+      - "For each new INDEX NOTE authored in this burst: verify the note cites the actual version from the artifact's frontmatter, not a version number from the dispatch brief or from the specialist's description of their changes."
+      - "Read the top changelog row of each amended artifact: the version in that row must match the `version:` frontmatter field and must match what the INDEX records as the current version."
+      - "If ANY discrepancy exists between frontmatter `version:` and INDEX-recorded version: the INDEX row is wrong, not the artifact. Correct the INDEX before committing."
+      - "This policy applies to STATE.md frontmatter NOTE lines (bc_index_version/arch_index_version/story_index_version) as well as BC-INDEX table cell version chains, ARCH-INDEX table cells, STORY-INDEX table rows, and ARCH-INDEX/BC-INDEX §Changelog rows."
+
+  - id: 38
+    name: bc_new_ec_story_ac_rgt_obligation
+    description: |
+      When a BC amendment adds a new EC whose `anchor_story:` is a draft story with
+      `tdd_mode: strict`, the same burst must either: (a) add a corresponding AC and Red Gate
+      test to that anchor story; OR (b) record an explicit deferral with a concrete blocker
+      (e.g., "blocked on ADR-055 acceptance") and a specific future story anchor. Implicit
+      deferrals (story simply not updated) are a violation. Origin: F-WASE-P63-OBS-002 +
+      PROCESS-GAP-002 (D-2017/FB47a) — S-MAINT-VOLATILE-CITE-001/002 registered with wrong
+      AC counts because BC amendments adding ECs did not trigger a story AC/RGT update.
+    adopted: "D-2017-FB47a-pol38-bc-new-ec-obligation-2026-07-25"
+    severity: HIGH
+    enforced_by: [adversary-prompt, product-owner, story-writer]
+    scope: [bc, story, product-owner, story-writer]
+    codified_at: "D-2017"
+    lint_hook: null
+    verification_steps:
+      - "For each BC amended in this burst: read its new/modified EC table. For each EC with an `anchor_story:` field pointing to a draft story with `tdd_mode: strict`, verify that story file has a corresponding AC (and Red Gate test if the EC is behavioral/postcondition)."
+      - "If a story has no corresponding AC for a new anchored EC: check whether the burst includes a deferral record (in the BC's §Traceability or in the story's §Open Questions) with: (a) a concrete blocker description, (b) a specific future story anchor. If neither present → violation."
+      - "Verify STORY-INDEX description text for the anchor story matches the actual story frontmatter fields (ACs, pts, tdd_mode, priority) — these must agree."
+      - "This policy applies per-burst: if BC and story are amended in different bursts, the gap must not persist across a full adversary pass cycle without the deferral record."

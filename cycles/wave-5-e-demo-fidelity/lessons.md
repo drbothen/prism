@@ -4209,3 +4209,73 @@ After every charset/set correction, verify that at least one ACCEPTING test uses
 (a) On any branch with an open PR: prefer an additional commit over `--amend`; squash-merge will collapse it. Only use `--amend` + force-push on branches where no collaborators have pulled. (b) When orchestrator verification greps produce unexpected hits, verify the grep command itself is correctly escaped before declaring a defect. Shell escaping of special characters (`$%&'*+`) in regex patterns is a known source of false positives. Verify the verification before reporting.
 
 **Source:** D-2016/FB46 (2026-07-25) — Two orchestrator process observations codified per task instructions.
+
+---
+
+## Lesson 100 — Cascade divergence: fix-bursts larger than review can absorb produce undetected registration gaps [process-gap; codified]
+
+**Category:** cascade discipline, burst scope
+
+**Context:** Wave-A spec-evolution FB45→FB46: story-writer authored 6 new story files and ADR-055 in FB45 as part of the spec-evolution decomposition step. These files were committed to factory-artifacts but the state-manager registration burst (STORY-INDEX + ARCH-INDEX) was not dispatched before the next adversary pass. FB46 proceeded with 21 findings, all resolved, without the pass noting that 43 story-points of Wave-A work were invisible to the index.
+
+**Going-forward rule:**
+
+Bursts that produce new story files or ADR files MUST be followed by a registration burst BEFORE the next adversary pass. The orchestrator must run `git -C .factory status --porcelain` before dispatching an adversary pass and verify zero untracked `stories/S-*.md` or `specs/architecture/decisions/ADR-*.md` files. Any untracked artifact = BLOCKING gate failure; the adversary pass must not start until registration is complete. Small-scope authoring bursts (single-concern) reduce the window during which registration can be missed.
+
+**Source:** F-WASE-P63-PROCESS-GAP-002 (D-2017/FB47a 2026-07-25).
+
+---
+
+## Lesson 101 — A gate reporting no coverage count is indistinguishable from one that never ran [process-gap; codified]
+
+**Category:** gate design, L10/L9 coverage
+
+**Context:** TD-VSDD-092 L9 gate (no volatile line-cite in staged .factory/ additions) was inoperative from introduction through FB45 because records-lint.sh scanned the main worktree's staging area rather than the .factory/ worktree's staging area. All L9 "passes" prior to FB45 had no evidentiary weight. This was only discovered when the devops-engineer ran a full-path audit in FB45 (DRIFT-L9-VACUOUS-GATE-001). Separately, TD-VSDD-092 L10 (cross-document version consistency count) exposed a false-positive implementation: the count matched by coincidence rather than by correct logic.
+
+**Going-forward rule:**
+
+Any gate mechanism that does not emit a count or a list of checked items cannot be distinguished from a gate that never executed. Production-grade gates MUST output: (a) count of items checked; (b) count of items that passed; (c) either explicit "0 violations found" or a list of violations. A gate that merely exits 0 with no diagnostic output is insufficient. When wiring a new gate, the devops-engineer must run `--self-probe` (or equivalent synthetic violation test) to verify the gate fires on known-bad input before treating any real passing result as meaningful.
+
+**Source:** DRIFT-L9-VACUOUS-GATE-001 (D-2015/FB45) + F-WASE-P63-OBS-001 root cause analysis (D-2017/FB47a 2026-07-25).
+
+---
+
+## Lesson 102 — Vague corrective instructions produce confidently wrong fixes [grounding-discipline; codified]
+
+**Category:** orchestrator dispatch discipline, correction specificity
+
+**Context:** CRIT-001 (BC-INDEX v8.72 NOTE phantom attributions) originated because the state-manager was dispatched with a description of what BC changes had occurred (from the dispatch brief) rather than being instructed to verify on-disk frontmatter. The corrective instructions in the dispatch brief were accurate descriptions of the INTENDED changes, not verified observations of what actually landed on disk. When the FB45 artifacts had different version numbers than the brief projected, the state-manager had no mechanism to detect the discrepancy.
+
+**Going-forward rule:**
+
+State-manager dispatch instructions for ledger rows MUST specify the verification procedure ("read frontmatter version: from each touched file after specialist edits land") not the expected outcome ("version should be v1.15"). An instruction that says "record BC-2.01.016 v1.15" is a correctness assertion — it can be wrong. An instruction that says "read BC-2.01.016 frontmatter version: and record what it says" is a procedure — it cannot be wrong if followed. POL-37 codifies this as standing discipline.
+
+**Source:** F-WASE-P63-CRIT-001 root cause (D-2017/FB47a 2026-07-25).
+
+---
+
+## Lesson 103 — Orchestrator verification must itself be verified — greps can produce phantom discrepancies [grounding-discipline; codified]
+
+**Category:** orchestrator process discipline, verification soundness
+
+**Context:** During FB46 orchestrator coordination (D-2016), orchestrator grep verification of the tchar pattern `$%&'*+` against BC-2.16.009 v1.26 produced three phantom discrepancies against S-WAVE-A-ENGINE-001 v2.2. The discrepancies were not real defects — the grep command was shell-escaped differently than the literal pattern in the BC, causing false hits. The verification was accepted at face value rather than being re-examined. (Lesson 99 previously codified the git-level aspect; this lesson codifies the grep-escaping-specifically aspect for adversary and orchestrator verification probes.)
+
+**Going-forward rule:**
+
+When a verification grep or search produces an unexpected "discrepancy found" result, the verifier must: (a) inspect the raw grep command and its escaping; (b) verify the hit is in the production file at the expected location, not in a comment, changelog historical row, or test fixture; (c) if the pattern contains shell-special characters (`$%&'*+[]{}()|`), run the grep with explicit quoting and compare to a manual read of the relevant lines. An unverified discrepancy is not evidence of a defect.
+
+**Source:** D-2016/FB46 orchestrator notes (2026-07-25).
+
+---
+
+## Lesson 104 — L10's capability boundary is stated in the negative on purpose: overclaiming coverage is itself a defect [gate-design; codified]
+
+**Category:** gate design, coverage honesty
+
+**Context:** TD-VSDD-092 L10 was designed to check cross-document version consistency. An early implementation reported "0 violations" on test input that had real violations — the count matched by accident (the test fixture happened to have the same version number in both locations). The self-probe test (--self-probe) verified the gate could detect its canonical 6 cases; but it did not verify that the gate detected violations in the specific topology (factory-artifacts worktree layout) used in production runs.
+
+**Going-forward rule:**
+
+A gate's capability boundary documentation must explicitly state: (a) what the gate checks; (b) what it does NOT check; (c) the specific topology/environment in which the check runs. Stating the boundary in the negative ("this gate does NOT check X, Y, Z") prevents consumers from assuming broader coverage than the gate provides. Over-claiming a gate's coverage is a defect in the gate itself — it causes downstream actors to skip verification steps they believe the gate already performed. When a gate is promoted to "required by policy," the gate's documented scope must match the policy's required scope exactly; any gap must be listed as a known gap with a tracking item.
+
+**Source:** DRIFT-L9-VACUOUS-GATE-001 + TD-VSDD-092 design review (D-2017/FB47a 2026-07-25).

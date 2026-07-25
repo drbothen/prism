@@ -6,7 +6,7 @@ wave: wave-a
 epic_id: E-SPEC-ENGINE
 priority: P1
 status: draft
-version: "2.2"
+version: "2.3"
 updated: "2026-07-25"
 level: "L3"
 producer: story-writer
@@ -47,8 +47,9 @@ depends_on: []
 # This story is the FIRST in the ADR-054 §D7 sequencing chain.
 # No product-story hard dependencies — can enter Wave 1 of wave-a scheduling.
 blocks:
-  - S-ADR054-WAVE-A-001          # TBD — ADR-054 declarative auth implementation story (DeclarativeHttpAuthProvider + TokenExchange + Rule 10)
-  - S-WAVE-A-CYBERINT-SPEC-001   # TBD — Cyberint spec migration (cyberint.sensor.toml must gain header_scheme before engine story lands, or vice versa)
+  - S-WAVE-A-CYBERINT-PATCH-001     # MERGE-GATE-ENGINE-001: must co-land with ENGINE-001 (see MERGE-GATE-ENGINE-001 in S-WAVE-A-CYBERINT-PATCH-001); registered FB47a 2026-07-25
+  - S-ADR054-WAVE-A-001             # TBD — ADR-054 declarative auth implementation story (DeclarativeHttpAuthProvider + TokenExchange + Rule 10)
+  - S-WAVE-A-CYBERINT-SPEC-001      # TBD — Cyberint spec migration (cyberint.sensor.toml must gain header_scheme before engine story lands, or vice versa)
   - S-WAVE-A-ARMIS-REMEDIATION-001  # TBD — Armis token-exchange remediation story
 # blocks anchor justifications:
 #   S-ADR054-WAVE-A-001: ADR-054 §D7 explicit merge dependency — "implementation stories
