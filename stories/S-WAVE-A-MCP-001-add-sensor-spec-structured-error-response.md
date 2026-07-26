@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-MCP-001
 title: "Remap add_sensor_spec ValidationFailed to BC-2.10.007 Structured Error Envelope"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: story-writer
 phase: 3
@@ -159,9 +159,9 @@ At least one test must assert `response["status"]` is absent OR `response.get("s
 Some("validation_failed")` in the serialized JSON output (SID-2: composed-output assertion).
 
 ### AC-005: BC-2.10.007 fields are complete — all required fields present
-(traces to BC-2.10.007 §Complete field specification — all 8 required fields must be present)
+(traces to BC-2.10.007 §Complete field specification — all 9 required fields must be present)
 
-A wire-level test asserts that `structuredContent.error` contains all 8 required fields:
+A wire-level test asserts that `structuredContent.error` contains all 9 required fields:
 `code`, `message`, `category`, `retryable`, `retry_after_seconds`, `suggestion`, `source`,
 `original_params_valid`, `upstream_message`. The test must check each field individually.
 
@@ -276,10 +276,18 @@ prism_spec_engine::types::AddSensorSpecResult::ValidationFailed { errors } => {
         .iter()
         .flat_map(|e| e.errors.iter().map(|s| s.as_str()))
         .collect();
-    let first_code = all_errors
-        .first()
-        .and_then(|s| s.split(':').next())
-        .unwrap_or("E-SPEC-001");
+    // Invariant: ValidationFailed only fires when errors is non-empty (EC-001 contract).
+    // debug_assert! catches violations in debug builds.
+    debug_assert!(!all_errors.is_empty(), "ValidationFailed invariant: errors vec must not be empty");
+    if all_errors.is_empty() {
+        // Invariant violation in release: return an internal MCP error rather than
+        // panicking the server. This path is unreachable in correct code.
+        // Use the same to_error_data() pattern as the WriteError arm — see T-02.
+        // No E-SPEC-NNN code applies; this is a programming error, not a spec condition.
+        return Err(to_error_data(/* internal error — exact PrismError variant from T-02 */));
+    }
+    // Safety: all_errors is non-empty (guarded above). str::split always yields ≥1 element.
+    let first_code = all_errors[0].split(':').next().unwrap_or(all_errors[0]);
     let structured = serde_json::json!({
         "code": first_code,
         "message": format!("Sensor spec validation failed: {} error(s).", all_errors.len()),
@@ -342,7 +350,7 @@ consumers of the prism MCP server.
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | ValidationFailed with zero errors (empty errors vec) | Should not occur (validate_sensor_spec returns Err only with ≥1 error), but if it does, emit errors: [] and code = "E-SPEC-000" or the taxonomy's general spec error code |
+| EC-001 | ValidationFailed with zero errors (empty errors vec) | Contract invariant: `SpecLoader::parse()` returns `Err` only when at least one error has been collected; a `ValidationFailed` arm with zero errors is a programming error, not a taxonomy-mapped condition. No taxonomy code exists for this state. The implementation MUST add `debug_assert!(!all_errors.is_empty(), "ValidationFailed invariant: errors vec must not be empty")` before extracting `first_code`. The condition is unreachable in correct code; any violation is caught in debug builds by the assert. |
 | EC-002 | ValidationFailed with errors from multiple different E-SPEC-NNN codes | AC-002: code = first error's code; AC-003: all codes in errors array |
 | EC-003 | Valid TOML submitted — happy path | AC-007: response has "status": "added" (or current success shape) — unchanged |
 | EC-004 | retry_after_seconds field is absent (not null) in the response | AC-005 assertion catches this — field MUST be null, not absent; per BC-2.10.007 §retry_after_seconds note |
@@ -395,7 +403,7 @@ Specifically, serialize to `serde_json::Value` and check:
 - `response.get("status")` is None (old field absent)
 
 ### T-05: Write AC-005 field completeness test
-Write a test that checks each of the 8 required fields in `structuredContent.error` is
+Write a test that checks each of the 9 required fields in `structuredContent.error` is
 present and has the correct type (null vs absent, bool vs string). Per SID-2: at least one
 test must assert on the FULL composed error object, not just on component fields.
 
@@ -472,7 +480,7 @@ Lessons from prism-mcp cascades:
    the variant MUST be added to both the sentinel test AND a dedicated arm in
    `prism_error_to_structured_call_result` before the PR merges. The catch-all is
    reserved for FUTURE/unknown variants only (ZERO currently-known variants fall to it as
-   of v1.18).
+   of v1.19).
 
 3. **CLAUDE.md §Non-exhaustive gate.** If Option A adds a `PrismError` variant to
    `prism-core` or `prism-spec-engine`, verify the `#[non_exhaustive]` gate applies.
@@ -513,5 +521,6 @@ No new external dependencies.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.2 | 2026-07-26 | story-writer | FB59 closes F-WASE-P64-MED-005, F-WASE-P64-MED-006, F-WASE-P64-LOW-001. MED-005: corrected field count from eight to nine in AC-005 §trace, AC-005 body, and T-05 §description — nine required fields validated against BC-2.10.007 §Complete field specification (code, message, category, retryable, retry_after_seconds, suggestion, source, original_params_valid, upstream_message; all nine marked Required Always). MED-006: EC-001 phantom code E-SPEC-000 removed — no taxonomy code maps to this condition; the zero-error ValidationFailed state is unreachable by contract (SpecLoader::parse() accumulates errors and only returns Err when ≥1 are collected); EC-001 rewritten as a contract invariant; §Implementation Notes code snippet updated: debug_assert!(!all_errors.is_empty()) retained as dev-time check, replaced the follow-on .expect() panic path with an explicit if all_errors.is_empty() guard that returns Err via the existing to_error_data() MCP error path (same pattern as WriteError arm, exact PrismError variant deferred to T-02), then extracts first_code via all_errors[0].split(':').next().unwrap_or(all_errors[0]) with no phantom code fallback. No E-SPEC-NNN code is fabricated for the invariant-violation path. LOW-001: §Architecture Compliance Rule 2 BC-2.10.007 version cite corrected from v1.18 to v1.19; BC-2.10.007 frontmatter confirmed at version 1.19; §Authority and §Behavioral Contracts table already cite v1.19 — no additional sites required. |
 | 1.1 | 2026-07-26 | story-writer | FB55b closes F-WASE-P64-HIGH-003. Added AC-008 (ADR-053 §D6 deferred acceptance shape verbatim: `add_sensor_spec` with `header_scheme = "cookie:bad;name"` (non-tchar `;`) returns `isError: true` + `structuredContent.error.code == "E-SPEC-027"` at MCP wire level; both assertions on serialized JSON per CLAUDE.md §Wire-shape assertion discipline D-1715; SAP-3 end-to-end from `add_sensor_spec` MCP tool call surface with defense-in-depth labeling requirement). Added §Red Gate tests subsection with RG-001 (`test_add_sensor_spec_non_tchar_cookie_name_returns_e_spec_027_wire_level` — AC-008). Added T-06 (task for AC-008 wire-level test). Fixed EC-005: removed false "AC-003 covers multi-error cases" cross-reference; re-pointed at AC-008 as the primary obligation carrier per ADR-053 §D6 acceptance shape. |
 | 1.0 | 2026-07-25 | story-writer | Initial stub; authority: BC-2.16.008 v1.6 + ADR-053 §D6 Option B; normative ID constraint documented; TBD sections marked for implementation-time resolution |
