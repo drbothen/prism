@@ -124,13 +124,66 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2018 (SESSION WRAP; pass 63 BLOCKED 33 findings; cascade diverged 16→21→33; human process intervention — small single-concern bursts only; BC-5.39.001 streak 0/3; NEXT = FB47b spec-content burst).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2018 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2018 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged S-MAINT ci.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.566. D-2018 session wrap complete; pass 63 BLOCKED (cascade diverged 16→21→33; human process intervention — small single-concern bursts); RECOMMENDED HUMAN ACTION: push docs/claude-md-file-size-convention (backs up 9 LOCAL-ONLY commits including records-lint gate); NEXT = FB47b spec-content burst.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2032 (SESSION WRAP; pass-64 frozen 14/34 closed; ALL 5 CRITICALs CLOSED; 20 remain: 0 CRIT / 4 HIGH / 12 MED / 2 LOW / 2 OBS; PROCESS INTERVENTION RULE still binding; BC-5.39.001 streak 0/3; NEXT = FB55 HIGH cluster).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2032 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2032 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57dad`; local ff BLOCKED by unstaged ci.yml/e2e.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.580. D-2032 session wrap complete; ALL 5 CRITICALs CLOSED; 14/34 pass-64 findings done; NEXT = FB55 HIGH cluster (HIGH-001 through HIGH-004).
 
 ---
 
-## §RESUME SNAPSHOT — D-2018 (2026-07-25 — SESSION WRAP; cascade diverged 16→21→33; process intervention; BC-5.39.001 streak 0/3; STATE v8.566) [SUPERSEDES D-2014]
+## §RESUME SNAPSHOT — D-2032 (2026-07-26 — SESSION WRAP; pass-64 frozen 14/34 closed; ALL CRITICALs CLOSED; BC-5.39.001 streak 0/3; NEXT: FB55 HIGH cluster; STATE v8.580) [SUPERSEDES D-2018]
+
+### RESUME IN ONE BREATH
+Wave-A spec-evolution cascade frozen mid-pass-64. ALL 5 CRITICALs closed (CRIT-001..005; FB47b through FB54; 14/34 total). Remaining 20: 0 CRIT / 4 HIGH (HIGH-001..004) / 12 MED / 2 LOW / 2 OBS. PROCESS INTERVENTION RULE (human-directed) still binding: small single-concern fix bursts only. NEXT = FB55: HIGH cluster. factory-artifacts PUSHED; PRs #229/#230 OPEN.
+
+### HEADS (verified 2026-07-26 D-2032)
+- origin/develop: `7fef57dad` — PUSHED. LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001, do NOT auto-FF; blocked by unstaged ci.yml/e2e.yml residue in main worktree).
+- factory-artifacts: D-2032 wrap commit — run `git -C .factory log -1 --format='%h %s'` (do not hard-code). Equals origin/factory-artifacts.
+- Main worktree: docs/claude-md-file-size-convention @`cdbbe81b4` — PUSHED; PR #230 OPEN.
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5b` — PUSHED; PR #229 OPEN.
+- `.worktrees/S-3.09` @`43c41389d` — KEEP-PARKED LOCAL-ONLY (AT RISK).
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` — PARKED-DIRTY do-NOT-touch LOCAL-ONLY (AT RISK).
+- verify-sha-currency.sh: PASS (2 pre-existing WARNs — python3+yaml unavailable; in-progress-voice remnant, long-standing). No background agents in flight. BC-5.39.001 streak 0/3.
+
+### WORKSTREAM NEXT-ACTIONS
+
+**Wave-A spec-evolution cascade (PRIMARY — streak 0/3):**
+FB55 = HIGH cluster. HIGH-001 and HIGH-002 concern ENGINE-001↔CYBERINT-PATCH-001 dependency relationship and may fold into one burst.
+- HIGH-001: mutual `blocks:` cycle between S-WAVE-A-ENGINE-001 and S-WAVE-A-CYBERINT-PATCH-001 with ENGINE-001 edge semantically inverted.
+- HIGH-002: S-WAVE-A-CYBERINT-PATCH-001 attributes Rule 9 liveness to wrong function and wrong story; self-contradicts on boot-failure conditionality.
+- HIGH-003: ADR-053 §D6 deferral broken — no AC in S-WAVE-A-MCP-001 carries the deferred E-SPEC-027 wire-level obligation, making it an escape rather than a documented gap.
+- HIGH-004: VP-160 anchor story is a placeholder in both the VP file and VP-INDEX while the story that builds the proof target omits VP-160.
+Pass 65 must NOT run until HIGH cluster is fully closed per BC-5.39.001 and the PROCESS INTERVENTION RULE.
+
+**Code lane (BLOCKED — unchanged):**
+S-WAVE-A-CYBERINT-PATCH-001 must co-land with S-WAVE-A-ENGINE-001 (cyberint.sensor.toml declares `auth_type=cookie_roundtrip` with no `header_scheme`; Rule 9 absence path fires E-SPEC-027(c), boot exits 2). No orchestrator action until spec cascade converges.
+
+**PR #229** (fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` PUSHED): awaiting human merge decision.
+
+**PR #230** (docs/claude-md-file-size-convention @`cdbbe81b4` PUSHED, PR OPEN): awaiting human merge decision. Gate defects GATE-L1L7-RATCHET-WORKTREE-001 and GATE-L1-VPREFIX-BLIND-002 live in scripts/records-lint.sh on this branch — must land before corpus records-debt backfill begins.
+
+### PENDING USER-APPROVED WORK — do not start
+- (a) scripts/records-lint.sh fixes for GATE-L1L7-RATCHET-WORKTREE-001 and GATE-L1-VPREFIX-BLIND-002 — code change on PR #230 branch; awaiting human.
+- (b) GAP-ASSETS-PAG-001 — new PaginationConfig variant for server-controlled page size; awaiting explicit human authorization.
+- (c) Follow-up story for GAP-ASSETS-PAG-001 — not yet created; awaiting human authorization.
+- (d) STORY-INDEX mixed-prefix normalization (pass-64 LOW-002) — ordering-dependent on GATE-L1-VPREFIX-BLIND-002 fix; do not resolve blind.
+- (e) Corpus records debt (39 L1 + 86 L7 across 43 files) — pre-existing, TD-VSDD-096 candidate; NOT in cascade scope.
+
+### GATE COVERAGE REMINDER (D-2031/D-2032)
+records-lint --full-scan L1/L7 have never examined .factory/ artifacts in ratchet mode (GATE-L1L7-RATCHET-WORKTREE-001). A zero exit code from records-lint covers L9 and the cross-document index check only, not L1/L7 for .factory/ files. Hand-verify frontmatter version equals top changelog row on every touched .factory/ artifact until the gate is fixed.
+
+### SPEC PERIMETER (post-FB54/D-2031, unchanged at D-2032)
+BC-2.16.009 v1.27 / ADR-053 v0.36 / error-taxonomy v2.69 / S-WAVE-A-ENGINE-001 v2.4 / BC-2.16.008 v1.6 / BC-2.16.014 v1.19 / VP-159 v1.26 / ADR-054 v0.55 / BC-2.01.018 v1.4 / BC-2.01.006 v1.8 / BC-2.02.004 v1.10 / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28 / VP-160 v1.0 / ADR-055 v1.2 (accepted) / ADR-056 v0.1 (accepted) / BC-2.16.002 v2.11. Stories: S-WAVE-A-ENGINE-001 v2.4; S-WAVE-A-ARMIS-REMEDIATION-001 v1.1; S-ADR054-WAVE-A-001 v1.1; S-WAVE-A-CYBERINT-SPEC-001 v1.1; three others v1.0. Indexes: BC-INDEX v8.75 / VP-INDEX v2.13 / ARCH-INDEX v2.281 / STORY-INDEX v2.730 (total_stories 263).
+
+### SESSION UNIFYING LESSON (D-2032)
+Six gate-blind-spot instances confirmed this session (D-2025, D-2029, D-2031): a zero exit code describes the gate's reach, never the corpus. "0 mismatches" means only the cells and patterns the gate could parse were consistent — not that the corpus is consistent. Transferable across all mechanical gates: verify the gate's REACH before relying on its RESULT.
+
+### BACKUP BOUNDARY (D-2032)
+- PUSHED: factory-artifacts (D-2032 wrap commit — run `git -C .factory log -1 --format='%h %s'`); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); docs/claude-md-file-size-convention @`cdbbe81b4` (PR #230 OPEN); origin/develop @`7fef57dad`.
+- LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty).
+
+---
+
+## §RESUME SNAPSHOT — D-2018 (2026-07-25 — SESSION WRAP; cascade diverged 16→21→33; process intervention; BC-5.39.001 streak 0/3; STATE v8.566) [SUPERSEDES D-2014] [SUPERSEDED by D-2032]
 
 ### RESUME IN ONE BREATH
 Wave-A spec-evolution cascade BLOCKED at pass 63 (33 findings; 16→21→33 divergence across FB45/FB46/FB47a — each fix-burst seeded next pass). Human process intervention active. NEXT ACTION: dispatch **FB47b** (first single-concern spec-content burst, working named targets from local-pass-63.md). Do NOT run adversary pass 64 until FB47b is closed.
