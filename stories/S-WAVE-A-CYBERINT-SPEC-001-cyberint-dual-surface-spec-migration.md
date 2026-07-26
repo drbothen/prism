@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-CYBERINT-SPEC-001
 title: "Cyberint Dual-Surface Spec Migration — Delete cyberint.sensor.toml; Author cyberint-alerts and cyberint-assets; OpenAPI-Ground Alerts C2-Class Fixes; DTU Route Migration"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: story-writer
 phase: 3
@@ -12,7 +12,7 @@ priority: P0
 points: 8
 tdd_mode: strict
 target_module: prism-sensors
-subsystems: ["SS-06 (SensorSpec)", "SS-12 (DTU-Cyberint)"]
+subsystems: ["SS-06 (SensorSpec)", "SS-07 (SpecEngine)", "SS-12 (DTU-Cyberint)"]
 depends_on:
   - S-WAVE-A-ENGINE-001    # header_scheme grammar + Rule 9 must be live before new cyberint specs can load;
                            # S-WAVE-A-CYBERINT-PATCH-001 (the minimal co-land patch) co-lands with ENGINE-001,
@@ -22,6 +22,7 @@ behavioral_contracts:
   - BC-2.01.006
   - BC-2.06.003
   - BC-2.16.001
+  - BC-2.16.002
   - BC-2.16.009
 verification_properties:
   - VP-153
@@ -122,15 +123,22 @@ header_scheme = "cookie:access_token"
 A unit test in `prism-spec-engine` asserts that loading either new spec produces no
 E-SPEC-027(c) error when Rule 9 runs.
 
-### AC-003: Alerts surface uses POST /alert/api/v1/alerts with $.alerts response path
+### AC-003: Alerts surface uses POST /alert/api/v1/alerts with $.alerts response path and page_number pagination
 (traces to BC-2.01.006 postcondition — Alerts surface returns the correct data at the
-correct endpoint with the correct response extraction path)
+correct endpoint with the correct response extraction path; traces to BC-2.16.002
+PageNumber Pagination Dispatch postcondition — POST body injection of `page`/`size` per
+ADR-056 §D3)
 
 `cyberint-alerts.sensor.toml` tables.alerts.steps.fetch_alerts declares:
 - `method = "POST"`
 - `path_template = "/api/v1/alerts"` (relative to base_url which includes `/alert` prefix)
 - `response_path = "$.alerts"`
-- Pagination type: offset_limit with `page_size = 100`
+- Pagination type: page_number with `page_size = 100`
+
+The `page_number` variant maps to `PaginationConfig::PageNumber { page_size: 100 }` in
+`spec_parser.rs`. For POST method, `build_paged_url_impl` returns the URL unchanged and
+`build_request` injects `"page": (offset + 1)` and `"size": 100` as top-level JSON body
+keys (ADR-056 §D3). First request emits `page = 1`; advance is `offset += 1` per ADR-056 §D2.
 
 The DTU `get_alerts` handler (in `routes/alerts.rs`) is updated to:
 - Register at POST `/alert/api/v1/alerts` (not GET `/api/v1/alerts`)
@@ -139,18 +147,33 @@ The DTU `get_alerts` handler (in `routes/alerts.rs`) is updated to:
 A parity test asserts that a POST to `/alert/api/v1/alerts` with valid `access_token` cookie
 returns a JSON object with a top-level `"alerts"` key containing an array.
 
-### AC-004: Page/size pagination replaces cursor pagination in DTU
+### AC-004: Page/size pagination replaces cursor pagination; prism engine dispatches via POST body
 (traces to BC-2.01.006 postcondition — pagination returns complete result sets across
-multiple pages)
+multiple pages; traces to BC-2.16.002 PageNumber Pagination Dispatch postcondition —
+POST body carries `page`/`size` keys; first request body asserted on the wire per
+CLAUDE.md §Wire-shape assertion discipline)
 
-`ac_6_cursor_pagination.rs` is deleted. A new test `ac_6_page_size_pagination.rs` verifies:
-- POST `/alert/api/v1/alerts?page=1&size=10` returns the first 10 alerts
-- POST `/alert/api/v1/alerts?page=2&size=10` returns the next 10 alerts (different records)
-- POST `/alert/api/v1/alerts?size=1000` is capped to `max_page_size = 100` (DTU enforces cap)
-- A multi-page accumulation returns all alerts across pages equal to single `page=1&size=9999` result count
+`ac_6_cursor_pagination.rs` is deleted. A new test `ac_6_page_size_pagination.rs` verifies
+(all requests use POST body JSON, not query parameters — the Cyberint API reads `page`/`size`
+from `GetAlertsRequest` POST body, not query string):
+- POST `/alert/api/v1/alerts` with JSON body `{"page": 1, "size": 10}` returns the first 10 alerts
+- POST `/alert/api/v1/alerts` with JSON body `{"page": 2, "size": 10}` returns the next 10 alerts (different records, no overlap)
+- POST `/alert/api/v1/alerts` with JSON body `{"page": 1, "size": 1000}` is capped to `max_page_size = 100` (DTU enforces cap)
+- A multi-page accumulation via sequential body-keyed requests returns all alerts equal to total reported by `total` field
+
+Wire-shape assertion (CLAUDE.md §Wire-shape assertion discipline): the prism engine
+(via `PaginationConfig::PageNumber` + `build_request` POST injection per ADR-056 §D3)
+sends a POST body that, on the first request, serializes to a JSON object containing
+`"page": 1` and `"size": 100`. The second-page body contains `"page": 2` and `"size": 100`.
+Advance rule: `offset += 1` per ADR-056 §D2 (distinct from `OffsetLimit`'s `offset += page_size`).
+Termination: `if page_record_count < page_size { break }` per ADR-056 §D4.
+At least one test in `ac_6_page_size_pagination.rs` MUST assert on the raw serialized JSON
+body sent to the DTU — not only on the Rust `AlertListParams` struct.
 
 `AlertListParams` in `routes/alerts.rs` is updated from `cursor: Option<String>` to
-`page: Option<u32>, size: Option<u32>`.
+`page: Option<u32>, size: Option<u32>`. The handler MUST extract `AlertListParams` from
+the POST request JSON body (not query parameters), matching the real Cyberint
+`GetAlertsRequest` POST body contract (ADR-028 §D1 — DTU wire shape mirrors real API).
 
 ### AC-005: credential_refs name = "access_token" on both new specs
 (traces to BC-2.06.003 postcondition — credential references use the canonical field name
@@ -176,7 +199,7 @@ credential name is updated to `access_token`.
 - `header_scheme = "cookie:access_token"`
 - `base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io/asset-configuration"`
 - At least one `[[tables]]` block (table structure derived from the Cyberint assets
-  OpenAPI; see Task T-06 for derivation requirements)
+  OpenAPI; see Task T-03 for derivation requirements)
 
 ### AC-007: Incidents table removed from cyberint-alerts.sensor.toml
 (traces to BC-2.01.006 postcondition — sensor surface accurately reflects the Cyberint
@@ -206,9 +229,13 @@ a sensor_id is updated to `"cyberint-alerts"` or `"cyberint-assets"` as appropri
 |-----------|--------|---------------|----------------------|
 | `cyberint-alerts.sensor.toml` | `crates/prism-sensors/specs/` | Pure (config data) | `architecture/module-decomposition.md §SS-06 SensorSpec` |
 | `cyberint-assets.sensor.toml` | `crates/prism-sensors/specs/` | Pure (config data) | `architecture/module-decomposition.md §SS-06 SensorSpec` |
+| `PaginationConfig::PageNumber` variant | `crates/prism-spec-engine/src/spec_parser.rs` | Pure (enum variant) | `architecture/module-decomposition.md §SS-07 SpecEngine` |
+| `build_paged_url_impl` (PageNumber arm) | `crates/prism-spec-engine/src/pipeline.rs` | Pure (URL construction) | `architecture/module-decomposition.md §SS-07 SpecEngine` |
+| `build_request` (PageNumber POST body injection) | `crates/prism-spec-engine/src/pipeline.rs` | Effectful (HTTP request builder) | `architecture/module-decomposition.md §SS-07 SpecEngine` |
+| `execute_impl` (PageNumber active_page_size + advance/terminate) | `crates/prism-spec-engine/src/pipeline.rs` | Effectful (pagination loop) | `architecture/module-decomposition.md §SS-07 SpecEngine` |
 | `CyberintClone::build_router()` | `crates/prism-dtu-cyberint/src/clone.rs` | Effectful (HTTP server) | `architecture/module-decomposition.md §SS-12 DTU-Cyberint` |
 | `get_alerts()` handler | `crates/prism-dtu-cyberint/src/routes/alerts.rs` | Effectful (HTTP handler) | `architecture/module-decomposition.md §SS-12 DTU-Cyberint` |
-| `AlertListParams` | `crates/prism-dtu-cyberint/src/routes/alerts.rs` | Pure (query param struct) | `architecture/module-decomposition.md §SS-12 DTU-Cyberint` |
+| `AlertListParams` | `crates/prism-dtu-cyberint/src/routes/alerts.rs` | Pure (body param struct, JSON-extracted) | `architecture/module-decomposition.md §SS-12 DTU-Cyberint` |
 
 ---
 
@@ -219,6 +246,7 @@ a sensor_id is updated to `"cyberint-alerts"` or `"cyberint-assets"` as appropri
 | BC-2.01.006 | v1.x (see D5 amendment note) | Cyberint sensor behavior — POST method, $.alerts path, page/size pagination |
 | BC-2.06.003 | v1.3 | Credential refs resolution chain; `access_token` name change |
 | BC-2.16.001 | current | Bundled spec loading at startup — both new specs must pass validation |
+| BC-2.16.002 | v2.11 | Multi-Step Fetch Pipeline — PageNumber Pagination Dispatch postcondition (ADR-056 §D3/§D4); `PaginationConfig::PageNumber` wiring in `spec_parser.rs`, `build_paged_url_impl`, `build_request`, and `execute_impl` in `pipeline.rs` |
 | BC-2.16.009 | current | Rule 9: `cookie_roundtrip` requires `header_scheme = "cookie:<name>"` — absence path (c) must NOT trigger |
 
 **Product-owner dependency:** BC-2.01.006 must be amended or split (per ADR-053 §D5
@@ -243,8 +271,8 @@ the only operator-visible surface change (documented in Breaking Change Notice a
 | EC-001 | cyberint.sensor.toml still present after migration | AC-001 fails; MERGE-GATE fires if bundled spec load test is green with old spec still present |
 | EC-002 | Both new specs present; S-WAVE-A-ENGINE-001 not yet merged | New specs do NOT require header_scheme validation to pass (Rule 9 not yet live); specs load without error |
 | EC-003 | POST /alert/api/v1/alerts with missing access_token cookie | DTU returns HTTP 401 — same auth failure path as before |
-| EC-004 | POST /alert/api/v1/alerts?size=0 | DTU normalizes to 1 (min page size); returns first result |
-| EC-005 | POST /alert/api/v1/alerts?page=9999&size=100 | DTU returns empty `{"alerts": [], "page": 9999, "total": N}` — not an error |
+| EC-004 | POST `/alert/api/v1/alerts` with body `{"size": 0}` | DTU normalizes to 1 (min page size); returns first result |
+| EC-005 | POST `/alert/api/v1/alerts` with body `{"page": 9999, "size": 100}` | DTU returns empty `{"alerts": [], "page": 9999, "total": N}` — not an error |
 | EC-006 | cyberint-assets.sensor.toml probe_table points to nonexistent table | BC-2.16.001 spec load fails; implementation must derive probe_table from actual tables block |
 | EC-007 | Operator uses old CYBERINT_API_KEY env var after migration | Credential resolver falls through to keyring; if not in keyring, sensor returns E-SENSOR-004 (credential not found) — correct fail-open behavior; NOT a silent 401 |
 
@@ -284,7 +312,7 @@ iocs_value_first, alert_data_ip, alert_data_domain, alert_data_url), OCSF mappin
 source_path annotations, and timestamp_formats chains. The column schema was
 adversarially validated and must not be silently altered.
 
-Alerts fetch step — corrected per ADR-053 C2-class fixes:
+Alerts fetch step — corrected per ADR-053 C2-class fixes and ADR-056 PageNumber ratification:
 
 ```toml
 [[tables.steps]]
@@ -294,16 +322,21 @@ path_template = "/api/v1/alerts"
 response_path = "$.alerts"
 variables_produced = []
 [tables.steps.pagination]
-type = "offset_limit"
+type = "page_number"
 page_size = 100
 ```
 
-Note: `offset_limit` pagination with `page_size = 100` maps to the Cyberint API's
-`page` and `size` query parameters. If the spec engine's `offset_limit` type injects
-`offset`/`limit` rather than `page`/`size`, the implementer MUST verify against
-`prism-spec-engine/src/pipeline.rs` `build_request()` to confirm the correct pagination
-parameter names and either use the matching pagination type or request a spec grammar
-extension. Do not assume `offset_limit` matches without verification.
+`type = "page_number"` is the ratified `PaginationConfig::PageNumber { page_size: 100 }` variant
+(ADR-056 §D1). For POST method, `build_paged_url_impl` returns the URL unchanged and
+`build_request` injects `"page": (offset + 1)` and `"size": 100` as top-level JSON body keys
+(ADR-056 §D3). The Cyberint Alerts API `GetAlertsRequest` schema declares `page` (integer,
+minimum 1, default 1) and `size` (integer, minimum 10, maximum 100, default 10) as POST body
+fields — these are NOT query parameters. The `page_number` variant satisfies this contract
+exactly. `page_size = 100` is within the API's accepted range (maximum 100).
+
+The `PaginationConfig::PageNumber` variant must be added to `spec_parser.rs` in T-09
+(see §Tasks) before this TOML file can be loaded. Do NOT use `offset_limit` (which
+injects `offset`/`limit` keys) or `cursor_token` for this surface.
 
 Do NOT carry over the `incidents` table (see AC-007).
 
@@ -324,17 +357,81 @@ name = "access_token"
 description = "Cyberint API access token (injected as access_token cookie)"
 ```
 
-Table structure: derive from the Cyberint Assets OpenAPI (located in
-`crates/prism-dtu-cyberint/` or the research directory — search for
-`cyberint_assets_openapi` or equivalent file). Map each API response field to a column
-with the correct `column_type` and an `ocsf_field` reference where an OCSF mapping
-exists. Set `probe_table` to the primary table that the LIMIT-0 health probe will use
-(BC-2.08.001 postcondition 5).
+**OpenAPI grounding source (authoritative):** `.factory/reference/api-specs/cyberint_assets_openapi_06.20.2026.json`
+The file is present in-repo; no stub is acceptable. The OpenAPI `servers` block declares
+`url: "/asset-configuration"` — so `base_url` above is correct. The primary assets endpoint
+is `POST /external/api/v1/assets/` (path relative to the server prefix); `path_template`
+for the assets fetch step is `/external/api/v1/assets/`.
 
-If the assets OpenAPI file is not present in the codebase, document the table structure
-as a stub with explicit `# TBD: requires assets OpenAPI grounding` comments on each
-placeholder column, and file a T-TODO note in the story's task tracking for the DTU
-validator to complete the OpenAPI grounding before this story's PR merges.
+**Pagination treatment — GAP-ASSETS-PAG-001 [EXPLICIT BLOCKER]:**
+
+The assets OpenAPI `GetAssetsRequest` schema declares `page_number: integer (minimum 1,
+default 1)` but NO `page_size` parameter — the server controls how many assets are returned
+per page. `GetAssetsResponse` carries `total_assets: integer`, `page_number: integer`, and
+`assets: array`.
+
+**Consequence of the current grammar gap: silent data truncation (CWE-390 class).**
+Without a multi-page loop, prism sends no `page_number` parameter (the server applies its
+default of page 1) and only the first server-default page is retrieved. Every asset beyond
+page 1 is silently dropped. `GetAssetsResponse.total_assets` is the evidence field:
+if `total_assets > len(assets)` in the first response, assets were missed and the result
+set is incomplete. This is the same silent-truncation defect class as F-WASE-P64-CRIT-003
+on the alerts surface, which this very burst closes.
+
+**Why no current `PaginationConfig` variant works:**
+- `PaginationConfig::PageNumber { page_size: u32 }` (ADR-056) requires a client-specified
+  `page_size` for loop termination (`if page_record_count < page_size { break }`). When
+  page size is not client-controlled this condition misfires — a half-full server-default
+  page would terminate the loop prematurely.
+- A correct variant for this endpoint must terminate via `total_assets` comparison
+  (e.g., `if accumulated_count >= total_assets { break }`) or by detecting an empty page
+  against an API-reported total, not against a client-declared page size. This variant is
+  not yet designed and requires a new ADR plus a BC-2.16.002 amendment.
+
+**GAP-ASSETS-PAG-001** — Assets multi-page pagination is blocked on a new
+`PaginationConfig` variant supporting server-controlled page size with termination driven
+by `GetAssetsResponse.total_assets` or by an empty/short page from an API-reported total.
+The follow-up story for this grammar extension does not yet exist; it awaits orchestrator
+story creation. The alerts table is unaffected — `GetAlertsRequest` has a client-specifiable
+`size` (maximum 100) and uses the ratified `PageNumber` variant (ADR-056).
+
+Until GAP-ASSETS-PAG-001 is resolved, the implementing engineer MUST:
+- Author `cyberint-assets.sensor.toml` WITHOUT a `[tables.steps.pagination]` block
+  (first-page-only retrieval is the only safe option given the current grammar)
+- Add a comment inside `cyberint-assets.sensor.toml` directly above the fetch step:
+  `# GAP-ASSETS-PAG-001: pagination block absent — only page 1 retrieved until a`
+  `# server-controlled-page-size PaginationConfig variant is designed and ratified.`
+  `# GetAssetsResponse.total_assets evidences truncation when total_assets > len(assets).`
+- NOT present the first-page-only spec as a complete, production-grade implementation
+
+**Do NOT add a `[tables.steps.pagination]` block to the assets fetch step.**
+
+**Table column schema — derived from `Asset` OpenAPI schema:**
+Map the following `Asset` fields to TOML columns with the specified `column_type`:
+
+| API field | column_type | Nullable | Notes |
+|-----------|-------------|----------|-------|
+| `id` | `Integer` | No | Required field in OpenAPI schema |
+| `name` | `String` | Yes | `anyOf: [string, null]` |
+| `type` | `String` | Yes | `anyOf: [AssetTypes enum, null]` — serialize as string |
+| `status` | `String` | Yes | `anyOf: [string, null]` |
+| `asset_group` | `String` | Yes | `anyOf: [string, null]` |
+| `created` | `Datetime` | No | Required; `format: date-time`; example `"2024-11-07T12:43:29Z"` |
+| `updated` | `Datetime` | No | Required; `format: date-time` |
+| `parent_asset_value` | `String` | Yes | `anyOf: [string, null]` |
+| `discovery_precision` | `Integer` | Yes | `anyOf: [integer, null]` |
+| `discovery_reason` | `String` | Yes | `anyOf: [string, null]` |
+| `severity` | `String` | Yes | `anyOf: [string, null]` |
+
+(Omit `compensating_controls` — it is an array of objects; use `Json` column_type if
+OCSF mapping requires it, or omit if no downstream mapping exists. The field is nullable
+in the OpenAPI schema.)
+
+Response path for the assets fetch step: `$.assets` (from `GetAssetsResponse` which
+returns `{ "total_assets": N, "page_number": N, "assets": [...] }`).
+
+`probe_table = "assets"` (BC-2.08.001 postcondition 5 — the LIMIT-0 health probe targets
+the first declared table; `assets` is the primary table).
 
 SAP-2 compliance: every column name in `cyberint-assets.sensor.toml` MUST have a
 corresponding field in `crates/prism-dtu-cyberint/src/types.rs` (or in the new DTU
@@ -369,6 +466,9 @@ SAP-3 compliance: at least one integration test must POST to `/alert/api/v1/aler
    ```
 
 2. Update `get_alerts()` handler to:
+   - Extract `AlertListParams` from the **POST request JSON body** (not query parameters)
+     using `axum::extract::Json<AlertListParams>` — the real Cyberint API takes `GetAlertsRequest`
+     as a POST body; the DTU must mirror this (ADR-028 §D1 DTU wire-shape parity)
    - Accept `page` (1-indexed, default 1) and `size` (default 25, capped at 100)
    - Return `Json(serde_json::json!({ "alerts": [...], "page": page, "total": total_count }))`
    - Remove the cursor-based response shape (`"data": [...], "next_cursor": "..."`)
@@ -419,8 +519,90 @@ parity validation.
 
 If the Assets OpenAPI is NOT available, add a `routes/assets_stub.rs` module that
 returns an empty 200 response (indicating the clone is not yet grounded) and register
-it at `/asset-configuration/api/v1/assets` (placeholder path). Mark the stub with a
+it at `/asset-configuration/external/api/v1/assets/` (placeholder path matching T-03
+path_template). Mark the stub with a
 `// DTU-EXT-CYBERINT-ASSETS-001: placeholder — requires Assets OpenAPI grounding` comment.
+
+Note: the Assets OpenAPI IS present at `.factory/reference/api-specs/cyberint_assets_openapi_06.20.2026.json`
+(confirmed), so the assets stub path is not needed and the full route should be implemented.
+
+### T-09: Implement PaginationConfig::PageNumber variant in prism-spec-engine
+**Files:**
+- `crates/prism-spec-engine/src/spec_parser.rs` (MODIFY)
+- `crates/prism-spec-engine/src/pipeline.rs` (MODIFY)
+
+ADR-056 designates this story (`wiring_deferred_to: S-WAVE-A-CYBERINT-SPEC-001`) as the
+implementation site. All five dispatch sites from ADR-056 §Consequences must be implemented
+in a single atomic commit together with the TOML spec from T-02:
+
+**1. `spec_parser.rs` — add `PageNumber { page_size: u32 }` to `PaginationConfig`**
+
+Add the variant adjacent to `OffsetLimit { page_size: u32 }` with a doc comment stating
+that `offset` is reused as a 0-based page index and the wire parameter is `offset + 1`.
+The enum already carries `#[serde(tag = "type", rename_all = "snake_case")]`; the serde
+tag `page_number` is derived automatically — no explicit `#[serde(rename = ...)]` needed.
+Do NOT add a second `#[non_exhaustive]` attribute (already present on the enum). Do NOT
+bump `EXPECTED=92` in `scripts/check-non-exhaustive.sh` or `EXPECTED_COUNT` in
+`scripts/check-non-exhaustive-per-symbol.py` — adding a variant does not add a new
+annotated symbol (ADR-056 §D9).
+
+**2. `pipeline.rs` — `build_paged_url_impl` new match arm (ADR-056 §D3)**
+
+```
+Some(PaginationConfig::PageNumber { page_size }) => {
+    if step.method.eq_ignore_ascii_case("POST") {
+        base_url.to_string()
+    } else {
+        let page = offset + 1;
+        let sep = if base_url.contains('?') { '&' } else { '?' };
+        format!("{base_url}{sep}page={page}&size={page_size}")
+    }
+}
+```
+
+**3. `pipeline.rs` — `build_request` POST-body injection block (ADR-056 §D3)**
+
+Add a `PageNumber` injection block parallel to the existing `OffsetLimit` block. Guard:
+`step.method.eq_ignore_ascii_case("POST") && matches!(step.pagination, Some(PaginationConfig::PageNumber { .. })) && page_size > 0`.
+When guard fires, inject `"page": (offset + 1)` and `"size": page_size` as top-level integer
+keys into the JSON body, merged onto the interpolated `body_template`. Merge semantics and
+error paths identical to `OffsetLimit` POST dispatch (non-object `body_template` →
+`Err(SpecEngineError::HttpRequestFailed { ... })`).
+
+**4. `pipeline.rs` — `execute_impl` `active_page_size` derivation extension (ADR-056 §D3)**
+
+Extend the pattern arm with `|`-syntax:
+```
+Some(PaginationConfig::OffsetLimit { page_size: ps })
+| Some(PaginationConfig::PageNumber { page_size: ps }) => *ps,
+```
+
+**5. `pipeline.rs` — `execute_impl` pagination advance/terminate block (ADR-056 §D4)**
+
+```
+Some(PaginationConfig::PageNumber { page_size }) => {
+    let ps = *page_size as usize;
+    if page_record_count < ps {
+        break;
+    }
+    offset += 1;
+}
+```
+
+Advance is `offset += 1` — MUST NOT be `offset += page_size`. This is a mandatory
+distinction from `OffsetLimit` (ADR-056 §D2).
+
+**Test coverage (SAP-3 — end-to-end from `PipelineExecutor::execute`, not synthetic-AST):**
+- POST path: first request body contains `"page": 1` and `"size": 100`; second page body
+  contains `"page": 2` and `"size": 100`
+- GET path: URL contains `?page=1&size=100`; second page URL contains `?page=2&size=100`
+- Termination: a page returning fewer records than `page_size` ends the loop; no additional
+  request is issued after the terminal page
+- Non-object `body_template` with `PageNumber` POST → `Err(SpecEngineError)` returned
+- `page_size = 0` → no `page`/`size` injection (activation gate)
+
+These tests are the Red Gate tests for `PaginationConfig::PageNumber` pipeline behavior.
+They live in `crates/prism-spec-engine/tests/` or inline test modules in `src/pipeline.rs`.
 
 ---
 
@@ -428,21 +610,30 @@ it at `/asset-configuration/api/v1/assets` (placeholder path). Mark the stub wit
 
 | Context source | Estimated tokens |
 |----------------|-----------------|
-| This story spec | ~3,500 |
+| This story spec | ~4,500 |
 | `cyberint.sensor.toml` (source of alerts column schema) | ~2,500 |
 | `crates/prism-dtu-cyberint/src/clone.rs` (route registration) | ~2,000 |
 | `crates/prism-dtu-cyberint/src/routes/alerts.rs` (handler + AlertListParams) | ~3,000 |
 | `crates/prism-dtu-cyberint/tests/ac_6_cursor_pagination.rs` (to delete) | ~800 |
 | `crates/prism-sensors/specs/armis.sensor.toml` (pagination grammar reference) | ~1,000 |
 | `crates/prism-sensors/specs/claroty.sensor.toml` (POST pagination reference) | ~1,500 |
+| `crates/prism-spec-engine/src/spec_parser.rs` (PaginationConfig definition) | ~1,500 |
+| `crates/prism-spec-engine/src/pipeline.rs` (build_paged_url_impl, build_request, execute_impl) | ~4,000 |
+| ADR-056 (PageNumber grammar decision — §D1/§D2/§D3/§D4/§D9) | ~2,500 |
 | ADR-053 §D3-a and §C2-class fixes | ~1,000 |
+| BC-2.16.002 §Postconditions (OffsetLimit + PageNumber dispatch rows) | ~1,500 |
 | BC-2.16.009 Rule 9 (header_scheme validation) | ~800 |
 | BC-2.06.003 (credential refs) | ~500 |
+| `.factory/reference/api-specs/cyberint_assets_openapi_06.20.2026.json` (assets schema) | ~1,500 |
 | Running test output (nextest per-crate) | ~2,000 |
-| **Total estimate** | **~18,600** |
+| **Total estimate** | **~30,600** |
 
-18,600 tokens is within the 20–30% context window limit for a standard 100k-token agent
-context. No story split required.
+30,600 tokens is at the upper end of the 20–30% context window limit for a standard
+100k-token agent context (30.6%). This story is at the boundary; the implementer should
+load only the sections of `pipeline.rs` and `spec_parser.rs` relevant to `PaginationConfig`
+and `build_paged_url_impl` rather than the full files. If context pressure materializes,
+T-09 (prism-spec-engine changes) can be dispatched as a focused sub-burst before the DTU
+tasks. No formal story split is required.
 
 ---
 
@@ -513,13 +704,15 @@ No new external dependencies are introduced by this story.
 
 | File | Action | Notes |
 |------|--------|-------|
+| `crates/prism-spec-engine/src/spec_parser.rs` | MODIFY | Task T-09; add `PageNumber { page_size: u32 }` to `PaginationConfig`; serde tag `page_number` automatic; do NOT bump non-exhaustive gate count |
+| `crates/prism-spec-engine/src/pipeline.rs` | MODIFY | Task T-09; three dispatch sites — `build_paged_url_impl` new arm, `build_request` POST injection, `execute_impl` active_page_size + advance/terminate per ADR-056 §D3/§D4 |
 | `crates/prism-sensors/specs/cyberint.sensor.toml` | DELETE | AC-001 red gate: load test fails while this file still exists with old shape after ENGINE-001 merges |
-| `crates/prism-sensors/specs/cyberint-alerts.sensor.toml` | CREATE | Task T-02; must include `header_scheme`, POST method, `$.alerts` path, `access_token` cred ref |
-| `crates/prism-sensors/specs/cyberint-assets.sensor.toml` | CREATE | Task T-03; `header_scheme` + assets OpenAPI-grounded tables (or stub with TBD comment) |
+| `crates/prism-sensors/specs/cyberint-alerts.sensor.toml` | CREATE | Task T-02; must include `header_scheme`, POST method, `$.alerts` path, `page_number` pagination, `access_token` cred ref |
+| `crates/prism-sensors/specs/cyberint-assets.sensor.toml` | CREATE | Task T-03; `header_scheme` + assets OpenAPI-grounded tables; pagination block ABSENT per GAP-ASSETS-PAG-001 — first-page-only retrieval; `total_assets` in response evidences silent truncation; comment required in TOML |
 | `crates/prism-dtu-cyberint/src/clone.rs` | MODIFY | Task T-04; route paths gain `/alert` prefix |
-| `crates/prism-dtu-cyberint/src/routes/alerts.rs` | MODIFY | Task T-05; AlertListParams, response shape, pagination |
+| `crates/prism-dtu-cyberint/src/routes/alerts.rs` | MODIFY | Task T-05; AlertListParams (body-extracted JSON), response shape, page/size pagination |
 | `crates/prism-dtu-cyberint/tests/ac_6_cursor_pagination.rs` | DELETE | Task T-06 |
-| `crates/prism-dtu-cyberint/tests/ac_6_page_size_pagination.rs` | CREATE | Task T-06; AC-004 coverage |
+| `crates/prism-dtu-cyberint/tests/ac_6_page_size_pagination.rs` | CREATE | Task T-06; AC-004 coverage; uses POST body params not query params |
 
 ---
 
@@ -535,4 +728,5 @@ No new external dependencies are introduced by this story.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.1 | 2026-07-26 | story-writer | FB53c — F-WASE-P64-CRIT-003: change alerts pagination from `offset_limit` to `page_number` per ADR-056; fix AC-003/AC-004 mutual inconsistency (POST body keys, first page = 1); remove T-02 deferral license; MED-011: fix AC-006 task reference T-06 → T-03; MED-014: fix T-03 OpenAPI pointer to `.factory/reference/api-specs/cyberint_assets_openapi_06.20.2026.json`, removed both stub placeholders, converted assets pagination omission to explicit CWE-390-class blocker GAP-ASSETS-PAG-001 (first-page-only silent truncation; `total_assets` evidences loss; blocked on server-controlled-page-size variant awaiting orchestrator story creation; alerts surface unaffected); add T-09 for engine-side `PaginationConfig::PageNumber` wiring; add BC-2.16.002 to behavioral contracts; add SS-07 SpecEngine to subsystems; add prism-spec-engine entries to Architecture Mapping and File Structure |
 | 1.0 | 2026-07-25 | story-writer | Initial authoring post-sweep; co-land constraint with ENGINE-001 encoded |
