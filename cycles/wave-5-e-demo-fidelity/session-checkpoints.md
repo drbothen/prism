@@ -282,3 +282,38 @@ _Archived to session-checkpoints.md by D-2020 burst (state-manager keep-last-1 d
 - RECOMMENDED HUMAN ACTION: push docs/claude-md-file-size-convention to back up 9 LOCAL-ONLY commits (updates PR #230). Until then the records-lint gate and governance documentation exist on one machine only.
 
 **NOTE: Superseded by D-2020 — adversary pass 64 BLOCKED (34 findings; 5 CRIT / 8 HIGH / 17 MED / 2 LOW / 2 OBS); fix routing awaits human scope decision. SPEC PERIMETER version corrections applied (ADR-053 v0.34→v0.35, BC-2.16.014 v1.18→v1.19). STATE v8.567→v8.568.**
+
+---
+
+## Session Resume Checkpoint (D-2032 — 2026-07-26 — SESSION WRAP; pass-64 frozen 14/34 closed; ALL CRITICALs CLOSED; BC-5.39.001 streak 0/3; NEXT: FB55 HIGH cluster; STATE v8.580) [superseded by D-2033]
+
+**RESUME IN ONE BREATH:** Wave-A spec-evolution cascade frozen mid-pass-64. ALL 5 CRITICALs closed (CRIT-001..005; FB47b through FB54; 14/34 total). Remaining 20: 0 CRIT / 4 HIGH (HIGH-001..004) / 12 MED / 2 LOW / 2 OBS. PROCESS INTERVENTION RULE (human-directed) still binding: small single-concern fix bursts only. NEXT = FB55: HIGH cluster. factory-artifacts PUSHED; PRs #229/#230 OPEN.
+
+**PROCESS INTERVENTION RULE (human-directed — still binding):** Small single-concern fix bursts only. Each fix burst must address ONE named spec-content target. FB55 = HIGH cluster: HIGH-001 (mutual blocks cycle ENGINE-001↔CYBERINT-PATCH-001 with ENGINE-001 edge semantically inverted); HIGH-002 (CYBERINT-PATCH-001 attributes Rule 9 liveness to wrong function and wrong story; self-contradicts on boot-failure conditionality); HIGH-003 (ADR-053 §D6 deferral broken — no AC in S-WAVE-A-MCP-001 carries deferred E-SPEC-027 wire-level obligation); HIGH-004 (VP-160 anchor-story placeholder in VP file and VP-INDEX while implementing story omits VP-160). GAP-ASSETS-PAG-001: do NOT schedule without explicit human authorization. Pass 65 must NOT run until HIGH cluster is fully closed.
+
+**CORPUS DRIFT ITEM (registered D-2022, re-confirmed D-2027):** records-lint --full-scan reports 39 L1 failures + 86 L7 failures across 43 distinct files — pre-existing debt NOT introduced by any FB4x–FB54 burst. Story-writer re-confirmed five specific files: S-PERF-GATE-001, dtu-assessment, operational-pipeline, actions, and write-operations (all ascending where prism convention is descending/top-latest). Clearing is a TD-VSDD-096 records-only micro-burst candidate. Deliberately NOT folded into the Wave-A cascade.
+
+**GATE COVERAGE REMINDER (D-2031/D-2032):** records-lint --full-scan L1/L7 have never examined .factory/ artifacts in ratchet mode (GATE-L1L7-RATCHET-WORKTREE-001). A zero exit code from records-lint covers L9 and the cross-document index check only, not L1/L7 for .factory/ files. GATE-BLIND-SPOT INSTANCES (six confirmed, D-2031): (i) ratchet mode blind to frontmatter bump in unstaged file; (ii) cross-document index gate cannot parse draft v1.0-style status cells (433 of 498 rows unverifiable); (iii) check L1 has no Changelog table to compare STATE.md version: against; (iv) cross-document index gate cannot parse prose-embedded BC-INDEX pins (D-2029); (v) GATE-L1L7-RATCHET-WORKTREE-001 — L1/L7 inoperative in ratchet mode for .factory/ worktree; (vi) GATE-L1-VPREFIX-BLIND-002 — changelog version extractor anchors on digit; v-prefixed rows silently skipped. Transferable lesson: "0 mismatches" or a zero exit code is a statement about what the gate could parse and reach, never about the corpus. Hand-verify frontmatter version equals top changelog row on every touched .factory/ artifact until gates are fixed.
+
+**PENDING USER-APPROVED WORK — do not start:**
+- (a) scripts/records-lint.sh fixes: GATE-L1L7-RATCHET-WORKTREE-001 and GATE-L1-VPREFIX-BLIND-002 — code change on PR #230 branch; awaiting human.
+- (b) GAP-ASSETS-PAG-001 — new PaginationConfig variant for server-controlled page size; awaiting explicit human authorization.
+- (c) Follow-up story for GAP-ASSETS-PAG-001 — not yet created; awaiting human authorization.
+- (d) STORY-INDEX mixed-prefix normalization (pass-64 LOW-002) — ordering-dependent on GATE-L1-VPREFIX-BLIND-002 fix; do not resolve blind.
+- (e) Corpus records debt (39 L1 + 86 L7 across 43 files) — pre-existing, TD-VSDD-096 candidate; NOT in cascade scope.
+
+**SPEC PERIMETER (post-FB54/D-2031, unchanged at D-2032):** BC-2.16.009 v1.27 / ADR-053 v0.36 / error-taxonomy v2.69 / S-WAVE-A-ENGINE-001 v2.4 / BC-2.16.008 v1.6 / BC-2.16.014 v1.19 / VP-159 v1.26 / ADR-054 v0.55 / BC-2.01.018 v1.4 / BC-2.01.006 v1.8 / BC-2.02.004 v1.10 / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28 / VP-160 v1.0 / ADR-055 v1.2 (accepted) / ADR-056 v0.1 (accepted) / BC-2.16.002 v2.11. Stories: S-WAVE-A-ENGINE-001 v2.4; S-WAVE-A-ARMIS-REMEDIATION-001 v1.1; S-ADR054-WAVE-A-001 v1.1; S-WAVE-A-CYBERINT-SPEC-001 v1.1; three others v1.0. Indexes: BC-INDEX v8.75 / VP-INDEX v2.13 / ARCH-INDEX v2.281 / STORY-INDEX v2.730 (total_stories 263).
+
+**HEADS (verified 2026-07-26 D-2032):**
+- origin/develop: `7fef57dad` — PUSHED; LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001, do NOT auto-FF; blocked by unstaged ci.yml/e2e.yml residue in main worktree)
+- factory-artifacts: D-2032 wrap commit SHA — run `git -C .factory log -1 --format='%h'` for current value
+- Main worktree: docs/claude-md-file-size-convention @`cdbbe81b4` — PUSHED; PR #230 OPEN
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5b` — PUSHED, PR #229 OPEN; `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
+- verify-sha-currency.sh: PASS (2 pre-existing WARNs — python3+yaml unavailable; in-progress-voice remnant, long-standing). No background agents in flight. BC-5.39.001 streak 0/3.
+
+**BACKUP BOUNDARY (D-2032):**
+- PUSHED: factory-artifacts (D-2032 wrap commit — run `git -C .factory log -1 --format='%h %s'`); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); docs/claude-md-file-size-convention @`cdbbe81b4` (PR #230 OPEN); origin/develop @`7fef57dad`.
+- LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty).
+
+**NOTE: Superseded by D-2033/FB55a — HIGH-001 and HIGH-002 closed; pass-64 14/34→16/34. STATE v8.580→v8.581.**
