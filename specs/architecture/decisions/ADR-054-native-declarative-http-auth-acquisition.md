@@ -4,8 +4,8 @@ adr_id: "ADR-054"
 title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2ClientCredentials via DeclarativeHttpAuthProvider; Retire crowdstrike-oauth2.prx"
 status: accepted
 date: "2026-07-20"
-modified: "2026-07-24"
-version: "0.52"
+modified: "2026-07-25"
+version: "0.53"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -540,6 +540,62 @@ covering validation errors for `[auth_acquisition]` blocks. Validation runs in t
 pass as other spec-file validation rules (BC-2.16.009 **Rule 10** — after ADR-053 D2's Rule 9 for
 `header_scheme` validation). Spec rejected on any E-SPEC-028; boot fails exit code 2.
 
+**Rule 10 execution site and ADR-055 reconciliation (authoritative):**
+
+Rule 10 executes inside `SpecLoader::parse()` — not inside `validate_sensor_spec()`. The
+`S-WAVE-A-ENGINE-001` story implementation adds Rules 9 and 10 as the final gates inside
+`SpecLoader::parse()`, after the existing timestamp-format and Rule 8 `probe_table` gates,
+immediately before `Ok(spec)` is returned. This is the same execution site as Rule 8
+(`probe_table` reference, E-SPEC-026) and Rule 9 (`header_scheme` validation, E-SPEC-027).
+
+**Rationale — why `SpecLoader::parse()`, not `validate_sensor_spec()`:**
+
+1. **BC-2.16.009 §Integration function** is explicit: "The S-WAVE-A-ENGINE-001 implementation
+   adds Rules 9 and 10 inside `SpecLoader::parse()` — not inside `validate_sensor_spec()` —
+   ensuring they execute on every path that calls `parse()`."
+
+2. **Rule 10 is interpolation-independent.** ADR-054 §D3 states that `token_path` is "a
+   literal relative path string — no env-var interpolation." All eight sub-conditions of Rule
+   10 check only literal TOML fields and structural block presence — none reads `base_url` or
+   any env-var-interpolated value. Per-sub-condition verification:
+   - **(a)** `auth_type` (literal) + `[auth_acquisition]` block presence (structural) +
+     `token_path` (literal, interpolation-free per §D3): interpolation-independent.
+   - **(b)** `auth_type` (literal) + `auth_plugin` presence (structural):
+     interpolation-independent.
+   - **(c)** `expiry_mode` string value (literal TOML field): interpolation-independent.
+   - **(d)** token_exchange required-field presence (`credential_body_field`,
+     `token_response_path`, `expiry_field`, `expiry_mode` — all literal TOML fields):
+     interpolation-independent.
+   - **(e)** `credential_body_field` value (literal) vs `[[credential_refs]]` entry names
+     (literal TOML array entries): interpolation-independent.
+   - **(f)** `[[credential_refs]]` entry names `client_id`/`client_secret` (literal TOML
+     array entries): interpolation-independent.
+   - **(g)** `[auth_acquisition]` block presence (structural) vs `auth_type` (literal):
+     interpolation-independent.
+   - **(h)** token_exchange-only field names present (structural/literal) vs `auth_type`
+     (literal): interpolation-independent.
+
+3. **ADR-055 §D3 scoping.** ADR-055 §D3 (status: proposed) argues against folding
+   `validate_sensor_spec()` into `SpecLoader::parse()` because `parse()` runs before
+   `resolve_env_var_tokens()`, so Rules 1–5 would receive unresolved `${env.VAR}` tokens
+   in `base_url` and incorrectly reject the canonical sensor suite (Rule 1 checks `base_url`
+   scheme; `base_url` IS env-var-interpolated in all four canonical sensor specs). That
+   env-var ordering constraint is factually inapplicable to Rule 10, which never inspects
+   `base_url` or any interpolated value. ADR-055 §D3 carries an explicit scoping note
+   confirming that its env-var ordering argument is scoped to Rules 1–5 and does not extend
+   to Rules 8, 9, or 10. This factual characterization of Rule 10 holds independent of
+   ADR-055's ratification status.
+
+4. **Bypass risk if placed in `validate_sensor_spec()`.** `validate_sensor_spec()` has zero
+   production callers on all three production spec-loading surfaces confirmed in ADR-055
+   §Context: `SpecLoader::load_all()`, `process_spec_changes()`, and `add_sensor_spec()` all
+   invoke `SpecLoader::parse()` directly; none invokes `validate_sensor_spec()`. An
+   implementation that places Rule 10 inside `validate_sensor_spec()` makes E-SPEC-028
+   unreachable from the `add_sensor_spec` MCP write surface and from hot-reload — the two
+   write surfaces where a malformed or adversarial `[auth_acquisition]` block enters the
+   system. BC-2.16.009 §Security requirement explicitly identifies this as the bypass class
+   that Rules 8/9/10 were placed inside `parse()` to prevent.
+
 **Message templates:**
 
 > **Canonical source for message templates (F-WASE-P2-MED-001):** `error-taxonomy.md` E-SPEC-028 is the canonical source of truth for message template text. The text in §D10 sub-conditions below represents condition-authoring intent (trigger logic, parameter substitution, sub-condition labeling). On any wording-only conflict between §D10 and the taxonomy, the taxonomy wins. Exception: sub-condition (b) is explicitly adjudicated below (F-WASE-P2-HIGH-001); §D10(b) is the authoritative semantic source and the taxonomy must be updated to match it.
@@ -881,6 +937,7 @@ the ADR-053 standalone Wave-A engine story per §D7 merge-dependency.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.53 | 2026-07-25 | architect | FB50 (F-WASE-P64-CRIT-002): §D10 — added Rule 10 execution-site statement and ADR-055 §D3 reconciliation block. Establishes that Rule 10 executes inside `SpecLoader::parse()`, not `validate_sensor_spec()`, with per-sub-condition verification that all 8 Rule 10 sub-conditions are interpolation-independent (none reads `base_url` or any env-var-interpolated field; `token_path` is explicitly "a literal relative path string — no env-var interpolation" per §D3). Rationale: (1) BC-2.16.009 §Integration function is explicit; (2) Rule 10 reads no interpolated field; (3) ADR-055 §D3 scoping is limited to Rules 1–5; (4) `validate_sensor_spec()` has zero production callers per ADR-055 §Context. ADR-055 remains proposed; the factual characterization of Rule 10 is independent of ADR-055's ratification. modified: synced. |
 | 0.52 | 2026-07-24 | architect | F-WASE-P56-MED-001 (WAVE-A FIX-BURST 43): §D11 `AuthAcquisitionConfig` constructor row amended — ratified `new_oauth2` (Option a adjudication). Root cause: v0.48 designated `new(token_path, expiry_mode, ttl_buffer_secs)` as "used for `oauth2_client_credentials`" but `expiry_mode` is a `token_exchange`-only field per §D3; §D10(h) rejects `expiry_mode` on an `oauth2_client_credentials` block at spec-load time; no valid `ExpiryMode` exists for an oauth2 config (the TOML field is absent; supplying any variant would be a semantic lie). `new_oauth2(token_path, ttl_buffer_secs)` (no ExpiryMode) precisely models §D3: oauth2 expiry is always relative seconds via `$.expires_in`, engine-internal. Three-constructor API: `new_oauth2` (oauth2_client_credentials, 2 params), `new` (token_exchange minimal harness, 3 params with ExpiryMode), `new_token_exchange` (full token_exchange, 6 params). D11 constructor row: "two named constructors" → "three named constructors"; `new(...)` re-scoped to token_exchange minimal harness only (ExpiryMode required — makes sense for token_exchange; not for oauth2); `new_oauth2` added as constructor (3) with §D3/§D10(h) rationale and F-WASE-P56-MED-001 provenance. FB42 changelog claim "No ADR-054 edits needed" was incorrect — VP-159 v1.25 introduced `new_oauth2` in the harness but ADR-054 was not correspondingly amended, creating a cross-artifact contradiction: an engine-story implementer building from §D11 would construct only `new` + `new_token_exchange` and the VP-159 AC-7d harness would not compile. POL-29 sweep: "two named constructors" phrase at v0.48 changelog row is historical (immutable per forward-correction pattern); zero other live-body constructor-count sites in ADR-054. VP-159 v1.26 (companion burst) adds traceability row. modified: synced. |
 | 0.51 | 2026-07-23 | architect | RU-Q1/Q2/Q3 + RU-Scanner-1 amendments (Wave-A remove-uncertainty burst D-1944 step 5): §D4 step 4 `absolute_utc_string` parse — strict RFC-3339 (`parse_from_rfc3339`) replaced with lenient chrono relaxed `FromStr` (`s.parse::<DateTime<FixedOffset>>()`) accepting both `T`-separator ISO-8601 and space-separated UTC strings; rationale: Option B (proactive TTL + reactive P6 401-backstop) per RU-Q1; chrono Context7 docs confirm relaxed `FromStr` accepts space separator. §D2 `$.expires_in` — lenient deserialization added: accept JSON number (`as_u64()`) OR numeric string (str.parse::<u64>()); non-numeric/wrong type → default 1799 per RU-Q2 (Microsoft Entra ID confirmed emits string `"3599"`; RFC 6749 does not fix the JSON type). §D2 wire-encoding note added: reqwest `.form()` (serde_urlencoded) is byte-equivalent for `+/=` per RU-Q3. §D11 new row: non-exhaustive gate EXPECTED bump 92→95 for `AuthAcquisitionConfig`/`CachedAuthToken`/`ExpiryMode` (RU-Scanner-1); all-three-update-sites constraint documented. modified: synced (POL-27/32). |
 | 0.50 | 2026-07-23 | architect | F-WASE-P43-MED-001 (FIX-BURST 35): §D11 VP-153 §Feasibility Assessment row (line 669) — corrected cross-artifact contradiction with VP-153 source of truth (Source-of-Truth Precedence rule 4). Removed erroneous claim "token_exchange reuses the ApiKey single-string shape (structural shapes stay at 5)" — this conflated the credential RECORD-schema notion with VP-153's identifier-based SHAPE model. Root cause: v0.30 OBS-3 rewrite introduced the conflation when separating "typed structural shapes" (5) from "string-harness auth_type identifiers" (6); but VP-153's identifier-based model (reported_shape IS auth_type identifier per vp153_rule_c_shaped_probe.rs) makes token_exchange a DISTINCT 6th shape, not an ApiKey alias. Internal incoherence in removed text: "5 mismatched shapes per variant" is impossible with only 5 total shapes (max 4). Replacement states: token_exchange is a DISTINCT 6th credential structural shape in the harness model; record-schema similarity (single-string secret) is a RECORD-schema observation that does NOT alter the shape model; total shapes = 6; mismatched per variant = 5 (6 − 1 matching); 6 × 5 = 30 ordered pairs — now coherent with VP-153 §Feasibility v0.26 ("of the 6 total credential structural shapes, excluding the matching one"). POL-29 sweep: one live-body hit at row 669 (fixed); two changelog hits (v0.30 line 885, v0.17 line 898) — exempt per forward-correction pattern. ADR-053 sweep: zero hits — clean. At-commit-time hash per POL-32. |

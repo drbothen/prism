@@ -5,7 +5,7 @@ title: "Sensor Spec Semantic Validation — Wire validate_sensor_spec() into Pro
 status: proposed
 date: "2026-07-25"
 modified: "2026-07-25"
-version: "1.0"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-06]
 supersedes: null
@@ -253,6 +253,29 @@ would receive unresolved `${env.VAR}` tokens and incorrectly reject the bundled 
 `parse()` is also the authoritative TOML deserialization path — merging semantic validation
 here conflates two distinct concerns.
 
+> **Scoping note — this §D3 env-var ordering argument applies to Rules 1–5 only; it does NOT
+> extend to Rules 8, 9, or 10:** The env-var ordering constraint above is specific to
+> `validate_sensor_spec()` (Rules 1–5) because Rule 1 checks `base_url` for `http://`/`https://`
+> scheme, and `base_url` IS env-var-interpolated in all four canonical sensor specs. Rules 8,
+> 9, and 10 check only literal TOML fields that do not undergo `${env.VAR}` substitution:
+>
+> - **Rule 8** (`probe_table` reference, E-SPEC-026): validates `probe_table` against
+>   `[[tables]]` table names — both literal TOML fields; no env-var interpolation.
+> - **Rule 9** (`header_scheme` validation, E-SPEC-027, per ADR-053 §D2): validates
+>   `header_scheme` and `auth_type` — both literal TOML fields; no env-var interpolation.
+> - **Rule 10** (`[auth_acquisition]` coherence, E-SPEC-028, per ADR-054 §D10): validates
+>   `auth_type`, `auth_plugin`, `[auth_acquisition]` block structure, `token_path` (explicitly
+>   "a literal relative path string — no env-var interpolation" per ADR-054 §D3),
+>   `expiry_mode`, `credential_body_field`, `token_response_path`, `expiry_field`, and
+>   `[[credential_refs]]` entry names — all literal TOML fields. None of the 8 Rule 10
+>   sub-conditions reads `base_url` or any env-var-interpolated value. See ADR-054 §D10 for
+>   the per-sub-condition verification.
+>
+> Rules 8, 9, and 10 are therefore correctly placed inside `SpecLoader::parse()`, as stated
+> in BC-2.16.009 §Integration function. This ADR's §D1 and §D2 wire `validate_sensor_spec()`
+> (Rules 1–5) into `parse_and_validate_spec_toml()` and `load_all()`; they are orthogonal to
+> — and do not conflict with — the placement of Rules 8–10 inside `parse()`.
+
 **Alternative: fold Rules 1–5 into `validate_step_methods()`**
 `validate_step_methods()` is scoped to HTTP method whitelist validation per BC-2.16.009 Rule 7.
 Merging Rules 1–5 there conflates five rule categories into one function and violates SRP.
@@ -385,4 +408,5 @@ same error conditions trigger correctly via `parse_and_validate_spec_toml()` and
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-07-25 | architect | FB50 (F-WASE-P64-CRIT-002): §D3 — added scoping note clarifying that the env-var ordering argument is scoped to Rules 1–5 (`validate_sensor_spec()`) and does NOT extend to Rules 8, 9, or 10, which check only literal TOML fields and are interpolation-independent. Eliminates apparent contradiction with BC-2.16.009 §Integration function's explicit placement of Rules 9 and 10 inside `SpecLoader::parse()`. See ADR-054 §D10 for the per-sub-condition verification of Rule 10. |
 | 1.0 | 2026-07-25 | architect | Initial proposal from F-WASE-P63-HIGH-003 investigation. |
