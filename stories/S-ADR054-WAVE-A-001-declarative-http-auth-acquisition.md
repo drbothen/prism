@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR054-WAVE-A-001
 title: "Declarative HTTP Auth Acquisition — DeclarativeHttpAuthProvider, TokenExchange, Rule 10, CrowdStrike TOML Migration, crowdstrike-oauth2.prx Retirement"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: story-writer
 phase: 3
@@ -256,6 +256,64 @@ The `Cargo.toml` for `prism-spec-engine` (or the crate that owns `DeclarativeHtt
 has `reqwest = { version = "...", default-features = false, features = ["rustls-tls"] }`.
 The native-tls feature is NOT present in any form.
 
+### AC-010: Rule 9 → Rule 10 fail-fast boundary verified with Rule 10 live
+(traces to BC-2.16.009 §Invariants v1.28 — fail-fast boundary at the `SpecLoader::parse()` rule
+boundary: Rule 9 returning `Err` prevents Rule 10 from executing)
+
+Contract authority: BC-2.16.009 §Invariants v1.28: "At the `SpecLoader::parse()` rule boundary,
+execution is fail-fast: Rule 9 returning `Err` prevents Rule 10 from executing — a spec with both
+a Rule 9 violation and a Rule 10 violation reports only the Rule 9 error from `parse()`."
+
+With Rule 10 implemented by this story, a TOML spec carrying BOTH:
+1. A Rule 9 violation: `header_scheme = "garbage"` (syntactically invalid — triggers E-SPEC-027
+   template (a): value is neither `"bearer"`, `"raw"`, nor `"cookie:<name>"`)
+2. A genuine Rule 10 sub-condition (d) violation: `auth_type = "token_exchange"`, `[auth_acquisition]`
+   block present with `token_path`, `credential_body_field`, `expiry_field`, and
+   `expiry_mode = "absolute_utc_string"` declared but `token_response_path` ABSENT — the field
+   is omitted entirely from the TOML (`token_response_path.is_none()` → triggers E-SPEC-028
+   sub-condition (d) when Rule 10 executes per BC-2.16.009 Rule 10 and EC-009-040)
+
+yields exactly ONE error from `SpecLoader::parse()` — the Rule 9 `ESpec027` error. Exactly one
+error confirms Rule 10 was reached-but-short-circuited by the Rule 9 `Err` return, not absent.
+
+**Why sub-condition (d) is independently a genuine Rule 10 rejection:** D10(d) fires when
+`auth_type = "token_exchange"` AND `[auth_acquisition]` is present AND any of
+`{credential_body_field, token_response_path, expiry_field, expiry_mode}` is absent
+(`field.is_none()`). An `[auth_acquisition]` block for `token_exchange` with all fields present
+except `token_response_path` is a real D10(d) violation per BC-2.16.009 Rule 10 and EC-009-040.
+The `ttl_buffer_secs` field is explicitly optional (default 30) and its absence is NOT an error —
+the omission of `token_response_path` is what triggers D10(d). Its rejection is confirmed by the
+control assertion (RGT-010-B).
+
+**Control assertion (RGT-010-B):** The same `[auth_acquisition]` configuration — missing
+`token_response_path` — submitted with `header_scheme = "raw"` (valid for `token_exchange` per
+BC-2.16.009 EC-009-029; Rule 9 passes) yields exactly ONE error — E-SPEC-028 from sub-condition
+(d). The control proves the fixture is a genuine Rule 10(d) rejection, not an inert block that
+Rule 10 ignores. Without the control, the boundary assertion (RGT-010-A) would be vacuous: a spec
+with Rule 10 absent or not-yet-implemented also produces exactly one E-SPEC-027 error when
+submitted with `header_scheme = "garbage"` — the boundary case and the absent-Rule-10 case are
+indistinguishable without a separate proof that the `[auth_acquisition]` block is a real violation.
+
+RGT-010-A: `test_rule9_rule10_d_boundary_rule9_err_prevents_rule10_single_e_spec027`
+  Drives `SpecLoader::parse()` with raw TOML containing both violations; asserts exactly one
+  `ESpec027` error returned. `spec_parser.rs` inline `#[cfg(test)] mod tests`. SAP-3: parser
+  surface entry point via raw TOML — NOT via `validate_sensor_spec()`, NOT via
+  synthetic-struct invocation.
+
+RGT-010-B: `test_rule10_d_missing_token_response_path_control_no_rule9_violation_e_spec028`
+  Drives `SpecLoader::parse()` with the same `[auth_acquisition]` block missing
+  `token_response_path` but with `header_scheme = "raw"` (valid for `token_exchange`); asserts
+  exactly one `ESpec028` error returned. `spec_parser.rs` inline `#[cfg(test)] mod tests`.
+  SAP-3: parser surface.
+
+Cross-reference: ENGINE-001 AC-026/RG-031 is the sending side — it covers the boundary observable
+consequence with Rule 10 not yet implemented (RG-031's `[auth_acquisition]` block is inert at
+ENGINE-001's scope because Rule 10 does not exist there). This story's AC-010 / RGT-010-A +
+RGT-010-B is the receiving side — it verifies the same boundary holds with Rule 10 live, using a
+fixture that is a genuine Rule 10(d) rejection confirmed by RGT-010-B. The hand-off is
+bidirectional: ENGINE-001 AC-026 forward-references "S-ADR054-WAVE-A-001"; this AC
+back-references "ENGINE-001 AC-026/RG-031".
+
 ---
 
 ## Product-Owner Dependencies
@@ -279,7 +337,7 @@ does not require a separate BC amendment. PO-001 is retired as moot.
 ### PO-002: RETIRED — BC-2.16.009 Rule 10 is already fully specified
 
 BC-2.16.009 §Validation Rules 10 is fully specified with all 8 sub-conditions as of v1.12
-(current version v1.27). The EXECUTED annotation in ADR-054 D11 confirms:
+(current version v1.28). The EXECUTED annotation in ADR-054 D11 confirms:
 `BC-2.16.009 Rule set: [EXECUTED — Wave-A spec evolution burst 3, 2026-07-22] Add
 [auth_acquisition] coherence validation as Rule 10; E-SPEC-028 error suite per D10`.
 PO-002 is retired as already-satisfied.
@@ -306,7 +364,7 @@ PO-002 is retired as already-satisfied.
 
 | BC | Version | Relevance |
 |----|---------|-----------|
-| BC-2.16.009 | current | Rule 10 / E-SPEC-028 — [auth_acquisition] validation |
+| BC-2.16.009 | v1.28 | Rule 10 / E-SPEC-028 — [auth_acquisition] validation |
 | BC-2.01.017 | current | Adapter dispatch table — TokenExchange arm (PO amendment needed) |
 | BC-2.06.003 | v1.3 | Credential refs for the token_exchange flow |
 
@@ -376,6 +434,29 @@ Three test cases: lazy acquisition, cache hit, cache refresh on expiry. Use the
 ### T-09: Verify VP-153 MERGE-GATE-VP153-FULL passes
 Add `TokenExchange` arms to both VP-153 harness files in the same commit as the
 `TokenExchange` variant addition. Run the VP-153 harness and confirm it passes.
+
+### Red Gate Tests (to be written by test-writer BEFORE implementation of T-04)
+
+- [ ] **RGT-010-A**: `test_rule9_rule10_d_boundary_rule9_err_prevents_rule10_single_e_spec027` — AC-010
+  (Boundary: TOML with `header_scheme = "garbage"` [Rule 9 violation → E-SPEC-027(a)] AND
+  `[auth_acquisition]` for `token_exchange` with `token_path`, `credential_body_field`,
+  `expiry_field`, `expiry_mode = "absolute_utc_string"` present but `token_response_path` absent
+  [Rule 10(d) violation → E-SPEC-028 when Rule 10 is live]; assert exactly one `ESpec027` error;
+  proves Rule 10 reached-but-short-circuited, not absent; `spec_parser.rs` inline
+  `#[cfg(test)] mod tests`; SAP-3: drives `SpecLoader::parse()` via raw TOML — NOT via
+  `validate_sensor_spec()`, NOT via synthetic-struct invocation)
+
+- [ ] **RGT-010-B**: `test_rule10_d_missing_token_response_path_control_no_rule9_violation_e_spec028` — AC-010 (control)
+  (Control: same `[auth_acquisition]` block missing `token_response_path` but with
+  `header_scheme = "raw"` [valid for `token_exchange` per BC-2.16.009 EC-009-029; Rule 9 passes];
+  assert exactly one `ESpec028` error; proves fixture is a genuine Rule 10(d) rejection, not an
+  inert block; `spec_parser.rs` inline `#[cfg(test)] mod tests`; SAP-3: drives
+  `SpecLoader::parse()` via raw TOML)
+
+**Red Gate density note:** RGT-010-A and RGT-010-B must both be written as failing tests (stubs
+have no Rule 10 implementation) before the T-04 implementation dispatch. After T-04 lands,
+RGT-010-A passes (exactly one E-SPEC-027) and RGT-010-B passes (exactly one E-SPEC-028). Both
+tests together discharge BC-2.16.009 §Invariants v1.28 Rule 9/Rule 10 boundary clause.
 
 ---
 
@@ -493,5 +574,6 @@ The test-writer can write failing stubs for all three dispatches in one pass; im
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.2 | 2026-07-26 | story-writer | FB58 close OBLIG-MED004-RULE10-BOUNDARY-001: adds AC-010 (Rule 9→Rule 10 fail-fast boundary with Rule 10 live; BC-2.16.009 §Invariants v1.28 authority; sub-condition D10(d) missing `token_response_path` as genuine violation; RGT-010-B control proves fixture is a real Rule 10(d) rejection) plus §Red Gate Tests section with RGT-010-A (boundary) and RGT-010-B (control); updates BC-2.16.009 version pin current→v1.28 in §Behavioral Contracts table and PO-002 body; cross-references ENGINE-001 AC-026/RG-031 as sending side. AC count: 9→10. RGT count: 0→2. |
 | 1.1 | 2026-07-25 | story-writer | FB52b re-derive against ADR-054 v0.55 and BC-2.16.009 v1.27: (CRIT-001) AC-003 rewritten with all 8 ratified §D10 sub-conditions (a)–(h); removed 4 invented conditions that contradicted §D3 (dotted path not `$.`-prefixed) and §D3 optional default semantics; corrected sub-condition labels (a)–(h) throughout AC-003, EC-001..EC-005, and T-04. (CRIT-002) Rule 10 execution site re-anchored from `validate_sensor_spec()` to `SpecLoader::parse()` across all 6 occurrences (§Scope Summary D10 row, AC-003 body, §Architecture Mapping file/function row, T-04 title and body); all surviving `validate_sensor_spec` references are now negative constructions. (HIGH-005) PO-001 retired — the cited BC section does not exist (POL-21 phantom anchor) and the relevant BC amendments are already EXECUTED per ADR-054 D11; PO-002 retired — BC-2.16.009 Rule 10 fully specified since v1.12. (MED-013) AC-006 wrong-error-code corrected: duplicate-sensor-id code replaced with E-SPEC-028 sub-condition (b). EC-008 TBD resolved per BC-2.16.009 Rule 10(a)/EC-009-039. §Authority updated to v0.55. |
 | 1.0 | 2026-07-25 | story-writer | Initial stub from ADR-054 §D1/D2/D3/D4/D5/D7/D10; VP-153/VP-159 gates; split dispatch guidance; PO dependency encoding |
