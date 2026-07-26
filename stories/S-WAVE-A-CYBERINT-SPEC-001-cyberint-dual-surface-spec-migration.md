@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-CYBERINT-SPEC-001
 title: "Cyberint Dual-Surface Spec Migration — Delete cyberint.sensor.toml; Author cyberint-alerts and cyberint-assets; OpenAPI-Ground Alerts C2-Class Fixes; DTU Route Migration"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: story-writer
 phase: 3
@@ -67,9 +67,10 @@ wire shape, and (d) no spec file in the workspace carries the stale `auth_type =
 
 ## Header-Scheme Sweep Report
 
-A sweep of all spec files in `crates/prism-sensors/specs/` and `.prism/specs/sensors/`
-was conducted prior to this story's authoring to identify all files requiring `header_scheme`
-migration.
+A sweep of all `*.sensor.toml` files in the workspace was conducted prior to this story's
+authoring to identify all files requiring `header_scheme` migration. Directories covered:
+`crates/prism-sensors/specs/` (including the `customers/` sub-directory),
+`crates/prism-bin/fixtures/sensors/`, and `.prism/specs/sensors/`.
 
 | File | auth_type | header_scheme present? | Action |
 |------|-----------|------------------------|--------|
@@ -79,6 +80,7 @@ migration.
 | `crates/prism-sensors/specs/crowdstrike.sensor.toml` | `oauth2_client_credentials` | absent (path A — no field needed) | None |
 | `crates/prism-sensors/specs/customers/acme/armis.sensor.toml` | not defined (overlay) | N/A | None |
 | `crates/prism-sensors/specs/customers/contoso/armis.sensor.toml` | not defined (overlay) | N/A | None |
+| `crates/prism-bin/fixtures/sensors/test-sensor-with-cred-refs.sensor.toml` | `api_key` | absent (path A — no field needed) | None |
 | `.prism/specs/sensors/` | directory does not exist on disk | N/A | None |
 
 **Result: Only `cyberint.sensor.toml` is affected.**
@@ -245,9 +247,9 @@ a sensor_id is updated to `"cyberint-alerts"` or `"cyberint-assets"` as appropri
 |----|---------|------------------------|
 | BC-2.01.006 | v1.x (see D5 amendment note) | Cyberint sensor behavior — POST method, $.alerts path, page/size pagination |
 | BC-2.06.003 | v1.3 | Credential refs resolution chain; `access_token` name change |
-| BC-2.16.001 | current | Bundled spec loading at startup — both new specs must pass validation |
+| BC-2.16.001 | v1.9 | Bundled spec loading at startup — both new specs must pass validation |
 | BC-2.16.002 | v2.11 | Multi-Step Fetch Pipeline — PageNumber Pagination Dispatch postcondition (ADR-056 §D3/§D4); `PaginationConfig::PageNumber` wiring in `spec_parser.rs`, `build_paged_url_impl`, `build_request`, and `execute_impl` in `pipeline.rs` |
-| BC-2.16.009 | current | Rule 9: `cookie_roundtrip` requires `header_scheme = "cookie:<name>"` — absence path (c) must NOT trigger |
+| BC-2.16.009 | v1.28 | Rule 9: `cookie_roundtrip` requires `header_scheme = "cookie:<name>"` — absence path (c) must NOT trigger |
 
 **Product-owner dependency:** BC-2.01.006 must be amended or split (per ADR-053 §D5
 amendment manifest) to reflect the POST method, `$.alerts` response path, and page/size
@@ -728,5 +730,6 @@ No new external dependencies are introduced by this story.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.2 | 2026-07-26 | story-writer | FB60 MED-008 + LOW-002: pin BC-2.16.001 from `current` to v1.9 and BC-2.16.009 from `current` to v1.28 in §Behavioral Contracts table; widen §Header-Scheme Sweep Report scope to cover `crates/prism-bin/fixtures/sensors/`; add `test-sensor-with-cred-refs.sensor.toml` row (`api_key`, path A, benign — workspace-wide conclusion confirmed) |
 | 1.1 | 2026-07-26 | story-writer | FB53c — F-WASE-P64-CRIT-003: change alerts pagination from `offset_limit` to `page_number` per ADR-056; fix AC-003/AC-004 mutual inconsistency (POST body keys, first page = 1); remove T-02 deferral license; MED-011: fix AC-006 task reference T-06 → T-03; MED-014: fix T-03 OpenAPI pointer to `.factory/reference/api-specs/cyberint_assets_openapi_06.20.2026.json`, removed both stub placeholders, converted assets pagination omission to explicit CWE-390-class blocker GAP-ASSETS-PAG-001 (first-page-only silent truncation; `total_assets` evidences loss; blocked on server-controlled-page-size variant awaiting orchestrator story creation; alerts surface unaffected); add T-09 for engine-side `PaginationConfig::PageNumber` wiring; add BC-2.16.002 to behavioral contracts; add SS-07 SpecEngine to subsystems; add prism-spec-engine entries to Architecture Mapping and File Structure |
 | 1.0 | 2026-07-25 | story-writer | Initial authoring post-sweep; co-land constraint with ENGINE-001 encoded |

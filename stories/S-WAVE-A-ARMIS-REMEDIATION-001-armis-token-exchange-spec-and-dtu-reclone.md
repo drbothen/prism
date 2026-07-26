@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-ARMIS-REMEDIATION-001
 title: "Armis Token-Exchange Spec Migration and DTU Reclone — auth_type token_exchange, [auth_acquisition] block, Armis DTU token endpoint"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: story-writer
 phase: 3
@@ -255,7 +255,7 @@ amendment. Per ADR-053 §D5 amendment manifest.
 
 | BC | Version | Relevance |
 |----|---------|-----------|
-| BC-2.01.006 | current | Armis behavior contract — auth_type change requires BC amendment (PO task) |
+| BC-2.01.006 | v1.8 | Armis behavior contract — auth_type change requires BC amendment (PO task) |
 | BC-2.06.003 | v1.3 | Credential refs resolution chain — Armis rows change from bearer to token_exchange pattern |
 
 ---
@@ -455,5 +455,6 @@ proves more complex than expected.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.2 | 2026-07-26 | story-writer | FB60 MED-008: pin BC-2.01.006 from `current` to v1.8 in §Behavioral Contracts table |
 | 1.1 | 2026-07-25 | story-writer | FB49: re-derive against ADR-054 §D3 ratified Armis wiring; add header_scheme = "raw" (F-WASE-P64-CRIT-004); fix token_path, token_response_path, expiry_field; add AC-007 wire-shape assertion (F-WASE-P64-HIGH-006); resolve all 18 unresolved placeholders; re-anchor status: ready gate from nonexistent Armis OpenAPI to ADR-053 §D1 no-OpenAPI governance |
 | 1.0 | 2026-07-25 | story-writer | Initial stub; all auth values unresolved (OpenAPI grounding assumed at time of authoring); depends_on S-ADR054-WAVE-A-001; PO dependency encoding |

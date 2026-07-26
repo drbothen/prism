@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR055-WAVE-A-001
 title: "Wire validate_sensor_spec() into Production Spec-Loading Pipeline — parse_and_validate_spec_toml() and SpecLoader::load_all()"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: story-writer
 phase: 3
@@ -20,6 +20,7 @@ behavioral_contracts:
   - BC-2.16.001
   - BC-2.16.007
   - BC-2.16.008
+  - BC-2.16.002
 verification_properties:
   - VP-059
 estimated_days: 3
@@ -245,11 +246,11 @@ Architecture section references:
 
 | BC | Version | Relevance |
 |----|---------|-----------|
-| BC-2.16.009 | current | Rules 1–5; Rule 1 base_url scheme gate; collect-all invariant (VP-059); SENSOR_ID_RE SEC-001 |
-| BC-2.16.001 | current | Bundled spec load at startup; AC-004 |
-| BC-2.16.007 | current | Hot-reload path; AC-006 |
-| BC-2.16.008 | current | add_sensor_spec MCP tool; AC-002 SAP-3 surface |
-| BC-2.16.002 | current | Canonical Structured Event Catalog; PO-001 catalog row for spec.validation_warning |
+| BC-2.16.009 | v1.28 | Rules 1–5; Rule 1 base_url scheme gate; collect-all invariant (VP-059); SENSOR_ID_RE SEC-001 |
+| BC-2.16.001 | v1.9 | Bundled spec load at startup; AC-004 |
+| BC-2.16.007 | v1.7 | Hot-reload path; AC-006 |
+| BC-2.16.008 | v1.6 | add_sensor_spec MCP tool; AC-002 SAP-3 surface |
+| BC-2.16.002 | v2.11 | Canonical Structured Event Catalog; PO-001 catalog row for spec.validation_warning |
 
 ---
 
@@ -551,4 +552,5 @@ No new external dependencies are introduced by this story.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.1 | 2026-07-26 | story-writer | FB60 MED-008 + MED-009: pin BC versions from `current` to actuals in §Behavioral Contracts table (BC-2.16.009→v1.28, BC-2.16.001→v1.9, BC-2.16.007→v1.7, BC-2.16.008→v1.6, BC-2.16.002→v2.11); add BC-2.16.002 to frontmatter `behavioral_contracts:` array (POL-8 bidirectional frontmatter↔body reconciliation) |
 | 1.0 | 2026-07-25 | story-writer | Initial authoring from ADR-055 §Story Scope; SAP-1/SAP-3 compliance; fixture audit AC; PO dependency encoding |

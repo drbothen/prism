@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR054-WAVE-A-001
 title: "Declarative HTTP Auth Acquisition — DeclarativeHttpAuthProvider, TokenExchange, Rule 10, CrowdStrike TOML Migration, crowdstrike-oauth2.prx Retirement"
-version: "1.2"
+version: "1.3"
 status: draft
 producer: story-writer
 phase: 3
@@ -365,7 +365,7 @@ PO-002 is retired as already-satisfied.
 | BC | Version | Relevance |
 |----|---------|-----------|
 | BC-2.16.009 | v1.28 | Rule 10 / E-SPEC-028 — [auth_acquisition] validation |
-| BC-2.01.017 | current | Adapter dispatch table — TokenExchange arm (PO amendment needed) |
+| BC-2.01.017 | v1.10 | Adapter dispatch table — TokenExchange arm (PO amendment needed) |
 | BC-2.06.003 | v1.3 | Credential refs for the token_exchange flow |
 
 ---
@@ -574,6 +574,7 @@ The test-writer can write failing stubs for all three dispatches in one pass; im
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.3 | 2026-07-26 | story-writer | FB60 MED-008: pin BC-2.01.017 from `current` to v1.10 in §Behavioral Contracts table |
 | 1.2 | 2026-07-26 | story-writer | FB58 close OBLIG-MED004-RULE10-BOUNDARY-001: adds AC-010 (Rule 9→Rule 10 fail-fast boundary with Rule 10 live; BC-2.16.009 §Invariants v1.28 authority; sub-condition D10(d) missing `token_response_path` as genuine violation; RGT-010-B control proves fixture is a real Rule 10(d) rejection) plus §Red Gate Tests section with RGT-010-A (boundary) and RGT-010-B (control); updates BC-2.16.009 version pin current→v1.28 in §Behavioral Contracts table and PO-002 body; cross-references ENGINE-001 AC-026/RG-031 as sending side. AC count: 9→10. RGT count: 0→2. |
 | 1.1 | 2026-07-25 | story-writer | FB52b re-derive against ADR-054 v0.55 and BC-2.16.009 v1.27: (CRIT-001) AC-003 rewritten with all 8 ratified §D10 sub-conditions (a)–(h); removed 4 invented conditions that contradicted §D3 (dotted path not `$.`-prefixed) and §D3 optional default semantics; corrected sub-condition labels (a)–(h) throughout AC-003, EC-001..EC-005, and T-04. (CRIT-002) Rule 10 execution site re-anchored from `validate_sensor_spec()` to `SpecLoader::parse()` across all 6 occurrences (§Scope Summary D10 row, AC-003 body, §Architecture Mapping file/function row, T-04 title and body); all surviving `validate_sensor_spec` references are now negative constructions. (HIGH-005) PO-001 retired — the cited BC section does not exist (POL-21 phantom anchor) and the relevant BC amendments are already EXECUTED per ADR-054 D11; PO-002 retired — BC-2.16.009 Rule 10 fully specified since v1.12. (MED-013) AC-006 wrong-error-code corrected: duplicate-sensor-id code replaced with E-SPEC-028 sub-condition (b). EC-008 TBD resolved per BC-2.16.009 Rule 10(a)/EC-009-039. §Authority updated to v0.55. |
 | 1.0 | 2026-07-25 | story-writer | Initial stub from ADR-054 §D1/D2/D3/D4/D5/D7/D10; VP-153/VP-159 gates; split dispatch guidance; PO dependency encoding |

@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-CYBERINT-PATCH-001
 title: "Cyberint header_scheme Boot-Failure Patch — Add header_scheme = \"cookie:access_token\" to cyberint.sensor.toml"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: story-writer
 phase: 3
@@ -122,7 +122,7 @@ S-WAVE-A-CYBERINT-SPEC-001 scope).
 
 | BC | Version | Relevance |
 |----|---------|-----------|
-| BC-2.16.009 | current | Rule 9: `cookie_roundtrip` + `header_scheme` → Rule 9 path (a) accepted |
+| BC-2.16.009 | v1.28 | Rule 9: `cookie_roundtrip` + `header_scheme` → Rule 9 path (a) accepted |
 
 ---
 
@@ -212,5 +212,6 @@ None — no Rust code changes, no dependency changes.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.2 | 2026-07-26 | story-writer | FB60 MED-008: pin BC-2.16.009 from `current` to v1.28 in §Behavioral Contracts table |
 | 1.1 | 2026-07-26 | story-writer | FB55a HIGH-002: fix §MERGE-GATE-ENGINE-001 first paragraph — false claim that `validate_sensor_spec()` carries Rule 9 replaced with correct attribution: Rule 9 is inside `SpecLoader::parse()`, the unconditional call point on every spec-load path (BC-2.16.009 §Integration function); `load_all()` boot invocation cited as the causal chain for the unconditional boot failure. Removed stale "reciprocal edge" administrative paragraph (the ENGINE-001 → PATCH-001 `blocks:` edge it described is dropped by HIGH-001). Fix AC-002 second paragraph: wrong `validate_sensor_spec()` function attribution replaced with `SpecLoader::parse()`; false conditionality "when S-ADR055-WAVE-A-001 is also merged" removed. Internal contradiction resolved — §MERGE-GATE-ENGINE-001 unconditional boot-failure claim is now consistent with AC-002, which no longer makes Rule 9 liveness conditional on ADR-055 wiring. |
 | 1.0 | 2026-07-25 | story-writer | Split from S-WAVE-A-CYBERINT-SPEC-001; minimal co-land patch; MERGE-GATE-ENGINE-001 boot-failure consequence documented |
