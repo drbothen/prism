@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR054-WAVE-A-001
 title: "Declarative HTTP Auth Acquisition — DeclarativeHttpAuthProvider, TokenExchange, Rule 10, CrowdStrike TOML Migration, crowdstrike-oauth2.prx Retirement"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: story-writer
 phase: 3
@@ -31,10 +31,13 @@ verification_properties:
   - VP-153
   - VP-159
 estimated_days: 5
-# BC status: BC-2.01.017 §dispatch table must be amended to add TokenExchange arm (PO task per ADR-053 D5
-# amendment manifest). BC-2.16.009 needs Rule 10 description added for [auth_acquisition] validation
-# (PO task). BC-2.06.003 covers credential refs for the new token_exchange flow. All three BCs are
-# currently active. BC amendments are required before status: ready transition.
+# BC status: PO-001 retired — the section originally cited in PO-001 does not exist in
+# BC-2.01.017 v1.10 (POL-21 phantom section anchor); the 5→6-value canonical auth_type set
+# amendments (§Preconditions, §P3, §Related BCs) are EXECUTED per ADR-054 D11 Wave-A spec
+# evolution burst 3; the TokenExchange dispatch arm is covered by AC-008/D7 in this story.
+# PO-002 retired — BC-2.16.009 Rule 10 is fully specified in v1.12+ with all 8 sub-conditions
+# (EXECUTED per ADR-054 D11). BC-2.06.003 covers credential refs for the token_exchange flow.
+# No BC amendments are required before status: ready transition.
 assumption_validations: []
 risk_mitigations: []
 ---
@@ -43,7 +46,7 @@ risk_mitigations: []
 
 ## Authority
 
-**ADR-054 v0.52** (accepted 2026-07-22) is the authoritative design document.
+**ADR-054 v0.55** (accepted 2026-07-22) is the authoritative design document.
 Read it in full before implementing:
 `.factory/specs/architecture/decisions/ADR-054-native-declarative-http-auth-acquisition.md`
 
@@ -76,7 +79,7 @@ verification suite.
 | D4 | `DeclarativeHttpAuthProvider` struct in `crates/prism-spec-engine/src/auth/`; implements `AuthProvider`; lazy acquisition + ArcSwap cache |
 | D5 | `crowdstrike-oauth2.prx` crate deleted; removed from workspace `Cargo.toml` `members` |
 | D7 | `step9a_populate_adapter_registry` in `spec_driven_adapter.rs` gains `TokenExchange` arm; `Oauth2ClientCredentials` arm rewritten |
-| D10 | Rule 10 added to `validate_sensor_spec()`; E-SPEC-028 (8 sub-conditions for `[auth_acquisition]` validation) |
+| D10 | Rule 10 added inside `SpecLoader::parse()` (not in `validate_sensor_spec()`); E-SPEC-028 (8 sub-conditions for `[auth_acquisition]` validation) |
 
 ---
 
@@ -112,20 +115,62 @@ in the same commit.
 ### AC-003: Rule 10 / E-SPEC-028 validates [auth_acquisition] blocks
 (traces to BC-2.16.009 Rule 10 postcondition — 8 sub-conditions enforced)
 
-`validate_sensor_spec()` implements Rule 10 with E-SPEC-028. The 8 sub-conditions from
-ADR-054 §D10 are enforced:
+Rule 10 executes inside `SpecLoader::parse()` as the final gate before `Ok(spec)` is
+returned — the same execution site as Rules 8 and 9 (probe_table and header_scheme
+validation). Rule 10 is NOT placed inside `validate_sensor_spec()`. That function covers
+Rules 1–5 only, has zero production callers, and placement there makes E-SPEC-028
+unreachable from the `add_sensor_spec` MCP tool and from hot-reload (ADR-054 §D10
+rationale; BC-2.16.009 §Integration function).
 
-D10(a): `[auth_acquisition]` present + auth_type ∉ {oauth2_client_credentials, token_exchange} → E-SPEC-028
-D10(b): auth_type ∈ {oauth2_client_credentials, token_exchange} AND `auth_plugin` present → E-SPEC-028 (always rejected regardless of `[auth_acquisition]`)
-D10(c): `token_exchange` auth_type WITHOUT `[auth_acquisition]` block → E-SPEC-028
-D10(d): `[auth_acquisition]` present but `token_path` absent/empty → E-SPEC-028
-D10(e): `expiry_mode = "absolute_utc_string"` without `expiry_field` → E-SPEC-028
-D10(f): `expiry_mode = "relative_seconds"` without `expiry_field` → E-SPEC-028
-D10(g): `token_response_path` malformed (not starting with `$.`) → E-SPEC-028
-D10(h): `ttl_buffer_secs = 0` → E-SPEC-028
+`SpecLoader::parse()` implements Rule 10 with `E-SPEC-028`. The 8 sub-conditions from
+ADR-054 §D10 are enforced (BC-2.16.009 Rule 10 is the normative text; ADR-054 §D10 is
+authoritative for trigger logic; error-taxonomy.md `E-SPEC-028` is authoritative for
+message wording):
+
+D10(a): `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND (`[auth_acquisition]`
+absent OR `token_path` absent) → E-SPEC-028. Both declarative auth types require
+`[auth_acquisition]` with `token_path` to derive the per-org token URL at boot step 9A.
+
+D10(b): `auth_type ∈ {oauth2_client_credentials, token_exchange}` AND `auth_plugin` present
+— regardless of whether `[auth_acquisition]` is declared → E-SPEC-028. These auth types use
+the native `DeclarativeHttpAuthProvider`; `auth_plugin` is unconditionally rejected
+(Definition 1, ADR-054 §D10(b)).
+
+D10(c): `auth_type = "token_exchange"` AND `[auth_acquisition]` present AND `expiry_mode` is
+set but not in `{absolute_utc_string, relative_seconds}` → E-SPEC-028. Sub-condition (c) does
+NOT fire when `expiry_mode` appears on a non-`token_exchange` block; sub-condition (h) handles
+that case (clean partition: (c) = value-validity for valid-position use; (h) = position-validity
+for wrong-position use).
+
+D10(d): `auth_type = "token_exchange"` AND `[auth_acquisition]` present AND any of
+`{credential_body_field, token_response_path, expiry_field, expiry_mode}` is absent
+(`field.is_none()`) → one E-SPEC-028 per absent field. Absence predicate: `field.is_none()`
+means the TOML key is omitted entirely. An explicitly empty string (e.g.,
+`credential_body_field = ""`) resolves to `Some("")` — passes D10(d) but may fail D10(e)
+if `""` does not match any `[[credential_refs]]` name. `ttl_buffer_secs` is OPTIONAL
+(default 30); omitting it is VALID and does not trigger D10(d).
+
+D10(e): `credential_body_field` is present (`Some(name)`) but no `[[credential_refs]]`
+block has `name = "{name}"` → E-SPEC-028.
+
+D10(f): `auth_type = "oauth2_client_credentials"` AND one or both of `client_id`,
+`client_secret` absent from `[[credential_refs]]` → E-SPEC-028 citing the missing ref names.
+
+D10(g): `[auth_acquisition]` present AND `auth_type ∈ {bearer_static, cookie_roundtrip,
+api_key, custom_via_plugin}` → E-SPEC-028. Only declarative auth types support
+`[auth_acquisition]`.
+
+D10(h): `[auth_acquisition]` present AND any of `{credential_body_field, token_response_path,
+expiry_field, expiry_mode}` is present (`field.is_some()`) AND `auth_type != "token_exchange"`
+→ single aggregated E-SPEC-028 citing all offending field names as `{field_list}`. Prevents
+token_exchange-only fields from being silently ignored on an `oauth2_client_credentials` block
+(SOUL.md #4 violation class).
 
 A test for each sub-condition verifies rejection via `parse_and_validate_spec_toml()`
-(SAP-3: reachable from integration surface, not just from `validate_sensor_spec()` directly).
+(SAP-3: Rule 10 is inside `SpecLoader::parse()`, which `parse_and_validate_spec_toml()` calls
+as its first act; tests reach Rule 10 through this integration surface — not via
+`validate_sensor_spec()`, which is NOT the Rule 10 execution site and has zero production
+callers).
 
 ### AC-004: DeclarativeHttpAuthProvider implements AuthProvider with lazy acquisition
 (traces to BC-2.01.017 postcondition — auth provider acquires token on first use, caches it)
@@ -168,8 +213,9 @@ A test run of the VP-153 harness confirms it passes with no runtime panics or te
 - `auth_type = "oauth2_client_credentials"` is RETAINED (unchanged)
 
 After migration, `parse_and_validate_spec_toml()` accepts the updated CrowdStrike spec
-without E-SPEC-028 errors and without E-SPEC-009 (auth_plugin with oauth2_client_credentials
-is rejected by D10(b)).
+without E-SPEC-028 errors. (The removed `auth_plugin = "crowdstrike-oauth2"` line would
+have triggered E-SPEC-028 sub-condition (b) had it remained — auth_plugin on a declarative
+auth_type is unconditionally rejected by D10(b) regardless of `[auth_acquisition]` presence.)
 
 ### AC-007: crowdstrike-oauth2.prx crate deleted from workspace
 (traces to BC-2.01.017 postcondition — no plugin binary dependency at runtime)
@@ -214,16 +260,29 @@ The native-tls feature is NOT present in any form.
 
 ## Product-Owner Dependencies
 
-### PO-001: BC-2.01.017 amendment for TokenExchange dispatch table row (BLOCKS status: ready)
+### PO-001: RETIRED — The section originally cited does not exist in BC-2.01.017 (POL-21 phantom anchor)
 
-BC-2.01.017 §Adapter Registration dispatch table must gain a `TokenExchange` row describing
-how `step9a_populate_adapter_registry()` handles `auth_type = "token_exchange"`. Per ADR-053
-§D5 amendment manifest, this is a PO task.
+The section referenced by PO-001 does not exist in BC-2.01.017 v1.10 (POL-21 phantom section
+anchor). Verified actual sections: §Description, §Preconditions,
+§Postconditions (§P1 Token Acquisition, §P2 Request Header Injection, §P3 Auth Type Dispatch,
+§P4 Zero Login-Shaped Requests), §Invariants, §Error Cases, §Edge Cases, §Canonical Test
+Vectors, §Verification Properties, §Related BCs, §Architecture Anchors, §Story Anchor,
+§VP Anchors, §Traceability, §Notes for Implementers, §Changelog.
 
-### PO-002: BC-2.16.009 Rule 10 documentation (BLOCKS status: ready)
+The 5→6-value canonical auth_type set amendments to BC-2.01.017 (§Preconditions, §P3 Auth
+Type Dispatch, §Related BCs) are already EXECUTED per ADR-054 D11 Wave-A spec evolution
+burst 3. The §P2 dispatch table is `header_scheme`-keyed per ADR-053 D2 and already includes
+a `"raw"` row covering `token_exchange` (Armis). The `TokenExchange` adapter arm in
+`step9a_populate_adapter_registry()` is implemented by AC-008 of this story (ADR-054 D7) and
+does not require a separate BC amendment. PO-001 is retired as moot.
 
-BC-2.16.009 §Validation Rules section must add Rule 10 description covering E-SPEC-028 and
-its 8 sub-conditions from ADR-054 §D10. The rule exists in the ADR but is not yet in the BC.
+### PO-002: RETIRED — BC-2.16.009 Rule 10 is already fully specified
+
+BC-2.16.009 §Validation Rules 10 is fully specified with all 8 sub-conditions as of v1.12
+(current version v1.27). The EXECUTED annotation in ADR-054 D11 confirms:
+`BC-2.16.009 Rule set: [EXECUTED — Wave-A spec evolution burst 3, 2026-07-22] Add
+[auth_acquisition] coherence validation as Rule 10; E-SPEC-028 error suite per D10`.
+PO-002 is retired as already-satisfied.
 
 ---
 
@@ -236,7 +295,7 @@ its 8 sub-conditions from ADR-054 §D10. The rule exists in the ADR but is not y
 | `CachedAuthToken` | `crates/prism-spec-engine/src/auth/` (TBD) | Pure (data) | New struct (D4) |
 | `ExpiryMode` | `crates/prism-spec-engine/src/types.rs` or `auth/` (TBD) | Pure (data) | New enum (D3) |
 | `DeclarativeHttpAuthProvider` | `crates/prism-spec-engine/src/auth/` | Effectful (HTTP client) | New struct (D4) |
-| `validate_sensor_spec()` | `crates/prism-spec-engine/src/validation.rs` | Pure (validation) | Add Rule 10 / E-SPEC-028 (D10) |
+| `SpecLoader::parse()` | `crates/prism-spec-engine/src/spec_parser.rs` | Pure (validation) | Add Rule 10 / E-SPEC-028 inside `SpecLoader::parse()` as final gate before `Ok(spec)`, after Rules 8 and 9 (D10). Rule 10 is NOT added to `validate_sensor_spec()`. |
 | `step9a_populate_adapter_registry()` | `crates/prism-bin/src/spec_driven_adapter.rs` | Effectful (DI wiring) | Add TokenExchange arm; rewrite Oauth2 arm (D7) |
 | `crowdstrike.sensor.toml` | `crates/prism-sensors/specs/` | Pure (config) | Migrate auth_plugin → [auth_acquisition] (D2) |
 | `crowdstrike-oauth2.prx` | workspace root (TBD path) | Effectful (plugin binary) | DELETE (D5) |
@@ -257,14 +316,14 @@ its 8 sub-conditions from ADR-054 §D10. The rule exists in the ADR but is not y
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | [auth_acquisition] block present with auth_type = "bearer_static" | D10(a): E-SPEC-028 — bearer_static does not use declarative acquisition |
-| EC-002 | auth_type = "oauth2_client_credentials" with auth_plugin present | D10(b): E-SPEC-028 — auth_plugin is always rejected for this auth_type regardless of [auth_acquisition] |
-| EC-003 | auth_type = "token_exchange" without [auth_acquisition] | D10(c): E-SPEC-028 — block is required |
-| EC-004 | [auth_acquisition] block with empty token_path = "" | D10(d): E-SPEC-028 |
-| EC-005 | ttl_buffer_secs = 0 | D10(h): E-SPEC-028 |
+| EC-001 | [auth_acquisition] block present with auth_type = "bearer_static" | D10(g): E-SPEC-028 — bearer_static does not use declarative acquisition; only oauth2_client_credentials and token_exchange support [auth_acquisition] |
+| EC-002 | auth_type = "oauth2_client_credentials" with auth_plugin present (with or without [auth_acquisition]) | D10(b): E-SPEC-028 — auth_plugin is unconditionally rejected for declarative auth types regardless of [auth_acquisition] presence (Definition 1, ADR-054 §D10(b)) |
+| EC-003 | auth_type = "token_exchange" without [auth_acquisition] block | D10(a): E-SPEC-028 — [auth_acquisition] with token_path is required for both declarative auth types |
+| EC-004 | auth_type = "token_exchange", [auth_acquisition] present but token_path absent (TOML key omitted) | D10(a): E-SPEC-028 — token_path is required in [auth_acquisition]; its absence triggers sub-condition (a) even when the block itself is present |
+| EC-005 | auth_type = "token_exchange", [auth_acquisition] present with token_path, but token_response_path absent (TOML key omitted) | D10(d): E-SPEC-028 — token_response_path.is_none() triggers sub-condition (d); one error per absent required field; ttl_buffer_secs is optional and its absence is NOT an error |
 | EC-006 | VP-159: token acquisition HTTP endpoint returns 401 | DeclarativeHttpAuthProvider returns E-SENSOR-401 (or equivalent) rather than panicking or returning stale token |
 | EC-007 | Clock injection: get_token() called at expiry boundary (exactly at expiry - ttl_buffer_secs) | Token is refreshed (boundary is inclusive for refresh) |
-| EC-008 | CrowdStrike TOML without [auth_acquisition] after this story merges | D10(c) would fire for oauth2_client_credentials without [auth_acquisition] — wait, D10(c) is for token_exchange only. For oauth2_client_credentials, [auth_acquisition] is optional (D10(a) only fires if [auth_acquisition] is present with wrong auth_type). Verify this against ADR-054 §D10 — the TBD here is whether oauth2_client_credentials REQUIRES [auth_acquisition] after D5 (plugin retirement). If yes, existing crowdstrike TOML without the block would break. |
+| EC-008 | oauth2_client_credentials TOML without [auth_acquisition] block after plugin retirement | D10(a) fires E-SPEC-028 — oauth2_client_credentials requires [auth_acquisition] with token_path (same sub-condition as token_exchange; per BC-2.16.009 Rule 10(a) and EC-009-039). This is why AC-006 adds the [auth_acquisition] block to crowdstrike.sensor.toml as part of the D5 migration: without it, D10(a) would reject the CrowdStrike spec at spec-load time. The migration satisfies D10(a) for the CrowdStrike spec. |
 
 ---
 
@@ -287,11 +346,15 @@ Per ADR-054 §D4. Must implement `AuthProvider` trait. Requires clock injection
 (`now_fn: Arc<dyn Fn() -> u64 + Send + Sync>`) for testability. Production constructor
 uses `reqwest::Client` with rustls-tls (AC-009). Test-only `new_for_test(now_fn)`.
 
-### T-04: Add Rule 10 / E-SPEC-028 to validate_sensor_spec()
-Per ADR-054 §D10. All 8 sub-conditions. Collect-all semantics (VP-059) — Rule 10 errors
-are collected with Rules 1–5 errors, not fail-fast. SAP-3: each sub-condition must be
-reachable via `parse_and_validate_spec_toml()` (integration surface), not just via
-`validate_sensor_spec()` directly.
+### T-04: Add Rule 10 / E-SPEC-028 inside SpecLoader::parse()
+Per ADR-054 §D10 and BC-2.16.009 §Integration function. Rule 10 is added inside
+`SpecLoader::parse()` as the final gate before `Ok(spec)` is returned — after Rule 8
+(probe_table) and Rule 9 (header_scheme). Rule 10 is NOT added to `validate_sensor_spec()`;
+that function covers Rules 1–5 only, has zero production callers, and placement there makes
+E-SPEC-028 unreachable from `add_sensor_spec` and hot-reload. All 8 sub-conditions per AC-003.
+Collect-all semantics — all E-SPEC-028 errors are collected in a single multi-error pass inside
+`SpecLoader::parse()` (no fail-fast). SAP-3: each sub-condition must be reachable via
+`parse_and_validate_spec_toml()`, which calls `SpecLoader::parse()` as its first act.
 
 ### T-05: Migrate crowdstrike.sensor.toml
 Delete `auth_plugin = "crowdstrike-oauth2"` line. Add `[auth_acquisition]` block per
@@ -430,4 +493,5 @@ The test-writer can write failing stubs for all three dispatches in one pass; im
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.1 | 2026-07-25 | story-writer | FB52b re-derive against ADR-054 v0.55 and BC-2.16.009 v1.27: (CRIT-001) AC-003 rewritten with all 8 ratified §D10 sub-conditions (a)–(h); removed 4 invented conditions that contradicted §D3 (dotted path not `$.`-prefixed) and §D3 optional default semantics; corrected sub-condition labels (a)–(h) throughout AC-003, EC-001..EC-005, and T-04. (CRIT-002) Rule 10 execution site re-anchored from `validate_sensor_spec()` to `SpecLoader::parse()` across all 6 occurrences (§Scope Summary D10 row, AC-003 body, §Architecture Mapping file/function row, T-04 title and body); all surviving `validate_sensor_spec` references are now negative constructions. (HIGH-005) PO-001 retired — the cited BC section does not exist (POL-21 phantom anchor) and the relevant BC amendments are already EXECUTED per ADR-054 D11; PO-002 retired — BC-2.16.009 Rule 10 fully specified since v1.12. (MED-013) AC-006 wrong-error-code corrected: duplicate-sensor-id code replaced with E-SPEC-028 sub-condition (b). EC-008 TBD resolved per BC-2.16.009 Rule 10(a)/EC-009-039. §Authority updated to v0.55. |
 | 1.0 | 2026-07-25 | story-writer | Initial stub from ADR-054 §D1/D2/D3/D4/D5/D7/D10; VP-153/VP-159 gates; split dispatch guidance; PO dependency encoding |
