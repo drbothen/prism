@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-MCP-001
 title: "Remap add_sensor_spec ValidationFailed to BC-2.10.007 Structured Error Envelope"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: story-writer
 phase: 3
@@ -190,6 +190,32 @@ returns a success response with `"status": "added"` (or equivalent current succe
 The ValidationFailed remap must not affect the Added, ConfirmationRequired, DryRun, or
 WriteError arms.
 
+### AC-008: E-SPEC-027 wire-level assertion — non-tchar cookie name returns isError: true + code == "E-SPEC-027"
+(traces to BC-2.16.008 postcondition "Authorized MCP contract" — ADR-053 §D6 acceptance
+shape deferred to this story: `add_sensor_spec` with a non-tchar cookie name MUST return
+`isError: true` and `structuredContent.error.code == "E-SPEC-027"` at the MCP wire level)
+
+A wire-level test submits a TOML with `header_scheme = "cookie:bad;name"` via
+`add_sensor_spec` (the `;` byte is non-tchar per RFC 6265/RFC 9110 §5.6.2, causing
+`SpecLoader::parse()` Rule 9 to reject with E-SPEC-027). The test serializes the
+`CallToolResult` to JSON and asserts on the serialized wire output:
+1. `response["isError"] == true`
+2. `response["structuredContent"]["error"]["code"] == "E-SPEC-027"`
+
+Both assertions MUST be on the serialized JSON bytes — the exact wire output consumed by
+the LLM agent — not on pre-serialization Rust structures (CLAUDE.md §Wire-shape assertion
+discipline, D-1715, human-approved 2026-07-13).
+
+SAP-3 reachability: the test reaches the E-SPEC-027 rejection arm end-to-end from the
+public `add_sensor_spec` MCP tool call surface, not via a synthetic-AST or
+direct-handler invocation. Any defense-in-depth companion test at the `SpecLoader::parse()`
+unit level that also asserts E-SPEC-027 MUST carry a comment:
+`// defense-in-depth — primary reachability test is`
+`// test_add_sensor_spec_non_tchar_cookie_name_returns_e_spec_027_wire_level (AC-008 / RG-001)`
+
+Ordering dependency: this story's `depends_on: [S-WAVE-A-ENGINE-001]` frontmatter entry
+ensures Rule 9 is live in `SpecLoader::parse()` when this story's tests execute.
+
 ---
 
 ## Architecture Mapping
@@ -320,7 +346,7 @@ consumers of the prism MCP server.
 | EC-002 | ValidationFailed with errors from multiple different E-SPEC-NNN codes | AC-002: code = first error's code; AC-003: all codes in errors array |
 | EC-003 | Valid TOML submitted — happy path | AC-007: response has "status": "added" (or current success shape) — unchanged |
 | EC-004 | retry_after_seconds field is absent (not null) in the response | AC-005 assertion catches this — field MUST be null, not absent; per BC-2.10.007 §retry_after_seconds note |
-| EC-005 | E-SPEC-027 errors (Rule 9 from ENGINE-001) appear in errors array | The same structured error shape applies; AC-003 covers multi-error cases |
+| EC-005 | E-SPEC-027 error (Rule 9 from S-WAVE-A-ENGINE-001) must surface at MCP wire level with `isError: true` and `structuredContent.error.code == "E-SPEC-027"` — this is the ADR-053 §D6 deferred acceptance shape | AC-008 (primary obligation carrier; wire-level assertion on serialized JSON per ADR-053 §D6 acceptance shape) |
 
 ---
 
@@ -372,6 +398,31 @@ Specifically, serialize to `serde_json::Value` and check:
 Write a test that checks each of the 8 required fields in `structuredContent.error` is
 present and has the correct type (null vs absent, bool vs string). Per SID-2: at least one
 test must assert on the FULL composed error object, not just on component fields.
+
+### T-06: Write AC-008 wire-level E-SPEC-027 test
+**File:** `crates/prism-mcp/tests/` (same MCP integration test file as T-04)
+
+Submit `header_scheme = "cookie:bad;name"` via `add_sensor_spec`, serialize the
+`CallToolResult` to JSON, and assert the two wire-level properties in order:
+1. `response["isError"] == true`
+2. `response["structuredContent"]["error"]["code"] == "E-SPEC-027"`
+
+Both assertions must be on the serialized JSON value, not on pre-serialization Rust
+structs. Do NOT skip the `isError` assertion — it must be present alongside the `code`
+assertion in the same test function (SID-2: composed-output assertion).
+
+### Red Gate tests (to be written by test-writer BEFORE implementation)
+
+- [ ] **RG-001**: `test_add_sensor_spec_non_tchar_cookie_name_returns_e_spec_027_wire_level` — AC-008
+  (SAP-3: reaches E-SPEC-027 rejection arm end-to-end from the `add_sensor_spec` MCP tool
+  call surface — not via synthetic-AST or direct-handler invocation; asserts `isError: true`
+  AND `structuredContent["error"]["code"] == "E-SPEC-027"` on serialized JSON wire output;
+  wire-shape assertion on serialized bytes per CLAUDE.md §Wire-shape assertion discipline
+  D-1715; requires S-WAVE-A-ENGINE-001 merged so Rule 9 is live in `SpecLoader::parse()`)
+
+**Red Gate density:** 1 named failing test before implementation of AC-008 begins. The
+remaining ACs (AC-001..AC-007) are specified in prose tasks (T-04/T-05) per the original
+story structure; RG-001 is the named entry for the new obligation introduced in FB55b.
 
 ---
 
@@ -454,7 +505,7 @@ No new external dependencies.
 | `crates/prism-mcp/src/server.rs` | MODIFY | T-01/T-02: change ValidationFailed arm; `return Err(...)` path |
 | `crates/prism-mcp/src/error_mapping.rs` | MODIFY (Option A) or NO CHANGE (Option B) | T-02: new PrismError variant arm if Option A chosen |
 | `crates/prism-core/src/error.rs` | MODIFY (Option A) or NO CHANGE (Option B) | T-02: new PrismError variant if Option A chosen |
-| `crates/prism-mcp/tests/` | MODIFY/ADD | T-03/T-04/T-05: update old tests + new wire-shape tests |
+| `crates/prism-mcp/tests/` | MODIFY/ADD | T-03/T-04/T-05/T-06: update old tests + new wire-shape tests (including RG-001 for AC-008) |
 
 ---
 
@@ -462,4 +513,5 @@ No new external dependencies.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.1 | 2026-07-26 | story-writer | FB55b closes F-WASE-P64-HIGH-003. Added AC-008 (ADR-053 §D6 deferred acceptance shape verbatim: `add_sensor_spec` with `header_scheme = "cookie:bad;name"` (non-tchar `;`) returns `isError: true` + `structuredContent.error.code == "E-SPEC-027"` at MCP wire level; both assertions on serialized JSON per CLAUDE.md §Wire-shape assertion discipline D-1715; SAP-3 end-to-end from `add_sensor_spec` MCP tool call surface with defense-in-depth labeling requirement). Added §Red Gate tests subsection with RG-001 (`test_add_sensor_spec_non_tchar_cookie_name_returns_e_spec_027_wire_level` — AC-008). Added T-06 (task for AC-008 wire-level test). Fixed EC-005: removed false "AC-003 covers multi-error cases" cross-reference; re-pointed at AC-008 as the primary obligation carrier per ADR-053 §D6 acceptance shape. |
 | 1.0 | 2026-07-25 | story-writer | Initial stub; authority: BC-2.16.008 v1.6 + ADR-053 §D6 Option B; normative ID constraint documented; TBD sections marked for implementation-time resolution |
