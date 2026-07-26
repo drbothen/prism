@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.571"
+version: "8.572"
 producer: state-manager
-timestamp: 2026-07-25T18:00:00Z
+timestamp: 2026-07-25T18:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
