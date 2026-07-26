@@ -6,7 +6,7 @@ wave: wave-a
 epic_id: E-SPEC-ENGINE
 priority: P1
 status: draft
-version: "2.5"
+version: "2.6"
 updated: "2026-07-26"
 level: "L3"
 producer: story-writer
@@ -36,13 +36,19 @@ behavioral_contracts:
 # BC-2.01.017: StaticCookieAuthProvider; P2 dispatch table is header_scheme-keyed per ADR-053 D2
 # BC-2.16.014: P9 — execute_impl / execute_step call sites switch to get_token()
 # BC-2.01.016: SensorAuth open trait; Rule A foundation for VP-153 re-verification gate
-verification_properties: [VP-153]
+verification_properties: [VP-153, VP-160]
 # VP-153: SensorAuth Runtime Cross-Composition Prevention.
 # Engine-story gate (PARTIAL per ORCHESTRATOR RULING 2026-07-24): run prism-spec-engine
 # VP-153 suite WITHOUT adding token_exchange strategy arms; verify existing active proptests
 # pass including Rule A with updated E-SPEC-012 Display. Token_exchange arm ADDITION
 # (MERGE-GATE-VP153-FULL) belongs to S-ADR054-WAVE-A-001.
 # See §Tasks MERGE-GATE-VP153-PARTIAL and Architecture Compliance Rule 9.
+# VP-160: Rule 9 Cookie-Name Charset Totality and Injection Rejection (Kani proof).
+# Anchor justification (POL-5): §Tasks T-B02 step 3 authors the full body of
+# `is_valid_cookie_name_tchar` — the exact symbol VP-160 targets as its proof vehicle.
+# §Architecture Mapping assigns `SpecLoader::validate_header_scheme` (Rule 9) to
+# `crates/prism-spec-engine/src/spec_parser.rs`. Under the VSDD anchor-story rule,
+# the anchor story is the one that builds the test vehicle; this story builds it.
 depends_on: []
 # This story is the FIRST in the ADR-054 §D7 sequencing chain.
 # No product-story hard dependencies — can enter Wave 1 of wave-a scheduling.
@@ -532,9 +538,10 @@ new variants on the existing SpecEngineError enum). Bump to 95 belongs to S-ADR0
 | ADR-053 (header_scheme field spec, coherence matrix) | ~18,000 | Reference |
 | ADR-054 §D4/D11 (get_token wiring, D11 rows) | ~15,000 | Reference |
 | VP-153 (proof harness skeleton) | ~10,000 | Re-verification gate |
+| VP-160 (cookie-name charset Kani proof) | ~8,000 | Proof vehicle harness; `is_valid_cookie_name_tchar` is the target symbol |
 | Test files (vp153 × 2) | ~12,000 | Harness amendment |
 | error-taxonomy.md E-SPEC-027 + E-SPEC-012 + E-SPEC-013 rows | ~8,000 | POL-24 source |
-| **Total estimated** | **~201,000** | Approaches one context window |
+| **Total estimated** | **~209,000** | Approaches one context window |
 
 **Context management guidance:** Load spec_parser.rs + auth_provider.rs + error.rs
 in the FIRST sub-burst (field/trait/error changes). Load pipeline.rs in a SECOND
@@ -1217,6 +1224,7 @@ Rows explicitly NOT in scope for this story (belong to S-ADR054-WAVE-A-001):
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| 2.6 | 2026-07-26 | FB55c story-writer leg — closes F-WASE-P64-HIGH-004 (story-owned half). Added VP-160 to `verification_properties:` frontmatter array; added POL-5 anchor justification comment: §Tasks T-B02 step 3 authors `is_valid_cookie_name_tchar` (VP-160's proof target symbol) and §Architecture Mapping assigns `SpecLoader::validate_header_scheme` (Rule 9) to `crates/prism-spec-engine/src/spec_parser.rs`. Added VP-160 row to §Token Budget Estimate table; total updated ~201,000 → ~209,000. No AC changes, no Red Gate test changes. AC COUNT: 26 (unchanged). RGT COUNT: 30 (unchanged). |
 | 2.5 | 2026-07-26 | FB55a HIGH-001: remove semantically-inverted `blocks: S-WAVE-A-CYBERINT-PATCH-001` edge. Both stories listing each other in `blocks:` created an unschedulable DAG cycle. The correct edge is PATCH-001 → ENGINE-001 (PATCH gates ENGINE), expressed as `S-WAVE-A-ENGINE-001` in CYBERINT-PATCH-001's `blocks:` array. ENGINE-001's reciprocal entry asserted the opposite direction and is dropped. The prose MERGE-GATE-ENGINE-001 co-land constraint remains in CYBERINT-PATCH-001 — single directional edge plus prose marker is the canonical co-land expression per the wave-a dependency graph convention. |
 | 2.4 | 2026-07-26 | FB54 story-writer leg — closes F-WASE-P64-CRIT-005 (POL-38: BC amendment added EC-009-047..049/051 without corresponding ACs or Red Gate tests in this story). Added AC-023 (EC-009-051 CWE-390: cookie-name 128-codepoint length bound — `is_valid_cookie_name_tchar` length guard; RG-027), AC-024 (EC-009-047 CWE-400: 64-codepoint echo cap on template-(a) `{value}` via `truncate_at_char_boundary`; RG-028 SID-2 composed-message assertion), AC-025 (EC-009-048 CWE-117: CTL-byte `\xNN` escaping in template-(a) message; RG-029 dual-assertion on escaped form present + raw byte absent). Extended AC-019 to explicitly enumerate TAB (0x09) alongside `;`, `=`, SP, and CTL bytes; added RG-030 as the EC-009-049 dedicated TAB implementation-correctness probe. Fixed T-B02: `is_valid_cookie_name_tchar` snippet gains `&& name.chars().count() <= 128` length guard (CWE-390); error-construction bullet gains template-(a) two-step cap-then-escape specification. BC-2.16.009 version pin updated v1.26 → v1.27 at all live-pin sites (v1.27 is attribution-only per F-WASE-P64-HIGH-008; ECs and behavioral content unchanged). AC COUNT: 23 → 26 (AC-001..AC-025 plus AC-014b). RGT COUNT: 26 → 30. |
 | 2.3 | 2026-07-25 | FB47b records-tier correction — closes F-WASE-P63-HIGH-008. `blocks:` frontmatter array updated by FB47a: added `S-WAVE-A-CYBERINT-PATCH-001` with MERGE-GATE-ENGINE-001 co-land rationale (cyberint.sensor.toml declares `auth_type=cookie_roundtrip` with no `header_scheme`; Rule 9 absence path B rejects this at spec-load producing boot exit 2; ENGINE-001 must co-land with CYBERINT-PATCH-001 to prevent boot failure). FB47a made the `blocks:` array edit without appending a changelog row; this v2.3 row is the missing records-tier correction. No AC changes, no Red Gate test changes, no task changes, no behavioral-contract version propagation. AC COUNT and RGT COUNT unchanged: 23 ACs / 26 RGTs. |

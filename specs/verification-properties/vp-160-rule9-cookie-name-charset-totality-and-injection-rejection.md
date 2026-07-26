@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-07-25T00:00:00Z
@@ -69,7 +69,12 @@ establishes truth for all platforms (same Rust source; see CLAUDE.md §Formal Ve
 
 ## Source Contract
 
-- **Anchor Story:** `[PLANNED — Wave-A Rule 9 cookie-name charset story]`
+- **Anchor Story:** `S-WAVE-A-ENGINE-001`
+  — Anchor justification (POL-5): `S-WAVE-A-ENGINE-001` authors the body of
+  `is_valid_cookie_name_tchar` in §Tasks T-B02 step 3 — the exact symbol this VP targets
+  as its proof vehicle. Its §Architecture Mapping assigns `SpecLoader::validate_header_scheme`
+  (Rule 9) to `crates/prism-spec-engine/src/spec_parser.rs`, the same module path cited in
+  §Proof Harness Skeleton. No other Wave-A story introduces or owns this symbol.
 - **Source BC:** BC-2.16.009 — Spec File Validation — Rule 9 (`header_scheme` field validation, E-SPEC-027)
 - **Security Reference:** SEC-001 (CWE-20/CWE-74 — cookie-name injection via non-tchar characters) / ADR-053 §D2
 - **Module:** prism-spec-engine
@@ -184,4 +189,5 @@ the RFC 9110 §5.6.2 tchar definition for every possible single-byte ASCII input
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | FB55c | 2026-07-26 | architect | F-WASE-P64-HIGH-004: anchor story resolved from placeholder to `S-WAVE-A-ENGINE-001`; anchor justification added per POL-5 citing §Tasks T-B02 authorship of `is_valid_cookie_name_tchar` and §Architecture Mapping placement in `crates/prism-spec-engine/src/spec_parser.rs`. |
 | 1.0 | fix-burst-46 | 2026-07-25 | architect | Initial draft. F-WASE-P62-MED-004: Rule 9 cookie-name charset totality and injection rejection (SEC-001, ADR-053 §D2). Method: Kani. P0. |
