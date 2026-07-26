@@ -9,10 +9,18 @@
 | `cyberint_alerts_openapi_06.20.2026.json` | Cyberint | Alerts API | ~90 KB |
 | `cyberint_assets_openapi_06.20.2026.json` | Cyberint | Assets API | ~28 KB |
 | `xdome_openapi_06.20.2026.json` | Claroty xDome | Full xDome API | ~4.2 MB |
+| `armis_endpoint_research_07.20.2026.md` | Armis | Endpoint audit + auth fidelity findings | ~12 KB |
 
 ## Armis
 
-No OpenAPI file available. Canonical API docs at: https://dev.armis.com/reference/post_oauth_token_post
+No downloadable OpenAPI available from Armis. The canonical in-repo grounding reference is
+`armis_endpoint_research_07.20.2026.md` — a web-corroborated endpoint audit from 2026-07-20
+covering auth flow (token-exchange, raw-token header), AQL collections, field-fidelity gaps,
+and Confirmed/Partial/Unconfirmed confidence tiers. ADR-053 §D1 "No-OpenAPI governance" makes
+the confidence tiers in that document the binding grounding contract for Armis spec authoring.
+
+Vendored from external repository 2026-07-25 to close adversary finding F-WASE-P64-HIGH-007.
+Online Armis developer docs: https://dev.armis.com/reference/post_oauth_token_post
 
 ## Usage
 

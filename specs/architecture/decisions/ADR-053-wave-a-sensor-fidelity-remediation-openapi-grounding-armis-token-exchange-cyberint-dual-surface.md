@@ -5,7 +5,7 @@ title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Ex
 status: accepted
 date: "2026-07-20"
 modified: "2026-07-25"
-version: "0.35"
+version: "0.36"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -101,8 +101,8 @@ Two authoritative Cyberint OpenAPI files are available (dated 2026-06-20):
 
 For Armis, no downloadable OpenAPI exists. Claims are web-corroborated from multiple
 independent production connectors (Google Chronicle, Cortex XSOAR, Swimlane, Brinqa, Sumo
-Logic, Hunters) per `demo-soc/findings/prism-armis-endpoint-plan.md` (2026-07-20).
-Source file: `/Users/jmagady/Dev/test-soc/demo-soc/findings/prism-armis-endpoint-plan.md`.
+Logic, Hunters) per `.factory/reference/api-specs/armis_endpoint_research_07.20.2026.md`
+(original date 2026-07-20; vendored into prism repo 2026-07-25 — see §Source/Origin).
 
 For Claroty xDome, the canonical OpenAPI reference is `xdome_openapi_06.20.2026.json`.
 
@@ -740,11 +740,14 @@ and story decomposition for Wave-A sensor remediation may now proceed.
 
 - **Triage capture:** `.factory/planning/findings-remediation-2026-07-20/triage-capture.md`
   (D-1889, 2026-07-20) — systemic root cause identified as ADR-028 circular grounding
-- **Findings source (Armis):** `/Users/jmagady/Dev/test-soc/demo-soc/findings/prism-armis-endpoint-plan.md`
-  (2026-07-20) — auth flow evidence: token-exchange flow, raw-token header, no Bearer prefix;
-  corroborated by Google Chronicle + Brinqa + Cortex XSOAR + Sumo Logic + Hunters connectors
-- **Findings source (Cyberint):** `/Users/jmagady/Dev/test-soc/demo-soc/findings/prism-cyberint-endpoint-plan.md`
-  (2026-07-20) — two-surface OpenAPI analysis; Alerts and Assets both confirmed static-cookie
+- **Findings source (Armis):** `.factory/reference/api-specs/armis_endpoint_research_07.20.2026.md`
+  (original 2026-07-20; vendored 2026-07-25, closes F-WASE-P64-HIGH-007) — auth flow evidence:
+  token-exchange flow, raw-token header, no Bearer prefix; corroborated by Google Chronicle +
+  Brinqa + Cortex XSOAR + Sumo Logic + Hunters connectors
+- **Findings source (Cyberint):** `.factory/reference/api-specs/cyberint_alerts_openapi_06.20.2026.json`
+  and `.factory/reference/api-specs/cyberint_assets_openapi_06.20.2026.json` (both dated
+  2026-06-20, vendored 2026-07-20) — two-surface OpenAPI analysis: Alerts surface `/alert`
+  prefix, Assets surface `/asset-configuration` prefix; both confirmed static-cookie auth
 - **Cyberint Alerts auth confirmation (research-agent, 2026-07-20):** Confirmed `Cookie: access_token=<static token>`, no login step, via Alerts OpenAPI info.description + IBM QRadar + qmasters + ThreatQ + XSOAR + Axonius connectors. X-Api-Key hypothesis rejected.
 - **OpenAPI files (Cyberint):** `.factory/reference/api-specs/cyberint_alerts_openapi_06.20.2026.json`
   and `cyberint_assets_openapi_06.20.2026.json` (both dated 2026-06-20)
@@ -761,6 +764,7 @@ and story decomposition for Wave-A sensor remediation may now proceed.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.36 | 2026-07-25 | architect | FB48 (F-WASE-P64-HIGH-007 + sibling sweep): §Source/Origin machine-local absolute paths removed for both Armis and Cyberint. Armis: vendored external findings document (outside prism repo, inaccessible to CI and reviewers) to `.factory/reference/api-specs/armis_endpoint_research_07.20.2026.md`; §Context and §Source/Origin Armis entries updated to repo-relative cites; `api-specs/README.md` inventory table and Armis section updated. Cyberint: §Source/Origin Cyberint entry re-pointed at already-vendored `.factory/reference/api-specs/cyberint_alerts_openapi_06.20.2026.json` and `cyberint_assets_openapi_06.20.2026.json` (the Cyberint findings doc was secondary analysis derived from those files; they are the declared ground truth per its own provenance). No behavioral changes to any decision. |
 | 0.35 | 2026-07-25 | architect | FB46 (adversary pass 62): §D6 added — CRIT-001 wire-contract adjudication (F-WASE-P62-CRIT-001, Option B): engine story S-WAVE-A-ENGINE-001 proceeds unchanged; `ValidationFailed`→BC-2.10.007 remap deferred to S-WAVE-A-MCP-001 (cross-crate error-surface work; BC-2.16.008 §Error Conditions amendment required; current multi-error format describes what was built, not the correct agent-facing contract — prism is AI-agent consumed, BC-2.10.007 exists for machine-readable error codes, HIGH-002 concurrent amendment of the E-SPEC-027 template makes string-matching brittle); SAP-3 anchor: integration test at `prism-spec-engine` public API asserting `Ok(ValidationFailed{errors})` with E-SPEC-027(a) text match (correct under both options; RG-024 must be renamed and restated). MED-009 — §D5 E-SPEC-027 completion marker corrected v2.67 → v2.68; §D2 and §D5 provenance trails extended to include v2.68 (v2.67 carried defective 14-char tchar set without backtick). D5 version-pin sweep: E-SPEC-028 at §Changelog v2.57 correct; BC-2.16.009 references in §D2/§D5 are section/rule/EC-ID only (no version pins to fix). LOW-001 — §D2 SEC-001 pointer extended to cite all four injection-class ECs: EC-009-043, EC-009-044 (bare `=`), EC-009-045 (space), and EC-009-046 (CTL character). |
 | 0.34 | 2026-07-24 | architect | FB45 (adversary pass 61): F-WASE-P61-CRIT-001 — §D2 template (a) de-normativization pointer tightened: scope clarifier "(malformed or out-of-set `header_scheme` value, including cookie-name tchar violations)" added, making the arm boundary explicit and eliminating the source of the ARCH-INDEX / BC-INDEX mis-description. F-WASE-P61-LOW-002 — E-SPEC-027 registration directive retensed to completed; provenance citation added: error-taxonomy.md §Changelog v2.57 / v2.66 / v2.67. F-WASE-P61-LOW-006 (option b — de-normativization-consistent) — added pointer to BC-2.16.009 EC-009-043 and EC-009-046 as canonical carriers for SEC-001 threat examples (header injection via semicolons/spaces, CTL characters); avoided duplicating inline content that BC-2.16.009 owns. D5 manifest sibling-site sweep (TD-VSDD-060 completion): three stale-premise rows updated — (1) `error-taxonomy.md` E-SPEC-027 row: "Registration is in-scope for the standalone Wave-A engine story" → completed, citing error-taxonomy.md §Changelog v2.57 / v2.66 / v2.67 **[COMPLETED — error-taxonomy.md §Changelog v2.67]**; (2) `error-taxonomy.md` E-SPEC-028 row: "Registration is in-scope for the Wave-A CrowdStrike plugin retirement / Armis token-exchange story" → completed, citing error-taxonomy.md §Changelog v2.57 **[COMPLETED — error-taxonomy.md §Changelog v2.57]**; (3) BC-2.16.009 Rule 9 row: "Rule 9 is in-scope for the Wave-A engine story" retensed to split spec-authoring (delivered) from code-implementation (still PLANNED) **[BC AUTHORED — BC-2.16.009 §Validation Rules 9; code: PLANNED]**. |
 | 0.33 | 2026-07-24 | architect | SEC-001 / POL-24 closure (human Wave-A perimeter reopen authorization): §D2 closed-value-set table corrected at two sites — (1) `"cookie:<name>"` row "Rejection reason" cell: "must be non-empty; must not contain a colon" → tchar constraint aligned to RFC 6265 `token`/`cookie-name` charset per BC-2.16.009 v1.24 Rule 9; (2) `"cookie:a:b"` row "Rejection reason" cell: "Cookie name must not contain a colon" → "Cookie name contains `:` which is not a valid RFC 6265 tchar character" (correct rejection, corrected rationale — right-answer-wrong-reason class). §D2 template (a) verbatim message echo de-normativized per ruling (ii): replaced with anchor pointer to BC-2.16.009 §Validation Rules 9 and error-taxonomy.md E-SPEC-027 as sole POL-24 carriers; ADR-053 is no longer a POL-24 carrier for template (a), structurally eliminating the recurring duplication-drift class. POL-29 sweep post-edit: zero live occurrences of "no colon in name", "must not contain a colon" (name-constraint sense), or old template (a) message text remain outside CHANGELOG-IMMUTABLE rows. |
