@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-ARMIS-REMEDIATION-001
 title: "Armis Token-Exchange Spec Migration and DTU Reclone — auth_type token_exchange, [auth_acquisition] block, Armis DTU token endpoint"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: story-writer
 phase: 3
@@ -73,29 +73,40 @@ The Armis DTU (`prism-dtu-armis`) authenticates via a static bearer token
 ### Target state (this story)
 
 ```toml
-# armis.sensor.toml (target)
-auth_type = "token_exchange"
-
-[[credential_refs]]
-name = "secret_key"                    # TBD — verify exact name against Armis OpenAPI auth spec
-description = "Armis API secret key used to acquire a bearer token via token exchange"
+# armis.sensor.toml (target) — all values Confirmed-tier per ADR-054 §D3 Armis wiring
+auth_type = "token_exchange"       # native declarative provider (ADR-054 D1)
+header_scheme = "raw"              # Authorization: {token} — no Bearer prefix (ADR-053 D2)
+# base_url = "${env.ARMIS_INSTANCE_URL}" (per-org resolved; overlays flow to token URL)
 
 [auth_acquisition]
-token_path = "/access_management/oauth/authorize"    # TBD — verify against Armis OpenAPI
-ttl_buffer_secs = 30
-credential_body_field = "secret_key"   # TBD — verify field name in Armis token request body
-token_response_path = "$.access_token" # TBD — verify response JSON path
-expiry_field = "expiration_utc"        # TBD — verify expiry field name in Armis token response
-expiry_mode = "absolute_utc_string"    # TBD — verify expiry format
+token_path = "/api/v1/access_token/"
+# Token URL derived per-org at step9a_populate_adapter_registry:
+#   format!("{}{}", resolved_spec.spec.base_url, "/api/v1/access_token/")
+# Per-org base_url overlays (DTU clone, multi-region) flow through automatically.
+# token_url is NOT a field — derived from base_url + token_path per ADR-054 §D3 invariant.
+credential_body_field = "secret_key"        # form body: secret_key={resolved_value}
+token_response_path = "data.access_token"   # dotted path (no $. prefix) — ADR-054 §D3
+expiry_field = "data.expiration_utc"        # dotted path: data.expiration_utc
+expiry_mode = "absolute_utc_string"
+# ttl_buffer_secs = 30 (default)
+
+[[credential_refs]]
+name = "secret_key"
+description = "Armis long-lived secret key for token exchange"
+# Resolved via BC-2.06.003 four-tier per-client chain (PRISM_CLIENTS_{ID}_SENSORS_ARMIS_SECRET_KEY)
 ```
 
-The Armis DTU serves a `POST /access_management/oauth/authorize` route that:
-- Accepts a JSON body with the `secret_key` credential
-- Returns `{"access_token": "...", "expiration_utc": "..."}` (TBD — verify response shape)
+The Armis DTU serves a `POST /api/v1/access_token/` route (matching `[auth_acquisition].token_path`) that:
+- Accepts a form POST body with the `secret_key` credential
+- Returns `{"success":true,"data":{"access_token":"...","expiration_utc":"..."}}` (Confirmed per ADR-053 D2
+  and vendored Armis research at `.factory/reference/api-specs/armis_endpoint_research_07.20.2026.md`)
 
-**All TBD values above MUST be resolved against the Armis OpenAPI spec before this story
-reaches `status: ready`.** The implementer must read the Armis OpenAPI (locate in the
-research directory or codebase) and replace every `# TBD` with the confirmed value.
+**All auth-wiring values are Confirmed-tier per ADR-054 §D3, architect-verified against the vendored
+Armis endpoint research at `.factory/reference/api-specs/armis_endpoint_research_07.20.2026.md`
+(full agreement with ADR-053 D2). No Armis OpenAPI exists (ADR-053 §D1 no-OpenAPI governance names
+Armis explicitly; only Confirmed-tier values appear in this spec). This story may advance to
+`status: ready` after PO dependencies PO-001 and PO-002 are resolved (BC amendments per ADR-053 §D5)
+and `S-ADR054-WAVE-A-001` ships.**
 
 ---
 
@@ -106,9 +117,13 @@ research directory or codebase) and replace every `# TBD` with the confirmed val
 
 `crates/prism-sensors/specs/armis.sensor.toml` is updated to:
 - `auth_type = "token_exchange"`
-- No `auth_plugin` field present
-- A valid `[auth_acquisition]` block with OpenAPI-grounded values (all TBD fields resolved)
-- `credential_refs` updated for the token exchange credential pattern
+- `header_scheme = "raw"` (no Bearer prefix; Confirmed-tier per ADR-054 §D3, ADR-053 D2)
+- No `auth_plugin` field present (E-SPEC-028(b) rejects auth_plugin for token_exchange regardless of [auth_acquisition] presence)
+- A valid `[auth_acquisition]` block with all fields matching the ADR-054 §D3 Armis wiring:
+  `token_path = "/api/v1/access_token/"`, `credential_body_field = "secret_key"`,
+  `token_response_path = "data.access_token"`, `expiry_field = "data.expiration_utc"`,
+  `expiry_mode = "absolute_utc_string"`
+- `credential_refs` contains exactly one entry with `name = "secret_key"`
 
 After migration, `parse_and_validate_spec_toml()` accepts the updated Armis spec without
 any E-SPEC-028 (Rule 10) or E-SPEC-012 (invalid auth_type) errors.
@@ -116,39 +131,45 @@ any E-SPEC-028 (Rule 10) or E-SPEC-012 (invalid auth_type) errors.
 ### AC-002: Armis DTU serves the token acquisition endpoint
 (traces to BC-2.01.006 postcondition — DTU behavioral clone supports token exchange flow)
 
-The Armis DTU (`crates/prism-dtu-armis/`) serves a route at the path matching
-`[auth_acquisition].token_path` from the Armis spec. The route:
-- Accepts a POST request with the credential body
-- Returns a JSON response with `access_token` and expiry fields
+The Armis DTU (`crates/prism-dtu-armis/`) serves a route at `POST /api/v1/access_token/`
+(matching `[auth_acquisition].token_path`). The route:
+- Accepts a form POST body containing the `secret_key` credential
+- Returns `{"success":true,"data":{"access_token":"...","expiration_utc":"..."}}` on success
+  (fields at `data.access_token` and `data.expiration_utc` per ADR-054 §D3 `token_response_path`
+  and `expiry_field` values)
 - Returns HTTP 401 for missing or invalid credentials
 
 A test in `crates/prism-dtu-armis/tests/` verifies the token acquisition flow end-to-end:
-POST to the token endpoint with valid credentials → receive access_token → use access_token
-as bearer in a subsequent `/api/v1/search` request → receive search results.
+POST to `/api/v1/access_token/` with valid `secret_key` → receive `access_token` → use token
+raw (no Bearer prefix, per `header_scheme = "raw"`) in a subsequent `/api/v1/search` request
+→ receive search results.
 
 SAP-2 compliance: the DTU response fields for the token acquisition endpoint must match
 the `[auth_acquisition]` config in `armis.sensor.toml` — `token_response_path`, `expiry_field`,
 and `expiry_mode` must all have corresponding DTU type fields.
 
-### AC-003: Armis DTU accepts bearer token from DeclarativeHttpAuthProvider (not static token)
+### AC-003: Armis DTU accepts raw acquired token from DeclarativeHttpAuthProvider (not static token)
 (traces to BC-2.01.006 postcondition — the acquired token is used for subsequent API calls)
 
 An integration test verifies that a client which:
-1. POSTs to the token acquisition endpoint with the Armis secret key
-2. Receives an `access_token`
-3. Uses `Authorization: Bearer <access_token>` on `/api/v1/search`
+1. POSTs to `/api/v1/access_token/` with the Armis `secret_key`
+2. Receives an `access_token` in the `data.access_token` response field
+3. Uses `Authorization: <access_token>` (raw, no Bearer prefix, per `header_scheme = "raw"`) on `/api/v1/search`
 
 ...receives a 200 response with Armis device data. This validates the token exchange flow
 end-to-end through the DTU.
 
-The DTU must NOT accept a static bearer token that was NOT acquired via the token endpoint
-(i.e., old-style `bearer_static` tokens must be rejected after this story; the auth model
-has changed).
+The DTU must NOT accept a raw string that was NOT issued by the DTU's own token endpoint
+(i.e., old-style `bearer_static` static tokens must be rejected after this story; the auth
+model has changed).
 
-**NOTE:** If the current DTU uses a static token allowlist (bearer_static pattern) that is
-incompatible with the token exchange model, the DTU auth state management must be updated.
-This is the primary DTU reclone work. Mark the exact mechanism as TBD until the
-implementer reads `crates/prism-dtu-armis/src/` to understand the current auth model.
+**DTU reclone implementation note:** The implementer must read `crates/prism-dtu-armis/src/`
+during T-03 before writing T-04 to understand the current auth mechanism. The T-04 update must
+achieve the behavioral invariant above: only tokens issued via `POST /api/v1/access_token/` are
+accepted on data endpoints. The DTU tracks issued tokens in-process (an allowlist); requests
+presenting a token not in that allowlist receive HTTP 401. Existing Armis routes (`/api/v1/search`,
+etc.) must continue to work. This is the primary DTU reclone work — its exact scope is bounded
+by the T-03 source read, not by speculation.
 
 ### AC-004: customer overlay specs are NOT broken by the migration
 (traces to BC-2.01.006 invariant — overlay specs inherit base spec auth_type)
@@ -179,6 +200,28 @@ The Armis credential refs in `armis.sensor.toml` are updated from the bearer_sta
 acquisition). The BC-2.06.003 Armis rows are identified for PO amendment (see
 Product-Owner Dependencies).
 
+### AC-007: Authorization header carries raw token — no Bearer prefix (wire-shape assertion)
+(traces to BC-2.16.009 Rule 9 absence path A — header_scheme = "raw" emits raw token with no Bearer prefix; traces to BC-2.01.017 §P2 dispatch table "raw" row — Bearer-prefixed header causes HTTP 401 on Armis v1 API)
+
+A test in `crates/prism-dtu-armis/tests/` acquires a token via `POST /api/v1/access_token/`,
+then issues a data request to the DTU. The test captures the raw HTTP `Authorization` header
+value emitted on that data request and asserts:
+
+1. The header value equals the acquired token exactly — no prefix, no whitespace
+2. The header value does NOT start with `Bearer ` (case-sensitive)
+3. The header value does NOT start with `bearer ` (case-insensitive guard)
+
+Per CLAUDE.md §Wire-shape assertion discipline, asserting `header_scheme = "raw"` in the TOML
+config alone is NOT sufficient. This AC requires a wire-level assertion on the emitted header
+bytes. Per SID-2, the composed `Authorization` header value must be asserted as composed, not
+only via its component fields.
+
+**Why this AC is load-bearing:** BC-2.16.009 Rule 9 absence path A silently applies a `"bearer"`
+runtime default when `header_scheme` is absent or misspelled, emitting `Authorization: Bearer <token>`.
+The Armis v1 API rejects Bearer-prefixed tokens with HTTP 401 (BC-2.01.017 §P2 dispatch table
+`"raw"` row explicitly states "Bearer prefix causes HTTP 401"). This test is the only gate that
+would catch a missing or wrong `header_scheme` behind a green spec-validation run.
+
 ---
 
 ## Product-Owner Dependencies
@@ -204,7 +247,7 @@ amendment. Per ADR-053 §D5 amendment manifest.
 | `armis.sensor.toml` | `crates/prism-sensors/specs/` | Pure (config) | auth_type → token_exchange; add [auth_acquisition] |
 | Token acquisition route | `crates/prism-dtu-armis/src/routes/` | Effectful (HTTP handler) | NEW — POST token endpoint |
 | DTU auth state | `crates/prism-dtu-armis/src/state.rs` | Effectful (auth state) | UPDATE — token exchange model |
-| VP-153 harness | TBD (grep MERGE-GATE-VP153-FULL for path) | Pure (test harness) | Verify Armis arm is present |
+| VP-153 harness | locate via `grep -r MERGE-GATE-VP153-FULL crates/` | Pure (test harness) | Verify Armis arm is present |
 
 ---
 
@@ -237,20 +280,24 @@ amendment. Per ADR-053 §D5 amendment manifest.
 Understand the current credential_refs, auth_type, and any Armis-specific pagination or
 auth configuration. Document all fields that will change.
 
-### T-02: Research Armis token acquisition API (REQUIRED before implementing AC-001)
-**Scope:** Search for the Armis OpenAPI spec in the codebase:
-- `crates/prism-dtu-armis/` (may have an OpenAPI YAML or fixture files with auth shapes)
-- `.factory/research/` (may have Armis API documentation)
-- `crates/prism-dtu-armis/src/routes/` (existing routes reveal current auth model)
+### T-02: Verify auth-wiring values against vendored Armis research doc
+**File:** `.factory/reference/api-specs/armis_endpoint_research_07.20.2026.md`
 
-Resolve all TBD values in the "Target state" section above:
-- Token endpoint path
-- Credential body field name
-- Token response path (e.g., `$.access_token`)
-- Expiry field name and format (absolute_utc_string vs relative_seconds)
+All auth-wiring values are pre-resolved in this spec against ADR-054 §D3 (Confirmed-tier,
+architect-verified). No Armis OpenAPI exists (ADR-053 §D1 no-OpenAPI governance names Armis
+explicitly). The vendored research doc at the path above is the Confirmed-tier grounding artifact.
 
-If the Armis OpenAPI is not in the codebase, the implementer MUST stop and report to the
-orchestrator for research dispatch before proceeding. Do NOT invent values.
+The implementer MUST read the research doc to confirm understanding of the following values
+before writing any code:
+- Token endpoint path: `POST /api/v1/access_token/` (form body, not JSON)
+- Credential body field: `secret_key`
+- Response shape: `{"success":true,"data":{"access_token":"...","expiration_utc":"..."}}`
+- Response paths: `data.access_token`, `data.expiration_utc` (dotted paths, no `$.` prefix)
+- Expiry format: absolute UTC string (`expiry_mode = "absolute_utc_string"`)
+- Header scheme: `"raw"` — emits `Authorization: <token>`, no Bearer prefix
+
+Do NOT invent new values. If the vendored doc contradicts ADR-054 §D3 values in this spec,
+STOP and report to the orchestrator — that is an architect adjudication, not an implementer call.
 
 ### T-03: Read crates/prism-dtu-armis/src/ structure before recloning
 **Scope:** `crates/prism-dtu-armis/src/`
@@ -263,24 +310,38 @@ needed for the token exchange flow:
 - Mark exact file paths for T-04 changes.
 
 ### T-04: Update Armis DTU for token exchange auth
-**Files:** TBD from T-03
+**Files:** determined by T-03 read; expected targets per File Structure Requirements:
+`crates/prism-dtu-armis/src/routes/` (new `POST /api/v1/access_token/` endpoint) and
+`crates/prism-dtu-armis/src/state.rs` (auth state update from static-token to issued-token model)
 
-Add POST token endpoint route. Update auth state if needed (replace static-token model
-with issued-token model). Preserve all existing Armis routes (AQL search, alerts, etc.).
+Add `POST /api/v1/access_token/` route returning `{"success":true,"data":{"access_token":"...","expiration_utc":"..."}}`.
+Update auth state to track issued tokens in-process (allowlist model per AC-003). Replace static-token
+model with issued-token model. Preserve all existing Armis routes (AQL search, alerts, etc.).
 
-### T-05: Update armis.sensor.toml with resolved [auth_acquisition] values
+### T-05: Update armis.sensor.toml with ADR-054 §D3 auth-wiring values
 **File:** `crates/prism-sensors/specs/armis.sensor.toml`
 
-Replace all TBD values with OpenAPI-grounded values from T-02. Verify:
+Apply the Confirmed-tier auth wiring from the "Target state" TOML block in this spec (all values
+pre-resolved per ADR-054 §D3). Add `header_scheme = "raw"` alongside `auth_type = "token_exchange"`.
+Verify:
 - `parse_and_validate_spec_toml()` accepts the updated spec
 - No E-SPEC-028 errors for any Rule 10 sub-condition
 - No E-SPEC-012 errors (token_exchange is now in VALID_AUTH_TYPES after ADR-054 lands)
 
-### T-06: Write AC-002/AC-003 integration tests
+### T-06: Write AC-002/AC-003/AC-007 integration tests
 **File:** `crates/prism-dtu-armis/tests/`
 
-Tests for the full token exchange flow: POST /token → acquire access_token → use in
-/api/v1/search. Wire-shape assertions per CLAUDE.md §Wire-shape assertion discipline.
+Tests for the full token exchange flow: `POST /api/v1/access_token/` → acquire `access_token`
+from `data.access_token` → use raw (no Bearer prefix) in `/api/v1/search`. Wire-shape assertions
+per CLAUDE.md §Wire-shape assertion discipline.
+
+**AC-007 wire-shape test (REQUIRED):** One test must capture the raw `Authorization` header
+value emitted on the search request and assert: (1) exact value equals the acquired token with
+no prefix, (2) does NOT start with `Bearer `, (3) does NOT start with `bearer `. If the DTU
+test infrastructure does not currently expose outbound request headers, add a test hook (e.g.,
+`last_auth_header: Arc<Mutex<Option<String>>>` on DTU state, populated in test builds only,
+gated `#[cfg(test)]`). Asserting `header_scheme = "raw"` in TOML config alone does not satisfy
+AC-007 — the assertion must be on emitted bytes per SID-2 composed-output discipline.
 
 ### T-07: Run VP-153 harness and verify Armis arm
 **Scope:** VP-153 harness files (locate via grep MERGE-GATE-VP153-FULL)
@@ -299,7 +360,7 @@ case. If an Armis-specific fixture needs updating, update it in this story.
 | ADR-054 §D4 DeclarativeHttpAuthProvider | ~1,500 |
 | `crates/prism-sensors/specs/armis.sensor.toml` | ~2,500 |
 | `crates/prism-dtu-armis/src/` (structure survey) | ~4,000 |
-| Armis OpenAPI or research doc (TBD source) | ~2,000 |
+| Vendored Armis research (`.factory/reference/api-specs/armis_endpoint_research_07.20.2026.md`) | ~2,000 |
 | VP-153 harness files | ~1,500 |
 | BC-2.01.006 Armis section | ~1,000 |
 | Running test output (nextest) | ~1,500 |
@@ -374,7 +435,7 @@ proves more complex than expected.
 |------|--------|-------|
 | `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | T-05: auth_type → token_exchange; add [auth_acquisition]; update credential_refs |
 | `crates/prism-dtu-armis/src/routes/` | MODIFY/CREATE | T-04: add token acquisition route |
-| `crates/prism-dtu-armis/src/state.rs` | MODIFY | T-04: token exchange auth state (TBD from T-03 read) |
+| `crates/prism-dtu-armis/src/state.rs` | MODIFY | T-04: convert auth state from static-token to issued-token model; exact scope determined by T-03 source read |
 | `crates/prism-dtu-armis/tests/` | MODIFY/ADD | T-06: update existing auth tests + new token exchange integration tests |
 | VP-153 harness files | VERIFY (no change expected) | T-07: confirm TokenExchange arm covers Armis |
 | `crates/prism-sensors/specs/customers/acme/armis.sensor.toml` | VERIFY (no change) | AC-004: overlay spec must remain valid |
@@ -394,4 +455,5 @@ proves more complex than expected.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
-| 1.0 | 2026-07-25 | story-writer | Initial stub; all TBD values marked for OpenAPI grounding; depends_on S-ADR054-WAVE-A-001; PO dependency encoding |
+| 1.1 | 2026-07-25 | story-writer | FB49: re-derive against ADR-054 §D3 ratified Armis wiring; add header_scheme = "raw" (F-WASE-P64-CRIT-004); fix token_path, token_response_path, expiry_field; add AC-007 wire-shape assertion (F-WASE-P64-HIGH-006); resolve all 18 unresolved placeholders; re-anchor status: ready gate from nonexistent Armis OpenAPI to ADR-053 §D1 no-OpenAPI governance |
+| 1.0 | 2026-07-25 | story-writer | Initial stub; all auth values unresolved (OpenAPI grounding assumed at time of authoring); depends_on S-ADR054-WAVE-A-001; PO dependency encoding |
