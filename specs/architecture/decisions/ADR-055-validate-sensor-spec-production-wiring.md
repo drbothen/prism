@@ -2,16 +2,17 @@
 document_type: adr
 adr_id: "ADR-055"
 title: "Sensor Spec Semantic Validation — Wire validate_sensor_spec() into Production Spec-Loading Pipeline"
-status: proposed
+status: accepted
 date: "2026-07-25"
 modified: "2026-07-25"
-version: "1.1"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-06]
 supersedes: null
 superseded_by: null
 amends: null
-anchor_stories: []
+anchor_stories: [S-ADR055-WAVE-A-001]
+wiring_deferred_to: S-ADR055-WAVE-A-001
 related_adrs: [ADR-030]
 related_bcs: [BC-2.16.009, BC-2.16.001, BC-2.16.007, BC-2.16.008]
 locked_decisions: []
@@ -29,7 +30,15 @@ input-hash: ""
 
 ## Status
 
-Proposed 2026-07-25, v1.0. Ready for human review and story-writer dispatch.
+Accepted 2026-07-25, v1.2 (FB51a). Closes F-WASE-P64-MED-015 (human-authorized ratification).
+
+Decision ratified; production wiring deferred to story S-ADR055-WAVE-A-001 (`status: draft`).
+This is a legitimate three-part deferral per Canonical Principle Rule 3:
+(1) explicitly human-authorized in this session; (2) concrete dependency — the wiring work
+in `validate_sensor_spec` must be threaded through `parse_and_validate_spec_toml` and
+`SpecLoader::load_all` by the implementing story; (3) anchored to specific story
+S-ADR055-WAVE-A-001. `accepted` means the architectural decision is binding and governs all
+future implementation; it does NOT mean the wiring is currently live in any production binary.
 
 ---
 
@@ -408,5 +417,6 @@ same error conditions trigger correctly via `parse_and_validate_spec_toml()` and
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-07-25 | architect | FB51a (F-WASE-P64-MED-015): `status: proposed` → `status: accepted` (human-authorized ratification). `anchor_stories:` populated with S-ADR055-WAVE-A-001. `wiring_deferred_to: S-ADR055-WAVE-A-001` added per POL-15 false-positive escape (the sole legitimate escape for an accepted ADR whose deliverable — wiring `validate_sensor_spec` into `parse_and_validate_spec_toml` and `SpecLoader::load_all` — is deferred to a named story). `## Status` updated to state the decision is ratified but production wiring is deferred to the anchor story, with three-part Canonical Principle Rule 3 justification. |
 | 1.1 | 2026-07-25 | architect | FB50 (F-WASE-P64-CRIT-002): §D3 — added scoping note clarifying that the env-var ordering argument is scoped to Rules 1–5 (`validate_sensor_spec()`) and does NOT extend to Rules 8, 9, or 10, which check only literal TOML fields and are interpolation-independent. Eliminates apparent contradiction with BC-2.16.009 §Integration function's explicit placement of Rules 9 and 10 inside `SpecLoader::parse()`. See ADR-054 §D10 for the per-sub-condition verification of Rule 10. |
 | 1.0 | 2026-07-25 | architect | Initial proposal from F-WASE-P63-HIGH-003 investigation. |
