@@ -232,7 +232,7 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 
 ### Highlights
 
-- **`#[non_exhaustive]` discipline.** All public TOML-deserialized types and pub-API surface types require `#[non_exhaustive]`. 92 types currently enforced via the compile-fail gate at `tests/external/non-exhaustive-violation/` (AC-5 of S-PLUGIN-PREREQ-C, expanded by S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014 and S-DEMO-DTU-LIVE-SCENARIO-001-B, S-DEMO-MULTI-TENANT-DTU-001 D-1075-API-GAP-001, S-5.02 HIGH-3 + followup (StructuredErrorFields, CapabilityEntry, ResolutionStep, CapabilityStatus), S-3.13 LOW-1 (TableNotAvailableDetails), S-3.13 CR-002 (TableRegistry), S-1.14-REDO burst-2 MED-1-RESIDUAL (Tier3CacheEntry), S-1.14-REDO fix-burst FIX-IN-SCOPE (InfusionUdfDescriptor, EnrichStageDescriptor), S-1.14-REDO adversarial OBS-1 FIX-IN-SCOPE (InfusionError), S-5.03 (ClientInventoryEntry, SensorConfigEntry, SensorHealthResult, RateLimitInfo, ResourcePressure, SensorHealthStructuredContent), S-DEMO-ENRICHMENT-PIVOT-002 (HttpLookupAuthType, HttpLookupCredentialConfig, HttpLookupConfig), S-DEMO-PRISMQL-ONBOARDING-001-A (PrismDescribeResponse, TableDescriptor, ColumnDescriptor), S-DEMO-PRISMQL-ONBOARDING-001-B (ColumnNotFoundDetails), S-5.04 F-S504-P5-002 (HealthSummary), S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (ExampleKind, SqlPipeQuery, UnknownSourceTableDetails), S-DEMO-FIDELITY-REMEDIATION-001 (EnrichUdfNotFoundDetails), S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (TemporalLiteralPosition), DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001 (prism_core VirtualField), DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P31-OBS-002 (prism_query ast VirtualField), DEFECT-PQL-FNCALL-LHS-001 F-PQLFN-PR11-OBS-002 (ParseError)); `scripts/check-non-exhaustive.sh EXPECTED=92` is the authority — when the gate grows, update ALL THREE: `scripts/check-non-exhaustive.sh`, this sentence, AND `scripts/check-non-exhaustive-per-symbol.py` (bump `EXPECTED_COUNT` AND append the new symbol to `EXPECTED_SYMBOLS`, else the startup assert / Layer-2 check fails CI; ci.yml delegates to both scripts and carries no separate EXPECTED value). External match arms must include a wildcard `_ => {}` arm. New public types added to `prism-core`, `prism-spec-engine`, or `prism-query` need `#[non_exhaustive]` added before the PR can merge.
+- **`#[non_exhaustive]` discipline.** All public TOML-deserialized types and pub-API surface types require `#[non_exhaustive]`. 92 types currently enforced via the compile-fail gate at `tests/external/non-exhaustive-violation/` (AC-5 of S-PLUGIN-PREREQ-C, expanded by S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014 and S-DEMO-DTU-LIVE-SCENARIO-001-B, S-DEMO-MULTI-TENANT-DTU-001 D-1075-API-GAP-001, S-5.02 HIGH-3 + followup (StructuredErrorFields, CapabilityEntry, ResolutionStep, CapabilityStatus), S-3.13 LOW-1 (TableNotAvailableDetails), S-3.13 CR-002 (TableRegistry), S-1.14-REDO burst-2 MED-1-RESIDUAL (Tier3CacheEntry), S-1.14-REDO fix-burst FIX-IN-SCOPE (InfusionUdfDescriptor, EnrichStageDescriptor), S-1.14-REDO adversarial OBS-1 FIX-IN-SCOPE (InfusionError), S-5.03 (ClientInventoryEntry, SensorConfigEntry, SensorHealthResult, RateLimitInfo, ResourcePressure, SensorHealthStructuredContent), S-DEMO-ENRICHMENT-PIVOT-002 (HttpLookupAuthType, HttpLookupCredentialConfig, HttpLookupConfig), S-DEMO-PRISMQL-ONBOARDING-001-A (PrismDescribeResponse, TableDescriptor, ColumnDescriptor), S-DEMO-PRISMQL-ONBOARDING-001-B (ColumnNotFoundDetails), S-5.04 F-S504-P5-002 (HealthSummary), S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (ExampleKind, SqlPipeQuery, UnknownSourceTableDetails), S-DEMO-FIDELITY-REMEDIATION-001 (EnrichUdfNotFoundDetails), S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 (TemporalLiteralPosition), DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001 (prism_core VirtualField), DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P31-OBS-002 (prism_query ast VirtualField), DEFECT-PQL-FNCALL-LHS-001 F-PQLFN-PR11-OBS-002 (ParseError)); `EXPECTED_SYMBOLS` in `scripts/check-non-exhaustive-per-symbol.py` is the **single source of truth** — when the gate grows, append the new symbol to that list ONLY. `EXPECTED_COUNT` in the same file is derived from the list length and needs no manual update; `scripts/check-non-exhaustive.sh` reads the count from the Python manifest automatically; ci.yml delegates to both scripts and carries no separate `EXPECTED` value. Do NOT restate the count in prose anywhere — including in this sentence. Layer 1 is an **equality** check, so BOTH a removed annotation and an unregistered new type fail CI with distinct diagnostics. (Before 2026-07-27 the count was duplicated across four locations and Layer 1 was a `-lt` floor, which let an unregistered new type pass CI silently; human-approved collapse to one source of truth.) External match arms must include a wildcard `_ => {}` arm. New public types added to `prism-core`, `prism-spec-engine`, or `prism-query` need `#[non_exhaustive]` added before the PR can merge.
 
 - **Arc-DI plumbing.** Production runtime wires dependencies via `Arc<dyn ...>` constructors per ADR-022. The placeholder-construct anti-pattern (constructing a type without wiring real Arc dependencies "for now") is explicitly forbidden (Standing Rule 3 §4 in SESSION-HANDOFF.md). Adding `Arc<dyn Foo>` to a constructor that lacked it is "wiring, not redesign" and must be done in-scope.
 
@@ -341,12 +341,13 @@ For ANY adversarial pass on stories or PRs touching `.prism/specs/sensors/*.toml
    - `crates/prism-dtu-<sensor>/src/routes/<table>.rs` (route + response shape per table)
 2. For EVERY column declared in the TOML `[[tables]]` blocks:
    - Verify the column name matches a field in the DTU types.rs response struct for that table
-   - Verify the TOML column type matches the DTU Rust type (String↔String, Integer↔i64/u64, Float↔f64, Boolean↔bool, Datetime↔chrono DateTime)
+   - Verify the TOML column type matches the DTU Rust type (String↔String, Integer↔i64/u64, Float↔f64, Boolean↔bool). For datetimes, BOTH of these are valid pairings: `Datetime ↔ chrono DateTime`, OR `Datetime` ↔ an ISO-8601/epoch wire string carrying a declared `timestamp_formats` parse chain. JSON has no native datetime type, and the ratified normalization path is a wire string plus a `timestamp_formats` chain (e.g. `cyberint-alerts.sensor.toml` `created_at` declares `["iso8601","unix_epoch_seconds"]` with E-SPEC-018 on total parse failure). Treating chrono as the only valid pairing mints false findings — it would have produced five or more across the Wave-A sensor TOMLs alone.
 3. **Column in TOML with no DTU equivalent → P1 CRITICAL** (runtime normalization will silently produce empty/wrong data)
-4. **Field in DTU with no TOML column → MEDIUM** (missing coverage, not a runtime crash)
-5. Adversary MUST read crates/prism-dtu-{sensor}/src/types.rs and crates/prism-dtu-{sensor}/src/routes/{table}.rs — do NOT rely on story descriptions of the schema
+4. **Field in DTU with no TOML column → MEDIUM** (missing coverage, not a runtime crash). A field deliberately excluded from TOML MUST have its exclusion documented in the owning BC; an undocumented exclusion causes this finding class to recur on every subsequent pass.
+5. Adversary MUST read the DTU source directly — `crates/prism-dtu-{sensor}/src/types.rs` and `crates/prism-dtu-{sensor}/src/routes/{table}.rs` — and MUST NOT rely on story descriptions of the schema.
+6. **Read the emission site, not just the type definition.** The wire-emission site — the `json!` envelope, serializer, or response literal inside the route handler — is AUTHORITATIVE over the struct definition. A field that exists on the response struct but is absent from the emitted envelope resolves to nothing at runtime and is a **P1 CRITICAL**, not a pass. A `# SAP-2 compliance: all columns have matching fields in .../types.rs` comment can be simultaneously true of the struct and false of the wire; such a comment is not evidence. Where a handler has both a static-fixture path and a generated-records path, verify EVERY path — a field present only on the generator path yields path-dependent behavior in which seeded demo scenarios pass while unseeded production runs silently return empty.
 
-Source: PLUGIN-MIGRATION-001-D pass-3 FB-IMPL-3 (4 CRITICAL findings caught by this probe); lesson 24.
+Source: PLUGIN-MIGRATION-001-D pass-3 FB-IMPL-3 (4 CRITICAL findings caught by this probe); lesson 24. Rules 2 (datetime pairing) and 6 (emission-site authority) added 2026-07-27 by human approval, from SAP-2 probe findings F-SAP2-OBS-002 (false-finding prevention) and F-SAP2-CRIT-001 (eight IOC columns resolved to nothing on the DTU static-fixture path while the `Alert` struct carried every field).
 
 ### SID-1 — Implementer discipline: no-ignored-test rationalization prohibition
 
@@ -383,9 +384,33 @@ When a user/agent-visible string is composed from multiple fields (e.g., `messag
 
 Source: live-audit triage 2026-07-13 (D-1715/D-1716); human-approved codification.
 
+### SAC-1 — Spec-authoring convention: enumerated Red Gate list on `tdd_mode: strict` stories
+
+Every story with `tdd_mode: strict` MUST carry, before it reaches `status: ready`:
+
+1. An **enumerated Red Gate test list** in the `RG-001..RG-NNN` format, with each entry naming the specific failing test to be written
+2. A **BC-5.38.001 density check** paragraph stating the Red-Gate-test count and its relation to the acceptance-criteria count
+3. **Red-then-green task ordering** — test-authoring tasks MUST precede implementation tasks. Embedding test-writing inline inside implementation tasks inverts the TDD ordering and is a defect, not a style choice
+4. Rationale: the test-writer receives an explicit list of named failing tests to author before implementation begins. Without the enumerated list, the red-gate phase is silently skipped or inverted
+
+Precedent: F-WASE-P64-MED-016 — six of seven Wave-A perimeter stories were `tdd_mode: strict` with no enumerated Red Gate list and no density check; only `S-WAVE-A-ENGINE-001` had the correct structure. FB61 applied corrective edits to all six. A structural validator gate is proposed in `S-MAINT-RG-LIST-GATE-001` (draft) so the gap cannot recur.
+
+### SAC-2 — Spec-authoring convention: ADR `anchor_stories` frontmatter
+
+Every ADR MUST carry an `anchor_stories` frontmatter key:
+
+1. The key MUST be **present** — a missing key is a defect, distinct from an empty one
+2. It is populated from ground-truth **`§Authority` citations in story files** — a story belongs in an ADR's `anchor_stories` when that story's `§Authority` section cites the ADR. Do NOT populate it from loose prose mentions: a story that names an ADR only to exclude itself from its scope is correctly absent
+3. `anchor_stories: []` is legitimate ONLY when accompanied by a **verified-empty annotation**. A bare `[]` that contradicts stories demonstrably citing the ADR is stale and is a defect
+4. Rationale: ADR→story traceability must be **bidirectional**. Without this key, stories cite ADRs but ADRs cite no stories, and an ADR change cannot be swept to its dependent stories — the mechanism behind several multi-cite propagation failures in the Wave-A cascade
+
+Precedent: F-WASE-P64-OBS-001 — ADR-053 and ADR-054 carried no `anchor_stories` key at all; three of the four ADRs that had it populated it with a stale `[]`. FB62 populated all of ADR-050..056 from `§Authority` ground truth. A structural validator gate is proposed in `S-MAINT-ADR-ANCHOR-GATE-001` (draft).
+
+Both SAC-1 and SAC-2 codified 2026-07-27 by human approval.
+
 ### Conflict with upstream agent prompts
 
-If the upstream vsdd-factory adversary or implementer agent prompt defines a probe / discipline that contradicts SAP-1, SAP-2, SAP-3, SID-1, or SID-2, the project-local rule wins for prism. Upstream canonicalization tracked in `drbothen/vsdd-factory` issue tracker.
+If the upstream vsdd-factory adversary or implementer agent prompt defines a probe / discipline / convention that contradicts SAP-1, SAP-2, SAP-3, SID-1, SID-2, SAC-1, or SAC-2, the project-local rule wins for prism. Upstream canonicalization tracked in `drbothen/vsdd-factory` issue tracker.
 
 ---
 
