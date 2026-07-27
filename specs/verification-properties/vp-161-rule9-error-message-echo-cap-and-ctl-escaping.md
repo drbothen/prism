@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-07-26T00:00:00Z
@@ -48,7 +48,7 @@ The truncation is performed by `truncate_at_char_boundary(&raw_value, 64)` befor
 byte-verbatim prefix of the input.
 
 **Property 2 (CWE-117 CTL escaping):** After applying the 64-codepoint cap, the error
-message construction replaces every CTL byte (0x00–0x08, 0x0A–0x1F, and 0x7F) in the
+message construction replaces every CTL byte (0x00–0x1F, and 0x7F) in the
 capped value with the four-character ASCII literal `\xNN` (literal backslash, lowercase
 `x`, two uppercase hex digits). No raw CTL byte survives into the emitted error message.
 For values containing no CTL bytes, the escaping step is a no-op.
@@ -91,7 +91,7 @@ Rust source; see CLAUDE.md §Formal Verification).
 
 | Method | Tool | Bounded? | Coverage |
 |--------|------|----------|----------|
-| kani | kani (CBMC model checking) | Yes — Property 1: string inputs bounded to ≤128 bytes; Property 2: string inputs bounded to ≤32 bytes; both exhaustive over all byte sequences within the bound | CWE-400: `truncate_at_char_boundary` always returns string with `char_count ≤ 64`; CWE-117: CTL-escape function never emits raw CTL bytes (0x00–0x08, 0x0A–0x1F, 0x7F) in output |
+| kani | kani (CBMC model checking) | Yes — Property 1: string inputs bounded to ≤128 bytes; Property 2: string inputs bounded to ≤32 bytes; both exhaustive over all byte sequences within the bound | CWE-400: `truncate_at_char_boundary` always returns string with `char_count ≤ 64`; CWE-117: CTL-escape function never emits raw CTL bytes (0x00–0x1F, 0x7F) in output |
 
 **Why Kani:** Both `truncate_at_char_boundary` and the CTL-escape function are pure
 (inputs → output) with no I/O, no async, and no global state. The CWE-400 cap property
@@ -118,7 +118,7 @@ provides exhaustive proof for all byte sequences within the bounded input space.
 //   codebase as of Phase 3. Anchor obligation: S-WAVE-A-ENGINE-001 AC-025 / RG-029
 //   (EC-009-048 / CWE-117). The formal-verifier resolves the actual symbol name at
 //   Phase 5 once the implementer has landed S-WAVE-A-ENGINE-001 §Tasks T-B02 Step 2
-//   — grep prism-spec-engine for the function mapping CTL bytes 0x00–0x08, 0x0A–0x1F,
+//   — grep prism-spec-engine for the function mapping CTL bytes 0x00–0x1F,
 //   0x7F to `\xNN` four-char ASCII literals in the E-SPEC-027(a) construction path.
 //
 // HARNESS 1 — CWE-400 cap: truncate_at_char_boundary always produces char_count ≤ max
@@ -153,7 +153,7 @@ provides exhaustive proof for all byte sequences within the bounded input space.
 //         let escaped = escape_ctl_bytes_for_error_message(s); // [PLANNED]
 //         // Primary CTL property: no raw CTL byte survives in the output
 //         for b in escaped.as_bytes() {
-//             let is_ctl = *b <= 0x08 || (*b >= 0x0A && *b <= 0x1F) || *b == 0x7F;
+//             let is_ctl = *b <= 0x1F || *b == 0x7F;
 //             assert!(!is_ctl,
 //                 "CTL-escape must replace all CTL bytes with \\xNN literals");
 //         }
@@ -192,5 +192,6 @@ provides exhaustive proof for all byte sequences within the bounded input space.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | FB64 | 2026-07-27 | architect | F-WASE-P65-HIGH-001: CTL-escape byte domain corrected from `0x00–0x08, 0x0A–0x1F, 0x7F` (excludes TAB) to `0x00–0x1F, 0x7F` (inclusive, TAB included). Three sites in artifact body corrected: §Property Statement Property 2 prose, §Proof Method table Coverage cell, SYMBOL RESOLUTION comment byte-set description. Harness 2 predicate corrected: `*b <= 0x08 \|\| (*b >= 0x0A && *b <= 0x1F) \|\| *b == 0x7F` → `*b <= 0x1F \|\| *b == 0x7F`. Authority: BC-2.16.009 §Validation Rule 9 §CTL-character escaping clause (`(b as u8) <= 0x1F \|\| (b as u8) == 0x7F`), confirmed by error-taxonomy E-SPEC-027 `{value}` description and S-WAVE-A-ENGINE-001 AC-025 §Tasks T-B02 Step 2 (all three specify full inclusive range). Same-burst POL-9 propagation: VP-INDEX v2.16→v2.17; verification-architecture v1.47→v1.48. |
 | 1.1 | FB62 | 2026-07-27 | architect | Pre-commit defect fix: `escape_ctl_bytes_for_error_message` was an unmarked provisional symbol absent from the codebase. SYMBOL RESOLUTION block added to §Proof Harness Skeleton preamble distinguishing CONFIRMED target (`truncate_at_char_boundary`, grounded in `prism_spec_engine::validation`) from PROVISIONAL target. `[PLANNED: escape_ctl_bytes_for_error_message]` marker added at Harness 2 declaration and call site; anchor obligation AC-025/RG-029, Phase 5 resolution path, and behavior description (BC-2.16.009 E-SPEC-027 template (a) cap-then-escape) anchored inline. Harness 1 labeled CONFIRMED; Harness 2 labeled TARGET IS [PLANNED]. |
 | 1.0 | FB62 | 2026-07-26 | architect | Initial draft. F-WASE-P64-OBS-002: CWE-400 64-codepoint echo cap (`truncate_at_char_boundary`) and CWE-117 CTL-byte `\xNN` escaping in E-SPEC-027 template (a) error message construction. Successor to VP-160 scope note deferral — VP-160 §Property Statement previously deferred these formatting concerns to "a separate property"; this VP is that property. Method: Kani. P0. Anchor: S-WAVE-A-ENGINE-001 §Tasks T-B02 cap-then-escape specification (AC-024/RG-028 for CWE-400; AC-025/RG-029 for CWE-117). |

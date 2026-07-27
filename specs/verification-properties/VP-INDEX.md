@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "2.16"
+version: "2.17"
 status: draft
 producer: state-manager
 timestamp: 2026-07-26T00:00:00Z
@@ -190,7 +190,7 @@ retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..00
 | VP-158 | [BC-2.06.019] E-DEMO-006 fires when two scenario-enabled clones share same seed but have different org_ids; no clone constructed — VP-019-I alias | prism-dtu-demo-server | unit_test | P1 | draft | S-DEMO-DTU-LIVE-SCENARIO-001-B |
 | VP-159 | [BC-2.16.014] DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry: zero network at construction; cold get_token → one HTTP POST + cache; warm get_token within TTL → zero HTTP POSTs; stale get_token → one HTTP POST re-acquisition; acquire_token → one HTTP POST cache bypass; TTL arithmetic for both ExpiryMode variants (absolute_utc_string, relative_seconds); CachedAuthToken never stores credential values (AD-017); AC-9 + AC-9b SAP-3 executor reachability: AC-9 drives PipelineExecutor::execute→execute_impl path; AC-9b drives PipelineExecutor::execute_step direct-call path (BC-2.16.014 P9 two-path coverage model) | prism-spec-engine | integration_test | P1 | draft — v1.26 | [PLANNED — Wave-A CrowdStrike retirement / Armis token-exchange engine story] |
 | VP-160 | [BC-2.16.009 Rule 9] cookie-name charset totality and injection rejection: `is_valid_cookie_name_tchar` returns true iff every byte is in the 77-character RFC 9110 §5.6.2 tchar set; semicolons, bare equals, spaces, TAB, CTL bytes (0x00–0x1F, 0x7F), non-ASCII bytes (0x80–0xFF), and RFC 9110 delimiters are rejected (SEC-001 / ADR-053 §D2) | prism-spec-engine | kani | P0 | draft | S-WAVE-A-ENGINE-001 |
-| VP-161 | [BC-2.16.009 Rule 9] error message echo cap and CTL escaping: `truncate_at_char_boundary` always returns ≤64 codepoints (CWE-400 / EC-009-047); CTL-escape function never emits raw CTL bytes (0x00–0x08, 0x0A–0x1F, 0x7F) in E-SPEC-027(a) message (CWE-117 / EC-009-048) | prism-spec-engine | kani | P0 | draft | S-WAVE-A-ENGINE-001 |
+| VP-161 | [BC-2.16.009 Rule 9] error message echo cap and CTL escaping: `truncate_at_char_boundary` always returns ≤64 codepoints (CWE-400 / EC-009-047); CTL-escape function never emits raw CTL bytes (0x00–0x1F, 0x7F) in E-SPEC-027(a) message (CWE-117 / EC-009-048) | prism-spec-engine | kani | P0 | draft | S-WAVE-A-ENGINE-001 |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -272,6 +272,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.17 | FB64 | 2026-07-27 | architect | F-WASE-P65-HIGH-001: VP-161 row description corrected — CTL-escape byte domain updated from `0x00–0x08, 0x0A–0x1F, 0x7F` to `0x00–0x1F, 0x7F` (full inclusive range per BC-2.16.009 §Validation Rule 9 §CTL-character escaping). No module, method, priority, status, or anchor changes; no count changes. Same-burst with VP-161 v1.1→v1.2 and verification-architecture v1.47→v1.48. |
 | 2.16 | FB62 | 2026-07-27 | architect | VP-161 v1.0→v1.1: pre-commit defect fix — `[PLANNED]` marker added to `escape_ctl_bytes_for_error_message` in §Proof Harness Skeleton; SYMBOL RESOLUTION block added distinguishing confirmed target (`truncate_at_char_boundary`) from provisional target; anchor obligation AC-025/RG-029 and Phase 5 resolution path anchored in artifact body. No catalog row changes — property description, module, method, priority, status, anchor unchanged. |
 | 2.15 | FB62 | 2026-07-26 | architect | (F-WASE-P64-OBS-002) VP-161 registered: Rule 9 error message echo cap and CTL escaping (kani, P0, prism-spec-engine, BC-2.16.009 EC-009-047/EC-009-048 — CWE-400 `truncate_at_char_boundary` ≤64 codepoints + CWE-117 no-raw-CTL in E-SPEC-027(a) message; successor to VP-160 §Property Statement scope note deferral). VP-160 v1.1→v1.2: scope note replaced with explicit VP-161 cross-reference. Summary table: Kani 31→32; P0 24→25; Total 160→161; P0 total 123→124. Count basis: active P0 110→111 (Kani 24→25); active basis 148/111P0/37P1. POL-9 same-burst with verification-architecture v1.46→v1.47 + verification-coverage-matrix v1.48→v1.49. |
 | 2.14 | wave-a-spec-evolution-fix-burst-55c | 2026-07-26 | state-manager | (F-WASE-P64-HIGH-004) VP-160 anchor story resolved: placeholder replaced with S-WAVE-A-ENGINE-001. Anchor justified by POL-5: `is_valid_cookie_name_tchar` is authored in §Tasks T-B02 step 3 of S-WAVE-A-ENGINE-001; §Architecture Mapping places Rule 9 `validate_header_scheme` in `crates/prism-spec-engine/src/spec_parser.rs`. VP-INDEX v2.13→v2.14. |

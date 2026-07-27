@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.47"
+version: "1.48"
 status: draft
 producer: architect
 timestamp: 2026-06-12T00:00:00
@@ -302,7 +302,7 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-158 | E-DEMO-006 fires when two scenario-enabled clones share same seed but have different org_ids; build_clone_pairs returns Err containing E-DEMO-006 with both clone names and org_id values before any constructor called (VP-019-I alias) | prism-dtu-demo-server | unit_test | feasible | P1 | BC-2.06.019 PRE-6 |
 | VP-159 | DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry: zero network at construction; cold get_token → one HTTP POST + cache; warm get_token within TTL → zero HTTP POSTs; stale get_token → one HTTP POST re-acquisition; acquire_token → one HTTP POST cache bypass (BC-2.16.014 P1–P5); TTL arithmetic for both ExpiryMode variants; CachedAuthToken never stores credential values (BC-2.16.014 P7, AD-017, INV-014-003) | prism-spec-engine | integration_test | feasible | P1 | BC-2.16.014 |
 | VP-160 | Rule 9 cookie-name charset totality and injection rejection: `is_valid_cookie_name_tchar` returns true iff every byte is in the 77-character RFC 9110 §5.6.2 tchar set; semicolons, bare equals, spaces, TAB, CTL bytes, non-ASCII, and RFC 9110 delimiters are rejected (SEC-001 / ADR-053 §D2) | prism-spec-engine | kani | feasible | P0 | BC-2.16.009 |
-| VP-161 | Rule 9 error message echo cap and CTL escaping: `truncate_at_char_boundary` always returns ≤64 codepoints (CWE-400 / EC-009-047); CTL-escape function never emits raw CTL bytes (0x00–0x08, 0x0A–0x1F, 0x7F) in E-SPEC-027(a) message (CWE-117 / EC-009-048) | prism-spec-engine | kani | feasible | P0 | BC-2.16.009 |
+| VP-161 | Rule 9 error message echo cap and CTL escaping: `truncate_at_char_boundary` always returns ≤64 codepoints (CWE-400 / EC-009-047); CTL-escape function never emits raw CTL bytes (0x00–0x1F, 0x7F) in E-SPEC-027(a) message (CWE-117 / EC-009-048) | prism-spec-engine | kani | feasible | P0 | BC-2.16.009 |
 
 ## Verification Priority
 
@@ -331,6 +331,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.48 | FB64 | 2026-07-27 | architect | F-WASE-P65-HIGH-001: VP-161 row in Provable Properties Catalog corrected — CTL-escape byte domain updated from `0x00–0x08, 0x0A–0x1F, 0x7F` to `0x00–0x1F, 0x7F` (full inclusive range per BC-2.16.009 §Validation Rule 9 §CTL-character escaping). No count changes; no module/method/priority/status changes. Same-burst with VP-161 v1.1→v1.2 and VP-INDEX v2.16→v2.17. |
 | 1.47 | FB62 | 2026-07-26 | architect | (F-WASE-P64-OBS-002) VP-161 added to Provable Properties Catalog (prism-spec-engine, kani, P0, BC-2.16.009 Rule 9 — error message echo cap and CTL escaping; CWE-400 `truncate_at_char_boundary` ≤64 codepoints / CWE-117 no-raw-CTL in E-SPEC-027(a); successor to VP-160 scope note deferral; anchor S-WAVE-A-ENGINE-001 §Tasks T-B02); TIER1 K21 node added; TIER1 header 31→32 properties + VP-161 appended to list; SAFE node 160→161 / 147→148; P0 enumeration updated 110→111 (added Wave-A Rule 9 error message echo cap and CTL escaping P0: VP-161). POL-9 same-burst with VP-INDEX v2.14→v2.15 + verification-coverage-matrix v1.48→v1.49. |
 | 1.46 | fix-burst-46 | 2026-07-25 | architect | (F-WASE-P62-MED-004) VP-160 added to Provable Properties Catalog (prism-spec-engine, kani, P0, BC-2.16.009 Rule 9 — cookie-name charset totality and injection rejection; SEC-001 / ADR-053 §D2); TIER1 K20 node added; TIER1 header 30→31 properties + VP-160 appended to list; SAFE node 159→160 / 146→147; P0 enumeration updated 109→110 (added Wave-A Rule 9 charset P0: VP-160). POL-9 same-burst with VP-INDEX v2.12→v2.13 + verification-coverage-matrix v1.47→v1.48. |
 | 1.45 | D-1946 | 2026-07-22 | architect | Wave-A spec evolution burst 2 POL-9 same-burst propagation: VP-159 added to Provable Properties Catalog (prism-spec-engine, integration_test, P1, BC-2.16.014 — DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry; folds DRIFT-D849-002; source_invariant DI-012); INTEG subgraph I5 node added (Wave-A auth engine VPs); SAFE node 158→159; P1 enumeration updated 36→37 (added VP-159). POL-9 same-burst with VP-INDEX v1.82→v1.83 + verification-coverage-matrix v1.45→v1.46. |
