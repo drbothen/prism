@@ -4,8 +4,8 @@ adr_id: "ADR-056"
 title: "PageNumber Pagination Variant — Named-Page (1-Based) Grammar Extension for PaginationConfig"
 status: accepted
 date: "2026-07-26"
-modified: "2026-07-26"
-version: "0.1"
+modified: "2026-07-27"
+version: "0.2"
 producer: architect
 subsystems_affected: [SS-06, SS-07, SS-16]
 supersedes: null
@@ -28,6 +28,16 @@ input-hash: ""
 ## Status
 
 Accepted 2026-07-26, v0.1 (FB53a). Closes F-WASE-P64-CRIT-003.
+
+Amended 2026-07-27, v0.2 (FB65). Closes F-WASE-P65-HIGH-002 and F-WASE-P65-HIGH-003.
+Two corrections to v0.1: (a) §D9 scoped its `#[non_exhaustive]` claim to external crates
+only, but omitted the four in-crate exhaustive match sites within `prism-spec-engine` that
+will produce compile errors when `PageNumber` is added — all four are now enumerated in §D10.
+(b) §D3/§D5 described `page_size = 0` as a TOML-authorable value that "simply disables
+pagination" with "consistency with `OffsetLimit`" — but `validate_sensor_spec` rejects
+`OffsetLimit { page_size: 0 }` with `ESpec001` at spec-load time, so the true `OffsetLimit`
+parity is spec-load rejection, not silent acceptance. §D3, §D5, and §D10 (new) correct this
+and add the `PaginationType::Page` variant decision and the validation obligation.
 
 This is the architecture leg of the `S-WAVE-A-CYBERINT-SPEC-001` Cyberint Alerts spec
 remediation. The `PageNumber` variant is the enabling grammar that allows a TOML sensor
@@ -194,10 +204,20 @@ This ensures `build_request` receives the correct `page_size` value for body inj
 
 #### Activation gate
 
-Injection (both POST-body and GET-URL) occurs only when `page_size > 0`. When
-`page_size = 0`, the gate does not fire. This guards the `execute_step` single-request
-path, which passes `active_page_size = 0` to signal "no pagination active." The gate
-semantics are identical to `OffsetLimit`.
+`PageNumber` pagination, like `OffsetLimit`, enforces `page_size > 0` at two layers:
+
+**Spec-load layer:** `validate_sensor_spec` §Category 4 rejects `PageNumber { page_size: 0 }`
+with `SpecErrorCode::ESpec001` at spec-load time — the same rejection already applied to
+`OffsetLimit { page_size: 0 }`. A TOML author cannot declare `page_size = 0` for either
+variant. This is the correct `OffsetLimit` parity; §D5 v0.1's claim that "a `page_size = 0`
+spec simply disables pagination" was incorrect (see §D5 and §D10 corrections in this version).
+
+**Runtime sentinel:** `execute_step` (the single-request code path, distinct from the
+pagination loop in `execute_impl`) passes `active_page_size = 0` as an integer argument to
+`build_request` to signal "no pagination injection active." This `0` value is engine-internal
+only — it is never deserialized from a TOML spec and can never reach `execute_impl`'s
+`PageNumber` advance/terminate arm. The `page_size > 0` guard in `build_request` fires on
+this sentinel, correctly skipping injection on single-request steps.
 
 ### D4 — Termination Condition
 
@@ -215,6 +235,12 @@ Termination is identical to `OffsetLimit`: when the page returned fewer records 
 `page_size`, the last page has been reached and the loop exits. The advance (`offset += 1`)
 is placed after the termination check, consistent with the `OffsetLimit` advance placement.
 
+`ps` cannot be `0` here because `validate_sensor_spec` rejects `PageNumber { page_size: 0 }`
+at spec-load time (§D3 spec-load layer; §D10 validation obligation). The `page_record_count <
+ps` check where `ps = 0` would be trivially false for any non-empty page, running the loop
+to `MAX_PAGES_PER_STEP` (1,000 requests) — that runaway path is unreachable from a validated
+spec.
+
 ### D5 — POL-36 Compliance: No Sensor-Specific Bounds
 
 `PageNumber { page_size: u32 }` encodes no sensor-specific constraints.
@@ -226,10 +252,13 @@ sensor-name-conditional engine behavior, which POL-36
 (`generalization_directive_no_sensor_conditional_engine_code`, HIGH) explicitly forbids.
 
 There is no generic cross-sensor page-size bound that would be both correct and safe to
-enforce in the engine. A lower bound of `> 0` is enforced by the activation gate (D3), not
-as a validation rule — a `page_size = 0` spec simply disables pagination rather than
-producing an error. This behavior is intentional (consistency with `OffsetLimit`) and
-imposes no sensor-specific logic.
+enforce in the engine beyond `page_size > 0`. The `page_size > 0` lower bound is enforced
+at spec-load time by `validate_sensor_spec` §Category 4 (same as `OffsetLimit`): a TOML
+author declaring `page_size = 0` receives `SpecErrorCode::ESpec001`. This is the correct
+`OffsetLimit` parity — §D5 v0.1 incorrectly stated "a `page_size = 0` spec simply disables
+pagination rather than producing an error"; the actual `OffsetLimit` precedent is
+spec-load rejection, not silent acceptance. See §D3 (amended) and §D10 for the validation
+obligation. Enforcing `page_size > 0` at spec-load time imposes no sensor-specific logic.
 
 ### D6 — ADR Vehicle: New ADR-056 (Not an Amendment to ADR-028)
 
@@ -356,12 +385,69 @@ symbol occurrences in the workspace, not the number of variants within any singl
 Adding `PageNumber` to `PaginationConfig` does not add a new `#[non_exhaustive]` attribute;
 `PaginationConfig` already appears in both scripts' symbol registries.
 
-**The implementing story MUST NOT bump `EXPECTED=92` in `scripts/check-non-exhaustive.sh`
-or `EXPECTED_COUNT` in `scripts/check-non-exhaustive-per-symbol.py` for this change.**
+Adding `PaginationType::Page` (§D10) to `PaginationType` also does not add a new
+`#[non_exhaustive]` attribute; `PaginationType` already carries `#[non_exhaustive]` and
+already appears in the scripts' symbol registries.
 
-External match arms on `PaginationConfig` already require a wildcard `_ => {}` arm due to
-the pre-existing `#[non_exhaustive]` annotation. No external callsite migration is needed
-solely because this variant is added.
+**The implementing story MUST NOT bump `EXPECTED=92` in `scripts/check-non-exhaustive.sh`
+or `EXPECTED_COUNT` in `scripts/check-non-exhaustive-per-symbol.py` for either of these
+changes.**
+
+**External crates only:** Match arms on `PaginationConfig` in crates OTHER THAN
+`prism-spec-engine` already require a wildcard `_ => {}` arm due to `#[non_exhaustive]`.
+No external callsite migration is needed for those crates. However, `#[non_exhaustive]` has
+NO effect inside `prism-spec-engine` (the defining crate). There are four in-crate exhaustive
+match sites that will produce compiler errors when `PageNumber` is added — see §D10 for the
+complete enumeration and migration obligations.
+
+### D10 — `PaginationType::Page` Variant; In-Crate Exhaustive Match Migration (v0.2 addition)
+
+#### `PaginationType::Page` decision
+
+`PaginationType` (in `prism_spec_engine::types`) is the wire-visible enum carried on
+`SensorTableDescriptor.pagination_type`, consumed by LLM agents via the MCP
+`list_sensor_specs` tool. Its current variants are `Cursor`, `Offset`, `None`.
+
+`PageNumber` must NOT fold into `PaginationType::Offset`. A 1-based page-number counter
+(`PageNumber`) and a byte-range record offset (`OffsetLimit`) are semantically distinct
+pagination mechanisms. Labeling both as `Offset` would produce false information on the
+MCP wire surface for any LLM agent reasoning about how a sensor is paginated.
+
+**Decision:** add `PaginationType::Page` to `PaginationType` in `prism_spec_engine::types`.
+`sensor_table_descriptor_from_table_spec` maps `PaginationConfig::PageNumber` to
+`PaginationType::Page`.
+
+`PaginationType` already carries `#[non_exhaustive]`. External match arms on
+`PaginationType` already require a wildcard `_ => {}` arm; adding `Page` requires no
+external callsite migration. The `#[non_exhaustive]` EXPECTED gate count remains at 92
+(no new `#[non_exhaustive]` attribute is added; see §D9).
+
+#### In-crate exhaustive match sites — compile-error obligations
+
+`#[non_exhaustive]` protects crates EXTERNAL to `prism-spec-engine` only. All four
+in-crate sites below will produce compiler errors when `PaginationConfig::PageNumber`
+is added; the implementing story MUST migrate them:
+
+**Table 1 — Compile-error sites (all in `prism-spec-engine`):**
+
+| Site | Function symbol | Module path | Required change |
+|------|----------------|-------------|-----------------|
+| CE-1 | `sensor_table_descriptor_from_table_spec` | `prism_spec_engine::types` | Add `PaginationConfig::PageNumber { .. } => PaginationType::Page` arm |
+| CE-2 | `validate_sensor_spec` §Category 4 pagination block | `prism_spec_engine::validation` | Add `PaginationConfig::PageNumber { page_size }` arm rejecting `page_size == 0` with `SpecErrorCode::ESpec001` and message `"page_number pagination in step '{}' requires page_size > 0"` |
+| CE-3 | `build_paged_url_impl` | `prism_spec_engine::pipeline` | Add `Some(PaginationConfig::PageNumber { page_size })` arm per §D3 dispatch skeleton |
+| CE-4 | `execute_impl` advance/terminate block | `prism_spec_engine::pipeline` | Add `Some(PaginationConfig::PageNumber { page_size })` arm per §D4 termination rule |
+
+**Table 2 — Behavioral-migration sites (no compile error; wildcard/matches! patterns):**
+
+| Site | Function symbol | Module path | Required change |
+|------|----------------|-------------|-----------------|
+| BM-1 | `execute_impl` `active_page_size` derivation | `prism_spec_engine::pipeline` | Extend `Some(PaginationConfig::OffsetLimit { page_size: ps }) => *ps` with `\| Some(PaginationConfig::PageNumber { page_size: ps }) => *ps` per §D3 |
+| BM-2 | `build_request` POST-body injection | `prism_spec_engine::pipeline` | Add parallel `PageNumber` injection block per §D3 `build_request` specification |
+
+The adversary pass (F-WASE-P65-HIGH-002) identified CE-1 and CE-2. CE-3 and CE-4 (both in
+`prism_spec_engine::pipeline`) were additional in-crate compile-error sites not enumerated
+in ADR-056 v0.1; they are enumerated here as binding migration obligations. BM-1 and BM-2
+were already implicit in the §Consequences items in v0.1 but are now named explicitly.
 
 ---
 
@@ -402,23 +488,39 @@ hidden per-variant initialization logic.
 1. Add `PageNumber { page_size: u32 }` variant to `PaginationConfig` in `spec_parser.rs`
    with the doc comment pattern established in D1. The `#[non_exhaustive]` attribute on the
    enum already covers this variant; do not add a second attribute.
-2. Extend `build_paged_url_impl` in `pipeline.rs` with the match arm specified in D3.
-3. Extend `build_request` in `pipeline.rs` with the POST-body injection block for
-   `PageNumber` (D3), following the same structure as the `OffsetLimit` injection block.
-4. Extend the `active_page_size` derivation in `execute_impl` (D3).
-5. Extend the pagination advance/terminate block in `execute_impl` (D4).
-6. Declare `type = "page_number"` and `page_size = 100` in the Cyberint Alerts step
+2. Add `PaginationType::Page` variant to `PaginationType` in `types.rs` (§D10). No new
+   `#[non_exhaustive]` attribute needed; `PaginationType` already carries it.
+3. Extend `sensor_table_descriptor_from_table_spec` in `types.rs` with arm
+   `PaginationConfig::PageNumber { .. } => PaginationType::Page` (§D10 CE-1). This is
+   a compile-error site — failure to add this arm prevents the crate from compiling.
+4. Extend `validate_sensor_spec` §Category 4 pagination block in `validation.rs` with a
+   `PaginationConfig::PageNumber { page_size }` arm that rejects `page_size == 0` with
+   `SpecErrorCode::ESpec001` (§D3 spec-load layer; §D10 CE-2). Error message:
+   `"page_number pagination in step '{}' requires page_size > 0"`. This is a compile-error
+   site AND a behavioral requirement: without it, `page_size = 0` in TOML reaches the
+   runaway §D4 termination arm (`ps = 0` → loop to `MAX_PAGES_PER_STEP`).
+5. Extend `build_paged_url_impl` in `pipeline.rs` with the match arm specified in §D3
+   (§D10 CE-3). This is a compile-error site.
+6. Extend `build_request` in `pipeline.rs` with the POST-body injection block for
+   `PageNumber` (§D3; §D10 BM-2), following the same structure as the `OffsetLimit` block.
+7. Extend the `active_page_size` derivation in `execute_impl` (§D3; §D10 BM-1).
+8. Extend the pagination advance/terminate block in `execute_impl` (§D4; §D10 CE-4). This
+   is a compile-error site.
+9. Declare `type = "page_number"` and `page_size = 100` in the Cyberint Alerts step
    `[tables.steps.pagination]` block in `cyberint-alerts.sensor.toml`.
-7. Do NOT bump `EXPECTED=92` or `EXPECTED_COUNT` in the non-exhaustive gate scripts (D9).
-8. Tests must cover the following per SAP-3 (end-to-end from `PipelineExecutor::execute`):
-   - POST path: first request body contains `"page": 1` and `"size": 100`; second page
-     contains `"page": 2` and `"size": 100`.
-   - GET path: first request URL contains `?page=1&size=100`; second page URL contains
-     `?page=2&size=100`.
-   - Termination: a page returning fewer records than `page_size` ends the loop after
-     that page with no additional request.
-   - Non-object `body_template` with `PageNumber` POST returns `Err(SpecEngineError)`.
-   - `page_size = 0` produces no `page`/`size` injection (activation gate).
+10. Do NOT bump `EXPECTED=92` or `EXPECTED_COUNT` in the non-exhaustive gate scripts (§D9).
+11. Tests must cover the following per SAP-3 (end-to-end from `PipelineExecutor::execute`):
+    - POST path: first request body contains `"page": 1` and `"size": 100`; second page
+      contains `"page": 2` and `"size": 100`.
+    - GET path: first request URL contains `?page=1&size=100`; second page URL contains
+      `?page=2&size=100`.
+    - Termination: a page returning fewer records than `page_size` ends the loop after
+      that page with no additional request.
+    - Non-object `body_template` with `PageNumber` POST returns `Err(SpecEngineError)`.
+    - `page_size = 0` in TOML produces `SpecErrorCode::ESpec001` at spec-load time (not
+      silent unpaginated behavior and not a 1,000-page runaway).
+    - `SensorTableDescriptor.pagination_type` for a `PageNumber` table reports
+      `PaginationType::Page` (not `Offset`, not `None`).
 
 ### For the product-owner
 
@@ -437,4 +539,5 @@ must verify that `page_size` is within the sensor API's accepted range.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 0.2 | FB65 | 2026-07-27 | architect | Closes F-WASE-P65-HIGH-002 and F-WASE-P65-HIGH-003. §D3 activation gate amended: two-layer enforcement clarified (spec-load `ESpec001` rejection + engine-internal `active_page_size = 0` sentinel); false "silent-disabling" language removed. §D4 soundness note added: `ps = 0` runaway unreachable from validated spec. §D5 corrected: "consistency with `OffsetLimit`" correctly means spec-load rejection, not silent acceptance; removes false claim that `page_size = 0` spec disables pagination. §D9 scoped to external crates only; forward-references §D10 for in-crate sites. §D10 added (new): `PaginationType::Page` variant decision (agent-observable MCP semantic — must not fold into `Offset`); complete enumeration of four compile-error sites (CE-1 through CE-4) and two behavioral-migration sites (BM-1, BM-2) within `prism-spec-engine`; adversary found CE-1 and CE-2; CE-3 and CE-4 (both in `prism_spec_engine::pipeline`) were additional. §Consequences items renumbered 1–11: new items for `PaginationType::Page`, `sensor_table_descriptor_from_table_spec`, `validate_sensor_spec` spec-load rejection; test list extended with `ESpec001` and `PaginationType::Page` wire assertions. |
 | 0.1 | FB53a | 2026-07-26 | architect | Initial authoring. Ratifies `PageNumber { page_size: u32 }` grammar extension to `PaginationConfig`. Closes F-WASE-P64-CRIT-003. `wiring_deferred_to: S-WAVE-A-CYBERINT-SPEC-001` added per POL-15 false-positive escape (variant not yet in codebase; three-part Canonical Principle Rule 3 deferral recorded in §Status). |
