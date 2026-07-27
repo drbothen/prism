@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-CYBERINT-SPEC-001
 title: "Cyberint Dual-Surface Spec Migration — Delete cyberint.sensor.toml; Author cyberint-alerts and cyberint-assets; OpenAPI-Ground Alerts C2-Class Fixes; DTU Route Migration"
-version: "1.5"
+version: "1.6"
 status: draft
 producer: story-writer
 phase: 3
@@ -28,10 +28,10 @@ behavioral_contracts:
 verification_properties:
   - VP-153
 estimated_days: 3
-# BC status: BC-2.01.006 v1.8 covers Cyberint Assets surface. BC-2.01.018 v1.5 covers Cyberint
-# Alerts surface (introduced 2026-07-22; §Story Anchor resolves to this story). BC-2.16.001 and
-# BC-2.16.009 are existing contracts. BC-2.06.003 covers credential-ref rename. All BCs must
-# be reviewed at status-transition time.
+# BC status: BC-2.01.006 v1.8 covers Cyberint Assets surface. BC-2.01.018 v1.6 covers Cyberint
+# Alerts surface (introduced 2026-07-22; §Story Anchor resolves to this story; v1.6 re-grounded
+# on ADR-056 PageNumber pagination in FB66). BC-2.16.001 and BC-2.16.009 are existing contracts.
+# BC-2.06.003 covers credential-ref rename. All BCs must be reviewed at status-transition time.
 assumption_validations: []
 risk_mitigations: []
 ---
@@ -240,6 +240,9 @@ a sensor_id is updated to `"cyberint-alerts"` or `"cyberint-assets"` as appropri
 | `CyberintClone::build_router()` | `crates/prism-dtu-cyberint/src/clone.rs` | Effectful (HTTP server) | `architecture/module-decomposition.md §SS-12 DTU-Cyberint` |
 | `get_alerts()` handler | `crates/prism-dtu-cyberint/src/routes/alerts.rs` | Effectful (HTTP handler) | `architecture/module-decomposition.md §SS-12 DTU-Cyberint` |
 | `AlertListParams` | `crates/prism-dtu-cyberint/src/routes/alerts.rs` | Pure (body param struct, JSON-extracted) | `architecture/module-decomposition.md §SS-12 DTU-Cyberint` |
+| `PaginationType::Page` variant (CE-1) | `crates/prism-spec-engine/src/types.rs` | Pure (enum variant) | `architecture/module-decomposition.md §SS-07 SpecEngine` |
+| `sensor_table_descriptor_from_table_spec` (PageNumber → Page arm, CE-1) | `crates/prism-spec-engine/src/types.rs` | Pure (struct conversion) | `architecture/module-decomposition.md §SS-07 SpecEngine` |
+| `validate_sensor_spec` §Category 4 (PageNumber arm, CE-2) | `crates/prism-spec-engine/src/validation.rs` | Pure (validation) | `architecture/module-decomposition.md §SS-07 SpecEngine` |
 
 ---
 
@@ -248,11 +251,11 @@ a sensor_id is updated to `"cyberint-alerts"` or `"cyberint-assets"` as appropri
 | BC | Version | Relevance to This Story |
 |----|---------|------------------------|
 | BC-2.01.006 | v1.8 | Cyberint Assets surface — cookie auth, multi-format timestamp parsing |
-| BC-2.01.018 | v1.5 | Cyberint Alerts surface — POST method, $.alerts response path, page/size pagination |
+| BC-2.01.018 | v1.6 | Cyberint Alerts surface — POST method, $.alerts response path, page/size pagination (re-grounded on ADR-056 PageNumber in FB66; cursor pagination superseded) |
 | BC-2.06.003 | v1.12 | Credential refs resolution chain; `access_token` name change |
 | BC-2.16.001 | v1.9 | Bundled spec loading at startup — both new specs must pass validation |
 | BC-2.16.002 | v2.11 | Multi-Step Fetch Pipeline — PageNumber Pagination Dispatch postcondition (ADR-056 §D3/§D4); `PaginationConfig::PageNumber` wiring in `spec_parser.rs`, `build_paged_url_impl`, `build_request`, and `execute_impl` in `pipeline.rs` |
-| BC-2.16.009 | v1.28 | Rule 9: `cookie_roundtrip` requires `header_scheme = "cookie:<name>"` — absence path (c) must NOT trigger |
+| BC-2.16.009 | v1.29 | Rule 9: `cookie_roundtrip` requires `header_scheme = "cookie:<name>"` — absence path (c) must NOT trigger |
 
 ---
 
@@ -300,10 +303,10 @@ the only operator-visible surface change (documented in Breaking Change Notice a
   _(Asserts DTU cyberint alerts response does NOT contain old `data` key or `cursor_token` key; confirms old shape is fully replaced; EC-006 transitively covered — cursor key absent)_
 
 - [ ] **RG-007**: `test_pagination_page_number_post_body_first_page_is_page_1_size_100` — AC-004
-  _(Drives `PaginationConfig::PageNumber` with POST body mode; asserts first request body contains `page_number = 1` and `page_size = 100`; covers AC-004 first-page arm)_
+  _(Drives `PaginationConfig::PageNumber` with POST body mode; asserts first request body contains `"page": 1` and `"size": 100` as top-level JSON integer keys (ADR-056 §D3 canonical wire keys — NOT TOML declaration names `page_number`/`page_size`); covers AC-004 first-page arm)_
 
 - [ ] **RG-008**: `test_pagination_page_number_second_request_body_is_page_2_size_100` — AC-004
-  _(Drives same path on second iteration; asserts request body contains `page_number = 2`; covers AC-004 advance arm `offset += 1`)_
+  _(Drives same path on second iteration; asserts request body contains `"page": 2` and `"size": 100` as top-level JSON integer keys; covers AC-004 advance arm `offset += 1`)_
 
 - [ ] **RG-009**: `test_pagination_page_number_terminate_on_page_shorter_than_page_size` — AC-004
   _(Returns a page with fewer items than `page_size`; asserts loop terminates and all items accumulated; covers AC-004 termination arm)_
@@ -329,7 +332,13 @@ the only operator-visible surface change (documented in Breaking Change Notice a
 - [ ] **RG-016**: `test_pagination_page_number_multi_page_accumulation_equals_total` — AC-004
   _(Simulates 3-page response; asserts accumulated item count equals sum of all three pages; covers AC-004 multi-page collection accumulation arm end-to-end)_
 
-**Red Gate density check** (BC-5.38.001): **16 failing tests** before implementation begins. RG-001 covers AC-001 (delete/load); RG-002/RG-003 cover AC-002 (header_scheme both surfaces); RG-004/RG-005/RG-006 cover AC-003 (POST + `$.alerts` path, DTU shape); RG-007/RG-008/RG-009/RG-015/RG-016 cover AC-004 (pagination arms); RG-010/RG-011 cover AC-005 (credential_refs access_token); RG-012 covers AC-006 (assets skeleton); RG-013 covers AC-007 (no incidents); RG-014 covers AC-008 (no old sensor_id). RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design and wiring-exempt) that reduce the denominator.
+- [ ] **RG-017**: `test_pagination_page_number_page_size_zero_rejected_at_spec_load` — CE-2 (ADR-056 §D10)
+  _(Drives `validate_sensor_spec` (or `SpecLoader::parse`) with a step declaring `type = "page_number"` and `page_size = 0` in its `[tables.steps.pagination]` block; asserts `SpecErrorCode::ESpec001` is returned with message `"page_number pagination in step '{}' requires page_size > 0"` (ADR-056 §D10 CE-2, §D3 spec-load layer); confirms spec-load rejection occurs BEFORE any pagination loop execution, eliminating the `ps = 0` runaway path described in ADR-056 §D4 where `page_record_count < 0` is always false and the loop would run to `MAX_PAGES_PER_STEP`)_
+
+- [ ] **RG-018**: `test_sensor_table_descriptor_page_number_pagination_type_is_page_on_wire` — CE-1 wire-shape (ADR-056 §D10)
+  _(Builds or loads a sensor spec containing a step with `type = "page_number"` pagination; calls the `list_sensor_specs` MCP tool surface or directly exercises `sensor_table_descriptor_from_table_spec`; asserts the serialized JSON output for that table's descriptor contains `"pagination_type": "page"` — NOT `"offset"`, NOT `"cursor"`, NOT `null` (CLAUDE.md §Wire-shape assertion discipline: MCP-visible surfaces require at least one assertion on the serialized JSON `SensorTableDescriptor` shape, not only on the Rust `PaginationType::Page` variant; LLM agents consuming `list_sensor_specs` must receive correct pagination semantics); confirms ADR-056 §D10 CE-1 mapping `PaginationConfig::PageNumber { .. } => PaginationType::Page` is correct and wire-visible)_
+
+**Red Gate density check** (BC-5.38.001): **18 failing tests** before implementation begins. RG-001 covers AC-001 (delete/load); RG-002/RG-003 cover AC-002 (header_scheme both surfaces); RG-004/RG-005/RG-006 cover AC-003 (POST + `$.alerts` path, DTU shape); RG-007/RG-008/RG-009/RG-015/RG-016 cover AC-004 (pagination arms); RG-010/RG-011 cover AC-005 (credential_refs access_token); RG-012 covers AC-006 (assets skeleton); RG-013 covers AC-007 (no incidents); RG-014 covers AC-008 (no old sensor_id); RG-017 covers CE-2 (`page_size = 0` spec-load rejection per ADR-056 §D10); RG-018 covers CE-1 wire-shape (`PaginationType::Page` on serialized `SensorTableDescriptor` per ADR-056 §D10). RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design and wiring-exempt) that reduce the denominator.
 
 ### Implementation tasks
 
@@ -583,9 +592,11 @@ Note: the Assets OpenAPI IS present at `.factory/reference/api-specs/cyberint_as
 **Files:**
 - `crates/prism-spec-engine/src/spec_parser.rs` (MODIFY)
 - `crates/prism-spec-engine/src/pipeline.rs` (MODIFY)
+- `crates/prism-spec-engine/src/types.rs` (MODIFY — CE-1)
+- `crates/prism-spec-engine/src/validation.rs` (MODIFY — CE-2)
 
 ADR-056 designates this story (`wiring_deferred_to: S-WAVE-A-CYBERINT-SPEC-001`) as the
-implementation site. All five dispatch sites from ADR-056 §Consequences must be implemented
+implementation site. All implementation obligations from ADR-056 §D10 and §Consequences must be implemented
 in a single atomic commit together with the TOML spec from T-02:
 
 **1. `spec_parser.rs` — add `PageNumber { page_size: u32 }` to `PaginationConfig`**
@@ -645,6 +656,46 @@ Some(PaginationConfig::PageNumber { page_size }) => {
 Advance is `offset += 1` — MUST NOT be `offset += page_size`. This is a mandatory
 distinction from `OffsetLimit` (ADR-056 §D2).
 
+**6. `types.rs` — `PaginationType::Page` variant and `sensor_table_descriptor_from_table_spec` arm (ADR-056 §D10 CE-1)**
+
+Add `Page` variant to the `PaginationType` enum adjacent to `Offset` and `Cursor`:
+```
+Page,
+```
+The serde serialization for `PaginationType::Page` must produce the string `"page"` — the
+LLM agent consuming `list_sensor_specs` MCP output sees this as `"pagination_type": "page"`.
+This is a distinct semantic from `Offset` (`"offset"`) and must NOT be folded into the
+existing `Offset` variant (ADR-056 §D10 CE-1 wire-visibility rationale).
+
+Extend the `PaginationConfig` → `PaginationType` mapping in `sensor_table_descriptor_from_table_spec`
+(or its equivalent in `types.rs`):
+```
+PaginationConfig::PageNumber { .. } => PaginationType::Page,
+```
+This is a compile-error site — `PaginationConfig::PageNumber` is a new variant, so existing
+`match` arms over `PaginationConfig` that are non-exhaustive will fail to compile until this
+arm is added (CE-1).
+
+**7. `validation.rs` — `validate_sensor_spec` §Category 4 PageNumber arm (ADR-056 §D10 CE-2)**
+
+Extend `validate_sensor_spec` §Category 4 (pagination validation) with a new match arm:
+```
+PaginationConfig::PageNumber { page_size } if *page_size == 0 => {
+    return Err(SpecEngineError::InvalidSpec {
+        code: SpecErrorCode::ESpec001,
+        message: format!(
+            "page_number pagination in step '{}' requires page_size > 0",
+            step.name
+        ),
+    });
+}
+```
+This arm fires at spec-load time — before any pagination loop runs. It eliminates the
+`ps = 0` runaway path (ADR-056 §D4: when `page_size = 0`, `page_record_count < 0` is
+always false, causing the loop to run until `MAX_PAGES_PER_STEP`). This is a compile-error
+site — the `validate_sensor_spec` match over `PaginationConfig` variants (if exhaustive)
+requires the `PageNumber` arm (CE-2).
+
 **Test coverage (SAP-3 — end-to-end from `PipelineExecutor::execute`, not synthetic-AST):**
 - POST path: first request body contains `"page": 1` and `"size": 100`; second page body
   contains `"page": 2` and `"size": 100`
@@ -652,7 +703,15 @@ distinction from `OffsetLimit` (ADR-056 §D2).
 - Termination: a page returning fewer records than `page_size` ends the loop; no additional
   request is issued after the terminal page
 - Non-object `body_template` with `PageNumber` POST → `Err(SpecEngineError)` returned
-- `page_size = 0` → no `page`/`size` injection (activation gate)
+- `page_size = 0` → spec-load rejection: `validate_sensor_spec` §Category 4 returns
+  `SpecErrorCode::ESpec001` with message `"page_number pagination in step '{}' requires
+  page_size > 0"` (ADR-056 §D10 CE-2); the spec-load failure prevents the loop from
+  executing with `ps = 0`; RG-017 covers this path
+- `PaginationType::Page` wire-shape: serialized `SensorTableDescriptor.pagination_type`
+  field = `"page"` (NOT `"offset"`, NOT `"cursor"`, NOT `null`) per CLAUDE.md §Wire-shape
+  assertion discipline; at least one test must assert on the serialized JSON output of
+  `sensor_table_descriptor_from_table_spec` or the `list_sensor_specs` MCP surface (CE-1);
+  RG-018 covers this path
 
 These tests are the Red Gate tests for `PaginationConfig::PageNumber` pipeline behavior.
 They live in `crates/prism-spec-engine/tests/` or inline test modules in `src/pipeline.rs`.
@@ -677,7 +736,7 @@ They live in `crates/prism-spec-engine/tests/` or inline test modules in `src/pi
 | BC-2.16.002 §Postconditions (OffsetLimit + PageNumber dispatch rows) | ~1,500 |
 | BC-2.16.009 Rule 9 (header_scheme validation) | ~800 |
 | BC-2.06.003 (credential refs) | ~500 |
-| BC-2.01.018 v1.5 (Cyberint Alerts contract) | ~800 |
+| BC-2.01.018 v1.6 (Cyberint Alerts contract — PageNumber pagination, ADR-056 re-grounding) | ~800 |
 | `.factory/reference/api-specs/cyberint_assets_openapi_06.20.2026.json` (assets schema) | ~1,500 |
 | Running test output (nextest per-crate) | ~2,000 |
 | **Total estimate** | **~31,400** |
@@ -760,6 +819,8 @@ No new external dependencies are introduced by this story.
 |------|--------|-------|
 | `crates/prism-spec-engine/src/spec_parser.rs` | MODIFY | Task T-09; add `PageNumber { page_size: u32 }` to `PaginationConfig`; serde tag `page_number` automatic; do NOT bump non-exhaustive gate count |
 | `crates/prism-spec-engine/src/pipeline.rs` | MODIFY | Task T-09; three dispatch sites — `build_paged_url_impl` new arm, `build_request` POST injection, `execute_impl` active_page_size + advance/terminate per ADR-056 §D3/§D4 |
+| `crates/prism-spec-engine/src/types.rs` | MODIFY | Task T-09; CE-1 (ADR-056 §D10): add `PaginationType::Page` variant to `PaginationType` enum; extend `sensor_table_descriptor_from_table_spec` with `PaginationConfig::PageNumber { .. } => PaginationType::Page` arm |
+| `crates/prism-spec-engine/src/validation.rs` | MODIFY | Task T-09; CE-2 (ADR-056 §D10): extend `validate_sensor_spec` §Category 4 with `PaginationConfig::PageNumber { page_size }` arm rejecting `page_size == 0` with `SpecErrorCode::ESpec001`, message `"page_number pagination in step '{}' requires page_size > 0"` |
 | `crates/prism-sensors/specs/cyberint.sensor.toml` | DELETE | AC-001 red gate: load test fails while this file still exists with old shape after ENGINE-001 merges |
 | `crates/prism-sensors/specs/cyberint-alerts.sensor.toml` | CREATE | Task T-02; must include `header_scheme`, POST method, `$.alerts` path, `page_number` pagination, `access_token` cred ref |
 | `crates/prism-sensors/specs/cyberint-assets.sensor.toml` | CREATE | Task T-03; `header_scheme` + assets OpenAPI-grounded tables; pagination block ABSENT per GAP-ASSETS-PAG-001 — first-page-only retrieval; `total_assets` in response evidences silent truncation; comment required in TOML |
@@ -782,6 +843,7 @@ No new external dependencies are introduced by this story.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.6 | 2026-07-27 | story-writer | FB67 Obligations 1/3/4: (Ob-1) fix RG-007/RG-008 wire keys from TOML declaration names `page_number`/`page_size` to ADR-056 §D3 canonical keys `"page"`/`"size"`; (Ob-3) add RG-017/RG-018 for CE-2 (`page_size=0` spec-load ESpec001 rejection, ADR-056 §D10) and CE-1 (`PaginationType::Page` wire-shape on serialized `SensorTableDescriptor`, ADR-056 §D10); add CE-1/CE-2 rows to §Architecture Mapping; add `types.rs` and `validation.rs` to §File Structure Requirements and T-09 §Files; fix T-09 dispatch sites description from "five dispatch sites from §Consequences" to "all implementation obligations from ADR-056 §D10 and §Consequences"; add T-09 steps 6 (CE-1: `types.rs` `PaginationType::Page` + `sensor_table_descriptor_from_table_spec` arm) and 7 (CE-2: `validation.rs` `validate_sensor_spec` §Category 4 PageNumber arm with ESpec001); fix T-09 test coverage `page_size=0` bullet from "no injection (activation gate)" to spec-load ESpec001 rejection language per ADR-056 §D10 CE-2; add `PaginationType::Page` wire-shape test bullet. (Ob-4) propagate BC-2.01.018 v1.5→v1.6 and BC-2.16.009 v1.28→v1.29 in frontmatter comment, §Behavioral Contracts table, and §Token Budget. Red Gate count: 16 → 18. AC count: 8 (unchanged). |
 | 1.5 | 2026-07-27 | story-writer | FB63 CRIT-002: add BC-2.01.018 v1.5 (Cyberint Alerts contract) to frontmatter `behavioral_contracts:` (5→6 BCs); re-anchor AC-003/AC-004 Alerts-surface traces from BC-2.01.006 to BC-2.01.018; fix BC-2.01.006 pin v1.x → v1.8 (MED-003 / POL-23); update BC-2.06.003 pin v1.3 → v1.12 (POL-23); add BC-2.01.018 row to §Behavioral Contracts table with correct Alerts scope; rewrite frontmatter comment to name both surface contracts; delete discharged §Product-owner dependency gate (split already landed as BC-2.01.018 introduced 2026-07-22 in PO leg of FB63); add BC-2.01.018 v1.5 row to §Token Budget; update Token Budget total ~30,600 → ~31,400 |
 | 1.4 | 2026-07-26 | story-writer | FB61 gate-review DEFECT-1: remove fabricated RED_RATIO formula (Density = 16/8 ACs = 2.0) from §Red Gate density check; replace with orchestrator-computation note per per-story-delivery.md §Step 3.5, citing BC-5.38.002/BC-5.38.003 |
 | 1.3 | 2026-07-26 | story-writer | FB61 MED-016: add §Red Gate tests with 16 RGTs (RG-001..RG-016) and BC-5.38.001 density check; §Tasks reordered — test-authoring precedes implementation per ENGINE-001 normative pattern |

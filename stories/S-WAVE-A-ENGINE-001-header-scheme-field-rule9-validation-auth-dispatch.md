@@ -6,8 +6,8 @@ wave: wave-a
 epic_id: E-SPEC-ENGINE
 priority: P1
 status: draft
-version: "2.8"
-updated: "2026-07-26"
+version: "2.9"
+updated: "2026-07-27"
 level: "L3"
 producer: story-writer
 timestamp: "2026-07-24T00:00:00Z"
@@ -119,7 +119,7 @@ merge-dependency encoding.
 
 | BC | Title | Version | Scope in This Story |
 |----|-------|---------|---------------------|
-| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | v1.28 | Rule 9 only — `header_scheme` value validation, 3 E-SPEC-027 templates, coherence matrix (5 existing variants), absence paths A/B. Cookie name constraint: RFC 6265 tchar per SEC-001 CWE-20/CWE-74 fix (15-char set with backtick, RFC 9110 §5.6.2 order). §Entry points and function coverage sub-section asserts `add_sensor_spec` MUST reach `SpecLoader::parse()` for Rule 9 coverage on the sole active injection vector. New in v1.26: EC-009-047..EC-009-051 (overlong value echo cap CWE-400, CTL-byte `\xNN` hex escaping CWE-117, TAB in cookie name, high-byte byte-level predicate divergence probe, cookie name > 128 codepoints CWE-390). v1.27 (attribution-only): §Integration function sentence split — Rule 9 scoped to this story; Rule 10 scoped to S-ADR054-WAVE-A-001; §Traceability Stories row added S-ADR054-WAVE-A-001. v1.28 (FB56 MED-003): template (a) `≤128 codepoints` clause added to E-SPEC-027 template (a); §Invariants scoped to per-function collect-all semantics (`validate_sensor_spec` collect-all; `parse()` fail-fast boundary stated). No Rule 9 behavioral change. Rule 10 (`[auth_acquisition]`) is OUT OF SCOPE. |
+| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | v1.29 | Rule 9 only — `header_scheme` value validation, 3 E-SPEC-027 templates, coherence matrix (5 existing variants), absence paths A/B. Cookie name constraint: RFC 6265 tchar per SEC-001 CWE-20/CWE-74 fix (15-char set with backtick, RFC 9110 §5.6.2 order). §Entry points and function coverage sub-section asserts `add_sensor_spec` MUST reach `SpecLoader::parse()` for Rule 9 coverage on the sole active injection vector. New in v1.26: EC-009-047..EC-009-051 (overlong value echo cap CWE-400, CTL-byte `\xNN` hex escaping CWE-117, TAB in cookie name, high-byte byte-level predicate divergence probe, cookie name > 128 codepoints CWE-390). v1.27 (attribution-only): §Integration function sentence split — Rule 9 scoped to this story; Rule 10 scoped to S-ADR054-WAVE-A-001; §Traceability Stories row added S-ADR054-WAVE-A-001. v1.28 (FB56 MED-003): template (a) `≤128 codepoints` clause added to E-SPEC-027 template (a); §Invariants scoped to per-function collect-all semantics (`validate_sensor_spec` collect-all; `parse()` fail-fast boundary stated). No Rule 9 behavioral change. Rule 10 (`[auth_acquisition]`) is OUT OF SCOPE. |
 | BC-2.01.017 | StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection | v1.10 | P2 dispatch table: build_request() switches from auth_type-keyed to header_scheme-keyed dispatch per ADR-053 D2. INV-COOKIE-004: no Authorization header for cookie injection. |
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | v1.19 | P9 only — `get_token()` default method added to `AuthProvider` trait (default body delegates to `acquire_token()`); execute_impl and execute_step call sites change from `acquire_token()` to `get_token()`. issue_request_with_retry 401 path remains `acquire_token()`. |
 | BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | v1.15 | Rule A/B E-SPEC-012/013 Display alignment (AC-017/AC-018); foundation for VP-153 re-verification gate. |
@@ -566,7 +566,7 @@ new variants on the existing SpecEngineError enum). Bump to 95 belongs to S-ADR0
 | Artifact | Estimated Tokens | Notes |
 |----------|-----------------|-------|
 | This story file | ~10,000 | |
-| BC-2.16.009 v1.28 (Rule 9 full text incl. §Entry points sub-section + EC-009-047..051) | ~25,000 | Primary authoring source; grew in v1.24–v1.25 (tchar amendment + Entry points sub-section), v1.26 (new ECs); v1.27 attribution-only; v1.28 template (a) length clause + §Invariants scoping |
+| BC-2.16.009 v1.29 (Rule 9 full text incl. §Entry points sub-section + EC-009-047..051) | ~25,000 | Primary authoring source; grew in v1.24–v1.25 (tchar amendment + Entry points sub-section), v1.26 (new ECs); v1.27 attribution-only; v1.28 template (a) length clause + §Invariants scoping; v1.29 EC-009-049 escaped-value statement explicit |
 | BC-2.01.017 v1.10 (P2 dispatch table) | ~8,000 | Dispatch switch spec |
 | BC-2.16.014 v1.19 (P9 get_token callers) | ~18,000 | Call-site change spec |
 | BC-2.01.016 v1.15 (AuthProvider trait) | ~12,000 | |
@@ -652,10 +652,22 @@ context, deferring source-file reads to the implementation phase.
       message bytes (no log injection);
   `spec_parser.rs` inline test module; SAP-3: drives `SpecLoader::parse()` with raw TOML)
 - [ ] **RG-030**: `test_rule9_tab_in_cookie_name_e_spec_027_template_a` — extended AC-019 / EC-009-049
-  (`header_scheme = "cookie:\t"` — TAB (0x09) as sole cookie name character; asserts
-  E-SPEC-027(a) message VERBATIM; implementation-correctness probe: `char.is_whitespace()`
-  would also reject TAB (for the wrong reason), but `char.is_alphanumeric()` would NOT —
-  the byte-level `matches!` predicate correctly rejects 0x09 as a non-tchar CTL byte;
+  (`header_scheme = "cookie:\t"` — TAB (0x09) as sole cookie name character;
+  SID-2 composed-output assertions on the FULL message bytes (derived from BC-2.16.009 v1.29
+  EC-009-049 §Canonical Test Vectors — TAB (0x09) is CTL class 0x09 ≤ 0x1F, so the emitted
+  `{value}` is the eleven-character string `cookie:\x09` — `cookie:` [7 chars] + four-char
+  ASCII sequence `\x09` [4 chars] — NOT a raw TAB byte; same CTL-escape rule as EC-009-048
+  which emits `cookie:a\x0Ab` for LF):
+  (a) `assert!(spec_err.message.contains("cookie:\\x09"))` — the full `header_scheme` value
+      `"cookie:\t"` after CTL-escaping produces `cookie:\x09` embedded in the message; the
+      literal four-char ASCII sequence backslash-x-0-9 must be present in the message;
+  (b) `assert!(!spec_err.message.as_bytes().contains(&0x09))` — raw TAB byte (0x09) absent
+      from message bytes, confirming no log injection;
+  implementation-correctness probe: `char.is_whitespace()` would also reject TAB (for the
+  wrong reason), but `char.is_alphanumeric()` would NOT reject it; only the byte-level
+  `matches!` predicate correctly rejects 0x09 as a non-tchar CTL byte AND triggers the
+  CTL-escape obligation; SP (0x20) is also non-tchar but 0x20 > 0x1F so it is NOT escaped
+  — TAB is the boundary case that exercises both rejection AND escaping independently;
   `spec_parser.rs` inline test module; SAP-3: drives `SpecLoader::parse()` with raw TOML;
   DEFENSE-IN-DEPTH note: NOT applicable here — TAB is reachable via the parser surface and
   must be rejected by Rule 9; this is a primary coverage test, not a defense-in-depth test)
@@ -734,7 +746,7 @@ All non-trivial function bodies use `todo!()` stubs.
   `SpecErrorCode` is `#[non_exhaustive]`; adding one variant is additive — no semver break,
   no `EXPECTED=92` gate bump (EXPECTED counts pub struct types, not enum variants):
   ```rust
-  /// E-SPEC-027: `header_scheme` field validation failure (Rule 9, BC-2.16.009 v1.28).
+  /// E-SPEC-027: `header_scheme` field validation failure (Rule 9, BC-2.16.009 v1.29).
   /// Three templates: (a) syntactically invalid value (not bearer/raw/cookie:<tchar-name>);
   /// (b) coherence violation with auth_type; (c) absent header_scheme when
   /// auth_type = "cookie_roundtrip" (absence path B).
@@ -1321,6 +1333,7 @@ Rows explicitly NOT in scope for this story (belong to S-ADR054-WAVE-A-001):
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| 2.9 | 2026-07-27 | FB67 Obligation 2 (F-WASE-P65-MED-005 story-writer half): fix RG-030 — add SID-2 composed-output assertions specifying the escaped TAB form. TAB (0x09) is CTL class 0x09 ≤ 0x1F; the emitted `{value}` is the eleven-character string `cookie:\x09` per BC-2.16.009 v1.29 EC-009-049 §Canonical Test Vectors; two assertions added: (a) `spec_err.message.contains("cookie:\\x09")` — four-char ASCII backslash-x-0-9 present; (b) `!spec_err.message.as_bytes().contains(&0x09)` — raw TAB byte absent. Obligation 4: BC-2.16.009 pin v1.28 → v1.29 in §Behavioral Contracts table, §Token Budget, and T-A01 §ESpec027 doc-comment (POL-25 sweep: doc comment inside code block also carried stale v1.28 cite). AC count: 27 (unchanged). RGT count: 39 (unchanged). |
 | 2.8 | 2026-07-27 | FB63 MED-004: fix §Behavioral Contracts Title column to verbatim BC H1 titles — BC-2.16.009: "Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation"; BC-2.01.017: "StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection"; BC-2.01.016: "SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker)"; BC-2.16.014 "Declarative Auth Acquisition Token Lifecycle" already matched exactly. |
 | 2.7 | 2026-07-26 | FB57 story-writer leg — closes six F-WASE-P64-MED findings (MED-002, MED-003 propagation, MED-004 follow-on, MED-007, MED-010, MED-017), all targeting this story. FIX-1 MED-002: EC-009-047 ellipsis marker "excess replaced with `…`" struck; replaced with plain-truncation description via `truncate_at_char_boundary` (no appended marker; POL-24 byte-identity preserved). FIX-2 MED-003 propagation: E-SPEC-027 template (a) string updated across ALL live sites to new form — "non-empty name required" → "non-empty name, ≤128 codepoints" per FB56 product-owner fix; error-taxonomy pin v2.69 → v2.70 at all live sites; BC-2.16.009 pin v1.27 → v1.28 at all live sites. FIX-3 MED-004 follow-on: Removed unilateral Q2 VP-059 assertion "Rule 9 is fail-fast in parse() following the Rule 8 precedent" from T-B02; replaced with cite to BC-2.16.009 §Invariants as the contract authority; added AC-026 (fail-fast boundary observable consequence: spec with Rule 9 violation + `[auth_acquisition]` block → exactly ONE ESpec027 error from `SpecLoader::parse()`; forward-compatible with S-ADR054-WAVE-A-001) + RG-031. FIX-4 MED-007: AC count reconciled 26 → 27 and RGT count 30 → 39 at all live sites (frontmatter TDD-coverage comment, §Red Gate density check heading and explanation). FIX-5 MED-010: CYBERINT-SPEC-001 `blocks:` inline comment and anchor justification corrected — removed stale "stories must co-land" claim and ambiguous "or vice versa"; correct description is implementation-ordering dependency only (CYBERINT-SPEC-001 §Scheduling Note explicitly disclaims co-land); boot-hazard handled atomically by CYBERINT-PATCH-001; updated MERGE-GATE-CYBERINT, §Co-land constraint, §Dependency Graph Edges, Files NOT to MODIFY, and risk note to match. FIX-6 MED-017: Added nine Red Gate tests — RG-031 (AC-026 fail-fast boundary); RG-032 (EC-001 empty string), RG-033 (EC-002 BEARER uppercase), RG-034 (EC-004 leading space), RG-035 (EC-007 cookie+bearer_static coherence), RG-036 (EC-010 cookie+oauth2 coherence), RG-037 (EC-014 / AC-001 oauth2 absence path A), RG-038 (AC-001 api_key absence path A), RG-039 (AC-001 custom_via_plugin absence path A); extended AC-001 text to explicitly name all four non-cookie auth_types and map each to its covering RGT. AC COUNT: 26 → 27. RGT COUNT: 30 → 39. |
 | 2.6 | 2026-07-26 | FB55c story-writer leg — closes F-WASE-P64-HIGH-004 (story-owned half). Added VP-160 to `verification_properties:` frontmatter array; added POL-5 anchor justification comment: §Tasks T-B02 step 3 authors `is_valid_cookie_name_tchar` (VP-160's proof target symbol) and §Architecture Mapping assigns `SpecLoader::validate_header_scheme` (Rule 9) to `crates/prism-spec-engine/src/spec_parser.rs`. Added VP-160 row to §Token Budget Estimate table; total updated ~201,000 → ~209,000. No AC changes, no Red Gate test changes. AC COUNT: 26 (unchanged). RGT COUNT: 30 (unchanged). |
