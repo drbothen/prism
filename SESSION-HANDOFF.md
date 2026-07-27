@@ -124,13 +124,96 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2051 (LOCAL pass-66 NOT CLEAN; 16 findings; TREND-POL29-SIBLING-SWEEP-001 registered; PENDING item (h); BC-5.39.001 streak 0/3; NEXT = fix-burst cascade).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2051 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2051 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged ci.yml/e2e.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2051 pass-66 report HEAD after push). STATE v8.599. D-2051 LOCAL pass-66 NOT CLEAN; 16 findings; TREND-POL29-SIBLING-SWEEP-001; PENDING item (h); NEXT = fix-burst cascade.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2052 (POL-29 structural intervention APPLIED; F-WASE-P66-PROCESS-GAP-001 CLOSED; 15 pass-66 findings open; BC-5.39.001 streak 0/3; NEXT = fix-burst cascade — product-owner CRIT-001 first).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2052 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2052 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged ci.yml/e2e.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2052 intervention HEAD after push). STATE v8.600. D-2052 POL-29 structural intervention APPLIED; 15 pass-66 findings open; TREND-POL29-SIBLING-SWEEP-001 APPLIED; GAP-POL25-COMPANION-AMENDMENT-001 registered; NEXT = fix-burst cascade.
 
 ---
 
-## §RESUME SNAPSHOT — D-2051 (2026-07-27 — LOCAL pass-66 NOT CLEAN; 16 findings; TREND-POL29-SIBLING-SWEEP-001 registered; PENDING item (h); BC-5.39.001 streak 0/3; STATE v8.599) [SUPERSEDES D-2050]
+## §RESUME SNAPSHOT — D-2052 (2026-07-27 — POL-29 structural intervention APPLIED; F-WASE-P66-PROCESS-GAP-001 CLOSED; 15 pass-66 findings open; BC-5.39.001 streak 0/3; STATE v8.600) [SUPERSEDES D-2051]
+
+### RESUME IN ONE BREATH
+Wave-A spec-evolution cascade — D-2052 POL-29 structural intervention APPLIED. policies.yaml v1.38→v1.39: 3 named dimensions added (9a Named-twin, 9b Downstream-copy, 9c Mandate-anchor); verification_steps 20→23; TD-VSDD-097 codified in CLAUDE.md. F-WASE-P66-PROCESS-GAP-001 CLOSED (SAP-2 §Rule 2 corrected). GAP-POL25-COMPANION-AMENDMENT-001 registered (Drift Item; spec-steward). TREND-POL29-SIBLING-SWEEP-001 → APPLIED. BC-5.39.001 streak 0/3; frozen HEAD for pass-67 = new factory-artifacts HEAD after D-2052 commit (push resets streak per DRIFT-ORCH-PRLEVEL-PUSH-001).
+NEXT: fix-burst cascade — product-owner first (CRIT-001: BC-2.01.006 cursor mandate + BC-2.01.018 false cross-reference; named-twin sweep dimension 9a applies).
+
+### PASS-66 OPEN FINDINGS LEDGER (post-D-2052 — 15 remaining)
+LOCAL pass-66 — NOT CLEAN. Streak 0/3. Frozen HEAD `7426696b3`.
+CRIT: F-WASE-P66-CRIT-001 → product-owner.
+HIGH: F-WASE-P66-HIGH-001 → architect+story-writer. F-WASE-P66-HIGH-002 → story-writer+product-owner+state-manager. F-WASE-P66-HIGH-003 → story-writer+product-owner. F-WASE-P66-HIGH-004 → story-writer+product-owner. F-WASE-P66-HIGH-005 → story-writer+product-owner+state-manager.
+MED: F-WASE-P66-MED-001 → architect+product-owner. F-WASE-P66-MED-002 → architect+story-writer. F-WASE-P66-MED-003 → architect. F-WASE-P66-MED-004 → orchestrator adjudication.
+LOW: F-WASE-P66-LOW-001 → architect. F-WASE-P66-LOW-002 → story-writer. F-WASE-P66-LOW-003 → architect+state-manager.
+~~PROCESS-GAP: F-WASE-P66-PROCESS-GAP-001~~ **CLOSED D-2052** (CLAUDE.md SAP-2 §Rule 2 corrected — human-mandated direct edit).
+OBS: F-WASE-P66-OBS-001 → product-owner. F-WASE-P66-OBS-002 → product-owner.
+
+### HEADS (verified 2026-07-27 D-2052)
+- origin/develop: `7fef57da` — PUSHED. LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001, do NOT auto-FF; blocked by unstaged ci.yml/e2e.yml residue in main worktree).
+- factory-artifacts: run `git -C .factory log -1 --format='%H'` (D-2052 intervention HEAD after push).
+- Main worktree: docs/claude-md-file-size-convention @`e3f9636dd` — PUSHED; PR #230 OPEN (Fuzz smoke — DRIFT-CI-FUZZ-NIGHTLY-ICE-001; nightly-2026-07-27 window arrived — verifiable by devops-engineer).
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5b` — PUSHED; PR #229 OPEN MERGEABLE.
+- `.worktrees/S-3.09` @`43c41389d` — KEEP-PARKED LOCAL-ONLY (AT RISK).
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` — PARKED-DIRTY do-NOT-touch LOCAL-ONLY (AT RISK).
+- verify-sha-currency.sh: PASS (2 pre-existing WARNs — python3+yaml unavailable; in-progress-voice remnant, long-standing). No background agents in flight. BC-5.39.001 streak 0/3.
+
+### WORKTREE INVENTORY
+| Worktree | HEAD | Status |
+|---|---|---|
+| main (docs/claude-md-file-size-convention) | @`e3f9636dd` | PUSHED; PR #230 OPEN (Fuzz smoke) |
+| .worktrees/fix-demosetup-cwd | @`ec4379b5b` | PUSHED; PR #229 OPEN MERGEABLE |
+| .worktrees/S-3.09 | @`43c41389d` | KEEP-PARKED LOCAL-ONLY (AT RISK) |
+| .worktrees/W3-FIX-S307-001 | @`fcab8717c` | PARKED-DIRTY do-NOT-touch LOCAL-ONLY (AT RISK) |
+
+### WORKSTREAM NEXT-ACTIONS
+
+**Wave-A spec-evolution cascade (PRIMARY — streak 0/3; frozen HEAD `7426696b3`):**
+
+15 OPEN findings from LOCAL pass-66 (see ledger above). Fix-burst cascade required before pass-67. First burst: product-owner — CRIT-001 (BC-2.01.006 cursor mandate + BC-2.01.018 false xref; apply dimension 9a named-twin sweep).
+
+**Code lane (BLOCKED — awaiting spec-evolution cascade convergence):**
+S-WAVE-A-CYBERINT-PATCH-001 must co-land with S-WAVE-A-ENGINE-001. No orchestrator action until cascade clears.
+
+**PR #229** (fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` PUSHED, MERGEABLE): awaiting human merge decision.
+
+**PR #230** (docs/claude-md-file-size-convention @`e3f9636dd` PUSHED, PR OPEN, Fuzz smoke): DRIFT-CI-FUZZ-NIGHTLY-ICE-001 — nightly-2026-07-27 window arrived; verifiable by devops-engineer.
+
+### PENDING USER-APPROVED WORK — do not start
+- (a) scripts/records-lint.sh fixes: GATE-L1L7-RATCHET-WORKTREE-001 and GATE-L1-VPREFIX-BLIND-002 — code change on PR #230 branch; awaiting human.
+- (b) GAP-ASSETS-PAG-001 — new PaginationConfig variant for server-controlled page size; awaiting explicit human authorization.
+- (c) Follow-up story for GAP-ASSETS-PAG-001 — not yet created; awaiting human authorization.
+- (d) STORY-INDEX mixed-prefix normalization — ordering-dependent on GATE-L1-VPREFIX-BLIND-002 fix; do not resolve blind.
+- (e) Corpus records debt (39 L1 + 86 L7 across 43 files) — pre-existing, TD-VSDD-096 candidate; NOT in cascade scope.
+- (f) ~~SAP-2 type-mapping rule amendment in CLAUDE.md~~ DISCHARGED D-2049 — human committed CLAUDE.md amendment (SAC-1/SAC-2 added, SAP-2 rule 5 amended).
+- (g) ~~CLAUDE.md codification of RG-list and anchor_stories conventions~~ DISCHARGED D-2049 — same human commit.
+- ~~DRIFT-VP-MODIFIED-CORPUS-001~~ CLEARED D-2050/FB68e — spec-steward corrected 53 VP files; VP-INDEX v2.20→v2.21.
+- ~~FB69 obligation — S-WAVE-A-ARMIS-ACTIVITY-001 story creation~~ DISCHARGED D-2050/FB69 — story-writer created v1.0 (draft; BLOCKED on architect).
+- ~~(h) CLAUDE.md SAP-2 §Rule 2 correction~~ **DISCHARGED D-2052** — orchestrator corrected SAP-2 §Rule 2 to cite `cyberint.sensor.toml` as live exemplar; closes F-WASE-P66-PROCESS-GAP-001.
+- GAP-POL25-COMPANION-AMENDMENT-001 — POL-25 §verification_steps step 2 missing Named-twin (9a) and downstream-copy-target (9b) blind-spot closures; routing: spec-steward; do NOT schedule without orchestrator dispatch.
+
+### ORCHESTRATOR RULINGS (carried from D-2043 + D-2050 + D-2052)
+- GATE-REVIEW SELF-OBSERVATION: gate review must include value-domain cross-check against governing BC, not only symbol existence (D-2043 lesson; pass-65 HIGH-001 example).
+- SAP-2 headline lesson: struct-level parity is NOT wire-level parity; must read emission handler routes/*.rs to verify JSON shape serialized over wire.
+- CONVENTION NOTE (from FB59 D-2039, carried forward): .expect()-on-Option on production MCP path is a scrutiny target.
+- PROCESS-GAP LESSON (D-2050): adversary findings citing specific artifact filenames and column lists must be ground-truth-verified before routing.
+- TREND-POL29-SIBLING-SWEEP-001 (D-2051/D-2052): APPLIED — structural intervention complete (POL-29 v1.39 + TD-VSDD-097). Every fix-burst dispatch MUST include all three dimension clauses; adversary independently verifies each per-dimension verdict.
+
+### PROCESS INTERVENTION RULE (human-directed — still binding)
+Small single-concern fix bursts only. Each fix burst must address ONE named spec-content target. GAP-ASSETS-PAG-001: do NOT schedule without explicit human authorization.
+
+### GATE COVERAGE REMINDER (D-2031..D-2052)
+records-lint --full-scan L1/L7 have never examined .factory/ artifacts in ratchet mode (GATE-L1L7-RATCHET-WORKTREE-001). A zero exit code from records-lint covers L9 and the cross-document index check only, not L1/L7 for .factory/ files. Nine confirmed gate-blind-spot instances (D-2049): (i) ratchet mode blind to frontmatter bump in unstaged file; (ii) cross-document index gate cannot parse draft v1.0-style status cells; (iii) check L1 has no Changelog table to compare STATE.md version: against; (iv) cross-document index gate cannot parse prose-embedded BC-INDEX pins; (v) GATE-L1L7-RATCHET-WORKTREE-001 — L1/L7 inoperative in ratchet mode for .factory/ worktree; (vi) GATE-L1-VPREFIX-BLIND-002 — changelog extractor anchors on digit; v-prefixed rows skipped; (vii) GATE-XDOC-UNCOMMITTED-ARTIFACT-003 — index check compares working-tree artifact versions, NOT committed HEAD; (viii) GATE-XDOC-PROSE-PIN-ARCHINDEX-004 — prose-embedded ARCH-INDEX §Document Map version pin evades structural checks; (ix) GATE-PERIMETER-PROSE-PIN-005 [D-2048/FB67] — SPEC PERIMETER story version pins prose-embedded, never validated by any automated gate. Transferable lesson: "0 mismatches" is a statement about gate reach, not corpus correctness. Hand-verify SPEC PERIMETER story pins against story-file frontmatter at each state-manager burst.
+
+### SPEC PERIMETER (post-FB68e+FB69/D-2050 — UNCHANGED by D-2051/D-2052 record-only bursts)
+BC-2.16.009 v1.29 / ADR-053 v0.37 / error-taxonomy v2.70 / S-WAVE-A-ENGINE-001 v2.9 (27 ACs / 39 RGTs) / BC-2.16.008 v1.6 / BC-2.16.014 v1.19 / VP-159 v1.27 / ADR-054 v0.56 / BC-2.01.018 v1.6 / BC-2.01.008 v1.8 / BC-2.01.006 v1.8 / BC-2.02.004 v1.11 / BC-2.02.006 v1.7 / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28 / VP-160 v1.3 / VP-161 v1.3 / verification-architecture v1.48 / ADR-051 v1.6 / ADR-052 v1.17 / ADR-055 v1.2 (accepted) / ADR-056 v0.2 (accepted) / BC-2.16.002 v2.11. Stories: S-WAVE-A-ENGINE-001 v2.9; S-WAVE-A-MCP-001 v1.4; S-WAVE-A-CYBERINT-PATCH-001 v1.4; S-WAVE-A-ARMIS-REMEDIATION-001 v1.4; S-ADR054-WAVE-A-001 v1.5; S-ADR055-WAVE-A-001 v1.3; S-WAVE-A-CYBERINT-SPEC-001 v1.7 (10 ACs / 20 RGTs); S-WAVE-A-ARMIS-ACTIVITY-001 v1.0 (draft; BLOCKED on architect); S-MAINT-RG-LIST-GATE-001 v0.1 (draft); S-MAINT-ADR-ANCHOR-GATE-001 v0.1 (draft). Indexes: BC-INDEX v8.79 / VP-INDEX v2.21 / ARCH-INDEX v2.286 / STORY-INDEX v2.744 (total_stories 266).
+
+### DECISION-LOG DELTA (this burst — D-2052)
+D-2052 (state-manager POL-29 structural intervention burst): STATE v8.599→v8.600. RESUME SNAPSHOT D-2052 authored; D-2051 superseded. policies.yaml v1.38→v1.39. F-WASE-P66-PROCESS-GAP-001 CLOSED. GAP-POL25-COMPANION-AMENDMENT-001 registered (Drift Item). TREND-POL29-SIBLING-SWEEP-001 → APPLIED. Pass-66 remaining open: 15 findings. No canonical count changes (bc_index_version, vp_index_version, arch_index_version, story_index_version, total_stories, vp_count, active_contracts, draft_contracts ALL UNCHANGED). Spec perimeter version pins UNCHANGED.
+
+### BACKUP BOUNDARY (D-2052)
+- PUSHED: factory-artifacts (D-2052 intervention HEAD after push — run `git -C .factory log -1 --format='%H'` for SHA); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); docs/claude-md-file-size-convention @`e3f9636dd` (PR #230 OPEN); origin/develop @`7fef57da`.
+- LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty).
+
+---
+
+## §RESUME SNAPSHOT — D-2051 (2026-07-27 — LOCAL pass-66 NOT CLEAN; 16 findings; TREND-POL29-SIBLING-SWEEP-001 registered; PENDING item (h); BC-5.39.001 streak 0/3; STATE v8.599) [SUPERSEDES D-2050] [SUPERSEDED by D-2052]
 
 ### RESUME IN ONE BREATH
 Wave-A spec-evolution cascade — LOCAL pass-66 COMPLETE. NOT CLEAN (strict/PR-merge). 16 findings: 1 CRIT / 5 HIGH / 4 MED / 3 LOW / 1 PROCESS-GAP / 2 OBS. Key: CRIT-001 (BC-2.01.006 cursor pagination mandate contradicted by Cyberint Assets OpenAPI — sibling BC-2.01.018 §Related BCs propagated false cross-reference in same burst); HIGH-001 (ADR-056 §D10 `"page"` wire literal undeliverable from PaginationType serde); HIGH-002 (BC-2.02.006 §TOML Contract 6-column MUST with zero story anchors); HIGH-003 (BC-2.02.004 §TOML Contract mandate targets a file T-01 deletes; T-02 carry-over omits it); HIGH-004 (armis device_cves_first NULL on static path — SAP-2 §Rule 6); HIGH-005 (phantom `${variable.*}` in active BC; real namespace is `${step_name.field}`). TREND-POL29-SIBLING-SWEEP-001 registered (3-recurrence within-burst sibling-sweep pattern; structural intervention required). PENDING item (h): CLAUDE.md SAP-2 §Rule 2 correction — human gate. BC-5.39.001 streak 0/3; frozen HEAD `7426696b3`.
@@ -153,58 +236,6 @@ OBS: F-WASE-P66-OBS-001 → product-owner. F-WASE-P66-OBS-002 → product-owner.
 - `.worktrees/S-3.09` @`43c41389d` — KEEP-PARKED LOCAL-ONLY (AT RISK).
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` — PARKED-DIRTY do-NOT-touch LOCAL-ONLY (AT RISK).
 - verify-sha-currency.sh: PASS (2 pre-existing WARNs — python3+yaml unavailable; in-progress-voice remnant, long-standing). No background agents in flight. BC-5.39.001 streak 0/3.
-
-### WORKTREE INVENTORY
-| Worktree | HEAD | Status |
-|---|---|---|
-| main (docs/claude-md-file-size-convention) | @`e3f9636dd` | PUSHED; PR #230 OPEN (Fuzz smoke) |
-| .worktrees/fix-demosetup-cwd | @`ec4379b5b` | PUSHED; PR #229 OPEN MERGEABLE |
-| .worktrees/S-3.09 | @`43c41389d` | KEEP-PARKED LOCAL-ONLY (AT RISK) |
-| .worktrees/W3-FIX-S307-001 | @`fcab8717c` | PARKED-DIRTY do-NOT-touch LOCAL-ONLY (AT RISK) |
-
-### WORKSTREAM NEXT-ACTIONS
-
-**Wave-A spec-evolution cascade (PRIMARY — streak 0/3; frozen HEAD `7426696b3`):**
-
-16 OPEN findings from LOCAL pass-66 (see ledger above). Fix-burst cascade required before pass-67.
-
-**Code lane (BLOCKED — awaiting spec-evolution cascade convergence):**
-S-WAVE-A-CYBERINT-PATCH-001 must co-land with S-WAVE-A-ENGINE-001. No orchestrator action until cascade clears.
-
-**PR #229** (fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` PUSHED, MERGEABLE): awaiting human merge decision.
-
-**PR #230** (docs/claude-md-file-size-convention @`e3f9636dd` PUSHED, PR OPEN, Fuzz smoke): DRIFT-CI-FUZZ-NIGHTLY-ICE-001 — nightly-2026-07-27 window arrived; verifiable by devops-engineer.
-
-### PENDING USER-APPROVED WORK — do not start
-- (a) scripts/records-lint.sh fixes: GATE-L1L7-RATCHET-WORKTREE-001 and GATE-L1-VPREFIX-BLIND-002 — code change on PR #230 branch; awaiting human.
-- (b) GAP-ASSETS-PAG-001 — new PaginationConfig variant for server-controlled page size; awaiting explicit human authorization.
-- (c) Follow-up story for GAP-ASSETS-PAG-001 — not yet created; awaiting human authorization.
-- (d) STORY-INDEX mixed-prefix normalization — ordering-dependent on GATE-L1-VPREFIX-BLIND-002 fix; do not resolve blind.
-- (e) Corpus records debt (39 L1 + 86 L7 across 43 files) — pre-existing, TD-VSDD-096 candidate; NOT in cascade scope.
-- (f) ~~SAP-2 type-mapping rule amendment in CLAUDE.md~~ DISCHARGED D-2049 — human committed CLAUDE.md amendment (SAC-1/SAC-2 added, SAP-2 rule 5 amended). CLAUDE.md is human-owned; state-manager does NOT edit it.
-- (g) ~~CLAUDE.md codification of RG-list and anchor_stories conventions~~ DISCHARGED D-2049 — same human commit.
-- ~~DRIFT-VP-MODIFIED-CORPUS-001~~ CLEARED D-2050/FB68e — spec-steward corrected 53 VP files; VP-INDEX v2.20→v2.21.
-- ~~FB69 obligation — S-WAVE-A-ARMIS-ACTIVITY-001 story creation~~ DISCHARGED D-2050/FB69 — story-writer created v1.0 (draft; BLOCKED on architect).
-- (h) CLAUDE.md SAP-2 §Rule 2 correction — cite `cyberint.sensor.toml` as live exemplar; note `cyberint-alerts.sensor.toml` as post-migration successor. Human gate. Orchestrator-authored defect (F-WASE-P66-PROCESS-GAP-001). Do NOT edit CLAUDE.md — human-owned per §Pipeline Authority.
-
-### ORCHESTRATOR RULINGS (carried from D-2043 + D-2050 + D-2051)
-- GATE-REVIEW SELF-OBSERVATION: gate review must include value-domain cross-check against governing BC, not only symbol existence (D-2043 lesson; pass-65 HIGH-001 example).
-- SAP-2 headline lesson: struct-level parity is NOT wire-level parity; must read emission handler routes/*.rs to verify JSON shape serialized over wire.
-- CONVENTION NOTE (from FB59 D-2039, carried forward): .expect()-on-Option on production MCP path is a scrutiny target.
-- PROCESS-GAP LESSON (D-2050): adversary findings citing specific artifact filenames and column lists must be ground-truth-verified before routing.
-- TREND-POL29-SIBLING-SWEEP-001 (D-2051): 3 confirmed recurrences of within-burst sibling-sweep failure in Wave-A perimeter; structural intervention (S-7.02-class) required before next fix-burst.
-
-### PROCESS INTERVENTION RULE (human-directed — still binding)
-Small single-concern fix bursts only. Each fix burst must address ONE named spec-content target. GAP-ASSETS-PAG-001: do NOT schedule without explicit human authorization.
-
-### GATE COVERAGE REMINDER (D-2031..D-2051)
-records-lint --full-scan L1/L7 have never examined .factory/ artifacts in ratchet mode (GATE-L1L7-RATCHET-WORKTREE-001). A zero exit code from records-lint covers L9 and the cross-document index check only, not L1/L7 for .factory/ files. Nine confirmed gate-blind-spot instances (D-2049): (i) ratchet mode blind to frontmatter bump in unstaged file; (ii) cross-document index gate cannot parse draft v1.0-style status cells; (iii) check L1 has no Changelog table to compare STATE.md version: against; (iv) cross-document index gate cannot parse prose-embedded BC-INDEX pins; (v) GATE-L1L7-RATCHET-WORKTREE-001 — L1/L7 inoperative in ratchet mode for .factory/ worktree; (vi) GATE-L1-VPREFIX-BLIND-002 — changelog extractor anchors on digit; v-prefixed rows skipped; (vii) GATE-XDOC-UNCOMMITTED-ARTIFACT-003 — index check compares working-tree artifact versions, NOT committed HEAD; (viii) GATE-XDOC-PROSE-PIN-ARCHINDEX-004 — prose-embedded ARCH-INDEX §Document Map version pin evades structural checks; (ix) GATE-PERIMETER-PROSE-PIN-005 [D-2048/FB67] — SPEC PERIMETER story version pins prose-embedded, never validated by any automated gate. Transferable lesson: "0 mismatches" is a statement about gate reach, not corpus correctness. Hand-verify SPEC PERIMETER story pins against story-file frontmatter at each state-manager burst.
-
-### SPEC PERIMETER (post-FB68e+FB69/D-2050 — UNCHANGED by D-2051 report-only burst)
-BC-2.16.009 v1.29 / ADR-053 v0.37 / error-taxonomy v2.70 / S-WAVE-A-ENGINE-001 v2.9 (27 ACs / 39 RGTs) / BC-2.16.008 v1.6 / BC-2.16.014 v1.19 / VP-159 v1.27 / ADR-054 v0.56 / BC-2.01.018 v1.6 / BC-2.01.008 v1.8 / BC-2.01.006 v1.8 / BC-2.02.004 v1.11 / BC-2.02.006 v1.7 / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28 / VP-160 v1.3 / VP-161 v1.3 / verification-architecture v1.48 / ADR-051 v1.6 / ADR-052 v1.17 / ADR-055 v1.2 (accepted) / ADR-056 v0.2 (accepted) / BC-2.16.002 v2.11. Stories: S-WAVE-A-ENGINE-001 v2.9; S-WAVE-A-MCP-001 v1.4; S-WAVE-A-CYBERINT-PATCH-001 v1.4; S-WAVE-A-ARMIS-REMEDIATION-001 v1.4; S-ADR054-WAVE-A-001 v1.5; S-ADR055-WAVE-A-001 v1.3; S-WAVE-A-CYBERINT-SPEC-001 v1.7 (10 ACs / 20 RGTs); S-WAVE-A-ARMIS-ACTIVITY-001 v1.0 (draft; BLOCKED on architect); S-MAINT-RG-LIST-GATE-001 v0.1 (draft); S-MAINT-ADR-ANCHOR-GATE-001 v0.1 (draft). Indexes: BC-INDEX v8.79 / VP-INDEX v2.21 / ARCH-INDEX v2.286 / STORY-INDEX v2.744 (total_stories 266).
-
-### DECISION-LOG DELTA (this burst — D-2051)
-D-2051 (state-manager pass-66 report burst): STATE v8.598→v8.599. RESUME SNAPSHOT D-2051 authored; D-2050 superseded. LOCAL pass-66 NOT CLEAN — 16 findings (1 CRIT / 5 HIGH / 4 MED / 3 LOW / 1 PROCESS-GAP / 2 OBS). TREND-POL29-SIBLING-SWEEP-001 registered in Drift Items (3 confirmed recurrences). PENDING item (h) added: CLAUDE.md SAP-2 §Rule 2 correction (human gate). BC-5.39.001 streak 0/3; frozen HEAD `7426696b3`. No canonical count changes; spec perimeter version pins UNCHANGED.
 
 ### BACKUP BOUNDARY (D-2051)
 - PUSHED: factory-artifacts (D-2051 pass-66 report HEAD after push — run `git -C .factory log -1 --format='%H'` for SHA); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); docs/claude-md-file-size-convention @`e3f9636dd` (PR #230 OPEN); origin/develop @`7fef57da`.

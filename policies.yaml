@@ -23,12 +23,17 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 document_type: governance-policy-registry
-version: "1.38"
-last_amended: 2026-07-25
+version: "1.39"
+last_amended: 2026-07-27
 
 metadata:
-  version: "1.38"
+  version: "1.39"
   changelog:
+    - version: "1.39"
+      date: 2026-07-27
+      burst: LOCAL-pass-66-pol29-three-dimension-amendment
+      findings: [LOCAL-pass-66-CRIT-001, LOCAL-pass-66-HIGH-002, LOCAL-pass-66-HIGH-003, LOCAL-pass-66-MED-001]
+      change: "v1.38 → v1.39 2026-07-27 — POL-29 amended with three structural sweep dimensions (named-twin, downstream-copy, mandate-anchor). Three consecutive sibling-sweep failures in LOCAL pass-66 at a single perimeter met the 3-recurrence codification threshold. Description updated, steps 9a/9b/9c added, per-dimension discharge reporting required. Human-approved structural intervention 2026-07-27. See CLAUDE.md Operational Discipline TDs §TD-VSDD-097."
     - version: "1.38"
       date: 2026-07-25
       burst: D-2017-FB47a-pol38-bc-new-ec-obligation
@@ -734,6 +739,40 @@ policies:
       (passes 37-62) of single-value-class sweep gaps; F-LP64-HIGH-001 at
       pass-64 demonstrated multi-value-class enforcement gap (FB51 swept
       D7 pins but did not sweep error-taxonomy pins from same burst).
+
+      Three structural dimensions require explicit per-dimension discharge in every
+      fix-burst. A content-text grep alone is NOT sufficient discharge for any of
+      these — each dimension covers failure modes that string-grep structurally
+      cannot reach:
+
+      (1) Named-twin dimension: When the edited artifact has a named twin (same split
+      event, shared subsystem+capability, or explicitly documented as a pair), the
+      fixer MUST name the twin and sweep it even when the changed string is absent
+      from it. Absence of the changed string in the twin is the failure mode, not
+      evidence of cleanliness. Precedent: LOCAL pass-66 CRIT-001 — BC-2.01.018
+      Alerts had cursor language removed; twin BC-2.01.006 Assets kept it; the same
+      burst added a false cross-reference asserting Assets "retains" cursor pagination.
+
+      (2) Downstream-copy dimension: When any section of the edited artifact is
+      verbatim-copied into a downstream artifact by a later agent leg, the fixer
+      MUST sweep both the section and its downstream copy in the SAME burst.
+      Precedent: LOCAL pass-66 HIGH-002 — ADR-056 v0.2 corrected §D3/D4/D5/D9 but
+      not §D8, which product-owner copies verbatim into BC-2.16.002; the corrected
+      ADR propagated its own pre-correction phrasing into the downstream BC.
+
+      (3) Mandate-anchor dimension: Any MUST written into a BC or spec must name the
+      story + AC + Red Gate test that executes it, or record an explicit deferral
+      against a real existing story ID per Canonical Principle Rule 3. An unanchored
+      MUST cannot be tracked and will be re-minted as a finding on every subsequent
+      pass. Precedent: LOCAL pass-66 HIGH-003 + MED-001 — two §TOML Contract MUST
+      blocks with zero story anchors authored in the same amendment that correctly
+      anchored EC-02-014 to a real story.
+
+      Discharge reporting: the fixer MUST include a per-dimension verdict (SWEPT /
+      N/A with rationale) for all three dimensions in the §Changelog narrative or
+      commit note. The orchestrator MUST include all three dimension clauses in every
+      fix-burst dispatch brief. The adversary independently verifies each discharge.
+      See CLAUDE.md Operational Discipline TDs §TD-VSDD-097 for companion codification.
     adopted: FB50-D-672-2026-05-17
     severity: HIGH
     enforced_by: [adversary-prompt, product-owner-self-check, architect-self-check, state-manager]
@@ -741,6 +780,10 @@ policies:
     codified_at: null
     lint_hook: null
     changelog:
+      - version: "1.38 → 1.39"
+        date: 2026-07-27
+        burst: LOCAL-pass-66-three-dimension-amendment
+        change: "v1.38 → v1.39 2026-07-27 — three-dimension structural amendment: named-twin (step 9a), downstream-copy (step 9b), mandate-anchor (step 9c) dimensions added to description and verification_steps. Per-dimension discharge reporting required. Precedent: LOCAL pass-66 CRIT-001 (twin artifact), HIGH-002 (downstream copy), HIGH-003+MED-001 (mandate anchor). Human-approved structural intervention 2026-07-27. Reference: CLAUDE.md §TD-VSDD-097."
       - version: "1.28 → 1.29"
         date: 2026-05-22
         burst: D-778-codification-burst-1
@@ -766,6 +809,9 @@ policies:
       - "Step 8g (v1.26 amendment — CROSS-VALUE-CLASS SIDE-EFFECT BUMP DETECTION): When step 8d detects a self-induced source-of-truth frontmatter bump (e.g., ADR-026 frontmatter v1.22→v1.23 because step 8b advanced a pin INSIDE ADR-026 §D7 line 312), state-manager MUST enumerate ALL parallel value classes anchored to that source-of-truth artifact (e.g., ADR-026 anchors D3, D5, D7 — multiple distinct pin value classes) and re-grep workspace for EACH parallel value class's predecessor version. For each class with stale live-narrative hits, apply cross-workspace propagation sweep advancing to new source-of-truth version. Iterate via step 8e fixed-point until all parallel value classes converge. Closes F-LP85-HIGH-001 META class: FB71 fixed error-taxonomy class but left ADR-026 D7 pin class stale at v1.22 across 22 sites because step 8e only iterated within originating value class. D-695."
       - "Step 8h (v1.28 amendment — SAME-BURST DEPENDENT-ARTIFACT SELF-BUMP DETECTION): When step 8b/8c/8e/8g iteration applies pin advancement at a site INSIDE a non-source-of-truth artifact (e.g., FB73 PO sweep updated error-taxonomy lines 459+467 with ADR-026 D7 v1.22→v1.23 advancement), state-manager MUST detect whether THAT artifact's own frontmatter version field will bump as a §Changelog event (because PO is editing its body — triggering version increment per POL-26). If yes, enumerate the dependent artifact's version-pin as an ADDITIONAL parallel value class for cross-workspace sweep within the same iteration loop. Closes F-LP87-HIGH-001 META-class: FB73 closed F-LP85 by sweeping ADR-026 D7 v1.22→v1.23 but the sweep itself bumped error-taxonomy v1.37→v1.38 as §Changelog event, and step 8g's cross-value-class enumeration did NOT recognize this DEPENDENT-ARTIFACT-SELF-BUMP class. Sibling to step 8d but at WITHIN-BURST layer. D-697."
       - "Step 8i (v1.28 amendment — WITHIN-FILE SELF-CITE ENUMERATION): When step 8b/8c/8d/8e/8g/8h sweeps cite-pins for value class X (e.g., ADR-026 D7 pin) across external workspace, state-manager MUST ALSO grep the source-of-truth file Z (where X is declared/anchored) for SELF-CITES to X's predecessor pin values. Procedure: for source-of-truth artifact Z anchoring value class X with new version vN, grep `rg \"X v[predecessor]\" <path-to-Z>` and enumerate hits; for each hit, advance to vN within Z's body (NOT inside Z's §Changelog rows which are TD-VSDD-091 exempt). Closes F-LP87-HIGH-002 META-class: ADR-026 line 24 runtime_deliverables self-cite `(per D7 v1.16)` survived 7 architect-domain bursts because POL-29 step 8 enumerated EXTERNAL workspace siblings only — never the source-of-truth file's own frontmatter/body. D-697."
+      - "Step 9a (v1.39 amendment — NAMED-TWIN SWEEP): For any artifact amended in this burst, determine whether that artifact is one of a documented twin pair (created by the same split event, sharing subsystem+capability, or explicitly cross-referenced as a pair in specs or indexes). If a twin exists: (a) NAME the twin explicitly in the discharge report; (b) read the twin artifact regardless of whether the changed string appears in it — absence of the changed string is the failure mode, not a pass; (c) if the twin contains semantically-equivalent or complementary language to what was changed, update it to maintain parity; (d) if the twin contains language that now contradicts the amendment (e.g., a cross-reference asserting the twin 'retains' a property that was removed from its pair), correct the contradiction in the SAME burst. Fixer MUST report verdict: SWEPT (twin found and verified) or N/A (no twin exists, with explicit rationale). Precedent: LOCAL pass-66 CRIT-001."
+      - "Step 9b (v1.39 amendment — DOWNSTREAM-COPY SWEEP): For any section amended in this burst, determine whether that section is verbatim-copied into a downstream artifact by a later agent leg (e.g., an ADR §D-block that product-owner transcribes directly into a BC postcondition section). If a downstream copy target exists: (a) identify the target artifact and section in the dispatch brief; (b) sweep the target section for pre-amendment phrasing; (c) apply the corresponding correction in the SAME burst. The orchestrator dispatch brief MUST name known verbatim-copy relationships for the amended section when dispatching the fix. Fixer MUST report verdict: SWEPT (copy target found and updated) or N/A (no downstream copy target, with explicit rationale). Precedent: LOCAL pass-66 HIGH-002."
+      - "Step 9c (v1.39 amendment — MANDATE-ANCHOR CHECK): For any BC or spec amendment that introduces or retains a MUST statement: (a) identify the story + AC + Red Gate test that executes the MUST; (b) if a story+AC+RGT exists, verify the MUST cites it explicitly; (c) if no story+AC+RGT yet exists, record an explicit deferral in the BC §Traceability or §Open Questions with a concrete blocker and a real existing story ID per Canonical Principle Rule 3. An unanchored MUST is a violation at the end of the burst regardless of whether it is new or pre-existing in the amended section. Fixer MUST report verdict: ANCHORED (story+AC+RGT cited), DEFERRED-with-story-ID (deferral record present with real story ID), or VIOLATION (no anchor, no deferral). Precedent: LOCAL pass-66 HIGH-003 + MED-001."
 
   - id: 32
     name: changelog_monotonic_descending
