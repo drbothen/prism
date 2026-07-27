@@ -4307,3 +4307,17 @@ A gate's capability boundary documentation must explicitly state: (a) what the g
 When a fix-burst makes a change to a file (e.g., adding a frontmatter field) without staging that file in the burst commit, the L1/L7 gate is blind to any resulting drift in that file. The transferable form: a fix-burst that bumps frontmatter in one commit and edits the changelog in another (or not at all) leaves a window where L1 drift is invisible to the commit-time gate. After any fix-burst that touches spec artifact frontmatter as a side-effect, run `records-lint.sh --full-scan` before declaring the burst complete, not just the default ratchet-mode run on staged files.
 
 **Source:** FB47a→FB47b defect (D-2017/D-2019, 2026-07-25). Mechanism: DRIFT-CASCADE-DIVERGENCE-001 recurrence — ratchet-mode gate plus unstaged-file side-effect.
+
+## Lesson 107 — Closing a "narrated-not-anchored" finding can reproduce the same defect one level up; grep every symbol a new VP cites and mark absent ones [PLANNED] [codified]
+
+**Category:** verification-property authoring, symbol-resolution discipline, fix-reproduced-defect pattern
+
+**Context:** FB62 closed F-WASE-P64-OBS-002, which described a VP-160 scope note that deferred CWE-400/CWE-117 to an unnamed future property — a "narrated-not-anchored" gap. The remediation authored VP-161 v1.0 to be that named property. VP-161 v1.0 cited `escape_ctl_bytes_for_error_message` as a proof-harness target without verifying the symbol exists in the codebase. It does not. The orchestrator caught the gap mid-burst before the commit landed. VP-161 v1.1 adds a SYMBOL RESOLUTION block and explicit `[PLANNED]` markers. The initial draft reproduced the root cause — a caveat living somewhere the reader would not look — one level up inside the fix artifact.
+
+**Root cause:** When the underlying defect is "caveat lives somewhere readers won't look," the remediation must be audited for the same failure pattern applied to itself. The provisional symbol `escape_ctl_bytes_for_error_message` was grounded only in a subagent dispatch report, not in VP-161 itself. Any reader of VP-161 v1.0 would encounter the same ambiguity that OBS-002 complained about in VP-160.
+
+**Detection heuristic:** Before committing any new VP or spec artifact that cites function, type, or module names, grep each cited symbol against the codebase. If a symbol is absent, it is PROVISIONAL. Require explicit `[PLANNED: symbol_name]` markers at BOTH the declaration site (SYMBOL RESOLUTION block in §Proof Harness Skeleton preamble) AND the call site (inline comment). Each marker must include: the provisional name, evidence of absence, the anchor obligation (story AC/RG that creates it), and the resolution path (phase + description). A VP that cites an absent function without a `[PLANNED]` marker carries the same structural gap as a scope note that defers to an unnamed future property.
+
+**Going-forward rule:** For every fix of a "missing anchor" class finding, the fixer must audit whether the fix artifact itself has any missing anchors. The fix is not complete until the answer is confirmed negative.
+
+**Source:** FB62 pre-commit defect catch (D-2042, 2026-07-27). VP-161 v1.0 vs VP-161 v1.1 (SYMBOL RESOLUTION block). Lesson 106 covers the VP-160 root cause (narrated-not-anchored scope note).

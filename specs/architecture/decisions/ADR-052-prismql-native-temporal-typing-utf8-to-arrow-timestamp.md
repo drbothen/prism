@@ -4,14 +4,14 @@ adr_id: "ADR-052"
 title: "PrismQL Native Temporal Typing — Datetime Columns and Literals from Arrow Utf8 to Timestamp(Microsecond, UTC)"
 status: accepted
 date: "2026-07-03"
-version: "1.15"
+version: "1.16"
 modified: "2026-07-13"
 producer: architect
 subsystems_affected: [SS-09, SS-10, SS-11, SS-17]
 supersedes: "ADR-044 §D4"
 superseded_by: null
 amends: null
-anchor_stories: []
+anchor_stories: [S-PRISMQL-NATIVE-TEMPORAL-TYPING-001]  # verified: story title is "ADR-052 PrismQL Native Temporal Typing — Datetime Columns and Literals from Arrow Utf8 to Timestamp(Microsecond, UTC)"; traces_to includes ADR-052
 related_adrs: [ADR-024, ADR-033, ADR-040, ADR-043, ADR-044, ADR-051]
 related_bcs: [BC-2.11.021, BC-2.11.003, BC-2.11.004, BC-2.11.001]
 locked_decisions: []
@@ -1385,6 +1385,7 @@ implementation story.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.16 | 2026-07-26 | architect | F-WASE-P64-OBS-001: `anchor_stories: []` corrected to `[S-PRISMQL-NATIVE-TEMPORAL-TYPING-001]` — verified from ground truth: story title is the ADR-052 implementation story; `traces_to` includes ADR-052. Previously `[]` because the field was never populated after initial authoring. |
 | 1.15 | 2026-07-13 | architect | **F-PQLFN-P9-OBS-002 (DEFECT-PQL-FNCALL-LHS-001 pass 9): changelog ordering fix.** "1.1 (ratified)" row was misplaced between v1.4 and v1.3 in an otherwise-descending table, and duplicated the "1.1" version key. Renamed to "1.1-r" and relocated to correct descending position between v1.2 and v1.1 (ratification event 2026-07-03 D-1520 occurred after v1.1 authoring on same day, before v1.2/v1.3 on 2026-07-04). No row content changed. |
 | 1.14 | 2026-07-13 | architect | **DEFECT-PQL-FNCALL-LHS-001 adversary pass-8 DML WHERE caller enumeration: F-PQLFN-P8-HIGH-002.** ADR-048 v1.6 (OD-6) added SQL DML WHERE as the sixth gated predicate position in `check_enrich_udf_availability`; `build_delete_parser` and `build_update_parser` both bind `build_predicate_parser`, making `fn_call_comparison` grammar-reachable in six (not five) `build_predicate_parser` call sites post-fix. E-QUERY-042 `NonColumnLhsComparison` arm is also reachable from DML WHERE — `check_temporal_literals` walks `dml.filter` via the `Ast::Sql(SqlStatement::Dml(dml))` arm in `materialization.rs`. Four §D4 body sites updated: (1) dispatch table NonColumnLhsComparison row — five → six caller count + DML WHERE enumeration; (2) "Pipe `| where` grammar reachability" subsection — five callers/positions → six throughout, DML WHERE added to list; (3) E-QUERY-039 gate companion block — "all five call-site positions" → "all six"; (4) blast-radius row 14 — five → six caller/position counts + DML WHERE enumeration. Historical v1.13 status/changelog entries unchanged (five was accurate at pass-1; OD-6 landed at pass-7). |
 | 1.13 | 2026-07-13 | architect | **DEFECT-PQL-FNCALL-LHS-001 adversary pass-1 accuracy corrections: F-PQLFN-P1-LOW-003 + F-PQLFN-P1-MED-001 (architect half).** Two corrections to the §D4 "Pipe `| where` grammar reachability" block added in v1.12. **(LOW-003)** v1.12 stated "only SQL-mode queries could reach [the NonColumnLhsComparison arm] prior to the grammar extension" — inaccurate. `build_predicate_parser` is shared by five callers (filter mode, pipe `| where`, SQL WHERE, SQL HAVING base fallthrough, SqlPipe pipe stages); none could produce a function-call LHS before the fix because `fn_call_comparison` was absent from `build_predicate_parser`. SQL WHERE routes through `build_predicate_parser` and was equally unable to reach the arm before the fix. The SOLE grammar-reachable pre-fix path was SQL HAVING via `agg_call_parser` (ADR-048) — `agg_call_parser` produces `Predicate::Compare { lhs: Expr::FuncCall(FuncCall::Aggregate) }`, a function-call LHS that bypasses `build_predicate_parser`. **(MED-001)** Post-fix blast-radius scope widened: `fn_call_comparison` is grammar-reachable in ALL five `build_predicate_parser` call sites; `check_temporal_literals` arm (4) fires uniformly across all five positions for date-like RHS. E-QUERY-039 gate-extension companion noted: `build_predicate_parser` column-existence gate (E-QUERY-039) is extended to cover `fn_call_comparison` args across all five call-site positions; tracked in BC-2.11.019 amendment (F-PQLFN-P1-MED-004, product-owner). Dispatch table NonColumnLhsComparison row and blast-radius row 14 updated for full five-caller scope and accurate pre-fix description. |
