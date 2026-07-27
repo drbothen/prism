@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.10"
+version: "1.11"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -19,7 +19,7 @@ extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: null
 amendment_lifecycle: null
 introduced: cycle-1
-modified: "2026-07-24"
+modified: "2026-07-27"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -51,6 +51,7 @@ removal_reason: null
 - Cyberint severity string (e.g., "high", "medium", "low") maps to OCSF `severity_id` enum values per OCSF v1.x: `"high"` → `4` ("High"), `"critical"` → `5` ("Critical"), `"medium"` → `3` ("Medium"), `"low"` → `2` ("Low")
 - Cyberint timestamp (parsed via CyberintTime) maps to OCSF `time` in RFC 3339 format
 - Cyberint-specific fields (e.g., `threat_type`, `digital_asset_type`) are preserved in `raw_extensions`
+- DTU `Alert.affected_assets: Vec<serde_json::Value>` (wire-key `"affected_assets"`, emitted as the 8th key in the static-fixture `json!` envelope inside `routes::alerts::get_alerts`) is exposed as TOML column `affected_assets` with `column_type = "json"` and `ocsf_field = "raw_extensions.affected_assets"`. The prior TOML deferral ("array column type not yet supported", TOML comment F-LP3-HIGH-001) is superseded by `prism_core::column::ColumnType::Json` availability per ADR-024. SOC analyst agent reasoning: an alert without affected-asset context is an unexplainable verdict — the agent cannot triage priority or assess blast radius from severity alone. Deliberate-exclusion tracking: if this field is re-excluded in any future cycle, the reason MUST be documented in EC-02-006c below.
 
 ## Invariants
 - DI-005: OCSF schema validity
@@ -66,6 +67,8 @@ removal_reason: null
 |----|-------------|-------------------|
 | DEC-015 | Timestamp value that cannot be parsed by any of the 3 CyberintTime formats (unparseable by all 3 CyberintTime formats) | Parse fails gracefully; fetch timestamp used as fallback; record not dropped |
 | EC-02-006 | Cyberint asset record (not alert) -- different field structure | Separate field mapping for assets; maps to appropriate OCSF event class |
+| EC-02-006b | `affected_assets` is an empty array (`[]`) | Emitted as `"affected_assets": []` on the wire; column produces empty JSON array string `"[]"`; not null. Valid: a Cyberint alert may have no impacted assets catalogued yet. |
+| EC-02-006c | SAP-2 deliberate-exclusion tracking sentinel for `affected_assets` | This EC exists solely to satisfy SAP-2 rule 4. `affected_assets` was previously excluded via TOML comment (F-LP3-HIGH-001: "array column type not yet supported"). That exclusion is now LIFTED — the column MUST appear in the TOML. If any future change re-excludes `affected_assets`, the rationale must replace this row's Expected Behavior text, citing the specific technical constraint and the future story that will resolve it. An undocumented re-exclusion is a SAP-2 recurrence. |
 
 ## Canonical Test Vectors
 
@@ -75,6 +78,29 @@ removal_reason: null
 | TV-BC-2.02.004-002 | Unknown severity string "extreme" | `severity_id: 99` (Other); warning logged with raw value |
 | TV-BC-2.02.004-003 | Timestamp string that fails all 3 CyberintTime formats (DEC-015) — e.g., `"Jan 01 2026 12:00"` | Fetch timestamp used; raw string in `raw_extensions`; warning logged; record not dropped |
 | TV-BC-2.02.004-004 | Cyberint asset record (different schema) | Asset-specific mapper applies; maps to appropriate OCSF class |
+| TV-BC-2.02.004-005 | Alert with `affected_assets: [{"asset_id": "a1", "type": "server"}]` | `affected_assets` column contains JSON array string `[{"asset_id":"a1","type":"server"}]`; the DTU emits this as the 8th key in the static-fixture `json!` envelope |
+| TV-BC-2.02.004-006 | Alert with `affected_assets: []` (empty array) | `affected_assets` column contains `"[]"` (not null or absent); no error emitted |
+
+## TOML Contract
+
+The following column MUST be added to `crates/prism-sensors/specs/cyberint.sensor.toml` inside the `alerts` table `[[tables.columns]]` block (F-SAP2-MED-004 / FB68d resolution):
+
+```toml
+  # F-SAP2-MED-004 / FB68d: affected_assets — 8th wire key in the static-fixture json! envelope.
+  # DTU: Alert.affected_assets: Vec<serde_json::Value> in prism-dtu-cyberint/src/types.rs.
+  # Emission site: routes::alerts::get_alerts static-fixture path (the json! literal includes
+  # "affected_assets": a.affected_assets as its 8th key).
+  # Prior TOML deferral comment ("F-LP3-HIGH-001: array column type not yet supported")
+  # superseded by ColumnType::Json availability (prism_core::column::ColumnType::Json, ADR-024).
+  # ocsf_field: no standard OCSF Detection Finding field for a vendor affected_assets array;
+  # flows to raw_extensions per BC-2.02.007 preservation contract.
+  [[tables.columns]]
+  name = "affected_assets"
+  column_type = "json"
+  ocsf_field = "raw_extensions.affected_assets"
+```
+
+The stale deferral comment "F-LP3-HIGH-001: 'affected_assets' (Vec<serde_json::Value>) deferred: array column type is not yet supported in the column grammar — track as future story when Array ColumnType lands." in the TOML file MUST be removed or replaced with a comment noting the column is now declared above.
 
 ## Verification Properties
 
@@ -94,6 +120,7 @@ removal_reason: null
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.11 | wave-5-e-demo-fidelity-fix-burst-68d | 2026-07-27 | product-owner | F-SAP2-MED-004: `affected_assets` coverage decision — EXPOSE. Ground truth: `Alert.affected_assets: Vec<serde_json::Value>` emitted as the 8th key in the `json!` envelope of `routes::alerts::get_alerts` static-fixture path; present in DTU `types.rs`. Prior TOML deferral ("F-LP3-HIGH-001: array column type not yet supported") superseded by `ColumnType::Json` availability per ADR-024. Added: §Postconditions `affected_assets` bullet; EC-02-006b (empty array behavior), EC-02-006c (SAP-2 deliberate-exclusion sentinel); TV-BC-2.02.004-005 (non-empty array), TV-BC-2.02.004-006 (empty array); §TOML Contract (exact column spec for implementer, including stale-comment removal instruction). |
 | 1.10 | wave-a-spec-evolution-fix-burst-39 | 2026-07-24 | product-owner | F-WASE-P50-LOW-001: Corrected intra-burst narrative inconsistency in v1.9 changelog row. The POL-29 census in v1.9 characterised BC-2.01.013 as "needs separate pass" — but BC-2.01.013 v1.14→v1.15 was adjudicated COMPLETE within fix-burst-38 itself (PREREQ-F v1.4 confirmed full ADR-023 amendment; banner→completion note; scheduled_amendment_in+amendment_lifecycle→null). Amended v1.9 census to: 1 legitimately-pending remainder (BC-2.16.004 only); BC-2.01.013 resolved same burst. POL-29 sibling sweep: "needs separate pass" phrase appeared only in this BC's v1.9 changelog row — no other live spec sites required correction (prd.md, BC-INDEX, VP files, ADR files: all references to BC-2.01.013 are non-census navigational cites — not affected). |
 | 1.9 | wave-a-spec-evolution-fix-burst-38 | 2026-07-24 | product-owner | F-WASE-P49-LOW-001: `scheduled_amendment_in` cleared (ADR-023 amendment completed in v1.6 PLUGIN-MIGRATION-001-G, 2026-05-27); set to `null`; added `amendment_lifecycle: null` to match sibling BC-2.01.006 cleared-state convention. POL-29 sweep: 7 other BCs carry non-null `scheduled_amendment_in: ADR-023` — 5 confirmed stale (amendment completed per changelog, field not cleared; all outside Wave-A perimeter): BC-2.02.005 (Claroty field mapping), BC-2.02.003 (CrowdStrike field mapping), BC-2.01.005 (CrowdStrike oauth2), BC-2.02.006 (Armis field mapping), BC-2.01.007 (Claroty bearer); 1 legitimately pending: BC-2.16.004 (rust-escape-hatch, `amendment_lifecycle: pending` present, no PLUGIN-MIGRATION-001-G completion entry found). BC-2.01.013 (datasource-trait-adapter-pattern) was adjudicated COMPLETE within this same burst (v1.14→v1.15: PREREQ-F v1.4 confirmed full ADR-023 amendment; banner→completion note; scheduled_amendment_in+amendment_lifecycle→null) — the characterization "needs separate pass" was inaccurate; corrected by v1.10 (F-WASE-P50-LOW-001). |
 | 1.8 | wave-a-spec-evolution-fix-burst-37 | 2026-07-24 | product-owner | F-WASE-P48-MED-001: §Edge Cases DEC-015 and §Canonical Test Vectors TV-BC-2.02.004-003 still contained "5th format" residue not covered by the v1.7 sweep (which fixed §Description, §Preconditions, §Error Cases only). DEC-015: "Timestamp in unexpected 5th format" → "Timestamp value that cannot be parsed by any of the 3 CyberintTime formats (unparseable by all 3 CyberintTime formats)". TV-003: "Timestamp in unknown 5th format (DEC-015)" → "Timestamp string that fails all 3 CyberintTime formats (DEC-015) — e.g., `"Jan 01 2026 12:00"`". Phrasing matches sibling BCs BC-2.01.006 and BC-2.01.018. POL-29 sweep: no remaining "4-format", "4 formats", "5th format", "fourth format" in live BC body (changelog rows exempt). |

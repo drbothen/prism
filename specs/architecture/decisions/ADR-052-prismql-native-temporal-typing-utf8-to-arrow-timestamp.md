@@ -4,7 +4,7 @@ adr_id: "ADR-052"
 title: "PrismQL Native Temporal Typing — Datetime Columns and Literals from Arrow Utf8 to Timestamp(Microsecond, UTC)"
 status: accepted
 date: "2026-07-03"
-version: "1.16"
+version: "1.17"
 modified: "2026-07-13"
 producer: architect
 subsystems_affected: [SS-09, SS-10, SS-11, SS-17]
@@ -129,7 +129,7 @@ See §D8 — Sequencing and ADR-051 Interaction.
 
 Prism's query engine represents OCSF `datetime` fields as Arrow `DataType::Utf8`
 throughout the execution pipeline. The canonical mapping is in
-`crates/prism-bin/src/spec_driven_adapter.rs:886`:
+`crates/prism-bin/src/spec_driven_adapter.rs`, `ColumnType::Datetime` arm in `column_type_to_arrow`:
 
 ```rust
 ColumnType::Datetime => DataType::Utf8,
@@ -140,12 +140,12 @@ This means:
 - Temporal predicates compiled from `NOW() - INTERVAL '24h'` are injected as ISO-8601
   string constants (`'2026-06-24T00:00:00Z'`), and DataFusion evaluates them as
   string comparisons against `Utf8` columns.
-- `crates/prism-query/src/pipe_sql_emitter.rs:822` emits:
+- the `Literal::Timestamp` arm of `pipe_sql_emitter::literal_to_sql` previously emitted:
   `Literal::Timestamp(ts) => format!("'{}'", ts.iso8601)` — a bare quoted string.
 - String comparisons on ISO-8601 strings are lexicographically correct ONLY for
   UTC timestamps with zero UTC offset (`Z` form). This is an accidental invariant
   maintained by the OCSF normalization layer but is not enforced by the type system.
-- `crates/prism-core/src/column.rs` line 28 has a stale doc comment claiming
+- the `ColumnType::Datetime` doc comment in `crates/prism-core/src/column.rs` carried a stale claim
   "Arrow: TimestampMicrosecond" — contradicted by `spec_driven_adapter.rs` which is
   the implementation source of truth.
 
@@ -172,11 +172,12 @@ This means:
 
 ### Feasibility Already Verified
 
-`crates/prism-query/src/tests/high002_plan_pinning_tests.rs:313` confirms:
-"DataFusion fails to compare `Utf8` against `Timestamp(Microsecond, None)`" — this
-is the exact failure mode the current string-only model avoids by keeping both sides
-`Utf8`. It is also the test that must be UPDATED (not fixed around) to show that
-both sides are now `Timestamp(Microsecond, UTC)`.
+The `test_high001_sql_mode_temporal_utf8_discriminating` Red Gate scenario in
+`crates/prism-query/src/tests/high002_plan_pinning_tests.rs` (pre-implementation
+negative-control) confirmed: "DataFusion fails to compare `Utf8` against
+`Timestamp(Microsecond, None)`" — this is the exact failure mode the string-only
+model avoids by keeping both sides `Utf8`. That test was the one that must be UPDATED
+(not fixed around) to show that both sides are now `Timestamp(Microsecond, UTC)`.
 
 ---
 
@@ -198,9 +199,9 @@ The timezone field is `Option<Arc<str>>`. `Arc::from("UTC")` produces `Arc<str>`
 with explicit type context, `Some("UTC".into())`.
 
 Rationale for `Microsecond` (not `Nanosecond`):
-- `high002_plan_pinning_tests.rs:313` cites `Timestamp(Microsecond, None)` as the
-  expected type from an earlier sensor-column probe — microsecond is the established
-  precision baseline in this codebase.
+- The F-HIGH-001 discriminating tests in `high002_plan_pinning_tests.rs` (now updated to
+  `Timestamp(Microsecond, UTC)`) established microsecond precision as the codebase baseline —
+  the earlier sensor-column probe used `Timestamp(Microsecond, None)` as the expected type.
 - OCSF datetime resolution is second-level in most sensor APIs; microsecond is
   sufficient headroom without the overflow risk of nanosecond representation for
   timestamps near 2262 CE.
@@ -224,8 +225,7 @@ Rationale for `Some("UTC")` (not `None`):
 
 **D2 — Sensor column registration change: `spec_driven_adapter.rs` and `column.rs`.**
 
-`crates/prism-bin/src/spec_driven_adapter.rs`, function `column_type_to_arrow`,
-line 886:
+`crates/prism-bin/src/spec_driven_adapter.rs`, `ColumnType::Datetime` arm in function `column_type_to_arrow`:
 ```rust
 // Before:
 ColumnType::Datetime => DataType::Utf8,
@@ -233,7 +233,7 @@ ColumnType::Datetime => DataType::Utf8,
 ColumnType::Datetime => DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC"))),
 ```
 
-`crates/prism-core/src/column.rs`, `ColumnType::Datetime` doc comment, line 28:
+`crates/prism-core/src/column.rs`, `ColumnType::Datetime` doc comment:
 ```rust
 // Before (stale):
 /// ISO-8601 UTC datetime string. Arrow: TimestampMicrosecond
@@ -247,7 +247,7 @@ ADR-051 v1.1 §Blast Radius item 15 — this decision closes that item.
 
 **D3 — SQL emission change: `pipe_sql_emitter.rs` `Literal::Timestamp` rendering.**
 
-`crates/prism-query/src/pipe_sql_emitter.rs`, line 822:
+`crates/prism-query/src/pipe_sql_emitter.rs`, `Literal::Timestamp` arm in `literal_to_sql`:
 ```rust
 // Before:
 Literal::Timestamp(ts) => format!("'{}'", ts.iso8601),
@@ -279,7 +279,8 @@ Rust format string uses `"..."` as its delimiter, the inner `"` characters must 
 escaped as `\"`.
 
 **Pushdown path (`pushdown.rs`) is UNCHANGED.** The pre-fan-out ADR-033 T1 extractor
-at `pushdown.rs:450` already operates on `Literal::Timestamp.instant` (a
+(`pushdown::extract_time_bounds_from_predicate`, the `Expr::Literal(Literal::Timestamp(ts))` arm)
+already operates on `Literal::Timestamp.instant` (a
 `chrono::DateTime<Utc>`) and calls `.to_rfc3339()` to produce the API string:
 ```rust
 Expr::Literal(Literal::Timestamp(ts)) => ts.instant.to_rfc3339()
@@ -871,7 +872,7 @@ accept date/time ranges as RFC-3339 or ISO-8601 UTC strings, not as Arrow Timest
 The adapter boundary converts Prism's typed `Timestamp` values to API strings at
 the following points:
 
-1. **ADR-033 T1 push-down extractor** (`pushdown.rs:450`): Extracts `Literal::Timestamp.instant`
+1. **ADR-033 T1 push-down extractor** (`pushdown::extract_time_bounds_from_predicate`, `Expr::Literal(Literal::Timestamp(ts))` arm): Extracts `Literal::Timestamp.instant`
    (chrono `DateTime<Utc>`) → `.to_rfc3339()` → passed to sensor adapter as `start_time`/
    `end_time` strings. **No change.**
 2. **HttpLookup template interpolation** (`spec_driven_adapter.rs`, ADR-040): Any
@@ -1257,15 +1258,15 @@ code modifications; items marked [VERIFY] require review to confirm no change is
 
 | # | File | Nature | Change Required |
 |---|------|--------|----------------|
-| 1 | `crates/prism-bin/src/spec_driven_adapter.rs:886` | [CHANGE] | `ColumnType::Datetime => DataType::Timestamp(...)` |
-| 2 | `crates/prism-core/src/column.rs:28` | [CHANGE] | Fix stale doc comment |
-| 3 | `crates/prism-query/src/pipe_sql_emitter.rs:822` | [CHANGE] | `format!("arrow_cast('{}', 'Timestamp(Microsecond, Some(\"UTC\"))')", ts.iso8601)` — explicit arrow_cast form (TIMESTAMP '...' produces Nanosecond/None in DF 53.1.0) |
+| 1 | `crates/prism-bin/src/spec_driven_adapter.rs`, `ColumnType::Datetime` arm in `column_type_to_arrow` | [CHANGE] | `ColumnType::Datetime => DataType::Timestamp(...)` |
+| 2 | `crates/prism-core/src/column.rs`, `ColumnType::Datetime` doc comment | [CHANGE] | Fix stale doc comment |
+| 3 | `crates/prism-query/src/pipe_sql_emitter.rs`, `Literal::Timestamp` arm in `literal_to_sql` | [CHANGE] | `format!("arrow_cast('{}', 'Timestamp(Microsecond, Some(\"UTC\"))')", ts.iso8601)` — explicit arrow_cast form (TIMESTAMP '...' produces Nanosecond/None in DF 53.1.0) |
 | 4 | `crates/prism-query/src/tests/high002_plan_pinning_tests.rs` | [CHANGE] | Update `DataType::Utf8` datetime column assertions to `DataType::Timestamp(Microsecond, UTC)` |
 | 5 | `crates/prism-query/src/pushdown.rs` | [VERIFY] | Already uses `ts.instant.to_rfc3339()` — no change needed |
 | 6 | `crates/prism-query/src/infusion_udf.rs` | [VERIFY] | After ADR-052 ships, the datetime row in the `output_type` mapping (ADR-051) must be updated to `Timestamp` — no change in ADR-052 story itself |
 | 7 | `crates/prism-spec-engine/src/infusion/udf.rs` | [VERIFY] | `InfusionUdfDescriptor.output_type` is a `String` — no change at spec-engine level |
 | 8 | `specs/infusions/*.infusion.toml` | [VERIFY] | No TOML schema change; `output_type = "datetime"` is the string that ADR-051 will map to the new type after ADR-052 |
-| 9 | `crates/prism-query/src/pipe_sql_emitter.rs:817-818` | [CHANGE] | Update stale comment "Datetime fields is DataType::Utf8" to reflect the new type; add `Literal::RawTemporalLiteral` arm (E-QUERY-002 guard) |
+| 9 | `crates/prism-query/src/pipe_sql_emitter.rs`, `literal_to_sql` Datetime comment block and `Literal::RawTemporalLiteral` guard arm | [CHANGE] | Update stale comment "Datetime fields is DataType::Utf8" to reflect the new type; add `Literal::RawTemporalLiteral` arm (E-QUERY-002 guard) |
 | 10 | `.factory/specs/architecture/decisions/ADR-044-*.md` | [DONE] | `superseded_by` frontmatter added; §Status "PARTIALLY SUPERSEDED by ADR-052 v1.1" block added (2026-07-03) |
 | 11 | `.factory/specs/prd-supplements/error-taxonomy.md` | [CHANGE] | Add E-QUERY-041 row; phase = "plan-time AST validator (`check_temporal_literals`)" |
 | 12 | `.factory/specs/behavioral-contracts/BC-2.11.021-*.md` | [CHANGE] | Amend postcondition to Option A mechanism; E-QUERY-041 = `check_temporal_literals` walker, NOT parse-fail/text-scanner/DataFusion-cast-intercept |
@@ -1385,6 +1386,7 @@ implementation story.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.17 | 2026-07-27 | architect | F-WASE-P65-MED-002: removed all fourteen `file.rs:NNN` volatile line-cite forms from body (TD-VSDD-091). Sites in §Context (three cites), §Feasibility (one), §D1 rationale (one), §D2 (two), §D3 (two), §D5 (one), and §Blast Radius table rows 1/2/3/9 (four). All replaced with stable function-name and symbol anchors: `column_type_to_arrow` / `ColumnType::Datetime` arm; `literal_to_sql` / `Literal::Timestamp` arm; `ColumnType::Datetime` doc comment; `test_high001_sql_mode_temporal_utf8_discriminating`; `extract_time_bounds_from_predicate` / `Expr::Literal(Literal::Timestamp(ts))` arm. All fourteen sites verified DECAYED against current codebase. |
 | 1.16 | 2026-07-26 | architect | F-WASE-P64-OBS-001: `anchor_stories: []` corrected to `[S-PRISMQL-NATIVE-TEMPORAL-TYPING-001]` — verified from ground truth: story title is the ADR-052 implementation story; `traces_to` includes ADR-052. Previously `[]` because the field was never populated after initial authoring. |
 | 1.15 | 2026-07-13 | architect | **F-PQLFN-P9-OBS-002 (DEFECT-PQL-FNCALL-LHS-001 pass 9): changelog ordering fix.** "1.1 (ratified)" row was misplaced between v1.4 and v1.3 in an otherwise-descending table, and duplicated the "1.1" version key. Renamed to "1.1-r" and relocated to correct descending position between v1.2 and v1.1 (ratification event 2026-07-03 D-1520 occurred after v1.1 authoring on same day, before v1.2/v1.3 on 2026-07-04). No row content changed. |
 | 1.14 | 2026-07-13 | architect | **DEFECT-PQL-FNCALL-LHS-001 adversary pass-8 DML WHERE caller enumeration: F-PQLFN-P8-HIGH-002.** ADR-048 v1.6 (OD-6) added SQL DML WHERE as the sixth gated predicate position in `check_enrich_udf_availability`; `build_delete_parser` and `build_update_parser` both bind `build_predicate_parser`, making `fn_call_comparison` grammar-reachable in six (not five) `build_predicate_parser` call sites post-fix. E-QUERY-042 `NonColumnLhsComparison` arm is also reachable from DML WHERE — `check_temporal_literals` walks `dml.filter` via the `Ast::Sql(SqlStatement::Dml(dml))` arm in `materialization.rs`. Four §D4 body sites updated: (1) dispatch table NonColumnLhsComparison row — five → six caller count + DML WHERE enumeration; (2) "Pipe `| where` grammar reachability" subsection — five callers/positions → six throughout, DML WHERE added to list; (3) E-QUERY-039 gate companion block — "all five call-site positions" → "all six"; (4) blast-radius row 14 — five → six caller/position counts + DML WHERE enumeration. Historical v1.13 status/changelog entries unchanged (five was accurate at pass-1; OD-6 landed at pass-7). |

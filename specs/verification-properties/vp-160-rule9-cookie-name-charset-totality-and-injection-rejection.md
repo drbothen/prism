@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-07-25T00:00:00Z
@@ -23,7 +23,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: fix-burst-46
-modified: []
+modified: "2026-07-26"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -192,6 +192,7 @@ the RFC 9110 §5.6.2 tchar definition for every possible single-byte ASCII input
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.3 | FB68c | 2026-07-27 | architect | F-WASE-P65-OBS-001 sweep: `modified: []` corrected to `"2026-07-26"` (last-modification date per convention established by VP-153/VP-154/VP-155/VP-156/VP-159; `timestamp: 2026-07-25T00:00:00Z` unchanged as creation date). Frontmatter-only hygiene; no property semantics changed. |
 | 1.2 | FB62 | 2026-07-26 | architect | F-WASE-P64-OBS-002: scope note replaced — previously deferred CWE-400/CWE-117 formatting invariants to "a separate property" with no VP ID or anchor; now cross-references VP-161 explicitly (successor VP registered in same burst). |
 | 1.1 | FB55c | 2026-07-26 | architect | F-WASE-P64-HIGH-004: anchor story resolved from placeholder to `S-WAVE-A-ENGINE-001`; anchor justification added per POL-5 citing §Tasks T-B02 authorship of `is_valid_cookie_name_tchar` and §Architecture Mapping placement in `crates/prism-spec-engine/src/spec_parser.rs`. |
 | 1.0 | fix-burst-46 | 2026-07-25 | architect | Initial draft. F-WASE-P62-MED-004: Rule 9 cookie-name charset totality and injection rejection (SEC-001, ADR-053 §D2). Method: Kani. P0. |

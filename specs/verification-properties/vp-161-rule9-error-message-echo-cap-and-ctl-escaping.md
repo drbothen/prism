@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-07-26T00:00:00Z
@@ -23,7 +23,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: FB62
-modified: []
+modified: "2026-07-27"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -192,6 +192,7 @@ provides exhaustive proof for all byte sequences within the bounded input space.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.3 | FB68c | 2026-07-27 | architect | F-WASE-P65-LOW-001: `modified: []` corrected to `modified: "2026-07-27"` (last modification date per dominant VP convention established by VP-153, VP-154, VP-155, VP-156, and VP-159 — `modified: "YYYY-MM-DD"` tracks last-modification; `modified: null` or `modified: []` indicates never modified since creation). `timestamp: 2026-07-26T00:00:00Z` confirmed correct as creation date (v1.0, FB62). Frontmatter-only hygiene fix; no property semantics, method, module, or priority changed. |
 | 1.2 | FB64 | 2026-07-27 | architect | F-WASE-P65-HIGH-001: CTL-escape byte domain corrected from `0x00–0x08, 0x0A–0x1F, 0x7F` (excludes TAB) to `0x00–0x1F, 0x7F` (inclusive, TAB included). Three sites in artifact body corrected: §Property Statement Property 2 prose, §Proof Method table Coverage cell, SYMBOL RESOLUTION comment byte-set description. Harness 2 predicate corrected: `*b <= 0x08 \|\| (*b >= 0x0A && *b <= 0x1F) \|\| *b == 0x7F` → `*b <= 0x1F \|\| *b == 0x7F`. Authority: BC-2.16.009 §Validation Rule 9 §CTL-character escaping clause (`(b as u8) <= 0x1F \|\| (b as u8) == 0x7F`), confirmed by error-taxonomy E-SPEC-027 `{value}` description and S-WAVE-A-ENGINE-001 AC-025 §Tasks T-B02 Step 2 (all three specify full inclusive range). Same-burst POL-9 propagation: VP-INDEX v2.16→v2.17; verification-architecture v1.47→v1.48. |
 | 1.1 | FB62 | 2026-07-27 | architect | Pre-commit defect fix: `escape_ctl_bytes_for_error_message` was an unmarked provisional symbol absent from the codebase. SYMBOL RESOLUTION block added to §Proof Harness Skeleton preamble distinguishing CONFIRMED target (`truncate_at_char_boundary`, grounded in `prism_spec_engine::validation`) from PROVISIONAL target. `[PLANNED: escape_ctl_bytes_for_error_message]` marker added at Harness 2 declaration and call site; anchor obligation AC-025/RG-029, Phase 5 resolution path, and behavior description (BC-2.16.009 E-SPEC-027 template (a) cap-then-escape) anchored inline. Harness 1 labeled CONFIRMED; Harness 2 labeled TARGET IS [PLANNED]. |
 | 1.0 | FB62 | 2026-07-26 | architect | Initial draft. F-WASE-P64-OBS-002: CWE-400 64-codepoint echo cap (`truncate_at_char_boundary`) and CWE-117 CTL-byte `\xNN` escaping in E-SPEC-027 template (a) error message construction. Successor to VP-160 scope note deferral — VP-160 §Property Statement previously deferred these formatting concerns to "a separate property"; this VP is that property. Method: Kani. P0. Anchor: S-WAVE-A-ENGINE-001 §Tasks T-B02 cap-then-escape specification (AC-024/RG-028 for CWE-400; AC-025/RG-029 for CWE-117). |
