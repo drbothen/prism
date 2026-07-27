@@ -124,13 +124,58 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2052 (POL-29 structural intervention APPLIED; F-WASE-P66-PROCESS-GAP-001 CLOSED; 15 pass-66 findings open; BC-5.39.001 streak 0/3; NEXT = fix-burst cascade — product-owner CRIT-001 first).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2052 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2052 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57da`; local ff BLOCKED by unstaged ci.yml/e2e.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2052 intervention HEAD after push). STATE v8.600. D-2052 POL-29 structural intervention APPLIED; 15 pass-66 findings open; TREND-POL29-SIBLING-SWEEP-001 APPLIED; GAP-POL25-COMPANION-AMENDMENT-001 registered; NEXT = fix-burst cascade.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2053 (SESSION WRAP; D-2052 SUPERSEDED; 15 pass-66 findings open; BC-5.39.001 streak 0/3; NEXT = fix-burst cascade — product-owner CRIT-001 first).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2053 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2053 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57dad`; local ff BLOCKED by unstaged ci.yml/e2e.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2053 wrap commit HEAD after push). STATE v8.601. SESSION WRAP D-2053 complete; 15 pass-66 findings open; TREND-POL29-SIBLING-SWEEP-001 APPLIED; GAP-POL25-COMPANION-AMENDMENT-001 registered; NEXT = fix-burst cascade.
 
 ---
 
-## §RESUME SNAPSHOT — D-2052 (2026-07-27 — POL-29 structural intervention APPLIED; F-WASE-P66-PROCESS-GAP-001 CLOSED; 15 pass-66 findings open; BC-5.39.001 streak 0/3; STATE v8.600) [SUPERSEDES D-2051]
+## §RESUME SNAPSHOT — D-2053 (2026-07-27 — SESSION WRAP; D-2052 SUPERSEDED; 15 pass-66 findings open; BC-5.39.001 streak 0/3; STATE v8.601) [SUPERSEDES D-2052]
+
+### RESUME IN ONE BREATH
+Wave-A spec-evolution cascade, Phase 3. LOCAL pass-66 NOT CLEAN — **15 findings open**; BC-5.39.001 streak **0/3**. The POL-29 three-dimension structural intervention is APPLIED (policies.yaml **v1.39** verification steps 9a/9b/9c + CLAUDE.md **TD-VSDD-097**) in response to `TREND-POL29-SIBLING-SWEEP-001` hitting the 3-recurrence threshold.
+**NEXT ACTION: dispatch `vsdd-factory:product-owner` for F-WASE-P66-CRIT-001** — remove `(Timestamp, AssetID)` cursor-pagination language from BC-2.01.006 §Description/§Postconditions/TV-001/TV-002/EC-01-009 (the Cyberint Assets OpenAPI has ZERO cursor parameters; `GetAssetsRequest` is page-number paginated) AND correct the false cross-reference in BC-2.01.018 §Related BCs asserting the Assets surface "retains" cursor pagination. This is a named-twin sweep (POL-29 dimension 9a) and must report a per-dimension verdict for all three dimensions.
+
+### PASS-66 OPEN FINDINGS LEDGER (post-D-2053 wrap — 15 remaining)
+LOCAL pass-66 — NOT CLEAN. Streak 0/3. Frozen HEAD `7426696b3`. Frozen HEAD for pass-67 = factory-artifacts HEAD from this wrap commit (run `git -C .factory log -1 --format='%H'`).
+CRIT: F-WASE-P66-CRIT-001 (BC-2.01.006 cursor removal + BC-2.01.018 false cross-ref) → product-owner.
+HIGH: F-WASE-P66-HIGH-001 (PaginationType serde `"Page"` vs `"page"` wire literal; ADR-056 mechanism) → architect. F-WASE-P66-HIGH-002 (BC-2.02.006 6-col MUST no story anchors) → story-writer+product-owner+state-manager. F-WASE-P66-HIGH-003 (affected_assets into T-02 carry-over) → story-writer+product-owner. F-WASE-P66-HIGH-004 (device_cves_first NULL static path) → story-writer+product-owner. F-WASE-P66-HIGH-005 (phantom `${variable.*}` namespace; real = `${step_name.field}`) → story-writer+product-owner+state-manager.
+MED: F-WASE-P66-MED-001 (ADR-056 §D8 copy-target + BC-2.16.009 §Validation Rule 4 absent) → architect+product-owner. F-WASE-P66-MED-002 (ADR-053 false §Authority annotations) → architect+story-writer. F-WASE-P66-MED-003 (VP-157 draft/TODO + phantom symbols) → architect. F-WASE-P66-MED-004 (STORY-INDEX BC-2.02.006 registration vs frontmatter []) → orchestrator adjudication.
+LOW: F-WASE-P66-LOW-001 (ADR-056 §Changelog heading outlier) → architect. F-WASE-P66-LOW-002 (AC-003/T-05 envelope key `page` absent from GetAlertsResponse) → story-writer. F-WASE-P66-LOW-003 (VP-158 zero cites; VP-157/VP-158 VP-INDEX rows unpinned) → architect+state-manager.
+~~PROCESS-GAP: F-WASE-P66-PROCESS-GAP-001~~ **CLOSED D-2052** (CLAUDE.md SAP-2 §Rule 2 corrected — human-mandated direct edit).
+OBS: F-WASE-P66-OBS-001 (BC-2.02.006 emission cite wrong route) → product-owner. F-WASE-P66-OBS-002 (BC-2.02.004 TV-005 positional cite decay) → product-owner.
+
+### CASCADE ORDER (post-D-2053 wrap)
+(1) product-owner CRIT-001 (BC-2.01.006 cursor removal + BC-2.01.018 false cross-ref; POL-29 named-twin dimension 9a; all three dimension verdicts required).
+(2) architect HIGH-001 + MED-001 + MED-002 + MED-003 + LOW-001.
+(3) story-writer HIGH-002 + HIGH-003 + HIGH-004 + HIGH-005 + LOW-002.
+(4) product-owner OBS-001 + OBS-002.
+(5) state-manager MED-004 (pending orchestrator adjudication) + LOW-003 VP-INDEX pins.
+(6) LOCAL pass-67 on frozen HEAD.
+
+### HEADS (verified 2026-07-27 D-2053)
+- `factory-artifacts`: predecessor HEAD `7f01e1923`; new HEAD = this wrap commit (run `git -C .factory log -1 --format='%H'`).
+- `origin/develop`: `7fef57dad` — PUSHED. LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001, do NOT auto-FF; blocked by unstaged ci.yml/e2e.yml residue in main worktree).
+- Main worktree: docs/claude-md-file-size-convention @`e327f42ad` — PUSHED; PR #230 OPEN (two commits: `e3f9636dd` non-exhaustive gate collapse + `e327f42ad` TD-VSDD-097 + SAP-2 rule 2 exemplar; Fuzz smoke — DRIFT-CI-FUZZ-NIGHTLY-ICE-001).
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5b` — PUSHED, PR #229 OPEN ACTIVE-UNRESOLVED.
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED. `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY).
+- verify-sha-currency.sh: PASS (2 pre-existing WARNs — python3+yaml unavailable; in-progress-voice remnant, long-standing). No background agents in flight. BC-5.39.001 streak 0/3.
+
+### BACKUP BOUNDARY (D-2053)
+- PUSHED / safe: factory-artifacts (this wrap commit — run `git -C .factory log -1 --format='%H'`); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); docs/claude-md-file-size-convention @`e327f42ad` (PR #230 OPEN); origin/develop @`7fef57dad`.
+- LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty).
+
+### PENDING USER-APPROVED WORK (D-2053 — do not start)
+- (a) `scripts/records-lint.sh` fixes: GATE-L1L7-RATCHET-WORKTREE-001 + GATE-L1-VPREFIX-BLIND-002 + **NEW: L9 arm-5 flags the cross-document index check's own bare two-digit name token** — code change on PR #230 branch; awaiting human.
+- (b) GAP-ASSETS-PAG-001 — new PaginationConfig variant; awaiting explicit human authorization.
+- (c) Follow-up story for GAP-ASSETS-PAG-001 — awaiting human authorization.
+- (d) STORY-INDEX mixed-prefix normalization — ordering-dependent on GATE-L1-VPREFIX-BLIND-002 fix.
+- (e) Corpus records debt (39 L1 + 86 L7 across 43 files) — pre-existing, TD-VSDD-096 candidate; NOT in cascade scope.
+- GAP-POL25-COMPANION-AMENDMENT-001 — POL-25 §verification_steps step 2 missing Named-twin (9a) + downstream-copy-target (9b); routing: spec-steward; do NOT schedule without orchestrator dispatch.
+
+---
+
+## §RESUME SNAPSHOT — D-2052 (2026-07-27 — POL-29 structural intervention APPLIED; F-WASE-P66-PROCESS-GAP-001 CLOSED; 15 pass-66 findings open; BC-5.39.001 streak 0/3; STATE v8.600) [SUPERSEDES D-2051] [SUPERSEDED by D-2053]
 
 ### RESUME IN ONE BREATH
 Wave-A spec-evolution cascade — D-2052 POL-29 structural intervention APPLIED. policies.yaml v1.38→v1.39: 3 named dimensions added (9a Named-twin, 9b Downstream-copy, 9c Mandate-anchor); verification_steps 20→23; TD-VSDD-097 codified in CLAUDE.md. F-WASE-P66-PROCESS-GAP-001 CLOSED (SAP-2 §Rule 2 corrected). GAP-POL25-COMPANION-AMENDMENT-001 registered (Drift Item; spec-steward). TREND-POL29-SIBLING-SWEEP-001 → APPLIED. BC-5.39.001 streak 0/3; frozen HEAD for pass-67 = new factory-artifacts HEAD after D-2052 commit (push resets streak per DRIFT-ORCH-PRLEVEL-PUSH-001).
