@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-CYBERINT-SPEC-001
 title: "Cyberint Dual-Surface Spec Migration — Delete cyberint.sensor.toml; Author cyberint-alerts and cyberint-assets; OpenAPI-Ground Alerts C2-Class Fixes; DTU Route Migration"
-version: "1.2"
+version: "1.4"
 status: draft
 producer: story-writer
 phase: 3
@@ -281,6 +281,60 @@ the only operator-visible surface change (documented in Breaking Change Notice a
 ---
 
 ## Tasks
+
+### Red Gate tests (to be written by test-writer BEFORE implementation)
+
+- [ ] **RG-001**: `test_bundled_spec_load_no_sensor_id_cyberint_after_deletion` — AC-001
+  _(Runs full bundled spec load after `cyberint.sensor.toml` is deleted; asserts no sensor with `sensor_id = "cyberint"` is present in the registry; verifies AC-008 transitively — the old sensor_id literal is gone entirely)_
+
+- [ ] **RG-002**: `test_cyberint_alerts_toml_header_scheme_cookie_access_token` — AC-002
+  _(Reads `crates/prism-sensors/specs/cyberint-alerts.sensor.toml`; asserts top-level `header_scheme = "cookie:access_token"` present and correct)_
+
+- [ ] **RG-003**: `test_cyberint_assets_toml_header_scheme_cookie_access_token` — AC-002
+  _(Reads `crates/prism-sensors/specs/cyberint-assets.sensor.toml`; asserts top-level `header_scheme = "cookie:access_token"` present and correct; verifies both surfaces carry the field)_
+
+- [ ] **RG-004**: `test_cyberint_alerts_toml_method_post_response_path_alerts` — AC-003
+  _(Parses `cyberint-alerts.sensor.toml` as TOML; asserts alerts table `method = "POST"` and `response_path = "$.alerts"`; EC-005 transitively covered — wrong method/path shape detected here)_
+
+- [ ] **RG-005**: `test_dtu_cyberint_post_alert_api_v1_alerts_returns_alerts_array` — AC-003
+  _(SAP-3: sends a real POST request to the DTU cyberint route `/alert/api/v1/alerts`; asserts response contains an `alerts` array key; confirms DTU shape matches TOML `response_path = "$.alerts"` — end-to-end surface reachability from POST method down to response shape)_
+
+- [ ] **RG-006**: `test_dtu_cyberint_alert_response_shape_no_data_no_cursor_keys` — AC-003
+  _(Asserts DTU cyberint alerts response does NOT contain old `data` key or `cursor_token` key; confirms old shape is fully replaced; EC-006 transitively covered — cursor key absent)_
+
+- [ ] **RG-007**: `test_pagination_page_number_post_body_first_page_is_page_1_size_100` — AC-004
+  _(Drives `PaginationConfig::PageNumber` with POST body mode; asserts first request body contains `page_number = 1` and `page_size = 100`; covers AC-004 first-page arm)_
+
+- [ ] **RG-008**: `test_pagination_page_number_second_request_body_is_page_2_size_100` — AC-004
+  _(Drives same path on second iteration; asserts request body contains `page_number = 2`; covers AC-004 advance arm `offset += 1`)_
+
+- [ ] **RG-009**: `test_pagination_page_number_terminate_on_page_shorter_than_page_size` — AC-004
+  _(Returns a page with fewer items than `page_size`; asserts loop terminates and all items accumulated; covers AC-004 termination arm)_
+
+- [ ] **RG-010**: `test_cyberint_alerts_credential_ref_name_is_access_token` — AC-005
+  _(Parses `cyberint-alerts.sensor.toml`; asserts `credential_refs` entry has `name = "access_token"`; EC-007 transitively covered — wrong credential name detected here)_
+
+- [ ] **RG-011**: `test_cyberint_assets_credential_ref_name_is_access_token` — AC-005
+  _(Parses `cyberint-assets.sensor.toml`; asserts `credential_refs` entry has `name = "access_token"`; verifies both surfaces use the renamed credential key)_
+
+- [ ] **RG-012**: `test_cyberint_assets_toml_skeleton_valid_sensor_id_base_url_probe_table` — AC-006
+  _(Parses `cyberint-assets.sensor.toml`; asserts `sensor_id`, `base_url`, and at least one `[[tables]]` block are present and non-empty; bundled spec load passes with no errors for the assets spec)_
+
+- [ ] **RG-013**: `test_cyberint_alerts_toml_no_incidents_table` — AC-007
+  _(Parses `cyberint-alerts.sensor.toml`; asserts no `[[tables]]` block has `name = "incidents"`; confirms the incidents table is not carried forward)_
+
+- [ ] **RG-014**: `test_workspace_no_sensor_id_cyberint_literal_in_crates` — AC-008
+  _(Greps `crates/` for the literal string `"cyberint"` as a sensor_id value; asserts zero matches for the old monolithic sensor_id; confirms the split names `"cyberint-alerts"` and `"cyberint-assets"` are used in all test fixtures)_
+
+- [ ] **RG-015**: `test_pagination_page_number_get_request_url_contains_page_1_size_100` — AC-004 (GET arm)
+  _(Drives `PaginationConfig::PageNumber` with GET URL mode; asserts first request URL contains `page=1` and `size=100` query params; covers GET-method URL injection arm of AC-004)_
+
+- [ ] **RG-016**: `test_pagination_page_number_multi_page_accumulation_equals_total` — AC-004
+  _(Simulates 3-page response; asserts accumulated item count equals sum of all three pages; covers AC-004 multi-page collection accumulation arm end-to-end)_
+
+**Red Gate density check** (BC-5.38.001): **16 failing tests** before implementation begins. RG-001 covers AC-001 (delete/load); RG-002/RG-003 cover AC-002 (header_scheme both surfaces); RG-004/RG-005/RG-006 cover AC-003 (POST + `$.alerts` path, DTU shape); RG-007/RG-008/RG-009/RG-015/RG-016 cover AC-004 (pagination arms); RG-010/RG-011 cover AC-005 (credential_refs access_token); RG-012 covers AC-006 (assets skeleton); RG-013 covers AC-007 (no incidents); RG-014 covers AC-008 (no old sensor_id). RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design and wiring-exempt) that reduce the denominator.
+
+### Implementation tasks
 
 ### T-01: Delete cyberint.sensor.toml
 **Files:** `crates/prism-sensors/specs/cyberint.sensor.toml` (DELETE)
@@ -730,6 +784,8 @@ No new external dependencies are introduced by this story.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.4 | 2026-07-26 | story-writer | FB61 gate-review DEFECT-1: remove fabricated RED_RATIO formula (Density = 16/8 ACs = 2.0) from §Red Gate density check; replace with orchestrator-computation note per per-story-delivery.md §Step 3.5, citing BC-5.38.002/BC-5.38.003 |
+| 1.3 | 2026-07-26 | story-writer | FB61 MED-016: add §Red Gate tests with 16 RGTs (RG-001..RG-016) and BC-5.38.001 density check; §Tasks reordered — test-authoring precedes implementation per ENGINE-001 normative pattern |
 | 1.2 | 2026-07-26 | story-writer | FB60 MED-008 + LOW-002: pin BC-2.16.001 from `current` to v1.9 and BC-2.16.009 from `current` to v1.28 in §Behavioral Contracts table; widen §Header-Scheme Sweep Report scope to cover `crates/prism-bin/fixtures/sensors/`; add `test-sensor-with-cred-refs.sensor.toml` row (`api_key`, path A, benign — workspace-wide conclusion confirmed) |
 | 1.1 | 2026-07-26 | story-writer | FB53c — F-WASE-P64-CRIT-003: change alerts pagination from `offset_limit` to `page_number` per ADR-056; fix AC-003/AC-004 mutual inconsistency (POST body keys, first page = 1); remove T-02 deferral license; MED-011: fix AC-006 task reference T-06 → T-03; MED-014: fix T-03 OpenAPI pointer to `.factory/reference/api-specs/cyberint_assets_openapi_06.20.2026.json`, removed both stub placeholders, converted assets pagination omission to explicit CWE-390-class blocker GAP-ASSETS-PAG-001 (first-page-only silent truncation; `total_assets` evidences loss; blocked on server-controlled-page-size variant awaiting orchestrator story creation; alerts surface unaffected); add T-09 for engine-side `PaginationConfig::PageNumber` wiring; add BC-2.16.002 to behavioral contracts; add SS-07 SpecEngine to subsystems; add prism-spec-engine entries to Architecture Mapping and File Structure |
 | 1.0 | 2026-07-25 | story-writer | Initial authoring post-sweep; co-land constraint with ENGINE-001 encoded |

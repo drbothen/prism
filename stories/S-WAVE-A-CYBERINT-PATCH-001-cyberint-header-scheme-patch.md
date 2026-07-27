@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-CYBERINT-PATCH-001
 title: "Cyberint header_scheme Boot-Failure Patch — Add header_scheme = \"cookie:access_token\" to cyberint.sensor.toml"
-version: "1.2"
+version: "1.4"
 status: draft
 producer: story-writer
 phase: 3
@@ -138,6 +138,21 @@ S-WAVE-A-CYBERINT-SPEC-001 scope).
 
 ## Tasks
 
+### Red Gate tests (to be written by test-writer BEFORE implementation)
+
+- [ ] **RG-001**: `test_cyberint_toml_header_scheme_field_value_is_cookie_access_token` — AC-001
+  _(Reads `crates/prism-sensors/specs/cyberint.sensor.toml`; asserts top-level `header_scheme = "cookie:access_token"` is present and has correct value; EC-001 transitively covered — assertion passes even when Rule 9 not yet live, confirming no regression; EC-002 transitively covered — correct `header_scheme` satisfies Rule 9 path (a) once ENGINE-001 is live)_
+
+- [ ] **RG-002**: `test_bundled_spec_load_cyberint_no_e_spec_027c` — AC-002
+  _(Runs full bundled spec load via `SpecLoader::parse()` for `cyberint.sensor.toml`; asserts no E-SPEC-027(c) error returned; exercises the full parse path: TOML parse → env-var resolution → Rule 7 → Rule 9)_
+
+- [ ] **RG-003**: `test_cyberint_toml_top_level_key_set_includes_header_scheme_no_extraneous_keys` — AC-003
+  _(Parses `cyberint.sensor.toml` as raw TOML; asserts the set of top-level scalar keys includes `header_scheme` and does not include any extraneous additions beyond the one-line patch; EC-003 transitively covered — correct top-level placement verified; wrong-section placement path covered by ENGINE-001 Rule 9 unit tests)_
+
+**Red Gate density check** (BC-5.38.001): **3 failing tests** before implementation begins. RG-001 covers AC-001 (field value correct); RG-002 covers AC-002 (bundled load path clean); RG-003 covers AC-003 (no extraneous changes; exactly the `header_scheme` line added). RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design and wiring-exempt) that reduce the denominator.
+
+### Implementation tasks
+
 ### T-01: Add header_scheme to cyberint.sensor.toml
 **File:** `crates/prism-sensors/specs/cyberint.sensor.toml`
 
@@ -212,6 +227,8 @@ None — no Rust code changes, no dependency changes.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.4 | 2026-07-26 | story-writer | FB61 gate-review DEFECT-1: remove fabricated RED_RATIO formula (Density = 3/3 ACs = 1.0) from §Red Gate density check; replace with orchestrator-computation note per per-story-delivery.md §Step 3.5, citing BC-5.38.002/BC-5.38.003 |
+| 1.3 | 2026-07-26 | story-writer | FB61 MED-016: add §Red Gate tests with 3 RGTs (RG-001..RG-003) and BC-5.38.001 density check; §Tasks reordered — test-authoring precedes implementation per ENGINE-001 normative pattern |
 | 1.2 | 2026-07-26 | story-writer | FB60 MED-008: pin BC-2.16.009 from `current` to v1.28 in §Behavioral Contracts table |
 | 1.1 | 2026-07-26 | story-writer | FB55a HIGH-002: fix §MERGE-GATE-ENGINE-001 first paragraph — false claim that `validate_sensor_spec()` carries Rule 9 replaced with correct attribution: Rule 9 is inside `SpecLoader::parse()`, the unconditional call point on every spec-load path (BC-2.16.009 §Integration function); `load_all()` boot invocation cited as the causal chain for the unconditional boot failure. Removed stale "reciprocal edge" administrative paragraph (the ENGINE-001 → PATCH-001 `blocks:` edge it described is dropped by HIGH-001). Fix AC-002 second paragraph: wrong `validate_sensor_spec()` function attribution replaced with `SpecLoader::parse()`; false conditionality "when S-ADR055-WAVE-A-001 is also merged" removed. Internal contradiction resolved — §MERGE-GATE-ENGINE-001 unconditional boot-failure claim is now consistent with AC-002, which no longer makes Rule 9 liveness conditional on ADR-055 wiring. |
 | 1.0 | 2026-07-25 | story-writer | Split from S-WAVE-A-CYBERINT-SPEC-001; minimal co-land patch; MERGE-GATE-ENGINE-001 boot-failure consequence documented |

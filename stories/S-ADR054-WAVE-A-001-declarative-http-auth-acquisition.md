@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR054-WAVE-A-001
 title: "Declarative HTTP Auth Acquisition — DeclarativeHttpAuthProvider, TokenExchange, Rule 10, CrowdStrike TOML Migration, crowdstrike-oauth2.prx Retirement"
-version: "1.3"
+version: "1.5"
 status: draft
 producer: story-writer
 phase: 3
@@ -365,7 +365,7 @@ PO-002 is retired as already-satisfied.
 | BC | Version | Relevance |
 |----|---------|-----------|
 | BC-2.16.009 | v1.28 | Rule 10 / E-SPEC-028 — [auth_acquisition] validation |
-| BC-2.01.017 | v1.10 | Adapter dispatch table — TokenExchange arm (PO amendment needed) |
+| BC-2.01.017 | v1.10 | §P2 `"raw"` dispatch row: `Authorization: {token}` for `token_exchange` (Bearer prefix → HTTP 401 per §P2 note); §P3 6-value canonical auth_type set includes `token_exchange` per ADR-054 D11; AC-008 wires `step9a_populate_adapter_registry` `TokenExchange` + `Oauth2ClientCredentials` arms to `DeclarativeHttpAuthProvider` |
 | BC-2.06.003 | v1.3 | Credential refs for the token_exchange flow |
 
 ---
@@ -386,6 +386,84 @@ PO-002 is retired as already-satisfied.
 ---
 
 ## Tasks
+
+### Red Gate tests (to be written by test-writer BEFORE implementation)
+
+- [ ] **RG-001**: `test_authtype_token_exchange_variant_parses_without_e_spec_012` — AC-001
+  _(SAP-3: submits TOML with `auth_type = "token_exchange"` via `parse_and_validate_spec_toml()`; asserts no E-SPEC-012 error (unknown auth_type) is returned; confirms `token_exchange` is in the canonical 6-value auth_type set after AC-001 landing)_
+
+- [ ] **RG-002**: `test_auth_acquisition_config_non_exhaustive_gate_includes_auth_acquisition_config` — AC-002
+  _(Compile-fail test or symbol-count test confirming `AuthAcquisitionConfig` carries `#[non_exhaustive]` and the gate script `check-non-exhaustive.sh` EXPECTED count is updated; links to the non-exhaustive perimeter gate pattern from `tests/external/perimeter-violation/`)_
+
+- [ ] **RG-003**: `test_auth_acquisition_config_ttl_buffer_default_is_30` — AC-002
+  _(Unit test in `spec_parser.rs` or `auth_provider.rs`: constructs `AuthAcquisitionConfig` with no explicit `ttl_buffer_seconds`; asserts `ttl_buffer_seconds == 30`; covers the default value clause in AC-002)_
+
+- [ ] **RG-004**: `test_rule10_d10a_missing_auth_acquisition_for_oauth2_returns_e_spec_028` — AC-003
+  _(SAP-3: drives `SpecLoader::parse()` via `parse_and_validate_spec_toml()` with `auth_type = "oauth2_client_credentials"` and no `[auth_acquisition]` block; asserts E-SPEC-028 sub-condition (a); confirm reachable from public surface)_
+
+- [ ] **RG-005**: `test_rule10_d10b_auth_plugin_on_declarative_auth_type_returns_e_spec_028` — AC-003
+  _(Drives `SpecLoader::parse()` with `auth_type = "token_exchange"` AND `auth_plugin = "crowdstrike-oauth2"` present; asserts E-SPEC-028 sub-condition (b) — auth_plugin field forbidden for declarative types)_
+
+- [ ] **RG-006**: `test_rule10_d10c_invalid_expiry_mode_for_token_exchange_returns_e_spec_028` — AC-003
+  _(Drives `SpecLoader::parse()` with valid `[auth_acquisition]` except `expiry_mode = "bogus"`; asserts E-SPEC-028 sub-condition (c))_
+
+- [ ] **RG-007**: `test_rule10_d10d_absent_token_response_path_for_token_exchange_returns_e_spec_028` — AC-003
+  _(Drives `SpecLoader::parse()` with `token_exchange` + valid `[auth_acquisition]` but `token_response_path` absent; asserts E-SPEC-028 sub-condition (d))_
+
+- [ ] **RG-008**: `test_rule10_d10e_credential_body_field_not_in_credential_refs_returns_e_spec_028` — AC-003
+  _(Drives `SpecLoader::parse()` with `credential_body_field = "client_secret"` but no matching `credential_refs` entry; asserts E-SPEC-028 sub-condition (e))_
+
+- [ ] **RG-009**: `test_rule10_d10f_oauth2_missing_client_id_in_credential_refs_returns_e_spec_028` — AC-003
+  _(Drives `SpecLoader::parse()` with `auth_type = "oauth2_client_credentials"` + `[auth_acquisition]` but no `client_id` field in `credential_refs`; asserts E-SPEC-028 sub-condition (f))_
+
+- [ ] **RG-010**: `test_rule10_d10g_auth_acquisition_on_bearer_static_returns_e_spec_028` — AC-003
+  _(Drives `SpecLoader::parse()` with `auth_type = "bearer_static"` + `[auth_acquisition]` block present (forbidden for static types); asserts E-SPEC-028 sub-condition (g))_
+
+- [ ] **RG-011**: `test_rule10_d10h_token_exchange_only_fields_on_oauth2_returns_e_spec_028` — AC-003
+  _(Drives `SpecLoader::parse()` with `auth_type = "oauth2_client_credentials"` + `token_response_path` (a token_exchange-only field); asserts E-SPEC-028 sub-condition (h) — token_exchange-only fields forbidden on oauth2)_
+
+- [ ] **RG-012**: `test_declarative_http_auth_provider_lazy_acquire_on_first_get_token` — AC-004
+  _(VP-159 arm (a): constructs `DeclarativeHttpAuthProvider` with wiremock token endpoint; calls `get_token()` once; asserts exactly one POST to the token endpoint was made; validates lazy-acquire behavior)_
+
+- [ ] **RG-013**: `test_declarative_http_auth_provider_cache_hit_no_second_acquire` — AC-004
+  _(VP-159 arm (b): calls `get_token()` twice within TTL window; asserts only one POST to token endpoint total; validates cache-hit path — no re-acquisition within TTL)_
+
+- [ ] **RG-014**: `test_declarative_http_auth_provider_refresh_on_expiry` — AC-004
+  _(VP-159 arm (c): uses `now_fn` clock injection to advance past expiry; calls `get_token()` again; asserts second POST to token endpoint was made; validates refresh-on-expiry path)_
+
+- [ ] **RG-015**: `test_vp_153_merge_gate_full_with_token_exchange_arm` — AC-005
+  _(VP-153 MERGE-GATE-VP153-FULL: runs the full VP-153 harness after `TokenExchange` arm is added to both harness files; asserts harness passes with no cross-composition violations; must be in same commit as enum variant addition)_
+
+- [ ] **RG-016**: `test_crowdstrike_toml_no_auth_plugin_field` — AC-006
+  _(Parses `crates/prism-sensors/specs/crowdstrike.sensor.toml`; asserts no `auth_plugin` field is present at any level; verifies the plugin field removal per ADR-054 D2)_
+
+- [ ] **RG-017**: `test_crowdstrike_toml_auth_acquisition_block_present_with_token_path` — AC-006
+  _(Parses `crowdstrike.sensor.toml`; asserts `[auth_acquisition]` block is present with a non-empty `token_response_path`; verifies TOML migration)_
+
+- [ ] **RG-018**: `test_crowdstrike_oauth2_prx_crate_not_in_workspace_members` — AC-007
+  _(Reads `Cargo.toml`; asserts no member path matching `crowdstrike-oauth2` is present; also asserts `just check` passes after deletion — no dangling dependency in workspace)_
+
+- [ ] **RG-019**: `test_step9a_token_exchange_spec_produces_declarative_http_auth_provider` — AC-008
+  _(Unit test in `step9a_populate_adapter_registry` or its test module: constructs a `SensorSpec` with `auth_type = TokenExchange` and full `AuthAcquisitionConfig`; calls `step9a_populate_adapter_registry()`; asserts the returned provider is a `DeclarativeHttpAuthProvider` (via downcasting or type assertion))_
+
+- [ ] **RG-020**: `test_declarative_http_auth_provider_cargo_toml_uses_rustls_tls_not_native_tls` — AC-009
+  _(Reads `Cargo.toml` for the crate containing `DeclarativeHttpAuthProvider`; asserts `reqwest` dependency has `default-features = false` and `features = ["rustls-tls"]`; asserts no `native-tls` or `default-tls` feature present; ADR-050 compliance)_
+
+- [ ] **RG-021**: `test_rule9_rule10_d_boundary_rule9_err_prevents_rule10_single_e_spec027` — AC-010
+  _(Boundary: TOML with `header_scheme = "garbage"` [Rule 9 violation → E-SPEC-027(a)] AND `[auth_acquisition]` for `token_exchange` with valid fields except `token_response_path` absent [Rule 10(d) violation → E-SPEC-028 when Rule 10 is live]; assert exactly one `ESpec027` error; proves Rule 10 reached-but-short-circuited, not absent; SAP-3: drives `SpecLoader::parse()` via raw TOML — NOT via `validate_sensor_spec()`, NOT via synthetic-struct invocation)_
+
+- [ ] **RG-022**: `test_rule10_d_missing_token_response_path_control_no_rule9_violation_e_spec028` — AC-010 (control)
+  _(Control: same `[auth_acquisition]` block missing `token_response_path` but with `header_scheme = "raw"` [valid for `token_exchange` per BC-2.16.009 EC-009-029; Rule 9 passes]; assert exactly one `ESpec028` error; proves fixture is a genuine Rule 10(d) rejection; SAP-3: drives `SpecLoader::parse()` via raw TOML)_
+
+- [ ] **RG-023**: `test_rule10_d10a_token_exchange_missing_token_path_returns_e_spec_028` — AC-003/EC-004
+  _(EC-004 coverage: `token_exchange` with `[auth_acquisition]` block but entirely missing `token_path` field; asserts E-SPEC-028 sub-condition (d); verifies EC-004 edge case from story §Edge Cases)_
+
+- [ ] **RG-024**: `test_declarative_http_auth_provider_token_endpoint_401_returns_auth_error` — AC-004/EC-006
+  _(EC-006 coverage: wiremock returns HTTP 401 on token endpoint; calls `get_token()`; asserts a structured auth error (not a panic or silent empty token) is returned; validates EC-006 expected behavior)_
+
+**Red Gate density check** (BC-5.38.001): **24 failing tests** before implementation begins. RG-001 covers AC-001; RG-002/RG-003 cover AC-002; RG-004..RG-011 cover AC-003 (all 8 sub-conditions D10(a)–D10(h)); RG-012/RG-013/RG-014 cover AC-004 (VP-159 arms a/b/c); RG-015 covers AC-005 (VP-153 gate); RG-016/RG-017 cover AC-006 (CrowdStrike TOML); RG-018 covers AC-007 (crate deletion); RG-019 covers AC-008 (step9a adapter wiring); RG-020 covers AC-009 (rustls-tls); RG-021/RG-022 cover AC-010 (Rule 9/Rule 10 boundary); RG-023/RG-024 cover EC-004/EC-006. RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design and wiring-exempt) that reduce the denominator.
+
+### Implementation tasks
 
 ### T-01: Locate AuthType enum and VALID_AUTH_TYPES before modifying
 **Scope:** grep `crates/prism-spec-engine/src/` for `AuthType` and `VALID_AUTH_TYPES`
@@ -434,29 +512,6 @@ Three test cases: lazy acquisition, cache hit, cache refresh on expiry. Use the
 ### T-09: Verify VP-153 MERGE-GATE-VP153-FULL passes
 Add `TokenExchange` arms to both VP-153 harness files in the same commit as the
 `TokenExchange` variant addition. Run the VP-153 harness and confirm it passes.
-
-### Red Gate Tests (to be written by test-writer BEFORE implementation of T-04)
-
-- [ ] **RGT-010-A**: `test_rule9_rule10_d_boundary_rule9_err_prevents_rule10_single_e_spec027` — AC-010
-  (Boundary: TOML with `header_scheme = "garbage"` [Rule 9 violation → E-SPEC-027(a)] AND
-  `[auth_acquisition]` for `token_exchange` with `token_path`, `credential_body_field`,
-  `expiry_field`, `expiry_mode = "absolute_utc_string"` present but `token_response_path` absent
-  [Rule 10(d) violation → E-SPEC-028 when Rule 10 is live]; assert exactly one `ESpec027` error;
-  proves Rule 10 reached-but-short-circuited, not absent; `spec_parser.rs` inline
-  `#[cfg(test)] mod tests`; SAP-3: drives `SpecLoader::parse()` via raw TOML — NOT via
-  `validate_sensor_spec()`, NOT via synthetic-struct invocation)
-
-- [ ] **RGT-010-B**: `test_rule10_d_missing_token_response_path_control_no_rule9_violation_e_spec028` — AC-010 (control)
-  (Control: same `[auth_acquisition]` block missing `token_response_path` but with
-  `header_scheme = "raw"` [valid for `token_exchange` per BC-2.16.009 EC-009-029; Rule 9 passes];
-  assert exactly one `ESpec028` error; proves fixture is a genuine Rule 10(d) rejection, not an
-  inert block; `spec_parser.rs` inline `#[cfg(test)] mod tests`; SAP-3: drives
-  `SpecLoader::parse()` via raw TOML)
-
-**Red Gate density note:** RGT-010-A and RGT-010-B must both be written as failing tests (stubs
-have no Rule 10 implementation) before the T-04 implementation dispatch. After T-04 lands,
-RGT-010-A passes (exactly one E-SPEC-027) and RGT-010-B passes (exactly one E-SPEC-028). Both
-tests together discharge BC-2.16.009 §Invariants v1.28 Rule 9/Rule 10 boundary clause.
 
 ---
 
@@ -574,6 +629,8 @@ The test-writer can write failing stubs for all three dispatches in one pass; im
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.5 | 2026-07-26 | story-writer | FB61 gate-review DEFECT-1: remove fabricated RED_RATIO formula (Density = 24/10 ACs = 2.4) from §Red Gate density check; replace with orchestrator-computation note per per-story-delivery.md §Step 3.5, citing BC-5.38.002/BC-5.38.003 |
+| 1.4 | 2026-07-26 | story-writer | FB61 MED-016: expand §Red Gate tests from 2 to 24 RGTs (RG-001..RG-024) covering all 10 ACs and EC-004/EC-006; §Tasks reordered — Red Gate section precedes T-01..T-09 implementation tasks; BC-5.38.001 density updated 2→24; BC-2.01.017 relevance cell updated — stale "(PO amendment needed)" replaced with accurate v1.10 content description (§P2 `"raw"` dispatch row, §P3 6-value canonical auth_type set, AC-008 adapter wiring) |
 | 1.3 | 2026-07-26 | story-writer | FB60 MED-008: pin BC-2.01.017 from `current` to v1.10 in §Behavioral Contracts table |
 | 1.2 | 2026-07-26 | story-writer | FB58 close OBLIG-MED004-RULE10-BOUNDARY-001: adds AC-010 (Rule 9→Rule 10 fail-fast boundary with Rule 10 live; BC-2.16.009 §Invariants v1.28 authority; sub-condition D10(d) missing `token_response_path` as genuine violation; RGT-010-B control proves fixture is a real Rule 10(d) rejection) plus §Red Gate Tests section with RGT-010-A (boundary) and RGT-010-B (control); updates BC-2.16.009 version pin current→v1.28 in §Behavioral Contracts table and PO-002 body; cross-references ENGINE-001 AC-026/RG-031 as sending side. AC count: 9→10. RGT count: 0→2. |
 | 1.1 | 2026-07-25 | story-writer | FB52b re-derive against ADR-054 v0.55 and BC-2.16.009 v1.27: (CRIT-001) AC-003 rewritten with all 8 ratified §D10 sub-conditions (a)–(h); removed 4 invented conditions that contradicted §D3 (dotted path not `$.`-prefixed) and §D3 optional default semantics; corrected sub-condition labels (a)–(h) throughout AC-003, EC-001..EC-005, and T-04. (CRIT-002) Rule 10 execution site re-anchored from `validate_sensor_spec()` to `SpecLoader::parse()` across all 6 occurrences (§Scope Summary D10 row, AC-003 body, §Architecture Mapping file/function row, T-04 title and body); all surviving `validate_sensor_spec` references are now negative constructions. (HIGH-005) PO-001 retired — the cited BC section does not exist (POL-21 phantom anchor) and the relevant BC amendments are already EXECUTED per ADR-054 D11; PO-002 retired — BC-2.16.009 Rule 10 fully specified since v1.12. (MED-013) AC-006 wrong-error-code corrected: duplicate-sensor-id code replaced with E-SPEC-028 sub-condition (b). EC-008 TBD resolved per BC-2.16.009 Rule 10(a)/EC-009-039. §Authority updated to v0.55. |

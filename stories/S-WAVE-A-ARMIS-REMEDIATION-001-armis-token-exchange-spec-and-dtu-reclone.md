@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-ARMIS-REMEDIATION-001
 title: "Armis Token-Exchange Spec Migration and DTU Reclone — auth_type token_exchange, [auth_acquisition] block, Armis DTU token endpoint"
-version: "1.2"
+version: "1.4"
 status: draft
 producer: story-writer
 phase: 3
@@ -274,6 +274,42 @@ amendment. Per ADR-053 §D5 amendment manifest.
 
 ## Tasks
 
+### Red Gate tests (to be written by test-writer BEFORE implementation)
+
+- [ ] **RG-001**: `test_armis_toml_auth_type_is_token_exchange_with_valid_auth_acquisition_block` — AC-001
+  _(Parses `crates/prism-sensors/specs/armis.sensor.toml`; asserts `auth_type = "token_exchange"` and a non-empty `[auth_acquisition]` block is present with `token_path`, `token_response_path`, `expiry_field`, and `expiry_mode`; SAP-2: TOML shape verified against DTU types)_
+
+- [ ] **RG-002**: `test_armis_dtu_post_token_endpoint_returns_access_token_and_expiration` — AC-002
+  _(SAP-2/SAP-3: sends a POST to the Armis DTU token endpoint path; asserts response JSON contains `access_token` at the path specified in `token_response_path` and an expiry field at `expiry_field`; confirms DTU token acquisition shape matches TOML `[auth_acquisition]` block)_
+
+- [ ] **RG-003**: `test_armis_dtu_acquired_token_raw_no_bearer_prefix_on_search` — AC-003/AC-007
+  _(SAP-3: runs a full search request through the Armis DTU with a token acquired via the token endpoint; asserts the outgoing `Authorization` header value equals the raw token (no `Bearer ` prefix); wire-shape assertion per CLAUDE.md §Wire-shape assertion discipline; BC-2.01.017 §P2 `"raw"` dispatch row — Bearer prefix → HTTP 401)_
+
+- [ ] **RG-004**: `test_armis_dtu_old_static_token_rejected_after_migration` — AC-003
+  _(Constructs an Armis spec with the OLD `auth_type = "bearer_static"` shape and attempts to load via `parse_and_validate_spec_toml()`; asserts Rule 10 rejects the static-bearer form now that `[auth_acquisition]` is required; confirms the old shape no longer loads after S-ADR054-WAVE-A-001 lands)_
+
+- [ ] **RG-005**: `test_armis_customer_overlay_specs_parse_without_error_after_migration` — AC-004
+  _(Reads each TOML file under `crates/prism-bin/fixtures/sensors/` matching `armis*`; calls `parse_and_validate_spec_toml()` on each; asserts all parse without error; confirms no customer overlay spec regresses after the migration)_
+
+- [ ] **RG-006**: `test_armis_vp_153_token_exchange_arm_passes_harness` — AC-005
+  _(Runs the VP-153 MERGE-GATE-VP153-FULL harness after S-ADR054-WAVE-A-001 adds `TokenExchange` arm; asserts the Armis `token_exchange` case passes the cross-composition prevention invariant; depends_on: S-ADR054-WAVE-A-001 merged)_
+
+- [ ] **RG-007**: `test_armis_toml_credential_refs_name_is_secret_key` — AC-006
+  _(Parses `armis.sensor.toml`; asserts `credential_refs` contains an entry with `name = "secret_key"` (the renamed credential key per ADR-054 §D3); SAP-2: DTU and TOML use consistent credential name)_
+
+- [ ] **RG-008**: `test_armis_dtu_post_token_endpoint_with_bad_secret_key_returns_401` — AC-002/EC-001
+  _(EC-001 coverage: sends POST to Armis DTU token endpoint with an invalid/empty `secret_key` credential; asserts HTTP 401 is returned; confirms the DTU enforces credential validation at the token endpoint; SAP-2: DTU error shape matches real Armis API behavior)_
+
+- [ ] **RG-009**: `test_armis_toml_header_scheme_is_raw_not_bearer` — AC-001/AC-007
+  _(Parses `armis.sensor.toml`; asserts `header_scheme = "raw"` (not `"bearer_static"` or `"cookie:..."`); confirms BC-2.01.017 §P2 `"raw"` dispatch row is correctly encoded — Bearer prefix causes HTTP 401 per §P2 note; this is the critical correctness check for Armis auth)_
+
+- [ ] **RG-010**: `test_armis_token_exchange_flow_token_response_path_and_expiry_field_from_toml` — AC-002
+  _(SAP-2: reads `armis.sensor.toml`; asserts `token_response_path` matches a field present in `crates/prism-dtu-armis/src/types.rs` token response struct; asserts `expiry_field` matches a field in the same struct; confirms TOML-DTU type parity — no phantom column names)_
+
+**Red Gate density check** (BC-5.38.001): **10 failing tests** before implementation begins. RG-001/RG-009 cover AC-001 (TOML auth_type + header_scheme); RG-002/RG-010 cover AC-002 (DTU token endpoint + type parity); RG-003/RG-004 cover AC-003 (raw no-Bearer + old shape rejection); RG-005 covers AC-004 (customer overlay compat); RG-006 covers AC-005 (VP-153); RG-007 covers AC-006 (credential_refs name); RG-003 covers AC-007 (wire-shape Bearer absent); RG-008 covers EC-001. RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design and wiring-exempt) that reduce the denominator.
+
+### Implementation tasks
+
 ### T-01: Read armis.sensor.toml fully before modifying
 **File:** `crates/prism-sensors/specs/armis.sensor.toml`
 
@@ -455,6 +491,8 @@ proves more complex than expected.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.4 | 2026-07-26 | story-writer | FB61 gate-review DEFECT-1: remove fabricated RED_RATIO formula (Density = 10/7 ACs = 1.43) from §Red Gate density check; replace with orchestrator-computation note per per-story-delivery.md §Step 3.5, citing BC-5.38.002/BC-5.38.003 |
+| 1.3 | 2026-07-26 | story-writer | FB61 MED-016: add §Red Gate tests with 10 RGTs (RG-001..RG-010) and BC-5.38.001 density check; §Tasks reordered — test-authoring precedes implementation per ENGINE-001 normative pattern |
 | 1.2 | 2026-07-26 | story-writer | FB60 MED-008: pin BC-2.01.006 from `current` to v1.8 in §Behavioral Contracts table |
 | 1.1 | 2026-07-25 | story-writer | FB49: re-derive against ADR-054 §D3 ratified Armis wiring; add header_scheme = "raw" (F-WASE-P64-CRIT-004); fix token_path, token_response_path, expiry_field; add AC-007 wire-shape assertion (F-WASE-P64-HIGH-006); resolve all 18 unresolved placeholders; re-anchor status: ready gate from nonexistent Armis OpenAPI to ADR-053 §D1 no-OpenAPI governance |
 | 1.0 | 2026-07-25 | story-writer | Initial stub; all auth values unresolved (OpenAPI grounding assumed at time of authoring); depends_on S-ADR054-WAVE-A-001; PO dependency encoding |

@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-MCP-001
 title: "Remap add_sensor_spec ValidationFailed to BC-2.10.007 Structured Error Envelope"
-version: "1.2"
+version: "1.4"
 status: draft
 producer: story-writer
 phase: 3
@@ -360,6 +360,36 @@ consumers of the prism MCP server.
 
 ## Tasks
 
+### Red Gate tests (to be written by test-writer BEFORE implementation)
+
+- [ ] **RG-001**: `test_add_sensor_spec_non_tchar_cookie_name_returns_e_spec_027_wire_level` — AC-008
+  _(SAP-3: reaches E-SPEC-027 rejection arm end-to-end from the `add_sensor_spec` MCP tool call surface — not via synthetic-AST or direct-handler invocation; asserts `isError: true` AND `structuredContent["error"]["code"] == "E-SPEC-027"` on serialized JSON wire output; wire-shape assertion on serialized bytes per CLAUDE.md §Wire-shape assertion discipline D-1715; requires S-WAVE-A-ENGINE-001 merged so Rule 9 is live in `SpecLoader::parse()`)_
+
+- [ ] **RG-002**: `test_add_sensor_spec_invalid_base_url_emits_is_error_true` — AC-001
+  _(Submits TOML with an invalid `base_url` (e.g., `ftp://` scheme) via `add_sensor_spec`; serializes `CallToolResult` to JSON; asserts `response["isError"] == true`; confirms the ValidationFailed arm now maps to the structured error envelope shape)_
+
+- [ ] **RG-003**: `test_add_sensor_spec_validation_failed_structured_content_error_code_is_e_spec_nnn` — AC-002
+  _(Submits invalid TOML; asserts `response["structuredContent"]["error"]["code"]` matches the `E-SPEC-NNN` pattern; verifies the error code field is correctly populated in the structured content envelope; wire-shape assertion on serialized JSON)_
+
+- [ ] **RG-004**: `test_add_sensor_spec_multi_error_toml_errors_array_at_least_two_entries` — AC-003
+  _(Submits TOML with two independent violations; asserts `response["structuredContent"]["error"]["errors"]` is a JSON array with ≥2 entries; confirms collect-all semantics propagate through the structured error envelope; wire-shape on serialized JSON)_
+
+- [ ] **RG-005**: `test_add_sensor_spec_validation_failed_old_status_field_absent` — AC-004
+  _(Submits invalid TOML; asserts `response.get("status")` is `None` (old `"status": "validation_failed"` shape is absent); confirms the old field is fully removed from the wire shape; wire-shape assertion)_
+
+- [ ] **RG-006**: `test_add_sensor_spec_validation_failed_all_9_structured_error_fields_present` — AC-005
+  _(Submits invalid TOML; deserializes full `structuredContent.error` object; asserts all 9 required fields are present: `code`, `message`, `category`, `retryable`, `retry_after_seconds`, `suggestion`, `source`, `original_params_valid`, `upstream_message`; per SID-2: full composed object asserted, not just component fields)_
+
+- [ ] **RG-007**: `test_add_sensor_spec_validation_failed_nullable_fields_null_not_absent_wire_level` — AC-006
+  _(Submits invalid TOML; serializes `CallToolResult` to `serde_json::Value`; for each nullable field in `structuredContent.error` — `retry_after_seconds` and `upstream_message` — asserts the key IS present in the JSON object AND its value is `serde_json::Value::Null`; explicitly asserts `response["structuredContent"]["error"].get("retry_after_seconds").is_some()` AND `response["structuredContent"]["error"]["retry_after_seconds"].is_null()`; distinguishes JSON null-valued from absent key — a missing key and a null-valued key are structurally different at the wire level per CLAUDE.md §Wire-shape assertion discipline and BC-2.11.001 EC-11-079 row-shape null-not-absent; wire-shape assertion on serialized JSON bytes, not pre-serialization Rust structs)_
+
+- [ ] **RG-008**: `test_add_sensor_spec_valid_toml_success_arm_returns_status_added` — AC-007
+  _(Submits valid TOML via `add_sensor_spec`; asserts `response["isError"]` is absent or `false` and the response contains a success indication; verifies the success arm is not inadvertently broken by changes to the error arm)_
+
+**Red Gate density check** (BC-5.38.001): **8 failing tests** before implementation begins. RG-001 covers AC-008 (wire-level E-SPEC-027); RG-002 covers AC-001 (isError: true on ValidationFailed); RG-003 covers AC-002 (structured content error code); RG-004 covers AC-003 (multi-error collect-all); RG-005 covers AC-004 (old status field absent); RG-006 covers AC-005 (9 fields present); RG-007 covers AC-006 (nullable fields null-not-absent wire-level assertion); RG-008 covers AC-007 (success arm unbroken). RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design and wiring-exempt) that reduce the denominator.
+
+### Implementation tasks
+
 ### T-01: Read the current ValidationFailed arm in server.rs
 **File:** `crates/prism-mcp/src/server.rs` — function `add_sensor_spec()`, ValidationFailed match arm
 
@@ -387,50 +417,6 @@ Document the decision in the commit message and in a code comment at the change 
 For each test asserting the old shape (`"status": "validation_failed"`):
 - Update the assertion to check `isError == true` and `structuredContent.error.code` is an E-SPEC-NNN code
 - Add wire-shape assertion per CLAUDE.md §Wire-shape assertion discipline
-
-### T-04: Write AC-001/AC-002/AC-003 wire-shape tests
-**File:** `crates/prism-mcp/tests/` (or existing MCP integration test file)
-
-Write tests that:
-1. Submit invalid TOML via `add_sensor_spec()` (after serialization to MCP CallToolResult)
-2. Serialize the result to JSON
-3. Assert on the SERIALIZED JSON output — not on pre-serialization Rust structs
-
-Specifically, serialize to `serde_json::Value` and check:
-- `response["isError"] == true`
-- `response["structuredContent"]["error"]["code"]` matches `"E-SPEC-NNN"` pattern
-- `response["structuredContent"]["error"]["errors"]` is a JSON array with ≥1 entry
-- `response.get("status")` is None (old field absent)
-
-### T-05: Write AC-005 field completeness test
-Write a test that checks each of the 9 required fields in `structuredContent.error` is
-present and has the correct type (null vs absent, bool vs string). Per SID-2: at least one
-test must assert on the FULL composed error object, not just on component fields.
-
-### T-06: Write AC-008 wire-level E-SPEC-027 test
-**File:** `crates/prism-mcp/tests/` (same MCP integration test file as T-04)
-
-Submit `header_scheme = "cookie:bad;name"` via `add_sensor_spec`, serialize the
-`CallToolResult` to JSON, and assert the two wire-level properties in order:
-1. `response["isError"] == true`
-2. `response["structuredContent"]["error"]["code"] == "E-SPEC-027"`
-
-Both assertions must be on the serialized JSON value, not on pre-serialization Rust
-structs. Do NOT skip the `isError` assertion — it must be present alongside the `code`
-assertion in the same test function (SID-2: composed-output assertion).
-
-### Red Gate tests (to be written by test-writer BEFORE implementation)
-
-- [ ] **RG-001**: `test_add_sensor_spec_non_tchar_cookie_name_returns_e_spec_027_wire_level` — AC-008
-  (SAP-3: reaches E-SPEC-027 rejection arm end-to-end from the `add_sensor_spec` MCP tool
-  call surface — not via synthetic-AST or direct-handler invocation; asserts `isError: true`
-  AND `structuredContent["error"]["code"] == "E-SPEC-027"` on serialized JSON wire output;
-  wire-shape assertion on serialized bytes per CLAUDE.md §Wire-shape assertion discipline
-  D-1715; requires S-WAVE-A-ENGINE-001 merged so Rule 9 is live in `SpecLoader::parse()`)
-
-**Red Gate density:** 1 named failing test before implementation of AC-008 begins. The
-remaining ACs (AC-001..AC-007) are specified in prose tasks (T-04/T-05) per the original
-story structure; RG-001 is the named entry for the new obligation introduced in FB55b.
 
 ---
 
@@ -513,7 +499,7 @@ No new external dependencies.
 | `crates/prism-mcp/src/server.rs` | MODIFY | T-01/T-02: change ValidationFailed arm; `return Err(...)` path |
 | `crates/prism-mcp/src/error_mapping.rs` | MODIFY (Option A) or NO CHANGE (Option B) | T-02: new PrismError variant arm if Option A chosen |
 | `crates/prism-core/src/error.rs` | MODIFY (Option A) or NO CHANGE (Option B) | T-02: new PrismError variant if Option A chosen |
-| `crates/prism-mcp/tests/` | MODIFY/ADD | T-03/T-04/T-05/T-06: update old tests + new wire-shape tests (including RG-001 for AC-008) |
+| `crates/prism-mcp/tests/` | MODIFY/ADD | T-03: update old tests + new wire-shape tests (RG-001..RG-008 written by test-writer; T-03 updates existing assertions) |
 
 ---
 
@@ -521,6 +507,8 @@ No new external dependencies.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.4 | 2026-07-26 | story-writer | FB61 gate-review DEFECT-1 + DEFECT-2: DEFECT-1: remove fabricated RED_RATIO formula (Density = 7/8 ACs = 0.875) from §Red Gate density check; replace with orchestrator-computation note per per-story-delivery.md §Step 3.5, citing BC-5.38.002/BC-5.38.003. DEFECT-2: add standalone RG-007 `test_add_sensor_spec_validation_failed_nullable_fields_null_not_absent_wire_level` for AC-006 — asserts nullable fields (`retry_after_seconds`, `upstream_message`) are present as JSON null (not absent key) on serialized `CallToolResult` wire output; removes false transitive-coverage claim; old RG-007 renumbered to RG-008; expected-red count updated 7→8 |
+| 1.3 | 2026-07-26 | story-writer | FB61 MED-016: expand §Red Gate tests from 1 to 7 RGTs (RG-001..RG-007) covering all 8 ACs; §Tasks reordered — Red Gate section precedes T-01..T-03 implementation tasks; T-04/T-05/T-06 test tasks removed (test functions now enumerated in Red Gate section); BC-5.38.001 density updated 1→7 |
 | 1.2 | 2026-07-26 | story-writer | FB59 closes F-WASE-P64-MED-005, F-WASE-P64-MED-006, F-WASE-P64-LOW-001. MED-005: corrected field count from eight to nine in AC-005 §trace, AC-005 body, and T-05 §description — nine required fields validated against BC-2.10.007 §Complete field specification (code, message, category, retryable, retry_after_seconds, suggestion, source, original_params_valid, upstream_message; all nine marked Required Always). MED-006: EC-001 phantom code E-SPEC-000 removed — no taxonomy code maps to this condition; the zero-error ValidationFailed state is unreachable by contract (SpecLoader::parse() accumulates errors and only returns Err when ≥1 are collected); EC-001 rewritten as a contract invariant; §Implementation Notes code snippet updated: debug_assert!(!all_errors.is_empty()) retained as dev-time check, replaced the follow-on .expect() panic path with an explicit if all_errors.is_empty() guard that returns Err via the existing to_error_data() MCP error path (same pattern as WriteError arm, exact PrismError variant deferred to T-02), then extracts first_code via all_errors[0].split(':').next().unwrap_or(all_errors[0]) with no phantom code fallback. No E-SPEC-NNN code is fabricated for the invariant-violation path. LOW-001: §Architecture Compliance Rule 2 BC-2.10.007 version cite corrected from v1.18 to v1.19; BC-2.10.007 frontmatter confirmed at version 1.19; §Authority and §Behavioral Contracts table already cite v1.19 — no additional sites required. |
 | 1.1 | 2026-07-26 | story-writer | FB55b closes F-WASE-P64-HIGH-003. Added AC-008 (ADR-053 §D6 deferred acceptance shape verbatim: `add_sensor_spec` with `header_scheme = "cookie:bad;name"` (non-tchar `;`) returns `isError: true` + `structuredContent.error.code == "E-SPEC-027"` at MCP wire level; both assertions on serialized JSON per CLAUDE.md §Wire-shape assertion discipline D-1715; SAP-3 end-to-end from `add_sensor_spec` MCP tool call surface with defense-in-depth labeling requirement). Added §Red Gate tests subsection with RG-001 (`test_add_sensor_spec_non_tchar_cookie_name_returns_e_spec_027_wire_level` — AC-008). Added T-06 (task for AC-008 wire-level test). Fixed EC-005: removed false "AC-003 covers multi-error cases" cross-reference; re-pointed at AC-008 as the primary obligation carrier per ADR-053 §D6 acceptance shape. |
 | 1.0 | 2026-07-25 | story-writer | Initial stub; authority: BC-2.16.008 v1.6 + ADR-053 §D6 Option B; normative ID constraint documented; TBD sections marked for implementation-time resolution |

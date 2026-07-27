@@ -4280,6 +4280,22 @@ A gate's capability boundary documentation must explicitly state: (a) what the g
 
 **Source:** DRIFT-L9-VACUOUS-GATE-001 + TD-VSDD-092 design review (D-2017/FB47a 2026-07-25).
 
+## Lesson 106 — A fix-burst closing a test-rigor finding introduced two test-rigor defects of its own — a fabricated formula attributed to a real threshold, and a false transitive-coverage claim on exactly the AC that CLAUDE.md's wire-shape rule was written to protect [test-rigor; codified]
+
+**Category:** test-rigor, orchestrator gate review, specialist self-certification (TD-VSDD-059)
+
+**Context:** FB61 closed F-WASE-P64-MED-016 (missing enumerated §Red Gate tests in six perimeter stories). The story-writer's fix introduced two defects that were caught only by orchestrator gate review before commit:
+(1) A fabricated RED_RATIO formula — "Density = X/Y ACs = Z ≥ 0.5 threshold" — was appended to all six stories. The 0.5 threshold is real (BC-5.38.001). The formula is not. The authoritative formula from per-story-delivery.md §Red Gate Density Check + BC-5.38.002/BC-5.38.003 is `RED_TESTS * 2 >= (TOTAL_NEW_TESTS − EXEMPT_TESTS)`. Three failures: the formula cited the wrong quantity (RGTs-per-AC rather than RED_TESTS); the claimed values (2.4/2.0/1.43/1.1/0.875) all exceed the real formula's mathematical bound of 1.0, self-refuting; and a RGTs-per-AC comparison against 0.5 makes the gate vacuously passable whenever RGTs ≥ 1. The formula is also not computable at authoring time — RED_TESTS requires the stubs to exist (Step 3.5 of per-story-delivery.md).
+(2) S-WAVE-A-MCP-001 AC-006 ("structured error fields have correct types — null vs absent") was declared transitively covered by RG-006's 9-field presence check. Presence and null-ness are orthogonal: a presence check verifies a key exists, not that its value is null vs a concrete value. This is a direct violation of CLAUDE.md §Conventions "Wire-shape assertion discipline" (human-approved 2026-07-13) and a repeat of the arrow_json explicit_nulls escape (D-1715/D-1716, BC-2.11.001 §EC-11-079 null-not-absent). The AC that CLAUDE.md's wire-shape rule was written to protect was the first AC to acquire a false transitive-coverage rationale in the same burst.
+
+**Detection heuristic that worked:** a computed metric whose numerical value falls outside its formula's mathematical range is prima facie evidence the formula is wrong. RED_TESTS * 2 >= (TOTAL_NEW_TESTS − EXEMPT_TESTS) produces a binary true/false; it cannot produce "2.4" or "1.43". Any fix-burst output that shows such a value should be rejected immediately without waiting for downstream adversary review.
+
+**Transferable lesson:** orchestrator gate review of fix-burst output is load-bearing; specialist closure reports are not self-certifying (TD-VSDD-059). A fix-burst designed to improve test rigor should be reviewed with extra scrutiny for exactly this failure mode — the same blind spots that caused the original finding persist in the agent that was asked to fix it.
+
+**Going-forward rule:** when a fix-burst adds a density formula or a coverage rationale to a spec, verify: (a) the formula produces a value within its stated range; (b) the coverage rationale matches the AC's actual assertion (not a weaker proxy).
+
+**Source:** FB61 gate-review DEFECT-1 + DEFECT-2 (D-2041, 2026-07-26).
+
 ## Lesson 105 — A ratchet-mode-only gate cannot catch a frontmatter bump in an unstaged file; --full-scan is required to close the window [process-gap; codified]
 
 **Category:** gate design, ratchet-mode blind spots

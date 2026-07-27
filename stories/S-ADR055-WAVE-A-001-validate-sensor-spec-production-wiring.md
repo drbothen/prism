@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR055-WAVE-A-001
 title: "Wire validate_sensor_spec() into Production Spec-Loading Pipeline — parse_and_validate_spec_toml() and SpecLoader::load_all()"
-version: "1.1"
+version: "1.3"
 status: draft
 producer: story-writer
 phase: 3
@@ -340,6 +340,45 @@ errors to the calling LLM agent when a spec violates Rules 1–5, but the error 
 
 ## Tasks
 
+### Red Gate tests (to be written by test-writer BEFORE implementation)
+
+- [ ] **RG-001**: `test_parse_and_validate_spec_toml_ftp_base_url_returns_e_spec_001` — AC-001
+  _(SAP-3: constructs TOML with `base_url = "ftp://evil.example.com"`; calls `parse_and_validate_spec_toml()` — NOT `validate_sensor_spec()` directly; asserts result is `Err` containing "E-SPEC-001"; verifies Rule 1 is reachable end-to-end from the public surface)_
+
+- [ ] **RG-002**: `test_add_sensor_spec_ec_009_005_reachable_from_public_surface` — AC-002
+  _(SAP-3: calls `add_sensor_spec(org_slug, toml_with_bad_base_url)` — the full public-surface path (MCP tool backing function → `parse_and_validate_spec_toml` → `validate_sensor_spec` → Rule 1); asserts error containing E-SPEC-001 is returned; confirms wiring extends from user-facing entry point)_
+
+- [ ] **RG-003**: `test_parse_and_validate_spec_toml_multi_error_collect_all_two_violations` — AC-003
+  _(Submits TOML with two independent Rule-1–5 violations; asserts `errors` vec in returned `ValidationError` has length ≥ 2; verifies collect-all semantics: no fail-fast, all errors accumulated in a single pass)_
+
+- [ ] **RG-004**: `test_bundled_spec_load_passes_after_validate_sensor_spec_wiring` — AC-004
+  _(Runs `cargo nextest run -p prism-spec-engine -E 'test(bundled)'`; asserts all bundled spec load tests remain green after §D1 and §D2 wiring; confirms no regression from fixture-incompatible validation)_
+
+- [ ] **RG-005**: `test_parse_and_validate_spec_toml_path_traversal_sensor_id_rejected_before_validate` — AC-005
+  _(Constructs TOML with `sensor_id = "../../../etc/passwd"`; calls `parse_and_validate_spec_toml()`; asserts rejection at the `SENSOR_ID_RE` gate BEFORE `validate_sensor_spec()` is invoked; confirms SENSOR_ID_RE is not removed by the wiring change)_
+
+- [ ] **RG-006**: `test_hot_reload_process_spec_changes_uses_parse_and_validate_spec_toml_entry_point` — AC-006
+  _(Reads `crates/prism-spec-engine/src/hot_reload.rs`; asserts `process_spec_changes()` calls `parse_and_validate_spec_toml()` and the `// parse_and_validate_spec_toml() composes Rules 1–7 (ADR-055 §D1)` comment block is present at the call site; confirms hot-reload path goes through the composition entry point, not a shortcut)_
+
+- [ ] **RG-007**: `test_load_all_di_030_one_bad_spec_does_not_abort_valid_spec_load` — AC-007
+  _(Creates a temporary directory with one valid spec and one spec with `base_url = "ftp://x"`; calls `SpecLoader::load_all(path)`; asserts valid spec is in success collection AND invalid spec's error is in error collection AND function does NOT abort on first bad spec; verifies collect-all load_all semantics per ADR-055 §D2 DI-030)_
+
+- [ ] **RG-008**: `test_env_var_base_url_resolves_before_rule1_scheme_check` — AC-008
+  _(Constructs TOML with `base_url = "${env.SENSOR_BASE_URL}"`; sets env var to `https://valid.example.com`; calls `parse_and_validate_spec_toml()`; asserts load succeeds; verifies env-var resolution happens BEFORE Rule 1 scheme check, so env-substituted HTTPS URLs pass)_
+
+- [ ] **RG-009**: `test_bc_2_16_009_fixture_audit_comment_present_in_test_file` — AC-009
+  _(Reads `crates/prism-spec-engine/tests/bc_2_16_009_test.rs`; asserts a `// FIXTURE-AUDIT-ADR055:` comment block is present at the top of the file; confirms the mandatory fixture audit (AC-009) was performed and documented)_
+
+- [ ] **RG-010**: `test_parse_and_validate_spec_toml_emits_spec_validation_warning_on_ok_warnings` — AC-010
+  _(Constructs a valid spec that triggers at least one `ValidationWarning`; calls `parse_and_validate_spec_toml()`; asserts the result is `Ok` (not `Err`) and the returned warnings vec is non-empty; verifies warning surfacing (§D6) does not convert warnings to errors)_
+
+- [ ] **RG-011**: `test_load_all_collect_all_semantics_two_bad_specs_both_errors_collected` — AC-003 variant
+  _(Creates a temporary directory with two bad specs (each with different Rule violations); calls `SpecLoader::load_all(path)`; asserts both specs' errors are returned; verifies collect-all semantics extend to the `load_all` boundary — not just within a single spec's parsing)_
+
+**Red Gate density check** (BC-5.38.001): **11 failing tests** before implementation begins. RG-001 covers AC-001 (SAP-3 base_url via `parse_and_validate_spec_toml`); RG-002 covers AC-002 (SAP-3 via `add_sensor_spec` surface); RG-003/RG-011 cover AC-003 (multi-error collect-all); RG-004 covers AC-004 (bundled load regression gate); RG-005 covers AC-005 (SENSOR_ID_RE preservation); RG-006 covers AC-006 (hot-reload comment); RG-007 covers AC-007 (load_all DI-030 collect-all); RG-008 covers AC-008 (env-var resolution before Rule 1); RG-009 covers AC-009 (fixture audit comment); RG-010 covers AC-010 (warning surfacing). RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design and wiring-exempt) that reduce the denominator.
+
+### Implementation tasks
+
 ### T-01: Read validate_sensor_spec() and SpecError types before implementing
 **File:** `crates/prism-spec-engine/src/validation.rs`
 
@@ -412,38 +451,6 @@ Add a code comment at the `parse_and_validate_spec_toml()` call site in
 // TOML parse → env-var resolution → HTTP methods (Rule 7) → semantic validation (Rules 1–5).
 // No additional rule checks are needed here.
 ```
-
-### T-08: Write AC-001 test (SAP-3 base_url via parse_and_validate_spec_toml)
-**File:** `crates/prism-spec-engine/tests/bc_2_16_009_test.rs` (or a new test file)
-
-Write a test that:
-1. Constructs a TOML string with `base_url = "ftp://evil.example.com"`
-2. Calls `parse_and_validate_spec_toml()` (NOT `validate_sensor_spec()` directly)
-3. Asserts the result is `Err(...)` with an error string containing "E-SPEC-001"
-
-This is the SAP-3 compliance test for the Rule 1 base_url arm.
-
-### T-09: Write AC-002 test (SAP-3 EC-009-005 via add_sensor_spec API)
-**File:** `crates/prism-spec-engine/tests/` (integration test file)
-
-Write a test that calls `add_sensor_spec(org_slug, toml_with_bad_base_url)` and asserts
-an error containing E-SPEC-001 is returned. This verifies the full public-surface path:
-MCP tool backing function → parse_and_validate_spec_toml → validate_sensor_spec → Rule 1.
-
-### T-10: Write AC-003 test (multi-error collect-all)
-**File:** `crates/prism-spec-engine/tests/`
-
-Write a test that submits a TOML with TWO Rule-1–5 violations and asserts that the
-`errors` vec in the returned `ValidationError` has length ≥ 2.
-
-### T-11: Write AC-007 test (load_all multi-spec DI-030)
-**File:** `crates/prism-spec-engine/tests/`
-
-Write a test that creates a temporary directory with one valid spec and one spec with
-`base_url = "ftp://x"`, calls `SpecLoader::load_all(path)`, and asserts:
-- The valid spec is in the returned success collection
-- The invalid spec's error appears in the returned error collection
-- The function does NOT abort on the first bad spec
 
 ---
 
@@ -552,5 +559,7 @@ No new external dependencies are introduced by this story.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.3 | 2026-07-26 | story-writer | FB61 gate-review DEFECT-1: remove fabricated RED_RATIO formula (Density = 11/10 ACs = 1.1) from §Red Gate density check; replace with orchestrator-computation note per per-story-delivery.md §Step 3.5, citing BC-5.38.002/BC-5.38.003 |
+| 1.2 | 2026-07-26 | story-writer | FB61 MED-016: add §Red Gate tests with 11 RGTs (RG-001..RG-011) and BC-5.38.001 density check; §Tasks reordered — Red Gate section precedes T-01..T-07 implementation tasks; T-08..T-11 test tasks removed (test functions now enumerated in Red Gate section per ENGINE-001 normative pattern) |
 | 1.1 | 2026-07-26 | story-writer | FB60 MED-008 + MED-009: pin BC versions from `current` to actuals in §Behavioral Contracts table (BC-2.16.009→v1.28, BC-2.16.001→v1.9, BC-2.16.007→v1.7, BC-2.16.008→v1.6, BC-2.16.002→v2.11); add BC-2.16.002 to frontmatter `behavioral_contracts:` array (POL-8 bidirectional frontmatter↔body reconciliation) |
 | 1.0 | 2026-07-25 | story-writer | Initial authoring from ADR-055 §Story Scope; SAP-1/SAP-3 compliance; fixture audit AC; PO dependency encoding |
