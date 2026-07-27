@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -20,7 +20,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: v1.0.0
-modified: []
+modified: "2026-04-20"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -81,4 +81,5 @@ fn verify_deny_by_default() {
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | FB68e | 2026-07-27 | spec-steward | Records hygiene: set modified to 2026-04-20 (date of prior top changelog row). DRIFT-VP-MODIFIED-CORPUS-001. |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

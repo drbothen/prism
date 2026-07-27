@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "2.20"
+version: "2.21"
 status: draft
 producer: state-manager
 timestamp: 2026-07-26T00:00:00Z
@@ -272,6 +272,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.21 | FB68e | 2026-07-27 | spec-steward | Records-only corpus sweep (DRIFT-VP-MODIFIED-CORPUS-001): set modified field and added changelog row for 52 defective VPs (VP-001..VP-060 range, version above initial, modified was null/[]); normalized VP-045 modified from array to bare string. Total VPs unchanged at 161. |
 | 2.20 | FB68 | 2026-07-27 | state-manager | VP-159 pin sync v1.26→v1.27 (MED-001 CLOSED; records-lint L10 STALE resolved — spec-steward corrected volatile cites in VP-159 §Verification Properties table; artifact version advanced to v1.27). VP-INDEX v2.19→v2.20. |
 | 2.19 | FB68c | 2026-07-27 | architect | F-WASE-P65-OBS-001 sibling sweep: VP-160 `modified: []` corrected to `"2026-07-26"` (same defect class as VP-161; convention now applied to all identified wave-a-era VPs). VP-160 status cell updated to `draft — v1.3`. No count changes. |
 | 2.18 | FB68c | 2026-07-27 | architect | F-WASE-P65-LOW-001 + F-WASE-P65-OBS-001: VP-161 `modified: []` corrected to `"2026-07-27"` (last-modification date per dominant convention; `timestamp: 2026-07-26` confirmed correct as creation date; VP-161 v1.2→v1.3); VP-161 status cell updated to `draft — v1.3`. VP-157 and VP-158 VP files authored (index rows existed since D-1099 2026-06-11 and 2026-06-12 respectively; no file was ever created for either VP; files now authored per F-WASE-P65-OBS-001 adjudication). No count changes — VP-157 and VP-158 were already registered in the index, already reflected in Summary table and §Count basis. |

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.4"
+version: "1.5"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -20,7 +20,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-04-22"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -86,6 +86,7 @@ key material is used.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.5 | FB68e | 2026-07-27 | spec-steward | Records hygiene: set modified to 2026-04-22 (date of prior top changelog row). DRIFT-VP-MODIFIED-CORPUS-001. |
 | 1.4 | red-gate-S-1.06 | 2026-04-22 | product-owner | Resolved BC-2.03.003 KDF conflict: proof harness sketch updated to clarify key source is Argon2id (not HKDF). Round-trip property itself is KDF-agnostic but harness must use derive_key (Argon2id) to construct k for symmetry with VP-035. |
 | 1.3 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-1.06-credential-store.md) to pure ID (S-1.06). |
 | 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "EncryptedFileBackend stores credentials using AES-256-GCM" → "AES-256-GCM Encrypted File Backend Fallback" (matches BC-2.03.003 H1). |

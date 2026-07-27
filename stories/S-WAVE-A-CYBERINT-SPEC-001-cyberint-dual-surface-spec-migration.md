@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-CYBERINT-SPEC-001
 title: "Cyberint Dual-Surface Spec Migration — Delete cyberint.sensor.toml; Author cyberint-alerts and cyberint-assets; OpenAPI-Ground Alerts C2-Class Fixes; DTU Route Migration"
-version: "1.6"
+version: "1.7"
 status: draft
 producer: story-writer
 phase: 3
@@ -225,6 +225,49 @@ A grep of `crates/` and `.factory/stories/` for the literal string `sensor_id.*=
 Any test fixture JSON/TOML or Rust string literal that previously embedded `"cyberint"` as
 a sensor_id is updated to `"cyberint-alerts"` or `"cyberint-assets"` as appropriate.
 
+### AC-009: IOC nested fields present in serialized alerts wire output on BOTH paths
+(traces to BC-2.01.018 postcondition — wire output includes all TOML-declared IOC
+source_path columns; CLAUDE.md §Wire-shape assertion discipline)
+
+The static-fixture path in `get_alerts()` (non-seeded clone, `fixture_gen_seeded == false`)
+must emit the nested IOC fields (`ioc`, `iocs`, `alert_data`) in each per-record JSON object
+when those fields are populated in the fixture. An implementer following T-05 item 5 MUST NOT
+use a hand-built `json!` literal that enumerates only the 8 top-level keys (`alert_id`,
+`title`, `severity`, `status`, `created_at`, `source`, `type`, `affected_assets`); instead,
+per-record construction must use the full `Alert` struct serialization (e.g.,
+`serde_json::to_value(a)`) so IOC fields are included automatically.
+
+At least one test (RG-019) asserts on the serialized JSON response of a static-fixture-path
+clone:
+- POST to `/alert/api/v1/alerts` against a non-seeded clone whose fixture contains
+  IOC-populated records
+- The serialized `alerts[N]` contains the `iocs` key (not absent) with at least one element
+- The serialized `alerts[N]` contains the `alert_data` key (not absent) when the fixture
+  carries an alert with `alert_data`
+
+This is a wire-shape assertion on the per-record level, not only on the envelope. The
+generated-records path already emits IOC fields correctly; the static-fixture path parity
+is what this AC enforces.
+
+### AC-010: Assets DTU route registered; all 11 assets columns backed by `Asset` struct fields
+(traces to BC-2.01.006 postcondition — Cyberint Assets surface is reachable from
+spec-driven queries; SAP-2 column parity requirement)
+
+T-04 adds the `Asset` struct to `crates/prism-dtu-cyberint/src/types.rs` with all 11
+fields that back the columns in `cyberint-assets.sensor.toml`. T-08 creates
+`crates/prism-dtu-cyberint/src/routes/assets.rs` with a handler registered at
+`POST /asset-configuration/external/api/v1/assets/`.
+
+Every column declared in `cyberint-assets.sensor.toml` maps to a field in `Asset`:
+`id` (i64), `name` (Option<String>), `asset_type` (Option<String>), `status`
+(Option<String>), `asset_group` (Option<String>), `created` (String), `updated`
+(String), `parent_asset_value` (Option<String>), `discovery_precision` (Option<i64>),
+`discovery_reason` (Option<String>), `severity` (Option<String>).
+
+At least one test (RG-020) asserts:
+- POST to `/asset-configuration/external/api/v1/assets/` with valid `access_token` cookie
+  returns HTTP 200 with a JSON body containing a top-level `"assets"` array key
+
 ---
 
 ## Architecture Mapping
@@ -243,6 +286,8 @@ a sensor_id is updated to `"cyberint-alerts"` or `"cyberint-assets"` as appropri
 | `PaginationType::Page` variant (CE-1) | `crates/prism-spec-engine/src/types.rs` | Pure (enum variant) | `architecture/module-decomposition.md §SS-07 SpecEngine` |
 | `sensor_table_descriptor_from_table_spec` (PageNumber → Page arm, CE-1) | `crates/prism-spec-engine/src/types.rs` | Pure (struct conversion) | `architecture/module-decomposition.md §SS-07 SpecEngine` |
 | `validate_sensor_spec` §Category 4 (PageNumber arm, CE-2) | `crates/prism-spec-engine/src/validation.rs` | Pure (validation) | `architecture/module-decomposition.md §SS-07 SpecEngine` |
+| `Asset` struct (T-04) | `crates/prism-dtu-cyberint/src/types.rs` | Pure (data type) | `architecture/module-decomposition.md §SS-12 DTU-Cyberint` |
+| `get_assets()` handler (T-08) | `crates/prism-dtu-cyberint/src/routes/assets.rs` | Effectful (HTTP handler) | `architecture/module-decomposition.md §SS-12 DTU-Cyberint` |
 
 ---
 
@@ -338,7 +383,13 @@ the only operator-visible surface change (documented in Breaking Change Notice a
 - [ ] **RG-018**: `test_sensor_table_descriptor_page_number_pagination_type_is_page_on_wire` — CE-1 wire-shape (ADR-056 §D10)
   _(Builds or loads a sensor spec containing a step with `type = "page_number"` pagination; calls the `list_sensor_specs` MCP tool surface or directly exercises `sensor_table_descriptor_from_table_spec`; asserts the serialized JSON output for that table's descriptor contains `"pagination_type": "page"` — NOT `"offset"`, NOT `"cursor"`, NOT `null` (CLAUDE.md §Wire-shape assertion discipline: MCP-visible surfaces require at least one assertion on the serialized JSON `SensorTableDescriptor` shape, not only on the Rust `PaginationType::Page` variant; LLM agents consuming `list_sensor_specs` must receive correct pagination semantics); confirms ADR-056 §D10 CE-1 mapping `PaginationConfig::PageNumber { .. } => PaginationType::Page` is correct and wire-visible)_
 
-**Red Gate density check** (BC-5.38.001): **18 failing tests** before implementation begins. RG-001 covers AC-001 (delete/load); RG-002/RG-003 cover AC-002 (header_scheme both surfaces); RG-004/RG-005/RG-006 cover AC-003 (POST + `$.alerts` path, DTU shape); RG-007/RG-008/RG-009/RG-015/RG-016 cover AC-004 (pagination arms); RG-010/RG-011 cover AC-005 (credential_refs access_token); RG-012 covers AC-006 (assets skeleton); RG-013 covers AC-007 (no incidents); RG-014 covers AC-008 (no old sensor_id); RG-017 covers CE-2 (`page_size = 0` spec-load rejection per ADR-056 §D10); RG-018 covers CE-1 wire-shape (`PaginationType::Page` on serialized `SensorTableDescriptor` per ADR-056 §D10). RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design and wiring-exempt) that reduce the denominator.
+- [ ] **RG-019**: `test_dtu_cyberint_static_fixture_path_alerts_include_ioc_nested_fields` — AC-009 (F-SAP2-CRIT-001 story leg)
+  _(Non-seeded clone (static-fixture path, `fixture_gen_seeded == false`): POST to `/alert/api/v1/alerts` with valid access_token cookie; asserts at least one record in the `alerts` array contains a non-null `iocs` key with at least one element, or a non-null `alert_data` key with at least one populated subfield; confirms static-fixture per-record construction emits IOC fields and does NOT suppress them via the retired 8-key `json!` literal; CLAUDE.md §Wire-shape assertion discipline — asserts on serialized JSON response not Rust struct state; path-dependence is the defect: this test specifically exercises the static-fixture path)_
+
+- [ ] **RG-020**: `test_dtu_cyberint_assets_route_post_returns_assets_array` — AC-010 (F-SAP2-CRIT-002 story leg)
+  _(POST to `/asset-configuration/external/api/v1/assets/` with valid `access_token` cookie; asserts HTTP 200 and serialized JSON response contains a top-level `"assets"` array key; confirms assets route is registered in `clone.rs`, handler exists in `routes/assets.rs`, and response shape matches `cyberint-assets.sensor.toml` `response_path = "$.assets"`; CLAUDE.md §Wire-shape assertion discipline: asserts on serialized JSON envelope as the HTTP client receives it)_
+
+**Red Gate density check** (BC-5.38.001): **20 failing tests** before implementation begins. RG-001 covers AC-001 (delete/load); RG-002/RG-003 cover AC-002 (header_scheme both surfaces); RG-004/RG-005/RG-006 cover AC-003 (POST + `$.alerts` path, DTU shape); RG-007/RG-008/RG-009/RG-015/RG-016 cover AC-004 (pagination arms); RG-010/RG-011 cover AC-005 (credential_refs access_token); RG-012 covers AC-006 (assets skeleton); RG-013 covers AC-007 (no incidents); RG-014 covers AC-008 (no old sensor_id); RG-017 covers CE-2 (`page_size = 0` spec-load rejection per ADR-056 §D10); RG-018 covers CE-1 wire-shape (`PaginationType::Page` on serialized `SensorTableDescriptor` per ADR-056 §D10); RG-019 covers AC-009 (IOC nested fields on static-fixture path — F-SAP2-CRIT-001 story leg); RG-020 covers AC-010 (assets route registered and response shape correct — F-SAP2-CRIT-002 story leg). RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design and wiring-exempt) that reduce the denominator.
 
 ### Implementation tasks
 
@@ -373,6 +424,21 @@ preserving all IOC columns (ioc_type, ioc_value_singleton, iocs_type, iocs_value
 iocs_value_first, alert_data_ip, alert_data_domain, alert_data_url), OCSF mappings,
 source_path annotations, and timestamp_formats chains. The column schema was
 adversarially validated and must not be silently altered.
+
+**Carry-over exclusion (F-SAP2-MED-003):** Do NOT carry over DTU-parity comments that
+reference the retired cursor wire shape from the old `cyberint.sensor.toml`. Specifically,
+omit or replace any TOML comments mentioning the following cursor-era artifacts:
+- `{"data": [...], "next_cursor": ...}` response shape descriptions
+- `# Cursor-based pagination` labels on table or step blocks
+- `page_size: OMITTED` rationale with `DTU-EXT-005` citation
+- `DTU route: GET /api/v1/alerts` (pre-migration route — now POST under `/alert` prefix)
+- `next_cursor` key references in pagination commentary
+
+Replace cursor-era pagination rationale with:
+`# ADR-056 PageNumber: POST body injects {"page": N, "size": 100}; DTU route: POST /alert/api/v1/alerts`
+
+These stale comments constitute false ground truth for future SAP-2 probes and must not
+be carried forward even if the column schema itself is correct.
 
 Alerts fetch step — corrected per ADR-053 C2-class fixes and ADR-056 PageNumber ratification:
 
@@ -515,6 +581,61 @@ Assets OpenAPI.
 SAP-3 compliance: at least one integration test must POST to `/alert/api/v1/alerts`
 (full route including the `/alert` prefix) to confirm reachability from the public surface.
 
+**Additional scope — add `Asset` struct to `types.rs` (F-SAP2-CRIT-002 / MED-001 / MED-002):**
+**Files (additional):** `crates/prism-dtu-cyberint/src/types.rs` (MODIFY)
+
+Add the `Asset` struct to `types.rs` so that T-03's SAP-2 column parity check has a
+backing struct BEFORE T-08 creates the route handler. Grounding schema: the `Asset`
+definition from `.factory/reference/api-specs/cyberint_assets_openapi_06.20.2026.json`.
+
+Type disambiguation (F-SAP2-MED-002): the OpenAPI contains two conflicting type definitions.
+Always use the `Asset` schema — do NOT use the sibling schema or the `Threat` schema:
+- `id`: `integer` in `Asset` schema (NOT `string` from `Threat` schema) → Rust type `i64`
+- `discovery_precision`: `integer|null` in `Asset` schema (NOT `number` from sibling schema)
+  → Rust type `Option<i64>`
+
+```rust
+/// A single Cyberint asset record.
+///
+/// Grounding schema: `Asset` from `cyberint_assets_openapi_06.20.2026.json`.
+/// Type disambiguation: `id` → i64 (Asset, not Threat); `discovery_precision` → Option<i64>
+/// (integer|null from Asset, not number from sibling schema).
+#[non_exhaustive]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Asset {
+    pub id: i64,
+    pub name: Option<String>,
+    #[serde(rename = "type")]
+    pub asset_type: Option<String>,
+    pub status: Option<String>,
+    pub asset_group: Option<String>,
+    pub created: String,
+    pub updated: String,
+    pub parent_asset_value: Option<String>,
+    pub discovery_precision: Option<i64>,
+    pub discovery_reason: Option<String>,
+    pub severity: Option<String>,
+}
+```
+
+**Non-exhaustive gate — MANDATORY CI requirement:** Adding `Asset` as a new `#[non_exhaustive]`
+public type requires updating ALL THREE sites atomically in the same commit per CLAUDE.md
+§Conventions (`#[non_exhaustive]` discipline). Failure to do so causes CI failure (exit 1):
+
+1. `scripts/check-non-exhaustive.sh`: bump `EXPECTED` from `92` to `93`
+2. `scripts/check-non-exhaustive-per-symbol.py`: bump `EXPECTED_COUNT` from `92` to `93`
+   AND append `"Asset"` to the `EXPECTED_SYMBOLS` list (startup assert + Layer-2 check)
+3. CLAUDE.md count sentence (currently "92 types currently enforced") → "93 types currently
+   enforced" — flag for human/state-manager in PR description; do NOT edit CLAUDE.md directly
+   (human-owned per CLAUDE.md §Pipeline Authority)
+
+New `EXPECTED` value = 93.
+
+T-03's SAP-2 compliance check ("every column in `cyberint-assets.sensor.toml` MUST have
+a corresponding field in `types.rs` or in the new DTU types added by T-04") is satisfied
+once T-04 is complete — the `Asset` struct added here backs all 11 assets columns declared
+in T-03. T-08 uses this struct to implement the route handler.
+
 ### T-05: Update DTU alerts handler for page/size pagination and $.alerts response shape
 **Files:** `crates/prism-dtu-cyberint/src/routes/alerts.rs` (MODIFY)
 
@@ -541,10 +662,31 @@ SAP-3 compliance: at least one integration test must POST to `/alert/api/v1/aler
 4. The `access_token` cookie auth and rate-limit logic (`check_auth`, `extract_access_token`)
    are NOT changed by this story.
 
+5. **IOC nested fields — static-fixture path (F-SAP2-CRIT-001):** The static-fixture path
+   (non-seeded clone, `fixture_gen_seeded == false`) currently builds per-record JSON with a
+   hand-crafted `json!` literal that enumerates only 8 top-level keys (`alert_id`, `title`,
+   `severity`, `status`, `created_at`, `source`, `type`, `affected_assets`). This silently
+   drops `ioc`, `iocs`, and `alert_data` — the IOC fields that `iocs_value` and
+   `iocs_value_first` TOML columns depend on for their `source_path` lookups.
+   **The 8-key `json!` literal MUST be replaced.** Use `serde_json::to_value(a)` (or
+   `serde_json::to_value(a.clone())`) to serialize the full `Alert` struct so all
+   populated fields — including `ioc`, `iocs`, and `alert_data` — are included
+   automatically. The generated-records path already emits IOC fields (records are served
+   as-is); the static-fixture path must be brought into parity.
+
+   Path-dependence is the defect: seeded demo scenarios (generated-records path) pass SAP-2
+   checks; unseeded production runs (static-fixture path) silently yield nothing for IOC
+   columns because the hand-built literal suppresses them.
+
 Wire-shape assertion (CLAUDE.md §Wire-shape assertion discipline): at least one test in
 `tests/f_p3_route_output_tests.rs` or a new test file must assert on the serialized
 JSON output — the exact top-level keys and array structure as the HTTP client receives it.
 Test must verify `"alerts"` key present, `"data"` key absent, `"next_cursor"` key absent.
+
+Additionally, at least one test must cover the STATIC-FIXTURE PATH (non-seeded clone) and
+assert on the per-record IOC fields (RG-019). The path-dependence is the defect: the
+generated-records path already emits IOC fields correctly; the static-fixture path was
+silently suppressing them via the 8-key `json!` literal.
 
 ### T-06: Replace ac_6_cursor_pagination.rs with ac_6_page_size_pagination.rs
 **Files:**
@@ -571,22 +713,60 @@ Do NOT update references in:
 - This story file itself
 - Other story files in `.factory/stories/`
 
-### T-08: Add DTU assets routes (if Assets OpenAPI available)
-**Files:** `crates/prism-dtu-cyberint/src/routes/` (CREATE new module if needed)
+### T-08: Create DTU assets route handler and register it in clone.rs
+**Files:**
+- `crates/prism-dtu-cyberint/src/routes/assets.rs` (CREATE)
+- `crates/prism-dtu-cyberint/src/routes/mod.rs` (MODIFY — add `pub mod assets;`)
+- `crates/prism-dtu-cyberint/src/clone.rs` (MODIFY — register assets route)
 
-If the Cyberint Assets OpenAPI is available in the codebase (Task T-03), create a minimal
-DTU route for the assets surface under the `/asset-configuration` prefix. The route must
-serve a static fixture response in the same shape as the real API to satisfy SAP-2 column
-parity validation.
+**No stub path (F-SAP2-HIGH-001).** The dead conditional branch ("If Assets OpenAPI
+available: full route… else: `assets_stub.rs` returning empty 200") has been removed
+entirely. The OpenAPI file IS present at
+`.factory/reference/api-specs/cyberint_assets_openapi_06.20.2026.json` (confirmed by T-03).
+An empty 200 stub is wire-indistinguishable from "zero assets" (CWE-390 silent-truncation
+class) and is explicitly prohibited.
 
-If the Assets OpenAPI is NOT available, add a `routes/assets_stub.rs` module that
-returns an empty 200 response (indicating the clone is not yet grounded) and register
-it at `/asset-configuration/external/api/v1/assets/` (placeholder path matching T-03
-path_template). Mark the stub with a
-`// DTU-EXT-CYBERINT-ASSETS-001: placeholder — requires Assets OpenAPI grounding` comment.
+**Grounding schema:** `Asset` from `cyberint_assets_openapi_06.20.2026.json`. Use the
+same type resolution as T-04: `id` → `i64`, `discovery_precision` → `Option<i64>`. The
+`Asset` struct was added to `types.rs` by T-04; this task uses it without modification.
 
-Note: the Assets OpenAPI IS present at `.factory/reference/api-specs/cyberint_assets_openapi_06.20.2026.json`
-(confirmed), so the assets stub path is not needed and the full route should be implemented.
+**Route registration** — in `clone.rs` `build_router()`, add:
+```rust
+.route(
+    "/asset-configuration/external/api/v1/assets/",
+    post(routes::assets::get_assets),
+)
+```
+The path includes the `/asset-configuration` base prefix because the DTU serves both
+surfaces on a single port. The method is POST, matching `cyberint-assets.sensor.toml`
+`method = "POST"`.
+
+**Handler:** implement `get_assets()` in `routes/assets.rs`:
+- Auth check via `check_auth()` (same cookie auth as alerts — ADR-031 §D3-a)
+- Load fixture via `prism_dtu_common::load_fixture_as(crate_dir, "assets")` → `Vec<Asset>`
+- Return: `Json(serde_json::json!({"assets": assets_vec, "total_assets": total, "page_number": 1}))`
+- The per-record serialization MUST use the full `Asset` struct (via `serde_json::to_value`
+  or direct struct inclusion) — not a hand-built `json!` literal with a field subset.
+- If fixture file is absent or empty, return `{"assets": [], "total_assets": 0, "page_number": 1}`
+  (not an error — empty is valid for a new clone)
+
+**SAP-2 compliance:** every field emitted in the per-record JSON corresponds to a field
+in the `Asset` struct from T-04. All 11 TOML columns have backing struct fields:
+`id`, `name`, `asset_type` (`type`), `status`, `asset_group`, `created`, `updated`,
+`parent_asset_value`, `discovery_precision`, `discovery_reason`, `severity`.
+
+**Wire-shape assertion (AC-010):** at least one test must POST to
+`/asset-configuration/external/api/v1/assets/` with a valid `access_token` cookie and
+assert the serialized JSON response contains a top-level `"assets"` array key.
+
+**Non-exhaustive gate:** `Asset` was added as a `#[non_exhaustive]` type by T-04;
+the three-site gate update (EXPECTED 92→93) was performed in T-04. T-08 adds no
+new public `#[non_exhaustive]` types; no further gate updates required in this task.
+
+**GAP-ASSETS-PAG-001 (unchanged):** the pagination block is intentionally absent from
+`cyberint-assets.sensor.toml` (authored in T-03). The assets route in T-08 returns
+page 1 only. This is the correct first-page-only retrieval per T-03's GAP-ASSETS-PAG-001
+disclosure. Do NOT add multi-page logic here; that awaits the follow-up grammar extension.
 
 ### T-09: Implement PaginationConfig::PageNumber variant in prism-spec-engine
 **Files:**
@@ -606,9 +786,11 @@ that `offset` is reused as a 0-based page index and the wire parameter is `offse
 The enum already carries `#[serde(tag = "type", rename_all = "snake_case")]`; the serde
 tag `page_number` is derived automatically — no explicit `#[serde(rename = ...)]` needed.
 Do NOT add a second `#[non_exhaustive]` attribute (already present on the enum). Do NOT
-bump `EXPECTED=92` in `scripts/check-non-exhaustive.sh` or `EXPECTED_COUNT` in
-`scripts/check-non-exhaustive-per-symbol.py` — adding a variant does not add a new
-annotated symbol (ADR-056 §D9).
+bump `EXPECTED` in `scripts/check-non-exhaustive.sh` or `EXPECTED_COUNT` in
+`scripts/check-non-exhaustive-per-symbol.py` for this task — adding a variant to an
+existing `#[non_exhaustive]` enum does not add a new annotated symbol (ADR-056 §D9).
+Note: T-04 in this story already bumps EXPECTED from 92→93 for the new `Asset` struct;
+T-09 does not add any further annotated symbols.
 
 **2. `pipeline.rs` — `build_paged_url_impl` new match arm (ADR-056 §D3)**
 
@@ -824,8 +1006,11 @@ No new external dependencies are introduced by this story.
 | `crates/prism-sensors/specs/cyberint.sensor.toml` | DELETE | AC-001 red gate: load test fails while this file still exists with old shape after ENGINE-001 merges |
 | `crates/prism-sensors/specs/cyberint-alerts.sensor.toml` | CREATE | Task T-02; must include `header_scheme`, POST method, `$.alerts` path, `page_number` pagination, `access_token` cred ref |
 | `crates/prism-sensors/specs/cyberint-assets.sensor.toml` | CREATE | Task T-03; `header_scheme` + assets OpenAPI-grounded tables; pagination block ABSENT per GAP-ASSETS-PAG-001 — first-page-only retrieval; `total_assets` in response evidences silent truncation; comment required in TOML |
-| `crates/prism-dtu-cyberint/src/clone.rs` | MODIFY | Task T-04; route paths gain `/alert` prefix |
-| `crates/prism-dtu-cyberint/src/routes/alerts.rs` | MODIFY | Task T-05; AlertListParams (body-extracted JSON), response shape, page/size pagination |
+| `crates/prism-dtu-cyberint/src/types.rs` | MODIFY | Task T-04; add `Asset` struct (11 fields, `#[non_exhaustive]`); non-exhaustive gate EXPECTED 92→93 (all three sites: `check-non-exhaustive.sh`, `check-non-exhaustive-per-symbol.py`, CLAUDE.md count sentence) |
+| `crates/prism-dtu-cyberint/src/clone.rs` | MODIFY | Task T-04/T-08; alert routes gain `/alert` prefix; assets route `POST /asset-configuration/external/api/v1/assets/` registered |
+| `crates/prism-dtu-cyberint/src/routes/alerts.rs` | MODIFY | Task T-05; AlertListParams (body-extracted JSON), response shape, page/size pagination; per-record construction uses full Alert struct serialization (not 8-key json! literal) |
+| `crates/prism-dtu-cyberint/src/routes/assets.rs` | CREATE | Task T-08; `get_assets()` handler for POST /asset-configuration/external/api/v1/assets/; uses Asset struct from T-04; auth via check_auth(); fixture-backed response |
+| `crates/prism-dtu-cyberint/src/routes/mod.rs` | MODIFY | Task T-08; add `pub mod assets;` |
 | `crates/prism-dtu-cyberint/tests/ac_6_cursor_pagination.rs` | DELETE | Task T-06 |
 | `crates/prism-dtu-cyberint/tests/ac_6_page_size_pagination.rs` | CREATE | Task T-06; AC-004 coverage; uses POST body params not query params |
 
@@ -843,6 +1028,7 @@ No new external dependencies are introduced by this story.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.7 | 2026-07-27 | story-writer | FB69 SAP-2 story-side fixes (6 findings): (F-SAP2-CRIT-001 story leg) T-05 item 5: require per-record IOC nested fields via full Alert struct serialization; extend wire-shape assertion to cover static-fixture path; add AC-009 + RG-019. (F-SAP2-CRIT-002 story leg) T-04 expanded: add Asset struct to types.rs (11 fields, i64/Option discriminations, non-exhaustive gate 92→93); T-08 rewritten: remove dead conditional stub branch entirely (CWE-390), real task body with grounding schema Asset, route registration, fixture loading, SAP-2 compliance clause; add §File Structure entries for types.rs / routes/assets.rs / routes/mod.rs; add AC-010 + RG-020. (F-SAP2-HIGH-001) dead conditional in T-08 deleted. (F-SAP2-MED-001) T-04 now creates Asset struct so T-03's SAP-2 dependency anchor on T-04 is correct. (F-SAP2-MED-002) T-08 names Asset as grounding schema and resolves id/discovery_precision type divergences. (F-SAP2-MED-003) T-02 carry-over exclusion clause for cursor-era comments. AC count: 8→10. Red Gate count: 18→20. |
 | 1.6 | 2026-07-27 | story-writer | FB67 Obligations 1/3/4: (Ob-1) fix RG-007/RG-008 wire keys from TOML declaration names `page_number`/`page_size` to ADR-056 §D3 canonical keys `"page"`/`"size"`; (Ob-3) add RG-017/RG-018 for CE-2 (`page_size=0` spec-load ESpec001 rejection, ADR-056 §D10) and CE-1 (`PaginationType::Page` wire-shape on serialized `SensorTableDescriptor`, ADR-056 §D10); add CE-1/CE-2 rows to §Architecture Mapping; add `types.rs` and `validation.rs` to §File Structure Requirements and T-09 §Files; fix T-09 dispatch sites description from "five dispatch sites from §Consequences" to "all implementation obligations from ADR-056 §D10 and §Consequences"; add T-09 steps 6 (CE-1: `types.rs` `PaginationType::Page` + `sensor_table_descriptor_from_table_spec` arm) and 7 (CE-2: `validation.rs` `validate_sensor_spec` §Category 4 PageNumber arm with ESpec001); fix T-09 test coverage `page_size=0` bullet from "no injection (activation gate)" to spec-load ESpec001 rejection language per ADR-056 §D10 CE-2; add `PaginationType::Page` wire-shape test bullet. (Ob-4) propagate BC-2.01.018 v1.5→v1.6 and BC-2.16.009 v1.28→v1.29 in frontmatter comment, §Behavioral Contracts table, and §Token Budget. Red Gate count: 16 → 18. AC count: 8 (unchanged). |
 | 1.5 | 2026-07-27 | story-writer | FB63 CRIT-002: add BC-2.01.018 v1.5 (Cyberint Alerts contract) to frontmatter `behavioral_contracts:` (5→6 BCs); re-anchor AC-003/AC-004 Alerts-surface traces from BC-2.01.006 to BC-2.01.018; fix BC-2.01.006 pin v1.x → v1.8 (MED-003 / POL-23); update BC-2.06.003 pin v1.3 → v1.12 (POL-23); add BC-2.01.018 row to §Behavioral Contracts table with correct Alerts scope; rewrite frontmatter comment to name both surface contracts; delete discharged §Product-owner dependency gate (split already landed as BC-2.01.018 introduced 2026-07-22 in PO leg of FB63); add BC-2.01.018 v1.5 row to §Token Budget; update Token Budget total ~30,600 → ~31,400 |
 | 1.4 | 2026-07-26 | story-writer | FB61 gate-review DEFECT-1: remove fabricated RED_RATIO formula (Density = 16/8 ACs = 2.0) from §Red Gate density check; replace with orchestrator-computation note per per-story-delivery.md §Step 3.5, citing BC-5.38.002/BC-5.38.003 |

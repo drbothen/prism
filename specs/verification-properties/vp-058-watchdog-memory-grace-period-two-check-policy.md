@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -23,7 +23,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: cycle-2-patch
-modified: []
+modified: "2026-04-21"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -122,5 +122,6 @@ the lower-overhead proof vehicle while still providing exhaustive coverage.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | FB68e | 2026-07-27 | spec-steward | Records hygiene: set modified to 2026-04-21 (date of prior top changelog row). DRIFT-VP-MODIFIED-CORPUS-001. |
 | 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-004: module prism-persistence → prism-storage; Source BC label updated to canonical BC-2.15.007 H1 title. |
 | 1.0 | pass-74-vp-additions | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.15.007. Proves two-check grace period policy: single spike does not terminate, two consecutive checks do. Method: Proptest. P0. |

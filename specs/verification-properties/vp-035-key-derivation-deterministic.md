@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.4"
+version: "1.5"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -20,7 +20,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-04-22"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -88,6 +88,7 @@ single integration test marked `#[ignore]` by default.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.5 | FB68e | 2026-07-27 | spec-steward | Records hygiene: set modified to 2026-04-22 (date of prior top changelog row). DRIFT-VP-MODIFIED-CORPUS-001. |
 | 1.4 | red-gate-S-1.06 | 2026-04-22 | product-owner | Resolved BC-2.03.003 KDF conflict: property statement now names Argon2id (m=65536, t=3, p=1) as the mandated primitive; removed hedged "(e.g. Argon2id, HKDF)" language. Proof harness sketch updated to target Argon2id. Feasibility note retained: use reduced params (m=256, t=1, p=1) for proptest runs to keep suite under 60 s. |
 | 1.3 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-1.06-credential-store.md) to pure ID (S-1.06). |
 | 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "EncryptedFileBackend key derivation" → "AES-256-GCM Encrypted File Backend Fallback" (matches BC-2.03.003 H1). |

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.5"
+version: "1.6"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -20,7 +20,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: v1.0.0
-modified: []
+modified: "2026-06-24"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -91,6 +91,7 @@ fuzz_target!(|data: &[u8]| {
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.6 | FB68e | 2026-07-27 | spec-steward | Records hygiene: set modified to 2026-06-24 (date of prior top changelog row). DRIFT-VP-MODIFIED-CORPUS-001. |
 | 1.5 | demo-readiness-2026-06-24 | 2026-06-24 | state-manager | POL-9 back-links: BC-2.11.020, BC-2.11.021, BC-2.11.022, BC-2.11.023 all cite this VP. Added "Also cited by" block to §Source Contract. No property semantics changed. |
 | 1.4 | pr-127-review-remediation | 2026-05-05 | product-owner | Clarified Property Statement: explicit that `PrismQlParser::parse` takes `&str` not `&[u8]`; spelled out the from_utf8 conversion step. Removed "malformed unicode" from inputs list (by definition, from_utf8 filters that before parse is called). Harness skeleton already correct; property statement now unambiguous. Addresses PR-127 review Task 2. |
 | 1.3 | pass-61-fix | 2026-04-20 | architect | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 VP scope extension). |

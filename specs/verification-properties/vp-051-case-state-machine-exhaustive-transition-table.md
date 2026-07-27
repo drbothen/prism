@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -23,7 +23,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: cycle-2-patch
-modified: []
+modified: "2026-04-21"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -137,5 +137,6 @@ and prove exact Ok/Err outcomes. The state space is tiny; proof should complete 
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | FB68e | 2026-07-27 | spec-steward | Records hygiene: set modified to 2026-04-21 (date of prior top changelog row). DRIFT-VP-MODIFIED-CORPUS-001. |
 | 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Case State Transitions" → "Case State Transitions — 5-State Machine with 12 Valid Transitions" (matches BC-2.14.002 H1). |
 | 1.0 | pass-74-vp-additions | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.14.002. Complements VP-005/006 with per-pair exhaustive table proof. Method: Kani. P0. |

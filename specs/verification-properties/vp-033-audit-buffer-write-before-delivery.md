@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.3"
+version: "1.4"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -20,7 +20,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-04-21"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -85,6 +85,7 @@ Crash-restart between the two operations must still yield a replayable audit ent
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.4 | FB68e | 2026-07-27 | spec-steward | Records hygiene: set modified to 2026-04-21 (date of prior top changelog row). DRIFT-VP-MODIFIED-CORPUS-001. |
 | 1.3 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-6.07-dtu-crowdstrike.md) to pure ID (S-6.07). |
 | 1.2 | pass-85 F85-002 | 2026-04-21 | architect | Fixed source_bc mis-anchor: BC-2.05.011 → BC-2.15.003; added BC-2.05.011 as Related Contract note in body. |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -23,7 +23,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: cycle-1/pass-74-defer-close
-modified: []
+modified: "2026-04-21"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -170,5 +170,6 @@ Given a pure function `decide_dedup_action(existing_case: Option<CaseSummary>, n
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | FB68e | 2026-07-27 | spec-steward | Records hygiene: set modified to 2026-04-21 (date of prior top changelog row). DRIFT-VP-MODIFIED-CORPUS-001. |
 | 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Auto Case Deduplication Atomicity" → "Auto-Case-Creation from High-Severity Detection Rules" (matches BC-2.14.013 H1). |
 | 1.0 | pass-74-defer-close | 2026-04-20 | architect | Initial draft. Closes BC-2.14.013 DEFER from pass-74 decision matrix v1.1. Verifies the pure decision function `decide_dedup_action()` extracted from `CaseDedupRegistry::check_and_create()`. Effectful wrapper remains integration-tested via S-4.06 AC-12 and AC-12b. |

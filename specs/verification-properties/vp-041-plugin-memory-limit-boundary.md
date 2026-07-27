@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -23,7 +23,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: cycle-2-patch
-modified: []
+modified: "2026-04-21"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -99,5 +99,6 @@ For any `limit_mb` in `1..=512`, a wasmtime `Store` configured via
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | FB68e | 2026-07-27 | spec-steward | Records hygiene: set modified to 2026-04-21 (date of prior top changelog row). DRIFT-VP-MODIFIED-CORPUS-001. |
 | 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Plugin Memory Limit" → "Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB)" (matches BC-2.17.003 H1). |
 | 1.0 | pass-69-housekeeping | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.17.003 (at-limit/over-limit boundary). Host-process-isolation half remains integration test per decision matrix. |

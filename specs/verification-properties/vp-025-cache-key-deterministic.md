@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.4"
+version: "1.5"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -20,7 +20,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-04-21"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -83,6 +83,7 @@ yield equal keys; unequal inputs (differing in any material way) yield unequal k
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.5 | FB68e | 2026-07-27 | spec-steward | Records hygiene: set modified to 2026-04-21 (date of prior top changelog row). DRIFT-VP-MODIFIED-CORPUS-001. |
 | 1.4 | pass-88-remediation | 2026-04-21 | architect | F88-008: inputs field corrected S-3.04-alias-system.md → S-3.05-pagination-caching.md. |
 | 1.3 | pass-87-remediation | 2026-04-21 | architect | F87-002: Anchor Story corrected S-3.04 → S-3.05; cache_key property belongs to pagination cache story, not alias story. |
 | 1.2 | pass-86-remediation | 2026-04-21 | architect | F86-002: re-anchor source_bc BC-2.11.013 → BC-2.07.005; updated body Source BC label to canonical title. |

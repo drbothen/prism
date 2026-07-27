@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.4"
+version: "1.5"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -23,7 +23,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: cycle-2-patch
-modified: ["2026-05-04"]
+modified: "2026-05-04"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -111,6 +111,7 @@ saturated executor must skip the tick, not stall indefinitely.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.5 | FB68e | 2026-07-27 | spec-steward | Records hygiene: normalize modified from array to bare string "2026-05-04". DRIFT-VP-MODIFIED-CORPUS-001. |
 | 1.4 | F-P28-H-001 | 2026-05-04 | product-owner | Pass 28 SUBSTANTIVE HIGH: H1 line 39 "Schedule Semaphore" → "Action Delivery Semaphore" (matches VP-INDEX line 66 canonical Property + verification-architecture line 174 + BC-2.18.004 Source BC). Pass 26 v1.2/v1.3 body rewrite + token orphan fixes had missed H1. Filename slug `vp-045-schedule-semaphore-...` preserved per POL-1 immutability + banner note already explains slug-vs-content drift. |
 | 1.3 | F-PreP27-H-001 | 2026-05-04 | product-owner | Pre-Pass-27 sibling-spec sweep: 3 orphan tokens `action_dispatcher` → `action_delivery` (line 37 banner note + line 44 Property Statement + line 68 Proof Harness target). Same drift class as F-P25-H-001 (PRD) + F-P26-H-001 (ADR-016) — orchestrator-prompt-introduced orphans across multiple bursts. |
 | 1.2 | F-PreP22-H-004 | 2026-05-03 | product-owner | Pre-Pass-22 sweep: body content rewritten to reflect VP-045 current scope (action_delivery_semaphore 8-permit, ADR-016 §2.11 / D-209 LOCKED). Was completely outdated post-Pass-20 F-P20-H-001 cascade. Filename slug preserved per POL-1. Banner note added explaining slug-vs-content drift. |
