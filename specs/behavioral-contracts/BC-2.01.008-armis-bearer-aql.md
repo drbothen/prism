@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -19,7 +19,7 @@ extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: null
 amendment_lifecycle: null
 introduced: cycle-1
-modified: "2026-07-22"
+modified: "2026-07-27"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -64,6 +64,8 @@ timestamp and ID field names across its 7 data sources, the spec-driven adapter 
 per-source fallback chains (1-3 candidate timestamp fields, 2-4 candidate ID fields) to reliably
 construct a `(Timestamp, TypeSpecificID)` cursor. Records with no valid timestamp in any fallback
 field are included in results but do not advance the cursor.
+This BC covers the Armis Centrix sensor surface only. The Cyberint sensor surfaces (Assets and
+Alerts) use `cookie_roundtrip` auth and are covered by BC-2.01.006 and BC-2.01.018 respectively.
 
 ## Preconditions
 - Armis Centrix sensor is configured for token exchange via a `secret_key` credential declared
@@ -124,6 +126,11 @@ field are included in results but do not advance the cursor.
 |----|---------------------|
 | (none) | No VP directly verifies this BC — see VP-INDEX.md for full map |
 
+## Related BCs
+- BC-2.01.006: Cyberint Assets Cookie-Based Authentication and Multi-Format Timestamp Parsing (parallel sensor auth BC — different vendor, `cookie_roundtrip` mechanism vs `token_exchange`)
+- BC-2.01.016: SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) (composes with — `DeclarativeHttpAuthProvider(TokenExchange)` implements the `AuthProvider` trait, the runtime SensorAuth replacement governed by BC-2.01.016)
+- BC-2.01.018: Cyberint Alerts Cookie-Based Authentication and Multi-Format Timestamp Parsing (parallel sensor auth BC — different vendor, `cookie_roundtrip` mechanism vs `token_exchange`)
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -135,6 +142,7 @@ field are included in results but do not advance the cursor.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | FB63-product-owner | 2026-07-27 | product-owner | Target B (FB63): scope-boundary sentence added at end of §Description prose — explicitly states this BC covers the Armis Centrix sensor surface only and names BC-2.01.006 (Cyberint Assets) and BC-2.01.018 (Cyberint Alerts) as the parallel Cyberint-surface BCs. §Related BCs section added (was entirely absent) with cross-references to BC-2.01.006, BC-2.01.016, and BC-2.01.018. No change to §Preconditions, §Postconditions, §Invariants, §Error Cases, §Edge Cases, §Canonical Test Vectors, or §Traceability. |
 | 1.7 | wave-a-spec-evolution-burst-3 | 2026-07-22 | product-owner | ADR-053 D2 + ADR-054 D1 amendment: auth_type bearer_static → token_exchange; credential ref bearer_token → secret_key; H1 title updated (Bearer Token Auth → Token Exchange Auth); Description Amendment Note updated (BearerStaticCredentialAuthProvider → DeclarativeHttpAuthProvider(TokenExchange) + header_scheme = "raw" + lazy acquire per BC-2.16.014 P1); Description prose updated to token exchange with ArcSwap cache; Preconditions updated to token_exchange TOML wiring + [auth_acquisition] block; Postconditions updated to DeclarativeHttpAuthProvider token acquisition flow + raw Authorization header injection; DI-012 invariant note updated to 6-value canonical auth_type set per ADR-054 D1; Error Cases auth suggestion updated (API key → secret_key); Test Vectors TV-001/004 auth language updated; modified date 2026-07-22; scheduled_amendment_in cleared (ADR-023 complete in v1.6). |
 | 1.6 | PLUGIN-MIGRATION-001-G | 2026-05-27 | product-owner | ADR-023 amendment: removed PENDING AMENDMENT banner; added Amendment Note to Description; updated Description prose from deleted `ArmisAuth` Rust adapter to TOML spec `auth_type = "bearer_static"` + AQL query forwarding config declarative language; updated DI-012 invariant from sealed-trait to `SpecLoader::validate_cross_composition()` runtime enforcement per BC-2.01.016; set amendment_lifecycle to null; bumped status draft→active. Behavioral semantics (preconditions, postconditions, error cases, test vectors) unchanged. |
 | 1.5 | prereq-f | 2026-05-11 | product-owner | PREREQ-F prefix note: added PENDING AMENDMENT — ADR-023 callout under H1 per ADR-023 L370 wording; added scheduled_amendment_in: ADR-023 and amendment_lifecycle: pending to frontmatter. No semantic change to BC body. Full amendment in Wave 2/G. |

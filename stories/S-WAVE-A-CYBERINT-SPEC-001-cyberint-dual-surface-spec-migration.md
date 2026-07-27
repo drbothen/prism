@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-CYBERINT-SPEC-001
 title: "Cyberint Dual-Surface Spec Migration — Delete cyberint.sensor.toml; Author cyberint-alerts and cyberint-assets; OpenAPI-Ground Alerts C2-Class Fixes; DTU Route Migration"
-version: "1.4"
+version: "1.5"
 status: draft
 producer: story-writer
 phase: 3
@@ -20,6 +20,7 @@ depends_on:
 blocks: []
 behavioral_contracts:
   - BC-2.01.006
+  - BC-2.01.018
   - BC-2.06.003
   - BC-2.16.001
   - BC-2.16.002
@@ -27,9 +28,10 @@ behavioral_contracts:
 verification_properties:
   - VP-153
 estimated_days: 3
-# BC status: BC-2.01.006 v1.x must be amended/split by PO per ADR-053 D5 before this story
-# transitions to ready. BC-2.16.001 and BC-2.16.009 are existing contracts. BC-2.06.003 covers
-# credential-ref rename. All four must be reviewed against the amended contracts at status-transition time.
+# BC status: BC-2.01.006 v1.8 covers Cyberint Assets surface. BC-2.01.018 v1.5 covers Cyberint
+# Alerts surface (introduced 2026-07-22; §Story Anchor resolves to this story). BC-2.16.001 and
+# BC-2.16.009 are existing contracts. BC-2.06.003 covers credential-ref rename. All BCs must
+# be reviewed at status-transition time.
 assumption_validations: []
 risk_mitigations: []
 ---
@@ -126,7 +128,7 @@ A unit test in `prism-spec-engine` asserts that loading either new spec produces
 E-SPEC-027(c) error when Rule 9 runs.
 
 ### AC-003: Alerts surface uses POST /alert/api/v1/alerts with $.alerts response path and page_number pagination
-(traces to BC-2.01.006 postcondition — Alerts surface returns the correct data at the
+(traces to BC-2.01.018 postcondition — Alerts surface returns the correct data at the
 correct endpoint with the correct response extraction path; traces to BC-2.16.002
 PageNumber Pagination Dispatch postcondition — POST body injection of `page`/`size` per
 ADR-056 §D3)
@@ -150,7 +152,7 @@ A parity test asserts that a POST to `/alert/api/v1/alerts` with valid `access_t
 returns a JSON object with a top-level `"alerts"` key containing an array.
 
 ### AC-004: Page/size pagination replaces cursor pagination; prism engine dispatches via POST body
-(traces to BC-2.01.006 postcondition — pagination returns complete result sets across
+(traces to BC-2.01.018 postcondition — pagination returns complete result sets across
 multiple pages; traces to BC-2.16.002 PageNumber Pagination Dispatch postcondition —
 POST body carries `page`/`size` keys; first request body asserted on the wire per
 CLAUDE.md §Wire-shape assertion discipline)
@@ -245,17 +247,12 @@ a sensor_id is updated to `"cyberint-alerts"` or `"cyberint-assets"` as appropri
 
 | BC | Version | Relevance to This Story |
 |----|---------|------------------------|
-| BC-2.01.006 | v1.x (see D5 amendment note) | Cyberint sensor behavior — POST method, $.alerts path, page/size pagination |
-| BC-2.06.003 | v1.3 | Credential refs resolution chain; `access_token` name change |
+| BC-2.01.006 | v1.8 | Cyberint Assets surface — cookie auth, multi-format timestamp parsing |
+| BC-2.01.018 | v1.5 | Cyberint Alerts surface — POST method, $.alerts response path, page/size pagination |
+| BC-2.06.003 | v1.12 | Credential refs resolution chain; `access_token` name change |
 | BC-2.16.001 | v1.9 | Bundled spec loading at startup — both new specs must pass validation |
 | BC-2.16.002 | v2.11 | Multi-Step Fetch Pipeline — PageNumber Pagination Dispatch postcondition (ADR-056 §D3/§D4); `PaginationConfig::PageNumber` wiring in `spec_parser.rs`, `build_paged_url_impl`, `build_request`, and `execute_impl` in `pipeline.rs` |
 | BC-2.16.009 | v1.28 | Rule 9: `cookie_roundtrip` requires `header_scheme = "cookie:<name>"` — absence path (c) must NOT trigger |
-
-**Product-owner dependency:** BC-2.01.006 must be amended or split (per ADR-053 §D5
-amendment manifest) to reflect the POST method, `$.alerts` response path, and page/size
-pagination for the Alerts surface. This story's `status: draft → ready` transition
-requires that BC-2.01.006 v2.x (or a new BC-2.01.006a for alerts) is in place and that
-`behavioral_contracts:` here references the amended BC version.
 
 ---
 
@@ -680,9 +677,10 @@ They live in `crates/prism-spec-engine/tests/` or inline test modules in `src/pi
 | BC-2.16.002 §Postconditions (OffsetLimit + PageNumber dispatch rows) | ~1,500 |
 | BC-2.16.009 Rule 9 (header_scheme validation) | ~800 |
 | BC-2.06.003 (credential refs) | ~500 |
+| BC-2.01.018 v1.5 (Cyberint Alerts contract) | ~800 |
 | `.factory/reference/api-specs/cyberint_assets_openapi_06.20.2026.json` (assets schema) | ~1,500 |
 | Running test output (nextest per-crate) | ~2,000 |
-| **Total estimate** | **~30,600** |
+| **Total estimate** | **~31,400** |
 
 30,600 tokens is at the upper end of the 20–30% context window limit for a standard
 100k-token agent context (30.6%). This story is at the boundary; the implementer should
@@ -784,6 +782,7 @@ No new external dependencies are introduced by this story.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.5 | 2026-07-27 | story-writer | FB63 CRIT-002: add BC-2.01.018 v1.5 (Cyberint Alerts contract) to frontmatter `behavioral_contracts:` (5→6 BCs); re-anchor AC-003/AC-004 Alerts-surface traces from BC-2.01.006 to BC-2.01.018; fix BC-2.01.006 pin v1.x → v1.8 (MED-003 / POL-23); update BC-2.06.003 pin v1.3 → v1.12 (POL-23); add BC-2.01.018 row to §Behavioral Contracts table with correct Alerts scope; rewrite frontmatter comment to name both surface contracts; delete discharged §Product-owner dependency gate (split already landed as BC-2.01.018 introduced 2026-07-22 in PO leg of FB63); add BC-2.01.018 v1.5 row to §Token Budget; update Token Budget total ~30,600 → ~31,400 |
 | 1.4 | 2026-07-26 | story-writer | FB61 gate-review DEFECT-1: remove fabricated RED_RATIO formula (Density = 16/8 ACs = 2.0) from §Red Gate density check; replace with orchestrator-computation note per per-story-delivery.md §Step 3.5, citing BC-5.38.002/BC-5.38.003 |
 | 1.3 | 2026-07-26 | story-writer | FB61 MED-016: add §Red Gate tests with 16 RGTs (RG-001..RG-016) and BC-5.38.001 density check; §Tasks reordered — test-authoring precedes implementation per ENGINE-001 normative pattern |
 | 1.2 | 2026-07-26 | story-writer | FB60 MED-008 + LOW-002: pin BC-2.16.001 from `current` to v1.9 and BC-2.16.009 from `current` to v1.28 in §Behavioral Contracts table; widen §Header-Scheme Sweep Report scope to cover `crates/prism-bin/fixtures/sensors/`; add `test-sensor-with-cred-refs.sensor.toml` row (`api_key`, path A, benign — workspace-wide conclusion confirmed) |

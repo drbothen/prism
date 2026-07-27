@@ -4321,3 +4321,51 @@ When a fix-burst makes a change to a file (e.g., adding a frontmatter field) wit
 **Going-forward rule:** For every fix of a "missing anchor" class finding, the fixer must audit whether the fix artifact itself has any missing anchors. The fix is not complete until the answer is confirmed negative.
 
 **Source:** FB62 pre-commit defect catch (D-2042, 2026-07-27). VP-161 v1.0 vs VP-161 v1.1 (SYMBOL RESOLUTION block). Lesson 106 covers the VP-160 root cause (narrated-not-anchored scope note).
+
+## Lesson 108 — Wrong-BC-ID mis-anchoring is invisible to every running sweep axis [codified]
+
+**Category:** spec integrity, sweep blind spots, mis-anchoring
+
+**Context:** Pass-65 F-WASE-P65-CRIT-001 found a scope-boundary sentence in BC-2.01.008 that narrowed the contract's scope to a specific sensor's semantics that did not belong there — the sentence carried wrong-BC semantics anchored to the wrong artifact. This mis-anchoring was invisible to grep sweeps, records-lint, and the cross-document version-pin index check because all of those verify ID existence and version consistency, not semantic correctness of prose content. A BC body can contain a sentence with semantically wrong scope, and no mechanical gate will catch it. The defect was only findable by a fresh-context adversary reading the BC as a standalone document against the real-world contract it purports to describe.
+
+**Transferable lesson:** Mechanical sweep axes (grep, the cross-document version-pin check, records-lint) establish structural validity — that referenced IDs exist and versions match. They provide no coverage over semantic mis-anchoring: text that is syntactically correct but belongs in a different artifact. Fresh-context adversary review remains the only tool that catches this class. When a BC undergoes an edit that adds a scope-boundary sentence, the post-edit sentence must be verified against the BC's own stated domain, not just checked for syntactic well-formedness.
+
+**Going-forward rule:** When a fix-burst adds or edits a scope-boundary sentence in a BC, the fixer must confirm: (a) the sentence uses the BC's own declared entities and references; (b) the sentence does not narrow scope beyond what the BC's postconditions enumerate; (c) the BC title, domain, and postconditions are internally consistent after the edit.
+
+**Source:** Pass-65 F-WASE-P65-CRIT-001 → FB63 story-writer closure (D-2043, 2026-07-27). BC-2.01.008 v1.7→v1.8.
+
+## Lesson 109 — An orphaned artifact is invisible to sibling-sweep greps [codified]
+
+**Category:** sweep discipline, artifact lifecycle, orphaned-artifact traceability
+
+**Context:** Pass-65 F-WASE-P65-CRIT-002 found BC-2.01.018's §Story Anchor still carried a placeholder from authoring time, and F-WASE-P65-MED-006 found the STORY-INDEX §BC Traceability Matrix had no row for BC-2.01.018. The story S-WAVE-A-CYBERINT-SPEC-001 existed and was the intended anchor. The gap arose because no mechanical sweep checks for absence of an expected entry: grepping for `BC-2.01.018` from the BC toward the story index confirms the BC exists; it cannot confirm whether the story index has a row pointing back. A BC can be authored, pinned in BC-INDEX, and deployed into the cascade while remaining unreachable from any story-index traversal.
+
+**Transferable lesson:** Traceability gaps are absence defects, not presence defects. Presence-based greps cannot detect them. The §BC Traceability Matrix in STORY-INDEX is the canonical bidirectional link; verifying a BC row exists in BC-INDEX does not verify the reverse row in STORY-INDEX. At story finalization time, the story-writer must verify the STORY-INDEX §BC Traceability Matrix row exists for every BC the story is intended to anchor.
+
+**Going-forward rule:** When a new BC is authored or when a story is finalized, add an explicit post-authoring step: confirm a row exists in STORY-INDEX §BC Traceability Matrix for the BC. The step belongs in the story-finalization checklist, not in post-hoc adversary review.
+
+**Source:** Pass-65 F-WASE-P65-CRIT-002 + F-WASE-P65-MED-006 → FB63 story-writer + state-manager closure (D-2043, 2026-07-27). BC-2.01.018 v1.4→v1.5; STORY-INDEX v2.741→v2.742.
+
+## Lesson 110 — Struct-level parity is not wire-level parity; SAP-2 probe must read the emission site, not only the type definition [codified]
+
+**Category:** SAP-2 protocol, wire-shape discipline, parity-check thoroughness
+
+**Context:** SAP-2 standalone probe (D-2043) found that the Cyberint list-alerts handler builds a hand-crafted `serde_json::json!` envelope emitting only 8 keys, not struct serialization. The TOML spec carried a comment claiming SAP-2 compliance by asserting all declared columns have matching fields in the DTU types file. That claim is simultaneously true at struct level (the named fields exist) and false at wire level (the handler omits those fields at emit time). Verifying the type file alone produces a false-pass for SAP-2. The existing CLAUDE.md §SAP-2 probe step 2 ("verify the column name matches a field in the DTU types.rs response struct for that table") is necessary but not sufficient.
+
+**Transferable lesson:** Type-file parity and wire parity are distinct invariants. A DTU type struct that declares 15 fields does not guarantee those 15 fields are emitted by every route handler that uses the type. Handlers that build responses via `serde_json::json!` macros, manual serialization, or field-projection mappings must be read independently of the type definition.
+
+**Going-forward rule (SAP-2 amendment — pending human approval, SAP2-OBS-002):** For each TOML table, SAP-2 compliance requires reading BOTH the types.rs struct definition AND the route handler that serializes the response, verifying that the emitted keys match the declared TOML columns. A TOML comment claiming SAP-2 compliance based on type-file inspection alone is not a valid compliance assertion.
+
+**Source:** SAP-2 standalone probe F-SAP2-CRIT-001 + F-SAP2-HIGH-001 (D-2043, 2026-07-27). SAP2-OBS-002 captures the CLAUDE.md amendment obligation (HUMAN GATE — do not edit CLAUDE.md until approved).
+
+## Lesson 111 — Declining to defer a NOT-REACHED probe paid immediately; SAP-2 surfaced 2 P1 CRITICALs [codified]
+
+**Category:** production-grade discipline, probe completeness, adversary scope discipline
+
+**Context:** Before pass-65, the orchestrator gate review considered deferring the SAP-2 DTU↔TOML parity probe on the grounds that the current cascade is a spec-evolution cascade, not a sensor-spec implementation burst — SAP-2 was designed for stories and PRs that modify sensor TOML specs. The orchestrator declined the deferral and ran SAP-2 as a standalone probe against the wave-A sensor specs already in place. SAP-2 immediately surfaced F-SAP2-CRIT-001 (11 Cyberint assets TOML columns unbacked at wire level — the assets route handler was never built) and F-SAP2-CRIT-002 (the Asset DTU type was missing entirely — confirmed by grep). Both are P1 CRITICAL defects. No other running sweep axis was checking for these gaps.
+
+**Transferable lesson:** The argument "this probe applies to a different story type; defer it" is a rationalization when the probe covers invariants that could already be violated by existing artifacts. The correct criterion for running a probe is not "does the current burst type match the probe's typical trigger?" but "could the invariant this probe checks already be violated?" If the answer is yes or unknown, run the probe now.
+
+**Going-forward rule:** The Canonical Principle Rule 1 ("speed lives in feature ordering, not feature completeness") applies to probes as well as features. Defer a probe only when its subject matter does not yet exist. When the subject exists — even if it was authored in a prior burst or a prior wave — run the probe in the current burst if the adversary has access to the artifacts.
+
+**Source:** SAP-2 standalone probe F-SAP2-CRIT-001 + F-SAP2-CRIT-002 (D-2043, 2026-07-27). Orchestrator gate-review decision to run SAP-2 despite NOT-REACHED framing.

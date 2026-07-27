@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -19,7 +19,7 @@ extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: null
 amendment_lifecycle: null
 introduced: "2026-07-22"
-modified: "2026-07-23"
+modified: "2026-07-27"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -123,9 +123,14 @@ and is covered by BC-2.01.006.
 - ADR-054 D1: 6-value canonical auth_type set
 
 ## Story Anchor
-(pending — Wave-A story decomposition, Task #8)
+S-WAVE-A-CYBERINT-SPEC-001 — Cyberint Dual-Surface Spec Migration. This story creates
+`cyberint-alerts.sensor.toml` with POST `/alert/api/v1/alerts`, `$.alerts` response path,
+and PageNumber pagination (ADR-056 §D3); migrates the Cyberint Alerts DTU route to
+POST `{"page": N, "size": 100}` body shape; renames credential ref `api_key` →
+`access_token`. BC promotes to `active` on story merge per POL-14 auto-promotion.
 
-**Interim draft rationale (F-WASE-P3-LOW-001):** This BC was created by ADR-053 D3 (dual-surface
+**Historical draft rationale (F-WASE-P3-LOW-001 — story anchor resolved to
+S-WAVE-A-CYBERINT-SPEC-001 in FB63):** This BC was created by ADR-053 D3 (dual-surface
 split) as a spec-before-code artifact. The contracted behaviors — `cyberint-alerts.sensor.toml`,
 `SensorSpec::header_scheme = "cookie:access_token"`, credential ref renamed `api_key` →
 `access_token`, `(Timestamp, AlertID)` 2-tuple cursor, and 3-format timestamp parser (RFC-3339/ISO-8601,
@@ -134,8 +139,9 @@ Unix epoch seconds, Unix epoch millis) — are NOT yet shipped. Evidence: only `
 source; current TOML uses `name = "api_key"` and `cursor_token`/`$.next_cursor` pagination; the
 spec-engine's existing `timestamp_formats` set (`iso8601`, `unix_epoch_seconds`, `unix_epoch_millis` —
 3 values) is exactly the 3-format set this BC now contracts, confirming no "Cyberint custom format"
-is needed (RU-Q5 REFUTED per `cyberint_alerts_openapi_06.20.2026.json`). BC status set to `draft` per POL-14. Will promote to `active` when the Wave-A Cyberint
-Alerts remediation story merges (POL-14 auto-promotion at merge).
+is needed (RU-Q5 REFUTED per `cyberint_alerts_openapi_06.20.2026.json`). BC status set to `draft`
+per POL-14. Will promote to `active` when the Wave-A Cyberint Alerts remediation story merges
+(POL-14 auto-promotion at merge).
 
 ## VP Anchors
 (filled after VP creation — see VP-INDEX.md for current coverage)
@@ -152,6 +158,7 @@ Alerts remediation story merges (POL-14 auto-promotion at merge).
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | FB63-product-owner | 2026-07-27 | product-owner | Target A (FB63): §Story Anchor replaced — stale "(pending — Wave-A story decomposition, Task #8)" removed; anchor set to S-WAVE-A-CYBERINT-SPEC-001 (verified: §AC-003 of that story owns POST `/alert/api/v1/alerts`, `$.alerts` response path, PageNumber pagination per ADR-056 §D3, and Alerts DTU route migration). Historical draft rationale header updated to note story anchor resolved in FB63. No semantic change to §Preconditions, §Postconditions, §Invariants, §Edge Cases, §Canonical Test Vectors, or §Traceability. |
 | 1.4 | wave-a-rmu-amendment-burst-1 | 2026-07-23 | product-owner | RU-Q5 REFUTED: canonical Cyberint OpenAPI (`cyberint_alerts_openapi_06.20.2026.json`, in-repo) confirms ALL alert date fields are `"type: string, format: date-time"` (RFC-3339/ISO-8601); spec intro states "All dates in the API use UTC and are strings in the ISO 8601 format"; only `whois_created_date` (nested enrichment) is an integer epoch field; NO custom format exists anywhere. BC amended from 4-format to 3-format: (1) RFC-3339/ISO-8601 (primary), (2) Unix epoch seconds (`whois_created_date`-class integer fields), (3) Unix epoch millis (defensive, matches spec-engine's `timestamp_formats` supported set). "Cyberint custom format" dropped from §Description (grounding citation added), §Postconditions. DEC-015 reframed: "unexpected 5th format" → "unparseable by all 3 CyberintTime formats". TV-002 rewritten: custom-format test → Unix-epoch-seconds integer test. TV-003 updated: "5th format" → "fails all 3 formats" with concrete example. |
 | 1.3 | wave-a-spec-evolution-fix-burst-16 | 2026-07-22 | product-owner | F-WASE-P16-LOW-001: §Related BCs full sweep — three stale labels corrected to canonical H1s (POL-7). BC-2.01.006 label "Cyberint Assets cookie auth" → "Cyberint Assets Cookie-Based Authentication and Multi-Format Timestamp Parsing". BC-2.01.017 label "StaticCookieAuthProvider dispatch table" → "StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection" (v1.2 burst fixed BC-2.01.016 on line 110 but missed lines 109/111/112). BC-2.06.003 label "Credential reference resolution" → "Credential References in Config Resolve to Credential Store Entries". Pin-sweep: no live-body pins to BC-2.01.018 v1.2 found across .factory/specs/. input-hash updated at commit time. |
 | 1.2 | wave-a-spec-evolution-fix-burst-12 | 2026-07-22 | product-owner | F-WASE-P12-MED-002: §Related BCs line for BC-2.01.016 corrected — false claim "StaticCookieAuthProvider implements SensorAuth" removed. `StaticCookieAuthProvider` implements the `AuthProvider` trait (`crates/prism-spec-engine/src/auth_provider.rs`); `SensorAuth` lives in `prism-sensors` and `prism-spec-engine` is forbidden from importing it. Rewording follows the specified correction: "StaticCookieAuthProvider implements the AuthProvider trait (the runtime SensorAuth replacement governed by BC-2.01.016)". BC-2.01.016 label aligned to canonical H1 title "SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker)". Sibling sweep (TD-VSDD-060): BC-2.01.006 — CLEAN (no hit). architecture/sensor-adapters.md — 2 hits but both are factually correct descriptions of the WASM plugin model (architect scope, not product-owner scope). input-hash updated at commit time. |

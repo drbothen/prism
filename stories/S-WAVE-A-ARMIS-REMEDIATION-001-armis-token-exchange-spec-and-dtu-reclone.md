@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-ARMIS-REMEDIATION-001
 title: "Armis Token-Exchange Spec Migration and DTU Reclone — auth_type token_exchange, [auth_acquisition] block, Armis DTU token endpoint"
-version: "1.4"
+version: "1.5"
 status: draft
 producer: story-writer
 phase: 3
@@ -19,16 +19,15 @@ depends_on:
                            # and before the Armis DTU can implement the token acquisition route
 blocks: []
 behavioral_contracts:
-  - BC-2.01.006
+  - BC-2.01.008
   - BC-2.06.003
 verification_properties:
   - VP-153
 estimated_days: 3
-# BC status: BC-2.01.006 covers Armis behavior; the dispatch table row for TokenExchange on the
-# Armis surface must be verified against the BC-2.01.017 amendment landing in S-ADR054-WAVE-A-001.
-# BC-2.06.003 v1.3 covers credential refs — Armis credential_refs will change from bearer_static
-# pattern to token_exchange pattern. BC amendments (ADR-053 D5) are PO tasks; they block
-# status: ready transition, not implementation dispatch.
+# BC status: BC-2.01.008 v1.8 is the correct Armis contract (token exchange auth, AQL query
+# forwarding, timestamp fallback). BC-2.06.003 covers credential refs — Armis credential_refs
+# change from bearer_static pattern to token_exchange pattern. BC amendments (ADR-053 D5)
+# are PO tasks; they block status: ready transition, not implementation dispatch.
 assumption_validations: []
 risk_mitigations: []
 ---
@@ -113,7 +112,7 @@ and `S-ADR054-WAVE-A-001` ships.**
 ## Acceptance Criteria
 
 ### AC-001: armis.sensor.toml declares auth_type = "token_exchange" with valid [auth_acquisition]
-(traces to BC-2.01.006 postcondition — Armis sensor spec authenticates via token exchange)
+(traces to BC-2.01.008 postcondition — Armis sensor spec authenticates via token exchange)
 
 `crates/prism-sensors/specs/armis.sensor.toml` is updated to:
 - `auth_type = "token_exchange"`
@@ -129,7 +128,7 @@ After migration, `parse_and_validate_spec_toml()` accepts the updated Armis spec
 any E-SPEC-028 (Rule 10) or E-SPEC-012 (invalid auth_type) errors.
 
 ### AC-002: Armis DTU serves the token acquisition endpoint
-(traces to BC-2.01.006 postcondition — DTU behavioral clone supports token exchange flow)
+(traces to BC-2.01.008 postcondition — DTU behavioral clone supports token exchange flow)
 
 The Armis DTU (`crates/prism-dtu-armis/`) serves a route at `POST /api/v1/access_token/`
 (matching `[auth_acquisition].token_path`). The route:
@@ -149,7 +148,7 @@ the `[auth_acquisition]` config in `armis.sensor.toml` — `token_response_path`
 and `expiry_mode` must all have corresponding DTU type fields.
 
 ### AC-003: Armis DTU accepts raw acquired token from DeclarativeHttpAuthProvider (not static token)
-(traces to BC-2.01.006 postcondition — the acquired token is used for subsequent API calls)
+(traces to BC-2.01.008 postcondition — the acquired token is used for subsequent API calls)
 
 An integration test verifies that a client which:
 1. POSTs to `/api/v1/access_token/` with the Armis `secret_key`
@@ -172,7 +171,7 @@ etc.) must continue to work. This is the primary DTU reclone work — its exact 
 by the T-03 source read, not by speculation.
 
 ### AC-004: customer overlay specs are NOT broken by the migration
-(traces to BC-2.01.006 invariant — overlay specs inherit base spec auth_type)
+(traces to BC-2.01.008 invariant — overlay specs inherit base spec auth_type)
 
 `crates/prism-sensors/specs/customers/acme/armis.sensor.toml` and
 `crates/prism-sensors/specs/customers/contoso/armis.sensor.toml` are overlay specs.
@@ -232,11 +231,13 @@ BC-2.06.003 v1.3 §Armis credential table rows must be updated to reflect the ne
 credential_ref name and token exchange semantics. Per ADR-053 §D5 amendment manifest
 "BC-2.06.003 Armis/Cyberint rows." This is a PO task.
 
-### PO-002: BC-2.01.006 Armis behavior contract amendment (BLOCKS status: ready)
+### PO-002: BC-2.01.008 Armis token-exchange contract review (BLOCKS status: ready)
 
-BC-2.01.006 §Armis-specific postconditions must be verified against the token exchange
-flow. If the BC currently describes bearer_static authentication for Armis, it requires
-amendment. Per ADR-053 §D5 amendment manifest.
+BC-2.01.008 §Postconditions must be verified to confirm full coverage of the
+token-exchange flow (`auth_type = "token_exchange"`, `header_scheme = "raw"`,
+`[auth_acquisition]` block, `[[credential_refs]] name = "secret_key"`). BC-2.01.008
+was bumped to v1.8 in the PO leg of FB63 (scope-boundary sentence + §Related BCs
+section added). Per ADR-053 §D5 amendment manifest.
 
 ---
 
@@ -255,8 +256,8 @@ amendment. Per ADR-053 §D5 amendment manifest.
 
 | BC | Version | Relevance |
 |----|---------|-----------|
-| BC-2.01.006 | v1.8 | Armis behavior contract — auth_type change requires BC amendment (PO task) |
-| BC-2.06.003 | v1.3 | Credential refs resolution chain — Armis rows change from bearer to token_exchange pattern |
+| BC-2.01.008 | v1.8 | Armis token exchange auth — auth_type = "token_exchange", header_scheme = "raw", [auth_acquisition] block, credential_ref "secret_key" |
+| BC-2.06.003 | v1.12 | Credential refs resolution chain — Armis rows change from bearer to token_exchange pattern |
 
 ---
 
@@ -398,7 +399,7 @@ case. If an Armis-specific fixture needs updating, update it in this story.
 | `crates/prism-dtu-armis/src/` (structure survey) | ~4,000 |
 | Vendored Armis research (`.factory/reference/api-specs/armis_endpoint_research_07.20.2026.md`) | ~2,000 |
 | VP-153 harness files | ~1,500 |
-| BC-2.01.006 Armis section | ~1,000 |
+| BC-2.01.008 v1.8 (Armis token exchange auth) | ~1,000 |
 | Running test output (nextest) | ~1,500 |
 | **Total estimate** | **~18,000** |
 
@@ -491,6 +492,7 @@ proves more complex than expected.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.5 | 2026-07-27 | story-writer | FB63 CRIT-001: re-anchor all BC-2.01.006 Armis references to BC-2.01.008 v1.8 (correct Armis contract — 10 sites: frontmatter array, frontmatter comment, AC-001..AC-004 traces, PO-002 header+body, §Behavioral Contracts table row, Token Budget row); remove phantom PO-002 section anchor §Armis-specific postconditions (POL-21); remove phantom Token Budget row §Armis section (POL-21); update BC-2.06.003 pin v1.3 → v1.12 (POL-23) |
 | 1.4 | 2026-07-26 | story-writer | FB61 gate-review DEFECT-1: remove fabricated RED_RATIO formula (Density = 10/7 ACs = 1.43) from §Red Gate density check; replace with orchestrator-computation note per per-story-delivery.md §Step 3.5, citing BC-5.38.002/BC-5.38.003 |
 | 1.3 | 2026-07-26 | story-writer | FB61 MED-016: add §Red Gate tests with 10 RGTs (RG-001..RG-010) and BC-5.38.001 density check; §Tasks reordered — test-authoring precedes implementation per ENGINE-001 normative pattern |
 | 1.2 | 2026-07-26 | story-writer | FB60 MED-008: pin BC-2.01.006 from `current` to v1.8 in §Behavioral Contracts table |
