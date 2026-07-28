@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-07-27T00:00:00
@@ -43,8 +43,8 @@ The `armis_device_activity` TOML table provides a single-device, filter-required
 
 ## Architecture Anchors
 
-- `.factory/specs/architecture/decisions/ADR-057-armis-activity-per-device-push-down-grammar.md` — authority for `${query.filter.device_id}` grammar and single-device scope decision
-- `.factory/specs/architecture/decisions/ADR-033-push-down-filters.md` — authority for `options = ["INDEX"]` push-down extraction path (T1 convention)
+- `.factory/specs/architecture/decisions/ADR-057-armis-activity-per-device-push-down-grammar.md` — authority for the `${query.filter.device_id}` grammar and the `${query.filter.*}` pre-seed mechanism (§D4, §D5)
+- `.factory/specs/architecture/decisions/ADR-033-push-down-time-window-extraction-strategy-pre-fan-out-heuristic.md` — authority for datetime time-window extraction (`extract_time_window_from_ast §extract_time_window_from_ast` extracts `start_time`/`end_time` into `QueryParams`; T2: `classify_predicates §classify_predicates`, deferred); NOT the authority for equality push-down routing
 
 ## Story Anchor
 
@@ -59,7 +59,7 @@ None assigned yet. To be added when verification properties are authored for thi
 ## Preconditions
 
 - The `armis_device_activity` TOML table is declared in `crates/prism-sensors/specs/armis.sensor.toml` with a step using `path_template = "/api/v1/devices/${query.filter.device_id}/activity"` and `response_path = "$.data.activities"`
-- The `device_id` column in the `armis_device_activity` table carries `options = ["INDEX"]` so the query planner routes `WHERE device_id = '...'` predicates into `FetchContext.query_filters["device_id"]` via the push-down extraction path (ADR-033 T1)
+- The `device_id` column in the `armis_device_activity` table carries `options = ["INDEX"]`, declaring push-down eligibility per the BC-2.11.007 taxonomy (REQUIRED / INDEX / ADDITIONAL) for future T2 (`classify_predicates §classify_predicates`) integration; the current routing is annotation-agnostic: `predicate_tree_to_filter_map §predicate_tree_to_filter_map` collects all case-sensitive `field = 'string'` equality predicates regardless of column annotation into the `FilterMap`, which materializes as `FetchContext.query_filters`; `execute_impl §execute_impl` then pre-seeds `step_vars["query.filter.device_id"]` from that map (ADR-057 §D4)
 - A `WHERE device_id = '...'` predicate is present in the PrismQL query against `armis_device_activity`
 
 ## Postconditions
@@ -178,5 +178,6 @@ None assigned yet. Verification properties will be added when `S-WAVE-A-ARMIS-AC
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | FB81 | 2026-07-28 | product-owner | F-WASE-P68-HIGH-003 — ADR-033 T1 mis-citation corrected (dimension 9b downstream-copy-target fix). §Architecture Anchors: (a) phantom path `ADR-033-push-down-filters.md` corrected to real file `ADR-033-push-down-time-window-extraction-strategy-pre-fan-out-heuristic.md`; (b) ADR-033 description updated — governs datetime time-window extraction via `extract_time_window_from_ast §extract_time_window_from_ast` only, NOT the authority for equality push-down routing; (c) ADR-057 description updated from "grammar and single-device scope decision" to "grammar and `${query.filter.*}` pre-seed mechanism (§D4, §D5)" for precision. §Preconditions: `device_id` column precondition rewritten — "via the push-down extraction path (ADR-033 T1)" replaced with annotation-agnostic routing description aligned to ADR-057 §D5 v0.5: `predicate_tree_to_filter_map §predicate_tree_to_filter_map` collects all equality predicates regardless of annotation → `FetchContext.query_filters` → `execute_impl §execute_impl` pre-seeds `step_vars["query.filter.device_id"]` per ADR-057 §D4. POL-29: 9a — no named twin (confirmed per v1.1 FB77 POL-29 9a record; BC-2.02.006 is parent, not split-event sibling); 9b — Sites 2 and 3 in this file are downstream copies of the corrected ADR-057 §D5; no further downstream copies of the T1 claim exist outside this BC and BC-2.02.006 (confirmed by `.factory/specs/` grep); 9c — no new unanchored MUSTs introduced. |
 | 1.1 | FB77 | 2026-07-27 | product-owner | POL-29 9c mandate discharge: substituted real story AC/RG anchors for pending placeholders. TOML-declaration MUST anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` AC-001 / RG-001 (`test_armis_toml_armis_device_activity_table_declared_with_correct_step_block`). Required-filter MUST anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` AC-004 / RG-004 (`test_armis_device_activity_absent_device_id_filter_returns_hard_error`). Tightened failure-mode description per story v1.2 §Code-Reading Verdict: pre-fix behavior is HTTP 200 + `activities: []` + `total: 0` (silent empty result via path `/api/v1/devices//activity`), not a URL construction abort; `seed_missing_query_filter_vars §seed_missing_query_filter_vars` inserts empty-string seed. No `InterpolationError::FieldNotFound` claim present to remove (consistent with pre-seed guarantee). Updated §Postconditions absent-filter line, §Error Cases row 1, and EC-014-001 with observable pre-fix behavior. POL-29 9a: no named twin (BC-2.02.006 is parent, not split-event sibling). 9b: §TOML Contract TOML block is copy-source for story T-IMPL-01; anchor-text additions are prose-only and do not alter the TOML block, so no downstream copy drift. 9c: both mandate anchors now carry real AC + RGT IDs; no new unanchored MUST introduced. |
 | 1.0 | FB73 | 2026-07-27 | product-owner | Initial authoring per ADR-057 §C2. Specifies `armis_device_activity` fetch pipeline contract: push-down grammar `${query.filter.device_id}` per ADR-057 §D5; five SAP-2-verified ActivityRecord columns (activity_id, device_id, activity_type, timestamp, details) verified against `ActivityRecord` in `prism-dtu-armis/src/types.rs` and wire-emission site `routes::devices::get_device_activity §get_device_activity`; OCSF mappings; single-device filter-required scope per ADR-057 §D4; absent-filter hard-error contract; required-filter implementation obligation delegated to `S-WAVE-A-ARMIS-ACTIVITY-001`. ITEM 3 decision: new BC justified over BC-2.02.006 amendment because (a) BC-2.02.006 is a field-mapping contract with preconditions that presuppose a record has already been fetched, while this contract governs fetch-request construction and filter-required preconditions — a distinct behavioral class; (b) BC-2.02.006 H1 ("Armis Centrix Field Mapping to OCSF (7 Data Sources)") does not encompass request-construction contracts; (c) ADR-057 §C2 explicitly says "author BCs", implying new contract creation. POL-29 9a: no named twin (this BC has no split-event sibling; BC-2.02.006 is the parent, not a twin). 9b: ADR-057 §D5 is the verbatim copy-source for the `path_template` text and TOML block — swept faithfully. 9c: required-filter MUST anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` (real existing story ID per ADR-057 §C1); TOML column MUSTs anchored to same story; AC/RGT backfill pending story-writer update. |

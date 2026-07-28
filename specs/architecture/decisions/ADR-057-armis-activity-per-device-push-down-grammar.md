@@ -4,8 +4,8 @@ adr_id: "ADR-057"
 title: "Armis Per-Device Activity Surface — Push-Down Grammar for Parameterized Path Templates"
 status: accepted
 date: "2026-07-27"
-modified: "2026-07-27"
-version: "0.4"
+modified: "2026-07-28"
+version: "0.6"
 producer: architect
 subsystems_affected: [SS-06, SS-07, SS-12]
 supersedes: null
@@ -174,8 +174,8 @@ no new mechanism required.
 
 ### Behavior when no `device_id` filter is provided — Code Gap
 
-**Current code behavior (verified 2026-07-27):** `seed_missing_query_filter_vars`
-(called in `execute_impl` per ADR-033 T1) scans every step's `path_template` and
+**Current code behavior (verified 2026-07-27):** `seed_missing_query_filter_vars §seed_missing_query_filter_vars`
+(called in `execute_impl §execute_impl`; authority: this ADR §D4 / §D5 — not ADR-033 T1) scans every step's `path_template` and
 `body_template` for `${query.filter.*}` references and pre-seeds any absent key with an
 empty string via `.or_insert(serde_json::Value::String(String::new()))`. Because
 `path_template = "/api/v1/devices/${query.filter.device_id}/activity"` references
@@ -249,9 +249,16 @@ ocsf_field = "device.uid"
 options = ["INDEX"]
 ```
 
-`options = ["INDEX"]` is required so the query planner routes `WHERE device_id = '...'`
-predicates into `FetchContext.query_filters["device_id"]` via the push-down extraction
-path (ADR-033 T1 convention for INDEX-declared columns).
+`options = ["INDEX"]` declares `device_id` push-down eligible per the BC-2.11.007
+push-down taxonomy (REQUIRED / INDEX / ADDITIONAL classification) and future T2
+(`classify_predicates §classify_predicates`) integration. The current routing path is
+annotation-agnostic: `predicate_tree_to_filter_map §predicate_tree_to_filter_map`
+collects all case-sensitive `field = 'string'` equality predicates regardless of column
+annotation into the `FilterMap`, which materializes as `FetchContext.query_filters`;
+`execute_impl §execute_impl` then pre-seeds `step_vars["query.filter.device_id"]` from
+that map (this ADR §D4). ADR-033 T1 is NOT the authority here — ADR-033 T1 governs
+datetime time-window extraction into `QueryParams.start_time`/`end_time` only
+(authority: `extract_time_window_from_ast §extract_time_window_from_ast`).
 
 Anchor: Both MUSTs above resolve in `S-WAVE-A-ARMIS-ACTIVITY-001` AC-001 (to be authored
 by product-owner per this ADR; implementation is enforced when test-writer writes the Red
@@ -326,6 +333,8 @@ required-filter gate that fires before any upstream request is issued when the r
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 0.6 | 2026-07-28 | architect | FB81 §D4 self-miss correction (POL-29 9a). The FB81 §D5 fix did not sweep the sibling §D4. §D4 retained "`seed_missing_query_filter_vars §seed_missing_query_filter_vars` (called in `execute_impl §execute_impl` per ADR-033 T1)" — the identical wrong attribution removed from §D5. §D4 now reads "(called in `execute_impl §execute_impl`; authority: this ADR §D4 / §D5 — not ADR-033 T1)". Full ADR-033 sweep: 4 hits — frontmatter `related_adrs` (valid: §D5 still references ADR-033 for scope-boundary explanation), §D4 wrong attribution (fixed this row), §D5 scope-boundary statement (legitimate), v0.5 changelog row (legitimate historical record). `related_adrs: [ADR-028, ADR-033, ...]` retained: ADR-033 remains a meaningful related ADR because §D5 explicitly names it to state the scope boundary (datetime extraction only). |
+| 0.5 | 2026-07-28 | architect | FB81 — §D5 ADR-033 T1 mis-citation corrected. The sentence "options = ['INDEX'] is required... via the push-down extraction path (ADR-033 T1 convention for INDEX-declared columns)" was the copy-source for a wrong causal claim that propagated to BC-2.02.014, BC-2.02.006, and S-WAVE-A-ARMIS-ACTIVITY-001. Accurate replacement: `options = ["INDEX"]` declares push-down eligibility per BC-2.11.007 taxonomy and future T2 (`classify_predicates §classify_predicates`); the CURRENT routing is annotation-agnostic via `predicate_tree_to_filter_map §predicate_tree_to_filter_map` (collects all equality predicates regardless of annotation) → `FetchContext.query_filters` → `execute_impl §execute_impl` pre-seed loop (this ADR §D4). ADR-033 T1 governs datetime time-window extraction only (`extract_time_window_from_ast §extract_time_window_from_ast`). Sites 2–5 (BC-2.02.014, BC-2.02.006, S-WAVE-A-ARMIS-ACTIVITY-001 AC-002/RG-002) fixed by product-owner and story-writer in same FB81 burst. |
 | 0.4 | 2026-07-27 | architect | FB76 — (1) Unanchored `MUST` in §D4 architectural note (future sensor specs) replaced with anchored guidance: obligation for `armis_device_activity` is anchored in BC-2.02.014 / `S-WAVE-A-ARMIS-ACTIVITY-001`; future surfaces must do the same in their implementing story. (2) C6 added: engine-alignment pre-ship obligation for the implementer, anchored to BC-2.02.014 / `S-WAVE-A-ARMIS-ACTIVITY-001`. POL-29 dimension 9c: all MUSTs now have explicit story+BC anchors. |
 | 0.3 | 2026-07-27 | architect | FB74 ITEM 5 — §D4 "Behavior when no device_id filter is provided" corrected. False claim ("falls through pre-seed path without inserting; hits FieldNotFound") replaced with accurate code ground truth: `seed_missing_query_filter_vars` pre-seeds any absent `${query.filter.*}` path-template slot with empty string; absent `device_id` → `/api/v1/devices//activity` malformed URL silently sent upstream. Required behavior contracted in BC-2.02.014; implementation obligation anchored to `S-WAVE-A-ARMIS-ACTIVITY-001`. Architectural note added: query-param vs path-segment divergence (empty query param = safe for optional filters; empty path segment = malformed URL). BC-2.02.014 added to `related_bcs`. |
 | 0.2 | 2026-07-27 | architect | FB74 SAC-2 anchor_stories update: S-WAVE-A-ARMIS-ACTIVITY-001 v1.1 §Authority cites "ADR-057 (accepted 2026-07-27)"; promoted to verified `anchor_stories` entry with per-entry annotation. Stale verified-empty comment annotation removed (POL-29 dimension 9b — no longer accurate). |
