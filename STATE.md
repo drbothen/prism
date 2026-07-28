@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.608"
+version: "8.610"
 producer: state-manager
 timestamp: 2026-07-28T00:00:00Z
 inputs: []
@@ -18,12 +18,12 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "e116a587"
 # NOTE: D-1887 — local develop is at e116a587 (NOT YET FF'd; unstaged S-MAINT ci.yml residue in main worktree blocks fast-forward). origin/develop = 7fef57da (PR #228 S-REL-001 squash-merged 2026-07-20; DRIFT-LOCAL-DEVELOP-FF-001 registered). D-1886 NOTE (pr-manager set 7fef57da) corrected to local HEAD for verify-sha-currency.sh compliance. D-1872 NOTE (e116a587 ff'd 2026-07-19; PR #227 squash-merged) still local HEAD.
-bc_index_version: "8.82"
-# NOTE: D-2057 — BC-INDEX v8.81→v8.82: FB81 closure F-WASE-P68-HIGH-003. BC-2.02.006 v1.9→v1.10 (§Postconditions armis_device_activity deferral bullet corrected); BC-2.02.014 v1.1→v1.2 (§Architecture Anchors corrected; ADR-057 anchor added). No BC lifecycle/status/count changes. D-2056 NOTE archived.
+bc_index_version: "8.84"
+# NOTE: D-2062 — BC-INDEX v8.83→v8.84: FB85 closure — F-WASE-P68-MED-003. BC-2.02.006 v1.10→v1.11 (SAP-2 Rule 6 dual-path wire-coverage gap; §Generated-Records Path Coverage added; five DTU generator defects documented; option (a) contracted; five MUSTs anchored to S-WAVE-A-ARMIS-SPEC-001 AC-008..AC-012/RG-008..RG-012). S-WAVE-A-ARMIS-SPEC-001 v1.1→v1.2 (scope expanded to prism-dtu-armis). PROCESS FINDING [process-gap]: FB85 dispatched before FB84 committed; two-concern uncommitted state. No BC lifecycle/status/count changes: active_contracts 251/draft_contracts 5/total 269 UNCHANGED. D-2061 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1) per ARCH-INDEX FB74/FB76 sweep; ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.750"
-# NOTE: D-2060 — STORY-INDEX v2.749→v2.750: FB83b closure. §Full Story List remaining 5 stale version segments corrected (POL-29 9a closed loop all 9 rows): ENGINE-001 v2.0→v3.0; CYBERINT-SPEC-001 v1.1→v1.8 (+corrected v1.3/v1.4/v1.5 added); MCP-001 v1.0→v1.5; ARMIS-ACTIVITY-001 v1.0→v1.3; ARMIS-SPEC-001 v1.0→v1.1. total_stories 254 UNCHANGED. D-2059 NOTE archived.
+story_index_version: "2.751"
+# NOTE: D-2062 — STORY-INDEX v2.750→v2.751: D-2062 session wrap. S-WAVE-A-ARMIS-SPEC-001 row updated v1.1→v1.2 (FB85: AC-008..AC-012/RG-008..RG-012 added; scope expanded to prism-dtu-armis; points 3→5; BC-2.02.006 pin v1.9→v1.11). 9-row closed-loop verified: all 9 perimeter rows match disk frontmatter. total_stories 254 UNCHANGED. D-2060 NOTE archived.
 arch_index_version: "2.288"
 # NOTE: D-2057 — ARCH-INDEX v2.287→v2.288: ADR-057 v0.4→v0.6 (FB81 §D5 + §D4 false ADR-033 T1 attribution removed; correct authority is §D4 execute_impl pre-seed). D-2054 NOTE archived.
 error_taxonomy_version: "2.70"
@@ -48,7 +48,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2060 — FB83b CLOSED (TD-VSDD-053). POL-29 9a closed loop complete: all 9 perimeter §Full Story List rows now match disk frontmatter. STORY-INDEX v2.749→v2.750: 5 remaining rows version-advanced (ENGINE-001 v2.0→v3.0; CYBERINT-SPEC-001 v1.1→v1.8 +3 missing corrected entries; MCP-001 v1.0→v1.5; ARMIS-ACTIVITY-001 v1.0→v1.3; ARMIS-SPEC-001 v1.0→v1.1). PROCESS FINDING [process-gap] D-2060: ARMIS-ACTIVITY-001 reached v1.3 in FB81 but §Full Story List row not updated in FB81 burst; combined with FB81 ADR-057 §D4 sibling-section miss = 2 POL-29 9a misses inside FB81 alone. Adversary HIGH-001 doubly inaccurate: understated staleness AND wrongly asserted 5 siblings current. BC-5.39.001 streak 0/3. NEXT = FB84 (product-owner, MED-001+MED-002). STATE v8.607→v8.608. pass-69 NOT dispatchable until FB84..FB87 land."
+current_step: "D-2062 — SESSION WRAP (TD-VSDD-053). FB85 CLOSED: F-WASE-P68-MED-003 (SAP-2 Rule 6 dual-path wire-coverage gap — BC-2.02.006 v1.11; S-WAVE-A-ARMIS-SPEC-001 v1.2; BC-INDEX v8.84; STORY-INDEX v2.751). UNDER-RATING NOTE: adversary filed as MED; live investigation confirmed P1-CRITICAL-class DTU data defect (five columns silently absent on T13 demo seeded-fixture path). Pass-68 OPEN: MED-004/LOW-001 (FB86/story-writer); LOW-002/LOW-003 (FB87/product-owner); OBS-001 non-blocking. BC-5.39.001 streak 0/3. NEXT = FB86 (vsdd-factory:story-writer — closes MED-004 + LOW-001: RED_RATIO regression + stale BC pin in ARMIS-SPEC-001 + ARMIS-ACTIVITY-001). STATE v8.608→v8.610."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -616,89 +616,69 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-2060 — 2026-07-28 — FB83b CLOSED; POL-29 9a closed loop all 9 rows; STORY-INDEX v2.750; STATE v8.608) [supersedes D-2059]
+## Session Resume Checkpoint (D-2062 — 2026-07-28 — SESSION WRAP; FB85 CLOSED; BC-INDEX v8.84; STORY-INDEX v2.751; STATE v8.610) [supersedes D-2060]
 
-**RESUME IN ONE BREATH:** Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2060 closes POL-29 9a (FB83b): STORY-INDEX §Full Story List — all 9 perimeter story rows now match disk frontmatter (closed loop verified). Pass-68: 3 findings closed (HIGH-001+HIGH-002+HIGH-003), 7 open. NEXT BURST = FB84 (MED-001+MED-002, product-owner, BC-2.16.002 structured event catalog). Pass-69 NOT dispatchable until FB84–FB87 complete.
-**NEXT ACTION:** FB84 (product-owner scope — MED-001+MED-002: BC-2.16.002 structured event catalog findings). Pass-69 NOT dispatchable until FB84–FB87 complete. This D-2060 push RESETS the frozen HEAD per DRIFT-ORCH-PRLEVEL-PUSH-001.
+**RESUME IN ONE BREATH:** Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2062 lands FB85 (MED-003 CLOSED: BC-2.02.006 v1.11; S-WAVE-A-ARMIS-SPEC-001 v1.2) + SESSION WRAP.
+**NEXT ACTION:** dispatch **FB86** — `vsdd-factory:story-writer`, single concern *FB61 DEFECT-1 RED_RATIO regression + stale BC pin* (closes MED-004 + LOW-001 in ARMIS-SPEC-001 + ARMIS-ACTIVITY-001).
 
-**PASS-68 CLOSED SO FAR (D-2057/D-2058/D-2059/D-2060):**
-~~HIGH-003~~ CLOSED FB81 (ADR-057 v0.4→v0.6; BC-2.02.014 v1.1→v1.2; BC-2.02.006 v1.9→v1.10; S-WAVE-A-ARMIS-ACTIVITY-001 v1.2→v1.3; ADR-033 T1 mis-citation chain removed).
-~~HIGH-002~~ CLOSED FB82 (STORY-INDEX v2.747→v2.748; §BC Traceability Matrix 18 entries added; closed-loop re-verification PASSED).
-~~HIGH-001~~ CLOSED FB83/FB83b (STORY-INDEX v2.748→v2.750; all 9 §Full Story List rows version-advanced; POL-29 9a closed loop COMPLETE: all 9 MATCH disk frontmatter).
+**PASS-68 CLOSED SO FAR (D-2057..D-2062):**
+~~HIGH-003~~ CLOSED FB81 (ADR-057 v0.4→v0.6; BC-2.02.014 v1.1→v1.2; BC-2.02.006 v1.9→v1.10; S-WAVE-A-ARMIS-ACTIVITY-001 v1.2→v1.3).
+~~HIGH-002~~ CLOSED FB82 (STORY-INDEX v2.747→v2.748; §BC Traceability Matrix 18 entries).
+~~HIGH-001~~ CLOSED FB83/FB83b (STORY-INDEX v2.748→v2.750; all 9 §Full Story List rows; POL-29 9a closed loop COMPLETE).
+~~MED-001~~ CLOSED FB84 (BC-2.16.002 v2.13; 2 orphan catalog rows removed; exclusion-clause extended).
+~~MED-002~~ CLOSED FB84 (BC-2.16.002 §boot.audit.initialized exclusion clause; option (b) mirrors capability_check/credential_access precedents).
+~~MED-003~~ CLOSED FB85 (BC-2.02.006 v1.11; §Generated-Records Path Coverage; five DTU generator defects documented; S-WAVE-A-ARMIS-SPEC-001 v1.2 scope expanded to prism-dtu-armis).
 
-**PASS-68 OPEN FINDINGS LEDGER (7 remaining):**
-- MED-001 → FB84 (NEXT — product-owner)
-- MED-002 → FB84 (product-owner)
-- MED-003 → FB85 (product-owner then story-writer)
-- MED-004 → FB86 (story-writer)
-- LOW-001 → FB86 (story-writer)
-- LOW-002 → FB87 (product-owner)
-- LOW-003 → FB87 (product-owner)
-- OBS-001 → recorded, non-blocking
+**PASS-68 OPEN FINDINGS LEDGER (4 remaining):**
+- MED-004 → FB86 (NEXT — story-writer: RED_RATIO banned construct in ARMIS-SPEC-001 §density paragraph + stale ratio sentence; BC-5.38.001 12 ACs not 7)
+- LOW-001 → FB86 (story-writer: ARMIS-SPEC-001 §Token Budget BC-2.02.006 v1.8 pin → v1.11; 3 occurrences)
+- LOW-002 → FB87 (product-owner: BC-2.02.006 §TOML Contract POL-29 9c block cites ARMIS-SPEC-001 v1.0 → v1.2)
+- LOW-003 → FB87 (product-owner: BC-2.02.014 §Postconditions `serde_json::to_value(&body)` → actual `axum Json(body).into_response()`)
+- OBS-001 → recorded, non-blocking (BC-2.02.014 cites `ADR-057 §C1`/`§C2` which are bold labels not sections)
 
-**POL-29 THREE-DIMENSION VERDICTS (FB83b):** 9a SWEPT and CLOSED LOOP — all 9 perimeter §Full Story List rows verified against disk frontmatter; all 9 MATCH; no named twin of STORY-INDEX.md exists as a separate document. 9b N/A (§Full Story List rows are not verbatim copy-targets of any downstream artifact by a later agent leg). 9c N/A (no new MUST blocks introduced in this burst).
+**POL-29 THREE-DIMENSION VERDICTS (D-2062/FB85):**
+9a: S-WAVE-A-ARMIS-ACTIVITY-001 confirmed CLEAR (get_device_activity §get_device_activity single-path, no fixture_gen_seeded branch); STORY-INDEX ARMIS-SPEC-001 row updated. 9b: §Generated-Records Path Coverage block self-contained in BC-2.02.006; no verbatim downstream copy target identified. 9c: five new MUSTs anchored to S-WAVE-A-ARMIS-SPEC-001 AC-008..AC-012/RG-008..RG-012.
 
-**PROCESS FINDING [process-gap] D-2060:** ARMIS-ACTIVITY-001 reached v1.3 in FB81 (D-2057) but §Full Story List row was not updated in FB81 burst. Combined with FB81 ADR-057 §D4 sibling-section miss = 2 POL-29 9a misses inside FB81 alone — strongest evidence this session that POL-29 9a needs a mechanical row-vs-frontmatter comparison gate; recorded for human consideration; NOT to be scheduled without orchestrator dispatch (pending item (a) territory). DOUBLE-INACCURACY: adversary HIGH-001 description understated staleness of named rows (v1.2/v1.1/v1.3/v1.2 vs actual v1.0/v1.0/v1.1/v1.1) AND wrongly asserted 5 sibling rows were current; both caught by mechanical verification per decision (j).
+**PROCESS FINDINGS [process-gap] D-2062:**
+FB85 dispatched before FB84 committed — two named concerns coexisting uncommitted. Going-forward discipline: commit each burst before dispatching the next. UNDER-RATING NOTE: adversary filed F-WASE-P68-MED-003 as MED and framed as documentation gap; live investigation confirmed P1-CRITICAL-class live DTU data defect (five columns silently absent on T13 demo seeded-fixture path; near-miss pairs: os_name/os_version; risk_score/risk_factors; zone/network_id). Adversary under-rating recorded.
 
-**PROCESS FINDING [process-gap] D-2059 (carried forward):** Adversary-reported bolded segments (v1.2/v1.1/v1.3/v1.2) were still overstated — actual bolded segments found at v1.0/v1.0/v1.1/v1.1. Discrepancy: adversary read the last corrected entry version, not the bolded segment.
-
-**PROCESS FINDING [process-gap] D-2057 (carried forward):** FB81 §D5 fix did not initially sweep sibling §D4 — 6th POL-29 9a self-referential instance this session; caught by orchestrator mechanical verification step (D-2056 decision (j)). Flagged for human consideration re: POL-29 9a mechanical gate — NOT to be scheduled without orchestrator dispatch.
-
-**HUMAN DECISIONS RECORDED D-2056 (preserved — no new decisions D-2057/D-2058/D-2059/D-2060):**
-- **(f) APPROVED — Rule freeze until 3-CLEAN.** New probe/policy application to Wave-A perimeter FROZEN for streak window. `F-CVC-MED-002` / `F-CVC-LOW-003` / `F-CVC-OBS-001` existed solely because 2026-07-27 `#[non_exhaustive]` amendment landed mid-cascade. Exception expires at BC-5.39.001 strict 3-CLEAN. `policies.yaml` codification is SEPARATE spec-steward dispatch (not this burst).
-- **(g) RESOLVED — 12 phantom dispositions, ZERO de-registrations.** Group A (marked merged): `S-MAINT-RUSTSEC-QUINN-PROTO-001` → PR #201 @`233cfc66` D-1311 2026-06-24; `S-PLUGIN-PREREQ-F` → PR #141 @`c6dd6602` D-333 2026-05-27. Group B (KEEP — BC-body-anchored, DRIFT-PHANTOM-MATERIALIZE-001 registered): `S-RELOAD-DRY-RUN-001` / `S-EXPLAIN-PARITY-001` / `S-PRISMQL-SQLPIPE-COLUMN-GATE-001`. Group C (KEEP genuinely not done): `S-ALIAS-CLIENT-SCOPE-001` / `S-MAINT-W3SEC-CITE-SWEEP-002` / `S-DTU-ARMIS-FIXTURE-VOCAB-001` / `S-SPEC-ENGINE-OCSF-EXAMPLE-SWEEP-001`. Group D (KEEP as low-priority stubs): `S-DTU-CROWDSTRIKE-COLUMN-COVERAGE-001` / `S-DEMO-CLAROTY-TIME-001` / `S-MAINT-EDITION-SYNC-001`. Orphans registered: `S-MAINT-001` / `S-3.04-FOLLOWUP-MCP-001`.
-- **(h) ADOPTED — File-enumeration basis (D-1985 precedent).** `total_stories` 267→254 (F-CVC-CRIT-001 CLOSED). `removed_contracts: 7` added to STATE.md. `bc_count_corrected: 269` confirmed (251+5+7+6=269). BC-INDEX v8.80→v8.81 confirming disk-derived counts.
-- **(j) ADOPTED — Standing mechanical verification step.** Between every fix-burst and adversary dispatch: grep changed identifiers corpus-wide, diff each agent report against its dispatch brief, verify artifacts exist on disk at claimed versions.
-
-**PASS-66 + PASS-67 CLOSED LEDGER (all CLOSED D-2054):**
-~~CRIT: F-WASE-P66-CRIT-001~~ CLOSED FB70 (BC-2.01.006 v1.9 + BC-2.01.018 v1.7; POL-29 9a named-twin sweep).
-~~HIGH-001~~ CLOSED FB71 (ADR-056 v0.5; PaginationType serde `#[serde(rename)]` wire literal corrected).
-~~HIGH-002~~ CLOSED FB73 (BC-2.02.006 v1.9; POL-29 9c TOML MUSTs anchored to S-WAVE-A-ARMIS-SPEC-001).
-~~HIGH-003~~ CLOSED FB73 (BC-2.02.004 v1.14; affected_assets T-02 carry-over anchored).
-~~HIGH-004~~ CLOSED FB74 (BC-2.02.014 v1.1 NEW; device_cves_first push-down via ADR-057 grammar).
-~~HIGH-005~~ CLOSED FB74 (ADR-057 v0.4 ACCEPTED; `${step_name.field}` grammar canonical; S-WAVE-A-ARMIS-ACTIVITY-001 v1.2 UNBLOCKED).
-~~MED-001~~ CLOSED FB71 (ADR-056 v0.5 §D8 copy-target corrected + BC-2.16.009 v1.30 §Validation Rule 4 page_number row added; POL-29 9b copy-target sweep).
-~~MED-002~~ CLOSED FB72 (ADR-053 v0.39; false §Authority annotations corrected; SAC-2 anchor_stories ground-truth repopulated).
-~~MED-003~~ CLOSED FB76 (VP-157 v1.1 promoted active; phantom symbols removed; VP-INDEX v2.22 updated).
-~~MED-004~~ CLOSED FB72/FB73 (S-WAVE-A-ARMIS-SPEC-001 story v1.1 registered; STORY-INDEX BC-2.02.006 row now references S-WAVE-A-ARMIS-SPEC-001; frontmatter consistency restored).
-~~LOW-001~~ CLOSED FB71 (ADR-056 v0.5 §Changelog heading normalized per sibling ADR pattern).
-~~LOW-002~~ CLOSED FB73 (S-WAVE-A-CYBERINT-SPEC-001 v1.8; AC-003/T-05 envelope key `page` added to GetAlertsResponse).
-~~LOW-003~~ CLOSED FB76 (VP-157/VP-158 v1.1 active; VP-INDEX v2.22 rows pinned).
-~~OBS-001~~ CLOSED FB71 (BC-2.02.006 v1.9; emission cite corrected to search::get_search canonical path).
-~~OBS-002~~ CLOSED FB70/FB73 (BC-2.02.004 v1.14; TV-005 positional cite removed per TD-VSDD-091).
-~~F-CVA-HIGH-001~~ CLOSED FB71 (BC-2.16.002 v2.12; PageNumber Pagination Dispatch activation gate corrected per ADR-056 §D8; POL-29 9b copy-target sweep).
-~~F-CVA-HIGH-002~~ CLOSED FB71 (BC-2.16.009 v1.30; page_number row added to §Validation Rule 4 per ADR-056 §D10 CE-2).
+**HUMAN DECISIONS RECORDED D-2056 (preserved — no new decisions D-2057..D-2062):**
+- **(f) APPROVED — Rule freeze until 3-CLEAN.** Exception expires at BC-5.39.001 strict 3-CLEAN. `policies.yaml` codification is SEPARATE spec-steward dispatch.
+- **(g) RESOLVED — 12 phantom dispositions, ZERO de-registrations.** Groups A/B/C/D dispositioned per D-2056. Orphans registered: `S-MAINT-001` / `S-3.04-FOLLOWUP-MCP-001`.
+- **(h) ADOPTED — File-enumeration basis.** `total_stories` 267→254. `bc_count_corrected: 269` confirmed (251+5+7+6=269).
+- **(j) ADOPTED — Standing mechanical verification step.**
 
 **OPEN IMPLEMENTATION OBLIGATION (recorded D-2055; unchanged):**
-`seed_missing_query_filter_vars`: pre-seeding any `${query.filter.*}` slot absent from `FetchContext.query_filters` with an empty string. Safety note: the query-parameter-shaped safety rationale ("`?filter=` safely ignored by DTUs") FAILS for PATH SEGMENTS — an absent `device_id` yields `/api/v1/devices//activity` and the DTU returns HTTP 200 with `activities: []`, `total: 0` (silent empty result; Standing Rule 3 §2 / SOUL.md §4 violation). `InterpolationError::FieldNotFound` can NEVER fire for a `${query.filter.*}` slot after this pre-seed. ALL shipping specs are query-param form and SAFE; the Armis activity table would be the first path-segment use. Contracted in BC-2.02.014 §Postconditions; anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` AC-004 / RG-004 (task T-IMPL-02).
+`seed_missing_query_filter_vars`: pre-seeding any `${query.filter.*}` slot absent from `FetchContext.query_filters` with empty string. PATH SEGMENT safety note: absent `device_id` yields `/api/v1/devices//activity` — DTU returns HTTP 200 with `activities: []`, `total: 0` (silent empty result; Standing Rule 3 §2 / SOUL.md §4 violation). Contracted in BC-2.02.014 §Postconditions; anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` AC-004/RG-004 (T-IMPL-02).
 
-**PROCESS INTERVENTION RULE (human-directed — still binding):** Small single-concern fix bursts only. Each fix burst must address ONE named spec-content target. GAP-ASSETS-PAG-001: do NOT schedule without explicit human authorization.
+**PROCESS INTERVENTION RULE (human-directed — binding):** Small single-concern fix bursts only. Each fix burst addresses ONE named target. GAP-ASSETS-PAG-001: do NOT schedule without explicit human authorization.
 
-**CORPUS DRIFT ITEM (registered D-2022, re-confirmed D-2027..D-2060):** records-lint --full-scan reports 39 L1 failures + 86 L7 failures across 43 distinct files — pre-existing debt NOT introduced by any FB4x–FB83b burst. Clearing is a TD-VSDD-096 records-only micro-burst candidate. Deliberately NOT folded into the Wave-A cascade.
+**CORPUS DRIFT ITEM (re-confirmed D-2062):** records-lint --full-scan: 39 L1 + 86 L7 across 43 files — pre-existing debt. TD-VSDD-096 candidate. NOT in cascade scope.
 
-**GATE COVERAGE REMINDER (D-2031..D-2060):** records-lint --full-scan L1/L7 have never examined .factory/ artifacts in ratchet mode (GATE-L1L7-RATCHET-WORKTREE-001). A zero exit code from records-lint covers L9 and the cross-document index check only, not L1/L7 for .factory/ files. GATE-BLIND-SPOT INSTANCES (nine confirmed, D-2049): (i) ratchet mode blind to frontmatter bump in unstaged file; (ii) cross-document index gate cannot parse draft v1.0-style status cells (433 of 498 rows unverifiable); (iii) check L1 has no Changelog table to compare STATE.md version: against; (iv) cross-document index gate cannot parse prose-embedded BC-INDEX pins; (v) GATE-L1L7-RATCHET-WORKTREE-001 — L1/L7 inoperative in ratchet mode for .factory/ worktree; (vi) GATE-L1-VPREFIX-BLIND-002 — changelog version extractor anchors on digit; v-prefixed rows silently skipped; (vii) GATE-XDOC-UNCOMMITTED-ARTIFACT-003 — cross-document index check compares working-tree artifact versions, NOT committed HEAD; (viii) GATE-XDOC-PROSE-PIN-ARCHINDEX-004 — prose-embedded ARCH-INDEX §Document Map version pin evades structural checks; caught D-2045 by hand-verification; (ix) GATE-PERIMETER-PROSE-PIN-005 [D-2048/FB67] — SPEC PERIMETER story version pins prose-embedded, never validated by any automated gate. Hand-verify frontmatter version equals top changelog row on every touched .factory/ artifact, AND verify SPEC PERIMETER story pins match story-file frontmatter, until gates are fixed per PENDING item (a).
+**GATE COVERAGE REMINDER (D-2062):** GATE-L1L7-RATCHET-WORKTREE-001 — L1/L7 inoperative in ratchet mode for .factory/ worktree. Nine blind-spot instances D-2049 still apply. Hand-verify frontmatter version equals top changelog row on every touched artifact until pending item (a) fixes land.
 
 **PENDING USER-APPROVED WORK — do not start:**
-- (a) `scripts/records-lint.sh` fixes: GATE-L1L7-RATCHET-WORKTREE-001 and GATE-L1-VPREFIX-BLIND-002 — code change on PR #230 branch; awaiting human. Third defect (D-2053): L9 arm-5 flags the bare two-digit token that is the cross-document index check's own name — worked around by rephrasing; fix needed in the same PR.
-- (b) GAP-ASSETS-PAG-001 — new PaginationConfig variant for server-controlled page size; awaiting explicit human authorization.
-- (c) Follow-up story for GAP-ASSETS-PAG-001 — not yet created; awaiting human authorization.
-- (d) STORY-INDEX mixed-prefix normalization — ordering-dependent on GATE-L1-VPREFIX-BLIND-002 fix; do not resolve blind.
-- (e) Corpus records debt (39 L1 + 86 L7 across 43 files) — pre-existing, TD-VSDD-096 candidate; NOT in cascade scope.
-- (i) CLAUDE.md `#[non_exhaustive]` prose-vs-count self-tension — requires human mandate (Pipeline Authority rule). Orchestrator offered to propose wording.
-- GAP-POL25-COMPANION-AMENDMENT-001 — POL-25 §verification_steps step 2 missing Named-twin (9a) and downstream-copy-target (9b); routing: spec-steward; do NOT schedule without orchestrator dispatch.
-- DRIFT-PHANTOM-MATERIALIZE-001 — Groups B/C (7 IDs) need story files; Group B (3 IDs) are live TD-VSDD-097 9c BC-anchor violations (HIGH priority); do NOT start without orchestrator dispatch.
-- POL-29 9a mechanical gate — flagged by D-2057 process finding; NOT to be scheduled without orchestrator dispatch.
+- (a) `scripts/records-lint.sh` fixes: GATE-L1L7-RATCHET-WORKTREE-001, GATE-L1-VPREFIX-BLIND-002, L9 arm-5 self-flag defect — PR #230 branch; awaiting human.
+- (b) GAP-ASSETS-PAG-001 — new PaginationConfig variant; awaiting human authorization.
+- (c) Follow-up story for GAP-ASSETS-PAG-001 — awaiting human authorization.
+- (d) STORY-INDEX mixed-prefix normalization — ordering-dependent on (a) fix.
+- (e) Corpus records debt (39 L1 + 86 L7 across 43 files) — TD-VSDD-096 candidate; NOT in cascade scope.
+- (i) CLAUDE.md `#[non_exhaustive]` prose-vs-count self-tension — requires human mandate.
+- GAP-POL25-COMPANION-AMENDMENT-001 — routing: spec-steward; do NOT schedule without orchestrator dispatch.
+- DRIFT-PHANTOM-MATERIALIZE-001 — 7 story files deferred; 3 BCs anchor MUSTs to non-existent story IDs (TD-VSDD-097 9c); do NOT start without orchestrator dispatch.
+- OPEN RECOMMENDATION TO HUMAN: mechanical POL-29 9a gate — NOT scheduled.
 
-**SPEC PERIMETER (post-D-2060):** BC-2.16.009 **v1.30** / ADR-053 **v0.39** / error-taxonomy **v2.70** / S-WAVE-A-ENGINE-001 **v3.0** (28 ACs / 40 RGTs) / BC-2.16.008 v1.6 / BC-2.16.014 v1.19 / VP-159 **v1.27** / ADR-054 **v0.57** / BC-2.01.018 **v1.7** / BC-2.01.008 **v1.8** / BC-2.01.006 **v1.9** / BC-2.02.004 **v1.14** / BC-2.02.006 **v1.10** / BC-2.02.014 **v1.2** (draft) / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28 / VP-160 **v1.3** / VP-161 **v1.3** / verification-architecture **v1.48** / ADR-051 **v1.8** / ADR-052 **v1.19** / ADR-055 **v1.3** (accepted) / ADR-056 **v0.5** (accepted) / ADR-057 **v0.6** (accepted) / BC-2.16.002 **v2.12**. Stories: S-WAVE-A-ENGINE-001 **v3.0** (28 ACs / 40 RGTs); S-WAVE-A-MCP-001 **v1.5**; S-WAVE-A-CYBERINT-PATCH-001 **v1.4**; S-WAVE-A-ARMIS-REMEDIATION-001 **v1.5**; S-ADR054-WAVE-A-001 **v1.5** (10 ACs / 24 RGTs); S-ADR055-WAVE-A-001 **v1.3** (11 RGTs); S-WAVE-A-CYBERINT-SPEC-001 **v1.8** (10 ACs / 20 RGTs); S-WAVE-A-ARMIS-ACTIVITY-001 **v1.3** (UNBLOCKED ready); S-WAVE-A-ARMIS-SPEC-001 **v1.1** (NEW); S-MAINT-RG-LIST-GATE-001 **v0.1** (draft); S-MAINT-ADR-ANCHOR-GATE-001 **v0.1** (draft). Indexes: BC-INDEX **v8.82** / VP-INDEX **v2.22** / ARCH-INDEX **v2.288** / STORY-INDEX **v2.750** (total_stories 254).
+**SPEC PERIMETER (post-D-2062):** BC-2.16.009 **v1.30** / ADR-053 **v0.39** / error-taxonomy **v2.70** / BC-2.16.008 v1.6 / BC-2.16.014 v1.19 / VP-159 **v1.27** / ADR-054 **v0.57** / BC-2.01.018 **v1.7** / BC-2.01.008 **v1.8** / BC-2.01.006 **v1.9** / BC-2.02.004 **v1.14** / BC-2.02.006 **v1.11** / BC-2.02.014 **v1.2** (draft) / BC-2.16.002 **v2.13** / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28 / VP-160 **v1.3** / VP-161 **v1.3** / verification-architecture **v1.48** / ADR-051 **v1.8** / ADR-052 **v1.19** / ADR-055 **v1.3** (accepted) / ADR-056 **v0.5** (accepted) / ADR-057 **v0.6** (accepted). Stories: S-WAVE-A-ENGINE-001 **v3.0** (28 ACs / 40 RGTs); S-WAVE-A-MCP-001 **v1.5**; S-WAVE-A-CYBERINT-PATCH-001 **v1.4**; S-WAVE-A-ARMIS-REMEDIATION-001 **v1.5**; S-ADR054-WAVE-A-001 **v1.5** (10 ACs / 24 RGTs); S-ADR055-WAVE-A-001 **v1.3** (11 RGTs); S-WAVE-A-CYBERINT-SPEC-001 **v1.8** (10 ACs / 20 RGTs); S-WAVE-A-ARMIS-ACTIVITY-001 **v1.3** (UNBLOCKED ready); S-WAVE-A-ARMIS-SPEC-001 **v1.2** (12 ACs / 12 RGTs); S-MAINT-RG-LIST-GATE-001 **v0.1** (draft); S-MAINT-ADR-ANCHOR-GATE-001 **v0.1** (draft). Indexes: BC-INDEX **v8.84** / VP-INDEX **v2.22** / ARCH-INDEX **v2.288** / STORY-INDEX **v2.751** (total_stories 254).
 
-**HEADS (verified 2026-07-28 D-2060):**
-- `factory-artifacts`: frozen HEAD for pass-69 = THIS D-2060 commit (run `git -C .factory log -1 --format='%H'`). D-2060 push RESETS frozen HEAD per DRIFT-ORCH-PRLEVEL-PUSH-001. NOTE: pass-69 not dispatchable until FB84–FB87 land; each burst push will reset the frozen HEAD again.
-- `origin/develop`: `7fef57dad` — PUSHED; LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001, do NOT auto-FF; blocked by unstaged ci.yml/e2e.yml residue in main worktree)
-- Main worktree: docs/claude-md-file-size-convention @`e327f42ad` — PUSHED; PR #230 OPEN (Fuzz smoke — DRIFT-CI-FUZZ-NIGHTLY-ICE-001; nightly-2026-07-27 window arrived — verifiable by devops-engineer)
-- `.worktrees/fix-demosetup-cwd` @`ec4379b5b` — PUSHED, PR #229 OPEN ACTIVE-UNRESOLVED; `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED
-- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY)
-- verify-sha-currency.sh: PASS (2 pre-existing WARNs — python3+yaml unavailable; in-progress-voice remnant, long-standing). No background agents in flight. BC-5.39.001 streak 0/3.
+**HEADS (D-2062):**
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` — THIS D-2062 commit (PUSHED). Predecessor `c152a6f6a` (FB84/D-2061). Pass-69 NOT dispatchable until FB86+FB87 land (MED-004/LOW-001/LOW-002/LOW-003 still open; each burst push resets frozen HEAD per DRIFT-ORCH-PRLEVEL-PUSH-001).
+- `origin/develop`: `7fef57dad` — PUSHED; LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001; do NOT auto-FF; blocked by unstaged ci.yml/e2e.yml residue in main worktree).
+- Main worktree: docs/claude-md-file-size-convention @`e327f42ad` — PUSHED; PR #230 OPEN.
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5b` — PUSHED, PR #229 OPEN.
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK).
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK; 1 dirty file).
+- verify-sha-currency.sh: PASS (1 pre-existing WARN — python3+yaml unavailable; in-progress-voice remnant, long-standing, non-blocking). No background agents. BC-5.39.001 streak 0/3.
 
-**BACKUP BOUNDARY (D-2060):**
-- PUSHED / safe: factory-artifacts (this D-2060 commit — run `git -C .factory log -1 --format='%H'`); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); docs/claude-md-file-size-convention @`e327f42ad` (PR #230 OPEN); origin/develop @`7fef57dad`.
+**BACKUP BOUNDARY (D-2062):**
+- PUSHED / safe: factory-artifacts (this D-2062 commit); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); docs/claude-md-file-size-convention @`e327f42ad` (PR #230 OPEN); origin/develop @`7fef57dad`.
 - LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty).

@@ -124,13 +124,65 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2060 (FB83b CLOSED; POL-29 9a closed loop all 9 perimeter rows; STORY-INDEX v2.750; NEXT = FB84; BC-5.39.001 streak 0/3).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2060 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2060 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57dad`; local ff BLOCKED by unstaged ci.yml/e2e.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2060 FB83b closure HEAD after push). STATE v8.608. FB83b CLOSED; POL-29 9a closed loop all 9 perimeter rows; STORY-INDEX v2.749→v2.750; frozen HEAD for pass-69 = THIS D-2060 commit per DRIFT-ORCH-PRLEVEL-PUSH-001. NEXT = FB84 (MED-001+MED-002; product-owner scope).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2062 (SESSION WRAP; FB85 CLOSED; MED-003 CLOSED; BC-INDEX v8.84; STORY-INDEX v2.751; NEXT = FB86/story-writer; BC-5.39.001 streak 0/3).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2062 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2062 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57dad`; local ff BLOCKED by unstaged ci.yml/e2e.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2062 session wrap HEAD after push). STATE v8.610. FB85 CLOSED (MED-003); STORY-INDEX v2.750→v2.751; BC-INDEX v8.82→v8.84; BC-2.02.006 v1.11; S-WAVE-A-ARMIS-SPEC-001 v1.2; NEXT = FB86 (story-writer; MED-004+LOW-001).
 
 ---
 
-## §RESUME SNAPSHOT — D-2060 (2026-07-28 — FB83b CLOSED; POL-29 9a closed loop all 9 rows; STORY-INDEX v2.750; STATE v8.608) [SUPERSEDES D-2059]
+## §RESUME SNAPSHOT — D-2062 (2026-07-28 — SESSION WRAP; FB85 CLOSED; BC-INDEX v8.84; STORY-INDEX v2.751; STATE v8.610) [SUPERSEDES D-2060]
+
+### RESUME IN ONE BREATH
+Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2062 lands FB85 (MED-003 CLOSED: BC-2.02.006 v1.11; S-WAVE-A-ARMIS-SPEC-001 v1.2) + SESSION WRAP.
+**NEXT ACTION:** dispatch **FB86** — `vsdd-factory:story-writer`, single concern *FB61 DEFECT-1 RED_RATIO regression + stale BC pin* (closes MED-004 + LOW-001 in ARMIS-SPEC-001 + ARMIS-ACTIVITY-001). Pass-69 NOT dispatchable until FB86+FB87 both land.
+
+### PASS-68 CLOSED SO FAR (D-2057..D-2062)
+~~HIGH-003~~ CLOSED FB81 (ADR-057 v0.4→v0.6; BC-2.02.014 v1.1→v1.2; BC-2.02.006 v1.9→v1.10; S-WAVE-A-ARMIS-ACTIVITY-001 v1.2→v1.3).
+~~HIGH-002~~ CLOSED FB82 (STORY-INDEX v2.747→v2.748; §BC Traceability Matrix 18 entries).
+~~HIGH-001~~ CLOSED FB83/FB83b (STORY-INDEX v2.748→v2.750; all 9 §Full Story List rows; POL-29 9a closed loop COMPLETE).
+~~MED-001~~ CLOSED FB84 (BC-2.16.002 v2.13; 2 orphan catalog rows removed; exclusion-clause extended).
+~~MED-002~~ CLOSED FB84 (BC-2.16.002 §boot.audit.initialized exclusion clause).
+~~MED-003~~ CLOSED FB85 (BC-2.02.006 v1.11; §Generated-Records Path Coverage; five DTU generator defects; S-WAVE-A-ARMIS-SPEC-001 v1.2 scope expanded to prism-dtu-armis).
+
+### PASS-68 OPEN FINDINGS LEDGER (4 remaining)
+- MED-004 → FB86 (NEXT — story-writer: RED_RATIO banned construct + stale BC pin in ARMIS-SPEC-001; BC-5.38.001 12 ACs not 7)
+- LOW-001 → FB86 (story-writer: ARMIS-SPEC-001 §Token Budget BC-2.02.006 v1.8 pin → v1.11; 3 occurrences)
+- LOW-002 → FB87 (product-owner: BC-2.02.006 §TOML Contract POL-29 9c block cites ARMIS-SPEC-001 v1.0 → v1.2)
+- LOW-003 → FB87 (product-owner: BC-2.02.014 §Postconditions `serde_json::to_value(&body)` → actual axum response form)
+- OBS-001 → recorded, non-blocking
+
+### POL-29 THREE-DIMENSION VERDICTS (D-2062/FB85)
+9a: S-WAVE-A-ARMIS-ACTIVITY-001 confirmed CLEAR (get_device_activity §get_device_activity single-path, no fixture_gen_seeded branch); STORY-INDEX ARMIS-SPEC-001 row updated. 9b: §Generated-Records Path Coverage block self-contained; no verbatim downstream copy target. 9c: five new MUSTs anchored to S-WAVE-A-ARMIS-SPEC-001 AC-008..AC-012/RG-008..RG-012.
+
+### PROCESS FINDINGS [process-gap] D-2062
+FB85 dispatched before FB84 committed — two named concerns coexisting uncommitted. Going-forward discipline: commit each burst before dispatching the next. UNDER-RATING NOTE: adversary filed F-WASE-P68-MED-003 as MED; live investigation confirmed P1-CRITICAL-class live DTU data defect (five columns silently absent on T13 demo seeded-fixture path; near-miss pairs: os_name/os_version; risk_score/risk_factors; zone/network_id). Adversary under-rating recorded.
+
+### HUMAN DECISIONS RECORDED D-2056 (preserved — no new decisions D-2057..D-2062)
+- **(f) APPROVED — Rule freeze until 3-CLEAN.** Exception expires at BC-5.39.001 strict 3-CLEAN.
+- **(g) RESOLVED — 12 phantom dispositions, ZERO de-registrations.** Groups A/B/C/D dispositioned. Orphans: `S-MAINT-001` / `S-3.04-FOLLOWUP-MCP-001`.
+- **(h) ADOPTED — File-enumeration basis.** `total_stories` 267→254. `bc_count_corrected: 269`.
+- **(j) ADOPTED — Standing mechanical verification step.**
+
+### OPEN IMPLEMENTATION OBLIGATION (recorded D-2055; unchanged)
+`seed_missing_query_filter_vars`: pre-seeding any `${query.filter.*}` slot absent from `FetchContext.query_filters` with an empty string. PATH SEGMENT safety note: absent `device_id` yields `/api/v1/devices//activity` → silent HTTP 200 with empty activities (SOUL.md §4 violation). Contracted in BC-2.02.014 §Postconditions; anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` AC-004/RG-004 (T-IMPL-02).
+
+### SPEC PERIMETER (post-D-2062)
+BC-2.16.009 **v1.30** / ADR-053 **v0.39** / error-taxonomy **v2.70** / BC-2.16.008 v1.6 / BC-2.16.014 v1.19 / VP-159 **v1.27** / ADR-054 **v0.57** / BC-2.01.018 **v1.7** / BC-2.01.008 **v1.8** / BC-2.01.006 **v1.9** / BC-2.02.004 **v1.14** / BC-2.02.006 **v1.11** / BC-2.02.014 **v1.2** (draft) / BC-2.16.002 **v2.13** / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28 / VP-160 **v1.3** / VP-161 **v1.3** / verification-architecture **v1.48** / ADR-051 **v1.8** / ADR-052 **v1.19** / ADR-055 **v1.3** (accepted) / ADR-056 **v0.5** (accepted) / ADR-057 **v0.6** (accepted). Stories: S-WAVE-A-ENGINE-001 **v3.0**; S-WAVE-A-MCP-001 **v1.5**; S-WAVE-A-CYBERINT-PATCH-001 **v1.4**; S-WAVE-A-ARMIS-REMEDIATION-001 **v1.5**; S-ADR054-WAVE-A-001 **v1.5**; S-ADR055-WAVE-A-001 **v1.3**; S-WAVE-A-CYBERINT-SPEC-001 **v1.8**; S-WAVE-A-ARMIS-ACTIVITY-001 **v1.3** (UNBLOCKED); S-WAVE-A-ARMIS-SPEC-001 **v1.2** (12 ACs / 12 RGTs); S-MAINT-RG-LIST-GATE-001 **v0.1** (draft); S-MAINT-ADR-ANCHOR-GATE-001 **v0.1** (draft). Indexes: BC-INDEX **v8.84** / VP-INDEX **v2.22** / ARCH-INDEX **v2.288** / STORY-INDEX **v2.751** (total_stories 254).
+
+### HEADS (D-2062)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` — THIS D-2062 commit (PUSHED). Predecessor `c152a6f6a` (FB84/D-2061). Pass-69 NOT dispatchable until FB86+FB87 land.
+- `origin/develop`: `7fef57dad` PUSHED; LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001; do NOT auto-FF).
+- Main worktree: docs/claude-md-file-size-convention @`e327f42ad` PUSHED; PR #230 OPEN.
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5b` PUSHED, PR #229 OPEN; `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED; `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK).
+- verify-sha-currency.sh: PASS (1 pre-existing WARN). BC-5.39.001 streak 0/3.
+
+### BACKUP BOUNDARY (D-2062)
+- PUSHED / safe: factory-artifacts (this D-2062 commit); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229); docs/claude-md-file-size-convention @`e327f42ad` (PR #230); origin/develop @`7fef57dad`.
+- LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty).
+
+---
+
+## §RESUME SNAPSHOT — D-2060 (2026-07-28 — FB83b CLOSED; POL-29 9a closed loop all 9 rows; STORY-INDEX v2.750; STATE v8.608) [SUPERSEDED by D-2062]
 
 ### RESUME IN ONE BREATH
 Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2060 closes POL-29 9a (FB83b): STORY-INDEX §Full Story List — all 9 perimeter story rows now match disk frontmatter (closed loop verified). Pass-68: 3 findings closed (HIGH-001+HIGH-002+HIGH-003), 7 open. NEXT BURST = FB84 (MED-001+MED-002, product-owner, BC-2.16.002 structured event catalog). Pass-69 NOT dispatchable until FB84–FB87 complete.

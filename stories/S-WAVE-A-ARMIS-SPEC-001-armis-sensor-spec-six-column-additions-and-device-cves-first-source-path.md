@@ -2,20 +2,21 @@
 document_type: story
 story_id: S-WAVE-A-ARMIS-SPEC-001
 title: "Armis Sensor Spec — Six Column Additions and device_cves_first source_path Fix"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: story-writer
 phase: 3
 wave: wave-a
 epic_id: E-WAVE-A-SENSOR-REMEDIATION
 priority: P1
-points: 3
+points: 5
 tdd_mode: strict
 target_module: prism-sensors
-subsystems: ["SS-06 (SensorSpec)", "SS-07 (SpecEngine)"]
+subsystems: ["SS-06 (SensorSpec)", "SS-07 (SpecEngine)", "SS-12 (DTU-Armis)"]
 crates_touched:
-  - prism-sensors    # armis.sensor.toml modification
-  - prism-spec-engine  # Red Gate tests read and parse the TOML spec
+  - prism-sensors      # armis.sensor.toml modification
+  - prism-spec-engine  # Red Gate tests parse and assert the TOML spec
+  - prism-dtu-armis    # generator::build_asset §build_asset: add five keys for generated-records path parity (AC-008..AC-012)
 depends_on: []
 blocks: []
 behavioral_contracts:
@@ -23,10 +24,11 @@ behavioral_contracts:
 verification_properties: []
 assumption_validations: []
 risk_mitigations: []
-estimated_days: 1
-modified: "2026-07-27"
-# BC status: BC-2.02.006 v1.9 §TOML Contract specifies all 7 ACs and 7 RGTs; status may
-# transition to ready once Red Gate tests are authored and BC-2.02.006 is confirmed active.
+estimated_days: 2
+modified: "2026-07-28"
+# BC status: BC-2.02.006 v1.11 §TOML Contract + §Generated-Records Path Coverage specify
+# all 12 ACs and 12 RGTs; status may transition to ready once Red Gate tests are authored
+# and BC-2.02.006 is confirmed active.
 ---
 
 # S-WAVE-A-ARMIS-SPEC-001: Armis Sensor Spec — Six Column Additions and device_cves_first source_path Fix
@@ -162,6 +164,55 @@ The `device_cves_first` entry is DISTINCT from the `device_cves` column (AC-006)
 required: `device_cves` for full CVE array context, `device_cves_first` for enrichment UDF
 scalar input (ADR-051 D4).
 
+### AC-008: `os_version` key present on `get_search §get_search` generated-records path
+(traces to BC-2.02.006 §Generated-Records Path Coverage — `os_version` MUST be emitted by
+`build_asset §build_asset` on the `fixture_gen_seeded=true` path; contracted option (a))
+
+`GET /api/v1/search?aql=in:devices` against an `ArmisState` with `fixture_gen_seeded=true`
+and at least one asset record returns a serialized JSON device record containing the
+`"os_version"` key. Assertion MUST be on the **serialized JSON response** (wire-shape
+assertion per CLAUDE.md §Wire-shape assertion discipline). Key presence is the contracted
+obligation; exact value is implementer-determined.
+
+DTU defect: `build_asset §build_asset` in `prism-dtu-armis::generator` currently lacks an
+`os_version` key. Fix requires T-03 in this story.
+
+### AC-009: `risk_factors` key present on `get_search §get_search` generated-records path
+(traces to BC-2.02.006 §Generated-Records Path Coverage — `risk_factors` MUST be emitted by
+`build_asset §build_asset` on the `fixture_gen_seeded=true` path; contracted option (a))
+
+`GET /api/v1/search?aql=in:devices` against an `ArmisState` with `fixture_gen_seeded=true`
+returns a serialized JSON device record containing the `"risk_factors"` key. Wire-shape
+assertion on the serialized response required (same pattern as AC-008). Key presence
+contracted; `[]` for healthy-device archetypes is acceptable per BC-2.02.006.
+
+### AC-010: `network_id` key present on `get_search §get_search` generated-records path
+(traces to BC-2.02.006 §Generated-Records Path Coverage — `network_id` MUST be emitted by
+`build_asset §build_asset` on the `fixture_gen_seeded=true` path; contracted option (a))
+
+`GET /api/v1/search?aql=in:devices` against an `ArmisState` with `fixture_gen_seeded=true`
+returns a serialized JSON device record containing the `"network_id"` key. Wire-shape
+assertion on the serialized response required. Suggested implementer value:
+`format!("net-{}", id_index % 10)` deterministic string per BC-2.02.006.
+
+### AC-011: `tags` key present on `get_search §get_search` generated-records path
+(traces to BC-2.02.006 §Generated-Records Path Coverage — `tags` MUST be emitted by
+`build_asset §build_asset` on the `fixture_gen_seeded=true` path; contracted option (a))
+
+`GET /api/v1/search?aql=in:devices` against an `ArmisState` with `fixture_gen_seeded=true`
+returns a serialized JSON device record containing the `"tags"` key. Wire-shape assertion
+on the serialized response required. `[]` (empty JSON array) for fresh generated devices
+is acceptable per BC-2.02.006.
+
+### AC-012: `device_cves` key present on `get_search §get_search` generated-records path
+(traces to BC-2.02.006 §Generated-Records Path Coverage — `device_cves` MUST be emitted by
+`build_asset §build_asset` on the `fixture_gen_seeded=true` path; contracted option (a))
+
+`GET /api/v1/search?aql=in:devices` against an `ArmisState` with `fixture_gen_seeded=true`
+returns a serialized JSON device record containing the `"device_cves"` key. Wire-shape
+assertion on the serialized response required. `[]` for healthy-device archetypes is
+acceptable per BC-2.02.006; non-empty for `CompromisedEndpoint` archetype.
+
 ---
 
 ## Architecture Mapping
@@ -169,7 +220,9 @@ scalar input (ADR-051 D4).
 | Component | Module | Pure/Effectful | Architecture Section |
 |-----------|--------|---------------|----------------------|
 | `armis.sensor.toml` (6 new columns + 1 source_path fix) | `crates/prism-sensors/specs/` | Pure (config data) | `architecture/module-decomposition.md §SS-06 SensorSpec` |
-| Red Gate tests (parse and assert spec) | `crates/prism-spec-engine/tests/` or `crates/prism-dtu-armis/tests/` | Pure (test only) | `architecture/module-decomposition.md §SS-07 SpecEngine` |
+| Red Gate tests RG-001..RG-007 (parse and assert TOML spec) | `crates/prism-spec-engine/tests/` | Pure (test only) | `architecture/module-decomposition.md §SS-07 SpecEngine` |
+| `build_asset §build_asset` (add five generated-records keys) | `crates/prism-dtu-armis/src/generator.rs` | Pure (record construction) | `architecture/module-decomposition.md §SS-12 DTU-Armis` |
+| Red Gate tests RG-008..RG-012 (wire-shape assertions on generated-records path) | `crates/prism-dtu-armis/tests/` | Pure (test only) | `architecture/module-decomposition.md §SS-12 DTU-Armis` |
 
 ---
 
@@ -177,7 +230,7 @@ scalar input (ADR-051 D4).
 
 | BC | Version | Relevance to This Story |
 |----|---------|------------------------|
-| BC-2.02.006 | v1.9 | Armis Centrix Field Mapping to OCSF — §TOML Contract specifies all 6 new columns and the `device_cves_first` source_path fix; §Postconditions specifies per-field OCSF mappings |
+| BC-2.02.006 | v1.11 | Armis Centrix Field Mapping to OCSF — §TOML Contract specifies all 6 new columns and the `device_cves_first` source_path fix; §Postconditions specifies per-field OCSF mappings; §Generated-Records Path Coverage (added v1.11 / FB85) specifies `build_asset §build_asset` dual-path gap and the five generated-records MUSTs anchored to AC-008..AC-012 |
 
 ---
 
@@ -241,10 +294,44 @@ amendment on an existing column.
   full-array `device_cves` column (which has no source_path override); covers EC-001 edge
   case where `device_cves_first` correctly yields null when `device_cves` is empty)_
 
-**Red Gate density check** (BC-5.38.001): **7 failing tests** before implementation begins.
-RG-001 covers AC-001 (`os_version`); RG-002 covers AC-002 (`risk_factors`); RG-003 covers
-AC-003 (`network_id`); RG-004 covers AC-004 (`site`); RG-005 covers AC-005 (`tags`); RG-006
-covers AC-006 (`device_cves`); RG-007 covers AC-007 (`device_cves_first` source_path fix).
+- [ ] **RG-008**: `test_armis_dtu_get_search_generated_records_device_has_os_version` — AC-008
+  _(Issues `GET /api/v1/search?aql=in:devices` against an `ArmisState` with
+  `fixture_gen_seeded=true` and at least one asset record; deserializes the serialized JSON
+  response; asserts the first device record in the response has `"os_version"` key present.
+  Wire-shape assertion per CLAUDE.md §Wire-shape assertion discipline — assertion on
+  serialized bytes, not pre-serialization Rust struct. Test FAILS until T-03 adds
+  `"os_version"` to `build_asset §build_asset`'s `json!` macro.
+  Preferred location: `crates/prism-dtu-armis/tests/`.)_
+
+- [ ] **RG-009**: `test_armis_dtu_get_search_generated_records_device_has_risk_factors` — AC-009
+  _(Same pattern as RG-008; asserts `"risk_factors"` key present in first serialized device
+  record. Test FAILS until T-03 adds `"risk_factors"` to `build_asset §build_asset`.
+  Preferred location: `crates/prism-dtu-armis/tests/`.)_
+
+- [ ] **RG-010**: `test_armis_dtu_get_search_generated_records_device_has_network_id` — AC-010
+  _(Same pattern as RG-008; asserts `"network_id"` key present in first serialized device
+  record. Test FAILS until T-03 adds `"network_id"` to `build_asset §build_asset`.
+  Preferred location: `crates/prism-dtu-armis/tests/`.)_
+
+- [ ] **RG-011**: `test_armis_dtu_get_search_generated_records_device_has_tags` — AC-011
+  _(Same pattern as RG-008; asserts `"tags"` key present in first serialized device record.
+  Test FAILS until T-03 adds `"tags"` to `build_asset §build_asset`.
+  Preferred location: `crates/prism-dtu-armis/tests/`.)_
+
+- [ ] **RG-012**: `test_armis_dtu_get_search_generated_records_device_has_device_cves` — AC-012
+  _(Same pattern as RG-008; asserts `"device_cves"` key present in first serialized device
+  record. Test FAILS until T-03 adds `"device_cves"` to `build_asset §build_asset`.
+  Preferred location: `crates/prism-dtu-armis/tests/`.)_
+
+**Red Gate density check** (BC-5.38.001): **12 failing tests** before implementation begins.
+RG-001 covers AC-001 (`os_version` TOML column); RG-002 covers AC-002 (`risk_factors` TOML
+column); RG-003 covers AC-003 (`network_id` TOML column); RG-004 covers AC-004 (`site` TOML
+column); RG-005 covers AC-005 (`tags` TOML column); RG-006 covers AC-006 (`device_cves` TOML
+column); RG-007 covers AC-007 (`device_cves_first` source_path fix); RG-008 covers AC-008
+(`os_version` generated-records parity); RG-009 covers AC-009 (`risk_factors`
+generated-records parity); RG-010 covers AC-010 (`network_id` generated-records parity);
+RG-011 covers AC-011 (`tags` generated-records parity); RG-012 covers AC-012 (`device_cves`
+generated-records parity).
 7 Red Gate tests for 7 ACs — RED_RATIO = 7/7 = 1.0 (meets BC-5.38.001 threshold).
 RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual
 Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design
@@ -344,6 +431,34 @@ After this fix:
 The `device_cves_first` column is intentionally scalar (for enrichment UDF scalar input per
 ADR-051 D4), while AC-006's `device_cves` column carries the full array.
 
+### T-03: Add five keys to `build_asset §build_asset` in `prism-dtu-armis::generator`
+**Files:** `crates/prism-dtu-armis/src/generator.rs` (MODIFY)
+
+**PREREQUISITE: RG-008..RG-012 must be authored as failing tests before this task begins.**
+
+The `json!` macro inside `build_asset §build_asset` in `prism-dtu-armis::generator` must
+emit five additional keys so the generated-records path has parity with the static-fixture
+path (BC-2.02.006 §Generated-Records Path Coverage contracted option (a)):
+
+- `"os_version"`: realistic OS version string; use same pool-and-offset pattern as `os_name`
+  to produce deterministic, archetype-appropriate values
+- `"risk_factors"`: `json!([])` for healthy-device archetypes; non-empty array (e.g.,
+  `json!(["unpatched_cve", "open_ports"])`) for `CompromisedEndpoint` archetype
+- `"network_id"`: `format!("net-{}", id_index % 10)` deterministic string
+- `"tags"`: `json!([])` — no analyst tags on fresh generated devices
+- `"device_cves"`: `json!([])` for healthy-device archetypes; non-empty (e.g.,
+  `json!(["CVE-2024-1234"])`) for `CompromisedEndpoint` archetype
+
+`site` is already present and compliant per BC-2.02.006 §Generated-Records Path Coverage
+(`format!("site-{}", id_index % 5)` for standard assets). Do NOT modify `build_tombstone
+§build_tombstone` for these keys — tombstones emit null for `site` (valid per
+`Option<String>` nullable contract); any additional nullable fields on the tombstone path
+should follow the same null pattern.
+
+The contracted obligation is key PRESENCE with type-compatible values — exact pool content
+is implementer-determined (BC-2.02.006 §TOML Contract §Generated-Records Path Coverage).
+RG-008..RG-012 assert key presence; they do not assert exact values.
+
 ---
 
 ## Token Budget Estimate
@@ -431,15 +546,18 @@ No new external dependencies introduced by this story.
 
 | File | Action | Notes |
 |------|--------|-------|
-| `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | Task T-01: add 6 new `[[tables.columns]]` entries to `devices` table; Task T-02: add `source_path = "$.device_cves[0]"` to existing `device_cves_first` column entry |
-| `crates/prism-spec-engine/tests/` (new or existing test file) | MODIFY or CREATE | RG-001 through RG-007: 7 failing tests that parse `armis.sensor.toml` and assert column presence and types |
+| `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | T-01: add 6 new `[[tables.columns]]` entries to `devices` table; T-02: add `source_path = "$.device_cves[0]"` to existing `device_cves_first` column entry |
+| `crates/prism-spec-engine/tests/` (new or existing test file) | MODIFY or CREATE | RG-001..RG-007: 7 failing tests that parse `armis.sensor.toml` and assert column presence, types, and `source_path` |
+| `crates/prism-dtu-armis/src/generator.rs` | MODIFY | T-03: add five keys (`os_version`, `risk_factors`, `network_id`, `tags`, `device_cves`) to `build_asset §build_asset`'s `json!` macro for generated-records path parity |
+| `crates/prism-dtu-armis/tests/` (new or existing test file) | MODIFY or CREATE | RG-008..RG-012: 5 failing wire-shape tests against `GET /api/v1/search?aql=in:devices` with `fixture_gen_seeded=true`; each asserts a specific key is present in the serialized JSON response device record |
 
 ---
 
 ## Verification Properties
 
-None assigned yet. Column schema correctness is verified via RG-001..RG-007 Red Gate tests
-and downstream SAP-2 probe on any subsequent adversarial pass.
+None assigned yet. Column schema correctness (TOML spec) is verified via RG-001..RG-007 Red
+Gate tests; generated-records path wire coverage is verified via RG-008..RG-012. Downstream
+SAP-2 probe on any subsequent adversarial pass re-verifies both surfaces.
 
 ---
 
@@ -447,5 +565,6 @@ and downstream SAP-2 probe on any subsequent adversarial pass.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.2 | 2026-07-28 | story-writer | FB85 story half — SAP-2 Rule 6 dual-path wire-coverage gap for five new Armis device columns. Add AC-008..AC-012 and RG-008..RG-012 anchored to BC-2.02.006 v1.11 §Generated-Records Path Coverage; exact test names match BC anchors for POL-29 9c bidirectionality. Expand `crates_touched` to include `prism-dtu-armis`; update `subsystems` to include SS-12 (DTU-Armis); bump `points` 3→5 and `estimated_days` 1→2 for generator scope. Add T-03 (implementer task: add five keys to `build_asset §build_asset`). Update §Architecture Mapping with generator and wire-shape test rows. Update §File Structure Requirements with `generator.rs` MODIFY row and `prism-dtu-armis/tests/` row for RG-008..RG-012. Update density paragraph: 7→12 failing tests, add RG-008..RG-012 coverage; RED_RATIO sentence and §Token Budget Estimate BC pin left unchanged (FB86 scope). BC-2.02.006 pin updated v1.9→v1.11 in §Behavioral Contracts table and frontmatter comment. Red-then-green ordering preserved: RG-008..RG-012 checkboxes appear before T-03. POL-29 9a: `S-WAVE-A-ARMIS-ACTIVITY-001` — `get_device_activity §get_device_activity` has ONE path only (static fixture, no generated-records branch; confirmed from story v1.3 §Ground-Truth DTU State); SAP-2 Rule 6 dual-path coverage gap does NOT apply; 9a CLEAR. 9b: §Generated-Records Path Coverage block is new content self-contained in this story, not a copy of a downstream target. 9c: all five new MUSTs carry AC+RGT anchors matching BC-2.02.006 v1.11 exactly. |
 | 1.1 | 2026-07-27 | story-writer | FB78: POL-29 9a sibling sweep — replace stale volatile framing of `S-WAVE-A-ARMIS-ACTIVITY-001` ("blocked on architect confirmation") with durable scope-division description: ACTIVITY-001 covers `armis_device_activity` table (ADR-057 filter-push-down path); this story covers `devices` table only; both have `depends_on: []` and modify non-overlapping sections; rebase note for co-land. Update BC-2.02.006 version pin from v1.8 to v1.9 in §Behavioral Contracts table and frontmatter comment. |
 | 1.0 | 2026-07-27 | story-writer | FB72 leg 1 Item 6: create `S-WAVE-A-ARMIS-SPEC-001` per BC-2.02.006 v1.8 §TOML Contract POL-29 9c anchor. Scope: 6 column additions (`os_version`, `risk_factors`, `network_id`, `site`, `tags`, `device_cves`) + `device_cves_first` `source_path` fix. 7 ACs, 7 RGTs, `tdd_mode: strict`, `## Authority` citing ADR-023 §Rule 1 and ADR-028 §D1. |
