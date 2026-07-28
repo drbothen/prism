@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.996"
+version: "7.997"
 status: current
-timestamp: 2026-07-27T19:00:00Z
+timestamp: 2026-07-28T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -124,26 +124,23 @@ timestamp: 2026-07-27T19:00:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2055 (CORRECTIVE RECORDS BURST; F-CVC-CRIT-001 OPEN HUMAN-GATED; six human decisions (f)–(j) recorded; D-2054 SESSION WRAP SUPERSEDED; BC-5.39.001 streak 0/3; NEXT = blocked on human decisions (f)–(j)).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2055 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2055 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57dad`; local ff BLOCKED by unstaged ci.yml/e2e.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2055 corrective burst HEAD after push). STATE v8.603. CORRECTIVE RECORDS BURST D-2055 complete; F-CVC-CRIT-001 OPEN HUMAN-GATED; six human decisions (f)–(j) recorded; seed_missing_query_filter_vars PATH-SEGMENT risk obligation recorded; frozen HEAD for pass-68 RESET to this D-2055 commit per DRIFT-ORCH-PRLEVEL-PUSH-001.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2056 (RECORDS BURST; F-CVC-CRIT-001 CLOSED; five human decisions (f)/(g)/(h)/(j) recorded; pass-68 UNBLOCKED; BC-5.39.001 streak 0/3).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2056 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2056 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57dad`; local ff BLOCKED by unstaged ci.yml/e2e.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2056 records burst HEAD after push). STATE v8.604. RECORDS BURST D-2056 complete; F-CVC-CRIT-001 CLOSED (total_stories 267→254; removed_contracts: 7 added); five human decisions (f)/(g)/(h)/(j) recorded; 12 phantom dispositions resolved; frozen HEAD for pass-68 = THIS D-2056 commit per DRIFT-ORCH-PRLEVEL-PUSH-001.
 
 ---
 
-## §RESUME SNAPSHOT — D-2055 (2026-07-27 — CORRECTIVE RECORDS BURST; F-CVC-CRIT-001 OPEN HUMAN-GATED; six human decisions (f)–(j) recorded; STATE v8.603) [SUPERSEDES D-2054]
+## §RESUME SNAPSHOT — D-2056 (2026-07-28 — RECORDS BURST; F-CVC-CRIT-001 CLOSED; five human decisions (f)/(g)/(h)/(j) recorded; STATE v8.604) [SUPERSEDES D-2055]
 
 ### RESUME IN ONE BREATH
-Wave-A spec-evolution cascade, Phase 3. All pass-66 (15 findings) and pass-67 F-CVA/F-CVB spec findings **CLOSED** in artifacts (D-2054). BC-5.39.001 streak **0/3**. D-2055 corrective records burst: F-CVC-CRIT-001 OPEN HUMAN-GATED; six human decisions (f)–(j) added; seed_missing_query_filter_vars PATH-SEGMENT risk recorded.
-**NEXT ACTION:** Blocked on human decisions **(f)–(j)** below. LOCAL `vsdd-factory:adversary` pass-68 dispatchable once decisions **(g)/(h)** answered. Frozen HEAD for pass-68 = THIS D-2055 commit (run `git -C .factory log -1 --format='%H'`). DRIFT-ORCH-PRLEVEL-PUSH-001: this D-2055 push RESETS the frozen HEAD — pass-68 must gate against THIS commit, NOT the prior D-2054 wrap commit. Fresh context; SAP-1, SAP-2, SAP-3, POL-29 three-dimension verdicts required.
+Wave-A spec-evolution cascade, Phase 3. All pass-66 (15 findings) and pass-67 F-CVA/F-CVB spec findings **CLOSED** in artifacts (D-2054). BC-5.39.001 streak **0/3**. D-2056 records burst: F-CVC-CRIT-001 **CLOSED** (total_stories 267→254 file-enumeration; removed_contracts: 7 added; bc_count_corrected 269 confirmed); five human decisions (f)/(g)/(h)/(j) recorded; 12 phantom dispositions resolved; DRIFT-PHANTOM-MATERIALIZE-001 registered.
+**NEXT ACTION:** LOCAL `vsdd-factory:adversary` pass-68 **UNBLOCKED**. Frozen HEAD for pass-68 = THIS D-2056 commit (run `git -C .factory log -1 --format='%H'`). DRIFT-ORCH-PRLEVEL-PUSH-001: this D-2056 push RESETS the frozen HEAD — pass-68 must gate against THIS commit. Fresh context; SAP-1, SAP-2, SAP-3, POL-29 three-dimension verdicts required.
 
-### OPEN FINDING — F-CVC-CRIT-001 — HUMAN-GATED
-**F-CVC-CRIT-001 — story-count three-way drift. OPEN. HUMAN-GATED. Owner: state-manager (blocked on human scope decision).**
-- Declared `total_stories`: 267 (post-D-2054 wrap); distinct story IDs in STORY-INDEX catalog tables: 263 (pre-wrap); actual story `.md` files: 253 (pre-wrap). Reconciliation: 263 catalog + 2 orphan files − 12 phantom registrations = 253 files.
-- Three independent contributors: **(a) 12 phantom registrations** — catalog row exists, file never materialized: `S-ALIAS-CLIENT-SCOPE-001`, `S-DEMO-CLAROTY-TIME-001`, `S-DTU-ARMIS-FIXTURE-VOCAB-001`, `S-DTU-CROWDSTRIKE-COLUMN-COVERAGE-001`, `S-EXPLAIN-PARITY-001`, `S-MAINT-EDITION-SYNC-001`, `S-MAINT-RUSTSEC-QUINN-PROTO-001`, `S-MAINT-W3SEC-CITE-SWEEP-002`, `S-PLUGIN-PREREQ-F`, `S-PRISMQL-SQLPIPE-COLUMN-GATE-001`, `S-RELOAD-DRY-RUN-001`, `S-SPEC-ENGINE-OCSF-EXAMPLE-SWEEP-001`. **(b) 2 orphan files** — file exists, no catalog row: `S-MAINT-001` (`S-MAINT-001-widen-clippy-all-targets.md`), `S-3.04-FOLLOWUP-MCP-001`. **(c) 3 units of pure counter drift**.
-- Root finding: `total_stories` has no formal definition in any template/spec/governance doc — counting-POLICY gap.
-- Orchestrator rulings: correct value is 253-basis; register the 2 orphan files.
-- Blocked on: 12 phantom dispositions reserved to human.
-- Parallel BC-count inconsistency: `bc_count_corrected` 268 vs `active+draft+retired` sum 261 vs product-owner-reported 267.
+### HUMAN DECISIONS RECORDED D-2056
+- **(f) APPROVED — Rule freeze until 3-CLEAN.** New probe/policy application to Wave-A perimeter FROZEN for streak window. `F-CVC-MED-002`/`F-CVC-LOW-003`/`F-CVC-OBS-001` existed solely because 2026-07-27 `#[non_exhaustive]` amendment landed mid-cascade. Exception expires at BC-5.39.001 strict 3-CLEAN. `policies.yaml` codification is SEPARATE spec-steward dispatch.
+- **(g) RESOLVED — 12 phantom dispositions, ZERO de-registrations.** Group A (merged): `S-MAINT-RUSTSEC-QUINN-PROTO-001` → PR #201 @`233cfc66` D-1311; `S-PLUGIN-PREREQ-F` → PR #141 @`c6dd6602` D-333. Group B (KEEP — BC-body-anchored): `S-RELOAD-DRY-RUN-001` / `S-EXPLAIN-PARITY-001` / `S-PRISMQL-SQLPIPE-COLUMN-GATE-001`. Group C (KEEP genuinely not done): `S-ALIAS-CLIENT-SCOPE-001` / `S-MAINT-W3SEC-CITE-SWEEP-002` / `S-DTU-ARMIS-FIXTURE-VOCAB-001` / `S-SPEC-ENGINE-OCSF-EXAMPLE-SWEEP-001`. Group D (KEEP stubs): `S-DTU-CROWDSTRIKE-COLUMN-COVERAGE-001` / `S-DEMO-CLAROTY-TIME-001` / `S-MAINT-EDITION-SYNC-001`. Orphans registered: `S-MAINT-001` / `S-3.04-FOLLOWUP-MCP-001`.
+- **(h) ADOPTED — File-enumeration basis.** `total_stories` 267→254 (F-CVC-CRIT-001 CLOSED). `removed_contracts: 7` added to STATE.md. `bc_count_corrected: 269` confirmed (251+5+7+6). BC-INDEX v8.80→v8.81.
+- **(j) ADOPTED — Standing mechanical verification step.** Between every fix-burst and adversary dispatch: grep changed identifiers corpus-wide, diff each agent report against its dispatch brief, verify artifacts exist on disk.
 
 ### CLOSED FINDINGS LEDGER (pass-66 + pass-67 — all CLOSED D-2054)
 ~~CRIT: F-WASE-P66-CRIT-001~~ CLOSED FB70 (BC-2.01.006 v1.9 + BC-2.01.018 v1.7; POL-29 9a named-twin sweep).
@@ -164,8 +161,27 @@ Wave-A spec-evolution cascade, Phase 3. All pass-66 (15 findings) and pass-67 F-
 ~~F-CVA-HIGH-001~~ CLOSED FB71 (BC-2.16.002 v2.12; PageNumber Pagination Dispatch activation gate corrected per ADR-056 §D8).
 ~~F-CVA-HIGH-002~~ CLOSED FB71 (BC-2.16.009 v1.30; page_number row added to §Validation Rule 4).
 
-### OPEN IMPLEMENTATION OBLIGATION (recorded D-2055)
-`seed_missing_query_filter_vars`: pre-seeding any `${query.filter.*}` slot absent from `FetchContext.query_filters` with an empty string. The query-parameter-shaped safety rationale ("`?filter=` safely ignored") FAILS for PATH SEGMENTS — absent `device_id` yields `/api/v1/devices//activity` → DTU returns HTTP 200 with `activities: []`, `total: 0` (silent empty result; Standing Rule 3 §2 violation). `InterpolationError::FieldNotFound` can NEVER fire for a `${query.filter.*}` slot after this pre-seed. Contracted in BC-2.02.014 §Postconditions; anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` AC-004 / RG-004 (T-IMPL-02). Recommended mechanism: declarative `required_filters = ["device_id"]` on `[[tables.steps]]`, backward-compatible.
+### CLOSED FINDINGS LEDGER (pass-66 + pass-67 — all CLOSED D-2054)
+~~CRIT: F-WASE-P66-CRIT-001~~ CLOSED FB70 (BC-2.01.006 v1.9 + BC-2.01.018 v1.7; POL-29 9a named-twin sweep).
+~~HIGH-001~~ CLOSED FB71 (ADR-056 v0.5; PaginationType serde wire literal corrected).
+~~HIGH-002~~ CLOSED FB73 (BC-2.02.006 v1.9; POL-29 9c TOML MUSTs anchored to S-WAVE-A-ARMIS-SPEC-001).
+~~HIGH-003~~ CLOSED FB73 (BC-2.02.004 v1.14; affected_assets T-02 carry-over anchored).
+~~HIGH-004~~ CLOSED FB74 (BC-2.02.014 v1.1 NEW; device_cves_first push-down via ADR-057 grammar).
+~~HIGH-005~~ CLOSED FB74 (ADR-057 v0.4 ACCEPTED; `${step_name.field}` grammar canonical; S-WAVE-A-ARMIS-ACTIVITY-001 v1.2 UNBLOCKED).
+~~MED-001~~ CLOSED FB71 (ADR-056 v0.5 §D8 copy-target corrected + BC-2.16.009 v1.30 §Validation Rule 4 page_number row added; POL-29 9b copy-target sweep).
+~~MED-002~~ CLOSED FB72 (ADR-053 v0.39; SAC-2 anchor_stories ground-truth repopulated).
+~~MED-003~~ CLOSED FB76 (VP-157 v1.1 promoted active; phantom symbols removed; VP-INDEX v2.22 updated).
+~~MED-004~~ CLOSED FB72/FB73 (S-WAVE-A-ARMIS-SPEC-001 v1.1 registered; STORY-INDEX row references S-WAVE-A-ARMIS-SPEC-001).
+~~LOW-001~~ CLOSED FB71 (ADR-056 v0.5 §Changelog heading normalized).
+~~LOW-002~~ CLOSED FB73 (S-WAVE-A-CYBERINT-SPEC-001 v1.8; AC-003/T-05 envelope key `page` added).
+~~LOW-003~~ CLOSED FB76 (VP-157/VP-158 v1.1 active; VP-INDEX v2.22 rows pinned).
+~~OBS-001~~ CLOSED FB71 (BC-2.02.006 v1.9; emission cite corrected to search::get_search canonical path).
+~~OBS-002~~ CLOSED FB70/FB73 (BC-2.02.004 v1.14; TV-005 positional cite removed per TD-VSDD-091).
+~~F-CVA-HIGH-001~~ CLOSED FB71 (BC-2.16.002 v2.12; PageNumber Pagination Dispatch activation gate corrected per ADR-056 §D8).
+~~F-CVA-HIGH-002~~ CLOSED FB71 (BC-2.16.009 v1.30; page_number row added to §Validation Rule 4).
+
+### OPEN IMPLEMENTATION OBLIGATION (recorded D-2055; unchanged)
+`seed_missing_query_filter_vars`: pre-seeding any `${query.filter.*}` slot absent from `FetchContext.query_filters` with an empty string. The query-parameter-shaped safety rationale ("`?filter=` safely ignored") FAILS for PATH SEGMENTS — absent `device_id` yields `/api/v1/devices//activity` → DTU returns HTTP 200 with `activities: []`, `total: 0` (silent empty result; Standing Rule 3 §2 violation). `InterpolationError::FieldNotFound` can NEVER fire for a `${query.filter.*}` slot after this pre-seed. Contracted in BC-2.02.014 §Postconditions; anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` AC-004 / RG-004 (T-IMPL-02).
 
 ### PROCESS INTERVENTION RULE (human-directed — binding)
 Small single-concern fix bursts only. Each fix burst must address ONE named spec-content target. GAP-ASSETS-PAG-001: do NOT schedule without explicit human authorization.
@@ -173,35 +189,36 @@ Small single-concern fix bursts only. Each fix burst must address ONE named spec
 ### CORPUS DRIFT ITEM
 records-lint --full-scan: 39 L1 failures + 86 L7 failures across 43 distinct files — pre-existing debt. TD-VSDD-096 candidate. NOT in cascade scope.
 
-### GATE COVERAGE REMINDER (D-2055)
-records-lint --full-scan L1/L7 never examined .factory/ artifacts in ratchet mode (GATE-L1L7-RATCHET-WORKTREE-001). Nine confirmed blind spots (D-2049, carried D-2055): (i) ratchet mode blind to frontmatter bump in unstaged file; (ii) cross-document index gate cannot parse draft v1.0-style status cells (433 of 498 rows unverifiable); (iii) L1 has no Changelog table to compare STATE.md version against; (iv) cross-document index gate cannot parse prose-embedded BC-INDEX pins; (v) GATE-L1L7-RATCHET-WORKTREE-001 — L1/L7 inoperative in ratchet mode for .factory/ worktree; (vi) GATE-L1-VPREFIX-BLIND-002 — changelog version extractor anchors on digit; v-prefixed rows silently skipped; (vii) GATE-XDOC-UNCOMMITTED-ARTIFACT-003 — cross-document index check compares working-tree versions, NOT committed HEAD; (viii) GATE-XDOC-PROSE-PIN-ARCHINDEX-004 — prose-embedded ARCH-INDEX §Document Map version pin evades structural checks; (ix) GATE-PERIMETER-PROSE-PIN-005 [D-2048/FB67] — SPEC PERIMETER story version pins prose-embedded, never validated by automated gate.
+### GATE COVERAGE REMINDER (D-2056)
+records-lint --full-scan L1/L7 never examined .factory/ artifacts in ratchet mode (GATE-L1L7-RATCHET-WORKTREE-001). Nine confirmed blind spots (D-2049, carried D-2056): (i) ratchet mode blind to frontmatter bump in unstaged file; (ii) cross-document index gate cannot parse draft v1.0-style status cells (433 of 498 rows unverifiable); (iii) L1 has no Changelog table to compare STATE.md version against; (iv) cross-document index gate cannot parse prose-embedded BC-INDEX pins; (v) GATE-L1L7-RATCHET-WORKTREE-001 — L1/L7 inoperative in ratchet mode for .factory/ worktree; (vi) GATE-L1-VPREFIX-BLIND-002 — changelog version extractor anchors on digit; v-prefixed rows silently skipped; (vii) GATE-XDOC-UNCOMMITTED-ARTIFACT-003 — cross-document index check compares working-tree versions, NOT committed HEAD; (viii) GATE-XDOC-PROSE-PIN-ARCHINDEX-004 — prose-embedded ARCH-INDEX §Document Map version pin evades structural checks; (ix) GATE-PERIMETER-PROSE-PIN-005 [D-2048/FB67] — SPEC PERIMETER story version pins prose-embedded, never validated by automated gate.
 
-### PENDING USER-APPROVED WORK (D-2055) — do not start
+### PENDING USER-APPROVED WORK (D-2056) — do not start
 - (a) `scripts/records-lint.sh` fixes: GATE-L1L7-RATCHET-WORKTREE-001, GATE-L1-VPREFIX-BLIND-002, L9 arm-5 false-positive — code change on PR #230 branch; awaiting human.
 - (b) GAP-ASSETS-PAG-001 — new PaginationConfig variant for server-controlled page size; awaiting explicit human authorization.
 - (c) Follow-up story for GAP-ASSETS-PAG-001 — not yet created; awaiting human authorization.
 - (d) STORY-INDEX mixed-prefix normalization — ordering-dependent on GATE-L1-VPREFIX-BLIND-002 fix; do not resolve blind.
 - (e) Corpus records debt (39 L1 + 86 L7 across 43 files) — TD-VSDD-096 candidate; NOT in cascade scope.
+- (i) CLAUDE.md `#[non_exhaustive]` prose-vs-count self-tension — requires human-mandate-only CLAUDE.md edit.
 - GAP-POL25-COMPANION-AMENDMENT-001 — POL-25 §verification_steps step 2 missing Named-twin (9a) and downstream-copy-target (9b); routing: spec-steward; do NOT schedule without orchestrator dispatch.
-- **(f) AWAITING HUMAN DECISION — Rule freeze until 3-CLEAN.** Freeze new probe/policy application to the Wave-A perimeter for the streak window; queue newly-found process gaps as follow-up stories with real anchors per Canonical Principle Rule 3; sweep in post-convergence maintenance story. Evidence: three findings existed solely because the 2026-07-27 `#[non_exhaustive]` amendment landed mid-cascade; divergence analysis across passes 61–66 classified 144 findings as 65% pre-existing corpus debt / 20% new-probe-class / 6% perimeter expansion / 8% fix-burst regression; 3-CLEAN structurally unreachable while rules were being codified. Requires human approval as policy exception. Highest-leverage open item.
-- **(g) AWAITING HUMAN DECISION — 12 phantom story dispositions** (F-CVC-CRIT-001). Orchestrator proposed defaults: KEEP-and-materialize `S-RELOAD-DRY-RUN-001` and `S-DTU-CROWDSTRIKE-COLUMN-COVERAGE-001`; KEEP as stubs `S-MAINT-EDITION-SYNC-001` / `S-MAINT-RUSTSEC-QUINN-PROTO-001` / `S-MAINT-W3SEC-CITE-SWEEP-002` / `S-DEMO-CLAROTY-TIME-001` / `S-ALIAS-CLIENT-SCOPE-001` / `S-EXPLAIN-PARITY-001` / `S-DTU-ARMIS-FIXTURE-VOCAB-001` / `S-PRISMQL-SQLPIPE-COLUMN-GATE-001` / `S-SPEC-ENGINE-OCSF-EXAMPLE-SWEEP-001`; LIKELY-DE-REGISTER `S-PLUGIN-PREREQ-F` (PLUGIN-MIGRATION pivot D-333 origin; migration complete through PREREQ-E). Unblocks `total_stories` reconciliation.
-- **(h) AWAITING HUMAN DECISION — BC-count reconciliation basis.** Orchestrator will apply D-1985 file-enumeration absent other direction.
-- **(i) AWAITING HUMAN DECISION — CLAUDE.md `#[non_exhaustive]` prose-vs-count self-tension.** Three stories inherited real defects from this tension this session. Fixing requires human-mandate-only CLAUDE.md edit.
-- **(j) AWAITING HUMAN DECISION — Standing mechanical verification step (PROCESS PROPOSAL).** Insert deterministic orchestrator-owned check between every fix-burst and adversary dispatch: grep changed identifiers corpus-wide, diff each agent report against its dispatch brief, verify artifacts on disk. Evidence: five completed self-audit checklists accompanied incomplete sweeps; orchestrator's own catalog count was wrong by 4; two agents reported clean sibling sweeps while stale claim survived in STORY-INDEX.
+- DRIFT-PHANTOM-MATERIALIZE-001 — Groups B/C (7 IDs) need story files in post-convergence maintenance story; Group B (3 IDs) are live TD-VSDD-097 9c BC-anchor violations (HIGH); do NOT start without orchestrator dispatch.
 
-### SPEC PERIMETER (post-D-2055 — unchanged from D-2054)
-BC-2.16.009 **v1.30** / ADR-053 **v0.39** / error-taxonomy **v2.70** / S-WAVE-A-ENGINE-001 **v3.0** (28 ACs / 40 RGTs) / BC-2.16.008 v1.6 / BC-2.16.014 v1.19 / VP-159 **v1.27** / ADR-054 **v0.57** / BC-2.01.018 **v1.7** / BC-2.01.008 **v1.8** / BC-2.01.006 **v1.9** / BC-2.02.004 **v1.14** / BC-2.02.006 **v1.9** / BC-2.02.014 **v1.1** (draft NEW) / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28 / VP-160 **v1.3** / VP-161 **v1.3** / verification-architecture **v1.48** / ADR-051 **v1.8** / ADR-052 **v1.19** / ADR-055 **v1.3** / ADR-056 **v0.5** / ADR-057 **v0.4** (NEW ACCEPTED) / BC-2.16.002 **v2.12**. Stories: S-WAVE-A-ENGINE-001 **v3.0** (28 ACs / 40 RGTs); S-WAVE-A-MCP-001 **v1.5**; S-WAVE-A-CYBERINT-PATCH-001 **v1.4**; S-WAVE-A-ARMIS-REMEDIATION-001 **v1.4**; S-ADR054-WAVE-A-001 **v1.5** (10 ACs / 24 RGTs); S-ADR055-WAVE-A-001 **v1.3** (11 RGTs); S-WAVE-A-CYBERINT-SPEC-001 **v1.8** (10 ACs / 20 RGTs); S-WAVE-A-ARMIS-ACTIVITY-001 **v1.2** (UNBLOCKED ready); S-WAVE-A-ARMIS-SPEC-001 **v1.1** (NEW); S-MAINT-RG-LIST-GATE-001 **v0.1** (draft); S-MAINT-ADR-ANCHOR-GATE-001 **v0.1** (draft). Indexes: BC-INDEX **v8.80** / VP-INDEX **v2.22** / ARCH-INDEX **v2.287** / STORY-INDEX **v2.745** (total_stories 267).
+### SPEC PERIMETER (post-D-2056 — indexes updated from D-2055)
+BC-2.16.009 **v1.30** / ADR-053 **v0.39** / error-taxonomy **v2.70** / S-WAVE-A-ENGINE-001 **v3.0** (28 ACs / 40 RGTs) / BC-2.16.008 v1.6 / BC-2.16.014 v1.19 / VP-159 **v1.27** / ADR-054 **v0.57** / BC-2.01.018 **v1.7** / BC-2.01.008 **v1.8** / BC-2.01.006 **v1.9** / BC-2.02.004 **v1.14** / BC-2.02.006 **v1.9** / BC-2.02.014 **v1.1** (draft NEW) / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28 / VP-160 **v1.3** / VP-161 **v1.3** / verification-architecture **v1.48** / ADR-051 **v1.8** / ADR-052 **v1.19** / ADR-055 **v1.3** / ADR-056 **v0.5** / ADR-057 **v0.4** (NEW ACCEPTED) / BC-2.16.002 **v2.12**. Stories: S-WAVE-A-ENGINE-001 **v3.0** (28 ACs / 40 RGTs); S-WAVE-A-MCP-001 **v1.5**; S-WAVE-A-CYBERINT-PATCH-001 **v1.4**; S-WAVE-A-ARMIS-REMEDIATION-001 **v1.4**; S-ADR054-WAVE-A-001 **v1.5** (10 ACs / 24 RGTs); S-ADR055-WAVE-A-001 **v1.3** (11 RGTs); S-WAVE-A-CYBERINT-SPEC-001 **v1.8** (10 ACs / 20 RGTs); S-WAVE-A-ARMIS-ACTIVITY-001 **v1.2** (UNBLOCKED ready); S-WAVE-A-ARMIS-SPEC-001 **v1.1** (NEW); S-MAINT-RG-LIST-GATE-001 **v0.1** (draft); S-MAINT-ADR-ANCHOR-GATE-001 **v0.1** (draft). Indexes: BC-INDEX **v8.81** / VP-INDEX **v2.22** / ARCH-INDEX **v2.287** / STORY-INDEX **v2.746** (total_stories 254).
 
-### HEADS (D-2055)
-- `factory-artifacts`: frozen HEAD for pass-68 = THIS D-2055 commit (run `git -C .factory log -1 --format='%H'`). D-2055 push RESETS frozen HEAD per DRIFT-ORCH-PRLEVEL-PUSH-001 — pass-68 must gate against THIS commit, NOT prior D-2054 wrap commit.
+### HEADS (D-2056)
+- `factory-artifacts`: frozen HEAD for pass-68 = THIS D-2056 commit (run `git -C .factory log -1 --format='%H'`). D-2056 push RESETS frozen HEAD per DRIFT-ORCH-PRLEVEL-PUSH-001.
 - `origin/develop`: `7fef57dad` PUSHED; LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001; do NOT auto-FF; blocked by unstaged ci.yml/e2e.yml residue in main worktree).
 - Main worktree: docs/claude-md-file-size-convention @`e327f42ad` PUSHED; PR #230 OPEN.
 - `.worktrees/fix-demosetup-cwd` @`ec4379b5b` PUSHED, PR #229 OPEN ACTIVE-UNRESOLVED; `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED; `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY).
 - verify-sha-currency.sh: PASS (2 pre-existing WARNs). No background agents. BC-5.39.001 streak 0/3.
 
-### BACKUP BOUNDARY (D-2055)
-- PUSHED / safe: factory-artifacts (this D-2055 commit); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); docs/claude-md-file-size-convention @`e327f42ad` (PR #230 OPEN); origin/develop @`7fef57dad`.
+### BACKUP BOUNDARY (D-2056)
+- PUSHED / safe: factory-artifacts (this D-2056 commit); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); docs/claude-md-file-size-convention @`e327f42ad` (PR #230 OPEN); origin/develop @`7fef57dad`.
 - LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty).
+
+---
+
+## §RESUME SNAPSHOT — D-2055 (2026-07-27 — CORRECTIVE RECORDS BURST; F-CVC-CRIT-001 OPEN HUMAN-GATED; six human decisions (f)–(j) recorded; STATE v8.603) [SUPERSEDED by D-2056]
 
 ---
 
