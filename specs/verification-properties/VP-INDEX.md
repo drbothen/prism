@@ -1,10 +1,10 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "2.21"
+version: "2.22"
 status: draft
 producer: state-manager
-timestamp: 2026-07-26T00:00:00Z
+timestamp: 2026-07-27T00:00:00Z
 phase: 2-patch
 inputs: [architecture/verification-architecture.md]
 traces_to: architecture/ARCH-INDEX.md
@@ -186,8 +186,8 @@ retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..00
 | VP-154 | CustomAdapter behavioral equivalence: PluginRuntime WASM dispatch produces non-empty records matching plugin fixture output; TOML fallthrough when no plugin registered | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-A |
 | VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
 | VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | active — v0.24 | S-PLUGIN-PREREQ-E |
-| VP-157 | [BC-3.6.001] POST /dtu/configure with unsupported mode returns HTTP 400 with unsupported_failure_mode error; no state change | prism-dtu-harness | unit_test | P1 | draft | S-3.6.01 |
-| VP-158 | [BC-2.06.019] E-DEMO-006 fires when two scenario-enabled clones share same seed but have different org_ids; no clone constructed — VP-019-I alias | prism-dtu-demo-server | unit_test | P1 | draft | S-DEMO-DTU-LIVE-SCENARIO-001-B |
+| VP-157 | [BC-3.6.001] POST /dtu/configure with unsupported mode returns HTTP 400 with unsupported_failure_mode error; no state change | prism-dtu-harness | unit_test | P1 | active — v1.1 | S-3.6.01 |
+| VP-158 | [BC-2.06.019] E-DEMO-006 fires when two scenario-enabled clones share same seed but have different org_ids; no clone constructed — VP-019-I alias | prism-dtu-demo-server | unit_test | P1 | active — v1.1 | S-DEMO-DTU-LIVE-SCENARIO-001-B |
 | VP-159 | [BC-2.16.014] DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry: zero network at construction; cold get_token → one HTTP POST + cache; warm get_token within TTL → zero HTTP POSTs; stale get_token → one HTTP POST re-acquisition; acquire_token → one HTTP POST cache bypass; TTL arithmetic for both ExpiryMode variants (absolute_utc_string, relative_seconds); CachedAuthToken never stores credential values (AD-017); AC-9 + AC-9b SAP-3 executor reachability: AC-9 drives PipelineExecutor::execute→execute_impl path; AC-9b drives PipelineExecutor::execute_step direct-call path (BC-2.16.014 P9 two-path coverage model) | prism-spec-engine | integration_test | P1 | draft — v1.27 | [PLANNED — Wave-A CrowdStrike retirement / Armis token-exchange engine story] |
 | VP-160 | [BC-2.16.009 Rule 9] cookie-name charset totality and injection rejection: `is_valid_cookie_name_tchar` returns true iff every byte is in the 77-character RFC 9110 §5.6.2 tchar set; semicolons, bare equals, spaces, TAB, CTL bytes (0x00–0x1F, 0x7F), non-ASCII bytes (0x80–0xFF), and RFC 9110 delimiters are rejected (SEC-001 / ADR-053 §D2) | prism-spec-engine | kani | P0 | draft — v1.3 | S-WAVE-A-ENGINE-001 |
 | VP-161 | [BC-2.16.009 Rule 9] error message echo cap and CTL escaping: `truncate_at_char_boundary` always returns ≤64 codepoints (CWE-400 / EC-009-047); CTL-escape function never emits raw CTL bytes (0x00–0x1F, 0x7F) in E-SPEC-027(a) message (CWE-117 / EC-009-048) | prism-spec-engine | kani | P0 | draft — v1.3 | S-WAVE-A-ENGINE-001 |
@@ -221,7 +221,7 @@ F-PASS3-HIGH-001. The numeric VP-146..VP-152 entries above are the sequential in
 
 > Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. VP-019-I is a BC-2.06.019 named alias for VP-158; it does not add to the sequential count. Total sequential VPs is 161 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15; VP-156 added in prereq-e-fix-burst-1 2026-05-15; VP-157 added D-1099 2026-06-11; VP-158 added 2026-06-12 BC-2.06.019 E-DEMO-006 guard; VP-159 added D-1947 2026-07-22 BC-2.16.014 DeclarativeHttpAuthProvider lazy acquisition and refresh-on-expiry; VP-160 added fix-burst-46 2026-07-25 BC-2.16.009 Rule 9 cookie-name charset totality and injection rejection; VP-161 added FB62 2026-07-26 BC-2.16.009 Rule 9 error message echo cap and CTL escaping — CWE-400/CWE-117 successor to VP-160 scope note deferral).
 
-> **Count basis (POL-1 append-only):** The table above counts REGISTERED rows — retired VPs are never deleted. Of the 161 rows, 13 are retired per ADR-037 (2026-06-10): VP-095..VP-098 (unit_test, P0), VP-099..VP-106 (proptest, P0), VP-107 (integration_test, P0). **Active basis: 148 VPs; active P0 = 111** (Kani 25, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 37 (VP-157 unit_test P1 added D-1099; VP-158 unit_test P1 added 2026-06-12; VP-159 integration_test P1 added D-1947 2026-07-22). Retired VPs are excluded from the release verification gate. Per-VP disposition: see §ADR-037 Retirement below.
+> **Count basis (POL-1 append-only):** The table above counts REGISTERED rows — retired VPs are never deleted. Of the 161 rows, 13 are retired per ADR-037 (2026-06-10): VP-095..VP-098 (unit_test, P0), VP-099..VP-106 (proptest, P0), VP-107 (integration_test, P0). **Active basis: 148 VPs; active P0 = 111** (Kani 25, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 37 (VP-157 unit_test P1 active — v1.1 status per D-2054 2026-07-27; VP-158 unit_test P1 active — v1.1 status per D-2054 2026-07-27; VP-159 integration_test P1 added D-1947 2026-07-22). Retired VPs are excluded from the release verification gate. Per-VP disposition: see §ADR-037 Retirement below.
 
 ### ADR-037 Retirement (2026-06-10) — BC-3.3.001..004 VPs
 
@@ -272,6 +272,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.22 | D-2054 | 2026-07-27 | state-manager | Session wrap FB70..FB80 wave-A spec-evolution cascade closure: VP-157 status draft→active — v1.1 (F-WASE-P66-LOW-003 CLOSED — VP file authored in FB68c; F-CVB-P67-LOW-001 CLOSED same finding); VP-158 status draft→active — v1.1 (same pair of findings). No count changes — both VPs were already registered in Summary table and Count basis at draft status. Active basis: 148/111P0/37P1 unchanged. |
 | 2.21 | FB68e | 2026-07-27 | spec-steward | Records-only corpus sweep (DRIFT-VP-MODIFIED-CORPUS-001): set modified field and added changelog row for 52 defective VPs (VP-001..VP-060 range, version above initial, modified was null/[]); normalized VP-045 modified from array to bare string. Total VPs unchanged at 161. |
 | 2.20 | FB68 | 2026-07-27 | state-manager | VP-159 pin sync v1.26→v1.27 (MED-001 CLOSED; records-lint L10 STALE resolved — spec-steward corrected volatile cites in VP-159 §Verification Properties table; artifact version advanced to v1.27). VP-INDEX v2.19→v2.20. |
 | 2.19 | FB68c | 2026-07-27 | architect | F-WASE-P65-OBS-001 sibling sweep: VP-160 `modified: []` corrected to `"2026-07-26"` (same defect class as VP-161; convention now applied to all identified wave-a-era VPs). VP-160 status cell updated to `draft — v1.3`. No count changes. |

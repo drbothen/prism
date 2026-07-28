@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-MCP-001
 title: "Remap add_sensor_spec ValidationFailed to BC-2.10.007 Structured Error Envelope"
-version: "1.4"
+version: "1.5"
 status: draft
 producer: story-writer
 phase: 3
@@ -406,7 +406,9 @@ Do NOT implement from memory. Read the actual code.
 Determine whether to add a `PrismError::SpecValidationFailed` variant (Option A) or
 construct the error JSON directly in server.rs (Option B). The decision depends on:
 - Whether `to_error_data()` is the only path that produces `isError: true` in the wire
-- Whether Option A requires updating the non-exhaustive gate (CLAUDE.md: EXPECTED=92)
+- Whether Option A requires registering a new symbol in `EXPECTED_SYMBOLS` in
+  `scripts/check-non-exhaustive-per-symbol.py` (that is the only change needed for the
+  non-exhaustive gate; `scripts/check-non-exhaustive.sh` derives the count automatically)
 - Whether the sentinel in `tests/error_category_coverage.rs` needs updating
 
 Document the decision in the commit message and in a code comment at the change site.
@@ -468,10 +470,14 @@ Lessons from prism-mcp cascades:
    reserved for FUTURE/unknown variants only (ZERO currently-known variants fall to it as
    of v1.19).
 
-3. **CLAUDE.md §Non-exhaustive gate.** If Option A adds a `PrismError` variant to
-   `prism-core` or `prism-spec-engine`, verify the `#[non_exhaustive]` gate applies.
-   Current EXPECTED=92; bumping requires updating `scripts/check-non-exhaustive.sh`,
-   `CLAUDE.md`, and `scripts/check-non-exhaustive-per-symbol.py` in the same commit.
+3. **CLAUDE.md §Non-exhaustive gate.** If Option A adds a new pub type to
+   `prism-core` or `prism-spec-engine`, verify the `#[non_exhaustive]` attribute applies
+   to the new type. Bumping the gate requires ONLY appending the new symbol to
+   `EXPECTED_SYMBOLS` in `scripts/check-non-exhaustive-per-symbol.py` — that is the
+   single source of truth from which the count is derived automatically.
+   Do NOT update `scripts/check-non-exhaustive.sh` (it reads the count from the Python
+   manifest; there is no EXPECTED value in the script to edit). Do NOT update `CLAUDE.md`
+   (count restatement in CLAUDE.md is forbidden per §Conventions).
 
 4. **ADR-055 §D1 collect-all.** The `errors` array extension to the error shape must
    include ALL validation errors from the collect-all pass, not just the first one.
@@ -507,6 +513,7 @@ No new external dependencies.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.5 | 2026-07-27 | story-writer | FB72 story-writer leg 2: Fix §Architecture Compliance Rule 3 (closes F-CVC-LOW-003) — remove forbidden count restatement (`Current EXPECTED=92`), correct script instructions: bumping requires only appending to `EXPECTED_SYMBOLS` in `scripts/check-non-exhaustive-per-symbol.py`; `scripts/check-non-exhaustive.sh` has no EXPECTED value to edit (derives count automatically); `CLAUDE.md` MUST NOT be updated (count restatement forbidden per §Conventions). Fix §T-02 bullet: replace `CLAUDE.md: EXPECTED=92` with correct instruction to register new symbol in `EXPECTED_SYMBOLS`. |
 | 1.4 | 2026-07-26 | story-writer | FB61 gate-review DEFECT-1 + DEFECT-2: DEFECT-1: remove fabricated RED_RATIO formula (Density = 7/8 ACs = 0.875) from §Red Gate density check; replace with orchestrator-computation note per per-story-delivery.md §Step 3.5, citing BC-5.38.002/BC-5.38.003. DEFECT-2: add standalone RG-007 `test_add_sensor_spec_validation_failed_nullable_fields_null_not_absent_wire_level` for AC-006 — asserts nullable fields (`retry_after_seconds`, `upstream_message`) are present as JSON null (not absent key) on serialized `CallToolResult` wire output; removes false transitive-coverage claim; old RG-007 renumbered to RG-008; expected-red count updated 7→8 |
 | 1.3 | 2026-07-26 | story-writer | FB61 MED-016: expand §Red Gate tests from 1 to 7 RGTs (RG-001..RG-007) covering all 8 ACs; §Tasks reordered — Red Gate section precedes T-01..T-03 implementation tasks; T-04/T-05/T-06 test tasks removed (test functions now enumerated in Red Gate section); BC-5.38.001 density updated 1→7 |
 | 1.2 | 2026-07-26 | story-writer | FB59 closes F-WASE-P64-MED-005, F-WASE-P64-MED-006, F-WASE-P64-LOW-001. MED-005: corrected field count from eight to nine in AC-005 §trace, AC-005 body, and T-05 §description — nine required fields validated against BC-2.10.007 §Complete field specification (code, message, category, retryable, retry_after_seconds, suggestion, source, original_params_valid, upstream_message; all nine marked Required Always). MED-006: EC-001 phantom code E-SPEC-000 removed — no taxonomy code maps to this condition; the zero-error ValidationFailed state is unreachable by contract (SpecLoader::parse() accumulates errors and only returns Err when ≥1 are collected); EC-001 rewritten as a contract invariant; §Implementation Notes code snippet updated: debug_assert!(!all_errors.is_empty()) retained as dev-time check, replaced the follow-on .expect() panic path with an explicit if all_errors.is_empty() guard that returns Err via the existing to_error_data() MCP error path (same pattern as WriteError arm, exact PrismError variant deferred to T-02), then extracts first_code via all_errors[0].split(':').next().unwrap_or(all_errors[0]) with no phantom code fallback. No E-SPEC-NNN code is fabricated for the invariant-violation path. LOW-001: §Architecture Compliance Rule 2 BC-2.10.007 version cite corrected from v1.18 to v1.19; BC-2.10.007 frontmatter confirmed at version 1.19; §Authority and §Behavioral Contracts table already cite v1.19 — no additional sites required. |

@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: merged
-version: "1.16"
+version: "1.17"
 level: "L4"
 producer: story-writer
 timestamp: "2026-07-05T00:00:00Z"
 created: "2026-07-05"
-modified: "2026-07-06T23:00:00Z"
+modified: "2026-07-27"
 tdd_mode: strict
 subsystems: [SS-09, SS-10, SS-19]
 # Subsystem anchor justifications:
@@ -135,6 +135,31 @@ supersedes: []
 ---
 
 # S-DEMO-ENRICHMENT-TYPED-OUTPUT-001: Typed & Consistent Enrichment UDF Output
+
+## Authority
+
+**ADR-051 v1.7 §D1–§D6** (Typed & Consistent Enrichment UDF Output — output_type→Arrow
+DataType Mapping, Mandatory source_column, Scalar-Input Rule, and INV-ENRICH-TYPED-001)
+is the complete design authority for this story. This story implements ADR-051 decisions
+D1–D6:
+
+- **§D1** — `output_arrow_type()` helper and `return_type()` delegation; canonical
+  output_type→Arrow DataType mapping (AC-001/AC-002)
+- **§D2** — `invoke_async_with_args()` typed array dispatch; `coerce_to_typed()` helper;
+  NULL + E-INFUSE-014 on coercion failure; null-input guard (AC-003/AC-004/AC-005/AC-008)
+- **§D3** — `InfusionLoader::validate` E-INFUSE-013 sub-conditions 7 (unknown output_type)
+  and 8 (plugin-type field missing source_column) (AC-006/AC-007)
+- **§D4** — scalar `_first` companion columns (iocs_value_first, behaviors_ioc_value_first);
+  `threatintel.infusion.toml` rewrite; ENRICH-1 retention for json-typed fields
+  (AC-009/AC-010/AC-011)
+- **§D5** — numeric comparison semantics correct after typed output (AC-013)
+- **§D6** — INV-ENRICH-TYPED-001 cross-UDF consistency invariant governing AC-001 through
+  AC-013
+
+Read ADR-051 in full at:
+`.factory/specs/architecture/decisions/ADR-051-typed-consistent-enrichment-udf-output.md`
+
+---
 
 Closes DRIFT-PIVOT-UDF-OUTPUT-TYPE-001. Implements ADR-051 (ACCEPTED v1.4, 2026-07-06)
 decisions D1–D6: typed `output_arrow_type()` helper, typed array construction in
@@ -800,6 +825,7 @@ risk_mitigations for the full runtime chain. RGT-023 enforces this at the test l
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.17 | 2026-07-27 | story-writer | Add §Authority section citing ADR-051 v1.7 §D1–§D6 — complete authority for this story; establishes SAC-2 bidirectional traceability per FB79. Frontmatter version 1.16→1.17; modified 2026-07-27 (POL-23). |
 | 1.16 | 2026-07-08 | story-writer | **Reconciling pin round (pass-4 closures): error-taxonomy v2.25→v2.26. Five live version-pin cites updated: (1) AC-004 SEC-002 cite (E-INFUSE-014 SEC-002 Assessment); (2) AC-005 SEC-001 cite (E-INFUSE-014 SEC-001 Rendering Note); (3) AC-006 SEC-001 cite (E-INFUSE-013 SEC-001 Rendering Note); (4) AC-007 SEC-001 cite (E-INFUSE-013 SEC-001 Rendering Note); (5) §References table row (key + current canonical version annotation). Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.15→1.16; updated 2026-07-08 (POL-23).** |
 | 1.15 | 2026-07-08 | story-writer | **Reconciling pin round (pass-3 closures): error-taxonomy v2.17→v2.25. Five live sites updated: (1) AC-004 SEC-002 cite (E-INFUSE-014 SEC-002 Assessment); (2) AC-005 SEC-001 cite (E-INFUSE-014 SEC-001 Rendering Note); (3) AC-006 SEC-001 cite (E-INFUSE-013 SEC-001 Rendering Note); (4) AC-007 SEC-001 cite (E-INFUSE-013 SEC-001 Rendering Note); (5) §References table row. Historical changelog rows (v1.11 "error-taxonomy v2.17 pin", v1.10 companion) left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.14→1.15; updated 2026-07-08 (POL-23).** |
 | 1.14 | 2026-07-06 | story-writer | **ADV-PR-P2-OBS-001 closure + comprehensive EC accuracy audit (prose/frontmatter only; no code/test/BC/index changes).** **(EC-006 rewrite — primary finding)** EC-006 description corrected: empty `iocs` array → `$.iocs[0].value` extraction returns `Err` (index 0 out of bounds) → `iocs_value_first` is SQL null (BC-2.16.002 `column_source_path_extraction_failed` event at adapter layer) → null-input short-circuit in `invoke_async_with_args` (`None => { enriched.push(None); continue; }`) → NULL output; `coerce_to_typed` is NOT called → NO E-INFUSE-014 emitted. Old prose was wrong on both counts: (a) described `iocs_value_first = ""` (empty string) rather than SQL null; (b) claimed E-INFUSE-014 was emitted via `i64::from_str("".trim())` which is the coercion path — a path that is unreachable for null inputs. **(RGT-022 re-anchor)** Red Gate Test Plan row 22 description updated: `test_ec006_empty_input_yields_null` re-anchored as a general empty-string-coercion guard (`coerce_to_typed("", Int64)` → None; complement to EC-004; explicitly NOT the empty-`iocs`-array trigger). EC-006 BC Anchor column no longer references RGT-022 (the test exercises coerce_to_typed, not the null short-circuit). **(EC-004 minor fix)** EC-004 f64 case corrected: "→ NULL" → "→ NULL + E-INFUSE-014" (both integer and float coercion branches call `warn_coercion_failed` on parse failure; omission was a documentation gap, not a behavioral gap). **(EC accuracy audit)** EC-001/002/003/005/007/008 audited against code in worktree — all ACCURATE; no changes. |

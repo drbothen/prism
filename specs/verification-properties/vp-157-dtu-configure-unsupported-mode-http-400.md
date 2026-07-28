@@ -1,8 +1,8 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
-status: draft
+version: "1.1"
+status: active
 producer: architect
 timestamp: 2026-07-27T00:00:00Z
 phase: wave-a
@@ -19,11 +19,11 @@ proof_method: unit_test
 verification_method: unit_test
 feasibility: feasible
 verification_lock: false
-proof_completed_date: null
+proof_completed_date: "2026-07-27"
 proof_file_hash: null
-lifecycle_status: draft
+lifecycle_status: active
 introduced: "2026-06-11"
-modified: null
+modified: "2026-07-27"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -92,63 +92,44 @@ clone, which is cheaper than a full harness integration test. This matches BC-3.
 characterization of VP-157 as a unit test ("unit test (per ops clone — Jira, PagerDuty,
 Slack; once-per-unsupported-mode until full coverage is ported)").
 
-## Proof Harness Skeleton
+## Proof Evidence
 
-```rust
-// [TODO: harness skeleton — author during Phase 3 story S-3.6.01 TDD delivery]
-// Method: unit_test
-//
-// SYMBOL RESOLUTION — test-writer must verify grounding before authoring tests
-//
-// TARGET FUNCTION: `POST /dtu/configure` handler in prism-dtu-harness
-//   Canonical source: BC-3.6.001 §Traceability — `inject_failure` API route
-//   Confirmed entry point: inject_failure call on a running clone instance
-//   (grounded via BC-3.6.001 Postcondition 5 and EC-008 description).
-//
-// HARNESS DEPENDENCIES:
-//   - A running ops clone (e.g., Jira) initialized within the test (no external service)
-//   - Admin token per BC-3.6.001 Postcondition 3 (per-clone, not shared)
-//   - `FailureMode::MalformedResponse` for the unsupported-mode trigger (BC-3.6.001 TV-7)
-//
-// REPRESENTATIVE TEST — VP-157: unsupported mode returns HTTP 400 with correct body shape
-//
-// #[tokio::test]
-// async fn unsupported_failure_mode_returns_http_400_and_no_state_change() {
-//     // 1. Build a harness with one Jira ops clone; obtain admin endpoint address
-//     let harness = build_test_harness_single_jira_clone().await;
-//     let clone_addr = harness.jira_admin_endpoint();
-//
-//     // 2. POST /dtu/configure with MalformedResponse (not in Jira supported-mode list)
-//     //    BC-3.6.001 TV-7: "Jira rejects MalformedResponse mode"
-//     let configure_response = post_dtu_configure(
-//         clone_addr, &FailureMode::MalformedResponse
-//     ).await;
-//
-//     // 3. Assert HTTP 400 (not HTTP 200)
-//     assert_eq!(configure_response.status(), 400,
-//         "unsupported mode must return HTTP 400, not silent 200 (VP-157 / EC-008)");
-//
-//     // 4. Assert error body shape: {"error": "unsupported_failure_mode", "mode": "MalformedResponse"}
-//     let body: serde_json::Value = configure_response.json().await.unwrap();
-//     assert_eq!(body["error"], "unsupported_failure_mode",
-//         "error field must be 'unsupported_failure_mode' (VP-157 / BC-3.6.001 EC-008)");
-//     assert_eq!(body["mode"], "MalformedResponse",
-//         "mode field must echo the attempted variant name (VP-157)");
-//
-//     // 5. Assert no state change: subsequent normal request succeeds (EC-009)
-//     let normal_response = issue_creation_request_jira(clone_addr).await;
-//     assert_eq!(normal_response.status(), 200,
-//         "clone must remain operational after unsupported-mode 400 (VP-157 / EC-009)");
-//     // No injected failure: normal response, not a failure response
-// }
-//
-// Kill conditions (mutation testing — these mutations MUST be caught):
-//   - Change 400 response to 200 (silent ACK) → test fails on status assertion
-//   - Omit "error" key from response body → test fails on body shape assertion
-//   - Corrupt "mode" value (e.g., static string instead of echoing variant name)
-//     → test fails on mode field assertion
-//   - Apply mode to clone state despite error → test fails on subsequent normal-request assertion
-```
+**Status: PROVEN.** S-3.6.01 merged via PR #83. The property is fully covered by tests
+in `crates/prism-dtu-harness/tests/bc_3_6_001_ops_clone_failure_modes.rs`.
+
+### Proven Tests (Phase 1 — Postcondition 5 primary coverage)
+
+| Test Function | Clone | Unsupported Mode | Asserts |
+|---|---|---|---|
+| `test_BC_3_6_001_jira_unsupported_mode_returns_400` | Jira | MalformedResponse (BC-3.6.001 TV-7) | HTTP 400; `{"error":"unsupported_failure_mode","mode":"..."}` body; no state change |
+| `test_BC_3_6_001_pagerduty_unsupported_mode_returns_400` | PagerDuty | unsupported mode | HTTP 400; body shape; no state change |
+| `test_BC_3_6_001_slack_unsupported_mode_returns_400` | Slack | unsupported mode | HTTP 400; body shape; no state change |
+
+### Proven Tests (Phase 2 — per-clone extension, covering remaining BC-3.6.001 VP-157 annotation)
+
+| Test Function | Clone | Asserts |
+|---|---|---|
+| `test_BC_3_6_001_claroty_unsupported_auth_mode_returns_400` | Claroty | HTTP 400; body shape |
+| `test_BC_3_6_001_armis_unsupported_auth_mode_returns_400` | Armis | HTTP 400; body shape |
+| `test_BC_3_6_001_armis_native_unknown_mode_returns_400_correct_body` | Armis native | HTTP 400; `{"error":"unsupported_failure_mode","mode":"..."}` body (wire-shape assertion) |
+| `test_BC_3_6_001_crowdstrike_clone_unsupported_auth_mode_returns_400` | CrowdStrike | HTTP 400; body shape |
+| `test_BC_3_6_001_generic_handler_nvd_unsupported_auth_mode_returns_400` | Generic/NVD | HTTP 400; body shape |
+
+### Test Infrastructure (verified real symbols)
+
+- **`configure_failure`** — async helper in `bc_3_6_001_ops_clone_failure_modes.rs`
+  that POSTs to `POST /dtu/configure` with a given `dtu_type`, `org_id`, and `FailureMode`
+  variant; returns HTTP response.
+- **`jira_create_issue`** — async helper in `bc_3_6_001_ops_clone_failure_modes.rs`
+  that sends a create-issue request to a running Jira clone; returns status code `u16`.
+  Used in "no state change" assertions after a 400 response (EC-009).
+
+### Kill Conditions (mutation targets, BC-3.6.001 Postcondition 5)
+
+- Returning HTTP 200 instead of 400 → `test_BC_3_6_001_jira_unsupported_mode_returns_400` fails on status assertion
+- Omitting `"error"` key from body → body shape assertion fails
+- Not echoing variant name in `"mode"` → mode field assertion fails
+- Applying mode to clone state despite 400 → `jira_create_issue` no-state-change assertion fails
 
 ## Feasibility Assessment
 
@@ -172,4 +153,5 @@ Slack; once-per-unsupported-mode until full coverage is ported)").
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | FB70 | 2026-07-27 | architect | F-WASE-P66-MED-003: Promoted `draft` → `active`. S-3.6.01 merged via PR #83; property is fully proven. Phantom symbols removed from proof harness skeleton (`build_test_harness_single_jira_clone`, `post_dtu_configure`, `issue_creation_request_jira` — zero occurrences in crates/). Replaced with real proof evidence citing verified test functions (`test_BC_3_6_001_jira_unsupported_mode_returns_400`, `test_BC_3_6_001_pagerduty_unsupported_mode_returns_400`, `test_BC_3_6_001_slack_unsupported_mode_returns_400`, plus five Phase 2 extension tests) and real helpers (`configure_failure`, `jira_create_issue`) from `bc_3_6_001_ops_clone_failure_modes.rs`. `proof_completed_date` set to 2026-07-27. |
 | 1.0 | FB68c | 2026-07-27 | architect | F-WASE-P65-OBS-001: Initial VP file authoring. VP-INDEX row and metadata existed since D-1099 (2026-06-11) per POL-1 ID-collision correction (VP-131 had been erroneously cited for this property in BC-3.6.001 v0.5; VP-157 was allocated in BC-3.6.001 v0.6 and VP-INDEX v1.78). No metadata changes — module (prism-dtu-harness), method (unit_test), priority (P1), anchor story (S-3.6.01), and source BC (BC-3.6.001) remain as originally registered. File gap closed. |

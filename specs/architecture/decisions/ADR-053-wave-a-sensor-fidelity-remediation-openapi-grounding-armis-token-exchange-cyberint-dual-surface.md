@@ -4,8 +4,8 @@ adr_id: "ADR-053"
 title: "Wave-A Sensor Fidelity Remediation — OpenAPI Grounding, Armis Token-Exchange Auth, and Cyberint Dual-Surface Split"
 status: accepted
 date: "2026-07-20"
-modified: "2026-07-25"
-version: "0.37"
+modified: "2026-07-27"
+version: "0.39"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes:
@@ -15,11 +15,11 @@ supersedes:
   - "ADR-031 §D3 (scope-narrowing only: single-surface assumption narrowed to Assets; §D3-b items 1-2 StaticCookieAuthProvider provider contract PRESERVED; §D3-b item 3 auth_type-keyed dispatch table superseded by header_scheme dispatch — see D2/D5; §D3-a DTU changes unaffected; §D3-b item 4 S-DEMO-001 story-scope note moot/historical — delivered)"
 superseded_by: null
 amends: null
-anchor_stories:  # verified from §Authority citations in each story
-  - S-WAVE-A-ENGINE-001   # title: "Wave-A ADR-053 standalone engine prerequisite"; §Authority: ADR-053
-  - S-WAVE-A-MCP-001      # §Authority: "ADR-053 §D6 (Option B)"
-  - S-WAVE-A-CYBERINT-SPEC-001   # §Authority: ADR-053 §D3-a dual-surface split (primary carrier)
-  - S-WAVE-A-ARMIS-REMEDIATION-001  # §Authority: "ADR-053 v0.35 §D-Armis section and ADR-054 v0.52 are the co-authorities"
+anchor_stories:  # SAC-2 ground truth: a story belongs here only when its own ## Authority section cites this ADR
+  - S-WAVE-A-MCP-001             # §Authority verified: "ADR-053 §D6 (Option B)"
+  - S-WAVE-A-ARMIS-REMEDIATION-001  # §Authority verified: "ADR-053 v0.35 §D-Armis section and ADR-054 v0.52 are the co-authorities"
+  - S-WAVE-A-ENGINE-001          # §Authority verified: "ADR-053 §D2" (header_scheme dispatch) and "ADR-053 §D5 manifest" (BC-2.01.017 §P2 amendment)
+  - S-WAVE-A-CYBERINT-SPEC-001   # §Authority verified: "ADR-053 v0.38 §D3-a" (Cyberint Dual-Surface Schema)
 related_adrs: [ADR-026, ADR-028, ADR-031, ADR-032, ADR-050, ADR-054]
 related_bcs: [BC-2.01.006, BC-2.01.008, BC-2.01.016, BC-2.01.017, BC-2.06.003, BC-2.16.009, BC-2.16.014]
 human_authorization: "D-1889 (2026-07-20) — 'Authorize full correction'; final ADR approval gate PASSED 2026-07-22 (D-1943) — see §Status"
@@ -769,6 +769,8 @@ and story decomposition for Wave-A sensor remediation may now proceed.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.39 | 2026-07-27 | architect | FB74 SAC-2 bidirectional traceability closure: S-WAVE-A-ENGINE-001 and S-WAVE-A-CYBERINT-SPEC-001 promoted from SAC-2-UNVERIFIED comments to verified `anchor_stories` entries. S-WAVE-A-ENGINE-001 §Authority cites "ADR-053 §D2" (header_scheme dispatch) and "ADR-053 §D5 manifest" (BC-2.01.017 §P2 amendment); S-WAVE-A-CYBERINT-SPEC-001 §Authority cites "ADR-053 v0.38 §D3-a" (Cyberint Dual-Surface Schema). SAC-2-UNVERIFIED comment block removed (POL-29 dimension 9b — stale annotation eliminated). |
+| 0.38 | 2026-07-27 | architect | F-WASE-P66-MED-002: `anchor_stories` corrected per SAC-2. S-WAVE-A-ENGINE-001 and S-WAVE-A-CYBERINT-SPEC-001 removed from active list — neither story has a `## Authority` section citing ADR-053, making the prior v0.37 `§Authority:` verification annotations false. Both entries retained as SAC-2-UNVERIFIED comments pending story-writer adding `## Authority` sections. S-WAVE-A-MCP-001 and S-WAVE-A-ARMIS-REMEDIATION-001 retain their verified status (both have `## Authority` sections). |
 | 0.37 | 2026-07-26 | architect | F-WASE-P64-OBS-001: `anchor_stories` key added to frontmatter (was absent — schema gap, not a late addition). Populated from ground truth: S-WAVE-A-ENGINE-001 (§Authority: ADR-053 standalone engine prereq), S-WAVE-A-MCP-001 (§Authority: ADR-053 §D6 Option B), S-WAVE-A-CYBERINT-SPEC-001 (§Authority: ADR-053 §D3-a dual-surface split), S-WAVE-A-ARMIS-REMEDIATION-001 (§Authority: ADR-053 v0.35 §D-Armis + ADR-054 co-authority). |
 | 0.36 | 2026-07-25 | architect | FB48 (F-WASE-P64-HIGH-007 + sibling sweep): §Source/Origin machine-local absolute paths removed for both Armis and Cyberint. Armis: vendored external findings document (outside prism repo, inaccessible to CI and reviewers) to `.factory/reference/api-specs/armis_endpoint_research_07.20.2026.md`; §Context and §Source/Origin Armis entries updated to repo-relative cites; `api-specs/README.md` inventory table and Armis section updated. Cyberint: §Source/Origin Cyberint entry re-pointed at already-vendored `.factory/reference/api-specs/cyberint_alerts_openapi_06.20.2026.json` and `cyberint_assets_openapi_06.20.2026.json` (the Cyberint findings doc was secondary analysis derived from those files; they are the declared ground truth per its own provenance). No behavioral changes to any decision. |
 | 0.35 | 2026-07-25 | architect | FB46 (adversary pass 62): §D6 added — CRIT-001 wire-contract adjudication (F-WASE-P62-CRIT-001, Option B): engine story S-WAVE-A-ENGINE-001 proceeds unchanged; `ValidationFailed`→BC-2.10.007 remap deferred to S-WAVE-A-MCP-001 (cross-crate error-surface work; BC-2.16.008 §Error Conditions amendment required; current multi-error format describes what was built, not the correct agent-facing contract — prism is AI-agent consumed, BC-2.10.007 exists for machine-readable error codes, HIGH-002 concurrent amendment of the E-SPEC-027 template makes string-matching brittle); SAP-3 anchor: integration test at `prism-spec-engine` public API asserting `Ok(ValidationFailed{errors})` with E-SPEC-027(a) text match (correct under both options; RG-024 must be renamed and restated). MED-009 — §D5 E-SPEC-027 completion marker corrected v2.67 → v2.68; §D2 and §D5 provenance trails extended to include v2.68 (v2.67 carried defective 14-char tchar set without backtick). D5 version-pin sweep: E-SPEC-028 at §Changelog v2.57 correct; BC-2.16.009 references in §D2/§D5 are section/rule/EC-ID only (no version pins to fix). LOW-001 — §D2 SEC-001 pointer extended to cite all four injection-class ECs: EC-009-043, EC-009-044 (bare `=`), EC-009-045 (space), and EC-009-046 (CTL character). |

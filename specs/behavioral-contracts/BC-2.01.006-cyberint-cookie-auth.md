@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.8"
+version: "1.9"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -19,7 +19,7 @@ extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: null
 amendment_lifecycle: null
 introduced: cycle-1
-modified: "2026-07-24"
+modified: "2026-07-27"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -68,8 +68,15 @@ CyberintTime parser tolerates this format as defensive coverage for any undocume
 numeric timestamp values), (3) Unix epoch millis (defensive coverage matching the spec-engine's
 `timestamp_formats` supported set). Note: `whois_created_date` is a field from the Alerts API
 (`cyberint_alerts_openapi_06.20.2026.json`), NOT the Assets API — it does not appear in the
-assets schema and is not used as a reference for this BC. The parser maintains a `(Timestamp, AssetID)` 2-tuple
-cursor. Timestamps that cannot be parsed through any of the 3 formats fall back to the fetch
+assets schema and is not used as a reference for this BC. The Cyberint Assets API uses
+page-number pagination: `GetAssetsRequest` declares `page_number` (integer, minimum 1,
+server-controlled page size — no `page_size` parameter exists in the schema) and
+`GetAssetsResponse` returns `total_assets`, `page_number`, and `assets`; no cursor fields
+exist anywhere in the schema. Multi-page retrieval is pending GAP-ASSETS-PAG-001 (no
+suitable `PaginationConfig` variant for server-controlled page size with total-count
+termination); until resolved, `cyberint-assets.sensor.toml` carries no
+`[tables.steps.pagination]` block (first-page-only per story S-WAVE-A-CYBERINT-SPEC-001
+§T-03). Timestamps that cannot be parsed through any of the 3 formats fall back to the fetch
 timestamp, with the raw string preserved in `raw_extensions`. The Alerts surface is a
 separate server with a distinct sensor spec and is covered by BC-2.01.018.
 
@@ -87,7 +94,7 @@ separate server with a distinct sensor spec and is covered by BC-2.01.018.
 - The `Authorization` header is NOT set for `cookie_roundtrip` sensors
 - Timestamps in Cyberint Assets responses are parsed using the CyberintTime 3-format
   parser (RFC-3339/ISO-8601 primary, Unix epoch seconds, Unix epoch millis)
-- Cursor is a `(Timestamp, AssetID)` 2-tuple extracted from each asset record
+- The Cyberint Assets API is page-number paginated (`GetAssetsRequest.page_number`, server-controlled page size, `GetAssetsResponse.total_assets`); no cursor fields exist in the schema. Multi-page retrieval is pending GAP-ASSETS-PAG-001 (no suitable `PaginationConfig` variant for server-controlled page size with total-count termination); until resolved, `cyberint-assets.sensor.toml` carries no `[tables.steps.pagination]` block (first-page-only per story S-WAVE-A-CYBERINT-SPEC-001 §T-03)
 
 ## Invariants
 - DI-012 (6-value canonical auth_type set per ADR-054 D1): `cookie_roundtrip` is one of
@@ -104,14 +111,14 @@ separate server with a distinct sensor spec and is covered by BC-2.01.018.
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | DEC-015 | Timestamp value that cannot be parsed by any of the 3 CyberintTime formats (unparseable by CyberintTime parser) — e.g., a date in an entirely unrecognized notation | Raw string preserved in `raw_extensions`; OCSF `time` field set to fetch timestamp as fallback; warning logged |
-| EC-01-009 | Customer ID derived from API URL subdomain changes | Config validation at startup detects mismatch; existing cursor state is invalidated via fingerprint check |
+| EC-01-009 | Customer ID derived from API URL subdomain changes | Config validation at startup detects mismatch; `customer_id` in `GetAssetsRequest` POST body resolves from the updated config automatically — no cursor state exists (first-page-only retrieval pending GAP-ASSETS-PAG-001) |
 
 ## Canonical Test Vectors
 
 | Test Vector ID | Description | Expected |
 |----------------|-------------|----------|
-| TV-BC-2.01.006-001 | Valid access_token cookie; standard ISO 8601 timestamp in Cyberint asset response | Asset record parsed; `(Timestamp, AssetID)` cursor set; `Cookie: access_token={token}` header present in request |
-| TV-BC-2.01.006-002 | DEFENSIVE epoch path — synthetic input: `first_seen` field value as epoch-seconds integer `1705708800` (defensive test — the assets API documents `first_seen` as `"format": "date-time"` string per `cyberint_assets_openapi_06.20.2026.json`; the epoch-seconds branch of the shared CyberintTime parser is defensive tolerance for any undocumented or future numeric timestamp values; no real assets field emits epoch-seconds integers in the documented schema) | Unix-epoch-seconds branch of CyberintTime parser succeeds; OCSF `time` field set to correct RFC-3339 timestamp; cursor timestamp extracted |
+| TV-BC-2.01.006-001 | Valid access_token cookie; standard ISO 8601 timestamp in Cyberint asset response | Asset record parsed; `Cookie: access_token={token}` header present in request; first-page assets returned (page-number pagination, first-page-only per GAP-ASSETS-PAG-001; no cursor extracted from records) |
+| TV-BC-2.01.006-002 | DEFENSIVE epoch path — synthetic input: `first_seen` field value as epoch-seconds integer `1705708800` (defensive test — the assets API documents `first_seen` as `"format": "date-time"` string per `cyberint_assets_openapi_06.20.2026.json`; the epoch-seconds branch of the shared CyberintTime parser is defensive tolerance for any undocumented or future numeric timestamp values; no real assets field emits epoch-seconds integers in the documented schema) | Unix-epoch-seconds branch of CyberintTime parser succeeds; OCSF `time` field set to correct RFC-3339 timestamp |
 | TV-BC-2.01.006-003 | Timestamp string that fails all 3 CyberintTime formats (DEC-015) — e.g., `"Jan 01 2026 12:00"` | Parse fails on all 3 formats; OCSF `time` falls back to fetch timestamp; raw string preserved in `raw_extensions`; warning logged; record not dropped |
 | TV-BC-2.01.006-004 | HTTP 401 cookie rejection | `PrismError::Sensor` with `category: "authentication"` and token refresh suggestion |
 | TV-BC-2.01.006-005 | HTTP 429 rate limit | Exponential backoff; partial results with `truncation_reason: "rate_limited"` if retries exhausted |
@@ -134,6 +141,7 @@ separate server with a distinct sensor spec and is covered by BC-2.01.018.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | FB70 | 2026-07-27 | product-owner | F-WASE-P66-CRIT-001: removed all `(Timestamp, AssetID)` cursor-pagination language. Ground truth: `GetAssetsRequest` in `cyberint_assets_openapi_06.20.2026.json` declares `page_number` (integer, minimum 1) with no cursor fields; `GetAssetsResponse` carries `total_assets`, `page_number`, `assets` — no cursor. §Description cursor sentence replaced with accurate page-number pagination description including GAP-ASSETS-PAG-001 blocker (no suitable `PaginationConfig` variant for server-controlled page size with total-count termination; first-page-only per story S-WAVE-A-CYBERINT-SPEC-001 §T-03). §Postconditions cursor bullet replaced with page-number pagination and first-page-only note. EC-01-009 cursor-state-invalidation removed; replaced with `GetAssetsRequest` POST body customer_id note (no cursor state to invalidate). TV-001 `(Timestamp, AssetID)` cursor-set reference removed. TV-002 `cursor timestamp extracted` removed. POL-29 9a: BC-2.01.018 named twin swept — false cross-reference corrected in same burst. POL-29 9b: story S-WAVE-A-CYBERINT-SPEC-001 §Behavioral Contracts references BC-2.01.006 by version; BC-INDEX pin update deferred to state-manager (outside product-owner write perimeter). POL-29 9c: no new MUST statements added. |
 | 1.8 | wave-a-spec-evolution-fix-burst-37 | 2026-07-24 | product-owner | F-WASE-P48-MED-002: §Description mis-grounded on `cyberint_alerts_openapi_06.20.2026.json` (the Alerts spec) and cited `whois_created_date` as the integer-epoch example — that field is alerts-only and does not appear in the assets schema. Read `cyberint_assets_openapi_06.20.2026.json` (in-repo): all date fields (`created`, `updated`, `first_seen`, `last_seen`, `created_from`) are `"type": "string", "format": "date-time"` — no integer epoch fields exist in the assets API. Fix: (a) citation changed to `cyberint_assets_openapi_06.20.2026.json`; (b) `whois_created_date` example removed and a note added that it is an alerts-only field; (c) formats (2) and (3) reframed as DEFENSIVE parser tolerance — the shared CyberintTime parser tolerates epoch-seconds/millis even though documented assets fields emit only RFC-3339/date-time strings; (d) TV-002 rewritten: `whois_created_date: 1705708800` → synthetic defensive vector using `first_seen: 1705708800` labeled as defensive-tolerance to make clear this is shared-parser coverage, not a documented assets field shape. Capability anchor: CAP-001 ("Sensor Adapter Layer (Internal)") per capabilities.md §CAP-001 — this BC specifies authentication and timestamp-parsing behavior for the Cyberint Assets sensor adapter, exactly what CAP-001 defines. POL-29 sweep: no remaining `whois_created_date`, `cyberint_alerts_openapi` reference in live BC body (changelog rows exempt). |
 | 1.7 | wave-a-rmu-amendment-burst-1 | 2026-07-23 | product-owner | RU-Q5 REFUTED: parity amendment with BC-2.01.018 v1.4. Canonical Cyberint OpenAPI (`cyberint_alerts_openapi_06.20.2026.json`, in-repo) confirms no custom format exists anywhere. BC amended from 4-format to 3-format throughout: §Description (grounding citation added), §Postconditions. DEC-015 reframed: "unexpected 5th format" → "unparseable by all 3 CyberintTime formats". TV-002 rewritten: custom-format test → Unix-epoch-seconds integer test. TV-003 updated: "5th format" → "fails all 3 formats" with concrete example. |
 | 1.6 | wave-a-spec-evolution-burst-3 | 2026-07-22 | product-owner | ADR-053 D3 amendment: BC scope restricted to Cyberint Assets surface only (`cyberint-assets.sensor.toml`, `/asset-configuration` server). H1 title updated (added "Assets"). Amendment note added citing ADR-053 D3 split rationale and BC-2.01.018 as the Alerts-surface sibling BC. Description prose updated to Cyberint Assets sensor with `/asset-configuration` server scope. Preconditions updated to `cyberint-assets.sensor.toml` with `header_scheme = "cookie:access_token"` per ADR-053 D2. Postconditions updated: `StaticCookieAuthProvider` + `header_scheme = "cookie:access_token"` + `(Timestamp, AssetID)` cursor. DI-012 invariant note updated to 6-value canonical auth_type set per ADR-054 D1. Capability Anchor Justification added per adversary policy 5. scheduled_amendment_in cleared (ADR-023 complete in v1.5). modified date 2026-07-22. |

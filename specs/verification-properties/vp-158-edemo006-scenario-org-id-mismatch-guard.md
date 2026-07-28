@@ -1,8 +1,8 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
-status: draft
+version: "1.1"
+status: active
 producer: architect
 timestamp: 2026-07-27T00:00:00Z
 phase: wave-a
@@ -19,11 +19,11 @@ proof_method: unit_test
 verification_method: unit_test
 feasibility: feasible
 verification_lock: false
-proof_completed_date: null
+proof_completed_date: "2026-07-27"
 proof_file_hash: null
-lifecycle_status: draft
+lifecycle_status: active
 introduced: "2026-06-12"
-modified: null
+modified: "2026-07-27"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -99,83 +99,44 @@ inspection; no clones are started and no I/O occurs. A synchronous or minimal as
 can call `build_clone_pairs` directly with a crafted `ClientConfig` struct matching
 TV-019-015, making this a pure unit test.
 
-## Proof Harness Skeleton
+## Proof Evidence
 
-```rust
-// [TODO: harness skeleton — author during Phase 3 story S-DEMO-DTU-LIVE-SCENARIO-001-B TDD delivery]
-// Method: unit_test
-//
-// SYMBOL RESOLUTION — test-writer must verify grounding before authoring tests
-//
-// TARGET FUNCTION: `build_clone_pairs` in prism-dtu-demo-server::harness
-//   Confirmed real: BC-2.06.019 §Traceability cites
-//   `crates/prism-dtu-demo-server/src/harness.rs` as the site of this function.
-//   Input type: `ClientConfig` (or equivalent config struct with `[[clones]]` entries
-//   including `seed`, `org_id`, and `scenario.enabled` fields per BC-2.06.019 §Description).
-//   Output type: `Result<Vec<ClonePair>, DemoServerError>` (or equivalent).
-//
-// HARNESS DEPENDENCIES:
-//   - Config construction helper for `ClientConfig` with multiple clone entries
-//   - `CloneConfig` struct must support `seed: u64`, `org_id: String`,
-//     `scenario: Option<ScenarioConfig>` with `enabled: bool`
-//
-// TEST 1 — VP-158: E-DEMO-006 fires for same seed, different org_ids (BC-2.06.019 TV-019-015)
-//
-// #[test]  // or #[tokio::test] if build_clone_pairs is async
-// fn edemo006_fires_for_same_seed_different_org_ids() {
-//     // TV-019-015: seed=100 for both, org_id-A != org_id-B, both scenario.enabled=true
-//     let config = ClientConfig::test_with_two_scenario_clones(
-//         CloneEntry { name: "crowdstrike", seed: 100, org_id: "uuid-A", scenario_enabled: true },
-//         CloneEntry { name: "armis",       seed: 100, org_id: "uuid-B", scenario_enabled: true },
-//     );
-//
-//     let result = build_clone_pairs(&config);
-//
-//     // Assert: Err returned before any clone is constructed
-//     assert!(result.is_err(),
-//         "same seed + different org_ids must return Err (VP-158 / BC-2.06.019 PRE-6)");
-//
-//     // Assert: error identifies E-DEMO-006
-//     let err_msg = result.unwrap_err().to_string();
-//     assert!(err_msg.contains("E-DEMO-006"),
-//         "error must cite E-DEMO-006 (VP-158 / BC-2.06.019 §E-DEMO-006)");
-//
-//     // Assert: both org_ids appear in the error message
-//     assert!(err_msg.contains("uuid-A"),
-//         "error message must name first org_id (VP-158)");
-//     assert!(err_msg.contains("uuid-B"),
-//         "error message must name second org_id (VP-158)");
-// }
-//
-// TEST 2 — Control: same seed AND same org_id does NOT trigger E-DEMO-006
-//
-// #[test]
-// fn edemo006_not_triggered_for_same_seed_same_org_id() {
-//     let config = ClientConfig::test_with_two_scenario_clones(
-//         CloneEntry { name: "crowdstrike", seed: 100, org_id: "uuid-A", scenario_enabled: true },
-//         CloneEntry { name: "armis",       seed: 100, org_id: "uuid-A", scenario_enabled: true },
-//     );
-//
-//     let result = build_clone_pairs(&config);
-//
-//     // May return Ok or Err for a different reason (E-DEMO-003 archetype check etc.)
-//     // but must NOT return E-DEMO-006
-//     if let Err(e) = result {
-//         assert!(!e.to_string().contains("E-DEMO-006"),
-//             "same seed + same org_id must not trigger E-DEMO-006 (VP-158 control)");
-//     }
-// }
-//
-// Kill conditions (mutation testing — these mutations MUST be caught):
-//   - Remove the org_id equality check from build_clone_pairs
-//     → test_1 fails: result is Ok, not Err(E-DEMO-006)
-//   - Swap error code to a different E-DEMO-NNN
-//     → test_1 fails: error message does not contain "E-DEMO-006"
-//   - Suppress the first or second org_id from the error message
-//     → test_1 fails on the org_id presence assertions
-//   - Check seed mismatch instead of org_id mismatch (confuse E-DEMO-002 with E-DEMO-006)
-//     → test_2 may incorrectly fail or test_1 may not trigger correctly
-```
+**Status: PROVEN.** The E-DEMO-006 guard is implemented in `build_clone_pairs` in
+`crates/prism-dtu-demo-server/src/harness.rs`. Tests are in
+`crates/prism-dtu-demo-server/tests/bc_2_06_019_scenario_progression.rs`.
+
+**Note on VP alias:** The test file cites this property as `VP-019-I` (the BC-2.06.019
+alias registered at BC v1.2). Zero occurrences of the string `VP-158` appear in crates/;
+this was the F-WASE-P66-LOW-003 finding. The alias and the VP-INDEX entry are the same
+property; `VP-019-I` in tests corresponds to `VP-158` in the VP-INDEX.
+
+### Proven Tests
+
+| Test Function | Scenario | Input Config | Asserts |
+|---|---|---|---|
+| `test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones` | TV-019-015: seed=100 for both clones; CrowdStrike org_id=DEMO_ORG_UUID_DEADBEEF, Armis org_id=DEMO_ORG_UUID_CAFEBABE | `make_cs_armis_same_seed_different_org(100, DEADBEEF, CAFEBABE)` | `build_clone_pairs` returns `Err`; error string contains `"E-DEMO-006"`; error names both org_ids; guard fires before any clone is constructed (BC-2.06.019 PRE-6 / EC-019-013) |
+| `test_BC_2_06_019_e_demo_006_case_variant_org_ids_succeed` | UUID byte-identity control: same UUID in different case (lower/upper); byte-identical after parse | `make_cs_armis_same_seed_different_org(100, DEADBEEF_LOWER, DEADBEEF_UPPER)` | `build_clone_pairs` does NOT return `Err("E-DEMO-006")`; byte-based comparison avoids false positive |
+
+### Test Infrastructure (verified real symbols)
+
+- **`build_clone_pairs`** — the target function in `crates/prism-dtu-demo-server/src/harness.rs`.
+  Takes a config struct, validates scenario-clone invariants (E-DEMO-002 → E-DEMO-006 →
+  E-DEMO-003 → E-DEMO-004 guard order), and returns `Err` containing the E-DEMO-NNN code
+  on first violation.
+- **`make_cs_armis_same_seed_different_org`** — test helper in `bc_2_06_019_scenario_progression.rs`
+  that constructs a two-clone config (CrowdStrike + Armis) with the specified seed and
+  per-clone org_ids.
+- **`DEMO_ORG_UUID_DEADBEEF` / `DEMO_ORG_UUID_CAFEBABE`** — UUID string constants used
+  as distinct org_id values for TV-019-015.
+- **`DEMO_ORG_UUID_DEADBEEF_UPPER`** — uppercase variant of `DEADBEEF` UUID for the
+  byte-identity control case.
+
+### Kill Conditions (mutation targets, BC-2.06.019 PRE-6)
+
+- Remove org_id equality check from `build_clone_pairs` → `test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones` fails: `is_err()` returns false
+- Change error code from `E-DEMO-006` to another code → error string assertion fails
+- Suppress first or second org_id from error message → org_id presence assertions fail
+- Use raw string comparison instead of byte-based UUID comparison → `test_BC_2_06_019_e_demo_006_case_variant_org_ids_succeed` fails: `E-DEMO-006` false positive for case-variant UUIDs
 
 ## Feasibility Assessment
 
@@ -200,4 +161,5 @@ TV-019-015, making this a pure unit test.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | FB70 | 2026-07-27 | architect | F-WASE-P66-LOW-003 (VP file leg): Promoted `draft` → `active`. E-DEMO-006 guard confirmed implemented in `build_clone_pairs` (`harness.rs`). Phantom proof harness skeleton removed (symbols `ClientConfig::test_with_two_scenario_clones` and `CloneEntry` do not exist in crates/). Replaced with real proof evidence citing `test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones` and `test_BC_2_06_019_e_demo_006_case_variant_org_ids_succeed` from `bc_2_06_019_scenario_progression.rs`; real helpers `make_cs_armis_same_seed_different_org` and `DEMO_ORG_UUID_*` constants documented. VP-INDEX citation note added: crates/ cites this property as alias `VP-019-I`, not `VP-158` — zero occurrences of `VP-158` in crates/ is the finding; the alias is the same property. `proof_completed_date` set to 2026-07-27. |
 | 1.0 | FB68c | 2026-07-27 | architect | F-WASE-P65-OBS-001: Initial VP file authoring. VP-INDEX row and metadata existed since 2026-06-12 (BC-2.06.019 v1.2 PO micro-burst adding PRE-6 and VP-019-I alias). No metadata changes — module (prism-dtu-demo-server), method (unit_test), priority (P1), anchor story (S-DEMO-DTU-LIVE-SCENARIO-001-B), and source BC (BC-2.06.019) remain as originally registered. File gap closed. |

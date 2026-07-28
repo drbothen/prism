@@ -92,8 +92,8 @@ status: merged
 #   BC-2.11.016 v1.25, BC-2.11.007 v1.9) + BC-2.11.019 v1.6 draft→active at merge per POL-14. Canonical versions
 # are authoritative in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "2.44"
-updated: "2026-07-09"
+version: "2.45"
+updated: "2026-07-27"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
 input-hash: "TBD"
@@ -357,6 +357,32 @@ crates_touched:
 ---
 
 # S-DEMO-FIDELITY-REMEDIATION-001: Demo Fidelity Code Fixes
+
+## Authority
+
+**ADR-050 v1.2 §D1/§D3/§D4** (Workspace reqwest TLS Backend — rustls-tls Mandatory, native-tls Forbidden)
+governs the TLS-REMEDIATION scope of this story. ADR-050 was established during this story's
+delivery: ADR-050 §Status records that the convention was "Established during
+S-DEMO-FIDELITY-REMEDIATION-001 to resolve 4 deterministically-failing DTU stage-0 scenario
+tests caused by macOS native-tls/Security.framework Keychain initialization overhead."
+
+**§D1** mandates that every `reqwest` dependency entry in the workspace MUST declare
+`default-features = false, features = ["rustls-tls"]`. This story's AC-TLS implements that
+obligation across 11 Cargo.toml entries (9 DTU crates, prism-bin `[dev-dependencies]`,
+ocsf-proto-gen optional dep). **§D3** requires new crates to declare `rustls-tls` at first
+write; AC-TLS includes the ocsf-proto-gen optional dep to satisfy this requirement. **§D4**
+calibrates DTU stage-0 timing budgets (50s per BC-2.06.019) to ~0ms `reqwest::Client`
+construction cost under rustls; the 4 un-quarantined tests (3 in prism-dtu-armis, 1 in
+prism-dtu-crowdstrike) satisfy this budget after the fix.
+
+Read ADR-050 §D1, §D3, §D4 at:
+`.factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md`
+
+The other story components (N1, N1B, N2, AUDIT-001, AUDIT-004) are governed by their
+respective behavioral contracts (BC-2.11.022, BC-2.11.019, BC-2.11.001, BC-2.10.012,
+BC-2.10.016); ADR-050 authority is scoped to AC-TLS only.
+
+---
 
 ## Narrative
 
@@ -1549,6 +1575,7 @@ and the TLS-REMEDIATION fold-in (commit cf66151f):
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.45 | FB79-authority-section | 2026-07-27 | story-writer | Add §Authority section citing ADR-050 v1.2 §D1/§D3/§D4 — scoped to the TLS-REMEDIATION fold-in (AC-TLS); establishes SAC-2 bidirectional traceability. ADR-050 was established during this story's delivery. Frontmatter version 2.44→2.45; updated 2026-07-27 (POL-23). |
 | 2.44 | ADV-PR-P5-MED-003-closure-pin-sync-2026-07-09 | 2026-07-09 | story-writer | **ADV-PR-P5-MED-003 closure (AC-M2 bare-Field sub-arm fix) + BC-2.11.016 v1.24→v1.25 pin-sync (§Preconditions.2 type-name fixes + OrderExpr::expr table fix). Task 1 — AC-M2 prose fix: "now handles both bare `Expr::Field` LHS...and `Expr::FuncCall` LHS...in both cases recursing via `extract_field_paths_with_bareness`" → "handles two sub-arms: bare `Expr::Field(fp)` LHS calls `extract_column_name_from_field_path(fp, table_name, table_alias)` directly (single-shot), emitting `(name, fp.segments.len() == 1)` as the `(name, is_bare)` pair; `Expr::FuncCall` LHS recurses via `extract_field_paths_with_bareness`". Two historical blockquotes (BC-2.11.016 v1.5 HAVING addition, ADR-048 HAVING agg-fn grammar extension) preserved per POL-29. positions-7–8 clarifying sentence preserved. Task 2 — BC-2.11.016 v1.24→v1.25 (§Preconditions.2 type-name fixes + OrderExpr::expr table fix): six live sites updated — (1) frontmatter `# BC status:` comment; (2) frontmatter red-gate test inventory comment (AC-M2 HAVING label); (3) §Behavioral Contracts body table BC-2.11.016 version cell; (4) AC-M1 trace; (5) AC-M2 trace; (6) AC-M2 §HAVING body prose. L22 adjacent-cell check: grep for old shapes (FilterExpr/PipeStage::Stats { by }/PipeStage::Enrich { input_col }/PipeStage::Dedup { fields }/OrderBy::expr/OrderExpr::expr) across four carrier stories: zero hits in Key Clauses or task cells; no adjacent-cell fixes needed. BC-2.11.004, BC-2.11.017, BC-2.11.020 not cited in this story. AC semantics UNCHANGED. Frontmatter version 2.43→2.44; updated 2026-07-09 (POL-23).** |
 | 2.43 | ADV-PR-P4-MED-001-closure-pin-sync-2026-07-09 | 2026-07-09 | story-writer | **ADV-PR-P4-MED-001 closure (mixed-chain fix in AC-M2 prose) + BC-2.11.016 v1.23→v1.24 pin-sync (type-name corrections, ADV-PR-P4-MED-001). Task 1 — AC-M2 prose fix: "calls `collect_predicate_columns`" → "calls `collect_predicate_columns_with_bareness`"; "`Predicate::Compare` arm in `collect_predicate_columns`" → "`Predicate::Compare` arm in `collect_predicate_columns_with_bareness`"; clarifying sentence added: non-bareness `collect_predicate_columns` (recurses via `extract_field_paths_from_expr`) remains walker for Filter/Pipe positions 7–8. Two historical blockquotes (BC-2.11.016 v1.5 HAVING addition, ADR-048 HAVING agg-fn grammar extension) preserved per POL-29. Task 2 — BC-2.11.016 v1.23→v1.24 (type-name corrections): six live sites updated — (1) frontmatter `# BC status:` comment; (2) frontmatter red-gate test inventory comment (AC-M2 HAVING label); (3) §Behavioral Contracts body table BC-2.11.016 version cell; (4) AC-M1 trace; (5) AC-M2 trace; (6) AC-M2 §HAVING body prose. Semantic-cell currency: L22 AST type name check — grep for Where(FilterExpr)/Predicate::And/Predicate::Or/SortEntry.field across story: zero hits; no adjacent-cell fixes needed. BC-2.11.004, BC-2.11.017, BC-2.11.020, and error-taxonomy not cited in this story. AC semantics UNCHANGED. Frontmatter version 2.42→2.43; updated 2026-07-09 (POL-23).** |
 | 2.42 | ADV-PR-P3-LOW-001-semantic-currency-2026-07-09 | 2026-07-09 | story-writer | **semantic-currency completion for BC-2.11.016 v1.23 _with_bareness extractor rename (ADV-PR-P3-LOW-001). Two live present-tense mechanism description sites updated — (1) frontmatter implementation comment (~line 344): "extract_field_paths_from_expr helper (the SINGLE extraction point for all 5 positions)" → "extract_field_paths_with_bareness (positions 1/3/4/5) and extract_predicate_columns_with_bareness (positions 2/6; per-reference (name, is_bare) pairs for HEAD-JOIN SUSPENSION gate)"; (2) AC-M2 §HAVING body prose (~lines 866–876): "Position 6 (HAVING): uses `extract_predicate_columns`...recursing via `extract_field_paths_from_expr`..." → "uses `extract_predicate_columns_with_bareness`...recursing via `extract_field_paths_with_bareness` to collect all `(name, is_bare)` column reference pairs"; "For the other positions (1–5), `extract_field_paths_from_expr` is the single extraction helper..." → "For positions 1/3/4/5, `extract_field_paths_with_bareness` is the extraction helper...enabling the HEAD-JOIN SUSPENSION gate to distinguish bare from qualified column references". Two historical blockquotes preserved per POL-29: "BC-2.11.016 v1.5 HAVING addition (F-PWL1-LOW-001)" and "ADR-048 HAVING agg-fn grammar extension (F-PXL3-MED-002)" — origin notes describing mechanism at introduction time, not live currency prose. Post-edit grep confirms zero remaining present-tense extract_field_paths_from_expr/extract_predicate_columns claims about positions 1–6 outside historical blockquotes. ADR-048 WHERE-vs-HAVING grammar point UNCHANGED (WHERE count(col) > 5 remains E-QUERY-001 parse error). BC-2.11.004, BC-2.11.017, BC-2.11.020, and error-taxonomy not cited in this story. AC semantics UNCHANGED. Frontmatter version 2.41→2.42; updated 2026-07-09 (POL-23).** |

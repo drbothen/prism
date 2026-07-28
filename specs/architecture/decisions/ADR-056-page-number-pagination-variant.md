@@ -5,13 +5,14 @@ title: "PageNumber Pagination Variant — Named-Page (1-Based) Grammar Extension
 status: accepted
 date: "2026-07-26"
 modified: "2026-07-27"
-version: "0.2"
+version: "0.5"
 producer: architect
 subsystems_affected: [SS-06, SS-07, SS-16]
 supersedes: null
 superseded_by: null
 amends: null
-anchor_stories: [S-WAVE-A-CYBERINT-SPEC-001]
+anchor_stories:
+  - S-WAVE-A-CYBERINT-SPEC-001  # §Authority verified: "ADR-056 v0.4" (PageNumber Pagination Variant, wiring_deferred_to designation)
 wiring_deferred_to: S-WAVE-A-CYBERINT-SPEC-001
 related_adrs: [ADR-028, ADR-053]
 related_bcs: [BC-2.16.002]
@@ -368,13 +369,33 @@ parameters is determined by the step's HTTP method:
 
 - **Termination:** `if page_record_count < page_size { break }` — identical to `OffsetLimit`.
 
-- **Activation gate:** Injection occurs only when `page_size > 0`. `page_size = 0` skips
-  injection (single-request / non-paginated `execute_step` path).
+- **Activation gate:** `build_request` injects `page` and `size` only when `page_size > 0`.
+  This guard serves the **engine-internal sentinel case**: `execute_step` (the single-request
+  path, distinct from the pagination loop) passes `active_page_size = 0` to `build_request`
+  to signal that no pagination injection is active. A TOML spec declaring `page_size = 0` is
+  **rejected at spec-load time** by `validate_sensor_spec` §Category 4 with
+  `SpecErrorCode::ESpec001` (§D3 spec-load layer; §D10 CE-2 validation obligation) — the
+  value `0` cannot reach `build_request` from a validated spec. The `page_size > 0` guard in
+  `build_request` is defense-in-depth for the engine-internal sentinel path only.
 
 - **First page, empty `body_template`:** POST body becomes `{"page": 1, "size": page_size}`.
 
 Grounding: ADR-056 §D3 (dispatch shape); `cyberint_alerts_openapi_06.20.2026.json`
 `GetAlertsRequest` schema (`page` field minimum 1; `size` field).
+
+**Required BC-2.16.009 §Validation Rule 4 `page_number` row (product-owner must author this in the PO leg):**
+
+Add the following row to BC-2.16.009 §Validation Rule 4 as a sibling to the existing
+`offset_limit` row. The error message template uses the step name from the TOML spec step
+being validated, consistent with the `offset_limit` parallel.
+
+| Pagination type | Rejection condition | Error code | Error message |
+|-----------------|---------------------|------------|---------------|
+| `page_number` | `page_size == 0` in `PaginationConfig::PageNumber` | `SpecErrorCode::ESpec001` | `"page_number pagination in step '{step_name}' requires page_size > 0"` |
+
+Grounding: §D10 CE-2 (`validate_sensor_spec` `PageNumber` arm obligation); §D3 spec-load layer.
+This rejection mirrors the existing `OffsetLimit { page_size: 0 }` row, which also uses
+`SpecErrorCode::ESpec001` per the `OffsetLimit` spec-load-layer precedent.
 
 ### D9 — `#[non_exhaustive]` Gate Count: Unchanged at 92
 
@@ -519,13 +540,36 @@ hidden per-variant initialization logic.
     - Non-object `body_template` with `PageNumber` POST returns `Err(SpecEngineError)`.
     - `page_size = 0` in TOML produces `SpecErrorCode::ESpec001` at spec-load time (not
       silent unpaginated behavior and not a 1,000-page runaway).
-    - `SensorTableDescriptor.pagination_type` for a `PageNumber` table reports
-      `PaginationType::Page` (not `Offset`, not `None`).
+    - `SensorTableDescriptor.pagination_type` for a `PageNumber` table serializes to MCP wire
+      value `"Page"` (PascalCase — NOT `"page"`). `PaginationType` carries no `rename_all`
+      serde attribute; variant identifiers serialize verbatim, consistent with the existing MCP
+      wire vocabulary `"Cursor"` / `"Offset"` / `"None"` (all PascalCase). Test assertion MUST
+      use `"Page"`. Adding `rename_all = "snake_case"` to `PaginationType` to produce `"page"`
+      would be a breaking change, renaming all three existing wire values to lowercase.
+      `S-WAVE-A-CYBERINT-SPEC-001` AC-019 / RG-018 must assert `"Page"`, not `"page"`.
 
 ### For the product-owner
 
-Author the BC-2.16.002 §Postconditions row specified in D8. This is a separate PO leg
-dispatched after this ADR. No BC content is authored here.
+Author two BC artifacts using the specifications in §D8:
+
+1. The BC-2.16.002 §Postconditions row specified in §D8 (Row heading + Row body, including the
+   corrected activation-gate description).
+2. The BC-2.16.009 §Validation Rule 4 `page_number` row specified in the §D8 table above
+   (sibling to the existing `offset_limit` row).
+
+Both artifacts are being authored in the concurrent product-owner leg of this same burst
+(FB71); no BC content is authored in this ADR. Both MUST be present before
+`S-WAVE-A-CYBERINT-SPEC-001` is declared implementation-ready:
+
+- BC-2.16.002 §Postconditions PageNumber Pagination Dispatch row: postcondition authority for
+  AC-003 and AC-004 in `S-WAVE-A-CYBERINT-SPEC-001`.
+- BC-2.16.009 §Validation Rule 4 `page_number` row: authority for the §D10 CE-2 validation
+  obligation exercised by RG-017
+  (`test_pagination_page_number_page_size_zero_rejected_at_spec_load`) in
+  `S-WAVE-A-CYBERINT-SPEC-001`.
+
+(POL-29 dimension 9c — anchored to `S-WAVE-A-CYBERINT-SPEC-001` AC-003, AC-004, and
+RG-017. Closes F-CVA-MED-001.)
 
 ### For future sensor specs using named-page pagination
 
@@ -535,9 +579,12 @@ must verify that `page_size` is within the sensor API's accepted range.
 
 ---
 
-## §Changelog
+## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 0.5 | FB74 | 2026-07-27 | architect | SAC-2 per-entry verification annotation added to `anchor_stories`. Closes F-CVC-MED-001: S-WAVE-A-CYBERINT-SPEC-001 §Authority now cites "ADR-056 v0.4" (PageNumber Pagination Variant, wiring_deferred_to designation). Single-line `anchor_stories` expanded to multi-line format with per-entry annotation. |
+| 0.4 | FB71 | 2026-07-27 | architect | Closes F-CVA-MED-001 (POL-29 dimension 9c). §Consequences "For the product-owner" — unanchored mandate replaced with story-anchored obligation: both BC artifacts are being authored in the concurrent PO leg of FB71 and MUST be present before `S-WAVE-A-CYBERINT-SPEC-001` is declared implementation-ready; anchored to `S-WAVE-A-CYBERINT-SPEC-001` AC-003, AC-004, and RG-017 (§D10 CE-2 coverage). No §D8 content changed. |
+| 0.3 | FB70 | 2026-07-27 | architect | Closes F-WASE-P66-HIGH-001, F-WASE-P66-MED-001, F-WASE-P66-LOW-001. HIGH-001: §D10 Consequences item 11 corrected — `PaginationType::Page` wire literal is `"Page"` (PascalCase, no `rename_all` on `PaginationType`), not `"page"`; breaking-change analysis added; `S-WAVE-A-CYBERINT-SPEC-001` RG-018 must assert `"Page"`. MED-001: §D8 activation gate bullet corrected — removes false `page_size = 0` skips-injection claim; replaces with accurate two-layer description: spec-load `ESpec001` rejection (§D3/§D10 CE-2) and engine-internal `active_page_size = 0` sentinel; BC-2.16.009 §Validation Rule 4 `page_number` row specification added to §D8 (sibling to `offset_limit` row); §Consequences updated to instruct PO to author both BC-2.16.002 §Postconditions row AND BC-2.16.009 §Validation Rule 4 row. LOW-001: `## §Changelog` heading corrected to `## Changelog` to match ADR-050 through ADR-055 corpus convention. |
 | 0.2 | FB65 | 2026-07-27 | architect | Closes F-WASE-P65-HIGH-002 and F-WASE-P65-HIGH-003. §D3 activation gate amended: two-layer enforcement clarified (spec-load `ESpec001` rejection + engine-internal `active_page_size = 0` sentinel); false "silent-disabling" language removed. §D4 soundness note added: `ps = 0` runaway unreachable from validated spec. §D5 corrected: "consistency with `OffsetLimit`" correctly means spec-load rejection, not silent acceptance; removes false claim that `page_size = 0` spec disables pagination. §D9 scoped to external crates only; forward-references §D10 for in-crate sites. §D10 added (new): `PaginationType::Page` variant decision (agent-observable MCP semantic — must not fold into `Offset`); complete enumeration of four compile-error sites (CE-1 through CE-4) and two behavioral-migration sites (BM-1, BM-2) within `prism-spec-engine`; adversary found CE-1 and CE-2; CE-3 and CE-4 (both in `prism_spec_engine::pipeline`) were additional. §Consequences items renumbered 1–11: new items for `PaginationType::Page`, `sensor_table_descriptor_from_table_spec`, `validate_sensor_spec` spec-load rejection; test list extended with `ESpec001` and `PaginationType::Page` wire assertions. |
 | 0.1 | FB53a | 2026-07-26 | architect | Initial authoring. Ratifies `PageNumber { page_size: u32 }` grammar extension to `PaginationConfig`. Closes F-WASE-P64-CRIT-003. `wiring_deferred_to: S-WAVE-A-CYBERINT-SPEC-001` added per POL-15 false-positive escape (variant not yet in codebase; three-part Canonical Principle Rule 3 deferral recorded in §Status). |

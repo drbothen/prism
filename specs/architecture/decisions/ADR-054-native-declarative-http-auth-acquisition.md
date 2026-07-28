@@ -4,8 +4,8 @@ adr_id: "ADR-054"
 title: "Native Declarative HTTP Auth Acquisition — TokenExchange and OAuth2ClientCredentials via DeclarativeHttpAuthProvider; Retire crowdstrike-oauth2.prx"
 status: accepted
 date: "2026-07-20"
-modified: "2026-07-25"
-version: "0.56"
+modified: "2026-07-27"
+version: "0.57"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-17]
 supersedes: null
@@ -14,7 +14,7 @@ amends:
   - "ADR-023 (partial — §Rule 4 walk-back: standard HTTP token-acquisition flows do not require WASM plugins; custom_via_plugin escape hatch preserved for genuinely non-standard auth)"
   - "ADR-026 (partial — §D3: AuthType closed enum gains token_exchange variant; affects E-SPEC-012 enum validation and step9a_populate_adapter_registry dispatch)"
   - "ADR-028 (partial — §D13 oauth2_client_credentials: PluginAuthProvider (WASM) path spec-load-rejected per D10(b) E-SPEC-028(b) — fires for auth_type ∈ {oauth2_client_credentials, token_exchange} + auth_plugin present regardless of [auth_acquisition] (Definition 1, adjudicated F-WASE-P2-HIGH-001); DeclarativeHttpAuthProvider (native) is the sole live path; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; crowdstrike-oauth2.prx plugin to be retired per D5)"
-anchor_stories:  # verified from §Authority citations in each story
+anchor_stories:  # SAC-2 verified FB62 (populated) + FB71 (independently confirmed, dimension-9a twin sweep)
   - S-ADR054-WAVE-A-001         # §Authority: "ADR-054 v0.55 (accepted 2026-07-22) is the authoritative design document"
   - S-WAVE-A-ARMIS-REMEDIATION-001  # §Authority: "ADR-053 v0.35 §D-Armis section and ADR-054 v0.52 are the co-authorities"
 related_adrs: [ADR-023, ADR-026, ADR-028, ADR-031, ADR-032, ADR-050, ADR-053]
@@ -944,6 +944,7 @@ the ADR-053 standalone Wave-A engine story per §D7 merge-dependency.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 0.57 | 2026-07-27 | architect | FB71 SAC-2 dimension-9a twin sweep (POL-29). ADR-054 is the named sibling twin for ADR-053 on `S-WAVE-A-ARMIS-REMEDIATION-001`. Independent ground-truth verification of `anchor_stories`: both entries confirmed — `S-ADR054-WAVE-A-001` §Authority cites ADR-054 v0.55 as authoritative design document; `S-WAVE-A-ARMIS-REMEDIATION-001` §Authority cites ADR-053 §D-Armis and ADR-054 v0.52 as co-authorities. All remaining rg-l ADR-054 story candidates swept (no §Authority section citing ADR-054 found in `S-DTU-CROWDSTRIKE-INCIDENTS-ROUTE-001`, `S-DEMO-CYBERINT-INCIDENTS-SEEDING-001`, `S-MAINT-ADR-ANCHOR-GATE-001`, `S-MAINT-VOLATILE-CITE-001`, `S-WAVE-A-ENGINE-001`; all correctly absent). `anchor_stories` list UNCHANGED — state verified correct. `anchor_stories` comment updated to record FB71 independent confirmation. |
 | 0.56 | 2026-07-26 | architect | F-WASE-P64-OBS-001: `anchor_stories` key added to frontmatter (was absent — schema gap, not a late addition). Populated from ground truth: S-ADR054-WAVE-A-001 (§Authority: "ADR-054 v0.55 (accepted 2026-07-22) is the authoritative design document"), S-WAVE-A-ARMIS-REMEDIATION-001 (§Authority: ADR-053 v0.35 §D-Armis + ADR-054 v0.52 co-authority). |
 | 0.55 | 2026-07-25 | architect | FB52a (F-WASE-P64-MED-012): Three coordinated edits resolve the Option<String> vs empty-string-default conflict. (1) §D3 Rust encoding note added after the token_exchange-only field table: ratifies `Option<String>` for `credential_body_field`, `token_response_path`, `expiry_field` and `Option<ExpiryMode>` for `expiry_mode` in `AuthAcquisitionConfig`; explains why `String`+empty-default collapses the absent vs present-but-empty states and makes Rule 10(d) undetectable and Rule 10(h) trivially-always-true. (2) §D10(d) absence-predicate blockquote added after the "when absent" trigger line: specifies `field.is_none()` as the exact implementing check; clarifies that `Some("")` passes (d) but fails (e); traces back to §D3 and `S-ADR054-WAVE-A-001` AC-002 as corroborating sources. (3) §D11 `AuthAcquisitionConfig` constructors row, constructor (1) `new()`: "default to empty string" corrected to "default to `None`" — the constructor sets the three inapplicable token_exchange-only string fields to `None`, not `""`. Root cause: v0.48 (F-WASE-P38-MED-001) introduced the constructor row using "empty string" language inconsistent with the `Option<String>` type; story AC-002 correctly specified `Option<String>` but the contradiction was unnoticed until F-WASE-P64-MED-012. modified: synced. |
 | 0.54 | 2026-07-25 | architect | FB51a (F-WASE-P64-MED-015, consistency follow-through): §D10 ADR-055 §D3 reconciliation block — updated parenthetical `(status: proposed)` → `(status: accepted)` following ADR-055 ratification in this burst. The factual characterization of Rule 10 (interpolation-independent, executes inside `SpecLoader::parse()`) is unchanged; only the status annotation is updated. No behavioral or structural content altered. |

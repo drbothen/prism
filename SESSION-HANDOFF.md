@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.994"
+version: "7.995"
 status: current
 timestamp: 2026-07-19T14:30:00Z
 ---
@@ -124,13 +124,75 @@ timestamp: 2026-07-19T14:30:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2053 (SESSION WRAP; D-2052 SUPERSEDED; 15 pass-66 findings open; BC-5.39.001 streak 0/3; NEXT = fix-burst cascade — product-owner CRIT-001 first).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2053 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2053 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57dad`; local ff BLOCKED by unstaged ci.yml/e2e.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2053 wrap commit HEAD after push). STATE v8.601. SESSION WRAP D-2053 complete; 15 pass-66 findings open; TREND-POL29-SIBLING-SWEEP-001 APPLIED; GAP-POL25-COMPANION-AMENDMENT-001 registered; NEXT = fix-burst cascade.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2054 (SESSION WRAP; D-2053 SUPERSEDED; all pass-66+67 spec findings CLOSED; BC-5.39.001 streak 0/3; NEXT = LOCAL adversary pass-68 on frozen HEAD).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2054 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2054 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57dad`; local ff BLOCKED by unstaged ci.yml/e2e.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2054 wrap commit HEAD after push). STATE v8.602. SESSION WRAP D-2054 complete; all pass-66+67 spec findings CLOSED; ADR-057 v0.4 NEW (Armis push-down grammar); BC-2.02.014 v1.1 NEW; S-WAVE-A-ARMIS-ACTIVITY-001 v1.2 UNBLOCKED; NEXT = LOCAL adversary pass-68.
 
 ---
 
-## §RESUME SNAPSHOT — D-2053 (2026-07-27 — SESSION WRAP; D-2052 SUPERSEDED; 15 pass-66 findings open; BC-5.39.001 streak 0/3; STATE v8.601) [SUPERSEDES D-2052]
+## §RESUME SNAPSHOT — D-2054 (2026-07-27 — SESSION WRAP; D-2053 SUPERSEDED; all pass-66+67 spec findings CLOSED; BC-5.39.001 streak 0/3; STATE v8.602) [SUPERSEDES D-2053]
+
+### RESUME IN ONE BREATH
+Wave-A spec-evolution cascade, Phase 3. All pass-66 (15 findings) and pass-67 F-CVA/F-CVB spec findings **CLOSED** in artifacts this session. BC-5.39.001 streak **0/3** (reset by pass-67 F-CVA/CVB findings; all remediated). ADR-057 v0.4 ACCEPTED (Armis push-down grammar); BC-2.02.014 v1.1 NEW (Armis Device Activity); S-WAVE-A-ARMIS-ACTIVITY-001 v1.2 UNBLOCKED; S-WAVE-A-ARMIS-SPEC-001 v1.1 NEW.
+**NEXT ACTION: dispatch LOCAL `vsdd-factory:adversary` for pass-68** on frozen HEAD = this wrap commit (run `git -C .factory log -1 --format='%H'`). Fresh context; SAP-1/SAP-2/SAP-3/POL-29 three-dimension verdicts required.
+
+### CLOSED FINDINGS LEDGER (pass-66 + pass-67 — all CLOSED this session)
+~~CRIT-001~~ CLOSED FB70 (BC-2.01.006 v1.9 + BC-2.01.018 v1.7; POL-29 9a named-twin sweep). ~~HIGH-001~~ CLOSED FB71 (ADR-056 v0.5; PaginationType wire literal). ~~HIGH-002~~ CLOSED FB73 (BC-2.02.006 v1.9; POL-29 9c TOML MUSTs anchored → S-WAVE-A-ARMIS-SPEC-001). ~~HIGH-003~~ CLOSED FB73 (BC-2.02.004 v1.14; affected_assets T-02 carry-over). ~~HIGH-004~~ CLOSED FB74 (BC-2.02.014 v1.1; device_cves_first push-down via ADR-057). ~~HIGH-005~~ CLOSED FB74 (ADR-057 v0.4; `${step_name.field}` grammar canonical; ARMIS-ACTIVITY-001 v1.2 UNBLOCKED). ~~MED-001~~ CLOSED FB71 (ADR-056 v0.5 §D8 + BC-2.16.009 v1.30 §Validation Rule 4; POL-29 9b copy-target). ~~MED-002~~ CLOSED FB72 (ADR-053 v0.39; SAC-2 anchor_stories repopulated). ~~MED-003~~ CLOSED FB76 (VP-157 v1.1 active; phantom symbols removed). ~~MED-004~~ CLOSED FB72/FB73 (S-WAVE-A-ARMIS-SPEC-001 v1.1; STORY-INDEX BC-2.02.006 row updated). ~~LOW-001~~ CLOSED FB71 (ADR-056 §Changelog heading normalized). ~~LOW-002~~ CLOSED FB73 (S-WAVE-A-CYBERINT-SPEC-001 v1.8; AC-003/T-05 envelope key `page`). ~~LOW-003~~ CLOSED FB76 (VP-157/VP-158 v1.1 active; VP-INDEX pinned). ~~OBS-001~~ CLOSED FB71 (BC-2.02.006 v1.9; emission cite corrected to search::get_search). ~~OBS-002~~ CLOSED FB70/FB73 (BC-2.02.004 v1.14; TV-005 positional cite removed per TD-VSDD-091). ~~F-CVA-HIGH-001~~ CLOSED FB71 (BC-2.16.002 v2.12; PageNumber activation gate per ADR-056 §D8; POL-29 9b). ~~F-CVA-HIGH-002~~ CLOSED FB71 (BC-2.16.009 v1.30; page_number row §Validation Rule 4 per ADR-056 §D10).
+
+### WORKSTREAM NEXT-ACTIONS
+**Wave-A spec-evolution cascade (PRIMARY — streak 0/3; frozen HEAD = this wrap commit):**
+All pass-66+67 spec artifacts remediated. Adversary pass-68 is the gate to advance the streak toward 3-CLEAN. After 3-CLEAN: per-story TDD delivery order = S-WAVE-A-ENGINE-001 v3.0 → S-WAVE-A-CYBERINT-SPEC-001 v1.8 → S-WAVE-A-ARMIS-ACTIVITY-001 v1.2 → S-WAVE-A-ARMIS-SPEC-001 v1.1 → S-ADR054-WAVE-A-001 v1.5 (ADR-054 story AFTER engine story per D-2013 ordering rule).
+
+**Code lane (BLOCKED — awaiting spec-evolution cascade convergence):**
+S-WAVE-A-CYBERINT-PATCH-001 must co-land with S-WAVE-A-ENGINE-001. No orchestrator action until cascade clears.
+
+**PR #229** (fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` PUSHED, MERGEABLE): awaiting human merge decision.
+**PR #230** (docs/claude-md-file-size-convention @`e327f42ad` PUSHED, PR OPEN, Fuzz smoke): DRIFT-CI-FUZZ-NIGHTLY-ICE-001 — nightly-2026-07-27 window arrived; verifiable by devops-engineer.
+
+### BC-5.39.001 CONVERGENCE STATUS
+Streak: **0/3**. Reset by pass-67 F-CVA/CVB findings (now all remediated). Pass-68 restarts streak on frozen HEAD (this wrap commit). DRIFT-ORCH-PRLEVEL-PUSH-001: no pushes mid-streak.
+
+### SPEC PERIMETER (post-D-2054 wrap — updated from pass-66+67 fix bursts)
+BC-2.16.009 **v1.30** / ADR-053 **v0.39** / error-taxonomy **v2.70** / S-WAVE-A-ENGINE-001 **v3.0** (28 ACs / 40 RGTs) / BC-2.16.008 v1.6 / BC-2.16.014 v1.19 / VP-159 v1.27 / ADR-054 **v0.57** / BC-2.01.018 **v1.7** / BC-2.01.008 v1.8 / BC-2.01.006 **v1.9** / BC-2.02.004 **v1.14** / BC-2.02.006 **v1.9** / BC-2.02.014 **v1.1** (draft NEW) / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28 / VP-160 v1.3 / VP-161 **v1.3** / verification-architecture v1.48 / ADR-051 **v1.8** / ADR-052 **v1.19** / ADR-055 **v1.3** / ADR-056 **v0.5** / ADR-057 **v0.4** (NEW ACCEPTED) / BC-2.16.002 **v2.12**. Stories: S-WAVE-A-ENGINE-001 **v3.0** / S-WAVE-A-MCP-001 **v1.5** / S-WAVE-A-CYBERINT-PATCH-001 v1.4 / S-WAVE-A-ARMIS-REMEDIATION-001 v1.4 / S-ADR054-WAVE-A-001 v1.5 / S-ADR055-WAVE-A-001 v1.3 / S-WAVE-A-CYBERINT-SPEC-001 **v1.8** / S-WAVE-A-ARMIS-ACTIVITY-001 **v1.2** (UNBLOCKED) / S-WAVE-A-ARMIS-SPEC-001 **v1.1** (NEW). Indexes: BC-INDEX **v8.80** / VP-INDEX **v2.22** / ARCH-INDEX **v2.287** / STORY-INDEX **v2.745** (267 stories, 269 BCs, 5 draft).
+
+### HEADS (verified 2026-07-27 D-2054)
+- `factory-artifacts`: new HEAD = this wrap commit (run `git -C .factory log -1 --format='%H'`).
+- `origin/develop`: `7fef57dad` — PUSHED. LOCAL develop: `e116a587` STALE (DRIFT-LOCAL-DEVELOP-FF-001, do NOT auto-FF; blocked by unstaged ci.yml/e2e.yml residue).
+- Main worktree: docs/claude-md-file-size-convention @`e327f42ad` — PUSHED; PR #230 OPEN (Fuzz smoke — DRIFT-CI-FUZZ-NIGHTLY-ICE-001).
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5b` — PUSHED, PR #229 OPEN ACTIVE-UNRESOLVED.
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED. `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY).
+- verify-sha-currency.sh: PASS (2 pre-existing WARNs — python3+yaml unavailable; in-progress-voice remnant, long-standing). No background agents in flight.
+
+### BACKUP BOUNDARY (D-2054)
+- PUSHED / safe: factory-artifacts (this wrap commit — run `git -C .factory log -1 --format='%H'`); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); docs/claude-md-file-size-convention @`e327f42ad` (PR #230 OPEN); origin/develop @`7fef57dad`.
+- LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty).
+
+### PENDING USER-APPROVED WORK (D-2054 — do not start)
+- (a) `scripts/records-lint.sh` fixes: GATE-L1L7-RATCHET-WORKTREE-001 + GATE-L1-VPREFIX-BLIND-002 + L9 arm-5 bare two-digit token fix — code change on PR #230 branch; awaiting human.
+- (b) GAP-ASSETS-PAG-001 — new PaginationConfig variant; awaiting explicit human authorization.
+- (c) Follow-up story for GAP-ASSETS-PAG-001 — awaiting human authorization.
+- (d) STORY-INDEX mixed-prefix normalization — ordering-dependent on GATE-L1-VPREFIX-BLIND-002 fix.
+- (e) Corpus records debt (39 L1 + 86 L7 across 43 files) — pre-existing, TD-VSDD-096 candidate; NOT in cascade scope.
+- GAP-POL25-COMPANION-AMENDMENT-001 — POL-25 §verification_steps step 2 missing Named-twin (9a) + downstream-copy-target (9b); routing: spec-steward; do NOT schedule without orchestrator dispatch.
+
+### PROCESS INTERVENTION RULE (human-directed — still binding)
+Small single-concern fix bursts only. Each fix burst must address ONE named spec-content target. GAP-ASSETS-PAG-001: do NOT schedule without explicit human authorization.
+
+### GATE COVERAGE REMINDER (D-2031..D-2054)
+records-lint --full-scan L1/L7 have never examined .factory/ artifacts in ratchet mode (GATE-L1L7-RATCHET-WORKTREE-001). A zero exit code from records-lint covers L9 and the cross-document index check only, not L1/L7 for .factory/ files. Nine confirmed gate-blind-spot instances (i–ix; see D-2049): ratchet mode, draft-style status cells, STATE.md version: field, prose-embedded pins, L1/L7 worktree inoperativity, v-prefixed version extractor, uncommitted artifact working-tree comparison, ARCH-INDEX §Document Map prose pins, SPEC PERIMETER story version pins. Hand-verify SPEC PERIMETER story pins against story-file frontmatter at each state-manager burst.
+
+### ORCHESTRATOR RULINGS (carried forward)
+- SAP-2 headline: struct-level parity is NOT wire-level parity; read emission handler routes/*.rs to verify JSON shape.
+- TREND-POL29-SIBLING-SWEEP-001 APPLIED: POL-29 v1.39 + TD-VSDD-097. Every fix-burst MUST include all three dimension clauses (9a/9b/9c); adversary independently verifies per-dimension verdicts.
+- PROCESS-GAP LESSON (D-2050): adversary findings citing specific filenames/columns must be ground-truth-verified before routing.
+- GATE-REVIEW LESSON (D-2043): gate review must include value-domain cross-check against governing BC, not only symbol existence.
+
+### DECISION-LOG DELTA (this session — D-2054)
+D-2054 (state-manager SESSION WRAP): STATE v8.601→v8.602. RESUME SNAPSHOT D-2054 authored; D-2053 SUPERSEDED. All pass-66 (15) + pass-67 F-CVA/F-CVB spec findings CLOSED. BC-INDEX v8.79→v8.80 (269 BCs, 5 draft) / VP-INDEX v2.21→v2.22 / ARCH-INDEX v2.286→v2.287 (ADR-057 v0.4 NEW) / STORY-INDEX v2.744→v2.745 (267 stories; S-WAVE-A-ARMIS-SPEC-001 v1.1 NEW). BC-5.39.001 streak 0/3. NEXT: LOCAL adversary pass-68 on frozen HEAD.
+
+---
+
+## §RESUME SNAPSHOT — D-2053 (2026-07-27 — SESSION WRAP; D-2052 SUPERSEDED; 15 pass-66 findings open; BC-5.39.001 streak 0/3; STATE v8.601) [SUPERSEDES D-2052] [SUPERSEDED by D-2054]
 
 ### RESUME IN ONE BREATH
 Wave-A spec-evolution cascade, Phase 3. LOCAL pass-66 NOT CLEAN — **15 findings open**; BC-5.39.001 streak **0/3**. The POL-29 three-dimension structural intervention is APPLIED (policies.yaml **v1.39** verification steps 9a/9b/9c + CLAUDE.md **TD-VSDD-097**) in response to `TREND-POL29-SIBLING-SWEEP-001` hitting the 3-recurrence threshold.

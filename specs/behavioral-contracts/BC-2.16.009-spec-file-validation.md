@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.29"
+version: "1.30"
 status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-07-26"
+modified: "2026-07-27"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -83,6 +83,7 @@ actionable correction. Warnings do not prevent loading; errors do.
 ### 4. Pagination Configuration Validation
 - If pagination type is `cursor_token`, `cursor_response_path` must be a valid JSONPath expression
 - If pagination type is `offset_limit`, `page_size` must be > 0
+- If pagination type is `page_number`, `page_size` must be > 0; a TOML spec declaring `page_size = 0` for a `PageNumber` step is rejected at spec-load time by `validate_sensor_spec` §Category 4 with `SpecErrorCode::ESpec001` and message `"page_number pagination in step '{step_name}' requires page_size > 0"`. Mirrors the `offset_limit` §Category 4 rejection. Grounding: ADR-056 §D10 CE-2; §D3 spec-load layer. Anchored: `S-WAVE-A-CYBERINT-SPEC-001` RG-017.
 - If pagination type is `none`, no pagination fields should be set (warning if they are)
 
 ### 5. Rate Limit Hint Validation
@@ -474,6 +475,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.30 | FB71 | 2026-07-27 | product-owner | F-CVA-HIGH-002: added `page_number` row to §Validation Rule 4. New row mirrors `offset_limit` rejection: `page_size == 0` in `PaginationConfig::PageNumber` is rejected at spec-load time by `validate_sensor_spec` §Category 4 with `SpecErrorCode::ESpec001` and message `"page_number pagination in step '{step_name}' requires page_size > 0"`. Grounding: ADR-056 §D10 CE-2; §D3 spec-load layer. Anchored: `S-WAVE-A-CYBERINT-SPEC-001` RG-017. POL-29 9a: no named twin for BC-2.16.009 (BC-2.16.002 is a distinct capability, not a split-event twin); 9b: BC-2.16.009 §Validation Rule 4 is a downstream copy target of ADR-056 §D8 §page_number row spec — both swept in this burst; 9c: `S-WAVE-A-CYBERINT-SPEC-001` RG-017 is the load-bearing anchor. |
 | 1.29 | FB66 | 2026-07-27 | product-owner | F-WASE-P65-MED-005 (PO half): EC-009-049 expected-behavior column now states the escaped `{value}` form explicitly — TAB (0x09) is in the CTL escape class (`b <= 0x1F`), so the emitted error message `{value}` is `cookie:\x09` (eleven-character literal: `cookie:` + four-char ASCII sequence `\x09`), NOT a raw TAB byte. This mirrors EC-009-048 (LF 0x0A → `cookie:a\x0Ab` explicit statement) and makes the escaping obligation self-documenting in the EC. SP (0x20 > 0x1F) is NOT in the CTL escape class and is not escaped — EC-009-049 is the boundary case that tests both non-tchar rejection AND CTL escaping independently. Canonical test vector row for EC-009-049 updated in parallel with the same escaped-value statement. No new ECs added; no POL-38 obligation. BC-INDEX pin sync (1.28→1.29) deferred to state-manager. |
 | 1.28 | FB56 | 2026-07-26 | product-owner | F-WASE-P64-MED-001: §Verification Properties VP-160 row corrected — "exhaustive proof across all 256 byte values" → "exhaustive proof across all 128 ASCII byte values; non-ASCII bytes (0x80–0xFF) structurally excluded per VP-160 §Feasibility Assessment". VP-160 proof harness bounds to a 128-point ASCII exhaustive space (`kani::assume(b <= 0x7F)` per VP-160 §Proof Harness Skeleton); non-ASCII rejection is by structural argument per VP-160 §Feasibility Assessment; the BC row was the lone outlier vs. the VP and VP-INDEX. F-WASE-P64-MED-003: E-SPEC-027 template (a) error message updated — "non-empty name required" → "non-empty name, ≤128 codepoints". Template (a) fires for both tchar charset violations AND the 128-codepoint length violation (EC-009-051); the previous message named only the charset constraint, giving actively misleading guidance for a 129-char all-tchar cookie name whose every character satisfies the only constraint named. Decision: length clause added to template (a) rather than a distinct template (d) — both failure modes share the same code path; a separate template adds spec complexity without operational benefit. Three POL-24 sites updated in this BC: §Rule 9 §Error message (syntactic) and §Error Conditions E-SPEC-027 template (a) Condition column (both changed). The `"cookie:<name>"` form definition bullet (site 3) already stated "must be ≤128 codepoints" from v1.26 and needed no change. Companion: error-taxonomy.md v2.70 (same template (a) change). F-WASE-P64-MED-004: §Invariants first bullet scoped — unqualified "always no-fail-fast" claim replaced with explicit per-function collect-all semantics: `validate_sensor_spec()` (Rules 1–5) and Rule 10's sub-conditions are collect-all; `SpecLoader::parse()` is fail-fast at rule boundaries (Rule 9 `Err` prevents Rule 10 executing). §Multi-Error Reporting first bullet updated for consistency. No new ECs added (EC-009-051 already existed); no POL-38 obligation created. |
 | 1.27 | FB51b | 2026-07-25 | product-owner | F-WASE-P64-HIGH-008: §Integration function attribution corrected. The original sentence "S-WAVE-A-ENGINE-001 adds Rules 9 and 10 inside `SpecLoader::parse()`" was false — S-WAVE-A-ENGINE-001 scopes to Rule 9 only; Rule 10 is owned by S-ADR054-WAVE-A-001. Sentence split into two: (1) S-WAVE-A-ENGINE-001 adds Rule 9 inside `SpecLoader::parse()` — not inside `validate_sensor_spec()` — ensuring Rule 9 executes on every path that calls `parse()`; (2) S-ADR054-WAVE-A-001 adds Rule 10 inside `SpecLoader::parse()` by the same rationale, per ADR-054 §D10 — not inside `validate_sensor_spec()` — ensuring Rule 10 also executes on every path that calls `parse()`. Placement fact (both rules in `SpecLoader::parse()`, not `validate_sensor_spec()`) and coverage rationale preserved — both are correct and load-bearing. §Traceability Stories row: S-ADR054-WAVE-A-001 added (Rule 10 owning story was absent from the contract that defines Rule 10). TD-VSDD-060 sibling sweep: two live-body ENGINE-001 references in §Integration function and §Security requirement examined; §Security requirement paragraph is correctly scoped to Rule 9 only and is unchanged. |

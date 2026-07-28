@@ -6,7 +6,7 @@ wave: wave-a
 epic_id: E-SPEC-ENGINE
 priority: P1
 status: draft
-version: "2.9"
+version: "3.0"
 updated: "2026-07-27"
 level: "L3"
 producer: story-writer
@@ -100,6 +100,25 @@ risk_mitigations: []
 ---
 
 # S-WAVE-A-ENGINE-001: Wave-A ADR-053 Standalone Engine Story — SensorSpec `header_scheme` Field, Rule 9 Validation, `build_request` Header-Injection Dispatch, and `AuthProvider::get_token` Trait Method
+
+## Authority
+
+**ADR-053 §D2** (accepted 2026-07-22, D-1943) is the authoritative design decision for
+this story. ADR-053 §D2 establishes the `header_scheme` TOML field on `SensorSpec`, the
+`header_scheme`-keyed dispatch in `build_request()`, and the `auth_type × header_scheme`
+coherence matrix validated at spec-load time by Rule 9. ADR-053 §D5 manifest formally
+confirms BC-2.01.017 §P2 dispatch mechanism as a spec amendment target implemented by
+this story.
+
+Read ADR-053 §D2 and §D5 in full before implementing:
+`.factory/specs/architecture/decisions/ADR-053-wave-a-sensor-fidelity-remediation-openapi-grounding-armis-token-exchange-cyberint-dual-surface.md`
+
+This story is the ADR-053 §D2 standalone engine prerequisite: all `header_scheme`-related
+scope (field addition, Rule 9 validation, `build_request()` dispatch switch, and the
+`AuthProvider::get_token()` prerequisite method for S-ADR054-WAVE-A-001) is governed
+by ADR-053 §D2.
+
+---
 
 ## Narrative
 
@@ -267,6 +286,14 @@ at spec-load time, so this path is only reached for non-cookie auth_types).
 RG-014 lives in `pipeline.rs`'s inline `#[cfg(test)] mod tests`.
 (traces to BC-2.16.009 Rule 9 absence path A postcondition: silent bearer default in runtime;
 BC-2.01.017 P2 postcondition: None → bearer fallback)
+
+**SAP-3 reachability note — RG-011..RG-014:** These four unit tests exercise `build_request()`
+directly from within `pipeline.rs`'s inline `#[cfg(test)] mod tests`. Per SAP-3 rule 2,
+unit tests of private functions are defense-in-depth only — they establish internal
+correctness but do not demonstrate the arm is reachable from the product surface.
+AC-027 / RG-040 (Tier 7 below) provides the primary SAP-3 end-to-end reachability test:
+it drives `PipelineExecutor::execute` with `header_scheme = "bearer"` from the public
+surface and asserts the `Authorization: Bearer` header at the wire level.
 
 ### Tier 4 — AuthProvider::get_token Trait Method (F-WASE-P7-HIGH-001)
 
@@ -493,6 +520,29 @@ RG-031 lives in `spec_parser.rs`'s inline `#[cfg(test)] mod tests`. SAP-3: drive
 fail-fast boundary at the `parse()`/`validate_sensor_spec()` function boundary;
 F-WASE-P64-MED-004 fail-fast boundary observable consequence)
 
+### Tier 7 — SAP-3 End-to-End Pipeline Integration Test for Header Dispatch (F-CVB-P67-OBS-001)
+
+**AC-027 — SAP-3: `PipelineExecutor::execute` with `header_scheme = "bearer"` injects `Authorization: Bearer <token>` at wire level (end-to-end reachability)**
+A full integration test constructs a `SensorSpec` with `header_scheme = "bearer"` and
+`auth_type = "bearer_static"`, starts a wiremock server that asserts on the incoming
+`Authorization` header value `Bearer test-token-abc` (the known token returned by
+`MockAuthProvider`), calls
+`PipelineExecutor::execute(&spec, table, &context, &http_client, &auth_provider)`, and
+asserts the wiremock expectation was satisfied (confirming the outbound HTTP request
+contained `Authorization: Bearer test-token-abc`). The wiremock `header()` matcher
+asserts on the bytes the HTTP server receives — this is the wire-level assertion required
+by the 2026-07-13 wire-shape discipline: it tests the exact bytes that the sensor API
+server sees, not pre-send Rust structures.
+
+RG-011..RG-014 in `pipeline.rs`'s inline test module are defense-in-depth (SAP-3 rule 2);
+this test is the PRIMARY end-to-end reachability test for the bearer dispatch arm. Test file:
+`crates/prism-spec-engine/tests/bc_2_01_017_static_cookie_auth_provider.rs` (add to existing
+file — same BC, same executor surface, following the cookie-dispatch test at AC-007 in that
+file). If file length is a concern the test-writer may create
+`crates/prism-spec-engine/tests/bc_2_01_017_header_scheme_bearer_e2e.rs` instead.
+(traces to BC-2.01.017 P2 postcondition: `header_scheme = "bearer"` → `Authorization: Bearer <token>`;
+SAP-3 end-to-end reachability from `PipelineExecutor::execute` surface; closes F-CVB-P67-OBS-001)
+
 ## `auth_type × header_scheme` Coherence Matrix (Rule 9 — 5 Existing Variants)
 
 The following 5-variant coherence matrix is fully in scope for this story.
@@ -531,8 +581,9 @@ Absent `header_scheme` (None):
 AuthType::TokenExchange, or any new pub types, and does NOT add `"token_exchange"` to
 the `VALID_AUTH_TYPES: &[&str]` constant in `spec_parser.rs` (ORCHESTRATOR RULING —
 belongs to S-ADR054-WAVE-A-001; see Architecture Compliance Rule 9). The non-exhaustive
-gate EXPECTED value stays at 92 (no new pub types, only a new field on SensorSpec and
-new variants on the existing SpecEngineError enum). Bump to 95 belongs to S-ADR054-WAVE-A-001.
+gate requires no new symbol registration (no new pub types; only a new field on SensorSpec,
+new variants on the existing SpecEngineError enum). The registration bump for
+AuthAcquisitionConfig/CachedAuthToken/ExpiryMode belongs to S-ADR054-WAVE-A-001.
 
 ## Edge Cases
 
@@ -717,8 +768,17 @@ context, deferring source-file reads to the implementation phase.
   path A); bearer default at runtime; verifies the `custom_via_plugin` arm of AC-001's
   universal quantifier; `spec_parser.rs` inline test module; SAP-3: drives
   `SpecLoader::parse()` with raw TOML)
+- [ ] **RG-040**: `test_header_scheme_bearer_pipeline_execute_injects_authorization_bearer_e2e` — AC-027
+  _(SAP-3 primary end-to-end reachability: drives `PipelineExecutor::execute` with a
+  `SensorSpec` that has `header_scheme = "bearer"` and `auth_type = "bearer_static"` + a
+  `MockAuthProvider` returning "test-token-abc" against a wiremock server; asserts wiremock
+  `Authorization: Bearer test-token-abc` header matcher was satisfied — wire-level assertion
+  per 2026-07-13 discipline (header bytes the HTTP server receives, not pre-send Rust struct);
+  lives in `crates/prism-spec-engine/tests/bc_2_01_017_static_cookie_auth_provider.rs` or
+  `bc_2_01_017_header_scheme_bearer_e2e.rs`; test-writer chooses; RG-011..RG-014 are
+  defense-in-depth companions per SAP-3 rule 2)_
 
-**Red Gate density check** (BC-5.38.001): **39 failing tests** before implementation begins.
+**Red Gate density check** (BC-5.38.001): **40 failing tests** before implementation begins.
 (19 original + RG-020..RG-023 for EC-009-043..046 per SEC-001 spec amendment + RG-024 for
 add_sensor_spec prism-spec-engine API per SAP-3/AC-020 + RG-025 for AC-021 tchar positive
 coverage + RG-026 for AC-022 EC-009-050 high-byte predicate probe + RG-027 for AC-023
@@ -730,7 +790,8 @@ RG-032 for EC-001 empty-string rejection + RG-033 for EC-002 uppercase BEARER re
 RG-034 for EC-004 leading-space rejection + RG-035 for EC-007 cookie+bearer_static
 coherence + RG-036 for EC-010 cookie+oauth2 coherence + RG-037 for EC-014/AC-001
 oauth2_client_credentials absence path A + RG-038 for AC-001 api_key absence path A +
-RG-039 for AC-001 custom_via_plugin absence path A.)
+RG-039 for AC-001 custom_via_plugin absence path A + RG-040 for AC-027 SAP-3
+end-to-end bearer dispatch integration test.)
 All non-trivial function bodies use `todo!()` stubs.
 
 ### Implementation tasks (to be executed by implementer after Red Gate)
@@ -744,7 +805,8 @@ All non-trivial function bodies use `todo!()` stubs.
   variants are architecturally incompatible with `SpecLoader::parse()`'s `PrismError`
   return type (the Rule 8 inline-`SpecError` pattern is the correct mechanism).
   `SpecErrorCode` is `#[non_exhaustive]`; adding one variant is additive — no semver break,
-  no `EXPECTED=92` gate bump (EXPECTED counts pub struct types, not enum variants):
+  no gate bump required (`EXPECTED_SYMBOLS` in `scripts/check-non-exhaustive-per-symbol.py` tracks
+  pub struct types, not enum variants):
   ```rust
   /// E-SPEC-027: `header_scheme` field validation failure (Rule 9, BC-2.16.009 v1.29).
   /// Three templates: (a) syntactically invalid value (not bearer/raw/cookie:<tchar-name>);
@@ -1154,11 +1216,13 @@ Violations are P1 findings in adversarial review.
    If a spec defect is discovered during implementation, STOP and report to orchestrator
    per CLAUDE.md Companion Principle rule 2 — do not self-amend.
 
-7. **`#[non_exhaustive]` gate — EXPECTED stays at 92**: No new pub types are introduced
-   by this story (only a new field on SensorSpec, new variants on SpecEngineError, a
-   new method on AuthProvider). `scripts/check-non-exhaustive.sh EXPECTED=92` must pass.
-   The bump to 95 belongs to S-ADR054-WAVE-A-001 (AuthAcquisitionConfig/CachedAuthToken/
-   ExpiryMode introduced by DeclarativeHttpAuthProvider).
+7. **`#[non_exhaustive]` gate — no new symbol registration**: No new pub types are
+   introduced by this story (only a new field on SensorSpec, new variants on SpecEngineError,
+   a new method on AuthProvider). `scripts/check-non-exhaustive.sh` must pass;
+   `EXPECTED_SYMBOLS` in `scripts/check-non-exhaustive-per-symbol.py` is the single source
+   of truth from which the count derives automatically — no new entry is required for this
+   story. The registration bump for AuthAcquisitionConfig/CachedAuthToken/ExpiryMode
+   belongs to S-ADR054-WAVE-A-001.
 
 8. **S-7.01 gate (merge dependency encoding)**: This story's `blocks` array lists the
    ADR-054 story and the two co-land stories. The ADR-054 story writer MUST encode
@@ -1222,13 +1286,15 @@ workspace deps. Do not introduce new crate dependencies.
 
 ### Files to CREATE
 
-None. This story modifies existing files only.
+| File | Purpose |
+|------|---------|
+| `crates/prism-spec-engine/tests/bc_2_01_017_header_scheme_bearer_e2e.rs` (or add to `bc_2_01_017_static_cookie_auth_provider.rs`) | RG-040 (AC-027): SAP-3 end-to-end integration test; `PipelineExecutor::execute` with `header_scheme = "bearer"` against wiremock. Test-writer chooses whether to add to the existing BC-2.01.017 test file or create a companion file. |
 
 ### Files to MODIFY
 
 | File | Change Summary |
 |------|----------------|
-| `crates/prism-core/src/error.rs` | Add `ESpec027` variant to the `SpecErrorCode` enum (T-A01). DO NOT add `InvalidHeaderScheme`, `HeaderSchemeCoherenceViolation`, or `HeaderSchemeRequiredForCookieRoundtrip` to `SpecEngineError` — those variants are architecturally incompatible with `SpecLoader::parse()`'s `PrismError` return type (Q1 ruling). `SpecErrorCode` is `#[non_exhaustive]`; adding a variant is additive and does NOT bump the `EXPECTED=92` gate. |
+| `crates/prism-core/src/error.rs` | Add `ESpec027` variant to the `SpecErrorCode` enum (T-A01). DO NOT add `InvalidHeaderScheme`, `HeaderSchemeCoherenceViolation`, or `HeaderSchemeRequiredForCookieRoundtrip` to `SpecEngineError` — those variants are architecturally incompatible with `SpecLoader::parse()`'s `PrismError` return type (Q1 ruling). `SpecErrorCode` is `#[non_exhaustive]`; adding a variant is additive and does NOT require a new entry in `EXPECTED_SYMBOLS` in `scripts/check-non-exhaustive-per-symbol.py` (enum variants are not tracked as pub struct symbols). |
 | `crates/prism-spec-engine/src/spec_parser.rs` | Add `header_scheme: Option<String>` field to `SensorSpec` (with `#[serde(default)]`). Add `validate_header_scheme()` pure function. Call it from the existing validation pass. Correct `FetchStep` struct + `Default` impl doc-comments. |
 | `crates/prism-spec-engine/src/error.rs` | Rewrite `AuthTypeCrossComposition` `#[error(…)]` to match E-SPEC-012 taxonomy template verbatim (T-A02; rename field `provided_value` → `value` or adjust token). Add Q5 POL-24 comment. Rewrite `MultipleCredentialRefs` struct fields + `#[error(…)]` to match E-SPEC-013 taxonomy template verbatim (T-A03; rename/add fields `sensor_id`, `count`, `expected`, `auth_type`). Update the single construction site in `validate_cross_composition`. |
 | `crates/prism-spec-engine/src/pipeline.rs` | Switch `build_request()` dispatch from auth_type-keyed to header_scheme-keyed. Change `execute_impl` and `execute_step` call sites from `acquire_token()` to `get_token()`. Add doc comment at `issue_request_with_retry` 401 path noting intentional `acquire_token()` retention. Note: file is ~4,578 production lines (registered TD-DECOMP-EPIC-001); any PR growing it past 1,500 net new production lines requires decomposition rationale in PR description per Architecture Compliance Rule 11. |
@@ -1249,7 +1315,7 @@ None. This story modifies existing files only.
 | `crates/prism-sensors/specs/crowdstrike.sensor.toml` | CrowdStrike TOML migration belongs to S-ADR054-WAVE-A-001. |
 | `crates/prism-sensors/specs/cyberint.sensor.toml` | The one-line `header_scheme` patch belongs to S-WAVE-A-CYBERINT-PATCH-001 (co-lands with ENGINE-001). The full dual-surface migration belongs to S-WAVE-A-CYBERINT-SPEC-001 (implementation ordering only — no co-land requirement per CYBERINT-SPEC-001 §Scheduling Note). |
 | `crates/prism-bin/tests/vp153_rule_c_shaped_probe.rs` | Token_exchange strategy arm ADDITION for `arb_matching_auth_type()` and `arb_mismatched_auth_type_pair()` ROUTED TO S-ADR054-WAVE-A-001 per ORCHESTRATOR RULING (2026-07-24); no changes from this story. |
-| `scripts/check-non-exhaustive.sh` | EXPECTED stays at 92; no change needed this story. |
+| `scripts/check-non-exhaustive.sh` | Count is derived automatically from `scripts/check-non-exhaustive-per-symbol.py`; no change needed this story. |
 
 ## Forbidden Dependencies
 
@@ -1333,6 +1399,7 @@ Rows explicitly NOT in scope for this story (belong to S-ADR054-WAVE-A-001):
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| 3.0 | 2026-07-27 | FB72 story-writer leg 2: (1) Add `## Authority` section citing ADR-053 §D2 and §D5 — closes MED-002 residual per SAC-2 bidirectional traceability requirement. (2) Add AC-027 (Tier 7) + RG-040 SAP-3 end-to-end bearer dispatch integration test via `PipelineExecutor::execute` + wiremock — closes F-CVB-P67-OBS-001; RG-011..RG-014 annotated as SAP-3 defense-in-depth. (3) Remove five forbidden count restatements (`EXPECTED=92` / `EXPECTED stays at 92` / `check-non-exhaustive.sh EXPECTED=92`) from §Architecture Mapping, §T-A01, §Architecture Compliance Rule 7, §Files to MODIFY (prism-core row), §Files to MODIFY (check-non-exhaustive.sh row) — closes F-CVC-OBS-001; replaced with `EXPECTED_SYMBOLS in scripts/check-non-exhaustive-per-symbol.py is the single source of truth` per CLAUDE.md §Conventions amendment. (4) Add new test file row to §Files to CREATE. RGT COUNT: 39 → 40. AC COUNT: 27 → 28 (AC-027 added). |
 | 2.9 | 2026-07-27 | FB67 Obligation 2 (F-WASE-P65-MED-005 story-writer half): fix RG-030 — add SID-2 composed-output assertions specifying the escaped TAB form. TAB (0x09) is CTL class 0x09 ≤ 0x1F; the emitted `{value}` is the eleven-character string `cookie:\x09` per BC-2.16.009 v1.29 EC-009-049 §Canonical Test Vectors; two assertions added: (a) `spec_err.message.contains("cookie:\\x09")` — four-char ASCII backslash-x-0-9 present; (b) `!spec_err.message.as_bytes().contains(&0x09)` — raw TAB byte absent. Obligation 4: BC-2.16.009 pin v1.28 → v1.29 in §Behavioral Contracts table, §Token Budget, and T-A01 §ESpec027 doc-comment (POL-25 sweep: doc comment inside code block also carried stale v1.28 cite). AC count: 27 (unchanged). RGT count: 39 (unchanged). |
 | 2.8 | 2026-07-27 | FB63 MED-004: fix §Behavioral Contracts Title column to verbatim BC H1 titles — BC-2.16.009: "Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation"; BC-2.01.017: "StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection"; BC-2.01.016: "SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker)"; BC-2.16.014 "Declarative Auth Acquisition Token Lifecycle" already matched exactly. |
 | 2.7 | 2026-07-26 | FB57 story-writer leg — closes six F-WASE-P64-MED findings (MED-002, MED-003 propagation, MED-004 follow-on, MED-007, MED-010, MED-017), all targeting this story. FIX-1 MED-002: EC-009-047 ellipsis marker "excess replaced with `…`" struck; replaced with plain-truncation description via `truncate_at_char_boundary` (no appended marker; POL-24 byte-identity preserved). FIX-2 MED-003 propagation: E-SPEC-027 template (a) string updated across ALL live sites to new form — "non-empty name required" → "non-empty name, ≤128 codepoints" per FB56 product-owner fix; error-taxonomy pin v2.69 → v2.70 at all live sites; BC-2.16.009 pin v1.27 → v1.28 at all live sites. FIX-3 MED-004 follow-on: Removed unilateral Q2 VP-059 assertion "Rule 9 is fail-fast in parse() following the Rule 8 precedent" from T-B02; replaced with cite to BC-2.16.009 §Invariants as the contract authority; added AC-026 (fail-fast boundary observable consequence: spec with Rule 9 violation + `[auth_acquisition]` block → exactly ONE ESpec027 error from `SpecLoader::parse()`; forward-compatible with S-ADR054-WAVE-A-001) + RG-031. FIX-4 MED-007: AC count reconciled 26 → 27 and RGT count 30 → 39 at all live sites (frontmatter TDD-coverage comment, §Red Gate density check heading and explanation). FIX-5 MED-010: CYBERINT-SPEC-001 `blocks:` inline comment and anchor justification corrected — removed stale "stories must co-land" claim and ambiguous "or vice versa"; correct description is implementation-ordering dependency only (CYBERINT-SPEC-001 §Scheduling Note explicitly disclaims co-land); boot-hazard handled atomically by CYBERINT-PATCH-001; updated MERGE-GATE-CYBERINT, §Co-land constraint, §Dependency Graph Edges, Files NOT to MODIFY, and risk note to match. FIX-6 MED-017: Added nine Red Gate tests — RG-031 (AC-026 fail-fast boundary); RG-032 (EC-001 empty string), RG-033 (EC-002 BEARER uppercase), RG-034 (EC-004 leading space), RG-035 (EC-007 cookie+bearer_static coherence), RG-036 (EC-010 cookie+oauth2 coherence), RG-037 (EC-014 / AC-001 oauth2 absence path A), RG-038 (AC-001 api_key absence path A), RG-039 (AC-001 custom_via_plugin absence path A); extended AC-001 text to explicitly name all four non-cookie auth_types and map each to its covering RGT. AC COUNT: 26 → 27. RGT COUNT: 30 → 39. |

@@ -3,7 +3,8 @@ document_type: story
 story_id: S-PRISMQL-NATIVE-TEMPORAL-TYPING-001
 title: "PrismQL Native Temporal Typing — migrate ColumnType::Datetime from Arrow Utf8 to Timestamp(Microsecond, UTC) (ADR-052)"
 epic_id: EPIC-DEMO
-version: "1.13"
+version: "1.14"
+modified: "2026-07-27"
 status: merged
 producer: story-writer
 phase: 3
@@ -67,6 +68,35 @@ estimated_days: "3"
 ---
 
 # S-PRISMQL-NATIVE-TEMPORAL-TYPING-001: PrismQL Native Temporal Typing
+
+## Authority
+
+**ADR-052 v1.18 §D1–§D7** (PrismQL Native Temporal Typing — Datetime Columns and Literals
+from Arrow Utf8 to Timestamp(Microsecond, UTC)) is the complete design authority for this
+story. This story implements ADR-052 decisions D1–D7:
+
+- **§D1** — Canonical Arrow type: `DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC")))`
+- **§D2** — `spec_driven_adapter.rs` `column_type_to_arrow` Datetime arm; `column.rs`
+  doc comment update
+- **§D3** — `pipe_sql_emitter.rs` `Literal::Timestamp` rendering → `arrow_cast(...)` form;
+  `Literal::RawTemporalLiteral` guard arm → E-QUERY-002
+- **§D4** — Option-A lenient-parse-then-AST-walk: `Literal::RawTemporalLiteral` AST node;
+  parser lenient fallback (`is_date_like` 7-form set); `check_temporal_literals` four-way
+  dispatch (Datetime-col→E-QUERY-041, String-col→COERCE, numeric-col→E-QUERY-002,
+  GROUP/ORDER/non-column-LHS→E-QUERY-042)
+- **§D5** — Confirm `pushdown.rs` T1 extractor still produces RFC-3339 (verify only)
+- **§D6** — Investigate `diff_results` CF for Arrow IPC stored data (verify only)
+- **§D7** — Annotate ADR-044 with partial supersession scope (verify only; architect
+  pre-completed via `supersedes: "ADR-044 §D4"` in ADR-052 frontmatter)
+
+ADR-052 §D8 is a sequencing constraint (this story ships before any ADR-051 implementation);
+that constraint was satisfied — this story's PR merged before
+S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 was dispatched.
+
+Read ADR-052 in full — especially §D1, §D3, §D4 — at:
+`.factory/specs/architecture/decisions/ADR-052-prismql-native-temporal-typing-utf8-to-arrow-timestamp.md`
+
+---
 
 Migrate `ColumnType::Datetime` from Arrow `DataType::Utf8` to
 `DataType::Timestamp(TimeUnit::Microsecond, Some(Arc::from("UTC")))` throughout
@@ -2401,6 +2431,7 @@ revised to 3 days due to Option-A redesign and deep Red Gate mandate.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.14 | FB79-authority-section | 2026-07-27 | story-writer | Add §Authority section citing ADR-052 v1.18 §D1–§D7 — complete authority for this story; ADR-052 §D8 sequencing constraint satisfied (this story merged before S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 dispatch). Add frontmatter `modified: "2026-07-27"` (field was absent). Establishes SAC-2 bidirectional traceability per FB79. Frontmatter version 1.13→1.14 (POL-23). |
 | 1.13 | EQUERY042-groupby-spec-amendment-pin-round | 2026-07-10 | story-writer | **POL-25 version-pin round: DEFECT-EQUERY042-GROUPBY-DEADARM-001 spec amendment propagation. ADR-052 §D4 v1.10→v1.11 (34 live-narrative sites updated; historical v1.8 changelog row preserved per POL-29); error-taxonomy v2.26→v2.37 (4 live-narrative sites: frontmatter BC comment, §D4 dispatch narrative, E-QUERY-042 heading, TemporalLiteralPosition Task-6 cite). Story semantics UNCHANGED. Frontmatter version 1.12→1.13; updated 2026-07-10 (POL-23).** |
 | 1.12 | error-taxonomy-v2.26-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **Reconciling pin round (pass-4 closures): error-taxonomy v2.25→v2.26. Four live version-pin cites updated: (1) frontmatter `# BC-2.11.021` comment; (2) §D4 dispatch narrative body text; (3) E-QUERY-042 heading; (4) TemporalLiteralPosition enum Task-6 cite. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.11→1.12; updated 2026-07-08 (POL-23).** |
 | 1.11 | error-taxonomy-v2.25-pin-propagation-2026-07-08 | 2026-07-08 | story-writer | **Reconciling pin round (pass-3 closures): error-taxonomy v2.14→v2.25. Four live sites updated: (1) frontmatter `# BC-2.11.021` comment; (2) §D4 dispatch narrative body text; (3) E-QUERY-042 heading; (4) TemporalLiteralPosition enum Task-6 cite. Historical changelog rows (v1.8 "error-taxonomy v2.14 (E-QUERY-042)") left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 1.10→1.11; updated 2026-07-08 (POL-23).** |

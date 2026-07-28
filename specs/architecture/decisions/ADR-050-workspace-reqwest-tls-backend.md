@@ -4,14 +4,15 @@ adr_id: "ADR-050"
 title: "Workspace reqwest TLS Backend — rustls-tls Mandatory, native-tls Forbidden"
 status: ACCEPTED
 date: "2026-07-02"
-modified: "2026-07-03"
-version: "1.1"
+modified: "2026-07-27"
+version: "1.3"
 producer: architect
 subsystems_affected: [SS-01, SS-16, SS-17, SS-22]
 supersedes: []
 superseded_by: null
 amends: null
-anchor_stories: [S-DEMO-FIDELITY-REMEDIATION-001]
+anchor_stories:  # SAC-2 ground truth: a story belongs here only when its own ## Authority section cites this ADR
+  - S-DEMO-FIDELITY-REMEDIATION-001  # §Authority verified: "ADR-050 v1.2 §D1/§D3/§D4" — scoped to AC-TLS only; N1/N1B/N2/AUDIT-001/AUDIT-004 governed by their respective BCs
 related_adrs: [ADR-014, ADR-049]
 related_bcs: [BC-2.06.019]
 locked_decisions: []
@@ -221,5 +222,7 @@ rejects a synthetic Cargo.toml violating D1 or D2.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-07-27 | architect | FB80 SAC-2 promotion: S-DEMO-FIDELITY-REMEDIATION-001 promoted from SAC-2-UNVERIFIED to verified. Story v2.45 §Authority cites ADR-050 v1.2 §D1/§D3/§D4; scoped to AC-TLS only (N1/N1B/N2/AUDIT-001/AUDIT-004 governed by their respective BCs). SAC-2-UNVERIFIED comment block removed from anchor_stories. |
+| 1.2 | 2026-07-27 | architect | FB76 SAC-2 sweep: S-DEMO-FIDELITY-REMEDIATION-001 demoted to SAC-2-UNVERIFIED — story has no §Authority section (grep confirmed zero results). Story references ADR-050 in §References and changelog prose only; §Authority citation is required by SAC-2. Handoff to story-writer to add §Authority section. |
 | 1.1 | 2026-07-03 | architect | §Pre-Fix State table corrected (factual imprecision found during PR #208 PR-LEVEL adversarial review). Row 1 expanded: prism-ocsf `[dev-dependencies]` was already `rustls-tls, default-features=false` (unchanged by story) and is now listed in the "already correct" group alongside prism-bin/prism-spec-engine/prism-sensors `[dependencies]`. Row 2 narrowed: prism-spec-engine and prism-sensors had NO separate `[dev-dependencies]` reqwest entry and were NOT changed by cf66151f — removed from the "Fixed" row, which now lists only prism-bin `[dev-dependencies]`. Decision text (D1–D4), §Decisions, §Considered Alternatives, §Consequences, §Enforcement Recommendation, and §Context unchanged. |
 | 1.0 | 2026-07-02 | architect | Initial ACCEPTED. S-DEMO-FIDELITY-REMEDIATION-001 cf66151f establishes workspace-wide reqwest TLS backend convention. D1: `default-features = false, features = ["rustls-tls"]` mandatory in all Cargo.toml sections; D2: native-tls + aliases forbidden; D3: new-crate declaration rule; D4: DTU stage-0 timing-budget calibration assumes rustls ~0ms init. Security review APPROVED (MSSP MITM threat model, memory-safety, supply-chain). Enforcement gate: fast-follow story (multi-line TOML check complexity; cf66151f fixes all current violations). |

@@ -4,14 +4,15 @@ adr_id: "ADR-052"
 title: "PrismQL Native Temporal Typing — Datetime Columns and Literals from Arrow Utf8 to Timestamp(Microsecond, UTC)"
 status: accepted
 date: "2026-07-03"
-version: "1.17"
-modified: "2026-07-13"
+version: "1.19"
+modified: "2026-07-27"
 producer: architect
 subsystems_affected: [SS-09, SS-10, SS-11, SS-17]
 supersedes: "ADR-044 §D4"
 superseded_by: null
 amends: null
-anchor_stories: [S-PRISMQL-NATIVE-TEMPORAL-TYPING-001]  # verified: story title is "ADR-052 PrismQL Native Temporal Typing — Datetime Columns and Literals from Arrow Utf8 to Timestamp(Microsecond, UTC)"; traces_to includes ADR-052
+anchor_stories:  # SAC-2 ground truth: a story belongs here only when its own ## Authority section cites this ADR
+  - S-PRISMQL-NATIVE-TEMPORAL-TYPING-001  # §Authority verified: "ADR-052 v1.18 §D1–§D7" (complete design authority, unscoped)
 related_adrs: [ADR-024, ADR-033, ADR-040, ADR-043, ADR-044, ADR-051]
 related_bcs: [BC-2.11.021, BC-2.11.003, BC-2.11.004, BC-2.11.001]
 locked_decisions: []
@@ -1386,6 +1387,8 @@ implementation story.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.19 | 2026-07-27 | architect | FB80 SAC-2 promotion: S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 promoted from SAC-2-UNVERIFIED to verified. Story v1.14 §Authority cites ADR-052 v1.18 §D1–§D7 as "complete design authority" (unscoped). SAC-2-UNVERIFIED comment block removed from anchor_stories. |
+| 1.18 | 2026-07-27 | architect | FB76 SAC-2 sweep: S-PRISMQL-NATIVE-TEMPORAL-TYPING-001 demoted to SAC-2-UNVERIFIED — story has no §Authority section (grep confirmed zero results). Prior v1.16 annotation used frontmatter `traces_to` citation — pre-SAC-2 format, not §Authority text. Handoff to story-writer to add §Authority section. |
 | 1.17 | 2026-07-27 | architect | F-WASE-P65-MED-002: removed all fourteen `file.rs:NNN` volatile line-cite forms from body (TD-VSDD-091). Sites in §Context (three cites), §Feasibility (one), §D1 rationale (one), §D2 (two), §D3 (two), §D5 (one), and §Blast Radius table rows 1/2/3/9 (four). All replaced with stable function-name and symbol anchors: `column_type_to_arrow` / `ColumnType::Datetime` arm; `literal_to_sql` / `Literal::Timestamp` arm; `ColumnType::Datetime` doc comment; `test_high001_sql_mode_temporal_utf8_discriminating`; `extract_time_bounds_from_predicate` / `Expr::Literal(Literal::Timestamp(ts))` arm. All fourteen sites verified DECAYED against current codebase. |
 | 1.16 | 2026-07-26 | architect | F-WASE-P64-OBS-001: `anchor_stories: []` corrected to `[S-PRISMQL-NATIVE-TEMPORAL-TYPING-001]` — verified from ground truth: story title is the ADR-052 implementation story; `traces_to` includes ADR-052. Previously `[]` because the field was never populated after initial authoring. |
 | 1.15 | 2026-07-13 | architect | **F-PQLFN-P9-OBS-002 (DEFECT-PQL-FNCALL-LHS-001 pass 9): changelog ordering fix.** "1.1 (ratified)" row was misplaced between v1.4 and v1.3 in an otherwise-descending table, and duplicated the "1.1" version key. Renamed to "1.1-r" and relocated to correct descending position between v1.2 and v1.1 (ratification event 2026-07-03 D-1520 occurred after v1.1 authoring on same day, before v1.2/v1.3 on 2026-07-04). No row content changed. |

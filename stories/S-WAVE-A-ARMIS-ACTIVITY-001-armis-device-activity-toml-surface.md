@@ -2,29 +2,25 @@
 document_type: story
 story_id: S-WAVE-A-ARMIS-ACTIVITY-001
 title: "Armis Device Activity TOML Surface — Add armis_device_activity Table to Spec"
-version: "1.0"
-status: draft
+version: "1.2"
+modified: "2026-07-27"
+status: ready
 producer: story-writer
 phase: 3
 wave: wave-a
 epic_id: E-WAVE-A-SENSOR-REMEDIATION
 priority: P2
-points: 3
+points: 5
 tdd_mode: strict
-# tdd_mode NOTE (SAC-1 / BC-8.30.001): tdd_mode: strict is the required default.
-# Red Gate list and BC-5.38.001 density check are PENDING — implementation cannot begin
-# until the architect confirms variable injection grammar (see §Blocking Dependency below)
-# and the product-owner authors BCs. The story will be dispatched only after that gate clears.
 target_module: prism-sensors
-subsystems: ["SS-06 (SensorSpec)", "SS-12 (DTU-Armis)"]
+subsystems: ["SS-06 (SensorSpec)", "SS-07 (SpecEngine)", "SS-12 (DTU-Armis)"]
+crates_touched:
+  - prism-sensors        # armis.sensor.toml: add armis_device_activity table block
+  - prism-spec-engine    # required-filter hard error fix; pipeline integration tests
+  - prism-dtu-armis      # wire-shape test against get_device_activity handler
 depends_on: []
 blocks: []
-behavioral_contracts: []
-# BC status: pending PO authorship. Implementation is blocked on architect confirmation
-# of variable injection pattern `${variable.device_id}` in path_template. Once architect
-# confirms support (or authors a grammar extension ADR), the product-owner can author
-# BCs and this story can transition to status: ready. Per S-7.01 Spec-First Gate: status
-# MUST NOT be set to `ready` while behavioral_contracts: [] — frontmatter comment required.
+behavioral_contracts: [BC-2.02.006, BC-2.02.014]
 verification_properties: []
 assumption_validations: []
 risk_mitigations: []
@@ -32,6 +28,23 @@ estimated_days: 1
 ---
 
 # S-WAVE-A-ARMIS-ACTIVITY-001: Armis Device Activity TOML Surface
+
+## Authority
+
+**ADR-057** (accepted 2026-07-27) is the authoritative design decision governing the
+`${query.filter.*}` filter-push-down grammar for parameterized sensor path templates.
+ADR-057 adjudicated the single-device activity lookup path for Armis: confirmed
+`path_template = "/api/v1/devices/${query.filter.device_id}/activity"` with
+filter-required semantics, and documented per-record fan-out as a capability gap
+requiring a separate cross-sensor story (ADR-057 §D6).
+
+Read ADR-057 in full before implementing:
+`.factory/specs/architecture/decisions/ADR-057-armis-activity-per-device-push-down-grammar.md`
+
+This story is the resolution target for BC-2.02.006 EC-02-014 (product-owner, FB68d),
+and the anchor for ADR-057's `armis_device_activity` surface adjudication.
+
+---
 
 ## Narrative
 
@@ -42,78 +55,210 @@ per-device activity timeline queries for the Armis sensor surface.
 
 ---
 
-## Blocking Dependency (ARCHITECT-CONFIRMATION-REQUIRED)
+## Architect Adjudication — Grammar Confirmed (2026-07-27)
 
-**Status: BLOCKED — implementation cannot begin.**
+**Status: UNBLOCKED** — ADR-057 (architect, 2026-07-27) adjudicated the filter-push-down
+grammar. BC-2.02.014 (product-owner, FB73) completed the behavioral contract. Story is
+fully unblocked and is now `status: ready`.
 
-The `armis_device_activity` surface requires a parameterized per-device fetch:
+### Adjudication Outcome
+
+The confirmed `path_template` for single-device activity queries is:
+
 ```
-path_template = "/api/v1/devices/${variable.device_id}/activity"
+path_template = "/api/v1/devices/${query.filter.device_id}/activity"
 ```
 
-This uses a `${variable.*}` interpolation token that injects a value from a parent
-query result set (the device ID from a prior `armis_devices` query row). Before this
-TOML table can be authored, the architect must confirm:
+The `${query.filter.*}` namespace is pre-seeded from `FetchContext.query_filters` before
+the steps loop begins. When a query carries `WHERE device_id = 'X'` (a filter push-down),
+`query.filter.device_id` interpolates the device ID into the path_template at request time.
+The `device_id` column must declare `options = ["INDEX"]` to enable filter extraction.
 
-1. **Is `${variable.*}` injection currently supported** in `spec_parser.rs` and
-   `pipeline.rs`? (The existing flat-table AQL queries `in:devices` and `in:alerts`
-   via `GET /api/v1/search` do not exercise this pattern.)
-
-2. **If NOT currently supported**, what ADR and story anchor defines the grammar
-   extension for variable injection in `path_template`?
+Per-record fan-out (iterating over all devices from a prior step) is documented as a
+genuine capability gap in **ADR-057 §D6** — it requires a separate cross-sensor story
+and is NOT in scope for this story. This story covers the single-device
+filter-required lookup path only.
 
 This deferral is documented in **BC-2.02.006 EC-02-014** (product-owner, FB68d).
-Story `S-WAVE-A-ARMIS-ACTIVITY-001` is the resolution target for that deferral per
-Canonical Principle Rule 3: a deferral must attach to a real story ID so it cannot
-get lost.
+The `${query.filter.device_id}` adjudication is the resolution of that deferral per
+Canonical Principle Rule 3.
 
-**Until the architect confirms the variable injection pattern, the TOML table cannot
-be authored correctly, and the product-owner cannot write the behavioral contract.**
+---
+
+## Code-Reading Verdict: seed_missing_query_filter_vars
+
+**CONFIRMED from direct code reading before authoring ACs.**
+
+`seed_missing_query_filter_vars` (in `crates/prism-spec-engine/src/pipeline.rs
+§seed_missing_query_filter_vars`) pre-seeds absent `${query.filter.*}` slots with
+**empty string** (`serde_json::Value::String(String::new())`). Relevant excerpt:
+
+```rust
+step_vars
+    .entry(full_key)
+    .or_insert(serde_json::Value::String(String::new()));
+```
+
+This means: if a query against `armis_device_activity` lacks a `WHERE device_id = '...'`
+predicate, then `FetchContext.query_filters["device_id"]` is absent, the initial
+pre-seed loop in `execute_impl §F-LP1-HIGH-004` does NOT insert it, and then
+`seed_missing_query_filter_vars` inserts `query.filter.device_id = ""` (empty string).
+
+The interpolated URL becomes `/api/v1/devices//activity` — an empty path segment.
+The DTU's `get_device_activity` handler receives `device_id = ""` via axum path
+extraction, filters `activity_fixture` by `device_id == ""`, finds no matches, and
+returns `ActivityResponse { data: ActivityData { activities: [], total: 0 } }` with
+HTTP 200. **This is a silent empty result — a violation of BC-2.02.014 §Error Cases.**
+
+**Summary of current behavior vs. required behavior:**
+
+| Query | Current behavior | Required behavior (BC-2.02.014) |
+|-------|-----------------|--------------------------------|
+| No `device_id` filter | Silent empty result (empty-string seed → malformed URL → HTTP 200 + `[]`) | Hard error (`SpecEngineError::HttpRequestFailed`); zero records |
+| `WHERE device_id = 'X'` | Correct — interpolates to `/api/v1/devices/X/activity` | Same (no change) |
+
+**Note on ADR-057 §D4:** ADR-057 §D4 stated that `Interpolator::interpolate` would
+abort on a missing `query.filter.device_id` key. That analysis was authored without
+accounting for `seed_missing_query_filter_vars`, which runs after the initial pre-seed
+loop and inserts the empty-string fallback. The actual current behavior contradicts
+ADR-057 §D4. Per CLAUDE.md Source-of-Truth Precedence: code-vs-spec → SPEC wins.
+BC-2.02.014 is the governing contract; the engine must be brought into alignment.
 
 ---
 
 ## Ground-Truth DTU State (confirmed from code)
 
-The following are confirmed from direct code reading before authoring this story:
-
 | Item | Source | State |
 |------|--------|-------|
-| `ActivityRecord` struct | `crates/prism-dtu-armis/src/types.rs` | Present: `activity_id: String`, `device_id: String`, `activity_type: String`, `timestamp: String`, `details: serde_json::Value` |
-| `ActivityData` struct | `crates/prism-dtu-armis/src/types.rs` | Present: `activities: Vec<ActivityRecord>`, `total: u32` |
-| `ActivityResponse` struct | `crates/prism-dtu-armis/src/types.rs` | Present: `data: ActivityData` |
-| `get_device_activity` handler | `crates/prism-dtu-armis/src/routes/devices.rs` | Fully implemented, auth-checked, filters by `device_id`, returns `ActivityResponse` |
-| Route registration | `crates/prism-dtu-armis/src/clone.rs` | Registered at `GET /api/v1/devices/:device_id/activity` in `build_router()` |
-| `armis.sensor.toml` activity surface | `crates/prism-sensors/specs/armis.sensor.toml` | No `armis_device_activity` or `device_activity` table declared — surface unreachable from spec-driven queries |
+| `ActivityRecord` struct | `crates/prism-dtu-armis/src/types.rs §ActivityRecord` | Present: `activity_id: String`, `device_id: String`, `activity_type: String`, `timestamp: String`, `details: serde_json::Value` |
+| `ActivityData` struct | `crates/prism-dtu-armis/src/types.rs §ActivityData` | Present: `activities: Vec<ActivityRecord>`, `total: u32` |
+| `ActivityResponse` struct | `crates/prism-dtu-armis/src/types.rs §ActivityResponse` | Present: `data: ActivityData` |
+| `get_device_activity` handler | `crates/prism-dtu-armis/src/routes/devices.rs §get_device_activity` | Fully implemented, auth-checked, filters by `device_id`, returns `ActivityResponse` |
+| Wire-emission site | `crates/prism-dtu-armis/src/routes/devices.rs §get_device_activity` — `(StatusCode::OK, Json(body))` where `body = ActivityResponse { data: ActivityData { activities, total } }` | **One path only** (static fixture, no generated-records path). All five `ActivityRecord` fields serialized via axum `Json` wrapper |
+| Route registration | `crates/prism-dtu-armis/src/clone.rs §build_router` | Registered at `GET /api/v1/devices/:device_id/activity` |
+| `armis.sensor.toml` activity surface | `crates/prism-sensors/specs/armis.sensor.toml` | No `armis_device_activity` table declared — surface unreachable from spec-driven queries |
+
+**SAP-2 parity result (wire-emission site `§get_device_activity`):** All five
+`ActivityRecord` fields (`activity_id`, `device_id`, `activity_type`, `timestamp`,
+`details`) are emitted via `Json(body)` serialization at the single wire-emission site.
+No generated-records path exists for this handler. SAP-2 result: **PASS** — no P1 CRITICAL.
 
 ---
 
 ## Acceptance Criteria
 
-**NOTE: Acceptance criteria are PENDING — cannot be authored until the architect confirms
-variable injection grammar.** Placeholder criteria are recorded below to sketch intent.
-These MUST be replaced with BC-traced criteria before this story transitions to `status: ready`.
+### AC-001: `armis_device_activity` table declared with correct step block
+(traces to BC-2.02.014 precondition 1 AND BC-2.02.006 EC-02-014 deferral closure)
 
-### AC-001 (PLACEHOLDER — pending architect confirmation and BC authorship)
-`armis.sensor.toml` declares an `armis_device_activity` table with:
-- `path_template` containing the confirmed variable injection syntax for device_id
-- `response_path = "$.data.activities"` (matching `ActivityResponse.data.activities`)
-- All 5 `ActivityRecord` fields mapped as TOML columns with SAP-2 parity
+`armis.sensor.toml` declares an `armis_device_activity` table with a step block carrying
+`name = "fetch_device_activity"`, `method = "GET"`,
+`path_template = "/api/v1/devices/${query.filter.device_id}/activity"`, and
+`response_path = "$.data.activities"`.
 
-### AC-002 (PLACEHOLDER — pending BC authorship)
-Every column declared in the `armis_device_activity` table maps to a field in
-`ActivityRecord` (SAP-2: column with no DTU struct field = P1 CRITICAL).
+This AC also closes the BC-2.02.006 EC-02-014 deferral sentinel — the
+`armis_device_activity` surface is no longer deliberately excluded from the spec.
 
-| TOML column | ActivityRecord field | Rust type | column_type |
-|-------------|---------------------|-----------|-------------|
-| `activity_id` | `activity_id` | `String` | `String` |
-| `device_id` | `device_id` | `String` | `String` |
-| `activity_type` | `activity_type` | `String` | `String` |
-| `timestamp` | `timestamp` | `String` | `Datetime` (with timestamp_formats) |
-| `details` | `details` | `serde_json::Value` | `Json` |
+Anchor: RG-001 (`test_armis_toml_armis_device_activity_table_declared_with_correct_step_block`).
 
-### AC-003 (PLACEHOLDER — pending BC authorship)
-At least one test asserts the `armis_device_activity` table appears in the registered
-sensor spec and its columns match the `ActivityRecord` struct fields enumerated above.
+### AC-002: `device_id` column carries `options = ["INDEX"]`
+(traces to BC-2.02.014 precondition 2)
+
+The `device_id` column in the `armis_device_activity` table MUST declare
+`options = ["INDEX"]` so the query planner routes `WHERE device_id = '...'` predicates
+into `FetchContext.query_filters["device_id"]` via the ADR-033 T1 push-down extraction
+path. Without this option, the engine cannot extract the filter value for interpolation.
+
+Anchor: RG-002 (`test_armis_toml_armis_device_activity_device_id_column_has_index_option`).
+
+### AC-003: All five `ActivityRecord` columns declared with correct types (SAP-2)
+(traces to BC-2.02.014 postcondition 4 — emitted record schema)
+
+The `armis_device_activity` table declares all five `ActivityRecord` columns with the
+correct `column_type` and `ocsf_field` values per BC-2.02.014 §TOML Contract:
+
+| TOML column | `column_type` | `ocsf_field` | `ActivityRecord` field |
+|-------------|---------------|--------------|------------------------|
+| `activity_id` | `string` | `raw_extensions.activity_id` | `activity_id: String` |
+| `device_id` | `string` | `device.uid` | `device_id: String` |
+| `activity_type` | `string` | `activity_name` | `activity_type: String` |
+| `timestamp` | `string` | `time` | `timestamp: String` |
+| `details` | `json` | `raw_extensions.details` | `details: serde_json::Value` |
+
+Anchor: RG-003 (`test_armis_toml_armis_device_activity_has_all_five_activity_record_columns`).
+
+### AC-004: Absent `device_id` filter returns hard error, not silent empty result
+(traces to BC-2.02.014 §Error Cases row 1 / invariant filter-required / EC-014-001)
+
+**This AC FAILS against the current engine implementation — correct Red Gate behavior.**
+
+A query `SELECT * FROM armis_device_activity` without a `WHERE device_id = '...'`
+predicate MUST produce a hard error (`SpecEngineError::HttpRequestFailed` or equivalent).
+Zero records are returned. The pipeline MUST NOT silently produce an empty result set
+via a malformed URL path.
+
+Current engine behavior (confirmed from code): `seed_missing_query_filter_vars
+§seed_missing_query_filter_vars` in `crates/prism-spec-engine/src/pipeline.rs` pre-seeds
+absent `query.filter.device_id` with empty string, producing path
+`/api/v1/devices//activity`. DTU returns HTTP 200 + empty activities array — a silent
+empty result. The spec wins per CLAUDE.md Source-of-Truth Precedence; the engine must
+be fixed (see T-IMPL-02).
+
+Anchor: RG-004 (`test_armis_device_activity_absent_device_id_filter_returns_hard_error`).
+
+### AC-005: Successful single-device query fetches correct URL and returns records
+(traces to BC-2.02.014 postconditions 1, 2, 3)
+
+A query `SELECT * FROM armis_device_activity WHERE device_id = 'dev-001'` against a
+DTU seeded with activity fixture for `dev-001` MUST:
+1. Pre-seed `step_vars["query.filter.device_id"] = "dev-001"` via the
+   `FetchContext.query_filters["device_id"]` loop (block comment `F-LP1-HIGH-004`
+   in `pipeline.rs §execute_impl`)
+2. Construct URL `<base_url>/api/v1/devices/dev-001/activity` via interpolation
+3. Fetch from `routes::devices::get_device_activity` and extract `$.data.activities`
+4. Return an array of activity records scoped to `dev-001`; all five columns present
+   in each record
+
+Anchor: RG-005 (`test_armis_device_activity_with_device_id_filter_fetches_correct_url_and_returns_records`).
+
+### AC-006: Wire-level JSON response shape includes all five ActivityRecord fields
+(traces to BC-2.02.014 postcondition 4 / 2026-07-13 wire-shape assertion discipline)
+
+At least one test MUST assert on the SERIALIZED JSON bytes returned by
+`GET /api/v1/devices/{device_id}/activity` from the DTU — not only on
+pre-serialization Rust structures. The serialized response envelope MUST contain:
+
+```json
+{
+  "data": {
+    "activities": [
+      {
+        "activity_id": "<string>",
+        "device_id": "<string>",
+        "activity_type": "<string>",
+        "timestamp": "<string>",
+        "details": <value>
+      }
+    ],
+    "total": <number>
+  }
+}
+```
+
+All five keys (`activity_id`, `device_id`, `activity_type`, `timestamp`, `details`)
+MUST be present in each serialized activity record (null-not-absent discipline:
+no key may be silently omitted per BC-2.11.001 EC-11-079).
+
+Anchor: RG-006 (`test_armis_device_activity_dtu_response_json_shape_has_all_five_fields`).
+
+### AC-007: Device with no activity records returns empty result set, not an error
+(traces to BC-2.02.014 §Edge Cases EC-014-002)
+
+A query `SELECT * FROM armis_device_activity WHERE device_id = 'no-activity-device'`
+against a DTU with no activity fixture entries for that device ID MUST return zero
+records and no error (HTTP 200 with empty `activities` array → empty result set). This
+is the normal case for a device that exists but has no recorded activity.
+
+Anchor: RG-007 (`test_armis_device_activity_device_with_no_activities_returns_empty_result_set`).
 
 ---
 
@@ -122,7 +267,8 @@ sensor spec and its columns match the `ActivityRecord` struct fields enumerated 
 | Component | Module | Pure/Effectful | Architecture Section |
 |-----------|--------|---------------|----------------------|
 | `armis.sensor.toml` (activity table) | `crates/prism-sensors/specs/` | Pure (config data) | `architecture/module-decomposition.md §SS-06 SensorSpec` |
-| `get_device_activity` handler | `crates/prism-dtu-armis/src/routes/devices.rs` | Effectful (HTTP handler) | `architecture/module-decomposition.md §SS-12 DTU-Armis` |
+| `seed_missing_query_filter_vars` fix | `crates/prism-spec-engine/src/pipeline.rs §seed_missing_query_filter_vars` | Pure (query transformation) | `architecture/module-decomposition.md §SS-07 SpecEngine` |
+| `get_device_activity` handler | `crates/prism-dtu-armis/src/routes/devices.rs §get_device_activity` | Effectful (HTTP handler) | `architecture/module-decomposition.md §SS-12 DTU-Armis` |
 | `ActivityRecord` / `ActivityData` / `ActivityResponse` | `crates/prism-dtu-armis/src/types.rs` | Pure (data types) | `architecture/module-decomposition.md §SS-12 DTU-Armis` |
 
 ---
@@ -131,17 +277,16 @@ sensor spec and its columns match the `ActivityRecord` struct fields enumerated 
 
 | BC | Version | Relevance |
 |----|---------|-----------|
-| BC-2.02.006 | v1.7 | Armis surfaces contract; EC-02-014 records this gap and its deferral to S-WAVE-A-ARMIS-ACTIVITY-001 |
-
-No additional BCs until architect confirms variable injection support. Product-owner
-must author new BC(s) covering the `armis_device_activity` surface after that gate.
+| BC-2.02.006 | v1.9 | Armis Centrix Field Mapping to OCSF (7 Data Sources) — EC-02-014 records the `armis_device_activity` deferral and its resolution to this story; AC-001 closes the deferral sentinel |
+| BC-2.02.014 | v1.0 | Armis Device Activity Surface — Filter-Required Push-Down Fetch Contract — specifies the full behavioral contract: push-down grammar, 5-column schema, required-filter hard error, edge cases EC-014-001..EC-014-005 |
 
 ---
 
 ## UX / Operator Surfaces
 
-None — this story produces no user-facing UI changes. The only surface change is
-the addition of a new queryable table in `armis.sensor.toml`.
+None — this story produces no user-facing UI changes. The surface changes are:
+(1) addition of a new queryable table in `armis.sensor.toml`, and
+(2) an engine-level required-filter guard in `crates/prism-spec-engine`.
 
 ---
 
@@ -149,29 +294,181 @@ the addition of a new queryable table in `armis.sensor.toml`.
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | `device_id` variable not injected (grammar not supported) | Spec load fails or pipeline returns E-SPEC error — NOT silent empty result |
-| EC-002 | Device has no activity records | `armis_device_activity` query returns empty result set — not an error |
-| EC-003 | `details` field contains nested JSON object | Serialized as JSON string per `column_type = "Json"` |
+| EC-001 | `device_id` filter not provided in query | Hard error (`SpecEngineError::HttpRequestFailed`); zero records; no silent empty result; no malformed URL path segment — per BC-2.02.014 §Error Cases row 1 and EC-014-001 |
+| EC-002 | Device has no activity records in DTU | Query returns zero records — not an error; per BC-2.02.014 EC-014-002 |
+| EC-003 | `details` field contains nested JSON object | Serialized as `json` type per `column_type = "json"`; structure preserved in full; per BC-2.02.014 EC-014-004 |
+| EC-004 | `details` is null in a record | `details` column emits null; not an error; nullable per `serde_json::Value` serialization; per BC-2.02.014 EC-014-005 |
 
 ---
 
 ## Tasks
 
-**All tasks are BLOCKED pending architect confirmation of variable injection grammar.**
+### Red Gate tests (test-writer MUST author all RG tests BEFORE any implementation begins)
 
-### T-01 (BLOCKED): Author `armis_device_activity` table in `armis.sensor.toml`
+- [ ] **RG-001**: `test_armis_toml_armis_device_activity_table_declared_with_correct_step_block` — AC-001
+  _(Parses `crates/prism-sensors/specs/armis.sensor.toml`; asserts `armis_device_activity`
+  table exists; asserts step named `"fetch_device_activity"` has `method = "GET"`,
+  `path_template` containing `${query.filter.device_id}`, and
+  `response_path = "$.data.activities"`. Test fails before T-IMPL-01 adds the table.
+  Mirrors existing column-assertion patterns in `crates/prism-spec-engine/tests/` or
+  `crates/prism-sensors/tests/`.)_
+
+- [ ] **RG-002**: `test_armis_toml_armis_device_activity_device_id_column_has_index_option` — AC-002
+  _(Parses `armis.sensor.toml`; asserts the `armis_device_activity` table has a `device_id`
+  column that declares `options = ["INDEX"]`; confirms push-down eligibility per ADR-033 T1.
+  Test fails before T-IMPL-01.)_
+
+- [ ] **RG-003**: `test_armis_toml_armis_device_activity_has_all_five_activity_record_columns` — AC-003
+  _(Parses `armis.sensor.toml`; asserts `armis_device_activity` table has exactly five
+  columns with names `activity_id`, `device_id`, `activity_type`, `timestamp`, `details`
+  and correct `column_type` values (`string`, `string`, `string`, `string`, `json`);
+  SAP-2 parity check against `ActivityRecord §ActivityRecord` in
+  `crates/prism-dtu-armis/src/types.rs`. Test fails before T-IMPL-01.)_
+
+- [ ] **RG-004**: `test_armis_device_activity_absent_device_id_filter_returns_hard_error` — AC-004
+  _(Pipeline integration test: issues a query against `armis_device_activity` with NO
+  `WHERE device_id` predicate against a running DTU; asserts
+  `SpecEngineError::HttpRequestFailed` or equivalent is returned; asserts zero records.
+  Test fails on the current engine because `seed_missing_query_filter_vars
+  §seed_missing_query_filter_vars` inserts an empty-string seed causing a silent empty
+  result. Will remain failing until T-IMPL-02 provides the fix.)_
+
+- [ ] **RG-005**: `test_armis_device_activity_with_device_id_filter_fetches_correct_url_and_returns_records` — AC-005
+  _(Integration test with DTU seeded with activity fixture for `"dev-001"`; query
+  `SELECT * FROM armis_device_activity WHERE device_id = 'dev-001'`; asserts pipeline
+  constructs URL containing `/api/v1/devices/dev-001/activity`; asserts returned records
+  include all five column fields with non-empty values. Test fails before T-IMPL-01
+  makes the surface reachable.)_
+
+- [ ] **RG-006**: `test_armis_device_activity_dtu_response_json_shape_has_all_five_fields` — AC-006
+  _(HTTP test against the DTU at `GET /api/v1/devices/dev-001/activity` with DTU seeded
+  with at least one `ActivityRecord` for `"dev-001"`; deserializes the response body as
+  `serde_json::Value`; asserts all five keys — `"activity_id"`, `"device_id"`,
+  `"activity_type"`, `"timestamp"`, `"details"` — are present in
+  `response["data"]["activities"][0]`. Wire-shape assertion per 2026-07-13 discipline.
+  This test exercises only the DTU wire surface and passes on the current engine because
+  the route is already implemented; it verifies the contract is upheld going forward.
+  Preferred location: `crates/prism-dtu-armis/tests/`.)_
+
+- [ ] **RG-007**: `test_armis_device_activity_device_with_no_activities_returns_empty_result_set` — AC-007
+  _(Integration test; query `SELECT * FROM armis_device_activity WHERE device_id = 'empty-device'`
+  against DTU with no activity fixture for `"empty-device"`; asserts empty result set
+  returned (zero rows); asserts no error condition. Test fails before T-IMPL-01 makes
+  the table reachable from PrismQL.)_
+
+**Red Gate density check** (BC-5.38.001): **7 failing tests** required before
+implementation begins. RG-001..RG-007 cover all 7 ACs one-to-one.
+RED_RATIO = 7/7 = 1.0 (meets the BC-5.38.001 threshold). Orchestrator verifies
+density at Step 3.5 per `per-story-delivery.md` from actual Red Gate results;
+BC-5.38.002 and BC-5.38.003 define exempt test classes that may reduce the denominator.
+
+---
+
+### Implementation tasks (to be executed ONLY AFTER all RG tests are authored and failing)
+
+### T-IMPL-01: Author `armis_device_activity` table in `armis.sensor.toml`
 **Files:** `crates/prism-sensors/specs/armis.sensor.toml` (MODIFY)
 
-Add `[[tables]]` block for `armis_device_activity` surface. Specifics (endpoint path,
-pagination treatment, variable injection syntax) depend on architect confirmation.
+Add `[[tables]]` block for `armis_device_activity`. Use the exact TOML from
+BC-2.02.014 §TOML Contract (authoritative specification):
 
-**Blocker:** variable injection pattern `path_template = "/api/v1/devices/${variable.device_id}/activity"`
-requires architect confirmation before this TOML block can be authored. Filing the
-task now so the story is a concrete implementation anchor — not so the work can proceed.
+```toml
+[[tables]]
+name = "armis_device_activity"
+sensor_name = "armis"
 
-### T-02 (BLOCKED): SAP-2 column parity verification
-After T-01, verify every column in the `armis_device_activity` table matches an
-`ActivityRecord` field. Missing-column-in-DTU = P1 CRITICAL per SAP-2 protocol.
+  [[tables.steps]]
+  name = "fetch_device_activity"
+  method = "GET"
+  path_template = "/api/v1/devices/${query.filter.device_id}/activity"
+  response_path = "$.data.activities"
+  variables_produced = []
+
+  # SAP-2 verified: activity_id — ActivityRecord.activity_id: String
+  # emitted by routes::devices::get_device_activity via serde_json (Json wrapper)
+  [[tables.columns]]
+  name = "activity_id"
+  column_type = "string"
+  ocsf_field = "raw_extensions.activity_id"
+
+  # SAP-2 verified: device_id — ActivityRecord.device_id: String
+  # INDEX option enables push-down: WHERE device_id = '...' → FetchContext.query_filters["device_id"]
+  [[tables.columns]]
+  name = "device_id"
+  column_type = "string"
+  ocsf_field = "device.uid"
+  options = ["INDEX"]
+
+  # SAP-2 verified: activity_type — ActivityRecord.activity_type: String
+  [[tables.columns]]
+  name = "activity_type"
+  column_type = "string"
+  ocsf_field = "activity_name"
+
+  # SAP-2 verified: timestamp — ActivityRecord.timestamp: String (ISO-8601 wire string)
+  [[tables.columns]]
+  name = "timestamp"
+  column_type = "string"
+  ocsf_field = "time"
+
+  # SAP-2 verified: details — ActivityRecord.details: serde_json::Value
+  [[tables.columns]]
+  name = "details"
+  column_type = "json"
+  ocsf_field = "raw_extensions.details"
+```
+
+Consult existing table blocks in `armis.sensor.toml` for indentation and comment
+formatting conventions. This task makes RG-001, RG-002, RG-003, RG-007 green
+(the filter-required behavior still requires T-IMPL-02).
+
+### T-IMPL-02: Implement required-filter hard error for `armis_device_activity`
+**Files:** `crates/prism-spec-engine/src/pipeline.rs §seed_missing_query_filter_vars` (MODIFY)
+
+**Problem (confirmed from code):** `seed_missing_query_filter_vars` unconditionally
+pre-seeds absent `${query.filter.*}` slots with empty string. For `armis_device_activity`,
+an absent `device_id` filter produces the path `/api/v1/devices//activity` → DTU returns
+HTTP 200 + empty array → silent empty result, violating BC-2.02.014 §Error Cases row 1.
+
+**Required behavior:** When a query against `armis_device_activity` lacks a
+`WHERE device_id = '...'` predicate, the pipeline MUST return
+`SpecEngineError::HttpRequestFailed` before issuing any HTTP request.
+Anchor: AC-004 / RG-004.
+
+**Implementation approach (TDD-driven):** The implementer MUST determine the precise
+mechanism by making RG-004 pass. Candidate approaches (non-exhaustive):
+- A TOML-level `required_filters = ["device_id"]` field on `[[tables.steps]]`,
+  validated before `seed_missing_query_filter_vars` runs
+- An engine-level pre-flight check that detects INDEX-declared required filter slots
+  with no matching `query_filters` entry
+- A sentinel on the step config distinguishing required from optional filter slots
+
+**The chosen mechanism MUST NOT break** existing optional filter behavior:
+- CrowdStrike `${query.filter._fql}` — absent is valid (no time predicate is normal)
+- Armis `${query.filter.aql}` — absent is valid (table-level default AQL used)
+
+The distinction between optional and required filters requires a TOML-level declaration.
+A post-fetch empty-result check as a workaround is a defer-pattern anti-pattern
+(Canonical Principle Rule 1) and is not acceptable.
+
+This task makes RG-004 and RG-005 fully green (filter hard error + normal query path).
+
+### T-IMPL-03: SAP-2 column parity verification
+After T-IMPL-01, confirm every column in `armis_device_activity` corresponds to an
+`ActivityRecord` field emitted at the wire-emission site `§get_device_activity`. The
+five fields confirmed in code-reading:
+`activity_id`, `device_id`, `activity_type`, `timestamp`, `details` — all present
+on the struct and emitted via `Json(ActivityResponse { ... })`. No P1 CRITICAL.
+
+---
+
+## Forbidden Dependencies
+
+The `seed_missing_query_filter_vars` fix in T-IMPL-02 MUST NOT introduce a dependency
+from `prism-spec-engine` onto `prism-dtu-armis`. The required-filter mechanism MUST
+be expressed entirely within `prism-spec-engine` via TOML-level declarations or
+engine-internal state. If the build gains `prism-spec-engine → prism-dtu-armis` as
+a new dependency, the build MUST fail.
 
 ---
 
@@ -179,15 +476,17 @@ After T-01, verify every column in the `armis_device_activity` table matches an
 
 | Context source | Estimated tokens |
 |----------------|-----------------|
-| This story spec | ~1,500 |
+| This story spec | ~3,500 |
 | `armis.sensor.toml` (current state, reference) | ~2,000 |
-| `crates/prism-dtu-armis/src/types.rs` (ActivityRecord types) | ~500 |
-| Architect confirmation ADR (TBD) | ~1,000 |
-| BC files (pending authorship) | ~1,000 |
+| `crates/prism-dtu-armis/src/types.rs §ActivityRecord` area | ~500 |
+| `crates/prism-spec-engine/src/pipeline.rs §seed_missing_query_filter_vars` and surrounding context | ~1,500 |
+| ADR-057 (filter-push-down grammar adjudication) | ~1,000 |
+| BC-2.02.014 (full contract) | ~1,500 |
+| BC-2.02.006 §EC-02-014 (deferral sentinel) | ~500 |
 | Running test output (nextest per-crate) | ~1,000 |
-| **Total estimate** | **~7,000** |
+| **Total estimate** | **~11,500** |
 
-Small story (3 points); single TOML table addition once unblocked.
+11,500 tokens is within 20% context-window limit for most agent models. No story split required.
 
 ---
 
@@ -196,31 +495,61 @@ Small story (3 points); single TOML table addition once unblocked.
 **From F-SAP2-MED-006 probe (wave-a-sap2-probe-pass-65):**
 - `ActivityRecord`, `ActivityResponse`, `ActivityData` confirmed present in
   `prism-dtu-armis::types`; `get_device_activity` handler confirmed fully implemented
-  and registered at `GET /api/v1/devices/:device_id/activity` in `clone.rs`
-- The DTU is ready; only the TOML spec and variable injection grammar are missing
+  and registered at `GET /api/v1/devices/:device_id/activity` in `§build_router`
+- The DTU is ready; only the TOML spec and required-filter engine fix are missing
 
 **From S-WAVE-A-ARMIS-REMEDIATION-001 (predecessor wave-a story):**
 - Armis uses bearer static auth; `check_bearer_auth` pattern already established
 - Activity route is auth-checked; no additional auth work needed in this story
+
+**From ADR-057 adjudication (2026-07-27) and code-reading in FB75:**
+- `${query.filter.device_id}` filter-push-down grammar confirmed — single-device lookup only
+- Per-record fan-out is a capability gap (ADR-057 §D6) — NOT in scope for this story
+- `seed_missing_query_filter_vars §seed_missing_query_filter_vars` DOES pre-seed absent
+  filter slots with empty string — ADR-057 §D4's analysis (which stated interpolation
+  aborts on missing filter) did not account for this function. The actual current
+  behavior contradicts §D4; the BC wins per CLAUDE.md Source-of-Truth Precedence
+
+**From S-WAVE-A-ARMIS-SPEC-001 sibling story (POL-29 9a sweep):**
+- That story modifies `armis.sensor.toml` devices table only; this story adds a new
+  `armis_device_activity` table. Both stories have `depends_on: []` and modify the
+  same file in non-overlapping sections.
+- Implementer note: if both stories are implemented in the same wave, rebase before
+  final merge to avoid TOML append-conflict in `armis.sensor.toml`.
+- No content asymmetry detected in how the two stories describe `armis.sensor.toml`.
 
 ---
 
 ## Architecture Compliance Rules
 
 1. **SAP-2 mandatory:** every TOML column in `armis_device_activity` MUST have a
-   corresponding field in `ActivityRecord` (confirmed in `types.rs`). Do not add columns
-   that have no backing struct field.
+   corresponding field in `ActivityRecord §ActivityRecord` (confirmed in
+   `crates/prism-dtu-armis/src/types.rs`). Column in TOML with no DTU struct field
+   = P1 CRITICAL per SAP-2 protocol. Anchor: AC-003 / RG-003.
 
 2. **Wire-shape assertion discipline (CLAUDE.md):** any test covering the DTU HTTP
-   surface must assert on serialized JSON output, not only on Rust struct state. At
-   least one test must assert on the serialized `ActivityResponse` shape from the DTU.
+   surface must assert on serialized JSON output. At least one test must assert on
+   the serialized `ActivityResponse` shape from the DTU at the wire level.
+   Anchor: AC-006 / RG-006.
 
-3. **ADR-028 §D1 — DTU-grounded spec authoring:** path_template must match the DTU
-   route exactly. The registered route is `GET /api/v1/devices/:device_id/activity`.
+3. **ADR-028 §D1 — DTU-grounded spec authoring:** `path_template` must match the DTU
+   route exactly. The registered route is `GET /api/v1/devices/:device_id/activity`
+   per `§build_router`. Anchor: AC-001 / RG-001.
 
-4. **Variable injection grammar:** do NOT use `${variable.*}` syntax unless the
-   architect has confirmed support. Using unsupported syntax silently produces an
-   uninterpolated literal path, causing 404 on every request.
+4. **Variable injection grammar — confirmed:** Use `${query.filter.device_id}` syntax
+   (filter-push-down namespace, ADR-057 §D4). The `device_id` column MUST declare
+   `options = ["INDEX"]` to enable filter extraction. Do NOT use the superseded
+   `${variable.*}` syntax (phantom — zero workspace occurrences).
+   Anchor: AC-002 / RG-002.
+
+5. **Required-filter hard error:** the engine MUST detect and reject queries against
+   `armis_device_activity` that lack a `device_id` filter. The fix MUST NOT break
+   existing optional filter behavior (CrowdStrike `_fql`, Armis `aql`).
+   Anchor: AC-004 / RG-004.
+
+6. **No empty-string defeat via post-fetch workaround:** the fix must be structural
+   at the pre-flight or pre-seed stage. A workaround that adds a post-fetch empty-
+   response check is a defer-pattern anti-pattern (Canonical Principle Rule 1).
 
 ---
 
@@ -230,6 +559,7 @@ Small story (3 points); single TOML table addition once unblocked.
 |---------|---------|----------------|
 | `axum` | pinned in workspace `Cargo.toml` | `architecture/dependency-graph.md §External Dependencies` |
 | `serde` / `serde_json` | pinned in workspace `Cargo.toml` | same |
+| `regex` | pinned in workspace `Cargo.toml` (used by `seed_missing_query_filter_vars §seed_missing_query_filter_vars`) | same |
 
 No new external dependencies are introduced by this story.
 
@@ -239,15 +569,17 @@ No new external dependencies are introduced by this story.
 
 | File | Action | Notes |
 |------|--------|-------|
-| `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | Task T-01 (BLOCKED); add `[[tables]]` block for `armis_device_activity` surface |
-
-No new files created by this story — the DTU handler and types already exist.
+| `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | T-IMPL-01: add `[[tables]]` block for `armis_device_activity` per BC-2.02.014 §TOML Contract |
+| `crates/prism-spec-engine/src/pipeline.rs` | MODIFY | T-IMPL-02: required-filter hard error mechanism near `seed_missing_query_filter_vars §seed_missing_query_filter_vars` |
+| `crates/prism-spec-engine/tests/` (new or existing test file) | CREATE/MODIFY | RG-001, RG-002, RG-003 (TOML spec assertions); RG-004, RG-005, RG-007 (pipeline integration tests) |
+| `crates/prism-dtu-armis/tests/` (new or existing test file) | CREATE/MODIFY | RG-006 (wire-shape assertion against `§get_device_activity`) |
 
 ---
 
 ## Verification Properties
 
-None assigned yet — pending BC authorship.
+None assigned yet. To be added when product-owner authors VP entries for the
+`armis_device_activity` surface per BC-2.02.014 §VP Anchors.
 
 ---
 
@@ -255,4 +587,6 @@ None assigned yet — pending BC authorship.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.2 | 2026-07-27 | story-writer | FB75: Complete story to `status: ready`. (1) Add BC-2.02.014 to `behavioral_contracts: [BC-2.02.006, BC-2.02.014]`; remove pending-BC status comment. (2) Replace placeholder ACs with real BC-traced criteria: AC-001..AC-007 derived from BC-2.02.014 postconditions, §Error Cases, §Edge Cases, invariant filter-required, and 2026-07-13 wire-shape discipline; AC-001 also traces to BC-2.02.006 EC-02-014 (deferral closure). (3) Code-reading verdict on `seed_missing_query_filter_vars §seed_missing_query_filter_vars`: confirmed empty-string pre-seed behavior — absent `device_id` filter produces path `/api/v1/devices//activity` → DTU HTTP 200 + empty array → silent empty result (violates BC-2.02.014 §Error Cases; spec wins per CLAUDE.md). ADR-057 §D4 analysis did not account for this function. (4) SAP-2 parity: `get_device_activity` handler has one static-fixture path only; all five `ActivityRecord` fields emitted via `Json(body)`; parity PASS. (5) SAC-1 compliance: enumerated RG-001..RG-007 with named test functions, BC-5.38.001 density check (7/7 = 1.0), red-then-green task ordering (all RG tests appear before all implementation tasks). (6) Add T-IMPL-02 for required-filter hard error mechanism — non-trivial engine fix: `seed_missing_query_filter_vars` must not pre-seed required filter slots with empty string. (7) Add §Code-Reading Verdict, §Forbidden Dependencies. (8) Bump points 3 → 5 (engine fix scope added). (9) Add SS-07 to subsystems; add `crates_touched` frontmatter. (10) POL-29 9a sweep: S-WAVE-A-ARMIS-SPEC-001 covers `devices` table; no content asymmetry in how either story describes `armis.sensor.toml`. (11) POL-29 9c: all MUSTs in §Acceptance Criteria and §Architecture Compliance Rules carry AC + RGT anchors. |
+| 1.1 | 2026-07-27 | story-writer | FB72 story-writer leg 2: (1) Unblock story — architect confirmed `${query.filter.device_id}` filter-push-down grammar via ADR-057 adjudication (2026-07-27); rewrite §Blocking Dependency as §Architect Adjudication with confirmed path_template, single-device filter-required scope, per-record fan-out gap documented in ADR-057 §D6. (2) Set `behavioral_contracts: [BC-2.02.006]`; update BC status comment. (3) Add `## Authority` citing ADR-057 for SAC-2 bidirectionality. (4) Replace superseded `${variable.*}` phantom grammar in placeholder ACs, §Architecture Compliance Rules, §Tasks, §Behavioral Contracts. |
 | 1.0 | 2026-07-27 | story-writer | Initial authoring (FB69). Created to satisfy Canonical Principle Rule 3: F-SAP2-MED-006 deferred gap `armis_device_activity` surface required a real story anchor. Ground-truth DTU state confirmed from code. Blocked on architect confirmation of variable injection grammar. Deferral cross-referenced to BC-2.02.006 EC-02-014 (FB68d). |

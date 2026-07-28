@@ -4,14 +4,15 @@ adr_id: "ADR-051"
 title: "Typed & Consistent Enrichment UDF Output — output_type→Arrow DataType Mapping, Mandatory source_column, Scalar-Input Rule, and INV-ENRICH-TYPED-001"
 status: ACCEPTED
 date: "2026-07-03"
-modified: "2026-07-13"
-version: "1.6"
+modified: "2026-07-27"
+version: "1.8"
 producer: architect
 subsystems_affected: [SS-09, SS-10, SS-19]
 supersedes: []
 superseded_by: null
 amends: null
-anchor_stories: [S-DEMO-ENRICHMENT-TYPED-OUTPUT-001]  # verified: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 title includes "ADR-051 D1–D6 Implementation"; traces_to: [ADR-051]
+anchor_stories:  # SAC-2 ground truth: a story belongs here only when its own ## Authority section cites this ADR
+  - S-DEMO-ENRICHMENT-TYPED-OUTPUT-001  # §Authority verified: "ADR-051 v1.7 §D1–§D6" (complete design authority, unscoped)
 related_adrs: [ADR-024, ADR-040, ADR-044, ADR-052]
 related_bcs: [BC-2.19.001]
 locked_decisions: []
@@ -607,6 +608,8 @@ produces E-INFUSE-013.
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| 1.8 | 2026-07-27 | architect | FB80 SAC-2 promotion: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 promoted from SAC-2-UNVERIFIED to verified. Story v1.17 §Authority cites ADR-051 v1.7 §D1–§D6 as "complete design authority" (unscoped). SAC-2-UNVERIFIED comment block removed from anchor_stories. |
+| 1.7 | 2026-07-27 | architect | FB76 SAC-2 sweep: S-DEMO-ENRICHMENT-TYPED-OUTPUT-001 demoted to SAC-2-UNVERIFIED — story has no §Authority section (grep confirmed zero results). Prior v1.6 annotation used frontmatter `traces_to: [ADR-051]` citation — pre-SAC-2 format, not §Authority text. Handoff to story-writer to add §Authority section. |
 | 1.6 | 2026-07-26 | architect | F-WASE-P64-OBS-001: `anchor_stories: []` corrected to `[S-DEMO-ENRICHMENT-TYPED-OUTPUT-001]` — verified from ground truth: story title includes "ADR-051 D1–D6 Implementation" and `traces_to: [ADR-051]`. Previously `[]` because the field was never populated after initial authoring. |
 | 1.5 | 2026-07-13 | architect | PO-adjudicated null-input guard sub-clause added to §D2, inserted between "Coercion path (JSON Number → typed value)" and "Failure mode: NULL + E-INFUSE-014" blocks. Closes F-MCPRS-PRL1-OBS-003: test cites "ADR-051 §D2 null-input short-circuit" but §D2 v1.4 only documented post-source-call coercion failure; the pre-call null-input guard was unspecced. Guard behavior confirmed against worktree `invoke_async_with_args` (lines 330–337 of `infusion_udf.rs`): `None` arm pushes `None` and continues before ENRICH-1, before `enrich_one_scalar`, before `project_value()`, with no E-INFUSE-014 emitted; applies to all output types and all infusion types. Code-truth correction: §D4 comparison-table "Source called?" cell corrected from "Depends on ENRICH-1 path" → "Yes" — for non-json output_type, `is_json_output = false` so ENRICH-1 never fires; source is always called via `enrich_one_scalar` before `coerce_to_typed` detects the `[` prefix and emits E-INFUSE-014. No D1–D6 decision-content change; no other section affected. |
 | 1.4 | 2026-07-06 | architect | Post-pass-1 example reconciliation: `column_type` examples in "Sensor TOMLs — New Scalar Companion Columns" block corrected PascalCase `"String"` → lowercase `"string"` (canonical serde form per `prism_core::column::ColumnType` `#[serde(rename_all = "snake_case")]`). No other PascalCase column_type example values found. D2/D3 `declared_type`/sub-condition-7 examples already use correct lowercase `output_type` vocabulary; no change. No decision-content change (D1–D6 semantics unchanged). |
