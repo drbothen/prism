@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.747"
+version: "2.748"
 status: draft
 producer: state-manager
 timestamp: 2026-07-28T00:00:00Z
@@ -22,6 +22,7 @@ Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
+- **D-2058 FB82 CLOSED — BC Traceability Matrix 18 entries added — STORY-INDEX v2.747→v2.748 (2026-07-28):** (state-manager D-2058) F-WASE-P68-HIGH-002 CLOSED. §BC Traceability Matrix: 18 entries added (1 new row + 17 appends). New row: BC-2.02.014 → S-WAVE-A-ARMIS-ACTIVITY-001. Appended: BC-2.01.006 += S-WAVE-A-CYBERINT-SPEC-001; BC-2.01.017 += S-ADR054-WAVE-A-001; BC-2.02.006 += S-WAVE-A-ARMIS-SPEC-001; BC-2.06.003 += S-WAVE-A-CYBERINT-SPEC-001, S-WAVE-A-ARMIS-REMEDIATION-001, S-ADR054-WAVE-A-001; BC-2.10.007 += S-WAVE-A-MCP-001; BC-2.16.001 += S-WAVE-A-CYBERINT-SPEC-001, S-ADR055-WAVE-A-001; BC-2.16.002 += S-WAVE-A-CYBERINT-SPEC-001, S-ADR055-WAVE-A-001; BC-2.16.007 += S-ADR055-WAVE-A-001; BC-2.16.008 += S-WAVE-A-MCP-001, S-ADR055-WAVE-A-001; BC-2.16.009 += S-WAVE-A-CYBERINT-PATCH-001, S-ADR054-WAVE-A-001, S-ADR055-WAVE-A-001. POL-29 closed-loop: all 9 perimeter stories × their frontmatter BCs verified present in matrix post-edit (S-WAVE-A-ENGINE-001: BC-2.16.009/BC-2.01.017/BC-2.16.014/BC-2.01.016 ✓; S-WAVE-A-MCP-001: BC-2.16.008/BC-2.10.007 ✓; S-WAVE-A-CYBERINT-PATCH-001: BC-2.16.009 ✓; S-WAVE-A-ARMIS-REMEDIATION-001: BC-2.01.008/BC-2.06.003 ✓; S-ADR054-WAVE-A-001: BC-2.16.009/BC-2.01.017/BC-2.06.003 ✓; S-ADR055-WAVE-A-001: BC-2.16.009/BC-2.16.001/BC-2.16.007/BC-2.16.008/BC-2.16.002 ✓; S-WAVE-A-CYBERINT-SPEC-001: BC-2.01.006/BC-2.01.018/BC-2.06.003/BC-2.16.001/BC-2.16.002/BC-2.16.009 ✓; S-WAVE-A-ARMIS-ACTIVITY-001: BC-2.02.006/BC-2.02.014 ✓; S-WAVE-A-ARMIS-SPEC-001: BC-2.02.006 ✓). Derived-18-vs-reported-19 note: mechanical derivation from frontmatter arrays yields 18 entries; adversary prose said "19" but its own enumeration totals 18 — mechanical derivation is authority. BC-2.06.003 pairs (CYBERINT-SPEC, ARMIS-REMEDIATION, ADR054) judged genuine implementation per BC status comments in each story's frontmatter (credential_refs changes/token_exchange mechanism implementation). total_stories 254 UNCHANGED. STATE v8.605→v8.606.
 - **D-1849..D-1851 AUDIT-COVERAGE-001 REBASE + TAXONOMY v2.55→v2.56 + S-MAINT-PRMGR-HOOK-SCOPE-001 REGISTERED — STORY-INDEX v2.713→v2.714 (2026-07-18):** (state-manager D-1849) AUDIT-COVERAGE-001 fix/T13-audit-coverage rebased @cd369b54→98bb1de2 onto develop 277b7844 (44 commits preserved; zero conflicts; D-1845; LOCAL cascade restarted). LOCAL pass F-AUD-R1 CLEAN(strict)=yes CLEAN(PR-merge)=yes on frozen 98bb1de2; streak 1/3 (D-1846; BC-5.39.001; DRIFT-ORCH-PRLEVEL-PUSH-001 — no pushes mid-streak). F-AUD-R1-DEFER-001 CLOSED same-session: error-taxonomy.md v2.55→v2.56 (PO +6 E-SENSOR rows: E-SENSOR-030/031/032/040/050/070; D-1847; WASM fuel-ceiling hook bypass HUMAN-authorized scoped; PG-HOOK-FUEL-CEILING-001 registered). Lesson 71 appended — WASM fuel-ceiling fail-closed false positive class (D-1848). NEW STORY S-MAINT-PRMGR-HOOK-SCOPE-001 **draft v0.1** REGISTERED (D-1811 obligation satisfied; pr-manager FM4/STEP_COMPLETE hook scope-guard + evidence-context-asymmetry mitigations; P1; 3 pts; 5 ACs; Platform Engineering; anchor D-1811 process-gap; PG-HOOK-FUEL-CEILING-001 fold-in AC-004). HUMAN AUTH #2 fuel_cap 100M patch 32 entries (D-1850); 3rd evidence-context-asymmetry classifier FP S-MAINT-PRMGR-HOOK-SCOPE-001 AC-003 corroboration (D-1851). develop_head UNCHANGED 277b7844. total_stories 245→246. STATE v8.419→v8.420.
 - **D-1795 CONSOLIDATED THREE-LANE BURST — S-MAINT-CI-DISK-EXHAUSTION-001 v0.16→v0.17 + S-PRISMQL-CASE-INSENSITIVE-001 v1.73→v1.74 + DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 REGISTERED + DRIFT-AUDIT-RUNBOOK-LITERALS-001 CLOSED — STORY-INDEX v2.694→v2.695 (2026-07-16):** (state-manager D-1795) S-MAINT-CI-DISK-EXHAUSTION-001 **v0.17** (fix-burst-12 spec layer @1f39ae52: ACR/FP carve-outs resolving MED-001; 19-check echo arithmetic (17 reachability + 2 config) resolving MED-002; e2e.yml AC-006 scope + RG-7 + EC-014 resolving MED-004; combined update+install wrapper EC-013 resolving LOW-003; linux-test→test resolving LOW-001; TD-VSDD-091 line-pin strip resolving OBS-001; code @bd65e93a PUSHED (12 ci.yml sites + e2e.yml + RG-7 + || true ×4 + echo 19-total); PR description refreshed; pass-9 DISPATCHED on frozen bd65e93a; streak 0/3). S-PRISMQL-CASE-INSENSITIVE-001 **v1.74** (POL-23 sweep: BC-2.02.013 v1.9→v1.10 — 17 live pin sites + DEMO-SCOPE.md 2 pins; template-conformance frontmatter/sections added in-burst @5635cd7f). NEW STORY DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 **draft v0.3** REGISTERED (P1; 5 pts; 4 ACs; BCs [BC-3.6.001, BC-2.06.017]; prism-dtu-demo-server; T-01..T-09 GREEN @66a8861e LOCAL-ONLY; LOCAL pass-1 in flight; streak 0/3). DRIFT-AUDIT-RUNBOOK-LITERALS-001 CLOSED (human-authorized 2026-07-16; VERDICT A CORRECT PASSTHROUGH: cyberint status {'open','acknowledged','closed'} → RG-021 passthrough; BC-2.02.013 v1.9→v1.10 EC-02-029 added). BC-INDEX v8.31→v8.32. total_stories 244→245. develop_head UNCHANGED 84062ced. STATE v8.394→v8.395.
 - **D-1793 POST-MERGE BURST — PR #223 MERGED @36bed016 + PR #222 MERGED @84062ced + S-PQLFN-GAP2-SOURCESELECT-GATE-001 REGISTERED + S-MAINT v0.10→v0.16 — STORY-INDEX v2.693→v2.694 (2026-07-16):** (state-manager D-1793) PR #223 (DEFECT-PQL-FNCALL-LHS-001) MERGED: squash 36bed016 onto develop (prior 5f1b5771); final frozen HEAD 60c97e8a; LOCAL 49p/35fb + PR-LEVEL 19p/11fb; security APPROVE (2 LOW disclosed); pr-reviewer APPROVE; human-ratified 2026-07-16. POL-14: BC-2.11.019 already active — §Injection-safety v1.24-v1.26 amendments now on develop@36bed016. DEFECT-PQL-FNCALL-LHS-001 CLOSED. PR #222 (DEFECT-MCP-ROWSHAPE-NULLS-001) MERGED: squash 84062ced onto develop; final frozen 5d2624aa; 47p/28fb CONVERGED 3/3; human-ratified 2026-07-16. DEFECT-MCP-ROWSHAPE-NULLS-001 CLOSED. MAINT PR #224 rebased onto 84062ced → HEAD 4f9a5c6f (ci.yml post-#222 conflict resolved); PR-LEVEL streak RESET to 0/3 per DRIFT-ORCH-PRLEVEL-PUSH-001. NEW STORY: S-PQLFN-GAP2-SOURCESELECT-GATE-001 v0.3 registered (P2, draft, post-demo wave, depends_on S-3.07, BCs [BC-2.11.019], drift anchor DRIFT-PQLFN-OD7-GAP2-S307). S-MAINT-CI-DISK-EXHAUSTION-001 v0.10→v0.16 (fix-bursts 9-11; DRIFT-CI-STDBOOL-001 root cause CONFIRMED; AC-006 scope 3→10 sites; AC-007 4 packages; PR #224 REBASED @4f9a5c6f). total_stories 243→244. develop_head 5f1b5771→84062ced. STATE v8.392→v8.393.
@@ -878,7 +879,7 @@ Every active BC maps to the story that implements it.
 | BC-2.01.002 | S-2.06 |
 | BC-2.01.004 | S-2.07 |
 | BC-2.01.005 | S-2.07, PLUGIN-MIGRATION-001-G |
-| BC-2.01.006 | S-2.07, PLUGIN-MIGRATION-001-G |
+| BC-2.01.006 | S-2.07, PLUGIN-MIGRATION-001-G, S-WAVE-A-CYBERINT-SPEC-001 |
 | BC-2.01.007 | S-2.07, PLUGIN-MIGRATION-001-G |
 | BC-2.01.008 | S-2.07, PLUGIN-MIGRATION-001-G, S-WAVE-A-ARMIS-REMEDIATION-001 |
 | BC-2.01.010 | S-2.06 |
@@ -890,13 +891,14 @@ Every active BC maps to the story that implements it.
 | BC-2.02.003 | S-1.05, PLUGIN-MIGRATION-001-G |
 | BC-2.02.004 | S-1.05, PLUGIN-MIGRATION-001-G |
 | BC-2.02.005 | S-1.05, PLUGIN-MIGRATION-001-G |
-| BC-2.02.006 | S-1.05, PLUGIN-MIGRATION-001-G, S-WAVE-A-ARMIS-ACTIVITY-001 |
+| BC-2.02.006 | S-1.05, PLUGIN-MIGRATION-001-G, S-WAVE-A-ARMIS-ACTIVITY-001, S-WAVE-A-ARMIS-SPEC-001 |
 | BC-2.02.007 | S-1.05 |
 | BC-2.02.008 | S-1.05 |
 | BC-2.02.009 | S-1.04 |
 | BC-2.02.010 | S-1.04 |
 | BC-2.02.011 | S-1.05 |
 | BC-2.02.012 | S-1.04 |
+| BC-2.02.014 | S-WAVE-A-ARMIS-ACTIVITY-001 |
 | BC-2.03.001 | S-1.06, S-6.04 |
 | BC-2.03.002 | S-1.06, S-6.04 |
 | BC-2.03.003 | S-1.06, S-6.04 |
@@ -937,7 +939,7 @@ Every active BC maps to the story that implements it.
 | BC-2.05.011 | S-5.10 |
 | BC-2.06.001 | S-5.05, S-DEMO-003, S-DEMO-LAUNCHER-CONSOLIDATION-001 |
 | BC-2.06.002 | S-5.05 |
-| BC-2.06.003 | S-5.05 |
+| BC-2.06.003 | S-5.05, S-WAVE-A-CYBERINT-SPEC-001, S-WAVE-A-ARMIS-REMEDIATION-001, S-ADR054-WAVE-A-001 |
 | BC-2.06.004 | S-5.05 |
 | BC-2.06.005 | S-5.05 |
 | BC-2.06.006 | S-5.05 |
@@ -982,7 +984,7 @@ Every active BC maps to the story that implements it.
 | BC-2.10.004 | S-5.02 |
 | BC-2.10.005 | S-5.01 |
 | BC-2.10.006 | S-5.01 |
-| BC-2.10.007 | S-5.02 |
+| BC-2.10.007 | S-5.02, S-WAVE-A-MCP-001 |
 | BC-2.10.008 | S-5.03 |
 | BC-2.10.009 | S-5.03 |
 | BC-2.10.010 | S-5.01, S-DEMO-002 |
@@ -1049,20 +1051,20 @@ Every active BC maps to the story that implements it.
 | BC-2.15.009 | S-2.03 |
 | BC-2.15.010 | S-2.03 |
 | BC-2.15.011 | S-2.03 |
-| BC-2.16.001 | S-1.11, S-1.13, S-3.12 (proxy), S-3.13 (proxy), S-SPEC-TYPE-UNIFICATION-001 |
-| BC-2.16.002 | S-1.11, S-DEMO-CLAROTY-PAGINATION-001 |
+| BC-2.16.001 | S-1.11, S-1.13, S-3.12 (proxy), S-3.13 (proxy), S-SPEC-TYPE-UNIFICATION-001, S-WAVE-A-CYBERINT-SPEC-001, S-ADR055-WAVE-A-001 |
+| BC-2.16.002 | S-1.11, S-DEMO-CLAROTY-PAGINATION-001, S-WAVE-A-CYBERINT-SPEC-001, S-ADR055-WAVE-A-001 |
 | BC-2.16.003 | S-1.11 |
 | BC-2.16.004 | S-1.11 |
 | BC-2.16.005 | S-1.12, S-RELOAD-DRY-RUN-001 |
 | BC-2.16.006 | S-1.12 |
-| BC-2.16.007 | S-1.12, S-3.13 (proxy) |
-| BC-2.16.008 | S-1.12 |
-| BC-2.16.009 | S-1.11, S-1.13, PLUGIN-MIGRATION-001-F, S-SPEC-ENV-VAR-001, S-DEMO-CROWDSTRIKE-MULTIREGION-001, S-SPEC-HTTP-METHOD-VALIDATION-001, S-5.04, S-WAVE-A-ENGINE-001, S-WAVE-A-CYBERINT-SPEC-001 |
+| BC-2.16.007 | S-1.12, S-3.13 (proxy), S-ADR055-WAVE-A-001 |
+| BC-2.16.008 | S-1.12, S-WAVE-A-MCP-001, S-ADR055-WAVE-A-001 |
+| BC-2.16.009 | S-1.11, S-1.13, PLUGIN-MIGRATION-001-F, S-SPEC-ENV-VAR-001, S-DEMO-CROWDSTRIKE-MULTIREGION-001, S-SPEC-HTTP-METHOD-VALIDATION-001, S-5.04, S-WAVE-A-ENGINE-001, S-WAVE-A-CYBERINT-SPEC-001, S-WAVE-A-CYBERINT-PATCH-001, S-ADR054-WAVE-A-001, S-ADR055-WAVE-A-001 |
 | BC-2.16.012 | S-PLUGIN-PREREQ-E, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-F |
 | BC-2.16.013 | PLUGIN-MIGRATION-001-D, S-DTU-CYBERINT-AUTH-FIDELITY-001, S-DEMO-CLAROTY-AUDIT-DTU-001, S-DEMO-CLAROTY-PAGINATION-001, S-DEMO-ARMIS-AQL-001 |
 | BC-2.16.014 | S-WAVE-A-ENGINE-001 |
 | BC-2.01.016 | S-PLUGIN-PREREQ-E, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-E, S-DTU-CYBERINT-AUTH-FIDELITY-001, S-WAVE-A-ENGINE-001 |
-| BC-2.01.017 | S-DTU-CYBERINT-AUTH-FIDELITY-001, S-WAVE-A-ENGINE-001 |
+| BC-2.01.017 | S-DTU-CYBERINT-AUTH-FIDELITY-001, S-WAVE-A-ENGINE-001, S-ADR054-WAVE-A-001 |
 | BC-2.16.010 | S-1.12 |
 | BC-2.17.001 | S-1.15 |
 | BC-2.17.002 | S-1.15 |
