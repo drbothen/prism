@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-07-27T00:00:00
@@ -21,7 +21,7 @@ extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: null
 amendment_lifecycle: null
 introduced: cycle-FB73
-modified: "2026-07-27"
+modified: "2026-07-28"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -48,7 +48,7 @@ The `armis_device_activity` TOML table provides a single-device, filter-required
 
 ## Story Anchor
 
-`S-WAVE-A-ARMIS-ACTIVITY-001` — implementing story (currently UNBLOCKED per ADR-057 §C1; story-writer is updating to `status: ready`)
+`S-WAVE-A-ARMIS-ACTIVITY-001` — implementing story (UNBLOCKED per ADR-057 §Consequences (C1); `status: ready` as of v1.2/FB75)
 
 ## VP Anchors
 
@@ -67,7 +67,7 @@ None assigned yet. To be added when verification properties are authored for thi
 - `PipelineExecutor.execute_impl` pre-seeds `step_vars["query.filter.device_id"]` from `FetchContext.query_filters["device_id"]` via the `${query.filter.*}` pre-seed loop (block comment `F-LP1-HIGH-004` in `pipeline.rs §execute_impl`: `for (k, v) in &context.query_filters { step_vars.insert(format!("query.filter.{k}"), ...) }`)
 - The step URL is constructed as `<base_url>/api/v1/devices/<device_id_value>/activity` via interpolation of `${query.filter.device_id}` in the `path_template`
 - The pipeline fetches from the DTU `routes::devices::get_device_activity` handler, extracts `$.data.activities` via `response_path`, and returns an array of activity records
-- Each emitted record contains the five fields from `ActivityRecord` in `prism-dtu-armis/src/types.rs`, serialized via `serde_json::to_value(&body)` where `body` is `ActivityResponse { data: ActivityData { activities, total } }` (wire-emission site authority per SAP-2 §Rule 6):
+- Each emitted record contains the five fields from `ActivityRecord` in `prism-dtu-armis/src/types.rs`, serialized via `axum::Json(body)` in the `(StatusCode::OK, Json(body)).into_response()` return of `routes::devices::get_device_activity §get_device_activity`, where `body = ActivityResponse { data: ActivityData { activities, total } }` (wire-emission site authority per SAP-2 §Rule 6):
   - `activity_id: String` → TOML column `activity_id`, `column_type = "string"`, `ocsf_field = "raw_extensions.activity_id"` (Armis-specific activity record identifier; no OCSF standard field)
   - `device_id: String` → TOML column `device_id`, `column_type = "string"`, `ocsf_field = "device.uid"`, `options = ["INDEX"]` (device identifier matching the filter value; enables push-down)
   - `activity_type: String` → TOML column `activity_type`, `column_type = "string"`, `ocsf_field = "activity_name"` (OCSF activity classification field)
@@ -124,7 +124,7 @@ sensor_name = "armis"
   variables_produced = []
 
   # SAP-2 verified: activity_id — ActivityRecord.activity_id: String
-  # emitted by routes::devices::get_device_activity via serde_json::to_value(&body)
+  # emitted by routes::devices::get_device_activity via (StatusCode::OK, Json(body)).into_response()
   [[tables.columns]]
   name = "activity_id"
   column_type = "string"
@@ -157,7 +157,7 @@ sensor_name = "armis"
   ocsf_field = "raw_extensions.details"
 ```
 
-All five columns correspond to `ActivityRecord` struct fields in `prism-dtu-armis/src/types.rs`, emitted by `routes::devices::get_device_activity` via `serde_json::to_value(&body)` where `body = ActivityResponse { data: ActivityData { activities, total } }`. SAP-2 §Rule 6 wire-emission-site authority: verified at the `get_device_activity` route handler in `prism-dtu-armis/src/routes/devices.rs §get_device_activity`.
+All five columns correspond to `ActivityRecord` struct fields in `prism-dtu-armis/src/types.rs`, emitted by `routes::devices::get_device_activity §get_device_activity` via `(StatusCode::OK, Json(body)).into_response()` where `body = ActivityResponse { data: ActivityData { activities, total } }`. SAP-2 §Rule 6 wire-emission-site authority: verified at `routes::devices::get_device_activity §get_device_activity`.
 
 **Required-filter implementation obligation (POL-29 9c):** The `path_template` uses `${query.filter.device_id}`. Confirmed current-code behavior when no `device_id` filter is present: (1) `FetchContext.query_filters` has no `device_id` key; (2) the `F-LP1-HIGH-004` pre-seed loop in `execute_impl §execute_impl` does NOT insert `query.filter.device_id`; (3) `seed_missing_query_filter_vars §seed_missing_query_filter_vars` inserts `query.filter.device_id = ""` (empty string); (4) interpolation yields path `/api/v1/devices//activity`; (5) the DTU handler receives `device_id = ""` via axum path extraction; (6) the fixture filter matches nothing; (7) **the handler returns HTTP 200 with an empty activities array and `total: 0`** — a silent empty result (Standing Rule 3 §2 / SOUL.md #4 violation). The implementing story MUST ensure queries against `armis_device_activity` without a `device_id` predicate produce a hard error (`SpecEngineError::HttpRequestFailed` or equivalent) BEFORE issuing any HTTP request. Required-filter anchor: `S-WAVE-A-ARMIS-ACTIVITY-001` **AC-004 / RG-004** (`test_armis_device_activity_absent_device_id_filter_returns_hard_error`). TOML-declaration anchor: `S-WAVE-A-ARMIS-ACTIVITY-001` **AC-001 / RG-001** (`test_armis_toml_armis_device_activity_table_declared_with_correct_step_block`).
 
@@ -178,6 +178,7 @@ None assigned yet. Verification properties will be added when `S-WAVE-A-ARMIS-AC
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | FB87 | 2026-07-28 | product-owner | LOW-003 (F-WASE-P68-LOW-003) + OBS-001 (F-WASE-P68-OBS-001, folded in per human approval) — corrected wire-emission mechanism and invalid ADR-057 section cites. LOW-003: `serde_json::to_value(&body)` corrected to `(StatusCode::OK, Json(body)).into_response()` (axum `Json` via `IntoResponse`) at all three live sites: §Postconditions emitted-record bullet; TOML block `activity_id` comment; §TOML Contract post-block prose. Ground truth: `routes::devices::get_device_activity §get_device_activity` handler in `crates/prism-dtu-armis/src/routes/devices.rs`. No contract clause depends on `to_value` semantics not provided by `Json` wrapper — `ActivityRecord` contains primitives (String×4 + serde_json::Value×1) for which both serialization paths produce identical JSON; EC-014-005 null-not-absent contract holds equally under both. OBS-001: §Story Anchor `ADR-057 §C1` corrected to `ADR-057 §Consequences (C1)` (C1 is a bold label inside `## Consequences`, not a section heading); stale "story-writer is updating to `status: ready`" updated to reflect story at `status: ready` as of v1.2/FB75. Per-occurrence verdict table: §Postconditions `serde_json::to_value(&body)` (live-stale, fixed); TOML block `activity_id` comment (live-stale, fixed); §TOML Contract prose `serde_json::to_value(&body)` (live-stale, fixed); v1.0 changelog `ADR-057 §C2` cite (changelog-immutable, not swept); §Story Anchor `ADR-057 §C1` (live-stale, fixed). Grepped all `ADR-057 §` cites in file: §D4 (line in §Architecture Anchors) and §D5 (in §TOML Contract preamble) are real section headings and valid; no further invalid cites outside changelog. POL-29: 9a — BC-2.02.006 is the named twin; its `serde_json::to_value(&merged)` on each `DeviceRecord` in `routes::search::get_search §get_search` static-fixture path is correct (per-record `to_value` to `Vec<serde_json::Value>`, outer `Json(SearchResponse)` wrap); distinct from the misstatement corrected here; BC-2.02.006 carries no analogous misstatement; 9a CLEAR. 9b — §TOML Contract TOML block is copy-source for S-WAVE-A-ARMIS-ACTIVITY-001 T-IMPL-01; story's `activity_id` comment already carries corrected form "via serde_json (Json wrapper)" (authored FB81); no further story update required. 9c — no new unanchored MUSTs introduced. |
 | 1.2 | FB81 | 2026-07-28 | product-owner | F-WASE-P68-HIGH-003 — ADR-033 T1 mis-citation corrected (dimension 9b downstream-copy-target fix). §Architecture Anchors: (a) phantom path `ADR-033-push-down-filters.md` corrected to real file `ADR-033-push-down-time-window-extraction-strategy-pre-fan-out-heuristic.md`; (b) ADR-033 description updated — governs datetime time-window extraction via `extract_time_window_from_ast §extract_time_window_from_ast` only, NOT the authority for equality push-down routing; (c) ADR-057 description updated from "grammar and single-device scope decision" to "grammar and `${query.filter.*}` pre-seed mechanism (§D4, §D5)" for precision. §Preconditions: `device_id` column precondition rewritten — "via the push-down extraction path (ADR-033 T1)" replaced with annotation-agnostic routing description aligned to ADR-057 §D5 v0.5: `predicate_tree_to_filter_map §predicate_tree_to_filter_map` collects all equality predicates regardless of annotation → `FetchContext.query_filters` → `execute_impl §execute_impl` pre-seeds `step_vars["query.filter.device_id"]` per ADR-057 §D4. POL-29: 9a — no named twin (confirmed per v1.1 FB77 POL-29 9a record; BC-2.02.006 is parent, not split-event sibling); 9b — Sites 2 and 3 in this file are downstream copies of the corrected ADR-057 §D5; no further downstream copies of the T1 claim exist outside this BC and BC-2.02.006 (confirmed by `.factory/specs/` grep); 9c — no new unanchored MUSTs introduced. |
 | 1.1 | FB77 | 2026-07-27 | product-owner | POL-29 9c mandate discharge: substituted real story AC/RG anchors for pending placeholders. TOML-declaration MUST anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` AC-001 / RG-001 (`test_armis_toml_armis_device_activity_table_declared_with_correct_step_block`). Required-filter MUST anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` AC-004 / RG-004 (`test_armis_device_activity_absent_device_id_filter_returns_hard_error`). Tightened failure-mode description per story v1.2 §Code-Reading Verdict: pre-fix behavior is HTTP 200 + `activities: []` + `total: 0` (silent empty result via path `/api/v1/devices//activity`), not a URL construction abort; `seed_missing_query_filter_vars §seed_missing_query_filter_vars` inserts empty-string seed. No `InterpolationError::FieldNotFound` claim present to remove (consistent with pre-seed guarantee). Updated §Postconditions absent-filter line, §Error Cases row 1, and EC-014-001 with observable pre-fix behavior. POL-29 9a: no named twin (BC-2.02.006 is parent, not split-event sibling). 9b: §TOML Contract TOML block is copy-source for story T-IMPL-01; anchor-text additions are prose-only and do not alter the TOML block, so no downstream copy drift. 9c: both mandate anchors now carry real AC + RGT IDs; no new unanchored MUST introduced. |
 | 1.0 | FB73 | 2026-07-27 | product-owner | Initial authoring per ADR-057 §C2. Specifies `armis_device_activity` fetch pipeline contract: push-down grammar `${query.filter.device_id}` per ADR-057 §D5; five SAP-2-verified ActivityRecord columns (activity_id, device_id, activity_type, timestamp, details) verified against `ActivityRecord` in `prism-dtu-armis/src/types.rs` and wire-emission site `routes::devices::get_device_activity §get_device_activity`; OCSF mappings; single-device filter-required scope per ADR-057 §D4; absent-filter hard-error contract; required-filter implementation obligation delegated to `S-WAVE-A-ARMIS-ACTIVITY-001`. ITEM 3 decision: new BC justified over BC-2.02.006 amendment because (a) BC-2.02.006 is a field-mapping contract with preconditions that presuppose a record has already been fetched, while this contract governs fetch-request construction and filter-required preconditions — a distinct behavioral class; (b) BC-2.02.006 H1 ("Armis Centrix Field Mapping to OCSF (7 Data Sources)") does not encompass request-construction contracts; (c) ADR-057 §C2 explicitly says "author BCs", implying new contract creation. POL-29 9a: no named twin (this BC has no split-event sibling; BC-2.02.006 is the parent, not a twin). 9b: ADR-057 §D5 is the verbatim copy-source for the `path_template` text and TOML block — swept faithfully. 9c: required-filter MUST anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` (real existing story ID per ADR-057 §C1); TOML column MUSTs anchored to same story; AC/RGT backfill pending story-writer update. |
