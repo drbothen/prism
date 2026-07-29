@@ -2,29 +2,29 @@
 document_type: story
 story_id: S-WAVE-A-ARMIS-ACTIVITY-001
 title: "Armis Device Activity TOML Surface — Add armis_device_activity Table to Spec"
-version: "1.5"
-modified: "2026-07-28"
+version: "1.7"
+modified: "2026-07-29"
 status: ready
 producer: story-writer
 phase: 3
 wave: wave-a
 epic_id: E-WAVE-A-SENSOR-REMEDIATION
 priority: P2
-points: 5
+points: 8
 tdd_mode: strict
 target_module: prism-sensors
 subsystems: ["SS-06 (SensorSpec)", "SS-07 (SpecEngine)", "SS-12 (DTU-Armis)"]
 crates_touched:
   - prism-sensors        # armis.sensor.toml: add armis_device_activity table block
   - prism-spec-engine    # required-filter hard error fix; pipeline integration tests
-  - prism-dtu-armis      # wire-shape test against get_device_activity handler
+  - prism-dtu-armis      # wire-shape tests + generator activity builder + seeded-state population
 depends_on: []
 blocks: []
 behavioral_contracts: [BC-2.02.006, BC-2.02.014]
 verification_properties: []
 assumption_validations: []
 risk_mitigations: []
-estimated_days: 1
+estimated_days: 3
 ---
 
 # S-WAVE-A-ARMIS-ACTIVITY-001: Armis Device Activity TOML Surface
@@ -117,12 +117,15 @@ HTTP 200. **This is a silent empty result — a violation of BC-2.02.014 §Error
 | No `device_id` filter | Silent empty result (empty-string seed → malformed URL → HTTP 200 + `[]`) | Hard error (`SpecEngineError::HttpRequestFailed`); zero records |
 | `WHERE device_id = 'X'` | Correct — interpolates to `/api/v1/devices/X/activity` | Same (no change) |
 
-**Note on ADR-057 §D4:** ADR-057 §D4 stated that `Interpolator::interpolate` would
-abort on a missing `query.filter.device_id` key. That analysis was authored without
-accounting for `seed_missing_query_filter_vars`, which runs after the initial pre-seed
-loop and inserts the empty-string fallback. The actual current behavior contradicts
-ADR-057 §D4. Per CLAUDE.md Source-of-Truth Precedence: code-vs-spec → SPEC wins.
-BC-2.02.014 is the governing contract; the engine must be brought into alignment.
+**Note on ADR-057 §D4:** ADR-057 v0.7 §D4 documents `seed_missing_query_filter_vars
+§seed_missing_query_filter_vars` pre-seeding absent `${query.filter.*}` slots with
+empty string — confirming that `FieldNotFound` does NOT fire for `${query.filter.*}`
+slots, and the pre-seeding behavior IS the current ground truth. The earlier text
+in retired v0.1/v0.2 of ADR-057 (which stated `Interpolator::interpolate` would abort
+on a missing key) has been superseded; ADR-057 v0.7 §D4 is the current authority.
+Confirmed outcome: HTTP 200 with `activities: [], total: 0` (not 404). AC-004/RG-004
+red-gate premise remains valid: the hard-error requirement is specified in BC-2.02.014,
+which the engine must be brought into alignment with via T-IMPL-02.
 
 ---
 
@@ -141,7 +144,12 @@ BC-2.02.014 is the governing contract; the engine must be brought into alignment
 **SAP-2 parity result (wire-emission site `§get_device_activity`):** All five
 `ActivityRecord` fields (`activity_id`, `device_id`, `activity_type`, `timestamp`,
 `details`) are emitted via `Json(body)` serialization at the single wire-emission site.
-No generated-records path exists for this handler. SAP-2 result: **PASS** — no P1 CRITICAL.
+No generated-records path exists for this handler — the absence of a generated-records
+branch is the defect addressed by MED-005, not its clearance (see AC-008/RG-008
+`test_armis_device_activity_seeded_mode_returns_activity_records_for_generated_device_ids`).
+SAP-2 parity for the static-fixture path: **PASS** — no P1 CRITICAL at the
+wire-emission site. The seeded-mode data-reachability gap (MED-005) is a separate
+structural defect contracted by AC-008/RG-008.
 
 ---
 
@@ -266,6 +274,27 @@ is the normal case for a device that exists but has no recorded activity.
 
 Anchor: RG-007 (`test_armis_device_activity_device_with_no_activities_returns_empty_result_set`).
 
+### AC-008: Seeded-mode queries against generated device IDs return activity records, not empty results
+(traces to BC-2.02.014 §Edge Cases EC-014-006 / §TOML Contract MED-005 generator obligation)
+
+A query `SELECT * FROM armis_device_activity WHERE device_id = 'dev-<org_slug>-<seed>-0'`
+in `fixture_gen_seeded=true` mode (after T-IMPL-04 is implemented) MUST return at least one
+activity record. Root cause (MED-005): `routes::devices §get_device_activity` filters
+`state.activity_fixture` only; both `new_with_seed §new_with_seed` and
+`new_with_scenario §new_with_scenario` populate `state.activity_fixture` exclusively from
+`fixtures/device-activity.json` (fixture device IDs: `d-001`, `d-002`, `d-005`, `d-013`,
+`d-015`, `d-020`, `d-023`, `d-024`); generated device IDs (`dev-{org_slug}-{seed}-{i}`
+from `generator.rs §build_asset`) are disjoint — zero overlap; surface inert in seeded mode.
+Required fix (T-IMPL-04): (a) add an activity-record builder in `generator.rs` following the
+`build_asset §build_asset` / `build_alert §build_alert` pattern, producing `ActivityRecord`
+entries keyed to generated device IDs; (b) populate `state.activity_fixture` from BOTH
+static fixture data AND generator-produced activity records in BOTH `new_with_seed
+§new_with_seed` and `new_with_scenario §new_with_scenario` construction paths. Wire-shape
+assertion: verify the serialized activity record contains all five fields at the wire level
+(per AC-006 discipline).
+
+Anchor: RG-008 (`test_armis_device_activity_seeded_mode_returns_activity_records_for_generated_device_ids`).
+
 ---
 
 ## Architecture Mapping
@@ -283,8 +312,8 @@ Anchor: RG-007 (`test_armis_device_activity_device_with_no_activities_returns_em
 
 | BC | Version | Relevance |
 |----|---------|-----------|
-| BC-2.02.006 | v1.12 | Armis Centrix Field Mapping to OCSF (7 Data Sources) — EC-02-014 records the `armis_device_activity` deferral and its resolution to this story; AC-001 closes the deferral sentinel |
-| BC-2.02.014 | v1.3 | Armis Device Activity Surface — Filter-Required Push-Down Fetch Contract — specifies the full behavioral contract: push-down grammar, 5-column schema, required-filter hard error, edge cases EC-014-001..EC-014-005 |
+| BC-2.02.006 | v1.15 | Armis Centrix Field Mapping to OCSF (7 Data Sources) — EC-02-014 records the `armis_device_activity` deferral and its resolution to this story; AC-001 closes the deferral sentinel |
+| BC-2.02.014 | v1.6 | Armis Device Activity Surface — Filter-Required Push-Down Fetch Contract — specifies the full behavioral contract: push-down grammar, 5-column schema, required-filter hard error, edge cases EC-014-001..EC-014-006 including MED-005 seeded-mode data-reachability gap (AC-008/RG-008 generator obligation) |
 
 ---
 
@@ -362,8 +391,18 @@ None — this story produces no user-facing UI changes. The surface changes are:
   returned (zero rows); asserts no error condition. Test fails before T-IMPL-01 makes
   the table reachable from PrismQL.)_
 
-**Red Gate density check** (BC-5.38.001): **7 failing tests** required before
-implementation begins. RG-001..RG-007 cover all 7 ACs one-to-one.
+- [ ] **RG-008**: `test_armis_device_activity_seeded_mode_returns_activity_records_for_generated_device_ids` — AC-008
+  _(In `fixture_gen_seeded=true` mode, uses `new_with_seed §new_with_seed` DTU construction;
+  queries `SELECT * FROM armis_device_activity WHERE device_id = 'dev-<org_slug>-<seed>-0'`
+  (a generated device ID, distinct from fixture IDs `d-001` etc.); asserts the result set
+  contains at least one activity record; asserts `activity_id`, `device_id`, `activity_type`,
+  `timestamp`, `details` present in each record. Wire-shape assertion: verify serialized JSON
+  activity record shape per AC-006 discipline. Test FAILS before T-IMPL-04 implements
+  the generator activity builder and populates `state.activity_fixture` with generator-produced
+  records. Preferred location: `crates/prism-dtu-armis/tests/`.)_
+
+**Red Gate density check** (BC-5.38.001): **8 failing tests** required before
+implementation begins. RG-001..RG-008 cover all 8 ACs one-to-one.
 RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual
 Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design
 and wiring-exempt) that reduce the denominator.
@@ -375,13 +414,28 @@ and wiring-exempt) that reduce the denominator.
 ### T-IMPL-01: Author `armis_device_activity` table in `armis.sensor.toml`
 **Files:** `crates/prism-sensors/specs/armis.sensor.toml` (MODIFY)
 
-Add `[[tables]]` block for `armis_device_activity`. Use the exact TOML from
-BC-2.02.014 §TOML Contract (authoritative specification):
+Add `[[tables]]` block for `armis_device_activity`. Use the exact TOML verbatim from
+BC-2.02.014 v1.6 §TOML Contract (copy-source: ADR-057 v0.7 §D5; authoritative):
+
+**CRITICAL — registered surface vs declared `table_name`:**
+`register_sensor §register_sensor` in `prism-query::table_registry §table_registry`
+composes the registered SQL surface name as
+`format!("{}_{}", spec.sensor_id, table.table_name)` =
+`format!("{}_{}", "armis", "device_activity")` = `"armis_device_activity"`.
+Declaring `table_name = "device_activity"` (not `"armis_device_activity"`) is required —
+declaring `"armis_device_activity"` double-prefixes to `"armis_armis_device_activity"`
+and breaks all consumers that query `FROM armis_device_activity`.
+
+`TableSpec §TableSpec` requires both `pub table_name: String` and `pub ocsf_class: String`
+with no `#[serde(default)]`; both are mandatory at deserialization time. The keys `name`
+and `sensor_name` are NOT `TableSpec §TableSpec` fields and MUST NOT appear in the header.
+Queries in this story that reference `FROM armis_device_activity` use the registered surface
+name; that name is correct and unchanged.
 
 ```toml
 [[tables]]
-name = "armis_device_activity"
-sensor_name = "armis"
+table_name = "device_activity"
+ocsf_class = "network_activity"
 
   [[tables.steps]]
   name = "fetch_device_activity"
@@ -391,14 +445,14 @@ sensor_name = "armis"
   variables_produced = []
 
   # SAP-2 verified: activity_id — ActivityRecord.activity_id: String
-  # emitted by routes::devices::get_device_activity via serde_json (Json wrapper)
+  # emitted by routes::devices::get_device_activity via (StatusCode::OK, Json(body)).into_response()
   [[tables.columns]]
   name = "activity_id"
   column_type = "string"
   ocsf_field = "raw_extensions.activity_id"
 
   # SAP-2 verified: device_id — ActivityRecord.device_id: String
-  # INDEX option enables push-down: WHERE device_id = '...' → FetchContext.query_filters["device_id"]
+  # INDEX option enables push-down extraction: WHERE device_id = '...' → FetchContext.query_filters["device_id"]
   [[tables.columns]]
   name = "device_id"
   column_type = "string"
@@ -411,7 +465,7 @@ sensor_name = "armis"
   column_type = "string"
   ocsf_field = "activity_name"
 
-  # SAP-2 verified: timestamp — ActivityRecord.timestamp: String (ISO-8601 wire string)
+  # SAP-2 verified: timestamp — ActivityRecord.timestamp: String (ISO-8601)
   [[tables.columns]]
   name = "timestamp"
   column_type = "string"
@@ -466,6 +520,35 @@ five fields confirmed in code-reading:
 `activity_id`, `device_id`, `activity_type`, `timestamp`, `details` — all present
 on the struct and emitted via `Json(ActivityResponse { ... })`. No P1 CRITICAL.
 
+### T-IMPL-04: Add activity-record builder to `generator.rs` and populate seeded state
+**Files:** `crates/prism-dtu-armis/src/generator.rs` (MODIFY), `crates/prism-dtu-armis/src/state.rs` (MODIFY)
+
+**Problem (MED-005, confirmed from code):** `routes::devices §get_device_activity` filters
+`state.activity_fixture` only. Both `new_with_seed §new_with_seed` and
+`new_with_scenario §new_with_scenario` paths in `crates/prism-dtu-armis/src/state.rs §ArmisState`
+load `activity_fixture` exclusively from `fixtures/device-activity.json` (fixture device IDs:
+`d-001`, `d-002`, `d-005`, `d-013`, `d-015`, `d-020`, `d-023`, `d-024`). Generated device IDs
+(`dev-{org_slug}-{seed}-{i}` from `generator.rs §build_asset`) have zero overlap with fixture
+IDs. The `armis_device_activity` surface is inert in `fixture_gen_seeded=true` mode.
+
+**Required changes:**
+
+**(a) Generator activity builder:** Add an activity-record builder function in `generator.rs`
+following the `build_asset §build_asset` / `build_alert §build_alert` pattern. The builder
+produces `ActivityRecord` entries keyed to generated device IDs
+(`dev-{org_slug}-{seed}-{i}` format matching what `build_asset §build_asset` generates).
+Each record MUST populate all five `ActivityRecord` fields: `activity_id`, `device_id`,
+`activity_type`, `timestamp`, `details`.
+
+**(b) Seeded-state population:** In BOTH `new_with_seed §new_with_seed` AND
+`new_with_scenario §new_with_scenario` construction paths, populate `state.activity_fixture`
+from BOTH: (1) static fixture records from `fixtures/device-activity.json` (unchanged);
+AND (2) generator-produced activity records from the new builder, so that
+`routes::devices §get_device_activity` can match queries against generated device IDs.
+
+This task makes RG-008 green (seeded-mode queries against generated device IDs return records).
+Anchor: AC-008 / RG-008 (`test_armis_device_activity_seeded_mode_returns_activity_records_for_generated_device_ids`).
+
 ---
 
 ## Forbidden Dependencies
@@ -482,17 +565,19 @@ a new dependency, the build MUST fail.
 
 | Context source | Estimated tokens |
 |----------------|-----------------|
-| This story spec | ~3,500 |
+| This story spec | ~4,300 |
 | `armis.sensor.toml` (current state, reference) | ~2,000 |
 | `crates/prism-dtu-armis/src/types.rs §ActivityRecord` area | ~500 |
+| `crates/prism-dtu-armis/src/generator.rs` (activity builder context) | ~600 |
+| `crates/prism-dtu-armis/src/state.rs §ArmisState` (seeded-state population context) | ~400 |
 | `crates/prism-spec-engine/src/pipeline.rs §seed_missing_query_filter_vars` and surrounding context | ~1,500 |
-| ADR-057 (filter-push-down grammar adjudication) | ~1,000 |
-| BC-2.02.014 (full contract) | ~1,500 |
-| BC-2.02.006 §EC-02-014 (deferral sentinel) | ~500 |
+| ADR-057 v0.7 (filter-push-down grammar adjudication) | ~1,000 |
+| BC-2.02.014 v1.6 (full contract) | ~1,500 |
+| BC-2.02.006 v1.15 §EC-02-014 (deferral sentinel) | ~500 |
 | Running test output (nextest per-crate) | ~1,000 |
-| **Total estimate** | **~11,500** |
+| **Total estimate** | **~13,300** |
 
-11,500 tokens is within 20% context-window limit for most agent models. No story split required.
+13,300 tokens is within 20% context-window limit for most agent models. No story split required.
 
 ---
 
@@ -511,10 +596,12 @@ a new dependency, the build MUST fail.
 **From ADR-057 adjudication (2026-07-27) and code-reading in FB75:**
 - `${query.filter.device_id}` filter-push-down grammar confirmed — single-device lookup only
 - Per-record fan-out is a capability gap (ADR-057 §D6) — NOT in scope for this story
-- `seed_missing_query_filter_vars §seed_missing_query_filter_vars` DOES pre-seed absent
-  filter slots with empty string — ADR-057 §D4's analysis (which stated interpolation
-  aborts on missing filter) did not account for this function. The actual current
-  behavior contradicts §D4; the BC wins per CLAUDE.md Source-of-Truth Precedence
+- `seed_missing_query_filter_vars §seed_missing_query_filter_vars` pre-seeds absent
+  filter slots with empty string — ADR-057 v0.7 §D4 documents this behavior and confirms
+  that `FieldNotFound` does NOT fire for `${query.filter.*}` slots; this is the current
+  ground truth (supersedes retired v0.1/v0.2 abort-on-missing text). Confirmed outcome:
+  HTTP 200 with `activities: [], total: 0` (not 404). AC-004/RG-004 red-gate premise
+  remains valid: BC-2.02.014 governs; engine must be brought into alignment via T-IMPL-02
 
 **From S-WAVE-A-ARMIS-SPEC-001 sibling story (POL-29 9a sweep):**
 - That story modifies `armis.sensor.toml` devices table only; this story adds a new
@@ -575,10 +662,12 @@ No new external dependencies are introduced by this story.
 
 | File | Action | Notes |
 |------|--------|-------|
-| `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | T-IMPL-01: add `[[tables]]` block for `armis_device_activity` per BC-2.02.014 §TOML Contract |
+| `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | T-IMPL-01: add `[[tables]]` block for `armis_device_activity` per BC-2.02.014 v1.6 §TOML Contract; `table_name = "device_activity"`, `ocsf_class = "network_activity"` (NOT `name`/`sensor_name`) |
 | `crates/prism-spec-engine/src/pipeline.rs` | MODIFY | T-IMPL-02: required-filter hard error mechanism near `seed_missing_query_filter_vars §seed_missing_query_filter_vars` |
+| `crates/prism-dtu-armis/src/generator.rs` | MODIFY | T-IMPL-04(a): add activity-record builder function following `build_asset §build_asset` / `build_alert §build_alert` pattern; produces `ActivityRecord` entries keyed to generated device IDs (`dev-{org_slug}-{seed}-{i}`) |
+| `crates/prism-dtu-armis/src/state.rs` | MODIFY | T-IMPL-04(b): in `new_with_seed §new_with_seed` and `new_with_scenario §new_with_scenario`, populate `state.activity_fixture` from both `fixtures/device-activity.json` AND generator-produced activity records (MED-005 seeded-mode gap fix) |
 | `crates/prism-spec-engine/tests/` (new or existing test file) | CREATE/MODIFY | RG-001, RG-002, RG-003 (TOML spec assertions); RG-004, RG-005, RG-007 (pipeline integration tests) |
-| `crates/prism-dtu-armis/tests/` (new or existing test file) | CREATE/MODIFY | RG-006 (wire-shape assertion against `§get_device_activity`) |
+| `crates/prism-dtu-armis/tests/` (new or existing test file) | CREATE/MODIFY | RG-006 (wire-shape assertion against `§get_device_activity`); RG-008 (seeded-mode generated-device-ID reachability assertion) |
 
 ---
 
@@ -593,6 +682,8 @@ None assigned yet. To be added when product-owner authors VP entries for the
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.7 | 2026-07-29 | story-writer | FB93 leg 2 — advance BC-2.02.006 pin v1.13 → v1.15 at two live sites (§Behavioral Contracts table row, §Token Budget Estimate row) and BC-2.02.014 pin v1.4 → v1.6 at three live sites (§Behavioral Contracts table row, T-IMPL-01 BC cross-reference prose, §Token Budget Estimate row). Pin-only; no mechanism or design content changed in either BC between previous and new versions (BC→story anchor-form conversion and convention note addition only). §Behavioral Contracts relevance cells for both BCs verified accurate at new versions; no description corrections needed. T-IMPL-01 TOML block (copy-source from BC-2.02.014 §TOML Contract) unchanged — 9b CLEAR. POL-29 9a: SPEC-001 twin updated in same burst; both now pin BC-2.02.006 at v1.15. 9c: no new MUSTs introduced. |
+| 1.6 | 2026-07-29 | story-writer | FB91 story leg — propagate BC-2.02.006 v1.13 + BC-2.02.014 v1.4 + ADR-057 v0.7 spec corrections into ACTIVITY-001. (2a) T-IMPL-01 TOML header replaced (CRIT-002 + HIGH-004): `name`/`sensor_name` are not `TableSpec §TableSpec` fields; correct header per ADR-057 v0.7 §D5 transcribed verbatim from BC-2.02.014 v1.4 §TOML Contract: `table_name = "device_activity"` / `ocsf_class = "network_activity"`. `register_sensor §register_sensor` composition explained (`format!("{}_{}", "armis", "device_activity")` = `"armis_device_activity"`); double-prefix trap documented; mandatory-field requirement stated. SAP-2 `activity_id` comment updated from "serde_json (Json wrapper)" to "(StatusCode::OK, Json(body)).into_response()"; timestamp comment updated from "(ISO-8601 wire string)" to "(ISO-8601)". (2b) AC-008/RG-008 added (`test_armis_device_activity_seeded_mode_returns_activity_records_for_generated_device_ids`): MED-005 seeded-mode data-reachability gap — `routes::devices §get_device_activity` filters `state.activity_fixture` only; fixture IDs (`d-001` etc.) disjoint from generated IDs (`dev-{org_slug}-{seed}-{i}`); surface inert in seeded mode. T-IMPL-04 added: (a) activity-record builder in `generator.rs` following `build_asset §build_asset`/`build_alert §build_alert` pattern; (b) populate `state.activity_fixture` from both static fixture AND generator-produced records in both `new_with_seed §new_with_seed` and `new_with_scenario §new_with_scenario`. §Ground-Truth DTU State SAP-2 characterization corrected: absence of generated-records branch is the defect (MED-005), not its clearance. SAC-1: RG-008 placed before density check and implementation tasks. (2c) MED-007 — two "contradicts ADR-057 §D4" sites corrected: §Code-Reading Verdict "Note on ADR-057 §D4" and §Previous Story Intelligence both re-pointed to ADR-057 v0.7 as current ground truth; confirmed outcome HTTP 200 with `activities: [], total: 0` (not 404); AC-004/RG-004 red-gate premise remains valid. (2d) Red Gate density check 7→8; BC-2.02.006 v1.12→v1.13 and BC-2.02.014 v1.3→v1.4 in §Behavioral Contracts (relevance cell for v1.4 expanded to include EC-014-006 and MED-005/AC-008/RG-008 generator obligation); ADR-057 re-cited as v0.7 in Note on §D4 and §Previous Story Intelligence; all ADR-057 §… cites verified against real section headings (§D4, §D6, §Consequences (C1)) — no `§C1`/`§C2` bare-label cites in story body; points 5→8 (T-IMPL-04 scope: generator builder + seeded-state population; new test RG-008); estimated_days 1→3; `crates_touched` comment updated for prism-dtu-armis; §File Structure Requirements: added `generator.rs` (T-IMPL-04a) and `state.rs` (T-IMPL-04b) rows; `prism-dtu-armis/tests/` row updated to include RG-008; §Token Budget reassessed ~11,500→~13,300 (AC-008, T-IMPL-04, generator.rs/state.rs reads). POL-29 9a: twin S-WAVE-A-ARMIS-SPEC-001 updated in same burst; both pin BC-2.02.006 at v1.13 and BC-2.02.014 at v1.4. 9b: T-IMPL-01 TOML block is copy-target from BC-2.02.014 v1.4 §TOML Contract (itself from ADR-057 v0.7 §D5); transcribed verbatim per copy-source authority; 9b CLEAR. 9c: all new MUSTs in AC-008 and T-IMPL-04 carry AC+RGT anchors; no unanchored MUST introduced. |
 | 1.5 | 2026-07-28 | story-writer | FB87 leg 2 — POL-23 stale-pin sweep: BC-2.02.006 v1.10 → v1.12 and BC-2.02.014 v1.2 → v1.3 (downstream of FB87 leg 1 product-owner bumps). Updated §Behavioral Contracts table rows for both BCs. Relevance cells verified accurate at new versions: BC-2.02.006 EC-02-014 description unaffected by v1.12 anchor-framing change; BC-2.02.014 cell describes push-down grammar/schema/error/edge-cases only (no emission mechanism text to correct). T-IMPL-01 §TOML Contract block independently verified as POL-29 9b downstream copy target: `serde_json::to_value` absent from story body; emission described as 'via serde_json (Json wrapper)' — consistent with (StatusCode::OK, Json(body)).into_response() corrected in BC-2.02.014 v1.3; PASS. No `ADR-057 §C1/§C2` references found in story body. POL-29 9a: S-WAVE-A-ARMIS-SPEC-001 twin updated in same burst; both stories now pin BC-2.02.006 at v1.12 (pre-burst asymmetry: twin was v1.11, this story was v1.10). 9b: PASS (see above). 9c: no new MUSTs authored. |
 | 1.4 | 2026-07-28 | story-writer | FB86 — close F-WASE-P68-MED-004: delete banned authored-time RED_RATIO sentence (`RED_RATIO = 7/7 = 1.0 (meets the BC-5.38.001 threshold)`) from §Red Gate density check; normalize trailing deferral note to canonical exemplar wording (consistent with S-WAVE-A-ARMIS-SPEC-001 and the six FB61-cleaned stories). No content changes beyond §Red Gate density check paragraph. POL-29 9a: S-WAVE-A-ARMIS-SPEC-001 twin in same burst — same banned sentence deleted; symmetric. 9b: no downstream copy target. 9c: no new MUSTs introduced. |
 | 1.3 | 2026-07-28 | story-writer | FB81 — F-WASE-P68-HIGH-003 Site 5. AC-002: removed false ADR-033 T1 citation ("via the ADR-033 T1 push-down extraction path") and false causal claim ("Without this option, the engine cannot extract the filter value for interpolation"). Replaced with accurate description aligned to ADR-057 §D5 v0.6 and BC-2.02.014 §Preconditions v1.2: `options = ["INDEX"]` declares push-down eligibility per BC-2.11.007 taxonomy (REQUIRED / INDEX / ADDITIONAL) for future T2 (`classify_predicates §classify_predicates`) integration; current routing is annotation-agnostic via `predicate_tree_to_filter_map §predicate_tree_to_filter_map` → `FetchContext.query_filters` → `execute_impl §execute_impl` pre-seed (ADR-057 §D4); ADR-033 T1 governs datetime time-window extraction only (`extract_time_window_from_ast §extract_time_window_from_ast`). RG-002: corrected "confirms push-down eligibility per ADR-033 T1" to "per BC-2.11.007 taxonomy and ADR-057 §D4". §Behavioral Contracts: BC-2.02.006 pin bumped v1.9 → v1.10, BC-2.02.014 pin bumped v1.0 → v1.2 (POL-23 stale-pin sweep including §Token Budget Estimate — no version pins present there). POL-29: 9a — S-WAVE-A-ARMIS-SPEC-001 does not carry the ADR-033 T1 claim or the false causal claim (story covers `devices` table only, cites ADR-023/ADR-028; no parameterized path routing content; absence verified by full story read); 9b — no downstream copy of this story's AC-002 text in other artifacts (story text is a consumer of the BC, not a copy-source for further artifacts); 9c — no new unanchored MUSTs introduced. |
