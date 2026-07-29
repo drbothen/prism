@@ -4,8 +4,8 @@ adr_id: "ADR-057"
 title: "Armis Per-Device Activity Surface — Push-Down Grammar for Parameterized Path Templates"
 status: accepted
 date: "2026-07-27"
-modified: "2026-07-28"
-version: "0.6"
+modified: "2026-07-29"
+version: "0.7"
 producer: architect
 subsystems_affected: [SS-06, SS-07, SS-12]
 supersedes: null
@@ -186,10 +186,35 @@ empty string via `.or_insert(serde_json::Value::String(String::new()))`. Because
 2. `Interpolator::interpolate` resolves `${query.filter.device_id}` to `""` successfully
 3. The constructed URL path is `/api/v1/devices//activity` — a malformed URL with an
    empty path segment
-4. This malformed request is issued to the upstream Armis API; the API returns an error
-   (likely 404 or malformed-request response), but the Prism engine does NOT produce a
-   structured hard error before the request is sent — the failure propagates as a routine
-   fetch failure from the upstream response, not as a spec-engine-level validation error
+4. This malformed request is issued upstream. Against the DTU clone (the test boundary
+   used by all `S-WAVE-A-ARMIS-ACTIVITY-001` scenarios): `matchit` 0.7.3 (via
+   `axum` 0.7.9) matches route `/api/v1/devices/:device_id/activity` with
+   `device_id = ""` — the empty path segment between the two `/` separators is
+   captured as an empty param by `matchit::tree §NodeType::Param` `split_at(0)` logic
+   (verified from matchit-0.7.3 source `tree.rs §NodeType::Param` branch). Axum does
+   not normalize double slashes before routing; matchit receives the literal
+   `//activity` suffix, finds the first `/` at index 0, and stores `""` as the
+   `device_id` param value. `get_device_activity §get_device_activity` then executes
+   `state.activity_fixture.iter().filter(|a| a.device_id == "")` → no fixture records
+   carry `device_id == ""` → HTTP 200 with `activities: [], total: 0`
+   (**silent empty result**). This is the pre-fix DTU behavior contracted in
+   BC-2.02.014 EC-014-001 and AC-004 / RG-004. Against the real upstream Armis API,
+   behavior depends on their server's empty-segment handling and is not settled from
+   static analysis alone; the DTU is the test boundary and its behavior is fully
+   determined as above. The Prism engine does NOT produce a structured hard error
+   before the request is sent — the failure propagates as a silent empty result
+   from the DTU/upstream response, not as a spec-engine-level validation error
+
+**§D4 canonical version note (v0.3–v0.7, for downstream citeability):** The
+pre-seed mechanism documented above — `seed_missing_query_filter_vars §seed_missing_query_filter_vars`
+inserts an empty-string value for the absent slot, producing the malformed path
+`/api/v1/devices//activity` — has been the §D4-documented behavior since v0.3
+(2026-07-27, FB74 ITEM 5). Any reference to ADR-057 §D4 claiming
+`Interpolator::interpolate §interpolate` would abort on a missing
+`query.filter.device_id` key (producing `InterpolationError::FieldNotFound`)
+describes RETIRED v0.1/v0.2 text. Current §D4 contains no such claim. The
+pre-seed inserts the key BEFORE interpolation runs; `FieldNotFound` does NOT
+fire for `${query.filter.*}` slots in the current engine.
 
 This is the **silent malformed-request class** described in CLAUDE.md Standing Rule 3 §2
 and SOUL.md §4: an empty interpolation slot in a URL path segment yields a malformed
@@ -228,7 +253,59 @@ That future story is not gated, not named, and not required before Wave-A ships.
 
 ## D5 — TOML Specification for `armis_device_activity`
 
-The step block for the activity table MUST use this pattern:
+### Complete `[[tables]]` header (authoritative copy-source)
+
+The `[[tables]]` header block below is the authoritative copy-source for BC-2.02.014
+§TOML Contract and `S-WAVE-A-ARMIS-ACTIVITY-001` T-IMPL-01. Every field must be
+reproduced verbatim; substituting keys or values not present here produces a
+spec-parse failure or a double-prefixed table name.
+
+```toml
+[[tables]]
+table_name = "device_activity"
+ocsf_class = "network_activity"
+```
+
+**`table_name` value and the double-prefix trap.** `register_sensor §register_sensor`
+in `crates/prism-query/src/table_registry.rs` composes the registered SQL surface
+as `format!("{}_{}", spec.sensor_id, table.table_name)`. With `sensor_id = "armis"`:
+
+- `table_name = "device_activity"` → registered as `"armis_device_activity"` ✓
+- `table_name = "armis_device_activity"` → registered as `"armis_armis_device_activity"` ✗
+
+All downstream consumers — BC-2.02.014 test vectors (TV-014-001 through TV-014-006),
+`S-WAVE-A-ARMIS-ACTIVITY-001` AC-005/AC-007 and RG-004/RG-005/RG-007, and
+BC-2.02.006 EC-02-014 — query `FROM armis_device_activity`. The correct value is
+`"device_activity"`.
+
+**`ocsf_class` decision — `"network_activity"`.** `TableSpec §TableSpec` requires
+`ocsf_class: String` with no `#[serde(default)]`; omission causes a deserialization
+error at boot. The correct OCSF class for Armis per-device activity records is
+`"network_activity"` (OCSF Class 4001, Network Activity category):
+
+- Armis is a network security platform for IoT/OT devices; its device activity API
+  primarily captures network behavior events (connectivity, traffic, protocol activity).
+- OCSF Class 4001 provides `device` (the endpoint — mapped to `device_id →
+  device.uid`), `activity_name` (action type — mapped to `activity_type →
+  activity_name`), and `time` (when — mapped to `timestamp → time`), covering all
+  five columns in the schema.
+- `"detection_finding"` (OCSF Class 2001) is excluded: it covers security findings
+  and policy violations — that is the semantics of the `alerts` table. Activity records
+  are raw behavioral events, not evaluated findings.
+- `"device"` (OCSF device inventory class) is excluded: activity log ≠ inventory.
+
+Existing armis table precedent: `devices → "device"`, `alerts → "detection_finding"`.
+All use the OCSF short-name convention (not numeric class IDs).
+
+**Required TOML fields.** `TableSpec §TableSpec` declares `pub table_name: String` and
+`pub ocsf_class: String` with no `#[serde(default)]`. Both are mandatory. The keys
+`name` and `sensor_name` are not `TableSpec` fields and will be ignored (or cause a
+TOML parse error depending on deny-unknown config). Do not use them.
+
+### Step block (MUST)
+
+The step block for the activity table MUST use this pattern (TOML sub-table of the
+`[[tables]]` header above):
 
 ```toml
 [[tables.steps]]
@@ -260,10 +337,12 @@ that map (this ADR §D4). ADR-033 T1 is NOT the authority here — ADR-033 T1 go
 datetime time-window extraction into `QueryParams.start_time`/`end_time` only
 (authority: `extract_time_window_from_ast §extract_time_window_from_ast`).
 
-Anchor: Both MUSTs above resolve in `S-WAVE-A-ARMIS-ACTIVITY-001` AC-001 (to be authored
-by product-owner per this ADR; implementation is enforced when test-writer writes the Red
-Gate test against AC-001). Deferral is against real story ID `S-WAVE-A-ARMIS-ACTIVITY-001`
-per Canonical Principle Rule 3.
+Anchor: All three MUSTs above (table header, step block, `device_id` column) resolve in
+`S-WAVE-A-ARMIS-ACTIVITY-001` AC-001 / RG-001
+(`test_armis_toml_armis_device_activity_table_declared_with_correct_step_block`).
+The `device_id` column `options = ["INDEX"]` obligation also resolves in AC-002 / RG-002
+(`test_armis_toml_armis_device_activity_device_id_column_has_index_option`). Deferral
+is against real story ID `S-WAVE-A-ARMIS-ACTIVITY-001` per Canonical Principle Rule 3.
 
 ---
 
@@ -333,6 +412,7 @@ required-filter gate that fires before any upstream request is issued when the r
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 0.7 | 2026-07-29 | architect | FB88 — three-concern correction. CONCERN A: §D5 `[[tables]]` header added as authoritative copy-source for BC-2.02.014 §TOML Contract and `S-WAVE-A-ARMIS-ACTIVITY-001` T-IMPL-01. `table_name = "device_activity"` (not `"armis_device_activity"`) — `register_sensor §register_sensor` composes `format!("{}_{}", spec.sensor_id, table.table_name)` = `"armis_device_activity"` with the value above; the double-prefix trap documented inline. `ocsf_class = "network_activity"` (OCSF Class 4001) — selected for Armis IoT/OT network behavioral events; rationale in §D5. `name`/`sensor_name` are not `TableSpec §TableSpec` fields; both keys absent from corrected header. CONCERN B: §D4 step 4 corrected — the "likely 404/error" claim removed. Ground truth from `matchit::tree §NodeType::Param` `split_at(0)` logic (matchit-0.7.3 source verified): empty segment between `devices/` and `activity` is captured as `device_id = ""`; `get_device_activity §get_device_activity` filters `activity_fixture` for `device_id == ""` → empty → HTTP 200 with `activities: [], total: 0`. This is the pre-fix DTU behavior contracted in BC-2.02.014 EC-014-001. The outcome is fully determined from static analysis; no empirical pin required. CONCERN C: §D4 canonical version note added — explicitly states that the `seed_missing_query_filter_vars §seed_missing_query_filter_vars` pre-seed mechanism (not `Interpolator::interpolate §interpolate`) has been the §D4-documented behavior since v0.3; `FieldNotFound` does NOT fire for `${query.filter.*}` slots; retired v0.1/v0.2 text is explicitly superseded. POL-29 9a: ADR-056 (pagination twin) carries no `[[tables]]` header content or `register_sensor` composition claim — no sweep needed; `query-engine.md` mentions `{sensor_id}_{source}` format in passing, consistent with the correction. CLEAR. 9b: §D5 complete `[[tables]]` header block is the authoritative copy-source; marked as such. The step block and column block are sub-tables of this header; all three are copy-safe as a unit. 9c: All three MUSTs in §D5 anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` AC-001/RG-001 (header + step block) and AC-002/RG-002 (INDEX column); no unanchored MUSTs introduced. SAC-2: `anchor_stories` carries `[S-WAVE-A-ARMIS-ACTIVITY-001]`; `S-WAVE-A-ARMIS-SPEC-001` §Authority was not checked (out of scope for this ADR's surface). Ratification: corrections repair statement accuracy (factual omission, incorrect empirical claim); no ratified design decision is changed. |
 | 0.6 | 2026-07-28 | architect | FB81 §D4 self-miss correction (POL-29 9a). The FB81 §D5 fix did not sweep the sibling §D4. §D4 retained "`seed_missing_query_filter_vars §seed_missing_query_filter_vars` (called in `execute_impl §execute_impl` per ADR-033 T1)" — the identical wrong attribution removed from §D5. §D4 now reads "(called in `execute_impl §execute_impl`; authority: this ADR §D4 / §D5 — not ADR-033 T1)". Full ADR-033 sweep: 4 hits — frontmatter `related_adrs` (valid: §D5 still references ADR-033 for scope-boundary explanation), §D4 wrong attribution (fixed this row), §D5 scope-boundary statement (legitimate), v0.5 changelog row (legitimate historical record). `related_adrs: [ADR-028, ADR-033, ...]` retained: ADR-033 remains a meaningful related ADR because §D5 explicitly names it to state the scope boundary (datetime extraction only). |
 | 0.5 | 2026-07-28 | architect | FB81 — §D5 ADR-033 T1 mis-citation corrected. The sentence "options = ['INDEX'] is required... via the push-down extraction path (ADR-033 T1 convention for INDEX-declared columns)" was the copy-source for a wrong causal claim that propagated to BC-2.02.014, BC-2.02.006, and S-WAVE-A-ARMIS-ACTIVITY-001. Accurate replacement: `options = ["INDEX"]` declares push-down eligibility per BC-2.11.007 taxonomy and future T2 (`classify_predicates §classify_predicates`); the CURRENT routing is annotation-agnostic via `predicate_tree_to_filter_map §predicate_tree_to_filter_map` (collects all equality predicates regardless of annotation) → `FetchContext.query_filters` → `execute_impl §execute_impl` pre-seed loop (this ADR §D4). ADR-033 T1 governs datetime time-window extraction only (`extract_time_window_from_ast §extract_time_window_from_ast`). Sites 2–5 (BC-2.02.014, BC-2.02.006, S-WAVE-A-ARMIS-ACTIVITY-001 AC-002/RG-002) fixed by product-owner and story-writer in same FB81 burst. |
 | 0.4 | 2026-07-27 | architect | FB76 — (1) Unanchored `MUST` in §D4 architectural note (future sensor specs) replaced with anchored guidance: obligation for `armis_device_activity` is anchored in BC-2.02.014 / `S-WAVE-A-ARMIS-ACTIVITY-001`; future surfaces must do the same in their implementing story. (2) C6 added: engine-alignment pre-ship obligation for the implementer, anchored to BC-2.02.014 / `S-WAVE-A-ARMIS-ACTIVITY-001`. POL-29 dimension 9c: all MUSTs now have explicit story+BC anchors. |
