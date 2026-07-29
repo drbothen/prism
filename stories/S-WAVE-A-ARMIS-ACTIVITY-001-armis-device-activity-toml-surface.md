@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-ARMIS-ACTIVITY-001
 title: "Armis Device Activity TOML Surface — Add armis_device_activity Table to Spec"
-version: "1.3"
+version: "1.4"
 modified: "2026-07-28"
 status: ready
 producer: story-writer
@@ -364,9 +364,9 @@ None — this story produces no user-facing UI changes. The surface changes are:
 
 **Red Gate density check** (BC-5.38.001): **7 failing tests** required before
 implementation begins. RG-001..RG-007 cover all 7 ACs one-to-one.
-RED_RATIO = 7/7 = 1.0 (meets the BC-5.38.001 threshold). Orchestrator verifies
-density at Step 3.5 per `per-story-delivery.md` from actual Red Gate results;
-BC-5.38.002 and BC-5.38.003 define exempt test classes that may reduce the denominator.
+RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual
+Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design
+and wiring-exempt) that reduce the denominator.
 
 ---
 
@@ -593,6 +593,7 @@ None assigned yet. To be added when product-owner authors VP entries for the
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.4 | 2026-07-28 | story-writer | FB86 — close F-WASE-P68-MED-004: delete banned authored-time RED_RATIO sentence (`RED_RATIO = 7/7 = 1.0 (meets the BC-5.38.001 threshold)`) from §Red Gate density check; normalize trailing deferral note to canonical exemplar wording (consistent with S-WAVE-A-ARMIS-SPEC-001 and the six FB61-cleaned stories). No content changes beyond §Red Gate density check paragraph. POL-29 9a: S-WAVE-A-ARMIS-SPEC-001 twin in same burst — same banned sentence deleted; symmetric. 9b: no downstream copy target. 9c: no new MUSTs introduced. |
 | 1.3 | 2026-07-28 | story-writer | FB81 — F-WASE-P68-HIGH-003 Site 5. AC-002: removed false ADR-033 T1 citation ("via the ADR-033 T1 push-down extraction path") and false causal claim ("Without this option, the engine cannot extract the filter value for interpolation"). Replaced with accurate description aligned to ADR-057 §D5 v0.6 and BC-2.02.014 §Preconditions v1.2: `options = ["INDEX"]` declares push-down eligibility per BC-2.11.007 taxonomy (REQUIRED / INDEX / ADDITIONAL) for future T2 (`classify_predicates §classify_predicates`) integration; current routing is annotation-agnostic via `predicate_tree_to_filter_map §predicate_tree_to_filter_map` → `FetchContext.query_filters` → `execute_impl §execute_impl` pre-seed (ADR-057 §D4); ADR-033 T1 governs datetime time-window extraction only (`extract_time_window_from_ast §extract_time_window_from_ast`). RG-002: corrected "confirms push-down eligibility per ADR-033 T1" to "per BC-2.11.007 taxonomy and ADR-057 §D4". §Behavioral Contracts: BC-2.02.006 pin bumped v1.9 → v1.10, BC-2.02.014 pin bumped v1.0 → v1.2 (POL-23 stale-pin sweep including §Token Budget Estimate — no version pins present there). POL-29: 9a — S-WAVE-A-ARMIS-SPEC-001 does not carry the ADR-033 T1 claim or the false causal claim (story covers `devices` table only, cites ADR-023/ADR-028; no parameterized path routing content; absence verified by full story read); 9b — no downstream copy of this story's AC-002 text in other artifacts (story text is a consumer of the BC, not a copy-source for further artifacts); 9c — no new unanchored MUSTs introduced. |
 | 1.2 | 2026-07-27 | story-writer | FB75: Complete story to `status: ready`. (1) Add BC-2.02.014 to `behavioral_contracts: [BC-2.02.006, BC-2.02.014]`; remove pending-BC status comment. (2) Replace placeholder ACs with real BC-traced criteria: AC-001..AC-007 derived from BC-2.02.014 postconditions, §Error Cases, §Edge Cases, invariant filter-required, and 2026-07-13 wire-shape discipline; AC-001 also traces to BC-2.02.006 EC-02-014 (deferral closure). (3) Code-reading verdict on `seed_missing_query_filter_vars §seed_missing_query_filter_vars`: confirmed empty-string pre-seed behavior — absent `device_id` filter produces path `/api/v1/devices//activity` → DTU HTTP 200 + empty array → silent empty result (violates BC-2.02.014 §Error Cases; spec wins per CLAUDE.md). ADR-057 §D4 analysis did not account for this function. (4) SAP-2 parity: `get_device_activity` handler has one static-fixture path only; all five `ActivityRecord` fields emitted via `Json(body)`; parity PASS. (5) SAC-1 compliance: enumerated RG-001..RG-007 with named test functions, BC-5.38.001 density check (7/7 = 1.0), red-then-green task ordering (all RG tests appear before all implementation tasks). (6) Add T-IMPL-02 for required-filter hard error mechanism — non-trivial engine fix: `seed_missing_query_filter_vars` must not pre-seed required filter slots with empty string. (7) Add §Code-Reading Verdict, §Forbidden Dependencies. (8) Bump points 3 → 5 (engine fix scope added). (9) Add SS-07 to subsystems; add `crates_touched` frontmatter. (10) POL-29 9a sweep: S-WAVE-A-ARMIS-SPEC-001 covers `devices` table; no content asymmetry in how either story describes `armis.sensor.toml`. (11) POL-29 9c: all MUSTs in §Acceptance Criteria and §Architecture Compliance Rules carry AC + RGT anchors. |
 | 1.1 | 2026-07-27 | story-writer | FB72 story-writer leg 2: (1) Unblock story — architect confirmed `${query.filter.device_id}` filter-push-down grammar via ADR-057 adjudication (2026-07-27); rewrite §Blocking Dependency as §Architect Adjudication with confirmed path_template, single-device filter-required scope, per-record fan-out gap documented in ADR-057 §D6. (2) Set `behavioral_contracts: [BC-2.02.006]`; update BC status comment. (3) Add `## Authority` citing ADR-057 for SAC-2 bidirectionality. (4) Replace superseded `${variable.*}` phantom grammar in placeholder ACs, §Architecture Compliance Rules, §Tasks, §Behavioral Contracts. |

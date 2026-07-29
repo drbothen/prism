@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-ARMIS-SPEC-001
 title: "Armis Sensor Spec — Six Column Additions and device_cves_first source_path Fix"
-version: "1.2"
+version: "1.3"
 status: draft
 producer: story-writer
 phase: 3
@@ -332,7 +332,6 @@ column); RG-007 covers AC-007 (`device_cves_first` source_path fix); RG-008 cove
 generated-records parity); RG-010 covers AC-010 (`network_id` generated-records parity);
 RG-011 covers AC-011 (`tags` generated-records parity); RG-012 covers AC-012 (`device_cves`
 generated-records parity).
-7 Red Gate tests for 7 ACs — RED_RATIO = 7/7 = 1.0 (meets BC-5.38.001 threshold).
 RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual
 Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design
 and wiring-exempt) that reduce the denominator.
@@ -468,10 +467,10 @@ RG-008..RG-012 assert key presence; they do not assert exact values.
 | This story spec | ~2,000 |
 | `crates/prism-sensors/specs/armis.sensor.toml` (current, to read before amending) | ~2,500 |
 | `crates/prism-dtu-armis/src/types.rs` (DeviceRecord ground truth) | ~1,000 |
-| BC-2.02.006 v1.8 (§TOML Contract, §Postconditions) | ~1,500 |
+| BC-2.02.006 v1.11 (§TOML Contract, §Postconditions, §Generated-Records Path Coverage) | ~2,000 |
 | Existing column Red Gate test pattern (prism-spec-engine/tests/ or prism-dtu-armis/tests/) | ~800 |
 | Running test output (nextest per-crate) | ~500 |
-| **Total estimate** | **~8,300** |
+| **Total estimate** | **~8,800** |
 
 8,300 tokens is well within the 20% context window limit. No split required.
 
@@ -565,6 +564,7 @@ SAP-2 probe on any subsequent adversarial pass re-verifies both surfaces.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.3 | 2026-07-28 | story-writer | FB86 — close F-WASE-P68-MED-004: delete banned authored-time RED_RATIO sentence (`7 Red Gate tests for 7 ACs — RED_RATIO = 7/7 = 1.0`) from §Red Gate density check; construct is banned regardless of arithmetic correctness per FB61/D-2041. Close F-WASE-P68-LOW-001: advance §Token Budget Estimate BC-2.02.006 pin from v1.8 to v1.11 and extend section list to include §Generated-Records Path Coverage (added in FB85 scope); reassess token estimate ~1,500→~2,000, total ~8,300→~8,800. §Previous Story Intelligence `was corrected in BC-2.02.006 v1.8` historically-scoped prose verified correct-as-written (not swept). v1.0 and v1.2 changelog BC-2.02.006 references are immutable historical record (not swept). POL-29 9a: S-WAVE-A-ARMIS-ACTIVITY-001 twin in same burst — same banned sentence deleted and trailing deferral note normalized; symmetric. 9b: no downstream copy target. 9c: no new MUSTs introduced. |
 | 1.2 | 2026-07-28 | story-writer | FB85 story half — SAP-2 Rule 6 dual-path wire-coverage gap for five new Armis device columns. Add AC-008..AC-012 and RG-008..RG-012 anchored to BC-2.02.006 v1.11 §Generated-Records Path Coverage; exact test names match BC anchors for POL-29 9c bidirectionality. Expand `crates_touched` to include `prism-dtu-armis`; update `subsystems` to include SS-12 (DTU-Armis); bump `points` 3→5 and `estimated_days` 1→2 for generator scope. Add T-03 (implementer task: add five keys to `build_asset §build_asset`). Update §Architecture Mapping with generator and wire-shape test rows. Update §File Structure Requirements with `generator.rs` MODIFY row and `prism-dtu-armis/tests/` row for RG-008..RG-012. Update density paragraph: 7→12 failing tests, add RG-008..RG-012 coverage; RED_RATIO sentence and §Token Budget Estimate BC pin left unchanged (FB86 scope). BC-2.02.006 pin updated v1.9→v1.11 in §Behavioral Contracts table and frontmatter comment. Red-then-green ordering preserved: RG-008..RG-012 checkboxes appear before T-03. POL-29 9a: `S-WAVE-A-ARMIS-ACTIVITY-001` — `get_device_activity §get_device_activity` has ONE path only (static fixture, no generated-records branch; confirmed from story v1.3 §Ground-Truth DTU State); SAP-2 Rule 6 dual-path coverage gap does NOT apply; 9a CLEAR. 9b: §Generated-Records Path Coverage block is new content self-contained in this story, not a copy of a downstream target. 9c: all five new MUSTs carry AC+RGT anchors matching BC-2.02.006 v1.11 exactly. |
 | 1.1 | 2026-07-27 | story-writer | FB78: POL-29 9a sibling sweep — replace stale volatile framing of `S-WAVE-A-ARMIS-ACTIVITY-001` ("blocked on architect confirmation") with durable scope-division description: ACTIVITY-001 covers `armis_device_activity` table (ADR-057 filter-push-down path); this story covers `devices` table only; both have `depends_on: []` and modify non-overlapping sections; rebase note for co-land. Update BC-2.02.006 version pin from v1.8 to v1.9 in §Behavioral Contracts table and frontmatter comment. |
 | 1.0 | 2026-07-27 | story-writer | FB72 leg 1 Item 6: create `S-WAVE-A-ARMIS-SPEC-001` per BC-2.02.006 v1.8 §TOML Contract POL-29 9c anchor. Scope: 6 column additions (`os_version`, `risk_factors`, `network_id`, `site`, `tags`, `device_cves`) + `device_cves_first` `source_path` fix. 7 ACs, 7 RGTs, `tdd_mode: strict`, `## Authority` citing ADR-023 §Rule 1 and ADR-028 §D1. |
