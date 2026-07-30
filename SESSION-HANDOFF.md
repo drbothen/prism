@@ -126,15 +126,15 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2070 (SESSION WRAP; FB102 pass-71 closure; BC-INDEX v8.89; ARCH-INDEX v2.291; STORY-INDEX v2.757; develop_head 51c2d4b1; NEXT = LOCAL adversary pass-72; BC-5.39.001 streak 0/3).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2070 is the most recent durable snapshot).
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2070 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `51c2d4b1` (origin/develop=`51c2d4b1`; main worktree parked on docs/claude-md-file-size-convention @`e327f42ad`; PR #230 OPEN). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2070 session wrap HEAD after push). STATE v8.618. pass-71 persisted: 15 findings, 5H/7M/3L, Novelty HIGH; NEXT = LOCAL adversary pass-72 on frozen HEAD 5e1381e1a.
+> develop HEAD `51c2d4b1` (origin/develop=`51c2d4b1`; PR #230 SQUASH-MERGED @51c2d4b1; DRIFT-RECORDS-LINT-NOT-ON-DEVELOP-001 RESOLVED; main worktree now on fix/records-lint-arm5-check-name-false-positive @`72b264954`; PR #231 OPEN). factory-artifacts HEAD: `38f2bbb83` (D-2070 wrap commit, which contains the FB98–FB101 pass-71 fix work). STATE v8.619. pass-71 persisted: 15 findings, 5H/7M/3L, Novelty HIGH; NEXT = LOCAL adversary pass-72 on frozen HEAD `38f2bbb83`.
 
 ---
 
 ## §RESUME SNAPSHOT — D-2070 (2026-07-30 — SESSION WRAP; FB102 pass-71 closure; BC-INDEX v8.89; ARCH-INDEX v2.291; STORY-INDEX v2.757; develop_head 51c2d4b1; STATE v8.618) [SUPERSEDES D-2068]
 
 ### RESUME IN ONE BREATH
-Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2070 SESSION WRAP — FB102 pass-71 closure complete. BC-INDEX v8.89 (BC-2.02.006 v1.17; BC-2.02.014 v1.9); ARCH-INDEX v2.291 (ADR-023 v1.26, ADR-028 v1.30, ADR-057 v1.0 L10 STALE pins fixed); STORY-INDEX v2.757 (5 story rows updated); policies v1.41 (POL-39 self-compliance + POL-23 ACTIVE-DURING-TRANSITION reinstated). develop_head advanced 7fef57dad→51c2d4b1 (PR #230 main worktree HEAD e327f42ad). pass-71: 15 findings, 5H/7M/3L, Novelty HIGH.
-**NEXT ACTION:** dispatch **LOCAL adversary pass-72** on frozen HEAD `5e1381e1a`. No pushes before pass-72 verdict — DRIFT-ORCH-PRLEVEL-PUSH-001. Streak 0/3.
+Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2070 SESSION WRAP — FB102 pass-71 closure complete. BC-INDEX v8.89 (BC-2.02.006 v1.17; BC-2.02.014 v1.9); ARCH-INDEX v2.291 (ADR-023 v1.26, ADR-028 v1.30, ADR-057 v1.0 L10 STALE pins fixed); STORY-INDEX v2.757 (5 story rows updated); policies v1.41 (POL-39 self-compliance + POL-23 ACTIVE-DURING-TRANSITION reinstated). develop_head advanced 7fef57dad→51c2d4b1 (PR #230 SQUASH-MERGED @51c2d4b1; DRIFT-RECORDS-LINT-NOT-ON-DEVELOP-001 RESOLVED; scripts/records-lint.sh + CLAUDE.md TD-VSDD-092/096/097/SAC-1/SAC-2/non-exhaustive gate-count refactor now on develop). pass-71: 15 findings, 5H/7M/3L, Novelty HIGH.
+**NEXT ACTION:** dispatch **LOCAL adversary pass-72** on frozen HEAD `38f2bbb83` (the D-2070 wrap commit, which contains the FB98–FB101 pass-71 fix work). No pushes before pass-72 verdict — DRIFT-ORCH-PRLEVEL-PUSH-001. Streak 0/3.
 
 ### PASS-71 LEDGER (open findings — carried to pass-72)
 ~~HIGH-002~~ CLOSED FB99 (ADR-057 §D7/§C7 DISCHARGED markers). ~~HIGH-004~~ CLOSED FB100/FB102 (SPEC-001 T-01 device_type→type). ~~HIGH-005~~ CLOSED FB100/FB102 (AC-016/RG-016 two-ArmisState construction contracted). ~~MED-005~~ CLOSED FB99 (ADR-023/028 anchor_stories annotation corrected; LOW-003 7 legacy entries annotated). ~~LOW-001~~ CLOSED FB101 (ACTIVITY-001 T-IMPL-02 §D7 date 2026-07-27→2026-07-30). ~~LOW-002~~ CLOSED FB101 (L11-GATE-001 RG-007 added). ~~MED-007~~ CLOSED FB102 (ANTIPIN-SWEEP-001/002 depends_on L11-GATE-001 added).
@@ -153,16 +153,16 @@ OPEN: HIGH-001 (ADR-023 §D5 §Authority citation text); HIGH-003 (BC-2.02.006 A
 BC-2.16.009 **v1.30** / ADR-053 **v0.39** / error-taxonomy **v2.71** / BC-2.16.008 v1.6 / BC-2.16.014 v1.19 / VP-159 **v1.27** / ADR-054 **v0.57** / BC-2.01.018 **v1.7** / BC-2.01.008 **v1.8** / BC-2.01.006 **v1.9** / BC-2.02.004 **v1.14** / BC-2.02.006 **v1.17** / BC-2.02.014 **v1.9** (draft) / BC-2.16.002 **v2.13** / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 **v1.30** / VP-160 **v1.3** / VP-161 **v1.3** / verification-architecture **v1.48** / ADR-051 **v1.8** / ADR-052 **v1.19** / ADR-055 **v1.3** (accepted) / ADR-056 **v0.5** (accepted) / ADR-057 **v1.0** (accepted). Stories: S-WAVE-A-ENGINE-001 **v3.0** (28 ACs / 40 RGTs); S-WAVE-A-MCP-001 **v1.5**; S-WAVE-A-CYBERINT-PATCH-001 **v1.4**; S-WAVE-A-ARMIS-REMEDIATION-001 **v1.5**; S-ADR054-WAVE-A-001 **v1.5** (10 ACs / 24 RGTs); S-ADR055-WAVE-A-001 **v1.3** (11 RGTs); S-WAVE-A-CYBERINT-SPEC-001 **v1.8** (10 ACs / 20 RGTs); S-WAVE-A-ARMIS-ACTIVITY-001 **v1.9** (15 ACs ready); S-WAVE-A-ARMIS-SPEC-001 **v1.9** (15 ACs / 15 RGTs); S-MAINT-L11-GATE-001 **v1.1** (draft); S-MAINT-ADR-ANCHOR-GATE-001 **v0.1** (draft). Indexes: BC-INDEX **v8.89** / VP-INDEX **v2.22** / ARCH-INDEX **v2.291** / STORY-INDEX **v2.757** (total_stories 258).
 
 ### HEADS (D-2070)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` — THIS D-2070 commit (PUSHED). Frozen HEAD for pass-72 = `5e1381e1a`; no pushes until pass-72 verdict. Streak 0/3.
-- `origin/develop`: `51c2d4b1` — PUSHED (e327f42ad on docs/claude-md-file-size-convention; PR #230 OPEN). LOCAL develop: `7fef57dad` (not FF'd — main worktree parked on docs/claude-md-file-size-convention).
-- Main worktree: docs/claude-md-file-size-convention @`e327f42ad` — PUSHED; PR #230 OPEN.
+- `factory-artifacts`: `38f2bbb83` — THIS D-2070 commit (PUSHED). Frozen HEAD for pass-72 = `38f2bbb83` (the D-2070 wrap commit, which contains the FB98–FB101 pass-71 fix work); no pushes until pass-72 verdict. Streak 0/3.
+- `origin/develop`: `51c2d4b1` — PUSHED (PR #230 SQUASH-MERGED @51c2d4b1; DRIFT-RECORDS-LINT-NOT-ON-DEVELOP-001 RESOLVED). LOCAL develop: `51c2d4b1` (FF'd — DRIFT-LOCAL-DEVELOP-FF-001 RESOLVED).
+- Main worktree: fix/records-lint-arm5-check-name-false-positive @`72b264954` — PUSHED; PR #231 OPEN (fix(records-lint): exempt script check names from ARM5 false-positive; RESUME NEXT-ACTION: check CI, then merge to develop).
 - `.worktrees/fix-demosetup-cwd` @`ec4379b5b` — PUSHED, PR #229 OPEN.
 - `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK).
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK; 1 dirty file).
 - verify-sha-currency.sh: PASS expected after this D-2070 push. No background agents. BC-5.39.001 streak 0/3.
 
 ### BACKUP BOUNDARY (D-2070)
-- PUSHED / safe: factory-artifacts (this D-2070 commit); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); docs/claude-md-file-size-convention @`e327f42ad` (PR #230 OPEN); origin/develop @`51c2d4b1`.
+- PUSHED / safe: factory-artifacts (this D-2070 commit, `38f2bbb83`); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); fix/records-lint-arm5-check-name-false-positive @`72b264954` (PR #231 OPEN); origin/develop @`51c2d4b1` (PR #230 SQUASH-MERGED).
 - LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty).
 
 ---
