@@ -6,7 +6,7 @@ wave: maintenance
 epic_id: maintenance
 priority: P2
 status: draft
-version: "1.0"
+version: "1.1"
 updated: "2026-07-30"
 level: "L2"
 producer: story-writer
@@ -29,9 +29,13 @@ holdout_scenarios: []
 # POL-35 holdout_gate_infra_only_exemption applies: behavioral_contracts: [] (pure
 # records-only sweep). holdout_scenarios: [] is compliant for this story.
 depends_on:
+  - S-MAINT-L11-GATE-001
   - S-MAINT-ANTIPIN-SWEEP-001
 # depends_on justification:
-#   S-MAINT-ANTIPIN-SWEEP-001 must complete first because: (a) the stories and specs
+#   S-MAINT-L11-GATE-001 must ship first because it provides the L11 gate that mechanically
+#   validates version pins; this sweep cannot declare success without that gate operational
+#   (the gate must be present before the sweep can be verified as having produced a clean state).
+#   S-MAINT-ANTIPIN-SWEEP-001 must also complete first because: (a) the stories and specs
 #   tiers have overlapping citation graphs — some spec files cite story files and vice
 #   versa; running them concurrently creates conflicting edits; (b) the strictly serial
 #   chain (L11-GATE → CAPREF → SWEEP-001 → SWEEP-002) ensures each sweep verifies
@@ -357,4 +361,5 @@ S-MAINT-ANTIPIN-SWEEP-002 (this story)
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| 1.1 | 2026-07-30 | FB101 story leg — close F-WASE-P71-MED-007 (partial): add `S-MAINT-L11-GATE-001` to `depends_on` frontmatter array. The §Dependency Graph Edges body section already correctly listed L11-GATE-001 as a prerequisite; the frontmatter was stale. L11-GATE-001 must ship before this sweep because it provides the gate that mechanically validates the sweep's success criterion. Dependency justification comment updated to name both predecessors explicitly. POL-29 9a: ANTIPIN-SWEEP-001 twin updated in same burst (same missing `depends_on` entry). 9b: no downstream copy target affected. 9c: no new MUSTs introduced. |
 | 1.0 | 2026-07-30 | Initial story creation. POL-39 compliance sweep for narrative version pins in .factory/specs/ tier, approximately 2,866 pins across 136 files at authoring time. Includes AC-005: removal of superseded FB93 inline anchor-form blockquotes from BC-2.02.006 and BC-2.02.014 (POL-39 supersedes the FB93 asymmetric convention; blockquotes are not one of POL-39's four exempt tiers). Same per-site adjudication discipline as SWEEP-001. TD-VSDD-097 three-dimension sweep explicitly covers the BC-2.02.006/014 sibling pair to prevent the named failure mode of sweeping one BC of a pair without sweeping its twin. |

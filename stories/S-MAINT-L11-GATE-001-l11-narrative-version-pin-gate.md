@@ -6,7 +6,7 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "1.0"
+version: "1.1"
 updated: "2026-07-30"
 level: "L2"
 producer: story-writer
@@ -142,15 +142,16 @@ L10 instead).
 (traces to POL-39 §four-tier exception boundary; verified by RG-004 and RG-005)
 
 ### AC-005 — `--self-probe` extended with L11 cases; new expected total stated
-The `--self-probe` mode gains at minimum 6 new pass/fail cases covering: (a) an L11 violation
+The `--self-probe` mode gains at minimum 7 new pass/fail cases covering: (a) an L11 violation
 case (version pin of the form `BC-NNN vN.M` in staged addition → FAIL), (b) a clean case (no version pin
 → PASS), (c) a changelog-section exemption case (version pin inside `## Changelog` section
 → PASS), (d) a frontmatter exemption case (`version: "1.5"` field → PASS), (e) an index-tier
-filename exemption case (file is BC-INDEX.md → PASS), and (f) the real-worktree case described
-in AC-006. The implementation states the new `--self-probe` expected total (previous total 34;
-new total ≥ 40) and verifies that total via a `--self-probe` run before declaring done.
+filename exemption case (file is BC-INDEX.md → PASS), (f) the real-worktree case described
+in AC-006, and (g) the full-scan CLAUDE.md inclusion case described in AC-007. The
+implementation states the new `--self-probe` expected total (previous total 34;
+new total ≥ 41) and verifies that total via a `--self-probe` run before declaring done.
 (traces to TD-VSDD-092 §self-probe discipline and CLAUDE.md §MECHANICAL-GATE-COVERAGE-PARITY;
-verified by RG-001 through RG-006)
+verified by RG-001 through RG-007)
 
 ### AC-006 — At least one self-probe case proves L11 fires on a real staged `.factory/` addition
 Because the L9 gate was silently inoperative for its first worktree-bypass period (self-probe
@@ -174,16 +175,19 @@ verified by RG-006)
   alongside L1/L7/L9/L10, including: pattern description, ratchet scope, exemption arms, and
   the `--self-probe` total
 - Both sections reference POL-39 (`anti_volatile_pin_versions`) as the policy being enforced
-- TD-VSDD-091 and TD-VSDD-092 in CLAUDE.md MUST NOT themselves contain version pins
+- TD-VSDD-091 and TD-VSDD-092 in CLAUDE.md MUST NOT themselves contain version pins; CLAUDE.md
+  is in the `--full-scan` scope so any version pin introduced during the amendment will be
+  caught by RG-007
 (traces to the CLAUDE.md amendment obligation stated in this story's background section;
-verified by manual adversarial review of the CLAUDE.md diff)
+verified by RG-007)
 
 ## Red Gate Tests
 
-All 6 RG items are self-probe test cases that FAIL before L11 is implemented (the check function
+All 7 RG items are self-probe test cases that FAIL before L11 is implemented (the check function
 does not exist; any violation-test on a non-existent check returns 0/pass, producing false-green),
-and PASS after. RG-006 is an integration-level test using the real `.factory/` worktree; others
-use synthetic temp repos per the existing self-probe pattern.
+and PASS after. RG-006 is an integration-level test using the real `.factory/` worktree; RG-007
+is a full-scan case using a synthetic repo containing CLAUDE.md; others use synthetic temp repos
+per the existing self-probe pattern.
 
 - [ ] **RG-001** (`test_l11_violation_artifact_id_vN`): self-probe case — a staged addition
   containing a version pin of the form `BC-2.01.001 v(digit).(digit)` in narrative prose
@@ -214,7 +218,17 @@ use synthetic temp repos per the existing self-probe pattern.
   If the `.factory/` worktree is unavailable in the test environment, the case logs
   "SKIP — .factory/ worktree not present; real-worktree probe cannot run" and does NOT return 0.
 
-**Red Gate density check (BC-5.38.001):** 6 Red Gate tests (RG-001 through RG-006) anchor to
+- [ ] **RG-007** (`test_l11_full_scan_includes_claude_md`): self-probe case — a synthetic repo
+  where `CLAUDE.md` contains a narrative version pin of the form `BC-2.01.001 v(digit).(digit)`
+  in narrative prose is scanned via `scripts/records-lint.sh --full-scan`; L11 returns FAIL.
+  Confirms that CLAUDE.md (a project-root governance document, not a `.factory/` file) is in
+  the `--full-scan` scope and is not excluded by any path filter. FAILS before `run_l11`'s
+  `--full-scan` arm includes CLAUDE.md; PASSES after. This mechanizes AC-007: any version pin
+  introduced in the CLAUDE.md amendment during T-D01/T-D02/T-D03 will be caught by this gate
+  rather than relying on manual adversarial review. Preferred location: inside the `--self-probe`
+  case block in `scripts/records-lint.sh`.
+
+**Red Gate density check (BC-5.38.001):** 7 Red Gate tests (RG-001 through RG-007) anchor to
 7 acceptance criteria. Density verification (`RED_TESTS * 2 >= (TOTAL_NEW_TESTS − EXEMPT_TESTS)`)
 is computed at dispatch by the orchestrator per `per-story-delivery.md §Red Gate Density Check`
 and BC-5.38.002/BC-5.38.003. No authoring-time ratio is pre-computed here.
@@ -259,10 +273,10 @@ then amend CLAUDE.md. Do not load both simultaneously.
   with a permanent-fail body (`return 1`) and add RG-001 self-probe case that EXPECTS `run_l11`
   to fail on a violation. Confirm `--self-probe` outputs `L11-violation probe FAIL (permanent-fail body)`.
 
-- [ ] **T-A02** (RG-002 through RG-006 setup): Add remaining 5 self-probe cases against the
-  permanent-fail stub. Confirm all 6 new cases fail in the expected direction before implementation
-  (RG-001 and RG-006 should show FAIL; RG-002/003/004/005 should show false-FAIL because the
-  stub always fails). Record the new `--self-probe` expected-fail count.
+- [ ] **T-A02** (RG-002 through RG-007 setup): Add remaining 6 self-probe cases against the
+  permanent-fail stub. Confirm all 7 new cases fail in the expected direction before implementation
+  (RG-001, RG-006, and RG-007 should show FAIL; RG-002/003/004/005 should show false-FAIL because
+  the stub always fails). Record the new `--self-probe` expected-fail count.
 
 ### Phase B — Implement L11 check (Green — make failing tests pass)
 
@@ -283,12 +297,15 @@ then amend CLAUDE.md. Do not load both simultaneously.
 
 - [ ] **T-B05**: Integrate `run_l11` into the main gate execution path alongside `run_l9`. Ensure
   L11 runs in default mode (staged-diff), `--full-scan` mode, and is skipped by `--l9-only`.
+  In `--full-scan` mode, CLAUDE.md MUST be included in the scan scope — project-root governance
+  documents are not excluded from full-scan (only index-tier filenames are exempt per AC-004(c)).
+  This requirement is mechanized by RG-007. Anchor: AC-007/RG-007.
   Decide whether to add `--l11-only` flag (document the decision).
 
 ### Phase C — Verify self-probe passes
 
-- [ ] **T-C01**: Run `scripts/records-lint.sh --self-probe`. Confirm all 6 new L11 cases pass.
-  Confirm existing 34 cases still pass (no regression). State the new total (≥ 40) and update
+- [ ] **T-C01**: Run `scripts/records-lint.sh --self-probe`. Confirm all 7 new L11 cases pass.
+  Confirm existing 34 cases still pass (no regression). State the new total (≥ 41) and update
   the CLAUDE.md reference count.
 
 - [ ] **T-C02** (RG-006 real-worktree verification): If the `.factory/` worktree is present
@@ -312,12 +329,13 @@ then amend CLAUDE.md. Do not load both simultaneously.
 
 ### Merge gate
 
-- [ ] **MERGE-GATE-SELF-PROBE**: `scripts/records-lint.sh --self-probe` exits 0 with ≥ 40 expected
+- [ ] **MERGE-GATE-SELF-PROBE**: `scripts/records-lint.sh --self-probe` exits 0 with ≥ 41 expected
   cases, all passing.
 - [ ] **MERGE-GATE-NO-L11-REGRESSION**: `scripts/records-lint.sh` on the PR diff exits 0 (no L11
   violations in the CLAUDE.md amendment or the story files themselves).
-- [ ] **MERGE-GATE-CLAUDE-MD-SELF-COMPLIANT**: Adversarial review confirms the CLAUDE.md amendment
-  contains no version pins in its narrative prose.
+- [ ] **MERGE-GATE-CLAUDE-MD-SELF-COMPLIANT**: RG-007 (`test_l11_full_scan_includes_claude_md`)
+  passes, confirming CLAUDE.md is in the `--full-scan` scope and any version pin introduced
+  during the CLAUDE.md amendment (T-D01/T-D02/T-D03) is mechanically caught by L11.
 
 ## Previous Story Intelligence
 
@@ -413,4 +431,5 @@ S-MAINT-L11-GATE-001 (this story)
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| 1.1 | 2026-07-30 | FB101 story leg — close F-WASE-P71-LOW-002. AC-007 mechanized: replaced "verified by manual adversarial review of the CLAUDE.md diff" with "verified by RG-007". Added RG-007 (`test_l11_full_scan_includes_claude_md`): self-probe case confirming CLAUDE.md is in the `--full-scan` scope by staging a synthetic CLAUDE.md containing a version pin and asserting L11 FAIL. Updated AC-005: "at minimum 6 new pass/fail cases" → "at minimum 7 new pass/fail cases"; self-probe expected total ≥ 40 → ≥ 41. Updated Red Gate density check: "6 Red Gate tests (RG-001 through RG-006)" → "7 Red Gate tests (RG-001 through RG-007)". Updated RG preamble sentence. Updated T-A02: "remaining 5 self-probe cases" → "remaining 6 self-probe cases" (now covers RG-002 through RG-007). Updated T-B05: added CLAUDE.md full-scan inclusion MUST with RG-007 anchor. Updated T-C01: "all 6 new L11 cases" → "all 7"; "(≥ 40)" → "(≥ 41)". Updated MERGE-GATE-SELF-PROBE: ≥ 40 → ≥ 41. Updated MERGE-GATE-CLAUDE-MD-SELF-COMPLIANT: from manual adversarial review to RG-007 reference. POL-29 9a: no sibling-pair twin for L11-GATE-001. 9b: no downstream copy target affected. 9c: T-B05 new MUST carries AC-007/RG-007 anchor. |
 | 1.0 | 2026-07-30 | Initial story creation. Adds records-lint.sh L11 check banning narrative version pins, ratchet-scoped and worktree-index-aware, with section-range changelog exemption, frontmatter exemption, and index-tier exemption. CLAUDE.md extended to document L11 under TD-VSDD-091 and TD-VSDD-092. Motivated by POL-39 (`anti_volatile_pin_versions`, HIGH) registration and measured corpus exposure of approximately 5,679 pre-existing narrative version pins across 219 files. Includes explicit AC-006/RG-006 to prevent repeat of L9 worktree-bypass silent-inoperability gap. |

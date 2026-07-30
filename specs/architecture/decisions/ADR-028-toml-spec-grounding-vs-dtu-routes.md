@@ -5,7 +5,7 @@ title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API C
 status: accepted
 date: "2026-05-20"
 modified: "2026-07-30"  # see §Changelog top row
-version: "1.29"
+version: "1.30"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -15,7 +15,15 @@ superseded_by:
 amends: null
 amended_by:
   - "ADR-054 §D2/D5/D10 (partial — §D13 oauth2_client_credentials: PluginAuthProvider (WASM) path is spec-load-rejected per D10(b) E-SPEC-028(b) rejection regardless of [auth_acquisition] presence (Definition 1) for auth_type ∈ {oauth2_client_credentials, token_exchange} + auth_plugin present; DeclarativeHttpAuthProvider (native) is the sole live path; crowdstrike-oauth2.prx plugin retired; §D2 + §D13 Armis blockquotes updated from custom_via_plugin to token_exchange; effective on ADR-054 acceptance)"
-anchor_stories: [PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-B, PLUGIN-MIGRATION-001-C, PLUGIN-MIGRATION-001-E, S-DEMO-001, S-DEMO-002, S-WAVE-A-ARMIS-SPEC-001]  # S-WAVE-A-ARMIS-SPEC-001 added 2026-07-30 FB94 SAC-2 — §Authority cites "ADR-028 v1.28 §D1 (TOML Spec Grounding vs DTU Routes) is the authority for the DTU column parity requirement"
+anchor_stories:
+  - PLUGIN-MIGRATION-001-D  # legacy pre-§Authority anchor: ADR-028 authored during this story's pass-4 cascade (D-737); §D1/§D2/§D3/§D4/§D5/§D9/§D10 are the primary grounding decisions for this story
+  - PLUGIN-MIGRATION-001-A  # legacy pre-§Authority anchor: §D6 auth-module migration scope expansion authored for this story; co-merge contract in §D10
+  - PLUGIN-MIGRATION-001-B  # legacy pre-§Authority anchor: part of PLUGIN-MIGRATION saga governed by §D1/§D2 DTU-grounding rules
+  - PLUGIN-MIGRATION-001-C  # legacy pre-§Authority anchor: part of PLUGIN-MIGRATION saga governed by §D1/§D2 DTU-grounding rules
+  - PLUGIN-MIGRATION-001-E  # legacy pre-§Authority anchor: §D11 OAuth2 credential substitution model authored for this story's PR-LEVEL CRIT #2
+  - S-DEMO-001  # legacy pre-§Authority anchor: §D12 Cyberint cookie auth DTU divergence authored for this story; anchor_stories += S-DEMO-001 at v1.12
+  - S-DEMO-002  # legacy pre-§Authority anchor: §D13 BearerStaticCredentialAuthProvider pattern authored for this story; anchor_stories += S-DEMO-002 at v1.14
+  - S-WAVE-A-ARMIS-SPEC-001  # SAC-2 verified: §Authority cites "ADR-028 §D1 (TOML Spec Grounding vs DTU Routes) is the authority for the DTU column parity requirement"
 related_adrs: [ADR-003, ADR-023, ADR-027, ADR-053, ADR-054]
 related_bcs: [BC-2.16.013, BC-2.16.001, BC-2.16.009, BC-2.01.016]
 locked_decisions: ["D-737 Decision 1", "D-737 Decision 4"]
@@ -657,6 +665,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.30 | 2026-07-30 | architect | FB99 — F-WASE-P71-MED-005 + F-WASE-P71-LOW-003: `anchor_stories` expanded to multi-line format with per-entry annotations. (1) F-WASE-P71-MED-005: S-WAVE-A-ARMIS-SPEC-001 annotation corrected — `"ADR-028 v1.28 §D1 (TOML Spec Grounding vs DTU Routes)"` → `"ADR-028 §D1 (TOML Spec Grounding vs DTU Routes)"` (version pin removed; FB94 advanced ADR-028 to v1.29 in the same burst that authored the annotation; FB96 de-pinned story §Authority to version-free form). (2) F-WASE-P71-LOW-003: seven pre-§Authority legacy entries annotated with `legacy pre-§Authority anchor` rationale — all seven predate the §Authority convention; each has a concrete ADR body section recording its relationship to ADR-028 (§D6→001-A; §D11→001-E; §D12→S-DEMO-001; §D13→S-DEMO-002; §D1/§D2 grounding→001-D/-B/-C); removing them would lose genuine traceability. POL-29 9a: ADR-050..056 Wave-A family swept for parallel SPEC-001 `anchor_stories` annotations — none found. 9b: no downstream copy target. 9c: no MUSTs affected. |
 | 1.29 | 2026-07-30 | architect | FB94 SAC-2 (F-WASE-P70-MED-004): `anchor_stories` updated — `S-WAVE-A-ARMIS-SPEC-001` omitted from prior list. `S-WAVE-A-ARMIS-SPEC-001` §Authority verified: cites "ADR-028 v1.28 §D1 (TOML Spec Grounding vs DTU Routes) is the authority for the DTU column parity requirement." Full story corpus sweep 2026-07-30: `S-WAVE-A-ARMIS-SPEC-001` is the only new addition from the Wave-A perimeter; earlier stories (PLUGIN-MIGRATION-001-D/-A/-B/-C/-E, S-DEMO-001, S-DEMO-002) remain. No content changes; metadata addition only. |
 | 1.28 | 2026-07-24 | architect | F-WASE-P52-LOW-001 POL-29 class sweep: two live-body `PipelineExecutor::build_request` citations corrected to accurate free-function form. Line 496 (§D12 S-DEMO-001 Scope Decision): first mention in document expanded to `` `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`) ``. Line 511 (§D12 build_request Pipeline Amendment Scope): subsequent mention replaced with plain `` `build_request` ``. `PipelineExecutor::build_request` does not resolve; `build_request` is a module-level free function at `pipeline.rs:975` (8 params, no `&self`). `version` bumped 1.27→1.28. |
 | 1.27 | 2026-07-24 | architect | F-WASE-P50-MED-001: `superseded_by` ADR-053 §D1/§D2/§D5 annotation — "final ADR approval gate pending" → "final ADR approval gate PASSED 2026-07-22 (D-1943)". |

@@ -80,7 +80,7 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **D-1651 (2026-07-10): SESSION WRAP — §RESUME SNAPSHOT D-1651 authored (supersedes D-1648).** D-1650 defect diagnosis + RED gates folded into this burst (TD-VSDD-053 single-commit). develop@8ea29823 (PUSHED, origin==local). NO open PRs. NO active cascade. FIX-EQUERY042-GROUPBY @49e07a29 RED-COMPLETE (implementer GREEN pending). CSDEVICES architect ratification pending (Option 1). AUDIT-COVERAGE-001 branch parked @317b6e25. VERY NEXT ACTION = architect ratification for CSDEVICES Option 1 IN PARALLEL WITH implementer GREEN for EQUERY042 @49e07a29. STATE v8.250→v8.251.
 >
-> **D-1655 (2026-07-10): PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 SQUASH-MERGED — develop@b9cf3f9b.** Fix: E-QUERY-042 Literal::Timestamp arm in GROUP BY/ORDER BY (ADR-052 §D4 v1.11 arms 6+7); 15 new tests; prism-query 1502/1502. Full cascade: LOCAL 5-pass (3-CLEAN @7db0b1ba; D-1654) + PR-LEVEL 3-pass ALL CLEAN(strict) on frozen 7db0b1ba (zero findings each). CI PASS; security CLEAR; pr-reviewer APPROVE cycle 1; human-authorized; normal squash-merge; remote branch deleted. No POL-14 BC promotions. develop_head 8ea29823→b9cf3f9b. EQUERY042 DEFECT CLOSED. CSDEVICES lane: implementer GREEN in progress, streak 0/3. FIX-EQUERY042-GROUPBY cleanup in flight (devops). STATE v8.254→v8.255.
+> **D-1655 (2026-07-10): PR #220 DEFECT-EQUERY042-GROUPBY-DEADARM-001 SQUASH-MERGED — develop@b9cf3f9b.** Fix: E-QUERY-042 Literal::Timestamp arm in GROUP BY/ORDER BY (ADR-052 §D4 v1.11 arms 6+7); 15 new tests; prism-query 1502/1502. Full cascade: LOCAL 5-pass (3-CLEAN @7db0b1ba; D-1654) + PR-LEVEL 3-pass ALL CLEAN(strict) on frozen 7db0b1ba (zero findings each). CI PASS; security CLEAR; pr-reviewer APPROVE cycle 1; human-authorized; normal squash-merge; remote branch deleted. No POL-14 BC promotions. develop_head 8ea29823→b9cf3f9b. EQUERY042 DEFECT CLOSED. CSDEVICES lane: implementer GREEN completed, streak 0/3. FIX-EQUERY042-GROUPBY cleanup completed (devops). STATE v8.254→v8.255.
 >
 > **D-1668 (2026-07-10): STATE BURST — CSDEVICES pass-19 closure (4 LOW; BC-2.11.012 v1.7 four-field set); fix HEAD 7347bb16.** Pass-19 (frozen @962f2ffb): CLEAN(strict)=NO CLEAN(PR-merge)=YES — 4 LOW (F-CSD-P19-001 volatile test-doc pins; F-CSD-P19-002 Compare-arm InSubquery gate gap — DataFusion silently executes wrong results; F-CSD-P19-003 _source_type S-3.02 delivery gap + _safety_flags retire PO split adjudication BC-2.11.012 v1.7 four-field set; F-CSD-P19-004 CWE-117 five sanitize_for_log gaps). Fix-burst: test-writer @7e8df858 T35 + @d4c239f3 T36/T37/T38 RED; implementer @80fd37fe P19-002 + @7347bb16 P19-001/003/004. prism-query 1541/1541; prism-mcp 447/447; workspace 5464/5464 GREEN; non-exhaustive 89/89; SAP-1 clear. BC-INDEX v7.85→v7.86. New FROZEN HEAD 7347bb16 (LOCAL-ONLY; do NOT push before passes 20/21/22). OPEN SCRUTINY FOR PASS 20: E-QUERY-038 second-emission-source on execute_against_session (error.find_root() DataFusion SchemaError catch; BC-2.11.016 + POL-24 scrutiny; possible amendment needed). VERY NEXT = LOCAL pass 20 on frozen 7347bb16 (streak 0/3). STATE v8.267→v8.268.
 >
@@ -124,13 +124,50 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2062 (SESSION WRAP; FB85 CLOSED; MED-003 CLOSED; BC-INDEX v8.84; STORY-INDEX v2.751; NEXT = FB86/story-writer; BC-5.39.001 streak 0/3).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2062 is the most recent durable snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2062 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `e116a587` (local; stale — origin/develop=`7fef57dad`; local ff BLOCKED by unstaged ci.yml/e2e.yml residue; DRIFT-LOCAL-DEVELOP-FF-001). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2062 session wrap HEAD after push). STATE v8.610. FB85 CLOSED (MED-003); STORY-INDEX v2.750→v2.751; BC-INDEX v8.82→v8.84; BC-2.02.006 v1.11; S-WAVE-A-ARMIS-SPEC-001 v1.2; NEXT = FB86 (story-writer; MED-004+LOW-001).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2070 (SESSION WRAP; FB102 pass-71 closure; BC-INDEX v8.89; ARCH-INDEX v2.291; STORY-INDEX v2.757; develop_head 51c2d4b1; NEXT = LOCAL adversary pass-72; BC-5.39.001 streak 0/3).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2070 is the most recent durable snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2070 is the most recent durable snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `51c2d4b1` (origin/develop=`51c2d4b1`; main worktree parked on docs/claude-md-file-size-convention @`e327f42ad`; PR #230 OPEN). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2070 session wrap HEAD after push). STATE v8.618. pass-71 persisted: 15 findings, 5H/7M/3L, Novelty HIGH; NEXT = LOCAL adversary pass-72 on frozen HEAD 5e1381e1a.
 
 ---
 
-## §RESUME SNAPSHOT — D-2062 (2026-07-28 — SESSION WRAP; FB85 CLOSED; BC-INDEX v8.84; STORY-INDEX v2.751; STATE v8.610) [SUPERSEDES D-2060]
+## §RESUME SNAPSHOT — D-2070 (2026-07-30 — SESSION WRAP; FB102 pass-71 closure; BC-INDEX v8.89; ARCH-INDEX v2.291; STORY-INDEX v2.757; develop_head 51c2d4b1; STATE v8.618) [SUPERSEDES D-2068]
+
+### RESUME IN ONE BREATH
+Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2070 SESSION WRAP — FB102 pass-71 closure complete. BC-INDEX v8.89 (BC-2.02.006 v1.17; BC-2.02.014 v1.9); ARCH-INDEX v2.291 (ADR-023 v1.26, ADR-028 v1.30, ADR-057 v1.0 L10 STALE pins fixed); STORY-INDEX v2.757 (5 story rows updated); policies v1.41 (POL-39 self-compliance + POL-23 ACTIVE-DURING-TRANSITION reinstated). develop_head advanced 7fef57dad→51c2d4b1 (PR #230 main worktree HEAD e327f42ad). pass-71: 15 findings, 5H/7M/3L, Novelty HIGH.
+**NEXT ACTION:** dispatch **LOCAL adversary pass-72** on frozen HEAD `5e1381e1a`. No pushes before pass-72 verdict — DRIFT-ORCH-PRLEVEL-PUSH-001. Streak 0/3.
+
+### PASS-71 LEDGER (open findings — carried to pass-72)
+~~HIGH-002~~ CLOSED FB99 (ADR-057 §D7/§C7 DISCHARGED markers). ~~HIGH-004~~ CLOSED FB100/FB102 (SPEC-001 T-01 device_type→type). ~~HIGH-005~~ CLOSED FB100/FB102 (AC-016/RG-016 two-ArmisState construction contracted). ~~MED-005~~ CLOSED FB99 (ADR-023/028 anchor_stories annotation corrected; LOW-003 7 legacy entries annotated). ~~LOW-001~~ CLOSED FB101 (ACTIVITY-001 T-IMPL-02 §D7 date 2026-07-27→2026-07-30). ~~LOW-002~~ CLOSED FB101 (L11-GATE-001 RG-007 added). ~~MED-007~~ CLOSED FB102 (ANTIPIN-SWEEP-001/002 depends_on L11-GATE-001 added).
+OPEN: HIGH-001 (ADR-023 §D5 §Authority citation text); HIGH-003 (BC-2.02.006 AC-007 RG-007 cite violation TD-VSDD-091); MED-001 (POL-23 ACTIVE-DURING-TRANSITION); MED-002/MED-003/MED-004 (index NOTE cite text); MED-006 (ADR-028 §D5 anchor version). LOW findings per local-pass-71.md.
+
+### HUMAN DECISIONS RECORDED D-2056 (preserved — no new human decisions D-2057..D-2070)
+- **(f) APPROVED — Rule freeze until 3-CLEAN.** Exception expires at BC-5.39.001 strict 3-CLEAN.
+- **(g) RESOLVED — 12 phantom dispositions, ZERO de-registrations.** Groups A/B/C/D dispositioned.
+- **(h) ADOPTED — File-enumeration basis.** `total_stories` 267→254. `bc_count_corrected: 269`.
+- **(j) ADOPTED — Standing mechanical verification step.**
+
+### OPEN IMPLEMENTATION OBLIGATION (recorded D-2055; unchanged)
+`seed_missing_query_filter_vars`: pre-seeding any `${query.filter.*}` slot absent from `FetchContext.query_filters` with empty string. PATH SEGMENT safety note: absent `device_id` yields `/api/v1/devices//activity` — DTU returns HTTP 200 with `activities: []`, `total: 0` (silent empty result; Standing Rule 3 §2 / SOUL.md §4 violation). Contracted in BC-2.02.014 §Postconditions; anchored to S-WAVE-A-ARMIS-ACTIVITY-001 AC-004/RG-004 (T-IMPL-02).
+
+### SPEC PERIMETER (post-D-2070)
+BC-2.16.009 **v1.30** / ADR-053 **v0.39** / error-taxonomy **v2.71** / BC-2.16.008 v1.6 / BC-2.16.014 v1.19 / VP-159 **v1.27** / ADR-054 **v0.57** / BC-2.01.018 **v1.7** / BC-2.01.008 **v1.8** / BC-2.01.006 **v1.9** / BC-2.02.004 **v1.14** / BC-2.02.006 **v1.17** / BC-2.02.014 **v1.9** (draft) / BC-2.16.002 **v2.13** / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 **v1.30** / VP-160 **v1.3** / VP-161 **v1.3** / verification-architecture **v1.48** / ADR-051 **v1.8** / ADR-052 **v1.19** / ADR-055 **v1.3** (accepted) / ADR-056 **v0.5** (accepted) / ADR-057 **v1.0** (accepted). Stories: S-WAVE-A-ENGINE-001 **v3.0** (28 ACs / 40 RGTs); S-WAVE-A-MCP-001 **v1.5**; S-WAVE-A-CYBERINT-PATCH-001 **v1.4**; S-WAVE-A-ARMIS-REMEDIATION-001 **v1.5**; S-ADR054-WAVE-A-001 **v1.5** (10 ACs / 24 RGTs); S-ADR055-WAVE-A-001 **v1.3** (11 RGTs); S-WAVE-A-CYBERINT-SPEC-001 **v1.8** (10 ACs / 20 RGTs); S-WAVE-A-ARMIS-ACTIVITY-001 **v1.9** (15 ACs ready); S-WAVE-A-ARMIS-SPEC-001 **v1.9** (15 ACs / 15 RGTs); S-MAINT-L11-GATE-001 **v1.1** (draft); S-MAINT-ADR-ANCHOR-GATE-001 **v0.1** (draft). Indexes: BC-INDEX **v8.89** / VP-INDEX **v2.22** / ARCH-INDEX **v2.291** / STORY-INDEX **v2.757** (total_stories 258).
+
+### HEADS (D-2070)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` — THIS D-2070 commit (PUSHED). Frozen HEAD for pass-72 = `5e1381e1a`; no pushes until pass-72 verdict. Streak 0/3.
+- `origin/develop`: `51c2d4b1` — PUSHED (e327f42ad on docs/claude-md-file-size-convention; PR #230 OPEN). LOCAL develop: `7fef57dad` (not FF'd — main worktree parked on docs/claude-md-file-size-convention).
+- Main worktree: docs/claude-md-file-size-convention @`e327f42ad` — PUSHED; PR #230 OPEN.
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5b` — PUSHED, PR #229 OPEN.
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK).
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK; 1 dirty file).
+- verify-sha-currency.sh: PASS expected after this D-2070 push. No background agents. BC-5.39.001 streak 0/3.
+
+### BACKUP BOUNDARY (D-2070)
+- PUSHED / safe: factory-artifacts (this D-2070 commit); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); docs/claude-md-file-size-convention @`e327f42ad` (PR #230 OPEN); origin/develop @`51c2d4b1`.
+- LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty).
+
+---
+
+## §RESUME SNAPSHOT — D-2062 (2026-07-28 — SESSION WRAP; FB85 CLOSED; BC-INDEX v8.84; STORY-INDEX v2.751; STATE v8.610) [SUPERSEDES D-2060] [SUPERSEDED by D-2070]
 
 ### RESUME IN ONE BREATH
 Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2062 lands FB85 (MED-003 CLOSED: BC-2.02.006 v1.11; S-WAVE-A-ARMIS-SPEC-001 v1.2) + SESSION WRAP.
@@ -1478,7 +1515,7 @@ D-1874..D-1877 (exhaustive) — 4 decisions: feature intake D-1874; distribution
 ## §RESUME SNAPSHOT — D-1872 (2026-07-19 — POST-MERGE BURST; DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 MERGED; STATE v8.426) [SUPERSEDES D-1871] [SUPERSEDED by D-1877]
 
 ### RESUME IN ONE BREATH
-DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 PR #227 squash-merged @e116a587 = current develop (local==origin). T13 audit instrument FIXED: parse_envelope now reads structuredContent.error.code (authoritative per BC-2.10.007); live re-run 106/106 DEMO-READY: YES ×2. workspace_test_count 5676. NEXT: T13 capstone on develop@e116a587 → T14 BLOCKED pending secops-factory integration planning (D-1873; stories not yet materialized; orchestrator planning in progress). **HUMAN ACTION REQUIRED before T14**: interactive `bash scripts/demo-setup.sh` for macOS Keychain auth (repeat after every release rebuild — non-scriptable).
+DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 PR #227 squash-merged @e116a587 = current develop (local==origin). T13 audit instrument FIXED: parse_envelope now reads structuredContent.error.code (authoritative per BC-2.10.007); live re-run 106/106 DEMO-READY: YES ×2. workspace_test_count 5676. NEXT: T13 capstone on develop@e116a587 → T14 BLOCKED pending secops-factory integration planning (D-1873; stories not yet materialized; orchestrator planning completed). **HUMAN ACTION REQUIRED before T14**: interactive `bash scripts/demo-setup.sh` for macOS Keychain auth (repeat after every release rebuild — non-scriptable).
 
 ### HEADS (verified 2026-07-19 D-1872 wrap)
 - develop: local == origin/develop == `e116a587` (PR #227 squash-merged 2026-07-19T14:27:25Z) — PUSHED
@@ -1490,12 +1527,12 @@ DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 PR #227 squash-merged @e116a587 = curren
 
 ### PER-WORKSTREAM NEXT-ACTIONS
 1. **T13 capstone (FIRST ACTION)** — develop@e116a587; audit instrument now trustworthy (D-1872); follow runbook v1.12 §1.6 pre-flight audit (106 checks, DEMO-READY YES required) → §2–§5 SOC-analyst walkthrough. Complete during planning wait.
-2. **T14 demo recording** — BLOCKED pending secops-factory integration decisions (D-1873): demo to run through the secops-factory plugin; orchestrator planning in progress; stories TBD.
+2. **T14 demo recording** — BLOCKED pending secops-factory integration decisions (D-1873): demo to run through the secops-factory plugin; orchestrator planning completed; stories TBD.
 3. **S-MAINT-PRMGR-HOOK-SCOPE-001** (draft v0.1, STORY-INDEX v2.714) — deliver post-T14 or next maintenance burst.
 4. **Carried**: S-3.09 EC-collision option (human), W3-FIX-S307-001 disposition (human), DRIFT-SDEMO004-TODO-SECTIONS-001, PG-CLIPPY-ALLTARGETS-001 (post-T14).
 
 ### PENDING USER-APPROVED-UNSTARTED
-secops-factory integration story materialization (D-1873; orchestrator planning in progress).
+secops-factory integration story materialization (D-1873; orchestrator planning completed).
 
 ### DECISION DELTA (session 2026-07-19)
 D-1872..D-1873 (exhaustive) — 2 decisions: PR #227 DEFECT-T13-AUDIT-ECODE-EXPECTATIONS-001 post-merge burst (D-1872); T14 BLOCKED secops-factory integration planning announced (D-1873). workspace_test_count 5672→5676. STATE v8.425→v8.426.
@@ -1596,7 +1633,7 @@ D-1838: adversary F-ADMTOK-PR22 CLEAN(strict)=yes frozen dac830d1; security delt
 ## §RESUME SNAPSHOT — D-1831 (2026-07-18 — SESSION WRAP; STATE v8.417) [SUPERSEDES D-1830] [SUPERSEDED by D-1844]
 
 ### RESUME IN ONE BREATH
-LANE 1 CLOSED: S-MAINT-CI-DISK-EXHAUSTION-001 MERGED — PR #224 squash 0f9857dd is the develop head (25-pass 3-CLEAN + security + pr-reviewer + human AC-005 literal ruling + human-authorized merge; worktree removed, branches deleted). LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): PR #225 OPEN @ 5c9458d6 PUSHED (SEC fix-burst: validate_clone_name CWE-117 gate + timeout comment; story v0.20 EC-008; earlier 3-CLEAN was on 828449de and was superseded by the human-approved SEC push). D-1827 ONE-TIME accelerated-convergence exception ACTIVE: re-gate = ONE delta-scoped fresh adversary pass + security delta-confirm (NOT full 3-CLEAN; not precedent). NEXT: confirm CI green on 5c9458d6 (was 4/5 green, 1 pull_request in progress at wrap) → pr-manager description refresh (new HEAD, story v0.20, SEC closure, fresh run IDs, hard scope limits) → github-ops evidence staging → accelerated pass (namespace F-ADMTOK-PR21) + security delta-confirm (828449de...5c9458d6) → pr-reviewer → human merge gate.
+LANE 1 CLOSED: S-MAINT-CI-DISK-EXHAUSTION-001 MERGED — PR #224 squash 0f9857dd is the develop head (25-pass 3-CLEAN + security + pr-reviewer + human AC-005 literal ruling + human-authorized merge; worktree removed, branches deleted). LANE 3 (DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001, P1 demo-blocking): PR #225 OPEN @ 5c9458d6 PUSHED (SEC fix-burst: validate_clone_name CWE-117 gate + timeout comment; story v0.20 EC-008; earlier 3-CLEAN was on 828449de and was superseded by the human-approved SEC push). D-1827 ONE-TIME accelerated-convergence exception ACTIVE: re-gate = ONE delta-scoped fresh adversary pass + security delta-confirm (NOT full 3-CLEAN; not precedent). NEXT: confirm CI green on 5c9458d6 (was 4/5 green, 1 pull_request pending at wrap) → pr-manager description refresh (new HEAD, story v0.20, SEC closure, fresh run IDs, hard scope limits) → github-ops evidence staging → accelerated pass (namespace F-ADMTOK-PR21) + security delta-confirm (828449de...5c9458d6) → pr-reviewer → human merge gate.
 
 ### HEADS (verified 2026-07-18 at D-1831 wrap)
 - develop: origin/develop = `0f9857dd` — PUSHED (PR #224 squash)

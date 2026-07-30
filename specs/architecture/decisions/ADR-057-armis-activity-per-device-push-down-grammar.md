@@ -5,7 +5,7 @@ title: "Armis Per-Device Activity Surface — Push-Down Grammar for Parameterize
 status: accepted
 date: "2026-07-27"
 modified: "2026-07-30"
-version: "0.9"
+version: "1.0"
 producer: architect
 subsystems_affected: [SS-06, SS-07, SS-12]
 supersedes: null
@@ -456,12 +456,14 @@ The `§D1` precedent confirms this variant is appropriate for pre-request pipeli
 `SpecEngineError::HttpRequestFailed` with `status_code = 0`. The required-filter gate
 fires at the same architectural layer — before HTTP dispatch — and uses the same variant.
 
-The product-owner MUST register a specific `E-SPEC-NNN` error code in
-`.factory/specs/prd-supplements/error-taxonomy.md` for this error class with a canonical
-`message_template` (see C7 in §Consequences). Until that registration occurs, the "or
-equivalent" language in BC-2.02.014 and the story remains a temporary stand-in; it MUST
-be replaced with the canonical `SpecEngineError::HttpRequestFailed` once the E-SPEC-NNN
-code is registered.
+**E-SPEC-029 REGISTERED (FB95 2026-07-30) — obligation DISCHARGED:** Error code E-SPEC-029
+is registered in `error-taxonomy.md §SPEC table` as `SpecEngineError::HttpRequestFailed`
+with `status_code = 0`, `message_template: "required filter '{key}' not provided; query
+requires WHERE {key} = '...' predicate"`. The product-owner registration obligation from
+§C7 is DISCHARGED against `S-WAVE-A-ARMIS-ACTIVITY-001` AC-004 / RG-004. The "or
+equivalent" escape hatch has been eliminated at all four sites in BC-2.02.014 (confirmed
+by the FB95 `error-taxonomy.md §SPEC table` amendment). Authority: `error-taxonomy.md
+§SPEC table` E-SPEC-029 row.
 
 ### Anchors (POL-29 9c — no unanchored MUST)
 
@@ -515,16 +517,15 @@ required-filter gate that fires before any upstream request is issued when the r
 mechanism is `required_filters = ["device_id"]` on the step (§D7). Anchor:
 `S-WAVE-A-ARMIS-ACTIVITY-001` AC-004 / RG-004 / BC-2.02.014.
 
-**C7 (PRODUCT-OWNER — error code registration):** The required-filter gate introduced by §D7
-MUST be registered in `.factory/specs/prd-supplements/error-taxonomy.md` as a new `E-SPEC-NNN`
-error code with:
-- `error_class: SpecEngineError::HttpRequestFailed` (status_code = 0)
-- `message_template: "required filter '{key}' not provided; query requires WHERE {key} = '...' predicate"`
-
-Once registered, the "or equivalent" language in BC-2.02.014 §Postconditions, §Error Cases
-row 1, EC-014-001, and `S-WAVE-A-ARMIS-ACTIVITY-001` AC-004 / T-IMPL-02 MUST be replaced
-with the canonical `SpecEngineError::HttpRequestFailed` variant and the new error code.
-Anchor: `S-WAVE-A-ARMIS-ACTIVITY-001` **AC-004 / RG-004**
+**C7 (PRODUCT-OWNER — error code registration — DISCHARGED FB95 2026-07-30):** The
+required-filter gate introduced by §D7 is registered in `error-taxonomy.md §SPEC table`
+as **E-SPEC-029** — `SpecEngineError::HttpRequestFailed` with `status_code = 0`,
+`message_template: "required filter '{key}' not provided; query requires WHERE {key} = '...'
+predicate"`. The "or equivalent" elimination obligation is DISCHARGED: all four sites in
+BC-2.02.014 §Postconditions / §Error Cases row 1 / EC-014-001 and
+`S-WAVE-A-ARMIS-ACTIVITY-001` AC-004 / T-IMPL-02 now cite E-SPEC-029 directly (confirmed
+by FB95 `error-taxonomy.md §SPEC table` amendment). Discharge anchor:
+`S-WAVE-A-ARMIS-ACTIVITY-001` **AC-004 / RG-004**
 (`test_armis_device_activity_absent_device_id_filter_returns_hard_error`).
 
 ---
@@ -533,6 +534,7 @@ Anchor: `S-WAVE-A-ARMIS-ACTIVITY-001` **AC-004 / RG-004**
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.0 | 2026-07-30 | architect | FB99 — F-WASE-P71-HIGH-002: §D7 "Canonical error variant" subsection and §C7 updated to record E-SPEC-029 as REGISTERED and mark both obligations DISCHARGED. Ground truth: E-SPEC-029 registered in `error-taxonomy.md §SPEC table` (FB95 2026-07-30); BC-2.02.014 "or equivalent" eliminated at all four sites. POL-39: no version pins introduced in new text. POL-29 9a: ADR-050..056 Wave-A family swept — ADR-056 carries no E-SPEC-NNN placeholder or required-filter content (grep CLEAR). 9b: `error-taxonomy.md §SPEC table` E-SPEC-029 row cites `ADR-057 §D7 / §C7` by section anchor (version-free); §D7 section name unchanged after edit — downstream copy agrees. 9c: both MUST obligations now carry explicit DISCHARGED markers with anchor `S-WAVE-A-ARMIS-ACTIVITY-001` AC-004 / RG-004; no new unanchored MUSTs introduced. |
 | 0.9 | 2026-07-30 | state-manager | FB97 — F-WASE-P70-LOW-004 (partial): `input-hash: ""` → `input-hash: "5439312"` (SHA-256 first-7 of concatenated declared inputs: interpolation.rs + pipeline.rs + spec_parser.rs + crowdstrike.sensor.toml + armis.sensor.toml + S-WAVE-A-ARMIS-ACTIVITY-001 story file). FB94 was instructed to populate input-hash; missed. POL-29 9a: frontmatter-only change; no body content altered; BC-2.02.014 and BC-2.02.006 carry no `input-hash:` body references — no asymmetry. 9b: input-hash is not copy-source for any downstream artifact. 9c: no MUSTs affected. |
 | 0.8 | 2026-07-30 | architect | FB94 — FINDING 1 (F-WASE-P70-HIGH-005): §D7 added, ratifying the required-filter gate mechanism. Decision: `#[serde(default)] pub required_filters: Vec<String>` field on `FetchStep §FetchStep` (existing `#[non_exhaustive]` type already in `EXPECTED_SYMBOLS`; adding a field to an existing type does NOT require a new entry). Gate runs in `execute_impl §execute_impl` before `seed_missing_query_filter_vars §seed_missing_query_filter_vars`; absent required filter returns `SpecEngineError::HttpRequestFailed` with `status_code = 0`; canonical error — "or equivalent" escape hatch eliminated. Alternatives rejected: INDEX-column heuristic (conflates push-down eligibility with required semantics), engine-level sensor-conditional (violates ADR-023 §Rule 5 / POL-36), per-table flag (wrong granularity for multi-step cases). §D5 "Step block (MUST)" updated: `required_filters = ["device_id"]` added; anchor statement updated to reference §D7. C6 tightened (references ratified mechanism). C7 added: product-owner MUST register E-SPEC-NNN in `error-taxonomy.md`. FINDING 2 (F-WASE-P70-MED-002): §D5 downstream-consumer sentence corrected — wrong ID form `TV-014-001 through TV-014-006` (six, phantom) replaced with canonical `TV-BC-2.02.014-001 through TV-BC-2.02.014-005` (five, verified in BC-2.02.014 §Canonical Test Vectors); AC/RG enumeration adds AC-004/AC-008/RG-008 (FB91 additions, previously omitted). POL-29 9a: ADR-053/054/055/056 swept — none carry `required_filters` content; CLEAR. 9b: §D5 step block is copy-source for BC-2.02.014 §TOML Contract (product-owner) and `S-WAVE-A-ARMIS-ACTIVITY-001` T-IMPL-01 (story-writer) — both must receive `required_filters = ["device_id"]` in same cascade. 9c: all MUSTs anchored — TOML field MUST to AC-001/RG-001; behavioral gate MUST to AC-004/RG-004; no unanchored MUSTs introduced. |
 | 0.7 | 2026-07-29 | architect | FB88 — three-concern correction. CONCERN A: §D5 `[[tables]]` header added as authoritative copy-source for BC-2.02.014 §TOML Contract and `S-WAVE-A-ARMIS-ACTIVITY-001` T-IMPL-01. `table_name = "device_activity"` (not `"armis_device_activity"`) — `register_sensor §register_sensor` composes `format!("{}_{}", spec.sensor_id, table.table_name)` = `"armis_device_activity"` with the value above; the double-prefix trap documented inline. `ocsf_class = "network_activity"` (OCSF Class 4001) — selected for Armis IoT/OT network behavioral events; rationale in §D5. `name`/`sensor_name` are not `TableSpec §TableSpec` fields; both keys absent from corrected header. CONCERN B: §D4 step 4 corrected — the "likely 404/error" claim removed. Ground truth from `matchit::tree §NodeType::Param` `split_at(0)` logic (matchit-0.7.3 source verified): empty segment between `devices/` and `activity` is captured as `device_id = ""`; `get_device_activity §get_device_activity` filters `activity_fixture` for `device_id == ""` → empty → HTTP 200 with `activities: [], total: 0`. This is the pre-fix DTU behavior contracted in BC-2.02.014 EC-014-001. The outcome is fully determined from static analysis; no empirical pin required. CONCERN C: §D4 canonical version note added — explicitly states that the `seed_missing_query_filter_vars §seed_missing_query_filter_vars` pre-seed mechanism (not `Interpolator::interpolate §interpolate`) has been the §D4-documented behavior since v0.3; `FieldNotFound` does NOT fire for `${query.filter.*}` slots; retired v0.1/v0.2 text is explicitly superseded. POL-29 9a: ADR-056 (pagination twin) carries no `[[tables]]` header content or `register_sensor` composition claim — no sweep needed; `query-engine.md` mentions `{sensor_id}_{source}` format in passing, consistent with the correction. CLEAR. 9b: §D5 complete `[[tables]]` header block is the authoritative copy-source; marked as such. The step block and column block are sub-tables of this header; all three are copy-safe as a unit. 9c: All three MUSTs in §D5 anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` AC-001/RG-001 (header + step block) and AC-002/RG-002 (INDEX column); no unanchored MUSTs introduced. SAC-2: `anchor_stories` carries `[S-WAVE-A-ARMIS-ACTIVITY-001]`; `S-WAVE-A-ARMIS-SPEC-001` §Authority was not checked (out of scope for this ADR's surface). Ratification: corrections repair statement accuracy (factual omission, incorrect empirical claim); no ratified design decision is changed. |

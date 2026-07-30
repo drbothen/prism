@@ -6,7 +6,7 @@ wave: maintenance
 epic_id: maintenance
 priority: P2
 status: draft
-version: "1.0"
+version: "1.1"
 updated: "2026-07-30"
 level: "L2"
 producer: story-writer
@@ -29,9 +29,13 @@ holdout_scenarios: []
 # POL-35 holdout_gate_infra_only_exemption applies: behavioral_contracts: [] (pure
 # records-only sweep). holdout_scenarios: [] is compliant for this story.
 depends_on:
+  - S-MAINT-L11-GATE-001
   - S-MAINT-CAPREF-SWEEP-001
 # depends_on justification:
-#   S-MAINT-CAPREF-SWEEP-001 must ship first because: (a) after that story ships, citations
+#   S-MAINT-L11-GATE-001 must ship first because it provides the L11 gate that mechanically
+#   validates version pins; this sweep cannot declare success without that gate operational
+#   (the gate must be present before the sweep can be verified as having produced a clean state).
+#   S-MAINT-CAPREF-SWEEP-001 must also ship first because: (a) after that story ships, citations
 #   like `capabilities.md §CAP-NNN` are valid section-anchor forms — these citations exist
 #   in the story files being swept here, and the sweep must not accidentally remove them; and
 #   (b) the two stories have overlapping file scopes (both touch .factory/ files) and
@@ -352,4 +356,5 @@ S-MAINT-ANTIPIN-SWEEP-001 (this story)
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| 1.1 | 2026-07-30 | FB101 story leg — close F-WASE-P71-MED-007 (partial): add `S-MAINT-L11-GATE-001` to `depends_on` frontmatter array. The §Dependency Graph Edges body section already correctly listed L11-GATE-001 as a prerequisite; the frontmatter was stale. L11-GATE-001 must ship before this sweep because it provides the gate that mechanically validates the sweep's success criterion. Dependency justification comment updated to name both predecessors explicitly. POL-29 9a: ANTIPIN-SWEEP-002 twin updated in same burst (same missing `depends_on` entry). 9b: no downstream copy target affected. 9c: no new MUSTs introduced. |
 | 1.0 | 2026-07-30 | Initial story creation. POL-39 compliance sweep for narrative version pins in .factory/stories/ tier, approximately 2,813 pins across 83 files at authoring time. Per-site adjudication required; worked example is the S-WAVE-A-ARMIS-SPEC-001 retained pin (FB86 correctly-scoped historical prose adjudication). Acceptance gate is scripts/records-lint.sh --full-scan L11 exit 0 for story files. Context management discipline: one file per sub-burst, --full-scan as work-list, no corpus-level pre-enumeration. |

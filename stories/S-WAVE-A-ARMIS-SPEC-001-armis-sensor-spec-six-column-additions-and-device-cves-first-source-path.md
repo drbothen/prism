@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-ARMIS-SPEC-001
 title: "Armis Sensor Spec — Six Column Additions and device_cves_first source_path Fix"
-version: "1.8"
+version: "1.9"
 status: draft
 producer: story-writer
 phase: 3
@@ -324,23 +324,28 @@ emit `risk_factors = []` when `status ∈ {"online", "active"}` and a non-empty 
 `status ∈ {"lateral-movement-detected", "contained", "compromised"}`; BC-2.02.006
 §Generated-Records Path Coverage mechanism (a); POL-38 obligation)
 
-`GET /api/v1/search?aql=in:devices` against an `ArmisState` with `fixture_gen_seeded=true`
-MUST satisfy both of the following on the **serialized JSON response** (wire-shape assertion
-per CLAUDE.md §Wire-shape assertion discipline):
+`build_asset §build_asset` emits `risk_factors = []` when `status` is `"online"` or
+`"active"`; non-empty JSON array (e.g., `["unpatched_cve", "open_ports"]`) when `status`
+is `"lateral-movement-detected"`, `"contained"`, or `"compromised"`. `build_asset
+§build_asset` takes no `Archetype` parameter — the `status: &str` argument is the archetype
+discriminator.
 
-1. A device record with `"status": "online"` (or `"active"`) has `"risk_factors": []`
-   (empty JSON array at the wire level, not null).
-2. A device record with `"status": "compromised"` (or `"lateral-movement-detected"` or
-   `"contained"`) has `"risk_factors"` as a non-empty JSON array.
+**RG-016** (`test_armis_dtu_build_asset_risk_factors_value_reflects_status`) constructs TWO
+`ArmisState` instances and issues two separate HTTP requests:
+1. `HealthyOtEnvironment` (or `LargeScale`) with `fixture_gen_seeded=true` — issues
+   `GET /api/v1/search?aql=in:devices`; asserts at least one device record in the serialized
+   JSON response has `"status": "online"` and `"risk_factors": []`.
+2. `CompromisedEndpoint` with `fixture_gen_seeded=true` — issues
+   `GET /api/v1/search?aql=in:devices`; asserts at least one device record has `"status"`
+   ∈ {`"lateral-movement-detected"`, `"contained"`, `"compromised"`} and `"risk_factors"`
+   as a non-empty JSON array.
 
-`build_asset §build_asset` takes no `Archetype` parameter — the `status: &str` argument is
-the discriminator. The mechanism is: `json!([])` when `status ∈ {"online", "active"}`
-(all non-CompromisedEndpoint callers); non-empty array (e.g.,
-`json!(["unpatched_cve", "open_ports"])`) when `status ∈ {"lateral-movement-detected",
-"contained", "compromised"}` (the three status values used by
-`generate_compromised_endpoint §generate_compromised_endpoint`). Existing AC-009/RG-009
-assert only key *presence* in the first generated record; this AC asserts the **value
-obligation** for both status variants.
+Two `ArmisState` constructions are required because `ArmisState` carries exactly one
+archetype — status classes are strict and disjoint: `HealthyOtEnvironment`/`LargeScale`
+emit only `"online"`/`"active"`; `CompromisedEndpoint` emits only
+`"lateral-movement-detected"`, `"contained"`, `"compromised"`. A single `ArmisState` cannot
+satisfy both (1) and (2) simultaneously — a gate written against one state is permanently
+red against the other. Wire-shape assertions per CLAUDE.md §Wire-shape assertion discipline.
 
 Anchor: RG-016 (`test_armis_dtu_build_asset_risk_factors_value_reflects_status`).
 
@@ -496,14 +501,21 @@ amendment on an existing column.
   Preferred location: `crates/prism-dtu-armis/tests/`.)_
 
 - [ ] **RG-016**: `test_armis_dtu_build_asset_risk_factors_value_reflects_status` — AC-016
-  _(Issues `GET /api/v1/search?aql=in:devices` against an `ArmisState` with
-  `fixture_gen_seeded=true`; deserializes the serialized JSON response; asserts (a) a device
-  record with `"status": "online"` or `"active"` has `"risk_factors": []` (empty array, not
-  null); (b) a device record with `"status": "compromised"`, `"lateral-movement-detected"`,
-  or `"contained"` has `"risk_factors"` as a non-empty JSON array. Both assertions MUST be
-  on the serialized JSON response (CLAUDE.md §Wire-shape assertion discipline). Test FAILS
-  until T-03 3a applies the status-based `risk_factors` mechanism in `build_asset §build_asset`.
-  Preferred location: `crates/prism-dtu-armis/tests/`.)_
+  _(Constructs TWO `ArmisState` instances and issues two separate HTTP requests:
+  (1) `HealthyOtEnvironment` (or `LargeScale`) with `fixture_gen_seeded=true` — issues
+  `GET /api/v1/search?aql=in:devices`; asserts at least one device record in the serialized
+  JSON response has `"status": "online"` and `"risk_factors": []`;
+  (2) `CompromisedEndpoint` with `fixture_gen_seeded=true` — issues
+  `GET /api/v1/search?aql=in:devices`; asserts at least one device record has `"status"`
+  ∈ {`"lateral-movement-detected"`, `"contained"`, `"compromised"`} and `"risk_factors"` as
+  a non-empty JSON array. Two `ArmisState` constructions are required because `ArmisState`
+  carries exactly one archetype — status classes are strict and disjoint:
+  `HealthyOtEnvironment`/`LargeScale` emit only `"online"`/`"active"`; `CompromisedEndpoint`
+  emits only `"lateral-movement-detected"`, `"contained"`, `"compromised"`. A single
+  `ArmisState` cannot satisfy both (1) and (2) simultaneously — a permanently-red gate.
+  Both assertions MUST be on the serialized JSON response (CLAUDE.md §Wire-shape assertion
+  discipline). Test FAILS until T-03 3a applies the status-based `risk_factors` mechanism
+  in `build_asset §build_asset`. Preferred location: `crates/prism-dtu-armis/tests/`.)_
 
 **Red Gate density check** (BC-5.38.001): **16 failing tests** before implementation begins.
 RG-001 covers AC-001 (`os_version` TOML column); RG-002 covers AC-002 (`risk_factors` TOML
@@ -591,11 +603,14 @@ BC-2.02.006 §Postconditions.
 Also update the TOML block comment that enumerates `DeviceRecord` fields to enumerate the
 ACTUAL COMPLETE `DeviceRecord` field set including `device_cves` (added by
 `S-DEMO-ENRICHMENT-PIVOT-002`): `device_id`, `name`, `ip_address`, `mac_address`,
-`device_type`, `manufacturer`, `os_name`, `os_version`, `risk_score`, `risk_factors`,
+`type` (Rust field `device_type` with `#[serde(rename = "type")]` in
+`prism-dtu-armis::types::DeviceRecord` — the wire key is `"type"`, not `"device_type"`),
+`manufacturer`, `os_name`, `os_version`, `risk_score`, `risk_factors`,
 `last_seen`, `first_seen`, `network_id`, `site`, `tags`, `device_cves`. All listed fields
-MUST have corresponding columns in the TOML `devices` table. The prior comment omitting
-`device_cves` would leave the field permanently unlisted even after it gains a column,
-perpetuating future SAP-2 misses (LOW-001).
+MUST have corresponding columns in the TOML `devices` table matched by wire key (e.g., the
+device-type column must declare `name = "type"`, not `name = "device_type"`). The prior
+comment omitting `device_cves` would leave the field permanently unlisted even after it
+gains a column, perpetuating future SAP-2 misses (LOW-001).
 
 ### T-02: Amend `device_cves_first` column entry to add `source_path` AND fulfill HIGH-001 generator obligation
 **Files:** `crates/prism-sensors/specs/armis.sensor.toml` (MODIFY), `crates/prism-dtu-armis/src/generator.rs` (MODIFY)
@@ -844,6 +859,7 @@ subsequent adversarial pass re-verifies both surfaces.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.9 | 2026-07-30 | story-writer | FB101 story leg — close F-WASE-P71-HIGH-004 and F-WASE-P71-HIGH-005. HIGH-004: T-01 field enumeration corrected — `device_type` replaced with `type` (the wire key emitted by `DeviceRecord.device_type` via `#[serde(rename = "type")]`); parenthetical Rust-field clarification added; MUST sentence extended with "matched by wire key" qualifier (e.g., TOML column must declare `name = "type"`, not `name = "device_type"`). Without this correction, an implementer writing `name = "device_type"` would produce a permanently-silent SAP-2 miss at runtime. HIGH-005: AC-016 body and RG-016 §Tasks description rewritten — single-`ArmisState` form replaced with two-`ArmisState` form mirroring BC-2.02.006 §Generated-Records Path Coverage AC-016/RG-016 (FB100 product-owner leg). Two constructions required because `ArmisState` carries exactly one archetype; status partitions are strict and disjoint: `HealthyOtEnvironment`/`LargeScale` emit only `"online"`/`"active"`; `CompromisedEndpoint` emits only `"lateral-movement-detected"`, `"contained"`, `"compromised"`. The original single-instance form was permanently-red by construction. POL-29 9a: ACTIVITY-001 twin checked — devices-table-specific ACs; no asymmetry introduced in ACTIVITY-001. 9b: AC-016/RG-016 rewrite mirrors BC-2.02.006 §Generated-Records Path Coverage (downstream copy target); body now byte-aligned with BC. 9c: no new MUSTs introduced. |
 | 1.8 | 2026-07-30 | story-writer | FB96 residual fix — close 3 findings from coordinator TD-VSDD-059 mechanical verify. RESIDUAL 1 (2 §Authority live version pins): `ADR-023 v1.24 §Rule 1` → `ADR-023 §Rule 1`; `ADR-028 v1.28 §D1` → `ADR-028 §D1` (both were LIVE normative, doubly wrong: banned by POL-39 early adoption AND stale after FB94 advanced ADR-023→v1.25 and ADR-028→v1.29). RESIDUAL 2 (LOW-002, half-closed): AC-013 preconditions block added — both conditions for mask-gate reachability now explicit: (1) `fixture_gen_seeded=true` and (2) `timeline: Some(...)` populated only via `ArmisClone::new_with_scenario §new_with_scenario`; a state built via `new_with_seed §new_with_seed` or `new_with_seed_anchored §new_with_seed_anchored` has `timeline: None` and never enters the mask-gate block. RG-013 updated: construction via `ArmisClone::new_with_scenario §new_with_scenario` with `IncidentTimeline.stage[0].visible_entity_mask.device_cves = false` now explicit; `new_with_seed`/`new_with_seed_anchored` explicitly excluded. AC-014/AC-015 confirmed do NOT share the timeline reachability path (archetype-based generated-records paths, no timeline/mask involvement). POL-29 9a: ACTIVITY-001 twin checked — §Authority section references ADR-057 (not ADR-023/ADR-028), no asymmetry introduced. 9b: no downstream copy target affected by §Authority de-pins or AC-013/RG-013 precondition additions. 9c: no new MUSTs introduced. |
 | 1.7 | 2026-07-30 | story-writer | FB96 story leg — close F-WASE-P70-CRIT-001 (5 sites: T-03 title + Files adds `routes/devices.rs` and `routes/search.rs`; T-02 invariant 4 delegation note to T-03 3d; §Architecture Mapping two route-handler rows; §FSR two route-file rows), F-WASE-P70-HIGH-001 (AC-015/RG-015 `&limit=200` HighChurn ordering rationale — tombstones at positions[180..200] unreachable at default `size=25`), F-WASE-P70-HIGH-006 (AC-016/RG-016 `test_armis_dtu_build_asset_risk_factors_value_reflects_status`; T-03 3a `risk_factors` status-discriminator mechanism; density check 15→16; §Behavioral Contracts count 8→9 generated-records MUSTs), F-WASE-P70-MED-008 (§Behavioral Contracts table BC-2.02.006 title corrected to verbatim H1 "Armis Centrix Field Mapping to OCSF (7 Data Sources)" per POL-7), F-WASE-P70-MED-009 (RG-001..RG-006 each add `ocsf_field` assertion; §Verification Properties updated RG-008..RG-012→RG-008..RG-016), F-WASE-P70-LOW-005 (AC-007 invariant 1 and T-02 Part B item 1 clarify stamps ALL n_assets in CompromisedEndpoint). De-pinning (POL-39 early adoption): BC-2.02.006 version component removed from all 5 live body sites (frontmatter §BC status comment, §Background inline cite, AC-007 §HIGH-001 cite, §Behavioral Contracts table version column, §Token Budget row); `routes/devices.rs` and `routes/search.rs` added to §Token Budget; total ~12,100→~13,800. POL-29 9a: ACTIVITY-001 twin updated in same burst. 9b: no downstream copy target affected. 9c: all new MUSTs carry AC+RGT anchors. |
 | 1.6 | 2026-07-29 | story-writer | FB93 leg 2 — advance BC-2.02.006 pin v1.13 → v1.15 at five live sites (frontmatter §BC status comment, §Background inline cite, AC-007 §HIGH-001 adjudication cite, §Behavioral Contracts table row, §Token Budget Estimate row). Pin-only; no mechanism or design content changed in BC-2.02.006 between v1.13 and v1.15 (§Traceability §Capability Anchor Justification row addition and BC→story anchor-form conversion only). §Behavioral Contracts relevance cell verified accurate at v1.15. POL-29 9a: ACTIVITY-001 twin updated in same burst; both pin BC-2.02.006 at v1.15. 9b: no downstream copy target affected. 9c: no new MUSTs introduced. |
