@@ -4,8 +4,8 @@ adr_id: "ADR-023"
 title: "Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait"
 status: COMMITTED
 date: "2026-05-10"
-modified: "2026-07-22"
-version: "1.24"
+modified: "2026-07-30"
+version: "1.25"
 producer: architect
 amended_by: "ADR-054 (partial — §Rule 4 walk-back: standard HTTP token-acquisition flows are now native declarative per DeclarativeHttpAuthProvider; custom_via_plugin escape hatch preserved for genuinely non-standard auth; effective at Wave-A per D-1895 2026-07-20)"
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
@@ -40,6 +40,8 @@ amends_bcs_pending:
     target_wave_for_prefix_note: "0/F"
 retires_bcs: ["BC-2.16.004"]
 amends_dis: ["DI-012"]
+anchor_stories:
+  - S-WAVE-A-ARMIS-SPEC-001  # SAC-2 verified: §Authority cites "ADR-023 v1.24 §Rule 1" for ocsf_field TOML column annotation contract. Full story corpus sweep 2026-07-30 confirmed this is the only story with ADR-023 in §Authority.
 inputs:
   - .factory/cycles/wave-4-operations/audits/plugin-only-violations-2026-05-10.md
   - .factory/specs/architecture/decisions/ADR-022-production-runtime-wiring.md
@@ -1080,6 +1082,7 @@ TD-FACTORY-HOOK-BYPASS-001 was first registered at P1 after fix-burst-3 (v1.3 am
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.25 | 2026-07-30 | FB94 SAC-2 (F-WASE-P70-MED-004): `anchor_stories` key added — key was entirely absent (SAC-2 rule 1: missing key is a defect). `S-WAVE-A-ARMIS-SPEC-001` §Authority verified: cites "ADR-023 v1.24 §Rule 1" for the `ocsf_field` TOML column annotation contract. Full story corpus sweep 2026-07-30: `S-WAVE-A-ARMIS-SPEC-001` is the only story with ADR-023 in §Authority. No content changes; metadata addition only. |
 | 1.24 | 2026-07-22 | OBS-1 (pass 42): frontmatter version-string format normalized to bare-numeric convention (was embedded-v 'v1.23'); no content change. Class sweep CLEAN — sole v-prefix hit across all 54 decision files. |
 | v1.23 | 2026-07-21 | FIX-BURST 10 (OBS-1): at-point annotation added to §Rule A enumerated set — "[ADR-054 D1 adds `token_exchange` as 6th variant on acceptance]" inserted immediately after the 5-value set declaration, so the amendment note is co-located with the enumeration it modifies rather than 40+ lines away. |
 | v1.22 | 2026-07-21 | FIX-BURST 7 (MED-1): §Rule-4-walk-back amendment note filename corrected — `auth/declarative_http.rs` → `auth/declarative.rs` per ADR-054 canonical path (source-of-truth precedence). `modified` advanced to 2026-07-21. |

@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-ARMIS-SPEC-001
 title: "Armis Sensor Spec — Six Column Additions and device_cves_first source_path Fix"
-version: "1.6"
+version: "1.8"
 status: draft
 producer: story-writer
 phase: 3
@@ -25,9 +25,9 @@ verification_properties: []
 assumption_validations: []
 risk_mitigations: []
 estimated_days: 3
-modified: "2026-07-29"
-# BC status: BC-2.02.006 v1.15 §TOML Contract + §Generated-Records Path Coverage specify
-# all 15 ACs and 15 RGTs; status may transition to ready once Red Gate tests are authored
+modified: "2026-07-30"
+# BC status: BC-2.02.006 §TOML Contract + §Generated-Records Path Coverage specify
+# all 16 ACs and 16 RGTs; status may transition to ready once Red Gate tests are authored
 # and BC-2.02.006 is confirmed active.
 ---
 
@@ -35,14 +35,14 @@ modified: "2026-07-29"
 
 ## Authority
 
-**ADR-023 v1.24 §Rule 1** (Spec-Driven OCSF Mapping) is the authority for the `ocsf_field`
+**ADR-023 §Rule 1** (Spec-Driven OCSF Mapping) is the authority for the `ocsf_field`
 TOML column annotation contract. ADR-023 Rule 1 establishes that OCSF field mapping is
 declarative via TOML — each `SensorSpec.columns[N].ocsf_field` annotation drives the
 `SpecDrivenMapper` without a Rust mapper module. The six new columns added by this story
 must carry `ocsf_field` annotations following ADR-023 Rule 1's closed grammar:
 `.factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md`
 
-**ADR-028 v1.28 §D1** (TOML Spec Grounding vs DTU Routes) is the authority for the
+**ADR-028 §D1** (TOML Spec Grounding vs DTU Routes) is the authority for the
 DTU column parity requirement. ADR-028 §D1 establishes that every TOML column must be
 grounded in a corresponding DTU struct field that is emitted on the wire (SAP-2 protocol).
 All six new columns are verified against `DeviceRecord` in `prism-dtu-armis/src/types.rs`
@@ -76,7 +76,7 @@ The `SpecDrivenMapper` cannot extract or map fields that have no TOML column dec
 F-WASE-P66-HIGH-004 identified that `device_cves_first` has no `DeviceRecord` field in
 `prism-dtu-armis/src/types.rs`. Without `source_path = "$.device_cves[0]"`, the spec-engine
 cannot derive `device_cves_first` from the `device_cves` array. Behavior across four branches
-(HIGH-002 correction; BC-2.02.006 v1.15 §Generated-Records Path Coverage):
+(HIGH-002 correction; BC-2.02.006 §Generated-Records Path Coverage):
 (a) **static-fixture path**: `serde_json::to_value(&merged)` on `DeviceRecord` omits the key
 (no such field); (b) **generated scenario branch, stage ≥ 4** (`mask.device_cves == true`):
 `device_cves_first` is RETAINED — this is the load-bearing T13 NVD/CVSS pivot value; the
@@ -163,7 +163,7 @@ The existing `device_cves_first` column entry in the `armis.sensor.toml` devices
 amended to add `source_path = "$.device_cves[0]"`. With this directive, the spec-engine
 extracts the first element of the `device_cves` JSON array as the value for this column.
 
-**HIGH-001 design adjudication (BC-2.02.006 v1.15 §TOML Contract):** `source_path =
+**HIGH-001 design adjudication (BC-2.02.006 §TOML Contract):** `source_path =
 "$.device_cves[0]"` is the correct and complete mechanism for `device_cves_first` resolution
 on all paths, once the generator obligation below is met. The following four invariants MUST
 hold simultaneously:
@@ -171,9 +171,10 @@ hold simultaneously:
 1. **T13 NVD/CVSS pivot preserved:** `device_cves_first` = `catalog_device_cves[0]` on
    `CompromisedEndpoint` at stage ≥ 4. The generator `§generate_with_scenario_cves` MUST
    stamp `device_cves = catalog_device_cves` (the FULL array from the scenario catalog, not
-   an implementer-chosen array) onto `CompromisedEndpoint` records. `source_path` then
-   extracts `device_cves[0]` = `catalog_device_cves[0]`. Pivot is preserved via the array,
-   not via a direct scalar stamp.
+   an implementer-chosen array) onto **every record carrying `asset_id`** in a
+   CompromisedEndpoint-archetype fixture (all `n_assets`). `source_path` then extracts
+   `device_cves[0]` = `catalog_device_cves[0]`. Pivot is preserved via the array, not via a
+   direct scalar stamp.
 2. **Pivot selectivity preserved:** `device_cves_first` is absent/null on non-scenario records
    and when the catalog is empty, so `has device_cves_first` correctly yields 0 results. All
    non-`CompromisedEndpoint` archetypes MUST carry `device_cves = []` on the generated path;
@@ -184,6 +185,8 @@ hold simultaneously:
 4. **Stage-gate compliance (BC-2.06.019 PC-4):** both `device_cves` and `device_cves_first`
    MUST be stripped from device records alongside each other in BOTH `§paginate_devices` and
    `§get_search` when `!mask.device_cves` (stages 0–3). Anchor: AC-013 / RG-013.
+   **Route strip implementation: see T-03 3d** — the route file modifications belong to
+   T-03's scope; T-02's `Files:` covers only the TOML + generator changes.
 
 **Mechanism correction (HIGH-002):** The `obj.remove("device_cves_first")` call is NOT
 unconditional. It fires only on the generated scenario sub-branch at stages 0–3 when
@@ -258,12 +261,16 @@ acceptable per BC-2.02.006; non-empty for `CompromisedEndpoint` archetype.
 MUST be stripped alongside `device_cves_first` in BOTH `§paginate_devices` and `§get_search`
 when `StageMask.device_cves == false`; BC-2.06.019 PC-4 compliance)
 
-`GET /api/v1/devices` and `GET /api/v1/search?aql=in:devices` against an `ArmisState` with
-`StageMask.device_cves == false` (stages 0–3) MUST return serialized device records with the
-`"device_cves"` key **absent**. This is a wire-level assertion (CLAUDE.md §Wire-shape
-assertion discipline) — assert on serialized JSON, not a pre-serialization Rust struct. Both
-routes MUST be asserted independently in the same test: CRIT-001 requires the strip to occur
-in BOTH `GET /api/v1/devices` AND `GET /api/v1/search?aql=in:devices`.
+**Preconditions:** (1) `ArmisState.fixture_gen_seeded == true`. (2) `ArmisState.timeline: Some(...)` — populated only via `ArmisClone::new_with_scenario §new_with_scenario`. The mask gate in both routes is `if state.fixture_gen_seeded { if let Some(ref timeline) = state.timeline { … } }`, and `StageMask` is accessed via `timeline.stages[idx].visible_entity_mask`. A state constructed via `new_with_seed §new_with_seed` or `new_with_seed_anchored §new_with_seed_anchored` sets `fixture_gen_seeded = true` but leaves `timeline: None`; the inner `if let Some` arm is never entered and no mask check occurs. Only `new_with_scenario §new_with_scenario` sets `state.timeline = Some(...)` and makes the mask gate reachable.
+
+`GET /api/v1/devices` and `GET /api/v1/search?aql=in:devices` against an `ArmisState`
+constructed via `ArmisClone::new_with_scenario §new_with_scenario` with an `IncidentTimeline`
+whose current stage has `visible_entity_mask.device_cves == false` (stages 0–3) MUST return
+serialized device records with the `"device_cves"` key **absent**. This is a wire-level
+assertion (CLAUDE.md §Wire-shape assertion discipline) — assert on serialized JSON, not a
+pre-serialization Rust struct. Both routes MUST be asserted independently in the same test:
+CRIT-001 requires the strip to occur in BOTH `GET /api/v1/devices` AND
+`GET /api/v1/search?aql=in:devices`.
 
 A `device_cves` array present at stages 0–3 while `device_cves_first` is withheld leaks the
 full CVE list in violation of BC-2.06.019 PC-4.
@@ -294,8 +301,8 @@ Anchor: RG-014 (`test_armis_dtu_schema_drift_archetype_has_contracted_columns`).
 `build_tombstone §build_tombstone` MUST emit `risk_factors = []`, `tags = []`,
 `device_cves = []`; `Vec<String>` fields MUST NOT emit `null`)
 
-`GET /api/v1/search?aql=in:devices` against an `ArmisState` with `HighChurn` archetype
-returns at least one tombstone record with `"risk_factors": []`, `"tags": []`,
+`GET /api/v1/search?aql=in:devices&limit=200` against an `ArmisState` with `HighChurn`
+archetype returns at least one tombstone record with `"risk_factors": []`, `"tags": []`,
 `"device_cves": []` at the wire level — `[]` not `null`. Wire-shape assertion on the
 serialized response required (CLAUDE.md §Wire-shape assertion discipline). `"site": null`
 remains correct because `site` is `Option<String>`.
@@ -304,7 +311,38 @@ remains correct because `site` is `Option<String>`.
 `DeviceRecord.risk_factors`, `tags`, and `device_cves` as `[]` when empty — the generated
 path MUST match to satisfy wire-shape parity.
 
+**HighChurn ordering rationale:** the `HighChurn` generator builds `n_normal=180` records
+first (positions[0..180]) then `n_tombstones=20` (positions[180..200]). The default
+`size=25, page=1` pagination returns only positions[0..25] — all normal assets. `&limit=200`
+fetches all 200 records and makes tombstone records at positions[180..200] reachable.
+
 Anchor: RG-015 (`test_armis_dtu_tombstone_records_vec_columns_emit_empty_array`).
+
+### AC-016: `risk_factors` value in `build_asset §build_asset` reflects the `status` argument
+(traces to BC-2.02.006 §Generated-Records Path Coverage — `build_asset §build_asset` MUST
+emit `risk_factors = []` when `status ∈ {"online", "active"}` and a non-empty array when
+`status ∈ {"lateral-movement-detected", "contained", "compromised"}`; BC-2.02.006
+§Generated-Records Path Coverage mechanism (a); POL-38 obligation)
+
+`GET /api/v1/search?aql=in:devices` against an `ArmisState` with `fixture_gen_seeded=true`
+MUST satisfy both of the following on the **serialized JSON response** (wire-shape assertion
+per CLAUDE.md §Wire-shape assertion discipline):
+
+1. A device record with `"status": "online"` (or `"active"`) has `"risk_factors": []`
+   (empty JSON array at the wire level, not null).
+2. A device record with `"status": "compromised"` (or `"lateral-movement-detected"` or
+   `"contained"`) has `"risk_factors"` as a non-empty JSON array.
+
+`build_asset §build_asset` takes no `Archetype` parameter — the `status: &str` argument is
+the discriminator. The mechanism is: `json!([])` when `status ∈ {"online", "active"}`
+(all non-CompromisedEndpoint callers); non-empty array (e.g.,
+`json!(["unpatched_cve", "open_ports"])`) when `status ∈ {"lateral-movement-detected",
+"contained", "compromised"}` (the three status values used by
+`generate_compromised_endpoint §generate_compromised_endpoint`). Existing AC-009/RG-009
+assert only key *presence* in the first generated record; this AC asserts the **value
+obligation** for both status variants.
+
+Anchor: RG-016 (`test_armis_dtu_build_asset_risk_factors_value_reflects_status`).
 
 ---
 
@@ -317,7 +355,9 @@ Anchor: RG-015 (`test_armis_dtu_tombstone_records_vec_columns_emit_empty_array`)
 | `build_asset §build_asset` (add five generated-records keys) | `crates/prism-dtu-armis/src/generator.rs` | Pure (record construction) | `architecture/module-decomposition.md §SS-12 DTU-Armis` |
 | `generate_schema_drift §generate_schema_drift` (add five columns to inline `drifted` record) | `crates/prism-dtu-armis/src/generator.rs` | Pure (record construction) | `architecture/module-decomposition.md §SS-12 DTU-Armis` |
 | `build_tombstone §build_tombstone` (add `Vec<String>` columns as `[]`) | `crates/prism-dtu-armis/src/generator.rs` | Pure (record construction) | `architecture/module-decomposition.md §SS-12 DTU-Armis` |
-| Red Gate tests RG-008..RG-015 (wire-shape assertions on generated-records path, stage-gate, emitter completeness) | `crates/prism-dtu-armis/tests/` | Pure (test only) | `architecture/module-decomposition.md §SS-12 DTU-Armis` |
+| `paginate_devices §paginate_devices` (add `device_cves` strip alongside `device_cves_first`) | `crates/prism-dtu-armis/src/routes/devices.rs` | Effectful (HTTP handler) | `architecture/module-decomposition.md §SS-12 DTU-Armis` |
+| `get_search §get_search` (add `device_cves` strip alongside `device_cves_first`) | `crates/prism-dtu-armis/src/routes/search.rs` | Effectful (HTTP handler) | `architecture/module-decomposition.md §SS-12 DTU-Armis` |
+| Red Gate tests RG-008..RG-016 (wire-shape assertions on generated-records path, stage-gate, emitter completeness, risk_factors value) | `crates/prism-dtu-armis/tests/` | Pure (test only) | `architecture/module-decomposition.md §SS-12 DTU-Armis` |
 
 ---
 
@@ -325,7 +365,7 @@ Anchor: RG-015 (`test_armis_dtu_tombstone_records_vec_columns_emit_empty_array`)
 
 | BC | Version | Relevance to This Story |
 |----|---------|------------------------|
-| BC-2.02.006 | v1.15 | Armis Centrix Field Mapping to OCSF — §TOML Contract specifies all 6 new columns and the `device_cves_first` source_path fix; §TOML Contract HIGH-001 adjudication specifies the generator obligation (`§generate_with_scenario_cves` stamps full `catalog_device_cves`, removes redundant scalar stamp) and the four simultaneous constraints; §Postconditions specifies per-field OCSF mappings and CRIT-001 `device_cves` stage-gate obligation (AC-013/RG-013); §Generated-Records Path Coverage (three-emitter table) specifies all 8 generated-records path MUSTs (AC-008..AC-015 / RG-008..RG-015) including `generate_schema_drift §generate_schema_drift` (AC-014/RG-014) and `build_tombstone §build_tombstone` Vec<String> obligation (AC-015/RG-015) |
+| BC-2.02.006 | | Armis Centrix Field Mapping to OCSF (7 Data Sources) — §TOML Contract specifies all 6 new columns and the `device_cves_first` source_path fix; §TOML Contract HIGH-001 adjudication specifies the generator obligation (`§generate_with_scenario_cves` stamps full `catalog_device_cves`, removes redundant scalar stamp) and the four simultaneous constraints; §Postconditions specifies per-field OCSF mappings and CRIT-001 `device_cves` stage-gate obligation (AC-013/RG-013); §Generated-Records Path Coverage (three-emitter table) specifies all 9 generated-records path MUSTs (AC-008..AC-016 / RG-008..RG-016) including `generate_schema_drift §generate_schema_drift` (AC-014/RG-014), `build_tombstone §build_tombstone` Vec<String> obligation (AC-015/RG-015), and `build_asset §build_asset` risk_factors status-based value obligation (AC-016/RG-016) |
 
 ---
 
@@ -357,31 +397,35 @@ amendment on an existing column.
 - [ ] **RG-001**: `test_armis_toml_devices_table_has_os_version_column_string_type` — AC-001
   _(Parses `crates/prism-sensors/specs/armis.sensor.toml`; asserts the `devices` table
   contains a column named `"os_version"` with `column_type = "string"` (i.e., `ColumnType::String`
-  after spec loading); mirrors the existing `test_ac_index_001_armis_toml_last_seen_created_at_have_index_option`
-  column assertion pattern; confirms `DeviceRecord.os_version: Option<String>` is covered)_
+  after spec loading) **and `ocsf_field = "device.os.version"`**; mirrors the existing
+  `test_ac_index_001_armis_toml_last_seen_created_at_have_index_option` column assertion
+  pattern; confirms `DeviceRecord.os_version: Option<String>` is covered)_
 
 - [ ] **RG-002**: `test_armis_toml_devices_table_has_risk_factors_column_json_type` — AC-002
   _(Parses `armis.sensor.toml`; asserts `devices` table contains `"risk_factors"` column with
-  `ColumnType::Json`; confirms `DeviceRecord.risk_factors: Vec<String>` serializes as JSON
-  array and is covered by the TOML spec)_
+  `ColumnType::Json` **and `ocsf_field = "raw_extensions.risk_factors"`**; confirms
+  `DeviceRecord.risk_factors: Vec<String>` serializes as JSON array and is covered by the TOML spec)_
 
 - [ ] **RG-003**: `test_armis_toml_devices_table_has_network_id_column_string_type` — AC-003
   _(Parses `armis.sensor.toml`; asserts `devices` table contains `"network_id"` column with
-  `ColumnType::String`; confirms `DeviceRecord.network_id: Option<String>` is covered)_
+  `ColumnType::String` **and `ocsf_field = "raw_extensions.network_id"`**; confirms
+  `DeviceRecord.network_id: Option<String>` is covered)_
 
 - [ ] **RG-004**: `test_armis_toml_devices_table_has_site_column_string_type` — AC-004
   _(Parses `armis.sensor.toml`; asserts `devices` table contains `"site"` column with
-  `ColumnType::String`; confirms `DeviceRecord.site: Option<String>` is covered)_
+  `ColumnType::String` **and `ocsf_field = "raw_extensions.site"`**; confirms
+  `DeviceRecord.site: Option<String>` is covered)_
 
 - [ ] **RG-005**: `test_armis_toml_devices_table_has_tags_column_json_type` — AC-005
   _(Parses `armis.sensor.toml`; asserts `devices` table contains `"tags"` column with
-  `ColumnType::Json`; confirms `DeviceRecord.tags: Vec<String>` serializes as JSON array
-  and is covered by the TOML spec)_
+  `ColumnType::Json` **and `ocsf_field = "raw_extensions.tags"`**; confirms
+  `DeviceRecord.tags: Vec<String>` serializes as JSON array and is covered by the TOML spec)_
 
 - [ ] **RG-006**: `test_armis_toml_devices_table_has_device_cves_column_json_type` — AC-006
   _(Parses `armis.sensor.toml`; asserts `devices` table contains `"device_cves"` column with
-  `ColumnType::Json`; confirms `DeviceRecord.device_cves: Vec<String>` is covered; verifies
-  distinct from `device_cves_first` scalar column)_
+  `ColumnType::Json` **and `ocsf_field = "raw_extensions.device_cves"`**; confirms
+  `DeviceRecord.device_cves: Vec<String>` is covered; verifies distinct from `device_cves_first`
+  scalar column)_
 
 - [ ] **RG-007**: `test_armis_toml_device_cves_first_column_has_source_path_device_cves_0` — AC-007
   _(Parses `armis.sensor.toml`; asserts the `device_cves_first` column entry in the `devices`
@@ -419,13 +463,16 @@ amendment on an existing column.
   Preferred location: `crates/prism-dtu-armis/tests/`.)_
 
 - [ ] **RG-013**: `test_armis_dtu_device_cves_stripped_at_stage_0_in_both_routes` — AC-013
-  _(Constructs an `ArmisState` with `StageMask.device_cves = false`; issues both
-  `GET /api/v1/devices` and `GET /api/v1/search?aql=in:devices`; deserializes each
-  serialized JSON response; asserts `"device_cves"` key is ABSENT in device records on
-  BOTH routes. Wire-shape assertion per CLAUDE.md §Wire-shape assertion discipline — assert
-  on serialized bytes, not pre-serialization Rust struct. Test FAILS until T-03 adds the
-  stage-gate strip for `device_cves` in both routes alongside `device_cves_first`.
-  Preferred location: `crates/prism-dtu-armis/tests/`.)_
+  _(Constructs an `ArmisClone` via `ArmisClone::new_with_scenario §new_with_scenario` with an
+  `IncidentTimeline` whose stage 0 has `visible_entity_mask.device_cves = false` — this is
+  the ONLY construction path that populates `state.timeline: Some(...)` and makes the mask
+  gate reachable; `new_with_seed §new_with_seed` / `new_with_seed_anchored §new_with_seed_anchored`
+  set `timeline: None` and must NOT be used for this test. Issues both `GET /api/v1/devices`
+  and `GET /api/v1/search?aql=in:devices`; deserializes each serialized JSON response; asserts
+  `"device_cves"` key is ABSENT in device records on BOTH routes. Wire-shape assertion per
+  CLAUDE.md §Wire-shape assertion discipline — assert on serialized bytes, not pre-serialization
+  Rust struct. Test FAILS until T-03 adds the stage-gate strip for `device_cves` in both
+  routes alongside `device_cves_first`. Preferred location: `crates/prism-dtu-armis/tests/`.)_
 
 - [ ] **RG-014**: `test_armis_dtu_schema_drift_archetype_has_contracted_columns` — AC-014
   _(Constructs an `ArmisState` that serves the `SchemaDrift` archetype; issues
@@ -438,13 +485,27 @@ amendment on an existing column.
 
 - [ ] **RG-015**: `test_armis_dtu_tombstone_records_vec_columns_emit_empty_array` — AC-015
   _(Constructs an `ArmisState` with `HighChurn` archetype; issues
-  `GET /api/v1/search?aql=in:devices`; finds at least one tombstone record in the
-  serialized JSON response; asserts `"risk_factors": []`, `"tags": []`, `"device_cves": []`
-  — `[]` not `null`. Wire-shape assertion. Test FAILS until T-03 adds Vec<String> columns
-  to `build_tombstone §build_tombstone` as `json!([])`.
+  `GET /api/v1/search?aql=in:devices&limit=200` (required: `HighChurn` places `n_normal=180`
+  records at positions[0..180] and `n_tombstones=20` at positions[180..200]; default `size=25`
+  returns only positions[0..25] — all normal; `&limit=200` fetches all 200 including
+  tombstones); finds at least one tombstone record (identifiable by `"status": "tombstone"`
+  or presence of `"deleted_at"`) in the serialized JSON response; asserts
+  `"risk_factors": []`, `"tags": []`, `"device_cves": []` — `[]` not `null`. Wire-shape
+  assertion. Test FAILS until T-03 3c adds Vec<String> columns to
+  `build_tombstone §build_tombstone` as `json!([])`.
   Preferred location: `crates/prism-dtu-armis/tests/`.)_
 
-**Red Gate density check** (BC-5.38.001): **15 failing tests** before implementation begins.
+- [ ] **RG-016**: `test_armis_dtu_build_asset_risk_factors_value_reflects_status` — AC-016
+  _(Issues `GET /api/v1/search?aql=in:devices` against an `ArmisState` with
+  `fixture_gen_seeded=true`; deserializes the serialized JSON response; asserts (a) a device
+  record with `"status": "online"` or `"active"` has `"risk_factors": []` (empty array, not
+  null); (b) a device record with `"status": "compromised"`, `"lateral-movement-detected"`,
+  or `"contained"` has `"risk_factors"` as a non-empty JSON array. Both assertions MUST be
+  on the serialized JSON response (CLAUDE.md §Wire-shape assertion discipline). Test FAILS
+  until T-03 3a applies the status-based `risk_factors` mechanism in `build_asset §build_asset`.
+  Preferred location: `crates/prism-dtu-armis/tests/`.)_
+
+**Red Gate density check** (BC-5.38.001): **16 failing tests** before implementation begins.
 RG-001 covers AC-001 (`os_version` TOML column); RG-002 covers AC-002 (`risk_factors` TOML
 column); RG-003 covers AC-003 (`network_id` TOML column); RG-004 covers AC-004 (`site` TOML
 column); RG-005 covers AC-005 (`tags` TOML column); RG-006 covers AC-006 (`device_cves` TOML
@@ -454,7 +515,9 @@ generated-records parity); RG-010 covers AC-010 (`network_id` generated-records 
 RG-011 covers AC-011 (`tags` generated-records parity); RG-012 covers AC-012 (`device_cves`
 generated-records parity); RG-013 covers AC-013 (`device_cves` stage-gate CRIT-001 in both
 routes); RG-014 covers AC-014 (`SchemaDrift` archetype contracted column completeness);
-RG-015 covers AC-015 (`HighChurn` tombstone `Vec<String>` columns emit `[]` not `null`).
+RG-015 covers AC-015 (`HighChurn` tombstone `Vec<String>` columns emit `[]` not `null`);
+RG-016 covers AC-016 (`risk_factors` value reflects `build_asset §build_asset` `status`
+argument).
 RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual
 Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design
 and wiring-exempt) that reduce the denominator.
@@ -560,9 +623,9 @@ if `device_cves` is populated per the scenario catalog. The `§generate_with_sce
 function MUST:
 
 1. Stamp `device_cves = catalog_device_cves` (**the FULL scenario CVE array**, NOT a direct
-   scalar) on `CompromisedEndpoint` device records. `device_cves` discriminates assets from
-   alerts via presence of `asset_id`, consistent with existing `§generate_with_scenario_cves`
-   design.
+   scalar) on every record carrying `asset_id` in a CompromisedEndpoint-archetype fixture
+   (all `n_assets`). `device_cves` discriminates assets from alerts via presence of `asset_id`,
+   consistent with existing `§generate_with_scenario_cves` design.
 2. Stamp `device_cves = []` on all OTHER archetypes (non-`CompromisedEndpoint`).
 3. **REMOVE** the previous direct `device_cves_first = catalog_device_cves[0]` scalar stamp —
    it is REDUNDANT once `source_path = "$.device_cves[0]"` is declared and `device_cves`
@@ -588,10 +651,10 @@ After the complete fix (both parts):
 The `device_cves_first` column is intentionally scalar (for enrichment UDF scalar input per
 ADR-051 D4), while AC-006's `device_cves` column carries the full array.
 
-### T-03: Add contracted columns to all three `prism-dtu-armis::generator` asset emitters
-**Files:** `crates/prism-dtu-armis/src/generator.rs` (MODIFY)
+### T-03: Add contracted columns to all three `prism-dtu-armis::generator` asset emitters; add `device_cves` strip in both routes
+**Files:** `crates/prism-dtu-armis/src/generator.rs` (MODIFY), `crates/prism-dtu-armis/src/routes/devices.rs` (MODIFY), `crates/prism-dtu-armis/src/routes/search.rs` (MODIFY)
 
-**PREREQUISITE: RG-008..RG-015 must be authored as failing tests before this task begins.**
+**PREREQUISITE: RG-008..RG-016 must be authored as failing tests before this task begins.**
 
 **Why three emitters matter:** RG-008..RG-012 assert on "the first device record" returned by
 `GET /api/v1/search?aql=in:devices`. For the `SchemaDrift` archetype, `records[0]` IS the
@@ -608,8 +671,13 @@ Path Coverage contracted option (a)):
 
 - `"os_version"`: realistic OS version string; use same pool-and-offset pattern as `os_name`
   to produce deterministic, archetype-appropriate values
-- `"risk_factors"`: `json!([])` for healthy-device archetypes; non-empty array (e.g.,
-  `json!(["unpatched_cve", "open_ports"])`) for `CompromisedEndpoint` archetype
+- `"risk_factors"`: keyed off the `status: &str` argument — `json!([])` when
+  `status ∈ {"online", "active"}` (all non-CompromisedEndpoint callers); non-empty array
+  (e.g., `json!(["unpatched_cve", "open_ports"])`) when `status ∈ {"lateral-movement-detected",
+  "contained", "compromised"}` (the three status values used by
+  `generate_compromised_endpoint §generate_compromised_endpoint`). `build_asset §build_asset`
+  takes no `Archetype` parameter — the `status: &str` argument is the archetype discriminator.
+  Anchor: AC-016 / RG-016.
 - `"network_id"`: `format!("net-{}", id_index % 10)` deterministic string
 - `"tags"`: `json!([])` — no analyst tags on fresh generated devices
 - `"device_cves"`: `json!([])` for healthy-device archetypes on the seeded-no-scenario
@@ -649,22 +717,38 @@ intended behavior, not a drift violation. Suggested values follow the same patte
 `DeviceRecord.risk_factors`, `tags`, and `device_cves` as `[]` when empty — the generated
 tombstone path MUST match. Anchor: AC-015 / RG-015.
 
+#### 3d. Route strip: add `device_cves` strip alongside `device_cves_first` in both routes
+
+The stage-gate logic in `paginate_devices §paginate_devices`
+(`crates/prism-dtu-armis/src/routes/devices.rs`) and `get_search §get_search`
+(`crates/prism-dtu-armis/src/routes/search.rs`) currently strips `device_cves_first`
+when `!mask.device_cves`. The `device_cves` array column (added by T-01) MUST be stripped
+alongside `device_cves_first` in BOTH routes — a `device_cves` array present while
+`device_cves_first` is withheld leaks the full CVE list in violation of BC-2.06.019 PC-4.
+
+In each route's mask-gate block (`!mask.device_cves`), add `obj.remove("device_cves")`
+immediately adjacent to the existing `obj.remove("device_cves_first")` call. Both calls
+MUST be conditional on `!mask.device_cves`. The strip applies to both the generated-scenario
+sub-branch AND any other branch that reaches the mask-gate check. Anchor: AC-013 / RG-013.
+
 ---
 
 ## Token Budget Estimate
 
 | Context source | Estimated tokens |
 |----------------|-----------------|
-| This story spec | ~3,000 |
+| This story spec | ~3,500 |
 | `crates/prism-sensors/specs/armis.sensor.toml` (current, to read before amending) | ~2,500 |
 | `crates/prism-dtu-armis/src/types.rs` (DeviceRecord ground truth) | ~1,000 |
-| BC-2.02.006 v1.15 (§TOML Contract, §TOML Contract HIGH-001 adjudication, §Postconditions, §Generated-Records Path Coverage three-emitter table) | ~2,800 |
+| BC-2.02.006 (§TOML Contract, §TOML Contract HIGH-001 adjudication, §Postconditions, §Generated-Records Path Coverage three-emitter table) | ~2,800 |
 | `crates/prism-dtu-armis/src/generator.rs` (all three emitters to read before amending) | ~1,500 |
+| `crates/prism-dtu-armis/src/routes/devices.rs` (T-03 3d, read mask-gate block before amending) | ~600 |
+| `crates/prism-dtu-armis/src/routes/search.rs` (T-03 3d, read mask-gate block before amending) | ~600 |
 | Existing column Red Gate test pattern (prism-spec-engine/tests/ or prism-dtu-armis/tests/) | ~800 |
 | Running test output (nextest per-crate) | ~500 |
-| **Total estimate** | **~12,100** |
+| **Total estimate** | **~13,800** |
 
-12,100 tokens is within the 20% context window limit. No split required.
+13,800 tokens is within the 20% context window limit. No split required.
 
 ---
 
@@ -739,16 +823,20 @@ No new external dependencies introduced by this story.
 |------|--------|-------|
 | `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | T-01: add 6 new `[[tables.columns]]` entries to `devices` table; T-02: add `source_path = "$.device_cves[0]"` to existing `device_cves_first` column entry |
 | `crates/prism-spec-engine/tests/` (new or existing test file) | MODIFY or CREATE | RG-001..RG-007: 7 failing tests that parse `armis.sensor.toml` and assert column presence, types, and `source_path` |
-| `crates/prism-dtu-armis/src/generator.rs` | MODIFY | T-03: (a) add five keys to `build_asset §build_asset`'s `json!` macro; (b) add five columns to `generate_schema_drift §generate_schema_drift` inline `drifted` record; (c) add `Vec<String>` columns as `json!([])` to `build_tombstone §build_tombstone`; (d) T-02 Part B: `§generate_with_scenario_cves` stamps `device_cves = catalog_device_cves` on `CompromisedEndpoint`, removes redundant scalar stamp |
-| `crates/prism-dtu-armis/tests/` (new or existing test file) | MODIFY or CREATE | RG-008..RG-015: 8 failing wire-shape tests; RG-008..RG-012 assert key presence on generated-records path; RG-013 asserts `device_cves` stripped at stage 0 in both routes (CRIT-001); RG-014 asserts `SchemaDrift` archetype `records[0]` has all five contracted column keys; RG-015 asserts `HighChurn` tombstone `Vec<String>` columns emit `[]` not `null` |
+| `crates/prism-dtu-armis/src/generator.rs` | MODIFY | T-03: (a) add five keys to `build_asset §build_asset`'s `json!` macro (including status-based `risk_factors` per AC-016); (b) add five columns to `generate_schema_drift §generate_schema_drift` inline `drifted` record; (c) add `Vec<String>` columns as `json!([])` to `build_tombstone §build_tombstone`; (d) T-02 Part B: `§generate_with_scenario_cves` stamps `device_cves = catalog_device_cves` on all n_assets in CompromisedEndpoint, removes redundant scalar stamp |
+| `crates/prism-dtu-armis/src/routes/devices.rs` | MODIFY | T-03 3d: add `obj.remove("device_cves")` adjacent to existing `obj.remove("device_cves_first")` in `paginate_devices §paginate_devices` mask-gate block when `!mask.device_cves` |
+| `crates/prism-dtu-armis/src/routes/search.rs` | MODIFY | T-03 3d: same for `get_search §get_search` mask-gate block |
+| `crates/prism-dtu-armis/tests/` (new or existing test file) | MODIFY or CREATE | RG-008..RG-016: 9 failing wire-shape tests; RG-008..RG-012 assert key presence on generated-records path; RG-013 asserts `device_cves` stripped at stage 0 in both routes (CRIT-001); RG-014 asserts `SchemaDrift` archetype `records[0]` has all five contracted column keys; RG-015 asserts `HighChurn` tombstone `Vec<String>` columns emit `[]` not `null` (with `&limit=200`); RG-016 asserts `risk_factors` value reflects `build_asset §build_asset` `status` argument |
 
 ---
 
 ## Verification Properties
 
-None assigned yet. Column schema correctness (TOML spec) is verified via RG-001..RG-007 Red
-Gate tests; generated-records path wire coverage is verified via RG-008..RG-012. Downstream
-SAP-2 probe on any subsequent adversarial pass re-verifies both surfaces.
+None assigned yet. Column schema correctness (TOML spec) including `ocsf_field` annotation
+is verified via RG-001..RG-007 Red Gate tests (RG-001..RG-006 each assert both `column_type`
+and `ocsf_field`); generated-records path wire coverage (including `risk_factors` value
+obligation per AC-016) is verified via RG-008..RG-016. Downstream SAP-2 probe on any
+subsequent adversarial pass re-verifies both surfaces.
 
 ---
 
@@ -756,6 +844,8 @@ SAP-2 probe on any subsequent adversarial pass re-verifies both surfaces.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.8 | 2026-07-30 | story-writer | FB96 residual fix — close 3 findings from coordinator TD-VSDD-059 mechanical verify. RESIDUAL 1 (2 §Authority live version pins): `ADR-023 v1.24 §Rule 1` → `ADR-023 §Rule 1`; `ADR-028 v1.28 §D1` → `ADR-028 §D1` (both were LIVE normative, doubly wrong: banned by POL-39 early adoption AND stale after FB94 advanced ADR-023→v1.25 and ADR-028→v1.29). RESIDUAL 2 (LOW-002, half-closed): AC-013 preconditions block added — both conditions for mask-gate reachability now explicit: (1) `fixture_gen_seeded=true` and (2) `timeline: Some(...)` populated only via `ArmisClone::new_with_scenario §new_with_scenario`; a state built via `new_with_seed §new_with_seed` or `new_with_seed_anchored §new_with_seed_anchored` has `timeline: None` and never enters the mask-gate block. RG-013 updated: construction via `ArmisClone::new_with_scenario §new_with_scenario` with `IncidentTimeline.stage[0].visible_entity_mask.device_cves = false` now explicit; `new_with_seed`/`new_with_seed_anchored` explicitly excluded. AC-014/AC-015 confirmed do NOT share the timeline reachability path (archetype-based generated-records paths, no timeline/mask involvement). POL-29 9a: ACTIVITY-001 twin checked — §Authority section references ADR-057 (not ADR-023/ADR-028), no asymmetry introduced. 9b: no downstream copy target affected by §Authority de-pins or AC-013/RG-013 precondition additions. 9c: no new MUSTs introduced. |
+| 1.7 | 2026-07-30 | story-writer | FB96 story leg — close F-WASE-P70-CRIT-001 (5 sites: T-03 title + Files adds `routes/devices.rs` and `routes/search.rs`; T-02 invariant 4 delegation note to T-03 3d; §Architecture Mapping two route-handler rows; §FSR two route-file rows), F-WASE-P70-HIGH-001 (AC-015/RG-015 `&limit=200` HighChurn ordering rationale — tombstones at positions[180..200] unreachable at default `size=25`), F-WASE-P70-HIGH-006 (AC-016/RG-016 `test_armis_dtu_build_asset_risk_factors_value_reflects_status`; T-03 3a `risk_factors` status-discriminator mechanism; density check 15→16; §Behavioral Contracts count 8→9 generated-records MUSTs), F-WASE-P70-MED-008 (§Behavioral Contracts table BC-2.02.006 title corrected to verbatim H1 "Armis Centrix Field Mapping to OCSF (7 Data Sources)" per POL-7), F-WASE-P70-MED-009 (RG-001..RG-006 each add `ocsf_field` assertion; §Verification Properties updated RG-008..RG-012→RG-008..RG-016), F-WASE-P70-LOW-005 (AC-007 invariant 1 and T-02 Part B item 1 clarify stamps ALL n_assets in CompromisedEndpoint). De-pinning (POL-39 early adoption): BC-2.02.006 version component removed from all 5 live body sites (frontmatter §BC status comment, §Background inline cite, AC-007 §HIGH-001 cite, §Behavioral Contracts table version column, §Token Budget row); `routes/devices.rs` and `routes/search.rs` added to §Token Budget; total ~12,100→~13,800. POL-29 9a: ACTIVITY-001 twin updated in same burst. 9b: no downstream copy target affected. 9c: all new MUSTs carry AC+RGT anchors. |
 | 1.6 | 2026-07-29 | story-writer | FB93 leg 2 — advance BC-2.02.006 pin v1.13 → v1.15 at five live sites (frontmatter §BC status comment, §Background inline cite, AC-007 §HIGH-001 adjudication cite, §Behavioral Contracts table row, §Token Budget Estimate row). Pin-only; no mechanism or design content changed in BC-2.02.006 between v1.13 and v1.15 (§Traceability §Capability Anchor Justification row addition and BC→story anchor-form conversion only). §Behavioral Contracts relevance cell verified accurate at v1.15. POL-29 9a: ACTIVITY-001 twin updated in same burst; both pin BC-2.02.006 at v1.15. 9b: no downstream copy target affected. 9c: no new MUSTs introduced. |
 | 1.5 | 2026-07-29 | story-writer | FB91 story leg — propagate BC-2.02.006 v1.13 + BC-2.02.014 v1.4 + ADR-057 v0.7 spec corrections into SPEC-001. (1a) Add AC-013/RG-013 (`test_armis_dtu_device_cves_stripped_at_stage_0_in_both_routes`), AC-014/RG-014 (`test_armis_dtu_schema_drift_archetype_has_contracted_columns`), AC-015/RG-015 (`test_armis_dtu_tombstone_records_vec_columns_emit_empty_array`) after AC-012; 12→15 ACs/RGTs, 12→15 density check, 12→15 in §Behavioral Contracts relevance cell. (1b) AC-007 expanded with HIGH-001 adjudication: four simultaneous constraints, mechanism correction (obj.remove NOT unconditional), generator obligation (§generate_with_scenario_cves stamps full catalog_device_cves; remove redundant scalar stamp); T-02 expanded with Part B HIGH-001 generator obligation, four invariants. (1c) T-03 expanded to all three emitters: build_asset §build_asset (3a), generate_schema_drift §generate_schema_drift (3b), build_tombstone §build_tombstone (3c); removed false "Do NOT modify build_tombstone" instruction; added rationale for why SchemaDrift matters for RG-008..RG-012. (1d) §Background MED-002: POST /api/v1/search → GET /api/v1/search?aql=<AQL> at two sites (§Background + §Previous Story Intelligence); §Background HIGH-002: four-branch mechanism description replaces false "injects and strips via obj.remove" unconditional claim; T-01 LOW-001: enumerate complete DeviceRecord field set including device_cves. (1e) BC-2.02.006 v1.12 → v1.13 in frontmatter # BC status, §Behavioral Contracts table, §Token Budget Estimate; reassessed Token Budget ~8,800→~12,100 (3 new ACs/RGTs + generator.rs read + v1.13 sections); points 5→8 (3 new ACs, two additional emitters, scalar-stamp removal); estimated_days 2→3; §Architecture Mapping expanded with generate_schema_drift and build_tombstone rows; §File Structure Requirements updated for all three emitters + 8 wire-shape tests. SAC-1: RG-013..RG-015 placed before implementation tasks. 9a: twin ARMIS-ACTIVITY-001 updated in same burst; both pin BC-2.02.006 at v1.13. 9b: §Background and §Previous Story Intelligence POST citation corrected at emission-site read; AC-007 mechanism claim verified against BC-2.02.006 v1.13 §Generated-Records Path Coverage four-branch description; 9b CLEAR. 9c: all new MUSTs in AC-013..AC-015 and T-03 carry AC+RGT anchors; no unanchored MUST introduced. |
 | 1.4 | 2026-07-28 | story-writer | FB87 leg 2 — POL-23 stale-pin sweep: BC-2.02.006 v1.11 → v1.12 (downstream of FB87 leg 1 product-owner bump). Updated: frontmatter # BC status comment, §Behavioral Contracts table row, §Token Budget Estimate BC row. Relevance cell verified accurate at v1.12 — §Generated-Records Path Coverage framing (7-MUST TOML-column block + 5-MUST generated-records block = 12 ACs/RGTs) consistent with leg 1 reconciliation; no text correction needed. `serde_json::to_value` references in story body describe `get_search §get_search` devices-table handler only — correct as-is (activity handler not in scope; not applicable). No `ADR-057 §C1/§C2` references found. POL-29 9a: S-WAVE-A-ARMIS-ACTIVITY-001 twin updated in same burst; both stories now pin BC-2.02.006 at v1.12 (pre-burst asymmetry v1.10 vs v1.11 closed). 9b: ARMIS-SPEC-001 §TOML Contract block is not a downstream copy target for any further artifact. 9c: no new MUSTs authored. |
