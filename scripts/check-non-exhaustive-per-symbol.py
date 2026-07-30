@@ -11,11 +11,14 @@ Extraction rules:
     `note: \`path::TypeName\` defined here` in the rendered message text.
 
 Guards:
-  - len(EXPECTED_SYMBOLS) == EXPECTED_COUNT (belt-and-braces: list length == violation count)
+  - EXPECTED_COUNT is derived as len(EXPECTED_SYMBOLS) — no manual sync needed.
   - Every distinct symbol in EXPECTED_SYMBOLS appears at least once in the
-    collected error output.
+    collected error output (catches removed annotations).
+  - No symbol in E0639/E0004 error output is absent from EXPECTED_SYMBOLS
+    (unregistered-addition detection).
 
 Usage: check-non-exhaustive-per-symbol.py <json-log-file>
+       check-non-exhaustive-per-symbol.py --count   (prints EXPECTED_COUNT and exits 0)
 Returns: 0 (all symbols present) or 1 (one or more missing).
 
 Single source of truth: this file. ci.yml calls scripts/check-non-exhaustive.sh
@@ -27,15 +30,13 @@ import re
 import sys
 
 # ---------------------------------------------------------------------------
-# Expected symbol list — 92 entries, one per violation function.
+# Expected symbol list — one entry per violation function.
 # E0639 names: as they appear in the struct literal expression in
 #   struct_violations.rs (may be a local alias, e.g. TypesSensorTableDescriptor).
 # E0004 names: last path segment from `note: \`path::TypeName\` defined here`
 #   in the E0004 rendered message (always the canonical type name leaf).
-# Guard: len(EXPECTED_SYMBOLS) must equal EXPECTED_COUNT (checked at startup).
+# EXPECTED_COUNT is derived from len(EXPECTED_SYMBOLS) below — no manual update.
 # ---------------------------------------------------------------------------
-EXPECTED_COUNT = 92
-
 EXPECTED_SYMBOLS = [
     # ── E0639 struct literal violations (69 total) ──────────────────────────
     # Names match the identifier used in the struct literal expression in
@@ -137,11 +138,8 @@ EXPECTED_SYMBOLS = [
     "ExampleKind",           # v85 prism_mcp::resources::ExampleKind
 ]
 
-# Belt-and-braces: verify the list length matches EXPECTED_COUNT at import time.
-assert len(EXPECTED_SYMBOLS) == EXPECTED_COUNT, (
-    f"EXPECTED_SYMBOLS list has {len(EXPECTED_SYMBOLS)} entries but EXPECTED_COUNT={EXPECTED_COUNT}. "
-    f"Update both the list and EXPECTED_COUNT when adding/removing violations."
-)
+# EXPECTED_COUNT is derived from the list — no manual update needed when symbols are added/removed.
+EXPECTED_COUNT = len(EXPECTED_SYMBOLS)
 
 # Unique set of expected symbols (for per-symbol check). ColumnType appears
 # twice (v13 + v25 both test prism_core::ColumnType) and is deduplicated here.
@@ -206,6 +204,8 @@ def main() -> int:
 
     log_path = sys.argv[1]
     found: set[str] = set()
+    # Symbols from E0639/E0004 errors not present in EXPECTED_UNIQUE — unregistered additions.
+    unregistered: list[str] = []
 
     try:
         with open(log_path) as f:
@@ -226,10 +226,18 @@ def main() -> int:
                     sym = extract_e0639_symbol(msg)
                     if sym:
                         found.add(sym)
+                        if sym not in EXPECTED_UNIQUE:
+                            unregistered.append(sym)
                 elif code == "E0004":
                     # Returns list of 1-seg and 2-seg forms; update found with all.
                     syms = extract_e0004_symbol(msg)
                     found.update(syms)
+                    # Unregistered if none of the extracted forms (1-seg or 2-seg) match
+                    # any entry in EXPECTED_UNIQUE.
+                    if syms and not any(s in EXPECTED_UNIQUE for s in syms):
+                        # Use 2-seg form for reporting when available (more informative).
+                        label = syms[1] if len(syms) > 1 else syms[0]
+                        unregistered.append(label)
     except FileNotFoundError:
         print(f"Error: log file not found: {log_path}", file=sys.stderr)
         return 1
@@ -267,6 +275,26 @@ def main() -> int:
             f"missing from error output.",
             file=sys.stderr,
         )
+
+    if unregistered:
+        # An E0639/E0004 error was emitted for a symbol absent from EXPECTED_SYMBOLS.
+        # This means a new #[non_exhaustive] type was added to the violation crate
+        # without being registered — the count gate should also have fired.
+        print(
+            f"\nUnregistered symbols found in E0639/E0004 errors but absent from "
+            f"EXPECTED_SYMBOLS ({len(set(unregistered))} symbol(s)):",
+            file=sys.stderr,
+        )
+        for sym in sorted(set(unregistered)):
+            print(f"  unregistered: {sym!r}", file=sys.stderr)
+        print(
+            f"\n  To fix: append the symbol(s) to EXPECTED_SYMBOLS in\n"
+            f"  scripts/check-non-exhaustive-per-symbol.py. Each #[non_exhaustive]\n"
+            f"  type added to the violation crate must be registered before the gate passes.",
+            file=sys.stderr,
+        )
+
+    if failures or unregistered:
         return 1
 
     print(
@@ -278,4 +306,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 2 and sys.argv[1] == "--count":
+        print(EXPECTED_COUNT)
+        sys.exit(0)
     sys.exit(main())

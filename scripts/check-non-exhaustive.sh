@@ -7,7 +7,7 @@
 # identical. (F-CSD-P29-OBS-001 — DEFECT-CSDEVICES-EMPTY-PIPELINE-001)
 #
 # Two-layer gate:
-#   Layer 1 (count): total E0639+E0004 errors >= EXPECTED (catches removed violations)
+#   Layer 1 (count): total E0639+E0004 errors == EXPECTED (catches removed annotations and unregistered additions)
 #   Layer 2 (per-symbol): every distinct expected symbol appears in error output
 #     (catches net-zero regressions: one type loses annotation, another gains it)
 #
@@ -15,8 +15,9 @@
 # that rustc's per-file error budget does not suppress later violations.
 # Uses --message-format=json to count ALL violations (not capped by per-file rustc limit).
 #
-# Update EXPECTED and check-non-exhaustive-per-symbol.py when adding/removing
+# Update EXPECTED_SYMBOLS in check-non-exhaustive-per-symbol.py when adding/removing
 # violations from enum_violations.rs or struct_violations.rs.
+# EXPECTED count in this script is derived from that manifest automatically — do not edit EXPECTED here.
 # (BC-2.01.013 AC-5 / F-LP2-OBS-001 S-PLUGIN-PREREQ-C)
 # S-DEMO-DTU-LIVE-SCENARIO-001-A: bumped 49→50 for ScenarioEntityCatalog (AC-014, ADR-036 §2.2).
 # S-DEMO-DTU-LIVE-SCENARIO-001-B: bumped 50→52 for IncidentTimeline + IncidentStage (AC-014 pattern, BPRL-P3-01 sibling sweep).
@@ -46,9 +47,22 @@
 # DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P31-OBS-002: bumped 90→91 for VirtualField (prism_query::ast E0004 v91).
 # DEFECT-PQL-FNCALL-LHS-001 F-PQLFN-PR11-OBS-002 (BC-2.11.019 §OBS-005): bumped 91→92 for ParseError (prism_query::error E0639 v92).
 
-EXPECTED=92
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
+
+# Derive EXPECTED count from the Python manifest (single source of truth).
+# check-non-exhaustive-per-symbol.py --count prints len(EXPECTED_SYMBOLS).
+# Fail closed if the manifest is missing, unexecutable, or returns non-integer output.
+if ! EXPECTED="$(python3 "${SCRIPT_DIR}/check-non-exhaustive-per-symbol.py" --count)"; then
+    echo "FAIL: could not read EXPECTED count from check-non-exhaustive-per-symbol.py — failing closed."
+    exit 1
+fi
+case "${EXPECTED}" in
+    ''|*[!0-9]*)
+        echo "FAIL: EXPECTED count produced non-integer output '${EXPECTED}' — failing closed."
+        exit 1
+        ;;
+esac
 
 # Per-run temp path (mktemp) so concurrent `just check` runs in parallel
 # worktrees do not clobber each other's evidence log. OUTPUT_LOG env override
@@ -103,11 +117,18 @@ case "${TOTAL}" in
         ;;
 esac
 
-if [ "${TOTAL}" -lt "${EXPECTED}" ]; then
-    echo "FAIL: Expected at least ${EXPECTED} E0639/E0004 errors, got ${TOTAL}."
-    echo "  Some #[non_exhaustive] annotations may have been removed from:"
-    echo "  tests/external/non-exhaustive-violation/src/struct_violations.rs (E0639)"
-    echo "  tests/external/non-exhaustive-violation/src/enum_violations.rs (E0004)"
+if [ "${TOTAL}" -ne "${EXPECTED}" ]; then
+    echo "FAIL: Expected exactly ${EXPECTED} E0639/E0004 errors, got ${TOTAL}."
+    if [ "${TOTAL}" -gt "${EXPECTED}" ]; then
+        echo "  TOTAL > EXPECTED: an unregistered #[non_exhaustive] type was added to"
+        echo "  tests/external/non-exhaustive-violation/. Append the new symbol to"
+        echo "  EXPECTED_SYMBOLS in scripts/check-non-exhaustive-per-symbol.py."
+    else
+        echo "  TOTAL < EXPECTED: a #[non_exhaustive] annotation may have been removed."
+        echo "  Layer 2 (per-symbol check) will identify the missing symbol(s)."
+        echo "  tests/external/non-exhaustive-violation/src/struct_violations.rs (E0639)"
+        echo "  tests/external/non-exhaustive-violation/src/enum_violations.rs (E0004)"
+    fi
     exit 1
 fi
 
