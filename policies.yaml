@@ -23,12 +23,17 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 document_type: governance-policy-registry
-version: "1.39"
-last_amended: 2026-07-27
+version: "1.40"
+last_amended: 2026-07-30
 
 metadata:
-  version: "1.39"
+  version: "1.40"
   changelog:
+    - version: "1.40"
+      date: 2026-07-30
+      burst: human-direction-pol39-register-pol23-amend
+      findings: [F-WASE-P70-MED-006, F-WASE-P70-MED-007]
+      change: "v1.39 → v1.40 2026-07-30 — POL-39 anti_volatile_pin_versions registered (id: 39, severity: HIGH) + POL-23 bc_version_bump_sibling_grep_gate amended. POL-39: narrative prose in .factory/ artifacts must not pin artifact version numbers; cite artifact ID plus section/symbol anchor only (e.g., ADR-028 §D1, not ADR-028 v1.28 §D1). Extends TD-VSDD-091 from volatile line numbers to volatile version numbers. Scope: bc, vp, story, adr, architecture, prd, prd-supplements, error-taxonomy, capabilities, invariants, hs, td. Origin: F-WASE-P70-MED-006 [process-gap] generalized by human direction 2026-07-30; proximate trigger was the asymmetric FB93 blockquote convention (story→BC pins kept version while BC→story anchors went version-free); pass-70 F-WASE-P70-MED-007 found the oscillation cycle was cut on one axis only — POL-39 supersedes with a symmetric rule. FB93 inline blockquote convention in BC-2.02.006 and BC-2.02.014 is SUPERSEDED and is to be removed by the sweep story, not preserved. POL-23 amended: grep-for-old-version-pin step retired by POL-39 (narrative prose will carry no version pins to grep for); drift-detection obligation preserved and redirected to input-hash refresh plus phantom-anchor resolution check (POL-21 / POL-22); BC modified/timestamp obligations and story frontmatter sync obligations preserved; scope extended to adr, vp, architecture; transition date 2026-07-30. Policy count 34 → 35. Human-approved direct mandate 2026-07-30."
     - version: "1.39"
       date: 2026-07-27
       burst: LOCAL-pass-66-pol29-three-dimension-amendment
@@ -605,26 +610,33 @@ policies:
   - id: 23
     name: bc_version_bump_sibling_grep_gate
     description: |
-      When a BC version is bumped in a fix-burst, the SAME atomic commit must update ALL
-      story body prose sites that pin the old version string. This includes: (1) inline
-      trace-header lines, (2) §References section version annotations, (3) Architecture
-      Compliance Rules table version cells. Additionally, BC frontmatter `modified:` must
-      be synced to the amendment date (POL-27 YYYY-MM-DD format); `timestamp:` is the
-      creation time and is IMMUTABLE after initial authoring (Direction A, P2-02
-      adjudication 2026-06-10). Story version bumps must also sync both `version:` and
-      `updated:` frontmatter fields.
+      When a BC, ADR, or VP version is bumped in a fix-burst, the SAME atomic commit must
+      verify the drift-detection chain remains intact: (a) citing artifacts' section/symbol
+      anchors must still resolve in the amended document (POL-21 / POL-22 phantom-anchor
+      check — a version bump can rename or remove a cited section heading); (b) each
+      dependent artifact's frontmatter `input-hash:` should be refreshed so
+      `vsdd-factory:check-input-drift` flags stale dependents on the next run. BC frontmatter
+      `modified:` must be synced to the amendment date (POL-27 YYYY-MM-DD format);
+      `timestamp:` is the creation time and IMMUTABLE after initial authoring (Direction A,
+      P2-02 adjudication 2026-06-10). Story version bumps must also sync both `version:` and
+      `updated:` frontmatter fields. NOTE: The prose version-pin grep step formerly in this
+      policy is RETIRED by POL-39 (anti_volatile_pin_versions, 2026-07-30). Under POL-39
+      narrative prose must not contain version pins, so there are no prose pins to grep for.
+      The drift-detection obligation is preserved and redirected to the input-hash plus
+      phantom-anchor mechanism. Transition date: 2026-07-30.
     adopted: S-PLUGIN-PREREQ-D-pass-33-D-530-2026-05-14
     severity: HIGH
-    enforced_by: [adversary-prompt, story-writer-self-check, product-owner-self-check]
-    scope: [story, bc]
+    enforced_by: [adversary-prompt, story-writer-self-check, product-owner-self-check, consistency-validator]
+    scope: [story, bc, adr, vp, architecture]
     codified_at: null
     lint_hook: null
     verification_steps:
-      - "When a BC version bumps from vX.Y to vX.(Y+1): run grep -n 'BC-N.NN.NNN v<old_version>' across all story body files that reference this BC."
-      - "Every hit must be updated to the new version string in the same atomic commit."
-      - "Also verify BC frontmatter `modified:` field reflects the amendment date (ISO YYYY-MM-DD format)."
-      - "Also verify BC frontmatter `timestamp:` field is the CREATION time and is IMMUTABLE after initial authoring (Direction A, P2-02 adjudication 2026-06-10) — it must NOT be synced on amendment. Full ISO 8601 with Z suffix (YYYY-MM-DDTHH:MM:SSZ) required for NEW BCs; legacy non-Z values are grandfathered. Amendment dates are tracked solely via the `modified:` field in POL-27's YYYY-MM-DD format (cross-reference POL-27)."
-      - "Sibling-sweep must include VP-INDEX named-alias row descriptions that reference AC anchors from the amended BC (see POL-25 for cross-document propagation rule)."
+      - "(Retired by POL-39, 2026-07-30 — TOMBSTONE) Original step: run grep -n 'BC-N.NN.NNN v<old_version>' across all story body files that reference the bumped BC. Superseded because under POL-39 narrative prose must not contain version pins. Retained as tombstone to prevent re-introduction of version-pin grep as a primary drift-detection mechanism."
+      - "Phantom-anchor check (replacing version-pin grep): for each BC, ADR, or VP version bumped in this burst, enumerate the amended document's `## ` section headings and verify that every §SectionName anchor cited by dependent story or BC files still exists. A renamed or removed heading creates a phantom-anchor violation (POL-21) in any dependent that cites the old name."
+      - "Input-hash refresh: for each dependent artifact (story, BC, architecture doc) that cites the bumped artifact by ID, update that artifact's `input-hash:` frontmatter field to reflect the amended artifact's current content hash, enabling `vsdd-factory:check-input-drift` to detect staleness on subsequent runs."
+      - "Verify BC frontmatter `modified:` field reflects the amendment date (ISO YYYY-MM-DD format, per POL-27)."
+      - "Verify BC frontmatter `timestamp:` field is the CREATION time and IMMUTABLE — must NOT be synced on amendment (Direction A, P2-02 adjudication 2026-06-10). Full ISO 8601 with Z suffix (YYYY-MM-DDTHH:MM:SSZ) required for NEW BCs; legacy non-Z values grandfathered. Amendment dates tracked solely via the `modified:` field."
+      - "Sibling-sweep must include VP-INDEX named-alias row descriptions that reference AC anchors from the amended BC (POL-25 cross-document propagation rule)."
       - "(D-571 PG-IMPL-LP6-003 extension) For every story version bump in a fix-burst: verify story frontmatter `version:` field matches the new version string in §Changelog top row. Verify story frontmatter `updated:` field is set to the fix-burst date (ISO YYYY-MM-DD). Both fields in the same atomic commit."
 
   - id: 24
@@ -1026,3 +1038,41 @@ policies:
       - "If a story has no corresponding AC for a new anchored EC: check whether the burst includes a deferral record (in the BC's §Traceability or in the story's §Open Questions) with: (a) a concrete blocker description, (b) a specific future story anchor. If neither present → violation."
       - "Verify STORY-INDEX description text for the anchor story matches the actual story frontmatter fields (ACs, pts, tdd_mode, priority) — these must agree."
       - "This policy applies per-burst: if BC and story are amended in different bursts, the gap must not persist across a full adversary pass cycle without the deferral record."
+
+  - id: 39
+    name: anti_volatile_pin_versions
+    description: |
+      Narrative prose in .factory/ artifacts MUST NOT pin the version of a referenced
+      artifact. Cite the artifact ID plus section/symbol anchor only (e.g., `ADR-028 §D1`,
+      not `ADR-028 v1.28 §D1`). This extends TD-VSDD-091 from volatile line numbers to
+      volatile version numbers — both are high-turnover values that decay the moment the
+      target is next edited. Provenance formerly carried by prose version pins is carried
+      instead by each artifact's frontmatter `input-hash:` field, verified by
+      `vsdd-factory:check-input-drift`. This supersedes the asymmetric FB93 blockquote
+      convention (story→BC pins kept version while BC→story anchors went version-free) with
+      a symmetric rule; FB93's inline blockquote convention in BC-2.02.006 and BC-2.02.014
+      is SUPERSEDED by this policy and is to be removed by the sweep story, not preserved.
+    adopted: "F-WASE-P70-MED-006-generalized-by-human-direction-2026-07-30"
+    severity: HIGH
+    enforced_by: [records-lint-L11, adversary-prompt, product-owner-self-check, story-writer-self-check, consistency-validator]
+    scope: [bc, vp, story, adr, architecture, prd, prd-supplements, error-taxonomy, capabilities, invariants, hs, td]
+    codified_at: null
+    lint_hook: null
+    implementation_target: "scripts/records-lint.sh check L11 (proposed — blocks staged narrative-tier artifact-ID version pins)"
+    rationale: |
+      Origin: pass-70 finding F-WASE-P70-MED-006 [process-gap], generalized by direct human
+      direction 2026-07-30. The proximate trigger was FB93, which introduced an asymmetric
+      convention to break a mutual pin-oscillation cycle between story and BC prose; pass-70
+      finding F-WASE-P70-MED-007 then found the cycle was cut on one axis only. POL-39
+      supersedes that asymmetric convention with a symmetric rule. Measured corpus exposure at
+      registration: approximately 2,434 story→BC pins across 83 story files, 364 story→ADR
+      pins, 15 story→VP pins, and approximately 2,866 pins across 136 files under specs/. The
+      symmetric rule (all narrative prose pin-free) is the only stable end-state; the sweep
+      story removes pre-existing grandfathered pins.
+    verification_steps:
+      - "scripts/records-lint.sh check L11 (proposed): blocks staged narrative-tier additions in .factory/ artifacts matching the pattern `(BC|VP|ADR|DI|CAP|HS|TD)-\\S+ v\\d+\\.\\d+` (artifact identifier followed immediately by a version number). Ratchet-scoped to staged additions only; pre-existing pins in unmodified lines are grandfathered pending the sweep stories."
+      - "EXEMPT — index tier: BC-INDEX.md, VP-INDEX.md, ARCH-INDEX.md, STORY-INDEX.md. Version pins in index files are the registry of record and are independently gated by records-lint.sh L10. Note L10's understated capability boundary: it detects the version-number half only, cannot detect content falsification, and rows carrying no structural version pin are counted as unverifiable, not clean — a zero-mismatches L10 result is NOT equivalent to every row verified."
+      - "EXEMPT — `## Changelog` rows: the version number is the row's identity and changelog rows are immutable history (TD-VSDD-091 historical record protection)."
+      - "EXEMPT — frontmatter `version:` field: the artifact's own declaration of its current version. That field IS a version pin by design."
+      - "EXEMPT — correctly-scoped historical prose: a past-tense statement about what a specific prior version did (e.g., 'corrected in BC-2.02.006 v1.8') is a true historical record, not a normative pin. Editing it corrupts the audit trail. Adjudicate by grammatical form — normative present-tense 'per ADR-028 v1.5' is a violation; historical past-tense describing what that version did is exempt. When in doubt, rewrite as section-anchor form."
+      - "Provenance check: when reviewing whether a story or BC adequately traces its dependencies, use `vsdd-factory:check-input-drift` against each artifact's `input-hash:` rather than relying on a prose version pin to indicate currency."
