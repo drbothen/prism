@@ -311,13 +311,25 @@ _L9_ARM4='\b[A-Z][A-Z0-9_-]+[[:space:]]+v[0-9]+\.[0-9]+:[0-9]+'
 #       the VP-INDEX v2.12 form: ~L215/~L957/~L985 (D-2007 2026-07-24).
 #   (b) \bL<NN+>\b: bare uppercase L + 2+ digits at word boundaries. Captures
 #       the burst-log/adversary-review form: L864, L850, L80, etc. Requires 2+
-#       digits to exclude L1/L7/L9 (records-lint check names) and L2/L3 (network
-#       layer references without tilde). Does NOT catch single-digit ~L7 (arm-5
-#       requires 2+ digits), nor bare slash-continuation digits like
-#       ~L500/535/558/662 where only the first segment has the L prefix.
+#       digits to exclude single-digit check names (L1/L7/L9) and single-digit
+#       network-layer references (L2/L3) without tilde. Check names with 2+
+#       digits (L10, L11+) still match this arm but are subsequently exempted
+#       via L9_CHECK_NAME_EXEMPT below (per-token, never per-line). Does NOT
+#       catch bare slash-continuation digits like ~L500/535/558/662 where only
+#       the first segment has the L prefix.
 #   NOTE: arm-3 is complementary — it catches "Lines ~NNN" (keyword+tilde+digits);
 #   arm-5 catches ~L<NNN> and bare L<NNN> without any preceding keyword.
 _L9_ARM5='(~L[0-9]{2,}|\bL[0-9]{2,}\b)'
+#
+# ARM5 check-name exemption — SINGLE SOURCE OF TRUTH.
+# Bare Lxx tokens that are THIS SCRIPT'S OWN CHECK NAMES must NOT be treated
+# as line cites. Only bare forms are exempt; tilde forms (~L10) are NEVER
+# exempt — a check name is never written with a tilde prefix.
+# Append here ONLY when a new check is added to this script. Never duplicate
+# this list or its count anywhere else (mirrors EXPECTED_SYMBOLS discipline).
+# Enforced per-token, never per-line: a line containing both L10 (exempt) and
+# ~L42 (genuine cite) still FAILS because ~L42 is non-exempt.
+L9_CHECK_NAME_EXEMPT="L1 L7 L9 L10 L11"
 
 L9_CITE_PATTERN="(${_L9_ARM1}|${_L9_ARM2}|${_L9_ARM3}|${_L9_ARM4}|${_L9_ARM5})"
 
@@ -398,11 +410,25 @@ run_l9() {
         local content="${line:1}"  # strip leading +
 
         if echo "${content}" | grep -qE "${L9_CITE_PATTERN}" 2>/dev/null; then
-            local cites
-            cites="$(echo "${content}" | grep -oE "${L9_CITE_PATTERN}" 2>/dev/null \
-                | head -3 | paste -sd ' ')"
-            violations+=("L9 FAIL [${file_ctx:-unknown}]: staged addition contains line-cite: ${cites}")
-            violations+=("  Line: ${content:0:120}")
+            # Two-stage exemption: extract all matching tokens, then subtract
+            # bare check-name tokens (L9_CHECK_NAME_EXEMPT). Tilde forms
+            # (~L10) are never exempt. Exempt per-token, never per-line:
+            # a line with both L10 (exempt) and ~L42 (genuine cite) still fails.
+            local all_cites non_exempt_cites="" tok is_exempt exempt
+            all_cites="$(echo "${content}" | grep -oE "${L9_CITE_PATTERN}" 2>/dev/null)"
+            while IFS= read -r tok; do
+                [ -z "${tok}" ] && continue
+                is_exempt=0
+                for exempt in ${L9_CHECK_NAME_EXEMPT}; do
+                    [ "${tok}" = "${exempt}" ] && { is_exempt=1; break; }
+                done
+                [ "${is_exempt}" -eq 0 ] && \
+                    non_exempt_cites="${non_exempt_cites:+${non_exempt_cites} }${tok}"
+            done <<< "${all_cites}"
+            if [ -n "${non_exempt_cites}" ]; then
+                violations+=("L9 FAIL [${file_ctx:-unknown}]: staged addition contains line-cite: ${non_exempt_cites}")
+                violations+=("  Line: ${content:0:120}")
+            fi
         fi
     done <<< "${combined_diff}"
 
@@ -1044,6 +1070,100 @@ PROBE
         pass_count=$((pass_count+1))
     fi
 
+    # ── L9 arm-5 check-name exemption probes (2026-07-30) ────────────────────
+    # Probe the two-stage exemption that exempts THIS SCRIPT'S OWN CHECK NAMES
+    # (L9_CHECK_NAME_EXEMPT) from the bare-L line-cite ban. These cases use
+    # temp git repos (not string-only grep) to exercise the full run_l9 path,
+    # including the exemption filter that runs after the pattern match.
+    # NOTE: these probes use synthetic temp repos, NOT the real .factory/
+    # worktree, so they do NOT exercise the worktree-bypass code path —
+    # see coverage note at end of self-probe.
+
+    # Sub-probe 1: check-name refs must NOT be blocked
+    # Covers: L10, L11, records-lint-L11, S-MAINT-L11-GATE-001,
+    #         "check L11 blocks staged additions"
+    local arm5ex_repo="${tmpdir}/l9arm5ex"
+    local arm5ex_dir="${arm5ex_repo}/fdir"
+    mkdir -p "${arm5ex_dir}"
+    git -C "${arm5ex_repo}" init -q 2>/dev/null
+    git -C "${arm5ex_repo}" config user.email "probe@test" 2>/dev/null
+    git -C "${arm5ex_repo}" config user.name "probe" 2>/dev/null
+    printf '# seed\n' > "${arm5ex_dir}/seed.md"
+    git -C "${arm5ex_repo}" add fdir/seed.md 2>/dev/null
+    git -C "${arm5ex_repo}" -c commit.gpgsign=false commit -q -m "seed" 2>/dev/null
+    cat > "${arm5ex_dir}/exempt.md" <<'PROBE'
+The L10 cross-document index consistency gate catches version drift.
+check L11 blocks staged additions from bypassing the gate.
+This is records-lint-L11 compatible per the specification.
+Story S-MAINT-L11-GATE-001 covers the gate automation implementation.
+PROBE
+    git -C "${arm5ex_repo}" add fdir/exempt.md 2>/dev/null
+
+    if run_l9 "${arm5ex_repo}" "fdir" >/dev/null 2>&1; then
+        echo "L9-arm5-exempt probe PASS: check-name refs (L10, L11, records-lint-L11, S-MAINT-L11-GATE-001) correctly exempt"
+        pass_count=$((pass_count+1))
+    else
+        probe_failures+=("L9-arm5-exempt: INCORRECTLY blocked check-name refs (L10/L11/records-lint-L11/S-MAINT-L11-GATE-001) — false-red")
+    fi
+
+    # Sub-probe 2: non-exempt 2-digit cites must still BLOCK after exemption
+    # Covers: L42, ~L42, L99
+    local arm5blk_repo="${tmpdir}/l9arm5blk"
+    local arm5blk_dir="${arm5blk_repo}/fdir"
+    mkdir -p "${arm5blk_dir}"
+    git -C "${arm5blk_repo}" init -q 2>/dev/null
+    git -C "${arm5blk_repo}" config user.email "probe@test" 2>/dev/null
+    git -C "${arm5blk_repo}" config user.name "probe" 2>/dev/null
+    printf '# seed\n' > "${arm5blk_dir}/seed.md"
+    git -C "${arm5blk_repo}" add fdir/seed.md 2>/dev/null
+    git -C "${arm5blk_repo}" -c commit.gpgsign=false commit -q -m "seed" 2>/dev/null
+    cat > "${arm5blk_dir}/violations.md" <<'PROBE'
+see L42 for detail (genuine 2-digit cite, not in exempt list)
+~L42 is a genuine line cite (tilde form is never exempt)
+L99 is a two-digit cite not in L9_CHECK_NAME_EXEMPT
+PROBE
+    git -C "${arm5blk_repo}" add fdir/violations.md 2>/dev/null
+
+    if run_l9 "${arm5blk_repo}" "fdir" >/dev/null 2>&1; then
+        probe_failures+=("L9-arm5-non-exempt: MISSED non-exempt 2-digit line cites (L42, ~L42, L99) after exemption — false-green")
+    else
+        echo "L9-arm5-non-exempt probe PASS: non-exempt 2-digit cites (L42, ~L42, L99) correctly blocked after exemption"
+        pass_count=$((pass_count+1))
+    fi
+
+    # Sub-probe 3: mixed line — exempt token + real cite on SAME LINE must BLOCK
+    # Covers: "L10 gate found ~L42 in the changelog"
+    # L10 → exempt; ~L42 → non-exempt; per-token exemption means the line fails.
+    local arm5mix_repo="${tmpdir}/l9arm5mix"
+    local arm5mix_dir="${arm5mix_repo}/fdir"
+    mkdir -p "${arm5mix_dir}"
+    git -C "${arm5mix_repo}" init -q 2>/dev/null
+    git -C "${arm5mix_repo}" config user.email "probe@test" 2>/dev/null
+    git -C "${arm5mix_repo}" config user.name "probe" 2>/dev/null
+    printf '# seed\n' > "${arm5mix_dir}/seed.md"
+    git -C "${arm5mix_repo}" add fdir/seed.md 2>/dev/null
+    git -C "${arm5mix_repo}" -c commit.gpgsign=false commit -q -m "seed" 2>/dev/null
+    printf 'L10 gate found ~L42 in the changelog (exempt + real cite on same line).\n' \
+        > "${arm5mix_dir}/mixed.md"
+    git -C "${arm5mix_repo}" add fdir/mixed.md 2>/dev/null
+
+    if run_l9 "${arm5mix_repo}" "fdir" >/dev/null 2>&1; then
+        probe_failures+=("L9-arm5-mixed: MISSED ~L42 real cite when L10 (exempt) is on the same line — false-green")
+    else
+        echo "L9-arm5-mixed probe PASS: ~L42 correctly blocked even when L10 (exempt) is on the same line"
+        pass_count=$((pass_count+1))
+    fi
+
+    # Sub-probe 4: ~L3 single-digit must NOT trigger (2+ digit requirement)
+    # Complements the existing ~L2 near-miss probe; ~L3 uses a different digit.
+    local arm5_l3_clean='~L3 applies here (single-digit Purdue/OSI layer, not a line cite).'
+    if echo "${arm5_l3_clean}" | grep -qE "${L9_CITE_PATTERN}" 2>/dev/null; then
+        probe_failures+=("L9-arm5: INCORRECTLY flagged ~L3 single-digit (2+ digit threshold) — false-red")
+    else
+        echo "L9-arm5 probe PASS: ~L3 single-digit correctly cleared (2+ digit threshold)"
+        pass_count=$((pass_count+1))
+    fi
+
     # ── L10 self-probe ────────────────────────────────────────────────────────
     # Probe set covers: BC STALE, BC PHANTOM, BC EQUAL-PASS, BC no-pin skip,
     # BC UNRESOLVED, BC RANGE-PASS, BC RANGE-STALE, ADR STALE (first-v strategy),
@@ -1380,6 +1500,15 @@ PROBEEOF
     echo "  L9 arm-5: ~L2 single-digit (OSI layer) → cleared (2+ digit threshold)"
     echo "  L9 arm-5: bare L<NNN> form (L864, L850) → flagged"
     echo "  L9 arm-5: L7/L1/SS-01 near-miss (check names + finding ID) → cleared"
+    echo "Self-probed cases added 2026-07-30 (L9 ARM5 check-name exemption — TD-VSDD-092):"
+    echo "  L9 arm-5 exempt: L10/L11/records-lint-L11/S-MAINT-L11-GATE-001 refs → correctly cleared"
+    echo "  L9 arm-5 non-exempt: L42/~L42/L99 (not in L9_CHECK_NAME_EXEMPT) → correctly blocked"
+    echo "  L9 arm-5 mixed: L10 (exempt) + ~L42 (real cite) on same line → correctly blocked"
+    echo "  L9 arm-5 ~L3 single-digit: 2+ digit threshold → correctly cleared"
+    echo "  NOTE: these probes use synthetic temp repos (not the real .factory/ worktree)."
+    echo "  They test run_l9 end-to-end including the two-stage exemption filter,"
+    echo "  but do NOT exercise the worktree-bypass code path (git -C .factory diff --cached)"
+    echo "  — that path is exercised at runtime only, same as the pre-existing coverage gap note."
     echo "Self-probed cases added 2026-07-25 (L10):"
     echo "  L10 BC STALE: structural pin=1.5 (from '(v1.5 — ...') < artifact=1.6 → flagged"
     echo "  L10 BC PHANTOM: structural pin=1.7 > artifact=1.6; companion v2.5 excluded → flagged on 1.7"
