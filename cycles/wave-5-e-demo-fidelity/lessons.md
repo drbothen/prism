@@ -4511,3 +4511,45 @@ In all three cases, the dispatched burst's work is correct. The gap is that the 
 **Cross-reference:** Lesson 117 (records-lint L1 gate capability boundary: gate-green is not audit-trail-complete — the other half of the probe-passes vs gate-fires pattern). The L9 operational gap (CLAUDE.md TD-VSDD-092 §L9) documents the original discovery that a green self-probe coexisted with a production check that never fired. This lesson generalizes that gap to a design principle for all future gate self-probes.
 
 **Source:** D-2077 FB105 dispatch (2026-07-31). Pattern family: gate discipline, selectivity testing. First codification of the both-polarity self-probe principle.
+
+---
+
+### Lesson 119 — Finding-Reported Site Counts Are Lower Bounds, Not Contracts
+
+**Category:** dispatch accuracy, POL-37, site-count discipline, attestation accuracy
+
+**Context:** FB106 propagated the ADR-057 §D5 INDEX→REQUIRED annotation correction through BC-2.02.014 and S-WAVE-A-ARMIS-ACTIVITY-001. The dispatch brief characterized the scope as "3 candidate BC body sites" and "5 candidate story sites" based on the pass-72 adversary report.
+
+**What happened:** The product-owner leg executing the BC corrections found 4 LIVE normative sites (not 3): §Preconditions, §Postconditions device_id column definition, §TOML Contract block comment, §TOML Contract options value. The story-writer leg found 9 story sites (not 5): the additional sites were discovered during exhaustive in-file search rather than relying on the dispatch characterization.
+
+**The failure mode:** A leg that stops at the dispatch-reported count (3 or 5) produces a partial fix and a false-green. The adversary report's site enumeration reflects what the adversary observed during review — it is NOT a contract guaranteeing the site set is exhaustive. Sites the adversary did not specifically enumerate (e.g., a second occurrence of the same pattern in a different section) remain present and unfixed if the fixer treats the count as a ceiling rather than a floor.
+
+**The test-rename failure mode (dimension 9b on identifiers):** The `has_index_option` → `has_required_option` test rename is the clearest example: it is invisible to a `grep "options = [\"INDEX\"]"` content search. The dispatch correctly predicted this site class as highest-risk. A fixer that only ran a content grep for the changed string would have missed it. POL-29 dimension 9b (downstream copy target) covers this: if the changed VALUE is embedded in an IDENTIFIER that was derived from the value, the identifier must be swept separately.
+
+**Transferable rule:** Treat dispatch-reported site counts as lower bounds, never as upper bounds or contracts. When performing a propagation fix, run an exhaustive in-file search for ALL occurrences of the target pattern, including syntactic variants (identifiers derived from the value, block comments, inline annotations, and enum/type names derived from the value). Report actual site count found vs dispatch-reported count as a POL-37 disclosure.
+
+**Going-forward discipline:** Every fix-burst closing a multi-site finding MUST include a POL-37 disclosure of the form: "dispatch reported N sites; found M sites; M > N — N additional sites discovered during execution." If M == N, that equality must be independently verified (exhaustive grep run, not assumption).
+
+**Source:** D-2078 FB106 state-manager closing burst (2026-07-31). Pattern family: POL-37 attestation accuracy, site-count lower bounds.
+
+---
+
+### Lesson 120 — Sequencing-Artifact Pattern: Stale Claims at Multi-Burst Chain Seams
+
+**Category:** multi-burst coordination, sequencing artifacts, seam defects, new finding class
+
+**Context:** FB106 discovered that ADR-057 §D7 still stated "no story yet exists" for the plan-time E-QUERY-009 gate despite S-REQUIRED-COL-GATE-001 having been created in FB104 (D-2075). This was registered as DRIFT-ADR057-D7-STALE-OBLIGATION-001.
+
+**Why neither burst was wrong:** FB103 (architect) correctly refused to invent a story ID that did not exist — the OPEN OBLIGATION language was the right response at that point. FB104 (story-writer) correctly created S-REQUIRED-COL-GATE-001 to fulfill the obligation. Each burst made the correct local decision given its context. Neither burst had a scope obligation to update ADR-057 §D7: FB103's scope was the ADR itself (the OPEN OBLIGATION was the closing step); FB104's scope was the new story (linking back to the ADR was the architect's responsibility, not the story-writer's).
+
+**The seam defect class:** When two consecutive bursts each make a locally-correct decision that leaves a cross-artifact reference stale, the staleness emerges at the SEAM between the two bursts — after both are complete. This is distinct from a simple "forgot to update" defect: the update obligation belonged to neither burst individually because it required awareness of BOTH bursts' outputs simultaneously.
+
+**Detection:** Sequencing artifacts are invisible to single-pass adversarial review of any individual artifact, because each artifact is locally consistent with the state of the other artifact AT THE TIME THAT ARTIFACT WAS LAST UPDATED. They are only visible to a cross-artifact consistency check run AFTER the second burst completes.
+
+**New finding class registered:** SEQUENCING-ARTIFACT — a stale cross-artifact reference that arose correctly from the sequencing of two individually-correct bursts rather than from a mistake in either burst. The remediation is a third burst that updates the lagging artifact to reflect the now-complete cross-artifact state.
+
+**Prevention discipline:** When a burst closes an OPEN OBLIGATION (creates a story or artifact that was previously cited as "not yet existing"), the closing burst MUST sweep ALL existing artifacts that contain the "not yet exists" language and update them to reference the newly-created artifact. The architect who authored the OPEN OBLIGATION in ADR-057 §D7 should have been in the scope of FB104 as a co-leg — or FB104's dispatch brief should have explicitly assigned that update to the story-writer or state-manager. Going forward, the orchestrator MUST include "sweep all artifacts containing 'no story yet exists' / 'not yet scoped' language referencing this obligation" in the dispatch brief for any burst that creates a story fulfilling an OPEN OBLIGATION.
+
+**Generalized principle:** Any burst that creates an artifact cited as "pending" in existing documents has a seam obligation: find and update every document that referred to the pending artifact as absent or not-yet-created. This is a dimension 9a (named-twin) variant: the "twin" is the set of all documents that cited the now-created artifact by its absence.
+
+**Source:** D-2078 FB106 state-manager closing burst (2026-07-31). Pattern family: multi-burst coordination, sequencing artifacts, seam defects. First codification of the SEQUENCING-ARTIFACT finding class.

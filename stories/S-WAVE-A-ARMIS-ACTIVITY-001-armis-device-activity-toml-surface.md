@@ -2,8 +2,8 @@
 document_type: story
 story_id: S-WAVE-A-ARMIS-ACTIVITY-001
 title: "Armis Device Activity TOML Surface — Add armis_device_activity Table to Spec"
-version: "1.9"
-modified: "2026-07-30"
+version: "2.0"
+modified: "2026-07-31"
 status: ready
 producer: story-writer
 phase: 3
@@ -72,7 +72,7 @@ path_template = "/api/v1/devices/${query.filter.device_id}/activity"
 The `${query.filter.*}` namespace is pre-seeded from `FetchContext.query_filters` before
 the steps loop begins. When a query carries `WHERE device_id = 'X'` (a filter push-down),
 `query.filter.device_id` interpolates the device ID into the path_template at request time.
-The `device_id` column must declare `options = ["INDEX"]` to enable filter extraction.
+The `device_id` column must declare `options = ["REQUIRED"]` (mandatory-filter annotation: sensor API requires this parameter; Wave-A routing is annotation-agnostic per ADR-057 §D5).
 
 Per-record fan-out (iterating over all devices from a prior step) is documented as a
 genuine capability gap in **ADR-057 §D6** — it requires a separate cross-sensor story
@@ -168,21 +168,24 @@ This AC also closes the BC-2.02.006 EC-02-014 deferral sentinel — the
 
 Anchor: RG-001 (`test_armis_toml_armis_device_activity_table_declared_with_correct_step_block`).
 
-### AC-002: `device_id` column carries `options = ["INDEX"]`
+### AC-002: `device_id` column carries `options = ["REQUIRED"]`
 (traces to BC-2.02.014 precondition 2)
 
 The `device_id` column in the `armis_device_activity` table MUST declare
-`options = ["INDEX"]`, declaring push-down eligibility per the BC-2.11.007 taxonomy
-(REQUIRED / INDEX / ADDITIONAL) for future T2 (`classify_predicates §classify_predicates`)
-integration. The current routing is annotation-agnostic: `predicate_tree_to_filter_map
-§predicate_tree_to_filter_map` collects all case-sensitive `field = 'string'` equality
-predicates regardless of column annotation into the `FilterMap`, which materializes as
-`FetchContext.query_filters`; `execute_impl §execute_impl` then pre-seeds
-`step_vars["query.filter.device_id"]` from that map (ADR-057 §D4). ADR-033 T1 is NOT
-the authority here — ADR-033 T1 governs datetime time-window extraction only
-(authority: `extract_time_window_from_ast §extract_time_window_from_ast`).
+`options = ["REQUIRED"]`, declaring that the sensor API requires this parameter —
+queries cannot execute without it (BC-2.11.007 §Postconditions, REQUIRED taxonomy entry;
+annotation corrected from `INDEX` per ADR-057 §D5 / §D7). The current Wave-A routing is
+annotation-agnostic: `predicate_tree_to_filter_map §predicate_tree_to_filter_map` collects
+all case-sensitive `field = 'string'` equality predicates regardless of column annotation
+into the `FilterMap`, which materializes as `FetchContext.query_filters`;
+`execute_impl §execute_impl` then pre-seeds `step_vars["query.filter.device_id"]` from
+that map (ADR-057 §D4). ADR-033 T1 is NOT the authority here — ADR-033 T1 governs
+datetime time-window extraction only (authority: `extract_time_window_from_ast
+§extract_time_window_from_ast`). The `REQUIRED` annotation enables a future plan-time
+E-QUERY-009 gate once `classify_predicates §classify_predicates` is wired in
+(OPEN OBLIGATION — `S-REQUIRED-COL-GATE-001` per ADR-057 §D7).
 
-Anchor: RG-002 (`test_armis_toml_armis_device_activity_device_id_column_has_index_option`).
+Anchor: RG-002 (`test_armis_toml_armis_device_activity_device_id_column_has_required_option`).
 
 ### AC-003: All five `ActivityRecord` columns declared with correct types (SAP-2)
 (traces to BC-2.02.014 postcondition 4 — emitted record schema)
@@ -348,10 +351,10 @@ None — this story produces no user-facing UI changes. The surface changes are:
   Mirrors existing column-assertion patterns in `crates/prism-spec-engine/tests/` or
   `crates/prism-sensors/tests/`.)_
 
-- [ ] **RG-002**: `test_armis_toml_armis_device_activity_device_id_column_has_index_option` — AC-002
+- [ ] **RG-002**: `test_armis_toml_armis_device_activity_device_id_column_has_required_option` — AC-002
   _(Parses `armis.sensor.toml`; asserts the `armis_device_activity` table has a `device_id`
-  column that declares `options = ["INDEX"]`; confirms push-down eligibility per BC-2.11.007
-  taxonomy and ADR-057 §D4. Test fails before T-IMPL-01.)_
+  column that declares `options = ["REQUIRED"]`; confirms mandatory-filter annotation per
+  BC-2.11.007 §Postconditions and ADR-057 §D5. Test fails before T-IMPL-01.)_
 
 - [ ] **RG-003**: `test_armis_toml_armis_device_activity_has_all_five_activity_record_columns` — AC-003
   _(Parses `armis.sensor.toml`; asserts `armis_device_activity` table has exactly five
@@ -455,12 +458,14 @@ ocsf_class = "network_activity"
   ocsf_field = "raw_extensions.activity_id"
 
   # SAP-2 verified: device_id — ActivityRecord.device_id: String
-  # INDEX option enables push-down extraction: WHERE device_id = '...' → FetchContext.query_filters["device_id"]
+  # REQUIRED annotation: sensor API requires this parameter; queries cannot execute without it
+  # (BC-2.11.007 §Postconditions); annotation corrected from INDEX per ADR-057 §D5 / §D7
+  # Wave-A enforcement: step-level required_filters gate (E-SPEC-029, ADR-057 §D7)
   [[tables.columns]]
   name = "device_id"
   column_type = "string"
   ocsf_field = "device.uid"
-  options = ["INDEX"]
+  options = ["REQUIRED"]
 
   # SAP-2 verified: activity_type — ActivityRecord.activity_type: String
   [[tables.columns]]
@@ -654,7 +659,9 @@ a new dependency, the build MUST fail.
 
 4. **Variable injection grammar — confirmed:** Use `${query.filter.device_id}` syntax
    (filter-push-down namespace, ADR-057 §D4). The `device_id` column MUST declare
-   `options = ["INDEX"]` to enable filter extraction. Do NOT use the superseded
+   `options = ["REQUIRED"]` (mandatory-filter annotation; sensor API requires this
+   parameter per BC-2.11.007 §Postconditions; annotation corrected from `INDEX` per
+   ADR-057 §D5 / §D7; Wave-A routing is annotation-agnostic). Do NOT use the superseded
    `${variable.*}` syntax (phantom — zero workspace occurrences).
    Anchor: AC-002 / RG-002.
 
@@ -708,6 +715,7 @@ None assigned yet. To be added when product-owner authors VP entries for the
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.0 | 2026-07-31 | story-writer | FB106 story leg — F-WASE-P72-HIGH-001 annotation propagation into ACTIVITY-001. `device_id` column annotation corrected from `options = ["INDEX"]` to `options = ["REQUIRED"]` at all LIVE normative sites (9 sites). LIVE sites updated: (1) §Architect Adjudication prose annotation claim; (2) AC-002 heading; (3) AC-002 body — semantics updated from INDEX/push-down-eligibility to REQUIRED/mandatory-filter (sensor API requires parameter; OPEN OBLIGATION note added for `S-REQUIRED-COL-GATE-001` plan-time E-QUERY-009 gate per ADR-057 §D7); (4) AC-002 anchor test name: `test_armis_toml_armis_device_activity_device_id_column_has_index_option` → `test_armis_toml_armis_device_activity_device_id_column_has_required_option`; (5) RG-002 test name in Red Gate list — same rename; (6) RG-002 description — `options = ["INDEX"]` → `options = ["REQUIRED"]`, "push-down eligibility" → "mandatory-filter annotation"; (7) T-IMPL-01 TOML comment — INDEX-semantics single-line comment replaced with 4-line REQUIRED annotation comment matching BC-2.02.014 §TOML Contract copy-source; (8) T-IMPL-01 TOML block `options = ["INDEX"]` → `options = ["REQUIRED"]`; (9) §Architecture Compliance Rules rule 4 — annotation corrected with mandatory-filter semantics note. IMMUTABLE: changelog rows v1.0–v1.9 preserved (POL-1). SAC-1: 8 RGs / 8 ACs unchanged; density-check paragraph unmodified. POL-29: (9a) sibling sweep — SPEC-001 grep for `options = [`, `INDEX`, `has_index_option`, `device_id.*activity` returned 0 hits; REMEDIATION-001 same grep returned 0 hits; both siblings CLEAR. (9b) T-IMPL-01 TOML block now agrees with BC-2.02.014 §TOML Contract at REQUIRED annotation + 4-line comment; `crates/prism-sensors/specs/armis.sensor.toml` is implementer-owned, not edited. (9c) AC-002 MUST anchored to RG-002 (`test_armis_toml_armis_device_activity_device_id_column_has_required_option`); Architecture Compliance rule 4 MUST anchored to AC-002 / RG-002; no new unanchored MUSTs introduced. |
 | 1.9 | 2026-07-30 | story-writer | FB101 story leg — close F-WASE-P71-LOW-002. T-IMPL-02 ratification date corrected: "ratified 2026-07-27" → "ratified 2026-07-30". ADR-057 §D7 heading reads "ratified 2026-07-30"; 2026-07-27 is the ADR's original acceptance date, not §D7's ratification date. POL-29 9a: SPEC-001 twin checked — T-IMPL-02 is ACTIVITY-001-specific; no §D7 ratification cite in SPEC-001; no asymmetry introduced. 9b: no downstream copy target affected by this date correction. 9c: no new MUSTs introduced. |
 | 1.8 | 2026-07-30 | story-writer | FB96 story leg — close F-WASE-P70-HIGH-002 (T-IMPL-04 Files `state.rs`→`clone.rs`; Problem paragraph now cites `clone.rs` + all three construction paths `new_with_seed §new_with_seed`/`new_with_seed_anchored §new_with_seed_anchored`/`new_with_scenario §new_with_scenario`; T-IMPL-04(b) updated to ALL THREE paths; §FSR `state.rs` row replaced by `clone.rs` row; §Token Budget `state.rs §ArmisState` replaced by `clone.rs` row), F-WASE-P70-HIGH-005 (T-IMPL-02 replaced: "candidate approaches (non-exhaustive)" removed; ADR-057 §D7 ratified mechanism with `#[serde(default)] pub required_filters: Vec<String>` on `FetchStep §FetchStep`, pre-flight gate in `execute_impl §execute_impl` before `seed_missing_query_filter_vars`; `required_filters = ["device_id"]` added to T-IMPL-01 TOML step block; `armis.sensor.toml` + `spec_parser.rs` added to T-IMPL-02 Files; `spec_parser.rs` row added to §FSR and §Token Budget; EXPECTED_SYMBOLS no-new-entry note), F-WASE-P70-MED-003 (AC-005 `dev-001`→`d-001`; RG-005 `"dev-001"`→`"d-001"`; RG-006 `"dev-001"`→`"d-001"`, 3 sites), F-WASE-P70-MED-010 (AC-004 and EC-001 bind to `status_code = 0` + E-SPEC-029; remove "or equivalent"; RG-004 updated; §Architecture Compliance rule 5 updated), F-WASE-P70-LOW-001 (AC-007 `'no-activity-device'`→`'no-such-device'`; RG-007 `'empty-device'`→`'no-such-device'`, cite TV-BC-2.02.014-003). De-pinning (POL-39 early adoption): BC-2.02.006 `v1.15` and BC-2.02.014 `v1.6` removed from §Behavioral Contracts table version column; `ADR-057 v0.7 §D4` de-pinned at 2 live body sites (§Code-Reading Verdict, §Previous Story Intelligence); T-IMPL-01 BC/ADR prose de-pinned (`BC-2.02.014 v1.6 §TOML Contract` → `BC-2.02.014 §TOML Contract`, `ADR-057 v0.7 §D5` → `ADR-057 §D5`); §Token Budget ADR-057/BC-2.02.014/BC-2.02.006 version pins removed; §Token Budget total ~13,300→~13,600. POL-29 9a: SPEC-001 twin updated in same burst. 9b: T-IMPL-01 TOML block remains verbatim copy-source from BC-2.02.014 §TOML Contract (now including `required_filters`); 9b CLEAR. 9c: all new MUSTs carry AC+RGT anchors. |
 | 1.7 | 2026-07-29 | story-writer | FB93 leg 2 — advance BC-2.02.006 pin v1.13 → v1.15 at two live sites (§Behavioral Contracts table row, §Token Budget Estimate row) and BC-2.02.014 pin v1.4 → v1.6 at three live sites (§Behavioral Contracts table row, T-IMPL-01 BC cross-reference prose, §Token Budget Estimate row). Pin-only; no mechanism or design content changed in either BC between previous and new versions (BC→story anchor-form conversion and convention note addition only). §Behavioral Contracts relevance cells for both BCs verified accurate at new versions; no description corrections needed. T-IMPL-01 TOML block (copy-source from BC-2.02.014 §TOML Contract) unchanged — 9b CLEAR. POL-29 9a: SPEC-001 twin updated in same burst; both now pin BC-2.02.006 at v1.15. 9c: no new MUSTs introduced. |
