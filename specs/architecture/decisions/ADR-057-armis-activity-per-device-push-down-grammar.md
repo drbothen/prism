@@ -4,8 +4,8 @@ adr_id: "ADR-057"
 title: "Armis Per-Device Activity Surface — Push-Down Grammar for Parameterized Path Templates"
 status: accepted
 date: "2026-07-27"
-modified: "2026-07-30"
-version: "1.0"
+modified: "2026-07-31"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-06, SS-07, SS-12]
 supersedes: null
@@ -14,7 +14,7 @@ amends: null
 anchor_stories:
   - S-WAVE-A-ARMIS-ACTIVITY-001  # §Authority verified: "ADR-057 (accepted 2026-07-27)" — governs ${query.filter.*} push-down grammar for parameterized path templates
 related_adrs: [ADR-028, ADR-033, ADR-053, ADR-056]
-related_bcs: [BC-2.02.006, BC-2.02.014, BC-2.16.002]
+related_bcs: [BC-2.02.006, BC-2.02.014, BC-2.11.007, BC-2.16.002]
 inputs:
   - crates/prism-spec-engine/src/interpolation.rs
   - crates/prism-spec-engine/src/pipeline.rs
@@ -320,32 +320,44 @@ variables_produced = []
 required_filters = ["device_id"]
 ```
 
-And the `device_id` column MUST declare push-down eligibility:
+And the `device_id` column MUST declare the mandatory-filter annotation:
 
 ```toml
 [[tables.columns]]
 name = "device_id"
 column_type = "string"
 ocsf_field = "device.uid"
-options = ["INDEX"]
+options = ["REQUIRED"]
 ```
 
-`options = ["INDEX"]` declares `device_id` push-down eligible per the BC-2.11.007
-push-down taxonomy (REQUIRED / INDEX / ADDITIONAL classification) and future T2
-(`classify_predicates §classify_predicates`) integration. The current routing path is
-annotation-agnostic: `predicate_tree_to_filter_map §predicate_tree_to_filter_map`
-collects all case-sensitive `field = 'string'` equality predicates regardless of column
-annotation into the `FilterMap`, which materializes as `FetchContext.query_filters`;
-`execute_impl §execute_impl` then pre-seeds `step_vars["query.filter.device_id"]` from
-that map (this ADR §D4). ADR-033 T1 is NOT the authority here — ADR-033 T1 governs
-datetime time-window extraction into `QueryParams.start_time`/`end_time` only
+`options = ["REQUIRED"]` declares `device_id` as a mandatory filter per the BC-2.11.007
+push-down taxonomy: "The sensor API requires this parameter; queries cannot execute without
+it." This annotation corrects the prior `options = ["INDEX"]` (F-WASE-P72-HIGH-001
+adjudication 2026-07-31): `INDEX` means "push-down eligible, not mandatory," which
+directly contradicts BC-2.02.014 §Invariants ("queries without this predicate are errors,
+not empty result sets"). `REQUIRED` is the semantically correct annotation; it also enables a future plan-time
+E-QUERY-009 gate once `classify_predicates §classify_predicates` is wired into the
+pre-fan-out execution path (BC-2.11.007 §REQUIRED Column Runtime Mechanism / DI-021).
+That wiring requires a dedicated story not yet created — the obligation is recorded open
+in §D7 Mechanism Layering.
+
+The current routing path is annotation-agnostic: `predicate_tree_to_filter_map
+§predicate_tree_to_filter_map` collects all case-sensitive `field = 'string'` equality
+predicates regardless of column annotation into the `FilterMap`, which materializes as
+`FetchContext.query_filters`; `execute_impl §execute_impl` then pre-seeds
+`step_vars["query.filter.device_id"]` from that map (this ADR §D4). The annotation
+change does NOT affect wave-A behavior. ADR-033 T1 is NOT the authority here — ADR-033
+T1 governs datetime time-window extraction into `QueryParams.start_time`/`end_time` only
 (authority: `extract_time_window_from_ast §extract_time_window_from_ast`).
 
 Anchor: All three MUSTs above (table header, step block including `required_filters`, `device_id` column) resolve in
 `S-WAVE-A-ARMIS-ACTIVITY-001` AC-001 / RG-001
 (`test_armis_toml_armis_device_activity_table_declared_with_correct_step_block`).
-The `device_id` column `options = ["INDEX"]` obligation also resolves in AC-002 / RG-002
-(`test_armis_toml_armis_device_activity_device_id_column_has_index_option`).
+The `device_id` column `options = ["REQUIRED"]` annotation obligation also resolves in
+AC-002 / RG-002; the test name must update from
+`test_armis_toml_armis_device_activity_device_id_column_has_index_option` to assert
+`REQUIRED` — this is downstream propagation from F-WASE-P72-HIGH-001 adjudication
+(2026-07-31); not performed in this burst per FB103 scope limits.
 The `required_filters = ["device_id"]` TOML declaration is covered by AC-001 / RG-001;
 the behavioral gate (hard error on absent `device_id`) resolves in AC-004 / RG-004
 (`test_armis_device_activity_absent_device_id_filter_returns_hard_error`) per §D7.
@@ -422,10 +434,11 @@ above.
 ### Why this mechanism over the alternatives
 
 **INDEX-column heuristic (rejected):** Detecting required filters from `options = ["INDEX"]`
-on columns is semantically wrong — `INDEX` means "push-down eligible," not "required."
+on columns is semantically wrong — `INDEX` means "push-down eligible, not mandatory."
 Many INDEX columns have optional semantics (CrowdStrike `_fql`, Armis `aql`). Conflating
 push-down eligibility with required-filter semantics would produce false positives on
-those surfaces.
+those surfaces. This rejection is specific to INDEX; the `REQUIRED` annotation — which
+carries the correct mandatory semantic — is analysed and adopted below.
 
 **Engine-level sensor-conditional logic (rejected):** Hard-coding an Armis-specific check
 in engine code (e.g., `if table_name == "armis_device_activity"`) violates ADR-023 §Rule 5
@@ -434,6 +447,56 @@ in engine code (e.g., `if table_name == "armis_device_activity"`) violates ADR-0
 **Per-table flag (rejected):** A `required_filters` field at the `[[tables]]` level rather
 than `[[tables.steps]]` level would miss multi-step cases where only one step needs a
 required filter. Per-step granularity is correct.
+
+**`ColumnOptions::Required` / DI-021 / E-QUERY-009 (adopted for annotation; plan-time
+enforcement requires a dedicated future story — OPEN OBLIGATION, see §D7 Mechanism
+Layering):** `ColumnOptions::Required` is the semantically correct annotation for
+a mandatory filter per BC-2.11.007 taxonomy: "The sensor API requires this parameter;
+queries cannot execute without it." DI-021 contracts that REQUIRED columns are enforced at
+query-plan time with E-QUERY-009 before any API calls. This IS the correct long-term gate.
+The `device_id` column MUST carry `options = ["REQUIRED"]` — see corrected §D5 TOML block.
+Anchor: `S-WAVE-A-ARMIS-ACTIVITY-001` AC-002 / RG-002.
+
+**Why not as the sole mechanism for wave-A:** The plan-time E-QUERY-009 enforcement
+requires `classify_predicates §classify_predicates` to be wired into the pre-fan-out
+execution path with `ColumnSpec` available — a step that requires a dedicated story not
+yet created. (The code scope note in `predicate_tree_to_filter_map §predicate_tree_to_filter_map`
+describes this work with the phrase "deferred to wave-5"; that is a code TODO, not a story
+anchor — inheriting it into normative ADR text would convert a code TODO into an untracked
+architectural obligation. See §D7 Mechanism Layering open obligation note.) Until that
+story ships, the E-QUERY-009 gate is unimplemented — relying on Mechanism A alone would
+leave the absent-filter silent-empty-result defect in `armis_device_activity` unaddressed
+for wave-A delivery.
+
+### Mechanism Layering (A and B are complementary)
+
+Both mechanisms operate at different architectural layers and are intentional:
+
+| Layer | Mechanism | Error Code | Timing | Status |
+|-------|-----------|------------|--------|--------|
+| Query plan time | `ColumnOptions::Required` + `classify_predicates §classify_predicates` (BC-2.11.007 §REQUIRED Column Runtime Mechanism / DI-021) | E-QUERY-009 | Before fan-out | **OPEN OBLIGATION** — future story not yet created (see note below) |
+| Step execution time | `required_filters` on `FetchStep §FetchStep` (this ADR §D7) | E-SPEC-029 | Before HTTP dispatch per step | Wave-A (active) |
+
+**Precedence:** when the plan-time E-QUERY-009 gate is implemented (see open obligation
+note below), E-QUERY-009 fires first; E-SPEC-029 (`required_filters`) remains as
+defense-in-depth at step execution time. The two error codes serve genuinely distinct
+architectural layers — no consolidation is required or appropriate. Once the plan-time
+gate is implemented, a query without `device_id` sees E-QUERY-009 at plan time; if
+somehow the plan-time gate is bypassed and the step executes, E-SPEC-029 provides the
+final backstop.
+
+**Plan-time E-QUERY-009 enforcement — OPEN OBLIGATION (no story ID yet):** Mechanism A
+requires a dedicated story to wire `classify_predicates §classify_predicates` into the
+pre-fan-out execution path with `ColumnSpec` available at that stage. No such story exists
+at the time of this writing (2026-07-31). The code scope note in
+`predicate_tree_to_filter_map §predicate_tree_to_filter_map` describes this as "deferred to
+wave-5" — that is a code TODO, not a story anchor; this ADR cannot cite a code comment as
+a tracked obligation. This obligation MUST be attached to a real story ID before it is
+considered tracked. Prerequisites for that story: ADR-033 T2 integration (wiring
+`ColumnSpec` into the pre-fan-out stage — itself unanchored to a real story). Proposed
+story scope reported to orchestrator in FB103 adjudication (2026-07-31); story-writer
+dispatch pending. Until that story ships, Mechanism B (`required_filters` / E-SPEC-029)
+is the ONLY active enforcement path.
 
 ### `#[non_exhaustive]` obligation
 
@@ -482,7 +545,8 @@ by the FB95 `error-taxonomy.md §SPEC table` amendment). Authority: `error-taxon
 
 **C1 (UNBLOCK):** `S-WAVE-A-ARMIS-ACTIVITY-001` is unblocked. The TOML grammar to
 use is `path_template = "/api/v1/devices/${query.filter.device_id}/activity"` with
-`device_id` column `options = ["INDEX"]`. Product-owner may now author the BCs;
+`device_id` column `options = ["REQUIRED"]` (see §D5; corrected from `INDEX` by
+F-WASE-P72-HIGH-001 adjudication 2026-07-31). Product-owner may now author the BCs;
 story-writer may update the story to `status: ready` once BCs are authored and Red Gate
 list is enumerated per SAC-1.
 
@@ -534,6 +598,8 @@ by FB95 `error-taxonomy.md §SPEC table` amendment). Discharge anchor:
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.2 | 2026-07-31 | architect | FB103 continuation (orchestrator correction) — POL-29 9c: v1.1's "wave-5" deferral references in normative text were unanchored wave references, not real story IDs, violating Canonical Principle Rule 3 and POL-29 9c. Ground truth confirmed: no existing story covers the absent-REQUIRED-filter → E-QUERY-009 enforcement gate (S-3.02 covers `classify_predicates` classification only; S-DEMO-QUERY-PUSHDOWN-001 explicitly defers T2 integration to "wave-6 future story with superseding ADR"; S-QUERY-SCOPE-PARAMS-001 out-of-scope section similarly defers T2 with no story ID). Option (b) taken. All six wave-5 references in normative body replaced with explicit OPEN OBLIGATION language. §D7 Mechanism Layering: (1) table Status cell changed from "Wave-5 (deferred)" to "OPEN OBLIGATION — future story not yet created"; (2) precedence prose updated to remove wave-5 references; (3) new "Plan-time E-QUERY-009 enforcement — OPEN OBLIGATION" paragraph added naming the defect explicitly, explaining the code-TODO origin, and recording that prerequisites (ADR-033 T2 story) are also unanchored. §D5 annotation prose updated to remove wave-5 forward reference. §D7 fourth alternative header updated. §D7 rationale paragraph updated to explicitly document why code TODO cannot serve as story anchor. Proposed follow-up story scope reported to orchestrator for story-writer dispatch. Transferable lesson: code scope notes that say "deferred to wave-N" are code TODOs; quoting them in ADR normative text without a real story ID converts a code TODO into an untracked architectural obligation. Corrected 9c verdict: §D5 REQUIRED annotation → anchored to AC-002/RG-002 (CLEAN); plan-time E-QUERY-009 enforcement → OPEN OBLIGATION recorded, no phantom ID introduced (COMPLIANT — obligation explicit, not phantom-anchored). |
+| 1.1 | 2026-07-31 | architect | FB103 — F-WASE-P72-HIGH-001 adjudication. §D7 alternatives analysis corrected: prior text rejected INDEX (correct) but was entirely silent about `ColumnOptions::Required`, which has a semantically distinct meaning (BC-2.11.007: "the sensor API requires this parameter"). Decision: both mechanisms are correct and complementary at distinct architectural tiers — plan-time E-QUERY-009 (BC-2.11.007 §REQUIRED Column Runtime Mechanism / DI-021, wave-5 deferred) vs step-execution-time E-SPEC-029 (`required_filters` on `FetchStep §FetchStep`, wave-A active). §D7 "Mechanism Layering" subsection added contracting precedence (E-QUERY-009 fires first when wave-5 lands; E-SPEC-029 remains as defense-in-depth). §D5 TOML block: `device_id` annotation corrected from `options = ["INDEX"]` to `options = ["REQUIRED"]`; INDEX means "push-down eligible, not mandatory" which contradicts BC-2.02.014 §Invariants ("queries without this predicate are errors, not empty result sets"); REQUIRED is the semantically correct annotation. Annotation change does not affect wave-A behavior (annotation-agnostic routing in `predicate_tree_to_filter_map §predicate_tree_to_filter_map`). §D5 annotation prose updated. C1 updated. `related_bcs` frontmatter: BC-2.11.007 added. `modified` updated to 2026-07-31. POL-29: 9a — ADR-050..056 Wave-A family swept; ADR-056 CLEAR (zero `options = ["INDEX"]` / `options = ["REQUIRED"]` for any required-filter column). 9b — §D5 TOML block is authoritative copy-source for BC-2.02.014 §TOML Contract and `S-WAVE-A-ARMIS-ACTIVITY-001` T-IMPL-01; annotation change propagates to both targets (reported, not performed — FB103 scope limits). 9c — no new unanchored MUSTs; `REQUIRED` annotation obligation anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` AC-002 / RG-002; test name update is downstream propagation. |
 | 1.0 | 2026-07-30 | architect | FB99 — F-WASE-P71-HIGH-002: §D7 "Canonical error variant" subsection and §C7 updated to record E-SPEC-029 as REGISTERED and mark both obligations DISCHARGED. Ground truth: E-SPEC-029 registered in `error-taxonomy.md §SPEC table` (FB95 2026-07-30); BC-2.02.014 "or equivalent" eliminated at all four sites. POL-39: no version pins introduced in new text. POL-29 9a: ADR-050..056 Wave-A family swept — ADR-056 carries no E-SPEC-NNN placeholder or required-filter content (grep CLEAR). 9b: `error-taxonomy.md §SPEC table` E-SPEC-029 row cites `ADR-057 §D7 / §C7` by section anchor (version-free); §D7 section name unchanged after edit — downstream copy agrees. 9c: both MUST obligations now carry explicit DISCHARGED markers with anchor `S-WAVE-A-ARMIS-ACTIVITY-001` AC-004 / RG-004; no new unanchored MUSTs introduced. |
 | 0.9 | 2026-07-30 | state-manager | FB97 — F-WASE-P70-LOW-004 (partial): `input-hash: ""` → `input-hash: "5439312"` (SHA-256 first-7 of concatenated declared inputs: interpolation.rs + pipeline.rs + spec_parser.rs + crowdstrike.sensor.toml + armis.sensor.toml + S-WAVE-A-ARMIS-ACTIVITY-001 story file). FB94 was instructed to populate input-hash; missed. POL-29 9a: frontmatter-only change; no body content altered; BC-2.02.014 and BC-2.02.006 carry no `input-hash:` body references — no asymmetry. 9b: input-hash is not copy-source for any downstream artifact. 9c: no MUSTs affected. |
 | 0.8 | 2026-07-30 | architect | FB94 — FINDING 1 (F-WASE-P70-HIGH-005): §D7 added, ratifying the required-filter gate mechanism. Decision: `#[serde(default)] pub required_filters: Vec<String>` field on `FetchStep §FetchStep` (existing `#[non_exhaustive]` type already in `EXPECTED_SYMBOLS`; adding a field to an existing type does NOT require a new entry). Gate runs in `execute_impl §execute_impl` before `seed_missing_query_filter_vars §seed_missing_query_filter_vars`; absent required filter returns `SpecEngineError::HttpRequestFailed` with `status_code = 0`; canonical error — "or equivalent" escape hatch eliminated. Alternatives rejected: INDEX-column heuristic (conflates push-down eligibility with required semantics), engine-level sensor-conditional (violates ADR-023 §Rule 5 / POL-36), per-table flag (wrong granularity for multi-step cases). §D5 "Step block (MUST)" updated: `required_filters = ["device_id"]` added; anchor statement updated to reference §D7. C6 tightened (references ratified mechanism). C7 added: product-owner MUST register E-SPEC-NNN in `error-taxonomy.md`. FINDING 2 (F-WASE-P70-MED-002): §D5 downstream-consumer sentence corrected — wrong ID form `TV-014-001 through TV-014-006` (six, phantom) replaced with canonical `TV-BC-2.02.014-001 through TV-BC-2.02.014-005` (five, verified in BC-2.02.014 §Canonical Test Vectors); AC/RG enumeration adds AC-004/AC-008/RG-008 (FB91 additions, previously omitted). POL-29 9a: ADR-053/054/055/056 swept — none carry `required_filters` content; CLEAR. 9b: §D5 step block is copy-source for BC-2.02.014 §TOML Contract (product-owner) and `S-WAVE-A-ARMIS-ACTIVITY-001` T-IMPL-01 (story-writer) — both must receive `required_filters = ["device_id"]` in same cascade. 9c: all MUSTs anchored — TOML field MUST to AC-001/RG-001; behavioral gate MUST to AC-004/RG-004; no unanchored MUSTs introduced. |

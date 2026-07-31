@@ -4421,3 +4421,27 @@ In all three cases, the dispatched burst's work is correct. The gap is that the 
 **Transferable lesson for future adversary passes:** When scoring a burst as "POL-29 dimension-9a discharged," verify that the discharge report names the twin artifact AND asserts its current state — not merely that the changed string was grepped in all the dispatched files. A discharge report that says "sibling swept — string not present in twin" has confirmed the dimension-9a failure condition, not the clean condition. The CORRECT discharge report says "sibling swept — twin carries `anchor_stories: [...]` (verified from frontmatter) / twin carries VP-161 in `verification_properties:` (verified from story body)."
 
 **Source:** F-WASE-P72B-HIGH-001, F-WASE-P72B-HIGH-002, F-WASE-P72B-HIGH-003 (D-2073, 2026-07-30). Pattern family: TD-VSDD-097 §three-dimension checklist dimension 9a. Prior codified structural intervention for this dimension class: TREND-POL29-SIBLING-SWEEP-001 (D-2051/pass-66, structural intervention complete at D-2052). That intervention defined the three dimensions; this lesson documents the first 3-recurrence event AFTER the structural definition, which meets the threshold for a second-order intervention (the dispatch-level scope-instruction gap).
+
+---
+
+## Lesson 115 — Unanchored wave-granularity deferrals: quoting a code TODO verbatim into normative ADR text converts an implementation note into an untracked architectural obligation [codified]
+
+**Category:** deferral discipline, POL-29 9c (mandate-anchor), Canonical Principle Rule 3, ADR authoring
+
+**Context:** FB103 found three live instances of the same defect class: a deferral recorded against a *wave* rather than a *story ID*, rendering it untraceable by `grep` against `.factory/stories/*.md` frontmatter and causing it to be re-minted as a finding on every subsequent adversary pass. The three instances:
+
+1. **ADR-057 §D7 pre-fix wave-5 sites (corrected in this burst, D-2074):** Six occurrences of "wave-5" or "deferred to wave-5" in normative ADR-057 §D7/§D5 body text. All six replaced with explicit OPEN OBLIGATION language. Ground-truth verification confirmed: `S-3.02` covers `classify_predicates §classify_predicates` classification only; `S-DEMO-QUERY-PUSHDOWN-001` explicitly defers ADR-033 T2 integration to "wave-6 future story with superseding ADR"; `S-QUERY-SCOPE-PARAMS-001` out-of-scope section defers T2 with no story ID. No existing story covers the absent-REQUIRED-filter → E-QUERY-009 enforcement gate.
+
+2. **`S-DEMO-QUERY-PUSHDOWN-001` deferral of ADR-033 T2 to "wave-6 scope — Future ADR + story" (still open):** A story file that defers an architectural obligation to "wave-6" with no story ID attached. Cannot be grepped from story frontmatter; will be re-surfaced on every pass that reaches this story.
+
+3. **`S-QUERY-SCOPE-PARAMS-001` out-of-scope section deferring ADR-033 T2 with no story ID (still open):** Same pattern in a different story file.
+
+**Transferable mechanism:** The ADR-057 instance originated by quoting a *code* scope note (`predicate_tree_to_filter_map §predicate_tree_to_filter_map`: "deferred to wave-5 when ColumnSpec is available at the pre-fan-out stage") verbatim into normative ADR text. A code TODO lives in an implementation file: it is discoverable by the compiler, grepped by reviewers, and visible to any IDE navigation. The same words in an ADR become a normative architectural obligation anchored to nothing — invisible to `grep .factory/stories/*.md`, invisible to POL-29 9c sweeps, and reliably re-minted as a finding every adversary pass.
+
+**Operational test (POL-29 9c):** If the deferral target cannot be grepped from `.factory/stories/*.md` frontmatter as a real story ID, it is not a trackable anchor. A wave name, a phase name, or a code comment is not a story anchor.
+
+**Going-forward rule:** When an ADR section describes work that is "deferred" or "future scope," the text MUST either: (a) cite a real existing story ID in `.factory/stories/` that covers the work, OR (b) use explicit OPEN OBLIGATION language ("no story ID yet; follow-up story required") — never a wave name, never a code-comment paraphrase. ADR authors must not copy code TODOs into normative ADR body text; a code TODO is a mutable implementation detail, while ADR normative text is a specification and governance record.
+
+**Note:** This is the third distinct codification candidate surfaced during the FB103 cascade (alongside ledger-content falsification, lesson 113, and POL-29 9a dispatch-perimeter scope, lesson 114). It may meet the TD-VSDD-097 codification threshold if two prior instances can be confirmed; orchestrator to evaluate.
+
+**Source:** F-WASE-P72-HIGH-001 adjudication (FB103 architect, D-2074, 2026-07-31). Two additional open instances: `S-DEMO-QUERY-PUSHDOWN-001` and `S-QUERY-SCOPE-PARAMS-001` wave-granularity deferrals.
