@@ -317,3 +317,13 @@ _Archived to session-checkpoints.md by D-2020 burst (state-manager keep-last-1 d
 - LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty).
 
 **NOTE: Superseded by D-2033/FB55a — HIGH-001 and HIGH-002 closed; pass-64 14/34→16/34. STATE v8.580→v8.581.**
+
+---
+
+## Archived Checkpoint: D-2081 (2026-07-31) [superseded by D-2082]
+
+**Session Resume Checkpoint (D-2081 — 2026-07-31 — FB109 state-manager closing burst: DRIFT-ADR057-D7-STALE-OBLIGATION-001 RESOLVED; ARCH-INDEX v2.293→v2.294; ADR-033 v1.0→v1.1; ADR-057 v1.2→v1.3; 4 new drift items registered; 22 cumulative open findings; develop_head aa2a5fe6e; STATE v8.629)**
+
+**RESUME IN ONE BREATH:** Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2081 — FB109 state-manager closing burst COMPLETE. DRIFT-ADR057-D7-STALE-OBLIGATION-001 (MEDIUM) RESOLVED — architect anchored ADR-057 §D7 Mechanism Layering table Status to S-REQUIRED-COL-GATE-001; false ADR-033 T2 prerequisite corrected (T1 MaterializationContext.resolved_spec_map pre-fan-out; T2 not required). ADR-033 v1.0→v1.1 (two wave-granularity deferrals corrected; version: frontmatter added). ADR-057 v1.2→v1.3 (§D7 anchored; false prerequisite corrected). ARCH-INDEX v2.293→v2.294. 4 new drift items registered (1 MEDIUM: DRIFT-S-REQUIRED-COL-GATE-001-SAC2-NOAUTH-001; 3 LOW: DRIFT-S-DEMO-QUERY-PUSHDOWN-001-SAC2-NOAUTH-001, DRIFT-PUSHDOWN-WAVE5-DEFER-CODE-001, DRIFT-ADR033-VOLATILE-CITE-001). Cumulative open findings: **22** (19→18 DRIFT-ADR057-D7 resolved; 18→22 +4 new). Lesson 123 appended (sequencing-artifact class generalized; chain-close back-reference check proposed).
+
+**NOTE: Superseded by D-2082/FB110 — F-WASE-P72-HIGH-002 RESOLVED (last HIGH pass-72 finding); BC-2.02.014 v2.0→v2.1; ACTIVITY-001 v2.0→v2.1; BC-INDEX v8.92→v8.93; STORY-INDEX v2.762→v2.763; new HIGH DRIFT-S-REQUIRED-COL-GATE-001-EMPTYVAL-001 registered. STATE v8.629→v8.630.**

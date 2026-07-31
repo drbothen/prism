@@ -4636,3 +4636,25 @@ In all three cases, the dispatched burst's work is correct. The gap is that the 
 **Transferable principle:** When closing a DRIFT item that references a newly-created artifact, verify that the newly-created artifact satisfies all structural requirements imposed by the conventions that the closing action depends on. A burst that anchors an ADR to a story implicitly depends on the story satisfying SAC-2; that dependency check should be explicit at close time, not deferred to a future adversarial pass.
 
 **Source:** D-2081 FB109 state-manager closing burst (2026-07-31). Pattern family: sequencing-artifact, multi-burst chain discipline, SAC-2 compliance, chain-close sweep, attestation accuracy.
+
+### Lesson 124 — Incomplete Contract Propagation in Remediation Chains: A Story Created Mid-Cascade Inherits Only the Contract as Understood at Authoring Time
+
+A remediation chain can propagate an *incomplete contract* forward even when every anchor is correct. A story created mid-cascade (S-REQUIRED-COL-GATE-001, created in FB104) inherits the contract scope as understood at that time — absent-key arm only. A later burst (FB110) widened BC-2.02.014 to cover the empty-string arm. The already-created story is now silently under-scoped: its SAC-1 density check reads as complete (3 ACs / 3 RGTs = correct density for the contract as originally understood), yet the widened contract has an uncovered arm.
+
+**Three seam instances in the FB103→FB104→FB109→FB110 chain:**
+
+1. **FB103→FB104 seam (Lesson 120):** ADR-057 §D7 obligation text went stale when the story was created. ADR-057 still said "no story yet exists" immediately after S-REQUIRED-COL-GATE-001 was created.
+
+2. **FB104→FB109 seam (Lesson 123):** Story created without §Authority section. ADR-057 `anchor_stories:` cannot be finalized until the story §Authority cites ADR-057 — SAC-2 bidirectional traceability incomplete.
+
+3. **FB104→FB110 seam (this lesson):** Story's AC scope inherited the absent-key framing only. Empty-value arm discovered later in a different product artifact (BC-2.02.014) by a different burst. Story silently under-scoped. Unlike Lessons 120/123, the story's anchor was correct; the coverage gap was in a contract dimension not yet defined at authoring time.
+
+**What makes this instance structurally distinct:** SAC-1 density compliance is relative to the contract as understood at authoring time. A contract that grows post-authoring leaves the story density-complete against the OLD contract. No per-artifact structural validator can detect this — it requires knowing the FULL contract across all dimensions at the current point in time.
+
+**Proposed structural mitigation:** When a fix burst contracts a new EC row (e.g., EC-014-007 in BC-2.02.014), the fixer MUST sweep all anchor stories of that BC and verify their AC/RGT density covers the new EC row. This is "EC-added → anchor-story coverage sweep," analogous to the "finding-closed → chain-close back-reference check" proposed in Lesson 123.
+
+**Cross-reference:** Lesson 119 (site-count lower bounds — finding scope is a lower bound, not a contract); Lesson 120 (multi-burst seam at FB103→FB104); Lesson 123 (chain-close back-reference check at FB104→FB109); SAC-1 (enumerated Red Gate list required per story, but relative to contract at authoring time).
+
+**Transferable principle:** SAC-1 density compliance is relative to the contract as understood at authoring time. When a new EC is contracted in a BC, all anchor stories of that BC must be swept for coverage of the new EC row. The sweep is "EC-added → anchor-story AC coverage" — it runs at the time the new EC is contracted, not deferred to a future adversarial pass.
+
+**Source:** D-2082 FB110 state-manager closing burst (2026-07-31). Pattern family: incomplete-contract propagation, cross-artifact coverage gap, AC/EC traceability, SAC-1 limits, chain-close discipline, seam discipline.

@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-WAVE-A-ARMIS-ACTIVITY-001
 title: "Armis Device Activity TOML Surface — Add armis_device_activity Table to Spec"
-version: "2.0"
+version: "2.1"
 modified: "2026-07-31"
 status: ready
 producer: story-writer
@@ -298,6 +298,33 @@ assertion: verify the serialized activity record contains all five fields at the
 
 Anchor: RG-008 (`test_armis_device_activity_seeded_mode_returns_activity_records_for_generated_device_ids`).
 
+### AC-009: Empty-string `device_id` filter returns hard error, not silent empty result
+(traces to BC-2.02.014 §Error Cases row 1 / invariant filter-required / EC-014-007)
+
+**This AC FAILS against the current engine implementation — correct Red Gate behavior.**
+
+A PrismQL query against `armis_device_activity` with `WHERE device_id = ''` (empty-string
+value) MUST produce a hard error (`SpecEngineError::HttpRequestFailed` with
+`status_code = 0`, E-SPEC-029, message `"required filter 'device_id' not provided; query requires WHERE device_id = '...' predicate"`) BEFORE issuing any HTTP request — the
+empty-value arm of `ADR-057 §D7` Rule 2 (`FetchContext.query_filters` contains `device_id`
+but its value is an empty string). Zero records are returned.
+
+This AC covers the **distinct code path** from AC-004 (absent-key arm): here
+`predicate_tree_to_filter_map §predicate_tree_to_filter_map` pushes `device_id = ''`
+into `FetchContext.query_filters["device_id"] = ""` — the key IS present with an
+empty-string value; `seed_missing_query_filter_vars §seed_missing_query_filter_vars`'s
+`or_insert` path is NOT taken (key already present). Interpolation still yields
+`/api/v1/devices//activity` → same silent empty result as the absent-key case, via a
+different pre-fix code path. The `required_filters` gate in T-IMPL-02 MUST cover both
+arms of `ADR-057 §D7` Rule 2: (1) key absent from `FetchContext.query_filters` (AC-004 /
+RG-004); (2) key present with empty-string value (this AC). Test vector: TV-BC-2.02.014-006.
+
+(POL-24 note: the canonical E-SPEC-029 `message_template:` says "not provided" but the
+gate also fires for present-but-empty; F-WASE-P72B-OBS-002 tracks this wording tension
+separately — do not change the message template.)
+
+Anchor: RG-009 (`test_armis_device_activity_empty_device_id_filter_returns_hard_error`).
+
 ---
 
 ## Architecture Mapping
@@ -316,7 +343,7 @@ Anchor: RG-008 (`test_armis_device_activity_seeded_mode_returns_activity_records
 | BC | Version | Relevance |
 |----|---------|-----------|
 | BC-2.02.006 | | Armis Centrix Field Mapping to OCSF (7 Data Sources) — EC-02-014 records the `armis_device_activity` deferral and its resolution to this story; AC-001 closes the deferral sentinel |
-| BC-2.02.014 | | Armis Device Activity Surface — Filter-Required Push-Down Fetch Contract — specifies the full behavioral contract: push-down grammar, 5-column schema, required-filter hard error (`status_code = 0`, E-SPEC-029), edge cases EC-014-001..EC-014-006 including MED-005 seeded-mode data-reachability gap (AC-008/RG-008 generator obligation) |
+| BC-2.02.014 | | Armis Device Activity Surface — Filter-Required Push-Down Fetch Contract — specifies the full behavioral contract: push-down grammar, 5-column schema, required-filter hard error (`status_code = 0`, E-SPEC-029), edge cases EC-014-001..EC-014-007 including MED-005 seeded-mode data-reachability gap (AC-008/RG-008 generator obligation) and empty-string required-filter arm (EC-014-007, TV-BC-2.02.014-006, AC-009/RG-009) |
 
 ---
 
@@ -406,8 +433,21 @@ None — this story produces no user-facing UI changes. The surface changes are:
   the generator activity builder and populates `state.activity_fixture` with generator-produced
   records. Preferred location: `crates/prism-dtu-armis/tests/`.)_
 
-**Red Gate density check** (BC-5.38.001): **8 failing tests** required before
-implementation begins. RG-001..RG-008 cover all 8 ACs one-to-one.
+- [ ] **RG-009**: `test_armis_device_activity_empty_device_id_filter_returns_hard_error` — AC-009
+  _(Pipeline integration test: issues a query
+  `SELECT * FROM armis_device_activity WHERE device_id = ''` (explicit empty-string predicate)
+  against a running DTU; asserts `SpecEngineError::HttpRequestFailed` with `status_code = 0`
+  (E-SPEC-029) is returned; asserts zero records. Covers the empty-value arm of
+  `ADR-057 §D7` Rule 2 — distinct from RG-004 (absent-key arm): the key IS present in
+  `FetchContext.query_filters` with value `""` via
+  `predicate_tree_to_filter_map §predicate_tree_to_filter_map`'s push-down path;
+  `seed_missing_query_filter_vars §seed_missing_query_filter_vars`'s `or_insert` is NOT
+  taken (key already present). Test FAILS before T-IMPL-02 extends the `required_filters`
+  gate to check for empty-string values. Preferred location:
+  `crates/prism-spec-engine/tests/` alongside RG-004.)_
+
+**Red Gate density check** (BC-5.38.001): **9 failing tests** required before
+implementation begins. RG-001..RG-009 cover all 9 ACs one-to-one.
 RED_RATIO is computed by the orchestrator at Step 3.5 per per-story-delivery.md from actual
 Red Gate results; BC-5.38.002 and BC-5.38.003 define the exempt test classes (green-by-design
 and wiring-exempt) that reduce the denominator.
@@ -497,9 +537,12 @@ formatting conventions. This task makes RG-001, RG-002, RG-003, RG-007 green
 HTTP 200 + empty array → silent empty result, violating BC-2.02.014 §Error Cases row 1.
 
 **Required behavior:** When a query against `armis_device_activity` lacks a
-`WHERE device_id = '...'` predicate, the pipeline MUST return
+`WHERE device_id = '...'` predicate (absent-key arm) OR provides `WHERE device_id = ''`
+(empty-string value arm), the pipeline MUST return
 `SpecEngineError::HttpRequestFailed` (`status_code = 0`, E-SPEC-029) before issuing any
-HTTP request. Anchor: AC-004 / RG-004.
+HTTP request. Both arms are required by `ADR-057 §D7` Rule 2. Anchors: absent arm —
+AC-004 / RG-004 (`test_armis_device_activity_absent_device_id_filter_returns_hard_error`);
+empty-value arm — AC-009 / RG-009 (`test_armis_device_activity_empty_device_id_filter_returns_hard_error`).
 
 **Ratified mechanism (ADR-057 §D7, ratified 2026-07-30):** Add
 `#[serde(default)] pub required_filters: Vec<String>` to `FetchStep §FetchStep` in
@@ -666,11 +709,14 @@ a new dependency, the build MUST fail.
    Anchor: AC-002 / RG-002.
 
 5. **Required-filter hard error:** the engine MUST detect and reject queries against
-   `armis_device_activity` that lack a `device_id` filter, returning
+   `armis_device_activity` that lack a `device_id` filter OR provide it with an
+   empty-string value (`WHERE device_id = ''`), returning
    `SpecEngineError::HttpRequestFailed` (`status_code = 0`, E-SPEC-029). The fix MUST NOT
    break existing optional filter behavior (CrowdStrike `_fql`, Armis `aql`).
    Ratified mechanism: ADR-057 §D7 (`required_filters` TOML field + `execute_impl §execute_impl`
-   pre-flight gate). Anchor: AC-004 / RG-004.
+   pre-flight gate; Rule 2 covers both absent-key and empty-string arms).
+   Anchors: absent arm — AC-004 / RG-004 (`test_armis_device_activity_absent_device_id_filter_returns_hard_error`);
+   empty-value arm — AC-009 / RG-009 (`test_armis_device_activity_empty_device_id_filter_returns_hard_error`).
 
 6. **No empty-string defeat via post-fetch workaround:** the fix must be structural
    at the pre-flight or pre-seed stage. A workaround that adds a post-fetch empty-
@@ -715,6 +761,7 @@ None assigned yet. To be added when product-owner authors VP entries for the
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.1 | 2026-07-31 | story-writer | FB110 story leg — F-WASE-P72-HIGH-002 closure: add AC-009 / RG-009 for empty-string required-filter arm. `WHERE device_id = ''` (key present in `FetchContext.query_filters`, value `""`) produces the same silent empty result as the absent-key case (EC-014-001) via a distinct pre-fix code path (`predicate_tree_to_filter_map §predicate_tree_to_filter_map` push-down vs. `seed_missing_query_filter_vars §seed_missing_query_filter_vars` seed). AC-009 (traces to BC-2.02.014 §Error Cases row 1 / EC-014-007): MUST return `SpecEngineError::HttpRequestFailed` (`status_code = 0`, E-SPEC-029, message `"required filter 'device_id' not provided; query requires WHERE device_id = '...' predicate"`) BEFORE issuing any HTTP request; zero records (ADR-057 §D7 Rule 2 "contains it as an empty string" arm). RG-009 (`test_armis_device_activity_empty_device_id_filter_returns_hard_error`): pipeline integration test asserting the empty-value arm gates correctly; FAILS before T-IMPL-02 extends the `required_filters` gate to check empty-string values. SAC-1 density check: 8/8 → 9/9. §Architecture Compliance rule 5: extended to cover both absent-key and empty-string arms; anchors updated to AC-004/RG-004 (absent arm) + AC-009/RG-009 (empty-value arm). T-IMPL-02 Required behavior: updated to cover both arms with explicit anchors. §Behavioral Contracts BC-2.02.014 relevance cell: EC-014-001..EC-014-006 → EC-014-001..EC-014-007; EC-014-007 + TV-BC-2.02.014-006 + AC-009/RG-009 noted. BC-2.02.014 version column: verified empty by grep — no live pin exists; no change. POL-24: E-SPEC-029 message template `"required filter 'device_id' not provided; query requires WHERE device_id = '...' predicate"` verified byte-for-byte against `error-taxonomy.md §SPEC table` E-SPEC-029 `message_template:`; quoted verbatim in AC-009. POL-29: (9a) SPEC-001 grep for `absent\|required.*filter\|WHERE.*device_id\|required_filters\|query_filters\|E-SPEC-029\|empty-string\|empty-value` — all `absent` hits relate to `device_cves_first` column key absence, not a required-filter gate; 0 required-filter-gate hits; CLEAR. REMEDIATION-001 same grep — 1 `absent` hit for `header_scheme`, 0 required-filter-gate hits; CLEAR. CYBERINT-SPEC-001 same grep — hits are data-key absence in responses, 0 required-filter-gate hits; CLEAR. REQUIRED-COL-GATE-001 — plan-time E-QUERY-009 gate (`classify_predicates §classify_predicates`), not step-level E-SPEC-029 gate; AC-001 covers absent-key only; `WHERE device_id = ''` (empty-string) may pass the plan-time gate since predicate IS present — potential structural gap separately routed per dispatch scope limits (not in this burst). (9b) AC-009 text is downstream of BC-2.02.014 §Error Cases row 1 and EC-014-007; both verified on disk before writing; TV-BC-2.02.014-006 is a read-only reference; `crates/prism-sensors/specs/armis.sensor.toml` and test files are implementer/test-writer-owned and NOT edited. (9c) Every new MUST names its AC + RGT anchor: AC-009 MUST → RG-009 (`test_armis_device_activity_empty_device_id_filter_returns_hard_error`); rule 5 MUST → both AC-004/RG-004 and AC-009/RG-009; T-IMPL-02 MUST → same pair; no unanchored MUST introduced. |
 | 2.0 | 2026-07-31 | story-writer | FB106 story leg — F-WASE-P72-HIGH-001 annotation propagation into ACTIVITY-001. `device_id` column annotation corrected from `options = ["INDEX"]` to `options = ["REQUIRED"]` at all LIVE normative sites (9 sites). LIVE sites updated: (1) §Architect Adjudication prose annotation claim; (2) AC-002 heading; (3) AC-002 body — semantics updated from INDEX/push-down-eligibility to REQUIRED/mandatory-filter (sensor API requires parameter; OPEN OBLIGATION note added for `S-REQUIRED-COL-GATE-001` plan-time E-QUERY-009 gate per ADR-057 §D7); (4) AC-002 anchor test name: `test_armis_toml_armis_device_activity_device_id_column_has_index_option` → `test_armis_toml_armis_device_activity_device_id_column_has_required_option`; (5) RG-002 test name in Red Gate list — same rename; (6) RG-002 description — `options = ["INDEX"]` → `options = ["REQUIRED"]`, "push-down eligibility" → "mandatory-filter annotation"; (7) T-IMPL-01 TOML comment — INDEX-semantics single-line comment replaced with 4-line REQUIRED annotation comment matching BC-2.02.014 §TOML Contract copy-source; (8) T-IMPL-01 TOML block `options = ["INDEX"]` → `options = ["REQUIRED"]`; (9) §Architecture Compliance Rules rule 4 — annotation corrected with mandatory-filter semantics note. IMMUTABLE: changelog rows v1.0–v1.9 preserved (POL-1). SAC-1: 8 RGs / 8 ACs unchanged; density-check paragraph unmodified. POL-29: (9a) sibling sweep — SPEC-001 grep for `options = [`, `INDEX`, `has_index_option`, `device_id.*activity` returned 0 hits; REMEDIATION-001 same grep returned 0 hits; both siblings CLEAR. (9b) T-IMPL-01 TOML block now agrees with BC-2.02.014 §TOML Contract at REQUIRED annotation + 4-line comment; `crates/prism-sensors/specs/armis.sensor.toml` is implementer-owned, not edited. (9c) AC-002 MUST anchored to RG-002 (`test_armis_toml_armis_device_activity_device_id_column_has_required_option`); Architecture Compliance rule 4 MUST anchored to AC-002 / RG-002; no new unanchored MUSTs introduced. |
 | 1.9 | 2026-07-30 | story-writer | FB101 story leg — close F-WASE-P71-LOW-002. T-IMPL-02 ratification date corrected: "ratified 2026-07-27" → "ratified 2026-07-30". ADR-057 §D7 heading reads "ratified 2026-07-30"; 2026-07-27 is the ADR's original acceptance date, not §D7's ratification date. POL-29 9a: SPEC-001 twin checked — T-IMPL-02 is ACTIVITY-001-specific; no §D7 ratification cite in SPEC-001; no asymmetry introduced. 9b: no downstream copy target affected by this date correction. 9c: no new MUSTs introduced. |
 | 1.8 | 2026-07-30 | story-writer | FB96 story leg — close F-WASE-P70-HIGH-002 (T-IMPL-04 Files `state.rs`→`clone.rs`; Problem paragraph now cites `clone.rs` + all three construction paths `new_with_seed §new_with_seed`/`new_with_seed_anchored §new_with_seed_anchored`/`new_with_scenario §new_with_scenario`; T-IMPL-04(b) updated to ALL THREE paths; §FSR `state.rs` row replaced by `clone.rs` row; §Token Budget `state.rs §ArmisState` replaced by `clone.rs` row), F-WASE-P70-HIGH-005 (T-IMPL-02 replaced: "candidate approaches (non-exhaustive)" removed; ADR-057 §D7 ratified mechanism with `#[serde(default)] pub required_filters: Vec<String>` on `FetchStep §FetchStep`, pre-flight gate in `execute_impl §execute_impl` before `seed_missing_query_filter_vars`; `required_filters = ["device_id"]` added to T-IMPL-01 TOML step block; `armis.sensor.toml` + `spec_parser.rs` added to T-IMPL-02 Files; `spec_parser.rs` row added to §FSR and §Token Budget; EXPECTED_SYMBOLS no-new-entry note), F-WASE-P70-MED-003 (AC-005 `dev-001`→`d-001`; RG-005 `"dev-001"`→`"d-001"`; RG-006 `"dev-001"`→`"d-001"`, 3 sites), F-WASE-P70-MED-010 (AC-004 and EC-001 bind to `status_code = 0` + E-SPEC-029; remove "or equivalent"; RG-004 updated; §Architecture Compliance rule 5 updated), F-WASE-P70-LOW-001 (AC-007 `'no-activity-device'`→`'no-such-device'`; RG-007 `'empty-device'`→`'no-such-device'`, cite TV-BC-2.02.014-003). De-pinning (POL-39 early adoption): BC-2.02.006 `v1.15` and BC-2.02.014 `v1.6` removed from §Behavioral Contracts table version column; `ADR-057 v0.7 §D4` de-pinned at 2 live body sites (§Code-Reading Verdict, §Previous Story Intelligence); T-IMPL-01 BC/ADR prose de-pinned (`BC-2.02.014 v1.6 §TOML Contract` → `BC-2.02.014 §TOML Contract`, `ADR-057 v0.7 §D5` → `ADR-057 §D5`); §Token Budget ADR-057/BC-2.02.014/BC-2.02.006 version pins removed; §Token Budget total ~13,300→~13,600. POL-29 9a: SPEC-001 twin updated in same burst. 9b: T-IMPL-01 TOML block remains verbatim copy-source from BC-2.02.014 §TOML Contract (now including `required_filters`); 9b CLEAR. 9c: all new MUSTs carry AC+RGT anchors. |
