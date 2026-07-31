@@ -4369,3 +4369,29 @@ When a fix-burst makes a change to a file (e.g., adding a frontmatter field) wit
 **Going-forward rule:** The Canonical Principle Rule 1 ("speed lives in feature ordering, not feature completeness") applies to probes as well as features. Defer a probe only when its subject matter does not yet exist. When the subject exists — even if it was authored in a prior burst or a prior wave — run the probe in the current burst if the adversary has access to the artifacts.
 
 **Source:** SAP-2 standalone probe F-SAP2-CRIT-001 + F-SAP2-CRIT-002 (D-2043, 2026-07-27). Orchestrator gate-review decision to run SAP-2 despite NOT-REACHED framing.
+
+## Lesson 112 — ADR-anchor gate has no EC for `document_type: adr-amendment`; one amendment file lacks `anchor_stories:` [process-gap]
+
+**Category:** spec-authoring conventions, SAC-2, gate coverage gap
+
+**Context:** Pass-72 F-WASE-P72-OBS-003 (D-2072, 2026-07-30). The S-MAINT-ADR-ANCHOR-GATE-001 story targets the `anchor_stories:` frontmatter requirement for ADRs (SAC-2). However, the story's acceptance criteria have no explicit EC covering files with `document_type: adr-amendment` — amendment files live in the same `specs/architecture/decisions/` directory as canonical ADRs, may lack `anchor_stories:`, and are not obviously covered by the gate story's ADR-scoped EC text. The adversary surfaced `ADR-026-AMENDMENT-rule-c-keyring-scope.md` as a concrete file lacking `anchor_stories:` and with no prescribed gate disposition.
+
+**Transferable lesson:** When a gate story covers a directory that contains documents of more than one `document_type`, the story must enumerate how each type is treated (own-key required, inherit-from-parent, explicitly exempted with rationale). A gate that covers "ADR files" without specifying whether amendment files inherit or own the key will produce coverage gaps at the type boundary.
+
+**Going-forward rule (proposed — routing to story-writer for S-MAINT-ADR-ANCHOR-GATE-001 and to architect for the inherit-vs-own-key policy):** Add an explicit EC to S-MAINT-ADR-ANCHOR-GATE-001 declaring the gate's behavior for `document_type: adr-amendment` files. Route the inherit-vs-own-key policy question to architect for adjudication before the story reaches `status: ready`. Until the EC lands, the gate-story's silence on amendment files is a known coverage gap.
+
+**Source:** F-WASE-P72-OBS-003, pass-72 LOCAL adversary (D-2072, 2026-07-30).
+
+---
+
+## Lesson 113 — Index ledger-content falsification: 3-recurrence codification threshold met; records-lint ledger-citation cross-reference check recommended [recurrence-flag]
+
+**Category:** index integrity, records-lint coverage, codification threshold
+
+**Context:** Pass-72 findings HIGH-004 (BC-INDEX row falsely attributes a pass-71 finding to BC-2.02.014 when the actual target is BC-2.02.006), MED-001 (BC-INDEX row cites phantom ADR-057 §D8), and MED-002 (ARCH-INDEX row attributes E-SPEC-029 registration to the wrong fix-burst) constitute the 3rd+ documented instance of a class: an INDEX file carries a row whose textual content — finding attribution, section reference, or fix-burst citation — contradicts the artifact it claims to describe. A prior instance (BC-2.01.016 row, captured in an earlier pass) was the 1st or 2nd occurrence. The 3-recurrence codification threshold for structural intervention (per TD-VSDD-097 preamble pattern) is met.
+
+**Transferable lesson:** The L10 records-lint gate detects version-pin drift (index row version ≠ artifact frontmatter version) but does NOT detect ledger-content falsification — a row that carries the wrong finding ID, section name, or fix-burst attribution while the version number is technically current. L10 passes for HIGH-004/MED-001/MED-002 while all three carry false content claims. This is documented in the L10 capability boundary (CLAUDE.md §TD-VSDD-092): "L10 detects the version-number half of index drift only."
+
+**Going-forward rule (proposed — pending records-lint.sh code change, label TBD by records-lint.sh implementer):** A new records-lint check is recommended that cross-references index row textual citations against the artifact: for each row in BC-INDEX and ARCH-INDEX that cites a specific finding ID (e.g., `F-WASE-P71-HIGH-005`), verify that finding ID appears in the target artifact's changelog or body. A finding ID that appears in the index row but greps to zero in the artifact's own file = STALE/PHANTOM citation. This check would extend the L10 suite (current checks L1/L7/L9/L10/L11) with a content-verification dimension. Implementation routing: state-manager surfaces to orchestrator → devops-engineer or spec-steward for records-lint.sh amendment.
+
+**Source:** F-WASE-P72-HIGH-004, F-WASE-P72-MED-001, F-WASE-P72-MED-002 (D-2072, 2026-07-30). Prior instance: BC-2.01.016 BC-INDEX row falsification (earlier pass, exact D-NNN archived in convergence-trajectory.md).
