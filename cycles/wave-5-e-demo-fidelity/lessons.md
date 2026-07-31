@@ -4445,3 +4445,25 @@ In all three cases, the dispatched burst's work is correct. The gap is that the 
 **Note:** This is the third distinct codification candidate surfaced during the FB103 cascade (alongside ledger-content falsification, lesson 113, and POL-29 9a dispatch-perimeter scope, lesson 114). It may meet the TD-VSDD-097 codification threshold if two prior instances can be confirmed; orchestrator to evaluate.
 
 **Source:** F-WASE-P72-HIGH-001 adjudication (FB103 architect, D-2074, 2026-07-31). Two additional open instances: `S-DEMO-QUERY-PUSHDOWN-001` and `S-QUERY-SCOPE-PARAMS-001` wave-granularity deferrals.
+
+---
+
+## Lesson 116 — Fixer self-certification accuracy: a fix burst is at highest risk of committing the exact defect class it was dispatched to remediate [codified]
+
+**Category:** self-certification discipline, POL-29 dimension discharge, Canonical Principle Rule 4, fix-burst protocol
+
+**Context:** FB104 was dispatched to close the ADR-057 §D7 OPEN OBLIGATION surfaced by lesson 115 (unanchored wave-granularity deferrals). During the burst, story-writer's continuation leg fixed 2 of 3 wave-granularity deferral sites and reported POL-29 dimension-9c as "not applicable." The orchestrator's independent grep found a residual site in the same file the fixer had just edited. This is the second consecutive burst (FB103 architect, FB104 story-writer) in which the fixer self-certified a dimension verdict that did not survive independent verification: FB103 architect reported 9c clean while introducing four unanchored wave-granularity deferrals; FB104 story-writer reported 9a "not applicable" while a residual site remained in a file it had just edited.
+
+**Mechanism:** A fixer's attention is concentrated on the named sites in the dispatch. The named sites are the locations where the defect class was already confirmed. The un-named sites — files the fixer edits while fixing the named sites — are processed in the background, and the fixer's mental model says "I'm fixing this pattern here" without triggering a fresh pattern-scan of the newly-edited context. The result: the fixer's own edits introduce or leave instances of the same defect class they were dispatched to remediate.
+
+**Transferable principle:** Fix bursts that target a specific defect class (e.g., wave-granularity deferrals, volatile line cites, unanchored MUSTs) carry the highest residual risk of that same defect class in the files the fixer touches. This is not carelessness — it is a structural property of focused attention combined with scope expansion during fixing.
+
+**Operational implication for POL-29 codification (FB105 target):** A dimension-9c discharge cannot be a verdict word ("not applicable", "clean"). It must be a reproducible grep: the fixer reports the exact grep command run and the output received, per file. A grep that returns zero hits in the named dispatch files is NOT a full discharge if the fixer also edited other files; those files must be explicitly included in the grep scope. The orchestrator independently verifies by running the same grep, not by trusting the fixer's report.
+
+**Scope rule for the sweep:** When a fix burst edits file A to close a defect, the same-defect-class sweep must cover ALL files touched by the burst, not just file A. "Touched" means any file the fixer read with intent to modify, not just the files where the fix landed.
+
+**Going-forward rule:** Fixers must append to every dimension-9c (and 9a, 9b) discharge report: "I ran `grep <pattern> <file1> <file2> ...` and received `<output>`. Zero hits in edited files." The orchestrator's independent grep then either confirms or finds the residual. Two consecutive misses meet the TD-VSDD-097 codification threshold.
+
+**Cross-reference:** Lesson 115 — the defect class this burst was dispatched to fix (wave-granularity deferrals, POL-29 9c, Canonical Principle Rule 3). The two lessons together document both the defect class (115) and the self-certification failure mode that allows it to survive fix bursts (116).
+
+**Source:** D-2075 meta-observation (FB104 state-manager, 2026-07-31). Pattern family: TD-VSDD-097 three-dimension checklist. Second consecutive burst exhibiting this pattern (FB103 + FB104).

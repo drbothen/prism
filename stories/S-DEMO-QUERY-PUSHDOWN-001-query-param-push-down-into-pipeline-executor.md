@@ -598,7 +598,7 @@ These are **entire features** deferred to named stories — not partial implemen
 | Cyberint `page_size` push-down | `AlertListParams` has no `page_size` field; DTU-EXT-005 open | DTU-EXT-005 + new story when that gap closes |
 | Claroty body-based offset/limit | Gap-CL-004; real Claroty API expects body offset/limit; DTU currently accepts URL OffsetLimit only | `S-DEMO-CLAROTY-PAGINATION-001` (open, P1) |
 | Claroty native time-window push-down | No time-window param in current DTU structs; DTU must be extended first | `S-DEMO-CLAROTY-TIME-001` (stub registered, draft) |
-| Full `classify_predicates` integration (Option T2) | Requires fan-out orchestration restructuring; wave-6 scope | Future ADR + story when fan-out restructuring is designed |
+| Full `classify_predicates` integration (Option T2) | REQUIRED-column plan-time enforcement gate (E-QUERY-009) anchored to `S-REQUIRED-COL-GATE-001` — uses `resolved_spec_map` pre-fan-out per BC-2.11.007 §REQUIRED Column Runtime Mechanism, no fan-out restructuring required. Full post-resolution per-sensor `classify_predicates` integration for non-REQUIRED push-down dimensions requires fan-out orchestration restructuring — separate future story not yet scoped. | `S-REQUIRED-COL-GATE-001` (plan-time E-QUERY-009 gate); future story for remaining T2 fan-out restructure (non-REQUIRED dimensions) |
 | Cursor seeding from PrismQL WHERE clause | No PrismQL syntax for initial cursor value yet | Future story when PrismQL cursor syntax is defined |
 
 **Production-grade compliance:** every deferral above is an entire feature (not a partial implementation with correctness gaps). The v2.1 story either delivers CORRECT behavior for a dimension or explicitly anchors it to a named story above.

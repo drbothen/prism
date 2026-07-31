@@ -382,7 +382,10 @@ density ≥0.5 before Step 4 dispatch).
   a defect.
 - **ADR-033 T1 interface stability:** consume `QueryParams.start_time`/`end_time`
   `Option<String>` unchanged (Rationale point 4 — T2 will consume the same fields);
-  do NOT restructure fan-out orchestration (that is the deferred T2/wave-6 scope).
+  do NOT restructure fan-out orchestration (REQUIRED-column plan-time enforcement is
+  anchored to `S-REQUIRED-COL-GATE-001`, which uses `resolved_spec_map` pre-fan-out per
+  the T1 access pattern; full T2 fan-out restructuring for non-REQUIRED dimensions is a
+  separate future story not yet scoped).
 - **Ephemeral SessionContext** (BC-2.11.005): no scope state held across calls;
   relative `time_range` resolves per-call at the MCP boundary.
 - **BC-2.09.001 injection scan BEFORE domain logic** for all new string inputs.
@@ -466,8 +469,13 @@ SAP-1 same-commit catalog rule if triggered.
 ## Out of Scope (explicit routing flags — NOT silent deferrals)
 
 1. **ADR-033 T2** (per-sensor `classify_predicates` post-resolution integration):
-   explicitly deferred by ADR-033 to a named future wave-6 story with a superseding
-   ADR. This story composes with T1 only.
+   The plan-time E-QUERY-009 enforcement gate for REQUIRED columns is anchored to
+   `S-REQUIRED-COL-GATE-001` — it uses `resolved_spec_map` pre-fan-out per
+   BC-2.11.007 §REQUIRED Column Runtime Mechanism and requires no fan-out
+   restructuring. Full per-sensor post-resolution `classify_predicates` integration
+   covering non-REQUIRED push-down dimensions (the broader T2 scope) remains deferred;
+   a superseding ADR + story will be authored when fan-out restructuring is designed.
+   This story (S-QUERY-SCOPE-PARAMS-001) composes with T1 only.
 2. **error-taxonomy E-CFG-100 companion row touch:** the taxonomy v1.70 row's Message
    Format is client-centric (`PrismError::ClientNotFound`); BC-2.11.001 binds the
    same code to the broader "no matching clients/sensors" condition. If delivery
