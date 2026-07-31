@@ -4487,3 +4487,27 @@ In all three cases, the dispatched burst's work is correct. The gap is that the 
 **Cross-reference:** Lesson 116 (fixer self-certification accuracy — FB104 self-reported a clean §Out-of-Scope edit; this lesson is its records-tier analogue: the self-report was accurate about the content change, but the records-tier obligation — version bump + changelog row — was missed). Together, lessons 115–117 trace the full chain: defect class (115), self-certification failure (116), gate-blindness to the fix gap (117).
 
 **Source:** D-2075 meta-observation (FB104 state-manager, 2026-07-31). Pattern family: TD-VSDD-097 three-dimension checklist. Second consecutive burst exhibiting this pattern (FB103 + FB104).
+
+---
+
+## Lesson 118 — Both-polarity self-probe: a gate self-probe must include must-NOT-flag fixtures, not only must-flag fixtures [codified]
+
+**Category:** gate discipline, self-probe design, TD-VSDD-092, L9 operational gap analogue, positive-coverage vs selectivity
+
+**Context:** FB105 commissioned S-MAINT-POL29-GREP-EVIDENCE-001, which includes a `--self-probe` mode for `scripts/validate-pol29-discharge.sh`. During the AC specification review, the dispatch required that the self-probe include both a must-flag fixture (a dimension discharge stated as a bare verdict word, which should trigger a finding) AND at least two must-NOT-flag fixtures (genuine grep-evidence discharges with format `grep <pattern> <files> → <output>`, which should NOT trigger a finding). The rationale is grounded in the L9 operational gap history.
+
+**The L9 operational gap analogy:** Records-lint L9 passed its synthetic self-probe throughout the period it was operationally inoperative (`.factory/` worktree index blind spot — see CLAUDE.md TD-VSDD-092 §L9). A probe that uses synthetic temp git repos with staged additions CAN pass even when the production code path never fires on the real target. The critical distinction (probe-passes ≠ gate-fires) means that a probe which ONLY tests that the gate fires when it should tells you nothing about whether the gate stays quiet when it should not.
+
+**Two failure modes that positive-only probes miss:**
+1. **Selectivity failure**: the gate pattern is overly broad and flags correct discharges as violations. A must-NOT-flag fixture catches this; a must-flag fixture cannot.
+2. **Vacuous-pass on negative evidence**: the gate fires on any mention of the checked keyword, not only on verdict-word discharges. A must-NOT-flag fixture using the pattern in a non-violation context catches this.
+
+**Transferable principle:** Any gate that discriminates between two textual patterns (e.g., verdict word vs grep-evidence discharge) requires BOTH a positive polarity fixture (must-flag: pattern A should trigger) AND a negative polarity fixture (must-NOT-flag: pattern B should not trigger). A probe with only positive fixtures proves the gate is triggerable; it cannot prove the gate is selective. Selectivity failures produce false-positive findings on compliant bursts, which is just as disruptive to cascade velocity as missed defects.
+
+**Application to the L9/L11/CONTENT-VERSION-GATE gate family:** S-MAINT-CONTENT-VERSION-GATE-001 (Lesson 117's story) faces the same obligation. The gate must distinguish "staged normative content change without version bump" (must-flag) from "staged structural-only change without version bump" (must-NOT-flag) and "staged content change WITH version bump" (must-NOT-flag). All three fixture polarities are required.
+
+**Going-forward rule:** Every gate story with a `--self-probe` mode must include in its AC specification: at least one must-flag fixture, at least two must-NOT-flag fixtures (covering the two most common compliant-but-superficially-similar patterns), and an explicit note that a positive-only self-probe is a gate-design defect, not adequate coverage.
+
+**Cross-reference:** Lesson 117 (records-lint L1 gate capability boundary: gate-green is not audit-trail-complete — the other half of the probe-passes vs gate-fires pattern). The L9 operational gap (CLAUDE.md TD-VSDD-092 §L9) documents the original discovery that a green self-probe coexisted with a production check that never fired. This lesson generalizes that gap to a design principle for all future gate self-probes.
+
+**Source:** D-2077 FB105 dispatch (2026-07-31). Pattern family: gate discipline, selectivity testing. First codification of the both-polarity self-probe principle.
