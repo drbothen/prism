@@ -4466,4 +4466,24 @@ In all three cases, the dispatched burst's work is correct. The gap is that the 
 
 **Cross-reference:** Lesson 115 — the defect class this burst was dispatched to fix (wave-granularity deferrals, POL-29 9c, Canonical Principle Rule 3). The two lessons together document both the defect class (115) and the self-certification failure mode that allows it to survive fix bursts (116).
 
+---
+
+## Lesson 117 — Records-lint L1 gate capability boundary: gate-green is not audit-trail-complete [codified]
+
+**Category:** gate discipline, TD-VSDD-092, records-lint L1, audit-trail completeness
+
+**Context:** FB104 (D-2075) edited the §Out-of-Scope T2 row in `S-DEMO-QUERY-PUSHDOWN-001`, re-anchoring the wave-granularity deferral to `S-REQUIRED-COL-GATE-001`. The story version remained at v2.8. Records-lint L1 would have returned green on that commit: the frontmatter declared v2.8, and the top changelog row declared v2.8, so L1's question — "is the declared version consistent with the top changelog row?" — was satisfied. The normative content change was invisible to the gate. It was found by orchestrator independent verification (D-2075), not by any mechanical gate.
+
+**Gate capability boundary (4th):** Records-lint L1 answers the question "is the declared version consistent with the top changelog row?" It does NOT answer "did the content change without a version bump?" Those are different questions, and only the first is mechanized. The second requires a human or orchestrator to compare the content at commit time against the previous version. No current gate performs that comparison.
+
+**Structural parallel — probe-passes vs gate-fires:** This is the same distinction documented for the L9 operational gap (TD-VSDD-092 §L9 in CLAUDE.md): a passing self-probe coexists with a production check that never fires. L9 passed its synthetic self-probe throughout the period it was operationally inoperative (`.factory/` worktree index blind spot). L1 passes for every commit where the fixer leaves the version and changelog consistent — which is the normal state even when content was changed without a bump. Both cases produce a green gate result from a structurally true check while a different audit question goes unanswered.
+
+**Transferable principle:** Gate-green is not audit-trail-complete. A records-lint pass means "no detectable versioning inconsistency." It does not mean "the audit trail is accurate." An audit trail can be internally consistent (frontmatter version matches changelog row) and simultaneously incomplete (no changelog row for a normative content change). These properties are orthogonal; L1 measures only the former.
+
+**Operational implication:** When a fix burst edits normative content in a versioned artifact, the orchestrator's independent verification must include: (a) confirm the artifact version was bumped, AND (b) confirm a changelog row was added describing the change. Step (a) is partially gated by L1 (only if the bump makes the version inconsistent with a stale changelog row); step (b) is not gated at all. The fixer self-certifies steps (a) and (b); the orchestrator independently confirms them.
+
+**Going-forward rule:** A records-lint exit-0 result is evidence that no currently-mechanized versioning check failed. It is NOT evidence that the artifact's version history accurately records all normative content changes made in the burst.
+
+**Cross-reference:** Lesson 116 (fixer self-certification accuracy — FB104 self-reported a clean §Out-of-Scope edit; this lesson is its records-tier analogue: the self-report was accurate about the content change, but the records-tier obligation — version bump + changelog row — was missed). Together, lessons 115–117 trace the full chain: defect class (115), self-certification failure (116), gate-blindness to the fix gap (117).
+
 **Source:** D-2075 meta-observation (FB104 state-manager, 2026-07-31). Pattern family: TD-VSDD-097 three-dimension checklist. Second consecutive burst exhibiting this pattern (FB103 + FB104).

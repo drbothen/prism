@@ -6,7 +6,7 @@ wave: wave-5-e-demo-fidelity
 epic_id: E-DEMO
 priority: P2
 status: merged
-version: "2.8"
+version: "2.9"
 level: "L3"
 producer: story-writer
 revised_by: state-manager
@@ -148,11 +148,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-QUERY-PUSHDOWN-001 v2.8 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring)
+# S-DEMO-QUERY-PUSHDOWN-001 v2.9 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring)
 
 **Story ID:** S-DEMO-QUERY-PUSHDOWN-001
 **Status:** in_progress
-**Version:** v2.8
+**Version:** v2.9
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2
 **Points:** 8
@@ -735,7 +735,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 
 | Context source | Estimated tokens |
 |----------------|-----------------|
-| This story spec (v2.8) | ~8,200 |
+| This story spec (v2.9) | ~8,200 |
 | BC files (3 BCs: BC-2.01.013 v1.14 + BC-2.11.005 v1.6 + BC-2.11.007 v1.8) | ~9,500 |
 | ADR-033 | ~2,500 |
 | pushdown-redesign.md (design note incl. §8) | ~6,000 |
@@ -762,6 +762,7 @@ At the 20-30% budget ceiling. Implementer SHOULD split into two sub-tasks if con
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.9 | 2026-07-31 | state-manager | FB104b audit-trail restoration: FB104 (D-2075) re-anchored the §Out-of-Scope T2 wave-granularity deferral to `S-REQUIRED-COL-GATE-001` but left version at v2.8 with no changelog row, leaving the normative change without an in-artifact audit trail. This burst restores that trail. No AC change; no RGT change; §Out-of-Scope row content correct as-is. |
 | 2.8 | 2026-06-06 | story-writer | F-P16-LOW-001 fix: TD-VSDD-091 volatile line-pin sweep — replaced all 5 non-excepted `lines ~NNN`/`materialization.rs:NNN` citations with function-name + behavioral anchors (`QueryParams` construction inside `run_materialization_pipeline`'s per-target fan-out loop; `extract_time_window_from_ast` call). Sites fixed: points justification comment (line 83), File Structure Requirements materialization.rs row, Tasks step 1, Tasks step 10, Previous Story Intelligence F-P6-CRIT-001 narrative. Changelog row (line 769) is TD-VSDD-091-EXCEPT; unchanged. No AC change; no RGT change. H1 + body header version 2.7→2.8. |
 | 2.7 | 2026-06-06 | story-writer | F-P09-MED-001 fix-burst: added AC-CWS-WIRE-001 — wire-level combined verification that CrowdStrike FQL time-window AND limit reach the DTU simultaneously. The test `test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu` (18 code/test sites in `crates/prism-spec-engine/tests/bc_2_11_007_pushdown_test.rs`) cited AC-CWS-WIRE-001 but no story AC heading existed, creating the last dangling-AC traceability gap for this story. Placed after AC-CWS-003 (per-dimension CrowdStrike ACs); before AC-CWS-DTU-001 (DTU-internal FQL honoring). Tasks step 8: added `test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu` with note (EXISTING test, already passes); count 19→20. Step 16: 19→20 Red Gate tests. acceptance_criteria_count 17→18; red_gate_tests 19→20. Token Budget: story spec ~7,900→~8,200; total ~76,700→~77,000. Sub-task B: added AC-CWS-WIRE-001 to test enumeration. H1 + body header version 2.6→2.7. |
 | 2.6 | 2026-06-05 | story-writer | F-P08-MED-001 fix-burst: added AC-INDEX-CWS-001 (crowdstrike.sensor.toml `created_timestamp` declares `options = ["INDEX"]`). This is the CrowdStrike parallel to AC-INDEX-001 (Armis): without `options = ["INDEX"]` on `created_timestamp`, ADR-033 Option T1 extraction silently skips the column and CrowdStrike FQL time-window push-down is silently vacuous. Red Gate test: EXISTING `test_ac_index_cws_001_crowdstrike_toml_created_timestamp_has_index_option` (`crates/prism-spec-engine/tests/bc_2_11_007_pushdown_test.rs`) — 11 code/test sites cite this AC ID; the test already passes. Architecture Compliance Rules: added CrowdStrike INDEX row (parallel to Armis INDEX row). Tasks step 8: added `test_ac_index_cws_001_*` to Red Gate test list with full list of 19 RGTs. Step 16: 16→19 Red Gate test count. acceptance_criteria_count 16→17; red_gate_tests 18→19. H1 + body header version 2.5→2.6. |
