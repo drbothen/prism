@@ -4553,3 +4553,36 @@ In all three cases, the dispatched burst's work is correct. The gap is that the 
 **Generalized principle:** Any burst that creates an artifact cited as "pending" in existing documents has a seam obligation: find and update every document that referred to the pending artifact as absent or not-yet-created. This is a dimension 9a (named-twin) variant: the "twin" is the set of all documents that cited the now-created artifact by its absence.
 
 **Source:** D-2078 FB106 state-manager closing burst (2026-07-31). Pattern family: multi-burst coordination, sequencing artifacts, seam defects. First codification of the SEQUENCING-ARTIFACT finding class.
+
+---
+
+### Lesson 121 — GFM Table Malformation: Naive Cell-Count Tools Overcount Cells Protected by Code Spans
+
+**Category:** index ledger discipline, GFM table parsing, cell-count accuracy, records-lint scope gap
+
+**Context:** FB107 repaired 5 malformed BC-INDEX rows and 2 malformed STORY-INDEX rows. Pre-repair analysis using naive `awk -F'|'` counting reported 8 malformed rows in BC-INDEX. GFM-aware parsing showed only 5 were genuinely malformed; the other 3 rows were already canonical.
+
+**What happened:** Pass-72 adversary finding MED-005 reported "2 BC-INDEX rows have 7 cells vs 6-column header." The actual scope was 5 genuinely malformed rows plus 3 rows whose cell counts were overcounted by naive tools. The 3 false-positives (BC-2.06.019, BC-2.11.016, BC-2.11.020) contained pipe characters inside backtick code spans. Under GFM (GitHub Flavored Markdown) rules, pipes inside code spans do NOT create cell boundaries. `awk -F'|'` counts every pipe regardless of code span context, producing phantom extra cells.
+
+**The root defect class:** BC-INDEX rows for BCs that reference Rust syntax containing pipe characters (type union patterns, `|` operator in expressions, PrismQL operator tables) can accumulate bare pipe characters in status cells. If those pipes are NOT inside code spans (no backticks protecting them), they create genuine phantom cells that GFM renderers silently discard — making the malformation invisible in rendered views but structurally wrong in raw markdown. If they ARE inside code spans, naive counting tools falsely report them as malformed.
+
+**Two distinct failure modes:**
+1. **Genuine malformation (bare pipes, not in code spans):** The pipe creates a real phantom cell boundary. GFM renderers skip the extra cell silently. Fix: join excess cells back into the last legitimate cell, escaping the bare pipe as `\|`.
+2. **Overcounting false positive (pipes inside code spans):** The pipe is semantically inert as a cell separator. The row has the correct cell count. Fix: none needed; verify via GFM-aware parser.
+
+**Diagnostic discipline:** When investigating BC-INDEX or STORY-INDEX cell-count anomalies, use a GFM-aware cell counter, not `awk -F'|'`. The minimum required parser must:
+- Track backtick code span state (entering/exiting on backtick toggle)
+- Treat `\|` (backslash-escaped pipe) as a non-separator character
+- Count only bare pipes outside code spans as cell boundaries
+
+**Records-lint gap:** The `scripts/records-lint.sh` L10 gate checks version-pin consistency in index rows but does NOT check cell count structural integrity. A row with the wrong number of cells passes L10 silently because the version string still matches. This is a known L10 capability boundary (CLAUDE.md §TD-VSDD-092 L10 capability boundary): L10 detects the version-number half of index drift, not structural malformation. A dedicated structural-integrity check for BC-INDEX row cell counts is a candidate follow-up gate story.
+
+**Repair pattern for genuine malformation:** When excess cells result from bare pipes in the last legitimate cell's content:
+1. Parse the row GFM-aware to identify the genuine cell structure
+2. Identify which cells 6..N are excess (all content beyond the 6th cell belongs to cell 6)
+3. Join cells 6..N with bare `|` delimiter (reconstructing the original text), then escape all bare pipes in the joined string as `\|`
+4. Reconstruct the row with exactly 6 cells
+
+**Repair pattern for multi-column tables (e.g., 7-column STORY-INDEX):** Excess cells are often in the middle description cell rather than the last cell. Strategy: keep cell 1 (ID), join middle cells back into cell 2 (description) with `\|` escaping, keep the last 5 structured columns (cells 3-7) intact.
+
+**Source:** D-2079 FB107 state-manager closing burst (2026-07-31). Pattern family: index ledger structural integrity, GFM table parsing discipline, records-lint scope boundaries.
