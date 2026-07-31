@@ -4,6 +4,7 @@ adr_id: ADR-033
 status: accepted
 date: 2026-06-05
 introduced: 2026-06-05
+version: "v1.1"
 subsystems_affected:
   - SS-11
   - SS-16
@@ -11,7 +12,10 @@ subsystems_affected:
 supersedes: null
 superseded_by: null
 anchor_stories:
-  - S-DEMO-QUERY-PUSHDOWN-001
+  - S-DEMO-QUERY-PUSHDOWN-001  # §Authority not verified (story predates the ##Authority convention); retained on implementation-citation evidence
+  # S-REQUIRED-COL-GATE-001 cites ADR-033 §Decision in its §Architecture Compliance Rules
+  # but lacks a ##Authority section — per SAC-2, cannot be added until story-writer adds
+  # ##Authority section to S-REQUIRED-COL-GATE-001.
 traces_to:
   - BC-2.11.007
   - BC-2.01.013
@@ -40,9 +44,11 @@ The PrismQL AST does represent time predicates: a `Predicate::Compare` node wher
 and `rhs = Expr::Literal(Literal::Timestamp(t))`. The existing
 `extract_push_down_filters_as_map` / `predicate_tree_to_filter_map` functions walk
 AND-conjunctions but collect only equality (`=`) predicates; range predicates fall
-through silently. The function's doc-comment already notes: "Per-sensor
-`classify_predicates` integration deferred to wave-5 (see extract_push_down_filters_as_map
-docs for rationale)."
+through silently. The function's doc-comment notes that per-sensor `classify_predicates`
+integration is deferred (code TODO; see `extract_push_down_filters_as_map
+§extract_push_down_filters_as_map` source). The wave reference in that comment is a code
+TODO — propagating it here as a normative ADR commitment would convert a code TODO into an
+untracked architectural obligation; see §Decision for the correct deferral mechanism.
 
 A design choice arises: at the `extract_push_down_filters_as_map` callsite in
 `materialization.rs`, the per-sensor `ColumnSpec` is not yet resolved (resolution
@@ -65,8 +71,9 @@ restructuring the fan-out orchestration so classification executes post-resoluti
 Architecturally cleaner but larger scope: the fan-out call sequence must change to
 pass per-sensor specs into the classification step.
 
-This decision records the choice made for S-DEMO-QUERY-PUSHDOWN-001 v2 and defers T2
-to a named future story.
+This decision records the choice made for S-DEMO-QUERY-PUSHDOWN-001 v2; T2 is partially
+anchored (`S-REQUIRED-COL-GATE-001` for the REQUIRED-column plan-time enforcement
+portion) and partially an open obligation (full fan-out restructuring — no story yet).
 
 Cross-reference: design note `.factory/cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/pushdown-redesign.md` §§2, 5; BC-2.11.007 (result-equivalence invariant, AQL passthrough Mechanism B); BC-2.01.013 (per-sensor push-down translation table).
 
@@ -93,10 +100,25 @@ combined with `+` when both are present. Adapters without native time params (Ar
 Cyberint, Claroty) silently receive non-None values and ignore them; DataFusion
 post-filters to uphold BC-2.11.007 result-equivalence.
 
-**Full per-sensor `classify_predicates` integration (Option T2)** is explicitly deferred.
-When the fan-out orchestration is restructured to run predicate classification
-post-target-resolution (a future wave-6 story), a follow-up ADR will supersede this
-one for the T2 scope.
+**Full per-sensor `classify_predicates` integration (Option T2)** is split:
+
+**REQUIRED-column plan-time enforcement (uses T1 access pattern, not T2):** The plan-time
+E-QUERY-009 gate that rejects queries missing a REQUIRED column constraint is anchored to
+`S-REQUIRED-COL-GATE-001` (status: draft, depends_on: S-3.02). Ground truth in this ADR's
+§Decision confirms that `MaterializationContext.resolved_spec_map` is already accessible
+pre-fan-out — T1 uses it for datetime column type lookup; `S-REQUIRED-COL-GATE-001` reuses
+the same access pattern. No fan-out orchestration restructuring is needed for that gate.
+ADR-057 §D7's earlier characterization of T2 as a prerequisite for this gate was a false
+premise, corrected by `S-REQUIRED-COL-GATE-001 §Origin`.
+
+**Full T2 (post-resolution per-sensor `classify_predicates` for all push-down dimensions)
+— OPEN OBLIGATION:** Restructuring fan-out orchestration to pass per-sensor `ColumnSpec`
+into `classify_predicates` post-resolution (for range predicates, inequality push-down,
+etc.) is not covered by `S-REQUIRED-COL-GATE-001`. This broader T2 work remains an open
+obligation with no story yet authored. When that story is created, a follow-up ADR will
+supersede this one for the full T2 scope. No wave number is assigned here — code comments
+describing this work as deferred are code TODOs; they are not story anchors and their wave
+references are not normative ADR obligations.
 
 ## Rationale
 
@@ -205,5 +227,6 @@ to develop@752e407a; test-writer Red Gate dispatch is next.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.1 | 2026-07-31 | architect | FB109 — wave-granularity deferral correction. Two LIVE normative sites fixed. §Context: removed wave-5 propagation from code-doc-comment quote — "deferred to wave-5" is a code TODO; quoting the wave number into an ADR converts a code TODO into an untracked normative obligation. Replaced with: doc-comment notes per-sensor classify_predicates is deferred (code TODO); wave reference in that comment is not imported here. §Decision: "a future wave-6 story" removed; replaced with split deferral: (1) REQUIRED-column plan-time E-QUERY-009 gate anchored to `S-REQUIRED-COL-GATE-001` (status: draft, depends_on: S-3.02) — that story confirmed `MaterializationContext.resolved_spec_map` is accessible pre-fan-out via T1's access pattern; no T2 fan-out restructuring needed; ADR-057 §D7 false-prerequisite claim corrected bidirectionally; (2) full T2 (post-resolution per-sensor classify_predicates for all push-down dimensions) remains OPEN OBLIGATION, no story yet. version: missing → "v1.1" added to frontmatter. anchor_stories: `S-DEMO-QUERY-PUSHDOWN-001` retained; SAC-2 annotation added. POL-29 9a: decisions-directory sweep for wave-granularity patterns — file-path references to cycle dirs and historical changelog rows excluded; only ADR-033 §Context (code-comment quote) and §Decision ("a future wave-6 story") were LIVE normative sites, both fixed here. Code docs in pushdown.rs and materialization.rs still carry "deferred to wave-5" — reported, not edited (implementer routing). 9b: §Decision is not a verbatim copy-source for any downstream artifact. 9c: `S-REQUIRED-COL-GATE-001` verified on disk; no new unanchored MUSTs introduced. |
 | v1.0 | 2026-06-05 | state-manager | Promoted proposed→accepted per D-1006 human approval: "Approve — re-implement v2." v2 scope expansion to prism-query (+SS-11) authorized. Re-implementation TDD cycle begins; worktree reset to develop@752e407a. ARCH-INDEX v2.111→v2.112. |
 | v0.1 | 2026-06-05 | architect | Initial proposed ADR for ADR-033 via create-adr workflow. T1 heuristic decision for S-DEMO-QUERY-PUSHDOWN-001 v2. |

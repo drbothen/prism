@@ -4608,3 +4608,31 @@ In all three cases, the dispatched burst's work is correct. The gap is that the 
 **Transferable principle:** Any sweep discipline that requires observable evidence (grep output, file-content quotes) rather than a verdict word produces systematic discovery. Any sweep discipline that accepts a verdict word produces opportunistic discovery. For defect classes with a documented recurrence history (3+ instances), systematic is required by TD-VSDD-097 codification threshold; that threshold exists precisely because opportunistic sweeps failed three times in the same perimeter.
 
 **Source:** D-2080 FB108 state-manager closing burst (2026-07-31). Pattern family: POL-29 three-dimension sweep, grep-evidence discharge, attestation accuracy, TD-VSDD-097, sibling-sweep recurrence.
+
+---
+
+### Lesson 123 — Sequencing-Artifact Class Generalized: Multi-Burst Chains Where Each Burst Is Individually Correct Yet the Chain Produces Stale Seam Artifacts
+
+**Category:** Sequencing-artifact pattern, multi-burst chain discipline, chain-close sweep, attestation accuracy, DRIFT item classes
+
+**Context:** FB109 closed DRIFT-ADR057-D7-STALE-OBLIGATION-001, which was itself a sequencing-artifact first documented at D-2078 (Lesson 120). During the FB109 burst, two further instances of the same pattern were identified in the same multi-burst chain, confirming that sequencing-artifacts are a recurring structural phenomenon, not an isolated occurrence.
+
+**Two instances in the FB103→FB104→FB109 chain:**
+
+1. **FB103→FB104 seam (documented at D-2078/Lesson 120):** FB103 correctly refused to invent a story ID for the plan-time E-QUERY-009 gate when no story existed. FB104 correctly created S-REQUIRED-COL-GATE-001. Neither burst was individually wrong. But the seam produced DRIFT-ADR057-D7-STALE-OBLIGATION-001: ADR-057 §D7 still said "no story yet exists" immediately after the story was created in a separate burst.
+
+2. **FB104→FB109 seam (newly observed at D-2081):** FB104 correctly created S-REQUIRED-COL-GATE-001 as a new story file. FB109 correctly anchored ADR-057 §D7 to that story. Neither burst was individually wrong. But the seam produced DRIFT-S-REQUIRED-COL-GATE-001-SAC2-NOAUTH-001: the new story was created without a §Authority section, which means ADR-057 `anchor_stories:` cannot be verified complete until the story §Authority is authored — SAC-2 bidirectional traceability remains incomplete after both bursts.
+
+**The structural pattern:** A sequencing-artifact arises when Burst A creates a condition (story exists, story has no §Authority) that Burst B correctly acts on (anchors the ADR), yet the act of anchoring exposes a new stale state (§Authority missing) that did not exist as a defect before Burst B ran. The artifact is not a failure of either burst in isolation — it is a failure of the INTERFACE between bursts to guarantee a coherent state at the seam.
+
+**Why per-burst sweeps cannot catch seam artifacts:** Each burst sweeps the perimeter of what it touches. A burst that creates a story file sweeps the story contents for its own deliverables but has no reason to verify that the story satisfies conventions required by a FUTURE anchoring action. A burst that anchors an ADR to a story verifies that the story exists but may not re-verify all SAC-2 structural requirements of the story (those were the story-creating burst's responsibility). The seam is structurally invisible to per-burst verification.
+
+**Proposed chain-close back-reference check:** Upon closing a DRIFT item via a fix burst, the fixer SHOULD sweep all artifacts referenced in the DRIFT summary for newly-stale claims introduced by the closure. In this case: closing DRIFT-ADR057-D7 by anchoring §D7 to S-REQUIRED-COL-GATE-001 should have triggered a sweep of S-REQUIRED-COL-GATE-001 for SAC-2 compliance, which would have surfaced the §Authority absence. This check is additive — it runs at burst-close time, not at item-creation time.
+
+**Sixth codification candidate:** The sequencing-artifact class has now produced two distinct DRIFT items in a single 3-burst chain (FB103→FB104→FB109). Lesson 120 documented the first occurrence. This lesson documents the second and proposes the chain-close back-reference check as a structural mitigation. Three occurrences meeting the TD-VSDD-097 codification threshold would warrant a standing probe or gate; two occurrences warrant the mitigation proposal being recorded here.
+
+**Cross-reference to attestation-accuracy lesson series:** Lesson 114 (POL-29 9a failure producing stale attestation), Lesson 116 (grep-output discipline for sweeps), Lesson 120 (sequencing-artifact at FB103→FB104 seam), and Lesson 122 (grep-evidence discharge making sweep discovery systematic) form the prior series. This lesson completes the chain: Lesson 120's sequencing-artifact analysis was accurate but incomplete — it identified the first seam but did not anticipate that the resolution burst itself would create a second seam. The proposed chain-close check operationalizes the missing step.
+
+**Transferable principle:** When closing a DRIFT item that references a newly-created artifact, verify that the newly-created artifact satisfies all structural requirements imposed by the conventions that the closing action depends on. A burst that anchors an ADR to a story implicitly depends on the story satisfying SAC-2; that dependency check should be explicit at close time, not deferred to a future adversarial pass.
+
+**Source:** D-2081 FB109 state-manager closing burst (2026-07-31). Pattern family: sequencing-artifact, multi-burst chain discipline, SAC-2 compliance, chain-close sweep, attestation accuracy.

@@ -5,7 +5,7 @@ title: "Armis Per-Device Activity Surface — Push-Down Grammar for Parameterize
 status: accepted
 date: "2026-07-27"
 modified: "2026-07-31"
-version: "1.2"
+version: "1.3"
 producer: architect
 subsystems_affected: [SS-06, SS-07, SS-12]
 supersedes: null
@@ -13,6 +13,10 @@ superseded_by: null
 amends: null
 anchor_stories:
   - S-WAVE-A-ARMIS-ACTIVITY-001  # §Authority verified: "ADR-057 (accepted 2026-07-27)" — governs ${query.filter.*} push-down grammar for parameterized path templates
+  # S-REQUIRED-COL-GATE-001 implements §D7 Mechanism A (E-QUERY-009 plan-time gate) and cites
+  # ADR-057 §D7 in its §Architecture Compliance Rules. However, that story lacks a ##Authority
+  # section — per SAC-2, anchor_stories is populated from §Authority citations only. Cannot add
+  # until story-writer adds ##Authority section to S-REQUIRED-COL-GATE-001.
 related_adrs: [ADR-028, ADR-033, ADR-053, ADR-056]
 related_bcs: [BC-2.02.006, BC-2.02.014, BC-2.11.007, BC-2.16.002]
 inputs:
@@ -474,29 +478,42 @@ Both mechanisms operate at different architectural layers and are intentional:
 
 | Layer | Mechanism | Error Code | Timing | Status |
 |-------|-----------|------------|--------|--------|
-| Query plan time | `ColumnOptions::Required` + `classify_predicates §classify_predicates` (BC-2.11.007 §REQUIRED Column Runtime Mechanism / DI-021) | E-QUERY-009 | Before fan-out | **OPEN OBLIGATION** — future story not yet created (see note below) |
+| Query plan time | `ColumnOptions::Required` + `classify_predicates §classify_predicates` (BC-2.11.007 §REQUIRED Column Runtime Mechanism / DI-021) | E-QUERY-009 | Before fan-out | **ANCHORED** — `S-REQUIRED-COL-GATE-001` (status: draft, depends_on: S-3.02) |
 | Step execution time | `required_filters` on `FetchStep §FetchStep` (this ADR §D7) | E-SPEC-029 | Before HTTP dispatch per step | Wave-A (active) |
 
-**Precedence:** when the plan-time E-QUERY-009 gate is implemented (see open obligation
-note below), E-QUERY-009 fires first; E-SPEC-029 (`required_filters`) remains as
-defense-in-depth at step execution time. The two error codes serve genuinely distinct
-architectural layers — no consolidation is required or appropriate. Once the plan-time
-gate is implemented, a query without `device_id` sees E-QUERY-009 at plan time; if
-somehow the plan-time gate is bypassed and the step executes, E-SPEC-029 provides the
-final backstop.
+**Precedence:** when `S-REQUIRED-COL-GATE-001` ships, E-QUERY-009 fires first; E-SPEC-029
+(`required_filters`) remains as defense-in-depth at step execution time. The two error
+codes serve genuinely distinct architectural layers — no consolidation is required or
+appropriate. Once the plan-time gate ships, a query without `device_id` sees E-QUERY-009
+at plan time; if somehow the plan-time gate is bypassed and the step executes, E-SPEC-029
+provides the final backstop.
 
-**Plan-time E-QUERY-009 enforcement — OPEN OBLIGATION (no story ID yet):** Mechanism A
-requires a dedicated story to wire `classify_predicates §classify_predicates` into the
-pre-fan-out execution path with `ColumnSpec` available at that stage. No such story exists
-at the time of this writing (2026-07-31). The code scope note in
-`predicate_tree_to_filter_map §predicate_tree_to_filter_map` describes this as "deferred to
-wave-5" — that is a code TODO, not a story anchor; this ADR cannot cite a code comment as
-a tracked obligation. This obligation MUST be attached to a real story ID before it is
-considered tracked. Prerequisites for that story: ADR-033 T2 integration (wiring
-`ColumnSpec` into the pre-fan-out stage — itself unanchored to a real story). Proposed
-story scope reported to orchestrator in FB103 adjudication (2026-07-31); story-writer
-dispatch pending. Until that story ships, Mechanism B (`required_filters` / E-SPEC-029)
-is the ONLY active enforcement path.
+**Plan-time E-QUERY-009 enforcement — ANCHORED (2026-07-31):** `S-REQUIRED-COL-GATE-001`
+is the real story anchor for this obligation (status: draft, tdd_mode: strict, 4 ACs,
+4 Red Gate tests, depends_on: S-3.02, behavioral_contracts: [BC-2.11.007],
+verification_properties: [VP-031]).
+
+**False prerequisite corrected (FB109):** v1.2 characterized ADR-033 T2 integration as a
+prerequisite for this gate. Ground truth from ADR-033 §Decision and
+`S-REQUIRED-COL-GATE-001 §Origin` refutes this: `MaterializationContext.resolved_spec_map`
+is already accessible at the pre-fan-out stage — T1 established this access pattern for
+datetime column type lookup; the REQUIRED-column gate reuses the same access pattern
+without any fan-out orchestration restructuring. Full T2 (post-resolution per-sensor
+`classify_predicates §classify_predicates` for all push-down dimensions) is a
+separate open obligation with no story yet.
+
+The code scope note in `predicate_tree_to_filter_map §predicate_tree_to_filter_map`
+describing this as "deferred" is a code TODO — the wave reference in that comment is NOT
+imported as an ADR obligation here. Until `S-REQUIRED-COL-GATE-001` ships, Mechanism B
+(`required_filters` / E-SPEC-029) is the ONLY active enforcement path.
+
+**Sequencing artifact note:** This paragraph read "OPEN OBLIGATION — no story ID yet" as
+of v1.2 (2026-07-31, FB103). The obligation was correctly recorded without a phantom ID;
+the story was created in a separate burst (FB104) and this ADR updated in the next burst
+(FB109). Neither burst was individually wrong. The stale "no story" claim arose at the
+seam between two individually-correct bursts — a sequencing artifact, not a sweep failure.
+No per-burst sweep catches this class of drift; the safeguard is to check open obligations
+against the on-disk story catalog on the next ADR-touching burst.
 
 ### `#[non_exhaustive]` obligation
 
@@ -598,6 +615,7 @@ by FB95 `error-taxonomy.md §SPEC table` amendment). Discharge anchor:
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.3 | 2026-07-31 | architect | FB109 — deferral-anchor accuracy. §D7 Mechanism Layering table: "Query plan time" Status cell from "OPEN OBLIGATION — future story not yet created" → "ANCHORED — `S-REQUIRED-COL-GATE-001` (status: draft, depends_on: S-3.02)". §D7 Precedence paragraph: removed "open obligation note below" forward reference; named `S-REQUIRED-COL-GATE-001` as gate anchor. §D7 plan-time paragraph: OPEN OBLIGATION (no story ID yet) → ANCHORED (2026-07-31) with story metadata. False prerequisite corrected: v1.2 stated ADR-033 T2 was a prerequisite; ADR-033 §Decision and `S-REQUIRED-COL-GATE-001 §Origin` both confirm `MaterializationContext.resolved_spec_map` is already accessible pre-fan-out via T1 — no fan-out restructuring needed for the REQUIRED-column gate. Full T2 (broad post-resolution push-down) remains a separate open obligation, no story yet. Sequencing artifact note added (two individually-correct bursts FB103 + FB104 produced stale "no story" claim at their seam — neither burst was wrong; the seam itself is the failure mode). anchor_stories: `S-WAVE-A-ARMIS-ACTIVITY-001` retained (§Authority verified); `S-REQUIRED-COL-GATE-001` annotated as not yet qualifying (lacks ##Authority section — story-writer routing). version: "1.2" → "1.3". POL-29 9a: decisions-directory sweep — LIVE normative wave-granularity deferrals: ADR-033 §Context (code-comment quote) and §Decision ("a future wave-6 story") — both fixed in ADR-033 v1.1 this burst. ADR-057 lines 464/493 are explanatory text (explicitly labelling the code TODO as not a story anchor), not normative deferrals — no change needed. Code doc-comments in pushdown.rs §predicate_tree_to_filter_map and materialization.rs §run_materialization_pipeline / §extract_push_down_filters_as_map still carry "deferred to wave-5" — reported to implementer, out of architect scope. Other decisions-directory hits: file-path references to cycle directories (not deferrals), historical changelog rows (immutable per POL-1), "a future wave" generic notes without wave numbers (ADR-053; no obligation). 9b: §D7 is a documented copy-source for BC-2.02.014 §Postconditions and BC-2.02.006 EC-02-014. The OPEN OBLIGATION → ANCHORED change affects architectural-context text only; no BC currently transcribes the obligation paragraph verbatim (it is narrative, not a TOML/error-code spec block). No downstream copy propagation needed. 9c: No new MUSTs introduced; story anchor is real on-disk story ID verified against stories/ directory. |
 | 1.2 | 2026-07-31 | architect | FB103 continuation (orchestrator correction) — POL-29 9c: v1.1's "wave-5" deferral references in normative text were unanchored wave references, not real story IDs, violating Canonical Principle Rule 3 and POL-29 9c. Ground truth confirmed: no existing story covers the absent-REQUIRED-filter → E-QUERY-009 enforcement gate (S-3.02 covers `classify_predicates` classification only; S-DEMO-QUERY-PUSHDOWN-001 explicitly defers T2 integration to "wave-6 future story with superseding ADR"; S-QUERY-SCOPE-PARAMS-001 out-of-scope section similarly defers T2 with no story ID). Option (b) taken. All six wave-5 references in normative body replaced with explicit OPEN OBLIGATION language. §D7 Mechanism Layering: (1) table Status cell changed from "Wave-5 (deferred)" to "OPEN OBLIGATION — future story not yet created"; (2) precedence prose updated to remove wave-5 references; (3) new "Plan-time E-QUERY-009 enforcement — OPEN OBLIGATION" paragraph added naming the defect explicitly, explaining the code-TODO origin, and recording that prerequisites (ADR-033 T2 story) are also unanchored. §D5 annotation prose updated to remove wave-5 forward reference. §D7 fourth alternative header updated. §D7 rationale paragraph updated to explicitly document why code TODO cannot serve as story anchor. Proposed follow-up story scope reported to orchestrator for story-writer dispatch. Transferable lesson: code scope notes that say "deferred to wave-N" are code TODOs; quoting them in ADR normative text without a real story ID converts a code TODO into an untracked architectural obligation. Corrected 9c verdict: §D5 REQUIRED annotation → anchored to AC-002/RG-002 (CLEAN); plan-time E-QUERY-009 enforcement → OPEN OBLIGATION recorded, no phantom ID introduced (COMPLIANT — obligation explicit, not phantom-anchored). |
 | 1.1 | 2026-07-31 | architect | FB103 — F-WASE-P72-HIGH-001 adjudication. §D7 alternatives analysis corrected: prior text rejected INDEX (correct) but was entirely silent about `ColumnOptions::Required`, which has a semantically distinct meaning (BC-2.11.007: "the sensor API requires this parameter"). Decision: both mechanisms are correct and complementary at distinct architectural tiers — plan-time E-QUERY-009 (BC-2.11.007 §REQUIRED Column Runtime Mechanism / DI-021, wave-5 deferred) vs step-execution-time E-SPEC-029 (`required_filters` on `FetchStep §FetchStep`, wave-A active). §D7 "Mechanism Layering" subsection added contracting precedence (E-QUERY-009 fires first when wave-5 lands; E-SPEC-029 remains as defense-in-depth). §D5 TOML block: `device_id` annotation corrected from `options = ["INDEX"]` to `options = ["REQUIRED"]`; INDEX means "push-down eligible, not mandatory" which contradicts BC-2.02.014 §Invariants ("queries without this predicate are errors, not empty result sets"); REQUIRED is the semantically correct annotation. Annotation change does not affect wave-A behavior (annotation-agnostic routing in `predicate_tree_to_filter_map §predicate_tree_to_filter_map`). §D5 annotation prose updated. C1 updated. `related_bcs` frontmatter: BC-2.11.007 added. `modified` updated to 2026-07-31. POL-29: 9a — ADR-050..056 Wave-A family swept; ADR-056 CLEAR (zero `options = ["INDEX"]` / `options = ["REQUIRED"]` for any required-filter column). 9b — §D5 TOML block is authoritative copy-source for BC-2.02.014 §TOML Contract and `S-WAVE-A-ARMIS-ACTIVITY-001` T-IMPL-01; annotation change propagates to both targets (reported, not performed — FB103 scope limits). 9c — no new unanchored MUSTs; `REQUIRED` annotation obligation anchored to `S-WAVE-A-ARMIS-ACTIVITY-001` AC-002 / RG-002; test name update is downstream propagation. |
 | 1.0 | 2026-07-30 | architect | FB99 — F-WASE-P71-HIGH-002: §D7 "Canonical error variant" subsection and §C7 updated to record E-SPEC-029 as REGISTERED and mark both obligations DISCHARGED. Ground truth: E-SPEC-029 registered in `error-taxonomy.md §SPEC table` (FB95 2026-07-30); BC-2.02.014 "or equivalent" eliminated at all four sites. POL-39: no version pins introduced in new text. POL-29 9a: ADR-050..056 Wave-A family swept — ADR-056 carries no E-SPEC-NNN placeholder or required-filter content (grep CLEAR). 9b: `error-taxonomy.md §SPEC table` E-SPEC-029 row cites `ADR-057 §D7 / §C7` by section anchor (version-free); §D7 section name unchanged after edit — downstream copy agrees. 9c: both MUST obligations now carry explicit DISCHARGED markers with anchor `S-WAVE-A-ARMIS-ACTIVITY-001` AC-004 / RG-004; no new unanchored MUSTs introduced. |
