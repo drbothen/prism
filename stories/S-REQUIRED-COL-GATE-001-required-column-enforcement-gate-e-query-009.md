@@ -15,11 +15,12 @@ status: draft
 # Spec-First Gate (S-7.01): behavioral_contracts is non-empty; status MUST remain draft until
 # product-owner has authored holdout scenarios at materialization time (POL-35).
 # BC-2.11.007 is v1.9 active — BCs are authored; holdout authorship is pending (see below).
-version: "1.0"
+version: "1.1"
 level: "L3"
 producer: story-writer
 timestamp: "2026-07-31T00:00:00Z"
 created: "2026-07-31"
+modified: "2026-07-31"
 phase: 3
 tdd_mode: strict
 subsystems: [SS-11]
@@ -119,9 +120,32 @@ cycle: "v1.0.0-brownfield"
 
 **Story ID:** S-REQUIRED-COL-GATE-001
 **Status:** draft
-**Version:** v1.0
+**Version:** v1.1
 **Priority:** P1
 **Points:** 5
+
+---
+
+## Authority
+
+**BC-2.11.007 §REQUIRED Column Runtime Mechanism** is the behavioral contract governing
+the DI-021 enforcement obligation this story implements: queries missing a REQUIRED column
+constraint are rejected with E-QUERY-009 before any API calls. §Error Cases (E-QUERY-009
+row) defines the structured error shape. §Invariants INV-REQUIRED-SPECDRIVEN establishes
+that the REQUIRED column set is spec-driven only, with no hardcoded names.
+
+Read BC-2.11.007 at:
+`.factory/specs/behavioral-contracts/BC-2.11.007-sensor-filter-push-down.md`
+
+**ADR-057 §D7 Mechanism Layering** is the architectural authority for the two-tier
+defense-in-depth design this story participates in: the E-QUERY-009 plan-time gate
+(Tier 1, this story) fires before the E-SPEC-029 step-execution gate (Tier 2,
+`S-WAVE-A-ARMIS-ACTIVITY-001`). Neither tier retires the other. The tier responsibility
+division — including the empty-value arm adjudication
+(DRIFT-S-REQUIRED-COL-GATE-001-EMPTYVAL-001) — is documented in ADR-057 §D7.
+
+Read ADR-057 at:
+`.factory/specs/architecture/decisions/ADR-057-armis-activity-per-device-push-down-grammar.md`
 
 ---
 
@@ -459,6 +483,7 @@ cannot author specs per routing policy).
 | EC-004 | Multi-sensor fan-out query; Sensor A has REQUIRED column unconstrained; Sensor B has none | E-QUERY-009 fired for Sensor A only; the error names Sensor A and its required column. Sensor B proceeds normally. |
 | EC-005 | REQUIRED column constrained with inequality predicate (e.g., `device_id > 'abc'`) | Implementer must decide: BC-2.11.007 says "constrained in WHERE clause" without specifying operator; equality is the safe assumption. If inequality doesn't satisfy the gate, E-QUERY-009 fires with a message directing user to use `=`. Route decision to product-owner if ambiguous. |
 | EC-006 | E-QUERY-009 fired; downstream E-SPEC-029 path never reached | Correct behavior: E-QUERY-009 fires at plan time; E-SPEC-029 is unreachable for this code path. Both remain in the codebase; no removal. |
+| EC-007 | REQUIRED column constrained with an empty-string value (e.g. `WHERE device_id = ''`) | Tier 1 gate (this story) **passes**: `classify_predicates §classify_predicates` checks predicate presence only — the predicate's RHS value is not inspected at plan time. `WHERE device_id = ''` is structurally present and indistinguishable from `WHERE device_id = 'abc'` at the plan-time layer; no E-QUERY-009 fires. Tier 2 (`required_filters` gate in `execute_impl §execute_impl`, E-SPEC-029, ADR-057 §D7 Rule 2) catches the present-but-empty arm before any HTTP request is issued. Coverage: `S-WAVE-A-ARMIS-ACTIVITY-001` AC-009 / RG-009. Expected behavior by design — this story owes no AC or RG test for the empty-value arm. |
 
 ---
 
@@ -497,4 +522,5 @@ cannot author specs per routing policy).
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-07-31 | story-writer | FB111 — (1) EC-007 added to Edge Cases table: REQUIRED column constrained with empty-string value (`WHERE device_id = ''`). Architect adjudication DRIFT-S-REQUIRED-COL-GATE-001-EMPTYVAL-001 (ADR-057 §D7 v1.4): Tier 1 gate passes by design — `classify_predicates §classify_predicates` is predicate-presence, value-agnostic; `S-WAVE-A-ARMIS-ACTIVITY-001` AC-009 / RG-009 covers Tier 2 (E-SPEC-029 Rule 2 present-but-empty arm). No AC or RG test owed by this story for this case; AC count and SAC-1 density (4/4 = 1.0) UNCHANGED. (2) `## Authority` section added citing BC-2.11.007 §REQUIRED Column Runtime Mechanism (DI-021 enforcement path) and ADR-057 §D7 Mechanism Layering (tier division). Both anchors verified as real `##` headings on disk (BC-2.11.007 `## REQUIRED Column Runtime Mechanism`, ADR-057 `## D7 — Required-Filter Gate Mechanism`). ADR-057 `anchor_stories` can now be updated by architect to include this story per SAC-2. (3) `version:` frontmatter bumped 1.0 → 1.1; `modified: "2026-07-31"` added to frontmatter. POL-29: (9a) 237 S-*.md stories; 11 have `## Authority`; 226 lack it — corpus pattern, not a two-file gap; `S-DEMO-QUERY-PUSHDOWN-001` also lacks `## Authority` (separately routed per dispatch); (9b) EC-007 content downstream of ADR-057 §D7 "Tier responsibility division — empty-value arm" block (v1.4 source); both agree; no other artifact transcribes EC-007 verbatim; (9c) EC-007 contains no `MUST`; no new unanchored MUSTs introduced. |
 | 1.0 | 2026-07-31 | story-writer | Authored per FB104 (close unanchored-deferral chain around plan-time REQUIRED-column enforcement, ADR-057 §D7 open obligation). Adjudication: one story (not two) — the enforcement gate is self-sufficient via resolved_spec_map pre-fan-out access (T1 pattern); ADR-033 T2 fan-out restructuring is a separate future concern not required here. S-3.02 as depends_on (classify_predicates availability). 4 ACs, 4 Red Gate tests, BC-5.38.001 density 1.0. POL-35 holdout note. SAC-1 compliant. POL-39 compliant (no version pins). POL-29 9c: all MUSTs anchored to AC/RG in this story. Re-anchors wave-granularity deferral in S-DEMO-QUERY-PUSHDOWN-001 and S-QUERY-SCOPE-PARAMS-001 to this story ID. |
