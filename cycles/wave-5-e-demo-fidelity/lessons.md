@@ -4586,3 +4586,25 @@ In all three cases, the dispatched burst's work is correct. The gap is that the 
 **Repair pattern for multi-column tables (e.g., 7-column STORY-INDEX):** Excess cells are often in the middle description cell rather than the last cell. Strategy: keep cell 1 (ID), join middle cells back into cell 2 (description) with `\|` escaping, keep the last 5 structured columns (cells 3-7) intact.
 
 **Source:** D-2079 FB107 state-manager closing burst (2026-07-31). Pattern family: index ledger structural integrity, GFM table parsing discipline, records-lint scope boundaries.
+
+---
+
+### Lesson 122 — Grep-Evidence Discharge: Requiring Output Instead of Verdict Converts Sibling-Sweep Discovery from Opportunistic to Systematic
+
+**Category:** POL-29 three-dimension sweep, grep-evidence discipline, sibling-sweep failures, TD-VSDD-097, attestation accuracy
+
+**Context:** FB108 was dispatched to correct three LIVE normative sites in BC-2.02.006 (product-owner leg) and then close the state-manager leg. During the product-owner leg's mandated POL-29 dimension 9a (named-twin) outward sweep — run as a grep across all sibling BC-2.02.00x files, BC-2.11.007, ADR-033, ADR-057, and related stories — the sweep discovered BC-2.02.006 itself was the stale target that needed correction. This was not an incidental finding: the fixer's own mandated sweep found the defect being fixed in scope. The sweep also confirmed that the six other outward targets were CLEAR.
+
+**The fourth recurrence:** This is the fourth documented POL-29 dimension 9a named-twin sweep failure in the Wave-A cascade (preceding three: pass-66 CRIT-001, HIGH-002, and MED-001, which together triggered the TD-VSDD-097 codification threshold). The pattern is converging: the fixer's own mandated sweep finds the sibling defect that the prior burst's adversarial pass missed.
+
+**What changed that made it work:** TD-VSDD-097 requires the fixer to report "the grep it actually ran and the hits it found per file — not a verdict word" (D-2075 Lesson 116). The prior pattern was: fixer claims "9a CLEAR" with no grep evidence, adversary cannot independently verify without re-running the same grep, defect survives to the next pass. The new pattern: fixer runs the grep, reports literal output, adversary can spot-check the grep command against the claimed scope, gap is caught within the same burst.
+
+**Systematic vs opportunistic discovery:** When POL-29 9a discharge requires grep output, sibling-sweep discovery becomes SYSTEMATIC — it runs on every fix burst regardless of whether the fixer suspects a sibling problem. When POL-29 9a discharge accepts a verdict word ("CLEAR"), discovery is OPPORTUNISTIC — it depends on the fixer suspecting a problem and choosing to verify. The four recurrences above all occurred under the verdict-word regime; this burst occurred under the grep-output regime and found the defect within scope rather than leaving it for the next adversarial pass.
+
+**False-positive discipline:** The product-owner leg also reported (erroneously) that S-WAVE-A-ARMIS-ACTIVITY-001 §Behavioral Contracts table pinned BC-2.02.006 at v1.17 and needed refreshing. State-manager verification showed the version column is empty for both BC rows in that table; "1.17" does not appear anywhere in the story file. Recording this false positive in D-2080 prevents re-minting. The grep-evidence discipline enabled detection of the false positive: a verdict-word discharge ("story table updated") would not have triggered the verification step.
+
+**Cross-reference to attestation-accuracy lesson series:** Lessons 114 (POL-29 9a failure producing stale attestation), 116 (POL-29 discharge requires grep output, not verdict word), and 120 (sequencing-artifact at multi-burst seam) form the prior series. This lesson closes the loop: grep-evidence discipline mandated by Lesson 116 paid off in the first burst where it was applied to BC-2.02.006's siblings.
+
+**Transferable principle:** Any sweep discipline that requires observable evidence (grep output, file-content quotes) rather than a verdict word produces systematic discovery. Any sweep discipline that accepts a verdict word produces opportunistic discovery. For defect classes with a documented recurrence history (3+ instances), systematic is required by TD-VSDD-097 codification threshold; that threshold exists precisely because opportunistic sweeps failed three times in the same perimeter.
+
+**Source:** D-2080 FB108 state-manager closing burst (2026-07-31). Pattern family: POL-29 three-dimension sweep, grep-evidence discharge, attestation accuracy, TD-VSDD-097, sibling-sweep recurrence.
