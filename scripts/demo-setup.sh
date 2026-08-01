@@ -48,6 +48,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# DEFECT-DEMOSETUP-CWD-001: cd to repo root immediately so that `cargo build`
+# invocations below succeed regardless of the caller's working directory.
+# All subsequent paths are absolute-var-based (${REPO_ROOT}/..., ${DEMO_CONFIG_DIR}/...)
+# so this cd is safe and does not affect any other operation.
+cd "$REPO_ROOT"
+
 # Demo config directory (override with --config-dir)
 DEMO_CONFIG_DIR="${HOME}/.config/prism-demo"
 
@@ -317,10 +323,13 @@ echo "    Credentials bootstrapped (10 entries)"
 echo ""
 echo "==> [9/9] Setup complete!"
 echo ""
+echo "    Config dir provisioned: ${DEMO_CONFIG_DIR}"
+echo "    Run the following commands from the repo root (${REPO_ROOT})"
+echo ""
 echo "Next steps:"
 echo ""
 echo "  1. Start the DTU demo server and generate per-org overlays:"
-echo "       bash scripts/demo-run.sh"
+echo "       bash scripts/demo-run.sh --config-dir \"${DEMO_CONFIG_DIR}\""
 echo ""
 echo "  2. Add prism to Claude Code (see docs/DEMO-RUNBOOK.md Â§Connecting Claude Code)"
 echo ""
@@ -328,5 +337,5 @@ echo "  3. In Claude Code, invoke the query MCP tool (see docs/DEMO-RUNBOOK.md Â
 echo "       query  \"SELECT * FROM crowdstrike_detections LIMIT 5\""
 echo ""
 echo "  4. To tear down:"
-echo "       bash scripts/demo-teardown.sh"
+echo "       bash scripts/demo-teardown.sh --config-dir \"${DEMO_CONFIG_DIR}\""
 echo ""
