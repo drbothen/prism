@@ -124,13 +124,101 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2070 (SESSION WRAP; FB102 pass-71 closure; BC-INDEX v8.89; ARCH-INDEX v2.291; STORY-INDEX v2.757; develop_head aa2a5fe6e; NEXT = fix bursts per PROCESS INTERVENTION RULE; BC-5.39.001 streak 0/3).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2070 is the most recent durable session-wrap snapshot; D-2073 STATE.md Session Resume Checkpoint has the 25-item cumulative findings ledger).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2070 is the most recent durable session-wrap snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `aa2a5fe6e` (origin/develop=`aa2a5fe6e`; PR #231 SQUASH-MERGED @aa2a5fe6e; ARM5 check-name exemption for L10/L11 in records-lint.sh on develop). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (D-2073 burst commit). STATE v8.621. pass-72b: 11 findings, 3H/4M/2L/2O, Novelty HIGH; 25 cumulative open; NEXT = fix bursts per PROCESS INTERVENTION RULE.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2084 (SESSION WRAP; FB103–FB111 complete; all P72 HIGH resolved; 23 cumulative open; develop_head aa2a5fe6e; NEXT = story-writer ## Authority corpus backfill THEN architect 15-ADR anchor_stories sweep; BC-5.39.001 streak 0/3).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2084 is the most recent durable session-wrap snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2084 is the most recent durable session-wrap snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `aa2a5fe6e` (origin/develop=`aa2a5fe6e`; PR #231 SQUASH-MERGED @aa2a5fe6e). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (this D-2084 commit). STATE v8.632. 23 cumulative open findings; NEXT = story-writer `## Authority` corpus backfill (225/237 stories) FIRST, then architect 15-ADR anchor_stories sweep.
 
 ---
 
-## §RESUME SNAPSHOT — D-2070 (2026-07-30 — SESSION WRAP; FB102 pass-71 closure; BC-INDEX v8.89; ARCH-INDEX v2.291; STORY-INDEX v2.757; develop_head 51c2d4b1; STATE v8.618) [SUPERSEDES D-2068]
+## §RESUME SNAPSHOT — D-2084 (2026-07-31 — SESSION WRAP; FB103–FB111 complete; all P72 HIGH resolved; 23 cumulative open findings; BC-5.39.001 streak 0/3; develop_head aa2a5fe6e; STATE v8.632) [SUPERSEDES D-2070]
+
+### RESUME IN ONE BREATH
+Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2084 SESSION WRAP — FB103–FB111 complete this session; all four pass-72 HIGH findings resolved; 23 cumulative open findings; develop_head `aa2a5fe6e`.
+**NEXT ACTION:** Commission `## Authority` corpus backfill (story-writer) FIRST, then 15-ADR `anchor_stories` sweep (architect) — in that order. Sweep BLOCKED until §Authority sections exist corpus-wide. DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 — 225 of 237 stories lack `## Authority`; SAC-2 bidirectional traceability substantially non-functional; human visibility required before dispatch.
+
+### WORKSTREAM STATE
+
+**Wave-A spec-evolution cascade (Phase 3 — current)**
+BC-5.39.001 streak 0/3. 23 open findings (8 P72 + 9 P72b + 6 drift). No cascade in flight. No merge-gate PRs.
+RESUME NEXT-ACTION: Dispatch `## Authority` corpus backfill (story-writer) FIRST. Then 15-ADR `anchor_stories` sweep (architect). Then remaining fix bursts per PROCESS INTERVENTION RULE. Then pass-73 partitioned across 2–3 concurrent adversaries on disjoint slices (DRIFT-WASE-PERIMETER-UNREAD-001 — POL-24/POL-6/POL-13/supersession-chain all unrun; 6 of 7 perimeter story bodies unread).
+
+**PR #229 (fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b`)**
+OPEN. Stale since 2026-07-20. Branch pushed. CI stale (`mergeStateStatus: UNKNOWN`).
+RESUME NEXT-ACTION: devops-engineer rebase onto develop `aa2a5fe6e` + CI re-run. Human merge gate.
+
+**PR #232 (docs/governance-sap2-arm3-non-exhaustive-count-directive @`119a44e9c`)**
+OPEN. Branch pushed. Two CLAUDE.md governance amendments: SAP-2 Rule 2 datetime default + non-exhaustive count directive.
+RESUME NEXT-ACTION: Human decides merge.
+
+### WORKTREE INVENTORY
+
+| Worktree | Branch | SHA | Status | Classification |
+|----------|--------|-----|--------|----------------|
+| main | develop | `aa2a5fe6e` | clean | active |
+| `.worktrees/fix-demosetup-cwd` | fix/DEFECT-DEMOSETUP-CWD-001 | `ec4379b5b` | clean | stale-leave (PR #229 OPEN; rebase needed) |
+| `.worktrees/S-3.09` | feature/S-3.09 | `43c41389d` | clean | stale-leave (KEEP-PARKED; LOCAL-ONLY AT RISK) |
+| `.worktrees/W3-FIX-S307-001` | feature/W3-FIX-S307-001 | `fcab8717c` | dirty (1 file) | stale-leave (PARKED-DIRTY do-NOT-touch; LOCAL-ONLY AT RISK) |
+
+### HEADS (D-2084)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` (this D-2084 commit). Frozen HEAD for pass-73 = this D-2084 commit. DRIFT-ORCH-PRLEVEL-PUSH-001 — no pushes to factory-artifacts before pass-73 verdict; streak resets on push. Streak 0/3.
+- `origin/develop`: `aa2a5fe6e` — PUSHED (PR #231 SQUASH-MERGED @aa2a5fe6e; ARM5 records-lint exemption).
+- Main worktree: develop @`aa2a5fe6e`, clean.
+- `.worktrees/fix-demosetup-cwd` @`ec4379b5b` — PUSHED, PR #229 OPEN (stale; rebase needed).
+- `.worktrees/S-3.09` @`43c41389d` — KEEP-PARKED (LOCAL-ONLY AT RISK).
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK; 1 dirty file).
+- PR #232: `docs/governance-sap2-arm3-non-exhaustive-count-directive` @`119a44e9c` — PUSHED, OPEN.
+- verify-sha-currency.sh: PASS (1 pre-existing non-blocking WARN — historical in-progress voice in archived superseded section). BC-5.39.001 streak 0/3.
+
+### BACKUP BOUNDARY (D-2084)
+- PUSHED / safe: factory-artifacts (this D-2084 commit); fix/DEFECT-DEMOSETUP-CWD-001 @`ec4379b5b` (PR #229 OPEN); origin/develop @`aa2a5fe6e`; docs/governance-sap2-arm3-non-exhaustive-count-directive @`119a44e9c` (PR #232 OPEN).
+- LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty).
+
+### PENDING USER-APPROVED WORK — do not start
+- `## Authority` corpus backfill → story-writer (225/237 stories; DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001) — **HUMAN AUTHORIZED THIS SESSION**
+- 15-ADR `anchor_stories` sweep → architect — **HUMAN AUTHORIZED THIS SESSION; BLOCKED on corpus backfill above**; SAC-2 clause 2 requires §Authority ground truth before derivation; in-order dependency is explicit
+- PR #232 merge — human decision
+- PR #229 merge — human decision (rebase onto `aa2a5fe6e` + CI first)
+- (b) GAP-ASSETS-PAG-001 — new PaginationConfig variant; awaiting human authorization
+- (c) Follow-up story for GAP-ASSETS-PAG-001 — awaiting human authorization
+- (d) STORY-INDEX mixed-prefix normalization — ordering-dependent on records-lint ratchet fix
+- (e) Corpus records debt (39 L1 + 86 L7 across 43 files) — TD-VSDD-096 candidate; NOT in cascade scope
+- GAP-POL25-COMPANION-AMENDMENT-001 — routing: spec-steward; do NOT schedule without orchestrator dispatch
+- DRIFT-PHANTOM-MATERIALIZE-001 — 7 story files deferred; 3 BCs anchor MUSTs to non-existent story IDs (TD-VSDD-097 9c); do NOT start without orchestrator dispatch
+- OPEN RECOMMENDATION TO HUMAN: mechanical POL-29 9a gate — NOT scheduled
+
+### OPEN FINDINGS LEDGER (23 items — disk-authoritative D-2083)
+
+**CRITICAL CARRY-FORWARD WARNINGS:**
+1. Pass-73 MUST be partitioned across 2–3 concurrent adversaries on disjoint slices (DRIFT-WASE-PERIMETER-UNREAD-001): POL-24/POL-6/POL-13/supersession-chain audit all unrun; 6 of 7 perimeter story bodies unread.
+2. Five gate capability boundaries (green does not equal verified): L10 cannot detect content falsification; L1/L7 inoperative in `.factory/` worktree ratchet mode; L1 blind to content-changed-without-version-bump; L9 inoperative before 2026-07-24 (no evidentiary weight for passes before that date); malformed table rows parse silently.
+3. Six codification candidates — five have gate stories (S-MAINT-LEDGER-CITE-GATE-001, S-MAINT-POL29-GREP-EVIDENCE-001, S-MAINT-WAVE-ANCHOR-GATE-001, S-MAINT-CHANGELOG-BACKFILL-001, S-MAINT-CONTENT-VERSION-GATE-001); sixth — chain-close back-reference check — has no vehicle yet.
+4. Verified false positives — DO NOT re-mint: (a) `#[non_exhaustive]` count = 92 correct (`python3 scripts/check-non-exhaustive-per-symbol.py --count` → 92; PR #232 confirmed independently); (b) S-WAVE-A-ARMIS-ACTIVITY-001 has NO live BC version pins — §Behavioral Contracts version column empty; all "v2" occurrences are in immutable changelog rows; (c) BC-2.11.007 §"absent or empty" belongs to AQL auto-seeding mechanism, not a hard-error required-filter gate; (d) DI-021 is NOT a `##` heading — cite by ID only, no `§` prefix.
+
+**Pass-72 open (8):** HIGH-003 (S-MAINT-ADR-ANCHOR-GATE-001 phantom dir → story-writer) \| MED-003 (E-SPEC-029 [PLANNED] → product-owner) \| MED-004 (ARMIS-ACTIVITY-001 AC-005 dev-001/d-001 → story-writer) \| LOW-001 (ADR-ANCHOR-GATE-001 SAC-1 waiver → story-writer) \| LOW-002 (T-IMPL-04(b) → story-writer + product-owner) \| OBS-001 (`build_asset §build_asset` key-on source → product-owner + story-writer) \| OBS-002 (E-SPEC-029 message template → product-owner) \| OBS-003 (ADR-anchor gate no EC for adr-amendment → story-writer + architect)
+
+**Pass-72b open (9):** 72B-HIGH-001 (VP-161 absent from S-WAVE-A-ENGINE-001 → story-writer then state-manager) \| 72B-HIGH-002 (SAP-2 wire-parity BC-2.02.003/005 → product-owner) \| 72B-HIGH-003 (SAC-2 15 ADRs missing anchor_stories: → architect) \| 72B-MED-001 (ADR-056 §D9 phantom literal; fix = cite `check-non-exhaustive-per-symbol.py §EXPECTED_SYMBOLS` → architect) \| 72B-MED-002 (Claroty alerts.id string vs u32 → product-owner then implementer) \| 72B-MED-003 (POL-23 6 stale pins 3 stories → state-manager) \| 72B-MED-004 (POL-36 3 conditional blocks + sensor-named pub fn → architect) \| 72B-LOW-001 (stale "row 91" in BC-2.16.002 §Postconditions → spec-steward) \| 72B-LOW-002 (POL-39 LIVE pins BC-2.16.002 §Postconditions → story-writer)
+
+**Drift items in formal counter (6):**
+- DRIFT-S-REQUIRED-COL-GATE-001-SAC2-NOAUTH-001 (MED): §Authority added to S-REQUIRED-COL-GATE-001; ADR-057 `anchor_stories:` still pending → architect
+- DRIFT-S-DEMO-QUERY-PUSHDOWN-001-SAC2-NOAUTH-001 (LOW): no `§Authority` section → story-writer
+- DRIFT-PUSHDOWN-WAVE5-DEFER-CODE-001 (LOW): wave-5 doc-comments in `pushdown.rs §predicate_tree_to_filter_map`, `materialization.rs §extract_push_down_filters_as_map` / `§run_materialization_pipeline` → implementer
+- DRIFT-ADR033-VOLATILE-CITE-001 (LOW): grandfathered volatile cites in ADR-033 `§Context` and `§Source/Origin` → spec-steward
+- DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 **(HIGH):** 225 of 237 stories lack `## Authority`; SAC-2 corpus-scale gap; **blocks 15-ADR `anchor_stories` sweep** → story-writer (human visibility required before dispatch)
+- DRIFT-REQUIRED-COL-SENSOR-TOML-MISSING-001 **(HIGH):** 8 `options = ["REQUIRED"]` columns with zero `required_filters` (CrowdStrike `detection_id`/`device_id`/`incident_id`; Cyberint `alert_id`/`id`; Claroty `id`/`id`/`uid`) → product-owner (per-sensor BC) then implementer
+
+Additionally tracked outside formal counter: DRIFT-ETAX-WAVE-ANCHOR-001 (MED, E-QUERY-034 wave-5 deferral → product-owner); DRIFT-WASE-PERIMETER-UNREAD-001 (pass-73 partition — see WORKSTREAM STATE above).
+
+Pass-71 carried (not in formal counter; queued for routing): HIGH-001 (ADR-023 §D5 citation) \| HIGH-003 (BC-2.02.006 TD-VSDD-091 path cite) \| MED-001 (POL-23 ACTIVE-DURING-TRANSITION) \| MED-002/MED-003/MED-004 (index NOTE cites) \| MED-006 (ADR-028 §D5 anchor version)
+
+### WORK COMPLETED THIS SESSION (D-2084)
+PR #231 squash-merged (`develop` @`aa2a5fe6e`; ARM5 records-lint exemption; self-probe 38/38 PASS). Passes 72 and 72b run and persisted. Fix bursts FB103–FB111 complete: all four pass-72 HIGH findings resolved. Six new stories commissioned: S-REQUIRED-COL-GATE-001 + S-MAINT-LEDGER-CITE-GATE-001 + S-MAINT-POL29-GREP-EVIDENCE-001 + S-MAINT-WAVE-ANCHOR-GATE-001 + S-MAINT-CHANGELOG-BACKFILL-001 + S-MAINT-CONTENT-VERSION-GATE-001. Artifact versions advanced: ADR-057 v1.0→v1.4; ADR-033 (first-ever `version:` field) →v1.1; BC-2.02.014 →v2.1; BC-2.02.006 →v1.18; S-WAVE-A-ARMIS-ACTIVITY-001 →v2.1. Seven malformed BC-INDEX rows repaired. Lessons 113–125 appended.
+
+### DECISION-LOG DELTA (D-2084)
+D-2084 (state-manager, 2026-07-31): SESSION WRAP. RESUME SNAPSHOT D-2084 authored; §RESUME SNAPSHOT D-2070 marked SUPERSEDED. Disk-verified (POL-37): factory-artifacts HEAD at D-2083 burst `f47174374`; develop_head `aa2a5fe6e` (local==origin). BC-5.39.001 streak 0/3. DRIFT-ORCH-PRLEVEL-PUSH-001: frozen HEAD for pass-73 = this D-2084 commit. records-lint exit 0 PASS; verify-sha-currency PASS (1 pre-existing WARN, non-blocking). STATE v8.631→v8.632. NEXT (in order): story-writer `## Authority` corpus backfill then architect 15-ADR anchor_stories sweep.
+
+---
+
+## §RESUME SNAPSHOT — D-2070 (2026-07-30 — SESSION WRAP; FB102 pass-71 closure; BC-INDEX v8.89; ARCH-INDEX v2.291; STORY-INDEX v2.757; develop_head 51c2d4b1; STATE v8.618) [SUPERSEDES D-2068] [SUPERSEDED by D-2084]
 
 ### RESUME IN ONE BREATH
 Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2070 SESSION WRAP — FB102 pass-71 closure complete. BC-INDEX v8.89 (BC-2.02.006 v1.17; BC-2.02.014 v1.9); ARCH-INDEX v2.291 (ADR-023 v1.26, ADR-028 v1.30, ADR-057 v1.0 L10 STALE pins fixed); STORY-INDEX v2.757 (5 story rows updated); policies v1.41 (POL-39 self-compliance + POL-23 ACTIVE-DURING-TRANSITION reinstated). develop_head advanced 7fef57dad→51c2d4b1 (PR #230 SQUASH-MERGED @51c2d4b1; DRIFT-RECORDS-LINT-NOT-ON-DEVELOP-001 RESOLVED; scripts/records-lint.sh + CLAUDE.md TD-VSDD-092/096/097/SAC-1/SAC-2/non-exhaustive gate-count refactor now on develop). pass-71: 15 findings, 5H/7M/3L, Novelty HIGH.
