@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.764"
+version: "2.765"
 status: draft
 producer: state-manager
 timestamp: 2026-07-31T00:00:00Z
@@ -599,8 +599,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 
 | Story ID | Title | Crate | BCs | VPs | Days | Depends On |
 |----------|-------|-------|-----|-----|------|------------|
-| S-0.01 | CI/CD Pipeline and Release Workflow | devops | 0 | -- | 4 | -- |
-| S-0.02 | Developer Toolchain Bootstrap | devops | 0 | -- | 3 | -- |
+| S-0.01 | CI/CD Pipeline and Release Workflow [v1.6] | devops | 0 | -- | 4 | -- |
+| S-0.02 | Developer Toolchain Bootstrap [v1.7] | devops | 0 | -- | 3 | -- |
 | S-6.06 | DTU Common Infrastructure [W0] | prism-dtu-common | 0 | -- | 4 | S-0.02 |
 | S-6.14 | DTU for Threat Intel Aggregator — L2 (stateful) [W0] | prism-dtu-threatintel | 0 | -- | 3 | S-6.06 |
 | S-6.15 | DTU for NVD/NIST CVSS API — L2 (stateful) [W0] | prism-dtu-nvd | 0 | -- | 3 | S-6.06 |
@@ -616,26 +616,26 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-6.17 | DTU for Splunk HTTP Event Collector — L2 (stateful) [W3] | prism-dtu-splunk-hec | 0 | -- | 2 | S-6.06 |
 | S-6.18 | DTU for Elasticsearch Bulk API — L2 (stateful) [W3] | prism-dtu-elasticsearch | 0 | -- | 3 | S-6.06 |
 | S-6.19 | DTU for OTLP/HTTP Log Ingestion — L2 (stateful) [W3] | prism-dtu-otlp | 0 | -- | 3 | S-6.06 |
-| S-1.01 | Foundational Types (OrgSlug [TenantId legacy alias], PrismError, StorageDomain) | prism-core | 0 | VP-001 | 2 | -- |
-| S-1.02 | Entity Types and State Machines | prism-core | 0 | VP-005,006,011,029,051,055,057 | 2 | S-1.01 |
-| S-1.03 | Capability Resolution Engine | prism-core | 0 | VP-002,003,004 | 2 | S-1.01 |
-| S-1.04 | OCSF Schema Loading and DynamicMessage | prism-ocsf | 5 | VP-016,022 | 3 | S-1.01 |
-| S-1.05 | OCSF Field Mapping and Normalization | prism-ocsf | 7 | VP-017 | 3 | S-1.04 |
-| S-1.06 | Credential Store Trait and Backends | prism-credentials | 7 | VP-034,035 | 3 | S-1.01,S-1.02 |
-| S-1.07 | Credential CRUD, Resolution, and Security | prism-credentials | 5 | -- | 2 | S-1.06 |
-| S-1.08 | Feature Flags (P0 Core) | prism-security | 8 | VP-020 | 3 | S-1.01,S-1.03 |
-| S-1.09 | Confirmation Tokens (P1) | prism-security | 6 | VP-007,008,009,010 | 2 | S-1.08 |
-| S-1.10 | Prompt Injection Defense [merged] | prism-security | 8 | VP-024,038 | 2 | S-1.01 |
-| S-1.11 | Spec Loading and Pipeline Execution [merged v1.7 — D-1260 2026-06-20: all 5 BCs delivered on develop@f6739764; D-1252 resolved by D-1260 reframing] | prism-spec-engine | 5 | VP-023,VP-059 | 3 | S-1.01 |
-| S-1.12 | Hot Reload and Runtime Management [partial-merge] | prism-spec-engine | 5 | VP-032 | 2 | S-1.11 |
-| S-1.13 | Sensor Spec Write Endpoints | prism-spec-engine | 2 | -- | 2 | S-1.11 |
-| S-1.14 | Infusion Spec Loading and UDF Registration [merged — graduated by S-1.14-REDO PR #193 develop@5c747549 2026-06-19 per ADR-020] | prism-spec-engine | 5 | VP-048,VP-049 | 3 | S-1.11,S-6.14,S-6.15 |
-| S-1.15 | WASM Plugin Runtime [partial-merge] | prism-spec-engine | 6 | VP-040,VP-041,VP-042,VP-043 | 3 | S-1.11 |
-| S-2.01 | RocksDB Initialization and Domain Operations [MERGED PR #43 0d24ab79 2026-04-24 +24t] | prism-storage | 3 | -- | 3 | S-1.01 |
-| S-2.02 | Audit Buffer and Watchdog [MERGED PR #52 9de6b3d8 2026-04-25 +25t] | prism-storage | 5 | VP-058 | 2 | S-2.01 |
-| S-2.03 | Decorators and Internal Tables [MERGED PR #53 f13b5c76 2026-04-25 +19t] [**merged v1.5** (D-1229 2026-06-18: doc-reference correction — client_name source annotation corrected to [[orgs]].name per BC-2.15.010 v1.4)] | prism-storage | 3 | -- | 2 | S-2.01,S-1.02 |
-| S-2.04 | Audit Entry Construction and Compliance [MERGED PR #58 ab1f57b2 2026-04-25 +72t] | prism-audit | 6 | -- | 3 | S-2.01,S-2.02 |
-| S-2.05 | Specialized Audit Events [MERGED PR #59 c828e8af 2026-04-26 +35t RED_RATIO=54.3%] | prism-audit | 4 | -- | 1 | S-2.04 |
+| S-1.01 | Foundational Types (OrgSlug [TenantId legacy alias], PrismError, StorageDomain) [v1.2] | prism-core | 0 | VP-001 | 2 | -- |
+| S-1.02 | Entity Types and State Machines [v1.10] | prism-core | 0 | VP-005,006,011,029,051,055,057 | 2 | S-1.01 |
+| S-1.03 | Capability Resolution Engine [v1.5] | prism-core | 0 | VP-002,003,004 | 2 | S-1.01 |
+| S-1.04 | OCSF Schema Loading and DynamicMessage [v1.5] | prism-ocsf | 5 | VP-016,022 | 3 | S-1.01 |
+| S-1.05 | OCSF Field Mapping and Normalization [v1.5] | prism-ocsf | 7 | VP-017 | 3 | S-1.04 |
+| S-1.06 | Credential Store Trait and Backends [v1.4] | prism-credentials | 7 | VP-034,035 | 3 | S-1.01,S-1.02 |
+| S-1.07 | Credential CRUD, Resolution, and Security [v1.9] | prism-credentials | 5 | -- | 2 | S-1.06 |
+| S-1.08 | Feature Flags (P0 Core) [v1.6] | prism-security | 8 | VP-020 | 3 | S-1.01,S-1.03 |
+| S-1.09 | Confirmation Tokens (P1) [v1.6] | prism-security | 6 | VP-007,008,009,010 | 2 | S-1.08 |
+| S-1.10 | Prompt Injection Defense [merged v1.6] | prism-security | 8 | VP-024,038 | 2 | S-1.01 |
+| S-1.11 | Spec Loading and Pipeline Execution [merged v1.8 — D-1260 2026-06-20: all 5 BCs delivered on develop@f6739764; D-1252 resolved by D-1260 reframing] | prism-spec-engine | 5 | VP-023,VP-059 | 3 | S-1.01 |
+| S-1.12 | Hot Reload and Runtime Management [partial-merge v1.7] | prism-spec-engine | 5 | VP-032 | 2 | S-1.11 |
+| S-1.13 | Sensor Spec Write Endpoints [v1.5] | prism-spec-engine | 2 | -- | 2 | S-1.11 |
+| S-1.14 | Infusion Spec Loading and UDF Registration [merged v1.13 — graduated by S-1.14-REDO PR #193 develop@5c747549 2026-06-19 per ADR-020] | prism-spec-engine | 5 | VP-048,VP-049 | 3 | S-1.11,S-6.14,S-6.15 |
+| S-1.15 | WASM Plugin Runtime [partial-merge v1.14] | prism-spec-engine | 6 | VP-040,VP-041,VP-042,VP-043 | 3 | S-1.11 |
+| S-2.01 | RocksDB Initialization and Domain Operations [MERGED PR #43 0d24ab79 2026-04-24 +24t] [v1.6] | prism-storage | 3 | -- | 3 | S-1.01 |
+| S-2.02 | Audit Buffer and Watchdog [MERGED PR #52 9de6b3d8 2026-04-25 +25t] [v1.9] | prism-storage | 5 | VP-058 | 2 | S-2.01 |
+| S-2.03 | Decorators and Internal Tables [MERGED PR #53 f13b5c76 2026-04-25 +19t] [**merged v1.6** (D-1229 2026-06-18: doc-reference correction — client_name source annotation corrected to [[orgs]].name per BC-2.15.010 v1.4)] | prism-storage | 3 | -- | 2 | S-2.01,S-1.02 |
+| S-2.04 | Audit Entry Construction and Compliance [MERGED PR #58 ab1f57b2 2026-04-25 +72t] [v1.7] | prism-audit | 6 | -- | 3 | S-2.01,S-2.02 |
+| S-2.05 | Specialized Audit Events [MERGED PR #59 c828e8af 2026-04-26 +35t RED_RATIO=54.3%] [v1.6] | prism-audit | 4 | -- | 1 | S-2.04 |
 | S-2.06 | DataSource Trait and Auth Patterns [MERGED PR #54 0b194cb4 2026-04-25 +51t] [SUPERSEDED architectural approach per PLUGIN-MIGRATION-001-H 2026-05-27 (merged status preserved)] | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
 | S-2.07 | Per-Sensor Auth and Pagination [MERGED PR #60 26d0954b 2026-04-26 +56t RED_RATIO=83.9%] [SUPERSEDED architectural approach per PLUGIN-MIGRATION-001-H 2026-05-27 (merged status preserved)] | prism-sensors | 5 | -- | 3 | S-2.06 |
 | S-2.08 | Event Table Abstraction and Local Buffering [MERGED PR #61 0be11cd6 2026-04-26 +92t RED_RATIO=54.3% prism-query-crate-created **WAVE-2-CLOSED** spec-v1.9-W2-P2-A-005-schema-hygiene-fix] | prism-sensors, prism-query | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
@@ -740,8 +740,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.02-FOLLOWUP-RUNTIME | prism-query: QueryEngine Execution Pipeline — Fill todo!() Sites [E-CLEANUP-02] [Graduates S-3.02] [**MERGED PR #162 develop@a55bd930 2026-05-28 +7t**] | prism-query | 7 (BC-2.11.001/.005/.006/.007/.011/.012, BC-2.15.011) | -- | 4 | S-WAVE5-PREP-01 |
 | W3-FIX-S307-001 | prism-sensors: Concrete Sensor Adapter Write Overrides (4 Built-In Sensors) [E-CLEANUP-02] [BLOCKED — superseded by PLUGIN-MIGRATION-001-A per D-333] [SUPERSEDED status:superseded per PLUGIN-MIGRATION-001-H 2026-05-27] | prism-sensors | 0 (BCs TBD) | -- | 3 | -- |
 | W3-FIX-S307-002 | prism-query: WriteExecutor Phase 3 Fetch + SQL DML Routing + Write Observability [E-CLEANUP-02] [BLOCKED — superseded by PLUGIN-MIGRATION-001-B per D-333] | prism-query | 0 (BCs TBD) | -- | 3 | S-3.02-FOLLOWUP-RUNTIME,W3-FIX-S307-001 |
-| S-1.12-FOLLOWUP | prism-spec-engine: HotReloadWatcher — notify v7, Debounce, Validation Gate, SIGHUP [E-CLEANUP-02] [Graduates S-1.12] [BLOCKED — awaits Wave 0+1 plugin foundation per D-333] | prism-spec-engine | 0 (BCs TBD) | -- | 2 | S-WAVE5-PREP-01 |
-| S-1.14-REDO | prism-spec-engine: Infusion Engine REDO — Loader, Registry, Runtime, Cache Integration [E-CLEANUP-02] [Graduates S-1.14] [**MERGED PR #193 develop@5c747549 2026-06-19** (D-1235 2026-06-19: PR-LEVEL 3-CLEAN(strict) @889817d4 r3 converged; CI 43/43 musl flake cleared; demo evidence 31 artifacts/10 ACs; squash-merged; POL-14 BC-2.19.001..005 draft→active; S-1.14 graduated per ADR-020; was v1.5 not-started: D-1233 2026-06-18 BC-2.19.001 v2.1 E-INFUSE-012 source-file size guard)] | prism-spec-engine | 0 (BCs TBD) | -- | 5 | S-WAVE5-PREP-01,S-3.02-FOLLOWUP-RUNTIME |
+| S-1.12-FOLLOWUP | prism-spec-engine: HotReloadWatcher — notify v7, Debounce, Validation Gate, SIGHUP [E-CLEANUP-02] [Graduates S-1.12] [BLOCKED — awaits Wave 0+1 plugin foundation per D-333] [v1.1] | prism-spec-engine | 0 (BCs TBD) | -- | 2 | S-WAVE5-PREP-01 |
+| S-1.14-REDO | prism-spec-engine: Infusion Engine REDO — Loader, Registry, Runtime, Cache Integration [E-CLEANUP-02] [Graduates S-1.14] [**MERGED PR #193 develop@5c747549 2026-06-19** (D-1235 2026-06-19: PR-LEVEL 3-CLEAN(strict) @889817d4 r3 converged; CI 43/43 musl flake cleared; demo evidence 31 artifacts/10 ACs; squash-merged; POL-14 BC-2.19.001..005 draft→active; S-1.14 graduated per ADR-020; was v1.5 not-started: D-1233 2026-06-18 BC-2.19.001 v2.1 E-INFUSE-012 source-file size guard)] [v1.7] | prism-spec-engine | 0 (BCs TBD) | -- | 5 | S-WAVE5-PREP-01,S-3.02-FOLLOWUP-RUNTIME |
 | S-5.01-FOLLOWUP-MCP-BOOT | prism-mcp: PrismServer — rmcp 1.7, Tool Router, Injection Defense Wiring [E-CLEANUP-02] [**merged** PR #163 develop@e898c3c9 2026-05-29] | prism-mcp | 15 | -- | 5 | S-WAVE5-PREP-01,S-3.02-FOLLOWUP-RUNTIME,W3-FIX-S307-001,W3-FIX-S307-002-write-capability-and-observability |
 | S-PLUGIN-PREREQ-F | .factory/prism-specs: BC + DI Catalog Amendments Before Code Changes — deprecate rust-escape-hatch BC, amend datasource-trait-adapter-pattern BC, amend sealed-auth-trait DI, sweep sensor-named BCs [PLUGIN-MIGRATION Wave 0 — LANDS FIRST] [**merged PR #141 @c6dd6602 D-333 2026-05-27**] | .factory | 0 (TBD) | -- | 2 | -- |
 | S-PLUGIN-PREREQ-A | prism-core/prism-sensors: SensorType → SensorId(Arc<str>) Keystone Migration [PLUGIN-MIGRATION Wave 0] [MERGED PR #142 90d7c80f 2026-05-11] [v1.6 D-398 post-merge status flip; PR-LEVEL CASCADE 4 passes + 1 fix-burst 3/3 CLEAN; BC-2.01.013 promoted active] | prism-core,prism-sensors,prism-query,prism-spec-engine | 2 (BC-2.01.013, BC-2.16.004) | S-PLUGIN-PREREQ-F | 13 | S-PLUGIN-PREREQ-F |
@@ -1429,6 +1429,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.765 | 2026-07-31 | state-manager D-2085 §Authority corpus backfill round 1/29: 24 stories version-pinned in §Full Story List (S-0.01 v1.6, S-0.02 v1.7, S-1.01 v1.2, S-1.02 v1.10, S-1.03 v1.5, S-1.04 v1.5, S-1.05 v1.5, S-1.06 v1.4, S-1.07 v1.9, S-1.08 v1.6, S-1.09 v1.6, S-1.10 v1.6, S-1.11 v1.8, S-1.12 v1.7, S-1.12-FOLLOWUP v1.1, S-1.13 v1.5, S-1.14 v1.13, S-1.14-REDO v1.7, S-1.15 v1.14, S-2.01 v1.6, S-2.02 v1.9, S-2.03 v1.6, S-2.04 v1.7, S-2.05 v1.6). DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 12/237→36/237. total_stories 264 UNCHANGED. |
 | v2.764 | 2026-07-31 | state-manager D-2083 FB111 closure: S-REQUIRED-COL-GATE-001 v1.0→v1.1 (EC-007 added — empty-value arm NOT-A-DEFECT at plan tier; `## Authority` section added; `modified:` frontmatter field added). total_stories 264 UNCHANGED (disk-verified: 264 .md files under .factory/stories/ excluding index files). |
 | v2.763 | 2026-07-31 | state-manager D-2082 FB110: S-WAVE-A-ARMIS-ACTIVITY-001 v2.0→v2.1 (F-WASE-P72-HIGH-002 RESOLVED — last HIGH pass-72 finding — AC-009/RG-009 added: test_armis_device_activity_empty_device_id_filter_returns_hard_error; density 9 ACs / 9 RGTs one-to-one; §Architecture Compliance rule 5 and T-IMPL-02 extended for both ADR-057 §D7 Rule 2 arms with dual AC/RGT anchors; BC-2.02.014 relevance cell updated to EC-014-001..EC-014-007). total_stories 264 UNCHANGED. |
 | v2.762 | 2026-07-31 | state-manager D-2079 FB107: structural repair — 2 malformed STORY-INDEX rows joined to 7-cell canonical form (S-PRISMQL-CASE-INSENSITIVE-001, S-MAINT-CI-DISK-EXHAUSTION-001; bare-pipe excess cells in description field joined). STORY-INDEX v2.761→v2.762. |
