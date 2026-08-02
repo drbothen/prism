@@ -124,13 +124,51 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2084 (SESSION WRAP; FB103–FB111 complete; all P72 HIGH resolved; 23 cumulative open; develop_head aa2a5fe6e; NEXT = story-writer ## Authority corpus backfill THEN architect 15-ADR anchor_stories sweep; BC-5.39.001 streak 0/3).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2084 is the most recent durable session-wrap snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2084 is the most recent durable session-wrap snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `aa2a5fe6e` (origin/develop=`aa2a5fe6e`; PR #231 SQUASH-MERGED @aa2a5fe6e). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (this D-2084 commit). STATE v8.632. 23 cumulative open findings; NEXT = story-writer `## Authority` corpus backfill (225/237 stories) FIRST, then architect 15-ADR anchor_stories sweep.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2089 (SESSION WRAP; three PRs merged PR #229/#232/#233; §Authority rounds 1–3 complete 84/237; develop_head b226459d0; NEXT = story-writer §Authority corpus backfill round 4 batches 09/10/11; BC-5.39.001 streak 0/3).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2089 is the most recent durable session-wrap snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2089 is the most recent durable session-wrap snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `b226459d0` (origin/develop=`b226459d0`; PR #233 SQUASH-MERGED @b226459d0). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (this D-2089 commit). STATE v8.637. 27 cumulative open findings; NEXT = story-writer `## Authority` corpus backfill round 4 (batches 09/10/11; 153 stories remain; POL-39-compliant exemplar required).
 
 ---
 
-## §RESUME SNAPSHOT — D-2084 (2026-07-31 — SESSION WRAP; FB103–FB111 complete; all P72 HIGH resolved; 23 cumulative open findings; BC-5.39.001 streak 0/3; develop_head aa2a5fe6e; STATE v8.632) [SUPERSEDES D-2070]
+## §RESUME SNAPSHOT — D-2089 (2026-08-02 — SESSION WRAP; three PRs merged PR #229/#232/#233; §Authority rounds 1–3 complete 84/237; 27 cumulative open findings; BC-5.39.001 streak 0/3; develop_head b226459d0; STATE v8.637) [SUPERSEDES D-2084]
+
+### RESUME IN ONE BREATH
+Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2089 SESSION WRAP. Three PRs squash-merged this session: PR #229 @`a41599fe0` (demo-scripts cwd-independence); PR #232 @`643ee2a08` (CLAUDE.md governance — SAP-2 arm-3, non-exhaustive single-source, L10/L11 ARM5 exemption); PR #233 @`b226459d0` (wasmtime 44→47, RUSTSEC-2026-0222 cleared). §Authority corpus backfill: 84 of 237 stories now carry `## Authority` (rounds 1–3 complete; 153 remain; 21 rounds to go). POL-39 exemplar defect remediated (D-2087). 27 cumulative open findings. develop_head `b226459d0`. Branch protection: 24 required checks on main/develop.
+
+**NEXT ACTION:** Dispatch §Authority corpus backfill round 4. Three concurrent story-writers on disjoint 8-story slices — batches 09 (S-3.6.01..S-3.6.08), 10 (S-3.7.01..S-3.7.08), 11 (S-3.8.01..S-3.8.08). Use POL-39-compliant exemplar: artifact ID + `§`-anchor ONLY — NO version numbers, NO version-qualifying dates. Serialize: state-manager commit for round N completes before round N+1 dispatches. Then rounds 5–29 continue same pattern. 15-ADR `anchor_stories` sweep (architect) BLOCKED on corpus completion per SAC-2 clause 2.
+
+### WORKSTREAM STATE
+
+| Workstream | Status | Frozen HEAD | Notes |
+|-----------|--------|-------------|-------|
+| Wave-A spec-evolution | 72-pass LOCAL cascade | resolved via D-2082 | pass-72 HIGH findings all closed; pass-72b still has open findings; pass-73 not yet run |
+| §Authority corpus backfill | IN PROGRESS | — | 84/237 stories (rounds 1–3 done; 153 remain); 21 rounds to go |
+| 15-ADR `anchor_stories` sweep | BLOCKED | — | SAC-2 requires full corpus completion first |
+| FINDING-1 (MED CWE-693) | OPEN | — | AC-006 grep cannot detect second PluginRuntime construction; route: future fix-burst |
+| FINDING-2 (LOW) | OPEN | — | Cargo.toml historical advisory comment inaccurate; route: spec-steward |
+| DRIFT-STASH0-CHECK-NAME-DRIFT-001 | OPEN | — | stash@{0} check-name drift risk; human owner |
+
+### KEY HEADS
+
+- `origin/develop`: `b226459d0` (PR #233 SQUASH-MERGED)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` (this D-2089 commit)
+- Main worktree: develop @`b226459d0`, clean
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch
+
+### DECISION-LOG DELTA (this session)
+
+| ID | Summary |
+|----|---------|
+| D-2085 | §Authority corpus backfill round 1/29 complete — 24 stories (batches 00/01/02). STORY-INDEX v2.764→v2.765. DRIFT-BRANCH-PROTECTION-ABSENT-001 registered. |
+| D-2086 | §Authority corpus backfill round 2/29 complete — 24 stories (batches 03/04/05). STORY-INDEX v2.765→v2.766. GATE-L1-NO-YAML-FRONTMATTER-001 registered. Branch protection configured (22 checks). |
+| D-2087 | POL-39 §Authority remediation — 82 volatile version pins removed from 46 story files. PR #233 wasmtime 44→47 MERGED. FINDING-1 (MED) + FINDING-2 (LOW) registered. Dual-commit process-gap (D-2086) disclosed. |
+| D-2088 | §Authority corpus backfill round 3/29 complete — 24 stories (batches 06/07/08). STORY-INDEX v2.767→v2.768. Branch protection updated to 24 checks. DRIFT-STASH0-CHECK-NAME-DRIFT-001 registered. |
+| D-2089 | SESSION WRAP. Three PRs merged (#229/#232/#233). SESSION-HANDOFF.md banner updated D-2084→D-2089. STATE v8.636→v8.637. |
+
+---
+
+## §RESUME SNAPSHOT — D-2084 (2026-07-31 — SESSION WRAP; FB103–FB111 complete; all P72 HIGH resolved; 23 cumulative open findings; BC-5.39.001 streak 0/3; develop_head aa2a5fe6e; STATE v8.632) [SUPERSEDES D-2070] [SUPERSEDED by D-2089]
 
 ### RESUME IN ONE BREATH
 Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2084 SESSION WRAP — FB103–FB111 complete this session; all four pass-72 HIGH findings resolved; 23 cumulative open findings; develop_head `aa2a5fe6e`.
