@@ -161,8 +161,8 @@ RESUME NEXT-ACTION: Human decides merge.
 
 ### HEADS (D-2084)
 - `factory-artifacts`: run `git -C .factory log -1 --format='%H'` (this D-2084 commit). Frozen HEAD for pass-73 = this D-2084 commit. DRIFT-ORCH-PRLEVEL-PUSH-001 — no pushes to factory-artifacts before pass-73 verdict; streak resets on push. Streak 0/3.
-- `origin/develop`: `aa2a5fe6e` — PUSHED (PR #231 SQUASH-MERGED @aa2a5fe6e; ARM5 records-lint exemption).
-- Main worktree: develop @`aa2a5fe6e`, clean.
+- `origin/develop`: `b226459d0` — ADVANCED via D-2087: PR #233 fix(deps) wasmtime 44→47 RUSTSEC-2026-0222 cleared @b226459d0 SQUASH-MERGED (was aa2a5fe6e at D-2084; D-2086b advanced to 643ee2a08; D-2087 advances to b226459d0).
+- Main worktree: develop @`aa2a5fe6e`, clean (local; origin has advanced to b226459d0).
 - `.worktrees/fix-demosetup-cwd` @`ec4379b5b` — PUSHED, PR #229 OPEN (stale; rebase needed).
 - `.worktrees/S-3.09` @`43c41389d` — KEEP-PARKED (LOCAL-ONLY AT RISK).
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` — PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK; 1 dirty file).
