@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.638"
+version: "8.639"
 producer: state-manager
 timestamp: 2026-08-02T00:00:00Z
 inputs: []
@@ -54,7 +54,7 @@ workspace_test_count: 5676
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2090 — §AUTHORITY CORPUS BACKFILL ROUND 4/~11 COMPLETE (single-commit burst). 24 stories pinned in STORY-INDEX §Full Story List. DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 84/264→108/264. DENOMINATOR CORRECTED 237→264. 3 new findings (FINDING-A/B/C): 27→30 cumulative open. STORY-INDEX v2.768→v2.769. develop_head b226459d0 UNCHANGED. BC-5.39.001 streak 0/3. NEXT: §Authority round 5 (story-writer; derive slices from fresh disk enumeration). STATE v8.637→v8.638."
+current_step: "D-2090-RESIDUAL — Stale PENDING WORK bullet corrected (153/rounds 4–29 → 156/rounds 5–~11). STATE v8.638→v8.639. D-2090 §Authority round 4/~11 complete (108/264). NEXT: §Authority round 5 (story-writer; derive slices from fresh disk enumeration)."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -106,7 +106,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-02 D-2090 — §Authority corpus backfill round 4/~11 complete (108/264). DRIFT denominator corrected 237→264. 3 new findings (FINDING-A/B/C). develop_head b226459d0. 30 findings. STATE v8.637→v8.638 |
+| **Last Updated** | 2026-08-02 D-2090-RESIDUAL — Stale PENDING WORK bullet corrected (153/rounds 4–29 → 156/rounds 5–~11). STATE v8.638→v8.639 |
 
 ## Active Objective (North Star)
 
@@ -741,7 +741,7 @@ D-2066 PROCESS FINDING: pin-coupled legs (FB89/FB90/FB91/FB92/FB93) must co-land
 **GATE-L10LEADING-PIN-BLIND-003 (D-2065):** The leading-pin gate matches any version-string occurrence in a BC-INDEX row — stale leading pin + current trailing mention yields false 0-mismatch result. Hand-verify leading pins on any row with multiple version mentions until this check is amended.
 
 **PENDING USER-APPROVED WORK — do not start:**
-- `## Authority` corpus backfill → story-writer (153 stories remain; DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001; rounds 4–29 to go) — **HUMAN AUTHORIZED (D-2084)**; POL-39-compliant exemplar (D-2087) required for all remaining dispatches.
+- `## Authority` corpus backfill → story-writer (156 stories remain; DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001; rounds 5–~11 to go) — **HUMAN AUTHORIZED (D-2084)**; POL-39-compliant exemplar (D-2087) required for all remaining dispatches.
 - 15-ADR `anchor_stories` sweep → architect — **HUMAN AUTHORIZED (D-2084); BLOCKED on corpus backfill above**; SAC-2 clause 2 requires §Authority ground truth before derivation.
 - PR #229 MERGED @`a41599fe0` (demo-scripts cwd-independence; CLOSED D-2089).
 - PR #232 MERGED @`643ee2a08` (CLAUDE.md governance; CLOSED D-2089).
