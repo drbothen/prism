@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.767"
+version: "2.768"
 status: draft
 producer: state-manager
 timestamp: 2026-08-01T00:00:00Z
 phase: 3
 total_stories: 264
+# D-2088: total_stories 264 UNCHANGED — §Authority corpus backfill round 3/29 (batches 06/07/08: S-3.10 v1.6, S-3.11 v1.6, S-3.12 v1.6, S-3.13 v1.21, S-3.2.01..S-3.2.08 v1.2, S-3.3.01 v1.4, S-3.3.02 v1.3, S-3.3.03..S-3.3.04 v1.2, S-3.3.05 v1.2, S-3.3.06 v1.1, S-3.4.01..S-3.4.04 v1.2, S-3.4.05 v1.3, S-3.5.01 v1.5; §Full Story List pins advanced). DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 60/237→84/237. D-2082 NOTE archived.
 # D-2082: total_stories 264 UNCHANGED — FB110 closing burst; S-WAVE-A-ARMIS-ACTIVITY-001 v2.0→v2.1 (AC-009/RG-009 added; density 9 ACs / 9 RGTs; T-IMPL-02 + §Architecture Compliance rule 5 extended; BC-2.02.014 relevance cell updated to EC-014-001..EC-014-007). D-2078 NOTE archived.
 # D-2078: total_stories 264 UNCHANGED — FB106 closing burst; S-WAVE-A-ARMIS-ACTIVITY-001 v1.9→v2.0 (nine sites corrected including test rename ...has_index_option → ...has_required_option; ADR-057 §D5 INDEX→REQUIRED annotation propagation). D-2077 NOTE archived.
 # D-2077: total_stories 259→264 — 5 process-defect gate stories registered FB105 (disk-verified: 264 .md files under .factory/stories/ excluding STORY-INDEX.md, epics.md, dependency-graph.md).
@@ -649,10 +650,10 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.07 | Write Execution Pipeline [v1.12] **[MERGED 2026-05-08T04:23:03Z PR #135 squash 2ae7185b]** [partial-merge] | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04,S-6.07 |
 | S-3.08 | Hidden Columns [v1.7] | prism-query | 4 (proxy) | -- | 1 | S-3.02 |
 | S-3.09 | Query Performance Profiling [v1.8] **[FROZEN 2026-05-08 pending BUG-S309-PLUGIN]** | prism-query | 13 (proxy) | -- | 6 | S-3.02 |
-| S-3.10 | Cost Estimation (API Latency-Aware Planner) [v1.5] | prism-query | 2 (proxy) | -- | 2 | S-3.09,S-3.02 |
-| S-3.11 | In-Query Dedup Caching [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02 |
-| S-3.12 | Column Pruning and Field Selection Push-Down [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02,S-2.06 |
-| S-3.13 | Dynamic Table Availability [**merged v1.20** (D-1204 2026-06-16: PR #192 squash-merged develop@60249ccc; Lane B PR-LEVEL 3/3 strict CONVERGED on frozen 47a6ad65; pr-reviewer APPROVE; CI green; POL-14 BC-2.16.007 status:draft→active; BC-2.16.001+BC-2.11.001 idempotent; BOTH open lanes NOW CLOSED; L-POST roadmap unblocked: S-5.03/S-5.04/T13/T14; was D-1203 2026-06-16: frozen HEAD 7f192e31→47a6ad65; error-taxonomy v1.86 + interface-definitions v2.8 propagated; PR #192 PR-LEVEL 3-CLEAN 0/3 NEXT)] | prism-query | 3 (proxy) | -- | 1 | S-3.02,S-1.12 |
+| S-3.10 | Cost Estimation (API Latency-Aware Planner) [v1.6] | prism-query | 2 (proxy) | -- | 2 | S-3.09,S-3.02 |
+| S-3.11 | In-Query Dedup Caching [v1.6] | prism-query | 2 (proxy) | -- | 1 | S-3.02 |
+| S-3.12 | Column Pruning and Field Selection Push-Down [v1.6] | prism-query | 2 (proxy) | -- | 1 | S-3.02,S-2.06 |
+| S-3.13 | Dynamic Table Availability [**merged v1.20** (D-1204 2026-06-16: PR #192 squash-merged develop@60249ccc; Lane B PR-LEVEL 3/3 strict CONVERGED on frozen 47a6ad65; pr-reviewer APPROVE; CI green; POL-14 BC-2.16.007 status:draft→active; BC-2.16.001+BC-2.11.001 idempotent; BOTH open lanes NOW CLOSED; L-POST roadmap unblocked: S-5.03/S-5.04/T13/T14; was D-1203 2026-06-16: frozen HEAD 7f192e31→47a6ad65; error-taxonomy v1.86 + interface-definitions v2.8 propagated; PR #192 PR-LEVEL 3-CLEAN 0/3 NEXT)] [v1.21] | prism-query | 3 (proxy) | -- | 1 | S-3.02,S-1.12 |
 | S-4.01 | Schedule CRUD and Execution Loop [v1.12 ADR-013] | prism-operations | 5 | VP-026, VP-030, VP-137 | 3 | S-3.02,S-2.01 |
 | S-4.02 | Differential Results and Packs [v1.11 ADR-018] | prism-operations | 3 | VP-019, VP-141, VP-142 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation [v1.9 ADR-015] | prism-operations | 8 | VP-018, VP-139, VP-140 | 3 | S-3.02,S-1.08,S-2.01 |
@@ -692,26 +693,26 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.1.05 | prism-spec-engine: scope sensor specs per OrgId (resolve slug at user-facing surface) [MERGED PR #98 5e323edd 2026-04-29 +18t] [v0.4] | prism-spec-engine | 1 | -- | 2 | S-3.1.01,S-3.1.02,S-3.1.03 |
 | S-3.1.06 | prism-sensors: migrate adapter constructors and fan-out dispatch to OrgId [MERGED PR #99 c2dc67b2 2026-04-30 +17t] [v0.4] | prism-sensors | 2 | -- | 3 | S-3.1.01,S-3.1.02,S-3.1.03,S-3.1.04,S-3.1.05 |
 | S-3.1.07 | prism-audit: add org_id + org_slug to AuditEntry; SHA-256 aql_hash [MERGED PR #96 fd39e94c 2026-04-29 +18t] [v0.4] | prism-audit | 2 | -- | 3 | S-3.1.01,S-3.1.02,S-3.1.03 |
-| S-3.2.01 | prism-dtu-claroty: Multi-tenant state segregation — (OrgId, String) re-keying [MERGED PR #86 214a9780 2026-04-29 +17t] | prism-dtu-claroty | 2 | -- | 3 | S-6.08 |
-| S-3.2.02 | prism-dtu-armis: Multi-tenant state segregation — (OrgId, String) re-keying [MERGED PR #88 65cb3269 2026-04-29 +11t] | prism-dtu-armis | 1 | -- | 3 | S-6.10 |
-| S-3.2.03 | prism-dtu-crowdstrike: Multi-tenant state segregation — containment + detection store re-keying [MERGED PR #85 5f087c8f 2026-04-29 +14t] | prism-dtu-crowdstrike | 2 | -- | 3 | S-6.07 |
-| S-3.2.04 | prism-dtu-cyberint: Multi-tenant state segregation — alert_store + session_store re-keying [MERGED PR #87 48c407f3 2026-04-29 +15t] | prism-dtu-cyberint | 2 | -- | 3 | S-6.09 |
-| S-3.2.05 | prism-dtu-slack: Shared-mode OrgId ingress tagging [MERGED PR #89 df59b0d0 2026-04-29 +7t] | prism-dtu-slack | 2 | -- | 2 | S-6.11 |
-| S-3.2.06 | prism-dtu-pagerduty: Shared-mode OrgId ingress tagging [MERGED PR #90 7deb7fd7 2026-04-29 +8t] | prism-dtu-pagerduty | 2 | -- | 2 | S-6.12,S-3.2.05 |
-| S-3.2.07 | prism-dtu-jira: Shared-mode OrgId ingress tagging [MERGED PR #91 9c1ecec0 2026-04-29 +8t] | prism-dtu-jira | 2 | -- | 2 | S-6.13,S-3.2.05 |
-| S-3.2.08 | prism-query: scope CrowdStrike pagination session IDs per OrgId (D-048) [MERGED PR #102 5ec44bdd 2026-04-30 +28t] | prism-query | 1 | VP-084 | 2 | S-3.1.06,S-3.2.03 |
-| S-3.3.01 | prism-customer-config: TOML schema, parser, and startup validator [MERGED PR #92 7e5cc790 2026-04-29 +46t] | prism-customer-config | 3 | -- | 3 | S-1.06 |
-| S-3.3.02 | OrgRegistry boot from customers/*.toml at startup [MERGED PR #97 5b38103e 2026-04-29 +18t] | prism-customer-config | 3 | -- | 2 | S-3.3.01 |
-| S-3.3.03 | prism-dtu-harness: logical isolation mode + crash detection + failure injection [MERGED PR #101 7245b783 2026-04-30 +47t] | prism-dtu-harness | 3 | -- | 5 | S-3.3.01,S-3.3.02,S-6.06 |
-| S-3.3.04 | prism-dtu-harness: network isolation mode (per-port, real HTTP) [MERGED PR #103 7ad3c3cd 2026-04-30 +19t] | prism-dtu-harness | 1 | -- | 3 | S-3.3.03 |
-| S-3.3.05 | prism-dtu-harness: builder ergonomics, per-test overrides, and documentation [MERGED PR #104 7666fd9b 2026-04-30 +19t] | prism-dtu-harness | 3 | -- | 2 | S-3.3.04 |
-| S-3.3.06 | prism-spec-engine: reload_config detects and warns on DTU mode changes [MERGED PR #100 f3b14691 2026-04-30 +17t] | prism-spec-engine | 1 | VP-094 | 1 | S-3.3.02 |
-| S-3.4.01 | Migrate prism-dtu-claroty tests to prism-dtu-harness [MERGED PR #107 a724f94e 2026-04-30 +62t] | prism-dtu-claroty | 2 | -- | 2 | S-3.3.05,S-6.08 |
-| S-3.4.02 | Migrate prism-dtu-armis tests to prism-dtu-harness [MERGED PR #108 eee5f8ec 2026-04-30 +63t] | prism-dtu-armis | 2 | -- | 2 | S-3.3.05,S-6.10 |
-| S-3.4.03 | Migrate prism-dtu-crowdstrike tests to prism-dtu-harness [MERGED PR #109 28722c47 2026-04-30 +63t] | prism-dtu-crowdstrike | 2 | -- | 2 | S-3.3.05,S-6.07 |
-| S-3.4.04 | Migrate prism-dtu-cyberint tests to prism-dtu-harness [MERGED PR #111 2c77deeb 2026-04-30 +63t] | prism-dtu-cyberint | 3 | -- | 2 | S-3.3.05,S-6.09 |
-| S-3.4.05 | Migrate prism-dtu-slack/pagerduty/jira tests to prism-dtu-harness (shared-mode) [MERGED PR #110 881cf01e 2026-04-30 +62t] | prism-dtu-slack/pd/jira | 3 | -- | 2 | S-3.3.05,S-6.11,S-6.12,S-6.13 |
-| S-3.5.01 | Workspace src/ convention sweep — check-crate-layout.sh + CI gate + CRATE-LAYOUT.md [MERGED PR #82 c4287aef 2026-04-29 +36t] | workspace | 1 | -- | 2 | -- |
+| S-3.2.01 | prism-dtu-claroty: Multi-tenant state segregation — (OrgId, String) re-keying [MERGED PR #86 214a9780 2026-04-29 +17t] [v1.2] | prism-dtu-claroty | 2 | -- | 3 | S-6.08 |
+| S-3.2.02 | prism-dtu-armis: Multi-tenant state segregation — (OrgId, String) re-keying [MERGED PR #88 65cb3269 2026-04-29 +11t] [v1.2] | prism-dtu-armis | 1 | -- | 3 | S-6.10 |
+| S-3.2.03 | prism-dtu-crowdstrike: Multi-tenant state segregation — containment + detection store re-keying [MERGED PR #85 5f087c8f 2026-04-29 +14t] [v1.2] | prism-dtu-crowdstrike | 2 | -- | 3 | S-6.07 |
+| S-3.2.04 | prism-dtu-cyberint: Multi-tenant state segregation — alert_store + session_store re-keying [MERGED PR #87 48c407f3 2026-04-29 +15t] [v1.2] | prism-dtu-cyberint | 2 | -- | 3 | S-6.09 |
+| S-3.2.05 | prism-dtu-slack: Shared-mode OrgId ingress tagging [MERGED PR #89 df59b0d0 2026-04-29 +7t] [v1.2] | prism-dtu-slack | 2 | -- | 2 | S-6.11 |
+| S-3.2.06 | prism-dtu-pagerduty: Shared-mode OrgId ingress tagging [MERGED PR #90 7deb7fd7 2026-04-29 +8t] [v1.2] | prism-dtu-pagerduty | 2 | -- | 2 | S-6.12,S-3.2.05 |
+| S-3.2.07 | prism-dtu-jira: Shared-mode OrgId ingress tagging [MERGED PR #91 9c1ecec0 2026-04-29 +8t] [v1.2] | prism-dtu-jira | 2 | -- | 2 | S-6.13,S-3.2.05 |
+| S-3.2.08 | prism-query: scope CrowdStrike pagination session IDs per OrgId (D-048) [MERGED PR #102 5ec44bdd 2026-04-30 +28t] [v1.2] | prism-query | 1 | VP-084 | 2 | S-3.1.06,S-3.2.03 |
+| S-3.3.01 | prism-customer-config: TOML schema, parser, and startup validator [MERGED PR #92 7e5cc790 2026-04-29 +46t] [v1.4] | prism-customer-config | 3 | -- | 3 | S-1.06 |
+| S-3.3.02 | OrgRegistry boot from customers/*.toml at startup [MERGED PR #97 5b38103e 2026-04-29 +18t] [v1.3] | prism-customer-config | 3 | -- | 2 | S-3.3.01 |
+| S-3.3.03 | prism-dtu-harness: logical isolation mode + crash detection + failure injection [MERGED PR #101 7245b783 2026-04-30 +47t] [v1.2] | prism-dtu-harness | 3 | -- | 5 | S-3.3.01,S-3.3.02,S-6.06 |
+| S-3.3.04 | prism-dtu-harness: network isolation mode (per-port, real HTTP) [MERGED PR #103 7ad3c3cd 2026-04-30 +19t] [v1.2] | prism-dtu-harness | 1 | -- | 3 | S-3.3.03 |
+| S-3.3.05 | prism-dtu-harness: builder ergonomics, per-test overrides, and documentation [MERGED PR #104 7666fd9b 2026-04-30 +19t] [v1.2] | prism-dtu-harness | 3 | -- | 2 | S-3.3.04 |
+| S-3.3.06 | prism-spec-engine: reload_config detects and warns on DTU mode changes [MERGED PR #100 f3b14691 2026-04-30 +17t] [v1.1] | prism-spec-engine | 1 | VP-094 | 1 | S-3.3.02 |
+| S-3.4.01 | Migrate prism-dtu-claroty tests to prism-dtu-harness [MERGED PR #107 a724f94e 2026-04-30 +62t] [v1.2] | prism-dtu-claroty | 2 | -- | 2 | S-3.3.05,S-6.08 |
+| S-3.4.02 | Migrate prism-dtu-armis tests to prism-dtu-harness [MERGED PR #108 eee5f8ec 2026-04-30 +63t] [v1.2] | prism-dtu-armis | 2 | -- | 2 | S-3.3.05,S-6.10 |
+| S-3.4.03 | Migrate prism-dtu-crowdstrike tests to prism-dtu-harness [MERGED PR #109 28722c47 2026-04-30 +63t] [v1.2] | prism-dtu-crowdstrike | 2 | -- | 2 | S-3.3.05,S-6.07 |
+| S-3.4.04 | Migrate prism-dtu-cyberint tests to prism-dtu-harness [MERGED PR #111 2c77deeb 2026-04-30 +63t] [v1.2] | prism-dtu-cyberint | 3 | -- | 2 | S-3.3.05,S-6.09 |
+| S-3.4.05 | Migrate prism-dtu-slack/pagerduty/jira tests to prism-dtu-harness (shared-mode) [MERGED PR #110 881cf01e 2026-04-30 +62t] [v1.3] | prism-dtu-slack/pd/jira | 3 | -- | 2 | S-3.3.05,S-6.11,S-6.12,S-6.13 |
+| S-3.5.01 | Workspace src/ convention sweep — check-crate-layout.sh + CI gate + CRATE-LAYOUT.md [MERGED PR #82 c4287aef 2026-04-29 +36t] [v1.5] | workspace | 1 | -- | 2 | -- |
 | S-3.6.01 | HS-006 multi-tenant state recovery holdout refresh — re-anchor to Wave 3 BCs [MERGED PR #83 36a40f59 2026-04-29 +5t] | prism-dtu-harness | 5 | -- | 1 | -- |
 | S-3.6.02 | HS-007 multi-tenant cross-repo failure holdout refresh — re-anchor to Wave 3 BCs [MERGED PR #84 73d1c348 2026-04-29 +5t] | prism-dtu-harness | 4 | -- | 1 | -- |
 | S-3.7.00 | Schema derivation: Armis (armis-sdk-go) + CrowdStrike (gofalcon) → Rust types [MERGED PR #75 79f67c93 2026-04-29 +25t] | prism-dtu-armis/crowdstrike | 2 | -- | 3 | -- |
@@ -1429,6 +1430,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.768 | 2026-08-01 | state-manager D-2088 §Authority corpus backfill round 3/29: 24 stories version-pinned in §Full Story List (S-3.10 v1.6, S-3.11 v1.6, S-3.12 v1.6, S-3.13 v1.21, S-3.2.01 v1.2, S-3.2.02 v1.2, S-3.2.03 v1.2, S-3.2.04 v1.2, S-3.2.05 v1.2, S-3.2.06 v1.2, S-3.2.07 v1.2, S-3.2.08 v1.2, S-3.3.01 v1.4, S-3.3.02 v1.3, S-3.3.03 v1.2, S-3.3.04 v1.2, S-3.3.05 v1.2, S-3.3.06 v1.1, S-3.4.01 v1.2, S-3.4.02 v1.2, S-3.4.03 v1.2, S-3.4.04 v1.2, S-3.4.05 v1.3, S-3.5.01 v1.5). Gate-coverage notes: S-3.2.08 uses section-header changelog (invisible to L1 table-row parser); S-3.3.03 and S-3.3.04 had no Changelog section (writer created them). ADR-010 supersession caught: S-3.3.01/02/06 listed superseded ADR-010 in inputs; writers correctly cited live authority (ADR-037/ADR-007); S-3.3.01/02 framed as HISTORICAL RECORDS (prism-customer-config crate retired by ADR-037). Branch protection UPDATED: Cargo audit + Cargo deny added to required checks; now 24 checks on main/develop. NEW DRIFT registered: DRIFT-STASH0-CHECK-NAME-DRIFT-001 (stash@{0} check-name shift risk). DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 60/237→84/237. total_stories 264 UNCHANGED. |
 | v2.767 | 2026-08-01 | state-manager D-2087 POL-39 §Authority remediation: 82 volatile version pins removed from §Authority sections of 46 story files (D-2085/D-2086 backfill round); §Full Story List version anchors advanced to current disk frontmatter. total_stories 264 UNCHANGED. |
 | v2.766 | 2026-08-01 | state-manager D-2086 §Authority corpus backfill round 2/29: 24 stories version-pinned in §Full Story List (S-2.06 v1.8, S-2.07 v1.6, S-2.08 v1.11, S-3.0.01 v0.4, S-3.0.02 v0.6, S-3.01 v2.1, S-3.02 v1.14, S-3.02-FOLLOWUP-RUNTIME v1.1, S-3.03 v1.10, S-3.04 v1.11, S-3.04-FOLLOWUP-MCP-001 v1.1, S-3.05 v1.13, S-3.06 v1.9, S-3.07 v1.11, S-3.08 v1.6, S-3.09 v1.7, S-3.1.01 v0.3, S-3.1.02 v0.3, S-3.1.03 v0.3, S-3.1.04 v0.3, S-3.1.05 v0.3, S-3.1.06 v0.3, S-3.1.06-ImplPhase v1.2, S-3.1.07 v0.3). DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 36/237→60/237. total_stories 264 UNCHANGED. |
 | v2.765 | 2026-07-31 | state-manager D-2085 §Authority corpus backfill round 1/29: 24 stories version-pinned in §Full Story List (S-0.01 v1.6, S-0.02 v1.7, S-1.01 v1.2, S-1.02 v1.10, S-1.03 v1.5, S-1.04 v1.5, S-1.05 v1.5, S-1.06 v1.4, S-1.07 v1.9, S-1.08 v1.6, S-1.09 v1.6, S-1.10 v1.6, S-1.11 v1.8, S-1.12 v1.7, S-1.12-FOLLOWUP v1.1, S-1.13 v1.5, S-1.14 v1.13, S-1.14-REDO v1.7, S-1.15 v1.14, S-2.01 v1.6, S-2.02 v1.9, S-2.03 v1.6, S-2.04 v1.7, S-2.05 v1.6). DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 12/237→36/237. total_stories 264 UNCHANGED. |
