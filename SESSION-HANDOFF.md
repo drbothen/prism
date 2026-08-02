@@ -124,13 +124,54 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2090 (§Authority corpus backfill round 4/~11 COMPLETE; 24 stories pinned; DENOMINATOR CORRECTED 237→264; 108/264 done; develop_head b226459d0; NEXT = story-writer §Authority corpus backfill round 5 — derive slices from fresh disk enumeration; BC-5.39.001 streak 0/3).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2090 is the most recent durable session-wrap snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2090 is the most recent durable session-wrap snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `b226459d0` (origin/develop=`b226459d0`; PR #233 SQUASH-MERGED @b226459d0). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (this D-2090 commit). STATE v8.638. 30 cumulative open findings; NEXT = story-writer `## Authority` corpus backfill round 5 (derive slices from fresh disk enumeration; 156 stories remain; POL-39-compliant exemplar required).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2091 (§Authority corpus backfill round 5/~11 COMPLETE; 24 stories pinned; S-MAINT-BURST-COMMIT-COUNT-GATE-001 registered; 132/264 done; total_stories 264→265; develop_head b226459d0; NEXT = story-writer §Authority corpus backfill round 6 — derive slices from fresh disk enumeration; BC-5.39.001 streak 0/3).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2091 is the most recent durable session-wrap snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2091 is the most recent durable session-wrap snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `b226459d0` (origin/develop=`b226459d0`; PR #233 SQUASH-MERGED @b226459d0). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (this D-2091 commit). STATE v8.640. 34 cumulative open findings; NEXT = story-writer `## Authority` corpus backfill round 6 (derive slices from fresh disk enumeration; 132 stories remain; POL-39-compliant exemplar required; writers must report cited ADR status: verbatim).
 
 ---
 
-## §RESUME SNAPSHOT — D-2090 (2026-08-02 — §Authority round 4/~11 complete (108/264); 30 cumulative open findings; BC-5.39.001 streak 0/3; develop_head b226459d0; STATE v8.638) [SUPERSEDES D-2089]
+## §RESUME SNAPSHOT — D-2091 (2026-08-02 — §Authority round 5/~11 complete (132/264); 34 cumulative open findings; BC-5.39.001 streak 0/3; develop_head b226459d0; STATE v8.640) [SUPERSEDES D-2090]
+
+### RESUME IN ONE BREATH
+Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2091 §Authority corpus backfill round 5/~11 COMPLETE (single-commit burst; 24 stories pinned; S-MAINT-BURST-COMMIT-COUNT-GATE-001 registered; total_stories 264→265). 132/264 stories now have `## Authority` (132 remain; ~5.5 rounds to go). develop_head `b226459d0`. 34 cumulative open findings (30→34: +FINDING-E/F/G/PROCESS-GAP; FINDING-D opened+closed). STORY-INDEX v2.770. Branch protection: 24 required checks on main/develop.
+
+**NEXT ACTION:** Dispatch §Authority corpus backfill round 6 — three concurrent story-writers on disjoint 8-story slices (derive slices from fresh disk enumeration at dispatch time; do NOT write a story-ID list into dispatch — D-2089 process gap: hardcoded list contained phantom IDs). Writers MUST report each cited ADR's `status:` verbatim in their round summary (FINDING-A blast-radius detection). Use POL-39-compliant exemplar (artifact ID + `§`-anchor ONLY — NO version numbers, NO version-qualifying dates). Serialize: state-manager round-N commit completes before round N+1 dispatches. Then rounds 7–~11 continue same pattern. 15-ADR `anchor_stories` sweep (architect) BLOCKED on corpus completion per SAC-2 clause 2. S-5.11 OPEN OBLIGATION: cannot reach status: ready until BC-2.16.007 amended. FINDING-G needs human mandate. FINDING-1 (MEDIUM, CWE-693) + FINDING-2 (LOW) from PR #233 still open.
+
+### WORKSTREAM STATE
+
+| Workstream | Status | Frozen HEAD | Notes |
+|-----------|--------|-------------|-------|
+| Wave-A spec-evolution | 72-pass LOCAL cascade | resolved via D-2082 | pass-72/72b findings open; pass-73 not yet run |
+| §Authority corpus backfill | IN PROGRESS | — | 132/264 stories (rounds 1–5 done; 132 remain); ~5.5 rounds to go |
+| 15-ADR `anchor_stories` sweep | BLOCKED | — | SAC-2 requires full corpus completion first |
+| FINDING-A (MED governance) | OPEN | — | 6+ PROPOSED ADRs cited as authority (ADR-013/015/016/017/018/019 + S-6.11/12/13 ADR-016 + S-6.16/17/18 ADR-019); route architect |
+| FINDING-B (LOW records) | OPEN | — | ADR status vocabulary inconsistent; route spec-steward |
+| FINDING-C (LOW trend) | OPEN | — | DRIFT-STORY-CHANGELOG-ABSENT-001 accelerating; monitor per round |
+| FINDING-E (LOW records) | OPEN | — | S-5.11/S-5.12 POL-39 version pins in LIVE normative text; route story-writer (extend S-MAINT-ANTIPIN-SWEEP-002) |
+| FINDING-F (LOW traceability) | OPEN | — | S-6.16/17/18 cite planned COMP-DTU-011/012/013 not yet on disk; route architect |
+| FINDING-G (MED doc-vs-code) | OPEN | — | CLAUDE.md claims "Stage 1"/"Stage 2" detection that doesn't exist; human mandate required |
+| FINDING-1 (MED CWE-693) | OPEN | — | AC-006 grep cannot detect second PluginRuntime construction; route: future fix-burst |
+| FINDING-2 (LOW) | OPEN | — | Cargo.toml historical advisory comment inaccurate; route: spec-steward |
+| DRIFT-STASH0-CHECK-NAME-DRIFT-001 | OPEN | — | stash@{0} check-name drift risk; human owner |
+| PROCESS-GAP (dual-commit 3rd recurrence) | MITIGATED | — | S-MAINT-BURST-COMMIT-COUNT-GATE-001 registered as anchor |
+
+### KEY HEADS
+
+- `origin/develop`: `b226459d0` (PR #233 SQUASH-MERGED)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` (this D-2091 commit)
+- Main worktree: develop @`b226459d0`, clean
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch
+
+### DECISION-LOG DELTA (D-2091)
+
+| ID | Summary |
+|----|---------|
+| D-2091 | §Authority corpus backfill round 5/~11 COMPLETE — 24 stories (batches 12/13/14: S-5.07..S-6.18) version-pinned. S-MAINT-BURST-COMMIT-COUNT-GATE-001 registered. DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 108/264→132/264. FINDING-D opened+closed (single-commit burst). FINDING-E/F/G + PROCESS-GAP registered. STORY-INDEX v2.769→v2.770. total_stories 264→265. STATE v8.639→v8.640. |
+
+---
+
+## §RESUME SNAPSHOT — D-2090 (2026-08-02 — §Authority round 4/~11 complete (108/264); 30 cumulative open findings; BC-5.39.001 streak 0/3; develop_head b226459d0; STATE v8.638) [SUPERSEDES D-2089] [SUPERSEDED by D-2091]
 
 ### RESUME IN ONE BREATH
 Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2090 §Authority corpus backfill round 4/~11 COMPLETE (single-commit burst; 24 stories pinned in STORY-INDEX §Full Story List; DENOMINATOR CORRECTED 237→264). 108 of 264 stories now carry `## Authority` (156 remain; ~7 rounds to go). STORY-INDEX v2.769. 30 cumulative open findings (27→30: +FINDING-A/B/C). develop_head `b226459d0`. Branch protection: 24 required checks on main/develop.
