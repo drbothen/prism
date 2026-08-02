@@ -206,7 +206,8 @@ fn find_host_interface_namespace(
 ) -> Option<String> {
     let ct = component.component_type();
     for (name, item) in ct.imports(engine) {
-        if let wasmtime::component::types::ComponentItem::ComponentInstance(_) = item {
+        // wasmtime 47: imports() yields ComponentExtern<'_>; .ty is the ComponentItem.
+        if let wasmtime::component::types::ComponentItem::ComponentInstance(_) = item.ty {
             // Match `*/host@*` pattern: namespace + "/host@" + version
             if name.contains("/host@") {
                 return Some(name.to_string());
@@ -428,7 +429,8 @@ fn extract_component_exports(engine: &wasmtime::Engine, bytes: &[u8]) -> Vec<Str
         // also collect the bare function names from within the interface.
         // This allows validate_wit_interface to match bare names like "acquire-token"
         // even when they are nested inside "prism:crowdstrike-oauth2/sensor-auth@0.1.0".
-        if let wasmtime::component::types::ComponentItem::ComponentInstance(inst) = item {
+        // wasmtime 47: exports() yields ComponentExtern<'_>; .ty is the ComponentItem.
+        if let wasmtime::component::types::ComponentItem::ComponentInstance(inst) = item.ty {
             for (fn_name, _fn_ty) in inst.exports(engine) {
                 names.push(fn_name.to_string());
             }

@@ -47,8 +47,11 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"
 tracing = "0.1"
 
 # WASM Plugin Runtime (S-1.15 / SS-17 / AD-019)
-# wasmtime 44 resolves 17 RUSTSEC advisories (RUSTSEC-2024-0438 through RUSTSEC-2026-0096)
-wasmtime = { version = "44", features = ["component-model", "cache"] }
+# wasmtime 47 resolves 17 RUSTSEC advisories (RUSTSEC-2024-0438 through RUSTSEC-2026-0096)
+# and additionally clears RUSTSEC-2026-0222 (epoch-ticker use-after-free via two Engine
+# instances). No 44.x patch exists — bump to 47 is the only resolution.
+# S-WASMTIME-RUSTSEC-2026-0222-001 / HUMAN AUTHORIZED 2026-07-31.
+wasmtime = { version = "47", features = ["component-model", "cache"] }
 semver = "1"
 # notify: cross-platform filesystem event watcher (AD-018 / S-1.12 / S-1.15)
 notify = "7"
