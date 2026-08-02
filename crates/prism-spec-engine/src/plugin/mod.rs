@@ -200,6 +200,25 @@ impl PluginRuntime {
             wasmtime::Cache::new(wasmtime::CacheConfig::new()),
         );
 
+        // SECURITY INVARIANT — SINGLE ENGINE PER PROCESS (RUSTSEC-2026-0222 / AC-006)
+        //
+        // This is the ONE AND ONLY production `wasmtime::Engine` construction in the entire
+        // prism workspace. This invariant is load-bearing for RUSTSEC-2026-0222 mitigation:
+        // the advisory describes a use-after-free in the epoch-ticker interrupt path that
+        // is only reachable when two *independent* `Engine` instances exist in the same
+        // process. Prism is not reachable because exactly one `Engine` is ever constructed.
+        //
+        // DO NOT introduce a second `Engine::new(...)` call anywhere in prism-spec-engine
+        // or any crate that depends on it without first obtaining security clearance and
+        // verifying the resolved wasmtime version carries a fix for RUSTSEC-2026-0222.
+        //
+        // `Engine::clone()` (used below for `epoch_engine`) is reference-counted to this
+        // same instance — it does NOT create a second independent engine and does NOT
+        // violate this invariant.
+        //
+        // Enforcement: workspace-wide grep for `Engine::new` must return only this site
+        // (excluding test-only and proofs files) before any PR that touches
+        // `PluginRuntime::new_with_audit_sink` or adds new wasmtime Engine usage can merge.
         let engine =
             wasmtime::Engine::new(&config).map_err(|e| prism_core::PrismError::Internal {
                 detail: format!("wasmtime Engine construction failed: {}", e),
