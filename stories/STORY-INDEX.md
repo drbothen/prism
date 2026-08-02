@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.765"
+version: "2.766"
 status: draft
 producer: state-manager
-timestamp: 2026-07-31T00:00:00Z
+timestamp: 2026-08-01T00:00:00Z
 phase: 3
 total_stories: 264
 # D-2082: total_stories 264 UNCHANGED — FB110 closing burst; S-WAVE-A-ARMIS-ACTIVITY-001 v2.0→v2.1 (AC-009/RG-009 added; density 9 ACs / 9 RGTs; T-IMPL-02 + §Architecture Compliance rule 5 extended; BC-2.02.014 relevance cell updated to EC-014-001..EC-014-007). D-2078 NOTE archived.
@@ -636,19 +636,19 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.03 | Decorators and Internal Tables [MERGED PR #53 f13b5c76 2026-04-25 +19t] [**merged v1.6** (D-1229 2026-06-18: doc-reference correction — client_name source annotation corrected to [[orgs]].name per BC-2.15.010 v1.4)] | prism-storage | 3 | -- | 2 | S-2.01,S-1.02 |
 | S-2.04 | Audit Entry Construction and Compliance [MERGED PR #58 ab1f57b2 2026-04-25 +72t] [v1.7] | prism-audit | 6 | -- | 3 | S-2.01,S-2.02 |
 | S-2.05 | Specialized Audit Events [MERGED PR #59 c828e8af 2026-04-26 +35t RED_RATIO=54.3%] [v1.6] | prism-audit | 4 | -- | 1 | S-2.04 |
-| S-2.06 | DataSource Trait and Auth Patterns [MERGED PR #54 0b194cb4 2026-04-25 +51t] [SUPERSEDED architectural approach per PLUGIN-MIGRATION-001-H 2026-05-27 (merged status preserved)] | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
-| S-2.07 | Per-Sensor Auth and Pagination [MERGED PR #60 26d0954b 2026-04-26 +56t RED_RATIO=83.9%] [SUPERSEDED architectural approach per PLUGIN-MIGRATION-001-H 2026-05-27 (merged status preserved)] | prism-sensors | 5 | -- | 3 | S-2.06 |
-| S-2.08 | Event Table Abstraction and Local Buffering [MERGED PR #61 0be11cd6 2026-04-26 +92t RED_RATIO=54.3% prism-query-crate-created **WAVE-2-CLOSED** spec-v1.9-W2-P2-A-005-schema-hygiene-fix] | prism-sensors, prism-query | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
-| S-3.01 | PrismQL Parser (Filter + SQL + Pipe) [MERGED PR #127 2d7040b1 2026-05-06 +280t 15-adv-passes Chumsky-0.12] | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
-| S-3.02 | Query Tool and Materialization [v1.13-spec-rem] [MERGED PR #129 6fefc774 2026-05-06 +491t 4-adv-passes-post-rebase 19-findings-closed] [merged — graduated by S-3.02-FOLLOWUP-RUNTIME PR #162 develop@a55bd930 2026-05-28 per ADR-020] | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
-| S-3.03 | Explain and Query Diagnostics [v1.9-adv-local-pass4] [MERGED 2026-05-07 PR #134 squash 7c413692] | prism-query | 1 | -- | 1 | S-3.02 |
-| S-3.04 | Alias System (P1) [v1.10-S-3.04-pass-3-closure] [MERGED 2026-05-07 PR #133 squash 57745ce8] | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
-| S-3.04-FOLLOWUP-MCP-001 | Wire alias tools into prism-mcp (MCP integration) — register create_alias/list_aliases/delete_alias/explain_alias in tools/list + MCP dispatch + AliasStore lifecycle [**open stub v1.0** — registered D-2056 2026-07-28; P2; origin: S-3.04 adversary pass-1 F-HIGH-001; parent: S-3.04; BC-2.11.008/BC-2.11.013/BC-2.11.014/BC-2.11.015; file: S-3.04-FOLLOWUP-MCP-001.md] | prism-mcp,prism-query | 0 | BC-2.11.008,BC-2.11.013,BC-2.11.014,BC-2.11.015 | TBD | S-3.04 |
-| S-3.05 | Pagination and Caching [v1.12-S-3.04-fix-pass-29-anchor-fixes] | prism-query | 6 | VP-025 | 2 | S-3.02 |
-| S-3.06 | PrismQL Write Parser Extensions [v1.8-spec-rem] [MERGED PR #130 2a7b83f5 2026-05-06 +406t 7-adv-passes 18-findings-closed] [merged] | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
-| S-3.07 | Write Execution Pipeline [v1.10] **[MERGED 2026-05-08T04:23:03Z PR #135 squash 2ae7185b]** [partial-merge] | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04,S-6.07 |
-| S-3.08 | Hidden Columns [v1.5] | prism-query | 4 (proxy) | -- | 1 | S-3.02 |
-| S-3.09 | Query Performance Profiling [v1.6] **[FROZEN 2026-05-08 pending BUG-S309-PLUGIN]** | prism-query | 13 (proxy) | -- | 6 | S-3.02 |
+| S-2.06 | DataSource Trait and Auth Patterns [MERGED PR #54 0b194cb4 2026-04-25 +51t] [SUPERSEDED architectural approach per PLUGIN-MIGRATION-001-H 2026-05-27 (merged status preserved)] [v1.8] | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
+| S-2.07 | Per-Sensor Auth and Pagination [MERGED PR #60 26d0954b 2026-04-26 +56t RED_RATIO=83.9%] [SUPERSEDED architectural approach per PLUGIN-MIGRATION-001-H 2026-05-27 (merged status preserved)] [v1.6] | prism-sensors | 5 | -- | 3 | S-2.06 |
+| S-2.08 | Event Table Abstraction and Local Buffering [MERGED PR #61 0be11cd6 2026-04-26 +92t RED_RATIO=54.3% prism-query-crate-created **WAVE-2-CLOSED** spec-v1.9-W2-P2-A-005-schema-hygiene-fix] [v1.11] | prism-sensors, prism-query | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
+| S-3.01 | PrismQL Parser (Filter + SQL + Pipe) [MERGED PR #127 2d7040b1 2026-05-06 +280t 15-adv-passes Chumsky-0.12] [v2.1] | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
+| S-3.02 | Query Tool and Materialization [v1.14] [MERGED PR #129 6fefc774 2026-05-06 +491t 4-adv-passes-post-rebase 19-findings-closed] [merged — graduated by S-3.02-FOLLOWUP-RUNTIME PR #162 develop@a55bd930 2026-05-28 per ADR-020] | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
+| S-3.03 | Explain and Query Diagnostics [v1.10] [MERGED 2026-05-07 PR #134 squash 7c413692] | prism-query | 1 | -- | 1 | S-3.02 |
+| S-3.04 | Alias System (P1) [v1.11] [MERGED 2026-05-07 PR #133 squash 57745ce8] | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
+| S-3.04-FOLLOWUP-MCP-001 | Wire alias tools into prism-mcp (MCP integration) — register create_alias/list_aliases/delete_alias/explain_alias in tools/list + MCP dispatch + AliasStore lifecycle [**open stub v1.1** — registered D-2056 2026-07-28; P2; origin: S-3.04 adversary pass-1 F-HIGH-001; parent: S-3.04; BC-2.11.008/BC-2.11.013/BC-2.11.014/BC-2.11.015; file: S-3.04-FOLLOWUP-MCP-001.md] | prism-mcp,prism-query | 0 | BC-2.11.008,BC-2.11.013,BC-2.11.014,BC-2.11.015 | TBD | S-3.04 |
+| S-3.05 | Pagination and Caching [v1.13] | prism-query | 6 | VP-025 | 2 | S-3.02 |
+| S-3.06 | PrismQL Write Parser Extensions [v1.9] [MERGED PR #130 2a7b83f5 2026-05-06 +406t 7-adv-passes 18-findings-closed] [merged] | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
+| S-3.07 | Write Execution Pipeline [v1.11] **[MERGED 2026-05-08T04:23:03Z PR #135 squash 2ae7185b]** [partial-merge] | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04,S-6.07 |
+| S-3.08 | Hidden Columns [v1.6] | prism-query | 4 (proxy) | -- | 1 | S-3.02 |
+| S-3.09 | Query Performance Profiling [v1.7] **[FROZEN 2026-05-08 pending BUG-S309-PLUGIN]** | prism-query | 13 (proxy) | -- | 6 | S-3.02 |
 | S-3.10 | Cost Estimation (API Latency-Aware Planner) [v1.5] | prism-query | 2 (proxy) | -- | 2 | S-3.09,S-3.02 |
 | S-3.11 | In-Query Dedup Caching [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02 |
 | S-3.12 | Column Pruning and Field Selection Push-Down [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02,S-2.06 |
@@ -683,15 +683,15 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-6.03 | Installation and Distribution | prism-bin | 0 | -- | 1 | S-6.01 |
 | S-6.04 | prism credential CLI Subcommand Group | prism-bin | 12 | -- | 3 | S-1.06,S-1.07,S-6.01 |
 | S-6.05 | prism migrate-storage CLI Command | prism-bin | 3 | -- | 2 | S-2.01,S-6.01 |
-| S-3.0.01 | lefthook: fix pre-commit fmt hook (cargo fmt --all --check) [MERGED PR #73 6696e374 2026-04-28 +1t] | devops | 0 | -- | 1 | -- |
-| S-3.0.02 | prism-core: register DTU_DEFAULT_MODE registry (10-entry DtuRegistryEntry slice) per ADR-007 §2.3 [MERGED PR #74 373baf78 2026-04-28 +17t] | prism-core | 1 | -- | 1 | -- |
-| S-3.1.01 | prism-core: declare OrgId(Uuid v7) newtype via uuid_v7_newtype! macro [MERGED PR #81 39125a3e 2026-04-29 +11t] | prism-core | 1 | -- | 1 | -- |
-| S-3.1.02 | workspace: rename TenantId → OrgSlug across all crates [MERGED PR #93 8532d204 2026-04-29 +0t] | workspace | 1 | -- | 2 | S-3.1.01 |
-| S-3.1.03 | prism-core: implement OrgRegistry (bijective BiMap, resolve/slug_for/register) [MERGED PR #94 3e961bd1 2026-04-29 +35t] | prism-core | 3 | -- | 3 | S-3.1.01,S-3.1.02 |
-| S-3.1.04 | prism-credentials: migrate credential namespace key from OrgSlug to OrgId [MERGED PR #95 f139238e 2026-04-29 +18t] | prism-credentials | 1 | -- | 2 | S-3.1.01,S-3.1.02,S-3.1.03 |
-| S-3.1.05 | prism-spec-engine: scope sensor specs per OrgId (resolve slug at user-facing surface) [MERGED PR #98 5e323edd 2026-04-29 +18t] | prism-spec-engine | 1 | -- | 2 | S-3.1.01,S-3.1.02,S-3.1.03 |
-| S-3.1.06 | prism-sensors: migrate adapter constructors and fan-out dispatch to OrgId [MERGED PR #99 c2dc67b2 2026-04-30 +17t] | prism-sensors | 2 | -- | 3 | S-3.1.01,S-3.1.02,S-3.1.03,S-3.1.04,S-3.1.05 |
-| S-3.1.07 | prism-audit: add org_id + org_slug to AuditEntry; SHA-256 aql_hash [MERGED PR #96 fd39e94c 2026-04-29 +18t] | prism-audit | 2 | -- | 3 | S-3.1.01,S-3.1.02,S-3.1.03 |
+| S-3.0.01 | lefthook: fix pre-commit fmt hook (cargo fmt --all --check) [MERGED PR #73 6696e374 2026-04-28 +1t] [v0.4] | devops | 0 | -- | 1 | -- |
+| S-3.0.02 | prism-core: register DTU_DEFAULT_MODE registry (10-entry DtuRegistryEntry slice) per ADR-007 §2.3 [MERGED PR #74 373baf78 2026-04-28 +17t] [v0.6] | prism-core | 1 | -- | 1 | -- |
+| S-3.1.01 | prism-core: declare OrgId(Uuid v7) newtype via uuid_v7_newtype! macro [MERGED PR #81 39125a3e 2026-04-29 +11t] [v0.3] | prism-core | 1 | -- | 1 | -- |
+| S-3.1.02 | workspace: rename TenantId → OrgSlug across all crates [MERGED PR #93 8532d204 2026-04-29 +0t] [v0.3] | workspace | 1 | -- | 2 | S-3.1.01 |
+| S-3.1.03 | prism-core: implement OrgRegistry (bijective BiMap, resolve/slug_for/register) [MERGED PR #94 3e961bd1 2026-04-29 +35t] [v0.3] | prism-core | 3 | -- | 3 | S-3.1.01,S-3.1.02 |
+| S-3.1.04 | prism-credentials: migrate credential namespace key from OrgSlug to OrgId [MERGED PR #95 f139238e 2026-04-29 +18t] [v0.3] | prism-credentials | 1 | -- | 2 | S-3.1.01,S-3.1.02,S-3.1.03 |
+| S-3.1.05 | prism-spec-engine: scope sensor specs per OrgId (resolve slug at user-facing surface) [MERGED PR #98 5e323edd 2026-04-29 +18t] [v0.3] | prism-spec-engine | 1 | -- | 2 | S-3.1.01,S-3.1.02,S-3.1.03 |
+| S-3.1.06 | prism-sensors: migrate adapter constructors and fan-out dispatch to OrgId [MERGED PR #99 c2dc67b2 2026-04-30 +17t] [v0.3] | prism-sensors | 2 | -- | 3 | S-3.1.01,S-3.1.02,S-3.1.03,S-3.1.04,S-3.1.05 |
+| S-3.1.07 | prism-audit: add org_id + org_slug to AuditEntry; SHA-256 aql_hash [MERGED PR #96 fd39e94c 2026-04-29 +18t] [v0.3] | prism-audit | 2 | -- | 3 | S-3.1.01,S-3.1.02,S-3.1.03 |
 | S-3.2.01 | prism-dtu-claroty: Multi-tenant state segregation — (OrgId, String) re-keying [MERGED PR #86 214a9780 2026-04-29 +17t] | prism-dtu-claroty | 2 | -- | 3 | S-6.08 |
 | S-3.2.02 | prism-dtu-armis: Multi-tenant state segregation — (OrgId, String) re-keying [MERGED PR #88 65cb3269 2026-04-29 +11t] | prism-dtu-armis | 1 | -- | 3 | S-6.10 |
 | S-3.2.03 | prism-dtu-crowdstrike: Multi-tenant state segregation — containment + detection store re-keying [MERGED PR #85 5f087c8f 2026-04-29 +14t] | prism-dtu-crowdstrike | 2 | -- | 3 | S-6.07 |
@@ -723,7 +723,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | W3-FIX-WIN-001 | prism-dtu-harness: cross-platform fix for drop_releases_ports test (Windows winsock) [MERGED PR #105 ea90c9ee 2026-04-30 +0t] | prism-dtu-harness | 0 | -- | 0.5 | -- |
 | W3-FIX-LEFTHOOK-001 | Pre-push lefthook gate tuning — proptest case reduction, audit/deny CI-only, semver-checks pre-tag [MERGED PR #106 7418f269 2026-04-30 +0t] | devops | 0 | -- | 0.5 | -- |
 | W3-FIX-CI-001 | CI wall-clock optimization — cargo-nextest, per-platform PROPTEST_CASES, mold linker [MERGED PR #112 a3bd5a0f 2026-04-30 +0t] | devops | 0 | -- | 1 | -- |
-| S-3.1.06-ImplPhase | prism-sensors: complete adapter OrgId binding (S-3.1.06 Task 4 follow-on) [MERGED PR #117 cda17ed4 2026-05-02 +6t] [SUPERSEDED architectural approach per PLUGIN-MIGRATION-001-H 2026-05-27 (merged status preserved)] | prism-sensors | 4 | -- | 2 | -- |
+| S-3.1.06-ImplPhase | prism-sensors: complete adapter OrgId binding (S-3.1.06 Task 4 follow-on) [MERGED PR #117 cda17ed4 2026-05-02 +6t] [SUPERSEDED architectural approach per PLUGIN-MIGRATION-001-H 2026-05-27 (merged status preserved)] [v1.2] | prism-sensors | 4 | -- | 2 | -- |
 | W3-FIX-SEC-001 | DTU clones: bind OrgId to clone instance — reject mismatched X-Org-Id header [MERGED PR #113 59803de3 2026-05-01 +12t] | prism-dtu-harness,prism-dtu-* | 3 | -- | 1 | -- |
 | W3-FIX-SEC-002 | /dtu/reset admin token authentication [MERGED PR #119 f89e7044 2026-05-02 +12t] | prism-dtu-harness | 2 | -- | 0.5 | W3-FIX-SEC-001 |
 | W3-FIX-SEC-003 | prism-customer-config: path canonicalization + E-CFG-018 SpecPathTraversal rejection [MERGED PR #114 a68d1748 2026-05-01 +3t] | prism-customer-config | 2 | -- | 0.5 | -- |
@@ -737,7 +737,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | W3-FIX-SEC-005 | 5-DTU admin-token uniformity — constant-time comparison + post_reset gate (cyberint/jira/nvd/pagerduty/threatintel) [MERGED PR #125 ba3b10c7 2026-05-02 +21t] | prism-dtu-cyberint,prism-dtu-jira,prism-dtu-nvd,prism-dtu-pagerduty,prism-dtu-threatintel | 2 | -- | 1 | -- |
 | W3-FIX-CODE-006 | Armis activity/risk endpoint org-id guard test coverage (CR-023 closure) [MERGED PR #124 981e17d4 2026-05-02 +6t] | prism-dtu-armis | 1 | -- | 0.5 | -- |
 | S-WAVE5-PREP-01 | prism-bin: Binary Chassis, CLI, and Boot Sequence [E-CLEANUP-02] [MERGED 2026-05-10T00:55:49Z PR #138 squash 53b87961] [v1.3-merged] | prism-bin | 8 (BC-2.10.001/006/010 + BC-2.06.011/2.21.001/2.03.013/2.05.012/2.22.001) | -- | 3 | -- |
-| S-3.02-FOLLOWUP-RUNTIME | prism-query: QueryEngine Execution Pipeline — Fill todo!() Sites [E-CLEANUP-02] [Graduates S-3.02] [**MERGED PR #162 develop@a55bd930 2026-05-28 +7t**] | prism-query | 7 (BC-2.11.001/.005/.006/.007/.011/.012, BC-2.15.011) | -- | 4 | S-WAVE5-PREP-01 |
+| S-3.02-FOLLOWUP-RUNTIME | prism-query: QueryEngine Execution Pipeline — Fill todo!() Sites [E-CLEANUP-02] [Graduates S-3.02] [**MERGED PR #162 develop@a55bd930 2026-05-28 +7t**] [v1.1] | prism-query | 7 (BC-2.11.001/.005/.006/.007/.011/.012, BC-2.15.011) | -- | 4 | S-WAVE5-PREP-01 |
 | W3-FIX-S307-001 | prism-sensors: Concrete Sensor Adapter Write Overrides (4 Built-In Sensors) [E-CLEANUP-02] [BLOCKED — superseded by PLUGIN-MIGRATION-001-A per D-333] [SUPERSEDED status:superseded per PLUGIN-MIGRATION-001-H 2026-05-27] | prism-sensors | 0 (BCs TBD) | -- | 3 | -- |
 | W3-FIX-S307-002 | prism-query: WriteExecutor Phase 3 Fetch + SQL DML Routing + Write Observability [E-CLEANUP-02] [BLOCKED — superseded by PLUGIN-MIGRATION-001-B per D-333] | prism-query | 0 (BCs TBD) | -- | 3 | S-3.02-FOLLOWUP-RUNTIME,W3-FIX-S307-001 |
 | S-1.12-FOLLOWUP | prism-spec-engine: HotReloadWatcher — notify v7, Debounce, Validation Gate, SIGHUP [E-CLEANUP-02] [Graduates S-1.12] [BLOCKED — awaits Wave 0+1 plugin foundation per D-333] [v1.1] | prism-spec-engine | 0 (BCs TBD) | -- | 2 | S-WAVE5-PREP-01 |
@@ -1429,6 +1429,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.766 | 2026-08-01 | state-manager D-2086 §Authority corpus backfill round 2/29: 24 stories version-pinned in §Full Story List (S-2.06 v1.8, S-2.07 v1.6, S-2.08 v1.11, S-3.0.01 v0.4, S-3.0.02 v0.6, S-3.01 v2.1, S-3.02 v1.14, S-3.02-FOLLOWUP-RUNTIME v1.1, S-3.03 v1.10, S-3.04 v1.11, S-3.04-FOLLOWUP-MCP-001 v1.1, S-3.05 v1.13, S-3.06 v1.9, S-3.07 v1.11, S-3.08 v1.6, S-3.09 v1.7, S-3.1.01 v0.3, S-3.1.02 v0.3, S-3.1.03 v0.3, S-3.1.04 v0.3, S-3.1.05 v0.3, S-3.1.06 v0.3, S-3.1.06-ImplPhase v1.2, S-3.1.07 v0.3). DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 36/237→60/237. total_stories 264 UNCHANGED. |
 | v2.765 | 2026-07-31 | state-manager D-2085 §Authority corpus backfill round 1/29: 24 stories version-pinned in §Full Story List (S-0.01 v1.6, S-0.02 v1.7, S-1.01 v1.2, S-1.02 v1.10, S-1.03 v1.5, S-1.04 v1.5, S-1.05 v1.5, S-1.06 v1.4, S-1.07 v1.9, S-1.08 v1.6, S-1.09 v1.6, S-1.10 v1.6, S-1.11 v1.8, S-1.12 v1.7, S-1.12-FOLLOWUP v1.1, S-1.13 v1.5, S-1.14 v1.13, S-1.14-REDO v1.7, S-1.15 v1.14, S-2.01 v1.6, S-2.02 v1.9, S-2.03 v1.6, S-2.04 v1.7, S-2.05 v1.6). DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 12/237→36/237. total_stories 264 UNCHANGED. |
 | v2.764 | 2026-07-31 | state-manager D-2083 FB111 closure: S-REQUIRED-COL-GATE-001 v1.0→v1.1 (EC-007 added — empty-value arm NOT-A-DEFECT at plan tier; `## Authority` section added; `modified:` frontmatter field added). total_stories 264 UNCHANGED (disk-verified: 264 .md files under .factory/stories/ excluding index files). |
 | v2.763 | 2026-07-31 | state-manager D-2082 FB110: S-WAVE-A-ARMIS-ACTIVITY-001 v2.0→v2.1 (F-WASE-P72-HIGH-002 RESOLVED — last HIGH pass-72 finding — AC-009/RG-009 added: test_armis_device_activity_empty_device_id_filter_returns_hard_error; density 9 ACs / 9 RGTs one-to-one; §Architecture Compliance rule 5 and T-IMPL-02 extended for both ADR-057 §D7 Rule 2 arms with dual AC/RGT anchors; BC-2.02.014 relevance cell updated to EC-014-001..EC-014-007). total_stories 264 UNCHANGED. |
