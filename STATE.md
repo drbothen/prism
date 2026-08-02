@@ -16,8 +16,8 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "aa2a5fe6e"
-# NOTE: D-2072 — develop advanced 51c2d4b1→aa2a5fe6e (PR #231 SQUASH-MERGED @aa2a5fe6e; records-lint ARM5 check-name exemption for L10/L11 now on develop; --self-probe 38/38 PASS). D-2069/D-2070 NOTE archived.
+develop_head: "643ee2a08"
+# NOTE: D-2086b — develop advanced aa2a5fe6e→643ee2a08: (1) a41599fe0 fix(DEFECT-DEMOSETUP-CWD-001/DEFECT-DEMOSETUP-NEXTSTEPS-001) demo scripts cwd-independence; (2) PR #232 SQUASH-MERGED @643ee2a08 docs(governance) SAP-2 arm-3 datetime default + non-exhaustive gate-count refactor. develop_head was stale in D-2086 burst (pre-existing, not introduced by D-2086). MULTI_COMMIT_CHAIN_NOT_ALLOWED detector fired false positive: D-2085/D-2086 both contain "backfill" — legitimate sequential rounds 1/29 and 2/29, NOT Stage-1/Stage-2 retry anti-pattern. Detector does not distinguish; documented here as false-positive instance. SESSION-HANDOFF.md SHA staleness is separate (owner: orchestrator; outside D-2086b records-only scope). D-2072 NOTE archived.
 bc_index_version: "8.93"
 # NOTE: D-2082 — BC-INDEX v8.92→v8.93: FB110 closure — F-WASE-P72-HIGH-002 RESOLVED (last HIGH pass-72 finding). BC-2.02.014 leading pin v2.0→v2.1 (empty-string required-filter arm contracted; EC-014-007 + TV-BC-2.02.014-006 added; six LIVE sites extended). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2080 NOTE archived.
 # NOTE: D-2080 — BC-INDEX v8.91→v8.92: FB108 closure — DRIFT-BC2002006-INDEX-STALE-001 (HIGH) RESOLVED. BC-2.02.006 leading pin v1.17→v1.18 (product-owner corrected three LIVE normative sites from options = ["INDEX"] to options = ["REQUIRED"] for armis_device_activity device_id column: §Postconditions deferral MUST sentence, EC-02-014 resolution-status sentence, §TOML Contract deferral note). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2079 NOTE archived.
