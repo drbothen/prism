@@ -16,7 +16,7 @@ priority: P2
 #     QRY-02 wiring on fix/review-2026-06-10-query-core must be merged first —
 #     this story redesigns that wiring's value type and read path).
 status: draft
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-10T00:00:00Z"
@@ -123,6 +123,21 @@ at the adapter seam, with OCSF normalization applied on read**.
 **Sequencing (human-directed):** AFTER the live-demo objective (S-DEMO-DTU-LIVE-SCENARIO-001-B
 → S-DEMO-MULTI-TENANT-DTU-001 → S-DEMO-004) and AFTER fix/review-2026-06-10-query-core
 merges to develop.
+
+---
+
+## Authority
+
+BC-2.07.003 is the governing spec for this story. The P1-03 adjudication (2026-06-10) ruled it
+UNAMENDED: the cache stores raw pre-OCSF sensor responses; normalization is applied on read.
+All ACs derive from BC-2.07.003 §Postconditions and §Invariants. Read it before implementing.
+
+A seam decision ADR (Option A adapter-seam vs Option B engine-seam) is the Phase 0 architect
+gate — implementation MUST NOT begin until that ADR is ACCEPTED.
+
+ADR-023 §D3 governs the perimeter constraint: Option B normalization handle must not widen the
+prism-query → prism-spec-engine import surface. Read §D3 before choosing Option B:
+`.factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md`.
 
 ---
 
@@ -632,4 +647,5 @@ explicitly in the PR description.
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.1 | 2026-08-02 | Added ## Authority section (DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 Round 6, D-2084). |
 | v1.0 | 2026-06-10 | Initial authoring per explicit human P1-03 adjudication (2026-06-10): BC-2.07.003 raw-response cache model stays UNAMENDED; the as-built post-normalization RecordBatch cache (human-authorized deviation, cache.rs CacheValue doc citation) is brought into spec compliance post-demo. Sequenced after live-demo objective (S-DEMO-DTU-LIVE-SCENARIO-001-B → S-DEMO-MULTI-TENANT-DTU-001 → S-DEMO-004) + fix/review-2026-06-10-query-core merge. Seam decision (Option A adapter-seam vs Option B engine-seam) gated on Phase 0 architect ADR per human direction. 12 ACs; 12 Red Gate tests; 8 pts. Interim mitigations documented: hot-reload→cache-flush (landing in review-2026-06-10 cycle) + cache.rs authorized-deviation citation. |

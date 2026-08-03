@@ -8,7 +8,7 @@ priority: P1
 status: ready
 # BC-2.16.013 v1.25 authored by PO (D-989 Phase-A burst) — trailing-slash parity clause
 # confirmed; normalize_path middleware requirement documented. S-7.01 gate CLEARED.
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -105,14 +105,36 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.0 — Claroty Trailing-Slash Route Fidelity
+# S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.4 — Claroty Trailing-Slash Route Fidelity
 
 **Story ID:** S-DEMO-CLAROTY-TRAILING-SLASH-001
 **Status:** draft
-**Version:** v1.0
+**Version:** v1.4
 **Wave:** 5
 **Priority:** P1
 **Points:** 3
+
+---
+
+## Authority
+
+ADR-031 §D8-b is the authoritative design decision for Claroty trailing-slash route fidelity
+(Gap-CL-001). Read it before implementing:
+`.factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md`.
+
+ADR-031 §D8-b establishes the trailing-slash fidelity requirement: the real Claroty xDome API uses
+trailing slashes on all POST-for-read endpoints; the DTU router must accept trailing-slash variants
+(via `NormalizePathLayer::trim_trailing_slash()`); and the TOML `path_template` values must be
+updated to trailing-slash form. ADR-031 §D8-b also requires verifying whether `normalize_path`
+middleware is already present before assuming Axum handles it automatically.
+
+ADR-031 `status: accepted`. `superseded_by:` cites ADR-053 §D3 scope-narrowing. The §D3
+supersession narrows the single-surface assumption for the Assets surface only; the §D8-b
+trailing-slash fidelity provisions governing this story are NOT in the superseded scope.
+
+BC-2.16.013 §Postconditions §1 is the governing behavioral contract — the trailing-slash
+`path_template` clause and the `normalize_path` middleware requirement were added in the Wave-5
+Phase-A PO burst.
 
 ---
 
@@ -515,6 +537,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.4 | 2026-08-02 | story-writer | Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 (D-2084): added §Authority section; bumped stale body version fields (H1 title + bold Version) from v1.0 to v1.4. |
 | 1.3 | 2026-06-08 | story-writer | Six uncertainty-removal corrections from remove-uncertainty research pass (Perplexity + axum docs + tower-http source + axum#2377). FIX-1 (HIGH/U1): replaced wrong Router::layer() snippet with correct outer-service wrapping pattern for BOTH serve sites (~line 168 TLS, ~line 192 non-TLS); ServiceExt::<Request>::into_make_service fully-qualified (axum#2377). FIX-2 (HIGH/U2): corrected EC-005 strip-vs-add inversion — trim_trailing_slash() is STRIP-ONLY; two independent directions (OUTBOUND TOML, INBOUND DTU strip); removed wrong "bidirectionality" claim; noted append_trailing_slash() danger. FIX-3 (MEDIUM/U3): concrete crate-level dep instruction — add tower-http = "0.5" to crates/prism-dtu-claroty/Cargo.toml [dependencies] (production, not dev-deps); do not use 0.6. FIX-4 (MEDIUM/U4): removed axum-0.8 dead path and "(if available)" hedges; definitive statement axum has never shipped built-in path normalizer. FIX-5 (MEDIUM/U5): EC-002 auth-ordering tied to outer-service placement from FIX-1. FIX-6 (LOW/U6): AC-005 enumerates intentional /api/v1/devices/:device_id/tags/ trailing-slash route; Red Gate tests require outer-service builder to prevent "one path ships broken" failure. |
 | 1.2 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; BC-2.16.013 v1.25 active (PO authored D-989); depends_on S-DEMO-CLAROTY-AUDIT-DTU-001 (SOFT, merged PR #167) SATISFIED; S-7.01 gate CLEARED. |
 | 1.1 | 2026-06-03 | story-writer | Wave-5 Phase-A BC-array propagation burst (D-989). PO authored BC-2.16.013 v1.25 with trailing-slash parity clause + normalize_path middleware requirement for claroty.sensor.toml. Propagated into story: (1) `behavioral_contracts: []` → `[BC-2.16.013]`; Flag 1 CLOSED. (2) Added §Behavioral Contracts table with BC-2.16.013 v1.25 role. (3) ACs updated: AC-001/002/003/004/005 now cite `BC-2.16.013 v1.25 §Postconditions §1` instead of `ADR-031 §D8-b requirement N (pending formal BC authorship)`. AC-003 soft-dep note updated: S-DEMO-CLAROTY-AUDIT-DTU-001 already merged (develop@e1c632dc); stub fallback no longer needed. Version bump 1.0 → 1.1. |

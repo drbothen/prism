@@ -13,7 +13,7 @@ status: superseded
 # pull_request + push — was absorbed into S-DEMO-002 as Task 25.
 # This story is CLOSED. Do not dispatch. See S-DEMO-002 v2.0 for the delivered spec.
 replaced_by: S-DEMO-002
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-02T00:00:00Z"
@@ -121,14 +121,27 @@ originating_finding: "S-DEMO-002 LOCAL adversarial cascade OBS-2 (process-gap)"
 # before human review, not discovered during it.
 ---
 
-# S-DEMO-CI-E2E-001 v1.1 — ci: Scheduled E2E Red Gate CI Workflow [SUPERSEDED]
+# S-DEMO-CI-E2E-001 v1.2 — ci: Scheduled E2E Red Gate CI Workflow [SUPERSEDED]
 
 **Story ID:** S-DEMO-CI-E2E-001
 **Status:** SUPERSEDED — absorbed into S-DEMO-002 PR #171
-**Version:** v1.1
+**Version:** v1.2
 **Wave:** 5
 **Priority:** P1
 **Points:** 5 (absorbed; see S-DEMO-002 v2.0 +2 pts)
+
+---
+
+## Authority
+
+This story is SUPERSEDED — scope absorbed into S-DEMO-002 Task 25 (PR #171, 2026-06-03).
+See §SUPERSESSION NOTICE for the full disposition. Do not dispatch.
+
+The former governing framework for CI workflow authoring: `ci.yml` action SHA pins are the
+source of truth for all `uses:` entries in this story's Architecture Compliance Rules. No ADR
+governs this story's CI configuration scope. BC-2.22.001 §Postconditions governs the E2E test
+suite that the former workflow would have exercised, but that authoring is now owned by
+S-DEMO-002.
 
 ---
 
@@ -486,5 +499,6 @@ Well within budget. This is the smallest story in the E-DEMO arc.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.2 | 2026-08-02 | story-writer | Added ## Authority section (DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 Round 6, D-2084). Synced stale `**Version:**` pseudo-field and H1 title from v1.1 to v1.2 to match frontmatter (TD-VSDD-060 sibling-sweep correction, orchestrator-authorized). |
 | 1.1 | 2026-06-03 | product-owner | SUPERSEDED — absorbed into S-DEMO-002 PR #171 per human decision 2026-06-03. Status set to `superseded`; `replaced_by: S-DEMO-002`; `blocks: []` (S-DEMO-003 dependency transferred to S-DEMO-002). Supersession rationale documented inline (PR+push gate covers the OBS-2 gap; daily schedule residual is a 0.5-pt enhancement, not a standalone story; story was draft/BC-pending, never ready). |
 | 1.0 | 2026-06-02 | story-writer | Initial draft — OBS-2 process-gap closure from S-DEMO-002 LOCAL cascade. Process/infra story; tdd_mode: facade; status: draft pending BC authorship (S-7.01 gate). |

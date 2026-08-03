@@ -6,7 +6,7 @@ wave: 0
 epic_id: wave-0-plugin-prereqs
 priority: P0
 status: merged
-version: "v1.3"
+version: "v1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-23T00:00:00Z"
@@ -136,8 +136,28 @@ phase: 3
 
 **Story ID:** S-CONFIG-MULTI-TENANT-OVERRIDE-001
 **Status:** ready
-**Version:** v1.2
+**Version:** v1.4
 **Wave:** 0 (prereq; parallel to S-PLUGIN-CI-001; both unblock multi-tenant deployments)
+
+---
+
+## Authority
+
+ADR-029 is the authoritative design document for this story. It defines the hybrid Sensor
+Instance with Per-Org Composition Directory pattern: SensorInstanceOverlay struct,
+ResolvedSensorSpec map, overlay merge semantics, scalar-only enforcement, and FanOutTarget
+routing contract. Read it before implementing:
+`.factory/specs/architecture/decisions/ADR-029-multi-tenant-sensor-endpoint-overrides.md`.
+
+ADR-022 §B defines the boot step ordering. Boot step 4 (step4_load_sensor_specs) is the
+extension point this story uses; the ResolvedSensorSpec map must be complete before step 8
+(pre-traffic gate). Read the §B sequencing table before amending boot.rs:
+`.factory/specs/architecture/decisions/ADR-022-production-runtime-wiring.md`.
+
+ADR-007 §D1 defines the per-type DTU mode default registry. Per-org overlays compose with
+these defaults; the overlay must not reassign a sensor's DTU mode. Read §D1 before
+implementing overlay merge:
+`.factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.md`.
 
 ---
 
@@ -644,6 +664,7 @@ prerequisites; no hard ordering between them — dispatch in parallel where poss
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.4 | 2026-08-02 | story-writer | Added ## Authority section (DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 Round 6, D-2084). Synced stale `**Version:**` pseudo-field from v1.2 to v1.4 to match frontmatter (TD-VSDD-060 sibling-sweep correction, orchestrator-authorized; v1.3 row still absent from changelog — pre-existing drift registered for spec-steward). |
 | v0.1 | 2026-05-23 | story-writer | Initial stub — D-803 Burst 4/4; anchored to ADR-029 v1.1 + 5 new BCs BC-2.06.012–016; 7 ACs with Red Gate test names per SID-1 §5; subsystems SS-06 + SS-16; wave-0 prereq parallel to S-PLUGIN-CI-001. |
 | v0.2 | 2026-05-24 | story-writer | F-LP4-MED-004 closure — swept stale `ci.yml EXPECTED=32` → `EXPECTED=35` at Architecture Compliance Rules (§#[non_exhaustive] discipline) and Architecture Compliance Rules table row (compile-fail gate enforcement column). Fix-burst-3 bumped ci.yml but missed story body citations. POL-29 sibling-sweep: no other EXPECTED=32 citations in this story file. |
 | v1.1 | 2026-05-29 | story-writer | Pre-dispatch refinement per orchestrator direction 2026-05-29: (1) Added AC-008 (paper-fix resistance — injected base_url actually consumed at HTTP dispatch layer, D-823 / SAP-3-candidate; Red Gate: test_S_CONFIG_PROD_CONSUMER_READS_INJECTED_BASE_URL); (2) Added AC-009 (DTU emulation gap documented under ADR-031 DTU=true-DTU principle — single-DTU emulation described; full multi-instance DTU gap surfaced as S-DEMO-MULTI-TENANT-DTU-001 stub needed; Red Gate: test_S_CONFIG_DTU_BASE_URL_OVERLAY_ROUTES_TO_CORRECT_DTU_INSTANCE); (3) Updated blocks: to include S-DEMO-001 (boot step 9A depends on ResolvedSensorSpec map from this story per S-DEMO-001 v1.3 depends_on); (4) Added dispatch order note: S-CONFIG + S-DTU-CYBERINT parallel → S-DEMO-001 after both merge; (5) acceptance_criteria_count 7→9, red_gate_tests 7→9. Status remains draft: BC-2.06.012–016 are draft status; Spec-First Gate S-7.01 requires non-empty behavioral_contracts with active (not draft) BCs before status=ready. |

@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P1
 status: merged
-version: "1.17"
+version: "1.18"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -129,10 +129,25 @@ phase: 3
 
 **Story ID:** S-DEMO-003
 **Status:** in_progress
-**Version:** v1.17
+**Version:** v1.18
 **Wave:** 5
 **Priority:** P1
 **Points:** 8
+
+---
+
+## Authority
+
+ADR-034 is the authoritative design document for this story. It defines Tier-3 OS-keyring
+resolution (§D3 OrgId-keyed branch in resolve_credential), OrgId-keyed write reconciliation
+(§D4 set_by_org via CredentialStoreOrgId), BootContext expansion (§D5), and
+PrismCredentialResolver Arc-DI wiring (§D5). Read it before implementing:
+`.factory/specs/architecture/decisions/ADR-034-tier3-keyring-resolution-org-id-threading.md`.
+
+ADR-035 §D5 defines the canonical E-CRED-001..010 error codes. The Tier-3 backend-unavailable
+path is E-CRED-008 (BackendUnavailable); the write-path failure is E-CRED-004. All error
+codes in this story must match the ADR-035 taxonomy. Read §D5 before implementing error paths:
+`.factory/specs/architecture/decisions/ADR-035-e-cred-namespace-reconciliation.md`.
 
 ---
 
@@ -690,6 +705,7 @@ additions. Still within limit.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.18 | 2026-08-02 | story-writer | Added ## Authority section (DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 Round 6, D-2084). Synced stale `**Version:**` pseudo-field from v1.17 to v1.18 to match frontmatter (TD-VSDD-060 sibling-sweep correction, orchestrator-authorized). |
 | 1.17 | 2026-06-08 | state-manager | **MERGED — PR #176 squash-merged develop@a42e3eaf (D-1055 POL-14 post-merge burst).** Status `in_progress → merged`. All gates satisfied: LOCAL 3-CLEAN converged passes 17/18/19 (D-1053; BC-5.39.001 D-779) + PR-LEVEL 3-CLEAN converged passes 1/2/3 (D-1054; BC-5.39.001 D-779) + pr-reviewer APPROVE + security SECURITY-CLEAR-TO-MERGE + CI 43/43 GREEN. POL-14 BC promotions: BC-2.06.001 v1.2→v1.3 draft→active; BC-2.06.003 v1.10→v1.11 draft→active; BC-2.03.005/007/BC-2.22.001 idempotent no-ops (already active). Phase B Lane 4 COMPLETE. Cascade CLOSED. |
 | 1.17 | 2026-06-07 | story-writer | **F-P15-HIGH-002 — async-signature claim correction (BC-2.06.003 v1.9 propagation):** Two story-side false claims that "`CredentialRefProbe` trait signature UNCHANGED" corrected to accurately reflect the pass-14 fix (commit 0941c0e0). **(1) Architecture Compliance Rules** — boot-probe row Enforcement cell: replaced "UNCHANGED" assertion with: "`CredentialRefProbe::probe` converted to `async` (via `#[async_trait]`) in pass-14 (commit 0941c0e0); all 5 impls and call sites updated; `org_registry: &OrgRegistry` param unchanged from v1.3; see BC-2.06.003 v1.9 §OrgRegistry and KeyringStore Threading." Source citation updated from v1.8 to v1.9. **(2) v1.16 Changelog row** — "UNCHANGED" phrase in the Enforcement narrative amended to the same accurate async-conversion description. No other story content changed. `acceptance_criteria_count` (14), `red_gate_tests` (9), and `status` (in_progress) all unchanged. No STORY-INDEX, STATE.md, BC-INDEX, or sprint-state files touched — state-manager owns those. |
 | 1.16 | 2026-06-07 | story-writer | **F-P14-CRIT-001 boot-probe BC-2.06.003 v1.8 propagation:** Closed F-P14-CRIT-001 at the story level by propagating the BC-2.06.003 v1.8 §Boot-Step-5 Probe Alignment amendment. Changes: **(1) Architecture Compliance Rules** — added row: "Boot probe must use OrgId-keyed probe (Tier 3a, `get_by_org` per registered org) as PRIMARY keyring check; legacy `{sensor_id}/{ref_name}` is Tier 3b FALLBACK only" — Source: BC-2.06.003 v1.8 §Boot-Step-5 Probe Alignment; Enforcement: `KeyringCredentialProbe` gains `keyring: Arc<dyn CredentialStoreOrgId>` field; `step5_init_credential_store` passes the shared `Arc<KeyringBackend>` at construction; `CredentialRefProbe::probe` converted to `async` (via `#[async_trait]`) in pass-14 (commit 0941c0e0) — all 5 impls and call sites updated; `org_registry: &OrgRegistry` param unchanged from v1.3 — see BC-2.06.003 v1.9 §OrgRegistry and KeyringStore Threading for authoritative correction. **(2) Red Gate Tests** — added TV-BOOT-P-001 row: `test_BC_2_06_003_boot_probe_tier3a_finds_org_id_keyed_credential` in `crates/prism-bin/src/boot.rs` `#[cfg(test)] mod tests` — in-process unit test using `InMemoryCredentialStore`, calls `set_by_org`, asserts `probe(...)` returns `Ok(None)`; maps to AC-002 / AC-009 / BC-2.06.003 v1.8. **(3) `red_gate_tests` frontmatter** 8→9. **(4) AC-002** — added minimal clarifying note (3 sentences) that boot step 5 resolves OrgId-keyed credentials (Tier 3a PRIMARY) per BC-2.06.003 v1.8 §Boot-Step-5 Probe Alignment; closes F-P14-CRIT-001. **(5) Tasks 10 and 27** — Red Gate test count updated 8→9. No new ACs added (`acceptance_criteria_count` unchanged at 14 — existing AC-002/AC-009 are satisfied by the BC amendment per PO assessment). No STORY-INDEX/STATE.md/sprint-state changes (state-manager owns those). |

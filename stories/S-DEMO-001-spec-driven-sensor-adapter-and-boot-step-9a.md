@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.12"
+version: "1.13"
 updated: "2026-07-24"
 level: "L4"
 producer: story-writer
@@ -140,14 +140,38 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-001 v1.10 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
+# S-DEMO-001 v1.13 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
 
 **Story ID:** S-DEMO-001
 **Status:** draft
-**Version:** v1.10
+**Version:** v1.13
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
+
+---
+
+## Authority
+
+ADR-022 §B governs boot step sequencing. Boot step 9A (adapter registry population) introduced
+by this story must be registered in the §B sequencing table between steps 7.5b and 9. Read
+the §B table before amending boot.rs:
+`.factory/specs/architecture/decisions/ADR-022-production-runtime-wiring.md`.
+
+ADR-023 §D3 (Forbidden Dependencies) governs struct placement: SpecDrivenSensorAdapter MUST
+live in prism-bin, not prism-sensors; prism-sensors must not import prism-spec-engine.
+Read §D3 before authoring the struct:
+`.factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md`.
+
+ADR-031 §D3-b governs the Cyberint StaticCookieAuthProvider: no HTTP acquire_token, no login
+step, static credential read, `access_token` cookie (not `cyberint_session`). Note: §D3 is
+scope-narrowed by ADR-053 §D3, but §D3-b StaticCookieAuthProvider semantics are PRESERVED.
+Read §D3-b before implementing Cyberint auth:
+`.factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md`.
+
+ADR-029 §D4 defines the ResolvedSensorSpec map that boot step 9A iterates (one entry per
+(org_id, sensor_id) with per-org base_url overlay). Read §D4 before writing the boot 9A loop:
+`.factory/specs/architecture/decisions/ADR-029-multi-tenant-sensor-endpoint-overrides.md`.
 
 ---
 
@@ -707,6 +731,7 @@ if context pressure is felt during implementation.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.13 | 2026-08-02 | story-writer | Added ## Authority section (DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 Round 6, D-2084). Synced stale `**Version:**` pseudo-field and H1 title from v1.10 to v1.13 to match frontmatter (batch-17 cross-slice consistency, orchestrator-authorized). |
 | 1.12 | 2026-07-24 | story-writer | F-WASE-P52-LOW-001 POL-29 class sweep, burst wave-a-spec-evolution-fix-burst-41: 6 occurrences of stale `PipelineExecutor::build_request` qualifier corrected to free-function citation — first mention uses `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`), subsequent mentions plain `build_request`. No ACs, BCs, or behavioral semantics changed. |
 | 1.11 | 2026-06-05 | story-writer | Minimal historical-accuracy correction (F-PUSHDOWN-008 cross-story drift, PO-surfaced): AC-010 SCOPE NOTE updated — stale "Test-writers MUST NOT assert fetch() passes limit/cursor" instruction now clarified as historical to S-DEMO-001 only; notes that push-down IS implemented by S-DEMO-QUERY-PUSHDOWN-001 per BC-2.01.013 v1.12. No ACs, BCs, or semantics changed. Story is MERGED (PR #166) — this is a documentation-only correction for auditable accuracy. |
 | 1.10 | 2026-06-01 | story-writer | OBS-P3-001 version-pin sweep: AC-010 heading, conformance test requirement label, traces-to line, and Pagination/Push-Down Scope Clause reference all updated from BC-2.01.013 v1.8 → v1.9. Historical changelog entries (1.5 and 1.6 rows) are untouched — they record what was written when the BC was at v1.8. |

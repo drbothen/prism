@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P3
 status: draft
-version: "0.1"
-spec_version: "v0.1"
+version: "0.2"
+spec_version: "v0.2"
 level: ops
 producer: story-writer
 timestamp: "2026-07-12"
@@ -84,6 +84,20 @@ As a Prism adversary or code-reviewer examining a PR that adds or modifies audit
 `scripts/t13-preflight-audit.py`, I want named standing review axes for (a) NYA per-stub
 classification checks and (b) sort-assertion divergence-window analysis, so that I apply these
 analyses systematically rather than discovering them by chance in individual adversary passes.
+
+## Authority
+
+No numbered ADR governs standing adversary review axes for audit scripts. The governing authorities for this story are:
+
+**Origin findings:** F-AUD-P26-OBS-002 and F-AUD-P28-OBS-005 (AUDIT-COVERAGE-001 cascade, passes 26 and 28) are the two process-gap findings that triggered this story. Session record D-1697 (passes 26–28) contains the authoritative finding texts: set-level NYA error-code checks are insufficient for per-stub verification (SAR-1), and sort-assertion divergence-window analysis was not systematically applied (SAR-2 — the `LIMIT 5` vs `LIMIT 12` boundary where sort order actually diverges).
+
+**CLAUDE.md §Standing Adversary Probes & Implementer Disciplines** (SAP-1, SAP-2, SAP-3) codifies the project-level standing probes for adversarial review. SAR-1 (NYA per-stub classification) and SAR-2 (sort-assertion divergence-window) in this story are audit-script-specific review axes analogous to SAP-2 (DTU↔TOML schema parity) — both operate on the principle of per-item individual verification rather than set-level aggregates.
+
+**S-AUDIT-PROCESS-CONVENTIONS-001** (prerequisite story) creates `scripts/audit-conventions.md` — the file that AC-001 and AC-002 extend with the `§Standing-Review-Axes` section.
+
+No product BCs govern standing adversary review axes. The `behavioral_contracts: []` status is intentional per the frontmatter note; PO authorship required before `status: ready` (S-7.01).
+
+---
 
 ## Behavioral Contracts
 
@@ -209,3 +223,10 @@ No new dependencies.
 | `scripts/audit-conventions.md` | Modify | Add §Standing-Review-Axes section with SAR-1 + SAR-2 |
 
 No Rust files, no Cargo.toml, no new scripts.
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 0.2 | DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001-R6 | 2026-08-02 | story-writer | Add §Authority section (D-2084 Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001). No numbered ADR governs; authority is origin findings F-AUD-P26-OBS-002/F-AUD-P28-OBS-005, CLAUDE.md §Standing Adversary Probes, and S-AUDIT-PROCESS-CONVENTIONS-001 prerequisite. |
+| 0.1 | — | 2026-07-12 | story-writer | Initial story creation. |

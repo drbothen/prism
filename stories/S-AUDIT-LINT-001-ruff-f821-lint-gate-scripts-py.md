@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P2
 status: draft
-version: "0.1"
-spec_version: "v0.1"
+version: "0.2"
+spec_version: "v0.2"
 level: ops
 producer: story-writer
 timestamp: "2026-07-12"
@@ -77,6 +77,20 @@ As a Prism developer committing changes to `scripts/*.py`, I want a fast `ruff c
 gate in `just check` and CI that catches undefined-name errors before the script is run, so that
 a rename/refactor that misses a call site is detected at commit time rather than being found by
 an adversary during a multi-hour cascade review.
+
+## Authority
+
+No numbered ADR governs CI Python linting quality for `scripts/`. The governing authorities for this story are:
+
+**Origin finding:** F-AUD-P24-OBS-001 (AUDIT-COVERAGE-001 cascade, pass 24) is the process-gap that triggered this story. Session record D-1696 contains the authoritative finding text: a `NameError` caused by a TD-VSDD-060 sibling-site sweep failure was not caught at commit time because no `ruff` or `pyflakes` F821 gate existed in CI or `just check`.
+
+**CLAUDE.md §Build & Test** defines the `just check` gate that this story extends with the `lint-scripts` recipe. The `just check` command is the canonical pre-push quality gate for this project; `lint-scripts` must integrate into it (AC-002).
+
+**CLAUDE.md §Operational Discipline TDs — TD-VSDD-060** (sibling-site sweep discipline) is the root-cause rule that `ruff --select F821` enforces mechanically at commit time: a rename that misses a call site produces an undefined-name violation caught by F821 before the script is executed, preventing the class of defect that triggered this story.
+
+No product BCs govern CI linting quality. The `behavioral_contracts: []` status is intentional per the frontmatter note; PO authorship or explicit waiver required before `status: ready` (S-7.01).
+
+---
 
 ## Behavioral Contracts
 
@@ -215,3 +229,10 @@ N/A — first story targeting the scripts/ Python lint gate. Prior context:
 | `scripts/requirements-dev.txt` | Create or modify | Pin ruff version |
 
 No Rust files, no Cargo.toml changes.
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 0.2 | DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001-R6 | 2026-08-02 | story-writer | Add §Authority section (D-2084 Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001). No numbered ADR governs; authority is origin finding F-AUD-P24-OBS-001, CLAUDE.md §Build & Test, and CLAUDE.md §TD-VSDD-060. |
+| 0.1 | — | 2026-07-12 | story-writer | Initial story creation. |

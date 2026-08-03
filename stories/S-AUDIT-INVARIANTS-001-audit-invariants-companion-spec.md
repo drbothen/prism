@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P2
 status: draft
-version: "0.1"
-spec_version: "v0.1"
+version: "0.2"
+spec_version: "v0.2"
 level: ops
 producer: story-writer
 timestamp: "2026-07-12"
@@ -89,6 +89,20 @@ AUDIT-COVERAGE-001 cascade, I want a single `scripts/audit-invariants.md` file t
 audit check to the finding ID that motivated it and the behavioral invariant it enforces, so that I
 can verify that no high-severity finding from the 44-pass cascade went without an audit guard, and
 so that new findings added to the script are traceable to their origin.
+
+## Authority
+
+No numbered ADR governs audit-script documentation structure. The governing authorities for this story are:
+
+**Origin finding:** F-AUD-P29-OBS-001 (AUDIT-COVERAGE-001 cascade, pass 29) is the process-gap that triggered this story. Session record D-1698 contains the authoritative finding text: approximately 300+ inline F-AUD-PN citations in `scripts/t13-preflight-audit.py` are not navigable at spec level. The companion spec `scripts/audit-invariants.md` addresses this gap.
+
+**CLAUDE.md §Operational Discipline TDs — TD-VSDD-091:** The anti-volatile-pin rule requires that behavioral invariants be cited by function name and finding ID, not line number. This is precisely the convention that `audit-invariants.md` enforces for the audit script's per-check invariant records — each row cites a check name (e.g., `A23`, `C7`) and a finding ID, never a line number.
+
+**S-AUDIT-PROCESS-CONVENTIONS-001** (prerequisite story) creates `scripts/audit-conventions.md` — the file that AC-003 extends with an `audit-invariants.md` cross-reference. This story must not be implemented before S-AUDIT-PROCESS-CONVENTIONS-001 is complete.
+
+No product BCs govern this story. The `behavioral_contracts: []` status is intentional per the frontmatter note; PO authorship or explicit waiver required before `status: ready` (S-7.01).
+
+---
 
 ## Behavioral Contracts
 
@@ -257,3 +271,10 @@ No new dependencies.
 | `scripts/t13-preflight-audit.py` | Modify | Add/update module docstring only (AC-004) |
 
 No Rust files, no Cargo.toml changes, no new Python scripts.
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 0.2 | DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001-R6 | 2026-08-02 | story-writer | Add §Authority section (D-2084 Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001). No numbered ADR governs; authority is origin finding F-AUD-P29-OBS-001, CLAUDE.md §TD-VSDD-091, and S-AUDIT-PROCESS-CONVENTIONS-001 prerequisite. |
+| 0.1 | — | 2026-07-12 | story-writer | Initial story creation. |

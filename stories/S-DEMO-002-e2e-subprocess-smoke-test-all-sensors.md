@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "2.7"
+version: "2.8"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-02T00:00:00Z"
@@ -148,14 +148,31 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-002 v2.6 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
+# S-DEMO-002 v2.8 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 
 **Story ID:** S-DEMO-002
 **Status:** ready
-**Version:** v2.7
+**Version:** v2.8
 **Wave:** 5
 **Priority:** P0
 **Points:** 13
+
+---
+
+## Authority
+
+ADR-029 §D governs the per-org overlay routing that this story exercises end-to-end. Each
+org's ResolvedSensorSpec carries a per-org base_url overlay; this test verifies that each of
+the four sensors routes to the correct DTU clone endpoint per org. Read §D before writing
+per-org test fixtures:
+`.factory/specs/architecture/decisions/ADR-029-multi-tenant-sensor-endpoint-overrides.md`.
+
+ADR-031 §D8-a governs the Armis AQL push-down mechanism tested by AC-014 (Mechanism B —
+Verbatim-AQL Passthrough): the user-supplied `aql` pseudo-column value is forwarded opaque
+to the DTU `GET /api/v1/search?aql=<value>` endpoint per R-DTU-002. Note: ADR-031 is
+scope-narrowed by ADR-053 §D3, but §D8-a AQL passthrough is unaffected. Read §D8-a before
+writing the AC-014 assertion:
+`.factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md`.
 
 ---
 
@@ -691,6 +708,7 @@ Within budget; additional crate context (+8,300 tokens) from HIGH-001 reconcilia
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.8 | 2026-08-02 | story-writer | Added ## Authority section (DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 Round 6, D-2084). Synced stale `**Version:**` pseudo-field from v2.7 to v2.8 and H1 title from v2.6 to v2.8 to match frontmatter (TD-VSDD-060 sibling-sweep correction, orchestrator-authorized). |
 | 2.7 | 2026-07-13 | story-writer | DEFECT-MCP-ROWSHAPE-NULLS-001 F-MCPNULL-P1-HIGH-001 residual — retire composed string `"Internal error; see audit log"` in AC-012 rationale block. Updated to BC-2.10.007 message/suggestion split contract: caller-visible `message` is `"Internal error"`; `suggestion` carries `"See audit log for details."` (error-taxonomy v2.40). TD-VSDD-060 sibling sweep confirmed no other live occurrences of the retired string in this file (v1.6 changelog row at former line 704 already used the abbreviated `"Internal error"` form only — historical context, not a live citation). All version pins updated: frontmatter version 2.6→2.7, frontmatter modified, body **Version:** block. |
 | 2.6 | 2026-06-03 | product-owner | ADV-SDEMO002-PR-P11-MED-001 closure: body `**Version:**` block synced (v2.4→v2.6); recurring sibling-pin drift (2nd occurrence, P04+P11) — all version pins (frontmatter, H1, body block, modified) now verified consistent |
 | 2.5 | 2026-06-03 | product-owner | Fix-burst closing ADV-SDEMO002-PR-P10-MED-001 (prism-query had no FSR row despite being in crates_touched with load-bearing SRC changes). Added FSR row: `crates/prism-query/src/engine.rs, src/materialization.rs` MODIFY — E-QUERY-032 cross-org isolation raise + AQL push-down seeding (BC-3.2.001 postcondition 5, AC-014 / BC-2.11.007 Mechanism B). Full FSR/Token-Budget/crates_touched bidirectional cross-check performed against all 10 crates; zero additional asymmetries found (see 10-row checklist in commit message). Token Budget total unchanged at ~53,300 tokens (prism-query was already covered by the "prism-query/src/ + prism-spec-engine/src/pipeline.rs" ~3,500 row). |

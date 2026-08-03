@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P1
 status: draft
-version: "0.1"
-spec_version: "v0.1"
+version: "0.2"
+spec_version: "v0.2"
 level: ops
 producer: story-writer
 timestamp: "2026-07-12"
@@ -86,6 +86,21 @@ As a Prism developer querying the system, I want mode-detection to behave exactl
 in BC-2.11.002 §Preconditions (pipe > SELECT-SQL > FROM-SQL > filter), so that the correct query
 parser is invoked in all boundary cases (e.g., a query starting with `FROM` but containing `|`
 is always treated as pipe mode, not SQL mode).
+
+## Authority
+
+BC-2.11.002 is the primary authoritative contract for this story. Read it before implementing:
+`.factory/specs/behavioral-contracts/BC-2.11.002-prismql-filter-mode.md` (status: `active`).
+
+BC-2.11.002 §Preconditions defines the four-rule mode-detection precedence ordering (pipe > SELECT-SQL > FROM-SQL > filter). This is the canonical contract that `crates/prism-query/src/filter_parser.rs` must implement. The story's Red Gate tests (AC-003) assert this precedence at the public parser surface.
+
+**CLAUDE.md §Source-of-Truth Precedence rule 1** governs the adjudication in AC-001: for code-vs-spec conflicts, the spec wins unless the product-owner explicitly authorizes amendment. BC-2.11.002 §Preconditions is therefore authoritative over `filter_parser.rs` until the product-owner rules otherwise. Option B (spec amendment) requires the product-owner to act before any code is written.
+
+ADR-047 is cited in BC-2.11.002 §Postconditions for case-insensitive operator support (`IEQ`, `IIN`, `INE`). ADR-047 does not affect mode-detection precedence — it governs operator semantics within filter mode and is not directly binding on this story's scope.
+
+The code artifact to align: `crates/prism-query/src/filter_parser.rs` (SS-11 per `architecture/module-decomposition.md §Subsystem Registry`). See also `architecture/module-decomposition.md §SS-11 Query Execution`.
+
+---
 
 ## Behavioral Contracts
 
@@ -267,3 +282,10 @@ depend on `prism-mcp` or `prism-spec-engine`. The existing perimeter gates apply
 | `crates/prism-query/tests/filter_mode.rs` | Modify | Add 4 Red Gate tests (AC-003) |
 | `.factory/specs/behavioral-contracts/BC-2.11.002-prismql-filter-mode.md` | Modify (Option B, PO action) | Amend §Preconditions if code is adjudicated correct |
 | `.factory/stories/S-AUDIT-SPEC-PRECEDENCE-001-....md` (this file) | Modify | Update `behavioral_contracts:` pin + AC traces after adjudication (AC-004) |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 0.2 | DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001-R6 | 2026-08-02 | story-writer | Add §Authority section (D-2084 Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001). BC-2.11.002 §Preconditions cited as governing contract; CLAUDE.md §Source-of-Truth Precedence rule 1 cited for adjudication authority; ADR-047 scope-exclusion noted. |
+| 0.1 | — | 2026-07-12 | story-writer | Initial story creation. |

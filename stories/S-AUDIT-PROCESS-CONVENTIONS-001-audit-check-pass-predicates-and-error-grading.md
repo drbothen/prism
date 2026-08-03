@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P2
 status: draft
-version: "0.1"
-spec_version: "v0.1"
+version: "0.2"
+spec_version: "v0.2"
 level: ops
 producer: story-writer
 timestamp: "2026-07-12"
@@ -86,6 +86,20 @@ I want written conventions documenting (a) positively-grounded PASS predicates, 
 error-discrimination checklist, and (c) the required `parse_envelope` structural pattern, so that new
 checks avoid the recurrent defect classes found across the 44-pass AUDIT-COVERAGE-001 cascade without
 requiring an adversarial review pass to catch them.
+
+## Authority
+
+No numbered ADR governs audit-script authoring conventions. The governing authorities for this story are:
+
+**Origin findings:** F-AUD-P1-OBS-002, F-AUD-P3-OBS-003, F-AUD-P21-OBS-003/OBS-005 (AUDIT-COVERAGE-001 cascade, passes 1, 3, and 21) are the three process-gap findings that triggered this story. Session records D-1694 (passes 1–20) and D-1695 (pass-21 PO adjudication) contain the authoritative finding texts: over-permissive PASS predicates, absent four-layer error-grading checklist, and undocumented `parse_envelope` five-layer isinstance-guard pattern.
+
+**CLAUDE.md §Standing Adversary Probes & Implementer Disciplines** (SAP-1, SAP-2, SAP-3, SID-1, SID-2) codifies the project-level adversary probes and implementer disciplines. The PASS-grounding convention (AC-001) and error-grading checklist (AC-002) this story documents are the audit-script equivalents of the rigor encoded in SID-1 (no-ignored-test rationalization prohibition) and SAP-1 (tracing emission catalog completeness).
+
+**CLAUDE.md §Operational Discipline TDs — TD-VSDD-091:** The anti-volatile-pin rule applies to the docstring reference added by AC-004 — cite function names (`parse_envelope`, `sensor_errors_gate`), not line numbers. The `##parse_envelope-Pattern` section documents the canonical guard structure by function name, consistent with this rule.
+
+No product BCs govern audit-script authoring quality. The `behavioral_contracts: []` status is intentional per the frontmatter note; PO authorship required before `status: ready` (S-7.01).
+
+---
 
 ## Behavioral Contracts
 
@@ -272,3 +286,10 @@ No new Python dependencies. `scripts/audit-conventions.md` requires only a text 
 | `scripts/t13-preflight-audit.py` | Modify | Add `# CONVENTIONS` reference block in module header (AC-004) |
 
 No Rust files modified. No Cargo.toml changes. No new crates.
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 0.2 | DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001-R6 | 2026-08-02 | story-writer | Add §Authority section (D-2084 Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001). No numbered ADR governs; authority is origin findings F-AUD-P1-OBS-002/F-AUD-P3-OBS-003/F-AUD-P21-OBS-003/OBS-005, CLAUDE.md §Standing Adversary Probes, and CLAUDE.md §TD-VSDD-091. |
+| 0.1 | — | 2026-07-12 | story-writer | Initial story creation. |

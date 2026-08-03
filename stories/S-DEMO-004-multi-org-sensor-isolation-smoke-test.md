@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "1.15"
+version: "1.16"
 level: "L4"
 producer: architect
 timestamp: "2026-05-29T00:00:00Z"
@@ -177,10 +177,26 @@ phase: 3
 
 **Story ID:** S-DEMO-004
 **Status:** ready
-**Version:** v1.15
+**Version:** v1.16
 **Wave:** 5
 **Priority:** P0
 **Points:** 8
+
+---
+
+## Authority
+
+ADR-029 §D governs the per-org overlay structure validated end-to-end by this story. The
+overlay wiring (write_overlay_temp_dir / write_overlay_from_socket_map) writes one TOML file
+per (org, sensor) pair pointing to the org's DTU clone socket. Read §D before writing
+overlay wiring calls:
+`.factory/specs/architecture/decisions/ADR-029-multi-tenant-sensor-endpoint-overrides.md`.
+
+ADR-036 §2.2 defines the deterministic scenario progression and canonical device ID format
+("dev-{8hex}-{seed}-{n}" where 8hex = hex(org_id.as_bytes()[0..4])). The disjointness
+assertions in AC-006 (ids_org_a ∩ ids_org_c = ∅) rely on this structural ID format.
+Read §2.2 before writing the ID-set comparison logic:
+`.factory/specs/architecture/decisions/ADR-036-deterministic-scenario-progression-engine.md`.
 
 ---
 
@@ -736,6 +752,7 @@ cross-referencing needed for the implementer to understand how to use the merged
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.16 | 2026-08-02 | story-writer | Added ## Authority section (DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 Round 6, D-2084). Synced stale `**Version:**` pseudo-field from v1.15 to v1.16 to match frontmatter (TD-VSDD-060 sibling-sweep correction, orchestrator-authorized). |
 | 1.15 | 2026-07-17 | story-writer | F-ADMTOK-P15-MED-002: BC-2.06.017 canonical-contract pin updated v1.10 → v1.12 (bumped v1.10→v1.11 by DEFECT-ADMINTOKEN FIX-BURST-1; v1.11→v1.12 by FIX-BURST-11). BC-2.06.018 pin (v1.6) verified current against BC-2.06.018 frontmatter — no change. POL-23/POL-25 sibling sweep within S-DEMO-004: line 681 was the only live canonical-contract pin site; all other BC-2.06.017/BC-2.06.018 occurrences are non-versioned references or story-changelog historical records — no further updates required. Body version header synced v1.14 → v1.15 (POL-23). |
 | 1.14 | 2026-06-14 | story-writer | F-PR3-MED-002 fix: AC-004 Red Gate test name corrected. `test_BC_3_2_001_org_c_all_4_sensors_return_independent_data` → `test_BC_2_01_013_org_c_all_4_sensors_return_independent_data`. The old prefix `BC_3_2_001` self-contradicted the AC-004 trace (`BC-2.01.013`) and did not match the actual test in `crates/prism-bin/tests/e2e_multi_org.rs` (evidence-report Red Gate table). Only one occurrence of the old test name existed in the body (AC-004); confirmed single-site via grep before edit. Body version header synced from v1.13 → v1.14 (POL-23 sibling-sweep propagation completing this burst). |
 | 1.13 | 2026-06-14 | product-owner | PR #188 F-PR3-MED-001: AC-003 query corrected. `tool_query "FROM claroty_assets LIMIT 5"` → `tool_query "SELECT * FROM claroty_alerts LIMIT 5"`. Two errors fixed: (1) wrong table name `claroty_assets` → canonical `claroty_alerts`; (2) bare `FROM ... LIMIT` pipe syntax → valid PrismQL `SELECT * FROM ... LIMIT`. Now matches the actual test in `crates/prism-bin/tests/e2e_multi_org.rs` and the evidence-report (POL-22 verified: `claroty_assets` appears at exactly one site; that site is AC-003 body, now corrected). |

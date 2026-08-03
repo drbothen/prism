@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.5"
+version: "1.6"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-09T00:00:00Z"
@@ -83,6 +83,30 @@ receives data from a seeded `FixtureSet`, producing disjoint device/alert/detect
 across clients. Implements BC-2.06.018 (config-time seed + org_id forwarding), which is
 currently **unimplemented** per ADR-036 v2.0 §1.3 substrate correction. This is the prerequisite
 for Story B (scenario progression), which requires generated_records to be in the serving path.
+
+---
+
+## Authority
+
+ADR-036 is the authoritative design document for this story. Read it before implementing:
+`.factory/specs/architecture/decisions/ADR-036-*.md`.
+
+ADR-036 §2.2 defines the canonical `org_slug_from_org_id` formula (`hex(org_id.as_bytes()[0..4])`),
+`ScenarioEntityCatalog` structure, and the `gen_seeded_rng` two-arg secondary RNG stream. ADR-036
+§2.3 defines the generator-backed clone constructor pattern (`new_with_seed`) and the
+`generated_records` substrate in clone state. ADR-036 §2.4 defines `ScenarioConfig` struct fields.
+ADR-036 §2.5 defines perimeter rules (INV-PERIMETER-001: no `prism-spec-engine`, `prism-sensors`,
+or `prism-query` deps in DTU crates). ADR-036 §3.2 prohibits per-request `generate()` calls.
+ADR-036 §3.4 prohibits a separate scenario crate.
+
+ADR-036 `status: ACCEPTED`. `superseded_by: null`.
+
+BC-2.06.018 §Postconditions governs config-time seed and org_id forwarding (all 14 ACs). Invariants
+INV-DISTINCT-DATA-001, INV-FIXTURE-SET-ARCHETYPE-MAP-001, INV-CONSTRUCTION-TIME-FAILURE-001, and
+INV-CONFIGURE-ENDPOINT-SECONDARY-001 are binding behavioral invariants.
+
+Parent story note: S-DEMO-DTU-LIVE-SCENARIO-001 is `status: superseded` (superseded by this story
+and S-DEMO-DTU-LIVE-SCENARIO-001-B). This story covers BC-2.06.018 scope.
 
 ---
 
@@ -594,6 +618,7 @@ If NO new `event_type` emissions are added, state so explicitly in the PR descri
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.6 | 2026-08-02 | Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 (D-2084): added §Authority section. |
 | v1.5 | 2026-06-09 | OBS-P7-001 closure (LOW): §Token Budget ADR-036 full-read pin corrected v2.0→v2.2 (POL-23/POL-29 cross-document version-pin sync). The `(full)` row in the Token Budget table cited the superseded ADR-036 v2.0; canonical ADR-036 is now v2.2. §Narrative line (~84) and §Previous Story Intelligence line (~408) citations of "ADR-036 v2.0 §1.3" are intentionally preserved — §1.3 is self-titled "Substrate Reality (v2.0 Correction)" and those citations are correct provenance anchors, NOT stale pins. Only the Token Budget "(full)" row was the defect. Sibling sweep confirmed: all other `ADR-036 v2.0` occurrences are (a) provenance citations to the v2.0-named subsection §1.3 or (b) immutable historical changelog rows — none changed. |
 | v1.4 | 2026-06-09 | F-P6-HIGH-001 closure + USER DECISION (full 8-archetype support): Reconciled story to ADR-036 v2.2 canonical 3-arg archetype-driven constructor. All four clone new_with_seed signatures updated to `(seed, archetype, org_id)` — CrowdStrike/Claroty return `Self`; Armis/Cyberint return `anyhow::Result<Self>`. AC-003/AC-011: archetype arg added, CompromisedEndpoint now forwarded-not-hardcoded. AC-004: removed explicit org_slug parameter (now derived internally via org_slug_from_org_id inside new_with_seed; test renamed to `test_BC_2_06_018_armis_new_with_seed_canonical_3arg`). AC-012: archetype arg added. AC-007: strengthened from is_ok()-only to archetype-drives-output differential assertions (TD-VSDD-059 paper-test upgrade). Three new differential Red Gate tests added: #15 dormant→empty served response (TV-018-006), #16 large_scale record count, #17 compromised-vs-dormant differential output. `red_gate_tests` 14→17. Tasks Phase 3: all CompromisedEndpoint hardcodes replaced with forwarded archetype param; Armis internal org_slug derivation documented. Tasks Phase 4: fixture_set→Archetype mapping step added before constructor dispatch. File Structure: all four clone.rs rows updated to canonical 3-arg; harness.rs row updated. BC pin bumped v1.4→v1.5. Token Budget test count 14→17. traces_to: F-P6-HIGH-001 added. risk_mitigations: archetype-forwarding and Armis-internal-slug invariants added. |
 | v1.3 | 2026-06-09 | F-P5-HIGH-001: BC version pins synced v1.3→v1.4. §Behavioral Contracts table row pin and §Token Budget row pin both updated (BC-2.06.018 v1.3→v1.4). Phantom-anchor fix in BC-2.06.018: 7 story-ref sites corrected S-DEMO-DTU-DATA-SEEDING-001 → S-DEMO-DTU-LIVE-SCENARIO-001-A by product-owner. Sweep confirmed no other live-narrative BC-2.06.018 v1.x pins remain. Historical changelog rows v1.0, v1.1, and v1.2 are immutable audit trail per TD-VSDD-091 — not altered. POL-23/POL-29 sibling sweep complete. |

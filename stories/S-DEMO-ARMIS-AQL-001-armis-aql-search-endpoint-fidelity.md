@@ -22,7 +22,7 @@ merged_at: "2026-06-02"
 # (AC-001..AC-004) are unblocked. Parity tests requiring full pipeline env-var resolution
 # must be #[ignore]-annotated with a code comment citing S-SPEC-ENV-VAR-001 until that
 # prereq merges.
-version: "1.9"
+version: "1.10"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -113,14 +113,32 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-ARMIS-AQL-001 v1.8 — Armis AQL Search Endpoint Fidelity
+# S-DEMO-ARMIS-AQL-001 v1.10 — Armis AQL Search Endpoint Fidelity
 
 **Story ID:** S-DEMO-ARMIS-AQL-001
 **Status:** in-progress
-**Version:** v1.8
+**Version:** v1.10
 **Wave:** 5
 **Priority:** P1
 **Points:** 5
+
+---
+
+## Authority
+
+ADR-031 §D8-a is the authoritative design decision for this story. It mandates that the real
+Armis production API uses `GET /api/v1/search?aql=<query>` as the single search endpoint
+(replacing separate /devices and /alerts routes), and that the DTU clone must faithfully
+replicate this endpoint. The `aql` parameter is treated as opaque per R-DTU-002 — no
+validation, no parsing. Note: ADR-031 is scope-narrowed by ADR-053 §D3, but §D8-a (AQL
+endpoint fidelity) is unaffected. Read §D8-a before implementing the route:
+`.factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md`.
+
+ADR-005 defines the AQL trust model and injection mitigation. The opaque passthrough in this
+story operates within ADR-005's validated-allowlist trust boundary — the DTU does not validate
+AQL syntax, which is correct per R-DTU-002 (the DTU mirrors the real API's accept-any-AQL
+behavior). Read ADR-005 §Trust Model before implementing AQL routing:
+`.factory/specs/architecture/decisions/ADR-005-aql-injection-mitigation.md`.
 
 ---
 
@@ -557,6 +575,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.10 | 2026-08-02 | story-writer | Added ## Authority section (DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 Round 6, D-2084). Synced stale `**Version:**` pseudo-field and H1 title from v1.8 to v1.10 to match frontmatter (batch-17 cross-slice consistency, orchestrator-authorized). |
 | 1.9 | 2026-06-02 | state-manager | D-950 post-merge burst: status in-progress→merged; merge metadata added (merged_sha: eb3416d1, merged_pr: 168, merged_at: 2026-06-02). LOCAL 3/3 CONVERGED + PR-LEVEL 3/3 CONVERGED (BC-5.39.001 D-779). POL-14 BC-2.16.013 already active — idempotent confirm. |
 | 1.8 | 2026-06-02 | story-writer | Correct AC-001..AC-004 BC-2.16.013 §Postconditions trace anchors (phantom/inverted §-labels removed; R-DTU-002 re-attributed to ADR-031 §D8-a). Closes ADV-P02-MED-001 (POL-4/POL-21/POL-22). No code/behavior change. |
 | 1.7 | 2026-06-01 | product-owner | F-LP12-HIGH-001 closure (spec-side): conformed all AQL discriminator examples from `in:type=Device`/`in:type=Alert` to real Armis syntax `in:devices`/`in:alerts` per research artifact `.factory/research/armis-aql-discriminator-syntax-2026-06.md` (HIGH confidence, 6 convergent sources including real 1898 & Co production poller). Updated: §Origin narrative, §Story-Level Goal routing bullets, AC-001 example URL, AC-002 H2 title + example URLs + aql-log capture value, AC-003 H2 title + example AQL string, Red Gate table descriptions (rows 1/3/5), Task 8 handler routing bullets, Notes for Implementer AQL routing example and discriminator guidance, §References (added research artifact citation). Handler routing now checks `in:alerts` first (unambiguous) then defaults to `in:devices`. BC-2.16.013 was already correct; story now matches it. |

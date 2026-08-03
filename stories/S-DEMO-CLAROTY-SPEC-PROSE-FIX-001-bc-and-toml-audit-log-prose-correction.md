@@ -8,7 +8,7 @@ priority: P2
 status: ready
 # BC-2.16.013 v1.25 authored by PO (D-989 Phase-A burst) including audit_logs §Postconditions §1
 # prose correction (AC-003 PARTIALLY CLOSED by PO). S-7.01 gate CLEARED.
-version: "1.2"
+version: "1.3"
 level: "L1"
 producer: story-writer
 timestamp: "2026-06-01T00:00:00Z"
@@ -61,14 +61,31 @@ risk_mitigations: []
 #   forbidden-modify for that story). Promoted to goal task per user direction 2026-06-02.
 ---
 
-# S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 v1.0 — Claroty Audit Log Spec-Prose Fidelity Fix
+# S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 v1.3 — Claroty Audit Log Spec-Prose Fidelity Fix
 
 **Story ID:** S-DEMO-CLAROTY-SPEC-PROSE-FIX-001
 **Status:** draft (pending PO BC authorship)
-**Version:** v1.0
+**Version:** v1.3
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2
 **Points:** 1
+
+---
+
+## Authority
+
+No ADR directly governs prose corrections. The authoritative artifact for this story's scope is
+BC-2.16.013 §Postconditions §1 (audit_logs clause), which is the canonical source of truth for
+both the TOML comment corrections and the BC prose correction obligation.
+
+BC-2.16.013 §Postconditions §1 is the governing behavioral contract: the audit_logs clause
+establishes what the correct post-story prose must state (`POST /api/v1/audit_log/get; DTU route
+registered by S-DEMO-CLAROTY-AUDIT-DTU-001 (Gap-CL-006 CLOSED)`). The Wave-5 Phase-A PO burst
+authored BC-2.16.013 with this correction already applied (AC-003 PARTIALLY CLOSED by PO). The
+remaining scope is TOML comment cleanup (AC-001, AC-002, AC-004 — implementer scope).
+
+Per CLAUDE.md §Source-of-Truth Precedence: the BC supersedes on contract semantics. The story spec
+supersedes on implementation scope — TOML comment edits are implementation scope, not BC authorship.
 
 ---
 
@@ -305,6 +322,7 @@ No new crate dependencies. This story introduces no Rust code.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.3 | 2026-08-02 | story-writer | Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 (D-2084): added §Authority section; bumped stale body version fields (H1 title + bold Version) from v1.0 to v1.3. |
 | 1.2 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; BC-2.16.013 v1.25 active (PO authored D-989); depends_on S-DEMO-CLAROTY-AUDIT-DTU-001 (merged PR #167) SATISFIED; S-7.01 gate CLEARED. |
 | 1.1 | 2026-06-03 | story-writer | Wave-5 Phase-A BC-array propagation burst (D-989). PO authored BC-2.16.013 v1.25 including the audit_logs §Postconditions §1 prose correction (AC-003 PARTIALLY CLOSED by PO). Propagated into story: (1) `behavioral_contracts: []` → `[BC-2.16.013]`; (2) Added §Behavioral Contracts table with BC-2.16.013 v1.25 role and note that AC-003 prose is already corrected by PO; (3) ACs rewritten: AC-001/002/004 now cite `BC-2.16.013 v1.25 §Postconditions §1`; AC-003 updated to note PARTIALLY CLOSED status and verify-first instruction. Version bump 1.0 → 1.1. |
 | 1.0 | 2026-06-01 | story-writer | Initial stub. Captures scope (TOML audit_logs comment corrections + BC-2.16.013 §Postconditions §1 prose update), gating (depends_on S-DEMO-CLAROTY-AUDIT-DTU-001), PO ownership boundary for BC edits, and finding closure (F-P2-DEFER-001). Status draft pending PO BC authorship per S-7.01. |

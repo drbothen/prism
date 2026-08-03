@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P2
 status: ready
-version: "1.4"
+version: "1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -96,14 +96,37 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-CROWDSTRIKE-MULTIREGION-001 v1.4 — CrowdStrike Multi-Region base_url Fidelity
+# S-DEMO-CROWDSTRIKE-MULTIREGION-001 v1.5 — CrowdStrike Multi-Region base_url Fidelity
 
 **Story ID:** S-DEMO-CROWDSTRIKE-MULTIREGION-001
 **Status:** ready
-**Version:** v1.4
+**Version:** v1.5
 **Wave:** 5
 **Priority:** P2
 **Points:** 2
+
+---
+
+## Authority
+
+ADR-031 §D8-c is the authoritative design decision for CrowdStrike multi-region base URL fidelity
+(Gap-CS-003). Read it before implementing:
+`.factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md`.
+
+ADR-031 §D8-c establishes the `${env.CROWDSTRIKE_BASE_URL}` substitution requirement, matching the
+Armis and Claroty env-var pattern. ADR-031 §D8-c also confirms the DTU requires no code changes —
+the CrowdStrike DTU is already region-agnostic (binds to `127.0.0.1:0`).
+
+ADR-031 `status: accepted`. `superseded_by:` cites ADR-053 §D3 scope-narrowing. The §D3
+supersession narrows the single-surface assumption for the Assets surface only; the §D8-c
+multi-region provisions governing this story are NOT in the superseded scope.
+
+BC-2.16.009 §Validation Rules 6 governs env-var resolver behavior including the E-SPEC-024 error
+path for missing/empty vars (AC-003). BC-2.16.013 §Postconditions §1 governs the CrowdStrike spec
+authoring fidelity row (base_url env-var pattern; AC-001, AC-002, AC-005).
+
+ADR-028 §D2 records the D-747 LOCKED constraint: `auth_type = "oauth2_client_credentials"` and
+`auth_plugin = "crowdstrike-oauth2"` must not be changed.
 
 ---
 
@@ -463,6 +486,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.5 | 2026-08-02 | story-writer | Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 (D-2084): added §Authority section; bumped body version fields (H1 title + bold Version) from v1.4 to v1.5. |
 | 1.4 | 2026-06-02 | product-owner | Adversary fix-burst closing F-PB-HIGH-001 + F-PB-MED-001 + F-PC-LOW-001 (story-side). F-PB-HIGH-001: added §References entries for BC-2.16.009 v1.7 and BC-2.16.013 v1.22 with verbatim H1 titles (POL-7 D-571 verification step). F-PB-MED-001: rewrote AC-006 trace from "(traces to BC-2.16.002...)" to SAP-1 standing-probe guard form, eliminating POL-8 trace-without-frontmatter asymmetry; BC-2.16.002 correctly absent from behavioral_contracts frontmatter. F-PC-LOW-001 (story-side): synced all Red Gate test name citations in §Red Gate Tests table, AC-002/003/004 blocks, and Tasks §5 to verbatim fn names with BC_2_16_013_ infix per bc_2_16_013_crowdstrike_multiregion.rs (test-file doc-table + header version pin v1.1→v1.3 routed to implementer; see worktree fix note). |
 | 1.3 | 2026-06-02 | story-writer | Bump-stable cite fix closing F-P2-OBS-001. Frontmatter historical comment re-phrased from volatile "see BC-INDEX v5.74" head-version pointer to burst-stable cite "established D-946" per TD-VSDD-091 spirit and adversary recommendation. No substantive content change. |
 | 1.2 | 2026-06-02 | story-writer | Cite-currency fix closing F-P1-OBS-001. §New-BC Flags live confirmation pin BC-2.16.013 (v1.19) → (v1.22) (current active version per BC-INDEX v5.74). Frontmatter historical comment annotated "(BC now at v1.22)" per TD-VSDD-091 (historical record preserved; current state clarified). No substantive content change. |

@@ -13,7 +13,7 @@ status: ready
 # BC GAP DRIFT-D850-001: CLOSED D-1059 2026-06-08 — BC-2.16.002 v1.70 contains the explicit
 #   §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)"
 #   clause (added by product-owner). No residual gap. No further PO authorship required.
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -88,6 +88,24 @@ risk_mitigations: []
 ---
 
 # S-DEMO-CLAROTY-PAGINATION-001: OffsetLimit POST-Body Pagination for Claroty
+
+## Authority
+
+ADR-028 §D8 governs the OffsetLimit pagination engine and is the authoritative design section for
+this story's scope. Read it before implementing: `.factory/specs/architecture/decisions/ADR-028-*.md`.
+
+ADR-028 §D8 defines OffsetLimit pagination semantics. ADR-028 §D1 establishes the TOML spec `method`
+field as the source of truth for HTTP method dispatch — the fix in this story reads `step.method` to
+determine POST-body vs. GET-URL offset/limit placement, which is explicitly consistent with ADR-028 §D1.
+
+ADR-028 `status: accepted`. `superseded_by:` is null.
+
+BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)"
+is the governing behavioral clause for all POST-body dispatch ACs (AC-001, AC-002, AC-004, AC-005,
+AC-006). BC-2.16.013 §Postconditions §1 governs Gap-CL-004 parity restoration. BC-2.01.013
+§Postconditions §1 governs the multi-page data fetch contract (AC-003).
+
+---
 
 ## Narrative
 
@@ -408,6 +426,7 @@ The DTU crate may appear in `[dev-dependencies]` only (test infrastructure).
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-08-02 | story-writer | Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 (D-2084): added §Authority section. |
 | v1.0 | 2026-05-29 | story-writer | Initial story materialization — full ACs, Red Gate tests, edge cases, tasks, architecture mapping. Status: draft pending BC-gap closure (DRIFT-D850-001). |
 | v1.1 | 2026-06-08 | story-writer | BC-gap-closure refresh per D-1059: BC-2.16.002 v1.49→v1.70, BC-2.16.013 v1.17→v1.25, BC-2.01.013 v1.7→v1.14. BC-INDEX reference v5.56→v6.00. All AC traces updated to cite BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)" by name. Residual "may need PO authorship" language removed. Task 8 and Note 3 updated to reflect CLOSED gap. Status advanced draft→ready. |
 | v1.2 | 2026-06-08 | story-writer | Remove-uncertainty corrections C-1..C-5 (fresh-context uncertainty scan vs develop@763e0ade pipeline.rs). C-1 HIGH: fixed body-injection target from `issue_request_with_retry` (wrong) to `build_request` (correct — `build_request` runs Interpolator → `.body(interpolated_body)`); updated Task 3 and Note 1. C-2 HIGH: added explicit Task 3a for threading `offset`/`page_size` through `issue_request_with_retry` → BOTH `build_request` call sites (initial + 401-retry), per TD-VSDD-060 sibling sweep; updated points rationale comment. C-3 MED: rewrote EC-006 to reflect accurate behavior — OffsetLimit advance does no division; page_size=0 terminates safely at MAX_REQUESTS_PER_PIPELINE cap; removed false divide-by-zero framing; added NOTE that spec-load guard is out-of-scope. C-4 LOW: de-pinned all "around line NNN" citations in Tasks, Previous Story Intelligence, and Token Budget hint; replaced with function-name anchors (`build_paged_url_impl`, `execute_impl`, `build_request`, `issue_request_with_retry`, test module name). C-5 LOW: noted that `build_paged_url_impl` already receives `step: &FetchStep` so Task 2 is logic-only (no signature change); AC-006 sibling sweep is likely a no-op; updated Task 4 and Note 5 accordingly. AC contracts (especially AC-001 "merge offset/limit as top-level body keys") are UNCHANGED — only implementation-location guidance corrected. Status remains ready. |

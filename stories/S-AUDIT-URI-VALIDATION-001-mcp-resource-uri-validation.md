@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P2
 status: draft
-version: "0.1"
-spec_version: "v0.1"
+version: "0.2"
+spec_version: "v0.2"
 level: ops
 producer: story-writer
 timestamp: "2026-07-12"
@@ -85,6 +85,19 @@ As a Prism MCP client (or an AI agent consuming the MCP server), I want malforme
 to return a clear, structured error response with the URI, the validation failure reason, and
 the list of valid URI prefixes, so that debugging malformed resource requests does not require
 examining server internals.
+
+## Authority
+
+BC-2.10.008 is the closest governing contract for this story. Read it before implementing:
+`.factory/specs/behavioral-contracts/BC-2.10.008-mcp-resources.md` (status: `active`).
+
+BC-2.10.008 §Preconditions and §Postconditions govern the `prism://config/clients` and `prism://config/clients/{client_id}/sensors` MCP resources. BC-2.10.008 does not yet specify behavior for malformed URIs — AC-001 requires the product-owner to amend BC-2.10.008 §Invariants with a URI validation invariant and to add E-MCP-RESOURCE-* error cases before implementation begins. The `behavioral_contracts: []` frontmatter reflects that no BC clause currently covers malformed URI rejection; it must be updated post-amendment per this story's AC-001.
+
+**`.factory/specs/prd-supplements/error-taxonomy.md`** governs all E-NNN error code assignments for this project. New E-MCP-RESOURCE-NNN codes introduced by this story must be added to the error taxonomy before the PR merges (see §Architecture Compliance Rules).
+
+The code artifacts to modify: `crates/prism-mcp/src/server.rs` and/or `crates/prism-mcp/src/resources.rs` (SS-10 per `architecture/module-decomposition.md §Subsystem Registry`). See also `architecture/api-surface.md §MCP Resources` for the resource URI registry.
+
+---
 
 ## Behavioral Contracts
 
@@ -267,3 +280,10 @@ No new dependencies. URI validation uses standard string operations only.
 | `crates/prism-mcp/tests/resources.rs` | Modify | Add 3 Red Gate tests (AC-002/003/004) |
 | `.factory/specs/behavioral-contracts/BC-2.10.008-mcp-resources.md` | Modify (PO action, AC-001) | Add URI validation invariant + error cases |
 | `.factory/specs/prd-supplements/error-taxonomy.md` | Modify | Add E-MCP-RESOURCE-001/002 rows |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 0.2 | DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001-R6 | 2026-08-02 | story-writer | Add §Authority section (D-2084 Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001). BC-2.10.008 §Preconditions/§Postconditions cited as governing contract; error-taxonomy.md cited for E-MCP-RESOURCE-NNN codes; architecture/api-surface.md §MCP Resources noted. |
+| 0.1 | — | 2026-07-12 | story-writer | Initial story creation. |

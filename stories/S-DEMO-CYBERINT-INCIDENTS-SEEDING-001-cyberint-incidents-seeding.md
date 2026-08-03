@@ -6,7 +6,7 @@ wave: null
 epic_id: E-DEMO
 priority: P2
 status: retired
-version: "v1.0"
+version: "v1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-09T00:00:00Z"
@@ -40,6 +40,22 @@ superseded_by: DEFECT-CYBERINT-SPEC-FIDELITY-001
 > **Status: RETIRED (2026-07-22, D-1889)**
 >
 > This story is retired and will never be dispatched. See §Retirement Note below.
+
+## Authority
+
+This story is `status: retired` — no implementation will be dispatched. No ADR governs the
+implementation of this story because no implementation was ever authorized.
+
+The retirement authority is D-1889 (human adjudication 2026-07-20), confirmed in
+`triage-capture.md §Wrong-Direction Stories`. The retirement determination relied on ADR-053
+§Finding-1 (Wave-A sensor fidelity remediation), which confirmed that the Cyberint API has no
+`/api/v1/incidents` endpoint — the incidents table was a phantom endpoint. ADR-053 `status:
+accepted`; `superseded_by: null`.
+
+The superseding story is `DEFECT-CYBERINT-SPEC-FIDELITY-001`, which eliminates the phantom
+incidents table entirely from the Cyberint spec.
+
+---
 
 ## Retirement Note
 
@@ -160,4 +176,5 @@ N/A — Story retired before materialization. No files will be created or modifi
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| v1.1 | D-2084-authority | 2026-08-02 | story-writer | Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 (D-2084): added §Authority section (retired story — documents retirement authority). |
 | v1.0 | D-1889-retirement | 2026-07-22 | story-writer | Initial file creation as retirement stub. Story was previously STORY-INDEX-only (registered 2026-06-09 D-1083; `file: not-yet-authored`). Retired per triage-capture.md §Wrong-Direction Stories + D-1889 human adjudication (incidents=retire+derive). ADR-053 §Finding-1 confirms phantom endpoint. Superseded by DEFECT-CYBERINT-SPEC-FIDELITY-001. |

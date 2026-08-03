@@ -15,7 +15,7 @@ merged_at: "2026-06-02"
 # /api/v1/audit_log/get with ClarotyAuditLogEntry shape is consistent with
 # BC-2.01.013 auth-enforcement contract + BC-2.16.013 DTU-TOML-parity contract.
 # No New-BC flags. No env-var dependency. Story dispatchable.
-version: "1.9"
+version: "1.10"
 acceptance_criteria_count: 7
 level: "L4"
 producer: story-writer
@@ -75,6 +75,32 @@ risk_mitigations: []
 ---
 
 # S-DEMO-CLAROTY-AUDIT-DTU-001: Add `/api/v1/audit_log/get` Route to prism-dtu-claroty
+
+## Authority
+
+ADR-031 §D8 is the governing design section for DTU fidelity requirements. Read it before
+implementing: `.factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md`.
+
+ADR-031 §D8 establishes Gap-CL-006 as a DTU-parity defect requiring a `POST /api/v1/audit_log/get`
+route in `prism-dtu-claroty`. ADR-031 §D2 authorizes synthetic fixture data (no real customer data).
+ADR-031 §D1 establishes DTU isolation: `prism-dtu-claroty` must not depend on `prism-spec-engine`,
+`prism-sensors`, or `prism-query`.
+
+ADR-031 `status: accepted`. `superseded_by:` cites ADR-053 §D3 scope-narrowing. The §D3
+supersession narrows the single-surface assumption for the Assets surface only; the §D8 DTU-fidelity
+provisions and §D2 synthetic-fixture permissions governing this story are NOT in the superseded scope.
+
+BC-2.01.013 §Postconditions §2 governs bearer-auth enforcement (AC-002). BC-2.16.013 §Postconditions
+§1 governs DTU route registration and DTU-TOML column parity (AC-001, AC-003, AC-005).
+
+CLAUDE.md §SAP-2 is the governing probe for DTU-TOML schema parity verification (AC-005). SAP-2 is a
+CLAUDE.md-governed standing probe, not an ADR. SAP-2 Rule 6 (emission-site authority) requires
+verifying the wire-emission site, not just the struct definition.
+
+This story is `status: merged` (PR #167). The authority above documents the design authority the
+delivered implementation was built against.
+
+---
 
 ## Narrative
 
@@ -420,6 +446,7 @@ new gate is warranted.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.10 | 2026-08-02 | story-writer | Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 (D-2084): added §Authority section. |
 | 1.9 | 2026-06-02 | state-manager | D-949 post-merge burst: status in-progress→merged; merge metadata added (SHA e1c632dc, PR #167, date 2026-06-02). POL-14 BC auto-promotion check: BC-2.01.013 and BC-2.16.013 both already active — idempotent confirms, no status change. Claroty lane COMPLETE. |
 | 1.8 | 2026-06-02 | story-writer | BC-2.16.013 pin v1.21→v1.22 + BC-INDEX pin v5.73→v5.74 propagated to all 3 story-body sites (frontmatter comment, §Behavioral Contracts table, §References) via D-945/D-946 cross-lane POL-25 sweep; this row records the previously-undocumented advancement (changelog-completeness + version sync; no body-content change). Closes F-PR7-MED-001 (POL-23/POL-26/POL-32). |
 | 1.7 | 2026-06-01 | product-owner | F-PR3R2-MED-001 + F-PR3R2-MED-003 closure: swept BC-2.16.013 pin v1.19→v1.21 and BC-INDEX pin v5.66→v5.73 at all 3 story-body sites (frontmatter comment, §Behavioral Contracts table, §References). AC-007 expanded from 4 to 6 org-scoped endpoints (devices, audit_logs, alerts, alerted_devices, vulnerabilities, vulnerability_devices) with full 3-cell matrix (Cell A: non-nil+mismatch→401; Cell B: non-nil+absent→401; Cell C: nil+absent→200). Red Gate table expanded from 11 to 21 rows (3 core AC-001–006 tests + 18 org-isolation tests = 6 endpoints × 3 cells each, all tracing to AC-007). acceptance_criteria_count: 7 confirmed coherent (AC-007 covers all 6 endpoints; no split). |

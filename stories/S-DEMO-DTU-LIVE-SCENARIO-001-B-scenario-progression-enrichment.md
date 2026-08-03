@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "2.17"
+version: "2.18"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
@@ -120,6 +120,32 @@ and mapped to E-DEMO-003 on unrecognized value; `scenario_start_secs` sets
 `IncidentTimeline.scenario_start_epoch_secs`; `stage_duration_secs` provides operator-override
 thresholds (defaulting to [60, 180, 360, 600] when empty). All four fields must be read from
 `CloneConfig.scenario` in `build_clone_pairs` — no field may remain unread after Story B merges.
+
+---
+
+## Authority
+
+ADR-036 is the authoritative design document for this story. Read it before implementing:
+`.factory/specs/architecture/decisions/ADR-036-*.md`.
+
+ADR-036 §2.2 defines `current_stage_index` pure function formula and the `IncidentTimeline` /
+`IncidentStage` / `StageMask` type structure. ADR-036 §2.3 establishes `time_anchor` wiring via
+`new_with_seed_anchored` (4-arg). ADR-036 §2.4 specifies the 5-arg `new_with_scenario` constructor
+signature for each clone. ADR-036 §2.5 extends perimeter rules. Note: the ADR-036 §2.2 code snippet
+erroneously marks `StageMask` as `#[non_exhaustive]`; BC-2.06.019 `INV-STAGE-MASK-COMPLETENESS-001`
+is authoritative per CLAUDE.md §Source-of-Truth Precedence (BC supersedes on contract semantics).
+
+ADR-036 `status: ACCEPTED`. `superseded_by: null`.
+
+BC-2.06.019 §Postconditions governs the pure-function temporal stage advancement engine (AC-001
+through AC-012). BC-2.06.020 §Postconditions governs enrichment correlation — ThreatIntel IOC
+injection, NVD CVE injection, and Cyberint alert CVE correlation (AC-013 through AC-019).
+
+Story A prerequisite: S-DEMO-DTU-LIVE-SCENARIO-001-A delivered the `generated_records` substrate
+required by this story's stage-mask filtering (merged PR #181, develop@c287b00d).
+
+Parent story note: S-DEMO-DTU-LIVE-SCENARIO-001 is `status: superseded` (superseded by Story A and
+this story).
 
 ---
 
@@ -763,6 +789,7 @@ If NO new `event_type` emissions are added in this story, state explicitly in th
 
 | Version | Date | Change |
 |---------|------|--------|
+| v2.18 | 2026-08-02 | Round 6 DRIFT-STORY-AUTHORITY-ABSENT-CORPUS-001 (D-2084): added §Authority section. |
 | v2.17 | 2026-07-08 | **Reconciling pin round (pass-4 closures): error-taxonomy v1.78→v2.26. One live version-pin cite updated: §Architecture Compliance Rules table middle column guard-order row. Historical changelog rows left unchanged per POL-29. AC semantics UNCHANGED. Frontmatter version 2.16→2.17; updated 2026-07-08 (POL-23).** |
 | v2.16 | 2026-06-13 | BPRL-P24-01: AC-016 perimeter-enforcement prose corrected (structural Cargo/E0432, not the prism-query perimeter-violation gate); BC-2.06.020 v1.5→v1.6 pin-sync. Invariant requirement unchanged; counts unchanged (19 ACs / 23 RGT). |
 | v2.15 | 2026-06-13 | Consistency-validator DRIFT-2/3: CyberintClone::new_with_scenario 5-arg→6-arg (+`catalog: &ScenarioEntityCatalog`) in three sites: (1) Phase-2 Cyberint constructor task — signature updated to 6-arg with note that `catalog` is threaded to `generate_with_catalog` for PC-8 CVE correlation (AC-019/VP-020-K pivot chain); (2) Phase-4 `build_clone_pairs` Cyberint call — `new_with_scenario(…, &catalog)` 6-arg with explicit note; (3) FSR table row for `crates/prism-dtu-cyberint/src/clone.rs` — description updated to 6-arg with `catalog: &ScenarioEntityCatalog` and PC-8 annotation. Aligns task/FSR with AC-019, BC-2.06.020 PC-8, STORY-INDEX D-1117 entry, and shipped code (`crates/prism-dtu-cyberint/src/clone.rs` new_with_scenario 6-arg). Other 4 operational clones (Armis/CrowdStrike/Claroty/ThreatIntel/NVD) 5-arg descriptions unchanged. No behavior/count change (19 ACs / 23 RGT). |
