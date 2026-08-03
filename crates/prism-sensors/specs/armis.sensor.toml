@@ -3,10 +3,14 @@
 # Authored per PLUGIN-MIGRATION-001-D Task 6.
 # URLs grounded from DTU clone routes (ADR-028 §D1):
 #   crates/prism-dtu-armis/src/clone.rs build_router()
-# auth_type grounded from DTU enforcement (ADR-028 §D2):
-#   crates/prism-dtu-armis/src/lib.rs module-level //! enforces
-#   Authorization: Bearer {non-empty} with HTTP 403 on missing/invalid token.
-# auth_type = "bearer_static" is the D-747 LOCKED value.
+# auth_type grounded from DTU enforcement (ADR-028 §D2) — historical provenance only:
+#   prism-dtu-armis crate module-level //! enforces Authorization: Bearer {non-empty}
+#   with HTTP 403 on missing/invalid token (remains true at DTU level).
+# D-747 lock SUPERSEDED by ADR-053 §D2, effective 2026-07-22 (D-1943).
+# Declared value "bearer_static" is the pre-supersession value — known-stale-but-intentional;
+# ratified target per ADR-053 §D2 + ADR-054 is auth_type = "token_exchange" backed by
+# DeclarativeHttpAuthProvider with [auth_acquisition] block and header_scheme = "raw".
+# Value change sequenced behind story S-ARMIS-AUTH-FIDELITY-001.
 # NOTE: legacy ArmisAuth::auth_type_name() returned "api_key" — latent label bug
 #   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
 #
