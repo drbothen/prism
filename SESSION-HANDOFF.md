@@ -124,15 +124,79 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **D-1797 (2026-07-17): DUAL-LANE FIX-BURST CONSOLIDATION — S-MAINT story v0.22 (pass-13 recon: 6 spec findings closed: F-CIDISK-RECON-MED-001/002 + LOW-001 + OBS-001/002/003; STORY-INDEX v2.695→v2.696); ADMINTOKEN fb-10 COMPLETE @0feaf281 PUSHED fix/DEFECT-DEMO-CONFIGURE-ADMINTOKEN-001 (story v0.12; 4 findings closed; streak 0/3); PR #224 CLOSED — human must reopen; STATE v8.396→v8.397.**
 >
-> **D-2094 (2026-08-03): LIVE-DEMO ENGINE-DEFECT REGISTRATION BURST (TD-VSDD-053 single-commit; predecessor D-2093). 18 D-1889 live-demo engine defect stories registered as draft v0.1 stubs (DEFECT-PQL-SUBQUERY-FANOUT-001 CRIT through DEFECT-PQL-ON-CONTAINS-001 LOW; total_stories 265→283; STORY-INDEX v2.771→v2.772). FINDING-L CLOSED AS REFUTED (37/264 bold pseudo-field files; 1 in round-1..3 cohort; scope dissolved). +FINDING-L-REVISED (LOW, 11 desyncs). +FINDING-M (CRIT, 5–6 sensor defects unregistered). +FINDING-N (MED, classify_predicates doc-comments). +FINDING-O (LOW, 4 draft BCs cited as governing). +PROCESS-GAP (changelog heading split + orchestrator vacuous-script; 5th probe-passes≠gate-fires). 39→43 cumulative open findings. develop_head b226459d0 UNCHANGED. BC-5.39.001 streak 0/3. STATE v8.642→v8.643. [SUPERSEDES D-2093]**
+> **D-2095 (2026-08-03): SENSOR-CRITICAL REGISTRATION BURST (TD-VSDD-053 single-commit; predecessor D-2094). 7 D-1889 sensor-CRITICAL stories registered as draft v0.1 stubs (S-ARMIS-AUTH-FIDELITY-001 CRIT, S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001 CRIT, S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001 CRIT, DEFECT-CYBERINT-SPEC-FIDELITY-001 CRIT, ARCH-CYBERINT-AUTH-READJUDICATION-001 HIGH, S-DEMO-CLAROTY-TIME-001 HIGH subsumed, DEFECT-DEMOSETUP-PRISMBIN-ACL-001 MED; total_stories 283→290; STORY-INDEX v2.772→v2.773). MILESTONE: all 8 D-1889 CRITICALs now tracked artifacts. FINDING-M CLOSED RESOLVED. +FINDING-Q (HIGH phantom rows; 1 additional phantom S-MAINT-W3SEC-CITE-SWEEP-002). +FINDING-R (HIGH stale D-747 lock comments). +FINDING-S (MED stale triage-capture.md). ORCHESTRATOR BRIEF-CORRECTION + D-1949 COVERAGE DISCLOSURE recorded. 43→45 cumulative open findings. develop_head b226459d0 UNCHANGED. BC-5.39.001 streak 0/3. STATE v8.643→v8.644. [SUPERSEDES D-2094]**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2094 (LIVE-DEMO ENGINE-DEFECT REGISTRATION BURST: 18 D-1889 defects registered; total_stories 265→283; STORY-INDEX v2.771→v2.772; FINDING-L REFUTED; +FINDING-L-REVISED/M/N/O/PROCESS-GAP; 39→43 findings; STATE v8.642→v8.643).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2094 is the most recent durable session-wrap snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2094 is the most recent durable session-wrap snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `b226459d0` (origin/develop=`b226459d0`; PR #233 SQUASH-MERGED @b226459d0). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (this D-2094 commit). STATE v8.643. 43 cumulative open findings; NEXT = dispatch story-writer for FINDING-M — register S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001, S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001, S-ARMIS-AUTH-FIDELITY-001, DEFECT-CYBERINT-SPEC-FIDELITY-001, ARCH-CYBERINT-AUTH-READJUDICATION-001, S-DEMO-CLAROTY-TIME-001, DEFECT-DEMOSETUP-PRISMBIN-ACL-001; then §Authority backfill round 7.
+> **D-2094 (2026-08-03): LIVE-DEMO ENGINE-DEFECT REGISTRATION BURST (TD-VSDD-053 single-commit; predecessor D-2093). 18 D-1889 live-demo engine defect stories registered as draft v0.1 stubs (DEFECT-PQL-SUBQUERY-FANOUT-001 CRIT through DEFECT-PQL-ON-CONTAINS-001 LOW; total_stories 265→283; STORY-INDEX v2.771→v2.772). FINDING-L CLOSED AS REFUTED (37/264 bold pseudo-field files; 1 in round-1..3 cohort; scope dissolved). +FINDING-L-REVISED (LOW, 11 desyncs). +FINDING-M (CRIT, 5–6 sensor defects unregistered). +FINDING-N (MED, classify_predicates doc-comments). +FINDING-O (LOW, 4 draft BCs cited as governing). +PROCESS-GAP (changelog heading split + orchestrator vacuous-script; 5th probe-passes≠gate-fires). 39→43 cumulative open findings. develop_head b226459d0 UNCHANGED. BC-5.39.001 streak 0/3. STATE v8.642→v8.643. [SUPERSEDES D-2093] [SUPERSEDED by D-2095]**
+>
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2095 (SENSOR-CRITICAL REGISTRATION BURST: 7 D-1889 sensor-CRITICAL stories registered; MILESTONE all 8 CRITICALs tracked; total_stories 283→290; STORY-INDEX v2.772→v2.773; FINDING-M RESOLVED; +FINDING-Q/R/S; 43→45 findings; STATE v8.643→v8.644).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2095 is the most recent durable session-wrap snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2095 is the most recent durable session-wrap snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `b226459d0` (origin/develop=`b226459d0`; PR #233 SQUASH-MERGED @b226459d0). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (this D-2095 commit). STATE v8.644. 45 cumulative open findings; OPEN QUESTION FOR HUMAN on 3-CLEAN freeze scope for sensor-TOML slice; FINDING-R (implementer burst to strike stale D-747 comments, cheap+unblocked).
 
 ---
 
-## §RESUME SNAPSHOT — D-2094 (2026-08-03 — LIVE-DEMO ENGINE-DEFECT REGISTRATION BURST; 18 D-1889 defects registered; total_stories 265→283; 43 cumulative open findings; BC-5.39.001 streak 0/3; develop_head b226459d0; STATE v8.643) [SUPERSEDES D-2093]
+## §RESUME SNAPSHOT — D-2095 (2026-08-03 — SENSOR-CRITICAL REGISTRATION BURST; 7 D-1889 sensor-CRITICAL stories registered; MILESTONE all 8 CRITICALs tracked; total_stories 283→290; 45 cumulative open findings; BC-5.39.001 streak 0/3; develop_head b226459d0; STATE v8.644) [SUPERSEDES D-2094]
+
+### RESUME IN ONE BREATH
+Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2095 SENSOR-CRITICAL REGISTRATION BURST (TD-VSDD-053 single-commit): 7 D-1889 sensor-CRITICAL stories registered as draft v0.1 stubs. MILESTONE: **all 8 D-1889 CRITICALs now tracked artifacts** (before today, zero of the 8 had a story file). total_stories 283→290. STORY-INDEX v2.772→v2.773. FINDING-M CLOSED RESOLVED (CRITICAL tracking-gap from D-2094). +FINDING-Q (HIGH): phantom STORY-INDEX rows — S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001 + DEFECT-CYBERINT-SPEC-FIDELITY-001 had index presence but zero files continuously since D-1949 (12 days); S-DEMO-CLAROTY-TIME-001 row was "NOT YET AUTHORED" — all three files now exist; 1 other phantom S-MAINT-W3SEC-CITE-SWEEP-002 found, not fixed; route spec-steward. +FINDING-R (HIGH): stale D-747 lock comments in armis.sensor.toml and cyberint.sensor.toml assert superseded locks; ADR-053 reversed them 2026-07-22; route implementer (cheap, unblocked). +FINDING-S (MED): triage-capture.md frontmatter still asserts decisions are OPEN (resolved D-1943); route spec-steward. ORCHESTRATOR BRIEF CORRECTION: ARCH-CYBERINT-AUTH-READJUDICATION-001 human gate had already cleared at D-1943 (first instance this session of subagent correcting orchestrator factual claim). D-1949 COVERAGE DISCLOSURE: incidents tables still in sensor TOMLs; no story files for successor IDs were authored until this burst. **CRITICAL-PATH FACT (verbatim):** ADR-053 ratified EFFECTIVE 2026-07-22 (D-1943) → 9 Wave-A stories (8 draft / 1 ready / 0 delivered) → sensor CRITICAL code fixes (not started). Every human gate cleared 2026-07-22. Wave-A story delivery is blocked by human decision (f) — "Rule freeze until 3-CLEAN; exception expires at BC-5.39.001 strict 3-CLEAN" — and the strict streak is 0/3 after 72+ adversary passes (best observed 1/3, twice). **The bottleneck is the convergence gate, not the defect work, not the specs, and not any pending human decision.** OPEN QUESTION FOR HUMAN: whether the 3-CLEAN freeze should continue to apply to the narrow sensor-TOML slice, or whether that slice may proceed while the broader Wave-A spec cascade continues converging. develop_head `b226459d0` UNCHANGED. 45 cumulative open findings. BC-5.39.001 streak 0/3.
+
+**NEXT ACTION:** (a) OPEN QUESTION FOR HUMAN on 3-CLEAN freeze scope for sensor-TOML slice. (b) Implementer burst: strike stale D-747 lock comments in sensor TOMLs (FINDING-R, cheap, unblocked). (c) Record-substance gap — six probe-passes≠gate-fires instances this session; no mechanical substance control exists. §Authority corpus backfill rounds 7–11 (108 files) remain DEFERRED behind (a)+(b)+(c). Do NOT write a story-ID list for any future §Authority round. FINDING-G needs human mandate. FINDING-1 (MED CWE-693) + FINDING-2 (LOW) from PR #233 still open.
+
+### WORKSTREAM STATE
+
+| Workstream | Status | Frozen HEAD | Notes |
+|-----------|--------|-------------|-------|
+| Wave-A spec-evolution | 72-pass LOCAL cascade | resolved via D-2082 | pass-72/72b findings open; pass-73 not yet run |
+| §Authority corpus backfill | IN PROGRESS | — | 156/290 stories (rounds 1–6 done; ~134 remain); DEFERRED pending (a)+(b)+(c) |
+| 15-ADR `anchor_stories` sweep | BLOCKED | — | SAC-2 requires full corpus completion first |
+| D-1889 defect registration | COMPLETE | — | 25/25 registered (D-2094+D-2095); FINDING-M CLOSED |
+| FINDING-A (MED governance) | OPEN | — | 6+ PROPOSED ADRs cited as authority; route architect |
+| FINDING-B (LOW records) | OPEN | — | ADR status vocabulary inconsistent; route spec-steward |
+| FINDING-C (LOW trend) | OPEN | — | DRIFT-STORY-CHANGELOG-ABSENT-001 accelerating; monitor per round |
+| FINDING-E (LOW records) | OPEN | — | S-5.11/S-5.12 POL-39 version pins in LIVE normative text; route story-writer |
+| FINDING-F (LOW traceability) | OPEN | — | S-6.16/17/18 cite planned COMP-DTU-011/012/013 not yet on disk; route architect |
+| FINDING-G (MED doc-vs-code) | OPEN | — | CLAUDE.md claims "Stage 1"/"Stage 2" detection that doesn't exist; human mandate required |
+| FINDING-I (LOW records) | OPEN | — | 6 pre-existing records-tier defects in burst-touched files; TD-VSDD-096 candidate |
+| FINDING-J (LOW traceability) | OPEN | — | ADR-031 superseded_by ADR-053 §D3 only; four stories cite §D8/§D8-b/§D8-c; architect to confirm [D-2093 content-corrected] |
+| FINDING-K (OBS governance) | OPEN by-design | — | S-AUDIT-* family no ADR citations; confirmed by-design; review at materialization |
+| FINDING-L (MED drift) | CLOSED — REFUTED D-2094 | — | 37/264 bold pseudo-field files; only 1 in round-1..3 cohort; scope dissolved |
+| FINDING-L-REVISED (LOW drift) | OPEN | — | 11 genuine version-site desyncs outside backfill's touched set; route story-writer |
+| FINDING-M (CRIT unregistered) | CLOSED — RESOLVED D-2095 | — | All 7 sensor-CRITICAL stories now registered; all 8 D-1889 CRITICALs tracked |
+| FINDING-N (MED doc-vs-code) | OPEN | — | `classify_predicates` doc-comments describe unimplemented behavior; route implementer |
+| FINDING-O (LOW governance) | OPEN | — | 4 BCs cited as governing carry `status: draft`; route product-owner |
+| FINDING-P (OPEN — from prior passes) | OPEN | — | carried forward unchanged |
+| FINDING-Q (HIGH index-integrity) | OPEN | — | 1 remaining phantom STORY-INDEX row: S-MAINT-W3SEC-CITE-SWEEP-002; route spec-steward for corpus sweep + L-check proposal |
+| FINDING-R (HIGH decision-drift) | OPEN | — | stale D-747 lock comments in sensor TOMLs; cheap+unblocked; route implementer |
+| FINDING-S (MED stale-record) | OPEN | — | triage-capture.md asserts unresolved decisions; route spec-steward |
+| FINDING-1 (MED CWE-693) | OPEN | — | AC-006 grep cannot detect second PluginRuntime construction; route: future fix-burst |
+| FINDING-2 (LOW) | OPEN | — | Cargo.toml historical advisory comment inaccurate; route: spec-steward |
+| DRIFT-STASH0-CHECK-NAME-DRIFT-001 | OPEN | — | stash@{0} check-name drift risk; human owner |
+
+### OPEN BLOCKING ISSUES DELTA (D-2095)
+
+| Finding | Change |
+|---------|--------|
+| FINDING-M (CRIT unregistered) | CLOSED RESOLVED — all 7 sensor-CRITICAL stories registered; all 8 D-1889 CRITICALs now tracked artifacts |
+| FINDING-Q (HIGH index-integrity) | +OPENED — phantom STORY-INDEX rows; 1 remaining (S-MAINT-W3SEC-CITE-SWEEP-002); route spec-steward |
+| FINDING-R (HIGH decision-drift) | +OPENED — stale D-747 lock comments in sensor TOMLs; route implementer |
+| FINDING-S (MED stale-record) | +OPENED — triage-capture.md asserts unresolved decisions; route spec-steward |
+
+### DECISION-LOG DELTA (D-2095)
+
+| D-ID | Decision |
+|------|----------|
+| D-2095 | SENSOR-CRITICAL REGISTRATION BURST (TD-VSDD-053 single-commit) — 7 D-1889 sensor-CRITICAL stories registered; FINDING-M CLOSED RESOLVED; +FINDING-Q/R/S; ORCHESTRATOR BRIEF-CORRECTION (ARCH gate already cleared D-1943); D-1949 COVERAGE DISCLOSURE (incidents tables remain in sensor TOMLs); CRITICAL-PATH FACT recorded (bottleneck = convergence gate); 43→45 findings. total_stories 283→290. STATE v8.643→v8.644. [SUPERSEDES D-2094] |
+
+### KEY HEADS
+
+- `origin/develop`: `b226459d0` (PR #233 SQUASH-MERGED)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` (this D-2095 commit)
+- Main worktree: develop @`b226459d0`, clean
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch
+
+---
+
+## §RESUME SNAPSHOT — D-2094 (2026-08-03 — LIVE-DEMO ENGINE-DEFECT REGISTRATION BURST; 18 D-1889 defects registered; total_stories 265→283; 43 cumulative open findings; BC-5.39.001 streak 0/3; develop_head b226459d0; STATE v8.643) [SUPERSEDES D-2093] [SUPERSEDED by D-2095]
 
 ### RESUME IN ONE BREATH
 Wave-A spec-evolution cascade, Phase 3. BC-5.39.001 streak **0/3**. D-2094 LIVE-DEMO ENGINE-DEFECT REGISTRATION BURST (TD-VSDD-053 single-commit): 18 D-1889 live-demo engine defect story stubs registered (DEFECT-PQL-SUBQUERY-FANOUT-001 through DEFECT-PQL-ON-CONTAINS-001); total_stories 265→283; STORY-INDEX v2.771→v2.772. FINDING-L CLOSED AS REFUTED (37/264 story files carry bold `**Version:**` pseudo-field; only 1 in round-1..3 cohort: S-3.04-FOLLOWUP-MCP-001, which has no YAML frontmatter `version:` at all — scope dissolved). +FINDING-L-REVISED (LOW): 11 genuine version-site desyncs outside backfill's touched set; route story-writer. +FINDING-M (CRITICAL): 5–6 sensor defects still have ZERO story files registered; next burst. +FINDING-N (MEDIUM): `classify_predicates` doc-comments describe unimplemented behavior; route implementer. +FINDING-O (LOW): 4 BCs cited as governing carry `status: draft`; route product-owner. +PROCESS-GAP: changelog heading convention split (`## §Changelog` vs `## Changelog`) + orchestrator vacuous-script self-disclosure (5th probe-passes≠gate-fires instance). 39→43 cumulative open findings. develop_head `b226459d0` UNCHANGED. BC-5.39.001 streak 0/3. STATE v8.642→v8.643.
