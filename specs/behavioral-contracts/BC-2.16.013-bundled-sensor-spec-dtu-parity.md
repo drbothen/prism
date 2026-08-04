@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.34"
+version: "1.35"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-07-22"  # v1.33: D-1889 wrong-direction retirements — DTU-EXT-001 + DTU-EXT-005 RETIRED in §Known Gaps; TD-VSDD-091 volatile-pin fixes (alerts.rs::AlertListParams, spec_parser.rs::SpecLoader::parse)
+modified: "2026-08-03"  # v1.35: MED-008 annotation burst — §Postconditions §1 ADR-028 §D2 grounding supersession annotated for Armis (ADR-053 §D2) and Cyberint (ADR-053 §D3-a); grounding-authority intro qualified; owning story S-WAVE-A-CYBERINT-SPEC-001
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -139,6 +139,12 @@ registrations, not from the legacy Rust adapter code. The legacy adapters have s
 paths that do not match the real third-party APIs; they are deleted by PLUGIN-MIGRATION-001-A.
 **Grounding authority (per ADR-028 §D2):** All `auth_type` values are derived from DTU clone
 authentication enforcement behavior, which reflects the real third-party API's auth contract.
+**[SUPERSEDED-PENDING for Armis and Cyberint — ADR-053 §D1, effective 2026-07-22]:** The
+ADR-028 §D2 auth-grounding authority is superseded by ADR-053 §D1 for Armis and Cyberint; see
+ADR-053 §D2 (Armis auth supersession) and ADR-053 §D3-a (Cyberint dual-surface supersession)
+for the pending decisions. This statement remains the authority for CrowdStrike and Claroty.
+Amendment of the Armis and Cyberint sensor entries below is owned by `S-WAVE-A-CYBERINT-SPEC-001`
+per ADR-053 §D5.
 
 - `crowdstrike.sensor.toml` — `sensor_id: "crowdstrike"`, `auth_type: "oauth2_client_credentials"`,
   `base_url = "${env.CROWDSTRIKE_BASE_URL}"` (S-DEMO-CROWDSTRIKE-MULTIREGION-001; replaces hardcoded `https://api.crowdstrike.com` us-1 URL; operator sets `CROWDSTRIKE_BASE_URL` to the tenant's region URL — us-1: `https://api.crowdstrike.com`, us-2: `https://api.us-2.crowdstrike.com`, eu-1: `https://api.eu-1.crowdstrike.com`, gov: `https://api.laggar.gcw.crowdstrike.com`). Missing/empty `CROWDSTRIKE_BASE_URL` → E-SPEC-024 at spec-load time (BC-2.16.009 §Validation Rules 6). Tables:
@@ -206,7 +212,7 @@ authentication enforcement behavior, which reflects the real third-party API's a
   returned `"cookie_roundtrip"` — this is a latent label bug deleted by PLUGIN-MIGRATION-001-A.
   Per ADR-028 §D2 supersession of ADR-026 §D3 (D-747), this TOML value diverges from the live
   `ClarotyAuth::auth_type_name()` return until PLUGIN-MIGRATION-001-A migrates the code per
-  ADR-028 §D6 scope. CLAUDE.md §Source-of-Truth Precedence #7 applies: spec follows DTU, not adapter code.)
+  ADR-028 §D6 scope.)
 
 - `cyberint.sensor.toml` — `sensor_id: "cyberint"`, `auth_type: "cookie_roundtrip"`,
   base URL from environment (`https://{environment}.cyberint.io`), tables:
@@ -225,7 +231,11 @@ authentication enforcement behavior, which reflects the real third-party API's a
   returned `"bearer_static"` — this is a latent label bug deleted by PLUGIN-MIGRATION-001-A.
   Per ADR-028 §D2 supersession of ADR-026 §D3 (D-747), this TOML value diverges from the live
   `CyberintAuth::auth_type_name()` return until PLUGIN-MIGRATION-001-A migrates the code per
-  ADR-028 §D6 scope. CLAUDE.md §Source-of-Truth Precedence #7 applies: spec follows DTU, not adapter code.)
+  ADR-028 §D6 scope.)
+  **[SUPERSEDED-PENDING — ADR-053 §D3-a, effective 2026-07-22]:** The single-surface
+  `cyberint.sensor.toml` entry and its ADR-028 §D2 grounding are superseded; see ADR-053 §D3-a
+  for the pending dual-surface split decision. This entry reflects current `develop` state.
+  Amendment owned by `S-WAVE-A-CYBERINT-SPEC-001` per ADR-053 §D5.
 
 - `armis.sensor.toml` — `sensor_id: "armis"`, `auth_type: "bearer_static"`,
   base URL from instance_url, tables:
@@ -252,7 +262,11 @@ authentication enforcement behavior, which reflects the real third-party API's a
   (Armis Centrix API spec behavior) → `auth_type = "bearer_static"`. (The legacy
   `ArmisAuth::auth_type_name()` returned `"api_key"` — per ADR-028 §D2 supersession of ADR-026 §D3
   (D-747), this TOML value diverges from the live `ArmisAuth::auth_type_name()` return until
-  PLUGIN-MIGRATION-001-A migrates the code per ADR-028 §D6 scope. Spec follows DTU, not adapter code.)
+  PLUGIN-MIGRATION-001-A migrates the code per ADR-028 §D6 scope.)
+  **[SUPERSEDED-PENDING — ADR-053 §D2, effective 2026-07-22]:** The DTU-based grounding in
+  ADR-028 §D2 for the Armis auth model is superseded; see ADR-053 §D2 for the pending decision.
+  This entry reflects current `develop` state. Amendment owned by `S-WAVE-A-CYBERINT-SPEC-001`
+  per ADR-053 §D5.
 
 ### Known Gaps (DTU Extension Required — ADR-028 §D5)
 
@@ -554,6 +568,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.35 | MED-008-annotation-burst | 2026-08-03 | product-owner | MED-008 (PR #234 adversarial review): annotation-only amendment to §Postconditions §1 flagging three stale ADR-028 §D2 authority citations. **(1) Grounding-authority intro** — added `[SUPERSEDED-PENDING for Armis and Cyberint — ADR-053 §D1]` qualification after the ADR-028 §D2 statement; scopes the supersession to Armis and Cyberint; CrowdStrike and Claroty authorities unchanged. **(2) Armis entry** — added `[SUPERSEDED-PENDING — ADR-053 §D2]` annotation after the auth-grounding sentence; `auth_type = "bearer_static"` value preserved (live test binding: `test_HS_016_BC_2_16_013_armis_spec_declares_bearer_static_auth`). **(3) Cyberint entry** — added `[SUPERSEDED-PENDING — ADR-053 §D3-a]` annotation after the auth-grounding sentence; single-surface `cookie_roundtrip` entry preserved (live test binding: `test_HS_015_BC_2_16_013_cyberint_spec_declares_cookie_roundtrip_auth`). No `auth_type` value rewritten. CrowdStrike and Claroty entries untouched. Full amendment execution (value rewrites, dual-surface split) owned by `S-WAVE-A-CYBERINT-SPEC-001` per ADR-053 §D5. **Defect-class sweep (same burst):** struck false DTU-precedes-spec grounding direction assertions from three sensor auth-grounding sentences. Removed `CLAUDE.md §Source-of-Truth Precedence #7 applies: spec follows DTU, not adapter code.` from Claroty and Cyberint entries; removed `Spec follows DTU, not adapter code.` from Armis entry. CLAUDE.md §Source-of-Truth Precedence #7 governs code-vs-spec conflicts in favour of the SPEC — the opposite of "spec follows DTU" — making this clause false independent of ADR-053. Preceding ADR-028 §D2/§D6 context already explains the intentional divergence; the struck sentence was redundant and false. CrowdStrike entry clean (no direction assertion present). |
 | 1.34 | wave-a-spec-evolution-fix-burst-17 | 2026-07-23 | product-owner | F-WASE-P17-MED-001: §Related BCs — 9 of 10 entries corrected to canonical H1s (POL-7 bc_h1_is_title_source_of_truth class sweep). (1) BC-2.16.009 "Spec File Validation" → "Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation"; (2) BC-2.16.001 "Sensor Spec File Loading" → "Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables"; (3) BC-2.16.002 "Multi-Step Fetch Pipeline" → "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation"; (4) BC-2.16.012 "PluginRegistry Dispatch" → "PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup"; (5) BC-2.01.013 "DataSource Trait" → "DataSource Trait Eliminates Per-Sensor Code Duplication"; (6) BC-2.01.005 "CrowdStrike OAuth2 Auth and Two-Step Fetch" → "CrowdStrike OAuth2 Authentication and Two-Step Fetch"; (7) BC-2.01.006 "Cyberint Cookie-Based Auth" → "Cyberint Assets Cookie-Based Authentication and Multi-Format Timestamp Parsing"; (8) BC-2.01.007 "Claroty Bearer Token Auth" → "Claroty Bearer Token Auth with Polymorphic ID Handling"; (9) BC-2.01.008 "Armis Bearer Token Auth" → "Armis Token Exchange Auth with AQL Query Forwarding and Timestamp Fallback". BC-2.01.017 pre-existing CLEAN. input-hash updated at commit time. |
 | 1.33 | D-1889-wrong-direction-retirements | 2026-07-22 | story-writer | **D-1889 wrong-direction story retirements.** §Known Gaps: DTU-EXT-001 (CrowdStrike incidents) marked RETIRED — Incidents API removed ~2026-03; incidents table retired from crowdstrike.sensor.toml per S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001; incidents derived from Alerts `aggregate_id`. DTU-EXT-005 (Cyberint alerts pagination page_size) marked RETIRED — Cyberint alerts endpoint is `POST /alert/api/v1/alerts` with `page/size` pagination per ADR-053 §Finding-1; DEFECT-CYBERINT-SPEC-FIDELITY-001 supersedes. §Postconditions §1 CrowdStrike `incidents` row updated to reference DTU-EXT-001 RETIRED. §Canonical Test Vectors Spec load validation row updated to reflect incidents RETIRED. TD-VSDD-091 fixes: §Known Gaps DTU-EXT-005 `alerts.rs:38-40` → `alerts.rs::AlertListParams`; §Postconditions §2 step 2 + §Canonical Test Vectors `spec_parser.rs:655` → `spec_parser.rs::SpecLoader::parse`. BC v1.32→v1.33. POL-32. |
 | 1.32 | S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001-PO-CT-amendment | 2026-07-11 | product-owner | **DRIFT-HARNESS-ADMIN-TOKEN-CT-001 constant-time token comparison requirement (D-1666, 2026-07-10) — BC amendment closing OQ-001 (S-DRIFT-SAP2-DEVICES-TOML-SURFACE-001).** §Invariants INV-HARNESS-ROUTE-PARITY: added explicit **Admin-token bearer comparison MUST use constant-time equality (`ct_compare_tokens`)** clause — every `Authorization: Bearer <token>` comparison in `prism-dtu-harness` that checks the provided token against the stored `admin_token` MUST use constant-time byte comparison via shared `ct_compare_tokens(provided: &str, expected: &str) -> bool` helper (implemented with `subtle::ConstantTimeEq`). Applies to all 13 comparison sites: `src/builder.rs` (`check_bearer`), `src/clone_server.rs`, and 7 per-clone modules. Addresses CWE-208 timing side-channel — non-constant-time `!=` / `==` string comparison leaks information about where the first differing byte occurs. Rationale: constant-time is the correct default even for test-context UUID tokens to prevent future promotion into security-sensitive contexts without regression. Frontmatter v1.31→v1.32; modified: 2026-07-11. |
