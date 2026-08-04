@@ -1,7 +1,8 @@
 # claroty.sensor.toml — Production TOML sensor spec
 #
 # Authored per PLUGIN-MIGRATION-001-D Task 4.
-# Grounding order: see ADR-053 §D1.
+# Grounding: ADR-028 §D1/§D2 remain authoritative; see BC-2.16.013 §Postconditions §1.
+# ADR-053 §D5 excludes this sensor from ADR-053 supersession scope.
 # auth_type = "bearer_static" is the D-747 LOCKED value.
 # NOTE: legacy ClarotyAuth::auth_type_name() returned "cookie_roundtrip" — latent label bug
 #   deleted by PLUGIN-MIGRATION-001-A.
@@ -14,7 +15,7 @@
 #   POST body (not URL params). Multi-page queries (>page_size rows) are fully supported.
 # Polymorphic ID: alerts.id column uses column_type = "string" to handle int and UUID IDs
 #   (EC-016-013-004): JSON int IDs normalized to string at parser boundary.
-# No /xdome prefix anywhere — see BC-2.16.013 §Postconditions §1 (claroty audit_logs); canonical xDome OpenAPI per ADR-053 §Context "Canonical OpenAPI Evidence".
+# No /xdome prefix anywhere — see BC-2.16.013 §Postconditions §1 (claroty audit_logs).
 #
 # Gap-CL-001: CLOSED by S-DEMO-CLAROTY-TRAILING-SLASH-001.
 #   path_templates updated to trailing-slash form to match the real Claroty xDome API

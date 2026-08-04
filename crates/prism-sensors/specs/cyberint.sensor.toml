@@ -27,7 +27,7 @@ version = "1.0.0"
 # ---------------------------------------------------------------------------
 # Credential references
 # ---------------------------------------------------------------------------
-# Credential resolution chain: see BC-2.06.003.
+# Credential resolution chain: see BC-2.06.003 (no per-sensor cyberint row; post-migration rows are in cyberint-alerts and cyberint-assets specs).
 # SUPERSEDED-PENDING-S-WAVE-A-CYBERINT-SPEC-001: superseded per ADR-053 §D3/§D5.
 #   Owner: S-WAVE-A-CYBERINT-SPEC-001 AC-005 RG-011. See ADR-053 §D5 for credential ref rename target.
 #   RG-010. name = "api_key" below is the LIVE credential-resolution key and MUST NOT be
