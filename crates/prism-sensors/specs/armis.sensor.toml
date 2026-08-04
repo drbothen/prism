@@ -23,7 +23,7 @@ version = "1.0.0"
 # Credential references
 # ---------------------------------------------------------------------------
 # Credential resolution chain: see BC-2.06.003.
-# SUPERSEDED-PENDING-S-WAVE-A-ARMIS-REMEDIATION-001: superseded per ADR-053 §D5 + ADR-054.
+# SUPERSEDED-PENDING-S-WAVE-A-ARMIS-REMEDIATION-001: superseded per ADR-053 §D2 + ADR-054.
 #   See ADR-053 §D5 for credential ref rename target.
 #   name = "bearer_token" below is the LIVE credential-resolution key and MUST NOT be
 #   changed until S-WAVE-A-ARMIS-REMEDIATION-001 lands.

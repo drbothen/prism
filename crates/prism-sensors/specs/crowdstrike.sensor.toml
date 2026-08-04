@@ -14,11 +14,9 @@ sensor_id = "crowdstrike"
 probe_table = "detections"
 name = "CrowdStrike Falcon"
 auth_type = "oauth2_client_credentials"
-# PLUGIN-MIGRATION-001-E: routes auth through the crowdstrike-oauth2 .prx WASM plugin.
-# Validated at spec-load time: PluginRuntime.registry must contain this plugin_id
-# or E-SPEC-012 is emitted (AC-007 / Task 1 validation rule).
-# ADR-028 §D10 co-merge: PLUGIN-MIGRATION-001-A deletion of crowdstrike.rs is
-# GATED on this story shipping the plugin replacement.
+# SUPERSEDED-PENDING-S-ADR054-WAVE-A-001: superseded per ADR-054 §D5 + §D11.
+#   Owner: S-ADR054-WAVE-A-001 AC-006. auth_plugin = "crowdstrike-oauth2" below is the
+#   LIVE wiring and MUST NOT be changed until S-ADR054-WAVE-A-001 lands.
 auth_plugin = "crowdstrike-oauth2"
 # CrowdStrike Falcon API region base URLs (set CROWDSTRIKE_BASE_URL to the tenant's region):
 #   us-1 (default):  https://api.crowdstrike.com
@@ -29,7 +27,7 @@ base_url = "${env.CROWDSTRIKE_BASE_URL}"
 version = "1.0.0"
 
 # ---------------------------------------------------------------------------
-# Credential references (BC-2.06.003 v1.3 / ADR-032)
+# Credential references (BC-2.06.003 / ADR-032)
 # ---------------------------------------------------------------------------
 # crowdstrike-oauth2 WASM plugin resolves both refs at acquire_token() time.
 # BC-2.06.003 resolution chain: PRISM_CLIENTS_{ID}_SENSORS_CROWDSTRIKE_{REF}_FILE >
@@ -69,7 +67,7 @@ ocsf_class = "detection_finding"
   # options = ["INDEX"]: push-down-eligible datetime column. Required for extract_time_window_from_ast
   # (ADR-033 T1) to identify created_timestamp as the CrowdStrike FQL time-window push-down column.
   # Without this, Option T1 cannot extract time bounds from `created_timestamp > 'T'` predicates.
-  # F-P1-CRIT-001 / AC-INDEX-CWS-001 / BC-2.01.013 v1.14 CrowdStrike FQL time-window.
+  # F-P1-CRIT-001 / AC-INDEX-CWS-001 / BC-2.01.013 CrowdStrike FQL time-window.
   options = ["INDEX"]
 
   [[tables.columns]]
@@ -165,13 +163,13 @@ ocsf_class = "detection_finding"
   # (e.g., "created_timestamp:>'T1'+created_timestamp:<'T2'"). The value is seeded by
   # SpecDrivenSensorAdapter::fetch() from QueryParams.start_time/end_time (ADR-033 T1).
   # When no time predicates are present, _fql = "" and the filter param is ignored by the DTU.
-  # BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — CrowdStrike FQL wiring.
+  # BC-2.01.013 Pagination/Push-Down Scope Clause — CrowdStrike FQL wiring.
   #
   # Limit push-down: ${query.limit} carries the PrismQL LIMIT clause value so the DTU
   # honors DetectionListParams.limit and returns at most that many detection IDs.
   # When no LIMIT is provided, query.limit = "" and the &limit= param is stripped by
   # PipelineExecutor.strip_empty_url_params — the DTU defaults to limit=100.
-  # AC-CWS-001 / BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — limit wiring.
+  # AC-CWS-001 / BC-2.01.013 Pagination/Push-Down Scope Clause — limit wiring.
   # F-PUSHDOWN-001 invariant: limit push-down applies ONLY to this first/query step.
   # Step 2 (fetch_detections POST) does NOT carry a limit param.
   [[tables.steps]]
@@ -276,8 +274,8 @@ ocsf_class = "device"
 # ---------------------------------------------------------------------------
 # Table: incidents
 # DTU-EXT-001 gap: Incidents route not yet registered in prism-dtu-crowdstrike.
-# Spec is authored per ADR-028 §D5 (spec never ahead of DTU — include as
-# documented gap). Parity test RG-04 does NOT exercise incidents in v1 cycle.
+# ADR-028 §D5 (historical — §D5 superseded by ADR-053 §D1); incidents included as documented gap.
+# Parity test RG-04 does NOT exercise incidents in v1 cycle.
 # Follow-up work tracked under DTU-EXT-001.
 # ---------------------------------------------------------------------------
 [[tables]]
@@ -307,7 +305,7 @@ ocsf_class = "incident_finding"
 
   # Step 1: QueryV2 — GET incident IDs
   # DTU-EXT-001: no incidents route in prism-dtu-crowdstrike yet.
-  # Using canonical CrowdStrike 2-step pattern per ADR-028 §D5.
+  # Using canonical CrowdStrike 2-step pattern per ADR-028 §D5 (historical — §D5 superseded by ADR-053 §D1).
   [[tables.steps]]
   name = "query_incident_ids"
   method = "GET"
