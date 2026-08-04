@@ -1,46 +1,17 @@
 # cyberint.sensor.toml — Production TOML sensor spec
 #
 # Authored per PLUGIN-MIGRATION-001-D Task 5.
-# SUPERSEDED AND DELETED: This file is superseded by ADR-053 §D3-a and will be deleted
-#   atomically by S-WAVE-A-CYBERINT-SPEC-001, replaced by two spec files:
-#   cyberint-alerts.sensor.toml (/alert prefix) and cyberint-assets.sensor.toml
-#   (/asset-configuration prefix). Co-land gate: this file triggers E-SPEC-027(c)
-#   at spec-load time the moment S-WAVE-A-ENGINE-001 (header_scheme field) lands;
-#   S-WAVE-A-CYBERINT-SPEC-001 MUST co-land with or immediately after S-WAVE-A-ENGINE-001.
-#   Defect record: ARCH-CYBERINT-AUTH-READJUDICATION-001.
-# URLs grounded from DTU clone routes (ADR-028 §D1, historical provenance only —
-#   §D1 superseded by ADR-053 §D1 2026-07-22; grounding order now: vendor OpenAPI →
-#   spec → DTU; the DTU follows the spec, not the reverse):
-#   crates/prism-dtu-cyberint/src/clone.rs build_router()
-# auth_type grounded from DTU enforcement (ADR-028 §D2, ADR-031 §D3-a) — historical provenance only:
-#   DTU routes::alerts::extract_access_token() extracts access_token cookie
-#   → static cookie auth flow (no login step; ADR-031 §D3-a, remains true at DTU level).
-# D-747 lock SUPERSEDED by ADR-053 §D3, effective 2026-07-22 (D-1943) — Cyberint
-# dual-surface split; both surfaces confirmed static-cookie auth.
-# auth_type = "cookie_roundtrip": value is CORRECT AND RETAINED per ADR-053 §D3-c —
-#   it names the cookie-injection behavior, not a login exchange. What ADR-053 §D3
-#   supersedes is: (a) the single-file structure (this file is deleted); (b) the credential
-#   ref name (api_key → access_token, the wire cookie name); (c) the env vars. The auth_type
-#   value itself carries across to both replacement specs unchanged.
-# Substantive change (split + credential rename) sequenced behind implementing story
-#   S-WAVE-A-CYBERINT-SPEC-001 (defect record: ARCH-CYBERINT-AUTH-READJUDICATION-001).
+# This file is superseded by ADR-053 §D3-a; deletion owner: S-WAVE-A-CYBERINT-SPEC-001.
+# Co-land gate with S-WAVE-A-ENGINE-001: see S-WAVE-A-CYBERINT-PATCH-001.
+# Grounding order: see ADR-053 §D1.
+# D-747 lock superseded by ADR-053 §D3, effective 2026-07-22 (D-1943).
+#   See ADR-053 §D3-a, §D3-c for split schema and auth confirmation.
+#   Owner: S-WAVE-A-CYBERINT-SPEC-001 (defect record: ARCH-CYBERINT-AUTH-READJUDICATION-001).
 # NOTE: legacy CyberintAuth::auth_type_name() returned "bearer_static" — latent label bug
-#   deleted by PLUGIN-MIGRATION-001-A. Grounding order per ADR-053 §D1: vendor OpenAPI
-#   is ground truth; spec grounds against OpenAPI; DTU follows the spec (not the reverse).
+#   deleted by PLUGIN-MIGRATION-001-A.
 #
-# URL correction: Rust adapter used /api/alerts (no /v1) — latent bug.
-# DTU-grounded per ADR-028 §D1 (historical — §D1 superseded by ADR-053 §D1 2026-07-22):
-#   crates/prism-dtu-cyberint/src/clone.rs build_router()
-#   registers /api/v1/alerts. Real third-party API verification deferred to DTU-validator.
-#
-# incidents table: CRITICAL fidelity defect per DEFECT-CYBERINT-SPEC-FIDELITY-001 (ADR-053
-#   §D3 reclassified from EC-016-013-002 documented gap). DTU has no incidents route; the
-#   Cyberint OpenAPI contains no such endpoint — fabricated by the DTU clone.
-# Parity test returns explicit SKIP (NOT #[ignore]) per AC-009 spec.
-#
-# timestamp column: created_at with timestamp_formats = ["iso8601", "unix_epoch_seconds"]
-# per ADR-028 v1.10 §D8-A Option A LOCKED (BC-2.16.013 §O-001). The normalization layer
-# in PipelineExecutor tries each format in order; on failure emits E-SPEC-018.
+# incidents table: CRITICAL fidelity defect; see DEFECT-CYBERINT-SPEC-FIDELITY-001.
+#   Retained until deleted atomically by S-WAVE-A-CYBERINT-SPEC-001.
 
 sensor_id = "cyberint"
 # probe_table: table routed to by LIMIT-0 health probe (BC-2.08.001 postcondition 5 / S-5.04 AC-10).
@@ -51,18 +22,13 @@ base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"
 version = "1.0.0"
 
 # ---------------------------------------------------------------------------
-# Credential references (BC-2.06.003 v1.3 / ADR-032)
+# Credential references
 # ---------------------------------------------------------------------------
-# SUPERSEDED-PENDING-S-WAVE-A-CYBERINT-SPEC-001: StaticCookieAuthProvider resolves
-#   "api_key" at acquire_token() time — superseded per ADR-053 §D3/§D5; in both
-#   replacement specs the credential ref is renamed to "access_token" (the wire cookie
-#   name per OpenAPI securityScheme), with env vars
-#   PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_ALERTS_ACCESS_TOKEN and
-#   PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_ASSETS_ACCESS_TOKEN. The name = "api_key"
-#   value below is the LIVE credential-resolution key and MUST NOT be changed until
-#   S-WAVE-A-CYBERINT-SPEC-001 lands (changing it breaks credential resolution).
-# BC-2.06.003 resolution chain: PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY_FILE >
-#   PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY > keyring.
+# Credential resolution chain: see BC-2.06.003.
+# SUPERSEDED-PENDING-S-WAVE-A-CYBERINT-SPEC-001: superseded per ADR-053 §D3/§D5.
+#   See ADR-053 §D5 for credential ref rename target.
+#   name = "api_key" below is the LIVE credential-resolution key and MUST NOT be
+#   changed until S-WAVE-A-CYBERINT-SPEC-001 lands.
 [[credential_refs]]
 name = "api_key"
 description = "Cyberint API access token (injected as access_token cookie)"

@@ -1,10 +1,7 @@
 # crowdstrike.sensor.toml — Production TOML sensor spec
 #
 # Authored per PLUGIN-MIGRATION-001-D Task 3.
-# URLs grounded from DTU clone routes (ADR-028 §D1):
-#   crates/prism-dtu-crowdstrike/src/routes/mod.rs build_router()
-# auth_type grounded from DTU enforcement (ADR-028 §D2):
-#   DTU OAuth2 token endpoint at /oauth2/token enforces oauth2_client_credentials.
+# Grounding order: see ADR-053 §D1.
 # auth_type = "oauth2_client_credentials" is the D-747 LOCKED value.
 #
 # Two-step pipeline pattern:
