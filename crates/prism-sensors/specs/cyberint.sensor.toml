@@ -82,7 +82,7 @@ ocsf_class = "detection_finding"
 
   # Multi-format timestamp: Cyberint Alert.created_at is typed as serde_json::Value
   # (per prism-dtu-cyberint/src/types.rs) — accepts ISO 8601, epoch seconds, or epoch millis.
-  # timestamp_formats declares the ordered parse chain per ADR-028 v1.10 §D8-A (Option A LOCKED):
+  # timestamp_formats declares the ordered parse chain per ADR-028 §D8-A (Option A LOCKED):
   #   1. iso8601     — ISO 8601 UTC "2024-01-15T10:30:00Z" (primary; most common)
   #   2. unix_epoch_seconds — integer epoch (legacy alert payloads)
   # On all-formats failure: emit E-SPEC-018 (TimestampParseFailure) per BC-2.16.013 §O-001.

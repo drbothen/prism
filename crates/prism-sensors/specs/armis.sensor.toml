@@ -15,6 +15,8 @@ sensor_id = "armis"
 # probe_table: table routed to by LIMIT-0 health probe (BC-2.08.001 postcondition 5 / S-5.04 AC-10).
 probe_table = "devices"
 name = "Armis Centrix"
+# SUPERSEDED-PENDING-S-WAVE-A-ARMIS-REMEDIATION-001: superseded per ADR-053 §D2 + ADR-054 §D3.
+# Value "bearer_static" is the LIVE auth_type and MUST NOT be changed until S-WAVE-A-ARMIS-REMEDIATION-001 lands.
 auth_type = "bearer_static"
 base_url = "${env.ARMIS_INSTANCE_URL}"
 version = "1.0.0"
@@ -37,7 +39,7 @@ name = "bearer_token"
 #   response_path: $.data.results (SearchResponse { data: SearchData { results: [...] } }).
 #   GET /api/v1/devices remains registered in build_router() for back-compat only.
 # Timestamp fallback: lastSeen (primary) → firstSeen (fallback) → now() (WARN).
-# Per ADR-028 v1.10 §D8-B: canonical chain is last_seen → first_seen → now().
+# Per ADR-028 §D8-B: canonical chain is last_seen → first_seen → now().
 # Expressed via timestamp_fallback_chain on the primary timestamp column.
 # ---------------------------------------------------------------------------
 [[tables]]
@@ -72,7 +74,7 @@ ocsf_class = "device"
   ocsf_field = "device.hw_info.vendor_name"
 
   # Primary timestamp column: last_seen (may be null per DTU fixture d-001).
-  # timestamp_fallback_chain per ADR-028 v1.10 §D8-B (Option A LOCKED):
+  # timestamp_fallback_chain per ADR-028 §D8-B (Option A LOCKED):
   #   last_seen → first_seen → Utc::now() with tracing::warn!(event_type = "timestamp.fallback_to_now")
   # The whole chain (including the now() fallback + warn emission) is executed by the
   # prism-spec-engine pipeline normalization pass (normalize_timestamp_fields,

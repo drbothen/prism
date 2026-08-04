@@ -29,9 +29,8 @@ version = "1.0.0"
 # ---------------------------------------------------------------------------
 # Credential references (BC-2.06.003 / ADR-032)
 # ---------------------------------------------------------------------------
-# crowdstrike-oauth2 WASM plugin resolves both refs at acquire_token() time.
-# BC-2.06.003 resolution chain: PRISM_CLIENTS_{ID}_SENSORS_CROWDSTRIKE_{REF}_FILE >
-#   PRISM_CLIENTS_{ID}_SENSORS_CROWDSTRIKE_{REF} > keyring.
+# Auth provider at acquire_token(): SUPERSEDED-PENDING-S-ADR054-WAVE-A-001 per ADR-054 §D5; see BC-2.06.003 §Per-Sensor [[credential_refs]] Declarations (Canonical).
+# Credential resolution chain: see BC-2.06.003.
 [[credential_refs]]
 name = "client_id"
 description = "CrowdStrike OAuth2 client ID"
@@ -45,7 +44,7 @@ requests_per_second = 10.0
 
 # ---------------------------------------------------------------------------
 # Table: detections
-# Two-step QueryV2 → PostEntities pipeline (DTU-grounded routes)
+# Two-step QueryV2 → PostEntities pipeline (DTU routes — grounding order now per ADR-053 §D1; ADR-028 §D1 historical)
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "detections"
@@ -201,7 +200,7 @@ ocsf_class = "detection_finding"
 
 # ---------------------------------------------------------------------------
 # Table: devices
-# Two-step QueryV2 → GetEntities pipeline (DTU-grounded routes)
+# Two-step QueryV2 → GetEntities pipeline (DTU routes — grounding order now per ADR-053 §D1; ADR-028 §D1 historical)
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "devices"
