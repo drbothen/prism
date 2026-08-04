@@ -26,8 +26,8 @@ version = "1.0.0"
 # ---------------------------------------------------------------------------
 # Credential resolution chain: see BC-2.06.003.
 # SUPERSEDED-PENDING-S-WAVE-A-CYBERINT-SPEC-001: superseded per ADR-053 §D3/§D5.
-#   See ADR-053 §D5 for credential ref rename target.
-#   name = "api_key" below is the LIVE credential-resolution key and MUST NOT be
+#   Owner: S-WAVE-A-CYBERINT-SPEC-001 AC-005. See ADR-053 §D5 for credential ref rename target.
+#   RG-010. name = "api_key" below is the LIVE credential-resolution key and MUST NOT be
 #   changed until S-WAVE-A-CYBERINT-SPEC-001 lands.
 [[credential_refs]]
 name = "api_key"
@@ -187,10 +187,8 @@ ocsf_class = "detection_finding"
   # DTU route: GET /api/v1/alerts (crates/prism-dtu-cyberint/src/clone.rs build_router())
   # response_path: Cyberint DTU returns {"data": [...], "next_cursor": "..."} per routes::alerts::list_alerts
   # page_size: OMITTED — DTU AlertListParams has cursor field only (no page_size in the struct).
-  #   F-LP2-MEDIUM-001 (arch-handoff#2): page_size removed from this block. The DTU does not
-  #   accept page_size today; DTU extension DTU-EXT-005 tracks adding page_size support to
-  #   AlertListParams. Until DTU-EXT-005 lands, omitting page_size causes the pipeline to use
-  #   DTU defaults (no page_size query param appended). Re-add when DTU-EXT-005 is resolved.
+  #   F-LP2-MEDIUM-001 (arch-handoff#2): page_size removed. DTU-EXT-005 RETIRED (D-1949);
+  #   page_size remains permanently omitted.
   [[tables.steps]]
   name = "fetch_alerts"
   method = "GET"
@@ -248,7 +246,7 @@ ocsf_class = "incident_finding"
 
   # EC-016-013-002: DTU gap — no incidents route. Using cursor pattern consistent
   # with alerts table. Parity test for this table is explicit SKIP per AC-009.
-  # page_size: OMITTED — consistent with alerts table. DTU-EXT-005 tracks page_size addition.
+  # page_size: OMITTED — consistent with alerts table. DTU-EXT-005 RETIRED (D-1949); permanently omitted.
   [[tables.steps]]
   name = "fetch_incidents"
   method = "GET"

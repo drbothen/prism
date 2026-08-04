@@ -16,6 +16,7 @@ sensor_id = "armis"
 probe_table = "devices"
 name = "Armis Centrix"
 # SUPERSEDED-PENDING-S-WAVE-A-ARMIS-REMEDIATION-001: superseded per ADR-053 §D2 + ADR-054 §D3.
+#   Owner: S-WAVE-A-ARMIS-REMEDIATION-001 AC-001 (defect record: S-ARMIS-AUTH-FIDELITY-001). RG-001.
 # Value "bearer_static" is the LIVE auth_type and MUST NOT be changed until S-WAVE-A-ARMIS-REMEDIATION-001 lands.
 auth_type = "bearer_static"
 base_url = "${env.ARMIS_INSTANCE_URL}"
@@ -26,8 +27,8 @@ version = "1.0.0"
 # ---------------------------------------------------------------------------
 # Credential resolution chain: see BC-2.06.003.
 # SUPERSEDED-PENDING-S-WAVE-A-ARMIS-REMEDIATION-001: superseded per ADR-053 §D2 + ADR-054.
-#   See ADR-053 §D5 for credential ref rename target.
-#   name = "bearer_token" below is the LIVE credential-resolution key and MUST NOT be
+#   Owner: S-WAVE-A-ARMIS-REMEDIATION-001 AC-006. See ADR-053 §D5 for credential ref rename target.
+#   RG-007. name = "bearer_token" below is the LIVE credential-resolution key and MUST NOT be
 #   changed until S-WAVE-A-ARMIS-REMEDIATION-001 lands.
 [[credential_refs]]
 name = "bearer_token"

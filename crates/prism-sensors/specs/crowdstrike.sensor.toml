@@ -27,7 +27,7 @@ base_url = "${env.CROWDSTRIKE_BASE_URL}"
 version = "1.0.0"
 
 # ---------------------------------------------------------------------------
-# Credential references (BC-2.06.003 / ADR-032)
+# Credential references
 # ---------------------------------------------------------------------------
 # Auth provider at acquire_token(): SUPERSEDED-PENDING-S-ADR054-WAVE-A-001 per ADR-054 §D5; see BC-2.06.003 §Per-Sensor [[credential_refs]] Declarations (Canonical).
 # Credential resolution chain: see BC-2.06.003.
@@ -44,7 +44,9 @@ requests_per_second = 10.0
 
 # ---------------------------------------------------------------------------
 # Table: detections
-# Two-step QueryV2 → PostEntities pipeline (DTU routes — grounding order now per ADR-053 §D1; ADR-028 §D1 historical)
+# MIGRATION-PENDING-S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001: Detects API EOL 2025-09-30;
+#   see S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001 (P0/CRIT). Table retained until migrated.
+# Two-step QueryV2 → PostEntities pipeline (DTU routes — ADR-028 §D1 historical)
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "detections"
@@ -272,10 +274,10 @@ ocsf_class = "device"
 
 # ---------------------------------------------------------------------------
 # Table: incidents
-# DTU-EXT-001 gap: Incidents route not yet registered in prism-dtu-crowdstrike.
-# ADR-028 §D5 (historical — §D5 superseded by ADR-053 §D1); incidents included as documented gap.
+# RETIREMENT-PENDING-S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001: Incidents API removed by vendor
+#   ~2026-03; see S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001 (P0/CRIT). DTU-EXT-001 RETIRED (D-1949).
+#   Table retained until deleted atomically by S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001.
 # Parity test RG-04 does NOT exercise incidents in v1 cycle.
-# Follow-up work tracked under DTU-EXT-001.
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "incidents"
@@ -303,7 +305,7 @@ ocsf_class = "incident_finding"
   ocsf_field = "severity"
 
   # Step 1: QueryV2 — GET incident IDs
-  # DTU-EXT-001: no incidents route in prism-dtu-crowdstrike yet.
+  # RETIREMENT-PENDING-S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001: see table header.
   # Using canonical CrowdStrike 2-step pattern per ADR-028 §D5 (historical — §D5 superseded by ADR-053 §D1).
   [[tables.steps]]
   name = "query_incident_ids"
@@ -319,8 +321,8 @@ ocsf_class = "incident_finding"
   # Step 2: GetEntities — POST full incident records
   # (CrowdStrike Incidents API requires POST with JSON body containing ids array)
   # Method = POST per DEFECT-CSDEVICES-EMPTY-PIPELINE-001 ratification.
-  # DTU-EXT-001: incidents routes not yet in prism-dtu-crowdstrike; this TOML fix
-  # is for the production pipeline only. DTU incidents route stays anchored to DTU-EXT-001.
+  # RETIREMENT-PENDING-S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001: see table header.
+  # Table will be deleted by S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001.
   [[tables.steps]]
   name = "fetch_incidents"
   method = "POST"
