@@ -205,7 +205,7 @@ ocsf_class = "detection_finding"
 # ---------------------------------------------------------------------------
 # Table: incidents
 # CRITICAL fidelity defect: see DEFECT-CYBERINT-SPEC-FIDELITY-001.
-#   This table is retained until deleted atomically by S-WAVE-A-CYBERINT-SPEC-001.
+#   This table is retained until deleted atomically by S-WAVE-A-CYBERINT-SPEC-001. Owner: AC-007 RG-013.
 # DTU gap — EC-016-013-002: no incidents route in prism-dtu-cyberint.
 # ADR-028 §D5 (spec never ahead of DTU) is historical — §D5 superseded by ADR-053 §D1.
 # Parity test returns explicit SKIP (NOT #[ignore]) per AC-009.
@@ -248,7 +248,7 @@ ocsf_class = "incident_finding"
 
   # EC-016-013-002: DTU gap — no incidents route. Using cursor pattern consistent
   # with alerts table. Parity test for this table is explicit SKIP per AC-009.
-  # page_size: OMITTED — consistent with alerts table; see S-WAVE-A-CYBERINT-SPEC-001 AC-004.
+  # page_size: OMITTED — table is deleted, not migrated: see S-WAVE-A-CYBERINT-SPEC-001 AC-007 RG-013.
   [[tables.steps]]
   name = "fetch_incidents"
   method = "GET"

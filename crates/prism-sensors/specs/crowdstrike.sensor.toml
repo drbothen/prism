@@ -17,8 +17,8 @@ auth_type = "oauth2_client_credentials"
 # SUPERSEDED-PENDING-S-ADR054-WAVE-A-001: superseded per ADR-054 §D5 + §D11.
 #   Owner: S-ADR054-WAVE-A-001 AC-006 RG-016. auth_plugin = "crowdstrike-oauth2" below is the
 #   LIVE wiring and MUST NOT be changed until S-ADR054-WAVE-A-001 lands.
+#   Spec-load validation: PluginRuntime.registry must contain this plugin_id; see E-SPEC-012 (error-taxonomy.md).
 auth_plugin = "crowdstrike-oauth2"
-# Spec-load validation: PluginRuntime.registry must contain this plugin_id; see E-SPEC-012 (error-taxonomy.md).
 # CrowdStrike Falcon API region base URLs (set CROWDSTRIKE_BASE_URL to the tenant's region):
 #   us-1 (default):  https://api.crowdstrike.com
 #   us-2:            https://api.us-2.crowdstrike.com
