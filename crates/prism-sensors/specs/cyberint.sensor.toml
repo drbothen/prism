@@ -1,23 +1,41 @@
 # cyberint.sensor.toml — Production TOML sensor spec
 #
 # Authored per PLUGIN-MIGRATION-001-D Task 5.
-# URLs grounded from DTU clone routes (ADR-028 §D1):
+# SUPERSEDED AND DELETED: This file is superseded by ADR-053 §D3-a and will be deleted
+#   atomically by S-WAVE-A-CYBERINT-SPEC-001, replaced by two spec files:
+#   cyberint-alerts.sensor.toml (/alert prefix) and cyberint-assets.sensor.toml
+#   (/asset-configuration prefix). Co-land gate: this file triggers E-SPEC-027(c)
+#   at spec-load time the moment S-WAVE-A-ENGINE-001 (header_scheme field) lands;
+#   S-WAVE-A-CYBERINT-SPEC-001 MUST co-land with or immediately after S-WAVE-A-ENGINE-001.
+#   Defect record: ARCH-CYBERINT-AUTH-READJUDICATION-001.
+# URLs grounded from DTU clone routes (ADR-028 §D1, historical provenance only —
+#   §D1 superseded by ADR-053 §D1 2026-07-22; grounding order now: vendor OpenAPI →
+#   spec → DTU; the DTU follows the spec, not the reverse):
 #   crates/prism-dtu-cyberint/src/clone.rs build_router()
 # auth_type grounded from DTU enforcement (ADR-028 §D2, ADR-031 §D3-a) — historical provenance only:
 #   DTU routes::alerts::extract_access_token() extracts access_token cookie
 #   → static cookie auth flow (no login step; ADR-031 §D3-a, remains true at DTU level).
 # D-747 lock SUPERSEDED by ADR-053 §D3, effective 2026-07-22 (D-1943) — Cyberint
 # dual-surface split; both surfaces confirmed static-cookie auth.
-# Declared value "cookie_roundtrip" is the pre-supersession value — known-stale-but-intentional;
-# substantive change sequenced behind story ARCH-CYBERINT-AUTH-READJUDICATION-001.
+# auth_type = "cookie_roundtrip": value is CORRECT AND RETAINED per ADR-053 §D3-c —
+#   it names the cookie-injection behavior, not a login exchange. What ADR-053 §D3
+#   supersedes is: (a) the single-file structure (this file is deleted); (b) the credential
+#   ref name (api_key → access_token, the wire cookie name); (c) the env vars. The auth_type
+#   value itself carries across to both replacement specs unchanged.
+# Substantive change (split + credential rename) sequenced behind implementing story
+#   S-WAVE-A-CYBERINT-SPEC-001 (defect record: ARCH-CYBERINT-AUTH-READJUDICATION-001).
 # NOTE: legacy CyberintAuth::auth_type_name() returned "bearer_static" — latent label bug
-#   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
+#   deleted by PLUGIN-MIGRATION-001-A. Grounding order per ADR-053 §D1: vendor OpenAPI
+#   is ground truth; spec grounds against OpenAPI; DTU follows the spec (not the reverse).
 #
 # URL correction: Rust adapter used /api/alerts (no /v1) — latent bug.
-# DTU-grounded per ADR-028 §D1: crates/prism-dtu-cyberint/src/clone.rs build_router()
+# DTU-grounded per ADR-028 §D1 (historical — §D1 superseded by ADR-053 §D1 2026-07-22):
+#   crates/prism-dtu-cyberint/src/clone.rs build_router()
 #   registers /api/v1/alerts. Real third-party API verification deferred to DTU-validator.
 #
-# incidents table: included as documented gap per EC-016-013-002. DTU has no incidents route.
+# incidents table: CRITICAL fidelity defect per DEFECT-CYBERINT-SPEC-FIDELITY-001 (ADR-053
+#   §D3 reclassified from EC-016-013-002 documented gap). DTU has no incidents route; the
+#   Cyberint OpenAPI contains no such endpoint — fabricated by the DTU clone.
 # Parity test returns explicit SKIP (NOT #[ignore]) per AC-009 spec.
 #
 # timestamp column: created_at with timestamp_formats = ["iso8601", "unix_epoch_seconds"]
@@ -35,7 +53,14 @@ version = "1.0.0"
 # ---------------------------------------------------------------------------
 # Credential references (BC-2.06.003 v1.3 / ADR-032)
 # ---------------------------------------------------------------------------
-# StaticCookieAuthProvider resolves "api_key" at acquire_token() time.
+# SUPERSEDED-PENDING-S-WAVE-A-CYBERINT-SPEC-001: StaticCookieAuthProvider resolves
+#   "api_key" at acquire_token() time — superseded per ADR-053 §D3/§D5; in both
+#   replacement specs the credential ref is renamed to "access_token" (the wire cookie
+#   name per OpenAPI securityScheme), with env vars
+#   PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_ALERTS_ACCESS_TOKEN and
+#   PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_ASSETS_ACCESS_TOKEN. The name = "api_key"
+#   value below is the LIVE credential-resolution key and MUST NOT be changed until
+#   S-WAVE-A-CYBERINT-SPEC-001 lands (changing it breaks credential resolution).
 # BC-2.06.003 resolution chain: PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY_FILE >
 #   PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY > keyring.
 [[credential_refs]]
@@ -46,8 +71,8 @@ description = "Cyberint API access token (injected as access_token cookie)"
 # Table: alerts
 # GET with cursor pagination
 # DTU route: GET /api/v1/alerts (crates/prism-dtu-cyberint/src/clone.rs build_router())
-# DTU-grounded per ADR-028 §D1: DTU-grounded per ADR-028 §D1: real third-party API
-#   verification deferred to DTU-validator.
+# DTU-grounded per ADR-028 §D1 (historical — §D1 superseded by ADR-053 §D1 2026-07-22):
+#   real third-party API verification deferred to DTU-validator.
 # F-LP3-HIGH-001: reauthored to match DTU Alert struct exactly (8 fields):
 #   alert_id, title, severity, status, created_at, source, type, affected_assets.
 #   Removed spurious 'id' (DTU never emits it) and 'source_url' (no such DTU field).
@@ -212,9 +237,12 @@ ocsf_class = "detection_finding"
 
 # ---------------------------------------------------------------------------
 # Table: incidents
+# CRITICAL fidelity defect: DEFECT-CYBERINT-SPEC-FIDELITY-001 — no incidents endpoint
+#   exists in the Cyberint OpenAPI; this route was fabricated by the DTU clone. ADR-053 §D3
+#   reclassified this from "documented gap per EC-016-013-002" to CRITICAL severity.
+#   This table is retained until deleted atomically by S-WAVE-A-CYBERINT-SPEC-001.
 # DTU gap — EC-016-013-002: no incidents route in prism-dtu-cyberint.
-# Spec is authored per ADR-028 §D5 (spec never ahead of DTU — include as
-# documented gap with cursor pagination pattern matching alerts).
+# ADR-028 §D5 (spec never ahead of DTU) is historical — §D5 superseded by ADR-053 §D1.
 # Parity test returns explicit SKIP (NOT #[ignore]) per AC-009.
 # ---------------------------------------------------------------------------
 [[tables]]
