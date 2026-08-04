@@ -15,7 +15,7 @@ probe_table = "detections"
 name = "CrowdStrike Falcon"
 auth_type = "oauth2_client_credentials"
 # SUPERSEDED-PENDING-S-ADR054-WAVE-A-001: superseded per ADR-054 §D5 + §D11.
-#   Owner: S-ADR054-WAVE-A-001 AC-006. auth_plugin = "crowdstrike-oauth2" below is the
+#   Owner: S-ADR054-WAVE-A-001 AC-006 RG-016. auth_plugin = "crowdstrike-oauth2" below is the
 #   LIVE wiring and MUST NOT be changed until S-ADR054-WAVE-A-001 lands.
 auth_plugin = "crowdstrike-oauth2"
 # CrowdStrike Falcon API region base URLs (set CROWDSTRIKE_BASE_URL to the tenant's region):
@@ -30,6 +30,7 @@ version = "1.0.0"
 # Credential references
 # ---------------------------------------------------------------------------
 # Auth provider at acquire_token(): SUPERSEDED-PENDING-S-ADR054-WAVE-A-001 per ADR-054 §D5; see BC-2.06.003 §Per-Sensor [[credential_refs]] Declarations (Canonical).
+#   Owner: S-ADR054-WAVE-A-001 AC-006 RG-017.
 # Credential resolution chain: see BC-2.06.003.
 [[credential_refs]]
 name = "client_id"
@@ -45,7 +46,7 @@ requests_per_second = 10.0
 # ---------------------------------------------------------------------------
 # Table: detections
 # MIGRATION-PENDING-S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001: Detects API EOL 2025-09-30;
-#   see S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001 (P0/CRIT). Table retained until migrated.
+#   see S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001. Table retained until migrated.
 # Two-step QueryV2 → PostEntities pipeline (DTU routes — ADR-028 §D1 historical)
 # ---------------------------------------------------------------------------
 [[tables]]
@@ -275,7 +276,7 @@ ocsf_class = "device"
 # ---------------------------------------------------------------------------
 # Table: incidents
 # RETIREMENT-PENDING-S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001: Incidents API removed by vendor
-#   ~2026-03; see S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001 (P0/CRIT). DTU-EXT-001 RETIRED (D-1949).
+#   ~2026-03; see S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001. DTU-EXT-001 RETIRED (D-1949).
 #   Table retained until deleted atomically by S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001.
 # Parity test RG-04 does NOT exercise incidents in v1 cycle.
 # ---------------------------------------------------------------------------
