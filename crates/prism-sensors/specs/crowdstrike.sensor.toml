@@ -18,6 +18,7 @@ auth_type = "oauth2_client_credentials"
 #   Owner: S-ADR054-WAVE-A-001 AC-006 RG-016. auth_plugin = "crowdstrike-oauth2" below is the
 #   LIVE wiring and MUST NOT be changed until S-ADR054-WAVE-A-001 lands.
 auth_plugin = "crowdstrike-oauth2"
+# Spec-load validation: PluginRuntime.registry must contain this plugin_id; see E-SPEC-012 (error-taxonomy.md).
 # CrowdStrike Falcon API region base URLs (set CROWDSTRIKE_BASE_URL to the tenant's region):
 #   us-1 (default):  https://api.crowdstrike.com
 #   us-2:            https://api.us-2.crowdstrike.com
@@ -45,8 +46,8 @@ requests_per_second = 10.0
 
 # ---------------------------------------------------------------------------
 # Table: detections
-# MIGRATION-PENDING-S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001: Detects API EOL 2025-09-30;
-#   see S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001. Table retained until migrated.
+# MIGRATION-PENDING-S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001: see S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001.
+#   Table retained until migrated.
 # Two-step QueryV2 → PostEntities pipeline (DTU routes — ADR-028 §D1 historical)
 # ---------------------------------------------------------------------------
 [[tables]]
@@ -108,7 +109,7 @@ ocsf_class = "detection_finding"
   # crates/prism-dtu-crowdstrike/src/generator.rs (untyped serde_json::Value path).
   # Wire keys confirmed: "ioc_type", "ioc_value", "ioc_source", "ioc_description"
   # (generator.rs lines ~751-755, NOT the Ioc struct serde convention).
-  # Adversary MUST verify against generator.rs — no typed Detection/Behavior struct.
+  # Verify against generator.rs — no typed Detection/Behavior struct.
   #
   # Tolerant-unknown-type policy: unknown ioc_type tokens (not in corrected enum)
   # are preserved as raw strings (non-fatal, log only) per BC-2.06.019.
@@ -275,9 +276,10 @@ ocsf_class = "device"
 
 # ---------------------------------------------------------------------------
 # Table: incidents
-# RETIREMENT-PENDING-S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001: Incidents API removed by vendor
-#   ~2026-03; see S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001. DTU-EXT-001 RETIRED (D-1949).
+# RETIREMENT-PENDING-S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001: see S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001.
 #   Table retained until deleted atomically by S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001.
+#   DTU-EXT-001 RETIRED (D-1949); Rust #[ignore] gates to be swept by S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001.
+#   DTU gap (ADR-028 §D9): no incidents route in prism-dtu-crowdstrike.
 # Parity test RG-04 does NOT exercise incidents in v1 cycle.
 # ---------------------------------------------------------------------------
 [[tables]]

@@ -14,7 +14,7 @@
 #   POST body (not URL params). Multi-page queries (>page_size rows) are fully supported.
 # Polymorphic ID: alerts.id column uses column_type = "string" to handle int and UUID IDs
 #   (EC-016-013-004): JSON int IDs normalized to string at parser boundary.
-# No /xdome prefix anywhere.
+# No /xdome prefix anywhere (see ADR-053 §D1: xdome_openapi_06.20.2026.json canonical grounding).
 #
 # Gap-CL-001: CLOSED by S-DEMO-CLAROTY-TRAILING-SLASH-001.
 #   path_templates updated to trailing-slash form to match the real Claroty xDome API
