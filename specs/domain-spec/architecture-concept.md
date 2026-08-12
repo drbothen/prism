@@ -2,13 +2,13 @@
 document_type: domain-spec-section
 level: L2
 section: "architecture-concept"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: "human + orchestrator"
 timestamp: 2026-04-27T00:00:00
 phase: 1a
 inputs: [product-brief.md, recovered-architecture.md]
-input-hash: "5c8d04d"
+input-hash: "b2d43d8"
 traces_to: L2-INDEX.md
 ---
 
@@ -105,7 +105,7 @@ A spec file declares: sensor identity (`sensor_id`, `name`, `auth_type`, `base_u
 2. Planner checks REQUIRED columns are constrained (DI-021), classifies filters as push-down vs post-filter
 3. Pipeline executor runs the table's `[[steps]]` in order — each step makes an HTTP call, extracts results via `response_path`, and produces variables for downstream steps. Fan-out occurs when a variable resolves to an array (batched per `fan_out_batch_size`)
 4. Raw JSON responses are mapped to typed Arrow columns using `[[columns]]` definitions
-5. Each column's `ocsf_field` mapping feeds the DynamicMessage protobuf pipeline — enabling cross-sensor correlation (e.g., CrowdStrike `hostname` and Claroty `device_name` both map to OCSF `device.hostname`)
+5. Each column's `ocsf_field` mapping feeds the DynamicMessage protobuf pipeline — enabling cross-sensor correlation (e.g., CrowdStrike `hostname` maps to OCSF `device.hostname`; Claroty `device_name` maps to OCSF `device.name`)
 6. Arrow RecordBatches are registered as a DataFusion MemTable, post-filters applied, aggregations/sorts executed
 7. Results returned, MemTable dropped — data existed only in flight
 
@@ -206,10 +206,10 @@ The Open Cybersecurity Schema Framework (OCSF) provides a vendor-neutral schema 
 | Vendor Field | OCSF Field |
 |-------------|------------|
 | CrowdStrike `hostname` | `device.hostname` |
-| Claroty `device_name` | `device.hostname` |
+| Claroty `device_name` | `device.name` |
 | Armis `name` | `device.hostname` |
 | CrowdStrike `local_ip` | `device.ip` |
-| Claroty `ip_address` | `device.ip` |
+| Claroty `ip_list` | `raw_extensions` (array via `source_path`; `device.ip` pending ENRICH-1) |
 | Armis `ipAddress` | `device.ip` |
 
 Without OCSF normalization, the analyst would need to know each sensor's field names and write separate queries per sensor. With OCSF, a single `WHERE device.hostname = "prod-db-01"` spans all sensors transparently.
@@ -305,4 +305,5 @@ Internal tables are **read-only via PrismQL**. Mutations to alerts, cases, rules
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-08-12 | business-analyst | F-CLARO-P2-HIGH-001 (downstream copy-target sweep, TD-VSDD-097 §dimension-2): corrected stale Claroty field-mapping claims per BC-2.02.005 v1.7 (human-authorized). §Tier 1 dataflow step 5: both-sensors-same-field wording replaced — CrowdStrike `hostname` maps to `device.hostname`; Claroty `device_name` maps to `device.name`. §Why OCSF table: Claroty `device_name` OCSF field corrected `device.hostname` → `device.name`; Claroty vendor field corrected `ip_address` → `ip_list`, OCSF field corrected `device.ip` → `raw_extensions` (array via `source_path`; `device.ip` pending ENRICH-1 per BC-2.02.005 §ip_list→device.ip follow-up). Armis `name` → `device.hostname` and `ipAddress` → `device.ip` rows untouched (BC-2.02.006 legitimately uses `device.hostname`). |
 | 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: CustomAdapter trait code example updated &TenantId → &OrgSlug (ADR-006). |

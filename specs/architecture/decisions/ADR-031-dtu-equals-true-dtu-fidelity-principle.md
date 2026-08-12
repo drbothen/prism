@@ -4,8 +4,8 @@ adr_id: "ADR-031"
 title: "DTU = True DTU — Fidelity Principle for All Clone Implementations"
 status: accepted
 date: "2026-05-29"
-modified: "2026-07-24"
-version: "1.9"
+modified: "2026-08-12"
+version: "1.10"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-028 §D12 (Cyberint cookie auth real-API vs DTU model divergence — DTU-shortcut acceptance SUPERSEDED)"]
@@ -435,18 +435,27 @@ DTU. DTU axum routes match with/without trailing slash via Axum normalization. F
 S-DEMO-CLAROTY-TRAILING-SLASH-001 (P2)."
 
 **Reclassification (v1.2):** REQUIRED fidelity. The real Claroty xDome API uses trailing
-slashes on all POST-for-read endpoints (`/api/v1/alerts/`, `/api/v1/devices/`,
-`/api/v1/audit_log/get/`). Prism's TOML spec currently uses paths WITHOUT trailing slash.
-This means:
-- When prism talks to a real Claroty instance, the request paths will lack the required
-  trailing slash, which may cause 301 redirects or 404s depending on Claroty's server
-  configuration.
+slashes on the `alerts` and `devices` POST-for-read endpoints (`/api/v1/alerts/`,
+`/api/v1/devices/`). The `audit_logs` endpoint canonical path is `/api/v1/audit_log/get`
+(no trailing slash) per the xDome OpenAPI spec and poller-bear reference — the prior
+trailing-slash claim (`/api/v1/audit_log/get/`) for this endpoint is superseded by
+BC-2.16.013 v1.37 / F-CLARO-P2-HIGH-002. Prism's TOML spec currently uses paths WITHOUT
+trailing slash for `alerts` and `devices`. This means:
+- When prism talks to a real Claroty instance, the `alerts` and `devices` request paths
+  will lack the required trailing slash, which may cause 301 redirects or 404s depending
+  on Claroty's server configuration.
 - The DTU's Axum route normalization masks this gap at demo time.
 
 Full trailing-slash fidelity requires:
-1. `claroty.sensor.toml`: update all `path_template` values to include trailing slashes
-   matching the real Claroty API (`/api/v1/alerts/`, `/api/v1/devices/`,
-   `/api/v1/audit_log/get/`). Grounded from poller-bear semport §API table.
+1. `claroty.sensor.toml`: update `path_template` values for `alerts` and `devices` tables
+   to include trailing slashes (`/api/v1/alerts/`, `/api/v1/devices/`), grounded from
+   poller-bear semport §API table. The `audit_logs` table canonical `path_template` is
+   `/api/v1/audit_log/get` (no trailing slash) per xDome OpenAPI spec and poller-bear
+   reference (BC-2.16.013 v1.37 / F-CLARO-P2-HIGH-002); the prior trailing-slash form
+   `/api/v1/audit_log/get/` for this endpoint is superseded. The `prism-dtu-claroty`
+   router MUST include `normalize_path` middleware so both `/api/v1/audit_log/get` and
+   `/api/v1/audit_log/get/` are accepted — DTU acceptance of both slash-variant forms
+   is unchanged.
 2. `prism-dtu-claroty`: verify Axum normalizes trailing-slash vs non-trailing-slash
    consistently, or explicitly register both route forms. Current Axum behavior handles
    this but must be verified by a parity test that sends trailing-slash paths.
@@ -459,10 +468,14 @@ does NOT automatically redirect or accept trailing-slash variants unless
 `axum::middleware::normalize_path()` is in the layer stack. Verify whether the Claroty DTU
 router includes `normalize_path` before assuming Axum handles it transparently.
 
-**TOML impact:** YES — all three `path_template` values change:
-- `alerts` table: `/api/v1/alerts` → `/api/v1/alerts/`
-- `devices` table: `/api/v1/devices` → `/api/v1/devices/`
-- `audit_logs` table: `/api/v1/audit_log/get` → `/api/v1/audit_log/get/`
+**TOML impact:** YES — all three `path_template` values are addressed:
+- `alerts` table: `/api/v1/alerts` → `/api/v1/alerts/` (trailing-slash canonical form)
+- `devices` table: `/api/v1/devices` → `/api/v1/devices/` (trailing-slash canonical form)
+- `audit_logs` table: canonical form is `/api/v1/audit_log/get` (no trailing slash per
+  BC-2.16.013 v1.37 / F-CLARO-P2-HIGH-002); the prior direction
+  (`/api/v1/audit_log/get` → `/api/v1/audit_log/get/`) is superseded for this endpoint only.
+  The `prism-dtu-claroty` router includes `normalize_path` middleware so both slash-variant
+  forms are accepted (unchanged behavior).
 
 **Wave 5 story:** `S-DEMO-CLAROTY-TRAILING-SLASH-001` (existing stub, elevated from
 P2-post-demo to REQUIRED Wave 5 fidelity work).
@@ -639,6 +652,7 @@ non-standard cookie names, but it does not resolve the DTU fidelity problem.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.10 | 2026-08-12 | architect | F-CLARO-P2-HIGH-002 downstream copy target sweep (TD-VSDD-097 dimension 2): §D8-b `audit_logs` canonical `path_template` corrected to no-trailing-slash form `/api/v1/audit_log/get`, superseding prior trailing-slash claim. Three §D8-b sites corrected: (1) Reclassification paragraph — `audit_logs` removed from "all POST-for-read endpoints" trailing-slash list; corrected to note no-trailing-slash canonical per xDome OpenAPI spec and poller-bear reference (BC-2.16.013 v1.37 / F-CLARO-P2-HIGH-002); (2) "Full trailing-slash fidelity requires:" item 1 — `audit_logs` target corrected from `/api/v1/audit_log/get/` to `/api/v1/audit_log/get`; NormalizePathLayer both-forms-accepted statement added; (3) "TOML impact:" — `audit_logs` row direction corrected. `alerts` and `devices` canonical trailing-slash forms unchanged. NormalizePathLayer acceptance of both slash-variant forms preserved throughout. |
 | 1.9 | 2026-07-24 | architect | F-WASE-P52-LOW-001 POL-29 class sweep: live-body `PipelineExecutor::build_request` citation at §D3 item 3 corrected to accurate free-function form — first mention in document expanded to `` `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`) ``. `PipelineExecutor::build_request` does not resolve; `build_request` is a module-level free function at `pipeline.rs:975` (8 params, no `&self`). `version` bumped 1.8→1.9. |
 | 1.8 | 2026-07-24 | architect | F-WASE-P51-MED-001: §Status body synced to accepted state — frontmatter was flipped to `accepted` at v1.4 (DRIFT-ADR031-STATUS-001 2026-07-20) but §Status body opening still read "Proposed 2026-05-29, v1.0". Retroactive-acceptance pattern applied (mirrors ADR-026 v1.41 / ADR-028 v1.27). Scope-narrowed-by ADR-053 §D3 gate PASSED D-1943 noted in §Status opening. Class-closing audit confirmed ADR-031 is the only accepted ADR with this drift pattern. |
 | 1.7 | 2026-07-24 | architect | F-WASE-P50-MED-001: `superseded_by` ADR-053 §D3 annotation — "final ADR approval gate pending" → "final ADR approval gate PASSED 2026-07-22 (D-1943)". |

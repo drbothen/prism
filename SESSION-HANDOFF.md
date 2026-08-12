@@ -8,6 +8,8 @@ timestamp: 2026-07-28T00:00:00Z
 
 # Session Handoff — Prism VSDD Pipeline
 
+> **D-2105 (2026-08-12): CLAROTY LIVE-API SPEC-RECONCILIATION BURST COMPLETE — PR #236 REMEDIATED AWAITING PASS 3. All 12 PR-LEVEL pass-2 findings remediated: F-HIGH-001 (BC-2.02.005 v1.6→v1.7: device_name→device.name corrected; ip_list→device.ip OPEN via ENRICH-1); F-HIGH-002 (BC-2.16.013 v1.36→v1.37: audit_log trailing-slash removed); F-MED-001..005 + F-LOW-001..004 (implementer — already on branch); F-OBS-001 (S-DEMO-CLAROTY-DAR-001 v1.1→v1.2: AC-004 heading 9→10). Downstream sweep: ADR-031 v1.9→v1.10 (TD-VSDD-097 dim-2: §D8-b audit_logs path corrected); architecture-concept.md v1.1→v1.2; capabilities.md v1.18→v1.19. Human decision (p): APPROVED spec-amendment-to-match-code per CLAUDE.md §Source-of-Truth Precedence rule 7. BC-INDEX v8.95→v8.96; ARCH-INDEX v2.298→v2.299; STORY-INDEX v2.776→v2.777. PG-2105-001: pr-manager autonomous cascade continued after orchestrator takeover (no code harm; coordination hazard; 1st recurrence). ip_list→device.ip OPEN — needs story anchor (array→ocsf_field grammar extension ENRICH-1 scope). workspace_test_count 5676→5700. develop_head ef996a4c0 UNCHANGED. fix/claroty-live-api-fidelity HEAD 0b70ecf18, PR #236 OPEN. BC-5.39.001 streak 0/3. factory-artifacts PUSHED. STATE v8.653→v8.654. [SUPERSEDES D-2102]**
+>
 > **D-2102 (2026-08-12): SESSION WRAP — §RESUME SNAPSHOT D-2102 authored (supersedes D-2096). Durable zero-context resume snapshot. Session arc: develop advanced b226459d0→ef996a4c0 (PR #235 wasmtime lru bump @b226459d0 merged; PR #234 FINDING-R merged @ef996a4c0 — stale D-747 lock comments struck in sensor TOMLs). FINDING-R CLOSED (implementer). OBS-009 CLOSED (consumed by PR #234). 44→42 cumulative open findings. Live-API Claroty track: fix/claroty-live-api-fidelity PUSHED to origin (3 commits, based on f9f5738bd, NO PR opened). Two silent-data-loss defects found+fixed (SAP-2 Rule 6 emission-site authority: device_alert_relations static-fixture path emitted zero of 82 Alert struct fields; second path similar). ARCHITECTURAL FINDING: ColumnMapper::map_record has ZERO non-test callers in production — OCSF column mapping wiring gap (not a runtime data-loss bug; Stage 1 coercion safe). Human decision (o) 2026-08-12: Interpretation A ocsf_field paths as Arrow field names for v1 (overrides ADR-058 v1.0 Interpretation B col.name). ADR-058 v2.0 committed (architect amendment). Gating blocker: PrismQL dotted-path quoting convention not designed — Arrow field names contain dots (finding.uid) that DataFusion parses as qualified column refs. Spec deltas: BC-2.16.003 v1.4; BC-2.16.013 v1.36; ADR-058 NEW ACCEPTED v2.0; 3 new stories (S-DEMO-CLAROTY-DAR-001 P1 draft v1.1; S-DEMO-CLAROTY-HARNESS-DAR-001 P1 draft v1.0; S-ADR058-DTU-PARITY-MIGRATION-001 P2 draft v1.0 — DEPENDENCY ANCHOR MISSING). SECURITY URGENT: /Users/jmagady/Dev/test-soc/.mcp.json live Perplexity+Tavily keys in plaintext context — MUST ROTATE. Process findings: 7+ orchestrator errors this session; permission bypass attempt; false-positive security alarm. workspace_test_count 5676 on develop (5690 on fix/claroty-live-api-fidelity branch). develop_head ef996a4c0. BC-5.39.001 streak 0/3. factory-artifacts PUSHED. STATE v8.650→v8.651. [SUPERSEDES D-2096]**
 >
 > **D-1804 (2026-07-17): LANE-3 PASS-18 NOT CLEAN strict / CLEAN(PR-merge) YES — 1 LOW F-ADMTOK-P18-LOW-001 (0o600 sidecar-permission lock mutation-survivor; TD-VSDD-059; only closure in 18-pass cascade left assertion-free); STREAK RESET 2/3→0/3; mutation-thinking: 13 mutants analyzed; 12 killed by named tests; 1 survivor (perms); bound_addr filter adjudicated not-a-finding; security/spec-completeness/regression lenses all PASS; baseline all PASS (tests 60+3 known; fixture-gen 11/11; sweep 447/131/6/8; SAP-1 zero; non-exhaustive 92/92; POL suite clean; AD-017 clean); fb-15 CLOSED test-only @828449de (#[cfg(unix)] mode & 0o077 == 0 assertions added to Tests B/F/K; mutation-kill verified BOTH production sites — 0o644 mutant → Test B fails left:36; Tests F+K fail left:36; +63/−3); report persisted local-pass-18.md; STORY-INDEX v2.700→v2.701; streak 0/3 (new HEAD 828449de); NEXT = LOCAL pass-19 on frozen 828449de (fresh 3-pass streak). LANE 1 unchanged (PR #224 CLOSED; human must reopen). STATE v8.403→v8.404.**
@@ -132,9 +134,9 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **D-2094 (2026-08-03): LIVE-DEMO ENGINE-DEFECT REGISTRATION BURST (TD-VSDD-053 single-commit; predecessor D-2093). 18 D-1889 live-demo engine defect stories registered as draft v0.1 stubs (DEFECT-PQL-SUBQUERY-FANOUT-001 CRIT through DEFECT-PQL-ON-CONTAINS-001 LOW; total_stories 265→283; STORY-INDEX v2.771→v2.772). FINDING-L CLOSED AS REFUTED (37/264 bold pseudo-field files; 1 in round-1..3 cohort; scope dissolved). +FINDING-L-REVISED (LOW, 11 desyncs). +FINDING-M (CRIT, 5–6 sensor defects unregistered). +FINDING-N (MED, classify_predicates doc-comments). +FINDING-O (LOW, 4 draft BCs cited as governing). +PROCESS-GAP (changelog heading split + orchestrator vacuous-script; 5th probe-passes≠gate-fires). 39→43 cumulative open findings. develop_head b226459d0 UNCHANGED. BC-5.39.001 streak 0/3. STATE v8.642→v8.643. [SUPERSEDES D-2093] [SUPERSEDED by D-2095]**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2102 (SESSION WRAP: durable zero-context resume snapshot; 42 cumulative open findings; develop_head ef996a4c0; BC-5.39.001 streak 0/3; STATE v8.650→v8.651).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2102 is the most recent durable session-wrap snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2102 is the most recent durable session-wrap snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `ef996a4c0` (origin/develop=`ef996a4c0`; PR #234 SQUASH-MERGED @ef996a4c0). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (this D-2102 commit). STATE v8.651. 42 cumulative open findings; SECURITY URGENT: rotate Perplexity+Tavily API keys (/Users/jmagady/Dev/test-soc/.mcp.json live keys exposed); GATING BLOCKER: PrismQL dotted-path quoting convention not designed; FINDING-G (CLAUDE.md detection gap — human mandate required).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2105 (CLAROTY LIVE-API SPEC-RECONCILIATION BURST COMPLETE; PR #236 OPEN frozen HEAD 0b70ecf18; pass-2 REMEDIATED awaiting pass-3; develop_head ef996a4c0; BC-5.39.001 streak 0/3; STATE v8.653→v8.654).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2102 is the most recent durable session-wrap snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2102 is the most recent durable session-wrap snapshot. D-2105 blockquote above captures the D-2105 burst delta. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `ef996a4c0` (origin/develop=`ef996a4c0`; PR #234 SQUASH-MERGED @ef996a4c0). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (this D-2105 commit). STATE v8.654. 42 cumulative open findings; SECURITY URGENT: rotate Perplexity+Tavily API keys (/Users/jmagady/Dev/test-soc/.mcp.json live keys exposed); ip_list→device.ip OPEN (needs story anchor); FINDING-G (CLAUDE.md detection gap — human mandate required).
 
 ---
 
@@ -188,10 +190,13 @@ THE BOTTLENECK IS THE CONVERGENCE GATE, not the defect work. ADR-053 ratified EF
 7. Three struct-optionality mismatches in S-DEMO-CLAROTY-DAR-001 Task 4 → story-writer
 8. CI maintenance: cache protoc / install via apt (arduino/setup-protoc flake) → devops-engineer
 
-### DECISION-LOG DELTA (D-2097..D-2102)
+### DECISION-LOG DELTA (D-2097..D-2105)
 
 | D-ID | Decision |
 |------|----------|
+| D-2105 | CLAROTY LIVE-API SPEC-RECONCILIATION BURST (TD-VSDD-053 single-commit). F-HIGH-001 CLOSED (BC-2.02.005 v1.7: device_name→device.name). F-HIGH-002 CLOSED (BC-2.16.013 v1.37: audit_log trailing-slash). Downstream sweep: ADR-031 v1.10 + architecture-concept.md v1.2 + capabilities.md v1.19. F-OBS-001 CLOSED (S-DEMO-CLAROTY-DAR-001 v1.2: AC-004 heading). Human decision (p): spec-amendment-to-match-code per CLAUDE.md rule 7. BC-INDEX v8.96 / ARCH-INDEX v2.299 / STORY-INDEX v2.777. PG-2105-001. ip_list OPEN. workspace_test_count 5700. STATE v8.653→v8.654. |
+| D-2104 | ADR-058 Stage 1+2 story-authoring burst. S-ADR058-OCSF-COERCION-001 v1.1 + S-ADR058-OCSF-ROUTING-001 v1.2 registered. ADR-058 v2.0→v2.1 (§J rule). total_stories 294→296. PG-2104-001+002. STATE v8.652→v8.653. |
+| D-2103 | Stale-record correction burst — D-2102 self-contradiction corrected. STATE v8.651→v8.652. |
 | D-2102 | SESSION WRAP — §RESUME SNAPSHOT D-2102 authored (supersedes D-2096). develop ef996a4c0. 42 open findings (FINDING-R+OBS-009 closed). fix/claroty-live-api-fidelity PUSHED, NO PR. Human decision (o): Interpretation A ocsf_field paths. ADR-058 v2.0. Gating blocker: PrismQL dotted-path quoting. BC-2.16.003 v1.4; BC-2.16.013 v1.36; 3 new stories. SECURITY: API keys must be rotated. STATE v8.650→v8.651. |
 | D-2101 | Session arc at fc8a0ae79 — develop b226459d0; PR #235 lru bump; PR #234 FINDING-R comment-strike merged; OBS-009 consumed. Live-API track work, ADR-058 v1.0, human decision (o). STATE v8.649→v8.650. |
 | D-2100 | ADR-058 drafted; BC-2.16.013 v1.35→v1.36; BC-2.16.003 v1.3→v1.4; S-DEMO-CLAROTY-DAR-001 + S-DEMO-CLAROTY-HARNESS-DAR-001 authored. |
@@ -201,17 +206,17 @@ THE BOTTLENECK IS THE CONVERGENCE GATE, not the defect work. ADR-053 ratified EF
 
 ### WORKTREE INVENTORY
 
-- `.factory` — active, clean, pushed (this D-2102 commit).
+- `.factory` — active, clean, pushed (this D-2105 commit).
 - `.worktrees/FINDING-R` — PR #234 merged; remove this worktree.
 - `.worktrees/S-3.09` @`43c41389d` — stale-leave, LOCAL-ONLY at risk, KEEP-PARKED.
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` — stale-leave, LOCAL-ONLY at risk, 1 dirty file, do-NOT-touch.
-- `fix/claroty-live-api-fidelity` — no worktree; main worktree branch; PUSHED origin; based on f9f5738bd; NO PR.
+- `fix/claroty-live-api-fidelity` — no worktree; PR #236 OPEN; frozen HEAD `0b70ecf18` (DO NOT PUSH).
 
 ### KEY HEADS
 
 - `origin/develop`: `ef996a4c0` (PR #234 SQUASH-MERGED)
-- `fix/claroty-live-api-fidelity`: PUSHED; based on `f9f5738bd`; 3 commits; NO PR
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` (this D-2102 commit)
+- `fix/claroty-live-api-fidelity`: PR #236 OPEN; frozen HEAD `0b70ecf18` (DO NOT PUSH — streak preservation)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` (this D-2105 commit)
 - Main worktree: develop @`ef996a4c0` (local may still show `b226459d0` — run `git fetch`)
 - `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch

@@ -8,12 +8,12 @@ priority: P1
 status: draft
 # BC status: BC-2.16.013 active (v1.36 as of 2026-08-11); BC-2.01.013 active.
 # S-7.01 gate: behavioral_contracts non-empty; story may be dispatched to ready after PO confirms no new-BC flags.
-version: "1.1"
+version: "1.2"
 acceptance_criteria_count: 7
 level: "L4"
 producer: story-writer
 timestamp: "2026-08-11T00:00:00Z"
-modified: "2026-08-11"
+modified: "2026-08-12"
 tdd_mode: strict
 subsystems: [SS-17, SS-16]
 # Subsystem anchor justifications:
@@ -78,7 +78,7 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.013-bundled-sensor-spec-dtu-parity.md"
   - "crates/prism-dtu-claroty/src/clone.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "e13bafe"
+input-hash: "8ac6b66"
 traces_to:
   - "BC-2.16.013"
   - "BC-2.01.013"
@@ -209,7 +209,7 @@ MUST deserialize the response body and assert:
 
 Both assertions are required; asserting only (1) is insufficient.
 
-### AC-004: TOML spec `device_alert_relations` table block with 9 contracted columns (traces to BC-2.16.013 postcondition §1 contracted column subset)
+### AC-004: TOML spec `device_alert_relations` table block with 10 contracted columns (traces to BC-2.16.013 postcondition §1 contracted column subset)
 
 `crates/prism-sensors/specs/claroty.sensor.toml` declares a `[[tables]]` block with
 `table_name = "device_alert_relations"` containing exactly these 10 columns (in any order):
@@ -559,5 +559,6 @@ is the enforcement template if a new gate is warranted.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.2 | 2026-08-12 | story-writer | F-CLARO-P2-OBS-001: Corrected stale column count in AC-004 §heading from 9 to 10. The v1.1 sweep updated AC-004 §body, the contracted-column table, and §body_template but missed the §heading line. The v1.1 changelog row overstated its sweep scope by claiming all stale count references were updated (POL-26 changelog-integrity partial-fix regression). No other stale 9-column references exist — §heading was the sole miss confirmed by full-document sweep. |
 | 1.1 | 2026-08-11 | story-writer | Column-count correction: 9 → 10. Added `device_alert_status` (10th contracted column per BC-2.16.013 v1.36 §Postconditions §1 column-list reconciliation). Updated all stale count references across §Authority, Behavioral Contracts table, RG-004/RG-005 test names and descriptions, AC-004 column table + body_template + pagination page_size (100 → 1000 per shipped claroty.sensor.toml), AC-005, Task 4 struct example, Task 5, Task 8, Task 9, Previous Story Intelligence item 4, Notes for Implementer notes 3 and 4. Points justification comment updated. SAC-1 RG count and density ratio unchanged (6/6 = 1.0). Verifies S-DEMO-CLAROTY-HARNESS-DAR-001 carries no column-list content (clean). |
 | 1.0 | 2026-08-11 | story-writer | Initial materialization. Closes DTU-EXT-006 registration; anchors INV-HARNESS-ROUTE-PARITY harness obligation to this story ID. Grounded against BC-2.16.013 v1.36 §Postconditions §1 device_alert_relations entry, clone.rs build_router(), routes/audit_log.rs (handler pattern), types.rs, claroty.sensor.toml (existing table blocks). 7 ACs; 6 Red Gate tests; 2 BCs: BC-2.16.013, BC-2.01.013; DTU: YES; tdd_mode: strict. |
