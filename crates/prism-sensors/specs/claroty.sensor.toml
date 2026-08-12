@@ -57,6 +57,18 @@ name = "bearer_token"
 #   - "updated_at" → "updated_time" (DTU field is updated_time)
 #   - "device_id" → removed (no device_id field; device association is via devices_count)
 #   Added: "category" (DTU field), "devices_count" (DTU field integer)
+# Not included (intentional exclusions from ClarotyAlert struct):
+#   iot_devices_count (u32): IoT-device-count aggregate; excluded — same category as
+#     devices_count which is already declared; IoT sub-type aggregates are low-query-value
+#   it_devices_count (u32): IT-device-count aggregate; same rationale as iot_devices_count
+#   medical_devices_count (u32): medical-device-count aggregate; same rationale
+#   unresolved_devices_count (u32): unresolved-device-count aggregate; same rationale
+#   mitre_technique_enterprise_ids (Vec<String>): array type; ENRICH-1 wildcard support
+#     exists for devices table but alerts MITRE arrays are not yet surfaced via PrismQL
+#     queries; deferred to S-ADR058-OCSF-COERCION-001 MITRE-column scope
+#   mitre_technique_enterprise_names (Vec<String>): same rationale as _ids above
+#   mitre_technique_ics_ids (Vec<String>): ICS-specific MITRE array; same rationale
+#   mitre_technique_ics_names (Vec<String>): ICS-specific MITRE array; same rationale
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "alerts"
@@ -235,19 +247,24 @@ ocsf_class = "audit_activity"
 
 # ---------------------------------------------------------------------------
 # Table: devices
-# POST-for-read pattern; offset pagination
+# POST-for-read pattern; offset pagination (page_size = 1000)
 # DTU route: POST /api/v1/devices (crates/prism-dtu-claroty/src/clone.rs build_router())
 #
 # Gap-CL-003 fix (2026-05-29): added this table. Previously absent from TOML despite
-#   a fully working DTU route and production poller support. Columns grounded from
-#   DTU ClarotyDevice struct (crates/prism-dtu-claroty/src/types.rs):
-#   uid, asset_id, device_category, device_type, ip_list, mac_list, risk_score, retired.
-#   Not included (complex/collection types or not yet supported by column grammar):
-#     assignees (Vec<String>), labels (Vec<String>), network_list (Vec<String>),
-#     vlan_list (Vec<u32>), tags (Vec<String>), device_subcategory, device_type_family,
-#     model, os_category. Follow-up story to add array column type support.
-# Gap-CL-004 applies here too: offset/limit should be in POST body per Claroty API.
-#   Pipeline fix tracked in S-DEMO-CLAROTY-PAGINATION-001.
+#   a fully working DTU route and production poller support.
+# PR #236 expansion (2026-08-12): added 12 additional columns from DTU ClarotyDevice
+#   struct (crates/prism-dtu-claroty/src/types.rs). Table now covers all 20 queryable
+#   fields: uid, asset_id, device_category, device_type, ip_list, mac_list, network_list,
+#   vlan_list, purdue_level, site_name, device_subcategory, device_type_family,
+#   criticality, is_online, device_name, manufacturer, model, os_category,
+#   risk_score, retired.
+#   ip_list, mac_list, network_list, vlan_list use ENRICH-1 source_path wildcard
+#   (source_path = "$.X[*]") for array column extraction.
+#   Not included (DTU-internal or write-path only — no entry in xDome Device fields_enum):
+#     assignees (Vec<String>): xDome user assignment list; not returned in Device query responses
+#     labels (Vec<String>): user-defined labels; excluded from standard Device API response fields
+#     tags (Vec<String>): write-path only; used by tag-management endpoints, not POST /api/v1/devices
+# Gap-CL-004: CLOSED by S-DEMO-CLAROTY-PAGINATION-001. Offset/limit now sent in POST body.
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "devices"

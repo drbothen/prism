@@ -158,8 +158,10 @@ impl ColumnMapper {
                 Value::String(_) => value.clone(),
                 Value::Number(n) => Value::String(n.to_string()),
                 Value::Bool(b) => Value::String(b.to_string()),
-                // Null and structured types (Array, Object) pass through unchanged — callers
-                // handle null via the absent-key path and structured types via raw_extensions.
+                // Null passes through and lands in mapped_fields as Value::Null
+                // (only an *absent* key is skipped by map_record, not an explicit null).
+                // Structured types (Array, Object) pass through for the adjacent
+                // Array/Object passthrough deferral (S-ADR058-OCSF-COERCION-001).
                 other => other.clone(),
             });
         }

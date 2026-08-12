@@ -37,7 +37,11 @@ use prism_dtu_common::{Archetype, GenOpts, OrgId};
 // -- `DEVICE_COLUMNS` (stayed at 6 of 20) and `ALERT_COLUMNS` (stayed at 8 of 11)
 // -- were not. The spec-parse-driven approach makes every future TOML column
 // addition automatically visible as a guard failure if the generator or fixture
-// is not updated, eliminating this recurrence class entirely.
+// is not updated, eliminating this recurrence class for Claroty.
+// TD-VSDD-097 dimension-1 (sibling-pair sweep): `review_2026_06_10_armis_parity.rs`
+// is the same-pattern twin for Armis. It uses hand-maintained column arrays rather
+// than spec-parse-driven derivation — an independent sibling story should apply the
+// same spec-parse-driven approach to that file to close the same drift risk there.
 //
 // Array-column handling: columns with `source_path = "$.name[*]"` (ENRICH-1
 // wildcard extraction) produce JSON arrays rather than scalars.
