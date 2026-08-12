@@ -36,7 +36,7 @@ url = "2"
 hex = "0.4"
 # uuid v7 for time-ordered confirmation tokens (TD-S112-001)
 uuid = { version = "1", features = ["v7"] }
-lru = "0.17"
+lru = "0.18"
 # S-1.14-REDO: MaxMind MMDB GeoIP reader for MmdbSource (BC-2.19.001 / AC-1).
 # 0.28 API returns LookupResult<'_, T> from lookup() — NOT bare T (see story Task 4).
 maxminddb = "0.28"
