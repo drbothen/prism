@@ -407,3 +407,107 @@ ocsf_class = "device"
   [tables.steps.pagination]
   type = "offset_limit"
   page_size = 1000
+
+# ---------------------------------------------------------------------------
+# Table: device_alert_relations
+# POST-for-read pattern; offset pagination
+# DTU route: POST /api/v1/device_alert_relations/ (Tier 3)
+#
+# Returns device-alert pair records (AlertedDevicesPairs) from the xDome API.
+# Response envelope: {"devices_alerts": [...], "count": N_or_null}
+#   - Key is `devices_alerts` (NOT `device_alert_relations`)
+#   - Uses `count` (NOT `total`) per GetDeviceAlertsResponse schema
+#   - TOML response_path = "$.devices_alerts" matches the DTU envelope key
+#
+# fields projection: REQUIRED by GetDeviceAlertsParameters (minItems: 1);
+#   all 10 columns verified in the 92-value AlertedDevicesPairs__fields_enum
+#   in xDome OpenAPI 2026-06-20 (confirmed 2026-08-11).
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "device_alert_relations"
+ocsf_class = "detection_finding"
+
+  # DTU ClarotyDeviceAlertRelation.device_uid: String — Claroty device UUID.
+  # Verified in AlertedDevicesPairs__fields_enum (xDome OpenAPI 2026-06-20).
+  [[tables.columns]]
+  name = "device_uid"
+  column_type = "string"
+  ocsf_field = "device.uid"
+  options = ["REQUIRED"]
+
+  # DTU ClarotyDeviceAlertRelation.alert_id: u32 — alert integer ID.
+  # Verified in AlertedDevicesPairs__fields_enum (xDome OpenAPI 2026-06-20).
+  [[tables.columns]]
+  name = "alert_id"
+  column_type = "integer"
+  ocsf_field = "finding.uid"
+
+  # DTU ClarotyDeviceAlertRelation.device_alert_detected_time: String (ISO 8601).
+  # Verified in AlertedDevicesPairs__fields_enum (xDome OpenAPI 2026-06-20).
+  # Resolves via implicit iso8601 default per ADR-028 §D8-B (no timestamp_formats key needed).
+  [[tables.columns]]
+  name = "device_alert_detected_time"
+  column_type = "datetime"
+  ocsf_field = "time"
+
+  # DTU ClarotyDeviceAlertRelation.device_risk_score: String — risk level label.
+  # Verified in AlertedDevicesPairs__fields_enum (xDome OpenAPI 2026-06-20).
+  [[tables.columns]]
+  name = "device_risk_score"
+  column_type = "string"
+  ocsf_field = "risk_score"
+
+  # DTU ClarotyDeviceAlertRelation.network_signature_severity: Option<String>.
+  # Absent when no network signature matched. Verified in AlertedDevicesPairs__fields_enum.
+  [[tables.columns]]
+  name = "network_signature_severity"
+  column_type = "string"
+
+  # DTU ClarotyDeviceAlertRelation.network_signature_confidence: Option<String>.
+  # Absent when no network signature matched. Verified in AlertedDevicesPairs__fields_enum.
+  [[tables.columns]]
+  name = "network_signature_confidence"
+  column_type = "string"
+
+  # DTU ClarotyDeviceAlertRelation.malicious_ip_severity: Option<String>.
+  # Absent when alert has no malicious IP indicator. Verified in AlertedDevicesPairs__fields_enum.
+  [[tables.columns]]
+  name = "malicious_ip_severity"
+  column_type = "string"
+
+  # DTU ClarotyDeviceAlertRelation.alert_note: String — analyst note (empty when unset).
+  # Verified in AlertedDevicesPairs__fields_enum (xDome OpenAPI 2026-06-20).
+  [[tables.columns]]
+  name = "alert_note"
+  column_type = "string"
+  ocsf_field = "comment"
+
+  # DTU ClarotyDeviceAlertRelation.external_ip: Option<String>.
+  # Absent for internal-only alerts. Verified in AlertedDevicesPairs__fields_enum.
+  [[tables.columns]]
+  name = "external_ip"
+  column_type = "string"
+
+  # DTU ClarotyDeviceAlertRelation.device_alert_status: String — "Unresolved"/"Resolved".
+  # Verified in AlertedDevicesPairs__fields_enum (xDome OpenAPI 2026-06-20).
+  [[tables.columns]]
+  name = "device_alert_status"
+  column_type = "string"
+  ocsf_field = "status"
+
+  # POST-for-read step with offset pagination
+  # DTU route: POST /api/v1/device_alert_relations/ (Tier 3)
+  # response_path: "$.devices_alerts" — key in GetDeviceAlertsResponse envelope.
+  # body_template: fields projection is REQUIRED by GetDeviceAlertsParameters (minItems: 1).
+  #   All 10 declared column names are valid AlertedDevicesPairs__fields_enum values.
+  #   OffsetLimit POST-body injection merges {"offset": N, "limit": 1000} at request time.
+  [[tables.steps]]
+  name = "fetch_device_alert_relations"
+  method = "POST"
+  path_template = "/api/v1/device_alert_relations/"
+  body_template = '{"fields": ["device_uid", "alert_id", "device_alert_detected_time", "device_risk_score", "network_signature_severity", "network_signature_confidence", "malicious_ip_severity", "alert_note", "external_ip", "device_alert_status"]}'
+  response_path = "$.devices_alerts"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 1000

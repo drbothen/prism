@@ -58,8 +58,17 @@ const ALERT_COLUMNS: &[&str] = &[
     "description",
 ];
 
-/// claroty.sensor.toml `audit_logs` table columns.
-const AUDIT_LOG_COLUMNS: &[&str] = &["id", "action", "actor", "timestamp", "resource"];
+/// claroty.sensor.toml `audit_logs` table columns (Tier 0+1 real xDome fields).
+const AUDIT_LOG_COLUMNS: &[&str] = &[
+    "id",
+    "action",
+    "user_display_name",
+    "category",
+    "timestamp",
+    "details",
+    "username",
+    "note",
+];
 
 /// Generated records of a given `_surface` for CompromisedEndpoint, default opts.
 fn generated_surface(surface: &str) -> Vec<serde_json::Value> {

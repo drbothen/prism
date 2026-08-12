@@ -581,7 +581,9 @@ async fn test_BC_2_16_013_claroty_harness_audit_log_returns_200_with_bearer_401_
 // BC-2.16.013 INV-HARNESS-ROUTE-PARITY:
 //   Response envelope: {"audit_log": [...], "total": N}
 //   audit_log is non-empty
-//   Each entry has all 5 columns: id, action, actor, timestamp, resource
+//   Each entry has all 8 columns (real xDome API fields, Tier 0+1):
+//     id, action, user_display_name, category, timestamp, details, username, note
+//   `note` is nullable (null for entries without a note); all other columns are non-empty strings.
 //   Fixture embedded via include_str! of prism-dtu-claroty fixtures/audit-log.json
 //   NOT via prism_dtu_common::load_fixture (C-1: harness uses compile-time embed)
 //
@@ -592,7 +594,9 @@ async fn test_BC_2_16_013_claroty_harness_audit_log_returns_200_with_bearer_401_
 /// AC-004: Claroty harness audit_log response — envelope matches standalone.
 ///
 /// Envelope: {"audit_log": [...], "total": N}
-/// audit_log non-empty; each entry has all 5 columns (id/action/actor/timestamp/resource).
+/// audit_log non-empty; each entry has all 8 TOML-declared columns
+/// (id/action/user_display_name/category/timestamp/details/username/note).
+/// `note` is nullable; the 7 other columns are non-empty strings.
 ///
 /// (BC-2.16.013 INV-HARNESS-ROUTE-PARITY — Claroty audit_log response envelope)
 ///
@@ -655,19 +659,37 @@ async fn test_BC_2_16_013_claroty_harness_audit_log_response_envelope_matches_st
         "`total` must equal the length of the `audit_log` array (AC-004)"
     );
 
-    // 5-column structural check: every entry must have all 5 TOML-declared columns.
-    // Columns: id, action, actor, timestamp, resource (from claroty.sensor.toml audit_logs table).
+    // 8-column structural check: every entry must have all 8 TOML-declared columns
+    // (real xDome API fields, Tier 0+1 update). `note` is nullable (null in some entries);
+    // the remaining 7 columns are non-empty strings.
+    // Columns: id, action, user_display_name, category, timestamp, details, username, note
+    // (from claroty.sensor.toml audit_logs table, SAP-2 parity requirement).
     for (i, entry) in audit_log.iter().enumerate() {
-        let required_columns = ["id", "action", "actor", "timestamp", "resource"];
-        for col in &required_columns {
+        // Non-nullable columns: key must be present AND value must be non-empty string.
+        let non_null_columns = [
+            "id",
+            "action",
+            "user_display_name",
+            "category",
+            "timestamp",
+            "details",
+            "username",
+        ];
+        for col in &non_null_columns {
             let val = entry.get(col).and_then(|v| v.as_str()).unwrap_or("");
             assert!(
                 !val.is_empty(),
                 "audit_log[{i}] must have non-empty `{col}` column \
-                 (AC-004, 5-column parity: id/action/actor/timestamp/resource \
-                 per claroty.sensor.toml SAP-2 requirement)"
+                 (AC-004, 8-column parity: id/action/user_display_name/category/\
+                 timestamp/details/username/note per claroty.sensor.toml SAP-2 requirement)"
             );
         }
+        // Nullable column: key must be present (value may be null or a non-empty string).
+        assert!(
+            entry.get("note").is_some(),
+            "audit_log[{i}] must have `note` key present (AC-004, SAP-2: \
+             key absent vs null is a BC-2.11.001 EC-11-079 wire-shape violation)"
+        );
     }
 
     // Spot-check: first entry's timestamp must resemble an ISO 8601 datetime.

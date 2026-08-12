@@ -350,6 +350,82 @@ pub struct GetAuditLogResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Device-alert relation types (Tier 3)
+// ---------------------------------------------------------------------------
+
+/// A single Claroty xDome device-alert relation object.
+///
+/// Returned by `POST /api/v1/device_alert_relations/` via the `$.devices_alerts` response path.
+///
+/// All 10 field names are verified against the 92-value
+/// `AlertedDevicesPairs__fields_enum` in xDome OpenAPI 2026-06-20.
+///
+/// `network_signature_severity`, `network_signature_confidence`,
+/// `malicious_ip_severity`, and `external_ip` are `Option<String>` because
+/// they may be absent for alerts that do not involve network signatures or
+/// external IP communication.  Both `null`-present and key-absent JSON forms
+/// are handled correctly via `#[serde(default)]`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ClarotyDeviceAlertRelation {
+    /// Claroty device UID (UUID string). Maps to `device.uid` in OCSF.
+    pub device_uid: String,
+    /// Alert integer ID. Maps to `finding.uid`.
+    pub alert_id: u32,
+    /// ISO 8601 datetime when the device-alert pair was first detected.
+    pub device_alert_detected_time: String,
+    /// Risk score level for this device in the context of this alert
+    /// (e.g. "Very Low", "Low", "Medium", "High", "Critical").
+    pub device_risk_score: String,
+    /// Severity of matching network signatures; absent when no signature matched.
+    #[serde(default)]
+    pub network_signature_severity: Option<String>,
+    /// Confidence of matching network signatures; absent when no signature matched.
+    #[serde(default)]
+    pub network_signature_confidence: Option<String>,
+    /// Severity of malicious IP involvement; absent when no malicious IP indicator.
+    #[serde(default)]
+    pub malicious_ip_severity: Option<String>,
+    /// Analyst note for this device-alert pair (empty string when no note set).
+    pub alert_note: String,
+    /// External IP involved in the alert for this device; absent for internal-only alerts.
+    #[serde(default)]
+    pub external_ip: Option<String>,
+    /// Status of this device-alert pair (e.g. "Unresolved", "Resolved").
+    pub device_alert_status: String,
+}
+
+/// POST body for `POST /api/v1/device_alert_relations/`.
+///
+/// `fields` is REQUIRED by `GetDeviceAlertsParameters` (minItems: 1) — the real
+/// xDome API returns 422 when `fields` is absent or empty.  The DTU accepts the
+/// body permissively (EC-001: unknown fields ignored).
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct GetDeviceAlertsBody {
+    #[serde(default)]
+    pub fields: Vec<String>,
+    pub filter_by: Option<ApiQueryFilter>,
+    pub sort_by: Option<Vec<ApiSortClause>>,
+    pub offset: Option<u32>,
+    pub limit: Option<u32>,
+    pub include_count: Option<bool>,
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
+}
+
+/// Response for `POST /api/v1/device_alert_relations/`.
+///
+/// Envelope key `devices_alerts` matches `response_path = "$.devices_alerts"` in
+/// `claroty.sensor.toml` (xDome OpenAPI `GetDeviceAlertsResponse.devices_alerts`).
+///
+/// Uses `count: Option<u32>` (NOT `total`) per `GetDeviceAlertsResponse` schema
+/// (count is `anyOf [integer, null]`).  `devices_alerts` is REQUIRED in the schema.
+#[derive(Debug, Clone, Serialize)]
+pub struct GetDeviceAlertsResponse {
+    pub devices_alerts: Vec<ClarotyDeviceAlertRelation>,
+    pub count: Option<u32>,
+}
+
+// ---------------------------------------------------------------------------
 // Tag write types
 // ---------------------------------------------------------------------------
 
