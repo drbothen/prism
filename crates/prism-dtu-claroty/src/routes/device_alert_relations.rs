@@ -28,12 +28,38 @@ use crate::{
     types::GetDeviceAlertsBody,
 };
 
+/// Load the device-alert-relations fixture as a `Vec<serde_json::Value>`.
+fn load_device_alert_relations_fixture() -> Vec<Value> {
+    // SAFETY: fixture files are bundled at build time; missing fixture is a build error.
+    #[allow(clippy::expect_used)]
+    let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "device-alert-relations")
+        .expect("fixtures/device-alert-relations.json must exist");
+    // SAFETY: fixture content is a well-formed JSON array validated at CI time.
+    #[allow(clippy::expect_used)]
+    raw.as_array()
+        .expect("device-alert-relations fixture must be a JSON array")
+        .clone()
+}
+
 /// `POST /api/v1/device_alert_relations/`
 ///
-/// Returns synthetic device-alert relation entries from
-/// `fixtures/device-alert-relations.json`.
-/// Response: `{"devices_alerts": [...], "count": N}`.
+/// Returns device-alert relation entries.  Response: `{"devices_alerts": [...], "count": N}`.
 /// Requires valid `Authorization: Bearer` header (AC-002).
+///
+/// # Three-way serving composition (F-CLARO-P2-MED-005 / ADR-036 v2.3 §2.4)
+///
+/// Mirrors `list_devices` composition exactly so the two routes stay structurally
+/// parallel (parallel structure is itself a future-drift guard):
+///
+/// - **Scenario path** (`fixture_gen_seeded=true` AND `timeline.is_some()`): applies
+///   `StageMask` to filter relations whose referenced device is not yet visible at the
+///   current stage (INV-CROSS-DTU-ENTITY-COHERENCE-001).  Uses `_device_id` (the stage-
+///   gating key stamped by the generator) to match the primary/lateral device gate.
+/// - **Seeded path** (`fixture_gen_seeded=true` AND `timeline.is_none()`): returns all
+///   `device_alert_relation`-surface records from `generated_records`.  `DormantTenant`
+///   (seeded=true, 0 records) correctly returns empty — NOT the static fixture.
+/// - **Static path** (`fixture_gen_seeded=false`): loads from
+///   `fixtures/device-alert-relations.json` (backward-compatible default).
 ///
 /// When the clone has a real (non-nil) `instance_org_id`, the `X-Org-Id` header is
 /// validated against `state.instance_org_id` after bearer auth — matching the guard
@@ -58,16 +84,73 @@ pub async fn list_device_alert_relations(
         }
     }
 
-    // SAFETY: fixture files are bundled at build time; missing fixture is a build error.
-    #[allow(clippy::expect_used)]
-    let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "device-alert-relations")
-        .expect("fixtures/device-alert-relations.json must exist");
-    // SAFETY: fixture content is a well-formed JSON array validated at CI time.
-    #[allow(clippy::expect_used)]
-    let entries = raw
-        .as_array()
-        .expect("device-alert-relations fixture must be a JSON array")
-        .clone();
+    // Three-way composition (ADR-036 v2.3 §2.4, F-CLARO-P2-MED-005):
+    //
+    // F3 / DTU-05: filter on the authoritative `_surface` discriminator stamped by
+    // the generator — NOT key-presence heuristics.
+    //
+    // Sentinel: use `fixture_gen_seeded` (not generated_records.is_empty()) so that
+    // DormantTenant (seeded=true, 0 records) serves empty — not the static fixture.
+    // F-P6-HIGH-001 fix / ADR-036 v2.2 precedent.
+    #[cfg(feature = "fixture-gen")]
+    let entries: Vec<Value> = if state.fixture_gen_seeded {
+        if let Some(ref timeline) = state.timeline {
+            // Scenario path: apply StageMask — filter out relations referencing devices
+            // that are hidden at the current stage (INV-CROSS-DTU-ENTITY-COHERENCE-001).
+            // Uses `_device_id` (stage-gating key) stamped by make_device_alert_relation,
+            // mirroring the `device_id` check in list_devices exactly.
+            use prism_dtu_common::current_stage_index;
+            let now = chrono::Utc::now().timestamp();
+            let stage_idx = current_stage_index(timeline, now);
+            let mask = &timeline.stages[stage_idx].visible_entity_mask;
+            let primary_id = &timeline.entities.primary_device_id_cs;
+            let lateral_ids: std::collections::HashSet<&str> = timeline
+                .entities
+                .lateral_device_ids_cs
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+
+            state
+                .generated_records
+                .iter()
+                .filter(|rec| {
+                    rec.get("_surface").and_then(|v| v.as_str()) == Some("device_alert_relation")
+                })
+                .filter(|rec| {
+                    // Same gate as list_devices: primary/lateral/non-catalog device_id check.
+                    let device_id = rec.get("_device_id").and_then(|v| v.as_str()).unwrap_or("");
+                    if device_id == primary_id {
+                        // Stage 0: primary device (and its relations) not yet surfaced.
+                        // stage_idx > 0 guard per BC-2.06.019 PC-4.
+                        mask.primary_device && stage_idx > 0
+                    } else if lateral_ids.contains(device_id) {
+                        mask.lateral_devices
+                    } else {
+                        true
+                    }
+                })
+                .cloned()
+                .collect()
+        } else {
+            // Seeded path (no scenario): all device_alert_relation-surface records.
+            // DormantTenant (seeded=true, 0 records) → empty — NOT static fixture.
+            state
+                .generated_records
+                .iter()
+                .filter(|rec| {
+                    rec.get("_surface").and_then(|v| v.as_str()) == Some("device_alert_relation")
+                })
+                .cloned()
+                .collect()
+        }
+    } else {
+        // Static path: load from fixture (fixture_gen_seeded=false).
+        load_device_alert_relations_fixture()
+    };
+    #[cfg(not(feature = "fixture-gen"))]
+    let entries = load_device_alert_relations_fixture();
+
     let count = entries.len() as u32;
 
     (
@@ -402,6 +485,184 @@ mod tests {
                 "relations[{i}].alert_id = {:?} does not exist in alerts.json ids.\n\
                  Known ids: {alert_ids:?}",
                 alert_id_str
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // F-CLARO-P2-MED-005: seeded-path FK integrity test
+    //
+    // Parameterizes over the SEEDED serving path (fixture_gen_seeded=true).
+    // The existing static-fixture test (`test_device_alert_relations_fixture_referential_integrity`)
+    // only covered the static path where FK integrity already held.
+    //
+    // RED before fix: `list_device_alert_relations` always loads the static fixture
+    // (uid-001..015) regardless of seeded state. Generated devices have uids of the
+    // form {slug}-{seed}-device-{hex}, so the intersection is empty — uid-001 is not
+    // in the generated device uid set, causing the FK assertion to fail.
+    //
+    // GREEN after fix: the seeded path serves generated device_alert_relation records
+    // whose `device_uid` values reference generated device uids.
+    //
+    // Gated behind `#[cfg(feature = "fixture-gen")]` because:
+    //   - `ClarotyClone::new_with_seed` requires `fixture-gen`
+    //   - `prism_dtu_common::Archetype` requires `fixture-gen`
+    // Runs under `just check` (--all-features) and any invocation with `--features fixture-gen`.
+    // -----------------------------------------------------------------------
+
+    /// F-CLARO-P2-MED-005 — referential integrity of `device_alert_relations` on the
+    /// seeded path.
+    ///
+    /// Constructs a `CompromisedEndpoint` seeded clone (50 generated devices, 20 generated
+    /// alerts) then asserts:
+    /// 1. `device_alert_relations` returns non-empty results (seeded path serves data).
+    /// 2. Every `device_uid` in the relations set exists as a `uid` in the generated
+    ///    devices endpoint response.
+    /// 3. Every `alert_id` in the relations set exists as an `id` in the generated
+    ///    alerts endpoint response.
+    ///
+    /// TD-VSDD-059: this test MUST fail on the seeded path before the fix.
+    /// The static fixture (uid-001..015) never overlaps with generated device uids
+    /// ({slug}-42-device-{hex}), so point 2 catches the defect.
+    #[cfg(feature = "fixture-gen")]
+    #[tokio::test]
+    async fn test_device_alert_relations_seeded_fk_integrity() {
+        // NOTE: prism_dtu_common::OrgId is a [u8; 16]-backed newtype — different from
+        // prism_core::OrgId (which wraps uuid::Uuid). Use the former for new_with_seed.
+        let org_id = prism_dtu_common::OrgId([
+            0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x70, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x42,
+        ]);
+
+        let mut clone = ClarotyClone::new_with_seed(
+            42,
+            prism_dtu_common::Archetype::CompromisedEndpoint,
+            org_id,
+        );
+        clone
+            .start()
+            .await
+            .expect("seeded ClarotyClone must start in test environment");
+        let base_url = clone.base_url();
+        let client = test_client();
+
+        // Fetch generated devices → build uid set.
+        let devices_resp: serde_json::Value = client
+            .post(format!("{base_url}/api/v1/devices"))
+            .header("Authorization", "Bearer test-token")
+            .json(&json!({}))
+            .send()
+            .await
+            .expect("devices request must succeed")
+            .json()
+            .await
+            .expect("devices response must be JSON");
+
+        // Fetch generated alerts → build id set.
+        let alerts_resp: serde_json::Value = client
+            .post(format!("{base_url}/api/v1/alerts"))
+            .header("Authorization", "Bearer test-token")
+            .json(&json!({"fields": ["id"]}))
+            .send()
+            .await
+            .expect("alerts request must succeed")
+            .json()
+            .await
+            .expect("alerts response must be JSON");
+
+        // Fetch device_alert_relations — this is what we are testing.
+        let relations_resp: serde_json::Value = client
+            .post(format!("{base_url}/api/v1/device_alert_relations/"))
+            .header("Authorization", "Bearer test-token")
+            .json(&json!({"fields": ["device_uid", "alert_id"]}))
+            .send()
+            .await
+            .expect("relations request must succeed")
+            .json()
+            .await
+            .expect("relations response must be JSON");
+
+        // Build device uid set from the seeded devices route.
+        let device_uids: std::collections::HashSet<String> = devices_resp
+            .get("devices")
+            .and_then(|v| v.as_array())
+            .expect("devices response must have 'devices' array")
+            .iter()
+            .filter_map(|d| d.get("uid").and_then(|v| v.as_str()).map(String::from))
+            .collect();
+
+        // Build alert id set (normalised to String) from the seeded alerts route.
+        let alert_ids: std::collections::HashSet<String> = alerts_resp
+            .get("alerts")
+            .and_then(|v| v.as_array())
+            .expect("alerts response must have 'alerts' array")
+            .iter()
+            .filter_map(|a| {
+                a.get("id").map(|v| match v {
+                    serde_json::Value::Number(n) => n.to_string(),
+                    serde_json::Value::String(s) => s.clone(),
+                    other => other.to_string(),
+                })
+            })
+            .collect();
+
+        assert!(
+            !device_uids.is_empty(),
+            "seeded devices must be non-empty (CompromisedEndpoint produces 50 devices)"
+        );
+        assert!(
+            !alert_ids.is_empty(),
+            "seeded alerts must be non-empty (CompromisedEndpoint produces 20 alerts)"
+        );
+
+        let relations = relations_resp
+            .get("devices_alerts")
+            .and_then(|v| v.as_array())
+            .expect("relations response must have 'devices_alerts' key (AC-003)");
+
+        // Point 1: seeded path must produce non-empty relations.
+        // After fix: CompromisedEndpoint emits 20 device_alert_relation records.
+        // Before fix: static fixture is returned but uid-001 fails FK check below.
+        assert!(
+            !relations.is_empty(),
+            "F-CLARO-P2-MED-005: seeded device_alert_relations must be non-empty for \
+             CompromisedEndpoint (20 generated alerts → 20 relations). \
+             DormantTenant would correctly return empty — but this archetype has data."
+        );
+
+        // Points 2 + 3: FK integrity over ALL returned relations.
+        for (i, rel) in relations.iter().enumerate() {
+            let device_uid = rel
+                .get("device_uid")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("relations[{i}] missing device_uid"));
+
+            assert!(
+                device_uids.contains(device_uid),
+                "F-CLARO-P2-MED-005 FK violation: relations[{i}].device_uid = {device_uid:?} \
+                 not found in generated device uid set.\n\
+                 EXPECTED: uids of the form '{{slug}}-42-device-{{hex}}' (generated path).\n\
+                 ACTUAL: '{device_uid}' (static fixture uid like 'uid-001' means the route \
+                 is serving the static fixture instead of the seeded path).\n\
+                 Generated device uids (first 5): {:?}",
+                device_uids.iter().take(5).collect::<Vec<_>>()
+            );
+
+            let alert_id_val = rel
+                .get("alert_id")
+                .unwrap_or_else(|| panic!("relations[{i}] missing alert_id"));
+            let alert_id_str = match alert_id_val {
+                serde_json::Value::Number(n) => n.to_string(),
+                serde_json::Value::String(s) => s.clone(),
+                other => other.to_string(),
+            };
+
+            assert!(
+                alert_ids.contains(&alert_id_str),
+                "F-CLARO-P2-MED-005 FK violation: relations[{i}].alert_id = {alert_id_str:?} \
+                 not found in generated alert id set.\n\
+                 Generated alert ids (first 5): {:?}",
+                alert_ids.iter().take(5).collect::<Vec<_>>()
             );
         }
     }
