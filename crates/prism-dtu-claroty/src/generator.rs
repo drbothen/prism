@@ -490,28 +490,52 @@ fn gen_high_churn(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
 
     for i in 0..n_devices {
         if i < 20 {
-            // First 20 are tombstone records (BC-3.4.004 EC-07: dev-{slug}-{seed}-tomb-{n})
-            let rec = json!({
-                // F3 / DTU-05: tombstones are device-surface records.
-                "_surface": "device",
-                "device_id": format!("dev-{slug}-{seed}-tomb-{i}", seed = opts.seed),
-                "asset_id": format!("ASSET-{slug}-{seed}-tomb-{i}", seed = opts.seed),
-                "device_category": "OT",
-                "device_subcategory": "PLC",
-                "device_type": "Controller",
-                "device_type_family": "Controller",
-                "ip_list": [format!("10.tombstone.{}.{}", (i / 256) % 256, i % 256)],
-                "labels": [],
-                "mac_list": [format!("ff:ff:{:02x}:{:02x}:{:02x}:{:02x}",
-                    (opts.seed >> 8) as u8, opts.seed as u8, (i >> 8) as u8, i as u8)],
-                "model": "Tombstoned Device",
-                "network_list": ["OT Network"],
-                "os_category": "Embedded",
-                "retired": true,
-                "risk_score": "Unknown",
-                "uid": format!("{slug}-{seed}-tomb-device-{i:08x}", seed = opts.seed),
-                "status": "tombstone"
-            });
+            // First 20 are tombstone records (BC-3.4.004 EC-07: dev-{slug}-{seed}-tomb-{n}).
+            //
+            // F-CLARO-P2-MED-001 fix: build from make_device() then override tombstone-specific
+            // fields. This ensures tombstones carry ALL TOML device columns (including any future
+            // additions) and cannot drift from make_device again. Tombstone status is conveyed by
+            // field VALUES, not absent keys: `"status": "tombstone"`, `"retired": true`, etc.
+            let mut rec = make_device(&slug, opts.seed, i);
+            // SAFETY: make_device always returns a serde_json::Value::Object; as_object_mut
+            // is infallible here. The `if let` pattern is used to avoid expect() in production
+            // code per project conventions, with the understanding that a None branch is
+            // structurally unreachable.
+            if let Some(obj) = rec.as_object_mut() {
+                obj.insert(
+                    "device_id".to_string(),
+                    json!(format!("dev-{slug}-{seed}-tomb-{i}", seed = opts.seed)),
+                );
+                obj.insert(
+                    "asset_id".to_string(),
+                    json!(format!("ASSET-{slug}-{seed}-tomb-{i}", seed = opts.seed)),
+                );
+                obj.insert(
+                    "ip_list".to_string(),
+                    json!([format!("10.tombstone.{}.{}", (i / 256) % 256, i % 256)]),
+                );
+                obj.insert(
+                    "mac_list".to_string(),
+                    json!([format!(
+                        "ff:ff:{:02x}:{:02x}:{:02x}:{:02x}",
+                        (opts.seed >> 8) as u8,
+                        opts.seed as u8,
+                        (i >> 8) as u8,
+                        i as u8
+                    )]),
+                );
+                obj.insert("model".to_string(), json!("Tombstoned Device"));
+                obj.insert("retired".to_string(), json!(true));
+                obj.insert("risk_score".to_string(), json!("Unknown"));
+                obj.insert(
+                    "uid".to_string(),
+                    json!(format!(
+                        "{slug}-{seed}-tomb-device-{i:08x}",
+                        seed = opts.seed
+                    )),
+                );
+                obj.insert("status".to_string(), json!("tombstone"));
+            }
             records.push(rec);
         } else {
             records.push(make_device(&slug, opts.seed, i));

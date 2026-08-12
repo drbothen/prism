@@ -129,17 +129,25 @@ fn deadbeef_org() -> OrgId {
     ])
 }
 
-/// Generated records of a given `_surface` for CompromisedEndpoint, default opts.
-fn generated_surface(surface: &str) -> Vec<serde_json::Value> {
-    let fs = generate(
-        &deadbeef_org(),
-        Archetype::CompromisedEndpoint,
-        &GenOpts::default(),
-    );
+/// Generated records of a given `_surface` for the specified archetype, default opts.
+///
+/// F-CLARO-P2-MED-001 fix: parameterised so each archetype can be independently
+/// guarded. Before this fix, only `CompromisedEndpoint` was ever tested.
+fn generated_surface_for(archetype: Archetype, surface: &str) -> Vec<serde_json::Value> {
+    let fs = generate(&deadbeef_org(), archetype, &GenOpts::default());
     fs.records
         .into_iter()
         .filter(|r| r.get("_surface").and_then(|v| v.as_str()) == Some(surface))
         .collect()
+}
+
+/// Generated records of a given `_surface` for CompromisedEndpoint, default opts.
+///
+/// Retained for tests that do not require multi-archetype iteration (e.g. the
+/// type-shape test which only needs one representative archetype). New coverage
+/// tests should use `generated_surface_for` directly.
+fn generated_surface(surface: &str) -> Vec<serde_json::Value> {
+    generated_surface_for(Archetype::CompromisedEndpoint, surface)
 }
 
 fn static_fixture(raw: &str, name: &str) -> Vec<serde_json::Value> {
@@ -210,17 +218,50 @@ fn assert_array_keys_present(records: &[serde_json::Value], keys: &[&str], path_
 // P2-01 -- TOML column coverage per serving path
 // ---------------------------------------------------------------------------
 
-/// Generated device records cover every TOML `devices` column.
+/// Generated device records cover every TOML `devices` column — for ALL
+/// archetypes that emit device-surface records.
+///
+/// F-CLARO-P2-MED-001 fix: prior guard was archetype-blind (CompromisedEndpoint
+/// only). This test now iterates every device-producing archetype so a new
+/// construction site cannot silently miss a TOML column for a single archetype.
+///
+/// EXCLUDED archetypes (SAP-3 defense-in-depth):
+/// - `SchemaDrift`: records[0] is deliberately sparse — a sentinel record carrying
+///   `"_schema_drift": true` with minimal fields to exercise schema-drift detection.
+///   It is intentionally non-representative of the production-data path and is
+///   governed by BC-3.4.002 / BC-3.4.003 row 6. Including it would require the
+///   guard to special-case a record that is designed to violate column coverage.
+/// - `DormantTenant`: emits zero device records by BC-3.4.003 row 8 / EC-001.
+///   No records to check.
 #[test]
 fn test_p2_01_claroty_generated_devices_cover_toml_columns() {
     let spec = parse_claroty_spec();
     let (scalar_cols, array_root_keys) = columns_for_table(&spec, "devices");
-    let records = generated_surface("device");
-    let keys = uniform_flat_keys(&records, "generated devices");
     let scalar_refs: Vec<&str> = scalar_cols.iter().map(String::as_str).collect();
-    assert_columns_covered(&keys, &scalar_refs, "generated devices");
     let array_refs: Vec<&str> = array_root_keys.iter().map(String::as_str).collect();
-    assert_array_keys_present(&records, &array_refs, "generated devices");
+
+    // All archetypes that produce device-surface records.
+    // HighChurn: includes tombstone records (i < 20) — these MUST carry all TOML
+    // columns just like normal device records; the tombstone status is conveyed via
+    // field values (`"status": "tombstone"`, `"retired": true`), not absent keys.
+    for archetype in [
+        Archetype::HealthyOtEnvironment,
+        Archetype::CompromisedEndpoint,
+        Archetype::AuthOutage,
+        Archetype::LargeScale,
+        Archetype::PaginationEdgeCases,
+        Archetype::HighChurn,
+    ] {
+        let path_name = format!("generated devices ({archetype:?})");
+        let records = generated_surface_for(archetype, "device");
+        assert!(
+            !records.is_empty(),
+            "{path_name}: expected device records but got none"
+        );
+        let keys = uniform_flat_keys(&records, &path_name);
+        assert_columns_covered(&keys, &scalar_refs, &path_name);
+        assert_array_keys_present(&records, &array_refs, &path_name);
+    }
 }
 
 /// Generated alert records cover every TOML `alerts` column.
