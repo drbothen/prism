@@ -365,6 +365,7 @@ pub struct GetAuditLogResponse {
 /// they may be absent for alerts that do not involve network signatures or
 /// external IP communication.  Both `null`-present and key-absent JSON forms
 /// are handled correctly via `#[serde(default)]`.
+#[non_exhaustive]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ClarotyDeviceAlertRelation {
     /// Claroty device UID (UUID string). Maps to `device.uid` in OCSF.
@@ -399,6 +400,7 @@ pub struct ClarotyDeviceAlertRelation {
 /// `fields` is REQUIRED by `GetDeviceAlertsParameters` (minItems: 1) — the real
 /// xDome API returns 422 when `fields` is absent or empty.  The DTU accepts the
 /// body permissively (EC-001: unknown fields ignored).
+#[non_exhaustive]
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct GetDeviceAlertsBody {
     #[serde(default)]
@@ -419,7 +421,9 @@ pub struct GetDeviceAlertsBody {
 ///
 /// Uses `count: Option<u32>` (NOT `total`) per `GetDeviceAlertsResponse` schema
 /// (count is `anyOf [integer, null]`).  `devices_alerts` is REQUIRED in the schema.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct GetDeviceAlertsResponse {
     pub devices_alerts: Vec<ClarotyDeviceAlertRelation>,
     pub count: Option<u32>,

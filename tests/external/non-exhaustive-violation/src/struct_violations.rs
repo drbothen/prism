@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-76, 77-78, 80-84, 86-88, 92 (69 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-76, 77-78, 80-84, 86-88, 92-95 (72 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -1460,4 +1460,93 @@ pub fn v92_parse_error() {
         semantic: true,
     };
     let _ = _err;
+}
+
+// ─── S-DEMO-CLAROTY-DAR-001 Task 4 / AC-005: prism-dtu-claroty device_alert_relations types ──
+//
+// These 3 structs are the public types for the `POST /api/v1/device_alert_relations/` DTU route.
+// `#[non_exhaustive]` on each prevents external struct-literal construction so future fields
+// (e.g., additional risk signal columns from xDome OpenAPI updates) can be added without breaking
+// downstream callers. Enforced by S-DEMO-CLAROTY-DAR-001 Task 4 / AC-005 / F-CLARO-P2-MED-003.
+// ci.yml EXPECTED bumped from 92 to 95 (3 new E0639 struct violations: v93-v95).
+
+/// Violation 93: prism_dtu_claroty::types::ClarotyDeviceAlertRelation struct literal (E0639).
+///
+/// `ClarotyDeviceAlertRelation` is the per-row response type for
+/// `POST /api/v1/device_alert_relations/` (BC-2.16.013 §Postconditions §1).
+/// `#[non_exhaustive]` ensures external crates cannot use struct-literal construction —
+/// future fields from `AlertedDevicesPairs__fields_enum` expansions (92-value enum in
+/// xDome OpenAPI 2026-06-20) can be added without breaking external callers.
+/// External crates MUST deserialize via `serde_json` — direct struct-literal construction
+/// MUST NOT compile (E0639).
+///
+/// Added: F-CLARO-P2-MED-003 fix (S-DEMO-CLAROTY-DAR-001 Task 4 / AC-005).
+/// ci.yml EXPECTED bumped from 92 to 95.
+#[allow(dead_code)]
+pub fn v93_claroty_device_alert_relation() {
+    use prism_dtu_claroty::types::ClarotyDeviceAlertRelation;
+    // Triggers E0639 (#[non_exhaustive]).
+    let _dar = ClarotyDeviceAlertRelation {
+        device_uid: "dev-abc-0001".to_string(),
+        alert_id: 42,
+        device_alert_detected_time: "2026-01-01T00:00:00Z".to_string(),
+        device_risk_score: "Low".to_string(),
+        network_signature_severity: None,
+        network_signature_confidence: None,
+        malicious_ip_severity: None,
+        alert_note: String::new(),
+        external_ip: None,
+        device_alert_status: "Unresolved".to_string(),
+    };
+    let _ = _dar;
+}
+
+/// Violation 94: prism_dtu_claroty::types::GetDeviceAlertsBody struct literal (E0639).
+///
+/// `GetDeviceAlertsBody` is the POST request body for `POST /api/v1/device_alert_relations/`
+/// (BC-2.16.013 §Postconditions §1 — `fields` required, `minItems: 1`).
+/// `#[non_exhaustive]` ensures external crates cannot use struct-literal construction —
+/// future body parameters (e.g., `time_range`, `severity_filter`) can be added without
+/// breaking external callers. External callers MUST use `GetDeviceAlertsBody::default()`
+/// or `serde_json` deserialization — direct struct-literal construction MUST NOT compile (E0639).
+///
+/// Added: F-CLARO-P2-MED-003 fix (S-DEMO-CLAROTY-DAR-001 Task 4 / AC-005).
+#[allow(dead_code)]
+pub fn v94_get_device_alerts_body() {
+    use prism_dtu_claroty::types::GetDeviceAlertsBody;
+    // Triggers E0639 (#[non_exhaustive]).
+    let _body = GetDeviceAlertsBody {
+        fields: vec!["device_uid".to_string()],
+        filter_by: None,
+        sort_by: None,
+        offset: None,
+        limit: None,
+        include_count: None,
+        page: None,
+        page_size: None,
+    };
+    let _ = _body;
+}
+
+/// Violation 95: prism_dtu_claroty::types::GetDeviceAlertsResponse struct literal (E0639).
+///
+/// `GetDeviceAlertsResponse` is the response envelope for `POST /api/v1/device_alert_relations/`
+/// with the `devices_alerts` top-level key (BC-2.16.013 §Postconditions §1 — response key MUST be
+/// `devices_alerts`, NOT `device_alert_relations`; EC-016-013-009 silent-failure guard).
+/// `#[non_exhaustive]` ensures external crates cannot use struct-literal construction —
+/// future envelope fields can be added without breaking external callers.
+/// `#[serde(deny_unknown_fields)]` (on the `GetDeviceAlertsResponse` struct) catches
+/// phantom keys that would cause silent data loss at normalization time.
+/// External callers MUST deserialize via `serde_json` — direct struct-literal MUST NOT compile (E0639).
+///
+/// Added: F-CLARO-P2-MED-003 fix (S-DEMO-CLAROTY-DAR-001 Task 4 / AC-005).
+#[allow(dead_code)]
+pub fn v95_get_device_alerts_response() {
+    use prism_dtu_claroty::types::GetDeviceAlertsResponse;
+    // Triggers E0639 (#[non_exhaustive]).
+    let _resp = GetDeviceAlertsResponse {
+        devices_alerts: vec![],
+        count: None,
+    };
+    let _ = _resp;
 }
