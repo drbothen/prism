@@ -1468,7 +1468,6 @@ pub fn v92_parse_error() {
 // `#[non_exhaustive]` on each prevents external struct-literal construction so future fields
 // (e.g., additional risk signal columns from xDome OpenAPI updates) can be added without breaking
 // downstream callers. Enforced by S-DEMO-CLAROTY-DAR-001 Task 4 / AC-005 / F-CLARO-P2-MED-003.
-// ci.yml EXPECTED bumped from 92 to 95 (3 new E0639 struct violations: v93-v95).
 
 /// Violation 93: prism_dtu_claroty::types::ClarotyDeviceAlertRelation struct literal (E0639).
 ///
@@ -1481,7 +1480,6 @@ pub fn v92_parse_error() {
 /// MUST NOT compile (E0639).
 ///
 /// Added: F-CLARO-P2-MED-003 fix (S-DEMO-CLAROTY-DAR-001 Task 4 / AC-005).
-/// ci.yml EXPECTED bumped from 92 to 95.
 #[allow(dead_code)]
 pub fn v93_claroty_device_alert_relation() {
     use prism_dtu_claroty::types::ClarotyDeviceAlertRelation;
