@@ -36,6 +36,12 @@ pub enum SortOrder {
 // ---------------------------------------------------------------------------
 
 /// A single Claroty xDome device object.
+///
+/// # SAP-2 parity note (Tier 2, 2026-08-11)
+/// `tags: Vec<String>` is a DTU-internal field used by the write path
+/// (`/api/v1/devices/{id}/tags/`). It is NOT in the 201-value xDome Device fields_enum
+/// (xDome OpenAPI 2026-06-20) — it will not be returned by the real API when included
+/// in a `fields` projection. It is excluded from `claroty.sensor.toml` intentionally.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ClarotyDevice {
     pub asset_id: String,
@@ -54,7 +60,26 @@ pub struct ClarotyDevice {
     pub risk_score: String,
     pub uid: String,
     pub vlan_list: Vec<u32>,
+    /// Purdue model level (e.g. "Level 0", "Level 1", "Level 2"). Tier 2 field.
+    #[serde(default)]
+    pub purdue_level: String,
+    /// Physical site name. Tier 2 field.
+    #[serde(default)]
+    pub site_name: String,
+    /// Asset criticality level (e.g. "High", "Medium", "Low", "Critical"). Tier 2 field.
+    #[serde(default)]
+    pub criticality: String,
+    /// Whether the device is currently online. Tier 2 field.
+    #[serde(default)]
+    pub is_online: bool,
+    /// Device display name. Tier 2 field.
+    #[serde(default)]
+    pub device_name: String,
+    /// Hardware manufacturer. Tier 2 field.
+    #[serde(default)]
+    pub manufacturer: String,
     /// Tag keys assigned via the write path; merged from `ClarotyState::tag_store`.
+    /// NOTE: NOT in the xDome Device fields_enum — DTU-internal only. See struct doc.
     #[serde(default)]
     pub tags: Vec<String>,
 }
@@ -114,6 +139,15 @@ pub struct ClarotyAlert {
     pub status: String,
     pub unresolved_devices_count: u32,
     pub updated_time: String,
+    /// Alert classification (e.g. "OT", "IT", "Security"). Tier 2 field.
+    #[serde(default)]
+    pub alert_class: String,
+    /// Count of OT devices involved in the alert. Tier 2 field.
+    #[serde(default)]
+    pub ot_devices_count: u32,
+    /// Human-readable alert name (distinct from alert_type_name). Tier 2 field.
+    #[serde(default)]
+    pub alert_name: String,
 }
 
 /// POST body for `/api/v1/alerts`.

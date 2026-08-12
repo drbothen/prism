@@ -273,6 +273,257 @@ fn test_BC_2_16_013_AC004_audit_logs_functional_fields_unchanged() {
     );
 }
 
+// ---------------------------------------------------------------------------
+// Tier 2 tests — array columns, scalar columns, alert expansion
+// ---------------------------------------------------------------------------
+
+/// Wire-shape assertion (Tier 2): `ip_list` column with `source_path = "$.ip_list[*]"`
+/// serializes an array of IP strings to a compact JSON-list string at the column mapping layer.
+///
+/// This is the load-bearing test for the ENRICH-1 wildcard feature:
+/// `["10.0.1.1","10.0.1.2"]` in raw JSON → `Value::String("[\"10.0.1.1\",\"10.0.1.2\"]")`
+/// in `raw_extensions` (no `ocsf_field` declared on `ip_list`).
+///
+/// SAP-2: tests the WIRE OUTPUT of the pipeline, not just the Rust struct shape.
+#[test]
+fn test_claroty_tier2_ip_list_array_column_serializes_to_json_list_string() {
+    use prism_spec_engine::column_mapping::ColumnMapper;
+
+    let toml_path = concat!(env!("CARGO_MANIFEST_DIR"), "/specs/claroty.sensor.toml");
+    let content = std::fs::read_to_string(toml_path)
+        .unwrap_or_else(|e| panic!("Failed to read claroty.sensor.toml: {e}"));
+
+    let spec =
+        SpecLoader::parse(&content).unwrap_or_else(|e| panic!("SpecLoader::parse failed: {e:?}"));
+
+    let devices = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "devices")
+        .expect("devices table must exist");
+
+    // Verify ip_list column is declared with source_path
+    let ip_col = devices
+        .columns
+        .iter()
+        .find(|c| c.name == "ip_list")
+        .expect("devices table must declare ip_list column (Tier 2)");
+    assert_eq!(
+        ip_col.source_path.as_deref(),
+        Some("$.ip_list[*]"),
+        "ip_list column must use source_path = '$.ip_list[*]' for ENRICH-1 array extraction"
+    );
+
+    // Simulate a raw JSON record from the xDome API containing ip_list
+    let raw = serde_json::json!({
+        "uid": "uid-wire-test",
+        "ip_list": ["10.0.1.1", "10.0.1.2", "10.0.1.3"]
+    });
+
+    let result = ColumnMapper::map_record(&raw, devices)
+        .expect("ColumnMapper::map_record must succeed for devices with ip_list");
+
+    // ip_list has no ocsf_field → goes to raw_extensions as a JSON-list string
+    let ip_list_val = result
+        .raw_extensions
+        .get("ip_list")
+        .expect("ip_list must appear in raw_extensions (no ocsf_field declared)");
+
+    // Wire-shape assertion: the array must serialize to a compact JSON-list string
+    // This is the exact string the DataFusion engine sees as a string column value.
+    assert_eq!(
+        ip_list_val,
+        &serde_json::Value::String("[\"10.0.1.1\",\"10.0.1.2\",\"10.0.1.3\"]".to_string()),
+        "ip_list with source_path='$.ip_list[*]' must serialize array to compact JSON-list \
+         string at wire level; got: {ip_list_val:?} (ENRICH-1 wildcard serialization)"
+    );
+}
+
+/// Tier 2 structural test: devices table must declare all Tier 2 array columns
+/// with correct source_path values (ENRICH-1 pattern).
+#[test]
+fn test_claroty_tier2_device_array_columns_declared_with_source_paths() {
+    let toml_path = concat!(env!("CARGO_MANIFEST_DIR"), "/specs/claroty.sensor.toml");
+    let content = std::fs::read_to_string(toml_path)
+        .unwrap_or_else(|e| panic!("Failed to read claroty.sensor.toml: {e}"));
+
+    let spec =
+        SpecLoader::parse(&content).unwrap_or_else(|e| panic!("SpecLoader::parse failed: {e:?}"));
+
+    let devices = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "devices")
+        .expect("devices table must exist");
+
+    // Each array column → expected source_path
+    let array_cols = [
+        ("ip_list", "$.ip_list[*]"),
+        ("mac_list", "$.mac_list[*]"),
+        ("network_list", "$.network_list[*]"),
+        ("vlan_list", "$.vlan_list[*]"),
+    ];
+
+    for (col_name, expected_path) in &array_cols {
+        let col = devices
+            .columns
+            .iter()
+            .find(|c| c.name == *col_name)
+            .unwrap_or_else(|| {
+                panic!("devices table must declare '{col_name}' column (Tier 2 array column)")
+            });
+        assert_eq!(
+            col.source_path.as_deref(),
+            Some(*expected_path),
+            "devices.{col_name} must have source_path = '{expected_path}'"
+        );
+    }
+}
+
+/// Tier 2 structural test: devices table must declare all Tier 2 scalar columns.
+#[test]
+fn test_claroty_tier2_device_scalar_columns_declared() {
+    let toml_path = concat!(env!("CARGO_MANIFEST_DIR"), "/specs/claroty.sensor.toml");
+    let content = std::fs::read_to_string(toml_path)
+        .unwrap_or_else(|e| panic!("Failed to read claroty.sensor.toml: {e}"));
+
+    let spec =
+        SpecLoader::parse(&content).unwrap_or_else(|e| panic!("SpecLoader::parse failed: {e:?}"));
+
+    let devices = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "devices")
+        .expect("devices table must exist");
+
+    let col_names: Vec<&str> = devices.columns.iter().map(|c| c.name.as_str()).collect();
+
+    let expected_scalar_cols = [
+        "purdue_level",
+        "site_name",
+        "device_subcategory",
+        "device_type_family",
+        "criticality",
+        "is_online",
+        "device_name",
+        "manufacturer",
+        "model",
+        "os_category",
+    ];
+
+    for col_name in &expected_scalar_cols {
+        assert!(
+            col_names.contains(col_name),
+            "devices table must declare scalar column '{col_name}' (Tier 2); \
+             got columns: {col_names:?}"
+        );
+    }
+}
+
+/// Tier 2 structural test: alerts table must declare `alert_class`, `ot_devices_count`,
+/// and `alert_name` (all verified in xDome Alert fields_enum, OpenAPI 2026-06-20).
+#[test]
+fn test_claroty_tier2_alert_columns_declared() {
+    let toml_path = concat!(env!("CARGO_MANIFEST_DIR"), "/specs/claroty.sensor.toml");
+    let content = std::fs::read_to_string(toml_path)
+        .unwrap_or_else(|e| panic!("Failed to read claroty.sensor.toml: {e}"));
+
+    let spec =
+        SpecLoader::parse(&content).unwrap_or_else(|e| panic!("SpecLoader::parse failed: {e:?}"));
+
+    let alerts = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "alerts")
+        .expect("alerts table must exist");
+
+    let col_names: Vec<&str> = alerts.columns.iter().map(|c| c.name.as_str()).collect();
+
+    for col_name in &["alert_class", "ot_devices_count", "alert_name"] {
+        assert!(
+            col_names.contains(col_name),
+            "alerts table must declare '{col_name}' column (Tier 2, xDome OpenAPI verified); \
+             got: {col_names:?}"
+        );
+    }
+}
+
+/// Tier 2 structural test: devices body_template must include all declared column names
+/// so the xDome API returns them in each response (GetDevicesParameters.fields is REQUIRED).
+#[test]
+fn test_claroty_tier2_devices_body_template_covers_all_declared_columns() {
+    let toml_path = concat!(env!("CARGO_MANIFEST_DIR"), "/specs/claroty.sensor.toml");
+    let content = std::fs::read_to_string(toml_path)
+        .unwrap_or_else(|e| panic!("Failed to read claroty.sensor.toml: {e}"));
+
+    let spec =
+        SpecLoader::parse(&content).unwrap_or_else(|e| panic!("SpecLoader::parse failed: {e:?}"));
+
+    let devices = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "devices")
+        .expect("devices table must exist");
+
+    let step = devices
+        .steps
+        .first()
+        .expect("devices table must have a fetch step");
+
+    let body_tmpl = step
+        .body_template
+        .as_deref()
+        .expect("devices fetch step must have a body_template");
+
+    // All declared column names (including array columns) must appear in the fields array
+    // so the xDome API returns them. Array columns use source_path but the API field name
+    // (e.g., "ip_list") must still be requested via the fields projection.
+    for col in &devices.columns {
+        assert!(
+            body_tmpl.contains(&format!("\"{}\"", col.name)),
+            "devices body_template must include '\"{}\"' so the xDome API returns this field; \
+             body_template = '{body_tmpl}'",
+            col.name
+        );
+    }
+}
+
+/// Tier 2 structural test: alerts body_template must include all declared column names.
+#[test]
+fn test_claroty_tier2_alerts_body_template_covers_all_declared_columns() {
+    let toml_path = concat!(env!("CARGO_MANIFEST_DIR"), "/specs/claroty.sensor.toml");
+    let content = std::fs::read_to_string(toml_path)
+        .unwrap_or_else(|e| panic!("Failed to read claroty.sensor.toml: {e}"));
+
+    let spec =
+        SpecLoader::parse(&content).unwrap_or_else(|e| panic!("SpecLoader::parse failed: {e:?}"));
+
+    let alerts = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "alerts")
+        .expect("alerts table must exist");
+
+    let step = alerts
+        .steps
+        .first()
+        .expect("alerts table must have a fetch step");
+
+    let body_tmpl = step
+        .body_template
+        .as_deref()
+        .expect("alerts fetch step must have a body_template");
+
+    for col in &alerts.columns {
+        assert!(
+            body_tmpl.contains(&format!("\"{}\"", col.name)),
+            "alerts body_template must include '\"{}\"' so the xDome API returns this field; \
+             body_template = '{body_tmpl}'",
+            col.name
+        );
+    }
+}
+
 /// RED gate (item 8 of CLAROTY-LIVE-API-FIDELITY): all three Claroty tables must use
 /// page_size = 1000.
 ///

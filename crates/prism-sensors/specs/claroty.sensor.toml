@@ -111,6 +111,25 @@ ocsf_class = "detection_finding"
   column_type = "string"
   ocsf_field = "message"
 
+  # DTU ClarotyAlert.alert_class: String — classification of the alert (e.g. "OT", "IT").
+  # Tier 2 column: in Alert fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "alert_class"
+  column_type = "string"
+
+  # DTU ClarotyAlert.ot_devices_count: u32 — count of OT devices involved in the alert.
+  # Tier 2 column: in Alert fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "ot_devices_count"
+  column_type = "integer"
+
+  # DTU ClarotyAlert.alert_name: String — human-readable alert name (distinct from type).
+  # Tier 2 column: in Alert fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "alert_name"
+  column_type = "string"
+  ocsf_field = "finding.title"
+
   # POST-for-read step with offset pagination
   # DTU route: POST /api/v1/alerts (crates/prism-dtu-claroty/src/clone.rs build_router())
   # response_path: DTU returns {"alerts": [...], "total": N, "page": N} per routes::alerts::list_alerts
@@ -122,7 +141,7 @@ ocsf_class = "detection_finding"
   name = "fetch_alerts"
   method = "POST"
   path_template = "/api/v1/alerts/"
-  body_template = '{"fields": ["id", "alert_type_name", "category", "status", "detected_time", "updated_time", "devices_count", "description"]}'
+  body_template = '{"fields": ["id", "alert_type_name", "category", "status", "detected_time", "updated_time", "devices_count", "description", "alert_class", "ot_devices_count", "alert_name"]}'
   response_path = "$.alerts"
   variables_produced = []
   [tables.steps.pagination]
@@ -274,17 +293,115 @@ ocsf_class = "device"
   column_type = "boolean"
   ocsf_field = "status_code"
 
+  # DTU ClarotyDevice.ip_list: Vec<String> — list of IP addresses.
+  # ENRICH-1 wildcard: source_path = "$.ip_list[*]" extracts all elements and serializes
+  # as a compact JSON-list string (e.g. '["10.0.1.1","10.0.1.2"]').
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "ip_list"
+  column_type = "string"
+  source_path = "$.ip_list[*]"
+
+  # DTU ClarotyDevice.mac_list: Vec<String> — list of MAC addresses.
+  # ENRICH-1 wildcard: serializes as compact JSON-list string.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "mac_list"
+  column_type = "string"
+  source_path = "$.mac_list[*]"
+
+  # DTU ClarotyDevice.network_list: Vec<String> — list of network segment names.
+  # ENRICH-1 wildcard: serializes as compact JSON-list string.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "network_list"
+  column_type = "string"
+  source_path = "$.network_list[*]"
+
+  # DTU ClarotyDevice.vlan_list: Vec<u32> — list of VLAN IDs.
+  # ENRICH-1 wildcard: integer elements are stringified in JSON-list output
+  # (e.g. ["100","200"]). column_type = "string" because the output is a JSON-list string.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "vlan_list"
+  column_type = "string"
+  source_path = "$.vlan_list[*]"
+
+  # DTU ClarotyDevice.purdue_level: String — Purdue model level (e.g. "Level 1", "Level 2").
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "purdue_level"
+  column_type = "string"
+
+  # DTU ClarotyDevice.site_name: String — physical site name where device is located.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "site_name"
+  column_type = "string"
+
+  # DTU ClarotyDevice.device_subcategory: String — subcategory within device_category.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "device_subcategory"
+  column_type = "string"
+
+  # DTU ClarotyDevice.device_type_family: String — device type family grouping.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "device_type_family"
+  column_type = "string"
+
+  # DTU ClarotyDevice.criticality: String — asset criticality level (e.g. "High", "Low").
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "criticality"
+  column_type = "string"
+
+  # DTU ClarotyDevice.is_online: bool — whether device is currently online.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "is_online"
+  column_type = "boolean"
+
+  # DTU ClarotyDevice.device_name: String — device display name.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "device_name"
+  column_type = "string"
+  ocsf_field = "device.name"
+
+  # DTU ClarotyDevice.manufacturer: String — hardware manufacturer.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "manufacturer"
+  column_type = "string"
+
+  # DTU ClarotyDevice.model: String — device model identifier.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "model"
+  column_type = "string"
+
+  # DTU ClarotyDevice.os_category: String — operating system category.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "os_category"
+  column_type = "string"
+  ocsf_field = "device.os.name"
+
   # POST-for-read step with offset pagination
   # DTU route: POST /api/v1/devices (crates/prism-dtu-claroty/src/clone.rs build_router())
   # response_path: DTU returns {"devices": [...], "total": N, "page": N} per GetDevicesResponse.
   # body_template: fields projection is REQUIRED by GetDevicesParameters (minItems: 1); covers all
   #   declared device columns. OffsetLimit POST-body injection merges {"offset": N, "limit": 1000}
   #   at request time (pipeline.rs::build_request — Gap-CL-004 CLOSED by S-DEMO-CLAROTY-PAGINATION-001).
+  # NOTE: ip_list/mac_list/network_list/vlan_list use source_path (ENRICH-1) but are still
+  #   valid GetDevicesParameters.fields values — the xDome API returns them in the JSON object.
   [[tables.steps]]
   name = "fetch_devices"
   method = "POST"
   path_template = "/api/v1/devices/"
-  body_template = '{"fields": ["uid", "asset_id", "device_category", "device_type", "risk_score", "retired"]}'
+  body_template = '{"fields": ["uid", "asset_id", "device_category", "device_type", "risk_score", "retired", "ip_list", "mac_list", "network_list", "vlan_list", "purdue_level", "site_name", "device_subcategory", "device_type_family", "criticality", "is_online", "device_name", "manufacturer", "model", "os_category"]}'
   response_path = "$.devices"
   variables_produced = []
   [tables.steps.pagination]
