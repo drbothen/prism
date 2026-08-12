@@ -8,7 +8,7 @@ priority: P1
 status: draft
 # BC status: BC-2.16.013 active (v1.36 as of 2026-08-11); BC-2.01.013 active.
 # S-7.01 gate: behavioral_contracts non-empty; story may be dispatched to ready after PO confirms no new-BC flags.
-version: "1.2"
+version: "1.3"
 acceptance_criteria_count: 7
 level: "L4"
 producer: story-writer
@@ -163,19 +163,21 @@ URL grounding: the TOML spec entry for a path must have a corresponding DTU rout
 
 ## Red Gate Tests (SAC-1 — tdd_mode: strict)
 
-| ID | Test name | Test type | What it gates |
-|----|-----------|-----------|---------------|
-| RG-001 | `test_BC_2_16_013_claroty_dar_dtu_route_registered` | Unit (against DTU HTTP) | AC-001: route returns HTTP 200 (not 404) with valid bearer |
-| RG-002 | `test_BC_2_16_013_claroty_dar_dtu_response_key_is_devices_alerts` | Unit (against DTU HTTP) | AC-003: response body top-level key is `devices_alerts`; test MUST fail if key is `device_alert_relations` |
-| RG-003 | `test_BC_2_16_013_claroty_dar_dtu_auth_enforced` | Unit (against DTU HTTP) | AC-002: missing bearer returns HTTP 401 with exact error string |
-| RG-004 | `test_BC_2_16_013_claroty_dar_dtu_column_parity_ten_fields` | Unit (Rust struct validation) | AC-005: all 10 TOML contracted columns present in `ClarotyDeviceAlertRelation` struct AND present in the fixture wire-emission (SAP-2 Rule 3 + Rule 6) |
-| RG-005 | `test_BC_2_16_013_claroty_dar_toml_table_has_ten_columns` | Unit (parse TOML spec) | AC-004: `device_alert_relations` table block in claroty.sensor.toml declares exactly 10 columns matching the contracted subset |
-| RG-006 | `test_BC_2_16_013_claroty_dar_dtu_accepts_fields_body_param` | Unit (against DTU HTTP) | AC-004: request body with `fields: [...]` is accepted; DTU processes it without error |
+| ID | Delivered test name | Location | What it gates |
+|----|---------------------|----------|---------------|
+| RG-001 | `test_claroty_tier3_device_alert_relations_dtu_route_returns_envelope` | `prism-dtu-claroty` `src/routes/device_alert_relations.rs` `mod tests` | AC-001: route returns HTTP 200 (not 404) with valid bearer. **Multi-purpose:** also discharges RG-002 (absent-key assertion embedded) and RG-006 (`fields` body accepted in same request). |
+| RG-002 | `test_claroty_tier3_device_alert_relations_dtu_route_returns_envelope` (same test as RG-001) | `prism-dtu-claroty` `src/routes/device_alert_relations.rs` `mod tests` | AC-003: `devices_alerts` key present AND `device_alert_relations` key absent. Both assertions are embedded in this multi-purpose test — `body.get("devices_alerts").is_some()` and `body.get("device_alert_relations").is_none()`. |
+| RG-003 | `test_claroty_tier3_device_alert_relations_dtu_auth_enforced` | `prism-dtu-claroty` `src/routes/device_alert_relations.rs` `mod tests` | AC-002: missing bearer returns HTTP 401; exact error string `"missing or invalid Authorization header"` asserted via `assert_eq!`. |
+| RG-004 | `test_claroty_tier3_device_alert_relations_dtu_column_parity` | `prism-dtu-claroty` `src/routes/device_alert_relations.rs` `mod tests` | AC-005: all 10 TOML contracted columns present in `ClarotyDeviceAlertRelation` struct (Part 1 — fixture deserialization) AND present in wire-emission (Part 2 — HTTP round-trip deserialization). SAP-2 Rule 3 + Rule 6. |
+| RG-005 | `test_claroty_tier3_device_alert_relations_table_declared` | `prism-sensors` `tests/claroty_spec_prose_fidelity.rs` | AC-004: `device_alert_relations` table block in claroty.sensor.toml declares exactly 10 columns matching the contracted subset, correct method/path_template/response_path, via `SpecLoader::parse`. |
+| RG-006 | `test_claroty_tier3_device_alert_relations_dtu_route_returns_envelope` (same test as RG-001/RG-002) | `prism-dtu-claroty` `src/routes/device_alert_relations.rs` `mod tests` | AC-004: request body with `fields: ["device_uid", "alert_id"]` sent, HTTP 200 returned — `fields` body param accepted without error. Coverage embedded in same multi-purpose test. |
 
 ### BC-5.38.001 Density Check
 
 Red Gate test count: **6**. Acceptance criteria count: **7** (AC-007 is a traceability/obligation AC with no Red Gate test, as the harness update is a follow-up story). Testable AC count: **6**.
-Density: **6 / 6 = 1.0** — exceeds the 0.5 minimum threshold from BC-5.38.001. All six testable ACs are covered by exactly one named Red Gate test each. No story-split is required.
+Density: **6 / 6 = 1.0** — exceeds the 0.5 minimum threshold from BC-5.38.001. Six RGs cover six testable ACs. No story-split is required.
+
+**Multi-purpose mapping note (F-CLARO-LIVE-LOW-001):** The implementer delivered `test_claroty_tier3_device_alert_relations_dtu_route_returns_envelope` as a multi-purpose test that simultaneously discharges RG-001 (route-200), RG-002 (absent-key assertion embedded), and RG-006 (fields-body acceptance). The density count is unchanged (6 RGs; 4 distinct delivered test symbols: `test_claroty_tier3_device_alert_relations_dtu_route_returns_envelope`, `test_claroty_tier3_device_alert_relations_dtu_auth_enforced`, `test_claroty_tier3_device_alert_relations_dtu_column_parity`, `test_claroty_tier3_device_alert_relations_table_declared`).
 
 ## Acceptance Criteria
 
@@ -192,7 +194,7 @@ S-DEMO-CLAROTY-TRAILING-SLASH-001). A request to this path with a valid
 A request to `POST /api/v1/device_alert_relations/` without a valid `Authorization: Bearer`
 header returns HTTP 401 with `{"error": "missing or invalid Authorization header", "code": 401}`.
 This is the verbatim output of `routes/devices.rs::check_bearer_auth` (POL-24
-error_message_template_verbatim). **The Red Gate test `test_BC_2_16_013_claroty_dar_dtu_auth_enforced`
+error_message_template_verbatim). **The Red Gate test `test_claroty_tier3_device_alert_relations_dtu_auth_enforced`
 MUST assert the response body contains the exact string `"missing or invalid Authorization header"` —
 a substring or regex match is insufficient.**
 
@@ -202,7 +204,8 @@ The DTU response body top-level key is `devices_alerts` (not `device_alert_relat
 The corresponding TOML `response_path` in `claroty.sensor.toml` is `$.devices_alerts`.
 **This is the critical silent-failure guard:** EC-016-013-009 in BC-2.16.013 documents that
 using the path stem as the key causes all relation rows to be silently discarded at normalization
-time with no error. The Red Gate test `test_BC_2_16_013_claroty_dar_dtu_response_key_is_devices_alerts`
+time with no error. The Red Gate test `test_claroty_tier3_device_alert_relations_dtu_route_returns_envelope`
+(RG-002 discharge embedded; multi-purpose test also covers RG-001 and RG-006)
 MUST deserialize the response body and assert:
 1. The key `devices_alerts` is present in the top-level JSON object.
 2. The key `device_alert_relations` is NOT present in the top-level JSON object.
@@ -559,6 +562,7 @@ is the enforcement template if a new gate is warranted.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.3 | 2026-08-12 | story-writer | F-CLARO-LIVE-LOW-001: RG-table reconciliation — replaced six stale `test_BC_2_16_013_claroty_dar_*` test names with delivered test symbols. RG-001→`test_claroty_tier3_device_alert_relations_dtu_route_returns_envelope` (multi-purpose: also discharges RG-002 and RG-006); RG-003→`test_claroty_tier3_device_alert_relations_dtu_auth_enforced`; RG-004→`test_claroty_tier3_device_alert_relations_dtu_column_parity`; RG-005→`test_claroty_tier3_device_alert_relations_table_declared` (in `prism-sensors`). AC-002 and AC-003 body cross-references updated to match. Density check note added: 6 RGs, 4 distinct test symbols, 6/6 = 1.0 unchanged. Records-tier only; no behavioral changes. |
 | 1.2 | 2026-08-12 | story-writer | F-CLARO-P2-OBS-001: Corrected stale column count in AC-004 §heading from 9 to 10. The v1.1 sweep updated AC-004 §body, the contracted-column table, and §body_template but missed the §heading line. The v1.1 changelog row overstated its sweep scope by claiming all stale count references were updated (POL-26 changelog-integrity partial-fix regression). No other stale 9-column references exist — §heading was the sole miss confirmed by full-document sweep. |
 | 1.1 | 2026-08-11 | story-writer | Column-count correction: 9 → 10. Added `device_alert_status` (10th contracted column per BC-2.16.013 v1.36 §Postconditions §1 column-list reconciliation). Updated all stale count references across §Authority, Behavioral Contracts table, RG-004/RG-005 test names and descriptions, AC-004 column table + body_template + pagination page_size (100 → 1000 per shipped claroty.sensor.toml), AC-005, Task 4 struct example, Task 5, Task 8, Task 9, Previous Story Intelligence item 4, Notes for Implementer notes 3 and 4. Points justification comment updated. SAC-1 RG count and density ratio unchanged (6/6 = 1.0). Verifies S-DEMO-CLAROTY-HARNESS-DAR-001 carries no column-list content (clean). |
 | 1.0 | 2026-08-11 | story-writer | Initial materialization. Closes DTU-EXT-006 registration; anchors INV-HARNESS-ROUTE-PARITY harness obligation to this story ID. Grounded against BC-2.16.013 v1.36 §Postconditions §1 device_alert_relations entry, clone.rs build_router(), routes/audit_log.rs (handler pattern), types.rs, claroty.sensor.toml (existing table blocks). 7 ACs; 6 Red Gate tests; 2 BCs: BC-2.16.013, BC-2.01.013; DTU: YES; tdd_mode: strict. |
