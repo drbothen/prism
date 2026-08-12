@@ -609,7 +609,7 @@ mod tests {
         //
         // Blocked on: prism-bin full-boot wiring (S-DEMO-002).
         // When unblocked: start a full prism binary, execute the PrismQL query,
-        // assert at least 5 rows returned with columns id, action, actor, timestamp, resource.
+        // assert at least 5 rows returned with columns id, action, user_display_name, category, timestamp, details, username, note.
         todo!("implement in S-DEMO-002: full prism-bin boot + PrismQL pipeline integration")
     }
 }
