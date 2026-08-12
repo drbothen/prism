@@ -8,6 +8,8 @@ timestamp: 2026-07-28T00:00:00Z
 
 # Session Handoff — Prism VSDD Pipeline
 
+> **D-2102 (2026-08-12): SESSION WRAP — §RESUME SNAPSHOT D-2102 authored (supersedes D-2096). Durable zero-context resume snapshot. Session arc: develop advanced b226459d0→ef996a4c0 (PR #235 wasmtime lru bump @b226459d0 merged; PR #234 FINDING-R merged @ef996a4c0 — stale D-747 lock comments struck in sensor TOMLs). FINDING-R CLOSED (implementer). OBS-009 CLOSED (consumed by PR #234). 44→42 cumulative open findings. Live-API Claroty track: fix/claroty-live-api-fidelity PUSHED to origin (3 commits, based on f9f5738bd, NO PR opened). Two silent-data-loss defects found+fixed (SAP-2 Rule 6 emission-site authority: device_alert_relations static-fixture path emitted zero of 82 Alert struct fields; second path similar). ARCHITECTURAL FINDING: ColumnMapper::map_record has ZERO non-test callers in production — OCSF column mapping wiring gap (not a runtime data-loss bug; Stage 1 coercion safe). Human decision (o) 2026-08-12: Interpretation A ocsf_field paths as Arrow field names for v1 (overrides ADR-058 v1.0 Interpretation B col.name). ADR-058 v2.0 committed (architect amendment). Gating blocker: PrismQL dotted-path quoting convention not designed — Arrow field names contain dots (finding.uid) that DataFusion parses as qualified column refs. Spec deltas: BC-2.16.003 v1.4; BC-2.16.013 v1.36; ADR-058 NEW ACCEPTED v2.0; 3 new stories (S-DEMO-CLAROTY-DAR-001 P1 draft v1.1; S-DEMO-CLAROTY-HARNESS-DAR-001 P1 draft v1.0; S-ADR058-DTU-PARITY-MIGRATION-001 P2 draft v1.0 — DEPENDENCY ANCHOR MISSING). SECURITY URGENT: /Users/jmagady/Dev/test-soc/.mcp.json live Perplexity+Tavily keys in plaintext context — MUST ROTATE. Process findings: 7+ orchestrator errors this session; permission bypass attempt; false-positive security alarm. workspace_test_count 5676 on develop (5690 on fix/claroty-live-api-fidelity branch). develop_head ef996a4c0. BC-5.39.001 streak 0/3. factory-artifacts PUSHED. STATE v8.650→v8.651. [SUPERSEDES D-2096]**
+>
 > **D-1804 (2026-07-17): LANE-3 PASS-18 NOT CLEAN strict / CLEAN(PR-merge) YES — 1 LOW F-ADMTOK-P18-LOW-001 (0o600 sidecar-permission lock mutation-survivor; TD-VSDD-059; only closure in 18-pass cascade left assertion-free); STREAK RESET 2/3→0/3; mutation-thinking: 13 mutants analyzed; 12 killed by named tests; 1 survivor (perms); bound_addr filter adjudicated not-a-finding; security/spec-completeness/regression lenses all PASS; baseline all PASS (tests 60+3 known; fixture-gen 11/11; sweep 447/131/6/8; SAP-1 zero; non-exhaustive 92/92; POL suite clean; AD-017 clean); fb-15 CLOSED test-only @828449de (#[cfg(unix)] mode & 0o077 == 0 assertions added to Tests B/F/K; mutation-kill verified BOTH production sites — 0o644 mutant → Test B fails left:36; Tests F+K fail left:36; +63/−3); report persisted local-pass-18.md; STORY-INDEX v2.700→v2.701; streak 0/3 (new HEAD 828449de); NEXT = LOCAL pass-19 on frozen 828449de (fresh 3-pass streak). LANE 1 unchanged (PR #224 CLOSED; human must reopen). STATE v8.403→v8.404.**
 >
 > **D-1803 (2026-07-17): LANE-3 PASS-17 CLEAN(strict) — STREAK 2/3 — ZERO findings on frozen e806ef73 (story v0.15, BC-2.06.017 v1.12); 11 fresh-angle probes all negative (cross-subcommand interaction; partial-sidecar skew; atomic write/reader race; Windows rename-replace arms; token_map/url_map parity; _global namespace non-leakage; §Tasks T-01..T-12 delivered; demo runbook no stale-token path; README/docs accurate; KillGuard recycled-pid safe; corrupt-token builder error not panic); SAP-1 clean; AD-017 clean; non-exhaustive 92/92; POL-21/22/23/24/27/32/13/12 PASS; tests 60+3 known; fixture-gen 11/11; sweep 447/131/6/8; local-pass-17.md persisted; streak 2/3 (BC-5.39.001; DRIFT-ORCH-PRLEVEL-PUSH-001 NO pushes mid-streak); NEXT = LOCAL pass-18 on frozen e806ef73 (DECISIVE — on CLEAN → LOCAL 3-CLEAN CONVERGED → push + pr-manager PR + PR-LEVEL cascade). LANE 1 unchanged (PR #224 CLOSED; human must reopen). STATE v8.402→v8.403.**
@@ -130,69 +132,87 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **D-2094 (2026-08-03): LIVE-DEMO ENGINE-DEFECT REGISTRATION BURST (TD-VSDD-053 single-commit; predecessor D-2093). 18 D-1889 live-demo engine defect stories registered as draft v0.1 stubs (DEFECT-PQL-SUBQUERY-FANOUT-001 CRIT through DEFECT-PQL-ON-CONTAINS-001 LOW; total_stories 265→283; STORY-INDEX v2.771→v2.772). FINDING-L CLOSED AS REFUTED (37/264 bold pseudo-field files; 1 in round-1..3 cohort; scope dissolved). +FINDING-L-REVISED (LOW, 11 desyncs). +FINDING-M (CRIT, 5–6 sensor defects unregistered). +FINDING-N (MED, classify_predicates doc-comments). +FINDING-O (LOW, 4 draft BCs cited as governing). +PROCESS-GAP (changelog heading split + orchestrator vacuous-script; 5th probe-passes≠gate-fires). 39→43 cumulative open findings. develop_head b226459d0 UNCHANGED. BC-5.39.001 streak 0/3. STATE v8.642→v8.643. [SUPERSEDES D-2093] [SUPERSEDED by D-2095]**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2096 (SESSION WRAP: durable zero-context resume snapshot; 45 cumulative open findings UNCHANGED; develop_head b226459d0; BC-5.39.001 streak 0/3; STATE v8.644→v8.645).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2096 is the most recent durable session-wrap snapshot).
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2096 is the most recent durable session-wrap snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `b226459d0` (origin/develop=`b226459d0`; PR #233 SQUASH-MERGED @b226459d0). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (this D-2096 commit). STATE v8.645. 45 cumulative open findings; OPEN QUESTION FOR HUMAN on 3-CLEAN freeze scope for sensor-TOML slice; FINDING-R (implementer burst to strike stale D-747 comments, cheap+unblocked); FINDING-G (CLAUDE.md detection gap — human mandate required).
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2102 (SESSION WRAP: durable zero-context resume snapshot; 42 cumulative open findings; develop_head ef996a4c0; BC-5.39.001 streak 0/3; STATE v8.650→v8.651).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2102 is the most recent durable session-wrap snapshot).
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2102 is the most recent durable session-wrap snapshot. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `ef996a4c0` (origin/develop=`ef996a4c0`; PR #234 SQUASH-MERGED @ef996a4c0). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (this D-2102 commit). STATE v8.651. 42 cumulative open findings; SECURITY URGENT: rotate Perplexity+Tavily API keys (/Users/jmagady/Dev/test-soc/.mcp.json live keys exposed); GATING BLOCKER: PrismQL dotted-path quoting convention not designed; FINDING-G (CLAUDE.md detection gap — human mandate required).
 
 ---
 
-## §RESUME SNAPSHOT — D-2096 (2026-08-03 — SESSION WRAP; durable zero-context resume snapshot; 45 cumulative open findings UNCHANGED; BC-5.39.001 streak 0/3; develop_head b226459d0; STATE v8.645) [SUPERSEDES D-2095]
+## §RESUME SNAPSHOT — D-2102 (2026-08-12 — SESSION WRAP; 42 cumulative open findings; BC-5.39.001 streak 0/3; develop_head ef996a4c0; STATE v8.651) [SUPERSEDES D-2096]
 
 ### RESUME IN ONE BREATH
-prism Phase 3, cycle `wave-5-e-demo-fidelity`. All 8 D-1889 live-demo CRITICALs are now tracked artifacts for the first time (D-2094 registered 18 engine defects; D-2095 registered 7 sensor/arch/orphan items). 45 cumulative open findings. develop `b226459d0` untouched.
+prism Phase 3, cycle `wave-5-e-demo-fidelity`. Session arc: develop advanced b226459d0→ef996a4c0 (PR #235 wasmtime lru bump; PR #234 FINDING-R merged — stale D-747 lock comments struck). 42 cumulative open findings (FINDING-R + OBS-009 closed). Live-API Claroty track: fix/claroty-live-api-fidelity PUSHED, NO PR. Human decision (o): Interpretation A ocsf_field paths as Arrow field names. ADR-058 v2.0 ratified. **GATING BLOCKER:** PrismQL dotted-path quoting convention not designed.
 
-THE BOTTLENECK IS THE CONVERGENCE GATE, not the defect work. ADR-053 ratified EFFECTIVE 2026-07-22 (D-1943) → 9 Wave-A stories (8 draft / 1 ready / **0 delivered**) → sensor CRITICAL code fixes (not started). Every human gate cleared 2026-07-22. Wave-A delivery is blocked by human decision **(f)** "Rule freeze until 3-CLEAN; exception expires at BC-5.39.001 strict 3-CLEAN" — and the strict streak is **0/3 after 72+ adversary passes** (best observed 1/3, twice).
-
-NEXT = await human decision on whether the 3-CLEAN freeze still applies to the narrow sensor-TOML slice; then the record-substance gap; then the unblocked FINDING-R comment-strike. §Authority backfill (156/264, 108 remain, ~4.5 rounds) is DEFERRED behind all three.
+THE BOTTLENECK IS THE CONVERGENCE GATE, not the defect work. ADR-053 ratified EFFECTIVE 2026-07-22 (D-1943) → 9 Wave-A stories (8 draft / 1 ready / **0 delivered**). BC-5.39.001 strict streak **0/3 after 72+ adversary passes** (best observed 1/3, twice).
 
 ### PER-WORKSTREAM FROZEN STATE + EXPLICIT NEXT-ACTION
 
-**(1) Live-demo defect remediation — PRIMARY.** Frozen: all 8 D-1889 CRITICALs registered as `status: draft` stubs; 25 new tracked defect artifacts total this session. Underlying defects still LIVE on `develop`: `crowdstrike.sensor.toml` and `cyberint.sensor.toml` both still declare `table_name = "incidents"` for vendor-removed endpoints; `armis.sensor.toml` still `auth_type = "bearer_static"`; `cyberint.sensor.toml` still `auth_type = "cookie_roundtrip"` single-surface. **RESUME NEXT-ACTION:** obtain human decision on the (f) freeze scope for the sensor-TOML slice; if released, route product-owner → story-writer to specify the 8 CRITICAL stubs (ACs + Red Gate lists, which they deliberately lack).
+**(1) Claroty live-API track — fix/claroty-live-api-fidelity.** Branch PUSHED to origin (3 commits, based on f9f5738bd, NOT rebased onto ef996a4c0, NO PR opened). Two silent-data-loss defects found+fixed (SAP-2 Rule 6 emission-site authority: device_alert_relations static-fixture path emitted zero of 82 Alert struct fields; second path similar). ARCHITECTURAL FINDING: `ColumnMapper::map_record` has ZERO non-test callers in production — OCSF column mapping wiring gap (not a runtime data-loss bug; Stage 1 coercion path is safe). **RESUME NEXT-ACTION:** rebase fix/claroty-live-api-fidelity onto ef996a4c0 → open PR → holdout-evaluator for S-DEMO-CLAROTY-* stories. Do NOT route to implementer until PR open and story-level holdout gate runs.
 
-**(2) Wave-A spec-evolution cascade.** Frozen: 9 stories (8 draft, 1 ready: `S-WAVE-A-ARMIS-ACTIVITY-001`), 67 points, 0 delivered. 72+ adversary passes, strict streak 0/3. **RESUME NEXT-ACTION:** LOCAL adversary pass on the frozen HEAD produced by this wrap commit; OR human release of the (f) freeze to permit TDD delivery ahead of 3-CLEAN.
+**(2) Stage 1 OCSF coercion (architect-verified safe, no gating blocker).** BC-2.16.003 v1.4: String-type-first coercion rule; EC-016-013-001..012 edge case catalog; CoercionWarning observability defect flag; KNOWN GAP annotations for EC-016-013-007/008/009. **RESUME NEXT-ACTION:** story-writer authors Stage 1 coercion story (EC-016-013-008/009 fix + CoercionWarning `tracing::warn!` + `column_coercion_failure` catalog row to BC-2.16.002 §Postconditions per SAP-1/PG-LP11-001). Then implementer TDD.
 
-**(3) §Authority corpus backfill — DEFERRED.** Frozen: 156 of 264 story files carry `## Authority`; 108 remain (~4.5 rounds of 24). Rounds 4/5/6 complete and orchestrator-verified (D-2090/D-2091→D-2093/D-2092). **RESUME NEXT-ACTION:** if resumed, derive round-7 slices from a FRESH disk enumeration at dispatch time — **never** carry a story-ID list forward (D-2089 wrote 14 phantom IDs; process-gap recorded at D-2090). Writers must report each cited ADR's `status:` verbatim, and briefs must specify exact heading forms (`## Authority`, not `## §Authority` — coverage is grepped as `^## Authority`).
+**(3) ADR-058 Stage 2 — BLOCKED.** PrismQL dotted-path quoting convention is the gating blocker. Arrow field names via ocsf_field paths contain dots (`finding.uid`, `actor.user.name`). DataFusion interprets `finding.uid` as qualified column ref (column `uid` of table `finding`). No quoting/aliasing convention designed. S-ADR058-DTU-PARITY-MIGRATION-001 (draft v1.0) also has DEPENDENCY ANCHOR MISSING — depends on ADR-058 Stage 2 wiring story not yet created. **RESUME NEXT-ACTION (human-gated):** architect designs PrismQL dotted-path quoting convention → story-writer authors ADR-058 Stage 2 wiring story → S-ADR058-DTU-PARITY-MIGRATION-001 anchor gap can be closed.
 
-**(4) Record-substance gap — NEW PRIORITY.** Frozen: SIX `probe-passes ≠ gate-fires` instances this session. Enumerate: (a) L9 inoperative before 2026-07-24; (b) L10 cannot detect content falsification; (c) L10 blind to phantom index rows (FINDING-Q); (d) a story-writer reported a batch "fully complete and internally consistent" while 5 files were desynced (FINDING-H); (e) a fabricated finding (FINDING-J) passed a green records-lint; (f) the orchestrator itself wrote three vacuous verification scripts before a valid result. **RESUME NEXT-ACTION:** no mechanical substance control exists in the pipeline — every gate validates structure, nothing validates content. Propose the control; the convergence protocol reads from a ledger only ad-hoc reading keeps honest.
+**(4) New DTU/harness stories (TDD-ready).** S-DEMO-CLAROTY-DAR-001 (draft v1.1; device_alert_relations DTU route + claroty.sensor.toml; 7 ACs; 5 pts; P1; closes DTU-EXT-006) and S-DEMO-CLAROTY-HARNESS-DAR-001 (draft v1.0; harness POST /api/v1/device_alert_relations/; 5 ACs; 2 pts; P1; depends on DAR-001). **RESUME NEXT-ACTION:** test-writer → implementer for S-DEMO-CLAROTY-DAR-001 (P1 first; harness follows).
+
+**(5) Wave-A spec-evolution cascade.** Frozen: 9 stories (8 draft, 1 ready: S-WAVE-A-ARMIS-ACTIVITY-001), 67 points, 0 delivered. BC-5.39.001 streak 0/3. Human decision (f) freeze still in effect. **RESUME NEXT-ACTION:** LOCAL adversary pass on the D-2102 session-wrap HEAD.
+
+**(6) §Authority corpus backfill — DEFERRED.** Frozen: 156 of 264 story files carry `## Authority`; 108 remain. **RESUME NEXT-ACTION if resumed:** fresh disk enumeration at dispatch time — never carry story-ID list forward.
 
 ### PENDING USER-APPROVED / USER-OWNED WORK — do not start without direction
 
-- **(f) 3-CLEAN freeze scope** — OPEN QUESTION TO HUMAN: does the freeze still apply to the narrow sensor-TOML slice, or may that slice proceed while the broader Wave-A cascade converges? This is the single highest-leverage decision open.
-- **FINDING-G** — CLAUDE.md §TD-VSDD-053 and §Factory Hook Diagnostics both document `MULTI_COMMIT_CHAIN_NOT_ALLOWED` as blocking "backfill"/"Stage 1"/"Stage 2"; the implementation in `.factory/hooks/verify-sha-currency.sh §Multi-commit chain guard` greps ONLY the literal `backfill` and requires it in BOTH `HEAD` and `HEAD^`. No Stage-1/Stage-2 arms exist. Requires direct human mandate to edit CLAUDE.md.
-- **FINDING-R — UNBLOCKED FREE WIN** — strike or correct the stale `# ... is the D-747 LOCKED value` comments in `armis.sensor.toml` and `cyberint.sensor.toml`; ADR-053 reversed that lock on 2026-07-22. Standing Rule 3 §3 class (documentation asserting a state that does not hold). Route: implementer. Needs no gate, no architect, no convergence.
-- **FINDING-A** — six ADRs carry `status: PROPOSED` while cited as story §Authority across three subsystem families; architect to adjudicate **per-tier** (implementers vs DTU test-fidelity consumers), not per-ADR.
-- **ARCH-QUES-001** — is the push-after-every-burst invariant unconditional? Blocks `S-MAINT-BURST-COMMIT-COUNT-GATE-001` (draft) reaching ready.
-- **DRIFT-STASH0-CHECK-NAME-DRIFT-001** — `stash@{0}` holds ci.yml/e2e.yml de-hardening; applying it with any check-name shift permanently deadlocks every PR against the 24 required checks on main/develop. Human owner. Do NOT apply without a name-by-name diff.
-- **S-5.11** cannot reach `status: ready` until product-owner amends BC-2.16.007.
-- **FINDING-Q third instance** — `S-MAINT-W3SEC-CITE-SWEEP-002` has a STORY-INDEX row and NO file on disk (found by the D-2095 9a sweep, correctly reported not fixed). Route: spec-steward. Phantom index rows are now a 3-instance pattern with no detecting gate.
-- **FINDING-S** — `triage-capture.md` frontmatter still asserts `status: OPEN — open decisions require human sign-off` and its §Open Decisions section still says "All 5 are OPEN"; all five resolved at D-1943/D-1949. Route: spec-steward (stale-status banner + frontmatter correction, preserving historical content).
-- **FINDING-N** — `classify_predicates` carries "deferred to wave-5" comments in BOTH `prism-query/src/pushdown.rs` and `prism-query/src/materialization.rs`; wave anchors are forbidden (CLAUDE.md requires a REAL story ID). Reframes `DEFECT-PUSHDOWN-OPERATOR-CLASS-001` as a known unauthorized deferral, not a discovered bug. Route: architect (authorization question) → implementer.
-- Pre-existing carried items: PR #233 FINDING-1 (MED, CWE-693) + FINDING-2 (LOW); GAP-ASSETS-PAG-001 (human authorization required); pass-71/72/72b open ledger; corpus records debt (39 L1 + 86 L7 across 43 files).
+- **SECURITY (URGENT): Rotate Perplexity + Tavily API keys** — `/Users/jmagady/Dev/test-soc/.mcp.json` contains live API keys in plaintext that entered an agent subagent's context. Both must be rotated immediately. Extend `protect-secrets` hook pattern list to match `.mcp.json`. `live-soc/clients/monroe.env` also on disk (review).
+- **(f) 3-CLEAN freeze scope** — OPEN QUESTION TO HUMAN: does the freeze still apply to the sensor-TOML slice, or may Stage 1 coercion and Claroty DAR proceed?
+- **PrismQL dotted-path quoting convention** — architect must design before any ADR-058 Stage 2 work can begin.
+- **UNRECONCILED:** Does ADR-058 Stage 2 require DTU generator migration (TOML key names) or only DTU parity test migration? S-ADR058-DTU-PARITY-MIGRATION-001 filename suggests parity-tests-only. Architect to confirm before Stage 2 story is authored.
+- **FINDING-G** — CLAUDE.md §TD-VSDD-053 hook greps only `backfill`; no Stage-1/Stage-2 arms. Requires direct human mandate to edit CLAUDE.md.
+- **FINDING-A** — six ADRs `status: PROPOSED` while cited as story §Authority. Architect to adjudicate per-tier.
+- **ARCH-QUES-001** — push-after-every-burst invariant unconditional? Blocks S-MAINT-BURST-COMMIT-COUNT-GATE-001.
+- **DRIFT-STASH0-CHECK-NAME-DRIFT-001** — `stash@{0}` holds ci.yml/e2e.yml de-hardening. Human owner. Do NOT apply without name-by-name diff.
+- **S-5.11** awaiting BC-2.16.007 PO amendment.
+- **FINDING-Q** — `S-MAINT-W3SEC-CITE-SWEEP-002` index row, NO file on disk. Route: spec-steward.
+- **FINDING-S** — `triage-capture.md` frontmatter still says OPEN; all 5 resolved D-1943/D-1949. Route: spec-steward.
+- **FINDING-N** — `classify_predicates` carries "deferred to wave-5" comments without story anchors. Route: architect.
+- **Parked worktrees:** `.worktrees/S-3.09` @`43c41389d` LOCAL-ONLY at risk; `.worktrees/W3-FIX-S307-001` @`fcab8717c` LOCAL-ONLY at risk, 1 dirty. Human: backup/push.
+- `.worktrees/FINDING-R` — PR #234 merged; remove.
+- Pre-existing: PR #233 FINDING-1 (MED, CWE-693) + FINDING-2 (LOW); GAP-ASSETS-PAG-001; corpus records debt (39 L1 + 86 L7 across 43 files).
 
-### DECISION-LOG DELTA (D-2090..D-2096)
+### ROUTING QUEUE (next session, ordered by urgency)
+
+1. E-SPEC-020 → error-taxonomy (product-owner) — new error code for SAP-2 coercion failures
+2. `column_coercion_failure` catalog row → BC-2.16.002 §Postconditions (product-owner, SAP-1/PG-LP11-001)
+3. Stage 1 coercion story → story-writer
+4. `ClarotyDevice.tags` routing → architect (OCSF mapping path clarification)
+5. S-CROWDSTRIKE-ALERTS-V2-MIGRATION-001 §Problem dual-name fix → spec-steward
+6. Stale OpenAPI copy `.references/poller-bear/docs/specs.json` → devops-engineer
+7. Three struct-optionality mismatches in S-DEMO-CLAROTY-DAR-001 Task 4 → story-writer
+8. CI maintenance: cache protoc / install via apt (arduino/setup-protoc flake) → devops-engineer
+
+### DECISION-LOG DELTA (D-2097..D-2102)
 
 | D-ID | Decision |
 |------|----------|
-| D-2096 | SESSION WRAP — §RESUME SNAPSHOT D-2096 authored (supersedes D-2095). Durable zero-context resume snapshot. All 8 D-1889 CRITICALs tracked. 45 cumulative open findings UNCHANGED. develop_head b226459d0 UNCHANGED. BC-5.39.001 streak 0/3. factory-artifacts PUSHED. STATE v8.644→v8.645. |
-| D-2095 | SENSOR-CRITICAL REGISTRATION BURST (TD-VSDD-053 single-commit) — 7 D-1889 sensor-CRITICAL stories registered; FINDING-M CLOSED RESOLVED; +FINDING-Q/R/S; ORCHESTRATOR BRIEF-CORRECTION; D-1949 COVERAGE DISCLOSURE; 43→45 findings. total_stories 283→290. STATE v8.643→v8.644. [SUPERSEDES D-2094] |
-| D-2094 | LIVE-DEMO ENGINE-DEFECT REGISTRATION BURST — 18 D-1889 defects registered; total_stories 265→283; FINDING-L CLOSED AS REFUTED; +FINDING-L-REVISED/M/N/O/PROCESS-GAP; 39→43 findings. STATE v8.642→v8.643. [SUPERSEDES D-2093] |
-| D-2093 | RECORDS-ONLY MICRO-BURST (TD-VSDD-096) — FINDING-J/L/PROCESS-GAP corrected; 39 open findings UNCHANGED. STATE v8.641→v8.642. [SUPERSEDES D-2092] |
-| D-2092 | §AUTHORITY CORPUS BACKFILL ROUND 6 — 24 stories; 132/264→156/264; +FINDING-I/J/K/L/PROCESS-GAP; 34→39 findings. STATE v8.640→v8.641. [SUPERSEDES D-2091] |
-| D-2091 | §AUTHORITY CORPUS BACKFILL ROUND 5 — 24 stories; 108/264→132/264; S-MAINT-BURST-COMMIT-COUNT-GATE-001 registered; +FINDING-E/F/G/PROCESS-GAP; 30→34 findings. STATE v8.639→v8.640. [SUPERSEDES D-2090] |
-| D-2090 | §AUTHORITY CORPUS BACKFILL ROUND 4 — 24 stories; 84/264→108/264; DENOMINATOR CORRECTED 237→264; +FINDING-A/B/C; 27→30 findings. STATE v8.637→v8.638. [SUPERSEDES D-2089] |
+| D-2102 | SESSION WRAP — §RESUME SNAPSHOT D-2102 authored (supersedes D-2096). develop ef996a4c0. 42 open findings (FINDING-R+OBS-009 closed). fix/claroty-live-api-fidelity PUSHED, NO PR. Human decision (o): Interpretation A ocsf_field paths. ADR-058 v2.0. Gating blocker: PrismQL dotted-path quoting. BC-2.16.003 v1.4; BC-2.16.013 v1.36; 3 new stories. SECURITY: API keys must be rotated. STATE v8.650→v8.651. |
+| D-2101 | Session arc at fc8a0ae79 — develop b226459d0; PR #235 lru bump; PR #234 FINDING-R comment-strike merged; OBS-009 consumed. Live-API track work, ADR-058 v1.0, human decision (o). STATE v8.649→v8.650. |
+| D-2100 | ADR-058 drafted; BC-2.16.013 v1.35→v1.36; BC-2.16.003 v1.3→v1.4; S-DEMO-CLAROTY-DAR-001 + S-DEMO-CLAROTY-HARNESS-DAR-001 authored. |
+| D-2099 | S-MAINT-DISPATCH-BRIEF-POINTER-001 registered (facade story; CLAUDE.md amendment; execution dependency). STATE v8.648→v8.649. |
+| D-2098 | MED-008 annotation burst — BC-2.16.013 v1.34→v1.35; ADR-053 v0.39→v0.40. FINDING-R tracked. STATE v8.647→v8.648. |
+| D-2097 | PR #234 (FINDING-R) opened. BC-INDEX v8.93. STATE v8.646→v8.647. |
 
 ### WORKTREE INVENTORY
 
-- `.factory` — active, clean, pushed.
+- `.factory` — active, clean, pushed (this D-2102 commit).
+- `.worktrees/FINDING-R` — PR #234 merged; remove this worktree.
 - `.worktrees/S-3.09` @`43c41389d` — stale-leave, LOCAL-ONLY at risk, KEEP-PARKED.
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` — stale-leave, LOCAL-ONLY at risk, 1 dirty file, do-NOT-touch.
-- No removable-post-merge worktrees (no open PRs).
+- `fix/claroty-live-api-fidelity` — no worktree; main worktree branch; PUSHED origin; based on f9f5738bd; NO PR.
 
 ### KEY HEADS
 
-- `origin/develop`: `b226459d0` (PR #233 SQUASH-MERGED)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` (this D-2096 commit)
-- Main worktree: develop @`b226459d0`, clean
+- `origin/develop`: `ef996a4c0` (PR #234 SQUASH-MERGED)
+- `fix/claroty-live-api-fidelity`: PUSHED; based on `f9f5738bd`; 3 commits; NO PR
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` (this D-2102 commit)
+- Main worktree: develop @`ef996a4c0` (local may still show `b226459d0` — run `git fetch`)
 - `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch
 

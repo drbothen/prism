@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.35"
+version: "1.36"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-08-03"  # v1.35: MED-008 annotation burst — §Postconditions §1 ADR-028 §D2 grounding supersession annotated for Armis (ADR-053 §D2) and Cyberint (ADR-053 §D3-a); grounding-authority intro qualified; owning story S-WAVE-A-CYBERINT-SPEC-001
+modified: "2026-08-11"  # v1.36: device_alert_relations table added to Claroty contracted surface (§Postconditions §1); DTU-EXT-006 gap registered; EC-016-013-009 added; SAP-2 exclusion-documentation for 82 omitted fields (10 contracted, 82 excluded, 92 total); harness envelope shape extended; harness-story S-DEMO-CLAROTY-HARNESS-DAR-001 anchored
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,7 +30,7 @@ inputs:
   - "crates/prism-dtu-cyberint/src/routes/alerts.rs"
   - "crates/prism-dtu-armis/src/clone.rs"
   - "crates/prism-dtu-armis/src/lib.rs"
-input-hash: "b73845f"
+input-hash: "36f421b"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -204,6 +204,43 @@ per ADR-053 §D5.
     slash), matching the real Claroty xDome API. The `prism-dtu-claroty` router MUST
     include `normalize_path` middleware (or equivalent) so that both
     `/api/v1/audit_log/get` and `/api/v1/audit_log/get/` are accepted (ADR-031 §D8-b).
+  - `device_alert_relations` — POST `/api/v1/device_alert_relations/` (trailing-slash form
+    per ADR-031 §D8-b / S-DEMO-CLAROTY-TRAILING-SLASH-001 convention). Method is POST-for-read,
+    consistent with the Claroty xDome API pattern. The `fields` array is **required** in the
+    request body (`GetDeviceAlertsParameters.fields`, `required: true`, `minItems: 1`);
+    this distinguishes it from `audit_log/get/`, whose `GetAuditLogParameters` has no `fields`
+    property at all. Pagination is offset/limit; API maximum `limit: 5000`. Response top-level
+    key is `devices_alerts` (not the path stem `device_alert_relations` — verified against
+    `GetDeviceAlertsResponse.properties` in the authoritative xDome OpenAPI). The
+    `prism-dtu-claroty` router MUST include `normalize_path` middleware (ADR-031 §D8-b) so both
+    `/api/v1/device_alert_relations` and `/api/v1/device_alert_relations/` are accepted.
+    **Contracted column subset (deliberate partial projection of the 92-field enum):**
+    The xDome `AlertedDevicesPairs__fields_enum` exposes 92 fields. The contracted subset for
+    `claroty.sensor.toml` `device_alert_relations` is exactly 10 columns: `device_uid`,
+    `alert_id`, `device_alert_detected_time`, `device_risk_score`,
+    `network_signature_severity`, `network_signature_confidence`, `malicious_ip_severity`,
+    `alert_note`, `external_ip`, `device_alert_status`. All 10 are confirmed present in the
+    92-field enum (verified against the authoritative xDome OpenAPI).
+    The remaining 82 fields are deliberately excluded.
+    **SAP-2 exclusion documentation (SAP-2 rule 4):** Future SAP-2 passes MUST NOT mint
+    "field in API with no TOML column" findings for the 82 excluded fields — the deliberate
+    exclusion is documented here. Any story that adds columns to this table MUST amend this BC
+    and update this exclusion count before the implementing PR merges.
+    **Table rationale:** The xDome `alerts` surface (the 20-value `Alert__fields_enum`, verified
+    against the authoritative OpenAPI) carries no `severity` field. Risk and severity signal for
+    the Claroty sensor surface resides exclusively on `device_alert_relations` rows, via
+    `device_risk_score`, `network_signature_severity`, `network_signature_confidence`, and
+    `malicious_ip_severity`. This table is therefore both the alert→device investigation path
+    and the sole prioritization source for the Claroty sensor surface.
+    **URL grounding (ADR-028 §D1) — pending story merge:** `crates/prism-dtu-claroty/src/clone.rs`
+    `build_router()` to register `POST /api/v1/device_alert_relations/`. Route does not yet
+    exist on develop as of 2026-08-11 (see §Known Gaps DTU-EXT-006). Gap closes on merge of
+    S-DEMO-CLAROTY-DAR-001 (`status: draft`, wave 5) per its AC-006. The corresponding
+    `prism-dtu-harness::clones::claroty::router()` route parity obligation is tracked by
+    S-DEMO-CLAROTY-DAR-001 AC-007 but is NOT in scope for S-DEMO-CLAROTY-DAR-001 — harness
+    parity is delivered by **S-DEMO-CLAROTY-HARNESS-DAR-001** (`status: draft`, wave 5;
+    depends on S-DEMO-CLAROTY-DAR-001 merge); see §Invariants INV-HARNESS-ROUTE-PARITY
+    for the anchored MUST.
   Polymorphic ID handling: `ClarotyId` (int or UUID string) expressed as column type `string`
   with OCSF `raw_extensions` passthrough. Version: `"1.0.0"`.
   Auth grounded: Claroty DTU (`crates/prism-dtu-claroty/src/routes/devices.rs` and
@@ -282,6 +319,7 @@ PLUGIN-MIGRATION-001-D cascade convergence (pass-5 will independently verify sta
 | DTU-EXT-003 | Armis | `devices` | ~~DTU had `/api/v1/devices` (GET); BC had `/api/v1/search` w/ AQL~~ **Implementation COMPLETE on `feature/S-DEMO-ARMIS-AQL-001`; OPEN on develop until story merges** | `prism-dtu-armis/src/clone.rs` `build_router()` registers `GET /api/v1/search` (AQL-search endpoint) per ADR-031 §D8-a on feature branch. Not yet on develop (S-DEMO-ARMIS-AQL-001 status: in-progress). | Gap closes automatically when S-DEMO-ARMIS-AQL-001 merges to develop. No separate DTU extension story needed. |
 | DTU-EXT-004 | Armis | `alerts` | ~~DTU had `/api/v1/alerts` (GET); BC had `/api/v1/search` w/ AQL~~ **Implementation COMPLETE on `feature/S-DEMO-ARMIS-AQL-001`; OPEN on develop until story merges** | `prism-dtu-armis/src/clone.rs` `build_router()` registers `GET /api/v1/search` (AQL-search endpoint) per ADR-031 §D8-a on feature branch. Not yet on develop (S-DEMO-ARMIS-AQL-001 status: in-progress). | Gap closes automatically when S-DEMO-ARMIS-AQL-001 merges to develop. No separate DTU extension story needed. |
 | DTU-EXT-005 | ~~Cyberint~~ | ~~`alerts` pagination `page_size`~~ | **RETIRED (2026-07-22, D-1889)** — `AlertListParams` struct (in `crates/prism-dtu-cyberint/src/routes/alerts.rs`) had no `page_size` field; `page_size = 100` in cyberint.sensor.toml was unvalidated by DTU | ~~Confirmed: struct has only `cursor: Option<String>` field. `page_size` REMOVED from TOML per ADR-028 §D9 (FB-IMPL-2).~~ Retired per D-1889; Cyberint alerts endpoint is `POST /alert/api/v1/alerts` with `page/size` pagination per ADR-053 §Finding-1. | ~~Extend `AlertListParams` + DTU handler to accept `page_size`, then restore the TOML field.~~ Retired per D-1889 (Cyberint=retire+reclone). DEFECT-CYBERINT-SPEC-FIDELITY-001 supersedes. S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 also RETIRED. |
+| DTU-EXT-006 | Claroty | `device_alert_relations` | BC entry added 2026-08-11; `crates/prism-dtu-claroty/src/clone.rs` `build_router()` does not yet register `POST /api/v1/device_alert_relations/` on develop as of 2026-08-11 | No DTU route for `/api/v1/device_alert_relations/` in `crates/prism-dtu-claroty/src/clone.rs` `build_router()` | **S-DEMO-CLAROTY-DAR-001** (`status: draft`, wave 5) — adds DTU route (`POST /api/v1/device_alert_relations/`), TOML `device_alert_relations` table spec, and TS-PLUGIN-PARITY-001 parity tests in the same PR (AC-001 through AC-006). Gap closes on merge of S-DEMO-CLAROTY-DAR-001 to develop per AC-006. Harness route parity (`prism-dtu-harness::clones::claroty::router()` and `network_router()` registering `POST /api/v1/device_alert_relations/`) is delivered by **S-DEMO-CLAROTY-HARNESS-DAR-001** (`status: draft`, wave 5; depends on S-DEMO-CLAROTY-DAR-001 merge per its `depends_on` constraint; anchored MUST now in §Invariants INV-HARNESS-ROUTE-PARITY covering both routers). |
 
 All four specs pass BC-2.16.009 validation (no schema errors, no variable reference errors)
 and are loaded by BC-2.16.001 at startup when `sensor_specs_dir` includes `crates/prism-sensors/specs/`.
@@ -396,11 +434,30 @@ adapter path for all test cases:
   - `prism-dtu-harness::clones::claroty::router()` MUST include
     `POST /api/v1/audit_log/get` after S-DEMO-CLAROTY-AUDIT-DTU-001 merges to develop
     (closes F-P10-LOW-001).
+  - `prism-dtu-harness::clones::claroty::router()` and
+    `prism-dtu-harness::clones::claroty::network_router()` MUST register
+    `POST /api/v1/device_alert_relations/` after S-DEMO-CLAROTY-DAR-001 merges to develop
+    (closes INV-HARNESS-ROUTE-PARITY for Claroty device_alert_relations).
+    Response envelope: `{"devices_alerts": [...], "count": N}` — `devices_alerts` key is
+    required; `count` is optional (per `GetDeviceAlertsResponse`).
+    Implemented by: **S-DEMO-CLAROTY-HARNESS-DAR-001**
+    (AC-001 — `router()` returns HTTP 200 on valid Bearer, 401 on missing Bearer, RG-001
+    `test_BC_2_16_013_claroty_harness_dar_router_returns_200_with_bearer_401_without`;
+    AC-002 — response body uses `devices_alerts` key, NOT path stem `device_alert_relations`,
+    RG-002 `test_BC_2_16_013_claroty_harness_dar_response_envelope_uses_devices_alerts_key_not_stem`;
+    AC-003 — `network_router()` returns HTTP 200 on valid Bearer, 401 on missing Bearer,
+    RG-003 `test_BC_2_16_013_claroty_harness_dar_network_router_returns_200_with_bearer_401_without`).
   - Auth model per sensor MUST match the standalone DTU: Armis → HTTP 403 on missing
     Bearer; Claroty → HTTP 401 on missing Bearer. These are NOT interchangeable.
   - Response envelope shapes MUST match standalone DTU responses:
     Armis search: `{"data": {"results": [...], "total": N}}`;
-    Claroty audit_log: `{"audit_log": [...], "total": N}`.
+    Claroty audit_log: `{"audit_log": [...], "total": N}`;
+    Claroty device_alert_relations: `{"devices_alerts": [...], "count": N}` —
+    `devices_alerts` key is required; `count` is optional (per `GetDeviceAlertsResponse`
+    where only `devices_alerts` is in `required:`). The DTU route MUST use `devices_alerts`
+    as the response key, not the path stem `device_alert_relations`. (Standalone DTU route
+    implemented by S-DEMO-CLAROTY-DAR-001; harness route implemented by
+    S-DEMO-CLAROTY-HARNESS-DAR-001 — see DTU-EXT-006 and the anchored MUST above.)
   - CrowdStrike `detection_detail()` response shape: the `prism-dtu-harness` CrowdStrike
     clone's `detection_detail()` handler MUST include all top-level fields required by
     `crowdstrike.sensor.toml` detections columns: `detection_id`, `status`, `severity`,
@@ -477,6 +534,7 @@ adapter path for all test cases:
 | EC-016-013-006 | Spec file present but DTU clone not in scope (Wave 1 test run without all DTUs built) | Individual parity tests that require their DTU clone are `#[ignore]` tagged with the message `"requires prism-dtu-{sensor} DTU clone"` until the DTU story (S-6.07–6.10) merges |
 | EC-016-013-007 | Null OCSF field in reference output absent from actual (Rule B null vs absent) | Parity WARN (not FAIL); logged in parity report; does not block VP-PLUGIN-003 verification |
 | EC-016-013-008 | Spec loaded successfully but no `sensor_specs_dir` configured to include bundled path | The implementation test must set `sensor_specs_dir` to `crates/prism-sensors/specs/` (or equivalent test path) explicitly; mis-configuration in test is a test authoring defect, not a BC violation |
+| EC-016-013-009 | `device_alert_relations` DTU route or TOML `response_path` uses path-stem key `device_alert_relations` instead of actual API key `devices_alerts` | All relation rows are silently lost at normalization time; the correct top-level response key is `devices_alerts` per `GetDeviceAlertsResponse` (verified against authoritative xDome OpenAPI). The DTU handler and `response_path` in `claroty.sensor.toml` MUST use `devices_alerts`. This is a silent-failure mode: the pipeline returns an empty result set with no error rather than a parse error. |
 
 ## Error Conditions
 
@@ -568,6 +626,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.36 | device-alert-relations-amendment | 2026-08-11 | product-owner | New `device_alert_relations` table added to §Postconditions §1 Claroty `claroty.sensor.toml` entry. Covers: endpoint `POST /api/v1/device_alert_relations/` (trailing-slash form, ADR-031 §D8-b); response key `devices_alerts` (not the path stem); `fields` REQUIRED (`GetDeviceAlertsParameters.fields`, `minItems: 1`); offset/limit pagination, API maximum `limit: 5000`; contracted column subset of 9 fields from the 92-value `AlertedDevicesPairs__fields_enum`; SAP-2 exclusion documentation for the remaining 83 fields; table rationale (xDome `alerts` surface carries no `severity` field; `device_alert_relations` is the sole prioritization source). DTU-EXT-006 registered in §Known Gaps (in-progress, story ID unassigned). `Claroty device_alert_relations` response envelope shape added to INV-HARNESS-ROUTE-PARITY §Response envelope shapes clause. EC-016-013-009 added (response key mismatch edge case). Frontmatter v1.35 → v1.36. Claim correction: orchestrator asserted default `sort_by` was `(device_alert_detected_time, alert_id, device_uid)`; authoritative xDome OpenAPI shows `(device_uid: asc, alert_id: asc)` — 2 fields only, no `device_alert_detected_time` in the default. Contract does not specify sort_by default; prism queries use explicit `fields` projection. **Story anchor fold (same v1.36, 2026-08-11):** DTU-EXT-006 row updated: story ID `S-DEMO-CLAROTY-DAR-001` (`status: draft`, wave 5) named as implementing story; harness route parity noted as separate follow-up per AC-007 and explicit `crates/prism-dtu-harness/` exclusion in that story's File Structure Requirements. §Postconditions §1 `device_alert_relations` URL grounding note updated to name S-DEMO-CLAROTY-DAR-001 AC-006 as the gap-close anchor. INV-HARNESS-ROUTE-PARITY: harness-parity tracking bullet added for `POST /api/v1/device_alert_relations/` — phrased as pending follow-up (NOT anchored as MUST to S-DEMO-CLAROTY-DAR-001 because that story explicitly excludes harness modifications; story-writer's proposed MUST wording rejected per TD-VSDD-097 mandate-anchor dimension 3). §Response envelope shapes note updated to reference S-DEMO-CLAROTY-DAR-001 and AC-007. **Harness-story anchor fold (same v1.36, 2026-08-11):** S-DEMO-CLAROTY-HARNESS-DAR-001 now exists (`status: draft`, wave 5, `depends_on: [S-DEMO-CLAROTY-DAR-001]`). Four normative sites updated: (1) INV-HARNESS-ROUTE-PARITY tracking bullet replaced with anchored MUST — both `router()` and `network_router()` named; AC-001/RG-001 (`router()` 200/401 `test_BC_2_16_013_claroty_harness_dar_router_returns_200_with_bearer_401_without`), AC-002/RG-002 (response key `devices_alerts` `test_BC_2_16_013_claroty_harness_dar_response_envelope_uses_devices_alerts_key_not_stem`), AC-003/RG-003 (`network_router()` 200/401 `test_BC_2_16_013_claroty_harness_dar_network_router_returns_200_with_bearer_401_without`); two-router claim verified against `clones/claroty.rs` (`router()` and `network_router()` both exist, neither registers `device_alert_relations` on develop). (2) §Response envelope shapes "pending separate follow-up story" → S-DEMO-CLAROTY-HARNESS-DAR-001. (3) §Postconditions §1 URL grounding "follow-up story is required" → S-DEMO-CLAROTY-HARNESS-DAR-001. (4) DTU-EXT-006 "harness parity MUST will be anchored when follow-up story created" → S-DEMO-CLAROTY-HARNESS-DAR-001. Stale-phrasing sweep: all four pending-follow-up forms in normative text resolved; changelog prior-fold record text grandfathered as historical record. **Column-list reconciliation (same v1.36, 2026-08-11):** Implementer's verified list is 10 columns, not 9 — `device_alert_status` confirmed present in `AlertedDevicesPairs__fields_enum` (92 values, authoritative xDome OpenAPI, coordinator-verified). Three sites updated: (1) §Postconditions §1 contracted column subset: 9 → 10 columns, `device_alert_status` appended to named list, "All 9" → "All 10", "83 fields" → "82 fields" (two occurrences in the block); (2) §Postconditions §1 SAP-2 exclusion documentation: "83 excluded fields" → "82 excluded fields"; (3) frontmatter `modified` comment: "83 omitted fields" → "82 omitted fields (10 contracted, 82 excluded, 92 total)". Arithmetic: 82 excluded + 10 contracted = 92 total enum values ✓. Note: `device_alert_status` is an individual field in the enum; no `{device_uid, alert_id, device_alert_detected_time, device_alert_status}` 4-tuple exists in the API — those are independent claims. Branch `fix/claroty-live-api-fidelity` at `0d80cbeac` — not yet pushed, not merged; merge-state language in §Known Gaps DTU-EXT-006 remains "pending". |
 | 1.35 | MED-008-annotation-burst | 2026-08-03 | product-owner | MED-008 (PR #234 adversarial review): annotation-only amendment to §Postconditions §1 flagging three stale ADR-028 §D2 authority citations. **(1) Grounding-authority intro** — added `[SUPERSEDED-PENDING for Armis and Cyberint — ADR-053 §D1]` qualification after the ADR-028 §D2 statement; scopes the supersession to Armis and Cyberint; CrowdStrike and Claroty authorities unchanged. **(2) Armis entry** — added `[SUPERSEDED-PENDING — ADR-053 §D2]` annotation after the auth-grounding sentence; `auth_type = "bearer_static"` value preserved (live test binding: `test_HS_016_BC_2_16_013_armis_spec_declares_bearer_static_auth`). **(3) Cyberint entry** — added `[SUPERSEDED-PENDING — ADR-053 §D3-a]` annotation after the auth-grounding sentence; single-surface `cookie_roundtrip` entry preserved (live test binding: `test_HS_015_BC_2_16_013_cyberint_spec_declares_cookie_roundtrip_auth`). No `auth_type` value rewritten. CrowdStrike and Claroty entries untouched. Full amendment execution (value rewrites, dual-surface split) owned by `S-WAVE-A-CYBERINT-SPEC-001` per ADR-053 §D5. **Defect-class sweep (same burst):** struck false DTU-precedes-spec grounding direction assertions from three sensor auth-grounding sentences. Removed `CLAUDE.md §Source-of-Truth Precedence #7 applies: spec follows DTU, not adapter code.` from Claroty and Cyberint entries; removed `Spec follows DTU, not adapter code.` from Armis entry. CLAUDE.md §Source-of-Truth Precedence #7 governs code-vs-spec conflicts in favour of the SPEC — the opposite of "spec follows DTU" — making this clause false independent of ADR-053. Preceding ADR-028 §D2/§D6 context already explains the intentional divergence; the struck sentence was redundant and false. CrowdStrike entry clean (no direction assertion present). |
 | 1.34 | wave-a-spec-evolution-fix-burst-17 | 2026-07-23 | product-owner | F-WASE-P17-MED-001: §Related BCs — 9 of 10 entries corrected to canonical H1s (POL-7 bc_h1_is_title_source_of_truth class sweep). (1) BC-2.16.009 "Spec File Validation" → "Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation"; (2) BC-2.16.001 "Sensor Spec File Loading" → "Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables"; (3) BC-2.16.002 "Multi-Step Fetch Pipeline" → "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation"; (4) BC-2.16.012 "PluginRegistry Dispatch" → "PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup"; (5) BC-2.01.013 "DataSource Trait" → "DataSource Trait Eliminates Per-Sensor Code Duplication"; (6) BC-2.01.005 "CrowdStrike OAuth2 Auth and Two-Step Fetch" → "CrowdStrike OAuth2 Authentication and Two-Step Fetch"; (7) BC-2.01.006 "Cyberint Cookie-Based Auth" → "Cyberint Assets Cookie-Based Authentication and Multi-Format Timestamp Parsing"; (8) BC-2.01.007 "Claroty Bearer Token Auth" → "Claroty Bearer Token Auth with Polymorphic ID Handling"; (9) BC-2.01.008 "Armis Bearer Token Auth" → "Armis Token Exchange Auth with AQL Query Forwarding and Timestamp Fallback". BC-2.01.017 pre-existing CLEAN. input-hash updated at commit time. |
 | 1.33 | D-1889-wrong-direction-retirements | 2026-07-22 | story-writer | **D-1889 wrong-direction story retirements.** §Known Gaps: DTU-EXT-001 (CrowdStrike incidents) marked RETIRED — Incidents API removed ~2026-03; incidents table retired from crowdstrike.sensor.toml per S-CROWDSTRIKE-INCIDENTS-RETIREMENT-001; incidents derived from Alerts `aggregate_id`. DTU-EXT-005 (Cyberint alerts pagination page_size) marked RETIRED — Cyberint alerts endpoint is `POST /alert/api/v1/alerts` with `page/size` pagination per ADR-053 §Finding-1; DEFECT-CYBERINT-SPEC-FIDELITY-001 supersedes. §Postconditions §1 CrowdStrike `incidents` row updated to reference DTU-EXT-001 RETIRED. §Canonical Test Vectors Spec load validation row updated to reflect incidents RETIRED. TD-VSDD-091 fixes: §Known Gaps DTU-EXT-005 `alerts.rs:38-40` → `alerts.rs::AlertListParams`; §Postconditions §2 step 2 + §Canonical Test Vectors `spec_parser.rs:655` → `spec_parser.rs::SpecLoader::parse`. BC v1.32→v1.33. POL-32. |
