@@ -25,50 +25,105 @@ use prism_dtu_claroty::generate;
 use prism_dtu_common::{Archetype, GenOpts, OrgId};
 
 // ---------------------------------------------------------------------------
+// Spec-parse-driven column derivation (TD-VSDD-097 dimension-1 structural fix)
+//
+// `claroty.sensor.toml` is the single source of truth for column lists. All
+// column sets are derived at compile time via `include_str!` + `toml::from_str`
+// rather than hand-maintained parallel arrays.
+//
+// Root cause of HIGH-2 (TD-VSDD-097 dimension-1 sibling-pair failure): PR #236
+// added 10 new columns across devices/alerts/device_alert_relations tables.
+// `AUDIT_LOG_COLUMNS` was updated (5->8) but its two same-file same-purpose twins
+// -- `DEVICE_COLUMNS` (stayed at 6 of 20) and `ALERT_COLUMNS` (stayed at 8 of 11)
+// -- were not. The spec-parse-driven approach makes every future TOML column
+// addition automatically visible as a guard failure if the generator or fixture
+// is not updated, eliminating this recurrence class entirely.
+//
+// Array-column handling: columns with `source_path = "$.name[*]"` (ENRICH-1
+// wildcard extraction) produce JSON arrays rather than scalars.
+// `flat_scalar_keys` (which filters `!v.is_array()`) will not include them, so
+// they are extracted as root keys (e.g. `"$.ip_list[*]"` -> `"ip_list"`) and
+// verified separately via `assert_array_keys_present`.
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Deserialize)]
+struct SensorSpec {
+    tables: Vec<TableSpec>,
+}
+
+#[derive(serde::Deserialize)]
+struct TableSpec {
+    table_name: String,
+    columns: Vec<ColumnSpec>,
+}
+
+#[derive(serde::Deserialize)]
+struct ColumnSpec {
+    name: String,
+    /// Present on ENRICH-1 wildcard columns: `"$.field_name[*]"`.
+    #[serde(default)]
+    source_path: Option<String>,
+}
+
+/// Parse `claroty.sensor.toml` embedded at compile time.
+///
+/// `include_str!` resolves `../../prism-sensors/specs/claroty.sensor.toml`
+/// relative to this file's location (`crates/prism-dtu-claroty/tests/`).
+/// Any change to the TOML invalidates and recompiles this test binary, so the
+/// guard is always current without manual const updates.
+fn parse_claroty_spec() -> SensorSpec {
+    toml::from_str(include_str!(
+        "../../prism-sensors/specs/claroty.sensor.toml"
+    ))
+    .expect("claroty.sensor.toml must be valid TOML with [[tables]] + [[tables.columns]]")
+}
+
+/// Extract the JSON root key from a JSONPath `source_path` expression.
+///
+/// `"$.ip_list[*]"` -> `"ip_list"`, `"$.vlan_list[*]"` -> `"vlan_list"`.
+fn source_path_root_key(source_path: &str) -> String {
+    let after_prefix = source_path.strip_prefix("$.").unwrap_or(source_path);
+    match after_prefix.find('[') {
+        Some(pos) => after_prefix[..pos].to_string(),
+        None => after_prefix.to_string(),
+    }
+}
+
+/// Returns `(scalar_columns, array_root_keys)` for the named table.
+///
+/// - `scalar_columns`: column names that map to flat scalar JSON values.
+///   Checked via `flat_scalar_keys` + `assert_columns_covered`.
+/// - `array_root_keys`: the JSON top-level key for each `source_path`-bearing
+///   column (e.g. `ip_list` for `source_path = "$.ip_list[*]"`).
+///   Checked via `assert_array_keys_present`.
+fn columns_for_table(spec: &SensorSpec, table_name: &str) -> (Vec<String>, Vec<String>) {
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == table_name)
+        .unwrap_or_else(|| panic!("table '{table_name}' not found in claroty.sensor.toml"));
+    let mut scalar = Vec::new();
+    let mut array = Vec::new();
+    for col in &table.columns {
+        match &col.source_path {
+            None => scalar.push(col.name.clone()),
+            Some(sp) => array.push(source_path_root_key(sp)),
+        }
+    }
+    (scalar, array)
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Canonical test org: bytes [0xde, 0xad, 0xbe, 0xef, ...] → org_slug = "deadbeef".
+/// Canonical test org: bytes [0xde, 0xad, 0xbe, 0xef, ...] -> org_slug = "deadbeef".
 fn deadbeef_org() -> OrgId {
     OrgId([
         0xde, 0xad, 0xbe, 0xef, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00,
     ])
 }
-
-/// claroty.sensor.toml `devices` table columns.
-const DEVICE_COLUMNS: &[&str] = &[
-    "uid",
-    "asset_id",
-    "device_category",
-    "device_type",
-    "risk_score",
-    "retired",
-];
-
-/// claroty.sensor.toml `alerts` table columns.
-const ALERT_COLUMNS: &[&str] = &[
-    "id",
-    "alert_type_name",
-    "category",
-    "status",
-    "detected_time",
-    "updated_time",
-    "devices_count",
-    "description",
-];
-
-/// claroty.sensor.toml `audit_logs` table columns (Tier 0+1 real xDome fields).
-const AUDIT_LOG_COLUMNS: &[&str] = &[
-    "id",
-    "action",
-    "user_display_name",
-    "category",
-    "timestamp",
-    "details",
-    "username",
-    "note",
-];
 
 /// Generated records of a given `_surface` for CompromisedEndpoint, default opts.
 fn generated_surface(surface: &str) -> Vec<serde_json::Value> {
@@ -88,7 +143,7 @@ fn static_fixture(raw: &str, name: &str) -> Vec<serde_json::Value> {
 }
 
 /// Flat scalar key set: scalar-valued keys, excluding `_`-prefixed internal
-/// tags (`_surface`). Nested arrays/objects (ip_list, labels, …) are invisible
+/// tags (`_surface`). Nested arrays/objects (ip_list, labels, ...) are invisible
 /// to the flat `r.get(col)` extraction (CS-06 precedent).
 fn flat_scalar_keys(record: &serde_json::Value) -> BTreeSet<String> {
     record
@@ -124,78 +179,172 @@ fn assert_columns_covered(keys: &BTreeSet<String>, columns: &[&str], path_name: 
     }
 }
 
+/// Assert every named root key is present in every record's top-level JSON
+/// object, regardless of value type.
+///
+/// Used for `source_path`-bearing TOML columns (ENRICH-1 wildcard) that produce
+/// JSON array values. `flat_scalar_keys` will not include them since it filters
+/// `!v.is_array()`.
+fn assert_array_keys_present(records: &[serde_json::Value], keys: &[&str], path_name: &str) {
+    assert!(
+        !records.is_empty(),
+        "{path_name}: no records to check array keys"
+    );
+    for (i, record) in records.iter().enumerate() {
+        let obj = record.as_object().expect("record must be a JSON object");
+        for key in keys {
+            assert!(
+                obj.contains_key(*key),
+                "{path_name} record[{i}] missing array column '{key}' \
+                 (HIGH-2: source_path array column absent from generator/fixture)"
+            );
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
-// P2-01 — TOML column coverage per serving path
+// P2-01 -- TOML column coverage per serving path
 // ---------------------------------------------------------------------------
 
 /// Generated device records cover every TOML `devices` column.
 #[test]
 fn test_p2_01_claroty_generated_devices_cover_toml_columns() {
-    let keys = uniform_flat_keys(&generated_surface("device"), "generated devices");
-    assert_columns_covered(&keys, DEVICE_COLUMNS, "generated devices");
+    let spec = parse_claroty_spec();
+    let (scalar_cols, array_root_keys) = columns_for_table(&spec, "devices");
+    let records = generated_surface("device");
+    let keys = uniform_flat_keys(&records, "generated devices");
+    let scalar_refs: Vec<&str> = scalar_cols.iter().map(String::as_str).collect();
+    assert_columns_covered(&keys, &scalar_refs, "generated devices");
+    let array_refs: Vec<&str> = array_root_keys.iter().map(String::as_str).collect();
+    assert_array_keys_present(&records, &array_refs, "generated devices");
 }
 
 /// Generated alert records cover every TOML `alerts` column.
 #[test]
 fn test_p2_01_claroty_generated_alerts_cover_toml_columns() {
-    let keys = uniform_flat_keys(&generated_surface("alert"), "generated alerts");
-    assert_columns_covered(&keys, ALERT_COLUMNS, "generated alerts");
+    let spec = parse_claroty_spec();
+    let (scalar_cols, array_root_keys) = columns_for_table(&spec, "alerts");
+    let records = generated_surface("alert");
+    let keys = uniform_flat_keys(&records, "generated alerts");
+    let scalar_refs: Vec<&str> = scalar_cols.iter().map(String::as_str).collect();
+    assert_columns_covered(&keys, &scalar_refs, "generated alerts");
+    // alerts currently has no source_path columns; this call is a no-op that
+    // keeps the pattern uniform and future-safe if array columns are added.
+    let array_refs: Vec<&str> = array_root_keys.iter().map(String::as_str).collect();
+    if !array_refs.is_empty() {
+        assert_array_keys_present(&records, &array_refs, "generated alerts");
+    }
 }
 
 /// Static fixture devices cover every TOML `devices` column.
 #[test]
 fn test_p2_01_claroty_static_devices_cover_toml_columns() {
+    let spec = parse_claroty_spec();
+    let (scalar_cols, array_root_keys) = columns_for_table(&spec, "devices");
     let records = static_fixture(include_str!("../fixtures/devices.json"), "devices.json");
     let keys = uniform_flat_keys(&records, "static devices");
-    assert_columns_covered(&keys, DEVICE_COLUMNS, "static devices");
+    let scalar_refs: Vec<&str> = scalar_cols.iter().map(String::as_str).collect();
+    assert_columns_covered(&keys, &scalar_refs, "static devices");
+    let array_refs: Vec<&str> = array_root_keys.iter().map(String::as_str).collect();
+    assert_array_keys_present(&records, &array_refs, "static devices");
 }
 
 /// Static fixture alerts cover every TOML `alerts` column.
 #[test]
 fn test_p2_01_claroty_static_alerts_cover_toml_columns() {
+    let spec = parse_claroty_spec();
+    let (scalar_cols, _array_root_keys) = columns_for_table(&spec, "alerts");
     let records = static_fixture(include_str!("../fixtures/alerts.json"), "alerts.json");
     let keys = uniform_flat_keys(&records, "static alerts");
-    assert_columns_covered(&keys, ALERT_COLUMNS, "static alerts");
+    let scalar_refs: Vec<&str> = scalar_cols.iter().map(String::as_str).collect();
+    assert_columns_covered(&keys, &scalar_refs, "static alerts");
 }
 
 /// Static fixture audit logs cover every TOML `audit_logs` column (the only
-/// serving path for this table — no generated audit-log surface exists).
+/// serving path for this table -- no generated audit-log surface exists).
 #[test]
 fn test_p2_01_claroty_static_audit_logs_cover_toml_columns() {
+    let spec = parse_claroty_spec();
+    let (scalar_cols, _array_root_keys) = columns_for_table(&spec, "audit_logs");
     let records = static_fixture(include_str!("../fixtures/audit-log.json"), "audit-log.json");
     let keys = uniform_flat_keys(&records, "static audit logs");
-    assert_columns_covered(&keys, AUDIT_LOG_COLUMNS, "static audit logs");
+    let scalar_refs: Vec<&str> = scalar_cols.iter().map(String::as_str).collect();
+    assert_columns_covered(&keys, &scalar_refs, "static audit logs");
+}
+
+/// Static fixture device-alert-relations cover every TOML `device_alert_relations`
+/// column.
+///
+/// HIGH-2 fix: new test for the Tier 3 table added in PR #236.
+/// This table has no generated path (no StageMask/seeded branch in the route
+/// handler), so only static fixture coverage exists.
+///
+/// Note: nullable columns (network_signature_severity, malicious_ip_severity,
+/// external_ip) appear as `null` in some records -- flat_scalar_keys includes null
+/// (it passes !is_object() && !is_array()), so they are present in the key set.
+#[test]
+fn test_p2_01_claroty_static_device_alert_relations_cover_toml_columns() {
+    let spec = parse_claroty_spec();
+    let (scalar_cols, _array_root_keys) = columns_for_table(&spec, "device_alert_relations");
+    let records = static_fixture(
+        include_str!("../fixtures/device-alert-relations.json"),
+        "device-alert-relations.json",
+    );
+    let keys = uniform_flat_keys(&records, "static device_alert_relations");
+    let scalar_refs: Vec<&str> = scalar_cols.iter().map(String::as_str).collect();
+    assert_columns_covered(&keys, &scalar_refs, "static device_alert_relations");
 }
 
 // ---------------------------------------------------------------------------
-// P2-01 — TOML column TYPES hold on the generated path
+// P2-01 -- TOML column TYPES hold on the generated path
 // ---------------------------------------------------------------------------
 
-/// Generated records carry TOML-compatible value types: datetime columns parse
-/// as RFC 3339, `devices_count` is an integer, `retired` is a boolean,
-/// `risk_score` is a string (claroty.sensor.toml declares it string-typed).
+/// Generated records carry TOML-compatible value types for all columns.
+///
+/// Extended in PR #236 fix-burst to cover the 10 newly-added device and alert
+/// fields (CRITICAL-1 generator fix + HIGH-2 type-guard extension):
+/// - devices: `purdue_level`, `site_name`, `criticality`, `device_name`,
+///   `manufacturer` (column_type = "string"), `is_online` (column_type = "boolean")
+/// - alerts: `alert_class`, `alert_name` (column_type = "string"),
+///   `ot_devices_count` (column_type = "integer")
 #[test]
 fn test_p2_01_claroty_generated_flat_key_types_match_toml() {
     for (i, dev) in generated_surface("device").iter().enumerate() {
+        // TOML column_type = "string" columns
         for col in [
             "uid",
             "asset_id",
             "device_category",
             "device_type",
             "risk_score",
+            // Tier 2 string columns added in PR #236 (CRITICAL-1 fix):
+            "purdue_level",
+            "site_name",
+            "criticality",
+            "device_name",
+            "manufacturer",
         ] {
             assert!(
                 dev.get(col).is_some_and(serde_json::Value::is_string),
-                "generated device[{i}] '{col}' must be a string (TOML column_type)"
+                "generated device[{i}] '{col}' must be a string \
+                 (TOML column_type = \"string\")"
             );
         }
-        assert!(
-            dev.get("retired")
-                .is_some_and(serde_json::Value::is_boolean),
-            "generated device[{i}] 'retired' must be a boolean (TOML column_type)"
-        );
+        // TOML column_type = "boolean" columns
+        for col in [
+            "retired",
+            // Tier 2 boolean column added in PR #236 (CRITICAL-1 fix):
+            "is_online",
+        ] {
+            assert!(
+                dev.get(col).is_some_and(serde_json::Value::is_boolean),
+                "generated device[{i}] '{col}' must be a boolean \
+                 (TOML column_type = \"boolean\")"
+            );
+        }
     }
     for (i, alert) in generated_surface("alert").iter().enumerate() {
+        // TOML column_type = "datetime" columns: verify RFC 3339 parse
         for col in ["detected_time", "updated_time"] {
             let ts = alert
                 .get(col)
@@ -204,15 +353,29 @@ fn test_p2_01_claroty_generated_flat_key_types_match_toml() {
             ts.parse::<chrono::DateTime<chrono::Utc>>()
                 .unwrap_or_else(|e| panic!("generated alert[{i}] '{col}'='{ts}' not RFC3339: {e}"));
         }
-        assert!(
-            alert
-                .get("devices_count")
-                .is_some_and(serde_json::Value::is_u64),
-            "generated alert[{i}] 'devices_count' must be an integer (TOML column_type)"
-        );
-        // TOML alerts.id is string-typed POLYMORPHICALLY (handles int and UUID
-        // upstream IDs); the generator emits the integer form — assert it is
-        // one of the two real-API value classes.
+        // TOML column_type = "integer" columns
+        for col in [
+            "devices_count",
+            // Tier 2 integer column added in PR #236 (CRITICAL-1 fix):
+            "ot_devices_count",
+        ] {
+            assert!(
+                alert.get(col).is_some_and(serde_json::Value::is_u64),
+                "generated alert[{i}] '{col}' must be an integer \
+                 (TOML column_type = \"integer\")"
+            );
+        }
+        // TOML column_type = "string" columns added in PR #236 (CRITICAL-1 fix)
+        for col in ["alert_class", "alert_name"] {
+            assert!(
+                alert.get(col).is_some_and(serde_json::Value::is_string),
+                "generated alert[{i}] '{col}' must be a string \
+                 (TOML column_type = \"string\")"
+            );
+        }
+        // TOML alerts.id is polymorphic (handles int and UUID string upstream
+        // IDs): the generator emits the integer form -- assert it is one of the
+        // two valid wire classes.
         let id = alert.get("id").expect("id key present");
         assert!(
             id.is_u64() || id.is_string(),

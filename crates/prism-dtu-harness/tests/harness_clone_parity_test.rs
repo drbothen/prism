@@ -705,3 +705,151 @@ async fn test_BC_2_16_013_claroty_harness_audit_log_response_envelope_matches_st
         );
     }
 }
+
+// ============================================================================
+// HIGH-3 fix — Claroty harness clone registers POST /api/v1/device_alert_relations
+//
+// test_BC_2_16_013_claroty_harness_device_alert_relations_returns_200_with_bearer_401_without
+//
+// BC-2.16.013 INV-HARNESS-ROUTE-PARITY:
+//   claroty::router() MUST include POST /api/v1/device_alert_relations
+//   claroty::network_router() MUST also include POST /api/v1/device_alert_relations
+//   Claroty auth model: 401 on missing/invalid Bearer (NOT 403)
+//
+// C-4: BOTH router() and network_router() must be tested.
+//
+// Red Gate failure mode:
+//   POST /api/v1/device_alert_relations → 404 (route not registered in either router)
+// ============================================================================
+
+/// HIGH-3: Claroty harness clone POST /api/v1/device_alert_relations — 200 with bearer, 401 without.
+///
+/// Covers logical mode (router()) and network mode (network_router()) — C-4.
+/// Claroty auth model: 401 on missing/empty Bearer (NOT 403 — that's Armis only).
+///
+/// (BC-2.16.013 INV-HARNESS-ROUTE-PARITY — claroty::router() MUST include
+/// POST /api/v1/device_alert_relations; Claroty auth model: 401 on missing/invalid Bearer)
+///
+/// Red Gate: POST /api/v1/device_alert_relations → 404 (route not registered).
+#[tokio::test]
+async fn test_BC_2_16_013_claroty_harness_device_alert_relations_returns_200_with_bearer_401_without(
+) {
+    // Part A: Logical mode (router())
+    let harness_logical = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::Claroty];
+        })
+        .build()
+        .await
+        .expect("logical harness build must succeed");
+
+    let addr_logical = get_addr(&harness_logical, "acme-corp", DtuType::Claroty);
+    let client = test_client();
+
+    // Sub-test A1: 200 with any non-empty Bearer (Claroty model — not token-validated).
+    let resp_with_bearer = client
+        .post(format!(
+            "http://{addr_logical}/api/v1/device_alert_relations"
+        ))
+        .header("Authorization", "Bearer any-non-empty-token")
+        .json(&serde_json::json!({"fields": ["device_uid", "alert_id"]}))
+        .send()
+        .await
+        .expect(
+            "POST /api/v1/device_alert_relations (logical, with bearer) must not fail at transport",
+        );
+
+    assert_eq!(
+        resp_with_bearer.status().as_u16(),
+        200,
+        "POST /api/v1/device_alert_relations (logical router) with valid Bearer must return HTTP 200 \
+         (HIGH-3, INV-HARNESS-ROUTE-PARITY). \
+         Red Gate: route not registered → currently 404."
+    );
+
+    // Verify response envelope has `devices_alerts` key.
+    let body: serde_json::Value = resp_with_bearer
+        .json()
+        .await
+        .expect("200 response must have JSON body");
+    assert!(
+        body.get("devices_alerts").is_some(),
+        "POST /api/v1/device_alert_relations must return `devices_alerts` key (HIGH-3 wire-shape)"
+    );
+
+    // Sub-test A2: 401 with no Authorization header (Claroty model — missing Bearer = 401).
+    let resp_no_auth = client
+        .post(format!(
+            "http://{addr_logical}/api/v1/device_alert_relations"
+        ))
+        .json(&serde_json::json!({"fields": ["device_uid"]}))
+        .send()
+        .await
+        .expect(
+            "POST /api/v1/device_alert_relations (logical, no auth) must not fail at transport",
+        );
+
+    assert_eq!(
+        resp_no_auth.status().as_u16(),
+        401,
+        "POST /api/v1/device_alert_relations (logical router) with no Authorization must return HTTP 401 \
+         (HIGH-3, Claroty auth model: 401 NOT 403). \
+         Red Gate: route not registered → currently 404."
+    );
+
+    // Part B: Network mode (network_router()) — C-4 coverage.
+    let harness_network = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Network)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::Claroty];
+        })
+        .build()
+        .await
+        .expect("network harness build must succeed");
+
+    let addr_network = harness_network
+        .endpoint_for("acme-corp", DtuType::Claroty)
+        .expect("network mode endpoint must be present for acme-corp Claroty");
+
+    // Sub-test B1: 200 with Bearer in network mode.
+    let resp_network_with_bearer = client
+        .post(format!(
+            "http://{addr_network}/api/v1/device_alert_relations"
+        ))
+        .header("Authorization", "Bearer any-non-empty-token")
+        .json(&serde_json::json!({"fields": ["device_uid", "alert_id"]}))
+        .send()
+        .await
+        .expect(
+            "POST /api/v1/device_alert_relations (network, with bearer) must not fail at transport",
+        );
+
+    assert_eq!(
+        resp_network_with_bearer.status().as_u16(),
+        200,
+        "POST /api/v1/device_alert_relations (network_router) with valid Bearer must return HTTP 200 \
+         (HIGH-3, C-4: BOTH routers must have the route). \
+         Red Gate: route not registered in network_router() → currently 404."
+    );
+
+    // Sub-test B2: 401 with no Authorization in network mode.
+    let resp_network_no_auth = client
+        .post(format!(
+            "http://{addr_network}/api/v1/device_alert_relations"
+        ))
+        .json(&serde_json::json!({"fields": ["device_uid"]}))
+        .send()
+        .await
+        .expect(
+            "POST /api/v1/device_alert_relations (network, no auth) must not fail at transport",
+        );
+
+    assert_eq!(
+        resp_network_no_auth.status().as_u16(),
+        401,
+        "POST /api/v1/device_alert_relations (network_router) with no Authorization must return HTTP 401 \
+         (HIGH-3, C-4: network_router() uses plain check_bearer_auth per sibling convention). \
+         Red Gate: route not registered in network_router() → currently 404."
+    );
+}

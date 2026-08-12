@@ -83,14 +83,20 @@ pub async fn list_device_alert_relations(
 //   test_claroty_tier3_device_alert_relations_dtu_route_returns_envelope → AC-001, AC-003, AC-004
 //   test_claroty_tier3_device_alert_relations_dtu_auth_enforced          → AC-002
 //   test_claroty_tier3_device_alert_relations_dtu_column_parity          → SAP-2
+//   test_device_alert_relations_fixture_referential_integrity             → HIGH-4 (device_uid/alert_id FK integrity)
+//   test_W3_FIX_SEC_001_claroty_device_alert_relations_org_mismatch_returns_401              → SEC-001
+//   test_W3_FIX_SEC_001_claroty_device_alert_relations_missing_org_header_returns_401        → SEC-001
+//   test_W3_FIX_SEC_001_claroty_device_alert_relations_nil_org_no_header_returns_200         → SEC-001
 // ---------------------------------------------------------------------------
 #[cfg(test)]
 #[allow(non_snake_case, clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use std::time::Duration;
 
+    use prism_core::OrgId;
     use prism_dtu_common::BehavioralClone;
     use serde_json::json;
+    use uuid::Uuid;
 
     use crate::clone::ClarotyClone;
     use crate::types::ClarotyDeviceAlertRelation;
@@ -104,6 +110,20 @@ mod tests {
 
     async fn start_clone() -> (ClarotyClone, String) {
         let mut clone = ClarotyClone::new();
+        clone
+            .start()
+            .await
+            .expect("ClarotyClone::start must succeed in test environment");
+        let base_url = clone.base_url();
+        (clone, base_url)
+    }
+
+    /// Start a `ClarotyClone` with a specific non-nil org identity.
+    ///
+    /// Used by SEC-001 org-isolation tests. The clone enforces X-Org-Id validation
+    /// because `instance_org_id` is non-nil.
+    async fn start_clone_with_org(org_id: OrgId) -> (ClarotyClone, String) {
+        let mut clone = ClarotyClone::with_org(org_id);
         clone
             .start()
             .await
@@ -306,6 +326,222 @@ mod tests {
         assert!(
             !response_entries.is_empty(),
             "HTTP response devices_alerts must be non-empty"
+        );
+    }
+
+    /// Referential integrity: every `device_uid` in the relations fixture must exist
+    /// as a `uid` in `devices.json`, and every `alert_id` must exist as an `id` in
+    /// `alerts.json`.  This test is the canonical guard against dangling FK references
+    /// (HIGH-4 resolution: original fixture had UUIDs that matched no device uid).
+    ///
+    /// Not wired to an AC by number — this is a data-integrity invariant that applies
+    /// at all times regardless of story scope.
+    #[test]
+    fn test_device_alert_relations_fixture_referential_integrity() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+
+        // Load all three fixtures.
+        let relations_raw = std::fs::read_to_string(format!(
+            "{manifest_dir}/fixtures/device-alert-relations.json"
+        ))
+        .expect("device-alert-relations.json must exist");
+        let devices_raw = std::fs::read_to_string(format!("{manifest_dir}/fixtures/devices.json"))
+            .expect("devices.json must exist");
+        let alerts_raw = std::fs::read_to_string(format!("{manifest_dir}/fixtures/alerts.json"))
+            .expect("alerts.json must exist");
+
+        let relations: Vec<serde_json::Value> = serde_json::from_str(&relations_raw)
+            .expect("relations fixture must parse as JSON array");
+        let devices: Vec<serde_json::Value> =
+            serde_json::from_str(&devices_raw).expect("devices fixture must parse as JSON array");
+        let alerts: Vec<serde_json::Value> =
+            serde_json::from_str(&alerts_raw).expect("alerts fixture must parse as JSON array");
+
+        // Build lookup sets.
+        let device_uids: std::collections::HashSet<String> = devices
+            .iter()
+            .filter_map(|d| d.get("uid").and_then(|v| v.as_str()).map(String::from))
+            .collect();
+
+        // alert ids may be integer or string in the fixture; normalise to String for comparison.
+        let alert_ids: std::collections::HashSet<String> = alerts
+            .iter()
+            .filter_map(|a| {
+                a.get("id").map(|v| match v {
+                    serde_json::Value::Number(n) => n.to_string(),
+                    serde_json::Value::String(s) => s.clone(),
+                    other => other.to_string(),
+                })
+            })
+            .collect();
+
+        for (i, rel) in relations.iter().enumerate() {
+            let device_uid = rel
+                .get("device_uid")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("relations[{i}] missing device_uid"));
+
+            assert!(
+                device_uids.contains(device_uid),
+                "relations[{i}].device_uid = {:?} does not exist in devices.json uids.\n\
+                 Known uids: {device_uids:?}",
+                device_uid
+            );
+
+            let alert_id_val = rel
+                .get("alert_id")
+                .unwrap_or_else(|| panic!("relations[{i}] missing alert_id"));
+            let alert_id_str = match alert_id_val {
+                serde_json::Value::Number(n) => n.to_string(),
+                serde_json::Value::String(s) => s.clone(),
+                other => other.to_string(),
+            };
+
+            assert!(
+                alert_ids.contains(&alert_id_str),
+                "relations[{i}].alert_id = {:?} does not exist in alerts.json ids.\n\
+                 Known ids: {alert_ids:?}",
+                alert_id_str
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // W3-FIX-SEC-001 org-isolation guard tests (SEC-001 closure)
+    //
+    // These three tests close the org-isolation test matrix for
+    // `list_device_alert_relations`, matching the pattern established for
+    // `list_audit_logs` and `list_alerts` by W3-FIX-SEC-001.
+    //
+    // The code guard (nil_org sentinel + validate_org_id call) was present in
+    // the original implementation; these tests verify it is active.
+    // -----------------------------------------------------------------------
+
+    /// W3-FIX-SEC-001 — org-isolation guard: non-nil clone + mismatched X-Org-Id → 401.
+    ///
+    /// When the clone has a real (non-nil) `instance_org_id`, a request bearing a
+    /// different UUID must be rejected with HTTP 401.
+    ///
+    /// Org-isolation test matrix for `list_device_alert_relations`:
+    ///   this test → non-nil + MISMATCH → 401
+    ///   test_W3_FIX_SEC_001_claroty_device_alert_relations_missing_org_header_returns_401 → non-nil + ABSENT → 401
+    ///   test_W3_FIX_SEC_001_claroty_device_alert_relations_nil_org_no_header_returns_200  → nil + ABSENT → 200
+    #[tokio::test]
+    async fn test_W3_FIX_SEC_001_claroty_device_alert_relations_org_mismatch_returns_401() {
+        // Instance org: a real, non-nil UUID.
+        let instance_org = OrgId::from_uuid(
+            Uuid::parse_str("11111111-1111-7000-8000-000000000001").expect("valid test UUID"),
+        );
+        // A different org UUID sent by the caller.
+        let caller_org =
+            Uuid::parse_str("22222222-2222-7000-8000-000000000002").expect("valid test UUID");
+
+        let (_clone, base_url) = start_clone_with_org(instance_org).await;
+        let client = test_client();
+
+        let resp = client
+            .post(format!("{base_url}/api/v1/device_alert_relations/"))
+            .header("Authorization", "Bearer test-token")
+            .header("X-Org-Id", caller_org.to_string())
+            .json(&json!({"fields": ["device_uid", "alert_id"]}))
+            .send()
+            .await
+            .expect("transport must not fail for org-mismatch test");
+
+        assert_eq!(
+            resp.status().as_u16(),
+            401,
+            "non-nil-org clone + mismatched X-Org-Id must return HTTP 401 (W3-FIX-SEC-001)"
+        );
+
+        let body: serde_json::Value = resp
+            .json()
+            .await
+            .expect("401 response must have JSON body (SEC-001)");
+        assert!(
+            body.get("error")
+                .and_then(|v| v.as_str())
+                .map(|s| s.contains("org_id mismatch"))
+                .unwrap_or(false),
+            "SEC-001: 401 body must contain 'org_id mismatch'; got: {body}"
+        );
+    }
+
+    /// W3-FIX-SEC-001 — org-isolation guard: non-nil clone + absent X-Org-Id header → 401.
+    ///
+    /// When the clone has a real (non-nil) `instance_org_id`, a request that omits the
+    /// `X-Org-Id` header entirely must return HTTP 401. `validate_org_id` treats an
+    /// absent header as a mismatch (AC-003: missing header → 401).
+    ///
+    /// Org-isolation test matrix for `list_device_alert_relations`:
+    ///   test_W3_FIX_SEC_001_claroty_device_alert_relations_org_mismatch_returns_401 → non-nil + MISMATCH → 401
+    ///   this test → non-nil + ABSENT → 401
+    ///   test_W3_FIX_SEC_001_claroty_device_alert_relations_nil_org_no_header_returns_200 → nil + ABSENT → 200
+    #[tokio::test]
+    async fn test_W3_FIX_SEC_001_claroty_device_alert_relations_missing_org_header_returns_401() {
+        let instance_org = OrgId::from_uuid(
+            Uuid::parse_str("11111111-1111-7000-8000-000000000001").expect("valid test UUID"),
+        );
+
+        let (_clone, base_url) = start_clone_with_org(instance_org).await;
+        let client = test_client();
+
+        let resp = client
+            .post(format!("{base_url}/api/v1/device_alert_relations/"))
+            .header("Authorization", "Bearer test-token")
+            // Intentionally NO X-Org-Id header.
+            .json(&json!({"fields": ["device_uid", "alert_id"]}))
+            .send()
+            .await
+            .expect("transport must not fail for missing-header test");
+
+        assert_eq!(
+            resp.status().as_u16(),
+            401,
+            "non-nil-org clone + absent X-Org-Id header must return HTTP 401 (W3-FIX-SEC-001 AC-003)"
+        );
+
+        let body: serde_json::Value = resp
+            .json()
+            .await
+            .expect("401 response must have JSON body (W3-FIX-SEC-001)");
+        assert!(
+            body.get("error")
+                .and_then(|v| v.as_str())
+                .map(|s| s.contains("org_id mismatch"))
+                .unwrap_or(false),
+            "W3-FIX-SEC-001: 401 body must contain 'org_id mismatch'; got: {body}"
+        );
+    }
+
+    /// W3-FIX-SEC-001 backward-compat: nil-org clone without X-Org-Id header must return 200.
+    ///
+    /// `ClarotyClone::new()` sets `instance_org_id` to the nil UUID — the sentinel meaning
+    /// "no org constraint". Callers that do not supply `X-Org-Id` must not be rejected.
+    ///
+    /// Org-isolation test matrix for `list_device_alert_relations`:
+    ///   test_W3_FIX_SEC_001_claroty_device_alert_relations_org_mismatch_returns_401        → non-nil + MISMATCH → 401
+    ///   test_W3_FIX_SEC_001_claroty_device_alert_relations_missing_org_header_returns_401  → non-nil + ABSENT → 401
+    ///   this test → nil + ABSENT → 200
+    #[tokio::test]
+    async fn test_W3_FIX_SEC_001_claroty_device_alert_relations_nil_org_no_header_returns_200() {
+        // Nil-org clone — no org enforcement.
+        let (_clone, base_url) = start_clone().await;
+        let client = test_client();
+
+        let resp = client
+            .post(format!("{base_url}/api/v1/device_alert_relations/"))
+            .header("Authorization", "Bearer test-token")
+            // Intentionally NO X-Org-Id header.
+            .json(&json!({"fields": ["device_uid", "alert_id"]}))
+            .send()
+            .await
+            .expect("transport must not fail for nil-org backward-compat test");
+
+        assert_eq!(
+            resp.status().as_u16(),
+            200,
+            "nil-org clone without X-Org-Id header must return HTTP 200 (SEC-001 backward-compat)"
         );
     }
 }

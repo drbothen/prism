@@ -13,7 +13,7 @@
 //! - AC-ARMIS-001: Armis AQL passthrough — no maxResults or timeFrame
 //! - AC-ARMIS-002: No additional params beyond aql, offset, limit
 //! - AC-CYB-001: Cyberint AlertListParams has only cursor (no from_date, to_date, page_size)
-//! - AC-CLAR-001: Claroty body_template remains empty — no time-window fields
+//! - AC-CLAR-001: Claroty body_template has fields projection, no time-window fields
 //! - AC-EQUIV-001: FQL subset invariant at PipelineExecutor boundary (pre-seeded FQL, CrowdStrike DTU);
 //!   AUTHORITATIVE full run_materialization_pipeline path in prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs
 //!   → test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline
@@ -879,12 +879,13 @@ async fn test_ac_cyb_001_no_from_date_to_date_page_size_in_alert_list_params() {
 }
 
 // ---------------------------------------------------------------------------
-// AC-CLAR-001: Claroty body_template remains empty — no time-window fields
+// AC-CLAR-001: Claroty body_template has fields projection — no time-window fields
 // ---------------------------------------------------------------------------
 
 /// AC-CLAR-001 / BC-2.01.013 Pagination/Push-Down Scope Clause — Claroty row
 ///
-/// The Claroty POST body must remain `{}` (empty). No time-window fields may be injected.
+/// The Claroty POST body must contain a `fields` projection (GetAlertsParameters.fields
+/// is REQUIRED per xDome OpenAPI) but must NOT contain time-window fields.
 ///
 /// # SAP-2
 /// Production `claroty.sensor.toml` shape: POST, `body_template: '{}'`, OffsetLimit URL params.
@@ -894,7 +895,7 @@ async fn test_ac_cyb_001_no_from_date_to_date_page_size_in_alert_list_params() {
 /// Fails if the implementation injects time-window body fields into the Claroty POST body.
 /// The v1.x implementation injected wrong fields — this test detects the regression.
 #[tokio::test]
-async fn test_ac_clar_001_claroty_body_template_remains_empty_no_time_fields() {
+async fn test_ac_clar_001_claroty_body_template_has_fields_projection_no_time_fields() {
     let mut clone = ClarotyClone::new();
     let bound_addr = clone
         .start_on("127.0.0.1:0".parse().unwrap(), None, None)

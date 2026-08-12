@@ -46,7 +46,7 @@ name = "bearer_token"
 
 # ---------------------------------------------------------------------------
 # Table: alerts
-# POST-for-read pattern; offset pagination (page_size = 100)
+# POST-for-read pattern; offset pagination (page_size = 1000)
 # DTU route: POST /api/v1/alerts (crates/prism-dtu-claroty/src/clone.rs build_router())
 #
 # Gap-CL-005 fix (2026-05-29): column names updated to match DTU ClarotyAlert struct
@@ -435,11 +435,13 @@ ocsf_class = "detection_finding"
   ocsf_field = "device.uid"
   options = ["REQUIRED"]
 
-  # DTU ClarotyDeviceAlertRelation.alert_id: u32 — alert integer ID.
-  # Verified in AlertedDevicesPairs__fields_enum (xDome OpenAPI 2026-06-20).
+  # DTU ClarotyDeviceAlertRelation.alert_id: String — alert identifier.
+  # Declared as string to match alerts.id (same ocsf_field = "finding.uid") and support
+  # polymorphic alert IDs (numeric or UUID) per the same rationale as alerts.id (EC-016-013-004).
+  # Original u32 typing rejected: non-numeric alert IDs would silently NULL the join key.
   [[tables.columns]]
   name = "alert_id"
-  column_type = "integer"
+  column_type = "string"
   ocsf_field = "finding.uid"
 
   # DTU ClarotyDeviceAlertRelation.device_alert_detected_time: String (ISO 8601).

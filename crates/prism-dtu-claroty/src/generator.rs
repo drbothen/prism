@@ -105,7 +105,16 @@ fn make_device(slug: &str, seed: u64, index: usize) -> Value {
         "retired": false,
         "risk_score": "Low",
         "uid": format!("{slug}-{seed}-device-{index:08x}"),
-        "status": "online"
+        "status": "online",
+        // CRITICAL-1 fix: 7 new scalar device columns added by PR #236 but absent from generator.
+        // Without these, seeded/StageMask paths return NULL for all 7 columns.
+        "device_name": format!("Device-{slug}-{index}"),
+        "criticality": "medium",
+        "purdue_level": "Level 2",
+        "site_name": "Site-A",
+        "is_online": true,
+        "manufacturer": "Acme Industrial",
+        "vlan_list": [100u32, 200u32]
     })
 }
 
@@ -131,7 +140,15 @@ fn make_device_with_subnet(slug: &str, seed: u64, index: usize, subnet: &str) ->
         "risk_score": "Low",
         "uid": format!("{slug}-{seed}-device-{index:08x}"),
         "status": "online",
-        "subnet": subnet
+        "subnet": subnet,
+        // CRITICAL-1 fix: 7 new scalar device columns (same as make_device).
+        "device_name": format!("Device-{slug}-{index}"),
+        "criticality": "medium",
+        "purdue_level": "Level 2",
+        "site_name": "Site-A",
+        "is_online": true,
+        "manufacturer": "Acme Industrial",
+        "vlan_list": [100u32, 200u32]
     })
 }
 
@@ -179,7 +196,11 @@ fn make_alert(
         "status": "Unresolved",
         "unresolved_devices_count": 1,
         "updated_time": updated_time,
-        "severity_id": severity_id
+        "severity_id": severity_id,
+        // CRITICAL-1 fix: 3 new scalar alert columns added by PR #236 but absent from generator.
+        "alert_class": "policy_violation",
+        "ot_devices_count": 1i64,
+        "alert_name": format!("Alert-{index}")
     })
 }
 

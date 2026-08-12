@@ -277,14 +277,17 @@ fn test_BC_2_16_013_AC004_audit_logs_functional_fields_unchanged() {
 // Tier 2 tests — array columns, scalar columns, alert expansion
 // ---------------------------------------------------------------------------
 
-/// Wire-shape assertion (Tier 2): `ip_list` column with `source_path = "$.ip_list[*]"`
-/// serializes an array of IP strings to a compact JSON-list string at the column mapping layer.
+/// Column-mapping layer assertion (Tier 2): `ip_list` column with `source_path = "$.ip_list[*]"`
+/// serializes an array of IP strings to a compact JSON-list string at the `ColumnMapper::map_record`
+/// layer (the intermediate pre-Arrow mapping step).
 ///
-/// This is the load-bearing test for the ENRICH-1 wildcard feature:
-/// `["10.0.1.1","10.0.1.2"]` in raw JSON → `Value::String("[\"10.0.1.1\",\"10.0.1.2\"]")`
-/// in `raw_extensions` (no `ocsf_field` declared on `ip_list`).
+/// This test covers the `ColumnMapper::map_record` path (prism-spec-engine).  The production
+/// query path uses `build_column_array` in prism-bin, which is covered by:
+/// - `test_build_column_array_claroty_ip_list_string_elements_serialize_to_json_list_string`
+/// - `test_build_column_array_claroty_vlan_list_integer_elements_stringify_to_json_list_string`
+/// (both in `crates/prism-bin/src/spec_driven_adapter.rs` — MEDIUM-6 fix).
 ///
-/// SAP-2: tests the WIRE OUTPUT of the pipeline, not just the Rust struct shape.
+/// Together these three tests form the full coverage chain for ENRICH-1 array columns.
 #[test]
 fn test_claroty_tier2_ip_list_array_column_serializes_to_json_list_string() {
     use prism_spec_engine::column_mapping::ColumnMapper;
