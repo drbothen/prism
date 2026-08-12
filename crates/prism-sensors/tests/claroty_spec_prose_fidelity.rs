@@ -9,7 +9,7 @@
 //! |------|-----------|--------------------------|
 //! | `test_BC_2_16_013_AC001_audit_logs_no_stale_dtu_gap_comments` | GREEN pre-impl | Stale comments already removed by the `docs(S-DEMO-CLAROTY-AUDIT-DTU-001)` commit (9e4e17bf); AC-001 is now a no-regression guard verifying they stay absent. |
 //! | `test_BC_2_16_013_AC002_audit_logs_gap_cl_006_closed_comment_present` | RED pre-impl | `"Gap-CL-006 CLOSED"` comment line not yet written; this is the genuine Red Gate assertion. |
-//! | `test_BC_2_16_013_AC004_audit_logs_functional_fields_unchanged` | GREEN pre-impl | No-regression guard — asserts functional TOML content is intact before and after. |
+//! | `test_BC_2_16_013_AC004_audit_logs_functional_fields_match_live_api` | RED pre-impl | RED gate — asserts live-API-grounded contract: path_template `/api/v1/audit_log/get` (no trailing slash, LIVE-DRIFT-002), exactly 8 real xDome columns (id/action/category/details/timestamp/user_display_name/username/note, LIVE-DRIFT-003), actor/resource forbidden. Before fix: fails because spec had trailing slash and old column names. |
 //!
 //! Traces to: BC-2.16.013 §Postconditions §1 (audit_logs clause).
 //!
@@ -165,7 +165,7 @@ fn test_BC_2_16_013_AC002_audit_logs_gap_cl_006_closed_comment_present() {
 // ---------------------------------------------------------------------------
 
 /// RED gate (items 3 + 4 of CLAROTY-LIVE-API-FIDELITY): audit_logs functional fields
-/// must match the real xDome API.
+/// must match the real xDome API (live-API-grounded contract, NOT a no-regression "unchanged" guard).
 ///
 /// Parses `claroty.sensor.toml` via `SpecLoader::parse` (canonical TOML loader)
 /// and asserts:
@@ -179,13 +179,19 @@ fn test_BC_2_16_013_AC002_audit_logs_gap_cl_006_closed_comment_present() {
 ///   `actor` and `resource` MUST NOT be present — they do not exist in the xDome API
 ///   (LIVE-DRIFT-003, confirmed against xDome OpenAPI §GetAuditLogResponse example).
 ///
-/// Before fix: fails because spec has trailing slash and old column names (actor/resource).
+/// Before fix: fails because spec had trailing slash and old column names (actor/resource).
 /// After fix: passes with corrected path and real API field names.
+///
+/// Name rationale (F-CLARO-P2-LOW-003): renamed from `test_BC_2_16_013_AC004_audit_logs_functional_fields_unchanged`
+/// because this test asserts the CHANGED live-API-grounded contract, NOT that "fields are unchanged".
+/// The prior name and module-header table row both said "unchanged" / "GREEN pre-impl" but the
+/// function body asserts the corrected real-API values that did NOT match the old spec — a
+/// TD-VSDD-059 doc-comment-only closure of an earlier finding.
 ///
 /// Story: CLAROTY-LIVE-API-FIDELITY items 3 and 4
 /// BC: BC-2.16.013 §Postconditions §1
 #[test]
-fn test_BC_2_16_013_AC004_audit_logs_functional_fields_unchanged() {
+fn test_BC_2_16_013_AC004_audit_logs_functional_fields_match_live_api() {
     let toml_path = concat!(env!("CARGO_MANIFEST_DIR"), "/specs/claroty.sensor.toml");
     let content = std::fs::read_to_string(toml_path)
         .unwrap_or_else(|e| panic!("Failed to read claroty.sensor.toml: {e}"));

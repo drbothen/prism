@@ -768,7 +768,7 @@ async fn test_BC_2_16_013_claroty_harness_device_alert_relations_returns_200_wit
          Red Gate: route not registered → currently 404."
     );
 
-    // Verify response envelope has `devices_alerts` key.
+    // Verify response envelope has `devices_alerts` key (AC-002 first bullet).
     let body: serde_json::Value = resp_with_bearer
         .json()
         .await
@@ -776,6 +776,20 @@ async fn test_BC_2_16_013_claroty_harness_device_alert_relations_returns_200_wit
     assert!(
         body.get("devices_alerts").is_some(),
         "POST /api/v1/device_alert_relations must return `devices_alerts` key (HIGH-3 wire-shape)"
+    );
+
+    // AC-002 (second bullet) — RG-002 absent-key assertion:
+    // The path-stem key `device_alert_relations` MUST NOT appear as a top-level key.
+    // Using the path stem silently discards every row at pipeline normalization time
+    // (BC-2.16.013 EC-016-013-009 stem ambiguity). Both the presence of `devices_alerts`
+    // AND the absence of `device_alert_relations` are required; asserting only one is
+    // insufficient (S-DEMO-CLAROTY-HARNESS-DAR-001 AC-002; F-CLARO-P2-MED-002).
+    assert!(
+        body.get("device_alert_relations").is_none(),
+        "response MUST NOT contain `device_alert_relations` top-level key — using the \
+         path stem as the response key silently discards all rows at pipeline normalization \
+         time (BC-2.16.013 EC-016-013-009 stem ambiguity); AC-002 mandates BOTH: \
+         'devices_alerts' present AND 'device_alert_relations' absent"
     );
 
     // Sub-test A2: 401 with no Authorization header (Claroty model — missing Bearer = 401).

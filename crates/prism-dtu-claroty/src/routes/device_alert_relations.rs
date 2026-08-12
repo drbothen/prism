@@ -163,7 +163,12 @@ pub async fn list_device_alert_relations(
 // Tests — Tier 3 device-alert relations DTU route
 //
 // AC traces:
-//   test_claroty_tier3_device_alert_relations_dtu_route_returns_envelope → AC-001, AC-003, AC-004
+//   test_claroty_tier3_device_alert_relations_dtu_route_returns_envelope → AC-001, AC-003
+//     NOTE: AC-004 (TOML device_alert_relations table block with 10 contracted columns) is covered
+//     by claroty_spec_prose_fidelity.rs::test_claroty_tier3_device_alert_relations_table_declared.
+//     The ≥5-entries assertion in this test traces to Task 5 (fixture density requirement), NOT AC-004.
+//     RG-002 traceability: the absent-key assertion (AC-003 second bullet — `device_alert_relations`
+//     MUST NOT appear as a top-level key) is embedded in this test as the `is_none()` assertion.
 //   test_claroty_tier3_device_alert_relations_dtu_auth_enforced          → AC-002
 //   test_claroty_tier3_device_alert_relations_dtu_column_parity          → SAP-2
 //   test_device_alert_relations_fixture_referential_integrity             → HIGH-4 (device_uid/alert_id FK integrity)
@@ -259,11 +264,25 @@ mod tests {
                  key must be 'devices_alerts' not 'device_alert_relations'",
             );
 
-        // AC-004: at least 5 synthetic entries.
+        // AC-003 (second bullet) — RG-002 absent-key assertion:
+        // The path-stem key `device_alert_relations` MUST NOT appear as a top-level key.
+        // Using the path stem silently discards every row at pipeline normalization time
+        // (BC-2.16.013 EC-016-013-009 stem ambiguity). Both the presence of `devices_alerts`
+        // AND the absence of `device_alert_relations` are required; asserting only one is
+        // insufficient (S-DEMO-CLAROTY-DAR-001 AC-003 second bullet; F-CLARO-P2-MED-002).
+        assert!(
+            body.get("device_alert_relations").is_none(),
+            "response MUST NOT contain `device_alert_relations` top-level key — using the \
+             path stem as the response key silently discards all rows at pipeline normalization \
+             time (BC-2.16.013 EC-016-013-009 stem ambiguity); AC-003 mandates BOTH: \
+             'devices_alerts' present AND 'device_alert_relations' absent"
+        );
+
+        // Task 5 (fixture ≥5 entries): fixture must contain at least 5 synthetic entries.
         assert!(
             devices_alerts.len() >= 5,
             "device-alert-relations fixture must contain at least 5 synthetic entries; \
-             got {} (AC-004)",
+             got {} (Task 5 — fixture density requirement)",
             devices_alerts.len()
         );
 
@@ -341,11 +360,11 @@ mod tests {
                 )
             });
 
-        // At least 5 synthetic entries.
+        // Task 5 (fixture ≥5 entries): fixture must contain at least 5 synthetic entries.
         assert!(
             entries.len() >= 5,
             "device-alert-relations.json must contain at least 5 synthetic entries; \
-             got {} (AC-004)",
+             got {} (Task 5 — fixture density requirement)",
             entries.len()
         );
 
