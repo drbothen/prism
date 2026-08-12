@@ -33,10 +33,15 @@ behavioral_contracts:
   # AC-006 closes EC-01-025 after Stage 2 ships.
 verification_properties: []
 holdout_scenarios: []
-depends_on: []
-# DEPENDENCY ANCHOR MISSING — this story depends on the ADR-058 Stage 2 OCSF field-path
-# routing story. That story does not yet exist. Wire depends_on once a story ID is created.
-# Do NOT invent a placeholder ID — per Canonical Principle Rule 3, only real story IDs.
+depends_on:
+  - S-ADR058-OCSF-ROUTING-001
+# Dependency justification: S-ADR058-DTU-PARITY-MIGRATION-001 depends on
+# S-ADR058-OCSF-ROUTING-001 because the parity tests in this story assert Arrow
+# schema field names derived from ocsf_field_to_arrow_name (e.g., "device_uid"
+# instead of "uid"). Those names only exist in the production path after Stage 2
+# activates ocsf_column_naming=true for Claroty. Running parity tests before Stage 2
+# merges would yield only pre-migration col.name identifiers — every assertion fails.
+# Stage 2 must land before this story's tests can be written meaningfully.
 blocks: []
 points: 5
 # Points justification (lower bound if generators need no output change):
@@ -63,7 +68,7 @@ inputs:
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
-input-hash: "ffbaf9f"
+input-hash: "f24190c"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"

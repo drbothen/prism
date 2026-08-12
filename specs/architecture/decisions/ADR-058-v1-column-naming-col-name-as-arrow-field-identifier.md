@@ -5,18 +5,15 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-08-12"
-version: "2.0"
+version: "2.1"
 producer: architect
 subsystems_affected: [SS-07, SS-12]
 supersedes: null
 superseded_by: null
 amends: null
 anchor_stories:
-  # Verified empty as of 2026-08-12: no story file contains an §Authority citation to ADR-058.
-  # ADR-058 was authored in response to a human-directed architectural adjudication. The Stage 2
-  # wiring story (see §G3) does not yet exist; story-writer must create it before
-  # anchor_stories can be populated.
-  []
+  - S-ADR058-OCSF-COERCION-001
+  - S-ADR058-OCSF-ROUTING-001
 related_adrs: [ADR-023, ADR-028, ADR-052, ADR-055]
 related_bcs: [BC-2.01.013, BC-2.16.002, BC-2.16.003]
 inputs:
@@ -30,7 +27,7 @@ inputs:
   - crates/prism-mcp/src/tools/prism_describe.rs
   - .factory/specs/behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md
   - .factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md
-input-hash: "0514b6b"
+input-hash: "8bd973b"
 ---
 
 # ADR-058: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred
@@ -236,8 +233,7 @@ pub ocsf_column_naming: bool,
 `default = false` ensures all existing sensor TOMLs parse without the field and retain
 Interpretation B behavior. Only `claroty.sensor.toml` sets `ocsf_column_naming = true` in v1.
 
-`ANCHOR-NEEDED: Story-writer must create the Stage 2 OCSF routing story. Until that story
-exists with AC and Red Gate test list, the MUST to add this field is unanchored per TD-VSDD-097.`
+(Anchored: S-ADR058-OCSF-ROUTING-001 AC-001, RG-001/RG-002)
 
 ### §D3 Why Interpretation A Cannot Be All-or-Nothing at This Stage
 
@@ -367,9 +363,7 @@ Stage 1 deliverables:
    + Object input). A corresponding row must be added to BC-2.16.002 §Postconditions Canonical
    Structured Event Catalog (SAP-1 / PG-LP11-001 obligation).
 
-`ANCHOR-NEEDED: The Stage 1 story (Claroty live-API fidelity work) covers EC-016-013-008/009
-and the emission requirement. Story-writer must confirm the AC and Red Gate test list reference
-for the mandate anchors above.`
+(Anchored: S-ADR058-OCSF-COERCION-001 AC-004, RG-005)
 
 ---
 
@@ -420,6 +414,139 @@ extension that does not change the parsing behavior for other fields.
 
 ---
 
+## §J Flag-Transition Name Shadowing (Architectural Adjudication, v2.1)
+
+### §J1 The Defect Class
+
+RG-009 (S-ADR058-OCSF-ROUTING-001) guards against intra-table flattened-name duplicates: two
+columns whose `ocsf_field` values flatten to the same Arrow field name when
+`ocsf_column_naming = true`. The Claroty TOML has no intra-table flattened duplicate; RG-009
+passes cleanly. The `devices` table produces six distinct flattened names: `device_uid`,
+`device_instance_uid`, `device_type`, `device_type_name`, `risk_score`, `status_code`.
+Cross-table `time` values (`alerts.detected_time` and `audit_logs.timestamp`) are cross-table
+and harmless. The total `ocsf_field` count across all three Claroty tables is **19** (alerts: 8,
+audit_logs: 5, devices: 6) — see §J4.
+
+A distinct defect class evades RG-009: **flag-transition name shadowing.** A flattened
+`ocsf_field` name from one column equals the `col.name` of a DIFFERENT column in the same table.
+In the Claroty `devices` table:
+
+| col.name | ocsf_field | Arrow name (flag=false) | Arrow name (flag=true) |
+|---|---|---|---|
+| `device_category` | `device.type` | `device_category` | **`device_type`** |
+| `device_type` | `device.type_name` | **`device_type`** | `device_type_name` |
+
+`SELECT device_type FROM claroty_devices` is a valid PrismQL query in BOTH flag states and
+returns DIFFERENT semantic content:
+- flag=false: returns `device_type` column data — type-within-category ("PLC", "HMI")
+- flag=true: returns `device_category` data via its flattened name — high-level category
+  ("OT Device", "IT Device")
+
+No runtime error, no schema construction failure, no warning. Arrow 58 sees distinct names
+(`device_type` and `device_type_name`) in the flag=true schema; the shadowing is cross-mode and
+is invisible to the intra-flag-state duplicate check in RG-009.
+
+Story-writer's TD-VSDD-097 report for S-ADR058-OCSF-ROUTING-001 covered only the three ANCHOR-
+NEEDED anchor-discharge edits (A)–(C). The §"Status as of v2.0" stale-claim correction (D), the
+dangling §D2 ANCHOR-NEEDED cross-reference (E), and this adjudication (§J) were absent. Edits
+(D) and (E) were falsified by the same correction burst that authored those stories — a textbook
+dimension-2 failure: the co-authored artifact retained stale narrative that its own corrected
+work had already falsified without sweeping it.
+
+### §J2 Normative Rule
+
+**Rule (ADR-058 v2.1):** When `ocsf_column_naming = true` is active for a sensor, no flattened
+`ocsf_field` name derived from any column in a table may equal the `col.name` of any OTHER column
+in the same table.
+
+Formally: for every table T in a sensor with `ocsf_column_naming = true`, for every pair of
+distinct columns A and B in T where `A.ocsf_field` is `Some`:
+
+```
+ocsf_field_to_arrow_name(A.ocsf_field) ≠ B.col_name   (A ≠ B)
+```
+
+**Enforcement:** `pipeline_result_to_record_batch` MUST check this condition when
+`sensor_spec.ocsf_column_naming == true` and return `Err(ArrowError::SchemaError(...))` on
+violation, fail-closed. The check runs in the same collision-detection pass as the existing
+intra-flattened-name duplicate check (T-21 / RG-009, S-ADR058-OCSF-ROUTING-001).
+
+Mandate anchor for the extended check: story-writer must amend S-ADR058-OCSF-ROUTING-001 to
+add RG-010 (a Red Gate test that constructs a sensor spec with a flattened ocsf_field name equal
+to a different column's col.name in the same table and asserts `Err`) and extend T-21 to also
+sweep flattened names against other columns' col.name values. The human will dispatch
+story-writer for this amendment after this ADR amendment lands.
+
+**Rationale for fail-closed:** Silent wrong-column data at the query surface is a correctness
+defect with no diagnostic signal — the LLM agent queries `device_type` and receives category
+data ("OT Device") with no indication that the semantics have changed from flag=false behavior
+("PLC"). A permitted-migration path is not viable because no migration period exists in which
+both flag states return the same column for the same query name. Fail-closed at schema
+construction is the only sound gate.
+
+**Scope:** Per-sensor, at flag activation time (when `pipeline_result_to_record_batch` runs
+with `ocsf_column_naming = true`). Sensors with `ocsf_column_naming = false` (the default for
+all four current sensors in Stage 2) are not checked. If a future story enables the flag for
+CrowdStrike, Armis, or Cyberint, a pre-activation shadow check against that sensor's TOML MUST
+be included in the story's Red Gate tests before the flag can be set to `true`.
+
+### §J3 Claroty `devices` Table Resolution
+
+Under the fail-closed rule, `ocsf_column_naming = true` cannot ship for Claroty until the
+`devices` table collision is resolved.
+
+**Decision:** Change `device_category`'s `ocsf_field` from `"device.type"` to
+`"device.type_category"`. After this change, the `devices` table flattened names under flag=true
+are:
+
+| col.name | ocsf_field | Arrow name (flag=true) |
+|---|---|---|
+| `uid` | `device.uid` | `device_uid` |
+| `asset_id` | `device.instance_uid` | `device_instance_uid` |
+| `device_category` | `device.type_category` | `device_type_category` |
+| `device_type` | `device.type_name` | `device_type_name` |
+| `risk_score` | `risk_score` | `risk_score` |
+| `retired` | `status_code` | `status_code` |
+
+Shadow check after fix: `device_type_category` vs col.names (`uid`, `asset_id`,
+`device_category`, `device_type`, `risk_score`, `retired`) — no match. `device_type_name` vs
+col.names — no match. No flag-transition shadow remains. RG-009 passes (all six flattened names
+are distinct). RG-010 (see §J2) passes (no flattened name equals another column's col.name).
+
+**Why this option over the alternatives:**
+
+- *Rename `device_category` col.name:* requires `source_path` TOML grammar support (currently
+  unconfirmed as a grammar-level feature) to preserve extraction from the DTU JSON
+  `device_category` key. Adding `source_path` grammar support adds scope to Stage 2.
+- *Rename `device_type` col.name:* same `source_path` requirement; additionally breaks
+  flag=false queries for existing Claroty device type data — a wider blast than necessary.
+- *Change `ocsf_field` on `device_category` (chosen):* TOML-only; zero impact on col.name,
+  DTU extraction (`r.get("device_category")` unchanged), DTU parity tests (assert DTU HTTP
+  response JSON, not Arrow schema), or flag=false Arrow schema. `device.type_category` is a
+  vendor-extended OCSF path — Claroty's "OT Device"/"IT Device" values are high-level category
+  strings outside the standard OCSF `device.type_id` controlled vocabulary, and a vendor-
+  extended path is the honest representation. The `_category` suffix distinguishes the field
+  from the subcategory `device_type_name` and is self-describing.
+
+**Blast radius:** zero under flag=false (col.name unchanged); under flag=true the Arrow field for
+high-level category becomes `device_type_category` rather than `device_type` — but flag=true
+has not shipped, so no production queries break.
+
+**Stage 2 scope:** This fix fits within S-ADR058-OCSF-ROUTING-001. AC-005 already modifies
+`claroty.sensor.toml` to add `ocsf_column_naming = true`. Adding the `device_category`
+`ocsf_field` change to that same TOML edit requires no new story, no new AC, and no new
+machinery. Story-writer's amendment to S-ADR058-OCSF-ROUTING-001 (dispatched by human) covers
+both the TOML fix and RG-010 for the extended collision check.
+
+### §J4 `ocsf_field` Count Correction
+
+S-ADR058-OCSF-ROUTING-001 EC-009 note cited "20 ocsf_field values" across the three Claroty
+tables. The correct count is **19**: alerts (8) + audit_logs (5) + devices (6) = 19. No story
+amendment is required for the count alone — the behavioral correctness of the collision
+detection is verified by construction via RG-009, not by count.
+
+---
+
 ## Rationale
 
 Interpretation A (OCSF field-path routing with underscore-flattened Arrow field names) was chosen
@@ -466,12 +593,16 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.0 (2026-08-12)
+### Status as of v2.1 (2026-08-12)
 
-Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is in-scope for
-the current Claroty live-API work. Stage 2 (OCSF routing wiring — `ocsf_column_naming` flag,
-`ocsf_field_to_arrow_name` helper, `pipeline_result_to_record_batch` update) requires a new story
-from story-writer; the story does not yet exist (see §D2 `ANCHOR-NEEDED`).
+Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
+`S-ADR058-OCSF-COERCION-001` (v1.1, status: draft; mandate anchor discharged at §H). Stage 2
+(OCSF routing wiring — `ocsf_column_naming` flag, `ocsf_field_to_arrow_name` helper,
+`pipeline_result_to_record_batch` update) is implemented by `S-ADR058-OCSF-ROUTING-001` (v1.1,
+status: draft; mandate anchor discharged at §D2). Both stories are anchored. See §J for the
+flag-transition name shadowing adjudication that further constrains Claroty activation scope
+within Stage 2 — `ocsf_column_naming = true` cannot ship until the `devices` table collision
+is resolved per §J3.
 
 ## Alternatives Considered
 
@@ -516,5 +647,6 @@ from story-writer; the story does not yet exist (see §D2 `ANCHOR-NEEDED`).
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.1 | 2026-08-12 | architect | Human-routed amendment (5 mechanical + 1 architectural adjudication). (A) §D2 ANCHOR-NEEDED discharged: anchored to S-ADR058-OCSF-ROUTING-001 AC-001, RG-001/RG-002. (B) §H ANCHOR-NEEDED discharged: anchored to S-ADR058-OCSF-COERCION-001 AC-004, RG-005. (C) anchor_stories populated: S-ADR058-OCSF-COERCION-001 and S-ADR058-OCSF-ROUTING-001 (SAC-2; stale "verified empty" comment block deleted). (D) §"Status as of v2.0" corrected and retitled v2.1: both stories now exist at v1.1 draft; false "story does not yet exist" claim and dangling §D2 ANCHOR-NEEDED cross-reference removed — both were dimension-2 failures (story-writer TD-VSDD-097 report covered only (A)–(C); (D) and the cross-reference were falsified by the same correction burst but not swept). (E) §J added: flag-transition name shadowing adjudication — normative fail-closed rule (§J2, mandate anchored to S-ADR058-OCSF-ROUTING-001 RG-010 amendment pending story-writer dispatch); Claroty devices table device_category ocsf_field changed "device.type" → "device.type_category" (§J3, fits Stage 2 AC-005 scope, zero flag=false blast); ocsf_field count correction 20 → 19 (§J4). input-hash updated to 8bd973b (input drift from original 0514b6b). |
 | 2.0 | 2026-08-12 | architect | Human override 2026-08-12: reverses Interpretation B decision. New decision: Interpretation A with underscore-flattened Arrow field names, per-sensor TOML flag, Claroty-first. Adds §C quoting convention analysis (Option 4 chosen), §D per-sensor scoping, §E blast radius (just check stays green), §F DTU generator correction (generators need no changes — earlier claim wrong), §G prism_describe output spec, §H Stage 1 confirmed in scope. Tombstones v1.0 §B decision. |
 | 1.0 | 2026-08-11 | architect | Initial authorship — adjudicates col.name vs ocsf_field as v1 Arrow field identifier; documents two-stage resolution path for ColumnMapper wiring gap (human-directed 2026-08-11). SUPERSEDED 2026-08-12 by v2.0 human override. |
