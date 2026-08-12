@@ -919,7 +919,7 @@ async fn test_ac_clar_001_claroty_body_template_remains_empty_no_time_fields() {
         .expect("AC-CLAR-001: Claroty spec must have 'alerts' table")
         .clone();
 
-    // Verify the spec step has body_template = '{}' (SAP-2 invariant).
+    // Verify the spec step is POST and body_template contains required fields projection.
     let step = table
         .steps
         .first()
@@ -931,9 +931,14 @@ async fn test_ac_clar_001_claroty_body_template_remains_empty_no_time_fields() {
          got: '{}'",
         step.method
     );
+    // Body template must contain the required "fields" projection (GetAlertsParameters.fields
+    // is REQUIRED with minItems: 1 per the xDome OpenAPI — omitting it returns 422).
+    // It must NOT contain time-window fields (AC-CLAR-001 core assertion below).
+    let body_tmpl = step.body_template.as_deref().unwrap_or("");
     assert!(
-        step.body_template.as_deref().map(str::trim) == Some("{}"),
-        "AC-CLAR-001 SAP-2 fixture check: Claroty alerts step body_template must be '{{}}'; \
+        body_tmpl.contains("\"fields\""),
+        "AC-CLAR-001: Claroty alerts body_template must contain 'fields' projection \
+         (GetAlertsParameters.fields is REQUIRED per xDome OpenAPI); \
          got: {:?}",
         step.body_template
     );
@@ -964,11 +969,11 @@ async fn test_ac_clar_001_claroty_body_template_remains_empty_no_time_fields() {
          Check DTU fixture data and path."
     );
 
-    // AC-CLAR-001 structural assertions: body_template must remain '{}' without time fields.
+    // AC-CLAR-001 structural assertions: body_template must NOT contain time-window injection slots.
     // Since the body_template is static (set in the TOML spec), the pipeline can only inject
     // time-window fields if the body_template explicitly includes `${query.filter.*}` slots.
     // Verify the body_template does NOT contain time-window injection slots.
-    let body_tmpl = step.body_template.as_deref().unwrap_or("");
+    // (body_tmpl was already extracted above for the fields-projection assertion)
     assert!(
         !body_tmpl.contains("detected_after")
             && !body_tmpl.contains("detected_before")
@@ -976,7 +981,7 @@ async fn test_ac_clar_001_claroty_body_template_remains_empty_no_time_fields() {
             && !body_tmpl.contains("end_time"),
         "AC-CLAR-001 items (a)(b): Claroty body_template must NOT contain time-window fields \
          (detected_after, detected_before, start_time, end_time). \
-         body_template must remain empty '{{}}'. \
+         Only a 'fields' projection is permitted — no time-window injection. \
          Got body_template: '{body_tmpl}'. \
          REGRESSION: wrong time-window fields were injected into Claroty body."
     );

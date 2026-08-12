@@ -164,19 +164,25 @@ fn test_BC_2_16_013_AC002_audit_logs_gap_cl_006_closed_comment_present() {
 // already correct per earlier Gap-CL-002 fix; only comment lines are in scope.
 // ---------------------------------------------------------------------------
 
-/// GREEN-BY-DESIGN (no-regression guard): audit_logs functional fields must be intact.
+/// RED gate (items 3 + 4 of CLAROTY-LIVE-API-FIDELITY): audit_logs functional fields
+/// must match the real xDome API.
 ///
 /// Parses `claroty.sensor.toml` via `SpecLoader::parse` (canonical TOML loader)
 /// and asserts:
-/// - `path_template` == `"/api/v1/audit_log/get/"` (with trailing slash per S-DEMO-CLAROTY-TRAILING-SLASH-001)
+/// - `path_template` == `"/api/v1/audit_log/get"` (NO trailing slash — OpenAPI declares
+///   the path without one; alerts/devices use trailing slash by API convention but
+///   audit_log/get does not).
 /// - `method` == `"POST"` (POST-for-read pattern per BC-2.16.013 §Postconditions §1)
 /// - `response_path` == `"$.audit_log"` (per DTU GetAuditLogResponse struct)
-/// - Expected columns are present: `id`, `action`, `actor`, `timestamp`, `resource`
+/// - Expected columns: `id`, `action`, `category`, `details`, `timestamp`,
+///   `user_display_name`, `username`, `note` (8 columns total).
+///   `actor` and `resource` MUST NOT be present — they do not exist in the xDome API
+///   (LIVE-DRIFT-003, confirmed against xDome OpenAPI §GetAuditLogResponse example).
 ///
-/// This guards that the comment-only edit in AC-001/AC-002 does not accidentally alter
-/// any functional TOML key.
+/// Before fix: fails because spec has trailing slash and old column names (actor/resource).
+/// After fix: passes with corrected path and real API field names.
 ///
-/// Story: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 AC-004
+/// Story: CLAROTY-LIVE-API-FIDELITY items 3 and 4
 /// BC: BC-2.16.013 §Postconditions §1
 #[test]
 fn test_BC_2_16_013_AC004_audit_logs_functional_fields_unchanged() {
@@ -207,10 +213,14 @@ fn test_BC_2_16_013_AC004_audit_logs_functional_fields_unchanged() {
         "audit_logs fetch step must use POST (POST-for-read pattern per BC-2.16.013 §PC §1)"
     );
 
+    // Item 3 (LIVE-DRIFT-002): path must NOT have trailing slash.
+    // OpenAPI declares /api/v1/audit_log/get (without slash).
+    // alerts and devices use trailing slash by xDome API convention; audit_log/get does not.
     assert_eq!(
-        step.path_template, "/api/v1/audit_log/get/",
-        "audit_logs fetch step path_template must be '/api/v1/audit_log/get/' \
-         (Gap-CL-002 fix + trailing slash per S-DEMO-CLAROTY-TRAILING-SLASH-001)"
+        step.path_template, "/api/v1/audit_log/get",
+        "audit_logs fetch step path_template must be '/api/v1/audit_log/get' (no trailing slash). \
+         OpenAPI declares the audit_log path without trailing slash while alerts/devices paths \
+         include one — the convention is per-path (LIVE-DRIFT-002)"
     );
 
     assert_eq!(
@@ -219,21 +229,86 @@ fn test_BC_2_16_013_AC004_audit_logs_functional_fields_unchanged() {
          (DTU GetAuditLogResponse struct field name)"
     );
 
-    // --- Column-set assertions ---
+    // --- Column-set assertions (Item 4 — LIVE-DRIFT-003) ---
+    // Real xDome audit_log fields: id, action, category, details, timestamp,
+    // user_display_name, username, note.
+    // actor and resource DO NOT EXIST in the xDome API and must not appear.
     let column_names: Vec<&str> = audit_logs.columns.iter().map(|c| c.name.as_str()).collect();
 
-    for expected_col in &["id", "action", "actor", "timestamp", "resource"] {
+    let expected_cols = [
+        "id",
+        "action",
+        "category",
+        "details",
+        "timestamp",
+        "user_display_name",
+        "username",
+        "note",
+    ];
+    for expected_col in &expected_cols {
         assert!(
             column_names.contains(expected_col),
-            "audit_logs columns must include '{expected_col}'; got: {column_names:?}"
+            "audit_logs columns must include '{expected_col}' (real xDome API field); \
+             got: {column_names:?}"
+        );
+    }
+
+    // Nonexistent fields MUST NOT appear — they silently produce empty values at runtime.
+    for ghost_col in &["actor", "resource"] {
+        assert!(
+            !column_names.contains(ghost_col),
+            "audit_logs columns must NOT include '{ghost_col}' — this field does not exist \
+             in the xDome API and silently returns nothing (LIVE-DRIFT-003); \
+             got columns: {column_names:?}"
         );
     }
 
     assert_eq!(
         column_names.len(),
-        5,
-        "audit_logs must have exactly 5 columns (id, action, actor, timestamp, resource); \
+        8,
+        "audit_logs must have exactly 8 columns \
+         (id, action, category, details, timestamp, user_display_name, username, note); \
          got {}: {column_names:?}",
         column_names.len()
     );
+}
+
+/// RED gate (item 8 of CLAROTY-LIVE-API-FIDELITY): all three Claroty tables must use
+/// page_size = 1000.
+///
+/// Live measurement: audit_log sweep burns 200 requests/cycle with page_size=100 against
+/// a 2000/min API ceiling. page_size=1000 provides 10x headroom. 5000 is excluded because
+/// a full devices page would be ~3.5MB held in memory without partial-page resume.
+///
+/// Before fix: fails because spec has page_size = 100.
+/// After fix: passes with page_size = 1000 on all three tables.
+///
+/// Story: CLAROTY-LIVE-API-FIDELITY item 8
+#[test]
+fn test_claroty_live_all_tables_page_size_1000() {
+    let toml_path = concat!(env!("CARGO_MANIFEST_DIR"), "/specs/claroty.sensor.toml");
+    let content = std::fs::read_to_string(toml_path)
+        .unwrap_or_else(|e| panic!("Failed to read claroty.sensor.toml: {e}"));
+
+    let spec = SpecLoader::parse(&content)
+        .unwrap_or_else(|e| panic!("SpecLoader::parse failed for claroty.sensor.toml: {e:?}"));
+
+    use prism_spec_engine::spec_parser::PaginationConfig;
+
+    for table in &spec.tables {
+        for step in &table.steps {
+            match &step.pagination {
+                Some(PaginationConfig::OffsetLimit { page_size }) => {
+                    assert_eq!(
+                        *page_size, 1000,
+                        "table '{}' step '{}' must use page_size = 1000 (live-API bandwidth \
+                         budget; 10x headroom vs 100/req baseline at 2000/min ceiling); got {}",
+                        table.table_name, step.name, page_size
+                    );
+                }
+                Some(_) => {} // non-offset-limit pagination — not Claroty pattern; skip
+                None => {}    // no pagination declared; skip
+            }
+        }
+    }
 }

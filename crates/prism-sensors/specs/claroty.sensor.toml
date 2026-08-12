@@ -114,21 +114,20 @@ ocsf_class = "detection_finding"
   # POST-for-read step with offset pagination
   # DTU route: POST /api/v1/alerts (crates/prism-dtu-claroty/src/clone.rs build_router())
   # response_path: DTU returns {"alerts": [...], "total": N, "page": N} per routes::alerts::list_alerts
-  # body_template: empty JSON object; OffsetLimit POST-body injection (S-DEMO-CLAROTY-PAGINATION-001
-  #   CLOSED, Gap-CL-004 CLOSED) merges {"offset": N, "limit": 100} into this body at request time
-  #   (pipeline.rs::build_request — BC-2.16.002 "OffsetLimit Pagination Dispatch: POST-body
-  #   vs GET-URL"). Do not add hardcoded offset/limit here — the pipeline injects them.
-  # F-LP3-HIGH-004: removed '{"size": 100}' from body_template (now superseded by pipeline injection).
+  # body_template: fields projection is REQUIRED by GetAlertsParameters (minItems: 1); covers all
+  #   declared alert columns. OffsetLimit POST-body injection merges {"offset": N, "limit": 1000}
+  #   into this body at request time (pipeline.rs::build_request — BC-2.16.002 v1.70 "OffsetLimit
+  #   Pagination Dispatch: POST-body vs GET-URL"). Do not add hardcoded offset/limit here.
   [[tables.steps]]
   name = "fetch_alerts"
   method = "POST"
   path_template = "/api/v1/alerts/"
-  body_template = '{}'
+  body_template = '{"fields": ["id", "alert_type_name", "category", "status", "detected_time", "updated_time", "devices_count", "description"]}'
   response_path = "$.alerts"
   variables_produced = []
   [tables.steps.pagination]
   type = "offset_limit"
-  page_size = 100
+  page_size = 1000
 
 # ---------------------------------------------------------------------------
 # Table: audit_logs
@@ -156,37 +155,64 @@ ocsf_class = "audit_activity"
   column_type = "string"
   ocsf_field = "activity_name"
 
+  # Real xDome field: user_display_name — display name of the user who performed the action.
+  # (actor/resource do NOT exist in the xDome audit_log API — LIVE-DRIFT-003)
   [[tables.columns]]
-  name = "actor"
+  name = "user_display_name"
   column_type = "string"
   ocsf_field = "actor.user.name"
+
+  # Real xDome field: category — audit event category.
+  [[tables.columns]]
+  name = "category"
+  column_type = "string"
+  ocsf_field = "category_name"
 
   [[tables.columns]]
   name = "timestamp"
   column_type = "datetime"
   ocsf_field = "time"
 
+  # Real xDome field: details — description of what was done.
   [[tables.columns]]
-  name = "resource"
+  name = "details"
   column_type = "string"
-  ocsf_field = "dst_resource.name"
+  ocsf_field = "message"
+
+  # Real xDome field: username — the user identifier (login name).
+  # column_type = "string" ensures any value is preserved as string even when ocsf_field
+  # "actor.user.uid" would otherwise trigger the numeric-suffix heuristic in coerce_value.
+  [[tables.columns]]
+  name = "username"
+  column_type = "string"
+  ocsf_field = "actor.user.uid"
+
+  # Real xDome field: note — optional note about the audit activity (absent from some records).
+  [[tables.columns]]
+  name = "note"
+  column_type = "string"
+  ocsf_field = "comment"
 
   # POST-for-read step with offset pagination
   # DTU route: POST /api/v1/audit_log/get — implemented by S-DEMO-CLAROTY-AUDIT-DTU-001.
   # response_path: DTU returns {"audit_log": [...]} per GetAuditLogResponse
-  #   (crates/prism-dtu-claroty/src/routes/audit_log.rs), matching poller-bear reference.
-  # body_template: empty JSON object; OffsetLimit POST-body injection merges {"offset": N, "limit": 100}
-  #   at request time (pipeline.rs::build_request — Gap-CL-004 CLOSED by S-DEMO-CLAROTY-PAGINATION-001).
+  #   (routes/audit_log.rs), matching poller-bear reference.
+  # body_template: STAYS '{}' — GetAuditLogParameters has NO fields property (unlike alerts/devices).
+  #   The API returns all available fields when body is {}.
+  #   OffsetLimit POST-body injection merges {"offset": N, "limit": 1000} at request time
+  #   (pipeline.rs::build_request — Gap-CL-004 CLOSED by S-DEMO-CLAROTY-PAGINATION-001).
+  # path_template: /api/v1/audit_log/get WITHOUT trailing slash — OpenAPI declares this path
+  #   without a trailing slash (unlike alerts/devices which use trailing slash by convention).
   [[tables.steps]]
   name = "fetch_audit_logs"
   method = "POST"
-  path_template = "/api/v1/audit_log/get/"
+  path_template = "/api/v1/audit_log/get"
   body_template = '{}'
   response_path = "$.audit_log"
   variables_produced = []
   [tables.steps.pagination]
   type = "offset_limit"
-  page_size = 100
+  page_size = 1000
 
 # ---------------------------------------------------------------------------
 # Table: devices
@@ -251,15 +277,16 @@ ocsf_class = "device"
   # POST-for-read step with offset pagination
   # DTU route: POST /api/v1/devices (crates/prism-dtu-claroty/src/clone.rs build_router())
   # response_path: DTU returns {"devices": [...], "total": N, "page": N} per GetDevicesResponse.
-  # body_template: empty JSON object; OffsetLimit POST-body injection merges {"offset": N, "limit": 100}
+  # body_template: fields projection is REQUIRED by GetDevicesParameters (minItems: 1); covers all
+  #   declared device columns. OffsetLimit POST-body injection merges {"offset": N, "limit": 1000}
   #   at request time (pipeline.rs::build_request — Gap-CL-004 CLOSED by S-DEMO-CLAROTY-PAGINATION-001).
   [[tables.steps]]
   name = "fetch_devices"
   method = "POST"
   path_template = "/api/v1/devices/"
-  body_template = '{}'
+  body_template = '{"fields": ["uid", "asset_id", "device_category", "device_type", "risk_score", "retired"]}'
   response_path = "$.devices"
   variables_produced = []
   [tables.steps.pagination]
   type = "offset_limit"
-  page_size = 100
+  page_size = 1000

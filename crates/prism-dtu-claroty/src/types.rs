@@ -250,9 +250,11 @@ pub struct GetVulnerabilityDevicesResponse {
 
 /// A single Claroty xDome audit log entry.
 ///
-/// Field names match the `audit_logs` table columns declared in
-/// `claroty.sensor.toml` — SAP-2 parity enforced at stub time:
-/// id, action, actor, timestamp, resource (5 columns, 1:1 mapping).
+/// Field names match the real xDome API audit_log response and the `audit_logs`
+/// table columns declared in `claroty.sensor.toml` — SAP-2 parity enforced:
+/// id, action, user_display_name, category, timestamp, details, username, note (8 columns, 1:1).
+///
+/// `actor` and `resource` do NOT exist in the xDome API (LIVE-DRIFT-003) and are absent here.
 ///
 /// Per EC-001 (permissive deserialization): unknown fields are allowed
 /// in request bodies but the response struct is exact.
@@ -262,12 +264,19 @@ pub struct ClarotyAuditLogEntry {
     pub id: String,
     /// Action performed (column_type = "string").
     pub action: String,
-    /// Actor who performed the action (column_type = "string").
-    pub actor: String,
+    /// Display name of the user who performed the action (column_type = "string").
+    pub user_display_name: String,
+    /// Audit event category (column_type = "string").
+    pub category: String,
     /// ISO 8601 timestamp with Z suffix (column_type = "datetime", ADR-028 §D8).
     pub timestamp: String,
-    /// Resource affected (column_type = "string").
-    pub resource: String,
+    /// Details / description of what was done (column_type = "string").
+    pub details: String,
+    /// Login username / user identifier (column_type = "string").
+    pub username: String,
+    /// Optional note about the audit activity — absent from some records.
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 /// POST body for `POST /api/v1/audit_log/get`.

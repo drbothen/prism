@@ -2,36 +2,51 @@
   {
     "id": "audit-001",
     "action": "login",
-    "actor": "analyst@example.com",
+    "user_display_name": "analyst@example.com",
+    "category": "authentication",
     "timestamp": "2026-01-15T10:23:45Z",
-    "resource": "prism-mcp-server"
+    "details": "User logged in to prism-mcp-server",
+    "username": "analyst",
+    "note": null
   },
   {
     "id": "audit-002",
     "action": "device.query",
-    "actor": "analyst@example.com",
+    "user_display_name": "analyst@example.com",
+    "category": "data_access",
     "timestamp": "2026-01-15T10:24:12Z",
-    "resource": "device/asset-00aa-bb01"
+    "details": "Queried device asset-00aa-bb01",
+    "username": "analyst",
+    "note": null
   },
   {
     "id": "audit-003",
     "action": "alert.acknowledge",
-    "actor": "soc-operator@example.com",
+    "user_display_name": "soc-operator@example.com",
+    "category": "alert_management",
     "timestamp": "2026-01-15T11:05:30Z",
-    "resource": "alert/7891"
+    "details": "Acknowledged alert 7891",
+    "username": "soc-operator",
+    "note": "Reviewed and confirmed as true positive"
   },
   {
     "id": "audit-004",
     "action": "tag.create",
-    "actor": "admin@example.com",
+    "user_display_name": "admin@example.com",
+    "category": "configuration",
     "timestamp": "2026-01-16T08:42:00Z",
-    "resource": "device/asset-00aa-bb02"
+    "details": "Created tag on device asset-00aa-bb02",
+    "username": "admin",
+    "note": null
   },
   {
     "id": "audit-005",
     "action": "vulnerability.export",
-    "actor": "security-lead@example.com",
+    "user_display_name": "security-lead@example.com",
+    "category": "data_export",
     "timestamp": "2026-01-17T14:17:55Z",
-    "resource": "vulnerability/CVE-2026-00001"
+    "details": "Exported vulnerability report for CVE-2026-00001",
+    "username": "security-lead",
+    "note": "Quarterly compliance report"
   }
 ]

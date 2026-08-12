@@ -5,7 +5,7 @@
 //! four-tier field resolution (BC-2.02.008). Columns without mappings go to
 //! `raw_extensions`. Type coercion is applied with non-fatal fallback.
 
-use prism_core::PrismError;
+use prism_core::{PrismError, column::ColumnType};
 use serde_json::Value;
 
 use crate::spec_parser::{ColumnSpec, TableSpec};
@@ -136,11 +136,34 @@ impl ColumnMapper {
     ///
     /// Returns `Ok(coerced_value)` on success, `Err(CoercionWarning)` on failure.
     /// The caller places failed values in raw_extensions and continues (never drops record).
+    ///
+    /// ## String-type-first rule (LIVE-DRIFT-003)
+    ///
+    /// When `column.column_type == ColumnType::String`, any scalar JSON value is normalized
+    /// to a JSON string BEFORE the `is_numeric_ocsf_field` heuristic fires. This handles:
+    /// 1. API returns integer IDs (e.g. `"id": 132` on alerts) but spec declares `column_type =
+    ///    "string"` for polymorphic ID normalization (EC-016-013-004).
+    /// 2. String usernames mapped to `actor.user.uid` (suffix `uid` is in the numeric list);
+    ///    without this rule, a string username triggers a CoercionWarning and goes to
+    ///    raw_extensions instead of the OCSF mapped field.
     pub fn coerce_value(
         value: &Value,
         column: &ColumnSpec,
         ocsf_field_path: &str,
     ) -> Result<Value, CoercionWarning> {
+        // String-type-first: when the spec declares the column as string, normalize any
+        // scalar to a JSON string value before the numeric-suffix heuristic is checked.
+        if column.column_type == ColumnType::String {
+            return Ok(match value {
+                Value::String(_) => value.clone(),
+                Value::Number(n) => Value::String(n.to_string()),
+                Value::Bool(b) => Value::String(b.to_string()),
+                // Null and structured types (Array, Object) pass through unchanged — callers
+                // handle null via the absent-key path and structured types via raw_extensions.
+                other => other.clone(),
+            });
+        }
+
         // Determine target type from OCSF field path convention.
         // For numeric OCSF fields (those ending in standard numeric suffixes),
         // attempt string-to-number coercion.
@@ -170,6 +193,8 @@ impl ColumnMapper {
 /// are treated as integer targets for coercion purposes.
 /// This is a simplified model — the full implementation uses the embedded OCSF schema.
 fn is_numeric_ocsf_field(path: &str) -> bool {
+    // NOTE: `uid` is in this list — any OCSF field ending in `.uid` would try string→int
+    // coercion without the String-type-first guard in `coerce_value` above.
     let numeric_suffixes = [
         "event_code",
         "class_uid",
@@ -187,4 +212,79 @@ fn is_numeric_ocsf_field(path: &str) -> bool {
     ];
     let last_segment = path.split('.').next_back().unwrap_or(path);
     numeric_suffixes.contains(&last_segment)
+}
+
+// ---------------------------------------------------------------------------
+// Tests — column_mapping coerce_value behavior
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use prism_core::column::ColumnType;
+    use serde_json::{Value, json};
+
+    use crate::spec_parser::ColumnSpec;
+
+    use super::ColumnMapper;
+
+    /// Wire-shape assertion: when `column_type = "string"` and the API returns a JSON integer
+    /// (e.g. Claroty alerts `"id": 132`), `coerce_value` must produce `Value::String("132")`.
+    ///
+    /// Before the String-type-first fix, the integer fell through to `Ok(value.clone())`
+    /// returning a `Value::Number` — the downstream DataFusion schema expected a string column
+    /// but received an integer, causing silent type mismatches.
+    ///
+    /// This test asserts the wire-level output: `Value::String("132")` NOT `Value::Number(132)`.
+    #[test]
+    fn test_coerce_value_string_type_normalizes_integer_to_string() {
+        // Simulates claroty alerts `id` column: column_type="string", ocsf_field="finding.uid".
+        // `uid` is in the is_numeric_ocsf_field suffix list — without the String-type-first fix
+        // the numeric heuristic would fail to convert the Number (not a String input) and
+        // fall through to Ok(value.clone()), returning a Value::Number.
+        let col = ColumnSpec {
+            name: "id".to_string(),
+            column_type: ColumnType::String,
+            ocsf_field: Some("finding.uid".to_string()),
+            ..Default::default()
+        };
+
+        let integer_value = json!(132u32);
+        let result = ColumnMapper::coerce_value(&integer_value, &col, "finding.uid")
+            .expect("coerce_value must succeed for string column with integer input");
+
+        assert_eq!(
+            result,
+            Value::String("132".to_string()),
+            "string column receiving integer JSON value must be normalized to JSON string at wire; \
+             got: {result:?} (LIVE-DRIFT-003, EC-016-013-004)"
+        );
+    }
+
+    /// Wire-shape assertion: `column_type = "string"` with `ocsf_field = "actor.user.uid"`
+    /// (the `username` audit_log column) must preserve string values without CoercionWarning.
+    ///
+    /// Before the String-type-first fix, a string username like "jdoe" would trigger the
+    /// `is_numeric_ocsf_field("actor.user.uid")` → true path, attempt `s.parse::<i64>()`,
+    /// fail, and return a CoercionWarning — pushing the value to raw_extensions instead of
+    /// the mapped OCSF field.
+    #[test]
+    fn test_coerce_value_string_type_preserves_string_username_against_uid_heuristic() {
+        let col = ColumnSpec {
+            name: "username".to_string(),
+            column_type: ColumnType::String,
+            ocsf_field: Some("actor.user.uid".to_string()),
+            ..Default::default()
+        };
+
+        let string_value = json!("analyst");
+        let result = ColumnMapper::coerce_value(&string_value, &col, "actor.user.uid").expect(
+            "coerce_value must NOT return CoercionWarning for string username (LIVE-DRIFT-003)",
+        );
+
+        assert_eq!(
+            result,
+            Value::String("analyst".to_string()),
+            "string column with uid-path ocsf_field must preserve the string value; \
+             got: {result:?}"
+        );
+    }
 }
