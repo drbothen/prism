@@ -1,40 +1,37 @@
 # cyberint.sensor.toml — Production TOML sensor spec
 #
 # Authored per PLUGIN-MIGRATION-001-D Task 5.
-# URLs grounded from DTU clone routes (ADR-028 §D1):
-#   crates/prism-dtu-cyberint/src/clone.rs build_router()
-# auth_type grounded from DTU enforcement (ADR-028 §D2, ADR-031 §D3-a):
-#   DTU routes::alerts::extract_access_token() extracts access_token cookie
-#   → static cookie auth flow (no login step; ADR-031 §D3-a).
-# auth_type = "cookie_roundtrip" is the D-747 LOCKED value.
+# This file is superseded by ADR-053 §D3-a; deletion owner: S-WAVE-A-CYBERINT-SPEC-001.
+# S-WAVE-A-CYBERINT-PATCH-001 co-lands with S-WAVE-A-ENGINE-001 (SPEC-001 does not; see PATCH-001 §MERGE-GATE-ENGINE-001).
+# Grounding order: see ADR-053 §D1.
+# D-747 lock superseded by ADR-053 §D3, effective 2026-07-22 (D-1943).
+#   See ADR-053 §D3-a, §D3-c for split schema and auth confirmation.
+#   Owner: S-WAVE-A-CYBERINT-SPEC-001 (defect record: ARCH-CYBERINT-AUTH-READJUDICATION-001).
 # NOTE: legacy CyberintAuth::auth_type_name() returned "bearer_static" — latent label bug
-#   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
+#   deleted by PLUGIN-MIGRATION-001-A.
 #
-# URL correction: Rust adapter used /api/alerts (no /v1) — latent bug.
-# DTU-grounded per ADR-028 §D1: crates/prism-dtu-cyberint/src/clone.rs build_router()
-#   registers /api/v1/alerts. Real third-party API verification deferred to DTU-validator.
-#
-# incidents table: included as documented gap per EC-016-013-002. DTU has no incidents route.
-# Parity test returns explicit SKIP (NOT #[ignore]) per AC-009 spec.
-#
-# timestamp column: created_at with timestamp_formats = ["iso8601", "unix_epoch_seconds"]
-# per ADR-028 v1.10 §D8-A Option A LOCKED (BC-2.16.013 §O-001). The normalization layer
-# in PipelineExecutor tries each format in order; on failure emits E-SPEC-018.
+# incidents table: fidelity defect; see DEFECT-CYBERINT-SPEC-FIDELITY-001.
+#   Retained until deleted atomically by S-WAVE-A-CYBERINT-SPEC-001.
 
 sensor_id = "cyberint"
 # probe_table: table routed to by LIMIT-0 health probe (BC-2.08.001 postcondition 5 / S-5.04 AC-10).
 probe_table = "alerts"
 name = "Cyberint"
+# MISSING-FIELD-S-WAVE-A-CYBERINT-PATCH-001: header_scheme = "cookie:access_token" required
+#   (BC-2.16.009 Rule 9). MUST NOT be added until S-WAVE-A-CYBERINT-PATCH-001 lands with
+#   S-WAVE-A-ENGINE-001. Owner: S-WAVE-A-CYBERINT-PATCH-001 AC-001 RG-001.
 auth_type = "cookie_roundtrip"
 base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"
 version = "1.0.0"
 
 # ---------------------------------------------------------------------------
-# Credential references (BC-2.06.003 v1.3 / ADR-032)
+# Credential references
 # ---------------------------------------------------------------------------
-# StaticCookieAuthProvider resolves "api_key" at acquire_token() time.
-# BC-2.06.003 resolution chain: PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY_FILE >
-#   PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY > keyring.
+# Credential resolution chain: see BC-2.06.003 (no per-sensor cyberint row; post-migration rows are in cyberint-alerts and cyberint-assets specs).
+# SUPERSEDED-PENDING-S-WAVE-A-CYBERINT-SPEC-001: superseded per ADR-053 §D3/§D5.
+#   Owner: S-WAVE-A-CYBERINT-SPEC-001 AC-005 RG-011. See ADR-053 §D5 for credential ref rename target.
+#   RG-010. name = "api_key" below is the LIVE credential-resolution key and MUST NOT be
+#   changed until S-WAVE-A-CYBERINT-SPEC-001 lands.
 [[credential_refs]]
 name = "api_key"
 description = "Cyberint API access token (injected as access_token cookie)"
@@ -43,8 +40,8 @@ description = "Cyberint API access token (injected as access_token cookie)"
 # Table: alerts
 # GET with cursor pagination
 # DTU route: GET /api/v1/alerts (crates/prism-dtu-cyberint/src/clone.rs build_router())
-# DTU-grounded per ADR-028 §D1: DTU-grounded per ADR-028 §D1: real third-party API
-#   verification deferred to DTU-validator.
+# DTU-grounded per ADR-028 §D1 (historical — §D1 superseded by ADR-053 §D1 2026-07-22):
+#   real third-party API verification deferred to DTU-validator.
 # F-LP3-HIGH-001: reauthored to match DTU Alert struct exactly (8 fields):
 #   alert_id, title, severity, status, created_at, source, type, affected_assets.
 #   Removed spurious 'id' (DTU never emits it) and 'source_url' (no such DTU field).
@@ -88,7 +85,7 @@ ocsf_class = "detection_finding"
 
   # Multi-format timestamp: Cyberint Alert.created_at is typed as serde_json::Value
   # (per prism-dtu-cyberint/src/types.rs) — accepts ISO 8601, epoch seconds, or epoch millis.
-  # timestamp_formats declares the ordered parse chain per ADR-028 v1.10 §D8-A (Option A LOCKED):
+  # timestamp_formats declares the ordered parse chain per ADR-028 §D8-A (Option A LOCKED):
   #   1. iso8601     — ISO 8601 UTC "2024-01-15T10:30:00Z" (primary; most common)
   #   2. unix_epoch_seconds — integer epoch (legacy alert payloads)
   # On all-formats failure: emit E-SPEC-018 (TimestampParseFailure) per BC-2.16.013 §O-001.
@@ -193,10 +190,8 @@ ocsf_class = "detection_finding"
   # DTU route: GET /api/v1/alerts (crates/prism-dtu-cyberint/src/clone.rs build_router())
   # response_path: Cyberint DTU returns {"data": [...], "next_cursor": "..."} per routes::alerts::list_alerts
   # page_size: OMITTED — DTU AlertListParams has cursor field only (no page_size in the struct).
-  #   F-LP2-MEDIUM-001 (arch-handoff#2): page_size removed from this block. The DTU does not
-  #   accept page_size today; DTU extension DTU-EXT-005 tracks adding page_size support to
-  #   AlertListParams. Until DTU-EXT-005 lands, omitting page_size causes the pipeline to use
-  #   DTU defaults (no page_size query param appended). Re-add when DTU-EXT-005 is resolved.
+  #   F-LP2-MEDIUM-001 (arch-handoff#2): page_size removed. DTU-EXT-005 RETIRED (D-1949).
+  #   page_size present in replacement spec per ADR-053 §D1 + S-WAVE-A-CYBERINT-SPEC-001 AC-004.
   [[tables.steps]]
   name = "fetch_alerts"
   method = "GET"
@@ -209,9 +204,10 @@ ocsf_class = "detection_finding"
 
 # ---------------------------------------------------------------------------
 # Table: incidents
+# Fidelity defect: see DEFECT-CYBERINT-SPEC-FIDELITY-001.
+#   This table is retained until deleted atomically by S-WAVE-A-CYBERINT-SPEC-001. Owner: AC-007 RG-013.
 # DTU gap — EC-016-013-002: no incidents route in prism-dtu-cyberint.
-# Spec is authored per ADR-028 §D5 (spec never ahead of DTU — include as
-# documented gap with cursor pagination pattern matching alerts).
+# ADR-028 §D5 (spec never ahead of DTU) is historical — §D5 superseded by ADR-053 §D1.
 # Parity test returns explicit SKIP (NOT #[ignore]) per AC-009.
 # ---------------------------------------------------------------------------
 [[tables]]
@@ -252,7 +248,7 @@ ocsf_class = "incident_finding"
 
   # EC-016-013-002: DTU gap — no incidents route. Using cursor pattern consistent
   # with alerts table. Parity test for this table is explicit SKIP per AC-009.
-  # page_size: OMITTED — consistent with alerts table. DTU-EXT-005 tracks page_size addition.
+  # page_size: OMITTED — table is deleted, not migrated: see S-WAVE-A-CYBERINT-SPEC-001 AC-007 RG-013.
   [[tables.steps]]
   name = "fetch_incidents"
   method = "GET"

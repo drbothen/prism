@@ -1,47 +1,35 @@
 # armis.sensor.toml — Production TOML sensor spec
 #
 # Authored per PLUGIN-MIGRATION-001-D Task 6.
-# URLs grounded from DTU clone routes (ADR-028 §D1):
-#   crates/prism-dtu-armis/src/clone.rs build_router()
-# auth_type grounded from DTU enforcement (ADR-028 §D2):
-#   crates/prism-dtu-armis/src/lib.rs module-level //! enforces
-#   Authorization: Bearer {non-empty} with HTTP 403 on missing/invalid token.
-# auth_type = "bearer_static" is the D-747 LOCKED value.
+# Grounding order: see ADR-053 §D1.
+# D-747 lock superseded by ADR-053 §D2, effective 2026-07-22 (D-1943).
+#   Value "bearer_static" is the pre-supersession value; see ADR-053 §D2 + ADR-054 §D3
+#   for the target wiring. Owner: S-WAVE-A-ARMIS-REMEDIATION-001.
 # NOTE: legacy ArmisAuth::auth_type_name() returned "api_key" — latent label bug
-#   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
+#   deleted by PLUGIN-MIGRATION-001-A.
 #
-# DTU-EXT-003: CLOSED by S-DEMO-ARMIS-AQL-001. devices table now uses GET /api/v1/search
-#   (the real Armis Centrix AQL endpoint per ADR-031 §D8-a). Back-compat: GET /api/v1/devices
-#   remains registered in build_router() but is no longer the primary path.
-# DTU-EXT-004: CLOSED by S-DEMO-ARMIS-AQL-001. alerts table now uses GET /api/v1/search.
-#   Back-compat: GET /api/v1/alerts remains registered in build_router().
-# AQL forwarding via ${query.filter.aql} is documented per O-001 grammar support.
-# Timestamp fallback chain (last_seen → first_seen → now()) is expressed via
-# ColumnSpec::timestamp_fallback_chain = ["first_seen"] on the primary timestamp column per ADR-028 §D8-B.
-# F-LP2-HIGH-004 (arch-handoff#1): chain is ["first_seen"] only — primary column is checked first
-# by the normalization layer; self-referential entries yield the same absent value and are skipped
-# by the defensive guard in normalize_timestamp_fields (pipeline.rs).
-# A tracing::warn! with event_type = "timestamp.fallback_to_now" is emitted by the
-# prism-spec-engine pipeline normalization pass (normalize_timestamp_fields in
-# crates/prism-spec-engine/src/pipeline.rs, invoked by PipelineExecutor for every
-# table fetch) when all chain fields are absent (BC-2.16.002 row 35). There is no
-# Armis-specific adapter emission — the legacy ArmisAdapter was deleted by
-# PLUGIN-MIGRATION-001-A. Engagement for THIS spec is pinned by the pipeline unit
-# test test_f11_sns04_armis_devices_last_seen_fallback_engages (loads this file).
+# DTU-EXT-003: CLOSED by S-DEMO-ARMIS-AQL-001.
+# DTU-EXT-004: CLOSED by S-DEMO-ARMIS-AQL-001.
 
 sensor_id = "armis"
 # probe_table: table routed to by LIMIT-0 health probe (BC-2.08.001 postcondition 5 / S-5.04 AC-10).
 probe_table = "devices"
 name = "Armis Centrix"
+# SUPERSEDED-PENDING-S-WAVE-A-ARMIS-REMEDIATION-001: superseded per ADR-053 §D2 + ADR-054 §D3.
+#   Owner: S-WAVE-A-ARMIS-REMEDIATION-001 AC-001 (defect record: S-ARMIS-AUTH-FIDELITY-001). RG-001 RG-009.
+# Value "bearer_static" is the LIVE auth_type and MUST NOT be changed until S-WAVE-A-ARMIS-REMEDIATION-001 lands.
 auth_type = "bearer_static"
 base_url = "${env.ARMIS_INSTANCE_URL}"
 version = "1.0.0"
 
 # ---------------------------------------------------------------------------
-# Credential references (ADV-SDEMO002-P01-CRIT-001 fix)
+# Credential references
 # ---------------------------------------------------------------------------
-# BC-2.06.003 resolution chain: ARMIS_BEARER_TOKEN_FILE > ARMIS_BEARER_TOKEN > keyring.
-# BearerStaticCredentialAuthProvider resolves "bearer_token" at acquire_token() time.
+# Credential resolution chain: see BC-2.06.003.
+# SUPERSEDED-PENDING-S-WAVE-A-ARMIS-REMEDIATION-001: superseded per ADR-053 §D2 + ADR-054.
+#   Owner: S-WAVE-A-ARMIS-REMEDIATION-001 AC-006. See ADR-053 §D5 for credential ref rename target.
+#   RG-007. name = "bearer_token" below is the LIVE credential-resolution key and MUST NOT be
+#   changed until S-WAVE-A-ARMIS-REMEDIATION-001 lands.
 [[credential_refs]]
 name = "bearer_token"
 
@@ -52,7 +40,7 @@ name = "bearer_token"
 #   response_path: $.data.results (SearchResponse { data: SearchData { results: [...] } }).
 #   GET /api/v1/devices remains registered in build_router() for back-compat only.
 # Timestamp fallback: lastSeen (primary) → firstSeen (fallback) → now() (WARN).
-# Per ADR-028 v1.10 §D8-B: canonical chain is last_seen → first_seen → now().
+# Per ADR-028 §D8-B: canonical chain is last_seen → first_seen → now().
 # Expressed via timestamp_fallback_chain on the primary timestamp column.
 # ---------------------------------------------------------------------------
 [[tables]]
@@ -87,7 +75,7 @@ ocsf_class = "device"
   ocsf_field = "device.hw_info.vendor_name"
 
   # Primary timestamp column: last_seen (may be null per DTU fixture d-001).
-  # timestamp_fallback_chain per ADR-028 v1.10 §D8-B (Option A LOCKED):
+  # timestamp_fallback_chain per ADR-028 §D8-B (Option A LOCKED):
   #   last_seen → first_seen → Utc::now() with tracing::warn!(event_type = "timestamp.fallback_to_now")
   # The whole chain (including the now() fallback + warn emission) is executed by the
   # prism-spec-engine pipeline normalization pass (normalize_timestamp_fields,

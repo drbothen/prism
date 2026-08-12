@@ -1,23 +1,21 @@
 # claroty.sensor.toml — Production TOML sensor spec
 #
 # Authored per PLUGIN-MIGRATION-001-D Task 4.
-# URLs grounded from DTU clone routes (ADR-028 §D1):
-#   crates/prism-dtu-claroty/src/clone.rs build_router()
-# auth_type grounded from DTU enforcement (ADR-028 §D2):
-#   DTU enforces Authorization: Bearer {non-empty} in routes/alerts.rs and routes/devices.rs
+# Grounding: ADR-028 §D1/§D2 remain authoritative; see BC-2.16.013 §Postconditions §1.
+# ADR-053 §D5 excludes this sensor from ADR-053 supersession scope.
 # auth_type = "bearer_static" is the D-747 LOCKED value.
 # NOTE: legacy ClarotyAuth::auth_type_name() returned "cookie_roundtrip" — latent label bug
-#   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
+#   deleted by PLUGIN-MIGRATION-001-A.
 #
 # POST-for-read pattern: alerts, audit_logs, and devices use method = "POST" with body template.
 # Pagination: POST steps with OffsetLimit pagination inject offset+limit into the JSON
-#   request body (pipeline.rs::build_request — BC-2.16.002 v1.70 §Postconditions
+#   request body (pipeline.rs::build_request — BC-2.16.002 §Postconditions
 #   "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)").
 #   Gap-CL-004: CLOSED by S-DEMO-CLAROTY-PAGINATION-001. Offset/limit now sent in the
 #   POST body (not URL params). Multi-page queries (>page_size rows) are fully supported.
 # Polymorphic ID: alerts.id column uses column_type = "string" to handle int and UUID IDs
 #   (EC-016-013-004): JSON int IDs normalized to string at parser boundary.
-# No /xdome prefix anywhere (ADR-028 §D1 footnote).
+# No /xdome prefix anywhere — see BC-2.16.013 §Postconditions §1 (claroty audit_logs).
 #
 # Gap-CL-001: CLOSED by S-DEMO-CLAROTY-TRAILING-SLASH-001.
 #   path_templates updated to trailing-slash form to match the real Claroty xDome API
@@ -40,10 +38,9 @@ base_url = "${env.CLAROTY_INSTANCE_URL}"
 version = "1.0.0"
 
 # ---------------------------------------------------------------------------
-# Credential references (ADV-SDEMO002-P01-CRIT-001 fix)
+# Credential references
 # ---------------------------------------------------------------------------
-# BC-2.06.003 resolution chain: CLAROTY_BEARER_TOKEN_FILE > CLAROTY_BEARER_TOKEN > keyring.
-# BearerStaticCredentialAuthProvider resolves "bearer_token" at acquire_token() time.
+# Credential resolution chain: see BC-2.06.003.
 [[credential_refs]]
 name = "bearer_token"
 
@@ -119,7 +116,7 @@ ocsf_class = "detection_finding"
   # response_path: DTU returns {"alerts": [...], "total": N, "page": N} per routes::alerts::list_alerts
   # body_template: empty JSON object; OffsetLimit POST-body injection (S-DEMO-CLAROTY-PAGINATION-001
   #   CLOSED, Gap-CL-004 CLOSED) merges {"offset": N, "limit": 100} into this body at request time
-  #   (pipeline.rs::build_request — BC-2.16.002 v1.70 "OffsetLimit Pagination Dispatch: POST-body
+  #   (pipeline.rs::build_request — BC-2.16.002 "OffsetLimit Pagination Dispatch: POST-body
   #   vs GET-URL"). Do not add hardcoded offset/limit here — the pipeline injects them.
   # F-LP3-HIGH-004: removed '{"size": 100}' from body_template (now superseded by pipeline injection).
   [[tables.steps]]
