@@ -135,7 +135,7 @@ ocsf_class = "detection_finding"
   # response_path: DTU returns {"alerts": [...], "total": N, "page": N} per routes::alerts::list_alerts
   # body_template: fields projection is REQUIRED by GetAlertsParameters (minItems: 1); covers all
   #   declared alert columns. OffsetLimit POST-body injection merges {"offset": N, "limit": 1000}
-  #   into this body at request time (pipeline.rs::build_request — BC-2.16.002 v1.70 "OffsetLimit
+  #   into this body at request time (pipeline.rs::build_request — BC-2.16.002 §Postconditions "OffsetLimit
   #   Pagination Dispatch: POST-body vs GET-URL"). Do not add hardcoded offset/limit here.
   [[tables.steps]]
   name = "fetch_alerts"
