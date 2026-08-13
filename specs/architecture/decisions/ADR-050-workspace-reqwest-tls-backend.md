@@ -39,12 +39,6 @@ sibling-sweep gap in v2.0 enumeration). §D6 header clarified from "sensor and p
 WAF-fingerprint-coherence reasoning applies to ALL outbound third-party HTTP, not only
 sensor/plugin adapters. Anchored to DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-2 OBS-4.
 
-ACCEPTED v2.3 (2026-08-13) — §D5 note corrected: prism-bin `[dev-dependencies]` reqwest
-entry explicitly declares `http2` in its features array (`["json", "rustls-tls", "http2"]`),
-not Cargo feature unification (unification means a feature resolves ON without being listed;
-this is an explicit literal declaration). Records-only — no decision or mechanism change.
-Anchored to DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-8 F-1.
-
 ACCEPTED v2.2 (2026-08-13) — §D5 prism-bin production entry count corrected: one
 production `[dependencies]` reqwest entry (S-PLUGIN-PREREQ-D AC-9 shared outbound
 client), not two; total production entries three (prism-spec-engine, prism-sensors,
@@ -52,6 +46,12 @@ prism-bin). Prism-bin `[dev-dependencies]` reqwest entry also carries `http2` (C
 feature unification, harmless; DTU dev-deps remain out of scope). Records-only — no
 decision or mechanism change. Anchored to DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL
 adversary pass-4 F-3.
+
+ACCEPTED v2.3 (2026-08-13) — §D5 note corrected: prism-bin `[dev-dependencies]` reqwest
+entry explicitly declares `http2` in its features array (`["json", "rustls-tls", "http2"]`),
+not Cargo feature unification (unification means a feature resolves ON without being listed;
+this is an explicit literal declaration). Records-only — no decision or mechanism change.
+Anchored to DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-8 F-1.
 
 ---
 
