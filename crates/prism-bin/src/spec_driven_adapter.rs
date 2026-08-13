@@ -3299,7 +3299,7 @@ mod tests {
     ///
     /// After fix: `.user_agent("prism/{version}")` added → header starts with "prism/" → GREEN.
     ///
-    /// BC-2.16.014 AC-H1-UA-001 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-006
+    /// BC-2.16.002 (HTTP Client Compliance postconditions) AC-UA-001 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-006
     #[tokio::test]
     #[allow(clippy::unwrap_used, clippy::expect_used)]
     async fn test_build_http_client_sends_user_agent_header() {
@@ -3347,7 +3347,7 @@ mod tests {
             "RG-006: User-Agent header must start with 'prism/'; \
              got: {:?}. \
              Fix: add .user_agent(\"prism/{{version}}\") call to \
-             build_http_client_with_custom_timeout (BC-2.16.014 AC-H1-UA-001). \
+             build_http_client_with_custom_timeout (BC-2.16.002 AC-UA-001). \
              reqwest default UA is 'reqwest/x.x.x', not 'prism/...'.",
             ua
         );
