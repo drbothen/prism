@@ -452,10 +452,7 @@ ocsf_class = "detection_finding"
   ocsf_field = "device.uid"
   options = ["REQUIRED"]
 
-  # DTU ClarotyDeviceAlertRelation.alert_id: String — alert identifier.
-  # Declared as string to match alerts.id (same ocsf_field = "finding.uid") and support
-  # polymorphic alert IDs (numeric or UUID) per the same rationale as alerts.id (EC-016-013-004).
-  # Original u32 typing rejected: non-numeric alert IDs would silently NULL the join key.
+  # DTU ClarotyDeviceAlertRelation.alert_id: u32 — normalized to string by pipeline (polymorphic alert-ID support at the real-API boundary; matches alerts.id per EC-016-013-004).
   [[tables.columns]]
   name = "alert_id"
   column_type = "string"
