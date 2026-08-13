@@ -1238,18 +1238,32 @@ fn build_paged_url_impl(
 /// OBS-4 sibling of `prism_bin::spec_driven_adapter::build_http_client_with_custom_timeout`
 /// (both factories now carry the same ADR-050 §D6 User-Agent obligation).
 ///
+/// Returns `Err(String)` if the client builder fails.  Under `rustls-tls` this is
+/// effectively unreachable (the only failure mode is malformed TLS configuration, which
+/// cannot occur with the default rustls stack — see ADR-050 §D1/D2).  The `Result`
+/// return mirrors the sibling `prism_bin::spec_driven_adapter::build_http_client_with_timeout`
+/// and eliminates the forbidden `.expect()` on `Result` in production code
+/// (CLAUDE.md §Forbidden patterns, DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-2).
+///
+/// PRODUCT-OWNER FLAG: callers in `infusion/mod.rs` convert the `Err(String)` to
+/// `InfusionError::HttpLookupFailed` as a stopgap.  A dedicated `E-INFUSE-015`
+/// (`HttpClientBuildFailed`) variant should be added to `InfusionError` in a
+/// follow-up story so operators receive a semantically precise error code.
+///
 /// AC-UA-001 | BC-2.16.002 (HTTP Client Compliance postconditions) | DEFECT-ADAPTER-TLS-XDOME-LIVE-001
 // Dead-code allow: used by HttpLookupSource::load_spec_with_runtime wiring (D8.6).
 // The warning appears because load_spec_with_runtime is in mod.rs; same crate, different file.
 #[allow(dead_code)]
-pub(crate) fn build_http_client_with_timeout() -> reqwest::Client {
+pub(crate) fn build_http_client_with_timeout() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         // ADR-050 §D6: all outbound clients MUST set User-Agent for WAF-fingerprint coherence.
         // concat! produces a &'static str with zero allocation at runtime.
         .user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))
         .timeout(Duration::from_secs(30))
         .build()
-        .expect("reqwest::Client::build: failed to create HTTP client with 30s timeout and prism/ User-Agent")
+        .map_err(|e| {
+            format!("failed to build reqwest::Client with 30s timeout and prism/ User-Agent: {e}")
+        })
 }
 
 /// Extract the value at a JSONPath expression.
@@ -4844,7 +4858,8 @@ mod infusion_http_client_user_agent_tests {
             .mount(&mock_server)
             .await;
 
-        let client = build_http_client_with_timeout();
+        let client = build_http_client_with_timeout()
+            .expect("OBS-4: reqwest::Client build must succeed under rustls-tls (ADR-050 §D1/D2)");
 
         // Fire a request so wiremock records the User-Agent header.
         let _ = client
@@ -4877,6 +4892,29 @@ mod infusion_http_client_user_agent_tests {
              Got: {:?}. Fix: add .user_agent(concat!(\"prism/\", env!(\"CARGO_PKG_VERSION\"))) \
              to the builder in build_http_client_with_timeout (BC-2.16.002 AC-UA-001).",
             ua
+        );
+    }
+
+    /// F-2 (DEFECT-ADAPTER-TLS-XDOME-LIVE-001): `build_http_client_with_timeout`
+    /// MUST return `Ok(Client)` under normal config (rustls-tls default, ADR-050 §D1/D2).
+    ///
+    /// This test mirrors `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration`
+    /// in `prism-bin` (RG-PERF-001 precedent) and asserts that the `Result` path resolves
+    /// to `Ok` — confirming the production code never panics on client construction.
+    ///
+    /// Under rustls-tls the only failure mode is malformed TLS configuration, which
+    /// cannot occur with the default rustls stack.  `Err(String)` is effectively
+    /// unreachable but must be a `Result` rather than an `expect()` call (CLAUDE.md
+    /// §Forbidden patterns: no `.expect()` on `Result` in non-test code paths).
+    #[test]
+    fn test_build_http_client_with_timeout_returns_ok_under_rustls() {
+        let result = build_http_client_with_timeout();
+        assert!(
+            result.is_ok(),
+            "F-2 (DEFECT-ADAPTER-TLS-XDOME-LIVE-001): build_http_client_with_timeout \
+             (prism-spec-engine) must return Ok(Client) under the default rustls-tls stack \
+             (ADR-050 §D1/D2). Got Err: {:?}",
+            result.err()
         );
     }
 }

@@ -748,7 +748,17 @@ impl InfusionRegistry {
                     spec_path: spec.infusion_id.clone(),
                 }
             })?;
-            let client = crate::pipeline::build_http_client_with_timeout();
+            // DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-2: propagate Result from factory.
+            // Mapped to HttpLookupFailed as a stopgap; product-owner should add
+            // E-INFUSE-015 (HttpClientBuildFailed) for a semantically precise error code.
+            let client = crate::pipeline::build_http_client_with_timeout().map_err(|e| {
+                InfusionError::HttpLookupFailed {
+                    infusion_id: spec.infusion_id.clone(),
+                    spec_path: String::new(),
+                    status_code: None,
+                    message: format!("HTTP client build failed (TLS init): {e}"),
+                }
+            })?;
             Arc::new(sources::http_lookup::HttpLookupSource::new(
                 client,
                 http_config,
@@ -909,7 +919,17 @@ impl InfusionRegistry {
                     spec_path: spec.infusion_id.clone(),
                 }
             })?;
-            let client = crate::pipeline::build_http_client_with_timeout();
+            // DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-2: propagate Result from factory.
+            // Mapped to HttpLookupFailed as a stopgap; product-owner should add
+            // E-INFUSE-015 (HttpClientBuildFailed) for a semantically precise error code.
+            let client = crate::pipeline::build_http_client_with_timeout().map_err(|e| {
+                InfusionError::HttpLookupFailed {
+                    infusion_id: spec.infusion_id.clone(),
+                    spec_path: String::new(),
+                    status_code: None,
+                    message: format!("HTTP client build failed (TLS init): {e}"),
+                }
+            })?;
             Arc::new(sources::http_lookup::HttpLookupSource::new(
                 client,
                 http_config,
@@ -1111,7 +1131,17 @@ impl InfusionRegistry {
                         spec_path: updated_spec.infusion_id.clone(),
                     }
                 })?;
-                let client = crate::pipeline::build_http_client_with_timeout();
+                // DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-2: propagate Result from factory.
+                // Mapped to HttpLookupFailed as a stopgap; product-owner should add
+                // E-INFUSE-015 (HttpClientBuildFailed) for a semantically precise error code.
+                let client = crate::pipeline::build_http_client_with_timeout().map_err(|e| {
+                    InfusionError::HttpLookupFailed {
+                        infusion_id: updated_spec.infusion_id.clone(),
+                        spec_path: String::new(),
+                        status_code: None,
+                        message: format!("HTTP client build failed (TLS init): {e}"),
+                    }
+                })?;
                 Arc::new(sources::http_lookup::HttpLookupSource::new(
                     client,
                     http_config,
