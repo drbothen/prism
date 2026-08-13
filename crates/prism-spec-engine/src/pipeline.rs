@@ -1219,19 +1219,30 @@ fn build_paged_url_impl(
     }
 }
 
-/// Build a `reqwest::Client` with a 30-second timeout (CLAUDE.md §Conventions).
+/// Build a `reqwest::Client` with a 30-second timeout and `prism/` User-Agent (CLAUDE.md §Conventions).
 ///
 /// Used by `HttpLookupSource` and by the spec-driven adapter boot path.
 /// Callers MUST NOT call `reqwest::Client::new()` directly — that construction
 /// is forbidden because it sets no timeout (CLAUDE.md §Forbidden patterns).
+///
+/// ADR-050 §D6: all outbound HTTP clients set a `User-Agent: prism/{version}` header for
+/// WAF-fingerprint coherence so security appliances can attribute requests to prism.
+///
+/// OBS-4 sibling of `prism_bin::spec_driven_adapter::build_http_client_with_custom_timeout`
+/// (both factories now carry the same ADR-050 §D6 User-Agent obligation).
+///
+/// AC-UA-001 | BC-2.16.002 (HTTP Client Compliance postconditions) | DEFECT-ADAPTER-TLS-XDOME-LIVE-001
 // Dead-code allow: used by HttpLookupSource::load_spec_with_runtime wiring (D8.6).
 // The warning appears because load_spec_with_runtime is in mod.rs; same crate, different file.
 #[allow(dead_code)]
 pub(crate) fn build_http_client_with_timeout() -> reqwest::Client {
     reqwest::Client::builder()
+        // ADR-050 §D6: all outbound clients MUST set User-Agent for WAF-fingerprint coherence.
+        // concat! produces a &'static str with zero allocation at runtime.
+        .user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))
         .timeout(Duration::from_secs(30))
         .build()
-        .expect("reqwest::Client::build: failed to create HTTP client with 30s timeout")
+        .expect("reqwest::Client::build: failed to create HTTP client with 30s timeout and prism/ User-Agent")
 }
 
 /// Extract the value at a JSONPath expression.
@@ -4660,7 +4671,7 @@ mod store_step_vars_tests {
 /// Uses wiremock so the test exercises the real `execute_with_max_requests` HTTP path.
 /// Response: 403 with text body "forbidden".
 ///
-/// BC-2.16.014 AC-H1-BODY-001 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-003
+/// BC-2.16.002 (Non-2xx Response Body Capture postcondition) AC-ERR-003 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-003
 #[cfg(test)]
 mod non_2xx_body_snippet_tests {
     use std::collections::HashMap;
@@ -4713,7 +4724,7 @@ mod non_2xx_body_snippet_tests {
     /// FAIL reason before fix: `detail` is `"HTTP 403"`, which does NOT contain "forbidden".
     /// → `assert!(detail.contains("forbidden"), ...)` panics → RED.
     ///
-    /// BC-2.16.014 AC-H1-BODY-001 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-003
+    /// BC-2.16.002 (Non-2xx Response Body Capture postcondition) AC-ERR-003 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-003
     #[tokio::test]
     #[allow(clippy::unwrap_used, clippy::expect_used)]
     async fn test_pipeline_non_2xx_body_in_detail() {
@@ -4767,7 +4778,7 @@ mod non_2xx_body_snippet_tests {
                      ('forbidden') so operators can diagnose the 403. \
                      Current detail (before fix): {:?}. \
                      Fix: append response body bytes to the `detail` field when the \
-                     server returns a non-2xx status (BC-2.16.014 AC-H1-BODY-001).",
+                     server returns a non-2xx status (BC-2.16.002 AC-ERR-003).",
                     detail
                 );
 
@@ -4786,5 +4797,79 @@ mod non_2xx_body_snippet_tests {
                 );
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// OBS-4: build_http_client_with_timeout must set prism/ User-Agent header
+// ---------------------------------------------------------------------------
+
+/// OBS-4: `build_http_client_with_timeout` (the `HttpLookupSource` outbound client factory
+/// in `prism-spec-engine`) MUST produce a `reqwest::Client` that sends a `User-Agent`
+/// header beginning with `"prism/"`.
+///
+/// Before fix: no `.user_agent()` call → reqwest default `"reqwest/x.x.x"` → FAILS.
+/// After fix: `.user_agent("prism/{version}")` → starts with `"prism/"` → GREEN.
+///
+/// This is the sibling sweep of the same obligation already satisfied by
+/// `prism_bin::spec_driven_adapter::build_http_client_with_custom_timeout` (ADR-050 §D6).
+///
+/// AC-UA-001 | BC-2.16.002 (HTTP Client Compliance postconditions) | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 OBS-4
+#[cfg(test)]
+mod infusion_http_client_user_agent_tests {
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
+
+    use super::build_http_client_with_timeout;
+
+    /// OBS-4: `build_http_client_with_timeout` MUST produce a client that sends
+    /// `User-Agent: prism/{version}` so WAF appliances attribute enrichment/threat-intel
+    /// HTTP calls to prism (ADR-050 §D6 WAF-fingerprint coherence).
+    #[tokio::test]
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
+    async fn test_infusion_http_client_sends_prism_user_agent() {
+        let mock_server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/probe"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&mock_server)
+            .await;
+
+        let client = build_http_client_with_timeout();
+
+        // Fire a request so wiremock records the User-Agent header.
+        let _ = client
+            .get(format!("{}/probe", mock_server.uri()))
+            .send()
+            .await;
+
+        let received = mock_server
+            .received_requests()
+            .await
+            .expect("OBS-4: wiremock must record received requests");
+
+        assert_eq!(
+            received.len(),
+            1,
+            "OBS-4: exactly one request must be recorded by wiremock; got {}",
+            received.len()
+        );
+
+        let ua = received[0]
+            .headers
+            .get("user-agent")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+
+        assert!(
+            ua.starts_with("prism/"),
+            "OBS-4 (AC-UA-001): build_http_client_with_timeout (prism-spec-engine) MUST send \
+             'User-Agent: prism/{{version}}' for WAF-fingerprint coherence (ADR-050 §D6). \
+             Got: {:?}. Fix: add .user_agent(concat!(\"prism/\", env!(\"CARGO_PKG_VERSION\"))) \
+             to the builder in build_http_client_with_timeout (BC-2.16.002 AC-UA-001).",
+            ua
+        );
     }
 }
