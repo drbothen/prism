@@ -21,7 +21,8 @@
 //!
 //! # Error sanitization (F-S504-P2-008)
 //! The `error` field in `ProbeOutcome` is always sanitized before being stored:
-//! truncated to `MAX_ERROR_LEN` bytes and stripped of control characters, preventing
+//! truncated to `MAX_ERROR_LEN` chars (Unicode scalar values) and replaces all Unicode
+//! control characters (C0+DEL+C1) and U+2028/U+2029 with spaces, preventing
 //! prompt-injection via upstream sensor error bodies (CWE-116).
 
 use chrono::{DateTime, Utc};

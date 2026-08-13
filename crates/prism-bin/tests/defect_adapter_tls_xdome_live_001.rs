@@ -9,7 +9,7 @@
 //! |         |                                                              | Internal → catch-all → Down; assertion `status == Up` FAILS              |
 //! | RG-007 | test_sensor_health_wire_shape_403_reachable_auth_invalid  | Follows RG-005 failure; if Up/403, wire shape must carry reachable=true   |
 //! |         |                                                              | and auth_valid=false; SID-2 wire-level JSON assertion.                    |
-//! | RG-008 | test_reqwest_http2_not_enabled (regression guard)          | GREEN-BY-DESIGN today; would fail if http2 feature added to reqwest dep.  |
+//! | RG-008 | test_reqwest_http2_feature_active                         | RED pre-fix (rustls-tls only; http2 disabled); GREEN post-fix (http2 on). |
 //!
 //! # Test seam
 //!
