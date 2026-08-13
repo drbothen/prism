@@ -2051,6 +2051,56 @@ pub fn sanitize_for_log(s: &str) -> String {
         .collect()
 }
 
+/// Sanitize a raw HTTP response body snippet for safe inclusion in error messages and logs.
+///
+/// Shared implementation for both `prism-spec-engine` (`read_non_2xx_body`) and
+/// `prism-mcp` (`health::connectivity::sanitize_error`) — single source of truth
+/// for CWE-117/CWE-116 prevention across the stack (MED-1 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001).
+///
+/// Two transformations applied in order:
+/// 1. **Cap** at `max_chars` Unicode scalar values. Prevents context-stuffing and prompt
+///    injection via large upstream HTML error pages (AD-017).
+/// 2. **Replace** every control character (`char::is_control()`, covers C0+DEL+C1) and the
+///    Unicode line/paragraph separators U+2028/U+2029 (category Zl/Zp — NOT caught by
+///    `is_control()` alone) with a single ASCII space. Replacing (not filtering) preserves
+///    word boundaries: `"error\nmessage"` → `"error message"` rather than `"errormessage"`.
+///
+/// # Difference from `sanitize_for_log`
+///
+/// `sanitize_for_log` *filters* (removes) control chars — appropriate for display-facing
+/// overlay error strings where removing whitespace is acceptable. `sanitize_body_snippet`
+/// *replaces* with space — appropriate for HTTP response body excerpts where word boundaries
+/// must be preserved so the sanitised text remains human-readable.
+///
+/// # Parameters
+/// - `s` — raw string (UTF-8; typically the output of `String::from_utf8_lossy`).
+/// - `max_chars` — maximum number of Unicode scalar values in the output.
+///
+/// SEC-001 / AD-017 / CWE-116.
+pub fn sanitize_body_snippet(s: &str, max_chars: usize) -> String {
+    // Cap at max_chars Unicode scalar values (char-boundary-safe slice).
+    let byte_end = s
+        .char_indices()
+        .nth(max_chars)
+        .map(|(idx, _)| idx)
+        .unwrap_or(s.len());
+    let capped = &s[..byte_end];
+    capped
+        .chars()
+        .map(|c| {
+            // Replace Unicode Cc control chars (c.is_control()) AND Zl/Zp line separators
+            // (U+2028 / U+2029) with a space. is_control() covers C0 (U+0000–U+001F incl.
+            // \t \n \r), DEL (U+007F), and C1 (U+0080–U+009F). U+2028/U+2029 are in Zl/Zp
+            // (not Cc), so they must be tested explicitly.
+            if c.is_control() || c == '\u{2028}' || c == '\u{2029}' {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
 // ---------------------------------------------------------------------------
 // E-PLUGIN — WASM Plugin Runtime error types (S-1.15)
 // ---------------------------------------------------------------------------

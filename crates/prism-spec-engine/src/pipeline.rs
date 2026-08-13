@@ -757,27 +757,31 @@ impl PipelineExecutor {
 /// `SpecEngineError::HttpRequestFailed.detail`.
 ///
 /// BC-2.16.002 Non-2xx Response Body Capture postcondition:
-/// - Caps body at 256 bytes to prevent prompt injection / log flooding.
-/// - Strips ASCII control characters (bytes < 0x20 except printable whitespace).
+/// - Decodes bytes as UTF-8 (via `String::from_utf8_lossy` — replaces invalid sequences
+///   with U+FFFD rather than using Latin-1 `b as char` which produces mojibake).
+/// - Caps body at 256 Unicode scalar values (char-boundary-safe).
+/// - Replaces ALL `char::is_control()` characters (C0+DEL+C1, incl. `\t`/`\n`/`\r`) and
+///   U+2028/U+2029 with a space — prevents CWE-117/CWE-116 log/prompt injection (MED-1).
 /// - Returns an empty string on any body-read failure — the primary status-code
 ///   error MUST NOT be replaced by a secondary body-read failure.
+///
+/// Sanitization is performed by `prism_core::sanitize_body_snippet` — the same shared
+/// implementation used by `prism_mcp::health::connectivity::sanitize_error` (DRY;
+/// single source of truth in `prism-core`; MED-1 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001).
 async fn read_non_2xx_body(response: reqwest::Response) -> String {
     let bytes = match response.bytes().await {
         Ok(b) => b,
         Err(_) => return String::new(),
     };
-    let capped: &[u8] = if bytes.len() > 256 {
-        &bytes[..256]
-    } else {
-        &bytes
-    };
-    // Strip control characters (< 0x20) except printable ASCII whitespace (0x09, 0x0A, 0x0D).
-    let sanitized: String = capped
-        .iter()
-        .filter(|&&b| b >= 0x20 || b == b'\t' || b == b'\n' || b == b'\r')
-        .map(|&b| b as char)
-        .collect();
-    sanitized.trim().to_string()
+    // Decode bytes as UTF-8 (lossy: invalid sequences → U+FFFD).
+    // Avoids the Latin-1 mojibake produced by the former `b as char` byte-to-char cast
+    // which misinterpreted multi-byte UTF-8 sequences (MED-1).
+    let text = String::from_utf8_lossy(&bytes);
+    // sanitize_body_snippet: caps at 256 chars, replaces all control chars + U+2028/U+2029
+    // with space (CWE-117/CWE-116). Trim for clean presentation in error messages.
+    prism_core::sanitize_body_snippet(text.as_ref(), 256)
+        .trim()
+        .to_string()
 }
 
 /// Issue one HTTP request, with a single 401-retry via `auth_provider` (AC-5).

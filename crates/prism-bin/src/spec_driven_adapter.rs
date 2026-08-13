@@ -505,8 +505,11 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
     /// Maps `PipelineResult` (raw JSON) → `Vec<RecordBatch>` via OCSF normalization (BC-2.11.005).
     /// Each table in the sensor spec is executed sequentially; results are concatenated.
     ///
-    /// On double-401: propagates `SpecEngineError::AuthRefreshFailed` → `SensorError::Internal`
-    /// (BC-2.01.013 error case; AC-012).
+    /// On double-401: propagates `SpecEngineError::AuthRefreshFailed` →
+    /// `SensorError::HttpError { status: 401 }` (sensor responded, credentials persistently
+    /// invalid; BC-2.08.002 / AC-012). Prior to DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 fix,
+    /// this incorrectly mapped to `SensorError::Internal`, causing `probe_connectivity` to
+    /// classify a reachable sensor as `Down`.
     ///
     /// BC-2.01.013 postcondition 4; OQ-1 Resolution; ADR-028 §D10; ADR-031 §D3-b.
     async fn fetch(
@@ -718,23 +721,34 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
 
 /// Map `SpecEngineError` → `SensorError`, preserving the E-AUTH-002 taxonomy code.
 ///
-/// AC-012 requirement: double-401 (`AuthRefreshFailed`) must map to `SensorError::Internal`
-/// with `detail` containing "E-AUTH-002" so callers can distinguish auth failures from
-/// other sensor errors (error taxonomy BC-2.01.013 §Error Cases).
+/// AC-012 / BC-2.08.002 HTTP Error Classification (DEFECT-ADAPTER-TLS-XDOME-LIVE-001):
 ///
-/// All `SpecEngineError` variants map to `SensorError::Internal` with a structured
-/// `detail` message that includes the sensor id, table name, and the original error's
-/// `Display` representation. `AuthRefreshFailed` always includes "E-AUTH-002" in `detail`
-/// because that is its `#[error(...)]` prefix in `SpecEngineError`.
+/// **Arm 1 — HTTP response received (`status_code > 0`):**
+/// `HttpRequestFailed { status_code > 0, .. }` → `SensorError::HttpError { status, body }`.
+/// The `status` field carries the HTTP status code; `body` carries the `detail` string
+/// (which contains the response body snippet from `read_non_2xx_body`). This allows
+/// callers (e.g., `probe_connectivity`) to classify 4xx responses as reachable/auth-invalid
+/// rather than erroneously mapping them to `ConnectivityStatus::Down`.
+///
+/// **Arm 2 — Persistent 401 (auth refresh or cookie auth failed):**
+/// `AuthRefreshFailed` and `CookieAuthFailed` both mean the sensor responded with HTTP 401
+/// (the sensor IS reachable) but the credentials are persistently invalid. Map to
+/// `SensorError::HttpError { status: 401 }` so `probe_connectivity` correctly classifies
+/// these as `ConnectivityStatus::Up` and `probe_auth_with_routing` classifies them as
+/// `AuthStatus::Invalid` (BC-2.08.002 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 fix).
+///
+/// **Arm 3 — Transport failure or other error (`status_code == 0` or other variant):**
+/// All remaining `SpecEngineError` variants (including `HttpRequestFailed { status_code: 0 }`
+/// for connection/send errors) → `SensorError::Internal` with a structured `detail` message
+/// containing the sensor ID, table name, and the original error's `Display` representation.
 fn map_spec_engine_error_to_sensor_error(
     e: SpecEngineError,
     sensor_id: &str,
     table_name: &str,
 ) -> SensorError {
-    // BC-2.08.002 HTTP Error Classification postcondition (DEFECT-ADAPTER-TLS-XDOME-LIVE-001):
+    // Arm 1: BC-2.08.002 HTTP Error Classification postcondition (DEFECT-ADAPTER-TLS-XDOME-LIVE-001):
     // HttpRequestFailed { status_code > 0 } = HTTP response received → HttpError.
-    // HttpRequestFailed { status_code = 0 } = transport failure (no HTTP response) → Internal.
-    // All other SpecEngineError variants → Internal.
+    // HttpRequestFailed { status_code = 0 } = transport failure (no HTTP response) → skip to Arm 3.
     if let SpecEngineError::HttpRequestFailed {
         status_code,
         ref detail,
@@ -748,9 +762,22 @@ fn map_spec_engine_error_to_sensor_error(
             body: detail.clone(),
         };
     }
-    // status_code = 0 (transport error) and all other SpecEngineError variants → Internal.
-    // SpecEngineError::Display for AuthRefreshFailed starts with "E-AUTH-002: auth refresh failed..."
-    // No special-casing needed: the Display impl preserves the taxonomy code.
+    // Arm 2: Persistent 401 — sensor IS reachable but credentials are persistently invalid.
+    // AuthRefreshFailed = double-401 after token refresh (OAuth2/Plugin auth).
+    // CookieAuthFailed  = 401 on CookieRoundtrip auth (no refresh possible).
+    // Both mean HTTP 401 was received → map to HttpError{status:401} so probe_connectivity
+    // correctly classifies as Up + probe_auth_with_routing classifies as AuthStatus::Invalid.
+    if matches!(
+        e,
+        SpecEngineError::AuthRefreshFailed { .. } | SpecEngineError::CookieAuthFailed { .. }
+    ) {
+        return SensorError::HttpError {
+            sensor: sensor_id.to_string(),
+            status: 401,
+            body: format!("{e}"),
+        };
+    }
+    // Arm 3: transport error and all other SpecEngineError variants → Internal.
     SensorError::Internal {
         detail: format!(
             "SpecDrivenSensorAdapter: PipelineExecutor::execute failed for \
@@ -3179,6 +3206,82 @@ mod tests {
             matches!(result, SensorError::Internal { .. }),
             "RG-002 (regression guard): HttpRequestFailed(status_code=0) must remain \
              SensorError::Internal — status_code=0 is not a real HTTP response. \
+             Got: {:?}",
+            result
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // RG-010: AuthRefreshFailed maps to HttpError{status:401}, not Internal
+    // ---------------------------------------------------------------------------
+
+    /// RG-010: `map_spec_engine_error_to_sensor_error` MUST map
+    /// `SpecEngineError::AuthRefreshFailed` to `SensorError::HttpError { status: 401 }`
+    /// (NOT `SensorError::Internal`).
+    ///
+    /// Rationale: `AuthRefreshFailed` means the sensor responded with HTTP 401 twice
+    /// (once before token refresh, once after). The sensor IS reachable — it returned
+    /// HTTP. Mapping to `Internal` causes `probe_connectivity` to classify the sensor
+    /// as `Down` and `probe_auth_with_routing` to return `AuthStatus::Unknown`, when
+    /// the correct classification is `Up` + `AuthStatus::Invalid`
+    /// (BC-2.08.002 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 fix).
+    ///
+    /// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 (unit guard)
+    #[test]
+    fn test_map_error_auth_refresh_failed_maps_to_http_error_401() {
+        use prism_sensors::adapter::SensorError;
+        use prism_spec_engine::error::SpecEngineError;
+
+        let result = super::map_spec_engine_error_to_sensor_error(
+            SpecEngineError::AuthRefreshFailed {
+                sensor_id: "claroty".to_string(),
+                client_id: "client-001".to_string(),
+                step_name: "fetch".to_string(),
+            },
+            "claroty",
+            "alerts",
+        );
+
+        assert!(
+            matches!(result, SensorError::HttpError { status: 401, .. }),
+            "RG-010: AuthRefreshFailed must map to SensorError::HttpError {{ status: 401 }}, \
+             not Internal. Sensor responded with 401 (reachable) — classify as auth-invalid. \
+             Got: {:?}",
+            result
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // RG-011: CookieAuthFailed maps to HttpError{status:401}, not Internal
+    // ---------------------------------------------------------------------------
+
+    /// RG-011: `map_spec_engine_error_to_sensor_error` MUST map
+    /// `SpecEngineError::CookieAuthFailed` to `SensorError::HttpError { status: 401 }`
+    /// (NOT `SensorError::Internal`).
+    ///
+    /// Rationale: `CookieAuthFailed` means the sensor returned HTTP 401 on a
+    /// `CookieRoundtrip` auth sensor. Same semantics as `AuthRefreshFailed` — sensor
+    /// IS reachable, credentials are invalid. Should classify as Up + auth-invalid.
+    ///
+    /// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 (unit guard)
+    #[test]
+    fn test_map_error_cookie_auth_failed_maps_to_http_error_401() {
+        use prism_sensors::adapter::SensorError;
+        use prism_spec_engine::error::SpecEngineError;
+
+        let result = super::map_spec_engine_error_to_sensor_error(
+            SpecEngineError::CookieAuthFailed {
+                sensor_id: "claroty".to_string(),
+                client_id: "client-001".to_string(),
+            },
+            "claroty",
+            "alerts",
+        );
+
+        assert!(
+            matches!(result, SensorError::HttpError { status: 401, .. }),
+            "RG-011: CookieAuthFailed must map to SensorError::HttpError {{ status: 401 }}, \
+             not Internal. Sensor responded with 401 (reachable) — classify as auth-invalid. \
              Got: {:?}",
             result
         );

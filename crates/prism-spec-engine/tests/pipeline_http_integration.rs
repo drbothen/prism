@@ -2837,3 +2837,260 @@ async fn test_BC_2_16_002_fanout_invalid_source_type_emits_structured_event_for_
         "F-LP10-MED-002: log must contain the step name (step2); log output: {log_output}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// RG-009 — BC-2.16.002 Send-Failure Error Source Chain (MED-2)
+// ---------------------------------------------------------------------------
+
+/// RG-009: `issue_request_with_retry` MUST include the reqwest error source chain
+/// (`"; caused by: {s}"`) in `HttpRequestFailed.detail` on `.send()` failure,
+/// not just the top-level `e.to_string()` (BC-2.16.002 Send-Failure Error Source
+/// Chain postcondition — F9/F10 diagnostics).
+///
+/// ## RED gate
+///
+/// Reverts the source-chain formatting to bare `e.to_string()`:
+/// ```text
+/// detail: format!("{e}")
+/// ```
+/// The assertion `detail.contains("; caused by: ")` then FAILS because bare
+/// `to_string()` on a reqwest connection-refused error omits the hyper/IO sub-cause.
+///
+/// ## EC-008 coverage
+///
+/// When `Error::source()` returns `None`, the `unwrap_or_default()` call produces
+/// the empty string `""`, so the detail ends with the top-level message and no
+/// dangling `"; caused by: "` suffix. This is exercised by the assertion that
+/// `detail` does NOT contain a trailing `"; caused by: "` alone with nothing after it.
+///
+/// BC-2.16.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-009
+#[tokio::test]
+async fn test_BC_2_16_002_rg009_send_failure_includes_source_chain() {
+    // Point the spec at a URL that will refuse connections.
+    // Strategy: bind an OS-assigned TCP port to 0, read its assigned port number,
+    // then drop the listener immediately so the port is released. By the time
+    // reqwest tries to connect, the port is closed → connection refused.
+    // This is more reliable than MockServer drop because the OS guarantees the
+    // port is available at bind time and closed at drop time (no async teardown).
+    let dead_port = {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0")
+            .expect("RG-009: could not bind TcpListener for dead-port test");
+        let port = listener
+            .local_addr()
+            .expect("RG-009: local_addr failed")
+            .port();
+        drop(listener); // port released immediately
+        port
+    };
+
+    let dead_url = format!("http://127.0.0.1:{dead_port}");
+
+    let spec = SensorSpec::new(
+        "rg009-sensor",
+        "RG-009 Send-Failure Sensor",
+        AuthType::BearerStatic,
+        &dead_url,
+        vec![TableSpec::new_point_in_time(
+            "items",
+            "security_finding",
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_items",
+                "GET",
+                "/api/items",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                None,
+            )],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext::new(OrgSlug::new("rg009-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .expect("RG-009: reqwest Client::build must succeed");
+    let auth_provider = prism_spec_engine::NullAuthProvider;
+
+    let result =
+        PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+
+    let err = result.expect_err(
+        "RG-009: execute must return Err on connection-refused; got Ok — \
+         is the dead port still open?",
+    );
+
+    let detail = match &err {
+        prism_spec_engine::error::SpecEngineError::HttpRequestFailed { detail, .. } => {
+            detail.clone()
+        }
+        other => panic!("RG-009: expected HttpRequestFailed; got {:?}", other),
+    };
+
+    // LOAD-BEARING ASSERTION (MED-2): detail MUST contain "; caused by: ".
+    //
+    // Reqwest wraps connection errors in a hyper / OS error chain; the source
+    // is accessible via std::error::Error::source().  If the source-chain
+    // formatting is reverted to bare `e.to_string()`, this assertion FAILS.
+    assert!(
+        detail.contains("; caused by: "),
+        "RG-009 (MED-2): HttpRequestFailed.detail must contain '; caused by: ' from the \
+         reqwest error source chain. \
+         Fix: issue_request_with_retry must use \
+         `format!(\"{{}}{{}}\", e, Error::source(&e).map(|s| format!(\"; caused by: {{s}}\")).unwrap_or_default())`. \
+         Got detail: {detail:?}"
+    );
+
+    // EC-008 COVERAGE: detail must NOT end with a bare "; caused by: " with nothing after it
+    // (i.e., no dangling suffix when source() returns None on a simple error).
+    // The "; caused by: " we asserted above must be followed by actual content.
+    {
+        let suffix_pos = detail
+            .find("; caused by: ")
+            .expect("already asserted above");
+        let after_suffix = &detail[suffix_pos + "; caused by: ".len()..];
+        assert!(
+            !after_suffix.is_empty(),
+            "RG-009 EC-008: '; caused by: ' must be followed by actual cause text, not empty. \
+             Got detail: {detail:?}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MED-1 — read_non_2xx_body sanitization: control chars, DEL, C1, multi-byte UTF-8
+// ---------------------------------------------------------------------------
+
+/// MED-1: `read_non_2xx_body` MUST sanitize response bodies that contain control
+/// characters (replacing them with space), while preserving valid multi-byte UTF-8
+/// sequences. Tests drive through a wiremock 403 response carrying the problematic
+/// byte patterns.
+///
+/// ## RED gate (MED-1)
+///
+/// Before the fix, `read_non_2xx_body` used `b as char` (Latin-1 cast) and only
+/// filtered bytes `< 0x20` while KEEPING `\t`/`\n`/`\r`. After the fix, all
+/// control chars are replaced with space via `prism_core::sanitize_body_snippet`.
+///
+/// The test verifies:
+/// 1. `\n`, `\r`, DEL (0x7F), and a C1 byte (0x85 = U+0085 NEL) are replaced by space.
+/// 2. A valid multi-byte UTF-8 sequence ("café") passes through intact.
+///
+/// BC-2.16.002 Non-2xx Response Body Capture postcondition |
+/// DEFECT-ADAPTER-TLS-XDOME-LIVE-001 MED-1
+#[tokio::test]
+async fn test_BC_2_16_002_med1_non_2xx_body_sanitizes_control_chars_preserves_utf8() {
+    let mock_server = MockServer::start().await;
+
+    // Build a body that contains:
+    //   - "café" — valid multi-byte UTF-8 that must survive
+    //   - 0x0A (\n) — ASCII control (LF); must become space
+    //   - 0x0D (\r) — ASCII control (CR); must become space
+    //   - 0x7F (DEL) — ASCII DEL; must become space
+    //   - 0xC2 0x85 — UTF-8 encoding of U+0085 (NEL, C1 control); must become space
+    //   - "end" — normal ASCII trailing text
+    let body_bytes: Vec<u8> = {
+        let mut v = Vec::new();
+        v.extend_from_slice("café".as_bytes()); // multi-byte UTF-8
+        v.push(0x0A); // \n
+        v.push(0x0D); // \r
+        v.push(0x7F); // DEL
+        v.extend_from_slice(&[0xC2, 0x85]); // U+0085 NEL (C1 control)
+        v.extend_from_slice(b"end");
+        v
+    };
+
+    Mock::given(wiremock::matchers::method("GET"))
+        .and(wiremock::matchers::path("/items"))
+        .respond_with(ResponseTemplate::new(403).set_body_bytes(body_bytes))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec::new(
+        "med1-sensor",
+        "MED-1 Sanitization Sensor",
+        AuthType::BearerStatic,
+        &mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
+            "items",
+            "security_finding",
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_items",
+                "GET",
+                "/items",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                None,
+            )],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext::new(OrgSlug::new("med1-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .expect("MED-1 test: reqwest Client::build must succeed");
+    let auth_provider = prism_spec_engine::NullAuthProvider;
+
+    let result =
+        PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+
+    let detail = match result {
+        Err(prism_spec_engine::error::SpecEngineError::HttpRequestFailed { detail, .. }) => detail,
+        other => panic!(
+            "MED-1: expected HttpRequestFailed for 403; got: {:?}",
+            other
+        ),
+    };
+
+    // ASSERTION 1: multi-byte UTF-8 "café" must survive intact.
+    // Before fix: `b as char` Latin-1 cast would convert 0xC3 0xA9 (UTF-8 for 'é') to
+    // the two garbage chars 'Ã' and '©' (Latin-1 U+00C3 / U+00A9). After fix: lossy
+    // UTF-8 decode preserves the sequence.
+    assert!(
+        detail.contains("café"),
+        "MED-1 ASSERTION 1: multi-byte UTF-8 'café' must be preserved in sanitized detail. \
+         Before fix: b-as-char Latin-1 cast produces mojibake. Got detail: {detail:?}"
+    );
+
+    // ASSERTION 2: control characters must NOT appear in the detail.
+    // \n, \r, DEL (0x7F), and the C1 byte U+0085 must all have been replaced with space.
+    assert!(
+        !detail.contains('\n'),
+        "MED-1 ASSERTION 2a: \\n must be replaced with space; got detail: {detail:?}"
+    );
+    assert!(
+        !detail.contains('\r'),
+        "MED-1 ASSERTION 2b: \\r must be replaced with space; got detail: {detail:?}"
+    );
+    assert!(
+        !detail.contains('\x7F'),
+        "MED-1 ASSERTION 2c: DEL (0x7F) must be replaced with space; got detail: {detail:?}"
+    );
+    assert!(
+        !detail.contains('\u{0085}'),
+        "MED-1 ASSERTION 2d: U+0085 NEL (C1 control) must be replaced with space; \
+         got detail: {detail:?}"
+    );
+
+    // ASSERTION 3: trailing "end" text must survive.
+    assert!(
+        detail.contains("end"),
+        "MED-1 ASSERTION 3: normal ASCII text 'end' must be preserved; got detail: {detail:?}"
+    );
+}

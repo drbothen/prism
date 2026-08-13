@@ -870,9 +870,14 @@ async fn test_BC_2_01_013_static_cookie_auth_strategy_injects_access_token_not_b
 // F-004: AC-012 — double-401 returns AuthRefreshFailed, not connection-refused error
 //
 // OLD test: hit http://127.0.0.1:18085 (connection refused) → any Err() passes.
-// NEW test: wiremock serves 401 on ALL requests → PipelineExecutor::execute() returns
-//           SpecEngineError::AuthRefreshFailed → fetch() maps to SensorError::Internal
-//           with detail containing "E-AUTH-002" or "auth refresh failed".
+// UPDATED test: wiremock serves 401 on ALL requests → PipelineExecutor::execute() returns
+//           SpecEngineError::AuthRefreshFailed → fetch() maps to SensorError::HttpError{status:401}
+//           with body containing "E-AUTH-002".
+//
+// DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 fix (2026-08-13):
+// AuthRefreshFailed now maps to SensorError::HttpError{status:401} (NOT Internal) because
+// the sensor DID respond with HTTP 401 — it IS reachable and credentials are invalid.
+// Mapping to Internal caused probe_connectivity to classify the sensor as Down.
 //
 // This test is LOAD-BEARING for the error-taxonomy mapping (AC-012):
 // it distinguishes AuthRefreshFailed from any other error.
@@ -881,21 +886,20 @@ async fn test_BC_2_01_013_static_cookie_auth_strategy_injects_access_token_not_b
 /// AC-012 — BC-2.01.013 error case:
 /// When `PipelineExecutor` returns a double-401 (initial + retry both return 401),
 /// `SpecDrivenSensorAdapter::fetch()` propagates `SpecEngineError::AuthRefreshFailed`
-/// as `SensorError::Internal` with detail containing `E-AUTH-002`.
+/// as `SensorError::HttpError { status: 401, body: "E-AUTH-002: ..." }`.
 ///
-/// # Red Gate Failure
+/// DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 (2026-08-13): Prior to this fix, `AuthRefreshFailed`
+/// mapped to `SensorError::Internal`, which caused `probe_connectivity` to classify the sensor
+/// as `Down` (unreachable) even though it clearly responded with HTTP 401 twice. The correct
+/// behavior is `SensorError::HttpError { status: 401 }` so `probe_connectivity` classifies
+/// the sensor as `Up` (reachable) and `probe_auth_with_routing` returns `AuthStatus::Invalid`.
 ///
-/// The OLD test used `http://127.0.0.1:18085` (connection refused), which returns
-/// `SensorError::Internal { detail: "...connection refused..." }` — any `is_err()`
-/// would pass. This test uses a wiremock server that returns HTTP 401 for ALL
-/// requests (both initial and retry), forcing `SpecEngineError::AuthRefreshFailed`.
+/// The assertions check:
+/// - `result.is_err()` — sensor fetch fails (credentials invalid)
+/// - `SensorError::HttpError { status: 401, .. }` — sensor IS reachable, auth invalid
+/// - `body.contains("E-AUTH-002")` — E-AUTH-002 taxonomy code preserved in body
 ///
-/// The new assertions check the SPECIFIC error:
-/// - `result.is_err()` — still passes (same as before)
-/// - `detail.contains("E-AUTH-002")` — FAILS until the error mapping is correct
-///   AND the pipeline is actually called (not just connection refused)
-///
-/// BC-2.01.013; AC-012; EC-006; F-004; S-DEMO-001 v1.3.
+/// BC-2.01.013; AC-012; EC-006; F-004; S-DEMO-001 v1.3; DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1.
 #[tokio::test]
 async fn test_BC_2_01_013_spec_driven_adapter_double_401_returns_auth_refresh_failed() {
     let mock_server = MockServer::start().await;
@@ -935,34 +939,39 @@ async fn test_BC_2_01_013_spec_driven_adapter_double_401_returns_auth_refresh_fa
 
     let err = result.unwrap_err();
 
-    // LOAD-BEARING error-taxonomy assertion (F-004):
-    // The error must be SensorError::Internal with the AuthRefreshFailed detail.
-    // This FAILS for the connection-refused case (which produces a different error message).
-    // It ALSO fails if the implementation maps AuthRefreshFailed to the wrong error variant.
+    // LOAD-BEARING error-taxonomy assertion (F-004, updated DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1):
+    // double-401 → AuthRefreshFailed → SensorError::HttpError{status:401}.
+    // Sensor responded with HTTP 401 twice = reachable, credentials invalid.
+    // Mapping to Internal (old behavior) caused probe_connectivity to classify as Down.
     let err_str = format!("{err:?}");
 
-    // Check it's the Internal variant (error taxonomy: double-401 → E-SENSOR-099).
     assert!(
-        matches!(err, prism_sensors::adapter::SensorError::Internal { .. }),
-        "AC-012 LOAD-BEARING: double-401 must map to SensorError::Internal. \
-         Got: {:?}. BC-2.01.013 error case; error taxonomy E-SENSOR-099.",
+        matches!(
+            err,
+            prism_sensors::adapter::SensorError::HttpError { status: 401, .. }
+        ),
+        "AC-012 LOAD-BEARING: double-401 must map to SensorError::HttpError {{ status: 401 }}. \
+         Sensor responded with HTTP 401 = reachable + auth invalid (BC-2.08.002). \
+         Got: {:?}. \
+         DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1; BC-2.01.013; AC-012.",
         err_str
     );
 
-    // Check the detail contains the AuthRefreshFailed indicator.
+    // Check the body contains the AuthRefreshFailed indicator (E-AUTH-002 taxonomy).
     // SpecEngineError::AuthRefreshFailed displays as "E-AUTH-002: auth refresh failed...".
-    // The current implementation wraps it as SensorError::Internal { detail: "...{e}..." }.
-    if let prism_sensors::adapter::SensorError::Internal { detail } = &err {
+    // After LOW-1 fix: SensorError::HttpError { body: "{e}" } where e = AuthRefreshFailed Display.
+    if let prism_sensors::adapter::SensorError::HttpError { body, .. } = &err {
         assert!(
-            detail.contains("E-AUTH-002")
-                || detail.contains("auth refresh failed")
-                || detail.contains("AuthRefreshFailed"),
-            "AC-012 LOAD-BEARING: SensorError::Internal detail must reference auth refresh failure \
+            body.contains("E-AUTH-002")
+                || body.contains("auth refresh failed")
+                || body.contains("AuthRefreshFailed"),
+            "AC-012 LOAD-BEARING: SensorError::HttpError body must reference auth refresh failure \
              (E-AUTH-002 or 'auth refresh failed'). \
-             This distinguishes double-401 from connection refused or other errors. \
-             Got detail: {:?}. \
-             BC-2.01.013; AC-012; F-004; error taxonomy E-AUTH-002.",
-            detail
+             This distinguishes double-401 from other 401 errors. \
+             Got body: {:?}. \
+             BC-2.01.013; AC-012; F-004; error taxonomy E-AUTH-002; \
+             DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1.",
+            body
         );
     }
 }
@@ -2125,7 +2134,7 @@ fn test_BC_2_22_001_production_boot_path_wiring_guard() {
 // F-004-R: Error taxonomy pin — E-AUTH-002 structural guard
 //
 // The existing AC-012 test (test_BC_2_01_013_spec_driven_adapter_double_401_returns_auth_refresh_failed)
-// verifies the E-AUTH-002 code appears in the SensorError::Internal detail string after
+// verifies the E-AUTH-002 code appears in the SensorError::HttpError body string after
 // a double-401 pipeline scenario. That test is a round-trip test through the pipeline.
 //
 // F-004-R adds a STRUCTURAL PIN: directly construct SpecEngineError::AuthRefreshFailed
@@ -2144,7 +2153,8 @@ fn test_BC_2_22_001_production_boot_path_wiring_guard() {
 ///
 /// `SpecEngineError::AuthRefreshFailed` MUST display with the "E-AUTH-002: auth refresh failed"
 /// prefix so that the AC-012 mapping in `map_spec_engine_error_to_sensor_error` can reliably
-/// propagate this taxonomy code to callers via the `SensorError::Internal { detail }` field.
+/// propagate this taxonomy code to callers via the `SensorError::HttpError { body }` field
+/// (DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 fix: double-401 now maps to HttpError{status:401}).
 ///
 /// # Red Gate Failure
 ///
