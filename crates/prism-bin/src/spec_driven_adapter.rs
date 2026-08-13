@@ -3059,4 +3059,173 @@ mod tests {
         assert!(!string_array.is_null(1));
         assert_eq!(string_array.value(1), r#"["300"]"#);
     }
+
+    // ---------------------------------------------------------------------------
+    // RG-001: map_spec_engine_error_to_sensor_error maps HttpRequestFailed → HttpError
+    // ---------------------------------------------------------------------------
+
+    /// RG-001: `map_spec_engine_error_to_sensor_error` MUST map
+    /// `SpecEngineError::HttpRequestFailed { status_code > 0 }` to
+    /// `SensorError::HttpError { sensor, status, body }` — NOT `SensorError::Internal`.
+    ///
+    /// Before fix: ALL `SpecEngineError` variants are mapped to `SensorError::Internal`.
+    /// After fix: `HttpRequestFailed { status_code > 0 }` is mapped to `SensorError::HttpError`,
+    /// allowing `probe_connectivity` to classify a 4xx response as `ConnectivityStatus::Up`
+    /// (reachable, auth-invalid) rather than `Down` (unreachable).
+    ///
+    /// RED: currently returns `SensorError::Internal` for ALL variants → assertion FAILS.
+    ///
+    /// BC-2.08.002 AC-H1-MAP-001 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-001
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_map_error_http_401_maps_to_http_error_not_internal() {
+        use prism_sensors::adapter::SensorError;
+        use prism_spec_engine::error::SpecEngineError;
+
+        let result = super::map_spec_engine_error_to_sensor_error(
+            SpecEngineError::HttpRequestFailed {
+                sensor_id: "claroty".to_string(),
+                step_name: "fetch".to_string(),
+                status_code: 401,
+                detail: "HTTP 401".to_string(),
+            },
+            "claroty",
+            "alerts",
+        );
+
+        assert!(
+            matches!(result, SensorError::HttpError { .. }),
+            "RG-001: HttpRequestFailed(status_code=401) must map to SensorError::HttpError, \
+             got SensorError::Internal instead. \
+             Fix: map_spec_engine_error_to_sensor_error must match HttpRequestFailed {{ status_code }} \
+             when status_code > 0 and return SensorError::HttpError (BC-2.08.002)"
+        );
+
+        // Verify all three fields of HttpError are populated correctly.
+        if let SensorError::HttpError {
+            sensor,
+            status,
+            body,
+        } = result
+        {
+            assert_eq!(
+                sensor, "claroty",
+                "RG-001: HttpError.sensor must be the sensor_id arg passed to map fn"
+            );
+            assert_eq!(
+                status, 401,
+                "RG-001: HttpError.status must equal HttpRequestFailed.status_code"
+            );
+            assert_eq!(
+                body, "HTTP 401",
+                "RG-001: HttpError.body must equal HttpRequestFailed.detail"
+            );
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // RG-002: regression guard — status_code=0 must remain SensorError::Internal
+    // ---------------------------------------------------------------------------
+
+    /// RG-002: `map_spec_engine_error_to_sensor_error` MUST keep
+    /// `SpecEngineError::HttpRequestFailed { status_code: 0 }` as `SensorError::Internal`.
+    ///
+    /// `status_code: 0` represents a synthetic or connection-error-derived code
+    /// (not a real HTTP response). These must NOT be classified as `HttpError`.
+    ///
+    /// NOTE: This test is GREEN-BY-DESIGN before the fix (all errors currently return Internal).
+    /// It becomes a REGRESSION GUARD after the fix: if the implementation maps ALL
+    /// `HttpRequestFailed` variants to `HttpError` including `status_code=0`, this test fails.
+    ///
+    /// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-002
+    #[test]
+    fn test_map_error_status_0_maps_to_internal() {
+        use prism_sensors::adapter::SensorError;
+        use prism_spec_engine::error::SpecEngineError;
+
+        let result = super::map_spec_engine_error_to_sensor_error(
+            SpecEngineError::HttpRequestFailed {
+                sensor_id: "claroty".to_string(),
+                step_name: "fetch".to_string(),
+                status_code: 0,
+                detail: "connection refused".to_string(),
+            },
+            "claroty",
+            "alerts",
+        );
+
+        assert!(
+            matches!(result, SensorError::Internal { .. }),
+            "RG-002 (regression guard): HttpRequestFailed(status_code=0) must remain \
+             SensorError::Internal — status_code=0 is not a real HTTP response. \
+             Got: {:?}",
+            result
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // RG-006: build_http_client_with_custom_timeout must set prism/ User-Agent header
+    // ---------------------------------------------------------------------------
+
+    /// RG-006: `build_http_client_with_custom_timeout` MUST produce a `reqwest::Client`
+    /// that sends a `User-Agent` header beginning with `"prism/"`.
+    ///
+    /// Before fix: no `.user_agent()` call in the builder → reqwest uses its own default
+    /// User-Agent ("reqwest/x.x.x") → assertion FAILS → RED.
+    ///
+    /// After fix: `.user_agent("prism/{version}")` added → header starts with "prism/" → GREEN.
+    ///
+    /// BC-2.16.014 AC-H1-UA-001 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-006
+    #[tokio::test]
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
+    async fn test_build_http_client_sends_user_agent_header() {
+        use wiremock::{
+            Mock, MockServer, ResponseTemplate,
+            matchers::{method, path},
+        };
+
+        let mock_server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/probe"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&mock_server)
+            .await;
+
+        let client = build_http_client_with_custom_timeout(Duration::from_secs(5))
+            .expect("RG-006: client build must succeed");
+
+        // Fire a request so wiremock records the User-Agent header.
+        let _ = client
+            .get(format!("{}/probe", mock_server.uri()))
+            .send()
+            .await;
+
+        let received = mock_server
+            .received_requests()
+            .await
+            .expect("RG-006: wiremock must record received requests");
+
+        assert_eq!(
+            received.len(),
+            1,
+            "RG-006: exactly one request must be recorded by wiremock; got {}",
+            received.len()
+        );
+
+        let ua = received[0]
+            .headers
+            .get("user-agent")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+
+        assert!(
+            ua.starts_with("prism/"),
+            "RG-006: User-Agent header must start with 'prism/'; \
+             got: {:?}. \
+             Fix: add .user_agent(\"prism/{{version}}\") call to \
+             build_http_client_with_custom_timeout (BC-2.16.014 AC-H1-UA-001). \
+             reqwest default UA is 'reqwest/x.x.x', not 'prism/...'.",
+            ua
+        );
+    }
 }

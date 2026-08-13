@@ -236,6 +236,14 @@ path = "tests/bc_2_03_007_credential_set_no_echo.rs"
 name = "bc_2_03_007_credential_set_org_id_keyed"
 path = "tests/bc_2_03_007_credential_set_org_id_keyed.rs"
 
+# DEFECT-ADAPTER-TLS-XDOME-LIVE-001: RG-005, RG-007, RG-008 integration tests.
+# Tests wire probe_connectivity + SpecDrivenSensorAdapter against wiremock-403 to verify
+# that HttpRequestFailed is mapped to SensorError::HttpError (not Internal) — enabling
+# the Up/auth-invalid probe outcome + wire-shape assertion + reqwest http2 feature check.
+[[test]]
+name = "defect_adapter_tls_xdome_live_001"
+path = "tests/defect_adapter_tls_xdome_live_001.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"

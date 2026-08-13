@@ -4576,3 +4576,148 @@ mod store_step_vars_tests {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// RG-003: pipeline non-2xx response must capture HTTP body in detail field
+// ---------------------------------------------------------------------------
+
+/// RG-003: `PipelineExecutor` MUST capture the HTTP response body snippet into
+/// `SpecEngineError::HttpRequestFailed.detail` when the server returns a non-2xx status.
+///
+/// Before fix: `detail` is set to `format!("HTTP {status}")` — no body captured.
+///   → `detail.contains("forbidden")` == false → assertion FAILS → RED.
+///
+/// After fix: body snippet appended to detail string (e.g. `"HTTP 403: forbidden"`)
+///   → `detail.contains("forbidden")` == true → GREEN.
+///
+/// Uses wiremock so the test exercises the real `execute_with_max_requests` HTTP path.
+/// Response: 403 with text body "forbidden".
+///
+/// BC-2.16.014 AC-H1-BODY-001 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-003
+#[cfg(test)]
+mod non_2xx_body_snippet_tests {
+    use std::collections::HashMap;
+
+    use prism_core::{ColumnType, OrgSlug};
+    use wiremock::{
+        Mock as WmMock, MockServer, ResponseTemplate,
+        matchers::{method as wm_method, path as wm_path},
+    };
+
+    use crate::{
+        auth_provider::MockAuthProvider,
+        error::SpecEngineError,
+        pipeline::{FetchContext, PipelineExecutor},
+        spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec},
+    };
+
+    /// Build a minimal SensorSpec for a single GET step pointing to the provided
+    /// base URL / path. No pagination so the executor issues exactly one request.
+    fn single_step_spec(base_url: &str, path: &str) -> SensorSpec {
+        SensorSpec::new(
+            "rg003-sensor",
+            "RG-003 Sensor",
+            AuthType::BearerStatic,
+            base_url,
+            vec![TableSpec::new_point_in_time(
+                "devices",
+                "network_activity",
+                vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+                vec![FetchStep::new(
+                    "fetch_devices",
+                    "GET",
+                    path,
+                    None,
+                    "$.items",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                )],
+            )],
+            None,
+            "1.0.0",
+            vec![],
+        )
+    }
+
+    /// RG-003: pipeline HttpRequestFailed.detail MUST contain response body snippet.
+    ///
+    /// FAIL reason before fix: `detail` is `"HTTP 403"`, which does NOT contain "forbidden".
+    /// → `assert!(detail.contains("forbidden"), ...)` panics → RED.
+    ///
+    /// BC-2.16.014 AC-H1-BODY-001 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-003
+    #[tokio::test]
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
+    async fn test_pipeline_non_2xx_body_in_detail() {
+        let mock_server = MockServer::start().await;
+
+        // Wiremock: return 403 Forbidden with text body "forbidden".
+        WmMock::given(wm_method("GET"))
+            .and(wm_path("/api/v1/devices"))
+            .respond_with(ResponseTemplate::new(403).set_body_bytes(b"forbidden"))
+            .mount(&mock_server)
+            .await;
+
+        let spec = single_step_spec(&mock_server.uri(), "/api/v1/devices");
+        let table = spec.tables[0].clone();
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let http_client = reqwest::Client::builder()
+            .build()
+            .expect("RG-003: reqwest::Client build must succeed");
+        let auth_provider = MockAuthProvider::new("rg003-token");
+
+        let result = PipelineExecutor::execute_with_max_requests(
+            &spec,
+            &table,
+            &context,
+            &http_client,
+            &auth_provider,
+            10,
+        )
+        .await;
+
+        assert!(
+            result.is_err(),
+            "RG-003: pipeline must return Err on 403 response; got Ok"
+        );
+
+        let err = result.unwrap_err();
+        match &err {
+            SpecEngineError::HttpRequestFailed {
+                status_code,
+                detail,
+                ..
+            } => {
+                assert_eq!(
+                    *status_code, 403,
+                    "RG-003: HttpRequestFailed.status_code must be 403; got: {status_code}"
+                );
+
+                assert!(
+                    detail.contains("forbidden"),
+                    "RG-003: HttpRequestFailed.detail must contain the response body snippet \
+                     ('forbidden') so operators can diagnose the 403. \
+                     Current detail (before fix): {:?}. \
+                     Fix: append response body bytes to the `detail` field when the \
+                     server returns a non-2xx status (BC-2.16.014 AC-H1-BODY-001).",
+                    detail
+                );
+
+                assert!(
+                    detail.contains("403"),
+                    "RG-003: HttpRequestFailed.detail must still contain the status code '403'; \
+                     got: {:?}",
+                    detail
+                );
+            }
+            other => {
+                panic!(
+                    "RG-003: expected SpecEngineError::HttpRequestFailed for 403 response; \
+                     got: {:?}",
+                    other
+                );
+            }
+        }
+    }
+}

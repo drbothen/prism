@@ -42,6 +42,9 @@ tempfile = "3"
 prism-dtu-harness = { path = "../prism-dtu-harness", features = ["dtu"] }
 prism-dtu-armis = { path = "../prism-dtu-armis", features = ["dtu"] }
 prism-dtu-common = { path = "../prism-dtu-common", features = ["dtu"] }
+# RG-004: fan_out_target_failed WARN emission test requires tracing-test to capture log events.
+# DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004 | BC-2.08.002
+tracing-test = "0.2"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

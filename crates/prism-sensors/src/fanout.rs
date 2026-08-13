@@ -1043,3 +1043,186 @@ base_url = "{overlay_base_url}"
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// RG-004: fan_out all-targets-failed emits fan_out_target_failed WARN per target
+// ---------------------------------------------------------------------------
+
+/// RG-004: When ALL `fan_out()` targets fail, a `tracing::warn!` with
+/// `event_type = "fan_out_target_failed"` MUST be emitted once per failed target
+/// before `Err(SensorError::AllTargetsFailed { .. })` is returned.
+///
+/// Before fix: no WARN loop exists in the AllTargetsFailed arm (lines 430-437)
+///   → `logs_contain("fan_out_target_failed")` == false → assertion FAILS → RED.
+///
+/// After fix: a WARN loop iterates over `result.errors` and emits the structured
+///   warning for each → `logs_contain("fan_out_target_failed")` == true → GREEN.
+///
+/// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004
+#[cfg(test)]
+mod fan_out_target_failed_warn_tests {
+    use std::sync::Arc;
+
+    use arrow::record_batch::RecordBatch;
+    use prism_core::{OrgId, SensorId};
+
+    use super::*;
+    use crate::{
+        adapter::{QueryParams, SensorError, SensorSpec},
+        auth::SensorAuth,
+        registry::AdapterRegistry,
+    };
+
+    // -----------------------------------------------------------------------
+    // AlwaysFailAdapter: implements SensorAdapter, returns SensorError::Internal
+    // -----------------------------------------------------------------------
+
+    /// A sensor adapter that unconditionally returns `SensorError::Internal`.
+    ///
+    /// Used to drive the `AllTargetsFailed` path in `fan_out()` without any
+    /// real HTTP calls. Two instances are registered (for two orgs) so the
+    /// test can assert on `count == 2`.
+    struct AlwaysFailAdapter {
+        sensor_id: SensorId,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::adapter::SensorAdapter for AlwaysFailAdapter {
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "always-fail-adapter"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            Err(SensorError::Internal {
+                detail: "RG-004: AlwaysFailAdapter deliberately fails every fetch".into(),
+            })
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // StubCreds: CredentialResolver that always returns Ok (no real auth needed)
+    // -----------------------------------------------------------------------
+
+    struct StubCreds;
+
+    impl CredentialResolver for StubCreds {
+        fn resolve(
+            &self,
+            _client_id: &str,
+            _sensor_id: SensorId,
+        ) -> Result<Box<dyn crate::auth::SensorAuth>, SensorError> {
+            struct NoopAuth;
+            impl crate::auth::SensorAuth for NoopAuth {
+                fn as_any(&self) -> &dyn std::any::Any {
+                    self
+                }
+                fn auth_type_name(&self) -> &'static str {
+                    "custom_via_plugin"
+                }
+            }
+            Ok(Box::new(NoopAuth))
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // RG-004 test
+    // -----------------------------------------------------------------------
+
+    /// RG-004: fan_out MUST emit `event_type = "fan_out_target_failed"` WARN per
+    /// target when all targets fail.
+    ///
+    /// FAIL reason before fix: NO `tracing::warn!` call exists in the AllTargetsFailed
+    /// arm of `fan_out()` → `logs_contain("fan_out_target_failed")` is false → RED.
+    ///
+    /// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004
+    #[tracing_test::traced_test]
+    #[tokio::test]
+    #[allow(deprecated, clippy::unwrap_used)]
+    async fn test_fanout_all_failed_emits_fan_out_target_failed_warn() {
+        let sensor_id = SensorId::from("rg004-sensor");
+
+        // Two separate OrgIds → two separate registry entries → two targets.
+        let org_id_a = OrgId::new();
+        let org_id_b = OrgId::new();
+
+        let adapter_a = Arc::new(AlwaysFailAdapter {
+            sensor_id: sensor_id.clone(),
+        });
+        let adapter_b = Arc::new(AlwaysFailAdapter {
+            sensor_id: sensor_id.clone(),
+        });
+
+        let mut registry = AdapterRegistry::new();
+        registry.register(org_id_a, adapter_a);
+        registry.register(org_id_b, adapter_b);
+        let registry = Arc::new(registry);
+
+        // Build two FanOutTargets (one per org).
+        let target_a = FanOutTarget {
+            org_id: org_id_a,
+            client_id: "rg004-client-a".to_string(),
+            sensor_id: sensor_id.clone(),
+            spec: SensorSpec {
+                source_table: "rg004-sensor_devices".to_string(),
+                org_id: org_id_a,
+                client_id: "rg004-client-a".to_string(),
+                sensor_config: serde_json::Value::Null,
+            },
+            params: QueryParams::default(),
+        };
+        let target_b = FanOutTarget {
+            org_id: org_id_b,
+            client_id: "rg004-client-b".to_string(),
+            sensor_id: sensor_id.clone(),
+            spec: SensorSpec {
+                source_table: "rg004-sensor_devices".to_string(),
+                org_id: org_id_b,
+                client_id: "rg004-client-b".to_string(),
+                sensor_config: serde_json::Value::Null,
+            },
+            params: QueryParams::default(),
+        };
+
+        let result = fan_out(vec![target_a, target_b], registry, Arc::new(StubCreds)).await;
+
+        // Assert: AllTargetsFailed with count == 2.
+        match &result {
+            Err(SensorError::AllTargetsFailed { count, .. }) => {
+                assert_eq!(
+                    *count, 2,
+                    "RG-004: AllTargetsFailed.count must be 2; got: {count}"
+                );
+            }
+            Ok(_) => panic!("RG-004: fan_out must return Err when all targets fail; got Ok"),
+            Err(other) => panic!(
+                "RG-004: expected SensorError::AllTargetsFailed; got: {:?}",
+                other
+            ),
+        }
+
+        // Assert: tracing WARN with event_type="fan_out_target_failed" was emitted.
+        //
+        // FAIL reason before fix: the AllTargetsFailed arm (fanout.rs lines 430-437)
+        // has NO `tracing::warn!` call → `logs_contain` returns false → RED GATE.
+        //
+        // After fix: a loop over `result.errors` emits the warn before the return.
+        assert!(
+            logs_contain("fan_out_target_failed"),
+            "RG-004: fan_out must emit tracing::warn! with event_type='fan_out_target_failed' \
+             once per failed target when AllTargetsFailed. \
+             Fix: add `for error in &result.errors {{ tracing::warn!(..., event_type = \"fan_out_target_failed\", ...) }}` \
+             before the `return Err(SensorError::AllTargetsFailed {{ ... }})` in fanout.rs \
+             (BC-2.08.002 DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004). \
+             No 'fan_out_target_failed' WARN was found in the log output."
+        );
+    }
+}
