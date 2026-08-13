@@ -335,3 +335,11 @@ _Archived to session-checkpoints.md by D-2020 burst (state-manager keep-last-1 d
 Key state at D-2100: MED-008 RESOLVED (ADR-053 v0.40 / BC-2.16.013 v1.35). S-MAINT-DISPATCH-BRIEF-POINTER-001 registered (draft v1.0, 5 ACs; execution dependency on human CLAUDE.md mandate). D-2097 "VERIFIED NOT-A-DEFECT" REAFFIRMED and scoped to D-747 lock comment class only (PR #234 addressed a separate defect class: ADR-028 grounding citations + false spec-follows-DTU clause). FINDING-R in PR-LEVEL cascade; HIGH-001 CLOSED D-2100; 5 comment-only findings remaining; pr-manager held delegated merge authority. 44 cumulative open findings. BC-5.39.001 streak 0/3. develop `b226459d0`.
 
 **NOTE: Superseded by D-2101 — Session pivot: live-API test track (claroty + armis TOML specs); TD-VSDD-096 invoked PR #234; decision (n) Wave-A gating flagged; DTU deferred to S-WAVE-A-ARMIS-REMEDIATION-001 (Armis); Claroty DTU anchor story needed (open obligation). STATE v8.649→v8.650.**
+
+---
+
+**Session Resume Checkpoint (D-2112 — 2026-08-12 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 MATERIALIZED; story v1.1 ready; 3 holdout scenarios; NEXT: worktree → test-writer RG-001..008 → implementer TDD; develop_head 5d1a30ac7; STATE v8.660→v8.661)**
+
+State at D-2112: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 story v1.1 MATERIALIZED (14 ACs; 8 RGs; tdd_mode: strict; P1; ~5 pts; wave C; CRIT). 4 BCs amended: BC-2.16.002 v2.14 / BC-2.08.002 v1.4 / BC-2.01.010 v1.5 / BC-2.16.014 v1.20. error-taxonomy v2.72. 3 hidden holdout scenarios (HS-TLS-XDOME-001/002/003). BC-INDEX v8.98. STORY-INDEX v2.779. BC-5.39.001 streak 0/3 (fresh story; pre-TDD).
+
+**NOTE: Superseded by D-2113 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-1 CLOSED (5 findings: MED-1/MED-2/LOW-1/LOW-2/OBS-1 ALL CLOSED); code commit ac9563192 + spec leg; story v1.1→v1.2 (11 RGTs; bcs: 4→5); BC-2.16.002 v2.15 / BC-2.08.002 v1.5 / BC-2.01.013 v1.17 / error-taxonomy v2.73 / BC-INDEX v8.99; STORY-INDEX v2.780; BC-5.39.001 streak RESET 0/3. NEXT: LOCAL adversary pass 2. STATE v8.661→v8.662.**
