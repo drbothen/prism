@@ -6,7 +6,7 @@ wave: "C"
 epic_id: engine-defects
 priority: P1
 status: ready
-version: "1.6"
+version: "1.7"
 severity: CRIT
 level: engine
 producer: story-writer
@@ -55,10 +55,10 @@ behavioral_contracts:
 #     Classification postcondition scope (fix-burst pass-1).
 #   BC-2.01.010 (Partial Failure Handling): v1.6, status: draft, lifecycle_status: active
 #     AllTargetsFailed Per-Target Logging postcondition added.
-#   BC-2.01.013 (DataSource Trait Eliminates Per-Sensor Code Duplication): v1.17, status: active
+#   BC-2.01.013 (DataSource Trait Eliminates Per-Sensor Code Duplication): v1.18, status: active
 #     EC-01-029: AuthRefreshFailed / CookieAuthFailed persistent-auth-failure variants
 #     must map to SensorError::HttpError { status: 401 } end-to-end (fix-burst pass-1).
-#   BC-2.16.014 (Declarative Auth Acquisition Token Lifecycle): v1.20, status: draft
+#   BC-2.16.014 (Declarative Auth Acquisition Token Lifecycle): v1.21, status: draft
 #     New INV row: DeclarativeHttpAuthProvider auth client inherits ADR-050 §D5/§D6
 #     compliance automatically via build_http_client_with_custom_timeout delegation chain.
 #     No new ACs required in this story for BC-2.16.014 scope beyond the UA propagation
@@ -128,8 +128,8 @@ Read ADR-050 §D5 and §D6 in full before implementing:
 | BC-2.16.002 (Multi-Step Fetch Pipeline Execution) | v2.17 · active | §Postconditions: HTTP Client Compliance; Send-Failure Error Source Chain; Non-2xx Response Body Capture; AllTargetsFailed Per-Target Logging. §Canonical Structured Event Catalog row 91: `fan_out_target_failed` WARN. |
 | BC-2.08.002 (Auth Validity Check Per Sensor Per Client) | v1.6 · active | §Postconditions: HTTP Error Classification postcondition — `map_spec_engine_error_to_sensor_error` MUST map `SpecEngineError::HttpRequestFailed { status_code > 0 }` (including `AuthRefreshFailed` and `CookieAuthFailed` 401 variants) to `SensorError::HttpError`. EC-08-006: HTTP 4xx sensor response → `auth_valid: false` (not Down). |
 | BC-2.01.010 (Partial Failure Handling) | v1.6 · draft | §Postconditions: AllTargetsFailed Per-Target Logging — each `FanOutError` MUST be logged at WARN before `AllTargetsFailed` propagates. |
-| BC-2.01.013 (DataSource Trait Eliminates Per-Sensor Code Duplication) | v1.17 · active | Scope — EC-01-029: `AuthRefreshFailed` and `CookieAuthFailed` persistent-auth-failure variants MUST map to `SensorError::HttpError { status: 401 }` end-to-end, producing `auth_valid: false` at the health probe surface. |
-| BC-2.16.014 (Declarative Auth Acquisition Token Lifecycle) | v1.20 · draft | INV-014-007 ADR-050 §D5/§D6 note: `DeclarativeHttpAuthProvider` inherits User-Agent and http2 automatically via `build_http_client_with_custom_timeout` delegation. No separate implementation required for this BC in this story. |
+| BC-2.01.013 (DataSource Trait Eliminates Per-Sensor Code Duplication) | v1.18 · active | Scope — EC-01-029: `AuthRefreshFailed` and `CookieAuthFailed` persistent-auth-failure variants MUST map to `SensorError::HttpError { status: 401 }` end-to-end, producing `auth_valid: false` at the health probe surface. |
+| BC-2.16.014 (Declarative Auth Acquisition Token Lifecycle) | v1.21 · draft | INV-014-007 ADR-050 §D5/§D6 note: `DeclarativeHttpAuthProvider` inherits User-Agent and http2 automatically via `build_http_client_with_custom_timeout` delegation. No separate implementation required for this BC in this story. |
 
 **Bundling rationale:** F9 (error surfacing) and F10 (transport) are bundled into this story per §5 Bundling Verdict in the design doc (`xdome-transport-hardening-design.md`). `DEFECT-SENSOR-ERROR-FLATTEN-001` is superseded by this story and closed.
 
@@ -153,8 +153,8 @@ raw error logs or deploy a relay.
 | BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | v2.17 | HTTP Client Compliance postcondition (ADR-050 §D5/§D6); Send-Failure Error Source Chain postcondition; Non-2xx Response Body Capture postcondition; AllTargetsFailed Per-Target Logging postcondition; Canonical Structured Event Catalog row 91 (`fan_out_target_failed`). |
 | BC-2.08.002 | Auth Validity Check Per Sensor Per Client | v1.6 | HTTP Error Classification postcondition: `map_spec_engine_error_to_sensor_error` guard — `status_code > 0` → `SensorError::HttpError`; `status_code = 0` → `SensorError::Internal`. EC-08-006: HTTP 4xx → `auth_valid: false` (not Down). `AuthRefreshFailed` and `CookieAuthFailed` 401 variants included in scope (fix-burst pass-1). |
 | BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | v1.6 | AllTargetsFailed Per-Target Logging postcondition — each `FanOutError` WARN before propagation. |
-| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.17 | Scope (EC-01-029): `AuthRefreshFailed` / `CookieAuthFailed` persistent-auth-failure variants MUST map to `SensorError::HttpError { status: 401 }` end-to-end. Verified by RG-010 and RG-011 (fix-burst pass-1). |
-| BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | v1.20 | INV-014-007 note only: `DeclarativeHttpAuthProvider` inherits UA + http2 via `build_http_client_with_custom_timeout` delegation chain (ADR-050 §D6 propagation). No new code required for this BC beyond the `build_http_client_with_custom_timeout` change. |
+| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.18 | Scope (EC-01-029): `AuthRefreshFailed` / `CookieAuthFailed` persistent-auth-failure variants MUST map to `SensorError::HttpError { status: 401 }` end-to-end. Verified by RG-010 and RG-011 (fix-burst pass-1). |
+| BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | v1.21 | INV-014-007 note only: `DeclarativeHttpAuthProvider` inherits UA + http2 via `build_http_client_with_custom_timeout` delegation chain (ADR-050 §D6 propagation). No new code required for this BC beyond the `build_http_client_with_custom_timeout` change. |
 
 ---
 
@@ -224,14 +224,19 @@ Transport failures (no HTTP response received) continue to map to Internal.
 This test FAILS if the guard is over-broad (Red Gate: RG-002).
 (traces to BC-2.08.002 HTTP Error Classification postcondition: `status_code = 0` (transport failure) continues to produce `SensorError::Internal`)
 
-**AC-ERR-003 — Non-2xx response body is captured in `HttpRequestFailed.detail`**
+**AC-ERR-003 — Error evidence captured in `HttpRequestFailed.detail` — non-2xx body snippet + send-failure source chain**
 A unit test in `pipeline.rs`'s `#[cfg(test)] mod tests` drives the non-2xx response
 branch with a mock returning HTTP 403 and a body `"forbidden"`. Asserts that the
 returned `SpecEngineError::HttpRequestFailed.detail` includes BOTH the HTTP status code
 (`"403"`) AND a non-empty body snippet (`"forbidden"`).
 This test FAILS before the body-capture fix (Red Gate: RG-003).
+**Scope extension (records-only, v1.7):** this AC explicitly covers BOTH arms of error evidence captured in `HttpRequestFailed.detail`:
+- **non-2xx body arm** — verified by RG-003 (`test_pipeline_non_2xx_body_in_detail`), BC-2.16.002 Non-2xx Response Body Capture postcondition: on a non-2xx HTTP response, `HttpRequestFailed.detail` includes the HTTP status AND ≤256-byte sanitized body snippet.
+- **send-failure source-chain arm** — verified by RG-009 (`test_BC_2_16_002_rg009_send_failure_includes_source_chain`), BC-2.16.002 Send-Failure Error Source Chain postcondition: on `.send()` failure (no HTTP response, `status_code: 0` path), the reqwest error SOURCE CHAIN is included in `detail` via `format!("{}{}", e, source)`, producing a `"; caused by:"` fragment.
 (traces to BC-2.16.002 Non-2xx Response Body Capture postcondition: `HttpRequestFailed.detail`
-MUST include HTTP status AND ≤256-byte sanitized body snippet)
+MUST include HTTP status AND ≤256-byte sanitized body snippet;
+also traces to BC-2.16.002 Send-Failure Error Source Chain postcondition: on `.send()` failure,
+`HttpRequestFailed.detail` MUST include the reqwest error source chain)
 
 **AC-ERR-004 — `AllTargetsFailed` is preceded by `fan_out_target_failed` WARN per target**
 A unit test in `fanout.rs` with a tracing test subscriber drives `fanout()` to produce
@@ -476,8 +481,8 @@ Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check
 | BC-2.16.002 v2.17 (HTTP Client Compliance + AllTargetsFailed postconditions + catalog row 91) | ~30,000 | Large BC; catalog scope is wide |
 | BC-2.08.002 v1.6 (HTTP Error Classification postcondition + AuthRefreshFailed/CookieAuthFailed scope) | ~6,500 | Targeted amendment + persistent-auth variants |
 | BC-2.01.010 v1.6 (AllTargetsFailed Per-Target Logging postcondition) | ~5,000 | |
-| BC-2.01.013 v1.17 (DataSource Trait Eliminates Per-Sensor Code Duplication — scope: EC-01-029) | ~4,000 | Targeted EC row; fix-burst pass-1 alignment |
-| BC-2.16.014 v1.20 (INV-014-007 ADR-050 §D5/§D6 note) | ~18,000 | Large BC; only INV note relevant |
+| BC-2.01.013 v1.18 (DataSource Trait Eliminates Per-Sensor Code Duplication — scope: EC-01-029) | ~4,000 | Targeted EC row; fix-burst pass-1 alignment |
+| BC-2.16.014 v1.21 (INV-014-007 ADR-050 §D5/§D6 note) | ~18,000 | Large BC; only INV note relevant |
 | ADR-050 v2.2 (§D5/§D6 new decisions + rationale; §D6 scope extended in v2.1; §D5 production-entry count corrected to 3 in v2.2) | ~10,000 | Reference for Cargo.toml + UA changes |
 | `spec_driven_adapter.rs` (`map_spec_engine_error_to_sensor_error` + `build_http_client_with_custom_timeout`) | ~8,000 | Two target functions |
 | `pipeline.rs` (send-failure arm + non-2xx branch × 2) | ~30,000 | Large file; two symmetric fix sites |
@@ -573,8 +578,8 @@ None. All changes are additions to existing production modules and inline test b
 | `.factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md` | Frozen at v2.17. Transport postconditions and catalog row 91 already authored by product-owner. |
 | `.factory/specs/behavioral-contracts/BC-2.08.002-auth-validity-check.md` | Frozen at v1.6. HTTP Error Classification postcondition (including AuthRefreshFailed/CookieAuthFailed scope) already authored. |
 | `.factory/specs/behavioral-contracts/BC-2.01.010-partial-failure-handling.md` | Frozen at v1.6. AllTargetsFailed Per-Target Logging postcondition already authored. |
-| `.factory/specs/behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md` | Frozen at v1.17. EC-01-029 persistent-auth-failure alignment already authored by product-owner. |
-| `.factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md` | Frozen at v1.20. INV-014-007 note already added by product-owner. |
+| `.factory/specs/behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md` | Frozen at v1.18. EC-01-029 persistent-auth-failure alignment already authored by product-owner. |
+| `.factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md` | Frozen at v1.21. INV-014-007 note already added by product-owner. |
 | `.factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md` | Frozen at v2.2. D5 (3 production entries) and D6 decisions already added by architect. |
 | `.factory/specs/prd-supplements/error-taxonomy.md` | E-SENSOR-030 row already amended by product-owner. Do NOT amend. |
 | `crates/prism-dtu-*/Cargo.toml` | DTU dev-deps excluded from ADR-050 §D5 scope. |
@@ -720,6 +725,7 @@ block). See the AC-H2-001 observability note.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.7 | 2026-08-13 | story-writer | Records-only corrections (TD-VSDD-096). F-1 (MAJOR): AC-ERR-003 dual-arm scope alignment — title updated to "Error evidence captured in `HttpRequestFailed.detail` — non-2xx body snippet + send-failure source chain"; scope extension paragraph added explicitly covering both arms: non-2xx body arm (RG-003, BC-2.16.002 Non-2xx Response Body Capture postcondition) and send-failure source-chain arm (RG-009, BC-2.16.002 Send-Failure Error Source Chain postcondition); traces note updated to cite both postconditions. No AC semantics, verification obligations, or RG assignments changed. BC pin propagation: BC-2.01.013 v1.17→v1.18 (5 locations: frontmatter comment, §Authority, §Behavioral Contracts, Token Budget, §Files NOT to Modify); BC-2.16.014 v1.20→v1.21 (5 locations same). BC-2.16.002 v2.17, BC-2.08.002 v1.6, BC-2.01.010 v1.6, ADR-050 v2.2 verified unchanged. |
 | 1.6 | 2026-08-13 | story-writer | LOCAL adversary pass-6 records-only correction (TD-VSDD-096). F-1 (MED): persistent-auth mechanism prose corrected in 4 locations to match code (Arm 2 direct variant-matching, not `HttpRequestFailed`). (1) AC-ERR-001 scope-extension: removed "(which surface as `HttpRequestFailed { status_code: 401 }` at the mapping boundary)"; replaced with explicit Arm 2 `matches!()` description. (2) AC-ERR-005 scope-extension: replaced "produces the same … observable" framing with explicit "Arm 2 … NOT through `HttpRequestFailed`" mechanism. (3) RG-010 task bullet: replaced "`AuthRefreshFailed`-derived `HttpRequestFailed { status_code: 401 }`" with "`SpecEngineError::AuthRefreshFailed{..}` variant directly (Arm 2, NOT through `HttpRequestFailed`)". (4) RG-011 task bullet: same correction for `CookieAuthFailed`. Verified against `spec_driven_adapter.rs` Arm 2 `matches!()` guard in worktree — code is authoritative (SAC-1). No AC semantics, verification obligations, or RG assignments changed. |
 | 1.5 | 2026-08-13 | story-writer | LOCAL adversary pass-5 records-only corrections (TD-VSDD-096). F-P5-MED-001 (MEDIUM): removed stale duplicate `holdout_scenarios: []` frontmatter key (lines were: populated `[HS-TLS-XDOME-001, HS-TLS-XDOME-002, HS-TLS-XDOME-003]` after `modified:` and empty `[]` before `assumption_validations:`); kept the populated occurrence; no other duplicate top-level frontmatter keys found. F-P5-LOW-001 (LOW): corrected illustrative call signature in AC-ERR-001 and AC-ERR-002 prose from 2-arg sensor-id-first form to real 3-arg error-first form (`map_spec_engine_error_to_sensor_error(SpecEngineError::..., sensor_id, table_name)`) verified against `spec_driven_adapter.rs` fn signature; no AC semantics change. |
 | 1.4 | 2026-08-13 | story-writer | LOCAL adversary pass-4 records-only corrections (TD-VSDD-096). F-1 (MED): BC-2.01.013 canonical H1 corrected to "DataSource Trait Eliminates Per-Sensor Code Duplication" in §Authority table, §Behavioral Contracts table Title column, and `# BC status` frontmatter comment; §Files NOT to Modify file path corrected to `BC-2.01.013-datasource-trait-adapter-pattern.md`; Token Budget parenthetical updated. F-2 (LOW): BC/ADR version pins re-synced to current frontmatter: BC-2.16.002 v2.15→v2.17, BC-2.08.002 v1.5→v1.6, BC-2.01.010 v1.5→v1.6, ADR-050 v2.1→v2.2 (all five table locations, Token Budget, §Files NOT to Modify, and inline body refs). F-3 (LOW): AC-CARGO-001 count corrected four→three production entries; prism-bin entry count corrected two→one production + one harmless dev-dep; T-A04 reframed as verify-only task; §Files to Modify description updated; AC-H2-001 inline "four" corrected. No AC-semantic or verification changes. |
