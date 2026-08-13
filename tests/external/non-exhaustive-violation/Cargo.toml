@@ -53,6 +53,10 @@ prism-dtu-common = { path = "../../../crates/prism-dtu-common", features = ["fix
 # + 1 E0004 enum [v60: MultiInstanceBindError] → 8 new total; gate 52→60).
 prism-dtu-demo-server = { path = "../../../crates/prism-dtu-demo-server" }
 prism-dtu-harness = { path = "../../../crates/prism-dtu-harness", features = ["dtu"] }
+# S-DEMO-CLAROTY-DAR-001 Task 4 / AC-005: ClarotyDeviceAlertRelation, GetDeviceAlertsBody,
+# GetDeviceAlertsResponse carry #[non_exhaustive] (violations v93-v95); dtu feature required to
+# expose the types module (gated #[cfg(any(test, feature = "dtu"))]).
+prism-dtu-claroty = { path = "../../../crates/prism-dtu-claroty", features = ["dtu"] }
 
 # Empty workspace table: opts this crate out of the parent workspace resolver.
 [workspace]

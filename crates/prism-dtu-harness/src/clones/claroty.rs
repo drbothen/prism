@@ -26,6 +26,7 @@
 //! | POST   | /api/v1/vulnerabilities | Vuln list; Bearer auth required |
 //! | POST   | /api/v1/vulnerabilities/:id/devices | Vuln devices; Bearer auth required |
 //! | POST   | /api/v1/audit_log/get | Audit log; Bearer auth required (401 if missing) |
+//! | POST   | /api/v1/device_alert_relations | Device-alert relations (Tier 3); Bearer auth required |
 //! | POST   | /api/v1/devices/:id/tags/ | Add tag; Bearer auth required |
 //! | DELETE | /api/v1/devices/:id/tags/:key | Remove tag; Bearer auth required |
 //! | POST   | /dtu/configure | Failure injection; X-Admin-Token required |
@@ -46,6 +47,7 @@
 //! | POST   | /api/v1/vulnerabilities | Vuln list; Bearer auth required |
 //! | POST   | /api/v1/vulnerabilities/:id/devices | Vuln devices; Bearer auth required |
 //! | POST   | /api/v1/audit_log/get | Audit log; Bearer auth required (401 if missing) |
+//! | POST   | /api/v1/device_alert_relations | Device-alert relations (Tier 3); Bearer auth required |
 //! | POST   | /api/v1/devices/:id/tags/ | Add tag; Bearer auth required |
 //! | DELETE | /api/v1/devices/:id/tags/:key | Remove tag; Bearer auth required |
 //! | POST   | /dtu/configure | Failure injection; X-Admin-Token required |
@@ -109,6 +111,14 @@ const VULNERABILITY_DEVICES_FIXTURE: &str =
 /// Do NOT use `prism_dtu_common::load_fixture` — that is the standalone DTU's runtime
 /// pattern. The harness uses compile-time embedding for self-containedness.
 const AUDIT_LOG_FIXTURE: &str = include_str!("../../../prism-dtu-claroty/fixtures/audit-log.json");
+
+/// 5 Claroty xDome device-alert relation records.
+///
+/// HIGH-3 fix: new Tier 3 fixture embedded for harness route parity.
+/// Embedded at compile time via `include_str!` per the harness pattern (C-1 / C-8).
+/// Response envelope: `{"devices_alerts": [...], "count": N}` per standalone DTU.
+const DEVICE_ALERT_RELATIONS_FIXTURE: &str =
+    include_str!("../../../prism-dtu-claroty/fixtures/device-alert-relations.json");
 
 // ---------------------------------------------------------------------------
 // Clone state
@@ -767,6 +777,31 @@ async fn list_audit_log(
     )
 }
 
+/// `POST /api/v1/device_alert_relations/` — device-alert pair list (Tier 3).
+///
+/// HIGH-3 fix: registers the route in the harness to match the standalone DTU
+/// (BC-2.16.013 INV-HARNESS-ROUTE-PARITY).
+///
+/// Auth: any non-empty Bearer accepted; 401 on missing/empty Bearer (Claroty model).
+/// Response envelope: `{"devices_alerts": [...], "count": N}` matching the standalone DTU.
+async fn list_device_alert_relations(
+    headers: HeaderMap,
+    _body: Option<Json<Value>>,
+) -> (StatusCode, Json<Value>) {
+    if let Err(err) = check_bearer_auth(&headers) {
+        return err;
+    }
+
+    #[allow(clippy::expect_used)]
+    let entries: Vec<Value> = serde_json::from_str(DEVICE_ALERT_RELATIONS_FIXTURE)
+        .expect("DEVICE_ALERT_RELATIONS_FIXTURE is valid JSON array");
+    let count = entries.len() as u32;
+    (
+        StatusCode::OK,
+        Json(json!({"devices_alerts": entries, "count": count})),
+    )
+}
+
 /// `POST /dtu/configure`
 ///
 /// Requires `X-Admin-Token` header (TD-WV0-07).
@@ -999,6 +1034,11 @@ pub fn router(state: Arc<ClarotyCloneState>) -> Router {
         )
         // Audit log endpoint (INV-HARNESS-ROUTE-PARITY — S-DEMO-HARNESS-CLONE-PARITY-001 AC-003)
         .route("/api/v1/audit_log/get", post(list_audit_log))
+        // Device-alert relations endpoint (Tier 3 — HIGH-3 fix; INV-HARNESS-ROUTE-PARITY)
+        .route(
+            "/api/v1/device_alert_relations",
+            post(list_device_alert_relations),
+        )
         // Tag write endpoints
         .route("/api/v1/devices/:id/tags/", post(add_tag))
         .route("/api/v1/devices/:id/tags/:key", delete(remove_tag))
@@ -1253,6 +1293,11 @@ pub fn network_router(state: Arc<ClarotyCloneState>) -> Router {
         // Audit log endpoint: same plain check_bearer_auth as sibling alert/vuln routes
         // (INV-HARNESS-ROUTE-PARITY — S-DEMO-HARNESS-CLONE-PARITY-001 AC-003 C-4)
         .route("/api/v1/audit_log/get", post(list_audit_log))
+        // Device-alert relations endpoint (Tier 3 — HIGH-3 fix; INV-HARNESS-ROUTE-PARITY C-4)
+        .route(
+            "/api/v1/device_alert_relations",
+            post(list_device_alert_relations),
+        )
         // Tag write endpoints
         .route("/api/v1/devices/:id/tags/", post(add_tag))
         .route("/api/v1/devices/:id/tags/:key", delete(remove_tag))

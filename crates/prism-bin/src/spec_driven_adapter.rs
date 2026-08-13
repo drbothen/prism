@@ -2958,4 +2958,105 @@ mod tests {
             expected_st, st
         );
     }
+
+    // ---------------------------------------------------------------------------
+    // MEDIUM-6 fix — Claroty array column production-path wire-shape assertions
+    //
+    // The prism-sensors test `test_claroty_tier2_ip_list_array_column_serializes_to_json_list_string`
+    // covers `ColumnMapper::map_record` (a non-production intermediate path).  The tests below
+    // cover `build_column_array` — the function that actually materialises TOML columns into Arrow
+    // on the query execution path.  These are the load-bearing production-path assertions.
+    //
+    // Two cases verified:
+    //   (a) String-array elements → JSON-list string: ip_list = ["10.0.1.1","10.0.1.2"]
+    //   (b) Integer-array elements → JSON-list string: vlan_list = [100, 200] → ["100","200"]
+    //       (TOML declares vlan_list column_type = "string"; integer elements stringified via
+    //       `other.to_string()` in the Value::Array arm of the String branch.)
+    // ---------------------------------------------------------------------------
+
+    /// MEDIUM-6 fix (load-bearing, SID-1):
+    ///
+    /// `build_column_array` on a `ColumnType::String` column with `source_path = "$.ip_list[*]"`
+    /// over a record `{"ip_list": ["10.0.1.1","10.0.1.2"]}` MUST produce the Arrow StringArray
+    /// cell `["10.0.1.1","10.0.1.2"]` (compact JSON-list string, no spaces).
+    ///
+    /// This is the Claroty-specific instance of the ENRICH-1 array-column production path.
+    /// The existing prism-sensors test covers `ColumnMapper::map_record` only; this test
+    /// covers the `build_column_array` path that the query execution engine actually calls.
+    #[test]
+    fn test_build_column_array_claroty_ip_list_string_elements_serialize_to_json_list_string() {
+        let records = vec![
+            json!({"ip_list": ["10.0.1.1", "10.0.1.2"]}),
+            json!({"ip_list": ["192.168.1.1"]}),
+        ];
+        let col = col_with_source_path("ip_list", prism_core::ColumnType::String, "$.ip_list[*]");
+
+        let array = build_column_array(&records, &col, "claroty");
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("ip_list column must produce StringArray (MEDIUM-6)");
+
+        // Row 0: exact compact JSON-list string (no spaces, double-quotes).
+        assert!(
+            !string_array.is_null(0),
+            "MEDIUM-6: ip_list with source_path must produce non-null cell"
+        );
+        assert_eq!(
+            string_array.value(0),
+            r#"["10.0.1.1","10.0.1.2"]"#,
+            "MEDIUM-6: ip_list=[\"10.0.1.1\",\"10.0.1.2\"] must serialise to \
+             compact JSON-list string; got {:?}",
+            string_array.value(0)
+        );
+
+        // Row 1: single-element list.
+        assert!(!string_array.is_null(1));
+        assert_eq!(string_array.value(1), r#"["192.168.1.1"]"#);
+    }
+
+    /// MEDIUM-6 fix — vlan_list integer-element case (load-bearing, SID-1):
+    ///
+    /// `build_column_array` on a `ColumnType::String` column with `source_path = "$.vlan_list[*]"`
+    /// over a record `{"vlan_list": [100, 200]}` MUST produce the Arrow StringArray
+    /// cell `["100","200"]` (integers stringified via `other.to_string()` in the Array arm).
+    ///
+    /// `claroty.sensor.toml` declares `vlan_list` as `column_type = "string"` with the comment
+    /// "integer elements are stringified in JSON-list output (e.g. ["100","200"])".
+    /// This test is the load-bearing assertion that the claim holds at the production query path.
+    #[test]
+    fn test_build_column_array_claroty_vlan_list_integer_elements_stringify_to_json_list_string() {
+        let records = vec![
+            json!({"vlan_list": [100u32, 200u32]}),
+            json!({"vlan_list": [300u32]}),
+        ];
+        let col = col_with_source_path(
+            "vlan_list",
+            prism_core::ColumnType::String,
+            "$.vlan_list[*]",
+        );
+
+        let array = build_column_array(&records, &col, "claroty");
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("vlan_list column must produce StringArray (MEDIUM-6)");
+
+        // Row 0: integer elements must be stringified.
+        assert!(
+            !string_array.is_null(0),
+            "MEDIUM-6: vlan_list with integer elements must produce non-null cell"
+        );
+        assert_eq!(
+            string_array.value(0),
+            r#"["100","200"]"#,
+            "MEDIUM-6: vlan_list=[100,200] (integers) must serialise to [\"100\",\"200\"]; \
+             got {:?}",
+            string_array.value(0)
+        );
+
+        // Row 1: single integer element.
+        assert!(!string_array.is_null(1));
+        assert_eq!(string_array.value(1), r#"["300"]"#);
+    }
 }

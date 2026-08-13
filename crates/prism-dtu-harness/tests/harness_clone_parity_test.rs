@@ -581,7 +581,9 @@ async fn test_BC_2_16_013_claroty_harness_audit_log_returns_200_with_bearer_401_
 // BC-2.16.013 INV-HARNESS-ROUTE-PARITY:
 //   Response envelope: {"audit_log": [...], "total": N}
 //   audit_log is non-empty
-//   Each entry has all 5 columns: id, action, actor, timestamp, resource
+//   Each entry has all 8 columns (real xDome API fields, Tier 0+1):
+//     id, action, user_display_name, category, timestamp, details, username, note
+//   `note` is nullable (null for entries without a note); all other columns are non-empty strings.
 //   Fixture embedded via include_str! of prism-dtu-claroty fixtures/audit-log.json
 //   NOT via prism_dtu_common::load_fixture (C-1: harness uses compile-time embed)
 //
@@ -592,7 +594,9 @@ async fn test_BC_2_16_013_claroty_harness_audit_log_returns_200_with_bearer_401_
 /// AC-004: Claroty harness audit_log response — envelope matches standalone.
 ///
 /// Envelope: {"audit_log": [...], "total": N}
-/// audit_log non-empty; each entry has all 5 columns (id/action/actor/timestamp/resource).
+/// audit_log non-empty; each entry has all 8 TOML-declared columns
+/// (id/action/user_display_name/category/timestamp/details/username/note).
+/// `note` is nullable; the 7 other columns are non-empty strings.
 ///
 /// (BC-2.16.013 INV-HARNESS-ROUTE-PARITY — Claroty audit_log response envelope)
 ///
@@ -655,19 +659,37 @@ async fn test_BC_2_16_013_claroty_harness_audit_log_response_envelope_matches_st
         "`total` must equal the length of the `audit_log` array (AC-004)"
     );
 
-    // 5-column structural check: every entry must have all 5 TOML-declared columns.
-    // Columns: id, action, actor, timestamp, resource (from claroty.sensor.toml audit_logs table).
+    // 8-column structural check: every entry must have all 8 TOML-declared columns
+    // (real xDome API fields, Tier 0+1 update). `note` is nullable (null in some entries);
+    // the remaining 7 columns are non-empty strings.
+    // Columns: id, action, user_display_name, category, timestamp, details, username, note
+    // (from claroty.sensor.toml audit_logs table, SAP-2 parity requirement).
     for (i, entry) in audit_log.iter().enumerate() {
-        let required_columns = ["id", "action", "actor", "timestamp", "resource"];
-        for col in &required_columns {
+        // Non-nullable columns: key must be present AND value must be non-empty string.
+        let non_null_columns = [
+            "id",
+            "action",
+            "user_display_name",
+            "category",
+            "timestamp",
+            "details",
+            "username",
+        ];
+        for col in &non_null_columns {
             let val = entry.get(col).and_then(|v| v.as_str()).unwrap_or("");
             assert!(
                 !val.is_empty(),
                 "audit_log[{i}] must have non-empty `{col}` column \
-                 (AC-004, 5-column parity: id/action/actor/timestamp/resource \
-                 per claroty.sensor.toml SAP-2 requirement)"
+                 (AC-004, 8-column parity: id/action/user_display_name/category/\
+                 timestamp/details/username/note per claroty.sensor.toml SAP-2 requirement)"
             );
         }
+        // Nullable column: key must be present (value may be null or a non-empty string).
+        assert!(
+            entry.get("note").is_some(),
+            "audit_log[{i}] must have `note` key present (AC-004, SAP-2: \
+             key absent vs null is a BC-2.11.001 EC-11-079 wire-shape violation)"
+        );
     }
 
     // Spot-check: first entry's timestamp must resemble an ISO 8601 datetime.
@@ -682,4 +704,166 @@ async fn test_BC_2_16_013_claroty_harness_audit_log_response_envelope_matches_st
             "audit_log[0].timestamp must be ISO 8601 format (ADR-028 §D8); got {ts:?} (AC-004)"
         );
     }
+}
+
+// ============================================================================
+// HIGH-3 fix — Claroty harness clone registers POST /api/v1/device_alert_relations
+//
+// test_BC_2_16_013_claroty_harness_device_alert_relations_returns_200_with_bearer_401_without
+//
+// BC-2.16.013 INV-HARNESS-ROUTE-PARITY:
+//   claroty::router() MUST include POST /api/v1/device_alert_relations
+//   claroty::network_router() MUST also include POST /api/v1/device_alert_relations
+//   Claroty auth model: 401 on missing/invalid Bearer (NOT 403)
+//
+// C-4: BOTH router() and network_router() must be tested.
+//
+// Red Gate failure mode:
+//   POST /api/v1/device_alert_relations → 404 (route not registered in either router)
+// ============================================================================
+
+/// HIGH-3: Claroty harness clone POST /api/v1/device_alert_relations — 200 with bearer, 401 without.
+///
+/// Covers logical mode (router()) and network mode (network_router()) — C-4.
+/// Claroty auth model: 401 on missing/empty Bearer (NOT 403 — that's Armis only).
+///
+/// (BC-2.16.013 INV-HARNESS-ROUTE-PARITY — claroty::router() MUST include
+/// POST /api/v1/device_alert_relations; Claroty auth model: 401 on missing/invalid Bearer)
+///
+/// Red Gate: POST /api/v1/device_alert_relations → 404 (route not registered).
+#[tokio::test]
+async fn test_BC_2_16_013_claroty_harness_device_alert_relations_returns_200_with_bearer_401_without(
+) {
+    // Part A: Logical mode (router())
+    let harness_logical = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::Claroty];
+        })
+        .build()
+        .await
+        .expect("logical harness build must succeed");
+
+    let addr_logical = get_addr(&harness_logical, "acme-corp", DtuType::Claroty);
+    let client = test_client();
+
+    // Sub-test A1: 200 with any non-empty Bearer (Claroty model — not token-validated).
+    let resp_with_bearer = client
+        .post(format!(
+            "http://{addr_logical}/api/v1/device_alert_relations"
+        ))
+        .header("Authorization", "Bearer any-non-empty-token")
+        .json(&serde_json::json!({"fields": ["device_uid", "alert_id"]}))
+        .send()
+        .await
+        .expect(
+            "POST /api/v1/device_alert_relations (logical, with bearer) must not fail at transport",
+        );
+
+    assert_eq!(
+        resp_with_bearer.status().as_u16(),
+        200,
+        "POST /api/v1/device_alert_relations (logical router) with valid Bearer must return HTTP 200 \
+         (HIGH-3, INV-HARNESS-ROUTE-PARITY). \
+         Red Gate: route not registered → currently 404."
+    );
+
+    // Verify response envelope has `devices_alerts` key (AC-002 first bullet).
+    let body: serde_json::Value = resp_with_bearer
+        .json()
+        .await
+        .expect("200 response must have JSON body");
+    assert!(
+        body.get("devices_alerts").is_some(),
+        "POST /api/v1/device_alert_relations must return `devices_alerts` key (HIGH-3 wire-shape)"
+    );
+
+    // AC-002 (second bullet) — RG-002 absent-key assertion:
+    // The path-stem key `device_alert_relations` MUST NOT appear as a top-level key.
+    // Using the path stem silently discards every row at pipeline normalization time
+    // (BC-2.16.013 EC-016-013-009 stem ambiguity). Both the presence of `devices_alerts`
+    // AND the absence of `device_alert_relations` are required; asserting only one is
+    // insufficient (S-DEMO-CLAROTY-HARNESS-DAR-001 AC-002; F-CLARO-P2-MED-002).
+    assert!(
+        body.get("device_alert_relations").is_none(),
+        "response MUST NOT contain `device_alert_relations` top-level key — using the \
+         path stem as the response key silently discards all rows at pipeline normalization \
+         time (BC-2.16.013 EC-016-013-009 stem ambiguity); AC-002 mandates BOTH: \
+         'devices_alerts' present AND 'device_alert_relations' absent"
+    );
+
+    // Sub-test A2: 401 with no Authorization header (Claroty model — missing Bearer = 401).
+    let resp_no_auth = client
+        .post(format!(
+            "http://{addr_logical}/api/v1/device_alert_relations"
+        ))
+        .json(&serde_json::json!({"fields": ["device_uid"]}))
+        .send()
+        .await
+        .expect(
+            "POST /api/v1/device_alert_relations (logical, no auth) must not fail at transport",
+        );
+
+    assert_eq!(
+        resp_no_auth.status().as_u16(),
+        401,
+        "POST /api/v1/device_alert_relations (logical router) with no Authorization must return HTTP 401 \
+         (HIGH-3, Claroty auth model: 401 NOT 403). \
+         Red Gate: route not registered → currently 404."
+    );
+
+    // Part B: Network mode (network_router()) — C-4 coverage.
+    let harness_network = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Network)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::Claroty];
+        })
+        .build()
+        .await
+        .expect("network harness build must succeed");
+
+    let addr_network = harness_network
+        .endpoint_for("acme-corp", DtuType::Claroty)
+        .expect("network mode endpoint must be present for acme-corp Claroty");
+
+    // Sub-test B1: 200 with Bearer in network mode.
+    let resp_network_with_bearer = client
+        .post(format!(
+            "http://{addr_network}/api/v1/device_alert_relations"
+        ))
+        .header("Authorization", "Bearer any-non-empty-token")
+        .json(&serde_json::json!({"fields": ["device_uid", "alert_id"]}))
+        .send()
+        .await
+        .expect(
+            "POST /api/v1/device_alert_relations (network, with bearer) must not fail at transport",
+        );
+
+    assert_eq!(
+        resp_network_with_bearer.status().as_u16(),
+        200,
+        "POST /api/v1/device_alert_relations (network_router) with valid Bearer must return HTTP 200 \
+         (HIGH-3, C-4: BOTH routers must have the route). \
+         Red Gate: route not registered in network_router() → currently 404."
+    );
+
+    // Sub-test B2: 401 with no Authorization in network mode.
+    let resp_network_no_auth = client
+        .post(format!(
+            "http://{addr_network}/api/v1/device_alert_relations"
+        ))
+        .json(&serde_json::json!({"fields": ["device_uid"]}))
+        .send()
+        .await
+        .expect(
+            "POST /api/v1/device_alert_relations (network, no auth) must not fail at transport",
+        );
+
+    assert_eq!(
+        resp_network_no_auth.status().as_u16(),
+        401,
+        "POST /api/v1/device_alert_relations (network_router) with no Authorization must return HTTP 401 \
+         (HIGH-3, C-4: network_router() uses plain check_bearer_auth per sibling convention). \
+         Red Gate: route not registered in network_router() → currently 404."
+    );
 }

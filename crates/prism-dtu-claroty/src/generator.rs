@@ -105,7 +105,16 @@ fn make_device(slug: &str, seed: u64, index: usize) -> Value {
         "retired": false,
         "risk_score": "Low",
         "uid": format!("{slug}-{seed}-device-{index:08x}"),
-        "status": "online"
+        "status": "online",
+        // CRITICAL-1 fix: 7 new scalar device columns added by PR #236 but absent from generator.
+        // Without these, seeded/StageMask paths return NULL for all 7 columns.
+        "device_name": format!("Device-{slug}-{index}"),
+        "criticality": "medium",
+        "purdue_level": "Level 2",
+        "site_name": "Site-A",
+        "is_online": true,
+        "manufacturer": "Acme Industrial",
+        "vlan_list": [100u32, 200u32]
     })
 }
 
@@ -131,7 +140,15 @@ fn make_device_with_subnet(slug: &str, seed: u64, index: usize, subnet: &str) ->
         "risk_score": "Low",
         "uid": format!("{slug}-{seed}-device-{index:08x}"),
         "status": "online",
-        "subnet": subnet
+        "subnet": subnet,
+        // CRITICAL-1 fix: 7 new scalar device columns (same as make_device).
+        "device_name": format!("Device-{slug}-{index}"),
+        "criticality": "medium",
+        "purdue_level": "Level 2",
+        "site_name": "Site-A",
+        "is_online": true,
+        "manufacturer": "Acme Industrial",
+        "vlan_list": [100u32, 200u32]
     })
 }
 
@@ -179,7 +196,68 @@ fn make_alert(
         "status": "Unresolved",
         "unresolved_devices_count": 1,
         "updated_time": updated_time,
-        "severity_id": severity_id
+        "severity_id": severity_id,
+        // CRITICAL-1 fix: 3 new scalar alert columns added by PR #236 but absent from generator.
+        "alert_class": "policy_violation",
+        "ot_devices_count": 1i64,
+        "alert_name": format!("Alert-{index}")
+    })
+}
+
+/// Build a device-alert relation record linking generated device `device_index`
+/// to generated alert `alert_index` within the same `(slug, seed)` namespace.
+///
+/// Field semantics — all values are referentially consistent with the corresponding
+/// `make_device` / `make_alert` calls for the same `(slug, seed)`:
+/// - `device_uid`: matches `uid` field of `make_device(slug, seed, device_index)`.
+/// - `alert_id`: matches `id` field of `make_alert(slug, seed, alert_index, …)` (lower 32
+///   bits; demo-range seeds are < 2^32, so wrapping is a no-op in practice).
+/// - `_device_id`: stage-gating key matching `device_id` field of `make_device` —
+///   used by `list_device_alert_relations` StageMask filter to enforce
+///   INV-CROSS-DTU-ENTITY-COHERENCE-001 (a relation referencing a masked device must
+///   also be masked at that stage).
+///
+/// # F-CLARO-P2-MED-005 (seeded path FK integrity)
+///
+/// The static fixture had `device_uid` values like "uid-001" that shared no overlap
+/// with generated device uids (`{slug}-{seed}-device-{hex}`), causing every alert→device
+/// JOIN to return 0 rows on seeded clones.  This function produces records whose
+/// `device_uid` is derived from the same slug/seed formula as `make_device`, ensuring
+/// structural JOIN-compatibility between the two generated surfaces.
+fn make_device_alert_relation(
+    slug: &str,
+    seed: u64,
+    device_index: usize,
+    alert_index: usize,
+    time_anchor: chrono::DateTime<chrono::Utc>,
+) -> Value {
+    let relation_key = format!("rel-{slug}-{seed}-{device_index}-{alert_index}");
+    let minutes_before = (prism_dtu_common::stable_offset(&relation_key, seed) % 10_080) as i64;
+    let detected_dt = time_anchor - chrono::Duration::minutes(minutes_before);
+    // Match the real-API shape: RFC 3339 with microseconds and "+00:00" offset.
+    let detected_time = detected_dt.to_rfc3339_opts(chrono::SecondsFormat::Micros, false);
+
+    json!({
+        // F3 / DTU-05: authoritative surface discriminator — route handlers filter
+        // on `_surface`, never on key-presence heuristics (mirrors make_device/make_alert).
+        "_surface": "device_alert_relation",
+        // Stage-gating key: mirrors `device_id` format from make_device.
+        // Used by list_device_alert_relations StageMask filter for
+        // INV-CROSS-DTU-ENTITY-COHERENCE-001 coherence — a relation referencing a
+        // device that is hidden at the current stage must also be hidden.
+        "_device_id": format!("dev-{slug}-{seed}-{device_index}"),
+        // device_uid matches `uid` from make_device — the shared JOIN key.
+        "device_uid": format!("{slug}-{seed}-device-{device_index:08x}"),
+        // alert_id matches `id` from make_alert (lower 32 bits of seed+alert_index).
+        "alert_id": (seed.wrapping_add(alert_index as u64)) as u32,
+        "device_alert_detected_time": detected_time,
+        "device_risk_score": "Medium",
+        "network_signature_severity": serde_json::Value::Null,
+        "network_signature_confidence": serde_json::Value::Null,
+        "malicious_ip_severity": serde_json::Value::Null,
+        "alert_note": "",
+        "external_ip": serde_json::Value::Null,
+        "device_alert_status": "Unresolved",
     })
 }
 
@@ -201,7 +279,7 @@ fn gen_healthy_ot_environment(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
     let mut rng = seeded_rng(opts.seed, org_id);
     let _jitter: u32 = rng.gen(); // anchor rng to ensure determinism
 
-    let mut records: Vec<Value> = Vec::with_capacity(n_devices + n_alerts);
+    let mut records: Vec<Value> = Vec::with_capacity(n_devices + n_alerts * 2);
 
     for i in 0..n_devices {
         records.push(make_device(&slug, opts.seed, i));
@@ -210,6 +288,19 @@ fn gen_healthy_ot_environment(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
         // Healthy: low severity only (severity_id 1-3)
         let sev = 1u64 + (i as u64 % 3);
         records.push(make_alert(&slug, opts.seed, i, sev, opts.time_anchor));
+    }
+    // F-CLARO-P2-MED-005: emit device_alert_relation records so the seeded path
+    // of list_device_alert_relations can serve referentially consistent data.
+    // n_relations = n_alerts; each relation i pairs alert i with device (i % n_devices).
+    // device_uid and alert_id are derived from the same slug/seed as make_device/make_alert.
+    for i in 0..n_alerts {
+        records.push(make_device_alert_relation(
+            &slug,
+            opts.seed,
+            i % n_devices.max(1),
+            i,
+            opts.time_anchor,
+        ));
     }
 
     FixtureSet {
@@ -237,7 +328,7 @@ fn gen_compromised_endpoint(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
     let mut rng = seeded_rng(opts.seed, org_id);
     let _jitter: u32 = rng.gen();
 
-    let mut records: Vec<Value> = Vec::with_capacity(n_devices + n_alerts);
+    let mut records: Vec<Value> = Vec::with_capacity(n_devices + n_alerts * 2);
 
     for i in 0..n_devices {
         records.push(make_device(&slug, opts.seed, i));
@@ -251,6 +342,17 @@ fn gen_compromised_endpoint(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
             1u64 + (i as u64 % 3)
         };
         records.push(make_alert(&slug, opts.seed, i, sev, opts.time_anchor));
+    }
+    // F-CLARO-P2-MED-005: emit device_alert_relation records (same pattern as
+    // gen_healthy_ot_environment). n_relations = n_alerts = 20 at scale=1.0.
+    for i in 0..n_alerts {
+        records.push(make_device_alert_relation(
+            &slug,
+            opts.seed,
+            i % n_devices.max(1),
+            i,
+            opts.time_anchor,
+        ));
     }
 
     FixtureSet {
@@ -340,7 +442,7 @@ fn gen_large_scale(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
     let mut rng = seeded_rng(opts.seed, org_id);
     let _jitter: u32 = rng.gen();
 
-    let mut records: Vec<Value> = Vec::with_capacity(n_devices + n_alerts);
+    let mut records: Vec<Value> = Vec::with_capacity(n_devices + n_alerts * 2);
 
     // Distribute devices across subnets: cycle through 200 subnets (≥100 required).
     // subnet pattern: 10.X.Y.0/24 where X cycles 0-9, Y cycles 0-19 = 200 subnets
@@ -354,6 +456,17 @@ fn gen_large_scale(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
     for i in 0..n_alerts {
         let sev = if i < 10 { 4u64 } else { 2u64 };
         records.push(make_alert(&slug, opts.seed, i, sev, opts.time_anchor));
+    }
+    // F-CLARO-P2-MED-005: emit device_alert_relation records (same pattern as other
+    // archetypes with alerts). n_relations = n_alerts = 500 at scale=1.0.
+    for i in 0..n_alerts {
+        records.push(make_device_alert_relation(
+            &slug,
+            opts.seed,
+            i % n_devices.max(1),
+            i,
+            opts.time_anchor,
+        ));
     }
 
     FixtureSet {
@@ -469,28 +582,52 @@ fn gen_high_churn(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
 
     for i in 0..n_devices {
         if i < 20 {
-            // First 20 are tombstone records (BC-3.4.004 EC-07: dev-{slug}-{seed}-tomb-{n})
-            let rec = json!({
-                // F3 / DTU-05: tombstones are device-surface records.
-                "_surface": "device",
-                "device_id": format!("dev-{slug}-{seed}-tomb-{i}", seed = opts.seed),
-                "asset_id": format!("ASSET-{slug}-{seed}-tomb-{i}", seed = opts.seed),
-                "device_category": "OT",
-                "device_subcategory": "PLC",
-                "device_type": "Controller",
-                "device_type_family": "Controller",
-                "ip_list": [format!("10.tombstone.{}.{}", (i / 256) % 256, i % 256)],
-                "labels": [],
-                "mac_list": [format!("ff:ff:{:02x}:{:02x}:{:02x}:{:02x}",
-                    (opts.seed >> 8) as u8, opts.seed as u8, (i >> 8) as u8, i as u8)],
-                "model": "Tombstoned Device",
-                "network_list": ["OT Network"],
-                "os_category": "Embedded",
-                "retired": true,
-                "risk_score": "Unknown",
-                "uid": format!("{slug}-{seed}-tomb-device-{i:08x}", seed = opts.seed),
-                "status": "tombstone"
-            });
+            // First 20 are tombstone records (BC-3.4.004 EC-07: dev-{slug}-{seed}-tomb-{n}).
+            //
+            // F-CLARO-P2-MED-001 fix: build from make_device() then override tombstone-specific
+            // fields. This ensures tombstones carry ALL TOML device columns (including any future
+            // additions) and cannot drift from make_device again. Tombstone status is conveyed by
+            // field VALUES, not absent keys: `"status": "tombstone"`, `"retired": true`, etc.
+            let mut rec = make_device(&slug, opts.seed, i);
+            // SAFETY: make_device always returns a serde_json::Value::Object; as_object_mut
+            // is infallible here. The `if let` pattern is used to avoid expect() in production
+            // code per project conventions, with the understanding that a None branch is
+            // structurally unreachable.
+            if let Some(obj) = rec.as_object_mut() {
+                obj.insert(
+                    "device_id".to_string(),
+                    json!(format!("dev-{slug}-{seed}-tomb-{i}", seed = opts.seed)),
+                );
+                obj.insert(
+                    "asset_id".to_string(),
+                    json!(format!("ASSET-{slug}-{seed}-tomb-{i}", seed = opts.seed)),
+                );
+                obj.insert(
+                    "ip_list".to_string(),
+                    json!([format!("10.tombstone.{}.{}", (i / 256) % 256, i % 256)]),
+                );
+                obj.insert(
+                    "mac_list".to_string(),
+                    json!([format!(
+                        "ff:ff:{:02x}:{:02x}:{:02x}:{:02x}",
+                        (opts.seed >> 8) as u8,
+                        opts.seed as u8,
+                        (i >> 8) as u8,
+                        i as u8
+                    )]),
+                );
+                obj.insert("model".to_string(), json!("Tombstoned Device"));
+                obj.insert("retired".to_string(), json!(true));
+                obj.insert("risk_score".to_string(), json!("Unknown"));
+                obj.insert(
+                    "uid".to_string(),
+                    json!(format!(
+                        "{slug}-{seed}-tomb-device-{i:08x}",
+                        seed = opts.seed
+                    )),
+                );
+                obj.insert("status".to_string(), json!("tombstone"));
+            }
             records.push(rec);
         } else {
             records.push(make_device(&slug, opts.seed, i));

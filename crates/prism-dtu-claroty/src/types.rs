@@ -36,6 +36,12 @@ pub enum SortOrder {
 // ---------------------------------------------------------------------------
 
 /// A single Claroty xDome device object.
+///
+/// # SAP-2 parity note (Tier 2, 2026-08-11)
+/// `tags: Vec<String>` is a DTU-internal field used by the write path
+/// (`/api/v1/devices/{id}/tags/`). It is NOT in the 201-value xDome Device fields_enum
+/// (xDome OpenAPI 2026-06-20) — it will not be returned by the real API when included
+/// in a `fields` projection. It is excluded from `claroty.sensor.toml` intentionally.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ClarotyDevice {
     pub asset_id: String,
@@ -54,7 +60,26 @@ pub struct ClarotyDevice {
     pub risk_score: String,
     pub uid: String,
     pub vlan_list: Vec<u32>,
+    /// Purdue model level (e.g. "Level 0", "Level 1", "Level 2"). Tier 2 field.
+    #[serde(default)]
+    pub purdue_level: String,
+    /// Physical site name. Tier 2 field.
+    #[serde(default)]
+    pub site_name: String,
+    /// Asset criticality level (e.g. "High", "Medium", "Low", "Critical"). Tier 2 field.
+    #[serde(default)]
+    pub criticality: String,
+    /// Whether the device is currently online. Tier 2 field.
+    #[serde(default)]
+    pub is_online: bool,
+    /// Device display name. Tier 2 field.
+    #[serde(default)]
+    pub device_name: String,
+    /// Hardware manufacturer. Tier 2 field.
+    #[serde(default)]
+    pub manufacturer: String,
     /// Tag keys assigned via the write path; merged from `ClarotyState::tag_store`.
+    /// NOTE: NOT in the xDome Device fields_enum — DTU-internal only. See struct doc.
     #[serde(default)]
     pub tags: Vec<String>,
 }
@@ -114,6 +139,15 @@ pub struct ClarotyAlert {
     pub status: String,
     pub unresolved_devices_count: u32,
     pub updated_time: String,
+    /// Alert classification (e.g. "OT", "IT", "Security"). Tier 2 field.
+    #[serde(default)]
+    pub alert_class: String,
+    /// Count of OT devices involved in the alert. Tier 2 field.
+    #[serde(default)]
+    pub ot_devices_count: u32,
+    /// Human-readable alert name (distinct from alert_type_name). Tier 2 field.
+    #[serde(default)]
+    pub alert_name: String,
 }
 
 /// POST body for `/api/v1/alerts`.
@@ -250,9 +284,11 @@ pub struct GetVulnerabilityDevicesResponse {
 
 /// A single Claroty xDome audit log entry.
 ///
-/// Field names match the `audit_logs` table columns declared in
-/// `claroty.sensor.toml` — SAP-2 parity enforced at stub time:
-/// id, action, actor, timestamp, resource (5 columns, 1:1 mapping).
+/// Field names match the real xDome API audit_log response and the `audit_logs`
+/// table columns declared in `claroty.sensor.toml` — SAP-2 parity enforced:
+/// id, action, user_display_name, category, timestamp, details, username, note (8 columns, 1:1).
+///
+/// `actor` and `resource` do NOT exist in the xDome API (LIVE-DRIFT-003) and are absent here.
 ///
 /// Per EC-001 (permissive deserialization): unknown fields are allowed
 /// in request bodies but the response struct is exact.
@@ -262,12 +298,19 @@ pub struct ClarotyAuditLogEntry {
     pub id: String,
     /// Action performed (column_type = "string").
     pub action: String,
-    /// Actor who performed the action (column_type = "string").
-    pub actor: String,
+    /// Display name of the user who performed the action (column_type = "string").
+    pub user_display_name: String,
+    /// Audit event category (column_type = "string").
+    pub category: String,
     /// ISO 8601 timestamp with Z suffix (column_type = "datetime", ADR-028 §D8).
     pub timestamp: String,
-    /// Resource affected (column_type = "string").
-    pub resource: String,
+    /// Details / description of what was done (column_type = "string").
+    pub details: String,
+    /// Login username / user identifier (column_type = "string").
+    pub username: String,
+    /// Optional note about the audit activity — absent from some records.
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 /// POST body for `POST /api/v1/audit_log/get`.
@@ -304,6 +347,179 @@ pub struct GetAuditLogBody {
 pub struct GetAuditLogResponse {
     pub audit_log: Vec<ClarotyAuditLogEntry>,
     pub total: u32,
+}
+
+// ---------------------------------------------------------------------------
+// Device-alert relation types (Tier 3)
+// ---------------------------------------------------------------------------
+
+/// A single Claroty xDome device-alert relation object.
+///
+/// Returned by `POST /api/v1/device_alert_relations/` via the `$.devices_alerts` response path.
+///
+/// All 10 field names are verified against the 92-value
+/// `AlertedDevicesPairs__fields_enum` in xDome OpenAPI 2026-06-20.
+///
+/// `network_signature_severity`, `network_signature_confidence`,
+/// `malicious_ip_severity`, and `external_ip` are `Option<String>` because
+/// they may be absent for alerts that do not involve network signatures or
+/// external IP communication.  Both `null`-present and key-absent JSON forms
+/// are handled correctly via `#[serde(default)]`.
+#[non_exhaustive]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ClarotyDeviceAlertRelation {
+    /// Claroty device UID (UUID string). Maps to `device.uid` in OCSF.
+    pub device_uid: String,
+    /// Alert integer ID. Maps to `finding.uid`.
+    pub alert_id: u32,
+    /// ISO 8601 datetime when the device-alert pair was first detected.
+    pub device_alert_detected_time: String,
+    /// Risk score level for this device in the context of this alert
+    /// (e.g. "Very Low", "Low", "Medium", "High", "Critical").
+    pub device_risk_score: String,
+    /// Severity of matching network signatures; absent when no signature matched.
+    #[serde(default)]
+    pub network_signature_severity: Option<String>,
+    /// Confidence of matching network signatures; absent when no signature matched.
+    #[serde(default)]
+    pub network_signature_confidence: Option<String>,
+    /// Severity of malicious IP involvement; absent when no malicious IP indicator.
+    #[serde(default)]
+    pub malicious_ip_severity: Option<String>,
+    /// Analyst note for this device-alert pair (empty string when no note set).
+    pub alert_note: String,
+    /// External IP involved in the alert for this device; absent for internal-only alerts.
+    #[serde(default)]
+    pub external_ip: Option<String>,
+    /// Status of this device-alert pair (e.g. "Unresolved", "Resolved").
+    pub device_alert_status: String,
+}
+
+/// POST body for `POST /api/v1/device_alert_relations/`.
+///
+/// `fields` is REQUIRED by `GetDeviceAlertsParameters` (minItems: 1) — the real
+/// xDome API returns 422 when `fields` is absent or empty.  The DTU accepts the
+/// body permissively (EC-001: unknown fields ignored).
+#[non_exhaustive]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct GetDeviceAlertsBody {
+    #[serde(default)]
+    pub fields: Vec<String>,
+    pub filter_by: Option<ApiQueryFilter>,
+    pub sort_by: Option<Vec<ApiSortClause>>,
+    pub offset: Option<u32>,
+    pub limit: Option<u32>,
+    pub include_count: Option<bool>,
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
+}
+
+/// Response for `POST /api/v1/device_alert_relations/`.
+///
+/// Envelope key `devices_alerts` matches `response_path = "$.devices_alerts"` in
+/// `claroty.sensor.toml` (xDome OpenAPI `GetDeviceAlertsResponse.devices_alerts`).
+///
+/// Uses `count: Option<u32>` (NOT `total`) per `GetDeviceAlertsResponse` schema
+/// (count is `anyOf [integer, null]`).  `devices_alerts` is REQUIRED in the schema.
+#[non_exhaustive]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GetDeviceAlertsResponse {
+    pub devices_alerts: Vec<ClarotyDeviceAlertRelation>,
+    pub count: Option<u32>,
+}
+
+// ---------------------------------------------------------------------------
+// Tag write types
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Tests — GetDeviceAlertsResponse serde contract
+//
+// F-CLARO-LIVE-P1-LOW-001: `GetDeviceAlertsResponse` now derives `Deserialize`
+// so `#[serde(deny_unknown_fields)]` is LOAD-BEARING. These tests are the
+// proof that the guarantee is real (TD-VSDD-059 paper-fix detection):
+//
+//   test_get_device_alerts_response_round_trip — positive path: serialize then
+//     deserialize succeeds (the struct can be used on the deserialization path).
+//
+//   test_get_device_alerts_response_deny_unknown_fields — negative path: a JSON
+//     object containing a phantom extra key must return Err (the load-bearing
+//     assertion). Without `Deserialize` + `deny_unknown_fields` this would Ok,
+//     which would allow phantom keys to silently survive the wire boundary.
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Positive: round-trip — serialize a `GetDeviceAlertsResponse` and deserialize
+    /// it back. Confirms `Deserialize` is correctly derived and the known-field set
+    /// survives the round-trip without error.
+    ///
+    /// F-CLARO-LIVE-P1-LOW-001 / S-DEMO-CLAROTY-DAR-001 Task 4.
+    #[test]
+    fn test_get_device_alerts_response_round_trip() {
+        let original = serde_json::json!({
+            "devices_alerts": [],
+            "count": null
+        });
+
+        let deserialized: Result<GetDeviceAlertsResponse, _> = serde_json::from_value(original);
+        assert!(
+            deserialized.is_ok(),
+            "GetDeviceAlertsResponse must deserialize from a valid envelope; err: {:?}",
+            deserialized.err()
+        );
+
+        let response = deserialized.unwrap();
+        assert!(
+            response.devices_alerts.is_empty(),
+            "round-trip: devices_alerts must be empty"
+        );
+        assert!(
+            response.count.is_none(),
+            "round-trip: count must be None when null"
+        );
+
+        // Serialize back to JSON and verify keys are present.
+        let reserialised = serde_json::to_value(&response).expect("re-serialization must succeed");
+        assert!(
+            reserialised.get("devices_alerts").is_some(),
+            "round-trip: re-serialized envelope must contain `devices_alerts` key"
+        );
+        assert!(
+            reserialised.get("count").is_some(),
+            "round-trip: re-serialized envelope must contain `count` key"
+        );
+    }
+
+    /// Negative (load-bearing): a JSON object with a phantom extra key MUST produce
+    /// `Err` when deserialized into `GetDeviceAlertsResponse`.
+    ///
+    /// This assertion is what makes the `#[serde(deny_unknown_fields)]` guarantee
+    /// REAL — without `Deserialize` on the type, this would silently `Ok` (the
+    /// attribute is inert on Serialize-only types). The test failing would mean the
+    /// guarantee is still a paper-fix (TD-VSDD-059).
+    ///
+    /// F-CLARO-LIVE-P1-LOW-001 / S-DEMO-CLAROTY-DAR-001 Task 4.
+    #[test]
+    fn test_get_device_alerts_response_deny_unknown_fields() {
+        let phantom_key_json = serde_json::json!({
+            "devices_alerts": [],
+            "count": 0,
+            "phantom_key": 1
+        });
+
+        let result: Result<GetDeviceAlertsResponse, _> = serde_json::from_value(phantom_key_json);
+        assert!(
+            result.is_err(),
+            "GetDeviceAlertsResponse must reject phantom extra keys — \
+             #[serde(deny_unknown_fields)] MUST cause deserialization of \
+             {{\"devices_alerts\":[],\"count\":0,\"phantom_key\":1}} to return Err. \
+             If this fails, the deny_unknown_fields guarantee is still inert \
+             (type may have lost Deserialize — F-CLARO-LIVE-P1-LOW-001)"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------

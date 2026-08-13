@@ -127,48 +127,115 @@ fn test_BC_2_16_003_mixed_mapping_partial_ocsf_partial_raw_extensions() {
     );
 }
 
-/// BC-2.16.003 type coercion: string "42" -> OCSF integer field succeeds.
-/// Canonical test vector from BC-2.16.003.
+/// BC-2.16.003 type coercion: when column_type is String, the String-type-first rule
+/// takes precedence over the numeric ocsf_field heuristic.
+///
+/// Updated from the original "string '42' coerces to integer 42" assertion because the
+/// String-type-first fix (LIVE-DRIFT-003) changed this behavior: if the column declares
+/// `column_type = "string"`, the value is preserved as a string regardless of the OCSF
+/// field suffix. This is correct for production use cases where sensors return string IDs
+/// (e.g. UUID, mixed-type ID) mapped to `*.uid` fields.
+///
+/// For a `ColumnType::Integer` column with the same ocsf_field, coercion still applies.
 #[test]
 fn test_BC_2_16_003_coerces_string_42_to_integer_field() {
-    let col = ColumnSpec::new(
+    // String column + numeric ocsf_field: String-type-first → preserve as string.
+    let col_string = ColumnSpec::new(
         "event_id",
         ColumnType::String,
         Some("metadata.event_code".to_string()),
         vec![],
     );
-
-    let result = ColumnMapper::coerce_value(&serde_json::json!("42"), &col, "metadata.event_code");
-
+    let result_string =
+        ColumnMapper::coerce_value(&serde_json::json!("42"), &col_string, "metadata.event_code");
     assert!(
-        result.is_ok(),
-        "string '42' to int field must coerce successfully"
+        result_string.is_ok(),
+        "string column must coerce successfully (no warning)"
     );
-    assert_eq!(result.unwrap(), serde_json::json!(42));
+    // String-type-first: column_type=String wins over numeric ocsf_field suffix.
+    // The value is preserved as a JSON string, not coerced to integer.
+    assert_eq!(
+        result_string.unwrap(),
+        serde_json::json!("42"),
+        "ColumnType::String column preserves string value even for numeric-suffix ocsf_field \
+         (String-type-first rule, LIVE-DRIFT-003)"
+    );
+
+    // Integer column + numeric ocsf_field: coercion still applies when column_type is Integer.
+    let col_integer = ColumnSpec::new(
+        "event_id",
+        ColumnType::Integer,
+        Some("metadata.event_code".to_string()),
+        vec![],
+    );
+    let result_integer = ColumnMapper::coerce_value(
+        &serde_json::json!("42"),
+        &col_integer,
+        "metadata.event_code",
+    );
+    assert!(
+        result_integer.is_ok(),
+        "integer column: string '42' to int field must coerce successfully"
+    );
+    assert_eq!(
+        result_integer.unwrap(),
+        serde_json::json!(42),
+        "ColumnType::Integer column coerces string '42' to Number(42)"
+    );
 }
 
-/// BC-2.16.003 type coercion failure: non-parseable string -> raw_extensions + warning.
-/// Invariant: record is NEVER dropped due to coercion failure.
+/// BC-2.16.003 coercion with String column: no CoercionWarning (String-type-first rule).
+///
+/// Updated from the original "non-parseable string → CoercionWarning" assertion because
+/// the String-type-first fix (LIVE-DRIFT-003) changed this behavior for String columns:
+/// `ColumnType::String` now bypasses the numeric-suffix heuristic. The value is returned
+/// as-is without a CoercionWarning. This prevents usernames / string IDs mapped to OCSF
+/// `*.uid` fields from being spuriously demoted to `raw_extensions`.
+///
+/// For a `ColumnType::Integer` column, the original behavior (CoercionWarning on parse
+/// failure) is preserved.
 #[test]
 fn test_BC_2_16_003_coercion_failure_produces_warning_record_not_dropped() {
-    let col = ColumnSpec::new(
+    // String column: String-type-first → no CoercionWarning even for non-parseable values.
+    let col_string = ColumnSpec::new(
         "event_code",
         ColumnType::String,
         Some("metadata.event_code".to_string()),
         vec![],
     );
-
-    let result = ColumnMapper::coerce_value(
+    let result_string = ColumnMapper::coerce_value(
         &serde_json::json!("not-a-number"),
-        &col,
+        &col_string,
         "metadata.event_code",
     );
-
     assert!(
-        result.is_err(),
-        "non-parseable string to int must return CoercionWarning"
+        result_string.is_ok(),
+        "ColumnType::String column must NOT return CoercionWarning (String-type-first rule, \
+         LIVE-DRIFT-003); got: {result_string:?}"
     );
-    let warning = result.unwrap_err();
+    assert_eq!(
+        result_string.unwrap(),
+        serde_json::json!("not-a-number"),
+        "ColumnType::String column must preserve non-parseable value as string"
+    );
+
+    // Integer column: CoercionWarning still applies for non-parseable strings.
+    let col_integer = ColumnSpec::new(
+        "event_code",
+        ColumnType::Integer,
+        Some("metadata.event_code".to_string()),
+        vec![],
+    );
+    let result_integer = ColumnMapper::coerce_value(
+        &serde_json::json!("not-a-number"),
+        &col_integer,
+        "metadata.event_code",
+    );
+    assert!(
+        result_integer.is_err(),
+        "ColumnType::Integer column: non-parseable string must still return CoercionWarning"
+    );
+    let warning = result_integer.unwrap_err();
     assert_eq!(warning.column_name, "event_code");
     assert!(
         warning.actual_value.contains("not-a-number"),
@@ -176,10 +243,20 @@ fn test_BC_2_16_003_coercion_failure_produces_warning_record_not_dropped() {
     );
 }
 
-/// BC-2.16.003 invariant: full record mapping with coercion failure -> record included,
-/// coercion_warnings non-empty, raw_extensions has failed field.
+/// BC-2.16.003 invariant: record is NEVER dropped — String-type-first variant.
+///
+/// Covers `map_record` integration with String-type columns (LIVE-DRIFT-003):
+/// `ColumnType::String` columns produce no `coercion_warnings` because the
+/// String-type-first guard bypasses the numeric-suffix heuristic. All string values
+/// are preserved in `mapped_fields`. The record is returned with all columns mapped
+/// and `raw_extensions` empty.
+///
+/// For the CoercionWarning path (`map_record` integration with Integer column +
+/// non-parseable string → `coercion_warnings` non-empty + value in `raw_extensions`),
+/// see `test_BC_2_16_003_invariant_record_never_dropped_integer_column_coercion_failure`.
 #[test]
-fn test_BC_2_16_003_invariant_record_never_dropped_on_coercion_failure() {
+fn test_BC_2_16_003_invariant_record_never_dropped_string_type_first_variant() {
+    // String columns: String-type-first → both columns mapped successfully, no warnings.
     let table = TableSpec::new_point_in_time(
         "events",
         "security_finding",
@@ -210,24 +287,100 @@ fn test_BC_2_16_003_invariant_record_never_dropped_on_coercion_failure() {
         )],
     );
     let raw = serde_json::json!({
-        "event_id": "not-a-number",  // will fail coercion
-        "event_name": "Detection"    // will succeed
+        "event_id": "not-a-number",
+        "event_name": "Detection"
     });
 
     let result = ColumnMapper::map_record(&raw, &table)
         .expect("map_record must return Ok — record never dropped");
 
-    // The record IS returned (not dropped)
+    // Record is returned (not dropped) — core invariant.
+    // With String-type-first: both fields go to mapped_fields (no CoercionWarning, no raw_extensions).
     assert!(
-        !result.coercion_warnings.is_empty(),
-        "coercion warning must be present for event_id"
+        result.coercion_warnings.is_empty(),
+        "ColumnType::String columns must NOT produce CoercionWarnings (String-type-first, LIVE-DRIFT-003)"
     );
     assert!(
-        result.raw_extensions.contains_key("event_id"),
-        "failed field must be in raw_extensions"
+        result.mapped_fields.contains_key("metadata.event_code"),
+        "event_id must be in mapped_fields (not raw_extensions) with String-type-first rule"
     );
     assert!(
         result.mapped_fields.contains_key("activity_name"),
-        "successful field must still be mapped"
+        "event_name must be in mapped_fields"
+    );
+    assert!(
+        result.raw_extensions.is_empty(),
+        "raw_extensions must be empty when all columns are mapped (String-type-first)"
+    );
+}
+
+/// BC-2.16.003 invariant: record is NEVER dropped — Integer-column coercion-failure variant.
+///
+/// Covers the `map_record` integration for the `Err(CoercionWarning)` branch:
+/// when `ColumnType::Integer` column with a numeric-suffix `ocsf_field` receives a
+/// non-parseable string, `coerce_value` returns `Err(CoercionWarning)` and `map_record`
+/// must:
+///   1. NOT drop the record (returns `Ok(MappedRecord)`)
+///   2. Push the warning to `coercion_warnings` with the correct `column_name`
+///   3. Insert the raw value into `raw_extensions` (fallback; field NOT in `mapped_fields`)
+///
+/// This is the guard for BC-2.16.003 postcondition:
+///   "Type coercion failures → raw_extensions + CoercionWarning (non-fatal, record kept)"
+#[test]
+fn test_BC_2_16_003_invariant_record_never_dropped_integer_column_coercion_failure() {
+    let table = TableSpec::new_point_in_time(
+        "events",
+        "security_finding",
+        vec![ColumnSpec::new(
+            "event_id",
+            ColumnType::Integer,
+            Some("metadata.event_code".to_string()),
+            vec![],
+        )],
+        vec![FetchStep::new(
+            "fetch",
+            "GET",
+            "/events",
+            None,
+            "$.data",
+            None,
+            vec![],
+            None,
+            None,
+        )],
+    );
+    // Non-parseable string for an Integer column on a numeric-suffix OCSF path.
+    let raw = serde_json::json!({ "event_id": "not-a-number" });
+
+    // Core invariant: record is never dropped — map_record must return Ok.
+    let result = ColumnMapper::map_record(&raw, &table)
+        .expect("map_record must return Ok even on coercion failure — record never dropped");
+
+    // Coercion failure path: one warning with the correct column_name.
+    assert_eq!(
+        result.coercion_warnings.len(),
+        1,
+        "exactly one CoercionWarning expected for the Integer column parse failure"
+    );
+    assert_eq!(
+        result.coercion_warnings[0].column_name, "event_id",
+        "CoercionWarning must name the failing column"
+    );
+    assert!(
+        result.coercion_warnings[0]
+            .actual_value
+            .contains("not-a-number"),
+        "CoercionWarning must capture the raw value that failed parsing"
+    );
+
+    // Failed field diverted to raw_extensions, NOT mapped_fields.
+    assert!(
+        result.raw_extensions.contains_key("event_id"),
+        "failed Integer column must be diverted to raw_extensions \
+         (BC-2.16.003 non-fatal coercion contract)"
+    );
+    assert!(
+        !result.mapped_fields.contains_key("metadata.event_code"),
+        "failed Integer column must NOT appear in mapped_fields"
     );
 }
