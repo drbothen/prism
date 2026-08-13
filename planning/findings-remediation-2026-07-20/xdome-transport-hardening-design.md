@@ -5,7 +5,7 @@ created: "2026-08-12"
 author: architect
 origin: "DEFECT-ADAPTER-TLS-XDOME-LIVE-001 architect adjudication"
 status: APPROVED
-version: "1.0"
+version: "1.1"
 stories_governed:
   - DEFECT-ADAPTER-TLS-XDOME-LIVE-001
   - DEFECT-SENSOR-ERROR-FLATTEN-001
@@ -277,11 +277,11 @@ is either removed or marked deprecated with a clear comment that it is historica
 |-------|-----------|-----------------|
 | RG-001 | `test_map_error_http_401_maps_to_http_error_not_internal` | AC-ERR-001 |
 | RG-002 | `test_map_error_status_0_maps_to_internal` | AC-ERR-002 |
-| RG-003 | `test_pipeline_non_2xx_detail_includes_body_snippet` | AC-ERR-003 |
+| RG-003 | `test_pipeline_non_2xx_body_in_detail` | AC-ERR-003 |
 | RG-004 | `test_fanout_all_failed_emits_fan_out_target_failed_warn` | AC-ERR-004 |
-| RG-005 | `test_probe_connectivity_401_returns_up_auth_invalid` | AC-ERR-005 |
+| RG-005 | `test_probe_connectivity_403_returns_up_not_down` | AC-ERR-005 |
 | RG-006 | `test_build_http_client_sends_user_agent_header` | AC-UA-001 |
-| RG-007 | `test_sensor_health_wire_shape_auth_invalid` | AC-WIRE-001 |
+| RG-007 | `test_sensor_health_wire_shape_403_reachable_auth_invalid` | AC-WIRE-001 |
 
 BC-5.38.001 density: 7 Red Gate tests for 7 ACs. Test-authoring tasks MUST precede
 implementation tasks in story decomposition (SAC-1 rule 3).
@@ -408,3 +408,12 @@ Event Catalog in the same commit.
 - SAP-2 probe: not applicable (no sensor TOML changes)
 - Live-verification agent: AC-LIVE-001/002/003 — relay removed, real endpoint tested
   with AI-opaque credentials from keyring; values never emitted
+
+---
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.1 | 2026-08-13 | product-owner | **pass-3 F-1 citation corrections in §8 Red Gate Enumeration.** Three stale test names corrected to match canonical code names (SAC-1 — code is authoritative): RG-003 `test_pipeline_non_2xx_detail_includes_body_snippet` → `test_pipeline_non_2xx_body_in_detail`; RG-005 `test_probe_connectivity_401_returns_up_auth_invalid` → `test_probe_connectivity_403_returns_up_not_down`; RG-007 `test_sensor_health_wire_shape_auth_invalid` → `test_sensor_health_wire_shape_403_reachable_auth_invalid`. Canonical map from story v1.3. |
+| 1.0 | 2026-08-12 | architect | Initial approved design document. |
