@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.658"
+version: "8.659"
 producer: state-manager
-timestamp: 2026-08-13T02:00:00Z
+timestamp: 2026-08-13T03:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -67,7 +67,7 @@ workspace_test_count: 5703
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2109 — POST-MERGE BURST (TD-VSDD-053): PR #236 fix/claroty-live-api-fidelity SQUASH-MERGED @5d1a30ac7. BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED (passes 8/9/10 on frozen 386df43c5; zero findings any severity). HS-014 (Claroty POST-for-read parity) PASS (mean 0.90, critical-min 0.80) — NOTE: HS-014 is test-double only, NOT live-xDome verified. pr-reviewer APPROVE; 3 non-blocking nits (not merge-blocking). CI 47/47 SUCCESS. POL-14: all amended BCs pre-existing ACTIVE (BC-2.02.005 v1.7, BC-2.16.013 v1.37, BC-2.16.003, BC-2.06.019 v1.18) — no-op idempotent. GOVERNING DECISION D-2109: DTU-vs-real-xDome drift DEFERRED by human direction. develop_head 5d1a30ac7. workspace_test_count 5703. worktrees CLAROTY-LIVE + FINDING-R removed. STATE v8.657→v8.658."
+current_step: "D-2110 — SESSION WRAP (TD-VSDD-053): RESUME SNAPSHOT D-2110 authored (supersedes D-2109). API keys ROTATED — SECURITY-URGENT RESOLVED: User rotated Perplexity + Tavily API keys in /Users/jmagady/Dev/test-soc/.mcp.json. NEXT: LIVE-xDome validation run (real xDome API, not DTU) — gating pre-ship step per D-2109 DTU-parity ≠ live caveat. develop_head 5d1a30ac7 (local + origin in sync). workspace_test_count 5703. records-lint exit 0. verify-sha-currency.sh PASS. STATE v8.658→v8.659."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -732,19 +732,17 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-2109 — 2026-08-13 — POST-MERGE BURST: PR #236 SQUASH-MERGED @5d1a30ac7; BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED; HS-014 PASS; DTU-drift DEFERRED; workspace_test_count 5703; STATE v8.657→v8.658) [supersedes D-2108]
+## Session Resume Checkpoint (D-2110 — 2026-08-13 — SESSION WRAP: API keys ROTATED; LIVE-xDome validation next; develop_head 5d1a30ac7; workspace_test_count 5703; STATE v8.658→v8.659) [supersedes D-2109]
 
-**RESUME IN ONE BREATH:** prism Phase 3, cycle `wave-5-e-demo-fidelity`. develop advanced ef996a4c0→5d1a30ac7 (PR #236 fix/claroty-live-api-fidelity SQUASH-MERGED). 42 cumulative open findings (FINDING-R + OBS-009 already closed; no new closures this burst). Human decision (o): Interpretation A ocsf_field paths as Arrow field names. Human decision (p): APPROVED spec-amendment-to-match-code per CLAUDE.md §Source-of-Truth Precedence rule 7. ADR-058 v2.1 ratified. **ADR-058 §J NORMATIVE RULE:** underscore-flattening at `pipeline_result_to_record_batch` boundary; per-sensor activation via `ocsf_column_naming = true` TOML flag; §J FORBIDDEN: pipeline activation where flag-schema column name matches existing column (fail-closed `Err(ArrowError::SchemaError)`); §J3: `A≠B self-match exclusion` is load-bearing. **GOVERNING DECISION D-2109 (human-directed):** DTU-vs-real-xDome drift DEFERRED — DO NOT mint as adversary/holdout findings; DTUs MUST NOT be reconciled to real without human authorization; HS-014 PASS is test-double only, NOT live-xDome verified. NEXT ACTION: next story per §ACTIVE OBJECTIVE task ledger (live-xDome track).
+**RESUME IN ONE BREATH:** prism Phase 3, cycle `wave-5-e-demo-fidelity`. PR #236 (Claroty live-xDome API fidelity) SQUASH-MERGED develop@`5d1a30ac7` — 3-CLEAN(strict) CONVERGED (passes 8/9/10 frozen 386df43c5), HS-014 holdout PASS (DTU-parity, NOT live-verified per D-2109), CI 47/47. API keys ROTATED (security resolved). **NEXT: LIVE-xDome validation run** to verify real-API fidelity before ship.
 
 THE BOTTLENECK IS THE CONVERGENCE GATE, not the defect work. ADR-053 ratified EFFECTIVE 2026-07-22 (D-1943) → 9 Wave-A stories (8 draft / 1 ready / **0 delivered**). BC-5.39.001 strict streak **0/3 after 72+ adversary passes** (best observed 1/3, twice).
 
 **PER-WORKSTREAM FROZEN STATE:**
 
-**(1) Claroty live-API track — fix/claroty-live-api-fidelity.** PR #236 SQUASH-MERGED @5d1a30ac7 (develop advanced ef996a4c0→5d1a30ac7). BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED: passes 8/9/10 on frozen HEAD 386df43c5, zero findings any severity. HS-014 PASS (test-double only; NOT live-xDome verified — D-2109). pr-reviewer: APPROVE (3 non-blocking nits). CI: 47/47 SUCCESS. workspace_test_count: 5700→5703. **GOVERNING DECISION D-2109 (human-directed):** DTU-vs-real-xDome drift DEFERRED — DO NOT mint as adversary/holdout findings; DTUs MUST NOT be reconciled to real without human authorization. NEXT: next story per task ledger (live-xDome track).
+**(1) Claroty live-API track — MERGED.** PR #236 SQUASH-MERGED @`5d1a30ac7` (develop advanced ef996a4c0→5d1a30ac7). BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED: passes 8/9/10 on frozen HEAD 386df43c5, zero findings any severity. HS-014 PASS (test-double only; NOT live-xDome verified — D-2109). pr-reviewer: APPROVE (3 non-blocking nits). CI: 47/47 SUCCESS. workspace_test_count: 5700→5703. **GOVERNING DECISION D-2109 (human-directed):** DTU-vs-real-xDome drift DEFERRED — DO NOT mint as adversary/holdout findings; DTUs MUST NOT be reconciled to real without human authorization. **RESUME NEXT-ACTION:** dispatch the LIVE-xDome validation run (real xDome API, not DTU) — D-2109 DTU-parity-≠-live caveat is the reason this is the gating pre-ship step.
 
-**(2) Stage 1 OCSF coercion — S-ADR058-OCSF-COERCION-001 v1.1 (draft).** BC-2.16.003 v1.4: String-type-first coercion rule; EC-016-013-001..012 edge case catalog; CoercionWarning observability defect flag; KNOWN GAP annotations. Story authored (6 ACs; 7 RGTs; density 1.17; P1; 5 pts; wave: claroty-live; tdd_mode: strict; depends_on: []; blocks: [S-ADR058-OCSF-ROUTING-001]; BCs: [BC-2.16.003, BC-2.02.011]). OPEN OBLIGATION: BC-2.16.002 AC-006 MUST add `column_coercion_failure` emission — anchored to S-ADR058-OCSF-COERCION-001 AC-006 per D-2104. WIRING GAP: `ColumnMapper::map_record` has zero non-test callers — must be wired in Stage 1 implementer burst. NEXT: remove-uncertainty (D-1110) → test-writer → implementer TDD.
-
-**(3) ADR-058 Stage 2 — S-ADR058-OCSF-ROUTING-001 v1.2 (draft).** Story authored (8 ACs; 10 RGTs; density 1.25; P1; 8 pts; wave: claroty-live; tdd_mode: strict; depends_on: [S-ADR058-OCSF-COERCION-001]; blocks: [S-ADR058-DTU-PARITY-MIGRATION-001]; BCs: [BC-2.16.003, BC-2.01.013]). ADR-058 v2.1 §J FORBIDDEN rule codified. §J3: A≠B self-match exclusion is load-bearing. S-ADR058-DTU-PARITY-MIGRATION-001 depends_on now [S-ADR058-OCSF-ROUTING-001] (D-2104 corrected). NEXT: remove-uncertainty (D-1110) → test-writer → implementer TDD (blocked on S-ADR058-OCSF-COERCION-001).
+**(2) ADR-058 Stage 1/2 — S-ADR058-OCSF-COERCION-001 v1.1 + S-ADR058-OCSF-ROUTING-001 v1.2 (both draft).** Stage 1: BC-2.16.003 v1.4 String-type-first coercion rule; 6 ACs; 7 RGTs; density 1.17; P1; 5 pts; wave: claroty-live; tdd_mode: strict; depends_on: []; blocks: [S-ADR058-OCSF-ROUTING-001]; BCs: [BC-2.16.003, BC-2.02.011]. Stage 2: 8 ACs; 10 RGTs; density 1.25; P1; 8 pts; wave: claroty-live; tdd_mode: strict; depends_on: [S-ADR058-OCSF-COERCION-001]; blocks: [S-ADR058-DTU-PARITY-MIGRATION-001]. OPEN OBLIGATION: BC-2.16.002 AC-006 MUST add `column_coercion_failure` emission — anchored to S-ADR058-OCSF-COERCION-001 AC-006 per D-2104. WIRING GAP: `ColumnMapper::map_record` has zero non-test callers — must be wired in Stage 1 implementer burst. **RESUME NEXT-ACTION:** a SECOND remove-uncertainty pass (D-1110 pre-TDD requirement) on both stories, then test-writer→implementer TDD (when scheduled after LIVE-xDome validation).
 
 **(4) New DTU/harness stories.** S-DEMO-CLAROTY-DAR-001 (draft v1.3; 7 ACs; P1; closes DTU-EXT-006; RG-table fully reconciled to 4 delivered test symbols) and S-DEMO-CLAROTY-HARNESS-DAR-001 (draft v1.0; 5 ACs; P1). NEXT: test-writer → implementer for S-DEMO-CLAROTY-DAR-001 (PR #236 MERGED; unblocked).
 
@@ -755,7 +753,7 @@ THE BOTTLENECK IS THE CONVERGENCE GATE, not the defect work. ADR-053 ratified EF
 **DTU DEFERRAL STATUS (updated D-2103):**
 Claroty DTU anchor story now exists: **S-DEMO-CLAROTY-DAR-001** (draft v1.3; closes DTU-EXT-006; covers device_alert_relations DTU route). Armis DTU anchor: S-WAVE-A-ARMIS-REMEDIATION-001 (unchanged). Both deferrals now have defensible Rule-3 anchors.
 
-**HUMAN DECISIONS RECORDED (D-2056 through D-2109):**
+**HUMAN DECISIONS RECORDED (D-2056 through D-2110):**
 - **(f) APPROVED — Rule freeze until 3-CLEAN.** (D-2056; applies to broad Wave-A spec cascade; see (k) for sensor-TOML carve-out.)
 - **(g) RESOLVED — 12 phantom dispositions, ZERO de-registrations.** (D-2056)
 - **(h) ADOPTED — File-enumeration basis.** (D-2056)
@@ -767,6 +765,7 @@ Claroty DTU anchor story now exists: **S-DEMO-CLAROTY-DAR-001** (draft v1.3; clo
 - **(o) APPROVED — Interpretation A: ocsf_field paths as Arrow field names for v1.** ADR-058 v2.1 ratified. (D-2102/D-2104)
 - **(p) APPROVED — spec-amendment-to-match-code inversion for Claroty live-API field mappings.** CLAUDE.md §Source-of-Truth Precedence rule 7: code wins for Claroty sensor TOML field names (device_name→device.name; audit_log URL trailing-slash). Downstream spec artifacts updated to match. (D-2105)
 - **(q) GOVERNING DECISION — DTU-vs-real-xDome drift DEFERRED.** Priority is live xDome for ship; DTU reconciliation postponed. Three normative consequences: (1) DTU-vs-real drift MUST NOT be minted as adversary/holdout findings; (2) deferred DTUs MUST NOT be fixed to match real without explicit human authorization; (3) HS-014 PASS is test-double only, NOT live-xDome verification. (D-2109)
+- **(r) RESOLVED — Perplexity + Tavily API keys rotated.** User rotated both keys in `/Users/jmagady/Dev/test-soc/.mcp.json`. SECURITY-URGENT item closed. (D-2110)
 
 **OPEN FINDINGS LEDGER (42 cumulative; FINDING-R + OBS-009 CLOSED; full per-finding routing in D-2100 checkpoint archived to session-checkpoints.md):**
 Pass-72 open (9): HIGH-003 (S-MAINT-ADR-ANCHOR-GATE-001 phantom dir → story-writer); MED-003 (E-SPEC-029 present-tense → product-owner); MED-004 (S-WAVE-A-ARMIS-ACTIVITY-001 dev-001 literal → story-writer); LOW-001 (SAC-1 waiver → story-writer); LOW-002 (T-IMPL-04(b) constructor count → story-writer/product-owner); OBS-001/002/003 (product-owner/story-writer/architect).
@@ -794,7 +793,7 @@ D-2062: commit each burst before dispatching the next. D-2063: do not assert com
 **GATE-L10LEADING-PIN-BLIND-003 (D-2065):** Leading-pin gate false-passes when stale leading pin coexists with current trailing mention. Hand-verify leading pins on any BC-INDEX row with multiple version mentions.
 
 **PENDING USER-APPROVED WORK — do not start:**
-- **SECURITY (URGENT): Rotate Perplexity + Tavily API keys** — `/Users/jmagady/Dev/test-soc/.mcp.json` contains live API keys in plaintext that entered a subagent context. Both must be rotated immediately. Extend `protect-secrets` hook pattern list to match `.mcp.json`.
+- ~~**SECURITY (URGENT): Rotate Perplexity + Tavily API keys**~~ — **RESOLVED D-2110:** User rotated both Perplexity + Tavily API keys in `/Users/jmagady/Dev/test-soc/.mcp.json`. Follow-up candidate (non-urgent; do NOT action without orchestrator dispatch): extend `protect-secrets` hook pattern list to match `.mcp.json` so a future paste cannot recur.
 - `## Authority` corpus backfill → story-writer (108 stories remain; DEFERRED) — **HUMAN AUTHORIZED (D-2084)**; POL-39-compliant exemplar required; writers must report cited ADR `status:` verbatim.
 - 15-ADR `anchor_stories` sweep → architect — **HUMAN AUTHORIZED (D-2084); BLOCKED** on corpus backfill.
 - (b) GAP-ASSETS-PAG-001 — awaiting human authorization.
@@ -805,21 +804,19 @@ D-2062: commit each burst before dispatching the next. D-2063: do not assert com
 - Claroty DTU anchor story (`S-WAVE-A-CLAROTY-REMEDIATION-001`) — story-writer; do NOT start without orchestrator dispatch.
 - OPEN RECOMMENDATION TO HUMAN: mechanical POL-29 9a gate — NOT scheduled.
 - ip_list→device.ip grammar extension (array→ocsf_field, ENRICH-1 scope) — needs story-writer to author story; cross-sensor WHERE device.ip won't include Claroty until resolved. Do NOT start without orchestrator dispatch.
-- **FOLLOW-UP CANDIDATES (D-2109 carry-forward; do NOT action without orchestrator dispatch):** (a) parity_claroty Red Gate — S-6.08 coverage gap observed; (b) prism query CLI stub exits 4 (observed post-merge; investigate before next story); (c) 3 pr-reviewer nits from PR #236 (non-blocking; reviewer APPROVE; nit text NOT surfaced per contamination control); (d) ADR-058 Stage 1 (S-ADR058-OCSF-COERCION-001) + Stage 2 (S-ADR058-OCSF-ROUTING-001) still awaiting TDD — unblocked by PR #236 merge.
+- **FOLLOW-UP CANDIDATES (D-2109/D-2110 carry-forward; do NOT action without orchestrator dispatch):** (a) LIVE-xDome validation run — gating pre-ship step per D-2109 DTU-parity ≠ live caveat; (b) parity_claroty Red Gate — S-6.08 coverage gap observed; (c) prism query CLI stub exits 4 (observed post-merge; investigate before next story); (d) 3 pr-reviewer nits from PR #236 (non-blocking; reviewer APPROVE; nit text NOT surfaced per contamination control); (e) ADR-058 Stage 1 (S-ADR058-OCSF-COERCION-001) + Stage 2 (S-ADR058-OCSF-ROUTING-001) still awaiting TDD — unblocked by PR #236 merge; (f) protect-secrets hook `.mcp.json` pattern extension (non-urgent).
 
 **SPEC PERIMETER (post-D-2109; PR #236 merged @5d1a30ac7; BC-2.02.005 v1.7 + BC-2.16.013 v1.37 + BC-2.16.003 v1.4 + BC-2.06.019 v1.18 all ACTIVE; BC-INDEX v8.97):** BC-2.16.009 **v1.30** / ADR-053 **v0.40** / BC-2.16.013 **v1.37** / BC-2.16.003 **v1.4** / error-taxonomy **v2.71** / BC-2.16.008 v1.6 / BC-2.16.014 v1.19 / VP-159 **v1.27** / ADR-054 **v0.57** / BC-2.01.018 **v1.7** / BC-2.01.008 **v1.8** / BC-2.01.006 **v1.9** / BC-2.02.004 **v1.14** / BC-2.02.005 **v1.7** / BC-2.02.006 **v1.18** / BC-2.02.014 **v2.1** (draft) / BC-2.16.002 **v2.13** / BC-2.06.019 **v1.18** / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 **v1.30** / VP-160 **v1.3** / VP-161 **v1.3** / verification-architecture **v1.48** / ADR-051 **v1.8** / ADR-052 **v1.19** / ADR-055 **v1.3** (accepted) / ADR-056 **v0.5** (accepted) / ADR-057 **v1.4** (accepted) / ADR-058 **v2.1** (accepted) / ADR-031 **v1.10** (accepted) / ADR-033 **v1.1** (accepted) / architecture-concept.md **v1.2** / capabilities.md **v1.19**. Stories: S-WAVE-A-ENGINE-001 **v3.0** (28 ACs / 40 RGTs); S-WAVE-A-MCP-001 **v1.5**; S-WAVE-A-CYBERINT-PATCH-001 **v1.4**; S-WAVE-A-ARMIS-REMEDIATION-001 **v1.5**; S-ADR054-WAVE-A-001 **v1.5** (10 ACs / 24 RGTs); S-ADR055-WAVE-A-001 **v1.3** (11 RGTs); S-WAVE-A-CYBERINT-SPEC-001 **v1.8** (10 ACs / 20 RGTs); S-WAVE-A-ARMIS-ACTIVITY-001 **v2.1** (9 ACs ready); S-WAVE-A-ARMIS-SPEC-001 **v1.9** (15 ACs / 15 RGTs); S-REQUIRED-COL-GATE-001 **v1.1** (draft); S-MAINT-L11-GATE-001 **v1.1** (draft); S-MAINT-ADR-ANCHOR-GATE-001 **v0.1** (draft); S-MAINT-DISPATCH-BRIEF-POINTER-001 **v1.0** (draft); S-DEMO-CLAROTY-DAR-001 **v1.3** (draft); S-DEMO-CLAROTY-HARNESS-DAR-001 **v1.0** (draft); S-ADR058-OCSF-COERCION-001 **v1.1** (draft); S-ADR058-OCSF-ROUTING-001 **v1.2** (draft); S-ADR058-DTU-PARITY-MIGRATION-001 **v1.0** (draft). Indexes: BC-INDEX **v8.97** / VP-INDEX **v2.22** / ARCH-INDEX **v2.299** / STORY-INDEX **v2.778** (total_stories 296).
 
-**HEADS (D-2109):**
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2109 commit).
-- `origin/develop`: `5d1a30ac7` — PR #236 SQUASH-MERGED.
+**HEADS (D-2110):**
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2110 commit).
+- `origin/develop`: `5d1a30ac7` — PR #236 SQUASH-MERGED; local develop in sync.
 - `fix/claroty-live-api-fidelity`: MERGED @`5d1a30ac7` (branch deleted).
-- Main worktree: develop @`5d1a30ac7` (fast-forwarded before D-2109 burst).
-- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK).
-- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK; 1 dirty file).
-- `.worktrees/FINDING-R` — removed (devops-engineer cleanup; PR #234 was merged).
-- `.worktrees/CLAROTY-LIVE` — removed (devops-engineer cleanup; PR #236 was merged).
-- verify-sha-currency.sh: PASS (post-D-2109 commit).
+- Main worktree: develop @`5d1a30ac7`.
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed).
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, 1 dirty file).
+- verify-sha-currency.sh: PASS (post-D-2110 commit).
 
-**BACKUP BOUNDARY (D-2109):**
-- PUSHED / safe: factory-artifacts (this D-2109 commit — run `git -C .factory log -1 --format='%H'`); origin/develop `5d1a30ac7` (PR #236 squash-merged).
-- LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty).
+**BACKUP BOUNDARY (D-2110):**
+- PUSHED / safe: factory-artifacts (this D-2110 commit — run `git -C .factory log -1 --format='%H'`); origin/develop `5d1a30ac7` (PR #236 squash-merged).
+- LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).
