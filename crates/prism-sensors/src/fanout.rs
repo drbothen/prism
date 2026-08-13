@@ -430,6 +430,25 @@ pub async fn fan_out(
     // BC-2.01.010: all targets failed → Err(AllTargetsFailed)
     if result.successes.is_empty() && !result.errors.is_empty() {
         let count = result.errors.len();
+
+        // BC-2.01.010 AllTargetsFailed Per-Target Logging postcondition +
+        // BC-2.16.002 Canonical Structured Event Catalog row 91 (DEFECT-ADAPTER-TLS-XDOME-LIVE-001):
+        // Emit one fan_out_target_failed WARN per failed target before returning AllTargetsFailed.
+        // The AllTargetsFailed Display (E-SENSOR-030) remains count-only per BC-2.10.007 Rule 1.
+        // AD-017: `error` field uses the FanOutError Display — MUST NOT include credential values.
+        #[allow(deprecated)] // client_id field is deprecated; org_id is the canonical field
+        for err in &result.errors {
+            tracing::warn!(
+                event_type = "fan_out_target_failed",
+                org_id = %err.org_id,
+                sensor_id = %err.sensor_id,
+                attempts = err.retry_metadata.attempts,
+                is_transient = err.retry_metadata.is_transient,
+                error = %err,
+                "fan-out target failed"
+            );
+        }
+
         return Err(SensorError::AllTargetsFailed {
             count,
             errors: result.errors,

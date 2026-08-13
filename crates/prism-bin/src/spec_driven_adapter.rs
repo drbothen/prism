@@ -731,6 +731,24 @@ fn map_spec_engine_error_to_sensor_error(
     sensor_id: &str,
     table_name: &str,
 ) -> SensorError {
+    // BC-2.08.002 HTTP Error Classification postcondition (DEFECT-ADAPTER-TLS-XDOME-LIVE-001):
+    // HttpRequestFailed { status_code > 0 } = HTTP response received → HttpError.
+    // HttpRequestFailed { status_code = 0 } = transport failure (no HTTP response) → Internal.
+    // All other SpecEngineError variants → Internal.
+    if let SpecEngineError::HttpRequestFailed {
+        status_code,
+        ref detail,
+        ..
+    } = e
+        && status_code > 0
+    {
+        return SensorError::HttpError {
+            sensor: sensor_id.to_string(),
+            status: status_code,
+            body: detail.clone(),
+        };
+    }
+    // status_code = 0 (transport error) and all other SpecEngineError variants → Internal.
     // SpecEngineError::Display for AuthRefreshFailed starts with "E-AUTH-002: auth refresh failed..."
     // No special-casing needed: the Display impl preserves the taxonomy code.
     SensorError::Internal {
@@ -1227,6 +1245,9 @@ pub(crate) fn build_http_client_with_custom_timeout(
     timeout: Duration,
 ) -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
+        // ADR-050 §D6: all sensor/plugin outbound clients MUST set User-Agent.
+        // concat! produces a &'static str with zero allocation at runtime.
+        .user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))
         .timeout(timeout)
         .build()
         .map_err(|e| {

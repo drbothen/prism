@@ -283,28 +283,31 @@ async fn test_sensor_health_wire_shape_403_reachable_auth_invalid() {
 }
 
 // ---------------------------------------------------------------------------
-// RG-008 — reqwest http2 feature must not be enabled (regression guard)
+// RG-008 — reqwest http2 feature MUST be active on the reqwest node (AC-H2-001)
 // ---------------------------------------------------------------------------
 
-/// RG-008: The `reqwest` dependency in `Cargo.lock` MUST NOT list `h2` as a
-/// direct dependency (which would indicate the `http2` feature is enabled).
+/// RG-008: The `reqwest` dependency in `Cargo.lock` MUST list `h2` as a
+/// direct dependency of the `reqwest` package — confirming the `http2`
+/// feature is active on the reqwest node (ADR-050 §D5).
 ///
-/// This is GREEN-BY-DESIGN today (reqwest does not have h2 as a direct dep
-/// in the workspace Cargo.lock). It serves as a regression guard: if someone
-/// adds `features = ["http2"]` to a reqwest entry, h2 would appear in
-/// reqwest's Cargo.lock block and this test would fail.
+/// Scope: checks ONLY the `[[package]] name = "reqwest"` block —
+/// NOT the whole file (h2 is already present transitively via hyper 1.x,
+/// so a whole-file grep would be GREEN before this fix, which is invalid).
 ///
-/// Rationale: enabling HTTP/2 via reqwest:
-/// - Reintroduces the h2/hyper TLS complexity that caused xDome live failures
-/// - Requires TLS configuration changes that conflict with rustls-tls + rustls-tls-webpki
-/// - Adds ~65s macOS Keychain init overhead on some platforms (ADR-050 D2)
+/// RED before fix: `"http2"` not yet in any production reqwest Cargo.toml
+/// entry → `h2` absent from reqwest's own Cargo.lock block → assertion fails.
 ///
-/// Scope: checks ONLY the `[[package]] name = "reqwest"` Cargo.lock block —
-/// NOT the whole file (h2 is present transitively via hyper, which is correct).
+/// GREEN after fix: `"http2"` added to all four production reqwest entries in
+/// prism-spec-engine, prism-sensors, prism-bin (two entries) → Cargo resolves
+/// h2 as a direct dep of reqwest → `h2` appears in reqwest block → passes.
 ///
-/// BC-2.16.014 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-008 (GREEN-BY-DESIGN regression guard)
+/// This replaces the inverted `test_reqwest_http2_not_enabled` (was
+/// GREEN-by-design before adding http2) with the correct RED-then-GREEN gate.
+///
+/// AC-H2-001 | BC-2.16.002 HTTP Client Compliance (ADR-050 §D5) |
+/// DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-008
 #[test]
-fn test_reqwest_http2_not_enabled() {
+fn test_reqwest_http2_feature_active() {
     // Cargo.lock lives at the workspace root, two levels above prism-bin's Cargo.toml.
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let cargo_lock_path = std::path::PathBuf::from(manifest_dir)
@@ -330,20 +333,20 @@ fn test_reqwest_http2_not_enabled() {
             panic!("RG-008: could not find [[package]] block for 'reqwest' in Cargo.lock")
         });
 
-    // The reqwest block must NOT contain "h2" in its dependencies list.
-    //
-    // If http2 were enabled, the block would contain a line like:
+    // The reqwest block MUST contain "h2" in its dependencies list.
+    // When the http2 feature is active, the block includes a line like:
     //   "h2 0.4.N (registry+...)",
-    // Check for both quoted and unquoted forms.
+    // (currently absent from reqwest's block — h2 is only under hyper's block).
     let has_h2_direct_dep = reqwest_block.contains("\"h2 ") || reqwest_block.contains(" \"h2\"");
 
     assert!(
-        !has_h2_direct_dep,
-        "RG-008 (regression guard): reqwest Cargo.lock block MUST NOT list h2 as a direct \
-         dependency. This indicates the http2 feature is enabled somewhere in the workspace. \
-         That conflicts with ADR-050 (rustls-tls only) and reintroduces the TLS fragility \
-         that caused xDome live failures (DEFECT-ADAPTER-TLS-XDOME-LIVE-001). \
-         Search all Cargo.toml files for 'http2' in reqwest features and remove it. \
+        has_h2_direct_dep,
+        "RG-008 (AC-H2-001): reqwest Cargo.lock block MUST list h2 as a direct dependency \
+         to confirm the `http2` feature is active on the reqwest node (ADR-050 §D5). \
+         Fix: add \"http2\" to the `features` list in ALL FOUR production reqwest \
+         [dependencies] entries: prism-spec-engine/Cargo.toml, prism-sensors/Cargo.toml, \
+         prism-bin/Cargo.toml (two entries). Keep `default-features = false` and \
+         `rustls-tls` (ADR-050 D1/D2 — native-tls stays forbidden). \
          Reqwest block contents:\n{reqwest_block}"
     );
 }

@@ -753,6 +753,33 @@ impl PipelineExecutor {
 // Private helpers
 // ---------------------------------------------------------------------------
 
+/// Best-effort read of a non-2xx response body for diagnostic inclusion in
+/// `SpecEngineError::HttpRequestFailed.detail`.
+///
+/// BC-2.16.002 Non-2xx Response Body Capture postcondition:
+/// - Caps body at 256 bytes to prevent prompt injection / log flooding.
+/// - Strips ASCII control characters (bytes < 0x20 except printable whitespace).
+/// - Returns an empty string on any body-read failure — the primary status-code
+///   error MUST NOT be replaced by a secondary body-read failure.
+async fn read_non_2xx_body(response: reqwest::Response) -> String {
+    let bytes = match response.bytes().await {
+        Ok(b) => b,
+        Err(_) => return String::new(),
+    };
+    let capped: &[u8] = if bytes.len() > 256 {
+        &bytes[..256]
+    } else {
+        &bytes
+    };
+    // Strip control characters (< 0x20) except printable ASCII whitespace (0x09, 0x0A, 0x0D).
+    let sanitized: String = capped
+        .iter()
+        .filter(|&&b| b >= 0x20 || b == b'\t' || b == b'\n' || b == b'\r')
+        .map(|&b| b as char)
+        .collect();
+    sanitized.trim().to_string()
+}
+
 /// Issue one HTTP request, with a single 401-retry via `auth_provider` (AC-5).
 ///
 /// Takes `current_token` by value (consumed) and returns `(body, token)` so the
@@ -800,7 +827,17 @@ async fn issue_request_with_retry(
         sensor_id: spec.sensor_id.clone(),
         step_name: step.name.clone(),
         status_code: 0,
-        detail: e.to_string(),
+        // BC-2.16.002 Send-Failure Error Source Chain postcondition:
+        // Include the reqwest error source chain (hyper/h2/TLS-level cause) that
+        // e.to_string() omits. EC-008: source() returns None for simple errors,
+        // so .unwrap_or_default() produces "" (no "; caused by:" suffix).
+        detail: format!(
+            "{}{}",
+            e,
+            std::error::Error::source(&e)
+                .map(|s| format!("; caused by: {s}"))
+                .unwrap_or_default()
+        ),
     })?;
     *request_count += 1;
 
@@ -890,7 +927,15 @@ async fn issue_request_with_retry(
             sensor_id: spec.sensor_id.clone(),
             step_name: step.name.clone(),
             status_code: 0,
-            detail: e.to_string(),
+            // BC-2.16.002 Send-Failure Error Source Chain postcondition (401-retry send):
+            // Include the reqwest error source chain (hyper/h2/TLS-level cause).
+            detail: format!(
+                "{}{}",
+                e,
+                std::error::Error::source(&e)
+                    .map(|s| format!("; caused by: {s}"))
+                    .unwrap_or_default()
+            ),
         })?;
         *request_count += 1;
 
@@ -912,11 +957,20 @@ async fn issue_request_with_retry(
         }
 
         if !retry_status.is_success() {
+            // BC-2.16.002 Non-2xx Response Body Capture postcondition:
+            // Best-effort read of response body; cap to 256 bytes; strip control chars.
+            // A secondary body-read failure MUST NOT replace the primary status-code error.
+            let body_snippet = read_non_2xx_body(retry_response).await;
+            let detail = if body_snippet.is_empty() {
+                format!("HTTP {retry_status}")
+            } else {
+                format!("HTTP {retry_status}: {body_snippet}")
+            };
             return Err(SpecEngineError::HttpRequestFailed {
                 sensor_id: spec.sensor_id.clone(),
                 step_name: step.name.clone(),
                 status_code: retry_status.as_u16(),
-                detail: format!("HTTP {retry_status}"),
+                detail,
             });
         }
 
@@ -934,11 +988,20 @@ async fn issue_request_with_retry(
     }
 
     if !status.is_success() {
+        // BC-2.16.002 Non-2xx Response Body Capture postcondition:
+        // Best-effort read of response body; cap to 256 bytes; strip control chars.
+        // A secondary body-read failure MUST NOT replace the primary status-code error.
+        let body_snippet = read_non_2xx_body(response).await;
+        let detail = if body_snippet.is_empty() {
+            format!("HTTP {status}")
+        } else {
+            format!("HTTP {status}: {body_snippet}")
+        };
         return Err(SpecEngineError::HttpRequestFailed {
             sensor_id: spec.sensor_id.clone(),
             step_name: step.name.clone(),
             status_code: status.as_u16(),
-            detail: format!("HTTP {status}"),
+            detail,
         });
     }
 
