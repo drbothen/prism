@@ -2977,7 +2977,7 @@ async fn test_BC_2_16_002_rg009_send_failure_includes_source_chain() {
 ///
 /// Before the fix, `read_non_2xx_body` used `b as char` (Latin-1 cast) and only
 /// filtered bytes `< 0x20` while KEEPING `\t`/`\n`/`\r`. After the fix, all
-/// control chars are replaced with space via `prism_core::sanitize_body_snippet`.
+/// control chars are replaced with space via `prism_core::sanitize_body_snippet_bytes`.
 ///
 /// The test verifies:
 /// 1. `\n`, `\r`, DEL (0x7F), and a C1 byte (0x85 = U+0085 NEL) are replaced by space.
