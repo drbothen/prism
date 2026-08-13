@@ -6,7 +6,7 @@ wave: "C"
 epic_id: engine-defects
 priority: P1
 status: ready
-version: "1.3"
+version: "1.4"
 severity: CRIT
 level: engine
 producer: story-writer
@@ -16,7 +16,7 @@ holdout_scenarios: [HS-TLS-XDOME-001, HS-TLS-XDOME-002, HS-TLS-XDOME-003]
 inputs:
   - .factory/planning/findings-remediation-2026-07-20/xdome-transport-hardening-design.md
   - .factory/planning/findings-remediation-2026-07-20/triage-capture.md
-input-hash: "ec06bef"
+input-hash: "152e43e"
 traces_to: []
 origin_finding: "F10 (D-1889 triage 2026-07-20) + F9 (D-1889); bundled per §5 Bundling Verdict in design doc"
 cycle: "v1.0.0-greenfield"
@@ -41,21 +41,21 @@ behavioral_contracts:
   - BC-2.01.013
   - BC-2.16.014
 # BC status (as of 2026-08-13 amendments, v1.2):
-#   BC-2.16.002 (Multi-Step Fetch Pipeline Execution): v2.15, status: active
+#   BC-2.16.002 (Multi-Step Fetch Pipeline Execution): v2.17, status: active
 #     New §Postconditions added: HTTP Client Compliance (ADR-050 §D5/§D6), Send-Failure
 #     Error Source Chain, Non-2xx Response Body Capture, AllTargetsFailed Per-Target
 #     Logging. New catalog row 91: fan_out_target_failed WARN. Scope extended to include
 #     prism-sensors/src/fanout.rs. Catalog updated v1.64 (send-failure integration test
 #     coverage RG-009 in fix-burst pass-1).
-#   BC-2.08.002 (Auth Validity Check): v1.5, status: active
+#   BC-2.08.002 (Auth Validity Check): v1.6, status: active
 #     New §Postconditions: HTTP Error Classification postcondition for
 #     map_spec_engine_error_to_sensor_error. EC-08-006 added: HTTP 4xx → auth_valid: false
 #     (previously incorrectly resolved to ConnectivityStatus::Down via Internal catch-all).
 #     v1.5: AuthRefreshFailed and CookieAuthFailed variants added to HTTP Error
 #     Classification postcondition scope (fix-burst pass-1).
-#   BC-2.01.010 (Partial Failure Handling): v1.5, status: draft, lifecycle_status: active
+#   BC-2.01.010 (Partial Failure Handling): v1.6, status: draft, lifecycle_status: active
 #     AllTargetsFailed Per-Target Logging postcondition added.
-#   BC-2.01.013 (Persistent Auth Failure — End-to-End Alignment): v1.17, status: active
+#   BC-2.01.013 (DataSource Trait Eliminates Per-Sensor Code Duplication): v1.17, status: active
 #     EC-01-029: AuthRefreshFailed / CookieAuthFailed persistent-auth-failure variants
 #     must map to SensorError::HttpError { status: 401 } end-to-end (fix-burst pass-1).
 #   BC-2.16.014 (Declarative Auth Acquisition Token Lifecycle): v1.20, status: draft
@@ -119,17 +119,17 @@ risk_mitigations:
 
 ## Authority
 
-This story is governed by ADR-050 v2.1 and the five behavioral contracts below.
+This story is governed by ADR-050 v2.2 and the five behavioral contracts below.
 Read ADR-050 §D5 and §D6 in full before implementing:
 `.factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md`
 
 | Artifact | Version / Status | Relevant Clause |
 |----------|-----------------|-----------------|
-| ADR-050 (Workspace reqwest TLS Backend) | v2.1 · ACCEPTED | §D5: `http2` feature MUST be in production `[dependencies]` reqwest entries for prism-spec-engine, prism-sensors, prism-bin. §D6 (v2.1 extended scope): ALL outbound third-party HTTP client builders MUST call `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))` — includes sensor/plugin outbound builders AND `build_http_client_with_timeout` in prism-spec-engine/src/pipeline.rs (infusion `HttpLookupSource` factory; added v2.1 via sibling-sweep OBS-4). §D1/§D2: rustls-tls mandatory; native-tls and aliases FORBIDDEN. |
-| BC-2.16.002 (Multi-Step Fetch Pipeline Execution) | v2.15 · active | §Postconditions: HTTP Client Compliance; Send-Failure Error Source Chain; Non-2xx Response Body Capture; AllTargetsFailed Per-Target Logging. §Canonical Structured Event Catalog row 91: `fan_out_target_failed` WARN. |
-| BC-2.08.002 (Auth Validity Check Per Sensor Per Client) | v1.5 · active | §Postconditions: HTTP Error Classification postcondition — `map_spec_engine_error_to_sensor_error` MUST map `SpecEngineError::HttpRequestFailed { status_code > 0 }` (including `AuthRefreshFailed` and `CookieAuthFailed` 401 variants) to `SensorError::HttpError`. EC-08-006: HTTP 4xx sensor response → `auth_valid: false` (not Down). |
-| BC-2.01.010 (Partial Failure Handling) | v1.5 · draft | §Postconditions: AllTargetsFailed Per-Target Logging — each `FanOutError` MUST be logged at WARN before `AllTargetsFailed` propagates. |
-| BC-2.01.013 (Persistent Auth Failure — End-to-End Alignment) | v1.17 · active | EC-01-029: `AuthRefreshFailed` and `CookieAuthFailed` persistent-auth-failure variants MUST map to `SensorError::HttpError { status: 401 }` end-to-end, producing `auth_valid: false` at the health probe surface. |
+| ADR-050 (Workspace reqwest TLS Backend) | v2.2 · ACCEPTED | §D5: `http2` feature MUST be in production `[dependencies]` reqwest entries for prism-spec-engine, prism-sensors, prism-bin. §D6 (v2.1 extended scope): ALL outbound third-party HTTP client builders MUST call `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))` — includes sensor/plugin outbound builders AND `build_http_client_with_timeout` in prism-spec-engine/src/pipeline.rs (infusion `HttpLookupSource` factory; added v2.1 via sibling-sweep OBS-4). §D1/§D2: rustls-tls mandatory; native-tls and aliases FORBIDDEN. |
+| BC-2.16.002 (Multi-Step Fetch Pipeline Execution) | v2.17 · active | §Postconditions: HTTP Client Compliance; Send-Failure Error Source Chain; Non-2xx Response Body Capture; AllTargetsFailed Per-Target Logging. §Canonical Structured Event Catalog row 91: `fan_out_target_failed` WARN. |
+| BC-2.08.002 (Auth Validity Check Per Sensor Per Client) | v1.6 · active | §Postconditions: HTTP Error Classification postcondition — `map_spec_engine_error_to_sensor_error` MUST map `SpecEngineError::HttpRequestFailed { status_code > 0 }` (including `AuthRefreshFailed` and `CookieAuthFailed` 401 variants) to `SensorError::HttpError`. EC-08-006: HTTP 4xx sensor response → `auth_valid: false` (not Down). |
+| BC-2.01.010 (Partial Failure Handling) | v1.6 · draft | §Postconditions: AllTargetsFailed Per-Target Logging — each `FanOutError` MUST be logged at WARN before `AllTargetsFailed` propagates. |
+| BC-2.01.013 (DataSource Trait Eliminates Per-Sensor Code Duplication) | v1.17 · active | Scope — EC-01-029: `AuthRefreshFailed` and `CookieAuthFailed` persistent-auth-failure variants MUST map to `SensorError::HttpError { status: 401 }` end-to-end, producing `auth_valid: false` at the health probe surface. |
 | BC-2.16.014 (Declarative Auth Acquisition Token Lifecycle) | v1.20 · draft | INV-014-007 ADR-050 §D5/§D6 note: `DeclarativeHttpAuthProvider` inherits User-Agent and http2 automatically via `build_http_client_with_custom_timeout` delegation. No separate implementation required for this BC in this story. |
 
 **Bundling rationale:** F9 (error surfacing) and F10 (transport) are bundled into this story per §5 Bundling Verdict in the design doc (`xdome-transport-hardening-design.md`). `DEFECT-SENSOR-ERROR-FLATTEN-001` is superseded by this story and closed.
@@ -151,10 +151,10 @@ raw error logs or deploy a relay.
 
 | BC | Title | Version | Scope in This Story |
 |----|-------|---------|---------------------|
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | v2.15 | HTTP Client Compliance postcondition (ADR-050 §D5/§D6); Send-Failure Error Source Chain postcondition; Non-2xx Response Body Capture postcondition; AllTargetsFailed Per-Target Logging postcondition; Canonical Structured Event Catalog row 91 (`fan_out_target_failed`). |
-| BC-2.08.002 | Auth Validity Check Per Sensor Per Client | v1.5 | HTTP Error Classification postcondition: `map_spec_engine_error_to_sensor_error` guard — `status_code > 0` → `SensorError::HttpError`; `status_code = 0` → `SensorError::Internal`. EC-08-006: HTTP 4xx → `auth_valid: false` (not Down). `AuthRefreshFailed` and `CookieAuthFailed` 401 variants included in scope (fix-burst pass-1). |
-| BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | v1.5 | AllTargetsFailed Per-Target Logging postcondition — each `FanOutError` WARN before propagation. |
-| BC-2.01.013 | Persistent Auth Failure — End-to-End Alignment | v1.17 | EC-01-029: `AuthRefreshFailed` / `CookieAuthFailed` persistent-auth-failure variants MUST map to `SensorError::HttpError { status: 401 }` end-to-end. Verified by RG-010 and RG-011 (fix-burst pass-1). |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | v2.17 | HTTP Client Compliance postcondition (ADR-050 §D5/§D6); Send-Failure Error Source Chain postcondition; Non-2xx Response Body Capture postcondition; AllTargetsFailed Per-Target Logging postcondition; Canonical Structured Event Catalog row 91 (`fan_out_target_failed`). |
+| BC-2.08.002 | Auth Validity Check Per Sensor Per Client | v1.6 | HTTP Error Classification postcondition: `map_spec_engine_error_to_sensor_error` guard — `status_code > 0` → `SensorError::HttpError`; `status_code = 0` → `SensorError::Internal`. EC-08-006: HTTP 4xx → `auth_valid: false` (not Down). `AuthRefreshFailed` and `CookieAuthFailed` 401 variants included in scope (fix-burst pass-1). |
+| BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | v1.6 | AllTargetsFailed Per-Target Logging postcondition — each `FanOutError` WARN before propagation. |
+| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.17 | Scope (EC-01-029): `AuthRefreshFailed` / `CookieAuthFailed` persistent-auth-failure variants MUST map to `SensorError::HttpError { status: 401 }` end-to-end. Verified by RG-010 and RG-011 (fix-burst pass-1). |
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | v1.20 | INV-014-007 note only: `DeclarativeHttpAuthProvider` inherits UA + http2 via `build_http_client_with_custom_timeout` delegation chain (ADR-050 §D6 propagation). No new code required for this BC beyond the `build_http_client_with_custom_timeout` change. |
 
 ---
@@ -164,7 +164,7 @@ raw error logs or deploy a relay.
 ### Group A — Transport Fix (F10)
 
 **AC-H2-001 — reqwest `http2` feature is active on the `reqwest` dependency node**
-After adding `"http2"` to the four production reqwest feature lists, the `http2`
+After adding `"http2"` to the three production `[dependencies]` reqwest feature lists, the `http2`
 feature is active on the `reqwest` node in the build graph and `h2` appears as a
 dependency of the `reqwest` package itself (reqwest 0.12.28's `http2` feature enables
 `dep:h2`). Verified via `cargo tree -e features -i reqwest` showing the `http2` feature
@@ -201,13 +201,15 @@ Verified by adversary sweep of `boot.rs` for `user_agent` presence at both build
 (traces to BC-2.16.002 HTTP Client Compliance postcondition: ADR-050 §D6 scope includes
 both PluginRuntime client builders in boot.rs)
 
-**AC-CARGO-001 — All four production reqwest entries include `"http2"`; `just check` passes**
-After editing the four production `[dependencies]` reqwest entries — `prism-spec-engine`,
-`prism-sensors`, and `prism-bin` (two entries: sensor adapter client entry and main dep
-entry) — each entry includes `"http2"` alongside `"rustls-tls"`. `just check` passes
-without new compilation errors. DTU `[dev-dependencies]` are NOT modified.
-(traces to BC-2.16.002 HTTP Client Compliance postcondition: ADR-050 §D5 names the four
-specific entries in the three crates)
+**AC-CARGO-001 — All three production reqwest entries include `"http2"`; `just check` passes**
+After editing the three production `[dependencies]` reqwest entries — `prism-spec-engine`,
+`prism-sensors`, and `prism-bin` (one production entry: the S-PLUGIN-PREREQ-D AC-9 shared
+client) — each entry includes `"http2"` alongside `"rustls-tls"`. `just check` passes
+without new compilation errors. `prism-bin`'s `[dev-dependencies]` reqwest entry (which
+carries `"http2"` already via Cargo feature-unification — harmless, not modified by this
+story) and DTU `[dev-dependencies]` are NOT modified.
+(traces to BC-2.16.002 HTTP Client Compliance postcondition: ADR-050 §D5 names the three
+specific production entries in the three crates)
 
 ### Group B — Error Surfacing (F9)
 
@@ -269,7 +271,7 @@ must be a JSON boolean `false`, not absent or `null`, when HTTP 4xx is received)
 ### Group D — SAP-1 Compliance
 
 **AC-SAP1-001 — `fan_out_target_failed` is registered in BC-2.16.002 Canonical Structured Event Catalog in the same commit as the `fanout.rs` implementation**
-The implementation commit that adds the `tracing::warn!(event_type = "fan_out_target_failed", ...)` call in `fanout()` in `crates/prism-sensors/src/fanout.rs` MUST include a corresponding row in BC-2.16.002 §Canonical Structured Event Catalog (or BC-2.01.010 §Postconditions if product-owner routes it there). The row is already present in BC-2.16.002 v2.15 (row 91 added by product-owner in v2.14, retained in v2.15). Adversary verifies via `rg 'event_type.*fan_out_target_failed' crates/` and cross-checks against the catalog.
+The implementation commit that adds the `tracing::warn!(event_type = "fan_out_target_failed", ...)` call in `fanout()` in `crates/prism-sensors/src/fanout.rs` MUST include a corresponding row in BC-2.16.002 §Canonical Structured Event Catalog (or BC-2.01.010 §Postconditions if product-owner routes it there). The row is already present in BC-2.16.002 v2.17 (row 91 added by product-owner in v2.14, retained through v2.17). Adversary verifies via `rg 'event_type.*fan_out_target_failed' crates/` and cross-checks against the catalog.
 (traces to BC-2.16.002 Canonical Structured Event Catalog (v1.63) row 91: `fan_out_target_failed`
 SAP-1 obligation; PG-LP11-001 requires catalog presence in same commit as emission site)
 
@@ -326,7 +328,7 @@ required; its presence as a load-bearing tool is retracted)
 **Acceptance criteria count:** 14 (AC-H2-001, AC-UA-001, AC-UA-002, AC-CARGO-001, AC-ERR-001..005, AC-WIRE-001, AC-SAP1-001, AC-LIVE-001..003)
 **Density:** 12 / 14 = 0.857 — PASSES (≥0.5 required by BC-5.38.001)
 
-Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check` build gate, not by standalone failing tests. AC-SAP1-001 is verified by adversary cross-check against BC-2.16.002 v2.15 catalog (catalog row already present; no additional failing test needed). AC-LIVE-001..003 are live-verification ACs verified by demo-recorder against the production binary; they do not correspond to Red Gate tests in the unit/integration sense.
+Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check` build gate, not by standalone failing tests. AC-SAP1-001 is verified by adversary cross-check against BC-2.16.002 v2.17 catalog (catalog row already present; no additional failing test needed). AC-LIVE-001..003 are live-verification ACs verified by demo-recorder against the production binary; they do not correspond to Red Gate tests in the unit/integration sense.
 
 **Fix-burst pass-1 additions (RG-009..RG-011):** RG-009 provides SAP-3 end-to-end integration coverage for AC-ERR-003 (send-failure source chain) from `crates/prism-spec-engine/tests/pipeline_http_integration.rs`; RG-003 remains as defense-in-depth unit test. RG-010 and RG-011 cover the persistent-auth-failure (`AuthRefreshFailed` / `CookieAuthFailed`) variants of AC-ERR-001 per BC-2.01.013 EC-01-029. A MED-1 body-snippet sanitization test (in `spec_driven_adapter.rs` inline tests) was also delivered in the fix-burst; it exercises the sanitize path of AC-ERR-003 / EC-003 and provides additional density beyond this count.
 
@@ -359,7 +361,7 @@ Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check
 - [ ] **T-A01** `crates/prism-spec-engine/Cargo.toml`: Add `"http2"` to `reqwest` features. Current features list: `["json", "rustls-tls", "gzip", "deflate", "brotli"]`. New: `["json", "rustls-tls", "http2", "gzip", "deflate", "brotli"]`.
 - [ ] **T-A02** `crates/prism-sensors/Cargo.toml`: Add `"http2"` to `reqwest` features. Current: `["json", "rustls-tls"]`. New: `["json", "rustls-tls", "http2"]`.
 - [ ] **T-A03** `crates/prism-bin/Cargo.toml` — sensor adapter entry (comment references S-PLUGIN-PREREQ-D AC-9): Add `"http2"` to `["rustls-tls"]`. New: `["rustls-tls", "http2"]`.
-- [ ] **T-A04** `crates/prism-bin/Cargo.toml` — main dep entry: Add `"http2"` to `["json", "rustls-tls"]`. New: `["json", "rustls-tls", "http2"]`.
+- [ ] **T-A04** `crates/prism-bin/Cargo.toml` — `[dev-dependencies]` reqwest entry: carries `"http2"` already via Cargo feature-unification (features include `"json"`, `"rustls-tls"`, `"http2"`); NO modification required by this story. Verify the entry still lists `"http2"` after T-A01..T-A03 edits (expected: already present).
 
 **T-B: User-Agent (spec_driven_adapter.rs)**
 - [ ] **T-B01** Symbol `build_http_client_with_custom_timeout` in `crates/prism-bin/src/spec_driven_adapter.rs`: Insert `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))` in the `reqwest::Client::builder()` chain before `.timeout(timeout)`. `concat!` produces a `&'static str`, zero allocation. This single change propagates to: `build_http_client_with_timeout` (thin wrapper), all `SpecDrivenSensorAdapter` fetch clients, and `DeclarativeHttpAuthProvider` (calls `build_http_client_with_timeout()` internally per BC-2.16.014 INV-014-007). Do NOT cite file line numbers — cite the symbol name `build_http_client_with_custom_timeout` per TD-VSDD-091.
@@ -420,7 +422,7 @@ Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check
       );
   }
   ```
-  SAP-1 obligation: `fan_out_target_failed` catalog row 91 is already present in BC-2.16.002 v2.15 (row 91 added by product-owner in v2.14, retained in v2.15). Adversary verifies catalog↔emission match via `rg 'event_type.*fan_out_target_failed' crates/` per AC-SAP1-001. The `AllTargetsFailed` Display MUST remain count-only (`"E-SENSOR-030: all fan-out targets failed ({count} errors)"`) per BC-2.10.007 Rule 1.
+  SAP-1 obligation: `fan_out_target_failed` catalog row 91 is already present in BC-2.16.002 v2.17 (row 91 added by product-owner in v2.14, retained through v2.17). Adversary verifies catalog↔emission match via `rg 'event_type.*fan_out_target_failed' crates/` per AC-SAP1-001. The `AllTargetsFailed` Display MUST remain count-only (`"E-SENSOR-030: all fan-out targets failed ({count} errors)"`) per BC-2.10.007 Rule 1.
 
 **T-H: Run Red Gate tests — confirm all GREEN**
 - [ ] Run `just iter prism-bin` and `just iter prism-sensors` and `just iter prism-spec-engine` to confirm all Red Gate tests pass green.
@@ -472,12 +474,12 @@ Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check
 | Artifact | Estimated Tokens | Notes |
 |----------|-----------------|-------|
 | This story file | ~6,000 | |
-| BC-2.16.002 v2.15 (HTTP Client Compliance + AllTargetsFailed postconditions + catalog row 91) | ~30,000 | Large BC; catalog scope is wide |
-| BC-2.08.002 v1.5 (HTTP Error Classification postcondition + AuthRefreshFailed/CookieAuthFailed scope) | ~6,500 | Targeted amendment + persistent-auth variants |
-| BC-2.01.010 v1.5 (AllTargetsFailed Per-Target Logging postcondition) | ~5,000 | |
-| BC-2.01.013 v1.17 (Persistent Auth Failure — EC-01-029) | ~4,000 | Targeted EC row; fix-burst pass-1 alignment |
+| BC-2.16.002 v2.17 (HTTP Client Compliance + AllTargetsFailed postconditions + catalog row 91) | ~30,000 | Large BC; catalog scope is wide |
+| BC-2.08.002 v1.6 (HTTP Error Classification postcondition + AuthRefreshFailed/CookieAuthFailed scope) | ~6,500 | Targeted amendment + persistent-auth variants |
+| BC-2.01.010 v1.6 (AllTargetsFailed Per-Target Logging postcondition) | ~5,000 | |
+| BC-2.01.013 v1.17 (DataSource Trait Eliminates Per-Sensor Code Duplication — scope: EC-01-029) | ~4,000 | Targeted EC row; fix-burst pass-1 alignment |
 | BC-2.16.014 v1.20 (INV-014-007 ADR-050 §D5/§D6 note) | ~18,000 | Large BC; only INV note relevant |
-| ADR-050 v2.1 (§D5/§D6 new decisions + rationale; §D6 scope extended v2.1 to infusion client) | ~10,000 | Reference for Cargo.toml + UA changes |
+| ADR-050 v2.2 (§D5/§D6 new decisions + rationale; §D6 scope extended in v2.1; §D5 production-entry count corrected to 3 in v2.2) | ~10,000 | Reference for Cargo.toml + UA changes |
 | `spec_driven_adapter.rs` (`map_spec_engine_error_to_sensor_error` + `build_http_client_with_custom_timeout`) | ~8,000 | Two target functions |
 | `pipeline.rs` (send-failure arm + non-2xx branch × 2) | ~30,000 | Large file; two symmetric fix sites |
 | `fanout.rs` (`AllTargetsFailed` construction site) | ~8,000 | |
@@ -518,7 +520,7 @@ Violations of these rules are P1 findings in adversarial review.
 
 6. **BC-5.39.001 / Spec-first gate**: Do NOT amend any spec artifact (BC, ADR, error-taxonomy) from the implementation task. BCs were amended by product-owner and ADR by architect pre-story (see §Authority). If a spec defect is discovered during implementation, STOP and report to orchestrator per CLAUDE.md Companion Principle rule 2.
 
-7. **SAP-1 standing probe — event catalog completeness**: `fan_out_target_failed` catalog row 91 is already present in BC-2.16.002 v2.15 (added in v2.14). The adversary verifies this in every cascade pass: `rg 'event_type.*fan_out_target_failed' crates/` must produce exactly one match (in `fanout.rs`); BC-2.16.002 row 91 must be present. A mismatch (emission without catalog row or catalog row without emission) is a P1 finding.
+7. **SAP-1 standing probe — event catalog completeness**: `fan_out_target_failed` catalog row 91 is already present in BC-2.16.002 v2.17 (added in v2.14). The adversary verifies this in every cascade pass: `rg 'event_type.*fan_out_target_failed' crates/` must produce exactly one match (in `fanout.rs`); BC-2.16.002 row 91 must be present. A mismatch (emission without catalog row or catalog row without emission) is a P1 finding.
 
 8. **SAP-3 standing probe — spec-arm reachability**: RG-005 and RG-007 are in-process integration tests that drive `probe_connectivity` from the public surface (not synthetic AST injection). This satisfies SAP-3 primary coverage. RG-001 and RG-002 (unit tests of `map_spec_engine_error_to_sensor_error` directly) are defense-in-depth per SAP-3 rule 2.
 
@@ -556,7 +558,7 @@ None. All changes are additions to existing production modules and inline test b
 |------|----------------|
 | `crates/prism-spec-engine/Cargo.toml` | Add `"http2"` to `reqwest` features (T-A01) |
 | `crates/prism-sensors/Cargo.toml` | Add `"http2"` to `reqwest` features (T-A02) |
-| `crates/prism-bin/Cargo.toml` | Add `"http2"` to two reqwest entries (T-A03, T-A04) |
+| `crates/prism-bin/Cargo.toml` | Add `"http2"` to the production reqwest entry (T-A03); verify dev-dep entry unchanged (T-A04) |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | Add `.user_agent(...)` to `build_http_client_with_custom_timeout` (T-B01); add guard arm to `map_spec_engine_error_to_sensor_error` (T-F01); add RG-001, RG-002, RG-006, RG-010, RG-011 inline tests; add MED-1 body-snippet sanitization test (fix-burst pass-1) |
 | `crates/prism-bin/src/boot.rs` | Add `.user_agent(...)` to two PluginRuntime builder sites (T-C01) |
 | `crates/prism-spec-engine/src/pipeline.rs` | Replace `e.to_string()` with source-chain format at two send-failure sites (T-D01); add body-capture at two non-2xx branches (T-E01); add RG-003 inline test; add `.user_agent(...)` to infusion `build_http_client_with_timeout` builder (ADR-050 §D6 v2.1); add RG-012 test in `mod infusion_http_client_user_agent_tests` |
@@ -569,12 +571,12 @@ None. All changes are additions to existing production modules and inline test b
 
 | File | Reason |
 |------|--------|
-| `.factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md` | Frozen at v2.15. Transport postconditions and catalog row 91 already authored by product-owner. |
-| `.factory/specs/behavioral-contracts/BC-2.08.002-auth-validity-check.md` | Frozen at v1.5. HTTP Error Classification postcondition (including AuthRefreshFailed/CookieAuthFailed scope) already authored. |
-| `.factory/specs/behavioral-contracts/BC-2.01.010-partial-failure-handling.md` | Frozen at v1.5. AllTargetsFailed Per-Target Logging postcondition already authored. |
-| `.factory/specs/behavioral-contracts/BC-2.01.013-persistent-auth-failure.md` | Frozen at v1.17. EC-01-029 persistent-auth-failure alignment already authored by product-owner. |
+| `.factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md` | Frozen at v2.17. Transport postconditions and catalog row 91 already authored by product-owner. |
+| `.factory/specs/behavioral-contracts/BC-2.08.002-auth-validity-check.md` | Frozen at v1.6. HTTP Error Classification postcondition (including AuthRefreshFailed/CookieAuthFailed scope) already authored. |
+| `.factory/specs/behavioral-contracts/BC-2.01.010-partial-failure-handling.md` | Frozen at v1.6. AllTargetsFailed Per-Target Logging postcondition already authored. |
+| `.factory/specs/behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md` | Frozen at v1.17. EC-01-029 persistent-auth-failure alignment already authored by product-owner. |
 | `.factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md` | Frozen at v1.20. INV-014-007 note already added by product-owner. |
-| `.factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md` | Frozen at v2.1. D5 and D6 (v2.1 extended scope) decisions already added by architect. |
+| `.factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md` | Frozen at v2.2. D5 (3 production entries) and D6 decisions already added by architect. |
 | `.factory/specs/prd-supplements/error-taxonomy.md` | E-SENSOR-030 row already amended by product-owner. Do NOT amend. |
 | `crates/prism-dtu-*/Cargo.toml` | DTU dev-deps excluded from ADR-050 §D5 scope. |
 | `scripts/check-non-exhaustive-per-symbol.py` | No new pub types introduced; count unchanged. |
@@ -719,6 +721,7 @@ block). See the AC-H2-001 observability note.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-08-13 | story-writer | LOCAL adversary pass-4 records-only corrections (TD-VSDD-096). F-1 (MED): BC-2.01.013 canonical H1 corrected to "DataSource Trait Eliminates Per-Sensor Code Duplication" in §Authority table, §Behavioral Contracts table Title column, and `# BC status` frontmatter comment; §Files NOT to Modify file path corrected to `BC-2.01.013-datasource-trait-adapter-pattern.md`; Token Budget parenthetical updated. F-2 (LOW): BC/ADR version pins re-synced to current frontmatter: BC-2.16.002 v2.15→v2.17, BC-2.08.002 v1.5→v1.6, BC-2.01.010 v1.5→v1.6, ADR-050 v2.1→v2.2 (all five table locations, Token Budget, §Files NOT to Modify, and inline body refs). F-3 (LOW): AC-CARGO-001 count corrected four→three production entries; prism-bin entry count corrected two→one production + one harmless dev-dep; T-A04 reframed as verify-only task; §Files to Modify description updated; AC-H2-001 inline "four" corrected. No AC-semantic or verification changes. |
 | 1.3 | 2026-08-13 | story-writer | LOCAL adversary pass-2 reconciliation. RG names reconciled to code (code is authoritative per SAC-1): RG-003 → `test_pipeline_non_2xx_body_in_detail`; RG-005 → `test_probe_connectivity_403_returns_up_not_down`; RG-007 → `test_sensor_health_wire_shape_403_reachable_auth_invalid`; RG-008 file location updated to `crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs`. RG-012 (`test_infusion_http_client_sends_prism_user_agent`, `crates/prism-spec-engine/src/pipeline.rs` `mod infusion_http_client_user_agent_tests`) registered for OBS-4 fix — verifies ADR-050 §D6 v2.1 infusion client UA. ADR-050 pin updated v2.0 → v2.1 in §Authority and §Files NOT to Modify (§D6 scope extended to include infusion `build_http_client_with_timeout`). BC-5.38.001 density recomputed: 12/14 = 0.857 (was 11/14 = 0.786). Points comment updated to RG-001..RG-012. |
 | 1.2 | 2026-08-13 | story-writer | Fix-burst pass-1 spec changes. Added RG-009 (`test_BC_2_16_002_rg009_send_failure_includes_source_chain` in `crates/prism-spec-engine/tests/pipeline_http_integration.rs`), RG-010 (`test_map_error_auth_refresh_failed_maps_to_http_error_401` in `spec_driven_adapter.rs`), RG-011 (`test_map_error_cookie_auth_failed_maps_to_http_error_401` in `spec_driven_adapter.rs`). Added BC-2.01.013 v1.17 to `behavioral_contracts` array and §Authority + §Behavioral Contracts tables (EC-01-029 persistent-auth-failure alignment). Updated BC version pins: BC-2.16.002 →v2.15, BC-2.08.002 →v1.5 (AuthRefreshFailed/CookieAuthFailed scope added). Extended AC-ERR-001 and AC-ERR-005 to reference persistent-auth-failure path and add BC-2.01.013 EC-01-029 traces. Recomputed BC-5.38.001 density: 11/14 = 0.786 (was 8/14 = 0.571). Updated §Files to Modify (RG-009 integration test file added) and §Files NOT to Modify (BC-2.01.013 freeze row + updated version pins). MED-1 body-snippet sanitization test noted in §Files to Modify and density note. |
 | 1.1 | 2026-08-12 | research-agent | Remove-uncertainty pass (D-1110 pass-1). Validated 4 technology assumptions: A1 (http2 feature semantics), A2 (user_agent API), A4 (rustls+ALPN composition) CONFIRMED against reqwest 0.12.28 docs (Context7) + workspace Cargo.lock; A3 (fix plausibility vs api.claroty.com WAF edge) rated RISK/moderate-confidence-sufficient via Perplexity deep research + working-relay evidence. Corrected AC-H2-001 + RG-008: whole-file `grep '"h2"' Cargo.lock` observable is invalid (h2 already present transitively via hyper 1.9.0); scoped verification to the reqwest node. Added §Technology Assumption Validation with a labeled RISK note (rustls JA3/JA4 + non-UA-header residual risk on no-waiver AC-LIVE-001; h2 reframed as ADR-050 compliance/defense-in-depth, UA as probable load-bearing fix). Populated `assumption_validations` + `risk_mitigations` frontmatter. No changes to spec artifacts (BC/ADR/error-taxonomy) — those remain frozen per §Files NOT to Modify. |

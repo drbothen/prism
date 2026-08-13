@@ -39,7 +39,8 @@ All production reqwest deps declare `default-features = false` without re-enabli
 `http2`. Prism is HTTP/1.1-only. AWS Global Accelerator prefers h2; clients not
 advertising h2 via ALPN can match WAF block profiles.
 Affected entries: `prism-spec-engine` [dependencies], `prism-sensors` [dependencies],
-`prism-bin` [dependencies] (two entries).
+`prism-bin` [dependencies] (one production entry; `prism-bin` dev-dependencies entry
+carries `"http2"` already via Cargo feature-unification — not modified by this fix).
 
 **RC-F10-B — No User-Agent header.**
 `build_http_client_with_custom_timeout` (sole production sensor HTTP client factory)
@@ -216,7 +217,7 @@ sends `User-Agent: prism/{VERSION}`. FAILS before fix (no `.user_agent(...)` cal
 **AC-UA-002:** Both plugin http_client builder sites in boot.rs include
 `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))`. Verified by adversary sweep.
 
-**AC-CARGO-001:** All four production reqwest entries include `"http2"`. `just check` passes.
+**AC-CARGO-001:** All three production `[dependencies]` reqwest entries include `"http2"` (`prism-spec-engine`, `prism-sensors`, `prism-bin` production entry). `just check` passes.
 
 ### AC Group B — Error Surfacing (F9)
 
@@ -298,9 +299,9 @@ Add `"http2"` to `reqwest` features (current: `["json", "rustls-tls", "gzip", "d
 **`crates/prism-sensors/Cargo.toml`**
 Add `"http2"` to `reqwest` features (current: `["json", "rustls-tls"]`).
 
-**`crates/prism-bin/Cargo.toml` — two entries**
-- Sensor adapter entry (comment references S-PLUGIN-PREREQ-D AC-9): add `"http2"` to `["rustls-tls"]`
-- Main dep entry: add `"http2"` to `["json", "rustls-tls"]`
+**`crates/prism-bin/Cargo.toml` — one production entry + one dev-dep (verify-only)**
+- Production entry (sensor adapter / S-PLUGIN-PREREQ-D AC-9 shared client): add `"http2"` to `["rustls-tls"]`
+- `[dev-dependencies]` entry: carries `"http2"` already via Cargo feature-unification — NO change required; verify it remains present after production edits
 
 ### 9.2 User-Agent (prism-bin/src/spec_driven_adapter.rs)
 
