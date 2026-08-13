@@ -158,10 +158,13 @@ fn test_bc_3_4_003_ac_001_healthy_ot_environment_baseline_counts() {
         .iter()
         .filter(|r| r.get("device_id").is_some())
         .collect();
+    // F3/DTU-05: use `_surface == "alert"` discriminator — `alert_id` presence is
+    // unreliable after F-CLARO-P2-MED-005 added `device_alert_relation` records which
+    // also carry a numeric `alert_id` FK field.
     let alerts: Vec<_> = fs
         .records
         .iter()
-        .filter(|r| r.get("alert_id").is_some())
+        .filter(|r| r.get("_surface").and_then(|v| v.as_str()) == Some("alert"))
         .collect();
 
     assert_eq!(
@@ -190,10 +193,13 @@ fn test_bc_3_4_003_ac_001_compromised_endpoint_baseline_counts_and_severity() {
         .iter()
         .filter(|r| r.get("device_id").is_some())
         .collect();
+    // F3/DTU-05: use `_surface == "alert"` discriminator — `alert_id` presence is
+    // unreliable after F-CLARO-P2-MED-005 added `device_alert_relation` records which
+    // also carry a numeric `alert_id` FK field.
     let alerts: Vec<_> = fs
         .records
         .iter()
-        .filter(|r| r.get("alert_id").is_some())
+        .filter(|r| r.get("_surface").and_then(|v| v.as_str()) == Some("alert"))
         .collect();
     let high_sev = alerts
         .iter()
@@ -254,10 +260,13 @@ fn test_bc_3_4_003_ac_001_large_scale_baseline_counts_and_subnets() {
         .iter()
         .filter(|r| r.get("device_id").is_some())
         .collect();
+    // F3/DTU-05: use `_surface == "alert"` discriminator — `alert_id` presence is
+    // unreliable after F-CLARO-P2-MED-005 added `device_alert_relation` records which
+    // also carry a numeric `alert_id` FK field.
     let alerts: Vec<_> = fs
         .records
         .iter()
-        .filter(|r| r.get("alert_id").is_some())
+        .filter(|r| r.get("_surface").and_then(|v| v.as_str()) == Some("alert"))
         .collect();
 
     assert_eq!(
@@ -663,10 +672,13 @@ fn test_bc_3_4_004_vp_120_alert_ids_carry_org_slug_prefix() {
     let fs = generate(&org_a(), Archetype::CompromisedEndpoint, &default_opts());
     let seed = default_opts().seed;
 
+    // F3/DTU-05: use `_surface == "alert"` discriminator — `alert_id` presence is
+    // unreliable after F-CLARO-P2-MED-005 added `device_alert_relation` records which
+    // also carry a numeric `alert_id` FK field (u32, not the slug-prefixed string ID).
     let alerts: Vec<_> = fs
         .records
         .iter()
-        .filter(|r| r.get("alert_id").is_some())
+        .filter(|r| r.get("_surface").and_then(|v| v.as_str()) == Some("alert"))
         .collect();
 
     assert!(
@@ -857,6 +869,13 @@ fn test_f3_dtu_05_all_records_carry_surface_tag() {
                 "call" => assert!(
                     rec.get("status_code").is_some(),
                     "archetype {archetype:?} record[{i}] tagged call but has no status_code"
+                ),
+                // F-CLARO-P2-MED-005: device_alert_relation surface added to fix seeded
+                // FK integrity — relations must reference real generated device and alert IDs
+                // (INV-CROSS-DTU-ENTITY-COHERENCE-001, ADR-036 v2.3 §2.4).
+                "device_alert_relation" => assert!(
+                    rec.get("device_uid").is_some(),
+                    "archetype {archetype:?} record[{i}] tagged device_alert_relation but has no device_uid"
                 ),
                 other => {
                     panic!("archetype {archetype:?} record[{i}] has unknown _surface '{other}'")

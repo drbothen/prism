@@ -202,18 +202,18 @@ mod tests {
             "`total` must equal the length of the `audit_log` array (AC-003)"
         );
 
-        // AC-004: entries contain no obviously real PII — all actor/resource fields
+        // AC-004: entries contain no obviously real PII — all user_display_name fields
         // use the synthetic example.com domain or demo identifiers.
         for (i, entry) in audit_log.iter().enumerate() {
-            let actor = entry
-                .get("actor")
+            let user_display_name = entry
+                .get("user_display_name")
                 .and_then(|v| v.as_str())
                 .unwrap_or_default();
-            // Synthetic fixture actors use @example.com per Task 2 guidance.
+            // Synthetic fixture user_display_name values use @example.com per Task 2 guidance.
             assert!(
-                actor.contains("example.com") || actor.is_empty(),
-                "entry[{i}] actor must use synthetic example.com domain (AC-004, ADR-031 §D2); \
-                 got {actor:?}"
+                user_display_name.contains("example.com") || user_display_name.is_empty(),
+                "entry[{i}] user_display_name must use synthetic example.com domain (AC-004, ADR-031 §D2); \
+                 got {user_display_name:?}"
             );
         }
     }
@@ -324,14 +324,19 @@ mod tests {
     ///
     /// AC-005: Every column declared in claroty.sensor.toml audit_logs table maps 1:1
     /// to a field in ClarotyAuditLogEntry with the correct Rust type:
-    ///   - id        → String  (column_type = "string")
-    ///   - action    → String  (column_type = "string")
-    ///   - actor     → String  (column_type = "string")
-    ///   - timestamp → String  (column_type = "datetime", ISO 8601 per ADR-028 §D8)
-    ///   - resource  → String  (column_type = "string")
+    ///   - id               → String  (column_type = "string")
+    ///   - action           → String  (column_type = "string")
+    ///   - user_display_name → String  (column_type = "string") — real xDome field
+    ///   - category         → String  (column_type = "string") — real xDome field
+    ///   - timestamp        → String  (column_type = "datetime", ISO 8601 per ADR-028 §D8)
+    ///   - details          → String  (column_type = "string") — real xDome field
+    ///   - username         → String  (column_type = "string") — real xDome field
+    ///   - note             → Option<String>  (column_type = "string") — absent from some records
+    ///
+    /// `actor` and `resource` do NOT exist in the xDome API (LIVE-DRIFT-003).
     ///
     /// This test deserializes the fixture file into Vec<ClarotyAuditLogEntry> to exercise
-    /// all 5 field paths simultaneously. A missing or mis-typed field causes a serde
+    /// all 8 field paths simultaneously. A missing or mis-typed field causes a serde
     /// deserialization error → test fails with an informative message.
     ///
     /// GREEN (Part 1): Direct fixture deserialization verifies struct-field parity against
@@ -346,8 +351,9 @@ mod tests {
         // Part 1: Direct fixture deserialization (SAP-2 compile-time parity check).
         //
         // Deserializing into Vec<ClarotyAuditLogEntry> verifies:
-        //   - All 5 required field names are present (id, action, actor, timestamp, resource)
-        //   - All field types are compatible with the fixture JSON (all strings)
+        //   - All 8 required field names are present (id, action, user_display_name, category,
+        //     timestamp, details, username, note)
+        //   - All field types are compatible with the fixture JSON
         // This exercises AC-005 without requiring the server to be running.
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let fixture_path = format!("{manifest_dir}/fixtures/audit-log.json");
@@ -362,8 +368,9 @@ mod tests {
                 panic!(
                     "fixtures/audit-log.json must deserialize into Vec<ClarotyAuditLogEntry>; \
                      serde error: {e}\n\
-                     This means a TOML column (id/action/actor/timestamp/resource) has no \
-                     matching field in ClarotyAuditLogEntry — SAP-2 P1 CRITICAL (AC-005)"
+                     This means a TOML column (id/action/user_display_name/category/timestamp/\
+                     details/username/note) has no matching field in ClarotyAuditLogEntry — \
+                     SAP-2 P1 CRITICAL (AC-005)"
                 )
             });
 
@@ -385,17 +392,26 @@ mod tests {
             "ClarotyAuditLogEntry.action (column_type=string) must be non-empty (AC-005)"
         );
         assert!(
-            !first.actor.is_empty(),
-            "ClarotyAuditLogEntry.actor (column_type=string) must be non-empty (AC-005)"
+            !first.user_display_name.is_empty(),
+            "ClarotyAuditLogEntry.user_display_name (column_type=string) must be non-empty (AC-005)"
+        );
+        assert!(
+            !first.category.is_empty(),
+            "ClarotyAuditLogEntry.category (column_type=string) must be non-empty (AC-005)"
         );
         assert!(
             !first.timestamp.is_empty(),
             "ClarotyAuditLogEntry.timestamp (column_type=datetime, ISO 8601) must be non-empty (AC-005)"
         );
         assert!(
-            !first.resource.is_empty(),
-            "ClarotyAuditLogEntry.resource (column_type=string) must be non-empty (AC-005)"
+            !first.details.is_empty(),
+            "ClarotyAuditLogEntry.details (column_type=string) must be non-empty (AC-005)"
         );
+        assert!(
+            !first.username.is_empty(),
+            "ClarotyAuditLogEntry.username (column_type=string) must be non-empty (AC-005)"
+        );
+        // note is Option<String> — presence not required on every entry, only checked type
 
         // AC-005: timestamp must parse as ISO 8601 (ADR-028 §D8).
         // Use a simple check: must contain 'T' and end with 'Z' (or contain '+').
@@ -434,6 +450,7 @@ mod tests {
 
         // Deserialize the HTTP response array into Vec<ClarotyAuditLogEntry>.
         // Fails if any column in the response doesn't match the struct (SAP-2).
+        // Fields checked: id, action, user_display_name, category, timestamp, details, username, note.
         let response_entries: Vec<ClarotyAuditLogEntry> =
             serde_json::from_value(audit_log_value.clone()).unwrap_or_else(|e| {
                 panic!(
@@ -592,7 +609,7 @@ mod tests {
         //
         // Blocked on: prism-bin full-boot wiring (S-DEMO-002).
         // When unblocked: start a full prism binary, execute the PrismQL query,
-        // assert at least 5 rows returned with columns id, action, actor, timestamp, resource.
+        // assert at least 5 rows returned with columns id, action, user_display_name, category, timestamp, details, username, note.
         todo!("implement in S-DEMO-002: full prism-bin boot + PrismQL pipeline integration")
     }
 }

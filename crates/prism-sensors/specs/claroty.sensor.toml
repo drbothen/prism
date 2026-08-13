@@ -46,7 +46,7 @@ name = "bearer_token"
 
 # ---------------------------------------------------------------------------
 # Table: alerts
-# POST-for-read pattern; offset pagination (page_size = 100)
+# POST-for-read pattern; offset pagination (page_size = 1000)
 # DTU route: POST /api/v1/alerts (crates/prism-dtu-claroty/src/clone.rs build_router())
 #
 # Gap-CL-005 fix (2026-05-29): column names updated to match DTU ClarotyAlert struct
@@ -57,6 +57,18 @@ name = "bearer_token"
 #   - "updated_at" → "updated_time" (DTU field is updated_time)
 #   - "device_id" → removed (no device_id field; device association is via devices_count)
 #   Added: "category" (DTU field), "devices_count" (DTU field integer)
+# Not included (intentional exclusions from ClarotyAlert struct):
+#   iot_devices_count (u32): IoT-device-count aggregate; excluded — same category as
+#     devices_count which is already declared; IoT sub-type aggregates are low-query-value
+#   it_devices_count (u32): IT-device-count aggregate; same rationale as iot_devices_count
+#   medical_devices_count (u32): medical-device-count aggregate; same rationale
+#   unresolved_devices_count (u32): unresolved-device-count aggregate; same rationale
+#   mitre_technique_enterprise_ids (Vec<String>): array type; ENRICH-1 wildcard support
+#     exists for devices table but alerts MITRE arrays are not yet surfaced via PrismQL
+#     queries; deferred to S-ADR058-OCSF-COERCION-001 MITRE-column scope
+#   mitre_technique_enterprise_names (Vec<String>): same rationale as _ids above
+#   mitre_technique_ics_ids (Vec<String>): ICS-specific MITRE array; same rationale
+#   mitre_technique_ics_names (Vec<String>): ICS-specific MITRE array; same rationale
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "alerts"
@@ -111,24 +123,42 @@ ocsf_class = "detection_finding"
   column_type = "string"
   ocsf_field = "message"
 
+  # DTU ClarotyAlert.alert_class: String — classification of the alert (e.g. "OT", "IT").
+  # Tier 2 column: in Alert fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "alert_class"
+  column_type = "string"
+
+  # DTU ClarotyAlert.ot_devices_count: u32 — count of OT devices involved in the alert.
+  # Tier 2 column: in Alert fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "ot_devices_count"
+  column_type = "integer"
+
+  # DTU ClarotyAlert.alert_name: String — human-readable alert name (distinct from type).
+  # Tier 2 column: in Alert fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "alert_name"
+  column_type = "string"
+  ocsf_field = "finding.title"
+
   # POST-for-read step with offset pagination
   # DTU route: POST /api/v1/alerts (crates/prism-dtu-claroty/src/clone.rs build_router())
   # response_path: DTU returns {"alerts": [...], "total": N, "page": N} per routes::alerts::list_alerts
-  # body_template: empty JSON object; OffsetLimit POST-body injection (S-DEMO-CLAROTY-PAGINATION-001
-  #   CLOSED, Gap-CL-004 CLOSED) merges {"offset": N, "limit": 100} into this body at request time
-  #   (pipeline.rs::build_request — BC-2.16.002 "OffsetLimit Pagination Dispatch: POST-body
-  #   vs GET-URL"). Do not add hardcoded offset/limit here — the pipeline injects them.
-  # F-LP3-HIGH-004: removed '{"size": 100}' from body_template (now superseded by pipeline injection).
+  # body_template: fields projection is REQUIRED by GetAlertsParameters (minItems: 1); covers all
+  #   declared alert columns. OffsetLimit POST-body injection merges {"offset": N, "limit": 1000}
+  #   into this body at request time (pipeline.rs::build_request — BC-2.16.002 §Postconditions "OffsetLimit
+  #   Pagination Dispatch: POST-body vs GET-URL"). Do not add hardcoded offset/limit here.
   [[tables.steps]]
   name = "fetch_alerts"
   method = "POST"
   path_template = "/api/v1/alerts/"
-  body_template = '{}'
+  body_template = '{"fields": ["id", "alert_type_name", "category", "status", "detected_time", "updated_time", "devices_count", "description", "alert_class", "ot_devices_count", "alert_name"]}'
   response_path = "$.alerts"
   variables_produced = []
   [tables.steps.pagination]
   type = "offset_limit"
-  page_size = 100
+  page_size = 1000
 
 # ---------------------------------------------------------------------------
 # Table: audit_logs
@@ -156,53 +186,85 @@ ocsf_class = "audit_activity"
   column_type = "string"
   ocsf_field = "activity_name"
 
+  # Real xDome field: user_display_name — display name of the user who performed the action.
+  # (actor/resource do NOT exist in the xDome audit_log API — LIVE-DRIFT-003)
   [[tables.columns]]
-  name = "actor"
+  name = "user_display_name"
   column_type = "string"
   ocsf_field = "actor.user.name"
+
+  # Real xDome field: category — audit event category.
+  [[tables.columns]]
+  name = "category"
+  column_type = "string"
+  ocsf_field = "category_name"
 
   [[tables.columns]]
   name = "timestamp"
   column_type = "datetime"
   ocsf_field = "time"
 
+  # Real xDome field: details — description of what was done.
   [[tables.columns]]
-  name = "resource"
+  name = "details"
   column_type = "string"
-  ocsf_field = "dst_resource.name"
+  ocsf_field = "message"
+
+  # Real xDome field: username — the user identifier (login name).
+  # column_type = "string" ensures any value is preserved as string even when ocsf_field
+  # "actor.user.uid" would otherwise trigger the numeric-suffix heuristic in coerce_value.
+  [[tables.columns]]
+  name = "username"
+  column_type = "string"
+  ocsf_field = "actor.user.uid"
+
+  # Real xDome field: note — optional note about the audit activity (absent from some records).
+  [[tables.columns]]
+  name = "note"
+  column_type = "string"
+  ocsf_field = "comment"
 
   # POST-for-read step with offset pagination
   # DTU route: POST /api/v1/audit_log/get — implemented by S-DEMO-CLAROTY-AUDIT-DTU-001.
   # response_path: DTU returns {"audit_log": [...]} per GetAuditLogResponse
-  #   (crates/prism-dtu-claroty/src/routes/audit_log.rs), matching poller-bear reference.
-  # body_template: empty JSON object; OffsetLimit POST-body injection merges {"offset": N, "limit": 100}
-  #   at request time (pipeline.rs::build_request — Gap-CL-004 CLOSED by S-DEMO-CLAROTY-PAGINATION-001).
+  #   (routes/audit_log.rs), matching poller-bear reference.
+  # body_template: STAYS '{}' — GetAuditLogParameters has NO fields property (unlike alerts/devices).
+  #   The API returns all available fields when body is {}.
+  #   OffsetLimit POST-body injection merges {"offset": N, "limit": 1000} at request time
+  #   (pipeline.rs::build_request — Gap-CL-004 CLOSED by S-DEMO-CLAROTY-PAGINATION-001).
+  # path_template: /api/v1/audit_log/get WITHOUT trailing slash — OpenAPI declares this path
+  #   without a trailing slash (unlike alerts/devices which use trailing slash by convention).
   [[tables.steps]]
   name = "fetch_audit_logs"
   method = "POST"
-  path_template = "/api/v1/audit_log/get/"
+  path_template = "/api/v1/audit_log/get"
   body_template = '{}'
   response_path = "$.audit_log"
   variables_produced = []
   [tables.steps.pagination]
   type = "offset_limit"
-  page_size = 100
+  page_size = 1000
 
 # ---------------------------------------------------------------------------
 # Table: devices
-# POST-for-read pattern; offset pagination
+# POST-for-read pattern; offset pagination (page_size = 1000)
 # DTU route: POST /api/v1/devices (crates/prism-dtu-claroty/src/clone.rs build_router())
 #
 # Gap-CL-003 fix (2026-05-29): added this table. Previously absent from TOML despite
-#   a fully working DTU route and production poller support. Columns grounded from
-#   DTU ClarotyDevice struct (crates/prism-dtu-claroty/src/types.rs):
-#   uid, asset_id, device_category, device_type, ip_list, mac_list, risk_score, retired.
-#   Not included (complex/collection types or not yet supported by column grammar):
-#     assignees (Vec<String>), labels (Vec<String>), network_list (Vec<String>),
-#     vlan_list (Vec<u32>), tags (Vec<String>), device_subcategory, device_type_family,
-#     model, os_category. Follow-up story to add array column type support.
-# Gap-CL-004 applies here too: offset/limit should be in POST body per Claroty API.
-#   Pipeline fix tracked in S-DEMO-CLAROTY-PAGINATION-001.
+#   a fully working DTU route and production poller support.
+# PR #236 expansion (2026-08-12): added 12 additional columns from DTU ClarotyDevice
+#   struct (crates/prism-dtu-claroty/src/types.rs). Table now covers all 20 queryable
+#   fields: uid, asset_id, device_category, device_type, ip_list, mac_list, network_list,
+#   vlan_list, purdue_level, site_name, device_subcategory, device_type_family,
+#   criticality, is_online, device_name, manufacturer, model, os_category,
+#   risk_score, retired.
+#   ip_list, mac_list, network_list, vlan_list use ENRICH-1 source_path wildcard
+#   (source_path = "$.X[*]") for array column extraction.
+#   Not included (DTU-internal or write-path only — no entry in xDome Device fields_enum):
+#     assignees (Vec<String>): xDome user assignment list; not returned in Device query responses
+#     labels (Vec<String>): user-defined labels; excluded from standard Device API response fields
+#     tags (Vec<String>): write-path only; used by tag-management endpoints, not POST /api/v1/devices
+# Gap-CL-004: CLOSED by S-DEMO-CLAROTY-PAGINATION-001. Offset/limit now sent in POST body.
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "devices"
@@ -248,18 +310,220 @@ ocsf_class = "device"
   column_type = "boolean"
   ocsf_field = "status_code"
 
+  # DTU ClarotyDevice.ip_list: Vec<String> — list of IP addresses.
+  # ENRICH-1 wildcard: source_path = "$.ip_list[*]" extracts all elements and serializes
+  # as a compact JSON-list string (e.g. '["10.0.1.1","10.0.1.2"]').
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "ip_list"
+  column_type = "string"
+  source_path = "$.ip_list[*]"
+
+  # DTU ClarotyDevice.mac_list: Vec<String> — list of MAC addresses.
+  # ENRICH-1 wildcard: serializes as compact JSON-list string.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "mac_list"
+  column_type = "string"
+  source_path = "$.mac_list[*]"
+
+  # DTU ClarotyDevice.network_list: Vec<String> — list of network segment names.
+  # ENRICH-1 wildcard: serializes as compact JSON-list string.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "network_list"
+  column_type = "string"
+  source_path = "$.network_list[*]"
+
+  # DTU ClarotyDevice.vlan_list: Vec<u32> — list of VLAN IDs.
+  # ENRICH-1 wildcard: integer elements are stringified in JSON-list output
+  # (e.g. ["100","200"]). column_type = "string" because the output is a JSON-list string.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "vlan_list"
+  column_type = "string"
+  source_path = "$.vlan_list[*]"
+
+  # DTU ClarotyDevice.purdue_level: String — Purdue model level (e.g. "Level 1", "Level 2").
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "purdue_level"
+  column_type = "string"
+
+  # DTU ClarotyDevice.site_name: String — physical site name where device is located.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "site_name"
+  column_type = "string"
+
+  # DTU ClarotyDevice.device_subcategory: String — subcategory within device_category.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "device_subcategory"
+  column_type = "string"
+
+  # DTU ClarotyDevice.device_type_family: String — device type family grouping.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "device_type_family"
+  column_type = "string"
+
+  # DTU ClarotyDevice.criticality: String — asset criticality level (e.g. "High", "Low").
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "criticality"
+  column_type = "string"
+
+  # DTU ClarotyDevice.is_online: bool — whether device is currently online.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "is_online"
+  column_type = "boolean"
+
+  # DTU ClarotyDevice.device_name: String — device display name.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "device_name"
+  column_type = "string"
+  ocsf_field = "device.name"
+
+  # DTU ClarotyDevice.manufacturer: String — hardware manufacturer.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "manufacturer"
+  column_type = "string"
+
+  # DTU ClarotyDevice.model: String — device model identifier.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "model"
+  column_type = "string"
+
+  # DTU ClarotyDevice.os_category: String — operating system category.
+  # Tier 2 column: in Device fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  [[tables.columns]]
+  name = "os_category"
+  column_type = "string"
+  ocsf_field = "device.os.name"
+
   # POST-for-read step with offset pagination
   # DTU route: POST /api/v1/devices (crates/prism-dtu-claroty/src/clone.rs build_router())
   # response_path: DTU returns {"devices": [...], "total": N, "page": N} per GetDevicesResponse.
-  # body_template: empty JSON object; OffsetLimit POST-body injection merges {"offset": N, "limit": 100}
+  # body_template: fields projection is REQUIRED by GetDevicesParameters (minItems: 1); covers all
+  #   declared device columns. OffsetLimit POST-body injection merges {"offset": N, "limit": 1000}
   #   at request time (pipeline.rs::build_request — Gap-CL-004 CLOSED by S-DEMO-CLAROTY-PAGINATION-001).
+  # NOTE: ip_list/mac_list/network_list/vlan_list use source_path (ENRICH-1) but are still
+  #   valid GetDevicesParameters.fields values — the xDome API returns them in the JSON object.
   [[tables.steps]]
   name = "fetch_devices"
   method = "POST"
   path_template = "/api/v1/devices/"
-  body_template = '{}'
+  body_template = '{"fields": ["uid", "asset_id", "device_category", "device_type", "risk_score", "retired", "ip_list", "mac_list", "network_list", "vlan_list", "purdue_level", "site_name", "device_subcategory", "device_type_family", "criticality", "is_online", "device_name", "manufacturer", "model", "os_category"]}'
   response_path = "$.devices"
   variables_produced = []
   [tables.steps.pagination]
   type = "offset_limit"
-  page_size = 100
+  page_size = 1000
+
+# ---------------------------------------------------------------------------
+# Table: device_alert_relations
+# POST-for-read pattern; offset pagination
+# DTU route: POST /api/v1/device_alert_relations/ (Tier 3)
+#
+# Returns device-alert pair records (AlertedDevicesPairs) from the xDome API.
+# Response envelope: {"devices_alerts": [...], "count": N_or_null}
+#   - Key is `devices_alerts` (NOT `device_alert_relations`)
+#   - Uses `count` (NOT `total`) per GetDeviceAlertsResponse schema
+#   - TOML response_path = "$.devices_alerts" matches the DTU envelope key
+#
+# fields projection: REQUIRED by GetDeviceAlertsParameters (minItems: 1);
+#   all 10 columns verified in the 92-value AlertedDevicesPairs__fields_enum
+#   in xDome OpenAPI 2026-06-20 (confirmed 2026-08-11).
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "device_alert_relations"
+ocsf_class = "detection_finding"
+
+  # DTU ClarotyDeviceAlertRelation.device_uid: String — Claroty device UUID.
+  # Verified in AlertedDevicesPairs__fields_enum (xDome OpenAPI 2026-06-20).
+  [[tables.columns]]
+  name = "device_uid"
+  column_type = "string"
+  ocsf_field = "device.uid"
+  options = ["REQUIRED"]
+
+  # DTU ClarotyDeviceAlertRelation.alert_id: u32 — normalized to string by pipeline (polymorphic alert-ID support at the real-API boundary; matches alerts.id per EC-016-013-004).
+  [[tables.columns]]
+  name = "alert_id"
+  column_type = "string"
+  ocsf_field = "finding.uid"
+
+  # DTU ClarotyDeviceAlertRelation.device_alert_detected_time: String (ISO 8601).
+  # Verified in AlertedDevicesPairs__fields_enum (xDome OpenAPI 2026-06-20).
+  # Resolves via implicit iso8601 default per ADR-028 §D8-B (no timestamp_formats key needed).
+  [[tables.columns]]
+  name = "device_alert_detected_time"
+  column_type = "datetime"
+  ocsf_field = "time"
+
+  # DTU ClarotyDeviceAlertRelation.device_risk_score: String — risk level label.
+  # Verified in AlertedDevicesPairs__fields_enum (xDome OpenAPI 2026-06-20).
+  [[tables.columns]]
+  name = "device_risk_score"
+  column_type = "string"
+  ocsf_field = "risk_score"
+
+  # DTU ClarotyDeviceAlertRelation.network_signature_severity: Option<String>.
+  # Absent when no network signature matched. Verified in AlertedDevicesPairs__fields_enum.
+  [[tables.columns]]
+  name = "network_signature_severity"
+  column_type = "string"
+
+  # DTU ClarotyDeviceAlertRelation.network_signature_confidence: Option<String>.
+  # Absent when no network signature matched. Verified in AlertedDevicesPairs__fields_enum.
+  [[tables.columns]]
+  name = "network_signature_confidence"
+  column_type = "string"
+
+  # DTU ClarotyDeviceAlertRelation.malicious_ip_severity: Option<String>.
+  # Absent when alert has no malicious IP indicator. Verified in AlertedDevicesPairs__fields_enum.
+  [[tables.columns]]
+  name = "malicious_ip_severity"
+  column_type = "string"
+
+  # DTU ClarotyDeviceAlertRelation.alert_note: String — analyst note (empty when unset).
+  # Verified in AlertedDevicesPairs__fields_enum (xDome OpenAPI 2026-06-20).
+  [[tables.columns]]
+  name = "alert_note"
+  column_type = "string"
+  ocsf_field = "comment"
+
+  # DTU ClarotyDeviceAlertRelation.external_ip: Option<String>.
+  # Absent for internal-only alerts. Verified in AlertedDevicesPairs__fields_enum.
+  [[tables.columns]]
+  name = "external_ip"
+  column_type = "string"
+
+  # DTU ClarotyDeviceAlertRelation.device_alert_status: String — "Unresolved"/"Resolved".
+  # Verified in AlertedDevicesPairs__fields_enum (xDome OpenAPI 2026-06-20).
+  [[tables.columns]]
+  name = "device_alert_status"
+  column_type = "string"
+  ocsf_field = "status"
+
+  # POST-for-read step with offset pagination
+  # DTU route: POST /api/v1/device_alert_relations/ (Tier 3)
+  # response_path: "$.devices_alerts" — key in GetDeviceAlertsResponse envelope.
+  # body_template: fields projection is REQUIRED by GetDeviceAlertsParameters (minItems: 1).
+  #   All 10 declared column names are valid AlertedDevicesPairs__fields_enum values.
+  #   OffsetLimit POST-body injection merges {"offset": N, "limit": 1000} at request time.
+  [[tables.steps]]
+  name = "fetch_device_alert_relations"
+  method = "POST"
+  path_template = "/api/v1/device_alert_relations/"
+  body_template = '{"fields": ["device_uid", "alert_id", "device_alert_detected_time", "device_risk_score", "network_signature_severity", "network_signature_confidence", "malicious_ip_severity", "alert_note", "external_ip", "device_alert_status"]}'
+  response_path = "$.devices_alerts"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 1000

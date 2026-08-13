@@ -1,14 +1,15 @@
 //! `ClarotyClone` — implements `BehavioralClone` for the Claroty xDome DTU.
 //!
 //! Binds to `127.0.0.1:0` (ephemeral port) on `start()`, spawns an axum
-//! server with `LatencyLayer` + `FailureLayer`, and serves 8 application
-//! endpoints (6 read via POST-body filtering, 2 write via stateful tag store)
-//! plus the DTU control endpoints.  The 6 read endpoints are: `list_devices`,
+//! server with `LatencyLayer` + `FailureLayer`, and serves 9 application
+//! endpoints (7 read via POST-body filtering, 2 write via stateful tag store)
+//! plus the DTU control endpoints.  The 7 read endpoints are: `list_devices`,
 //! `list_alerts`, `list_alerted_devices`, `list_vulnerabilities`,
-//! `list_vulnerability_devices`, and `list_audit_logs` (added by
-//! S-DEMO-CLAROTY-AUDIT-DTU-001).  See `dtu-assessment.md §3.2` for the
-//! original 7-endpoint scope matrix; `audit_log` is a Wave-5 fidelity
-//! addition beyond that baseline.
+//! `list_vulnerability_devices`, `list_audit_logs` (added by
+//! S-DEMO-CLAROTY-AUDIT-DTU-001), and `list_device_alert_relations` (Tier 3).
+//! See `dtu-assessment.md §3.2` for the original 7-endpoint scope matrix;
+//! `audit_log` and `device_alert_relations` are Wave-5 fidelity additions beyond
+//! that baseline.
 //!
 //! # ADR-002 Amendment #2 (TD-WV1-04)
 //!
@@ -30,7 +31,7 @@ use tower::Layer as _;
 use tower_http::normalize_path::NormalizePathLayer;
 
 use crate::{
-    routes::{alerts, audit_log, devices, tags, vulnerabilities},
+    routes::{alerts, audit_log, device_alert_relations, devices, tags, vulnerabilities},
     state::ClarotyState,
 };
 
@@ -256,6 +257,10 @@ impl ClarotyClone {
             .route("/api/v1/devices", post(devices::list_devices))
             .route("/api/v1/alerts", post(alerts::list_alerts))
             .route("/api/v1/audit_log/get", post(audit_log::list_audit_logs))
+            .route(
+                "/api/v1/device_alert_relations",
+                post(device_alert_relations::list_device_alert_relations),
+            )
             .route(
                 "/api/v1/alerts/:alert_id/devices",
                 post(alerts::list_alerted_devices),

@@ -1,11 +1,11 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Fidelity validation test for `prism-dtu-claroty`.
 //!
-//! Starts `ClarotyClone`, runs `FidelityValidator` against all 12 routes
-//! (8 API + 3 DTU control + 1 health), and asserts `checks_failed == 0`.
+//! Starts `ClarotyClone`, runs `FidelityValidator` against all 13 routes
+//! (9 API + 3 DTU control + 1 health), and asserts `checks_failed == 0`.
 //! API routes: devices, alerts, alerts/:id/devices, vulnerabilities,
 //! vulnerabilities/:id/devices, devices/:id/tags (write), devices/:id/tags/:key (write),
-//! and audit_log/get.
+//! audit_log/get, and device_alert_relations.
 //! DTU control routes: /dtu/configure, /dtu/reset, /dtu/reset_for/:org_id.
 //! Run as part of `just dtu-validate`.
 
@@ -131,6 +131,19 @@ async fn claroty_dtu_fidelity() {
             body: None,
             expected_status: 200,
             required_fields: vec!["status".to_string()],
+            ..Default::default()
+        },
+        // Route 13: POST /api/v1/device_alert_relations — 401 without auth (Tier 3 endpoint).
+        // Auth enforced before fixture loading; mirrors the auth-guard pattern of all other
+        // API read routes. The 401-without-auth behavior is also exercised by
+        // test_claroty_tier3_device_alert_relations_dtu_auth_enforced; this check ensures
+        // just dtu-validate exercises the route as part of the full 13-route enumeration.
+        FidelityCheck {
+            endpoint: "/api/v1/device_alert_relations".to_string(),
+            method: http::Method::POST,
+            body: Some(json!({})),
+            expected_status: 401,
+            required_fields: vec!["error".to_string()],
             ..Default::default()
         },
     ];

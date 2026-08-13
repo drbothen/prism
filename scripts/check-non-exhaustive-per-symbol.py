@@ -111,6 +111,10 @@ EXPECTED_SYMBOLS = [
     "UnknownSourceTableDetails",  # v87 prism_core::error::UnknownSourceTableDetails
     "EnrichUdfNotFoundDetails",   # v88 prism_core::error::EnrichUdfNotFoundDetails
     "ParseError",                 # v92 prism_query::error::ParseError (DEFECT-PQL-FNCALL-LHS-001 §OBS-005)
+    # ── S-DEMO-CLAROTY-DAR-001 Task 4 / AC-005: prism-dtu-claroty device_alert_relations types ──
+    "ClarotyDeviceAlertRelation", # v93 prism_dtu_claroty::types::ClarotyDeviceAlertRelation
+    "GetDeviceAlertsBody",        # v94 prism_dtu_claroty::types::GetDeviceAlertsBody
+    "GetDeviceAlertsResponse",    # v95 prism_dtu_claroty::types::GetDeviceAlertsResponse
     # ── E0004 enum match violations (23 entries; 22 unique after prism_core::ColumnType dedup) ──
     # Names are the last path segment from `note: \`path::TypeName\` defined here`.
     "PaginationConfig",      # v07 spec_parser::PaginationConfig
