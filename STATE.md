@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.673"
+version: "8.674"
 producer: state-manager
 timestamp: 2026-08-13T12:00:00Z
 inputs: []
@@ -18,7 +18,8 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "5d1a30ac7"
 # NOTE: D-2109 — develop advanced ef996a4c0→5d1a30ac7: PR #236 fix/claroty-live-api-fidelity SQUASH-MERGED; BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED (passes 8/9/10 on frozen 386df43c5); HS-014 PASS; worktrees CLAROTY-LIVE + FINDING-R removed. D-2102 NOTE archived.
-bc_index_version: "9.05"
+bc_index_version: "9.06"
+# NOTE: D-2125 — BC-INDEX v9.05→v9.06: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 pass-11 HUMAN-DIRECTED F-2 fix — BC-2.19.001 leading pin v2.2→v2.3 (E-INFUSE-015 InfusionError::HttpClientBuildFailed §Error Conditions row added; anchor DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-013/AC-ERR-006). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2124 NOTE archived.
 # NOTE: D-2124 — BC-INDEX v9.04→v9.05: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-10 CLOSED (TD-VSDD-096) — BC-2.16.002 leading pin v2.19 (F-P-OBS-001: row-91 error-field disclosure amended to name §prism_core::sanitize_body_snippet_bytes). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2123 NOTE archived.
 # NOTE: D-2123 — BC-INDEX v9.03→v9.04: EXPANDED coherence audit — BC-2.16.014 leading pin v1.22 (DD-9: INV-014-007 §Invariants delegation-claim accuracy corrected). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2121 NOTE archived.
 # NOTE: D-2121 — BC-INDEX v9.02→v9.03: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-8 CLOSED (TD-VSDD-096) — BC-2.16.002 leading pin v2.18 (F-4: T-E01 reference corrected to prism_core::sanitize_body_snippet_bytes). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2119 NOTE archived.
@@ -34,7 +35,8 @@ bc_index_version: "9.05"
 # NOTE: D-2078 — BC-INDEX v8.89→v8.90: FB106 state-manager leg. BC-2.02.014 leading pin v1.9→v2.0 (ADR-057 §D5 INDEX→REQUIRED propagated; four BC body sites corrected; behaviorally inert Wave-A). S-WAVE-A-ARMIS-ACTIVITY-001 v1.9→v2.0 (nine story sites corrected; test rename contracted). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2069 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1) per ARCH-INDEX FB74/FB76 sweep; ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.789"
+story_index_version: "2.790"
+# NOTE: D-2125 — STORY-INDEX v2.789→v2.790: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-11 CLEAN(strict)=NO / CLEAN(PR-merge)=YES — F-1 [LOW] doc-cite closed (code f3825985c); HUMAN-DIRECTED F-2 fix: story v1.11→v1.12 (RG-013/AC-ERR-006 added; BC-2.19.001 added → 6 BCs; density 13/15=0.867). BC-INDEX v9.05→v9.06. BC-5.39.001 streak RESET 0/3. Feature HEAD a1864d3eb. total_stories 296 UNCHANGED. D-2124 NOTE archived.
 # NOTE: D-2124 — STORY-INDEX v2.788→v2.789: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-10 CLEAN(strict)=NO / CLEAN(PR-merge)=YES — story v1.10→v1.11 (F-P-LOW-001 [LOW] AC-WIRE-001/RG-007 JSON literal spacing corrected to compact form; BC-2.16.002 v2.19 pin). BC-INDEX v9.04→v9.05. BC-5.39.001 streak RESET 0/3. Feature HEAD fed26d07f UNCHANGED. total_stories 296 UNCHANGED. D-2123 NOTE archived.
 # NOTE: D-2123 — STORY-INDEX v2.787→v2.788: EXPANDED coherence audit — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 story v1.9→v1.10 (BC-2.16.014 v1.22 pin; 5 locations); S-WAVE-A-ENGINE-001 v3.2→v3.3 (BC-2.16.014 v1.22 pin; 2 locations per POL-23). total_stories 296 UNCHANGED. D-2122 NOTE archived.
 # NOTE: D-2122 — STORY-INDEX v2.786→v2.787: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-9 CLEAN(strict)=NO / CLEAN(PR-merge)=YES (first PR-merge-clean pass) — story v1.8→v1.9 (F-P-LOW-001 [LOW] test doc-comment corrected code fed26d07f; F-P-LOW-002 [LOW] MED-1 test attribution corrected to prism-spec-engine+prism-core). New feature HEAD fed26d07f. BC-5.39.001 streak RESET 0/3. total_stories 296 UNCHANGED. D-2121 NOTE archived.
@@ -63,7 +65,8 @@ arch_index_version: "2.303"
 # NOTE: D-2105 — ARCH-INDEX v2.298→v2.299: ADR-031 leading pin v1.9→v1.10 (F-CLARO-P2-HIGH-002 downstream copy-target sweep TD-VSDD-097 dim-2). D-2104 NOTE archived.
 # NOTE: D-2083 — ARCH-INDEX v2.294→v2.295: FB111 closure — ADR-057 pin v1.3→v1.4 (§D7 Tier responsibility division — empty-value arm block added; DRIFT-S-REQUIRED-COL-GATE-001-EMPTYVAL-001 adjudicated NOT-A-DEFECT). D-2081 NOTE archived.
 # NOTE: D-2081 — ARCH-INDEX v2.293→v2.294: FB109 closure — ADR-033 pin v1.0→v1.1 (two LIVE wave-granularity deferrals corrected; version: frontmatter field added (was absent)); ADR-057 pin v1.2→v1.3 (§D7 ANCHORED to S-REQUIRED-COL-GATE-001; false ADR-033 T2 prerequisite corrected). D-2079 NOTE archived.
-error_taxonomy_version: "2.73"
+error_taxonomy_version: "2.74"
+# NOTE: D-2125 — error-taxonomy v2.73→v2.74: E-INFUSE-015 InfusionError::HttpClientBuildFailed added (HTTP client build failure in §build_http_client_with_timeout; anchor DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-013/AC-ERR-006; replaces E-INFUSE-009 stopgap; code a1864d3eb). D-2113 NOTE archived.
 # NOTE: D-2113 — error-taxonomy v2.72→v2.73: E-AUTH-002/E-AUTH-004 mapping notes (AuthRefreshFailed/CookieAuthFailed→HttpError{401} auth-error classification). D-2112 NOTE archived.
 # NOTE: D-2112 — error-taxonomy v2.71→v2.72: new error code(s) for DEFECT-ADAPTER-TLS-XDOME-LIVE-001 (E-SENSOR-030 or equivalent TLS/HTTP transport errors). D-2067 NOTE archived.
 # NOTE: D-2067/FB95 — error-taxonomy v2.70→v2.71: E-SPEC-029 registered — required-filter gate `SpecEngineError::HttpRequestFailed` (status_code=0) with canonical message template. Consumed by BC-2.02.014 v1.7 + BC-2.02.006 v1.16. D-2036 NOTE archived.
@@ -87,12 +90,13 @@ policies_version: "1.41"
 subsystem_count: 22  # 22 subsystems (SS-01..SS-22)
 vp_count: 161
 bc_count_corrected: 269
-workspace_test_count: 5722
+workspace_test_count: 5724
+# NOTE: D-2125 — 5722→5724: workspace test count confirmed at pass-11 CODE commit a1864d3eb (E-INFUSE-015 InfusionError::HttpClientBuildFailed + 3 infusion callers wired; RG-013; just check 5724 green). D-2121 NOTE archived.
 # NOTE: D-2121 — 5703→5722: workspace test count confirmed at pass-8 CODE commit 490b5c831 (RG-008 message-only fix; just check 5722 green). D-2109 NOTE archived.
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2124 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-10 CLOSED (TD-VSDD-096 records-only micro-burst). CLEAN(strict)=NO / CLEAN(PR-merge)=YES. 2 records-tier findings CLOSED: F-P-LOW-001 [LOW] AC-WIRE-001/RG-007 JSON literal spacing corrected to compact form (story v1.10→v1.11); F-P-OBS-001 [OBS] BC-2.16.002 row-91 error-field disclosure amended to name §prism_core::sanitize_body_snippet_bytes (BC-2.16.002 v2.18→v2.19). BC-INDEX v9.04→v9.05. STORY-INDEX v2.788→v2.789. BC-5.39.001 streak RESET 0/3. Feature HEAD fed26d07f UNCHANGED. develop_head 5d1a30ac7. records-lint exit 0. STATE v8.672→v8.673. NEXT: strict LOCAL adversary pass-11 on frozen HEAD fed26d07f + story v1.11."
+current_step: "D-2125 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-11 CLOSED. CLEAN(strict)=NO / CLEAN(PR-merge)=YES. F-1 [LOW] §sanitize_body_snippet_bytes doc-cite closed (code f3825985c; doc-only). HUMAN-DIRECTED F-2 fix: pre-existing §build_http_client_with_timeout .expect() eliminated (Result-ified, code 010694062) + E-INFUSE-009 stopgap replaced with E-INFUSE-015 InfusionError::HttpClientBuildFailed (code a1864d3eb; 3 infusion callers wired; error-taxonomy v2.73→v2.74; BC-2.19.001 v2.2→v2.3; story v1.11→v1.12 RG-013/AC-ERR-006; 95/95 non-exhaustive; 5724 green). New feature HEAD a1864d3eb. BC-INDEX v9.05→v9.06. STORY-INDEX v2.789→v2.790. BC-5.39.001 streak RESET 0/3. develop_head 5d1a30ac7. records-lint exit 0. STATE v8.673→v8.674. NEXT: strict LOCAL adversary pass-12 on frozen HEAD a1864d3eb + story v1.12."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
