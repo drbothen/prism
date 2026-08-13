@@ -6,7 +6,7 @@ wave: "C"
 epic_id: engine-defects
 priority: P1
 status: ready
-version: "1.12"
+version: "1.13"
 severity: CRIT
 level: engine
 producer: story-writer
@@ -64,7 +64,7 @@ behavioral_contracts:
 #     compliance automatically via build_http_client_with_custom_timeout delegation chain.
 #     No new ACs required in this story for BC-2.16.014 scope beyond the UA propagation
 #     side-effect verified by AC-UA-001.
-#   BC-2.19.001 (Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF): v2.3, status: active
+#   BC-2.19.001 (Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF): v2.4, status: active
 #     New §Error Conditions row E-INFUSE-015: `InfusionError::HttpClientBuildFailed { detail }`
 #     is the correct error variant for `build_http_client_with_timeout` failure during
 #     HttpLookup-type infusion spec load (RUNTIME PHASE); eliminates the E-INFUSE-009 stopgap.
@@ -137,7 +137,7 @@ Read ADR-050 §D5 and §D6 in full before implementing:
 | BC-2.01.010 (Partial Failure Handling) | v1.6 · draft | §Postconditions: AllTargetsFailed Per-Target Logging — each `FanOutError` MUST be logged at WARN before `AllTargetsFailed` propagates. |
 | BC-2.01.013 (DataSource Trait Eliminates Per-Sensor Code Duplication) | v1.18 · active | Scope — EC-01-029: `AuthRefreshFailed` and `CookieAuthFailed` persistent-auth-failure variants MUST map to `SensorError::HttpError { status: 401 }` end-to-end, producing `auth_valid: false` at the health probe surface. |
 | BC-2.16.014 (Declarative Auth Acquisition Token Lifecycle) | v1.22 · draft | INV-014-007 ADR-050 §D5/§D6 note: `DeclarativeHttpAuthProvider` inherits User-Agent and http2 automatically via `build_http_client_with_custom_timeout` delegation. No separate implementation required for this BC in this story. |
-| BC-2.19.001 (Infusion Spec Loading) | v2.3 · active | §Error Conditions E-INFUSE-015: `InfusionError::HttpClientBuildFailed { detail }` is the correct error variant for `build_http_client_with_timeout` failure during `HttpLookup`-type infusion spec RUNTIME PHASE; eliminates the E-INFUSE-009 stopgap. Scope: F-2 completion in this story. Verified by RG-013. |
+| BC-2.19.001 (Infusion Spec Loading) | v2.4 · active | §Error Conditions E-INFUSE-015: `InfusionError::HttpClientBuildFailed { detail }` is the correct error variant for `build_http_client_with_timeout` failure during `HttpLookup`-type infusion spec RUNTIME PHASE; eliminates the E-INFUSE-009 stopgap. Scope: F-2 completion in this story. Verified by RG-013. |
 
 **Bundling rationale:** F9 (error surfacing) and F10 (transport) are bundled into this story per §5 Bundling Verdict in the design doc (`xdome-transport-hardening-design.md`). `DEFECT-SENSOR-ERROR-FLATTEN-001` is superseded by this story and closed.
 
@@ -163,7 +163,7 @@ raw error logs or deploy a relay.
 | BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | v1.6 | AllTargetsFailed Per-Target Logging postcondition — each `FanOutError` WARN before propagation. |
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.18 | Scope (EC-01-029): `AuthRefreshFailed` / `CookieAuthFailed` persistent-auth-failure variants MUST map to `SensorError::HttpError { status: 401 }` end-to-end. Verified by RG-010 and RG-011 (fix-burst pass-1). |
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | v1.22 | INV-014-007 note only: `DeclarativeHttpAuthProvider` inherits UA + http2 via `build_http_client_with_custom_timeout` delegation chain (ADR-050 §D6 propagation). No new code required for this BC beyond the `build_http_client_with_custom_timeout` change. |
-| BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | v2.3 | §Error Conditions E-INFUSE-015 row: `build_http_client_with_timeout` failure during `HttpLookup`-type infusion spec RUNTIME PHASE (`load_spec_with_runtime` / `hot_reload`) returns `InfusionError::HttpClientBuildFailed { detail }`; eliminates E-INFUSE-009 stopgap. Effectively unreachable under ADR-050 `rustls-tls` mandate; testable via direct variant construction (SID-1 compensating control). When triggered during `hot_reload`, previous registry is retained per BC-2.19.004 atomicity contract. Scope: F-2 completion. |
+| BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | v2.4 | §Error Conditions E-INFUSE-015 row: `build_http_client_with_timeout` failure during `HttpLookup`-type infusion spec load (1 site each: `load_spec`, `load_spec_with_runtime`, `hot_reload`) returns `InfusionError::HttpClientBuildFailed { detail }`; eliminates E-INFUSE-009 stopgap. Effectively unreachable under ADR-050 `rustls-tls` mandate; testable via direct variant construction (SID-1 compensating control). When triggered during `hot_reload`, previous registry is retained per BC-2.19.004 atomicity contract. Scope: F-2 completion. |
 
 ---
 
@@ -274,8 +274,9 @@ also traces to BC-2.01.013 EC-01-029: persistent-auth-failure variants produce `
 at the probe surface end-to-end)
 
 **AC-ERR-006 — Infusion HTTP client build failure maps to E-INFUSE-015, not E-INFUSE-009 stopgap**
-When `build_http_client_with_timeout` fails during the RUNTIME PHASE of an `HttpLookup`-type
-infusion spec load, the error surfaces as `InfusionError::HttpClientBuildFailed { detail }`
+When `build_http_client_with_timeout` fails at any of the three firing paths — `load_spec`,
+`load_spec_with_runtime`, or `hot_reload` — during an `HttpLookup`-type infusion spec load,
+the error surfaces as `InfusionError::HttpClientBuildFailed { detail }`
 with display `"E-INFUSE-015: infusion HTTP client build failed (TLS init): {detail}"` — NOT
 the prior E-INFUSE-009 stopgap. Effectively unreachable in production under the ADR-050
 `rustls-tls` mandate; testable by directly constructing the variant (SID-1 unit test as
@@ -512,7 +513,7 @@ Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check
 | BC-2.01.010 v1.6 (AllTargetsFailed Per-Target Logging postcondition) | ~5,000 | |
 | BC-2.01.013 v1.18 (DataSource Trait Eliminates Per-Sensor Code Duplication — scope: EC-01-029) | ~4,000 | Targeted EC row; fix-burst pass-1 alignment |
 | BC-2.16.014 v1.22 (INV-014-007 ADR-050 §D5/§D6 note) | ~18,000 | Large BC; only INV note relevant |
-| BC-2.19.001 v2.3 (§Error Conditions E-INFUSE-015 row — targeted scope) | ~3,000 | Only E-INFUSE-015 row and adjacent context needed; full BC is large |
+| BC-2.19.001 v2.4 (§Error Conditions E-INFUSE-015 row — targeted scope) | ~3,000 | Only E-INFUSE-015 row and adjacent context needed; full BC is large |
 | ADR-050 v2.3 (§D5/§D6 new decisions + rationale; §D6 scope extended in v2.1; §D5 production-entry count corrected to 3 in v2.2) | ~10,000 | Reference for Cargo.toml + UA changes |
 | `spec_driven_adapter.rs` (`map_spec_engine_error_to_sensor_error` + `build_http_client_with_custom_timeout`) | ~8,000 | Two target functions |
 | `pipeline.rs` (send-failure arm + non-2xx branch × 2) | ~30,000 | Large file; two symmetric fix sites |
@@ -600,7 +601,7 @@ None. All changes are additions to existing production modules and inline test b
 | `crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs` | Add RG-005 (`test_probe_connectivity_403_returns_up_not_down`), RG-007 (`test_sensor_health_wire_shape_403_reachable_auth_invalid`), and RG-008 (`test_reqwest_http2_feature_active`) in-process integration tests |
 | `crates/prism-spec-engine/tests/pipeline_http_integration.rs` | Add RG-009 (`test_BC_2_16_002_rg009_send_failure_includes_source_chain`) integration test (fix-burst pass-1); add MED-1 sanitization tests `test_BC_2_16_002_med1_non_2xx_body_sanitizes_control_chars_preserves_utf8` and `test_BC_2_16_002_f1_non_2xx_body_byte_cap_multibyte_utf8` (fix-burst pass-1) |
 | `crates/prism-core/src/error.rs` | Add `InfusionError::HttpClientBuildFailed { detail: String }` variant with `#[error("E-INFUSE-015: infusion HTTP client build failed (TLS init): {detail}")]` (F-2 E-INFUSE-015 completion) |
-| `crates/prism-spec-engine/src/infusion/mod.rs` | Rewire 3 `build_http_client_with_timeout()` call sites in `load_spec_with_runtime` (2 sites) and `hot_reload` (1 site): `.map_err(\|e\| InfusionError::HttpClientBuildFailed { detail: e })` replacing E-INFUSE-009 stopgap; error-taxonomy v2.74 |
+| `crates/prism-spec-engine/src/infusion/mod.rs` | Rewire 3 `build_http_client_with_timeout()` call sites: `load_spec` (1 site), `load_spec_with_runtime` (1 site), and `hot_reload` (1 site): `.map_err(\|e\| InfusionError::HttpClientBuildFailed { detail: e })` replacing E-INFUSE-009 stopgap; error-taxonomy v2.74 |
 | `crates/prism-spec-engine/tests/infusion_tests.rs` | Add RG-013 (`test_infusion_http_client_build_failure_maps_to_e_infuse_015`) — direct variant construction + Display prefix + stopgap-retirement assertion (SID-1 pattern) |
 | `test-soc/live-soc/relay/xdome-relay.py` | Add deprecation comment (T-LV03, post-live-verification) |
 
@@ -613,7 +614,7 @@ None. All changes are additions to existing production modules and inline test b
 | `.factory/specs/behavioral-contracts/BC-2.01.010-partial-failure-handling.md` | Frozen at v1.6. AllTargetsFailed Per-Target Logging postcondition already authored. |
 | `.factory/specs/behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md` | Frozen at v1.18. EC-01-029 persistent-auth-failure alignment already authored by product-owner. |
 | `.factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md` | Frozen at v1.22. INV-014-007 note already added by product-owner. |
-| `.factory/specs/behavioral-contracts/BC-2.19.001-infusion-spec-loading.md` | Frozen at v2.3. E-INFUSE-015 §Error Conditions row already authored by product-owner. |
+| `.factory/specs/behavioral-contracts/BC-2.19.001-infusion-spec-loading.md` | Frozen at v2.4. E-INFUSE-015 §Error Conditions row already authored by product-owner. |
 | `.factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md` | Frozen at v2.3. D5 (3 production entries) and D6 decisions already added by architect. |
 | `.factory/specs/prd-supplements/error-taxonomy.md` | E-SENSOR-030 row already amended by product-owner. Do NOT amend. |
 | `crates/prism-dtu-*/Cargo.toml` | DTU dev-deps excluded from ADR-050 §D5 scope. |
@@ -759,6 +760,7 @@ block). See the AC-H2-001 observability note.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.13 | 2026-08-13 | story-writer | Records-only (TD-VSDD-096, F-P-MED-001). E-INFUSE-015 firing-path enumeration corrected to 3 paths (1/1/1 distribution). (1) AC-ERR-006 body: enumerated all three firing paths (`load_spec`, `load_spec_with_runtime`, `hot_reload`) replacing the vague "RUNTIME PHASE" description that omitted `load_spec`. (2) §Files to Modify `infusion/mod.rs` row: corrected from "`load_spec_with_runtime` (2 sites) and `hot_reload` (1 site)" to "`load_spec` (1 site), `load_spec_with_runtime` (1 site), and `hot_reload` (1 site)" — matching BC-2.19.001 v2.4, error-taxonomy v2.74, and code ground truth in `infusion/mod.rs` (verified: one `build_http_client_with_timeout()` call in each of the three functions). (3) BC-2.19.001 pin v2.3→v2.4 propagated to 5 locations: `# BC status` frontmatter comment, §Authority table, §Behavioral Contracts table, Token Budget, §Files NOT to Modify. (4) §Behavioral Contracts table BC-2.19.001 scope cell: corrected from "RUNTIME PHASE (`load_spec_with_runtime` / `hot_reload`)" (two-path omission, missing `load_spec`) to "(1 site each: `load_spec`, `load_spec_with_runtime`, `hot_reload`)" — same class as items (1) and (2); confirmed this is the only remaining two-path occurrence in the story. Other pins verified unchanged: BC-2.16.002 v2.19, BC-2.08.002 v1.6, BC-2.01.010 v1.6, BC-2.01.013 v1.18, BC-2.16.014 v1.22, ADR-050 v2.3. No AC semantics, verification obligations, or RG assignments changed. |
 | 1.12 | 2026-08-13 | story-writer | E-INFUSE-015 / F-2 completion: BC-2.19.001 propagated to body (bc_array_changes_propagate_to_body_and_acs policy). (1) BC-2.19.001 v2.3 added to `# BC status` frontmatter comment, §Authority table, §Behavioral Contracts table (scope: E-INFUSE-015 error surface / infusion load path / F-2 completion). (2) AC-ERR-006 added to Group B — `InfusionError::HttpClientBuildFailed` maps to E-INFUSE-015, not E-INFUSE-009 stopgap; traces to BC-2.19.001 §Error Conditions E-INFUSE-015 row and error-taxonomy E-INFUSE-015; Red Gate RG-013. (3) RG-013 (`test_infusion_http_client_build_failure_maps_to_e_infuse_015` in `crates/prism-spec-engine/tests/infusion_tests.rs`) registered in Red Gate enumeration table and Phase 1 task list. SID-1 direct-construction pattern noted (path effectively unreachable under rustls-tls). (4) BC-5.38.001 density recomputed: 13/15 = 0.867 (was 12/14 = 0.857). F-2 completion density note added. (5) Token Budget: BC-2.19.001 row added (~3,000 tokens); total updated ~140,500 → ~143,500. (6) Files to Modify: 3 E-INFUSE-015 wiring rows added (`prism-core/src/error.rs` HttpClientBuildFailed variant; `infusion/mod.rs` 3 call-site rewires; `infusion_tests.rs` RG-013 test). (7) Files NOT to Modify: BC-2.19.001 freeze row added. (8) Points comment updated: 12 RGs → 13 RGs (1.2 pt → 1.3 pt; total ~5.0 → ~5.1). All other pins verified unchanged: BC-2.16.002 v2.19, BC-2.08.002 v1.6, BC-2.01.010 v1.6, BC-2.01.013 v1.18, BC-2.16.014 v1.22, ADR-050 v2.3. error-taxonomy not version-pinned in body (no body reference by version number). |
 | 1.11 | 2026-08-13 | story-writer | Records-only corrections (TD-VSDD-096). F-P-LOW-001: AC-WIRE-001 and RG-007 Phase-1 task text wire-byte literals corrected from spaced form (`"reachable": true`, `"auth_valid": false`) to compact serde_json form (`"reachable":true`, `"auth_valid":false`) — 4 locations: AC-WIRE-001 heading, AC-WIRE-001 body, RG-007 task bullet, Architecture Compliance Rule 9. AC-LIVE-002 prose `{ "reachable": true, ... }` intentionally unchanged (illustrative format, not a byte assertion). BC-2.16.002 v2.18 → v2.19 (row-91 disclosure amendment) propagated to 9 body locations: `# BC status` frontmatter comment, §Authority table, §Behavioral Contracts table, BC-5.38.001 density note, AC-SAP1-001 body (2 occurrences), T-G01 task (2 occurrences), Token Budget table, Architecture Compliance Rule 7, §Files NOT to Modify. Other pins verified unchanged: BC-2.08.002 v1.6, BC-2.01.010 v1.6, BC-2.01.013 v1.18, BC-2.16.014 v1.22, ADR-050 v2.3. No AC semantics, verification obligations, or RG assignments changed. |
 | 1.10 | 2026-08-13 | story-writer | Records-only pin propagation (TD-VSDD-096, POL-23). BC-2.16.014 v1.21 → v1.22 (DD-9 delegation-claim accuracy fix) propagated to 5 locations: `# BC status` frontmatter comment, §Authority table, §Behavioral Contracts table, §Token Budget Estimate table, §Files NOT to Modify. Other pins verified unchanged: BC-2.16.002 v2.18, BC-2.08.002 v1.6, BC-2.01.010 v1.6, BC-2.01.013 v1.18, ADR-050 v2.3. input-hash updated c10bbb4 → 7f2e0df (pre-existing drift; inputs changed since last artifact production). No AC semantics, verification obligations, or RG assignments changed. |
