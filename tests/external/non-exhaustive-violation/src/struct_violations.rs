@@ -1533,11 +1533,18 @@ pub fn v94_get_device_alerts_body() {
 /// `devices_alerts`, NOT `device_alert_relations`; EC-016-013-009 silent-failure guard).
 /// `#[non_exhaustive]` ensures external crates cannot use struct-literal construction —
 /// future envelope fields can be added without breaking external callers.
-/// `#[serde(deny_unknown_fields)]` (on the `GetDeviceAlertsResponse` struct) catches
-/// phantom keys that would cause silent data loss at normalization time.
+/// `#[serde(deny_unknown_fields)]` is LOAD-BEARING: `GetDeviceAlertsResponse` derives
+/// both `Serialize` and `Deserialize` (F-CLARO-LIVE-P1-LOW-001 fix, S-DEMO-CLAROTY-DAR-001
+/// Task 4), so the attribute actively rejects phantom keys during deserialization.
+/// The guarantee is exercised by
+/// `prism_dtu_claroty::types::tests::test_get_device_alerts_response_deny_unknown_fields`
+/// — that test asserts `Err` on `{"devices_alerts":[],"count":0,"phantom_key":1}` (negative
+/// phantom-key assertion). Passing before `Deserialize` was added would have been a paper-fix
+/// (TD-VSDD-059); the test now actually fails without both `Deserialize` and `deny_unknown_fields`.
 /// External callers MUST deserialize via `serde_json` — direct struct-literal MUST NOT compile (E0639).
 ///
 /// Added: F-CLARO-P2-MED-003 fix (S-DEMO-CLAROTY-DAR-001 Task 4 / AC-005).
+/// deny_unknown_fields made load-bearing: F-CLARO-LIVE-P1-LOW-001.
 #[allow(dead_code)]
 pub fn v95_get_device_alerts_response() {
     use prism_dtu_claroty::types::GetDeviceAlertsResponse;

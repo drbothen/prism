@@ -422,11 +422,104 @@ pub struct GetDeviceAlertsBody {
 /// Uses `count: Option<u32>` (NOT `total`) per `GetDeviceAlertsResponse` schema
 /// (count is `anyOf [integer, null]`).  `devices_alerts` is REQUIRED in the schema.
 #[non_exhaustive]
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GetDeviceAlertsResponse {
     pub devices_alerts: Vec<ClarotyDeviceAlertRelation>,
     pub count: Option<u32>,
+}
+
+// ---------------------------------------------------------------------------
+// Tag write types
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Tests — GetDeviceAlertsResponse serde contract
+//
+// F-CLARO-LIVE-P1-LOW-001: `GetDeviceAlertsResponse` now derives `Deserialize`
+// so `#[serde(deny_unknown_fields)]` is LOAD-BEARING. These tests are the
+// proof that the guarantee is real (TD-VSDD-059 paper-fix detection):
+//
+//   test_get_device_alerts_response_round_trip — positive path: serialize then
+//     deserialize succeeds (the struct can be used on the deserialization path).
+//
+//   test_get_device_alerts_response_deny_unknown_fields — negative path: a JSON
+//     object containing a phantom extra key must return Err (the load-bearing
+//     assertion). Without `Deserialize` + `deny_unknown_fields` this would Ok,
+//     which would allow phantom keys to silently survive the wire boundary.
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Positive: round-trip — serialize a `GetDeviceAlertsResponse` and deserialize
+    /// it back. Confirms `Deserialize` is correctly derived and the known-field set
+    /// survives the round-trip without error.
+    ///
+    /// F-CLARO-LIVE-P1-LOW-001 / S-DEMO-CLAROTY-DAR-001 Task 4.
+    #[test]
+    fn test_get_device_alerts_response_round_trip() {
+        let original = serde_json::json!({
+            "devices_alerts": [],
+            "count": null
+        });
+
+        let deserialized: Result<GetDeviceAlertsResponse, _> = serde_json::from_value(original);
+        assert!(
+            deserialized.is_ok(),
+            "GetDeviceAlertsResponse must deserialize from a valid envelope; err: {:?}",
+            deserialized.err()
+        );
+
+        let response = deserialized.unwrap();
+        assert!(
+            response.devices_alerts.is_empty(),
+            "round-trip: devices_alerts must be empty"
+        );
+        assert!(
+            response.count.is_none(),
+            "round-trip: count must be None when null"
+        );
+
+        // Serialize back to JSON and verify keys are present.
+        let reserialised = serde_json::to_value(&response).expect("re-serialization must succeed");
+        assert!(
+            reserialised.get("devices_alerts").is_some(),
+            "round-trip: re-serialized envelope must contain `devices_alerts` key"
+        );
+        assert!(
+            reserialised.get("count").is_some(),
+            "round-trip: re-serialized envelope must contain `count` key"
+        );
+    }
+
+    /// Negative (load-bearing): a JSON object with a phantom extra key MUST produce
+    /// `Err` when deserialized into `GetDeviceAlertsResponse`.
+    ///
+    /// This assertion is what makes the `#[serde(deny_unknown_fields)]` guarantee
+    /// REAL — without `Deserialize` on the type, this would silently `Ok` (the
+    /// attribute is inert on Serialize-only types). The test failing would mean the
+    /// guarantee is still a paper-fix (TD-VSDD-059).
+    ///
+    /// F-CLARO-LIVE-P1-LOW-001 / S-DEMO-CLAROTY-DAR-001 Task 4.
+    #[test]
+    fn test_get_device_alerts_response_deny_unknown_fields() {
+        let phantom_key_json = serde_json::json!({
+            "devices_alerts": [],
+            "count": 0,
+            "phantom_key": 1
+        });
+
+        let result: Result<GetDeviceAlertsResponse, _> = serde_json::from_value(phantom_key_json);
+        assert!(
+            result.is_err(),
+            "GetDeviceAlertsResponse must reject phantom extra keys — \
+             #[serde(deny_unknown_fields)] MUST cause deserialization of \
+             {{\"devices_alerts\":[],\"count\":0,\"phantom_key\":1}} to return Err. \
+             If this fails, the deny_unknown_fields guarantee is still inert \
+             (type may have lost Deserialize — F-CLARO-LIVE-P1-LOW-001)"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
