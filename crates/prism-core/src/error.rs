@@ -2116,7 +2116,7 @@ pub fn sanitize_body_snippet(s: &str, max_chars: usize) -> String {
 ///    U+FFFD replacement char from `from_utf8_lossy` is 3 bytes; a replaced control char
 ///    becomes a 1-byte ASCII space, correctly reducing the effective budget).
 /// 2. **Cap** at `max_bytes` UTF-8 bytes, truncated on a char boundary. Uses
-///    `str::floor_char_boundary` (stable since Rust 1.65) — multibyte characters are never
+///    `str::floor_char_boundary` (stable; available on this workspace's pinned stable toolchain) — multibyte characters are never
 ///    split; the output is always valid UTF-8.
 ///
 /// # Guaranteed invariants
