@@ -295,9 +295,12 @@ async fn test_sensor_health_wire_shape_403_reachable_auth_invalid() {
 /// RED before fix: `"http2"` not yet in any production reqwest Cargo.toml
 /// entry → `h2` absent from reqwest's own Cargo.lock block → assertion fails.
 ///
-/// GREEN after fix: `"http2"` added to all four production reqwest entries in
-/// prism-spec-engine, prism-sensors, prism-bin (two entries) → Cargo resolves
-/// h2 as a direct dep of reqwest → `h2` appears in reqwest block → passes.
+/// GREEN after fix: `"http2"` added to THREE production reqwest [dependencies]
+/// entries (prism-spec-engine/Cargo.toml, prism-sensors/Cargo.toml,
+/// prism-bin/Cargo.toml — one production entry, the AC-9 shared client) plus
+/// prism-bin/Cargo.toml [dev-dependencies] (which also explicitly lists `http2`)
+/// → Cargo resolves h2 as a direct dep of reqwest → `h2` appears in reqwest
+/// block → passes.
 ///
 /// This replaces the inverted `test_reqwest_http2_not_enabled` (was
 /// GREEN-by-design before adding http2) with the correct RED-then-GREEN gate.
@@ -341,10 +344,12 @@ fn test_reqwest_http2_feature_active() {
         has_h2_direct_dep,
         "RG-008 (AC-H2-001): reqwest Cargo.lock block MUST list h2 as a direct dependency \
          to confirm the `http2` feature is active on the reqwest node (ADR-050 §D5). \
-         Fix: add \"http2\" to the `features` list in ALL FOUR production reqwest \
+         Fix: add \"http2\" to the `features` list in THREE production reqwest \
          [dependencies] entries: prism-spec-engine/Cargo.toml, prism-sensors/Cargo.toml, \
-         prism-bin/Cargo.toml (two entries). Keep `default-features = false` and \
-         `rustls-tls` (ADR-050 D1/D2 — native-tls stays forbidden). \
+         prism-bin/Cargo.toml (one production entry — the AC-9 shared client). \
+         Also add \"http2\" to prism-bin/Cargo.toml [dev-dependencies] (which explicitly \
+         lists `http2` too). Keep `default-features = false` and `rustls-tls` \
+         (ADR-050 D1/D2 — native-tls stays forbidden). \
          Reqwest block contents:\n{reqwest_block}"
     );
 }
