@@ -6,7 +6,7 @@ wave: "C"
 epic_id: engine-defects
 priority: P1
 status: ready
-version: "1.4"
+version: "1.5"
 severity: CRIT
 level: engine
 producer: story-writer
@@ -87,7 +87,6 @@ risk: HIGH
 #   are BLOCKING — no waiver possible. F9 fix is a prerequisite for F10 diagnostic
 #   coverage; partial fix leaves relay required. Changes to error mapping affect the
 #   health-probe path used by all sensors (regression risk for existing tests).
-holdout_scenarios: []
 assumption_validations:
   - id: AV-01
     assumption: "reqwest 0.12.28 `http2` cargo feature is additive (ALPN advertises h2 + http/1.1, falls back to HTTP/1.1 if server lacks h2), not h2-only; pulls the h2 crate; feature name is exactly `http2`."
@@ -214,13 +213,13 @@ specific production entries in the three crates)
 ### Group B — Error Surfacing (F9)
 
 **AC-ERR-001 — `map_spec_engine_error_to_sensor_error` with `status_code: 401` returns `SensorError::HttpError` (not `Internal`)**
-Calling `map_spec_engine_error_to_sensor_error("claroty", SpecEngineError::HttpRequestFailed { status_code: 401, detail: "HTTP 401".to_string(), ... })` returns `SensorError::HttpError { sensor: "claroty", status: 401, body: "HTTP 401" }`.
+Calling `map_spec_engine_error_to_sensor_error(SpecEngineError::HttpRequestFailed { status_code: 401, detail: "HTTP 401".to_string(), .. }, "claroty", "devices")` returns `SensorError::HttpError { sensor: "claroty", status: 401, body: "HTTP 401" }`.
 This test FAILS before the guard arm is added (Red Gate: RG-001).
 **Scope extension (fix-burst pass-1):** the persistent-auth-failure variants `AuthRefreshFailed` and `CookieAuthFailed` (which surface as `HttpRequestFailed { status_code: 401 }` at the mapping boundary) are also verified by this AC via RG-010 and RG-011. Both variants MUST produce `SensorError::HttpError { status: 401 }`.
 (traces to BC-2.08.002 HTTP Error Classification postcondition: `SpecEngineError::HttpRequestFailed { status_code > 0 }` MUST map to `SensorError::HttpError`; also traces to BC-2.01.013 EC-01-029: persistent-auth-failure variants map to `SensorError::HttpError { status: 401 }` end-to-end)
 
 **AC-ERR-002 — `map_spec_engine_error_to_sensor_error` with `status_code: 0` returns `SensorError::Internal` (no regression)**
-Calling `map_spec_engine_error_to_sensor_error("claroty", SpecEngineError::HttpRequestFailed { status_code: 0, detail: "connection reset".to_string(), ... })` returns `SensorError::Internal { .. }`.
+Calling `map_spec_engine_error_to_sensor_error(SpecEngineError::HttpRequestFailed { status_code: 0, detail: "connection reset".to_string(), .. }, "claroty", "devices")` returns `SensorError::Internal { .. }`.
 Transport failures (no HTTP response received) continue to map to Internal.
 This test FAILS if the guard is over-broad (Red Gate: RG-002).
 (traces to BC-2.08.002 HTTP Error Classification postcondition: `status_code = 0` (transport failure) continues to produce `SensorError::Internal`)
@@ -721,6 +720,7 @@ block). See the AC-H2-001 observability note.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.5 | 2026-08-13 | story-writer | LOCAL adversary pass-5 records-only corrections (TD-VSDD-096). F-P5-MED-001 (MEDIUM): removed stale duplicate `holdout_scenarios: []` frontmatter key (lines were: populated `[HS-TLS-XDOME-001, HS-TLS-XDOME-002, HS-TLS-XDOME-003]` after `modified:` and empty `[]` before `assumption_validations:`); kept the populated occurrence; no other duplicate top-level frontmatter keys found. F-P5-LOW-001 (LOW): corrected illustrative call signature in AC-ERR-001 and AC-ERR-002 prose from 2-arg sensor-id-first form to real 3-arg error-first form (`map_spec_engine_error_to_sensor_error(SpecEngineError::..., sensor_id, table_name)`) verified against `spec_driven_adapter.rs` fn signature; no AC semantics change. |
 | 1.4 | 2026-08-13 | story-writer | LOCAL adversary pass-4 records-only corrections (TD-VSDD-096). F-1 (MED): BC-2.01.013 canonical H1 corrected to "DataSource Trait Eliminates Per-Sensor Code Duplication" in §Authority table, §Behavioral Contracts table Title column, and `# BC status` frontmatter comment; §Files NOT to Modify file path corrected to `BC-2.01.013-datasource-trait-adapter-pattern.md`; Token Budget parenthetical updated. F-2 (LOW): BC/ADR version pins re-synced to current frontmatter: BC-2.16.002 v2.15→v2.17, BC-2.08.002 v1.5→v1.6, BC-2.01.010 v1.5→v1.6, ADR-050 v2.1→v2.2 (all five table locations, Token Budget, §Files NOT to Modify, and inline body refs). F-3 (LOW): AC-CARGO-001 count corrected four→three production entries; prism-bin entry count corrected two→one production + one harmless dev-dep; T-A04 reframed as verify-only task; §Files to Modify description updated; AC-H2-001 inline "four" corrected. No AC-semantic or verification changes. |
 | 1.3 | 2026-08-13 | story-writer | LOCAL adversary pass-2 reconciliation. RG names reconciled to code (code is authoritative per SAC-1): RG-003 → `test_pipeline_non_2xx_body_in_detail`; RG-005 → `test_probe_connectivity_403_returns_up_not_down`; RG-007 → `test_sensor_health_wire_shape_403_reachable_auth_invalid`; RG-008 file location updated to `crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs`. RG-012 (`test_infusion_http_client_sends_prism_user_agent`, `crates/prism-spec-engine/src/pipeline.rs` `mod infusion_http_client_user_agent_tests`) registered for OBS-4 fix — verifies ADR-050 §D6 v2.1 infusion client UA. ADR-050 pin updated v2.0 → v2.1 in §Authority and §Files NOT to Modify (§D6 scope extended to include infusion `build_http_client_with_timeout`). BC-5.38.001 density recomputed: 12/14 = 0.857 (was 11/14 = 0.786). Points comment updated to RG-001..RG-012. |
 | 1.2 | 2026-08-13 | story-writer | Fix-burst pass-1 spec changes. Added RG-009 (`test_BC_2_16_002_rg009_send_failure_includes_source_chain` in `crates/prism-spec-engine/tests/pipeline_http_integration.rs`), RG-010 (`test_map_error_auth_refresh_failed_maps_to_http_error_401` in `spec_driven_adapter.rs`), RG-011 (`test_map_error_cookie_auth_failed_maps_to_http_error_401` in `spec_driven_adapter.rs`). Added BC-2.01.013 v1.17 to `behavioral_contracts` array and §Authority + §Behavioral Contracts tables (EC-01-029 persistent-auth-failure alignment). Updated BC version pins: BC-2.16.002 →v2.15, BC-2.08.002 →v1.5 (AuthRefreshFailed/CookieAuthFailed scope added). Extended AC-ERR-001 and AC-ERR-005 to reference persistent-auth-failure path and add BC-2.01.013 EC-01-029 traces. Recomputed BC-5.38.001 density: 11/14 = 0.786 (was 8/14 = 0.571). Updated §Files to Modify (RG-009 integration test file added) and §Files NOT to Modify (BC-2.01.013 freeze row + updated version pins). MED-1 body-snippet sanitization test noted in §Files to Modify and density note. |
