@@ -41,7 +41,8 @@ use prism_bin::spec_driven_adapter::{
 };
 use prism_core::column::ColumnType;
 use prism_core::{OrgId, OrgSlug, SensorId};
-use prism_mcp::health::auth::{AuthStatus, probe_auth_with_routing};
+use prism_mcp::PrismContext;
+use prism_mcp::health::SensorHealthChecker;
 use prism_mcp::health::connectivity::{ConnectivityStatus, probe_connectivity};
 use prism_mcp::resources::SensorHealthResult;
 use prism_sensors::AdapterRegistry;
@@ -198,20 +199,24 @@ async fn test_probe_connectivity_403_returns_up_not_down() {
 // RG-007 — SensorHealthResult wire-shape: reachable=true, auth_valid=false
 // ---------------------------------------------------------------------------
 
-/// RG-007: After calling `probe_connectivity`, the `SensorHealthResult` built
-/// from the outcome MUST serialize to JSON containing `"reachable":true` and
-/// `"auth_valid":false` for a 403 response.
+/// RG-007: `SensorHealthChecker::check_one` (production path) MUST return a
+/// `SensorHealthResult` that serializes to JSON containing `"reachable":true`
+/// and `"auth_valid":false` for a 403 response.
 ///
-/// This is the SID-2 wire-shape assertion: the exact JSON bytes an LLM agent
-/// receives must contain the correct values — not just the Rust structs.
+/// REWORKED (OBS-5): previously hand-built `SensorHealthResult` and re-implemented the
+/// `AuthStatus → Option<bool>` mapping in-test, so `"auth_valid":false` was not load-bearing
+/// (only the serde shape was exercised). This version goes through `check_one` end-to-end,
+/// so a regression in `check_one`'s value derivation (e.g., 403 → auth_valid=true) WOULD
+/// fail this test.
 ///
-/// 403 semantics:
-/// - `reachable = true` (server responded → sensor is up)
-/// - `auth_valid = false` (403 Forbidden = auth failure or missing permission)
+/// 403 semantics flowing through `check_one`:
+/// 1. `probe_auth_with_routing` → 403 → `AuthStatus::Invalid`, `ConnectivityStatus::Up`
+/// 2. `check_one` maps `Up → reachable = true`, `Invalid → auth_valid_opt = Some(false)`
+/// 3. `SensorHealthResult.with_auth_valid(false)` → `"auth_valid":false` in serialized JSON
 ///
-/// FAIL reason before fix: RG-005 probe returns Down (http_status: None) →
-/// `reachable = (status == Up)` → false → `"reachable":false` in JSON →
-/// `assert!(json.contains("\"reachable\":true"), ...)` panics → RED.
+/// FAIL reason before fix: `map_spec_engine_error_to_sensor_error` maps HttpRequestFailed →
+/// Internal → probe classifies as Down → `check_one` sets `reachable = false` →
+/// `"reachable":false` in JSON → assertion FAILS → RED.
 ///
 /// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-007
 #[tokio::test]
@@ -239,47 +244,39 @@ async fn test_sensor_health_wire_shape_403_reachable_auth_invalid() {
     let org_id = OrgId::new();
     let mut registry = AdapterRegistry::new();
     registry.register(org_id, adapter);
-
     let sensor_id = SensorId::from("xdome");
 
-    let outcome = probe_connectivity(&registry, org_id, &sensor_id, "rg007-client")
-        .await
-        .expect("RG-007: probe_connectivity must not return Err(PrismError)");
-
-    // Build SensorHealthResult from probe outcome.
-    //
-    // reachable = sensor responded (Up or Degraded)
-    // auth_valid = false for 403 (server rejected credentials)
-    let reachable =
-        outcome.status == ConnectivityStatus::Up || outcome.status == ConnectivityStatus::Degraded;
-    let auth_valid = outcome.http_status.map(|s| s < 400).unwrap_or(false);
-
-    let health = SensorHealthResult::new("xdome", "rg007-client")
-        .with_reachable(reachable)
-        .with_auth_valid(auth_valid);
+    // PRODUCTION PATH (OBS-5): use SensorHealthChecker::check_one so the
+    // AuthStatus → Option<bool> derivation is exercised by production code,
+    // not re-implemented in-test. A regression in check_one's mapping WOULD fail here.
+    let checker = SensorHealthChecker::new(Arc::new(registry));
+    let context = PrismContext::new();
+    let health = checker
+        .check_one(org_id, "rg007-org", &sensor_id, &context)
+        .await;
 
     // SID-2 wire-shape assertion: serialize to compact JSON and check key:value pairs.
     let json = serde_json::to_string(&health).expect("RG-007: SensorHealthResult must serialize");
 
-    // ASSERTION 1: "reachable":true in JSON
-    // FAIL before fix: probe returns Down → reachable=false → "reachable":false in JSON.
+    // ASSERTION 1: "reachable":true — sensor responded (Up), not Down.
+    // FAIL before fix: probe returns Down → check_one sets reachable=false → "reachable":false.
     assert!(
         json.contains("\"reachable\":true"),
         "RG-007 (SID-2 wire-shape): JSON must contain '\"reachable\":true' for 403 response. \
          Got JSON: {json}. \
-         Root cause: probe returns Down before fix (http_status=None, Internal error). \
-         Fix: map_spec_engine_error_to_sensor_error must return SensorError::HttpError for 403 \
+         Root cause: map_spec_engine_error_to_sensor_error maps HttpRequestFailed → Internal \
+         instead of HttpError, so check_one sets reachable=false. \
+         Fix: return SensorError::HttpError for 4xx responses \
          (BC-2.08.002 DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-007)."
     );
 
-    // ASSERTION 2: "auth_valid":false in JSON
-    // This should also fail before fix because auth_valid=false depends on knowing http_status=403;
-    // if http_status is None (pre-fix), auth_valid=false anyway (false by default) — so this
-    // assertion may pass even before fix. The critical gate is "reachable":true above.
+    // ASSERTION 2: "auth_valid":false — driven by production check_one path.
+    // Load-bearing: if check_one's AuthStatus::Invalid → Some(false) mapping regressed
+    // (e.g., returned Some(true) for 403), this assertion would fail.
     assert!(
         json.contains("\"auth_valid\":false"),
-        "RG-007 (SID-2 wire-shape): JSON must contain '\"auth_valid\":false' for 403 response. \
-         Got JSON: {json}."
+        "RG-007 (SID-2 wire-shape): JSON must contain '\"auth_valid\":false' for 403 response \
+         via production check_one path. Got JSON: {json}."
     );
 }
 
@@ -356,28 +353,25 @@ fn test_reqwest_http2_feature_active() {
 // LOW-1 companion — production 401→auth_valid:false wire-shape (RG-007 variant)
 // ---------------------------------------------------------------------------
 
-/// LOW-1 companion for RG-007: wire-shape `"auth_valid":false` driven by the PRODUCTION
-/// 401→`AuthStatus::Invalid`→`auth_valid:false` path end-to-end, not a hand-built struct.
+/// LOW-1 companion for RG-007 (REWORKED OBS-5): `SensorHealthChecker::check_one` (production
+/// path) MUST return a `SensorHealthResult` that serializes to JSON with `"reachable":true`
+/// and `"auth_valid":false` for a 401 response.
 ///
-/// Call chain (production path):
-/// `probe_auth_with_routing` → `probe_connectivity_with_routing` →
-/// `SpecDrivenSensorAdapter::fetch()` → wiremock returns 401 →
-/// `map_spec_engine_error_to_sensor_error` → `SensorError::HttpError { status: 401 }` →
-/// `probe_connectivity` classifies as `ConnectivityStatus::Up` → `probe_auth_with_routing`
-/// classifies `Some(401)` → `AuthStatus::Invalid` →
-/// caller maps `AuthStatus::Invalid → auth_valid_opt = Some(false)` →
+/// REWORKED (OBS-5): the prior version used `probe_auth_with_routing` and then manually
+/// re-implemented the `AuthStatus → Option<bool>` mapping, so the wire shape was not
+/// load-bearing against a regression in `check_one`'s derivation. This version calls
+/// `check_one` directly so the full production path is exercised:
+///
+/// `check_one` → `probe_auth_with_routing` → 401 → `AuthStatus::Invalid` →
+/// `check_one` maps `Invalid → auth_valid_opt = Some(false)` →
 /// `SensorHealthResult.with_auth_valid(false)` → `"auth_valid":false` in JSON.
-///
-/// Unlike RG-007 (which hand-computes `auth_valid = http_status.map(|s| s < 400)`),
-/// this test uses `probe_auth_with_routing` so the `AuthStatus` classification logic
-/// is exercised by the production code path (LOW-1 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001).
 ///
 /// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 companion
 #[tokio::test]
 async fn test_sensor_health_wire_shape_401_auth_invalid_production_path() {
     let mock_server = MockServer::start().await;
 
-    // wiremock 401 — the production auth classification path: 401 → AuthStatus::Invalid
+    // wiremock 401 — triggers 401 → AuthStatus::Invalid path in check_one.
     Mock::given(method("GET"))
         .and(path("/api/v1/devices"))
         .respond_with(ResponseTemplate::new(401).set_body_bytes(b"unauthorized"))
@@ -399,73 +393,35 @@ async fn test_sensor_health_wire_shape_401_auth_invalid_production_path() {
     let org_id = OrgId::new();
     let mut registry = AdapterRegistry::new();
     registry.register(org_id, adapter);
-
     let sensor_id = SensorId::from("xdome");
 
-    // PRODUCTION PATH: use probe_auth_with_routing — the same function that
-    // `SensorHealthChecker::check_one` calls. This exercises the production
-    // AuthStatus classification rather than hand-computing from http_status.
-    // probe_table=None, first_table_name=Some("devices") so the probe routes to
-    // the "devices" table (xdome_devices source_table).
-    let probe = probe_auth_with_routing(
-        &registry,
-        org_id,
-        &sensor_id,
-        "low1-client",
-        None,
-        Some("devices"),
-    )
-    .await
-    .expect("LOW-1: probe_auth_with_routing must not return Err(PrismError)");
-
-    // PRODUCTION CLASSIFICATION: 401 → AuthStatus::Invalid.
-    // This mirrors the mapping in `SensorHealthChecker::check_one`:
-    //   AuthStatus::Invalid → auth_valid_opt = Some(false)
-    // The mapping is done here using the same match arm to exercise the production code,
-    // rather than computing auth_valid manually from http_status.
-    assert_eq!(
-        probe.auth,
-        AuthStatus::Invalid,
-        "LOW-1: probe_auth_with_routing must return AuthStatus::Invalid for 401; \
-         got: {:?}",
-        probe.auth
-    );
-
-    // Map AuthStatus to auth_valid_opt using the production logic from check_one
-    // (BC-2.08.002 EC-08-005 three-valued auth_valid).
-    let auth_valid_opt: Option<bool> = match probe.auth {
-        AuthStatus::Valid => Some(true),
-        AuthStatus::Invalid => Some(false),
-        AuthStatus::Unknown => None,
-    };
-
-    // Reachable: connectivity must be Up for a 401 (sensor responded).
-    let reachable = probe.connectivity == ConnectivityStatus::Up;
-
-    let health = SensorHealthResult::new("xdome", "low1-client")
-        .with_reachable(reachable)
-        .with_auth_valid(auth_valid_opt.unwrap_or(false));
+    // PRODUCTION PATH (OBS-5): SensorHealthChecker::check_one end-to-end so the
+    // AuthStatus → Option<bool> mapping is exercised by production code, not re-implemented.
+    // A regression (e.g., 401 → auth_valid=true) WOULD fail this test.
+    let checker = SensorHealthChecker::new(Arc::new(registry));
+    let context = PrismContext::new();
+    let health = checker
+        .check_one(org_id, "low1-org", &sensor_id, &context)
+        .await;
 
     // SID-2 wire-shape assertion: exact JSON must contain the correct key:value pairs.
     let json = serde_json::to_string(&health).expect("LOW-1: SensorHealthResult must serialize");
 
-    // ASSERTION 1: "reachable":true — sensor is up (responded with 401).
+    // ASSERTION 1: "reachable":true — sensor responded with 401 (Up, not Down).
     assert!(
         json.contains("\"reachable\":true"),
         "LOW-1 (SID-2 wire-shape): JSON must contain '\"reachable\":true' for 401 response. \
          Got JSON: {json}"
     );
 
-    // ASSERTION 2: "auth_valid":false — driven by PRODUCTION AuthStatus::Invalid path.
-    // This is the load-bearing gate: if probe_auth_with_routing is broken such that
-    // a 401 returns AuthStatus::Valid (instead of Invalid), auth_valid_opt would be
-    // Some(true) → "auth_valid":true → this assertion FAILS.
+    // ASSERTION 2: "auth_valid":false — driven by PRODUCTION check_one path.
+    // Load-bearing: if check_one's AuthStatus::Invalid → Some(false) mapping regressed
+    // (e.g., returned Some(true) for 401), this assertion would fail.
     assert!(
         json.contains("\"auth_valid\":false"),
         "LOW-1 (SID-2 wire-shape): JSON must contain '\"auth_valid\":false' for 401 response \
-         via production AuthStatus::Invalid path. \
-         Got JSON: {json}. \
-         Root cause if failing: probe_auth_with_routing does not return AuthStatus::Invalid \
-         for HTTP 401 responses."
+         via production check_one path. Got JSON: {json}. \
+         Root cause if failing: check_one does not map AuthStatus::Invalid → Some(false) \
+         for HTTP 401 responses (BC-2.08.002)."
     );
 }
