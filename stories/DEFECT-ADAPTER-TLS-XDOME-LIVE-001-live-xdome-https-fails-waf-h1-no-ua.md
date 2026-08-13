@@ -1,124 +1,696 @@
 ---
 document_type: story
 story_id: "DEFECT-ADAPTER-TLS-XDOME-LIVE-001"
-title: "Live xDome HTTPS fails against WAF profile requiring h1-only and User-Agent"
+title: "xDome transport hardening: http2 feature + User-Agent + error source-chain + error mapping (F10 + F9 bundled)"
 wave: "C"
 epic_id: engine-defects
-priority: P0
-status: draft
-version: "0.1"
+priority: P1
+status: ready
+version: "1.1"
 severity: CRIT
-level: ops
+level: engine
 producer: story-writer
 timestamp: "2026-08-03"
-modified: "2026-08-03"
+modified: "2026-08-12"
+holdout_scenarios: [HS-TLS-XDOME-001, HS-TLS-XDOME-002, HS-TLS-XDOME-003]
 inputs:
+  - .factory/planning/findings-remediation-2026-07-20/xdome-transport-hardening-design.md
   - .factory/planning/findings-remediation-2026-07-20/triage-capture.md
-  - findings/prism-pql-deficiencies.md
-origin_finding: "F10 (D-1889 triage 2026-07-20)"
+input-hash: "b24e070"
+traces_to: []
+origin_finding: "F10 (D-1889 triage 2026-07-20) + F9 (D-1889); bundled per §5 Bundling Verdict in design doc"
 cycle: "v1.0.0-greenfield"
 phase: 3
 track: "Platform Engineering"
-behavioral_contracts: []
-# BC status: pending PO authorship
-# F10 requires a NEW behavioral contract and potentially a NEW ADR.
-# S-7.01 gate: behavioral_contracts: [] — status MUST remain draft until a product-owner
-# authors and anchors a BC with canonical BC-S.SS.NNN ID for this defect.
-# Architect adjudication is required BEFORE any BC authorship or implementation.
+tdd_mode: strict
+subsystems: [SS-16, SS-01, SS-22]
+# Subsystem anchor justifications:
+#   SS-16 (Spec Engine) owns prism-spec-engine/src/pipeline.rs — send-failure source-chain
+#     and non-2xx body-capture changes live here per ARCH-INDEX Subsystem Registry.
+#   SS-01 (Fan-Out / Cross-Client Query) owns prism-sensors/src/fanout.rs — per-target
+#     WARN log addition lives in the fan-out subsystem per ARCH-INDEX.
+#   SS-22 (Sensor Adapters / Boot) owns prism-bin/src/spec_driven_adapter.rs and
+#     prism-bin/src/boot.rs — error mapping fix and UA addition in boot client builders
+#     live in the adapter/boot layer per ARCH-INDEX.
+crates_touched: [prism-spec-engine, prism-sensors, prism-bin]
+target_module: prism-bin
+behavioral_contracts:
+  - BC-2.16.002
+  - BC-2.08.002
+  - BC-2.01.010
+  - BC-2.16.014
+# BC status (as of 2026-08-12 amendments):
+#   BC-2.16.002 (Multi-Step Fetch Pipeline Execution): v2.14, status: active
+#     New §Postconditions added: HTTP Client Compliance (ADR-050 §D5/§D6), Send-Failure
+#     Error Source Chain, Non-2xx Response Body Capture, AllTargetsFailed Per-Target
+#     Logging. New catalog row 91: fan_out_target_failed WARN. Scope extended to include
+#     prism-sensors/src/fanout.rs. Catalog (v1.63).
+#   BC-2.08.002 (Auth Validity Check): v1.4, status: active
+#     New §Postconditions: HTTP Error Classification postcondition for
+#     map_spec_engine_error_to_sensor_error. EC-08-006 added: HTTP 4xx → auth_valid: false
+#     (previously incorrectly resolved to ConnectivityStatus::Down via Internal catch-all).
+#   BC-2.01.010 (Partial Failure Handling): v1.5, status: draft, lifecycle_status: active
+#     AllTargetsFailed Per-Target Logging postcondition added.
+#   BC-2.16.014 (Declarative Auth Acquisition Token Lifecycle): v1.20, status: draft
+#     New INV row: DeclarativeHttpAuthProvider auth client inherits ADR-050 §D5/§D6
+#     compliance automatically via build_http_client_with_custom_timeout delegation chain.
+#     No new ACs required in this story for BC-2.16.014 scope beyond the UA propagation
+#     side-effect verified by AC-UA-001.
+# S-7.01: behavioral_contracts non-empty, all canonical IDs; status: ready is valid.
+# Every BC cited by at least one AC below; every AC cites a BC. Bidirectional traces
+# verified per bc_array_changes_propagate_to_body_and_acs policy.
 verification_properties: []
 depends_on: []
 blocks: []
-points: 0
-risk: CRIT
+points: 5
+# Points justification:
+#   Cargo.toml http2 feature edits × 4 entries: 0.5 pt
+#   build_http_client_with_custom_timeout UA call: 0.3 pt
+#   boot.rs two UA sites: 0.3 pt
+#   pipeline.rs send-failure source-chain × 2 symmetric sites: 1.0 pt
+#   pipeline.rs non-2xx body-capture × 2 symmetric sites (first request + 401-retry): 1.0 pt
+#   spec_driven_adapter.rs map_spec_engine_error_to_sensor_error guard: 0.5 pt
+#   fanout.rs AllTargetsFailed per-target WARN loop: 0.4 pt
+#   8 Red Gate tests (RG-001..RG-008) + live verification support: 1.0 pt
+#   Total: ~5 points
+estimated_days: 1.5
+risk: HIGH
+# Risk justification:
+#   Touches 6 production files across 3 crates; live-verification ACs (LIVE-001..003)
+#   are BLOCKING — no waiver possible. F9 fix is a prerequisite for F10 diagnostic
+#   coverage; partial fix leaves relay required. Changes to error mapping affect the
+#   health-probe path used by all sensors (regression risk for existing tests).
 holdout_scenarios: []
-assumption_validations: []
-risk_mitigations: []
+assumption_validations:
+  - id: AV-01
+    assumption: "reqwest 0.12.28 `http2` cargo feature is additive (ALPN advertises h2 + http/1.1, falls back to HTTP/1.1 if server lacks h2), not h2-only; pulls the h2 crate; feature name is exactly `http2`."
+    verdict: CONFIRMED
+    source: "docs.rs/crate/reqwest/0.12.28/features; reqwest async_impl/client.rs ALPN-configuration match arm (Context7); workspace Cargo.lock reqwest 0.12.28 / h2 0.4.13"
+  - id: AV-02
+    assumption: "`ClientBuilder::user_agent<V: TryInto<HeaderValue>>` exists on reqwest 0.12; `.user_agent(concat!(\"prism/\", env!(\"CARGO_PKG_VERSION\")))` compiles as a &'static str; reqwest sends no default User-Agent otherwise."
+    verdict: CONFIRMED
+    source: "docs.rs/reqwest ClientBuilder::user_agent (documented example is the identical concat! pattern)"
+  - id: AV-03
+    assumption: "Adding h2-ALPN + a real User-Agent is a credible remedy for the api.claroty.com edge (AWS Global Accelerator + WAF) blocking a UA-less, HTTP/1.1-only, rustls-fingerprinted client (materially affects no-waiver AC-LIVE-001)."
+    verdict: RISK
+    source: "Perplexity deep research (AWS WAF JA3/JA4 docs.aws.amazon.com/waf; rustls issue #1421); relay evidence test-soc/live-soc/relay/xdome-relay.py (Python urllib: HTTP/1.1-only + default UA + OpenSSL fingerprint succeeds)"
+    note: "Moderate confidence SUFFICIENT: the User-Agent is the probable load-bearing fix; h2 is not empirically necessary (working relay is HTTP/1.1-only). Residual risk on no-waiver AC-LIVE-001 from possible rustls-specific JA3/JA4 blocklisting or a non-UA header differentiator. See §Technology Assumption Validation RISK."
+  - id: AV-04
+    assumption: "rustls (via reqwest rustls-tls) advertises h2 in the ClientHello ALPN extension once the http2 feature is on; rustls-tls + http2 compose correctly."
+    verdict: CONFIRMED
+    source: "reqwest async_impl/client.rs ALPN match arm sets tls.alpn_protocols on the rustls ClientConfig (Context7); reqwest 0.12.28 http2 feature also enables hyper-rustls/http2 (docs.rs features)"
+risk_mitigations:
+  - risk: "AC-H2-001 / RG-008 observable is invalid as written: h2 0.4.13 is ALREADY in Cargo.lock (transitively via hyper 1.9.0), so a whole-file `grep '\"h2\"' Cargo.lock` is green BEFORE the fix and cannot serve as a Red Gate or prove reqwest's http2 feature is on."
+    mitigation: "AC-H2-001 and RG-008 corrected to scope verification to reqwest's own dependency node — `cargo tree -e features -i reqwest` showing the http2 feature active, or `h2` appearing inside the `[[package]] name = \"reqwest\"` dependencies block (currently absent; verified this pass) — not a whole-file grep."
+    status: applied
+  - risk: "AC-LIVE-001 (BLOCKING, no-waiver) may fail if the edge fingerprints the rustls TLS ClientHello (JA3/JA4) or keys on a header other than User-Agent — neither the h2 nor the UA change addresses rustls ClientHello camouflage."
+    mitigation: "RISK note added to §Technology Assumption Validation; h2 reframed as ADR-050 §D5 compliance + defense-in-depth (not the load-bearing fix); optional cheap pre-build reqwest+UA probe against api.claroty.com recommended. Surfaced to orchestrator/human per remove-uncertainty discipline; does not block materialization."
+    status: surfaced
 ---
 
-# DEFECT-ADAPTER-TLS-XDOME-LIVE-001: Live xDome HTTPS fails against WAF profile requiring h1-only and User-Agent
-
-## Problem
-
-Live HTTPS connections to xDome (Claroty) fail in production. The xDome WAF profile
-requires HTTP/1.1 only (no HTTP/2 negotiation) and a `User-Agent` header. No production
-crate in the workspace currently compiles in the `http2` reqwest feature, and no
-production crate sets a `User-Agent` on outbound sensor API requests. The result is
-that live-sensor xDome queries fail at the TLS/connection layer before any data is
-returned.
-
-Additionally, the current implementation does not capture error source-chains from
-connection failures, and per-target errors are not surfaced in a way that distinguishes
-xDome connectivity failures from other sensor errors.
-
-## Origin — D-1889 Triage (F10)
-
-**Triage date:** 2026-07-20  
-**Source findings:** `findings/prism-pql-deficiencies.md`  
-**Triage capture:** `.factory/planning/findings-remediation-2026-07-20/triage-capture.md`
-§Bucket-B table row F10
-
-**Consistency-validator cross-check note (2026-07-21):** The original triage capture
-note for F10 distorted the primary fix path. A fresh-context consistency-validator
-cross-check on 2026-07-21 confirmed that `findings/prism-pql-deficiencies.md` §Finding
-10 identifies `http2` as not compiled in and notes that no production crate sets a
-`User-Agent`. The source documents `native-tls` as an alternative considered and not as
-the primary path. This corrected reading is the authoritative record.
-
-**Primary fix path (ADR-050-compliant, source-recommended):** Add the `http2` reqwest
-feature (alongside the existing `rustls-tls` feature declaration — both are additive
-features, and `http2` does NOT require `native-tls`) plus a `User-Agent` header on
-outbound xDome requests.
-
-**Conflicting alternative (ADR-050-PROHIBITED):** Switching to `native-tls` or adding
-`default-tls` / `native-tls-alpn` / `native-tls-vendored` would conflict with ADR-050
-§D1/§D2 and is FORBIDDEN workspace-wide. `native-tls` causes ~65 second macOS Keychain
-initialization overhead and opens a corporate MITM proxy interception path for outbound
-sensor API credentials. The architect must explicitly rule this alternative out in the
-governing ADR/BC before implementation begins. It must NOT be presented as a viable path
-in implementation guidance.
-
-The finding also requires: (a) error source-chains must be captured for connection
-failures and (b) per-target errors must be surfaced to distinguish xDome failures from
-other sensor errors.
+# DEFECT-ADAPTER-TLS-XDOME-LIVE-001: xDome Transport Hardening — http2 Feature, User-Agent, Error Source Chain, and Error Mapping (F10 + F9 Bundled)
 
 ## Authority
 
-| Artifact | Verbatim Status | Relevant Clause |
+This story is governed by ADR-050 v2.0 and the four behavioral contracts below.
+Read ADR-050 §D5 and §D6 in full before implementing:
+`.factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md`
+
+| Artifact | Version / Status | Relevant Clause |
 |----------|-----------------|-----------------|
-| ADR-050 (Workspace reqwest TLS Backend — rustls-tls Mandatory, native-tls Forbidden) | `status: ACCEPTED` | §D1 — `default-features = false, features = ["rustls-tls"]` mandatory; §D2 — `native-tls` and aliases forbidden workspace-wide; `http2` is an additive feature compatible with `rustls-tls` and is not forbidden |
-| BC-TBD (new BC required) | — pending authorship — | Governs xDome/Claroty live-sensor HTTPS connection requirements, error source-chain surfacing, and per-target error reporting |
-| ADR-TBD (new ADR may be required) | — pending architect decision — | Governs the specific reqwest feature set for sensors with non-default TLS/HTTP negotiation profiles; architect determines whether ADR-050 amendment covers this or a new ADR is needed |
+| ADR-050 (Workspace reqwest TLS Backend) | v2.0 · ACCEPTED | §D5: `http2` feature MUST be in production `[dependencies]` reqwest entries for prism-spec-engine, prism-sensors, prism-bin. §D6: all sensor/plugin outbound client builders MUST call `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))`. §D1/§D2: rustls-tls mandatory; native-tls and aliases FORBIDDEN. |
+| BC-2.16.002 (Multi-Step Fetch Pipeline Execution) | v2.14 · active | §Postconditions: HTTP Client Compliance; Send-Failure Error Source Chain; Non-2xx Response Body Capture; AllTargetsFailed Per-Target Logging. §Canonical Structured Event Catalog row 91: `fan_out_target_failed` WARN. |
+| BC-2.08.002 (Auth Validity Check Per Sensor Per Client) | v1.4 · active | §Postconditions: HTTP Error Classification postcondition — `map_spec_engine_error_to_sensor_error` MUST map `SpecEngineError::HttpRequestFailed { status_code > 0 }` to `SensorError::HttpError`. EC-08-006: HTTP 4xx sensor response → `auth_valid: false` (not Down). |
+| BC-2.01.010 (Partial Failure Handling) | v1.5 · draft | §Postconditions: AllTargetsFailed Per-Target Logging — each `FanOutError` MUST be logged at WARN before `AllTargetsFailed` propagates. |
+| BC-2.16.014 (Declarative Auth Acquisition Token Lifecycle) | v1.20 · draft | INV-014-007 ADR-050 §D5/§D6 note: `DeclarativeHttpAuthProvider` inherits User-Agent and http2 automatically via `build_http_client_with_custom_timeout` delegation. No separate implementation required for this BC in this story. |
 
-**FINDING-A (MEDIUM, architect-routed):** No governing BC exists yet. The new BC must
-be authored by the product-owner after the architect decides the fix mechanism.
-ADR-050 is `status: ACCEPTED` and its prohibition of `native-tls` is non-negotiable;
-the `http2` feature addition is ADR-050-compliant and is not blocked.
+**Bundling rationale:** F9 (error surfacing) and F10 (transport) are bundled into this story per §5 Bundling Verdict in the design doc (`xdome-transport-hardening-design.md`). `DEFECT-SENSOR-ERROR-FLATTEN-001` is superseded by this story and closed.
 
-## Routing
+---
 
-Route per triage: **architect FIRST → implementer**
+## Narrative
 
-1. **Architect decides first** — the specific decision is:
-   - **Primary path (ADR-050-compliant):** Add `reqwest` `http2` feature + `User-Agent` header for xDome requests. Determine whether this requires an ADR-050 amendment or a new ADR, and specify the scope of the `User-Agent` addition (xDome-only vs all sensor adapters).
-   - **Conflicting alternative (MUST be ruled out):** `native-tls` / `default-tls` / `native-tls-alpn` — architect records explicit rejection in the governing ADR.
-   - **Scope of error-chain and per-target-error surfacing:** architect confirms whether this is covered by existing error-taxonomy architecture or requires a new mechanism.
-2. Product-owner authors new BC covering live-sensor HTTPS requirements and error surfacing
-3. Story-writer decomposes ACs from the new BC
-4. Implementer closes the gap under TDD, following ADR-050 §D1/§D2 strictly
+As a prism operator running live sensor data for client "monroe" (Claroty xDome,
+`api.claroty.com`), I want direct HTTPS communication with the real xDome API to succeed
+without a relay sidecar, and I want the health tool to correctly distinguish a reachable
+sensor with expired credentials (`auth_valid: false`) from a genuinely unreachable sensor
+(`reachable: false`), so that I can diagnose credential problems without needing to inspect
+raw error logs or deploy a relay.
 
-Wave C assignment is contingent on architect adjudication completing before Wave C opens.
+---
 
-## Scope — NOT YET SPECIFIED
+## Behavioral Contracts
 
-Acceptance criteria, Red Gate test enumeration (RG-001..RG-NNN), BC-5.38.001 density
-check, `tdd_mode` declaration, task decomposition, and story-point estimate are deferred
-to the architect (fix mechanism decision) and product-owner (BC authorship). This stub
-registers the defect as a trackable artifact and records the corrected primary-fix-path
-reading from the 2026-07-21 consistency-validator cross-check. No implementation
-guidance beyond the architect decision framing is authored here.
+| BC | Title | Version | Scope in This Story |
+|----|-------|---------|---------------------|
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | v2.14 | HTTP Client Compliance postcondition (ADR-050 §D5/§D6); Send-Failure Error Source Chain postcondition; Non-2xx Response Body Capture postcondition; AllTargetsFailed Per-Target Logging postcondition; Canonical Structured Event Catalog row 91 (`fan_out_target_failed`). |
+| BC-2.08.002 | Auth Validity Check Per Sensor Per Client | v1.4 | HTTP Error Classification postcondition: `map_spec_engine_error_to_sensor_error` guard — `status_code > 0` → `SensorError::HttpError`; `status_code = 0` → `SensorError::Internal`. EC-08-006: HTTP 4xx → `auth_valid: false` (not Down). |
+| BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | v1.5 | AllTargetsFailed Per-Target Logging postcondition — each `FanOutError` WARN before propagation. |
+| BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | v1.20 | INV-014-007 note only: `DeclarativeHttpAuthProvider` inherits UA + http2 via `build_http_client_with_custom_timeout` delegation chain (ADR-050 §D6 propagation). No new code required for this BC beyond the `build_http_client_with_custom_timeout` change. |
 
-## Changelog
+---
+
+## Acceptance Criteria
+
+### Group A — Transport Fix (F10)
+
+**AC-H2-001 — reqwest `http2` feature is active on the `reqwest` dependency node**
+After adding `"http2"` to the four production reqwest feature lists, the `http2`
+feature is active on the `reqwest` node in the build graph and `h2` appears as a
+dependency of the `reqwest` package itself (reqwest 0.12.28's `http2` feature enables
+`dep:h2`). Verified via `cargo tree -e features -i reqwest` showing the `http2` feature
+on reqwest, OR by asserting `h2` appears inside the `[[package]]`/`name = "reqwest"`
+`dependencies` block of `Cargo.lock` (Red Gate: RG-008).
+**Observability note (remove-uncertainty pass, D-1110):** a whole-file
+`grep '"h2"' Cargo.lock` / `cargo metadata | grep '"h2"'` is INVALID as the observable —
+`h2 0.4.13` is ALREADY present in `Cargo.lock` transitively via `hyper 1.9.0` (whose
+`http2` feature is activated by another workspace consumer), so a whole-file match is
+green BEFORE this fix and does not prove reqwest's `http2` feature is enabled. The
+`h2`-under-reqwest scoping (currently absent from reqwest's own dependency block —
+verified this pass) is the valid red→green signal.
+(traces to BC-2.16.002 HTTP Client Compliance postcondition: ADR-050 §D5 requires
+http2 in production reqwest deps; the reqwest-scoped http2 feature activation is the
+observable proof)
+
+**AC-UA-001 — `build_http_client_with_custom_timeout` sets `User-Agent: prism/<version>`**
+A unit test in `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests`
+builds a client via `build_http_client_with_custom_timeout(Duration::from_millis(1))`,
+issues a request, and asserts the outgoing `User-Agent` header begins with `"prism/"`.
+This test FAILS before the `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))`
+call is added (Red Gate: RG-006).
+(traces to BC-2.16.002 HTTP Client Compliance postcondition: ADR-050 §D6 scope includes
+`build_http_client_with_custom_timeout`; also traces to BC-2.16.014 INV-014-007:
+`DeclarativeHttpAuthProvider` calls `build_http_client_with_timeout()` internally and
+inherits the UA change automatically via the delegation chain)
+
+**AC-UA-002 — Both `boot.rs` plugin client builder sites include User-Agent (adversary-verified)**
+Both `reqwest::Client::builder()` chains in `crates/prism-bin/src/boot.rs` that produce
+the `PluginRuntime` HTTP client — the `PRISM_DISABLE_PLUGIN_LOAD` fast-path builder and
+the normal-path builder — each include
+`.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))` before `.build()`.
+Verified by adversary sweep of `boot.rs` for `user_agent` presence at both builder sites.
+(traces to BC-2.16.002 HTTP Client Compliance postcondition: ADR-050 §D6 scope includes
+both PluginRuntime client builders in boot.rs)
+
+**AC-CARGO-001 — All four production reqwest entries include `"http2"`; `just check` passes**
+After editing the four production `[dependencies]` reqwest entries — `prism-spec-engine`,
+`prism-sensors`, and `prism-bin` (two entries: sensor adapter client entry and main dep
+entry) — each entry includes `"http2"` alongside `"rustls-tls"`. `just check` passes
+without new compilation errors. DTU `[dev-dependencies]` are NOT modified.
+(traces to BC-2.16.002 HTTP Client Compliance postcondition: ADR-050 §D5 names the four
+specific entries in the three crates)
+
+### Group B — Error Surfacing (F9)
+
+**AC-ERR-001 — `map_spec_engine_error_to_sensor_error` with `status_code: 401` returns `SensorError::HttpError` (not `Internal`)**
+Calling `map_spec_engine_error_to_sensor_error("claroty", SpecEngineError::HttpRequestFailed { status_code: 401, detail: "HTTP 401".to_string(), ... })` returns `SensorError::HttpError { sensor: "claroty", status: 401, body: "HTTP 401" }`.
+This test FAILS before the guard arm is added (Red Gate: RG-001).
+(traces to BC-2.08.002 HTTP Error Classification postcondition: `SpecEngineError::HttpRequestFailed { status_code > 0 }` MUST map to `SensorError::HttpError`)
+
+**AC-ERR-002 — `map_spec_engine_error_to_sensor_error` with `status_code: 0` returns `SensorError::Internal` (no regression)**
+Calling `map_spec_engine_error_to_sensor_error("claroty", SpecEngineError::HttpRequestFailed { status_code: 0, detail: "connection reset".to_string(), ... })` returns `SensorError::Internal { .. }`.
+Transport failures (no HTTP response received) continue to map to Internal.
+This test FAILS if the guard is over-broad (Red Gate: RG-002).
+(traces to BC-2.08.002 HTTP Error Classification postcondition: `status_code = 0` (transport failure) continues to produce `SensorError::Internal`)
+
+**AC-ERR-003 — Non-2xx response body is captured in `HttpRequestFailed.detail`**
+A unit test in `pipeline.rs`'s `#[cfg(test)] mod tests` drives the non-2xx response
+branch with a mock returning HTTP 403 and a body `"forbidden"`. Asserts that the
+returned `SpecEngineError::HttpRequestFailed.detail` includes BOTH the HTTP status code
+(`"403"`) AND a non-empty body snippet (`"forbidden"`).
+This test FAILS before the body-capture fix (Red Gate: RG-003).
+(traces to BC-2.16.002 Non-2xx Response Body Capture postcondition: `HttpRequestFailed.detail`
+MUST include HTTP status AND ≤256-byte sanitized body snippet)
+
+**AC-ERR-004 — `AllTargetsFailed` is preceded by `fan_out_target_failed` WARN per target**
+A unit test in `fanout.rs` with a tracing test subscriber drives `fanout()` to produce
+`AllTargetsFailed` with a two-element `errors` vec. Asserts that exactly two
+`fan_out_target_failed` WARN events were captured by the subscriber, each with
+`event_type = "fan_out_target_failed"` and `sensor_id` matching the failed target.
+This test FAILS before the WARN loop is added (Red Gate: RG-004).
+(traces to BC-2.01.010 AllTargetsFailed Per-Target Logging postcondition AND BC-2.16.002
+Canonical Structured Event Catalog row 91: `fan_out_target_failed` fields: `org_id`,
+`sensor_id`, `attempts`, `is_transient`, `error`)
+
+**AC-ERR-005 — In-process: sensor adapter with mock-401 produces `ConnectivityStatus::Up`, `http_status: Some(401)` from `probe_connectivity`**
+An in-process integration test constructs a `SpecDrivenSensorAdapter` whose underlying
+fetch returns a mock HTTP 401, then calls `probe_connectivity`. Asserts:
+`ProbeOutcome { status: ConnectivityStatus::Up, http_status: Some(401), auth_valid: Some(false), .. }`.
+This test FAILS before the `map_spec_engine_error_to_sensor_error` guard is added,
+because `SensorError::Internal` falls through to the `ConnectivityStatus::Down` catch-all
+(Red Gate: RG-005).
+(traces to BC-2.08.002 EC-08-006: HTTP 4xx sensor response → `auth_valid: false`;
+`probe_connectivity` HttpError 4xx arm resolves `ConnectivityStatus::Up`, not Down)
+
+### Group C — Wire-Shape Assertions
+
+**AC-WIRE-001 — Serialized MCP JSON for AC-ERR-005 scenario contains `"reachable": true` and `"auth_valid": false`**
+The integration test from AC-ERR-005 MUST additionally assert on the serialized JSON
+bytes emitted at the MCP wire level, confirming the exact fields the LLM agent consumes.
+Assert: the serialized JSON response contains the literal string `"reachable": true` AND
+`"auth_valid": false`. NULL vs absent vs boolean distinctions asserted at the wire level
+per CLAUDE.md wire-shape assertion discipline (Red Gate: RG-007).
+(traces to BC-2.08.002 postcondition: auth validity response format — `auth_valid: bool`
+must be a JSON boolean `false`, not absent or `null`, when HTTP 4xx is received)
+
+### Group D — SAP-1 Compliance
+
+**AC-SAP1-001 — `fan_out_target_failed` is registered in BC-2.16.002 Canonical Structured Event Catalog in the same commit as the `fanout.rs` implementation**
+The implementation commit that adds the `tracing::warn!(event_type = "fan_out_target_failed", ...)` call in `fanout()` in `crates/prism-sensors/src/fanout.rs` MUST include a corresponding row in BC-2.16.002 §Canonical Structured Event Catalog (or BC-2.01.010 §Postconditions if product-owner routes it there). The row is already present in BC-2.16.002 v2.14 (row 91 added by product-owner). Adversary verifies via `rg 'event_type.*fan_out_target_failed' crates/` and cross-checks against the catalog.
+(traces to BC-2.16.002 Canonical Structured Event Catalog (v1.63) row 91: `fan_out_target_failed`
+SAP-1 obligation; PG-LP11-001 requires catalog presence in same commit as emission site)
+
+### Group E — Live Verification (BLOCKING — NO WAIVER)
+
+**AC-LIVE-001 (NO WAIVER) — Direct `api.claroty.com` returns ≥1 OCSF row with relay removed**
+With the relay REMOVED from `/Users/jmagady/Dev/test-soc/prism-live-mcp-wrapper.sh`
+(overlay `base_url` pointed directly at `https://api.claroty.com`),
+`list_sensor_data sensor=claroty table=devices` for client "monroe" returns HTTP 200 and
+at least 1 OCSF-normalized row. Credentials are AI-opaque (keyring
+`prism/monroe/claroty/*`); the demo-recorder agent runs the binary and MUST NOT emit
+credential values. This AC confirms F10 fix is live.
+(traces to BC-2.16.002 HTTP Client Compliance postcondition: ADR-050 §D5/§D6-compliant
+client establishes direct HTTPS with `api.claroty.com` without relay assistance)
+
+**AC-LIVE-002 (NO WAIVER) — Invalid/expired credential → `check_sensor_health` returns `reachable: true, auth_valid: false, detail: "401"`**
+With an invalid or expired Claroty credential for client "monroe", calling
+`check_sensor_health sensor=claroty` returns
+`{ "reachable": true, "auth_valid": false, "detail": "HTTP 401..." }` (detail contains
+"401"). This confirms F9 fix is live in the production binary against the real endpoint.
+Credentials are AI-opaque; values MUST NOT be emitted by the demo-recorder.
+(traces to BC-2.08.002 EC-08-006: HTTP 4xx from real sensor API → `auth_valid: false`
+via the live execution path through `map_spec_engine_error_to_sensor_error`)
+
+**AC-LIVE-003 — Relay file marked deprecated / removed after AC-LIVE-001 passes**
+After AC-LIVE-001 passes, the file at
+`test-soc/live-soc/relay/xdome-relay.py` is either deleted or marked with a
+clear comment: `# HISTORICAL: relay was required before DEFECT-ADAPTER-TLS-XDOME-LIVE-001 (2026-08-12). Direct HTTPS now works. Do not use.`
+(traces to BC-2.16.002 HTTP Client Compliance postcondition: relay is no longer
+required; its presence as a load-bearing tool is retracted)
+
+---
+
+## Red Gate Enumeration (SAC-1)
+
+| RG-ID | Test Name | Corresponding AC | File Location |
+|-------|-----------|-----------------|---------------|
+| RG-001 | `test_map_error_http_401_maps_to_http_error_not_internal` | AC-ERR-001 | `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` |
+| RG-002 | `test_map_error_status_0_maps_to_internal` | AC-ERR-002 | `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` |
+| RG-003 | `test_pipeline_non_2xx_detail_includes_body_snippet` | AC-ERR-003 | `crates/prism-spec-engine/src/pipeline.rs` `#[cfg(test)] mod tests` |
+| RG-004 | `test_fanout_all_failed_logs_per_target_events` | AC-ERR-004 | `crates/prism-sensors/src/fanout.rs` `#[cfg(test)] mod tests` |
+| RG-005 | `test_probe_connectivity_401_returns_up_auth_invalid` | AC-ERR-005 | `crates/prism-bin/tests/` (integration test, in-process) |
+| RG-006 | `test_build_http_client_sends_user_agent_header` | AC-UA-001 | `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` |
+| RG-007 | `test_sensor_health_wire_shape_auth_invalid` | AC-WIRE-001 | `crates/prism-bin/tests/` (integration test, in-process) |
+| RG-008 | `test_reqwest_http2_feature_active` | AC-H2-001 | `cargo tree -e features -i reqwest` CI check OR a test asserting `h2` inside the `reqwest` package block of `Cargo.lock` (NOT a whole-file grep — see AC-H2-001 observability note) |
+
+## BC-5.38.001 Density Check
+
+**Red Gate test count:** 8 (RG-001..RG-008)
+**Acceptance criteria count:** 14 (AC-H2-001, AC-UA-001, AC-UA-002, AC-CARGO-001, AC-ERR-001..005, AC-WIRE-001, AC-SAP1-001, AC-LIVE-001..003)
+**Density:** 8 / 14 = 0.571 — PASSES (≥0.5 required by BC-5.38.001)
+
+Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check` build gate, not by standalone failing tests. AC-SAP1-001 is verified by adversary cross-check against BC-2.16.002 v2.14 catalog (catalog row already present; no additional failing test needed). AC-LIVE-001..003 are live-verification ACs verified by demo-recorder against the production binary; they do not correspond to Red Gate tests in the unit/integration sense.
+
+**Ordering rule (SAC-1 rule 3):** All Red Gate test authoring tasks (Phase 1 below) MUST be dispatched and completed BEFORE implementation tasks (Phase 2). The test-writer agent works from this story's RG-001..RG-008 list and the BC texts; the implementer receives the failing test suite before touching production code.
+
+---
+
+## Tasks
+
+### Phase 1: Red Gate Tests (test-writer — BEFORE Phase 2)
+
+- [ ] **RG-001** `test_map_error_http_401_maps_to_http_error_not_internal`: in `spec_driven_adapter.rs` inline tests; call `map_spec_engine_error_to_sensor_error("claroty", SpecEngineError::HttpRequestFailed { status_code: 401, detail: "HTTP 401".to_string(), ... })`; assert returns `SensorError::HttpError { sensor: "claroty", status: 401, body: "HTTP 401" }`. Must be RED before Phase 2.
+- [ ] **RG-002** `test_map_error_status_0_maps_to_internal`: in `spec_driven_adapter.rs` inline tests; call with `status_code: 0, detail: "connection reset".to_string()`; assert returns `SensorError::Internal { .. }`. Must be RED (or pass once guard exists but status_code=0 branch is correct).
+- [ ] **RG-003** `test_pipeline_non_2xx_detail_includes_body_snippet`: in `pipeline.rs` inline tests; mock HTTP 403 response with body `b"forbidden"`; assert `HttpRequestFailed.detail` contains `"403"` and `"forbidden"`. Must be RED before Phase 2.
+- [ ] **RG-004** `test_fanout_all_failed_logs_per_target_events`: in `fanout.rs` inline tests; use `tracing_test` subscriber; drive `fanout()` to produce `AllTargetsFailed` with two-element `errors` vec; assert exactly two `fan_out_target_failed` WARN events captured. Must be RED before Phase 2.
+- [ ] **RG-005** `test_probe_connectivity_401_returns_up_auth_invalid`: in-process integration test; drive mock-401 through `SpecDrivenSensorAdapter`; call `probe_connectivity`; assert `status: ConnectivityStatus::Up`, `http_status: Some(401)`. Must be RED before Phase 2.
+- [ ] **RG-006** `test_build_http_client_sends_user_agent_header`: in `spec_driven_adapter.rs` inline tests; build client via `build_http_client_with_custom_timeout(Duration::from_millis(1))`; issue request to local wiremock that captures headers; assert `User-Agent` starts with `"prism/"`. Must be RED before Phase 2.
+- [ ] **RG-007** `test_sensor_health_wire_shape_auth_invalid`: in-process integration test extending RG-005; serialize the `ProbeOutcome` to JSON via the MCP wire path; assert the byte string contains `"reachable": true` AND `"auth_valid": false`. Must be RED before Phase 2.
+- [ ] **RG-008** `test_reqwest_http2_feature_active`: verify reqwest's `http2` feature is active on the reqwest node — via `cargo tree -e features -i reqwest` (assert `http2` present on reqwest) or a test asserting `h2` appears inside the `[[package]]`/`name = "reqwest"` `dependencies` block of `Cargo.lock` (currently absent — verified in the D-1110 remove-uncertainty pass). Must be RED before the http2 feature is added. **Do NOT use a whole-file `grep '"h2"' Cargo.lock`** — `h2 0.4.13` is already present transitively via `hyper 1.9.0`, so a whole-file match is green before the fix (see AC-H2-001 observability note). Acceptable as a CI build-gate check.
+
+### Phase 2: Implementation (implementer — AFTER Phase 1 RED gate confirmed)
+
+**T-A: Cargo.toml Feature Edits**
+- [ ] **T-A01** `crates/prism-spec-engine/Cargo.toml`: Add `"http2"` to `reqwest` features. Current features list: `["json", "rustls-tls", "gzip", "deflate", "brotli"]`. New: `["json", "rustls-tls", "http2", "gzip", "deflate", "brotli"]`.
+- [ ] **T-A02** `crates/prism-sensors/Cargo.toml`: Add `"http2"` to `reqwest` features. Current: `["json", "rustls-tls"]`. New: `["json", "rustls-tls", "http2"]`.
+- [ ] **T-A03** `crates/prism-bin/Cargo.toml` — sensor adapter entry (comment references S-PLUGIN-PREREQ-D AC-9): Add `"http2"` to `["rustls-tls"]`. New: `["rustls-tls", "http2"]`.
+- [ ] **T-A04** `crates/prism-bin/Cargo.toml` — main dep entry: Add `"http2"` to `["json", "rustls-tls"]`. New: `["json", "rustls-tls", "http2"]`.
+
+**T-B: User-Agent (spec_driven_adapter.rs)**
+- [ ] **T-B01** Symbol `build_http_client_with_custom_timeout` in `crates/prism-bin/src/spec_driven_adapter.rs`: Insert `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))` in the `reqwest::Client::builder()` chain before `.timeout(timeout)`. `concat!` produces a `&'static str`, zero allocation. This single change propagates to: `build_http_client_with_timeout` (thin wrapper), all `SpecDrivenSensorAdapter` fetch clients, and `DeclarativeHttpAuthProvider` (calls `build_http_client_with_timeout()` internally per BC-2.16.014 INV-014-007). Do NOT cite file line numbers — cite the symbol name `build_http_client_with_custom_timeout` per TD-VSDD-091.
+
+**T-C: User-Agent (boot.rs)**
+- [ ] **T-C01** Symbol sites in `crates/prism-bin/src/boot.rs` — two `reqwest::Client::builder()` chains producing the `PluginRuntime` HTTP client: (a) the `PRISM_DISABLE_PLUGIN_LOAD` fast-path builder and (b) the normal-path builder. Add `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))` to each chain before `.build()`. Cite by symbol/context, not line numbers (TD-VSDD-091).
+
+**T-D: Send-Failure Error Source Chain (pipeline.rs)**
+- [ ] **T-D01** In `crates/prism-spec-engine/src/pipeline.rs`, at each send-failure site (both the first-request send and the 401-retry send) where `status_code: 0` is set and `detail: e.to_string()` is used, replace `e.to_string()` with the source-chain format:
+  ```rust
+  format!(
+      "{}{}",
+      e,
+      std::error::Error::source(&e)
+          .map(|s| format!("; caused by: {s}"))
+          .unwrap_or_default()
+  )
+  ```
+  This includes the hyper/h2/TLS-level source chain that `.to_string()` omits. Apply symmetrically to BOTH send sites (first request and 401-retry). Cite by symbol context (symbol: send-failure arm in `issue_request_with_retry` function), not file line numbers.
+
+**T-E: Non-2xx Response Body Capture (pipeline.rs)**
+- [ ] **T-E01** In `crates/prism-spec-engine/src/pipeline.rs`, at the `if !status.is_success()` branch that currently returns `detail: format!("HTTP {status}")`, add best-effort body capture:
+  - Read the response body bytes: `.bytes().await.ok()`
+  - Cap to ≤256 bytes; strip control characters (same sanitization pattern as `sanitize_error` in `crates/prism-mcp/src/health/connectivity.rs`)
+  - Update `detail` to: `format!("HTTP {status}: {sanitized_body}")` (falls back to `format!("HTTP {status}")` if body is empty)
+  - A secondary body-read failure MUST NOT replace the primary status-code error
+  - Apply this fix symmetrically to BOTH non-2xx branches (first-request non-2xx and 401-retry non-2xx). Cite by symbol context (the `is_success()` check in `issue_request_with_retry`), not line numbers.
+
+**T-F: Error Mapping Fix (spec_driven_adapter.rs)**
+- [ ] **T-F01** Symbol `map_spec_engine_error_to_sensor_error` in `crates/prism-bin/src/spec_driven_adapter.rs`: Insert a guard arm before the `SensorError::Internal` return:
+  ```rust
+  if let SpecEngineError::HttpRequestFailed { status_code, ref detail, .. } = e {
+      if status_code > 0 {
+          return SensorError::HttpError {
+              sensor: sensor_id.to_string(),
+              status: status_code,
+              body: detail.clone(),
+          };
+      }
+  }
+  // status_code = 0 (transport error) and all other SpecEngineError variants → Internal
+  SensorError::Internal { detail: format!("SpecDrivenSensorAdapter: {e}") }
+  ```
+  Discriminator: `status_code = 0` = no HTTP response (transport failure) → `Internal`; `status_code > 0` = HTTP response received → `HttpError`. The `probe_connectivity` `HttpError 4xx` arm then correctly resolves `ConnectivityStatus::Up, auth_valid: false`.
+
+**T-G: AllTargetsFailed Per-Target Logging (fanout.rs)**
+- [ ] **T-G01** Symbol site constructing `SensorError::AllTargetsFailed { count, errors }` in `crates/prism-sensors/src/fanout.rs`. Before returning `Err(SensorError::AllTargetsFailed { count, errors })`, insert the WARN loop:
+  ```rust
+  for err in &errors {
+      tracing::warn!(
+          event_type = "fan_out_target_failed",
+          org_id = %err.org_id,
+          sensor_id = %err.sensor_id,
+          attempts = err.retry_metadata.attempts,
+          is_transient = err.retry_metadata.is_transient,
+          error = %err,
+          "fan-out target failed"
+      );
+  }
+  ```
+  SAP-1 obligation: `fan_out_target_failed` catalog row 91 is already present in BC-2.16.002 v2.14 (added by product-owner pre-story). Adversary verifies catalog↔emission match via `rg 'event_type.*fan_out_target_failed' crates/` per AC-SAP1-001. The `AllTargetsFailed` Display MUST remain count-only (`"E-SENSOR-030: all fan-out targets failed ({count} errors)"`) per BC-2.10.007 Rule 1.
+
+**T-H: Run Red Gate tests — confirm all GREEN**
+- [ ] Run `just iter prism-bin` and `just iter prism-sensors` and `just iter prism-spec-engine` to confirm all Red Gate tests pass green.
+- [ ] Run `just check` to confirm `just check` passes including h2 in `Cargo.lock`.
+
+### Phase 3: Live Verification (demo-recorder — AFTER Phase 2 and LOCAL 3-CLEAN)
+
+- [ ] **T-LV01** Remove relay from `/Users/jmagady/Dev/test-soc/prism-live-mcp-wrapper.sh`; set overlay `base_url` directly to `https://api.claroty.com`. Run `list_sensor_data sensor=claroty table=devices` for client "monroe". Assert ≥1 OCSF row returned. Credentials AI-opaque from keyring; values MUST NOT be emitted. Closes AC-LIVE-001.
+- [ ] **T-LV02** With invalid/expired Claroty credential, run `check_sensor_health sensor=claroty` for client "monroe". Assert `reachable: true, auth_valid: false` with "401" in detail. Closes AC-LIVE-002.
+- [ ] **T-LV03** Mark `test-soc/live-soc/relay/xdome-relay.py` deprecated with historical comment. Closes AC-LIVE-003.
+
+---
+
+## Architecture Mapping
+
+| Component | Module | File | Pure/Effectful |
+|-----------|--------|------|---------------|
+| `build_http_client_with_custom_timeout` (UA + h2 fix) | `prism-bin` | `crates/prism-bin/src/spec_driven_adapter.rs` | Effectful (constructs `reqwest::Client` with I/O-capable state) |
+| PluginRuntime client builders (UA fix) | `prism-bin` | `crates/prism-bin/src/boot.rs` | Effectful (constructs `reqwest::Client` with I/O-capable state) |
+| `map_spec_engine_error_to_sensor_error` (error mapping fix) | `prism-bin` | `crates/prism-bin/src/spec_driven_adapter.rs` | Pure (pattern match → variant construction; no I/O) |
+| `issue_request_with_retry` send-failure arm (source-chain fix) | `prism-spec-engine` | `crates/prism-spec-engine/src/pipeline.rs` | Effectful (async HTTP I/O) |
+| `issue_request_with_retry` non-2xx branch (body-capture fix) | `prism-spec-engine` | `crates/prism-spec-engine/src/pipeline.rs` | Effectful (async HTTP I/O + best-effort body read) |
+| `fanout()` AllTargetsFailed WARN loop | `prism-sensors` | `crates/prism-sensors/src/fanout.rs` | Effectful (tracing WARN emission; structured side effect) |
+
+## Purity Classification
+
+- **Pure functions** (no I/O, deterministic): `map_spec_engine_error_to_sensor_error`, the new guard arm logic, error-format string construction in T-D01/T-E01.
+- **Effectful functions** (I/O, network, tracing): all `reqwest::Client::builder()` chains, `issue_request_with_retry` (HTTP), `fanout()` (async fan-out + tracing). Test doubles use wiremock/tracing_test subscriber to isolate effects.
+
+---
+
+## Edge Cases
+
+| ID | Description | Expected Behavior |
+|----|-------------|-------------------|
+| EC-001 | Non-2xx body-read fails (`bytes().await` returns `Err`) | Best-effort: fall back to `"HTTP {status}"` without body snippet; primary status-code error is NOT replaced |
+| EC-002 | Non-2xx body is empty (`b""`) | `detail` is `"HTTP {status}"` with no body snippet appended |
+| EC-003 | Non-2xx body exceeds 256 bytes | Body capped at 256 bytes before inclusion in detail; control chars stripped; body snippet truncated gracefully |
+| EC-004 | `status_code = 0` reaches `map_spec_engine_error_to_sensor_error` (transport failure — TCP reset, DNS failure, TLS handshake failure) | Guard arm skipped; `SensorError::Internal` returned; `probe_connectivity` resolves `ConnectivityStatus::Down` (correct) |
+| EC-005 | `SpecEngineError` variant other than `HttpRequestFailed` reaches `map_spec_engine_error_to_sensor_error` | Guard arm skipped (`if let` does not match); falls through to `SensorError::Internal` (existing behavior preserved) |
+| EC-006 | `AllTargetsFailed` with empty `errors` vec | WARN loop does not execute (zero iterations); no `fan_out_target_failed` events emitted; `AllTargetsFailed` is returned as before |
+| EC-007 | Fan-out produces N > `MAX_FANOUT_CONCURRENCY` (10) failed targets | WARN loop emits N WARN events; N is bounded by `MAX_FANOUT_CONCURRENCY = 10`; no rate-limit issue |
+| EC-008 | reqwest error chain has no `source()` (e.g., simple `InvalidUrl`) | `std::error::Error::source(&e).map(...)` returns `None`; `.unwrap_or_default()` produces `""`; detail is `format!("{e}")` (no `"; caused by:"` suffix) |
+
+---
+
+## Token Budget Estimate
+
+| Artifact | Estimated Tokens | Notes |
+|----------|-----------------|-------|
+| This story file | ~6,000 | |
+| BC-2.16.002 v2.14 (HTTP Client Compliance + AllTargetsFailed postconditions + catalog row 91) | ~30,000 | Large BC; catalog scope is wide |
+| BC-2.08.002 v1.4 (HTTP Error Classification postcondition) | ~6,000 | Targeted amendment |
+| BC-2.01.010 v1.5 (AllTargetsFailed Per-Target Logging postcondition) | ~5,000 | |
+| BC-2.16.014 v1.20 (INV-014-007 ADR-050 §D5/§D6 note) | ~18,000 | Large BC; only INV note relevant |
+| ADR-050 v2.0 (§D5/§D6 new decisions + rationale) | ~10,000 | Reference for Cargo.toml + UA changes |
+| `spec_driven_adapter.rs` (`map_spec_engine_error_to_sensor_error` + `build_http_client_with_custom_timeout`) | ~8,000 | Two target functions |
+| `pipeline.rs` (send-failure arm + non-2xx branch × 2) | ~30,000 | Large file; two symmetric fix sites |
+| `fanout.rs` (`AllTargetsFailed` construction site) | ~8,000 | |
+| `boot.rs` (two PluginRuntime builder sites) | ~5,000 | |
+| Cargo.toml files × 3 (prism-spec-engine, prism-sensors, prism-bin) | ~3,000 | Small changes |
+| Test infrastructure (tracing_test subscriber, wiremock, reqwest test client) | ~5,000 | Existing deps |
+| error-taxonomy.md E-SENSOR-030 row | ~2,000 | Reference for AllTargetsFailed Display contract |
+| **Total estimated** | **~136,000** | Well within one context window; no sub-burst split required |
+
+---
+
+## Previous Story Intelligence
+
+Prior art from closely related stories:
+
+- `PLUGIN-MIGRATION-001-D` (merged): pattern for `pipeline.rs` call-site changes. Use `just iter prism-spec-engine` for inner-loop iteration; full `just check` only once at end of fix-burst per TDD inner-loop discipline (CLAUDE.md §Build & Test).
+- `S-DEMO-FIDELITY-REMEDIATION-001` (merged, PR cf66151f): first application of ADR-050 D1-D4. Pattern for Cargo.toml reqwest feature edits across multiple crates — copy the feature list edit pattern from that commit.
+- `PLUGIN-MIGRATION-001-B` / `PLUGIN-MIGRATION-001-C`: patterns for `spec_driven_adapter.rs` changes involving `SensorError` variants and `map_spec_engine_error_to_sensor_error`.
+- `S-DEMO-CLAROTY-PAGINATION-001`: pattern for in-process integration tests with a mock `SpecDrivenSensorAdapter`; reuse the test harness structure.
+
+`DEFECT-SENSOR-ERROR-FLATTEN-001` (stub, superseded): this story supersedes it per the §5 Bundling Verdict in the design doc. `DEFECT-SENSOR-ERROR-FLATTEN-001` had `status: draft` and no ACs authored; it is closed as superseded by this story.
+
+---
+
+## Architecture Compliance Rules
+
+Violations of these rules are P1 findings in adversarial review.
+
+1. **ADR-050 §D1/§D2 — rustls-tls mandatory, native-tls FORBIDDEN**: No Cargo.toml entry must switch to `native-tls`, `default-tls`, `native-tls-alpn`, or `native-tls-vendored`. The `http2` feature is additive alongside the existing `rustls-tls`. Do NOT remove `default-features = false`.
+
+2. **ADR-050 §D5/§D6 scope boundary — DTU dev-deps excluded**: The `http2` feature and `.user_agent(...)` call are required in production `[dependencies]` entries only. DTU crate `[dev-dependencies]` reqwest entries MUST NOT be modified by this story.
+
+3. **ADR-022 / Arc-DI — no placeholder-construct anti-pattern**: No new `Arc::new(Something::placeholder())` in any production boot path. This story adds only error-propagation guards, a feature flag, and a builder chain call — no new Arc-injected types.
+
+4. **TD-VSDD-091 / Anti-volatile-pin — no `file.rs:NNN` line cites**: All implementation guidance (task descriptions, comments) MUST cite function/symbol names and behavioral anchors, NOT line numbers. The two send-failure sites and two non-2xx sites in `pipeline.rs` are cited by symbol (`issue_request_with_retry`) and branch semantics, not line numbers.
+
+5. **AD-017 / AI-opaque credentials — no credential values in tracing events**: The `fan_out_target_failed` WARN event's `error` field uses `%err` (the `FanOutError` Display), which MUST NOT include credential values. The `org_id` and `sensor_id` are config identifiers (safe per AD-017). Live-verification agents run the binary from keyring credentials and MUST NOT echo values.
+
+6. **BC-5.39.001 / Spec-first gate**: Do NOT amend any spec artifact (BC, ADR, error-taxonomy) from the implementation task. BCs were amended by product-owner and ADR by architect pre-story (see §Authority). If a spec defect is discovered during implementation, STOP and report to orchestrator per CLAUDE.md Companion Principle rule 2.
+
+7. **SAP-1 standing probe — event catalog completeness**: `fan_out_target_failed` catalog row 91 is already present in BC-2.16.002 v2.14. The adversary verifies this in every cascade pass: `rg 'event_type.*fan_out_target_failed' crates/` must produce exactly one match (in `fanout.rs`); BC-2.16.002 row 91 must be present. A mismatch (emission without catalog row or catalog row without emission) is a P1 finding.
+
+8. **SAP-3 standing probe — spec-arm reachability**: RG-005 and RG-007 are in-process integration tests that drive `probe_connectivity` from the public surface (not synthetic AST injection). This satisfies SAP-3 primary coverage. RG-001 and RG-002 (unit tests of `map_spec_engine_error_to_sensor_error` directly) are defense-in-depth per SAP-3 rule 2.
+
+9. **SID-2 / Composed-output assertions**: RG-007 asserts on the FULL serialized JSON wire bytes (`"reachable": true` and `"auth_valid": false` as literal substrings), not only on pre-serialization Rust struct fields. Component-only assertions on `ProbeOutcome` fields are insufficient; AC-WIRE-001 requires wire-level JSON assertion.
+
+10. **`#[non_exhaustive]` discipline — no new pub types**: This story adds no new public TOML-deserialized types or pub-API surface types. `EXPECTED_SYMBOLS` in `scripts/check-non-exhaustive-per-symbol.py` does not change. `scripts/check-non-exhaustive.sh` must pass; the gate is Layer 1 equality, so both a removed annotation and an unregistered new type fail CI.
+
+11. **prism-sensors perimeter**: `crates/prism-sensors` MUST NOT gain a dependency on `prism-query` or `prism-mcp`. The `fanout.rs` WARN addition uses only `tracing` (already in the dep graph). Verify `crates/prism-sensors/Cargo.toml` after T-G01.
+
+---
+
+## Library & Framework Requirements
+
+| Library | Version / Source | Purpose |
+|---------|-----------------|---------|
+| `reqwest` | `default-features = false, features = ["rustls-tls", "http2", ...]` per each Cargo.toml | h2 ALPN negotiation (ADR-050 §D5) |
+| `tracing` | as pinned in workspace `Cargo.toml` | `fan_out_target_failed` WARN event (T-G01) |
+| `tracing-test` | as pinned in workspace `Cargo.toml` (or `tracing_subscriber` test subscriber) | RG-004 subscriber capture |
+| `wiremock` | as pinned in workspace `Cargo.toml` (existing dep in prism-bin tests) | RG-005, RG-006, RG-007 header/response mocking |
+| `std::error::Error` | stdlib | `source()` chain traversal in T-D01 |
+
+**No new crate dependencies added.** All libraries above are existing workspace deps. Do not introduce new crate dependencies in any of the three affected Cargo.toml files beyond the `"http2"` reqwest feature addition.
+
+---
+
+## File Structure Requirements
+
+### Files to CREATE
+
+None. All changes are additions to existing production modules and inline test blocks.
+
+### Files to MODIFY
+
+| File | Change Summary |
+|------|----------------|
+| `crates/prism-spec-engine/Cargo.toml` | Add `"http2"` to `reqwest` features (T-A01) |
+| `crates/prism-sensors/Cargo.toml` | Add `"http2"` to `reqwest` features (T-A02) |
+| `crates/prism-bin/Cargo.toml` | Add `"http2"` to two reqwest entries (T-A03, T-A04) |
+| `crates/prism-bin/src/spec_driven_adapter.rs` | Add `.user_agent(...)` to `build_http_client_with_custom_timeout` (T-B01); add guard arm to `map_spec_engine_error_to_sensor_error` (T-F01); add RG-001, RG-002, RG-006 inline tests |
+| `crates/prism-bin/src/boot.rs` | Add `.user_agent(...)` to two PluginRuntime builder sites (T-C01) |
+| `crates/prism-spec-engine/src/pipeline.rs` | Replace `e.to_string()` with source-chain format at two send-failure sites (T-D01); add body-capture at two non-2xx branches (T-E01); add RG-003 inline test |
+| `crates/prism-sensors/src/fanout.rs` | Add per-target WARN loop before `AllTargetsFailed` return (T-G01); add RG-004 inline test |
+| `crates/prism-bin/tests/` | Add RG-005 (`test_probe_connectivity_401_returns_up_auth_invalid`) and RG-007 (`test_sensor_health_wire_shape_auth_invalid`) in-process integration tests; optionally add RG-008 (`test_h2_in_cargo_lock`) |
+| `test-soc/live-soc/relay/xdome-relay.py` | Add deprecation comment (T-LV03, post-live-verification) |
+
+### Files NOT to Modify
+
+| File | Reason |
+|------|--------|
+| `.factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md` | Frozen at v2.14. Transport postconditions and catalog row 91 already authored by product-owner. |
+| `.factory/specs/behavioral-contracts/BC-2.08.002-auth-validity-check.md` | Frozen at v1.4. HTTP Error Classification postcondition already authored. |
+| `.factory/specs/behavioral-contracts/BC-2.01.010-partial-failure-handling.md` | Frozen at v1.5. AllTargetsFailed Per-Target Logging postcondition already authored. |
+| `.factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md` | Frozen at v1.20. INV-014-007 note already added by product-owner. |
+| `.factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md` | Frozen at v2.0. D5/D6 decisions already added by architect. |
+| `.factory/specs/prd-supplements/error-taxonomy.md` | E-SENSOR-030 row already amended by product-owner. Do NOT amend. |
+| `crates/prism-dtu-*/Cargo.toml` | DTU dev-deps excluded from ADR-050 §D5 scope. |
+| `scripts/check-non-exhaustive-per-symbol.py` | No new pub types introduced; count unchanged. |
+
+---
+
+## Forbidden Dependencies
+
+The following modules/packages MUST NOT appear as new dependencies in any of the three affected Cargo.toml files after this story:
+
+- `native-tls` / `default-tls` / `native-tls-alpn` / `native-tls-vendored` (ADR-050 §D2: FORBIDDEN workspace-wide; causes ~65s macOS Keychain init + MITM proxy interception path)
+- `prism-query` in `prism-sensors` (perimeter violation: SS-01 fan-out MUST NOT depend on the query engine)
+- `prism-mcp` in `prism-sensors` or `prism-spec-engine` (spec-engine and sensors must not depend on MCP layer)
+
+---
+
+## UX Screen References
+
+N/A — no UX surface. All changes are internal to the transport, error-propagation, and sensor adapter layers. The only operator-visible outputs are structured health tool responses (`auth_valid`, `reachable`, `detail`) which are already governed by BC-2.08.002.
+
+---
+
+## Dependency Graph Edges
+
+```
+DEFECT-ADAPTER-TLS-XDOME-LIVE-001 (this story)
+  depends_on: []           — no hard dependencies; can enter any wave
+  blocks:     []           — no other stories blocked on this defect fix
+```
+
+This story supersedes `DEFECT-SENSOR-ERROR-FLATTEN-001` (stub, closed as superseded per design doc §5 Bundling Verdict).
+
+---
+
+## Story-Level Holdout Gate
+
+Per the project's story-level holdout gate protocol (CLAUDE.md §Story-Level Holdout Gate, D-1715/D-1716):
+
+The product-owner authors **2–4 HIDDEN, SINGLE-USE holdout scenarios** for this story at materialization time. These scenarios are stored in the holdout directory (not readable by test-writer or implementer) and executed by the holdout-evaluator AFTER LOCAL 3-CLEAN and BEFORE demo recording / push.
+
+**Implementer / test-writer MUST NOT:**
+- Read, reference, or attempt to infer the holdout scenario content
+- Write tests designed to match the holdout scenarios
+- Author "holdout-adjacent" tests based on speculation about scenario content
+
+**The gate is BLOCKING.** Any unsatisfied scenario routes findings back through the VSDD feedback loop as OBSERVED BEHAVIOR ONLY (never scenario text). BC-5.39.001 LOCAL streak resets to 0/3 on any holdout failure.
+
+---
+
+## Technology Assumption Validation (Remove-Uncertainty Pass — D-1110, 2026-08-12)
+
+Validated by research-agent against reqwest docs (Context7 / docs.rs), the workspace
+`Cargo.lock` (reqwest 0.12.28, h2 0.4.13, hyper 1.9.0), the working relay source
+(`test-soc/live-soc/relay/xdome-relay.py`), and web research on AWS WAF / edge TLS
+fingerprinting (Perplexity deep research). Every claim is source-anchored; version
+facts are pinned. Corrections and the RISK note below have been applied to the ACs and
+frontmatter of this story.
+
+### A1 — reqwest `http2` feature semantics — **CONFIRMED**
+
+- Feature name is exactly `http2` (not `hyper-h2`). Source: docs.rs/crate/reqwest/0.12.28/features; reqwest source optional-features list (Context7).
+- `http2` is **additive, not h2-only.** reqwest's default `HttpVersionPref` is `All`; with `http2` on, ALPN advertises `["h2", "http/1.1"]` and negotiates h2 only if the server offers it, else falls back to HTTP/1.1. `http2_only(true)` is set ONLY when the caller explicitly selects `HttpVersionPref::Http2` (via `.http2_prior_knowledge()`), which this story does NOT do. Source: reqwest `async_impl/client.rs` ALPN + http2 builder match arms (Context7).
+- WITHOUT the feature, reqwest advertises ONLY `http/1.1` in ALPN — the `"h2"` arm is `#[cfg(feature = "http2")]`. So the current production clients are HTTP/1.1-only at ALPN, consistent with the root-cause hypothesis. Source: same ALPN match arm (Context7).
+- `http2` pulls `h2`: reqwest 0.12.28's `http2` feature enables `dep:h2` (^0.4) plus `hyper/http2`, `hyper-util/http2`, `hyper-rustls/http2`. Source: docs.rs/crate/reqwest/0.12.28/features.
+
+### A2 — `.user_agent()` API — **CONFIRMED**
+
+- `reqwest::ClientBuilder::user_agent<V: TryInto<HeaderValue>>(self, value: V)` exists on reqwest 0.12. A `&'static str` satisfies the bound, so `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))` compiles (zero-allocation `&'static str`). The docs' own example is byte-for-byte this pattern (`concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"))`). Source: docs.rs/reqwest ClientBuilder::user_agent (Context7).
+- reqwest sends **no** default `User-Agent` — one is present only if set via `.user_agent()` or `default_headers`. The story premise (current clients send no UA) is consistent with reqwest's documented behavior. Confidence: high. Source: docs.rs/reqwest ClientBuilder (no default-UA behavior documented); web corroboration.
+
+### A3 — Plausibility of the fix against the api.claroty.com edge — **RISK (moderate confidence SUFFICIENT)**
+
+Empirical evidence from the currently-working relay materially informs — and partially
+mitigates — the generic WAF concern, but a residual risk remains that the human should
+weigh before build.
+
+**What the working relay tells us.** `xdome-relay.py` reaches `https://api.claroty.com`
+via Python `urllib.request`. That client is: (a) **HTTP/1.1-only** (urllib does not speak
+HTTP/2); (b) sends a **default `User-Agent: Python-urllib/3.x`** (the relay sets only
+`Content-Type` + `Authorization`, so urllib attaches its default UA); (c) presents a
+**non-browser OpenSSL TLS fingerprint**. It succeeds.
+
+**Implications:**
+1. **HTTP/2 is NOT empirically required** to pass the edge — a HTTP/1.1-only client
+   already works. The `http2` feature addition is therefore an **ADR-050 §D5 compliance +
+   robustness change and defense-in-depth**, NOT the empirically load-bearing fix. (It
+   remains mandatory per frozen ADR-050 — do NOT remove it.)
+2. The edge **accepts a non-browser TLS fingerprint** (urllib/OpenSSL). This substantially
+   lowers the "the WAF requires a browser JA3/JA4" failure mode that generic analysis
+   raises: rustls is also non-browser, and the edge is demonstrably not browser-whitelisting.
+3. The most conspicuous difference between the working client (urllib, **has** a UA) and
+   the failing client (reqwest, **no** UA) is the **`User-Agent`**. This makes the
+   `.user_agent()` change the **probable load-bearing fix** and raises confidence AC-LIVE-001 can pass.
+
+**Residual risk (why AC-LIVE-001, no-waiver, still cannot be guaranteed a priori):**
+- The specific **rustls JA3/JA4** could be independently blocklisted even though urllib's
+  OpenSSL fingerprint is not. AWS WAF (the likely edge behind AWS Global Accelerator for
+  `api.claroty.com`) exposes JA3/JA4 as a first-class match field and can block/rate-limit
+  on it; adding `h2`-ALPN + a UA changes the JA3/JA4 hash but does NOT make rustls browser-
+  or urllib-identical (standard rustls offers no ClientHello camouflage — maintainers route
+  fingerprint-evasion to specialized libraries). Sources: AWS WAF JA3/JA4 docs
+  (docs.aws.amazon.com/waf — JA4Fingerprint / FieldToMatch / logging-fields / bot-control);
+  rustls issue #1421. Probability: **LOW** (edge tolerates non-browser urllib), non-zero,
+  unprovable without a live test.
+- The differentiator could be a header other than UA (e.g. `Accept-Encoding`, header
+  casing/ordering) that the UA change does not address. Probability: **LOW-MODERATE**.
+
+**Recommendation (cheap, optional pre-build de-risk):** before committing to the no-waiver
+live gate, run a one-off diagnostic probe against `https://api.claroty.com` from a minimal
+reqwest client with ONLY `.user_agent(...)` added (HTTP/1.1, rustls). If it clears the edge
+(any origin-level response, e.g. a 401 rather than a WAF 403), AC-LIVE-001 is very likely to
+pass and h2 is confirmed non-load-bearing. If it still 403s at the WAF, the edge is
+fingerprinting rustls and the fix is insufficient — escalate before building. Diagnostic
+only; touches no production code.
+
+**Verdict:** the bundled fix is **plausibly sufficient (moderate confidence)** — the UA
+change is the probable remedy and the relay evidence rules out the strongest
+"browser-JA3-required" failure mode. AC-LIVE-001 remains a genuine, non-waivable live gate
+whose outcome cannot be proven before execution. Surfaced to orchestrator/human per the
+remove-uncertainty discipline; does not block materialization.
+
+### A4 — rustls + ALPN `h2` composition — **CONFIRMED**
+
+- reqwest's `rustls-tls` + `http2` compose correctly: reqwest sets `tls.alpn_protocols` on
+  the rustls `ClientConfig` from `http_version_pref`; with both features and default pref
+  `All`, rustls advertises `h2` then `http/1.1` in the ClientHello ALPN extension. reqwest
+  0.12.28's `http2` feature also enables `hyper-rustls/http2`, wiring the rustls connector for
+  h2. Sources: reqwest `async_impl/client.rs` ALPN match arm (Context7); docs.rs/crate/reqwest/0.12.28/features.
+
+### Correction applied — AC-H2-001 / RG-008 observable
+
+`h2 0.4.13` is ALREADY in `Cargo.lock` (transitively via `hyper 1.9.0`; reqwest's own
+`dependencies` block does NOT currently list `h2` — verified this pass). A whole-file
+`grep '"h2"' Cargo.lock` is therefore green before the fix and is INVALID as a Red Gate.
+AC-H2-001 and RG-008 have been corrected to scope the observable to the reqwest node
+(`cargo tree -e features -i reqwest`, or `h2` inside reqwest's own Cargo.lock dependency
+block). See the AC-H2-001 observability note.
+
+---
+
+## Version History
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
-| 0.1 | 2026-08-03 | story-writer | Initial registration stub from D-1889 triage (F10); records corrected primary-fix-path (http2+UA, not native-tls); architect adjudication framing; no ACs or implementation guidance |
+| 1.1 | 2026-08-12 | research-agent | Remove-uncertainty pass (D-1110 pass-1). Validated 4 technology assumptions: A1 (http2 feature semantics), A2 (user_agent API), A4 (rustls+ALPN composition) CONFIRMED against reqwest 0.12.28 docs (Context7) + workspace Cargo.lock; A3 (fix plausibility vs api.claroty.com WAF edge) rated RISK/moderate-confidence-sufficient via Perplexity deep research + working-relay evidence. Corrected AC-H2-001 + RG-008: whole-file `grep '"h2"' Cargo.lock` observable is invalid (h2 already present transitively via hyper 1.9.0); scoped verification to the reqwest node. Added §Technology Assumption Validation with a labeled RISK note (rustls JA3/JA4 + non-UA-header residual risk on no-waiver AC-LIVE-001; h2 reframed as ADR-050 compliance/defense-in-depth, UA as probable load-bearing fix). Populated `assumption_validations` + `risk_mitigations` frontmatter. No changes to spec artifacts (BC/ADR/error-taxonomy) — those remain frozen per §Files NOT to Modify. |
+| 1.0 | 2026-08-12 | story-writer | Full implementation story authored from design gate D-2111 (APPROVED). Supersedes stub v0.1. Bundles F10 (transport: http2 feature + User-Agent) + F9 (error surfacing: source-chain + body-capture + error mapping + AllTargetsFailed WARN). 14 ACs across Groups A–E. 8 Red Gate tests (RG-001..RG-008). BC-5.38.001 density 0.571. SAC-1 compliant (enumerated RG list + density check + red-then-green task ordering). §Authority cites ADR-050 v2.0, BC-2.16.002 v2.14, BC-2.08.002 v1.4, BC-2.01.010 v1.5, BC-2.16.014 v1.20. DEFECT-SENSOR-ERROR-FLATTEN-001 superseded and closed. |
+| 0.1 | 2026-08-03 | story-writer | Initial registration stub from D-1889 triage (F10); records corrected primary-fix-path (http2+UA, not native-tls); architect adjudication framing; no ACs or implementation guidance. |

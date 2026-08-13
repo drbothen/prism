@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.19"
+version: "1.20"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: draft
 introduced: "2026-07-22"
-modified: "2026-07-24"
+modified: "2026-08-12"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -25,7 +25,7 @@ inputs:
   - ".factory/specs/domain-spec/invariants.md"
   - "crates/prism-spec-engine/src/auth_provider.rs"
   - "crates/prism-spec-engine/src/error.rs"
-input-hash: "69e2ef9"
+input-hash: "41b49a9"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -311,7 +311,16 @@ would return the same stale or revoked token from the warm cache).
   `reqwest::Client` configured per ADR-050: `default-features = false, features = ["rustls-tls"]`;
   `native-tls` and its aliases (`default-tls`, `native-tls-alpn`, `native-tls-vendored`) are
   forbidden. The client is constructed with `.timeout(Duration::from_secs(30))` (30s timeout)
-  per the workspace convention established by `build_http_client_with_timeout()`.
+  per the workspace convention established by `build_http_client_with_timeout()`. Per ADR-050
+  v2.0 §D5/§D6 (effective DEFECT-ADAPTER-TLS-XDOME-LIVE-001): the client MUST also include
+  the `http2` reqwest feature (enabling h2 ALPN negotiation with cloud-edge front-ends such as
+  AWS Global Accelerator; additive — falls back to h1 when the server does not advertise h2)
+  and MUST set `User-Agent: prism/<version>` via
+  `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))`. `build_http_client_with_custom_timeout`
+  in `crates/prism-bin/src/spec_driven_adapter.rs` is the production factory; adding `.user_agent(...)`
+  there propagates automatically to `build_http_client_with_timeout()` and consequently to
+  `DeclarativeHttpAuthProvider` via its constructor delegation chain.
+  Story: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 AC-UA-001 + AC-H2-001 + AC-CARGO-001.
 
 - **INV-014-008 (E-SPEC-028 Spec-Load Gate):** `DeclarativeHttpAuthProvider` is never
   constructed from a spec that would fail `E-SPEC-028` validation. By the time
@@ -468,7 +477,8 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.19 | FB45 | 2026-07-24 | product-owner | F-WASE-P61-MED-004: added `| Stories | S-WAVE-A-ENGINE-001 |` row to §Traceability. STORY-INDEX.md §BC → Story reverse map asserts S-WAVE-A-ENGINE-001 maps to this BC; the BC had no back-reference. Convention per BC-2.16.009 §Traceability (Stories rows populated at spec/story-prep time). |
+| 1.20 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001-spec-amendment | 2026-08-12 | product-owner | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 spec amendment: **INV-014-007 extended** — appended ADR-050 v2.0 §D5/§D6 requirements (effective DEFECT-ADAPTER-TLS-XDOME-LIVE-001): the `reqwest::Client` used by `DeclarativeHttpAuthProvider` MUST include the `http2` reqwest feature (ALPN h2 negotiation, additive — falls back to h1 when server does not advertise h2) and MUST set `User-Agent: prism/<version>` via `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))`. `build_http_client_with_custom_timeout` is the production factory; adding `.user_agent()` there propagates automatically to `build_http_client_with_timeout()` and consequently to `DeclarativeHttpAuthProvider` via its constructor delegation chain. Story: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 AC-UA-001 + AC-H2-001 + AC-CARGO-001. **TD-VSDD-097 three-dimension sweep:** 9a sibling-pair: INV-014-007 is a standalone reqwest compliance invariant within this BC; the closest sibling is BC-2.16.002 §Postconditions HTTP Client Compliance postcondition (added in same burst for the fetch pipeline's client) — both now consistently require http2 + User-Agent per ADR-050 v2.0. 9b downstream copy-target: VP-159 §Verification Properties references `http_client: reqwest::Client` as an internal field but does not reproduce INV-014-007 verbatim — no VP-159 edit needed. ADR-050 v2.0 already records D5/D6 as the authority; INV-014-007 is consuming that authority. 9c mandate-anchor: new MUSTs in INV-014-007 extension anchored to DEFECT-ADAPTER-TLS-XDOME-LIVE-001 AC-UA-001 + AC-H2-001 + AC-CARGO-001 — no unanchored MUSTs. |
+| 1.19 | FB45 | 2026-07-24 | product-owner | F-WASE-P61-MED-004: added `\| Stories \| S-WAVE-A-ENGINE-001 \|` row to §Traceability. STORY-INDEX.md §BC → Story reverse map asserts S-WAVE-A-ENGINE-001 maps to this BC; the BC had no back-reference. Convention per BC-2.16.009 §Traceability (Stories rows populated at spec/story-prep time). |
 | 1.18 | wave-a-spec-evolution-fix-burst-37 | 2026-07-24 | product-owner | F-WASE-P48-HIGH-001: TV-11 arithmetic corrected — `3599 - 30 = 3569` (not `1769`). The previous formula `unix_now() + 3599 - 30 = unix_now() + 1769` was wrong: 3599 − 30 = 3569; 1769 = 1799 − 30 (the default-path value in TV-5), so the error made TV-11 produce exactly the wrong-value that the VP-159 AC-7d kill-condition test is designed to detect. Fixed: `unix_now() + 3599 - 30 = unix_now() + 3569`. POL-29 sweep: VP-159 mentions of 1769 are all AC-7d deliberate wrong-value references (lines 196, 827, 933, 972 — not touched); TV-5 `unix_now() + 1769` is correct (1799 − 30); TV-6 `expires_at = unix_now() + 1769` is correct (zero→default 1799 path); changelog v1.17 row contains historical `1769` (exempt per POL-23). Only live body site fixed: TV-11 expected outcome cell. |
 | 1.17 | wave-a-rmu-amendment-burst-1 | 2026-07-23 | product-owner | RU-Q1/RU-Q2 alignment per ADR-054 §D4 v0.51. §P2 `absolute_utc_string` mode: replaced strict `parse_from_rfc3339` language with lenient `expiry_str.parse::<DateTime<FixedOffset>>()` (chrono relaxed `FromStr` — accepts both `T`-separator RFC-3339/ISO-8601 AND space-separated `"YYYY-MM-DD HH:MM:SS.ffffff+HH:MM"`; E-AUTH-001 only when even relaxed parse fails). §P2 `$.expires_in` extraction: amended to lenient deserialization — JSON number (`as_u64()`) OR numeric string (`str.parse::<u64>()`; e.g., Microsoft Entra ID `"3599"`, per RFC 6749 §5.1 which does not fix the JSON type); non-numeric/wrong-type treated as absent → 1799 default. EC-016-014-003: broadened from "non-RFC-3339-parseable" to "fails even lenient relaxed `FromStr`" with concrete examples. EC-016-014-016 added: numeric-string `$.expires_in` (e.g., `"3599"`) → same `expires_at` as equivalent JSON number. TV-2: updated label to "T-form"; replaced `parse_rfc3339(...)` formula with lenient `parse::<DateTime<FixedOffset>>()` formula + note that space-separated form yields same `expires_at` per ADR-054 §D4 v0.51/RU-Q1. TV-11 added: string-typed `"expires_in": "3599"` → `unix_now() + 1769`. |
 | 1.16 | wave-a-spec-evolution-fix-burst-30 | 2026-07-23 | product-owner | F-WASE-P34-LOW-002: §Canonical Test Vectors TV-9 "Input" cell reworded — replaced "`MockCredentialResolver` returns `CredentialResolutionError::NotFound`" with "`NotFoundCredentialResolver` injected as the `CredentialResolver` at `new_for_test` construction time" plus a MUST-NOT guidance note. The as-built `MockCredentialResolver` (lines ~253-283 of `auth_provider.rs`) unconditionally returns `Ok` and cannot produce `NotFound`; a test-writer taking TV-9 literally against `MockCredentialResolver` would never exercise the E-AUTH-005 path. `NotFoundCredentialResolver` (lines ~286-319) is the existing always-NotFound test double — no new type needed. POL-29 sweep: all VP-159 `MockCredentialResolver` references are always-Ok injection for successful-acquisition tests — no NotFound-capability assertions found in any PO-owned artifact; VP-159 sites reported to architect for v1.16 pin sweep per POL-23. |
