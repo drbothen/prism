@@ -5,7 +5,7 @@ title: "Workspace reqwest TLS Backend — rustls-tls Mandatory, native-tls Forbi
 status: ACCEPTED
 date: "2026-07-02"
 modified: "2026-08-13"
-version: "2.2"
+version: "2.3"
 producer: architect
 subsystems_affected: [SS-01, SS-16, SS-17, SS-22]
 supersedes: []
@@ -38,6 +38,12 @@ sibling-sweep gap in v2.0 enumeration). §D6 header clarified from "sensor and p
 "all outbound third-party HTTP" to make the universal scope and enumerated list consistent.
 WAF-fingerprint-coherence reasoning applies to ALL outbound third-party HTTP, not only
 sensor/plugin adapters. Anchored to DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-2 OBS-4.
+
+ACCEPTED v2.3 (2026-08-13) — §D5 note corrected: prism-bin `[dev-dependencies]` reqwest
+entry explicitly declares `http2` in its features array (`["json", "rustls-tls", "http2"]`),
+not Cargo feature unification (unification means a feature resolves ON without being listed;
+this is an explicit literal declaration). Records-only — no decision or mechanism change.
+Anchored to DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-8 F-1.
 
 ACCEPTED v2.2 (2026-08-13) — §D5 prism-bin production entry count corrected: one
 production `[dependencies]` reqwest entry (S-PLUGIN-PREREQ-D AC-9 shared outbound
@@ -153,8 +159,10 @@ The production `[dependencies]` reqwest entries in the following crates MUST inc
   (S-PLUGIN-PREREQ-D AC-9 shared outbound client)
 
 Note: `crates/prism-bin/Cargo.toml` also carries a `[dev-dependencies]` reqwest entry
-which includes `http2` — this is Cargo feature unification (harmless); the dev-dep
-does not affect production builds and DTU dev-deps remain out of scope for D5.
+which explicitly declares `http2` in its features array (`["json", "rustls-tls", "http2"]`).
+This is an explicit literal declaration, not Cargo feature unification (unification means
+a feature resolves ON without being listed in this entry). The dev-dep does not affect
+production builds and DTU dev-deps remain out of scope for D5.
 
 The `http2` feature enables h2 negotiation via ALPN during TLS handshakes. It is
 **additive**: when the server does not advertise h2 in ALPN, reqwest falls back to h1.
@@ -267,7 +275,7 @@ automatically satisfies D6 for the auth token acquisition client without touchin
   Expected size increase: ~150–200 Cargo.lock lines. Correct tradeoff for h2
   capability on production sensor connections.
 
-### Status as of v2.2 (2026-08-13)
+### Status as of v2.3 (2026-08-13)
 
 D1–D4 in effect since cf66151f (2026-07-02); verified by 4 formerly-quarantined
 DTU stage-0 tests passing at ~0.05s each after fix. D5/D6 PENDING implementation
@@ -368,6 +376,7 @@ correct vehicle.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 2.3 | 2026-08-13 | architect | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-8 F-1 closure. §D5 note corrected: prism-bin `[dev-dependencies]` reqwest entry explicitly declares `http2` in its features array (`["json", "rustls-tls", "http2"]`) — not Cargo feature unification. Cargo feature unification means a feature resolves ON without being explicitly listed; this is an explicit literal declaration. Records-only — no decision or mechanism change. |
 | 2.2 | 2026-08-13 | architect | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-4 F-3 closure. §D5 prism-bin production entry count corrected: one `[dependencies]` reqwest entry (S-PLUGIN-PREREQ-D AC-9 shared outbound client), not two; total three production entries (prism-spec-engine, prism-sensors, prism-bin). Prism-bin `[dev-dependencies]` reqwest entry also carries `http2` (Cargo feature unification; harmless; DTU dev-deps remain out of scope for D5). Records-only — no decision or mechanism change. |
 | 2.1 | 2026-08-13 | architect | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-2 OBS-4 closure. §D6 scope extended to include `build_http_client_with_timeout` in `crates/prism-spec-engine/src/pipeline.rs` (infusion `HttpLookupSource` outbound factory; sibling-sweep gap in v2.0 enumeration); verified by `test_infusion_http_client_sends_prism_user_agent`. §D6 header clarified to "all outbound third-party HTTP client builders" — universal scope and enumerated list now consistent. §D6 Rationale extended: WAF-fingerprint-coherence applies to ALL outbound third-party HTTP including infusion clients. §Source/Origin extended with §D6 v2.1 extension origin. D5 http2 feature and D1–D4 TLS decisions unchanged. |
 | 2.0 | 2026-08-12 | architect | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 adjudication. D5 added: `http2` reqwest feature MUST be included in production [dependencies] for prism-spec-engine, prism-sensors, and prism-bin — enables h2 ALPN negotiation with cloud-edge fronts; falls back to h1 gracefully; DTU dev-deps excluded. D6 added: scope is `build_http_client_with_custom_timeout` (covers all sensor adapter clients and, via delegation chain, `DeclarativeHttpAuthProvider`) and both `PluginRuntime` client builders in boot.rs — value is `concat!("prism/", env!("CARGO_PKG_VERSION"))`. Alt-D (native-tls) and Alt-E (force h1) explicitly rejected with rationale. related_bcs extended: BC-2.16.002, BC-2.16.014. anchor_stories extended: DEFECT-ADAPTER-TLS-XDOME-LIVE-001. Template conformed: sections renamed to Rationale, Alternatives Considered, Source / Origin per adr-template.md. Title updated to reflect D5/D6 scope. |

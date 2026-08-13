@@ -40,7 +40,7 @@ All production reqwest deps declare `default-features = false` without re-enabli
 advertising h2 via ALPN can match WAF block profiles.
 Affected entries: `prism-spec-engine` [dependencies], `prism-sensors` [dependencies],
 `prism-bin` [dependencies] (one production entry; `prism-bin` dev-dependencies entry
-carries `"http2"` already via Cargo feature-unification — not modified by this fix).
+explicitly declares `"http2"` in its features array — not modified by this fix).
 
 **RC-F10-B — No User-Agent header.**
 `build_http_client_with_custom_timeout` (sole production sensor HTTP client factory)
@@ -301,7 +301,7 @@ Add `"http2"` to `reqwest` features (current: `["json", "rustls-tls"]`).
 
 **`crates/prism-bin/Cargo.toml` — one production entry + one dev-dep (verify-only)**
 - Production entry (sensor adapter / S-PLUGIN-PREREQ-D AC-9 shared client): add `"http2"` to `["rustls-tls"]`
-- `[dev-dependencies]` entry: carries `"http2"` already via Cargo feature-unification — NO change required; verify it remains present after production edits
+- `[dev-dependencies]` entry: explicitly declares `"http2"` in its features array (`["json", "rustls-tls", "http2"]`) — NO change required; verify it remains present after production edits
 
 ### 9.2 User-Agent (prism-bin/src/spec_driven_adapter.rs)
 
