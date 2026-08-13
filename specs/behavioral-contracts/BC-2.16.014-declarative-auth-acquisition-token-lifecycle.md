@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.21"
+version: "1.22"
 status: draft
 producer: product-owner
 timestamp: 2026-07-22T00:00:00Z
@@ -316,10 +316,17 @@ would return the same stale or revoked token from the warm cache).
   the `http2` reqwest feature (enabling h2 ALPN negotiation with cloud-edge front-ends such as
   AWS Global Accelerator; additive — falls back to h1 when the server does not advertise h2)
   and MUST set `User-Agent: prism/<version>` via
-  `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))`. `build_http_client_with_custom_timeout`
-  in `crates/prism-bin/src/spec_driven_adapter.rs` is the production factory; adding `.user_agent(...)`
-  there propagates automatically to `build_http_client_with_timeout()` and consequently to
-  `DeclarativeHttpAuthProvider` via its constructor delegation chain.
+  `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))`. This requirement is satisfied by
+  two independent factory sites — prism-spec-engine cannot import from prism-bin (wrong
+  dependency direction): (1) **prism-bin path:** `build_http_client_with_custom_timeout()`
+  (pub(crate) in `prism-bin::spec_driven_adapter`) is the underlying implementation;
+  `build_http_client_with_timeout()` in prism-bin wraps it as a thin 30-second variant,
+  propagating `User-Agent` to `SpecDrivenSensorAdapter` clients. (2) **prism-spec-engine path:**
+  `build_http_client_with_timeout()` in `prism-spec-engine::pipeline` is a DISTINCT pub(crate)
+  function carrying its own `.user_agent()` call; `DeclarativeHttpAuthProvider` obtains its
+  `reqwest::Client` from this function exclusively — NOT via propagation from prism-bin.
+  Independently verified by RG-012 (`test_infusion_http_client_sends_prism_user_agent` in
+  `prism-spec-engine::pipeline`).
   Story: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 AC-UA-001 + AC-H2-001 + AC-CARGO-001.
 
 - **INV-014-008 (E-SPEC-028 Spec-Load Gate):** `DeclarativeHttpAuthProvider` is never
@@ -477,6 +484,7 @@ story IDs to be assigned during Wave-A story decomposition.]`
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.22 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001-dd9-records-correction | 2026-08-13 | product-owner | **DD-9 records-only correction (TD-VSDD-096): INV-014-007 false "propagates automatically" delegation claim replaced with accurate two-path description.** Previous text claimed `build_http_client_with_custom_timeout` in prism-bin "propagates automatically to `build_http_client_with_timeout()` and consequently to `DeclarativeHttpAuthProvider` via its constructor delegation chain." Ground truth: prism-spec-engine is a separate crate and cannot import from prism-bin (wrong dependency direction). `DeclarativeHttpAuthProvider` obtains its `reqwest::Client` from `build_http_client_with_timeout()` in `prism-spec-engine::pipeline` — a DISTINCT pub(crate) function, independently verified by RG-012 (`test_infusion_http_client_sends_prism_user_agent` in `prism-spec-engine::pipeline`). New text accurately describes two independent factory sites: (1) prism-bin path: `build_http_client_with_custom_timeout()` wraps into `build_http_client_with_timeout()` within prism-bin, covering `SpecDrivenSensorAdapter` clients. (2) prism-spec-engine path: `build_http_client_with_timeout()` in `prism-spec-engine::pipeline` carries its own `.user_agent()` call, covering `DeclarativeHttpAuthProvider` clients. **TD-VSDD-097 three-dimension sweep:** (a) sibling-pair: BC-2.16.002 §Postconditions HTTP Client Compliance postcondition — confirmed no "propagates automatically" / `build_http_client_with_custom_timeout` text (grep returned empty); sibling is clean. (b) downstream copy-target: VP-159 references INV-014-007 by invariant name only, not by verbatim factory-description prose — no VP-159 edit needed (confirmed consistent with v1.21 sweep). (c) mandate-anchor: records-only correction fixing a factual description; no new MUSTs introduced; existing MUSTs remain anchored to DEFECT-ADAPTER-TLS-XDOME-LIVE-001 AC-UA-001 + AC-H2-001 + AC-CARGO-001. TD-VSDD-091 compliance: all cites use symbol/module anchors (`prism-bin::spec_driven_adapter`, `prism-spec-engine::pipeline`, function names, RG-012 test name) — no `file.rs:NNN` volatile line cites. Self-certification: records-only — no postcondition mechanism, algorithm, or API contract changed. |
 | 1.21 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001-consistency-correction | 2026-08-13 | product-owner | **F-4 records-only correction: INV-014-007 ADR-050 version pin updated v2.0→v2.2.** INV-014-007 body prose citation "ADR-050 v2.0 §D5/§D6" corrected to "ADR-050 v2.2 §D5/§D6"; all three ADR-050 v2.0 pins in the v1.20 changelog row corrected to v2.2 identically. INV-014-007 already cites `build_http_client_with_timeout()` propagation which is v2.1+ content — v2.2 is the correct current version. TD-VSDD-097: 9a sibling-pair: BC-2.16.002 §Postconditions HTTP Client Compliance postcondition is the sibling (amended same burst in v2.14); both now cite ADR-050 v2.2 consistently. 9b downstream copy-target: INV-014-007 is not reproduced verbatim in any downstream artifact (VP-159 references the invariant by name, not by verbatim copy). 9c mandate-anchor: records-only correction, no new MUSTs. |
 | 1.20 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001-spec-amendment | 2026-08-12 | product-owner | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 spec amendment: **INV-014-007 extended** — appended ADR-050 v2.2 §D5/§D6 requirements (effective DEFECT-ADAPTER-TLS-XDOME-LIVE-001): the `reqwest::Client` used by `DeclarativeHttpAuthProvider` MUST include the `http2` reqwest feature (ALPN h2 negotiation, additive — falls back to h1 when server does not advertise h2) and MUST set `User-Agent: prism/<version>` via `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))`. `build_http_client_with_custom_timeout` is the production factory; adding `.user_agent()` there propagates automatically to `build_http_client_with_timeout()` and consequently to `DeclarativeHttpAuthProvider` via its constructor delegation chain. Story: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 AC-UA-001 + AC-H2-001 + AC-CARGO-001. **TD-VSDD-097 three-dimension sweep:** 9a sibling-pair: INV-014-007 is a standalone reqwest compliance invariant within this BC; the closest sibling is BC-2.16.002 §Postconditions HTTP Client Compliance postcondition (added in same burst for the fetch pipeline's client) — both now consistently require http2 + User-Agent per ADR-050 v2.2. 9b downstream copy-target: VP-159 §Verification Properties references `http_client: reqwest::Client` as an internal field but does not reproduce INV-014-007 verbatim — no VP-159 edit needed. ADR-050 v2.2 already records D5/D6 as the authority; INV-014-007 is consuming that authority. 9c mandate-anchor: new MUSTs in INV-014-007 extension anchored to DEFECT-ADAPTER-TLS-XDOME-LIVE-001 AC-UA-001 + AC-H2-001 + AC-CARGO-001 — no unanchored MUSTs. |
 | 1.19 | FB45 | 2026-07-24 | product-owner | F-WASE-P61-MED-004: added `\| Stories \| S-WAVE-A-ENGINE-001 \|` row to §Traceability. STORY-INDEX.md §BC → Story reverse map asserts S-WAVE-A-ENGINE-001 maps to this BC; the BC had no back-reference. Convention per BC-2.16.009 §Traceability (Stories rows populated at spec/story-prep time). |

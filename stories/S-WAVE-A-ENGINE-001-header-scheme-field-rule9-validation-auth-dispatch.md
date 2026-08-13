@@ -6,7 +6,7 @@ wave: wave-a
 epic_id: E-SPEC-ENGINE
 priority: P1
 status: draft
-version: "3.2"
+version: "3.3"
 updated: "2026-08-13"
 level: "L3"
 producer: story-writer
@@ -140,7 +140,7 @@ merge-dependency encoding.
 |----|-------|---------|---------------------|
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | v1.29 | Rule 9 only — `header_scheme` value validation, 3 E-SPEC-027 templates, coherence matrix (5 existing variants), absence paths A/B. Cookie name constraint: RFC 6265 tchar per SEC-001 CWE-20/CWE-74 fix (15-char set with backtick, RFC 9110 §5.6.2 order). §Entry points and function coverage sub-section asserts `add_sensor_spec` MUST reach `SpecLoader::parse()` for Rule 9 coverage on the sole active injection vector. New in v1.26: EC-009-047..EC-009-051 (overlong value echo cap CWE-400, CTL-byte `\xNN` hex escaping CWE-117, TAB in cookie name, high-byte byte-level predicate divergence probe, cookie name > 128 codepoints CWE-390). v1.27 (attribution-only): §Integration function sentence split — Rule 9 scoped to this story; Rule 10 scoped to S-ADR054-WAVE-A-001; §Traceability Stories row added S-ADR054-WAVE-A-001. v1.28 (FB56 MED-003): template (a) `≤128 codepoints` clause added to E-SPEC-027 template (a); §Invariants scoped to per-function collect-all semantics (`validate_sensor_spec` collect-all; `parse()` fail-fast boundary stated). No Rule 9 behavioral change. Rule 10 (`[auth_acquisition]`) is OUT OF SCOPE. |
 | BC-2.01.017 | StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection | v1.10 | P2 dispatch table: build_request() switches from auth_type-keyed to header_scheme-keyed dispatch per ADR-053 D2. INV-COOKIE-004: no Authorization header for cookie injection. |
-| BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | v1.21 | P9 only — `get_token()` default method added to `AuthProvider` trait (default body delegates to `acquire_token()`); execute_impl and execute_step call sites change from `acquire_token()` to `get_token()`. issue_request_with_retry 401 path remains `acquire_token()`. v1.20 adds INV-014-007 ADR-050 §D5/§D6 note (DeclarativeHttpAuthProvider inherits UA + http2 via build_http_client_with_custom_timeout delegation — implemented by DEFECT-ADAPTER-TLS-XDOME-LIVE-001); no scope change for this story. v1.21 (D-2119): INV-014-007 §Invariants body corrected — ADR-050 v2.2 pin per POL-23 (was v2.0); no scope change for this story. |
+| BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | v1.22 | P9 only — `get_token()` default method added to `AuthProvider` trait (default body delegates to `acquire_token()`); execute_impl and execute_step call sites change from `acquire_token()` to `get_token()`. issue_request_with_retry 401 path remains `acquire_token()`. v1.20 adds INV-014-007 ADR-050 §D5/§D6 note (DeclarativeHttpAuthProvider inherits UA + http2 via build_http_client_with_custom_timeout delegation — implemented by DEFECT-ADAPTER-TLS-XDOME-LIVE-001); no scope change for this story. v1.21 (D-2119): INV-014-007 §Invariants body corrected — ADR-050 v2.2 pin per POL-23 (was v2.0); no scope change for this story. v1.22 (DD-9): delegation-claim accuracy fix; no scope change for this story. |
 | BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | v1.15 | Rule A/B E-SPEC-012/013 Display alignment (AC-017/AC-018); foundation for VP-153 re-verification gate. |
 
 ## Acceptance Criteria
@@ -619,7 +619,7 @@ AuthAcquisitionConfig/CachedAuthToken/ExpiryMode belongs to S-ADR054-WAVE-A-001.
 | This story file | ~10,000 | |
 | BC-2.16.009 v1.29 (Rule 9 full text incl. §Entry points sub-section + EC-009-047..051) | ~25,000 | Primary authoring source; grew in v1.24–v1.25 (tchar amendment + Entry points sub-section), v1.26 (new ECs); v1.27 attribution-only; v1.28 template (a) length clause + §Invariants scoping; v1.29 EC-009-049 escaped-value statement explicit |
 | BC-2.01.017 v1.10 (P2 dispatch table) | ~8,000 | Dispatch switch spec |
-| BC-2.16.014 v1.21 (P9 get_token callers) | ~18,000 | Call-site change spec; v1.20 adds ADR-050 §D5/§D6 INV note; v1.21 corrects INV-014-007 ADR-050 v2.2 pin per POL-23 (no scope change for this story) |
+| BC-2.16.014 v1.22 (P9 get_token callers) | ~18,000 | Call-site change spec; v1.20 adds ADR-050 §D5/§D6 INV note; v1.21 corrects INV-014-007 ADR-050 v2.2 pin per POL-23; v1.22 (DD-9) delegation-claim accuracy fix (no scope change for this story) |
 | BC-2.01.016 v1.15 (AuthProvider trait) | ~12,000 | |
 | `spec_parser.rs` (field + Rule 9 validation + FetchStep doc) | ~20,000 | Large file |
 | `pipeline.rs` (build_request dispatch + call-sites) | ~30,000 | Large file |
@@ -1399,6 +1399,7 @@ Rows explicitly NOT in scope for this story (belong to S-ADR054-WAVE-A-001):
 
 | Version | Date | Change Summary |
 |---------|------|----------------|
+| 3.3 | 2026-08-13 | POL-23 BC-2.16.014 pin propagation: v1.21 → v1.22 in §Behavioral Contracts table and §Token Budget Estimate table. v1.22 (DD-9): delegation-claim accuracy fix. No scope, AC, or Red Gate changes for this story. |
 | 3.2 | 2026-08-13 | POL-23 BC-2.16.014 pin propagation: v1.20 → v1.21 in §Behavioral Contracts table and §Token Budget Estimate table. v1.21 (D-2119): INV-014-007 §Invariants body corrected — ADR-050 v2.2 pin per consistency-validator sweep (was v2.0). No scope, AC, or Red Gate changes for this story. |
 | 3.1 | 2026-08-12 | BC-2.16.014 version pin propagation: v1.19 → v1.20 in §Behavioral Contracts table and §Token Budget Estimate table. v1.20 adds INV-014-007 ADR-050 §D5/§D6 note (DeclarativeHttpAuthProvider inherits UA + http2 via build_http_client_with_custom_timeout delegation; implemented by DEFECT-ADAPTER-TLS-XDOME-LIVE-001). No scope or AC changes for this story. |
 | 3.0 | 2026-07-27 | FB72 story-writer leg 2: (1) Add `## Authority` section citing ADR-053 §D2 and §D5 — closes MED-002 residual per SAC-2 bidirectional traceability requirement. (2) Add AC-027 (Tier 7) + RG-040 SAP-3 end-to-end bearer dispatch integration test via `PipelineExecutor::execute` + wiremock — closes F-CVB-P67-OBS-001; RG-011..RG-014 annotated as SAP-3 defense-in-depth. (3) Remove five forbidden count restatements (`EXPECTED=92` / `EXPECTED stays at 92` / `check-non-exhaustive.sh EXPECTED=92`) from §Architecture Mapping, §T-A01, §Architecture Compliance Rule 7, §Files to MODIFY (prism-core row), §Files to MODIFY (check-non-exhaustive.sh row) — closes F-CVC-OBS-001; replaced with `EXPECTED_SYMBOLS in scripts/check-non-exhaustive-per-symbol.py is the single source of truth` per CLAUDE.md §Conventions amendment. (4) Add new test file row to §Files to CREATE. RGT COUNT: 39 → 40. AC COUNT: 27 → 28 (AC-027 added). |

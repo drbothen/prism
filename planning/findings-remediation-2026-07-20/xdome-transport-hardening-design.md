@@ -5,14 +5,16 @@ created: "2026-08-12"
 author: architect
 origin: "DEFECT-ADAPTER-TLS-XDOME-LIVE-001 architect adjudication"
 status: APPROVED
-version: "1.1"
+version: "1.2"
 stories_governed:
   - DEFECT-ADAPTER-TLS-XDOME-LIVE-001
   - DEFECT-SENSOR-ERROR-FLATTEN-001
-adr_amendment: "ADR-050 v2.0"
+adr_amendment: "ADR-050 v2.1"
 ---
 
 # xDome Transport Hardening — Fix Design
+
+> **Maintenance note:** This document is maintained to reflect the DELIVERED implementation state; it is updated as implementation corrections land and is not frozen at original authoring.
 
 ## 1. Problem Summary
 
@@ -89,7 +91,10 @@ File: `/Users/jmagady/Dev/prism/.factory/specs/architecture/decisions/ADR-050-wo
 - **D6:** All sensor/plugin outbound `reqwest::Client::builder()` chains MUST call
   `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))` before `.build()`.
   Scope: `build_http_client_with_custom_timeout` (covers sensor adapter clients and
-  `DeclarativeHttpAuthProvider` via delegation) + both plugin client builders in boot.rs.
+  `DeclarativeHttpAuthProvider` via delegation) + both plugin client builders in boot.rs +
+  `build_http_client_with_timeout()` in `crates/prism-spec-engine/src/pipeline.rs`
+  (infusion `HttpLookupSource`; independent sibling — prism-spec-engine cannot import
+  prism-bin — independently patched with its own `.user_agent()` call; RG-012 verifies).
 
 **native-tls explicitly rejected (ADR-050 v2.0 Alt-D):** The finding floated this;
 it is prohibited under D2, does not address the ALPN root cause, reintroduces 65s
@@ -193,7 +198,7 @@ NOT `fix-pr-delivery` (that skill is for 1-2 file adversarial-review findings).
 
 This story requires:
 - Full TDD: Red Gate tests first (SAC-1), then implementation
-- Cargo.toml changes across 3 crates (4 entries total)
+- Cargo.toml changes across 3 crates (3 production entries changed; prism-bin dev-dep is verify-only, per §9.1)
 - Code changes across 4 files (spec_driven_adapter.rs, boot.rs, pipeline.rs, fanout.rs)
 - LOCAL adversary 3-CLEAN (BC-5.39.001)
 - Story-level holdout gate (product-owner authors hidden scenarios)
@@ -207,8 +212,11 @@ This story requires:
 
 ### AC Group A — Transport Fix (F10)
 
-**AC-H2-001:** The `h2` crate appears as a direct dependency in Cargo.lock.
-Red Gate: `test_h2_in_cargo_lock` or CI check via `cargo metadata`.
+**AC-H2-001:** The `reqwest` features node in Cargo.lock lists `http2`.
+Red Gate: `test_reqwest_http2_feature_active` (RG-008) — asserts reqwest's own Cargo.lock
+features array contains `"http2"`. (The `h2` crate was already a transitive dependency via
+hyper before this fix; the meaningful gate is reqwest advertising the `http2` feature, which
+controls ALPN negotiation.)
 
 **AC-UA-001:** Unit test in `spec_driven_adapter.rs` `#[cfg(test)] mod tests` asserts
 that a client built by `build_http_client_with_custom_timeout(Duration::from_millis(1))`
@@ -240,9 +248,11 @@ returned with non-empty `errors` vec, `fan_out_target_failed` WARN events are em
 for each error (captured via tracing test subscriber). FAILS before fix.
 
 **AC-ERR-005:** Integration test (in-process): when sensor adapter `fetch()` is driven
-with a mock returning HTTP 401, `probe_connectivity` returns
-`ProbeOutcome { status: ConnectivityStatus::Up, http_status: Some(401) }`.
-FAILS before fix (returns Down via catch-all).
+with a mock returning HTTP 4xx (exemplar: 403), `probe_connectivity` returns
+`ProbeOutcome { status: ConnectivityStatus::Up, http_status: Some(403) }`.
+FAILS before fix (returns Down via catch-all). RG-005 is
+`test_probe_connectivity_403_returns_up_not_down`; the contract is any 4xx → Up
+(story v1.9 generalization — not 401-specific).
 
 ### AC Group C — Wire-Shape Assertions
 
@@ -283,8 +293,13 @@ is either removed or marked deprecated with a clear comment that it is historica
 | RG-005 | `test_probe_connectivity_403_returns_up_not_down` | AC-ERR-005 |
 | RG-006 | `test_build_http_client_sends_user_agent_header` | AC-UA-001 |
 | RG-007 | `test_sensor_health_wire_shape_403_reachable_auth_invalid` | AC-WIRE-001 |
+| RG-008 | `test_reqwest_http2_feature_active` | AC-H2-001 |
+| RG-009 | `test_BC_2_16_002_rg009_send_failure_includes_source_chain` | AC-ERR-003 (send-failure source chain) |
+| RG-010 | `test_map_error_auth_refresh_failed_maps_to_http_error_401` | AC-ERR-001 (auth-refresh variant) |
+| RG-011 | `test_map_error_cookie_auth_failed_maps_to_http_error_401` | AC-ERR-001 (cookie-auth variant) |
+| RG-012 | `test_infusion_http_client_sends_prism_user_agent` | AC-UA-001 (infusion sibling) |
 
-BC-5.38.001 density: 7 Red Gate tests for 7 ACs. Test-authoring tasks MUST precede
+BC-5.38.001 density: 12 Red Gate tests for 14 ACs (0.857). Test-authoring tasks MUST precede
 implementation tasks in story decomposition (SAC-1 rule 3).
 
 ---
@@ -309,9 +324,16 @@ Add `"http2"` to `reqwest` features (current: `["json", "rustls-tls"]`).
 
 Insert `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))` in the builder chain
 before `.timeout(timeout)`. `concat!` produces a `&'static str`, zero allocation.
-This single change propagates to: `build_http_client_with_timeout` (thin wrapper),
-all `SpecDrivenSensorAdapter` clients, and `DeclarativeHttpAuthProvider` (calls
-`build_http_client_with_timeout()` internally per BC-2.16.014 INV-014-007).
+This change propagates within prism-bin to: the `build_http_client_with_timeout` thin wrapper
+(which delegates to `build_http_client_with_custom_timeout`), all `SpecDrivenSensorAdapter`
+clients, and `DeclarativeHttpAuthProvider` (calls `build_http_client_with_timeout()` internally
+per BC-2.16.014 INV-014-007).
+
+NOTE — independent sibling NOT covered by this propagation: `build_http_client_with_timeout()`
+in `crates/prism-spec-engine/src/pipeline.rs` (infusion `HttpLookupSource`) is a separate
+function in a separate crate — prism-spec-engine cannot import prism-bin — and receives NO
+User-Agent from this change. It is independently patched with its own `.user_agent()` call
+(ADR-050 §D6 OBS-4 sibling; RG-012 verifies). See §D6 in §3 and §9.1 for the full scope.
 
 ### 9.3 User-Agent (prism-bin/src/boot.rs)
 
@@ -343,9 +365,12 @@ This includes the hyper/h2/TLS-level source chain that `.to_string()` omits.
 **Symbol:** The `if !status.is_success()` branch currently returning
 `detail: format!("HTTP {status}")`.
 
-Before returning the error, read and sanitize the response body (cap 256 bytes,
-strip control chars to prevent prompt injection — same pattern as `sanitize_error`
-in `prism-mcp/src/health/connectivity.rs`). Include in detail:
+Before returning the error, read and sanitize the response body using
+`prism_core::sanitize_body_snippet_bytes` (byte-based, 256-byte cap, `floor_char_boundary`
+for UTF-8 safety, strips control chars to prevent prompt injection). NOTE: the char-based
+`sanitize_body_snippet`/`sanitize_error` functions in `prism-mcp/src/health/connectivity.rs`
+are distinct functions used on a different code path; the non-2xx capture in pipeline.rs
+uses the byte-based variant. Include in detail:
 `detail: format!("HTTP {status}: {sanitized_body}")` (empty body falls back to
 `format!("HTTP {status}")`).
 
@@ -403,7 +428,9 @@ Event Catalog in the same commit.
 
 ## 10. Post-Implementation Checks
 
-- `just check` passes including h2 in Cargo.lock as direct dep
+- `just check` passes; transport gate is RG-008 (`test_reqwest_http2_feature_active`) asserting
+  reqwest's Cargo.lock features node lists `http2` — not whole-file `h2`-as-direct-dep (h2 was
+  already transitive via hyper before this fix)
 - SAP-1 adversary probe: `rg 'event_type.*fan_out_target_failed' crates/` confirms emission;
   BC-2.16.002 or BC-2.01.010 catalog entry present
 - SAP-2 probe: not applicable (no sensor TOML changes)
@@ -416,5 +443,6 @@ Event Catalog in the same commit.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-08-13 | architect | **DD-1..DD-8 current-state coherence reconciliation (records-only).** Eight prose-accuracy corrections against the delivered implementation and current story/ADR: AC-H2-001 framing corrected to reqwest `http2` feature (RG-008); AC-ERR-005 generalized to 4xx exemplar (403); §6 delivery-vehicle entry corrected to 3 production Cargo entries; §9.5 sanitizer corrected to `prism_core::sanitize_body_snippet_bytes`; §10 transport gate corrected to reqwest features node; D6 scope extended to infusion `HttpLookupSource` sibling; §8 Red Gate table expanded to full 12 RGs with correct 0.857 density; §9.2 thin-wrapper propagation claim corrected to describe the prism-spec-engine independent sibling. No decision or mechanism change. |
 | 1.1 | 2026-08-13 | product-owner | **pass-3 F-1 citation corrections in §8 Red Gate Enumeration.** Three stale test names corrected to match canonical code names (SAC-1 — code is authoritative): RG-003 `test_pipeline_non_2xx_detail_includes_body_snippet` → `test_pipeline_non_2xx_body_in_detail`; RG-005 `test_probe_connectivity_401_returns_up_auth_invalid` → `test_probe_connectivity_403_returns_up_not_down`; RG-007 `test_sensor_health_wire_shape_auth_invalid` → `test_sensor_health_wire_shape_403_reachable_auth_invalid`. Canonical map from story v1.3. |
 | 1.0 | 2026-08-12 | architect | Initial approved design document. |
