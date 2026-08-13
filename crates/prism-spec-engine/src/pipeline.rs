@@ -759,15 +759,21 @@ impl PipelineExecutor {
 /// BC-2.16.002 Non-2xx Response Body Capture postcondition:
 /// - Decodes bytes as UTF-8 (via `String::from_utf8_lossy` — replaces invalid sequences
 ///   with U+FFFD rather than using Latin-1 `b as char` which produces mojibake).
-/// - Caps body at 256 Unicode scalar values (char-boundary-safe).
+/// - Caps body at **256 bytes** (byte-boundary-safe; never splits a multibyte UTF-8 char).
+///   A char-based cap would allow multibyte characters to inflate the byte count: 256
+///   "€" chars = 768 bytes. The byte cap enforces the BC-2.16.002 contract exactly
+///   (F-1 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001).
 /// - Replaces ALL `char::is_control()` characters (C0+DEL+C1, incl. `\t`/`\n`/`\r`) and
 ///   U+2028/U+2029 with a space — prevents CWE-117/CWE-116 log/prompt injection (MED-1).
+///   Replacement happens before byte-counting so the byte budget reflects emitted bytes.
 /// - Returns an empty string on any body-read failure — the primary status-code
 ///   error MUST NOT be replaced by a secondary body-read failure.
 ///
-/// Sanitization is performed by `prism_core::sanitize_body_snippet` — the same shared
-/// implementation used by `prism_mcp::health::connectivity::sanitize_error` (DRY;
-/// single source of truth in `prism-core`; MED-1 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001).
+/// Sanitization is performed by `prism_core::sanitize_body_snippet_bytes` — the
+/// byte-capping variant of the shared `prism-core` sanitizer. `prism_mcp::health::
+/// connectivity::sanitize_error` uses `sanitize_body_snippet` (char-based, 512 chars)
+/// for its own char-bound contract; the two functions are intentionally distinct.
+/// (F-1 design choice (a); BC-2.16.002 ≤256-byte postcondition.)
 async fn read_non_2xx_body(response: reqwest::Response) -> String {
     let bytes = match response.bytes().await {
         Ok(b) => b,
@@ -777,9 +783,10 @@ async fn read_non_2xx_body(response: reqwest::Response) -> String {
     // Avoids the Latin-1 mojibake produced by the former `b as char` byte-to-char cast
     // which misinterpreted multi-byte UTF-8 sequences (MED-1).
     let text = String::from_utf8_lossy(&bytes);
-    // sanitize_body_snippet: caps at 256 chars, replaces all control chars + U+2028/U+2029
-    // with space (CWE-117/CWE-116). Trim for clean presentation in error messages.
-    prism_core::sanitize_body_snippet(text.as_ref(), 256)
+    // sanitize_body_snippet_bytes: caps at 256 bytes (byte-boundary-safe; replaces control
+    // chars + U+2028/U+2029 with space before byte-counting; CWE-117/CWE-116;
+    // BC-2.16.002 ≤256-byte postcondition). Trim for clean presentation in error messages.
+    prism_core::sanitize_body_snippet_bytes(text.as_ref(), 256)
         .trim()
         .to_string()
 }

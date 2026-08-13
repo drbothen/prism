@@ -2053,9 +2053,10 @@ pub fn sanitize_for_log(s: &str) -> String {
 
 /// Sanitize a raw HTTP response body snippet for safe inclusion in error messages and logs.
 ///
-/// Shared implementation for both `prism-spec-engine` (`read_non_2xx_body`) and
-/// `prism-mcp` (`health::connectivity::sanitize_error`) — single source of truth
-/// for CWE-117/CWE-116 prevention across the stack (MED-1 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001).
+/// Used by `prism-mcp` (`health::connectivity::sanitize_error`) for its **character-bound**
+/// contract (512 chars). For contexts where the contract mandates a **byte bound** — such as
+/// `prism-spec-engine`'s `read_non_2xx_body` (BC-2.16.002 ≤256 bytes) — use
+/// [`sanitize_body_snippet_bytes`] instead.
 ///
 /// Two transformations applied in order:
 /// 1. **Cap** at `max_chars` Unicode scalar values. Prevents context-stuffing and prompt
@@ -2099,6 +2100,64 @@ pub fn sanitize_body_snippet(s: &str, max_chars: usize) -> String {
             }
         })
         .collect()
+}
+
+/// Sanitize a raw HTTP response body snippet, capping at `max_bytes` **UTF-8 bytes**.
+///
+/// Use this function where the contract mandates a **byte bound** — specifically for
+/// `read_non_2xx_body` (BC-2.16.002 "Non-2xx Response Body Capture" postcondition ≤256 bytes;
+/// story AC-ERR-003 / EC-003 / T-E01). For character-bound contexts (e.g., `prism-mcp` health
+/// probe error truncation at 512 chars), use [`sanitize_body_snippet`] instead.
+///
+/// Two transformations applied in order:
+/// 1. **Replace** every control character (`char::is_control()`, covers C0+DEL+C1) and the
+///    Unicode line/paragraph separators U+2028/U+2029 with a single ASCII space. Replacement
+///    happens **before** byte-counting so the byte budget reflects the emitted bytes (a
+///    U+FFFD replacement char from `from_utf8_lossy` is 3 bytes; a replaced control char
+///    becomes a 1-byte ASCII space, correctly reducing the effective budget).
+/// 2. **Cap** at `max_bytes` UTF-8 bytes, truncated on a char boundary. Uses
+///    `str::floor_char_boundary` (stable since Rust 1.65) — multibyte characters are never
+///    split; the output is always valid UTF-8.
+///
+/// # Guaranteed invariants
+/// - `output.as_bytes().len() <= max_bytes`
+/// - `output` is valid UTF-8 (char-boundary-safe truncation)
+/// - No control characters or U+2028/U+2029 in output
+///
+/// # Why a separate function rather than changing `sanitize_body_snippet`?
+///
+/// `prism-mcp::health::connectivity::sanitize_error` calls `sanitize_body_snippet` with a
+/// char-based contract (512 chars). Changing that function to bytes would silently alter
+/// prism-mcp's semantics. A separate byte-capping variant keeps the contracts orthogonal
+/// and the callers explicit about which bound they enforce. (F-1 design choice (a).)
+///
+/// # Parameters
+/// - `s` — raw string (UTF-8; typically the output of `String::from_utf8_lossy`).
+/// - `max_bytes` — maximum number of UTF-8 bytes in the output.
+///
+/// SEC-001 / AD-017 / CWE-116 / BC-2.16.002.
+pub fn sanitize_body_snippet_bytes(s: &str, max_bytes: usize) -> String {
+    // Step 1: control-char replacement (same semantics as sanitize_body_snippet).
+    // Done BEFORE byte-counting so the budget reflects emitted bytes.
+    let sanitized: String = s
+        .chars()
+        .map(|c| {
+            if c.is_control() || c == '\u{2028}' || c == '\u{2029}' {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect();
+
+    // Step 2: byte-cap on a char boundary.
+    // floor_char_boundary(n) returns the largest char-boundary index ≤ n, so the
+    // resulting slice is always valid UTF-8 and never splits a multibyte character.
+    if sanitized.len() <= max_bytes {
+        return sanitized;
+    }
+    let boundary = sanitized.floor_char_boundary(max_bytes);
+    sanitized[..boundary].to_string()
 }
 
 // ---------------------------------------------------------------------------
@@ -2432,6 +2491,94 @@ mod tests {
              contain suggestion suffix; got: {:?}",
             display_without
         );
+    }
+
+    /// F-1 LOAD-BEARING RED GATE: `sanitize_body_snippet_bytes` must cap at ≤256 **bytes**.
+    ///
+    /// The failure mode under the old char-based cap: 100 "€" characters = 100 Unicode
+    /// scalar values (well under the 256-char cap), so all 100 pass through — emitting
+    /// 300 bytes (100 × 3 bytes each), which violates the BC-2.16.002 ≤256-byte contract.
+    ///
+    /// With the byte-based cap: 300 bytes > 256 byte limit → truncated to 85 "€" = 255 bytes.
+    ///
+    /// Traces to: BC-2.16.002 "Non-2xx Response Body Capture"; DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-1.
+    #[test]
+    fn test_sanitize_body_snippet_bytes_multibyte_byte_cap() {
+        // 100 "€" = 100 chars = 300 bytes. Old char-cap(256) passes all through → 300 bytes FAIL.
+        // New byte-cap(256) truncates to 85 "€" = 255 bytes PASS.
+        let input: String = "€".repeat(100);
+        assert_eq!(
+            input.as_bytes().len(),
+            300,
+            "test setup: 100 × '€' must be 300 bytes"
+        );
+
+        let result = sanitize_body_snippet_bytes(&input, 256);
+
+        // ≤256 bytes (the contracted bound).
+        assert!(
+            result.as_bytes().len() <= 256,
+            "F-1: byte-cap must enforce ≤256 bytes; got {} bytes",
+            result.as_bytes().len()
+        );
+        // Valid UTF-8 — no split multibyte char.
+        assert!(
+            std::str::from_utf8(result.as_bytes()).is_ok(),
+            "F-1: output must be valid UTF-8 (no split multibyte char)"
+        );
+        // The string begins with the first '€' — output is non-empty and correct.
+        assert!(
+            result.starts_with('€'),
+            "F-1: output must begin with '€'; got: {result:?}"
+        );
+        // Confirm load-bearing: old char-cap would NOT truncate (100 chars < 256).
+        // Verified: sanitize_body_snippet(&input, 256).as_bytes().len() == 300.
+        assert_eq!(
+            sanitize_body_snippet(&input, 256).as_bytes().len(),
+            300,
+            "F-1 load-bearing verification: old char-cap produces 300 bytes (violates spec)"
+        );
+    }
+
+    /// F-1: control chars are replaced **before** the byte count is taken.
+    ///
+    /// A control char (e.g. `\n`) is replaced with a 1-byte ASCII space. This test
+    /// verifies that the replacement happens first and the byte budget counts the
+    /// emitted bytes, not the source bytes.
+    ///
+    /// Traces to: BC-2.16.002; DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-1.
+    #[test]
+    fn test_sanitize_body_snippet_bytes_control_chars_replaced_before_byte_count() {
+        // "a\nb\rc\x7fd" → 'a', '\n'→' ', 'b', '\r'→' ', 'c', '\x7f'(DEL)→' ', 'd'
+        // → "a b c d"
+        let input = "a\nb\rc\x7fd";
+        let result = sanitize_body_snippet_bytes(input, 256);
+        assert_eq!(
+            result, "a b c d",
+            "control chars must be replaced with space"
+        );
+        assert!(!result.contains('\n'), "\\n must be replaced with space");
+        assert!(!result.contains('\r'), "\\r must be replaced with space");
+        assert!(!result.contains('\x7F'), "DEL must be replaced with space");
+    }
+
+    /// F-1: string under the byte limit passes through unchanged.
+    ///
+    /// Traces to: BC-2.16.002; DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-1.
+    #[test]
+    fn test_sanitize_body_snippet_bytes_under_limit_passthrough() {
+        let input = "Hello, café!";
+        let result = sanitize_body_snippet_bytes(input, 256);
+        assert_eq!(
+            result, input,
+            "F-1: string under the byte limit must pass through unchanged"
+        );
+    }
+
+    /// F-1: empty string produces empty string.
+    #[test]
+    fn test_sanitize_body_snippet_bytes_empty() {
+        assert_eq!(sanitize_body_snippet_bytes("", 256), "");
     }
 
     /// ADV-PR-P5-OBS-001 RED GATE: `sanitize_for_log` must strip Unicode Cc characters

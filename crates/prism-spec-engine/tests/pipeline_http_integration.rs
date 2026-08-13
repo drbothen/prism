@@ -3094,3 +3094,107 @@ async fn test_BC_2_16_002_med1_non_2xx_body_sanitizes_control_chars_preserves_ut
         "MED-1 ASSERTION 3: normal ASCII text 'end' must be preserved; got detail: {detail:?}"
     );
 }
+
+/// F-1 LOAD-BEARING BYTE-CAP RED GATE: `read_non_2xx_body` MUST cap the snippet at
+/// ≤256 **bytes**, not ≤256 Unicode scalar values.
+///
+/// ## Why this is load-bearing
+///
+/// A 256-*char* cap passes all 100 "€" chars through (only 100 scalar values < 256),
+/// emitting 300 bytes — up to ~4× the contracted 256-byte limit. The old char-based
+/// call `sanitize_body_snippet(text, 256)` would emit 300 bytes and FAIL the assertion
+/// below. The new byte-based call `sanitize_body_snippet_bytes(text, 256)` truncates
+/// to 85 "€" = 255 bytes and PASSES.
+///
+/// BC-2.16.002 "Non-2xx Response Body Capture" postcondition |
+/// DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-1
+#[tokio::test]
+async fn test_BC_2_16_002_f1_non_2xx_body_byte_cap_multibyte_utf8() {
+    let mock_server = MockServer::start().await;
+
+    // 100 "€" chars = 300 bytes (€ = U+20AC = 3 UTF-8 bytes each).
+    // Under a char-cap(256) this passes through unchanged → 300 bytes FAIL.
+    // Under a byte-cap(256) this is truncated to 85 "€" = 255 bytes PASS.
+    let body = "€".repeat(100);
+    assert_eq!(
+        body.as_bytes().len(),
+        300,
+        "test setup: 100 × '€' must be 300 bytes"
+    );
+
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(ResponseTemplate::new(403).set_body_string(body))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec::new(
+        "f1-byte-cap-sensor",
+        "F-1 Byte Cap Sensor",
+        AuthType::BearerStatic,
+        &mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
+            "items",
+            "security_finding",
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_items",
+                "GET",
+                "/items",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                None,
+            )],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext::new(OrgSlug::new("f1-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .expect("F-1 test: reqwest Client::build must succeed");
+    let auth_provider = prism_spec_engine::NullAuthProvider;
+
+    let result =
+        PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+
+    let detail = match result {
+        Err(prism_spec_engine::error::SpecEngineError::HttpRequestFailed { detail, .. }) => detail,
+        other => panic!("F-1: expected HttpRequestFailed for 403; got: {:?}", other),
+    };
+
+    // Extract the body snippet: the body is entirely "€" characters so the snippet
+    // starts at the first '€' in detail (the prefix "HTTP NNN Reason: " has no '€').
+    let euro_start = detail
+        .find('€')
+        .expect("F-1: detail must contain '€' (body snippet)");
+    let snippet = &detail[euro_start..];
+
+    // LOAD-BEARING ASSERTION: old char-based code emits 300 bytes (fails); new byte-based
+    // code emits ≤256 bytes (passes).
+    assert!(
+        snippet.as_bytes().len() <= 256,
+        "F-1 BYTE-CAP: snippet must be ≤256 bytes (BC-2.16.002); got {} bytes. \
+         A char-based cap of 256 chars would pass 100 '€' through unchanged (300 bytes).",
+        snippet.as_bytes().len()
+    );
+
+    // Valid UTF-8 — no split multibyte char.
+    assert!(
+        std::str::from_utf8(snippet.as_bytes()).is_ok(),
+        "F-1 BYTE-CAP: snippet must be valid UTF-8 (no split multibyte char)"
+    );
+
+    // The snippet starts with '€' — it's non-empty and correctly begins at the start of body.
+    assert!(
+        snippet.starts_with('€'),
+        "F-1 BYTE-CAP: snippet must begin with '€'; got: {snippet:?}"
+    );
+}
