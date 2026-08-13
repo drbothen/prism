@@ -1245,10 +1245,9 @@ fn build_paged_url_impl(
 /// and eliminates the forbidden `.expect()` on `Result` in production code
 /// (CLAUDE.md §Forbidden patterns, DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-2).
 ///
-/// PRODUCT-OWNER FLAG: callers in `infusion/mod.rs` convert the `Err(String)` to
-/// `InfusionError::HttpLookupFailed` as a stopgap.  A dedicated `E-INFUSE-015`
-/// (`HttpClientBuildFailed`) variant should be added to `InfusionError` in a
-/// follow-up story so operators receive a semantically precise error code.
+/// Callers in `infusion/mod.rs` convert the `Err(String)` to
+/// `InfusionError::HttpClientBuildFailed` (E-INFUSE-015, error-taxonomy v2.74).
+/// The E-INFUSE-009 stopgap mapping has been retired.
 ///
 /// AC-UA-001 | BC-2.16.002 (HTTP Client Compliance postconditions) | DEFECT-ADAPTER-TLS-XDOME-LIVE-001
 // Dead-code allow: used by HttpLookupSource::load_spec_with_runtime wiring (D8.6).

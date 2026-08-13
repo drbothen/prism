@@ -1985,6 +1985,12 @@ pub enum InfusionError {
         /// accidental exposure of long external data in structured log lines).
         truncated_value: String,
     },
+
+    /// E-INFUSE-015: infusion HTTP client build failed (TLS init).
+    /// Emitted when build_http_client_with_timeout returns Err(String).
+    /// Under ADR-050 rustls-tls, effectively unreachable in production.
+    #[error("E-INFUSE-015: infusion HTTP client build failed (TLS init): {detail}")]
+    HttpClientBuildFailed { detail: String },
 }
 
 impl InfusionError {
