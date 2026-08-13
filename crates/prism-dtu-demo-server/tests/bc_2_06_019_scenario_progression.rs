@@ -1392,3 +1392,362 @@ fn test_BC_2_06_019_e_demo_006_case_variant_org_ids_succeed() {
          [RED GATE: E-DEMO-006 fires for case-variant of same UUID — false positive]"
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-CLARO-LIVE-P1-MED-001 — test_BC_2_06_019_stage_mask_device_alert_relations_scenario_path
+//
+// Coverage hardening: the StageMask arm of `list_device_alert_relations`
+// (state.fixture_gen_seeded && timeline.is_some() branch) was ACTIVE in the
+// BC-2.06.019 Route Coverage Table but reached by no test end-to-end from the
+// HTTP surface.
+//
+// Enforces INV-CROSS-DTU-ENTITY-COHERENCE-001: a relation referencing a device
+// that is hidden at the current stage MUST also be hidden from devices_alerts.
+// Uses `_device_id` (stage-gating key stamped by make_device_alert_relation,
+// present in the serialized wire response) to identify which device each
+// relation belongs to.
+//
+// Stage plan (default thresholds [60, 180, 360, 600]s):
+//   stage 0 (Baseline,  elapsed ≈ 0s):   primary relation WITHHELD
+//                                         (`mask.primary_device && stage_idx > 0` = false)
+//   stage 1 (Recon,     elapsed ≈ 90s):   primary PRESENT, lateral ABSENT
+//                                         (mask.primary_device=true, mask.lateral_devices=false)
+//   stage 2 (Lateral,   elapsed ≈ 270s):  lateral PRESENT
+//                                         (mask.lateral_devices=true)
+//
+// Wire-shape discipline: every assertion reads from the parsed JSON response
+// (`devices_alerts` array), NOT from pre-serialization Rust structures.
+//
+// This test is expected to PASS on arrival — the arm code is believed correct
+// (it mirrors list_devices). If it FAILS that means the arm has a real
+// entity-coherence bug (finding would escalate; production code MUST NOT be
+// modified to make it pass — stop and report).
+//
+// BC-2.06.019 PC-4 / INV-CROSS-DTU-ENTITY-COHERENCE-001 / ADR-036 v2.3 §2.4
+// ---------------------------------------------------------------------------
+#[cfg(feature = "fixture-gen")]
+#[tokio::test]
+async fn test_BC_2_06_019_stage_mask_device_alert_relations_scenario_path() {
+    use prism_dtu_claroty::ClarotyClone;
+    use prism_dtu_common::{
+        build_default_incident_timeline, build_scenario_entity_catalog, Archetype, BehavioralClone,
+        OrgId,
+    };
+    use std::sync::Arc;
+
+    let seed: u64 = 100;
+    let org_uuid = uuid::Uuid::parse_str(DEMO_ORG_UUID_DEADBEEF)
+        .expect("DEMO_ORG_UUID_DEADBEEF must be valid UUID");
+    let org_id = OrgId(*org_uuid.as_bytes());
+
+    let now = chrono::Utc::now().timestamp();
+
+    // Clock control: three distinct scenario_start values place the wall-clock
+    // at stages 0, 1, and 2 respectively.
+    //   stage 0: elapsed = 0  → stage_idx = 0  (Baseline)
+    //   stage 1: elapsed ≈ 90 → stage_idx = 1  (Recon, threshold 60s)
+    //   stage 2: elapsed ≈ 270 → stage_idx = 2 (LateralMovement, threshold 180s)
+    let start_stage0: i64 = now;
+    let start_stage1: i64 = now - 90;
+    let start_stage2: i64 = now - 270;
+
+    // Build the entity catalog once; share across all three timelines so the
+    // primary/lateral IDs are identical across stages (same seed + org).
+    let catalog = build_scenario_entity_catalog(seed, &org_id);
+    let primary_id = catalog.primary_device_id_cs.clone(); // "dev-deadbeef-100-0"
+    let lateral_ids = catalog.lateral_device_ids_cs.clone(); // ["dev-deadbeef-100-1/2/3"]
+
+    let client = prism_dtu_common::build_test_client();
+
+    // -----------------------------------------------------------------------
+    // Stage 0 (Baseline) — primary relation WITHHELD
+    //
+    // `stage_idx = 0` → gate `mask.primary_device && stage_idx > 0` = false →
+    // relation whose `_device_id == primary_id` must be absent from devices_alerts.
+    // -----------------------------------------------------------------------
+    let time_anchor_s0 = chrono::DateTime::from_timestamp(start_stage0, 0)
+        .expect("start_stage0 must be a valid Unix timestamp")
+        .with_timezone(&chrono::Utc);
+    let timeline_s0 = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage0,
+        &[], // → default thresholds [60, 180, 360, 600]
+    ));
+
+    let mut clone_s0 = ClarotyClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org_id.clone(),
+        Arc::clone(&timeline_s0),
+        time_anchor_s0,
+    );
+
+    // Confirm scenario path is active (timeline wired).
+    assert!(
+        clone_s0.state.timeline.is_some(),
+        "F-CLARO-LIVE-P1-MED-001: stage-0 ClarotyClone must have timeline = Some \
+         after new_with_scenario; got None — scenario path is inactive. \
+         BC-2.06.019 PC-4"
+    );
+
+    clone_s0
+        .start()
+        .await
+        .expect("stage-0 ClarotyClone start must succeed");
+    let url_s0 = clone_s0.base_url();
+    let token_s0 = clone_s0.admin_token().to_owned();
+
+    let resp_s0 = client
+        .post(format!("{url_s0}/api/v1/device_alert_relations"))
+        .header("Authorization", format!("Bearer {token_s0}"))
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .expect("POST /api/v1/device_alert_relations at stage 0 must reach the server");
+
+    assert_eq!(
+        resp_s0.status().as_u16(),
+        200,
+        "Stage-0 POST /api/v1/device_alert_relations must return HTTP 200"
+    );
+
+    let body_s0: serde_json::Value = resp_s0
+        .json()
+        .await
+        .expect("stage-0 response body must be valid JSON");
+
+    // Wire-shape assertion: parse the serialized envelope.
+    let entries_s0 = body_s0
+        .get("devices_alerts")
+        .and_then(|v| v.as_array())
+        .expect(
+            "stage-0 response MUST contain `devices_alerts` JSON array \
+             (wire-shape, BC-2.06.019 AC-003 / response_path = '$.devices_alerts')",
+        );
+
+    // INV-CROSS-DTU-ENTITY-COHERENCE-001 / BC-2.06.019 PC-4:
+    // At stage 0, `stage_idx > 0` = false → primary relation withheld.
+    // Serialized wire check: no entry may carry `_device_id == primary_id`.
+    let stage0_primary_entries: Vec<&serde_json::Value> = entries_s0
+        .iter()
+        .filter(|e| {
+            e.get("_device_id")
+                .and_then(|v| v.as_str())
+                .map(|id| id == primary_id.as_str())
+                .unwrap_or(false)
+        })
+        .collect();
+
+    assert!(
+        stage0_primary_entries.is_empty(),
+        "F-CLARO-LIVE-P1-MED-001 / INV-CROSS-DTU-ENTITY-COHERENCE-001: \
+         at stage 0 (Baseline), relation with _device_id='{}' must be WITHHELD \
+         from devices_alerts — gate `mask.primary_device && stage_idx > 0` = false \
+         (stage_idx=0). Found {} matching entries: {:?}. \
+         A non-empty result means the StageMask arm is not filtering correctly; \
+         this would be a silent entity-coherence leak at stage 0. \
+         BC-2.06.019 PC-4",
+        primary_id,
+        stage0_primary_entries.len(),
+        stage0_primary_entries
+    );
+
+    clone_s0
+        .stop()
+        .await
+        .expect("stage-0 ClarotyClone stop must succeed");
+
+    // -----------------------------------------------------------------------
+    // Stage 1 (Recon) — primary PRESENT, laterals ABSENT
+    //
+    // `stage_idx = 1` → gate = `mask.primary_device=true && 1 > 0` = true → present.
+    // `mask.lateral_devices=false` at stage 1 → lateral relations absent.
+    // Mirrors the lateral-absent assertion in the Claroty devices section of
+    // test_BC_2_06_020_cross_dtu_entity_coherence_stage1_all_three_clones.
+    // -----------------------------------------------------------------------
+    let time_anchor_s1 = chrono::DateTime::from_timestamp(start_stage1, 0)
+        .expect("start_stage1 must be a valid Unix timestamp")
+        .with_timezone(&chrono::Utc);
+    let timeline_s1 = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage1,
+        &[],
+    ));
+
+    let mut clone_s1 = ClarotyClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org_id.clone(),
+        Arc::clone(&timeline_s1),
+        time_anchor_s1,
+    );
+
+    assert!(
+        clone_s1.state.timeline.is_some(),
+        "F-CLARO-LIVE-P1-MED-001: stage-1 ClarotyClone must have timeline = Some; \
+         got None — BC-2.06.019 PC-4"
+    );
+
+    clone_s1
+        .start()
+        .await
+        .expect("stage-1 ClarotyClone start must succeed");
+    let url_s1 = clone_s1.base_url();
+    let token_s1 = clone_s1.admin_token().to_owned();
+
+    let resp_s1 = client
+        .post(format!("{url_s1}/api/v1/device_alert_relations"))
+        .header("Authorization", format!("Bearer {token_s1}"))
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .expect("POST /api/v1/device_alert_relations at stage 1 must reach the server");
+
+    assert_eq!(
+        resp_s1.status().as_u16(),
+        200,
+        "Stage-1 POST /api/v1/device_alert_relations must return HTTP 200"
+    );
+
+    let body_s1: serde_json::Value = resp_s1
+        .json()
+        .await
+        .expect("stage-1 response body must be valid JSON");
+
+    let entries_s1 = body_s1
+        .get("devices_alerts")
+        .and_then(|v| v.as_array())
+        .expect(
+            "stage-1 response MUST contain `devices_alerts` JSON array \
+             (wire-shape, response_path = '$.devices_alerts')",
+        );
+
+    // Primary PRESENT at stage 1.
+    let stage1_primary_entries: Vec<&serde_json::Value> = entries_s1
+        .iter()
+        .filter(|e| {
+            e.get("_device_id")
+                .and_then(|v| v.as_str())
+                .map(|id| id == primary_id.as_str())
+                .unwrap_or(false)
+        })
+        .collect();
+
+    assert!(
+        !stage1_primary_entries.is_empty(),
+        "F-CLARO-LIVE-P1-MED-001 / INV-CROSS-DTU-ENTITY-COHERENCE-001: \
+         at stage 1 (Recon), relation with _device_id='{}' must be PRESENT in \
+         devices_alerts — gate `mask.primary_device=true && stage_idx=1 > 0` = true. \
+         Got empty. If the arm is broken, a hidden primary relation would allow a \
+         malicious actor to escape cross-DTU correlation silently. \
+         BC-2.06.019 PC-4",
+        primary_id
+    );
+
+    // Laterals ABSENT at stage 1 (mask.lateral_devices=false at Recon).
+    for lat_id in &lateral_ids {
+        let lat_present = entries_s1.iter().any(|e| {
+            e.get("_device_id")
+                .and_then(|v| v.as_str())
+                .map(|id| id == lat_id.as_str())
+                .unwrap_or(false)
+        });
+        assert!(
+            !lat_present,
+            "F-CLARO-LIVE-P1-MED-001: at stage 1 (Recon), lateral relation with \
+             _device_id='{}' must be WITHHELD (mask.lateral_devices=false at stage 1); \
+             found it in devices_alerts. INV-CROSS-DTU-ENTITY-COHERENCE-001 / BC-2.06.019 PC-4",
+            lat_id
+        );
+    }
+
+    clone_s1
+        .stop()
+        .await
+        .expect("stage-1 ClarotyClone stop must succeed");
+
+    // -----------------------------------------------------------------------
+    // Stage 2 (LateralMovement) — laterals PRESENT
+    //
+    // `mask.lateral_devices=true` at stage 2 → lateral relations surfaced.
+    // -----------------------------------------------------------------------
+    let time_anchor_s2 = chrono::DateTime::from_timestamp(start_stage2, 0)
+        .expect("start_stage2 must be a valid Unix timestamp")
+        .with_timezone(&chrono::Utc);
+    let timeline_s2 = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage2,
+        &[],
+    ));
+
+    let mut clone_s2 = ClarotyClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org_id.clone(),
+        Arc::clone(&timeline_s2),
+        time_anchor_s2,
+    );
+
+    assert!(
+        clone_s2.state.timeline.is_some(),
+        "F-CLARO-LIVE-P1-MED-001: stage-2 ClarotyClone must have timeline = Some; \
+         got None — BC-2.06.019 PC-4"
+    );
+
+    clone_s2
+        .start()
+        .await
+        .expect("stage-2 ClarotyClone start must succeed");
+    let url_s2 = clone_s2.base_url();
+    let token_s2 = clone_s2.admin_token().to_owned();
+
+    let resp_s2 = client
+        .post(format!("{url_s2}/api/v1/device_alert_relations"))
+        .header("Authorization", format!("Bearer {token_s2}"))
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .expect("POST /api/v1/device_alert_relations at stage 2 must reach the server");
+
+    assert_eq!(
+        resp_s2.status().as_u16(),
+        200,
+        "Stage-2 POST /api/v1/device_alert_relations must return HTTP 200"
+    );
+
+    let body_s2: serde_json::Value = resp_s2
+        .json()
+        .await
+        .expect("stage-2 response body must be valid JSON");
+
+    let entries_s2 = body_s2
+        .get("devices_alerts")
+        .and_then(|v| v.as_array())
+        .expect(
+            "stage-2 response MUST contain `devices_alerts` JSON array \
+             (wire-shape, response_path = '$.devices_alerts')",
+        );
+
+    // Laterals PRESENT at stage 2 (mask.lateral_devices=true at LateralMovement).
+    for lat_id in &lateral_ids {
+        let lat_present = entries_s2.iter().any(|e| {
+            e.get("_device_id")
+                .and_then(|v| v.as_str())
+                .map(|id| id == lat_id.as_str())
+                .unwrap_or(false)
+        });
+        assert!(
+            lat_present,
+            "F-CLARO-LIVE-P1-MED-001: at stage 2 (LateralMovement), lateral relation with \
+             _device_id='{}' must be PRESENT in devices_alerts \
+             (mask.lateral_devices=true at stage 2); got absent. \
+             INV-CROSS-DTU-ENTITY-COHERENCE-001 / BC-2.06.019 PC-4",
+            lat_id
+        );
+    }
+
+    clone_s2
+        .stop()
+        .await
+        .expect("stage-2 ClarotyClone stop must succeed");
+}
