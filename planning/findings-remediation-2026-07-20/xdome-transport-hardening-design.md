@@ -278,7 +278,7 @@ is either removed or marked deprecated with a clear comment that it is historica
 | RG-001 | `test_map_error_http_401_maps_to_http_error_not_internal` | AC-ERR-001 |
 | RG-002 | `test_map_error_status_0_maps_to_internal` | AC-ERR-002 |
 | RG-003 | `test_pipeline_non_2xx_detail_includes_body_snippet` | AC-ERR-003 |
-| RG-004 | `test_fanout_all_failed_logs_per_target_events` | AC-ERR-004 |
+| RG-004 | `test_fanout_all_failed_emits_fan_out_target_failed_warn` | AC-ERR-004 |
 | RG-005 | `test_probe_connectivity_401_returns_up_auth_invalid` | AC-ERR-005 |
 | RG-006 | `test_build_http_client_sends_user_agent_header` | AC-UA-001 |
 | RG-007 | `test_sensor_health_wire_shape_auth_invalid` | AC-WIRE-001 |

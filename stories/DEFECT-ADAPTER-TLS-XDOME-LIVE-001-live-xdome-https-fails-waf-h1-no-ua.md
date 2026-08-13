@@ -6,7 +6,7 @@ wave: "C"
 epic_id: engine-defects
 priority: P1
 status: ready
-version: "1.2"
+version: "1.3"
 severity: CRIT
 level: engine
 producer: story-writer
@@ -16,7 +16,7 @@ holdout_scenarios: [HS-TLS-XDOME-001, HS-TLS-XDOME-002, HS-TLS-XDOME-003]
 inputs:
   - .factory/planning/findings-remediation-2026-07-20/xdome-transport-hardening-design.md
   - .factory/planning/findings-remediation-2026-07-20/triage-capture.md
-input-hash: "b24e070"
+input-hash: "ec06bef"
 traces_to: []
 origin_finding: "F10 (D-1889 triage 2026-07-20) + F9 (D-1889); bundled per §5 Bundling Verdict in design doc"
 cycle: "v1.0.0-greenfield"
@@ -78,7 +78,7 @@ points: 5
 #   pipeline.rs non-2xx body-capture × 2 symmetric sites (first request + 401-retry): 1.0 pt
 #   spec_driven_adapter.rs map_spec_engine_error_to_sensor_error guard: 0.5 pt
 #   fanout.rs AllTargetsFailed per-target WARN loop: 0.4 pt
-#   11 Red Gate tests (RG-001..RG-011) + live verification support: 1.2 pt
+#   12 Red Gate tests (RG-001..RG-012) + live verification support: 1.2 pt
 #   Total: ~5 points
 estimated_days: 1.5
 risk: HIGH
@@ -119,13 +119,13 @@ risk_mitigations:
 
 ## Authority
 
-This story is governed by ADR-050 v2.0 and the five behavioral contracts below.
+This story is governed by ADR-050 v2.1 and the five behavioral contracts below.
 Read ADR-050 §D5 and §D6 in full before implementing:
 `.factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md`
 
 | Artifact | Version / Status | Relevant Clause |
 |----------|-----------------|-----------------|
-| ADR-050 (Workspace reqwest TLS Backend) | v2.0 · ACCEPTED | §D5: `http2` feature MUST be in production `[dependencies]` reqwest entries for prism-spec-engine, prism-sensors, prism-bin. §D6: all sensor/plugin outbound client builders MUST call `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))`. §D1/§D2: rustls-tls mandatory; native-tls and aliases FORBIDDEN. |
+| ADR-050 (Workspace reqwest TLS Backend) | v2.1 · ACCEPTED | §D5: `http2` feature MUST be in production `[dependencies]` reqwest entries for prism-spec-engine, prism-sensors, prism-bin. §D6 (v2.1 extended scope): ALL outbound third-party HTTP client builders MUST call `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))` — includes sensor/plugin outbound builders AND `build_http_client_with_timeout` in prism-spec-engine/src/pipeline.rs (infusion `HttpLookupSource` factory; added v2.1 via sibling-sweep OBS-4). §D1/§D2: rustls-tls mandatory; native-tls and aliases FORBIDDEN. |
 | BC-2.16.002 (Multi-Step Fetch Pipeline Execution) | v2.15 · active | §Postconditions: HTTP Client Compliance; Send-Failure Error Source Chain; Non-2xx Response Body Capture; AllTargetsFailed Per-Target Logging. §Canonical Structured Event Catalog row 91: `fan_out_target_failed` WARN. |
 | BC-2.08.002 (Auth Validity Check Per Sensor Per Client) | v1.5 · active | §Postconditions: HTTP Error Classification postcondition — `map_spec_engine_error_to_sensor_error` MUST map `SpecEngineError::HttpRequestFailed { status_code > 0 }` (including `AuthRefreshFailed` and `CookieAuthFailed` 401 variants) to `SensorError::HttpError`. EC-08-006: HTTP 4xx sensor response → `auth_valid: false` (not Down). |
 | BC-2.01.010 (Partial Failure Handling) | v1.5 · draft | §Postconditions: AllTargetsFailed Per-Target Logging — each `FanOutError` MUST be logged at WARN before `AllTargetsFailed` propagates. |
@@ -309,25 +309,28 @@ required; its presence as a load-bearing tool is retracted)
 |-------|-----------|-----------------|---------------|
 | RG-001 | `test_map_error_http_401_maps_to_http_error_not_internal` | AC-ERR-001 | `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` |
 | RG-002 | `test_map_error_status_0_maps_to_internal` | AC-ERR-002 | `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` |
-| RG-003 | `test_pipeline_non_2xx_detail_includes_body_snippet` | AC-ERR-003 | `crates/prism-spec-engine/src/pipeline.rs` `#[cfg(test)] mod tests` |
-| RG-004 | `test_fanout_all_failed_logs_per_target_events` | AC-ERR-004 | `crates/prism-sensors/src/fanout.rs` `#[cfg(test)] mod tests` |
-| RG-005 | `test_probe_connectivity_401_returns_up_auth_invalid` | AC-ERR-005 | `crates/prism-bin/tests/` (integration test, in-process) |
+| RG-003 | `test_pipeline_non_2xx_body_in_detail` | AC-ERR-003 | `crates/prism-spec-engine/src/pipeline.rs` `#[cfg(test)] mod tests` |
+| RG-004 | `test_fanout_all_failed_emits_fan_out_target_failed_warn` | AC-ERR-004 | `crates/prism-sensors/src/fanout.rs` `#[cfg(test)] mod tests` |
+| RG-005 | `test_probe_connectivity_403_returns_up_not_down` | AC-ERR-005 | `crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs` (integration test, in-process) |
 | RG-006 | `test_build_http_client_sends_user_agent_header` | AC-UA-001 | `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` |
-| RG-007 | `test_sensor_health_wire_shape_auth_invalid` | AC-WIRE-001 | `crates/prism-bin/tests/` (integration test, in-process) |
-| RG-008 | `test_reqwest_http2_feature_active` | AC-H2-001 | `cargo tree -e features -i reqwest` CI check OR a test asserting `h2` inside the `reqwest` package block of `Cargo.lock` (NOT a whole-file grep — see AC-H2-001 observability note) |
+| RG-007 | `test_sensor_health_wire_shape_403_reachable_auth_invalid` | AC-WIRE-001 | `crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs` (integration test, in-process) |
+| RG-008 | `test_reqwest_http2_feature_active` | AC-H2-001 | `crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs` (asserts `h2` inside the `reqwest` package block of `Cargo.lock`; NOT a whole-file grep — see AC-H2-001 observability note) |
 | RG-009 | `test_BC_2_16_002_rg009_send_failure_includes_source_chain` | AC-ERR-003 | `crates/prism-spec-engine/tests/pipeline_http_integration.rs` (integration test — SAP-3 end-to-end coverage; defense-in-depth alongside RG-003 unit test) |
 | RG-010 | `test_map_error_auth_refresh_failed_maps_to_http_error_401` | AC-ERR-001 (persistent-auth variant) | `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` |
 | RG-011 | `test_map_error_cookie_auth_failed_maps_to_http_error_401` | AC-ERR-001 (persistent-auth variant) | `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` |
+| RG-012 | `test_infusion_http_client_sends_prism_user_agent` | AC-UA-001 (infusion path — ADR-050 §D6 v2.1 extended scope) | `crates/prism-spec-engine/src/pipeline.rs` `mod infusion_http_client_user_agent_tests` |
 
 ## BC-5.38.001 Density Check
 
-**Red Gate test count:** 11 (RG-001..RG-011)
+**Red Gate test count:** 12 (RG-001..RG-012)
 **Acceptance criteria count:** 14 (AC-H2-001, AC-UA-001, AC-UA-002, AC-CARGO-001, AC-ERR-001..005, AC-WIRE-001, AC-SAP1-001, AC-LIVE-001..003)
-**Density:** 11 / 14 = 0.786 — PASSES (≥0.5 required by BC-5.38.001)
+**Density:** 12 / 14 = 0.857 — PASSES (≥0.5 required by BC-5.38.001)
 
 Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check` build gate, not by standalone failing tests. AC-SAP1-001 is verified by adversary cross-check against BC-2.16.002 v2.15 catalog (catalog row already present; no additional failing test needed). AC-LIVE-001..003 are live-verification ACs verified by demo-recorder against the production binary; they do not correspond to Red Gate tests in the unit/integration sense.
 
 **Fix-burst pass-1 additions (RG-009..RG-011):** RG-009 provides SAP-3 end-to-end integration coverage for AC-ERR-003 (send-failure source chain) from `crates/prism-spec-engine/tests/pipeline_http_integration.rs`; RG-003 remains as defense-in-depth unit test. RG-010 and RG-011 cover the persistent-auth-failure (`AuthRefreshFailed` / `CookieAuthFailed`) variants of AC-ERR-001 per BC-2.01.013 EC-01-029. A MED-1 body-snippet sanitization test (in `spec_driven_adapter.rs` inline tests) was also delivered in the fix-burst; it exercises the sanitize path of AC-ERR-003 / EC-003 and provides additional density beyond this count.
+
+**Pass-2 addition (RG-012):** RG-012 (`test_infusion_http_client_sends_prism_user_agent` in `crates/prism-spec-engine/src/pipeline.rs` `mod infusion_http_client_user_agent_tests`) was added by the OBS-4 fix in LOCAL adversary pass-2. It verifies ADR-050 §D6 v2.1 extended scope: the infusion `HttpLookupSource` outbound client factory (`build_http_client_with_timeout` in pipeline.rs) MUST send `User-Agent: prism/<version>`. Registered as a Red Gate against AC-UA-001 (infusion path).
 
 **Ordering rule (SAC-1 rule 3):** All Red Gate test authoring tasks (Phase 1 below) MUST be dispatched and completed BEFORE implementation tasks (Phase 2). The test-writer agent works from this story's RG-001..RG-011 list and the BC texts; the implementer receives the failing test suite before touching production code.
 
@@ -339,15 +342,16 @@ Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check
 
 - [ ] **RG-001** `test_map_error_http_401_maps_to_http_error_not_internal`: in `spec_driven_adapter.rs` inline tests; call `map_spec_engine_error_to_sensor_error("claroty", SpecEngineError::HttpRequestFailed { status_code: 401, detail: "HTTP 401".to_string(), ... })`; assert returns `SensorError::HttpError { sensor: "claroty", status: 401, body: "HTTP 401" }`. Must be RED before Phase 2.
 - [ ] **RG-002** `test_map_error_status_0_maps_to_internal`: in `spec_driven_adapter.rs` inline tests; call with `status_code: 0, detail: "connection reset".to_string()`; assert returns `SensorError::Internal { .. }`. Must be RED (or pass once guard exists but status_code=0 branch is correct).
-- [ ] **RG-003** `test_pipeline_non_2xx_detail_includes_body_snippet`: in `pipeline.rs` inline tests; mock HTTP 403 response with body `b"forbidden"`; assert `HttpRequestFailed.detail` contains `"403"` and `"forbidden"`. Must be RED before Phase 2.
-- [ ] **RG-004** `test_fanout_all_failed_logs_per_target_events`: in `fanout.rs` inline tests; use `tracing_test` subscriber; drive `fanout()` to produce `AllTargetsFailed` with two-element `errors` vec; assert exactly two `fan_out_target_failed` WARN events captured. Must be RED before Phase 2.
-- [ ] **RG-005** `test_probe_connectivity_401_returns_up_auth_invalid`: in-process integration test; drive mock-401 through `SpecDrivenSensorAdapter`; call `probe_connectivity`; assert `status: ConnectivityStatus::Up`, `http_status: Some(401)`. Must be RED before Phase 2.
+- [ ] **RG-003** `test_pipeline_non_2xx_body_in_detail`: in `pipeline.rs` inline tests; mock HTTP 403 response with body `b"forbidden"`; assert `HttpRequestFailed.detail` contains `"403"` and `"forbidden"`. Must be RED before Phase 2.
+- [ ] **RG-004** `test_fanout_all_failed_emits_fan_out_target_failed_warn`: in `fanout.rs` inline tests (`mod fan_out_target_failed_warn_tests`); use `tracing_test` subscriber; drive `fanout()` to produce `AllTargetsFailed` with two-element `errors` vec; assert exactly two `fan_out_target_failed` WARN events captured. Must be RED before Phase 2.
+- [ ] **RG-005** `test_probe_connectivity_403_returns_up_not_down`: in-process integration test (`crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs`); drive mock-403 through `SpecDrivenSensorAdapter`; call `probe_connectivity`; assert `status: ConnectivityStatus::Up`, `http_status: Some(403)`. Must be RED before Phase 2.
 - [ ] **RG-006** `test_build_http_client_sends_user_agent_header`: in `spec_driven_adapter.rs` inline tests; build client via `build_http_client_with_custom_timeout(Duration::from_millis(1))`; issue request to local wiremock that captures headers; assert `User-Agent` starts with `"prism/"`. Must be RED before Phase 2.
-- [ ] **RG-007** `test_sensor_health_wire_shape_auth_invalid`: in-process integration test extending RG-005; serialize the `ProbeOutcome` to JSON via the MCP wire path; assert the byte string contains `"reachable": true` AND `"auth_valid": false`. Must be RED before Phase 2.
+- [ ] **RG-007** `test_sensor_health_wire_shape_403_reachable_auth_invalid`: in-process integration test (`crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs`) extending RG-005; serialize the `ProbeOutcome` to JSON via the MCP wire path; assert the byte string contains `"reachable": true` AND `"auth_valid": false`. Must be RED before Phase 2.
 - [ ] **RG-008** `test_reqwest_http2_feature_active`: verify reqwest's `http2` feature is active on the reqwest node — via `cargo tree -e features -i reqwest` (assert `http2` present on reqwest) or a test asserting `h2` appears inside the `[[package]]`/`name = "reqwest"` `dependencies` block of `Cargo.lock` (currently absent — verified in the D-1110 remove-uncertainty pass). Must be RED before the http2 feature is added. **Do NOT use a whole-file `grep '"h2"' Cargo.lock`** — `h2 0.4.13` is already present transitively via `hyper 1.9.0`, so a whole-file match is green before the fix (see AC-H2-001 observability note). Acceptable as a CI build-gate check.
 - [ ] **RG-009** `test_BC_2_16_002_rg009_send_failure_includes_source_chain`: integration test in `crates/prism-spec-engine/tests/pipeline_http_integration.rs`; drives the pipeline send-failure path end-to-end with a mock HTTP endpoint that aborts the connection; asserts `HttpRequestFailed.detail` contains the source-chain `"; caused by:"` fragment. SAP-3 end-to-end coverage (public-surface entry, not synthetic AST injection); complements RG-003 unit test. Must be RED before source-chain fix. Traces to AC-ERR-003; BC-2.16.002 Send-Failure Error Source Chain postcondition.
 - [ ] **RG-010** `test_map_error_auth_refresh_failed_maps_to_http_error_401`: in `spec_driven_adapter.rs` inline tests; call `map_spec_engine_error_to_sensor_error` with an `AuthRefreshFailed`-derived `SpecEngineError::HttpRequestFailed { status_code: 401, ... }`; assert returns `SensorError::HttpError { sensor: ..., status: 401, body: ... }`. Must be RED before the guard arm handles this path. Traces to AC-ERR-001 (persistent-auth variant); BC-2.01.013 EC-01-029; BC-2.08.002 HTTP Error Classification.
 - [ ] **RG-011** `test_map_error_cookie_auth_failed_maps_to_http_error_401`: in `spec_driven_adapter.rs` inline tests; same structure as RG-010 but for `CookieAuthFailed`-derived `SpecEngineError::HttpRequestFailed { status_code: 401, ... }`. Must be RED before the guard arm handles this path. Traces to AC-ERR-001 (persistent-auth variant); BC-2.01.013 EC-01-029; BC-2.08.002 HTTP Error Classification.
+- [ ] **RG-012** `test_infusion_http_client_sends_prism_user_agent`: in `crates/prism-spec-engine/src/pipeline.rs` `mod infusion_http_client_user_agent_tests`; builds a client via the infusion `HttpLookupSource` client factory (`build_http_client_with_timeout`); asserts outgoing `User-Agent` header begins with `"prism/"`. Must be RED before the `.user_agent(...)` call is added to pipeline.rs. Traces to AC-UA-001 (infusion path); ADR-050 §D6 v2.1 extended scope (`build_http_client_with_timeout` in prism-spec-engine is now in-scope per v2.1 sibling-sweep addition). Added by OBS-4 fix in LOCAL adversary pass-2.
 
 ### Phase 2: Implementation (implementer — AFTER Phase 1 RED gate confirmed)
 
@@ -473,7 +477,7 @@ Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check
 | BC-2.01.010 v1.5 (AllTargetsFailed Per-Target Logging postcondition) | ~5,000 | |
 | BC-2.01.013 v1.17 (Persistent Auth Failure — EC-01-029) | ~4,000 | Targeted EC row; fix-burst pass-1 alignment |
 | BC-2.16.014 v1.20 (INV-014-007 ADR-050 §D5/§D6 note) | ~18,000 | Large BC; only INV note relevant |
-| ADR-050 v2.0 (§D5/§D6 new decisions + rationale) | ~10,000 | Reference for Cargo.toml + UA changes |
+| ADR-050 v2.1 (§D5/§D6 new decisions + rationale; §D6 scope extended v2.1 to infusion client) | ~10,000 | Reference for Cargo.toml + UA changes |
 | `spec_driven_adapter.rs` (`map_spec_engine_error_to_sensor_error` + `build_http_client_with_custom_timeout`) | ~8,000 | Two target functions |
 | `pipeline.rs` (send-failure arm + non-2xx branch × 2) | ~30,000 | Large file; two symmetric fix sites |
 | `fanout.rs` (`AllTargetsFailed` construction site) | ~8,000 | |
@@ -555,9 +559,9 @@ None. All changes are additions to existing production modules and inline test b
 | `crates/prism-bin/Cargo.toml` | Add `"http2"` to two reqwest entries (T-A03, T-A04) |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | Add `.user_agent(...)` to `build_http_client_with_custom_timeout` (T-B01); add guard arm to `map_spec_engine_error_to_sensor_error` (T-F01); add RG-001, RG-002, RG-006, RG-010, RG-011 inline tests; add MED-1 body-snippet sanitization test (fix-burst pass-1) |
 | `crates/prism-bin/src/boot.rs` | Add `.user_agent(...)` to two PluginRuntime builder sites (T-C01) |
-| `crates/prism-spec-engine/src/pipeline.rs` | Replace `e.to_string()` with source-chain format at two send-failure sites (T-D01); add body-capture at two non-2xx branches (T-E01); add RG-003 inline test |
+| `crates/prism-spec-engine/src/pipeline.rs` | Replace `e.to_string()` with source-chain format at two send-failure sites (T-D01); add body-capture at two non-2xx branches (T-E01); add RG-003 inline test; add `.user_agent(...)` to infusion `build_http_client_with_timeout` builder (ADR-050 §D6 v2.1); add RG-012 test in `mod infusion_http_client_user_agent_tests` |
 | `crates/prism-sensors/src/fanout.rs` | Add per-target WARN loop before `AllTargetsFailed` return (T-G01); add RG-004 inline test |
-| `crates/prism-bin/tests/` | Add RG-005 (`test_probe_connectivity_401_returns_up_auth_invalid`) and RG-007 (`test_sensor_health_wire_shape_auth_invalid`) in-process integration tests; optionally add RG-008 (`test_h2_in_cargo_lock`) |
+| `crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs` | Add RG-005 (`test_probe_connectivity_403_returns_up_not_down`), RG-007 (`test_sensor_health_wire_shape_403_reachable_auth_invalid`), and RG-008 (`test_reqwest_http2_feature_active`) in-process integration tests |
 | `crates/prism-spec-engine/tests/pipeline_http_integration.rs` | Add RG-009 (`test_BC_2_16_002_rg009_send_failure_includes_source_chain`) integration test (fix-burst pass-1) |
 | `test-soc/live-soc/relay/xdome-relay.py` | Add deprecation comment (T-LV03, post-live-verification) |
 
@@ -570,7 +574,7 @@ None. All changes are additions to existing production modules and inline test b
 | `.factory/specs/behavioral-contracts/BC-2.01.010-partial-failure-handling.md` | Frozen at v1.5. AllTargetsFailed Per-Target Logging postcondition already authored. |
 | `.factory/specs/behavioral-contracts/BC-2.01.013-persistent-auth-failure.md` | Frozen at v1.17. EC-01-029 persistent-auth-failure alignment already authored by product-owner. |
 | `.factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md` | Frozen at v1.20. INV-014-007 note already added by product-owner. |
-| `.factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md` | Frozen at v2.0. D5/D6 decisions already added by architect. |
+| `.factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md` | Frozen at v2.1. D5 and D6 (v2.1 extended scope) decisions already added by architect. |
 | `.factory/specs/prd-supplements/error-taxonomy.md` | E-SENSOR-030 row already amended by product-owner. Do NOT amend. |
 | `crates/prism-dtu-*/Cargo.toml` | DTU dev-deps excluded from ADR-050 §D5 scope. |
 | `scripts/check-non-exhaustive-per-symbol.py` | No new pub types introduced; count unchanged. |
@@ -715,6 +719,7 @@ block). See the AC-H2-001 observability note.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-08-13 | story-writer | LOCAL adversary pass-2 reconciliation. RG names reconciled to code (code is authoritative per SAC-1): RG-003 → `test_pipeline_non_2xx_body_in_detail`; RG-005 → `test_probe_connectivity_403_returns_up_not_down`; RG-007 → `test_sensor_health_wire_shape_403_reachable_auth_invalid`; RG-008 file location updated to `crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs`. RG-012 (`test_infusion_http_client_sends_prism_user_agent`, `crates/prism-spec-engine/src/pipeline.rs` `mod infusion_http_client_user_agent_tests`) registered for OBS-4 fix — verifies ADR-050 §D6 v2.1 infusion client UA. ADR-050 pin updated v2.0 → v2.1 in §Authority and §Files NOT to Modify (§D6 scope extended to include infusion `build_http_client_with_timeout`). BC-5.38.001 density recomputed: 12/14 = 0.857 (was 11/14 = 0.786). Points comment updated to RG-001..RG-012. |
 | 1.2 | 2026-08-13 | story-writer | Fix-burst pass-1 spec changes. Added RG-009 (`test_BC_2_16_002_rg009_send_failure_includes_source_chain` in `crates/prism-spec-engine/tests/pipeline_http_integration.rs`), RG-010 (`test_map_error_auth_refresh_failed_maps_to_http_error_401` in `spec_driven_adapter.rs`), RG-011 (`test_map_error_cookie_auth_failed_maps_to_http_error_401` in `spec_driven_adapter.rs`). Added BC-2.01.013 v1.17 to `behavioral_contracts` array and §Authority + §Behavioral Contracts tables (EC-01-029 persistent-auth-failure alignment). Updated BC version pins: BC-2.16.002 →v2.15, BC-2.08.002 →v1.5 (AuthRefreshFailed/CookieAuthFailed scope added). Extended AC-ERR-001 and AC-ERR-005 to reference persistent-auth-failure path and add BC-2.01.013 EC-01-029 traces. Recomputed BC-5.38.001 density: 11/14 = 0.786 (was 8/14 = 0.571). Updated §Files to Modify (RG-009 integration test file added) and §Files NOT to Modify (BC-2.01.013 freeze row + updated version pins). MED-1 body-snippet sanitization test noted in §Files to Modify and density note. |
 | 1.1 | 2026-08-12 | research-agent | Remove-uncertainty pass (D-1110 pass-1). Validated 4 technology assumptions: A1 (http2 feature semantics), A2 (user_agent API), A4 (rustls+ALPN composition) CONFIRMED against reqwest 0.12.28 docs (Context7) + workspace Cargo.lock; A3 (fix plausibility vs api.claroty.com WAF edge) rated RISK/moderate-confidence-sufficient via Perplexity deep research + working-relay evidence. Corrected AC-H2-001 + RG-008: whole-file `grep '"h2"' Cargo.lock` observable is invalid (h2 already present transitively via hyper 1.9.0); scoped verification to the reqwest node. Added §Technology Assumption Validation with a labeled RISK note (rustls JA3/JA4 + non-UA-header residual risk on no-waiver AC-LIVE-001; h2 reframed as ADR-050 compliance/defense-in-depth, UA as probable load-bearing fix). Populated `assumption_validations` + `risk_mitigations` frontmatter. No changes to spec artifacts (BC/ADR/error-taxonomy) — those remain frozen per §Files NOT to Modify. |
 | 1.0 | 2026-08-12 | story-writer | Full implementation story authored from design gate D-2111 (APPROVED). Supersedes stub v0.1. Bundles F10 (transport: http2 feature + User-Agent) + F9 (error surfacing: source-chain + body-capture + error mapping + AllTargetsFailed WARN). 14 ACs across Groups A–E. 8 Red Gate tests (RG-001..RG-008). BC-5.38.001 density 0.571. SAC-1 compliant (enumerated RG list + density check + red-then-green task ordering). §Authority cites ADR-050 v2.0, BC-2.16.002 v2.14, BC-2.08.002 v1.4, BC-2.01.010 v1.5, BC-2.16.014 v1.20. DEFECT-SENSOR-ERROR-FLATTEN-001 superseded and closed. |
