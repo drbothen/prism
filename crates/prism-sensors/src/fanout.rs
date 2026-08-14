@@ -1084,7 +1084,7 @@ base_url = "{overlay_base_url}"
 /// Uses a `WarnCaptureLayer` (custom `tracing_subscriber::Layer`) so the assertions
 /// are load-bearing against both emission count AND field values.
 ///
-/// AC-ERR-004 | BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004
+/// AC-ERR-004 | BC-2.01.010 / BC-2.16.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004
 #[cfg(test)]
 mod fan_out_target_failed_warn_tests {
     use std::sync::{Arc, Mutex};
@@ -1253,7 +1253,7 @@ mod fan_out_target_failed_warn_tests {
     /// `for err in &result.errors` loop (single emission → count == 1 ≠ 2 → FAIL).
     /// Production code keeps the warn INSIDE the loop → count == 2 → PASS.
     ///
-    /// AC-ERR-004 | BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004
+    /// AC-ERR-004 | BC-2.01.010 / BC-2.16.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004
     #[tokio::test]
     #[allow(deprecated, clippy::unwrap_used)]
     async fn test_fanout_all_failed_emits_fan_out_target_failed_warn() {
@@ -1342,7 +1342,7 @@ mod fan_out_target_failed_warn_tests {
              Got: {}. \
              LOAD-BEARING: if warn! is hoisted outside the loop → count=1 → RED. \
              Fix: ensure the tracing::warn! is inside `for err in &result.errors {{ ... }}` \
-             (AC-ERR-004 | BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004).",
+             (AC-ERR-004 | BC-2.01.010 / BC-2.16.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004).",
             events.len()
         );
 
@@ -1354,7 +1354,7 @@ mod fan_out_target_failed_warn_tests {
                 event.sensor_id, "rg004-sensor",
                 "RG-004 (MED-1a sensor_id): event[{i}].sensor_id must be 'rg004-sensor'; \
                  got: {:?} \
-                 (AC-ERR-004 | BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004).",
+                 (AC-ERR-004 | BC-2.01.010 / BC-2.16.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004).",
                 event.sensor_id
             );
         }
