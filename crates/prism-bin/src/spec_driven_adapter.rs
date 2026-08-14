@@ -507,7 +507,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
     ///
     /// On double-401: propagates `SpecEngineError::AuthRefreshFailed` →
     /// `SensorError::HttpError { status: 401 }` (sensor responded, credentials persistently
-    /// invalid; BC-2.08.002 / AC-012). Prior to DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 fix,
+    /// invalid; BC-2.08.002 / AC-ERR-001). Prior to DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 fix,
     /// this incorrectly mapped to `SensorError::Internal`, causing `probe_connectivity` to
     /// classify a reachable sensor as `Down`.
     ///
@@ -716,7 +716,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
 }
 
 // ---------------------------------------------------------------------------
-// map_spec_engine_error_to_sensor_error — error taxonomy mapping (AC-012 / F-004)
+// map_spec_engine_error_to_sensor_error — error taxonomy mapping (BC-2.08.002 / AC-ERR-001..AC-ERR-002)
 // ---------------------------------------------------------------------------
 
 /// Map `SpecEngineError` → `SensorError`, classifying HTTP-status-bearing failures (4xx/5xx,
@@ -724,7 +724,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
 /// into `SensorError::Internal`, so health probes can distinguish reachable-but-erroring sensors
 /// from unreachable ones.
 ///
-/// AC-012 / BC-2.08.002 HTTP Error Classification (DEFECT-ADAPTER-TLS-XDOME-LIVE-001):
+/// BC-2.08.002 / AC-ERR-001..AC-ERR-002 HTTP Error Classification (DEFECT-ADAPTER-TLS-XDOME-LIVE-001):
 ///
 /// **Arm 1 — HTTP response received (`status_code > 0`):**
 /// `HttpRequestFailed { status_code > 0, .. }` → `SensorError::HttpError { status, body }`.
