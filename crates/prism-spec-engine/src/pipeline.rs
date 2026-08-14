@@ -1250,9 +1250,6 @@ fn build_paged_url_impl(
 /// The E-INFUSE-009 stopgap mapping has been retired.
 ///
 /// AC-UA-001 | BC-2.16.002 (HTTP Client Compliance postconditions) | DEFECT-ADAPTER-TLS-XDOME-LIVE-001
-// Dead-code allow: used by HttpLookupSource::load_spec_with_runtime wiring (D8.6).
-// The warning appears because load_spec_with_runtime is in mod.rs; same crate, different file.
-#[allow(dead_code)]
 pub(crate) fn build_http_client_with_timeout() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         // ADR-050 §D6: all outbound clients MUST set User-Agent for WAF-fingerprint coherence.
