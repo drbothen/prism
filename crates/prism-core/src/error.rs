@@ -1989,6 +1989,13 @@ pub enum InfusionError {
     /// E-INFUSE-015: infusion HTTP client build failed (TLS init).
     /// Emitted when build_http_client_with_timeout returns Err(String).
     /// Under ADR-050 rustls-tls, effectively unreachable in production.
+    ///
+    /// Variant is `#[non_exhaustive]` per CLAUDE.md §Conventions pub-API discipline.
+    /// Adding new diagnostic fields in a follow-up story will not break existing
+    /// construction sites in external crates — use [`InfusionError::new_http_client_build_failed`].
+    ///
+    /// Story: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 (F-P33-OBS-001 fix).
+    #[non_exhaustive]
     #[error("E-INFUSE-015: infusion HTTP client build failed (TLS init): {detail}")]
     HttpClientBuildFailed { detail: String },
 }
@@ -2027,6 +2034,25 @@ impl InfusionError {
             infusion_id: sanitize_for_log(&infusion_id.into()),
             declared_type: sanitize_for_log(&declared_type.into()),
             truncated_value: sanitize_for_log(&truncated),
+        }
+    }
+
+    /// Construct an `E-INFUSE-015: HttpClientBuildFailed` error from outside `prism-core`.
+    ///
+    /// Required because `HttpClientBuildFailed` is `#[non_exhaustive]`, which prevents struct
+    /// literal construction from outside the defining crate.  Callers in `prism-spec-engine`
+    /// (`infusion/mod.rs` — `load_spec`, `load_spec_with_runtime`, `hot_reload`) use this to
+    /// convert a `reqwest` builder error into the canonical E-INFUSE-015 error code.
+    ///
+    /// `detail` is passed through without sanitization: the reqwest builder error string is
+    /// TLS configuration diagnostic text (AD-017-safe per error-taxonomy E-INFUSE-015; no
+    /// credentials are present).  Sanitizing would risk altering the operator-visible
+    /// diagnostic text, which must accurately describe the TLS/config failure to be actionable.
+    ///
+    /// Story: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 (F-P33-OBS-001 fix).
+    pub fn new_http_client_build_failed(detail: impl Into<String>) -> Self {
+        Self::HttpClientBuildFailed {
+            detail: detail.into(),
         }
     }
 }

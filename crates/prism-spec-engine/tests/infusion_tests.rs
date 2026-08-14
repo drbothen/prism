@@ -2916,16 +2916,14 @@ fn test_BC_2_19_001_hot_reload_oversized_source_preserves_prior_registry() {
 ///
 /// The three mapping sites in `infusion/mod.rs` (`load_spec`, `load_spec_with_runtime`,
 /// `hot_reload`) that convert `reqwest::Error` → `HttpClientBuildFailed` are verified
-/// by inspection: each uses `.map_err(|e| InfusionError::HttpClientBuildFailed { detail: e })`.
+/// by inspection: each uses `.map_err(InfusionError::new_http_client_build_failed)`.
 /// That structural mapping is not driven by this test because triggering a real reqwest
 /// build failure requires injecting a native-tls path, which ADR-050 prohibits.
 ///
 /// Story: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-2 (error-taxonomy v2.74).
 #[test]
 fn test_infusion_http_client_build_failure_maps_to_e_infuse_015() {
-    let err = InfusionError::HttpClientBuildFailed {
-        detail: "forced test failure for TLS init".to_string(),
-    };
+    let err = InfusionError::new_http_client_build_failed("forced test failure for TLS init");
     let display = err.to_string();
 
     assert!(

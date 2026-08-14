@@ -10,6 +10,12 @@
 //! | RG-007 | test_sensor_health_wire_shape_403_reachable_auth_invalid  | Follows RG-005 failure; if Up/403, wire shape must carry reachable=true   |
 //! |         |                                                              | and auth_valid=false; SID-2 wire-level JSON assertion.                    |
 //! | RG-008 | test_reqwest_http2_feature_active                         | RED pre-fix (rustls-tls only; http2 disabled); GREEN post-fix (http2 on). |
+//! | RG-014 | test_probe_connectivity_503_returns_degraded               | 5xx→Internal→Down pre-fix; `status == Degraded` assertion FAILS           |
+//! |         |                                                              | (F-P25-OBS-001 coverage gap — no test covered the 5xx→Degraded branch).   |
+//! | RG-015 | test_BC_2_01_013_EC_01_029_cookie_roundtrip_401_auth_invalid_wire_shape | CookieAuthFailed→Internal→Down pre-fix; `"reachable":true` and            |
+//! |         |                                                              | `"auth_valid":false` wire assertions FAIL (F-P31-OBS-001).                |
+//! | LOW-1  | test_sensor_health_wire_shape_401_auth_invalid_production_path | OAuth2 401→Internal→Down pre-fix; `"reachable":true` and                  |
+//! |         |                                                              | `"auth_valid":false` wire assertions FAIL (LOW-1 companion to RG-007).    |
 //!
 //! # Test seam
 //!
