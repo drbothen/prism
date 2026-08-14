@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.692"
+version: "8.693"
 producer: state-manager
-timestamp: 2026-08-14T06:00:00Z
+timestamp: 2026-08-14T06:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -18,7 +18,8 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "5d1a30ac7"
 # NOTE: D-2109 — develop advanced ef996a4c0→5d1a30ac7: PR #236 fix/claroty-live-api-fidelity SQUASH-MERGED; BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED (passes 8/9/10 on frozen 386df43c5); HS-014 PASS; worktrees CLAROTY-LIVE + FINDING-R removed. D-2102 NOTE archived.
-bc_index_version: "9.08"
+bc_index_version: "9.09"
+# NOTE: D-2143 — BC-INDEX v9.08→v9.09: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-29 REMEDIATED (F-P29-MED-001 TD-VSDD-091) — BC-2.16.002 leading pin v2.19→v2.20 (v2.15 changelog row SHA de-referenced); BC-2.01.013 leading pin v1.18→v1.19 (EC-01-029 live row + v1.17 changelog row SHA de-referenced); error-taxonomy v2.76→v2.77 (3 SHA sites de-referenced + v2.76 false-CLEAN note). BC-5.39.001 streak RESET 2/3→0/3. Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2142 NOTE archived.
 # NOTE: D-2133 — BC-INDEX v9.07→v9.08: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-19 CLEAN(strict)=NO / CLEAN(PR-merge)=NO — BC-2.08.002 leading pin v1.6→v1.7 (F-P19-MED-001 [MED, POL-4/POL-22]: §Postconditions HTTP Error Classification 5xx outcome corrected ConnectivityStatus::Down→Degraded; self-contradiction resolved). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2126 NOTE archived.
 # NOTE: D-2125 — BC-INDEX v9.05→v9.06: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 pass-11 HUMAN-DIRECTED F-2 fix — BC-2.19.001 leading pin v2.2→v2.3 (E-INFUSE-015 InfusionError::HttpClientBuildFailed §Error Conditions row added; anchor DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-013/AC-ERR-006). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2124 NOTE archived.
 # NOTE: D-2124 — BC-INDEX v9.04→v9.05: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-10 CLOSED (TD-VSDD-096) — BC-2.16.002 leading pin v2.19 (F-P-OBS-001: row-91 error-field disclosure amended to name §prism_core::sanitize_body_snippet_bytes). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2123 NOTE archived.
@@ -36,7 +37,8 @@ bc_index_version: "9.08"
 # NOTE: D-2078 — BC-INDEX v8.89→v8.90: FB106 state-manager leg. BC-2.02.014 leading pin v1.9→v2.0 (ADR-057 §D5 INDEX→REQUIRED propagated; four BC body sites corrected; behaviorally inert Wave-A). S-WAVE-A-ARMIS-ACTIVITY-001 v1.9→v2.0 (nine story sites corrected; test rename contracted). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2069 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1) per ARCH-INDEX FB74/FB76 sweep; ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.800"
+story_index_version: "2.801"
+# NOTE: D-2143 — STORY-INDEX v2.800→v2.801: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 story v1.22→v1.23 — BC-2.16.002 pin v2.19→v2.20 (9 sites) + BC-2.01.013 pin v1.18→v1.19 (5 sites); F-P29-MED-001 TD-VSDD-091 pin-propagation companion. F-P29-OBS-001 process-gap: S-MAINT-RECORDS-LINT-SHA-ARM-001 (draft) PENDING (pre-convergence action). total_stories 296 UNCHANGED. D-2142 NOTE archived.
 # NOTE: D-2142 — STORY-INDEX v2.800 UNCHANGED: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-28 CLEAN(strict)=YES / CLEAN(PR-merge)=YES — ZERO findings. BC-5.39.001 streak ADVANCES 1/3→2/3. Code HEAD 37a78f82d UNCHANGED. BC-INDEX v9.08 / VP-INDEX v2.22 / error-taxonomy v2.76 UNCHANGED. total_stories 296 UNCHANGED. develop_head 5d1a30ac7 UNCHANGED. D-2141 NOTE archived.
 # NOTE: D-2140 — STORY-INDEX v2.799→v2.800: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-26 CLEAN(strict)=NO / CLEAN(PR-merge)=NO. 1 MED finding CLOSED: F-P26-MED-001 [MED, partial-fix propagation / TD-VSDD-097 sibling-pair miss] story §Tasks RG-013 entry mandated the now-deleted tautological assertion; spec→code drift with latent TD-VSDD-059 re-introduction risk. Fixed: story-writer v1.21→v1.22 (RG-013 task mandate removed + inspection note added; §Files-to-Modify infusion_tests.rs downstream copy corrected). Code HEAD 37a78f82d UNCHANGED. BC-5.39.001 streak stays 0/3. total_stories 296 UNCHANGED. D-2139 NOTE archived.
 # NOTE: D-2139 — STORY-INDEX v2.798→v2.799: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-25 CLEAN(strict)=NO / CLEAN(PR-merge)=YES. 2 OBS findings BOTH CLOSED: F-P25-OBS-002 [OBS, TD-VSDD-059] RG-013 tautological `!matches!` assertion removed (test-writer; 2 load-bearing assertions kept); F-P25-OBS-001 [OBS, coverage gap] 5xx→Degraded path added via RG-014 (test-writer + story-writer v1.20→v1.21; AC-ERR-007 added; density 14/16=0.875; RG-range/count 13-site sweep; BC-2.08.002 scope rows extended). Code HEAD 4fdcc3887→37a78f82d (NOT pushed). BC-5.39.001 streak 0/3; frozen-HEAD baseline ADVANCES to 37a78f82d93503fadaf11a9f40a7650998e57b16. total_stories 296 UNCHANGED. D-2138 NOTE archived.
@@ -78,7 +80,8 @@ arch_index_version: "2.303"
 # NOTE: D-2105 — ARCH-INDEX v2.298→v2.299: ADR-031 leading pin v1.9→v1.10 (F-CLARO-P2-HIGH-002 downstream copy-target sweep TD-VSDD-097 dim-2). D-2104 NOTE archived.
 # NOTE: D-2083 — ARCH-INDEX v2.294→v2.295: FB111 closure — ADR-057 pin v1.3→v1.4 (§D7 Tier responsibility division — empty-value arm block added; DRIFT-S-REQUIRED-COL-GATE-001-EMPTYVAL-001 adjudicated NOT-A-DEFECT). D-2081 NOTE archived.
 # NOTE: D-2081 — ARCH-INDEX v2.293→v2.294: FB109 closure — ADR-033 pin v1.0→v1.1 (two LIVE wave-granularity deferrals corrected; version: frontmatter field added (was absent)); ADR-057 pin v1.2→v1.3 (§D7 ANCHORED to S-REQUIRED-COL-GATE-001; false ADR-033 T2 prerequisite corrected). D-2079 NOTE archived.
-error_taxonomy_version: "2.76"
+error_taxonomy_version: "2.77"
+# NOTE: D-2143 — error-taxonomy v2.76→v2.77: F-P29-MED-001 [MED, TD-VSDD-091] 3 ac9563192 SHA sites de-referenced to durable story+symbol anchors (E-AUTH-002 live row, E-AUTH-004 live row, v2.73 changelog row); v2.77 changelog row added; v2.76 FALSE-CLEAN note added (F-P21-OBS-001 sweep claimed "zero other SHA occurrences" — incorrect; 6 existed). Product-owner fix. D-2135 NOTE archived.
 # NOTE: D-2135 — error-taxonomy v2.75→v2.76: E-INFUSE-015 completion annotation de-SHA'd — "(feature HEAD 818b332228)" volatile SHA replaced with "(§build_http_client_with_timeout, prism-spec-engine::pipeline)" symbol anchor at 2 sites (row body + v2.75 changelog row); v2.76 changelog row added. Product-owner fix. TD-VSDD-097 sibling CLEAR / downstream CLEAR / mandate CLEAR. Does NOT affect BC-5.39.001 streak (records-accuracy fix). D-2134 NOTE archived.
 # NOTE: D-2134 — error-taxonomy v2.74→v2.75: E-INFUSE-015 Description corrected from forward-looking to completed status (out-of-perimeter records-accuracy fix; product-owner; no behavioral change; does NOT reset BC-5.39.001 streak). D-2125 NOTE archived.
 # NOTE: D-2125 — error-taxonomy v2.73→v2.74: E-INFUSE-015 InfusionError::HttpClientBuildFailed added (HTTP client build failure in §build_http_client_with_timeout; anchor DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-013/AC-ERR-006; replaces E-INFUSE-009 stopgap; code a1864d3eb). D-2113 NOTE archived.
@@ -111,7 +114,7 @@ workspace_test_count: 5724
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2142 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-28: CLEAN(strict)=YES / CLEAN(PR-merge)=YES — ZERO findings (0 CRIT/HIGH/MED/LOW/OBS/PROCESS-GAP). Fresh-context review at frozen HEAD 37a78f82d93503fadaf11a9f40a7650998e57b16 (story v1.22, 6 anchored BCs, policies.yaml, code diff, RG-001..014). BC-5.39.001 streak ADVANCES 1/3 → 2/3 (second consecutive CLEAN(strict) on current baseline 37a78f82d). Code HEAD 37a78f82d UNCHANGED. BC-INDEX v9.08 / STORY-INDEX v2.800 / VP-INDEX v2.22 / error-taxonomy v2.76 UNCHANGED. total_stories 296 UNCHANGED. develop_head 5d1a30ac7 UNCHANGED. records-lint exit 0. STATE v8.691→v8.692. [SUPERSEDES D-2141]"
+current_step: "D-2143 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-29: CLEAN(strict)=NO / CLEAN(PR-merge)=NO. 1 MED + 1 process-gap OBS: F-P29-MED-001 [MED, TD-VSDD-091] CLOSED — 6 SHA ac9563192 sites de-referenced (product-owner: error-taxonomy v2.77, BC-2.01.013 v1.19, BC-2.16.002 v2.20; story-writer: v1.23, 9+5 pin sites). F-P29-OBS-001 [OBS, process-gap] LOGGED — L9 git-SHA arm absent; S-MAINT-RECORDS-LINT-SHA-ARM-001 (draft) PENDING (pre-convergence action). Implementer stale-comment fix (spec_driven_adapter.rs AC-012/F-004 → BC-2.08.002/AC-ERR-001/002 anchors) advanced feature HEAD 37a78f82d → 140b140ed1c (NOT pushed). BC-5.39.001 streak RESET 2/3→0/3 (DRIFT-ORCH-PRLEVEL-PUSH-001). BC-INDEX v9.08→v9.09 / STORY-INDEX v2.800→v2.801 / error-taxonomy v2.76→v2.77. VP-INDEX v2.22 UNCHANGED. total_stories 296 UNCHANGED. develop_head 5d1a30ac7 UNCHANGED. records-lint exit 0. STATE v8.692→v8.693. [SUPERSEDES D-2142]"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -163,7 +166,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-14 D-2142 — LOCAL adversary pass-28 SINGLE-COMMIT BURST; CLEAN(strict)=YES / CLEAN(PR-merge)=YES — ZERO findings. BC-5.39.001 streak ADVANCES 1/3→2/3. Code HEAD 37a78f82d UNCHANGED. STORY-INDEX v2.800 UNCHANGED. STATE v8.691→v8.692 |
+| **Last Updated** | 2026-08-14 D-2143 — LOCAL adversary pass-29 SINGLE-COMMIT BURST; CLEAN(strict)=NO / CLEAN(PR-merge)=NO — 1 MED CLOSED (TD-VSDD-091 SHA de-reference), 1 OBS LOGGED (process-gap). BC-5.39.001 streak RESET 2/3→0/3. Feature HEAD 37a78f82d→140b140ed. error-taxonomy v2.77 / BC-2.16.002 v2.20 / BC-2.01.013 v1.19 / story v1.23. STATE v8.692→v8.693 |
 
 ## Active Objective (North Star)
 
