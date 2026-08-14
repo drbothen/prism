@@ -10,35 +10,42 @@
 //! - EC-11-090 — body exceeding 256 bytes truncated to first 256 UTF-8 bytes via
 //!   `sanitize_body_snippet_bytes`; control bytes replaced with space
 //!
-//! # Red Gate reason (pre-fix, feature HEAD 711a46911)
+//! # Red Gate reason (pre-fix: materialization Err arm re-prefixed an already-prefixed HttpError.body)
 //!
-//! `materialization.rs` Err arm formats every `AllTargetsFailed` result as:
-//!   `"{table}: all targets failed (E-SENSOR-030)"`
-//! The AllTargetsFailed Display (E-SENSOR-030) is count-only per BC-2.10.007 Rule 1.
-//! Per-target HTTP status and body are available in `AllTargetsFailed.errors[0].error`
-//! (`SensorError::HttpError { status, body }`) but are NOT surfaced to `sensor_errors`.
+//! On the real spec-driven query path, `pipeline.rs` `issue_request_with_retry` builds
+//! `detail = format!("HTTP {status}: {body_snippet}")` where `{status}` is a reqwest
+//! `StatusCode` Display (e.g. "403 Forbidden" — includes reason phrase). Then
+//! `spec_driven_adapter.rs` `map_spec_engine_error_to_sensor_error` Arm 1 sets
+//! `SensorError::HttpError { body: detail.clone() }` — so `HttpError.body` carries
+//! the ALREADY-PREFIXED string `"HTTP 403 Forbidden: <snippet>"`. Finally
+//! `materialization.rs` formats `"{table}: HTTP {status}: {body}"` — prepending
+//! ANOTHER `"HTTP {status}: "` prefix, producing the doubled output
+//! `"claroty_devices: HTTP 403: HTTP 403 Forbidden: <snippet>"` (F-P37-HIGH-001).
 //!
-//! In addition, `sensor_errors` is always serialised as `"sensor_errors": []` on the
-//! success path (materialization found no errors) — the spec requires the key to be
-//! ABSENT from the response JSON when no errors occurred (not `null`, not `[]`).
+//! The test stubs now inject `HttpError.body` in the PRODUCTION SHAPE (the pipeline
+//! detail string) so that the assertion catches the doubling at the wire level.
+//! The fix must strip the `"HTTP {status_reason}: "` prefix from `detail` before
+//! populating `HttpError.body`, so consumers see the raw sanitized snippet.
 //!
 //! # Test seam
 //!
 //! Tests wire a stub `SensorAdapter` (`StubHttpErrorAdapter`) that returns
 //! `Err(SensorError::HttpError { status, body, sensor })` directly — no HTTP calls,
 //! no external service, no loopback socket required (SID-1: unit test at the adapter
-//! boundary). This exercises the full production path:
-//!   stub adapter → fan_out() → AllTargetsFailed → materialization.rs Err arm
-//!   → sensor_errors Vec<String> → PrismServer::query payload → structured_content wire
+//! boundary). Stub bodies are set to the PRODUCTION SHAPE (pipeline detail format:
+//! `"HTTP {status_reason}: {body_snippet}"`) to exercise the doubled-prefix defect path:
+//!   stub adapter (production-shaped body) → fan_out() → AllTargetsFailed
+//!   → materialization.rs Err arm → sensor_errors Vec<String>
+//!   → PrismServer::query payload → structured_content wire
 //!
 //! # Test catalogue
 //!
-//! | RG   | EC          | Scenario                    | Pre-fix failure                               |
-//! |------|-------------|---------------------------  |-----------------------------------------------|
-//! | RG-016 | EC-11-088 | 403 with non-empty body     | `"all targets failed (E-SENSOR-030)"` present |
-//! | RG-016 | EC-11-089 | 503 with empty body         | same; no per-target HTTP 503                  |
-//! | RG-016 | EC-11-090 | 300-byte body truncated     | same; truncation never applied                |
-//! | RG-016 | absent     | success query, no errors    | `"sensor_errors":[]` present (must be absent) |
+//! | RG   | EC          | Scenario                              | Pre-fix failure (F-P37-HIGH-001)                    |
+//! |------|-------------|---------------------------------------|-----------------------------------------------------|
+//! | RG-016 | EC-11-088 | 403 non-empty body, production-shaped | doubled prefix `"HTTP 403: HTTP 403 Forbidden: ..."` |
+//! | RG-016 | EC-11-089 | 503 empty body (already correct shape)| `"rg016b_devices: HTTP 503"` unchanged               |
+//! | RG-016 | EC-11-090 | 300-byte production-shaped body       | doubled prefix + wrong truncation point              |
+//! | RG-016 | absent     | success query, no errors              | `"sensor_errors":[]` present (must be absent)        |
 
 #[cfg(test)]
 mod tests {
@@ -318,22 +325,22 @@ mod tests {
     /// - **absent-on-success:** success query (no failing targets) → `sensor_errors` key
     ///   is ABSENT from serialised JSON (not `null`, not `[]`)
     ///
-    /// # Red Gate failure (pre-fix HEAD 711a46911)
+    /// # Red Gate failure (pre-fix: materialization Err arm re-prefixed an already-prefixed HttpError.body)
     ///
-    /// All four sub-assertions FAIL against the current code:
+    /// **EC-11-088 FAILS (F-P37-HIGH-001):**
+    ///   The stub body is set to the PRODUCTION SHAPE: `"HTTP 403 Forbidden: <snippet>"`.
+    ///   `materialization.rs` formats `"{table}: HTTP {status}: {body}"`, producing the
+    ///   doubled output `"rg016a_devices: HTTP 403: HTTP 403 Forbidden: access_denied..."`.
+    ///   The assertion expects the single-prefix target format, so it FAILS pre-fix.
     ///
-    /// **EC-11-088/089/090 FAIL:**
-    ///   `materialization.rs` Err arm formats ALL `AllTargetsFailed` errors as:
-    ///   `"{table}: all targets failed (E-SENSOR-030)"`
-    ///   The `HttpError { status, body }` fields inside `AllTargetsFailed.errors[0].error`
-    ///   are ignored; no per-target HTTP status or body appears in `sensor_errors`.
+    /// **EC-11-090 FAILS (F-P37-HIGH-001):**
+    ///   Same doubling — production-shaped body `"HTTP 403 Forbidden: " + 300×'x'` is
+    ///   re-prefixed to `"HTTP 403: HTTP 403 Forbidden: " + 236×'x'` (256-byte cap on
+    ///   the already-prefixed body), not the target `"HTTP 403: " + 256×'x'`.
     ///
-    /// **Absent-on-success FAILS:**
-    ///   `PrismServer::query` hard-codes `"sensor_errors": result.sensor_errors` in the
-    ///   payload `json!` literal. When `result.sensor_errors` is `Vec::new()`, this
-    ///   serialises as `"sensor_errors":[]` — the key is ALWAYS present. The spec
-    ///   (BC-2.11.001 §Postconditions, AC-QERR-001) requires the key to be ABSENT on
-    ///   success, not an empty array.
+    /// **EC-11-089 and absent-on-success:** these pass with or without the fix because
+    ///   the 503 stub uses empty body (production-shaped) and the absent key was fixed
+    ///   in the previous commit.
     ///
     /// # Mock backend note (SID-1)
     ///
@@ -348,12 +355,22 @@ mod tests {
     #[tokio::test]
     async fn test_BC_2_11_001_query_sensor_errors_surfaces_per_target_http_detail() {
         // =====================================================================
-        // Sub-test 1: EC-11-088 — HTTP 403 with non-empty body
+        // Sub-test 1: EC-11-088 — HTTP 403 with non-empty body (production-shaped)
         //
         // Sensor "rg016a", table "devices" → DataFusion table "rg016a_devices".
-        // Adapter returns: SensorError::HttpError { status: 403, body: "access_denied_by_security_policy" }
-        // Expected sensor_errors[0] AFTER fix: "rg016a_devices: HTTP 403: access_denied_by_security_policy"
-        // Current (pre-fix) sensor_errors[0]:  "rg016a_devices: all targets failed (E-SENSOR-030)"
+        //
+        // Stub body models the PRODUCTION HttpError.body shape: pipeline.rs
+        // `issue_request_with_retry` formats detail as "HTTP {status_reason}: {snippet}"
+        // and spec_driven_adapter.rs Arm 1 puts detail into HttpError.body verbatim.
+        // So on the real spec-driven path HttpError.body = "HTTP 403 Forbidden: access_denied..."
+        // (F-P37-HIGH-001).
+        //
+        // Adapter returns: SensorError::HttpError { status: 403,
+        //   body: "HTTP 403 Forbidden: access_denied_by_security_policy" }
+        // Expected sensor_errors[0] (TARGET):
+        //   "rg016a_devices: HTTP 403: access_denied_by_security_policy"
+        // Current (pre-fix) output (DOUBLED PREFIX):
+        //   "rg016a_devices: HTTP 403: HTTP 403 Forbidden: access_denied_by_security_policy"
         // =====================================================================
 
         let (server_403, _) = make_server_with_http_error_adapter(
@@ -361,7 +378,7 @@ mod tests {
             "devices",
             "acme",
             403,
-            "access_denied_by_security_policy",
+            "HTTP 403 Forbidden: access_denied_by_security_policy",
         );
 
         let result_403 = server_403
@@ -564,17 +581,22 @@ mod tests {
         );
 
         // =====================================================================
-        // Sub-test 4: EC-11-090 — body truncation at 256 UTF-8 bytes
+        // Sub-test 4: EC-11-090 — body truncation at 256 UTF-8 bytes (production-shaped)
         //
-        // A body of 300 ASCII 'x' characters must be truncated to 256 bytes in the
-        // sensor_errors entry (via sanitize_body_snippet_bytes(body, 256)).
+        // Stub body models the PRODUCTION HttpError.body shape for a 403 with 300-byte
+        // body: "HTTP 403 Forbidden: " + 300×'x'.  After the fix, spec_driven_adapter.rs
+        // strips the "HTTP 403 Forbidden: " prefix → 300×'x'; materialization.rs then
+        // applies sanitize_body_snippet_bytes(snippet, 256) → 256×'x'.
+        //
         // Sensor "rg016d", table "devices" → DataFusion table "rg016d_devices".
-        // Expected sensor_errors[0] AFTER fix:
+        // Expected sensor_errors[0] (TARGET):
         //   "rg016d_devices: HTTP 403: " + "x".repeat(256)
-        // FAILS pre-fix: has "all targets failed (E-SENSOR-030)", body never checked.
+        // Current (pre-fix) output: sanitize_body_snippet_bytes truncates the already-
+        // prefixed body at 256 bytes, then materialization re-prefixes with "HTTP 403: ",
+        // producing "rg016d_devices: HTTP 403: HTTP 403 Forbidden: " + 236×'x'.
         // =====================================================================
 
-        let long_body = "x".repeat(300);
+        let long_body = format!("HTTP 403 Forbidden: {}", "x".repeat(300));
         let (server_long, _) =
             make_server_with_http_error_adapter("rg016d", "devices", "acme", 403, &long_body);
 

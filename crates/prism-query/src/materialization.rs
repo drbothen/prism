@@ -1071,11 +1071,38 @@ pub async fn run_materialization_pipeline(
                         for fan_err in errors {
                             let entry = match &fan_err.error {
                                 SensorError::HttpError { status, body, .. } => {
+                                    // F-P37-HIGH-001: strip any "HTTP {status_reason}: " prefix
+                                    // that pipeline.rs embeds in HttpError.body via the pre-fix
+                                    // spec_driven_adapter.rs Arm 1 path. The canonical contract
+                                    // (BC-2.11.001 EC-11-088/089) requires the sensor_errors wire
+                                    // entry format "{table}: HTTP {numeric_status}: {raw_snippet}"
+                                    // — a single prefix with the numeric code only.
+                                    //
+                                    // pipeline.rs formats SpecEngineError::HttpRequestFailed.detail
+                                    // as "HTTP {status_reason}: {body_snippet}" (reqwest StatusCode
+                                    // Display includes the reason phrase, e.g. "403 Forbidden").
+                                    // Before the source fix in spec_driven_adapter.rs, this full
+                                    // detail string was passed verbatim into HttpError.body, so
+                                    // materializing it produced a doubled prefix:
+                                    //   "{table}: HTTP 403: HTTP 403 Forbidden: {body}"
+                                    //
+                                    // The strip logic: skip "HTTP " prefix, then take everything
+                                    // after the first ": " (separator between reason phrase and
+                                    // body). If no ": " is present (empty-body case such as
+                                    // "HTTP 503 Service Unavailable"), yield "". Non-HTTP-prefixed
+                                    // bodies (raw snippets from stubs or post-fix production) pass
+                                    // through unchanged.
+                                    let raw_body: &str = body
+                                        .strip_prefix("HTTP ")
+                                        .map(|rest| {
+                                            rest.find(": ").map_or("", |idx| &rest[idx + 2..])
+                                        })
+                                        .unwrap_or(body.as_str());
                                     // Sanitize body: production pipeline (pipeline.rs F9)
                                     // already caps to ≤256 bytes; calling here is idempotent
                                     // for those paths and correctly truncates test-stub bodies
                                     // that bypass pipeline.rs (EC-11-090 256-byte cap).
-                                    let snippet = sanitize_body_snippet_bytes(body, 256);
+                                    let snippet = sanitize_body_snippet_bytes(raw_body, 256);
                                     if snippet.is_empty() {
                                         // EC-11-089: empty body → status-only, NO trailing ": ".
                                         format!(

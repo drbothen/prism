@@ -728,10 +728,19 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
 ///
 /// **Arm 1 — HTTP response received (`status_code > 0`):**
 /// `HttpRequestFailed { status_code > 0, .. }` → `SensorError::HttpError { status, body }`.
-/// The `status` field carries the HTTP status code; `body` carries the `detail` string
-/// (which contains the response body snippet from `read_non_2xx_body`). This allows
-/// callers (e.g., `probe_connectivity`) to classify 4xx responses as reachable/auth-invalid
-/// rather than erroneously mapping them to `ConnectivityStatus::Down`.
+/// The `status` field carries the numeric HTTP status code. The `body` field carries the
+/// RAW sanitized body snippet extracted from `detail` — NOT the full detail string.
+///
+/// `pipeline.rs` `issue_request_with_retry` formats `detail` as
+/// `"HTTP {status_reason}: {body_snippet}"` (e.g. `"HTTP 403 Forbidden: access denied"`).
+/// Putting the full detail string into `HttpError.body` caused a doubled prefix in
+/// `materialization.rs` (`"{table}: HTTP {status}: HTTP 403 Forbidden: {body}"`), violating
+/// BC-2.11.001 EC-11-088/089 (F-P37-HIGH-001). The fix strips the `"HTTP {reason}: "` prefix
+/// so consumers (materialization.rs, connectivity.rs) see the raw snippet and build their own
+/// presentation from the separate numeric `status` field.
+///
+/// This allows callers (e.g., `probe_connectivity`) to classify 4xx responses as
+/// reachable/auth-invalid rather than erroneously mapping them to `ConnectivityStatus::Down`.
 ///
 /// **Arm 2 — Persistent 401 (auth refresh or cookie auth failed):**
 /// `AuthRefreshFailed` and `CookieAuthFailed` both mean the sensor responded with HTTP 401
@@ -759,10 +768,23 @@ fn map_spec_engine_error_to_sensor_error(
     } = e
         && status_code > 0
     {
+        // F-P37-HIGH-001: pipeline.rs formats detail as "HTTP {status_reason}: {body_snippet}"
+        // (e.g. "HTTP 403 Forbidden: access denied"). Putting the full detail into HttpError.body
+        // caused materialization.rs to double-prefix: "{table}: HTTP {code}: HTTP 403 Forbidden: ...".
+        // Fix: strip the "HTTP {reason}: " prefix so HttpError.body = raw sanitized snippet only.
+        // Consumers (materialization.rs, connectivity.rs) build their own presentation from the
+        // separate numeric status field + raw body snippet.
+        // Stripping: skip "HTTP " prefix, then take everything after the first ": " separator
+        // (the separator between the reason phrase and the body snippet). If no ": " exists
+        // (empty-body case: detail = "HTTP 503 Service Unavailable"), body is empty string.
+        let raw_body = detail
+            .strip_prefix("HTTP ")
+            .and_then(|s| s.find(": ").map(|idx| s[idx + 2..].to_string()))
+            .unwrap_or_default();
         return SensorError::HttpError {
             sensor: sensor_id.to_string(),
             status: status_code,
-            body: detail.clone(),
+            body: raw_body,
         };
     }
     // Arm 2: Persistent 401 — sensor IS reachable but credentials are persistently invalid.
@@ -3120,11 +3142,15 @@ mod tests {
     /// `SensorError::HttpError { sensor, status, body }` — NOT `SensorError::Internal`.
     ///
     /// Before fix: ALL `SpecEngineError` variants are mapped to `SensorError::Internal`.
-    /// After fix: `HttpRequestFailed { status_code > 0 }` is mapped to `SensorError::HttpError`,
-    /// allowing `probe_connectivity` to classify a 4xx response as `ConnectivityStatus::Up`
-    /// (reachable, auth-invalid) rather than `Down` (unreachable).
+    /// After fix (original): `HttpRequestFailed { status_code > 0 }` maps to `SensorError::HttpError`,
+    /// allowing `probe_connectivity` to classify a 4xx response as `ConnectivityStatus::Up`.
     ///
-    /// RED: currently returns `SensorError::Internal` for ALL variants → assertion FAILS.
+    /// F-P37-HIGH-001 fix (body contract): `HttpError.body` carries the RAW sanitized body
+    /// snippet — NOT the full `detail` string. `pipeline.rs` formats `detail` as
+    /// `"HTTP {status_reason}: {body_snippet}"` (e.g. `"HTTP 401 Unauthorized"`). The
+    /// `map_spec_engine_error_to_sensor_error` Arm 1 strips the `"HTTP {reason}: "` prefix
+    /// so body = raw snippet. For an empty-body 401, `detail = "HTTP 401 Unauthorized"` has
+    /// no `": "` separator after the reason phrase → body = `""` (empty).
     ///
     /// BC-2.08.002 AC-H1-MAP-001 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-001
     #[test]
@@ -3133,12 +3159,16 @@ mod tests {
         use prism_sensors::adapter::SensorError;
         use prism_spec_engine::error::SpecEngineError;
 
+        // Production-shaped detail: pipeline.rs formats as "HTTP {status_reason}"
+        // for empty-body responses. "HTTP 401" is a simplified variant (no reason phrase);
+        // production would produce "HTTP 401 Unauthorized". Both yield body = "" after
+        // the F-P37-HIGH-001 strip (no ": " separator → empty).
         let result = super::map_spec_engine_error_to_sensor_error(
             SpecEngineError::HttpRequestFailed {
                 sensor_id: "claroty".to_string(),
                 step_name: "fetch".to_string(),
                 status_code: 401,
-                detail: "HTTP 401".to_string(),
+                detail: "HTTP 401 Unauthorized".to_string(),
             },
             "claroty",
             "alerts",
@@ -3167,9 +3197,16 @@ mod tests {
                 status, 401,
                 "RG-001: HttpError.status must equal HttpRequestFailed.status_code"
             );
+            // F-P37-HIGH-001: HttpError.body is the RAW body snippet (empty for a
+            // 401 with no response body). The full detail "HTTP 401 Unauthorized" is
+            // NOT the body — it is stripped by Arm 1 to prevent double-prefixing in
+            // materialization.rs. detail = "HTTP 401 Unauthorized" has no ": " separator
+            // → body = "" (no body content after the status reason phrase).
             assert_eq!(
-                body, "HTTP 401",
-                "RG-001: HttpError.body must equal HttpRequestFailed.detail"
+                body, "",
+                "RG-001: HttpError.body must be the raw body snippet (empty for empty-body 401). \
+                 F-P37-HIGH-001: Arm 1 strips the 'HTTP {{reason}}: ' prefix from detail so \
+                 consumers see only the raw snippet, not the full pre-formatted detail string."
             );
         }
     }
@@ -3308,18 +3345,26 @@ mod tests {
     /// `test_probe_connectivity_503_returns_degraded` (RG-014 end-to-end) in
     /// `tests/defect_adapter_tls_xdome_live_001.rs`.
     ///
+    /// F-P37-HIGH-001 fix (body contract): `HttpError.body` carries the RAW sanitized body
+    /// snippet — NOT the full `detail` string. `pipeline.rs` formats `detail` as
+    /// `"HTTP {status_reason}: {body_snippet}"`. For an empty-body 503, `detail` is
+    /// `"HTTP 503 Service Unavailable"` (no `": "` separator). Arm 1 finds no `": "` after
+    /// `strip_prefix("HTTP ")` → body = `""` (empty, no response body present).
+    ///
     /// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-014
     #[test]
     fn test_map_error_503_maps_to_http_error_503() {
         use prism_sensors::adapter::SensorError;
         use prism_spec_engine::error::SpecEngineError;
 
+        // Production-shaped detail: pipeline.rs formats as "HTTP {status_reason}" for
+        // empty-body responses. reqwest StatusCode Display for 503 = "503 Service Unavailable".
         let result = super::map_spec_engine_error_to_sensor_error(
             SpecEngineError::HttpRequestFailed {
                 sensor_id: "claroty".to_string(),
                 step_name: "fetch_devices".to_string(),
                 status_code: 503,
-                detail: "Service Unavailable".to_string(),
+                detail: "HTTP 503 Service Unavailable".to_string(),
             },
             "claroty",
             "devices",
@@ -3349,9 +3394,14 @@ mod tests {
                 status, 503,
                 "RG-014 (map-level): HttpError.status must equal 503"
             );
+            // F-P37-HIGH-001: HttpError.body is the RAW body snippet (empty for empty-body 503).
+            // detail = "HTTP 503 Service Unavailable" has no ": " separator after the reason
+            // phrase → strip finds no body content → body = "".
             assert_eq!(
-                body, "Service Unavailable",
-                "RG-014 (map-level): HttpError.body must equal HttpRequestFailed.detail"
+                body, "",
+                "RG-014 (map-level): HttpError.body must be the raw body snippet (empty for \
+                 empty-body 503). F-P37-HIGH-001: Arm 1 strips 'HTTP {{reason}}: ' prefix; \
+                 'HTTP 503 Service Unavailable' has no ': ' separator → body = ''."
             );
         }
     }
