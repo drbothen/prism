@@ -6,7 +6,7 @@ wave: "C"
 epic_id: engine-defects
 priority: P1
 status: ready
-version: "1.15"
+version: "1.16"
 severity: CRIT
 level: engine
 producer: story-writer
@@ -23,7 +23,7 @@ cycle: "v1.0.0-greenfield"
 phase: 3
 track: "Platform Engineering"
 tdd_mode: strict
-subsystems: [SS-16, SS-01, SS-22]
+subsystems: [SS-16, SS-01, SS-22, SS-21, SS-08]
 # Subsystem anchor justifications:
 #   SS-16 (Spec Engine) owns prism-spec-engine/src/pipeline.rs — send-failure source-chain
 #     and non-2xx body-capture changes live here per ARCH-INDEX Subsystem Registry.
@@ -32,7 +32,14 @@ subsystems: [SS-16, SS-01, SS-22]
 #   SS-22 (Sensor Adapters / Boot) owns prism-bin/src/spec_driven_adapter.rs and
 #     prism-bin/src/boot.rs — error mapping fix and UA addition in boot client builders
 #     live in the adapter/boot layer per ARCH-INDEX.
-crates_touched: [prism-spec-engine, prism-sensors, prism-bin]
+#   SS-21 (Identity & Core Types) owns prism-core/src/error.rs and prism-core/src/lib.rs
+#     — sanitize_body_snippet_bytes / sanitize_body_snippet utility functions and the
+#     sanitize_body_snippet_bytes re-export in lib.rs live in the core types layer per
+#     ARCH-INDEX Subsystem Registry.
+#   SS-08 (Sensor Health) owns prism-mcp/src/health/connectivity.rs — the sanitize_error
+#     delegation to prism_core::sanitize_body_snippet_bytes in connectivity.rs lives in
+#     the sensor health subsystem per ARCH-INDEX Subsystem Registry.
+crates_touched: [prism-spec-engine, prism-sensors, prism-bin, prism-core, prism-mcp]
 target_module: prism-bin
 behavioral_contracts:
   - BC-2.16.002
@@ -524,7 +531,10 @@ Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check
 | Cargo.toml files × 3 (prism-spec-engine, prism-sensors, prism-bin) | ~3,000 | Small changes |
 | Test infrastructure (tracing_test subscriber, wiremock, reqwest test client) | ~5,000 | Existing deps |
 | error-taxonomy.md E-SENSOR-030 row | ~2,000 | Reference for AllTargetsFailed Display contract |
-| **Total estimated** | **~143,500** | Well within one context window; no sub-burst split required |
+| `prism-core/src/error.rs` (sanitize functions + InfusionError variant) | ~4,000 | sanitize_body_snippet_bytes / sanitize_body_snippet + InfusionError::HttpClientBuildFailed |
+| `prism-core/src/lib.rs` (re-export) | ~1,000 | sanitize_body_snippet_bytes pub use re-export |
+| `prism-mcp/src/health/connectivity.rs` (sanitize_error delegation) | ~3,500 | char-based ≤512-cap delegation to prism_core::sanitize_body_snippet_bytes |
+| **Total estimated** | **~152,000** | Updated for prism-core and prism-mcp additions; well within one context window |
 
 ---
 
@@ -602,7 +612,9 @@ None. All changes are additions to existing production modules and inline test b
 | `crates/prism-sensors/src/fanout.rs` | Add per-target WARN loop before `AllTargetsFailed` return (T-G01); add RG-004 inline test |
 | `crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs` | Add RG-005 (`test_probe_connectivity_403_returns_up_not_down`), RG-007 (`test_sensor_health_wire_shape_403_reachable_auth_invalid`), and RG-008 (`test_reqwest_http2_feature_active`) in-process integration tests |
 | `crates/prism-spec-engine/tests/pipeline_http_integration.rs` | Add RG-009 (`test_BC_2_16_002_rg009_send_failure_includes_source_chain`) integration test (fix-burst pass-1); add MED-1 sanitization tests `test_BC_2_16_002_med1_non_2xx_body_sanitizes_control_chars_preserves_utf8` and `test_BC_2_16_002_f1_non_2xx_body_byte_cap_multibyte_utf8` (fix-burst pass-1) |
-| `crates/prism-core/src/error.rs` | Add `InfusionError::HttpClientBuildFailed { detail: String }` variant with `#[error("E-INFUSE-015: infusion HTTP client build failed (TLS init): {detail}")]` (F-2 E-INFUSE-015 completion) |
+| `crates/prism-core/src/error.rs` | Add `InfusionError::HttpClientBuildFailed { detail: String }` variant with `#[error("E-INFUSE-015: infusion HTTP client build failed (TLS init): {detail}")]` (F-2 E-INFUSE-015 completion); add `sanitize_body_snippet_bytes` (byte-based, ≤256-byte cap, `floor_char_boundary` truncation, control-char strip) and `sanitize_body_snippet` (char-based, ≤512-char cap) utility functions called by pipeline.rs non-2xx body-capture (T-E01) |
+| `crates/prism-core/src/lib.rs` | Add `pub use error::sanitize_body_snippet_bytes` re-export so pipeline.rs can call `prism_core::sanitize_body_snippet_bytes` without reaching into the `error` submodule directly |
+| `crates/prism-mcp/src/health/connectivity.rs` | Update `sanitize_error` function to delegate to `prism_core::sanitize_body_snippet_bytes` (char-based ≤512-char cap at this call site, vs pipeline.rs byte-based ≤256-byte cap); add doc comment referencing this story |
 | `crates/prism-spec-engine/src/infusion/mod.rs` | Rewire 3 `build_http_client_with_timeout()` call sites: `load_spec` (1 site), `load_spec_with_runtime` (1 site), and `hot_reload` (1 site): `.map_err(\|e\| InfusionError::HttpClientBuildFailed { detail: e })` replacing E-INFUSE-009 stopgap; error-taxonomy v2.74 |
 | `crates/prism-spec-engine/tests/infusion_tests.rs` | Add RG-013 (`test_infusion_http_client_build_failure_maps_to_e_infuse_015`) — direct variant construction + Display prefix + stopgap-retirement assertion (SID-1 pattern) |
 | `test-soc/live-soc/relay/xdome-relay.py` | Add deprecation comment (T-LV03, post-live-verification) |
@@ -762,6 +774,7 @@ block). See the AC-H2-001 observability note.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.16 | 2026-08-13 | story-writer | Machine-readable footprint corrected (F-P16-HIGH-001). (1) `crates_touched` expanded: added `prism-core` (sanitize_body_snippet_bytes / sanitize_body_snippet utility functions in `error.rs` + sanitize_body_snippet_bytes re-export in `lib.rs`) and `prism-mcp` (sanitize_error delegation in `health/connectivity.rs`). (2) `subsystems` expanded: added SS-21 (Identity & Core Types — prism-core utility functions per ARCH-INDEX Subsystem Registry) and SS-08 (Sensor Health — prism-mcp sensor health subsystem per ARCH-INDEX Subsystem Registry). (3) §Files-to-Modify: expanded `prism-core/src/error.rs` row to cover sanitize_body_snippet_bytes / sanitize_body_snippet functions (previously listed only the InfusionError variant); added `prism-core/src/lib.rs` row (re-export) and `prism-mcp/src/health/connectivity.rs` row (sanitize_error delegation, char-based ≤512-char cap vs pipeline.rs byte-based ≤256-byte cap). (4) §Token Budget: added rows for `prism-core/src/error.rs`, `prism-core/src/lib.rs`, and `prism-mcp/src/health/connectivity.rs`; updated total ~143,500 → ~152,000. No behavioral contracts, AC semantics, or RG assignments changed. |
 | 1.15 | 2026-08-13 | story-writer | Records-only (TD-VSDD-096, LOCAL pass-14 F-1). DD-9 delegation-vehicle framing corrected exhaustively in AC-UA-001 trace note and T-B01 — partial-fix miss from v1.14. (1) AC-UA-001 trace note: replaced "`DeclarativeHttpAuthProvider` calls `build_http_client_with_timeout()` internally and inherits the UA change automatically via the delegation chain" with "`DeclarativeHttpAuthProvider` obtains its UA from the independent `prism-spec-engine::pipeline::build_http_client_with_timeout` sibling — its OWN `.user_agent()` call — NOT via automatic delegation from the prism-bin factory". (2) T-B01: removed `DeclarativeHttpAuthProvider` from the "propagates to" list; added explicit statement that it is NOT a propagation target of the prism-bin change — covered SEPARATELY by the independent `prism-spec-engine::pipeline::build_http_client_with_timeout` sibling (cross-crate dependency from prism-bin to prism-spec-engine is impossible). Exhaustive grep results: "delegation chain" — 1 hit (L201-202, AC-UA-001, fixed); "propagates to" — 1 hit (L402, T-B01, fixed); "inherits ... automatically via build_http_client_with_timeout (prism-spec-engine::pipeline)" at L63/L140/L166 — CORRECT framing, unchanged; v1.14 version history record — NOT MODIFIED. No AC semantics, verification obligations, or RG assignments changed. |
 | 1.14 | 2026-08-13 | story-writer | Records-only (TD-VSDD-096, LOCAL pass-13 F-1/F-2). DD-9 delegation-vehicle propagation to 3 BC-2.16.014 summary surfaces: (1) `# BC status` frontmatter comment — corrected `build_http_client_with_custom_timeout delegation chain` to `build_http_client_with_timeout (prism-spec-engine::pipeline), an independent sibling with its own .user_agent() call (not propagation from prism-bin)`. (2) §Authority table BC-2.16.014 row — corrected `via \`build_http_client_with_custom_timeout\` delegation` to `via \`build_http_client_with_timeout\` in \`prism-spec-engine::pipeline\` (independent sibling with its own \`.user_agent()\` call — not propagation from prism-bin)`. (3) §Behavioral Contracts table BC-2.16.014 row — corrected `via \`build_http_client_with_custom_timeout\` delegation chain` to `via \`build_http_client_with_timeout\` in \`prism-spec-engine::pipeline\` (ADR-050 §D6 propagation — independent sibling with its own \`.user_agent()\` call)`; corrected `beyond the \`build_http_client_with_custom_timeout\` change` to `beyond the \`build_http_client_with_timeout\` change in \`prism-spec-engine::pipeline\``. `# BC status` header label fixes: stale `(as of 2026-08-13 amendments, v1.2)` updated to `(current, v1.14)`; BC-2.16.002 catalog label `v1.64` corrected to `v1.63` (consistent with AC-SAP1-001 body reference at §Group D). Final grep confirms no other location names `build_http_client_with_custom_timeout` as the DeclarativeHttpAuthProvider delegation vehicle. AC-UA-001/T-B01 (already correct: reference `build_http_client_with_timeout()` at prism-spec-engine::pipeline path) unchanged. No AC semantics, verification obligations, or RG assignments changed. |
 | 1.13 | 2026-08-13 | story-writer | Records-only (TD-VSDD-096, F-P-MED-001). E-INFUSE-015 firing-path enumeration corrected to 3 paths (1/1/1 distribution). (1) AC-ERR-006 body: enumerated all three firing paths (`load_spec`, `load_spec_with_runtime`, `hot_reload`) replacing the vague "RUNTIME PHASE" description that omitted `load_spec`. (2) §Files to Modify `infusion/mod.rs` row: corrected from "`load_spec_with_runtime` (2 sites) and `hot_reload` (1 site)" to "`load_spec` (1 site), `load_spec_with_runtime` (1 site), and `hot_reload` (1 site)" — matching BC-2.19.001 v2.4, error-taxonomy v2.74, and code ground truth in `infusion/mod.rs` (verified: one `build_http_client_with_timeout()` call in each of the three functions). (3) BC-2.19.001 pin v2.3→v2.4 propagated to 5 locations: `# BC status` frontmatter comment, §Authority table, §Behavioral Contracts table, Token Budget, §Files NOT to Modify. (4) §Behavioral Contracts table BC-2.19.001 scope cell: corrected from "RUNTIME PHASE (`load_spec_with_runtime` / `hot_reload`)" (two-path omission, missing `load_spec`) to "(1 site each: `load_spec`, `load_spec_with_runtime`, `hot_reload`)" — same class as items (1) and (2); confirmed this is the only remaining two-path occurrence in the story. Other pins verified unchanged: BC-2.16.002 v2.19, BC-2.08.002 v1.6, BC-2.01.010 v1.6, BC-2.01.013 v1.18, BC-2.16.014 v1.22, ADR-050 v2.3. No AC semantics, verification obligations, or RG assignments changed. |
