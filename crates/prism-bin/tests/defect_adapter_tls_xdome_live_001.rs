@@ -587,7 +587,7 @@ fn make_cyberint_spec(base_url: &str) -> SensorSpec {
 /// 2. `probe_connectivity` → `SpecDrivenSensorAdapter::fetch()`
 /// 3. `fetch()` → `PipelineExecutor::execute()` via `AdapterAuthStrategy::StaticCookie`
 /// 4. `PipelineExecutor::acquire_token()` → `MockAuthProvider` returns token (no HTTP call)
-/// 5. Pipeline injects `Cookie: access_token={mock-token}`, issues `GET /api/v1/alerts`
+/// 5. Pipeline injects `Cookie: access_token={mock-token}`, issues `GET /api/v1/devices`
 /// 6. Mock server returns HTTP 401
 /// 7. `CookieRoundtrip` discriminator fires → `SpecEngineError::CookieAuthFailed`
 ///    (BC-2.01.017 EC-017-002 — static-auth no-retry, NOT `AuthRefreshFailed`)
@@ -639,7 +639,7 @@ async fn test_BC_2_01_013_EC_01_029_cookie_roundtrip_401_auth_invalid_wire_shape
     // PRODUCTION PATH: SensorHealthChecker::check_one end-to-end.
     // Exercises the full CookieRoundtrip arm:
     //   StaticCookie token acquisition (no HTTP) →
-    //   GET /api/v1/alerts with Cookie header →
+    //   GET /api/v1/devices with Cookie header →
     //   401 → CookieAuthFailed →
     //   map_spec_engine_error_to_sensor_error Arm 2 → HttpError{401} →
     //   probe_connectivity Up → check_one AuthStatus::Invalid → auth_valid=false.
