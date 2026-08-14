@@ -2902,17 +2902,23 @@ fn test_BC_2_19_001_hot_reload_oversized_source_preserves_prior_registry() {
     );
 }
 
-/// RG-013: E-INFUSE-015 (HttpClientBuildFailed) Display prefix and mapping.
+/// RG-013: E-INFUSE-015 (HttpClientBuildFailed) Display prefix and detail interpolation.
 ///
 /// Under ADR-050 rustls-tls, `build_http_client_with_timeout()` is effectively
-/// unreachable in production, so we validate the mapping by constructing the
-/// variant directly (SID-1 unit-test-as-compensating-control pattern).
+/// unreachable in production (TLS init always succeeds with rustls). This test is a
+/// SID-1 unit-test-as-compensating-control: it constructs `HttpClientBuildFailed`
+/// directly and verifies the Display contract on the variant itself.
 ///
 /// Asserts:
 ///   1. `InfusionError::HttpClientBuildFailed` Display starts with `"E-INFUSE-015:"`.
-///   2. The Display body contains the `detail` value passed at construction.
-///   3. The variant is distinct from `InfusionError::HttpLookupFailed` — confirming
-///      the E-INFUSE-009 stopgap has been retired and the new variant is live.
+///   2. The Display body contains the `detail` string passed at construction
+///      (detail interpolation — the operator's diagnostic text is preserved).
+///
+/// The three mapping sites in `infusion/mod.rs` (`load_spec`, `load_spec_with_runtime`,
+/// `hot_reload`) that convert `reqwest::Error` → `HttpClientBuildFailed` are verified
+/// by inspection: each uses `.map_err(|e| InfusionError::HttpClientBuildFailed { detail: e })`.
+/// That structural mapping is not driven by this test because triggering a real reqwest
+/// build failure requires injecting a native-tls path, which ADR-050 prohibits.
 ///
 /// Story: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-2 (error-taxonomy v2.74).
 #[test]
@@ -2930,12 +2936,5 @@ fn test_infusion_http_client_build_failure_maps_to_e_infuse_015() {
     assert!(
         display.contains("forced test failure for TLS init"),
         "E-INFUSE-015: Display MUST include the detail string. Got: {display:?}"
-    );
-
-    // Confirm the variant is NOT an HttpLookupFailed — stopgap is retired.
-    assert!(
-        !matches!(err, InfusionError::HttpLookupFailed { .. }),
-        "E-INFUSE-015: HttpClientBuildFailed MUST NOT match as HttpLookupFailed; \
-         the E-INFUSE-009 stopgap mapping has been retired."
     );
 }

@@ -430,3 +430,83 @@ async fn test_sensor_health_wire_shape_401_auth_invalid_production_path() {
          for HTTP 401 responses (BC-2.08.002)."
     );
 }
+
+// ---------------------------------------------------------------------------
+// RG-014 (end-to-end) — probe_connectivity returns Degraded + http_status=503 on 503
+// ---------------------------------------------------------------------------
+
+/// RG-014: `probe_connectivity` MUST return `ConnectivityStatus::Degraded` and
+/// `http_status = Some(503)` when the sensor API returns HTTP 503.
+///
+/// Call chain: `probe_connectivity` → `SpecDrivenSensorAdapter::fetch()` →
+/// `PipelineExecutor::execute()` → receives 503 → `SpecEngineError::HttpRequestFailed
+/// { status_code: 503, .. }` → `map_spec_engine_error_to_sensor_error` →
+/// `SensorError::HttpError { status: 503, .. }` → `probe_connectivity` classifies
+/// as `ConnectivityStatus::Degraded` (status >= 500 branch in connectivity.rs).
+///
+/// Before this story, 5xx flowed to `SensorError::Internal` → catch-all →
+/// `ConnectivityStatus::Down, http_status: None`. No test covered this path (F-P25-OBS-001).
+///
+/// This mirrors the RG-005 403→Up test pattern but for the 5xx→Degraded branch.
+///
+/// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-014
+#[tokio::test]
+async fn test_probe_connectivity_503_returns_degraded() {
+    let mock_server = MockServer::start().await;
+
+    // Wiremock: any GET /api/v1/devices → 503 Service Unavailable.
+    Mock::given(method("GET"))
+        .and(path("/api/v1/devices"))
+        .respond_with(ResponseTemplate::new(503).set_body_bytes(b"service unavailable"))
+        .mount(&mock_server)
+        .await;
+
+    // Build and register the adapter (same fixture pattern as RG-005).
+    let spec = make_xdome_spec(&mock_server.uri());
+    let resolved = make_resolved(spec, "rg014-org");
+    let auth_strategy =
+        AdapterAuthStrategy::Plugin(Arc::new(MockAuthProvider::new("rg014-token"))
+            as Arc<dyn prism_spec_engine::AuthProvider>);
+    let http_client = build_http_client_with_timeout().expect("RG-014: http client build failed");
+    let adapter = Arc::new(SpecDrivenSensorAdapter::new(
+        Arc::new(resolved),
+        auth_strategy,
+        http_client,
+    ));
+
+    let org_id = OrgId::new();
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, adapter);
+
+    let sensor_id = SensorId::from("xdome");
+
+    let outcome = probe_connectivity(&registry, org_id, &sensor_id, "rg014-client")
+        .await
+        .expect("RG-014: probe_connectivity must not return Err(PrismError)");
+
+    // ASSERTION 1: status must be Degraded (5xx = server error, sensor reachable).
+    // Before this story: SensorError::Internal → catch-all → Down, http_status: None.
+    assert_eq!(
+        outcome.status,
+        ConnectivityStatus::Degraded,
+        "RG-014: probe must return ConnectivityStatus::Degraded for 503 response. \
+         Got: {:?}. \
+         Root cause: map_spec_engine_error_to_sensor_error must route HttpRequestFailed \
+         {{ status_code: 503 }} to SensorError::HttpError, which connectivity.rs then \
+         classifies as Degraded (status >= 500). \
+         (BC-2.08.002 DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-014).",
+        outcome.status
+    );
+
+    // ASSERTION 2: http_status must be Some(503).
+    // Before this story: Internal → catch-all → http_status: None.
+    assert_eq!(
+        outcome.http_status,
+        Some(503),
+        "RG-014: probe.http_status must be Some(503) for 503 response. \
+         Got: {:?}. \
+         Fix: SensorError::HttpError must carry status_code from HttpRequestFailed \
+         (BC-2.08.002 DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-014).",
+        outcome.http_status
+    );
+}

@@ -3291,6 +3291,72 @@ mod tests {
     }
 
     // ---------------------------------------------------------------------------
+    // RG-014 (map-level): HttpRequestFailed{status_code:503} maps to HttpError{status:503}
+    // ---------------------------------------------------------------------------
+
+    /// RG-014 (map-level): `map_spec_engine_error_to_sensor_error` MUST map
+    /// `SpecEngineError::HttpRequestFailed { status_code: 503, .. }` to
+    /// `SensorError::HttpError { status: 503, .. }` — NOT `SensorError::Internal`.
+    ///
+    /// This guard exists because this story's `status_code > 0` map guard routes 5xx
+    /// responses through `SensorError::HttpError`, which `probe_connectivity` then
+    /// classifies as `ConnectivityStatus::Degraded` (status >= 500 branch in connectivity.rs).
+    /// Before this story, 5xx flowed to `Internal` → catch-all → `Down`.
+    ///
+    /// The RG-001/RG-002 tests cover 401 and status_code=0; this test is the 5xx-specific
+    /// coverage that was missing (F-P25-OBS-001). The end-to-end path is exercised by
+    /// `test_probe_connectivity_503_returns_degraded` (RG-014 end-to-end) in
+    /// `tests/defect_adapter_tls_xdome_live_001.rs`.
+    ///
+    /// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-014
+    #[test]
+    fn test_map_error_503_maps_to_http_error_503() {
+        use prism_sensors::adapter::SensorError;
+        use prism_spec_engine::error::SpecEngineError;
+
+        let result = super::map_spec_engine_error_to_sensor_error(
+            SpecEngineError::HttpRequestFailed {
+                sensor_id: "claroty".to_string(),
+                step_name: "fetch_devices".to_string(),
+                status_code: 503,
+                detail: "Service Unavailable".to_string(),
+            },
+            "claroty",
+            "devices",
+        );
+
+        assert!(
+            matches!(result, SensorError::HttpError { .. }),
+            "RG-014 (map-level): HttpRequestFailed(status_code=503) must map to \
+             SensorError::HttpError, not Internal. \
+             This story's `status_code > 0` guard routes 5xx to HttpError, which \
+             probe_connectivity classifies as Degraded (not Down). \
+             Got: {:?}",
+            result
+        );
+
+        if let SensorError::HttpError {
+            sensor,
+            status,
+            body,
+        } = result
+        {
+            assert_eq!(
+                sensor, "claroty",
+                "RG-014 (map-level): HttpError.sensor must equal sensor_id arg"
+            );
+            assert_eq!(
+                status, 503,
+                "RG-014 (map-level): HttpError.status must equal 503"
+            );
+            assert_eq!(
+                body, "Service Unavailable",
+                "RG-014 (map-level): HttpError.body must equal HttpRequestFailed.detail"
+            );
+        }
+    }
+
+    // ---------------------------------------------------------------------------
     // RG-006: build_http_client_with_custom_timeout must set prism/ User-Agent header
     // ---------------------------------------------------------------------------
 
