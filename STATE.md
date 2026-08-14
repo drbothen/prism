@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.694"
+version: "8.695"
 producer: state-manager
 timestamp: 2026-08-14T12:00:00Z
 inputs: []
@@ -37,7 +37,8 @@ bc_index_version: "9.09"
 # NOTE: D-2078 — BC-INDEX v8.89→v8.90: FB106 state-manager leg. BC-2.02.014 leading pin v1.9→v2.0 (ADR-057 §D5 INDEX→REQUIRED propagated; four BC body sites corrected; behaviorally inert Wave-A). S-WAVE-A-ARMIS-ACTIVITY-001 v1.9→v2.0 (nine story sites corrected; test rename contracted). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2069 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1) per ARCH-INDEX FB74/FB76 sweep; ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.802"
+story_index_version: "2.803"
+# NOTE: D-2145 — STORY-INDEX v2.802→v2.803: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-31 REMEDIATED — story v1.24→v1.25; F-P31-MED-001 [MED, story↔code wire-shape drift on NO-WAIVER live AC] AC-LIVE-002 + T-LV02 + §UX corrected to semantic wire contract (reachable:true/auth_valid:false/suggestion; drops non-existent detail field; HUMAN DECISION 2026-08-14); F-P31-OBS-001 [OBS, SAP-3] RG-015 added (e2e CookieRoundtrip 401 wire) + density 15/16=0.9375; Code HEAD ADVANCED 140b140ed→1adf82f1c; BC-5.39.001 streak 0/3; frozen-HEAD baseline ADVANCES to 1adf82f1c870bc78f662b9b160357a7d14220461. total_stories 296 UNCHANGED. D-2144 NOTE archived.
 # NOTE: D-2144 — STORY-INDEX v2.801→v2.802: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 story v1.23→v1.24 — TD-VSDD-096 records-only micro-burst CLEAN(strict)=NO / CLEAN(PR-merge)=YES; 2 LOW records-tier findings BOTH CLOSED: F-P30-LOW-001 [LOW, TD-VSDD-091 arm-5] §Version-History v1.18 row bare L-cites replaced with symbol-anchor text (AC-UA-001/T-B01 retained); F-P30-LOW-002 [LOW, TD-VSDD-091 feature-branch SHA] §Version-History v1.22 row feature-branch SHA removed, SHA-free form used. Code HEAD 140b140ed UNCHANGED. BC-5.39.001 streak stays 0/3. total_stories 296 UNCHANGED. D-2143 NOTE archived.
 # NOTE: D-2143 — STORY-INDEX v2.800→v2.801: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 story v1.22→v1.23 — BC-2.16.002 pin v2.19→v2.20 (9 sites) + BC-2.01.013 pin v1.18→v1.19 (5 sites); F-P29-MED-001 TD-VSDD-091 pin-propagation companion. F-P29-OBS-001 process-gap: S-MAINT-RECORDS-LINT-SHA-ARM-001 (draft) PENDING (pre-convergence action). total_stories 296 UNCHANGED. D-2142 NOTE archived.
 # NOTE: D-2142 — STORY-INDEX v2.800 UNCHANGED: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-28 CLEAN(strict)=YES / CLEAN(PR-merge)=YES — ZERO findings. BC-5.39.001 streak ADVANCES 1/3→2/3. Code HEAD 37a78f82d UNCHANGED. BC-INDEX v9.08 / VP-INDEX v2.22 / error-taxonomy v2.76 UNCHANGED. total_stories 296 UNCHANGED. develop_head 5d1a30ac7 UNCHANGED. D-2141 NOTE archived.
@@ -115,7 +116,7 @@ workspace_test_count: 5724
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2144 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-30: CLEAN(strict)=NO / CLEAN(PR-merge)=YES. 2 LOW records-tier findings, BOTH CLOSED via TD-VSDD-096 records-only micro-burst: F-P30-LOW-001 [LOW, TD-VSDD-091 arm-5] §Version-History v1.18 row bare L-cites replaced with symbol-anchor-only text (AC-UA-001/T-B01 retained); F-P30-LOW-002 [LOW, TD-VSDD-091 feature-branch SHA] §Version-History v1.22 row feature-branch SHA removed, SHA-free form used; also fixed pre-existing unescaped Markdown table pipe in v1.22 row (cell-count defect). Fixed by story-writer (v1.23→v1.24), self-certified records-only. TD-VSDD-097 VERDICTS: sibling pair (whole-story sweep, 2 fixed) / downstream = STORY-INDEX/STATE.md historical D-records carry cites but out-of-perimeter (deferred to S-MAINT-RECORDS-LINT-SHA-ARM-001) / mandate CLEAR. Code HEAD 140b140ed UNCHANGED. BC-5.39.001 streak stays 0/3. BC-INDEX v9.09 / VP-INDEX v2.22 / error-taxonomy v2.77 UNCHANGED. total_stories 296 UNCHANGED. develop_head 5d1a30ac7 UNCHANGED. records-lint exit 0. STORY-INDEX v2.801→v2.802. STATE v8.693→v8.694. [SUPERSEDES D-2143]"
+current_step: "D-2145 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-31: CLEAN(strict)=NO / CLEAN(PR-merge)=NO. 1 MED + 1 OBS, BOTH CLOSED: F-P31-MED-001 [MED, story↔code wire-shape drift on NO-WAIVER live AC] AC-LIVE-002 asserted non-existent `detail`/\"HTTP 401\" field on `check_sensor_health`; `SensorHealthResult` has no `detail`/`http_status` field; BC-2.08.002 EC-08-006 requires only `auth_valid:false`; HUMAN DECISION 2026-08-14 correct AC to semantic contract; CLOSED story-writer v1.24→v1.25 (AC-LIVE-002+T-LV02+§UX corrected to reachable:true/auth_valid:false/suggestion; no code/BC change). F-P31-OBS-001 [OBS, SAP-3 coverage gap] CookieRoundtrip 401 end-to-end missing; CLOSED test-writer RG-015 `test_BC_2_01_013_EC_01_029_cookie_roundtrip_401_auth_invalid_wire_shape` (genuine e2e) + story-writer enumerated RG-015 + density 14/16=0.875→15/16=0.9375 + RG-range sweep 7 sites. TD-VSDD-097 VERDICTS: story-writer sibling (detail-over-spec sweep: AC-LIVE-002/T-LV02/§UX fixed; AC-WIRE-001 clean; pipeline-layer detail refs correctly left; RG-range sweep 7 sites) / downstream = STORY-INDEX RG-count+density this burst / mandate (RG-015↔AC-ERR-001↔BC-2.01.013 EC-01-029 bidirectional confirmed). test-writer sibling (genuine e2e, not synthetic dup) / downstream CLEAR / mandate CLEAR. Code HEAD ADVANCED 140b140ed→1adf82f1c (NOT pushed; test-writer RG-015 commit). BC-5.39.001 streak 0/3; frozen-HEAD baseline ADVANCES to 1adf82f1c870bc78f662b9b160357a7d14220461. BC-INDEX v9.09 / VP-INDEX v2.22 / error-taxonomy v2.77 UNCHANGED. total_stories 296 UNCHANGED. develop_head 5d1a30ac7 UNCHANGED. records-lint exit 0. STORY-INDEX v2.802→v2.803. STATE v8.694→v8.695. [SUPERSEDES D-2144]"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -167,7 +168,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-14 D-2144 — LOCAL adversary pass-30 TD-VSDD-096 records-only micro-burst CLEAN(strict)=NO / CLEAN(PR-merge)=YES; 2 LOW records-tier findings BOTH CLOSED (story v1.23→v1.24). Code HEAD 140b140ed UNCHANGED. BC-5.39.001 streak stays 0/3. STATE v8.693→v8.694 |
+| **Last Updated** | 2026-08-14 D-2145 — LOCAL adversary pass-31 REMEDIATED; story v1.24→v1.25 (AC-LIVE-002+T-LV02+§UX semantic wire contract + RG-015 enumerated); Code HEAD 140b140ed→1adf82f1c (NOT pushed). BC-5.39.001 streak 0/3; frozen-HEAD baseline ADVANCES to 1adf82f1c. STORY-INDEX v2.802→v2.803. STATE v8.694→v8.695 |
 
 ## Active Objective (North Star)
 
