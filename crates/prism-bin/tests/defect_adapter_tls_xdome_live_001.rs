@@ -510,3 +510,168 @@ async fn test_probe_connectivity_503_returns_degraded() {
         outcome.http_status
     );
 }
+
+// ---------------------------------------------------------------------------
+// CookieRoundtrip helper
+// ---------------------------------------------------------------------------
+
+/// Build a `SensorSpec` for sensor "cyberint" using `CookieRoundtrip` auth.
+///
+/// `CookieRoundtrip` acquires the API key from the credential store (no HTTP call)
+/// and injects it as `Cookie: access_token={token}` on every data request.
+/// When the data endpoint returns 401, the pipeline immediately surfaces
+/// `SpecEngineError::CookieAuthFailed` (no retry — static-auth path,
+/// BC-2.01.017 EC-017-002).
+///
+/// # Table naming: "devices" matches the probe sentinel
+///
+/// `SensorHealthChecker::check_one` resolves the probe source table via:
+///   - `resolved_spec_map` lookup (production) — not wired in this test
+///   - Legacy sentinel fallback: `{sensor_id}_devices` (both `probe_table` and
+///     `first_table_name` are `None` when `resolved_spec_map` is absent)
+///
+/// `SpecDrivenSensorAdapter::fetch()` strips the `{sensor_id}_` prefix from
+/// `spec.source_table` to find the matching table in the spec. Using table name
+/// "devices" ensures `cyberint_devices` → strip → "devices" → table match →
+/// the pipeline executes and issues the real HTTP request (driving the 401 path).
+/// A table named "alerts" would silently return `Ok([])` without any HTTP call.
+fn make_cyberint_spec(base_url: &str) -> SensorSpec {
+    SensorSpec::new(
+        "cyberint",
+        "Cyberint Sensor (RG fixture)",
+        AuthType::CookieRoundtrip,
+        base_url,
+        vec![TableSpec::new_point_in_time(
+            "devices",
+            "network_activity",
+            vec![ColumnSpec::new(
+                "device_id",
+                ColumnType::String,
+                None,
+                vec![],
+            )],
+            vec![FetchStep::new(
+                "fetch_devices",
+                "GET",
+                "/api/v1/devices",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                None,
+            )],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    )
+}
+
+// ---------------------------------------------------------------------------
+// F-P31-OBS-001 (SAP-3 arm reachability) — CookieRoundtrip 401→auth_invalid wire coverage
+// ---------------------------------------------------------------------------
+
+/// F-P31-OBS-001 / SAP-3 / BC-2.01.013 EC-01-029:
+/// `SensorHealthChecker::check_one` (production path) MUST return a `SensorHealthResult`
+/// that serializes to JSON with `"reachable":true` and `"auth_valid":false` when a
+/// CookieRoundtrip-auth sensor receives HTTP 401 on its data endpoint.
+///
+/// This covers the CookieRoundtrip arm of the auth-invalid path. The only pre-existing
+/// 401→auth_invalid wire test (`test_sensor_health_wire_shape_401_auth_invalid_production_path`)
+/// uses `CustomViaPlugin` (`AuthRefreshFailed` error variant). This test drives the distinct
+/// `CookieRoundtrip → CookieAuthFailed` variant — the actual path claroty uses — end-to-end.
+///
+/// Call chain (CookieRoundtrip 401 path):
+/// 1. `check_one` → `probe_auth_with_routing` → `probe_connectivity`
+/// 2. `probe_connectivity` → `SpecDrivenSensorAdapter::fetch()`
+/// 3. `fetch()` → `PipelineExecutor::execute()` via `AdapterAuthStrategy::StaticCookie`
+/// 4. `PipelineExecutor::acquire_token()` → `MockAuthProvider` returns token (no HTTP call)
+/// 5. Pipeline injects `Cookie: access_token={mock-token}`, issues `GET /api/v1/alerts`
+/// 6. Mock server returns HTTP 401
+/// 7. `CookieRoundtrip` discriminator fires → `SpecEngineError::CookieAuthFailed`
+///    (BC-2.01.017 EC-017-002 — static-auth no-retry, NOT `AuthRefreshFailed`)
+/// 8. `map_spec_engine_error_to_sensor_error` Arm 2 → `SensorError::HttpError { status: 401 }`
+/// 9. `probe_connectivity` → `ConnectivityStatus::Up`
+/// 10. `check_one` → `SensorHealthResult { reachable: true, auth_valid: false }`
+///
+/// Wire assertions (SID-2): `"reachable":true` and `"auth_valid":false` only.
+/// No `detail`/`http_status`/`"401"` field asserted — outside the ratified
+/// `SensorHealthResult` wire contract (BC-2.08.002 EC-08-006).
+///
+/// BC-2.01.013 EC-01-029 | BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-P31-OBS-001
+#[tokio::test]
+async fn test_BC_2_01_013_EC_01_029_cookie_roundtrip_401_auth_invalid_wire_shape() {
+    let mock_server = MockServer::start().await;
+
+    // CookieRoundtrip does NOT issue a login HTTP call — no POST /login mock needed.
+    // StaticCookie: acquire_token() reads from MockAuthProvider (zero HTTP calls).
+    // The data endpoint returns 401, driving CookieAuthFailed on the first request.
+    // Path: /api/v1/devices — matches table name "devices" via probe sentinel
+    // `cyberint_devices` (see make_cyberint_spec doc for the probe-sentinel rationale).
+    Mock::given(method("GET"))
+        .and(path("/api/v1/devices"))
+        .respond_with(ResponseTemplate::new(401).set_body_bytes(b"unauthorized"))
+        .mount(&mock_server)
+        .await;
+
+    let spec = make_cyberint_spec(&mock_server.uri());
+    let resolved = make_resolved(spec, "cookie-401-org");
+
+    // AdapterAuthStrategy::StaticCookie drives the CookieRoundtrip pipeline path.
+    // MockAuthProvider substitutes for StaticCookieAuthProvider in test scope.
+    let auth_strategy =
+        AdapterAuthStrategy::StaticCookie(Arc::new(MockAuthProvider::new("cookie-test-api-key"))
+            as Arc<dyn prism_spec_engine::AuthProvider>);
+    let http_client =
+        build_http_client_with_timeout().expect("F-P31-OBS-001: http client build failed");
+    let adapter = Arc::new(SpecDrivenSensorAdapter::new(
+        Arc::new(resolved),
+        auth_strategy,
+        http_client,
+    ));
+
+    let org_id = OrgId::new();
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, adapter);
+    let sensor_id = SensorId::from("cyberint");
+
+    // PRODUCTION PATH: SensorHealthChecker::check_one end-to-end.
+    // Exercises the full CookieRoundtrip arm:
+    //   StaticCookie token acquisition (no HTTP) →
+    //   GET /api/v1/alerts with Cookie header →
+    //   401 → CookieAuthFailed →
+    //   map_spec_engine_error_to_sensor_error Arm 2 → HttpError{401} →
+    //   probe_connectivity Up → check_one AuthStatus::Invalid → auth_valid=false.
+    let checker = SensorHealthChecker::new(Arc::new(registry));
+    let context = PrismContext::new();
+    let health = checker
+        .check_one(org_id, "cookie-401-org", &sensor_id, &context)
+        .await;
+
+    // SID-2 wire-shape assertion: exact JSON key:value pairs at the wire level.
+    let json =
+        serde_json::to_string(&health).expect("F-P31-OBS-001: SensorHealthResult must serialize");
+
+    // ASSERTION 1: "reachable":true — sensor responded (401 = reachable, not a transport error).
+    // If map_spec_engine_error_to_sensor_error regressed (CookieAuthFailed → SensorError::Internal
+    // → probe classifies as Down → reachable=false), this assertion would fail and detect it.
+    assert!(
+        json.contains("\"reachable\":true"),
+        "F-P31-OBS-001 (SID-2 wire-shape): JSON must contain '\"reachable\":true' for \
+         CookieRoundtrip 401 response. Got JSON: {json}. \
+         Root cause: CookieAuthFailed must reach map_spec_engine_error_to_sensor_error Arm 2 \
+         (SensorError::HttpError{{status:401}}), not fall through to Arm 3 (SensorError::Internal). \
+         (BC-2.01.013 EC-01-029, DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-P31-OBS-001)."
+    );
+
+    // ASSERTION 2: "auth_valid":false — driven by the full check_one production path.
+    // Load-bearing: if check_one's AuthStatus::Invalid → Some(false) mapping regressed
+    // for the CookieRoundtrip arm, this assertion would fail.
+    assert!(
+        json.contains("\"auth_valid\":false"),
+        "F-P31-OBS-001 (SID-2 wire-shape): JSON must contain '\"auth_valid\":false' for \
+         CookieRoundtrip 401 response via production check_one path. Got JSON: {json}. \
+         (BC-2.01.013 EC-01-029, DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-P31-OBS-001)."
+    );
+}
