@@ -719,7 +719,10 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
 // map_spec_engine_error_to_sensor_error — error taxonomy mapping (AC-012 / F-004)
 // ---------------------------------------------------------------------------
 
-/// Map `SpecEngineError` → `SensorError`, preserving the E-AUTH-002 taxonomy code.
+/// Map `SpecEngineError` → `SensorError`, classifying HTTP-status-bearing failures (4xx/5xx,
+/// and persistent-401 auth failures) into `SensorError::HttpError` and transport/other failures
+/// into `SensorError::Internal`, so health probes can distinguish reachable-but-erroring sensors
+/// from unreachable ones.
 ///
 /// AC-012 / BC-2.08.002 HTTP Error Classification (DEFECT-ADAPTER-TLS-XDOME-LIVE-001):
 ///
