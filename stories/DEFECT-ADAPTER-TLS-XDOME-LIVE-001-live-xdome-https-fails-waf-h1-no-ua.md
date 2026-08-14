@@ -6,7 +6,7 @@ wave: "C"
 epic_id: engine-defects
 priority: P1
 status: ready
-version: "1.26"
+version: "1.27"
 severity: CRIT
 level: engine
 producer: story-writer
@@ -39,7 +39,14 @@ subsystems: [SS-16, SS-01, SS-22, SS-21, SS-08]
 #   SS-08 (Sensor Health) owns prism-mcp/src/health/connectivity.rs — the sanitize_error
 #     delegation to prism_core::sanitize_body_snippet in connectivity.rs lives in
 #     the sensor health subsystem per ARCH-INDEX Subsystem Registry.
-crates_touched: [prism-spec-engine, prism-sensors, prism-bin, prism-core, prism-mcp]
+#   NOTE for implementer (v1.27 addition): BC-2.11.001 sensor_errors surfacing lands in the
+#     `query` tool response builder in prism-mcp (SS-08 or query-tool subsystem; verify
+#     against ARCH-INDEX) and may also touch prism-query if the query result type carries
+#     the sensor_errors field. prism-mcp is already in the footprint. If prism-query gains
+#     a new sensor_errors field or result-type change, add prism-query to crates_touched and
+#     its owning SS-ID to subsystems per ARCH-INDEX Subsystem Registry before implementation
+#     begins. Verify and update this story's frontmatter before Phase 2 dispatch.
+crates_touched: [prism-spec-engine, prism-sensors, prism-bin, prism-core, prism-mcp, prism-query]
 target_module: prism-bin
 behavioral_contracts:
   - BC-2.16.002
@@ -48,7 +55,8 @@ behavioral_contracts:
   - BC-2.19.001
   - BC-2.01.013
   - BC-2.16.014
-# BC status (current, v1.24):
+  - BC-2.11.001
+# BC status (current, v1.27):
 #   BC-2.16.002 (Multi-Step Fetch Pipeline Execution): v2.20, status: active
 #     New §Postconditions added: HTTP Client Compliance (ADR-050 §D5/§D6), Send-Failure
 #     Error Source Chain, Non-2xx Response Body Capture, AllTargetsFailed Per-Target
@@ -62,8 +70,9 @@ behavioral_contracts:
 #     v1.5: AuthRefreshFailed and CookieAuthFailed variants added to HTTP Error
 #     Classification postcondition scope (fix-burst pass-1).
 #     v1.7: 5xx HTTP response classification corrected: `ConnectivityStatus::Down` → `Degraded`.
-#   BC-2.01.010 (Partial Failure Handling): v1.6, status: draft, lifecycle_status: active
-#     AllTargetsFailed Per-Target Logging postcondition added.
+#   BC-2.01.010 (Partial Failure Handling): v1.7, status: draft, lifecycle_status: active
+#     AllTargetsFailed Per-Target Logging postcondition added; dual-channel surfacing note
+#     (WARN + sensor_errors wire field) added in v1.7.
 #   BC-2.01.013 (DataSource Trait Eliminates Per-Sensor Code Duplication): v1.19, status: active
 #     EC-01-029: AuthRefreshFailed / CookieAuthFailed persistent-auth-failure variants
 #     must map to SensorError::HttpError { status: 401 } end-to-end (fix-burst pass-1).
@@ -79,9 +88,19 @@ behavioral_contracts:
 #     HttpLookup-type infusion spec load (RUNTIME PHASE); eliminates the E-INFUSE-009 stopgap.
 #     Effectively unreachable under ADR-050 rustls-tls mandate (SID-1 unit test as
 #     compensating control). Verified by RG-013 (AC-ERR-006). F-2 completion.
+#   BC-2.11.001 (Query MCP Tool): v1.23, status: active
+#     NEW anchor added v1.27. §Postconditions: `query` tool `sensor_errors` wire surfaces
+#     per failing target `"<table>: HTTP <status>: <sanitized-body-snippet>"` (256-byte cap
+#     via sanitize_body_snippet_bytes; empty body → status-only `"<table>: HTTP <status>"`);
+#     `sensor_errors` ABSENT on success (not null, not []); non-empty array of non-empty
+#     strings when present; injection-safe; aggregate AllTargetsFailed Display remains
+#     count-only. EC-11-088 (403 + body), EC-11-089 (503 empty body → status-only),
+#     EC-11-090 (400-byte body → 256-byte truncation). MUSTs anchored to AC-QERR-001 +
+#     RG-016 (this story).
 # S-7.01: behavioral_contracts non-empty, all canonical IDs; status: ready is valid.
-# Every BC cited by at least one AC below; every AC cites a BC. Bidirectional traces
-# verified per bc_array_changes_propagate_to_body_and_acs policy.
+# Every BC cited by at least one AC below (BC-2.11.001 cited by AC-QERR-001);
+# every AC cites a BC. Bidirectional traces verified per
+# bc_array_changes_propagate_to_body_and_acs policy.
 verification_properties: []
 depends_on: []
 blocks: []
@@ -94,8 +113,8 @@ points: 5
 #   pipeline.rs non-2xx body-capture × 2 symmetric sites (first request + 401-retry): 1.0 pt
 #   spec_driven_adapter.rs map_spec_engine_error_to_sensor_error guard: 0.5 pt
 #   fanout.rs AllTargetsFailed per-target WARN loop: 0.4 pt
-#   15 Red Gate tests (RG-001..RG-015) + live verification support: 1.5 pt
-#   Total: ~5.3 points
+#   16 Red Gate tests (RG-001..RG-016) + live verification support: 1.6 pt
+#   Total: ~5.4 points
 estimated_days: 1.5
 risk: HIGH
 # Risk justification:
@@ -134,7 +153,7 @@ risk_mitigations:
 
 ## Authority
 
-This story is governed by ADR-050 v2.3 and the five behavioral contracts below.
+This story is governed by ADR-050 v2.3 and the seven behavioral contracts below.
 Read ADR-050 §D5 and §D6 in full before implementing:
 `.factory/specs/architecture/decisions/ADR-050-workspace-reqwest-tls-backend.md`
 
@@ -143,7 +162,8 @@ Read ADR-050 §D5 and §D6 in full before implementing:
 | ADR-050 (Workspace reqwest TLS Backend) | v2.3 · ACCEPTED | §D5: `http2` feature MUST be in production `[dependencies]` reqwest entries for prism-spec-engine, prism-sensors, prism-bin. §D6 (v2.1 extended scope): ALL outbound third-party HTTP client builders MUST call `.user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))` — includes sensor/plugin outbound builders AND `build_http_client_with_timeout` in prism-spec-engine/src/pipeline.rs (infusion `HttpLookupSource` factory; added v2.1 via sibling-sweep OBS-4). §D1/§D2: rustls-tls mandatory; native-tls and aliases FORBIDDEN. |
 | BC-2.16.002 (Multi-Step Fetch Pipeline Execution) | v2.20 · active | §Postconditions: HTTP Client Compliance; Send-Failure Error Source Chain; Non-2xx Response Body Capture; AllTargetsFailed Per-Target Logging. §Canonical Structured Event Catalog row 91: `fan_out_target_failed` WARN. |
 | BC-2.08.002 (Auth Validity Check Per Sensor Per Client) | v1.7 · active | §Postconditions: HTTP Error Classification postcondition — `map_spec_engine_error_to_sensor_error` MUST map `SpecEngineError::HttpRequestFailed { status_code > 0 }` (including `AuthRefreshFailed` and `CookieAuthFailed` 401 variants) to `SensorError::HttpError`. EC-08-006: HTTP 4xx sensor response → `auth_valid: false` (not Down). 5xx HTTP response → `SensorError::HttpError { status >= 500 }` → `ConnectivityStatus::Degraded` (not Down) in `connectivity.rs`; verified by RG-014 (AC-ERR-007). |
-| BC-2.01.010 (Partial Failure Handling) | v1.6 · draft | §Postconditions: AllTargetsFailed Per-Target Logging — each `FanOutError` MUST be logged at WARN before `AllTargetsFailed` propagates. |
+| BC-2.01.010 (Partial Failure Handling) | v1.7 · draft | §Postconditions: AllTargetsFailed Per-Target Logging — each `FanOutError` MUST be logged at WARN before `AllTargetsFailed` propagates. Dual-channel surfacing note (v1.7): per-target detail surfaces via WARN emission AND the `sensor_errors` wire field (BC-2.11.001 postcondition). |
+| BC-2.11.001 (Query MCP Tool) | v1.23 · active | §Postconditions: `query` tool `sensor_errors` wire surfaces per failing target `"<table>: HTTP <status>: <sanitized-body-snippet>"` (256-byte cap via `sanitize_body_snippet_bytes`; empty body → `"<table>: HTTP <status>"` status-only); `sensor_errors` ABSENT on success (not null, not []); non-empty array of non-empty strings when present; injection-safe; aggregate `AllTargetsFailed` Display remains count-only. EC-11-088 (403 + body), EC-11-089 (503 empty body → status-only), EC-11-090 (400-byte body → 256-byte truncation). MUSTs anchored to AC-QERR-001 + RG-016. |
 | BC-2.01.013 (DataSource Trait Eliminates Per-Sensor Code Duplication) | v1.19 · active | Scope — EC-01-029: `AuthRefreshFailed` and `CookieAuthFailed` persistent-auth-failure variants MUST map to `SensorError::HttpError { status: 401 }` end-to-end, producing `auth_valid: false` at the health probe surface. |
 | BC-2.16.014 (Declarative Auth Acquisition Token Lifecycle) | v1.22 · draft | INV-014-007 ADR-050 §D5/§D6 note: `DeclarativeHttpAuthProvider` inherits User-Agent and http2 automatically via `build_http_client_with_timeout` in `prism-spec-engine::pipeline` (independent sibling with its own `.user_agent()` call — not propagation from prism-bin). No separate implementation required for this BC in this story. |
 | BC-2.19.001 (Infusion Spec Loading) | v2.4 · active | §Error Conditions E-INFUSE-015: `InfusionError::HttpClientBuildFailed { detail }` is the correct error variant for `build_http_client_with_timeout` failure during `HttpLookup`-type infusion spec RUNTIME PHASE; eliminates the E-INFUSE-009 stopgap. Scope: F-2 completion in this story. Verified by RG-013. |
@@ -169,7 +189,8 @@ raw error logs or deploy a relay.
 |----|-------|---------|---------------------|
 | BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | v2.20 | HTTP Client Compliance postcondition (ADR-050 §D5/§D6); Send-Failure Error Source Chain postcondition; Non-2xx Response Body Capture postcondition; AllTargetsFailed Per-Target Logging postcondition; Canonical Structured Event Catalog row 91 (`fan_out_target_failed`). |
 | BC-2.08.002 | Auth Validity Check Per Sensor Per Client | v1.7 | HTTP Error Classification postcondition: `map_spec_engine_error_to_sensor_error` guard — `status_code > 0` → `SensorError::HttpError`; `status_code = 0` → `SensorError::Internal`. EC-08-006: HTTP 4xx → `auth_valid: false` (not Down). `AuthRefreshFailed` and `CookieAuthFailed` 401 variants included in scope (fix-burst pass-1). 5xx → `ConnectivityStatus::Degraded` (not Down) via `SensorError::HttpError { status >= 500 }` arm in `connectivity.rs`; verified by RG-014 (AC-ERR-007). |
-| BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | v1.6 | AllTargetsFailed Per-Target Logging postcondition — each `FanOutError` WARN before propagation. |
+| BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | v1.7 | AllTargetsFailed Per-Target Logging postcondition — each `FanOutError` WARN before propagation. Dual-channel surfacing note (v1.7): per-target detail surfaces via WARN emission AND the `sensor_errors` wire field. |
+| BC-2.11.001 | Query MCP Tool | v1.23 | §Postconditions: `query` tool `sensor_errors` wire surfaces per failing target `"<table>: HTTP <status>: <sanitized-body-snippet>"` (256-byte cap; empty body → status-only; `sensor_errors` ABSENT on success, not null/[]); injection-safe; aggregate `AllTargetsFailed` Display remains count-only. EC-11-088 (403 + body), EC-11-089 (503 empty body → status-only), EC-11-090 (400-byte body → 256-byte truncation). Verified by AC-QERR-001 + RG-016. |
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.19 | Scope (EC-01-029): `AuthRefreshFailed` / `CookieAuthFailed` persistent-auth-failure variants MUST map to `SensorError::HttpError { status: 401 }` end-to-end. Verified by RG-010 and RG-011 (fix-burst pass-1). |
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | v1.22 | INV-014-007 note only: `DeclarativeHttpAuthProvider` inherits UA + http2 via `build_http_client_with_timeout` in `prism-spec-engine::pipeline` (ADR-050 §D6 propagation — independent sibling with its own `.user_agent()` call). No new code required for this BC beyond the `build_http_client_with_timeout` change in `prism-spec-engine::pipeline`. |
 | BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | v2.4 | §Error Conditions E-INFUSE-015 row: `build_http_client_with_timeout` failure during `HttpLookup`-type infusion spec load (1 site each: `load_spec`, `load_spec_with_runtime`, `hot_reload`) returns `InfusionError::HttpClientBuildFailed { detail }`; eliminates E-INFUSE-009 stopgap. Effectively unreachable under ADR-050 `rustls-tls` mandate; testable via direct variant construction (SID-1 compensating control). When triggered during `hot_reload`, previous registry is retained per BC-2.19.004 atomicity contract. Scope: F-2 completion. |
@@ -321,6 +342,29 @@ The implementation commit that adds the `tracing::warn!(event_type = "fan_out_ta
 (traces to BC-2.16.002 Canonical Structured Event Catalog (v1.63) row 91: `fan_out_target_failed`
 SAP-1 obligation; PG-LP11-001 requires catalog presence in same commit as emission site)
 
+### Group F — Query Tool Error Surfacing (BC-2.11.001)
+
+**AC-QERR-001 — `query` tool `sensor_errors` wire surfaces per-target sanitized HTTP error detail**
+When the `query` tool encounters non-2xx sensor HTTP failures for one or more targets, the
+serialized MCP response includes `sensor_errors` as a non-empty array of non-empty strings,
+where each entry has the form `"<table>: HTTP <status>: <sanitized-body-snippet>"` (256-byte
+cap via `sanitize_body_snippet_bytes`) or `"<table>: HTTP <status>"` when the body is empty.
+On success (all targets return 2xx), `sensor_errors` is ABSENT from the serialized JSON
+response — not `null`, not `[]`. The `AllTargetsFailed` Display remains count-only and is NOT
+repeated verbatim in `sensor_errors` entries. Wire assertions are made on the FULL serialized
+JSON output per CLAUDE.md wire-shape assertion discipline (Red Gate: RG-016).
+**EC coverage:** EC-11-088: 403 response with a non-empty body → entry is
+`"<table>: HTTP 403: <sanitized-body>"`. EC-11-089: 503 response with empty body → entry is
+`"<table>: HTTP 503"` (status-only). EC-11-090: body exceeding 256 bytes → entry truncated
+to 256-byte sanitized snippet. **Absence invariant:** a success response MUST NOT contain
+a `sensor_errors` key at all — NULL vs absent is meaningful at the wire level per
+CLAUDE.md wire-shape assertion discipline.
+(traces to BC-2.11.001 postcondition — per-target HTTP error detail in `sensor_errors` wire;
+EC-11-088/089/090 per BC-2.11.001 v1.23; also traces to BC-2.01.010 v1.7 dual-channel
+surfacing note: WARN emission and `sensor_errors` wire field both surface per-target detail)
+
+---
+
 ### Group E — Live Verification (BLOCKING — NO WAIVER)
 
 **AC-LIVE-001 (NO WAIVER) — Direct `api.claroty.com` returns ≥1 OCSF row with relay removed**
@@ -374,12 +418,13 @@ required; its presence as a load-bearing tool is retracted)
 | RG-013 | `test_infusion_http_client_build_failure_maps_to_e_infuse_015` | AC-ERR-006 | `crates/prism-spec-engine/tests/infusion_tests.rs` |
 | RG-014 | `test_map_error_503_maps_to_http_error_503` (map-level); `test_probe_connectivity_503_returns_degraded` (end-to-end) | AC-ERR-007 | Map-level: `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests`; end-to-end: `crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs` |
 | RG-015 | `test_BC_2_01_013_EC_01_029_cookie_roundtrip_401_auth_invalid_wire_shape` | AC-ERR-001 (CookieRoundtrip persistent-auth end-to-end wire shape per BC-2.01.013 EC-01-029) | `crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs` (integration test, in-process) |
+| RG-016 | `test_BC_2_11_001_query_sensor_errors_surfaces_per_target_http_detail` | AC-QERR-001 | `crates/prism-mcp/tests/query_tool_sensor_errors_test.rs` (integration test; wire-level serialized JSON assertions) |
 
 ## BC-5.38.001 Density Check
 
-**Red Gate test count:** 15 (RG-001..RG-015)
-**Acceptance criteria count:** 16 (AC-H2-001, AC-UA-001, AC-UA-002, AC-CARGO-001, AC-ERR-001..007, AC-WIRE-001, AC-SAP1-001, AC-LIVE-001..003)
-**Density:** 15 / 16 = 0.9375 — PASSES (≥0.5 required by BC-5.38.001)
+**Red Gate test count:** 16 (RG-001..RG-016)
+**Acceptance criteria count:** 17 (AC-H2-001, AC-UA-001, AC-UA-002, AC-CARGO-001, AC-ERR-001..007, AC-WIRE-001, AC-SAP1-001, AC-QERR-001, AC-LIVE-001..003)
+**Density:** 16 / 17 = 0.9412 — PASSES (≥0.5 required by BC-5.38.001)
 
 Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check` build gate, not by standalone failing tests. AC-SAP1-001 is verified by adversary cross-check against BC-2.16.002 v2.20 catalog (catalog row already present; no additional failing test needed). AC-LIVE-001..003 are live-verification ACs verified by demo-recorder against the production binary; they do not correspond to Red Gate tests in the unit/integration sense.
 
@@ -393,7 +438,7 @@ Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check
 
 **Test-writer addition (RG-015):** RG-015 (`test_BC_2_01_013_EC_01_029_cookie_roundtrip_401_auth_invalid_wire_shape` in `crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs`) closes the SAP-3 coverage gap that RG-011 covered `CookieAuthFailed` only at the map layer (`map_spec_engine_error_to_sensor_error` Arm 2) while the only end-to-end 401 wire test (RG-007) used OAuth2/403. RG-015 is a genuine end-to-end wire test: `CookieRoundtrip` sensor 401 → `CookieAuthFailed` → `map_spec_engine_error_to_sensor_error` Arm 2 → `SensorError::HttpError { status: 401 }` → `check_one` → serialized `"reachable":true` / `"auth_valid":false` at the MCP wire level. Registered as a Red Gate against AC-ERR-001 (CookieRoundtrip persistent-auth variant, end-to-end wire); traces to BC-2.01.013 EC-01-029 (CookieRoundtrip arm).
 
-**Ordering rule (SAC-1 rule 3):** All Red Gate test authoring tasks (Phase 1 below) MUST be dispatched and completed BEFORE implementation tasks (Phase 2). The test-writer agent works from this story's RG-001..RG-015 list and the BC texts; the implementer receives the failing test suite before touching production code.
+**Ordering rule (SAC-1 rule 3):** All Red Gate test authoring tasks (Phase 1 below) MUST be dispatched and completed BEFORE implementation tasks (Phase 2). The test-writer agent works from this story's RG-001..RG-016 list and the BC texts; the implementer receives the failing test suite before touching production code.
 
 ---
 
@@ -416,6 +461,7 @@ Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check
 - [ ] **RG-013** `test_infusion_http_client_build_failure_maps_to_e_infuse_015`: in `crates/prism-spec-engine/tests/infusion_tests.rs`; construct the variant via `InfusionError::new_http_client_build_failed("forced test failure for TLS init")` per `#[non_exhaustive]` discipline (struct-literal construction from outside the `prism-core` module is rejected by the compiler; the constructor is the only external construction path) and SID-1 compensating-control pattern (path is effectively unreachable under ADR-050 rustls-tls mandate); assert (1) `display.starts_with("E-INFUSE-015:")`, (2) display contains the `detail` string. The E-INFUSE-009→E-INFUSE-015 stopgap retirement is verified by INSPECTION of the three `.map_err(|e| InfusionError::new_http_client_build_failed(e))` sites in `crates/prism-spec-engine/src/infusion/mod.rs` (`load_spec`, `load_spec_with_runtime`, `hot_reload`) — not by a runtime assertion — because the build-failure path is unreachable under the ADR-050 rustls-tls mandate (SID-1 compensating control). Must be RED before `InfusionError::HttpClientBuildFailed` variant is introduced. Traces to AC-ERR-006; BC-2.19.001 §Error Conditions E-INFUSE-015 row; error-taxonomy E-INFUSE-015.
 - [ ] **RG-014** `test_map_error_503_maps_to_http_error_503` (map-level) + `test_probe_connectivity_503_returns_degraded` (end-to-end): Map-level — in `spec_driven_adapter.rs` inline tests; call `map_spec_engine_error_to_sensor_error(SpecEngineError::HttpRequestFailed { status_code: 503, detail: "HTTP 503".to_string(), .. }, "claroty", "devices")`; assert returns `SensorError::HttpError { sensor: "claroty", status: 503, body: "HTTP 503" }`. End-to-end — in-process integration test (`crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs`); drive wiremock-503 through `SpecDrivenSensorAdapter::probe_connectivity`; assert `ProbeOutcome { status: ConnectivityStatus::Degraded, http_status: Some(503), .. }` (NO `auth_valid` field on `ProbeOutcome`). Both MUST be RED before Phase 2. Traces to AC-ERR-007; BC-2.08.002 v1.7 HTTP Error Classification postcondition (5xx → `ConnectivityStatus::Degraded`, not Down).
 - [ ] **RG-015** `test_BC_2_01_013_EC_01_029_cookie_roundtrip_401_auth_invalid_wire_shape`: in-process integration test (`crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs`); construct a `CookieRoundtrip`-type sensor adapter stub that returns HTTP 401 on its fetch; drive the end-to-end path through `map_spec_engine_error_to_sensor_error` Arm 2 (`CookieAuthFailed` → `SensorError::HttpError { status: 401 }`) → `check_one` → serialize via the MCP wire path; assert the serialized JSON byte string contains `"reachable":true` AND `"auth_valid":false`. Closes the SAP-3 coverage gap: RG-011 verified `CookieAuthFailed` at the map layer only; RG-007 verified the wire shape only for OAuth2/403; RG-015 unifies both for the `CookieRoundtrip` 401 arm end-to-end. Must be RED before Phase 2. Traces to AC-ERR-001 (CookieRoundtrip persistent-auth end-to-end wire variant per BC-2.01.013 EC-01-029).
+- [ ] **RG-016** `test_BC_2_11_001_query_sensor_errors_surfaces_per_target_http_detail`: integration test in `crates/prism-mcp/tests/query_tool_sensor_errors_test.rs`; drive the `query` tool against a mock sensor that returns HTTP 403 with a non-empty body; assert (1) the serialized MCP JSON response `sensor_errors` array contains an entry matching `"<table>: HTTP 403: <sanitized-body>"` per BC-2.11.001 EC-11-088; (2) a companion 503-empty-body scenario yields `"<table>: HTTP 503"` status-only entry per EC-11-089; (3) a success scenario produces a serialized JSON response with NO `sensor_errors` key at all (absent, not null, not `[]`) per the absence invariant. **Wire-assertion discipline (SID-2):** all assertions operate on the FULL serialized JSON byte output, not on pre-serialization structs. Implementer note: the exact test file location may be `crates/prism-mcp/tests/query_tool_sensor_errors_test.rs` or an inline `#[cfg(test)] mod tests` in the query tool handler — verify against the actual prism-mcp test organization. Must be RED before Phase 2. Traces to AC-QERR-001; BC-2.11.001 sensor_errors postcondition + EC-11-088/089/090.
 
 ### Phase 2: Implementation (implementer — AFTER Phase 1 RED gate confirmed)
 
@@ -538,8 +584,9 @@ Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check
 | This story file | ~6,000 | |
 | BC-2.16.002 v2.20 (HTTP Client Compliance + AllTargetsFailed postconditions + catalog row 91) | ~30,000 | Large BC; catalog scope is wide |
 | BC-2.08.002 v1.7 (HTTP Error Classification postcondition + AuthRefreshFailed/CookieAuthFailed scope + 5xx classification correction) | ~6,500 | Targeted amendment + persistent-auth variants |
-| BC-2.01.010 v1.6 (AllTargetsFailed Per-Target Logging postcondition) | ~5,000 | |
+| BC-2.01.010 v1.7 (AllTargetsFailed Per-Target Logging postcondition + dual-channel note) | ~5,000 | |
 | BC-2.01.013 v1.19 (DataSource Trait Eliminates Per-Sensor Code Duplication — scope: EC-01-029) | ~4,000 | Targeted EC row; fix-burst pass-1 alignment |
+| BC-2.11.001 v1.23 (`query` tool `sensor_errors` postcondition + EC-11-088/089/090) | ~8,000 | New anchor (v1.27); per-target HTTP error detail contract |
 | BC-2.16.014 v1.22 (INV-014-007 ADR-050 §D5/§D6 note) | ~18,000 | Large BC; only INV note relevant |
 | BC-2.19.001 v2.4 (§Error Conditions E-INFUSE-015 row — targeted scope) | ~3,000 | Only E-INFUSE-015 row and adjacent context needed; full BC is large |
 | ADR-050 v2.3 (§D5/§D6 new decisions + rationale; §D6 scope extended in v2.1; §D5 production-entry count corrected to 3 in v2.2) | ~10,000 | Reference for Cargo.toml + UA changes |
@@ -553,7 +600,7 @@ Note: AC-UA-002 and AC-CARGO-001 are verified by adversary sweep and `just check
 | `prism-core/src/error.rs` (sanitize functions + InfusionError variant + constructor) | ~4,000 | sanitize_body_snippet_bytes / sanitize_body_snippet + InfusionError::HttpClientBuildFailed (`#[non_exhaustive]` + `new_http_client_build_failed` constructor) |
 | `prism-core/src/lib.rs` (re-export) | ~1,000 | sanitize_body_snippet + sanitize_body_snippet_bytes pub use re-exports |
 | `prism-mcp/src/health/connectivity.rs` (sanitize_error delegation) | ~3,500 | char-based ≤512-cap delegation to prism_core::sanitize_body_snippet |
-| **Total estimated** | **~152,000** | Updated for prism-core and prism-mcp additions; well within one context window |
+| **Total estimated** | **~160,000** | Updated for BC-2.11.001 anchor addition (v1.27) + prism-core and prism-mcp additions; well within one context window |
 
 ---
 
@@ -634,6 +681,8 @@ None. All changes are additions to existing production modules and inline test b
 | `crates/prism-core/src/error.rs` | Add `InfusionError::HttpClientBuildFailed { detail: String }` variant with `#[error("E-INFUSE-015: infusion HTTP client build failed (TLS init): {detail}")]`, `#[non_exhaustive]` annotation per CLAUDE.md `#[non_exhaustive]` discipline, and `pub fn new_http_client_build_failed(detail: impl Into<String>) -> Self` constructor on `impl InfusionError` (mirrors `TypeCoercionFailed`/`new_type_coercion_failed` sibling pattern; the 3 infusion construction sites in `infusion/mod.rs` and RG-013 use the constructor) (F-2 E-INFUSE-015 completion); add `sanitize_body_snippet_bytes` (byte-based, ≤256-byte cap, `floor_char_boundary` truncation, control-char strip) and `sanitize_body_snippet` (char-based, ≤512-char cap) utility functions called by pipeline.rs non-2xx body-capture (T-E01) |
 | `crates/prism-core/src/lib.rs` | Add `pub use error::{sanitize_body_snippet, sanitize_body_snippet_bytes}` re-exports (single `pub use` block) so callers reach `prism_core::sanitize_body_snippet` (connectivity.rs char-based path) and `prism_core::sanitize_body_snippet_bytes` (pipeline.rs byte-based path) without reaching into the `error` submodule directly |
 | `crates/prism-mcp/src/health/connectivity.rs` | Update `sanitize_error` function to delegate to `prism_core::sanitize_body_snippet` (char-based ≤512-char cap at this call site, vs pipeline.rs byte-based ≤256-byte cap via `sanitize_body_snippet_bytes`); add doc comment referencing this story |
+| `crates/prism-mcp/src/tools/query.rs` (or equivalent `query` tool handler) | Add `sensor_errors` field assembly in the `query` tool response builder — per-target non-2xx entries in format `"<table>: HTTP <status>: <body>"` (256-byte cap via `sanitize_body_snippet_bytes`; empty body → status-only) per BC-2.11.001 postcondition; `sensor_errors` ABSENT on success (AC-QERR-001). Implementer: verify the exact source file against prism-mcp tool handler structure. |
+| `crates/prism-mcp/tests/query_tool_sensor_errors_test.rs` | Add RG-016 (`test_BC_2_11_001_query_sensor_errors_surfaces_per_target_http_detail`) wire-level serialized JSON integration test (EC-11-088 non-empty body, EC-11-089 empty body, absent-on-success invariant) |
 | `crates/prism-spec-engine/src/infusion/mod.rs` | Rewire 3 `build_http_client_with_timeout()` call sites: `load_spec` (1 site), `load_spec_with_runtime` (1 site), and `hot_reload` (1 site): `.map_err(\|e\| InfusionError::new_http_client_build_failed(e))` (uses `new_http_client_build_failed` constructor per `#[non_exhaustive]` discipline; struct-literal construction from outside `prism-core` is rejected) replacing E-INFUSE-009 stopgap; error-taxonomy v2.74 |
 | `crates/prism-spec-engine/tests/infusion_tests.rs` | Add RG-013 (`test_infusion_http_client_build_failure_maps_to_e_infuse_015`) — direct variant construction + Display prefix + detail interpolation assertions (SID-1 pattern); stopgap retirement confirmed by inspection of `infusion/mod.rs` mapping sites |
 | `test-soc/live-soc/relay/xdome-relay.py` | Add deprecation comment (T-LV03, post-live-verification) |
@@ -644,7 +693,8 @@ None. All changes are additions to existing production modules and inline test b
 |------|--------|
 | `.factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md` | Frozen at v2.20. Transport postconditions and catalog row 91 already authored by product-owner. |
 | `.factory/specs/behavioral-contracts/BC-2.08.002-auth-validity-check.md` | Frozen at v1.7. HTTP Error Classification postcondition (including AuthRefreshFailed/CookieAuthFailed scope and 5xx classification correction) already authored. |
-| `.factory/specs/behavioral-contracts/BC-2.01.010-partial-failure-handling.md` | Frozen at v1.6. AllTargetsFailed Per-Target Logging postcondition already authored. |
+| `.factory/specs/behavioral-contracts/BC-2.01.010-partial-failure-handling.md` | Frozen at v1.7. AllTargetsFailed Per-Target Logging postcondition + dual-channel surfacing note already authored. |
+| `.factory/specs/behavioral-contracts/BC-2.11.001-query-mcp-tool.md` (verify filename) | Frozen at v1.23. `sensor_errors` per-target HTTP detail postcondition and EC-11-088/089/090 already authored by product-owner. |
 | `.factory/specs/behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md` | Frozen at v1.19. EC-01-029 persistent-auth-failure alignment already authored by product-owner. |
 | `.factory/specs/behavioral-contracts/BC-2.16.014-declarative-auth-acquisition-token-lifecycle.md` | Frozen at v1.22. INV-014-007 note already added by product-owner. |
 | `.factory/specs/behavioral-contracts/BC-2.19.001-infusion-spec-loading.md` | Frozen at v2.4. E-INFUSE-015 §Error Conditions row already authored by product-owner. |
@@ -793,6 +843,7 @@ block). See the AC-H2-001 observability note.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.27 | 2026-08-14 | story-writer | BC-2.11.001 anchor propagation + BC-2.01.010 v1.6→v1.7 pin update (bc_array_changes_propagate_to_body_and_acs, D-2151 human-approved). BC-2.11.001 (query MCP tool `sensor_errors` postcondition, v1.23) added to `behavioral_contracts` frontmatter, `# BC status` comment, §Authority table, §Behavioral Contracts table. AC-QERR-001 added (Group F): `query` tool `sensor_errors` wire surfaces per-target sanitized HTTP error detail (256-byte cap via `sanitize_body_snippet_bytes`; empty body → status-only; `sensor_errors` absent on success); covers EC-11-088/089/090; traces to BC-2.11.001 postcondition + BC-2.01.010 v1.7 dual-channel note. RG-016 (`test_BC_2_11_001_query_sensor_errors_surfaces_per_target_http_detail`) registered in Red Gate table, Phase 1 task list, and §Files-to-Modify. BC-5.38.001 density recomputed: 15/16 = 0.9375 → 16/17 = 0.9412. SAC-1 ordering rule updated RG-001..RG-015 → RG-001..RG-016. BC-2.01.010 pin v1.6 → v1.7 propagated to: `# BC status` comment (dual-channel note added), §Authority table (dual-channel note added), §Behavioral Contracts table (dual-channel note added), §Token Budget table. BC-2.11.001 added to §Token Budget (~8,000 tokens); total ~152,000 → ~160,000. Points comment: 15 RGs (1.5 pt) → 16 RGs (1.6 pt); total ~5.3 → ~5.4. `crates_touched` expanded to include `prism-query` (anticipated; implementer confirms against ARCH-INDEX before Phase 2); note added to subsystem anchor justifications. §Files-to-Modify: query tool handler row + RG-016 test file row added. §Files-NOT-to-Modify: BC-2.11.001 freeze row added; BC-2.01.010 freeze pin updated v1.6→v1.7. TD-VSDD-097 3d sweep: **sibling-pair** (BC-2.11.001 added to all 4 pin sites: frontmatter `# BC status`, §Authority, §Behavioral Contracts, §Token Budget; BC-2.01.010 v1.7 propagated to all 3 pin sites: `# BC status`, §Authority, §Behavioral Contracts; AC-QERR-001 assertions use `sensor_errors` array — real field, no phantom fields per wire-shape discipline; RG-range/count: frontmatter points comment UPDATED, §Red Gate table EXTENDED, §BC-5.38.001 density UPDATED, §ordering rule UPDATED, §Phase 1 tasks EXTENDED, §Files-to-Modify UPDATED) — DONE; **downstream-copy** (STORY-INDEX carries BC pins and RG-count — state-manager must update at next burst; no STORY-INDEX edits made here per task instruction) — DEFERRED-TO-STATE-MANAGER; **mandate-anchor** (RG-016 ↔ AC-QERR-001 ↔ BC-2.11.001 bidirectional: RG-016 table row cites AC-QERR-001; AC-QERR-001 body traces to BC-2.11.001 postcondition + EC-11-088/089/090; BC-2.11.001 appears in `behavioral_contracts` frontmatter and §Behavioral Contracts table; MUSTs in BC-2.11.001 v1.23 anchored to AC-QERR-001 + RG-016 per task description) — CONFIRMED. |
 | 1.26 | 2026-08-14 | story-writer | F-P33-LOW-001 spec correction. AC-UA-001 and RG-006 task timeout value corrected: `Duration::from_millis(1)` → `Duration::from_secs(5)`. The request-issuing + UA-header-assertion test requires a viable timeout; `from_millis(1)` is reserved by the `build_http_client_with_custom_timeout` doc-comment for construction-only tests that never issue an HTTP request — using it for a wiremock round-trip races and aborts before the server records the request. Corrected to match the delivered test `test_build_http_client_sends_user_agent_header` (`Duration::from_secs(5)`). TD-VSDD-097 3d sweep: **sibling-pair** (grep of all `Duration::` / `from_millis` / `from_secs` refs in story — 2 sites found: AC-UA-001 body and RG-006 Phase-1 task; both were `from_millis(1)` + request-issuing; both corrected to `from_secs(5)`; no genuine construction-only test present that should retain `from_millis(1)`) — DONE; **downstream-copy** (STORY-INDEX carries no Duration/timeout values — CLEAR) — CLEAR; **mandate-anchor** (no new MUST introduced) — N/A. No behavioral contracts, AC semantics, or RG assignments changed. **Story↔code coherence amendment (F-P33-OBS-001):** implementer sealed `InfusionError::HttpClientBuildFailed` with `#[non_exhaustive]` and added `pub fn new_http_client_build_failed(detail: impl Into<String>) -> Self` constructor on `impl InfusionError` (mirrors `TypeCoercionFailed`/`new_type_coercion_failed` sibling pattern). Six story locations updated to reflect this: (1) §Files-to-Modify `error.rs` row — added `#[non_exhaustive]` annotation and constructor description; (2) §Token Budget `error.rs` row — added constructor to notes; (3) §Architecture Compliance rule 10 — corrected to accurately state that `EXPECTED_SYMBOLS`/`EXPECTED_COUNT` does NOT change (adding `#[non_exhaustive]` to the `HttpClientBuildFailed` VARIANT of the already-registered `InfusionError` enum does not add a new `EXPECTED_SYMBOLS` entry; consistent with sibling `TypeCoercionFailed` variant precedent — only the enum `InfusionError` is registered, not individual variants); added constructor and compiler-rejection notes; (4) §Files-to-Modify `infusion/mod.rs` row — construction form `.map_err(\|e\| InfusionError::HttpClientBuildFailed { detail: e })` updated to `.map_err(\|e\| InfusionError::new_http_client_build_failed(e))`; (5) Phase-1 RG-013 task — construction form updated to `InfusionError::new_http_client_build_failed("forced test failure for TLS init")` and inspection note updated to match constructor call at the three `infusion/mod.rs` sites. TD-VSDD-097 3d sweep: **sibling-pair** (all `HttpClientBuildFailed` construction-site occurrences swept — `infusion/mod.rs` §Files-to-Modify row FIXED; RG-013 Phase-1 task construction site FIXED; RG-013 inspection note FIXED; shape-descriptor occurrences in §Behavioral Contracts, §BC status, AC-ERR-006 body, and BC-5.38.001 prose confirmed NOT construction sites — CLEAN) — DONE; **downstream-copy** (STORY-INDEX carries no construction-form code snippets for `HttpClientBuildFailed` — CLEAR) — CLEAR; **mandate-anchor** (no new MUST introduced) — N/A. |
 | 1.25 | 2026-08-14 | story-writer | F-P31-MED-001 spec correction + RG-015 enumeration (human-approved 2026-08-14). (1) **AC-LIVE-002 corrected to semantic wire contract**: title and body assertion updated to match the ratified `SensorHealthResult` wire type — asserts `"reachable": true`, `"auth_valid": false`, and a non-empty `suggestion` string; drops the non-existent `detail` field and `"HTTP 401"` assertion. Rationale note added: raw HTTP status is intentionally NOT surfaced on the health wire (BC-2.08.002 EC-08-006 semantic contract; injection-safe design). (2) **T-LV02 sibling fix**: live-verification task assertion corrected to match — `"reachable"` / `"auth_valid"` / `"suggestion"` semantic contract; drops `"401" in detail`. (3) **RG-015 enumerated**: `test_BC_2_01_013_EC_01_029_cookie_roundtrip_401_auth_invalid_wire_shape` (in `crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs`) registered in Red Gate table, §BC-5.38.001 density paragraph, Phase 1 task list, and §Files-to-Modify. Closes SAP-3 gap: RG-011 covered `CookieAuthFailed` map-layer only; RG-007 covered wire shape for OAuth2/403 only; RG-015 unifies both for the `CookieRoundtrip` 401 arm end-to-end. Traces to AC-ERR-001 (CookieRoundtrip persistent-auth end-to-end wire variant); BC-2.01.013 EC-01-029. (4) **Density recomputed**: 14/16 = 0.875 → 15/16 = 0.9375. (5) **All live RG-range/count references updated**: frontmatter points comment (RG-001..RG-014 → RG-001..RG-015; 1.4 pt → 1.5 pt; total ~5.2 → ~5.3); §BC-5.38.001 density header (14 → 15); §BC-5.38.001 ordering rule (RG-001..RG-014 → RG-001..RG-015); §Files-to-Modify `defect_adapter_tls_xdome_live_001.rs` row. Historical §Version History rows left untouched. TD-VSDD-097 3d sweep: **sibling-pair** ((a) over-specification sweep: AC-LIVE-002 title FIXED, AC-LIVE-002 body FIXED, T-LV02 FIXED; AC-WIRE-001 CLEAN — asserts `"reachable":true` and `"auth_valid":false`, no `detail`/`http_status`; (b) RG-range/count sweep: frontmatter points comment UPDATED, §BC-5.38.001 density header UPDATED, §BC-5.38.001 ordering rule UPDATED, §Files-to-Modify UPDATED; historical rows UNTOUCHED) — DONE; **downstream-copy** (STORY-INDEX carries RG-count and density — state-manager must update at next burst; no STORY-INDEX edits made here per task instruction) — DEFERRED-TO-STATE-MANAGER; **mandate-anchor** (RG-015 ↔ AC-ERR-001 ↔ BC-2.01.013 EC-01-029 bidirectional: RG-015 table row cites AC-ERR-001; AC-ERR-001 body traces to BC-2.01.013 EC-01-029 via RG-010/RG-011 scope extension; BC-2.01.013 EC-01-029 cited in §Behavioral Contracts table; no new MUST introduced) — CONFIRMED. (6) **§UX Screen References parenthetical corrected** (`SensorHealthResult` blast-radius completion): `detail` in the health-tool output field list corrected to `suggestion` — `detail` does not exist on `SensorHealthResult` (real diagnostic fields: `reachable`, `auth_valid`, `suggestion`, `error`, `rate_limit`, `latency_ms`, `ids`; BC-2.08.002); `suggestion` is the auth-failure diagnostic signal surfaced by `SensorHealthChecker`. Blast-radius sweep: all remaining `detail` occurrences confirmed pipeline-layer (`SpecEngineError::HttpRequestFailed.detail`, `InfusionError::HttpClientBuildFailed { detail }`, `SensorError::Internal { detail }`, body-capture tasks/ACs) — CORRECT, UNTOUCHED. |
 | 1.24 | 2026-08-14 | story-writer | Records-hygiene sweep (TD-VSDD-096, TD-VSDD-091, F-P30-LOW-001 + F-P30-LOW-002). Two §Version History volatile-cite fixes. (1) F-P30-LOW-001: v1.18 row had quoted the three arm-5 L-cite values it removed from v1.15 — re-described the removal using symbol/anchor-only prose referencing AC-UA-001, T-B01, and the CORRECT-framing note; no quoted L-cites remain in the row. (2) F-P30-LOW-002: v1.22 row cited a feature-branch SHA as "Code HEAD" in backticks — replaced with SHA-free form "Code HEAD unchanged (spec-only fix)." per TD-VSDD-091. Also escaped two unescaped `\|e\|` pipes in the v1.22 row's Rust closure snippet (pre-existing table cell-count defect, same edit). `version:` v1.23 → v1.24; `# BC status` label updated to match. TD-VSDD-097 3d sweep: sibling-pair (comprehensive sweep of all §Version History rows for arm-5 L-cites and git-HEAD SHA cites — only the two declared violations found; all other hex strings confirmed as preserved input-hash content-hashes or merged-PR references) — DONE; downstream-copy (STORY-INDEX carries no copy of the volatile-cite strings — CLEAR) — CLEAR; mandate-anchor (no new MUST introduced) — N/A. No content/mechanism/algorithm/API-contract changes — records-tier prose only. |

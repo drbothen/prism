@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.701"
+version: "8.702"
 producer: state-manager
-timestamp: 2026-08-14T21:00:00Z
+timestamp: 2026-08-14T22:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -18,7 +18,8 @@ safe_to_compact: true
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "5d1a30ac7"
 # NOTE: D-2109 — develop advanced ef996a4c0→5d1a30ac7: PR #236 fix/claroty-live-api-fidelity SQUASH-MERGED; BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED (passes 8/9/10 on frozen 386df43c5); HS-014 PASS; worktrees CLAROTY-LIVE + FINDING-R removed. D-2102 NOTE archived.
-bc_index_version: "9.09"
+bc_index_version: "9.10"
+# NOTE: D-2152 — BC-INDEX v9.09→v9.10: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 spec-evolution for human-approved query-detail extension (D-2151) — BC-2.11.001 leading pin v1.22→v1.23 (per-target sanitized HTTP status+body on §query §sensor_errors wire; EC-11-088/089/090; AC-QERR-001 + RG-016 anchored); BC-2.01.010 leading pin v1.6→v1.7 (dual-channel surfacing note). Counts UNCHANGED: active_contracts 251 / draft_contracts 5 / total_contracts 269. D-2143 NOTE archived.
 # NOTE: D-2143 — BC-INDEX v9.08→v9.09: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-29 REMEDIATED (F-P29-MED-001 TD-VSDD-091) — BC-2.16.002 leading pin v2.19→v2.20 (v2.15 changelog row SHA de-referenced); BC-2.01.013 leading pin v1.18→v1.19 (EC-01-029 live row + v1.17 changelog row SHA de-referenced); error-taxonomy v2.76→v2.77 (3 SHA sites de-referenced + v2.76 false-CLEAN note). BC-5.39.001 streak RESET 2/3→0/3. Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2142 NOTE archived.
 # NOTE: D-2133 — BC-INDEX v9.07→v9.08: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-19 CLEAN(strict)=NO / CLEAN(PR-merge)=NO — BC-2.08.002 leading pin v1.6→v1.7 (F-P19-MED-001 [MED, POL-4/POL-22]: §Postconditions HTTP Error Classification 5xx outcome corrected ConnectivityStatus::Down→Degraded; self-contradiction resolved). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2126 NOTE archived.
 # NOTE: D-2125 — BC-INDEX v9.05→v9.06: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 pass-11 HUMAN-DIRECTED F-2 fix — BC-2.19.001 leading pin v2.2→v2.3 (E-INFUSE-015 InfusionError::HttpClientBuildFailed §Error Conditions row added; anchor DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-013/AC-ERR-006). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2124 NOTE archived.
@@ -37,7 +38,8 @@ bc_index_version: "9.09"
 # NOTE: D-2078 — BC-INDEX v8.89→v8.90: FB106 state-manager leg. BC-2.02.014 leading pin v1.9→v2.0 (ADR-057 §D5 INDEX→REQUIRED propagated; four BC body sites corrected; behaviorally inert Wave-A). S-WAVE-A-ARMIS-ACTIVITY-001 v1.9→v2.0 (nine story sites corrected; test rename contracted). Counts UNCHANGED: active_contracts 251/draft_contracts 5/total 269. D-2069 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1) per ARCH-INDEX FB74/FB76 sweep; ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.805"
+story_index_version: "2.806"
+# NOTE: D-2152 — STORY-INDEX v2.805→v2.806: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 story v1.26→v1.27 (BC-2.11.001 v1.23 added as 7th anchor; BC-2.01.010 v1.6→v1.7 pin; AC-QERR-001 + RG-016; density 16/17=0.9412; crates_touched += prism-query). Code HEAD 711a46911 UNCHANGED. BC-5.39.001 streak 0/3 (spec-only). total_stories 297 UNCHANGED. develop_head 5d1a30ac7 UNCHANGED. D-2151 NOTE archived.
 # NOTE: D-2151 — STORY-INDEX v2.805 UNCHANGED: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 holdout-gate reconciliation UNBLOCKED (HUMAN DECISION 2026-08-14). (a) HS-001 health semantic contract STANDS — §check_sensor_health returns auth_valid:false + suggestion; no code change; product-owner authors new holdout scenario at re-gate. (b) HS-002 query non-2xx wire CONFIRMED REAL GAP — per-target sanitized HTTP status + body snippet on §query §sensor_errors wire entries REQUIRED (REUSING §sanitize_body_snippet_bytes; §AllTargetsFailed Display count-only unchanged; BC-2.10.007 Rule 1 preserved). (c) HS-003 PASS unchanged. Fix sub-cycle: product-owner BC amendment (BC-2.01.010 / query tool BC) → story-writer AC-QERR-001 + RG-016 → test-writer Red → implementer Green → LOCAL 3-CLEAN → NEW holdout scenarios → re-gate → demo/push/PR. BC-5.39.001 LOCAL streak 0/3 UNCHANGED. Code HEAD 711a46911 UNCHANGED. BC-INDEX v9.09 / VP-INDEX v2.22 / error-taxonomy v2.77 UNCHANGED. total_stories 297 UNCHANGED. develop_head 5d1a30ac7 UNCHANGED. D-2150 NOTE archived.
 # NOTE: D-2150 — STORY-INDEX v2.805 UNCHANGED: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 STORY-LEVEL HOLDOUT GATE FAILED (HS-TLS-XDOME-001 FAIL + HS-TLS-XDOME-002 FAIL; HS-TLS-XDOME-003 PASS). Scenarios HS-TLS-XDOME-001/002/003 CONSUMED (single-use; must NOT be reused). BC-5.39.001 LOCAL streak RESET to 0/3 (D-2149 3-CLEAN CONVERGED SUPERSEDED). BLOCKED on HUMAN DECISION (HS-001 conflicts with D-2145; HS-002 raises new query-wire question). Code HEAD 711a46911 UNCHANGED. BC-INDEX v9.09 / VP-INDEX v2.22 / error-taxonomy v2.77 UNCHANGED. total_stories 297 UNCHANGED. develop_head 5d1a30ac7 UNCHANGED. D-2149 NOTE archived. [ARCHIVED by D-2151]
 # NOTE: D-2149 — STORY-INDEX v2.805 UNCHANGED: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary passes 35 AND 36 BOTH CLEAN(strict)=YES / CLEAN(PR-merge)=YES — ZERO findings each. BC-5.39.001 streak ADVANCES 1/3→2/3 (pass-35) and 2/3→3/3 (pass-36) = 3-CLEAN CONVERGED (passes 34/35/36 on frozen HEAD 711a46911f8414335ccc31a89309e42ff5372b2d). Code HEAD 711a46911 UNCHANGED. BC-INDEX v9.09 / VP-INDEX v2.22 / error-taxonomy v2.77 UNCHANGED. total_stories 297 UNCHANGED. develop_head 5d1a30ac7 UNCHANGED. D-2148 NOTE archived.
@@ -123,7 +125,7 @@ workspace_test_count: 5724
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2151 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 holdout-gate reconciliation UNBLOCKED (HUMAN DECISION 2026-08-14). (a) HS-001 health semantic contract STANDS — §check_sensor_health returns auth_valid:false + suggestion; no code change; product-owner authors new holdout scenario at re-gate. (b) HS-002 query non-2xx wire CONFIRMED REAL GAP — per-target sanitized HTTP status + body snippet on §query §sensor_errors wire entries REQUIRED (REUSING §sanitize_body_snippet_bytes; §AllTargetsFailed Display count-only unchanged; BC-2.10.007 Rule 1 preserved). (c) HS-003 PASS unchanged. Fix sub-cycle: product-owner BC amendment (BC-2.01.010 / query tool BC) → story-writer AC-QERR-001 + RG-016 → test-writer Red → implementer Green → LOCAL 3-CLEAN → NEW holdout scenarios → re-gate → demo/push/PR. BC-5.39.001 LOCAL streak 0/3 UNCHANGED. Code HEAD 711a46911 UNCHANGED. BC-INDEX v9.09 / STORY-INDEX v2.805 / VP-INDEX v2.22 / error-taxonomy v2.77 UNCHANGED. total_stories 297 UNCHANGED. develop_head 5d1a30ac7 UNCHANGED. records-lint exit 0. STATE v8.700→v8.701. [SUPERSEDES D-2150]"
+current_step: "D-2152 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 spec-evolution for human-approved query-detail extension (D-2151): BC-2.11.001 v1.22→v1.23 (per-target sanitized HTTP status+body on §query §sensor_errors wire; EC-11-088/089/090; AC-QERR-001 + RG-016) + BC-2.01.010 v1.6→v1.7 (dual-channel surfacing note) + story v1.26→v1.27 (7th anchor; density 16/17=0.9412; crates_touched += prism-query). BC-INDEX v9.09→v9.10 / STORY-INDEX v2.805→v2.806. VP-INDEX v2.22 / error-taxonomy v2.77 UNCHANGED. total_stories 297 UNCHANGED. develop_head 5d1a30ac7 UNCHANGED. BC-5.39.001 LOCAL streak 0/3 (spec-only; code HEAD 711a46911 UNCHANGED). records-lint exit 0. STATE v8.701→v8.702. [SUPERSEDES D-2151]"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -175,7 +177,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-14 D-2151 — holdout-gate reconciliation UNBLOCKED (HUMAN DECISION). HS-001 health semantic STANDS (no code change). HS-002 query non-2xx wire CONFIRMED REAL GAP (fix sub-cycle authorized). HS-003 PASS. Fix sub-cycle: product-owner BC → story-writer AC-QERR-001/RG-016 → test-writer Red → implementer Green → LOCAL 3-CLEAN → NEW holdout scenarios → re-gate. STORY-INDEX v2.805 UNCHANGED. STATE v8.700→v8.701 |
+| **Last Updated** | 2026-08-14 D-2152 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 spec-evolution: BC-2.11.001 v1.23 (EC-11-088/089/090; AC-QERR-001+RG-016) + BC-2.01.010 v1.7 + story v1.27 (7th anchor; density 16/17). BC-INDEX v9.10 / STORY-INDEX v2.806. STATE v8.701→v8.702 |
 
 ## Active Objective (North Star)
 
