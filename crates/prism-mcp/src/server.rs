@@ -1998,13 +1998,18 @@ impl PrismServer {
             "returned_results": result.returned_results,
             "total_available": result.total_available,
             "is_truncated": result.is_truncated,
-            // BC-2.11.005 / BC-2.11.011: per-sensor partial-failure errors are surfaced
-            // here so the LLM agent can see which sensors had problems while the query
-            // still returned results. An empty array means all sensors succeeded.
-            // (OBS-1 fix: ensures partial-failure information reaches the MCP response
-            // and is testable at the integration level — see EC-11-054 test.)
-            "sensor_errors": result.sensor_errors,
         });
+        // BC-2.11.001 AC-QERR-001: sensor_errors MUST be ABSENT when no errors occurred
+        // (not null, not []).  Insert the key only when there are per-target errors so
+        // the wire field is omitted on success.  Uses the same conditional-insert pattern
+        // as normalized_pql below (`#[serde(skip_serializing_if)]` does not apply to
+        // serde_json::Value — explicit conditional insertion is the correct equivalent).
+        // BC-2.11.005 / BC-2.11.011 / EC-11-054: when present, the array is non-empty
+        // and carries per-target HTTP detail (AC-QERR-001, EC-11-088/089).
+        if !result.sensor_errors.is_empty() {
+            payload["sensor_errors"] = serde_json::to_value(&result.sensor_errors)
+                .unwrap_or_else(|_| serde_json::Value::Array(vec![]));
+        }
         // BC-2.11.018: conditionally insert normalized_pql key.
         // When None, no key is inserted and the field is absent from the JSON output.
         // `#[serde(skip_serializing_if)]` does NOT apply to serde_json::Value — conditional

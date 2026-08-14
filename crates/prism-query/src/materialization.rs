@@ -44,9 +44,11 @@ use std::sync::Arc;
 use arrow::record_batch::RecordBatch;
 use datafusion::execution::context::SessionContext;
 use prism_core::error::sanitize_for_log;
-use prism_core::{OrgId, OrgSlug, PrismError, SensorId, UnknownSourceTableDetails};
+use prism_core::{
+    sanitize_body_snippet_bytes, OrgId, OrgSlug, PrismError, SensorId, UnknownSourceTableDetails,
+};
 use prism_ocsf::OcsfNormalizer;
-use prism_sensors::{AdapterRegistry, CredentialResolver, SensorSpec};
+use prism_sensors::{AdapterRegistry, CredentialResolver, SensorError, SensorSpec};
 
 use crate::{
     cache::SensorResponseCache,
@@ -1059,11 +1061,61 @@ pub async fn run_materialization_pipeline(
                     error = %e,
                     "fan_out all-targets-failed (partial failure)"
                 );
-                sensor_errors.push(format!(
-                    "{}: all targets failed ({})",
-                    sanitize_for_log(&target.source_table),
-                    e.error_code()
-                ));
+                // AC-QERR-001, EC-11-088/089/090: iterate per-target errors from
+                // AllTargetsFailed and format each with HTTP status + sanitized body.
+                // For non-HttpError variants (Timeout, ResponseParse, etc.) fall back
+                // to the error-code format.  Defensive guard for edge cases where
+                // fan_out returns a non-AllTargetsFailed SensorError.
+                match &e {
+                    SensorError::AllTargetsFailed { errors, .. } if !errors.is_empty() => {
+                        for fan_err in errors {
+                            let entry = match &fan_err.error {
+                                SensorError::HttpError { status, body, .. } => {
+                                    // Sanitize body: production pipeline (pipeline.rs F9)
+                                    // already caps to ≤256 bytes; calling here is idempotent
+                                    // for those paths and correctly truncates test-stub bodies
+                                    // that bypass pipeline.rs (EC-11-090 256-byte cap).
+                                    let snippet = sanitize_body_snippet_bytes(body, 256);
+                                    if snippet.is_empty() {
+                                        // EC-11-089: empty body → status-only, NO trailing ": ".
+                                        format!(
+                                            "{}: HTTP {}",
+                                            sanitize_for_log(&target.source_table),
+                                            status
+                                        )
+                                    } else {
+                                        // EC-11-088: non-empty body → include snippet.
+                                        format!(
+                                            "{}: HTTP {}: {}",
+                                            sanitize_for_log(&target.source_table),
+                                            status,
+                                            snippet
+                                        )
+                                    }
+                                }
+                                other => {
+                                    // Non-HTTP errors: use error-code format (same as
+                                    // the partial-failure path above).
+                                    format!(
+                                        "{}: sensor error ({})",
+                                        sanitize_for_log(&target.source_table),
+                                        other.error_code()
+                                    )
+                                }
+                            };
+                            sensor_errors.push(entry);
+                        }
+                    }
+                    _ => {
+                        // Fallback: AllTargetsFailed with empty errors vec, or
+                        // other SensorError variants not emitted by fan_out.
+                        sensor_errors.push(format!(
+                            "{}: all targets failed ({})",
+                            sanitize_for_log(&target.source_table),
+                            e.error_code()
+                        ));
+                    }
+                }
 
                 // EC-07-033 (P1-05 / architect adjudication D3): a FORCED
                 // refresh whose fetch failed for all targets cannot store a
