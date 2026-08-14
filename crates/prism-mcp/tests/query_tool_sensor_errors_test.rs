@@ -638,4 +638,301 @@ mod tests {
              truncation at 256 bytes is required."
         );
     }
+
+    // =========================================================================
+    // RG-017 support types
+    // =========================================================================
+
+    /// Stub adapter that always returns a single successful RecordBatch.
+    ///
+    /// Returns one row: `item_id = "rg017_success_row"`. Used as the "succeeding
+    /// target" in RG-017's partial-failure scenario. The schema must match the
+    /// `make_resolved` spec (one column: `item_id` / `ColumnType::String`).
+    struct StubSuccessAdapter {
+        sensor_id: SensorId,
+    }
+
+    #[async_trait]
+    impl SensorAdapter for StubSuccessAdapter {
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "stub-success-adapter"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorAdapterSpec,
+            _params: &SensorQueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            use std::sync::Arc as StdArc;
+            let schema = StdArc::new(arrow::datatypes::Schema::new(vec![
+                arrow::datatypes::Field::new("item_id", arrow::datatypes::DataType::Utf8, true),
+            ]));
+            let batch = RecordBatch::try_new(
+                schema,
+                vec![StdArc::new(StringArray::from(vec!["rg017_success_row"]))],
+            )
+            .expect("RG-017 StubSuccessAdapter: RecordBatch construction must not fail");
+            Ok(vec![batch])
+        }
+    }
+
+    /// Build a `PrismServer` with TWO adapters registered for the same sensor under
+    /// different org_ids:
+    ///   - `org_succeed` → `StubSuccessAdapter` (returns one row)
+    ///   - `org_fail`    → `StubHttpErrorAdapter` (returns HttpError { 403, "Unauthorized" })
+    ///
+    /// Used by RG-017 to create the partial-failure scenario for
+    /// BC-2.11.001 EC-11-091. With two org_ids registered for the same sensor,
+    /// `resolve_source_refs` (clients.is_empty() path) produces TWO `FanOutTarget`s.
+    /// Under CURRENT code, each target receives its own `fan_out(vec![single_target])`
+    /// call; the failing target's Err arm (T-QERR-2, already implemented) formats the
+    /// entry correctly. After T-QERR-4 batches both targets into a single fan_out call,
+    /// the Ok-branch is triggered — RG-017 then acts as the Red Gate for the format fix.
+    ///
+    /// `sensor_id` MUST NOT contain underscores (see `make_server_with_http_error_adapter`
+    /// docstring for the reason: `sensor_id_from_table_name` splits on first underscore).
+    ///
+    /// OrgIds must differ in their first 8 UUID hex characters so that `resolve_source_refs`
+    /// derives distinct synthetic client slugs for each target (test mode, no OrgRegistry).
+    fn make_server_with_mixed_adapters(
+        sensor_id: &str,
+        table_name: &str,
+        org_succeed: &str,
+        org_fail: &str,
+    ) -> PrismServer {
+        use prism_core::column::ColumnType;
+
+        // Create columns twice — ColumnSpec does not implement Clone.
+        let columns_succeed = vec![ColumnSpec::new("item_id", ColumnType::String, None, vec![])];
+        let columns_fail = vec![ColumnSpec::new("item_id", ColumnType::String, None, vec![])];
+
+        // Deterministic OrgIds with DISTINCT first-8-hex chars so resolve_source_refs
+        // assigns distinct synthetic slugs ("org-01000000" vs "org-02000000").
+        let org_id_succeed = OrgId::from_uuid(uuid::Uuid::from_bytes([
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x01,
+        ]));
+        let org_id_fail = OrgId::from_uuid(uuid::Uuid::from_bytes([
+            0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x01,
+        ]));
+
+        let (key_succeed, resolved_succeed) =
+            make_resolved(sensor_id, table_name, columns_succeed, org_succeed);
+        let (key_fail, resolved_fail) =
+            make_resolved(sensor_id, table_name, columns_fail, org_fail);
+
+        let mut resolved_map = HashMap::new();
+        resolved_map.insert(key_succeed, resolved_succeed.clone());
+        resolved_map.insert(key_fail, resolved_fail.clone());
+
+        let registry = Arc::new(TableRegistry::new());
+        // Both resolved specs share the same sensor spec shape; registering once is sufficient.
+        registry
+            .register_sensor(&resolved_succeed.spec)
+            .expect("RG-017 fixture: register_sensor must not fail");
+
+        let sensor_id_typed = SensorId::new(sensor_id);
+
+        let success_adapter: Arc<dyn SensorAdapter> = Arc::new(StubSuccessAdapter {
+            sensor_id: sensor_id_typed.clone(),
+        });
+        let error_adapter: Arc<dyn SensorAdapter> = Arc::new(StubHttpErrorAdapter {
+            sensor_id: sensor_id_typed,
+            http_status: 403,
+            http_body: "Unauthorized".to_string(),
+        });
+
+        let mut adapter_registry = AdapterRegistry::new();
+        adapter_registry.register(org_id_succeed, success_adapter);
+        adapter_registry.register(org_id_fail, error_adapter);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(adapter_registry),
+            Arc::new(InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            prism_query::cache::CacheConfig::default(),
+        );
+        engine = engine.with_credential_resolver(Arc::new(AlwaysSucceedsCreds));
+        engine = engine.with_resolved_spec_map(Arc::new(resolved_map));
+        engine = engine.with_table_registry(registry);
+
+        PrismServer::new().with_query_engine(Arc::new(engine))
+    }
+
+    // =========================================================================
+    // RG-017: partial-failure Ok-branch sensor_errors format (BC-2.11.001 EC-11-091)
+    // =========================================================================
+
+    /// RG-017: `query` MCP tool `sensor_errors` MUST surface per-target HTTP detail
+    /// on the partial-failure Ok-branch in `materialize_single_external_target`.
+    ///
+    /// # BC authority
+    ///
+    /// - BC-2.11.001 v1.24 §Postconditions — EC-11-091 Ok-branch partial failure
+    /// - AC-QERR-002 — per-target HTTP format on `Ok(fan_result)` with `fan_result.errors` non-empty
+    ///
+    /// # Scenario
+    ///
+    /// Two adapters registered for sensor "xdome" under different org_ids:
+    ///   - Org 1: `StubSuccessAdapter` → returns `Ok([RecordBatch { item_id: "rg017_success_row" }])`
+    ///   - Org 2: `StubHttpErrorAdapter` → returns `Err(SensorError::HttpError { 403, "Unauthorized" })`
+    ///
+    /// Query: `SELECT item_id FROM xdome_devices LIMIT 10`
+    ///
+    /// Expected wire output (when the partial-failure path is exercised correctly):
+    ///   - `sensor_errors: ["xdome_devices: HTTP 403: Unauthorized"]`
+    ///   - `rows` non-empty (success adapter contributed data)
+    ///   - `sensor_errors[0]` does NOT contain "sensor error"
+    ///
+    /// # Architectural note: Red Gate timing
+    ///
+    /// Under CURRENT code (HEAD 9fc3e6a06), `materialization.rs` calls
+    /// `fan_out(vec![single_target])` per target in the outer loop. With two adapters,
+    /// two SEPARATE `fan_out` calls are made:
+    ///   - Success adapter target: `Ok(FanOutResult { successes: [batch], errors: [] })`
+    ///   - Failure adapter target: `Err(AllTargetsFailed { errors: [FanOutError{HttpError{403}}] })`
+    ///
+    /// The Err arm (T-QERR-2, already implemented) formats the entry correctly
+    /// as `"xdome_devices: HTTP 403: Unauthorized"`. Therefore this test **PASSES on
+    /// current HEAD** via the Err arm rather than the Ok-branch.
+    ///
+    /// The test becomes a true Red Gate AFTER T-QERR-4 changes the batching to group
+    /// multiple same-sensor targets into a single `fan_out(vec![target1, target2])`
+    /// call. At that point:
+    ///   - `fan_out([target1, target2])` → `Ok(FanOutResult { successes: [batch], errors: [FanOutError{HttpError{403}}] })`
+    ///   - Ok-branch runs with WRONG format `"xdome_devices: sensor error (E-SENSOR-XXX)"` → RED
+    ///   - After T-QERR-4 format fix: correct format → GREEN
+    ///
+    /// **Implementer note for T-QERR-4:** implement the batching change (step 1) BEFORE
+    /// the format fix (step 2) to observe the Red Gate failure.
+    ///
+    /// # SAP-3 compliance
+    ///
+    /// Test reaches `materialize_single_external_target` end-to-end from the
+    /// `PrismServer::query` public MCP tool surface. No synthetic AST injection.
+    ///
+    /// # Wire-assertion discipline (SID-2)
+    ///
+    /// All assertions operate on the FULL serialized JSON wire output, not on
+    /// pre-serialization Rust structs.
+    ///
+    /// BC-2.11.001 §Postconditions EC-11-091 | AC-QERR-002 |
+    /// DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-017
+    #[tokio::test]
+    async fn test_BC_2_11_001_EC_11_091_partial_failure_ok_branch_sensor_errors_http_format() {
+        let server = make_server_with_mixed_adapters("xdome", "devices", "acme", "bravo");
+
+        let result = server
+            .query(Parameters(query_params(
+                "SELECT item_id FROM xdome_devices LIMIT 10",
+            )))
+            .await
+            .expect(
+                "RG-017: query MUST return Ok(QueryResult) on partial failure; \
+                 sensor errors propagate to sensor_errors, not to is_error=true",
+            );
+
+        // Must NOT be a query-level error: partial-failure uses sensor_errors, not is_error.
+        assert_ne!(
+            result.is_error,
+            Some(true),
+            "RG-017: partial-failure query MUST NOT return is_error=true; \
+             sensor errors go to sensor_errors. structured_content: {:?}",
+            result.structured_content
+        );
+
+        let sc = result
+            .structured_content
+            .expect("RG-017: structured_content must be present on partial failure");
+
+        // SID-2 wire-level assertion: serialize structured_content to bytes and assert on
+        // the FULL serialized JSON output.
+        let wire = serde_json::to_string(&sc).expect("RG-017: serialize must succeed");
+
+        // ASSERTION 1 (SID-2 wire-level, EC-11-091): sensor_errors wire MUST contain the
+        // per-target HTTP detail entry with correct format.
+        //
+        // Current code path via Err arm (T-QERR-2): PASSES with correct format.
+        // After T-QERR-4 batching change (step 1, before format fix): FAILS with
+        //   "xdome_devices: sensor error (E-SENSOR-XXX)" — TRUE RED GATE.
+        // After T-QERR-4 format fix (step 2): PASSES with correct format.
+        assert!(
+            wire.contains("xdome_devices: HTTP 403: Unauthorized"),
+            "RG-017 EC-11-091 FAIL (SID-2 wire-level): sensor_errors wire MUST contain \
+             '\"xdome_devices: HTTP 403: Unauthorized\"' per BC-2.11.001 EC-11-091. \
+             \nExpected per-target HTTP format (non-empty body): '{{table}}: HTTP {{status}}: {{body}}'. \
+             \nAfter T-QERR-4 batching change (before format fix), wire would contain \
+             '\"xdome_devices: sensor error (E-SENSOR-XXX)\"' — the Ok-branch dead code \
+             that T-QERR-4 fixes. \
+             \nFull wire: {wire}"
+        );
+
+        // ASSERTION 2 (SID-2 negative gate, EC-11-091): "sensor error" code-only form MUST
+        // be absent from the per-target entry for an HttpError.
+        //
+        // This is the load-bearing Red Gate assertion after T-QERR-4 batching change:
+        // before the format fix, wire contains '"xdome_devices: sensor error (E-SENSOR-XXX)"'.
+        assert!(
+            !wire.contains("sensor error"),
+            "RG-017 EC-11-091 FAIL (negative gate): sensor_errors MUST NOT use \
+             'sensor error (E-SENSOR-XXX)' code-only form for HttpError entries. \
+             The Ok-branch partial-failure path (fan_result.errors non-empty) MUST \
+             apply the same per-target HTTP format as the AllTargetsFailed path. \
+             \nFull wire: {wire}"
+        );
+
+        // ASSERTION 3 (structured content): navigate to sensor_errors and verify shape.
+        let results = sc
+            .get("results")
+            .expect("RG-017: sc['results'] must be present");
+
+        // ASSERTION 3a: sensor_errors is a non-empty array (present, not null, not []).
+        let sensor_errors = results
+            .get("sensor_errors")
+            .and_then(|v| v.as_array())
+            .expect(
+                "RG-017: sensor_errors must be a non-null non-empty array on partial failure \
+                 (key absent or null → AC-QERR-002 violation)",
+            );
+        assert!(
+            !sensor_errors.is_empty(),
+            "RG-017: sensor_errors array MUST be non-empty on partial failure"
+        );
+
+        // ASSERTION 3b: exact entry value.
+        assert_eq!(
+            sensor_errors[0].as_str().unwrap_or(""),
+            "xdome_devices: HTTP 403: Unauthorized",
+            "RG-017 EC-11-091 FAIL (structured content): sensor_errors[0] MUST be \
+             'xdome_devices: HTTP 403: Unauthorized' per BC-2.11.001 EC-11-091. \
+             Current code paths:\
+             \n  - Err arm (T-QERR-2, pre-T-QERR-4 batching): produces correct format → PASSES\
+             \n  - Ok arm (T-QERR-4, post-batching, pre-format-fix): produces 'sensor error (...)' → FAILS\
+             \n  - Ok arm (T-QERR-4, post-format-fix): produces correct format → PASSES"
+        );
+
+        // ASSERTION 4 (rows non-empty): the success adapter contributed data.
+        // The query must return rows from the StubSuccessAdapter (item_id = "rg017_success_row"),
+        // even though the other adapter failed.
+        let rows = results
+            .get("rows")
+            .and_then(|v| v.as_array())
+            .expect("RG-017: rows must be a non-null array");
+        assert!(
+            !rows.is_empty(),
+            "RG-017 EC-11-091: rows MUST be non-empty — the StubSuccessAdapter \
+             contributed one row. An empty rows array means the success adapter's \
+             result was discarded, which contradicts the partial-failure contract. \
+             rows: {:?}",
+            rows
+        );
+    }
 }

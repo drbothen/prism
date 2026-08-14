@@ -3471,4 +3471,100 @@ mod tests {
             ua
         );
     }
+
+    // ---------------------------------------------------------------------------
+    // RG-018: map_spec_engine_error_to_sensor_error Arm 1 — non-empty body strips
+    //         "HTTP {reason}: " prefix (F-P38-MED-001 regression guard)
+    // ---------------------------------------------------------------------------
+
+    /// RG-018: `map_spec_engine_error_to_sensor_error` Arm 1 MUST strip the
+    /// `"HTTP {status_reason}: "` prefix from `detail` before storing into
+    /// `SensorError::HttpError.body`.
+    ///
+    /// # Red Gate status
+    ///
+    /// This test is **GREEN on current code** (Arm 1 strip already implemented by
+    /// F-P37-HIGH-001 fix). It is a LOAD-BEARING REGRESSION GUARD:
+    ///   - `RG-001` / `RG-014` only exercise the empty-body path (detail has no `": "`)
+    ///   - `RG-016` bypasses Arm 1 by constructing `FanOutError` with a pre-stripped body
+    ///   - Neither asserts the Arm-1 strip on a non-empty-body input
+    ///
+    /// This test closes the F-P38-MED-001 regression gap: the strip logic
+    /// (`detail.strip_prefix("HTTP ").and_then(|s| s.find(": ").map(...))`)
+    /// is the ONLY place that prevents `materialization.rs` from emitting a
+    /// doubled prefix (`"{table}: HTTP 403: HTTP 403 Forbidden: <body>"`).
+    ///
+    /// # Scenario
+    ///
+    /// `pipeline.rs` formats `detail` as `"HTTP 403 Forbidden: access denied"` when
+    /// it receives a 403 response with body `"access denied"`.
+    /// Arm 1 must strip `"HTTP 403 Forbidden: "` → `HttpError.body = "access denied"`.
+    ///
+    /// # SID-2: composed-output / no-duplicated-HTTP-prefix assertion
+    ///
+    /// The SID-2 requirement is that at least one test asserts on the FULL composed
+    /// output. Here: `HttpError.body` is asserted both equal to the exact raw snippet
+    /// AND confirmed to NOT contain the substring `"HTTP"` — catching any regression
+    /// where the prefix strip is removed and the raw detail bleeds into `body`.
+    ///
+    /// BC-2.11.001 §Postconditions | T-QERR-1 raw-body invariant |
+    /// F-P38-MED-001 regression closure | SID-2 no-duplicated-HTTP-prefix |
+    /// DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-018
+    #[test]
+    fn test_map_error_http_403_nonempty_body_strips_prefix_to_raw_body() {
+        use prism_sensors::adapter::SensorError;
+        use prism_spec_engine::error::SpecEngineError;
+
+        // Production-shaped detail: pipeline.rs formats as "HTTP {status_reason}: {body_snippet}"
+        // when it receives a non-2xx response with a non-empty body.
+        // e.g. 403 Forbidden + body "access denied" → detail = "HTTP 403 Forbidden: access denied"
+        let result = super::map_spec_engine_error_to_sensor_error(
+            SpecEngineError::HttpRequestFailed {
+                sensor_id: "xdome".to_string(),
+                step_name: "fetch".to_string(),
+                status_code: 403,
+                detail: "HTTP 403 Forbidden: access denied".to_string(),
+            },
+            "xdome",
+            "devices",
+        );
+
+        // ASSERTION 1: result variant is HttpError (Arm 1 guard fires for status_code=403 > 0).
+        assert!(
+            matches!(result, SensorError::HttpError { .. }),
+            "RG-018: HttpRequestFailed(status_code=403) MUST map to SensorError::HttpError \
+             (not SensorError::Internal). Arm 1 guard: `status_code > 0` must match."
+        );
+
+        if let SensorError::HttpError { status, body, .. } = result {
+            // ASSERTION 2: status field carries the HTTP status code.
+            assert_eq!(status, 403, "RG-018: HttpError.status must be 403");
+
+            // ASSERTION 3 (SID-2 exact-match): body is the raw snippet, NOT the full detail.
+            // Regression: before F-P37-HIGH-001 source fix, body == "HTTP 403 Forbidden: access denied"
+            // (full prefixed detail). After fix, body == "access denied" (raw snippet only).
+            assert_eq!(
+                body, "access denied",
+                "RG-018 FAIL (SID-2 exact-match): HttpError.body MUST be raw snippet \
+                 'access denied', NOT the full prefixed detail \
+                 'HTTP 403 Forbidden: access denied'. \
+                 Arm 1 strip: detail.strip_prefix(\"HTTP \").and_then(s.find(\": \").map(...)). \
+                 Got body = '{body}'"
+            );
+
+            // ASSERTION 4 (SID-2 no-duplicated-HTTP-prefix): body MUST NOT contain "HTTP".
+            // This catches any regression where the prefix strip is removed and the full
+            // detail bleeds into body, causing materialization.rs to double-prefix:
+            //   "{table}: HTTP 403: HTTP 403 Forbidden: access denied"
+            assert!(
+                !body.contains("HTTP"),
+                "RG-018 FAIL (SID-2 no-duplicated-HTTP-prefix): HttpError.body MUST NOT \
+                 contain 'HTTP'. The 'HTTP {{reason}}: ' prefix must be stripped by Arm 1 \
+                 so body carries only the raw sanitized snippet. \
+                 Without this strip, materialization.rs formats \
+                 '{{table}}: HTTP {{code}}: HTTP 403 Forbidden: access denied' (doubled prefix). \
+                 body = '{body}'"
+            );
+        }
+    }
 }
