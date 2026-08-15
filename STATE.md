@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.718"
+version: "8.719"
 producer: state-manager
-timestamp: 2026-08-15T23:59:30Z
+timestamp: 2026-08-15T23:59:59Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,8 +16,8 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "3197e27a9"
-# NOTE: D-2171 — develop advanced 5d1a30ac7→3197e27a9: PR #237 DEFECT-ADAPTER-TLS-XDOME-LIVE-001 SQUASH-MERGED to develop 2026-08-15T18:39:09Z; feature branch deleted; local feature branch deleted; `.worktrees/DEFECT-ADAPTER-TLS-XDOME-LIVE-001` removed. D-2170 LOCAL-ONLY-DIVERGENCE NOTE RESOLVED — 539a5b39a .gitignore AD-017 chore preserved on `chore/gitignore-ad017-live-evidence` branch (off origin/develop; fast-forward-able when ready; chore PR pending). D-2167 NOTE archived.
+develop_head: "791b68c3"
+# NOTE: D-2183 — develop advanced 3197e27a9→791b68c3: PR #238 chore(gitignore) AD-017 live-evidence SQUASH-MERGED to develop 2026-08-15. LOCAL develop @3197e27a9 is 1 commit behind origin/develop @791b68c3 — trivial fast-forward pending; not blocking. chore/gitignore-ad017-live-evidence branch deleted. D-2171 NOTE archived.
 # NOTE: D-2109 — develop advanced ef996a4c0→5d1a30ac7: PR #236 fix/claroty-live-api-fidelity SQUASH-MERGED; BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED (passes 8/9/10 on frozen 386df43c5); HS-014 PASS; worktrees CLAROTY-LIVE + FINDING-R removed. D-2102 NOTE archived.
 bc_index_version: "9.14"
 # NOTE: D-2178 — BC-INDEX v9.13→v9.14: DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 registration — BC-2.16.013 leading pin v1.37→v1.38 (§Postconditions §1 Claroty audit_logs push-down section added); BC-2.01.013 leading pin v1.19→v1.20 (§Claroty audit_logs push-down table row added). Counts UNCHANGED: active_contracts 252/draft_contracts 4/total 269. D-2172 NOTE archived.
@@ -136,8 +136,8 @@ policies_version: "1.41"
 subsystem_count: 22  # 22 subsystems (SS-01..SS-22)
 vp_count: 161
 bc_count_corrected: 269
-workspace_test_count: 5733
-# NOTE: D-2161 — 5732→5733: RG-023 test_sensor_health_result_is_fully_healthy_excludes_degraded added (canonical SensorHealthResult::is_fully_healthy unit test); just check GREEN 5733 at feature HEAD a2d80fe4f. D-2160 NOTE archived.
+workspace_test_count: 5741
+# NOTE: D-2184 — workspace_test_count 5733→5741: S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD-GREEN — RG-001..RG-005 pass; `just check` 5741/5741 at feature HEAD d1b7c0c47 in .worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001. LOCAL adversary pass-1 found 4 findings (F-P1-HIGH-001 `operands` key + F-P1-MED-002 epoch-ms→ISO-8601 + phantom type + F-P1-MED-003 RG-004 FQL-string assertion + F-P1-MED-004 end-only synthetic lower bound); BC-5.39.001 streak 0/3 on d1b7c0c47. D-2161 NOTE archived.
 # NOTE: D-2160 — 5731→5732: RG-020 `test_BC_2_08_002_degraded_envelope_summary_matches_overall_status` added (serialized check_sensor_health envelope summary+overall_status wire assertion; AC-WIRE-003); just check GREEN 5732 at feature HEAD 21df2f6d4. D-2159 NOTE archived.
 # NOTE: D-2159 — 5730→5731: RG-019 test_BC_2_08_002_degraded_reachable_wire_shape added (wiremock 503 wire-shape); just check GREEN 5731 passed / 60 skipped at feature HEAD 70fe123ac. D-2155 NOTE archived. [ARCHIVED by D-2160]
 # NOTE: D-2155 — 5724→5730: workspace test count confirmed at pass-38 fix-burst CODE commit a5b61b35b (RG-017 `test_BC_2_11_001_EC_11_091_cross_client_partial_failure_sensor_errors_http_format` + RG-018 `test_map_error_http_403_nonempty_body_strips_prefix_to_raw_body` + implementation; just check 5730 green). D-2125 NOTE archived.
@@ -146,11 +146,11 @@ workspace_test_count: 5733
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2182 — REGISTRATION BURST COMPLETE (TD-VSDD-053) — S-CLAROTY-AUDITLOG-TIMEBOX-001 (draft v2.0) REGISTERED; BC-2.16.013 leading pin v1.37→v1.38; BC-2.01.013 leading pin v1.19→v1.20; BC-INDEX v9.13→v9.14; STORY-INDEX v2.813→v2.814; total_stories 298→299; holdout files TIMEBOX-002-HS-001/002 RENAMED to TIMEBOX-001-HS-003/004; HOLDOUT-INDEX v1.15→v1.16. D-2178..D-2182 recorded. NEXT: TDD delivery of S-CLAROTY-AUDITLOG-TIMEBOX-001. STATE v8.717→v8.718."
+current_step: "D-2185 — SESSION WRAP (TD-VSDD-053) — PR #238 chore merged develop@791b68c3 (D-2183); S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD-GREEN d1b7c0c47 + LOCAL pass-1 4 findings streak 0/3 (D-2184); SESSION WRAP D-2185. NEXT: fix-burst for 4 LOCAL pass-1 findings on S-CLAROTY-AUDITLOG-TIMEBOX-001, then re-gate LOCAL 3-CLEAN. STATE v8.718→v8.719."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "Main worktree on develop @3197e27a9 (origin/develop updated via PR #237 squash-merge 2026-08-15; worktree DEFECT-ADAPTER-TLS-XDOME-LIVE-001 removed). CHORE-BRANCH: chore/gitignore-ad017-live-evidence (off origin/develop; .gitignore AD-017 chore; chore PR pending; fast-forward-able). PARKED (2): S-3.09 @43c41389d KEEP-PARKED; W3-FIX-S307-001 @fcab8717c PARKED-DIRTY do-NOT-touch."
+worktree_status: "Main worktree on develop LOCAL@3197e27a9 (origin/develop @791b68c3 — 1 commit ahead; fast-forward pending; not blocking). ACTIVE: .worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001 @d1b7c0c47 branch feature/S-CLAROTY-AUDITLOG-TIMEBOX-001 (TDD-GREEN; LOCAL 3-CLEAN streak 0/3 on d1b7c0c47 — 4 pass-1 findings). chore/gitignore-ad017-live-evidence MERGED PR #238 develop@791b68c3 (branch deleted). PARKED (2): S-3.09 @43c41389d KEEP-PARKED; W3-FIX-S307-001 @fcab8717c PARKED-DIRTY do-NOT-touch."
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -198,7 +198,7 @@ pre_compact_snapshot_at: "2026-07-16"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-15 D-2182 — REGISTRATION BURST COMPLETE; S-CLAROTY-AUDITLOG-TIMEBOX-001 REGISTERED; BC/STORY indexes updated; STATE v8.717→v8.718 |
+| **Last Updated** | 2026-08-15 D-2185 — SESSION WRAP; PR #238 merged develop@791b68c3; S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD-GREEN d1b7c0c47 + LOCAL pass-1 4 findings; STATE v8.718→v8.719 |
 
 ## Active Objective (North Star)
 
@@ -706,6 +706,9 @@ _D-001..D-1788 (exhaustive) archived to cycle files. See burst-log.md + decision
 | D-2180 | human | 2026-08-15 | **HUMAN DECISION — COLLAPSE TWO-LAYER TO SINGLE LAYER-2 FIX. Original draft proposed two fix layers: (a) default 7-day window and (b) truncation prevention. Human approved collapsing to a single deterministic `greater_or_equal` push-down that BOTH provides the default 7-day window AND honors explicit filters without silent truncation. No silent truncation in any code path.** | wave-5-e-demo-fidelity | 2026-08-15 |
 | D-2181 | product-owner | 2026-08-15 | **FILTER-REJECTION ROUTING — filter-rejection errors (malformed/unsupported filter expressions on audit_logs) ROUTED TO EXISTING E-SENSOR-001 (SpecEngineError). No new error code required; E-SENSOR-001 scope covers filter-push-down validation failures.** | wave-5-e-demo-fidelity | 2026-08-15 |
 | D-2182 | state-manager | 2026-08-15 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — REGISTRATION BURST: S-CLAROTY-AUDITLOG-TIMEBOX-001 (draft v2.0) REGISTERED; BC-2.16.013 leading pin v1.37→v1.38; BC-2.01.013 leading pin v1.19→v1.20; BC-INDEX v9.13→v9.14; STORY-INDEX v2.813→v2.814; total_stories 298→299; holdout TIMEBOX-002-HS-001/002 RENAMED TIMEBOX-001-HS-003/004; HOLDOUT-INDEX v1.15→v1.16; D-2178..D-2182 recorded. TD-VSDD-097 THREE-DIMENSION VERDICTS: 9a (sibling pair) — BC-2.16.013 is the bundled-sensor-spec-dtu-parity BC; sibling BC-2.01.013 (datasource-trait-adapter) swept in same burst (leading pin advanced v1.19→v1.20). 9b (downstream copy target) — STORY-INDEX note chain and BC-INDEX note chain are canonical downstream copy targets of total_stories/bc_index_version values; both swept in this burst. 9c (mandate anchor) — no new unanchored MUSTs; AC-TF-001..AC-TF-006 all anchored to S-CLAROTY-AUDITLOG-TIMEBOX-001 story (draft v2.0) with RG-001..RG-005. records-lint exit 0. verify-sha-currency.sh PASS. STATE v8.717→v8.718.** | wave-5-e-demo-fidelity | 2026-08-15 |
+| D-2183 | state-manager | 2026-08-15 | **PR #238 chore(gitignore): SQUASH-MERGED — AD-017 live-evidence gitignore rule merged to develop@791b68c3 2026-08-15. develop_head 3197e27a9→791b68c3 (origin/develop). LOCAL develop @3197e27a9 is 1 commit behind; fast-forward pending (not blocking). chore/gitignore-ad017-live-evidence branch deleted.** | wave-5-e-demo-fidelity | 2026-08-15 |
+| D-2184 | state-manager | 2026-08-15 | **S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD-GREEN + LOCAL adversary pass-1. Implementer commit d1b7c0c47 in .worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001 (branch feature/S-CLAROTY-AUDITLOG-TIMEBOX-001): RG-001..RG-005 ALL PASS; `just check` 5741/5741. LOCAL adversary pass-1 found 4 findings: F-P1-HIGH-001 [POL-4/TD-VSDD-059] compound filter key `conditions` must be `operands` (xDome grammar mandate); F-P1-MED-002 [POL-4/SAP-2] `ClarotyAuditLogFilter` is phantom type + epoch-ms `value` must be ISO-8601 (xDome datetime fields); F-P1-MED-003 [Production-Grade/SAC-1] RG-004 `_backward_compat` test does NOT assert FQL/AQL→Value::String; F-P1-MED-004 [SOUL.md §4] end-only `WHERE timestamp < X` injects synthetic now−7d lower bound → inverted/empty window silently. OBS-3 (holdout flag): DTU ignores filter_by so push-down correctness is outbound-body-shape-only in unit tests. BC-5.39.001 LOCAL streak 0/3 on d1b7c0c47. workspace_test_count 5733→5741.** | wave-5-e-demo-fidelity | 2026-08-15 |
+| D-2185 | state-manager | 2026-08-15 | **SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — SESSION WRAP: D-2183..D-2185 recorded; develop_head 3197e27a9→791b68c3; workspace_test_count 5733→5741; worktree_status updated (S-CLAROTY-AUDITLOG-TIMEBOX-001 ACTIVE; chore merged); §RESUME SNAPSHOT D-2185 written; D-2182 snapshot marked SUPERSEDED. TD-VSDD-097 9a — no BC changes this burst; 9b — develop_head downstream swept in frontmatter + body Last-Updated; 9c — no new MUSTs. records-lint exit 0. verify-sha-currency.sh PASS. STATE v8.718→v8.719.** | wave-5-e-demo-fidelity | 2026-08-15 |
 | D-2156 | dx-engineer | 2026-08-14 | **WAF-REACHABILITY PROBE: WAF-PASSES-RUSTLS VERDICT — Credential-free live TLS probe to `api.claroty.com` using rustls (same TLS stack prism uses). Result: TLS handshake OK, h2 ALPN negotiated, HTTP 401 (auth expected) on `/api/v1/catalog`; HTTP 404 on bare `/`. No WAF block page (403 with WAF body / 503 / TCP RST / TLS alert). Conclusion: Claroty WAF does NOT block rustls JA4 fingerprint. AC-LIVE-001 §2 transport/WAF dimension RETIRED (the original hypothesis that WAF blocked our TLS fingerprint is FALSIFIED). The failure mode that motivated this story (HTTPS fail → HTTP sidecar) is now confirmed as a token expiry / credential issue, not a WAF/TLS issue. Monroe xDome token refresh (human-owned; AI-opaque credentials) remains the blocking prerequisite for end-to-end AC-LIVE-001 pass. BC-5.39.001 streak unaffected (probe does not advance HEAD). develop_head 5d1a30ac7 UNCHANGED.** | wave-5-e-demo-fidelity | 2026-08-14 |
 | D-2151 | state-manager | 2026-08-14 | SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 holdout-gate reconciliation UNBLOCKED. HUMAN DECISION 2026-08-14 resolves D-2150 BLOCKED status. (a) HS-001 health wire: SEMANTIC CONTRACT STANDS — §check_sensor_health returns auth_valid:false + suggestion (correct semantic classification per D-2145 pass-31 ratification; deliberately does NOT surface raw HTTP status; prompt-injection-safe design); HS-001 was a STALE over-specification. NO health-path code change. Product-owner authors NEW health holdout scenario at re-gate. (b) HS-002 query non-2xx wire: CONFIRMED REAL GAP — per-target sanitized HTTP status + body snippet MUST surface on §query §sensor_errors wire entries (LLM agent can distinguish 403 access-denied from 503/auth failure); implementation REUSES §sanitize_body_snippet_bytes (injection-safe, ≤256-byte truncation); §AllTargetsFailed Display count-only REMAINS UNCHANGED (BC-2.10.007 Rule 1 preserved). (c) HS-003 fanout WARN: PASS unchanged. FIX SUB-CYCLE PLAN: (1) product-owner amends owning BC (BC-2.01.010 / query tool BC) to specify sanitized per-target status+body on §sensor_errors wire; BC version bump. (2) story-writer adds AC-QERR-001 + RG-016; anchors to amended BC; density recompute; story version bump. (3) test-writer writes failing RG-016 (Red) — end-to-end §query against non-2xx (403) sensor → serialized §sensor_errors contains sanitized status + body snippet. (4) implementer implements (Green); feature HEAD advances. (5) LOCAL adversarial cascade (BC-5.39.001 3-CLEAN) on new HEAD. (6) product-owner authors NEW single-use holdout scenarios (replacing consumed HS-TLS-XDOME-001/002/003). (7) Re-run STORY-LEVEL HOLDOUT GATE → demo-recorder per-AC → push → pr-manager 9-step PR cycle. BC-5.39.001 LOCAL streak 0/3 UNCHANGED. Code HEAD 711a46911 UNCHANGED. BC-INDEX v9.09 / STORY-INDEX v2.805 / VP-INDEX v2.22 / error-taxonomy v2.77 UNCHANGED. total_stories 297 UNCHANGED. develop_head 5d1a30ac7 UNCHANGED. records-lint exit 0. STATE v8.700→v8.701. [SUPERSEDES D-2150] | wave-5-e-demo-fidelity | 2026-08-14 |
 
@@ -916,39 +919,48 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16. PR #190 MERGED develop@c3ecf6c8 2026-06-16. PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B; D-1204). BOTH LANES CLOSED._
 
-## Session Resume Checkpoint (D-2182 — 2026-08-15 — REGISTRATION BURST COMPLETE; S-CLAROTY-AUDITLOG-TIMEBOX-001 REGISTERED; STATE v8.717→v8.718) [supersedes D-2177]
+## Session Resume Checkpoint (D-2185 — 2026-08-15 — SESSION WRAP; TDD-GREEN d1b7c0c47 + LOCAL pass-1 4 findings; develop@791b68c3; STATE v8.718→v8.719) [supersedes D-2182]
 
 ### RESUME IN ONE BREATH
-S-CLAROTY-AUDITLOG-TIMEBOX-001 (draft v2.0) REGISTERED for DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001. Story: 6 ACs, 5 RGTs, density 0.83, tdd_mode: strict; BCs: BC-2.16.013 v1.38 + BC-2.01.013 v1.20; 4 holdout scenarios HS-AUDITLOG-001-A-001..004. BC-INDEX v9.14 / STORY-INDEX v2.814 / total_stories 299. ADR-058 spec-readiness gate still FAILED (D-2176 OPEN). NEXT: TDD delivery of S-CLAROTY-AUDITLOG-TIMEBOX-001.
+S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD-GREEN at d1b7c0c47 (RG-001..005 pass; 5741 tests). LOCAL adversary pass-1 found 4 findings (F-P1-HIGH-001 `operands` key; F-P1-MED-002 ISO-8601 + phantom type; F-P1-MED-003 FQL assertion; F-P1-MED-004 end-only synthetic lower bound); streak 0/3. PR #238 chore merged develop@791b68c3; LOCAL develop 1 behind.
+RESUME NEXT-ACTION: dispatch fix-burst for 4 LOCAL pass-1 findings on d1b7c0c47, then re-gate LOCAL 3-CLEAN.
 
 **HEADS:**
-- `develop`: `3197e27a9` (origin/develop updated via PR #237 squash-merge 2026-08-15; UNCHANGED this burst)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2182 burst commit)
-- `chore/gitignore-ad017-live-evidence`: `539a5b39a` (off origin/develop; .gitignore AD-017 chore; chore PR pending; fast-forward-able)
+- `develop`: origin/develop = `791b68c3` (chore PR #238 AD-017 gitignore merged). LOCAL develop = `3197e27a9` (1 behind origin — trivial fast-forward pending; not blocking).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2185 burst commit)
+- `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` @`d1b7c0c47` branch feature/S-CLAROTY-AUDITLOG-TIMEBOX-001 — ACTIVE (frozen HEAD; 4 pass-1 findings pending fix-burst)
 - `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, 1 dirty file)
 
-**PER-WORKSTREAM NEXT-ACTION:**
+**ACTIVE WORKSTREAM — audit-log TDD delivery (RESUME HERE):**
+Story: S-CLAROTY-AUDITLOG-TIMEBOX-001 (draft v2.0). Worktree: `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001`. Branch: `feature/S-CLAROTY-AUDITLOG-TIMEBOX-001`. Frozen HEAD: `d1b7c0c47`. LOCAL adversary 3-CLEAN streak: 0/3 on `d1b7c0c47` (pass-1 found 4 findings).
 
-**(1) S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD delivery — NEXT.** Story registered (draft v2.0). Workflow: remove-uncertainty (ASM-CLAROTY-AUDITLOG-001 1-line live check at demo prep) → test-writer writes RG-001..RG-005 Red Gate tests → implementer implements → LOCAL 3-CLEAN → holdout-evaluator gates HS-AUDITLOG-001-A-001..004 → demo-recorder → push → pr-manager 9-step PR cycle.
+**RESUME NEXT-ACTION: dispatch fix-burst for 4 LOCAL pass-1 findings, then re-gate LOCAL 3-CLEAN on the new HEAD.** Findings + routing (xDome grammar uses `operands` for compound filters; ISO-8601 for datetime `value`):
+1. **F-P1-HIGH-001** [POL-4/TD-VSDD-059]: compound `and` filter uses key `"conditions"` but spec + xDome grammar mandate `"operands"`. FIX = implementer changes `build_claroty_audit_filter_by` in prism-bin/src/spec_driven_adapter.rs AND test RG-003 to `operands`.
+2. **F-P1-MED-002** [POL-4/SAP-2]: `ClarotyAuditLogFilter` is a PHANTOM type (real = `ApiQueryFilter = HashMap<String,Value>` in prism-dtu-claroty/src/types.rs); AND code emits epoch-ms integer `value` while xDome datetime fields take ISO-8601. FIX = implementer: switch `value` to ISO-8601 + correct false phantom citation in doc-comments; product-owner: correct same phantom citation in story §Authority + Notes-for-Implementer + BC-2.01.013 v1.20 row.
+3. **F-P1-MED-003** [Production-Grade/SAC-1]: RG-004 `_backward_compat` test does NOT assert FQL/AQL string → `Value::String`. FIX = test-writer/implementer add FQL-string injection + Value::String assertion (gates pipeline.rs else-branch).
+4. **F-P1-MED-004** [SOUL.md §4 silent-wrong-result]: end-only `WHERE timestamp < X` injects synthetic `now−7d` lower bound → inverted/empty window silently; EC-002 codifies this defect. FIX = product-owner: amend EC-002 so end-only uses `less_or_equal` alone; implementer: fix end-only branch of `build_claroty_audit_filter_by`.
+OBS-3: DTU ignores filter_by (returns full fixture) so push-down correctness is outbound-body-shape-only in unit tests; story holdout gate + live check validate real reduction.
 
-**(2) Chore PR — READY.** Open PR: `chore/gitignore-ad017-live-evidence` → develop (fast-forward `539a5b39a`; adds `.gitignore` AD-017 live-evidence rule). No code changes; trivial merge.
+AFTER fix-burst + re-gate 3-CLEAN(strict): story-level holdout gate → demo-recorder per-AC → push → pr-manager PR → squash-merge → post-merge burst.
 
-**(3) ADR-058 spec-evolution cycle — BLOCKED (spec-readiness gate FAILED D-2176).** Both Stage 1 + Stage 2 stories NOT READY-FOR-TDD. Required routing: architect (re-derive ADR-058 §J + plumbing design + raw_extensions location + 4-table collision proof); product-owner (BC-2.16.003 emission-schema reconciliation + §Story Anchor sweep + BC-2.16.002 catalog + BC-2.01.013 EC-01-025); story-writer (AC/RG baseline corrections per updated architecture). Sequence: spec-evolution → ADR-058 spec adversarial 3-CLEAN + PO holdout scenarios → stories READY → TDD.
-
-**(4) Fresh Claroty live re-validation — required before next demo.** D-2169 live battery was against old reduced column set — fresh validation on current schema required before demo.
-
-**(5) T13 capstone demo runbook — DEFERRED.** Run AFTER ADR-058 Stage 1+2 (on OCSF columns).
-
-**(6) Wave-A spec-evolution cascade — FROZEN.** 9 stories (8 draft, 1 ready: S-WAVE-A-ARMIS-ACTIVITY-001). Human decision (f) freeze in effect.
-
-**PENDING USER-APPROVED / OWNED:**
+**PENDING USER-APPROVED WORK:**
+- Human PRE-AUTHORIZED (this session): squash-merge of S-CLAROTY-AUDITLOG-TIMEBOX-001 PR once green + LOCAL 3-CLEAN + holdout-gate passed + pr-reviewer READY.
+- Human granted full Level 4 autonomy this session.
+- User terminal action (NOT AI): `git stash drop stash@{0}` (`cargo-lock-drift-pre-reconcile` — verified regenerable external-crate lockfile).
 - SECURITY CARRY-FORWARD: `/Users/jmagady/Dev/test-soc/.mcp.json` API keys must be rotated — human-only task, DO NOT action.
 
-**DECISION-LOG DELTA (this burst — D-2178 through D-2182):** DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 spec+story+holdout foundation authored (D-2178); remove-uncertainty outcome CONFIRMED (D-2179); human decision collapse two-layer→single Layer-2 fix (D-2180); filter-rejection routed to E-SENSOR-001 (D-2181); burst complete (D-2182).
+**ADR-058 NEXT MAJOR WORKSTREAM (gated):** Both S-ADR058-OCSF-COERCION-001 (Stage 1) and S-ADR058-OCSF-ROUTING-001 (Stage 2) FAILED pre-TDD spec-readiness gate (D-2176) — authored against stale pre-PR-#236 claroty.sensor.toml. Requires spec-evolution cycle FIRST (architect re-derive §J vs current 4-table/20-col TOML; PO BC fixes; story-writer AC/RG).
 
-**BACKUP BOUNDARY (D-2182):**
-- PUSHED / safe: `factory-artifacts` (this D-2182 burst commit — run `git -C .factory log -1 --format='%H'`); `origin/develop` `3197e27a9` (updated via PR #237 merge; UNCHANGED this burst).
-- LOCAL-ONLY (AT RISK): `chore/gitignore-ad017-live-evidence` `539a5b39a` (chore PR pending; not yet merged to develop); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).
+**OTHER WORKSTREAMS:**
+- Fresh Claroty live re-validation: required before next demo (D-2169 was stale TOML).
+- T13 capstone demo runbook: DEFERRED (run after ADR-058 Stage 1+2).
+- Wave-A spec-evolution cascade: FROZEN (human decision (f)).
 
-**SPEC PERIMETER (post-D-2182):** BC-2.16.009 **v1.30** / ADR-053 **v0.40** / BC-2.16.013 **v1.38** / BC-2.16.003 **v1.4** / error-taxonomy **v2.77** / BC-2.16.008 v1.6 / BC-2.16.014 **v1.22** (active) / VP-159 **v1.27** / ADR-054 **v0.57** / BC-2.01.018 **v1.7** / BC-2.01.008 **v1.8** / BC-2.01.006 **v1.9** / BC-2.02.004 **v1.14** / BC-2.02.005 **v1.7** / BC-2.02.006 **v1.18** / BC-2.02.014 **v2.1** (draft) / BC-2.16.002 **v2.20** / BC-2.06.019 **v1.18** / BC-2.08.002 **v1.8** / BC-2.08.001 **v1.6** / BC-2.01.013 **v1.20** / BC-2.01.010 **v1.7** / BC-2.19.001 **v2.4** / BC-2.11.001 **v1.25** / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 **v1.30** / ADR-050 **v2.3** (accepted) / VP-160 **v1.3** / VP-161 **v1.3** / verification-architecture **v1.48** / ADR-051 **v1.8** / ADR-052 **v1.19** / ADR-055 **v1.3** (accepted) / ADR-056 **v0.5** (accepted) / ADR-057 **v1.4** (accepted) / ADR-058 **v2.1** (accepted) / ADR-031 **v1.10** (accepted) / ADR-033 **v1.1** (accepted) / architecture-concept.md **v1.2** / capabilities.md **v1.19**. Stories: S-CLAROTY-AUDITLOG-TIMEBOX-001 **v2.0** (draft — 6 ACs / 5 RGTs; REGISTERED D-2178); S-WAVE-A-ENGINE-001 **v3.3** (28 ACs / 40 RGTs); S-WAVE-A-MCP-001 **v1.5**; S-WAVE-A-CYBERINT-PATCH-001 **v1.4**; S-WAVE-A-ARMIS-REMEDIATION-001 **v1.5**; S-ADR054-WAVE-A-001 **v1.5** (10 ACs / 24 RGTs); S-ADR055-WAVE-A-001 **v1.3** (11 RGTs); S-WAVE-A-CYBERINT-SPEC-001 **v1.8** (10 ACs / 20 RGTs); S-WAVE-A-ARMIS-ACTIVITY-001 **v2.1** (9 ACs ready); S-WAVE-A-ARMIS-SPEC-001 **v1.9** (15 ACs / 15 RGTs); DEFECT-ADAPTER-TLS-XDOME-LIVE-001 **v1.34** (23 ACs / 23 RGs; **MERGED PR #237 2026-08-15 develop@3197e27a9; story FINAL**); S-REQUIRED-COL-GATE-001 **v1.1** (draft); S-MAINT-L11-GATE-001 **v1.1** (draft); S-MAINT-ADR-ANCHOR-GATE-001 **v0.1** (draft); S-MAINT-DISPATCH-BRIEF-POINTER-001 **v1.0** (draft); S-DEMO-CLAROTY-DAR-001 **v1.3** (draft); S-DEMO-CLAROTY-HARNESS-DAR-001 **v1.0** (draft); S-ADR058-OCSF-COERCION-001 **v1.1** (draft — NOT READY-FOR-TDD per D-2176); S-ADR058-OCSF-ROUTING-001 **v1.2** (draft — NOT READY-FOR-TDD per D-2176); S-ADR058-DTU-PARITY-MIGRATION-001 **v1.0** (draft); S-MAINT-POL29-CODE-TWIN-SWEEP-001 **v0.1** (draft). Indexes: BC-INDEX **v9.14** / VP-INDEX **v2.22** / ARCH-INDEX **v2.303** / STORY-INDEX **v2.814** (total_stories 299). active_contracts: **252** / draft_contracts: **4** / total_contracts: **269**.
+**DECISION-LOG DELTA (D-2183 through D-2185):** PR #238 chore merged develop@791b68c3 (D-2183); S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD-GREEN d1b7c0c47 + LOCAL pass-1 4 findings streak 0/3 (D-2184); session wrap STATE v8.718→v8.719 (D-2185).
+
+**BACKUP BOUNDARY (D-2185):**
+- PUSHED / safe: `factory-artifacts` (this D-2185 burst commit — run `git -C .factory log -1 --format='%H'`); `origin/develop` `791b68c3` (PR #238 merged).
+- LOCAL-ONLY (AT RISK): LOCAL develop @`3197e27a9` (fast-forward to 791b68c3 pending); `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` @`d1b7c0c47` (not pushed — ACTIVE story in progress); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).
+
+**SPEC PERIMETER (post-D-2185):** BC-2.16.009 **v1.30** / ADR-053 **v0.40** / BC-2.16.013 **v1.38** / BC-2.16.003 **v1.4** / error-taxonomy **v2.77** / BC-2.16.008 v1.6 / BC-2.16.014 **v1.22** (active) / VP-159 **v1.27** / ADR-054 **v0.57** / BC-2.01.018 **v1.7** / BC-2.01.008 **v1.8** / BC-2.01.006 **v1.9** / BC-2.02.004 **v1.14** / BC-2.02.005 **v1.7** / BC-2.02.006 **v1.18** / BC-2.02.014 **v2.1** (draft) / BC-2.16.002 **v2.20** / BC-2.06.019 **v1.18** / BC-2.08.002 **v1.8** / BC-2.08.001 **v1.6** / BC-2.01.013 **v1.20** / BC-2.01.010 **v1.7** / BC-2.19.001 **v2.4** / BC-2.11.001 **v1.25** / VP-153 v0.28 / BC-2.01.016 v1.15 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 **v1.30** / ADR-050 **v2.3** (accepted) / VP-160 **v1.3** / VP-161 **v1.3** / verification-architecture **v1.48** / ADR-051 **v1.8** / ADR-052 **v1.19** / ADR-055 **v1.3** (accepted) / ADR-056 **v0.5** (accepted) / ADR-057 **v1.4** (accepted) / ADR-058 **v2.1** (accepted) / ADR-031 **v1.10** (accepted) / ADR-033 **v1.1** (accepted) / architecture-concept.md **v1.2** / capabilities.md **v1.19**. Stories: S-CLAROTY-AUDITLOG-TIMEBOX-001 **v2.0** (draft — 6 ACs / 5 RGTs; TDD-GREEN d1b7c0c47; LOCAL 3-CLEAN streak 0/3 — 4 pass-1 findings pending fix-burst); S-WAVE-A-ENGINE-001 **v3.3** (28 ACs / 40 RGTs); S-WAVE-A-MCP-001 **v1.5**; S-WAVE-A-CYBERINT-PATCH-001 **v1.4**; S-WAVE-A-ARMIS-REMEDIATION-001 **v1.5**; S-ADR054-WAVE-A-001 **v1.5** (10 ACs / 24 RGTs); S-ADR055-WAVE-A-001 **v1.3** (11 RGTs); S-WAVE-A-CYBERINT-SPEC-001 **v1.8** (10 ACs / 20 RGTs); S-WAVE-A-ARMIS-ACTIVITY-001 **v2.1** (9 ACs ready); S-WAVE-A-ARMIS-SPEC-001 **v1.9** (15 ACs / 15 RGTs); DEFECT-ADAPTER-TLS-XDOME-LIVE-001 **v1.34** (23 ACs / 23 RGs; **MERGED PR #237 2026-08-15 develop@3197e27a9; story FINAL**); S-REQUIRED-COL-GATE-001 **v1.1** (draft); S-MAINT-L11-GATE-001 **v1.1** (draft); S-MAINT-ADR-ANCHOR-GATE-001 **v0.1** (draft); S-MAINT-DISPATCH-BRIEF-POINTER-001 **v1.0** (draft); S-DEMO-CLAROTY-DAR-001 **v1.3** (draft); S-DEMO-CLAROTY-HARNESS-DAR-001 **v1.0** (draft); S-ADR058-OCSF-COERCION-001 **v1.1** (draft — NOT READY-FOR-TDD per D-2176); S-ADR058-OCSF-ROUTING-001 **v1.2** (draft — NOT READY-FOR-TDD per D-2176); S-ADR058-DTU-PARITY-MIGRATION-001 **v1.0** (draft); S-MAINT-POL29-CODE-TWIN-SWEEP-001 **v0.1** (draft). Indexes: BC-INDEX **v9.14** / VP-INDEX **v2.22** / ARCH-INDEX **v2.303** / STORY-INDEX **v2.814** (total_stories 299). active_contracts: **252** / draft_contracts: **4** / total_contracts: **269**.

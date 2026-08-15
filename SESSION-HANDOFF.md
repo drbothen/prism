@@ -256,11 +256,57 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2135 (DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL pass-21 CLEAN(strict)=NO / CLEAN(PR-merge)=YES; story v1.19 / BC-2.08.002 v1.7 / BC-INDEX v9.08 / STORY-INDEX v2.797; streak RESET 0/3; NEXT: strict LOCAL adversary pass-22 on frozen HEAD b3052ce4d + story v1.19 + BC-2.08.002 v1.7 + error-taxonomy v2.76).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot).
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot. D-2115 blockquote above captures the D-2115 burst delta. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `3197e27a9` (origin/develop=`3197e27a9`; updated D-2177 PR #237 squash-merge 2026-08-15; was `539a5b39a` at D-2169/D-2170). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'`. STATE v8.718 (D-2182). 42 cumulative open findings; ip_list→device.ip OPEN (needs story anchor); FINDING-G (CLAUDE.md detection gap — human mandate required). **D-2109 GOVERNING DECISION: DTU-vs-real-xDome drift DEFERRED — DO NOT mint as adversary/holdout findings; DTUs MUST NOT be reconciled to real without explicit human authorization.**
+> develop HEAD `791b68c3` (origin/develop=`791b68c3`; PR #238 chore merged 2026-08-15; LOCAL develop @`3197e27a9` 1 behind origin). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'`. STATE v8.719 (D-2185). 42 cumulative open findings; ip_list→device.ip OPEN (needs story anchor); FINDING-G (CLAUDE.md detection gap — human mandate required). **D-2109 GOVERNING DECISION: DTU-vs-real-xDome drift DEFERRED — DO NOT mint as adversary/holdout findings; DTUs MUST NOT be reconciled to real without explicit human authorization.** **§RESUME SNAPSHOT D-2185 is the active session-wrap snapshot. ACTIVE: S-CLAROTY-AUDITLOG-TIMEBOX-001 in .worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001 @ d1b7c0c47 (TDD-GREEN; LOCAL 3-CLEAN streak 0/3 — 4 pass-1 findings pending fix-burst).**
 
 ---
 
-## §RESUME SNAPSHOT — D-2182 (2026-08-15 — REGISTRATION BURST COMPLETE; S-CLAROTY-AUDITLOG-TIMEBOX-001 REGISTERED; develop@3197e27a9; STATE v8.717→v8.718) [SUPERSEDES D-2170]
+## §RESUME SNAPSHOT — D-2185 (2026-08-15 — SESSION WRAP; TDD-GREEN d1b7c0c47 + LOCAL pass-1 4 findings; develop@791b68c3; STATE v8.718→v8.719) [SUPERSEDES D-2182]
+
+### RESUME IN ONE BREATH
+S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD-GREEN at d1b7c0c47 (RG-001..005 pass; 5741 tests). LOCAL adversary pass-1 found 4 findings (F-P1-HIGH-001 `operands` key; F-P1-MED-002 ISO-8601 + phantom type; F-P1-MED-003 FQL assertion; F-P1-MED-004 end-only synthetic lower bound); streak 0/3. PR #238 chore merged develop@791b68c3; LOCAL develop 1 behind.
+RESUME NEXT-ACTION: dispatch fix-burst for 4 LOCAL pass-1 findings on d1b7c0c47, then re-gate LOCAL 3-CLEAN.
+
+### HEADS (D-2185)
+- `develop`: origin/develop = `791b68c3` (chore PR #238 AD-017 gitignore merged). LOCAL develop = `3197e27a9` (1 behind origin — trivial fast-forward pending; not blocking).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2185 burst commit)
+- `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` @`d1b7c0c47` branch feature/S-CLAROTY-AUDITLOG-TIMEBOX-001 — ACTIVE (frozen HEAD; 4 pass-1 findings pending fix-burst)
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, 1 dirty file)
+- No agents in flight (frozen).
+
+### ACTIVE WORKSTREAM — audit-log TDD delivery (RESUME HERE)
+Story: S-CLAROTY-AUDITLOG-TIMEBOX-001 (draft v2.0). Worktree: `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001`. Branch: `feature/S-CLAROTY-AUDITLOG-TIMEBOX-001`. Frozen HEAD: `d1b7c0c47`. LOCAL adversary 3-CLEAN streak: 0/3 on `d1b7c0c47` (pass-1 found 4 findings).
+
+**RESUME NEXT-ACTION: dispatch fix-burst for 4 LOCAL pass-1 findings, then re-gate LOCAL 3-CLEAN on the new HEAD.** Findings + routing (xDome grammar uses `operands` for compound filters; ISO-8601 for datetime `value`):
+1. **F-P1-HIGH-001** [POL-4/TD-VSDD-059]: compound `and` filter uses key `"conditions"` but spec + xDome grammar mandate `"operands"`. FIX = implementer changes `build_claroty_audit_filter_by` in prism-bin/src/spec_driven_adapter.rs AND test RG-003 to `operands`.
+2. **F-P1-MED-002** [POL-4/SAP-2]: `ClarotyAuditLogFilter` is a PHANTOM type (real = `ApiQueryFilter = HashMap<String,Value>` in prism-dtu-claroty/src/types.rs); AND code emits epoch-ms integer `value` while xDome datetime fields take ISO-8601. FIX = implementer: switch `value` to ISO-8601 + correct false phantom citation; product-owner: correct same phantom citation in story §Authority + Notes-for-Implementer + BC-2.01.013 v1.20 row.
+3. **F-P1-MED-003** [Production-Grade/SAC-1]: RG-004 `_backward_compat` test does NOT assert FQL/AQL string → `Value::String`. FIX = test-writer/implementer add FQL-string injection + Value::String assertion (gates pipeline.rs else-branch).
+4. **F-P1-MED-004** [SOUL.md §4 silent-wrong-result]: end-only `WHERE timestamp < X` injects synthetic `now−7d` lower bound → inverted/empty window silently; EC-002 codifies this defect. FIX = product-owner: amend EC-002 so end-only uses `less_or_equal` alone; implementer: fix end-only branch of `build_claroty_audit_filter_by`.
+OBS-3 (holdout-gate flag): DTU ignores filter_by so push-down correctness is outbound-body-shape-only in unit tests; story holdout gate + live check (ASM-CLAROTY-AUDITLOG-001) validate real reduction.
+
+AFTER fix-burst + re-gate 3-CLEAN(strict): story-level holdout gate (holdout-evaluator runs HS-AUDITLOG-001-A-001..004 against built binary) → demo-recorder per-AC → push → pr-manager PR → squash-merge → post-merge burst.
+
+### PENDING USER-APPROVED / OWNED (D-2185)
+- Human PRE-AUTHORIZED (this session): squash-merge of S-CLAROTY-AUDITLOG-TIMEBOX-001 PR once green + LOCAL 3-CLEAN + holdout-gate passed + pr-reviewer READY.
+- Human granted full Level 4 autonomy this session.
+- User terminal action (NOT AI): `git stash drop stash@{0}` (`cargo-lock-drift-pre-reconcile` — verified regenerable external-crate lockfile).
+- SECURITY CARRY-FORWARD: `/Users/jmagady/Dev/test-soc/.mcp.json` API keys must be rotated — human-only task, DO NOT action.
+
+### ADR-058 NEXT MAJOR WORKSTREAM (gated)
+Both S-ADR058-OCSF-COERCION-001 (Stage 1) and S-ADR058-OCSF-ROUTING-001 (Stage 2) FAILED pre-TDD spec-readiness gate (D-2176). Root cause: authored against stale pre-PR-#236 claroty.sensor.toml. Required routing: architect (re-derive ADR-058 §J vs current 4-table/20-col TOML + plumbing design + raw_extensions location); product-owner (BC-2.16.003 emission-schema reconciliation + §Story Anchor sweep); story-writer (AC/RG corrections). Sequence: spec-evolution cycle → ADR-058 spec adversarial 3-CLEAN + PO holdout scenarios → stories READY → THEN TDD delivery.
+
+### DECISION-LOG DELTA (D-2183 through D-2185)
+- D-2183: PR #238 chore(gitignore) MERGED develop@791b68c3; develop_head 3197e27a9→791b68c3; chore branch deleted.
+- D-2184: S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD-GREEN d1b7c0c47 (RG-001..005; just check 5741/5741); LOCAL adversary pass-1 found 4 findings; BC-5.39.001 streak 0/3; workspace_test_count 5733→5741.
+- D-2185: SESSION WRAP; STATE v8.718→v8.719; §RESUME SNAPSHOT D-2185 written; D-2182 SUPERSEDED.
+
+### BACKUP BOUNDARY (D-2185)
+- PUSHED / safe: `origin/develop` `791b68c3` (PR #238 merged); `factory-artifacts` (this D-2185 burst commit — run `git -C .factory log -1 --format='%H'`).
+- LOCAL-ONLY (AT RISK): LOCAL develop @`3197e27a9` (fast-forward to 791b68c3 pending); `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` @`d1b7c0c47` (not pushed — ACTIVE story); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).
+
+---
+
+## §RESUME SNAPSHOT — D-2182 (2026-08-15 — REGISTRATION BURST COMPLETE; S-CLAROTY-AUDITLOG-TIMEBOX-001 REGISTERED; develop@3197e27a9; STATE v8.717→v8.718) [SUPERSEDES D-2170] [SUPERSEDED by D-2185]
 
 ### RESUME IN ONE BREATH
 PR #237 DEFECT-ADAPTER-TLS-XDOME-LIVE-001 MERGED develop@3197e27a9 2026-08-15T18:39:09Z (D-2177). S-CLAROTY-AUDITLOG-TIMEBOX-001 (draft v2.0) REGISTERED for DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 (D-2178..D-2182): 6 ACs, 5 RGTs, density 0.83, tdd_mode: strict; BCs: BC-2.16.013 v1.38 + BC-2.01.013 v1.20; 4 holdout scenarios HS-AUDITLOG-001-A-001..004. ADR-058 spec-readiness gate FAILED (D-2176 OPEN). NEXT: TDD delivery of S-CLAROTY-AUDITLOG-TIMEBOX-001.
