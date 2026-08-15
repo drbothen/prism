@@ -18,6 +18,10 @@
 //! |         |                                                              | `"auth_valid":false` wire assertions FAIL (LOW-1 companion to RG-007).    |
 //! | RG-019 | test_BC_2_08_002_degraded_reachable_wire_shape             | check_one sets `reachable = connectivity == Up`; Degraded (5xx) yields    |
 //! |         |                                                              | `reachable:false`; assertion `"reachable":true` FAILS → RED (HS-007).     |
+//! | RG-020 | test_BC_2_08_002_degraded_envelope_summary_matches_overall_status | server.rs `fully_healthy_count` lacks `&& s.error.is_none()` (T-SERVER-1) |
+//! |         |                                                              | → Degraded counted as healthy → summary "1 of 1" contradicts              |
+//! |         |                                                              | `overall_status:"partial"`; assertions "1 of 1" ABSENT + "0 of 1"         |
+//! |         |                                                              | PRESENT FAIL → RED (AC-WIRE-003).                                         |
 //!
 //! # Test seam
 //!
@@ -843,5 +847,189 @@ async fn test_BC_2_08_002_degraded_reachable_wire_shape() {
          \nRoot cause: `reachable = connectivity == Up` yields false for Degraded. \
          \nRequired fix: `reachable = connectivity != Down`. \
          \nFull wire: {json}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RG-020 — check_sensor_health envelope: Degraded sensor MUST NOT be counted as healthy
+// ---------------------------------------------------------------------------
+
+/// RG-020: `check_sensor_health` for a Degraded (5xx) sensor MUST NOT count it as
+/// healthy in the prose summary, and `overall_status` MUST be `"partial"`.
+///
+/// # Problem (T-SERVER-1 / F-P42-HIGH-001)
+///
+/// After T-WIRE-1 (`reachable = connectivity != Down`) and T-WIRE-2 (`r.error.is_none()`
+/// gate in `HealthCheckResult::aggregate`), `check_all` correctly returns
+/// `OverallStatus::Partial` for a Degraded (5xx) sensor. However `server.rs`
+/// `check_sensor_health` has a SECOND `fully_healthy_count` predicate (T-SERVER-1):
+///
+/// ```ignore
+/// let fully_healthy_count = health_result.sensors.iter().filter(|s| {
+///     s.reachable == Some(true)
+///         && s.auth_valid == Some(true)
+///         && s.rate_limit.is_none()
+///     // MISSING: && s.error.is_none()   ← T-SERVER-1 fix target
+/// }).count();
+/// ```
+///
+/// A Degraded sensor (reachable=true, auth_valid=true, rate_limit=None,
+/// error=Some("service_unavailable")) satisfies the BUGGY predicate → `fully_healthy_count = 1`.
+/// The prose summary then reads "1 of 1 sensor(s) healthy for client '...' (live probe)",
+/// which CONTRADICTS `overall_status: "partial"` in the same envelope.
+///
+/// # RED assertions (fail on current HEAD — T-SERVER-1 not applied)
+///
+/// 1. Summary MUST NOT contain `"1 of 1 sensor(s) healthy"` — Degraded is NOT healthy.
+/// 2. Summary MUST contain `"0 of 1"` — correct healthy count after T-SERVER-1 fix.
+///
+/// # GREEN assertion (passes — T-WIRE-2 already applied in mod.rs aggregate)
+///
+/// 3. `overall_status` MUST be `"partial"` — T-WIRE-2 fixed `aggregate` already.
+///
+/// # Wiring
+///
+/// Uses `PrismServer::new().with_query_engine(engine).with_health_checker(checker)`.
+/// `engine` carries a `TableRegistry` with `"xdome"` registered, so `check_sensor_health`
+/// enumerates `["xdome"]` via the single-tenant fallback path.
+/// `probe_connectivity_inner` uses the nil-UUID fallback → `get_all_for_sensor("xdome")`
+/// → finds the `SpecDrivenSensorAdapter` → wiremock returns 503 → `Degraded` → RED.
+///
+/// # SAP-3 compliance
+///
+/// Test reaches `check_sensor_health` end-to-end from the `PrismServer` public surface
+/// (not from `check_one` in isolation). Same entry-point as production MCP tool calls.
+///
+/// # Wire-assertion discipline (SID-2)
+///
+/// All assertions operate on the FULL serialized `CallToolResult` JSON.
+///
+/// BC-2.08.002 v1.8 §Postconditions EC-08-009 | AC-WIRE-003 | HS-007 | T-SERVER-1 |
+/// DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-020
+#[tokio::test]
+async fn test_BC_2_08_002_degraded_envelope_summary_matches_overall_status() {
+    use prism_credentials::InMemoryCredentialStore;
+    use prism_mcp::server::{CheckSensorHealthParams, PrismServer};
+    use prism_query::{
+        engine::{QueryEngine, QueryEngineConfig},
+        table_registry::TableRegistry,
+    };
+    use rmcp::handler::server::wrapper::Parameters;
+
+    // Wiremock: GET /api/v1/devices → 503 Service Unavailable (ConnectivityStatus::Degraded).
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/devices"))
+        .respond_with(ResponseTemplate::new(503).set_body_bytes(b"service unavailable"))
+        .mount(&mock_server)
+        .await;
+
+    // Build adapter — same spec/resolved/auth pattern as RG-019.
+    // make_xdome_spec called twice: once for make_resolved (moves spec), once for TableRegistry.
+    let spec_for_registry = make_xdome_spec(&mock_server.uri());
+    let spec_for_adapter = make_xdome_spec(&mock_server.uri());
+    let resolved = make_resolved(spec_for_adapter, "rg020-org");
+    let auth_strategy =
+        AdapterAuthStrategy::Plugin(Arc::new(MockAuthProvider::new("rg020-token"))
+            as Arc<dyn prism_spec_engine::AuthProvider>);
+    let http_client = build_http_client_with_timeout().expect("RG-020: http client build failed");
+    let adapter = Arc::new(SpecDrivenSensorAdapter::new(
+        Arc::new(resolved),
+        auth_strategy,
+        http_client,
+    ));
+
+    let org_id = OrgId::new();
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, adapter);
+    let adapter_registry = Arc::new(adapter_registry);
+
+    // TableRegistry: register "xdome" so check_sensor_health enumerates it via the
+    // single-tenant fallback path (query_engine.table_registry().registered_sensor_ids()).
+    let table_registry = TableRegistry::new();
+    table_registry
+        .register_sensor(&spec_for_registry)
+        .expect("RG-020: register xdome in TableRegistry");
+
+    // QueryEngine wired with the table_registry for sensor ID enumeration.
+    let engine = QueryEngine::new(
+        Arc::clone(&adapter_registry),
+        Arc::new(InMemoryCredentialStore::new()),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+    )
+    .with_table_registry(Arc::new(table_registry));
+
+    let checker = SensorHealthChecker::new(Arc::clone(&adapter_registry));
+
+    // PrismServer with both query_engine (for sensor enumeration) and health_checker (live probe).
+    // No OrgRegistry wired → single-tenant mode → org_id = Uuid::nil() sentinel →
+    // probe_connectivity_inner falls back to get_all_for_sensor("xdome") → finds the adapter.
+    let server = PrismServer::new()
+        .with_query_engine(Arc::new(engine))
+        .with_health_checker(checker);
+
+    let params = CheckSensorHealthParams::for_client("rg020-org");
+    let call_result = server
+        .check_sensor_health(Parameters(params))
+        .await
+        .expect("RG-020: check_sensor_health MUST succeed for Degraded (5xx) sensor");
+
+    // SID-2 wire-shape assertion: serialize CallToolResult to JSON.
+    let json_str =
+        serde_json::to_string(&call_result).expect("RG-020: CallToolResult must serialize to JSON");
+
+    // ASSERTION 1 (RED on current HEAD — T-SERVER-1 unfixed):
+    // Summary MUST NOT count Degraded sensor as healthy.
+    //
+    // Current bug: server.rs `fully_healthy_count` predicate lacks `&& s.error.is_none()` →
+    // Degraded sensor (reachable=true, auth_valid=true, rate_limit=None,
+    // error="service_unavailable") passes the filter → fully_healthy_count = 1 →
+    // summary = "1 of 1 sensor(s) healthy for client 'rg020-org' (live probe)" [WRONG].
+    //
+    // FAILS on current HEAD: summary contains "1 of 1 sensor(s) healthy".
+    // GREEN after T-SERVER-1 fix: predicate adds `&& s.error.is_none()` →
+    // Degraded excluded → fully_healthy_count = 0 → summary "0 of 1 sensor(s) healthy...".
+    assert!(
+        !json_str.contains("1 of 1 sensor(s) healthy"),
+        "RG-020 AC-WIRE-003 FAIL (SID-2, RED): summary MUST NOT contain \
+         '1 of 1 sensor(s) healthy' for a Degraded (5xx) sensor. \
+         Current bug: server.rs `fully_healthy_count` predicate lacks `&& s.error.is_none()`, \
+         miscounting Degraded (error=service_unavailable) as healthy. \
+         Fix (T-SERVER-1): add `&& s.error.is_none()` to the predicate. \
+         Full wire: {:.800}",
+        json_str
+    );
+
+    // ASSERTION 2 (RED on current HEAD — T-SERVER-1 unfixed):
+    // Summary MUST contain "0 of 1" after T-SERVER-1 fix.
+    //
+    // FAILS on current HEAD: summary says "1 of 1", not "0 of 1".
+    // GREEN after T-SERVER-1 fix: Degraded excluded → fully_healthy_count = 0 → "0 of 1".
+    assert!(
+        json_str.contains("0 of 1"),
+        "RG-020 AC-WIRE-003 FAIL (SID-2, RED): summary MUST contain '0 of 1' — \
+         the Degraded sensor has error='service_unavailable' and MUST NOT be counted as healthy. \
+         After T-SERVER-1 fix (`&& s.error.is_none()`), fully_healthy_count = 0 → \
+         summary '0 of 1 sensor(s) healthy for client rg020-org (live probe)'. \
+         Full wire: {:.800}",
+        json_str
+    );
+
+    // ASSERTION 3 (GREEN on current HEAD — T-WIRE-2 in mod.rs already applied):
+    // overall_status MUST be "partial" — aggregate correctly excludes Degraded from fully_healthy.
+    //
+    // T-WIRE-2 fixed `HealthCheckResult::aggregate` with `r.error.is_none()` gate.
+    // aggregate → fully_healthy_count = 0, any_partially_available = true → OverallStatus::Partial.
+    // server.rs sets overall_status_str = health_result.overall.as_status_str() → "partial".
+    assert!(
+        json_str.contains(r#""overall_status":"partial""#)
+            || json_str.contains(r#""overall_status": "partial""#),
+        "RG-020 AC-WIRE-003 FAIL (SID-2): overall_status MUST be 'partial' for a Degraded \
+         (5xx) fleet. T-WIRE-2 (mod.rs aggregate r.error.is_none() gate) should already \
+         produce OverallStatus::Partial. Regression: T-WIRE-2 may have been reverted. \
+         Full wire: {:.800}",
+        json_str
     );
 }
