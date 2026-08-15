@@ -4658,3 +4658,27 @@ A remediation chain can propagate an *incomplete contract* forward even when eve
 **Transferable principle:** SAC-1 density compliance is relative to the contract as understood at authoring time. When a new EC is contracted in a BC, all anchor stories of that BC must be swept for coverage of the new EC row. The sweep is "EC-added → anchor-story AC coverage" — it runs at the time the new EC is contracted, not deferred to a future adversarial pass.
 
 **Source:** D-2082 FB110 state-manager closing burst (2026-07-31). Pattern family: incomplete-contract propagation, cross-artifact coverage gap, AC/EC traceability, SAC-1 limits, chain-close discipline, seam discipline.
+
+---
+
+### Lesson 125 — POL-29 Dim-1 Code-Twin Gap: Spec-Doc Sibling-Pair Language Did Not Cover Code-Level Predicate Twins [tracked]
+
+**Category:** POL-29 sibling-sweep discipline, code-level twin, process-gap, adversarial-finding recurrence
+
+**Context:** LOCAL adversary pass-42 for DEFECT-ADAPTER-TLS-XDOME-LIVE-001 returned F-P42-HIGH-001 [HIGH]: `fully_healthy_count` predicate in `crates/prism-bin/src/server.rs` was a code-level twin of the aggregate predicate in `crates/prism-sensors/src/health/mod.rs::HealthCheckResult::aggregate`. When the health/mod.rs predicate was extended with `&& s.error.is_none()` (in the HS-007 fix cascade, D-2159), the server.rs twin was missed. Result: `overall_status` in the serialized envelope correctly reported "partial" while `fully_healthy_count` still counted Degraded/5xx sensors as healthy — a BC-2.08.002 §Postconditions EC-08-009 violation. fix: added `&& s.error.is_none()` to server.rs in the pass-42 fix-burst (D-2160).
+
+**Root cause:**
+
+POL-29 dim-1 (sibling-pair sweep) is phrased in spec-doc terms: "if the edited artifact has a twin — created by the same split, sharing a subsystem and capability, or documented as a pair — NAME the twin and sweep it." The D-2159 fix-burst correctly swept BC-2.08.001/BC-2.08.002 as a spec-doc sibling pair. But the same conceptual twinning exists at the code level: `server.rs::fully_healthy_count` was not a spec twin, but a code-logic twin — a predicate computing the same quantity from the same data, in a different crate. POL-29 dim-1 as written does not explicitly enumerate code-level predicate twins as a sweep target; the sweeper naturally follows the spec-doc framing and misses the code-level mirror.
+
+**Why this is structurally different from the earlier sibling-pair lessons (Lessons 116/120/123):**
+
+Those lessons concerned spec-document pair sweeps (BC-to-BC, ADR-to-story, etc.). This is the first occurrence of a code-level twin being missed under POL-29. Spec-doc pairs are typically declared or discoverable by index lookup. Code-level twins require recognizing that a second code path independently computes the same quantity and must stay in sync — a pattern recognition step, not an index lookup.
+
+**Process-gap follow-up:**
+
+S-MAINT-POL29-CODE-TWIN-SWEEP-001 (draft v0.1) registered in STORY-INDEX.md as a follow-up to amend POL-29 dim-1 to explicitly cover code-level predicate/constant siblings in implementation fix-bursts. The story will add a heuristic: "when fixing a predicate, constant, or conditional guard, grep the crate (and sibling crates by feature area) for other code paths that independently compute the same quantity."
+
+**Transferable principle:** POL-29 dim-1 sibling-pair sweep must include code-level twins — functions/predicates in the same crate or adjacent crates that independently compute the same quantity. The absence of a spec-doc twin does not imply the absence of a code-level twin. When a fix-burst extends a predicate (adding a guard, changing a condition), a secondary grep for "where else does this logic appear under a different name?" is part of the sweep obligation.
+
+**Source:** D-2160 pass-42 fix-burst state-manager closing burst (2026-08-15). Pattern family: POL-29 dim-1, code-level twin, sibling-sweep gap, predicate sync discipline.

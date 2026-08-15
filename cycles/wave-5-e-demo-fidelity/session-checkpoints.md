@@ -459,3 +459,19 @@ D-2062: commit each burst before dispatching the next. D-2063: do not assert com
 - LOCAL-ONLY (AT RISK): `.worktrees/DEFECT-ADAPTER-TLS-XDOME-LIVE-001` @`a1864d3eb` (unpushed feature branch); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).
 
 **NOTE: Superseded by D-2129 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-15 CLEAN(strict)=YES / CLEAN(PR-merge)=YES — ZERO findings any severity; FIRST strict-clean pass; BC-5.39.001 streak ADVANCES 0/3 → 1/3; frozen HEAD a1864d3eb + story v1.15 UNCHANGED. SESSION WRAP: feature/DEFECT-ADAPTER-TLS-XDOME-LIVE-001 PUSHED origin (backup; verify git ls-remote on resume). STATE v8.677→v8.678.**
+
+---
+
+## Archived: D-2159 — 2026-08-15; STATE v8.707→v8.708 — HS-007 FIX CASCADE COMPLETE; feature HEAD 70fe123ac NOT pushed; BC-5.39.001 streak 0/3
+
+**RESUME IN ONE BREATH:** DEFECT-ADAPTER-TLS-XDOME-LIVE-001 is in Phase-3 per-story delivery; HS-007 FIX CASCADE COMPLETE (D-2159): BC-2.08.002 EC-08-009 + §Postconditions 5xx serialized-wire postcondition — HTTP 5xx (Degraded) MUST serialize as `reachable:true` / `auth_valid:true` / `error:"service_unavailable"` / `overall_status:"partial"`, DISTINCT from Down. Sibling BC-2.08.001 EC-08-001 corrected (v1.5→v1.6). Story: AC-WIRE-002 + RG-019 (wiremock 503; SAP-3/wire-shape-assertion gap closed). Code HEAD ADVANCED a5b61b35b→70fe123ac (NOT pushed). BC-5.39.001 LOCAL streak 0/3; frozen-HEAD ADVANCES to 70fe123ac. workspace_test_count 5730→5731. [D-2158 SUPERSEDED: holdout gate FAILED HS-007 (0.40); fix cascade ran; DRIFT-DTU-FAULT-INJECT-CLAROTY-001 registered.]
+
+ADR-053 ratified EFFECTIVE 2026-07-22 (D-1943) → 9 Wave-A stories (8 draft / 1 ready / 0 delivered). **HS-007 FIX CASCADE COMPLETE (D-2159); code HEAD 70fe123ac NOT pushed; BC-5.39.001 streak 0/3; NEXT = strict LOCAL adversary pass on frozen HEAD 70fe123ac.**
+
+**HEADS (D-2159 2026-08-15):** `develop`: `5d1a30ac7` (origin, pushed). `factory-artifacts`: run `git -C .factory log -1 --format='%H'`. `feature/DEFECT-ADAPTER-TLS-XDOME-LIVE-001`: `70fe123ac` LOCAL-ONLY NOT pushed (test commit 876d909c8 + impl commit 70fe123ac advanced from a5b61b35b). `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED. `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch.
+
+**RESUME NEXT-ACTION (D-2159):** HS-007 fix cascade COMPLETE; feature HEAD 70fe123ac NOT pushed; NEXT = strict LOCAL adversary pass (toward BC-5.39.001 3-CLEAN) on frozen HEAD 70fe123ac; on 3-CLEAN → product-owner authors NEW single-use holdout scenarios → re-run story-level holdout gate → demo/push/PR-LEVEL. AC-LIVE-001 transport/WAF dimension RETIRED (WAF-PASSES-RUSTLS; remaining gate: monroe token refresh — human-owned).
+
+**KEY STATE (D-2159):** Story v1.31 (19 ACs / 19 RGs RG-001..019; AC-WIRE-002). workspace_test_count 5731. BC-INDEX v9.12. STORY-INDEX v2.809. VP-INDEX v2.22. error-taxonomy v2.77. develop_head 5d1a30ac7. total_stories 297.
+
+**NOTE: Superseded by D-2160 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-42 fix-burst COMPLETE; F-P42-HIGH-001 server.rs `fully_healthy_count` predicate CODE-TWIN fixed; F-P42-MED-001 test renames RG-021/RG-022; AC-WIRE-003 + RG-020 envelope wire assertion; story v1.31→v1.32; feature HEAD ADVANCED 70fe123ac→21df2f6d4 (NOT pushed); BC-5.39.001 streak 0/3; frozen-HEAD ADVANCES to 21df2f6d4; S-MAINT-POL29-CODE-TWIN-SWEEP-001 registered; total_stories 297→298. STATE v8.708→v8.709.**
