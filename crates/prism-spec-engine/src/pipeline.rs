@@ -4914,3 +4914,227 @@ mod infusion_http_client_user_agent_tests {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// RG-004: BC-2.16.013 §Postcondition 1 — JSON filter string auto-parsed to
+// Value::Object in step_vars (S-CLAROTY-AUDITLOG-TIMEBOX-001)
+// ---------------------------------------------------------------------------
+//
+// When `context.query_filters["_claroty_audit_filter_by"]` is a JSON-object
+// string (starting with `{`), the step_vars seeding MUST parse it to
+// `Value::Object` rather than leaving it as `Value::String`.
+//
+// CURRENT FAILURE: The seeding (lines ~265-270) always stores `Value::String`.
+// In `JsonBody` interpolation context, `Value::String(s)` calls `json_escape(s)`
+// which escapes inner quotes: `{"field":"timestamp",...}` →
+// `{\"field\":\"timestamp\",...}`. Placed bare in a body template, this produces
+// INVALID JSON. The wire-level assertion `assert!(body_json.is_ok(), ...)` FAILS.
+//
+// After implementation: `Value::Object` → `value.to_string()` → inline JSON.
+// Body is valid JSON; `filter_by` is a JSON object.
+//
+// Backward-compat: FQL strings (`created_timestamp:>'...'`) do NOT start
+// with `{` or `[`, stay as `Value::String`, and are correctly json_escaped
+// when embedded as a JSON string value in a body template.
+#[cfg(test)]
+mod rg004_pipeline_json_filter_tests {
+    use std::collections::HashMap;
+
+    use prism_core::OrgSlug;
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
+
+    use crate::{
+        auth_provider::MockAuthProvider,
+        pipeline::{FetchContext, PipelineExecutor},
+        spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec},
+    };
+
+    /// BC-2.16.013 §Postcondition 1:
+    /// A `query_filter` value that is a JSON-object string (leading `{`) MUST be
+    /// stored as `Value::Object` in step_vars — not `Value::String`. This ensures
+    /// that the body_template `${query.filter._claroty_audit_filter_by}` emits
+    /// the filter inline as JSON (not as a backslash-escaped string).
+    ///
+    /// # Red Gate Failure
+    ///
+    /// The received POST body is NOT valid JSON because `Value::String` causes
+    /// `json_escape()` to produce `{\"field\":\"timestamp\",...}` — invalid JSON
+    /// when placed bare in a body template. `assert!(body_json.is_ok(), ...)` FAILS.
+    ///
+    /// # Test design (SID-1 compliant)
+    ///
+    /// Uses a SYNTHETIC spec WITHOUT OffsetLimit pagination to avoid the early
+    /// body-validation at `serde_json::from_str(&interpolated_body)` in the
+    /// OffsetLimit path. Without OffsetLimit, the malformed body is sent to the
+    /// mock server, and the wire-level assertion catches the issue.
+    ///
+    /// BC-2.16.013 §Postcondition 1; Story: S-CLAROTY-AUDITLOG-TIMEBOX-001 / RG-004.
+    #[tokio::test]
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
+    async fn test_BC_2_16_013_pipeline_json_filter_string_parsed_to_value_object_backward_compat() {
+        let mock_server = MockServer::start().await;
+
+        // Mount: respond to POST /api/v1/audit_log/get with a minimal valid response.
+        // The mock captures raw request bytes regardless of body content validity.
+        Mock::given(method("POST"))
+            .and(path("/api/v1/audit_log/get"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"audit_log": [], "total": 0})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        // Synthetic SensorSpec — one POST step with a body_template that uses
+        // ${query.filter._claroty_audit_filter_by}. NO OffsetLimit pagination
+        // (pagination = None) so the body is sent as-is without early validation.
+        let spec = SensorSpec {
+            sensor_id: "claroty".to_string(),
+            name: "Claroty audit filter backward-compat test".to_string(),
+            auth_type: AuthType::BearerStatic,
+            base_url: mock_server.uri(),
+            tables: vec![TableSpec::new_point_in_time(
+                "audit_logs",
+                "audit_activity",
+                vec![ColumnSpec {
+                    name: "id".to_string(),
+                    column_type: prism_core::ColumnType::String,
+                    ocsf_field: None,
+                    options: vec![],
+                    timestamp_formats: vec![],
+                    timestamp_fallback_chain: vec![],
+                    source_path: None,
+                }],
+                vec![FetchStep {
+                    name: "fetch_audit_logs".to_string(),
+                    method: "POST".to_string(),
+                    path_template: "/api/v1/audit_log/get".to_string(),
+                    // body_template uses the JSON-object filter slot.
+                    body_template: Some(
+                        r#"{"filter_by": ${query.filter._claroty_audit_filter_by}}"#.to_string(),
+                    ),
+                    response_path: "$.audit_log".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    // NO OffsetLimit — avoids the serde_json::from_str early-failure
+                    // so the malformed body reaches the mock server.
+                    pagination: None,
+                }],
+            )],
+            rate_limit_hints: None,
+            version: "1.0.0".to_string(),
+            credential_refs: vec![],
+            auth_plugin: None,
+            file_hash: String::new(),
+            source_path: String::new(),
+            mode: crate::types::DtuMode::Shared,
+            probe_table: None,
+        };
+
+        // FetchContext: _claroty_audit_filter_by is a JSON-object string (starts with `{`).
+        // After implementation, this must be parsed to Value::Object in step_vars.
+        let mut query_filters = HashMap::new();
+        query_filters.insert(
+            "_claroty_audit_filter_by".to_string(),
+            r#"{"field": "timestamp", "operation": "greater_or_equal", "value": 1234567890}"#
+                .to_string(),
+        );
+        let context = FetchContext::new(OrgSlug::new("claroty-rg004-org"), query_filters);
+
+        let http_client = reqwest::Client::new(); // in-process test client
+        let auth_provider = MockAuthProvider::new("claroty-rg004-test-token");
+
+        // Execute the pipeline. With current code:
+        // - step_vars["query.filter._claroty_audit_filter_by"] = Value::String(r#"{"field":...}"#)
+        // - JsonBody context: json_escape → {\"field\":\"timestamp\",...}
+        // - Interpolated body: {"filter_by": {\"field\":\"timestamp\",...}} (invalid JSON)
+        // - Body sent to mock (no OffsetLimit validation), mock responds 200
+        // - Pipeline returns Ok (response is valid JSON {"audit_log": [], "total": 0})
+        let result = PipelineExecutor::execute(
+            &spec,
+            &spec.tables[0],
+            &context,
+            &http_client,
+            &auth_provider,
+        )
+        .await;
+
+        // The pipeline MUST succeed — the mock returns 200 with a valid response body.
+        assert!(
+            result.is_ok(),
+            "RG-004: PipelineExecutor::execute must succeed against a 200 mock. \
+             Got Err: {:?}. \
+             This spec uses pagination = None so the OffsetLimit body-validation path \
+             is not reached. If the pipeline failed, check body interpolation logic.",
+            result.err()
+        );
+
+        // Check the outbound POST body at the wire level.
+        let requests = mock_server.received_requests().await.unwrap_or_default();
+        assert!(
+            !requests.is_empty(),
+            "RG-004: PipelineExecutor::execute must have issued a POST to \
+             /api/v1/audit_log/get. Got no requests."
+        );
+
+        let body_bytes = &requests[0].body;
+        let body_str =
+            std::str::from_utf8(body_bytes).expect("received POST body must be valid UTF-8");
+
+        let body_json = serde_json::from_str::<serde_json::Value>(body_str);
+
+        // LOAD-BEARING Red Gate assertion (RG-004):
+        // The received POST body MUST be valid JSON.
+        // FAILS BEFORE IMPLEMENTATION: step_vars seeding stores query_filters as
+        // Value::String; json_escape() produces {\"field\":\"timestamp\",...} which
+        // is NOT valid JSON when placed bare in a body template.
+        assert!(
+            body_json.is_ok(),
+            "RG-004 LOAD-BEARING: POST body must be valid JSON when \
+             _claroty_audit_filter_by is a JSON-object string. \
+             Got: '{body_str}'. Parse error: {:?}. \
+             Root cause: pipeline.rs step_vars seeding stores all query_filters as \
+             Value::String; JsonBody interpolation calls json_escape() which produces \
+             {{\\\"field\\\":\\\"timestamp\\\"...}} — NOT valid JSON when placed bare \
+             in a body template. \
+             Fix (BC-2.16.013 §Postcondition 1): detect strings starting with '{{' or \
+             '[' and auto-parse to Value::Object/Value::Array before seeding step_vars. \
+             Backward-compat: non-JSON strings (FQL 'created_timestamp:>...') \
+             do not start with '{{' and MUST stay as Value::String.",
+            body_json.as_ref().err()
+        );
+
+        // Secondary assertion: filter_by must be a JSON object.
+        let body = body_json.unwrap();
+        assert!(
+            body["filter_by"].is_object(),
+            "RG-004 SECONDARY: filter_by in the POST body must be a JSON object. \
+             Got: {:?}. BC-2.16.013 §Postcondition 1.",
+            body["filter_by"]
+        );
+
+        // Verify the filter_by contents match the original JSON string values.
+        assert_eq!(
+            body["filter_by"]["field"].as_str().unwrap_or(""),
+            "timestamp",
+            "RG-004: filter_by.field must be 'timestamp'. Got: {:?}.",
+            body["filter_by"]["field"]
+        );
+        assert_eq!(
+            body["filter_by"]["operation"].as_str().unwrap_or(""),
+            "greater_or_equal",
+            "RG-004: filter_by.operation must be 'greater_or_equal'. Got: {:?}.",
+            body["filter_by"]["operation"]
+        );
+        assert_eq!(
+            body["filter_by"]["value"].as_i64().unwrap_or(0),
+            1234567890_i64,
+            "RG-004: filter_by.value must be 1234567890. Got: {:?}.",
+            body["filter_by"]["value"]
+        );
+    }
+}

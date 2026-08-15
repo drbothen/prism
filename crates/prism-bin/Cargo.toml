@@ -244,6 +244,14 @@ path = "tests/bc_2_03_007_credential_set_org_id_keyed.rs"
 name = "defect_adapter_tls_xdome_live_001"
 path = "tests/defect_adapter_tls_xdome_live_001.rs"
 
+# S-CLAROTY-AUDITLOG-TIMEBOX-001: Red Gate failing tests for Claroty audit_logs
+# time-filter push-down (ADR-033 Option T1).
+# Covers: AC-001..004, RG-001..003, RG-005
+# BCs: BC-2.01.013, BC-2.16.013
+[[test]]
+name = "bc_2_01_013_claroty_audit_logs_layer2"
+path = "tests/bc_2_01_013_claroty_audit_logs_layer2.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
