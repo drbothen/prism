@@ -744,10 +744,13 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
 ///
 /// **Arm 2 — Persistent 401 (auth refresh or cookie auth failed):**
 /// `AuthRefreshFailed` and `CookieAuthFailed` both mean the sensor responded with HTTP 401
-/// (the sensor IS reachable) but the credentials are persistently invalid. Map to
-/// `SensorError::HttpError { status: 401 }` so `probe_connectivity` correctly classifies
-/// these as `ConnectivityStatus::Up` and `probe_auth_with_routing` classifies them as
-/// `AuthStatus::Invalid` (BC-2.08.002 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 fix).
+/// (the sensor IS reachable) but the credentials are persistently invalid. Maps to
+/// `SensorError::HttpError { status: 401, body: String::new() }` — empty body, because
+/// auth failures are protocol-level failures with no meaningful HTTP response body to
+/// capture at this layer; the 401 status code is sufficient for downstream classification.
+/// This allows `probe_connectivity` to correctly classify these as `ConnectivityStatus::Up`
+/// and `probe_auth_with_routing` to classify them as `AuthStatus::Invalid`
+/// (BC-2.08.002 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 fix).
 ///
 /// **Arm 3 — Transport failure or other error (`status_code == 0` or other variant):**
 /// All remaining `SpecEngineError` variants (including `HttpRequestFailed { status_code: 0 }`

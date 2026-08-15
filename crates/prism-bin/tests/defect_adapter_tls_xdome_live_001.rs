@@ -1255,7 +1255,7 @@ async fn test_BC_2_11_001_I5_e2e_wiremock_body_reaches_sensor_errors_wire() {
 ///
 /// Wire assertions (SID-2 null-not-absent discipline):
 /// - `"error":null` MUST be present (key present, value = JSON null)
-/// - `"reachable":false` MUST NOT be present (sensor responded → reachable=true)
+/// - `"reachable":true` MUST be present (sensor responded → reachable=true)
 ///
 /// BC-2.08.002 | SensorHealthResult null-not-absent | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 I6a
 #[tokio::test]
@@ -1308,12 +1308,14 @@ async fn test_wire_shape_401_error_field_is_null_not_absent() {
          not as absent key. Got JSON: {json}"
     );
 
-    // ASSERTION 2 (negative gate): "reachable":false must NOT appear.
+    // ASSERTION 2 (positive gate): "reachable":true MUST appear.
     // HTTP 401 → ConnectivityStatus::Up → check_one sets reachable=Some(true).
-    // "reachable":false is reserved for ConnectivityStatus::Down only.
+    // Positive assertion is stronger than a negative gate: it confirms the actual
+    // expected value rather than merely ruling out one wrong value (reachable could
+    // otherwise be null/absent and the negative gate would still pass).
     assert!(
-        !json.contains("\"reachable\":false"),
-        "I6a: JSON MUST NOT contain '\"reachable\":false' for 401 response — \
+        json.contains("\"reachable\":true"),
+        "I6a: JSON MUST contain '\"reachable\":true' for 401 response — \
          sensor IS network-reachable (returned HTTP response, not a transport error). \
          Got JSON: {json}"
     );

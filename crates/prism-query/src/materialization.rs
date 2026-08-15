@@ -1060,11 +1060,10 @@ pub async fn run_materialization_pipeline(
                     // Theoretically unreachable on production single-target fan-out paths
                     // (see the STRUCTURALLY UNREACHABLE comment above); the always-push
                     // invariant is preserved for test adapters and plugin non-HTTP errors.
-                    if let Some(entry) =
-                        format_sensor_error_entry(&target.source_table, &fan_err.error)
-                    {
-                        sensor_errors.push(entry);
-                    }
+                    sensor_errors.push(format_sensor_error_entry(
+                        &target.source_table,
+                        &fan_err.error,
+                    ));
                 }
 
                 // Insert into in-query cache (BC-2.11.005, F-LP1-MED-2).
@@ -1108,11 +1107,10 @@ pub async fn run_materialization_pipeline(
                             // format.  Production fan-out paths emit HttpError; the fallback
                             // preserves the always-push invariant for test adapters and plugin
                             // non-HTTP errors (POL-34; single-target contract).
-                            if let Some(entry) =
-                                format_sensor_error_entry(&target.source_table, &fan_err.error)
-                            {
-                                sensor_errors.push(entry);
-                            }
+                            sensor_errors.push(format_sensor_error_entry(
+                                &target.source_table,
+                                &fan_err.error,
+                            ));
                         }
                     }
                     _ => {
@@ -2010,8 +2008,6 @@ pub(crate) async fn resolve_source_refs(
     Ok(targets)
 }
 
-/// Resolve an `OrgSlug` to its `OrgId` for adapter selection.
-///
 /// Format a single fan-out error as a `sensor_errors` wire entry.
 ///
 /// Returns the formatted entry for ALL `SensorError` variants:
@@ -2032,35 +2028,33 @@ pub(crate) async fn resolve_source_refs(
 /// Called from both the `Ok(fan_result).errors` partial-failure path and the
 /// `Err(AllTargetsFailed).errors` path in `materialize_single_external_target`,
 /// eliminating the duplicated formatting logic between those two arms.
-fn format_sensor_error_entry(source_table: &str, error: &SensorError) -> Option<String> {
+fn format_sensor_error_entry(source_table: &str, error: &SensorError) -> String {
     match error {
         SensorError::HttpError { status, body, .. } => {
             let snippet = sanitize_body_snippet_bytes(body, 256);
             if snippet.is_empty() {
                 // EC-11-089: empty body → status-only, NO trailing ": ".
-                Some(format!(
-                    "{}: HTTP {}",
-                    sanitize_for_log(source_table),
-                    status
-                ))
+                format!("{}: HTTP {}", sanitize_for_log(source_table), status)
             } else {
                 // EC-11-088: non-empty body → include snippet.
-                Some(format!(
+                format!(
                     "{}: HTTP {}: {}",
                     sanitize_for_log(source_table),
                     status,
                     snippet
-                ))
+                )
             }
         }
-        other => Some(format!(
+        other => format!(
             "{}: sensor error ({})",
             sanitize_for_log(source_table),
             other.error_code(),
-        )),
+        ),
     }
 }
 
+/// Resolve an `OrgSlug` to its `OrgId` for adapter selection.
+///
 /// Priority:
 /// 1. OrgRegistry lookup (production path) — exact slug → id mapping.
 /// 2. First registered adapter for sensor_id (test/MVP fallback) — avoids
