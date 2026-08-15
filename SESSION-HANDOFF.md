@@ -8,7 +8,9 @@ timestamp: 2026-07-28T00:00:00Z
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2166/D-2167 (2026-08-15): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 FULLY VALIDATED. D-2166: LIVE AC-LIVE-001 FULL PASS — human refreshed monroe Claroty token; hardened binary HEAD 8dd8d4285 against real Claroty/xDome; check_sensor_health: overall_status:healthy/reachable:true/auth_valid:true/no native-tls stall (0.04s startup); prism_describe 3 claroty tables; smoke query 5 rows 2.42s; no sensor_errors; evidence gitignored under docs/demo-evidence/**/live/ per AD-017; supersedes D-2165 LIVE-AUTH-FAIL. D-2167: STORY-LEVEL HOLDOUT RE-GATE PASS — HS-TLS-XDOME-008/009/010/011 CONSUMED (mean 0.96; P0 HS-008=1.00/HS-009=1.00/HS-010=1.00; HS-011=0.85 scenario-authoring table-name mismatch xdome_devices vs claroty_devices vendor convention — NOT a code defect). Frozen HEAD 8dd8d4285 UNCHANGED. BC-5.39.001 LOCAL 3-CLEAN (D-2164) STANDS UNCHANGED. develop_head advanced 5d1a30ac7→539a5b39a (.gitignore customer-data-guard chore committed directly to develop — rule docs/demo-evidence/**/live/ AD-017 evidence gitignore). Feature HEAD 8dd8d4285 NOT pushed. STATE v8.713→v8.714. records-lint exit 0. **RESUME NEXT-ACTION: DEFECT-ADAPTER-TLS-XDOME-LIVE-001 FULLY VALIDATED: LOCAL 3-CLEAN (D-2164) + holdout re-gate PASS (D-2167) + LIVE-PASS AC-LIVE-001 (D-2166). Feature HEAD 8dd8d4285 NOT pushed. develop_head now 539a5b39a. NEXT (merge path) = demo-recorder per-AC (DTU) → push feature/DEFECT-ADAPTER-TLS-XDOME-LIVE-001 → pr-manager 9-step + PR-LEVEL 3-CLEAN → squash-merge → post-merge burst (POL-14). PARALLEL: T13 capstone demo runbook (DTU, unblocked).** [SUPERSEDES D-2164/D-2165]**
+> **D-2169/D-2170 (2026-08-15): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — SESSION WRAP. D-2169: in-depth live battery — claroty_devices GREEN (886 rows), claroty_alerts GREEN (17 rows), claroty_audit_logs BROKEN E-QUERY-004 30s timeout (no default look-back window), claroty_device_alert_relations NOT on live overlay (DTU-present, live-absent). Two drift items registered: DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 + DRIFT-CLAROTY-DAR-LIVE-PARITY-001 (both tagged before-next-Claroty-demo). D-2170: SESSION WRAP — feature HEAD fed0db1c9 PUSHED (PR #237 OPEN, cycle-4 READY, CI 46/46 green, security clean; MERGE BLOCKED on HUMAN gates only). develop LOCAL 539a5b39a / origin 5d1a30ac7 DIVERGED (.gitignore AD-017 chore not pushed). STATE v8.715→v8.716. records-lint exit 0. §RESUME SNAPSHOT D-2170 is the active snapshot. [SUPERSEDES D-2154]**
+>
+> **D-2166/D-2167 (2026-08-15): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 FULLY VALIDATED. D-2166: LIVE AC-LIVE-001 FULL PASS — human refreshed monroe Claroty token; hardened binary HEAD 8dd8d4285 against real Claroty/xDome; check_sensor_health: overall_status:healthy/reachable:true/auth_valid:true/no native-tls stall (0.04s startup); prism_describe 3 claroty tables; smoke query 5 rows 2.42s; no sensor_errors; evidence gitignored under docs/demo-evidence/**/live/ per AD-017; supersedes D-2165 LIVE-AUTH-FAIL. D-2167: STORY-LEVEL HOLDOUT RE-GATE PASS — HS-TLS-XDOME-008/009/010/011 CONSUMED (mean 0.96; P0 HS-008=1.00/HS-009=1.00/HS-010=1.00; HS-011=0.85 scenario-authoring table-name mismatch xdome_devices vs claroty_devices vendor convention — NOT a code defect). Frozen HEAD 8dd8d4285 UNCHANGED. BC-5.39.001 LOCAL 3-CLEAN (D-2164) STANDS UNCHANGED. develop_head advanced 5d1a30ac7→539a5b39a (.gitignore customer-data-guard chore committed directly to develop — rule docs/demo-evidence/**/live/ AD-017 evidence gitignore). Feature HEAD 8dd8d4285 NOT pushed. STATE v8.713→v8.714. records-lint exit 0. [SUPERSEDES D-2164/D-2165] [SUPERSEDED by D-2170]**
 >
 > **D-2164/D-2165 (2026-08-15): SINGLE-COMMIT BURST COMPLETE (TD-VSDD-053) — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary 3-CLEAN CONVERGED. Passes 48/49/50 ALL CLEAN(strict)=YES / CLEAN(PR-merge)=YES on frozen HEAD 8dd8d4285 (unchanged across all 3). BC-5.39.001 LOCAL streak 0/3→3/3. New single-use holdout scenarios HS-TLS-XDOME-008/009/010/011 committed (prior HS-004..007 CONSUMED). D-2165: LIVE transport CONFIRMED — check_sensor_health returned reachable:true at 341ms against monroe REAL xDome (relay bypassed); rustls startup 0.11s (ADR-050 validated); auth_valid:false + suggestion (EC-08-006/EC-08-009 live); sensor_errors HTTP 401 (TLS handshake proven). FULL AC-LIVE-001 blocked only on expired monroe token (human/tenant action — NOT a code defect). Code HEAD 8dd8d4285 UNCHANGED. develop_head 5d1a30ac7 / total_stories 298 / BC-INDEX v9.12 / VP-INDEX v2.22 / error-taxonomy v2.77 / story v1.34 UNCHANGED. records-lint exit 0. STATE v8.712→v8.713. **RESUME NEXT-ACTION: LOCAL 3-CLEAN CONVERGED @ 8dd8d4285; new holdout scenarios HS-008..011 committed; live transport CONFIRMED (full live pass blocked on expired monroe token — tenant action). NEXT = run story-level holdout re-gate (holdout-evaluator, HS-008..011, DTU) → on PASS → demo → push → PR-LEVEL. Optional parallel: T13 capstone demo runbook (DTU-EVERYTHING, unblocked).** D-2164 SUPERSEDES D-2163. [SUPERSEDES D-2163]**
 >
@@ -258,7 +260,45 @@ timestamp: 2026-07-28T00:00:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2154 (2026-08-14 — SESSION WRAP; pass-37 fix-burst complete; story v1.28; frozen HEAD 9fc3e6a06d12bdcd8e8de62888964803100020c2; BC-5.39.001 streak 0/3; develop_head 5d1a30ac7; STATE v8.703→v8.704) [SUPERSEDES D-2110]
+## §RESUME SNAPSHOT — D-2170 (2026-08-15 — SESSION WRAP; PR #237 OPEN HEAD fed0db1c9; develop LOCAL 539a5b39a / origin 5d1a30ac7 DIVERGED; in-depth live battery PARTIAL — 2 drift items registered; STATE v8.715→v8.716) [SUPERSEDES D-2154]
+
+### RESUME IN ONE BREATH
+xDome story DEFECT-ADAPTER-TLS-XDOME-LIVE-001 is FULLY VALIDATED (LOCAL 3-CLEAN D-2164 + DTU holdout PASS D-2167 + LIVE-PASS AC-LIVE-001 D-2166 + in-depth live battery D-2169) and delivered as PR #237 (OPEN → develop, HEAD fed0db1c9, review-converged cycle-4 READY, CI 46/46 green, security clean). MERGE is BLOCKED on HUMAN gates only. Next work, ALL before the next Claroty demo (human directive 2026-08-15): ADR-058 Stage 1+2, the claroty_audit_logs timeout defect, and the device_alert_relations live-parity check; capstone deferred to run on OCSF columns.
+
+### Per-workstream NEXT-ACTION
+1. **PR #237 merge** — BLOCKED on human: (a) approve PR #237 on GitHub (branch protection) + grant merge permission or human runs `gh pr merge 237 --squash --delete-branch`; (b) AC-LIVE-002 (NO WAIVER) — very likely already evidenced by D-2165 (expired-token live run showed reachable:true/auth_valid:false + suggestion) → needs FORMAL RECORDING, probably not a fresh run; (c) resolve deferred cycle-4 review items C4-N1/N2 (pr-manager B2 resolution commit). NEXT-ACTION: on human "resume merge for PR #237" → resume pr-manager steps 8d (branch-delete verify) + 9 (post-merge burst: POL-14 BC promotion draft→active for the story BCs, develop_head update, STATE). Also verify whether a PR-LEVEL BC-5.39.001 adversarial 3-CLEAN is still required beyond pr-manager review cycles.
+2. **ADR-058 Stage 1+2** (human-directed, before next Claroty demo) — NEXT-ACTION: deliver S-ADR058-OCSF-COERCION-001 (draft v1.1, P1, 5pts) then S-ADR058-OCSF-ROUTING-001 (draft v1.2, P1, 8pts) via full TDD pipeline; wires column_mapping.rs into pipeline_result_to_record_batch (closes BC-2.01.013 §EC-01-025); makes query columns OCSF-flattened. Then BC amendments (BC-2.16.003 §EC-016-013-012, BC-2.01.013 §EC-01-025 → CONFORMANT).
+3. **claroty_audit_logs timeout (NEW DEFECT, D-2169)** — NEXT-ACTION: register a DEFECT story; product-owner/architect set default-look-back-window contract; implementer adds default time-range to audit-log route + clean error instead of 30s E-QUERY-004 hang. Drift item: DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001.
+4. **claroty_device_alert_relations live parity (D-2169)** — NEXT-ACTION: investigate why table is in DTU but absent from monroe live overlay; reconcile for demo. Drift item: DRIFT-CLAROTY-DAR-LIVE-PARITY-001.
+5. **T13 capstone demo runbook** — DEFERRED: run AFTER ADR-058 (on OCSF columns).
+
+### Pending user-approved work
+- Merge PR #237 (approved to merge; blocked on human GitHub-approval + merge-permission gate).
+- ADR-058 Stage 1+2 (approved, before next demo).
+- develop fast-forward push: push 539a5b39a to origin/develop (normal, no force), or fold.
+
+### Demo-release roadmap + worktree inventory
+**Ordered queue before next Claroty demo:** (1) Merge PR #237 → (2) ADR-058 Stage 1 S-ADR058-OCSF-COERCION-001 → (3) ADR-058 Stage 2 S-ADR058-OCSF-ROUTING-001 → (4) audit-log timeout defect (DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001) → (5) device_alert_relations parity (DRIFT-CLAROTY-DAR-LIVE-PARITY-001) → (6) capstone demo runbook on OCSF columns.
+
+**Worktree inventory:** DEFECT-ADAPTER-TLS-XDOME-LIVE-001 (`.worktrees/DEFECT-ADAPTER-TLS-XDOME-LIVE-001`, ACTIVE, PR #237 open — removable post-merge); S-3.09 (`.worktrees/S-3.09`, stale-leave); W3-FIX-S307-001 (`.worktrees/W3-FIX-S307-001`, stale-leave, dirty).
+
+### HEADS (frozen at SESSION WRAP D-2170)
+- `develop`: `539a5b39a` LOCAL-ONLY — NOT pushed to origin; `origin/develop` is still `5d1a30ac7` (1 commit behind)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2170 burst commit)
+- `feature/DEFECT-ADAPTER-TLS-XDOME-LIVE-001`: `fed0db1c9` PUSHED to origin, PR #237 OPEN
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK, 1 dirty file)
+
+### BACKUP BOUNDARY (D-2169/D-2170)
+- PUSHED / safe: `factory-artifacts` (this D-2170 burst — run `git -C .factory log -1 --format='%H'`); `origin/develop` `5d1a30ac7` (origin is 1 commit behind local); `feature/DEFECT-ADAPTER-TLS-XDOME-LIVE-001` `fed0db1c9` PUSHED (PR #237 OPEN).
+- LOCAL-ONLY (AT RISK): `develop` `539a5b39a` (1 commit ahead of origin — not pushed); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).
+
+### DECISION-LOG DELTA (D-2168 through D-2170)
+query-agent-ergonomics PROPOSAL committed review-only, human deferred (D-2168); in-depth live battery PARTIAL — claroty_devices GREEN (886), claroty_alerts GREEN (17), audit_logs BROKEN E-QUERY-004, device_alert_relations live-absent; 2 drift items registered (D-2169); SESSION WRAP — PR #237 OPEN fed0db1c9, STATE v8.715→v8.716 (D-2170).
+
+---
+
+## §RESUME SNAPSHOT — D-2154 (2026-08-14 — SESSION WRAP; pass-37 fix-burst complete; story v1.28; frozen HEAD 9fc3e6a06d12bdcd8e8de62888964803100020c2; BC-5.39.001 streak 0/3; develop_head 5d1a30ac7; STATE v8.703→v8.704) [SUPERSEDES D-2110] [SUPERSEDED by D-2170]
 
 ### RESUME IN ONE BREATH
 DEFECT-ADAPTER-TLS-XDOME-LIVE-001 is in Phase-3 per-story delivery; the holdout-driven query-detail extension (BC-2.11.001 v1.23 / AC-QERR-001 / RG-016) is implemented and green at feature HEAD `9fc3e6a06d12bdcd8e8de62888964803100020c2` with the pass-37 HIGH doubled-prefix bug fixed; the very next action is strict LOCAL adversary pass-38 on frozen HEAD `9fc3e6a06` toward BC-5.39.001 3-CLEAN.
