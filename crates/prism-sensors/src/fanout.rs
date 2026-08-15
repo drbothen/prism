@@ -436,7 +436,6 @@ pub async fn fan_out(
         // Emit one fan_out_target_failed WARN per failed target before returning AllTargetsFailed.
         // The AllTargetsFailed Display (E-SENSOR-030) remains count-only per BC-2.10.007 Rule 1.
         // AD-017: `error` field uses the FanOutError Display — MUST NOT include credential values.
-        #[allow(deprecated)] // client_id field is deprecated; org_id is the canonical field
         for err in &result.errors {
             tracing::warn!(
                 event_type = "fan_out_target_failed",

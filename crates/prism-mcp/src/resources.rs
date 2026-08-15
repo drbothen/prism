@@ -328,7 +328,7 @@ pub struct SensorHealthStructuredContent {
     /// Aggregate status string (BC-2.08.007 postcondition).
     ///
     /// Values (verbatim BC-2.08.007 postcondition):
-    /// - `"healthy"` — all sensors reachable, auth valid, not rate-limited
+    /// - `"healthy"` — all sensors reachable, auth valid, not rate-limited, no error set
     /// - `"partial"` — at least one sensor is unreachable or auth-invalid
     /// - `"rate_limited"` — ALL sensors rate-limited, none unreachable/auth-invalid (EC-08-015)
     /// - `"unhealthy"` — all sensors unreachable or auth-invalid

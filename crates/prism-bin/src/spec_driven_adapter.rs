@@ -796,10 +796,14 @@ fn map_spec_engine_error_to_sensor_error(
         e,
         SpecEngineError::AuthRefreshFailed { .. } | SpecEngineError::CookieAuthFailed { .. }
     ) {
+        // No HTTP response body: persistent-auth-failure variants are protocol-level
+        // failures, not 401 responses with a body payload.  E-AUTH-002 detail surfaces
+        // via WARN log + SensorError Display; the wire receives the clean per-target
+        // format "<table>: HTTP 401" (BC-2.11.001).
         return SensorError::HttpError {
             sensor: sensor_id.to_string(),
             status: 401,
-            body: format!("{e}"),
+            body: String::new(),
         };
     }
     // Arm 3: transport error and all other SpecEngineError variants → Internal.
@@ -3500,12 +3504,17 @@ mod tests {
     /// it receives a 403 response with body `"access denied"`.
     /// Arm 1 must strip `"HTTP 403 Forbidden: "` → `HttpError.body = "access denied"`.
     ///
-    /// # SID-2: composed-output / no-duplicated-HTTP-prefix assertion
+    /// # No-duplicated-HTTP-prefix assertion
     ///
-    /// The SID-2 requirement is that at least one test asserts on the FULL composed
-    /// output. Here: `HttpError.body` is asserted both equal to the exact raw snippet
-    /// AND confirmed to NOT contain the substring `"HTTP"` — catching any regression
-    /// where the prefix strip is removed and the raw detail bleeds into `body`.
+    /// `HttpError.body` is asserted both equal to the exact raw snippet AND confirmed
+    /// to NOT contain the substring `"HTTP"` — catching any regression where the prefix
+    /// strip is removed and the raw detail bleeds into `body`.
+    ///
+    /// Note: the SID-2 requirement (assert on the FULL composed `sensor_errors` output)
+    /// is satisfied by the RG-016 exact-equality assertions in
+    /// `prism-mcp/tests/query_tool_sensor_errors_test.rs`, which assert the full wire
+    /// string `"<table>: HTTP <status>: <body>"` as seen by the LLM agent. This test
+    /// covers only the `HttpError.body` component (one input to that composed string).
     ///
     /// BC-2.11.001 §Postconditions | T-QERR-1 raw-body invariant |
     /// F-P38-MED-001 regression closure | SID-2 no-duplicated-HTTP-prefix |

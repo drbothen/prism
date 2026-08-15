@@ -2007,8 +2007,13 @@ impl PrismServer {
         // BC-2.11.005 / BC-2.11.011 / EC-11-054: when present, the array is non-empty
         // and carries per-target HTTP detail (AC-QERR-001, EC-11-088/089).
         if !result.sensor_errors.is_empty() {
-            payload["sensor_errors"] = serde_json::to_value(&result.sensor_errors)
-                .unwrap_or_else(|_| serde_json::Value::Array(vec![]));
+            // serde_json::to_value on Vec<String> is infallible; the unwrap_or_else fallback
+            // previously emitted [] (the wire shape BC-2.11.001 AC-QERR-001 forbids — it reads
+            // to the LLM agent as "all sensors succeeded"). If serialization somehow fails, omit
+            // the key entirely rather than emit an empty array.
+            if let Ok(v) = serde_json::to_value(&result.sensor_errors) {
+                payload["sensor_errors"] = v;
+            }
         }
         // BC-2.11.018: conditionally insert normalized_pql key.
         // When None, no key is inserted and the field is absent from the JSON output.

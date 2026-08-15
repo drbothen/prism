@@ -1055,33 +1055,16 @@ pub async fn run_materialization_pipeline(
                         error = %fan_err,
                         "fan_out partial failure"
                     );
-                    let entry = match &fan_err.error {
-                        SensorError::HttpError { status, body, .. } => {
-                            let snippet = sanitize_body_snippet_bytes(body, 256);
-                            if snippet.is_empty() {
-                                // EC-11-089: empty body → status-only, NO trailing ": ".
-                                format!(
-                                    "{}: HTTP {}",
-                                    sanitize_for_log(&target.source_table),
-                                    status
-                                )
-                            } else {
-                                // EC-11-088: non-empty body → include snippet.
-                                format!(
-                                    "{}: HTTP {}: {}",
-                                    sanitize_for_log(&target.source_table),
-                                    status,
-                                    snippet
-                                )
-                            }
-                        }
-                        other => format!(
-                            "{}: sensor error ({})",
-                            sanitize_for_log(&target.source_table),
-                            other.error_code()
-                        ),
-                    };
-                    sensor_errors.push(entry);
+                    // Delegate to the shared helper (mirrors the AllTargetsFailed Err arm).
+                    // HttpError → HTTP-status format; other variants → error-code format.
+                    // Theoretically unreachable on production single-target fan-out paths
+                    // (see the STRUCTURALLY UNREACHABLE comment above); the always-push
+                    // invariant is preserved for test adapters and plugin non-HTTP errors.
+                    if let Some(entry) =
+                        format_sensor_error_entry(&target.source_table, &fan_err.error)
+                    {
+                        sensor_errors.push(entry);
+                    }
                 }
 
                 // Insert into in-query cache (BC-2.11.005, F-LP1-MED-2).
@@ -1105,52 +1088,31 @@ pub async fn run_materialization_pipeline(
                 match &e {
                     SensorError::AllTargetsFailed { errors, .. } if !errors.is_empty() => {
                         for fan_err in errors {
-                            let entry = match &fan_err.error {
-                                SensorError::HttpError { status, body, .. } => {
-                                    // AC-QERR-001, EC-11-088/089/090: format per-target HTTP
-                                    // detail. `HttpError.body` is ALWAYS the raw sanitized body
-                                    // snippet — the invariant is established by
-                                    // `spec_driven_adapter.rs` Arm 1 (F-P37-HIGH-001 source fix),
-                                    // which strips the `"HTTP {status_reason}: "` prefix that
-                                    // `pipeline.rs` embeds in `detail` before storing it. No
-                                    // compensating strip is needed or safe here: a legitimate raw
-                                    // body that happens to start with "HTTP " would be incorrectly
-                                    // mutated by such a strip.
-                                    //
-                                    // EC-11-090: sanitize_body_snippet_bytes caps to 256 UTF-8
-                                    // bytes and replaces control bytes. The production pipeline
-                                    // (pipeline.rs F9) already applies this cap; calling here is
-                                    // idempotent for that path and correctly truncates bodies from
-                                    // non-pipeline sources (e.g., plugin adapters).
-                                    let snippet = sanitize_body_snippet_bytes(body, 256);
-                                    if snippet.is_empty() {
-                                        // EC-11-089: empty body → status-only, NO trailing ": ".
-                                        format!(
-                                            "{}: HTTP {}",
-                                            sanitize_for_log(&target.source_table),
-                                            status
-                                        )
-                                    } else {
-                                        // EC-11-088: non-empty body → include snippet.
-                                        format!(
-                                            "{}: HTTP {}: {}",
-                                            sanitize_for_log(&target.source_table),
-                                            status,
-                                            snippet
-                                        )
-                                    }
-                                }
-                                other => {
-                                    // Non-HTTP errors: use error-code format (same as
-                                    // the partial-failure path above).
-                                    format!(
-                                        "{}: sensor error ({})",
-                                        sanitize_for_log(&target.source_table),
-                                        other.error_code()
-                                    )
-                                }
-                            };
-                            sensor_errors.push(entry);
+                            // AC-QERR-001, EC-11-088/089/090: format per-target HTTP detail.
+                            // `HttpError.body` holds the raw sanitized body snippet — the
+                            // invariant is established by two paths in `spec_driven_adapter.rs`:
+                            //   Arm 1 (F-P37-HIGH-001): strips the `"HTTP {reason}: "` prefix
+                            //     that `pipeline.rs` embeds in `detail`, leaving the raw body
+                            //     snippet. No compensating strip is needed or safe here: a
+                            //     legitimate raw body starting with "HTTP " would be incorrectly
+                            //     mutated by such a strip.
+                            //   Arm 2 (AuthRefreshFailed / CookieAuthFailed): sets body to
+                            //     `String::new()` — persistent-auth-failure variants are
+                            //     protocol-level failures with no HTTP response body payload.
+                            //
+                            // EC-11-090: sanitize_body_snippet_bytes caps to 256 UTF-8 bytes
+                            // and replaces control bytes (idempotent for pipeline-sanitized bodies;
+                            // correctly truncates non-pipeline sources such as plugin adapters).
+                            //
+                            // HttpError → HTTP-status format; other variants → error-code
+                            // format.  Production fan-out paths emit HttpError; the fallback
+                            // preserves the always-push invariant for test adapters and plugin
+                            // non-HTTP errors (POL-34; single-target contract).
+                            if let Some(entry) =
+                                format_sensor_error_entry(&target.source_table, &fan_err.error)
+                            {
+                                sensor_errors.push(entry);
+                            }
                         }
                     }
                     _ => {
@@ -2050,6 +2012,55 @@ pub(crate) async fn resolve_source_refs(
 
 /// Resolve an `OrgSlug` to its `OrgId` for adapter selection.
 ///
+/// Format a single fan-out error as a `sensor_errors` wire entry.
+///
+/// Returns the formatted entry for ALL `SensorError` variants:
+///
+/// - `SensorError::HttpError` → HTTP-status format (EC-11-088/089):
+///   - `"<table>: HTTP <status>: <body>"` when the response body is non-empty
+///   - `"<table>: HTTP <status>"` when the body is empty (no trailing `": "`)
+///
+/// - All other variants → error-code format: `"<table>: sensor error (<code>)"`.
+///   Fan-out contracts guarantee production paths produce `HttpError` inside
+///   `AllTargetsFailed.errors`; the fallback preserves the always-push invariant
+///   for test adapters (e.g. `SensorError::Internal`) and plugin adapters that may
+///   emit non-HTTP errors.
+///
+/// EC-11-090: `sanitize_body_snippet_bytes(body, 256)` is applied to cap the body
+/// to 256 UTF-8 bytes and replace control bytes (idempotent on pipeline-sanitized bodies).
+///
+/// Called from both the `Ok(fan_result).errors` partial-failure path and the
+/// `Err(AllTargetsFailed).errors` path in `materialize_single_external_target`,
+/// eliminating the duplicated formatting logic between those two arms.
+fn format_sensor_error_entry(source_table: &str, error: &SensorError) -> Option<String> {
+    match error {
+        SensorError::HttpError { status, body, .. } => {
+            let snippet = sanitize_body_snippet_bytes(body, 256);
+            if snippet.is_empty() {
+                // EC-11-089: empty body → status-only, NO trailing ": ".
+                Some(format!(
+                    "{}: HTTP {}",
+                    sanitize_for_log(source_table),
+                    status
+                ))
+            } else {
+                // EC-11-088: non-empty body → include snippet.
+                Some(format!(
+                    "{}: HTTP {}: {}",
+                    sanitize_for_log(source_table),
+                    status,
+                    snippet
+                ))
+            }
+        }
+        other => Some(format!(
+            "{}: sensor error ({})",
+            sanitize_for_log(source_table),
+            other.error_code(),
+        )),
+    }
+}
+
 /// Priority:
 /// 1. OrgRegistry lookup (production path) — exact slug → id mapping.
 /// 2. First registered adapter for sensor_id (test/MVP fallback) — avoids

@@ -458,6 +458,20 @@ mod tests {
              per-target HTTP detail not surfaced."
         );
 
+        // ASSERTION 4 (SID-2 rule 2 — occurrence count):
+        // "HTTP" must appear exactly once in the composed entry — not zero times (missing
+        // the status keyword), not two times (double-prefix regression F-P37-HIGH-001).
+        // "HTTP 403: HTTP 403 Forbidden: access_denied..." would be the pre-fix regression.
+        let composed_entry = errors_403[0].as_str().unwrap_or("");
+        assert_eq!(
+            composed_entry.matches("HTTP").count(),
+            1,
+            "SID-2 rule 2: 'HTTP' must appear exactly once in the composed sensor_errors entry; \
+             found {} occurrences. Double-prefix 'HTTP {{status}}: HTTP {{reason}}: {{body}}' is \
+             the F-P37-HIGH-001 regression this PR fixes.",
+            composed_entry.matches("HTTP").count()
+        );
+
         // =====================================================================
         // Sub-test 2: EC-11-089 — HTTP 503 with EMPTY body
         //

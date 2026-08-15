@@ -100,7 +100,7 @@ impl HealthCheckResult {
     /// Aggregate a batch of `SensorHealthResult` values into an `OverallStatus`.
     ///
     /// Rules (BC-2.08.007 classification table):
-    /// - All `reachable: true, auth_valid: true, rate_limit: None` → `Healthy`
+    /// - All `reachable: true, auth_valid: true, rate_limit: None, error: None` → `Healthy`
     /// - ALL sensors have `rate_limit: Some(...)` and none have `reachable: false`
     ///   or `auth_valid: false` → `RateLimited` (EC-08-015)
     /// - At least one healthy and at least one not → `Partial`

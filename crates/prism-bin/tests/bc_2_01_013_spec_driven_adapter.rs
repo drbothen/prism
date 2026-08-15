@@ -872,21 +872,25 @@ async fn test_BC_2_01_013_static_cookie_auth_strategy_injects_access_token_not_b
 // OLD test: hit http://127.0.0.1:18085 (connection refused) → any Err() passes.
 // UPDATED test: wiremock serves 401 on ALL requests → PipelineExecutor::execute() returns
 //           SpecEngineError::AuthRefreshFailed → fetch() maps to SensorError::HttpError{status:401}
-//           with body containing "E-AUTH-002".
+//           with empty body (PR review cycle-1 I4: Arm 2 sets body: String::new()).
 //
 // DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 fix (2026-08-13):
 // AuthRefreshFailed now maps to SensorError::HttpError{status:401} (NOT Internal) because
 // the sensor DID respond with HTTP 401 — it IS reachable and credentials are invalid.
 // Mapping to Internal caused probe_connectivity to classify the sensor as Down.
 //
+// PR review cycle-1 I4 amendment: body is String::new() — persistent-auth-failure variants
+// are protocol-level failures with no HTTP response body payload. E-AUTH-002 detail surfaces
+// via WARN log + SensorError Display; the wire receives the clean "<table>: HTTP 401" format.
+//
 // This test is LOAD-BEARING for the error-taxonomy mapping (AC-012):
-// it distinguishes AuthRefreshFailed from any other error.
+// it asserts that double-401 maps to HttpError{status:401} (not Internal).
 // ---------------------------------------------------------------------------
 
 /// AC-012 — BC-2.01.013 error case:
 /// When `PipelineExecutor` returns a double-401 (initial + retry both return 401),
 /// `SpecDrivenSensorAdapter::fetch()` propagates `SpecEngineError::AuthRefreshFailed`
-/// as `SensorError::HttpError { status: 401, body: "E-AUTH-002: ..." }`.
+/// as `SensorError::HttpError { status: 401, body: "" }`.
 ///
 /// DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 (2026-08-13): Prior to this fix, `AuthRefreshFailed`
 /// mapped to `SensorError::Internal`, which caused `probe_connectivity` to classify the sensor
@@ -894,10 +898,15 @@ async fn test_BC_2_01_013_static_cookie_auth_strategy_injects_access_token_not_b
 /// behavior is `SensorError::HttpError { status: 401 }` so `probe_connectivity` classifies
 /// the sensor as `Up` (reachable) and `probe_auth_with_routing` returns `AuthStatus::Invalid`.
 ///
+/// PR review cycle-1 I4: `body` is always `String::new()` for Arm 2 (AuthRefreshFailed /
+/// CookieAuthFailed) — these are protocol-level failures with no HTTP response body payload.
+/// The E-AUTH-002 taxonomy detail surfaces via the WARN log and `SensorError` Display, not
+/// in the wire `sensor_errors` body field.
+///
 /// The assertions check:
 /// - `result.is_err()` — sensor fetch fails (credentials invalid)
 /// - `SensorError::HttpError { status: 401, .. }` — sensor IS reachable, auth invalid
-/// - `body.contains("E-AUTH-002")` — E-AUTH-002 taxonomy code preserved in body
+/// - `body.is_empty()` — Arm 2 produces no HTTP response body (I4 contract)
 ///
 /// BC-2.01.013; AC-012; EC-006; F-004; S-DEMO-001 v1.3; DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1.
 #[tokio::test]
@@ -957,20 +966,20 @@ async fn test_BC_2_01_013_spec_driven_adapter_double_401_returns_auth_refresh_fa
         err_str
     );
 
-    // Check the body contains the AuthRefreshFailed indicator (E-AUTH-002 taxonomy).
-    // SpecEngineError::AuthRefreshFailed displays as "E-AUTH-002: auth refresh failed...".
-    // After LOW-1 fix: SensorError::HttpError { body: "{e}" } where e = AuthRefreshFailed Display.
+    // Check the body is empty — PR review cycle-1 I4 contract:
+    // Arm 2 (AuthRefreshFailed / CookieAuthFailed) sets body: String::new() because
+    // these are protocol-level failures with no HTTP response body payload.
+    // E-AUTH-002 detail surfaces via WARN log + SensorError Display, not in the body.
+    // The wire sensor_errors entry is "<table>: HTTP 401" (BC-2.11.001 AC-QERR-001).
     if let prism_sensors::adapter::SensorError::HttpError { body, .. } = &err {
         assert!(
-            body.contains("E-AUTH-002")
-                || body.contains("auth refresh failed")
-                || body.contains("AuthRefreshFailed"),
-            "AC-012 LOAD-BEARING: SensorError::HttpError body must reference auth refresh failure \
-             (E-AUTH-002 or 'auth refresh failed'). \
-             This distinguishes double-401 from other 401 errors. \
+            body.is_empty(),
+            "AC-012 (I4 contract): SensorError::HttpError body MUST be empty for \
+             AuthRefreshFailed — Arm 2 in map_spec_engine_error_to_sensor_error sets \
+             body: String::new(). E-AUTH-002 detail surfaces via WARN log + SensorError \
+             Display, not in the wire body field. \
              Got body: {:?}. \
-             BC-2.01.013; AC-012; F-004; error taxonomy E-AUTH-002; \
-             DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1.",
+             BC-2.01.013; AC-012; F-004; DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1/I4.",
             body
         );
     }
