@@ -20,6 +20,8 @@
 | AC-H2-001 | reqwest `http2` feature active on reqwest dependency node (h2 in reqwest package block) | `AC-H2-001-transport-hardening.{gif,webm}` | PASS |
 | AC-UA-001 | `build_http_client_with_custom_timeout` sends `User-Agent: prism/<version>` | `AC-H2-001-transport-hardening.{gif,webm}` | PASS |
 | AC-LIVE-001 | Direct `api.claroty.com` returns ≥1 OCSF row with relay removed | _live-pass note below_ | LIVE-PASS |
+| AC-LIVE-002 | `check_sensor_health` with invalid/expired credential → `"reachable":true, "auth_valid":false` | PENDING HUMAN ACTION (live run against `api.claroty.com`) | PENDING |
+| AC-LIVE-003 | `test-soc/live-soc/relay/xdome-relay.py` annotated or deleted | PENDING HUMAN ACTION (operations repo) | PENDING |
 
 **AC-LIVE-001 note:** This AC was validated live against `api.claroty.com` for client "monroe" (STATE D-2166, LIVE-PASS, 2026-08-14). Evidence is kept locally/gitignored under `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/live/` per AD-017 (no customer data in committed evidence). No customer records are present in this committed report.
 
@@ -225,7 +227,7 @@ wire-shape assertion discipline (2026-07-13, human-approved).
 - [x] No source code or test files were modified
 - [x] Evidence lives under `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/` (story-scoped, not flat)
 - [x] VHS was used (not plain text captures); both `.gif` and `.webm` produced per tape
-- [x] Recordings reflect actual test execution on the feature branch HEAD (8dd8d4285)
+- [x] Recordings reflect actual test execution on the feature branch HEAD (89d114ae13d940112da96f782bbfc7dee8ed296a)
 - [x] No live tenant data — DTU/wiremock only; AD-017 satisfied
 - [x] Nothing committed under `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/live/`
 - [x] AC-LIVE-001 noted as LIVE-PASS with evidence kept locally/gitignored
