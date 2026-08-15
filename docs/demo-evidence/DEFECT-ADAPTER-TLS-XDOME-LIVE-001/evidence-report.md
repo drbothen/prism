@@ -227,7 +227,7 @@ wire-shape assertion discipline (2026-07-13, human-approved).
 - [x] No source code or test files were modified
 - [x] Evidence lives under `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/` (story-scoped, not flat)
 - [x] VHS was used (not plain text captures); both `.gif` and `.webm` produced per tape
-- [x] Recordings reflect actual test execution on the feature branch HEAD (89d114ae13d940112da96f782bbfc7dee8ed296a)
+- [x] Recordings reflect actual test execution. Captured at initial implementation commit 8dd8d4285. Behavioral changes in subsequent fix commits (Arm 2 body → String::new(); Option<String> → String return type; assertion strengthening; doc comment corrections) do not affect any recorded assertion. Evidence validity confirmed at pr-reviewer cycle 3.
 - [x] No live tenant data — DTU/wiremock only; AD-017 satisfied
 - [x] Nothing committed under `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/live/`
 - [x] AC-LIVE-001 noted as LIVE-PASS with evidence kept locally/gitignored
