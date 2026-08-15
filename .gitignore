@@ -57,3 +57,9 @@ tests/external/perimeter-violation/Cargo.lock
 # direnv environment files — contains local env overrides, must not be committed
 # .envrc* covers .envrc, .envrc.bed, .envrc.backup, .envrc.local, etc.
 .envrc*
+
+# Real-tenant / live-customer demo evidence (AD-017: customer data must never enter git).
+# Convention: story demo evidence recorded against REAL sensor APIs lives in a `live/`
+# subdir so it can be excluded here while normal DTU-based evidence (committed by the
+# demo-recorder) remains tracked in the sibling per-AC dirs.
+docs/demo-evidence/**/live/
