@@ -9,22 +9,22 @@ priority: P0
 epic_id: "engine-defects"
 story_source: "DEFECT-ADAPTER-TLS-XDOME-LIVE-001"
 version: "1.0"
-status: draft
+status: consumed
 producer: product-owner
 timestamp: "2026-08-12T00:00:00Z"
 phase: 3
 inputs:
   - stories/DEFECT-ADAPTER-TLS-XDOME-LIVE-001-live-xdome-https-fails-waf-h1-no-ua.md
-input-hash: "1b38f06"
+input-hash: "abada5b"
 traces_to: "BC-2.01.010"
 behavioral_contracts:
   - BC-2.01.010
   - BC-2.16.002
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: DEFECT-ADAPTER-TLS-XDOME-LIVE-001
-last_evaluated: null
-last_eval_satisfaction: null
+last_evaluated: "2026-08-14"
+last_eval_satisfaction: "PASS"
 staleness_check: null
 stale_reason: null
 retired: null
