@@ -33,8 +33,8 @@
 //! | BC-2.08.007 — ALL auth-invalid → Unhealthy (F-S504-LP3-HIGH-001) | test_BC_2_08_007_aggregate_all_auth_invalid_is_unhealthy |
 //! | BC-2.08.007 — ALL auth-invalid server response → "unhealthy" (F-S504-LP3-HIGH-001) | test_BC_2_08_007_all_auth_invalid_server_response_is_unhealthy |
 //! | EC-08-001 (BC-2.08.001) — HTTP 503 connectivity probe → Degraded | test_BC_2_08_001_live_probe_503_connectivity_is_degraded |
-//! | EC-08-001 (BC-2.08.001) — 503 check_one → reachable=false + no last_successful_query_at (F-S504-LP3P5-HIGH-001) | test_BC_2_08_001_EC_08_001_503_probe_yields_reachable_false |
-//! | F-S504-LP3P5-HIGH-001 — all-503 fleet → OverallStatus::Unhealthy | test_BC_2_08_001_EC_08_001_all_503_fleet_aggregate_unhealthy |
+//! | EC-08-009 (BC-2.08.002) — 503 check_one → reachable=true + no last_successful_query_at (HS-007) | test_BC_2_08_001_EC_08_001_503_probe_yields_reachable_false |
+//! | HS-007 (EC-08-009) — all-503 fleet → OverallStatus::Partial (reachable=true, error set) | test_BC_2_08_001_EC_08_001_all_503_fleet_aggregate_unhealthy |
 //! | BC-2.08.007 — empty list → Unhealthy | test_BC_2_08_007_aggregate_empty_list_is_unhealthy |
 //! | SensorHealthChecker::new GREEN | test_BC_S_5_04_sensor_health_checker_new_constructs_successfully |
 //! | BC-2.08.004 checker — record+read round-trip | test_BC_2_08_004_checker_record_and_read_timestamp |
@@ -1900,8 +1900,9 @@ async fn test_BC_2_08_001_probe_falls_back_to_first_table_when_probe_table_absen
 
 /// Mock adapter simulating HTTP 503 Service Unavailable.
 ///
-/// Returns `SensorError::HttpError { status: 503 }` to drive EC-08-001 coverage:
-/// BC-2.08.001 EC-08-001 requires HTTP 503 → `reachable: false`, `reason: "service_unavailable"`.
+/// Returns `SensorError::HttpError { status: 503 }` to drive EC-08-009 coverage:
+/// BC-2.08.002 EC-08-009 (HS-007): HTTP 503 → `reachable: true` (network-reachable, erroring),
+/// `reason: "service_unavailable"`. Only `Down` (no HTTP exchange) → `reachable: false`.
 struct MockAdapterServiceUnavailable;
 
 #[async_trait]
@@ -2757,7 +2758,7 @@ async fn test_BC_2_08_007_all_auth_invalid_server_response_is_unhealthy() {
     );
 }
 
-// ─── F-S504-LP3P5-HIGH-001 — HTTP 5xx/Degraded → reachable=false (EC-08-001) ─────
+// ─── EC-08-009 / HS-007 — HTTP 5xx/Degraded → reachable=true (network-reachable, erroring) ─────
 
 /// EC-08-001 (BC-2.08.001): HTTP 503 during health probe → `ConnectivityStatus::Degraded`.
 ///
@@ -2790,24 +2791,30 @@ async fn test_BC_2_08_001_live_probe_503_connectivity_is_degraded() {
     );
 }
 
-/// EC-08-001 (BC-2.08.001): HTTP 503 → `SensorHealthResult.reachable == Some(false)`.
+/// EC-08-009 (BC-2.08.002 / HS-007): HTTP 503 → `SensorHealthResult.reachable == Some(true)`.
 ///
-/// F-S504-LP3P5-HIGH-001 load-bearing test (TD-VSDD-059):
+/// HS-007 load-bearing test (TD-VSDD-059):
 /// `check_one` with a `MockAdapterServiceUnavailable` (HTTP 503) MUST produce
-/// `reachable = Some(false)`.
+/// `reachable = Some(true)` — the sensor IS network-reachable (returned HTTP response),
+/// it is just erroring (5xx).
 ///
-/// ROOT CAUSE of the defect: `check_one` computed
+/// CORRECTION of F-S504-LP3P5-HIGH-001:
+/// The OLD behavior was `reachable = probe.connectivity == ConnectivityStatus::Up`,
+/// which yielded `reachable=Some(false)` for `Degraded` (503) — a FALSE-NEGATIVE.
+///
+/// The CORRECT behavior per EC-08-009:
 ///   `let reachable = probe.connectivity != ConnectivityStatus::Down;`
-/// which evaluates to `true` for `Degraded` (503), producing a FALSE-POSITIVE health signal.
+/// so that `Degraded` (5xx) → `reachable = true` (reachable, erroring, distinguishable from Down).
+/// Only `Down` (no HTTP exchange) → `reachable = false`.
 ///
-/// The FIX must compute `reachable = probe.connectivity == ConnectivityStatus::Up`
-/// so that `Degraded` (5xx) → `reachable = false`.
-///
-/// RED GATE: before the fix, this assertion fails because `reachable` is `Some(true)`.
+/// The sensor is prevented from counting as fully-healthy by the `r.error.is_none()` gate
+/// in `HealthCheckResult::aggregate` (HS-007 edit 2): error="service_unavailable" is set
+/// for Degraded, so `fully_healthy_count` correctly excludes 503 sensors.
 ///
 /// Additional assertions:
-/// - `last_successful_query_at` MUST be `None` (no false success timestamp per EC-08-001).
-/// - `auth_valid` MAY be `Some(true)` (503 is not an auth error, but sensor is NOT healthy).
+/// - `last_successful_query_at` MUST be `None` (HS-007 edit 3: `Up`-only guard prevents
+///   false success timestamp for Degraded probes).
+/// - `auth_valid` is `Some(true)` (503 is not an auth error — sensor returned an HTTP response).
 #[tokio::test]
 #[allow(non_snake_case)]
 async fn test_BC_2_08_001_EC_08_001_503_probe_yields_reachable_false() {
@@ -2823,44 +2830,43 @@ async fn test_BC_2_08_001_EC_08_001_503_probe_yields_reachable_false() {
         .check_one(org_id, "acme", &sensor_id, &context)
         .await;
 
-    // BC-2.08.001 EC-08-001: HTTP 503 MUST yield reachable=false.
-    // Before the fix, Degraded != Down == true → reachable=Some(true) (FALSE-POSITIVE).
+    // BC-2.08.002 EC-08-009 (HS-007): HTTP 503 MUST yield reachable=true.
+    // Degraded != Down → network-reachable (returned HTTP response), only Down → false.
     assert_eq!(
         result.reachable,
-        Some(false),
-        "BC-2.08.001 EC-08-001 (F-S504-LP3P5-HIGH-001): HTTP 503 MUST yield \
-         reachable=Some(false). ConnectivityStatus::Degraded (5xx) means the sensor is in \
-         error state — not a healthy/reachable state. Got: {:?}. \
-         ROOT CAUSE: check_one computed reachable = (connectivity != Down), which is true \
-         for Degraded. FIX: reachable = (connectivity == Up).",
+        Some(true),
+        "BC-2.08.002 EC-08-009 (HS-007): HTTP 503 MUST yield reachable=Some(true). \
+         ConnectivityStatus::Degraded (5xx) means the sensor IS network-reachable but \
+         erroring — distinct from Down (no HTTP exchange). Got: {:?}.",
         result.reachable
     );
 
-    // BC-2.08.001 EC-08-001: MUST NOT record a successful-query timestamp for a 5xx probe.
+    // HS-007 edit 3: MUST NOT record a successful-query timestamp for a 5xx (Degraded) probe.
+    // The `probe.connectivity == Up` gate in check_one prevents false success timestamps.
     assert_eq!(
         result.last_successful_query_at, None,
-        "BC-2.08.001 EC-08-001: HTTP 503 probe MUST NOT record last_successful_query_at \
-         (no false success timestamp). Got: {:?}",
+        "HS-007 edit 3: HTTP 503 (Degraded) probe MUST NOT record last_successful_query_at \
+         (probe.connectivity != Up → timestamp gate skips recording). Got: {:?}",
         result.last_successful_query_at
     );
 }
 
-/// F-S504-LP3P5-HIGH-001 (aggregate path): an all-503 sensor fleet MUST produce
-/// `OverallStatus::Unhealthy` via `HealthCheckResult::aggregate`.
+/// HS-007 / EC-08-009 (aggregate path): an all-503 sensor fleet MUST produce
+/// `OverallStatus::Partial` via `HealthCheckResult::aggregate`.
 ///
-/// BC-2.08.007 canonical test-vector: "All sensors unhealthy (unreachable/auth-invalid)
-/// → overall_status: 'unhealthy'". A 503 fleet is indistinguishable from an unreachable
-/// fleet from the health consumer's perspective: sensors cannot serve data.
+/// After HS-007 edit 1 (`reachable = probe.connectivity != Down`):
+/// - Degraded (5xx) → `reachable=Some(true)` — sensor IS network-reachable.
+/// - `error="service_unavailable"` is set for Degraded sensors.
 ///
-/// RED GATE: before the fix, aggregate returns `Healthy` for an all-503 fleet because
-/// `reachable=Some(true)` and `auth_valid=Some(true)` makes every sensor count as
-/// `fully_healthy`, yielding `OverallStatus::Healthy`.
+/// After HS-007 edit 2 (`r.error.is_none()` gate in `fully_healthy_count`):
+/// - `fully_healthy_count == 0` (error is Some → excluded from fully-healthy).
+/// - `any_partially_available == true` (reachable != Some(false) && auth_valid != Some(false)).
+/// - `aggregate` → `OverallStatus::Partial`.
 ///
-/// After the fix (`reachable = probe.connectivity == Up`):
-/// - `reachable=Some(false)` for each 503 sensor.
-/// - `fully_healthy_count == 0`.
-/// - `any_partially_available == false` (reachable IS Some(false) for all sensors).
-/// - `aggregate` → `OverallStatus::Unhealthy`.
+/// Before HS-007, the old fix (`reachable = connectivity == Up`) would have yielded
+/// `reachable=Some(false)` for each 503 → `Unhealthy`. But that was a false-negative:
+/// the sensor IS reachable (returned HTTP), it's just erroring. `Partial` is correct:
+/// sensors are reachable but not serving useful data.
 #[tokio::test]
 #[allow(non_snake_case)]
 async fn test_BC_2_08_001_EC_08_001_all_503_fleet_aggregate_unhealthy() {
@@ -2881,43 +2887,42 @@ async fn test_BC_2_08_001_EC_08_001_all_503_fleet_aggregate_unhealthy() {
         .check_one(org_id, "acme", &sensor_id_armis, &context)
         .await;
 
-    // Both sensors must be reachable=false (prerequisite for Unhealthy aggregate).
+    // Both sensors must be reachable=true (EC-08-009: Degraded → network-reachable).
     assert_eq!(
         result_cs.reachable,
-        Some(false),
-        "F-S504-LP3P5-HIGH-001: crowdstrike 503 probe must yield reachable=false"
+        Some(true),
+        "EC-08-009 (HS-007): crowdstrike 503 probe must yield reachable=true"
     );
     assert_eq!(
         result_armis.reachable,
-        Some(false),
-        "F-S504-LP3P5-HIGH-001: armis 503 probe must yield reachable=false"
+        Some(true),
+        "EC-08-009 (HS-007): armis 503 probe must yield reachable=true"
     );
 
-    // Aggregate of all-503 fleet → Unhealthy (not Healthy, not Partial).
+    // Aggregate of all-503 fleet → Partial (reachable=true, error set → not fully-healthy).
+    // fully_healthy_count=0 (error.is_none() gate); any_partially_available=true (reachable=true).
     let overall = HealthCheckResult::aggregate(vec![result_cs, result_armis]);
     assert_eq!(
         overall,
-        OverallStatus::Unhealthy,
-        "F-S504-LP3P5-HIGH-001 (BC-2.08.007): an all-503 sensor fleet MUST aggregate to \
-         OverallStatus::Unhealthy. Before the fix, aggregate returned Healthy because \
-         Degraded was treated as reachable=true+auth_valid=true+rate_limit=None, \
-         making every sensor count as fully_healthy. Got: {overall:?}"
+        OverallStatus::Partial,
+        "HS-007 / EC-08-009: an all-503 sensor fleet MUST aggregate to \
+         OverallStatus::Partial. Sensors ARE network-reachable (returned HTTP 503) but \
+         erroring — r.error.is_none() gate excludes them from fully_healthy; \
+         reachable=true makes them partially_available. Got: {overall:?}"
     );
 }
 
 // ─── F-S504-LP1P1-MED-001 — EC-08-001 reason string + degraded suggestion ────
 
-/// EC-08-001 (BC-2.08.001): HTTP 503 probe MUST set `result.error = Some("service_unavailable")`.
+/// EC-08-009 (BC-2.08.002 / HS-007): HTTP 503 probe MUST set `result.error = Some("service_unavailable")`.
 ///
-/// BC-2.08.001 EC-08-001 canonical contract:
-///   "Health status reports `reachable: false`, `reason: "service_unavailable"`"
+/// BC-2.08.002 EC-08-009 canonical contract:
+///   "Health status reports `reachable: true` (network-reachable), `error: "service_unavailable"`"
 ///
-/// The `reason` is carried in `SensorHealthResult.error`.  `check_one`'s Ok arm currently
-/// does NOT copy `probe.error` (the sanitized error carrying the 503 body / status) into
-/// `result.error` — so `result.error` stays `None`.
-///
-/// RED GATE (F-S504-LP1P1-MED-001 part 1): `result.error` is currently `None` for a
-/// 503 probe.  After the fix it MUST be `Some("service_unavailable")`.
+/// The `error` field is carried in `SensorHealthResult.error`. This is the mechanism that
+/// distinguishes Degraded (5xx: reachable=true, error set) from fully-healthy (reachable=true,
+/// error=None), preventing false-positive `fully_healthy_count` via the `r.error.is_none()` gate
+/// (HS-007 edit 2). The `service_unavailable` string is the BC canonical value.
 #[tokio::test]
 #[allow(non_snake_case)]
 async fn test_BC_2_08_001_EC_08_001_503_probe_sets_service_unavailable_reason() {
@@ -2933,22 +2938,23 @@ async fn test_BC_2_08_001_EC_08_001_503_probe_sets_service_unavailable_reason() 
         .check_one(org_id, "acme", &sensor_id, &context)
         .await;
 
-    // Prerequisite: reachable=false (already tested, must hold here too).
+    // Prerequisite: reachable=true (EC-08-009: Degraded → network-reachable; already tested above).
     assert_eq!(
         result.reachable,
-        Some(false),
-        "EC-08-001 prerequisite: HTTP 503 must yield reachable=Some(false)"
+        Some(true),
+        "EC-08-009 (HS-007) prerequisite: HTTP 503 must yield reachable=Some(true)"
     );
 
     // PRIMARY assertion (F-S504-LP1P1-MED-001 part 1):
-    // BC-2.08.001 EC-08-001 requires reason="service_unavailable".
-    // The reason is carried in SensorHealthResult.error.
+    // BC-2.08.002 EC-08-009 requires error="service_unavailable" for Degraded (5xx) probes.
+    // The error field in SensorHealthResult is what the `r.error.is_none()` gate reads.
     assert_eq!(
         result.error.as_deref(),
         Some("service_unavailable"),
-        "BC-2.08.001 EC-08-001 (F-S504-LP1P1-MED-001): HTTP 503 probe MUST set \
+        "BC-2.08.002 EC-08-009 (HS-007): HTTP 503 probe MUST set \
          result.error = Some(\"service_unavailable\"). \
-         The BC canonical contract for EC-08-001 specifies reason: \"service_unavailable\". \
+         This is the BC canonical value for Degraded (5xx) sensors, and it gates the \
+         fully_healthy_count predicate (r.error.is_none() = false → not fully-healthy). \
          Current: result.error = {:?}",
         result.error
     );

@@ -3,7 +3,7 @@
 //!
 //! # BC authority
 //!
-//! - BC-2.11.001 v1.23 §Postconditions — `sensor_errors` per-target HTTP detail contract
+//! - BC-2.11.001 v1.25 §Postconditions — `sensor_errors` per-target HTTP detail contract
 //! - AC-QERR-001 — per-target HTTP status+body in `sensor_errors`
 //! - EC-11-088 — HTTP 4xx response with non-empty body: `"<table>: HTTP <status>: <body>"`
 //! - EC-11-089 — HTTP 5xx response with empty body: `"<table>: HTTP <status>"` (no trailing `: `)

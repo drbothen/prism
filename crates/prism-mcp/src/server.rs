@@ -3339,11 +3339,16 @@ impl PrismServer {
             // - Degraded (5xx): "Sensor returned a server error (5xx) — service may be temporarily unavailable."
             // - Unreachable:    "Sensor unreachable — verify network and endpoint configuration."
             //
-            // BC-2.08.001 EC-08-001 (F-S504-LP1P1-MED-001): distinguish Degraded (5xx) from Down.
-            // A 503 sensor IS network-reachable; check_one sets result.error="service_unavailable"
-            // for Degraded probes (ConnectivityStatus::Degraded).  The suggestion ladder checks
-            // result.error to emit the correct 5xx-specific guidance rather than the generic
-            // "verify network" message that applies only to genuine network-unreachable (Down) sensors.
+            // HS-007 / BC-2.08.002 EC-08-009: Degraded (5xx) sensors now have reachable=true
+            // (network-reachable, erroring).  The suggestion ladder MUST check
+            // `error == "service_unavailable"` INDEPENDENTLY of `reachable` — Degraded fires
+            // arm 3 (5xx suggestion); Down fires arm 4 ("verify network").
+            //
+            // Ladder priority (first match wins):
+            //   1. rate_limit set → "Rate limit in effect"
+            //   2. auth_valid=false → "Check credentials"
+            //   3. error="service_unavailable" → 5xx suggestion (Degraded: reachable=true, error set)
+            //   4. reachable=false → "verify network" (Down: no HTTP exchange, reachable=false)
             let sensors_with_suggestions: Vec<resources::SensorHealthResult> = health_result
                 .sensors
                 .into_iter()
@@ -3356,18 +3361,19 @@ impl PrismServer {
                         s = s.with_suggestion(
                             "Check credentials \u{2014} sensor rejected authentication.",
                         );
+                    } else if s.error.as_deref() == Some("service_unavailable") {
+                        // HS-007 / EC-08-009: Degraded (5xx) → reachable=true, error set.
+                        // Check error field directly — independent of reachable — so both the
+                        // old and new reachable values for Degraded probes fire this branch.
+                        s = s.with_suggestion(
+                            "Sensor returned a server error (5xx) \u{2014} service may be temporarily unavailable.",
+                        );
                     } else if s.reachable == Some(false) {
-                        // F-S504-LP1P1-MED-001: Degraded (5xx) vs Down (connection error).
-                        // check_one sets error="service_unavailable" for ConnectivityStatus::Degraded.
-                        if s.error.as_deref() == Some("service_unavailable") {
-                            s = s.with_suggestion(
-                                "Sensor returned a server error (5xx) \u{2014} service may be temporarily unavailable.",
-                            );
-                        } else {
-                            s = s.with_suggestion(
-                                "Sensor unreachable \u{2014} verify network and endpoint configuration.",
-                            );
-                        }
+                        // Down (connection error, no HTTP exchange): reachable=false, no
+                        // service_unavailable error — "verify network" applies here.
+                        s = s.with_suggestion(
+                            "Sensor unreachable \u{2014} verify network and endpoint configuration.",
+                        );
                     }
                     s
                 })

@@ -122,10 +122,18 @@ impl HealthCheckResult {
 
         // Standard healthy/partial/unhealthy classification.
         //
-        // A sensor is "fully healthy" when reachable, auth valid, and not rate-limited.
+        // A sensor is "fully healthy" when reachable, auth valid, not rate-limited, and
+        // no error field (e.g. "service_unavailable").
+        //
+        // HS-007 edit 2: `r.error.is_none()` is REQUIRED to prevent Degraded (5xx) sensors
+        // from counting as fully_healthy. After HS-007 edit 1, Degraded → reachable=true, and
+        // a 503 sensor (reachable=true, auth_valid=true, rate_limit=None) would otherwise count
+        // as fully_healthy, producing a FALSE-POSITIVE OverallStatus::Healthy. The `error` field
+        // is set to "service_unavailable" for Degraded probes (see branch below), so
+        // `r.error.is_none()` correctly gates this case.
         //
         // A sensor is "partially available" (contributes to Partial, not Unhealthy) when:
-        //   - it is reachable (connectivity Up, i.e. reachable != Some(false)), AND
+        //   - it is reachable (connectivity Up or Degraded, i.e. reachable != Some(false)), AND
         //   - it is not auth-invalid (auth_valid != Some(false))
         //
         // BC-2.08.007 postcondition:
@@ -140,7 +148,10 @@ impl HealthCheckResult {
         let fully_healthy_count = results
             .iter()
             .filter(|r| {
-                r.reachable == Some(true) && r.auth_valid == Some(true) && r.rate_limit.is_none()
+                r.reachable == Some(true)
+                    && r.auth_valid == Some(true)
+                    && r.rate_limit.is_none()
+                    && r.error.is_none()
             })
             .count();
 
@@ -308,12 +319,17 @@ impl SensorHealthChecker {
         .await
         {
             Ok(probe) => {
-                // BC-2.08.001 EC-08-001 (F-S504-LP3P5-HIGH-001): ONLY ConnectivityStatus::Up
-                // means "sensor is reachable and serving responses". Degraded (HTTP 5xx) means
-                // the sensor returned an error response — it is NOT in a healthy reachable state.
-                // The previous predicate `!= Down` incorrectly treated Degraded as reachable=true,
-                // producing a FALSE-POSITIVE health signal for 503 sensors.
-                let reachable = probe.connectivity == ConnectivityStatus::Up;
+                // BC-2.08.002 EC-08-009 (HS-007 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001):
+                // `reachable` reflects whether the sensor endpoint returned ANY HTTP response
+                // (network-level reachability), NOT whether the response was healthy.
+                // Only `Down` (connection refused / timeout — no HTTP exchange at all) means the
+                // sensor is unreachable (`reachable: false`).
+                // `Degraded` (5xx response received) means the sensor IS network-reachable but
+                // erroring — it set `reachable: true` per EC-08-009, distinguishable from Down.
+                // The `error` field is set to "service_unavailable" for Degraded by the branch
+                // below, preventing false-positive fully-healthy classification via the
+                // `r.error.is_none()` gate in `HealthCheckResult::aggregate` (HS-007 edit 2).
+                let reachable = probe.connectivity != ConnectivityStatus::Down;
                 // BC-2.08.002 EC-08-005 / F-S504-LP1P3-MED-001: auth_valid is THREE-VALUED:
                 //   AuthStatus::Valid   → Some(true)   — credentials accepted
                 //   AuthStatus::Invalid → Some(false)  — HTTP 401/403 received
@@ -373,15 +389,29 @@ impl SensorHealthChecker {
                     None
                 };
 
-                // Record successful query timestamp when both reachable and auth valid (Some(true))
-                let last_successful_query_at =
-                    if reachable && auth_valid_opt == Some(true) && !probe.is_rate_limited {
-                        let now = chrono::Utc::now();
-                        self.record_successful_query(client_id, sensor_id, now, context);
-                        Some(now)
-                    } else {
-                        self.last_successful_query(client_id, sensor_id, context)
-                    };
+                // Record successful query timestamp only when FULLY successful:
+                // reachable (any HTTP response), auth valid, not rate-limited, AND
+                // connectivity is Up (not Degraded/5xx).
+                //
+                // HS-007 edit 3 (companion to edit 1): the `probe.connectivity == Up`
+                // guard is REQUIRED because edit 1 changed `reachable` to `!= Down`,
+                // meaning Degraded (5xx) probes now have `reachable = true`. Without
+                // this guard, a 503 sensor (reachable=true, auth_valid=Some(true),
+                // !is_rate_limited) would falsely record a `last_successful_query_at`
+                // timestamp, making it appear the sensor last answered successfully at
+                // the 503 probe time. Only `Up` (2xx/non-auth-error) constitutes a
+                // genuinely successful query (BC-2.08.002 EC-08-009).
+                let last_successful_query_at = if reachable
+                    && auth_valid_opt == Some(true)
+                    && !probe.is_rate_limited
+                    && probe.connectivity == ConnectivityStatus::Up
+                {
+                    let now = chrono::Utc::now();
+                    self.record_successful_query(client_id, sensor_id, now, context);
+                    Some(now)
+                } else {
+                    self.last_successful_query(client_id, sensor_id, context)
+                };
 
                 let mut result = SensorHealthResult::new(sensor_id.as_ref(), client_id)
                     .with_reachable(reachable);

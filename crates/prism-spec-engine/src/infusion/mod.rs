@@ -750,7 +750,7 @@ impl InfusionRegistry {
             })?;
             // DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-2: propagate Result from factory.
             // Rewired to E-INFUSE-015 (HttpClientBuildFailed) — dedicated semantic error code
-            // per error-taxonomy v2.74 (replaces the E-INFUSE-009 stopgap).
+            // per error-taxonomy v2.77 (replaces the E-INFUSE-009 stopgap).
             let client = crate::pipeline::build_http_client_with_timeout()
                 .map_err(InfusionError::new_http_client_build_failed)?;
             Arc::new(sources::http_lookup::HttpLookupSource::new(
@@ -915,7 +915,7 @@ impl InfusionRegistry {
             })?;
             // DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-2: propagate Result from factory.
             // Rewired to E-INFUSE-015 (HttpClientBuildFailed) — dedicated semantic error code
-            // per error-taxonomy v2.74 (replaces the E-INFUSE-009 stopgap).
+            // per error-taxonomy v2.77 (replaces the E-INFUSE-009 stopgap).
             let client = crate::pipeline::build_http_client_with_timeout()
                 .map_err(InfusionError::new_http_client_build_failed)?;
             Arc::new(sources::http_lookup::HttpLookupSource::new(
@@ -1121,7 +1121,7 @@ impl InfusionRegistry {
                 })?;
                 // DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-2: propagate Result from factory.
                 // Rewired to E-INFUSE-015 (HttpClientBuildFailed) — dedicated semantic error code
-                // per error-taxonomy v2.74 (replaces the E-INFUSE-009 stopgap).
+                // per error-taxonomy v2.77 (replaces the E-INFUSE-009 stopgap).
                 let client = crate::pipeline::build_http_client_with_timeout()
                     .map_err(InfusionError::new_http_client_build_failed)?;
                 Arc::new(sources::http_lookup::HttpLookupSource::new(
