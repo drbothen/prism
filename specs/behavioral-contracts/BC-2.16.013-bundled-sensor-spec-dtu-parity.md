@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.37"
+version: "1.38"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-08-12"  # v1.37: audit_logs canonical path_template flipped to no-trailing-slash (F-CLARO-P2-HIGH-002); device_alert_relations bullet internal path ref updated
+modified: "2026-08-15"  # v1.38: DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 — audit_logs single push-down spec (consolidated Layer-1/2 into one story S-CLAROTY-AUDITLOG-TIMEBOX-001; EC-016-013-010 superseded)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,7 +30,7 @@ inputs:
   - "crates/prism-dtu-cyberint/src/routes/alerts.rs"
   - "crates/prism-dtu-armis/src/clone.rs"
   - "crates/prism-dtu-armis/src/lib.rs"
-input-hash: "ddce0eb"
+input-hash: "3957917"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -212,6 +212,44 @@ per ADR-053 §D5.
     S-DEMO-CLAROTY-TRAILING-SLASH-001 AC-003 / `test_claroty_trailing_slash_audit_log_get_returns_200`
     (merged). The no-trailing-slash `path_template` is anchored to S-DEMO-CLAROTY-LIVE-DRIFT-BACKPORT-001
     for parity-test verification (Red Gate: `test_BC_2_16_013_claroty_audit_log_path_template_no_trailing_slash`).
+
+    **Bounded push-down via `filter_by` JSON-object injection (S-CLAROTY-AUDITLOG-TIMEBOX-001):** The
+    prior `body_template` was `'{}'` (unbounded), causing xDome `POST /api/v1/audit_log/get` to return
+    the entire audit history on every query shape (SELECT, COUNT(*), aggregate), triggering E-QUERY-004
+    (30s timeout). The fix changes `body_template` to
+    `'{"filter_by": ${query.filter._claroty_audit_filter_by}}'` and wires dynamic filter injection
+    following the CrowdStrike-FQL / Armis-AQL push-down pattern (ADR-033):
+    - `spec_driven_adapter.rs` serializes a Claroty `filter_by` JSON object from ADR-033 Option T1
+      extracted `start_time`/`end_time` and injects it into `query_filters["_claroty_audit_filter_by"]`.
+    - `pipeline.rs` auto-parses JSON-string query_filter values into `Value::Object` for verbatim body
+      insertion.
+    - **Default (no explicit `start_time` in query):** injects `{"field": "timestamp", "operation":
+      "greater_or_equal", "value": <now−604800s>}` — a bounded 7-day default window. The query never
+      returns an unbounded result set.
+    - **Explicit `start_time` only:** injects a `greater_or_equal` clause for the user-supplied start
+      timestamp. Older-than-7-day windows are honored exactly — no silent truncation.
+    - **Explicit `start_time` + `end_time`:** compound `and` filter: `greater_or_equal` for lower bound
+      + `less_or_equal` for upper bound.
+    The `devices` and `alerts` tables retain `body_template: '{}'` — they are naturally bounded by
+    offset pagination and are unaffected.
+    **Filter-rejection handling:** xDome's `operation` and `field` values are validated server-side only
+    (free-form strings in `GetAuditLogParameters.filter_by` — no client-side schema validation). If
+    xDome rejects the `filter_by` payload with a 4xx response, the adapter MUST surface it as
+    `E-SENSOR-001` (the canonical code for any non-200/non-429 HTTP response from a sensor endpoint).
+    A filter rejection MUST NOT be swallowed as a silent empty `Vec` — it must propagate as a
+    structured error per SOUL.md §4. **Mandate anchor (TD-VSDD-097 §3):** this `MUST` is anchored to
+    S-CLAROTY-AUDITLOG-TIMEBOX-001 AC and its Red Gate test.
+    **LIVE-API ASSUMPTION ASM-CLAROTY-AUDITLOG-001 (validate at demo prep via one-line live check):**
+    The `timestamp` field name in the xDome `GetAuditLogParameters.filter_by` JSON body (consistent with
+    the TOML column name and `ClarotyAuditLogFilter` DTU struct) is assumed to be the correct
+    server-side filter key. Evidence: D-2169 confirms the `POST /api/v1/audit_log/get` endpoint exists
+    live (30s timeout observed — not a 404). Filter operations (`greater_or_equal`, `less_or_equal`,
+    compound `and`) are confirmed valid per the DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 remove-uncertainty
+    research pass. Confirm the exact field name before S-CLAROTY-AUDITLOG-TIMEBOX-001 ships via the
+    one-line live check: `curl -X POST .../api/v1/audit_log/get -d '{"filter_by": {"field":
+    "timestamp", "operation": "greater_or_equal", "value": <now−600>}}' | head`. If the field is
+    `created_at` or another name, update `body_template` and this assumption in the same burst.
+
   - `device_alert_relations` — POST `/api/v1/device_alert_relations/` (trailing-slash form
     per ADR-031 §D8-b / S-DEMO-CLAROTY-TRAILING-SLASH-001 convention). Method is POST-for-read,
     consistent with the Claroty xDome API pattern. The `fields` array is **required** in the
@@ -543,6 +581,7 @@ adapter path for all test cases:
 | EC-016-013-007 | Null OCSF field in reference output absent from actual (Rule B null vs absent) | Parity WARN (not FAIL); logged in parity report; does not block VP-PLUGIN-003 verification |
 | EC-016-013-008 | Spec loaded successfully but no `sensor_specs_dir` configured to include bundled path | The implementation test must set `sensor_specs_dir` to `crates/prism-sensors/specs/` (or equivalent test path) explicitly; mis-configuration in test is a test authoring defect, not a BC violation |
 | EC-016-013-009 | `device_alert_relations` DTU route or TOML `response_path` uses path-stem key `device_alert_relations` instead of actual API key `devices_alerts` | All relation rows are silently lost at normalization time; the correct top-level response key is `devices_alerts` per `GetDeviceAlertsResponse` (verified against authoritative xDome OpenAPI). The DTU handler and `response_path` in `claroty.sensor.toml` MUST use `devices_alerts`. This is a silent-failure mode: the pipeline returns an empty result set with no error rather than a parse error. |
+| ~~EC-016-013-010~~ | ~~Silent truncation for queries older than 7 days while Layer 1 active~~ | **SUPERSEDED BEFORE SHIPPING (2026-08-15):** This edge case described the Layer 1 static-`after_seconds_ago` TOML interim. Layer 1 was dropped in the DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 design rework (human decision) — the fix ships as a single push-down code story (S-CLAROTY-AUDITLOG-TIMEBOX-001). Silent truncation is not a valid behavior in the shipped design: the Layer 2 push-down honors explicit user filters for older windows. EC-016-013-010 is retired per append_only_numbering (DF-030); ID preserved and never reused. |
 
 ## Error Conditions
 
@@ -634,6 +673,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.38 | DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001-po-bc-amendments | 2026-08-15 | product-owner | DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 single push-down amendment (design reworked from two-layer to one story after remove-uncertainty research confirmed all operations valid). §Postconditions §1 Claroty `audit_logs` bullet: replaced two-block Layer-1/Layer-2 draft with a single **Bounded push-down via `filter_by` JSON-object injection** block (S-CLAROTY-AUDITLOG-TIMEBOX-001 only; `body_template = '{"filter_by": ${query.filter._claroty_audit_filter_by}}'`; `spec_driven_adapter.rs` → `query_filters["_claroty_audit_filter_by"]`; `pipeline.rs` JSON-string→`Value::Object` auto-parse; default `greater_or_equal now−604800s`; explicit `start_time` honored with no silent truncation; compound `and less_or_equal` for `end_time`; filter-rejection surfaces as E-SENSOR-001 per SOUL.md §4); ASM-CLAROTY-AUDITLOG-001 re-scoped from operation-validity (confirmed) to field-name confirmation (`timestamp` assumed correct per D-2169 + ClarotyAuditLogFilter DTU struct; validate at demo prep). §Edge Cases: EC-016-013-010 superseded before shipping — marked retired in table with explanation (append_only_numbering / DF-030). Frontmatter: v1.37→v1.38. TD-VSDD-097 three-dimension sweep: (1) Sibling pair — BC-2.01.013 amended in same burst (Claroty `audit_logs` push-down row de-"Layer-2"-labeled; v1.20 story anchor updated to S-CLAROTY-AUDITLOG-TIMEBOX-001). (2) Downstream copy target — audit_logs bullet not verbatim-copied in downstream artifacts; CLEAR. (3) Mandate anchor — filter-rejection E-SENSOR-001 MUST anchored to S-CLAROTY-AUDITLOG-TIMEBOX-001 AC and Red Gate test. |
 | 1.37 | claroty-live-api-fidelity-bc-amendment | 2026-08-12 | product-owner | F-CLARO-P2-HIGH-002 closure (human-authorized spec-amendment-to-match-code per CLAUDE.md §Source-of-Truth Precedence rule 7; backport row S-DEMO-CLAROTY-LIVE-DRIFT-BACKPORT-001). §Postconditions §1 Claroty `audit_logs` bullet: trailing-slash canonical form superseded by no-trailing-slash. Old: `path_template = "/api/v1/audit_log/get/"` (with trailing slash); new: `path_template = "/api/v1/audit_log/get"` (without trailing slash), grounded in xDome OpenAPI spec and poller-bear reference. DTU acceptance of both slash-variant forms via `normalize_path` middleware (ADR-031 §D8-b) is unchanged. Mandate anchor added for TD-VSDD-097 §3: normalize_path MUST anchored to S-DEMO-CLAROTY-TRAILING-SLASH-001 AC-003 / `test_claroty_trailing_slash_audit_log_get_returns_200` (already merged); no-trailing-slash `path_template` anchored to S-DEMO-CLAROTY-LIVE-DRIFT-BACKPORT-001 / `test_BC_2_16_013_claroty_audit_log_path_template_no_trailing_slash`. §Postconditions §1 `device_alert_relations` bullet: internal `audit_log/get/` path reference updated to canonical no-trailing-slash form `audit_log/get`. This amendment exists because the prior triage-capture backport row (S-DEMO-CLAROTY-LIVE-DRIFT-BACKPORT-001) named only BC-2.02.005 and omitted BC-2.16.013 — that omission was the root cause of F-CLARO-P2-HIGH-002. Frontmatter v1.36 → v1.37; modified 2026-08-11 → 2026-08-12. |
 | 1.36 | device-alert-relations-amendment | 2026-08-11 | product-owner | New `device_alert_relations` table added to §Postconditions §1 Claroty `claroty.sensor.toml` entry. Covers: endpoint `POST /api/v1/device_alert_relations/` (trailing-slash form, ADR-031 §D8-b); response key `devices_alerts` (not the path stem); `fields` REQUIRED (`GetDeviceAlertsParameters.fields`, `minItems: 1`); offset/limit pagination, API maximum `limit: 5000`; contracted column subset of 9 fields from the 92-value `AlertedDevicesPairs__fields_enum`; SAP-2 exclusion documentation for the remaining 83 fields; table rationale (xDome `alerts` surface carries no `severity` field; `device_alert_relations` is the sole prioritization source). DTU-EXT-006 registered in §Known Gaps (in-progress, story ID unassigned). `Claroty device_alert_relations` response envelope shape added to INV-HARNESS-ROUTE-PARITY §Response envelope shapes clause. EC-016-013-009 added (response key mismatch edge case). Frontmatter v1.35 → v1.36. Claim correction: orchestrator asserted default `sort_by` was `(device_alert_detected_time, alert_id, device_uid)`; authoritative xDome OpenAPI shows `(device_uid: asc, alert_id: asc)` — 2 fields only, no `device_alert_detected_time` in the default. Contract does not specify sort_by default; prism queries use explicit `fields` projection. **Story anchor fold (same v1.36, 2026-08-11):** DTU-EXT-006 row updated: story ID `S-DEMO-CLAROTY-DAR-001` (`status: draft`, wave 5) named as implementing story; harness route parity noted as separate follow-up per AC-007 and explicit `crates/prism-dtu-harness/` exclusion in that story's File Structure Requirements. §Postconditions §1 `device_alert_relations` URL grounding note updated to name S-DEMO-CLAROTY-DAR-001 AC-006 as the gap-close anchor. INV-HARNESS-ROUTE-PARITY: harness-parity tracking bullet added for `POST /api/v1/device_alert_relations/` — phrased as pending follow-up (NOT anchored as MUST to S-DEMO-CLAROTY-DAR-001 because that story explicitly excludes harness modifications; story-writer's proposed MUST wording rejected per TD-VSDD-097 mandate-anchor dimension 3). §Response envelope shapes note updated to reference S-DEMO-CLAROTY-DAR-001 and AC-007. **Harness-story anchor fold (same v1.36, 2026-08-11):** S-DEMO-CLAROTY-HARNESS-DAR-001 now exists (`status: draft`, wave 5, `depends_on: [S-DEMO-CLAROTY-DAR-001]`). Four normative sites updated: (1) INV-HARNESS-ROUTE-PARITY tracking bullet replaced with anchored MUST — both `router()` and `network_router()` named; AC-001/RG-001 (`router()` 200/401 `test_BC_2_16_013_claroty_harness_dar_router_returns_200_with_bearer_401_without`), AC-002/RG-002 (response key `devices_alerts` `test_BC_2_16_013_claroty_harness_dar_response_envelope_uses_devices_alerts_key_not_stem`), AC-003/RG-003 (`network_router()` 200/401 `test_BC_2_16_013_claroty_harness_dar_network_router_returns_200_with_bearer_401_without`); two-router claim verified against `clones/claroty.rs` (`router()` and `network_router()` both exist, neither registers `device_alert_relations` on develop). (2) §Response envelope shapes "pending separate follow-up story" → S-DEMO-CLAROTY-HARNESS-DAR-001. (3) §Postconditions §1 URL grounding "follow-up story is required" → S-DEMO-CLAROTY-HARNESS-DAR-001. (4) DTU-EXT-006 "harness parity MUST will be anchored when follow-up story created" → S-DEMO-CLAROTY-HARNESS-DAR-001. Stale-phrasing sweep: all four pending-follow-up forms in normative text resolved; changelog prior-fold record text grandfathered as historical record. **Column-list reconciliation (same v1.36, 2026-08-11):** Implementer's verified list is 10 columns, not 9 — `device_alert_status` confirmed present in `AlertedDevicesPairs__fields_enum` (92 values, authoritative xDome OpenAPI, coordinator-verified). Three sites updated: (1) §Postconditions §1 contracted column subset: 9 → 10 columns, `device_alert_status` appended to named list, "All 9" → "All 10", "83 fields" → "82 fields" (two occurrences in the block); (2) §Postconditions §1 SAP-2 exclusion documentation: "83 excluded fields" → "82 excluded fields"; (3) frontmatter `modified` comment: "83 omitted fields" → "82 omitted fields (10 contracted, 82 excluded, 92 total)". Arithmetic: 82 excluded + 10 contracted = 92 total enum values ✓. Note: `device_alert_status` is an individual field in the enum; no `{device_uid, alert_id, device_alert_detected_time, device_alert_status}` 4-tuple exists in the API — those are independent claims. Branch `fix/claroty-live-api-fidelity` at `0d80cbeac` — not yet pushed, not merged; merge-state language in §Known Gaps DTU-EXT-006 remains "pending". |
 | 1.35 | MED-008-annotation-burst | 2026-08-03 | product-owner | MED-008 (PR #234 adversarial review): annotation-only amendment to §Postconditions §1 flagging three stale ADR-028 §D2 authority citations. **(1) Grounding-authority intro** — added `[SUPERSEDED-PENDING for Armis and Cyberint — ADR-053 §D1]` qualification after the ADR-028 §D2 statement; scopes the supersession to Armis and Cyberint; CrowdStrike and Claroty authorities unchanged. **(2) Armis entry** — added `[SUPERSEDED-PENDING — ADR-053 §D2]` annotation after the auth-grounding sentence; `auth_type = "bearer_static"` value preserved (live test binding: `test_HS_016_BC_2_16_013_armis_spec_declares_bearer_static_auth`). **(3) Cyberint entry** — added `[SUPERSEDED-PENDING — ADR-053 §D3-a]` annotation after the auth-grounding sentence; single-surface `cookie_roundtrip` entry preserved (live test binding: `test_HS_015_BC_2_16_013_cyberint_spec_declares_cookie_roundtrip_auth`). No `auth_type` value rewritten. CrowdStrike and Claroty entries untouched. Full amendment execution (value rewrites, dual-surface split) owned by `S-WAVE-A-CYBERINT-SPEC-001` per ADR-053 §D5. **Defect-class sweep (same burst):** struck false DTU-precedes-spec grounding direction assertions from three sensor auth-grounding sentences. Removed `CLAUDE.md §Source-of-Truth Precedence #7 applies: spec follows DTU, not adapter code.` from Claroty and Cyberint entries; removed `Spec follows DTU, not adapter code.` from Armis entry. CLAUDE.md §Source-of-Truth Precedence #7 governs code-vs-spec conflicts in favour of the SPEC — the opposite of "spec follows DTU" — making this clause false independent of ADR-053. Preceding ADR-028 §D2/§D6 context already explains the intentional divergence; the struck sentence was redundant and false. CrowdStrike entry clean (no direction assertion present). |

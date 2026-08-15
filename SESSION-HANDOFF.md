@@ -256,11 +256,39 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2135 (DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL pass-21 CLEAN(strict)=NO / CLEAN(PR-merge)=YES; story v1.19 / BC-2.08.002 v1.7 / BC-INDEX v9.08 / STORY-INDEX v2.797; streak RESET 0/3; NEXT: strict LOCAL adversary pass-22 on frozen HEAD b3052ce4d + story v1.19 + BC-2.08.002 v1.7 + error-taxonomy v2.76).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot).
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot. D-2115 blockquote above captures the D-2115 burst delta. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `539a5b39a` (origin/develop=`539a5b39a`; .gitignore customer-data-guard chore D-2167 — rule docs/demo-evidence/**/live/ AD-017; previously PR #236 @5d1a30ac7). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (this D-2124 commit). STATE v8.673. 42 cumulative open findings; ip_list→device.ip OPEN (needs story anchor); FINDING-G (CLAUDE.md detection gap — human mandate required). **D-2109 GOVERNING DECISION: DTU-vs-real-xDome drift DEFERRED — DO NOT mint as adversary/holdout findings; DTUs MUST NOT be reconciled to real without explicit human authorization.**
+> develop HEAD `3197e27a9` (origin/develop=`3197e27a9`; updated D-2177 PR #237 squash-merge 2026-08-15; was `539a5b39a` at D-2169/D-2170). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'`. STATE v8.718 (D-2182). 42 cumulative open findings; ip_list→device.ip OPEN (needs story anchor); FINDING-G (CLAUDE.md detection gap — human mandate required). **D-2109 GOVERNING DECISION: DTU-vs-real-xDome drift DEFERRED — DO NOT mint as adversary/holdout findings; DTUs MUST NOT be reconciled to real without explicit human authorization.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2170 (2026-08-15 — SESSION WRAP; PR #237 OPEN HEAD fed0db1c9; develop LOCAL 539a5b39a / origin 5d1a30ac7 DIVERGED; in-depth live battery PARTIAL — 2 drift items registered; STATE v8.715→v8.716) [SUPERSEDES D-2154]
+## §RESUME SNAPSHOT — D-2182 (2026-08-15 — REGISTRATION BURST COMPLETE; S-CLAROTY-AUDITLOG-TIMEBOX-001 REGISTERED; develop@3197e27a9; STATE v8.717→v8.718) [SUPERSEDES D-2170]
+
+### RESUME IN ONE BREATH
+PR #237 DEFECT-ADAPTER-TLS-XDOME-LIVE-001 MERGED develop@3197e27a9 2026-08-15T18:39:09Z (D-2177). S-CLAROTY-AUDITLOG-TIMEBOX-001 (draft v2.0) REGISTERED for DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 (D-2178..D-2182): 6 ACs, 5 RGTs, density 0.83, tdd_mode: strict; BCs: BC-2.16.013 v1.38 + BC-2.01.013 v1.20; 4 holdout scenarios HS-AUDITLOG-001-A-001..004. ADR-058 spec-readiness gate FAILED (D-2176 OPEN). NEXT: TDD delivery of S-CLAROTY-AUDITLOG-TIMEBOX-001.
+
+### HEADS (D-2182)
+- `develop`: `3197e27a9` (origin/develop updated via PR #237 squash-merge 2026-08-15)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2182 burst commit)
+- `chore/gitignore-ad017-live-evidence`: `539a5b39a` (off origin/develop; .gitignore AD-017 chore; chore PR pending)
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK)
+
+### PER-WORKSTREAM NEXT-ACTION (D-2182)
+1. **S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD delivery — NEXT.** Story registered (draft v2.0). Workflow: remove-uncertainty (ASM-CLAROTY-AUDITLOG-001) → test-writer RG-001..RG-005 → implementer → LOCAL 3-CLEAN → holdout-evaluator HS-AUDITLOG-001-A-001..004 → demo-recorder → push → pr-manager.
+2. **Chore PR — READY.** `chore/gitignore-ad017-live-evidence` → develop (fast-forward `539a5b39a`).
+3. **ADR-058 spec-evolution cycle — BLOCKED (D-2176).** Spec-evolution routing required before TDD.
+4. **Fresh Claroty live re-validation — required before demo.** D-2169 was against stale TOML.
+5. **Wave-A spec-evolution cascade — FROZEN.** Human decision (f) freeze in effect.
+
+### DECISION-LOG DELTA (D-2178 through D-2182)
+DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 spec+story+holdout foundation (D-2178); remove-uncertainty CONFIRMED (D-2179); human decision two-layer→single fix (D-2180); filter-rejection→E-SENSOR-001 (D-2181); burst complete STATE v8.717→v8.718 (D-2182).
+
+### BACKUP BOUNDARY (D-2182)
+- PUSHED / safe: `origin/develop` `3197e27a9` (updated via PR #237 merge).
+- LOCAL-ONLY (AT RISK): `chore/gitignore-ad017-live-evidence` `539a5b39a`; `.worktrees/S-3.09` @`43c41389d`; `.worktrees/W3-FIX-S307-001` @`fcab8717c`.
+
+---
+
+## §RESUME SNAPSHOT — D-2170 (2026-08-15 — SESSION WRAP; PR #237 OPEN HEAD fed0db1c9; develop LOCAL 539a5b39a / origin 5d1a30ac7 DIVERGED; in-depth live battery PARTIAL — 2 drift items registered; STATE v8.715→v8.716) [SUPERSEDES D-2154] [SUPERSEDED by D-2182]
 
 ### RESUME IN ONE BREATH
 xDome story DEFECT-ADAPTER-TLS-XDOME-LIVE-001 is FULLY VALIDATED (LOCAL 3-CLEAN D-2164 + DTU holdout PASS D-2167 + LIVE-PASS AC-LIVE-001 D-2166 + in-depth live battery D-2169) and delivered as PR #237 (OPEN → develop, HEAD fed0db1c9, review-converged cycle-4 READY, CI 46/46 green, security clean). MERGE is BLOCKED on HUMAN gates only. Next work, ALL before the next Claroty demo (human directive 2026-08-15): ADR-058 Stage 1+2, the claroty_audit_logs timeout defect, and the device_alert_relations live-parity check; capstone deferred to run on OCSF columns.
