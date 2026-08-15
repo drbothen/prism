@@ -5213,6 +5213,8 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "tracing-subscriber",
+ "tracing-test",
  "uuid",
  "wiremock",
 ]
@@ -5775,6 +5777,7 @@ dependencies = [
  "futures-channel",
  "futures-core",
  "futures-util",
+ "h2",
  "http",
  "http-body",
  "http-body-util",

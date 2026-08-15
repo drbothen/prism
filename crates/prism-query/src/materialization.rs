@@ -44,9 +44,11 @@ use std::sync::Arc;
 use arrow::record_batch::RecordBatch;
 use datafusion::execution::context::SessionContext;
 use prism_core::error::sanitize_for_log;
-use prism_core::{OrgId, OrgSlug, PrismError, SensorId, UnknownSourceTableDetails};
+use prism_core::{
+    sanitize_body_snippet_bytes, OrgId, OrgSlug, PrismError, SensorId, UnknownSourceTableDetails,
+};
 use prism_ocsf::OcsfNormalizer;
-use prism_sensors::{AdapterRegistry, CredentialResolver, SensorSpec};
+use prism_sensors::{AdapterRegistry, CredentialResolver, SensorError, SensorSpec};
 
 use crate::{
     cache::SensorResponseCache,
@@ -1030,7 +1032,21 @@ pub async fn run_materialization_pipeline(
 
                 // Collect partial errors (BC-2.11.011).
                 for fan_err in fan_result.errors {
-                    // Redact internal detail — expose error code only (OBS-1 / CWE-209).
+                    // STRUCTURALLY UNREACHABLE under the single-target fanout contract:
+                    // materialize_single_external_target calls fan_out with exactly one
+                    // target per iteration to preserve per-client attribution (AC-6).
+                    // The fanout.rs §fan_out contract guarantees a single-target call
+                    // returns Err(AllTargetsFailed) on failure or Ok with an EMPTY errors
+                    // vec on success — never Ok with a non-empty errors vec (BC-2.01.010;
+                    // POL-34). Converting fan_out to receive multiple targets is PROHIBITED
+                    // because it would regress per-client attribution (AC-6 / BC-2.11.001
+                    // v1.25 T-QERR-4 prohibition).
+                    //
+                    // The HTTP formatting below is fail-safe defense-in-depth: if a future
+                    // change ever makes this branch reachable, the output format matches the
+                    // AllTargetsFailed Err arm exactly. sanitize_body_snippet_bytes is the
+                    // CWE-209 control on both paths (D-2151 / EC-11-091).
+                    //
                     // CWE-117: sanitize source_table before log emission and client string
                     // (F-CSD-P21-OBS-002 sibling sweep).
                     tracing::warn!(
@@ -1039,10 +1055,14 @@ pub async fn run_materialization_pipeline(
                         error = %fan_err,
                         "fan_out partial failure"
                     );
-                    sensor_errors.push(format!(
-                        "{}: sensor error ({})",
-                        sanitize_for_log(&target.source_table),
-                        fan_err.error.error_code()
+                    // Delegate to the shared helper (mirrors the AllTargetsFailed Err arm).
+                    // HttpError → HTTP-status format; other variants → error-code format.
+                    // Theoretically unreachable on production single-target fan-out paths
+                    // (see the STRUCTURALLY UNREACHABLE comment above); the always-push
+                    // invariant is preserved for test adapters and plugin non-HTTP errors.
+                    sensor_errors.push(format_sensor_error_entry(
+                        &target.source_table,
+                        &fan_err.error,
                     ));
                 }
 
@@ -1059,11 +1079,50 @@ pub async fn run_materialization_pipeline(
                     error = %e,
                     "fan_out all-targets-failed (partial failure)"
                 );
-                sensor_errors.push(format!(
-                    "{}: all targets failed ({})",
-                    sanitize_for_log(&target.source_table),
-                    e.error_code()
-                ));
+                // AC-QERR-001, EC-11-088/089/090: iterate per-target errors from
+                // AllTargetsFailed and format each with HTTP status + sanitized body.
+                // For non-HttpError variants (Timeout, ResponseParse, etc.) fall back
+                // to the error-code format.  Defensive guard for edge cases where
+                // fan_out returns a non-AllTargetsFailed SensorError.
+                match &e {
+                    SensorError::AllTargetsFailed { errors, .. } if !errors.is_empty() => {
+                        for fan_err in errors {
+                            // AC-QERR-001, EC-11-088/089/090: format per-target HTTP detail.
+                            // `HttpError.body` holds the raw sanitized body snippet — the
+                            // invariant is established by two paths in `spec_driven_adapter.rs`:
+                            //   Arm 1 (F-P37-HIGH-001): strips the `"HTTP {reason}: "` prefix
+                            //     that `pipeline.rs` embeds in `detail`, leaving the raw body
+                            //     snippet. No compensating strip is needed or safe here: a
+                            //     legitimate raw body starting with "HTTP " would be incorrectly
+                            //     mutated by such a strip.
+                            //   Arm 2 (AuthRefreshFailed / CookieAuthFailed): sets body to
+                            //     `String::new()` — persistent-auth-failure variants are
+                            //     protocol-level failures with no HTTP response body payload.
+                            //
+                            // EC-11-090: sanitize_body_snippet_bytes caps to 256 UTF-8 bytes
+                            // and replaces control bytes (idempotent for pipeline-sanitized bodies;
+                            // correctly truncates non-pipeline sources such as plugin adapters).
+                            //
+                            // HttpError → HTTP-status format; other variants → error-code
+                            // format.  Production fan-out paths emit HttpError; the fallback
+                            // preserves the always-push invariant for test adapters and plugin
+                            // non-HTTP errors (POL-34; single-target contract).
+                            sensor_errors.push(format_sensor_error_entry(
+                                &target.source_table,
+                                &fan_err.error,
+                            ));
+                        }
+                    }
+                    _ => {
+                        // Fallback: AllTargetsFailed with empty errors vec, or
+                        // other SensorError variants not emitted by fan_out.
+                        sensor_errors.push(format!(
+                            "{}: all targets failed ({})",
+                            sanitize_for_log(&target.source_table),
+                            e.error_code()
+                        ));
+                    }
+                }
 
                 // EC-07-033 (P1-05 / architect adjudication D3): a FORCED
                 // refresh whose fetch failed for all targets cannot store a
@@ -1947,6 +2006,51 @@ pub(crate) async fn resolve_source_refs(
     }
 
     Ok(targets)
+}
+
+/// Format a single fan-out error as a `sensor_errors` wire entry.
+///
+/// Returns the formatted entry for ALL `SensorError` variants:
+///
+/// - `SensorError::HttpError` → HTTP-status format (EC-11-088/089):
+///   - `"<table>: HTTP <status>: <body>"` when the response body is non-empty
+///   - `"<table>: HTTP <status>"` when the body is empty (no trailing `": "`)
+///
+/// - All other variants → error-code format: `"<table>: sensor error (<code>)"`.
+///   Fan-out contracts guarantee production paths produce `HttpError` inside
+///   `AllTargetsFailed.errors`; the fallback preserves the always-push invariant
+///   for test adapters (e.g. `SensorError::Internal`) and plugin adapters that may
+///   emit non-HTTP errors.
+///
+/// EC-11-090: `sanitize_body_snippet_bytes(body, 256)` is applied to cap the body
+/// to 256 UTF-8 bytes and replace control bytes (idempotent on pipeline-sanitized bodies).
+///
+/// Called from both the `Ok(fan_result).errors` partial-failure path and the
+/// `Err(AllTargetsFailed).errors` path in `materialize_single_external_target`,
+/// eliminating the duplicated formatting logic between those two arms.
+fn format_sensor_error_entry(source_table: &str, error: &SensorError) -> String {
+    match error {
+        SensorError::HttpError { status, body, .. } => {
+            let snippet = sanitize_body_snippet_bytes(body, 256);
+            if snippet.is_empty() {
+                // EC-11-089: empty body → status-only, NO trailing ": ".
+                format!("{}: HTTP {}", sanitize_for_log(source_table), status)
+            } else {
+                // EC-11-088: non-empty body → include snippet.
+                format!(
+                    "{}: HTTP {}: {}",
+                    sanitize_for_log(source_table),
+                    status,
+                    snippet
+                )
+            }
+        }
+        other => format!(
+            "{}: sensor error ({})",
+            sanitize_for_log(source_table),
+            other.error_code(),
+        ),
+    }
 }
 
 /// Resolve an `OrgSlug` to its `OrgId` for adapter selection.
