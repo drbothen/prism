@@ -1052,3 +1052,360 @@ async fn test_BC_2_08_002_degraded_envelope_summary_matches_overall_status() {
         json_str
     );
 }
+
+// ---------------------------------------------------------------------------
+// I5 — full e2e: wiremock 403+body → SpecDrivenSensorAdapter → query → sensor_errors wire
+// ---------------------------------------------------------------------------
+
+/// I5: `PrismServer::query` MUST surface body text from a real wiremock 403 response in
+/// `sensor_errors` wire through the FULL production chain:
+///   wiremock → SpecDrivenSensorAdapter → PipelineExecutor → map_spec_engine_error_to_sensor_error
+///   → fan_out → materialization.rs → structured_content.results.sensor_errors
+///
+/// Unlike RG-016/RG-017 (which use `StubHttpErrorAdapter` that returns `SensorError::HttpError`
+/// directly without any HTTP), this test uses the REAL `SpecDrivenSensorAdapter` end-to-end:
+/// 1. `SpecDrivenSensorAdapter::fetch` issues a real HTTP request to wiremock → 403 response
+/// 2. `PipelineExecutor::execute` wraps into `SpecEngineError::HttpRequestFailed`
+/// 3. `map_spec_engine_error_to_sensor_error` Arm 1 strips the reason-phrase prefix →
+///    `SensorError::HttpError { status: 403, body: "access denied by policy" }`
+/// 4. `fan_out()` returns `FanOutError::AllTargetsFailed`
+/// 5. `materialization.rs` formats as `"xdome_devices: HTTP 403: access denied by policy"` →
+///    pushed into `sensor_errors`
+///
+/// SID-2 assertions (composed-output discipline):
+/// - Full composed entry starts with `"xdome_devices: HTTP 403: "`
+/// - Body snippet `"access denied by policy"` present
+/// - `"HTTP"` count == 1 (no double-prefix regression — F-P37-HIGH-001 guard)
+/// - `"Forbidden"` absent (Arm 1 strips the reason phrase from StatusCode::Display)
+///
+/// BC-2.11.001 EC-11-088 | SID-2 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 I5
+#[tokio::test]
+async fn test_BC_2_11_001_I5_e2e_wiremock_body_reaches_sensor_errors_wire() {
+    use prism_credentials::InMemoryCredentialStore;
+    use prism_mcp::server::{PrismServer, QueryToolParams};
+    use prism_query::{
+        engine::{QueryEngine, QueryEngineConfig},
+        scoping::ClientRegistry,
+        table_registry::TableRegistry,
+    };
+    use prism_sensors::{CredentialResolver, SensorAuth, SensorError as SensorErr};
+    use rmcp::handler::server::wrapper::Parameters;
+
+    // Local credential stubs — identical to AlwaysSucceedsCreds in query_tool_sensor_errors_test.rs
+    // (SID-1: no live DTU or credential store). SpecDrivenSensorAdapter ignores the auth arg
+    // and uses its internal MockAuthProvider, so StubAuthI5 is a no-op placeholder.
+    struct StubAuthI5;
+    impl SensorAuth for StubAuthI5 {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+        fn auth_type_name(&self) -> &'static str {
+            "custom_via_plugin"
+        }
+    }
+    struct AlwaysSucceedsCredsI5;
+    impl CredentialResolver for AlwaysSucceedsCredsI5 {
+        fn resolve(
+            &self,
+            _client_id: &str,
+            _sensor_id: SensorId,
+        ) -> Result<Box<dyn SensorAuth>, SensorErr> {
+            Ok(Box::new(StubAuthI5))
+        }
+    }
+
+    // 1. Wiremock: GET /api/v1/devices → 403 with body "access denied by policy".
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/devices"))
+        .respond_with(ResponseTemplate::new(403).set_body_bytes(b"access denied by policy"))
+        .mount(&mock_server)
+        .await;
+
+    // 2. SpecDrivenSensorAdapter — same fixture pattern as RG-005 / LOW-1.
+    //    make_xdome_spec called twice: once for make_resolved (consumes spec),
+    //    once for TableRegistry registration (separate call needed).
+    let spec_for_registry = make_xdome_spec(&mock_server.uri());
+    let spec_for_adapter = make_xdome_spec(&mock_server.uri());
+    let resolved = make_resolved(spec_for_adapter, "i5-org");
+    let auth_strategy = AdapterAuthStrategy::Plugin(
+        Arc::new(MockAuthProvider::new("i5-token")) as Arc<dyn prism_spec_engine::AuthProvider>
+    );
+    let http_client = build_http_client_with_timeout().expect("I5: http client build failed");
+    let adapter = Arc::new(SpecDrivenSensorAdapter::new(
+        Arc::new(resolved),
+        auth_strategy,
+        http_client,
+    ));
+
+    let org_id = OrgId::new();
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, adapter);
+    let adapter_registry = Arc::new(adapter_registry);
+
+    // 3. TableRegistry: register "xdome" for column-gate validation.
+    let table_registry = TableRegistry::new();
+    table_registry
+        .register_sensor(&spec_for_registry)
+        .expect("I5: register xdome in TableRegistry");
+
+    // 4. QueryEngine: table_registry (column-gate) + credential resolver (fan-out reaches adapter).
+    let engine = QueryEngine::new(
+        Arc::clone(&adapter_registry),
+        Arc::new(InMemoryCredentialStore::new()),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+    )
+    .with_table_registry(Arc::new(table_registry))
+    .with_credential_resolver(Arc::new(AlwaysSucceedsCredsI5));
+
+    // 5. PrismServer with query engine.
+    let server = PrismServer::new().with_query_engine(Arc::new(engine));
+
+    // 6. Run query — SELECT device_id FROM xdome_devices LIMIT 1.
+    //    Sensor errors propagate to sensor_errors (partial-failure path), NOT is_error.
+    //    QueryToolParams is #[non_exhaustive]; construct via JSON deserialization
+    //    (same pattern as query_tool_sensor_errors_test.rs::query_params).
+    let query_params: QueryToolParams = serde_json::from_str(
+        &serde_json::json!({"query": "SELECT device_id FROM xdome_devices LIMIT 1"}).to_string(),
+    )
+    .expect("I5: QueryToolParams JSON must deserialize");
+    let result = server.query(Parameters(query_params)).await.expect(
+        "I5: query MUST return Ok(QueryResult); sensor errors surface in sensor_errors, \
+             not is_error=true (partial-failure contract EC-11-088)",
+    );
+
+    let sc = result
+        .structured_content
+        .expect("I5: structured_content must be present on partial-failure query");
+    let wire = serde_json::to_string(&sc).expect("I5: serialize structured_content");
+
+    let results_val = sc
+        .get("results")
+        .expect("I5: sc['results'] must be present");
+    let errors = results_val
+        .get("sensor_errors")
+        .and_then(|v| v.as_array())
+        .expect("I5: sensor_errors must be a non-null array for 403 adapter error");
+    assert_eq!(
+        errors.len(),
+        1,
+        "I5: exactly 1 sensor_errors entry expected (one failing target). Got: {:?}",
+        errors
+    );
+
+    let entry = errors[0].as_str().unwrap_or("");
+
+    // ASSERTION 1 (SID-2, full composed string): entry must start with table + HTTP status.
+    // This exercises map_spec_engine_error_to_sensor_error Arm 1 via the REAL adapter chain.
+    assert!(
+        entry.starts_with("xdome_devices: HTTP 403: "),
+        "I5 (SID-2): sensor_errors[0] MUST start with 'xdome_devices: HTTP 403: '. \
+         Got: {entry:?}. Full wire: {wire}"
+    );
+
+    // ASSERTION 2: body snippet "access denied by policy" must appear.
+    // Verifies Arm 1 preserved the body text after stripping the reason-phrase prefix.
+    assert!(
+        entry.contains("access denied by policy"),
+        "I5: body snippet 'access denied by policy' MUST appear in sensor_errors[0]. \
+         Got: {entry:?}. Full wire: {wire}"
+    );
+
+    // ASSERTION 3 (SID-2 rule 2, no-double-prefix): "HTTP" must appear exactly once.
+    // Double-prefix "HTTP 403: HTTP 403 Forbidden: ..." is the F-P37-HIGH-001 regression.
+    assert_eq!(
+        entry.matches("HTTP").count(),
+        1,
+        "SID-2 rule 2: 'HTTP' MUST appear exactly once in sensor_errors[0]; \
+         double-prefix 'HTTP {{status}}: HTTP {{reason}}: ...' is the F-P37-HIGH-001 regression. \
+         Got {} occurrences in {entry:?}",
+        entry.matches("HTTP").count()
+    );
+
+    // ASSERTION 4: reason phrase "Forbidden" must NOT appear.
+    // map_spec_engine_error_to_sensor_error Arm 1 strips "HTTP {status} {reason}: " prefix
+    // from the pipeline detail, so "Forbidden" (from StatusCode::Display "403 Forbidden")
+    // must be absent from the final sensor_errors entry.
+    assert!(
+        !entry.contains("Forbidden"),
+        "I5: reason phrase 'Forbidden' MUST NOT appear in sensor_errors[0]. \
+         Arm 1 strips the 'HTTP {{status}} {{reason}}: ' prefix before storing body. \
+         Got: {entry:?}. Full wire: {wire}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// I6a — wire shape: 401 → check_one → "error":null not absent
+// ---------------------------------------------------------------------------
+
+/// I6a: `SensorHealthChecker::check_one` for a 401 response MUST serialize
+/// `SensorHealthResult.error = None` as `"error":null` (explicit JSON null, NOT key-absent).
+///
+/// `SensorHealthResult` uses `#[derive(Serialize)]` with NO `#[serde(skip_serializing_if)]`
+/// on any field (verified in `resources.rs`). Therefore `None` serializes as `"field":null`
+/// (key present, JSON null), not as an absent key. This test guards against a future
+/// regression where `skip_serializing_if = "Option::is_none"` is mistakenly added to `error`.
+///
+/// For HTTP 401/403 (auth-invalid path):
+/// - `reachable = Some(true)` → sensor responded, network-reachable
+/// - `auth_valid = Some(false)` → credentials rejected
+/// - `error = None` → no error string: auth-invalid is distinguished by `auth_valid:false`
+///
+/// Wire assertions (SID-2 null-not-absent discipline):
+/// - `"error":null` MUST be present (key present, value = JSON null)
+/// - `"reachable":false` MUST NOT be present (sensor responded → reachable=true)
+///
+/// BC-2.08.002 | SensorHealthResult null-not-absent | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 I6a
+#[tokio::test]
+async fn test_wire_shape_401_error_field_is_null_not_absent() {
+    let mock_server = MockServer::start().await;
+
+    // 401 response: drives AuthStatus::Invalid path in check_one.
+    Mock::given(method("GET"))
+        .and(path("/api/v1/devices"))
+        .respond_with(ResponseTemplate::new(401).set_body_bytes(b"unauthorized"))
+        .mount(&mock_server)
+        .await;
+
+    let spec = make_xdome_spec(&mock_server.uri());
+    let resolved = make_resolved(spec, "i6a-org");
+    let auth_strategy =
+        AdapterAuthStrategy::Plugin(Arc::new(MockAuthProvider::new("i6a-token"))
+            as Arc<dyn prism_spec_engine::AuthProvider>);
+    let http_client = build_http_client_with_timeout().expect("I6a: http client build failed");
+    let adapter = Arc::new(SpecDrivenSensorAdapter::new(
+        Arc::new(resolved),
+        auth_strategy,
+        http_client,
+    ));
+
+    let org_id = OrgId::new();
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, adapter);
+    let sensor_id = SensorId::from("xdome");
+
+    let checker = SensorHealthChecker::new(Arc::new(registry));
+    let context = prism_mcp::PrismContext::new();
+    let health = checker
+        .check_one(org_id, "i6a-org", &sensor_id, &context)
+        .await;
+
+    // SID-2 / null-not-absent: SensorHealthResult.error=None must serialize as "error":null
+    // (key present, value = JSON null), NOT as an absent key.
+    // No skip_serializing_if on any field → all Option<T> fields are always present in the wire.
+    let json =
+        serde_json::to_string(&health).expect("I6a: SensorHealthResult must serialize to JSON");
+
+    // ASSERTION 1 (SID-2 null-not-absent): "error":null MUST be present.
+    // A regression adding `#[serde(skip_serializing_if = "Option::is_none")]` to `error` would
+    // cause the key to vanish from the wire, breaking AI consumers that test `error == null`.
+    assert!(
+        json.contains("\"error\":null"),
+        "I6a (SID-2 null-not-absent): JSON MUST contain '\"error\":null' for 401 response. \
+         SensorHealthResult.error=None MUST serialize as explicit null (key present), \
+         not as absent key. Got JSON: {json}"
+    );
+
+    // ASSERTION 2 (negative gate): "reachable":false must NOT appear.
+    // HTTP 401 → ConnectivityStatus::Up → check_one sets reachable=Some(true).
+    // "reachable":false is reserved for ConnectivityStatus::Down only.
+    assert!(
+        !json.contains("\"reachable\":false"),
+        "I6a: JSON MUST NOT contain '\"reachable\":false' for 401 response — \
+         sensor IS network-reachable (returned HTTP response, not a transport error). \
+         Got JSON: {json}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// I6b — mock adapter for Down/Timeout scenario (used by test_wire_shape_down_sensor_auth_valid_is_null)
+// ---------------------------------------------------------------------------
+
+/// Mock adapter for I6b: simulates a transport failure (no HTTP exchange).
+///
+/// Returns `SensorError::Timeout` — same semantics as `MockAdapterConnectionRefused`
+/// in `bc_s_5_04_health_test.rs` — to drive `ConnectivityStatus::Down` through `check_one`.
+/// Down semantics: no TCP/HTTP exchange occurred; auth was never attempted.
+struct MockAdapterDownXdome;
+
+#[async_trait::async_trait]
+impl prism_sensors::SensorAdapter for MockAdapterDownXdome {
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from("xdome")
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "mock-xdome-down-i6b"
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &prism_sensors::SensorSpec,
+        _params: &prism_sensors::QueryParams,
+        _auth: &dyn prism_sensors::SensorAuth,
+    ) -> Result<Vec<arrow::record_batch::RecordBatch>, prism_sensors::SensorError> {
+        Err(prism_sensors::SensorError::Timeout {
+            sensor: "xdome".to_string(),
+            elapsed_ms: 30_000,
+        })
+    }
+}
+
+/// I6b: `SensorHealthChecker::check_one` for a transport failure (no HTTP exchange) MUST
+/// serialize `SensorHealthResult.auth_valid = None` as `"auth_valid":null` (explicit JSON
+/// null, NOT key-absent) and `reachable = Some(false)` as `"reachable":false`.
+///
+/// Transport failure semantics (BC-2.08.002 EC-08-005):
+/// - No TCP/HTTP exchange occurred → `ConnectivityStatus::Down`
+/// - `reachable = Some(false)` (Down → not network-reachable)
+/// - `auth_valid = None` (cannot verify auth — no HTTP response received)
+///   → MUST serialize as `"auth_valid":null` (key present, JSON null)
+/// - `error = Some("sensor_unreachable_cannot_verify")`
+///
+/// Wire assertions (SID-2 null-not-absent discipline):
+/// - `"auth_valid":null` MUST be present (None → explicit null, never absent key)
+/// - `"reachable":false` MUST be present (Down → reachable=false)
+///
+/// BC-2.08.002 EC-08-005 | SensorHealthResult null-not-absent | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 I6b
+#[tokio::test]
+async fn test_wire_shape_down_sensor_auth_valid_is_null() {
+    let org_id = OrgId::new();
+    let sensor_id = SensorId::from("xdome");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::new(MockAdapterDownXdome));
+
+    let checker = SensorHealthChecker::new(Arc::new(registry));
+    let context = prism_mcp::PrismContext::new();
+    let health = checker
+        .check_one(org_id, "i6b-org", &sensor_id, &context)
+        .await;
+
+    // SID-2 / null-not-absent: SensorHealthResult.auth_valid=None must serialize as "auth_valid":null
+    // (key present, value = JSON null), NOT as an absent key.
+    // No skip_serializing_if on any field → all Option<T> fields always appear in the wire.
+    let json =
+        serde_json::to_string(&health).expect("I6b: SensorHealthResult must serialize to JSON");
+
+    // ASSERTION 1 (SID-2 null-not-absent): "auth_valid":null MUST be present.
+    // BC-2.08.002 EC-08-005: auth was NEVER attempted for a Down sensor.
+    // A regression adding `#[serde(skip_serializing_if = "Option::is_none")]` to `auth_valid`
+    // would cause the key to vanish, breaking AI consumers that check `auth_valid == null` to
+    // distinguish "unreachable" from "auth rejected" (auth_valid:false).
+    assert!(
+        json.contains("\"auth_valid\":null"),
+        "I6b (SID-2 null-not-absent): JSON MUST contain '\"auth_valid\":null' for transport \
+         failure (SensorError::Timeout → ConnectivityStatus::Down). \
+         SensorHealthResult.auth_valid=None MUST serialize as explicit null (key present), \
+         not as absent key. Got JSON: {json}"
+    );
+
+    // ASSERTION 2: "reachable":false MUST be present — Down → reachable=Some(false).
+    assert!(
+        json.contains("\"reachable\":false"),
+        "I6b: JSON MUST contain '\"reachable\":false' for transport failure \
+         (no HTTP exchange → ConnectivityStatus::Down → reachable=Some(false)). \
+         Got JSON: {json}"
+    );
+}

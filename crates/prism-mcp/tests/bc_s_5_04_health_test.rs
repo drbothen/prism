@@ -2849,6 +2849,18 @@ async fn test_BC_2_08_001_EC_08_001_503_probe_yields_reachable_true() {
          (probe.connectivity != Up → timestamp gate skips recording). Got: {:?}",
         result.last_successful_query_at
     );
+
+    // ADV-4 (SID-2 wire-shape): assert "reachable":true at the wire level, not just struct level.
+    // Guards against a serde regression (e.g., skip_serializing_if or renamed field) that would
+    // cause the key to be absent or wrong in the JSON consumed by LLM agents.
+    let json =
+        serde_json::to_string(&result).expect("ADV-4: SensorHealthResult must serialize to JSON");
+    assert!(
+        json.contains("\"reachable\":true"),
+        "ADV-4 (SID-2 wire-shape): JSON MUST contain '\"reachable\":true' for HTTP 503 \
+         (ConnectivityStatus::Degraded) at the wire level. \
+         EC-08-009 (HS-007): Degraded != Down → reachable=Some(true). Got JSON: {json}"
+    );
 }
 
 /// HS-007 / EC-08-009 (aggregate path): an all-503 sensor fleet MUST produce
@@ -2897,6 +2909,29 @@ async fn test_BC_2_08_001_EC_08_001_all_503_fleet_aggregate_partial() {
         result_armis.reachable,
         Some(true),
         "EC-08-009 (HS-007): armis 503 probe must yield reachable=true"
+    );
+
+    // ADV-4 (SID-2 wire-shape): assert reachable:true and error:service_unavailable at wire level
+    // for both sensors, BEFORE aggregate() consumes (moves) the values.
+    // Guards against a serde regression that would emit wrong field names/values in the wire.
+    let json_cs =
+        serde_json::to_string(&result_cs).expect("ADV-4: result_cs must serialize to JSON");
+    assert!(
+        json_cs.contains("\"reachable\":true"),
+        "ADV-4 (SID-2 wire-shape): crowdstrike 503 JSON MUST contain '\"reachable\":true'. \
+         Got JSON: {json_cs}"
+    );
+    assert!(
+        json_cs.contains("\"error\":\"service_unavailable\""),
+        "ADV-4 (SID-2 wire-shape): crowdstrike 503 JSON MUST contain \
+         '\"error\":\"service_unavailable\"'. Got JSON: {json_cs}"
+    );
+    let json_armis =
+        serde_json::to_string(&result_armis).expect("ADV-4: result_armis must serialize to JSON");
+    assert!(
+        json_armis.contains("\"reachable\":true"),
+        "ADV-4 (SID-2 wire-shape): armis 503 JSON MUST contain '\"reachable\":true'. \
+         Got JSON: {json_armis}"
     );
 
     // Aggregate of all-503 fleet → Partial (reachable=true, error set → not fully-healthy).
@@ -2957,6 +2992,17 @@ async fn test_BC_2_08_001_EC_08_001_503_probe_sets_service_unavailable_reason() 
          fully_healthy_count predicate (r.error.is_none() = false → not fully-healthy). \
          Current: result.error = {:?}",
         result.error
+    );
+
+    // ADV-4 (SID-2 wire-shape): assert "error":"service_unavailable" at the wire level.
+    // Guards against a serde regression where the field is present in the struct but absent
+    // or differently named in the serialized JSON consumed by LLM agents.
+    let json =
+        serde_json::to_string(&result).expect("ADV-4: SensorHealthResult must serialize to JSON");
+    assert!(
+        json.contains("\"error\":\"service_unavailable\""),
+        "ADV-4 (SID-2 wire-shape): JSON MUST contain '\"error\":\"service_unavailable\"' \
+         for HTTP 503 (Degraded) at the wire level. Got JSON: {json}"
     );
 }
 
