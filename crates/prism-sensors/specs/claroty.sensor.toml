@@ -228,17 +228,20 @@ ocsf_class = "audit_activity"
   # DTU route: POST /api/v1/audit_log/get — implemented by S-DEMO-CLAROTY-AUDIT-DTU-001.
   # response_path: DTU returns {"audit_log": [...]} per GetAuditLogResponse
   #   (routes/audit_log.rs), matching poller-bear reference.
-  # body_template: STAYS '{}' — GetAuditLogParameters has NO fields property (unlike alerts/devices).
-  #   The API returns all available fields when body is {}.
-  #   OffsetLimit POST-body injection merges {"offset": N, "limit": 1000} at request time
-  #   (pipeline.rs::build_request — Gap-CL-004 CLOSED by S-DEMO-CLAROTY-PAGINATION-001).
+  # body_template: Layer-2 variable form (S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-005).
+  #   `spec_driven_adapter.rs` injects `_claroty_audit_filter_by` into FetchContext.query_filters
+  #   (a JSON-object string); `pipeline.rs` auto-parses it to Value::Object so
+  #   `${query.filter._claroty_audit_filter_by}` expands inline in the POST body.
+  #   OffsetLimit POST-body injection merges {"offset": N, "limit": 1000} AFTER template
+  #   expansion (pipeline.rs::build_request — BC-2.16.002 §Postconditions).
+  #   Final POST body: {"filter_by": {...}, "offset": 0, "limit": 1000}
   # path_template: /api/v1/audit_log/get WITHOUT trailing slash — OpenAPI declares this path
   #   without a trailing slash (unlike alerts/devices which use trailing slash by convention).
   [[tables.steps]]
   name = "fetch_audit_logs"
   method = "POST"
   path_template = "/api/v1/audit_log/get"
-  body_template = '{}'
+  body_template = '{"filter_by": ${query.filter._claroty_audit_filter_by}}'
   response_path = "$.audit_log"
   variables_produced = []
   [tables.steps.pagination]

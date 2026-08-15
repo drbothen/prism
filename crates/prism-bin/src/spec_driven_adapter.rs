@@ -618,6 +618,39 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             query_filters.insert("aql".to_string(), augmented);
         }
 
+        // Claroty audit_logs filter_by injection (BC-2.01.013 Claroty Layer-2 + ADR-033 T1).
+        //
+        // Injects `_claroty_audit_filter_by` into `query_filters` as a JSON-object string.
+        // pipeline.rs step_vars seeding auto-parses it to `Value::Object` (BC-2.16.013 §1)
+        // so `${query.filter._claroty_audit_filter_by}` expands inline into the POST body:
+        //   body_template = '{"filter_by": ${query.filter._claroty_audit_filter_by}}'
+        //   → {"filter_by": {"field": "timestamp", "operation": "greater_or_equal", "value": N}}
+        //
+        // Default (no start_time): `greater_or_equal (now − 604,800,000 ms)` — 7-day look-back.
+        //   Never unbounded; eliminates E-QUERY-004 timeout on unfiltered queries (EC-001).
+        // Explicit start_time only: `greater_or_equal` at the explicit ms epoch (EC-002 respects).
+        // EC-002 (end only, no start): compound `and` with 7-day default lower bound.
+        // Both bounds: compound `and` with two conditions (EC-003).
+        // 4xx responses from xDome surface via existing map_spec_engine_error_to_sensor_error
+        //   → SensorError::HttpError { status: 400 } (E-SENSOR-001 / AC-006 / RG-005).
+        //
+        // SAP-2 compliance: `field = "timestamp"` matches the audit_log timestamp column in
+        // claroty.sensor.toml and is a valid xDome filter field per ASM-CLAROTY-AUDITLOG-001.
+        //
+        // Only applies to claroty sensor, audit_logs table.
+        if self.sensor_spec.spec.sensor_id.as_str() == "claroty"
+            && spec.source_table == "claroty_audit_logs"
+        {
+            let filter_by = build_claroty_audit_filter_by(
+                params.start_time.as_deref(),
+                params.end_time.as_deref(),
+            );
+            query_filters.insert(
+                "_claroty_audit_filter_by".to_string(),
+                filter_by.to_string(),
+            );
+        }
+
         // CrowdStrike limit push-down (BC-2.01.013 / F-P1-CRIT-004).
         // Seed `query.limit` into query_filters so the ${query.limit} slot in the
         // CrowdStrike Step 1 path_template resolves to the LIMIT value.
@@ -1603,6 +1636,68 @@ pub async fn step9a_populate_adapter_registry(
 /// The returned string is seeded into `FetchContext.query_filters["_fql"]` and
 /// interpolated into the CrowdStrike Step 1 path_template via `${query.filter._fql}`.
 /// An empty return value produces `?filter=` (ignored by the DTU for empty-string filter).
+/// Build a Claroty xDome `filter_by` JSON value for `audit_logs` time-window injection.
+///
+/// Constructs the filter object based on ADR-033 Option T1 extracted `start_time`/`end_time`:
+///
+/// - No `start_time`, no `end_time` → single `greater_or_equal` at `now − 604,800,000 ms`
+///   (7-day default look-back; never unbounded — EC-001 / BC-2.01.013 §Postcondition 1).
+/// - `start_time` only → single `greater_or_equal` at the explicit epoch (EC-002 start-honored).
+/// - `end_time` only, no `start_time` → compound `and` with 7-day default lower bound +
+///   `less_or_equal` upper bound (EC-002 end-only clause).
+/// - Both bounds → compound `and` with `greater_or_equal(start)` + `less_or_equal(end)` (EC-003).
+///
+/// Returns a `serde_json::Value::Object` so the caller can serialize with `.to_string()` and
+/// pipeline.rs auto-parses it back to `Value::Object` via JSON auto-parse (BC-2.16.013 §1).
+///
+/// The `field` is `"timestamp"` (SAP-2: matches `ClarotyAuditLogFilter` DTU ground-truth
+/// and the `timestamp` column in `claroty.sensor.toml` / `crates/prism-dtu-claroty/src/types.rs`).
+///
+/// Compound AND structure uses `"conditions"` key (matches test RG-003 assertions).
+///
+/// BC-2.01.013 §Postconditions Claroty audit_logs (Layer 2) row; S-CLAROTY-AUDITLOG-TIMEBOX-001.
+fn build_claroty_audit_filter_by(
+    start_time: Option<&str>,
+    end_time: Option<&str>,
+) -> serde_json::Value {
+    let seven_days_ms: i64 = 7 * 24 * 3600 * 1000;
+
+    let start_ms = match start_time {
+        Some(t) => chrono::DateTime::parse_from_rfc3339(t)
+            .map(|dt| dt.timestamp_millis())
+            .unwrap_or_else(|_| chrono::Utc::now().timestamp_millis() - seven_days_ms),
+        None => chrono::Utc::now().timestamp_millis() - seven_days_ms,
+    };
+
+    match end_time {
+        Some(t) => {
+            let end_ms = chrono::DateTime::parse_from_rfc3339(t)
+                .map(|dt| dt.timestamp_millis())
+                .unwrap_or_else(|_| chrono::Utc::now().timestamp_millis());
+            serde_json::json!({
+                "operation": "and",
+                "conditions": [
+                    {
+                        "field": "timestamp",
+                        "operation": "greater_or_equal",
+                        "value": start_ms
+                    },
+                    {
+                        "field": "timestamp",
+                        "operation": "less_or_equal",
+                        "value": end_ms
+                    }
+                ]
+            })
+        }
+        None => serde_json::json!({
+            "field": "timestamp",
+            "operation": "greater_or_equal",
+            "value": start_ms
+        }),
+    }
+}
+
 fn build_crowdstrike_fql(start_time: Option<&str>, end_time: Option<&str>) -> String {
     let start_clause = start_time.map(|t| format!("created_timestamp:>'{t}'"));
     let end_clause = end_time.map(|t| format!("created_timestamp:<'{t}'"));

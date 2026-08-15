@@ -262,11 +262,35 @@ impl PipelineExecutor {
                     .unwrap_or_default(),
             ),
         );
+        // BC-2.16.013 §Postcondition 1 / S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-004:
+        // Auto-parse query_filter values that are JSON-object or JSON-array strings
+        // (trimmed start is `{` or `[`) into `Value::Object` / `Value::Array`.
+        // In `JsonBody` interpolation context, `Value::Object` is inserted verbatim
+        // via `value.to_string()`, producing inline JSON.  `Value::String` goes through
+        // `json_escape()` which escapes inner quotes, producing invalid JSON when the
+        // filter is placed bare in a body template.
+        // Backward-compat: FQL/AQL strings do NOT start with `{`/`[` and remain
+        // `Value::String` — no regression for CrowdStrike or Armis push-down paths.
+        // EC-005: on parse failure, log WARN and fall back to `Value::String` passthrough.
         for (k, v) in &context.query_filters {
-            step_vars.insert(
-                format!("query.filter.{k}"),
-                serde_json::Value::String(v.clone()),
-            );
+            let trimmed = v.trim_start();
+            let parsed_value = if trimmed.starts_with('{') || trimmed.starts_with('[') {
+                match serde_json::from_str::<serde_json::Value>(v) {
+                    Ok(val) => val,
+                    Err(e) => {
+                        tracing::warn!(
+                            key = %k,
+                            error = %e,
+                            "query_filter JSON auto-parse failed; \
+                             using as string passthrough (EC-005)"
+                        );
+                        serde_json::Value::String(v.clone())
+                    }
+                }
+            } else {
+                serde_json::Value::String(v.clone())
+            };
+            step_vars.insert(format!("query.filter.{k}"), parsed_value);
         }
 
         // ADR-033 T1 / AC-CWS-002: Pre-seed any ${query.filter.*} variables referenced
