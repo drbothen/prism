@@ -5,13 +5,16 @@ title: "xDome transport hardening: http2 feature + User-Agent + error source-cha
 wave: "C"
 epic_id: engine-defects
 priority: P1
-status: ready
+status: merged
 version: "1.34"
 severity: CRIT
 level: engine
 producer: story-writer
 timestamp: "2026-08-03"
-modified: "2026-08-14"
+modified: "2026-08-15"
+merged_sha: "3197e27a9"
+merged_pr: 237
+merged_date: "2026-08-15"
 holdout_scenarios: [HS-TLS-XDOME-001, HS-TLS-XDOME-002, HS-TLS-XDOME-003]
 inputs:
   - .factory/planning/findings-remediation-2026-07-20/xdome-transport-hardening-design.md
