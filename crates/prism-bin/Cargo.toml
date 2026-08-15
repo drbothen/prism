@@ -67,7 +67,7 @@ libc = { version = "0.2", optional = true }
 # S-PLUGIN-PREREQ-D AC-9: boot.rs constructs the single shared reqwest::Client with 30s timeout
 # and injects it into PluginRuntime::new(). reqwest is a transitive dep via prism-spec-engine
 # but must be declared here for boot.rs to call reqwest::Client::builder() directly.
-reqwest = { version = "0.12", features = ["rustls-tls"], default-features = false }
+reqwest = { version = "0.12", features = ["rustls-tls", "http2"], default-features = false }
 # S-5.01-FOLLOWUP-MCP-BOOT: step9 constructs BootNullCredentialStore + BootAuditWriter
 # (renamed from TracingAuditWriter in the MCP-02 2026-06-10 fix)
 # inline. These require secrecy::SecretString (for CredentialStore), ulid::Ulid (for
@@ -236,6 +236,14 @@ path = "tests/bc_2_03_007_credential_set_no_echo.rs"
 name = "bc_2_03_007_credential_set_org_id_keyed"
 path = "tests/bc_2_03_007_credential_set_org_id_keyed.rs"
 
+# DEFECT-ADAPTER-TLS-XDOME-LIVE-001: RG-005, RG-007, RG-008 integration tests.
+# Tests wire probe_connectivity + SpecDrivenSensorAdapter against wiremock-403 to verify
+# that HttpRequestFailed is mapped to SensorError::HttpError (not Internal) — enabling
+# the Up/auth-invalid probe outcome + wire-shape assertion + reqwest http2 feature check.
+[[test]]
+name = "defect_adapter_tls_xdome_live_001"
+path = "tests/defect_adapter_tls_xdome_live_001.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
@@ -284,7 +292,7 @@ prism-dtu-claroty = { path = "../prism-dtu-claroty", version = "0.1.0", features
 prism-dtu-cyberint = { path = "../prism-dtu-cyberint", version = "0.1.0", features = ["dtu", "fixture-gen"] }
 # prism-dtu-harness: transitively pulls prism-dtu-common/fixture-gen via its own dep chain.
 prism-dtu-harness = { path = "../prism-dtu-harness", version = "0.1.0", features = ["dtu"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "http2"] }
 
 [lints.clippy]
 # Inherited from workspace: workspace lint inheritance is not yet available

@@ -21,7 +21,8 @@
 //!
 //! # Error sanitization (F-S504-P2-008)
 //! The `error` field in `ProbeOutcome` is always sanitized before being stored:
-//! truncated to `MAX_ERROR_LEN` bytes and stripped of control characters, preventing
+//! truncated to `MAX_ERROR_LEN` chars (Unicode scalar values) and replaces all Unicode
+//! control characters (C0+DEL+C1) and U+2028/U+2029 with spaces, preventing
 //! prompt-injection via upstream sensor error bodies (CWE-116).
 
 use chrono::{DateTime, Utc};
@@ -36,35 +37,15 @@ const MAX_ERROR_LEN: usize = 512;
 
 /// Sanitize an upstream error string for safe inclusion in `ProbeOutcome.error`.
 ///
-/// Applies two transformations:
-/// 1. Truncates to `MAX_ERROR_LEN` characters (prevents context-stuffing).
-/// 2. Replaces control characters with spaces (prevents ANSI/control-char injection,
-///    including Unicode control chars U+0085/U+2028/U+2029; SEC-001/CWE-116).
+/// Delegates to `prism_core::sanitize_body_snippet` with `MAX_ERROR_LEN` cap:
+/// truncates to 512 chars and replaces all Unicode control characters (C0+DEL+C1 via
+/// `is_control()`) and U+2028/U+2029 with spaces (SEC-001/CWE-116).
 ///
-/// The result is safe for inclusion in AI agent-consumed health output.
+/// Single source of truth for body-snippet sanitization lives in `prism-core::error`
+/// (MED-1 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001); both prism-mcp and prism-spec-engine
+/// call the shared impl.
 fn sanitize_error(raw: &str) -> String {
-    let capped: &str = {
-        let byte_end = raw
-            .char_indices()
-            .nth(MAX_ERROR_LEN)
-            .map(|(idx, _)| idx)
-            .unwrap_or(raw.len());
-        &raw[..byte_end]
-    };
-    capped
-        .chars()
-        .map(|c| {
-            // Strip Unicode control chars (Cc category via is_control()) AND the two Unicode
-            // line/paragraph separators U+2028 / U+2029 (category Zl/Zp) which Rust's
-            // is_control() does not cover but which act as injection vectors in LLM context.
-            // SEC-001 / CWE-116.
-            if c.is_control() || c == '\u{2028}' || c == '\u{2029}' {
-                ' '
-            } else {
-                c
-            }
-        })
-        .collect()
+    prism_core::sanitize_body_snippet(raw, MAX_ERROR_LEN)
 }
 
 /// Minimal auth token for health probes.

@@ -430,6 +430,24 @@ pub async fn fan_out(
     // BC-2.01.010: all targets failed → Err(AllTargetsFailed)
     if result.successes.is_empty() && !result.errors.is_empty() {
         let count = result.errors.len();
+
+        // BC-2.01.010 AllTargetsFailed Per-Target Logging postcondition +
+        // BC-2.16.002 Canonical Structured Event Catalog row 91 (DEFECT-ADAPTER-TLS-XDOME-LIVE-001):
+        // Emit one fan_out_target_failed WARN per failed target before returning AllTargetsFailed.
+        // The AllTargetsFailed Display (E-SENSOR-030) remains count-only per BC-2.10.007 Rule 1.
+        // AD-017: `error` field uses the FanOutError Display — MUST NOT include credential values.
+        for err in &result.errors {
+            tracing::warn!(
+                event_type = "fan_out_target_failed",
+                org_id = %err.org_id,
+                sensor_id = %err.sensor_id,
+                attempts = err.retry_metadata.attempts,
+                is_transient = err.retry_metadata.is_transient,
+                error = %err,
+                "fan-out target failed"
+            );
+        }
+
         return Err(SensorError::AllTargetsFailed {
             count,
             errors: result.errors,
@@ -1041,5 +1059,303 @@ base_url = "{overlay_base_url}"
             TYPE_SPEC_URL,
             captured
         );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RG-004: fan_out all-targets-failed emits fan_out_target_failed WARN per target
+// (STRENGTHENED by MED-1a: counting/field-level assertions via WarnCaptureLayer)
+// ---------------------------------------------------------------------------
+
+/// RG-004 (STRENGTHENED — MED-1a): When ALL `fan_out()` targets fail, a `tracing::warn!`
+/// with `event_type = "fan_out_target_failed"` MUST be emitted EXACTLY ONCE PER FAILED
+/// TARGET (N targets → N emissions), each carrying the correct `sensor_id`.
+///
+/// STRENGTHENED from the original presence-only check (`logs_contain`) to:
+/// (a) exact count assertion: N=2 targets → exactly 2 WARN emissions, and
+/// (b) per-event sensor_id assertion: each emission carries `sensor_id = "rg004-sensor"`.
+///
+/// LOAD-BEARING verification (MED-1a):
+/// - If the `tracing::warn!` is hoisted OUTSIDE the `for err in &result.errors` loop,
+///   only 1 emission fires → count assertion fails (got 1, expected 2) → RED.
+/// - With the warn inside the loop (current production code), count == 2 → GREEN.
+///
+/// Uses a `WarnCaptureLayer` (custom `tracing_subscriber::Layer`) so the assertions
+/// are load-bearing against both emission count AND field values.
+///
+/// AC-ERR-004 | BC-2.01.010 / BC-2.16.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004
+#[cfg(test)]
+mod fan_out_target_failed_warn_tests {
+    use std::sync::{Arc, Mutex};
+
+    use arrow::record_batch::RecordBatch;
+    use prism_core::{OrgId, SensorId};
+    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+    use super::*;
+    use crate::{
+        adapter::{QueryParams, SensorError, SensorSpec},
+        auth::SensorAuth,
+        registry::AdapterRegistry,
+    };
+
+    // -----------------------------------------------------------------------
+    // WarnCaptureLayer: captures WARN events with event_type=fan_out_target_failed
+    // -----------------------------------------------------------------------
+
+    /// Per-event capture: stores the `sensor_id` field value from each
+    /// `event_type = "fan_out_target_failed"` WARN emission.
+    #[derive(Debug, Clone)]
+    struct CapturedTargetFailed {
+        sensor_id: String,
+    }
+
+    /// Field visitor that extracts `event_type` and `sensor_id` from a tracing event.
+    ///
+    /// `event_type = "fan_out_target_failed"` is a string literal → `record_str` is called.
+    /// `sensor_id = %err.sensor_id` uses Display → tracing calls `record_debug` with a
+    /// DisplayValue wrapper whose `{:?}` output equals the Display string (no extra quotes).
+    #[derive(Default)]
+    struct FieldCollector {
+        event_type: Option<String>,
+        sensor_id: Option<String>,
+    }
+
+    impl tracing::field::Visit for FieldCollector {
+        /// String literals (like `event_type = "fan_out_target_failed"`) come through here.
+        fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+            match field.name() {
+                "event_type" => self.event_type = Some(value.to_string()),
+                "sensor_id" => self.sensor_id = Some(value.to_string()),
+                _ => {}
+            }
+        }
+
+        /// Display-formatted values (like `sensor_id = %err.sensor_id`) come through here.
+        /// The `{:?}` output of a `DisplayValue` wrapper equals the Display string directly.
+        fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+            let s = format!("{value:?}");
+            match field.name() {
+                "event_type" => {
+                    self.event_type.get_or_insert(s);
+                }
+                "sensor_id" => {
+                    self.sensor_id.get_or_insert(s);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Custom `tracing_subscriber::Layer` that captures WARN events with
+    /// `event_type = "fan_out_target_failed"` for counting and field assertions.
+    struct WarnCaptureLayer {
+        captured: Arc<Mutex<Vec<CapturedTargetFailed>>>,
+    }
+
+    impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnCaptureLayer {
+        fn on_event(
+            &self,
+            event: &tracing::Event<'_>,
+            _ctx: tracing_subscriber::layer::Context<'_, S>,
+        ) {
+            if *event.metadata().level() != tracing::Level::WARN {
+                return;
+            }
+            let mut collector = FieldCollector::default();
+            event.record(&mut collector);
+            if collector.event_type.as_deref() == Some("fan_out_target_failed") {
+                let mut guard = self
+                    .captured
+                    .lock()
+                    .expect("WarnCaptureLayer: mutex poisoned");
+                guard.push(CapturedTargetFailed {
+                    sensor_id: collector.sensor_id.unwrap_or_default(),
+                });
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // AlwaysFailAdapter: implements SensorAdapter, returns SensorError::Internal
+    // -----------------------------------------------------------------------
+
+    /// A sensor adapter that unconditionally returns `SensorError::Internal`.
+    ///
+    /// Used to drive the `AllTargetsFailed` path in `fan_out()` without any
+    /// real HTTP calls. Two instances are registered (for two orgs) so the
+    /// test can assert on `count == 2`.
+    struct AlwaysFailAdapter {
+        sensor_id: SensorId,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::adapter::SensorAdapter for AlwaysFailAdapter {
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "always-fail-adapter"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            Err(SensorError::Internal {
+                detail: "RG-004: AlwaysFailAdapter deliberately fails every fetch".into(),
+            })
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // StubCreds: CredentialResolver that always returns Ok (no real auth needed)
+    // -----------------------------------------------------------------------
+
+    struct StubCreds;
+
+    impl CredentialResolver for StubCreds {
+        fn resolve(
+            &self,
+            _client_id: &str,
+            _sensor_id: SensorId,
+        ) -> Result<Box<dyn crate::auth::SensorAuth>, SensorError> {
+            struct NoopAuth;
+            impl crate::auth::SensorAuth for NoopAuth {
+                fn as_any(&self) -> &dyn std::any::Any {
+                    self
+                }
+                fn auth_type_name(&self) -> &'static str {
+                    "custom_via_plugin"
+                }
+            }
+            Ok(Box::new(NoopAuth))
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // RG-004 test (STRENGTHENED — MED-1a)
+    // -----------------------------------------------------------------------
+
+    /// RG-004 (STRENGTHENED — MED-1a): fan_out MUST emit `event_type = "fan_out_target_failed"`
+    /// WARN EXACTLY ONCE PER FAILED TARGET, each carrying the correct `sensor_id`.
+    ///
+    /// STRONGER THAN ORIGINAL (presence-only → count + per-event field):
+    /// - (a) exactly 2 WARN emissions for 2 failed targets (count check)
+    /// - (b) each emission carries `sensor_id = "rg004-sensor"` (field check)
+    ///
+    /// LOAD-BEARING VERIFICATION (MED-1a):
+    /// Confirmed RED by temporarily hoisting the `tracing::warn!` outside the
+    /// `for err in &result.errors` loop (single emission → count == 1 ≠ 2 → FAIL).
+    /// Production code keeps the warn INSIDE the loop → count == 2 → PASS.
+    ///
+    /// AC-ERR-004 | BC-2.01.010 / BC-2.16.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004
+    #[tokio::test]
+    #[allow(deprecated, clippy::unwrap_used)]
+    async fn test_fanout_all_failed_emits_fan_out_target_failed_warn() {
+        let sensor_id = SensorId::from("rg004-sensor");
+
+        // Two separate OrgIds → two separate registry entries → two targets.
+        let org_id_a = OrgId::new();
+        let org_id_b = OrgId::new();
+
+        let adapter_a = Arc::new(AlwaysFailAdapter {
+            sensor_id: sensor_id.clone(),
+        });
+        let adapter_b = Arc::new(AlwaysFailAdapter {
+            sensor_id: sensor_id.clone(),
+        });
+
+        let mut registry = AdapterRegistry::new();
+        registry.register(org_id_a, adapter_a);
+        registry.register(org_id_b, adapter_b);
+        let registry = Arc::new(registry);
+
+        // Build two FanOutTargets (one per org).
+        let target_a = FanOutTarget {
+            org_id: org_id_a,
+            client_id: "rg004-client-a".to_string(),
+            sensor_id: sensor_id.clone(),
+            spec: SensorSpec {
+                source_table: "rg004-sensor_devices".to_string(),
+                org_id: org_id_a,
+                client_id: "rg004-client-a".to_string(),
+                sensor_config: serde_json::Value::Null,
+            },
+            params: QueryParams::default(),
+        };
+        let target_b = FanOutTarget {
+            org_id: org_id_b,
+            client_id: "rg004-client-b".to_string(),
+            sensor_id: sensor_id.clone(),
+            spec: SensorSpec {
+                source_table: "rg004-sensor_devices".to_string(),
+                org_id: org_id_b,
+                client_id: "rg004-client-b".to_string(),
+                sensor_config: serde_json::Value::Null,
+            },
+            params: QueryParams::default(),
+        };
+
+        // Set up the counting/capturing subscriber (MED-1a).
+        // `set_default` installs a thread-local subscriber active for the duration
+        // of this test. `#[tokio::test]` uses current_thread, so all fan_out execution
+        // (including the WARN loop after join_all) runs on the same thread.
+        let captured: Arc<Mutex<Vec<CapturedTargetFailed>>> = Arc::new(Mutex::new(Vec::new()));
+        let capture_layer = WarnCaptureLayer {
+            captured: Arc::clone(&captured),
+        };
+        let _guard = tracing_subscriber::registry()
+            .with(capture_layer)
+            .set_default();
+
+        let result = fan_out(vec![target_a, target_b], registry, Arc::new(StubCreds)).await;
+
+        // Assert: AllTargetsFailed with count == 2.
+        match &result {
+            Err(SensorError::AllTargetsFailed { count, .. }) => {
+                assert_eq!(
+                    *count, 2,
+                    "RG-004: AllTargetsFailed.count must be 2; got: {count}"
+                );
+            }
+            Ok(_) => panic!("RG-004: fan_out must return Err when all targets fail; got Ok"),
+            Err(other) => panic!(
+                "RG-004: expected SensorError::AllTargetsFailed; got: {:?}",
+                other
+            ),
+        }
+
+        // ---- MED-1a assertion (a): exact count ----
+        // LOAD-BEARING: if the warn! is hoisted OUTSIDE the `for err in &result.errors`
+        // loop, only 1 emission fires even for 2 targets → count == 1 ≠ 2 → RED.
+        let events = captured.lock().expect("RG-004: capture mutex poisoned");
+        assert_eq!(
+            events.len(),
+            2,
+            "RG-004 (MED-1a count): fan_out must emit exactly 2 'fan_out_target_failed' WARN \
+             events for 2 failed targets (one per target in the for loop). \
+             Got: {}. \
+             LOAD-BEARING: if warn! is hoisted outside the loop → count=1 → RED. \
+             Fix: ensure the tracing::warn! is inside `for err in &result.errors {{ ... }}` \
+             (AC-ERR-004 | BC-2.01.010 / BC-2.16.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004).",
+            events.len()
+        );
+
+        // ---- MED-1a assertion (b): per-event sensor_id ----
+        // Each emission must carry the correct sensor_id for its target.
+        // Both targets share sensor_id = "rg004-sensor", so both events must have it.
+        for (i, event) in events.iter().enumerate() {
+            assert_eq!(
+                event.sensor_id, "rg004-sensor",
+                "RG-004 (MED-1a sensor_id): event[{i}].sensor_id must be 'rg004-sensor'; \
+                 got: {:?} \
+                 (AC-ERR-004 | BC-2.01.010 / BC-2.16.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004).",
+                event.sensor_id
+            );
+        }
     }
 }

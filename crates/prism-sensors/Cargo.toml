@@ -19,7 +19,7 @@ async-trait = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 futures = "0.3"
-reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "http2"], default-features = false }
 rand = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4"] }
@@ -42,6 +42,12 @@ tempfile = "3"
 prism-dtu-harness = { path = "../prism-dtu-harness", features = ["dtu"] }
 prism-dtu-armis = { path = "../prism-dtu-armis", features = ["dtu"] }
 prism-dtu-common = { path = "../prism-dtu-common", features = ["dtu"] }
+# RG-004: fan_out_target_failed WARN emission test requires tracing-test to capture log events.
+# DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-004 | BC-2.08.002
+tracing-test = "0.2"
+# MED-1a: WarnCaptureLayer for counting/field-level assertions on RG-004 WARN emissions.
+# tracing_subscriber::Layer used to count fan_out_target_failed WARNs per target exactly.
+tracing-subscriber = { version = "0.3", features = ["std"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

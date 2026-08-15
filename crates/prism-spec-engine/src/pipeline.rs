@@ -753,6 +753,44 @@ impl PipelineExecutor {
 // Private helpers
 // ---------------------------------------------------------------------------
 
+/// Best-effort read of a non-2xx response body for diagnostic inclusion in
+/// `SpecEngineError::HttpRequestFailed.detail`.
+///
+/// BC-2.16.002 Non-2xx Response Body Capture postcondition:
+/// - Decodes bytes as UTF-8 (via `String::from_utf8_lossy` — replaces invalid sequences
+///   with U+FFFD rather than using Latin-1 `b as char` which produces mojibake).
+/// - Caps body at **256 bytes** (byte-boundary-safe; never splits a multibyte UTF-8 char).
+///   A char-based cap would allow multibyte characters to inflate the byte count: 256
+///   "€" chars = 768 bytes. The byte cap enforces the BC-2.16.002 contract exactly
+///   (F-1 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001).
+/// - Replaces ALL `char::is_control()` characters (C0+DEL+C1, incl. `\t`/`\n`/`\r`) and
+///   U+2028/U+2029 with a space — prevents CWE-117/CWE-116 log/prompt injection (MED-1).
+///   Replacement happens before byte-counting so the byte budget reflects emitted bytes.
+/// - Returns an empty string on any body-read failure — the primary status-code
+///   error MUST NOT be replaced by a secondary body-read failure.
+///
+/// Sanitization is performed by `prism_core::sanitize_body_snippet_bytes` — the
+/// byte-capping variant of the shared `prism-core` sanitizer. `prism_mcp::health::
+/// connectivity::sanitize_error` uses `sanitize_body_snippet` (char-based, 512 chars)
+/// for its own char-bound contract; the two functions are intentionally distinct.
+/// (F-1 design choice (a); BC-2.16.002 ≤256-byte postcondition.)
+async fn read_non_2xx_body(response: reqwest::Response) -> String {
+    let bytes = match response.bytes().await {
+        Ok(b) => b,
+        Err(_) => return String::new(),
+    };
+    // Decode bytes as UTF-8 (lossy: invalid sequences → U+FFFD).
+    // Avoids the Latin-1 mojibake produced by the former `b as char` byte-to-char cast
+    // which misinterpreted multi-byte UTF-8 sequences (MED-1).
+    let text = String::from_utf8_lossy(&bytes);
+    // sanitize_body_snippet_bytes: caps at 256 bytes (byte-boundary-safe; replaces control
+    // chars + U+2028/U+2029 with space before byte-counting; CWE-117/CWE-116;
+    // BC-2.16.002 ≤256-byte postcondition). Trim for clean presentation in error messages.
+    prism_core::sanitize_body_snippet_bytes(text.as_ref(), 256)
+        .trim()
+        .to_string()
+}
+
 /// Issue one HTTP request, with a single 401-retry via `auth_provider` (AC-5).
 ///
 /// Takes `current_token` by value (consumed) and returns `(body, token)` so the
@@ -800,7 +838,17 @@ async fn issue_request_with_retry(
         sensor_id: spec.sensor_id.clone(),
         step_name: step.name.clone(),
         status_code: 0,
-        detail: e.to_string(),
+        // BC-2.16.002 Send-Failure Error Source Chain postcondition:
+        // Include the reqwest error source chain (hyper/h2/TLS-level cause) that
+        // e.to_string() omits. EC-008: source() returns None for simple errors,
+        // so .unwrap_or_default() produces "" (no "; caused by:" suffix).
+        detail: format!(
+            "{}{}",
+            e,
+            std::error::Error::source(&e)
+                .map(|s| format!("; caused by: {s}"))
+                .unwrap_or_default()
+        ),
     })?;
     *request_count += 1;
 
@@ -890,7 +938,15 @@ async fn issue_request_with_retry(
             sensor_id: spec.sensor_id.clone(),
             step_name: step.name.clone(),
             status_code: 0,
-            detail: e.to_string(),
+            // BC-2.16.002 Send-Failure Error Source Chain postcondition (401-retry send):
+            // Include the reqwest error source chain (hyper/h2/TLS-level cause).
+            detail: format!(
+                "{}{}",
+                e,
+                std::error::Error::source(&e)
+                    .map(|s| format!("; caused by: {s}"))
+                    .unwrap_or_default()
+            ),
         })?;
         *request_count += 1;
 
@@ -912,11 +968,20 @@ async fn issue_request_with_retry(
         }
 
         if !retry_status.is_success() {
+            // BC-2.16.002 Non-2xx Response Body Capture postcondition:
+            // Best-effort read of response body; cap to 256 bytes; strip control chars.
+            // A secondary body-read failure MUST NOT replace the primary status-code error.
+            let body_snippet = read_non_2xx_body(retry_response).await;
+            let detail = if body_snippet.is_empty() {
+                format!("HTTP {retry_status}")
+            } else {
+                format!("HTTP {retry_status}: {body_snippet}")
+            };
             return Err(SpecEngineError::HttpRequestFailed {
                 sensor_id: spec.sensor_id.clone(),
                 step_name: step.name.clone(),
                 status_code: retry_status.as_u16(),
-                detail: format!("HTTP {retry_status}"),
+                detail,
             });
         }
 
@@ -934,11 +999,20 @@ async fn issue_request_with_retry(
     }
 
     if !status.is_success() {
+        // BC-2.16.002 Non-2xx Response Body Capture postcondition:
+        // Best-effort read of response body; cap to 256 bytes; strip control chars.
+        // A secondary body-read failure MUST NOT replace the primary status-code error.
+        let body_snippet = read_non_2xx_body(response).await;
+        let detail = if body_snippet.is_empty() {
+            format!("HTTP {status}")
+        } else {
+            format!("HTTP {status}: {body_snippet}")
+        };
         return Err(SpecEngineError::HttpRequestFailed {
             sensor_id: spec.sensor_id.clone(),
             step_name: step.name.clone(),
             status_code: status.as_u16(),
-            detail: format!("HTTP {status}"),
+            detail,
         });
     }
 
@@ -1152,19 +1226,40 @@ fn build_paged_url_impl(
     }
 }
 
-/// Build a `reqwest::Client` with a 30-second timeout (CLAUDE.md §Conventions).
+/// Build a `reqwest::Client` with a 30-second timeout and `prism/` User-Agent (CLAUDE.md §Conventions).
 ///
 /// Used by `HttpLookupSource` and by the spec-driven adapter boot path.
 /// Callers MUST NOT call `reqwest::Client::new()` directly — that construction
 /// is forbidden because it sets no timeout (CLAUDE.md §Forbidden patterns).
-// Dead-code allow: used by HttpLookupSource::load_spec_with_runtime wiring (D8.6).
-// The warning appears because load_spec_with_runtime is in mod.rs; same crate, different file.
-#[allow(dead_code)]
-pub(crate) fn build_http_client_with_timeout() -> reqwest::Client {
+///
+/// ADR-050 §D6: all outbound HTTP clients set a `User-Agent: prism/{version}` header for
+/// WAF-fingerprint coherence so security appliances can attribute requests to prism.
+///
+/// OBS-4 sibling of `prism_bin::spec_driven_adapter::build_http_client_with_custom_timeout`
+/// (both factories now carry the same ADR-050 §D6 User-Agent obligation).
+///
+/// Returns `Err(String)` if the client builder fails.  Under `rustls-tls` this is
+/// effectively unreachable (the only failure mode is malformed TLS configuration, which
+/// cannot occur with the default rustls stack — see ADR-050 §D1/D2).  The `Result`
+/// return mirrors the sibling `prism_bin::spec_driven_adapter::build_http_client_with_timeout`
+/// and eliminates the forbidden `.expect()` on `Result` in production code
+/// (CLAUDE.md §Forbidden patterns, DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-2).
+///
+/// Callers in `infusion/mod.rs` convert the `Err(String)` to
+/// `InfusionError::HttpClientBuildFailed` (E-INFUSE-015, error-taxonomy v2.74).
+/// The E-INFUSE-009 stopgap mapping has been retired.
+///
+/// AC-UA-001 | BC-2.16.002 (HTTP Client Compliance postconditions) | DEFECT-ADAPTER-TLS-XDOME-LIVE-001
+pub(crate) fn build_http_client_with_timeout() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
+        // ADR-050 §D6: all outbound clients MUST set User-Agent for WAF-fingerprint coherence.
+        // concat! produces a &'static str with zero allocation at runtime.
+        .user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))
         .timeout(Duration::from_secs(30))
         .build()
-        .expect("reqwest::Client::build: failed to create HTTP client with 30s timeout")
+        .map_err(|e| {
+            format!("failed to build reqwest::Client with 30s timeout and prism/ User-Agent: {e}")
+        })
 }
 
 /// Extract the value at a JSONPath expression.
@@ -4573,6 +4668,249 @@ mod store_step_vars_tests {
             step_vars[key], extracted,
             "F-CSD-P24-OBS-002c: stored value must be extracted; got: {:?}",
             step_vars[key]
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RG-003: pipeline non-2xx response must capture HTTP body in detail field
+// ---------------------------------------------------------------------------
+
+/// RG-003: `PipelineExecutor` MUST capture the HTTP response body snippet into
+/// `SpecEngineError::HttpRequestFailed.detail` when the server returns a non-2xx status.
+///
+/// Before fix: `detail` is set to `format!("HTTP {status}")` — no body captured.
+///   → `detail.contains("forbidden")` == false → assertion FAILS → RED.
+///
+/// After fix: body snippet appended to detail string (e.g. `"HTTP 403: forbidden"`)
+///   → `detail.contains("forbidden")` == true → GREEN.
+///
+/// Uses wiremock so the test exercises the real `execute_with_max_requests` HTTP path.
+/// Response: 403 with text body "forbidden".
+///
+/// BC-2.16.002 (Non-2xx Response Body Capture postcondition) AC-ERR-003 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-003
+#[cfg(test)]
+mod non_2xx_body_snippet_tests {
+    use std::collections::HashMap;
+
+    use prism_core::{ColumnType, OrgSlug};
+    use wiremock::{
+        Mock as WmMock, MockServer, ResponseTemplate,
+        matchers::{method as wm_method, path as wm_path},
+    };
+
+    use crate::{
+        auth_provider::MockAuthProvider,
+        error::SpecEngineError,
+        pipeline::{FetchContext, PipelineExecutor},
+        spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec},
+    };
+
+    /// Build a minimal SensorSpec for a single GET step pointing to the provided
+    /// base URL / path. No pagination so the executor issues exactly one request.
+    fn single_step_spec(base_url: &str, path: &str) -> SensorSpec {
+        SensorSpec::new(
+            "rg003-sensor",
+            "RG-003 Sensor",
+            AuthType::BearerStatic,
+            base_url,
+            vec![TableSpec::new_point_in_time(
+                "devices",
+                "network_activity",
+                vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+                vec![FetchStep::new(
+                    "fetch_devices",
+                    "GET",
+                    path,
+                    None,
+                    "$.items",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                )],
+            )],
+            None,
+            "1.0.0",
+            vec![],
+        )
+    }
+
+    /// RG-003: pipeline HttpRequestFailed.detail MUST contain response body snippet.
+    ///
+    /// FAIL reason before fix: `detail` is `"HTTP 403"`, which does NOT contain "forbidden".
+    /// → `assert!(detail.contains("forbidden"), ...)` panics → RED.
+    ///
+    /// BC-2.16.002 (Non-2xx Response Body Capture postcondition) AC-ERR-003 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-003
+    #[tokio::test]
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
+    async fn test_pipeline_non_2xx_body_in_detail() {
+        let mock_server = MockServer::start().await;
+
+        // Wiremock: return 403 Forbidden with text body "forbidden".
+        WmMock::given(wm_method("GET"))
+            .and(wm_path("/api/v1/devices"))
+            .respond_with(ResponseTemplate::new(403).set_body_bytes(b"forbidden"))
+            .mount(&mock_server)
+            .await;
+
+        let spec = single_step_spec(&mock_server.uri(), "/api/v1/devices");
+        let table = spec.tables[0].clone();
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let http_client = reqwest::Client::builder()
+            .build()
+            .expect("RG-003: reqwest::Client build must succeed");
+        let auth_provider = MockAuthProvider::new("rg003-token");
+
+        let result = PipelineExecutor::execute_with_max_requests(
+            &spec,
+            &table,
+            &context,
+            &http_client,
+            &auth_provider,
+            10,
+        )
+        .await;
+
+        assert!(
+            result.is_err(),
+            "RG-003: pipeline must return Err on 403 response; got Ok"
+        );
+
+        let err = result.unwrap_err();
+        match &err {
+            SpecEngineError::HttpRequestFailed {
+                status_code,
+                detail,
+                ..
+            } => {
+                assert_eq!(
+                    *status_code, 403,
+                    "RG-003: HttpRequestFailed.status_code must be 403; got: {status_code}"
+                );
+
+                assert!(
+                    detail.contains("forbidden"),
+                    "RG-003: HttpRequestFailed.detail must contain the response body snippet \
+                     ('forbidden') so operators can diagnose the 403. \
+                     Current detail (before fix): {:?}. \
+                     Fix: append response body bytes to the `detail` field when the \
+                     server returns a non-2xx status (BC-2.16.002 AC-ERR-003).",
+                    detail
+                );
+
+                assert!(
+                    detail.contains("403"),
+                    "RG-003: HttpRequestFailed.detail must still contain the status code '403'; \
+                     got: {:?}",
+                    detail
+                );
+            }
+            other => {
+                panic!(
+                    "RG-003: expected SpecEngineError::HttpRequestFailed for 403 response; \
+                     got: {:?}",
+                    other
+                );
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// OBS-4: build_http_client_with_timeout must set prism/ User-Agent header
+// ---------------------------------------------------------------------------
+
+/// OBS-4: `build_http_client_with_timeout` (the `HttpLookupSource` outbound client factory
+/// in `prism-spec-engine`) MUST produce a `reqwest::Client` that sends a `User-Agent`
+/// header beginning with `"prism/"`.
+///
+/// Before fix: no `.user_agent()` call → reqwest default `"reqwest/x.x.x"` → FAILS.
+/// After fix: `.user_agent("prism/{version}")` → starts with `"prism/"` → GREEN.
+///
+/// This is the sibling sweep of the same obligation already satisfied by
+/// `prism_bin::spec_driven_adapter::build_http_client_with_custom_timeout` (ADR-050 §D6).
+///
+/// AC-UA-001 | BC-2.16.002 (HTTP Client Compliance postconditions) | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 OBS-4
+#[cfg(test)]
+mod infusion_http_client_user_agent_tests {
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
+
+    use super::build_http_client_with_timeout;
+
+    /// OBS-4: `build_http_client_with_timeout` MUST produce a client that sends
+    /// `User-Agent: prism/{version}` so WAF appliances attribute enrichment/threat-intel
+    /// HTTP calls to prism (ADR-050 §D6 WAF-fingerprint coherence).
+    #[tokio::test]
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
+    async fn test_infusion_http_client_sends_prism_user_agent() {
+        let mock_server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/probe"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&mock_server)
+            .await;
+
+        let client = build_http_client_with_timeout()
+            .expect("OBS-4: reqwest::Client build must succeed under rustls-tls (ADR-050 §D1/D2)");
+
+        // Fire a request so wiremock records the User-Agent header.
+        let _ = client
+            .get(format!("{}/probe", mock_server.uri()))
+            .send()
+            .await;
+
+        let received = mock_server
+            .received_requests()
+            .await
+            .expect("OBS-4: wiremock must record received requests");
+
+        assert_eq!(
+            received.len(),
+            1,
+            "OBS-4: exactly one request must be recorded by wiremock; got {}",
+            received.len()
+        );
+
+        let ua = received[0]
+            .headers
+            .get("user-agent")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+
+        assert!(
+            ua.starts_with("prism/"),
+            "OBS-4 (AC-UA-001): build_http_client_with_timeout (prism-spec-engine) MUST send \
+             'User-Agent: prism/{{version}}' for WAF-fingerprint coherence (ADR-050 §D6). \
+             Got: {:?}. Fix: add .user_agent(concat!(\"prism/\", env!(\"CARGO_PKG_VERSION\"))) \
+             to the builder in build_http_client_with_timeout (BC-2.16.002 AC-UA-001).",
+            ua
+        );
+    }
+
+    /// F-2 (DEFECT-ADAPTER-TLS-XDOME-LIVE-001): `build_http_client_with_timeout`
+    /// MUST return `Ok(Client)` under normal config (rustls-tls default, ADR-050 §D1/D2).
+    ///
+    /// This test mirrors `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration`
+    /// in `prism-bin` (RG-PERF-001 precedent) and asserts that the `Result` path resolves
+    /// to `Ok` — confirming the production code never panics on client construction.
+    ///
+    /// Under rustls-tls the only failure mode is malformed TLS configuration, which
+    /// cannot occur with the default rustls stack.  `Err(String)` is effectively
+    /// unreachable but must be a `Result` rather than an `expect()` call (CLAUDE.md
+    /// §Forbidden patterns: no `.expect()` on `Result` in non-test code paths).
+    #[test]
+    fn test_build_http_client_with_timeout_returns_ok_under_rustls() {
+        let result = build_http_client_with_timeout();
+        assert!(
+            result.is_ok(),
+            "F-2 (DEFECT-ADAPTER-TLS-XDOME-LIVE-001): build_http_client_with_timeout \
+             (prism-spec-engine) must return Ok(Client) under the default rustls-tls stack \
+             (ADR-050 §D1/D2). Got Err: {:?}",
+            result.err()
         );
     }
 }

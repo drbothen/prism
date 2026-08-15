@@ -1998,13 +1998,23 @@ impl PrismServer {
             "returned_results": result.returned_results,
             "total_available": result.total_available,
             "is_truncated": result.is_truncated,
-            // BC-2.11.005 / BC-2.11.011: per-sensor partial-failure errors are surfaced
-            // here so the LLM agent can see which sensors had problems while the query
-            // still returned results. An empty array means all sensors succeeded.
-            // (OBS-1 fix: ensures partial-failure information reaches the MCP response
-            // and is testable at the integration level — see EC-11-054 test.)
-            "sensor_errors": result.sensor_errors,
         });
+        // BC-2.11.001 AC-QERR-001: sensor_errors MUST be ABSENT when no errors occurred
+        // (not null, not []).  Insert the key only when there are per-target errors so
+        // the wire field is omitted on success.  Uses the same conditional-insert pattern
+        // as normalized_pql below (`#[serde(skip_serializing_if)]` does not apply to
+        // serde_json::Value — explicit conditional insertion is the correct equivalent).
+        // BC-2.11.005 / BC-2.11.011 / EC-11-054: when present, the array is non-empty
+        // and carries per-target HTTP detail (AC-QERR-001, EC-11-088/089).
+        if !result.sensor_errors.is_empty() {
+            // serde_json::to_value on Vec<String> is infallible; the unwrap_or_else fallback
+            // previously emitted [] (the wire shape BC-2.11.001 AC-QERR-001 forbids — it reads
+            // to the LLM agent as "all sensors succeeded"). If serialization somehow fails, omit
+            // the key entirely rather than emit an empty array.
+            if let Ok(v) = serde_json::to_value(&result.sensor_errors) {
+                payload["sensor_errors"] = v;
+            }
+        }
         // BC-2.11.018: conditionally insert normalized_pql key.
         // When None, no key is inserted and the field is absent from the JSON output.
         // `#[serde(skip_serializing_if)]` does NOT apply to serde_json::Value — conditional
@@ -3307,14 +3317,14 @@ impl PrismServer {
             // - Partial: "H of T sensor(s) healthy for client 'X' (live probe)"
             // - Unhealthy: "0 of N sensor(s) healthy for client 'X' (live probe)"
             let total_count = health_result.sensors.len();
+            // T-REFACTOR-1: use the AUTHORITATIVE `is_fully_healthy()` predicate
+            // (SensorHealthResult::is_fully_healthy in resources.rs) instead of an
+            // inlined copy.  This eliminated the three-copy drift that caused RG-020
+            // (summary string contradicting overall_status for 503/Degraded sensors).
             let fully_healthy_count = health_result
                 .sensors
                 .iter()
-                .filter(|s| {
-                    s.reachable == Some(true)
-                        && s.auth_valid == Some(true)
-                        && s.rate_limit.is_none()
-                })
+                .filter(|s| s.is_fully_healthy())
                 .count();
             let summary = match &health_result.overall {
                 crate::health::OverallStatus::RateLimited => format!(
@@ -3334,11 +3344,16 @@ impl PrismServer {
             // - Degraded (5xx): "Sensor returned a server error (5xx) — service may be temporarily unavailable."
             // - Unreachable:    "Sensor unreachable — verify network and endpoint configuration."
             //
-            // BC-2.08.001 EC-08-001 (F-S504-LP1P1-MED-001): distinguish Degraded (5xx) from Down.
-            // A 503 sensor IS network-reachable; check_one sets result.error="service_unavailable"
-            // for Degraded probes (ConnectivityStatus::Degraded).  The suggestion ladder checks
-            // result.error to emit the correct 5xx-specific guidance rather than the generic
-            // "verify network" message that applies only to genuine network-unreachable (Down) sensors.
+            // HS-007 / BC-2.08.002 EC-08-009: Degraded (5xx) sensors now have reachable=true
+            // (network-reachable, erroring).  The suggestion ladder MUST check
+            // `error == "service_unavailable"` INDEPENDENTLY of `reachable` — Degraded fires
+            // arm 3 (5xx suggestion); Down fires arm 4 ("verify network").
+            //
+            // Ladder priority (first match wins):
+            //   1. rate_limit set → "Rate limit in effect"
+            //   2. auth_valid=false → "Check credentials"
+            //   3. error="service_unavailable" → 5xx suggestion (Degraded: reachable=true, error set)
+            //   4. reachable=false → "verify network" (Down: no HTTP exchange, reachable=false)
             let sensors_with_suggestions: Vec<resources::SensorHealthResult> = health_result
                 .sensors
                 .into_iter()
@@ -3351,18 +3366,19 @@ impl PrismServer {
                         s = s.with_suggestion(
                             "Check credentials \u{2014} sensor rejected authentication.",
                         );
+                    } else if s.error.as_deref() == Some("service_unavailable") {
+                        // HS-007 / EC-08-009: Degraded (5xx) → reachable=true, error set.
+                        // Check error field directly — independent of reachable — so both the
+                        // old and new reachable values for Degraded probes fire this branch.
+                        s = s.with_suggestion(
+                            "Sensor returned a server error (5xx) \u{2014} service may be temporarily unavailable.",
+                        );
                     } else if s.reachable == Some(false) {
-                        // F-S504-LP1P1-MED-001: Degraded (5xx) vs Down (connection error).
-                        // check_one sets error="service_unavailable" for ConnectivityStatus::Degraded.
-                        if s.error.as_deref() == Some("service_unavailable") {
-                            s = s.with_suggestion(
-                                "Sensor returned a server error (5xx) \u{2014} service may be temporarily unavailable.",
-                            );
-                        } else {
-                            s = s.with_suggestion(
-                                "Sensor unreachable \u{2014} verify network and endpoint configuration.",
-                            );
-                        }
+                        // Down (connection error, no HTTP exchange): reachable=false, no
+                        // service_unavailable error — "verify network" applies here.
+                        s = s.with_suggestion(
+                            "Sensor unreachable \u{2014} verify network and endpoint configuration.",
+                        );
                     }
                     s
                 })

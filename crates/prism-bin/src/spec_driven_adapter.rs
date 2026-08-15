@@ -505,8 +505,11 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
     /// Maps `PipelineResult` (raw JSON) → `Vec<RecordBatch>` via OCSF normalization (BC-2.11.005).
     /// Each table in the sensor spec is executed sequentially; results are concatenated.
     ///
-    /// On double-401: propagates `SpecEngineError::AuthRefreshFailed` → `SensorError::Internal`
-    /// (BC-2.01.013 error case; AC-012).
+    /// On double-401: propagates `SpecEngineError::AuthRefreshFailed` →
+    /// `SensorError::HttpError { status: 401 }` (sensor responded, credentials persistently
+    /// invalid; BC-2.08.002 / AC-ERR-001). Prior to DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 fix,
+    /// this incorrectly mapped to `SensorError::Internal`, causing `probe_connectivity` to
+    /// classify a reachable sensor as `Down`.
     ///
     /// BC-2.01.013 postcondition 4; OQ-1 Resolution; ADR-028 §D10; ADR-031 §D3-b.
     async fn fetch(
@@ -713,26 +716,100 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
 }
 
 // ---------------------------------------------------------------------------
-// map_spec_engine_error_to_sensor_error — error taxonomy mapping (AC-012 / F-004)
+// map_spec_engine_error_to_sensor_error — error taxonomy mapping (BC-2.08.002 / AC-ERR-001..AC-ERR-002)
 // ---------------------------------------------------------------------------
 
-/// Map `SpecEngineError` → `SensorError`, preserving the E-AUTH-002 taxonomy code.
+/// Map `SpecEngineError` → `SensorError`, classifying HTTP-status-bearing failures (4xx/5xx,
+/// and persistent-401 auth failures) into `SensorError::HttpError` and transport/other failures
+/// into `SensorError::Internal`, so health probes can distinguish reachable-but-erroring sensors
+/// from unreachable ones.
 ///
-/// AC-012 requirement: double-401 (`AuthRefreshFailed`) must map to `SensorError::Internal`
-/// with `detail` containing "E-AUTH-002" so callers can distinguish auth failures from
-/// other sensor errors (error taxonomy BC-2.01.013 §Error Cases).
+/// BC-2.08.002 / AC-ERR-001..AC-ERR-002 HTTP Error Classification (DEFECT-ADAPTER-TLS-XDOME-LIVE-001):
 ///
-/// All `SpecEngineError` variants map to `SensorError::Internal` with a structured
-/// `detail` message that includes the sensor id, table name, and the original error's
-/// `Display` representation. `AuthRefreshFailed` always includes "E-AUTH-002" in `detail`
-/// because that is its `#[error(...)]` prefix in `SpecEngineError`.
+/// **Arm 1 — HTTP response received (`status_code > 0`):**
+/// `HttpRequestFailed { status_code > 0, .. }` → `SensorError::HttpError { status, body }`.
+/// The `status` field carries the numeric HTTP status code. The `body` field carries the
+/// RAW sanitized body snippet extracted from `detail` — NOT the full detail string.
+///
+/// `pipeline.rs` `issue_request_with_retry` formats `detail` as
+/// `"HTTP {status_reason}: {body_snippet}"` (e.g. `"HTTP 403 Forbidden: access denied"`).
+/// Putting the full detail string into `HttpError.body` caused a doubled prefix in
+/// `materialization.rs` (`"{table}: HTTP {status}: HTTP 403 Forbidden: {body}"`), violating
+/// BC-2.11.001 EC-11-088/089 (F-P37-HIGH-001). The fix strips the `"HTTP {reason}: "` prefix
+/// so consumers (materialization.rs, connectivity.rs) see the raw snippet and build their own
+/// presentation from the separate numeric `status` field.
+///
+/// This allows callers (e.g., `probe_connectivity`) to classify 4xx responses as
+/// reachable/auth-invalid rather than erroneously mapping them to `ConnectivityStatus::Down`.
+///
+/// **Arm 2 — Persistent 401 (auth refresh or cookie auth failed):**
+/// `AuthRefreshFailed` and `CookieAuthFailed` both mean the sensor responded with HTTP 401
+/// (the sensor IS reachable) but the credentials are persistently invalid. Maps to
+/// `SensorError::HttpError { status: 401, body: String::new() }` — empty body, because
+/// auth failures are protocol-level failures with no meaningful HTTP response body to
+/// capture at this layer; the 401 status code is sufficient for downstream classification.
+/// This allows `probe_connectivity` to correctly classify these as `ConnectivityStatus::Up`
+/// and `probe_auth_with_routing` to classify them as `AuthStatus::Invalid`
+/// (BC-2.08.002 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 fix).
+///
+/// **Arm 3 — Transport failure or other error (`status_code == 0` or other variant):**
+/// All remaining `SpecEngineError` variants (including `HttpRequestFailed { status_code: 0 }`
+/// for connection/send errors) → `SensorError::Internal` with a structured `detail` message
+/// containing the sensor ID, table name, and the original error's `Display` representation.
 fn map_spec_engine_error_to_sensor_error(
     e: SpecEngineError,
     sensor_id: &str,
     table_name: &str,
 ) -> SensorError {
-    // SpecEngineError::Display for AuthRefreshFailed starts with "E-AUTH-002: auth refresh failed..."
-    // No special-casing needed: the Display impl preserves the taxonomy code.
+    // Arm 1: BC-2.08.002 HTTP Error Classification postcondition (DEFECT-ADAPTER-TLS-XDOME-LIVE-001):
+    // HttpRequestFailed { status_code > 0 } = HTTP response received → HttpError.
+    // HttpRequestFailed { status_code = 0 } = transport failure (no HTTP response) → skip to Arm 3.
+    if let SpecEngineError::HttpRequestFailed {
+        status_code,
+        ref detail,
+        ..
+    } = e
+        && status_code > 0
+    {
+        // F-P37-HIGH-001: pipeline.rs formats detail as "HTTP {status_reason}: {body_snippet}"
+        // (e.g. "HTTP 403 Forbidden: access denied"). Putting the full detail into HttpError.body
+        // caused materialization.rs to double-prefix: "{table}: HTTP {code}: HTTP 403 Forbidden: ...".
+        // Fix: strip the "HTTP {reason}: " prefix so HttpError.body = raw sanitized snippet only.
+        // Consumers (materialization.rs, connectivity.rs) build their own presentation from the
+        // separate numeric status field + raw body snippet.
+        // Stripping: skip "HTTP " prefix, then take everything after the first ": " separator
+        // (the separator between the reason phrase and the body snippet). If no ": " exists
+        // (empty-body case: detail = "HTTP 503 Service Unavailable"), body is empty string.
+        let raw_body = detail
+            .strip_prefix("HTTP ")
+            .and_then(|s| s.find(": ").map(|idx| s[idx + 2..].to_string()))
+            .unwrap_or_default();
+        return SensorError::HttpError {
+            sensor: sensor_id.to_string(),
+            status: status_code,
+            body: raw_body,
+        };
+    }
+    // Arm 2: Persistent 401 — sensor IS reachable but credentials are persistently invalid.
+    // AuthRefreshFailed = double-401 after token refresh (OAuth2/Plugin auth).
+    // CookieAuthFailed  = 401 on CookieRoundtrip auth (no refresh possible).
+    // Both mean HTTP 401 was received → map to HttpError{status:401} so probe_connectivity
+    // correctly classifies as Up + probe_auth_with_routing classifies as AuthStatus::Invalid.
+    if matches!(
+        e,
+        SpecEngineError::AuthRefreshFailed { .. } | SpecEngineError::CookieAuthFailed { .. }
+    ) {
+        // No HTTP response body: persistent-auth-failure variants are protocol-level
+        // failures, not 401 responses with a body payload.  E-AUTH-002 detail surfaces
+        // via WARN log + SensorError Display; the wire receives the clean per-target
+        // format "<table>: HTTP 401" (BC-2.11.001).
+        return SensorError::HttpError {
+            sensor: sensor_id.to_string(),
+            status: 401,
+            body: String::new(),
+        };
+    }
+    // Arm 3: transport error and all other SpecEngineError variants → Internal.
     SensorError::Internal {
         detail: format!(
             "SpecDrivenSensorAdapter: PipelineExecutor::execute failed for \
@@ -1227,6 +1304,9 @@ pub(crate) fn build_http_client_with_custom_timeout(
     timeout: Duration,
 ) -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
+        // ADR-050 §D6: all sensor/plugin outbound clients MUST set User-Agent.
+        // concat! produces a &'static str with zero allocation at runtime.
+        .user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))
         .timeout(timeout)
         .build()
         .map_err(|e| {
@@ -3058,5 +3138,445 @@ mod tests {
         // Row 1: single integer element.
         assert!(!string_array.is_null(1));
         assert_eq!(string_array.value(1), r#"["300"]"#);
+    }
+
+    // ---------------------------------------------------------------------------
+    // RG-001: map_spec_engine_error_to_sensor_error maps HttpRequestFailed → HttpError
+    // ---------------------------------------------------------------------------
+
+    /// RG-001: `map_spec_engine_error_to_sensor_error` MUST map
+    /// `SpecEngineError::HttpRequestFailed { status_code > 0 }` to
+    /// `SensorError::HttpError { sensor, status, body }` — NOT `SensorError::Internal`.
+    ///
+    /// Before fix: ALL `SpecEngineError` variants are mapped to `SensorError::Internal`.
+    /// After fix (original): `HttpRequestFailed { status_code > 0 }` maps to `SensorError::HttpError`,
+    /// allowing `probe_connectivity` to classify a 4xx response as `ConnectivityStatus::Up`.
+    ///
+    /// F-P37-HIGH-001 fix (body contract): `HttpError.body` carries the RAW sanitized body
+    /// snippet — NOT the full `detail` string. `pipeline.rs` formats `detail` as
+    /// `"HTTP {status_reason}: {body_snippet}"` (e.g. `"HTTP 401 Unauthorized"`). The
+    /// `map_spec_engine_error_to_sensor_error` Arm 1 strips the `"HTTP {reason}: "` prefix
+    /// so body = raw snippet. For an empty-body 401, `detail = "HTTP 401 Unauthorized"` has
+    /// no `": "` separator after the reason phrase → body = `""` (empty).
+    ///
+    /// BC-2.08.002 AC-H1-MAP-001 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-001
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_map_error_http_401_maps_to_http_error_not_internal() {
+        use prism_sensors::adapter::SensorError;
+        use prism_spec_engine::error::SpecEngineError;
+
+        // Production-shaped detail: pipeline.rs formats as "HTTP {status_reason}"
+        // for empty-body responses. "HTTP 401" is a simplified variant (no reason phrase);
+        // production would produce "HTTP 401 Unauthorized". Both yield body = "" after
+        // the F-P37-HIGH-001 strip (no ": " separator → empty).
+        let result = super::map_spec_engine_error_to_sensor_error(
+            SpecEngineError::HttpRequestFailed {
+                sensor_id: "claroty".to_string(),
+                step_name: "fetch".to_string(),
+                status_code: 401,
+                detail: "HTTP 401 Unauthorized".to_string(),
+            },
+            "claroty",
+            "alerts",
+        );
+
+        assert!(
+            matches!(result, SensorError::HttpError { .. }),
+            "RG-001: HttpRequestFailed(status_code=401) must map to SensorError::HttpError, \
+             got SensorError::Internal instead. \
+             Fix: map_spec_engine_error_to_sensor_error must match HttpRequestFailed {{ status_code }} \
+             when status_code > 0 and return SensorError::HttpError (BC-2.08.002)"
+        );
+
+        // Verify all three fields of HttpError are populated correctly.
+        if let SensorError::HttpError {
+            sensor,
+            status,
+            body,
+        } = result
+        {
+            assert_eq!(
+                sensor, "claroty",
+                "RG-001: HttpError.sensor must be the sensor_id arg passed to map fn"
+            );
+            assert_eq!(
+                status, 401,
+                "RG-001: HttpError.status must equal HttpRequestFailed.status_code"
+            );
+            // F-P37-HIGH-001: HttpError.body is the RAW body snippet (empty for a
+            // 401 with no response body). The full detail "HTTP 401 Unauthorized" is
+            // NOT the body — it is stripped by Arm 1 to prevent double-prefixing in
+            // materialization.rs. detail = "HTTP 401 Unauthorized" has no ": " separator
+            // → body = "" (no body content after the status reason phrase).
+            assert_eq!(
+                body, "",
+                "RG-001: HttpError.body must be the raw body snippet (empty for empty-body 401). \
+                 F-P37-HIGH-001: Arm 1 strips the 'HTTP {{reason}}: ' prefix from detail so \
+                 consumers see only the raw snippet, not the full pre-formatted detail string."
+            );
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // RG-002: regression guard — status_code=0 must remain SensorError::Internal
+    // ---------------------------------------------------------------------------
+
+    /// RG-002: `map_spec_engine_error_to_sensor_error` MUST keep
+    /// `SpecEngineError::HttpRequestFailed { status_code: 0 }` as `SensorError::Internal`.
+    ///
+    /// `status_code: 0` represents a synthetic or connection-error-derived code
+    /// (not a real HTTP response). These must NOT be classified as `HttpError`.
+    ///
+    /// NOTE: This test is GREEN-BY-DESIGN before the fix (all errors currently return Internal).
+    /// It becomes a REGRESSION GUARD after the fix: if the implementation maps ALL
+    /// `HttpRequestFailed` variants to `HttpError` including `status_code=0`, this test fails.
+    ///
+    /// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-002
+    #[test]
+    fn test_map_error_status_0_maps_to_internal() {
+        use prism_sensors::adapter::SensorError;
+        use prism_spec_engine::error::SpecEngineError;
+
+        let result = super::map_spec_engine_error_to_sensor_error(
+            SpecEngineError::HttpRequestFailed {
+                sensor_id: "claroty".to_string(),
+                step_name: "fetch".to_string(),
+                status_code: 0,
+                detail: "connection refused".to_string(),
+            },
+            "claroty",
+            "alerts",
+        );
+
+        assert!(
+            matches!(result, SensorError::Internal { .. }),
+            "RG-002 (regression guard): HttpRequestFailed(status_code=0) must remain \
+             SensorError::Internal — status_code=0 is not a real HTTP response. \
+             Got: {:?}",
+            result
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // RG-010: AuthRefreshFailed maps to HttpError{status:401}, not Internal
+    // ---------------------------------------------------------------------------
+
+    /// RG-010: `map_spec_engine_error_to_sensor_error` MUST map
+    /// `SpecEngineError::AuthRefreshFailed` to `SensorError::HttpError { status: 401 }`
+    /// (NOT `SensorError::Internal`).
+    ///
+    /// Rationale: `AuthRefreshFailed` means the sensor responded with HTTP 401 twice
+    /// (once before token refresh, once after). The sensor IS reachable — it returned
+    /// HTTP. Mapping to `Internal` causes `probe_connectivity` to classify the sensor
+    /// as `Down` and `probe_auth_with_routing` to return `AuthStatus::Unknown`, when
+    /// the correct classification is `Up` + `AuthStatus::Invalid`
+    /// (BC-2.08.002 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 fix).
+    ///
+    /// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 (unit guard)
+    #[test]
+    fn test_map_error_auth_refresh_failed_maps_to_http_error_401() {
+        use prism_sensors::adapter::SensorError;
+        use prism_spec_engine::error::SpecEngineError;
+
+        let result = super::map_spec_engine_error_to_sensor_error(
+            SpecEngineError::AuthRefreshFailed {
+                sensor_id: "claroty".to_string(),
+                client_id: "client-001".to_string(),
+                step_name: "fetch".to_string(),
+            },
+            "claroty",
+            "alerts",
+        );
+
+        assert!(
+            matches!(result, SensorError::HttpError { status: 401, .. }),
+            "RG-010: AuthRefreshFailed must map to SensorError::HttpError {{ status: 401 }}, \
+             not Internal. Sensor responded with 401 (reachable) — classify as auth-invalid. \
+             Got: {:?}",
+            result
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // RG-011: CookieAuthFailed maps to HttpError{status:401}, not Internal
+    // ---------------------------------------------------------------------------
+
+    /// RG-011: `map_spec_engine_error_to_sensor_error` MUST map
+    /// `SpecEngineError::CookieAuthFailed` to `SensorError::HttpError { status: 401 }`
+    /// (NOT `SensorError::Internal`).
+    ///
+    /// Rationale: `CookieAuthFailed` means the sensor returned HTTP 401 on a
+    /// `CookieRoundtrip` auth sensor. Same semantics as `AuthRefreshFailed` — sensor
+    /// IS reachable, credentials are invalid. Should classify as Up + auth-invalid.
+    ///
+    /// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOW-1 (unit guard)
+    #[test]
+    fn test_map_error_cookie_auth_failed_maps_to_http_error_401() {
+        use prism_sensors::adapter::SensorError;
+        use prism_spec_engine::error::SpecEngineError;
+
+        let result = super::map_spec_engine_error_to_sensor_error(
+            SpecEngineError::CookieAuthFailed {
+                sensor_id: "claroty".to_string(),
+                client_id: "client-001".to_string(),
+            },
+            "claroty",
+            "alerts",
+        );
+
+        assert!(
+            matches!(result, SensorError::HttpError { status: 401, .. }),
+            "RG-011: CookieAuthFailed must map to SensorError::HttpError {{ status: 401 }}, \
+             not Internal. Sensor responded with 401 (reachable) — classify as auth-invalid. \
+             Got: {:?}",
+            result
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // RG-014 (map-level): HttpRequestFailed{status_code:503} maps to HttpError{status:503}
+    // ---------------------------------------------------------------------------
+
+    /// RG-014 (map-level): `map_spec_engine_error_to_sensor_error` MUST map
+    /// `SpecEngineError::HttpRequestFailed { status_code: 503, .. }` to
+    /// `SensorError::HttpError { status: 503, .. }` — NOT `SensorError::Internal`.
+    ///
+    /// This guard exists because this story's `status_code > 0` map guard routes 5xx
+    /// responses through `SensorError::HttpError`, which `probe_connectivity` then
+    /// classifies as `ConnectivityStatus::Degraded` (status >= 500 branch in connectivity.rs).
+    /// Before this story, 5xx flowed to `Internal` → catch-all → `Down`.
+    ///
+    /// The RG-001/RG-002 tests cover 401 and status_code=0; this test is the 5xx-specific
+    /// coverage that was missing (F-P25-OBS-001). The end-to-end path is exercised by
+    /// `test_probe_connectivity_503_returns_degraded` (RG-014 end-to-end) in
+    /// `tests/defect_adapter_tls_xdome_live_001.rs`.
+    ///
+    /// F-P37-HIGH-001 fix (body contract): `HttpError.body` carries the RAW sanitized body
+    /// snippet — NOT the full `detail` string. `pipeline.rs` formats `detail` as
+    /// `"HTTP {status_reason}: {body_snippet}"`. For an empty-body 503, `detail` is
+    /// `"HTTP 503 Service Unavailable"` (no `": "` separator). Arm 1 finds no `": "` after
+    /// `strip_prefix("HTTP ")` → body = `""` (empty, no response body present).
+    ///
+    /// BC-2.08.002 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-014
+    #[test]
+    fn test_map_error_503_maps_to_http_error_503() {
+        use prism_sensors::adapter::SensorError;
+        use prism_spec_engine::error::SpecEngineError;
+
+        // Production-shaped detail: pipeline.rs formats as "HTTP {status_reason}" for
+        // empty-body responses. reqwest StatusCode Display for 503 = "503 Service Unavailable".
+        let result = super::map_spec_engine_error_to_sensor_error(
+            SpecEngineError::HttpRequestFailed {
+                sensor_id: "claroty".to_string(),
+                step_name: "fetch_devices".to_string(),
+                status_code: 503,
+                detail: "HTTP 503 Service Unavailable".to_string(),
+            },
+            "claroty",
+            "devices",
+        );
+
+        assert!(
+            matches!(result, SensorError::HttpError { .. }),
+            "RG-014 (map-level): HttpRequestFailed(status_code=503) must map to \
+             SensorError::HttpError, not Internal. \
+             This story's `status_code > 0` guard routes 5xx to HttpError, which \
+             probe_connectivity classifies as Degraded (not Down). \
+             Got: {:?}",
+            result
+        );
+
+        if let SensorError::HttpError {
+            sensor,
+            status,
+            body,
+        } = result
+        {
+            assert_eq!(
+                sensor, "claroty",
+                "RG-014 (map-level): HttpError.sensor must equal sensor_id arg"
+            );
+            assert_eq!(
+                status, 503,
+                "RG-014 (map-level): HttpError.status must equal 503"
+            );
+            // F-P37-HIGH-001: HttpError.body is the RAW body snippet (empty for empty-body 503).
+            // detail = "HTTP 503 Service Unavailable" has no ": " separator after the reason
+            // phrase → strip finds no body content → body = "".
+            assert_eq!(
+                body, "",
+                "RG-014 (map-level): HttpError.body must be the raw body snippet (empty for \
+                 empty-body 503). F-P37-HIGH-001: Arm 1 strips 'HTTP {{reason}}: ' prefix; \
+                 'HTTP 503 Service Unavailable' has no ': ' separator → body = ''."
+            );
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // RG-006: build_http_client_with_custom_timeout must set prism/ User-Agent header
+    // ---------------------------------------------------------------------------
+
+    /// RG-006: `build_http_client_with_custom_timeout` MUST produce a `reqwest::Client`
+    /// that sends a `User-Agent` header beginning with `"prism/"`.
+    ///
+    /// Before fix: no `.user_agent()` call in the builder → reqwest uses its own default
+    /// User-Agent ("reqwest/x.x.x") → assertion FAILS → RED.
+    ///
+    /// After fix: `.user_agent("prism/{version}")` added → header starts with "prism/" → GREEN.
+    ///
+    /// BC-2.16.002 (HTTP Client Compliance postconditions) AC-UA-001 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-006
+    #[tokio::test]
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
+    async fn test_build_http_client_sends_user_agent_header() {
+        use wiremock::{
+            Mock, MockServer, ResponseTemplate,
+            matchers::{method, path},
+        };
+
+        let mock_server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/probe"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&mock_server)
+            .await;
+
+        let client = build_http_client_with_custom_timeout(Duration::from_secs(5))
+            .expect("RG-006: client build must succeed");
+
+        // Fire a request so wiremock records the User-Agent header.
+        let _ = client
+            .get(format!("{}/probe", mock_server.uri()))
+            .send()
+            .await;
+
+        let received = mock_server
+            .received_requests()
+            .await
+            .expect("RG-006: wiremock must record received requests");
+
+        assert_eq!(
+            received.len(),
+            1,
+            "RG-006: exactly one request must be recorded by wiremock; got {}",
+            received.len()
+        );
+
+        let ua = received[0]
+            .headers
+            .get("user-agent")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+
+        assert!(
+            ua.starts_with("prism/"),
+            "RG-006: User-Agent header must start with 'prism/'; \
+             got: {:?}. \
+             Fix: add .user_agent(\"prism/{{version}}\") call to \
+             build_http_client_with_custom_timeout (BC-2.16.002 AC-UA-001). \
+             reqwest default UA is 'reqwest/x.x.x', not 'prism/...'.",
+            ua
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // RG-018: map_spec_engine_error_to_sensor_error Arm 1 — non-empty body strips
+    //         "HTTP {reason}: " prefix (F-P38-MED-001 regression guard)
+    // ---------------------------------------------------------------------------
+
+    /// RG-018: `map_spec_engine_error_to_sensor_error` Arm 1 MUST strip the
+    /// `"HTTP {status_reason}: "` prefix from `detail` before storing into
+    /// `SensorError::HttpError.body`.
+    ///
+    /// # Red Gate status
+    ///
+    /// This test is **GREEN on current code** (Arm 1 strip already implemented by
+    /// F-P37-HIGH-001 fix). It is a LOAD-BEARING REGRESSION GUARD:
+    ///   - `RG-001` / `RG-014` only exercise the empty-body path (detail has no `": "`)
+    ///   - `RG-016` bypasses Arm 1 by constructing `FanOutError` with a pre-stripped body
+    ///   - Neither asserts the Arm-1 strip on a non-empty-body input
+    ///
+    /// This test closes the F-P38-MED-001 regression gap: the strip logic
+    /// (`detail.strip_prefix("HTTP ").and_then(|s| s.find(": ").map(...))`)
+    /// is the ONLY place that prevents `materialization.rs` from emitting a
+    /// doubled prefix (`"{table}: HTTP 403: HTTP 403 Forbidden: <body>"`).
+    ///
+    /// # Scenario
+    ///
+    /// `pipeline.rs` formats `detail` as `"HTTP 403 Forbidden: access denied"` when
+    /// it receives a 403 response with body `"access denied"`.
+    /// Arm 1 must strip `"HTTP 403 Forbidden: "` → `HttpError.body = "access denied"`.
+    ///
+    /// # No-duplicated-HTTP-prefix assertion
+    ///
+    /// `HttpError.body` is asserted both equal to the exact raw snippet AND confirmed
+    /// to NOT contain the substring `"HTTP"` — catching any regression where the prefix
+    /// strip is removed and the raw detail bleeds into `body`.
+    ///
+    /// Note: the SID-2 requirement (assert on the FULL composed `sensor_errors` output)
+    /// is satisfied by the RG-016 exact-equality assertions in
+    /// `prism-mcp/tests/query_tool_sensor_errors_test.rs`, which assert the full wire
+    /// string `"<table>: HTTP <status>: <body>"` as seen by the LLM agent. This test
+    /// covers only the `HttpError.body` component (one input to that composed string).
+    ///
+    /// BC-2.11.001 §Postconditions | T-QERR-1 raw-body invariant |
+    /// F-P38-MED-001 regression closure | SID-2 no-duplicated-HTTP-prefix |
+    /// DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-018
+    #[test]
+    fn test_map_error_http_403_nonempty_body_strips_prefix_to_raw_body() {
+        use prism_sensors::adapter::SensorError;
+        use prism_spec_engine::error::SpecEngineError;
+
+        // Production-shaped detail: pipeline.rs formats as "HTTP {status_reason}: {body_snippet}"
+        // when it receives a non-2xx response with a non-empty body.
+        // e.g. 403 Forbidden + body "access denied" → detail = "HTTP 403 Forbidden: access denied"
+        let result = super::map_spec_engine_error_to_sensor_error(
+            SpecEngineError::HttpRequestFailed {
+                sensor_id: "xdome".to_string(),
+                step_name: "fetch".to_string(),
+                status_code: 403,
+                detail: "HTTP 403 Forbidden: access denied".to_string(),
+            },
+            "xdome",
+            "devices",
+        );
+
+        // ASSERTION 1: result variant is HttpError (Arm 1 guard fires for status_code=403 > 0).
+        assert!(
+            matches!(result, SensorError::HttpError { .. }),
+            "RG-018: HttpRequestFailed(status_code=403) MUST map to SensorError::HttpError \
+             (not SensorError::Internal). Arm 1 guard: `status_code > 0` must match."
+        );
+
+        if let SensorError::HttpError { status, body, .. } = result {
+            // ASSERTION 2: status field carries the HTTP status code.
+            assert_eq!(status, 403, "RG-018: HttpError.status must be 403");
+
+            // ASSERTION 3 (SID-2 exact-match): body is the raw snippet, NOT the full detail.
+            // Regression: before F-P37-HIGH-001 source fix, body == "HTTP 403 Forbidden: access denied"
+            // (full prefixed detail). After fix, body == "access denied" (raw snippet only).
+            assert_eq!(
+                body, "access denied",
+                "RG-018 FAIL (SID-2 exact-match): HttpError.body MUST be raw snippet \
+                 'access denied', NOT the full prefixed detail \
+                 'HTTP 403 Forbidden: access denied'. \
+                 Arm 1 strip: detail.strip_prefix(\"HTTP \").and_then(s.find(\": \").map(...)). \
+                 Got body = '{body}'"
+            );
+
+            // ASSERTION 4 (SID-2 no-duplicated-HTTP-prefix): body MUST NOT contain "HTTP".
+            // This catches any regression where the prefix strip is removed and the full
+            // detail bleeds into body, causing materialization.rs to double-prefix:
+            //   "{table}: HTTP 403: HTTP 403 Forbidden: access denied"
+            assert!(
+                !body.contains("HTTP"),
+                "RG-018 FAIL (SID-2 no-duplicated-HTTP-prefix): HttpError.body MUST NOT \
+                 contain 'HTTP'. The 'HTTP {{reason}}: ' prefix must be stripped by Arm 1 \
+                 so body carries only the raw sanitized snippet. \
+                 Without this strip, materialization.rs formats \
+                 '{{table}}: HTTP {{code}}: HTTP 403 Forbidden: access denied' (doubled prefix). \
+                 body = '{body}'"
+            );
+        }
     }
 }

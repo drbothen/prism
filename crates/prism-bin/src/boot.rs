@@ -1963,6 +1963,8 @@ pub async fn plugin_load_step_with_audit(
 
         // Construct runtime without loading plugins (MCP server still binds with zero plugins).
         let http_client = reqwest::Client::builder()
+            // ADR-050 §D6: all sensor/plugin outbound clients MUST set User-Agent.
+            .user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))
             .timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))
             .build()
             .map_err(|e| {
@@ -1987,6 +1989,8 @@ pub async fn plugin_load_step_with_audit(
     // Using .expect() is FORBIDDEN here — it would panic instead of returning the structured
     // error that EC-D-009 requires (expect_used = "deny" in workspace clippy config).
     let http_client = reqwest::Client::builder()
+        // ADR-050 §D6: all sensor/plugin outbound clients MUST set User-Agent.
+        .user_agent(concat!("prism/", env!("CARGO_PKG_VERSION")))
         .timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))
         .build()
         .map_err(|e| {
