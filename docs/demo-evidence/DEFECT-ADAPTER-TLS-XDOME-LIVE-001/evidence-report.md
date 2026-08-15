@@ -20,7 +20,7 @@
 | AC-H2-001 | reqwest `http2` feature active on reqwest dependency node (h2 in reqwest package block) | `AC-H2-001-transport-hardening.{gif,webm}` | PASS |
 | AC-UA-001 | `build_http_client_with_custom_timeout` sends `User-Agent: prism/<version>` | `AC-H2-001-transport-hardening.{gif,webm}` | PASS |
 | AC-LIVE-001 | Direct `api.claroty.com` returns ≥1 OCSF row with relay removed | _live-pass note below_ | LIVE-PASS |
-| AC-LIVE-002 | `check_sensor_health` with invalid/expired credential → `"reachable":true, "auth_valid":false` | PENDING HUMAN ACTION (live run against `api.claroty.com`) | PENDING |
+| AC-LIVE-002 | `check_sensor_health` with invalid/expired credential → `"reachable":true, "auth_valid":false` | _live-pass note below_ | LIVE-PASS |
 | AC-LIVE-003 | `test-soc/live-soc/relay/xdome-relay.py` annotated or deleted | PENDING HUMAN ACTION (operations repo) | PENDING |
 
 **AC-LIVE-001 note:** This AC was validated live against `api.claroty.com` for client "monroe" (STATE D-2166, LIVE-PASS, 2026-08-14). Evidence is kept locally/gitignored under `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/live/` per AD-017 (no customer data in committed evidence). No customer records are present in this committed report.
@@ -183,13 +183,12 @@ D-2166 (LIVE-PASS, 2026-08-14). The live evidence is stored locally under
 `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/live/` (gitignored) — no customer
 records are present in this committed report per AD-017.
 
-AC-LIVE-002 (NO WAIVER) status: PENDING HUMAN ACTION. This AC requires running
-`check_sensor_health sensor=claroty` with an invalid/expired credential for client "monroe"
-against `api.claroty.com` and verifying `"reachable":true, "auth_valid":false` at the wire.
-DTU coverage (AC-WIRE-001) exercises the same code path but does not satisfy the NO-WAIVER
-live-endpoint requirement. Running this AC requires human access to the live credential store
-(keyring `prism/monroe/claroty/*` with an expired token). Evidence must be gitignored per
-AD-017 and recorded with a STATE decision ID, same pattern as AC-LIVE-001 (D-2166).
+AC-LIVE-002 (NO WAIVER) was validated live against `api.claroty.com` for client "monroe" with
+an expired credential. Result: `"reachable":true, "auth_valid":false`, suggestion
+`"Check credentials — sensor rejected authentication"`. Recorded in STATE D-2165
+(LIVE-PASS, 2026-08-15). The live evidence is stored locally under
+`docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/live/` (gitignored) — no customer
+records are present in this committed report per AD-017.
 
 AC-LIVE-003 (relay file marked deprecated) status: PENDING HUMAN ACTION. The relay file at
 `test-soc/live-soc/relay/xdome-relay.py` requires annotation:
@@ -227,9 +226,9 @@ wire-shape assertion discipline (2026-07-13, human-approved).
 - [x] No source code or test files were modified
 - [x] Evidence lives under `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/` (story-scoped, not flat)
 - [x] VHS was used (not plain text captures); both `.gif` and `.webm` produced per tape
-- [x] Recordings reflect actual test execution. Captured at initial implementation commit 8dd8d4285. Behavioral changes in subsequent fix commits (Arm 2 body → String::new(); Option<String> → String return type; assertion strengthening; doc comment corrections) do not affect any recorded assertion. Evidence validity confirmed at pr-reviewer cycle 3.
+- [x] Recordings reflect actual test execution. Captured against branch state 8dd8d4285 (the commit immediately preceding the recording commit edfe0a612). Behavioral changes in subsequent fix commits (Arm 2 body → String::new(); Option<String> → String return type; assertion strengthening; doc comment corrections) do not affect any recorded assertion. Evidence validity confirmed at pr-reviewer cycle 3.
 - [x] No live tenant data — DTU/wiremock only; AD-017 satisfied
 - [x] Nothing committed under `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/live/`
 - [x] AC-LIVE-001 noted as LIVE-PASS with evidence kept locally/gitignored
-- [ ] AC-LIVE-002 — PENDING HUMAN ACTION (live invalid-credential test against real endpoint required; NO WAIVER)
+- [x] AC-LIVE-002 — LIVE-PASS (D-2165, 2026-08-15): expired monroe token → reachable:true + auth_valid:false + suggestion 'Check credentials — sensor rejected authentication'
 - [ ] AC-LIVE-003 — PENDING HUMAN ACTION (relay annotation in test-soc/live-soc/relay/xdome-relay.py required)

@@ -22,11 +22,11 @@
 //! |         |                                                              | → Degraded counted as healthy → summary "1 of 1" contradicts              |
 //! |         |                                                              | `overall_status:"partial"`; assertions "1 of 1" ABSENT + "0 of 1"         |
 //! |         |                                                              | PRESENT FAIL → RED (AC-WIRE-003).                                         |
-//! | I5    | test_BC_2_11_001_I5_e2e_wiremock_body_reaches_sensor_errors_wire | Regression guard (cycle 2): full e2e wiremock→adapter→sensor_errors wire; |
+//! | I5    | test_BC_2_11_001_I5_e2e_wiremock_body_reaches_sensor_errors_wire | Regression guard (cycle 1): full e2e wiremock→adapter→sensor_errors wire; |
 //! |        |                                                              | guards F-P37-HIGH-001 double-prefix; SID-2 composed-output (BC-2.11.001). |
-//! | I6a   | test_wire_shape_401_error_field_is_null_not_absent           | Regression guard (cycle 2): 401→check_one→`"error":null` null-not-absent; |
+//! | I6a   | test_wire_shape_401_error_field_is_null_not_absent           | Regression guard (cycle 1): 401→check_one→`"error":null` null-not-absent; |
 //! |        |                                                              | guards skip_serializing_if regression (BC-2.08.002 wire contract).        |
-//! | I6b   | test_wire_shape_down_sensor_auth_valid_is_null               | Regression guard (cycle 2): Down→`"auth_valid":null` null-not-absent;     |
+//! | I6b   | test_wire_shape_down_sensor_auth_valid_is_null               | Regression guard (cycle 1): Down→`"auth_valid":null` null-not-absent;     |
 //! |        |                                                              | `"reachable":false` (BC-2.08.002 EC-08-005).                              |
 //!
 //! # Test seam
