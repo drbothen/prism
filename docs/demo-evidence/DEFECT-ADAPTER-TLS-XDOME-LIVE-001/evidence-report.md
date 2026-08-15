@@ -181,13 +181,19 @@ D-2166 (LIVE-PASS, 2026-08-14). The live evidence is stored locally under
 `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/live/` (gitignored) — no customer
 records are present in this committed report per AD-017.
 
-AC-LIVE-002 (invalid credential → `reachable:true, auth_valid:false`) is covered by the DTU
-evidence in AC-WIRE-001 above, which exercises the same production code path
-(`map_spec_engine_error_to_sensor_error` → `check_one` → MCP wire) without requiring live
-credentials or real customer data.
+AC-LIVE-002 (NO WAIVER) status: PENDING HUMAN ACTION. This AC requires running
+`check_sensor_health sensor=claroty` with an invalid/expired credential for client "monroe"
+against `api.claroty.com` and verifying `"reachable":true, "auth_valid":false` at the wire.
+DTU coverage (AC-WIRE-001) exercises the same code path but does not satisfy the NO-WAIVER
+live-endpoint requirement. Running this AC requires human access to the live credential store
+(keyring `prism/monroe/claroty/*` with an expired token). Evidence must be gitignored per
+AD-017 and recorded with a STATE decision ID, same pattern as AC-LIVE-001 (D-2166).
 
-AC-LIVE-003 (relay file marked deprecated) was confirmed by inspection: `xdome-relay.py`
-has been annotated with the historical comment per the AC specification.
+AC-LIVE-003 (relay file marked deprecated) status: PENDING HUMAN ACTION. The relay file at
+`test-soc/live-soc/relay/xdome-relay.py` requires annotation:
+`# HISTORICAL: relay was required before DEFECT-ADAPTER-TLS-XDOME-LIVE-001 (2026-08-12). Direct HTTPS now works. Do not use.`
+This file is in the operations repo (test-soc/live-soc), outside the prism diff. The human
+must apply the annotation or delete the file before this AC can be closed.
 
 ---
 
@@ -223,3 +229,5 @@ wire-shape assertion discipline (2026-07-13, human-approved).
 - [x] No live tenant data — DTU/wiremock only; AD-017 satisfied
 - [x] Nothing committed under `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/live/`
 - [x] AC-LIVE-001 noted as LIVE-PASS with evidence kept locally/gitignored
+- [ ] AC-LIVE-002 — PENDING HUMAN ACTION (live invalid-credential test against real endpoint required; NO WAIVER)
+- [ ] AC-LIVE-003 — PENDING HUMAN ACTION (relay annotation in test-soc/live-soc/relay/xdome-relay.py required)
