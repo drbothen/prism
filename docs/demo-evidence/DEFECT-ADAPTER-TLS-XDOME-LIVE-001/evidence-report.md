@@ -23,7 +23,7 @@
 | AC-LIVE-002 | `check_sensor_health` with invalid/expired credential → `"reachable":true, "auth_valid":false` | _live-pass note below_ | LIVE-PASS |
 | AC-LIVE-003 | `test-soc/live-soc/relay/xdome-relay.py` annotated or deleted | PENDING HUMAN ACTION (operations repo) | PENDING |
 
-**AC-LIVE-001 note:** This AC was validated live against `api.claroty.com` for client "monroe" (STATE D-2166, LIVE-PASS, 2026-08-14). Evidence is kept locally/gitignored under `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/live/` per AD-017 (no customer data in committed evidence). No customer records are present in this committed report.
+**AC-LIVE-001 note:** This AC was validated live against `api.claroty.com` for client "monroe" (STATE D-2166, LIVE-PASS, 2026-08-15). Evidence is kept locally/gitignored under `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/live/` per AD-017 (no customer data in committed evidence). No customer records are present in this committed report.
 
 All DTU-based acceptance criteria have recorded demos covering both success and error paths. No real customer data is present in any committed artifact.
 
@@ -179,7 +179,7 @@ cargo nextest run -p prism-bin -E 'test(test_build_http_client_sends_user_agent_
 
 AC-LIVE-001 (NO WAIVER) was validated live against `api.claroty.com` for client "monroe" with
 the relay removed. Result: HTTP 200 with ≥1 OCSF-normalized row returned. Recorded in STATE
-D-2166 (LIVE-PASS, 2026-08-14). The live evidence is stored locally under
+D-2166 (LIVE-PASS, 2026-08-15). The live evidence is stored locally under
 `docs/demo-evidence/DEFECT-ADAPTER-TLS-XDOME-LIVE-001/live/` (gitignored) — no customer
 records are present in this committed report per AD-017.
 
