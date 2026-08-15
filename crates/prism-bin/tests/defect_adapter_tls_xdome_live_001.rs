@@ -855,37 +855,38 @@ async fn test_BC_2_08_002_degraded_reachable_wire_shape() {
 // ---------------------------------------------------------------------------
 
 /// RG-020: `check_sensor_health` for a Degraded (5xx) sensor MUST NOT count it as
-/// healthy in the prose summary, and `overall_status` MUST be `"partial"`.
+/// healthy in the prose summary, `overall_status` MUST be `"partial"`, AND
+/// `summary_counts.healthy_count` MUST be 0 (not 1).
 ///
-/// # Problem (T-SERVER-1 / F-P42-HIGH-001)
+/// # Assertion status (F-P43 strengthening)
 ///
-/// After T-WIRE-1 (`reachable = connectivity != Down`) and T-WIRE-2 (`r.error.is_none()`
-/// gate in `HealthCheckResult::aggregate`), `check_all` correctly returns
-/// `OverallStatus::Partial` for a Degraded (5xx) sensor. However `server.rs`
-/// `check_sensor_health` has a SECOND `fully_healthy_count` predicate (T-SERVER-1):
+/// - Assertions 1, 2, 3: GREEN (T-SERVER-1 fixed server.rs summary predicate).
+/// - Assertions 4, 5 (NEW — F-P43): RED on current HEAD.
+///   `resources.rs::HealthSummary::from_results` has the same predicate bug:
+///   `reachable == Some(true) && auth_valid == Some(true) && rate_limit.is_none()`
+///   without `&& error.is_none()` — Degraded sensor still reports as
+///   `summary_counts.healthy_count=1` and `unhealthy_count=0`.
 ///
+/// # Problems fixed / remaining
+///
+/// ## T-SERVER-1 (FIXED — commit 21df2f6d4)
+///
+/// `server.rs` `fully_healthy_count` predicate lacked `&& s.error.is_none()`.
+/// Degraded (reachable=true, auth_valid=true, rate_limit=None, error="service_unavailable")
+/// was miscounted as healthy → summary "1 of 1 sensor(s) healthy" contradicted
+/// `overall_status: "partial"`. Fixed by adding the gate.
+///
+/// ## T-COUNTS-1 (NOT YET FIXED — drives assertions 4/5)
+///
+/// `resources.rs::HealthSummary::from_results` has the same structural bug:
 /// ```ignore
-/// let fully_healthy_count = health_result.sensors.iter().filter(|s| {
-///     s.reachable == Some(true)
-///         && s.auth_valid == Some(true)
-///         && s.rate_limit.is_none()
-///     // MISSING: && s.error.is_none()   ← T-SERVER-1 fix target
+/// let healthy_count = results.iter().filter(|r| {
+///     r.reachable == Some(true) && r.auth_valid == Some(true) && r.rate_limit.is_none()
+///     // MISSING: && r.error.is_none()   ← T-COUNTS-1 fix target
 /// }).count();
 /// ```
-///
-/// A Degraded sensor (reachable=true, auth_valid=true, rate_limit=None,
-/// error=Some("service_unavailable")) satisfies the BUGGY predicate → `fully_healthy_count = 1`.
-/// The prose summary then reads "1 of 1 sensor(s) healthy for client '...' (live probe)",
-/// which CONTRADICTS `overall_status: "partial"` in the same envelope.
-///
-/// # RED assertions (fail on current HEAD — T-SERVER-1 not applied)
-///
-/// 1. Summary MUST NOT contain `"1 of 1 sensor(s) healthy"` — Degraded is NOT healthy.
-/// 2. Summary MUST contain `"0 of 1"` — correct healthy count after T-SERVER-1 fix.
-///
-/// # GREEN assertion (passes — T-WIRE-2 already applied in mod.rs aggregate)
-///
-/// 3. `overall_status` MUST be `"partial"` — T-WIRE-2 fixed `aggregate` already.
+/// Wire: `"summary_counts":{"healthy_count":1,"unhealthy_count":0,...}` — WRONG.
+/// Correct after fix: `"healthy_count":0,"unhealthy_count":1`.
 ///
 /// # Wiring
 ///
@@ -893,18 +894,18 @@ async fn test_BC_2_08_002_degraded_reachable_wire_shape() {
 /// `engine` carries a `TableRegistry` with `"xdome"` registered, so `check_sensor_health`
 /// enumerates `["xdome"]` via the single-tenant fallback path.
 /// `probe_connectivity_inner` uses the nil-UUID fallback → `get_all_for_sensor("xdome")`
-/// → finds the `SpecDrivenSensorAdapter` → wiremock returns 503 → `Degraded` → RED.
+/// → finds the `SpecDrivenSensorAdapter` → wiremock returns 503 → `Degraded`.
 ///
 /// # SAP-3 compliance
 ///
-/// Test reaches `check_sensor_health` end-to-end from the `PrismServer` public surface
-/// (not from `check_one` in isolation). Same entry-point as production MCP tool calls.
+/// Test reaches `check_sensor_health` end-to-end from the `PrismServer` public surface.
 ///
 /// # Wire-assertion discipline (SID-2)
 ///
 /// All assertions operate on the FULL serialized `CallToolResult` JSON.
 ///
-/// BC-2.08.002 v1.8 §Postconditions EC-08-009 | AC-WIRE-003 | HS-007 | T-SERVER-1 |
+/// BC-2.08.002 v1.8 §Postconditions EC-08-009 | AC-WIRE-003 | AC-WIRE-004 |
+/// HS-007 | T-SERVER-1 | T-COUNTS-1 |
 /// DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-020
 #[tokio::test]
 async fn test_BC_2_08_002_degraded_envelope_summary_matches_overall_status() {
@@ -980,55 +981,75 @@ async fn test_BC_2_08_002_degraded_envelope_summary_matches_overall_status() {
     let json_str =
         serde_json::to_string(&call_result).expect("RG-020: CallToolResult must serialize to JSON");
 
-    // ASSERTION 1 (RED on current HEAD — T-SERVER-1 unfixed):
+    // ASSERTION 1 (GREEN — T-SERVER-1 fixed server.rs summary predicate):
     // Summary MUST NOT count Degraded sensor as healthy.
-    //
-    // Current bug: server.rs `fully_healthy_count` predicate lacks `&& s.error.is_none()` →
-    // Degraded sensor (reachable=true, auth_valid=true, rate_limit=None,
-    // error="service_unavailable") passes the filter → fully_healthy_count = 1 →
-    // summary = "1 of 1 sensor(s) healthy for client 'rg020-org' (live probe)" [WRONG].
-    //
-    // FAILS on current HEAD: summary contains "1 of 1 sensor(s) healthy".
-    // GREEN after T-SERVER-1 fix: predicate adds `&& s.error.is_none()` →
-    // Degraded excluded → fully_healthy_count = 0 → summary "0 of 1 sensor(s) healthy...".
     assert!(
         !json_str.contains("1 of 1 sensor(s) healthy"),
-        "RG-020 AC-WIRE-003 FAIL (SID-2, RED): summary MUST NOT contain \
+        "RG-020 AC-WIRE-003 FAIL (SID-2): summary MUST NOT contain \
          '1 of 1 sensor(s) healthy' for a Degraded (5xx) sensor. \
-         Current bug: server.rs `fully_healthy_count` predicate lacks `&& s.error.is_none()`, \
-         miscounting Degraded (error=service_unavailable) as healthy. \
-         Fix (T-SERVER-1): add `&& s.error.is_none()` to the predicate. \
+         T-SERVER-1 should have fixed server.rs `fully_healthy_count`. Regression detected. \
          Full wire: {:.800}",
         json_str
     );
 
-    // ASSERTION 2 (RED on current HEAD — T-SERVER-1 unfixed):
-    // Summary MUST contain "0 of 1" after T-SERVER-1 fix.
-    //
-    // FAILS on current HEAD: summary says "1 of 1", not "0 of 1".
-    // GREEN after T-SERVER-1 fix: Degraded excluded → fully_healthy_count = 0 → "0 of 1".
+    // ASSERTION 2 (GREEN — T-SERVER-1 fixed server.rs summary predicate):
+    // Summary MUST contain "0 of 1".
     assert!(
         json_str.contains("0 of 1"),
-        "RG-020 AC-WIRE-003 FAIL (SID-2, RED): summary MUST contain '0 of 1' — \
-         the Degraded sensor has error='service_unavailable' and MUST NOT be counted as healthy. \
-         After T-SERVER-1 fix (`&& s.error.is_none()`), fully_healthy_count = 0 → \
-         summary '0 of 1 sensor(s) healthy for client rg020-org (live probe)'. \
+        "RG-020 AC-WIRE-003 FAIL (SID-2): summary MUST contain '0 of 1' — Degraded \
+         sensor excluded from healthy count by T-SERVER-1 fix. Regression detected. \
          Full wire: {:.800}",
         json_str
     );
 
-    // ASSERTION 3 (GREEN on current HEAD — T-WIRE-2 in mod.rs already applied):
-    // overall_status MUST be "partial" — aggregate correctly excludes Degraded from fully_healthy.
-    //
-    // T-WIRE-2 fixed `HealthCheckResult::aggregate` with `r.error.is_none()` gate.
-    // aggregate → fully_healthy_count = 0, any_partially_available = true → OverallStatus::Partial.
-    // server.rs sets overall_status_str = health_result.overall.as_status_str() → "partial".
+    // ASSERTION 3 (GREEN — T-WIRE-2 in mod.rs aggregate already applied):
+    // overall_status MUST be "partial".
     assert!(
         json_str.contains(r#""overall_status":"partial""#)
             || json_str.contains(r#""overall_status": "partial""#),
         "RG-020 AC-WIRE-003 FAIL (SID-2): overall_status MUST be 'partial' for a Degraded \
-         (5xx) fleet. T-WIRE-2 (mod.rs aggregate r.error.is_none() gate) should already \
-         produce OverallStatus::Partial. Regression: T-WIRE-2 may have been reverted. \
+         (5xx) fleet. T-WIRE-2 regression detected. Full wire: {:.800}",
+        json_str
+    );
+
+    // ASSERTION 4 (RED on current HEAD — T-COUNTS-1 not yet applied):
+    // summary_counts.healthy_count MUST be 0 for a single Degraded sensor.
+    //
+    // Current bug: `resources.rs::HealthSummary::from_results` uses the SAME predicate
+    // as the old server.rs bug — lacks `&& r.error.is_none()`:
+    //   filter(|r| r.reachable == Some(true) && r.auth_valid == Some(true) && r.rate_limit.is_none())
+    // Degraded (reachable=true, auth_valid=true, rate_limit=None, error="service_unavailable")
+    // satisfies the BUGGY predicate → healthy_count = 1. [WRONG]
+    //
+    // FAILS on current HEAD: wire contains "healthy_count":1.
+    // GREEN after T-COUNTS-1 fix: add `&& r.error.is_none()` → Degraded excluded →
+    // healthy_count = 0.
+    assert!(
+        json_str.contains(r#""healthy_count":0"#) || json_str.contains(r#""healthy_count": 0"#),
+        "RG-020 AC-WIRE-004 FAIL (SID-2, RED): summary_counts.healthy_count MUST be 0 \
+         for a Degraded (5xx) sensor. \
+         Current bug: resources.rs HealthSummary::from_results predicate lacks \
+         `&& r.error.is_none()` — Degraded (error=service_unavailable) miscounted as \
+         healthy → healthy_count=1. Fix (T-COUNTS-1): add `&& r.error.is_none()` to \
+         HealthSummary::from_results filter. \
+         Full wire: {:.800}",
+        json_str
+    );
+
+    // ASSERTION 5 (RED on current HEAD — T-COUNTS-1 not yet applied):
+    // summary_counts.unhealthy_count MUST be 1 for a single Degraded sensor.
+    //
+    // Current bug: unhealthy_count = total_count.saturating_sub(healthy_count).
+    // With healthy_count=1 (wrong), unhealthy_count = 1 - 1 = 0. [WRONG]
+    //
+    // FAILS on current HEAD: wire contains "unhealthy_count":0.
+    // GREEN after T-COUNTS-1 fix: healthy_count = 0 → unhealthy_count = 1 - 0 = 1.
+    assert!(
+        json_str.contains(r#""unhealthy_count":1"#) || json_str.contains(r#""unhealthy_count": 1"#),
+        "RG-020 AC-WIRE-004 FAIL (SID-2, RED): summary_counts.unhealthy_count MUST be 1 \
+         for a single Degraded (5xx) sensor. \
+         Current bug: unhealthy_count = total - healthy_count; with the buggy healthy_count=1, \
+         unhealthy_count = 0. Fix (T-COUNTS-1): healthy_count=0 → unhealthy_count=1. \
          Full wire: {:.800}",
         json_str
     );

@@ -1736,3 +1736,138 @@ pub async fn dispatch_hot_reload_notifications(
 
     Ok(())
 }
+
+// ─── Unit tests ──────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // RG-023: `SensorHealthResult::is_fully_healthy` canonical predicate
+    //
+    // Drives T-REFACTOR-1 — the implementer adds `is_fully_healthy(&self) -> bool`
+    // to `SensorHealthResult` with the correct predicate:
+    //   `reachable == Some(true) && auth_valid == Some(true)
+    //    && rate_limit.is_none() && error.is_none()`
+    //
+    // CONTRACT (BC-2.08.002 v1.8 EC-08-009, AC-WIRE-003, AC-WIRE-004):
+    // A Degraded sensor (ConnectivityStatus::Degraded, HTTP 5xx) carries
+    // `error = Some("service_unavailable")` and MUST NOT be classified as
+    // fully healthy, regardless of the reachable/auth_valid values.
+    //
+    // This test is COMPILE-RED until T-REFACTOR-1 adds the method.
+    // Do NOT implement the method here — implementer owns T-REFACTOR-1.
+    //
+    // Coverage matrix: BC-2.08.002 v1.8 EC-08-009 | AC-WIRE-004 | RG-023 |
+    // T-REFACTOR-1 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001
+    #[test]
+    fn test_sensor_health_result_is_fully_healthy_excludes_degraded() {
+        // Case 1: Up-clean — all fields indicate full health → true
+        let up_clean = SensorHealthResult {
+            sensor_id: "xdome".to_string(),
+            client_id: "test-org".to_string(),
+            probe_level: "live".to_string(),
+            reachable: Some(true),
+            auth_valid: Some(true),
+            rate_limit: None,
+            last_successful_query_at: None,
+            error: None,
+            latency_ms: Some(5),
+            suggestion: None,
+        };
+        assert!(
+            up_clean.is_fully_healthy(),
+            "RG-023: Up-clean sensor (reachable=true, auth_valid=true, rate_limit=None, \
+             error=None) MUST be is_fully_healthy() == true"
+        );
+
+        // Case 2: Degraded (HTTP 5xx) — reachable=true, auth_valid=true BUT error is set → false
+        //
+        // This is the T-REFACTOR-1 canonical edge case: the Degraded sensor satisfies
+        // the OLD predicate (reachable && auth_valid && rate_limit.is_none()) but MUST NOT
+        // satisfy is_fully_healthy() once `&& error.is_none()` is added.
+        let degraded = SensorHealthResult {
+            sensor_id: "xdome".to_string(),
+            client_id: "test-org".to_string(),
+            probe_level: "live".to_string(),
+            reachable: Some(true),
+            auth_valid: Some(true),
+            rate_limit: None,
+            last_successful_query_at: None,
+            error: Some("service_unavailable".to_string()),
+            latency_ms: Some(12),
+            suggestion: Some(
+                "Sensor returned a server error (5xx) — service may be temporarily unavailable."
+                    .to_string(),
+            ),
+        };
+        assert!(
+            !degraded.is_fully_healthy(),
+            "RG-023: Degraded sensor (error=service_unavailable) MUST be \
+             is_fully_healthy() == false. The `&& error.is_none()` gate in the \
+             T-REFACTOR-1 predicate prevents miscounting. (BC-2.08.002 v1.8 EC-08-009)"
+        );
+
+        // Case 3: Down (connection error) — reachable=false → false
+        let down = SensorHealthResult {
+            sensor_id: "xdome".to_string(),
+            client_id: "test-org".to_string(),
+            probe_level: "live".to_string(),
+            reachable: Some(false),
+            auth_valid: None,
+            rate_limit: None,
+            last_successful_query_at: None,
+            error: Some("connection_refused".to_string()),
+            latency_ms: None,
+            suggestion: Some(
+                "Sensor unreachable — verify network and endpoint configuration.".to_string(),
+            ),
+        };
+        assert!(
+            !down.is_fully_healthy(),
+            "RG-023: Down sensor (reachable=false) MUST be is_fully_healthy() == false"
+        );
+
+        // Case 4: Auth-invalid — reachable=true but auth_valid=false → false
+        let auth_invalid = SensorHealthResult {
+            sensor_id: "xdome".to_string(),
+            client_id: "test-org".to_string(),
+            probe_level: "live".to_string(),
+            reachable: Some(true),
+            auth_valid: Some(false),
+            rate_limit: None,
+            last_successful_query_at: None,
+            error: Some("auth_failed".to_string()),
+            latency_ms: Some(8),
+            suggestion: Some("Check credentials — sensor rejected authentication.".to_string()),
+        };
+        assert!(
+            !auth_invalid.is_fully_healthy(),
+            "RG-023: Auth-invalid sensor (auth_valid=false) MUST be \
+             is_fully_healthy() == false"
+        );
+
+        // Case 5: Rate-limited — otherwise healthy but rate_limit is set → false
+        let rate_limited = SensorHealthResult {
+            sensor_id: "xdome".to_string(),
+            client_id: "test-org".to_string(),
+            probe_level: "live".to_string(),
+            reachable: Some(true),
+            auth_valid: Some(true),
+            rate_limit: Some(RateLimitInfo {
+                remaining: Some(0),
+                limit: Some(100),
+                reset_at: None,
+            }),
+            last_successful_query_at: None,
+            error: None,
+            latency_ms: Some(3),
+            suggestion: Some("Rate limit in effect — wait before retrying.".to_string()),
+        };
+        assert!(
+            !rate_limited.is_fully_healthy(),
+            "RG-023: Rate-limited sensor (rate_limit=Some(_)) MUST be \
+             is_fully_healthy() == false"
+        );
+    }
+}
