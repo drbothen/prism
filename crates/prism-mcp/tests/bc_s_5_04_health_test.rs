@@ -829,8 +829,8 @@ fn test_BC_2_08_007_aggregate_auth_invalid_sensor_is_not_healthy() {
 /// `reachable=Some(true)` + `auth_valid=Some(false)` (NOT the `down_result` helper which also
 /// sets `reachable=false` and would mask the bug).
 ///
-/// RED GATE: currently returns `Partial` due to the `any_reachable` predicate bug → MUST be RED
-/// before the fix is applied.
+/// RED GATE (pre-fix): returned `Partial` due to the `any_reachable` predicate bug — was RED
+/// before the fix was applied. GREEN regression guard on current HEAD.
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_08_007_aggregate_all_auth_invalid_is_unhealthy() {
@@ -2643,8 +2643,8 @@ async fn test_BC_2_08_007_EC_007_response_shape_overall_status_summary_counts_su
 ///
 /// Canonical test-vector: "All sensors unhealthy (unreachable/auth-invalid) → overall_status: 'unhealthy'".
 ///
-/// RED GATE: currently returns `"partial"` due to the `any_reachable` predicate bug.
-/// After fix, the all-auth-invalid fleet MUST produce:
+/// RED GATE (pre-fix): returned `"partial"` due to the `any_reachable` predicate bug.
+/// After fix, the all-auth-invalid fleet MUST produce (GREEN regression guard on current HEAD):
 /// - `overall_status: "unhealthy"`
 /// - `summary_counts.unhealthy_count == 2`
 /// - `summary_counts.healthy_count == 0`

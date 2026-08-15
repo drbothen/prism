@@ -349,7 +349,7 @@ fn test_reqwest_http2_feature_active() {
     // The reqwest block MUST contain "h2" in its dependencies list.
     // When the http2 feature is active, the block includes a line like:
     //   "h2 0.4.N (registry+...)",
-    // (currently absent from reqwest's block — h2 is only under hyper's block).
+    // (pre-fix: absent from reqwest's block — h2 was only under hyper's block).
     let has_h2_direct_dep = reqwest_block.contains("\"h2 ") || reqwest_block.contains(" \"h2\"");
 
     assert!(
@@ -710,23 +710,24 @@ async fn test_BC_2_01_013_EC_01_029_cookie_roundtrip_401_auth_invalid_wire_shape
 /// An LLM agent consuming `"reachable":true + "error":"service_unavailable"` correctly
 /// infers "wait and retry" rather than "check network" (EC-08-009).
 ///
-/// # Failure reason (genuine RED on current code)
+/// # Failure reason (pre-fix — RED before HS-007 was applied)
 ///
-/// `check_one` in `health/mod.rs` currently computes:
+/// `check_one` in `health/mod.rs` pre-fix computed:
 /// ```ignore
 /// let reachable = probe.connectivity == ConnectivityStatus::Up;
 /// ```
-/// For `ConnectivityStatus::Degraded` (HTTP 5xx), this evaluates to `false` — producing
-/// `"reachable":false` in the serialized wire, which is WRONG. The required fix is:
+/// For `ConnectivityStatus::Degraded` (HTTP 5xx), this evaluated to `false` — producing
+/// `"reachable":false` in the serialized wire, which was WRONG. The fix (HS-007):
 /// ```ignore
 /// let reachable = probe.connectivity != ConnectivityStatus::Down;
 /// ```
 /// which yields `reachable:true` for both `Up` and `Degraded`, `reachable:false` only for `Down`.
 ///
-/// RG-019 ASSERTION 1 (`"reachable":true`) and ASSERTION 4 (`!"reachable":false`) FAIL on the
-/// current HEAD — genuine RED. ASSERTIONS 2 and 3 (`"auth_valid":true`, `"error":"service_unavailable"`)
-/// already PASS on current HEAD (auth.rs correctly returns `AuthStatus::Valid` for 5xx, and
-/// check_one already calls `with_error("service_unavailable")` for Degraded).
+/// RG-019 ASSERTION 1 (`"reachable":true`) and ASSERTION 4 (`!"reachable":false`) were
+/// genuinely RED pre-fix. Both are GREEN regression guards after HS-007. ASSERTIONS 2 and 3
+/// (`"auth_valid":true`, `"error":"service_unavailable"`) were already GREEN pre-fix (auth.rs
+/// correctly returned `AuthStatus::Valid` for 5xx, and check_one already set
+/// `with_error("service_unavailable")` for Degraded).
 ///
 /// # Code path (5xx / Degraded)
 ///
@@ -735,8 +736,8 @@ async fn test_BC_2_01_013_EC_01_029_cookie_roundtrip_401_auth_invalid_wire_shape
 /// 3. `SensorError::HttpError { status: 503 }` → connectivity.rs `status >= 500` arm →
 ///    `ConnectivityStatus::Degraded`, `http_status: Some(503)`
 /// 4. auth.rs: `Degraded` arm → `http_status = Some(503)` (not 401/403) → `AuthStatus::Valid`
-/// 5. `check_one` (current, BUGGY): `reachable = Degraded == Up` → `false` → `"reachable":false`
-/// 6. `check_one` (after fix): `reachable = Degraded != Down` → `true` → `"reachable":true`
+/// 5. `check_one` (pre-fix, BUGGY): `reachable = Degraded == Up` → `false` → `"reachable":false`
+/// 6. `check_one` (post-fix, HS-007): `reachable = Degraded != Down` → `true` → `"reachable":true`
 /// 7. `auth_valid_opt = Valid → Some(true)` → `"auth_valid":true`
 /// 8. `with_error("service_unavailable")` → `"error":"service_unavailable"`
 ///
@@ -795,13 +796,12 @@ async fn test_BC_2_08_002_degraded_reachable_wire_shape() {
     // SID-2 wire-shape assertion: serialize to compact JSON and check key:value pairs.
     let json = serde_json::to_string(&health).expect("RG-019: SensorHealthResult must serialize");
 
-    // ASSERTION 1 (RED on current code): "reachable":true — TCP connection succeeded, HTTP
-    // exchange occurred; sensor IS reachable at the network level. 5xx is NOT unreachable.
+    // ASSERTION 1 (GREEN — HS-007 fixed check_one): "reachable":true — TCP connection succeeded,
+    // HTTP exchange occurred; sensor IS reachable at the network level. 5xx is NOT unreachable.
     //
-    // FAILS on current HEAD: `reachable = connectivity == Up` → Degraded → false →
-    // wire contains `"reachable":false` instead of `"reachable":true`.
-    //
-    // GREEN after fix: `reachable = connectivity != Down` → Degraded → true → `"reachable":true`.
+    // Pre-fix (RED): `reachable = connectivity == Up` → Degraded → false →
+    // wire contained `"reachable":false` instead of `"reachable":true`.
+    // Post-fix (HS-007): `reachable = connectivity != Down` → Degraded → true → `"reachable":true`.
     assert!(
         json.contains("\"reachable\":true"),
         "RG-019 EC-08-009 FAIL (SID-2 wire-shape, RED): JSON MUST contain '\"reachable\":true' \
@@ -832,12 +832,12 @@ async fn test_BC_2_08_002_degraded_reachable_wire_shape() {
          \nFull wire: {json}"
     );
 
-    // ASSERTION 4 (RED on current code — negative gate): MUST NOT contain "reachable":false.
+    // ASSERTION 4 (GREEN — HS-007 fixed check_one, negative gate): MUST NOT contain "reachable":false.
     // `"reachable":false` is reserved for ConnectivityStatus::Down (no TCP/HTTP exchange at all).
     // A 5xx response (HTTP exchange DID occur) MUST NOT produce `"reachable":false`.
     //
-    // FAILS on current HEAD: Degraded → reachable=false → wire contains `"reachable":false`.
-    // GREEN after fix: Degraded → reachable=true → `"reachable":false` absent from wire.
+    // Pre-fix (RED): Degraded → reachable=false → wire contained `"reachable":false`.
+    // Post-fix (HS-007): Degraded → reachable=true → `"reachable":false` absent from wire.
     assert!(
         !json.contains("\"reachable\":false"),
         "RG-019 EC-08-009 FAIL (SID-2 negative gate, RED): JSON MUST NOT contain \
@@ -861,13 +861,12 @@ async fn test_BC_2_08_002_degraded_reachable_wire_shape() {
 /// # Assertion status (F-P43 strengthening)
 ///
 /// - Assertions 1, 2, 3: GREEN (T-SERVER-1 fixed server.rs summary predicate).
-/// - Assertions 4, 5 (NEW — F-P43): RED on current HEAD.
-///   `resources.rs::HealthSummary::from_results` has the same predicate bug:
-///   `reachable == Some(true) && auth_valid == Some(true) && rate_limit.is_none()`
-///   without `&& error.is_none()` — Degraded sensor still reports as
-///   `summary_counts.healthy_count=1` and `unhealthy_count=0`.
+/// - Assertions 4, 5 (F-P43): GREEN (T-COUNTS-1/T-REFACTOR-1 fixed HealthSummary::from_results).
+///   `SensorHealthResult::is_fully_healthy()` (added by T-REFACTOR-1 / commit a2d80fe4f) now
+///   includes `&& error.is_none()` — Degraded sensor correctly reports as
+///   `summary_counts.healthy_count=0` and `unhealthy_count=1`.
 ///
-/// # Problems fixed / remaining
+/// # Problems fixed
 ///
 /// ## T-SERVER-1 (FIXED — commit 21df2f6d4)
 ///
@@ -876,17 +875,18 @@ async fn test_BC_2_08_002_degraded_reachable_wire_shape() {
 /// was miscounted as healthy → summary "1 of 1 sensor(s) healthy" contradicted
 /// `overall_status: "partial"`. Fixed by adding the gate.
 ///
-/// ## T-COUNTS-1 (NOT YET FIXED — drives assertions 4/5)
+/// ## T-COUNTS-1 (FIXED — T-REFACTOR-1 / commit a2d80fe4f)
 ///
-/// `resources.rs::HealthSummary::from_results` has the same structural bug:
+/// `resources.rs::HealthSummary::from_results` had the same structural bug pre-fix:
 /// ```ignore
 /// let healthy_count = results.iter().filter(|r| {
 ///     r.reachable == Some(true) && r.auth_valid == Some(true) && r.rate_limit.is_none()
-///     // MISSING: && r.error.is_none()   ← T-COUNTS-1 fix target
+///     // MISSING pre-fix: && r.error.is_none()
 /// }).count();
 /// ```
-/// Wire: `"summary_counts":{"healthy_count":1,"unhealthy_count":0,...}` — WRONG.
-/// Correct after fix: `"healthy_count":0,"unhealthy_count":1`.
+/// Pre-fix wire: `"summary_counts":{"healthy_count":1,"unhealthy_count":0,...}` — WRONG.
+/// Post-fix: `from_results` delegates to `r.is_fully_healthy()` which includes `error.is_none()`.
+/// Correct wire: `"healthy_count":0,"unhealthy_count":1`.
 ///
 /// # Wiring
 ///
@@ -1012,18 +1012,17 @@ async fn test_BC_2_08_002_degraded_envelope_summary_matches_overall_status() {
         json_str
     );
 
-    // ASSERTION 4 (RED on current HEAD — T-COUNTS-1 not yet applied):
+    // ASSERTION 4 (GREEN — T-COUNTS-1 fixed via T-REFACTOR-1 / commit a2d80fe4f):
     // summary_counts.healthy_count MUST be 0 for a single Degraded sensor.
     //
-    // Current bug: `resources.rs::HealthSummary::from_results` uses the SAME predicate
-    // as the old server.rs bug — lacks `&& r.error.is_none()`:
+    // Pre-fix bug: `resources.rs::HealthSummary::from_results` used the same predicate
+    // as the old server.rs bug — lacked `&& r.error.is_none()`:
     //   filter(|r| r.reachable == Some(true) && r.auth_valid == Some(true) && r.rate_limit.is_none())
     // Degraded (reachable=true, auth_valid=true, rate_limit=None, error="service_unavailable")
-    // satisfies the BUGGY predicate → healthy_count = 1. [WRONG]
+    // satisfied the BUGGY predicate → healthy_count = 1. [WRONG]
     //
-    // FAILS on current HEAD: wire contains "healthy_count":1.
-    // GREEN after T-COUNTS-1 fix: add `&& r.error.is_none()` → Degraded excluded →
-    // healthy_count = 0.
+    // Post-fix: `from_results` delegates to `r.is_fully_healthy()` which includes `error.is_none()`.
+    // Degraded sensor excluded → healthy_count = 0. Regression guard.
     assert!(
         json_str.contains(r#""healthy_count":0"#) || json_str.contains(r#""healthy_count": 0"#),
         "RG-020 AC-WIRE-004 FAIL (SID-2, RED): summary_counts.healthy_count MUST be 0 \
@@ -1036,14 +1035,13 @@ async fn test_BC_2_08_002_degraded_envelope_summary_matches_overall_status() {
         json_str
     );
 
-    // ASSERTION 5 (RED on current HEAD — T-COUNTS-1 not yet applied):
+    // ASSERTION 5 (GREEN — T-COUNTS-1 fixed via T-REFACTOR-1 / commit a2d80fe4f):
     // summary_counts.unhealthy_count MUST be 1 for a single Degraded sensor.
     //
-    // Current bug: unhealthy_count = total_count.saturating_sub(healthy_count).
+    // Pre-fix bug: unhealthy_count = total_count.saturating_sub(healthy_count).
     // With healthy_count=1 (wrong), unhealthy_count = 1 - 1 = 0. [WRONG]
     //
-    // FAILS on current HEAD: wire contains "unhealthy_count":0.
-    // GREEN after T-COUNTS-1 fix: healthy_count = 0 → unhealthy_count = 1 - 0 = 1.
+    // Post-fix: healthy_count = 0 → unhealthy_count = 1 - 0 = 1. Regression guard.
     assert!(
         json_str.contains(r#""unhealthy_count":1"#) || json_str.contains(r#""unhealthy_count": 1"#),
         "RG-020 AC-WIRE-004 FAIL (SID-2, RED): summary_counts.unhealthy_count MUST be 1 \

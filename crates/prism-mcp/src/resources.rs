@@ -1779,8 +1779,8 @@ mod tests {
     // `error = Some("service_unavailable")` and MUST NOT be classified as
     // fully healthy, regardless of the reachable/auth_valid values.
     //
-    // This test is COMPILE-RED until T-REFACTOR-1 adds the method.
-    // Do NOT implement the method here — implementer owns T-REFACTOR-1.
+    // T-REFACTOR-1 (commit a2d80fe4f) added `is_fully_healthy()` — this test is GREEN.
+    // Method implemented in `impl SensorHealthResult` in resources.rs.
     //
     // Coverage matrix: BC-2.08.002 v1.8 EC-08-009 | AC-WIRE-004 | RG-023 |
     // T-REFACTOR-1 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001
