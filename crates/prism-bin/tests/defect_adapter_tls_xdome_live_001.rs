@@ -16,6 +16,8 @@
 //! |         |                                                              | `"auth_valid":false` wire assertions FAIL (F-P31-OBS-001).                |
 //! | LOW-1  | test_sensor_health_wire_shape_401_auth_invalid_production_path | OAuth2 401→Internal→Down pre-fix; `"reachable":true` and                  |
 //! |         |                                                              | `"auth_valid":false` wire assertions FAIL (LOW-1 companion to RG-007).    |
+//! | RG-019 | test_BC_2_08_002_degraded_reachable_wire_shape             | check_one sets `reachable = connectivity == Up`; Degraded (5xx) yields    |
+//! |         |                                                              | `reachable:false`; assertion `"reachable":true` FAILS → RED (HS-007).     |
 //!
 //! # Test seam
 //!
@@ -679,5 +681,167 @@ async fn test_BC_2_01_013_EC_01_029_cookie_roundtrip_401_auth_invalid_wire_shape
         "F-P31-OBS-001 (SID-2 wire-shape): JSON must contain '\"auth_valid\":false' for \
          CookieRoundtrip 401 response via production check_one path. Got JSON: {json}. \
          (BC-2.01.013 EC-01-029, DEFECT-ADAPTER-TLS-XDOME-LIVE-001 F-P31-OBS-001)."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RG-019 — SensorHealthResult wire-shape: reachable=true for HTTP 5xx (Degraded)
+// ---------------------------------------------------------------------------
+
+/// RG-019: `SensorHealthChecker::check_one` MUST serialize HTTP 5xx (ConnectivityStatus::Degraded)
+/// to the `check_sensor_health` MCP wire as `"reachable":true`, `"auth_valid":true`, and
+/// `"error":"service_unavailable"`. MUST NOT contain `"reachable":false`.
+///
+/// # BC authority
+///
+/// - BC-2.08.002 v1.8 §Postconditions — 5xx Degraded wire contract (EC-08-009, HS-007 re-gate)
+/// - AC-WIRE-002 — Degraded wire MUST contain `"reachable":true`, `"auth_valid":true`,
+///   `"error":"service_unavailable"`, NOT `"reachable":false`
+///
+/// # Why `reachable:true` for 5xx
+///
+/// HTTP 5xx means: TCP connection succeeded, HTTP exchange occurred, the sensor IS reachable
+/// at the network level. The service returned a server error — but the sensor IS reachable.
+/// This is distinct from `ConnectivityStatus::Down` (no TCP/HTTP exchange — truly unreachable).
+/// An LLM agent consuming `"reachable":true + "error":"service_unavailable"` correctly
+/// infers "wait and retry" rather than "check network" (EC-08-009).
+///
+/// # Failure reason (genuine RED on current code)
+///
+/// `check_one` in `health/mod.rs` currently computes:
+/// ```ignore
+/// let reachable = probe.connectivity == ConnectivityStatus::Up;
+/// ```
+/// For `ConnectivityStatus::Degraded` (HTTP 5xx), this evaluates to `false` — producing
+/// `"reachable":false` in the serialized wire, which is WRONG. The required fix is:
+/// ```ignore
+/// let reachable = probe.connectivity != ConnectivityStatus::Down;
+/// ```
+/// which yields `reachable:true` for both `Up` and `Degraded`, `reachable:false` only for `Down`.
+///
+/// RG-019 ASSERTION 1 (`"reachable":true`) and ASSERTION 4 (`!"reachable":false`) FAIL on the
+/// current HEAD — genuine RED. ASSERTIONS 2 and 3 (`"auth_valid":true`, `"error":"service_unavailable"`)
+/// already PASS on current HEAD (auth.rs correctly returns `AuthStatus::Valid` for 5xx, and
+/// check_one already calls `with_error("service_unavailable")` for Degraded).
+///
+/// # Code path (5xx / Degraded)
+///
+/// 1. `probe_auth_with_routing` → `probe_connectivity` → `SpecDrivenSensorAdapter::fetch()`
+/// 2. wiremock returns HTTP 503
+/// 3. `SensorError::HttpError { status: 503 }` → connectivity.rs `status >= 500` arm →
+///    `ConnectivityStatus::Degraded`, `http_status: Some(503)`
+/// 4. auth.rs: `Degraded` arm → `http_status = Some(503)` (not 401/403) → `AuthStatus::Valid`
+/// 5. `check_one` (current, BUGGY): `reachable = Degraded == Up` → `false` → `"reachable":false`
+/// 6. `check_one` (after fix): `reachable = Degraded != Down` → `true` → `"reachable":true`
+/// 7. `auth_valid_opt = Valid → Some(true)` → `"auth_valid":true`
+/// 8. `with_error("service_unavailable")` → `"error":"service_unavailable"`
+///
+/// # SAP-3 compliance
+///
+/// Test reaches `check_one` end-to-end from the `SensorHealthChecker` public surface
+/// (same pattern as RG-007/RG-015). No synthetic AST injection.
+///
+/// # Wire-assertion discipline (SID-2)
+///
+/// All assertions operate on the FULL serialized compact JSON output.
+///
+/// BC-2.08.002 v1.8 §Postconditions EC-08-009 | AC-WIRE-002 | HS-007 |
+/// DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-019
+#[tokio::test]
+async fn test_BC_2_08_002_degraded_reachable_wire_shape() {
+    let mock_server = MockServer::start().await;
+
+    // Wiremock: GET /api/v1/devices → 503 Service Unavailable (drives ConnectivityStatus::Degraded).
+    Mock::given(method("GET"))
+        .and(path("/api/v1/devices"))
+        .respond_with(ResponseTemplate::new(503).set_body_bytes(b"service unavailable"))
+        .mount(&mock_server)
+        .await;
+
+    // Build and register the adapter (same fixture pattern as RG-007 / LOW-1).
+    let spec = make_xdome_spec(&mock_server.uri());
+    let resolved = make_resolved(spec, "rg019-org");
+    let auth_strategy =
+        AdapterAuthStrategy::Plugin(Arc::new(MockAuthProvider::new("rg019-token"))
+            as Arc<dyn prism_spec_engine::AuthProvider>);
+    let http_client = build_http_client_with_timeout().expect("RG-019: http client build failed");
+    let adapter = Arc::new(SpecDrivenSensorAdapter::new(
+        Arc::new(resolved),
+        auth_strategy,
+        http_client,
+    ));
+
+    let org_id = OrgId::new();
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, adapter);
+    let sensor_id = SensorId::from("xdome");
+
+    // PRODUCTION PATH: SensorHealthChecker::check_one end-to-end.
+    // Exercises the full 5xx path:
+    //   GET /api/v1/devices → 503 → SensorError::HttpError{503} →
+    //   connectivity.rs status>=500 → ConnectivityStatus::Degraded →
+    //   auth.rs http_status=503 (not 401/403) → AuthStatus::Valid →
+    //   check_one: reachable derivation (BUGGY: == Up → false; FIX: != Down → true)
+    let checker = SensorHealthChecker::new(Arc::new(registry));
+    let context = PrismContext::new();
+    let health = checker
+        .check_one(org_id, "rg019-org", &sensor_id, &context)
+        .await;
+
+    // SID-2 wire-shape assertion: serialize to compact JSON and check key:value pairs.
+    let json = serde_json::to_string(&health).expect("RG-019: SensorHealthResult must serialize");
+
+    // ASSERTION 1 (RED on current code): "reachable":true — TCP connection succeeded, HTTP
+    // exchange occurred; sensor IS reachable at the network level. 5xx is NOT unreachable.
+    //
+    // FAILS on current HEAD: `reachable = connectivity == Up` → Degraded → false →
+    // wire contains `"reachable":false` instead of `"reachable":true`.
+    //
+    // GREEN after fix: `reachable = connectivity != Down` → Degraded → true → `"reachable":true`.
+    assert!(
+        json.contains("\"reachable\":true"),
+        "RG-019 EC-08-009 FAIL (SID-2 wire-shape, RED): JSON MUST contain '\"reachable\":true' \
+         for HTTP 503 (ConnectivityStatus::Degraded) response per BC-2.08.002 v1.8 EC-08-009 (HS-007). \
+         \nRoot cause (current code): `let reachable = probe.connectivity == ConnectivityStatus::Up` \
+         in check_one yields `false` for Degraded — sensor IS reachable (TCP+HTTP exchange occurred). \
+         \nRequired fix: `let reachable = probe.connectivity != ConnectivityStatus::Down`. \
+         \nFull wire: {json}"
+    );
+
+    // ASSERTION 2 (GREEN on current code — regression guard): "auth_valid":true — HTTP 5xx is
+    // NOT an auth rejection. auth.rs correctly maps http_status=503 (not 401/403) → AuthStatus::Valid.
+    assert!(
+        json.contains("\"auth_valid\":true"),
+        "RG-019 EC-08-009 FAIL (SID-2 wire-shape): JSON MUST contain '\"auth_valid\":true' \
+         for HTTP 503. 5xx is NOT an auth rejection (credentials were not refused). \
+         auth.rs maps http_status=503 → AuthStatus::Valid → Some(true). \
+         \nFull wire: {json}"
+    );
+
+    // ASSERTION 3 (GREEN on current code — regression guard): "error":"service_unavailable" —
+    // check_one already calls `with_error("service_unavailable")` for Degraded probes.
+    assert!(
+        json.contains("\"error\":\"service_unavailable\""),
+        "RG-019 EC-08-009 FAIL (SID-2 wire-shape): JSON MUST contain \
+         '\"error\":\"service_unavailable\"' for HTTP 503 (Degraded) per BC-2.08.002 v1.8 EC-08-009. \
+         check_one sets `result = result.with_error(\"service_unavailable\")` for Degraded. \
+         \nFull wire: {json}"
+    );
+
+    // ASSERTION 4 (RED on current code — negative gate): MUST NOT contain "reachable":false.
+    // `"reachable":false` is reserved for ConnectivityStatus::Down (no TCP/HTTP exchange at all).
+    // A 5xx response (HTTP exchange DID occur) MUST NOT produce `"reachable":false`.
+    //
+    // FAILS on current HEAD: Degraded → reachable=false → wire contains `"reachable":false`.
+    // GREEN after fix: Degraded → reachable=true → `"reachable":false` absent from wire.
+    assert!(
+        !json.contains("\"reachable\":false"),
+        "RG-019 EC-08-009 FAIL (SID-2 negative gate, RED): JSON MUST NOT contain \
+         '\"reachable\":false' for HTTP 503. `\"reachable\":false` is reserved for \
+         ConnectivityStatus::Down (no TCP/HTTP exchange). A 5xx response means the HTTP \
+         exchange DID occur — the sensor IS reachable. \
+         \nRoot cause: `reachable = connectivity == Up` yields false for Degraded. \
+         \nRequired fix: `reachable = connectivity != Down`. \
+         \nFull wire: {json}"
     );
 }
