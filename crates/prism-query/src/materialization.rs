@@ -1032,7 +1032,21 @@ pub async fn run_materialization_pipeline(
 
                 // Collect partial errors (BC-2.11.011).
                 for fan_err in fan_result.errors {
-                    // Redact internal detail — expose error code only (OBS-1 / CWE-209).
+                    // STRUCTURALLY UNREACHABLE under the single-target fanout contract:
+                    // materialize_single_external_target calls fan_out with exactly one
+                    // target per iteration to preserve per-client attribution (AC-6).
+                    // The fanout.rs §fan_out contract guarantees a single-target call
+                    // returns Err(AllTargetsFailed) on failure or Ok with an EMPTY errors
+                    // vec on success — never Ok with a non-empty errors vec (BC-2.01.010;
+                    // POL-34). Converting fan_out to receive multiple targets is PROHIBITED
+                    // because it would regress per-client attribution (AC-6 / BC-2.11.001
+                    // v1.25 T-QERR-4 prohibition).
+                    //
+                    // The HTTP formatting below is fail-safe defense-in-depth: if a future
+                    // change ever makes this branch reachable, the output format matches the
+                    // AllTargetsFailed Err arm exactly. sanitize_body_snippet_bytes is the
+                    // CWE-209 control on both paths (D-2151 / EC-11-091).
+                    //
                     // CWE-117: sanitize source_table before log emission and client string
                     // (F-CSD-P21-OBS-002 sibling sweep).
                     tracing::warn!(
@@ -1041,11 +1055,33 @@ pub async fn run_materialization_pipeline(
                         error = %fan_err,
                         "fan_out partial failure"
                     );
-                    sensor_errors.push(format!(
-                        "{}: sensor error ({})",
-                        sanitize_for_log(&target.source_table),
-                        fan_err.error.error_code()
-                    ));
+                    let entry = match &fan_err.error {
+                        SensorError::HttpError { status, body, .. } => {
+                            let snippet = sanitize_body_snippet_bytes(body, 256);
+                            if snippet.is_empty() {
+                                // EC-11-089: empty body → status-only, NO trailing ": ".
+                                format!(
+                                    "{}: HTTP {}",
+                                    sanitize_for_log(&target.source_table),
+                                    status
+                                )
+                            } else {
+                                // EC-11-088: non-empty body → include snippet.
+                                format!(
+                                    "{}: HTTP {}: {}",
+                                    sanitize_for_log(&target.source_table),
+                                    status,
+                                    snippet
+                                )
+                            }
+                        }
+                        other => format!(
+                            "{}: sensor error ({})",
+                            sanitize_for_log(&target.source_table),
+                            other.error_code()
+                        ),
+                    };
+                    sensor_errors.push(entry);
                 }
 
                 // Insert into in-query cache (BC-2.11.005, F-LP1-MED-2).
