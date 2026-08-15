@@ -682,17 +682,19 @@ mod tests {
     }
 
     /// Build a `PrismServer` with TWO adapters registered for the same sensor under
-    /// different org_ids:
+    /// different org_ids (cross-client scenario):
     ///   - `org_succeed` → `StubSuccessAdapter` (returns one row)
     ///   - `org_fail`    → `StubHttpErrorAdapter` (returns HttpError { 403, "Unauthorized" })
     ///
-    /// Used by RG-017 to create the partial-failure scenario for
-    /// BC-2.11.001 EC-11-091. With two org_ids registered for the same sensor,
-    /// `resolve_source_refs` (clients.is_empty() path) produces TWO `FanOutTarget`s.
-    /// Under CURRENT code, each target receives its own `fan_out(vec![single_target])`
-    /// call; the failing target's Err arm (T-QERR-2, already implemented) formats the
-    /// entry correctly. After T-QERR-4 batches both targets into a single fan_out call,
-    /// the Ok-branch is triggered — RG-017 then acts as the Red Gate for the format fix.
+    /// Used by RG-017 to create the live cross-client partial-failure scenario for
+    /// BC-2.11.001 v1.25 EC-11-091. With two org_ids registered for the same sensor,
+    /// `resolve_source_refs` (clients.is_empty() path) produces TWO `FanOutTarget`s,
+    /// one per org. Each target receives its own `fan_out(vec![single_target])` call
+    /// (single-target per org — structural invariant per POL-34 / fanout.rs §fan_out
+    /// single-target contract). The failing org target returns `Err(AllTargetsFailed)`;
+    /// T-QERR-2 Err arm formats the sensor_errors entry correctly as
+    /// `"{table}: HTTP {status}: {body}"`. The Ok-branch with `fan_result.errors`
+    /// non-empty is structurally unreachable and is ratified dead code (BC-2.11.001 v1.25).
     ///
     /// `sensor_id` MUST NOT contain underscores (see `make_server_with_http_error_adapter`
     /// docstring for the reason: `sensor_id_from_table_name` splits on first underscore).
@@ -768,51 +770,47 @@ mod tests {
     }
 
     // =========================================================================
-    // RG-017: partial-failure Ok-branch sensor_errors format (BC-2.11.001 EC-11-091)
+    // RG-017: live cross-client partial-failure sensor_errors format (BC-2.11.001 EC-11-091)
     // =========================================================================
 
     /// RG-017: `query` MCP tool `sensor_errors` MUST surface per-target HTTP detail
-    /// on the partial-failure Ok-branch in `materialize_single_external_target`.
+    /// for the live cross-client partial-failure scenario in `materialize_single_external_target`.
     ///
     /// # BC authority
     ///
-    /// - BC-2.11.001 v1.24 §Postconditions — EC-11-091 Ok-branch partial failure
-    /// - AC-QERR-002 — per-target HTTP format on `Ok(fan_result)` with `fan_result.errors` non-empty
+    /// - BC-2.11.001 v1.25 §Postconditions — EC-11-091 cross-client partial failure
+    /// - AC-QERR-002 — per-target HTTP format on `Err(AllTargetsFailed)` arm
     ///
     /// # Scenario
     ///
-    /// Two adapters registered for sensor "xdome" under different org_ids:
-    ///   - Org 1: `StubSuccessAdapter` → returns `Ok([RecordBatch { item_id: "rg017_success_row" }])`
-    ///   - Org 2: `StubHttpErrorAdapter` → returns `Err(SensorError::HttpError { 403, "Unauthorized" })`
+    /// Two adapters registered for sensor "xdome" under DIFFERENT org_ids (cross-client):
+    ///   - Org 1 (org-01000000): `StubSuccessAdapter` → `Ok([RecordBatch { item_id: "rg017_success_row" }])`
+    ///   - Org 2 (org-02000000): `StubHttpErrorAdapter` → `Err(SensorError::HttpError { 403, "Unauthorized" })`
     ///
     /// Query: `SELECT item_id FROM xdome_devices LIMIT 10`
     ///
-    /// Expected wire output (when the partial-failure path is exercised correctly):
+    /// Each org target gets its own `fan_out(vec![single_target])` call (single-target per
+    /// org per `materialization.rs` outer loop). The failing org-2 target's `fan_out` returns
+    /// `Err(AllTargetsFailed)`, which the already-implemented T-QERR-2 Err arm converts to
+    /// `"xdome_devices: HTTP 403: Unauthorized"`.
+    ///
+    /// Expected wire output:
     ///   - `sensor_errors: ["xdome_devices: HTTP 403: Unauthorized"]`
-    ///   - `rows` non-empty (success adapter contributed data)
+    ///   - `rows` non-empty (org-1 success adapter contributed data)
     ///   - `sensor_errors[0]` does NOT contain "sensor error"
     ///
-    /// # Architectural note: Red Gate timing
+    /// # Architectural note: Ok-branch structural unreachability
     ///
-    /// Under CURRENT code (HEAD 9fc3e6a06), `materialization.rs` calls
-    /// `fan_out(vec![single_target])` per target in the outer loop. With two adapters,
-    /// two SEPARATE `fan_out` calls are made:
-    ///   - Success adapter target: `Ok(FanOutResult { successes: [batch], errors: [] })`
-    ///   - Failure adapter target: `Err(AllTargetsFailed { errors: [FanOutError{HttpError{403}}] })`
+    /// The `Ok(fan_result)` arm with `fan_result.errors` non-empty is STRUCTURALLY
+    /// UNREACHABLE in `materialization.rs`: each `fan_out` call receives exactly one
+    /// target (`vec![fan_target]`), so a failure is always `Err(AllTargetsFailed)`,
+    /// never `Ok(FanOutResult { errors: [..] })`. This was ratified in
+    /// BC-2.11.001 v1.25 / EC-11-091 (POL-34, fanout.rs §fan_out single-target contract).
+    /// The Ok-branch dead code is hardened in-spec; there is no T-QERR-4 batching change.
     ///
-    /// The Err arm (T-QERR-2, already implemented) formats the entry correctly
-    /// as `"xdome_devices: HTTP 403: Unauthorized"`. Therefore this test **PASSES on
-    /// current HEAD** via the Err arm rather than the Ok-branch.
-    ///
-    /// The test becomes a true Red Gate AFTER T-QERR-4 changes the batching to group
-    /// multiple same-sensor targets into a single `fan_out(vec![target1, target2])`
-    /// call. At that point:
-    ///   - `fan_out([target1, target2])` → `Ok(FanOutResult { successes: [batch], errors: [FanOutError{HttpError{403}}] })`
-    ///   - Ok-branch runs with WRONG format `"xdome_devices: sensor error (E-SENSOR-XXX)"` → RED
-    ///   - After T-QERR-4 format fix: correct format → GREEN
-    ///
-    /// **Implementer note for T-QERR-4:** implement the batching change (step 1) BEFORE
-    /// the format fix (step 2) to observe the Red Gate failure.
+    /// This test is a REGRESSION GUARD for the already-correct Err arm (T-QERR-2).
+    /// Expected GREEN on all future HEADs. It will fail if someone reverts T-QERR-2
+    /// or changes the Err arm format.
     ///
     /// # SAP-3 compliance
     ///
@@ -824,10 +822,10 @@ mod tests {
     /// All assertions operate on the FULL serialized JSON wire output, not on
     /// pre-serialization Rust structs.
     ///
-    /// BC-2.11.001 §Postconditions EC-11-091 | AC-QERR-002 |
+    /// BC-2.11.001 v1.25 §Postconditions EC-11-091 | AC-QERR-002 | POL-34 |
     /// DEFECT-ADAPTER-TLS-XDOME-LIVE-001 RG-017
     #[tokio::test]
-    async fn test_BC_2_11_001_EC_11_091_partial_failure_ok_branch_sensor_errors_http_format() {
+    async fn test_BC_2_11_001_EC_11_091_cross_client_partial_failure_sensor_errors_http_format() {
         let server = make_server_with_mixed_adapters("xdome", "devices", "acme", "bravo");
 
         let result = server
@@ -844,8 +842,9 @@ mod tests {
         assert_ne!(
             result.is_error,
             Some(true),
-            "RG-017: partial-failure query MUST NOT return is_error=true; \
-             sensor errors go to sensor_errors. structured_content: {:?}",
+            "RG-017 EC-11-091: cross-client partial-failure query MUST NOT return is_error=true; \
+             the failing org target's error goes to sensor_errors, not is_error. \
+             structured_content: {:?}",
             result.structured_content
         );
 
@@ -860,32 +859,32 @@ mod tests {
         // ASSERTION 1 (SID-2 wire-level, EC-11-091): sensor_errors wire MUST contain the
         // per-target HTTP detail entry with correct format.
         //
-        // Current code path via Err arm (T-QERR-2): PASSES with correct format.
-        // After T-QERR-4 batching change (step 1, before format fix): FAILS with
-        //   "xdome_devices: sensor error (E-SENSOR-XXX)" — TRUE RED GATE.
-        // After T-QERR-4 format fix (step 2): PASSES with correct format.
+        // Code path: Err(AllTargetsFailed) arm (T-QERR-2) — org-02000000 target fails
+        // with HttpError{403, "Unauthorized"}, fan_out returns Err(AllTargetsFailed),
+        // and the Err arm formats the sensor_errors entry as "xdome_devices: HTTP 403: Unauthorized".
+        //
+        // REGRESSION GUARD: this assertion fails if T-QERR-2 is reverted or the format changes.
         assert!(
             wire.contains("xdome_devices: HTTP 403: Unauthorized"),
             "RG-017 EC-11-091 FAIL (SID-2 wire-level): sensor_errors wire MUST contain \
-             '\"xdome_devices: HTTP 403: Unauthorized\"' per BC-2.11.001 EC-11-091. \
+             '\"xdome_devices: HTTP 403: Unauthorized\"' per BC-2.11.001 v1.25 EC-11-091. \
              \nExpected per-target HTTP format (non-empty body): '{{table}}: HTTP {{status}}: {{body}}'. \
-             \nAfter T-QERR-4 batching change (before format fix), wire would contain \
-             '\"xdome_devices: sensor error (E-SENSOR-XXX)\"' — the Ok-branch dead code \
-             that T-QERR-4 fixes. \
+             \nCode path: Err(AllTargetsFailed) arm (T-QERR-2) for org-02000000 target. \
              \nFull wire: {wire}"
         );
 
         // ASSERTION 2 (SID-2 negative gate, EC-11-091): "sensor error" code-only form MUST
         // be absent from the per-target entry for an HttpError.
         //
-        // This is the load-bearing Red Gate assertion after T-QERR-4 batching change:
-        // before the format fix, wire contains '"xdome_devices: sensor error (E-SENSOR-XXX)"'.
+        // The Err(AllTargetsFailed) arm (T-QERR-2) emits the HTTP format; the "sensor error"
+        // code-only form is the pre-fix behavior that T-QERR-2 replaced. This assertion
+        // guards against regression to the old format.
         assert!(
             !wire.contains("sensor error"),
             "RG-017 EC-11-091 FAIL (negative gate): sensor_errors MUST NOT use \
              'sensor error (E-SENSOR-XXX)' code-only form for HttpError entries. \
-             The Ok-branch partial-failure path (fan_result.errors non-empty) MUST \
-             apply the same per-target HTTP format as the AllTargetsFailed path. \
+             The Err(AllTargetsFailed) arm MUST apply the per-target HTTP format \
+             '{{table}}: HTTP {{status}}: {{body}}' per BC-2.11.001 v1.25 EC-11-091. \
              \nFull wire: {wire}"
         );
 
@@ -912,11 +911,10 @@ mod tests {
             sensor_errors[0].as_str().unwrap_or(""),
             "xdome_devices: HTTP 403: Unauthorized",
             "RG-017 EC-11-091 FAIL (structured content): sensor_errors[0] MUST be \
-             'xdome_devices: HTTP 403: Unauthorized' per BC-2.11.001 EC-11-091. \
-             Current code paths:\
-             \n  - Err arm (T-QERR-2, pre-T-QERR-4 batching): produces correct format → PASSES\
-             \n  - Ok arm (T-QERR-4, post-batching, pre-format-fix): produces 'sensor error (...)' → FAILS\
-             \n  - Ok arm (T-QERR-4, post-format-fix): produces correct format → PASSES"
+             'xdome_devices: HTTP 403: Unauthorized' per BC-2.11.001 v1.25 EC-11-091. \
+             Code path: Err(AllTargetsFailed) arm (T-QERR-2) for org-02000000 target. \
+             Format: '{{table}}: HTTP {{status}}: {{body}}'. \
+             REGRESSION GUARD: fails if T-QERR-2 is reverted or format changes."
         );
 
         // ASSERTION 4 (rows non-empty): the success adapter contributed data.
