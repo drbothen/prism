@@ -192,6 +192,35 @@ impl SensorHealthResult {
         self.suggestion = Some(suggestion.into());
         self
     }
+
+    /// AUTHORITATIVE single-source-of-truth predicate for "fully healthy".
+    ///
+    /// A sensor is fully healthy when ALL four conditions hold:
+    ///   1. `reachable == Some(true)` — probe received an HTTP response (Up or better)
+    ///   2. `auth_valid == Some(true)` — credentials accepted (not 401/403)
+    ///   3. `rate_limit.is_none()` — no active rate-limit window
+    ///   4. `error.is_none()` — no error field set (Degraded/5xx sensors carry
+    ///      `error = Some("service_unavailable")`, so this gate excludes them)
+    ///
+    /// BC-2.08.002 EC-08-009 (HS-007 / T-REFACTOR-1 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001):
+    /// condition 4 is REQUIRED because after HS-007 edit 1, Degraded (5xx) sensors have
+    /// `reachable = Some(true)` (network-reachable, erroring).  Without the `error.is_none()`
+    /// gate a 503 sensor would satisfy conditions 1–3 and be miscounted as fully-healthy,
+    /// producing a false-positive OverallStatus::Healthy and a self-contradicting summary
+    /// string ("1 of 1 healthy" when overall_status is "partial").
+    ///
+    /// This replaces the three previously inlined copies at:
+    ///   - `HealthCheckResult::aggregate` in `health/mod.rs`
+    ///   - `check_sensor_health` summary in `server.rs`
+    ///   - `HealthSummary::from_results` in this file (resources.rs)
+    ///
+    /// RG-023: `test_sensor_health_result_is_fully_healthy_excludes_degraded`
+    pub fn is_fully_healthy(&self) -> bool {
+        self.reachable == Some(true)
+            && self.auth_valid == Some(true)
+            && self.rate_limit.is_none()
+            && self.error.is_none()
+    }
 }
 
 /// Rate limit state for a sensor (BC-2.08.005 postcondition field).
@@ -272,12 +301,7 @@ impl HealthSummary {
     /// Compute a `HealthSummary` from a slice of `SensorHealthResult` entries.
     pub fn from_results(results: &[SensorHealthResult]) -> Self {
         let total_count = results.len();
-        let healthy_count = results
-            .iter()
-            .filter(|r| {
-                r.reachable == Some(true) && r.auth_valid == Some(true) && r.rate_limit.is_none()
-            })
-            .count();
+        let healthy_count = results.iter().filter(|r| r.is_fully_healthy()).count();
         let rate_limited_count = results.iter().filter(|r| r.rate_limit.is_some()).count();
         let unhealthy_count = total_count.saturating_sub(healthy_count);
         Self {

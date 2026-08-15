@@ -3312,26 +3312,14 @@ impl PrismServer {
             // - Partial: "H of T sensor(s) healthy for client 'X' (live probe)"
             // - Unhealthy: "0 of N sensor(s) healthy for client 'X' (live probe)"
             let total_count = health_result.sensors.len();
-            // F-P42-HIGH-001 / HS-007: predicate MUST include `s.error.is_none()` so that
-            // Degraded (5xx) sensors (reachable=true, auth_valid=true, rate_limit=None,
-            // error=Some("service_unavailable")) are NOT counted as fully-healthy in the
-            // summary string.  Without this guard the summary read "1 of 1 sensor(s) healthy"
-            // while overall_status was "partial" — a self-contradiction (RG-020).
-            //
-            // Note: this is a CODE TWIN of `HealthCheckResult::aggregate`'s
-            // `fully_healthy_count` filter in `health/mod.rs` (HS-007 edit 2).  Both MUST
-            // stay in sync.  A future refactor story (T-SERVER-REFACTOR-HEALTH-TWIN) can
-            // expose a shared predicate to eliminate the duplication structurally; for now
-            // the verbatim match is the safest low-risk fix (coordinator-approved, T-SERVER-1).
+            // T-REFACTOR-1: use the AUTHORITATIVE `is_fully_healthy()` predicate
+            // (SensorHealthResult::is_fully_healthy in resources.rs) instead of an
+            // inlined copy.  This eliminated the three-copy drift that caused RG-020
+            // (summary string contradicting overall_status for 503/Degraded sensors).
             let fully_healthy_count = health_result
                 .sensors
                 .iter()
-                .filter(|s| {
-                    s.reachable == Some(true)
-                        && s.auth_valid == Some(true)
-                        && s.rate_limit.is_none()
-                        && s.error.is_none()
-                })
+                .filter(|s| s.is_fully_healthy())
                 .count();
             let summary = match &health_result.overall {
                 crate::health::OverallStatus::RateLimited => format!(

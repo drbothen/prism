@@ -122,15 +122,10 @@ impl HealthCheckResult {
 
         // Standard healthy/partial/unhealthy classification.
         //
-        // A sensor is "fully healthy" when reachable, auth valid, not rate-limited, and
-        // no error field (e.g. "service_unavailable").
-        //
-        // HS-007 edit 2: `r.error.is_none()` is REQUIRED to prevent Degraded (5xx) sensors
-        // from counting as fully_healthy. After HS-007 edit 1, Degraded → reachable=true, and
-        // a 503 sensor (reachable=true, auth_valid=true, rate_limit=None) would otherwise count
-        // as fully_healthy, producing a FALSE-POSITIVE OverallStatus::Healthy. The `error` field
-        // is set to "service_unavailable" for Degraded probes (see branch below), so
-        // `r.error.is_none()` correctly gates this case.
+        // `is_fully_healthy()` is the AUTHORITATIVE single-source predicate (T-REFACTOR-1):
+        // reachable=true AND auth_valid=true AND rate_limit.is_none() AND error.is_none().
+        // See `SensorHealthResult::is_fully_healthy` in resources.rs for the full rationale
+        // (BC-2.08.002 EC-08-009 / HS-007 / DEFECT-ADAPTER-TLS-XDOME-LIVE-001).
         //
         // A sensor is "partially available" (contributes to Partial, not Unhealthy) when:
         //   - it is reachable (connectivity Up or Degraded, i.e. reachable != Some(false)), AND
@@ -145,15 +140,7 @@ impl HealthCheckResult {
         // must classify as Unhealthy, not Partial. Rate-limited sensors (reachable=true,
         // auth_valid=true, rate_limit=Some) ARE partially available — they are reachable
         // and authenticated; the EC-08-015 all-rate-limited guard fires first for that case.
-        let fully_healthy_count = results
-            .iter()
-            .filter(|r| {
-                r.reachable == Some(true)
-                    && r.auth_valid == Some(true)
-                    && r.rate_limit.is_none()
-                    && r.error.is_none()
-            })
-            .count();
+        let fully_healthy_count = results.iter().filter(|r| r.is_fully_healthy()).count();
 
         // A sensor is "partially available" if reachable AND not auth-invalid.
         // auth-invalid sensors (reachable=true, auth_valid=false) are NOT partially available —
