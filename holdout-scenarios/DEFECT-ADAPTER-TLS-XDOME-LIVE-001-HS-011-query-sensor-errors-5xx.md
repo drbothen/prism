@@ -9,7 +9,7 @@ priority: P1
 epic_id: "engine-defects"
 story_source: "DEFECT-ADAPTER-TLS-XDOME-LIVE-001"
 version: "1.0"
-status: draft
+status: consumed
 producer: product-owner
 timestamp: "2026-08-15T00:00:00Z"
 phase: 3
@@ -21,10 +21,10 @@ behavioral_contracts:
   - BC-2.11.001
   - BC-2.08.002
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: DEFECT-ADAPTER-TLS-XDOME-LIVE-001
-last_evaluated: null
-last_eval_satisfaction: null
+last_evaluated: 2026-08-15
+last_eval_satisfaction: 0.85
 staleness_check: null
 stale_reason: null
 retired: null

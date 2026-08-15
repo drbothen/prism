@@ -4682,3 +4682,30 @@ S-MAINT-POL29-CODE-TWIN-SWEEP-001 (draft v0.1) registered in STORY-INDEX.md as a
 **Transferable principle:** POL-29 dim-1 sibling-pair sweep must include code-level twins — functions/predicates in the same crate or adjacent crates that independently compute the same quantity. The absence of a spec-doc twin does not imply the absence of a code-level twin. When a fix-burst extends a predicate (adding a guard, changing a condition), a secondary grep for "where else does this logic appear under a different name?" is part of the sweep obligation.
 
 **Source:** D-2160 pass-42 fix-burst state-manager closing burst (2026-08-15). Pattern family: POL-29 dim-1, code-level twin, sibling-sweep gap, predicate sync discipline.
+
+---
+
+### Lesson 126 — Holdout Scenario Table Identifiers Must Use the Prism `<sensor_id>_<table>` Vendor Convention [tracked]
+
+**Category:** holdout-authoring, scenario-naming, vendor-convention, process-gap
+
+**Context:** Story-level holdout re-gate for DEFECT-ADAPTER-TLS-XDOME-LIVE-001 (D-2167). HS-TLS-XDOME-011 scored 0.85 (below 1.00) due to a scenario-authoring table-name mismatch: the scenario used `xdome_devices` as the query table identifier, but the prism binary exposes the Claroty/xDome sensor under the vendor convention `claroty_devices` (sensor_id=`claroty`, table=`devices`). When the holdout-evaluator ran `FROM xdome_devices`, prism returned E-QUERY-037 (unknown source table) rather than a 5xx sensor error. The behavior tested WAS correct for the claroty namespace; only the scenario's choice of table token was wrong. This was definitively classified as a scenario-authoring gap (NOT a code defect): the code correctly surfaces sensor errors on the claroty path; the scenario was authored against the wrong table token.
+
+**Root cause:**
+
+Claroty's product is sometimes called "xDome" (the consumer-facing product name). The prism sensor TOML and prism sensor registry use `sensor_id = "claroty"` (the vendor name). The resulting table namespace is therefore `claroty_<table>` (e.g., `claroty_devices`, `claroty_alerts`, `claroty_site_hierarchy`), NOT `xdome_<table>`. The scenario author used the product/branding name (`xdome_devices`) rather than the prism sensor_id-based convention (`claroty_devices`). This naming mismatch is easy to make for dual-named products (vendor-name ≠ product-name) and is not caught by the scenario template or by any linting step.
+
+**Correct behavior (prism convention):**
+
+All prism table references use the format `<sensor_id>_<table>`, where `sensor_id` is the value from the sensor TOML `[sensor]` block (e.g., `id = "claroty"`). The `sensor_id` is the registrar key, not the marketing name. When authoring holdout scenarios that reference sensor tables: look up `sensor_id` from the TOML spec (`crates/prism-sensors/specs/<sensor>.sensor.toml`), not from the product documentation or brand name.
+
+**Process-gap follow-up:**
+
+When product-owner authors holdout scenarios involving sensor-table queries:
+1. Read the sensor TOML `[sensor]` block for `id =` (the canonical sensor_id).
+2. Build table tokens as `<sensor_id>_<table_name>` (e.g., `claroty_devices`, not `xdome_devices`).
+3. Cross-check with `prism_describe` output from the DTU (if available) to confirm the table token matches.
+
+**Transferable principle:** Holdout-scenario authors must use the prism vendor convention `<sensor_id>_<table>` for all table references, deriving sensor_id from the TOML spec, not from product branding or marketing names. Dual-named products (where vendor name ≠ product name, e.g., Claroty vs xDome) are the highest-risk class for this error.
+
+**Source:** D-2167 state-manager closing burst (2026-08-15). Pattern family: holdout-authoring gap, scenario naming, vendor convention, table identifier, sensor_id.
