@@ -256,11 +256,64 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2135 (DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL pass-21 CLEAN(strict)=NO / CLEAN(PR-merge)=YES; story v1.19 / BC-2.08.002 v1.7 / BC-INDEX v9.08 / STORY-INDEX v2.797; streak RESET 0/3; NEXT: strict LOCAL adversary pass-22 on frozen HEAD b3052ce4d + story v1.19 + BC-2.08.002 v1.7 + error-taxonomy v2.76).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot).
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot. D-2115 blockquote above captures the D-2115 burst delta. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `791b68c3` (origin/develop=`791b68c3`; PR #238 chore merged 2026-08-15; LOCAL develop @`3197e27a9` 1 behind origin). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'`. STATE v8.719 (D-2185). 42 cumulative open findings; ip_list→device.ip OPEN (needs story anchor); FINDING-G (CLAUDE.md detection gap — human mandate required). **D-2109 GOVERNING DECISION: DTU-vs-real-xDome drift DEFERRED — DO NOT mint as adversary/holdout findings; DTUs MUST NOT be reconciled to real without explicit human authorization.** **§RESUME SNAPSHOT D-2185 is the active session-wrap snapshot. ACTIVE: S-CLAROTY-AUDITLOG-TIMEBOX-001 in .worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001 @ d1b7c0c47 (TDD-GREEN; LOCAL 3-CLEAN streak 0/3 — 4 pass-1 findings pending fix-burst).**
+> develop HEAD `791b68c3` (LOCAL; origin/develop=`69d821be`; PR #239 squash-merged 2026-08-16; LOCAL fast-forward pending). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'`. STATE v8.732 (D-2201). **D-2200 GOVERNING DECISION: DTU work DEFERRED POST-FIRST-RELEASE — S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001 both PARKED. D-2109 GOVERNING DECISION ALSO IN EFFECT: DTUs MUST NOT be reconciled to real without explicit human authorization.** **§RESUME SNAPSHOT D-2201 is the active session-wrap snapshot. NO STORY IN FLIGHT. NEXT WORKSTREAM: OCSF correctness — dispatch architect for ADR-058 §J re-derivation against current claroty.sensor.toml (4-table/20-col).**
 
 ---
 
-## §RESUME SNAPSHOT — D-2185 (2026-08-15 — SESSION WRAP; TDD-GREEN d1b7c0c47 + LOCAL pass-1 4 findings; develop@791b68c3; STATE v8.718→v8.719) [SUPERSEDES D-2182]
+## §RESUME SNAPSHOT — D-2201 (2026-08-16 — SESSION WRAP; PR #239 S-CLAROTY-AUDITLOG-TIMEBOX-001 MERGED develop@69d821be; LOCAL develop 791b68c3; STATE v8.731→v8.732) [SUPERSEDES D-2185]
+
+### RESUME IN ONE BREATH
+prism Phase 3; S-CLAROTY-AUDITLOG-TIMEBOX-001 MERGED to develop @69d821be (PR #239, this session). NEXT = OCSF-correctness workstream (ADR-058 spec-evolution → TDD). No story in flight.
+
+### HEADS (D-2201)
+- `develop`: origin/develop = `69d821be` (top: PR #239 audit_logs time-filter push-down squash-merge 2026-08-16T22:51Z). LOCAL develop = `791b68c3` — 1 behind origin; trivial fast-forward pending (`git checkout develop && git pull --ff-only` next session; non-blocking).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2201 wrap commit)
+- `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` @`8ae0b5d8` branch feature/S-CLAROTY-AUDITLOG-TIMEBOX-001 — PENDING teardown (PR #239 MERGED; remote branch deleted)
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, 1 dirty file)
+- No open PRs. No agents in flight.
+
+### DONE THIS SESSION (D-2201)
+S-CLAROTY-AUDITLOG-TIMEBOX-001 delivered end-to-end and squash-merged:
+- LOCAL 9-pass 3-CLEAN CONVERGED (D-2194) → story-holdout PASS 4/4 (D-2195) → LIVE xDome PASS (ASM-CLAROTY-AUDITLOG-001, real Claroty tenant `monroe`, server-side row-reduction proven; D-2196) → consolidated F-1/F-2 spec-accuracy fix (D-2197) → runaway pr-manager sub-agent incident resolved (D-2198/Lesson-129) → PR-LEVEL 3-CLEAN converged on frozen `8ae0b5d8` → squash-merge `69d821be`.
+- Merged spec versions: BC-2.01.013 v1.23 / BC-2.16.013 v1.42 / BC-2.16.002 v2.26 / story v2.5.
+- workspace_test_count: 5743 (final).
+- POL-14 auto-promotion: BC-2.01.013 + BC-2.16.013 both lifecycle_status already active — no promotion.
+
+### NEXT WORKSTREAM — OCSF Correctness
+**RESUME NEXT-ACTION:** dispatch architect to re-derive ADR-058 §J against current claroty.sensor.toml (4-table/20-col; post-PR-#236) as step 1 of the OCSF spec-evolution cycle.
+
+Full OCSF workstream:
+(a) **ADR-058 spec-evolution THEN TDD:** S-ADR058-OCSF-COERCION-001 + S-ADR058-OCSF-ROUTING-001 (both draft, failed pre-TDD readiness gate D-2176; need architect re-derivation of ADR-058 §J vs current claroty.sensor.toml → PO BC-2.16.003 emission-schema reconciliation → story-writer AC/RG → spec adversarial 3-CLEAN + PO holdout scenarios → status ready → THEN per-story TDD).
+(b) **DEFECT-OCSF-STATUS-VOCAB-001** (enum-value normalization / enum-value map).
+(c) **OCSF-CLASS-MIGRATION-001** (SecurityFinding→DetectionFinding).
+
+### GOVERNING DECISION — DTU DEFERRED (alongside D-2109)
+DTU work DEFERRED to POST-FIRST-RELEASE per human decision 2026-08-16: S-ADR058-DTU-PARITY-MIGRATION-001 AND DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001 both PARKED until after v1 ships. Do NOT pick up DTU-fidelity work before v1.
+
+### PENDING HOUSEKEEPING (next session)
+1. `/vsdd-factory:compact-state` — STATE.md ~800KB, safe_to_compact: true; WASM PostToolUse validators fail-closed OutputTooLarge (edits still apply); run early next session.
+2. LOCAL develop fast-forward: `git checkout develop && git pull --ff-only` (advances 791b68c3 → 69d821be).
+3. Worktree teardown: `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` (PR #239 MERGED; remote branch deleted).
+4. test-soc/bin/prism: backup consumed by pre-validation; fresh `demo-setup` build repopulates if needed.
+
+### PENDING USER-APPROVED / OWNED (D-2201)
+- User terminal action (NOT AI): `git stash drop stash@{0}` (`cargo-lock-drift-pre-reconcile` — verified regenerable external-crate lockfile).
+- SECURITY CARRY-FORWARD: `/Users/jmagady/Dev/test-soc/.mcp.json` API keys must be rotated — human-only task, DO NOT action.
+
+### PROCESS LESSON (Lesson-129 — registered D-2198)
+Never run an autonomous pr-manager fix-loop concurrently with an orchestrator-driven PR-LEVEL cascade on the same branch. Orchestrator MUST track the pr-manager agent handle and pick exclusive Mode A (pr-manager owns the loop) OR Mode B (orchestrator drives steps), never both. The runaway pr-manager churned branch HEAD this session and duplicated a fix-burst.
+
+### DECISION-LOG DELTA (D-2200 through D-2201)
+D-2200: POST-MERGE BURST — PR #239 squash-merged develop@69d821be; story→merged; POL-14 no-promotion; STORY-INDEX v2.820→v2.821; DTU work deferred post-first-release (governing decision); STATE v8.730→v8.731. D-2201: SESSION WRAP — develop_head corrected to LOCAL 791b68c3 (origin/develop 69d821be; fast-forward pending); RESUME SNAPSHOT D-2201 authored; D-2185 SUPERSEDED; STATE v8.731→v8.732.
+
+### BACKUP BOUNDARY (D-2201)
+- PUSHED / safe: `origin/develop` `69d821be` (PR #239 merged 2026-08-16T22:51Z); `factory-artifacts` (this D-2201 wrap commit — run `git -C .factory log -1 --format='%H'`).
+- LOCAL-ONLY (AT RISK): LOCAL develop `791b68c3` (fast-forward to 69d821be pending); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).
+
+---
+
+## §RESUME SNAPSHOT — D-2185 (2026-08-15 — SESSION WRAP; TDD-GREEN d1b7c0c47 + LOCAL pass-1 4 findings; develop@791b68c3; STATE v8.718→v8.719) [SUPERSEDES D-2182] [SUPERSEDED by D-2201]
 
 ### RESUME IN ONE BREATH
 S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD-GREEN at d1b7c0c47 (RG-001..005 pass; 5741 tests). LOCAL adversary pass-1 found 4 findings (F-P1-HIGH-001 `operands` key; F-P1-MED-002 ISO-8601 + phantom type; F-P1-MED-003 FQL assertion; F-P1-MED-004 end-only synthetic lower bound); streak 0/3. PR #238 chore merged develop@791b68c3; LOCAL develop 1 behind.
@@ -4623,7 +4676,7 @@ T-PERF-PROFILE test-suite optimization in flight; nothing merged to develop yet 
 - **RESUME NEXT-ACTION (after 006+007 converge):** story-writer authors S-PERF-GATE-008 using primary ref wip/perf-wasmtime-exploration-76821af7.
 
 ### PENDING USER-APPROVED WORK
-(1) Continue strict 3-CLEAN on 006 (fix title MED → passes 22+23) and 007 (fix evidence HEAD LOW → PR-LEVEL re-gate cascade). (2) Deliver 006 AND 008. (3) PR #211 hold-for-strict-PR-LEVEL-3-CLEAN + CI green → user-auth squash-merge. All granted, in progress.
+(1) Continue strict 3-CLEAN on 006 (fix title MED → passes 22+23) and 007 (fix evidence HEAD LOW → PR-LEVEL re-gate cascade). (2) Deliver 006 AND 008. (3) PR #211 hold-for-strict-PR-LEVEL-3-CLEAN + CI green → user-auth squash-merge. All granted; completed at time of writing (superseded by D-1380).
 
 ### DEMO/RELEASE ROADMAP
 006 LOCAL 3-CLEAN → push → PR → PR-LEVEL → user-auth merge. 007 PR-LEVEL 3-CLEAN(strict) + CI green → user-auth squash-merge #211 → develop. 008 author+deliver. Then un-park PR #208 (S-DEMO-FIDELITY-REMEDIATION-001, LOCAL HEAD 0978983f, origin stale 4a624a08, 4 wall-clock DTU scenario tests quarantined SID-1 #[ignore]): un-quarantine (verify pass on fast suite; deterministic stage-control only if still racy) → rebase onto fast develop → converge → ship. Then next demo story S-PRISMQL-CASE-INSENSITIVE-001.
@@ -4901,7 +4954,7 @@ D-1380: session wrap — RESUME SNAPSHOT D-1380 authored (supersedes D-1356). Th
 
 ---
 
-## §RESUME SNAPSHOT — D-1356 (2026-06-25 — SESSION WRAP; develop origin/develop 903c8fcb / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.15; STORY-INDEX v2.477; ARCH-INDEX v2.145; STATE v7.985; FROZEN PR HEAD b65b4d0c; PR-LEVEL cascade in progress on PR #203) [SUPERSEDED by D-1380]
+## §RESUME SNAPSHOT — D-1356 (2026-06-25 — SESSION WRAP; develop origin/develop 903c8fcb / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.15; STORY-INDEX v2.477; ARCH-INDEX v2.145; STATE v7.985; FROZEN PR HEAD b65b4d0c; PR-LEVEL cascade was active on PR #203) [SUPERSEDED by D-1380]
 
 > **D-1356 burst (2026-06-25).** Session wrap. Comprehensive fold↔detect symmetry fix landed at b65b4d0c (inject_now now provably mirrors detect side across ALL Expr variants + SqlQuery clauses). 4 load-bearing tests; just check EXIT 0 full workspace; non-exhaustive 87. PR-LEVEL 3-CLEAN streak 0/3 on FROZEN PR HEAD b65b4d0c (none taken on this HEAD). All prior D-1101..D-1337 notes SUPERSEDED.
 
@@ -4950,7 +5003,7 @@ D-1338 (LOCAL Pass 1 e518d96c fixes: filter-mode load-bearing, E-QUERY-040 verba
 3. EC-11 namespace collisions (older; separate maintenance burst).
 
 ### D-1356 (this wrap) decision row
-D-1356: session wrap — RESUME SNAPSHOT D-1356 authored (supersedes D-1337); PR #203 PR-LEVEL cascade in progress, FROZEN PR HEAD `b65b4d0c`, streak 0/3; comprehensive fold↔detect symmetry fix landed @b65b4d0c; NEXT = PR-LEVEL adversary Pass 1 on `b65b4d0c`.
+D-1356: session wrap — RESUME SNAPSHOT D-1356 authored (supersedes D-1337); PR #203 PR-LEVEL cascade was active at time of writing, FROZEN PR HEAD `b65b4d0c`, streak 0/3; comprehensive fold↔detect symmetry fix landed @b65b4d0c; NEXT was PR-LEVEL adversary Pass 1 on `b65b4d0c`. [SUPERSEDED by D-1380]
 
 ---
 
