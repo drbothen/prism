@@ -5036,9 +5036,11 @@ mod rg004_pipeline_json_filter_tests {
                     name: "fetch_audit_logs".to_string(),
                     method: "POST".to_string(),
                     path_template: "/api/v1/audit_log/get".to_string(),
-                    // body_template uses the JSON-object filter slot.
+                    // body_template uses two filter slots:
+                    //   (a) JSON-object slot for Claroty filter_by (must expand to Value::Object)
+                    //   (b) quoted string slot for FQL backward-compat (must stay Value::String)
                     body_template: Some(
-                        r#"{"filter_by": ${query.filter._claroty_audit_filter_by}}"#.to_string(),
+                        r#"{"filter_by": ${query.filter._claroty_audit_filter_by}, "fql": "${query.filter._fql_filter}"}"#.to_string(),
                     ),
                     response_path: "$.audit_log".to_string(),
                     pagination_cursor_path: None,
@@ -5059,23 +5061,35 @@ mod rg004_pipeline_json_filter_tests {
             probe_table: None,
         };
 
-        // FetchContext: _claroty_audit_filter_by is a JSON-object string (starts with `{`).
-        // After implementation, this must be parsed to Value::Object in step_vars.
+        // FetchContext: two entries —
+        //   (a) _claroty_audit_filter_by: JSON-object string (starts with `{`)
+        //       → after implementation, parsed to Value::Object in step_vars
+        //   (b) _fql_filter: plain FQL string (does NOT start with `{`/`[`)
+        //       → MUST stay as Value::String (backward-compat gate; AC-004 v2.1)
+        // AC-004 v2.1: JSON-object filter value uses ISO-8601 string "2026-01-01T00:00:00Z",
+        // NOT integer 1234567890. BC-2.01.013 v1.21 EC-01-030..EC-01-033.
         let mut query_filters = HashMap::new();
         query_filters.insert(
             "_claroty_audit_filter_by".to_string(),
-            r#"{"field": "timestamp", "operation": "greater_or_equal", "value": 1234567890}"#
+            r#"{"field": "timestamp", "operation": "greater_or_equal", "value": "2026-01-01T00:00:00Z"}"#
                 .to_string(),
+        );
+        // FQL string: does NOT start with `{` or `[` — must remain Value::String.
+        // This is the backward-compat gate (AC-004 / RG-004 else-branch).
+        query_filters.insert(
+            "_fql_filter".to_string(),
+            "created_timestamp:>2026-01-01".to_string(),
         );
         let context = FetchContext::new(OrgSlug::new("claroty-rg004-org"), query_filters);
 
         let http_client = reqwest::Client::new(); // in-process test client
         let auth_provider = MockAuthProvider::new("claroty-rg004-test-token");
 
-        // Execute the pipeline. With current code:
+        // Execute the pipeline. With current code (before implementation):
         // - step_vars["query.filter._claroty_audit_filter_by"] = Value::String(r#"{"field":...}"#)
-        // - JsonBody context: json_escape → {\"field\":\"timestamp\",...}
-        // - Interpolated body: {"filter_by": {\"field\":\"timestamp\",...}} (invalid JSON)
+        // - JsonBody context: json_escape → {\"field\":\"timestamp\",\"value\":\"2026-01-01T00:00:00Z\",...}
+        // - Interpolated body: {"filter_by": {\"field\":...}, "fql": "..."} (INVALID JSON for filter_by slot)
+        // → body_json.is_ok() FAILS (Red Gate)
         // - Body sent to mock (no OffsetLimit validation), mock responds 200
         // - Pipeline returns Ok (response is valid JSON {"audit_log": [], "total": 0})
         let result = PipelineExecutor::execute(
@@ -5154,11 +5168,30 @@ mod rg004_pipeline_json_filter_tests {
             "RG-004: filter_by.operation must be 'greater_or_equal'. Got: {:?}.",
             body["filter_by"]["operation"]
         );
+        // AC-004 v2.1: value field MUST be an ISO-8601 STRING, NOT an epoch integer.
+        // BC-2.01.013 v1.21 EC-01-030..EC-01-033.
         assert_eq!(
-            body["filter_by"]["value"].as_i64().unwrap_or(0),
-            1234567890_i64,
-            "RG-004: filter_by.value must be 1234567890. Got: {:?}.",
-            body["filter_by"]["value"]
+            body["filter_by"]["value"],
+            serde_json::Value::String("2026-01-01T00:00:00Z".to_string()),
+            "RG-004: filter_by.value must be the ISO-8601 string '2026-01-01T00:00:00Z' \
+             (serde_json::Value::String), NOT an epoch integer. \
+             BC-2.01.013 v1.21 EC-01-030; AC-004 v2.1.",
+        );
+
+        // BACKWARD-COMPAT assertion (RG-004 else-branch positive gate):
+        // The FQL string 'created_timestamp:>2026-01-01' (does NOT start with `{`/`[`)
+        // MUST remain serde_json::Value::String in step_vars and arrive verbatim
+        // in the "fql" property of the POST body.
+        // This is a POSITIVE assert_eq! — NOT merely absence of panic (AC-004 / F-P1-MED-003).
+        assert_eq!(
+            body["fql"],
+            serde_json::Value::String("created_timestamp:>2026-01-01".to_string()),
+            "RG-004 backward-compat gate: FQL string 'created_timestamp:>2026-01-01' \
+             MUST remain serde_json::Value::String in step_vars (else-branch). \
+             The pipeline.rs JSON-auto-parse MUST NOT convert non-JSON strings to objects. \
+             This positive assert_eq! gates the backward-compat invariant for \
+             CrowdStrike FQL and Armis AQL sensors. BC-2.01.013 backward-compat invariant; \
+             BC-2.16.013 §Postcondition 1 else-branch; AC-004 v2.1; F-P1-MED-003.",
         );
     }
 }

@@ -1638,63 +1638,91 @@ pub async fn step9a_populate_adapter_registry(
 /// An empty return value produces `?filter=` (ignored by the DTU for empty-string filter).
 /// Build a Claroty xDome `filter_by` JSON value for `audit_logs` time-window injection.
 ///
-/// Constructs the filter object based on ADR-033 Option T1 extracted `start_time`/`end_time`:
+/// Constructs the filter object based on ADR-033 Option T1 extracted `start_time`/`end_time`.
+/// All `value` fields are ISO-8601 strings (RFC 3339), NOT epoch-millisecond integers.
 ///
-/// - No `start_time`, no `end_time` → single `greater_or_equal` at `now − 604,800,000 ms`
-///   (7-day default look-back; never unbounded — EC-001 / BC-2.01.013 §Postcondition 1).
-/// - `start_time` only → single `greater_or_equal` at the explicit epoch (EC-002 start-honored).
-/// - `end_time` only, no `start_time` → compound `and` with 7-day default lower bound +
-///   `less_or_equal` upper bound (EC-002 end-only clause).
-/// - Both bounds → compound `and` with `greater_or_equal(start)` + `less_or_equal(end)` (EC-003).
+/// Four cases per BC-2.01.013 v1.21 EC-01-030..EC-01-033:
+///
+/// - EC-01-030 — No `start_time`, no `end_time` → single `greater_or_equal` at `now − 7d`
+///   (ISO-8601 string; 7-day default look-back; never unbounded).
+/// - EC-01-031 — `start_time` only → single `greater_or_equal` at the explicit start
+///   (ISO-8601 string; explicit value honored as-is, not capped to 7-day default).
+/// - EC-01-032 — `end_time` only, no `start_time` → single `less_or_equal` at `end_time`
+///   (ISO-8601 string; NO synthetic lower bound — adding one inverts the window when
+///   `end_time` is older than `now − 7d`, producing an empty result set).
+/// - EC-01-033 — Both bounds → compound `{"operation":"and","operands":[gte(start),lte(end)]}`
+///   (ISO-8601 string values; compound key MUST be `"operands"`, NOT `"conditions"`).
 ///
 /// Returns a `serde_json::Value::Object` so the caller can serialize with `.to_string()` and
 /// pipeline.rs auto-parses it back to `Value::Object` via JSON auto-parse (BC-2.16.013 §1).
 ///
-/// The `field` is `"timestamp"` (SAP-2: matches `ClarotyAuditLogFilter` DTU ground-truth
-/// and the `timestamp` column in `claroty.sensor.toml` / `crates/prism-dtu-claroty/src/types.rs`).
-///
-/// Compound AND structure uses `"conditions"` key (matches test RG-003 assertions).
+/// The `field` is `"timestamp"` (SAP-2: matches `ApiQueryFilter` DTU ground-truth —
+/// `pub type ApiQueryFilter = HashMap<String, serde_json::Value>` with
+/// `filter_by: Option<ApiQueryFilter>` in `crates/prism-dtu-claroty/src/types.rs`).
 ///
 /// BC-2.01.013 §Postconditions Claroty audit_logs (Layer 2) row; S-CLAROTY-AUDITLOG-TIMEBOX-001.
 fn build_claroty_audit_filter_by(
     start_time: Option<&str>,
     end_time: Option<&str>,
 ) -> serde_json::Value {
-    let seven_days_ms: i64 = 7 * 24 * 3600 * 1000;
+    let default_start_iso =
+        || -> String { (chrono::Utc::now() - chrono::Duration::days(7)).to_rfc3339() };
 
-    let start_ms = match start_time {
-        Some(t) => chrono::DateTime::parse_from_rfc3339(t)
-            .map(|dt| dt.timestamp_millis())
-            .unwrap_or_else(|_| chrono::Utc::now().timestamp_millis() - seven_days_ms),
-        None => chrono::Utc::now().timestamp_millis() - seven_days_ms,
-    };
+    // Resolve the explicit start bound (if provided) to an ISO-8601 string.
+    // On parse failure, fall back to the 7-day default (graceful degradation).
+    let start_iso: Option<String> = start_time.map(|t| {
+        chrono::DateTime::parse_from_rfc3339(t)
+            .map(|dt| dt.to_rfc3339())
+            .unwrap_or_else(|_| default_start_iso())
+    });
 
     match end_time {
         Some(t) => {
-            let end_ms = chrono::DateTime::parse_from_rfc3339(t)
-                .map(|dt| dt.timestamp_millis())
-                .unwrap_or_else(|_| chrono::Utc::now().timestamp_millis());
-            serde_json::json!({
-                "operation": "and",
-                "conditions": [
-                    {
-                        "field": "timestamp",
-                        "operation": "greater_or_equal",
-                        "value": start_ms
-                    },
-                    {
+            let end_iso = chrono::DateTime::parse_from_rfc3339(t)
+                .map(|dt| dt.to_rfc3339())
+                .unwrap_or_else(|_| chrono::Utc::now().to_rfc3339());
+
+            match start_iso {
+                Some(start_iso_val) => {
+                    // EC-01-033: both bounds — compound AND filter.
+                    // Key MUST be "operands" (NOT "conditions").
+                    serde_json::json!({
+                        "operation": "and",
+                        "operands": [
+                            {
+                                "field": "timestamp",
+                                "operation": "greater_or_equal",
+                                "value": start_iso_val
+                            },
+                            {
+                                "field": "timestamp",
+                                "operation": "less_or_equal",
+                                "value": end_iso
+                            }
+                        ]
+                    })
+                }
+                None => {
+                    // EC-01-032: end-only, no start — single less_or_equal.
+                    // No synthetic lower bound: injecting now-7d when end_time < now-7d
+                    // produces an inverted (empty) window — SOUL.md §4 violation.
+                    serde_json::json!({
                         "field": "timestamp",
                         "operation": "less_or_equal",
-                        "value": end_ms
-                    }
-                ]
+                        "value": end_iso
+                    })
+                }
+            }
+        }
+        None => {
+            // EC-01-030 (no start, no end) or EC-01-031 (start only, no end).
+            let iso = start_iso.unwrap_or_else(default_start_iso);
+            serde_json::json!({
+                "field": "timestamp",
+                "operation": "greater_or_equal",
+                "value": iso
             })
         }
-        None => serde_json::json!({
-            "field": "timestamp",
-            "operation": "greater_or_equal",
-            "value": start_ms
-        }),
     }
 }
 
