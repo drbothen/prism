@@ -176,7 +176,7 @@ fn parse_received_body(body_bytes: &[u8]) -> serde_json::Value {
 // After implementation: body = {"filter_by": {"field": "timestamp",
 //   "operation": "greater_or_equal", "value": "<now-7d as ISO-8601 RFC3339>"},
 //   "offset": 0, "limit": 1000}
-// BC-2.01.013 v1.21 EC-01-030: value MUST be an ISO-8601 STRING, NOT an epoch-ms integer.
+// BC-2.01.013 v1.22 EC-01-030: value MUST be an ISO-8601 STRING, NOT an epoch-ms integer.
 // ---------------------------------------------------------------------------
 
 /// AC-001 / BC-2.01.013 §Postcondition 1:
@@ -273,20 +273,20 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_no_filter_injects_default_gr
     );
 
     // Value must be an ISO-8601 string approximately 7 days ago (±60 seconds tolerance).
-    // BC-2.01.013 v1.21 EC-01-030: all value fields MUST be ISO-8601 strings, NOT epoch integers.
+    // BC-2.01.013 v1.22 EC-01-030: all value fields MUST be ISO-8601 strings, NOT epoch integers.
     let value_str = filter_by["value"].as_str();
     assert!(
         value_str.is_some(),
         "RG-001 ISO-8601 assertion: filter_by.value must be an ISO-8601 STRING \
          (serde_json::Value::String), NOT an epoch-millisecond integer. Got: {:?}. \
-         BC-2.01.013 v1.21 EC-01-030; S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-001.",
+         BC-2.01.013 v1.22 EC-01-030; S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-001.",
         filter_by["value"]
     );
     let value_dt = chrono::DateTime::parse_from_rfc3339(value_str.unwrap());
     assert!(
         value_dt.is_ok(),
         "RG-001 ISO-8601 assertion: filter_by.value must be a parseable RFC3339/ISO-8601 \
-         string. Got: {:?}. Parse error: {:?}. BC-2.01.013 v1.21 EC-01-030.",
+         string. Got: {:?}. Parse error: {:?}. BC-2.01.013 v1.22 EC-01-030.",
         value_str.unwrap(),
         value_dt.err()
     );
@@ -300,7 +300,7 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_no_filter_injects_default_gr
             && value_secs <= expected_secs + tolerance_secs,
         "RG-001: filter_by.value must be ≈ now - 7 days (604,800 seconds). \
          Expected range [{}, {}] (seconds), got {} (seconds). Delta: {} s. \
-         BC-2.01.013 v1.21 EC-01-030; S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-001.",
+         BC-2.01.013 v1.22 EC-01-030; S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-001.",
         expected_secs - tolerance_secs,
         expected_secs + tolerance_secs,
         value_secs,
@@ -392,20 +392,20 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_explicit_start_time_honored_
     );
 
     // Value must be an ISO-8601 string equal to the explicit start_time.
-    // BC-2.01.013 v1.21 EC-01-031: all value fields MUST be ISO-8601 strings, NOT epoch integers.
+    // BC-2.01.013 v1.22 EC-01-031: all value fields MUST be ISO-8601 strings, NOT epoch integers.
     let value_str = filter_by["value"].as_str();
     assert!(
         value_str.is_some(),
         "RG-002 ISO-8601 assertion: filter_by.value must be an ISO-8601 STRING \
          (serde_json::Value::String), NOT an epoch-millisecond integer. Got: {:?}. \
-         BC-2.01.013 v1.21 EC-01-031; S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-002.",
+         BC-2.01.013 v1.22 EC-01-031; S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-002.",
         filter_by["value"]
     );
     let value_dt = chrono::DateTime::parse_from_rfc3339(value_str.unwrap());
     assert!(
         value_dt.is_ok(),
         "RG-002: filter_by.value must parse as RFC3339/ISO-8601. Got: {:?}. \
-         BC-2.01.013 v1.21 EC-01-031.",
+         BC-2.01.013 v1.22 EC-01-031.",
         value_str
     );
 
@@ -419,7 +419,7 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_explicit_start_time_honored_
         "RG-002 no-truncation assertion: filter_by.value must equal the EXPLICIT \
          start_time ({explicit_start} = {explicit_secs}s). Got {value_secs}s \
          (delta: {}s). The implementation MUST NOT substitute the 7-day fallback. \
-         BC-2.01.013 v1.21 EC-01-031.",
+         BC-2.01.013 v1.22 EC-01-031.",
         value_secs - explicit_secs
     );
 
@@ -430,7 +430,7 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_explicit_start_time_honored_
         delta_from_7day_secs > 30_i64 * 24 * 3600, // more than 30 days apart
         "RG-002 no-truncation: filter_by.value MUST NOT be the 7-day default. \
          Got {value_secs}s which is only {delta_from_7day_secs}s from the 7-day \
-         default {seven_day_default_secs}s. BC-2.01.013 v1.21 EC-01-031.",
+         default {seven_day_default_secs}s. BC-2.01.013 v1.22 EC-01-031.",
     );
 }
 
@@ -440,7 +440,7 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_explicit_start_time_honored_
 // When both `start_time` and `end_time` are provided, the POST body MUST
 // contain a compound `filter_by` with `operation = "and"` and two operands:
 // `greater_or_equal` on start_time and `less_or_equal` on end_time.
-// Compound key MUST be "operands" (NOT "conditions"). BC-2.01.013 v1.21 EC-01-033.
+// Compound key MUST be "operands" (NOT "conditions"). BC-2.01.013 v1.22 EC-01-033.
 // All value fields MUST be ISO-8601 strings, NOT epoch-ms integers.
 //
 // CURRENT FAILURE: body = {"offset": 0, "limit": 1000} — no filter_by.
@@ -451,7 +451,7 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_explicit_start_time_honored_
 /// a compound `filter_by` with `operation = "and"` and compound key `"operands"`
 /// (NOT `"conditions"`) containing two operands: `greater_or_equal` (start_time)
 /// and `less_or_equal` (end_time). All value fields are ISO-8601 strings.
-/// BC-2.01.013 v1.21 EC-01-033.
+/// BC-2.01.013 v1.22 EC-01-033.
 ///
 /// # Red Gate Failure
 ///
@@ -520,24 +520,24 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_both_bounds_compound_and() {
     );
 
     // The AND filter must have two operands. Key MUST be "operands" (NOT "conditions").
-    // BC-2.01.013 v1.21 EC-01-033: compound filter uses `operands`, NOT `conditions`.
+    // BC-2.01.013 v1.22 EC-01-033: compound filter uses `operands`, NOT `conditions`.
     assert!(
         filter_by.get("operands").is_some(),
         "RG-003 LOAD-BEARING: compound filter MUST use key 'operands' (NOT 'conditions'). \
-         filter_by keys: {:?}. BC-2.01.013 v1.21 EC-01-033; AC-003.",
+         filter_by keys: {:?}. BC-2.01.013 v1.22 EC-01-033; AC-003.",
         filter_by.as_object().map(|o| o.keys().collect::<Vec<_>>())
     );
     assert!(
         filter_by.get("conditions").is_none(),
         "RG-003: compound filter MUST NOT use key 'conditions' (wrong key — use 'operands'). \
-         BC-2.01.013 v1.21 EC-01-033; AC-003.",
+         BC-2.01.013 v1.22 EC-01-033; AC-003.",
     );
     let operands = filter_by["operands"].as_array().unwrap_or(&vec![]).clone();
     assert_eq!(
         operands.len(),
         2,
         "RG-003: filter_by.operands must have exactly 2 elements (start + end bound). \
-         Got {} operands: {:?}. BC-2.01.013 v1.21 EC-01-033.",
+         Got {} operands: {:?}. BC-2.01.013 v1.22 EC-01-033.",
         operands.len(),
         operands
     );
@@ -549,7 +549,7 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_both_bounds_compound_and() {
     assert!(
         has_gte,
         "RG-003: one operand must have operation = 'greater_or_equal' (lower bound). \
-         Operands: {:?}. BC-2.01.013 v1.21 EC-01-033.",
+         Operands: {:?}. BC-2.01.013 v1.22 EC-01-033.",
         operands
     );
 
@@ -560,12 +560,12 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_both_bounds_compound_and() {
     assert!(
         has_lte,
         "RG-003: one operand must have operation = 'less_or_equal' (upper bound). \
-         Operands: {:?}. BC-2.01.013 v1.21 EC-01-033.",
+         Operands: {:?}. BC-2.01.013 v1.22 EC-01-033.",
         operands
     );
 
     // Validate the lower-bound value is an ISO-8601 string matching start_time.
-    // BC-2.01.013 v1.21 EC-01-033: all value fields MUST be ISO-8601 strings, NOT epoch integers.
+    // BC-2.01.013 v1.22 EC-01-033: all value fields MUST be ISO-8601 strings, NOT epoch integers.
     let gte_operand = operands
         .iter()
         .find(|c| c["operation"].as_str() == Some("greater_or_equal"))
@@ -574,7 +574,7 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_both_bounds_compound_and() {
     assert!(
         gte_value_str.is_some(),
         "RG-003: greater_or_equal value must be an ISO-8601 STRING (serde_json::Value::String). \
-         Got: {:?}. BC-2.01.013 v1.21 EC-01-033.",
+         Got: {:?}. BC-2.01.013 v1.22 EC-01-033.",
         gte_operand["value"]
     );
     let gte_dt = chrono::DateTime::parse_from_rfc3339(gte_value_str.unwrap())
@@ -585,7 +585,7 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_both_bounds_compound_and() {
     assert!(
         (gte_dt.timestamp() - start_secs).abs() <= 60,
         "RG-003: greater_or_equal value must match start_time ({start_time} = {start_secs}s). \
-         Got {}s (delta: {}s). BC-2.01.013 v1.21 EC-01-033.",
+         Got {}s (delta: {}s). BC-2.01.013 v1.22 EC-01-033.",
         gte_dt.timestamp(),
         gte_dt.timestamp() - start_secs
     );
@@ -599,7 +599,7 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_both_bounds_compound_and() {
     assert!(
         lte_value_str.is_some(),
         "RG-003: less_or_equal value must be an ISO-8601 STRING (serde_json::Value::String). \
-         Got: {:?}. BC-2.01.013 v1.21 EC-01-033.",
+         Got: {:?}. BC-2.01.013 v1.22 EC-01-033.",
         lte_operand["value"]
     );
     let lte_dt = chrono::DateTime::parse_from_rfc3339(lte_value_str.unwrap())
@@ -610,7 +610,7 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_both_bounds_compound_and() {
     assert!(
         (lte_dt.timestamp() - end_secs).abs() <= 60,
         "RG-003: less_or_equal value must match end_time ({end_time} = {end_secs}s). \
-         Got {}s (delta: {}s). BC-2.01.013 v1.21 EC-01-033.",
+         Got {}s (delta: {}s). BC-2.01.013 v1.22 EC-01-033.",
         lte_dt.timestamp(),
         lte_dt.timestamp() - end_secs
     );
@@ -856,19 +856,19 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_end_only_single_less_or_equa
     );
 
     // Value must be an ISO-8601 string equal to end_time.
-    // BC-2.01.013 v1.21 EC-01-032: value is an ISO-8601 STRING, NOT an epoch integer.
+    // BC-2.01.013 v1.22 EC-01-032: value is an ISO-8601 STRING, NOT an epoch integer.
     let value_str = filter_by["value"].as_str();
     assert!(
         value_str.is_some(),
         "RG-006: filter_by.value must be an ISO-8601 STRING (serde_json::Value::String). \
-         Got: {:?}. BC-2.01.013 v1.21 EC-01-032.",
+         Got: {:?}. BC-2.01.013 v1.22 EC-01-032.",
         filter_by["value"]
     );
     let value_dt = chrono::DateTime::parse_from_rfc3339(value_str.unwrap());
     assert!(
         value_dt.is_ok(),
         "RG-006: filter_by.value must parse as RFC3339. Got: {:?}. Error: {:?}. \
-         BC-2.01.013 v1.21 EC-01-032.",
+         BC-2.01.013 v1.22 EC-01-032.",
         value_str,
         value_dt.err()
     );
@@ -879,7 +879,7 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_end_only_single_less_or_equa
     assert!(
         (value_secs - end_secs).abs() <= 60,
         "RG-006: filter_by.value must match end_time ({end_time} = {end_secs}s). \
-         Got {value_secs}s (delta: {}s). BC-2.01.013 v1.21 EC-01-032; AC-007.",
+         Got {value_secs}s (delta: {}s). BC-2.01.013 v1.22 EC-01-032; AC-007.",
         value_secs - end_secs
     );
 }
