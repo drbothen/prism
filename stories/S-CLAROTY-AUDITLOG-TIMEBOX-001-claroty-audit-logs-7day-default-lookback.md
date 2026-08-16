@@ -6,7 +6,7 @@ level: "L4"
 wave: claroty-live
 epic_id: E-DTU-FIDELITY
 priority: P1
-status: draft
+status: ready
 producer: story-writer
 timestamp: "2026-08-15T00:00:00Z"
 version: "2.2"
