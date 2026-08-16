@@ -310,8 +310,8 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_no_filter_injects_default_gr
          Root cause: spec_driven_adapter.rs does not inject _claroty_audit_filter_by \
          into FetchContext.query_filters; claroty.sensor.toml body_template = '{{}}' \
          has no filter slot; pipeline.rs step_vars seeding cannot see the filter. \
-         Fix: (1) spec_driven_adapter.rs: when sensor_id == \"claroty\" and \
-         source_table == \"claroty_audit_logs\", inject \
+         Fix: (1) spec_driven_adapter.rs: when sensor_id == \"claroty\" (sensor-scoped, \
+         NOT table-scoped — BP-001 pins this; see bare-predicate fan-out path), inject \
          query_filters[\"_claroty_audit_filter_by\"] = {{\"field\": \"timestamp\", \
          \"operation\": \"greater_or_equal\", \"value\": \"<now_minus_7d as ISO-8601 RFC3339 string>\"}}; \
          (2) claroty.sensor.toml: update body_template to include \
