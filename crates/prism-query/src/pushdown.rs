@@ -351,9 +351,14 @@ fn collect_equality_exprs(pred: &crate::ast::Predicate, out: &mut Vec<crate::ast
 /// was the source of the bound).
 ///
 /// In practice this is safe for the current sensors because:
-/// - CrowdStrike: only `created_timestamp` has `options = ["INDEX"]`.
-/// - Armis devices: only `last_seen` has `options = ["INDEX"]` (in the devices table).
-/// - Armis alerts: only `created_at` has `options = ["INDEX"]` (in the alerts table).
+/// - CrowdStrike: only `created_timestamp` has `options = ["INDEX"]` (datetime-typed).
+/// - Armis devices: `last_seen` is the only **datetime**+INDEX column (devices table).
+///   `aql` is also `options = ["INDEX"]` but is `column_type = "string"` — it carries
+///   the AQL push-down filter value and is not a temporal bound source for this function.
+/// - Armis alerts: `created_at` is the only **datetime**+INDEX column (alerts table).
+///   `aql` is also `options = ["INDEX"]` but is `column_type = "string"` — same note as
+///   Armis devices.
+/// - Claroty audit_logs: only `timestamp` has `options = ["INDEX"]` (datetime-typed).
 ///
 /// No production sensor spec has two datetime INDEX columns in the same table that
 /// a single query would target simultaneously.

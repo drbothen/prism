@@ -244,6 +244,29 @@ path = "tests/bc_2_03_007_credential_set_org_id_keyed.rs"
 name = "defect_adapter_tls_xdome_live_001"
 path = "tests/defect_adapter_tls_xdome_live_001.rs"
 
+# S-CLAROTY-AUDITLOG-TIMEBOX-001: Red Gate failing tests for Claroty audit_logs
+# time-filter push-down (ADR-033 Option T1).
+# Covers: AC-001, AC-002, AC-003, AC-005, AC-006, AC-007, AC-INDEX-CLARO-001, RG-001..003, RG-005, RG-006, RG-007, BP-001
+# (AC-004/RG-004 lives in prism-spec-engine/src/pipeline.rs rg004_pipeline_json_filter_tests)
+# BCs: BC-2.01.013, BC-2.16.013
+# Tests (13 total — 9 synthetic adapter.fetch() + 4 parser-surface run_materialization_pipeline):
+#   test_BC_2_01_013_claroty_audit_logs_layer2_no_filter_injects_default_greater_or_equal (synthetic)
+#   test_BC_2_01_013_claroty_audit_logs_layer2_explicit_start_time_honored_not_truncated (synthetic)
+#   test_BC_2_01_013_claroty_audit_logs_layer2_both_bounds_compound_and (synthetic)
+#   test_BC_2_01_013_claroty_audit_logs_layer2_filter_rejection_4xx_surfaces_e_sensor_001 (synthetic)
+#   test_BC_2_01_013_claroty_audit_logs_layer2_end_only_single_less_or_equal (synthetic)
+#   test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_claroty_injection_fires (synthetic)
+#   test_BC_2_01_013_claroty_audit_logs_timestamp_index_option_required_for_pushdown_eligibility (parser-surface)
+#   test_BC_2_01_013_claroty_audit_logs_layer2_malformed_start_time_falls_through_to_end_only (synthetic)
+#   test_BC_2_01_013_claroty_audit_logs_layer2_malformed_end_time_substitutes_now (synthetic)
+#   test_BC_2_01_013_claroty_audit_logs_layer2_string_equality_on_datetime_index_col_safe (synthetic)
+#   test_BC_2_01_013_claroty_audit_logs_ec01033_compound_and_parser_surface (parser-surface — cycle-17 LOW-004)
+#   test_BC_2_01_013_claroty_audit_logs_ec01032_end_only_parser_surface (parser-surface — cycle-18 LOW-001)
+#   test_BC_2_01_013_claroty_audit_logs_ec01030_no_filter_default_parser_surface (parser-surface — cycle-18 LOW-002)
+[[test]]
+name = "bc_2_01_013_claroty_audit_logs_layer2"
+path = "tests/bc_2_01_013_claroty_audit_logs_layer2.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"

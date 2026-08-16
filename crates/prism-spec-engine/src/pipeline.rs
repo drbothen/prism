@@ -102,6 +102,30 @@ pub struct PipelineResult {
     pub truncated: bool,
 }
 
+impl PipelineResult {
+    /// Construct a `PipelineResult` from its component fields.
+    ///
+    /// The `#[non_exhaustive]` attribute on `PipelineResult` prevents struct-literal
+    /// construction from outside the defining crate, which blocks test code in downstream
+    /// crates (e.g., `prism-bin`) from building test fixtures. This named constructor
+    /// provides a stable forward-compatible construction path — if new fields are added
+    /// to `PipelineResult`, callers of this function can be updated to supply them
+    /// while struct-literal construction remains blocked to prevent silent field omission.
+    pub fn new(
+        records: Vec<serde_json::Value>,
+        table_name: impl Into<String>,
+        request_count: u32,
+        truncated: bool,
+    ) -> Self {
+        Self {
+            records,
+            table_name: table_name.into(),
+            request_count,
+            truncated,
+        }
+    }
+}
+
 /// Executes a multi-step fetch pipeline for a sensor table (BC-2.16.002).
 pub struct PipelineExecutor;
 
@@ -262,11 +286,36 @@ impl PipelineExecutor {
                     .unwrap_or_default(),
             ),
         );
+        // BC-2.16.013 §Postcondition 1 / S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-004:
+        // Auto-parse query_filter values that are JSON-object or JSON-array strings
+        // (trimmed start is `{` or `[`) into `Value::Object` / `Value::Array`.
+        // In `JsonBody` interpolation context, `Value::Object` is inserted verbatim
+        // via `value.to_string()`, producing inline JSON.  `Value::String` goes through
+        // `json_escape()` which escapes inner quotes, producing invalid JSON when the
+        // filter is placed bare in a body template.
+        // Backward-compat: FQL/AQL strings do NOT start with `{`/`[` and remain
+        // `Value::String` — no regression for CrowdStrike or Armis push-down paths.
+        // EC-005: on parse failure, log WARN and fall back to `Value::String` passthrough.
         for (k, v) in &context.query_filters {
-            step_vars.insert(
-                format!("query.filter.{k}"),
-                serde_json::Value::String(v.clone()),
-            );
+            let trimmed = v.trim_start();
+            let parsed_value = if trimmed.starts_with('{') || trimmed.starts_with('[') {
+                match serde_json::from_str::<serde_json::Value>(v) {
+                    Ok(val) => val,
+                    Err(e) => {
+                        tracing::warn!(
+                            event_type = "query_filter_json_parse_degraded",
+                            key = %k,
+                            error = %e,
+                            "query_filter JSON auto-parse failed; \
+                             using as string passthrough (EC-005)"
+                        );
+                        serde_json::Value::String(v.clone())
+                    }
+                }
+            } else {
+                serde_json::Value::String(v.clone())
+            };
+            step_vars.insert(format!("query.filter.{k}"), parsed_value);
         }
 
         // ADR-033 T1 / AC-CWS-002: Pre-seed any ${query.filter.*} variables referenced
@@ -1642,6 +1691,9 @@ fn store_step_vars(
 /// Fan-out is triggered when a step variable reference (${step_name.field}) resolves
 /// to a JSON array. The first such array found is used as the fan-out source.
 /// Non-array variables are not considered for fan-out.
+/// Variables in the `query.filter.*` namespace are excluded from fan-out selection
+/// regardless of value type — they carry push-down filter values, not batch sources
+/// (BC-2.16.013; cycle-16 LOW-1 fix).
 ///
 /// F-LP2-HIGH-001: The source key is returned alongside the array so the caller
 /// can override `step_vars[source_key]` with each batch slice during iteration,
@@ -1668,6 +1720,15 @@ fn find_fan_out_array(
             if seen_keys.contains(&key) {
                 continue; // dedup: same var referenced in multiple templates
             }
+            // query.filter.* variables are JSON filter values, not fan-out sources.
+            // An array-valued query.filter.* var (e.g., a malformed empty array) must not
+            // trigger zero-batch fan-out (zero HTTP requests, zero rows, no error).
+            // Same namespace-based reasoning as the Object-warn exemption below:
+            // the correct discriminator is the NAMESPACE (`query.filter.*`), not the value type.
+            // S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-16 LOW-1 (TD-VSDD-060 sibling sweep of FIX-2).
+            if key.starts_with("query.filter.") {
+                continue;
+            }
             if let Some(val) = step_vars.get(&key).filter(|v| v.is_array()) {
                 seen_keys.insert(key.clone());
                 array_vars.push((key, val.clone()));
@@ -1678,12 +1739,35 @@ fn find_fan_out_array(
     // F-LP10-MED-002: After collecting array vars, check for Object-typed variables that
     // are referenced in templates but were NOT classified as fan-out source (they are
     // Objects, not Arrays). Object values passed through `value_to_string` are silently
-    // stringified as JSON into the URL/body — likely a spec bug. Emit a structured warn
-    // per offending reference so operators can detect this ambiguity.
+    // stringified as JSON — which is generally a spec bug.
+    //
+    // FIX-2 (S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-4 BLOCKING-2 revert): single-pass over
+    // ALL templates; exempt `query.filter.*` variables regardless of template context.
+    //
+    // The correct discriminator is the NAMESPACE (`query.filter.*`), NOT the template
+    // context (path_template vs body_template). Rationale:
+    //   - query.filter.* variables carry JSON filter values that are Object-valued by
+    //     design for BC-2.16.013 verbatim insertion (e.g., Claroty `_claroty_audit_filter_by`).
+    //   - ADR-031 §D8-a: `${query.filter.aql}` in Armis path_template is a String value
+    //     (never an Object), so it never triggers this Object warn regardless of exemption.
+    //   - The Claroty Object (`_claroty_audit_filter_by`) appears only in body_template
+    //     today, but the exemption must be namespace-based to avoid a false alarm if a
+    //     future spec places a query.filter.* Object in a path_template — `value_to_string`
+    //     handles Object serialization correctly in both contexts.
+    //
+    // The cycle-3 fix-burst-3 two-pass implementation was WRONG:
+    //   Pass 1 (path_template): no exemption → false alarm for query.filter.* Objects
+    //   Pass 2 (body_template): query.filter.* exemption → correct
+    // Reverted to the single-pass approach here.
     for template in &templates {
         let refs = crate::interpolation::Interpolator::extract_references(template);
         for (ref_step_name, ref_field_path) in refs {
             let key = format!("{ref_step_name}.{ref_field_path}");
+            // query.filter.* variables are Object-valued by design (BC-2.16.013).
+            // Exempt them from the fanout_invalid_source_type warn in all template contexts.
+            if key.starts_with("query.filter.") {
+                continue;
+            }
             if let Some(value) = step_vars.get(&key)
                 && value.is_object()
             {
@@ -1692,8 +1776,8 @@ fn find_fan_out_array(
                     step_name = %step.name,
                     var_name = %key,
                     actual_type = "Object",
-                    "Step references an Object-valued variable in a template; will be \
-                     stringified into URL/body. This is likely a spec bug — consider \
+                    "Step template references an Object-valued variable; will be \
+                     stringified into the request. This is likely a spec bug — consider \
                      referencing a scalar field (${{var.field}}) instead."
                 );
             }
@@ -4911,6 +4995,668 @@ mod infusion_http_client_user_agent_tests {
              (prism-spec-engine) must return Ok(Client) under the default rustls-tls stack \
              (ADR-050 §D1/D2). Got Err: {:?}",
             result.err()
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RG-004: BC-2.16.013 §Postcondition 1 — JSON filter string auto-parsed to
+// Value::Object in step_vars (S-CLAROTY-AUDITLOG-TIMEBOX-001)
+// ---------------------------------------------------------------------------
+//
+// When `context.query_filters["_claroty_audit_filter_by"]` is a JSON-object
+// string (starting with `{`), the step_vars seeding MUST parse it to
+// `Value::Object` rather than leaving it as `Value::String`.
+//
+// CURRENT FAILURE: The seeding (lines ~265-270) always stores `Value::String`.
+// In `JsonBody` interpolation context, `Value::String(s)` calls `json_escape(s)`
+// which escapes inner quotes: `{"field":"timestamp",...}` →
+// `{\"field\":\"timestamp\",...}`. Placed bare in a body template, this produces
+// INVALID JSON. The wire-level assertion `assert!(body_json.is_ok(), ...)` FAILS.
+//
+// After implementation: `Value::Object` → `value.to_string()` → inline JSON.
+// Body is valid JSON; `filter_by` is a JSON object.
+//
+// Backward-compat: FQL strings (`created_timestamp:>'...'`) do NOT start
+// with `{` or `[`, stay as `Value::String`, and are correctly json_escaped
+// when embedded as a JSON string value in a body template.
+#[cfg(test)]
+mod rg004_pipeline_json_filter_tests {
+    use std::collections::HashMap;
+
+    use prism_core::OrgSlug;
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
+
+    use crate::{
+        auth_provider::MockAuthProvider,
+        pipeline::{FetchContext, PipelineExecutor},
+        spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec},
+    };
+
+    /// BC-2.16.013 §Postcondition 1:
+    /// A `query_filter` value that is a JSON-object string (leading `{`) MUST be
+    /// stored as `Value::Object` in step_vars — not `Value::String`. This ensures
+    /// that the body_template `${query.filter._claroty_audit_filter_by}` emits
+    /// the filter inline as JSON (not as a backslash-escaped string).
+    ///
+    /// # Red Gate Failure
+    ///
+    /// The received POST body is NOT valid JSON because `Value::String` causes
+    /// `json_escape()` to produce `{\"field\":\"timestamp\",...}` — invalid JSON
+    /// when placed bare in a body template. `assert!(body_json.is_ok(), ...)` FAILS.
+    ///
+    /// # Test design (SID-1 compliant)
+    ///
+    /// Uses a SYNTHETIC spec WITHOUT OffsetLimit pagination to avoid the early
+    /// body-validation at `serde_json::from_str(&interpolated_body)` in the
+    /// OffsetLimit path. Without OffsetLimit, the malformed body is sent to the
+    /// mock server, and the wire-level assertion catches the issue.
+    ///
+    /// BC-2.16.013 §Postcondition 1; Story: S-CLAROTY-AUDITLOG-TIMEBOX-001 / RG-004.
+    #[tokio::test]
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
+    async fn test_BC_2_16_013_pipeline_json_filter_string_parsed_to_value_object_backward_compat() {
+        let mock_server = MockServer::start().await;
+
+        // Mount: respond to POST /api/v1/audit_log/get with a minimal valid response.
+        // The mock captures raw request bytes regardless of body content validity.
+        Mock::given(method("POST"))
+            .and(path("/api/v1/audit_log/get"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"audit_log": [], "total": 0})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        // Synthetic SensorSpec — one POST step with a body_template that uses
+        // ${query.filter._claroty_audit_filter_by}. NO OffsetLimit pagination
+        // (pagination = None) so the body is sent as-is without early validation.
+        let spec = SensorSpec {
+            sensor_id: "claroty".to_string(),
+            name: "Claroty audit filter backward-compat test".to_string(),
+            auth_type: AuthType::BearerStatic,
+            base_url: mock_server.uri(),
+            tables: vec![TableSpec::new_point_in_time(
+                "audit_logs",
+                "audit_activity",
+                vec![ColumnSpec {
+                    name: "id".to_string(),
+                    column_type: prism_core::ColumnType::String,
+                    ocsf_field: None,
+                    options: vec![],
+                    timestamp_formats: vec![],
+                    timestamp_fallback_chain: vec![],
+                    source_path: None,
+                }],
+                vec![FetchStep {
+                    name: "fetch_audit_logs".to_string(),
+                    method: "POST".to_string(),
+                    path_template: "/api/v1/audit_log/get".to_string(),
+                    // body_template uses two filter slots:
+                    //   (a) JSON-object slot for Claroty filter_by (must expand to Value::Object)
+                    //   (b) quoted string slot for FQL backward-compat (must stay Value::String)
+                    body_template: Some(
+                        r#"{"filter_by": ${query.filter._claroty_audit_filter_by}, "fql": "${query.filter._fql_filter}"}"#.to_string(),
+                    ),
+                    response_path: "$.audit_log".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    // NO OffsetLimit — avoids the serde_json::from_str early-failure
+                    // so the malformed body reaches the mock server.
+                    pagination: None,
+                }],
+            )],
+            rate_limit_hints: None,
+            version: "1.0.0".to_string(),
+            credential_refs: vec![],
+            auth_plugin: None,
+            file_hash: String::new(),
+            source_path: String::new(),
+            mode: crate::types::DtuMode::Shared,
+            probe_table: None,
+        };
+
+        // FetchContext: two entries —
+        //   (a) _claroty_audit_filter_by: JSON-object string (starts with `{`)
+        //       → after implementation, parsed to Value::Object in step_vars
+        //   (b) _fql_filter: plain FQL string (does NOT start with `{`/`[`)
+        //       → MUST stay as Value::String (backward-compat gate; AC-004)
+        // AC-004: JSON-object filter value uses ISO-8601 string "2026-01-01T00:00:00Z",
+        // NOT integer 1234567890. BC-2.01.013 EC-01-030..EC-01-033.
+        let mut query_filters = HashMap::new();
+        query_filters.insert(
+            "_claroty_audit_filter_by".to_string(),
+            r#"{"field": "timestamp", "operation": "greater_or_equal", "value": "2026-01-01T00:00:00Z"}"#
+                .to_string(),
+        );
+        // FQL string: does NOT start with `{` or `[` — must remain Value::String.
+        // This is the backward-compat gate (AC-004 / RG-004 else-branch).
+        query_filters.insert(
+            "_fql_filter".to_string(),
+            "created_timestamp:>2026-01-01".to_string(),
+        );
+        let context = FetchContext::new(OrgSlug::new("claroty-rg004-org"), query_filters);
+
+        let http_client = reqwest::Client::new(); // in-process test client
+        let auth_provider = MockAuthProvider::new("claroty-rg004-test-token");
+
+        // Execute the pipeline. With current code (before implementation):
+        // - step_vars["query.filter._claroty_audit_filter_by"] = Value::String(r#"{"field":...}"#)
+        // - JsonBody context: json_escape → {\"field\":\"timestamp\",\"value\":\"2026-01-01T00:00:00Z\",...}
+        // - Interpolated body: {"filter_by": {\"field\":...}, "fql": "..."} (INVALID JSON for filter_by slot)
+        // → body_json.is_ok() FAILS (Red Gate)
+        // - Body sent to mock (no OffsetLimit validation), mock responds 200
+        // - Pipeline returns Ok (response is valid JSON {"audit_log": [], "total": 0})
+        let result = PipelineExecutor::execute(
+            &spec,
+            &spec.tables[0],
+            &context,
+            &http_client,
+            &auth_provider,
+        )
+        .await;
+
+        // The pipeline MUST succeed — the mock returns 200 with a valid response body.
+        assert!(
+            result.is_ok(),
+            "RG-004: PipelineExecutor::execute must succeed against a 200 mock. \
+             Got Err: {:?}. \
+             This spec uses pagination = None so the OffsetLimit body-validation path \
+             is not reached. If the pipeline failed, check body interpolation logic.",
+            result.err()
+        );
+
+        // Check the outbound POST body at the wire level.
+        let requests = mock_server.received_requests().await.unwrap_or_default();
+        assert!(
+            !requests.is_empty(),
+            "RG-004: PipelineExecutor::execute must have issued a POST to \
+             /api/v1/audit_log/get. Got no requests."
+        );
+
+        let body_bytes = &requests[0].body;
+        let body_str =
+            std::str::from_utf8(body_bytes).expect("received POST body must be valid UTF-8");
+
+        let body_json = serde_json::from_str::<serde_json::Value>(body_str);
+
+        // LOAD-BEARING Red Gate assertion (RG-004):
+        // The received POST body MUST be valid JSON.
+        // FAILS BEFORE IMPLEMENTATION: step_vars seeding stores query_filters as
+        // Value::String; json_escape() produces {\"field\":\"timestamp\",...} which
+        // is NOT valid JSON when placed bare in a body template.
+        assert!(
+            body_json.is_ok(),
+            "RG-004 LOAD-BEARING: POST body must be valid JSON when \
+             _claroty_audit_filter_by is a JSON-object string. \
+             Got: '{body_str}'. Parse error: {:?}. \
+             Root cause: pipeline.rs step_vars seeding stores all query_filters as \
+             Value::String; JsonBody interpolation calls json_escape() which produces \
+             {{\\\"field\\\":\\\"timestamp\\\"...}} — NOT valid JSON when placed bare \
+             in a body template. \
+             Fix (BC-2.16.013 §Postcondition 1): detect strings starting with '{{' or \
+             '[' and auto-parse to Value::Object/Value::Array before seeding step_vars. \
+             Backward-compat: non-JSON strings (FQL 'created_timestamp:>...') \
+             do not start with '{{' and MUST stay as Value::String.",
+            body_json.as_ref().err()
+        );
+
+        // Secondary assertion: filter_by must be a JSON object.
+        let body = body_json.unwrap();
+        assert!(
+            body["filter_by"].is_object(),
+            "RG-004 SECONDARY: filter_by in the POST body must be a JSON object. \
+             Got: {:?}. BC-2.16.013 §Postcondition 1.",
+            body["filter_by"]
+        );
+
+        // Verify the filter_by contents match the original JSON string values.
+        assert_eq!(
+            body["filter_by"]["field"].as_str().unwrap_or(""),
+            "timestamp",
+            "RG-004: filter_by.field must be 'timestamp'. Got: {:?}.",
+            body["filter_by"]["field"]
+        );
+        assert_eq!(
+            body["filter_by"]["operation"].as_str().unwrap_or(""),
+            "greater_or_equal",
+            "RG-004: filter_by.operation must be 'greater_or_equal'. Got: {:?}.",
+            body["filter_by"]["operation"]
+        );
+        // AC-004: value field MUST be an ISO-8601 STRING, NOT an epoch integer.
+        // BC-2.01.013 EC-01-030..EC-01-033.
+        assert_eq!(
+            body["filter_by"]["value"],
+            serde_json::Value::String("2026-01-01T00:00:00Z".to_string()),
+            "RG-004: filter_by.value must be the ISO-8601 string '2026-01-01T00:00:00Z' \
+             (serde_json::Value::String), NOT an epoch integer. \
+             BC-2.01.013 EC-01-030; AC-004.",
+        );
+
+        // BACKWARD-COMPAT assertion (RG-004 else-branch positive gate):
+        // The FQL string 'created_timestamp:>2026-01-01' (does NOT start with `{`/`[`)
+        // MUST remain serde_json::Value::String in step_vars and arrive verbatim
+        // in the "fql" property of the POST body.
+        // This is a POSITIVE assert_eq! — NOT merely absence of panic (AC-004 / F-P1-MED-003).
+        assert_eq!(
+            body["fql"],
+            serde_json::Value::String("created_timestamp:>2026-01-01".to_string()),
+            "RG-004 backward-compat gate: FQL string 'created_timestamp:>2026-01-01' \
+             MUST remain serde_json::Value::String in step_vars (else-branch). \
+             The pipeline.rs JSON-auto-parse MUST NOT convert non-JSON strings to objects. \
+             This positive assert_eq! gates the backward-compat invariant for \
+             CrowdStrike FQL and Armis AQL sensors. BC-2.01.013 backward-compat invariant; \
+             BC-2.16.013 §Postcondition 1 else-branch; AC-004; F-P1-MED-003.",
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // FIX-3 (S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-4 MED-1) — query_filter_json_parse_degraded
+    // warn path: fires when a filter value starts with `{` or `[` but fails JSON parse.
+    // ---------------------------------------------------------------------------
+
+    /// FIX-3 / BC-2.16.002 catalog row `query_filter_json_parse_degraded` —
+    /// warn emitted when a filter value begins with `{` or `[` (appears to be JSON)
+    /// but `serde_json::from_str` fails to parse it.
+    ///
+    /// The cycle-3 BC row v2.21 had two errors:
+    ///   (1) Trigger condition: "non-JSON string such as a bare UUID" — WRONG.
+    ///       A bare UUID does NOT start with `{`/`[`, so it bypasses the guard and
+    ///       goes to `Value::String` passthrough WITHOUT triggering this warn.
+    ///   (2) Recurrence: "per step execution" — WRONG. The step_vars seeding loop
+    ///       runs once per pipeline execution (before any step iteration).
+    ///
+    /// This test exercises the CORRECT trigger path: a filter value that starts with
+    /// `{` (looks like JSON) but is not valid JSON. The warn MUST fire exactly once
+    /// per pipeline execution for that filter key.
+    ///
+    /// BC-2.16.002 catalog row `query_filter_json_parse_degraded`; BC-2.16.013 EC-005;
+    /// S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-3 cycle-4 MED-1.
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
+    async fn test_BC_2_16_013_query_filter_json_parse_degraded_warn_on_starts_with_brace() {
+        let mock_server = MockServer::start().await;
+
+        // A POST step; respond with an empty result.
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"audit_log": [], "total": 0})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        // Minimal spec: POST step, no filter references in template (filter key is not
+        // interpolated — the seeding loop processes ALL query_filters regardless).
+        let spec = SensorSpec {
+            sensor_id: "test_sensor".to_string(),
+            name: "EC-005 warn test sensor".to_string(),
+            auth_type: AuthType::BearerStatic,
+            base_url: mock_server.uri(),
+            tables: vec![TableSpec::new_point_in_time(
+                "items",
+                "system_activity",
+                vec![ColumnSpec {
+                    name: "id".to_string(),
+                    column_type: prism_core::ColumnType::String,
+                    ocsf_field: None,
+                    options: vec![],
+                    timestamp_formats: vec![],
+                    timestamp_fallback_chain: vec![],
+                    source_path: None,
+                }],
+                vec![FetchStep {
+                    name: "fetch_items".to_string(),
+                    method: "POST".to_string(),
+                    path_template: "/api/v1/items".to_string(),
+                    body_template: Some(r#"{"query": "all"}"#.to_string()),
+                    response_path: "$.audit_log".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                }],
+            )],
+            rate_limit_hints: None,
+            version: "1.0.0".to_string(),
+            credential_refs: vec![],
+            auth_plugin: None,
+            file_hash: String::new(),
+            source_path: String::new(),
+            mode: crate::types::DtuMode::Shared,
+            probe_table: None,
+        };
+
+        // filter value starts with `{` (triggers the JSON-auto-parse guard) but is
+        // NOT valid JSON (missing closing brace + colon+value required by JSON spec).
+        // This is the activation condition for query_filter_json_parse_degraded:
+        //   `starts_with('{') || starts_with('[')` → true → serde_json::from_str → Err
+        //   → warn fires → value falls back to Value::String passthrough (EC-005).
+        //
+        // A bare UUID like "f47ac10b-58cc-4372-a567-0e02b2c3d479" would NOT activate
+        // this guard (doesn't start with `{`/`[`) — that is the corrected understanding
+        // in BC-2.16.002 v2.22 (cycle-4 FIX-3).
+        let mut query_filters = HashMap::new();
+        query_filters.insert(
+            "bad_json_filter".to_string(),
+            "{not-valid-json".to_string(), // starts with `{` but not parseable
+        );
+        let context = FetchContext::new(OrgSlug::new("ec005-warn-test-org"), query_filters);
+
+        let http_client = reqwest::Client::new();
+        let auth_provider = MockAuthProvider::new("ec005-warn-test-token");
+
+        let result = PipelineExecutor::execute(
+            &spec,
+            &spec.tables[0],
+            &context,
+            &http_client,
+            &auth_provider,
+        )
+        .await;
+
+        // The pipeline MUST succeed despite the degraded filter (EC-005 string passthrough).
+        assert!(
+            result.is_ok(),
+            "FIX-3 EC-005: pipeline MUST succeed when a query filter starts with `{{` \
+             but is not valid JSON — the value falls back to string passthrough. \
+             Got Err: {:?}",
+            result.err()
+        );
+
+        // LOAD-BEARING (FIX-3 / BC-2.16.002 v2.22 catalog row trigger verification):
+        // query_filter_json_parse_degraded WARN MUST be emitted when a filter value
+        // starts with `{` or `[` but serde_json::from_str fails.
+        //
+        // This verifies the CORRECT trigger condition (not "bare UUID") — cycle-4 MED-1:
+        //   - `{not-valid-json` starts with `{` → enters JSON auto-parse guard
+        //   - serde_json::from_str fails → warn fires
+        //   - value falls back to Value::String passthrough
+        assert!(
+            logs_contain("query_filter_json_parse_degraded"),
+            "FIX-3 REGRESSION (BC-2.16.002 v2.22 / cycle-4 MED-1): \
+             query_filter_json_parse_degraded WARN MUST be emitted when a filter \
+             value starts with `{{` but fails JSON parse. \
+             Trigger condition: `starts_with('{{') || starts_with('[')` → true → \
+             serde_json::from_str Err → warn. \
+             This test uses '{{not-valid-json' (starts with `{{`, not valid JSON). \
+             If this fails, the EC-005 warn arm was removed or the guard was changed. \
+             BC-2.16.002 catalog row `query_filter_json_parse_degraded`; \
+             S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-3."
+        );
+    }
+
+    /// BC-2.16.013 §Postcondition 1 / S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-2 BLOCKING-1:
+    /// `find_fan_out_array` MUST NOT emit `fanout_invalid_source_type` WARN for
+    /// `query.filter.*` keys, even when their step_vars value is `Value::Object`.
+    ///
+    /// `query.filter.*` keys (e.g., `_claroty_audit_filter_by`) are stored as
+    /// `Value::Object` by design — the `InterpolationContext::JsonBody` path does
+    /// verbatim JSON insertion (`value.to_string()` inline), NOT string serialization.
+    /// Emitting the warn is a false audit signal and misleads maintainers.
+    ///
+    /// # Red Gate failure (before fix)
+    ///
+    /// `find_fan_out_array` warns for every `Value::Object` in step_vars, firing on
+    /// every `audit_logs` fetch and polluting the SIEM audit trail.
+    ///
+    /// BC-2.16.013 §Postcondition 1; S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-2 BLOCKING-1.
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
+    async fn test_BC_2_16_013_pipeline_json_filter_object_no_fanout_warn_emitted() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/api/v1/audit_log/get"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"audit_log": [], "total": 0})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        // Reuse the same synthetic spec as RG-004 — one POST step using
+        // ${query.filter._claroty_audit_filter_by} in body_template, no OffsetLimit.
+        let spec = SensorSpec {
+            sensor_id: "claroty".to_string(),
+            name: "Claroty no-fanout-warn test".to_string(),
+            auth_type: AuthType::BearerStatic,
+            base_url: mock_server.uri(),
+            tables: vec![TableSpec::new_point_in_time(
+                "audit_logs",
+                "audit_activity",
+                vec![ColumnSpec {
+                    name: "id".to_string(),
+                    column_type: prism_core::ColumnType::String,
+                    ocsf_field: None,
+                    options: vec![],
+                    timestamp_formats: vec![],
+                    timestamp_fallback_chain: vec![],
+                    source_path: None,
+                }],
+                vec![FetchStep {
+                    name: "fetch_audit_logs".to_string(),
+                    method: "POST".to_string(),
+                    path_template: "/api/v1/audit_log/get".to_string(),
+                    body_template: Some(
+                        r#"{"filter_by": ${query.filter._claroty_audit_filter_by}}"#.to_string(),
+                    ),
+                    response_path: "$.audit_log".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                }],
+            )],
+            rate_limit_hints: None,
+            version: "1.0.0".to_string(),
+            credential_refs: vec![],
+            auth_plugin: None,
+            file_hash: String::new(),
+            source_path: String::new(),
+            mode: crate::types::DtuMode::Shared,
+            probe_table: None,
+        };
+
+        // FetchContext: _claroty_audit_filter_by is a JSON-object string.
+        // After seeding, step_vars stores this as Value::Object — the correct BC-designed shape.
+        let mut query_filters = HashMap::new();
+        query_filters.insert(
+            "_claroty_audit_filter_by".to_string(),
+            r#"{"field": "timestamp", "operation": "greater_or_equal", "value": "2026-01-01T00:00:00Z"}"#
+                .to_string(),
+        );
+        let context = FetchContext::new(OrgSlug::new("claroty-no-warn-org"), query_filters);
+
+        let http_client = reqwest::Client::new();
+        let auth_provider = MockAuthProvider::new("claroty-no-warn-token");
+
+        let result = PipelineExecutor::execute(
+            &spec,
+            &spec.tables[0],
+            &context,
+            &http_client,
+            &auth_provider,
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "test_BC_2_16_013_pipeline_json_filter_object_no_fanout_warn_emitted: \
+             pipeline must succeed against the 200 mock. Got Err: {:?}.",
+            result.err()
+        );
+
+        // LOAD-BEARING assertion (cycle-2 BLOCKING-1):
+        // `fanout_invalid_source_type` WARN MUST NOT appear in the captured log output.
+        // `query.filter.*` keys are Object-valued by design (BC-2.16.013 §Postcondition 1).
+        // Firing this warn on the designed happy path degrades the SIEM audit trail.
+        assert!(
+            !logs_contain("fanout_invalid_source_type"),
+            "test_BC_2_16_013_pipeline_json_filter_object_no_fanout_warn_emitted: \
+             fanout_invalid_source_type WARN must NOT be emitted for query.filter.* keys. \
+             BC-2.16.013 §Postcondition 1 designates _claroty_audit_filter_by as \
+             Object-valued (JsonBody verbatim insertion). \
+             Cycle-2 BLOCKING-1: restrict the warn to non-query.filter.* keys only."
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // FIX-2 cycle-4 companion — path_template scenario:
+    // query.filter.* Object in path_template MUST NOT emit fanout_invalid_source_type.
+    // ---------------------------------------------------------------------------
+
+    /// FIX-2 / BC-2.16.013 — `query.filter.*` Object-valued variable in path_template
+    /// MUST NOT emit `fanout_invalid_source_type` warn.
+    ///
+    /// The cycle-3 two-pass implementation exempted `query.filter.*` only in body_template
+    /// (Pass 2), but NOT in path_template (Pass 1). This would produce a false alarm if
+    /// any spec placed a `query.filter.*` Object in a path_template.
+    ///
+    /// The correct fix (cycle-4 FIX-2): exempt `query.filter.*` namespace in ALL template
+    /// contexts (single-pass over the `templates` vec, same exemption for path and body).
+    ///
+    /// This test calls `find_fan_out_array` directly (unit test) with a `FetchStep` whose
+    /// path_template references `${query.filter._json_filter}` and step_vars carrying that
+    /// key as a `Value::Object`. The function MUST NOT emit `fanout_invalid_source_type`.
+    ///
+    /// BC-2.16.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-2 cycle-4 BLOCKING-2.
+    #[test]
+    #[tracing_test::traced_test]
+    #[allow(clippy::unwrap_used)]
+    fn test_BC_2_16_013_pipeline_json_filter_object_path_template_no_fanout_warn_emitted() {
+        // FetchStep with a path_template that references ${query.filter._json_filter}.
+        // This simulates a hypothetical spec where a query.filter.* Object appears in a
+        // path_template (e.g., future ADR-031 §D8-a extension).
+        let step = FetchStep {
+            name: "fetch_step".to_string(),
+            method: "GET".to_string(),
+            path_template: "/api/v1/query/${query.filter._json_filter}".to_string(),
+            body_template: None,
+            response_path: "$.data".to_string(),
+            pagination_cursor_path: None,
+            variables_produced: vec![],
+            fan_out_batch_size: None,
+            pagination: None,
+        };
+
+        // step_vars: query.filter._json_filter is a Value::Object (as seeded by
+        // seed_query_filters when the raw filter value starts with '{').
+        let mut step_vars = HashMap::new();
+        step_vars.insert(
+            "query.filter._json_filter".to_string(),
+            serde_json::json!({"field": "timestamp", "value": "2024-01-01T00:00:00Z"}),
+        );
+
+        // Call find_fan_out_array directly — it is a module-private function, accessible
+        // from this #[cfg(test)] block in the same file.
+        let fan_out = super::find_fan_out_array(&step, &step_vars);
+
+        // ASSERTION 1: No array-valued variable in step_vars → no fan-out detected.
+        assert!(
+            fan_out.is_none(),
+            "FIX-2 companion (path_template): find_fan_out_array should return None when \
+             step_vars contains only an Object-valued variable (not Array). \
+             Got: {fan_out:?}"
+        );
+
+        // ASSERTION 2 (LOAD-BEARING — FIX-2 cycle-4 BLOCKING-2 regression):
+        // fanout_invalid_source_type WARN MUST NOT be emitted for query.filter.* keys
+        // even when they appear in path_template references.
+        //
+        // FAILS under the cycle-3 two-pass impl (Pass 1 path_template: no exemption →
+        // Object in path_template triggers warn). PASSES after FIX-2 single-pass revert
+        // (query.filter.* exempt in all template contexts).
+        assert!(
+            !logs_contain("fanout_invalid_source_type"),
+            "FIX-2 REGRESSION (path_template — cycle-4 BLOCKING-2): \
+             fanout_invalid_source_type WARN must NOT be emitted for query.filter.* \
+             Object-valued variables, even when referenced in path_template. \
+             The correct discriminator is the NAMESPACE (query.filter.*), not the \
+             template context (path vs body). \
+             The cycle-3 two-pass impl incorrectly fired this warn for path_template \
+             query.filter.* Objects. \
+             BC-2.16.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-2 cycle-4."
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Cycle-16 LOW-1 regression: query.filter.* Array-valued vars must NOT be
+    // selected as fan-out sources (TD-VSDD-060 sibling sweep of FIX-2).
+    // ---------------------------------------------------------------------------
+
+    /// Cycle-16 LOW-1 / BC-2.16.013 — `query.filter.*` Array-valued variable MUST NOT be
+    /// selected as a fan-out source by `find_fan_out_array`.
+    ///
+    /// FIX-2 (S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-4) added `if key.starts_with("query.filter.") { continue; }`
+    /// to the Object-warn loop, exempting `query.filter.*` from the `fanout_invalid_source_type` warn.
+    /// That fix omitted the sibling site — the `array_vars` collection loop immediately above,
+    /// which selects the fan-out source. An Array-valued `query.filter.*` variable (e.g.,
+    /// `query.filter.aql = "[]"` after auto-parse) would be selected, producing zero batches,
+    /// zero HTTP requests, zero rows, and no error (SOUL.md §4 silent-empty class).
+    ///
+    /// This test calls `find_fan_out_array` directly with a step whose body_template references
+    /// `${query.filter._claroty_audit_filter_by}` and step_vars carrying that key as
+    /// `Value::Array([])`. The function MUST return `None` (not selected as fan-out source).
+    ///
+    /// BC-2.16.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-16 LOW-1.
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_BC_2_16_013_pipeline_json_array_filter_no_fanout_selection() {
+        // FetchStep with a body_template that references ${query.filter._claroty_audit_filter_by}.
+        let step = FetchStep {
+            name: "fetch_audit_logs".to_string(),
+            method: "POST".to_string(),
+            path_template: "/api/v1/audit_log/get".to_string(),
+            body_template: Some(
+                r#"{"filter_by": ${query.filter._claroty_audit_filter_by}}"#.to_string(),
+            ),
+            response_path: "$.audit_log".to_string(),
+            pagination_cursor_path: None,
+            variables_produced: vec![],
+            fan_out_batch_size: None,
+            pagination: None,
+        };
+
+        // step_vars: query.filter._claroty_audit_filter_by is a Value::Array([]).
+        // This simulates the malformed/edge-case path where auto-parse produces an Array
+        // from a query.filter.* value. Must NOT be selected as the fan-out source.
+        let mut step_vars = HashMap::new();
+        step_vars.insert(
+            "query.filter._claroty_audit_filter_by".to_string(),
+            serde_json::Value::Array(vec![]),
+        );
+
+        let fan_out = super::find_fan_out_array(&step, &step_vars);
+
+        // LOAD-BEARING ASSERTION (cycle-16 LOW-1 regression):
+        // find_fan_out_array MUST return None when step_vars contains only a
+        // query.filter.* variable, even if that variable is Array-valued.
+        //
+        // Rationale: query.filter.* variables are JSON filter values injected into
+        // the request body, not fan-out batch sources. Selecting them as fan-out
+        // sources with an empty array produces zero HTTP requests, zero rows, and
+        // no error — the SOUL.md §4 silent-empty defect class.
+        //
+        // The correct discriminator is the NAMESPACE (query.filter.*), not the value type.
+        // This exemption mirrors the Object-warn exemption in the loop below (FIX-2).
+        assert!(
+            fan_out.is_none(),
+            "cycle-16 LOW-1 REGRESSION: find_fan_out_array MUST return None for \
+             query.filter.* variables regardless of their value type (Object or Array). \
+             An Array-valued query.filter.* var must NOT be selected as the fan-out source — \
+             doing so produces zero-batch fan-out (zero HTTP requests, zero rows, no error). \
+             The correct discriminator is the NAMESPACE (query.filter.*), not the value type. \
+             Got: {fan_out:?} — this means the array_vars collection loop is missing the \
+             query.filter.* namespace exemption. \
+             BC-2.16.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-16 LOW-1."
         );
     }
 }
