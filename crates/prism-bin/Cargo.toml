@@ -246,7 +246,8 @@ path = "tests/defect_adapter_tls_xdome_live_001.rs"
 
 # S-CLAROTY-AUDITLOG-TIMEBOX-001: Red Gate failing tests for Claroty audit_logs
 # time-filter push-down (ADR-033 Option T1).
-# Covers: AC-001..004, RG-001..003, RG-005
+# Covers: AC-001..004, RG-001..003, RG-005, RG-006, RG-007, BP-001
+# (RG-004 lives in prism-spec-engine/src/pipeline.rs rg004_pipeline_json_filter_tests)
 # BCs: BC-2.01.013, BC-2.16.013
 [[test]]
 name = "bc_2_01_013_claroty_audit_logs_layer2"

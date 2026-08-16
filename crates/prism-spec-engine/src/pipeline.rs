@@ -1702,12 +1702,24 @@ fn find_fan_out_array(
     // F-LP10-MED-002: After collecting array vars, check for Object-typed variables that
     // are referenced in templates but were NOT classified as fan-out source (they are
     // Objects, not Arrays). Object values passed through `value_to_string` are silently
-    // stringified as JSON into the URL/body — likely a spec bug. Emit a structured warn
-    // per offending reference so operators can detect this ambiguity.
+    // stringified as JSON into the URL/body for non-JsonBody contexts — likely a spec bug.
+    // Emit a structured warn per offending reference so operators can detect this ambiguity.
+    //
+    // EXEMPTION: `query.filter.*` keys are Object-valued by design (BC-2.16.013
+    // §Postcondition 1). The `InterpolationContext::JsonBody` path does verbatim JSON
+    // insertion (`value.to_string()` as inline JSON), NOT string serialization. Emitting
+    // this warn for `query.filter.*` would be a false audit signal and would mislead
+    // maintainers into removing the JSON-object representation (which would break the
+    // Claroty audit_logs body_template).
     for template in &templates {
         let refs = crate::interpolation::Interpolator::extract_references(template);
         for (ref_step_name, ref_field_path) in refs {
             let key = format!("{ref_step_name}.{ref_field_path}");
+            // query.filter.* keys are Object-valued by design (BC-2.16.013 §Postcondition 1
+            // JsonBody verbatim insertion); only warn for step-produced and other variables.
+            if key.starts_with("query.filter.") {
+                continue;
+            }
             if let Some(value) = step_vars.get(&key)
                 && value.is_object()
             {
@@ -1717,8 +1729,8 @@ fn find_fan_out_array(
                     var_name = %key,
                     actual_type = "Object",
                     "Step references an Object-valued variable in a template; will be \
-                     stringified into URL/body. This is likely a spec bug — consider \
-                     referencing a scalar field (${{var.field}}) instead."
+                     stringified into URL/body for non-JsonBody contexts. This is likely a \
+                     spec bug — consider referencing a scalar field (${{var.field}}) instead."
                 );
             }
         }
@@ -5192,6 +5204,122 @@ mod rg004_pipeline_json_filter_tests {
              This positive assert_eq! gates the backward-compat invariant for \
              CrowdStrike FQL and Armis AQL sensors. BC-2.01.013 backward-compat invariant; \
              BC-2.16.013 §Postcondition 1 else-branch; AC-004; F-P1-MED-003.",
+        );
+    }
+
+    /// BC-2.16.013 §Postcondition 1 / S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-2 BLOCKING-1:
+    /// `find_fan_out_array` MUST NOT emit `fanout_invalid_source_type` WARN for
+    /// `query.filter.*` keys, even when their step_vars value is `Value::Object`.
+    ///
+    /// `query.filter.*` keys (e.g., `_claroty_audit_filter_by`) are stored as
+    /// `Value::Object` by design — the `InterpolationContext::JsonBody` path does
+    /// verbatim JSON insertion (`value.to_string()` inline), NOT string serialization.
+    /// Emitting the warn is a false audit signal and misleads maintainers.
+    ///
+    /// # Red Gate failure (before fix)
+    ///
+    /// `find_fan_out_array` warns for every `Value::Object` in step_vars, firing on
+    /// every `audit_logs` fetch and polluting the SIEM audit trail.
+    ///
+    /// BC-2.16.013 §Postcondition 1; S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-2 BLOCKING-1.
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
+    async fn test_BC_2_16_013_pipeline_json_filter_object_no_fanout_warn_emitted() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/api/v1/audit_log/get"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"audit_log": [], "total": 0})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        // Reuse the same synthetic spec as RG-004 — one POST step using
+        // ${query.filter._claroty_audit_filter_by} in body_template, no OffsetLimit.
+        let spec = SensorSpec {
+            sensor_id: "claroty".to_string(),
+            name: "Claroty no-fanout-warn test".to_string(),
+            auth_type: AuthType::BearerStatic,
+            base_url: mock_server.uri(),
+            tables: vec![TableSpec::new_point_in_time(
+                "audit_logs",
+                "audit_activity",
+                vec![ColumnSpec {
+                    name: "id".to_string(),
+                    column_type: prism_core::ColumnType::String,
+                    ocsf_field: None,
+                    options: vec![],
+                    timestamp_formats: vec![],
+                    timestamp_fallback_chain: vec![],
+                    source_path: None,
+                }],
+                vec![FetchStep {
+                    name: "fetch_audit_logs".to_string(),
+                    method: "POST".to_string(),
+                    path_template: "/api/v1/audit_log/get".to_string(),
+                    body_template: Some(
+                        r#"{"filter_by": ${query.filter._claroty_audit_filter_by}}"#.to_string(),
+                    ),
+                    response_path: "$.audit_log".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                }],
+            )],
+            rate_limit_hints: None,
+            version: "1.0.0".to_string(),
+            credential_refs: vec![],
+            auth_plugin: None,
+            file_hash: String::new(),
+            source_path: String::new(),
+            mode: crate::types::DtuMode::Shared,
+            probe_table: None,
+        };
+
+        // FetchContext: _claroty_audit_filter_by is a JSON-object string.
+        // After seeding, step_vars stores this as Value::Object — the correct BC-designed shape.
+        let mut query_filters = HashMap::new();
+        query_filters.insert(
+            "_claroty_audit_filter_by".to_string(),
+            r#"{"field": "timestamp", "operation": "greater_or_equal", "value": "2026-01-01T00:00:00Z"}"#
+                .to_string(),
+        );
+        let context = FetchContext::new(OrgSlug::new("claroty-no-warn-org"), query_filters);
+
+        let http_client = reqwest::Client::new();
+        let auth_provider = MockAuthProvider::new("claroty-no-warn-token");
+
+        let result = PipelineExecutor::execute(
+            &spec,
+            &spec.tables[0],
+            &context,
+            &http_client,
+            &auth_provider,
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "test_BC_2_16_013_pipeline_json_filter_object_no_fanout_warn_emitted: \
+             pipeline must succeed against the 200 mock. Got Err: {:?}.",
+            result.err()
+        );
+
+        // LOAD-BEARING assertion (cycle-2 BLOCKING-1):
+        // `fanout_invalid_source_type` WARN MUST NOT appear in the captured log output.
+        // `query.filter.*` keys are Object-valued by design (BC-2.16.013 §Postcondition 1).
+        // Firing this warn on the designed happy path degrades the SIEM audit trail.
+        assert!(
+            !logs_contain("fanout_invalid_source_type"),
+            "test_BC_2_16_013_pipeline_json_filter_object_no_fanout_warn_emitted: \
+             fanout_invalid_source_type WARN must NOT be emitted for query.filter.* keys. \
+             BC-2.16.013 §Postcondition 1 designates _claroty_audit_filter_by as \
+             Object-valued (JsonBody verbatim insertion). \
+             Cycle-2 BLOCKING-1: restrict the warn to non-query.filter.* keys only."
         );
     }
 }

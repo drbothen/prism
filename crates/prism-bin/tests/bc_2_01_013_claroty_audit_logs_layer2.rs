@@ -1014,8 +1014,16 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_
     // Run fetch with source_table = "claroty".
     // Before FIX-1: guard fails → `_claroty_audit_filter_by` unseeded → body_template
     //   produces `{"filter_by": }` (invalid JSON) → fetch error.
-    // After FIX-1: guard fires → filter_by injected → valid POST body.
-    let _result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+    // After FIX-1: guard fires → filter_by injected → valid POST body → Ok result.
+    let result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+    assert!(
+        result.is_ok(),
+        "BP-001: bare-predicate fetch must succeed (valid JSON body after FIX-1). \
+         Got Err: {:?}. \
+         Root cause (before FIX-1): guard failed → _claroty_audit_filter_by unseeded \
+         → body_template produced invalid JSON → fetch error.",
+        result.err()
+    );
 
     let requests = mock_server.received_requests().await.unwrap_or_default();
 

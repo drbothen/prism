@@ -354,6 +354,7 @@ fn collect_equality_exprs(pred: &crate::ast::Predicate, out: &mut Vec<crate::ast
 /// - CrowdStrike: only `created_timestamp` has `options = ["INDEX"]`.
 /// - Armis devices: only `last_seen` has `options = ["INDEX"]` (in the devices table).
 /// - Armis alerts: only `created_at` has `options = ["INDEX"]` (in the alerts table).
+/// - Claroty audit_logs: only `timestamp` has `options = ["INDEX"]`.
 ///
 /// No production sensor spec has two datetime INDEX columns in the same table that
 /// a single query would target simultaneously.

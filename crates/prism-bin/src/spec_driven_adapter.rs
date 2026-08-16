@@ -1676,18 +1676,31 @@ fn build_claroty_audit_filter_by(
         || -> String { (chrono::Utc::now() - chrono::Duration::days(7)).to_rfc3339() };
 
     // Resolve the explicit start bound (if provided) to an ISO-8601 string.
-    // On RFC3339 parse failure, warn and fall back to the 7-day default.
-    // SEC-001: parse failures are logged so operators know the bound was not honored.
-    let start_iso: Option<String> = start_time.map(|t| {
+    // Uses Result<String, ()> to distinguish three states:
+    //   None             → start_time was not provided
+    //   Some(Ok(s))      → start_time parsed successfully
+    //   Some(Err(()))    → start_time was provided but parse failed (DEFENSE-IN-DEPTH)
+    //
+    // DEFENSE-IN-DEPTH: The parse-failure arm is unreachable from the production surface.
+    // `extract_time_window_from_ast` always emits valid RFC3339 strings (via `.to_rfc3339()`),
+    // so `DateTime::parse_from_rfc3339` cannot fail on that path. This arm guards against
+    // future direct callers supplying a malformed `start_time` string.
+    //
+    // The Err(()) arm deliberately avoids falling back to `now-7d` in the both-bounds
+    // context: substituting now-7d when `end_time < now-7d` would produce an inverted
+    // (empty) window — SOUL.md §4 violation. Instead, we fall through to the end-only
+    // path (EC-01-032) so the caller gets a meaningful result.
+    let start_iso: Option<Result<String, ()>> = start_time.map(|t| {
         chrono::DateTime::parse_from_rfc3339(t)
             .map(|dt| dt.to_rfc3339())
-            .unwrap_or_else(|e| {
+            .map_err(|e| {
+                // DEFENSE-IN-DEPTH: see note above — unreachable from production surface.
                 tracing::warn!(
                     field = "start_time",
                     error = %e,
-                    "build_claroty_audit_filter_by: RFC3339 parse failed; using 7-day default"
+                    "build_claroty_audit_filter_by: RFC3339 parse failed; \
+                     start bound will not be applied to avoid inverted window"
                 );
-                default_start_iso()
             })
     });
 
@@ -1696,6 +1709,9 @@ fn build_claroty_audit_filter_by(
             let end_iso = chrono::DateTime::parse_from_rfc3339(t)
                 .map(|dt| dt.to_rfc3339())
                 .unwrap_or_else(|e| {
+                    // DEFENSE-IN-DEPTH: unreachable from the production surface.
+                    // `extract_time_window_from_ast` always emits valid RFC3339 via `.to_rfc3339()`.
+                    // Present to guard against future direct callers with a malformed end_time.
                     tracing::warn!(
                         field = "end_time",
                         error = %e,
@@ -1705,7 +1721,7 @@ fn build_claroty_audit_filter_by(
                 });
 
             match start_iso {
-                Some(start_iso_val) => {
+                Some(Ok(start_iso_val)) => {
                     // EC-01-033: both bounds — compound AND filter.
                     // Key MUST be "operands" (NOT "conditions").
                     serde_json::json!({
@@ -1724,8 +1740,8 @@ fn build_claroty_audit_filter_by(
                         ]
                     })
                 }
-                None => {
-                    // EC-01-032: end-only, no start — single less_or_equal.
+                Some(Err(())) | None => {
+                    // EC-01-032: end-only (no start, or start parse failed).
                     // No synthetic lower bound: injecting now-7d when end_time < now-7d
                     // produces an inverted (empty) window — SOUL.md §4 violation.
                     serde_json::json!({
@@ -1738,7 +1754,12 @@ fn build_claroty_audit_filter_by(
         }
         None => {
             // EC-01-030 (no start, no end) or EC-01-031 (start only, no end).
-            let iso = start_iso.unwrap_or_else(default_start_iso);
+            // If start parse failed (DEFENSE-IN-DEPTH), fall back to the 7-day default —
+            // a gte(now-7d) filter on the no-end path is safe (no inverted window risk).
+            let iso = match start_iso {
+                Some(Ok(s)) => s,
+                Some(Err(())) | None => default_start_iso(),
+            };
             serde_json::json!({
                 "field": "timestamp",
                 "operation": "greater_or_equal",
