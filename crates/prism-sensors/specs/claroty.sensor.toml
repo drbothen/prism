@@ -203,6 +203,11 @@ ocsf_class = "audit_activity"
   name = "timestamp"
   column_type = "datetime"
   ocsf_field = "time"
+  # options = ["INDEX"]: push-down-eligible datetime column. Required for extract_time_window_from_ast
+  # (ADR-033 T1) to identify timestamp as the Claroty audit_logs time-window push-down column.
+  # Without this, Option T1 cannot extract time bounds from `timestamp > 'T'` predicates.
+  # AC-INDEX-CLARO-001 / RG-007 / BC-2.01.013 Claroty audit_logs time-window / EC-01-034.
+  options = ["INDEX"]
 
   # Real xDome field: details — description of what was done.
   [[tables.columns]]

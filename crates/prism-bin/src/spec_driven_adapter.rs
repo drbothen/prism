@@ -624,13 +624,16 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
         // pipeline.rs step_vars seeding auto-parses it to `Value::Object` (BC-2.16.013 §1)
         // so `${query.filter._claroty_audit_filter_by}` expands inline into the POST body:
         //   body_template = '{"filter_by": ${query.filter._claroty_audit_filter_by}}'
-        //   → {"filter_by": {"field": "timestamp", "operation": "greater_or_equal", "value": N}}
+        //   → {"filter_by": {"field": "timestamp", "operation": "greater_or_equal", "value": "<ISO-8601>"}}
         //
-        // Default (no start_time): `greater_or_equal (now − 604,800,000 ms)` — 7-day look-back.
-        //   Never unbounded; eliminates E-QUERY-004 timeout on unfiltered queries (EC-001).
-        // Explicit start_time only: `greater_or_equal` at the explicit ms epoch (EC-002 respects).
-        // EC-002 (end only, no start): compound `and` with 7-day default lower bound.
-        // Both bounds: compound `and` with two conditions (EC-003).
+        // All `value` fields are ISO-8601 RFC 3339 strings (.to_rfc3339()), NOT epoch-ms integers.
+        // EC-01-030 (no start, no end): single `greater_or_equal` at `now − 7d` (ISO-8601 string).
+        //   Never unbounded; eliminates E-QUERY-004 timeout on unfiltered queries.
+        // EC-01-031 (start only, no end): single `greater_or_equal` at the explicit start (ISO-8601 string).
+        // EC-01-032 (end only, no start): single `less_or_equal` at end — NO synthetic lower bound.
+        //   (Adding now-7d inverts the window when end_time is older than 7d — SOUL.md §4.)
+        // EC-01-033 (both bounds): compound `{"operation":"and","operands":[gte(start),lte(end)]}`.
+        //   (Compound key is `operands`, NOT `conditions`.)
         // 4xx responses from xDome surface via existing map_spec_engine_error_to_sensor_error
         //   → SensorError::HttpError { status: 400 } (E-SENSOR-001 / AC-006 / RG-005).
         //
