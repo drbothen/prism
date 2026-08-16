@@ -1,7 +1,7 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.16"
+version: "1.17"
 status: draft
 producer: product-owner
 timestamp: 2026-08-15T00:00:00Z
@@ -44,7 +44,7 @@ total_scenarios: 85
 | HS-016 | [HS-016-armis-aql-timestamp-fallback-parity.md](HS-016-armis-aql-timestamp-fallback-parity.md) | Armis AQL + Timestamp Fallback Parity | 3 | P0 | AQL forwarding via `${query.filter.aql}`; fallback chain; WARN audit signal; bearer_static auth; DTU gaps DTU-EXT-003/004 noted |
 | HS-017 | [HS-017-bundled-spec-validation-gate.md](HS-017-bundled-spec-validation-gate.md) | Bundled Spec Validation CI Gate | 2 | P0 | Negative: malformed specs rejected by BC-2.16.009 (E-SPEC-002, E-SPEC-003) |
 | HS-018 | [HS-018-spec-id-filename-mismatch-rejection.md](HS-018-spec-id-filename-mismatch-rejection.md) | Spec sensor_id / Filename Mismatch | 3 | P0 | Negative: sensor_id ≠ filename stem rejected at load time (E-SPEC-017); v1.4 sweeps error-taxonomy.md v1.42→v1.44 at 3 active-prose sites (FB-IMPL-9 transitive cite-pin chain) |
-| HS-019 | [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-001-count-star-no-timeout.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-001-count-star-no-timeout.md), [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-002-bounded-default-window.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-002-bounded-default-window.md), [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-003-explicit-time-filter-not-truncated.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-003-explicit-time-filter-not-truncated.md), [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-004-time-range-both-bounds.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-004-time-range-both-bounds.md) | Claroty audit_logs Push-Down Fix — Single Story (S-CLAROTY-AUDITLOG-TIMEBOX-001) | 4 | P0 | Push-down fix: COUNT(*) no timeout; unbounded SELECT bounded to 7d default; explicit older-than-7d filter honored (no silent truncation); BETWEEN a AND b pushes both bounds; ASM-CLAROTY-AUDITLOG-001 field-name validation |
+| HS-019 | [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-001-count-star-no-timeout.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-001-count-star-no-timeout.md), [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-002-bounded-default-window.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-002-bounded-default-window.md), [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-003-explicit-time-filter-not-truncated.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-003-explicit-time-filter-not-truncated.md), [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-004-time-range-both-bounds.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-004-time-range-both-bounds.md) | Claroty audit_logs Push-Down Fix — Single Story (S-CLAROTY-AUDITLOG-TIMEBOX-001) **[CONSUMED 2026-08-15 — D-2195 holdout gate PASS; all 4 scenarios single-use; must NOT be reused]** | 4 | P0 | Push-down fix: COUNT(*) no timeout; unbounded SELECT bounded to 7d default; explicit older-than-7d filter honored (no silent truncation); BETWEEN a AND b pushes both bounds; ASM-CLAROTY-AUDITLOG-001 field-name validation |
 | ~~HS-020~~ | ~~Story B scenarios~~ | ~~Claroty audit_logs Layer 2 — Dynamic Push-Down~~ | ~~2~~ | ~~P0~~ | **RETIRED 2026-08-15 before shipping:** Design reworked to single story. All 4 scenarios consolidated into HS-019 under S-CLAROTY-AUDITLOG-TIMEBOX-001. ID reserved per append_only_numbering (DF-030). |
 
 ---
@@ -232,9 +232,9 @@ total_scenarios: 85
 | HS-018-02 | Case Mismatch (crowdstrike.sensor.toml + sensor_id: "CrowdStrike") — E-SPEC-017 | prism-spec-engine |
 | HS-018-03 | Valid Convention (crowdstrike.sensor.toml + sensor_id: "crowdstrike") — Loads OK | prism-spec-engine |
 
-### HS-019: Claroty audit_logs Push-Down Fix — Single Story (P0) — DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001
+### HS-019: Claroty audit_logs Push-Down Fix — Single Story (P0) — DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 **[CONSUMED 2026-08-15 — D-2195]**
 
-Story-level holdout gate for S-CLAROTY-AUDITLOG-TIMEBOX-001 (consolidated single push-down story). HIDDEN from test-writer and implementer. SINGLE-USE. Design reworked from two-layer to one story; all 4 scenarios under this group.
+Story-level holdout gate for S-CLAROTY-AUDITLOG-TIMEBOX-001 (consolidated single push-down story). HIDDEN from test-writer and implementer. SINGLE-USE. Design reworked from two-layer to one story; all 4 scenarios under this group. **All 4 scenarios CONSUMED 2026-08-15 (D-2195 holdout gate PASS; must NOT be reused).**
 
 | ID | Title | Crates Tested |
 |----|-------|--------------|
@@ -335,6 +335,7 @@ timestamp: 2026-08-15T00:00:00Z
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.17 | S-CLAROTY-AUDITLOG-TIMEBOX-001-holdout-gate-pass | 2026-08-15 | state-manager | HS-019 all 4 scenarios CONSUMED (D-2195 story-level holdout gate PASS; S-CLAROTY-AUDITLOG-TIMEBOX-001 VERDICT=PASS 4/4 on frozen HEAD f867a234b). Scenario files status→consumed; input-hashes populated. HS-019 table row and detail section annotated CONSUMED. HOLDOUT-INDEX v1.16→v1.17. |
 | 1.16 | DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001-registration-burst | 2026-08-15 | state-manager | File renames: S-CLAROTY-AUDITLOG-TIMEBOX-002-HS-001-explicit-time-filter-not-truncated.md → S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-003-explicit-time-filter-not-truncated.md; S-CLAROTY-AUDITLOG-TIMEBOX-002-HS-002-time-range-both-bounds.md → S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-004-time-range-both-bounds.md. HS-019 table links updated to reflect new TIMEBOX-001-HS-003/004 names. HOLDOUT-INDEX v1.15→v1.16. |
 | 1.15 | DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001-po-bc-amendments | 2026-08-15 | product-owner | Design rework: two-layer design collapsed to single story S-CLAROTY-AUDITLOG-TIMEBOX-001. HS-020 retired before shipping (append_only_numbering preserved). All 4 scenarios consolidated under HS-019: HS-AUDITLOG-002-B-001/002 re-keyed to HS-AUDITLOG-001-A-003/004 with `story_source: S-CLAROTY-AUDITLOG-TIMEBOX-001`; "explicit-filter-not-truncated" scenario body updated — asserts CORRECT behavior (older window IS returned, no truncation); Layer-1/2 language removed. total_groups 15→14. |
 | 1.14 | DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001-po-bc-amendments | 2026-08-15 | product-owner | Initial DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 holdout authoring: HS-019 (2 for Story A) + HS-020 (2 for Story B). total_scenarios 81→85; total_groups 13→15. Superseded by v1.15 design rework in same burst. |

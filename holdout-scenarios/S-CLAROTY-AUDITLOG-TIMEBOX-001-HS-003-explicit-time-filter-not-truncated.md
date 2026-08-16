@@ -9,23 +9,23 @@ priority: P0
 epic_id: "defects-and-drift"
 story_source: "S-CLAROTY-AUDITLOG-TIMEBOX-001"
 version: "1.1"
-status: active
+status: consumed
 producer: product-owner
 timestamp: "2026-08-15T00:00:00Z"
 phase: 3
 inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.013-bundled-sensor-spec-dtu-parity.md"
   - ".factory/specs/behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md"
-input-hash: null
+input-hash: "a52b385"
 traces_to: "BC-2.16.013"
 behavioral_contracts:
   - BC-2.16.013
   - BC-2.01.013
 verification_properties: []
-lifecycle_status: active
+lifecycle_status: consumed
 introduced: DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001
-last_evaluated: null
-last_eval_satisfaction: null
+last_evaluated: "2026-08-15"
+last_eval_satisfaction: 1.0
 staleness_check: null
 stale_reason: null
 retired: null
