@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-76, 77-78, 80-84, 86-88, 92-95 (72 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-76, 77-78, 80-84, 86-88, 92-97 (74 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -1554,4 +1554,50 @@ pub fn v95_get_device_alerts_response() {
         count: None,
     };
     let _ = _resp;
+}
+
+/// Violation 96: prism_spec_engine::pipeline::FetchContext struct literal (E0639).
+///
+/// `FetchContext` carries pipeline execution context (client OrgSlug + query push-down
+/// filters). `#[non_exhaustive]` ensures external crates cannot use struct-literal
+/// construction — future context fields can be added without breaking external callers.
+/// External callers MUST construct via `FetchContext::new`. Pre-existing gap from S-1.11:
+/// `FetchContext` had `#[non_exhaustive]` from initial commit but was never registered
+/// in this gate. Fixed in-scope by S-CLAROTY-AUDITLOG-TIMEBOX-001 fix-burst 5 (LOW-4
+/// sibling sweep — the non-exhaustive gate is the load-bearing enforcement for `pub fn
+/// new` being the approved construction path).
+#[allow(dead_code)]
+pub fn v96_fetch_context() {
+    use prism_core::OrgSlug;
+    use prism_spec_engine::FetchContext;
+    // Triggers E0639 (#[non_exhaustive]).
+    let _ctx = FetchContext {
+        client_id: OrgSlug::new("test"),
+        query_filters: std::collections::HashMap::new(),
+    };
+    let _ = _ctx;
+}
+
+/// Violation 97: prism_spec_engine::pipeline::PipelineResult struct literal (E0639).
+///
+/// `PipelineResult` is the output of a successful pipeline execution (BC-2.16.002).
+/// `#[non_exhaustive]` prevents external struct-literal construction while allowing
+/// `PipelineResult::new` as the approved cross-crate construction path (downstream test
+/// code in `prism-bin` requires `PipelineResult::new` because `#[non_exhaustive]` blocks
+/// struct literals — confirmed by E0639 this violation generates). This gate enforces
+/// that the struct-literal path remains blocked while `pub fn new` remains the sanctioned
+/// construction pathway. Pre-existing gap from S-1.11: `PipelineResult` had
+/// `#[non_exhaustive]` from initial commit but was never registered in this gate.
+/// Fixed in-scope by S-CLAROTY-AUDITLOG-TIMEBOX-001 fix-burst 5 (LOW-4 closure).
+#[allow(dead_code)]
+pub fn v97_pipeline_result() {
+    use prism_spec_engine::PipelineResult;
+    // Triggers E0639 (#[non_exhaustive]).
+    let _result = PipelineResult {
+        records: vec![],
+        table_name: String::new(),
+        request_count: 0,
+        truncated: false,
+    };
+    let _ = _result;
 }

@@ -115,6 +115,11 @@ EXPECTED_SYMBOLS = [
     "ClarotyDeviceAlertRelation", # v93 prism_dtu_claroty::types::ClarotyDeviceAlertRelation
     "GetDeviceAlertsBody",        # v94 prism_dtu_claroty::types::GetDeviceAlertsBody
     "GetDeviceAlertsResponse",    # v95 prism_dtu_claroty::types::GetDeviceAlertsResponse
+    # ── S-CLAROTY-AUDITLOG-TIMEBOX-001 fix-burst 5 (LOW-4 gate registration): pre-existing ──
+    # ── gap from S-1.11 — FetchContext + PipelineResult had #[non_exhaustive] from initial ──
+    # ── commit but were never registered in this gate. Fixed in-scope. ─────────────────────
+    "FetchContext",               # v96 prism_spec_engine::pipeline::FetchContext
+    "PipelineResult",             # v97 prism_spec_engine::pipeline::PipelineResult
     # ── E0004 enum match violations (23 entries; 22 unique after prism_core::ColumnType dedup) ──
     # Names are the last path segment from `note: \`path::TypeName\` defined here`.
     "PaginationConfig",      # v07 spec_parser::PaginationConfig

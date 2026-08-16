@@ -46,6 +46,8 @@
 # DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P28-OBS-001: bumped 89→90 for VirtualField (prism-core::virtual_fields E0004 v90).
 # DEFECT-CSDEVICES-EMPTY-PIPELINE-001 F-CSD-P31-OBS-002: bumped 90→91 for VirtualField (prism_query::ast E0004 v91).
 # DEFECT-PQL-FNCALL-LHS-001 F-PQLFN-PR11-OBS-002 (BC-2.11.019 §OBS-005): bumped 91→92 for ParseError (prism_query::error E0639 v92).
+# S-CLAROTY-AUDITLOG-TIMEBOX-001 fix-burst 5 (LOW-4 gate registration): bumped 95→97 for FetchContext (E0639 v96) and PipelineResult
+#   (E0639 v97) — pre-existing gap from S-1.11 (both had #[non_exhaustive] from initial commit but were never registered in this gate).
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
