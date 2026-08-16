@@ -475,3 +475,15 @@ ADR-053 ratified EFFECTIVE 2026-07-22 (D-1943) → 9 Wave-A stories (8 draft / 1
 **KEY STATE (D-2159):** Story v1.31 (19 ACs / 19 RGs RG-001..019; AC-WIRE-002). workspace_test_count 5731. BC-INDEX v9.12. STORY-INDEX v2.809. VP-INDEX v2.22. error-taxonomy v2.77. develop_head 5d1a30ac7. total_stories 297.
 
 **NOTE: Superseded by D-2160 — DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL adversary pass-42 fix-burst COMPLETE; F-P42-HIGH-001 server.rs `fully_healthy_count` predicate CODE-TWIN fixed; F-P42-MED-001 test renames RG-021/RG-022; AC-WIRE-003 + RG-020 envelope wire assertion; story v1.31→v1.32; feature HEAD ADVANCED 70fe123ac→21df2f6d4 (NOT pushed); BC-5.39.001 streak 0/3; frozen-HEAD ADVANCES to 21df2f6d4; S-MAINT-POL29-CODE-TWIN-SWEEP-001 registered; total_stories 297→298. STATE v8.708→v8.709.**
+
+---
+
+## Archived: D-2193 — 2026-08-15; STATE v8.724→v8.725 — PASS-6 RECORDS-ONLY MICRO-BURST COMPLETE; frozen HEAD f867a234b; BC-5.39.001 streak RESET 0/3
+
+**RESUME IN ONE BREATH:** S-CLAROTY-AUDITLOG-TIMEBOX-001 pass-6 records-only micro-burst complete (TD-VSDD-096). 1 LOW finding closed: F-P6-LOW-001 Task-1 §Tasks example `value` was stale epoch integer `1234567890` contradicting AC-004 ISO-8601 mandate; FIXED by story-writer to `"2026-01-01T00:00:00Z"`; JSON-object-parse point preserved. Story-writer ran FULL self-consistency sweep: ZERO additional contradictions. story v2.3→v2.4 (§Changelog row added). feature HEAD f867a234b UNCHANGED. BC-5.39.001 streak RESET 0/3 (perimeter changed: story artifact v2.3→v2.4). workspace_test_count 5743 UNCHANGED. develop@791b68c3 unchanged.
+
+**HEADS (D-2193):** `develop` origin/develop `791b68c3`. LOCAL develop `3197e27a9` (1 behind; fast-forward pending). `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` @`f867a234b5dfaf44a0aa2862b039ac87d3b8f50e` (pass-6 done; BC-5.39.001 streak 0/3; NOT pushed). `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED. `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch.
+
+**KEY STATE (D-2193):** Story v2.4 (ready; 8 ACs / 7 RGTs). workspace_test_count 5743. BC-2.01.013 v1.22. BC-2.16.013 v1.41. BC-INDEX v9.17. STORY-INDEX v2.819. total_stories 299. develop_head 791b68c3.
+
+**NOTE: Superseded by D-2194 — BC-5.39.001 LOCAL 3-CLEAN CONVERGENCE: S-CLAROTY-AUDITLOG-TIMEBOX-001 passes 7/8/9 ALL CLEAN(strict)=YES / CLEAN(PR-merge)=YES on frozen HEAD f867a234b; streak 0/3→3/3 CONVERGED; Concurrent Cycles row added; STATE v8.725→v8.726.**
