@@ -102,6 +102,30 @@ pub struct PipelineResult {
     pub truncated: bool,
 }
 
+impl PipelineResult {
+    /// Construct a `PipelineResult` from its component fields.
+    ///
+    /// The `#[non_exhaustive]` attribute on `PipelineResult` prevents struct-literal
+    /// construction from outside the defining crate, which blocks test code in downstream
+    /// crates (e.g., `prism-bin`) from building test fixtures. This named constructor
+    /// provides a stable forward-compatible construction path — if new fields are added
+    /// to `PipelineResult`, callers of this function can be updated to supply them
+    /// while struct-literal construction remains blocked to prevent silent field omission.
+    pub fn new(
+        records: Vec<serde_json::Value>,
+        table_name: impl Into<String>,
+        request_count: u32,
+        truncated: bool,
+    ) -> Self {
+        Self {
+            records,
+            table_name: table_name.into(),
+            request_count,
+            truncated,
+        }
+    }
+}
+
 /// Executes a multi-step fetch pipeline for a sensor table (BC-2.16.002).
 pub struct PipelineExecutor;
 
@@ -1703,52 +1727,32 @@ fn find_fan_out_array(
     // F-LP10-MED-002: After collecting array vars, check for Object-typed variables that
     // are referenced in templates but were NOT classified as fan-out source (they are
     // Objects, not Arrays). Object values passed through `value_to_string` are silently
-    // stringified as JSON — which is a spec bug in UrlPath context but CORRECT in
-    // JsonBody context (BC-2.16.013 §Postcondition 1 verbatim JSON insertion).
+    // stringified as JSON — which is generally a spec bug.
     //
-    // FIX-2 (S-CLAROTY-AUDITLOG-TIMEBOX-001 NB-1): the exemption for `query.filter.*`
-    // is context-dependent and must NOT apply globally to all templates:
+    // FIX-2 (S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-4 BLOCKING-2 revert): single-pass over
+    // ALL templates; exempt `query.filter.*` variables regardless of template context.
     //
-    //   path_template (UrlPath context): `query.filter.*` Object-valued vars ARE a spec
-    //     bug — they would be stringified into the URL, which is incorrect. The exemption
-    //     does NOT apply to path_template references. No exemption → any Object var in
-    //     path_template triggers the warn (including query.filter.* if they appear there).
+    // The correct discriminator is the NAMESPACE (`query.filter.*`), NOT the template
+    // context (path_template vs body_template). Rationale:
+    //   - query.filter.* variables carry JSON filter values that are Object-valued by
+    //     design for BC-2.16.013 verbatim insertion (e.g., Claroty `_claroty_audit_filter_by`).
+    //   - ADR-031 §D8-a: `${query.filter.aql}` in Armis path_template is a String value
+    //     (never an Object), so it never triggers this Object warn regardless of exemption.
+    //   - The Claroty Object (`_claroty_audit_filter_by`) appears only in body_template
+    //     today, but the exemption must be namespace-based to avoid a false alarm if a
+    //     future spec places a query.filter.* Object in a path_template — `value_to_string`
+    //     handles Object serialization correctly in both contexts.
     //
-    //   body_template (JsonBody context): `query.filter.*` Object-valued vars are
-    //     CORRECT — `InterpolationContext::JsonBody` inserts them verbatim as inline JSON
-    //     (value.to_string()). The exemption applies only to body_template references.
-    //
-    // Pass 1: path_template — no exemption for query.filter.*
-    {
-        let refs =
-            crate::interpolation::Interpolator::extract_references(step.path_template.as_str());
+    // The cycle-3 fix-burst-3 two-pass implementation was WRONG:
+    //   Pass 1 (path_template): no exemption → false alarm for query.filter.* Objects
+    //   Pass 2 (body_template): query.filter.* exemption → correct
+    // Reverted to the single-pass approach here.
+    for template in &templates {
+        let refs = crate::interpolation::Interpolator::extract_references(template);
         for (ref_step_name, ref_field_path) in refs {
             let key = format!("{ref_step_name}.{ref_field_path}");
-            if let Some(value) = step_vars.get(&key)
-                && value.is_object()
-            {
-                tracing::warn!(
-                    event_type = "fanout_invalid_source_type",
-                    step_name = %step.name,
-                    var_name = %key,
-                    actual_type = "Object",
-                    "Step path_template references an Object-valued variable; will be \
-                     stringified into URL. This is likely a spec bug — consider referencing \
-                     a scalar field (${{var.field}}) instead."
-                );
-            }
-        }
-    }
-
-    // Pass 2: body_template — exempt query.filter.* (verbatim JSON insertion by design,
-    // BC-2.16.013 §Postcondition 1 JsonBody context). Only warn for step-produced and
-    // other non-filter variables.
-    if let Some(ref body_tpl) = step.body_template {
-        let refs = crate::interpolation::Interpolator::extract_references(body_tpl);
-        for (ref_step_name, ref_field_path) in refs {
-            let key = format!("{ref_step_name}.{ref_field_path}");
-            // query.filter.* keys are Object-valued by design in JsonBody context
-            // (BC-2.16.013 §Postcondition 1 verbatim insertion).
+            // query.filter.* variables are Object-valued by design (BC-2.16.013).
+            // Exempt them from the fanout_invalid_source_type warn in all template contexts.
             if key.starts_with("query.filter.") {
                 continue;
             }
@@ -1760,10 +1764,9 @@ fn find_fan_out_array(
                     step_name = %step.name,
                     var_name = %key,
                     actual_type = "Object",
-                    "Step body_template references an Object-valued variable (not a \
-                     query.filter.*); will be stringified into body for non-JsonBody \
-                     contexts. This is likely a spec bug — consider referencing a scalar \
-                     field (${{var.field}}) instead."
+                    "Step template references an Object-valued variable; will be \
+                     stringified into the request. This is likely a spec bug — consider \
+                     referencing a scalar field (${{var.field}}) instead."
                 );
             }
         }
@@ -5240,6 +5243,143 @@ mod rg004_pipeline_json_filter_tests {
         );
     }
 
+    // ---------------------------------------------------------------------------
+    // FIX-3 (S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-4 MED-1) — query_filter_json_parse_degraded
+    // warn path: fires when a filter value starts with `{` or `[` but fails JSON parse.
+    // ---------------------------------------------------------------------------
+
+    /// FIX-3 / BC-2.16.002 catalog row `query_filter_json_parse_degraded` —
+    /// warn emitted when a filter value begins with `{` or `[` (appears to be JSON)
+    /// but `serde_json::from_str` fails to parse it.
+    ///
+    /// The cycle-3 BC row v2.21 had two errors:
+    ///   (1) Trigger condition: "non-JSON string such as a bare UUID" — WRONG.
+    ///       A bare UUID does NOT start with `{`/`[`, so it bypasses the guard and
+    ///       goes to `Value::String` passthrough WITHOUT triggering this warn.
+    ///   (2) Recurrence: "per step execution" — WRONG. The step_vars seeding loop
+    ///       runs once per pipeline execution (before any step iteration).
+    ///
+    /// This test exercises the CORRECT trigger path: a filter value that starts with
+    /// `{` (looks like JSON) but is not valid JSON. The warn MUST fire exactly once
+    /// per pipeline execution for that filter key.
+    ///
+    /// BC-2.16.002 catalog row `query_filter_json_parse_degraded`; BC-2.16.013 EC-005;
+    /// S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-3 cycle-4 MED-1.
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
+    async fn test_BC_2_16_013_query_filter_json_parse_degraded_warn_on_starts_with_brace() {
+        let mock_server = MockServer::start().await;
+
+        // A POST step; respond with an empty result.
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"audit_log": [], "total": 0})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        // Minimal spec: POST step, no filter references in template (filter key is not
+        // interpolated — the seeding loop processes ALL query_filters regardless).
+        let spec = SensorSpec {
+            sensor_id: "test_sensor".to_string(),
+            name: "EC-005 warn test sensor".to_string(),
+            auth_type: AuthType::BearerStatic,
+            base_url: mock_server.uri(),
+            tables: vec![TableSpec::new_point_in_time(
+                "items",
+                "system_activity",
+                vec![ColumnSpec {
+                    name: "id".to_string(),
+                    column_type: prism_core::ColumnType::String,
+                    ocsf_field: None,
+                    options: vec![],
+                    timestamp_formats: vec![],
+                    timestamp_fallback_chain: vec![],
+                    source_path: None,
+                }],
+                vec![FetchStep {
+                    name: "fetch_items".to_string(),
+                    method: "POST".to_string(),
+                    path_template: "/api/v1/items".to_string(),
+                    body_template: Some(r#"{"query": "all"}"#.to_string()),
+                    response_path: "$.audit_log".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                }],
+            )],
+            rate_limit_hints: None,
+            version: "1.0.0".to_string(),
+            credential_refs: vec![],
+            auth_plugin: None,
+            file_hash: String::new(),
+            source_path: String::new(),
+            mode: crate::types::DtuMode::Shared,
+            probe_table: None,
+        };
+
+        // filter value starts with `{` (triggers the JSON-auto-parse guard) but is
+        // NOT valid JSON (missing closing brace + colon+value required by JSON spec).
+        // This is the activation condition for query_filter_json_parse_degraded:
+        //   `starts_with('{') || starts_with('[')` → true → serde_json::from_str → Err
+        //   → warn fires → value falls back to Value::String passthrough (EC-005).
+        //
+        // A bare UUID like "f47ac10b-58cc-4372-a567-0e02b2c3d479" would NOT activate
+        // this guard (doesn't start with `{`/`[`) — that is the corrected understanding
+        // in BC-2.16.002 v2.22 (cycle-4 FIX-3).
+        let mut query_filters = HashMap::new();
+        query_filters.insert(
+            "bad_json_filter".to_string(),
+            "{not-valid-json".to_string(), // starts with `{` but not parseable
+        );
+        let context = FetchContext::new(OrgSlug::new("ec005-warn-test-org"), query_filters);
+
+        let http_client = reqwest::Client::new();
+        let auth_provider = MockAuthProvider::new("ec005-warn-test-token");
+
+        let result = PipelineExecutor::execute(
+            &spec,
+            &spec.tables[0],
+            &context,
+            &http_client,
+            &auth_provider,
+        )
+        .await;
+
+        // The pipeline MUST succeed despite the degraded filter (EC-005 string passthrough).
+        assert!(
+            result.is_ok(),
+            "FIX-3 EC-005: pipeline MUST succeed when a query filter starts with `{{` \
+             but is not valid JSON — the value falls back to string passthrough. \
+             Got Err: {:?}",
+            result.err()
+        );
+
+        // LOAD-BEARING (FIX-3 / BC-2.16.002 v2.22 catalog row trigger verification):
+        // query_filter_json_parse_degraded WARN MUST be emitted when a filter value
+        // starts with `{` or `[` but serde_json::from_str fails.
+        //
+        // This verifies the CORRECT trigger condition (not "bare UUID") — cycle-4 MED-1:
+        //   - `{not-valid-json` starts with `{` → enters JSON auto-parse guard
+        //   - serde_json::from_str fails → warn fires
+        //   - value falls back to Value::String passthrough
+        assert!(
+            logs_contain("query_filter_json_parse_degraded"),
+            "FIX-3 REGRESSION (BC-2.16.002 v2.22 / cycle-4 MED-1): \
+             query_filter_json_parse_degraded WARN MUST be emitted when a filter \
+             value starts with `{{` but fails JSON parse. \
+             Trigger condition: `starts_with('{{') || starts_with('[')` → true → \
+             serde_json::from_str Err → warn. \
+             This test uses '{{not-valid-json' (starts with `{{`, not valid JSON). \
+             If this fails, the EC-005 warn arm was removed or the guard was changed. \
+             BC-2.16.002 catalog row `query_filter_json_parse_degraded`; \
+             S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-3."
+        );
+    }
+
     /// BC-2.16.013 §Postcondition 1 / S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-2 BLOCKING-1:
     /// `find_fan_out_array` MUST NOT emit `fanout_invalid_source_type` WARN for
     /// `query.filter.*` keys, even when their step_vars value is `Value::Object`.
@@ -5353,6 +5493,85 @@ mod rg004_pipeline_json_filter_tests {
              BC-2.16.013 §Postcondition 1 designates _claroty_audit_filter_by as \
              Object-valued (JsonBody verbatim insertion). \
              Cycle-2 BLOCKING-1: restrict the warn to non-query.filter.* keys only."
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // FIX-2 cycle-4 companion — path_template scenario:
+    // query.filter.* Object in path_template MUST NOT emit fanout_invalid_source_type.
+    // ---------------------------------------------------------------------------
+
+    /// FIX-2 / BC-2.16.013 — `query.filter.*` Object-valued variable in path_template
+    /// MUST NOT emit `fanout_invalid_source_type` warn.
+    ///
+    /// The cycle-3 two-pass implementation exempted `query.filter.*` only in body_template
+    /// (Pass 2), but NOT in path_template (Pass 1). This would produce a false alarm if
+    /// any spec placed a `query.filter.*` Object in a path_template.
+    ///
+    /// The correct fix (cycle-4 FIX-2): exempt `query.filter.*` namespace in ALL template
+    /// contexts (single-pass over the `templates` vec, same exemption for path and body).
+    ///
+    /// This test calls `find_fan_out_array` directly (unit test) with a `FetchStep` whose
+    /// path_template references `${query.filter._json_filter}` and step_vars carrying that
+    /// key as a `Value::Object`. The function MUST NOT emit `fanout_invalid_source_type`.
+    ///
+    /// BC-2.16.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-2 cycle-4 BLOCKING-2.
+    #[test]
+    #[tracing_test::traced_test]
+    #[allow(clippy::unwrap_used)]
+    fn test_BC_2_16_013_pipeline_json_filter_object_path_template_no_fanout_warn_emitted() {
+        // FetchStep with a path_template that references ${query.filter._json_filter}.
+        // This simulates a hypothetical spec where a query.filter.* Object appears in a
+        // path_template (e.g., future ADR-031 §D8-a extension).
+        let step = FetchStep {
+            name: "fetch_step".to_string(),
+            method: "GET".to_string(),
+            path_template: "/api/v1/query/${query.filter._json_filter}".to_string(),
+            body_template: None,
+            response_path: "$.data".to_string(),
+            pagination_cursor_path: None,
+            variables_produced: vec![],
+            fan_out_batch_size: None,
+            pagination: None,
+        };
+
+        // step_vars: query.filter._json_filter is a Value::Object (as seeded by
+        // seed_query_filters when the raw filter value starts with '{').
+        let mut step_vars = HashMap::new();
+        step_vars.insert(
+            "query.filter._json_filter".to_string(),
+            serde_json::json!({"field": "timestamp", "value": "2024-01-01T00:00:00Z"}),
+        );
+
+        // Call find_fan_out_array directly — it is a module-private function, accessible
+        // from this #[cfg(test)] block in the same file.
+        let fan_out = super::find_fan_out_array(&step, &step_vars);
+
+        // ASSERTION 1: No array-valued variable in step_vars → no fan-out detected.
+        assert!(
+            fan_out.is_none(),
+            "FIX-2 companion (path_template): find_fan_out_array should return None when \
+             step_vars contains only an Object-valued variable (not Array). \
+             Got: {fan_out:?}"
+        );
+
+        // ASSERTION 2 (LOAD-BEARING — FIX-2 cycle-4 BLOCKING-2 regression):
+        // fanout_invalid_source_type WARN MUST NOT be emitted for query.filter.* keys
+        // even when they appear in path_template references.
+        //
+        // FAILS under the cycle-3 two-pass impl (Pass 1 path_template: no exemption →
+        // Object in path_template triggers warn). PASSES after FIX-2 single-pass revert
+        // (query.filter.* exempt in all template contexts).
+        assert!(
+            !logs_contain("fanout_invalid_source_type"),
+            "FIX-2 REGRESSION (path_template — cycle-4 BLOCKING-2): \
+             fanout_invalid_source_type WARN must NOT be emitted for query.filter.* \
+             Object-valued variables, even when referenced in path_template. \
+             The correct discriminator is the NAMESPACE (query.filter.*), not the \
+             template context (path vs body). \
+             The cycle-3 two-pass impl incorrectly fired this warn for path_template \
+             query.filter.* Objects. \
+             BC-2.16.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-2 cycle-4."
         );
     }
 }

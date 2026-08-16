@@ -954,20 +954,32 @@ fn pipeline_result_to_record_batch(
         // `WHERE aql = 'in:devices'` is push-downed to the pipeline; without injection,
         // `aql` would be NULL in every row → DataFusion filters out all rows.
         // Injecting the filter value makes the WHERE clause evaluate to TRUE for each row.
-        // FIX-1 (S-CLAROTY-AUDITLOG-TIMEBOX-001 BLOCKING-1): pseudo-column path is ONLY
-        // valid for String-typed INDEX columns (FQL/AQL filter vars such as CrowdStrike
-        // `created_timestamp` and Armis `aql`).
+        // FIX-1 (S-CLAROTY-AUDITLOG-TIMEBOX-001 BLOCKING-1 + CYCLE-4 comment correction):
+        // The pseudo-column path is ONLY valid for String-typed INDEX columns.
         //
-        // Datetime-typed INDEX columns (Claroty `audit_logs.timestamp`, Armis `last_seen`
-        // and `created_at`) hold real datetime sensor data — not push-down filter values.
-        // Using the pseudo-column path for Datetime INDEX columns builds a `StringArray`
-        // for a `Timestamp(Microsecond, UTC)` schema field, which causes
-        // `RecordBatch::try_new` to fail with an Arrow type mismatch.
+        // String+INDEX columns that reach this path:
+        //   - Armis devices.aql (column_type = "string", options = ["INDEX"])
+        //   - Armis alerts.aql  (column_type = "string", options = ["INDEX"])
         //
-        // The type gate `&& col_spec.column_type == prism_core::ColumnType::String`
-        // restricts the pseudo-column path to String-typed INDEX columns only.
-        // Datetime INDEX columns fall through to `build_column_array`, which builds the
-        // correct `Timestamp(Microsecond, UTC)` Arrow array from actual record data.
+        // Datetime+INDEX columns that fall through to `build_column_array`:
+        //   - Claroty audit_logs.timestamp     (column_type = "datetime", options = ["INDEX"])
+        //   - CrowdStrike detections.created_timestamp (column_type = "datetime", options = ["INDEX"])
+        //   - Armis devices.last_seen          (column_type = "datetime", options = ["INDEX"])
+        //   - Armis alerts.created_at          (column_type = "datetime", options = ["INDEX"])
+        //
+        // LATENT CRASH RISK CLOSED: CrowdStrike `created_timestamp` is `column_type = "datetime"`
+        // — NOT a String column. Before the type gate was introduced, the pre-fix code would
+        // have entered this path and built a `StringArray` for a `Timestamp(Microsecond, UTC)`
+        // schema field when `params.filters["created_timestamp"]` was populated, causing
+        // `RecordBatch::try_new` to fail with an Arrow type mismatch
+        // (`Invalid argument error: column types must match schema`).
+        // The type gate `&& col_spec.column_type == prism_core::ColumnType::String` closes this
+        // latent crash risk: CrowdStrike's datetime+INDEX column falls through to `build_column_array`
+        // which produces the correct `Timestamp(Microsecond, UTC)` array from actual record data.
+        //
+        // Datetime INDEX columns hold real datetime sensor data — not push-down filter values.
+        // Using the pseudo-column path for Datetime INDEX columns would build a `StringArray`
+        // for a `Timestamp(Microsecond, UTC)` schema field → Arrow type mismatch crash.
         let array = if col_spec.options.contains(&prism_core::ColumnOptions::Index)
             && col_spec.column_type == prism_core::ColumnType::String
         {
@@ -1646,20 +1658,9 @@ pub async fn step9a_populate_adapter_registry(
 // BC-2.22.001; F-002-R; S-DEMO-001 v1.5.
 
 // ---------------------------------------------------------------------------
-// CrowdStrike FQL time-window builder (ADR-033 T1 + BC-2.01.013)
+// Claroty xDome filter_by builder (ADR-033 T1 + BC-2.01.013 Layer 2)
 // ---------------------------------------------------------------------------
 
-/// Build a CrowdStrike FQL filter string from optional time bounds.
-///
-/// Implements BC-2.01.013 Pagination/Push-Down Scope Clause — CrowdStrike row:
-/// - `start_time` → `created_timestamp:>'<ISO8601>'`
-/// - `end_time`   → `created_timestamp:<'<ISO8601>'`
-/// - Both present → combined with `+` (CrowdStrike FQL AND operator)
-/// - Neither present → returns empty string (no filter)
-///
-/// The returned string is seeded into `FetchContext.query_filters["_fql"]` and
-/// interpolated into the CrowdStrike Step 1 path_template via `${query.filter._fql}`.
-/// An empty return value produces `?filter=` (ignored by the DTU for empty-string filter).
 /// Build a Claroty xDome `filter_by` JSON value for `audit_logs` time-window injection.
 ///
 /// Constructs the filter object based on ADR-033 Option T1 extracted `start_time`/`end_time`.
@@ -1786,6 +1787,21 @@ fn build_claroty_audit_filter_by(
     }
 }
 
+// ---------------------------------------------------------------------------
+// CrowdStrike FQL time-window builder (ADR-033 T1 + BC-2.01.013)
+// ---------------------------------------------------------------------------
+
+/// Build a CrowdStrike FQL filter string from optional time bounds.
+///
+/// Implements BC-2.01.013 Pagination/Push-Down Scope Clause — CrowdStrike row:
+/// - `start_time` → `created_timestamp:>'<ISO8601>'`
+/// - `end_time`   → `created_timestamp:<'<ISO8601>'`
+/// - Both present → combined with `+` (CrowdStrike FQL AND operator)
+/// - Neither present → returns empty string (no filter)
+///
+/// The returned string is seeded into `FetchContext.query_filters["_fql"]` and
+/// interpolated into the CrowdStrike Step 1 path_template via `${query.filter._fql}`.
+/// An empty return value produces `?filter=` (ignored by the DTU for empty-string filter).
 fn build_crowdstrike_fql(start_time: Option<&str>, end_time: Option<&str>) -> String {
     let start_clause = start_time.map(|t| format!("created_timestamp:>'{t}'"));
     let end_clause = end_time.map(|t| format!("created_timestamp:<'{t}'"));
@@ -3761,5 +3777,116 @@ mod tests {
                  body = '{body}'"
             );
         }
+    }
+
+    // ---------------------------------------------------------------------------
+    // FIX-1 (S-CLAROTY-AUDITLOG-TIMEBOX-001 BLOCKING-1 cycle-4) — Datetime+INDEX
+    // column type-gate: CrowdStrike `created_timestamp` must NOT enter the
+    // pseudo-column (StringArray) path.
+    // ---------------------------------------------------------------------------
+
+    /// FIX-1 / BC-2.01.013 — Datetime+INDEX column does NOT enter pseudo-column path.
+    ///
+    /// CrowdStrike `created_timestamp` is `column_type = "datetime"` with `options = ["INDEX"]`.
+    /// The latent crash risk: the pre-type-gate code would have entered the pseudo-column path
+    /// and built a `StringArray` for a `Timestamp(Microsecond, UTC)` schema field when
+    /// `push_down_filters["created_timestamp"]` was populated, causing `RecordBatch::try_new`
+    /// to fail with `Invalid argument error: column types must match schema`.
+    ///
+    /// Post-fix: the type gate `col_spec.column_type == ColumnType::String` in
+    /// `pipeline_result_to_record_batch` prevents Datetime+INDEX from entering the
+    /// pseudo-column path. It falls through to `build_column_array`, which correctly
+    /// produces the `Timestamp(Microsecond, UTC)` Arrow array from actual record data.
+    ///
+    /// This test exercises `pipeline_result_to_record_batch` directly — the private
+    /// function where the crash would occur.
+    ///
+    /// FIX-1 regression; BC-2.01.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 BLOCKING-1 cycle-4.
+    #[test]
+    fn test_BC_2_01_013_crowdstrike_fql_datetime_index_col_string_equality_safe() {
+        use prism_core::ColumnOptions;
+        use prism_spec_engine::{
+            pipeline::PipelineResult,
+            spec_parser::{FetchStep, TableSpec},
+        };
+
+        // Build a minimal TableSpec for CrowdStrike detections with `created_timestamp`
+        // as a Datetime+INDEX column, mirroring the production TOML spec:
+        //   crates/prism-sensors/specs/crowdstrike.sensor.toml
+        //     created_timestamp: column_type = "datetime", options = ["INDEX"]
+        let created_timestamp_col = ColumnSpec::new(
+            "created_timestamp",
+            ColumnType::Datetime,
+            None,
+            vec![ColumnOptions::Index],
+        );
+        let table = TableSpec::new_point_in_time(
+            "detections",
+            "detection_finding",
+            vec![created_timestamp_col],
+            vec![FetchStep::new(
+                "fetch_detections",
+                "GET",
+                "/detects/queries/detects/v1",
+                None,
+                "$.resources",
+                None,
+                vec![],
+                None,
+                None,
+            )],
+        );
+
+        // One record from the pipeline with a valid ISO 8601 created_timestamp.
+        // Use PipelineResult::new() — the struct is #[non_exhaustive] in prism-spec-engine,
+        // so struct-literal construction is blocked outside its defining crate.
+        let result = PipelineResult::new(
+            vec![serde_json::json!({
+                "created_timestamp": "2024-01-15T10:30:00.000Z"
+            })],
+            "detections",
+            1,
+            false,
+        );
+
+        // Simulate push_down_filters with "created_timestamp" → string value.
+        // Represents: WHERE created_timestamp = '2024-01-15T10:30:00.000Z'.
+        // Before the type gate fix: pseudo-column path built StringArray for a
+        // Timestamp(Microsecond,UTC) schema field → Arrow type mismatch crash.
+        let mut push_down_filters = std::collections::HashMap::new();
+        push_down_filters.insert(
+            "created_timestamp".to_string(),
+            serde_json::Value::String("2024-01-15T10:30:00.000Z".to_string()),
+        );
+
+        let batch_result = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "crowdstrike",
+            &push_down_filters,
+        );
+
+        // LOAD-BEARING (FIX-1 type-gate regression — cycle-4 BLOCKING-1):
+        // pipeline_result_to_record_batch MUST NOT return an Arrow error when
+        // push_down_filters contains a filter on a Datetime+INDEX column.
+        //
+        // Before fix: pseudo-column path built StringArray for Timestamp(Microsecond,UTC) →
+        //   RecordBatch::try_new returned `Invalid argument error: column types must match schema`.
+        //
+        // After fix: type gate `&& col_spec.column_type == ColumnType::String` ensures
+        //   Datetime+INDEX (created_timestamp, column_type=datetime) falls through to
+        //   build_column_array → TimestampMicrosecondArray → RecordBatch::try_new succeeds.
+        assert!(
+            batch_result.is_ok(),
+            "FIX-1 REGRESSION (Datetime+INDEX type-gate): pipeline_result_to_record_batch \
+             MUST NOT fail when push_down_filters contains a Datetime+INDEX column. \
+             CrowdStrike `created_timestamp` (column_type=datetime, options=[INDEX]) must fall \
+             through the type gate to build_column_array, NOT enter the pseudo-column (StringArray) path. \
+             Before fix: Arrow type mismatch — StringArray vs Timestamp(Microsecond,UTC) schema field. \
+             After fix: build_column_array returns TimestampMicrosecondArray → Ok. \
+             BC-2.01.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-1. \
+             Got Err: {:?}",
+            batch_result.err()
+        );
     }
 }
