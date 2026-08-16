@@ -4736,3 +4736,26 @@ When authoring any story whose ACs involve time-window filtering (`extract_time_
 **Transferable principle:** TD-VSDD-097 dim-1 sibling-pair sweep must include cross-sensor TOML column option parity. When a column-level option (e.g., `options=["INDEX"]`) is established by one sensor's story as the mechanism for a behavior class, all sibling sensors whose stories touch the same behavior class must be checked for the same option. The absence of the option in a sibling sensor TOML is a CRIT defect, not a style preference.
 
 **Source:** D-2188 state-manager closing burst (2026-08-16). Pattern family: TD-VSDD-097 dim-1 sibling-sweep gap, options=["INDEX"], cross-sensor TOML parity, time-window extraction.
+
+### Lesson 128 — BC Pin Bump in Records-Only Micro-Burst Must Sweep All Live Story Pins in the Same Burst [tracked]
+
+**Context:** S-CLAROTY-AUDITLOG-TIMEBOX-001 LOCAL adversary pass-5 (D-2192). F-P5-MED-001 found that the pass-4 records-only micro-burst (D-2191) bumped BC-2.16.013 from v1.40 to v1.41 but did not sweep the anchoring story's live BC pin references. The pass-5 adversary found 7 live BC-2.16.013 pins at stale v1.40 in the story, each needing v1.41. This is a TD-VSDD-097 §2 (downstream-copy target) recurrence.
+
+**Root cause:**
+
+The pass-4 micro-burst correctly updated BC-2.16.013 (product-owner fix for ASM-CLAROTY-AUDITLOG-001 live-check curl value quoting). The TD-VSDD-097 §2 three-dimension verdict in D-2191 declared "no downstream verbatim copy-target for ASM-CLAROTY-AUDITLOG-001 live-check section" as CLEAR — which was correct for the specific section amended. However, the story file contained 7 live BC version pins referencing BC-2.16.013 in various AC, RG, and task contexts. These pins are downstream copy-targets for the BC version bump itself, distinct from the section-content verbatim copy addressed in the D-2191 verdict.
+
+The miss: "downstream copy target" for a BC pin bump includes every story that carries a live `BC-2.16.013 vX.Y` pin where X.Y is the OLD version. This class of downstream copy is not a verbatim section copy — it is a version-number reference that must advance in lockstep with every BC version bump.
+
+**Correct behavior (going forward):**
+
+When any records-only micro-burst (or any burst) bumps a BC version, the fixer MUST:
+1. After bumping the BC, grep `.factory/stories/` for every occurrence of `BC-<id> v<old_version>` (the pre-bump version pin).
+2. For each hit in a story file, verify whether the pin is a live canonical reference (in §Behavioral Contracts, §Tasks, ACs, RGs, §Token Budget, or §Version History §Authority tables) vs. a historical-changelog attribution (deliberately preserved per TD-VSDD-091).
+3. Live canonical references MUST be swept to the new version in the SAME burst.
+4. Historical changelog attributions in prior §Changelog rows are intentionally preserved (TD-VSDD-091) and must NOT be bumped.
+5. Document the sweep in the burst's TD-VSDD-097 §2 verdict explicitly: name each file swept and the count of live pins updated vs. historical pins preserved.
+
+**Transferable principle:** A BC version bump in any burst creates a downstream-copy obligation against every story's live pin set for that BC. The TD-VSDD-097 §2 "downstream copy target" dimension is not limited to verbatim section copies — it includes version-number reference sites. The standard discharge is a grep for `<BC-id> v<old_version>` across `.factory/stories/`, classify each hit as live-pin vs. historical-attribution, sweep all live pins. Failing to discharge this in the bump burst guarantees a pass-N+1 adversary finding of exactly the class found here.
+
+**Source:** D-2192 state-manager closing burst (2026-08-15). Pattern family: TD-VSDD-097 §2 downstream-copy sweep miss, BC pin bump mid-cascade, live story pin sweep obligation.
