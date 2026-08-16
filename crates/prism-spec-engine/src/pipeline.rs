@@ -1717,6 +1717,15 @@ fn find_fan_out_array(
             if seen_keys.contains(&key) {
                 continue; // dedup: same var referenced in multiple templates
             }
+            // query.filter.* variables are JSON filter values, not fan-out sources.
+            // An array-valued query.filter.* var (e.g., a malformed empty array) must not
+            // trigger zero-batch fan-out (zero HTTP requests, zero rows, no error).
+            // Same namespace-based reasoning as the Object-warn exemption below:
+            // the correct discriminator is the NAMESPACE (`query.filter.*`), not the value type.
+            // S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-16 LOW-1 (TD-VSDD-060 sibling sweep of FIX-2).
+            if key.starts_with("query.filter.") {
+                continue;
+            }
             if let Some(val) = step_vars.get(&key).filter(|v| v.is_array()) {
                 seen_keys.insert(key.clone());
                 array_vars.push((key, val.clone()));
@@ -5572,6 +5581,79 @@ mod rg004_pipeline_json_filter_tests {
              The cycle-3 two-pass impl incorrectly fired this warn for path_template \
              query.filter.* Objects. \
              BC-2.16.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-2 cycle-4."
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Cycle-16 LOW-1 regression: query.filter.* Array-valued vars must NOT be
+    // selected as fan-out sources (TD-VSDD-060 sibling sweep of FIX-2).
+    // ---------------------------------------------------------------------------
+
+    /// Cycle-16 LOW-1 / BC-2.16.013 — `query.filter.*` Array-valued variable MUST NOT be
+    /// selected as a fan-out source by `find_fan_out_array`.
+    ///
+    /// FIX-2 (S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-4) added `if key.starts_with("query.filter.") { continue; }`
+    /// to the Object-warn loop, exempting `query.filter.*` from the `fanout_invalid_source_type` warn.
+    /// That fix omitted the sibling site — the `array_vars` collection loop immediately above,
+    /// which selects the fan-out source. An Array-valued `query.filter.*` variable (e.g.,
+    /// `query.filter.aql = "[]"` after auto-parse) would be selected, producing zero batches,
+    /// zero HTTP requests, zero rows, and no error (SOUL.md §4 silent-empty class).
+    ///
+    /// This test calls `find_fan_out_array` directly with a step whose body_template references
+    /// `${query.filter._claroty_audit_filter_by}` and step_vars carrying that key as
+    /// `Value::Array([])`. The function MUST return `None` (not selected as fan-out source).
+    ///
+    /// BC-2.16.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-16 LOW-1.
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_BC_2_16_013_pipeline_json_array_filter_no_fanout_selection() {
+        // FetchStep with a body_template that references ${query.filter._claroty_audit_filter_by}.
+        let step = FetchStep {
+            name: "fetch_audit_logs".to_string(),
+            method: "POST".to_string(),
+            path_template: "/api/v1/audit_log/get".to_string(),
+            body_template: Some(
+                r#"{"filter_by": ${query.filter._claroty_audit_filter_by}}"#.to_string(),
+            ),
+            response_path: "$.audit_log".to_string(),
+            pagination_cursor_path: None,
+            variables_produced: vec![],
+            fan_out_batch_size: None,
+            pagination: None,
+        };
+
+        // step_vars: query.filter._claroty_audit_filter_by is a Value::Array([]).
+        // This simulates the malformed/edge-case path where auto-parse produces an Array
+        // from a query.filter.* value. Must NOT be selected as the fan-out source.
+        let mut step_vars = HashMap::new();
+        step_vars.insert(
+            "query.filter._claroty_audit_filter_by".to_string(),
+            serde_json::Value::Array(vec![]),
+        );
+
+        let fan_out = super::find_fan_out_array(&step, &step_vars);
+
+        // LOAD-BEARING ASSERTION (cycle-16 LOW-1 regression):
+        // find_fan_out_array MUST return None when step_vars contains only a
+        // query.filter.* variable, even if that variable is Array-valued.
+        //
+        // Rationale: query.filter.* variables are JSON filter values injected into
+        // the request body, not fan-out batch sources. Selecting them as fan-out
+        // sources with an empty array produces zero HTTP requests, zero rows, and
+        // no error — the SOUL.md §4 silent-empty defect class.
+        //
+        // The correct discriminator is the NAMESPACE (query.filter.*), not the value type.
+        // This exemption mirrors the Object-warn exemption in the loop below (FIX-2).
+        assert!(
+            fan_out.is_none(),
+            "cycle-16 LOW-1 REGRESSION: find_fan_out_array MUST return None for \
+             query.filter.* variables regardless of their value type (Object or Array). \
+             An Array-valued query.filter.* var must NOT be selected as the fan-out source — \
+             doing so produces zero-batch fan-out (zero HTTP requests, zero rows, no error). \
+             The correct discriminator is the NAMESPACE (query.filter.*), not the value type. \
+             Got: {fan_out:?} — this means the array_vars collection loop is missing the \
+             query.filter.* namespace exemption. \
+             BC-2.16.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-16 LOW-1."
         );
     }
 }
