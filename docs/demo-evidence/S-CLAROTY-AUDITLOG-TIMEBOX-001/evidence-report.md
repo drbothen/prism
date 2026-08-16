@@ -186,7 +186,7 @@ Three code sites changed in coordination (confirmed GREEN before recording):
 
 | File | Change | Verification |
 |------|--------|--------------|
-| `crates/prism-bin/src/spec_driven_adapter.rs` | Added `build_claroty_audit_filter_by` + injection block for `sensor_id="claroty" && table_name="audit_logs"` (four filter cases EC-01-030..033) | RG-001/002/003/005/006 pass |
+| `crates/prism-bin/src/spec_driven_adapter.rs` | Added `build_claroty_audit_filter_by` + injection block guarded on `sensor_id == "claroty"` (sensor-scoped, **not** table-scoped — required so injection fires on the bare-predicate fan-out path where `source_table == sensor_id == "claroty"`; BP-001 pins this). Effect is table-scoped: only the `audit_logs` `body_template` references `${query.filter._claroty_audit_filter_by}`. Four filter cases EC-01-030..033. | RG-001/002/003/005/006 pass |
 | `crates/prism-spec-engine/src/pipeline.rs` | Extended `step_vars` seeding: JSON-object strings (`{`/`[` prefix) → `Value::Object`; plain strings remain `Value::String` | RG-004 pass |
 | `crates/prism-sensors/specs/claroty.sensor.toml` | (a) `body_template = '{"filter_by": ${query.filter._claroty_audit_filter_by}}'`; (b) `options = ["INDEX"]` on `audit_logs.timestamp` column | RG-001 setup (TOML parse); RG-007 pass |
 
