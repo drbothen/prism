@@ -4737,6 +4737,37 @@ When authoring any story whose ACs involve time-window filtering (`extract_time_
 
 **Source:** D-2188 state-manager closing burst (2026-08-16). Pattern family: TD-VSDD-097 dim-1 sibling-sweep gap, options=["INDEX"], cross-sensor TOML parity, time-window extraction.
 
+### Lesson 129 — Concurrent pr-manager Autonomous Loop + Orchestrator-Driven PR-LEVEL Cascade on the Same Branch is Forbidden [tracked]
+
+**Category:** process-gap, agent-dispatch, pr-manager, concurrent-agent, autonomy-boundary
+
+**Context:** S-CLAROTY-AUDITLOG-TIMEBOX-001 PR #239 (D-2197/D-2198 2026-08-16). After the LOCAL 3-CLEAN + holdout + LIVE xDome gates all passed, the orchestrator dispatched the demo-recorder → push → pr-manager sequence. The dispatched pr-manager sub-agent (abc517000c408c61c) was spawned with the full 9-step PR cycle as its mandate. While the pr-manager ran its cycle (including dispatching its own fixers and pushing commits), the orchestrator ALSO ran its own PR-LEVEL adversary cascade against the same branch. The result: the pr-manager pushed un-orchestrated commits (branch churned through multiple intermediate HEADs, ending at 8ae0b5d8), while the orchestrator's adversary passes evaluated snapshots of a moving target. The two agents were racing for control of the same branch.
+
+**Root cause:**
+
+When the orchestrator dispatches a pr-manager sub-agent, the pr-manager runs as a BACKGROUND task. The orchestrator did not track the pr-manager's agent handle and continued its own orchestration of the PR-LEVEL adversary cascade concurrently. The pr-manager has autonomous fix-loop authority within its 9-step mandate — it dispatches fixers, accumulates commits, and pushes independently. This creates a race condition with any orchestrator-level cascade running on the same branch.
+
+**HUMAN-DIRECTED remediation (D-2198 2026-08-16):**
+1. Orchestrator called TaskStop on abc517000c408c61c to halt the pr-manager loop.
+2. Orchestrator serialized exclusive control and froze at PR code HEAD 8ae0b5d8.
+3. Consolidated F-1/F-2 spec-accuracy fix applied in a single .factory-only burst (D-2197).
+4. PR-LEVEL adversary 3-CLEAN dispatch restarted fresh against the stable frozen HEAD 8ae0b5d8.
+
+**Correct behavior (going forward):**
+
+When a pr-manager sub-agent is dispatched for a story's PR cycle, the orchestrator MUST:
+1. Track the pr-manager's agent handle.
+2. Choose ONE of two modes — exclusive modes, not concurrent:
+   - **Mode A (pr-manager owns the loop):** Orchestrator delegates the full 9-step PR cycle to pr-manager, INCLUDING the PR-LEVEL adversary cascade. Orchestrator waits for pr-manager to signal completion before resuming. Orchestrator does NOT dispatch its own adversary passes while pr-manager is running.
+   - **Mode B (orchestrator owns the loop):** Orchestrator does NOT dispatch a long-running autonomous pr-manager. Instead, orchestrator creates the PR via pr-manager (creation step only), then drives each subsequent step (adversary, fixers, re-review) directly, using short single-step sub-agent dispatches.
+3. Never let both modes run simultaneously. A background pr-manager with full-loop authority is incompatible with an orchestrator that is also driving cascade steps on the same branch.
+
+**Transferable principle:** Agent autonomy boundaries must be exclusive. An agent with "fix-loop authority" (pr-manager) and an orchestrator driving fixes on the same surface are structurally incompatible — one must exclusively own the loop. Background-launched agents with wide mandates must be tracked and either awaited or TaskStop'd before the orchestrator acts on their surface. The cost of failing to enforce this is branch churn, racing adversary passes, and a process-incident recovery burst that adds one full session's worth of overhead.
+
+**Source:** D-2197/D-2198 state-manager closing burst (2026-08-16). Pattern family: concurrent-agent exclusion, pr-manager autonomy boundary, agent handle tracking, orchestrator-delegation anti-pattern.
+
+---
+
 ### Lesson 128 — BC Pin Bump in Records-Only Micro-Burst Must Sweep All Live Story Pins in the Same Burst [tracked]
 
 **Context:** S-CLAROTY-AUDITLOG-TIMEBOX-001 LOCAL adversary pass-5 (D-2192). F-P5-MED-001 found that the pass-4 records-only micro-burst (D-2191) bumped BC-2.16.013 from v1.40 to v1.41 but did not sweep the anchoring story's live BC pin references. The pass-5 adversary found 7 live BC-2.16.013 pins at stale v1.40 in the story, each needing v1.41. This is a TD-VSDD-097 §2 (downstream-copy target) recurrence.

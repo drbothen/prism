@@ -9,8 +9,8 @@ priority: P1
 status: ready
 producer: story-writer
 timestamp: "2026-08-15T00:00:00Z"
-version: "2.4"
-modified: "2026-08-15"
+version: "2.5"
+modified: "2026-08-16"
 phase: 3
 cycle: v1.0.0-brownfield
 inputs:
@@ -20,7 +20,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/src/pipeline.rs"
   - "crates/prism-dtu-claroty/src/types.rs"
-input-hash: "bb32d84"
+input-hash: "9c84012"
 traces_to: "BC-2.01.013"
 points: 8
 estimated_days: 2
@@ -44,12 +44,12 @@ crates_touched: [prism-bin, prism-spec-engine, prism-sensors]
 #   prism-sensors: claroty.sensor.toml — audit_logs body_template updated to Layer-2 variable
 behavioral_contracts:
   - BC-2.01.013
-  # BC-2.01.013 (v1.22) §Postconditions Per-sensor push-down translation table —
+  # BC-2.01.013 (v1.23) §Postconditions Per-sensor push-down translation table —
   # `Claroty audit_logs` row: four filter cases (EC-01-030..EC-01-033); filter_by JSON-object
   # injection via spec_driven_adapter.rs; auto-parse in pipeline.rs; ISO-8601 value strings;
   # `operands` compound key; ApiQueryFilter DTU ground-truth.
   - BC-2.16.013
-  # BC-2.16.013 (v1.41) §Postconditions §1 — Claroty audit_logs push-down block:
+  # BC-2.16.013 (v1.42) §Postconditions §1 — Claroty audit_logs push-down block:
   # body_template = '{"filter_by": ${query.filter._claroty_audit_filter_by}}'
   # SPEC-GATE (S-7.01): both BCs are active canonical IDs — status may advance to ready.
 verification_properties:
@@ -82,14 +82,14 @@ holdout_scenarios:
 
 ## Authority
 
-BC-2.01.013 v1.22 §Postconditions Per-sensor push-down translation table is the governing
+BC-2.01.013 v1.23 §Postconditions Per-sensor push-down translation table is the governing
 behavioral contract for `spec_driven_adapter.rs` and `pipeline.rs` changes. Read the
 `Claroty audit_logs` row specifically — it enumerates all four filter cases (EC-01-030 through
 EC-01-033), the ISO-8601 `value` string requirement, the `operands` compound key (NOT
 `conditions`), the `ApiQueryFilter` DTU ground-truth, and the `options = ["INDEX"]` prerequisite
 for `audit_logs.timestamp` push-down eligibility (EC-01-034).
 
-BC-2.16.013 v1.41 §Postconditions §1 is the governing contract for the `claroty.sensor.toml`
+BC-2.16.013 v1.42 §Postconditions §1 is the governing contract for the `claroty.sensor.toml`
 body_template change and the `audit_logs.timestamp options = ["INDEX"]` prerequisite. Read the
 `audit_logs` bounded push-down block — it enumerates the four filter cases, confirms the
 `operands` key for the compound filter, and states the `options = ["INDEX"]` MUST.
@@ -102,7 +102,7 @@ to mirror for the Claroty `filter_by` injection. Read those blocks before implem
 `ApiQueryFilter` (`HashMap<String, serde_json::Value>`) in
 `crates/prism-dtu-claroty/src/types.rs §ApiQueryFilter` is the DTU ground-truth for `filter_by`
 field names and operation names (SAP-2 compliance per ADR-028 §D1). `ClarotyAuditLogFilter`
-does NOT exist in the codebase — it is a phantom type reference (BC-2.01.013 v1.22
+does NOT exist in the codebase — it is a phantom type reference (BC-2.01.013 v1.23
 §Postconditions). ASM-CLAROTY-AUDITLOG-001 must be confirmed at demo prep.
 
 ---
@@ -124,7 +124,7 @@ This story delivers the complete fix in one step:
 1. **`spec_driven_adapter.rs`** — for Claroty `audit_logs` queries, extract `start_time`/`end_time`
    from the PrismQL AST via ADR-033 Option T1, construct a `filter_by` JSON object, and inject
    as `query_filters["_claroty_audit_filter_by"]`. Four filter cases (all `value` fields are
-   ISO-8601 strings, NOT epoch-ms integers — BC-2.01.013 v1.22 EC-01-030..033):
+   ISO-8601 strings, NOT epoch-ms integers — BC-2.01.013 v1.23 EC-01-030..033):
    - (EC-01-030) No `start_time`, no `end_time` → `{"field": "timestamp", "operation": "greater_or_equal", "value": "<now−7d as ISO-8601>"}` (7d default; never unbounded)
    - (EC-01-031) `start_time` only, no `end_time` → `{"field": "timestamp", "operation": "greater_or_equal", "value": "<start_time as ISO-8601>"}`
    - (EC-01-032) `end_time` only, no `start_time` → `{"field": "timestamp", "operation": "less_or_equal", "value": "<end_time as ISO-8601>"}` (SINGLE filter; NO synthetic 7-day lower bound; never compound `and`)
@@ -141,8 +141,8 @@ This story delivers the complete fix in one step:
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.22 | §Postconditions `Claroty audit_logs` row: four filter cases (EC-01-030..EC-01-034), ISO-8601 `value` strings, `operands` compound key (NOT `conditions`), `ApiQueryFilter = HashMap<String, serde_json::Value>` DTU ground-truth, `options = ["INDEX"]` prerequisite for push-down eligibility (EC-01-034), error surface |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.41 | §Postconditions §1 push-down block specifies the final `body_template` value; `options = ["INDEX"]` prerequisite for `audit_logs.timestamp` push-down eligibility (v1.40 amendment); SAP-2 parity gate for `ApiQueryFilter = HashMap<String, serde_json::Value>` DTU ground-truth |
+| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.23 | §Postconditions `Claroty audit_logs` row: four filter cases (EC-01-030..EC-01-034), ISO-8601 `value` strings, `operands` compound key (NOT `conditions`), `ApiQueryFilter = HashMap<String, serde_json::Value>` DTU ground-truth, `options = ["INDEX"]` prerequisite for push-down eligibility (EC-01-034), error surface |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.42 | §Postconditions §1 push-down block specifies the final `body_template` value; `options = ["INDEX"]` prerequisite for `audit_logs.timestamp` push-down eligibility (v1.40 amendment); SAP-2 parity gate for `ApiQueryFilter = HashMap<String, serde_json::Value>` DTU ground-truth |
 
 ## Acceptance Criteria
 
@@ -206,7 +206,7 @@ The prior `body_template = '{}'` is replaced. `devices` and `alerts` tables are 
 
 **Test:** covered by RG-001 setup (SpecLoader::parse is invoked as part of test setup; parse failure causes test failure).
 
-### AC-006: xDome 4xx rejection of the `filter_by` filter surfaces as E-SENSOR-001 (traces to BC-2.01.013 postcondition `Claroty audit_logs` row — error propagation clause; BC-2.16.013 v1.41 §1 — filter-rejection MUST anchor)
+### AC-006: xDome 4xx rejection of the `filter_by` filter surfaces as E-SENSOR-001 (traces to BC-2.01.013 postcondition `Claroty audit_logs` row — error propagation clause; BC-2.16.013 v1.42 §1 — filter-rejection MUST anchor)
 
 When xDome returns a 4xx response to a `POST /api/v1/audit_log/get` request carrying the
 injected `filter_by` object (e.g., invalid operation name, unsupported field), the adapter
@@ -240,7 +240,7 @@ contains single `{"field": "timestamp", "operation": "less_or_equal", "value": "
 assert POST body does NOT contain `"greater_or_equal"`; assert POST body does NOT contain compound
 `"operation": "and"`)
 
-### AC-INDEX-CLARO-001: `audit_logs.timestamp` column declares `options = ["INDEX"]` so explicit WHERE time-filters are push-down-eligible (traces to BC-2.01.013 v1.22 INDEX-prerequisite postcondition — EC-01-034; BC-2.16.013 v1.41 §Postconditions §1 `audit_logs` `options = ["INDEX"]` prerequisite block)
+### AC-INDEX-CLARO-001: `audit_logs.timestamp` column declares `options = ["INDEX"]` so explicit WHERE time-filters are push-down-eligible (traces to BC-2.01.013 v1.23 INDEX-prerequisite postcondition — EC-01-034; BC-2.16.013 v1.42 §Postconditions §1 `audit_logs` `options = ["INDEX"]` prerequisite block)
 
 `crates/prism-sensors/specs/claroty.sensor.toml` `audit_logs` table `timestamp` column MUST
 declare `options = ["INDEX"]`. Without this declaration, `extract_time_window_from_ast`
@@ -319,8 +319,8 @@ Architecture section references:
 | This story spec | ~6,500 |
 | `crates/prism-bin/src/spec_driven_adapter.rs` (full — read CrowdStrike FQL + Armis AQL pattern) | ~12,000 |
 | `crates/prism-spec-engine/src/pipeline.rs` (step_vars seeding section) | ~6,000 |
-| BC-2.01.013 v1.22 (full — push-down translation table + EC-01-034) | ~8,000 |
-| BC-2.16.013 v1.41 (audit_logs push-down block + options INDEX prerequisite) | ~4,000 |
+| BC-2.01.013 v1.23 (full — push-down translation table + EC-01-034) | ~8,000 |
+| BC-2.16.013 v1.42 (audit_logs push-down block + options INDEX prerequisite) | ~4,000 |
 | `crates/prism-sensors/specs/claroty.sensor.toml` | ~5,000 |
 | `crates/prism-dtu-claroty/src/types.rs §ApiQueryFilter` (SAP-2 ground-truth) | ~2,000 |
 | ADR-033 §Decision (push-down mechanism reference) | ~3,000 |
@@ -367,14 +367,14 @@ as the canonical pattern, then Armis AQL, then write the Claroty block.
   # the 7-day default is silently injected even when the user provides an explicit WHERE
   # time-filter — discarding the user's intent (SOUL.md §4). Mirrors CrowdStrike
   # created_timestamp INDEX declaration (AC-INDEX-CWS-001 / BC-2.01.013 Claroty audit_logs
-  # time-window). Mandate anchor: AC-INDEX-CLARO-001 / RG-007 / BC-2.01.013 v1.22.
+  # time-window). Mandate anchor: AC-INDEX-CLARO-001 / RG-007 / BC-2.01.013 v1.23.
   options = ["INDEX"]
   ```
 
   Run `just check` to confirm the TOML parses without error and `SpecLoader::parse` returns `Ok`.
   After this step RG-007 (`test_BC_2_01_013_claroty_audit_logs_timestamp_index_option_required_for_pushdown_eligibility`) MUST turn GREEN.
 
-- [ ] **Task 6 (SAP-2 self-check):** Read `crates/prism-dtu-claroty/src/types.rs §ApiQueryFilter` (NOT `§ClarotyAuditLogFilter` — that type does not exist in the codebase; it is a phantom reference per BC-2.01.013 v1.22). `ApiQueryFilter = HashMap<String, serde_json::Value>` is the DTU ground-truth for the `filter_by` field. Read the audit_log route handler `crates/prism-dtu-claroty/src/routes/audit_log.rs` emission site to confirm the request body `filter_by` key is deserialized from the incoming POST body into `ApiQueryFilter` (SAP-2 Rule 6). Verify that `field`, `operation`, `value`, and `operands` are valid JSON keys (HashMap keys, not Rust struct fields). If an operation name mismatch is found (`greater_or_equal`/`less_or_equal`/`and`), fix `spec_driven_adapter.rs` to match the DTU ground-truth before committing.
+- [ ] **Task 6 (SAP-2 self-check):** Read `crates/prism-dtu-claroty/src/types.rs §ApiQueryFilter` (NOT `§ClarotyAuditLogFilter` — that type does not exist in the codebase; it is a phantom reference per BC-2.01.013 v1.23). `ApiQueryFilter = HashMap<String, serde_json::Value>` is the DTU ground-truth for the `filter_by` field. Read the audit_log route handler `crates/prism-dtu-claroty/src/routes/audit_log.rs` emission site to confirm the request body `filter_by` key is deserialized from the incoming POST body into `ApiQueryFilter` (SAP-2 Rule 6). Verify that `field`, `operation`, `value`, and `operands` are valid JSON keys (HashMap keys, not Rust struct fields). If an operation name mismatch is found (`greater_or_equal`/`less_or_equal`/`and`), fix `spec_driven_adapter.rs` to match the DTU ground-truth before committing.
 
 - [ ] **Task 7 (SAP-1 self-check):** If any new `tracing::*!(event_type = ...)` is added to `spec_driven_adapter.rs` or `pipeline.rs`, add a corresponding row to BC-2.16.002 §Postconditions Structured Event Catalog. The existing CrowdStrike/Armis push-down pattern emits no new event_type values for the injection logic — follow the same convention where possible.
 
@@ -399,7 +399,7 @@ as the canonical pattern, then Armis AQL, then write the Claroty block.
 4. **S-DEMO-CLAROTY-AUDIT-DTU-001 (merged PR #167):** Added `POST /api/v1/audit_log/get` to the DTU
    and created `ClarotyAuditLogEntry`. The DTU uses `filter_by: Option<ApiQueryFilter>` where
    `ApiQueryFilter = HashMap<String, serde_json::Value>` — NOT a dedicated `ClarotyAuditLogFilter`
-   struct (that type is a phantom reference; see BC-2.01.013 v1.22 §Postconditions). Read
+   struct (that type is a phantom reference; see BC-2.01.013 v1.23 §Postconditions). Read
    `crates/prism-dtu-claroty/src/types.rs §ApiQueryFilter` for the DTU ground-truth.
 
 ## Architecture Compliance Rules
@@ -416,7 +416,7 @@ From `architecture/module-decomposition.md` §SS-16 Spec Engine:
 
 From ADR-033 §Decision:
 - Option T1 pre-fan-out heuristic: `start_time`/`end_time` arrive in `FetchContext` after extraction in `run_materialization_pipeline §run_materialization_pipeline`. The injection block in `spec_driven_adapter.rs` reads these fields and writes to `query_filters["_claroty_audit_filter_by"]`.
-- The `devices` and `alerts` Claroty tables retain `body_template: '{}'` — the `filter_by` injection is `audit_logs`-specific.
+- The `devices`, `alerts`, and `device_alert_relations` Claroty tables carry fields-projection body_templates (`{"fields":[...]}`) and are unaffected by the `filter_by` injection — the injected `${query.filter._claroty_audit_filter_by}` key is INERT for tables whose body_template does not reference it.
 
 ## Library & Framework Requirements
 
@@ -455,12 +455,12 @@ The JSON auto-parse extension in `pipeline.rs` uses `serde_json` which is alread
 
 ## Notes for Implementer
 
-1. **`value` field format: ISO-8601 strings.** BC-2.01.013 v1.22 explicitly documents that all
+1. **`value` field format: ISO-8601 strings.** BC-2.01.013 v1.23 explicitly documents that all
    `value` fields in the Claroty `filter_by` JSON are ISO-8601 strings (NOT epoch-ms integers).
    Use `.to_rfc3339()` on `DateTime<Utc>` values in Task 4. The DTU ground-truth is
    `filter_by: Option<ApiQueryFilter>` where `ApiQueryFilter = HashMap<String, serde_json::Value>`,
    defined at `crates/prism-dtu-claroty/src/types.rs::ApiQueryFilter`. `ClarotyAuditLogFilter`
-   does NOT exist as a type in the codebase (phantom type — BC-2.01.013 v1.22 §Postconditions).
+   does NOT exist as a type in the codebase (phantom type — BC-2.01.013 v1.23 §Postconditions).
    Read `crates/prism-dtu-claroty/src/types.rs §ApiQueryFilter` (NOT `§ClarotyAuditLogFilter`)
    for the DTU ground-truth field structure.
 
@@ -478,14 +478,14 @@ The JSON auto-parse extension in `pipeline.rs` uses `serde_json` which is alread
 4. **No BC-2.16.002 catalog update** unless new `tracing::*!(event_type = ...)` emissions are added.
    The existing push-down patterns emit no new event_type values for injection logic — follow suit.
 
-5. **`options = ["INDEX"]` on `claroty.sensor.toml §audit_logs timestamp` is a prerequisite, not optional** (AC-INDEX-CLARO-001 / RG-007 / BC-2.01.013 v1.22 Claroty audit_logs time-window). The `extract_time_window_from_ast` function in `pushdown.rs §extract_time_window_from_ast` gates push-down eligibility on `ColumnOptions::Index`. Without this option, the column is treated as non-index-eligible: `QueryParams.start_time`/`QueryParams.end_time` stay `None` regardless of the user's WHERE predicate, and `build_claroty_audit_filter_by(None, None)` silently injects the 7-day default for every query — discarding the user's explicit time-filter (EC-01-034). Add `options = ["INDEX"]` to the `audit_logs` `timestamp` column declaration with a comment mirroring the CrowdStrike `created_timestamp` precedent. Failure to add it means RG-007 stays RED and EC-01-031/032/033 remain unreachable from the parser surface (SAP-3 violation).
+5. **`options = ["INDEX"]` on `claroty.sensor.toml §audit_logs timestamp` is a prerequisite, not optional** (AC-INDEX-CLARO-001 / RG-007 / BC-2.01.013 v1.23 Claroty audit_logs time-window). The `extract_time_window_from_ast` function in `pushdown.rs §extract_time_window_from_ast` gates push-down eligibility on `ColumnOptions::Index`. Without this option, the column is treated as non-index-eligible: `QueryParams.start_time`/`QueryParams.end_time` stay `None` regardless of the user's WHERE predicate, and `build_claroty_audit_filter_by(None, None)` silently injects the 7-day default for every query — discarding the user's explicit time-filter (EC-01-034). Add `options = ["INDEX"]` to the `audit_logs` `timestamp` column declaration with a comment mirroring the CrowdStrike `created_timestamp` precedent. Failure to add it means RG-007 stays RED and EC-01-031/032/033 remain unreachable from the parser surface (SAP-3 violation).
 
 ---
 
 ## References
 
-- BC-2.01.013 v1.22 (ACTIVE) — §Postconditions `Claroty audit_logs` row: four filter cases EC-01-030..034, ISO-8601 `value` strings, `operands` compound key, `ApiQueryFilter` DTU ground-truth, `options = ["INDEX"]` prerequisite for push-down eligibility (EC-01-034), error surface
-- BC-2.16.013 v1.41 (ACTIVE) — §Postconditions §1 Claroty `audit_logs` push-down block; `options = ["INDEX"]` prerequisite for `audit_logs.timestamp` (v1.40 amendment); LIVE-API ASSUMPTION ASM-CLAROTY-AUDITLOG-001
+- BC-2.01.013 v1.23 (ACTIVE) — §Postconditions `Claroty audit_logs` row: four filter cases EC-01-030..034, ISO-8601 `value` strings, `operands` compound key, `ApiQueryFilter` DTU ground-truth, `options = ["INDEX"]` prerequisite for push-down eligibility (EC-01-034), error surface
+- BC-2.16.013 v1.42 (ACTIVE) — §Postconditions §1 Claroty `audit_logs` push-down block; `options = ["INDEX"]` prerequisite for `audit_logs.timestamp` (v1.40 amendment); LIVE-API ASSUMPTION ASM-CLAROTY-AUDITLOG-001
 - ADR-033 §Decision — push-down time-window extraction Option T1 pre-fan-out heuristic
 - ADR-028 §D1 — TOML body_template grounding (DTU types are ground-truth for field/operation names)
 - `crates/prism-dtu-claroty/src/types.rs §ApiQueryFilter` — DTU ground-truth (SAP-2); `ApiQueryFilter = HashMap<String, serde_json::Value>`; `ClarotyAuditLogFilter` does NOT exist (phantom type reference)
@@ -500,6 +500,7 @@ The JSON auto-parse extension in `pipeline.rs` uses `serde_json` which is alread
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.5 | 2026-08-16 | story-writer | F-1 body_template accuracy correction (§Architecture-Compliance-Rules §From-ADR-033-§Decision bullet: removed false `body_template: '{}'` claim for `devices`/`alerts` tables; corrected to fields-projection template description + INERT-key rationale; named `device_alert_relations` as third unaffected table per claroty.sensor.toml ground-truth). BC pin sweep to v1.42/v1.23 at all live sites: §frontmatter-behavioral_contracts-comments, §Authority (3 cites), §Background, §Behavioral-Contracts-table, §AC-006-heading, §AC-INDEX-CLARO-001-heading, §Token-Budget, §Tasks-Task-5-TOML-comment, §Tasks-Task-6, §Previous-Story-Intelligence-item-4, §Notes-for-Implementer-items-1-and-5, §References. No AC, RG, mechanism, or dependency changes. |
 | 2.4 | 2026-08-15 | story-writer | TD-VSDD-096 records-only micro-burst (F-P6-LOW-001). §Tasks Task-1 example `value` literal corrected from epoch-integer `1234567890` to ISO-8601 string `"2026-01-01T00:00:00Z"`, aligning Task-1 with AC-004 §Test example, §Notes-for-Implementer §1 ISO-8601 mandate, and BC-2.01.013 v1.22 EC-01-030..033 value-field contract. Self-consistency sweep: no additional epoch-integer literals in live guidance (all other epoch references are "NOT epoch-ms integers" disclaimers); `"conditions"` key absent — document consistently uses `"operands"`; all `ClarotyAuditLogFilter` occurrences are explicit not-exist disclaimers (no live phantom-type references); EC-002/AC-007/§Background end-only description consistently prescribes single `less_or_equal` with no synthetic floor. No AC, RG, BC pin, mechanism, or dependency changes. |
 | 2.3 | 2026-08-15 | story-writer | TD-VSDD-097 §2 downstream-copy pin propagation (F-P5-MED-001). BC-2.16.013 version pin swept v1.40→v1.41 at all 7 live sites: §frontmatter-behavioral_contracts-comment, §Authority, §Behavioral-Contracts-table (Version column), AC-006 §trace-annotation, AC-INDEX-CLARO-001 §trace-annotation, §Token-Budget-table, §References. Historical §Changelog rows citing "v1.39→v1.40" and "(v1.40 amendment)" are unchanged per TD-VSDD-091 record-tier discipline. `input-hash` updated 4eb9a53→bb32d84 (reflects BC-2.16.013 v1.41 in inputs). No content, AC, RG, or dependency changes. POL-23 all-sites sweep complete. |
 | 2.2 | 2026-08-15 | story-writer | LOCAL adversary pass-2 fix-burst. BC-array propagation from BC-2.01.013 v1.21→v1.22 and BC-2.16.013 v1.39→v1.40 (product-owner amendments). Changes: (1) Frontmatter BC version comments bumped to v1.22 and v1.40; `acceptance_criteria_count` 7→8; (2) §Authority BC version pins updated to v1.22 / v1.40; (3) §Background v1.21→v1.22 reference; (4) §Behavioral Contracts table version pins and role columns updated to reflect `options = ["INDEX"]` prerequisite and EC-01-034; (5) Added AC-INDEX-CLARO-001 — `audit_logs.timestamp` MUST declare `options = ["INDEX"]` for push-down eligibility; traces to BC-2.01.013 v1.22 INDEX-prerequisite postcondition + EC-01-034 and BC-2.16.013 v1.40 §1; mirrors CrowdStrike AC-INDEX-CWS-001 convention; (6) Added RG-007 `test_BC_2_01_013_claroty_audit_logs_timestamp_index_option_required_for_pushdown_eligibility` — end-to-end parser-surface test (PrismQL `WHERE timestamp > '<older-than-7d ISO date>'` → extraction → `QueryParams` → `build_claroty_audit_filter_by` → assert explicit bound, NOT 7-day default); SAP-3 compliant; expected RED until `options = ["INDEX"]` added to `claroty.sensor.toml §audit_logs.timestamp`; (7) §Tasks updated: Task 2 extended to include RG-007; Task 5 extended with `options = ["INDEX"]` TOML instruction with comment mirroring CrowdStrike precedent; (8) §Notes-for-Implementer item 5 added for TOML `options = ["INDEX"]` fix with AC-INDEX-CLARO-001 / RG-007 / BC-2.01.013 anchor cites; (9) BC-5.38.001 density check updated: 7 RGTs / 8 ACs = 0.875 PASS; (10) Token Budget subtable: 7 Red Gate tests → ~8,000 tokens; (11) §References BC version pins swept to v1.22 / v1.40. TD-VSDD-097: (a) Sibling pair — BC-2.01.013 v1.22 and BC-2.16.013 v1.40 both amended in same pass-2 fix-burst; both pins swept here; (b) Downstream copy target — BC-INDEX version pins are state-manager scope; CLEAR for story-writer; (c) Mandate anchor — `options = ["INDEX"]` MUST anchored to AC-INDEX-CLARO-001 + RG-007 in this burst; end-to-end parser-surface test requirement per SAP-3 explicitly stated. |
