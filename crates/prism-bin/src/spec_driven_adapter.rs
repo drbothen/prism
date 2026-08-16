@@ -1666,7 +1666,7 @@ pub async fn step9a_populate_adapter_registry(
 /// Constructs the filter object based on ADR-033 Option T1 extracted `start_time`/`end_time`.
 /// All `value` fields are ISO-8601 strings (RFC 3339), NOT epoch-millisecond integers.
 ///
-/// Four cases per BC-2.01.013 v1.21 EC-01-030..EC-01-033:
+/// Four cases per BC-2.01.013 v1.22 EC-01-030..EC-01-033:
 ///
 /// - EC-01-030 — No `start_time`, no `end_time` → single `greater_or_equal` at `now − 7d`
 ///   (ISO-8601 string; 7-day default look-back; never unbounded).

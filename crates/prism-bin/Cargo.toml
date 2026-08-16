@@ -249,6 +249,17 @@ path = "tests/defect_adapter_tls_xdome_live_001.rs"
 # Covers: AC-001..004, RG-001..003, RG-005, RG-006, RG-007, BP-001
 # (RG-004 lives in prism-spec-engine/src/pipeline.rs rg004_pipeline_json_filter_tests)
 # BCs: BC-2.01.013, BC-2.16.013
+# Tests:
+#   test_BC_2_01_013_claroty_audit_logs_layer2_no_filter_injects_default_greater_or_equal
+#   test_BC_2_01_013_claroty_audit_logs_layer2_explicit_start_time_honored_not_truncated
+#   test_BC_2_01_013_claroty_audit_logs_layer2_both_bounds_compound_and
+#   test_BC_2_01_013_claroty_audit_logs_layer2_filter_rejection_4xx_surfaces_e_sensor_001
+#   test_BC_2_01_013_claroty_audit_logs_layer2_end_only_single_less_or_equal
+#   test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_claroty_injection_fires
+#   test_BC_2_01_013_claroty_audit_logs_timestamp_index_option_required_for_pushdown_eligibility
+#   test_BC_2_01_013_claroty_audit_logs_layer2_malformed_start_time_falls_through_to_end_only
+#   test_BC_2_01_013_claroty_audit_logs_layer2_malformed_end_time_substitutes_now
+#   test_BC_2_01_013_claroty_audit_logs_layer2_string_equality_on_datetime_index_col_safe
 [[test]]
 name = "bc_2_01_013_claroty_audit_logs_layer2"
 path = "tests/bc_2_01_013_claroty_audit_logs_layer2.rs"
