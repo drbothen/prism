@@ -345,8 +345,8 @@ as the canonical pattern, then Armis AQL, then write the Claroty block.
 - [ ] **Task 3 (Implementation — pipeline.rs):** Extend `step_vars` seeding in `crates/prism-spec-engine/src/pipeline.rs §pipeline`. For each `(k, v)` in `FetchContext::query_filters`, if `v.starts_with('{') || v.starts_with('[')`, attempt `serde_json::from_str::<serde_json::Value>(&v)`; on `Ok(val)` insert `val`; on `Err` log WARN and insert `Value::String(v)`. Otherwise insert `Value::String(v)`. Run `just iter prism-spec-engine` — RG-004 must pass (Green).
 
 - [ ] **Task 4 (Implementation — spec_driven_adapter.rs):** Add the Claroty audit_logs `filter_by` injection block in `crates/prism-bin/src/spec_driven_adapter.rs §spec_driven_adapter`, mirroring the CrowdStrike FQL injection pattern:
-  - Read the existing CrowdStrike block FIRST to understand the `sensor_id`/`table_name` guard, `query_filters.insert`, and serialization idiom.
-  - Claroty guard: `sensor_id == "claroty" && table_name == "audit_logs"`
+  - Read the existing CrowdStrike block FIRST to understand the `sensor_id`-only guard, `query_filters.insert`, and serialization idiom. Note: CrowdStrike also uses a `sensor_id`-only guard — there is no `table_name` conjunct. Do not add one.
+  - Claroty guard: `sensor_id == "claroty"` (sensor-scoped, NOT table-scoped). Effect is table-scoped because only `audit_logs`'s `body_template` references `${query.filter._claroty_audit_filter_by}`. BP-001 pins this design (bare-predicate fan-out path: `source_table == sensor_id == "claroty"`).
   - (EC-01-030) Default (no `start_time`, no `end_time`): `filter_by = json!({"field": "timestamp", "operation": "greater_or_equal", "value": (Utc::now() - Duration::seconds(604800)).to_rfc3339()})`
   - (EC-01-031) `start_time` only, no `end_time`: `filter_by = json!({"field": "timestamp", "operation": "greater_or_equal", "value": start.to_rfc3339()})`
   - (EC-01-032) `end_time` only, no `start_time`: `filter_by = json!({"field": "timestamp", "operation": "less_or_equal", "value": end.to_rfc3339()})` — SINGLE `less_or_equal`; NO compound `and`; NO synthetic lower bound
