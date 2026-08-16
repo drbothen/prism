@@ -640,10 +640,14 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
         // SAP-2 compliance: `field = "timestamp"` matches the audit_log timestamp column in
         // claroty.sensor.toml and is a valid xDome filter field per ASM-CLAROTY-AUDITLOG-001.
         //
-        // Only applies to claroty sensor, audit_logs table.
-        if self.sensor_spec.spec.sensor_id.as_str() == "claroty"
-            && spec.source_table == "claroty_audit_logs"
-        {
+        // Guard: sensor_id == "claroty" only (NOT gated on source_table == "claroty_audit_logs").
+        // This mirrors the CrowdStrike and Armis patterns (both key on sensor_id only).
+        // The `_claroty_audit_filter_by` key is inert for tables whose body_template does not
+        // reference it (alerts, devices, device_alert_relations); it expands only in the
+        // audit_logs body_template: '{"filter_by": ${query.filter._claroty_audit_filter_by}}'.
+        // Keying on sensor_id ensures injection fires on the bare-predicate fan-out path
+        // (materialization.rs Step 3b) where source_table = sensor_id = "claroty".
+        if self.sensor_spec.spec.sensor_id.as_str() == "claroty" {
             let filter_by = build_claroty_audit_filter_by(
                 params.start_time.as_deref(),
                 params.end_time.as_deref(),
@@ -1672,18 +1676,33 @@ fn build_claroty_audit_filter_by(
         || -> String { (chrono::Utc::now() - chrono::Duration::days(7)).to_rfc3339() };
 
     // Resolve the explicit start bound (if provided) to an ISO-8601 string.
-    // On parse failure, fall back to the 7-day default (graceful degradation).
+    // On RFC3339 parse failure, warn and fall back to the 7-day default.
+    // SEC-001: parse failures are logged so operators know the bound was not honored.
     let start_iso: Option<String> = start_time.map(|t| {
         chrono::DateTime::parse_from_rfc3339(t)
             .map(|dt| dt.to_rfc3339())
-            .unwrap_or_else(|_| default_start_iso())
+            .unwrap_or_else(|e| {
+                tracing::warn!(
+                    field = "start_time",
+                    error = %e,
+                    "build_claroty_audit_filter_by: RFC3339 parse failed; using 7-day default"
+                );
+                default_start_iso()
+            })
     });
 
     match end_time {
         Some(t) => {
             let end_iso = chrono::DateTime::parse_from_rfc3339(t)
                 .map(|dt| dt.to_rfc3339())
-                .unwrap_or_else(|_| chrono::Utc::now().to_rfc3339());
+                .unwrap_or_else(|e| {
+                    tracing::warn!(
+                        field = "end_time",
+                        error = %e,
+                        "build_claroty_audit_filter_by: RFC3339 parse failed; using current time as end bound"
+                    );
+                    chrono::Utc::now().to_rfc3339()
+                });
 
             match start_iso {
                 Some(start_iso_val) => {

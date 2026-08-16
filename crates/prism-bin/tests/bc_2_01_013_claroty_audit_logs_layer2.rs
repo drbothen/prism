@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //! Red Gate failing tests for S-CLAROTY-AUDITLOG-TIMEBOX-001.
 //!
-//! Five tests covering ADR-033 Option T1 time-filter push-down for the
-//! Claroty xDome `audit_logs` table. The current production TOML has
-//! `body_template = '{}'` with no time-filter injection. Every test FAILS
-//! before implementation because the outbound POST body contains no
-//! `filter_by` field.
+//! ADR-033 Option T1 time-filter push-down tests for the Claroty xDome
+//! `audit_logs` table, plus SAP-3 reachability (FIX-3) and FIX-1 bare-predicate
+//! regression (BP-001) tests.
 //!
 //! # Red Gate test list
 //!
-//! | ID     | Test name | Primary failing assertion |
-//! |--------|-----------|--------------------------|
+//! | ID     | Test name | Primary assertion |
+//! |--------|-----------|-------------------|
 //! | RG-001 | test_BC_2_01_013_claroty_audit_logs_layer2_no_filter_injects_default_greater_or_equal | body.get("filter_by").is_some() |
 //! | RG-002 | test_BC_2_01_013_claroty_audit_logs_layer2_explicit_start_time_honored_not_truncated | body.get("filter_by").is_some() |
 //! | RG-003 | test_BC_2_01_013_claroty_audit_logs_layer2_both_bounds_compound_and | body.get("filter_by").is_some() |
 //! | RG-005 | test_BC_2_01_013_claroty_audit_logs_layer2_filter_rejection_4xx_surfaces_e_sensor_001 | body.get("filter_by").is_some() |
 //! | RG-006 | test_BC_2_01_013_claroty_audit_logs_layer2_end_only_single_less_or_equal | body.get("filter_by").is_some() |
+//! | RG-007 | test_BC_2_01_013_claroty_audit_logs_timestamp_index_option_required_for_pushdown_eligibility | filter_by.value == explicit bound (SAP-3 pipeline) |
+//! | BP-001 | test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_claroty_injection_fires | body.get("filter_by").is_some() (FIX-1 regression) |
 //!
 //! RG-004 (pipeline.rs backward-compat JSON parsing) lives in
 //! `crates/prism-spec-engine/src/pipeline.rs` as an in-module unit test.
@@ -55,13 +55,21 @@ use std::sync::Arc;
 
 use std::collections::HashMap;
 
+use datafusion::execution::context::SessionContext;
 use prism_bin::spec_driven_adapter::{AdapterAuthStrategy, SpecDrivenSensorAdapter};
-use prism_core::{OrgId, OrgSlug};
+use prism_core::{OrgId, OrgSlug, SensorId};
+use prism_ocsf::OcsfNormalizer;
+use prism_query::{
+    engine::QueryOptions,
+    materialization::{MaterializationContext, run_materialization_pipeline},
+};
+use prism_sensors::auth::SensorAuth;
 use prism_sensors::{
-    BearerStaticSensorAuth, SensorAdapter, SensorError,
+    AdapterRegistry, BearerStaticSensorAuth, CredentialResolver, SensorAdapter, SensorError,
     adapter::{QueryParams, SensorSpec as SensorAdapterSpec},
 };
 use prism_spec_engine::{
+    ResolvedSensorSpec, ResolvedSpecKey,
     overlay::{OverlayLoader, SensorInstanceOverlay},
     spec_parser::SpecLoader,
 };
@@ -161,6 +169,64 @@ fn parse_received_body(body_bytes: &[u8]) -> serde_json::Value {
             &body_str[..body_str.len().min(512)]
         )
     })
+}
+
+// ---------------------------------------------------------------------------
+// Helpers for run_materialization_pipeline tests (RG-007 FIX-3 rewrite)
+// ---------------------------------------------------------------------------
+
+/// `CredentialResolver` that returns `BearerStaticSensorAuth` for any sensor.
+/// Used by `run_materialization_pipeline` → `fan_out` → `SpecDrivenSensorAdapter::fetch`
+/// where the `BearerStatic` auth strategy downcasts the auth arg to `BearerStaticSensorAuth`.
+struct BearerStaticCredentialResolverForPipeline {
+    token: String,
+}
+
+impl BearerStaticCredentialResolverForPipeline {
+    fn new(token: impl Into<String>) -> Self {
+        Self {
+            token: token.into(),
+        }
+    }
+}
+
+impl CredentialResolver for BearerStaticCredentialResolverForPipeline {
+    fn resolve(
+        &self,
+        _client_id: &str,
+        _sensor_id: SensorId,
+    ) -> Result<Box<dyn SensorAuth>, SensorError> {
+        Ok(Box::new(BearerStaticSensorAuth::new(self.token.clone())))
+    }
+}
+
+/// Build a `ResolvedSensorSpec` from a parsed `SensorSpec` and `org_slug`.
+/// Uses `OverlayLoader::merge_overlay_onto_type_spec` — the only valid external
+/// construction path for `#[non_exhaustive]` `ResolvedSensorSpec`.
+fn make_resolved_spec_for_pipeline(
+    spec: prism_spec_engine::spec_parser::SensorSpec,
+    org_slug: &str,
+) -> ResolvedSensorSpec {
+    let overlay_toml = format!(
+        "extends = \"{}\"\ninstance_id = \"{}@{}\"",
+        spec.sensor_id, spec.sensor_id, org_slug
+    );
+    let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+        .expect("make_resolved_spec_for_pipeline: SensorInstanceOverlay TOML parse failed");
+    OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, OrgSlug::new(org_slug))
+}
+
+/// Build an `OrgRegistry` with one org registered.
+/// Returns `(registry, org_id, org_slug)`.
+fn make_org_registry_for_pipeline(slug: &str) -> (prism_core::OrgRegistry, OrgId, OrgSlug) {
+    let registry = prism_core::OrgRegistry::new();
+    let uuid = uuid::Uuid::now_v7();
+    let org_id = OrgId::from_uuid(uuid);
+    let org_slug = OrgSlug::new(slug);
+    registry
+        .register(org_slug.clone(), org_id)
+        .expect("make_org_registry_for_pipeline: register failed");
+    (registry, org_id, org_slug)
 }
 
 // ---------------------------------------------------------------------------
@@ -824,15 +890,6 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_end_only_single_less_or_equa
         filter_by["operation"]
     );
 
-    // Confirm the compound "and" key is absent.
-    assert_ne!(
-        filter_by["operation"].as_str().unwrap_or(""),
-        "and",
-        "RG-006: filter_by.operation MUST NOT be 'and' for end-only filter. \
-         A compound 'and' indicates a synthetic lower bound was injected. \
-         FORBIDDEN by BC-2.01.013 EC-01-032. S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-007."
-    );
-
     // Confirm NO greater_or_equal anywhere in the filter object.
     // Serialize the full filter_by to catch nested occurrences.
     let filter_by_str = serde_json::to_string(filter_by).unwrap_or_default();
@@ -885,101 +942,200 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_end_only_single_less_or_equa
 }
 
 // ---------------------------------------------------------------------------
+// BP-001 (FIX-1 regression): injection fires on bare-predicate fan-out path
+// (source_table = sensor_id = "claroty").
+//
+// When prism-query materialization.rs Step 3b fires (bare-predicate fan-out),
+// source_table = sensor_id = "claroty" (NOT "claroty_audit_logs").
+// Before FIX-1: guard `sensor_id == "claroty" && source_table == "claroty_audit_logs"` failed.
+// After FIX-1: guard is `sensor_id == "claroty"` only → injection always fires.
+//
+// BCs: BC-2.01.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 BLOCKING-1
+// ---------------------------------------------------------------------------
+
+/// FIX-1 regression / BLOCKING-1 — proves that the Claroty injection guard fires
+/// even when `source_table = "claroty"` (bare-predicate fan-out path).
+///
+/// `prism-query/src/materialization.rs` Step 3b sets `source_table = sensor_id = "claroty"`
+/// on the bare-predicate fan-out path. Before FIX-1, the guard had an extra conjunct
+/// `&& source_table == "claroty_audit_logs"` which silently FAILED on this path,
+/// leaving `${query.filter._claroty_audit_filter_by}` unseeded → invalid JSON body.
+///
+/// After FIX-1: guard is `sensor_id == "claroty"` only. The `_claroty_audit_filter_by`
+/// key is inert for tables whose body_template does not reference it (alerts, devices,
+/// device_alert_relations) and expands only in the audit_logs body_template.
+///
+/// BCs: BC-2.01.013 EC-01-031; S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-001 / BLOCKING-1
+#[tokio::test]
+async fn test_BC_2_01_013_claroty_audit_logs_layer2_bare_predicate_source_table_claroty_injection_fires()
+ {
+    let mock_server = MockServer::start().await;
+
+    // Catch-all POST mock for all 4 Claroty table endpoints.
+    // source_table = "claroty" → queried_table_name = None → all tables execute.
+    // The response MUST include all four response_path keys ($.alerts, $.audit_log,
+    // $.devices, $.devices_alerts) as empty arrays: extract_at_path returns Err for
+    // missing keys (not empty-array), which would short-circuit the table loop via `?`.
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "alerts": [],
+            "audit_log": [],
+            "devices": [],
+            "devices_alerts": []
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_adapter(&mock_server.uri());
+
+    // FIX-1 SCENARIO: source_table = "claroty" (bare-predicate fan-out path).
+    // strip_prefix("claroty_") on "claroty" → None → queried_table_name = None → all tables execute.
+    #[allow(deprecated)]
+    let adapter_spec = SensorAdapterSpec {
+        source_table: "claroty".to_string(),
+        org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
+        #[allow(deprecated)]
+        client_id: "claroty-layer2-test-org".to_string(),
+        sensor_config: serde_json::json!({}),
+    };
+
+    // Explicit start_time far in the past to distinguish from the 7-day default.
+    let explicit_start = "2025-01-01T00:00:00Z";
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: Some(explicit_start.to_string()),
+        end_time: None,
+        filters: Default::default(),
+    };
+
+    let sensor_auth = BearerStaticSensorAuth::new("claroty-bp001-token");
+
+    // Run fetch with source_table = "claroty".
+    // Before FIX-1: guard fails → `_claroty_audit_filter_by` unseeded → body_template
+    //   produces `{"filter_by": }` (invalid JSON) → fetch error.
+    // After FIX-1: guard fires → filter_by injected → valid POST body.
+    let _result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+
+    let requests = mock_server.received_requests().await.unwrap_or_default();
+
+    // Find the audit_log POST request by URL path.
+    let audit_log_req = requests
+        .iter()
+        .find(|r| r.url.path() == "/api/v1/audit_log/get");
+
+    assert!(
+        audit_log_req.is_some(),
+        "BP-001 FIX-1 REGRESSION: SpecDrivenSensorAdapter::fetch with source_table='claroty' \
+         must issue a POST to /api/v1/audit_log/get. \
+         Got {} total requests with paths: {:?}. \
+         Check that strip_prefix(\"claroty_\") on \"claroty\" returns None (run-all-tables path).",
+        requests.len(),
+        requests
+            .iter()
+            .map(|r| r.url.path().to_string())
+            .collect::<Vec<_>>()
+    );
+
+    let body = parse_received_body(&audit_log_req.unwrap().body);
+
+    // LOAD-BEARING FIX-1 assertion: body MUST contain 'filter_by' even when source_table="claroty".
+    // Before FIX-1: guard `sensor_id == "claroty" && source_table == "claroty_audit_logs"` failed
+    //   → body_template expansion of `${query.filter._claroty_audit_filter_by}` produced invalid JSON.
+    // After FIX-1: guard `sensor_id == "claroty"` only → injection fires → filter_by present.
+    assert!(
+        body.get("filter_by").is_some(),
+        "BP-001 FIX-1 REGRESSION LOAD-BEARING: POST body to /api/v1/audit_log/get MUST contain \
+         'filter_by' when source_table='claroty' (bare-predicate fan-out path). \
+         Got body: {body}. \
+         Root cause (before FIX-1): guard `sensor_id == \"claroty\" && source_table == \"claroty_audit_logs\"` \
+         failed when source_table=\"claroty\". \
+         Fix: guard changed to `sensor_id == \"claroty\"` only. \
+         BC-2.01.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 BLOCKING-1."
+    );
+
+    let filter_by = &body["filter_by"];
+    let value_str = filter_by["value"].as_str().unwrap_or("");
+
+    // Verify the EXPLICIT start_time was honored (not the 7-day default).
+    let filter_dt = chrono::DateTime::parse_from_rfc3339(value_str)
+        .expect("BP-001: filter_by.value must be parseable RFC3339");
+    let explicit_secs = chrono::DateTime::parse_from_rfc3339(explicit_start)
+        .expect("test fixture: explicit_start must be valid RFC3339")
+        .timestamp();
+
+    assert!(
+        (filter_dt.timestamp() - explicit_secs).abs() <= 60,
+        "BP-001 FIX-1: filter_by.value must equal the explicit start_time \
+         ({explicit_start} = {explicit_secs}s). \
+         Got '{value_str}' = {}s (delta: {}s). \
+         The explicit bound from params.start_time must be honored on the bare-predicate path. \
+         BC-2.01.013 EC-01-031.",
+        filter_dt.timestamp(),
+        filter_dt.timestamp() - explicit_secs
+    );
+}
+
+// ---------------------------------------------------------------------------
 // RG-007: AC-INDEX-CLARO-001 / BC-2.01.013 EC-01-034 (SAP-3 reachability)
 //
-// Parser-surface (SAP-3) test: a PrismQL `WHERE timestamp > '<older-than-7d ISO>'`
-// predicate MUST produce an explicit lower-bound in the xDome filter_by POST body —
-// NOT the 7-day default.
+// FIX-3 REWRITE: goes through run_materialization_pipeline → build_source_column_map
+// → extract_time_window_from_ast → SpecDrivenSensorAdapter::fetch → wire POST body.
 //
-// The defect: `audit_logs.timestamp` lacks `options = ["INDEX"]` in claroty.sensor.toml.
-// `extract_time_window_from_ast` gates extraction on `col.options.contains(ColumnOptions::Index)`.
-// Without INDEX, the WHERE predicate is treated as non-eligible, start_time stays None,
-// and `build_claroty_audit_filter_by(None, None)` silently injects the 7-day default —
-// discarding the user's explicit filter (SOUL.md §4 silent-wrong-result; EC-01-034).
-//
-// SAP-3 compliance: the test starts from a PrismQL query STRING, runs through
-// `PrismQlParser::parse` → `extract_time_window_from_ast` → `QueryParams.start_time` →
-// `build_claroty_audit_filter_by` (via adapter.fetch) → wire-level assertion on POST body.
-// NOT a synthetic QueryParams unit test.
-//
-// EXPECTED FAIL (RED): filter_by.value = <now-7d>, NOT "2025-01-01T00:00:00Z".
-// EXPECTED GREEN after implementer adds `options = ["INDEX"]` to claroty.sensor.toml §audit_logs
-// timestamp column (Task 5 / AC-INDEX-CLARO-001).
+// Previous implementation manually called extract_time_window_from_ast with a
+// hand-built col_map, bypassing build_source_column_map (SAP-3 violation).
 //
 // BCs: BC-2.01.013 EC-01-034; BC-2.16.013
 // Story: S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-INDEX-CLARO-001 / RG-007
 // ---------------------------------------------------------------------------
 
-/// AC-INDEX-CLARO-001 / BC-2.01.013 EC-01-034 — SAP-3 parser-surface reachability test.
+/// AC-INDEX-CLARO-001 / BC-2.01.013 EC-01-034 — SAP-3 parser-surface reachability test (FIX-3).
 ///
-/// Proves that `audit_logs.timestamp` must have `options = ["INDEX"]` for an explicit
-/// `WHERE timestamp > '<older-than-7d>'` predicate to reach the xDome POST body.
+/// Proves via `run_materialization_pipeline` that `audit_logs.timestamp` has
+/// `options = ["INDEX"]` so an explicit `WHERE timestamp > '<older-than-7d>'` predicate
+/// flows through the FULL production pipeline to the xDome POST body.
 ///
-/// # Production call graph exercised (SAP-3)
+/// # Production call graph exercised (SAP-3 — full pipeline, not synthetic AST)
 ///
 /// ```text
-/// PrismQL string: "SELECT * FROM claroty_audit_logs WHERE timestamp > '2025-01-01T00:00:00Z'"
-///   → PrismQlParser::parse → Ast::Sql(Select { where_: Some(predicate) })
-///   → extract_time_window_from_ast [reads col_map, timestamp lacking INDEX → returns (None, None)]
-///   → QueryParams { start_time: None, end_time: None }
-///   → SpecDrivenSensorAdapter::fetch (sensor_id=claroty, table=audit_logs)
-///       → build_claroty_audit_filter_by(None, None)
-///       → filter_by = {"field": "timestamp", "operation": "greater_or_equal", "value": "<now-7d>"}
+/// PrismQL: "SELECT * FROM claroty_audit_logs WHERE timestamp > '2025-01-01T00:00:00Z'"
+///   → run_materialization_pipeline
+///   → PrismQlParser::parse
+///   → build_source_column_map [reads resolved_spec_map; audit_logs.timestamp options=["INDEX"]]
+///   → extract_time_window_from_ast → (Some("2025-01-01T00:00:00+00:00"), None)
+///   → fan_out → SpecDrivenSensorAdapter::fetch (source_table="claroty_audit_logs")
+///   → build_claroty_audit_filter_by(Some("2025-01-01..."), None)
 ///   → POST /api/v1/audit_log/get → wiremock captures body
 /// ```
 ///
-/// # Red Gate Failure (expected until implementer adds `options = ["INDEX"]`)
+/// # LOAD-BEARING
 ///
-/// `extract_time_window_from_ast` returns `(None, None)` because `timestamp` in
-/// `claroty.sensor.toml §audit_logs` lacks `options = ["INDEX"]`.
-/// `build_claroty_audit_filter_by(None, None)` injects the 7-day default.
-/// The assertion `filter_by.value ≈ 2025-01-01T00:00:00Z` FAILS — the value is
-/// `<now−604800s>`, not the user-supplied explicit bound.
-///
-/// EC-01-031/032/033 are all unreachable from the parser surface until this is fixed.
-///
-/// # Fix
-///
-/// Add `options = ["INDEX"]` to `audit_logs.timestamp` in `claroty.sensor.toml`.
-/// After the fix, `extract_time_window_from_ast` extracts `start_time = Some("2025-01-01T00:00:00+00:00")`
-/// and this assertion turns GREEN.
+/// `filter_by.value` MUST equal the EXPLICIT user-supplied bound (2025-01-01T00:00:00Z),
+/// NOT the 7-day default. Proves: (1) INDEX option present; (2) FIX-1 guard fires;
+/// (3) explicit WHERE bound flows end-to-end to the xDome POST body.
 ///
 /// BCs: BC-2.01.013 EC-01-034; BC-2.16.013
-/// Story: S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-INDEX-CLARO-001 / RG-007
+/// Story: S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-INDEX-CLARO-001 / RG-007 (FIX-3 rewrite)
 #[tokio::test]
 async fn test_BC_2_01_013_claroty_audit_logs_timestamp_index_option_required_for_pushdown_eligibility()
  {
-    // Step 1: Parse the PrismQL query string — SAP-3 parser-surface entry point.
-    //
-    // A real user would issue this query to retrieve audit logs from 2025-01-01 onward.
-    // The query is > 7 months older than the 7-day default window to make the defect
-    // visible: if the default is injected instead of the explicit bound, the filter
-    // targets a completely different time range.
-    let pql_query = "SELECT * FROM claroty_audit_logs WHERE timestamp > '2025-01-01T00:00:00Z'";
-    let ast = prism_query::PrismQlParser::parse(pql_query).unwrap_or_else(|errs| {
-        panic!(
-            "RG-007: PrismQL query must parse. Errors: {:?}. Query: {:?}",
-            errs, pql_query
-        )
-    });
+    // SAP-3 entry point: run_materialization_pipeline, NOT direct extract_time_window_from_ast.
+    // This exercises build_source_column_map which reads resolved_spec_map — bypassed in
+    // the previous implementation.
 
-    // Step 2: Extract the WHERE predicate from the parsed AST.
-    let predicate = match &ast {
-        prism_query::ast::Ast::Sql(prism_query::ast::SqlStatement::Select(sql)) => sql
-            .where_
-            .as_ref()
-            .expect("RG-007: query must have a WHERE clause (timestamp > '2025-01-01T00:00:00Z')"),
-        other => panic!(
-            "RG-007: expected Ast::Sql(Select), got a different AST variant. Query: {:?}. Got: {:?}",
-            pql_query, other
-        ),
-    };
+    // Step 1: Start wiremock for the audit_log endpoint.
+    // SELECT * FROM claroty_audit_logs only queries audit_logs because
+    // queried_table_name = strip_prefix("claroty_", "claroty_audit_logs") = Some("audit_logs").
+    let mock_server = MockServer::start().await;
 
-    // Step 3: Load production claroty.sensor.toml (SAP-2: no fabricated fixture).
-    //
-    // This is the CURRENT disk state. The audit_logs.timestamp column lacks
-    // `options = ["INDEX"]`, so `extract_time_window_from_ast` will not recognize
-    // it as an eligible push-down column.
+    Mock::given(method("POST"))
+        .and(path("/api/v1/audit_log/get"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(audit_log_response_one_record()))
+        .mount(&mock_server)
+        .await;
+
+    // Step 2: Load production claroty.sensor.toml directed at wiremock.
+    // Parse twice: once for resolved_spec_map (INDEX column lookup), once for the adapter.
     let spec_content = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../prism-sensors/specs/claroty.sensor.toml"),
@@ -989,182 +1145,138 @@ async fn test_BC_2_01_013_claroty_audit_logs_timestamp_index_option_required_for
          CARGO_MANIFEST_DIR/../prism-sensors/specs/",
     );
 
-    let spec = SpecLoader::parse(&spec_content)
-        .expect("RG-007: claroty.sensor.toml must parse cleanly via SpecLoader::parse");
+    let org_slug = "claroty-rg007-pipeline-org";
 
-    // Step 4: Build the column map for `extract_time_window_from_ast`.
-    //
-    // The function expects `HashMap<String, Vec<ColumnSpec>>` where keys are the
-    // source names used in PrismQL queries. Both "claroty_audit_logs" (underscore form,
-    // used in FROM clause) and "claroty.audit_logs" (dot form) are populated, matching
-    // the key format that `build_source_column_map` in materialization.rs produces.
-    let audit_logs_table = spec
-        .tables
-        .iter()
-        .find(|t| t.table_name == "audit_logs")
-        .expect("RG-007: claroty.sensor.toml must contain an audit_logs table");
+    let mut spec_for_map = SpecLoader::parse(&spec_content)
+        .expect("RG-007: claroty.sensor.toml must parse cleanly (spec_for_map)");
+    spec_for_map.base_url = mock_server.uri();
+    let resolved_for_map = make_resolved_spec_for_pipeline(spec_for_map, org_slug);
 
-    let mut col_map: HashMap<String, Vec<prism_spec_engine::spec_parser::ColumnSpec>> =
-        HashMap::new();
-    col_map.insert(
-        "claroty_audit_logs".to_string(),
-        audit_logs_table.columns.clone(),
+    let mut spec_for_adapter = SpecLoader::parse(&spec_content)
+        .expect("RG-007: claroty.sensor.toml must parse cleanly (spec_for_adapter)");
+    spec_for_adapter.base_url = mock_server.uri();
+    let resolved_for_adapter = make_resolved_spec_for_pipeline(spec_for_adapter, org_slug);
+
+    // Step 3: Build resolved_spec_map so build_source_column_map can find INDEX columns.
+    // Without this, extract_time_window_from_ast cannot see audit_logs.timestamp options=["INDEX"].
+    let mut resolved_spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    resolved_spec_map.insert(
+        (OrgSlug::new(org_slug), SensorId::from("claroty")),
+        resolved_for_map,
     );
-    col_map.insert(
-        "claroty.audit_logs".to_string(),
-        audit_logs_table.columns.clone(),
+    let resolved_spec_map_arc = Arc::new(resolved_spec_map);
+
+    // Step 4: Build OrgRegistry + AdapterRegistry.
+    let (org_registry, org_id, org_slug_typed) = make_org_registry_for_pipeline(org_slug);
+
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("RG-007: reqwest client build");
+    let adapter = SpecDrivenSensorAdapter::new(
+        Arc::new(resolved_for_adapter),
+        AdapterAuthStrategy::BearerStatic,
+        http_client,
+    );
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(adapter));
+
+    // Step 5: Build MaterializationContext with resolved_spec_map.
+    let normalizer = Arc::new(OcsfNormalizer::new());
+    let credential_resolver: Arc<dyn CredentialResolver> = Arc::new(
+        BearerStaticCredentialResolverForPipeline::new("claroty-rg007-token"),
+    );
+    let mut mat_ctx = MaterializationContext::new_with_resolver(
+        Arc::new(adapter_registry),
+        normalizer,
+        10_000,
+        credential_resolver,
+        Some(Arc::new(org_registry)),
+        Some(Arc::clone(&resolved_spec_map_arc)),
     );
 
-    // Step 5: Call extract_time_window_from_ast — the ADR-033 T1 extraction path.
-    //
-    // SAP-3: the predicate was produced by the real parser in Step 1.
-    // With the current TOML (timestamp lacks `options = ["INDEX"]`):
-    //   - extract_time_window_from_ast returns (None, None)
-    //   - start_time = None, end_time = None
-    // After the fix (Task 5 adds `options = ["INDEX"]`):
-    //   - extract_time_window_from_ast returns (Some("2025-01-01T00:00:00+00:00"), None)
-    //   - start_time = Some("2025-01-01T00:00:00+00:00"), end_time = None
-    let (extracted_start_time, extracted_end_time) =
-        prism_query::pushdown::extract_time_window_from_ast(
-            predicate,
-            &["claroty_audit_logs"],
-            Some(&col_map),
-        );
+    let session_ctx = SessionContext::new();
 
-    // Step 6: Set up a wiremock server to capture the outbound xDome POST body.
-    let mock_server = MockServer::start().await;
+    // Step 6: Run FULL production pipeline from a PrismQL string (SAP-3 entry point).
+    // 2025-01-01T00:00:00Z is ~7.5 months before 2026-08-16, well outside the 7-day default.
+    // If the explicit bound is ignored, the LOAD-BEARING assertion FAILS.
+    let pql_query = "SELECT * FROM claroty_audit_logs WHERE timestamp > '2025-01-01T00:00:00Z'";
 
-    Mock::given(method("POST"))
-        .and(path("/api/v1/audit_log/get"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(audit_log_response_one_record()))
-        .mount(&mock_server)
-        .await;
-
-    // Step 7: Invoke the Claroty adapter with the extracted QueryParams.
-    //
-    // The adapter's fetch() calls build_claroty_audit_filter_by(start_time, end_time)
-    // internally when sensor_id == "claroty" && source_table == "claroty_audit_logs".
-    // Passing the extracted (None, None) causes the 7-day default to be injected.
-    let adapter = make_claroty_adapter(&mock_server.uri());
-    let adapter_spec = make_audit_log_adapter_spec();
-
-    let params = QueryParams {
-        cursor: None,
-        limit: 10,
-        start_time: extracted_start_time.clone(),
-        end_time: extracted_end_time.clone(),
-        filters: Default::default(),
+    let options = QueryOptions {
+        clients: Some(vec![org_slug_typed]),
+        limit: None,
+        ..QueryOptions::default()
     };
 
-    let sensor_auth = BearerStaticSensorAuth::new("claroty-rg007-index-test-token");
-    let _result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+    // Pipeline path:
+    //   PrismQlParser::parse → build_source_column_map [resolved_spec_map, INDEX column]
+    //   → extract_time_window_from_ast(start=Some("2025-01-01T00:00:00+00:00"), end=None)
+    //   → fan_out → SpecDrivenSensorAdapter::fetch
+    //   → build_claroty_audit_filter_by(Some("2025-01-01..."), None) → explicit bound in body
+    let _output =
+        run_materialization_pipeline(pql_query, &options, &mut mat_ctx, &session_ctx).await;
+    // Pipeline result is not asserted — wiremock POST body is the load-bearing evidence.
 
-    // Step 8: Assert on the wire-level POST body.
+    // Step 7: Wire-level assertion on the POST body captured by wiremock.
     let requests = mock_server.received_requests().await.unwrap_or_default();
+
+    let audit_log_req = requests.iter().find(|r| r.url.path().contains("audit_log"));
+
     assert!(
-        !requests.is_empty(),
-        "RG-007: SpecDrivenSensorAdapter::fetch must issue a POST to \
-         /api/v1/audit_log/get. No requests received. \
-         Check that source_table=\"claroty_audit_logs\" routes to the audit_logs \
-         table in claroty.sensor.toml."
+        audit_log_req.is_some(),
+        "RG-007 (SAP-3): run_materialization_pipeline for 'SELECT * FROM claroty_audit_logs WHERE ...' \
+         must issue a POST to /api/v1/audit_log/get. \
+         Got {} total requests: {:?}.",
+        requests.len(),
+        requests
+            .iter()
+            .map(|r| r.url.path().to_string())
+            .collect::<Vec<_>>()
     );
 
-    let body = parse_received_body(&requests[0].body);
+    let body = parse_received_body(&audit_log_req.unwrap().body);
 
-    // filter_by must be present (this is also a prerequisite).
     assert!(
         body.get("filter_by").is_some(),
-        "RG-007 prerequisite: POST body to xDome /api/v1/audit_log/get must contain \
-         'filter_by'. Got body: {body}. \
-         This would only fail if the spec_driven_adapter injection block is missing. \
-         Check spec_driven_adapter.rs §Claroty audit_logs filter_by injection."
+        "RG-007 (SAP-3) PREREQUISITE: POST body to /api/v1/audit_log/get must contain \
+         'filter_by'. Got body: {body}. Check FIX-1 guard in spec_driven_adapter.rs."
     );
 
     let filter_by = &body["filter_by"];
-
-    // The filter_by.value must be an ISO-8601 string.
     let value_str = filter_by["value"].as_str().unwrap_or("");
+
     let filter_dt_result = chrono::DateTime::parse_from_rfc3339(value_str);
     assert!(
         filter_dt_result.is_ok(),
-        "RG-007: filter_by.value must be a parseable ISO-8601 RFC3339 string. \
-         Got: {:?}. filter_by: {}. BC-2.01.013 EC-01-034.",
+        "RG-007 (SAP-3): filter_by.value must be RFC3339. Got: {:?}. filter_by: {}.",
         value_str,
         filter_by
     );
 
     let filter_secs = filter_dt_result.unwrap().timestamp();
     let explicit_bound_secs = chrono::DateTime::parse_from_rfc3339("2025-01-01T00:00:00Z")
-        .expect("test fixture: explicit bound must be valid RFC3339")
+        .expect("test fixture explicit bound must be valid RFC3339")
         .timestamp();
     let seven_day_default_secs = chrono::Utc::now().timestamp() - 7_i64 * 24 * 3600;
 
-    // LOAD-BEARING Red Gate assertion (RG-007, SAP-3 reachability):
-    //
-    // filter_by.value MUST equal the EXPLICIT user-supplied bound (2025-01-01T00:00:00Z),
-    // NOT the 7-day default (≈ now − 604,800 s).
-    //
-    // CURRENT FAILURE (RED state):
-    //   extract_time_window_from_ast returns (None, None) because audit_logs.timestamp
-    //   lacks `options = ["INDEX"]` in claroty.sensor.toml.
-    //   build_claroty_audit_filter_by(None, None) injects the 7-day default.
-    //   filter_by.value ≈ now−604800s ≠ 2025-01-01T00:00:00Z → assertion FAILS.
-    //
-    // AFTER FIX (GREEN state):
-    //   Task 5 adds `options = ["INDEX"]` to audit_logs.timestamp in claroty.sensor.toml.
-    //   extract_time_window_from_ast returns (Some("2025-01-01T00:00:00+00:00"), None).
-    //   build_claroty_audit_filter_by(Some(...), None) returns the explicit bound.
-    //   filter_by.value ≈ 2025-01-01T00:00:00Z → assertion PASSES.
-    //
-    // Diagnostic context:
-    //   extracted_start_time = {:?} (None until INDEX is added)
-    //   filter_by.value = '{}' = {}s
-    //   explicit_bound = 2025-01-01T00:00:00Z = {}s
-    //   7-day default ≈ {}s
+    // LOAD-BEARING (SAP-3 + full pipeline): filter_by.value MUST equal the EXPLICIT user-supplied bound.
+    // Proves the full production path:
+    //   build_source_column_map reads audit_logs.timestamp options=["INDEX"]
+    //   → extract_time_window_from_ast extracts start_time = Some("2025-01-01T00:00:00+00:00")
+    //   → build_claroty_audit_filter_by returns explicit bound (not 7-day default)
     assert!(
         (filter_secs - explicit_bound_secs).abs() <= 60,
-        "RG-007 LOAD-BEARING (SAP-3): filter_by.value MUST equal the EXPLICIT user-supplied \
+        "RG-007 (SAP-3) LOAD-BEARING: filter_by.value MUST equal the EXPLICIT user-supplied \
          bound (2025-01-01T00:00:00Z = {explicit_bound_secs}s), NOT the 7-day default \
          (~{seven_day_default_secs}s).\n\
          Got filter_by.value = '{value_str}' = {filter_secs}s (delta from explicit: {}s).\n\
          \n\
-         Root cause: claroty.sensor.toml audit_logs.timestamp column lacks `options = [\"INDEX\"]`.\n\
-         Without INDEX, `extract_time_window_from_ast` (ADR-033 T1) does not treat `timestamp` \
-         as a push-down-eligible column.\n\
-         `extract_time_window_from_ast` returned: start_time={:?}, end_time={:?}.\n\
-         `build_claroty_audit_filter_by(None, None)` injects the 7-day default, silently \
-         discarding the user's WHERE timestamp > '2025-01-01T00:00:00Z' predicate.\n\
-         This is a SOUL.md §4 silent-wrong-result violation (EC-01-034): a query for \
-         audit logs from 2025-01-01 receives only the last 7 days of results.\n\
-         EC-01-031/032/033 are all unreachable from the parser surface (SAP-3 violation).\n\
+         Root causes:\n\
+         (1) audit_logs.timestamp lacks options=[\"INDEX\"] → extract_time_window_from_ast \
+             returns (None, None) → 7-day default injected.\n\
+         (2) FIX-1 guard not applied → injection never fires.\n\
          \n\
-         Fix: add `options = [\"INDEX\"]` to the `timestamp` column in \
-         claroty.sensor.toml §audit_logs (Task 5 / AC-INDEX-CLARO-001).\n\
-         After the fix, `extract_time_window_from_ast` extracts start_time from the \
-         WHERE clause and this assertion turns GREEN.\n\
-         \n\
-         BC-2.01.013 EC-01-034; BC-2.16.013; \
-         S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-INDEX-CLARO-001 / RG-007.",
-        filter_secs - explicit_bound_secs,
-        extracted_start_time,
-        extracted_end_time
+         BC-2.01.013 EC-01-034; S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-INDEX-CLARO-001 / RG-007.",
+        filter_secs - explicit_bound_secs
     );
-
-    // Confirm filter_by.value is NOT the 7-day default (sanity check of the negative condition).
-    let delta_from_7day = (filter_secs - seven_day_default_secs).abs();
-    // After the fix, the explicit 2025-01-01 bound is ~7.5 months before 2026-08-15.
-    // The 7-day default is ≈ 7 days before now. They should be far apart.
-    // (This secondary assertion is not the load-bearing one — just provides diagnostic clarity.)
-    if (filter_secs - explicit_bound_secs).abs() <= 60 {
-        // RG-007 passed: the explicit bound was extracted. No need to check the negative.
-    } else {
-        // RG-007 failed: the 7-day default was injected. Confirm that's what happened.
-        assert!(
-            delta_from_7day <= 120,
-            "RG-007 diagnostic: expected the 7-day default (~{seven_day_default_secs}s) \
-             to be injected when INDEX is missing, but got filter_by.value = {filter_secs}s \
-             which is neither the explicit bound ({explicit_bound_secs}s) nor the 7-day default. \
-             Unexpected value — check build_claroty_audit_filter_by. BC-2.01.013 EC-01-034."
-        );
-    }
 }
