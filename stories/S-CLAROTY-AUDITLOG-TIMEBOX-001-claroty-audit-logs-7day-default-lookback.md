@@ -6,7 +6,10 @@ level: "L4"
 wave: claroty-live
 epic_id: E-DTU-FIDELITY
 priority: P1
-status: ready
+status: merged
+merged_sha: 69d821be
+merged_pr: 239
+merged_date: 2026-08-16
 producer: story-writer
 timestamp: "2026-08-15T00:00:00Z"
 version: "2.5"
