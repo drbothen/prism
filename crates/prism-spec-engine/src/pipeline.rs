@@ -279,6 +279,7 @@ impl PipelineExecutor {
                     Ok(val) => val,
                     Err(e) => {
                         tracing::warn!(
+                            event_type = "query_filter_json_parse_degraded",
                             key = %k,
                             error = %e,
                             "query_filter JSON auto-parse failed; \
@@ -1702,21 +1703,52 @@ fn find_fan_out_array(
     // F-LP10-MED-002: After collecting array vars, check for Object-typed variables that
     // are referenced in templates but were NOT classified as fan-out source (they are
     // Objects, not Arrays). Object values passed through `value_to_string` are silently
-    // stringified as JSON into the URL/body for non-JsonBody contexts — likely a spec bug.
-    // Emit a structured warn per offending reference so operators can detect this ambiguity.
+    // stringified as JSON — which is a spec bug in UrlPath context but CORRECT in
+    // JsonBody context (BC-2.16.013 §Postcondition 1 verbatim JSON insertion).
     //
-    // EXEMPTION: `query.filter.*` keys are Object-valued by design (BC-2.16.013
-    // §Postcondition 1). The `InterpolationContext::JsonBody` path does verbatim JSON
-    // insertion (`value.to_string()` as inline JSON), NOT string serialization. Emitting
-    // this warn for `query.filter.*` would be a false audit signal and would mislead
-    // maintainers into removing the JSON-object representation (which would break the
-    // Claroty audit_logs body_template).
-    for template in &templates {
-        let refs = crate::interpolation::Interpolator::extract_references(template);
+    // FIX-2 (S-CLAROTY-AUDITLOG-TIMEBOX-001 NB-1): the exemption for `query.filter.*`
+    // is context-dependent and must NOT apply globally to all templates:
+    //
+    //   path_template (UrlPath context): `query.filter.*` Object-valued vars ARE a spec
+    //     bug — they would be stringified into the URL, which is incorrect. The exemption
+    //     does NOT apply to path_template references. No exemption → any Object var in
+    //     path_template triggers the warn (including query.filter.* if they appear there).
+    //
+    //   body_template (JsonBody context): `query.filter.*` Object-valued vars are
+    //     CORRECT — `InterpolationContext::JsonBody` inserts them verbatim as inline JSON
+    //     (value.to_string()). The exemption applies only to body_template references.
+    //
+    // Pass 1: path_template — no exemption for query.filter.*
+    {
+        let refs =
+            crate::interpolation::Interpolator::extract_references(step.path_template.as_str());
         for (ref_step_name, ref_field_path) in refs {
             let key = format!("{ref_step_name}.{ref_field_path}");
-            // query.filter.* keys are Object-valued by design (BC-2.16.013 §Postcondition 1
-            // JsonBody verbatim insertion); only warn for step-produced and other variables.
+            if let Some(value) = step_vars.get(&key)
+                && value.is_object()
+            {
+                tracing::warn!(
+                    event_type = "fanout_invalid_source_type",
+                    step_name = %step.name,
+                    var_name = %key,
+                    actual_type = "Object",
+                    "Step path_template references an Object-valued variable; will be \
+                     stringified into URL. This is likely a spec bug — consider referencing \
+                     a scalar field (${{var.field}}) instead."
+                );
+            }
+        }
+    }
+
+    // Pass 2: body_template — exempt query.filter.* (verbatim JSON insertion by design,
+    // BC-2.16.013 §Postcondition 1 JsonBody context). Only warn for step-produced and
+    // other non-filter variables.
+    if let Some(ref body_tpl) = step.body_template {
+        let refs = crate::interpolation::Interpolator::extract_references(body_tpl);
+        for (ref_step_name, ref_field_path) in refs {
+            let key = format!("{ref_step_name}.{ref_field_path}");
+            // query.filter.* keys are Object-valued by design in JsonBody context
+            // (BC-2.16.013 §Postcondition 1 verbatim insertion).
             if key.starts_with("query.filter.") {
                 continue;
             }
@@ -1728,9 +1760,10 @@ fn find_fan_out_array(
                     step_name = %step.name,
                     var_name = %key,
                     actual_type = "Object",
-                    "Step references an Object-valued variable in a template; will be \
-                     stringified into URL/body for non-JsonBody contexts. This is likely a \
-                     spec bug — consider referencing a scalar field (${{var.field}}) instead."
+                    "Step body_template references an Object-valued variable (not a \
+                     query.filter.*); will be stringified into body for non-JsonBody \
+                     contexts. This is likely a spec bug — consider referencing a scalar \
+                     field (${{var.field}}) instead."
                 );
             }
         }

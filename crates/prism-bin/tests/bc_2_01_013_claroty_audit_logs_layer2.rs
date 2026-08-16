@@ -1288,3 +1288,362 @@ async fn test_BC_2_01_013_claroty_audit_logs_timestamp_index_option_required_for
         filter_secs - explicit_bound_secs
     );
 }
+
+// ---------------------------------------------------------------------------
+// FIX-3 / TD-VSDD-059: tests for `Some(Err(()))` inverted-window-avoidance
+// in `build_claroty_audit_filter_by`.
+//
+// These tests cover the DEFENSE-IN-DEPTH arms (unreachable from the production
+// surface, but exercised here to close TD-VSDD-059 paper-fix gate — the FIX-2
+// from burst-2 changed behavior in both-bounds arm; this proves it works).
+//
+// BCs: BC-2.01.013 EC-01-032 (malformed start → falls through to end-only)
+// Story: S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-3 / TD-VSDD-059
+// ---------------------------------------------------------------------------
+
+/// FIX-3-A: malformed start_time + valid end_time → single `less_or_equal`
+///
+/// When `start_time = Some("not-a-timestamp")` (RFC3339 parse fails) and
+/// `end_time = Some("2026-01-01T00:00:00Z")`, `build_claroty_audit_filter_by`
+/// MUST produce a SINGLE `less_or_equal` at `2026-01-01T00:00:00Z` with NO
+/// compound `and` filter and NO `greater_or_equal` operand.
+///
+/// The `Some(Err(()))` arm falls through to EC-01-032 (end-only) to avoid
+/// an inverted window. Adding `now-7d` as a synthetic lower bound when
+/// `end_time < now-7d` would produce an empty result set (SOUL.md §4 violation).
+///
+/// TD-VSDD-059: this test provides a load-bearing assertion for the
+/// `Some(Err(()))` branch changed in FIX-2 of burst-2. Without this test,
+/// the closure is a paper-fix (no load-bearing assertion existed).
+///
+/// BCs: BC-2.01.013 EC-01-032; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-3-A
+#[tokio::test]
+async fn test_BC_2_01_013_claroty_audit_logs_layer2_malformed_start_time_falls_through_to_end_only()
+{
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/v1/audit_log/get"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(audit_log_response_one_record()))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_adapter(&mock_server.uri());
+    let adapter_spec = make_audit_log_adapter_spec();
+
+    // Malformed start_time: RFC3339 parse will fail → Some(Err(())).
+    // Valid end_time: provides the upper bound for EC-01-032.
+    let valid_end = "2026-01-01T00:00:00Z";
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: Some("not-a-timestamp".to_string()),
+        end_time: Some(valid_end.to_string()),
+        filters: Default::default(),
+    };
+
+    let sensor_auth = BearerStaticSensorAuth::new("claroty-fix3a-token");
+
+    let _result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+
+    let requests = mock_server.received_requests().await.unwrap_or_default();
+    assert!(
+        !requests.is_empty(),
+        "FIX-3-A: fetch must issue a POST to /api/v1/audit_log/get"
+    );
+
+    let body = parse_received_body(&requests[0].body);
+
+    assert!(
+        body.get("filter_by").is_some(),
+        "FIX-3-A: POST body must contain 'filter_by'. Got body: {body}."
+    );
+
+    let filter_by = &body["filter_by"];
+
+    // LOAD-BEARING (FIX-3-A / TD-VSDD-059): Must be single `less_or_equal`, NOT compound `and`.
+    // If `Some(Err(()))` erroneously substituted now-7d as start, we'd get compound `and`
+    // with an inverted window (end_time=2026-01-01 < now-7d → empty result set).
+    assert_eq!(
+        filter_by["operation"].as_str().unwrap_or(""),
+        "less_or_equal",
+        "FIX-3-A LOAD-BEARING (TD-VSDD-059): malformed start_time must fall through to \
+         EC-01-032 (single less_or_equal). Got operation: {:?}. \
+         If 'and', the Some(Err(())) arm incorrectly substituted now-7d as lower bound \
+         — this produces an inverted window (end_time 2026-01-01 < now-7d). \
+         BC-2.01.013 EC-01-032; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-3-A.",
+        filter_by["operation"]
+    );
+
+    // Must NOT contain greater_or_equal anywhere.
+    let filter_by_str = serde_json::to_string(filter_by).unwrap_or_default();
+    assert!(
+        !filter_by_str.contains("\"greater_or_equal\""),
+        "FIX-3-A: filter_by MUST NOT contain 'greater_or_equal' — malformed start means \
+         no lower bound (EC-01-032). Got filter_by: {filter_by}. \
+         BC-2.01.013 EC-01-032; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-3-A."
+    );
+
+    // Must NOT have a compound `and` operation.
+    assert_ne!(
+        filter_by["operation"].as_str().unwrap_or(""),
+        "and",
+        "FIX-3-A: filter_by MUST NOT be compound 'and' — EC-01-032 requires single \
+         less_or_equal when start_time is malformed. \
+         BC-2.01.013 EC-01-032; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-3-A."
+    );
+
+    // Value must equal the valid end_time.
+    let value_str = filter_by["value"].as_str();
+    assert!(
+        value_str.is_some(),
+        "FIX-3-A: filter_by.value must be an ISO-8601 string. Got: {:?}.",
+        filter_by["value"]
+    );
+    let value_dt = chrono::DateTime::parse_from_rfc3339(value_str.unwrap());
+    assert!(
+        value_dt.is_ok(),
+        "FIX-3-A: filter_by.value must parse as RFC3339. Got: {:?}. Error: {:?}.",
+        value_str,
+        value_dt.err()
+    );
+    let end_secs = chrono::DateTime::parse_from_rfc3339(valid_end)
+        .expect("test fixture: valid_end must be RFC3339")
+        .timestamp();
+    let value_secs = value_dt.unwrap().timestamp();
+    assert!(
+        (value_secs - end_secs).abs() <= 60,
+        "FIX-3-A: filter_by.value must equal end_time ({valid_end} = {end_secs}s). \
+         Got {value_secs}s (delta: {}s). BC-2.01.013 EC-01-032.",
+        value_secs - end_secs
+    );
+}
+
+/// FIX-3-B: valid start_time + malformed end_time → compound `and` with `now` as end
+///
+/// When `start_time = Some("2026-01-01T00:00:00Z")` and
+/// `end_time = Some("not-a-timestamp")` (RFC3339 parse fails), the end_time
+/// parse fails and the function substitutes `chrono::Utc::now()` as the end bound.
+/// The result MUST be a compound `and` filter with:
+///  - `greater_or_equal` at `2026-01-01T00:00:00Z` (the valid start)
+///  - `less_or_equal` at approximately now (the fallback end)
+///
+/// TD-VSDD-059: this test provides a load-bearing assertion for the end_time
+/// parse-failure fallback path. Without this test, the closure is a paper-fix.
+///
+/// BCs: BC-2.01.013 EC-01-033; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-3-B
+#[tokio::test]
+async fn test_BC_2_01_013_claroty_audit_logs_layer2_malformed_end_time_substitutes_now() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/v1/audit_log/get"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(audit_log_response_one_record()))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_adapter(&mock_server.uri());
+    let adapter_spec = make_audit_log_adapter_spec();
+
+    // Valid start_time: provides the lower bound.
+    // Malformed end_time: RFC3339 parse fails → substitutes chrono::Utc::now().
+    let valid_start = "2026-01-01T00:00:00Z";
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: Some(valid_start.to_string()),
+        end_time: Some("not-a-timestamp".to_string()),
+        filters: Default::default(),
+    };
+
+    let sensor_auth = BearerStaticSensorAuth::new("claroty-fix3b-token");
+
+    let before_fetch_secs = chrono::Utc::now().timestamp();
+    let _result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+    let after_fetch_secs = chrono::Utc::now().timestamp();
+
+    let requests = mock_server.received_requests().await.unwrap_or_default();
+    assert!(
+        !requests.is_empty(),
+        "FIX-3-B: fetch must issue a POST to /api/v1/audit_log/get"
+    );
+
+    let body = parse_received_body(&requests[0].body);
+
+    assert!(
+        body.get("filter_by").is_some(),
+        "FIX-3-B: POST body must contain 'filter_by'. Got body: {body}."
+    );
+
+    let filter_by = &body["filter_by"];
+
+    // LOAD-BEARING (FIX-3-B / TD-VSDD-059): Must be compound `and` with two operands.
+    // Valid start + malformed end → compound AND (start=explicit, end≈now).
+    assert_eq!(
+        filter_by["operation"].as_str().unwrap_or(""),
+        "and",
+        "FIX-3-B LOAD-BEARING (TD-VSDD-059): valid start + malformed end must produce \
+         compound 'and' filter. Got operation: {:?}. \
+         BC-2.01.013 EC-01-033; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-3-B.",
+        filter_by["operation"]
+    );
+
+    // Must use "operands" key (NOT "conditions").
+    assert!(
+        filter_by.get("operands").is_some(),
+        "FIX-3-B: compound filter MUST use key 'operands' (NOT 'conditions'). \
+         BC-2.01.013 EC-01-033."
+    );
+    assert!(
+        filter_by.get("conditions").is_none(),
+        "FIX-3-B: compound filter MUST NOT use key 'conditions'. \
+         BC-2.01.013 EC-01-033."
+    );
+
+    let operands = filter_by["operands"].as_array().unwrap_or(&vec![]).clone();
+    assert_eq!(
+        operands.len(),
+        2,
+        "FIX-3-B: operands must have exactly 2 elements. Got: {:?}.",
+        operands
+    );
+
+    // Lower bound: greater_or_equal at valid_start.
+    let gte_op = operands
+        .iter()
+        .find(|c| c["operation"].as_str() == Some("greater_or_equal"))
+        .expect("FIX-3-B: must have a greater_or_equal operand");
+    let gte_val_str = gte_op["value"].as_str();
+    assert!(
+        gte_val_str.is_some(),
+        "FIX-3-B: greater_or_equal value must be a string. Got: {:?}.",
+        gte_op["value"]
+    );
+    let gte_secs = chrono::DateTime::parse_from_rfc3339(gte_val_str.unwrap())
+        .expect("FIX-3-B: gte value must parse as RFC3339")
+        .timestamp();
+    let expected_start_secs = chrono::DateTime::parse_from_rfc3339(valid_start)
+        .expect("test fixture: valid_start must be RFC3339")
+        .timestamp();
+    assert!(
+        (gte_secs - expected_start_secs).abs() <= 60,
+        "FIX-3-B: greater_or_equal value must equal start_time ({valid_start} = {expected_start_secs}s). \
+         Got {gte_secs}s (delta: {}s). BC-2.01.013 EC-01-033.",
+        gte_secs - expected_start_secs
+    );
+
+    // Upper bound: less_or_equal at approximately now (malformed end_time substitutes now).
+    let lte_op = operands
+        .iter()
+        .find(|c| c["operation"].as_str() == Some("less_or_equal"))
+        .expect("FIX-3-B: must have a less_or_equal operand");
+    let lte_val_str = lte_op["value"].as_str();
+    assert!(
+        lte_val_str.is_some(),
+        "FIX-3-B: less_or_equal value must be a string. Got: {:?}.",
+        lte_op["value"]
+    );
+    let lte_secs = chrono::DateTime::parse_from_rfc3339(lte_val_str.unwrap())
+        .expect("FIX-3-B: lte value must parse as RFC3339")
+        .timestamp();
+
+    // Malformed end_time → substituted chrono::Utc::now(), so lte value ≈ now.
+    // Allow 60s tolerance for test execution time.
+    let tolerance = 60i64;
+    assert!(
+        lte_secs >= before_fetch_secs - tolerance && lte_secs <= after_fetch_secs + tolerance,
+        "FIX-3-B LOAD-BEARING (TD-VSDD-059): malformed end_time must substitute \
+         chrono::Utc::now() as the end bound. \
+         Expected lte_secs in [{}, {}], got {lte_secs}. \
+         BC-2.01.013 EC-01-033; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-3-B.",
+        before_fetch_secs - tolerance,
+        after_fetch_secs + tolerance
+    );
+}
+
+// ---------------------------------------------------------------------------
+// FIX-1 regression: String-equality on datetime INDEX column does NOT cause
+// Arrow type mismatch (type-gate: pseudo-column path limited to String-typed
+// INDEX columns only).
+//
+// Before the type-gate fix: `push_down_filters["timestamp"] = "today"` caused
+// the pseudo-column path to build a `StringArray` for a `Timestamp(Microsecond,
+// UTC)` schema field → `RecordBatch::try_new` Arrow type mismatch error.
+//
+// After the type-gate fix: the datetime INDEX column bypasses the pseudo-column
+// path (type gate: column_type must be String) and uses `build_column_array`
+// instead, building the correct Timestamp array from actual record data.
+//
+// BCs: BC-2.01.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-1
+// ---------------------------------------------------------------------------
+
+/// FIX-1 regression — String equality on datetime INDEX column is safe.
+///
+/// Sends `params.filters["timestamp"] = "today"` to `SpecDrivenSensorAdapter::fetch`.
+/// Before the type-gate fix, this triggered Arrow type mismatch in
+/// `pipeline_result_to_record_batch` because the pseudo-column path built
+/// `StringArray` for a `Timestamp(Microsecond, UTC)` schema field.
+///
+/// After the type-gate fix, datetime INDEX columns bypass the pseudo-column
+/// path (the gate requires `column_type == String`). `build_column_array` builds
+/// the correct Timestamp array from actual record data. No Arrow normalization
+/// error.
+///
+/// This test proves the type gate is active: `fetch()` succeeds (returns Ok)
+/// with the record from the mock — no `SensorError::Internal` with
+/// "OCSF→Arrow normalization failed".
+///
+/// BCs: BC-2.01.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-1
+#[tokio::test]
+async fn test_BC_2_01_013_claroty_audit_logs_layer2_string_equality_on_datetime_index_col_safe() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/v1/audit_log/get"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(audit_log_response_one_record()))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_adapter(&mock_server.uri());
+    let adapter_spec = make_audit_log_adapter_spec();
+
+    // The filter value "today" is a non-date-like string. On a datetime INDEX column,
+    // the pre-fix code built StringArray for a Timestamp schema field → Arrow type mismatch.
+    // Post-fix: datetime INDEX columns use build_column_array → correct Timestamp array.
+    let mut filters = std::collections::HashMap::new();
+    filters.insert(
+        "timestamp".to_string(),
+        serde_json::Value::String("today".to_string()),
+    );
+
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: None,
+        end_time: None,
+        filters,
+    };
+
+    let sensor_auth = BearerStaticSensorAuth::new("claroty-fix1-regression-token");
+
+    let result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+
+    // LOAD-BEARING (FIX-1 regression / type-gate):
+    // fetch() MUST NOT return SensorError::Internal with "normalization failed".
+    // Before the fix: Arrow type mismatch caused Internal error with that message.
+    // After the fix: datetime INDEX column uses build_column_array → Ok result.
+    assert!(
+        result.is_ok(),
+        "FIX-1 REGRESSION (type-gate): String equality on a datetime INDEX column \
+         must NOT cause Arrow type mismatch in pipeline_result_to_record_batch. \
+         Before fix: pseudo-column path built StringArray for Timestamp(Microsecond,UTC) \
+         schema field → RecordBatch::try_new type mismatch → SensorError::Internal. \
+         After fix: datetime INDEX column (column_type != String) bypasses pseudo-column \
+         path → build_column_array produces correct Timestamp array → Ok result. \
+         Got Err: {:?}. \
+         Check the type-gate condition in pipeline_result_to_record_batch: \
+         `col_spec.options.contains(Index) && col_spec.column_type == String`. \
+         BC-2.01.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-1.",
+        result.err()
+    );
+}

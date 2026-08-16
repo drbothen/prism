@@ -954,7 +954,24 @@ fn pipeline_result_to_record_batch(
         // `WHERE aql = 'in:devices'` is push-downed to the pipeline; without injection,
         // `aql` would be NULL in every row → DataFusion filters out all rows.
         // Injecting the filter value makes the WHERE clause evaluate to TRUE for each row.
-        let array = if col_spec.options.contains(&prism_core::ColumnOptions::Index) {
+        // FIX-1 (S-CLAROTY-AUDITLOG-TIMEBOX-001 BLOCKING-1): pseudo-column path is ONLY
+        // valid for String-typed INDEX columns (FQL/AQL filter vars such as CrowdStrike
+        // `created_timestamp` and Armis `aql`).
+        //
+        // Datetime-typed INDEX columns (Claroty `audit_logs.timestamp`, Armis `last_seen`
+        // and `created_at`) hold real datetime sensor data — not push-down filter values.
+        // Using the pseudo-column path for Datetime INDEX columns builds a `StringArray`
+        // for a `Timestamp(Microsecond, UTC)` schema field, which causes
+        // `RecordBatch::try_new` to fail with an Arrow type mismatch.
+        //
+        // The type gate `&& col_spec.column_type == prism_core::ColumnType::String`
+        // restricts the pseudo-column path to String-typed INDEX columns only.
+        // Datetime INDEX columns fall through to `build_column_array`, which builds the
+        // correct `Timestamp(Microsecond, UTC)` Arrow array from actual record data.
+        let array = if col_spec.options.contains(&prism_core::ColumnOptions::Index)
+            && col_spec.column_type == prism_core::ColumnType::String
+        {
+            // Pseudo-column path: String-typed INDEX columns only (FQL/AQL filter vars).
             // Look up the filter value from push_down_filters by column name.
             // If the column name maps to a filter value, inject it as a string constant
             // across all rows. If no filter found, fall through to normal extraction
