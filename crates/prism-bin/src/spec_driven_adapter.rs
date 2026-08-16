@@ -1714,6 +1714,7 @@ fn build_claroty_audit_filter_by(
             .map_err(|e| {
                 // DEFENSE-IN-DEPTH: see note above — unreachable from production surface.
                 tracing::warn!(
+                    event_type = "claroty_audit_filter_bound_parse_degraded",
                     field = "start_time",
                     error = %e,
                     "build_claroty_audit_filter_by: RFC3339 parse failed; \
@@ -1731,6 +1732,7 @@ fn build_claroty_audit_filter_by(
                     // `extract_time_window_from_ast` always emits valid RFC3339 via `.to_rfc3339()`.
                     // Present to guard against future direct callers with a malformed end_time.
                     tracing::warn!(
+                        event_type = "claroty_audit_filter_bound_parse_degraded",
                         field = "end_time",
                         error = %e,
                         "build_claroty_audit_filter_by: RFC3339 parse failed; using current time as end bound"
@@ -3887,6 +3889,27 @@ mod tests {
              BC-2.01.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-1. \
              Got Err: {:?}",
             batch_result.err()
+        );
+        // Wire-shape discipline: verify the batch has at least 1 row with the correct value.
+        // Result is not just no-crash — the Datetime column must have correct values.
+        let batch = batch_result.as_ref().unwrap();
+        assert!(
+            batch.num_rows() > 0,
+            "FIX-1 REGRESSION (type-gate wire-shape): pipeline_result_to_record_batch \
+             must return a non-empty batch. Got 0 rows."
+        );
+        // Verify the created_timestamp column was built (not None/null due to type mismatch).
+        let ts_col = batch.column_by_name("created_timestamp");
+        assert!(
+            ts_col.is_some(),
+            "FIX-1 REGRESSION (type-gate wire-shape): created_timestamp column must exist in the batch."
+        );
+        assert_eq!(
+            batch.num_rows(),
+            1,
+            "FIX-1 REGRESSION (type-gate wire-shape): batch must contain exactly 1 row (one record fed in). \
+             Got {} rows.",
+            batch.num_rows()
         );
     }
 }

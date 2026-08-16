@@ -793,6 +793,27 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_filter_rejection_4xx_surface
             );
         }
     }
+    assert_eq!(
+        err.error_code(),
+        "E-SENSOR-001",
+        "RG-005 SID-2: error code must be E-SENSOR-001. Got: {:?}",
+        err.error_code()
+    );
+    let rendered = err.to_string();
+    assert!(
+        rendered.contains("invalid filter"),
+        "RG-005 SID-2 / AC-006: rendered error MUST contain the response body snippet \
+         ('invalid filter'). map_spec_engine_error_to_sensor_error must thread the \
+         body through the HttpError{{body}} field. Got: {rendered}"
+    );
+    assert_eq!(
+        rendered.matches("HTTP").count(),
+        1,
+        "RG-005 SID-2 / F-P37-HIGH-001 double-prefix regression guard: \
+         rendered error must contain exactly 1 'HTTP' occurrence. \
+         Got {} occurrences in: {rendered}",
+        rendered.matches("HTTP").count()
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -1221,9 +1242,26 @@ async fn test_BC_2_01_013_claroty_audit_logs_timestamp_index_option_required_for
     //   → extract_time_window_from_ast(start=Some("2025-01-01T00:00:00+00:00"), end=None)
     //   → fan_out → SpecDrivenSensorAdapter::fetch
     //   → build_claroty_audit_filter_by(Some("2025-01-01..."), None) → explicit bound in body
-    let _output =
+    let output =
         run_materialization_pipeline(pql_query, &options, &mut mat_ctx, &session_ctx).await;
-    // Pipeline result is not asserted — wiremock POST body is the load-bearing evidence.
+    // PRIMARY: pipeline must succeed (not just issue the correct POST body).
+    // D-1715/D-1716 observed-output discipline: no-crash is not sufficient;
+    // assert actual successful output.
+    assert!(
+        output.is_ok(),
+        "RG-007 (SAP-3 / D-1715 observed-output): run_materialization_pipeline must return Ok. \
+         Got: {:?}",
+        output.err()
+    );
+    // Row count: mock returns exactly 1 record (audit_log_response_one_record).
+    // The pipeline must surface at least 1 row to the MCP agent.
+    let output_ref = output.as_ref().unwrap();
+    let total_rows: usize = output_ref.batches.iter().map(|b| b.num_rows()).sum();
+    assert!(
+        total_rows > 0,
+        "RG-007 (SAP-3 / D-1715 observed-output): pipeline must return at least 1 row. \
+         Mock returns 1 record (audit_log_response_one_record). Got 0 rows."
+    );
 
     // Step 7: Wire-level assertion on the POST body captured by wiremock.
     let requests = mock_server.received_requests().await.unwrap_or_default();
@@ -1286,6 +1324,175 @@ async fn test_BC_2_01_013_claroty_audit_logs_timestamp_index_option_required_for
          \n\
          BC-2.01.013 EC-01-034; S-CLAROTY-AUDITLOG-TIMEBOX-001 AC-INDEX-CLARO-001 / RG-007.",
         filter_secs - explicit_bound_secs
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Parser-surface coverage for EC-01-033 compound AND filter (LOW-004 closure)
+//
+// Exercises the `SELECT ... WHERE timestamp > 'A' AND timestamp < 'B'` parser
+// path end-to-end through run_materialization_pipeline to the wire-level POST body.
+// Verifies `operands` (not `conditions`) and the compound `and` structure.
+// Closes cycle-17 LOW-004 (SAP-3 depth gap on EC-01-033).
+// BC-2.01.013 EC-01-033; S-CLAROTY-AUDITLOG-TIMEBOX-001 cycle-17 LOW-004.
+// ---------------------------------------------------------------------------
+
+/// EC-01-033 parser-surface: compound AND filter (`timestamp > A AND timestamp < B`)
+/// MUST emit POST body with `operation == "and"` and `operands` (not `conditions`).
+///
+/// This test enters from a real PrismQL string (SAP-3 parser-surface requirement).
+/// SAP-3 rule 1: at least one test must reach each BC arm end-to-end from the
+/// public surface (parser input), not merely via synthetic AST or hand-built QueryParams.
+#[tokio::test]
+#[allow(clippy::unwrap_used)]
+async fn test_BC_2_01_013_claroty_audit_logs_ec01033_compound_and_parser_surface() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/v1/audit_log/get"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(audit_log_response_one_record()))
+        .mount(&mock_server)
+        .await;
+
+    // Load production claroty.sensor.toml directed at wiremock.
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/claroty.sensor.toml"),
+    )
+    .expect(
+        "EC-01-033 parser-surface: claroty.sensor.toml must be readable from \
+         CARGO_MANIFEST_DIR/../prism-sensors/specs/",
+    );
+
+    let org_slug = "claroty-ec01033-parser-org";
+
+    let mut spec_for_map = prism_spec_engine::spec_parser::SpecLoader::parse(&spec_content)
+        .expect("EC-01-033 parser-surface: claroty.sensor.toml must parse cleanly (spec_for_map)");
+    spec_for_map.base_url = mock_server.uri();
+    let resolved_for_map = make_resolved_spec_for_pipeline(spec_for_map, org_slug);
+
+    let mut spec_for_adapter = prism_spec_engine::spec_parser::SpecLoader::parse(&spec_content)
+        .expect(
+            "EC-01-033 parser-surface: claroty.sensor.toml must parse cleanly (spec_for_adapter)",
+        );
+    spec_for_adapter.base_url = mock_server.uri();
+    let resolved_for_adapter = make_resolved_spec_for_pipeline(spec_for_adapter, org_slug);
+
+    let mut resolved_spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    resolved_spec_map.insert(
+        (OrgSlug::new(org_slug), SensorId::from("claroty")),
+        resolved_for_map,
+    );
+    let resolved_spec_map_arc = Arc::new(resolved_spec_map);
+
+    let (org_registry, org_id, org_slug_typed) = make_org_registry_for_pipeline(org_slug);
+
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("EC-01-033 parser-surface: reqwest client build");
+    let adapter = SpecDrivenSensorAdapter::new(
+        Arc::new(resolved_for_adapter),
+        AdapterAuthStrategy::BearerStatic,
+        http_client,
+    );
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(adapter));
+
+    let normalizer = Arc::new(OcsfNormalizer::new());
+    let credential_resolver: Arc<dyn CredentialResolver> = Arc::new(
+        BearerStaticCredentialResolverForPipeline::new("claroty-ec01033-token"),
+    );
+    let mut mat_ctx = MaterializationContext::new_with_resolver(
+        Arc::new(adapter_registry),
+        normalizer,
+        10_000,
+        credential_resolver,
+        Some(Arc::new(org_registry)),
+        Some(Arc::clone(&resolved_spec_map_arc)),
+    );
+
+    let session_ctx = SessionContext::new();
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug_typed]),
+        limit: None,
+        ..QueryOptions::default()
+    };
+
+    // Both-bounds PrismQL query — forces EC-01-033 compound `and` path.
+    let pql_query = "SELECT * FROM claroty_audit_logs WHERE timestamp > '2025-01-01T00:00:00Z' AND timestamp < '2025-02-01T00:00:00Z'";
+
+    let output =
+        run_materialization_pipeline(pql_query, &options, &mut mat_ctx, &session_ctx).await;
+
+    let requests = mock_server.received_requests().await.unwrap_or_default();
+
+    let audit_log_req = requests.iter().find(|r| r.url.path().contains("audit_log"));
+    assert!(
+        audit_log_req.is_some(),
+        "EC-01-033 (parser-surface): run_materialization_pipeline must issue a POST to \
+         /api/v1/audit_log/get. Got {} total requests.",
+        requests.len()
+    );
+
+    let body = parse_received_body(&audit_log_req.unwrap().body);
+
+    assert!(
+        body.get("filter_by").is_some(),
+        "EC-01-033 (parser-surface): POST body must contain 'filter_by'. Got body: {body}."
+    );
+
+    let filter_by = &body["filter_by"];
+
+    // LOAD-BEARING: compound AND → operation == "and" with `operands` (NOT `conditions`).
+    // BC-2.01.013 EC-01-033 explicitly requires `operands`; `conditions` is the defect key.
+    assert_eq!(
+        filter_by["operation"].as_str().unwrap_or(""),
+        "and",
+        "EC-01-033 (parser-surface): filter_by.operation must be 'and' for a both-bounds filter. \
+         Got: {:?}. filter_by: {filter_by}",
+        filter_by["operation"]
+    );
+
+    assert!(
+        filter_by.get("operands").is_some(),
+        "EC-01-033 (parser-surface) LOAD-BEARING: filter_by must use 'operands' key (not 'conditions'). \
+         BC-2.01.013 EC-01-033. Got filter_by: {filter_by}."
+    );
+
+    assert!(
+        filter_by.get("conditions").is_none(),
+        "EC-01-033 (parser-surface): filter_by must NOT use 'conditions' key — 'operands' is required \
+         per BC-2.01.013 EC-01-033. Got filter_by: {filter_by}."
+    );
+
+    let operands = filter_by["operands"]
+        .as_array()
+        .expect("operands must be an array");
+    assert_eq!(
+        operands.len(),
+        2,
+        "EC-01-033 (parser-surface): operands must have exactly 2 elements (start + end). Got: {operands:?}"
+    );
+
+    // Verify the two operands have the right operations.
+    let has_gte = operands
+        .iter()
+        .any(|o| o["operation"] == "greater_or_equal" || o["operation"] == "greater_than");
+    let has_lte = operands
+        .iter()
+        .any(|o| o["operation"] == "less_or_equal" || o["operation"] == "less_than");
+    assert!(
+        has_gte && has_lte,
+        "EC-01-033 (parser-surface): operands must include a lower bound (greater_or_equal/greater_than) \
+         and an upper bound (less_or_equal/less_than). Got: {operands:?}"
+    );
+
+    assert!(
+        output.is_ok(),
+        "EC-01-033 (parser-surface): run_materialization_pipeline must succeed. Got: {:?}",
+        output.err()
     );
 }
 
@@ -1645,5 +1852,17 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_string_equality_on_datetime_
          `col_spec.options.contains(Index) && col_spec.column_type == String`. \
          BC-2.01.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-1.",
         result.err()
+    );
+    // Wire-shape discipline (CLAUDE.md §Conventions): verify the result has at least 1 row.
+    // The mock returns audit_log_response_one_record() = 1 record.
+    // A successful fetch on a datetime INDEX column must produce non-empty output.
+    let batches = result.as_ref().unwrap();
+    let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+    assert!(
+        total_rows > 0,
+        "FIX-1 REGRESSION (type-gate wire-shape): fetch() must return at least 1 row. \
+         Mock returns 1 record (audit_log_response_one_record). \
+         Got 0 rows — likely build_column_array produced an empty or mismatched batch. \
+         BC-2.01.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-1 cycle-17 LOW-006."
     );
 }

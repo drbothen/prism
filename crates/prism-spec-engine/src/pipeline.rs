@@ -1691,6 +1691,9 @@ fn store_step_vars(
 /// Fan-out is triggered when a step variable reference (${step_name.field}) resolves
 /// to a JSON array. The first such array found is used as the fan-out source.
 /// Non-array variables are not considered for fan-out.
+/// Variables in the `query.filter.*` namespace are excluded from fan-out selection
+/// regardless of value type — they carry push-down filter values, not batch sources
+/// (BC-2.16.013; cycle-16 LOW-1 fix).
 ///
 /// F-LP2-HIGH-001: The source key is returned alongside the array so the caller
 /// can override `step_vars[source_key]` with each batch slice during iteration,
