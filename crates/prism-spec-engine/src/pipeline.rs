@@ -5065,9 +5065,9 @@ mod rg004_pipeline_json_filter_tests {
         //   (a) _claroty_audit_filter_by: JSON-object string (starts with `{`)
         //       → after implementation, parsed to Value::Object in step_vars
         //   (b) _fql_filter: plain FQL string (does NOT start with `{`/`[`)
-        //       → MUST stay as Value::String (backward-compat gate; AC-004 v2.1)
-        // AC-004 v2.1: JSON-object filter value uses ISO-8601 string "2026-01-01T00:00:00Z",
-        // NOT integer 1234567890. BC-2.01.013 v1.21 EC-01-030..EC-01-033.
+        //       → MUST stay as Value::String (backward-compat gate; AC-004)
+        // AC-004: JSON-object filter value uses ISO-8601 string "2026-01-01T00:00:00Z",
+        // NOT integer 1234567890. BC-2.01.013 EC-01-030..EC-01-033.
         let mut query_filters = HashMap::new();
         query_filters.insert(
             "_claroty_audit_filter_by".to_string(),
@@ -5168,14 +5168,14 @@ mod rg004_pipeline_json_filter_tests {
             "RG-004: filter_by.operation must be 'greater_or_equal'. Got: {:?}.",
             body["filter_by"]["operation"]
         );
-        // AC-004 v2.1: value field MUST be an ISO-8601 STRING, NOT an epoch integer.
-        // BC-2.01.013 v1.21 EC-01-030..EC-01-033.
+        // AC-004: value field MUST be an ISO-8601 STRING, NOT an epoch integer.
+        // BC-2.01.013 EC-01-030..EC-01-033.
         assert_eq!(
             body["filter_by"]["value"],
             serde_json::Value::String("2026-01-01T00:00:00Z".to_string()),
             "RG-004: filter_by.value must be the ISO-8601 string '2026-01-01T00:00:00Z' \
              (serde_json::Value::String), NOT an epoch integer. \
-             BC-2.01.013 v1.21 EC-01-030; AC-004 v2.1.",
+             BC-2.01.013 EC-01-030; AC-004.",
         );
 
         // BACKWARD-COMPAT assertion (RG-004 else-branch positive gate):
@@ -5191,7 +5191,7 @@ mod rg004_pipeline_json_filter_tests {
              The pipeline.rs JSON-auto-parse MUST NOT convert non-JSON strings to objects. \
              This positive assert_eq! gates the backward-compat invariant for \
              CrowdStrike FQL and Armis AQL sensors. BC-2.01.013 backward-compat invariant; \
-             BC-2.16.013 §Postcondition 1 else-branch; AC-004 v2.1; F-P1-MED-003.",
+             BC-2.16.013 §Postcondition 1 else-branch; AC-004; F-P1-MED-003.",
         );
     }
 }
