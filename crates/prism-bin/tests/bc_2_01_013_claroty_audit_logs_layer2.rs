@@ -229,6 +229,86 @@ fn make_org_registry_for_pipeline(slug: &str) -> (prism_core::OrgRegistry, OrgId
     (registry, org_id, org_slug)
 }
 
+/// Build a complete `MaterializationContext` + `QueryOptions` + `SessionContext`
+/// for parser-surface tests that exercise `run_materialization_pipeline`.
+///
+/// Loads production `claroty.sensor.toml` directed at `mock_server_uri`.
+/// Returns `(options, mat_ctx, session_ctx)` ready for a
+/// `run_materialization_pipeline(pql_query, &options, &mut mat_ctx, &session_ctx)` call.
+///
+/// Used by EC-01-030 and EC-01-032 parser-surface tests
+/// (cycle-18 LOW-001/LOW-002 closure).
+async fn make_materialization_context(
+    mock_server_uri: &str,
+) -> (QueryOptions, MaterializationContext, SessionContext) {
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/claroty.sensor.toml"),
+    )
+    .expect(
+        "make_materialization_context: claroty.sensor.toml must be readable from \
+         CARGO_MANIFEST_DIR/../prism-sensors/specs/",
+    );
+
+    let org_slug = "claroty-pipeline-test-org";
+
+    let mut spec_for_map = SpecLoader::parse(&spec_content).expect(
+        "make_materialization_context: claroty.sensor.toml must parse cleanly (spec_for_map)",
+    );
+    spec_for_map.base_url = mock_server_uri.to_string();
+    let resolved_for_map = make_resolved_spec_for_pipeline(spec_for_map, org_slug);
+
+    let mut spec_for_adapter = SpecLoader::parse(&spec_content).expect(
+        "make_materialization_context: claroty.sensor.toml must parse cleanly (spec_for_adapter)",
+    );
+    spec_for_adapter.base_url = mock_server_uri.to_string();
+    let resolved_for_adapter = make_resolved_spec_for_pipeline(spec_for_adapter, org_slug);
+
+    let mut resolved_spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    resolved_spec_map.insert(
+        (OrgSlug::new(org_slug), SensorId::from("claroty")),
+        resolved_for_map,
+    );
+    let resolved_spec_map_arc = Arc::new(resolved_spec_map);
+
+    let (org_registry, org_id, org_slug_typed) = make_org_registry_for_pipeline(org_slug);
+
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("make_materialization_context: reqwest client build (ADR-050 rustls-tls)");
+    let adapter = SpecDrivenSensorAdapter::new(
+        Arc::new(resolved_for_adapter),
+        AdapterAuthStrategy::BearerStatic,
+        http_client,
+    );
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(adapter));
+
+    let normalizer = Arc::new(OcsfNormalizer::new());
+    let credential_resolver: Arc<dyn CredentialResolver> = Arc::new(
+        BearerStaticCredentialResolverForPipeline::new("claroty-pipeline-test-token"),
+    );
+    let mat_ctx = MaterializationContext::new_with_resolver(
+        Arc::new(adapter_registry),
+        normalizer,
+        10_000,
+        credential_resolver,
+        Some(Arc::new(org_registry)),
+        Some(Arc::clone(&resolved_spec_map_arc)),
+    );
+
+    let session_ctx = SessionContext::new();
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug_typed]),
+        limit: None,
+        ..QueryOptions::default()
+    };
+
+    (options, mat_ctx, session_ctx)
+}
+
 // ---------------------------------------------------------------------------
 // RG-001: BC-2.01.013 §Postcondition 1 — default 7-day look-back
 //
@@ -1476,17 +1556,77 @@ async fn test_BC_2_01_013_claroty_audit_logs_ec01033_compound_and_parser_surface
         "EC-01-033 (parser-surface): operands must have exactly 2 elements (start + end). Got: {operands:?}"
     );
 
-    // Verify the two operands have the right operations.
+    // Verify the two operands have the exact xDome operations (greater_or_equal / less_or_equal).
+    // BC-2.01.013 EC-01-033 mandates EXACTLY these — greater_than/less_than are NOT in the
+    // xDome audit_log vocabulary. F-C18-003: drop the `_than` alternatives.
     let has_gte = operands
         .iter()
-        .any(|o| o["operation"] == "greater_or_equal" || o["operation"] == "greater_than");
-    let has_lte = operands
-        .iter()
-        .any(|o| o["operation"] == "less_or_equal" || o["operation"] == "less_than");
+        .any(|o| o["operation"] == "greater_or_equal");
+    let has_lte = operands.iter().any(|o| o["operation"] == "less_or_equal");
     assert!(
-        has_gte && has_lte,
-        "EC-01-033 (parser-surface): operands must include a lower bound (greater_or_equal/greater_than) \
-         and an upper bound (less_or_equal/less_than). Got: {operands:?}"
+        has_gte,
+        "EC-01-033 (parser-surface): operands MUST include exactly 'greater_or_equal' \
+         for the lower bound. 'greater_than' is NOT in the xDome audit_log vocabulary. \
+         BC-2.01.013 EC-01-033. Got: {operands:?}"
+    );
+    assert!(
+        has_lte,
+        "EC-01-033 (parser-surface): operands MUST include exactly 'less_or_equal' \
+         for the upper bound. 'less_than' is NOT in the xDome audit_log vocabulary. \
+         BC-2.01.013 EC-01-033. Got: {operands:?}"
+    );
+
+    // Assert operand VALUES against the parsed bounds (F-C18-003: pin ordering/values).
+    // start_time = "2025-01-01T00:00:00Z", end_time = "2025-02-01T00:00:00Z" (from pql_query).
+    let gte_operand = operands
+        .iter()
+        .find(|o| o["operation"] == "greater_or_equal")
+        .expect("EC-01-033: greater_or_equal operand must exist after has_gte assertion");
+    let lte_operand = operands
+        .iter()
+        .find(|o| o["operation"] == "less_or_equal")
+        .expect("EC-01-033: less_or_equal operand must exist after has_lte assertion");
+
+    let gte_value_str = gte_operand["value"].as_str();
+    assert!(
+        gte_value_str.is_some(),
+        "EC-01-033 (parser-surface): greater_or_equal value must be an ISO-8601 STRING. \
+         Got: {:?}. BC-2.01.013 EC-01-033.",
+        gte_operand["value"]
+    );
+    let gte_dt = chrono::DateTime::parse_from_rfc3339(gte_value_str.unwrap())
+        .expect("EC-01-033: gte operand value must parse as RFC3339");
+    let expected_start_secs = chrono::DateTime::parse_from_rfc3339("2025-01-01T00:00:00Z")
+        .expect("test fixture: start bound must be valid RFC3339")
+        .timestamp();
+    assert!(
+        (gte_dt.timestamp() - expected_start_secs).abs() <= 60,
+        "EC-01-033 (parser-surface): greater_or_equal value must match the start bound \
+         (2025-01-01T00:00:00Z = {expected_start_secs}s). Got {}s (delta: {}s). \
+         BC-2.01.013 EC-01-033.",
+        gte_dt.timestamp(),
+        gte_dt.timestamp() - expected_start_secs
+    );
+
+    let lte_value_str = lte_operand["value"].as_str();
+    assert!(
+        lte_value_str.is_some(),
+        "EC-01-033 (parser-surface): less_or_equal value must be an ISO-8601 STRING. \
+         Got: {:?}. BC-2.01.013 EC-01-033.",
+        lte_operand["value"]
+    );
+    let lte_dt = chrono::DateTime::parse_from_rfc3339(lte_value_str.unwrap())
+        .expect("EC-01-033: lte operand value must parse as RFC3339");
+    let expected_end_secs = chrono::DateTime::parse_from_rfc3339("2025-02-01T00:00:00Z")
+        .expect("test fixture: end bound must be valid RFC3339")
+        .timestamp();
+    assert!(
+        (lte_dt.timestamp() - expected_end_secs).abs() <= 60,
+        "EC-01-033 (parser-surface): less_or_equal value must match the end bound \
+         (2025-02-01T00:00:00Z = {expected_end_secs}s). Got {}s (delta: {}s). \
+         BC-2.01.013 EC-01-033.",
+        lte_dt.timestamp(),
+        lte_dt.timestamp() - expected_end_secs
     );
 
     assert!(
@@ -1864,5 +2004,375 @@ async fn test_BC_2_01_013_claroty_audit_logs_layer2_string_equality_on_datetime_
          Mock returns 1 record (audit_log_response_one_record). \
          Got 0 rows — likely build_column_array produced an empty or mismatched batch. \
          BC-2.01.013; S-CLAROTY-AUDITLOG-TIMEBOX-001 FIX-1 cycle-17 LOW-006."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-C18-001: EC-01-032 parser-surface — end-only filter via run_materialization_pipeline
+//
+// SAP-3 requirement: each BC arm must have at least one test reaching it end-to-end
+// from the public surface (parser input). RG-006 exercises EC-01-032 via hand-built
+// QueryParams; this test closes the SAP-3 gap by going through the full pipeline.
+//
+// Query: SELECT * FROM claroty_audit_logs WHERE timestamp < '2025-02-01T00:00:00Z'
+// Expected wire body: single less_or_equal at 2025-02-01, NO greater_or_equal, NO "and".
+//
+// BCs: BC-2.01.013 EC-01-032; S-CLAROTY-AUDITLOG-TIMEBOX-001 F-C18-001
+// ---------------------------------------------------------------------------
+
+/// EC-01-032 parser-surface: end-only filter (`WHERE timestamp < 'bound'`) via
+/// `run_materialization_pipeline` MUST emit POST body with a single `less_or_equal`
+/// at the explicit bound — NO `"greater_or_equal"` and NO `"and"` (no synthetic floor).
+///
+/// SAP-3: enters from a real PrismQL string, not hand-built QueryParams.
+/// EC-01-032 hazard: adding a synthetic 7-day lower bound when end_time < now-7d
+/// produces an inverted/empty window (SOUL.md §4 silent-wrong-result violation).
+///
+/// Closes F-C18-001 from cycle-18 LOW findings.
+///
+/// BCs: BC-2.01.013 EC-01-032; S-CLAROTY-AUDITLOG-TIMEBOX-001
+#[tokio::test]
+#[allow(clippy::unwrap_used)]
+async fn test_BC_2_01_013_claroty_audit_logs_ec01032_end_only_parser_surface() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/v1/audit_log/get"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(audit_log_response_one_record()))
+        .mount(&mock_server)
+        .await;
+
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/claroty.sensor.toml"),
+    )
+    .expect(
+        "EC-01-032 parser-surface: claroty.sensor.toml must be readable from \
+         CARGO_MANIFEST_DIR/../prism-sensors/specs/",
+    );
+
+    let org_slug = "claroty-ec01032-parser-org";
+
+    let mut spec_for_map = prism_spec_engine::spec_parser::SpecLoader::parse(&spec_content)
+        .expect("EC-01-032 parser-surface: claroty.sensor.toml must parse cleanly (spec_for_map)");
+    spec_for_map.base_url = mock_server.uri();
+    let resolved_for_map = make_resolved_spec_for_pipeline(spec_for_map, org_slug);
+
+    let mut spec_for_adapter = prism_spec_engine::spec_parser::SpecLoader::parse(&spec_content)
+        .expect(
+            "EC-01-032 parser-surface: claroty.sensor.toml must parse cleanly (spec_for_adapter)",
+        );
+    spec_for_adapter.base_url = mock_server.uri();
+    let resolved_for_adapter = make_resolved_spec_for_pipeline(spec_for_adapter, org_slug);
+
+    let mut resolved_spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    resolved_spec_map.insert(
+        (OrgSlug::new(org_slug), SensorId::from("claroty")),
+        resolved_for_map,
+    );
+    let resolved_spec_map_arc = Arc::new(resolved_spec_map);
+
+    let (org_registry, org_id, org_slug_typed) = make_org_registry_for_pipeline(org_slug);
+
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("EC-01-032 parser-surface: reqwest client build");
+    let adapter = SpecDrivenSensorAdapter::new(
+        Arc::new(resolved_for_adapter),
+        AdapterAuthStrategy::BearerStatic,
+        http_client,
+    );
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(adapter));
+
+    let normalizer = Arc::new(OcsfNormalizer::new());
+    let credential_resolver: Arc<dyn CredentialResolver> = Arc::new(
+        BearerStaticCredentialResolverForPipeline::new("claroty-ec01032-token"),
+    );
+    let mut mat_ctx = MaterializationContext::new_with_resolver(
+        Arc::new(adapter_registry),
+        normalizer,
+        10_000,
+        credential_resolver,
+        Some(Arc::new(org_registry)),
+        Some(Arc::clone(&resolved_spec_map_arc)),
+    );
+
+    let session_ctx = SessionContext::new();
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug_typed]),
+        limit: None,
+        ..QueryOptions::default()
+    };
+
+    // End-only PrismQL query: only a < upper-bound predicate, no lower bound.
+    // Uses 2025-02-01 (well before now-7d) to prove no synthetic 7-day floor is injected.
+    // If a 7-day lower bound were added: end_time(2025-02-01) < floor(now-7d) → inverted window.
+    let end_bound = "2025-02-01T00:00:00Z";
+    let pql_query = "SELECT * FROM claroty_audit_logs WHERE timestamp < '2025-02-01T00:00:00Z'";
+
+    let _output =
+        run_materialization_pipeline(pql_query, &options, &mut mat_ctx, &session_ctx).await;
+
+    let requests = mock_server.received_requests().await.unwrap_or_default();
+
+    let audit_log_req = requests.iter().find(|r| r.url.path().contains("audit_log"));
+    assert!(
+        audit_log_req.is_some(),
+        "EC-01-032 (parser-surface): run_materialization_pipeline must issue a POST to \
+         /api/v1/audit_log/get. Got {} total requests.",
+        requests.len()
+    );
+
+    let body = parse_received_body(&audit_log_req.unwrap().body);
+
+    assert!(
+        body.get("filter_by").is_some(),
+        "EC-01-032 (parser-surface): POST body must contain 'filter_by'. Got body: {body}."
+    );
+
+    let filter_by = &body["filter_by"];
+
+    // LOAD-BEARING (EC-01-032 / SAP-3): Must be single less_or_equal — NOT compound AND.
+    // Any `"and"` operation means a synthetic lower bound was injected (EC-01-032 hazard).
+    assert_eq!(
+        filter_by["operation"].as_str().unwrap_or(""),
+        "less_or_equal",
+        "EC-01-032 (parser-surface) LOAD-BEARING: end-only filter must emit single \
+         'less_or_equal'. Got operation: {:?}. If 'and', a synthetic 7-day lower bound \
+         was injected — FORBIDDEN (EC-01-032: inverted window when end_time < now-7d). \
+         BC-2.01.013 EC-01-032.",
+        filter_by["operation"]
+    );
+
+    // Must NOT contain "and" — no compound filter allowed for end-only case.
+    let filter_by_str = serde_json::to_string(filter_by).unwrap_or_default();
+    assert!(
+        !filter_by_str.contains("\"and\""),
+        "EC-01-032 (parser-surface): serialized filter_by MUST NOT contain '\"and\"'. \
+         Got filter_by: {filter_by}. BC-2.01.013 EC-01-032."
+    );
+
+    // Must NOT contain "greater_or_equal" — no synthetic floor injected.
+    assert!(
+        !filter_by_str.contains("\"greater_or_equal\""),
+        "EC-01-032 (parser-surface): serialized filter_by MUST NOT contain \
+         '\"greater_or_equal\"' — end-only means single less_or_equal, no synthetic floor. \
+         Got filter_by: {filter_by}. BC-2.01.013 EC-01-032 (SOUL.md §4 hazard)."
+    );
+
+    // Field must be "timestamp".
+    assert_eq!(
+        filter_by["field"].as_str().unwrap_or(""),
+        "timestamp",
+        "EC-01-032 (parser-surface): filter_by.field must be 'timestamp'. Got: {:?}. \
+         BC-2.01.013 EC-01-032.",
+        filter_by["field"]
+    );
+
+    // Value must be an ISO-8601 string matching the explicit end bound.
+    // BC-2.01.013 EC-01-032: value is an ISO-8601 STRING, NOT an epoch integer.
+    let value_str = filter_by["value"].as_str();
+    assert!(
+        value_str.is_some(),
+        "EC-01-032 (parser-surface): filter_by.value must be an ISO-8601 STRING \
+         (serde_json::Value::String). Got: {:?}. BC-2.01.013 EC-01-032.",
+        filter_by["value"]
+    );
+    let value_dt = chrono::DateTime::parse_from_rfc3339(value_str.unwrap());
+    assert!(
+        value_dt.is_ok(),
+        "EC-01-032 (parser-surface): filter_by.value must parse as RFC3339. Got: {:?}. \
+         Error: {:?}. BC-2.01.013 EC-01-032.",
+        value_str,
+        value_dt.err()
+    );
+    let value_secs = value_dt.unwrap().timestamp();
+    let end_secs = chrono::DateTime::parse_from_rfc3339(end_bound)
+        .expect("test fixture: end_bound must be valid RFC3339")
+        .timestamp();
+    assert!(
+        (value_secs - end_secs).abs() <= 60,
+        "EC-01-032 (parser-surface): filter_by.value must equal the explicit end bound \
+         ({end_bound} = {end_secs}s). Got {value_secs}s (delta: {}s). \
+         BC-2.01.013 EC-01-032.",
+        value_secs - end_secs
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-C18-002: EC-01-030 parser-surface — no-filter default via run_materialization_pipeline
+//
+// SAP-3 requirement: RG-001 exercises EC-01-030 via hand-built QueryParams (no WHERE).
+// This test closes the SAP-3 gap by entering through run_materialization_pipeline
+// with a bare "SELECT * FROM claroty_audit_logs" — no WHERE clause.
+//
+// Expected wire body: filter_by.operation == "greater_or_equal", value ≈ now − 604800s.
+//
+// BCs: BC-2.01.013 EC-01-030; S-CLAROTY-AUDITLOG-TIMEBOX-001 F-C18-002
+// ---------------------------------------------------------------------------
+
+/// EC-01-030 parser-surface: no-filter query (`SELECT * FROM claroty_audit_logs`) via
+/// `run_materialization_pipeline` MUST emit POST body with
+/// `filter_by.operation == "greater_or_equal"` and `filter_by.value` ≈ now − 604800s
+/// (7 days, ±60s tolerance).
+///
+/// SAP-3: enters from a real PrismQL string, not hand-built QueryParams.
+/// BC-2.01.013 EC-01-030: when no time predicate is present, the 7-day default
+/// look-back MUST be applied — the POST body MUST NOT be sent without a filter.
+///
+/// Closes F-C18-002 from cycle-18 LOW findings.
+///
+/// BCs: BC-2.01.013 EC-01-030; S-CLAROTY-AUDITLOG-TIMEBOX-001
+#[tokio::test]
+#[allow(clippy::unwrap_used)]
+async fn test_BC_2_01_013_claroty_audit_logs_ec01030_no_filter_default_parser_surface() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/v1/audit_log/get"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(audit_log_response_one_record()))
+        .mount(&mock_server)
+        .await;
+
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/claroty.sensor.toml"),
+    )
+    .expect(
+        "EC-01-030 parser-surface: claroty.sensor.toml must be readable from \
+         CARGO_MANIFEST_DIR/../prism-sensors/specs/",
+    );
+
+    let org_slug = "claroty-ec01030-parser-org";
+
+    let mut spec_for_map = prism_spec_engine::spec_parser::SpecLoader::parse(&spec_content)
+        .expect("EC-01-030 parser-surface: claroty.sensor.toml must parse cleanly (spec_for_map)");
+    spec_for_map.base_url = mock_server.uri();
+    let resolved_for_map = make_resolved_spec_for_pipeline(spec_for_map, org_slug);
+
+    let mut spec_for_adapter = prism_spec_engine::spec_parser::SpecLoader::parse(&spec_content)
+        .expect(
+            "EC-01-030 parser-surface: claroty.sensor.toml must parse cleanly (spec_for_adapter)",
+        );
+    spec_for_adapter.base_url = mock_server.uri();
+    let resolved_for_adapter = make_resolved_spec_for_pipeline(spec_for_adapter, org_slug);
+
+    let mut resolved_spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    resolved_spec_map.insert(
+        (OrgSlug::new(org_slug), SensorId::from("claroty")),
+        resolved_for_map,
+    );
+    let resolved_spec_map_arc = Arc::new(resolved_spec_map);
+
+    let (org_registry, org_id, org_slug_typed) = make_org_registry_for_pipeline(org_slug);
+
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("EC-01-030 parser-surface: reqwest client build");
+    let adapter = SpecDrivenSensorAdapter::new(
+        Arc::new(resolved_for_adapter),
+        AdapterAuthStrategy::BearerStatic,
+        http_client,
+    );
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(adapter));
+
+    let normalizer = Arc::new(OcsfNormalizer::new());
+    let credential_resolver: Arc<dyn CredentialResolver> = Arc::new(
+        BearerStaticCredentialResolverForPipeline::new("claroty-ec01030-token"),
+    );
+    let mut mat_ctx = MaterializationContext::new_with_resolver(
+        Arc::new(adapter_registry),
+        normalizer,
+        10_000,
+        credential_resolver,
+        Some(Arc::new(org_registry)),
+        Some(Arc::clone(&resolved_spec_map_arc)),
+    );
+
+    let session_ctx = SessionContext::new();
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug_typed]),
+        limit: None,
+        ..QueryOptions::default()
+    };
+
+    // No-filter PrismQL query — no WHERE clause.
+    // EC-01-030: 7-day default look-back MUST be injected automatically.
+    let pql_query = "SELECT * FROM claroty_audit_logs";
+
+    let before_pipeline_secs = chrono::Utc::now().timestamp();
+    let _output =
+        run_materialization_pipeline(pql_query, &options, &mut mat_ctx, &session_ctx).await;
+    let after_pipeline_secs = chrono::Utc::now().timestamp();
+
+    let requests = mock_server.received_requests().await.unwrap_or_default();
+
+    let audit_log_req = requests.iter().find(|r| r.url.path().contains("audit_log"));
+    assert!(
+        audit_log_req.is_some(),
+        "EC-01-030 (parser-surface): run_materialization_pipeline must issue a POST to \
+         /api/v1/audit_log/get. Got {} total requests.",
+        requests.len()
+    );
+
+    let body = parse_received_body(&audit_log_req.unwrap().body);
+
+    // LOAD-BEARING (EC-01-030 / SAP-3): POST body MUST contain 'filter_by' even with no WHERE.
+    // BC-2.01.013 EC-01-030: 7-day default look-back is mandatory when no time predicate exists.
+    assert!(
+        body.get("filter_by").is_some(),
+        "EC-01-030 (parser-surface) LOAD-BEARING: POST body to /api/v1/audit_log/get MUST \
+         contain 'filter_by' when the PrismQL query has no WHERE clause. \
+         Got body: {body}. BC-2.01.013 EC-01-030."
+    );
+
+    let filter_by = &body["filter_by"];
+
+    // operation must be "greater_or_equal" (single lower bound — 7-day default).
+    assert_eq!(
+        filter_by["operation"].as_str().unwrap_or(""),
+        "greater_or_equal",
+        "EC-01-030 (parser-surface): filter_by.operation must be 'greater_or_equal' for \
+         the 7-day default look-back. Got: {:?}. BC-2.01.013 EC-01-030.",
+        filter_by["operation"]
+    );
+
+    // Value must be an ISO-8601 string ≈ now - 604800s (±60s tolerance).
+    // BC-2.01.013 EC-01-030: value MUST be ISO-8601 STRING, NOT epoch integer.
+    let value_str = filter_by["value"].as_str();
+    assert!(
+        value_str.is_some(),
+        "EC-01-030 (parser-surface): filter_by.value must be an ISO-8601 STRING \
+         (serde_json::Value::String). Got: {:?}. BC-2.01.013 EC-01-030.",
+        filter_by["value"]
+    );
+    let value_dt = chrono::DateTime::parse_from_rfc3339(value_str.unwrap());
+    assert!(
+        value_dt.is_ok(),
+        "EC-01-030 (parser-surface): filter_by.value must parse as RFC3339. Got: {:?}. \
+         Error: {:?}. BC-2.01.013 EC-01-030.",
+        value_str,
+        value_dt.err()
+    );
+    let value_secs = value_dt.unwrap().timestamp();
+    let seven_days_secs: i64 = 7 * 24 * 3600;
+    // Expected floor and ceiling bracket the now-7d point across the pipeline execution window.
+    let expected_floor = before_pipeline_secs - seven_days_secs;
+    let expected_ceiling = after_pipeline_secs - seven_days_secs;
+    let tolerance_secs: i64 = 60;
+    assert!(
+        value_secs >= expected_floor - tolerance_secs
+            && value_secs <= expected_ceiling + tolerance_secs,
+        "EC-01-030 (parser-surface): filter_by.value must be ≈ now - 604800s (±60s). \
+         Expected range [{}, {}] (seconds), got {value_secs}s. \
+         BC-2.01.013 EC-01-030; S-CLAROTY-AUDITLOG-TIMEBOX-001.",
+        expected_floor - tolerance_secs,
+        expected_ceiling + tolerance_secs
     );
 }
