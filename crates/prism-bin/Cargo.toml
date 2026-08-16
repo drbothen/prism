@@ -249,7 +249,7 @@ path = "tests/defect_adapter_tls_xdome_live_001.rs"
 # Covers: AC-001, AC-002, AC-003, AC-005, AC-006, AC-007, AC-INDEX-CLARO-001, RG-001..003, RG-005, RG-006, RG-007, BP-001
 # (AC-004/RG-004 lives in prism-spec-engine/src/pipeline.rs rg004_pipeline_json_filter_tests)
 # BCs: BC-2.01.013, BC-2.16.013
-# Tests (13 total — 10 synthetic adapter.fetch() + 3 parser-surface run_materialization_pipeline):
+# Tests (13 total — 9 synthetic adapter.fetch() + 4 parser-surface run_materialization_pipeline):
 #   test_BC_2_01_013_claroty_audit_logs_layer2_no_filter_injects_default_greater_or_equal (synthetic)
 #   test_BC_2_01_013_claroty_audit_logs_layer2_explicit_start_time_honored_not_truncated (synthetic)
 #   test_BC_2_01_013_claroty_audit_logs_layer2_both_bounds_compound_and (synthetic)
