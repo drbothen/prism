@@ -4709,3 +4709,30 @@ When product-owner authors holdout scenarios involving sensor-table queries:
 **Transferable principle:** Holdout-scenario authors must use the prism vendor convention `<sensor_id>_<table>` for all table references, deriving sensor_id from the TOML spec, not from product branding or marketing names. Dual-named products (where vendor name ≠ product name, e.g., Claroty vs xDome) are the highest-risk class for this error.
 
 **Source:** D-2167 state-manager closing burst (2026-08-15). Pattern family: holdout-authoring gap, scenario naming, vendor convention, table identifier, sensor_id.
+
+---
+
+### Lesson 127 — options=["INDEX"] Precedent Not Transferred to Sibling Sensor Story [tracked]
+
+**Category:** story-authoring, sibling-sweep, TD-VSDD-097, process-gap, options-INDEX
+
+**Context:** S-CLAROTY-AUDITLOG-TIMEBOX-001 LOCAL adversary pass-2 (D-2188). F-P2-CRIT-1 found that `audit_logs.timestamp` in `claroty.sensor.toml` lacked `options=["INDEX"]`, so `extract_time_window_from_ast` never fired and explicit WHERE time-filters were silently discarded — defaulting to the 7-day cap. This is the same defect class as F-P1-CRIT-001 from `S-DEMO-CROWDSTRIKE-MULTIREGION-001` (AC-INDEX-CWS-001), which established the `options=["INDEX"]` requirement for timestamp columns used as time-window extractors.
+
+**Root cause:**
+
+The `options=["INDEX"]` fix was documented in AC-INDEX-CWS-001 and closed in a prior burst, but no TD-VSDD-097 dim-1 sibling-pair sweep was performed at story-authoring time for S-CLAROTY-AUDITLOG-TIMEBOX-001. The story spec was authored against the claroty sensor's time-filter AC surface without consulting the CrowdStrike precedent. Story-writer and product-owner both authored S-CLAROTY-AUDITLOG-TIMEBOX-001 without checking sibling sensor stories for established `options=["INDEX"]` patterns. The mechanism was correct in concept (time-window extraction) but the required TOML annotation was omitted because the precedent was not propagated.
+
+**TD-VSDD-097 dim-1 analysis:**
+
+The AC-INDEX-CWS-001 fix (CrowdStrike `timestamp` column) and the S-CLAROTY-AUDITLOG-TIMEBOX-001 fix (Claroty `audit_logs.timestamp` column) are sibling-pair artifacts: both are `Datetime` columns on sensor TOMLs whose time-window extraction behavior is governed by `extract_time_window_from_ast`. The sibling-pair sweep obligation (TD-VSDD-097 dim-1) was never triggered at story-authoring time because the two stories were not linked in any sweep checklist.
+
+**Correct behavior (going forward):**
+
+When authoring any story whose ACs involve time-window filtering (`extract_time_window_from_ast`, `options=["INDEX"]`, `timestamp_column`, AC-INDEX-*), the story-writer MUST:
+1. Search `crates/prism-sensors/specs/*.sensor.toml` and `crates/prism-sensors/specs/*.sensor.toml` for existing `options=["INDEX"]` declarations.
+2. Verify that every `Datetime` column serving as the time-window anchor in the new story carries `options=["INDEX"]`.
+3. Document the sweep result in the story's TD-VSDD-097 dim-1 section.
+
+**Transferable principle:** TD-VSDD-097 dim-1 sibling-pair sweep must include cross-sensor TOML column option parity. When a column-level option (e.g., `options=["INDEX"]`) is established by one sensor's story as the mechanism for a behavior class, all sibling sensors whose stories touch the same behavior class must be checked for the same option. The absence of the option in a sibling sensor TOML is a CRIT defect, not a style preference.
+
+**Source:** D-2188 state-manager closing burst (2026-08-16). Pattern family: TD-VSDD-097 dim-1 sibling-sweep gap, options=["INDEX"], cross-sensor TOML parity, time-window extraction.
