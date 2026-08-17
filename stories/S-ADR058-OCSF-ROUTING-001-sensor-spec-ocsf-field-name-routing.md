@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.7"
+version: "1.8"
 level: "L4"
 status: draft
 producer: story-writer
@@ -84,7 +84,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "5f05176"
+input-hash: "f7f7e85"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -119,7 +119,7 @@ class_selector.rs KF-01 code defect confirmed and Armis sibling sweep)** in full
 implementing.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time.** Version `1.7`, status: draft
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time.** Version `1.8`, status: draft
 (modified 2026-08-16). §Column Routing postconditions, **§Claroty Contracted OCSF Mappings
 (ground truth for all four Claroty tables with KF-01..KF-12 corrections)**, and
 **§Interpretation A: Arrow Field Naming** govern the obligation that `ocsf_field` declarations
@@ -131,7 +131,7 @@ postconditions for Claroty.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
 **BC-2.16.002: Multi-Step Fetch Pipeline Execution.** Version `2.27`, status: active
-(modified 2026-08-16). Canonical Structured Event Catalog **(v1.67)** row 94: `ocsf.unknown_class_name`
+(modified 2026-08-16). Canonical Structured Event Catalog — `ocsf.unknown_class_name`
 WARN — emitted by `pipeline_result_to_record_batch` on the `Err` branch of
 `EventClassSelector::select_by_class_name` before `.unwrap_or(0)`. Fields: `ocsf_class: %display`,
 `sensor_id: %display`, `table_name: %display`. SAP-1 / PG-LP11-001 obligation: the implementer
@@ -215,15 +215,15 @@ Until then, `ColumnMapper::map_record` remains test-only.
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.7 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention) |
-| BC-2.16.002 | v2.27 | active | Canonical Structured Event Catalog v1.67 row 94: `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
+| BC-2.16.003 | v1.8 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention) |
+| BC-2.16.002 | v2.27 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
 | BC-2.01.013 | v1.16 | active | EC-01-025 NON-CONFORMANT annotation resolved for Claroty after this story merges; product-owner updates annotation |
 
 ---
 
 ## Red Gate Tests (SAC-1 — tdd_mode: strict)
 
-All twenty tests MUST be failing (RED) before any implementation code is written.
+All twenty-three tests MUST be failing (RED) before any implementation code is written.
 Test-writer dispatched FIRST; implementer only after all 20 confirmed failing.
 
 - **RG-001:** `test_sensor_spec_ocsf_column_naming_defaults_to_false` —
@@ -341,13 +341,18 @@ Test-writer dispatched FIRST; implementer only after all 20 confirmed failing.
   Utf8 blob contains JSON keys `category`, `alert_type_name`, `devices_count` with the
   original vendor values. Covers AC-010 (KF-08/09/10, BC-2.16.003 EC-016-013-013/014/015).
 
-- **RG-015:** `test_claroty_alerts_id_produces_finding_info_uid_arrow_field_wire_shape` —
-  wire-shape assertion. Fails until KF-03 TOML correction changes `alerts.id` `ocsf_field`
-  from `"finding.uid"` to `"finding_info.uid"`. With the corrected TOML and
-  `ocsf_column_naming = true`, materializes an alerts RecordBatch with `id = "132"`. Asserts
-  on serialized JSON: (1) Arrow field name is `finding_info_uid` (not `finding_uid`, not
-  `id`); (2) serialized row carries `"finding_info_uid": "132"` with no `finding_uid` or `id`
-  key. Covers AC-010 (KF-03 wire-shape, BC-2.16.003 EC-016-013-017).
+- **RG-015:** `test_claroty_alerts_finding_info_fields_wire_shape` —
+  wire-shape assertion covering KF-03/04/12 as a single 3-field alerts record batch. Fails
+  until KF-03 (`alerts.id` ocsf_field `"finding_info.uid"`), KF-04 (`alerts.alert_name`
+  ocsf_field `"finding_info.title"`), and KF-12 (`alerts.updated_time` ocsf_field
+  `"finding_info.modified_time"`) TOML corrections are ALL applied. With the corrected TOML
+  and `ocsf_column_naming = true`, materializes an alerts RecordBatch with a record
+  `{id: "132", alert_name: "Modbus Violation", updated_time: "2024-01-15T10:30:00Z"}`.
+  Asserts on serialized JSON: (1) Arrow field `"finding_info_uid"` contains `"132"`;
+  (2) Arrow field `"finding_info_title"` contains `"Modbus Violation"`;
+  (3) Arrow field `"finding_info_modified_time"` contains `"2024-01-15T10:30:00Z"`;
+  (4) no Arrow field named `"finding_uid"`, `"finding_title"`, or `"end_time"` exists.
+  Covers AC-010 assertion 1 (KF-03/04/12 wire-shape, BC-2.16.003 EC-016-013-017).
 
 - **RG-016:** `test_claroty_audit_logs_record_batch_class_uid_is_3004` —
   wire-shape assertion. Fails until the `"entity_management" => Ok(3004)` arm exists in
@@ -381,7 +386,7 @@ Test-writer dispatched FIRST; implementer only after all 20 confirmed failing.
   (1) a WARN event with `event_type = "ocsf.unknown_class_name"` was emitted; (2) the
   `ocsf_class` field on the event matches the unknown string; (3) the function still
   returns `Ok(...)` with `class_uid = 0` (graceful fallback preserved). Covers AC-011;
-  traces to BC-2.16.002 v2.27 catalog row 94 (SAP-1/PG-LP11-001 obligation).
+  traces to BC-2.16.002 §Canonical Structured Event Catalog `ocsf.unknown_class_name` (SAP-1/PG-LP11-001 obligation).
 
 - **RG-019:** `test_claroty_audit_logs_record_batch_kf11_category_in_raw_extensions` —
   wire-shape assertion. Fails until KF-11 TOML correction removes `ocsf_field` from
@@ -409,29 +414,75 @@ Test-writer dispatched FIRST; implementer only after all 20 confirmed failing.
   Covers AC-010 (KF-07 `device_alert_relations.alert_id` → `finding_info_uid` wire-shape).
   Traces to BC-2.16.003 §Claroty Contracted OCSF Mappings (device_alert_relations table, KF-07).
 
+- **RG-021:** `test_claroty_audit_logs_id_column_goes_to_raw_extensions_not_activity_uid` —
+  wire-shape assertion for KF-05 (PO decision: `audit_logs.id` `ocsf_field` REMOVED). Fails
+  until the KF-05 TOML correction (removing `ocsf_field` from `audit_logs.id`) is applied.
+  With the corrected TOML and `ocsf_column_naming = true`, materializes an `audit_logs`
+  RecordBatch via `pipeline_result_to_record_batch` with a record `{id: "al-999",
+  action: "Login", note: "reviewed"}`. Asserts on serialized JSON: (1) no top-level Arrow
+  field named `"activity_uid"` or `"id"` exists (the `id` value does NOT become an
+  `activity_uid` Arrow field); (2) the `raw_extensions` JSON blob contains key `"id"` with
+  value `"al-999"` (audit record ID preserved in raw_extensions as the deduplication
+  reference per PO decision); (3) Arrow field `"activity_name"` contains `"Login"` (the
+  `action` → `activity_name` mapping under entity_management 3004 remains correct).
+  Covers AC-010 assertion 5 (KF-05).
+  Traces to BC-2.16.003 §Claroty Contracted OCSF Mappings (audit_logs table, KF-05).
+
+- **RG-022:** `test_claroty_devices_device_type_produces_device_type_label_arrow_field` —
+  wire-shape assertion for KF-06 (PO decision: `devices.device_type` ocsf_field changed to
+  `"device.type_label"` → Arrow `"device_type_label"`). Fails until the KF-06 TOML
+  correction is applied. With the corrected TOML and `ocsf_column_naming = true`,
+  materializes a `devices` RecordBatch via `pipeline_result_to_record_batch` with a record
+  `{uid: "dev-001", device_type: "PLC", device_name: "Pump Controller"}`. Asserts on
+  serialized JSON: (1) Arrow field `"device_type_label"` contains `"PLC"` (the
+  `device_type` value routed via `device.type_label` → `device_type_label` under
+  Interpretation A); (2) no Arrow field named `"device_type_name"` exists (stale
+  pre-KF-06 vendor-ext path absent); (3) Arrow field `"device_name"` contains
+  `"Pump Controller"` (unchanged VALID mapping). This assertion is demo-critical: the
+  PrismQL filter `WHERE device_type_label = 'PLC'` (per BC-2.16.003 EC-016-013-021)
+  depends on this exact Arrow field name.
+  Covers AC-010 assertion 6 (KF-06).
+  Traces to BC-2.16.003 §Claroty Contracted OCSF Mappings (devices table, KF-06).
+
+- **RG-023:** `test_class_selector_claroty_audit_log_select_arm_maps_to_entity_management_3004` —
+  unit test for AC-009 sub-obligation (c) Claroty path. Fails until the
+  `("claroty", "audit_log")` arm in `class_selector.rs select()` is updated from
+  `Ok(CLASS_UID_ACCOUNT_CHANGE)` (3001) to `Ok(CLASS_UID_ENTITY_MANAGEMENT)` (3004).
+  Asserts: `select("claroty", "audit_log")` returns `Ok(CLASS_UID_ENTITY_MANAGEMENT)`.
+  This is a forward-compat test for Path B (zero live production callers; called by
+  `normalize_with_mappers` in `normalizer.rs`). RG-012 covers the Armis arm of the same
+  sub-obligation; RG-023 covers the Claroty arm. Together they complete AC-009(c) coverage.
+  Covers AC-009 sub-obligation (c) Claroty path.
+  Traces to ADR-058 §K5 Div-3 + §I5 (TD-VSDD-097 dim-1 sibling pair with Armis).
+
 ### BC-5.38.001 Density Check
 
-Red Gate test count: **20** (RG-001..RG-020).
+Red Gate test count: **23** (RG-001..RG-023).
 Acceptance criteria: 11 (AC-001..AC-011). AC-008 is an `#[ignore]`'d test update — its
 Red Gate is RG-005 (same mechanism: Arrow field name must be `device_uid` not `uid`).
 
-Density: 20 RGTs / 11 ACs = **1.82 ≥ 0.5** — compliant with BC-5.38.001.
+Density: 23 RGTs / 11 ACs = **2.09 ≥ 0.5** — compliant with BC-5.38.001.
 
 Note: AC-005 (claroty.sensor.toml — ocsf_column_naming + KF-01..KF-12 full corrections)
-and AC-008 (e2e test update) are exercised by existing RGTs rather than standalone tests.
+is validated by wire-shape RGs that require the corrected TOML to pass: RG-014..RG-022
+collectively assert the TOML corrections at the RecordBatch level. KF-05 is asserted by
+RG-021; KF-06 is asserted by RG-022. AC-008 (e2e test update) has no standalone failing
+Red Gate — RG-005 and RG-006 verify the column naming logic non-live.
 RG-009 covers EC-009 (intra-table flattening collision detection). RG-010 covers EC-010
 (flag-transition name shadowing). RG-011 covers AC-009 sub-obligations (a)+(b) at the
 resolver level (`select_by_class_name` entity_management + inventory_info arms).
-RG-012 covers AC-009 sub-obligation (c) (Armis `select()` arm, TD-VSDD-097 dim-1 sibling).
+RG-012 covers AC-009 sub-obligation (c) Armis `select()` arm (TD-VSDD-097 dim-1 sibling).
+RG-023 covers AC-009 sub-obligation (c) Claroty `select()` arm (completes (c) coverage;
+RG-012 covers one half, RG-023 covers the other).
 RG-013 covers AC-009 data-loss prevention (note→comment under entity_management 3004).
-RG-014..RG-015 cover AC-010 (wire-shape assertions for reserved fields and finding_info.*).
-RG-016 covers AC-009 sub-obligation (b) at the integration level (audit_logs class_uid = 3004
-wire-shape, EC-016-013-023). RG-017 covers AC-009 sub-obligation (b) regression guard
-(devices class_uid = 5001, EC-016-013-024). RG-018 covers AC-011 (process-gap warn).
-RG-019 covers AC-010 KF-11 (audit_logs category→raw_extensions wire-shape) and AC-009
-entity_management field mappings at integration level. RG-020 covers AC-010 KF-07
-(device_alert_relations finding_info_uid wire-shape).
-The density check is based on the 20 distinct failing tests enumerated above.
+RG-014 covers AC-010 assertion 2 (KF-08/09/10 reserved fields → raw_extensions).
+RG-015 covers AC-010 assertion 1 (KF-03/04/12 3-field alerts wire-shape).
+RG-016 covers AC-009 sub-obligation (b) integration (audit_logs class_uid = 3004 wire-shape).
+RG-017 covers AC-009 sub-obligation (b) regression guard (devices class_uid = 5001).
+RG-018 covers AC-011 (process-gap warn). RG-019 covers AC-010 assertion 3 (KF-11).
+RG-020 covers AC-010 assertion 4 (KF-07). RG-021 covers AC-010 assertion 5 (KF-05).
+RG-022 covers AC-010 assertion 6 (KF-06).
+The density check is based on the 23 distinct failing tests enumerated above.
 
 ---
 
@@ -797,21 +848,21 @@ traces to ADR-058 §K5 Div-3 + §I5 all four sub-obligations)
 
 ### AC-010: Wire-shape assertions on corrected finding_info.* fields and reserved-metadata raw_extensions
 
-Tests covering the KF-03/04/07/08/09/10/11/12 corrections MUST assert on the
+Tests covering the KF-03/04/05/06/07/08/09/10/11/12 corrections MUST assert on the
 **serialized JSON output** (the exact bytes the LLM agent consumes via MCP), not only on
 pre-serialization Rust structures. Per CLAUDE.md §Conventions wire-shape assertion
 discipline, any test covering an MCP-visible surface must include at least one assertion
 on the serialized JSON output.
 
-**Required wire-shape assertions (verified by RG-014, RG-015, RG-019, and RG-020):**
+**Required wire-shape assertions (verified by RG-014, RG-015, RG-019, RG-020, RG-021, and RG-022):**
 
 1. **KF-03/04/12 finding_info.* fields** (RG-015): A Claroty alerts record with
    `id = "132"`, `alert_name = "Modbus Violation"`, `updated_time = "2024-01-15T10:30:00Z"`
    processed through `pipeline_result_to_record_batch` with `ocsf_column_naming = true`
    produces an Arrow RecordBatch serialized to JSON where:
    - Arrow field `"finding_info_uid"` contains `"132"` (not absent, not `null`)
-   - Arrow field `"finding_info_title"` contains `"Modbus Violation"`
-   - Arrow field `"finding_info_modified_time"` contains `"2024-01-15T10:30:00Z"`
+   - Arrow field `"finding_info_title"` contains `"Modbus Violation"` (KF-04)
+   - Arrow field `"finding_info_modified_time"` contains `"2024-01-15T10:30:00Z"` (KF-12)
    - No Arrow field named `"finding_uid"`, `"finding_title"`, or `"end_time"` exists
      (stale pre-correction names must be absent at the wire level)
 
@@ -845,6 +896,21 @@ an absent key in `raw_extensions` (not `"category": null`) per BC-2.16.003 §Inv
    - No Arrow field named `"finding_uid"` exists (stale pre-KF-07 name absent)
    - No Arrow field named `"finding.uid"` exists (dotted-path form absent at wire level)
 
+5. **KF-05 `audit_logs.id` → `raw_extensions`** (RG-021): A Claroty `audit_logs` record
+   with `id = "al-999"` processed through `pipeline_result_to_record_batch` with
+   `ocsf_column_naming = true` produces JSON where:
+   - No top-level Arrow field named `"activity_uid"` or `"id"` exists (PO decision:
+     `audit_logs.id` ocsf_field removed; value does NOT become `activity_uid`)
+   - The `raw_extensions` JSON blob contains key `"id"` with value `"al-999"`
+     (audit record ID preserved in raw_extensions as deduplication reference)
+
+6. **KF-06 `devices.device_type` → `device_type_label`** (RG-022): A Claroty `devices`
+   record with `device_type = "PLC"` processed through `pipeline_result_to_record_batch`
+   with `ocsf_column_naming = true` produces JSON where:
+   - Arrow field `"device_type_label"` contains `"PLC"` (demo-critical: enables
+     `WHERE device_type_label = 'PLC'` per BC-2.16.003 EC-016-013-021)
+   - No Arrow field named `"device_type_name"` exists (stale pre-KF-06 path absent)
+
 (traces to BC-2.16.003 §Claroty Contracted OCSF Mappings; traces to CLAUDE.md
 §Conventions wire-shape assertion discipline — "any test covering an MCP-visible surface
 must include at least one assertion on the serialized JSON output")
@@ -869,11 +935,11 @@ The `.unwrap_or(0)` fallback is RETAINED — `pipeline_result_to_record_batch` c
 to return `Ok(...)` with `class_uid = 0` (graceful degradation preserved; SOUL.md §4
 violation is addressed by making the silent fallback visible, not by making it fatal).
 
-**Catalog obligation (SAP-1 / PG-LP11-001):** BC-2.16.002 v2.27 Canonical Structured Event
-Catalog row 94 (`ocsf.unknown_class_name`, label v1.67) is the authoritative contract for
-this emission. The implementer MUST NOT add a new BC-2.16.002 amendment — the row is
-ALREADY in BC-2.16.002 v2.27 (product-owner authored it in this fix-burst). The implementer
-only needs to write the emission code matching the contracted field schema.
+**Catalog obligation (SAP-1 / PG-LP11-001):** BC-2.16.002 §Canonical Structured Event
+Catalog `ocsf.unknown_class_name` is the authoritative contract for this emission. The
+implementer MUST NOT add a new BC-2.16.002 amendment — the row is ALREADY in BC-2.16.002
+v2.27 (product-owner authored it in this fix-burst). The implementer only needs to write
+the emission code matching the contracted field schema.
 
 **Steady-state behavior:** Expected zero emissions when all sensor TOMLs declare valid
 recognized OCSF class names. Non-zero during the TOML correction transition window (e.g.,
@@ -881,9 +947,9 @@ KF-01/KF-02 TOML fix merged before the corresponding `select_by_class_name` arms
 Recurrence: once per `pipeline_result_to_record_batch` invocation where `select_by_class_name`
 returns `Err` (per table batch, NOT per record within the batch).
 
-(traces to BC-2.16.002 v2.27 Canonical Structured Event Catalog v1.67 row 94:
-`ocsf.unknown_class_name`; traces to ADR-058 §I5 process-gap obligation: SOUL.md #4
-silent-fallback observability; SAP-1 standing probe obligation)
+(traces to BC-2.16.002 §Canonical Structured Event Catalog `ocsf.unknown_class_name`;
+traces to ADR-058 §I5 process-gap obligation: SOUL.md #4 silent-fallback observability;
+SAP-1 standing probe obligation)
 
 ---
 
@@ -1043,7 +1109,7 @@ implementer MUST load only the files listed, not the full architecture directory
   event with `event_type = "ocsf.unknown_class_name"` was captured; (2) the event's
   `ocsf_class` field matches `"completely_unknown_class"`; (3) function returns `Ok(...)`
   (graceful fallback preserved). Currently fails because the warn emission does not exist.
-  Covers AC-011; traces to BC-2.16.002 v2.27 catalog row 94.
+  Covers AC-011; traces to BC-2.16.002 §Canonical Structured Event Catalog `ocsf.unknown_class_name`.
 - T-11L: Write RG-019 — `test_claroty_audit_logs_record_batch_kf11_category_in_raw_extensions`
   (MUST FAIL). Wire-shape assertion: build a Claroty `audit_logs` `SensorSpec` with KF-11
   correction applied (`category` has no `ocsf_field`, `ocsf_class = "entity_management"`).
@@ -1062,10 +1128,33 @@ implementer MUST load only the files listed, not the full architecture directory
   `"finding_info_uid"` contains `"alert-123"`; (2) no field named `"finding_uid"` exists;
   (3) no field named `"finding.uid"` exists. Currently fails because KF-07 TOML correction
   not yet applied. Covers AC-010 (KF-07).
+- T-11N: Write RG-021 — `test_claroty_audit_logs_id_column_goes_to_raw_extensions_not_activity_uid`
+  (MUST FAIL). Wire-shape assertion: build a Claroty `audit_logs` `SensorSpec` with KF-05
+  correction (`audit_logs.id` ocsf_field removed). Pass a record `{"id": "al-999",
+  "action": "Login"}` through `pipeline_result_to_record_batch` with
+  `ocsf_column_naming = true` and `ocsf_class = "entity_management"`. Serialize to JSON.
+  Assert: (1) no top-level Arrow field named `"activity_uid"` exists; (2) no top-level
+  Arrow field named `"id"` exists; (3) `raw_extensions` JSON blob contains key `"id"` with
+  value `"al-999"`. Currently fails because KF-05 TOML correction not yet applied.
+  Covers AC-010 (KF-05).
+- T-11O: Write RG-022 — `test_claroty_devices_device_type_produces_device_type_label_arrow_field`
+  (MUST FAIL). Wire-shape assertion: build a Claroty `devices` `SensorSpec` with KF-06
+  correction (`device_type.ocsf_field` = `"device.type_label"`). Pass a record
+  `{"device_uid": "dev-001", "device_type": "PLC"}` through `pipeline_result_to_record_batch`
+  with `ocsf_column_naming = true` and `ocsf_class = "inventory_info"`. Serialize to JSON.
+  Assert: (1) Arrow field `"device_type_label"` contains `"PLC"`; (2) no Arrow field named
+  `"device_type_name"` exists. Demo-critical: without this field `WHERE device_type_label =
+  'PLC'` fails. Currently fails because KF-06 TOML correction not yet applied. Covers
+  AC-010 (KF-06).
+- T-11P: Write RG-023 — `test_class_selector_claroty_audit_log_select_arm_maps_to_entity_management_3004`
+  (MUST FAIL). Unit test in `class_selector.rs`: call
+  `select(&ClassSelectorInput { vendor: "claroty", class_name: "audit_log", ... })` and
+  assert `Ok(3004)` (entity_management). Currently fails because the `("claroty",
+  "audit_log")` arm has not yet been updated. Covers AC-009(c) Claroty arm.
 - T-GATE: Run `just iter prism-spec-engine --no-fail-fast`, `just iter prism-bin --no-fail-fast`,
-  and `just iter prism-ocsf --no-fail-fast` — confirm RG-001..RG-020 fail with correct
+  and `just iter prism-ocsf --no-fail-fast` — confirm RG-001..RG-023 fail with correct
   compile/test-failure reasons. Confirm no regressions in non-RG tests. Report density:
-  20/11 = 1.82 ≥ 0.5. STOP and wait for implementer dispatch.
+  23/11 = 2.09 ≥ 0.5. STOP and wait for implementer dispatch.
 
 ### Phase B: Implementation (implementer dispatched AFTER T-GATE)
 
@@ -1107,10 +1196,11 @@ implementer MUST load only the files listed, not the full architecture directory
   (13) KF-12: `alerts.updated_time.ocsf_field` = `"finding_info.modified_time"`;
   (14) §J3: `devices.device_category.ocsf_field` = `"device.type_category"`.
   Run `just iter prism-spec-engine` to confirm TOML parses correctly. Makes RG-009,
-  RG-010, RG-014, RG-015 green (collision checks now pass with corrected TOML).
+  RG-010, RG-014, RG-015, RG-021, RG-022 green (collision checks and KF-05/KF-06
+  wire-shape assertions now pass with corrected TOML).
 - T-18: Update `test_BC_2_11_005_e2e_claroty_query_returns_data` to use `row.get("device_uid")`
   instead of `row.get("uid")`; update the `#[ignore]` comment per AC-008.
-- T-19: Run `just iter prism-spec-engine`, `just iter prism-bin`, and `just iter prism-ocsf` — all 20 RGTs must pass.
+- T-19: Run `just iter prism-spec-engine`, `just iter prism-bin`, and `just iter prism-ocsf` — all 23 RGTs must pass.
 - T-20: Run `just check` — full workspace gate. Must stay GREEN per ADR-058 §E1
   blast-radius analysis. If any non-Claroty tests fail, STOP — do not push.
 - T-21: In `pipeline_result_to_record_batch`, after computing all arrow names for a
@@ -1546,10 +1636,43 @@ is a compile-correctness fix, not a new obligation. VERDICT: N/A — no new mand
 
 ---
 
+### v1.8 Amendment Sweep (comprehensive KF→AC→RG coverage-matrix audit)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): swept for KF→AC→RG coverage gaps. COERCION-001
+covers coercion-engine ACs (AC-001..AC-006) against RG-001..RG-007; its scope does not include
+KF-05/06/07 field-routing corrections (those are ROUTING-001 Stage 2 obligations). BC-2.16.003
+pin in COERCION-001 updated from v1.7 → v1.8 in the same burst (v1.6→v1.7). VERDICT:
+COERCION-001 SWEPT; BC PIN UPDATED.
+
+**Dimension 2 — Downstream copy target:**
+
+BC-2.16.003 §Claroty Contracted OCSF Mappings (v1.8) is the authoritative source for all 12
+KF corrections. The AC-005 TOML obligations table in this story is derived from the BC; no
+stale copy-source section remains in this story. AC-010 assertions now enumerate all 6
+wire-shape assertions matching KF-03/04/05/06/07/12 corrections in the BC. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+New RGs introduced by this amendment:
+
+- RG-021 (KF-05 `audit_logs.id` → raw_extensions): anchored to
+  `S-ADR058-OCSF-ROUTING-001 AC-010 RG-021 T-11N`.
+- RG-022 (KF-06 `devices.device_type` → `device_type_label`): anchored to
+  `S-ADR058-OCSF-ROUTING-001 AC-010 RG-022 T-11O`.
+- RG-023 (AC-009(c) Claroty `select()` arm): anchored to
+  `S-ADR058-OCSF-ROUTING-001 AC-009 RG-023 T-11P`.
+
+No unanchored MUSTs introduced by this amendment. VERDICT: DISCHARGED IN THIS AMENDMENT.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.8 | 2026-08-17 | story-writer | Adversary pass-4 fix-burst (comprehensive KF→AC→RG coverage-matrix audit): (1) BC-2.16.003 re-pin v1.7→v1.8. (2) F5 POL-39 volatile-pin strip: `v1.67` catalog-label and `row 94` positional cite removed from §Authority BC-2.16.002, body BC table, AC-011, RG-018; durable `event_type = "ocsf.unknown_class_name"` symbol anchor retained. (3) F2 RG-015 expanded to 3-field wire-shape (KF-03 `finding_info_uid` + KF-04 `finding_info_title` + KF-12 `finding_info_modified_time`); AC-010 assertion 1 now matches RG-015 reality. (4) F3 RG-021 added: KF-05 `audit_logs.id` → raw_extensions (no `activity_uid`/`id` Arrow field; value preserved in raw_extensions); RG-022 added: KF-06 `devices.device_type` → `device_type_label` Arrow field (demo-critical `WHERE device_type_label = 'PLC'`). AC-010 assertions 5 and 6 added. (5) F4 RG-023 added: AC-009(c) Claroty `select()` arm `("claroty","audit_log")` → Ok(3004); density-note corrected (RG-012 covers Armis half; RG-023 covers Claroty half). (6) T-11N/T-11O/T-11P added for RG-021/022/023 authoring; T-GATE/T-19 updated. (7) Density 20/11=1.82→23/11=2.09. AC-005 density-note corrected (KF-05/06 now have RGs). (8) §v1.8 Amendment Sweep added. |
 | 1.7 | 2026-08-17 | story-writer | Adversary pass-3 fix-burst: (1) F2 compile-error-class fix — AC-011 and T-24 emission snippet `%table.name` → `%table.table_name` (`TableSpec` has no `name` field; correct field is `table_name` per `prism-spec-engine::spec_parser`; sibling sweep confirmed no other stale `table.name` references in COERCION-001). (2) F1 ROUTING-001 subsystem cross-check against ARCH-INDEX — SS-01/02/10/16 confirmed correct; justification prose already correct (prism-bin attributed to SS-10; prism-sensors+prism-spec-engine to SS-01; prism-ocsf to SS-02; prism-spec-engine to SS-16). (3) §v1.7 Amendment Sweep added. |
 | 1.6 | 2026-08-16 | story-writer | Adversary pass-2 fix-burst: (1) F2 pin sweep — ADR-058 §Authority pin v2.6→v2.7; BC-2.16.003 §Authority pin v1.6→v1.7; body BC table v1.6→v1.7; narrative version labels stripped per POL-39 (section-anchor-only cites in RG-013/014/015, AC-005, AC-009, AC-010, AC-011, EC-003, T-11I/T-11J/T-24). (2) F3 wire-shape coverage added: RG-019 `test_claroty_audit_logs_record_batch_kf11_category_in_raw_extensions` (KF-11 audit_logs category→raw_extensions + entity_management field mappings); RG-020 `test_claroty_device_alert_relations_record_batch_finding_info_uid_wire_shape` (KF-07 device_alert_relations alert_id→finding_info_uid). AC-010 updated with RG-019/020 assertions; T-11L/T-11M added. Density 18/11=1.64→20/11=1.82. RG section header 15→20. T-19/T-GATE updated. (3) F4 SS-01 justification imprecision: removed `prism-bin::spec_driven_adapter` from SS-01 prose; moved to SS-10 prose (prism-bin is SS-10 per ARCH-INDEX; SS-01 justified by prism-sensors + prism-spec-engine only). (4) §v1.6 Amendment Sweep added. |
 | 1.5 | 2026-08-16 | story-writer | ADR-058 v2.6 + BC-2.16.003 v1.6 + BC-2.16.002 v2.27 propagation (adversary pass-1 fix-burst). (1) Subsystems: [SS-07, SS-12, SS-16] → [SS-01, SS-02, SS-10, SS-16]; removed fabricated SS-07 ("Spec Engine" — SS-07 is Adapter Pagination & Response Cache per ARCH-INDEX) and SS-12 ("Sensor Adapters / DTU" — SS-12 is Scheduler per ARCH-INDEX); added SS-02 (OCSF Normalization, owns prism-ocsf/class_selector.rs) and SS-10 (MCP Interface, owns prism-mcp/prism_describe.rs); rewrote justification comments with correct ARCH-INDEX registry citations. (2) AC-009 REWORKED: 3 code changes → 4 sub-obligations per ADR-058 §I5: (a) const; (b) TWO new select_by_class_name arms: entity_management→3004 AND inventory_info→5001 (prevents devices regression 5001→0); (c) BOTH select() audit_log arms (claroty+armis) ACCOUNT_CHANGE→ENTITY_MANAGEMENT forward-compat; (d) deprecate-annotate "audit_activity" dead arm; plus in-file doc table update obligation. (3) RG-011 REWORKED: was assert select_by_class_name("audit_activity")==Ok(3004) — now asserts select_by_class_name("entity_management")==Ok(3004) AND select_by_class_name("inventory_info")==Ok(5001); "audit_activity" is dead code post-KF-01 TOML fix; test name updated accordingly. (4) RG-016 ADDED: wire-shape integration test — audit_logs RecordBatch class_uid Int32 == 3004 (NOT 3001, NOT 0); traces to BC-2.16.003 v1.6 EC-016-013-023. (5) RG-017 ADDED: regression-prevention wire-shape — devices RecordBatch class_uid == 5001 (NOT 0); traces to BC-2.16.003 v1.6 EC-016-013-024. (6) AC-011 ADDED: process-gap warn obligation — ocsf.unknown_class_name WARN on Err branch before .unwrap_or(0); traces to BC-2.16.002 v2.27 catalog row 94. (7) RG-018 ADDED: tracing_test assertion for ocsf.unknown_class_name event. (8) T-22/T-23 REWORKED to 4 sub-obligations; T-24 ADDED for warn emission. (9) T-11I/T-11J/T-11K ADDED for RG-016/017/018 authoring. (10) Density: 15/10=1.5 → 18/11=1.64. (11) BC-2.16.002 v2.27 added to behavioral_contracts frontmatter (POL-8: body BC table row, §Authority entry, Token Budget count). (12) ADR-058 v2.5→v2.6, BC-2.16.003 v1.5→v1.6. (13) TD-VSDD-097 v1.5 sweep added. |
