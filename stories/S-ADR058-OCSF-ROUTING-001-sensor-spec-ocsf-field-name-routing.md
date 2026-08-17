@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.17"
+version: "1.18"
 level: "L4"
 status: draft
 producer: story-writer
@@ -85,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "30215ef"
+input-hash: "e1c7cd2"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -120,7 +120,7 @@ class_selector.rs KF-01 code defect confirmed and Armis sibling sweep)** in full
 implementing.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time.** Version `1.9`, status: draft
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.10`, status: draft
 (modified 2026-08-17). §Column Routing postconditions, **§Claroty Contracted OCSF Mappings
 (ground truth for all four Claroty tables with KF-01..KF-12 corrections)**, and
 **§Interpretation A: Arrow Field Naming** govern the obligation that `ocsf_field` declarations
@@ -131,7 +131,7 @@ Arrow column values. This story brings the production path into conformance with
 postconditions for Claroty.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**BC-2.16.002: Multi-Step Fetch Pipeline Execution.** Version `2.27`, status: active
+**BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation.** Version `2.27`, status: active
 (modified 2026-08-16). Canonical Structured Event Catalog — `ocsf.unknown_class_name`
 WARN — emitted by `pipeline_result_to_record_batch` on the `Err` branch of
 `EventClassSelector::select_by_class_name` before `.unwrap_or(0)`. Fields: `ocsf_class: %display`,
@@ -140,7 +140,7 @@ MUST add this `tracing::warn!` emission to `pipeline_result_to_record_batch` in 
 as the `select_by_class_name` arm additions. This is the source for AC-011 in this story.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md`.
 
-**BC-2.01.013: DataSource Trait Adapter Pattern.** Version `1.23`, status: active.
+**BC-2.01.013: DataSource Trait Eliminates Per-Sensor Code Duplication.** Version `1.23`, status: active.
 EC-01-025 records "ColumnMapper step is missing" as NON-CONFORMANT. Stage 2 resolves
 EC-01-025 for Claroty per ADR-058 §B2 item 4 (OCSF field names now appear in the Arrow
 schema for the flagged sensor).
@@ -214,7 +214,7 @@ Until then, `ColumnMapper::map_record` remains test-only.
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.9 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention) |
+| BC-2.16.003 | v1.10 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention) |
 | BC-2.16.002 | v2.27 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
 | BC-2.01.013 | v1.23 | active | EC-01-025 NON-CONFORMANT annotation resolved for Claroty after this story merges; product-owner updates annotation |
 
@@ -1777,6 +1777,22 @@ violation, not a behavioral obligation. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.18 Amendment Sweep (F-P16-MED-001 BC-2.01.013 title corrected + F-P16-OBS-001 BC-2.16.003/002 title expansion — OCSF-correctness Claroty adversary SPEC pass-16 fix-burst)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): COERCION-001 §Authority also carried an abbreviated BC-2.16.003 title ("Column-to-OCSF Mapping at Query Time" without the post-em-dash enrichment). Both stories amended in the same burst (COERCION-001 v1.15→v1.16): BC-2.16.003 title expanded to full H1 verbatim; BC-2.16.003 pin updated v1.9→v1.10; F-P16-MED-003 AC-007/RG-008/009 added. BC-2.01.013 is absent from COERCION-001's `behavioral_contracts` frontmatter — no sibling correction needed for F-P16-MED-001. BC-2.16.002 is already at full H1 title in COERCION-001 §Authority ("Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation") — no correction needed there. VERDICT: SWEPT; COERCION-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+The §Authority BC entries are the authoritative title references in this story; the §Behavioral Contracts body table uses IDs and versions, not titles — no title propagation to that table is needed. The BC-2.01.013 wrong title ("DataSource Trait Adapter Pattern") was a historical authoring error, not a downstream copy of another artifact. BC-2.16.003 was bumped to v1.10 by the product-owner in this same pass-16 burst (EC-016-013-025 addition). BC-2.16.003 pin propagated v1.9→v1.10 at both live current-state sites in ROUTING-001: §Authority entry (`Version \`1.10\``) and §Behavioral Contracts body table (`v1.10`). Historical §Changelog rows are untouched per convention. VERDICT: SWEPT.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The title corrections and title expansions are authoring-accuracy fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.17 Amendment Sweep (F1 [MED, records-tier] BC-2.01.013 stale version pin v1.16→v1.23 — OCSF-correctness Claroty adversary SPEC pass-15 micro-burst)
 
 **Dimension 1 — Sibling pair:**
@@ -1896,6 +1912,7 @@ corrections, not new behavioral obligations. VERDICT: N/A — no new mandates.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.18 | 2026-08-17 | story-writer | OCSF-correctness Claroty adversary SPEC pass-16 fix-burst: (1) F-P16-MED-001 [HIGH-floor, POL-7/POL-22]: BC-2.01.013 §Authority title corrected — "DataSource Trait Adapter Pattern" → "DataSource Trait Eliminates Per-Sensor Code Duplication" (authoritative H1 per BC-2.01.013 H1). (2) F-P16-OBS-001 [records-tier, POL-7]: BC-2.16.003 §Authority title expanded to full H1 verbatim ("Column-to-OCSF Mapping at Query Time" → "Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec"); BC-2.16.002 §Authority title expanded ("Multi-Step Fetch Pipeline Execution" → "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation"). (3) BC-2.16.003 pin propagated v1.9→v1.10 at both live current-state sites: §Authority entry + §Behavioral Contracts body table (PO bumped BC-2.16.003 to v1.10 with EC-016-013-025 addition in same burst; TD-VSDD-097 dim-2 swept). (4) input-hash updated 30215ef→e1c7cd2 (BC-2.16.003 input bumped by PO). Sibling sweep: COERCION-001 amended in same burst (v1.15→v1.16). §v1.18 Amendment Sweep added. |
 | 1.17 | 2026-08-17 | story-writer | OCSF-correctness Claroty adversary SPEC pass-15 records-only micro-burst (TD-VSDD-096) — F1 [MED, records-tier]: stale BC-2.01.013 version pin v1.16→v1.23 corrected at 2 live current-state sites (§Authority entry + §Behavioral Contracts body table row); historical §Changelog v1.0 authoring-time row grandfathered/untouched. No substance change; frozen perimeter otherwise UNCHANGED. §v1.17 Amendment Sweep added. |
 | 1.16 | 2026-08-17 | story-writer | Adversary pass-12 fix-burst: (1) F2 [LOW] §Tasks T-11G/H/L/M/N/O authoring-wording fixed — all six changed from "build a [table] SensorSpec with KF-xx corrections applied" to "load the corrected `claroty.sensor.toml` [table] table spec (post-T-17, KF-xx: ...)" — authoring instruction, RED-reason (TOML not yet corrected), and T-17 green-driver attribution now mutually consistent. (2) Comprehensive §Tasks audit: T-04–T-11 are consistent one-liners (no authoring body); T-11B/C (RG-009/010): inline spec + code-RED + T-21 green — CONSISTENT; T-11D/E/F (RG-011/012/013): direct API / DynamicMessage + code-RED + T-22/T-23 green — CONSISTENT; T-11I/J (RG-016/017): inline/optional-production-TOML + code-arm-RED + T-22 green — CONSISTENT; T-11K (RG-018): inline spec + code-RED + T-24 green — CONSISTENT; T-11P (RG-023): unit test + code-RED + T-23 green — CONSISTENT. (3) COERCION-001 tasks audit: CLEAN (all tasks code-level, no TOML dependency). (4) ADR-058 §Authority pin v2.12→v2.13 (concurrent architect bump). (5) Sibling sweep: zero normative prose version pins. (6) §v1.16 Amendment Sweep added. |
 | 1.15 | 2026-08-17 | story-writer | Adversary pass-11 fix-burst: (1) ADR-058 §Authority pin v2.11→v2.12 (concurrent architect bump). (2) Sibling coordination: COERCION-001 LOW-2 AC-004 trace parentheticals added in same burst — all three COERCION frontmatter BCs now have AC `(traces to …)` parentheticals; ROUTING-001 already had BC-2.16.002 and BC-2.02.011 traces. (3) Sibling sweep: zero ADR-058/BC normative prose version pins found in either story outside exempt/grandfathered zones. (4) §v1.15 Amendment Sweep added. |

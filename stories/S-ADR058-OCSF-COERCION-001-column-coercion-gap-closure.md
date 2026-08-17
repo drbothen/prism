@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.15"
+version: "1.16"
 level: "L4"
 status: draft
 producer: story-writer
@@ -70,7 +70,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "b301249"
+input-hash: "7fde363"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -90,7 +90,7 @@ tags:
 
 ## Authority
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time.** Version `1.9`, status: draft
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.10`, status: draft
 (modified 2026-08-17). Primary behavioral authority. The §Type Coercion Algorithm, §Full
 Coercion Matrix, EC-016-013-007/008/009 KNOWN GAP annotations, and §Coercion Warning
 Observability DEFECT section are the acceptance-criteria source for this story. Note: BC-2.16.003
@@ -146,7 +146,7 @@ The mandate anchor record:
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.9 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
+| BC-2.16.003 | v1.10 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
 | BC-2.02.011 | — | — | Warning-emission obligation for each normalization issue; BC-2.16.003 DEFECT violates this |
 | BC-2.16.002 | v2.27 | active | Canonical Structured Event Catalog obligation — `column_coercion_failure` emit from AC-004/AC-005 must be registered in §Postconditions §Canonical Structured Event Catalog (SAP-1 / PG-LP11-001) |
 
@@ -154,8 +154,8 @@ The mandate anchor record:
 
 ## Red Gate Tests (SAC-1 — tdd_mode: strict)
 
-All seven tests MUST be failing (RED) before any implementation code is written. The
-test-writer is dispatched FIRST; implementer is dispatched only after all 7 are confirmed
+All nine tests MUST be failing (RED) before any implementation code is written. The
+test-writer is dispatched FIRST; implementer is dispatched only after all 9 are confirmed
 failing with the correct compile-or-test-failure reason.
 
 - **RG-001:** `test_coerce_value_string_type_array_input_returns_err_coercion_warning` —
@@ -189,14 +189,28 @@ failing with the correct compile-or-test-failure reason.
   fails until `build_column_array` ColumnType::String arm returns `None` (null cell) for
   `Value::Array` input. Covers AC-005.
 
+- **RG-008:** `test_build_column_array_integer_type_string_parseable_returns_integer` —
+  fails until `build_column_array` ColumnType::Integer arm parses `Value::String("42")` as
+  `Some(42)` in the Arrow Int64Array (currently `other.as_i64()` returns `None` for String,
+  dropping valid integer strings). Build a ColumnSpec with ColumnType::Integer, pass a record
+  with `"42"` as JSON string, assert Arrow Int64Array == `[Some(42)]` not `[None]`.
+  Both tests go in the same prism-bin test file as RG-006/RG-007. Covers AC-007.
+
+- **RG-009:** `test_build_column_array_integer_type_string_non_parseable_returns_null_and_emits_warning` —
+  fails until the Integer arm returns `None` (null cell) AND emits
+  `tracing::warn!(event_type = "column_coercion_failure", column = %col.name,
+  column_type = "integer", actual_json_kind = "string")` for `Value::String("not-a-number")`.
+  Requires a `tracing_test` subscriber (same pattern as RG-005). Both tests go in the same
+  prism-bin test file as RG-006/RG-007. Covers AC-007.
+
 ### BC-5.38.001 Density Check
 
-Red Gate test count: **7** (RG-001..RG-007).
-Acceptance criteria directly driven by Red Gate tests: 5 (AC-001 through AC-005).
+Red Gate test count: **9** (RG-001..RG-009).
+Acceptance criteria directly driven by Red Gate tests: 6 (AC-001 through AC-005 and AC-007).
 AC-006 is a non-regression criterion for already-passing tests — it does not require a
 new failing Red Gate test.
 
-Density: 7 RGTs / 6 ACs = **1.17 ≥ 0.5** — compliant with BC-5.38.001.
+Density: 9 RGTs / 7 ACs = **1.29 ≥ 0.5** — compliant with BC-5.38.001.
 
 ---
 
@@ -295,6 +309,28 @@ inputs, or for the uid-suffix path with String column type.
 
 (traces to BC-2.16.003 EC-016-013-004 and EC-016-013-005: existing test evidence for
 the LIVE-DRIFT-003 fix must remain valid)
+
+### AC-007: build_column_array ColumnType::Integer arm handles Value::String inputs with parse-attempt
+
+`build_column_array` in `prism-bin::spec_driven_adapter` ColumnType::Integer arm, when the
+extracted value is `Value::String(s)`:
+
+- `s.parse::<i64>()` succeeds → returns `Some(n)` (string-encoded integer materialized as
+  correct integer in Arrow Int64 column; no data loss for valid numeric strings)
+- `s.parse::<i64>()` fails → returns `None` (null cell) AND emits
+  `tracing::warn!(event_type = "column_coercion_failure", column = %col.name,
+  column_type = "integer", actual_json_kind = "string")`
+
+The new `Value::String(s)` arm is placed BEFORE the `other => other.as_i64()` wildcard in
+the ColumnType::Integer block. This fixes the live Path A silent-null data loss for valid
+string-encoded integers (e.g. Claroty column returning `"42"` where spec declares
+`column_type = "integer"`), consistent with AC-003 on Path B (`coerce_value`).
+
+The `column_coercion_failure` event for the parse-failure case is already covered by the
+BC-2.16.002 catalog row §BC-2.16.002 Catalog Row Obligation condition (2); no catalog
+amendment is needed.
+
+(traces to BC-2.16.003 EC-016-013-025; ADR-058 §H item 2 'or dispatching through it')
 
 ---
 
@@ -434,10 +470,19 @@ splitting.
   (MUST FAIL before T-15)
 - T-10: Write RG-007 — `test_build_column_array_string_type_array_input_returns_null_cell`
   (MUST FAIL before T-15)
-- T-GATE: Run `just iter prism-spec-engine --no-fail-fast` — confirm RG-001..RG-007 fail
+- T-10a: Write RG-008 — `test_build_column_array_integer_type_string_parseable_returns_integer`
+  in the same prism-bin test file as RG-006/RG-007. Build a ColumnSpec with ColumnType::Integer,
+  pass a record with `"42"` as JSON string, assert Arrow Int64Array == `[Some(42)]`.
+  (MUST FAIL before T-15b)
+- T-10b: Write RG-009 — `test_build_column_array_integer_type_string_non_parseable_returns_null_and_emits_warning`
+  in the same prism-bin test file as RG-006/RG-007. Use `tracing_test` subscriber to capture
+  warn event; assert `None` null cell AND `event_type = "column_coercion_failure"` with
+  `column_type = "integer"` and `actual_json_kind = "string"`.
+  (MUST FAIL before T-15b)
+- T-GATE: Run `just iter prism-spec-engine --no-fail-fast` — confirm RG-001..RG-009 fail
   with expected compile/test-failure reasons; confirm RG-001..RG-005 are in
-  `bc_2_16_003_test.rs`; confirm RG-006..RG-007 are in an appropriate prism-bin test file.
-  Confirm AC-006 tests still PASS. Report density: 7/6 = 1.17 ≥ 0.5. STOP and wait for
+  `bc_2_16_003_test.rs`; confirm RG-006..RG-009 are in an appropriate prism-bin test file.
+  Confirm AC-006 tests still PASS. Report density: 9/7 = 1.29 ≥ 0.5. STOP and wait for
   implementer dispatch.
 
 ### Phase B: Implementation (implementer dispatched AFTER T-GATE)
@@ -459,8 +504,16 @@ splitting.
   with explicit arms for `Value::Array` and `Value::Object` returning `None` and emitting
   `tracing::warn!(event_type = "column_coercion_failure", ...)`. (AC-005). Makes RG-006
   and RG-007 green.
-- T-16: Run `just iter prism-spec-engine` — all 7 RGTs must pass. AC-006 tests must pass.
-  No regressions.
+- T-15b: Fix `build_column_array` ColumnType::Integer arm — add explicit `Value::String(s)`
+  match arm BEFORE `other => other.as_i64()` wildcard in the ColumnType::Integer block.
+  Body: attempt `s.parse::<i64>()`; `Ok(n)` → `Some(n)`; `Err(_)` → emit
+  `tracing::warn!(event_type = "column_coercion_failure", column = %col.name,
+  column_type = "integer", actual_json_kind = "string", ...)` and return `None`.
+  (AC-007). Makes RG-008 and RG-009 green. The `column_coercion_failure` event is already
+  covered by the BC-2.16.002 catalog row §BC-2.16.002 Catalog Row Obligation condition (2);
+  no catalog amendment needed.
+- T-16: Run `just iter prism-spec-engine` — all 9 RGTs must pass (RG-001..RG-009).
+  AC-006 tests must pass. No regressions.
 - T-17: Run `just iter prism-bin` — build_column_array changes must not break existing
   prism-bin tests.
 - T-18: Run `just check` — full workspace gate. All tests pass.
@@ -744,6 +797,22 @@ fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.16 Amendment Sweep (F-P16-MED-003 AC-007/RG-008/009/T-15b + F-P16-OBS-001 title expansion + BC-2.16.003 v1.9→v1.10 pin — OCSF-correctness Claroty adversary SPEC pass-16 fix-burst)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): ROUTING-001 §Authority also carried abbreviated BC-2.16.003 and BC-2.16.002 titles, and a wrong BC-2.01.013 title ("DataSource Trait Adapter Pattern" → "DataSource Trait Eliminates Per-Sensor Code Duplication"). Both corrected in the same burst (ROUTING-001 v1.17→v1.18). ROUTING-001 carries no F-P16-MED-003 equivalent (build_column_array Integer arm is COERCION-001 scope only). ROUTING-001 BC-2.16.003 pin remains at v1.9 in this burst (per orchestrator's explicit scope dispatch for ROUTING-001; deferred to follow-up records micro-burst). VERDICT: SWEPT; ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+BC-2.16.003 §Authority pin and body BC table pin are the two live BC version-reference sites in COERCION-001. Both updated v1.9→v1.10 in this amendment. The §BC-2.16.002 Catalog Row Obligation condition (2) already covers the `column_coercion_failure` emission for Integer + non-parseable String — no catalog amendment needed for F-P16-MED-003. AC-007's trace citation references BC-2.16.003 EC-016-013-025 (new clause added by PO in same burst); the §Behavioral Contracts body table already lists BC-2.16.003 as the primary contract. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+AC-007 contains the obligation: `build_column_array` ColumnType::Integer arm MUST parse `Value::String(s)` and return `Some(n)` or `None` + warn. This MUST is anchored to BC-2.16.003 EC-016-013-025 + RG-008 (`test_build_column_array_integer_type_string_parseable_returns_integer`) + RG-009 (`test_build_column_array_integer_type_string_non_parseable_returns_null_and_emits_warning`). Story S-ADR058-OCSF-COERCION-001 AC-007. VERDICT: DISCHARGED — anchor present in AC-007 trace parenthetical.
+
+---
+
 ### v1.15 Amendment Sweep (ADR-058 re-pin v2.12→v2.13 + sibling ROUTING-001 F2 task-wording coordination)
 
 **Dimension 1 — Sibling pair:**
@@ -834,6 +903,7 @@ No new MUSTs introduced by this amendment. VERDICT: N/A — no new mandates.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.16 | 2026-08-17 | story-writer | OCSF-correctness Claroty adversary SPEC pass-16 fix-burst: (1) F-P16-MED-003 [Option A, per PO adjudication]: AC-007 added (build_column_array ColumnType::Integer arm handles Value::String inputs with parse-attempt — parseable → Some(n), non-parseable → None + column_coercion_failure warn); RG-008 (test_build_column_array_integer_type_string_parseable_returns_integer) and RG-009 (test_build_column_array_integer_type_string_non_parseable_returns_null_and_emits_warning) added; T-10a/T-10b Red Gate authoring tasks added; T-15b implementation task added; T-16 count 7→9 RGTs; density updated 7/6=1.17→9/7=1.29. (2) F-P16-OBS-001 [records-tier, POL-7]: BC-2.16.003 §Authority title expanded to full H1 verbatim. (3) BC-2.16.003 pin propagated v1.9→v1.10 at §Authority + §Behavioral Contracts body table. (4) input-hash updated (BC-2.16.003 input bumped to v1.10 by PO in same burst). Sibling sweep: ROUTING-001 amended in same burst (v1.17→v1.18). §v1.16 Amendment Sweep added. |
 | 1.15 | 2026-08-17 | story-writer | Adversary pass-12 fix-burst: (1) ADR-058 §Authority pin v2.12→v2.13 (concurrent architect bump). (2) Sibling coordination: ROUTING-001 F2 §Tasks T-11G/H/L/M/N/O authoring-wording fixed in same burst; COERCION-001 tasks audit confirmed CLEAN (all tasks code-level, no TOML-load/inline-spec inconsistency). (3) Sibling sweep: zero normative prose version pins found in either story. (4) §v1.15 Amendment Sweep added. |
 | 1.14 | 2026-08-17 | story-writer | Adversary pass-11 fix-burst: (1) LOW-2 [LOW, POL-8] AC-004 trace parentheticals added — `(traces to BC-2.16.002 §Canonical Structured Event Catalog ...)` and `(traces to BC-2.02.011 §Graceful Normalization Error Handling (No Silent Data Loss) ...)` added after existing BC-2.16.003 trace; all three frontmatter BCs (BC-2.16.003, BC-2.02.011, BC-2.16.002) now have at least one AC `(traces to …)` parenthetical (POL-8 no-orphan satisfied). (2) ADR-058 §Authority pin v2.11→v2.12 (concurrent architect bump). (3) Sibling sweep: zero ADR-058/BC normative prose version pins found in either story outside §Authority (exempt) and historical amendment-sweep/changelog rows (grandfathered). (4) §v1.14 Amendment Sweep added. |
 | 1.13 | 2026-08-17 | story-writer | Adversary pass-10 fix-burst: (1) ADR-058 §Authority pin v2.10→v2.11 (concurrent architect bump). (2) Sibling sweep coordination: ROUTING-001 F3 §Mandate Anchor #1 provenance fix applied in same burst — both §D2 and §J2 version qualifiers "(v2.1)" / "since v2.1" stripped; COERCION-001 §Mandate Anchor #2 was already version-free since pass-7. Zero additional POL-39 violations found in COERCION-001 normative prose. (3) §v1.13 Amendment Sweep added. |
