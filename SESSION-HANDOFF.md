@@ -3,7 +3,7 @@ document_type: session-handoff
 level: ops
 version: "8.000"
 status: current
-timestamp: 2026-07-28T00:00:00Z
+timestamp: 2026-08-16T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -256,7 +256,7 @@ timestamp: 2026-07-28T00:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2135 (DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL pass-21 CLEAN(strict)=NO / CLEAN(PR-merge)=YES; story v1.19 / BC-2.08.002 v1.7 / BC-INDEX v9.08 / STORY-INDEX v2.797; streak RESET 0/3; NEXT: strict LOCAL adversary pass-22 on frozen HEAD b3052ce4d + story v1.19 + BC-2.08.002 v1.7 + error-taxonomy v2.76).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot).
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot. D-2115 blockquote above captures the D-2115 burst delta. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `791b68c3` (LOCAL; origin/develop=`69d821be`; PR #239 squash-merged 2026-08-16; LOCAL fast-forward pending). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'`. STATE v8.732 (D-2201). **D-2200 GOVERNING DECISION: DTU work DEFERRED POST-FIRST-RELEASE — S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001 both PARKED. D-2109 GOVERNING DECISION ALSO IN EFFECT: DTUs MUST NOT be reconciled to real without explicit human authorization.** **§RESUME SNAPSHOT D-2201 is the active session-wrap snapshot. NO STORY IN FLIGHT. NEXT WORKSTREAM: OCSF correctness — dispatch architect for ADR-058 §J re-derivation against current claroty.sensor.toml (4-table/20-col).**
+> develop HEAD `69d821be` (local==origin; PR #239 squash-merged 2026-08-16; fast-forward complete §D-2201-SHA-UPDATE). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'`. STATE v8.732 (D-2201). **D-2200 GOVERNING DECISION: DTU work DEFERRED POST-FIRST-RELEASE — S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001 both PARKED. D-2109 GOVERNING DECISION ALSO IN EFFECT: DTUs MUST NOT be reconciled to real without explicit human authorization.** **§RESUME SNAPSHOT D-2201 is the active session-wrap snapshot. NO STORY IN FLIGHT. NEXT WORKSTREAM: OCSF correctness — dispatch architect for ADR-058 §J re-derivation against current claroty.sensor.toml (4-table/20-col).**
 
 ---
 
@@ -266,7 +266,7 @@ timestamp: 2026-07-28T00:00:00Z
 prism Phase 3; S-CLAROTY-AUDITLOG-TIMEBOX-001 MERGED to develop @69d821be (PR #239, this session). NEXT = OCSF-correctness workstream (ADR-058 spec-evolution → TDD). No story in flight.
 
 ### HEADS (D-2201)
-- `develop`: origin/develop = `69d821be` (top: PR #239 audit_logs time-filter push-down squash-merge 2026-08-16T22:51Z). LOCAL develop = `791b68c3` — 1 behind origin; trivial fast-forward pending (`git checkout develop && git pull --ff-only` next session; non-blocking).
+- `develop`: origin/develop = `69d821be` (top: PR #239 audit_logs time-filter push-down squash-merge 2026-08-16T22:51Z). LOCAL develop = `69d821be` — fast-forwarded to match origin (§D-2201-SHA-UPDATE, 2026-08-16).
 - `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2201 wrap commit)
 - `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` @`8ae0b5d8` branch feature/S-CLAROTY-AUDITLOG-TIMEBOX-001 — PENDING teardown (PR #239 MERGED; remote branch deleted)
 - `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
@@ -293,7 +293,7 @@ DTU work DEFERRED to POST-FIRST-RELEASE per human decision 2026-08-16: S-ADR058-
 
 ### PENDING HOUSEKEEPING (next session)
 1. `/vsdd-factory:compact-state` — STATE.md ~800KB, safe_to_compact: true; WASM PostToolUse validators fail-closed OutputTooLarge (edits still apply); run early next session.
-2. LOCAL develop fast-forward: `git checkout develop && git pull --ff-only` (advances 791b68c3 → 69d821be).
+2. ~~LOCAL develop fast-forward: `git checkout develop && git pull --ff-only` (advances 791b68c3 → 69d821be).~~ DONE — §D-2201-SHA-UPDATE.
 3. Worktree teardown: `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` (PR #239 MERGED; remote branch deleted).
 4. test-soc/bin/prism: backup consumed by pre-validation; fresh `demo-setup` build repopulates if needed.
 
@@ -305,11 +305,11 @@ DTU work DEFERRED to POST-FIRST-RELEASE per human decision 2026-08-16: S-ADR058-
 Never run an autonomous pr-manager fix-loop concurrently with an orchestrator-driven PR-LEVEL cascade on the same branch. Orchestrator MUST track the pr-manager agent handle and pick exclusive Mode A (pr-manager owns the loop) OR Mode B (orchestrator drives steps), never both. The runaway pr-manager churned branch HEAD this session and duplicated a fix-burst.
 
 ### DECISION-LOG DELTA (D-2200 through D-2201)
-D-2200: POST-MERGE BURST — PR #239 squash-merged develop@69d821be; story→merged; POL-14 no-promotion; STORY-INDEX v2.820→v2.821; DTU work deferred post-first-release (governing decision); STATE v8.730→v8.731. D-2201: SESSION WRAP — develop_head corrected to LOCAL 791b68c3 (origin/develop 69d821be; fast-forward pending); RESUME SNAPSHOT D-2201 authored; D-2185 SUPERSEDED; STATE v8.731→v8.732.
+D-2200: POST-MERGE BURST — PR #239 squash-merged develop@69d821be; story→merged; POL-14 no-promotion; STORY-INDEX v2.820→v2.821; DTU work deferred post-first-release (governing decision); STATE v8.730→v8.731. D-2201: SESSION WRAP — develop_head corrected to LOCAL 791b68c3 (origin/develop 69d821be; fast-forward pending); RESUME SNAPSHOT D-2201 authored; D-2185 SUPERSEDED; STATE v8.731→v8.732. D-2201-SHA-UPDATE (2026-08-16): SESSION-HANDOFF §banner/§HEADS/§BACKUP-BOUNDARY LOCAL develop 791b68c3→69d821be confirmed-complete; records-only micro-burst per TD-VSDD-096.
 
 ### BACKUP BOUNDARY (D-2201)
 - PUSHED / safe: `origin/develop` `69d821be` (PR #239 merged 2026-08-16T22:51Z); `factory-artifacts` (this D-2201 wrap commit — run `git -C .factory log -1 --format='%H'`).
-- LOCAL-ONLY (AT RISK): LOCAL develop `791b68c3` (fast-forward to 69d821be pending); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).
+- LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty). [LOCAL develop fast-forward resolved — §D-2201-SHA-UPDATE]
 
 ---
 
