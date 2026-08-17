@@ -1,10 +1,10 @@
 ---
 document_type: product-brief
 level: L1
-version: "1.1"
+version: "1.2"
 status: draft
 producer: "human + orchestrator"
-timestamp: 2026-04-14T03:00:00
+timestamp: 2026-08-17T00:00:00
 phase: 1a
 inputs:
   - phase-0-ingestion/project-context.md
@@ -15,7 +15,7 @@ inputs:
   - phase-0-ingestion/feature-flag-research.md
   - phase-0-ingestion/ai-consumable-design-research.md
   - phase-0-ingestion/mssp-workflow-research.md
-input-hash: "3dc5378"
+input-hash: "5b0b574"
 traces_to: ""
 ---
 
@@ -46,6 +46,10 @@ Prism is a **complete MSSP security operations platform** built around an epheme
 Architecturally, Prism is analogous to Trino/Presto (federated SQL over heterogeneous data sources), but purpose-built for the security domain: OCSF as universal schema, per-client multi-sensor fan-out, and MCP as the AI-native interface consumed by Claude Code.
 
 Prism is implemented as a Rust-based MCP server that gives MSS analysts a unified, AI-powered interface to every security sensor across every client -- from a single Claude Code session. Instead of logging into sensor dashboards separately for each client, an analyst asks their AI agent to pull alerts, correlate data, and take action across all clients and sensors through natural language. OCSF normalization via protobuf makes cross-sensor correlation possible for the first time.
+
+## Why "Prism"
+
+A physical prism refracts a single beam of white light into its full visible spectrum — one undifferentiated input reveals its constituent, distinguishable facets. Prism inverts and completes that metaphor for security operations: rather than splitting one source into many, it takes many opaque, heterogeneous per-vendor sensor feeds — CrowdStrike, Claroty, Cyberint, Armis, each with its own API and data shape — and unifies them into one coherent, normalized, queryable view (OCSF), so the analyst sees the full spectrum of their security posture through a single lens. The architecture embodies the metaphor directly: one PrismQL query fans out across live sensor APIs and returns a single normalized spectrum of results via the Query → Fetch → Normalize → Compute → Return pipeline — a single pane over federated sources. The query language name PrismQL derives from the product name and mirrors the KQL/SPL/EQL convention of naming query languages after their platform.
 
 ## Who Is It For?
 
