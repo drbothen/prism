@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.17"
+version: "1.19"
 level: "L4"
 status: draft
 producer: story-writer
@@ -403,9 +403,12 @@ From `architecture/module-decomposition.md` and ADR-023:
    are required.
 
 3. `tracing_test` (or equivalent subscriber setup) MUST be declared as a
-   `[dev-dependency]` in `prism-spec-engine/Cargo.toml` ONLY if it is not already
-   present. Do NOT add `tracing_test` to `[dependencies]` (production). Verify
-   before adding.
+   `[dev-dependency]` in BOTH `prism-spec-engine/Cargo.toml` (for RG-005) and
+   `prism-bin/Cargo.toml` (for RG-009). Do NOT add `tracing_test` to `[dependencies]`
+   (production). At dispatch time: `prism-spec-engine/Cargo.toml` already carries
+   `tracing-test = "0.2"` under `[dev-dependencies]` — no change needed there;
+   `prism-bin/Cargo.toml` does NOT carry `tracing-test` — the implementer MUST add
+   `tracing-test = "0.2"` to `prism-bin/Cargo.toml` `[dev-dependencies]`.
 
 4. ADR-058 §H item 1 is specific: the `build_column_array` fix MUST use the
    null-cell approach (`None`) and NOT stringify the object/array. Stringifying
@@ -480,19 +483,20 @@ splitting.
   warn event; assert `None` null cell AND `event_type = "column_coercion_failure"` with
   `column_type = "integer"` and `actual_json_kind = "string"`.
   (MUST FAIL before T-15b)
-- T-GATE: Run `just iter prism-spec-engine --no-fail-fast` — confirm RG-001..RG-009 fail
-  with expected compile/test-failure reasons; confirm RG-001..RG-005 are in
-  `bc_2_16_003_test.rs`; confirm RG-006..RG-009 are in an appropriate prism-bin test file.
-  Confirm AC-006 tests still PASS. Report density: 9/7 = 1.29 ≥ 0.5. STOP and wait for
-  implementer dispatch.
+- T-GATE: Run `just iter prism-spec-engine --no-fail-fast` — confirm RG-001..RG-005 fail
+  with expected compile/test-failure reasons; confirm all five are in `bc_2_16_003_test.rs`.
+  Then run `just iter prism-bin --no-fail-fast` — confirm RG-006..RG-009 fail with expected
+  compile/test-failure reasons; confirm all four are in an appropriate prism-bin test file.
+  Confirm AC-006 tests still PASS (prism-spec-engine run). Report density: 9/7 = 1.29 ≥ 0.5.
+  STOP and wait for implementer dispatch.
 
 ### Phase B: Implementation (implementer dispatched AFTER T-GATE)
 
 - T-11: Fix `coerce_value` String branch — add explicit `Value::Array` arm and
   `Value::Object` arm returning `Err(CoercionWarning)` (AC-001, AC-002). Makes RG-001
   and RG-002 green.
-- T-12: Run `cargo nextest run -p prism-spec-engine -E 'test(rg_001)' --no-fail-fast` —
-  verify RG-001 and RG-002 pass.
+- T-12: Run `just iter prism-spec-engine` — verify RG-001 and RG-002 pass (along with
+  all other prism-spec-engine tests; no regression on AC-006 tests).
 - T-13: Fix `coerce_value` Integer branch — extend parse-attempt logic to non-numeric-suffix
   OCSF paths. When `column_type = Integer` and input is `Value::String`, attempt
   `s.parse::<i64>()` regardless of OCSF path suffix. (AC-003). Makes RG-003 and RG-004
@@ -513,10 +517,10 @@ splitting.
   (AC-007). Makes RG-008 and RG-009 green. The `column_coercion_failure` event is already
   covered by the BC-2.16.002 catalog row §BC-2.16.002 Catalog Row Obligation condition (2);
   no catalog amendment needed.
-- T-16: Run `just iter prism-spec-engine` — all 9 RGTs must pass (RG-001..RG-009).
-  AC-006 tests must pass. No regressions.
-- T-17: Run `just iter prism-bin` — build_column_array changes must not break existing
-  prism-bin tests.
+- T-16: Run `just iter prism-spec-engine` — RG-001..RG-005 must pass; AC-006 tests must
+  pass; no regressions in prism-spec-engine tests.
+- T-17: Run `just iter prism-bin` — confirm RG-006..RG-009 pass (build_column_array
+  changes from T-15 and T-15b); no existing prism-bin tests regress.
 - T-18: Run `just check` — full workspace gate. All tests pass.
 
 ---
@@ -569,7 +573,8 @@ Both MUST remain passing after this story's changes (AC-006).
 | Library | Role | Constraint |
 |---------|------|-----------|
 | `tracing` | Structured log emission in `map_record` and `build_column_array` | Workspace-pinned version — do NOT specify version; use workspace inheritance |
-| `tracing-test` (or `tracing-subscriber` test harness) | Capture `tracing` events in RG-005 | Verify current `[dev-dependencies]` in `prism-spec-engine/Cargo.toml` before adding; if already present, use existing version |
+| `tracing-test` | Capture `tracing` events in RG-005 (`prism-spec-engine/tests/`) | `tracing-test = "0.2"` in `prism-spec-engine/Cargo.toml` `[dev-dependencies]` — already present; no change needed |
+| `tracing-test` | Capture `tracing` events in RG-009 (`prism-bin/tests/`) | `tracing-test = "0.2"` in `prism-bin/Cargo.toml` `[dev-dependencies]` — NOT yet present; implementer MUST add |
 | `serde_json` | `Value` type for coerce_value inputs | Workspace-pinned version |
 
 Do NOT add `tracing-test` to production `[dependencies]`. Do NOT use `tracing-test` in
@@ -585,10 +590,11 @@ non-test code paths.
 | `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: `build_column_array` ColumnType::String arm wildcard → explicit Array/Object arms | Secondary implementation file |
 | `crates/prism-spec-engine/tests/bc_2_16_003_test.rs` | Modify or create: add RG-001..RG-005 test functions | Test file; create if not present |
 | `crates/prism-bin/tests/` (actual file TBD at dispatch) | Modify: add RG-006..RG-009 test functions | Verify existing test file names via `find crates/prism-bin/tests -name "*.rs"` at dispatch |
+| `crates/prism-bin/Cargo.toml` | Modify: add `tracing-test = "0.2"` to `[dev-dependencies]` | Required for RG-009 `tracing_test` subscriber — NOT yet present in prism-bin |
 
 Do NOT modify: any TOML sensor spec file; any BC or ADR file (product-owner / architect
-scope); `prism-spec-engine/Cargo.toml` unless `tracing-test` must be added as
-`[dev-dependency]`.
+scope); `prism-spec-engine/Cargo.toml` (already carries `tracing-test = "0.2"` — no change
+needed).
 
 ---
 
@@ -627,174 +633,57 @@ action pending.
 
 ---
 
-### v1.5 Amendment Sweep (F2 pin sweep + F5 BC-2.16.002 addition + F6 catalog prose fix)
+### v1.19 Amendment Sweep (F-P19-MED-001 prism-bin tracing-test provisioning + F-P19-LOW-001 T-12 nextest filter false-green fix — OCSF-correctness Claroty SPEC pass-19 fix-burst)
 
 **Dimension 1 — Sibling pair:**
 
-*S-ADR058-OCSF-ROUTING-001* (sibling story, same epic): swept in full for the same
-F2/F5/F6 findings. ROUTING-001 is amended in the same fix-burst (v1.5→v1.6): ADR-058
-pin v2.6→v2.7, BC-2.16.003 pin v1.6→v1.7, narrative version labels stripped per POL-39,
-RG-019/RG-020 wire-shape coverage added, SS-01 attribution corrected. COERCION-001's
-own BC-2.16.002 addition (F5) does not apply to ROUTING-001 because ROUTING-001 already
-carried BC-2.16.002 in its frontmatter from v1.5. VERDICT: SWEPT; ROUTING-001 AMENDED
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): F-P19-MED-001 applies to BOTH stories —
+ROUTING-001 also gains a `prism-bin/Cargo.toml` `tracing-test = "0.2"` `[dev-dependencies]`
+row in §Library & Framework Requirements and §File Structure Requirements (RG-018 in
+`prism-bin/tests/` requires the same `tracing_test` subscriber). F-P19-LOW-001 is
+COERCION-001 scope only — ROUTING-001 has no equivalent T-12 nextest filter false-green.
+ROUTING-001 amended in same burst (v1.19→v1.20). VERDICT: SWEPT; ROUTING-001 AMENDED
 IN SAME BURST.
 
 **Dimension 2 — Downstream copy target:**
 
-The `column_coercion_failure` catalog row content in §BC-2.16.002 Catalog Row Obligation
-is the source from which the product-owner will transcribe the BC-2.16.002 row entry.
-The F6 fix removes the volatile version-count phrase (`currently v1.62 with 90 events
-becomes v1.63 with 91 events`) and replaces it with a section-anchor cite. The transcribed
-BC-2.16.002 row itself does not contain that version-count phrase — only the routing
-instruction in this story did. The downstream copy target (BC-2.16.002 §Postconditions
-§Canonical Structured Event Catalog) is unchanged; the product-owner transcribes the
-catalog row definition, not the routing instruction. VERDICT: CLEAR.
+§Architecture Mapping Constraints item 3, §Library & Framework Requirements (tracing-test
+rows), and §File Structure Requirements (prism-bin/Cargo.toml row) are the authoritative
+provisioning instructions for the implementer. No downstream artifact copies these tables
+verbatim. T-12 task text is the authoritative gate-command specification for the implementer.
+VERDICT: CLEAR.
 
 **Dimension 3 — Mandate anchor:**
 
-BC-2.16.002 §Postconditions §Canonical Structured Event Catalog — `column_coercion_failure`
-row addition obligation: anchored to `S-ADR058-OCSF-COERCION-001 AC-004 RG-005` and
-routed to product-owner per §BC-2.16.002 Catalog Row Obligation. No unanchored MUSTs
-introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
+No new MUSTs introduced by this amendment. The prism-bin tracing-test provisioning is a
+dev-infrastructure correctness fix; the T-12 filter fix is a TDD-gate-accuracy correction.
+VERDICT: N/A — no new mandates.
 
 ---
 
-### v1.6 Amendment Sweep (F1 subsystem correction + F3 date correction)
+### v1.18 Amendment Sweep (F-P18-MED-001 T-GATE/T-16 prism-bin split for RG-006..009 + F-P18-OBS-001 sweep subsection descending reorder — OCSF-correctness Claroty SPEC pass-18 fix-burst)
 
 **Dimension 1 — Sibling pair:**
 
-*S-ADR058-OCSF-ROUTING-001* (sibling story, same epic): subsystem cross-checked against
-ARCH-INDEX ground truth per coordinator instruction. ROUTING-001 sets SS-01/SS-02/SS-10/SS-16
-with prism-bin attributed to SS-10 (ARCH-INDEX SS-10 row: "prism-mcp, prism-bin (planned
-— S-WAVE5-PREP-01)"). Confirmed correct per ARCH-INDEX. No changes required to ROUTING-001
-subsystem section. VERDICT: SWEPT; CORRECT.
-
-F3 date corrections apply only to COERCION-001 (dates I introduced in the v1.5 amendment
-sweep). ROUTING-001 §Authority already cites "2026-08-16" correctly. VERDICT: ROUTING-001
-UNAFFECTED.
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): F-P18-MED-001 is COERCION-001 scope only —
+the prism-bin red-gate/green-gate split applies to RG-006..RG-009 in `build_column_array`,
+which has no counterpart in ROUTING-001. F-P18-OBS-001 applies to COERCION-001 amendment
+sweep ordering only; ROUTING-001 amendment sweeps are already in consistent descending order
+within their own file. ROUTING-001 receives separate fixes this burst (F-P18-MED-002/003/004).
+VERDICT: SWEPT; ROUTING-001 UNAFFECTED BY COERCION-001-SPECIFIC FINDINGS.
 
 **Dimension 2 — Downstream copy target:**
 
-The COERCION-001 subsystem justification is authoring-only prose in frontmatter comments.
-No downstream artifact copies these comments. The corrected SS-10 attribution for prism-bin
-confirms the ARCH-INDEX assignment; no propagation to BC or ADR files is required (those
-are read-only per coordinator constraint). VERDICT: CLEAR.
+F-P18-MED-001: §T-GATE and T-16/T-17 task-plan edits. These task-plan sections are the
+authoritative dispatch instructions for the test-writer and implementer. No downstream
+artifact copies the T-GATE or T-16/T-17 task text. F-P18-OBS-001: The amendment sweep
+subsections are record-tier prose; no downstream artifact copies sweep ordering.
+VERDICT: CLEAR.
 
 **Dimension 3 — Mandate anchor:**
 
-No new MUSTs introduced by this amendment. The subsystem correction and date correction
-are authoring-accuracy fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
-
----
-
-### v1.7 Amendment Sweep (BC-2.16.003 re-pin v1.7→v1.8 + AC↔RG coverage cross-check)
-
-**Dimension 1 — Sibling pair:**
-
-*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): ROUTING-001 is the primary amendment target
-for pass-4 (RG-021/022/023 added, density 20→23, BC-2.16.003 re-pin v1.7→v1.8). COERCION-001
-re-pin is a mechanical downstream-copy propagation of the same BC version bump. No COERCION-001
-AC or RG needs amendment in response to the ROUTING-001 KF coverage additions (KF-05/06/07 are
-Stage 2 field-routing obligations, not Stage 1 coercion-algorithm obligations). VERDICT: SWEPT;
-ROUTING-001 AMENDED IN SAME BURST; COERCION-001 BC-PIN-ONLY UPDATE.
-
-**Dimension 2 — Downstream copy target:**
-
-BC-2.16.003 §Authority pin (from `1.7` to `1.8`) and body BC table pin both updated in this
-amendment. These are the only two copies of the BC-2.16.003 version reference in COERCION-001.
-No other downstream artifact in COERCION-001 copies the pin value. AC↔RG coverage cross-check:
-RG-001..RG-007 cover all 6 ACs; no new RGs or ACs needed for Stage 1 scope. VERDICT: CLEAR.
-
-**Dimension 3 — Mandate anchor:**
-
-No new MUSTs introduced by this amendment. The BC re-pin is a mechanical version-tracking
-update, not a new behavioral obligation. VERDICT: N/A — no new mandates.
-
----
-
-### v1.8 Amendment Sweep (ADR-058 v2.7→v2.8 + BC-2.16.003 v1.8→v1.9 pin sweep)
-
-**Dimension 1 — Sibling pair:**
-
-*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): §Authority ADR-058 pin updated v2.7→v2.8;
-§Authority BC-2.16.003 pin updated v1.8→v1.9; body BC table pin updated v1.8→v1.9; F2 stale
-count fix applied (Red-then-green gate `all 20` → `all 23`). All changes in the same pass-5
-burst. VERDICT: ROUTING-001 AMENDED IN SAME BURST.
-
-**Dimension 2 — Downstream copy target:**
-
-§Authority BC-2.16.003 pin and body BC table pin are the two copies of the BC version reference
-in this story. Both updated v1.8→v1.9. §Authority ADR-058 pin updated v2.7→v2.8. No other
-downstream artifact in COERCION-001 copies these pins. VERDICT: CLEAR.
-
-**Dimension 3 — Mandate anchor:**
-
-No new MUSTs introduced by this amendment. VERDICT: N/A — no new mandates.
-
----
-
-### v1.9 Amendment Sweep (F3 date cites 2026-08-16→2026-08-17 + modified: frontmatter)
-
-**Dimension 1 — Sibling pair:**
-
-*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): §Authority ADR-058 + BC-2.16.003 date cites
-updated 2026-08-16 → 2026-08-17; `modified:` frontmatter added; F1 T-11H and F2 T-11P
-fixed. All changes in the same pass-6 burst. VERDICT: ROUTING-001 AMENDED IN SAME BURST.
-
-**Dimension 2 — Downstream copy target:**
-
-The §Authority date cites in this story are authoring-accuracy values. No downstream artifact
-copies them. The `modified:` frontmatter field is new in this amendment; it has no downstream
-copy. VERDICT: CLEAR.
-
-**Dimension 3 — Mandate anchor:**
-
-No new MUSTs introduced by this amendment. VERDICT: N/A — no new mandates.
-
----
-
-### v1.10 Amendment Sweep (F3 ADR-058 §H discharge mark + v2.0 volatile-pin removal)
-
-**Dimension 1 — Sibling pair:**
-
-*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): task-plan audit completed in same burst
-(v1.10→v1.11) — F1 gate ordering fixed, F2 green-driver attributions corrected. COERCION-001's
-F3 (ADR-058 §H discharge) has no equivalent in ROUTING-001 (ROUTING-001's §Mandate Anchor
-sections use ROUTING-001 specific anchors already discharged in earlier passes). VERDICT:
-ROUTING-001 AMENDED IN SAME BURST.
-
-**Dimension 2 — Downstream copy target:**
-
-The §ADR-058 MUST Discharge §Mandate Anchor #2 section is the authoritative prose. The
-§v1.3 Amendment Sweep Dimension 3 contained a downstream copy of the same `v2.0` volatile
-pin; both locations updated in this amendment. VERDICT: CLEAR.
-
-**Dimension 3 — Mandate anchor:**
-
-No new MUSTs introduced by this amendment. Marking an anchor as discharged removes a
-pending obligation; it does not create a new one. VERDICT: N/A — no new mandates.
-
----
-
-### v1.11 Amendment Sweep (ADR-058 re-pin v2.8→v2.9 + comprehensive hygiene sweep)
-
-**Dimension 1 — Sibling pair:**
-
-*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): Comprehensive hygiene sweep applied in same
-burst (v1.11→v1.12) — F1 §Mandate Anchor #1 rewritten (§D2 and §J2 DISCHARGED), F4 §Authority
-§J4 count corrected (31 pre-correction / 26 post-correction), F3 v1.9 changelog row line-cite
-removed, ADR-058 §Authority pin v2.8→v2.9. VERDICT: ROUTING-001 AMENDED IN SAME BURST.
-
-**Dimension 2 — Downstream copy target:**
-
-ADR-058 §Authority pin is the sole live ADR pin site in this story. Updated v2.8→v2.9. Comprehensive
-hygiene sweep of narrative prose confirmed zero ADR-058 version pins outside §Authority and historical
-amendment-sweep sections (grandfathered by TD-VSDD-091 ratchet scoping). VERDICT: CLEAR.
-
-**Dimension 3 — Mandate anchor:**
-
-No new MUSTs introduced by this amendment. The ADR-058 re-pin and hygiene sweep are accuracy
-fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
+No new MUSTs introduced by this amendment. F-P18-MED-001 is a task-plan coherence fix;
+F-P18-OBS-001 is a records-tier ordering correction. VERDICT: N/A — no new mandates.
 
 ---
 
@@ -936,10 +825,183 @@ No new MUSTs introduced by this amendment. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.11 Amendment Sweep (ADR-058 re-pin v2.8→v2.9 + comprehensive hygiene sweep)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): Comprehensive hygiene sweep applied in same
+burst (v1.11→v1.12) — F1 §Mandate Anchor #1 rewritten (§D2 and §J2 DISCHARGED), F4 §Authority
+§J4 count corrected (31 pre-correction / 26 post-correction), F3 v1.9 changelog row line-cite
+removed, ADR-058 §Authority pin v2.8→v2.9. VERDICT: ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+ADR-058 §Authority pin is the sole live ADR pin site in this story. Updated v2.8→v2.9. Comprehensive
+hygiene sweep of narrative prose confirmed zero ADR-058 version pins outside §Authority and historical
+amendment-sweep sections (grandfathered by TD-VSDD-091 ratchet scoping). VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The ADR-058 re-pin and hygiene sweep are accuracy
+fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
+
+---
+
+### v1.10 Amendment Sweep (F3 ADR-058 §H discharge mark + v2.0 volatile-pin removal)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): task-plan audit completed in same burst
+(v1.10→v1.11) — F1 gate ordering fixed, F2 green-driver attributions corrected. COERCION-001's
+F3 (ADR-058 §H discharge) has no equivalent in ROUTING-001 (ROUTING-001's §Mandate Anchor
+sections use ROUTING-001 specific anchors already discharged in earlier passes). VERDICT:
+ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+The §ADR-058 MUST Discharge §Mandate Anchor #2 section is the authoritative prose. The
+§v1.3 Amendment Sweep Dimension 3 contained a downstream copy of the same `v2.0` volatile
+pin; both locations updated in this amendment. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. Marking an anchor as discharged removes a
+pending obligation; it does not create a new one. VERDICT: N/A — no new mandates.
+
+---
+
+### v1.9 Amendment Sweep (F3 date cites 2026-08-16→2026-08-17 + modified: frontmatter)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): §Authority ADR-058 + BC-2.16.003 date cites
+updated 2026-08-16 → 2026-08-17; `modified:` frontmatter added; F1 T-11H and F2 T-11P
+fixed. All changes in the same pass-6 burst. VERDICT: ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+The §Authority date cites in this story are authoring-accuracy values. No downstream artifact
+copies them. The `modified:` frontmatter field is new in this amendment; it has no downstream
+copy. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. VERDICT: N/A — no new mandates.
+
+---
+
+### v1.8 Amendment Sweep (ADR-058 v2.7→v2.8 + BC-2.16.003 v1.8→v1.9 pin sweep)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): §Authority ADR-058 pin updated v2.7→v2.8;
+§Authority BC-2.16.003 pin updated v1.8→v1.9; body BC table pin updated v1.8→v1.9; F2 stale
+count fix applied (Red-then-green gate `all 20` → `all 23`). All changes in the same pass-5
+burst. VERDICT: ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+§Authority BC-2.16.003 pin and body BC table pin are the two copies of the BC version reference
+in this story. Both updated v1.8→v1.9. §Authority ADR-058 pin updated v2.7→v2.8. No other
+downstream artifact in COERCION-001 copies these pins. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. VERDICT: N/A — no new mandates.
+
+---
+
+### v1.7 Amendment Sweep (BC-2.16.003 re-pin v1.7→v1.8 + AC↔RG coverage cross-check)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): ROUTING-001 is the primary amendment target
+for pass-4 (RG-021/022/023 added, density 20→23, BC-2.16.003 re-pin v1.7→v1.8). COERCION-001
+re-pin is a mechanical downstream-copy propagation of the same BC version bump. No COERCION-001
+AC or RG needs amendment in response to the ROUTING-001 KF coverage additions (KF-05/06/07 are
+Stage 2 field-routing obligations, not Stage 1 coercion-algorithm obligations). VERDICT: SWEPT;
+ROUTING-001 AMENDED IN SAME BURST; COERCION-001 BC-PIN-ONLY UPDATE.
+
+**Dimension 2 — Downstream copy target:**
+
+BC-2.16.003 §Authority pin (from `1.7` to `1.8`) and body BC table pin both updated in this
+amendment. These are the only two copies of the BC-2.16.003 version reference in COERCION-001.
+No other downstream artifact in COERCION-001 copies the pin value. AC↔RG coverage cross-check:
+RG-001..RG-007 cover all 6 ACs; no new RGs or ACs needed for Stage 1 scope. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The BC re-pin is a mechanical version-tracking
+update, not a new behavioral obligation. VERDICT: N/A — no new mandates.
+
+---
+
+### v1.6 Amendment Sweep (F1 subsystem correction + F3 date correction)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (sibling story, same epic): subsystem cross-checked against
+ARCH-INDEX ground truth per coordinator instruction. ROUTING-001 sets SS-01/SS-02/SS-10/SS-16
+with prism-bin attributed to SS-10 (ARCH-INDEX SS-10 row: "prism-mcp, prism-bin (planned
+— S-WAVE5-PREP-01)"). Confirmed correct per ARCH-INDEX. No changes required to ROUTING-001
+subsystem section. VERDICT: SWEPT; CORRECT.
+
+F3 date corrections apply only to COERCION-001 (dates I introduced in the v1.5 amendment
+sweep). ROUTING-001 §Authority already cites "2026-08-16" correctly. VERDICT: ROUTING-001
+UNAFFECTED.
+
+**Dimension 2 — Downstream copy target:**
+
+The COERCION-001 subsystem justification is authoring-only prose in frontmatter comments.
+No downstream artifact copies these comments. The corrected SS-10 attribution for prism-bin
+confirms the ARCH-INDEX assignment; no propagation to BC or ADR files is required (those
+are read-only per coordinator constraint). VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The subsystem correction and date correction
+are authoring-accuracy fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
+
+---
+
+### v1.5 Amendment Sweep (F2 pin sweep + F5 BC-2.16.002 addition + F6 catalog prose fix)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (sibling story, same epic): swept in full for the same
+F2/F5/F6 findings. ROUTING-001 is amended in the same fix-burst (v1.5→v1.6): ADR-058
+pin v2.6→v2.7, BC-2.16.003 pin v1.6→v1.7, narrative version labels stripped per POL-39,
+RG-019/RG-020 wire-shape coverage added, SS-01 attribution corrected. COERCION-001's
+own BC-2.16.002 addition (F5) does not apply to ROUTING-001 because ROUTING-001 already
+carried BC-2.16.002 in its frontmatter from v1.5. VERDICT: SWEPT; ROUTING-001 AMENDED
+IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+The `column_coercion_failure` catalog row content in §BC-2.16.002 Catalog Row Obligation
+is the source from which the product-owner will transcribe the BC-2.16.002 row entry.
+The F6 fix removes the volatile version-count phrase (`currently v1.62 with 90 events
+becomes v1.63 with 91 events`) and replaces it with a section-anchor cite. The transcribed
+BC-2.16.002 row itself does not contain that version-count phrase — only the routing
+instruction in this story did. The downstream copy target (BC-2.16.002 §Postconditions
+§Canonical Structured Event Catalog) is unchanged; the product-owner transcribes the
+catalog row definition, not the routing instruction. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+BC-2.16.002 §Postconditions §Canonical Structured Event Catalog — `column_coercion_failure`
+row addition obligation: anchored to `S-ADR058-OCSF-COERCION-001 AC-004 RG-005` and
+routed to product-owner per §BC-2.16.002 Catalog Row Obligation. No unanchored MUSTs
+introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.19 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-19 fix-burst: (1) F-P19-MED-001 [MED, TDD gate coherence]: prism-bin provisioning added — §Architecture Mapping Constraints item 3 expanded to name BOTH `prism-spec-engine/Cargo.toml` (for RG-005, already present as `tracing-test = "0.2"`) and `prism-bin/Cargo.toml` (for RG-009, must be added) as permitted `tracing-test = "0.2"` `[dev-dependencies]` sites; §Library & Framework Requirements split tracing-test row into two rows (one per crate, with explicit presence/absence status); §File Structure Requirements added `crates/prism-bin/Cargo.toml` row (Modify: add `tracing-test = "0.2"` to `[dev-dependencies]`); "Do NOT modify" note updated to confirm `prism-spec-engine/Cargo.toml` needs no change. (2) F-P19-LOW-001 [LOW, TDD gate accuracy]: T-12 nextest filter `'test(rg_001)'` replaced with `just iter prism-spec-engine` — the old filter was a substring match that matched zero test names (RG-001/RG-002 test names contain `coerce_value`, not `rg_001`) and exited 0 vacuously, constituting a false-green gate. Sibling sweep: ROUTING-001 amended in same burst (v1.19→v1.20). §v1.19 Amendment Sweep added. |
+| 1.18 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-18 fix-burst: (1) F-P18-MED-001 [MED, POL-8 / TDD gate coherence]: §T-GATE split to run both `just iter prism-spec-engine --no-fail-fast` (observe RG-001..RG-005 fail) and `just iter prism-bin --no-fail-fast` (observe RG-006..RG-009 fail) — prior single-crate command could not reach prism-bin RGs; T-16 split to `just iter prism-spec-engine` (RG-001..005 + AC-006) and T-17 updated to name RG-006..RG-009 as explicit pass targets for `just iter prism-bin`. (2) F-P18-OBS-001 [records-tier]: amendment-sweep subsection ordering corrected to consistent descending (newest first): v1.17→v1.16→v1.15→v1.14→v1.13→v1.12→v1.11→v1.10→v1.9→v1.8→v1.7→v1.6→v1.5. Sibling sweep: ROUTING-001 fixes applied in same burst (v1.18→v1.19). §v1.18 Amendment Sweep added. |
 | 1.17 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-17 fix-burst: (1) F-P17-MED-001 [MED, POL-8 / TD-VSDD-097 dim-2 / TD-VSDD-060]: §Architecture Mapping split into separate prism-spec-engine row (RG-001..RG-005, §bc_2_16_003_test.rs) and prism-bin row (RG-006..RG-009, §prism-bin/tests); RG-006/007 crate misplacement corrected (was prism-spec-engine, now prism-bin per §T-GATE and §File Structure Requirements as source of truth); §Purity Classification extended RG-001..RG-007 → RG-001..RG-009, tracing subscriber note updated to name RG-005 and RG-009; §File Structure Requirements prism-bin/tests row updated RG-006..RG-007 → RG-006..RG-009. (2) F-P17-LOW-001 [LOW, records-tier]: §v1.16 Amendment Sweep §Dimension 1 false sentence corrected — prior text stated ROUTING-001 BC-2.16.003 pin was deferred; correct fact is ROUTING-001 §Authority BC-2.16.003 pin was propagated v1.9→v1.10 in the same D-2220 burst (no deferral). (3) F-P17-LOW-002 [LOW, structural]: duplicate "Architecture Compliance Rules" heading resolved — subordinate `###` heading (rules 1–4, under §Architecture Mapping) renamed to "Architecture Mapping Constraints"; top-level `## Architecture Compliance Rules` (rules 1–7) is now the sole instance; AC-005 "Architecture Compliance Rule 7" cite resolves correctly to the unchanged top-level section. §v1.17 Amendment Sweep added. |
 | 1.16 | 2026-08-17 | story-writer | OCSF-correctness Claroty adversary SPEC pass-16 fix-burst: (1) F-P16-MED-003 [Option A, per PO adjudication]: AC-007 added (build_column_array ColumnType::Integer arm handles Value::String inputs with parse-attempt — parseable → Some(n), non-parseable → None + column_coercion_failure warn); RG-008 (test_build_column_array_integer_type_string_parseable_returns_integer) and RG-009 (test_build_column_array_integer_type_string_non_parseable_returns_null_and_emits_warning) added; T-10a/T-10b Red Gate authoring tasks added; T-15b implementation task added; T-16 count 7→9 RGTs; density updated 7/6=1.17→9/7=1.29. (2) F-P16-OBS-001 [records-tier, POL-7]: BC-2.16.003 §Authority title expanded to full H1 verbatim. (3) BC-2.16.003 pin propagated v1.9→v1.10 at §Authority + §Behavioral Contracts body table. (4) input-hash updated (BC-2.16.003 input bumped to v1.10 by PO in same burst). Sibling sweep: ROUTING-001 amended in same burst (v1.17→v1.18). §v1.16 Amendment Sweep added. |
 | 1.15 | 2026-08-17 | story-writer | Adversary pass-12 fix-burst: (1) ADR-058 §Authority pin v2.12→v2.13 (concurrent architect bump). (2) Sibling coordination: ROUTING-001 F2 §Tasks T-11G/H/L/M/N/O authoring-wording fixed in same burst; COERCION-001 tasks audit confirmed CLEAN (all tasks code-level, no TOML-load/inline-spec inconsistency). (3) Sibling sweep: zero normative prose version pins found in either story. (4) §v1.15 Amendment Sweep added. |

@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.18"
+version: "1.20"
 level: "L4"
 status: draft
 producer: story-writer
@@ -321,13 +321,16 @@ Test-writer dispatched FIRST; implementer only after all 23 confirmed failing.
   TD-VSDD-097 dim-1 sibling sweep per ADR-058 §K5 Divergence 3 sibling note).
 
 - **RG-013:** `test_claroty_note_comment_not_silently_dropped_under_entity_management` —
-  fails until `entity_management` (3004) `comment` attr is accessible in the protobuf
-  descriptor. Constructs an audit_logs spec-driven record with `ocsf_class =
-  "entity_management"` and `note = "reviewed"`. After processing through
-  `ColumnMapper::map_record`, asserts `MappingResult.mapped_fields` contains key
-  `"comment"` with value `"reviewed"`. Under prior wrong class `account_change` (3001),
-  `set_nested_field` silently no-ops the mapping — data loss. Under `entity_management`
-  (3004), `comment` resolves. Covers AC-009 (data-loss prevention, BC-2.16.003
+  fails until `CLASS_UID_ENTITY_MANAGEMENT = 3004` is added to `class_selector.rs` and the
+  `entity_management` arm updated. The test builds a `DynamicMessage` keyed by
+  `CLASS_UID_ENTITY_MANAGEMENT` (3004). Calls `set_nested_field` with path `"comment"` and
+  value `"reviewed"`. Asserts the field IS set (entity_management has the `comment` attribute
+  in its protobuf descriptor — call succeeds). ALSO contrasts with an `account_change` (3001)
+  `DynamicMessage` where the same `set_nested_field("comment", ...)` call silently no-ops
+  (account_change has NO `comment` attribute — data loss confirmed). The contrast assertion
+  is load-bearing: without it a test checking only the 3004 path cannot distinguish a correct
+  implementation from one that accepts any arbitrary path. Routed to prism-ocsf
+  (DynamicMessage lives in prism-ocsf). Covers AC-009 (data-loss prevention, BC-2.16.003
   EC-016-013-023).
 
 - **RG-014:** `test_claroty_alerts_reserved_fields_go_to_raw_extensions_not_first_class_columns` —
@@ -1157,8 +1160,10 @@ implementer MUST load only the files listed, not the full architecture directory
   fails because the `("claroty", "audit_log")` arm has not yet been updated. Covers
   AC-009(c) Claroty arm.
 - T-GATE: Run `just iter prism-spec-engine --no-fail-fast`, `just iter prism-bin --no-fail-fast`,
-  and `just iter prism-ocsf --no-fail-fast` — confirm RG-001..RG-023 fail with correct
-  compile/test-failure reasons. Confirm no regressions in non-RG tests. Report density:
+  `just iter prism-mcp --no-fail-fast`, and `just iter prism-ocsf --no-fail-fast` — confirm
+  RG-001..RG-023 fail with correct compile/test-failure reasons (RG-001..002 in
+  prism-spec-engine; RG-003..006/008..010/014..022 in prism-bin; RG-007 in prism-mcp;
+  RG-011..013/023 in prism-ocsf). Confirm no regressions in non-RG tests. Report density:
   23/11 = 2.09 ≥ 0.5. STOP and wait for implementer dispatch.
 
 ### Phase B: Implementation (implementer dispatched AFTER T-GATE)
@@ -1272,7 +1277,10 @@ implementer MUST load only the files listed, not the full architecture directory
   (per AC-011, ADR-058 §I5 process-gap obligation). The `.unwrap_or(0)` graceful fallback
   is retained — only the observability WARN is added. Run `just iter prism-bin`. Makes RG-018
   green.
-- T-19: Run `just iter prism-spec-engine`, `just iter prism-bin`, and `just iter prism-ocsf` — all 23 RGTs must pass.
+- T-19: Run `just iter prism-spec-engine`, `just iter prism-bin`, `just iter prism-mcp`, and
+  `just iter prism-ocsf` — all 23 RGTs must pass (RG-001..002 in prism-spec-engine;
+  RG-003..006/008..010/014..022 in prism-bin; RG-007 in prism-mcp; RG-011..013/023 in
+  prism-ocsf).
 - T-20: Run `just check` — full workspace gate. Must stay GREEN per ADR-058 §E1
   blast-radius analysis. If any non-Claroty tests fail, STOP — do not push.
 
@@ -1362,9 +1370,12 @@ From `architecture/module-decomposition.md`, ADR-023, ADR-028, and ADR-058:
 | `serde` | `#[serde(default)]` attribute on `ocsf_column_naming` | Workspace-pinned version |
 | `arrow` | `RecordBatch`, `Field`, `DataType` in `pipeline_result_to_record_batch` | Workspace-pinned version in root `Cargo.toml` |
 | `serde_json` | JSON serialization for `raw_extensions` blob | Workspace-pinned version |
+| `tracing-test` | Capture `tracing` events in RG-018 (`tracing_test` subscriber in `prism-bin/tests/`) | `tracing-test = "0.2"` in `prism-bin/Cargo.toml` `[dev-dependencies]` — NOT yet present; implementer MUST add (mirrors the existing `prism-spec-engine/Cargo.toml` dev-dep) |
 
-No new crate additions are anticipated. The `string.replace('.', "_")` operation for
-`ocsf_field_to_arrow_name` uses only `std` — no external crate needed.
+One new dev-dependency addition is required: `tracing-test = "0.2"` in `prism-bin/Cargo.toml`
+`[dev-dependencies]`, mirroring the version already present in `prism-spec-engine/Cargo.toml`.
+The `string.replace('.', "_")` operation for `ocsf_field_to_arrow_name` uses only `std` — no
+additional production crate needed.
 
 Do NOT add new `reqwest` dependencies. Do NOT add `native-tls` features.
 
@@ -1381,7 +1392,10 @@ Do NOT add new `reqwest` dependencies. Do NOT add `native-tls` features.
 | `crates/prism-ocsf/src/class_selector.rs` | Modify: add `CLASS_UID_ENTITY_MANAGEMENT = 3004`; reroute `"audit_activity"` arm and `("armis","audit_log")` arm to entity_management (3004) per AC-009 |
 | `crates/prism-bin/tests/` (e2e test file — TBD at dispatch) | Modify: update `test_BC_2_11_005_e2e_claroty_query_returns_data` assertion |
 | `crates/prism-spec-engine/tests/` (new or existing test file) | Modify: add RG-001..RG-002 |
-| `crates/prism-bin/tests/` (unit test file — TBD at dispatch) | Modify: add RG-003..RG-008, RG-009, RG-010 |
+| `crates/prism-bin/tests/` (unit test file — TBD at dispatch) | Modify: add RG-003..RG-006, RG-008..RG-010, RG-014..RG-022 |
+| `crates/prism-mcp/tests/` (test file — TBD at dispatch) | Modify: add RG-007 |
+| `crates/prism-ocsf/tests/` (new or existing test file) | Modify: add RG-011..RG-013, RG-023 |
+| `crates/prism-bin/Cargo.toml` | Modify: add `tracing-test = "0.2"` to `[dev-dependencies]` | Required for RG-018 `tracing_test` subscriber in `prism-bin/tests/` — NOT yet present |
 
 Implementer MUST verify file names via `find crates/prism-spec-engine/tests crates/prism-bin/tests -name "*.rs"` at dispatch. Do NOT create new test files if existing `bc_2_01_013_spec_driven_adapter.rs` or similar applies.
 
@@ -1908,10 +1922,83 @@ corrections, not new behavioral obligations. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.20 Amendment Sweep (F-P19-MED-001 prism-bin tracing-test provisioning — OCSF-correctness Claroty SPEC pass-19 fix-burst)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): F-P19-MED-001 applies to BOTH stories —
+COERCION-001 gains the same `prism-bin/Cargo.toml` provisioning row plus an expanded
+§Architecture Mapping Constraints item 3 naming both Cargo.toml files; it also receives
+F-P19-LOW-001 (T-12 nextest filter false-green fix), which has no counterpart in this story
+(ROUTING-001 has no T-12 nextest filter). COERCION-001 amended in same burst (v1.18→v1.19).
+VERDICT: SWEPT; COERCION-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+§Library & Framework Requirements (tracing-test row) and §File Structure Requirements
+(prism-bin/Cargo.toml row) are the authoritative provisioning instructions for the
+implementer. No downstream artifact copies these tables verbatim. The "No new crate
+additions" note has been replaced with an accurate statement that one dev-dependency
+addition is required. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The prism-bin tracing-test provisioning is a
+dev-infrastructure correctness fix enabling RG-018 to compile and run in `prism-bin/tests/`.
+VERDICT: N/A — no new mandates.
+
+---
+
+### v1.19 Amendment Sweep (F-P18-MED-002 §File Structure RG-011..023 gaps + prism-mcp row + F-P18-MED-003 RG-013 falsifiability fix + F-P18-MED-004 RG-007 prism-mcp routing + F-P18-OBS-002 device_type_label confirmation — OCSF-correctness Claroty SPEC pass-18 fix-burst)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): F-P18-MED-002, F-P18-MED-003, and F-P18-MED-004
+are ROUTING-001 scope only — §File Structure Requirements, RG-013 mechanism, and T-GATE/T-19
+prism-mcp command have no counterpart in COERCION-001 (which has only two crates: prism-spec-engine
+and prism-bin). F-P18-OBS-002 confirms the settled `device_type_label` value is already used in
+ROUTING-001 §AC-005 / §Claroty Contracted OCSF Mappings; COERCION-001 has no occurrence of
+`device_type_name` or `device_type_label` in scope for this finding class. COERCION-001 receives
+separate fixes this burst (F-P18-MED-001, F-P18-OBS-001) with its own sweep at v1.18.
+VERDICT: SWEPT; COERCION-001 UNAFFECTED BY ROUTING-001-SPECIFIC FINDINGS.
+
+**Dimension 2 — Downstream copy target:**
+
+F-P18-MED-002: §File Structure Requirements table is the authoritative dispatch instruction for the
+test-writer. The RG→crate routing now consistently reflected across §Red Gate Tests, §File Structure
+Requirements, T-GATE, and T-19: prism-spec-engine (RG-001..002), prism-bin
+(RG-003..006/008..010/014..022), prism-mcp (RG-007), prism-ocsf (RG-011..013/023). No downstream
+artifact copies the §File Structure table verbatim. VERDICT: CLEAR.
+
+F-P18-MED-003: RG-013 §Red Gate Tests description is the authoritative test specification for the
+test-writer. The rewrite aligns §Red Gate Tests RG-013 to T-11F (DynamicMessage / set_nested_field
+mechanism, 3004-vs-3001 contrast). No downstream artifact copies the RG-013 description verbatim.
+VERDICT: CLEAR.
+
+F-P18-MED-004: T-GATE and T-19 are the authoritative gate-command specifications. Adding
+`just iter prism-mcp --no-fail-fast` to T-GATE and `just iter prism-mcp` to T-19 ensures RG-007
+(prism-mcp) is observed in the RED gate and the final green gate. No downstream artifact copies
+these task-plan sections. VERDICT: CLEAR.
+
+F-P18-OBS-002: Confirmed no live current-state occurrence of stale `device_type_name` in AC-005
+or §Claroty Contracted OCSF Mappings; the settled `device_type_label` is used throughout. Historical
+v1.2 Amendment Sweep snapshot reference is grandfathered by TD-VSDD-091 ratchet scoping (pre-existing
+unchanged line). No edit required. VERDICT: NO-CHANGE CONFIRMED.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. All four findings are task-plan coherence and
+test-specification accuracy fixes. F-P18-OBS-002 is a no-change confirmation.
+VERDICT: N/A — no new mandates.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.20 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-19 fix-burst: (1) F-P19-MED-001 [MED, TDD gate coherence]: prism-bin `tracing-test` provisioning added — §Library & Framework Requirements gained a `tracing-test = "0.2"` row scoped to `prism-bin/Cargo.toml` `[dev-dependencies]` (required for RG-018 `tracing_test` subscriber in `prism-bin/tests/`; NOT yet present in prism-bin, mirrors `prism-spec-engine/Cargo.toml` existing dev-dep); "No new crate additions are anticipated" note replaced with accurate statement that one dev-dependency addition IS required; §File Structure Requirements added `crates/prism-bin/Cargo.toml` row (Modify: add `tracing-test = "0.2"` to `[dev-dependencies]`). Sibling sweep: COERCION-001 amended in same burst (v1.18→v1.19) — gains same prism-bin/Cargo.toml row plus T-12 filter fix (F-P19-LOW-001). §v1.20 Amendment Sweep added. |
+| 1.19 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-18 fix-burst: (1) F-P18-MED-002 [MED, POL-8 / TDD gate coherence]: §File Structure Requirements expanded — added prism-mcp row (RG-007) and prism-ocsf row (RG-011..013, RG-023); prism-bin row corrected to RG-003..006/008..010/014..022 (removed RG-007 which belongs to prism-mcp). (2) F-P18-MED-003 [MED, TDD gate coherence]: RG-013 §Red Gate Tests rewritten from non-falsifiable ColumnMapper::map_record mechanism to correct DynamicMessage/set_nested_field mechanism per T-11F — builds DynamicMessage keyed by CLASS_UID_ENTITY_MANAGEMENT (3004), calls set_nested_field("comment", "reviewed"), asserts field IS set; contrasts with account_change (3001) where same call silently no-ops (data-loss contrast assertion is load-bearing). Routed to prism-ocsf. (3) F-P18-MED-004 [MED, POL-8 / TDD gate coherence]: RG-007 pinned to prism-mcp in §File Structure; `just iter prism-mcp --no-fail-fast` added to T-GATE; `just iter prism-mcp` added to T-19. T-GATE and T-19 now enumerate all four crates with explicit per-crate RG distribution. (4) F-P18-OBS-002 [OBS, no-change]: confirmed `device_type_label` is used in current-state AC-005 / §Claroty Contracted OCSF Mappings; no edit required; historical v1.2 snapshot grandfathered. Sibling sweep: COERCION-001 amended in same burst (v1.17→v1.18). §v1.19 Amendment Sweep added. |
 | 1.18 | 2026-08-17 | story-writer | OCSF-correctness Claroty adversary SPEC pass-16 fix-burst: (1) F-P16-MED-001 [HIGH-floor, POL-7/POL-22]: BC-2.01.013 §Authority title corrected — "DataSource Trait Adapter Pattern" → "DataSource Trait Eliminates Per-Sensor Code Duplication" (authoritative H1 per BC-2.01.013 H1). (2) F-P16-OBS-001 [records-tier, POL-7]: BC-2.16.003 §Authority title expanded to full H1 verbatim ("Column-to-OCSF Mapping at Query Time" → "Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec"); BC-2.16.002 §Authority title expanded ("Multi-Step Fetch Pipeline Execution" → "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation"). (3) BC-2.16.003 pin propagated v1.9→v1.10 at both live current-state sites: §Authority entry + §Behavioral Contracts body table (PO bumped BC-2.16.003 to v1.10 with EC-016-013-025 addition in same burst; TD-VSDD-097 dim-2 swept). (4) input-hash updated 30215ef→e1c7cd2 (BC-2.16.003 input bumped by PO). Sibling sweep: COERCION-001 amended in same burst (v1.15→v1.16). §v1.18 Amendment Sweep added. |
 | 1.17 | 2026-08-17 | story-writer | OCSF-correctness Claroty adversary SPEC pass-15 records-only micro-burst (TD-VSDD-096) — F1 [MED, records-tier]: stale BC-2.01.013 version pin v1.16→v1.23 corrected at 2 live current-state sites (§Authority entry + §Behavioral Contracts body table row); historical §Changelog v1.0 authoring-time row grandfathered/untouched. No substance change; frozen perimeter otherwise UNCHANGED. §v1.17 Amendment Sweep added. |
 | 1.16 | 2026-08-17 | story-writer | Adversary pass-12 fix-burst: (1) F2 [LOW] §Tasks T-11G/H/L/M/N/O authoring-wording fixed — all six changed from "build a [table] SensorSpec with KF-xx corrections applied" to "load the corrected `claroty.sensor.toml` [table] table spec (post-T-17, KF-xx: ...)" — authoring instruction, RED-reason (TOML not yet corrected), and T-17 green-driver attribution now mutually consistent. (2) Comprehensive §Tasks audit: T-04–T-11 are consistent one-liners (no authoring body); T-11B/C (RG-009/010): inline spec + code-RED + T-21 green — CONSISTENT; T-11D/E/F (RG-011/012/013): direct API / DynamicMessage + code-RED + T-22/T-23 green — CONSISTENT; T-11I/J (RG-016/017): inline/optional-production-TOML + code-arm-RED + T-22 green — CONSISTENT; T-11K (RG-018): inline spec + code-RED + T-24 green — CONSISTENT; T-11P (RG-023): unit test + code-RED + T-23 green — CONSISTENT. (3) COERCION-001 tasks audit: CLEAN (all tasks code-level, no TOML dependency). (4) ADR-058 §Authority pin v2.12→v2.13 (concurrent architect bump). (5) Sibling sweep: zero normative prose version pins. (6) §v1.16 Amendment Sweep added. |
