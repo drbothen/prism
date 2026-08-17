@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.16"
+version: "1.17"
 level: "L4"
 status: draft
 producer: story-writer
@@ -372,7 +372,8 @@ increment are determined at delivery time by the product-owner.
 | `ColumnMapper::coerce_value` | `prism-spec-engine::column_mapping` | Pure | Modified: add `Err(CoercionWarning)` arms for Array, Object inputs on String column; extend Integer+String to non-numeric path |
 | `ColumnMapper::map_record` | `prism-spec-engine::column_mapping` | Pure | Modified: add `tracing::warn!(event_type = "column_coercion_failure")` at demotion point |
 | `build_column_array` (ColumnType::String arm) | `prism-bin::spec_driven_adapter` | Pure (data transformation) | Modified: replace wildcard `other => other.to_string()` with explicit null-cell arms for Array and Object; add tracing emission |
-| Integration test file | `crates/prism-spec-engine/tests/bc_2_16_003_test.rs` | Pure (tests) | New tests RG-001..RG-007 added |
+| Integration test file (Path B — coerce_value / map_record) | `crates/prism-spec-engine/tests/bc_2_16_003_test.rs` | Pure (tests) | New tests RG-001..RG-005 added |
+| Integration test file (Path A — build_column_array) | `crates/prism-bin/tests/` (file TBD at dispatch) | Pure (tests) | New tests RG-006..RG-009 added |
 
 Architecture section files: `architecture/module-decomposition.md` (SS-01, SS-16).
 
@@ -385,11 +386,11 @@ Architecture section files: `architecture/module-decomposition.md` (SS-01, SS-16
 | `ColumnMapper::coerce_value` | Pure | Takes `Value` + OCSF path + `ColumnType`, returns `Result<Value, CoercionWarning>`; no I/O, no mutation |
 | `ColumnMapper::map_record` | Pure (data transformation) + side-effecting (tracing) | The tracing emission added by AC-004 is a side effect; the function's return value (`MappingResult`) is deterministic given the inputs |
 | `build_column_array` (ColumnType::String arm) | Pure (data transformation) + side-effecting (tracing) | Returns `Option<Value>` deterministically; tracing emission added by AC-005 is a side effect |
-| RG-001..RG-007 test functions | Pure (test assertions) | Test assertions over in-memory data structures; tracing subscriber in RG-005 is test infrastructure, not production I/O |
+| RG-001..RG-009 test functions | Pure (test assertions) | Test assertions over in-memory data structures; tracing subscribers in RG-005 and RG-009 are test infrastructure, not production I/O |
 
 ---
 
-### Architecture Compliance Rules
+### Architecture Mapping Constraints
 
 From `architecture/module-decomposition.md` and ADR-023:
 
@@ -583,7 +584,7 @@ non-test code paths.
 | `crates/prism-spec-engine/src/column_mapping.rs` | Modify: `coerce_value` String branch, `coerce_value` Integer branch, `map_record` demotion point | Primary implementation file |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: `build_column_array` ColumnType::String arm wildcard → explicit Array/Object arms | Secondary implementation file |
 | `crates/prism-spec-engine/tests/bc_2_16_003_test.rs` | Modify or create: add RG-001..RG-005 test functions | Test file; create if not present |
-| `crates/prism-bin/tests/` (actual file TBD at dispatch) | Modify: add RG-006..RG-007 test functions | Verify existing test file names via `find crates/prism-bin/tests -name "*.rs"` at dispatch |
+| `crates/prism-bin/tests/` (actual file TBD at dispatch) | Modify: add RG-006..RG-009 test functions | Verify existing test file names via `find crates/prism-bin/tests -name "*.rs"` at dispatch |
 
 Do NOT modify: any TOML sensor spec file; any BC or ADR file (product-owner / architect
 scope); `prism-spec-engine/Cargo.toml` unless `tracing-test` must be added as
@@ -797,11 +798,47 @@ fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.17 Amendment Sweep (F-P17-MED-001 RG-008/009 propagation to 3 tables + RG-006/007 crate correction + F-P17-LOW-001 false sweep sentence + F-P17-LOW-002 heading de-duplication — OCSF-correctness Claroty SPEC pass-17 fix-burst)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): F-P17-MED-001 is COERCION-001 scope only —
+`build_column_array` Integer arm (RG-006..RG-009, §Architecture Mapping, §Purity
+Classification, §File Structure Requirements) has no counterpart in ROUTING-001. F-P17-LOW-001
+corrects a sentence in COERCION-001 §v1.16 Amendment Sweep §Dimension 1; ROUTING-001's
+amendment sweeps do not contain an equivalent false-deferral sentence. F-P17-LOW-002 resolves
+a duplicate heading in COERCION-001 only; ROUTING-001 §Architecture Mapping has no subordinate
+`### Architecture Compliance Rules` heading (confirmed by sweep of ROUTING-001 v1.18).
+VERDICT: SWEPT; ROUTING-001 UNAFFECTED.
+
+**Dimension 2 — Downstream copy target:**
+
+F-P17-MED-001: Three live enumeration-sites in this story file were updated — §Architecture
+Mapping (split row), §Purity Classification (RG range row), §File Structure Requirements
+(prism-bin/tests row). The §Red Gate Tests section (individual RG-008/009 definitions) and
+§T-GATE task already carried correct prism-bin placement from v1.16 — these are the source of
+truth per dispatch. No artifact outside this story file derives its RG-range enumerations from
+these three table rows. VERDICT: CLEAR.
+
+F-P17-LOW-002: The subordinate `### Architecture Mapping Constraints` heading (renamed from
+`### Architecture Compliance Rules`, rules 1–4) is not referenced by name in any AC or task
+text. AC-005's "Architecture Compliance Rule 7" cite resolves to the top-level
+`## Architecture Compliance Rules` (rules 1–7), which is unchanged. No downstream artifact
+copies the subordinate heading text. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. F-P17-MED-001 is a table propagation fix;
+F-P17-LOW-001 is a records-tier correction; F-P17-LOW-002 is a structural de-duplication.
+VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.16 Amendment Sweep (F-P16-MED-003 AC-007/RG-008/009/T-15b + F-P16-OBS-001 title expansion + BC-2.16.003 v1.9→v1.10 pin — OCSF-correctness Claroty adversary SPEC pass-16 fix-burst)
 
 **Dimension 1 — Sibling pair:**
 
-*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): ROUTING-001 §Authority also carried abbreviated BC-2.16.003 and BC-2.16.002 titles, and a wrong BC-2.01.013 title ("DataSource Trait Adapter Pattern" → "DataSource Trait Eliminates Per-Sensor Code Duplication"). Both corrected in the same burst (ROUTING-001 v1.17→v1.18). ROUTING-001 carries no F-P16-MED-003 equivalent (build_column_array Integer arm is COERCION-001 scope only). ROUTING-001 BC-2.16.003 pin remains at v1.9 in this burst (per orchestrator's explicit scope dispatch for ROUTING-001; deferred to follow-up records micro-burst). VERDICT: SWEPT; ROUTING-001 AMENDED IN SAME BURST.
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): ROUTING-001 §Authority also carried abbreviated BC-2.16.003 and BC-2.16.002 titles, and a wrong BC-2.01.013 title ("DataSource Trait Adapter Pattern" → "DataSource Trait Eliminates Per-Sensor Code Duplication"). Both corrected in the same burst (ROUTING-001 v1.17→v1.18). ROUTING-001 carries no F-P16-MED-003 equivalent (build_column_array Integer arm is COERCION-001 scope only). ROUTING-001 §Authority BC-2.16.003 pin was propagated v1.9→v1.10 in the same D-2220 burst (no deferral occurred). VERDICT: SWEPT; ROUTING-001 AMENDED IN SAME BURST.
 
 **Dimension 2 — Downstream copy target:**
 
@@ -903,6 +940,7 @@ No new MUSTs introduced by this amendment. VERDICT: N/A — no new mandates.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.17 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-17 fix-burst: (1) F-P17-MED-001 [MED, POL-8 / TD-VSDD-097 dim-2 / TD-VSDD-060]: §Architecture Mapping split into separate prism-spec-engine row (RG-001..RG-005, §bc_2_16_003_test.rs) and prism-bin row (RG-006..RG-009, §prism-bin/tests); RG-006/007 crate misplacement corrected (was prism-spec-engine, now prism-bin per §T-GATE and §File Structure Requirements as source of truth); §Purity Classification extended RG-001..RG-007 → RG-001..RG-009, tracing subscriber note updated to name RG-005 and RG-009; §File Structure Requirements prism-bin/tests row updated RG-006..RG-007 → RG-006..RG-009. (2) F-P17-LOW-001 [LOW, records-tier]: §v1.16 Amendment Sweep §Dimension 1 false sentence corrected — prior text stated ROUTING-001 BC-2.16.003 pin was deferred; correct fact is ROUTING-001 §Authority BC-2.16.003 pin was propagated v1.9→v1.10 in the same D-2220 burst (no deferral). (3) F-P17-LOW-002 [LOW, structural]: duplicate "Architecture Compliance Rules" heading resolved — subordinate `###` heading (rules 1–4, under §Architecture Mapping) renamed to "Architecture Mapping Constraints"; top-level `## Architecture Compliance Rules` (rules 1–7) is now the sole instance; AC-005 "Architecture Compliance Rule 7" cite resolves correctly to the unchanged top-level section. §v1.17 Amendment Sweep added. |
 | 1.16 | 2026-08-17 | story-writer | OCSF-correctness Claroty adversary SPEC pass-16 fix-burst: (1) F-P16-MED-003 [Option A, per PO adjudication]: AC-007 added (build_column_array ColumnType::Integer arm handles Value::String inputs with parse-attempt — parseable → Some(n), non-parseable → None + column_coercion_failure warn); RG-008 (test_build_column_array_integer_type_string_parseable_returns_integer) and RG-009 (test_build_column_array_integer_type_string_non_parseable_returns_null_and_emits_warning) added; T-10a/T-10b Red Gate authoring tasks added; T-15b implementation task added; T-16 count 7→9 RGTs; density updated 7/6=1.17→9/7=1.29. (2) F-P16-OBS-001 [records-tier, POL-7]: BC-2.16.003 §Authority title expanded to full H1 verbatim. (3) BC-2.16.003 pin propagated v1.9→v1.10 at §Authority + §Behavioral Contracts body table. (4) input-hash updated (BC-2.16.003 input bumped to v1.10 by PO in same burst). Sibling sweep: ROUTING-001 amended in same burst (v1.17→v1.18). §v1.16 Amendment Sweep added. |
 | 1.15 | 2026-08-17 | story-writer | Adversary pass-12 fix-burst: (1) ADR-058 §Authority pin v2.12→v2.13 (concurrent architect bump). (2) Sibling coordination: ROUTING-001 F2 §Tasks T-11G/H/L/M/N/O authoring-wording fixed in same burst; COERCION-001 tasks audit confirmed CLEAN (all tasks code-level, no TOML-load/inline-spec inconsistency). (3) Sibling sweep: zero normative prose version pins found in either story. (4) §v1.15 Amendment Sweep added. |
 | 1.14 | 2026-08-17 | story-writer | Adversary pass-11 fix-burst: (1) LOW-2 [LOW, POL-8] AC-004 trace parentheticals added — `(traces to BC-2.16.002 §Canonical Structured Event Catalog ...)` and `(traces to BC-2.02.011 §Graceful Normalization Error Handling (No Silent Data Loss) ...)` added after existing BC-2.16.003 trace; all three frontmatter BCs (BC-2.16.003, BC-2.02.011, BC-2.16.002) now have at least one AC `(traces to …)` parenthetical (POL-8 no-orphan satisfied). (2) ADR-058 §Authority pin v2.11→v2.12 (concurrent architect bump). (3) Sibling sweep: zero ADR-058/BC normative prose version pins found in either story outside §Authority (exempt) and historical amendment-sweep/changelog rows (grandfathered). (4) §v1.14 Amendment Sweep added. |
