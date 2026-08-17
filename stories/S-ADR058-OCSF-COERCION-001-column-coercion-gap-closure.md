@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.19"
+version: "1.20"
 level: "L4"
 status: draft
 producer: story-writer
@@ -443,9 +443,10 @@ From `architecture/module-decomposition.md` and ADR-023:
 | BC-2.16.003 (coercion matrix, edge cases) | ~3.5k |
 | ADR-058 §H | ~1k |
 | BC-2.16.002 (catalog header, context for new row) | ~2k |
+| BC-2.02.011 (warning-emission obligation) | ~1k |
 | `bc_2_16_003_test.rs` (existing tests to preserve) | ~2k |
 | Tool outputs (just iter, cargo nextest) | ~1k |
-| **Total** | **~21k** |
+| **Total** | **~22k** |
 
 21k tokens is well within a 200k agent context window (~10.5%). This story does NOT need
 splitting.
@@ -633,6 +634,33 @@ action pending.
 
 ---
 
+### v1.20 Amendment Sweep (F-P20-LOW-001b false-sibling-sentence fix + F-P20-LOW-002 Token Budget BC-2.02.011 row — OCSF-correctness Claroty SPEC pass-20 fix-burst)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): F-P20-MED-002, F-P20-LOW-001a, F-P20-OBS-001,
+and F-P20-OBS-002 are ROUTING-001 scope — tracing-test dependency-aware provisioning, sweep
+reordering, RG-013 SAP-3 rationale, and RG-006/T-12/T-14 green-driver attribution. ROUTING-001
+amended in same burst (v1.20→v1.21). F-P20-LOW-001b and F-P20-LOW-002 are COERCION-001 scope:
+§v1.18 false sibling sentence corrected; Token Budget BC-2.02.011 row added. VERDICT: SWEPT;
+ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+F-P20-LOW-001b: §v1.18 Amendment Sweep §Dimension 1 is a records-tier correction. No downstream
+artifact copies this sentence verbatim. VERDICT: CLEAR.
+
+F-P20-LOW-002: Token Budget table is a POL-8 count-parity fix (BC-2.02.011 was in frontmatter
+and §Authority but absent from Token Budget). No downstream artifact copies the Token Budget
+table. Total updated ~21k → ~22k. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. F-P20-LOW-001b and F-P20-LOW-002 are accuracy and count-parity
+corrections. VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.19 Amendment Sweep (F-P19-MED-001 prism-bin tracing-test provisioning + F-P19-LOW-001 T-12 nextest filter false-green fix — OCSF-correctness Claroty SPEC pass-19 fix-burst)
 
 **Dimension 1 — Sibling pair:**
@@ -668,8 +696,8 @@ VERDICT: N/A — no new mandates.
 *S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): F-P18-MED-001 is COERCION-001 scope only —
 the prism-bin red-gate/green-gate split applies to RG-006..RG-009 in `build_column_array`,
 which has no counterpart in ROUTING-001. F-P18-OBS-001 applies to COERCION-001 amendment
-sweep ordering only; ROUTING-001 amendment sweeps are already in consistent descending order
-within their own file. ROUTING-001 receives separate fixes this burst (F-P18-MED-002/003/004).
+sweep ordering only; ROUTING-001 amendment sweep ordering was corrected in ROUTING-001 v1.21
+(pass-20, F-P20-LOW-001a). ROUTING-001 receives separate fixes this burst (F-P18-MED-002/003/004).
 VERDICT: SWEPT; ROUTING-001 UNAFFECTED BY COERCION-001-SPECIFIC FINDINGS.
 
 **Dimension 2 — Downstream copy target:**
@@ -1000,6 +1028,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.20 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-20 fix-burst: (1) F-P20-LOW-001b [LOW, records-tier]: §v1.18 Amendment Sweep §Dimension 1 false sentence corrected — prior text stated "ROUTING-001 amendment sweeps are already in consistent descending order within their own file"; corrected to "ROUTING-001 amendment sweep ordering was corrected in ROUTING-001 v1.21 (pass-20, F-P20-LOW-001a)". (2) F-P20-LOW-002 [LOW, POL-8 count parity]: BC-2.02.011 row added to §Token Budget Estimate (~1k); Total updated ~21k → ~22k. BC-2.02.011 was present in frontmatter `behavioral_contracts`, §Authority, and §Behavioral Contracts body table but absent from Token Budget — POL-8 count-parity violation. Sibling sweep: ROUTING-001 amended in same burst (v1.20→v1.21). §v1.20 Amendment Sweep added. |
 | 1.19 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-19 fix-burst: (1) F-P19-MED-001 [MED, TDD gate coherence]: prism-bin provisioning added — §Architecture Mapping Constraints item 3 expanded to name BOTH `prism-spec-engine/Cargo.toml` (for RG-005, already present as `tracing-test = "0.2"`) and `prism-bin/Cargo.toml` (for RG-009, must be added) as permitted `tracing-test = "0.2"` `[dev-dependencies]` sites; §Library & Framework Requirements split tracing-test row into two rows (one per crate, with explicit presence/absence status); §File Structure Requirements added `crates/prism-bin/Cargo.toml` row (Modify: add `tracing-test = "0.2"` to `[dev-dependencies]`); "Do NOT modify" note updated to confirm `prism-spec-engine/Cargo.toml` needs no change. (2) F-P19-LOW-001 [LOW, TDD gate accuracy]: T-12 nextest filter `'test(rg_001)'` replaced with `just iter prism-spec-engine` — the old filter was a substring match that matched zero test names (RG-001/RG-002 test names contain `coerce_value`, not `rg_001`) and exited 0 vacuously, constituting a false-green gate. Sibling sweep: ROUTING-001 amended in same burst (v1.19→v1.20). §v1.19 Amendment Sweep added. |
 | 1.18 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-18 fix-burst: (1) F-P18-MED-001 [MED, POL-8 / TDD gate coherence]: §T-GATE split to run both `just iter prism-spec-engine --no-fail-fast` (observe RG-001..RG-005 fail) and `just iter prism-bin --no-fail-fast` (observe RG-006..RG-009 fail) — prior single-crate command could not reach prism-bin RGs; T-16 split to `just iter prism-spec-engine` (RG-001..005 + AC-006) and T-17 updated to name RG-006..RG-009 as explicit pass targets for `just iter prism-bin`. (2) F-P18-OBS-001 [records-tier]: amendment-sweep subsection ordering corrected to consistent descending (newest first): v1.17→v1.16→v1.15→v1.14→v1.13→v1.12→v1.11→v1.10→v1.9→v1.8→v1.7→v1.6→v1.5. Sibling sweep: ROUTING-001 fixes applied in same burst (v1.18→v1.19). §v1.18 Amendment Sweep added. |
 | 1.17 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-17 fix-burst: (1) F-P17-MED-001 [MED, POL-8 / TD-VSDD-097 dim-2 / TD-VSDD-060]: §Architecture Mapping split into separate prism-spec-engine row (RG-001..RG-005, §bc_2_16_003_test.rs) and prism-bin row (RG-006..RG-009, §prism-bin/tests); RG-006/007 crate misplacement corrected (was prism-spec-engine, now prism-bin per §T-GATE and §File Structure Requirements as source of truth); §Purity Classification extended RG-001..RG-007 → RG-001..RG-009, tracing subscriber note updated to name RG-005 and RG-009; §File Structure Requirements prism-bin/tests row updated RG-006..RG-007 → RG-006..RG-009. (2) F-P17-LOW-001 [LOW, records-tier]: §v1.16 Amendment Sweep §Dimension 1 false sentence corrected — prior text stated ROUTING-001 BC-2.16.003 pin was deferred; correct fact is ROUTING-001 §Authority BC-2.16.003 pin was propagated v1.9→v1.10 in the same D-2220 burst (no deferral). (3) F-P17-LOW-002 [LOW, structural]: duplicate "Architecture Compliance Rules" heading resolved — subordinate `###` heading (rules 1–4, under §Architecture Mapping) renamed to "Architecture Mapping Constraints"; top-level `## Architecture Compliance Rules` (rules 1–7) is now the sole instance; AC-005 "Architecture Compliance Rule 7" cite resolves correctly to the unchanged top-level section. §v1.17 Amendment Sweep added. |

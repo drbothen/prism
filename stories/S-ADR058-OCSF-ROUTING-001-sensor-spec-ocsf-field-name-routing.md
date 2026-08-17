@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.20"
+version: "1.21"
 level: "L4"
 status: draft
 producer: story-writer
@@ -253,10 +253,12 @@ Test-writer dispatched FIRST; implementer only after all 23 confirmed failing.
   named `"finding_uid"`, not `"id"` or `"finding.uid"`. Covers AC-003.
 
 - **RG-006:** `test_pipeline_result_to_record_batch_ocsf_flag_false_uses_col_name` —
-  fails until the conditional branch is implemented. A `SensorSpec` with
-  `ocsf_column_naming = false` (or absent) and a column with `name = "id"` and
-  `ocsf_field = Some("finding.uid")` MUST still produce an Arrow schema field named
-  `"id"` (non-Claroty sensors unaffected). Covers AC-004.
+  fails at compile time until `SensorSpec` gains the `ocsf_column_naming` field (E0063:
+  missing field in exhaustive struct literals; same compile-fail as RG-001/RG-002). Once the
+  field exists with `#[serde(default)]`, a `SensorSpec` with `ocsf_column_naming = false` (or
+  absent) and a column with `name = "id"` and `ocsf_field = Some("finding.uid")` matches
+  current production behavior — the flag-false path uses `col.name` unconditionally and the
+  test passes without requiring the T-14 conditional branch. Covers AC-004.
 
 - **RG-007:** `test_prism_describe_ocsf_column_naming_true_returns_flattened_name_and_dotted_description` —
   fails until `prism_describe` branches on `sensor_spec.ocsf_column_naming`. A
@@ -332,6 +334,11 @@ Test-writer dispatched FIRST; implementer only after all 23 confirmed failing.
   implementation from one that accepts any arbitrary path. Routed to prism-ocsf
   (DynamicMessage lives in prism-ocsf). Covers AC-009 (data-loss prevention, BC-2.16.003
   EC-016-013-023).
+  **SAP-3 reachability note (defense-in-depth):** `set_nested_field` is reached via Path B
+  (`normalize_with_mappers` in `normalizer.rs`), which has zero live production callers per
+  ADR-058 §K5; this test exercises a non-production-reachable arm and is defense-in-depth per
+  SAP-3 rule 3. The live Path A guarantee for EC-016-013-023 is covered at the wire level by
+  RG-016 (`test_claroty_audit_logs_record_batch_class_uid_is_3004`).
 
 - **RG-014:** `test_claroty_alerts_reserved_fields_go_to_raw_extensions_not_first_class_columns` —
   wire-shape assertion per CLAUDE.md §Conventions wire-shape assertion discipline. Fails
@@ -1178,13 +1185,15 @@ implementer MUST load only the files listed, not the full architecture directory
   `Self { ... }` return expression. Note: `SensorSpec::new()` does not expose
   `ocsf_column_naming` as a parameter (consistent with other optional fields like
   `auth_plugin`, `mode`, `probe_table`). Run `just iter prism-spec-engine`. Makes
-  RG-001 and RG-002 green.
+  RG-001, RG-002, and RG-006 green. (RG-006 greens here because its only RED cause is
+  the compile-fail from the absent field; the flag-false path matches current production
+  behavior without any branch logic.)
 - T-13: Add `pub fn ocsf_field_to_arrow_name(ocsf_field: &str) -> String` to
   `spec_driven_adapter.rs`. Implementation: `ocsf_field.replace('.', "_")`. Run
   `just iter prism-bin`. Makes RG-003 and RG-004 green.
 - T-14: Update `pipeline_result_to_record_batch` to use the conditional branch per
   ADR-058 §I1 (see §Acceptance Criteria AC-003 for the exact logic). Run
-  `just iter prism-bin`. Makes RG-005 and RG-006 green.
+  `just iter prism-bin`. Makes RG-005 green. (RG-006 already greened at T-12.)
 - T-15: Update `build_column_array` to handle `raw_extensions` path when
   `sensor_spec.ocsf_column_naming = true` and `col.ocsf_field = None`. Run
   `just iter prism-bin`. Makes RG-008 green.
@@ -1370,12 +1379,13 @@ From `architecture/module-decomposition.md`, ADR-023, ADR-028, and ADR-058:
 | `serde` | `#[serde(default)]` attribute on `ocsf_column_naming` | Workspace-pinned version |
 | `arrow` | `RecordBatch`, `Field`, `DataType` in `pipeline_result_to_record_batch` | Workspace-pinned version in root `Cargo.toml` |
 | `serde_json` | JSON serialization for `raw_extensions` blob | Workspace-pinned version |
-| `tracing-test` | Capture `tracing` events in RG-018 (`tracing_test` subscriber in `prism-bin/tests/`) | `tracing-test = "0.2"` in `prism-bin/Cargo.toml` `[dev-dependencies]` — NOT yet present; implementer MUST add (mirrors the existing `prism-spec-engine/Cargo.toml` dev-dep) |
+| `tracing-test` | Capture `tracing` events in RG-018 (`tracing_test` subscriber in `prism-bin/tests/`) | `tracing-test = "0.2"` in `prism-bin/Cargo.toml` `[dev-dependencies]` — provided by dependency S-ADR058-OCSF-COERCION-001 (which adds this entry for RG-009 first, since COERCION-001 merges before ROUTING-001); VERIFY present, add ONLY if absent — do not create a duplicate key |
 
-One new dev-dependency addition is required: `tracing-test = "0.2"` in `prism-bin/Cargo.toml`
-`[dev-dependencies]`, mirroring the version already present in `prism-spec-engine/Cargo.toml`.
-The `string.replace('.', "_")` operation for `ocsf_field_to_arrow_name` uses only `std` — no
-additional production crate needed.
+`tracing-test = "0.2"` in `prism-bin/Cargo.toml` `[dev-dependencies]` is required for RG-018.
+S-ADR058-OCSF-COERCION-001 (which is in `depends_on` and merges first) adds this entry for
+its own RG-009; ROUTING-001 inherits it. Implementer MUST verify presence before adding — do
+NOT create a duplicate key. The `string.replace('.', "_")` operation for `ocsf_field_to_arrow_name`
+uses only `std` — no additional production crate needed.
 
 Do NOT add new `reqwest` dependencies. Do NOT add `native-tls` features.
 
@@ -1395,7 +1405,7 @@ Do NOT add new `reqwest` dependencies. Do NOT add `native-tls` features.
 | `crates/prism-bin/tests/` (unit test file — TBD at dispatch) | Modify: add RG-003..RG-006, RG-008..RG-010, RG-014..RG-022 |
 | `crates/prism-mcp/tests/` (test file — TBD at dispatch) | Modify: add RG-007 |
 | `crates/prism-ocsf/tests/` (new or existing test file) | Modify: add RG-011..RG-013, RG-023 |
-| `crates/prism-bin/Cargo.toml` | Modify: add `tracing-test = "0.2"` to `[dev-dependencies]` | Required for RG-018 `tracing_test` subscriber in `prism-bin/tests/` — NOT yet present |
+| `crates/prism-bin/Cargo.toml` | Verify/Modify: confirm `tracing-test = "0.2"` is present in `[dev-dependencies]` (added by S-ADR058-OCSF-COERCION-001 for RG-009); add ONLY if absent — do not duplicate | Required for RG-018 `tracing_test` subscriber in `prism-bin/tests/`; COERCION-001 is the upstream provider (depends_on ordering) |
 
 Implementer MUST verify file names via `find crates/prism-spec-engine/tests crates/prism-bin/tests -name "*.rs"` at dispatch. Do NOT create new test files if existing `bc_2_01_013_spec_driven_adapter.rs` or similar applies.
 
@@ -1417,377 +1427,101 @@ Build-time enforcement rules:
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
 
-### v1.3 Amendment Sweep (BC-2.16.003 v1.5 + ADR-058 §K + §I5 downstream copy propagation)
+### v1.21 Amendment Sweep (F-P20-MED-002 tracing-test dependency-aware + F-P20-LOW-001a sweep reorder + F-P20-OBS-001/002 RG attribution — pass-20)
 
 **Dimension 1 — Sibling pair:**
 
-*S-ADR058-OCSF-COERCION-001* (sibling story, same epic): swept in full for any reference
-to KF-01..KF-12 column names, `class_selector.rs`, `entity_management`, `audit_activity`,
-or Armis audit_log arm. S-ADR058-OCSF-COERCION-001 v1.2 (amended in this same session)
-covers `ColumnMapper::coerce_value` and `build_column_array` type-coercion gap closure —
-fully orthogonal to the OCSF class routing and TOML naming corrections delivered here.
-No reference to `class_selector.rs`, `entity_management`, or KF-01/KF-02 was found in
-COERCION-001. VERDICT: SWEPT; CLEAR.
-
-*Armis `("armis","audit_log")` arm* (AC-009 TD-VSDD-097 dim-1 sibling inside
-`class_selector.rs`): The Armis arm has the same `audit_activity` → `account_change`
-routing defect identified in ADR-058 §I5. It is swept in the same atomic T-23 task and
-RG-012 Red Gate test. This is the dimension-1 sibling pair for the `class_selector.rs`
-code change. VERDICT: CAPTURED IN T-23 / RG-012.
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): F-P20-LOW-001b corrects a false sentence in
+COERCION-001 §v1.18 Amendment Sweep §Dimension 1 (which falsely claimed ROUTING-001 sweep
+ordering was already correct); COERCION-001 amended in same burst (v1.19→v1.20). F-P20-LOW-002
+adds BC-2.02.011 Token Budget row to COERCION-001 (§Token Budget count parity). F-P20-MED-002,
+F-P20-LOW-001a, F-P20-OBS-001, and F-P20-OBS-002 are ROUTING-001 scope only — COERCION-001 has
+no equivalent RG-006 green-driver issue, no sweep ordering defect, and no tracing-test dependency
+confusion. VERDICT: SWEPT; COERCION-001 AMENDED IN SAME BURST.
 
 **Dimension 2 — Downstream copy target:**
 
-The contracted mapping tables in AC-005 are the authoritative source that
-S-ADR058-DTU-PARITY-MIGRATION-001's test-writer will transcribe into wire-shape
-assertions. The four mapping tables now reflect BC-2.16.003 v1.5 ground truth:
-- `alerts.id` → `finding_info_uid` (not `finding_uid`)
-- `devices.device_type` → `device_type_label` (not `device_type_name`)
-- `audit_logs.username` → `actor_user_uid` (not `actor_user_name`)
-- `audit_logs.id` → `raw_extensions` (not a first-class column)
-The downstream parity story is not yet dispatched — it reads this story post-merge.
-VERDICT: CAPTURED IN THIS AMENDMENT (AC-005 now carries authoritative v1.5 tables).
-
-The ADR-058 §Status v2.4 note called out stale VALID marks for KF-08..KF-11 columns
-in the v1.2 AC-005 excerpt. Those stale marks are now replaced by the full four-table
-contracted mapping tables from BC-2.16.003 v1.5 with explicit KF annotations.
-VERDICT: DISCHARGED.
+§Library & Framework Requirements (tracing-test row) and §File Structure Requirements
+(prism-bin/Cargo.toml row) are the authoritative provisioning instructions for the
+implementer. The dependency-aware wording replaces the unconditional "NOT yet present — MUST
+add" instruction with "VERIFY present; S-ADR058-OCSF-COERCION-001 is the upstream provider."
+No downstream artifact copies these tables verbatim. VERDICT: CLEAR.
 
 **Dimension 3 — Mandate anchor:**
 
-ADR-058 §Status note (v2.4 — now v2.5): §AC-005 mapping tables carried stale VALID for
-KF-08..KF-11 columns; story-writer amendment required. This amendment discharges that
-mandate anchor: AC-005 now carries all KF-01..KF-12 corrections with full four-table
-contracted mapping tables.
-
-ADR-058 §I5 KF-01 code obligation: "Add CLASS_UID_ENTITY_MANAGEMENT = 3004, change
-'audit_activity' arm + Armis arm." Discharged to AC-009 (class_selector.rs fix) and
-RG-011/RG-012/RG-013 Red Gate tests.
-
-BC-2.16.003 v1.5 §TD-VSDD-097 dimension-2 note: S-ADR058-OCSF-ROUTING-001 AC-005 /
-§I5 is the downstream copy target for the contracted mapping tables. Discharged by
-this amendment. VERDICT: DISCHARGED.
+No new MUSTs introduced. F-P20-MED-002, F-P20-LOW-001a, F-P20-OBS-001, F-P20-OBS-002 are
+accuracy/ordering/attribution corrections. VERDICT: N/A — no new mandates.
 
 ---
 
-### v1.2 Amendment Sweep (ADR-058 §J2 shadow-check addition + AC-005 TOML fix)
+### v1.20 Amendment Sweep (F-P19-MED-001 prism-bin tracing-test provisioning — OCSF-correctness Claroty SPEC pass-19 fix-burst)
 
 **Dimension 1 — Sibling pair:**
 
-*S-ADR058-OCSF-COERCION-001* (the sibling story in EPIC-OCSF-ROUTING): swept in full.
-Findings: no reference to `device_category`, `device_type`, `device_type_category`,
-`device.type`, shadow collision, or the §J defect class. The coercion story's scope is
-`ColumnMapper::coerce_value` and `build_column_array` type-coercion gaps — entirely
-orthogonal to the TOML naming fix and the shadow-check gate. No update required to
-S-ADR058-OCSF-COERCION-001. VERDICT: SWEPT; CLEAR.
-
-*S-ADR058-DTU-PARITY-MIGRATION-001* (downstream, depends on this story): swept for
-`devices`-table Arrow name assertions that would be invalidated by the
-`device_type_category` change. Finding: S-ADR058-DTU-PARITY-MIGRATION-001 RG-002
-(`test_claroty_dtu_devices_arrow_schema_field_names_equal_ocsf_field_values`) is
-designed to assert that Arrow names equal the `ocsf_field` values from the
-then-current `claroty.sensor.toml`. That story depends on this story
-(`depends_on: [S-ADR058-OCSF-ROUTING-001]`) and its tests are NOT yet written —
-they will be authored AFTER this story merges, reading the post-amendment TOML
-(`ocsf_field = "device.type_category"` for `device_category`). The parity test
-writer will therefore assert `device_type_category`, not the pre-amendment
-`device_type`. **No invalidation — no update required to S-ADR058-DTU-PARITY-MIGRATION-001.**
-VERDICT: SWEPT; CLEAR.
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): F-P19-MED-001 applies to BOTH stories —
+COERCION-001 gains the same `prism-bin/Cargo.toml` provisioning row plus an expanded
+§Architecture Mapping Constraints item 3 naming both Cargo.toml files; it also receives
+F-P19-LOW-001 (T-12 nextest filter false-green fix), which has no counterpart in this story
+(ROUTING-001 has no T-12 nextest filter). COERCION-001 amended in same burst (v1.18→v1.19).
+VERDICT: SWEPT; COERCION-001 AMENDED IN SAME BURST.
 
 **Dimension 2 — Downstream copy target:**
 
-The `devices` table Arrow name mapping in AC-005 (this story) is the source that
-a later agent leg (test-writer for S-ADR058-DTU-PARITY-MIGRATION-001) will use as
-authoritative ground truth for the post-amendment schema. AC-005 now documents the
-full `devices` post-fix Arrow names (`device_uid`, `device_instance_uid`,
-`device_type_category`, `device_type_name`, `risk_score`, `status_code`). This IS
-the downstream copy target — the parity test writer will transcribe these names
-into test assertions. The AC-005 table in this story is now the canonical source
-for that transcription. VERDICT: CAPTURED IN THIS AMENDMENT (AC-005 now carries
-the authoritative devices table; parity migration story does not need simultaneous
-update because it is not yet dispatched).
-
-The `ColumnDescriptor.name` downstream copy concern (from v1.0/v1.1) remains:
-implementer MUST sweep `ColumnDescriptor` docstrings at dispatch time for stale
-`col.name` references. VERDICT: MITIGATED (standing implementer obligation).
+§Library & Framework Requirements (tracing-test row) and §File Structure Requirements
+(prism-bin/Cargo.toml row) are the authoritative provisioning instructions for the
+implementer. No downstream artifact copies these tables verbatim. The "No new crate
+additions" note has been replaced with an accurate statement that one dev-dependency
+addition is required. VERDICT: CLEAR.
 
 **Dimension 3 — Mandate anchor:**
 
-ADR-058 v2.1 §J2 carries the mandate anchor for the shadow check: "story-writer
-must amend S-ADR058-OCSF-ROUTING-001 to add RG-010." This amendment discharges
-that anchor. The §ADR-058 MUST Discharge section now has two rows:
-- Row 1: §D2 MUST → AC-001 / RG-001/RG-002 (discharged in v1.0)
-- Row 2: §J2 MUST → EC-010 / T-21 (shadow check) / RG-010 (discharged in this v1.2)
-
-Both rows name the story + EC/AC + Red Gate test. VERDICT: DISCHARGED IN THIS
-AMENDMENT.
-
-ADR-058 v2.1 `anchor_stories:` already includes `S-ADR058-OCSF-ROUTING-001`
-(SAC-2 — populated by architect in the v2.1 amendment). No further ADR update
-required for anchor_stories from this amendment.
-
-### v1.1 Sweep Record (preserved for reference)
-
-**Dimension 1 — Sibling pair:** `claroty.sensor.toml` is the only sensor TOML that gains
-`ocsf_column_naming = true`. Per ADR-058 §D3, CrowdStrike, Armis, and Cyberint TOMLs
-are NOT modified. Confirmed those three TOMLs must NOT gain the flag in this story;
-their absence of the flag is correct behavior (defaulting to `false`). VERDICT: SWEPT;
-CLEAR.
-
-**Dimension 2 — Downstream copy target:** `ColumnDescriptor.name` sourcing in
-`prism_describe` (AC-006) — implementer MUST sweep ColumnDescriptor docstrings for
-stale col.name references at dispatch. VERDICT: MITIGATED.
-
-**Dimension 3 — Mandate anchor:** ADR-058 v2.0 §D2 ANCHOR-NEEDED discharged to
-AC-001 / RG-001/RG-002. ADR-058 `anchor_stories:` populated by architect in v2.1.
-VERDICT: DISCHARGED.
+No new MUSTs introduced by this amendment. The prism-bin tracing-test provisioning is a
+dev-infrastructure correctness fix enabling RG-018 to compile and run in `prism-bin/tests/`.
+VERDICT: N/A — no new mandates.
 
 ---
 
-### v1.5 Amendment Sweep (ADR-058 v2.6 + BC-2.16.003 v1.6 + BC-2.16.002 v2.27 propagation)
+### v1.19 Amendment Sweep (F-P18-MED-002 §File Structure RG-011..023 gaps + prism-mcp row + F-P18-MED-003 RG-013 falsifiability fix + F-P18-MED-004 RG-007 prism-mcp routing + F-P18-OBS-002 device_type_label confirmation — OCSF-correctness Claroty SPEC pass-18 fix-burst)
 
 **Dimension 1 — Sibling pair:**
 
-*S-ADR058-OCSF-COERCION-001* (sibling story, same epic): swept in full for any reference to
-`inventory_info`, the two new `select_by_class_name` arms, or the `ocsf.unknown_class_name`
-warn emission. COERCION-001 scope is `ColumnMapper::coerce_value` and `build_column_array`
-type-coercion gap closure — entirely orthogonal to class_selector resolver arms and the
-process-gap warn. No update required. VERDICT: SWEPT; CLEAR.
-
-*class_selector.rs in-file doc tables* (sub-obligation c, AC-009): The module-level doc table
-and any inline summary table documenting class name→class_uid mappings are the sibling pair
-for the code change. If T-22 adds the `entity_management` and `inventory_info` arms to the
-resolver function without updating the doc tables, the doc tables become stale and will
-contradict the code — an F-P1-MED-001 class finding. Captured in T-22 sub-obligation (c).
-VERDICT: CAPTURED IN T-22.
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): F-P18-MED-002, F-P18-MED-003, and F-P18-MED-004
+are ROUTING-001 scope only — §File Structure Requirements, RG-013 mechanism, and T-GATE/T-19
+prism-mcp command have no counterpart in COERCION-001 (which has only two crates: prism-spec-engine
+and prism-bin). F-P18-OBS-002 confirms the settled `device_type_label` value is already used in
+ROUTING-001 §AC-005 / §Claroty Contracted OCSF Mappings; COERCION-001 has no occurrence of
+`device_type_name` or `device_type_label` in scope for this finding class. COERCION-001 receives
+separate fixes this burst (F-P18-MED-001, F-P18-OBS-001) with its own sweep at v1.18.
+VERDICT: SWEPT; COERCION-001 UNAFFECTED BY ROUTING-001-SPECIFIC FINDINGS.
 
 **Dimension 2 — Downstream copy target:**
 
-BC-2.16.003 v1.6 §Architecture Anchors and EC-016-013-023/024 are the source from which
-this story's AC-009/RG-016/RG-017 wire-shape obligations were derived. This amendment
-propagates those postconditions into the story — the downstream copy obligation is fulfilled
-by writing the wire-shape obligations here (T-11I/T-11J, RG-016/RG-017, AC-009 sub-obligation (b)).
+F-P18-MED-002: §File Structure Requirements table is the authoritative dispatch instruction for the
+test-writer. The RG→crate routing now consistently reflected across §Red Gate Tests, §File Structure
+Requirements, T-GATE, and T-19: prism-spec-engine (RG-001..002), prism-bin
+(RG-003..006/008..010/014..022), prism-mcp (RG-007), prism-ocsf (RG-011..013/023). No downstream
+artifact copies the §File Structure table verbatim. VERDICT: CLEAR.
 
-BC-2.16.002 v2.27 catalog row 94 (`ocsf.unknown_class_name`) is the source for AC-011. The
-story now carries the obligation derived from that catalog row. No further downstream copy
-target exists that requires simultaneous update. VERDICT: CAPTURED IN THIS AMENDMENT.
+F-P18-MED-003: RG-013 §Red Gate Tests description is the authoritative test specification for the
+test-writer. The rewrite aligns §Red Gate Tests RG-013 to T-11F (DynamicMessage / set_nested_field
+mechanism, 3004-vs-3001 contrast). No downstream artifact copies the RG-013 description verbatim.
+VERDICT: CLEAR.
 
-**Dimension 3 — Mandate anchor:**
+F-P18-MED-004: T-GATE and T-19 are the authoritative gate-command specifications. Adding
+`just iter prism-mcp --no-fail-fast` to T-GATE and `just iter prism-mcp` to T-19 ensures RG-007
+(prism-mcp) is observed in the RED gate and the final green gate. No downstream artifact copies
+these task-plan sections. VERDICT: CLEAR.
 
-ADR-058 §I5 (v2.6) process-gap obligation (ocsf.unknown_class_name WARN): anchored to
-`S-ADR058-OCSF-ROUTING-001 AC-011 RG-018 T-24`. No unanchored MUSTs introduced.
-
-BC-2.16.003 v1.6 EC-016-013-023 and EC-016-013-024 wire-level postconditions: anchored to
-`S-ADR058-OCSF-ROUTING-001 AC-009 RG-016 T-11I` and `S-ADR058-OCSF-ROUTING-001 AC-009
-RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
-
----
-
-### v1.6 Amendment Sweep (F2 pin sweep + F3 wire-shape coverage + F4 SS attribution)
-
-**Dimension 1 — Sibling pair:**
-
-*S-ADR058-OCSF-COERCION-001* (sibling story, same epic): swept for stale BC-2.16.003 version
-pins (v1.5→v1.7) and ADR-058 version pins (v2.6→v2.7). F5/F6 findings apply to COERCION-001
-(missing BC-2.16.002 in frontmatter; stale §Catalog Row Obligation version prose). COERCION-001
-is amended in the same fix-burst. VERDICT: SWEPT; COERCION-001 AMENDED IN SAME BURST.
-
-*SS-10 subsystem justification prose*: F4 moved `prism-bin::spec_driven_adapter` attribution
-from SS-01 to SS-10 — the SS-10 justification prose in this story was updated accordingly.
-SS-01 justification retained for `prism-sensors/specs/claroty.sensor.toml` and
-`prism-spec-engine`. No downstream copy of the SS attribution text exists. VERDICT: SWEPT; CLEAR.
-
-**Dimension 2 — Downstream copy target:**
-
-BC-2.16.003 §Claroty Contracted OCSF Mappings (ground truth for AC-005, AC-010) and
-ADR-058 §K5 Div-3 + §I5 (ground truth for AC-009/AC-011) are source documents for this
-story's obligations. This amendment strips version labels from narrative prose per POL-39 —
-the §Authority pin table retains machine-readable version pins (v1.7, v2.7) as required
-by prism convention; narrative prose now uses section-anchor-only cites. No downstream copy
-of the version-label prose exists (labels appeared only in this story's body). VERDICT: CLEAR.
-
-RG-019 and RG-020 are new obligations derived from BC-2.16.003 §Claroty Contracted OCSF
-Mappings KF-11 and KF-07 clauses. The AC-010 assertion list now names all covered KFs;
-the BC-2.16.003 source retains the ground-truth clause text — no copy divergence.
-VERDICT: DISCHARGED IN THIS AMENDMENT.
+F-P18-OBS-002: Confirmed no live current-state occurrence of stale `device_type_name` in AC-005
+or §Claroty Contracted OCSF Mappings; the settled `device_type_label` is used throughout. Historical
+v1.2 Amendment Sweep snapshot reference is grandfathered by TD-VSDD-091 ratchet scoping (pre-existing
+unchanged line). No edit required. VERDICT: NO-CHANGE CONFIRMED.
 
 **Dimension 3 — Mandate anchor:**
 
-BC-2.16.003 §Claroty Contracted OCSF Mappings KF-11 (audit_logs category→raw_extensions):
-anchored to `S-ADR058-OCSF-ROUTING-001 AC-010 RG-019 T-11L`.
-
-BC-2.16.003 §Claroty Contracted OCSF Mappings KF-07 (device_alert_relations
-alert_id→finding_info.uid): anchored to `S-ADR058-OCSF-ROUTING-001 AC-010 RG-020 T-11M`.
-
-No unanchored MUSTs introduced by this amendment. VERDICT: DISCHARGED IN THIS AMENDMENT.
-
----
-
-### v1.7 Amendment Sweep (F2 compile-error fix + F1 subsystem cross-check)
-
-**Dimension 1 — Sibling pair:**
-
-*S-ADR058-OCSF-COERCION-001* (sibling story, same epic): swept for any `table.name`
-field references in code snippets. COERCION-001 has no tracing emission snippet for
-`ocsf.unknown_class_name` (that obligation belongs to Stage 2 only). Zero `table.name`
-occurrences found in COERCION-001. VERDICT: SWEPT; CLEAR.
-
-COERCION-001 subsystem mis-anchoring (F1) is addressed in the same burst (v1.5→v1.6):
-`prism-bin` moved from SS-01 to SS-10; SS-10 added to subsystems frontmatter. VERDICT:
-COERCION-001 AMENDED IN SAME BURST.
-
-*RG-018 test name*: `test_pipeline_result_to_record_batch_unknown_ocsf_class_emits_warn` —
-uses `tracing_test` subscriber asserting `event_type = "ocsf.unknown_class_name"`.
-The `%table.table_name` field correction propagates to the test assertion (the test
-validates the field schema, including `table_name`). The test-writer will use the corrected
-field name from AC-011 when authoring RG-018. VERDICT: CAPTURED IN AC-011 (corrected).
-
-**Dimension 2 — Downstream copy target:**
-
-The AC-011 emission snippet is the source from which T-24 (implementer task) and the
-BC-2.16.002 catalog row 94 field schema derive their `table_name` field. The BC-2.16.002
-catalog row 94 already correctly lists `table_name` as a field (product-owner authored it
-against the real `TableSpec` struct, not against this story's stale snippet). Only this
-story's AC-011 and T-24 snippets carried the stale `%table.name` — both corrected in
-this amendment. No downstream copy of the stale snippet exists. VERDICT: CLEAR.
-
-**Dimension 3 — Mandate anchor:**
-
-No new MUSTs introduced by this amendment. The corrected `%table.table_name` field cite
-is a compile-correctness fix, not a new obligation. VERDICT: N/A — no new mandates.
-
----
-
-### v1.8 Amendment Sweep (comprehensive KF→AC→RG coverage-matrix audit)
-
-**Dimension 1 — Sibling pair:**
-
-*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): swept for KF→AC→RG coverage gaps. COERCION-001
-covers coercion-engine ACs (AC-001..AC-006) against RG-001..RG-007; its scope does not include
-KF-05/06/07 field-routing corrections (those are ROUTING-001 Stage 2 obligations). BC-2.16.003
-pin in COERCION-001 updated from v1.7 → v1.8 in the same burst (v1.6→v1.7). VERDICT:
-COERCION-001 SWEPT; BC PIN UPDATED.
-
-**Dimension 2 — Downstream copy target:**
-
-BC-2.16.003 §Claroty Contracted OCSF Mappings (v1.8) is the authoritative source for all 12
-KF corrections. The AC-005 TOML obligations table in this story is derived from the BC; no
-stale copy-source section remains in this story. AC-010 assertions now enumerate all 6
-wire-shape assertions matching KF-03/04/05/06/07/12 corrections in the BC. VERDICT: CLEAR.
-
-**Dimension 3 — Mandate anchor:**
-
-New RGs introduced by this amendment:
-
-- RG-021 (KF-05 `audit_logs.id` → raw_extensions): anchored to
-  `S-ADR058-OCSF-ROUTING-001 AC-010 RG-021 T-11N`.
-- RG-022 (KF-06 `devices.device_type` → `device_type_label`): anchored to
-  `S-ADR058-OCSF-ROUTING-001 AC-010 RG-022 T-11O`.
-- RG-023 (AC-009(c) Claroty `select()` arm): anchored to
-  `S-ADR058-OCSF-ROUTING-001 AC-009 RG-023 T-11P`.
-
-No unanchored MUSTs introduced by this amendment. VERDICT: DISCHARGED IN THIS AMENDMENT.
-
----
-
-### v1.9 Amendment Sweep (ADR-058 v2.7→v2.8 + BC-2.16.003 v1.8→v1.9 pin sweep + F2 count fix)
-
-**Dimension 1 — Sibling pair:**
-
-*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): §Authority ADR-058 pin updated v2.7→v2.8;
-§Authority BC-2.16.003 pin updated v1.8→v1.9; body BC table pin updated v1.8→v1.9. Same
-pass-5 burst. F2 stale count fix applies only to ROUTING-001 (COERCION-001 has no Red-then-green
-gate instruction with RG count). VERDICT: COERCION-001 PIN SWEEP APPLIED IN SAME BURST.
-
-**Dimension 2 — Downstream copy target:**
-
-ADR-058 §Authority entry and BC-2.16.003 §Authority entry carry the version pins; body BC
-table duplicates the BC-2.16.003 pin. All three updated. No other live downstream copy of
-these pins exists in this story. VERDICT: CLEAR.
-
-**Dimension 3 — Mandate anchor:**
-
-No new MUSTs introduced by this amendment. The pin sweep and count fix are authoring-accuracy
-updates, not new behavioral obligations. VERDICT: N/A — no new mandates.
-
----
-
-### v1.10 Amendment Sweep (T-11H 3-field fix + T-11P API fix + F3 date cites)
-
-**Dimension 1 — Sibling pair:**
-
-*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): sibling-sweep for `ClassSelectorInput` /
-`vendor:` / `class_name:` fabricated API shapes — **zero occurrences found** in COERCION-001.
-F3 §Authority date cites updated to 2026-08-17 and `modified:` frontmatter field added in
-same burst. No T-11H or T-11P equivalents exist in COERCION-001 (it has no class_selector
-tasks). VERDICT: COERCION-001 DATE FIXES APPLIED IN SAME BURST; NO T-11H/T-11P EQUIVALENTS.
-
-**Dimension 2 — Downstream copy target:**
-
-T-11H test name is the source from which the RG-015 catalog entry and AC-010 assertion 1 derive.
-The RG-015 catalog entry and AC-010 assertion 1 already carried the correct 3-field name
-`test_claroty_alerts_finding_info_fields_wire_shape` since pass-4 — T-11H was the only stale
-copy. After this fix, T-11H, the RG catalog, and AC-010 assertion 1 are all consistent. VERDICT:
-CLEAR.
-
-**Dimension 3 — Mandate anchor:**
-
-No new MUSTs introduced by this amendment. The T-11H expansion and T-11P API correction are
-test-authoring-accuracy fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
-
----
-
-### v1.11 Amendment Sweep (full task-plan audit — gate ordering + green-driver attribution)
-
-**Dimension 1 — Sibling pair:**
-
-*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): Task-plan cross-audit results — CLEAN. All
-seven RGs (RG-001..RG-007) map to exactly one implementation task each; terminal gates (T-16
-run-all-7-RGTs, T-17 prism-bin iter, T-18 just check) are in correct order after the last
-implementation task (T-15). No F1/F2 equivalents exist in COERCION-001. VERDICT: SWEPT; CLEAN.
-
-COERCION-001 F3 discharge fix applied in same burst (v1.9→v1.10): ADR-058 §H MUST Discharge
-section updated from pending-architect-routing to DISCHARGED; volatile `v2.0` pins removed
-from normative prose per POL-39. VERDICT: COERCION-001 AMENDED IN SAME BURST.
-
-**Dimension 2 — Downstream copy target:**
-
-T-17's "Makes green" list is the downstream copy target for the RG-attributions in the
-RG catalog (§Red Gate Tests). After this fix, T-17 correctly attributes RG-014, RG-015,
-RG-019, RG-020, RG-021, RG-022 — all six TOML-driven wire-shape tests. T-23 now correctly
-attributes RG-012 AND RG-023 — both claroty and armis select() arm tests. No other downstream
-copies of these lists exist. VERDICT: CLEAR.
-
-**Dimension 3 — Mandate anchor:**
-
-No new MUSTs introduced by this amendment. The gate-reordering and attribution fixes are
-task-plan-fidelity corrections, not new behavioral obligations. VERDICT: N/A — no new mandates.
-
----
-
-### v1.12 Amendment Sweep (comprehensive hygiene: F1 mandate-anchor, F4 §J4 count, F3 line-cite, ADR-058 re-pin)
-
-**Dimension 1 — Sibling pair:**
-
-*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): ADR-058 §Authority pin updated v2.8→v2.9 in
-same burst. No §Mandate Anchor equivalents needed in COERCION-001 (its §Mandate Anchor #2 was
-cleaned in pass-7). Comprehensive hygiene sweep of COERCION-001 found zero POL-39 narrative
-prose violations, zero line-cites, and zero mandate-anchor accuracy issues outside historical
-amendment-sweep sections (grandfathered by TD-VSDD-091 ratchet scoping). VERDICT: COERCION-001
-AMENDED IN SAME BURST; CLEAN.
-
-**Dimension 2 — Downstream copy target:**
-
-§Authority ADR-058 pin is the sole live ADR pin site in this story (ADRs are not pinned in the
-body BC table — that table covers BCs only). Updated v2.8→v2.9. The §Mandate Anchor #1 rewrite
-(F1) removes all ADR-058 version pins from that normative prose section; it was the only
-non-§Authority, non-changelog section carrying volatile ADR-058 version references. VERDICT: CLEAR.
-
-**Dimension 3 — Mandate anchor:**
-
-F1 §Mandate Anchor #1 rewrite marks both §D2 and §J2 mandates DISCHARGED with no new obligations.
-F4 §Authority §J4 count correction (31 pre-correction / 26 post-correction) is an accuracy fix,
-not a new mandate. F3 line-cite removal from the v1.9 changelog row addresses a TD-VSDD-091
-violation, not a behavioral obligation. VERDICT: N/A — no new mandates.
+No new MUSTs introduced by this amendment. All four findings are task-plan coherence and
+test-specification accuracy fixes. F-P18-OBS-002 is a no-change confirmation.
+VERDICT: N/A — no new mandates.
 
 ---
 
@@ -1922,74 +1656,249 @@ corrections, not new behavioral obligations. VERDICT: N/A — no new mandates.
 
 ---
 
-### v1.20 Amendment Sweep (F-P19-MED-001 prism-bin tracing-test provisioning — OCSF-correctness Claroty SPEC pass-19 fix-burst)
+### v1.12 Amendment Sweep (comprehensive hygiene: F1 mandate-anchor, F4 §J4 count, F3 line-cite, ADR-058 re-pin)
 
 **Dimension 1 — Sibling pair:**
 
-*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): F-P19-MED-001 applies to BOTH stories —
-COERCION-001 gains the same `prism-bin/Cargo.toml` provisioning row plus an expanded
-§Architecture Mapping Constraints item 3 naming both Cargo.toml files; it also receives
-F-P19-LOW-001 (T-12 nextest filter false-green fix), which has no counterpart in this story
-(ROUTING-001 has no T-12 nextest filter). COERCION-001 amended in same burst (v1.18→v1.19).
-VERDICT: SWEPT; COERCION-001 AMENDED IN SAME BURST.
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): ADR-058 §Authority pin updated v2.8→v2.9 in
+same burst. No §Mandate Anchor equivalents needed in COERCION-001 (its §Mandate Anchor #2 was
+cleaned in pass-7). Comprehensive hygiene sweep of COERCION-001 found zero POL-39 narrative
+prose violations, zero line-cites, and zero mandate-anchor accuracy issues outside historical
+amendment-sweep sections (grandfathered by TD-VSDD-091 ratchet scoping). VERDICT: COERCION-001
+AMENDED IN SAME BURST; CLEAN.
 
 **Dimension 2 — Downstream copy target:**
 
-§Library & Framework Requirements (tracing-test row) and §File Structure Requirements
-(prism-bin/Cargo.toml row) are the authoritative provisioning instructions for the
-implementer. No downstream artifact copies these tables verbatim. The "No new crate
-additions" note has been replaced with an accurate statement that one dev-dependency
-addition is required. VERDICT: CLEAR.
+§Authority ADR-058 pin is the sole live ADR pin site in this story (ADRs are not pinned in the
+body BC table — that table covers BCs only). Updated v2.8→v2.9. The §Mandate Anchor #1 rewrite
+(F1) removes all ADR-058 version pins from that normative prose section; it was the only
+non-§Authority, non-changelog section carrying volatile ADR-058 version references. VERDICT: CLEAR.
 
 **Dimension 3 — Mandate anchor:**
 
-No new MUSTs introduced by this amendment. The prism-bin tracing-test provisioning is a
-dev-infrastructure correctness fix enabling RG-018 to compile and run in `prism-bin/tests/`.
-VERDICT: N/A — no new mandates.
+F1 §Mandate Anchor #1 rewrite marks both §D2 and §J2 mandates DISCHARGED with no new obligations.
+F4 §Authority §J4 count correction (31 pre-correction / 26 post-correction) is an accuracy fix,
+not a new mandate. F3 line-cite removal from the v1.9 changelog row addresses a TD-VSDD-091
+violation, not a behavioral obligation. VERDICT: N/A — no new mandates.
 
 ---
 
-### v1.19 Amendment Sweep (F-P18-MED-002 §File Structure RG-011..023 gaps + prism-mcp row + F-P18-MED-003 RG-013 falsifiability fix + F-P18-MED-004 RG-007 prism-mcp routing + F-P18-OBS-002 device_type_label confirmation — OCSF-correctness Claroty SPEC pass-18 fix-burst)
+### v1.11 Amendment Sweep (full task-plan audit — gate ordering + green-driver attribution)
 
 **Dimension 1 — Sibling pair:**
 
-*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): F-P18-MED-002, F-P18-MED-003, and F-P18-MED-004
-are ROUTING-001 scope only — §File Structure Requirements, RG-013 mechanism, and T-GATE/T-19
-prism-mcp command have no counterpart in COERCION-001 (which has only two crates: prism-spec-engine
-and prism-bin). F-P18-OBS-002 confirms the settled `device_type_label` value is already used in
-ROUTING-001 §AC-005 / §Claroty Contracted OCSF Mappings; COERCION-001 has no occurrence of
-`device_type_name` or `device_type_label` in scope for this finding class. COERCION-001 receives
-separate fixes this burst (F-P18-MED-001, F-P18-OBS-001) with its own sweep at v1.18.
-VERDICT: SWEPT; COERCION-001 UNAFFECTED BY ROUTING-001-SPECIFIC FINDINGS.
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): Task-plan cross-audit results — CLEAN. All
+seven RGs (RG-001..RG-007) map to exactly one implementation task each; terminal gates (T-16
+run-all-7-RGTs, T-17 prism-bin iter, T-18 just check) are in correct order after the last
+implementation task (T-15). No F1/F2 equivalents exist in COERCION-001. VERDICT: SWEPT; CLEAN.
+
+COERCION-001 F3 discharge fix applied in same burst (v1.9→v1.10): ADR-058 §H MUST Discharge
+section updated from pending-architect-routing to DISCHARGED; volatile `v2.0` pins removed
+from normative prose per POL-39. VERDICT: COERCION-001 AMENDED IN SAME BURST.
 
 **Dimension 2 — Downstream copy target:**
 
-F-P18-MED-002: §File Structure Requirements table is the authoritative dispatch instruction for the
-test-writer. The RG→crate routing now consistently reflected across §Red Gate Tests, §File Structure
-Requirements, T-GATE, and T-19: prism-spec-engine (RG-001..002), prism-bin
-(RG-003..006/008..010/014..022), prism-mcp (RG-007), prism-ocsf (RG-011..013/023). No downstream
-artifact copies the §File Structure table verbatim. VERDICT: CLEAR.
-
-F-P18-MED-003: RG-013 §Red Gate Tests description is the authoritative test specification for the
-test-writer. The rewrite aligns §Red Gate Tests RG-013 to T-11F (DynamicMessage / set_nested_field
-mechanism, 3004-vs-3001 contrast). No downstream artifact copies the RG-013 description verbatim.
-VERDICT: CLEAR.
-
-F-P18-MED-004: T-GATE and T-19 are the authoritative gate-command specifications. Adding
-`just iter prism-mcp --no-fail-fast` to T-GATE and `just iter prism-mcp` to T-19 ensures RG-007
-(prism-mcp) is observed in the RED gate and the final green gate. No downstream artifact copies
-these task-plan sections. VERDICT: CLEAR.
-
-F-P18-OBS-002: Confirmed no live current-state occurrence of stale `device_type_name` in AC-005
-or §Claroty Contracted OCSF Mappings; the settled `device_type_label` is used throughout. Historical
-v1.2 Amendment Sweep snapshot reference is grandfathered by TD-VSDD-091 ratchet scoping (pre-existing
-unchanged line). No edit required. VERDICT: NO-CHANGE CONFIRMED.
+T-17's "Makes green" list is the downstream copy target for the RG-attributions in the
+RG catalog (§Red Gate Tests). After this fix, T-17 correctly attributes RG-014, RG-015,
+RG-019, RG-020, RG-021, RG-022 — all six TOML-driven wire-shape tests. T-23 now correctly
+attributes RG-012 AND RG-023 — both claroty and armis select() arm tests. No other downstream
+copies of these lists exist. VERDICT: CLEAR.
 
 **Dimension 3 — Mandate anchor:**
 
-No new MUSTs introduced by this amendment. All four findings are task-plan coherence and
-test-specification accuracy fixes. F-P18-OBS-002 is a no-change confirmation.
-VERDICT: N/A — no new mandates.
+No new MUSTs introduced by this amendment. The gate-reordering and attribution fixes are
+task-plan-fidelity corrections, not new behavioral obligations. VERDICT: N/A — no new mandates.
+
+---
+
+### v1.10 Amendment Sweep (T-11H 3-field fix + T-11P API fix + F3 date cites)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): sibling-sweep for `ClassSelectorInput` /
+`vendor:` / `class_name:` fabricated API shapes — **zero occurrences found** in COERCION-001.
+F3 §Authority date cites updated to 2026-08-17 and `modified:` frontmatter field added in
+same burst. No T-11H or T-11P equivalents exist in COERCION-001 (it has no class_selector
+tasks). VERDICT: COERCION-001 DATE FIXES APPLIED IN SAME BURST; NO T-11H/T-11P EQUIVALENTS.
+
+**Dimension 2 — Downstream copy target:**
+
+T-11H test name is the source from which the RG-015 catalog entry and AC-010 assertion 1 derive.
+The RG-015 catalog entry and AC-010 assertion 1 already carried the correct 3-field name
+`test_claroty_alerts_finding_info_fields_wire_shape` since pass-4 — T-11H was the only stale
+copy. After this fix, T-11H, the RG catalog, and AC-010 assertion 1 are all consistent. VERDICT:
+CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The T-11H expansion and T-11P API correction are
+test-authoring-accuracy fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
+
+---
+
+### v1.9 Amendment Sweep (ADR-058 v2.7→v2.8 + BC-2.16.003 v1.8→v1.9 pin sweep + F2 count fix)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): §Authority ADR-058 pin updated v2.7→v2.8;
+§Authority BC-2.16.003 pin updated v1.8→v1.9; body BC table pin updated v1.8→v1.9. Same
+pass-5 burst. F2 stale count fix applies only to ROUTING-001 (COERCION-001 has no Red-then-green
+gate instruction with RG count). VERDICT: COERCION-001 PIN SWEEP APPLIED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+ADR-058 §Authority entry and BC-2.16.003 §Authority entry carry the version pins; body BC
+table duplicates the BC-2.16.003 pin. All three updated. No other live downstream copy of
+these pins exists in this story. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The pin sweep and count fix are authoring-accuracy
+updates, not new behavioral obligations. VERDICT: N/A — no new mandates.
+
+---
+
+### v1.8 Amendment Sweep (comprehensive KF→AC→RG coverage-matrix audit)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): BC-2.16.003 pin in COERCION-001 updated from
+v1.7 → v1.8 in the same burst (v1.6→v1.7). VERDICT:
+COERCION-001 SWEPT; BC PIN UPDATED.
+
+**Dimension 2 — Downstream copy target:**
+
+BC-2.16.003 §Claroty Contracted OCSF Mappings (v1.8) is the authoritative source for all 12
+KF corrections. The AC-005 TOML obligations table in this story is derived from the BC; no
+stale copy-source section remains in this story. AC-010 assertions now enumerate all 6
+wire-shape assertions matching KF-03/04/05/06/07/12 corrections in the BC. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+New RGs introduced by this amendment:
+
+- RG-021 (KF-05 `audit_logs.id` → raw_extensions): anchored to
+  `S-ADR058-OCSF-ROUTING-001 AC-010 RG-021 T-11N`.
+- RG-022 (KF-06 `devices.device_type` → `device_type_label`): anchored to
+  `S-ADR058-OCSF-ROUTING-001 AC-010 RG-022 T-11O`.
+- RG-023 (AC-009(c) Claroty `select()` arm): anchored to
+  `S-ADR058-OCSF-ROUTING-001 AC-009 RG-023 T-11P`.
+
+No unanchored MUSTs introduced by this amendment. VERDICT: DISCHARGED IN THIS AMENDMENT.
+
+---
+
+### v1.7 Amendment Sweep (F2 compile-error fix + F1 subsystem cross-check)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): swept for any `table.name`
+field references in code snippets. COERCION-001 has no tracing emission snippet for
+`ocsf.unknown_class_name` (that obligation belongs to Stage 2 only). Zero `table.name`
+occurrences found in COERCION-001. VERDICT: SWEPT; CLEAR.
+
+COERCION-001 subsystem mis-anchoring (F1) is addressed in the same burst (v1.5→v1.6):
+`prism-bin` moved from SS-01 to SS-10; SS-10 added to subsystems frontmatter. VERDICT:
+COERCION-001 AMENDED IN SAME BURST.
+
+*RG-018 test name*: `test_pipeline_result_to_record_batch_unknown_ocsf_class_emits_warn` —
+uses `tracing_test` subscriber asserting `event_type = "ocsf.unknown_class_name"`.
+The `%table.table_name` field correction propagates to the test assertion (the test
+validates the field schema, including `table_name`). The test-writer will use the corrected
+field name from AC-011 when authoring RG-018. VERDICT: CAPTURED IN AC-011 (corrected).
+
+**Dimension 2 — Downstream copy target:**
+
+The AC-011 emission snippet is the source from which T-24 (implementer task) and the
+BC-2.16.002 catalog row 94 field schema derive their `table_name` field. The BC-2.16.002
+catalog row 94 already correctly lists `table_name` as a field (product-owner authored it
+against the real `TableSpec` struct, not against this story's stale snippet). Only this
+story's AC-011 and T-24 snippets carried the stale `%table.name` — both corrected in
+this amendment. No downstream copy of the stale snippet exists. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The corrected `%table.table_name` field cite
+is a compile-correctness fix, not a new obligation. VERDICT: N/A — no new mandates.
+
+---
+
+### v1.6 Amendment Sweep (F2 pin sweep + F3 wire-shape coverage + F4 SS attribution)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (sibling story, same epic): swept for stale BC-2.16.003 version
+pins (v1.5→v1.7) and ADR-058 version pins (v2.6→v2.7). F5/F6 findings apply to COERCION-001
+(missing BC-2.16.002 in frontmatter; stale §Catalog Row Obligation version prose). COERCION-001
+is amended in the same fix-burst. VERDICT: SWEPT; COERCION-001 AMENDED IN SAME BURST.
+
+*SS-10 subsystem justification prose*: F4 moved `prism-bin::spec_driven_adapter` attribution
+from SS-01 to SS-10 — the SS-10 justification prose in this story was updated accordingly.
+SS-01 justification retained for `prism-sensors/specs/claroty.sensor.toml` and
+`prism-spec-engine`. No downstream copy of the SS attribution text exists. VERDICT: SWEPT; CLEAR.
+
+**Dimension 2 — Downstream copy target:**
+
+BC-2.16.003 §Claroty Contracted OCSF Mappings (ground truth for AC-005, AC-010) and
+ADR-058 §K5 Div-3 + §I5 (ground truth for AC-009/AC-011) are source documents for this
+story's obligations. This amendment strips version labels from narrative prose per POL-39 —
+the §Authority pin table retains machine-readable version pins (v1.7, v2.7) as required
+by prism convention; narrative prose now uses section-anchor-only cites. No downstream copy
+of the version-label prose exists (labels appeared only in this story's body). VERDICT: CLEAR.
+
+RG-019 and RG-020 are new obligations derived from BC-2.16.003 §Claroty Contracted OCSF
+Mappings KF-11 and KF-07 clauses. The AC-010 assertion list now names all covered KFs;
+the BC-2.16.003 source retains the ground-truth clause text — no copy divergence.
+VERDICT: DISCHARGED IN THIS AMENDMENT.
+
+**Dimension 3 — Mandate anchor:**
+
+BC-2.16.003 §Claroty Contracted OCSF Mappings KF-11 (audit_logs category→raw_extensions):
+anchored to `S-ADR058-OCSF-ROUTING-001 AC-010 RG-019 T-11L`.
+
+BC-2.16.003 §Claroty Contracted OCSF Mappings KF-07 (device_alert_relations
+alert_id→finding_info.uid): anchored to `S-ADR058-OCSF-ROUTING-001 AC-010 RG-020 T-11M`.
+
+No unanchored MUSTs introduced by this amendment. VERDICT: DISCHARGED IN THIS AMENDMENT.
+
+---
+
+### v1.5 Amendment Sweep (ADR-058 v2.6 + BC-2.16.003 v1.6 + BC-2.16.002 v2.27 propagation)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (sibling story, same epic): swept in full for any reference to
+`inventory_info`, the two new `select_by_class_name` arms, or the `ocsf.unknown_class_name`
+warn emission. COERCION-001 scope is `ColumnMapper::coerce_value` and `build_column_array`
+type-coercion gap closure — entirely orthogonal to class_selector resolver arms and the
+process-gap warn. No update required. VERDICT: SWEPT; CLEAR.
+
+*class_selector.rs in-file doc tables* (sub-obligation c, AC-009): The module-level doc table
+and any inline summary table documenting class name→class_uid mappings are the sibling pair
+for the code change. If T-22 adds the `entity_management` and `inventory_info` arms to the
+resolver function without updating the doc tables, the doc tables become stale and will
+contradict the code — an F-P1-MED-001 class finding. Captured in T-22 sub-obligation (c).
+VERDICT: CAPTURED IN T-22.
+
+**Dimension 2 — Downstream copy target:**
+
+BC-2.16.003 v1.6 §Architecture Anchors and EC-016-013-023/024 are the source from which
+this story's AC-009/RG-016/RG-017 wire-shape obligations were derived. This amendment
+propagates those postconditions into the story — the downstream copy obligation is fulfilled
+by writing the wire-shape obligations here (T-11I/T-11J, RG-016/RG-017, AC-009 sub-obligation (b)).
+
+BC-2.16.002 v2.27 catalog row 94 (`ocsf.unknown_class_name`) is the source for AC-011. The
+story now carries the obligation derived from that catalog row. No further downstream copy
+target exists that requires simultaneous update. VERDICT: CAPTURED IN THIS AMENDMENT.
+
+**Dimension 3 — Mandate anchor:**
+
+ADR-058 §I5 (v2.6) process-gap obligation (ocsf.unknown_class_name WARN): anchored to
+`S-ADR058-OCSF-ROUTING-001 AC-011 RG-018 T-24`. No unanchored MUSTs introduced.
+
+BC-2.16.003 v1.6 EC-016-013-023 and EC-016-013-024 wire-level postconditions: anchored to
+`S-ADR058-OCSF-ROUTING-001 AC-009 RG-016 T-11I` and `S-ADR058-OCSF-ROUTING-001 AC-009
+RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 ---
 
@@ -1997,6 +1906,7 @@ VERDICT: N/A — no new mandates.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.21 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-20 fix-burst: (1) F-P20-MED-002 [MED, TDD gate coherence]: tracing-test dependency-aware provisioning — §Library & Framework Requirements tracing-test row updated from unconditional "NOT yet present; implementer MUST add" to "provided by S-ADR058-OCSF-COERCION-001 (upstream provider, merges first); VERIFY present, add ONLY if absent — do not create duplicate key"; §File Structure Requirements prism-bin/Cargo.toml row updated from "Modify: add tracing-test" to "Verify/Modify: confirm present (added by COERCION-001 for RG-009); add ONLY if absent"; §Library prose updated accordingly. (2) F-P20-LOW-001a [LOW, records-tier]: §TD-VSDD-097 Amendment Sweep subsections reordered to strict descending order (v1.21→v1.20→…→v1.1); prior non-monotonic order (v1.3,v1.2,v1.1,v1.5..v1.12,v1.18..v1.13,v1.20,v1.19) corrected. (3) F-P20-OBS-001 [OBS, SAP-3 reachability]: SAP-3 defense-in-depth rationale added to RG-013 — `set_nested_field` exercises Path B (`normalize_with_mappers`), zero production callers per ADR-058 §K5; defense-in-depth per SAP-3 rule 3; live Path A guarantee covered by RG-016. (4) F-P20-OBS-002 [OBS, records-tier]: RG-006 RED-reason corrected to compile-time failure (SensorSpec lacks ocsf_column_naming field, E0063); T-12 green-driver updated "Makes RG-001 and RG-002 green" → "Makes RG-001, RG-002, and RG-006 green"; T-14 green-driver updated "Makes RG-005 and RG-006 green" → "Makes RG-005 green. (RG-006 already greened at T-12.)". Sibling sweep: COERCION-001 amended in same burst (v1.19→v1.20 — F-P20-LOW-001b false-sibling-sentence fix + F-P20-LOW-002 Token Budget BC-2.02.011 row). §v1.21 Amendment Sweep added. |
 | 1.20 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-19 fix-burst: (1) F-P19-MED-001 [MED, TDD gate coherence]: prism-bin `tracing-test` provisioning added — §Library & Framework Requirements gained a `tracing-test = "0.2"` row scoped to `prism-bin/Cargo.toml` `[dev-dependencies]` (required for RG-018 `tracing_test` subscriber in `prism-bin/tests/`; NOT yet present in prism-bin, mirrors `prism-spec-engine/Cargo.toml` existing dev-dep); "No new crate additions are anticipated" note replaced with accurate statement that one dev-dependency addition IS required; §File Structure Requirements added `crates/prism-bin/Cargo.toml` row (Modify: add `tracing-test = "0.2"` to `[dev-dependencies]`). Sibling sweep: COERCION-001 amended in same burst (v1.18→v1.19) — gains same prism-bin/Cargo.toml row plus T-12 filter fix (F-P19-LOW-001). §v1.20 Amendment Sweep added. |
 | 1.19 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-18 fix-burst: (1) F-P18-MED-002 [MED, POL-8 / TDD gate coherence]: §File Structure Requirements expanded — added prism-mcp row (RG-007) and prism-ocsf row (RG-011..013, RG-023); prism-bin row corrected to RG-003..006/008..010/014..022 (removed RG-007 which belongs to prism-mcp). (2) F-P18-MED-003 [MED, TDD gate coherence]: RG-013 §Red Gate Tests rewritten from non-falsifiable ColumnMapper::map_record mechanism to correct DynamicMessage/set_nested_field mechanism per T-11F — builds DynamicMessage keyed by CLASS_UID_ENTITY_MANAGEMENT (3004), calls set_nested_field("comment", "reviewed"), asserts field IS set; contrasts with account_change (3001) where same call silently no-ops (data-loss contrast assertion is load-bearing). Routed to prism-ocsf. (3) F-P18-MED-004 [MED, POL-8 / TDD gate coherence]: RG-007 pinned to prism-mcp in §File Structure; `just iter prism-mcp --no-fail-fast` added to T-GATE; `just iter prism-mcp` added to T-19. T-GATE and T-19 now enumerate all four crates with explicit per-crate RG distribution. (4) F-P18-OBS-002 [OBS, no-change]: confirmed `device_type_label` is used in current-state AC-005 / §Claroty Contracted OCSF Mappings; no edit required; historical v1.2 snapshot grandfathered. Sibling sweep: COERCION-001 amended in same burst (v1.17→v1.18). §v1.19 Amendment Sweep added. |
 | 1.18 | 2026-08-17 | story-writer | OCSF-correctness Claroty adversary SPEC pass-16 fix-burst: (1) F-P16-MED-001 [HIGH-floor, POL-7/POL-22]: BC-2.01.013 §Authority title corrected — "DataSource Trait Adapter Pattern" → "DataSource Trait Eliminates Per-Sensor Code Duplication" (authoritative H1 per BC-2.01.013 H1). (2) F-P16-OBS-001 [records-tier, POL-7]: BC-2.16.003 §Authority title expanded to full H1 verbatim ("Column-to-OCSF Mapping at Query Time" → "Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec"); BC-2.16.002 §Authority title expanded ("Multi-Step Fetch Pipeline Execution" → "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation"). (3) BC-2.16.003 pin propagated v1.9→v1.10 at both live current-state sites: §Authority entry + §Behavioral Contracts body table (PO bumped BC-2.16.003 to v1.10 with EC-016-013-025 addition in same burst; TD-VSDD-097 dim-2 swept). (4) input-hash updated 30215ef→e1c7cd2 (BC-2.16.003 input bumped by PO). Sibling sweep: COERCION-001 amended in same burst (v1.15→v1.16). §v1.18 Amendment Sweep added. |
