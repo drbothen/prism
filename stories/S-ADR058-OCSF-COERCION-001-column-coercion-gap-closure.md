@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.5"
+version: "1.6"
 level: "L4"
 status: draft
 producer: story-writer
@@ -16,17 +16,22 @@ tdd_mode: strict
 target_module: prism-spec-engine
 subsystems:
   - SS-01
+  - SS-10
   - SS-16
 # Subsystem anchor justifications (ARCH-INDEX Subsystem Registry):
-#   SS-01 (Sensor Adapters) owns this story's scope because `prism-bin::spec_driven_adapter`
-#     (`build_column_array` ColumnType::String arm fix and `column_coercion_failure` warn
-#     emission) is a sensor adapter component in prism-bin, which is listed under SS-01 per
-#     ARCH-INDEX. `prism-spec-engine` is also listed under SS-01 as the primary sensor
-#     spec parsing and column mapping crate.
-#   SS-16 (Spec Engine) owns this story's scope because `prism-spec-engine::column_mapping`
-#     (`ColumnMapper::coerce_value`, `ColumnMapper::map_record`) is the primary implementation
-#     site and SS-16 is the canonical owner of prism-spec-engine per ARCH-INDEX Subsystem
-#     Registry. BC-2.16.003 (the governing behavioral contract) is also assigned to SS-16.
+#   SS-01 (Sensor Adapters) owns this story's scope because `prism-spec-engine` is listed
+#     under SS-01 per ARCH-INDEX (SS-01 row: "prism-sensors, prism-spec-engine, prism-dtu-*").
+#     `prism-spec-engine::column_mapping` (`ColumnMapper::coerce_value`, `ColumnMapper::map_record`)
+#     is the implementation site for EC-016-013-007/008/009 coercion fixes. NOTE: `prism-bin`
+#     is NOT listed under SS-01 — see SS-10 below.
+#   SS-10 (MCP Interface) owns this story's scope because `prism-bin` is listed under SS-10
+#     per ARCH-INDEX (SS-10 row: "prism-mcp, prism-bin (planned — S-WAVE5-PREP-01)").
+#     `prism-bin::spec_driven_adapter` (`build_column_array` ColumnType::String arm fix +
+#     `column_coercion_failure` warn emission) is in prism-bin. SS-22 (Process Lifecycle)
+#     is excluded: its scope is ADR-022 §B boot orchestration only, not sensor data processing.
+#   SS-16 (Spec Engine) owns this story's scope because SS-16 is the canonical owner of
+#     prism-spec-engine per ARCH-INDEX (SS-16 row: "prism-spec-engine"). BC-2.16.003 (the
+#     governing behavioral contract) is also assigned to SS-16.
 crates_touched:
   - prism-spec-engine
   - prism-bin
@@ -85,7 +90,7 @@ tags:
 ## Authority
 
 **BC-2.16.003: Column-to-OCSF Mapping at Query Time.** Version `1.7`, status: draft
-(modified 2026-08-17). Primary behavioral authority. The §Type Coercion Algorithm, §Full
+(modified 2026-08-16). Primary behavioral authority. The §Type Coercion Algorithm, §Full
 Coercion Matrix, EC-016-013-007/008/009 KNOWN GAP annotations, and §Coercion Warning
 Observability DEFECT section are the acceptance-criteria source for this story. Note: BC-2.16.003
 §Interpretation A (Arrow field naming) and §Claroty Contracted OCSF Mappings are Stage 2
@@ -93,7 +98,7 @@ territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
 **ADR-058 v2.7: v1 Column Naming — OCSF Field-Path Routing.** Version `2.7`, status:
-accepted (2026-08-17). §H (Stage 1 Scope) enumerates the three deliverables this story
+accepted (2026-08-16). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
 Note: ADR-058 §K (OCSF schema validation), §I5 (code obligations), and process-gap
@@ -599,10 +604,39 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 ---
 
+### v1.6 Amendment Sweep (F1 subsystem correction + F3 date correction)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (sibling story, same epic): subsystem cross-checked against
+ARCH-INDEX ground truth per coordinator instruction. ROUTING-001 sets SS-01/SS-02/SS-10/SS-16
+with prism-bin attributed to SS-10 (ARCH-INDEX SS-10 row: "prism-mcp, prism-bin (planned
+— S-WAVE5-PREP-01)"). Confirmed correct per ARCH-INDEX. No changes required to ROUTING-001
+subsystem section. VERDICT: SWEPT; CORRECT.
+
+F3 date corrections apply only to COERCION-001 (dates I introduced in the v1.5 amendment
+sweep). ROUTING-001 §Authority already cites "2026-08-16" correctly. VERDICT: ROUTING-001
+UNAFFECTED.
+
+**Dimension 2 — Downstream copy target:**
+
+The COERCION-001 subsystem justification is authoring-only prose in frontmatter comments.
+No downstream artifact copies these comments. The corrected SS-10 attribution for prism-bin
+confirms the ARCH-INDEX assignment; no propagation to BC or ADR files is required (those
+are read-only per coordinator constraint). VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The subsystem correction and date correction
+are authoring-accuracy fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.6 | 2026-08-17 | story-writer | Adversary pass-3 fix-burst: (1) F1 subsystem mis-anchoring corrected: `prism-bin` removed from SS-01 justification (fabricated per POL-5 — ARCH-INDEX SS-01 lists `prism-sensors, prism-spec-engine, prism-dtu-*`; NOT prism-bin); SS-10 added to frontmatter and justified as owner of prism-bin (ARCH-INDEX SS-10 row: "prism-mcp, prism-bin (planned — S-WAVE5-PREP-01)"); SS-22 excluded (boot orchestration only, not data-processing scope). SS-01 justification now cites only prism-spec-engine with ARCH-INDEX SS-01 row verbatim excerpt. (2) F3 §Authority date corrections: BC-2.16.003 `modified 2026-08-17` → `2026-08-16`; ADR-058 `accepted (2026-08-17)` → `(2026-08-16)` (cite on-disk frontmatter dates per POL-37). (3) §v1.6 Amendment Sweep added. |
 | 1.5 | 2026-08-17 | story-writer | Adversary pass-2 fix-burst: (1) F2 BC-2.16.003 pin v1.5→v1.7; ADR-058 pin v2.6→v2.7; narrative version labels stripped per POL-39 (section-anchor-only cites in §Authority BC-2.16.003 note and ADR-058 process-gap phrase). (2) F5 BC-2.16.002 added to `behavioral_contracts:` frontmatter; BC-2.16.002 v2.27 body BC table row added; BC-2.16.002 v2.27 §Authority entry added (POL-8 full propagation). Token Budget already carried BC-2.16.002 ~2k row from v1.3; no token budget change needed. (3) F6 §Catalog Row Obligation stale version prose replaced with section-anchor cite per POL-39 (removed `currently v1.62 with 90 events becomes v1.63 with 91 events`). (4) §v1.5 Amendment Sweep added. |
 | 1.4 | 2026-08-16 | story-writer | Adversary pass-1 fix-burst: (1) Subsystems [SS-07, SS-16] → [SS-01, SS-16]; removed fabricated SS-07 citation ("Spec Engine" — SS-07 is Adapter Pagination & Response Cache per ARCH-INDEX); correct citations per ARCH-INDEX: SS-01 (Sensor Adapters, owns prism-bin/spec_driven_adapter.rs + prism-spec-engine), SS-16 (Spec Engine, owns prism-spec-engine/column_mapping.rs). (2) §Authority ADR-058 pin v2.5→v2.6 with note that §I5 v2.6 process-gap obligation and §K (class_selector.rs obligations) are Stage 2 scope only; Stage 1 §H scope unchanged. |
 | 1.3 | 2026-08-16 | story-writer | ADR-058 §K pin sweep: §Authority pin v2.4→v2.5; narrative prose v2.4 version label removed per POL-39 (section-anchor-only cites). |

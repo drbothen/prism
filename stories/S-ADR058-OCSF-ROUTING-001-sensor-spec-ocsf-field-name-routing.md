@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.6"
+version: "1.7"
 level: "L4"
 status: draft
 producer: story-writer
@@ -860,7 +860,7 @@ tracing::warn!(
     event_type = "ocsf.unknown_class_name",
     ocsf_class = %table.ocsf_class,
     sensor_id = %sensor_id,
-    table_name = %table.name,
+    table_name = %table.table_name,
     "sensor TOML declares unrecognised ocsf_class; class_uid defaulted to 0 (BASE_EVENT)"
 );
 ```
@@ -1173,7 +1173,7 @@ implementer MUST load only the files listed, not the full architecture directory
 - T-24: In `spec_driven_adapter.rs::pipeline_result_to_record_batch`, replace the existing
   `.unwrap_or(0)` call on `EventClassSelector::select_by_class_name` with a match that
   emits `tracing::warn!(event_type = "ocsf.unknown_class_name", ocsf_class = %table.ocsf_class,
-  sensor_id = %sensor_id, table_name = %table.name, "sensor TOML declares unrecognised
+  sensor_id = %sensor_id, table_name = %table.table_name, "sensor TOML declares unrecognised
   ocsf_class; class_uid defaulted to 0 (BASE_EVENT)")` on the `Err` branch before returning 0
   (per AC-011, ADR-058 §I5 process-gap obligation). The `.unwrap_or(0)` graceful fallback
   is retained — only the observability WARN is added. Run `just iter prism-bin`. Makes RG-018
@@ -1511,10 +1511,46 @@ No unanchored MUSTs introduced by this amendment. VERDICT: DISCHARGED IN THIS AM
 
 ---
 
+### v1.7 Amendment Sweep (F2 compile-error fix + F1 subsystem cross-check)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (sibling story, same epic): swept for any `table.name`
+field references in code snippets. COERCION-001 has no tracing emission snippet for
+`ocsf.unknown_class_name` (that obligation belongs to Stage 2 only). Zero `table.name`
+occurrences found in COERCION-001. VERDICT: SWEPT; CLEAR.
+
+COERCION-001 subsystem mis-anchoring (F1) is addressed in the same burst (v1.5→v1.6):
+`prism-bin` moved from SS-01 to SS-10; SS-10 added to subsystems frontmatter. VERDICT:
+COERCION-001 AMENDED IN SAME BURST.
+
+*RG-018 test name*: `test_pipeline_result_to_record_batch_unknown_ocsf_class_emits_warn` —
+uses `tracing_test` subscriber asserting `event_type = "ocsf.unknown_class_name"`.
+The `%table.table_name` field correction propagates to the test assertion (the test
+validates the field schema, including `table_name`). The test-writer will use the corrected
+field name from AC-011 when authoring RG-018. VERDICT: CAPTURED IN AC-011 (corrected).
+
+**Dimension 2 — Downstream copy target:**
+
+The AC-011 emission snippet is the source from which T-24 (implementer task) and the
+BC-2.16.002 catalog row 94 field schema derive their `table_name` field. The BC-2.16.002
+catalog row 94 already correctly lists `table_name` as a field (product-owner authored it
+against the real `TableSpec` struct, not against this story's stale snippet). Only this
+story's AC-011 and T-24 snippets carried the stale `%table.name` — both corrected in
+this amendment. No downstream copy of the stale snippet exists. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The corrected `%table.table_name` field cite
+is a compile-correctness fix, not a new obligation. VERDICT: N/A — no new mandates.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.7 | 2026-08-17 | story-writer | Adversary pass-3 fix-burst: (1) F2 compile-error-class fix — AC-011 and T-24 emission snippet `%table.name` → `%table.table_name` (`TableSpec` has no `name` field; correct field is `table_name` per `prism-spec-engine::spec_parser`; sibling sweep confirmed no other stale `table.name` references in COERCION-001). (2) F1 ROUTING-001 subsystem cross-check against ARCH-INDEX — SS-01/02/10/16 confirmed correct; justification prose already correct (prism-bin attributed to SS-10; prism-sensors+prism-spec-engine to SS-01; prism-ocsf to SS-02; prism-spec-engine to SS-16). (3) §v1.7 Amendment Sweep added. |
 | 1.6 | 2026-08-16 | story-writer | Adversary pass-2 fix-burst: (1) F2 pin sweep — ADR-058 §Authority pin v2.6→v2.7; BC-2.16.003 §Authority pin v1.6→v1.7; body BC table v1.6→v1.7; narrative version labels stripped per POL-39 (section-anchor-only cites in RG-013/014/015, AC-005, AC-009, AC-010, AC-011, EC-003, T-11I/T-11J/T-24). (2) F3 wire-shape coverage added: RG-019 `test_claroty_audit_logs_record_batch_kf11_category_in_raw_extensions` (KF-11 audit_logs category→raw_extensions + entity_management field mappings); RG-020 `test_claroty_device_alert_relations_record_batch_finding_info_uid_wire_shape` (KF-07 device_alert_relations alert_id→finding_info_uid). AC-010 updated with RG-019/020 assertions; T-11L/T-11M added. Density 18/11=1.64→20/11=1.82. RG section header 15→20. T-19/T-GATE updated. (3) F4 SS-01 justification imprecision: removed `prism-bin::spec_driven_adapter` from SS-01 prose; moved to SS-10 prose (prism-bin is SS-10 per ARCH-INDEX; SS-01 justified by prism-sensors + prism-spec-engine only). (4) §v1.6 Amendment Sweep added. |
 | 1.5 | 2026-08-16 | story-writer | ADR-058 v2.6 + BC-2.16.003 v1.6 + BC-2.16.002 v2.27 propagation (adversary pass-1 fix-burst). (1) Subsystems: [SS-07, SS-12, SS-16] → [SS-01, SS-02, SS-10, SS-16]; removed fabricated SS-07 ("Spec Engine" — SS-07 is Adapter Pagination & Response Cache per ARCH-INDEX) and SS-12 ("Sensor Adapters / DTU" — SS-12 is Scheduler per ARCH-INDEX); added SS-02 (OCSF Normalization, owns prism-ocsf/class_selector.rs) and SS-10 (MCP Interface, owns prism-mcp/prism_describe.rs); rewrote justification comments with correct ARCH-INDEX registry citations. (2) AC-009 REWORKED: 3 code changes → 4 sub-obligations per ADR-058 §I5: (a) const; (b) TWO new select_by_class_name arms: entity_management→3004 AND inventory_info→5001 (prevents devices regression 5001→0); (c) BOTH select() audit_log arms (claroty+armis) ACCOUNT_CHANGE→ENTITY_MANAGEMENT forward-compat; (d) deprecate-annotate "audit_activity" dead arm; plus in-file doc table update obligation. (3) RG-011 REWORKED: was assert select_by_class_name("audit_activity")==Ok(3004) — now asserts select_by_class_name("entity_management")==Ok(3004) AND select_by_class_name("inventory_info")==Ok(5001); "audit_activity" is dead code post-KF-01 TOML fix; test name updated accordingly. (4) RG-016 ADDED: wire-shape integration test — audit_logs RecordBatch class_uid Int32 == 3004 (NOT 3001, NOT 0); traces to BC-2.16.003 v1.6 EC-016-013-023. (5) RG-017 ADDED: regression-prevention wire-shape — devices RecordBatch class_uid == 5001 (NOT 0); traces to BC-2.16.003 v1.6 EC-016-013-024. (6) AC-011 ADDED: process-gap warn obligation — ocsf.unknown_class_name WARN on Err branch before .unwrap_or(0); traces to BC-2.16.002 v2.27 catalog row 94. (7) RG-018 ADDED: tracing_test assertion for ocsf.unknown_class_name event. (8) T-22/T-23 REWORKED to 4 sub-obligations; T-24 ADDED for warn emission. (9) T-11I/T-11J/T-11K ADDED for RG-016/017/018 authoring. (10) Density: 15/10=1.5 → 18/11=1.64. (11) BC-2.16.002 v2.27 added to behavioral_contracts frontmatter (POL-8: body BC table row, §Authority entry, Token Budget count). (12) ADR-058 v2.5→v2.6, BC-2.16.003 v1.5→v1.6. (13) TD-VSDD-097 v1.5 sweep added. |
 | 1.4 | 2026-08-16 | story-writer | Consistency-validator fix-burst: MED-001 + LOW-001 + ADR-058 §K pin sweep. (1) AC-006: corrected stale pre-KF-03 examples: name=`"finding_uid"`→`"finding_info_uid"`, description=`"finding.uid"`→`"finding_info.uid"`, LLM agent example `name: "finding_uid"`→`name: "finding_info_uid"`. (2) Frontmatter risk comment: `SELECT finding_uid`→`SELECT finding_info_uid`. (3) §Authority ADR-058 pin: v2.4→v2.5. (4) Narrative prose ADR-058 v2.4 references converted to section-anchor form (ADR-058 §K4, §K5, §I5 — no version per POL-39). (5) TD-VSDD-097 v1.3 sweep section + v1.3 changelog row: v2.4 version label removed from record prose per TD-VSDD-091. |
