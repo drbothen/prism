@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.22"
+version: "1.23"
 level: "L4"
 status: draft
 producer: story-writer
@@ -85,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "e1c7cd2"
+input-hash: "136c453"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -104,8 +104,8 @@ tags:
 
 ## Authority
 
-**ADR-058 v2.13: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
-Names; DTU Migration Deferred.** Version `2.13`, status: accepted (2026-08-17). Read
+**ADR-058 v2.14: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
+Names; DTU Migration Deferred.** Version `2.14`, status: accepted (2026-08-17). Read
 §B2 (decision), §C (quoting convention — Option 4 chosen), §D (per-sensor scoping, flag
 mechanism), §E (blast radius), §G (prism_describe output spec), §H (Stage 1 confirmed
 separate), §I (implementation guidance including **§I5 TOML + code correction obligations for
@@ -1170,7 +1170,7 @@ implementer MUST load only the files listed, not the full architecture directory
   `just iter prism-mcp --no-fail-fast`, and `just iter prism-ocsf --no-fail-fast` — confirm
   RG-001..RG-023 fail with correct compile/test-failure reasons (RG-001..002 in
   prism-spec-engine; RG-003..006/008..010/014..022 in prism-bin; RG-007 in prism-mcp;
-  RG-011..013/023 in prism-ocsf). Confirm no regressions in non-RG tests. Report density:
+  RG-011/012/023 in prism-ocsf/tests/; RG-013 in prism-ocsf/src/mappers/spec_driven.rs mod tests). Confirm no regressions in non-RG tests. Report density:
   23/11 = 2.09 ≥ 0.5. STOP and wait for implementer dispatch.
 
 ### Phase B: Implementation (implementer dispatched AFTER T-GATE)
@@ -1214,9 +1214,11 @@ implementer MUST load only the files listed, not the full architecture directory
   (12) KF-11: `audit_logs.category.ocsf_field` removed;
   (13) KF-12: `alerts.updated_time.ocsf_field` = `"finding_info.modified_time"`;
   (14) §J3: `devices.device_category.ocsf_field` = `"device.type_category"`.
-  Run `just iter prism-spec-engine` to confirm TOML parses correctly. Makes RG-014,
+  Run `just iter prism-spec-engine` to confirm TOML parses correctly; then run `just iter prism-bin`
+  to confirm the six wire-shape RGs green. Makes RG-014,
   RG-015, RG-019, RG-020, RG-021, RG-022 green (KF-03/04/05/06/07/08/09/10/11/12
-  wire-shape assertions now pass with corrected TOML). Note: RG-009 and RG-010 are
+  wire-shape assertions now pass with corrected TOML — all six reside in prism-bin; `just iter prism-spec-engine`
+  alone cannot observe them). Note: RG-009 and RG-010 are
   code-level collision-detection unit tests that build inline synthetic SensorSpecs and
   do NOT depend on claroty.sensor.toml — they are greened by T-21.
 - T-18: Update `test_BC_2_11_005_e2e_claroty_query_returns_data` to use `row.get("device_uid")`
@@ -1250,7 +1252,7 @@ implementer MUST load only the files listed, not the full architecture directory
 
   This combined pass is a fail-closed gate per ADR-058 §J2. Arrow 58 does NOT detect
   either class of collision; without this check, a shadow collision produces silent
-  wrong-column resolution for every query in that flag state. Makes RG-009 and RG-010
+  wrong-column resolution for every query in that flag state. Run `just iter prism-bin`. Makes RG-009 and RG-010
   green.
 - T-22: In `class_selector.rs` (`prism-ocsf`) — all in the SAME atomic commit (sub-obligations
   (a)+(b) from AC-009 — Path A live production resolver):
@@ -1262,10 +1264,10 @@ implementer MUST load only the files listed, not the full architecture directory
   (c) Update the in-file module doc mapping tables (around the table documenting
   class name→class_uid mappings — was: audit_activity→3001, device→5001) to document the
   corrected/added entries: entity_management→3004, inventory_info→5001, audit_activity→
-  DEPRECATED. Both doc tables (typically the module-level doc and any inline summary table
-  in the impl block) MUST be updated — stale doc tables are an F-P1-MED-001 class finding.
-  Run `just iter prism-ocsf`. Makes RG-011 and RG-013 green. Also makes RG-016 and
-  RG-017 green (the wire-shape integration tests depend on these arms existing).
+  DEPRECATED. All three doc tables (the first module-level doc table, the second module-level doc table if present,
+  and the inline `select_by_class_name` doc table) MUST be updated — stale doc tables are an F-P1-MED-001 class finding.
+  Run `just iter prism-ocsf`. Makes RG-011 and RG-013 green. Then run `just iter prism-bin`. Also makes RG-016 and
+  RG-017 green (the wire-shape integration tests in prism-bin depend on these arms existing; `just iter prism-ocsf` alone cannot observe them).
 - T-23: In `class_selector.rs` — all in the SAME atomic commit as T-22 (sub-obligations
   (c)+(d) from AC-009 — Path B forward-compat + dead-code annotation):
   (c-1) Change `("claroty", "audit_log")` arm in `select()` from
@@ -1288,8 +1290,8 @@ implementer MUST load only the files listed, not the full architecture directory
   green.
 - T-19: Run `just iter prism-spec-engine`, `just iter prism-bin`, `just iter prism-mcp`, and
   `just iter prism-ocsf` — all 23 RGTs must pass (RG-001..002 in prism-spec-engine;
-  RG-003..006/008..010/014..022 in prism-bin; RG-007 in prism-mcp; RG-011..013/023 in
-  prism-ocsf).
+  RG-003..006/008..010/014..022 in prism-bin; RG-007 in prism-mcp; RG-011/012/023 in
+  prism-ocsf/tests/; RG-013 in prism-ocsf/src/mappers/spec_driven.rs mod tests).
 - T-20: Run `just check` — full workspace gate. Must stay GREEN per ADR-058 §E1
   blast-radius analysis. If any non-Claroty tests fail, STOP — do not push.
 
@@ -1404,10 +1406,11 @@ Do NOT add new `reqwest` dependencies. Do NOT add `native-tls` features.
 | `crates/prism-spec-engine/tests/` (new or existing test file) | Modify: add RG-001..RG-002 |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: add RG-003..RG-006, RG-008..RG-010, RG-014..RG-022 to `#[cfg(test)] mod tests` block (direct calls to private `ocsf_field_to_arrow_name` and `pipeline_result_to_record_batch` — no public API surface expansion) |
 | `crates/prism-mcp/tests/` (test file — TBD at dispatch) | Modify: add RG-007 |
-| `crates/prism-ocsf/tests/` (new or existing test file) | Modify: add RG-011..RG-013, RG-023 |
+| `crates/prism-ocsf/tests/` (new or existing test file) | Modify: add RG-011, RG-012, RG-023 |
+| `crates/prism-ocsf/src/mappers/spec_driven.rs` (`#[cfg(test)] mod tests` block) | Modify: add RG-013 (calls private `set_nested_field` — unreachable from `tests/` crate; E0603 if placed in integration test) |
 | `crates/prism-bin/Cargo.toml` | Verify/Modify: confirm `tracing-test = "0.2"` is present in `[dev-dependencies]` (added by S-ADR058-OCSF-COERCION-001 for RG-009); add ONLY if absent — do not duplicate | Required for RG-018 `tracing_test` subscriber in `prism-bin/tests/`; COERCION-001 is the upstream provider (depends_on ordering) |
 
-Implementer MUST add private-fn RGs (RG-003..006/008..010/014..022) to the `#[cfg(test)] mod tests` block in `crates/prism-bin/src/spec_driven_adapter.rs` — do NOT place them in `crates/prism-bin/tests/` (separate crate; cannot reach private fns). For the e2e test update (AC-008), verify file names via `find crates/prism-bin/tests -name "*.rs"` at dispatch.
+Implementer MUST add private-fn RGs (RG-003..006/008..010/014..022) to the `#[cfg(test)] mod tests` block in `crates/prism-bin/src/spec_driven_adapter.rs` — do NOT place them in `crates/prism-bin/tests/` (separate crate; cannot reach private fns). Similarly, RG-013 calls `set_nested_field`, a private free function in `crates/prism-ocsf/src/mappers/spec_driven.rs`; route RG-013 to the `#[cfg(test)] mod tests` block of that file, NOT to `crates/prism-ocsf/tests/` (E0603 if placed in the integration test crate). For the e2e test update (AC-008), verify file names via `find crates/prism-bin/tests -name "*.rs"` at dispatch.
 
 Do NOT modify: any other sensor TOML spec (CrowdStrike, Armis, Cyberint); `column_mapping.rs`; any BC or ADR body (product-owner / architect scope). Note: `class_selector.rs` is in scope for this story (AC-009 code obligation).
 
@@ -1426,6 +1429,22 @@ Build-time enforcement rules:
 ---
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
+
+### v1.23 Amendment Sweep (F-P22-MED-001 RG-013 prism-ocsf routing + F-P22-MED-002 T-17/T-22 verify-command crate-coverage + F-P22-OBS-2 T-21 verify command + F-P22-OBS-3 T-22(c) doc-table count + ADR-058 pin sweep — OCSF-correctness Claroty SPEC pass-22 fix-burst)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): F-P22-MED-001 is ROUTING-001 scope only — COERCION-001 has no prism-ocsf private-fn routing concern (no `set_nested_field` call in Stage 1). F-P22-MED-002, F-P22-OBS-2, F-P22-OBS-3 are ROUTING-001 scope only — COERCION-001 has no TOML-driven wire-shape RGs, no class_uid wire-shape RGs, and no T-21/T-22 collision/shadow tasks. ADR-058 §Authority pin v2.13→v2.14 swept to COERCION-001 in same burst (v1.21→v1.22). VERDICT: SWEPT; COERCION-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+§File Structure Requirements (prism-ocsf rows) and §Tasks (T-17/T-21/T-22 verify commands) are the authoritative dispatch locations for the test-writer and implementer. T-GATE and T-19 carry per-crate RG distribution summaries derived from §File Structure. All four sites updated consistently. No downstream artifact copies these rows verbatim. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. F-P22-MED-001 is a test-location correctness fix; F-P22-MED-002, F-P22-OBS-2, F-P22-OBS-3 are verify-command accuracy and authoring-accuracy corrections; ADR-058 pin is a records-tier version update. VERDICT: N/A — no new mandates.
+
+---
 
 ### v1.22 Amendment Sweep (F-P21-MED-001 prism-bin RG relocation to src mod tests + F-P21-LOW-001 T-12 attribution — OCSF-correctness Claroty SPEC pass-21 fix-burst)
 
@@ -1929,6 +1948,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.23 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-22 fix-burst: (1) F-P22-MED-001 [MED, compile-correctness]: RG-013 re-routed from `crates/prism-ocsf/tests/` to `crates/prism-ocsf/src/mappers/spec_driven.rs` `#[cfg(test)] mod tests` — `set_nested_field` is a private free fn; `tests/` crate cannot reach it (E0603); §File Structure Requirements prism-ocsf row split into two rows (RG-011/012/023 in tests/, RG-013 in src/mappers/spec_driven.rs mod tests); note below table updated; T-GATE and T-19 crate attributions updated. (2) F-P22-MED-002 [MED, TDD gate coherence]: T-17 gains `just iter prism-bin` after `just iter prism-spec-engine` — six TOML-driven wire-shape RGs (RG-014..022 subset) reside in prism-bin; `just iter prism-spec-engine` alone cannot observe them. T-22 gains `just iter prism-bin` — RG-016/017 (class_uid wire-shape) reside in prism-bin; `just iter prism-ocsf` alone cannot observe them. (3) F-P22-OBS-2 [OBS, TDD gate coherence]: T-21 gains `just iter prism-bin` verify command so RG-009/010 are observable at T-21 (not only at terminal T-19). (4) F-P22-OBS-3 [OBS, authoring-accuracy]: T-22(c) "Both doc tables" → "all three doc tables" — `class_selector.rs` carries three class-name→uid doc tables (two module-level + the inline `select_by_class_name` doc table). (5) ADR-058 §Authority pin v2.13→v2.14 (architect bump; `anchor_stories` gain S-ADR058-DTU-PARITY-MIGRATION-001 + §H enumeration fix). Sibling sweep: COERCION-001 amended in same burst (v1.21→v1.22 — ADR-058 pin sweep). §v1.23 Amendment Sweep added. |
 | 1.22 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-21 fix-burst: (1) F-P21-MED-001 [MED, compile-correctness]: §File Structure Requirements prism-bin unit-test row relocated from `crates/prism-bin/tests/ (unit test file — TBD at dispatch)` to `crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests` — `pipeline_result_to_record_batch` and `ocsf_field_to_arrow_name` are module-private fns; `tests/` crate cannot reach them (E0603). All RG-003..006/008..010/014..022 are direct private-fn calls; note below table updated accordingly. (2) F-P21-LOW-001 [LOW, gate attribution]: T-12 makes-green updated: "RG-001, RG-002, and RG-006 green" → "RG-001 and RG-002 green" (`just iter prism-spec-engine` cannot observe prism-bin RG-006); T-14 updated: "(RG-006 already greened at T-12.)" → "(RG-006 confirmed at this just iter prism-bin run — causally greened by T-12)". `just iter` gate commands unchanged per finding. Sibling sweep: COERCION-001 amended in same burst (v1.20→v1.21 — F-P21-MED-001 `build_column_array` RGs relocated). §v1.22 Amendment Sweep added. |
 | 1.21 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-20 fix-burst: (1) F-P20-MED-002 [MED, TDD gate coherence]: tracing-test dependency-aware provisioning — §Library & Framework Requirements tracing-test row updated from unconditional "NOT yet present; implementer MUST add" to "provided by S-ADR058-OCSF-COERCION-001 (upstream provider, merges first); VERIFY present, add ONLY if absent — do not create duplicate key"; §File Structure Requirements prism-bin/Cargo.toml row updated from "Modify: add tracing-test" to "Verify/Modify: confirm present (added by COERCION-001 for RG-009); add ONLY if absent"; §Library prose updated accordingly. (2) F-P20-LOW-001a [LOW, records-tier]: §TD-VSDD-097 Amendment Sweep subsections reordered to strict descending order (v1.21→v1.20→…→v1.1); prior non-monotonic order (v1.3,v1.2,v1.1,v1.5..v1.12,v1.18..v1.13,v1.20,v1.19) corrected. (3) F-P20-OBS-001 [OBS, SAP-3 reachability]: SAP-3 defense-in-depth rationale added to RG-013 — `set_nested_field` exercises Path B (`normalize_with_mappers`), zero production callers per ADR-058 §K5; defense-in-depth per SAP-3 rule 3; live Path A guarantee covered by RG-016. (4) F-P20-OBS-002 [OBS, records-tier]: RG-006 RED-reason corrected to compile-time failure (SensorSpec lacks ocsf_column_naming field, E0063); T-12 green-driver updated "Makes RG-001 and RG-002 green" → "Makes RG-001, RG-002, and RG-006 green"; T-14 green-driver updated "Makes RG-005 and RG-006 green" → "Makes RG-005 green. (RG-006 already greened at T-12.)". Sibling sweep: COERCION-001 amended in same burst (v1.19→v1.20 — F-P20-LOW-001b false-sibling-sentence fix + F-P20-LOW-002 Token Budget BC-2.02.011 row). §v1.21 Amendment Sweep added. |
 | 1.20 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-19 fix-burst: (1) F-P19-MED-001 [MED, TDD gate coherence]: prism-bin `tracing-test` provisioning added — §Library & Framework Requirements gained a `tracing-test = "0.2"` row scoped to `prism-bin/Cargo.toml` `[dev-dependencies]` (required for RG-018 `tracing_test` subscriber in `prism-bin/tests/`; NOT yet present in prism-bin, mirrors `prism-spec-engine/Cargo.toml` existing dev-dep); "No new crate additions are anticipated" note replaced with accurate statement that one dev-dependency addition IS required; §File Structure Requirements added `crates/prism-bin/Cargo.toml` row (Modify: add `tracing-test = "0.2"` to `[dev-dependencies]`). Sibling sweep: COERCION-001 amended in same burst (v1.18→v1.19) — gains same prism-bin/Cargo.toml row plus T-12 filter fix (F-P19-LOW-001). §v1.20 Amendment Sweep added. |

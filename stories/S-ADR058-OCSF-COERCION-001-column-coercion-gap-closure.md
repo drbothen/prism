@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.21"
+version: "1.22"
 level: "L4"
 status: draft
 producer: story-writer
@@ -70,7 +70,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "7fde363"
+input-hash: "9673c9a"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -98,7 +98,7 @@ Observability DEFECT section are the acceptance-criteria source for this story. 
 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.13: v1 Column Naming — OCSF Field-Path Routing.** Version `2.13`, status:
+**ADR-058 v2.14: v1 Column Naming — OCSF Field-Path Routing.** Version `2.14`, status:
 accepted (2026-08-17). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
@@ -635,6 +635,22 @@ action pending.
 
 ---
 
+### v1.22 Amendment Sweep (ADR-058 pin sweep v2.13→v2.14 — sibling coordination with ROUTING-001 pass-22)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): F-P22-MED-001/002, F-P22-OBS-2/3 are ROUTING-001 scope only — prism-ocsf private-fn routing, TOML-driven wire-shape RG verify commands, and T-22(c) doc-table count are not present in COERCION-001. ADR-058 §Authority pin v2.13→v2.14 swept to both stories in same burst. VERDICT: SWEPT; ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+ADR-058 §Authority entry is the sole live ADR pin site in this story. Updated v2.13→v2.14. No downstream artifact copies this entry verbatim. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. This is a records-tier ADR pin update. VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.21 Amendment Sweep (F-P21-MED-001 prism-bin RG relocation to src mod tests — OCSF-correctness Claroty SPEC pass-21 fix-burst)
 
 **Dimension 1 — Sibling pair:**
@@ -1053,6 +1069,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.22 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-22 fix-burst: ADR-058 §Authority pin v2.13→v2.14 (architect bump; `anchor_stories` gain S-ADR058-DTU-PARITY-MIGRATION-001 + §H enumeration fix). Sibling coordination with ROUTING-001 pass-22 fix-burst (v1.22→v1.23 — F-P22-MED-001/002/OBS-2/3; COERCION-001 has no equivalent ROUTING findings). §v1.22 Amendment Sweep added. |
 | 1.21 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-21 fix-burst: F-P21-MED-001 [MED, compile-correctness]: §Architecture Mapping Path A row relabeled from "Integration test file / `crates/prism-bin/tests/` (file TBD)" to "Unit test block / `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests`"; §T-GATE "appropriate prism-bin test file" → explicit src mod tests block; §File Structure Requirements `crates/prism-bin/tests/` row → `src/spec_driven_adapter.rs` row (direct calls to private `build_column_array` — Architecture Compliance Rule 2). Sibling sweep: ROUTING-001 amended in same burst (v1.21→v1.22 — F-P21-MED-001 `pipeline_result_to_record_batch` RGs relocated + F-P21-LOW-001 T-12/T-14 attribution). §v1.21 Amendment Sweep added. |
 | 1.20 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-20 fix-burst: (1) F-P20-LOW-001b [LOW, records-tier]: §v1.18 Amendment Sweep §Dimension 1 false sentence corrected — prior text stated "ROUTING-001 amendment sweeps are already in consistent descending order within their own file"; corrected to "ROUTING-001 amendment sweep ordering was corrected in ROUTING-001 v1.21 (pass-20, F-P20-LOW-001a)". (2) F-P20-LOW-002 [LOW, POL-8 count parity]: BC-2.02.011 row added to §Token Budget Estimate (~1k); Total updated ~21k → ~22k. BC-2.02.011 was present in frontmatter `behavioral_contracts`, §Authority, and §Behavioral Contracts body table but absent from Token Budget — POL-8 count-parity violation. Sibling sweep: ROUTING-001 amended in same burst (v1.20→v1.21). §v1.20 Amendment Sweep added. |
 | 1.19 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-19 fix-burst: (1) F-P19-MED-001 [MED, TDD gate coherence]: prism-bin provisioning added — §Architecture Mapping Constraints item 3 expanded to name BOTH `prism-spec-engine/Cargo.toml` (for RG-005, already present as `tracing-test = "0.2"`) and `prism-bin/Cargo.toml` (for RG-009, must be added) as permitted `tracing-test = "0.2"` `[dev-dependencies]` sites; §Library & Framework Requirements split tracing-test row into two rows (one per crate, with explicit presence/absence status); §File Structure Requirements added `crates/prism-bin/Cargo.toml` row (Modify: add `tracing-test = "0.2"` to `[dev-dependencies]`); "Do NOT modify" note updated to confirm `prism-spec-engine/Cargo.toml` needs no change. (2) F-P19-LOW-001 [LOW, TDD gate accuracy]: T-12 nextest filter `'test(rg_001)'` replaced with `just iter prism-spec-engine` — the old filter was a substring match that matched zero test names (RG-001/RG-002 test names contain `coerce_value`, not `rg_001`) and exited 0 vacuously, constituting a false-green gate. Sibling sweep: ROUTING-001 amended in same burst (v1.19→v1.20). §v1.19 Amendment Sweep added. |

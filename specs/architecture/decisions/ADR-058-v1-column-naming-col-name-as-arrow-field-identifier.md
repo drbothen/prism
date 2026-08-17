@@ -5,7 +5,7 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-08-17"
-version: "2.13"
+version: "2.14"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -14,6 +14,7 @@ amends: null
 anchor_stories:
   - S-ADR058-OCSF-COERCION-001
   - S-ADR058-OCSF-ROUTING-001
+  - S-ADR058-DTU-PARITY-MIGRATION-001
   - S-OCSF-FIDELITY-CROWDSTRIKE-001
   - S-OCSF-FIDELITY-CYBERINT-001
   - S-OCSF-FIDELITY-ARMIS-001
@@ -34,7 +35,7 @@ inputs:
   - crates/prism-ocsf/src/mappers/spec_driven.rs
   - crates/prism-ocsf/src/class_selector.rs
   - crates/prism-ocsf/ocsf-schema/1.7.0/schema.json
-input-hash: "164078d"
+input-hash: "abcba2e"
 ---
 
 # ADR-058: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred
@@ -398,10 +399,11 @@ live-API work regardless of the Interpretation A decision. Stage 1 does not requ
 
 Stage 1 deliverables:
 
-1. **Fix EC-016-013-008 (String column + Object input):** The `ColumnType::String` arm in
+1. **Fix EC-016-013-007/008 (String column + Array or Object input):** The `ColumnType::String` arm in
    `build_column_array` must return `None` (null cell) and emit `tracing::warn!(event_type =
-   "column_coercion_failure", ...)` for `Value::Object` inputs. The current wildcard fallback
-   (`other => other.to_string()`) produces a JSON string from the object, which is wrong.
+   "column_coercion_failure", ...)` for both `Value::Array` and `Value::Object` inputs. The current
+   wildcard fallback (`other => other.to_string()`) produces a JSON string from either input kind,
+   which is wrong.
 
 2. **Fix EC-016-013-009 (Integer column + String input on non-numeric OCSF path):**
    `build_column_array`'s `ColumnType::Integer` arm currently returns `None` for String inputs
@@ -972,7 +974,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.13 (2026-08-17)
+### Status as of v2.14 (2026-08-17)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1047,6 +1049,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.14 | 2026-08-17 | architect | Pass-22 fix-burst. MED-003 (SAC-2): added S-ADR058-DTU-PARITY-MIGRATION-001 to anchor_stories (§Authority cites ADR-058 §B/§C/§D). OBS-1: §H item 1 now enumerates both Value::Array and Value::Object inputs for the String-arm null-cell fix (consistent with BC-2.16.003 EC-016-013-007/008 and COERCION AC-005/RG-006/RG-007). TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §H item 1 is the source; no independent copy in another artifact; (3) mandate anchor — no new MUST statements. |
 | 2.13 | 2026-08-17 | architect | Adversary pass-12 fix-burst. F1 [MED]: §Status SW discharge table `subsystems:` row corrected — Obligation cell renamed from stale `subsystems_affected` (wrong field name) to `subsystems:`; Evidence cell replaced false claim "Both stories already carry `[SS-01, SS-02, SS-10, SS-16]`" with distinct per-story sets: ROUTING carries `[SS-01, SS-02, SS-10, SS-16]`; COERCION carries `[SS-01, SS-10, SS-16]` — SS-02 correctly absent (COERCION does not touch prism-ocsf). ADVISORY [TD-VSDD-091]: §Status PO discharge table `ocsf.unknown_class_name` Evidence cell dropped positional "row 94" qualifier; replaced with section-anchor cite to "BC-2.16.002 §Canonical Structured Event Catalog". Comprehensive discharge-table accuracy audit: all four PO rows and all seven SW rows verified against on-disk ground truth — findings: (PO-1) BC-2.16.003 §Architecture Anchors — CONFIRMED; (PO-2) EC-016-013-023/024 — CONFIRMED; (PO-3) ocsf.unknown_class_name catalog row — CONFIRMED (qualifier fixed in this burst); (PO-4) SS-07/SS-12 reconciliation — CONFIRMED (`subsystem:` is single-valued SS-16); (SW-1) KF-01 code obligation RGs — CONFIRMED; (SW-2) process-gap warn RG/T — CONFIRMED; (SW-3) KF-08..KF-12 PENDING — CONFIRMED pending; (SW-4) §AC-005 mapping tables — CONFIRMED; (SW-5) §EC-003/§EC-009 — CONFIRMED; (SW-6) subsystems — F1 fixed in this burst; (SW-7) class_selector.rs doc-tables PENDING — CONFIRMED pending. §I3 sweep (pass-11 audit confirmed, no new finds). TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §Status discharge table cells are terminal; no independent copy in another artifact; (3) mandate anchor — no new MUST statements. |
 | 2.12 | 2026-08-17 | architect | Adversary pass-11 fix-burst. LOW-1: §I3 BC-2.16.003 EC-016-013-012 bullet converted from pending-framed to DISCHARGED — BC-2.16.003 §Postconditions EC-016-013-012 already reads "both queryable as `device_ip`"; discharged per BC §Changelog item I. Additional §I3 sweep: BC-2.16.003 §Story Anchor already DISCHARGED (prior pass); BC-2.01.013 EC-01-025 legitimately pending (Stage 2 not yet merged); BC-2.16.002 `column_coercion_failure` row legitimately pending (row absent from BC on-disk). Zero other stale-pending obligations found. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §I3 is the sole locus; no independent copy; (3) mandate anchor — no new MUST statements. |
 | 2.11 | 2026-08-17 | architect | Adversary pass-10 fix-burst. F1 [LOW]: §Status SW discharge table KF-01 row range corrected `(a)–(f)` → `(a)–(d)` to match §I5's four-obligation enumeration. F2 [LOW POL-39]: §Status SW discharge table §AC-005 row dropped bare `v1.5` artifact-version pin; rewritten to anchor-only form citing ROUTING AC-005 and BC-2.16.003 §Claroty Contracted OCSF Mappings. Additional POL-39 sweep of full ADR body (non-exempt zones): zero further narrative artifact-version pins found — all remaining `vX.Y` occurrences are in exempt zones (§B1/§A5 provenance cites, §Source §Authority pins, §Changelog rows, external OCSF schema version reference, §Status section heading label). TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — discharge table cells are terminal; no independent copy in another artifact; (3) mandate anchor — no new MUST statements. |
