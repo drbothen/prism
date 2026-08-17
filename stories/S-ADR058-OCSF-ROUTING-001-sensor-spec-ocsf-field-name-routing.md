@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.16"
+version: "1.17"
 level: "L4"
 status: draft
 producer: story-writer
@@ -140,7 +140,7 @@ MUST add this `tracing::warn!` emission to `pipeline_result_to_record_batch` in 
 as the `select_by_class_name` arm additions. This is the source for AC-011 in this story.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md`.
 
-**BC-2.01.013: DataSource Trait Adapter Pattern.** Version `1.16`, status: active.
+**BC-2.01.013: DataSource Trait Adapter Pattern.** Version `1.23`, status: active.
 EC-01-025 records "ColumnMapper step is missing" as NON-CONFORMANT. Stage 2 resolves
 EC-01-025 for Claroty per ADR-058 §B2 item 4 (OCSF field names now appear in the Arrow
 schema for the flagged sensor).
@@ -216,7 +216,7 @@ Until then, `ColumnMapper::map_record` remains test-only.
 |----|---------|--------|-----------|
 | BC-2.16.003 | v1.9 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention) |
 | BC-2.16.002 | v2.27 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
-| BC-2.01.013 | v1.16 | active | EC-01-025 NON-CONFORMANT annotation resolved for Claroty after this story merges; product-owner updates annotation |
+| BC-2.01.013 | v1.23 | active | EC-01-025 NON-CONFORMANT annotation resolved for Claroty after this story merges; product-owner updates annotation |
 
 ---
 
@@ -1777,6 +1777,28 @@ violation, not a behavioral obligation. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.17 Amendment Sweep (F1 [MED, records-tier] BC-2.01.013 stale version pin v1.16→v1.23 — OCSF-correctness Claroty adversary SPEC pass-15 micro-burst)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): COERCION-001 carries no BC-2.01.013 version pin in
+either its §Authority section or its body BC table — BC-2.01.013 is not in COERCION-001's
+`behavioral_contracts` frontmatter. No sibling update required. VERDICT: CLEAR.
+
+**Dimension 2 — Downstream copy target:**
+
+The BC-2.01.013 §Authority entry and body BC table row are the two live version-pin sites. Both
+corrected in this burst (v1.16→v1.23). The historical §Changelog v1.0 row records "BC-2.01.013
+v1.16 ... at authoring time" — that is the authoring-time snapshot, grandfathered per the
+records-tier exception; it was NOT updated. No downstream artifact copies the §Authority
+BC-2.01.013 pin. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. This is a records-only stale-pin correction. VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.16 Amendment Sweep (F2 T-11G/H/L/M/N/O task-wording fix + ADR-058 re-pin v2.12→v2.13)
 
 **Dimension 1 — Sibling pair:**
@@ -1874,6 +1896,7 @@ corrections, not new behavioral obligations. VERDICT: N/A — no new mandates.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.17 | 2026-08-17 | story-writer | OCSF-correctness Claroty adversary SPEC pass-15 records-only micro-burst (TD-VSDD-096) — F1 [MED, records-tier]: stale BC-2.01.013 version pin v1.16→v1.23 corrected at 2 live current-state sites (§Authority entry + §Behavioral Contracts body table row); historical §Changelog v1.0 authoring-time row grandfathered/untouched. No substance change; frozen perimeter otherwise UNCHANGED. §v1.17 Amendment Sweep added. |
 | 1.16 | 2026-08-17 | story-writer | Adversary pass-12 fix-burst: (1) F2 [LOW] §Tasks T-11G/H/L/M/N/O authoring-wording fixed — all six changed from "build a [table] SensorSpec with KF-xx corrections applied" to "load the corrected `claroty.sensor.toml` [table] table spec (post-T-17, KF-xx: ...)" — authoring instruction, RED-reason (TOML not yet corrected), and T-17 green-driver attribution now mutually consistent. (2) Comprehensive §Tasks audit: T-04–T-11 are consistent one-liners (no authoring body); T-11B/C (RG-009/010): inline spec + code-RED + T-21 green — CONSISTENT; T-11D/E/F (RG-011/012/013): direct API / DynamicMessage + code-RED + T-22/T-23 green — CONSISTENT; T-11I/J (RG-016/017): inline/optional-production-TOML + code-arm-RED + T-22 green — CONSISTENT; T-11K (RG-018): inline spec + code-RED + T-24 green — CONSISTENT; T-11P (RG-023): unit test + code-RED + T-23 green — CONSISTENT. (3) COERCION-001 tasks audit: CLEAN (all tasks code-level, no TOML dependency). (4) ADR-058 §Authority pin v2.12→v2.13 (concurrent architect bump). (5) Sibling sweep: zero normative prose version pins. (6) §v1.16 Amendment Sweep added. |
 | 1.15 | 2026-08-17 | story-writer | Adversary pass-11 fix-burst: (1) ADR-058 §Authority pin v2.11→v2.12 (concurrent architect bump). (2) Sibling coordination: COERCION-001 LOW-2 AC-004 trace parentheticals added in same burst — all three COERCION frontmatter BCs now have AC `(traces to …)` parentheticals; ROUTING-001 already had BC-2.16.002 and BC-2.02.011 traces. (3) Sibling sweep: zero ADR-058/BC normative prose version pins found in either story outside exempt/grandfathered zones. (4) §v1.15 Amendment Sweep added. |
 | 1.14 | 2026-08-17 | story-writer | Adversary pass-10 fix-burst: (1) F3 [LOW] §Mandate Anchor #1 provenance fix — both §D2 and §J2 discharge entries made version-free: removed "(v2.1)" / "since v2.1" version qualifiers from inline prose and table Status column; replaced with "DISCHARGED — ADR-058 §D2/§J2 carries the inline (Anchored: …) mark" form per POL-39. Eliminates drift source so story cannot go stale on future ADR bumps. (2) ADR-058 §Authority pin v2.10→v2.11 (concurrent architect bump). (3) Sibling sweep: zero additional normative prose ADR-058 or BC version pins found in either story outside §Authority (exempt) and historical amendment-sweep/changelog rows (grandfathered). (4) §v1.14 Amendment Sweep added. |
