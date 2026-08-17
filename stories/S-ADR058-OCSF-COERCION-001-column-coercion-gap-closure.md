@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.3"
+version: "1.4"
 level: "L4"
 status: draft
 producer: story-writer
@@ -15,17 +15,18 @@ points: 5
 tdd_mode: strict
 target_module: prism-spec-engine
 subsystems:
-  - SS-07
+  - SS-01
   - SS-16
-# Subsystem anchor justifications:
-#   SS-07 (Spec Engine) owns this story's scope because `prism-spec-engine::column_mapping`
+# Subsystem anchor justifications (ARCH-INDEX Subsystem Registry):
+#   SS-01 (Sensor Adapters) owns this story's scope because `prism-bin::spec_driven_adapter`
+#     (`build_column_array` ColumnType::String arm fix and `column_coercion_failure` warn
+#     emission) is a sensor adapter component in prism-bin, which is listed under SS-01 per
+#     ARCH-INDEX. `prism-spec-engine` is also listed under SS-01 as the primary sensor
+#     spec parsing and column mapping crate.
+#   SS-16 (Spec Engine) owns this story's scope because `prism-spec-engine::column_mapping`
 #     (`ColumnMapper::coerce_value`, `ColumnMapper::map_record`) is the primary implementation
-#     site per ARCH-INDEX Subsystem Registry SS-07 definition. The coerce_value fix and the
-#     `column_coercion_failure` tracing emission both live in this module.
-#   SS-16 owns this story's scope because BC-2.16.003 (the governing behavioral contract) is
-#     assigned to SS-16 per its frontmatter subsystem field, and `build_column_array` in
-#     `prism-bin::spec_driven_adapter` is the production pipeline execution path for the
-#     SS-16 spec-driven pipeline subsystem.
+#     site and SS-16 is the canonical owner of prism-spec-engine per ARCH-INDEX Subsystem
+#     Registry. BC-2.16.003 (the governing behavioral contract) is also assigned to SS-16.
 crates_touched:
   - prism-spec-engine
   - prism-bin
@@ -62,7 +63,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "3709ef7"
+input-hash: "83597a4"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -90,12 +91,13 @@ v1.5 adds §Interpretation A (Arrow field naming) and §Claroty Contracted OCSF 
 sections are Stage 2 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.5: v1 Column Naming — OCSF Field-Path Routing.** Version `2.5`, status:
+**ADR-058 v2.6: v1 Column Naming — OCSF Field-Path Routing.** Version `2.6`, status:
 accepted (2026-08-16). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
-Note: ADR-058 §K (OCSF schema validation) and §I5 code obligations affect Stage 2 scope
-only; Stage 1's §H scope is unchanged.
+Note: ADR-058 §K (OCSF schema validation), §I5 (code obligations), and v2.6 process-gap
+obligation (`ocsf.unknown_class_name` WARN) affect Stage 2 scope only; Stage 1's §H scope
+is unchanged.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
 **BC-2.02.011.** Governs the warning-emission obligation for each normalization issue.
@@ -320,7 +322,7 @@ the PR is opened (or as a co-commit in the same PR). The catalog version number
 | `build_column_array` (ColumnType::String arm) | `prism-bin::spec_driven_adapter` | Pure (data transformation) | Modified: replace wildcard `other => other.to_string()` with explicit null-cell arms for Array and Object; add tracing emission |
 | Integration test file | `crates/prism-spec-engine/tests/bc_2_16_003_test.rs` | Pure (tests) | New tests RG-001..RG-007 added |
 
-Architecture section files: `architecture/module-decomposition.md` (SS-07, SS-16).
+Architecture section files: `architecture/module-decomposition.md` (SS-01, SS-16).
 
 ---
 
@@ -559,6 +561,7 @@ anchors it to AC-004 / RG-005. The architect must update ADR-058 to replace
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.4 | 2026-08-16 | story-writer | Adversary pass-1 fix-burst: (1) Subsystems [SS-07, SS-16] → [SS-01, SS-16]; removed fabricated SS-07 citation ("Spec Engine" — SS-07 is Adapter Pagination & Response Cache per ARCH-INDEX); correct citations per ARCH-INDEX: SS-01 (Sensor Adapters, owns prism-bin/spec_driven_adapter.rs + prism-spec-engine), SS-16 (Spec Engine, owns prism-spec-engine/column_mapping.rs). (2) §Authority ADR-058 pin v2.5→v2.6 with note that §I5 v2.6 process-gap obligation and §K (class_selector.rs obligations) are Stage 2 scope only; Stage 1 §H scope unchanged. |
 | 1.3 | 2026-08-16 | story-writer | ADR-058 §K pin sweep: §Authority pin v2.4→v2.5; narrative prose v2.4 version label removed per POL-39 (section-anchor-only cites). |
 | 1.2 | 2026-08-16 | story-writer | BC-2.16.003 v1.4→v1.5 version pin propagation (TD-VSDD-097 dim-2 downstream copy target). Authority section: BC-2.16.003 version updated to v1.5 (modified 2026-08-16). Behavioral Contracts table: BC-2.16.003 v1.4→v1.5. ADR-058 version pin in Authority section updated to v2.4 (modified 2026-08-16). No substantive scope change — Stage 1 coercion algorithm (Rules 1/2/3, EC-016-013-007/008/009 gap closures, column_coercion_failure emission) is unchanged in BC-2.16.003 v1.5; new v1.5 content (§Interpretation A, §Claroty Contracted OCSF Mappings) is Stage 2 territory. |
 | 1.1 | 2026-08-12 | story-writer | Remove-uncertainty pass: AC-005 strengthened with wire-level null serialization note citing existing `WriterBuilder::with_explicit_nulls(true)` chokepoint in `prism-mcp::server` §RecordBatch-to-JSON and `bc_2_11_001_null_row_shape_test.rs` regression. Architecture Compliance Rule 7 added: no second RecordBatch→JSON emit path. Q4 CORRECTED (stale concern — `explicit_nulls` already set correctly in production). |
