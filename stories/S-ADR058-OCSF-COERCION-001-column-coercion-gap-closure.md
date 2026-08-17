@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.9"
+version: "1.10"
 level: "L4"
 status: draft
 producer: story-writer
@@ -131,18 +131,14 @@ by passing structured JSON into a typed Arrow column.
 
 ## ADR-058 MUST Discharge: Mandate Anchor #2
 
-**ADR-058 v2.0 §H carries an `ANCHOR-NEEDED` annotation (TD-VSDD-097 dim-3 obligation):**
-> "MUST to add `column_coercion_failure` emission (Stage 1 story ID unconfirmed)"
+**ADR-058 §H `ANCHOR-NEEDED`: DISCHARGED.** ADR-058 §H already reads "(Anchored:
+S-ADR058-OCSF-COERCION-001 AC-004, RG-005)" — anchored in v2.1. No architect action required.
 
-**This story discharges that mandate.** The mandate anchor is:
+The mandate anchor record:
 
-| MUST Statement | Story | AC | Red Gate Test |
-|---|---|---|---|
-| `column_coercion_failure` tracing emission MUST be added to `build_column_array` at demotion point (ADR-058 §H item 3) | S-ADR058-OCSF-COERCION-001 | AC-004 | RG-005 |
-
-**Architect routing obligation:** After this story reaches `status: ready`, the architect
-MUST update ADR-058 v2.0 §H to replace the `ANCHOR-NEEDED` annotation with:
-`(Anchored: S-ADR058-OCSF-COERCION-001 AC-004 RG-005)`.
+| MUST Statement | Story | AC | Red Gate Test | Status |
+|---|---|---|---|---|
+| `column_coercion_failure` tracing emission MUST be added to `build_column_array` at demotion point (ADR-058 §H item 3) | S-ADR058-OCSF-COERCION-001 | AC-004 | RG-005 | DISCHARGED (v2.1) |
 
 ---
 
@@ -565,11 +561,11 @@ target is swept in the same atomic commit. VERDICT: MITIGATED (requires product-
 to transcribe the catalog row in the same PR — not auto-satisfied; orchestrator must
 dispatch product-owner as part of this story's delivery).
 
-**Dimension 3 — Mandate anchor:** ADR-058 v2.0 §H carries `ANCHOR-NEEDED` for the
+**Dimension 3 — Mandate anchor:** ADR-058 §H carries `ANCHOR-NEEDED` for the
 `column_coercion_failure` emission MUST. This story's §ADR-058 MUST Discharge section
-anchors it to AC-004 / RG-005. The architect must update ADR-058 to replace
-`ANCHOR-NEEDED` with the story/AC/RG reference. VERDICT: DISCHARGED IN THIS STORY
-(ADR update required by architect — reported above).
+anchors it to AC-004 / RG-005. VERDICT: DISCHARGED — ADR-058 §H already reads
+`(Anchored: S-ADR058-OCSF-COERCION-001 AC-004, RG-005)` since v2.1; no architect
+action pending.
 
 ---
 
@@ -699,10 +695,34 @@ No new MUSTs introduced by this amendment. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.10 Amendment Sweep (F3 ADR-058 §H discharge mark + v2.0 volatile-pin removal)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): task-plan audit completed in same burst
+(v1.10→v1.11) — F1 gate ordering fixed, F2 green-driver attributions corrected. COERCION-001's
+F3 (ADR-058 §H discharge) has no equivalent in ROUTING-001 (ROUTING-001's §Mandate Anchor
+sections use ROUTING-001 specific anchors already discharged in earlier passes). VERDICT:
+ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+The §ADR-058 MUST Discharge §Mandate Anchor #2 section is the authoritative prose. The
+§v1.3 Amendment Sweep Dimension 3 contained a downstream copy of the same `v2.0` volatile
+pin; both locations updated in this amendment. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. Marking an anchor as discharged removes a
+pending obligation; it does not create a new one. VERDICT: N/A — no new mandates.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.10 | 2026-08-17 | story-writer | Adversary pass-7 fix-burst: (1) F3 ADR-058 §H MUST Discharge section updated: ANCHOR-NEEDED marked DISCHARGED (ADR-058 §H already reads "(Anchored: S-ADR058-OCSF-COERCION-001 AC-004, RG-005)" since v2.1); volatile `v2.0` pin removed from both the §Mandate Anchor #2 prose and the §v1.3 Amendment Sweep Dimension 3; `ANCHOR-NEEDED` language replaced with `DISCHARGED`; architect routing obligation removed. (2) §v1.10 Amendment Sweep added. |
 | 1.9 | 2026-08-17 | story-writer | Adversary pass-6 fix-burst: (1) F3 §Authority date cites ADR-058 + BC-2.16.003 updated 2026-08-16 → 2026-08-17; `modified:` frontmatter field added as 2026-08-17. (2) §v1.9 Amendment Sweep added. |
 | 1.8 | 2026-08-17 | story-writer | Adversary pass-5 fix-burst: (1) ADR-058 re-pin v2.7→v2.8; BC-2.16.003 re-pin v1.8→v1.9 (concurrent architect/PO bumps); §Authority pins and body BC table updated. (2) §v1.8 Amendment Sweep added. |
 | 1.7 | 2026-08-17 | story-writer | Adversary pass-4 fix-burst: (1) BC-2.16.003 re-pin v1.7→v1.8 (PO concurrent bump); §Authority pin and body BC table updated. (2) Quick AC↔RG coverage cross-check: RG-001..RG-007 cover all 6 ACs (AC-001..AC-006); CLEAN — no gaps found. Stage 1 coercion-engine scope does not include KF-05/06/07 field-routing corrections (those are Stage 2 ROUTING-001 territory). (3) §v1.7 Amendment Sweep added. |

@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.10"
+version: "1.11"
 level: "L4"
 status: draft
 producer: story-writer
@@ -1201,14 +1201,13 @@ implementer MUST load only the files listed, not the full architecture directory
   (12) KF-11: `audit_logs.category.ocsf_field` removed;
   (13) KF-12: `alerts.updated_time.ocsf_field` = `"finding_info.modified_time"`;
   (14) §J3: `devices.device_category.ocsf_field` = `"device.type_category"`.
-  Run `just iter prism-spec-engine` to confirm TOML parses correctly. Makes RG-009,
-  RG-010, RG-014, RG-015, RG-021, RG-022 green (collision checks and KF-05/KF-06
-  wire-shape assertions now pass with corrected TOML).
+  Run `just iter prism-spec-engine` to confirm TOML parses correctly. Makes RG-014,
+  RG-015, RG-019, RG-020, RG-021, RG-022 green (KF-03/04/05/06/07/08/09/10/11/12
+  wire-shape assertions now pass with corrected TOML). Note: RG-009 and RG-010 are
+  code-level collision-detection unit tests that build inline synthetic SensorSpecs and
+  do NOT depend on claroty.sensor.toml — they are greened by T-21.
 - T-18: Update `test_BC_2_11_005_e2e_claroty_query_returns_data` to use `row.get("device_uid")`
   instead of `row.get("uid")`; update the `#[ignore]` comment per AC-008.
-- T-19: Run `just iter prism-spec-engine`, `just iter prism-bin`, and `just iter prism-ocsf` — all 23 RGTs must pass.
-- T-20: Run `just check` — full workspace gate. Must stay GREEN per ADR-058 §E1
-  blast-radius analysis. If any non-Claroty tests fail, STOP — do not push.
 - T-21: In `pipeline_result_to_record_batch`, after computing all arrow names for a
   table when `sensor_spec.ocsf_column_naming = true`, perform a COMBINED collision
   check (both conditions below) in a single pass before building the Arrow schema:
@@ -1265,7 +1264,7 @@ implementer MUST load only the files listed, not the full architecture directory
   deprecation comment: `// DEPRECATED: "audit_activity" was a non-OCSF v1.7.0 string;
   // no production TOML uses this after KF-01 correction (S-ADR058-OCSF-ROUTING-001).
   // Remove after confirming zero TOML instances.`
-  Run `just iter prism-ocsf`. Makes RG-012 green.
+  Run `just iter prism-ocsf`. Makes RG-012 and RG-023 green.
 - T-24: In `spec_driven_adapter.rs::pipeline_result_to_record_batch`, replace the existing
   `.unwrap_or(0)` call on `EventClassSelector::select_by_class_name` with a match that
   emits `tracing::warn!(event_type = "ocsf.unknown_class_name", ocsf_class = %table.ocsf_class,
@@ -1274,6 +1273,9 @@ implementer MUST load only the files listed, not the full architecture directory
   (per AC-011, ADR-058 §I5 process-gap obligation). The `.unwrap_or(0)` graceful fallback
   is retained — only the observability WARN is added. Run `just iter prism-bin`. Makes RG-018
   green.
+- T-19: Run `just iter prism-spec-engine`, `just iter prism-bin`, and `just iter prism-ocsf` — all 23 RGTs must pass.
+- T-20: Run `just check` — full workspace gate. Must stay GREEN per ADR-058 §E1
+  blast-radius analysis. If any non-Claroty tests fail, STOP — do not push.
 
 ---
 
@@ -1721,10 +1723,39 @@ test-authoring-accuracy fixes, not new behavioral obligations. VERDICT: N/A — 
 
 ---
 
+### v1.11 Amendment Sweep (full task-plan audit — gate ordering + green-driver attribution)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): Task-plan cross-audit results — CLEAN. All
+seven RGs (RG-001..RG-007) map to exactly one implementation task each; terminal gates (T-16
+run-all-7-RGTs, T-17 prism-bin iter, T-18 just check) are in correct order after the last
+implementation task (T-15). No F1/F2 equivalents exist in COERCION-001. VERDICT: SWEPT; CLEAN.
+
+COERCION-001 F3 discharge fix applied in same burst (v1.9→v1.10): ADR-058 §H MUST Discharge
+section updated from pending-architect-routing to DISCHARGED; volatile `v2.0` pins removed
+from normative prose per POL-39. VERDICT: COERCION-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+T-17's "Makes green" list is the downstream copy target for the RG-attributions in the
+RG catalog (§Red Gate Tests). After this fix, T-17 correctly attributes RG-014, RG-015,
+RG-019, RG-020, RG-021, RG-022 — all six TOML-driven wire-shape tests. T-23 now correctly
+attributes RG-012 AND RG-023 — both claroty and armis select() arm tests. No other downstream
+copies of these lists exist. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The gate-reordering and attribution fixes are
+task-plan-fidelity corrections, not new behavioral obligations. VERDICT: N/A — no new mandates.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.11 | 2026-08-17 | story-writer | Adversary pass-7 fix-burst (full task-plan audit): (1) F1 gate ordering fixed: T-19 (run all 23 RGTs) + T-20 (just check) moved to AFTER T-24 — terminal gates are now the final two tasks. (2) F2(a) T-17 mis-attribution corrected: RG-009/RG-010 removed from T-17 "Makes green" list (those are code collision-detection unit tests greened by T-21, not by TOML edit). (3) F2(b) T-17 missing green-drivers added: RG-019 (KF-11 audit_logs.category→raw_extensions) and RG-020 (KF-07 device_alert_relations finding_info_uid) added to T-17 "Makes green" list. RG-023 added to T-23 "Makes green" list. (4) Full RG→green-driver matrix verified: all 23 RGs mapped to exactly one task. (5) COERCION-001 task-audit: CLEAN. (6) §v1.11 Amendment Sweep added. |
 | 1.10 | 2026-08-17 | story-writer | Adversary pass-6 fix-burst: (1) F1 T-11H corrected: old name `test_claroty_alerts_id_produces_finding_info_uid_arrow_field_wire_shape` (single KF-03) → new name `test_claroty_alerts_finding_info_fields_wire_shape` (3-field: KF-03 `finding_info_uid` + KF-04 `finding_info_title` + KF-12 `finding_info_modified_time`); body updated to 3-field record and assertions. (2) F2 T-11P fabricated API fixed: `select(&ClassSelectorInput { vendor: "claroty", class_name: "audit_log", ... })` → `select("claroty", "audit_log")`; sibling-sweep: zero other `ClassSelectorInput`/`vendor:`/`class_name:` occurrences in either story. (3) F3 §Authority date cites ADR-058 + BC-2.16.003 updated 2026-08-16 → 2026-08-17 in both stories; `modified:` frontmatter field added as 2026-08-17 in both stories. (4) §v1.10 Amendment Sweep added. |
 | 1.9 | 2026-08-17 | story-writer | Adversary pass-5 fix-burst: (1) ADR-058 re-pin v2.7→v2.8; BC-2.16.003 re-pin v1.8→v1.9 (concurrent architect/PO bumps); §Authority pins and body BC table updated in both ROUTING-001 and COERCION-001. (2) F2 stale count fix: `all 20 confirmed failing` → `all 23 confirmed failing` (line ~227 Red-then-green gate). Full grep of both stories for other stale `20`/`twenty` RG-count refs — zero additional instances found in normative sections. (3) §v1.9 Amendment Sweep added. |
 | 1.8 | 2026-08-17 | story-writer | Adversary pass-4 fix-burst (comprehensive KF→AC→RG coverage-matrix audit): (1) BC-2.16.003 re-pin v1.7→v1.8. (2) F5 POL-39 volatile-pin strip: `v1.67` catalog-label and `row 94` positional cite removed from §Authority BC-2.16.002, body BC table, AC-011, RG-018; durable `event_type = "ocsf.unknown_class_name"` symbol anchor retained. (3) F2 RG-015 expanded to 3-field wire-shape (KF-03 `finding_info_uid` + KF-04 `finding_info_title` + KF-12 `finding_info_modified_time`); AC-010 assertion 1 now matches RG-015 reality. (4) F3 RG-021 added: KF-05 `audit_logs.id` → raw_extensions (no `activity_uid`/`id` Arrow field; value preserved in raw_extensions); RG-022 added: KF-06 `devices.device_type` → `device_type_label` Arrow field (demo-critical `WHERE device_type_label = 'PLC'`). AC-010 assertions 5 and 6 added. (5) F4 RG-023 added: AC-009(c) Claroty `select()` arm `("claroty","audit_log")` → Ok(3004); density-note corrected (RG-012 covers Armis half; RG-023 covers Claroty half). (6) T-11N/T-11O/T-11P added for RG-021/022/023 authoring; T-GATE/T-19 updated. (7) Density 20/11=1.82→23/11=2.09. AC-005 density-note corrected (KF-05/06 now have RGs). (8) §v1.8 Amendment Sweep added. |
