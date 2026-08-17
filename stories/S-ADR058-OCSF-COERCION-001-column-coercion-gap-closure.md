@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.2"
+version: "1.3"
 level: "L4"
 status: draft
 producer: story-writer
@@ -62,7 +62,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "711226e"
+input-hash: "3709ef7"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -90,12 +90,12 @@ v1.5 adds §Interpretation A (Arrow field naming) and §Claroty Contracted OCSF 
 sections are Stage 2 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.4: v1 Column Naming — OCSF Field-Path Routing.** Version `2.4`, status:
+**ADR-058 v2.5: v1 Column Naming — OCSF Field-Path Routing.** Version `2.5`, status:
 accepted (2026-08-16). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
-Note: ADR-058 v2.4 adds §K (OCSF schema validation) and §I5 code obligations — those affect
-Stage 2 scope only; Stage 1's §H scope is unchanged.
+Note: ADR-058 §K (OCSF schema validation) and §I5 code obligations affect Stage 2 scope
+only; Stage 1's §H scope is unchanged.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
 **BC-2.02.011.** Governs the warning-emission obligation for each normalization issue.
@@ -559,6 +559,7 @@ anchors it to AC-004 / RG-005. The architect must update ADR-058 to replace
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.3 | 2026-08-16 | story-writer | ADR-058 §K pin sweep: §Authority pin v2.4→v2.5; narrative prose v2.4 version label removed per POL-39 (section-anchor-only cites). |
 | 1.2 | 2026-08-16 | story-writer | BC-2.16.003 v1.4→v1.5 version pin propagation (TD-VSDD-097 dim-2 downstream copy target). Authority section: BC-2.16.003 version updated to v1.5 (modified 2026-08-16). Behavioral Contracts table: BC-2.16.003 v1.4→v1.5. ADR-058 version pin in Authority section updated to v2.4 (modified 2026-08-16). No substantive scope change — Stage 1 coercion algorithm (Rules 1/2/3, EC-016-013-007/008/009 gap closures, column_coercion_failure emission) is unchanged in BC-2.16.003 v1.5; new v1.5 content (§Interpretation A, §Claroty Contracted OCSF Mappings) is Stage 2 territory. |
 | 1.1 | 2026-08-12 | story-writer | Remove-uncertainty pass: AC-005 strengthened with wire-level null serialization note citing existing `WriterBuilder::with_explicit_nulls(true)` chokepoint in `prism-mcp::server` §RecordBatch-to-JSON and `bc_2_11_001_null_row_shape_test.rs` regression. Architecture Compliance Rule 7 added: no second RecordBatch→JSON emit path. Q4 CORRECTED (stale concern — `explicit_nulls` already set correctly in production). |
 | 1.0 | 2026-08-12 | story-writer | Initial authorship — ADR-058 Stage 1 story. Fixes EC-016-013-007/008/009 (coerce_value String + Array/Object, coerce_value Integer + String non-numeric path), adds column_coercion_failure tracing emission in map_record and build_column_array. Discharges ADR-058 v2.0 §H ANCHOR-NEEDED mandate for the emission MUST. BC-2.16.003 v1.4, BC-2.02.011, ADR-058 v2.0 at authoring time. |

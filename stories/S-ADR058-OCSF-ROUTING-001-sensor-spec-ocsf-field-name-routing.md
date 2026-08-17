@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.3"
+version: "1.4"
 level: "L4"
 status: draft
 producer: story-writer
@@ -64,7 +64,7 @@ risk: MEDIUM
 # Risk justification: The flag mechanism and underscore-flattening helper are low risk.
 # The pipeline_result_to_record_batch branch is moderate risk — it changes the Arrow
 # schema for all Claroty queries, breaking any existing SQL that uses col.name (e.g.,
-# `SELECT id FROM claroty_alerts` must become `SELECT finding_uid FROM claroty_alerts`).
+# `SELECT id FROM claroty_alerts` must become `SELECT finding_info_uid FROM claroty_alerts`).
 # The existing e2e test is #[ignore]'d so just check stays green, but live Claroty
 # users must rewrite queries. Scoped to Claroty only; CrowdStrike/Armis/Cyberint
 # are unaffected (default false).
@@ -79,7 +79,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "7fd8909"
+input-hash: "0f899de"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -98,8 +98,8 @@ tags:
 
 ## Authority
 
-**ADR-058 v2.4: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
-Names; DTU Migration Deferred.** Version `2.4`, status: accepted (2026-08-16). Read
+**ADR-058 v2.5: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
+Names; DTU Migration Deferred.** Version `2.5`, status: accepted (2026-08-16). Read
 §B2 (decision), §C (quoting convention — Option 4 chosen), §D (per-sensor scoping, flag
 mechanism), §E (blast radius), §G (prism_describe output spec), §H (Stage 1 confirmed
 separate), §I (implementation guidance including **§I5 TOML + code correction obligations for
@@ -240,8 +240,8 @@ Test-writer dispatched FIRST; implementer only after all 15 confirmed failing.
 - **RG-007:** `test_prism_describe_ocsf_column_naming_true_returns_flattened_name_and_dotted_description` —
   fails until `prism_describe` branches on `sensor_spec.ocsf_column_naming`. A
   `SensorSpec` with `ocsf_column_naming = true` and a column with `name = "id"`,
-  `ocsf_field = Some("finding.uid")` MUST produce a `ColumnDescriptor` with
-  `name = "finding_uid"` and `description = "finding.uid"`. Covers AC-006.
+  `ocsf_field = Some("finding_info.uid")` MUST produce a `ColumnDescriptor` with
+  `name = "finding_info_uid"` and `description = "finding_info.uid"`. Covers AC-006.
 
 - **RG-008:** `test_spec_driven_adapter_columns_without_ocsf_field_go_to_raw_extensions_schema` —
   fails until `pipeline_result_to_record_batch` implements the `raw_extensions` schema
@@ -574,7 +574,7 @@ RG-009 passes (all flattened names within each table are distinct).
 RG-010 passes (zero shadow collisions across all four tables).
 
 (traces to BC-2.16.003 §Claroty Contracted OCSF Mappings v1.5: these are the
-contracted-correct ocsf_field values per ADR-058 v2.4 §K4 corrections KF-01..KF-12;
+contracted-correct ocsf_field values per ADR-058 §K4 corrections KF-01..KF-12;
 traces to BC-2.01.013 EC-01-025 which moves NON-CONFORMANT→CONFORMANT for Claroty
 after this story merges; traces to BC-2.16.003 EC-016-013-012: two sensors both
 mapping `device_ip → ocsf_field = "device.ip"` are both queryable as `device_ip`
@@ -584,14 +584,14 @@ once each sensor enables the flag)
 
 `ColumnDescriptor` returned by `prism_describe` for a sensor with `ocsf_column_naming = true`:
 - `name` = `ocsf_field_to_arrow_name(col.ocsf_field)` (the queryable Arrow identifier,
-  e.g., `"finding_uid"`)
+  e.g., `"finding_info_uid"`)
 - `description` = `col.ocsf_field.clone()` (original dotted OCSF path preserved as
-  semantic annotation, e.g., `"finding.uid"`)
+  semantic annotation, e.g., `"finding_info.uid"`)
 
 For a sensor with `ocsf_column_naming = false`, both fields use their existing behavior
 (`name = col.name`, `description = col.ocsf_field`).
 
-This is the exact spec in ADR-058 §G. LLM agents read `name: "finding_uid"` from
+This is the exact spec in ADR-058 §G. LLM agents read `name: "finding_info_uid"` from
 `prism_describe` output and use it verbatim in PrismQL queries — no quoting needed.
 
 (traces to BC-2.16.003 postcondition §Column Routing invariant: "declared column_type
@@ -635,7 +635,7 @@ verification that the column naming logic branches correctly.
 
 ### AC-009: class_selector.rs receives KF-01 code fix — entity_management 3004 + Armis sibling arm
 
-`crates/prism-ocsf/src/class_selector.rs` receives THREE code changes per ADR-058 v2.4
+`crates/prism-ocsf/src/class_selector.rs` receives THREE code changes per ADR-058
 §K5 Divergence 3 and §I5:
 
 1. **New constant**: Add `pub const CLASS_UID_ENTITY_MANAGEMENT: u32 = 3004;` alongside
@@ -667,7 +667,7 @@ field value is lost at normalization time with no observable error signal at the
 
 (traces to BC-2.16.003 §Claroty Contracted OCSF Mappings v1.5 audit_logs table invariant:
 `ocsf_class = "entity_management"` is required; `account_change` is INVALID because it
-lacks `comment`; traces to ADR-058 v2.4 §K5 Div-3 + §I5 KF-01 code obligation)
+lacks `comment`; traces to ADR-058 §K5 Div-3 + §I5 KF-01 code obligation)
 
 ### AC-010: Wire-shape assertions on corrected finding_info.* fields and reserved-metadata raw_extensions
 
@@ -766,7 +766,7 @@ Architecture section files: `architecture/module-decomposition.md` (SS-07, SS-12
 | `claroty.sensor.toml` (full TOML spec for context) | ~4k |
 | `class_selector.rs` (prism-ocsf — class name → class_uid lookup) | ~2k |
 | BC-2.16.003 + BC-2.01.013 (governing contracts) | ~5k |
-| ADR-058 v2.4 (§B2, §D, §G, §I, §J, §K in full) | ~6k |
+| ADR-058 (§B2, §D, §G, §I, §J, §K in full) | ~6k |
 | `bc_2_16_003_test.rs` + existing spec_driven_adapter tests (context for new tests) | ~4k |
 | Tool outputs (just iter, cargo nextest) | ~1k |
 | **Total** | **~47k** |
@@ -1056,7 +1056,7 @@ Build-time enforcement rules:
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
 
-### v1.3 Amendment Sweep (BC-2.16.003 v1.5 + ADR-058 v2.4 downstream copy propagation)
+### v1.3 Amendment Sweep (BC-2.16.003 v1.5 + ADR-058 §K + §I5 downstream copy propagation)
 
 **Dimension 1 — Sibling pair:**
 
@@ -1093,17 +1093,17 @@ VERDICT: DISCHARGED.
 
 **Dimension 3 — Mandate anchor:**
 
-ADR-058 v2.4 §Status note: "S-ADR058-OCSF-ROUTING-001 §AC-005 mapping tables carry
-stale VALID for KF-08..KF-11 columns; story-writer amendment required." This amendment
-discharges that mandate anchor: AC-005 now carries all KF-01..KF-12 corrections with
-full four-table contracted mapping tables.
+ADR-058 §Status note (v2.4 — now v2.5): §AC-005 mapping tables carried stale VALID for
+KF-08..KF-11 columns; story-writer amendment required. This amendment discharges that
+mandate anchor: AC-005 now carries all KF-01..KF-12 corrections with full four-table
+contracted mapping tables.
 
-ADR-058 v2.4 §I5 KF-01 code obligation: "Add CLASS_UID_ENTITY_MANAGEMENT = 3004, change
+ADR-058 §I5 KF-01 code obligation: "Add CLASS_UID_ENTITY_MANAGEMENT = 3004, change
 'audit_activity' arm + Armis arm." Discharged to AC-009 (class_selector.rs fix) and
 RG-011/RG-012/RG-013 Red Gate tests.
 
-BC-2.16.003 v1.5 §TD-VSDD-097 dimension-2 note: "S-ADR058-OCSF-ROUTING-001 AC-005 /
-§I5 is the downstream copy target for the contracted mapping tables." Discharged by
+BC-2.16.003 v1.5 §TD-VSDD-097 dimension-2 note: S-ADR058-OCSF-ROUTING-001 AC-005 /
+§I5 is the downstream copy target for the contracted mapping tables. Discharged by
 this amendment. VERDICT: DISCHARGED.
 
 ---
@@ -1186,7 +1186,8 @@ VERDICT: DISCHARGED.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
-| 1.3 | 2026-08-16 | story-writer | BC-2.16.003 v1.5 + ADR-058 v2.4 downstream copy propagation (TD-VSDD-097 dim-2). (1) AC-005 fully rewritten: all four Claroty contracted tables per BC-2.16.003 v1.5 §Claroty Contracted OCSF Mappings (alerts, audit_logs, devices, device_alert_relations); KF-01..KF-12 TOML corrections enumerated including KF-06 PO decision device.type_label (was device.type_name), KF-05 PO decision audit_logs.id→raw_extensions; alerts table stale 5-row excerpt replaced with 11-column authoritative table; devices table device.type_name corrected to device.type_label (Arrow: device_type_label). (2) AC-009 added: class_selector.rs KF-01 code fix — add CLASS_UID_ENTITY_MANAGEMENT = 3004, reroute "audit_activity" arm + Armis ("armis","audit_log") arm (TD-VSDD-097 dim-1 sibling per ADR-058 §K5 Div-3). (3) AC-010 added: wire-shape assertions for corrected finding_info.* fields (finding_info_uid, finding_info_title, finding_info_modified_time) and reserved-metadata columns in raw_extensions (KF-08/09/10/11). (4) RG-011..RG-015 added: class_selector audit_activity→entity_management, Armis sibling, note→comment data-loss prevention, reserved-fields raw_extensions wire-shape, finding_info_uid wire-shape. (5) Density check updated: 15 RGTs / 10 ACs = 1.5 ≥ 0.5. (6) Authority section: BC-2.16.003 v1.4→v1.5 + ADR-058 v2.1→v2.4, §K added to reading list. (7) Narrative: finding_uid→finding_info_uid. (8) Behavioral Contracts table: BC-2.16.003 v1.4→v1.5. (9) EC-003 corrected: audit_logs.username maps to actor.user.uid (not actor.user.name; that is user_display_name). (10) EC-009 count corrected: 19→31 pre-corrections (four tables: alerts 9+audit_logs 8+devices 8+dar 6), post-corrections 26. (11) crates_touched: added prism-ocsf. (12) Architecture Mapping: class_selector.rs row added. (13) Token Budget: class_selector.rs ~2k added. (14) Tasks: T-11D..T-11H (Red Gate authoring for RG-011..RG-015), T-17 expanded to KF-01..KF-12 full TOML corrections, T-22 (class_selector.rs "audit_activity" arm), T-23 (Armis arm), T-GATE updated to include prism-ocsf. (15) File Structure: class_selector.rs row. (16) TD-VSDD-097: v1.3 amendment sweep added. |
+| 1.4 | 2026-08-16 | story-writer | Consistency-validator fix-burst: MED-001 + LOW-001 + ADR-058 §K pin sweep. (1) AC-006: corrected stale pre-KF-03 examples: name=`"finding_uid"`→`"finding_info_uid"`, description=`"finding.uid"`→`"finding_info.uid"`, LLM agent example `name: "finding_uid"`→`name: "finding_info_uid"`. (2) Frontmatter risk comment: `SELECT finding_uid`→`SELECT finding_info_uid`. (3) §Authority ADR-058 pin: v2.4→v2.5. (4) Narrative prose ADR-058 v2.4 references converted to section-anchor form (ADR-058 §K4, §K5, §I5 — no version per POL-39). (5) TD-VSDD-097 v1.3 sweep section + v1.3 changelog row: v2.4 version label removed from record prose per TD-VSDD-091. |
+| 1.3 | 2026-08-16 | story-writer | BC-2.16.003 v1.5 + ADR-058 §K downstream copy propagation (TD-VSDD-097 dim-2). (1) AC-005 fully rewritten: all four Claroty contracted tables per BC-2.16.003 v1.5 §Claroty Contracted OCSF Mappings (alerts, audit_logs, devices, device_alert_relations); KF-01..KF-12 TOML corrections enumerated including KF-06 PO decision device.type_label (was device.type_name), KF-05 PO decision audit_logs.id→raw_extensions; alerts table stale 5-row excerpt replaced with 11-column authoritative table; devices table device.type_name corrected to device.type_label (Arrow: device_type_label). (2) AC-009 added: class_selector.rs KF-01 code fix — add CLASS_UID_ENTITY_MANAGEMENT = 3004, reroute "audit_activity" arm + Armis ("armis","audit_log") arm (TD-VSDD-097 dim-1 sibling per ADR-058 §K5 Div-3). (3) AC-010 added: wire-shape assertions for corrected finding_info.* fields (finding_info_uid, finding_info_title, finding_info_modified_time) and reserved-metadata columns in raw_extensions (KF-08/09/10/11). (4) RG-011..RG-015 added: class_selector audit_activity→entity_management, Armis sibling, note→comment data-loss prevention, reserved-fields raw_extensions wire-shape, finding_info_uid wire-shape. (5) Density check updated: 15 RGTs / 10 ACs = 1.5 ≥ 0.5. (6) Authority section: BC-2.16.003 v1.4→v1.5 + ADR-058 v2.1→v2.4, §K added to reading list. (7) Narrative: finding_uid→finding_info_uid. (8) Behavioral Contracts table: BC-2.16.003 v1.4→v1.5. (9) EC-003 corrected: audit_logs.username maps to actor.user.uid (not actor.user.name; that is user_display_name). (10) EC-009 count corrected: 19→31 pre-corrections (four tables: alerts 9+audit_logs 8+devices 8+dar 6), post-corrections 26. (11) crates_touched: added prism-ocsf. (12) Architecture Mapping: class_selector.rs row added. (13) Token Budget: class_selector.rs ~2k added. (14) Tasks: T-11D..T-11H (Red Gate authoring for RG-011..RG-015), T-17 expanded to KF-01..KF-12 full TOML corrections, T-22 (class_selector.rs "audit_activity" arm), T-23 (Armis arm), T-GATE updated to include prism-ocsf. (15) File Structure: class_selector.rs row. (16) TD-VSDD-097: v1.3 amendment sweep added. |
 | 1.2 | 2026-08-12 | story-writer | ADR-058 v2.1 §J amendment discharge. (1) RG-010 added: `test_pipeline_result_to_record_batch_ocsf_shadow_collision_returns_error` — fails until shadow check (flattened ocsf_field name ≠ different column's col.name in same table) is implemented; includes mandatory self-match exclusion assertion (`A ≠ B` guard) covering the legal `risk_score → risk_score` and `status → status` Claroty cases. (2) T-11C added (red-gate authoring task for RG-010; preserves red-then-green ordering). (3) T-21 extended: shadow check clause (b) added to the combined collision-detection pass; `A ≠ B` self-match exclusion specified. (4) EC-010 added: flag-transition name shadowing defect class. (5) AC-005 TOML scope extended: `device_category` ocsf_field changed from `"device.type"` to `"device.type_category"` in the same TOML edit as `ocsf_column_naming = true`; devices table post-fix Arrow names documented (`device_uid`, `device_instance_uid`, `device_type_category`, `device_type_name`, `risk_score`, `status_code`). (6) Architecture Compliance Rule 10 added: self-match exclusion obligation. (7) ADR-058 MUST Discharge second row added for §J2 mandate → RG-010. (8) Authority section updated to ADR-058 v2.1; §J1–§J4 sections added to reading list. (9) TD-VSDD-097 three-dimension verdict updated for this amendment: S-ADR058-OCSF-COERCION-001 swept (clear); S-ADR058-DTU-PARITY-MIGRATION-001 swept — no devices Arrow name invalidated (parity tests not yet written; depend on this story; will read post-amendment TOML at dispatch time). Density updated 9/8 = 1.125 → 10/8 = 1.25. |
 | 1.1 | 2026-08-12 | story-writer | Remove-uncertainty pass: Q2 CORRECTED — Arrow 58 silently first-matches on duplicate field names; added EC-009 (intra-table flattening collision), RG-009 (collision detection test), T-11B (red gate for RG-009), T-21 (fail-closed collision check in `pipeline_result_to_record_batch`), Architecture Compliance Rules 8 and 9. Q3(c) CORRECTED — T-12 updated to name all three edit sites (`SensorSpec` struct, `impl Default`, `SensorSpec::new()`). Q1 CONFIRMED — AC-002 strengthened with Arrow 58 field-name basis, DataFusion SQL identifier preconditions, and PrismQL-lexer guarantee. Density updated 8/8 → 9/8 = 1.125. |
 | 1.0 | 2026-08-12 | story-writer | Initial authorship — ADR-058 Stage 2 story. Discharges ADR-058 v2.0 §D2 ANCHOR-NEEDED mandate for ocsf_column_naming MUST (AC-001/RG-001/RG-002). Explicit scoping decision: ColumnMapper::map_record wiring gap stays out of scope; BC-2.01.013 EC-01-025 resolves via Arrow schema naming change per ADR-058 §B2 item 4. 8 ACs, 8 RGTs (density 1.0). BC-2.16.003 v1.4, BC-2.01.013 v1.16, ADR-058 v2.0 at authoring time. |

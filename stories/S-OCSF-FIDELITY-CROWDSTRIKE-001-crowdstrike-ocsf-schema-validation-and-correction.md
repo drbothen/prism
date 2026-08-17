@@ -2,8 +2,8 @@
 document_type: story
 story_id: S-OCSF-FIDELITY-CROWDSTRIKE-001
 title: "CrowdStrike OCSF Schema Validation and Correction (ADR-058 §K Methodology)"
-level: ops
-version: "0.1"
+level: "L4"
+version: "0.2"
 status: draft
 producer: story-writer
 timestamp: "2026-08-16T00:00:00Z"
@@ -51,7 +51,7 @@ modified: "2026-08-16"
 
 ## Authority
 
-**ADR-058 v2.4 §K** is the authority for the dual-validation methodology applied here.
+**ADR-058 §K** is the authority for the dual-validation methodology applied here.
 §K1 Methodology defines the procedure: enumerate all `ocsf_class` and `ocsf_field`
 declarations, validate each against the committed OCSF v1.7.0 schema at
 `crates/prism-ocsf/ocsf-schema/1.7.0/schema.json`, cross-validate against the official
@@ -182,10 +182,10 @@ per §K3 pattern from ADR-058.
 
 | Rule | Source | Enforcement |
 |------|--------|-------------|
-| Every `ocsf_class` must be a valid class key in OCSF v1.7.0 (not an object or absent) | ADR-058 v2.4 §K1 | Cross-check against `crates/prism-ocsf/ocsf-schema/1.7.0/schema.json` class enumeration |
-| Every `ocsf_field` path must resolve segment-by-segment in the schema | ADR-058 v2.4 §K1 | Per-column validation per §K3 pattern |
-| `class_selector.rs` `select()` arm must map `("crowdstrike", table)` to the same class_uid as the TOML `ocsf_class` | ADR-058 v2.4 §K2/§I5 | Grep `select_by_class_name` and `select()` arms; verify mapping |
-| Reserved OCSF computed fields (`class_name`, `type_name`, `category_name`, `count`) must not be overwritten with vendor values | ADR-058 v2.4 §K3 KF-08..KF-11 precedent | Remove `ocsf_field` on columns targeting reserved computed attrs |
+| Every `ocsf_class` must be a valid class key in OCSF v1.7.0 (not an object or absent) | ADR-058 §K1 | Cross-check against `crates/prism-ocsf/ocsf-schema/1.7.0/schema.json` class enumeration |
+| Every `ocsf_field` path must resolve segment-by-segment in the schema | ADR-058 §K1 | Per-column validation per §K3 pattern |
+| `class_selector.rs` `select()` arm must map `("crowdstrike", table)` to the same class_uid as the TOML `ocsf_class` | ADR-058 §K2/§I5 | Grep `select_by_class_name` and `select()` arms; verify mapping |
+| Reserved OCSF computed fields (`class_name`, `type_name`, `category_name`, `count`) must not be overwritten with vendor values | ADR-058 §K3 KF-08..KF-11 precedent | Remove `ocsf_field` on columns targeting reserved computed attrs |
 
 ---
 
@@ -211,4 +211,5 @@ per §K3 pattern from ADR-058.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 0.2 | 2026-08-16 | story-writer | Consistency-validator fix-burst: `level: ops`→`level: "L4"` (LOW-002); ADR-058 narrative v2.4 version labels dropped per POL-39 (section-anchor-only cites in prose and methodology table). |
 | 0.1 | 2026-08-16 | story-writer | Initial draft stub — scope capture per human directive; full BC/AC/RG deferred to materialization |

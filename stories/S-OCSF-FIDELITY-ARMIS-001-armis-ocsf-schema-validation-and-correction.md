@@ -2,8 +2,8 @@
 document_type: story
 story_id: S-OCSF-FIDELITY-ARMIS-001
 title: "Armis OCSF Schema Validation and Correction (ADR-058 §K Methodology)"
-level: ops
-version: "0.1"
+level: "L4"
+version: "0.2"
 status: draft
 producer: story-writer
 timestamp: "2026-08-16T00:00:00Z"
@@ -55,7 +55,7 @@ modified: "2026-08-16"
 
 ## Authority
 
-**ADR-058 v2.4 §K** is the authority for the dual-validation methodology applied here.
+**ADR-058 §K** is the authority for the dual-validation methodology applied here.
 §K1 Methodology defines the procedure: enumerate all `ocsf_class` and `ocsf_field`
 declarations, validate each against the committed OCSF v1.7.0 schema at
 `crates/prism-ocsf/ocsf-schema/1.7.0/schema.json`, cross-validate against the official
@@ -75,7 +75,7 @@ a class_selector.rs arm with this story (see SHARED ARM COORDINATION below).
 **The `("armis", "audit_log")` arm in `class_selector.rs` `select()` is already
 implicated by S-ADR058-OCSF-ROUTING-001 via ADR-058 §I5 + §K5 Divergence 3.**
 
-ADR-058 §I5 states (KF-01 code obligation, v2.4):
+ADR-058 §I5 states (KF-01 code obligation):
 
 > Also update the `("armis", "audit_log")` arm in `select()` (same semantic defect —
 > TD-VSDD-097 dimension 1 sibling sweep). `account_change` (3001) lacks `comment`;
@@ -230,11 +230,11 @@ S-ADR058-OCSF-ROUTING-001 per §I5 (see SHARED ARM COORDINATION above).
 
 | Rule | Source | Enforcement |
 |------|--------|-------------|
-| Every `ocsf_class` must be a valid class key in OCSF v1.7.0 (not an object or absent) | ADR-058 v2.4 §K1 | Cross-check against `crates/prism-ocsf/ocsf-schema/1.7.0/schema.json` class enumeration |
-| Every `ocsf_field` path must resolve segment-by-segment in the schema | ADR-058 v2.4 §K1 | Per-column validation per §K3 pattern |
-| `class_selector.rs` `select()` Armis arms must map to the same class_uid as the TOML `ocsf_class` | ADR-058 v2.4 §K2/§I5 | Grep `select_by_class_name` and `select()` arms; verify mapping |
-| Reserved OCSF computed fields must not be overwritten with vendor values | ADR-058 v2.4 §K3 KF-08..KF-11 precedent | Remove `ocsf_field` on columns targeting reserved computed attrs |
-| Shared `("armis", "audit_log")` arm reconciliation required | ADR-058 v2.4 §I5 + SHARED ARM COORDINATION above | Check git log for S-ADR058-OCSF-ROUTING-001 landing before scoping this fix |
+| Every `ocsf_class` must be a valid class key in OCSF v1.7.0 (not an object or absent) | ADR-058 §K1 | Cross-check against `crates/prism-ocsf/ocsf-schema/1.7.0/schema.json` class enumeration |
+| Every `ocsf_field` path must resolve segment-by-segment in the schema | ADR-058 §K1 | Per-column validation per §K3 pattern |
+| `class_selector.rs` `select()` Armis arms must map to the same class_uid as the TOML `ocsf_class` | ADR-058 §K2/§I5 | Grep `select_by_class_name` and `select()` arms; verify mapping |
+| Reserved OCSF computed fields must not be overwritten with vendor values | ADR-058 §K3 KF-08..KF-11 precedent | Remove `ocsf_field` on columns targeting reserved computed attrs |
+| Shared `("armis", "audit_log")` arm reconciliation required | ADR-058 §I5 + SHARED ARM COORDINATION above | Check git log for S-ADR058-OCSF-ROUTING-001 landing before scoping this fix |
 
 ---
 
@@ -260,4 +260,5 @@ S-ADR058-OCSF-ROUTING-001 per §I5 (see SHARED ARM COORDINATION above).
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 0.2 | 2026-08-16 | story-writer | Consistency-validator fix-burst: `level: ops`→`level: "L4"` (LOW-002); ADR-058 narrative v2.4 version labels dropped per POL-39 (section-anchor-only cites in prose, quoted §I5 note, and methodology table). |
 | 0.1 | 2026-08-16 | story-writer | Initial draft stub — scope capture per human directive; full BC/AC/RG deferred to materialization; SHARED ARM COORDINATION section added for ("armis","audit_log") class_selector.rs arm dependency with S-ADR058-OCSF-ROUTING-001 §I5 |

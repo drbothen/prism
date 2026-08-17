@@ -5,7 +5,7 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-08-16"
-version: "2.4"
+version: "2.5"
 producer: architect
 subsystems_affected: [SS-07, SS-12]
 supersedes: null
@@ -14,6 +14,9 @@ amends: null
 anchor_stories:
   - S-ADR058-OCSF-COERCION-001
   - S-ADR058-OCSF-ROUTING-001
+  - S-OCSF-FIDELITY-CROWDSTRIKE-001
+  - S-OCSF-FIDELITY-CYBERINT-001
+  - S-OCSF-FIDELITY-ARMIS-001
 related_adrs: [ADR-023, ADR-028, ADR-052, ADR-055]
 related_bcs: [BC-2.01.013, BC-2.16.002, BC-2.16.003]
 inputs:
@@ -31,7 +34,7 @@ inputs:
   - crates/prism-ocsf/src/mappers/spec_driven.rs
   - crates/prism-ocsf/src/class_selector.rs
   - crates/prism-ocsf/ocsf-schema/1.7.0/schema.json
-input-hash: "383671d"
+input-hash: "58927fd"
 ---
 
 # ADR-058: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred
@@ -319,7 +322,7 @@ remove `activity_uid` is adopted, `id` goes to `raw_extensions`.
 | `uid` | `device.uid` | `device_uid` | |
 | `asset_id` | `device.instance_uid` | `device_instance_uid` | |
 | `device_category` | `device.type` | `device_type` | **SHADOW** — §J3 fix changes to `device.type_category` → `device_type_category`; `device.type` is a valid OCSF path (device.type exists); `device.type_category` is vendor-extended (not in OCSF schema, consistent with §J3 rationale — Claroty values "OT Device"/"IT Device" fall outside OCSF device.type vocabulary) |
-| `device_type` | `device.type_name` | `device_type_name` | KF-06: `device.type_name` absent from OCSF v1.7.0 device object (only `type` and `type_id` exist); no standard OCSF equivalent for Claroty OT subcategory ("PLC", "HMI"); recommend vendor-extend or remove ocsf_field; TOML fix pending §K4 |
+| `device_type` | `device.type_label` | `device_type_label` | KF-06: `device.type_name` absent from OCSF v1.7.0 device object; settled fix: `device.type_label` (vendor-extended path for OT subcategory); Arrow name `device_type_label` |
 | `risk_score` | `risk_score` | `risk_score` | single segment; self-match (legal); `inventory_info.risk_score` confirmed at class level |
 | `retired` | `status_code` | `status_code` | single segment, unchanged; `inventory_info.status_code` confirmed at class level |
 | `device_name` | `device.name` | `device_name` | self-match: `device.name` flattens to `device_name` = col.name; A = B excluded by §J2 rule |
@@ -483,9 +486,10 @@ product-owner must adjudicate scope. Corrections required:
   (column goes to `raw_extensions`), or (b) use vendor-extended path. No standard direct path
   for Claroty audit log record identifier exists in OCSF v1.7.0.
 - **KF-06:** `devices.device_type` column — `ocsf_field = "device.type_name"` is invalid
-  (`device` object has no `type_name` attribute; only `type` and `type_id` exist). Product-owner
-  decides: (a) remove `ocsf_field` (column goes to `raw_extensions`), or (b) use vendor-extended
-  path. No standard OCSF equivalent for Claroty's OT subcategory values ("PLC", "HMI").
+  (`device` object has no `type_name` attribute; only `type` and `type_id` exist). Settled
+  (v2.5): change `ocsf_field` to `"device.type_label"` (vendor-extended path). Arrow field
+  name: `device_type_label`. No standard OCSF equivalent for Claroty's OT subcategory values
+  ("PLC", "HMI"); vendor-extended path is the correct representation.
 - **KF-07:** `device_alert_relations.alert_id` column — change `ocsf_field` from `"finding.uid"`
   to `"finding_info.uid"`. Arrow field name changes from `finding_uid` → `finding_info_uid`.
 - **KF-01 (code obligation, v2.4):** `crates/prism-ocsf/src/class_selector.rs` — add
@@ -531,7 +535,7 @@ columns whose `ocsf_field` values flatten to the same Arrow field name when
 `ocsf_column_naming = true`. The Claroty TOML has the one shadow documented below
 (`device_category`/`device_type`); RG-009 passes cleanly after the §J3 TOML fix. The
 `devices` table produces eight distinct flattened names after the §J3 fix: `device_uid`,
-`device_instance_uid`, `device_type_category`, `device_type_name`, `risk_score`, `status_code`,
+`device_instance_uid`, `device_type_category`, `device_type_label`, `risk_score`, `status_code`,
 `device_name`, `device_os_name`.
 Cross-table `time` values (`alerts.detected_time`, `audit_logs.timestamp`, and
 `device_alert_relations.device_alert_detected_time`) are cross-table and harmless. The total
@@ -615,14 +619,14 @@ are:
 | `uid` | `device.uid` | `device_uid` |
 | `asset_id` | `device.instance_uid` | `device_instance_uid` |
 | `device_category` | `device.type_category` | `device_type_category` |
-| `device_type` | `device.type_name` (KF-06: absent from OCSF; shadow math uses current wrong value; final path TBD per §K4) | `device_type_name` |
+| `device_type` | `device.type_label` (KF-06: settled; vendor-extended path for OT subcategory) | `device_type_label` |
 | `risk_score` | `risk_score` | `risk_score` |
 | `retired` | `status_code` | `status_code` |
 | `device_name` | `device.name` | `device_name` |
 | `os_category` | `device.os.name` | `device_os_name` |
 
 Shadow check after fix (all 20 devices col.names, 8 ocsf_field columns, A ≠ B rule):
-`device_type_category` vs all 19 other col.names — no match. `device_type_name` vs all other
+`device_type_category` vs all 19 other col.names — no match. `device_type_label` vs all other
 col.names — no match. `device_uid` vs all other col.names — no match. `device_instance_uid`
 vs all other col.names — no match. `risk_score` vs all other col.names — self-match only
 (`risk_score.col_name = risk_score`; A = B, excluded). `status_code` vs all other col.names
@@ -645,7 +649,7 @@ name equals another column's col.name).
   vendor-extended OCSF path — Claroty's "OT Device"/"IT Device" values are high-level category
   strings outside the standard OCSF `device.type_id` controlled vocabulary, and a vendor-
   extended path is the honest representation. The `_category` suffix distinguishes the field
-  from the subcategory `device_type_name` and is self-describing.
+  from the subcategory `device_type_label` and is self-describing.
 
 **Blast radius:** zero under flag=false (col.name unchanged); under flag=true the Arrow field for
 high-level category becomes `device_type_category` rather than `device_type` — but flag=true
@@ -805,7 +809,7 @@ Under `inventory_info`, `device.*` paths resolve via the required `device` objec
 | KF-03 | `alerts.id` `ocsf_field` | `finding.uid` | WRONG — no `finding` attr on detection_finding | `finding_info.uid` |
 | KF-04 | `alerts.alert_name` `ocsf_field` | `finding.title` | WRONG — same root as KF-03 | `finding_info.title` |
 | KF-05 | `audit_logs.id` `ocsf_field` | `activity_uid` | WRONG — attr absent from v1.7.0 | remove or vendor-extend (PO decision) |
-| KF-06 | `devices.device_type` `ocsf_field` | `device.type_name` | WRONG — attr absent on device object | vendor-extend or remove (PO decision) |
+| KF-06 | `devices.device_type` `ocsf_field` | `device.type_name` | WRONG — attr absent on device object | `device.type_label` (Arrow: `device_type_label`; vendor-extended; settled v2.5) |
 | KF-07 | `device_alert_relations.alert_id` `ocsf_field` | `finding.uid` | WRONG — same root as KF-03 | `finding_info.uid` |
 | KF-08 | `alerts.category` `ocsf_field` | `class_name` | PATH-VALID / SEMANTIC-WRONG — `class_name` is OCSF-computed from `class_uid`; vendor value overwrites | remove `ocsf_field` (→ `raw_extensions`) |
 | KF-09 | `alerts.alert_type_name` `ocsf_field` | `type_name` | PATH-VALID / SEMANTIC-WRONG — `type_name` is OCSF-computed from `type_uid`; vendor value overwrites | remove `ocsf_field` (→ `raw_extensions`) |
@@ -955,13 +959,13 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.4 (2026-08-16)
+### Status as of v2.5 (2026-08-16)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
-`S-ADR058-OCSF-COERCION-001` (v1.1, status: draft; mandate anchor discharged at §H). Stage 2
+`S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
 (OCSF routing wiring — `ocsf_column_naming` flag, `ocsf_field_to_arrow_name` helper,
-`pipeline_result_to_record_batch` update) is implemented by `S-ADR058-OCSF-ROUTING-001` (v1.2,
-status: draft; mandate anchor discharged at §D2 and §J2). Both stories are anchored. See §J for
+`pipeline_result_to_record_batch` update) is implemented by `S-ADR058-OCSF-ROUTING-001`
+(status: draft; mandate anchor discharged at §D2 and §J2). Both stories are anchored. See §J for
 the flag-transition name shadowing adjudication — `ocsf_column_naming = true` cannot ship until
 the `devices` table collision is resolved per §J3. `device_alert_relations` (fourth table, PR
 #236) is clean per §J5.
@@ -1024,6 +1028,7 @@ story-writer for the amendment.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.5 | 2026-08-16 | architect | Consistency-validator fix-burst. HIGH-001: KF-06 settled value `device.type_label` back-propagated to three stale spots in ADR-058 — §E2 devices table (ocsf_field and Arrow name corrected, TBD annotation removed), §J1 eight-name enumeration (`device_type_name`→`device_type_label`), §J3 shadow-check table and analysis text (`device_type_name`→`device_type_label`, TBD note dropped). Zero `device_type_name` residue in prescriptive positions (historical diagnostic references in §J1 shadow table, §K3 WRONG verdict row retained as correct defect descriptions). §I5 KF-06 updated from PO-decision language to settled value; §K4 KF-06 corrected value updated from "PO decision" to `device.type_label`. MED-002: anchor_stories SAC-2 fix — added S-OCSF-FIDELITY-CROWDSTRIKE-001, S-OCSF-FIDELITY-CYBERINT-001, S-OCSF-FIDELITY-ARMIS-001 (all three cite ADR-058 §K in §Authority). LOW-003: §Status volatile version pins removed per POL-39 — S-ADR058-OCSF-COERCION-001 and S-ADR058-OCSF-ROUTING-001 now cited by ID + status only, no version numbers. TD-VSDD-097: (1) sibling pair — HIGH-001 IS the dim-2 downstream-copy miss from v2.4 §I5 (§E2 and §J3 were copy targets of the §I5 KF-06 decision; both swept and corrected in this burst); (2) downstream copy target — no new copy targets introduced; (3) mandate anchor — no new MUST statements; KF-06 obligations remain anchored to S-ADR058-OCSF-ROUTING-001 per §I5. |
 | 2.4 | 2026-08-16 | architect | Divergence adjudication pass (independent research-agent cross-validation). 5 additional CONFIRMED-DEFECT findings (KF-08..KF-12). (A) §K3 alerts table reclassified: `category→class_name` (KF-08), `alert_type_name→type_name` (KF-09), `devices_count→count` (KF-10), `updated_time→end_time` (KF-12) from VALID to WRONG (semantic). (B) §K3 audit_logs reclassified: `category→category_name` (KF-11) from VALID to WRONG (semantic). (C) §K4 extended with KF-08..KF-12 rows; total WRONG count 7→12 of 35. (D) §K5 added: Div-1 CONFIRMED (KF-08..KF-11 — normalizer does not recompute OCSF metadata fields; spec_driven writes vendor values into reserved slots); Div-2 NOT-A-DEFECT (inventory_info class-level risk_score confirmed in schema; research-agent claim was incorrect); Div-3 CONFIRMED code defect (class_selector.rs maps audit_activity→CLASS_UID_ACCOUNT_CHANGE=3001; account_change lacks comment; note→comment fails silently; entity_management=3004 correct); Div-4 mixed (KF-12 CONFIRMED; asset_id/device_category/os_category NOT-A-DEFECT; retired→status_code NOTE-ONLY). (E) §K2 KF-01 code defect note added. (F) §I5 extended: KF-01 class_selector.rs code obligation + Armis sibling sweep; KF-08..KF-12 TOML/removal obligations. (G) §E2 updated: KF annotations on 5 affected columns. (H) Status retitled v2.4. TD-VSDD-097: (1) sibling pair — Armis audit_log→CLASS_UID_ACCOUNT_CHANGE carries same defect; documented in §I5 KF-01 code obligation; (2) downstream copy target — S-ADR058-OCSF-ROUTING-001 §AC-005 mapping tables carry stale VALID for KF-08..KF-11 columns; story-writer amendment required per §Status v2.4; (3) mandate anchor — KF-08..KF-12 and KF-01 code change obligations anchored to S-ADR058-OCSF-ROUTING-001 per §I5; companion story may be needed for KF-01 code change if scope requires separation. |
 | 2.3 | 2026-08-16 | architect | OCSF v1.7.0 schema validation — all 35 ocsf_class and ocsf_field declarations validated against committed schema (BC-2.02.009 pinned version). 7 WRONG declarations identified. (A) §K added: §K1 methodology, §K2 class verdicts, §K3 per-field path verdicts for all 31 ocsf_field declarations, §K4 finding summary (KF-01 through KF-07). (B) §E2 updated: alerts table — id ocsf_field corrected finding.uid → finding_info.uid per KF-03 (Arrow name finding_uid → finding_info_uid); alert_name ocsf_field corrected finding.title → finding_info.title per KF-04 (Arrow finding_title → finding_info_title); per-table ocsf_class validity annotations added. audit_logs table — KF-01 header note (audit_activity → entity_management); id row KF-05 note (activity_uid absent). devices table — KF-02 header note (device → inventory_info); device_type row KF-06 note (device.type_name absent). device_alert_relations — alert_id corrected finding.uid → finding_info.uid per KF-07. (C) §J3 device_type ocsf_field column annotated KF-06. (D) §J5 alert_id row corrected to finding_info.uid per KF-07. (E) §C3, §G, Consequences Positive and Negative: Arrow-name examples corrected finding_uid → finding_info_uid, finding_title → finding_info_title. (F) §I5 added: 7-item TOML correction obligations for KF-01 through KF-07. (G) Status updated to v2.3 with story-writer amendment obligations. TD-VSDD-097 three-dimension sweep: (1) Sibling pair — no architectural twin ADR; N/A. (2) Downstream copy target — S-ADR058-OCSF-ROUTING-001 §EC-003, §AC-005 mapping tables, §EC-009 count reference carry copy-text now stale vs v2.3; story-writer amendment required and noted in §Status v2.3. (3) Mandate anchor — no new MUST statements introduced; existing §J2 mandate anchor (→ S-ADR058-OCSF-ROUTING-001 §RG-010) unchanged. |
 | 2.2 | 2026-08-16 | architect | Ground-truth realignment against claroty.sensor.toml at develop HEAD. (A) §D1 claroty ocsf_field count corrected 32 → 31 (four-table ground-truth: alerts 9 + audit_logs 8 + devices 8 + device_alert_relations 6 = 31; input-hash updated e68fa9a). (B) §E2 fully rewritten: (B1) alerts table corrected — `alert_name` carries `ocsf_field = "finding.title"` (not `alert_class`, which has no ocsf_field); `alert_class` and `ot_devices_count` documented as raw_extensions; 9-column inventory replaces stale 8-column table. (B2) audit_logs table expanded to all 8 ocsf_field mappings — `user_display_name → actor.user.name → actor_user_name` replaces wrong `username → actor.user.name`; `username → actor.user.uid → actor_user_uid` added. (B3) devices table expanded to all 8 ocsf_field mappings (adds `device_name → device.name → device_name` and `os_category → device.os.name → device_os_name`). (B4) device_alert_relations table added (fourth table, absent from v2.1, 6 ocsf_field declarations). (C) §J1 updated: "three tables" → "four tables"; devices ocsf_field count 6 → 8; total count 19 → 31. (D) §J3 shadow check table expanded to 8 columns; shadow check passage confirmed for `device_name` (self-match) and `os_category` (no col.name match); RG-009 and RG-010 verdicts updated. (E) §J4 count corrected 19 → 31 with four-table breakdown. (F) §J5 added: device_alert_relations shadow analysis — all 6 ocsf_field columns verified clean against 10 col.names. (G) Status section retitled v2.2; story-writer amendment obligation noted. TD-VSDD-097 three-dimension sweep: (1) Sibling pair — no architectural twin ADR identified; N/A. (2) Downstream copy target — S-ADR058-OCSF-ROUTING-001 §EC-003, §AC-005 mapping tables, and §EC-009 count reference carry stale §E2/§J copy-text; story-writer amendment required. (3) Mandate anchor — no new MUST statements introduced; existing §J2 mandate anchor (→ S-ADR058-OCSF-ROUTING-001 §RG-010) unchanged. |
