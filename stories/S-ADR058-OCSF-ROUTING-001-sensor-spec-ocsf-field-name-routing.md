@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.8"
+version: "1.9"
 level: "L4"
 status: draft
 producer: story-writer
@@ -84,7 +84,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "f7f7e85"
+input-hash: "c033be9"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -103,8 +103,8 @@ tags:
 
 ## Authority
 
-**ADR-058 v2.7: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
-Names; DTU Migration Deferred.** Version `2.7`, status: accepted (2026-08-16). Read
+**ADR-058 v2.8: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
+Names; DTU Migration Deferred.** Version `2.8`, status: accepted (2026-08-16). Read
 §B2 (decision), §C (quoting convention — Option 4 chosen), §D (per-sensor scoping, flag
 mechanism), §E (blast radius), §G (prism_describe output spec), §H (Stage 1 confirmed
 separate), §I (implementation guidance including **§I5 TOML + code correction obligations for
@@ -119,7 +119,7 @@ class_selector.rs KF-01 code defect confirmed and Armis sibling sweep)** in full
 implementing.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time.** Version `1.8`, status: draft
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time.** Version `1.9`, status: draft
 (modified 2026-08-16). §Column Routing postconditions, **§Claroty Contracted OCSF Mappings
 (ground truth for all four Claroty tables with KF-01..KF-12 corrections)**, and
 **§Interpretation A: Arrow Field Naming** govern the obligation that `ocsf_field` declarations
@@ -215,7 +215,7 @@ Until then, `ColumnMapper::map_record` remains test-only.
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.8 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention) |
+| BC-2.16.003 | v1.9 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention) |
 | BC-2.16.002 | v2.27 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
 | BC-2.01.013 | v1.16 | active | EC-01-025 NON-CONFORMANT annotation resolved for Claroty after this story merges; product-owner updates annotation |
 
@@ -224,7 +224,7 @@ Until then, `ColumnMapper::map_record` remains test-only.
 ## Red Gate Tests (SAC-1 — tdd_mode: strict)
 
 All twenty-three tests MUST be failing (RED) before any implementation code is written.
-Test-writer dispatched FIRST; implementer only after all 20 confirmed failing.
+Test-writer dispatched FIRST; implementer only after all 23 confirmed failing.
 
 - **RG-001:** `test_sensor_spec_ocsf_column_naming_defaults_to_false` —
   fails until `SensorSpec` gains the `ocsf_column_naming` field (with `#[serde(default)]`).
@@ -1668,10 +1668,33 @@ No unanchored MUSTs introduced by this amendment. VERDICT: DISCHARGED IN THIS AM
 
 ---
 
+### v1.9 Amendment Sweep (ADR-058 v2.7→v2.8 + BC-2.16.003 v1.8→v1.9 pin sweep + F2 count fix)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): §Authority ADR-058 pin updated v2.7→v2.8;
+§Authority BC-2.16.003 pin updated v1.8→v1.9; body BC table pin updated v1.8→v1.9. Same
+pass-5 burst. F2 stale count fix applies only to ROUTING-001 (COERCION-001 has no Red-then-green
+gate instruction with RG count). VERDICT: COERCION-001 PIN SWEEP APPLIED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+ADR-058 §Authority entry and BC-2.16.003 §Authority entry carry the version pins; body BC
+table duplicates the BC-2.16.003 pin. All three updated. No other live downstream copy of
+these pins exists in this story. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The pin sweep and count fix are authoring-accuracy
+updates, not new behavioral obligations. VERDICT: N/A — no new mandates.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.9 | 2026-08-17 | story-writer | Adversary pass-5 fix-burst: (1) ADR-058 re-pin v2.7→v2.8; BC-2.16.003 re-pin v1.8→v1.9 (concurrent architect/PO bumps); §Authority pins and body BC table updated in both ROUTING-001 and COERCION-001. (2) F2 stale count fix: `all 20 confirmed failing` → `all 23 confirmed failing` (line ~227 Red-then-green gate). Full grep of both stories for other stale `20`/`twenty` RG-count refs — zero additional instances found in normative sections. (3) §v1.9 Amendment Sweep added. |
 | 1.8 | 2026-08-17 | story-writer | Adversary pass-4 fix-burst (comprehensive KF→AC→RG coverage-matrix audit): (1) BC-2.16.003 re-pin v1.7→v1.8. (2) F5 POL-39 volatile-pin strip: `v1.67` catalog-label and `row 94` positional cite removed from §Authority BC-2.16.002, body BC table, AC-011, RG-018; durable `event_type = "ocsf.unknown_class_name"` symbol anchor retained. (3) F2 RG-015 expanded to 3-field wire-shape (KF-03 `finding_info_uid` + KF-04 `finding_info_title` + KF-12 `finding_info_modified_time`); AC-010 assertion 1 now matches RG-015 reality. (4) F3 RG-021 added: KF-05 `audit_logs.id` → raw_extensions (no `activity_uid`/`id` Arrow field; value preserved in raw_extensions); RG-022 added: KF-06 `devices.device_type` → `device_type_label` Arrow field (demo-critical `WHERE device_type_label = 'PLC'`). AC-010 assertions 5 and 6 added. (5) F4 RG-023 added: AC-009(c) Claroty `select()` arm `("claroty","audit_log")` → Ok(3004); density-note corrected (RG-012 covers Armis half; RG-023 covers Claroty half). (6) T-11N/T-11O/T-11P added for RG-021/022/023 authoring; T-GATE/T-19 updated. (7) Density 20/11=1.82→23/11=2.09. AC-005 density-note corrected (KF-05/06 now have RGs). (8) §v1.8 Amendment Sweep added. |
 | 1.7 | 2026-08-17 | story-writer | Adversary pass-3 fix-burst: (1) F2 compile-error-class fix — AC-011 and T-24 emission snippet `%table.name` → `%table.table_name` (`TableSpec` has no `name` field; correct field is `table_name` per `prism-spec-engine::spec_parser`; sibling sweep confirmed no other stale `table.name` references in COERCION-001). (2) F1 ROUTING-001 subsystem cross-check against ARCH-INDEX — SS-01/02/10/16 confirmed correct; justification prose already correct (prism-bin attributed to SS-10; prism-sensors+prism-spec-engine to SS-01; prism-ocsf to SS-02; prism-spec-engine to SS-16). (3) §v1.7 Amendment Sweep added. |
 | 1.6 | 2026-08-16 | story-writer | Adversary pass-2 fix-burst: (1) F2 pin sweep — ADR-058 §Authority pin v2.6→v2.7; BC-2.16.003 §Authority pin v1.6→v1.7; body BC table v1.6→v1.7; narrative version labels stripped per POL-39 (section-anchor-only cites in RG-013/014/015, AC-005, AC-009, AC-010, AC-011, EC-003, T-11I/T-11J/T-24). (2) F3 wire-shape coverage added: RG-019 `test_claroty_audit_logs_record_batch_kf11_category_in_raw_extensions` (KF-11 audit_logs category→raw_extensions + entity_management field mappings); RG-020 `test_claroty_device_alert_relations_record_batch_finding_info_uid_wire_shape` (KF-07 device_alert_relations alert_id→finding_info_uid). AC-010 updated with RG-019/020 assertions; T-11L/T-11M added. Density 18/11=1.64→20/11=1.82. RG section header 15→20. T-19/T-GATE updated. (3) F4 SS-01 justification imprecision: removed `prism-bin::spec_driven_adapter` from SS-01 prose; moved to SS-10 prose (prism-bin is SS-10 per ARCH-INDEX; SS-01 justified by prism-sensors + prism-spec-engine only). (4) §v1.6 Amendment Sweep added. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.8"
+version: "1.9"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -22,7 +22,7 @@ inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "ba07043"
+input-hash: "5ec3dd0"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -252,8 +252,8 @@ The required emission at demotion time is:
 ```
 tracing::warn!(
     column = %warning.column_name,
-    column_type = %warning.column_type,
-    actual_json_kind = %warning.actual_json_kind,
+    column_type = %warning.expected_ocsf_type,
+    actual_json_kind = %actual_kind,
     event_type = "column_coercion_failure",
     "coerce_value: type mismatch; field diverted to raw_extensions"
 );
@@ -390,6 +390,7 @@ via proptest) is recommended as part of S-ADR058-OCSF-COERCION-001.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | adr058-ocsf-pass5-f1-coercion-value-sources | 2026-08-17 | product-owner | **Adversary pass-5 F1 [MED] closure: corrected `column_coercion_failure` tracing snippet value-source expressions to match real `CoercionWarning` struct fields and S-ADR058-OCSF-COERCION-001 AC-004 exactly.** Pass-4 fix aligned the emitted field KEYS (`column`, `column_type`, `actual_json_kind`) but broke the VALUE expressions — `%warning.column_type` and `%warning.actual_json_kind` reference non-existent `CoercionWarning` fields; the struct has `{column_name, expected_ocsf_type, actual_value}`. Fix: `column_type = %warning.expected_ocsf_type` (KEY stays `column_type`; value reads the real struct field `expected_ocsf_type`); `actual_json_kind = %actual_kind` (KEY stays `actual_json_kind`; value is a computed local `actual_kind` — NOT a struct field; per AD-017 spirit, log the JSON kind, not raw data). `column = %warning.column_name` unchanged. Value expressions now match AC-004 verbatim. TD-VSDD-097 three-dimension sweep: (1) Sibling pair — none; CLEAR. (2) Downstream copy target — BC-2.16.002 `column_coercion_failure` catalog row does not yet exist; no stale copy; CLEAR. (3) Mandate anchor — existing MUST anchored to S-ADR058-OCSF-COERCION-001; no new unanchored MUSTs. |
 | 1.8 | adr058-ocsf-pass4-f1-coercion-field-schema | 2026-08-17 | product-owner | **Adversary pass-4 F1 [MED] closure: aligned §Coercion Warning Observability tracing field schema to story S-ADR058-OCSF-COERCION-001 AC-004 / catalog-row obligation.** Prior field keys `expected_ocsf_type` / `actual_value` contradicted the story schema `{column, column_type, actual_json_kind}`. Both name the same SAP-1-governed event `column_coercion_failure`, so a permanent catalog contradiction would have arisen when BC-2.16.002 received the catalog row. Resolution: updated the tracing macro snippet to use the story-canonical keys `column_type` (was `expected_ocsf_type`) and `actual_json_kind` (was `actual_value`). `actual_json_kind` logs the JSON kind/type rather than raw field data — safer under the credential/data-opacity posture (AD-017 spirit; do not log raw values). No behavioral change; no new MUSTs introduced. `column = %warning.column_name` key unchanged. TD-VSDD-097 three-dimension sweep: (1) Sibling pair — no named split-event twin; CLEAR. (2) Downstream copy target — BC-2.16.002 §Canonical Structured Event Catalog does not yet contain the `column_coercion_failure` row (it is gated on S-ADR058-OCSF-COERCION-001); no stale copy to propagate; CLEAR. (3) Mandate anchor — the existing MUST anchoring this emission to S-ADR058-OCSF-COERCION-001 is unchanged; no unanchored MUSTs introduced. |
 | 1.7 | adr058-ocsf-pass2-f7-volatile-pin-sweep | 2026-08-16 | product-owner | **Adversary pass-2 F7 [LOW] closure: POL-39 volatile-version-pin sweep.** Removed all `ADR-058 v2.x` and `(v1.x)` self-label pins from narrative prose (frontmatter `version:` and §Changelog rows exempt per POL-39). Changes: (A) §Description `(ADR-058 v2.0)` → `(ADR-058 §B2/§I1)`. (B) §Claroty Contracted OCSF Mappings section header: removed `(v1.5)` label — version-free to avoid re-pinning drift. (C) §Claroty Contracted OCSF Mappings intro: `ADR-058 v2.4 §K4` → `ADR-058 §K4`. (D) EC-016-013-023 and EC-016-013-024 wire-level postconditions: `ADR-058 §I5 v2.6 wire-shape assertion obligation` → `ADR-058 §I5 wire-shape assertion obligation`. (E) EC-016-013-023 and EC-016-013-024: `BC-2.16.002 §Canonical Structured Event Catalog v1.67 row` → `BC-2.16.002 §Canonical Structured Event Catalog`. (F) §Architecture Anchors: `ADR-058 §I5 v2.6 §K5` → `ADR-058 §I5 §K5`; `ADR-058 §I5 v2.6` (two occurrences) → `ADR-058 §I5`; `BC-2.16.002 §Canonical Structured Event Catalog v1.67 row` → `BC-2.16.002 §Canonical Structured Event Catalog`. No behavioral change; no new MUSTs. TD-VSDD-097 three-dimension sweep: (1) Sibling pair — none; CLEAR. (2) Downstream copy target — none of these narrative phrases are verbatim copy-sources in downstream artifacts; CLEAR. (3) Mandate anchor — no new MUSTs; CLEAR. |
 | 1.6 | adr058-ocsf-routing-propagation | 2026-08-16 | product-owner | **ADR-058 v2.6 path-liveness propagation.** (A) §Architecture Anchors: replaced stale `"audit_activity"`-only `class_selector.rs` reference with full Path A / Path B distinction per ADR-058 §I5 (v2.6) and §K5. Path A (live): `select_by_class_name` in `pipeline_result_to_record_batch` must gain `"entity_management"→3004` and `"inventory_info"→5001` arms + new const `CLASS_UID_ENTITY_MANAGEMENT = 3004`; `"audit_activity"` arm becomes dead code pending deprecation annotation. Path B (zero production callers, forward-compat only): `select()` in `normalize_with_mappers`. Process-gap `ocsf.unknown_class_name` WARN obligation noted (SAP-1 discharged in BC-2.16.002 catalog v1.67). (B) EC-016-013-023: augmented with wire-level postcondition — Claroty audit_logs batch with `ocsf_class = "entity_management"` MUST produce `class_uid = 3004` in the Arrow `class_uid` Int32 column via Path A (NOT 3001 from the prior wrong `account_change` arm, NOT 0 from unknown-class fallback). (C) EC-016-013-024: augmented with wire-level postcondition — Claroty devices batch with `ocsf_class = "inventory_info"` MUST produce `class_uid = 5001` in the Arrow `class_uid` Int32 column via Path A (regression-prevention assertion: without the `"inventory_info"` arm, the KF-02 TOML change regresses class_uid from the current 5001 to 0). TD-VSDD-097 three-dimension sweep: (1) Sibling pair — BC-2.16.003 has no named split-event twin; CLEAR. (2) Downstream copy target — §Architecture Anchors and EC augmentations are not verbatim copy-sources in downstream artifacts; CLEAR. (3) Mandate anchor — wire-level `class_uid` postconditions anchored to S-ADR058-OCSF-ROUTING-001 (the implementing story for both `"entity_management"` and `"inventory_info"` arms); no unanchored MUSTs introduced. |

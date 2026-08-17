@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.7"
+version: "1.8"
 level: "L4"
 status: draft
 producer: story-writer
@@ -69,7 +69,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "2b5c451"
+input-hash: "0a1a165"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -89,7 +89,7 @@ tags:
 
 ## Authority
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time.** Version `1.8`, status: draft
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time.** Version `1.9`, status: draft
 (modified 2026-08-16). Primary behavioral authority. The §Type Coercion Algorithm, §Full
 Coercion Matrix, EC-016-013-007/008/009 KNOWN GAP annotations, and §Coercion Warning
 Observability DEFECT section are the acceptance-criteria source for this story. Note: BC-2.16.003
@@ -97,7 +97,7 @@ Observability DEFECT section are the acceptance-criteria source for this story. 
 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.7: v1 Column Naming — OCSF Field-Path Routing.** Version `2.7`, status:
+**ADR-058 v2.8: v1 Column Naming — OCSF Field-Path Routing.** Version `2.8`, status:
 accepted (2026-08-16). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
@@ -149,7 +149,7 @@ MUST update ADR-058 v2.0 §H to replace the `ANCHOR-NEEDED` annotation with:
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.8 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
+| BC-2.16.003 | v1.9 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
 | BC-2.02.011 | — | — | Warning-emission obligation for each normalization issue; BC-2.16.003 DEFECT violates this |
 | BC-2.16.002 | v2.27 | active | Canonical Structured Event Catalog obligation — `column_coercion_failure` emit from AC-004/AC-005 must be registered in §Postconditions §Canonical Structured Event Catalog (SAP-1 / PG-LP11-001) |
 
@@ -657,10 +657,32 @@ update, not a new behavioral obligation. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.8 Amendment Sweep (ADR-058 v2.7→v2.8 + BC-2.16.003 v1.8→v1.9 pin sweep)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): §Authority ADR-058 pin updated v2.7→v2.8;
+§Authority BC-2.16.003 pin updated v1.8→v1.9; body BC table pin updated v1.8→v1.9; F2 stale
+count fix applied (Red-then-green gate `all 20` → `all 23`). All changes in the same pass-5
+burst. VERDICT: ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+§Authority BC-2.16.003 pin and body BC table pin are the two copies of the BC version reference
+in this story. Both updated v1.8→v1.9. §Authority ADR-058 pin updated v2.7→v2.8. No other
+downstream artifact in COERCION-001 copies these pins. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. VERDICT: N/A — no new mandates.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.8 | 2026-08-17 | story-writer | Adversary pass-5 fix-burst: (1) ADR-058 re-pin v2.7→v2.8; BC-2.16.003 re-pin v1.8→v1.9 (concurrent architect/PO bumps); §Authority pins and body BC table updated. (2) §v1.8 Amendment Sweep added. |
 | 1.7 | 2026-08-17 | story-writer | Adversary pass-4 fix-burst: (1) BC-2.16.003 re-pin v1.7→v1.8 (PO concurrent bump); §Authority pin and body BC table updated. (2) Quick AC↔RG coverage cross-check: RG-001..RG-007 cover all 6 ACs (AC-001..AC-006); CLEAN — no gaps found. Stage 1 coercion-engine scope does not include KF-05/06/07 field-routing corrections (those are Stage 2 ROUTING-001 territory). (3) §v1.7 Amendment Sweep added. |
 | 1.6 | 2026-08-17 | story-writer | Adversary pass-3 fix-burst: (1) F1 subsystem mis-anchoring corrected: `prism-bin` removed from SS-01 justification (fabricated per POL-5 — ARCH-INDEX SS-01 lists `prism-sensors, prism-spec-engine, prism-dtu-*`; NOT prism-bin); SS-10 added to frontmatter and justified as owner of prism-bin (ARCH-INDEX SS-10 row: "prism-mcp, prism-bin (planned — S-WAVE5-PREP-01)"); SS-22 excluded (boot orchestration only, not data-processing scope). SS-01 justification now cites only prism-spec-engine with ARCH-INDEX SS-01 row verbatim excerpt. (2) F3 §Authority date corrections: BC-2.16.003 `modified 2026-08-17` → `2026-08-16`; ADR-058 `accepted (2026-08-17)` → `(2026-08-16)` (cite on-disk frontmatter dates per POL-37). (3) §v1.6 Amendment Sweep added. |
 | 1.5 | 2026-08-17 | story-writer | Adversary pass-2 fix-burst: (1) F2 BC-2.16.003 pin v1.5→v1.7; ADR-058 pin v2.6→v2.7; narrative version labels stripped per POL-39 (section-anchor-only cites in §Authority BC-2.16.003 note and ADR-058 process-gap phrase). (2) F5 BC-2.16.002 added to `behavioral_contracts:` frontmatter; BC-2.16.002 v2.27 body BC table row added; BC-2.16.002 v2.27 §Authority entry added (POL-8 full propagation). Token Budget already carried BC-2.16.002 ~2k row from v1.3; no token budget change needed. (3) F6 §Catalog Row Obligation stale version prose replaced with section-anchor cite per POL-39 (removed `currently v1.62 with 90 events becomes v1.63 with 91 events`). (4) §v1.5 Amendment Sweep added. |
