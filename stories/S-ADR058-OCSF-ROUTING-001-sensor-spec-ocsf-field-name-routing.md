@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.15"
+version: "1.16"
 level: "L4"
 status: draft
 producer: story-writer
@@ -85,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "e0a2c0f"
+input-hash: "30215ef"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -104,8 +104,8 @@ tags:
 
 ## Authority
 
-**ADR-058 v2.12: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
-Names; DTU Migration Deferred.** Version `2.12`, status: accepted (2026-08-17). Read
+**ADR-058 v2.13: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
+Names; DTU Migration Deferred.** Version `2.13`, status: accepted (2026-08-17). Read
 §B2 (decision), §C (quoting convention — Option 4 chosen), §D (per-sensor scoping, flag
 mechanism), §E (blast radius), §G (prism_describe output spec), §H (Stage 1 confirmed
 separate), §I (implementation guidance including **§I5 TOML + code correction obligations for
@@ -1071,9 +1071,9 @@ implementer MUST load only the files listed, not the full architecture directory
   CLASS_UID_ENTITY_MANAGEMENT = 3004 is added and the arm updated. Covers AC-009
   (data-loss prevention, EC-016-013-023).
 - T-11G: Write RG-014 — `test_claroty_alerts_reserved_fields_go_to_raw_extensions_not_first_class_columns`
-  (MUST FAIL). Wire-shape assertion: build a Claroty alerts `SensorSpec` with the
-  KF-08/09/10 corrections applied (`category`, `alert_type_name`, `devices_count` have
-  no `ocsf_field`). Pass a record `{"category": "OT Security", "alert_type_name":
+  (MUST FAIL). Wire-shape assertion: load the corrected `claroty.sensor.toml` alerts
+  table spec (post-T-17, KF-08/09/10: `category`, `alert_type_name`, `devices_count`
+  have no `ocsf_field`). Pass a record `{"category": "OT Security", "alert_type_name":
   "Protocol Violation", "devices_count": 3}` through `pipeline_result_to_record_batch`
   with `ocsf_column_naming = true`. Serialize the RecordBatch to JSON. Assert: no
   first-class Arrow fields named `"class_name"`, `"type_name"`, or `"count"` exist;
@@ -1081,10 +1081,10 @@ implementer MUST load only the files listed, not the full architecture directory
   `"devices_count"` with vendor values. Currently fails because KF-08/09/10 corrections
   are not yet in the TOML. Covers AC-010 (EC-016-013-013/014/015).
 - T-11H: Write RG-015 — `test_claroty_alerts_finding_info_fields_wire_shape`
-  (MUST FAIL). Wire-shape assertion: build a Claroty alerts `SensorSpec` with KF-03/04/12
-  corrections (`id` ocsf_field = `"finding_info.uid"`, `alert_name` ocsf_field =
-  `"finding_info.title"`, `updated_time` ocsf_field = `"finding_info.modified_time"`).
-  Pass a record `{"id": "132", "alert_name": "Modbus Violation",
+  (MUST FAIL). Wire-shape assertion: load the corrected `claroty.sensor.toml` alerts
+  table spec (post-T-17, KF-03/04/12: `id.ocsf_field = "finding_info.uid"`,
+  `alert_name.ocsf_field = "finding_info.title"`, `updated_time.ocsf_field =
+  "finding_info.modified_time"`). Pass a record `{"id": "132", "alert_name": "Modbus Violation",
   "updated_time": "2024-01-15T10:30:00Z"}` through `pipeline_result_to_record_batch`
   with `ocsf_column_naming = true`. Serialize to JSON. Assert: (1) Arrow field
   `"finding_info_uid"` contains `"132"` (KF-03); (2) Arrow field `"finding_info_title"`
@@ -1115,9 +1115,9 @@ implementer MUST load only the files listed, not the full architecture directory
   (graceful fallback preserved). Currently fails because the warn emission does not exist.
   Covers AC-011; traces to BC-2.16.002 §Canonical Structured Event Catalog `ocsf.unknown_class_name`.
 - T-11L: Write RG-019 — `test_claroty_audit_logs_record_batch_kf11_category_in_raw_extensions`
-  (MUST FAIL). Wire-shape assertion: build a Claroty `audit_logs` `SensorSpec` with KF-11
-  correction applied (`category` has no `ocsf_field`, `ocsf_class = "entity_management"`).
-  Pass a record `{"category": "Authentication", "action": "Login", "note": "reviewed"}`
+  (MUST FAIL). Wire-shape assertion: load the corrected `claroty.sensor.toml` audit_logs
+  table spec (post-T-17, KF-11: `category` has no `ocsf_field`; KF-01: `ocsf_class =
+  "entity_management"`). Pass a record `{"category": "Authentication", "action": "Login", "note": "reviewed"}`
   through `pipeline_result_to_record_batch` with `ocsf_column_naming = true`. Serialize
   the RecordBatch to JSON. Assert: (1) no first-class Arrow field `"category_uid"` or
   `"category_name"` exists; (2) `raw_extensions` blob contains `"category": "Authentication"`;
@@ -1125,16 +1125,17 @@ implementer MUST load only the files listed, not the full architecture directory
   `"reviewed"`. Currently fails because KF-11 TOML correction not yet applied. Covers
   AC-010 (KF-11) and AC-009 entity_management field mappings at integration level.
 - T-11M: Write RG-020 — `test_claroty_device_alert_relations_record_batch_finding_info_uid_wire_shape`
-  (MUST FAIL). Wire-shape assertion: build a Claroty `device_alert_relations` `SensorSpec`
-  with KF-07 correction (`alert_id` ocsf_field = `"finding_info.uid"`). Pass a record
+  (MUST FAIL). Wire-shape assertion: load the corrected `claroty.sensor.toml`
+  device_alert_relations table spec (post-T-17, KF-07: `alert_id.ocsf_field =
+  "finding_info.uid"`). Pass a record
   `{"device_uid": "dev-001", "alert_id": "alert-123"}` through `pipeline_result_to_record_batch`
   with `ocsf_column_naming = true`. Serialize to JSON. Assert: (1) Arrow field
   `"finding_info_uid"` contains `"alert-123"`; (2) no field named `"finding_uid"` exists;
   (3) no field named `"finding.uid"` exists. Currently fails because KF-07 TOML correction
   not yet applied. Covers AC-010 (KF-07).
 - T-11N: Write RG-021 — `test_claroty_audit_logs_id_column_goes_to_raw_extensions_not_activity_uid`
-  (MUST FAIL). Wire-shape assertion: build a Claroty `audit_logs` `SensorSpec` with KF-05
-  correction (`audit_logs.id` ocsf_field removed). Pass a record `{"id": "al-999",
+  (MUST FAIL). Wire-shape assertion: load the corrected `claroty.sensor.toml` audit_logs
+  table spec (post-T-17, KF-05: `id.ocsf_field` removed). Pass a record `{"id": "al-999",
   "action": "Login"}` through `pipeline_result_to_record_batch` with
   `ocsf_column_naming = true` and `ocsf_class = "entity_management"`. Serialize to JSON.
   Assert: (1) no top-level Arrow field named `"activity_uid"` exists; (2) no top-level
@@ -1142,8 +1143,8 @@ implementer MUST load only the files listed, not the full architecture directory
   value `"al-999"`. Currently fails because KF-05 TOML correction not yet applied.
   Covers AC-010 (KF-05).
 - T-11O: Write RG-022 — `test_claroty_devices_device_type_produces_device_type_label_arrow_field`
-  (MUST FAIL). Wire-shape assertion: build a Claroty `devices` `SensorSpec` with KF-06
-  correction (`device_type.ocsf_field` = `"device.type_label"`). Pass a record
+  (MUST FAIL). Wire-shape assertion: load the corrected `claroty.sensor.toml` devices
+  table spec (post-T-17, KF-06: `device_type.ocsf_field = "device.type_label"`). Pass a record
   `{"device_uid": "dev-001", "device_type": "PLC"}` through `pipeline_result_to_record_batch`
   with `ocsf_column_naming = true` and `ocsf_class = "inventory_info"`. Serialize to JSON.
   Assert: (1) Arrow field `"device_type_label"` contains `"PLC"`; (2) no Arrow field named
@@ -1776,6 +1777,29 @@ violation, not a behavioral obligation. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.16 Amendment Sweep (F2 T-11G/H/L/M/N/O task-wording fix + ADR-058 re-pin v2.12→v2.13)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): ADR-058 §Authority pin updated v2.12→v2.13 in
+same burst. COERCION-001 has no §Tasks T-11* authoring-wording issue (it does not touch the TOML
+— all its tasks are code-level with consistent inline-spec/code-RED patterns). VERDICT: COERCION-001
+AMENDED IN SAME BURST (ADR pin only).
+
+**Dimension 2 — Downstream copy target:**
+
+T-17 "Makes green" list (RG-014/015/019/020/021/022) is the downstream copy of the RG attributions
+in T-11G/H/L/M/N/O. The T-17 green list is unchanged — T-17 still claims those same 6 RGs. The
+fix is authoring-instruction alignment: the tests now specify loading the real claroty.sensor.toml
+(post-T-17), which is consistent with T-17's green-driver role. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. Task wording and ADR re-pin are consistency corrections.
+VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.15 Amendment Sweep (ADR-058 re-pin v2.11→v2.12 + sibling sweep COERCION-001 LOW-2 coordination)
 
 **Dimension 1 — Sibling pair:**
@@ -1850,6 +1874,7 @@ corrections, not new behavioral obligations. VERDICT: N/A — no new mandates.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.16 | 2026-08-17 | story-writer | Adversary pass-12 fix-burst: (1) F2 [LOW] §Tasks T-11G/H/L/M/N/O authoring-wording fixed — all six changed from "build a [table] SensorSpec with KF-xx corrections applied" to "load the corrected `claroty.sensor.toml` [table] table spec (post-T-17, KF-xx: ...)" — authoring instruction, RED-reason (TOML not yet corrected), and T-17 green-driver attribution now mutually consistent. (2) Comprehensive §Tasks audit: T-04–T-11 are consistent one-liners (no authoring body); T-11B/C (RG-009/010): inline spec + code-RED + T-21 green — CONSISTENT; T-11D/E/F (RG-011/012/013): direct API / DynamicMessage + code-RED + T-22/T-23 green — CONSISTENT; T-11I/J (RG-016/017): inline/optional-production-TOML + code-arm-RED + T-22 green — CONSISTENT; T-11K (RG-018): inline spec + code-RED + T-24 green — CONSISTENT; T-11P (RG-023): unit test + code-RED + T-23 green — CONSISTENT. (3) COERCION-001 tasks audit: CLEAN (all tasks code-level, no TOML dependency). (4) ADR-058 §Authority pin v2.12→v2.13 (concurrent architect bump). (5) Sibling sweep: zero normative prose version pins. (6) §v1.16 Amendment Sweep added. |
 | 1.15 | 2026-08-17 | story-writer | Adversary pass-11 fix-burst: (1) ADR-058 §Authority pin v2.11→v2.12 (concurrent architect bump). (2) Sibling coordination: COERCION-001 LOW-2 AC-004 trace parentheticals added in same burst — all three COERCION frontmatter BCs now have AC `(traces to …)` parentheticals; ROUTING-001 already had BC-2.16.002 and BC-2.02.011 traces. (3) Sibling sweep: zero ADR-058/BC normative prose version pins found in either story outside exempt/grandfathered zones. (4) §v1.15 Amendment Sweep added. |
 | 1.14 | 2026-08-17 | story-writer | Adversary pass-10 fix-burst: (1) F3 [LOW] §Mandate Anchor #1 provenance fix — both §D2 and §J2 discharge entries made version-free: removed "(v2.1)" / "since v2.1" version qualifiers from inline prose and table Status column; replaced with "DISCHARGED — ADR-058 §D2/§J2 carries the inline (Anchored: …) mark" form per POL-39. Eliminates drift source so story cannot go stale on future ADR bumps. (2) ADR-058 §Authority pin v2.10→v2.11 (concurrent architect bump). (3) Sibling sweep: zero additional normative prose ADR-058 or BC version pins found in either story outside §Authority (exempt) and historical amendment-sweep/changelog rows (grandfathered). (4) §v1.14 Amendment Sweep added. |
 | 1.13 | 2026-08-17 | story-writer | Adversary pass-9 fix-burst: (1) F2 [LOW] AC-011 §Catalog obligation prose: removed volatile `v2.27` doc-version pin and stale '(product-owner authored it in this fix-burst)' temporal aside from normative AC prose; section-anchor cite `BC-2.16.002 §Canonical Structured Event Catalog` retained. (2) Sibling sweep — zero additional POL-39 doc-version pins found in normative prose of either story (body BC table and §Authority entries are exempt; historical amendment-sweep/changelog rows are grandfathered). (3) ADR-058 §Authority pin v2.9→v2.10 (concurrent architect bump). (4) §v1.13 Amendment Sweep added. |
