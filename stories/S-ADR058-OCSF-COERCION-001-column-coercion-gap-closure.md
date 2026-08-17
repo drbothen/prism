@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.10"
+version: "1.11"
 level: "L4"
 status: draft
 producer: story-writer
@@ -70,7 +70,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "e67df0d"
+input-hash: "408c698"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -98,7 +98,7 @@ Observability DEFECT section are the acceptance-criteria source for this story. 
 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.8: v1 Column Naming — OCSF Field-Path Routing.** Version `2.8`, status:
+**ADR-058 v2.9: v1 Column Naming — OCSF Field-Path Routing.** Version `2.9`, status:
 accepted (2026-08-17). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
@@ -718,10 +718,33 @@ pending obligation; it does not create a new one. VERDICT: N/A — no new mandat
 
 ---
 
+### v1.11 Amendment Sweep (ADR-058 re-pin v2.8→v2.9 + comprehensive hygiene sweep)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): Comprehensive hygiene sweep applied in same
+burst (v1.11→v1.12) — F1 §Mandate Anchor #1 rewritten (§D2 and §J2 DISCHARGED), F4 §Authority
+§J4 count corrected (31 pre-correction / 26 post-correction), F3 v1.9 changelog row line-cite
+removed, ADR-058 §Authority pin v2.8→v2.9. VERDICT: ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+ADR-058 §Authority pin is the sole live ADR pin site in this story. Updated v2.8→v2.9. Comprehensive
+hygiene sweep of narrative prose confirmed zero ADR-058 version pins outside §Authority and historical
+amendment-sweep sections (grandfathered by TD-VSDD-091 ratchet scoping). VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The ADR-058 re-pin and hygiene sweep are accuracy
+fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.11 | 2026-08-17 | story-writer | Adversary pass-8 fix-burst: (1) ADR-058 §Authority pin v2.8→v2.9 (concurrent architect bump). (2) Comprehensive hygiene sweep: zero POL-39 narrative prose violations and zero line-cites found outside §Authority and historical amendment-sweep sections (all grandfathered per TD-VSDD-091 ratchet scoping). (3) §v1.11 Amendment Sweep added. |
 | 1.10 | 2026-08-17 | story-writer | Adversary pass-7 fix-burst: (1) F3 ADR-058 §H MUST Discharge section updated: ANCHOR-NEEDED marked DISCHARGED (ADR-058 §H already reads "(Anchored: S-ADR058-OCSF-COERCION-001 AC-004, RG-005)" since v2.1); volatile `v2.0` pin removed from both the §Mandate Anchor #2 prose and the §v1.3 Amendment Sweep Dimension 3; `ANCHOR-NEEDED` language replaced with `DISCHARGED`; architect routing obligation removed. (2) §v1.10 Amendment Sweep added. |
 | 1.9 | 2026-08-17 | story-writer | Adversary pass-6 fix-burst: (1) F3 §Authority date cites ADR-058 + BC-2.16.003 updated 2026-08-16 → 2026-08-17; `modified:` frontmatter field added as 2026-08-17. (2) §v1.9 Amendment Sweep added. |
 | 1.8 | 2026-08-17 | story-writer | Adversary pass-5 fix-burst: (1) ADR-058 re-pin v2.7→v2.8; BC-2.16.003 re-pin v1.8→v1.9 (concurrent architect/PO bumps); §Authority pins and body BC table updated. (2) §v1.8 Amendment Sweep added. |

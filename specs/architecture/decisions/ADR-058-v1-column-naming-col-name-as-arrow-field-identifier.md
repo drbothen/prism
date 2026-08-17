@@ -5,7 +5,7 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-08-17"
-version: "2.8"
+version: "2.9"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -34,7 +34,7 @@ inputs:
   - crates/prism-ocsf/src/mappers/spec_driven.rs
   - crates/prism-ocsf/src/class_selector.rs
   - crates/prism-ocsf/ocsf-schema/1.7.0/schema.json
-input-hash: "57e33da"
+input-hash: "164078d"
 ---
 
 # ADR-058: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred
@@ -98,7 +98,7 @@ story. On 2026-08-12 the human overrode this decision with two scoping constrain
    receive Interpretation A wiring; the other three sensors remain on Interpretation B until their
    respective migration stories land.
 
-The v1.0 §B decision (Interpretation B) is SUPERSEDED. The v2.0 §B below supersedes it.
+The §B1 decision (Interpretation B) is SUPERSEDED. §B2 supersedes it.
 
 ---
 
@@ -112,9 +112,9 @@ The rationale for why Interpretation A could not ship as a single burst — Data
 constraint, missing story, high blast radius — remains valid analysis. The human override
 changes the scope and delivery strategy, not the accuracy of the constraint analysis.
 
-### §B2 — v2.0 Decision (ACTIVE)
+### §B2 — Current Decision (ACTIVE)
 
-**ADR-058 v2.0 Decision: v1 uses Interpretation A with underscore-flattened Arrow field names,
+**Decision (§B2): v1 uses Interpretation A with underscore-flattened Arrow field names,
 enabled per-sensor via a TOML flag, targeting Claroty first. DTU migration is deferred.**
 
 Specifically:
@@ -255,7 +255,7 @@ DTU integration tests for CrowdStrike assert on `col.name` values:
 
 ---
 
-## §E Blast Radius Under v2.0 Decision
+## §E Blast Radius Under the §B2 Decision
 
 ### §E1 `just check` Compatibility
 
@@ -350,7 +350,7 @@ col.names in the table — no flag-transition shadow found. See §J5.
 
 ### §F1 Earlier Claim was Wrong
 
-ADR-058 v1.0 §A4 item 3 stated: "Every existing PrismQL integration test that queries sensor
+§A4 item 3 stated: "Every existing PrismQL integration test that queries sensor
 columns by `col.name` would fail under Interpretation A. Every DTU generator that produces
 records keyed by `col.name` would need update."
 
@@ -392,7 +392,7 @@ being required in queries. (KF-03 corrects the earlier example `finding_uid` / `
 
 ## §H Stage 1 Scope (Unchanged)
 
-Stage 1 (coercion integration) is unchanged from v1.0. It remains in scope for the Claroty
+Stage 1 (coercion integration) is unchanged from the §B1 decision. It remains in scope for the Claroty
 live-API work regardless of the Interpretation A decision. Stage 1 does not require the
 `ocsf_column_naming` flag — it operates within `build_column_array` for any sensor.
 
@@ -462,7 +462,7 @@ cannot filter on nested keys without JSON path functions.
 ### §I4 Non-Interference with ADR-055 and ADR-028
 
 ADR-055 governs `SpecValidator::validate` call sites. ADR-028 governs TOML spec grammar. Neither
-is superseded by ADR-058 v2.0. The new `ocsf_column_naming` field is a backward-compatible TOML
+is superseded by §B2. The new `ocsf_column_naming` field is a backward-compatible TOML
 extension that does not change the parsing behavior for other fields.
 
 ### §I5 OCSF Schema Correction TOML Obligations (§K4 findings)
@@ -487,12 +487,12 @@ product-owner must adjudicate scope. Corrections required:
   for Claroty audit log record identifier exists in OCSF v1.7.0.
 - **KF-06:** `devices.device_type` column — `ocsf_field = "device.type_name"` is invalid
   (`device` object has no `type_name` attribute; only `type` and `type_id` exist). Settled
-  (v2.5): change `ocsf_field` to `"device.type_label"` (vendor-extended path). Arrow field
+  (§K4): change `ocsf_field` to `"device.type_label"` (vendor-extended path). Arrow field
   name: `device_type_label`. No standard OCSF equivalent for Claroty's OT subcategory values
   ("PLC", "HMI"); vendor-extended path is the correct representation.
 - **KF-07:** `device_alert_relations.alert_id` column — change `ocsf_field` from `"finding.uid"`
   to `"finding_info.uid"`. Arrow field name changes from `finding_uid` → `finding_info_uid`.
-- **KF-01 (code obligation, v2.6 redesign):** `crates/prism-ocsf/src/class_selector.rs` requires four changes in one atomic commit:
+- **KF-01 (code obligation — §I5 redesign):** `crates/prism-ocsf/src/class_selector.rs` requires four changes in one atomic commit:
 
   **(a) Add resolver constant:**
   Add `pub const CLASS_UID_ENTITY_MANAGEMENT: u32 = 3004;` alongside the existing UID constants.
@@ -503,7 +503,7 @@ product-owner must adjudicate scope. Corrections required:
 
   **(c) Update `select()` — both audit_log arms (forward-compatibility):**
   - Change `("claroty", "audit_log") => Ok(CLASS_UID_ACCOUNT_CHANGE)` to `Ok(CLASS_UID_ENTITY_MANAGEMENT)`. Claroty is the primary subject of this cascade.
-  - Change `("armis", "audit_log") => Ok(CLASS_UID_ACCOUNT_CHANGE)` to `Ok(CLASS_UID_ENTITY_MANAGEMENT)`. Same semantic defect; same fix (TD-VSDD-097 dimension 1 sibling sweep, amended v2.6).
+  - Change `("armis", "audit_log") => Ok(CLASS_UID_ACCOUNT_CHANGE)` to `Ok(CLASS_UID_ENTITY_MANAGEMENT)`. Same semantic defect; same fix (TD-VSDD-097 dimension 1 sibling sweep, see §K5).
   These are forward-compatibility fixes for when Path B is wired; Path B has zero production callers today per §K5 path-liveness determination.
 
   **(d) Dead-code annotation:** After the TOML changes, the existing `"audit_activity"` arm in `select_by_class_name` becomes dead code (no TOML will emit that string). The implementer MUST annotate it as a deprecated transitional entry pending removal, and AC-009/RG-011 must assert the LIVE strings (`"entity_management"`, `"inventory_info"`) rather than the now-dead `"audit_activity"`/`"device"`.
@@ -536,13 +536,13 @@ of the OCSF metadata corruption. KF-01, KF-02 are definitive (class corrections)
 requires the `class_selector.rs` code change above. KF-05, KF-06 require product-owner semantic
 decision on vendor extension vs omission.
 
-**Process-gap obligation (v2.6 — silent-fallback warn):** `spec_driven_adapter.rs::pipeline_result_to_record_batch` uses `EventClassSelector::select_by_class_name(&table.ocsf_class).unwrap_or(0)` with a comment citing intentional fallback (D-925). This silently converts any unknown `ocsf_class` string to `class_uid = 0` (BASE_EVENT) with no diagnostic. This is SOUL.md #4: a silent failure that let CRIT-001 (unknown class names producing 0) pass CI undetected. Obligation (anchored to `S-ADR058-OCSF-ROUTING-001`): replace `.unwrap_or(0)` with a match that emits `tracing::warn!(event_type = "ocsf.unknown_class_name", ocsf_class = %table.ocsf_class, sensor_id = %sensor_id, table_name = %table.table_name, "sensor TOML declares unrecognised ocsf_class; class_uid defaulted to 0 (BASE_EVENT)")` on the `Err` branch before returning 0. SAP-1 obligation: the new `event_type = "ocsf.unknown_class_name"` requires a BC-2.16.002 Canonical Structured Event Catalog row with full field schema, audit role, and recurrence policy before the PR merges.
+**Process-gap obligation (§I5 — silent-fallback warn):** `spec_driven_adapter.rs::pipeline_result_to_record_batch` uses `EventClassSelector::select_by_class_name(&table.ocsf_class).unwrap_or(0)` with a comment citing intentional fallback (D-925). This silently converts any unknown `ocsf_class` string to `class_uid = 0` (BASE_EVENT) with no diagnostic. This is SOUL.md #4: a silent failure that let CRIT-001 (unknown class names producing 0) pass CI undetected. Obligation (anchored to `S-ADR058-OCSF-ROUTING-001`): replace `.unwrap_or(0)` with a match that emits `tracing::warn!(event_type = "ocsf.unknown_class_name", ocsf_class = %table.ocsf_class, sensor_id = %sensor_id, table_name = %table.table_name, "sensor TOML declares unrecognised ocsf_class; class_uid defaulted to 0 (BASE_EVENT)")` on the `Err` branch before returning 0. SAP-1 obligation: the new `event_type = "ocsf.unknown_class_name"` requires a BC-2.16.002 Canonical Structured Event Catalog row with full field schema, audit role, and recurrence policy before the PR merges.
 
 **Out-of-perimeter note (follow-up recommendation, not in this cascade's scope):** Multiple committed sensor TOMLs in the workspace use `ocsf_class = "device_inventory_info"` — this string is also absent from `select_by_class_name` and resolves silently to 0. A broader resolver audit covering all TOML-declared `ocsf_class` strings across all four sensor TOMLs is recommended as a follow-up story. Not expanding this cascade's perimeter to fix that; the process-gap `tracing::warn!` above will make these misses observable at runtime once implemented.
 
 ---
 
-## §J Flag-Transition Name Shadowing (Architectural Adjudication, v2.1)
+## §J Flag-Transition Name Shadowing (Architectural Adjudication)
 
 ### §J1 The Defect Class
 
@@ -578,7 +578,7 @@ No runtime error, no schema construction failure, no warning. Arrow 58 sees dist
 is invisible to the intra-flag-state duplicate check in RG-009.
 
 Story-writer's TD-VSDD-097 report for S-ADR058-OCSF-ROUTING-001 covered only the three ANCHOR-
-NEEDED anchor-discharge edits (A)–(C). The §"Status as of v2.0" stale-claim correction (D), the
+NEEDED anchor-discharge edits (A)–(C). The prior §Status stale-claim correction (D), the
 dangling §D2 ANCHOR-NEEDED cross-reference (E), and this adjudication (§J) were absent. Edits
 (D) and (E) were falsified by the same correction burst that authored those stories — a textbook
 dimension-2 failure: the co-authored artifact retained stale narrative that its own corrected
@@ -586,7 +586,7 @@ work had already falsified without sweeping it.
 
 ### §J2 Normative Rule
 
-**Rule (ADR-058 v2.1):** When `ocsf_column_naming = true` is active for a sensor, no flattened
+**Rule (§J2):** When `ocsf_column_naming = true` is active for a sensor, no flattened
 `ocsf_field` name derived from any column in a table may equal the `col.name` of any OTHER column
 in the same table.
 
@@ -602,11 +602,7 @@ ocsf_field_to_arrow_name(A.ocsf_field) ≠ B.col_name   (A ≠ B)
 violation, fail-closed. The check runs in the same collision-detection pass as the existing
 intra-flattened-name duplicate check (T-21 / RG-009, S-ADR058-OCSF-ROUTING-001).
 
-Mandate anchor for the extended check: story-writer must amend S-ADR058-OCSF-ROUTING-001 to
-add RG-010 (a Red Gate test that constructs a sensor spec with a flattened ocsf_field name equal
-to a different column's col.name in the same table and asserts `Err`) and extend T-21 to also
-sweep flattened names against other columns' col.name values. The human will dispatch
-story-writer for this amendment after this ADR amendment lands.
+Mandate anchor for the extended check (Anchored: S-ADR058-OCSF-ROUTING-001 EC-010 / RG-010 / T-21 shadow-check extension): S-ADR058-OCSF-ROUTING-001 was amended to add RG-010 (a Red Gate test that constructs a sensor spec with a flattened ocsf_field name equal to a different column's col.name in the same table and asserts `Err`) and to extend T-21 to sweep flattened names against other columns' col.name values.
 
 **Rationale for fail-closed:** Silent wrong-column data at the query surface is a correctness
 defect with no diagnostic signal — the LLM agent queries `device_type` and receives category
@@ -681,7 +677,7 @@ both the TOML fix and RG-010 for the extended collision check.
 
 S-ADR058-OCSF-ROUTING-001 EC-009 note cited "19 ocsf_field values" across three Claroty
 tables. The correct count is **31** across four tables: alerts (9) + audit_logs (8) +
-devices (8) + device_alert_relations (6) = 31. The v2.1 count of 19 covered only three
+devices (8) + device_alert_relations (6) = 31. The earlier count of 19 (pre-§E2 correction) covered only three
 tables and used stale per-table figures (alerts: 8, audit_logs: 5, devices: 6); see §E2
 ground-truth tables for the corrected per-table inventory. No story amendment is required for
 the count alone — the behavioral correctness of the collision detection is verified by
@@ -690,7 +686,7 @@ construction via RG-009 and RG-010, not by count.
 ### §J5 `device_alert_relations` Shadow Analysis
 
 `device_alert_relations` is a fourth Claroty table added by PR #236 (2026-08-12), after
-ADR-058 v2.1 was authored. All six ocsf_field declarations were analyzed against the
+§J was first authored. All six ocsf_field declarations were analyzed against the
 flag-transition shadow rule (§J2): no flattened `ocsf_field` name equals a different
 column's `col.name` in the same table.
 
@@ -745,7 +741,7 @@ attribute, NOT a bare `finding` attribute; `device` appears only as an object (n
 `ocsf_field` values. `api_activity` (6003) covers all those except `comment`; the `note → comment`
 mapping constrains the choice to `entity_management`.
 
-**KF-01 code defect (v2.4):** `class_selector.rs` `select_by_class_name("audit_activity")` maps
+**KF-01 code defect (§K5):** `class_selector.rs` `select_by_class_name("audit_activity")` maps
 to `CLASS_UID_ACCOUNT_CHANGE = 3001` (AccountChange), NOT 3004 (entity_management). This is a
 confirmed code defect (see §K5 Divergence 3). The code comment on `CLASS_UID_ACCOUNT_CHANGE`
 explicitly flags: "S-1.05 field mappers will verify this is semantically correct or propose an
@@ -825,7 +821,7 @@ Under `inventory_info`, `device.*` paths resolve via the required `device` objec
 | KF-03 | `alerts.id` `ocsf_field` | `finding.uid` | WRONG — no `finding` attr on detection_finding | `finding_info.uid` |
 | KF-04 | `alerts.alert_name` `ocsf_field` | `finding.title` | WRONG — same root as KF-03 | `finding_info.title` |
 | KF-05 | `audit_logs.id` `ocsf_field` | `activity_uid` | WRONG — attr absent from v1.7.0 | remove or vendor-extend (PO decision) |
-| KF-06 | `devices.device_type` `ocsf_field` | `device.type_name` | WRONG — attr absent on device object | `device.type_label` (Arrow: `device_type_label`; vendor-extended; settled v2.5) |
+| KF-06 | `devices.device_type` `ocsf_field` | `device.type_name` | WRONG — attr absent on device object | `device.type_label` (Arrow: `device_type_label`; vendor-extended; settled §K4) |
 | KF-07 | `device_alert_relations.alert_id` `ocsf_field` | `finding.uid` | WRONG — same root as KF-03 | `finding_info.uid` |
 | KF-08 | `alerts.category` `ocsf_field` | `class_name` | PATH-VALID / SEMANTIC-WRONG — `class_name` is OCSF-computed from `class_uid`; vendor value overwrites | remove `ocsf_field` (→ `raw_extensions`) |
 | KF-09 | `alerts.alert_type_name` `ocsf_field` | `type_name` | PATH-VALID / SEMANTIC-WRONG — `type_name` is OCSF-computed from `type_uid`; vendor value overwrites | remove `ocsf_field` (→ `raw_extensions`) |
@@ -844,14 +840,14 @@ unique correct replacement confirmed; KF-01 also requires the `class_selector.rs
 documented in §I5. KF-05, KF-06 require product-owner semantic decision (no standard OCSF path
 exists for the underlying concept). TOML and code fix obligations: see §I5.
 
-### §K5 Divergence Adjudication and Path-Liveness Determination (v2.4, amended v2.6)
+### §K5 Divergence Adjudication and Path-Liveness Determination
 
 Independent research-agent cross-validation confirmed KF-01..KF-07 and raised four divergences.
 All adjudicated against the committed OCSF v1.7.0 schema and prism's normalizer code
 (`crates/prism-ocsf/src/normalizer.rs`, `crates/prism-ocsf/src/mappers/spec_driven.rs`,
 `crates/prism-ocsf/src/class_selector.rs`).
 
-**Path-Liveness Determination (v2.6):**
+**Path-Liveness Determination:**
 
 Two paths exist for materializing OCSF `class_uid` for spec-driven sensor data:
 
@@ -898,7 +894,7 @@ incorrect. The current mapping `risk_score → risk_score` is semantically corre
 Note: `device` object also has `risk_score`; the class-level field is the more appropriate target
 for a device-wide risk metric.
 
-**Divergence 3 — `audit_activity` → `entity_management` vs `account_change`: CONFIRMED-DEFECT in code (amended v2.6)**
+**Divergence 3 — `audit_activity` → `entity_management` vs `account_change`: CONFIRMED-DEFECT in code**
 
 Claim: `class_selector.rs` maps `"audit_activity"` → `CLASS_UID_ACCOUNT_CHANGE = 3001`
 (AccountChange), not `entity_management` (3004) as KF-01 recommends.
@@ -912,7 +908,7 @@ Evidence:
 
 **Verdict: CONFIRMED-DEFECT (production severity on Path A).** ADR-058 KF-01 recommendation (`entity_management`, 3004) is correct. `class_uid = 3001` in Arrow output misroutes Claroty audit events as "Identity & Access Management / Account Change" events to all downstream consumers. Both the TOML change (`"audit_activity"` → `"entity_management"`) and the `class_selector.rs` code change are required atomically. See §I5 for the redesigned code obligation.
 
-**Sibling note (TD-VSDD-097 dimension 1, amended v2.6):** `class_selector.rs` `select()` has TWO defective arms:
+**Sibling note (TD-VSDD-097 dimension 1):** `class_selector.rs` `select()` has TWO defective arms:
 1. `("claroty", "audit_log") => Ok(CLASS_UID_ACCOUNT_CHANGE)` — Claroty is the PRIMARY subject of this cascade. Path B is not currently live, so this is a forward-compatibility defect (HIGH), not a production defect today. If Path B is wired before this arm is corrected, this becomes the production note→comment data-loss site.
 2. `("armis", "audit_log") => Ok(CLASS_UID_ACCOUNT_CHANGE)` — same semantic defect. Armis audit logs are entity management events; same fix applies.
 Both arms must be updated to `Ok(CLASS_UID_ENTITY_MANAGEMENT)` in the same commit. Scope: story-writer dispatched for §I5 obligations must include both arms.
@@ -951,7 +947,7 @@ over Interpretation B (col.name-preserving) for three reasons:
    zero breakage in `just check` for the three non-Claroty sensors while enabling OCSF routing
    for Claroty immediately.
 
-The human override on 2026-08-12 resolved the v1.0 vs v2.0 conflict; §A5 records the decision
+The human override on 2026-08-12 resolved the §B1 vs §B2 decision conflict; §A5 records the decision
 provenance. The detailed quoting convention analysis (four options evaluated) is in §C2.
 
 ## Consequences
@@ -979,7 +975,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.8 (2026-08-17)
+### Status as of v2.9 (2026-08-17)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -990,19 +986,19 @@ the flag-transition name shadowing adjudication — `ocsf_column_naming = true` 
 the `devices` table collision is resolved per §J3. `device_alert_relations` (fourth table, PR
 #236) is clean per §J5.
 
-**Product-owner handoff obligations (v2.6):**
-- **BC-2.16.003 §Architecture Anchors:** Update to reflect v2.6 path-liveness determination (Path A is the sole live production path; Path B is future-wired).
+**Product-owner handoff obligations:**
+- **BC-2.16.003 §Architecture Anchors:** Update to reflect §K5 path-liveness determination (Path A is the sole live production path; Path B is future-wired).
 - **BC-2.16.003 EC-016-013-023 and EC-016-013-024 (class_uid routing):** Verify that the EC text for audit_logs class_uid obligation reflects `entity_management` (3004) as the correct target, not `account_change` (3001). Update if stale.
 - **BC-2.16.002 §Canonical Structured Event Catalog:** Add row for `ocsf.unknown_class_name` (new event_type from process-gap obligation in §I5) with fields: `ocsf_class` (string), `sensor_id` (string), `table_name` (string); audit role: DIAGNOSTIC; recurrence policy: per table batch (not per record) — `class_uid` is derived once per batch in `pipeline_result_to_record_batch` before the record loop, so one warn fires per unresolved table batch, not once per row.
 - **Subsystem reconciliation:** BC-2.16.003 and related BCs that reference SS-07 or SS-12 in the context of OCSF column naming must be updated to SS-01/SS-02/SS-10/SS-16.
 
-**Story-writer handoff obligations (v2.6, supersedes v2.4 and v2.5 notes):**
+**Story-writer handoff obligations (supersedes prior §Status notes):**
 `S-ADR058-OCSF-ROUTING-001` must be amended to incorporate:
 1. **KF-01 redesigned code obligation (§I5):** (a) Add `CLASS_UID_ENTITY_MANAGEMENT = 3004` constant; (b) add `"entity_management"` and `"inventory_info"` arms in `select_by_class_name`; (c) update `("claroty","audit_log")` AND `("armis","audit_log")` arms in `select()` to 3004; (d) annotate `"audit_activity"` arm as deprecated dead-code post-TOML-change; (e) wire-shape RecordBatch assertion for `class_uid = 3004` (audit_logs) and `class_uid = 5001` (devices); (f) update AC-009 to assert `"entity_management"` string (not `"audit_activity"`); update RG-011 to assert live-string production.
 2. **Process-gap warn obligation (§I5):** add `tracing::warn!(event_type = "ocsf.unknown_class_name", ...)` in `spec_driven_adapter.rs::pipeline_result_to_record_batch` on `Err` branch before `.unwrap_or(0)`; add BC-2.16.002 catalog row (coordinate with PO dispatch above).
-3. **KF-08..KF-12 TOML corrections** and §E2 copy-text updates (carry-over from v2.4).
-4. **§AC-005 mapping tables** must carry v2.4/v2.6 verdicts (not stale VALID for KF-08..KF-12 columns; carry-over from v2.4).
-5. **§EC-003 and §EC-009** count reference carry stale §E2/§J copy-text from v2.2 (carry-over from v2.3).
+3. **KF-08..KF-12 TOML corrections** and §E2 copy-text updates (carry-over from §K3/§K4 obligations).
+4. **§AC-005 mapping tables** must carry current §K4 verdicts (not stale VALID for KF-08..KF-12 columns; carry-over from prior §Status obligations).
+5. **§EC-003 and §EC-009** count reference carry stale §E2/§J copy-text (carry-over from prior §Status obligations).
 6. **Both stories' subsystem frontmatter:** correct `subsystems_affected` from stale SS-07/SS-12 to SS-01/SS-02/SS-10/SS-16 (or the applicable subset per each story's scope).
 7. **In-file doc-table updates at `class_selector.rs` module-doc `select()` mapping table and the `select_by_class_name` mapping table:** the module-level doc tables must reflect the corrected routing after the code change lands. These are in-file documentation, not spec artifacts — story-writer annotates the obligation; implementer executes.
 Routing: orchestrator dispatches story-writer for the amendment.
@@ -1050,7 +1046,8 @@ Routing: orchestrator dispatches story-writer for the amendment.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
-| 2.8 | 2026-08-17 | architect | Adversary pass-5 fix-burst. F3 [LOW] TD-VSDD-091/POL-39: volatile source-file line-number cites removed from §Status story-writer handoff item 7. Changed "§select() mapping table (lines ~18-37) and §select_by_class_name mapping table (lines ~105-112)" to "module-doc `select()` mapping table and the `select_by_class_name` mapping table" — symbol/section anchors only, no `lines ~NN-MM` ranges. Full ADR-058 sweep confirmed: one volatile cite found and removed; zero remain. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §Status item 7 is the only occurrence of this obligation text; no independent copy in another artifact; (3) mandate anchor — no new MUST statements; all obligations remain anchored to `S-ADR058-OCSF-ROUTING-001` per §I5. |
+| 2.9 | 2026-08-17 | architect | Adversary pass-8 fix-burst. F2 [MED]: §J2 mandate text converted from forward-looking to discharged past-tense; inline discharge mark added: `(Anchored: S-ADR058-OCSF-ROUTING-001 EC-010 / RG-010 / T-21 shadow-check extension)`. COMPREHENSIVE SWEEP — (1) Mandate-discharge accuracy: all ANCHOR-NEEDED / forward-looking mandate annotations reviewed; §J2 was the sole remaining forward-looking instance. (2) POL-39 narrative version-pin purge: removed all `vX.Y` self-referential version pins from narrative prose across entire ADR body (approx. 28 instances); converted to section-anchor-only form (`§B1`, `§B2`, `§K4`, `§K5`, `§I5`, etc.). §Changelog rows, frontmatter, and §Authority pin tables are exempt per POL-39 and remain unchanged. (3) TD-VSDD-091 volatile line-cites: v2.8 changelog row re-quoted the line-range parentheticals as old text; rewrote to describe the change without repeating the volatile ranges. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §Status handoff items are pointers to §I5/§K sections (source of truth); no independent copy artifact requires sweep; (3) mandate anchor — no new MUST statements; §J2 discharge mark anchors the obligation to S-ADR058-OCSF-ROUTING-001 EC-010/RG-010/T-21 per §J2. |
+| 2.8 | 2026-08-17 | architect | Adversary pass-5 fix-burst. F3 [LOW] TD-VSDD-091/POL-39: volatile en-dash line-range parentheticals removed from §Status story-writer handoff item 7; replaced with symbol-anchor-only form citing the module-doc `select()` and `select_by_class_name` mapping tables in `class_selector.rs`. Full ADR-058 sweep confirmed: one volatile cite found and removed; zero remain. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §Status item 7 is the only occurrence of this obligation text; no independent copy in another artifact; (3) mandate anchor — no new MUST statements; all obligations remain anchored to `S-ADR058-OCSF-ROUTING-001` per §I5. |
 | 2.7 | 2026-08-16 | architect | Adversary pass-2 fix-burst. F1 [MED]: `ocsf.unknown_class_name` emission spec corrected to match BC-2.16.002 catalog row 94 as authoritative source of truth. (a) Field schema: added `table_name` to §I5 emission snippet (`tracing::warn!` now specifies `ocsf_class`, `sensor_id`, `table_name`) and to §Status BC-2.16.002 PO-handoff field list (three fields, not two). (b) Recurrence: §Status BC-2.16.002 PO-handoff corrected from "per-record" to "per table batch (not per record)" — `class_uid` is derived once per batch in `pipeline_result_to_record_batch` before the record loop, consistent with live code and BC-2.16.002 row 94. F8 [LOW]: Phantom PO-handoff obligation removed — §Status BC-2.16.003 §Architecture Anchors bullet no longer instructs updating "subsystem anchors from stale SS-07/SS-12"; BC-2.16.003 has no SS-07/SS-12 references (its `subsystem:` frontmatter is single-valued SS-16); the real SS-07/SS-12 mis-anchoring lived in the stories and ADR frontmatter, both already corrected in v2.6. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §Status story-writer handoff process-gap item 2 remains accurate (references §I5 for the obligation text; §I5 is the source, §Status is a pointer — no independent copy); (3) mandate anchor — no new MUST statements; all obligations remain anchored to `S-ADR058-OCSF-ROUTING-001` per §I5. |
 | 2.6 | 2026-08-16 | architect | Adversary pass-1 fix-burst. (A) frontmatter: `subsystems_affected` corrected from stale [SS-07, SS-12] to [SS-01, SS-02, SS-10, SS-16] per ARCH-INDEX Subsystem Registry (SS-07 = Adapter Pagination & Response Cache; SS-12 = Scheduler — neither is an ADR-058 subject; correct: SS-01 Sensor Adapters, SS-02 OCSF Normalization, SS-10 MCP Interface, SS-16 Spec Engine). (B) §K5 path-liveness determination added: Path A (`spec_driven_adapter.rs::pipeline_result_to_record_batch` → `select_by_class_name`) is the ONLY live production path; Path B (`normalize_with_mappers`) has zero production callers confirmed by `test_adapter_normalization.rs` module-level comment (§Production caller status OBS-003). (C) §K5 Divergence 3 amended: `note→comment` data-loss rationale reframed as moot on current production path (Path B not wired); production defect is `class_uid = 3001` in Arrow output on Path A; both Path A and Path B fix obligations recorded. (D) §K5 sibling note corrected: both `("claroty","audit_log")` (primary subject, HIGH forward-compat) AND `("armis","audit_log")` (same defect) named; v2.4 named only Armis. (E) §I5 KF-01 code obligation redesigned: four sub-obligations (a) add `CLASS_UID_ENTITY_MANAGEMENT = 3004`; (b) add `"entity_management"` + `"inventory_info"` arms in `select_by_class_name` (prevents KF-02 regression to 0); (c) update both `("claroty","audit_log")` and `("armis","audit_log")` arms in `select()` to 3004; (d) annotate `"audit_activity"` arm as deprecated dead-code. Wire-shape RecordBatch assertion obligation added for `class_uid` column (3004/5001). AC-009/RG-011 must assert live TOML strings. (F) §I5 process-gap obligation added: `tracing::warn!(event_type = "ocsf.unknown_class_name", ...)` on `Err` branch before `.unwrap_or(0)` in `pipeline_result_to_record_batch`; SAP-1 BC-2.16.002 catalog row required. (G) §I5 out-of-perimeter note added: broader resolver audit for `"device_inventory_info"` et al. deferred. (H) §Status retitled v2.6; PO handoff obligations added (BC-2.16.003 §Architecture Anchors, EC-016-013-023/024, BC-2.16.002 `ocsf.unknown_class_name` catalog row); story-writer handoff consolidated and expanded to cover v2.6 redesign. TD-VSDD-097: (1) sibling pair — §K5 sibling note now names both Claroty and Armis `audit_log` arms explicitly; (2) downstream copy target — §Status story-writer handoff expanded to cover §I5 redesign changes; (3) mandate anchor — all new obligations anchored to `S-ADR058-OCSF-ROUTING-001` per §I5. |
 | 2.5 | 2026-08-16 | architect | Consistency-validator fix-burst. HIGH-001: KF-06 settled value `device.type_label` back-propagated to three stale spots in ADR-058 — §E2 devices table (ocsf_field and Arrow name corrected, TBD annotation removed), §J1 eight-name enumeration (`device_type_name`→`device_type_label`), §J3 shadow-check table and analysis text (`device_type_name`→`device_type_label`, TBD note dropped). Zero `device_type_name` residue in prescriptive positions (historical diagnostic references in §J1 shadow table, §K3 WRONG verdict row retained as correct defect descriptions). §I5 KF-06 updated from PO-decision language to settled value; §K4 KF-06 corrected value updated from "PO decision" to `device.type_label`. MED-002: anchor_stories SAC-2 fix — added S-OCSF-FIDELITY-CROWDSTRIKE-001, S-OCSF-FIDELITY-CYBERINT-001, S-OCSF-FIDELITY-ARMIS-001 (all three cite ADR-058 §K in §Authority). LOW-003: §Status volatile version pins removed per POL-39 — S-ADR058-OCSF-COERCION-001 and S-ADR058-OCSF-ROUTING-001 now cited by ID + status only, no version numbers. TD-VSDD-097: (1) sibling pair — HIGH-001 IS the dim-2 downstream-copy miss from v2.4 §I5 (§E2 and §J3 were copy targets of the §I5 KF-06 decision; both swept and corrected in this burst); (2) downstream copy target — no new copy targets introduced; (3) mandate anchor — no new MUST statements; KF-06 obligations remain anchored to S-ADR058-OCSF-ROUTING-001 per §I5. |
