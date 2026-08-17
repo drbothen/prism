@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.13"
+version: "1.14"
 level: "L4"
 status: draft
 producer: story-writer
@@ -85,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "22ce4d2"
+input-hash: "7cb700a"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -104,8 +104,8 @@ tags:
 
 ## Authority
 
-**ADR-058 v2.10: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
-Names; DTU Migration Deferred.** Version `2.10`, status: accepted (2026-08-17). Read
+**ADR-058 v2.11: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
+Names; DTU Migration Deferred.** Version `2.11`, status: accepted (2026-08-17). Read
 §B2 (decision), §C (quoting convention — Option 4 chosen), §D (per-sensor scoping, flag
 mechanism), §E (blast radius), §G (prism_describe output spec), §H (Stage 1 confirmed
 separate), §I (implementation guidance including **§I5 TOML + code correction obligations for
@@ -160,18 +160,18 @@ work correctly.
 
 ## ADR-058 MUST Discharge: Mandate Anchor #1
 
-**ADR-058 §D2 `ANCHOR-NEEDED`: DISCHARGED.** ADR-058 §D2 already reads "(Anchored:
-S-ADR058-OCSF-ROUTING-001 AC-001 / RG-001/RG-002)" — anchored since v2.1. No architect action required.
+**ADR-058 §D2 `ANCHOR-NEEDED`: DISCHARGED.** DISCHARGED — ADR-058 §D2 carries the inline
+(Anchored: S-ADR058-OCSF-ROUTING-001 AC-001 / RG-001/RG-002) mark. No architect action required.
 
-**ADR-058 §J2 `ANCHOR-NEEDED`: DISCHARGED.** ADR-058 §J2 already reads "(Anchored:
-S-ADR058-OCSF-ROUTING-001 EC-010 / T-21 / RG-010)" — anchored since v2.1. No architect action required.
+**ADR-058 §J2 `ANCHOR-NEEDED`: DISCHARGED.** DISCHARGED — ADR-058 §J2 carries the inline
+(Anchored: S-ADR058-OCSF-ROUTING-001 EC-010 / T-21 / RG-010) mark. No architect action required.
 
 The mandate anchor records:
 
 | MUST Statement | Story | AC | Red Gate Test | Status |
 |---|---|---|---|---|
-| `ocsf_column_naming: bool` field MUST be added to `SensorSpec` with `#[serde(default)]` (ADR-058 §D2) | S-ADR058-OCSF-ROUTING-001 | AC-001 | RG-001, RG-002 | DISCHARGED (v2.1) |
-| `pipeline_result_to_record_batch` MUST check, when `ocsf_column_naming == true`, that no flattened `ocsf_field` name equals a DIFFERENT column's `col.name` in the same table (`A ≠ B` exclusion), fail-closed (ADR-058 §J2) | S-ADR058-OCSF-ROUTING-001 | EC-010, T-21 (shadow check extension) | RG-010 | DISCHARGED (v2.1) |
+| `ocsf_column_naming: bool` field MUST be added to `SensorSpec` with `#[serde(default)]` (ADR-058 §D2) | S-ADR058-OCSF-ROUTING-001 | AC-001 | RG-001, RG-002 | DISCHARGED |
+| `pipeline_result_to_record_batch` MUST check, when `ocsf_column_naming == true`, that no flattened `ocsf_field` name equals a DIFFERENT column's `col.name` in the same table (`A ≠ B` exclusion), fail-closed (ADR-058 §J2) | S-ADR058-OCSF-ROUTING-001 | EC-010, T-21 (shadow check extension) | RG-010 | DISCHARGED |
 
 ---
 
@@ -1776,6 +1776,29 @@ violation, not a behavioral obligation. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.14 Amendment Sweep (F3 §Mandate Anchor #1 provenance fix + ADR-058 re-pin v2.10→v2.11)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): ADR-058 §Authority pin updated v2.10→v2.11 in
+same burst. COERCION-001 §Mandate Anchor #2 was cleaned in pass-7 and carries no version qualifiers
+(DISCHARGED — ADR-058 §H carries the inline mark). The F3 fix brings §Mandate Anchor #1 to the
+same version-free form. VERDICT: COERCION-001 AMENDED IN SAME BURST; CLEAN.
+
+**Dimension 2 — Downstream copy target:**
+
+§Mandate Anchor #1 is consumed by the implementer to verify discharge status. The change from
+"DISCHARGED (v2.1)" / "anchored since v2.1" to "DISCHARGED — ADR-058 §D2/§J2 carries the inline
+(...) mark" removes the drift source entirely: the inline mark in ADR-058 §D2/§J2 is now the sole
+provenance reference, so the story cannot become stale when ADR version advances again. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. F3 fix and ADR re-pin are accuracy/hygiene corrections.
+VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.13 Amendment Sweep (F2 AC-011 POL-39 prose pin removal + ADR-058 re-pin v2.9→v2.10)
 
 **Dimension 1 — Sibling pair:**
@@ -1805,6 +1828,7 @@ corrections, not new behavioral obligations. VERDICT: N/A — no new mandates.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.14 | 2026-08-17 | story-writer | Adversary pass-10 fix-burst: (1) F3 [LOW] §Mandate Anchor #1 provenance fix — both §D2 and §J2 discharge entries made version-free: removed "(v2.1)" / "since v2.1" version qualifiers from inline prose and table Status column; replaced with "DISCHARGED — ADR-058 §D2/§J2 carries the inline (Anchored: …) mark" form per POL-39. Eliminates drift source so story cannot go stale on future ADR bumps. (2) ADR-058 §Authority pin v2.10→v2.11 (concurrent architect bump). (3) Sibling sweep: zero additional normative prose ADR-058 or BC version pins found in either story outside §Authority (exempt) and historical amendment-sweep/changelog rows (grandfathered). (4) §v1.14 Amendment Sweep added. |
 | 1.13 | 2026-08-17 | story-writer | Adversary pass-9 fix-burst: (1) F2 [LOW] AC-011 §Catalog obligation prose: removed volatile `v2.27` doc-version pin and stale '(product-owner authored it in this fix-burst)' temporal aside from normative AC prose; section-anchor cite `BC-2.16.002 §Canonical Structured Event Catalog` retained. (2) Sibling sweep — zero additional POL-39 doc-version pins found in normative prose of either story (body BC table and §Authority entries are exempt; historical amendment-sweep/changelog rows are grandfathered). (3) ADR-058 §Authority pin v2.9→v2.10 (concurrent architect bump). (4) §v1.13 Amendment Sweep added. |
 | 1.12 | 2026-08-17 | story-writer | Adversary pass-8 fix-burst (comprehensive hygiene sweep): (1) F1 [HIGH] §Mandate Anchor #1 rewritten to mirror COERCION-001 §Mandate Anchor #2 — both §D2 and §J2 mandates marked DISCHARGED; stale 'ANCHOR-NEEDED' present-tense language removed; 'story does not yet exist' quote removed; unsatisfiable architect routing obligation removed; volatile ADR-058 version pins stripped from prose; Status column added to mandate-anchor table with DISCHARGED (v2.1). (2) F4 [LOW] §Authority §J4 description corrected: 'count correction 20→19' → 'count 31 pre-correction / 26 post-correction across four tables'. (3) F3 [LOW] v1.9 changelog row line-cite removed: '(line ~227 Red-then-green gate)' → '(Red-then-green gate instruction)'. (4) ADR-058 §Authority pin v2.8→v2.9 (concurrent architect bump). (5) §v1.12 Amendment Sweep added. |
 | 1.11 | 2026-08-17 | story-writer | Adversary pass-7 fix-burst (full task-plan audit): (1) F1 gate ordering fixed: T-19 (run all 23 RGTs) + T-20 (just check) moved to AFTER T-24 — terminal gates are now the final two tasks. (2) F2(a) T-17 mis-attribution corrected: RG-009/RG-010 removed from T-17 "Makes green" list (those are code collision-detection unit tests greened by T-21, not by TOML edit). (3) F2(b) T-17 missing green-drivers added: RG-019 (KF-11 audit_logs.category→raw_extensions) and RG-020 (KF-07 device_alert_relations finding_info_uid) added to T-17 "Makes green" list. RG-023 added to T-23 "Makes green" list. (4) Full RG→green-driver matrix verified: all 23 RGs mapped to exactly one task. (5) COERCION-001 task-audit: CLEAN. (6) §v1.11 Amendment Sweep added. |

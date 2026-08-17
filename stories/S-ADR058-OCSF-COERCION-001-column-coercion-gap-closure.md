@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.12"
+version: "1.13"
 level: "L4"
 status: draft
 producer: story-writer
@@ -70,7 +70,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "17b7ade"
+input-hash: "8c453c2"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -98,7 +98,7 @@ Observability DEFECT section are the acceptance-criteria source for this story. 
 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.10: v1 Column Naming — OCSF Field-Path Routing.** Version `2.10`, status:
+**ADR-058 v2.11: v1 Column Naming — OCSF Field-Path Routing.** Version `2.11`, status:
 accepted (2026-08-17). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
@@ -740,6 +740,29 @@ fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.13 Amendment Sweep (ADR-058 re-pin v2.10→v2.11 + sibling sweep ROUTING-001 F3 coordination)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): F3 §Mandate Anchor #1 provenance fix applied — both
+§D2 and §J2 table rows and inline prose stripped of "(v2.1)" / "since v2.1" version qualifiers;
+version-free "DISCHARGED — ADR-058 §D2/§J2 carries the inline (Anchored: …) mark" form adopted.
+ADR-058 §Authority pin v2.10→v2.11; §v1.14 Amendment Sweep added in same burst.
+VERDICT: ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+ADR-058 §Authority pin is the sole live ADR pin site in this story. Updated v2.10→v2.11.
+COERCION-001 §Mandate Anchor #2 was already version-free since pass-7 (no version qualifiers to
+strip here). Sibling sweep of COERCION-001 normative prose confirmed zero additional POL-39
+violations. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.12 Amendment Sweep (ADR-058 re-pin v2.9→v2.10 + sibling sweep ROUTING-001 F2 coordination)
 
 **Dimension 1 — Sibling pair:**
@@ -764,6 +787,7 @@ No new MUSTs introduced by this amendment. VERDICT: N/A — no new mandates.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.13 | 2026-08-17 | story-writer | Adversary pass-10 fix-burst: (1) ADR-058 §Authority pin v2.10→v2.11 (concurrent architect bump). (2) Sibling sweep coordination: ROUTING-001 F3 §Mandate Anchor #1 provenance fix applied in same burst — both §D2 and §J2 version qualifiers "(v2.1)" / "since v2.1" stripped; COERCION-001 §Mandate Anchor #2 was already version-free since pass-7. Zero additional POL-39 violations found in COERCION-001 normative prose. (3) §v1.13 Amendment Sweep added. |
 | 1.12 | 2026-08-17 | story-writer | Adversary pass-9 fix-burst: (1) ADR-058 §Authority pin v2.9→v2.10 (concurrent architect bump). (2) Sibling sweep coordination: ROUTING-001 F2 AC-011 prose pin cleaned in same burst. Zero additional POL-39 violations found in COERCION-001 normative prose. (3) §v1.12 Amendment Sweep added. |
 | 1.11 | 2026-08-17 | story-writer | Adversary pass-8 fix-burst: (1) ADR-058 §Authority pin v2.8→v2.9 (concurrent architect bump). (2) Comprehensive hygiene sweep: zero POL-39 narrative prose violations and zero line-cites found outside §Authority and historical amendment-sweep sections (all grandfathered per TD-VSDD-091 ratchet scoping). (3) §v1.11 Amendment Sweep added. |
 | 1.10 | 2026-08-17 | story-writer | Adversary pass-7 fix-burst: (1) F3 ADR-058 §H MUST Discharge section updated: ANCHOR-NEEDED marked DISCHARGED (ADR-058 §H already reads "(Anchored: S-ADR058-OCSF-COERCION-001 AC-004, RG-005)" since v2.1); volatile `v2.0` pin removed from both the §Mandate Anchor #2 prose and the §v1.3 Amendment Sweep Dimension 3; `ANCHOR-NEEDED` language replaced with `DISCHARGED`; architect routing obligation removed. (2) §v1.10 Amendment Sweep added. |
