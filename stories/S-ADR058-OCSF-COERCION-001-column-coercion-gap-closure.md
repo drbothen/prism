@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.4"
+version: "1.5"
 level: "L4"
 status: draft
 producer: story-writer
@@ -35,6 +35,7 @@ capabilities:
 behavioral_contracts:
   - BC-2.16.003
   - BC-2.02.011
+  - BC-2.16.002
 verification_properties:
   - VP-017
   - VP-016
@@ -63,7 +64,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "83597a4"
+input-hash: "0d79865"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -83,22 +84,30 @@ tags:
 
 ## Authority
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time.** Version `1.5`, status: draft
-(modified 2026-08-16). Primary behavioral authority. The §Type Coercion Algorithm, §Full
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time.** Version `1.7`, status: draft
+(modified 2026-08-17). Primary behavioral authority. The §Type Coercion Algorithm, §Full
 Coercion Matrix, EC-016-013-007/008/009 KNOWN GAP annotations, and §Coercion Warning
 Observability DEFECT section are the acceptance-criteria source for this story. Note: BC-2.16.003
-v1.5 adds §Interpretation A (Arrow field naming) and §Claroty Contracted OCSF Mappings — those
-sections are Stage 2 territory and do not change Stage 1's scope.
+§Interpretation A (Arrow field naming) and §Claroty Contracted OCSF Mappings are Stage 2
+territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.6: v1 Column Naming — OCSF Field-Path Routing.** Version `2.6`, status:
-accepted (2026-08-16). §H (Stage 1 Scope) enumerates the three deliverables this story
+**ADR-058 v2.7: v1 Column Naming — OCSF Field-Path Routing.** Version `2.7`, status:
+accepted (2026-08-17). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
-Note: ADR-058 §K (OCSF schema validation), §I5 (code obligations), and v2.6 process-gap
+Note: ADR-058 §K (OCSF schema validation), §I5 (code obligations), and process-gap
 obligation (`ocsf.unknown_class_name` WARN) affect Stage 2 scope only; Stage 1's §H scope
 is unchanged.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
+
+**BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable
+Interpolation.** Version `2.27`, status: active (unchanged). Governs the Canonical
+Structured Event Catalog obligation: AC-004 and AC-005 introduce the
+`column_coercion_failure` tracing emission, which MUST be registered in BC-2.16.002
+§Postconditions §Canonical Structured Event Catalog before the implementing PR merges
+(SAP-1 / PG-LP11-001). See §BC-2.16.002 Catalog Row Obligation below.
+Path: `.factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md`.
 
 **BC-2.02.011.** Governs the warning-emission obligation for each normalization issue.
 The DEFECT in BC-2.16.003 §Coercion Warning Observability violates BC-2.02.011.
@@ -135,8 +144,9 @@ MUST update ADR-058 v2.0 §H to replace the `ANCHOR-NEEDED` annotation with:
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.5 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
+| BC-2.16.003 | v1.7 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
 | BC-2.02.011 | — | — | Warning-emission obligation for each normalization issue; BC-2.16.003 DEFECT violates this |
+| BC-2.16.002 | v2.27 | active | Canonical Structured Event Catalog obligation — `column_coercion_failure` emit from AC-004/AC-005 must be registered in §Postconditions §Canonical Structured Event Catalog (SAP-1 / PG-LP11-001) |
 
 ---
 
@@ -307,9 +317,9 @@ BC-2.16.002 is product-owner owned. The exact row to add is:
 
 **Routing:** This catalog row addition is a product-owner amendment to BC-2.16.002. The
 implementer cannot merge Story 1's PR without it. Orchestrator must dispatch product-owner
-to add this row to BC-2.16.002 §Postconditions Canonical Structured Event Catalog before
-the PR is opened (or as a co-commit in the same PR). The catalog version number
-(currently v1.62 with 90 events) becomes v1.63 with 91 events after this addition.
+to add this row to BC-2.16.002 §Postconditions §Canonical Structured Event Catalog before
+the PR is opened (or as a co-commit in the same PR). The catalog row number and version
+increment are determined at delivery time by the product-owner.
 
 ---
 
@@ -557,10 +567,43 @@ anchors it to AC-004 / RG-005. The architect must update ADR-058 to replace
 
 ---
 
+### v1.5 Amendment Sweep (F2 pin sweep + F5 BC-2.16.002 addition + F6 catalog prose fix)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (sibling story, same epic): swept in full for the same
+F2/F5/F6 findings. ROUTING-001 is amended in the same fix-burst (v1.5→v1.6): ADR-058
+pin v2.6→v2.7, BC-2.16.003 pin v1.6→v1.7, narrative version labels stripped per POL-39,
+RG-019/RG-020 wire-shape coverage added, SS-01 attribution corrected. COERCION-001's
+own BC-2.16.002 addition (F5) does not apply to ROUTING-001 because ROUTING-001 already
+carried BC-2.16.002 in its frontmatter from v1.5. VERDICT: SWEPT; ROUTING-001 AMENDED
+IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+The `column_coercion_failure` catalog row content in §BC-2.16.002 Catalog Row Obligation
+is the source from which the product-owner will transcribe the BC-2.16.002 row entry.
+The F6 fix removes the volatile version-count phrase (`currently v1.62 with 90 events
+becomes v1.63 with 91 events`) and replaces it with a section-anchor cite. The transcribed
+BC-2.16.002 row itself does not contain that version-count phrase — only the routing
+instruction in this story did. The downstream copy target (BC-2.16.002 §Postconditions
+§Canonical Structured Event Catalog) is unchanged; the product-owner transcribes the
+catalog row definition, not the routing instruction. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+BC-2.16.002 §Postconditions §Canonical Structured Event Catalog — `column_coercion_failure`
+row addition obligation: anchored to `S-ADR058-OCSF-COERCION-001 AC-004 RG-005` and
+routed to product-owner per §BC-2.16.002 Catalog Row Obligation. No unanchored MUSTs
+introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.5 | 2026-08-17 | story-writer | Adversary pass-2 fix-burst: (1) F2 BC-2.16.003 pin v1.5→v1.7; ADR-058 pin v2.6→v2.7; narrative version labels stripped per POL-39 (section-anchor-only cites in §Authority BC-2.16.003 note and ADR-058 process-gap phrase). (2) F5 BC-2.16.002 added to `behavioral_contracts:` frontmatter; BC-2.16.002 v2.27 body BC table row added; BC-2.16.002 v2.27 §Authority entry added (POL-8 full propagation). Token Budget already carried BC-2.16.002 ~2k row from v1.3; no token budget change needed. (3) F6 §Catalog Row Obligation stale version prose replaced with section-anchor cite per POL-39 (removed `currently v1.62 with 90 events becomes v1.63 with 91 events`). (4) §v1.5 Amendment Sweep added. |
 | 1.4 | 2026-08-16 | story-writer | Adversary pass-1 fix-burst: (1) Subsystems [SS-07, SS-16] → [SS-01, SS-16]; removed fabricated SS-07 citation ("Spec Engine" — SS-07 is Adapter Pagination & Response Cache per ARCH-INDEX); correct citations per ARCH-INDEX: SS-01 (Sensor Adapters, owns prism-bin/spec_driven_adapter.rs + prism-spec-engine), SS-16 (Spec Engine, owns prism-spec-engine/column_mapping.rs). (2) §Authority ADR-058 pin v2.5→v2.6 with note that §I5 v2.6 process-gap obligation and §K (class_selector.rs obligations) are Stage 2 scope only; Stage 1 §H scope unchanged. |
 | 1.3 | 2026-08-16 | story-writer | ADR-058 §K pin sweep: §Authority pin v2.4→v2.5; narrative prose v2.4 version label removed per POL-39 (section-anchor-only cites). |
 | 1.2 | 2026-08-16 | story-writer | BC-2.16.003 v1.4→v1.5 version pin propagation (TD-VSDD-097 dim-2 downstream copy target). Authority section: BC-2.16.003 version updated to v1.5 (modified 2026-08-16). Behavioral Contracts table: BC-2.16.003 v1.4→v1.5. ADR-058 version pin in Authority section updated to v2.4 (modified 2026-08-16). No substantive scope change — Stage 1 coercion algorithm (Rules 1/2/3, EC-016-013-007/008/009 gap closures, column_coercion_failure emission) is unchanged in BC-2.16.003 v1.5; new v1.5 content (§Interpretation A, §Claroty Contracted OCSF Mappings) is Stage 2 territory. |
