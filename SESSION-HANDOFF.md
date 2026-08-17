@@ -260,7 +260,61 @@ timestamp: 2026-08-16T00:00:00Z
 
 ---
 
-## §RESUME SNAPSHOT — D-2201 (2026-08-16 — SESSION WRAP; PR #239 S-CLAROTY-AUDITLOG-TIMEBOX-001 MERGED develop@69d821be; LOCAL develop 791b68c3; STATE v8.731→v8.732) [SUPERSEDES D-2185]
+## §RESUME SNAPSHOT — D-2218 (2026-08-17 — SESSION WRAP; OCSF cascade streak 0/3 pass-15 F1 reset; develop@69d821be; STATE v8.748→v8.749) [SUPERSEDES D-2201]
+
+### RESUME IN ONE BREATH
+(1) Prism Phase-3, OCSF-correctness CLAROTY workstream — SPEC adversarial cascade (BC-5.39.001 3-CLEAN) at strict streak 0/3: passes 13 & 14 CLEAN(strict), pass-15 found ONE MEDIUM (records-tier stale version-pin) which reset the streak. Substance is FULLY CONVERGED (schema/resolver/coverage/subsystem/discharge all clean since ~pass-4).
+(2) VERY NEXT ACTION: story-writer records-only micro-burst (TD-VSDD-096) to fix F1 — update the BC-2.01.013 pin from v1.16 → v1.23 at BOTH live sites in S-ADR058-OCSF-ROUTING-001 (§Authority + §Behavioral Contracts body BC table); on-disk BC-2.01.013 frontmatter is v1.23; semantic reference intact (EC-01-025 still NON-CONFORMANT, correct); bump ROUTING v1.16→v1.17 → state-manager lint-gated commit (records-lint L1/L7/L9/L10 + verify-sha-currency exit 0) → NEW frozen HEAD.
+(3) THEN adversary SPEC pass-16 on the new frozen HEAD; need 3 CONSECUTIVE CLEAN(strict) on an UNCHANGED HEAD (commit NOTHING between clean passes) → human approval gate for the OCSF spec package → stories status→ready → per-story TDD.
+
+### HEADS (D-2218)
+- `develop`: `69d821be` (LOCAL == origin/develop; clean, pushed/backed-up)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2218 wrap commit)
+- `.worktrees/S-3.09` @`43c41389d` [feature/S-3.09] KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` [feature/W3-FIX-S307-001] PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, 1 dirty file)
+- No open PRs. No agents in flight.
+
+### OCSF WORKSTREAM STATE (D-2218)
+**FROZEN PERIMETER:** ADR-058 v2.13 / BC-2.16.003 v1.9 / BC-2.16.002 v2.27 / S-ADR058-OCSF-ROUTING-001 v1.16 / S-ADR058-OCSF-COERCION-001 v1.15
+
+**RESUME NEXT-ACTION:** story-writer records-only micro-burst (TD-VSDD-096) — fix F1: update BC-2.01.013 pin from v1.16 → v1.23 at BOTH live sites in S-ADR058-OCSF-ROUTING-001 (§Authority row AND §Behavioral Contracts body BC table); on-disk BC-2.01.013 frontmatter is v1.23 (correct); semantic reference intact (EC-01-025 NON-CONFORMANT, correct — BC-2.01.013 EC-01-025 gated on Stage-2 merge); bump ROUTING v1.16 → v1.17 (records-only changelog row) → state-manager lint-gated commit (records-lint L1/L7/L9/L10 + verify-sha-currency exit 0) → NEW frozen HEAD → adversary SPEC pass-16.
+
+**BC-5.39.001 CASCADE STATE:**
+- Strict streak: 0/3 (reset by pass-15 F1 MEDIUM)
+- Pass trajectory: p1(1C2H1M) → p2(3M5L) → p3(2M1L) → p4(4M1L) → p5(1M2L) → p6(3M) → p7(2M1L) → p8(1H1M2L) → p9(1M1L1OBS) → p10(3L) → p11(2L) → p12(1M1L) → p13(0) → p14(0) → p15(1M)
+- Passes 13/14 were CLEAN(strict) on frozen HEAD; pass-15 found F1 MEDIUM (stale BC-2.01.013 version-pin v1.16 in ROUTING-001; on-disk BC-2.01.013 is v1.23; records-only fix required)
+- FROZEN HEAD for pass-15 and the upcoming fix-burst: same frozen perimeter above (ROUTING-001 v1.16 — the pin needs updating in the ROUTING story text, not the BC itself)
+
+### CROSS-SENSOR WORKSTREAM (D-2218)
+Three stub stories remain at draft (v0.2): S-OCSF-FIDELITY-CROWDSTRIKE-001, S-OCSF-FIDELITY-CYBERINT-001, S-OCSF-FIDELITY-ARMIS-001. These are deferred until CLAROTY workstream reaches human approval gate. No action needed now.
+
+### PENDING USER-APPROVED WORK (D-2218)
+- **PARKED per human D-2200 GOVERNING DECISION:** DTU work (S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001) deferred post-first-release. D-2109 also in effect: DTUs MUST NOT be reconciled to real without explicit human authorization.
+- **PARKED housekeeping (pending devops-engineer next opportunity):** local worktree `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` + branch teardown (PR #239 MERGED; remote branch deleted).
+- **PENDING next session start:** `/vsdd-factory:compact-state` — STATE.md and SESSION-HANDOFF.md are far over budget; run BEFORE heavy work next session.
+
+### DECISION-LOG DELTA (D-2202 → D-2218)
+
+Key decisions since D-2201 (full entries in STATE.md §Decisions Log):
+
+| D-NNN | Summary |
+|-------|---------|
+| D-2202 | OCSF schema-validation: 12 KF claroty errors; ADR-058 v2.1→v2.4; CODE DEFECT §class_selector.rs |
+| D-2204 | OCSF CONSISTENCY FIX-BURST: 6 findings (0C/1H/2M/3L) closed; ADR-058 v2.4→v2.5 |
+| D-2205 | Adversary SPEC pass-1 fix (1C+2H+1M+PG); ADR-058 v2.5→v2.6; BC-2.16.002 v2.26→v2.27 |
+| D-2206 | Adversary SPEC pass-2 fix (3M+5L); ADR-058 v2.6→v2.7; streak 0/3 |
+| D-2207..D-2216 | Adversary SPEC passes 3–12 fix-bursts (severity decay to 1M1L); FROZEN PERIMETER at ADR-058 v2.13 / ROUTING-001 v1.16 / COERCION-001 v1.15 |
+| D-2217 | Product naming rationale: product-brief.md v1.1→v1.2 (ORTHOGONAL to OCSF cascade) |
+| D-2218 | SESSION WRAP: passes 13/14 CLEAN(strict); pass-15 F1 MEDIUM (stale BC-2.01.013 pin) reset streak 0/3; RESUME SNAPSHOT D-2218; STATE v8.748→v8.749 |
+
+### BACKUP BOUNDARY (D-2218)
+- `develop` @ `69d821be` — pushed to origin. CI green.
+- `factory-artifacts` — this D-2218 wrap commit is the backup boundary; run `git -C .factory log -1 --format='%H'` for the SHA.
+- Both parked worktrees (`.worktrees/S-3.09`, `.worktrees/W3-FIX-S307-001`) are LOCAL-ONLY — NOT backed up.
+
+---
+
+## §RESUME SNAPSHOT — D-2201 (2026-08-16 — SESSION WRAP; PR #239 S-CLAROTY-AUDITLOG-TIMEBOX-001 MERGED develop@69d821be; LOCAL develop 791b68c3; STATE v8.731→v8.732) [SUPERSEDES D-2185] [SUPERSEDED by D-2218]
 
 ### RESUME IN ONE BREATH
 prism Phase 3; S-CLAROTY-AUDITLOG-TIMEBOX-001 MERGED to develop @69d821be (PR #239, this session). NEXT = OCSF-correctness workstream (ADR-058 spec-evolution → TDD). No story in flight.
