@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.22"
+version: "1.23"
 level: "L4"
 status: draft
 producer: story-writer
@@ -576,7 +576,7 @@ Both MUST remain passing after this story's changes (AC-006).
 |---------|------|-----------|
 | `tracing` | Structured log emission in `map_record` and `build_column_array` | Workspace-pinned version — do NOT specify version; use workspace inheritance |
 | `tracing-test` | Capture `tracing` events in RG-005 (`prism-spec-engine/tests/`) | `tracing-test = "0.2"` in `prism-spec-engine/Cargo.toml` `[dev-dependencies]` — already present; no change needed |
-| `tracing-test` | Capture `tracing` events in RG-009 (`prism-bin/tests/`) | `tracing-test = "0.2"` in `prism-bin/Cargo.toml` `[dev-dependencies]` — NOT yet present; implementer MUST add |
+| `tracing-test` | Capture `tracing` events in RG-009 (`crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests`) | `tracing-test = "0.2"` in `prism-bin/Cargo.toml` `[dev-dependencies]` — NOT yet present; implementer MUST add |
 | `serde_json` | `Value` type for coerce_value inputs | Workspace-pinned version |
 
 Do NOT add `tracing-test` to production `[dependencies]`. Do NOT use `tracing-test` in
@@ -632,6 +632,34 @@ dispatch product-owner as part of this story's delivery).
 anchors it to AC-004 / RG-005. VERDICT: DISCHARGED — ADR-058 §H already reads
 `(Anchored: S-ADR058-OCSF-COERCION-001 AC-004, RG-005)` since v2.1; no architect
 action pending.
+
+---
+
+### v1.23 Amendment Sweep (F-P23-MED-001 §Library & Framework RG-009 location text sync — OCSF-correctness Claroty SPEC pass-23 fix-burst)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): F-P23-MED-001 is a same-defect-class fix applied symmetrically to both stories — ROUTING-001 §Library & Framework Requirements tracing-test row (RG-018) and §File Structure Requirements Cargo.toml Notes cell both carried `prism-bin/tests/` text; the stale origin is identical (provisioned together in pass-19/pass-20 before the pass-21 relocation propagated only to §Architecture Mapping, §T-GATE, and §File Structure prism-bin row but not to §Library & Framework). ROUTING-001 amended in same burst (v1.23→v1.24). VERDICT: SWEPT; ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+All test-location-bearing surfaces in this story checked for `prism-bin/tests/` references to private-fn RGs:
+
+- §Library & Framework Requirements tracing-test row (RG-009 location): corrected from `prism-bin/tests/` to `crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests` — this is the sole locus changed in this burst.
+- §Architecture Mapping Path A row: references `crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests` — confirmed CURRENT (updated v1.21 per F-P21-MED-001).
+- §Architecture Mapping Constraints item 3: references `prism-bin/Cargo.toml` and `prism-spec-engine/Cargo.toml` only (Cargo.toml provisioning, not a test-file location) — CURRENT.
+- §File Structure Requirements prism-bin unit-test row: references `src/spec_driven_adapter.rs #[cfg(test)] mod tests` block — confirmed CURRENT (updated v1.21 per F-P21-MED-001).
+- §File Structure Requirements Cargo.toml row Notes: `Required for RG-009 tracing_test subscriber — NOT yet present in prism-bin` — contains no `prism-bin/tests/` reference; CURRENT.
+- §T-GATE: references `crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests` block explicitly — confirmed CURRENT (updated v1.21 per F-P21-MED-001).
+- §Tasks T-10a/T-10b: "in the same prism-bin test file as RG-006/RG-007" — resolves to spec_driven_adapter.rs `#[cfg(test)] mod tests` per §File Structure ground truth; contains no `prism-bin/tests/` reference; CURRENT.
+- §Purity Classification: no `prism-bin/tests/` reference — CURRENT.
+- §Red Gate Tests RG-008/RG-009 text: references `tracing_test` subscriber without naming a file path — CURRENT.
+
+Post-edit grep: ZERO `prism-bin/tests/` references for private-fn RGs remain in this story. VERDICT: COMPLETE; all location-bearing surfaces verified.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. F-P23-MED-001 is a records-tier text-sync correction. VERDICT: N/A — no new mandates.
 
 ---
 
@@ -1069,6 +1097,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.23 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-23 fix-burst: F-P23-MED-001 [MED, text-sync]: §Library & Framework Requirements tracing-test row for RG-009 location corrected from `prism-bin/tests/` to `crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests` — stale text introduced in pass-19 (provisioned together with ROUTING-001 RG-018) before pass-21 relocation propagated to §Architecture Mapping, §T-GATE, and §File Structure but not to §Library & Framework. Complete-sweep grep verified: zero `prism-bin/tests/` references for private-fn RGs remain. Sibling sweep: ROUTING-001 amended in same burst (v1.23→v1.24 — F-P23-MED-001 two loci: §Library & Framework + §File Structure Cargo.toml Notes). §v1.23 Amendment Sweep added. |
 | 1.22 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-22 fix-burst: ADR-058 §Authority pin v2.13→v2.14 (architect bump; `anchor_stories` gain S-ADR058-DTU-PARITY-MIGRATION-001 + §H enumeration fix). Sibling coordination with ROUTING-001 pass-22 fix-burst (v1.22→v1.23 — F-P22-MED-001/002/OBS-2/3; COERCION-001 has no equivalent ROUTING findings). §v1.22 Amendment Sweep added. |
 | 1.21 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-21 fix-burst: F-P21-MED-001 [MED, compile-correctness]: §Architecture Mapping Path A row relabeled from "Integration test file / `crates/prism-bin/tests/` (file TBD)" to "Unit test block / `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests`"; §T-GATE "appropriate prism-bin test file" → explicit src mod tests block; §File Structure Requirements `crates/prism-bin/tests/` row → `src/spec_driven_adapter.rs` row (direct calls to private `build_column_array` — Architecture Compliance Rule 2). Sibling sweep: ROUTING-001 amended in same burst (v1.21→v1.22 — F-P21-MED-001 `pipeline_result_to_record_batch` RGs relocated + F-P21-LOW-001 T-12/T-14 attribution). §v1.21 Amendment Sweep added. |
 | 1.20 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-20 fix-burst: (1) F-P20-LOW-001b [LOW, records-tier]: §v1.18 Amendment Sweep §Dimension 1 false sentence corrected — prior text stated "ROUTING-001 amendment sweeps are already in consistent descending order within their own file"; corrected to "ROUTING-001 amendment sweep ordering was corrected in ROUTING-001 v1.21 (pass-20, F-P20-LOW-001a)". (2) F-P20-LOW-002 [LOW, POL-8 count parity]: BC-2.02.011 row added to §Token Budget Estimate (~1k); Total updated ~21k → ~22k. BC-2.02.011 was present in frontmatter `behavioral_contracts`, §Authority, and §Behavioral Contracts body table but absent from Token Budget — POL-8 count-parity violation. Sibling sweep: ROUTING-001 amended in same burst (v1.20→v1.21). §v1.20 Amendment Sweep added. |
