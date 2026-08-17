@@ -2,11 +2,12 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.9"
+version: "1.10"
 level: "L4"
 status: draft
 producer: story-writer
 timestamp: "2026-08-12T00:00:00Z"
+modified: "2026-08-17"
 phase: 3
 wave: claroty-live
 epic_id: EPIC-OCSF-ROUTING
@@ -84,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "c033be9"
+input-hash: "cf2be16"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -104,7 +105,7 @@ tags:
 ## Authority
 
 **ADR-058 v2.8: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
-Names; DTU Migration Deferred.** Version `2.8`, status: accepted (2026-08-16). Read
+Names; DTU Migration Deferred.** Version `2.8`, status: accepted (2026-08-17). Read
 §B2 (decision), §C (quoting convention — Option 4 chosen), §D (per-sensor scoping, flag
 mechanism), §E (blast radius), §G (prism_describe output spec), §H (Stage 1 confirmed
 separate), §I (implementation guidance including **§I5 TOML + code correction obligations for
@@ -120,7 +121,7 @@ implementing.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
 **BC-2.16.003: Column-to-OCSF Mapping at Query Time.** Version `1.9`, status: draft
-(modified 2026-08-16). §Column Routing postconditions, **§Claroty Contracted OCSF Mappings
+(modified 2026-08-17). §Column Routing postconditions, **§Claroty Contracted OCSF Mappings
 (ground truth for all four Claroty tables with KF-01..KF-12 corrections)**, and
 **§Interpretation A: Arrow Field Naming** govern the obligation that `ocsf_field` declarations
 produce queryable Arrow field identifiers. **EC-016-013-023** (KF-01 entity_management class_uid
@@ -1081,13 +1082,18 @@ implementer MUST load only the files listed, not the full architecture directory
   the `raw_extensions` JSON blob contains keys `"category"`, `"alert_type_name"`,
   `"devices_count"` with vendor values. Currently fails because KF-08/09/10 corrections
   are not yet in the TOML. Covers AC-010 (EC-016-013-013/014/015).
-- T-11H: Write RG-015 — `test_claroty_alerts_id_produces_finding_info_uid_arrow_field_wire_shape`
-  (MUST FAIL). Wire-shape assertion: build a Claroty alerts `SensorSpec` with KF-03
-  correction (`id` ocsf_field = `"finding_info.uid"`). Pass a record `{"id": "132"}`
-  through `pipeline_result_to_record_batch` with `ocsf_column_naming = true`. Serialize
-  to JSON. Assert: Arrow field `"finding_info_uid"` contains `"132"`; no field named
-  `"finding_uid"` exists. Currently fails because KF-03 correction is not yet in the
-  TOML. Covers AC-010 (EC-016-013-017).
+- T-11H: Write RG-015 — `test_claroty_alerts_finding_info_fields_wire_shape`
+  (MUST FAIL). Wire-shape assertion: build a Claroty alerts `SensorSpec` with KF-03/04/12
+  corrections (`id` ocsf_field = `"finding_info.uid"`, `alert_name` ocsf_field =
+  `"finding_info.title"`, `updated_time` ocsf_field = `"finding_info.modified_time"`).
+  Pass a record `{"id": "132", "alert_name": "Modbus Violation",
+  "updated_time": "2024-01-15T10:30:00Z"}` through `pipeline_result_to_record_batch`
+  with `ocsf_column_naming = true`. Serialize to JSON. Assert: (1) Arrow field
+  `"finding_info_uid"` contains `"132"` (KF-03); (2) Arrow field `"finding_info_title"`
+  contains `"Modbus Violation"` (KF-04); (3) Arrow field `"finding_info_modified_time"`
+  contains `"2024-01-15T10:30:00Z"` (KF-12); (4) no Arrow field named `"finding_uid"`,
+  `"finding_title"`, or `"end_time"` exists. Currently fails because KF-03/04/12
+  corrections are not yet in the TOML. Covers AC-010 (KF-03/04/12).
 - T-11I: Write RG-016 — `test_claroty_audit_logs_record_batch_class_uid_is_3004`
   (MUST FAIL). Wire-shape integration test: build a minimal Claroty `audit_logs` `SensorSpec`
   (or use the production TOML table spec with `ocsf_class = "entity_management"` after KF-01
@@ -1148,9 +1154,9 @@ implementer MUST load only the files listed, not the full architecture directory
   AC-010 (KF-06).
 - T-11P: Write RG-023 — `test_class_selector_claroty_audit_log_select_arm_maps_to_entity_management_3004`
   (MUST FAIL). Unit test in `class_selector.rs`: call
-  `select(&ClassSelectorInput { vendor: "claroty", class_name: "audit_log", ... })` and
-  assert `Ok(3004)` (entity_management). Currently fails because the `("claroty",
-  "audit_log")` arm has not yet been updated. Covers AC-009(c) Claroty arm.
+  `select("claroty", "audit_log")` and assert `Ok(3004)` (entity_management). Currently
+  fails because the `("claroty", "audit_log")` arm has not yet been updated. Covers
+  AC-009(c) Claroty arm.
 - T-GATE: Run `just iter prism-spec-engine --no-fail-fast`, `just iter prism-bin --no-fail-fast`,
   and `just iter prism-ocsf --no-fail-fast` — confirm RG-001..RG-023 fail with correct
   compile/test-failure reasons. Confirm no regressions in non-RG tests. Report density:
@@ -1690,10 +1696,36 @@ updates, not new behavioral obligations. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.10 Amendment Sweep (T-11H 3-field fix + T-11P API fix + F3 date cites)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): sibling-sweep for `ClassSelectorInput` /
+`vendor:` / `class_name:` fabricated API shapes — **zero occurrences found** in COERCION-001.
+F3 §Authority date cites updated to 2026-08-17 and `modified:` frontmatter field added in
+same burst. No T-11H or T-11P equivalents exist in COERCION-001 (it has no class_selector
+tasks). VERDICT: COERCION-001 DATE FIXES APPLIED IN SAME BURST; NO T-11H/T-11P EQUIVALENTS.
+
+**Dimension 2 — Downstream copy target:**
+
+T-11H test name is the source from which the RG-015 catalog entry and AC-010 assertion 1 derive.
+The RG-015 catalog entry and AC-010 assertion 1 already carried the correct 3-field name
+`test_claroty_alerts_finding_info_fields_wire_shape` since pass-4 — T-11H was the only stale
+copy. After this fix, T-11H, the RG catalog, and AC-010 assertion 1 are all consistent. VERDICT:
+CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The T-11H expansion and T-11P API correction are
+test-authoring-accuracy fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.10 | 2026-08-17 | story-writer | Adversary pass-6 fix-burst: (1) F1 T-11H corrected: old name `test_claroty_alerts_id_produces_finding_info_uid_arrow_field_wire_shape` (single KF-03) → new name `test_claroty_alerts_finding_info_fields_wire_shape` (3-field: KF-03 `finding_info_uid` + KF-04 `finding_info_title` + KF-12 `finding_info_modified_time`); body updated to 3-field record and assertions. (2) F2 T-11P fabricated API fixed: `select(&ClassSelectorInput { vendor: "claroty", class_name: "audit_log", ... })` → `select("claroty", "audit_log")`; sibling-sweep: zero other `ClassSelectorInput`/`vendor:`/`class_name:` occurrences in either story. (3) F3 §Authority date cites ADR-058 + BC-2.16.003 updated 2026-08-16 → 2026-08-17 in both stories; `modified:` frontmatter field added as 2026-08-17 in both stories. (4) §v1.10 Amendment Sweep added. |
 | 1.9 | 2026-08-17 | story-writer | Adversary pass-5 fix-burst: (1) ADR-058 re-pin v2.7→v2.8; BC-2.16.003 re-pin v1.8→v1.9 (concurrent architect/PO bumps); §Authority pins and body BC table updated in both ROUTING-001 and COERCION-001. (2) F2 stale count fix: `all 20 confirmed failing` → `all 23 confirmed failing` (line ~227 Red-then-green gate). Full grep of both stories for other stale `20`/`twenty` RG-count refs — zero additional instances found in normative sections. (3) §v1.9 Amendment Sweep added. |
 | 1.8 | 2026-08-17 | story-writer | Adversary pass-4 fix-burst (comprehensive KF→AC→RG coverage-matrix audit): (1) BC-2.16.003 re-pin v1.7→v1.8. (2) F5 POL-39 volatile-pin strip: `v1.67` catalog-label and `row 94` positional cite removed from §Authority BC-2.16.002, body BC table, AC-011, RG-018; durable `event_type = "ocsf.unknown_class_name"` symbol anchor retained. (3) F2 RG-015 expanded to 3-field wire-shape (KF-03 `finding_info_uid` + KF-04 `finding_info_title` + KF-12 `finding_info_modified_time`); AC-010 assertion 1 now matches RG-015 reality. (4) F3 RG-021 added: KF-05 `audit_logs.id` → raw_extensions (no `activity_uid`/`id` Arrow field; value preserved in raw_extensions); RG-022 added: KF-06 `devices.device_type` → `device_type_label` Arrow field (demo-critical `WHERE device_type_label = 'PLC'`). AC-010 assertions 5 and 6 added. (5) F4 RG-023 added: AC-009(c) Claroty `select()` arm `("claroty","audit_log")` → Ok(3004); density-note corrected (RG-012 covers Armis half; RG-023 covers Claroty half). (6) T-11N/T-11O/T-11P added for RG-021/022/023 authoring; T-GATE/T-19 updated. (7) Density 20/11=1.82→23/11=2.09. AC-005 density-note corrected (KF-05/06 now have RGs). (8) §v1.8 Amendment Sweep added. |
 | 1.7 | 2026-08-17 | story-writer | Adversary pass-3 fix-burst: (1) F2 compile-error-class fix — AC-011 and T-24 emission snippet `%table.name` → `%table.table_name` (`TableSpec` has no `name` field; correct field is `table_name` per `prism-spec-engine::spec_parser`; sibling sweep confirmed no other stale `table.name` references in COERCION-001). (2) F1 ROUTING-001 subsystem cross-check against ARCH-INDEX — SS-01/02/10/16 confirmed correct; justification prose already correct (prism-bin attributed to SS-10; prism-sensors+prism-spec-engine to SS-01; prism-ocsf to SS-02; prism-spec-engine to SS-16). (3) §v1.7 Amendment Sweep added. |

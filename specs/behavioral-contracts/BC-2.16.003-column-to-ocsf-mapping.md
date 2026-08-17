@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-08-16
+modified: 2026-08-17
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -22,7 +22,7 @@ inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "5ec3dd0"
+input-hash: "c5849f9"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"

@@ -4,7 +4,7 @@ adr_id: "ADR-058"
 title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred"
 status: accepted
 date: "2026-08-11"
-modified: "2026-08-16"
+modified: "2026-08-17"
 version: "2.8"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
