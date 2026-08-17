@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.12"
+version: "1.13"
 level: "L4"
 status: draft
 producer: story-writer
@@ -85,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "523f2d0"
+input-hash: "22ce4d2"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -104,8 +104,8 @@ tags:
 
 ## Authority
 
-**ADR-058 v2.9: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
-Names; DTU Migration Deferred.** Version `2.9`, status: accepted (2026-08-17). Read
+**ADR-058 v2.10: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
+Names; DTU Migration Deferred.** Version `2.10`, status: accepted (2026-08-17). Read
 §B2 (decision), §C (quoting convention — Option 4 chosen), §D (per-sensor scoping, flag
 mechanism), §E (blast radius), §G (prism_describe output spec), §H (Stage 1 confirmed
 separate), §I (implementation guidance including **§I5 TOML + code correction obligations for
@@ -937,7 +937,7 @@ violation is addressed by making the silent fallback visible, not by making it f
 **Catalog obligation (SAP-1 / PG-LP11-001):** BC-2.16.002 §Canonical Structured Event
 Catalog `ocsf.unknown_class_name` is the authoritative contract for this emission. The
 implementer MUST NOT add a new BC-2.16.002 amendment — the row is ALREADY in BC-2.16.002
-v2.27 (product-owner authored it in this fix-burst). The implementer only needs to write
+§Canonical Structured Event Catalog. The implementer only needs to write
 the emission code matching the contracted field schema.
 
 **Steady-state behavior:** Expected zero emissions when all sensor TOMLs declare valid
@@ -1776,10 +1776,36 @@ violation, not a behavioral obligation. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.13 Amendment Sweep (F2 AC-011 POL-39 prose pin removal + ADR-058 re-pin v2.9→v2.10)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): ADR-058 §Authority pin updated v2.9→v2.10 in
+same burst. Sibling sweep of COERCION-001 normative prose (AC bodies, EC bodies, §Tasks,
+MUST-Discharge sections): zero additional POL-39 doc-version pins found outside §Authority (exception),
+body BC table (exception), and historical amendment-sweep/changelog sections (grandfathered by
+TD-VSDD-091 ratchet scoping). VERDICT: COERCION-001 AMENDED IN SAME BURST; CLEAN.
+
+**Dimension 2 — Downstream copy target:**
+
+AC-011 §Catalog obligation prose is the source from which the implementer reads the obligation.
+The F2 fix removes the stale "v2.27 (product-owner authored it in this fix-burst)" clause and
+replaces it with the already-present section anchor "BC-2.16.002 §Canonical Structured Event
+Catalog". The BC-2.16.002 §Canonical Structured Event Catalog section itself is unchanged; only
+this story's normative prose reference is cleaned. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The F2 fix and ADR re-pin are accuracy/hygiene
+corrections, not new behavioral obligations. VERDICT: N/A — no new mandates.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.13 | 2026-08-17 | story-writer | Adversary pass-9 fix-burst: (1) F2 [LOW] AC-011 §Catalog obligation prose: removed volatile `v2.27` doc-version pin and stale '(product-owner authored it in this fix-burst)' temporal aside from normative AC prose; section-anchor cite `BC-2.16.002 §Canonical Structured Event Catalog` retained. (2) Sibling sweep — zero additional POL-39 doc-version pins found in normative prose of either story (body BC table and §Authority entries are exempt; historical amendment-sweep/changelog rows are grandfathered). (3) ADR-058 §Authority pin v2.9→v2.10 (concurrent architect bump). (4) §v1.13 Amendment Sweep added. |
 | 1.12 | 2026-08-17 | story-writer | Adversary pass-8 fix-burst (comprehensive hygiene sweep): (1) F1 [HIGH] §Mandate Anchor #1 rewritten to mirror COERCION-001 §Mandate Anchor #2 — both §D2 and §J2 mandates marked DISCHARGED; stale 'ANCHOR-NEEDED' present-tense language removed; 'story does not yet exist' quote removed; unsatisfiable architect routing obligation removed; volatile ADR-058 version pins stripped from prose; Status column added to mandate-anchor table with DISCHARGED (v2.1). (2) F4 [LOW] §Authority §J4 description corrected: 'count correction 20→19' → 'count 31 pre-correction / 26 post-correction across four tables'. (3) F3 [LOW] v1.9 changelog row line-cite removed: '(line ~227 Red-then-green gate)' → '(Red-then-green gate instruction)'. (4) ADR-058 §Authority pin v2.8→v2.9 (concurrent architect bump). (5) §v1.12 Amendment Sweep added. |
 | 1.11 | 2026-08-17 | story-writer | Adversary pass-7 fix-burst (full task-plan audit): (1) F1 gate ordering fixed: T-19 (run all 23 RGTs) + T-20 (just check) moved to AFTER T-24 — terminal gates are now the final two tasks. (2) F2(a) T-17 mis-attribution corrected: RG-009/RG-010 removed from T-17 "Makes green" list (those are code collision-detection unit tests greened by T-21, not by TOML edit). (3) F2(b) T-17 missing green-drivers added: RG-019 (KF-11 audit_logs.category→raw_extensions) and RG-020 (KF-07 device_alert_relations finding_info_uid) added to T-17 "Makes green" list. RG-023 added to T-23 "Makes green" list. (4) Full RG→green-driver matrix verified: all 23 RGs mapped to exactly one task. (5) COERCION-001 task-audit: CLEAN. (6) §v1.11 Amendment Sweep added. |
 | 1.10 | 2026-08-17 | story-writer | Adversary pass-6 fix-burst: (1) F1 T-11H corrected: old name `test_claroty_alerts_id_produces_finding_info_uid_arrow_field_wire_shape` (single KF-03) → new name `test_claroty_alerts_finding_info_fields_wire_shape` (3-field: KF-03 `finding_info_uid` + KF-04 `finding_info_title` + KF-12 `finding_info_modified_time`); body updated to 3-field record and assertions. (2) F2 T-11P fabricated API fixed: `select(&ClassSelectorInput { vendor: "claroty", class_name: "audit_log", ... })` → `select("claroty", "audit_log")`; sibling-sweep: zero other `ClassSelectorInput`/`vendor:`/`class_name:` occurrences in either story. (3) F3 §Authority date cites ADR-058 + BC-2.16.003 updated 2026-08-16 → 2026-08-17 in both stories; `modified:` frontmatter field added as 2026-08-17 in both stories. (4) §v1.10 Amendment Sweep added. |
