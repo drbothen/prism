@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.14"
+version: "1.15"
 level: "L4"
 status: draft
 producer: story-writer
@@ -85,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "7cb700a"
+input-hash: "e0a2c0f"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -104,8 +104,8 @@ tags:
 
 ## Authority
 
-**ADR-058 v2.11: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
-Names; DTU Migration Deferred.** Version `2.11`, status: accepted (2026-08-17). Read
+**ADR-058 v2.12: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
+Names; DTU Migration Deferred.** Version `2.12`, status: accepted (2026-08-17). Read
 §B2 (decision), §C (quoting convention — Option 4 chosen), §D (per-sensor scoping, flag
 mechanism), §E (blast radius), §G (prism_describe output spec), §H (Stage 1 confirmed
 separate), §I (implementation guidance including **§I5 TOML + code correction obligations for
@@ -1776,6 +1776,28 @@ violation, not a behavioral obligation. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.15 Amendment Sweep (ADR-058 re-pin v2.11→v2.12 + sibling sweep COERCION-001 LOW-2 coordination)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): LOW-2 AC-004 trace parentheticals added — BC-2.16.002
+and BC-2.02.011 formal `(traces to …)` parentheticals now present on AC-004; ADR-058 §Authority pin
+v2.11→v2.12; §v1.14 Amendment Sweep added in same burst. ROUTING-001 has no equivalent LOW-2 fix —
+all three of its frontmatter BCs already had AC trace parentheticals. VERDICT: COERCION-001 AMENDED
+IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+ADR-058 §Authority pin is the only changed site in ROUTING-001 this burst (v2.11→v2.12). Sibling
+sweep of both stories confirmed zero additional normative prose ADR-058/BC version pins.
+VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.14 Amendment Sweep (F3 §Mandate Anchor #1 provenance fix + ADR-058 re-pin v2.10→v2.11)
 
 **Dimension 1 — Sibling pair:**
@@ -1828,6 +1850,7 @@ corrections, not new behavioral obligations. VERDICT: N/A — no new mandates.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.15 | 2026-08-17 | story-writer | Adversary pass-11 fix-burst: (1) ADR-058 §Authority pin v2.11→v2.12 (concurrent architect bump). (2) Sibling coordination: COERCION-001 LOW-2 AC-004 trace parentheticals added in same burst — all three COERCION frontmatter BCs now have AC `(traces to …)` parentheticals; ROUTING-001 already had BC-2.16.002 and BC-2.02.011 traces. (3) Sibling sweep: zero ADR-058/BC normative prose version pins found in either story outside exempt/grandfathered zones. (4) §v1.15 Amendment Sweep added. |
 | 1.14 | 2026-08-17 | story-writer | Adversary pass-10 fix-burst: (1) F3 [LOW] §Mandate Anchor #1 provenance fix — both §D2 and §J2 discharge entries made version-free: removed "(v2.1)" / "since v2.1" version qualifiers from inline prose and table Status column; replaced with "DISCHARGED — ADR-058 §D2/§J2 carries the inline (Anchored: …) mark" form per POL-39. Eliminates drift source so story cannot go stale on future ADR bumps. (2) ADR-058 §Authority pin v2.10→v2.11 (concurrent architect bump). (3) Sibling sweep: zero additional normative prose ADR-058 or BC version pins found in either story outside §Authority (exempt) and historical amendment-sweep/changelog rows (grandfathered). (4) §v1.14 Amendment Sweep added. |
 | 1.13 | 2026-08-17 | story-writer | Adversary pass-9 fix-burst: (1) F2 [LOW] AC-011 §Catalog obligation prose: removed volatile `v2.27` doc-version pin and stale '(product-owner authored it in this fix-burst)' temporal aside from normative AC prose; section-anchor cite `BC-2.16.002 §Canonical Structured Event Catalog` retained. (2) Sibling sweep — zero additional POL-39 doc-version pins found in normative prose of either story (body BC table and §Authority entries are exempt; historical amendment-sweep/changelog rows are grandfathered). (3) ADR-058 §Authority pin v2.9→v2.10 (concurrent architect bump). (4) §v1.13 Amendment Sweep added. |
 | 1.12 | 2026-08-17 | story-writer | Adversary pass-8 fix-burst (comprehensive hygiene sweep): (1) F1 [HIGH] §Mandate Anchor #1 rewritten to mirror COERCION-001 §Mandate Anchor #2 — both §D2 and §J2 mandates marked DISCHARGED; stale 'ANCHOR-NEEDED' present-tense language removed; 'story does not yet exist' quote removed; unsatisfiable architect routing obligation removed; volatile ADR-058 version pins stripped from prose; Status column added to mandate-anchor table with DISCHARGED (v2.1). (2) F4 [LOW] §Authority §J4 description corrected: 'count correction 20→19' → 'count 31 pre-correction / 26 post-correction across four tables'. (3) F3 [LOW] v1.9 changelog row line-cite removed: '(line ~227 Red-then-green gate)' → '(Red-then-green gate instruction)'. (4) ADR-058 §Authority pin v2.8→v2.9 (concurrent architect bump). (5) §v1.12 Amendment Sweep added. |

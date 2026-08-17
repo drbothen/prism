@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.13"
+version: "1.14"
 level: "L4"
 status: draft
 producer: story-writer
@@ -70,7 +70,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "8c453c2"
+input-hash: "978952c"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -98,7 +98,7 @@ Observability DEFECT section are the acceptance-criteria source for this story. 
 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.11: v1 Column Naming — OCSF Field-Path Routing.** Version `2.11`, status:
+**ADR-058 v2.12: v1 Column Naming — OCSF Field-Path Routing.** Version `2.12`, status:
 accepted (2026-08-17). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
@@ -251,6 +251,10 @@ Catalog Row Obligation below).
 
 (traces to BC-2.16.003 §Coercion Warning Observability DEFECT: "The current implementation
 does NOT emit a tracing::warn! at the point of demotion. This violates BC-2.02.011.")
+
+(traces to BC-2.16.002 §Canonical Structured Event Catalog `column_coercion_failure` (SAP-1/PG-LP11-001 obligation — catalog row MUST be registered before PR merges))
+
+(traces to BC-2.02.011 §Graceful Normalization Error Handling (No Silent Data Loss) — warning-emission obligation for each normalization issue)
 
 ### AC-005: build_column_array ColumnType::String arm returns null cell for Object/Array input
 
@@ -740,6 +744,28 @@ fixes, not new behavioral obligations. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.14 Amendment Sweep (LOW-2 AC-004 trace additions + ADR-058 re-pin v2.11→v2.12)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): ADR-058 §Authority pin updated v2.11→v2.12 in
+same burst. ROUTING-001 has no LOW-2 equivalent — its BC-2.16.002 and BC-2.02.011 traces were
+already present from prior authoring. VERDICT: ROUTING-001 AMENDED IN SAME BURST (ADR pin only).
+
+**Dimension 2 — Downstream copy target:**
+
+AC-004 is the source from which the implementer reads the emission obligation. The LOW-2 additions
+add two formal trace parentheticals that make BC-2.16.002 and BC-2.02.011 coverage explicit without
+changing the behavioral obligation (which was already stated in AC-004 prose). Downstream: the
+§BC-2.16.002 Catalog Row Obligation section references AC-004 and is unchanged. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced by this amendment. The trace additions and ADR re-pin are notational
+consistency fixes. VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.13 Amendment Sweep (ADR-058 re-pin v2.10→v2.11 + sibling sweep ROUTING-001 F3 coordination)
 
 **Dimension 1 — Sibling pair:**
@@ -787,6 +813,7 @@ No new MUSTs introduced by this amendment. VERDICT: N/A — no new mandates.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.14 | 2026-08-17 | story-writer | Adversary pass-11 fix-burst: (1) LOW-2 [LOW, POL-8] AC-004 trace parentheticals added — `(traces to BC-2.16.002 §Canonical Structured Event Catalog ...)` and `(traces to BC-2.02.011 §Graceful Normalization Error Handling (No Silent Data Loss) ...)` added after existing BC-2.16.003 trace; all three frontmatter BCs (BC-2.16.003, BC-2.02.011, BC-2.16.002) now have at least one AC `(traces to …)` parenthetical (POL-8 no-orphan satisfied). (2) ADR-058 §Authority pin v2.11→v2.12 (concurrent architect bump). (3) Sibling sweep: zero ADR-058/BC normative prose version pins found in either story outside §Authority (exempt) and historical amendment-sweep/changelog rows (grandfathered). (4) §v1.14 Amendment Sweep added. |
 | 1.13 | 2026-08-17 | story-writer | Adversary pass-10 fix-burst: (1) ADR-058 §Authority pin v2.10→v2.11 (concurrent architect bump). (2) Sibling sweep coordination: ROUTING-001 F3 §Mandate Anchor #1 provenance fix applied in same burst — both §D2 and §J2 version qualifiers "(v2.1)" / "since v2.1" stripped; COERCION-001 §Mandate Anchor #2 was already version-free since pass-7. Zero additional POL-39 violations found in COERCION-001 normative prose. (3) §v1.13 Amendment Sweep added. |
 | 1.12 | 2026-08-17 | story-writer | Adversary pass-9 fix-burst: (1) ADR-058 §Authority pin v2.9→v2.10 (concurrent architect bump). (2) Sibling sweep coordination: ROUTING-001 F2 AC-011 prose pin cleaned in same burst. Zero additional POL-39 violations found in COERCION-001 normative prose. (3) §v1.12 Amendment Sweep added. |
 | 1.11 | 2026-08-17 | story-writer | Adversary pass-8 fix-burst: (1) ADR-058 §Authority pin v2.8→v2.9 (concurrent architect bump). (2) Comprehensive hygiene sweep: zero POL-39 narrative prose violations and zero line-cites found outside §Authority and historical amendment-sweep sections (all grandfathered per TD-VSDD-091 ratchet scoping). (3) §v1.11 Amendment Sweep added. |

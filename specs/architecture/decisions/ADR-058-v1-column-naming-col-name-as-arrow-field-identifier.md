@@ -5,7 +5,7 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-08-17"
-version: "2.11"
+version: "2.12"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -453,9 +453,7 @@ cannot filter on nested keys without JSON path functions.
 - **BC-2.01.013 EC-01-025**: update the NON-CONFORMANT annotation to reference the Stage 2
   story once it is created. After the Stage 2 story merges, update to CONFORMANT.
 - **BC-2.16.003 §Story Anchor**: [DISCHARGED] S-ADR058-OCSF-ROUTING-001 (Stage 2) is already listed in BC-2.16.003 §Story Anchor.
-- **BC-2.16.003 EC-016-013-012**: this EC presupposes `device.ip` is queryable as `device.ip`
-  (dotted path). Under Interpretation A with underscore-flattening, the queryable name is
-  `device_ip`. This EC must be updated to reference `device_ip` once sensors are migrated.
+- **BC-2.16.003 EC-016-013-012**: [DISCHARGED] EC already reads "both queryable as `device_ip`" (BC-2.16.003 §Postconditions; updated per this obligation in BC v1.5 §Changelog item I).
 - **BC-2.16.002**: add `column_coercion_failure` catalog row (Stage 1 obligation).
 
 ### §I4 Non-Interference with ADR-055 and ADR-028
@@ -974,7 +972,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.11 (2026-08-17)
+### Status as of v2.12 (2026-08-17)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1049,6 +1047,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.12 | 2026-08-17 | architect | Adversary pass-11 fix-burst. LOW-1: §I3 BC-2.16.003 EC-016-013-012 bullet converted from pending-framed to DISCHARGED — BC-2.16.003 §Postconditions EC-016-013-012 already reads "both queryable as `device_ip`"; discharged per BC §Changelog item I. Additional §I3 sweep: BC-2.16.003 §Story Anchor already DISCHARGED (prior pass); BC-2.01.013 EC-01-025 legitimately pending (Stage 2 not yet merged); BC-2.16.002 `column_coercion_failure` row legitimately pending (row absent from BC on-disk). Zero other stale-pending obligations found. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §I3 is the sole locus; no independent copy; (3) mandate anchor — no new MUST statements. |
 | 2.11 | 2026-08-17 | architect | Adversary pass-10 fix-burst. F1 [LOW]: §Status SW discharge table KF-01 row range corrected `(a)–(f)` → `(a)–(d)` to match §I5's four-obligation enumeration. F2 [LOW POL-39]: §Status SW discharge table §AC-005 row dropped bare `v1.5` artifact-version pin; rewritten to anchor-only form citing ROUTING AC-005 and BC-2.16.003 §Claroty Contracted OCSF Mappings. Additional POL-39 sweep of full ADR body (non-exempt zones): zero further narrative artifact-version pins found — all remaining `vX.Y` occurrences are in exempt zones (§B1/§A5 provenance cites, §Source §Authority pins, §Changelog rows, external OCSF schema version reference, §Status section heading label). TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — discharge table cells are terminal; no independent copy in another artifact; (3) mandate anchor — no new MUST statements. |
 | 2.10 | 2026-08-17 | architect | Adversary pass-9 fix-burst. F1 [MED] root-cause fix for recurring obligation-drift class: (1) §Status PO and SW "handoff obligations" present-tense imperative blocks converted to discharge tables — DISCHARGED rows cite satisfying AC/RG/BC section; PENDING rows retain open items (EC-016-013-023/024 verification; KF-08..KF-12 TOML edits; §AC-005/§EC-003/§EC-009 story amendments; `class_selector.rs` in-file doc tables), all labeled PENDING TDD or PENDING STORY; no-op routing directives removed. (2) §I3 §Story Anchor false claim corrected — bullet previously stated "Stage 2 needs its own anchor row"; corrected to DISCHARGED (S-ADR058-OCSF-ROUTING-001 is already listed in BC-2.16.003 §Story Anchor). OBS [POL-39 adjudication]: v2.9 changelog row claimed "removed ALL self-referential version pins" — inaccurate; §A2/§A5/§B1 retain `v1.0` provenance cites (immutable decision-history/supersession provenance, exempt per same principle as §Changelog). Corrected v2.9 row wording to "except immutable decision-history/supersession provenance cites (§A2/§A5/§B1)". TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §I3 §Story Anchor bullet was the source text for this false claim; corrected at source; no independent copy in another artifact; (3) mandate anchor — no new MUST statements; discharge tables now name the satisfying anchors inline. |
 | 2.9 | 2026-08-17 | architect | Adversary pass-8 fix-burst. F2 [MED]: §J2 mandate text converted from forward-looking to discharged past-tense; inline discharge mark added: `(Anchored: S-ADR058-OCSF-ROUTING-001 EC-010 / RG-010 / T-21 shadow-check extension)`. COMPREHENSIVE SWEEP — (1) Mandate-discharge accuracy: all ANCHOR-NEEDED / forward-looking mandate annotations reviewed; §J2 was the sole remaining forward-looking instance. (2) POL-39 narrative version-pin purge: removed self-referential version pins from narrative prose across the ADR body (approx. 28 instances); converted to section-anchor-only form (`§B1`, `§B2`, `§K4`, `§K5`, `§I5`, etc.). Exempt from sweep: §Changelog rows, frontmatter, §Authority pin tables, and immutable decision-history/supersession provenance cites — §A2/§A5 and the §B1 heading retain `v1.0` to name the superseded decision event; these are provenance cites identifying a specific historical decision, not drift-prone self-references to current content. (3) TD-VSDD-091 volatile line-cites: v2.8 changelog row re-quoted the line-range parentheticals as old text; rewrote to describe the change without repeating the volatile ranges. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §Status handoff items are pointers to §I5/§K sections (source of truth); no independent copy artifact requires sweep; (3) mandate anchor — no new MUST statements; §J2 discharge mark anchors the obligation to S-ADR058-OCSF-ROUTING-001 EC-010/RG-010/T-21 per §J2. |
