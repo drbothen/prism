@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.27"
+version: "1.28"
 level: "L4"
 status: draft
 producer: story-writer
@@ -131,7 +131,7 @@ Arrow column values. This story brings the production path into conformance with
 postconditions for Claroty.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation.** Version `2.27`, status: active
+**BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation.** Version `2.28`, status: active
 (modified 2026-08-16). Canonical Structured Event Catalog — `ocsf.unknown_class_name`
 WARN — emitted by `pipeline_result_to_record_batch` on the `Err` branch of
 `EventClassSelector::select_by_class_name` before `.unwrap_or(0)`. Fields: `ocsf_class: %display`,
@@ -215,7 +215,7 @@ Until then, `ColumnMapper::map_record` remains test-only.
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
 | BC-2.16.003 | v1.12 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention) |
-| BC-2.16.002 | v2.27 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
+| BC-2.16.002 | v2.28 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
 | BC-2.01.013 | v1.23 | active | EC-01-025 NON-CONFORMANT annotation resolved for Claroty after this story merges; product-owner updates annotation |
 
 ---
@@ -1430,6 +1430,22 @@ Build-time enforcement rules:
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
 
+### v1.28 Amendment Sweep (BC-2.16.002 pin v2.27→v2.28 — OCSF-correctness Claroty SPEC pass-28 sibling coordination)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): BC-2.16.002 pin v2.27→v2.28 swept to both stories in same burst. COERCION-001 amended in same burst (v1.27→v1.28 — BC-2.16.002 pin v2.27→v2.28 sibling coordination). VERDICT: SWEPT; COERCION-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+BC-2.16.002 §Authority entry and §Behavioral Contracts body table are the sole live BC-2.16.002 pin sites in this story. Both updated v2.27→v2.28. No downstream artifact copies these verbatim. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. BC-2.16.002 pin update is a records-tier version-tracking update (PO bump — §Canonical Structured Event Catalog ocsf.unknown_class_name row gains pending-wiring annotation in v2.28). VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.27 Amendment Sweep (ADR-058 pin v2.15→v2.16 sibling coordination — OCSF-correctness Claroty SPEC pass-26 fix-burst)
 
 **Dimension 1 — Sibling pair:**
@@ -2026,6 +2042,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.28 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-28 sibling coordination: BC-2.16.002 pin v2.27→v2.28 at §Authority entry and §Behavioral Contracts table (PO bumped BC-2.16.002 v2.28 with pending-wiring annotation on §Canonical Structured Event Catalog ocsf.unknown_class_name row). Sibling coordination: COERCION-001 amended same burst (v1.27→v1.28 — BC-2.16.002 pin v2.27→v2.28). §v1.28 Amendment Sweep added. |
 | 1.27 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-26 fix-burst: ADR-058 pin v2.15→v2.16 at §Authority (architect bump — §H now cites AC-005/RG-006 for Path-A String+Object warn). Sibling coordination: COERCION-001 amended same burst (v1.25→v1.26 — F-P26-MED-001 RG-006 extended null+warn + pin sweep). §v1.27 Amendment Sweep added. |
 | 1.26 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-25 fix-burst: ADR-058 pin v2.14→v2.15 at §Authority. BC-2.16.003 pin v1.11→v1.12 at §Authority and §Behavioral Contracts table. Sibling coordination: COERCION-001 amended same burst (v1.24→v1.25 — F-P25-MED-001 AC-005/T-15 add-Object-retain-wildcard + §Architecture Mapping `build_column_array` scope + pin sweeps). §v1.26 Amendment Sweep added. |
 | 1.25 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-24 fix-burst: BC-2.16.003 pin v1.10→v1.11 (PO bump + EC-016-013-026 addition) at §Authority and §Behavioral Contracts body table. Sibling coordination: COERCION-001 amended same burst (v1.23→v1.24 — F-P24-HIGH-001 Object-only null-demote + RG-007 retirement + F-P24-MED-001 coerce_value signature + BC-2.16.003 pin). §v1.25 Amendment Sweep added. |
