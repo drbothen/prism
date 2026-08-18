@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.24"
+version: "1.25"
 level: "L4"
 status: draft
 producer: story-writer
@@ -85,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "136c453"
+input-hash: "a8a1623"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -120,7 +120,7 @@ class_selector.rs KF-01 code defect confirmed and Armis sibling sweep)** in full
 implementing.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.10`, status: draft
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.11`, status: draft
 (modified 2026-08-17). §Column Routing postconditions, **§Claroty Contracted OCSF Mappings
 (ground truth for all four Claroty tables with KF-01..KF-12 corrections)**, and
 **§Interpretation A: Arrow Field Naming** govern the obligation that `ocsf_field` declarations
@@ -214,7 +214,7 @@ Until then, `ColumnMapper::map_record` remains test-only.
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.10 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention) |
+| BC-2.16.003 | v1.11 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention) |
 | BC-2.16.002 | v2.27 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
 | BC-2.01.013 | v1.23 | active | EC-01-025 NON-CONFORMANT annotation resolved for Claroty after this story merges; product-owner updates annotation |
 
@@ -1430,6 +1430,22 @@ Build-time enforcement rules:
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
 
+### v1.25 Amendment Sweep (BC-2.16.003 v1.10→v1.11 sibling coordination — OCSF-correctness Claroty SPEC pass-24 fix-burst)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): F-P24-HIGH-001 (Path-A Array-arm preserved, RG-007 retired) and F-P24-MED-001 (coerce_value signature correction) are COERCION-001 scope only — ROUTING-001 has no `build_column_array` String arm or `coerce_value` signature. BC-2.16.003 pin v1.10→v1.11 applied to ROUTING-001 in same burst. VERDICT: SWEPT; COERCION-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+BC-2.16.003 §Authority entry and §Behavioral Contracts body table are the two live BC-2.16.003 pin sites in this story. Both updated v1.10→v1.11. No other live copy of this pin exists in ROUTING-001. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. This is a BC version-pin update only. VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.24 Amendment Sweep (F-P23-MED-001 §Library & Framework + §File Structure Cargo.toml Notes text sync — OCSF-correctness Claroty SPEC pass-23 fix-burst)
 
 **Dimension 1 — Sibling pair:**
@@ -1978,6 +1994,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.25 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-24 fix-burst: BC-2.16.003 pin v1.10→v1.11 (PO bump + EC-016-013-026 addition) at §Authority and §Behavioral Contracts body table. Sibling coordination: COERCION-001 amended same burst (v1.23→v1.24 — F-P24-HIGH-001 Object-only null-demote + RG-007 retirement + F-P24-MED-001 coerce_value signature + BC-2.16.003 pin). §v1.25 Amendment Sweep added. |
 | 1.24 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-23 fix-burst: F-P23-MED-001 [MED, text-sync]: two loci corrected — (1) §Library & Framework Requirements tracing-test row: RG-018 location changed from `prism-bin/tests/` to `crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests`; (2) §File Structure Requirements Cargo.toml row Notes cell: RG-018 reference changed from `prism-bin/tests/` to `crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests`. Stale text was introduced in pass-20 (dependency-aware provisioning) before pass-21 relocation propagated to §Architecture Mapping, §T-GATE, and §File Structure prism-bin row but not to these two surfaces. Complete-sweep grep verified: zero `prism-bin/tests/` references for private-fn RGs remain; e2e test row for AC-008 (public surface) correctly retained. Sibling sweep: COERCION-001 amended in same burst (v1.22→v1.23 — F-P23-MED-001 §Library & Framework RG-009 location sync). §v1.24 Amendment Sweep added. |
 | 1.23 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-22 fix-burst: (1) F-P22-MED-001 [MED, compile-correctness]: RG-013 re-routed from `crates/prism-ocsf/tests/` to `crates/prism-ocsf/src/mappers/spec_driven.rs` `#[cfg(test)] mod tests` — `set_nested_field` is a private free fn; `tests/` crate cannot reach it (E0603); §File Structure Requirements prism-ocsf row split into two rows (RG-011/012/023 in tests/, RG-013 in src/mappers/spec_driven.rs mod tests); note below table updated; T-GATE and T-19 crate attributions updated. (2) F-P22-MED-002 [MED, TDD gate coherence]: T-17 gains `just iter prism-bin` after `just iter prism-spec-engine` — six TOML-driven wire-shape RGs (RG-014..022 subset) reside in prism-bin; `just iter prism-spec-engine` alone cannot observe them. T-22 gains `just iter prism-bin` — RG-016/017 (class_uid wire-shape) reside in prism-bin; `just iter prism-ocsf` alone cannot observe them. (3) F-P22-OBS-2 [OBS, TDD gate coherence]: T-21 gains `just iter prism-bin` verify command so RG-009/010 are observable at T-21 (not only at terminal T-19). (4) F-P22-OBS-3 [OBS, authoring-accuracy]: T-22(c) "Both doc tables" → "all three doc tables" — `class_selector.rs` carries three class-name→uid doc tables (two module-level + the inline `select_by_class_name` doc table). (5) ADR-058 §Authority pin v2.13→v2.14 (architect bump; `anchor_stories` gain S-ADR058-DTU-PARITY-MIGRATION-001 + §H enumeration fix). Sibling sweep: COERCION-001 amended in same burst (v1.21→v1.22 — ADR-058 pin sweep). §v1.23 Amendment Sweep added. |
 | 1.22 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-21 fix-burst: (1) F-P21-MED-001 [MED, compile-correctness]: §File Structure Requirements prism-bin unit-test row relocated from `crates/prism-bin/tests/ (unit test file — TBD at dispatch)` to `crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests` — `pipeline_result_to_record_batch` and `ocsf_field_to_arrow_name` are module-private fns; `tests/` crate cannot reach them (E0603). All RG-003..006/008..010/014..022 are direct private-fn calls; note below table updated accordingly. (2) F-P21-LOW-001 [LOW, gate attribution]: T-12 makes-green updated: "RG-001, RG-002, and RG-006 green" → "RG-001 and RG-002 green" (`just iter prism-spec-engine` cannot observe prism-bin RG-006); T-14 updated: "(RG-006 already greened at T-12.)" → "(RG-006 confirmed at this just iter prism-bin run — causally greened by T-12)". `just iter` gate commands unchanged per finding. Sibling sweep: COERCION-001 amended in same burst (v1.20→v1.21 — F-P21-MED-001 `build_column_array` RGs relocated). §v1.22 Amendment Sweep added. |
