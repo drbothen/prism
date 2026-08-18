@@ -256,11 +256,56 @@ timestamp: 2026-08-16T00:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2135 (DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL pass-21 CLEAN(strict)=NO / CLEAN(PR-merge)=YES; story v1.19 / BC-2.08.002 v1.7 / BC-INDEX v9.08 / STORY-INDEX v2.797; streak RESET 0/3; NEXT: strict LOCAL adversary pass-22 on frozen HEAD b3052ce4d + story v1.19 + BC-2.08.002 v1.7 + error-taxonomy v2.76).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot).
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot. D-2115 blockquote above captures the D-2115 burst delta. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `69d821be` (local==origin; PR #239 squash-merged 2026-08-16; fast-forward complete §D-2201-SHA-UPDATE). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'`. STATE v8.732 (D-2201). **D-2200 GOVERNING DECISION: DTU work DEFERRED POST-FIRST-RELEASE — S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001 both PARKED. D-2109 GOVERNING DECISION ALSO IN EFFECT: DTUs MUST NOT be reconciled to real without explicit human authorization.** **§RESUME SNAPSHOT D-2201 is the active session-wrap snapshot. NO STORY IN FLIGHT. NEXT WORKSTREAM: OCSF correctness — dispatch architect for ADR-058 §J re-derivation against current claroty.sensor.toml (4-table/20-col).**
+> develop HEAD `69d821be` (local==origin; PR #239 squash-merged 2026-08-16; fast-forward complete §D-2201-SHA-UPDATE). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'`. STATE v8.732 (D-2201). **D-2200 GOVERNING DECISION: DTU work DEFERRED POST-FIRST-RELEASE — S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001 both PARKED. D-2109 GOVERNING DECISION ALSO IN EFFECT: DTUs MUST NOT be reconciled to real without explicit human authorization.** **§RESUME SNAPSHOT D-2236 is the active session-wrap snapshot. OCSF cascade 0/3; pass-33 F-P33-MED-001 NEXT = fix-burst (architect ADR-058 §D1/§I1 + story-writer ROUTING-001 param enumeration).**
 
 ---
 
-## §RESUME SNAPSHOT — D-2218 (2026-08-17 — SESSION WRAP; OCSF cascade streak 0/3 pass-15 F1 reset; develop@69d821be; STATE v8.748→v8.749) [SUPERSEDES D-2201]
+## §RESUME SNAPSHOT — D-2236 (2026-08-18 — SESSION WRAP; pass-33 F-P33-MED-001; NEXT = fix-burst; develop@69d821be; STATE v8.766→v8.767) [SUPERSEDES D-2218]
+
+### RESUME IN ONE BREATH
+(1) Prism Phase-3, OCSF-correctness CLAROTY SPEC cascade (BC-5.39.001 3-CLEAN), streak 0/3, frozen perimeter ADR-058 v2.17 / BC-2.16.003 v1.13 / BC-2.16.002 v2.28 / ROUTING-001 v1.31 / COERCION-001 v1.30.
+(2) Pass-33 returned F-P33-MED-001: pipeline_result_to_record_batch signature gap — fn receives no SensorSpec/ocsf_column_naming; ROUTING-001 v1.31 references sensor_spec as undefined free variable; ADR-058 §D1 claim inaccurate.
+(3) NEXT: F-P33-MED-001 fix-burst (architect ADR-058 §D1/§I1 + story-writer ROUTING-001 AC/Task param + call-site sweep), then adversary pass-34 on new frozen HEAD.
+
+### HEADS (D-2236)
+- `develop`: `69d821be` (LOCAL == origin/develop; pushed/clean; PR #239 squash-merged 2026-08-16T22:51Z)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2236 wrap commit)
+- `.worktrees/S-3.09` @`43c41389d` [feature/S-3.09] KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed; unrelated to OCSF cascade)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` [feature/W3-FIX-S307-001] PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, 1 dirty test file; unrelated to OCSF cascade)
+- No open PRs. No agents in flight.
+
+### OCSF WORKSTREAM STATE (D-2236)
+**FROZEN PERIMETER POST-PASS-33:** ADR-058 v2.17 / BC-2.16.003 v1.13 / BC-2.16.002 v2.28 / ROUTING-001 v1.31 / COERCION-001 v1.30
+
+**RESUME NEXT-ACTION:** F-P33-MED-001 fix-burst — dispatch architect (ADR-058 §D1: soften "transitively … without structural redesign" to state param must be threaded from fetch() call site; align §I1 snippet to remove undefined sensor_spec free variable) + story-writer (ROUTING-001: add AC clause + Task enumerating pipeline_result_to_record_batch parameter addition; enumerate full call-site sweep: production fetch() caller reachable via self.sensor_spec.spec.ocsf_column_naming + existing direct RG test callers RG-005/006/008/009/010/014..022 + new RG test callers must pass new arg). After fix-burst lands: adversary pass-34 on new frozen HEAD; streak 0/3 targeting 1/3. Routing: story-writer + architect (no product-owner BC change required; no new AC on BCs; parameter threading is wiring not redesign per ADR-022 §C).
+
+**BC-5.39.001 CASCADE STATE:**
+- Strict streak: 0/3 (pass-33 found F-P33-MED-001; single finding; CLEAN(strict)=NO / CLEAN(PR-merge)=NO)
+- Cascade ledger: p1(1C+2H+1M)→…→p29(CLEAN=YES)[reached 1/3]→p30(1MED)[RESET 0/3]→p31(1LOW)→p32(2MED)→p33(1MED)
+- F-P33-MED-001 root cause: ADR-058 §D1 assertion that §pipeline_result_to_record_batch "receives &TableSpec (and transitively the sensor's SensorSpec) … without structural redesign" is inaccurate for the current fn signature. The fn takes (result, table: &TableSpec, sensor_id: &str, push_down_filters: &FilterMap) — no SensorSpec, no flag param. ROUTING-001 v1.31 AC-003 and §Architecture Mapping T-14/T-15/T-21 build on sensor_spec.ocsf_column_naming as if it were already a param. Adding the param is "wiring not redesign" (ADR-022 §C) but MUST be explicitly enumerated in the story for tdd_mode:strict.
+
+### PENDING USER-APPROVED WORK (D-2236)
+- **PARKED per D-2200:** DTU work (S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001) deferred post-first-release. D-2109 also in effect.
+- **PENDING HUMAN DECISION:** orchestrator OFFERED to pause at 3-CLEAN spec-convergence before dispatching TDD implementation (COERCION-001 + ROUTING-001). Do NOT auto-proceed to TDD without user decision.
+- **PENDING HOUSEKEEPING:** (1) `/vsdd-factory:compact-state` — STATE.md far over budget; run EARLY next session BEFORE heavy work. (2) Worktree teardown: `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` (PR #239 merged; remote branch deleted). (3) Register self-improvement story for RED-gate/test-location-coherence [process-gap] (6+ recurrences D-2222+) at cycle-close.
+
+### OPEN CARRY-FORWARD ITEMS (D-2236)
+- **DRIFT-DTU-PARITY-STALE-001**: DTU-PARITY internals deferred to S-ADR058-DTU-PARITY-MIGRATION-001 materialization. Scope OUT of cascade passes — verify only §Authority ADR-058 cite for SAC-2 link validity; do NOT re-mint internal staleness as a perimeter finding.
+- **RED-gate command/enumeration + test-location coherence [process-gap]**: 6+ recurrences across passes 18–33. Register follow-up self-improvement story at cycle-close per Cycle-Closing Checklist (story to enumerate ALL test-location-bearing surfaces as a fixed sweep checklist).
+
+### DECISION-LOG DELTA (D-2235 through D-2236)
+| D-NNN | Summary |
+|-------|---------|
+| D-2235 | Pass-32 fix-burst COMPLETE: ADR-058 v2.16→v2.17 (§I1 raw_extensions locus); ROUTING-001 v1.30→v1.31; COERCION-001 v1.29→v1.30 (SAP-3 Path-B annotations); ARCH-INDEX v2.316→v2.317; STORY-INDEX v2.851→v2.852; streak 0/3 (2 MED); STATE v8.765→v8.766 |
+| D-2236 | SESSION WRAP: pass-33 F-P33-MED-001 (pipeline_result_to_record_batch signature gap; ROUTING-001 v1.31 undefined sensor_spec; ADR-058 §D1/§I1 inaccurate); RESUME SNAPSHOT D-2236 authored; sidecar-learning.md markers; STATE v8.766→v8.767 |
+
+### BACKUP BOUNDARY (D-2236)
+- PUSHED / safe: `origin/develop` `69d821be` (PR #239 merged 2026-08-16T22:51Z); `factory-artifacts` (this D-2236 wrap commit — run `git -C .factory log -1 --format='%H'`)
+- LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
+
+---
+
+## §RESUME SNAPSHOT — D-2218 (2026-08-17 — SESSION WRAP; OCSF cascade streak 0/3 pass-15 F1 reset; develop@69d821be; STATE v8.748→v8.749) [SUPERSEDES D-2201] [SUPERSEDED by D-2236]
 
 ### RESUME IN ONE BREATH
 (1) Prism Phase-3, OCSF-correctness CLAROTY workstream — SPEC adversarial cascade (BC-5.39.001 3-CLEAN) at strict streak 0/3: passes 13 & 14 CLEAN(strict), pass-15 found ONE MEDIUM (records-tier stale version-pin) which reset the streak. Substance is FULLY CONVERGED (schema/resolver/coverage/subsystem/discharge all clean since ~pass-4).

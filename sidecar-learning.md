@@ -2113,3 +2113,7 @@ Session-end markers for the VSDD factory. Run /session-review to synthesize.
 - Session ended at 2026-08-18T05:29:56Z (awaiting /session-review)
 - Session ended at 2026-08-18T05:35:21Z (awaiting /session-review)
 - Session ended at 2026-08-18T05:53:25Z (awaiting /session-review)
+- Session ended at 2026-08-18T06:11:14Z (awaiting /session-review)
+- Session ended at 2026-08-18T06:14:16Z (awaiting /session-review)
+- Session ended at 2026-08-18T06:21:35Z (awaiting /session-review)
+- Session wrap D-2236 committed 2026-08-18T07:00:00Z — pass-33 F-P33-MED-001; RESUME SNAPSHOT D-2236 authored; sidecar markers co-committed (awaiting /session-review)
