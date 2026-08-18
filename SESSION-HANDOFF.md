@@ -256,11 +256,55 @@ timestamp: 2026-08-16T00:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2135 (DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL pass-21 CLEAN(strict)=NO / CLEAN(PR-merge)=YES; story v1.19 / BC-2.08.002 v1.7 / BC-INDEX v9.08 / STORY-INDEX v2.797; streak RESET 0/3; NEXT: strict LOCAL adversary pass-22 on frozen HEAD b3052ce4d + story v1.19 + BC-2.08.002 v1.7 + error-taxonomy v2.76).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot).
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot. D-2115 blockquote above captures the D-2115 burst delta. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `69d821be` (local==origin; PR #239 squash-merged 2026-08-16; fast-forward complete §D-2201-SHA-UPDATE). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'`. STATE v8.732 (D-2201). **D-2200 GOVERNING DECISION: DTU work DEFERRED POST-FIRST-RELEASE — S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001 both PARKED. D-2109 GOVERNING DECISION ALSO IN EFFECT: DTUs MUST NOT be reconciled to real without explicit human authorization.** **§RESUME SNAPSHOT D-2236 is the active session-wrap snapshot. OCSF cascade 0/3; pass-33 F-P33-MED-001 NEXT = fix-burst (architect ADR-058 §D1/§I1 + story-writer ROUTING-001 param enumeration).**
+> develop HEAD `69d821be` (local==origin; PR #239 squash-merged 2026-08-16; fast-forward complete §D-2201-SHA-UPDATE). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'`. STATE v8.732 (D-2201). **D-2200 GOVERNING DECISION: DTU work DEFERRED POST-FIRST-RELEASE — S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001 both PARKED. D-2109 GOVERNING DECISION ALSO IN EFFECT: DTUs MUST NOT be reconciled to real without explicit human authorization.** **§RESUME SNAPSHOT D-2244 is the active session-wrap snapshot. OCSF cascade 0/3; frozen perimeter ADR-058 v2.21 / BC-2.16.003 v1.15 / BC-2.16.002 v2.28 / ROUTING-001 v1.37 / COERCION-001 v1.34. NEXT = adversary SPEC passes 46/47/48 then HALT for human TDD-gate decision.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2236 (2026-08-18 — SESSION WRAP; pass-33 F-P33-MED-001; NEXT = fix-burst; develop@69d821be; STATE v8.766→v8.767) [SUPERSEDES D-2218]
+## §RESUME SNAPSHOT — D-2244 (2026-08-19 — SESSION WRAP; OCSF cascade 0/3; FROZEN PERIMETER UNCHANGED; NEXT = adversary passes 46/47/48 then HALT for TDD-gate decision; develop@69d821be; STATE v8.776→v8.777) [SUPERSEDES D-2236]
+
+### RESUME IN ONE BREATH
+Prism Phase-3, OCSF-correctness CLAROTY SPEC adversarial cascade (BC-5.39.001 3-CLEAN) at strict streak 0/3 on frozen perimeter ADR-058 v2.21 / BC-2.16.003 v1.15 / ROUTING-001 v1.37 / COERCION-001 v1.34 (BC-2.16.002 v2.28). VERY NEXT ACTION: adversary SPEC passes 46/47/48 (parallel, maximally-skeptical) targeting strict 3-CLEAN; optionally precede with an architect deep-review of the describe/routing/coercion surface (strategy option surfaced this session — a HIGH has appeared in each of the last two parallel re-gate rounds). On reaching 3-CLEAN, HALT for the PENDING HUMAN DECISION (pause before TDD implementation of COERCION/ROUTING) — do NOT auto-proceed to TDD.
+
+### HEADS (D-2244)
+- `develop`: `69d821be` (LOCAL == origin/develop; pushed/clean; no open PRs)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2244 wrap commit; supersedes 065b20fce)
+- `.worktrees/S-3.09` @`43c41389d` [feature/S-3.09] KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` [feature/W3-FIX-S307-001] PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, 1 dirty test file)
+- No open PRs. No agents in flight.
+
+### OCSF WORKSTREAM STATE (D-2244)
+**FROZEN PERIMETER (UNCHANGED from D-2243):** ADR-058 v2.21 / BC-2.16.003 v1.15 / BC-2.16.002 v2.28 / ROUTING-001 v1.37 / COERCION-001 v1.34
+
+**RESUME NEXT-ACTION:** adversary SPEC passes 46/47/48 (parallel, maximally-skeptical) on frozen perimeter; on reaching 3-CLEAN, HALT for human TDD-gate decision. Strategy option: precede adversary passes with an architect deep-review of the describe/routing/coercion surface (a HIGH has appeared in each of the last two parallel re-gate rounds — p42 HIGH in ROUTING-001 AC-006/007; p43 HIGH in ADR-058 §I1 canonical-home relocation). Routing: vsdd-factory:adversary × 3 parallel; optionally vsdd-factory:architect for deep-review.
+
+**BC-5.39.001 CASCADE STATE:**
+- Strict streak: 0/3 (re-gated on new frozen perimeter post-D-2243)
+- Finding trajectory: →2→2→1→1 (p42→p43→p44→p45)
+- Cascade ledger: p1(1C+2H+1M)→…→p29(CLEAN=YES)[1/3]→p30(1MED)→p31(1LOW)→p32(2MED)→p33(1MED)→p34(4)→p35(CLEAN)[1/3]→p36(1LOW)→p37(CLEAN)[1/3]→p38(CLEAN)[2/3]→p39(1LOW)→p40(1HIGH)→p41(2MED)→p42(1H+1L)→p43(2[1H+1M])→p44(1OBS)→p45(1MED). Streak RESET 2/3→0/3 post-p40; remains 0/3 through p45.
+
+### GOVERNING DECISIONS (D-2244)
+- **PARKED per D-2200:** DTU work (S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001) deferred post-first-release. D-2109 also in effect.
+- **PENDING HUMAN DECISION:** Do NOT auto-proceed to TDD implementation of COERCION-001 + ROUTING-001 on reaching 3-CLEAN. HALT and surface to human for TDD-gate decision.
+- **PENDING HOUSEKEEPING:** (1) SESSION-HANDOFF.md compaction needed (~1.2MB bloated; compact EARLY next session). (2) Worktree teardown: `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` (PR #239 merged; remote branch deleted). (3) Register self-improvement story for RED-gate/test-location-coherence [process-gap] (6+ recurrences) at cycle-close.
+
+### DECISION-LOG DELTA (D-2238 through D-2244)
+| D-NNN | Summary |
+|-------|---------|
+| D-2238 | F-P33-MED-001 fix-burst: ADR-058 v2.17→v2.18; ROUTING-001 v1.31→v1.32; COERCION-001 v1.30→v1.31; STATE v8.768→v8.769 |
+| D-2239 | F-P34 fix-burst: ADR-058 v2.18→v2.19; ROUTING-001 v1.32→v1.33; COERCION-001 v1.31→v1.32; STATE v8.769→v8.770 |
+| D-2240 | Pass-36 records-only micro-burst: ROUTING-001 v1.33→v1.34 (F-P36-LOW-001 volatile-line-cite); STATE v8.772→v8.773 |
+| D-2241 | Pass-39 records-only micro-burst: ROUTING-001 v1.34→v1.35 (F-P39-LOW-001 date parenthetical); STATE v8.773→v8.774 |
+| D-2242 | P40/41/42 fix-burst: ADR-058 v2.19→v2.20; BC-2.16.003 v1.13→v1.14; ROUTING-001 v1.35→v1.36; COERCION-001 v1.32→v1.33; STATE v8.774→v8.775 |
+| D-2243 | P43/44/45 fix-burst: ADR-058 v2.20→v2.21; BC-2.16.003 v1.14→v1.15; ROUTING-001 v1.36→v1.37; COERCION-001 v1.33→v1.34; STATE v8.775→v8.776 |
+| D-2244 | SESSION WRAP: RESUME SNAPSHOT D-2244 authored; sidecar-learning.md folded in; FROZEN PERIMETER UNCHANGED ADR-058 v2.21/BC-2.16.003 v1.15/BC-2.16.002 v2.28/ROUTING-001 v1.37/COERCION-001 v1.34; BC-5.39.001 streak 0/3 re-gated; STATE v8.776→v8.777 |
+
+### BACKUP BOUNDARY (D-2244)
+- PUSHED / safe: `origin/develop` `69d821be` (PR #239 merged 2026-08-16T22:51Z); `factory-artifacts` (this D-2244 wrap commit — run `git -C .factory log -1 --format='%H'`)
+- LOCAL-ONLY (AT RISK): `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
+
+---
+
+## §RESUME SNAPSHOT — D-2236 (2026-08-18 — SESSION WRAP; pass-33 F-P33-MED-001; NEXT = fix-burst; develop@69d821be; STATE v8.766→v8.767) [SUPERSEDES D-2218] [SUPERSEDED by D-2244]
 
 ### RESUME IN ONE BREATH
 (1) Prism Phase-3, OCSF-correctness CLAROTY SPEC cascade (BC-5.39.001 3-CLEAN), streak 0/3, frozen perimeter ADR-058 v2.17 / BC-2.16.003 v1.13 / BC-2.16.002 v2.28 / ROUTING-001 v1.31 / COERCION-001 v1.30.
