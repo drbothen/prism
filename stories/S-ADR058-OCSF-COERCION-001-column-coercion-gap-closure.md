@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.32"
+version: "1.33"
 level: "L4"
 status: draft
 producer: story-writer
@@ -70,7 +70,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "c7c5ab6"
+input-hash: "759227b"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -90,15 +90,15 @@ tags:
 
 ## Authority
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.13`, status: draft
-(modified 2026-08-17). Primary behavioral authority. The §Type Coercion Algorithm, §Full
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.14`, status: draft
+(modified 2026-08-18). Primary behavioral authority. The §Type Coercion Algorithm, §Full
 Coercion Matrix, EC-016-013-007/008/009 KNOWN GAP annotations, and §Coercion Warning
 Observability DEFECT section are the acceptance-criteria source for this story. Note: BC-2.16.003
 §Interpretation A (Arrow field naming) and §Claroty Contracted OCSF Mappings are Stage 2
 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.19: v1 Column Naming — OCSF Field-Path Routing.** Version `2.19`, status:
+**ADR-058 v2.20: v1 Column Naming — OCSF Field-Path Routing.** Version `2.20`, status:
 accepted (2026-08-18). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
@@ -148,7 +148,7 @@ The mandate anchor record:
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.13 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
+| BC-2.16.003 | v1.14 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
 | BC-2.02.011 | — | — | Warning-emission obligation for each normalization issue; BC-2.16.003 DEFECT violates this |
 | BC-2.16.002 | v2.28 | active | Canonical Structured Event Catalog obligation — `column_coercion_failure` emit from AC-004/AC-005 must be registered in §Postconditions §Canonical Structured Event Catalog (SAP-1 / PG-LP11-001) |
 
@@ -1265,6 +1265,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.33 | 2026-08-18 | state-manager | D-2242 P40/41/42 fix-burst (state-manager leg): sibling ADR-058 pin v2.19→v2.20 + BC-2.16.003 pin v1.13→v1.14; no content change (P40/41/42 fix-burst). §v1.33 Amendment Sweep: Dimension 1 (sibling pair) — ROUTING-001 amended same burst (v1.35→v1.36 story-writer leg); CLEAR. Dimension 2 (downstream copy) — §Authority pins are terminal; no independent copy artifact; CLEAR. Dimension 3 (mandate anchor) — no new MUST blocks; CLEAR. |
 | 1.32 | 2026-08-18 | state-manager | D-2239 F-P34 fix-burst (state-manager leg): sibling ADR-058 pin v2.18→v2.19; no content change. §v1.32 Amendment Sweep: Dimension 1 (sibling pair) — ROUTING-001 amended same burst (v1.32→v1.33 story-writer leg); CLEAR. Dimension 2 (downstream copy) — §Authority pin is terminal; no independent copy artifact; CLEAR. Dimension 3 (mandate anchor) — no new MUST blocks; CLEAR. |
 | 1.31 | 2026-08-18 | state-manager | D-2238 F-P33-MED-001 fix-burst (state-manager leg): sibling ADR-058 pin v2.17→v2.18; no content change. §v1.31 Amendment Sweep: Dimension 1 (sibling pair) — ROUTING-001 amended same burst (v1.31→v1.32 story-writer leg); CLEAR. Dimension 2 (downstream copy) — §Authority pin is terminal; no independent copy artifact; CLEAR. Dimension 3 (mandate anchor) — no new MUST blocks; CLEAR. |
 | 1.30 | 2026-08-18 | story-writer | OCSF-correctness Claroty SPEC pass-32 fix-burst: F-P32-MED-002 [MED, SAP-3]: SAP-3 defense-in-depth annotations added to RG-001..005 — each now carries reachability rationale stating `coerce_value`/`map_record` (Path B, `ColumnMapper::*` in `column_mapping.rs`) has zero live production callers per ADR-058 §K5; tests are intentionally defense-in-depth / forward-compat per SAP-3 rule 2/3; live Path A coercion covered by RG-006/RG-008/RG-009 (`build_column_array`). ADR-058 pin v2.16→v2.17 at §Authority (architect bump — §I1 clarified: individual-field naming for `ocsf_field == Some` only; §I2 raw_extensions routing is ROUTING-001 scope). Sibling coordination: ROUTING-001 amended same burst (v1.30→v1.31 — F-P32-MED-001 raw_extensions locus re-attribution). §v1.30 Amendment Sweep added. |

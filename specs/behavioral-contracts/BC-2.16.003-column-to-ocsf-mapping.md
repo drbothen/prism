@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.13"
+version: "1.14"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-08-17
+modified: 2026-08-18
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -22,7 +22,7 @@ inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "af7ca0a"
+input-hash: "335019e"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -53,19 +53,32 @@ data from built-in adapter data. Invalid OCSF field paths produce a warning at s
 load time (not a hard error) because OCSF schema extensions may introduce fields not
 in the compiled schema.
 
-**Interpretation A — Underscore-flattened Arrow Field Names (ADR-058 §B2/§I1):**
-When a sensor spec sets `ocsf_column_naming = true` (ADR-058 §B2), the Arrow
-RecordBatch field name for each mapped column uses the underscore-flattened
-`ocsf_field` path (dots replaced with underscores). Example: `ocsf_field =
-"finding_info.uid"` produces Arrow field `finding_info_uid`. Columns without
-`ocsf_field` retain `col.name` as their Arrow field name and are collected into
-a `raw_extensions` JSON blob column. This naming convention makes OCSF-semantic
-identifiers directly queryable in PrismQL without quoting (e.g., `SELECT finding_info_uid
-FROM claroty_alerts`). Claroty is the first sensor to receive `ocsf_column_naming
-= true`; all four Claroty tables (alerts, audit_logs, devices, device_alert_relations)
-operate under Interpretation A once Stage 2 (S-ADR058-OCSF-ROUTING-001) ships.
-The contracted OCSF classes and column-to-OCSF mappings for all four Claroty tables
-are specified in §Postconditions §Claroty Contracted OCSF Mappings.
+**Interpretation A — Underscore-flattened Arrow Field Names (ADR-058 §B2/§I1/§G):**
+When a sensor spec sets `ocsf_column_naming = true` (ADR-058 §B2), columns are
+handled in two tiers based on `ocsf_field`:
+
+- **Tier 1** (`ocsf_field == Some(path)`): the Arrow RecordBatch field name is
+  `ocsf_field_to_arrow_name(ocsf_field)` (dots replaced with underscores, per ADR-058
+  §I1). Example: `ocsf_field = "finding_info.uid"` produces Arrow field
+  `finding_info_uid`. `prism_describe` emits a `ColumnDescriptor` with
+  `name = ocsf_field_to_arrow_name(ocsf_field)` and `description = the original
+  dotted ocsf_field path` (e.g., `"finding_info.uid"`) per ADR-058 §G.
+
+- **Tier 2** (`ocsf_field == None`): the column is NOT an individual top-level Arrow
+  field — its value is aggregated into the single synthesized `raw_extensions`
+  (Utf8/JSON blob) Arrow column per ADR-058 §I2 and §B2 item 1. The column's
+  `col.name` is NOT a queryable field name; it appears only as a source-key label
+  inside the `raw_extensions` ColumnDescriptor's description (see §Postconditions
+  §Interpretation A for the full describe model).
+
+This two-tier model makes OCSF-semantic identifiers directly queryable in PrismQL
+without quoting (e.g., `SELECT finding_info_uid FROM claroty_alerts`), while
+preserving unmapped vendor columns in the `raw_extensions` blob. Claroty is the
+first sensor to receive `ocsf_column_naming = true`; all four Claroty tables
+(alerts, audit_logs, devices, device_alert_relations) operate under Interpretation A
+once Stage 2 (S-ADR058-OCSF-ROUTING-001) ships. The contracted OCSF classes and
+column-to-OCSF mappings for all four Claroty tables are specified in §Postconditions
+§Claroty Contracted OCSF Mappings.
 
 ## Preconditions
 - A spec-driven table has been fetched via the multi-step pipeline (BC-2.16.002) and raw records are available
@@ -86,12 +99,20 @@ For each record fetched from the spec-driven sensor:
 
 ### Interpretation A: Arrow Field Naming (ocsf_column_naming = true)
 
-When `sensor_spec.ocsf_column_naming == true` (ADR-058 §B2):
+When `sensor_spec.ocsf_column_naming == true` (ADR-058 §B2), columns are processed
+in two tiers per ADR-058 §G v2.20:
+
+**Tier 1 — OCSF-mapped columns (`ocsf_field` is `Some(path)`):**
 
 - For each column with `ocsf_field = "a.b.c"`, the Arrow RecordBatch schema field name is `a_b_c` (all dots replaced with underscores; `ocsf_field_to_arrow_name` helper function per ADR-058 §I1).
-- For each column with no `ocsf_field`, the Arrow field name is `col.name` (fallback) and the value is collected into the `raw_extensions` JSON blob column.
+- `prism_describe` emits a `ColumnDescriptor` with `name = ocsf_field_to_arrow_name(ocsf_field)` (underscore-flattened) and `description = col.ocsf_field` (the original dotted OCSF path, e.g., `"finding_info.uid"` — preserved as semantic annotation for LLM agents per ADR-058 §G).
+
+**Tier 2 — Unmapped columns (`ocsf_field` is `None`):**
+
+- For each column with `ocsf_field == None`: the column is NOT an individual top-level Arrow field. Its value is aggregated into the single synthesized `raw_extensions` (Arrow `Utf8`) JSON blob column per ADR-058 §I2 and §B2 item 1. The column's `col.name` is NOT a queryable field name.
 - The `raw_extensions` column is itself an Arrow `Utf8` column containing a serialized JSON object; it is queryable as `SELECT raw_extensions FROM <table>` but nested keys are not independently filterable without JSON path functions.
-- `prism_describe` for a sensor with `ocsf_column_naming = true` returns `name: "<underscore_flattened_name>"` and `description: "<original.dotted.path>"` for each mapped column (ADR-058 §G).
+- `prism_describe` MUST NOT emit an individual `ColumnDescriptor` for any `ocsf_field == None` column. Advertising unmapped columns as individual descriptors creates phantom column names that cause agent query failures (DataFusion "column not found") — exactly the failure mode ADR-058 §C1 exists to prevent (see EC-016-013-027). Instead, `prism_describe` MUST emit exactly ONE `ColumnDescriptor` for the synthesized `raw_extensions` column: `name = "raw_extensions"`, `description` = a string that (1) identifies the column as a JSON object and (2) enumerates every source key — the `col.name` of each `ocsf_field == None` column in the queried table. Example for `claroty_alerts` (after KF-08..KF-10 TOML corrections): `"JSON object containing un-mapped source columns: alert_class, ot_devices_count, category, alert_type_name, devices_count"`. This discoverability model is required for correct agent behavior: without the `raw_extensions` descriptor an agent cannot discover the column exists; without the source-key enumeration the agent cannot determine which unmapped fields are accessible inside the blob (ADR-058 §G). **Mandate anchor: S-ADR058-OCSF-ROUTING-001** — story-writer leg adds the AC and Red Gate test asserting (1) `prism_describe` for a Claroty table with `ocsf_column_naming = true` emits NO individual `ColumnDescriptor` for any `ocsf_field == None` column; and (2) emits exactly one `raw_extensions` ColumnDescriptor whose description enumerates the `col.name` values of all `ocsf_field == None` columns in that table.
+
 - A fail-closed collision check is enforced at `pipeline_result_to_record_batch` execution time: no flattened `ocsf_field` name may equal the `col.name` of a different column in the same table (ADR-058 §J2); violation returns `Err(ArrowError::SchemaError(...))`, blocking schema construction.
 
 ### Claroty Contracted OCSF Mappings
@@ -325,6 +346,7 @@ Invalid OCSF field paths produce a warning at load time but do not reject the sp
 | EC-016-013-023 | KF-01 class correction: `entity_management` (3004) `comment` attribute is accessible; `audit_logs.note → comment` mapping produces data; **wire-level: `class_uid = 3004` in Arrow `class_uid` Int32 column (Path A)** | Under `account_change` (3001, the prior wrong class), `set_nested_field` silently no-ops the `note → comment` mapping because `account_change` has no `comment` attr in its protobuf descriptor — the value is silently dropped; under `entity_management` (3004), `comment` is a valid class-level attr and the mapping resolves; test: load `entity_management` record with `note` value populated; assert Arrow field `comment` carries the note value (not null, not missing). **Wire-level postcondition (ADR-058 §I5 wire-shape assertion obligation):** a `RecordBatch` materialized from Claroty `audit_logs` data with `ocsf_class = "entity_management"` via `pipeline_result_to_record_batch` (Path A) MUST carry `class_uid = 3004` in the Arrow `class_uid` Int32 column — NOT 3001 (prior wrong `account_change` arm value) and NOT 0 (`.unwrap_or(0)` BASE_EVENT fallback). Wire-level test: assert the serialized `class_uid` column value equals `3004` at the `RecordBatch` level (not only at the resolver unit-test level — per wire-shape assertion discipline). Anchored: S-ADR058-OCSF-ROUTING-001. |
 | EC-016-013-025 | `build_column_array` (Path A — sole live production path per ADR-058 §K5) ColumnType::Integer + `Value::String` input on any OCSF path | Parse succeeds (e.g. `"42"`): `Some(42)` returned — string-encoded integer materialized as an integer value in the Arrow Int64 column; no data loss. Parse fails (e.g. `"not-a-number"`): `None` returned (null cell in Arrow column) + `tracing::warn!(event_type = "column_coercion_failure", column = %col.name, column_type = "integer", actual_json_kind = "string")` emitted. **Current behavior (pre-fix):** `other.as_i64()` in the `ColumnType::Integer` arm returns `None` for ALL String inputs — silently drops valid numeric strings (e.g. `"42"` → null, data loss) and drops non-parseable strings without a warning. Path A is the sole live production path; Path B (`coerce_value`) fix covered by EC-016-013-009 / AC-003. Fix: S-ADR058-OCSF-COERCION-001 AC-007 (RG-008, RG-009). |
 | EC-016-013-026 | `build_column_array` (Path A — sole live production path per ADR-058 §K5) ColumnType::String + `Value::Array` input (any array, including ENRICH-1 wildcard source_path results) | **CORRECT behavior — no fix required.** The dedicated `serde_json::Value::Array(arr)` arm at the String branch serializes all arrays to a compact JSON-list string (e.g., `["192.168.1.1","10.0.0.1"]`). Integer/bool array elements are stringified via `other.to_string()`. Empty array → `"[]"` (empty JSON-list string, NOT null — consistent with `map_record`'s documented design decision "Empty array → `"[]"` (not null)"). This arm fires for ALL `Value::Array` inputs regardless of whether `col.source_path` is set; it is the sole implementation of ENRICH-1 Design Decision 2 on Path A. ENRICH-1 wildcard columns (`ip_list`, `mac_list`, `network_list`, `vlan_list` on Claroty `devices`) rely on this arm exclusively. **The `Value::Array` arm MUST NOT be changed to null-demotion** — doing so regresses all ENRICH-1 wildcard-array columns. Null-demotion on Path A applies ONLY to `Value::Object` (EC-016-013-008 / AC-005). Tests: `test_build_column_array_claroty_ip_list_string_elements_serialize_to_json_list_string`, `test_build_column_array_claroty_vlan_list_integer_elements_stringify_to_json_list_string` in `crates/prism-bin/src/spec_driven_adapter.rs` §tests. |
+| EC-016-013-027 | `prism_describe` under Interpretation A (`ocsf_column_naming = true`) — phantom individual descriptor prohibition and `raw_extensions` descriptor requirement | `prism_describe` MUST NOT emit individual `ColumnDescriptors` for `ocsf_field == None` columns; doing so creates phantom column names that cause DataFusion "column not found" failures when an agent copies the name into a query (ADR-058 §C1/§G). Instead, `prism_describe` MUST emit exactly ONE `raw_extensions` ColumnDescriptor: `name = "raw_extensions"`, `description` enumerates the `col.name` of every unmapped column in the table. Test assertion: for `claroty_alerts` with `ocsf_column_naming = true`, assert the `prism_describe` response contains no ColumnDescriptor named `alert_class` or `ot_devices_count`; assert exactly one descriptor named `raw_extensions` whose description includes the strings `"alert_class"` and `"ot_devices_count"`. **POL-38 obligation: story-writer leg of S-ADR058-OCSF-ROUTING-001 MUST add AC + Red Gate test covering the two MUST assertions in §Postconditions §Interpretation A Tier-2 describe model.** |
 | EC-016-013-024 | KF-02 class correction: `inventory_info` (5001) `device.*` attribute paths resolve via the `device` required attribute; **wire-level: `class_uid = 5001` in Arrow `class_uid` Int32 column (Path A) — regression-prevention** | `devices` table columns `uid`, `asset_id`, `device_category`, `device_type`, `device_name`, `os_category` all resolve via `inventory_info.device.*` path hierarchy; class-level `risk_score` and `status_code` attrs confirmed at `inventory_info` class level directly (not nested under `device`); test: assert Arrow schema for `claroty_devices` under Interpretation A includes `device_uid`, `device_instance_uid`, `risk_score`, `status_code` as first-class columns. **Wire-level postcondition — regression-prevention (ADR-058 §I5 wire-shape assertion obligation):** a `RecordBatch` materialized from Claroty `devices` data with `ocsf_class = "inventory_info"` via `pipeline_result_to_record_batch` (Path A) MUST carry `class_uid = 5001` in the Arrow `class_uid` Int32 column — NOT 0 (BASE_EVENT). This is an explicit regression-prevention assertion: without the `"inventory_info" => Ok(CLASS_UID_DEVICE_INVENTORY_INFO)` arm in `select_by_class_name`, the KF-02 TOML change from `ocsf_class = "device"` to `ocsf_class = "inventory_info"` regresses `class_uid` from the current 5001 (produced by the existing `"device"` arm) to 0 (`.unwrap_or(0)` BASE_EVENT fallback). The regression path is silent without the `ocsf.unknown_class_name` WARN (BC-2.16.002 §Canonical Structured Event Catalog). Wire-level test: assert the serialized `class_uid` column value equals `5001` at the `RecordBatch` level. Anchored: S-ADR058-OCSF-ROUTING-001. |
 
 ## Canonical Test Vectors
@@ -341,6 +363,7 @@ Invalid OCSF field paths produce a warning at load time but do not reject the sp
 | Interpretation A — reserved field removed | Claroty `alerts.category` = `"OT Threat"`, `ocsf_column_naming = true` | `category` value in `raw_extensions` blob; no first-class Arrow column carries vendor category string as `class_name` |
 | Interpretation A — entity_management comment | Claroty `audit_logs.note` = `"reviewed"`, `ocsf_column_naming = true` | Arrow field `comment` = `"reviewed"` (entity_management 3004 class has comment attr) |
 | Interpretation A — OT device subcategory | Claroty `devices.device_type` = `"PLC"`, `ocsf_column_naming = true` | Arrow field `device_type_label` = `"PLC"`; queryable as `SELECT * FROM claroty_devices WHERE device_type_label = 'PLC'` |
+| Interpretation A — `prism_describe` Tier-2 raw_extensions descriptor | `claroty_alerts` table with `ocsf_column_naming = true`; `alert_class` and `ot_devices_count` have `ocsf_field == None` | `prism_describe` response: NO individual `ColumnDescriptor` named `alert_class` or `ot_devices_count`; exactly ONE `ColumnDescriptor` named `raw_extensions` whose description contains `"alert_class"` and `"ot_devices_count"` as enumerated source keys (EC-016-013-027; mandate anchor S-ADR058-OCSF-ROUTING-001) |
 
 See `.factory/specs/prd-supplements/test-vectors.md` for extended canonical vector tables.
 
@@ -400,12 +423,13 @@ via proptest) is recommended as part of S-ADR058-OCSF-COERCION-001.
 | L2 Invariants | DI-005 (no vendor data silently dropped) |
 | Related BCs | BC-2.02.007 (raw_extensions preservation), BC-2.02.008 (four-tier field resolution), BC-2.02.011 (normalization error handling) |
 | Priority | P0 |
-| Known-Gap Story Needed | ANCHORED — S-ADR058-OCSF-COERCION-001 (Stage 1): CoercionWarning tracing emission (AC-004), EC-016-013-007/008 structured-type demotion fix (AC-001/AC-002/AC-005), EC-016-013-009 Path B integer-column coerce_value fix (AC-003), EC-016-013-025 Path A build_column_array integer-column String parse fix (AC-007 / RG-008 / RG-009 — added per F-P16-MED-003 adjudication). S-ADR058-OCSF-ROUTING-001 (Stage 2): ocsf_column_naming flag, Claroty TOML/code corrections KF-01..KF-12. |
+| Known-Gap Story Needed | ANCHORED — S-ADR058-OCSF-COERCION-001 (Stage 1): CoercionWarning tracing emission (AC-004), EC-016-013-007/008 structured-type demotion fix (AC-001/AC-002/AC-005), EC-016-013-009 Path B integer-column coerce_value fix (AC-003), EC-016-013-025 Path A build_column_array integer-column String parse fix (AC-007 / RG-008 / RG-009 — added per F-P16-MED-003 adjudication). S-ADR058-OCSF-ROUTING-001 (Stage 2): ocsf_column_naming flag, Claroty TOML/code corrections KF-01..KF-12, EC-016-013-027 `prism_describe` Tier-2 raw_extensions descriptor (two MUST assertions in §Postconditions §Interpretation A — story-writer leg adds AC + Red Gate, POL-38 obligation). |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.14 | spec-bc-describe-align-f40-f42-high-001 | 2026-08-18 | product-owner | F-P40/P42-HIGH-001 §Interpretation A Tier-1/Tier-2 describe alignment to ADR-058 §G v2.20. (A) §Description: replaced contradictory phantom-column model ("Columns without `ocsf_field` retain `col.name` as their Arrow field name") with the correct two-tier model — Tier-1 Arrow field = `ocsf_field_to_arrow_name(ocsf_field)`; Tier-2 columns are NOT individual Arrow fields, values aggregate into `raw_extensions` blob. (B) §Postconditions §Interpretation A: rewrote with explicit Tier-1/Tier-2 headers; removed `col.name` fallback language from Tier-2; added ADR-058 §G v2.20 two-tier `prism_describe` model — Tier-1 emits underscore-flattened ColumnDescriptor with dotted-path description; Tier-2 emits NO individual descriptor for unmapped columns, emits exactly ONE `raw_extensions` ColumnDescriptor whose description enumerates all `col.name` source keys; two new MUSTs anchored to S-ADR058-OCSF-ROUTING-001 (story-writer leg adds AC + Red Gate). (C) Added EC-016-013-027: `prism_describe` Tier-2 phantom-descriptor prohibition + raw_extensions descriptor requirement; POL-38 obligation flagged for story-writer. (D) Added §Canonical Test Vectors row for Interpretation A describe Tier-2 behavior. (E) §Traceability Known-Gap updated with EC-016-013-027 / S-ADR058-OCSF-ROUTING-001 AC+RG obligation. TD-VSDD-097: (1) sibling pair — BC-2.16.002 (cascade sibling) references `prism_describe` only via audit events (schema_enumeration.*), not §Interpretation A column-naming; CLEAR. (2) downstream copy targets — ROUTING-001 §G/AC-006/AC-007 copy this describe model; flagged for story-writer leg; do not edit here. (3) mandate anchor — Tier-2 `prism_describe` MUSTs anchored to S-ADR058-OCSF-ROUTING-001 (story-writer leg adds AC + Red Gate); CLEAR. |
 | 1.13 | ocsf-correctness-pass30-f1-field-validation | 2026-08-17 | product-owner | F-P30-MED-001 §OCSF Field Validation Path-A/Path-B qualifier: Path A (`build_column_array`) naming is purely mechanical; raw_extensions governed by `ocsf_field == None` only (ADR-058 §I2); vendor-extended `Some(path)` values (`device.type_label`, `device.type_category`) stay first-class Arrow columns on Path A. Implementer MUST NOT wire schema-validity routing into Path A — EC-016-013-021 demo-critical filter at risk (S-ADR058-OCSF-ROUTING-001). Skipped→raw_extensions is Path B (`ColumnMapper::map_record`) only. No new ECs added (POL-38: CLEAR). TD-VSDD-097: (1) no split-event twin BC; CLEAR. (2) §OCSF Field Validation not verbatim copy-source in downstream artifacts; CLEAR. (3) new MUST anchored to EC-016-013-021 and S-ADR058-OCSF-ROUTING-001; CLEAR. |
 | 1.12 | ocsf-coercion-pass25-f1-path-a-string-completeness | 2026-08-17 | product-owner | F-P25-MED-001 §Full Coercion Matrix Path-A String-arm completeness: added Path-key preamble (Path A = `build_column_array`, sole live path per ADR-058 §A1; Path B = `coerce_value`, unwired); Number/Bool rows now document Path-A retained-wildcard `other.to_string()` as CORRECT behavior (LIVE-DRIFT-003 — not a defect); Object row now distinguishes Path-A current behavior (`Some(stringified_object)`, WRONG pre-AC-005) from contracted target (`None` + `column_coercion_failure` warn, EC-016-013-008 / AC-005) and Path-B pass-through (WRONG). Array→JSON-list immutable (EC-016-013-026) unchanged. No new ECs added. No AC obligations changed beyond what AC-005 already covers (POL-38: CLEAR). TD-VSDD-097 three-dimension sweep: (1) Sibling pair — BC-2.16.003 has no named split-event twin; CLEAR. (2) Downstream copy target — §Full Coercion Matrix Number/Bool rows are not verbatim copy-sources in downstream artifacts; story-writer handles S-ADR058-OCSF-COERCION-001 AC-005/T-15 wording update per task handoff. (3) Mandate anchor — no new unanchored MUSTs introduced; all existing mandates anchored to AC-005 unchanged; CLEAR. |
 | 1.11 | ocsf-coercion-pass24-f1-enrich1-path-scope | 2026-08-17 | product-owner | **F-P24-HIGH-001 adjudication: scope EC-016-013-007 Array-null-demotion to Path B only; add EC-016-013-026 protecting ENRICH-1 `Value::Array` arm on Path A.** (A) EC-016-013-007 §Edge Cases row: added "Path B (`coerce_value`) only" scope qualifier; documented that Path A `build_column_array` dedicated `Value::Array` arm is correct ENRICH-1 behavior, cross-references EC-016-013-026. (B) §Full Coercion Matrix: narrowed "String \| Array \| any" row to Path B / `coerce_value` only; added Path A behavior column showing JSON-list String (ENRICH-1 preserved, EC-016-013-026). §KNOWN GAPs bullets: EC-016-013-007 scoped to Path B; EC-016-013-008 clarified as both paths. (C) §Error Conditions KNOWN GAP row: scoped Array part to Path B; added Path A ENRICH-1 arm note; retained Object as applying to both paths. (D) Added EC-016-013-026: documents that `build_column_array` Path A `serde_json::Value::Array(arr)` arm is CORRECT behavior (not a gap) — serializes all arrays including ENRICH-1 wildcard source_path results to JSON-list string; empty array → `"[]"`; null-demotion on Path A applies to `Value::Object` only; MUST NOT be changed to null-demotion. Tests: two existing MEDIUM-6 Claroty ip_list/vlan_list tests confirm production behavior. (E) §Story Anchor item 3: removed incorrect "AC-005" citation for the Array fix — AC-005 covers Object only on Path A; Array null-demotion on Path A is WRONG per adjudication. (F) input-hash updated from 08bcb32 to f7d5e31 (pre-existing drift from ADR-058 input changes). TD-VSDD-097 three-dimension sweep: (1) Sibling pair — BC-2.16.003 has no named split-event twin; CLEAR. (2) Downstream copy target — story S-ADR058-OCSF-COERCION-001 AC-005/RG-007/EC-001/T-15 carry pre-adjudication Array null-demotion intent; story-writer must apply adjudication rewrite spec per handoff note in product-owner output. (3) Mandate anchor — EC-016-013-026 `MUST NOT` anchored to ENRICH-1 Design Decision 2 established behavior; no new unanchored story-level obligations. |

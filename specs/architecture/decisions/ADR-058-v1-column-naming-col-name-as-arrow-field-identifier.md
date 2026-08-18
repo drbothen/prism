@@ -5,7 +5,7 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-08-18"
-version: "2.19"
+version: "2.20"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -385,23 +385,48 @@ tests use inline specs without ocsf_field and are not affected by per-sensor sco
 
 ## §G prism_describe Output Specification
 
-Under Interpretation A (when `sensor_spec.ocsf_column_naming == true`):
+Under Interpretation A (when `sensor_spec.ocsf_column_naming == true`), `prism_describe` emits
+descriptors in two tiers based on `col.ocsf_field`:
 
-- `ColumnDescriptor.name` = `ocsf_field_to_arrow_name(ocsf_field)` (underscore-flattened ocsf_field, or
-  `col.name` fallback for columns without ocsf_field)
+**Tier 1 — OCSF-mapped columns (`ocsf_field` is `Some(path)`):**
+- `ColumnDescriptor.name` = `ocsf_field_to_arrow_name(ocsf_field)` (underscore-flattened ocsf_field)
 - `ColumnDescriptor.description` = `col.ocsf_field.clone()` (the original dotted OCSF path,
-  e.g., `"finding.uid"`, preserved as semantic annotation)
+  e.g., `"finding_info.uid"`, preserved as semantic annotation)
 
-This is consistent with Interpretation B for the description field: the dotted OCSF path
-continues to appear in the description, but the name now carries the queryable identifier.
+**Tier 2 — Unmapped columns (`ocsf_field` is `None` — the `raw_extensions` aggregate per §I2 and §B2 item 1):**
+- `prism_describe` MUST NOT emit an individual `ColumnDescriptor` for any `ocsf_field == None`
+  column. Those columns are not top-level queryable Arrow fields; they are aggregated into the
+  single `raw_extensions` JSON blob. Advertising them as individual descriptors creates phantom
+  column names: an agent that copies (e.g.) `ip_list` from the describe output and issues
+  `SELECT ip_list FROM claroty_alerts` receives a DataFusion "column not found" error — exactly
+  the failure mode §C1 exists to prevent.
+- `prism_describe` MUST emit exactly ONE `ColumnDescriptor` for the synthesized `raw_extensions`
+  column, with the following shape:
+  - `name` = `"raw_extensions"`
+  - `description` = a string that (1) identifies the column as a JSON object and (2) enumerates
+    every source key it contains — the `col.name` of each `ocsf_field == None` column in the
+    queried table. Example for `claroty_alerts` (after KF-08..KF-10 TOML corrections add
+    `category`, `alert_type_name`, `devices_count` to the blob):
+    `"JSON object containing un-mapped source columns: alert_class, ot_devices_count, category, alert_type_name, devices_count"`.
 
-For LLM agents: the agent reads (e.g.) `name: "finding_info_uid"` and uses it verbatim in
-queries. The `description: "finding_info.uid"` field provides OCSF semantic context without
-being required in queries. (KF-03 corrects the earlier example `finding_uid` / `finding.uid`
-— `detection_finding` uses `finding_info`, not `finding`.)
+This discoverability model is required for correct agent behavior: without the `raw_extensions`
+descriptor an agent cannot discover the column exists; without the source-key enumeration the
+agent cannot determine which unmapped fields are accessible inside the blob.
 
-`ColumnDescriptor.description` sourcing for Interpretation B sensors is unchanged:
-`col.ocsf_field.clone()` (same as before).
+(Mandate anchor: S-ADR058-OCSF-ROUTING-001 — the story-writer leg of the fix-burst that produced
+this §G amendment adds an AC and Red Gate test asserting: (1) `prism_describe` for a Claroty table
+with `ocsf_column_naming = true` emits NO individual `ColumnDescriptor` for any `ocsf_field == None`
+column; and (2) emits exactly one `raw_extensions` ColumnDescriptor whose description enumerates the
+`col.name` values of all `ocsf_field == None` columns in that table.)
+
+For LLM agents using OCSF-mapped columns: the agent reads `name: "finding_info_uid"` and uses it
+verbatim; `description: "finding_info.uid"` provides OCSF semantic context without being required
+in queries. For unmapped columns: the agent reads `name: "raw_extensions"`, issues
+`SELECT raw_extensions FROM claroty_alerts` to retrieve the JSON blob, and uses the description's
+source-key list to understand what fields are inside (e.g., `alert_class`).
+
+`ColumnDescriptor` output for Interpretation B sensors (`ocsf_column_naming == false`) is unchanged:
+all columns are emitted as individual descriptors with `ColumnDescriptor.name = col.name`.
 
 ---
 
@@ -519,8 +544,9 @@ extension that does not change the parsing behavior for other fields.
 
 ### §I5 OCSF Schema Correction TOML Obligations (§K4 findings)
 
-Seven schema-validation findings (§K4, KF-01 through KF-07) require corrections to
-`claroty.sensor.toml`. Since `S-ADR058-OCSF-ROUTING-001` AC-005 already modifies
+Twelve schema-validation and semantic findings (§K4, KF-01 through KF-12) — seven schema-validity
+findings (KF-01..KF-07) and five PATH-VALID but SEMANTIC-WRONG findings (KF-08..KF-12) — require
+corrections to `claroty.sensor.toml`. Since `S-ADR058-OCSF-ROUTING-001` AC-005 already modifies
 `claroty.sensor.toml` (adds `ocsf_column_naming = true` and the §J3 `device_category` fix),
 these corrections fit within that story's scope or require a companion story. Story-writer and
 product-owner must adjudicate scope. Corrections required:
@@ -558,7 +584,7 @@ product-owner must adjudicate scope. Corrections required:
   - Change `("armis", "audit_log") => Ok(CLASS_UID_ACCOUNT_CHANGE)` to `Ok(CLASS_UID_ENTITY_MANAGEMENT)`. Same semantic defect; same fix (TD-VSDD-097 dimension 1 sibling sweep, see §K5).
   These are forward-compatibility fixes for when Path B is wired; Path B has zero production callers today per §K5 path-liveness determination.
 
-  **(d) Dead-code annotation:** After the TOML changes, the existing `"audit_activity"` arm in `select_by_class_name` becomes dead code (no TOML will emit that string). The implementer MUST annotate it as a deprecated transitional entry pending removal, and AC-009/RG-011 must assert the LIVE strings (`"entity_management"`, `"inventory_info"`) rather than the now-dead `"audit_activity"`/`"device"`.
+  **(d) Dead-code annotation:** After the TOML changes, the existing `"audit_activity"` arm in `select_by_class_name` becomes dead code (no TOML will emit that string). The implementer MUST annotate it as a deprecated transitional entry pending removal, and AC-009/RG-011 must assert the LIVE strings (`"entity_management"`, `"inventory_info"`) rather than the now-dead `"audit_activity"` string. The `"device"` arm in `select_by_class_name` is NOT dead code — it is retained as a live transitional alias per §I5(b): Armis and CrowdStrike devices tables still declare `ocsf_class = "device"`, and `select_by_class_name("device") → 5001` is a live production path.
 
   **Production defect being fixed (Path A):** `select_by_class_name("audit_activity").unwrap_or(0)` currently produces `class_uid = 3001` in Arrow output, misclassifying Claroty audit events as "Identity & Access Management / Account Change" for all downstream consumers. After the KF-01 TOML change to `"entity_management"`, `class_uid` must become 3004 — but only works if arm (b) above is added first.
 
@@ -1102,6 +1128,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.20 | 2026-08-18 | architect | F-P40/P42-HIGH-001 + F-P41-MED-001 + F-P41-MED-002 + F-P42-LOW-001. HIGH: §G rewritten — describe↔model consistency with §I2 aggregation model. (a) `prism_describe` MUST NOT emit individual `ColumnDescriptor` for any `ocsf_field == None` column under flag=true (columns reside in `raw_extensions` per §I2/§B2 item 1; advertising them as individual descriptors produces phantom column names causing agent query failures per §C1). (b) `prism_describe` MUST emit exactly one `raw_extensions` ColumnDescriptor (name=`"raw_extensions"`; description enumerates `col.name` of every `ocsf_field == None` column in the queried table — mandatory for agent discoverability). Mandate anchor: S-ADR058-OCSF-ROUTING-001 (story-writer leg of this fix-burst adds AC + Red Gate). LOW (F-P42-LOW-001): §G Tier-1 description example corrected `"finding.uid"` → `"finding_info.uid"` (KF-03 corrected path). MED-001: §I5 intro count corrected from seven (KF-01..KF-07) to twelve — seven schema-validity (KF-01..KF-07) + five PATH-VALID/SEMANTIC-WRONG (KF-08..KF-12). MED-002: §I5(d) `"device"` arm removed from "now-dead" clause; `"device"` is a live transitional alias per §I5(b) (Armis + CrowdStrike retain `ocsf_class = "device"`; live production path `select_by_class_name("device") → 5001`); only `"audit_activity"` is dead. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy targets — §G rewrite must propagate to BC-2.16.003 §Interpretation A (product-owner leg: remove phantom-column describe model, add `raw_extensions` descriptor with source-key enumeration) and ROUTING-001 §G/AC-006/AC-007 (story-writer leg: align ACs to Tier-1/Tier-2 §G model, add raw_extensions describe Red Gate as mandate anchor for §G MUSTs); (3) mandate anchor — two new §G MUSTs anchored to S-ADR058-OCSF-ROUTING-001 (story-writer leg adds AC + Red Gate). |
 | 2.19 | 2026-08-18 | architect | F-P34-LOW-002 + F-P34-OBS-001. LOW-002: §Status heading retitled v2.17→v2.19 (lagged the frontmatter version by two bumps). OBS-001: helper symbol standardized to canonical `ocsf_field_to_arrow_name` across three sections — §B2 item 4 (`ocsf_flattened_name(col)` → `ocsf_field_to_arrow_name(ocsf_field)`), §C4 (`arrow_field_name_for(col, sensor_spec)` / `ocsf_flattened_name(ocsf_field)` → inline-logic description citing `ocsf_field_to_arrow_name(ocsf_field)` and §I1), §G (`arrow_field_name_for(col)` → `ocsf_field_to_arrow_name(ocsf_field)`). All three stale names converged to the §I1-authoritative symbol that S-ADR058-OCSF-ROUTING-001 already uses consistently. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — S-ADR058-OCSF-ROUTING-001 §Authority version pin must be swept to v2.19 (story-writer leg obligation); ROUTING-001 already uses `ocsf_field_to_arrow_name` consistently — no function-name copy-text fix required there; (3) mandate anchor — no new MUST statements introduced. |
 | 2.18 | 2026-08-18 | architect | F-P33-MED-001: §D1 corrected — "transitively … without structural redesign" claim replaced; `pipeline_result_to_record_batch` does not currently receive `SensorSpec`; MUST thread as new parameter from `fetch()` call site (ADR-022 §C wiring; mandate anchor S-ADR058-OCSF-ROUTING-001, specific param-threading AC/RG added by story-writer leg). §I1 code snippet updated — function signature comment shows `sensor_spec: &SensorSpec` as a new parameter with defined provenance from `fetch()`, eliminating the free-variable defect. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §I1 param-threading context is source for ROUTING-001 implementation tasks and authority-pin; story-writer leg must sweep ROUTING-001 §Tasks and §Authority version pin to v2.18; (3) mandate anchor — §D1 MUST anchored to S-ADR058-OCSF-ROUTING-001 (param-threading AC + Red Gate test pending story-writer leg of this fix-burst). |
 | 2.17 | 2026-08-18 | architect | F-P32-MED-001 §I1 clarified: individual-field naming applies to ocsf_field==Some only; ocsf_field==None routes to raw_extensions per §I2, owned by pipeline_result_to_record_batch. |
