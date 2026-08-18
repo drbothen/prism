@@ -5,7 +5,7 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-08-18"
-version: "2.20"
+version: "2.21"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -35,7 +35,7 @@ inputs:
   - crates/prism-ocsf/src/mappers/spec_driven.rs
   - crates/prism-ocsf/src/class_selector.rs
   - crates/prism-ocsf/ocsf-schema/1.7.0/schema.json
-input-hash: "091e398"
+input-hash: "1983f1f"
 ---
 
 # ADR-058: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred
@@ -120,12 +120,15 @@ enabled per-sensor via a TOML flag, targeting Claroty first. DTU migration is de
 
 Specifically:
 
-1. **Arrow field names are underscore-flattened OCSF paths.** For a column with
+1. **Arrow field names are underscore-flattened OCSF paths for mapped columns; unmapped columns
+   are aggregated into a single `raw_extensions` JSON blob column.** For a column with
    `ocsf_field = "finding.uid"`, the Arrow RecordBatch schema field name is `finding_uid` (all
    dots replaced with underscores). For a column with `ocsf_field = "actor.user.name"`, the
-   Arrow field name is `actor_user_name`. Columns without `ocsf_field` use `col.name` (fallback)
-   and are collected into a `raw_extensions` JSON blob column per the original `ColumnMapper`
-   design.
+   Arrow field name is `actor_user_name`. Columns with `ocsf_field == None` receive **no
+   individual Arrow field** — they are aggregated into the single `raw_extensions` Arrow column
+   (see §I2 and §G Tier-2). `col.name` for an `ocsf_field == None` column is the blob source
+   key only (the JSON object key inside `raw_extensions` under which that column's value is
+   stored); it is not exposed as a queryable Arrow field name under Interpretation A.
 
 2. **Activation is per-sensor via a new TOML flag `ocsf_column_naming = true`.** This flag is
    added to `SensorSpec` with a default of `false`. Only sensors with `ocsf_column_naming = true`
@@ -403,6 +406,11 @@ descriptors in two tiers based on `col.ocsf_field`:
 - `prism_describe` MUST emit exactly ONE `ColumnDescriptor` for the synthesized `raw_extensions`
   column, with the following shape:
   - `name` = `"raw_extensions"`
+  - `col_type` = `prism_core::column::ColumnType::Json` (the physical Arrow column is `Utf8`
+    containing a serialized JSON object; `Json` is the correct semantic `ColumnType` variant per
+    the canonical enum: `String / Integer / Float / Boolean / Datetime / Json`)
+  - `nullable` = `true` (the `raw_extensions` cell may be null when all source values for
+    unmapped columns in a row are null or absent; `true` is the correct annotation)
   - `description` = a string that (1) identifies the column as a JSON object and (2) enumerates
     every source key it contains — the `col.name` of each `ocsf_field == None` column in the
     queried table. Example for `claroty_alerts` (after KF-08..KF-10 TOML corrections add
@@ -482,8 +490,15 @@ Stage 1 deliverables:
 ### §I1 Arrow Field Name Helper
 
 Add a free function `ocsf_field_to_arrow_name(ocsf_field: &str) -> String` to
-`prism-bin::spec_driven_adapter` (or `prism-spec-engine`) that replaces all dots with
+`prism-spec-engine::column_mapping` (the canonical shared home) that replaces all dots with
 underscores. Example: `ocsf_field_to_arrow_name("actor.user.name")` → `"actor_user_name"`.
+Both `pipeline_result_to_record_batch` (`prism-bin::spec_driven_adapter`) and `prism_describe`
+(`prism-mcp::tools::prism_describe`) import this function from `prism_spec_engine::column_mapping`.
+This placement is required: `prism-mcp` depends on `prism-spec-engine` but not `prism-bin`
+(verified: `crates/prism-mcp/Cargo.toml`); `prism-bin` depends on `prism-mcp` — placing the
+helper in `prism-bin` would create a forbidden workspace cycle for any `prism-mcp` importer.
+`prism-spec-engine::column_mapping` is the correct domain home: it owns `ColumnMapper`,
+`MappingResult`, and `ocsf_field` resolution, and is already in both consumers' dependency trees.
 
 Update `pipeline_result_to_record_batch` to accept `sensor_spec` as an explicit parameter
 threaded from the `fetch()` call site (see §D1), then compute the Arrow field name as follows:
@@ -1053,7 +1068,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.19 (2026-08-18)
+### Status as of v2.21 (2026-08-18)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1128,6 +1143,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.21 | 2026-08-18 | architect | F-P43-HIGH-001 + F-P45-MED-001 + F-P44-OBS-001 + F-P44/P45-LOW-001. HIGH: §I1 canonical crate corrected — `ocsf_field_to_arrow_name` must live in `prism-spec-engine::column_mapping`, not `prism-bin::spec_driven_adapter` or any "prism-bin or prism-spec-engine" ambiguity. `prism-mcp/Cargo.toml` depends on `prism-spec-engine` but not `prism-bin`; `prism-bin` depends on `prism-mcp` — placing the helper in `prism-bin` creates a forbidden workspace cycle that would prevent `prism_describe` from importing it. Both consumers (`pipeline_result_to_record_batch` in `prism-bin::spec_driven_adapter`; `prism_describe` in `prism-mcp::tools::prism_describe`) now stated as importing from `prism_spec_engine::column_mapping`. MED: §B2 item 1 rewritten — columns with `ocsf_field == None` explicitly stated to receive NO individual Arrow field; they are aggregated into the single `raw_extensions` column per §I2/§G Tier-2; `col.name` for unmapped columns is the blob source key only (not an Arrow field name under Interpretation A). Eliminates the reader inference that None-columns get individual `col.name`-named Arrow fields, which contradicted §G/§I2/BC Tier-2. The §I1 snippet's `.unwrap_or_else(|| col.name.clone())` is already explicitly scoped to the `Some` arm in the §I2 cross-reference paragraph; §B2 item 1 no longer requires that paragraph as the sole correction. OBS: §G Tier-2 `raw_extensions` ColumnDescriptor shape extended with `col_type = prism_core::column::ColumnType::Json` (physical `Utf8` column contains serialized JSON object; `Json` is the correct semantic variant) and `nullable = true` (cell may be null when all unmapped source values in a row are null). LOW: §Status heading retitled v2.19 → v2.21. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy targets — story-writer leg (ROUTING-001): update Rule 1 / Forbidden-Dependencies / RG-003 / §File Structure / §Architecture Mapping to reflect `prism-spec-engine::column_mapping` as canonical crate; RG-003 must assert the function is callable from `prism-mcp` scope without a cycle; add RG-025 asserting `raw_extensions` ColumnDescriptor carries `col_type = Json` and `nullable = true`; Red Gate count 24 → 25 for RG-025; product-owner leg (BC-2.16.003): add `col_type = Json` and `nullable = true` to the raw_extensions ColumnDescriptor contract in the relevant EC for EC-016-013-027 (or the raw_extensions descriptor EC); (3) mandate anchor — §I1 crate MUST (`prism-spec-engine::column_mapping`) anchored to S-ADR058-OCSF-ROUTING-001; §G `col_type`/`nullable` MUST anchored to S-ADR058-OCSF-ROUTING-001 (story-writer leg adds RG-025). |
 | 2.20 | 2026-08-18 | architect | F-P40/P42-HIGH-001 + F-P41-MED-001 + F-P41-MED-002 + F-P42-LOW-001. HIGH: §G rewritten — describe↔model consistency with §I2 aggregation model. (a) `prism_describe` MUST NOT emit individual `ColumnDescriptor` for any `ocsf_field == None` column under flag=true (columns reside in `raw_extensions` per §I2/§B2 item 1; advertising them as individual descriptors produces phantom column names causing agent query failures per §C1). (b) `prism_describe` MUST emit exactly one `raw_extensions` ColumnDescriptor (name=`"raw_extensions"`; description enumerates `col.name` of every `ocsf_field == None` column in the queried table — mandatory for agent discoverability). Mandate anchor: S-ADR058-OCSF-ROUTING-001 (story-writer leg of this fix-burst adds AC + Red Gate). LOW (F-P42-LOW-001): §G Tier-1 description example corrected `"finding.uid"` → `"finding_info.uid"` (KF-03 corrected path). MED-001: §I5 intro count corrected from seven (KF-01..KF-07) to twelve — seven schema-validity (KF-01..KF-07) + five PATH-VALID/SEMANTIC-WRONG (KF-08..KF-12). MED-002: §I5(d) `"device"` arm removed from "now-dead" clause; `"device"` is a live transitional alias per §I5(b) (Armis + CrowdStrike retain `ocsf_class = "device"`; live production path `select_by_class_name("device") → 5001`); only `"audit_activity"` is dead. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy targets — §G rewrite must propagate to BC-2.16.003 §Interpretation A (product-owner leg: remove phantom-column describe model, add `raw_extensions` descriptor with source-key enumeration) and ROUTING-001 §G/AC-006/AC-007 (story-writer leg: align ACs to Tier-1/Tier-2 §G model, add raw_extensions describe Red Gate as mandate anchor for §G MUSTs); (3) mandate anchor — two new §G MUSTs anchored to S-ADR058-OCSF-ROUTING-001 (story-writer leg adds AC + Red Gate). |
 | 2.19 | 2026-08-18 | architect | F-P34-LOW-002 + F-P34-OBS-001. LOW-002: §Status heading retitled v2.17→v2.19 (lagged the frontmatter version by two bumps). OBS-001: helper symbol standardized to canonical `ocsf_field_to_arrow_name` across three sections — §B2 item 4 (`ocsf_flattened_name(col)` → `ocsf_field_to_arrow_name(ocsf_field)`), §C4 (`arrow_field_name_for(col, sensor_spec)` / `ocsf_flattened_name(ocsf_field)` → inline-logic description citing `ocsf_field_to_arrow_name(ocsf_field)` and §I1), §G (`arrow_field_name_for(col)` → `ocsf_field_to_arrow_name(ocsf_field)`). All three stale names converged to the §I1-authoritative symbol that S-ADR058-OCSF-ROUTING-001 already uses consistently. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — S-ADR058-OCSF-ROUTING-001 §Authority version pin must be swept to v2.19 (story-writer leg obligation); ROUTING-001 already uses `ocsf_field_to_arrow_name` consistently — no function-name copy-text fix required there; (3) mandate anchor — no new MUST statements introduced. |
 | 2.18 | 2026-08-18 | architect | F-P33-MED-001: §D1 corrected — "transitively … without structural redesign" claim replaced; `pipeline_result_to_record_batch` does not currently receive `SensorSpec`; MUST thread as new parameter from `fetch()` call site (ADR-022 §C wiring; mandate anchor S-ADR058-OCSF-ROUTING-001, specific param-threading AC/RG added by story-writer leg). §I1 code snippet updated — function signature comment shows `sensor_spec: &SensorSpec` as a new parameter with defined provenance from `fetch()`, eliminating the free-variable defect. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §I1 param-threading context is source for ROUTING-001 implementation tasks and authority-pin; story-writer leg must sweep ROUTING-001 §Tasks and §Authority version pin to v2.18; (3) mandate anchor — §D1 MUST anchored to S-ADR058-OCSF-ROUTING-001 (param-threading AC + Red Gate test pending story-writer leg of this fix-burst). |
