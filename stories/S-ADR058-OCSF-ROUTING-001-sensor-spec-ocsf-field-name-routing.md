@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.34"
+version: "1.35"
 level: "L4"
 status: draft
 producer: story-writer
@@ -137,7 +137,7 @@ postconditions for Claroty.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
 **BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation.** Version `2.28`, status: active
-(modified 2026-08-16). Canonical Structured Event Catalog — `ocsf.unknown_class_name`
+(modified 2026-08-17). Canonical Structured Event Catalog — `ocsf.unknown_class_name`
 WARN — emitted by `pipeline_result_to_record_batch` on the `Err` branch of
 `EventClassSelector::select_by_class_name` before `.unwrap_or(0)`. Fields: `ocsf_class: %display`,
 `sensor_id: %display`, `table_name: %display`. SAP-1 / PG-LP11-001 obligation: the implementer
@@ -1605,6 +1605,30 @@ change. VERDICT: N/A — no new mandates.
 
 ---
 
+### v1.35 Amendment Sweep (F-P39-LOW-001 §Authority BC-2.16.002 date parenthetical corrected; comprehensive perimeter records-hygiene audit CLEAN)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): F-P39-LOW-001 is a date parenthetical
+in ROUTING-001 §Authority for BC-2.16.002 only. Comprehensive sweep of COERCION-001
+§Authority for date parentheticals, version pins, and volatile line-cite tokens: CLEAR
+— BC-2.16.003 "(modified 2026-08-17)" correct; ADR-058 "(2026-08-18)" correct; all
+version pins accurate; zero volatile cite tokens found. VERDICT: SIBLING UNAFFECTED.
+
+**Dimension 2 — Downstream copy target:**
+
+The §Authority date parenthetical is a records-tier annotation. No downstream artifact
+copies §Authority date parentheticals verbatim. Perimeter-wide sweep of ADR-058 v2.19:
+zero "(modified YYYY-MM-DD)" body parentheticals found; all BC/ADR cites version-pin
+only. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. This is a records-tier date-sync fix (POL-37/TD-VSDD-060) with
+zero content/mechanism change. VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.33 Amendment Sweep (F-P34-MED-001 caller enumeration + F-P34-LOW-001 threading expression + ADR-058 pin v2.19)
 
 **Dimension 1 — Sibling pair:**
@@ -2325,6 +2349,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.35 | 2026-08-18 | state-manager | OCSF-correctness Claroty SPEC pass-39 TD-VSDD-096 records-only micro-burst: F-P39-LOW-001 [LOW, POL-37/TD-VSDD-060 date-sync] §Authority BC-2.16.002 citation date parenthetical corrected "(modified 2026-08-16)"→"(modified 2026-08-17)" (BC-2.16.002 frontmatter `modified:` is 2026-08-17; v2.28 landed via D-2232 on 2026-08-17). Comprehensive perimeter-wide records-hygiene audit: COERCION-001 §Authority all parentheticals ACCURATE; ADR-058 no date parentheticals in body; version pins across all three perimeter artifacts ACCURATE; volatile line-cite tokens CLEAR; changelog L1/L7 PASS for all three artifacts. ZERO content/mechanism changes. §v1.35 Amendment Sweep added. |
 | 1.34 | 2026-08-18 | state-manager | OCSF-correctness Claroty SPEC pass-36 TD-VSDD-096 records-only micro-burst: F-P36-LOW-001 [LOW, TD-VSDD-091] §Changelog v1.12 row contained a quoted volatile-line-cite token in record-tier text; rephrased F3 description to remove the bare line number while preserving meaning (§Changelog §v1.9 Red-then-green gate cite). Anti-whack-a-mole sweep of all three perimeter artifacts (ADR-058, COERCION-001, ROUTING-001 §Changelog + §TD-VSDD-097 + §Authority): zero additional volatile cite tokens found. ZERO content/mechanism changes. §v1.34 Amendment Sweep added. |
 | 1.33 | 2026-08-18 | story-writer | OCSF-correctness Claroty SPEC pass-34 fix-burst: F-P34-MED-001 [MED] + F-P34-LOW-001 [LOW] + ADR-058 pin v2.18→v2.19. F-P34-MED-001: AC-012 caller enumeration corrected in both directions — (a) the 14 RG-005..022 entries relabeled from "Existing test callers" to "NEW test callers authored by this story" (Phase A Red Gate tests, not pre-existing callers); (b) `test_BC_2_01_013_crowdstrike_fql_datetime_index_col_string_equality_safe` added as new "Pre-existing test callers (1)" subsection — must be updated with `ocsf_column_naming = false` SensorSpec to preserve CrowdStrike behavior; count corrected in v1.32 changelog from "(1 production + 14 test + 1 new RG-024)" to "(1 production + 1 pre-existing test + 14 new story RG tests + 1 new RG-024)"; T-14A updated: threading expression `&self.sensor_spec` → `&self.sensor_spec.spec`, caller count 15→17, two-part (a)/(b) update instruction. F-P34-LOW-001: threading expression `&self.sensor_spec` (or equivalent) → `&self.sensor_spec.spec` at AC-003 parameter threading note and AC-012 production callers description; "or equivalent access" hedge removed — confirmed by existing production callers `self.sensor_spec.spec.sensor_id` in `fetch()`. ADR-058 pin v2.18→v2.19 at §Authority. Sibling: COERCION-001 ADR pin bump v2.18→v2.19 reported to state-manager (not silently edited). §v1.33 Amendment Sweep added. |
 | 1.32 | 2026-08-18 | story-writer | OCSF-correctness Claroty SPEC pass-33 fix-burst: F-P33-MED-001 [MED] signature gap — `pipeline_result_to_record_batch` lacked `sensor_spec: &SensorSpec` as an explicit parameter (free-variable defect). Fix: (1) AC-012 added: new AC requiring the parameter addition with caller enumeration (1 production + 1 pre-existing test + 14 new story RG tests + 1 new RG-024); (2) RG-024 added: E0061 compile-fail Red Gate exercising both ocsf_column_naming=true and false branches from the threaded-parameter path; (3) T-11Q added: Phase A task to write RG-024; (4) T-14A added: Phase B task to add the parameter + update all 15 callers + TD-VSDD-060 grep confirmation; (5) T-14 updated: no longer claims to green RG-006 (now T-14A's responsibility); gains RG-024 full-green note; (6) AC-003 parameter-threading note added (sensor_spec is the threaded parameter from T-14A/AC-012, not a free variable); (7) §Architecture Mapping `pipeline_result_to_record_batch` row updated to note new parameter; (8) Architecture Compliance Rule 11 added: no placeholder construction of SensorSpec; (9) §Mandate Anchor discharge table: §D1 MUST row added; (10) T-GATE/T-19 updated: 23→24 RGTs, density 23/11→24/12=2.00; (11) ADR-058 pin v2.17→v2.18 at §Authority. §v1.32 Amendment Sweep added. Sibling: COERCION-001 ADR pin bump v2.17→v2.18 reported to orchestrator (not silently edited). |
