@@ -5,7 +5,7 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-08-18"
-version: "2.17"
+version: "2.18"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -218,9 +218,23 @@ No existing CrowdStrike, Armis, or Cyberint queries are affected until those sen
 
 ### §D1 Is Per-Sensor Scoping Possible?
 
-**Yes.** `ColumnMapper` and `pipeline_result_to_record_batch` are shared functions, but they
-receive `&TableSpec` (and transitively the sensor's `SensorSpec`) as input. The naming logic
-can branch on a per-sensor flag without structural redesign.
+**Yes, with a required parameter-threading step.** Per-sensor scoping is achievable without
+structural redesign — the naming logic branches on `sensor_spec.ocsf_column_naming` without
+replacing any existing modules, call-paths, or data structures. However,
+`pipeline_result_to_record_batch` (in `prism-bin::spec_driven_adapter`) does not currently
+receive `SensorSpec` as a parameter — that is the signature gap identified by F-P33-MED-001.
+To gate the Arrow field name computation on the flag, the `SensorSpec` (or a minimal
+projection carrying `ocsf_column_naming`) MUST be added as an explicit parameter to
+`pipeline_result_to_record_batch` and threaded from the `fetch()` call site in
+`spec_driven_adapter.rs`. This is "wiring, not redesign" per ADR-022 §C: adding a previously
+absent parameter is in-scope plumbing, not replacement of an existing implementation.
+(Mandate anchor: S-ADR058-OCSF-ROUTING-001 — the parameter-threading implementation task
+and its Red Gate test are added to ROUTING-001 by the story-writer leg of the same fix-burst
+that produced this ADR amendment.)
+
+`ColumnMapper` (in `prism-spec-engine::column_mapping`) receives `&TableSpec` from which
+`ocsf_field` values are resolved; it does not need a signature change for the naming decision.
+The parameter addition is isolated to `pipeline_result_to_record_batch`.
 
 Without the flag mechanism, enabling Interpretation A by applying it to every column with an
 `ocsf_field` declaration would affect all four sensors simultaneously (all four declare
@@ -446,8 +460,18 @@ Add a free function `ocsf_field_to_arrow_name(ocsf_field: &str) -> String` to
 `prism-bin::spec_driven_adapter` (or `prism-spec-engine`) that replaces all dots with
 underscores. Example: `ocsf_field_to_arrow_name("actor.user.name")` → `"actor_user_name"`.
 
-Update `pipeline_result_to_record_batch` to use:
+Update `pipeline_result_to_record_batch` to accept `sensor_spec` as an explicit parameter
+threaded from the `fetch()` call site (see §D1), then compute the Arrow field name as follows:
+
 ```rust
+// Step 1 — pipeline_result_to_record_batch gains a new parameter (ADR-022 §C wiring):
+//
+//   fn pipeline_result_to_record_batch(
+//       ..existing parameters..,
+//       sensor_spec: &SensorSpec,   // threaded from fetch(); carries ocsf_column_naming flag
+//   ) -> Result<RecordBatch, ArrowError>
+
+// Step 2 — Arrow field name computation inside the function body:
 let arrow_name = if sensor_spec.ocsf_column_naming {
     col.ocsf_field.as_deref()
         .map(ocsf_field_to_arrow_name)
@@ -1078,6 +1102,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.18 | 2026-08-18 | architect | F-P33-MED-001: §D1 corrected — "transitively … without structural redesign" claim replaced; `pipeline_result_to_record_batch` does not currently receive `SensorSpec`; MUST thread as new parameter from `fetch()` call site (ADR-022 §C wiring; mandate anchor S-ADR058-OCSF-ROUTING-001, specific param-threading AC/RG added by story-writer leg). §I1 code snippet updated — function signature comment shows `sensor_spec: &SensorSpec` as a new parameter with defined provenance from `fetch()`, eliminating the free-variable defect. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §I1 param-threading context is source for ROUTING-001 implementation tasks and authority-pin; story-writer leg must sweep ROUTING-001 §Tasks and §Authority version pin to v2.18; (3) mandate anchor — §D1 MUST anchored to S-ADR058-OCSF-ROUTING-001 (param-threading AC + Red Gate test pending story-writer leg of this fix-burst). |
 | 2.17 | 2026-08-18 | architect | F-P32-MED-001 §I1 clarified: individual-field naming applies to ocsf_field==Some only; ocsf_field==None routes to raw_extensions per §I2, owned by pipeline_result_to_record_batch. |
 | 2.16 | 2026-08-17 | architect | F-P26-OBS-001: §H emission-MUST discharge anchor extended — Path-A build_column_array obligations added: AC-005 (RG-006) String+Object warn; AC-007 (RG-009) Integer+String warn; existing AC-004 (RG-005) Path-B map_record cite retained. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §H anchor is terminal; COERCION-001 §Authority pin and ARCH-INDEX leading pin need sweep to v2.16 (story-writer sweeps); (3) mandate anchor — no new MUST statements. |
 | 2.15 | 2026-08-17 | architect | F-P25-HIGH-001: §H item 1 corrected — Path-A Object-only null-demote per pass-24 adjudication (EC-016-013-008); `Value::Array` arm correct ENRICH-1 DD-2 behavior MUST NOT change (EC-016-013-026); EC-016-013-007 is Path-B `coerce_value` only; code accurately described (dedicated Array arm + retained wildcard for Number/Bool). TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §H item 1 is source; COERCION-001 §Authority pin and ARCH-INDEX leading pin are version-only refs that need sweep to v2.15; (3) mandate anchor — no new MUST statements. |

@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.30"
+version: "1.31"
 level: "L4"
 status: draft
 producer: story-writer
@@ -98,7 +98,7 @@ Observability DEFECT section are the acceptance-criteria source for this story. 
 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.17: v1 Column Naming — OCSF Field-Path Routing.** Version `2.17`, status:
+**ADR-058 v2.18: v1 Column Naming — OCSF Field-Path Routing.** Version `2.18`, status:
 accepted (2026-08-18). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
@@ -1265,6 +1265,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.31 | 2026-08-18 | state-manager | D-2238 F-P33-MED-001 fix-burst (state-manager leg): sibling ADR-058 pin v2.17→v2.18; no content change. §v1.31 Amendment Sweep: Dimension 1 (sibling pair) — ROUTING-001 amended same burst (v1.31→v1.32 story-writer leg); CLEAR. Dimension 2 (downstream copy) — §Authority pin is terminal; no independent copy artifact; CLEAR. Dimension 3 (mandate anchor) — no new MUST blocks; CLEAR. |
 | 1.30 | 2026-08-18 | story-writer | OCSF-correctness Claroty SPEC pass-32 fix-burst: F-P32-MED-002 [MED, SAP-3]: SAP-3 defense-in-depth annotations added to RG-001..005 — each now carries reachability rationale stating `coerce_value`/`map_record` (Path B, `ColumnMapper::*` in `column_mapping.rs`) has zero live production callers per ADR-058 §K5; tests are intentionally defense-in-depth / forward-compat per SAP-3 rule 2/3; live Path A coercion covered by RG-006/RG-008/RG-009 (`build_column_array`). ADR-058 pin v2.16→v2.17 at §Authority (architect bump — §I1 clarified: individual-field naming for `ocsf_field == Some` only; §I2 raw_extensions routing is ROUTING-001 scope). Sibling coordination: ROUTING-001 amended same burst (v1.30→v1.31 — F-P32-MED-001 raw_extensions locus re-attribution). §v1.30 Amendment Sweep added. |
 | 1.29 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-30 sibling coordination: BC-2.16.003 pin v1.12→v1.13 at §Authority and §Behavioral Contracts table (PO bump — §OCSF Field Validation Path-A/Path-B qualifier). Downstream contradiction check: Stage 1 coercion scope; no §OCSF Field Validation prose in COERCION-001; no correction needed. Sibling coordination: ROUTING-001 amended same burst (v1.28→v1.29). §v1.29 Amendment Sweep added. |
 | 1.28 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-28 sibling coordination: BC-2.16.002 pin v2.27→v2.28 at §Authority entry and §Behavioral Contracts table (PO bumped BC-2.16.002 v2.28 with pending-wiring annotation on §Canonical Structured Event Catalog ocsf.unknown_class_name row). Sibling coordination: ROUTING-001 amended same burst (v1.27→v1.28 — BC-2.16.002 pin v2.27→v2.28). §v1.28 Amendment Sweep added. |

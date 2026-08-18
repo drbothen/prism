@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.31"
+version: "1.32"
 level: "L4"
 status: draft
 producer: story-writer
@@ -85,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "d63bedf"
+input-hash: "3fc7d1d"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -104,11 +104,16 @@ tags:
 
 ## Authority
 
-**ADR-058 v2.17: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
-Names; DTU Migration Deferred.** Version `2.17`, status: accepted (2026-08-18). Read
+**ADR-058 v2.18: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
+Names; DTU Migration Deferred.** Version `2.18`, status: accepted (2026-08-18). Read
 §B2 (decision), §C (quoting convention — Option 4 chosen), §D (per-sensor scoping, flag
-mechanism), §E (blast radius), §G (prism_describe output spec), §H (Stage 1 confirmed
-separate), §I (implementation guidance including **§I5 TOML + code correction obligations for
+mechanism — **§D1 corrected v2.18: `pipeline_result_to_record_batch` MUST gain
+`sensor_spec: &SensorSpec` as an explicit parameter threaded from the `fetch()` call site;
+this is ADR-022 §C wiring (adding a previously absent parameter), not redesign**),
+§E (blast radius), §G (prism_describe output spec), §H (Stage 1 confirmed
+separate), §I (implementation guidance including **§I1 corrected v2.18: two-step form —
+Step 1 signature addition (`sensor_spec: &SensorSpec` parameter), Step 2 field-name
+computation inside the function body**; **§I5 TOML + code correction obligations for
 KF-01 through KF-12**; **§I5 process-gap obligation: `ocsf.unknown_class_name` WARN on
 Err branch before `.unwrap_or(0)` in `pipeline_result_to_record_batch`; Path A / Path B
 liveness determination; `select_by_class_name` two new arms: `"entity_management"→3004` and
@@ -172,6 +177,7 @@ The mandate anchor records:
 |---|---|---|---|---|
 | `ocsf_column_naming: bool` field MUST be added to `SensorSpec` with `#[serde(default)]` (ADR-058 §D2) | S-ADR058-OCSF-ROUTING-001 | AC-001 | RG-001, RG-002 | DISCHARGED |
 | `pipeline_result_to_record_batch` MUST check, when `ocsf_column_naming == true`, that no flattened `ocsf_field` name equals a DIFFERENT column's `col.name` in the same table (`A ≠ B` exclusion), fail-closed (ADR-058 §J2) | S-ADR058-OCSF-ROUTING-001 | EC-010, T-21 (shadow check extension) | RG-010 | DISCHARGED |
+| `pipeline_result_to_record_batch` MUST gain `sensor_spec: &SensorSpec` as an explicit parameter threaded from the `fetch()` call site in `spec_driven_adapter.rs`; no placeholder construction (ADR-058 §D1 v2.18, ADR-022 §C wiring) | S-ADR058-OCSF-ROUTING-001 | AC-012 | RG-024 | DISCHARGED |
 
 ---
 
@@ -222,8 +228,8 @@ Until then, `ColumnMapper::map_record` remains test-only.
 
 ## Red Gate Tests (SAC-1 — tdd_mode: strict)
 
-All twenty-three tests MUST be failing (RED) before any implementation code is written.
-Test-writer dispatched FIRST; implementer only after all 23 confirmed failing.
+All twenty-four tests MUST be failing (RED) before any implementation code is written.
+Test-writer dispatched FIRST; implementer only after all 24 confirmed failing.
 
 - **RG-001:** `test_sensor_spec_ocsf_column_naming_defaults_to_false` —
   fails until `SensorSpec` gains the `ocsf_column_naming` field (with `#[serde(default)]`).
@@ -464,13 +470,27 @@ Test-writer dispatched FIRST; implementer only after all 23 confirmed failing.
   Covers AC-009 sub-obligation (c) Claroty path.
   Traces to ADR-058 §K5 Div-3 + §I5 (TD-VSDD-097 dim-1 sibling pair with Armis).
 
+- **RG-024:** `test_pipeline_result_to_record_batch_sensor_spec_parameter_gates_both_branches` —
+  fails at compile time (E0061: wrong number of arguments) until `pipeline_result_to_record_batch`
+  gains `sensor_spec: &SensorSpec` as an explicit parameter. The test constructs a `SensorSpec`
+  with `ocsf_column_naming = true` and a column with `name = "id"` and
+  `ocsf_field = Some("finding_info.uid")`. Calls `pipeline_result_to_record_batch` passing
+  this `sensor_spec` and asserts the Arrow schema field is named `"finding_info_uid"`
+  (OCSF-flattened, not `"id"`). Then constructs a SECOND call on the same column data with
+  a `SensorSpec` where `ocsf_column_naming = false`, asserting the Arrow schema field is
+  named `"id"` (`col.name` path). Both branches exercised from the threaded-parameter path in
+  a single test. The E0061 compile failure is the Red Gate: no amount of function-body editing
+  can make this pass until the parameter is present in the signature. Covers AC-012.
+  Traces to ADR-058 §D1 (v2.18): `pipeline_result_to_record_batch` MUST gain `sensor_spec`
+  as an explicit parameter threaded from `fetch()`; traces to ADR-022 §C: wiring not redesign.
+
 ### BC-5.38.001 Density Check
 
-Red Gate test count: **23** (RG-001..RG-023).
-Acceptance criteria: 11 (AC-001..AC-011). AC-008 is an `#[ignore]`'d test update — its
+Red Gate test count: **24** (RG-001..RG-024).
+Acceptance criteria: 12 (AC-001..AC-012). AC-008 is an `#[ignore]`'d test update — its
 Red Gate is RG-005 (same mechanism: Arrow field name must be `device_uid` not `uid`).
 
-Density: 23 RGTs / 11 ACs = **2.09 ≥ 0.5** — compliant with BC-5.38.001.
+Density: 24 RGTs / 12 ACs = **2.00 ≥ 0.5** — compliant with BC-5.38.001.
 
 Note: AC-005 (claroty.sensor.toml — ocsf_column_naming + KF-01..KF-12 full corrections)
 is validated by wire-shape RGs that require the corrected TOML to pass: RG-014..RG-022
@@ -491,7 +511,10 @@ RG-017 covers AC-009 sub-obligation (b) regression guard (devices class_uid = 50
 RG-018 covers AC-011 (process-gap warn). RG-019 covers AC-010 assertion 3 (KF-11).
 RG-020 covers AC-010 assertion 4 (KF-07). RG-021 covers AC-010 assertion 5 (KF-05).
 RG-022 covers AC-010 assertion 6 (KF-06).
-The density check is based on the 23 distinct failing tests enumerated above.
+RG-024 covers AC-012 (`pipeline_result_to_record_batch` gains `sensor_spec: &SensorSpec`
+parameter; both `ocsf_column_naming = true` and `ocsf_column_naming = false` branches
+exercised from the threaded-parameter path).
+The density check is based on the 24 distinct failing tests enumerated above.
 
 ---
 
@@ -569,6 +592,22 @@ quoting per ADR-058 §C4)
 
 ### AC-003: pipeline_result_to_record_batch uses flattened names when ocsf_column_naming=true
 
+**Parameter threading note (ADR-058 §D1 v2.18):** `sensor_spec` in the snippet below is
+NOT a free variable — it is the new `sensor_spec: &SensorSpec` parameter added to
+`pipeline_result_to_record_batch` by AC-012. The function signature after AC-012 is:
+
+```
+fn pipeline_result_to_record_batch(
+    ..existing parameters..,
+    sensor_spec: &SensorSpec,   // threaded from fetch(); carries ocsf_column_naming flag
+) -> Result<RecordBatch, ArrowError>
+```
+
+This is ADR-022 §C wiring: adding a previously absent parameter from the `fetch()` call
+site. `fetch()` in `spec_driven_adapter` threads `&self.sensor_spec` (or equivalent access
+to the sensor's parsed spec). No placeholder construction is permitted. AC-012 specifies
+the full caller enumeration and the Red Gate test (RG-024) that enforces the signature.
+
 `pipeline_result_to_record_batch` in `prism-bin::spec_driven_adapter` computes the Arrow
 schema field name for each column using:
 
@@ -582,7 +621,8 @@ let arrow_name = if sensor_spec.ocsf_column_naming {
 };
 ```
 
-This matches ADR-058 §I1 (individual-field naming for `ocsf_field == Some` columns) combined
+This matches ADR-058 §I1 (Step 2: field name computation inside the function body; the
+new parameter addition is Step 1 per AC-012) combined
 with §I2 (raw_extensions routing for `ocsf_field == None` columns, owned by
 `pipeline_result_to_record_batch`). The `.unwrap_or_else(|| col.name.clone())` fallback in
 the `ocsf_column_naming = true` branch applies only to columns where `col.ocsf_field == Some`:
@@ -971,6 +1011,56 @@ returns `Err` (per table batch, NOT per record within the batch).
 traces to ADR-058 §I5 process-gap obligation: SOUL.md #4 silent-fallback observability;
 SAP-1 standing probe obligation)
 
+### AC-012: pipeline_result_to_record_batch gains sensor_spec: &SensorSpec as an explicit threaded parameter
+
+`pipeline_result_to_record_batch` in `prism-bin::spec_driven_adapter` gains a new explicit
+parameter `sensor_spec: &SensorSpec` per ADR-058 §D1 (v2.18). This is ADR-022 §C wiring:
+adding a previously absent parameter from the `fetch()` call site — NOT a replacement of
+any existing implementation. No placeholder construction.
+
+The function signature becomes:
+
+```
+fn pipeline_result_to_record_batch(
+    ..existing parameters..,
+    sensor_spec: &SensorSpec,   // threaded from fetch(); carries ocsf_column_naming flag
+) -> Result<RecordBatch, ArrowError>
+```
+
+**Production callers (1):**
+- `fetch()` in `prism-bin::spec_driven_adapter` — the call site that threads
+  `&self.sensor_spec` (or equivalent access to the sensor's parsed spec).
+  Implementer confirms by reading the `fetch()` function signature before editing.
+
+**Existing test callers in `#[cfg(test)] mod tests` of `spec_driven_adapter.rs` (14 — all
+must be updated when T-14A adds the parameter, or they produce E0061):**
+- RG-005 (`test_pipeline_result_to_record_batch_ocsf_flag_true_uses_flattened_names`)
+- RG-006 (`test_pipeline_result_to_record_batch_ocsf_flag_false_uses_col_name`)
+- RG-008 (`test_spec_driven_adapter_columns_without_ocsf_field_go_to_raw_extensions_schema`)
+- RG-009 (`test_pipeline_result_to_record_batch_ocsf_collision_returns_error`)
+- RG-010 (`test_pipeline_result_to_record_batch_ocsf_shadow_collision_returns_error`)
+- RG-014 (`test_claroty_alerts_reserved_fields_go_to_raw_extensions_not_first_class_columns`)
+- RG-015 (`test_claroty_alerts_finding_info_fields_wire_shape`)
+- RG-016 (`test_claroty_audit_logs_record_batch_class_uid_is_3004`)
+- RG-017 (`test_claroty_devices_record_batch_class_uid_is_5001_regression_guard`)
+- RG-018 (`test_pipeline_result_to_record_batch_unknown_ocsf_class_emits_warn`)
+- RG-019 (`test_claroty_audit_logs_record_batch_kf11_category_in_raw_extensions`)
+- RG-020 (`test_claroty_device_alert_relations_record_batch_finding_info_uid_wire_shape`)
+- RG-021 (`test_claroty_audit_logs_id_column_goes_to_raw_extensions_not_activity_uid`)
+- RG-022 (`test_claroty_devices_device_type_produces_device_type_label_arrow_field`)
+
+**New test caller (1):**
+- RG-024 (`test_pipeline_result_to_record_batch_sensor_spec_parameter_gates_both_branches`)
+
+**Call-site confirmation (TD-VSDD-060):** Before committing, implementer runs
+`rg 'pipeline_result_to_record_batch' crates/prism-bin/ crates/prism-mcp/` to confirm
+no additional callers exist outside this enumeration. The function is not `pub` — it is
+`prism-bin`-internal; no callers in other crates are expected.
+
+(traces to ADR-058 §D1 v2.18: `pipeline_result_to_record_batch` MUST gain `SensorSpec` as
+an explicit parameter threaded from `fetch()`; traces to ADR-022 §C: wiring not redesign —
+adding a previously absent parameter is in-scope plumbing)
+
 ---
 
 ## Architecture Mapping
@@ -979,7 +1069,7 @@ SAP-1 standing probe obligation)
 |-----------|--------|---------------|-------|
 | `SensorSpec::ocsf_column_naming` field | `prism-spec-engine::spec_parser` | Pure (data struct) | New field added |
 | `ocsf_field_to_arrow_name` | `prism-bin::spec_driven_adapter` | Pure | New free function — no I/O, deterministic string transform |
-| `pipeline_result_to_record_batch` | `prism-bin::spec_driven_adapter` | Effectful (Arrow I/O) | Conditional branch added on `sensor_spec.ocsf_column_naming` |
+| `pipeline_result_to_record_batch` | `prism-bin::spec_driven_adapter` | Effectful (Arrow I/O) | New parameter `sensor_spec: &SensorSpec` threaded from `fetch()` (ADR-058 §D1 v2.18 / ADR-022 §C wiring); conditional branch on `sensor_spec.ocsf_column_naming` |
 | `pipeline_result_to_record_batch` `raw_extensions` aggregation (§I2) | `prism-bin::spec_driven_adapter` | Effectful (Arrow I/O) | New path (ADR-058 §I2): when `ocsf_column_naming = true`, columns with `ocsf_field == None` are suppressed from individual Arrow schema fields and aggregated into a single `"raw_extensions"` Utf8 column; synthesis locus is `pipeline_result_to_record_batch` (schema-fields construction), NOT `build_column_array` |
 | `prism_describe` | `prism-mcp::tools::prism_describe` | Effectful (MCP response) | `ColumnDescriptor.name` sourcing branches on `sensor_spec.ocsf_column_naming` per ADR-058 §G |
 | `claroty.sensor.toml` | `prism-sensors/specs/` | Configuration | Add `ocsf_column_naming = true` + all KF-01..KF-12 corrections + §J3 shadow fix (14 TOML changes per AC-005) |
@@ -1176,12 +1266,21 @@ implementer MUST load only the files listed, not the full architecture directory
   `select("claroty", "audit_log")` and assert `Ok(3004)` (entity_management). Currently
   fails because the `("claroty", "audit_log")` arm has not yet been updated. Covers
   AC-009(c) Claroty arm.
+- T-11Q: Write RG-024 — `test_pipeline_result_to_record_batch_sensor_spec_parameter_gates_both_branches`
+  (MUST FAIL at compile time — E0061). In `crates/prism-bin/src/spec_driven_adapter.rs`
+  `#[cfg(test)] mod tests`: construct a `SensorSpec` with `ocsf_column_naming = true` and
+  a column with `name = "id"` and `ocsf_field = Some("finding_info.uid")`. Call
+  `pipeline_result_to_record_batch` passing this `sensor_spec` and assert the Arrow schema
+  field is named `"finding_info_uid"`. Then construct a SECOND call with the same column
+  data but `ocsf_column_naming = false` and assert the field is named `"id"`. The test
+  currently fails to compile (E0061: wrong number of arguments) because
+  `pipeline_result_to_record_batch` does not yet accept `sensor_spec`. Covers AC-012.
 - T-GATE: Run `just iter prism-spec-engine --no-fail-fast`, `just iter prism-bin --no-fail-fast`,
   `just iter prism-mcp --no-fail-fast`, and `just iter prism-ocsf --no-fail-fast` — confirm
-  RG-001..RG-023 fail with correct compile/test-failure reasons (RG-001..002 in
-  prism-spec-engine; RG-003..006/008..010/014..022 in prism-bin; RG-007 in prism-mcp;
+  RG-001..RG-024 fail with correct compile/test-failure reasons (RG-001..002 in
+  prism-spec-engine; RG-003..006/008..010/014..022/024 in prism-bin; RG-007 in prism-mcp;
   RG-011/012/023 in prism-ocsf/tests/; RG-013 in prism-ocsf/src/mappers/spec_driven.rs mod tests). Confirm no regressions in non-RG tests. Report density:
-  23/11 = 2.09 ≥ 0.5. STOP and wait for implementer dispatch.
+  24/12 = 2.00 ≥ 0.5. STOP and wait for implementer dispatch.
 
 ### Phase B: Implementation (implementer dispatched AFTER T-GATE)
 
@@ -1199,11 +1298,24 @@ implementer MUST load only the files listed, not the full architecture directory
 - T-13: Add `pub fn ocsf_field_to_arrow_name(ocsf_field: &str) -> String` to
   `spec_driven_adapter.rs`. Implementation: `ocsf_field.replace('.', "_")`. Run
   `just iter prism-bin`. Makes RG-003 and RG-004 green.
+- T-14A: Add `sensor_spec: &SensorSpec` as a new parameter to `pipeline_result_to_record_batch`
+  in `spec_driven_adapter.rs` (ADR-058 §D1, ADR-022 §C wiring). Thread the parameter from
+  the `fetch()` call site by passing `&self.sensor_spec` (or equivalent — implementer reads
+  the `fetch()` function to confirm the correct expression). Update ALL existing test callers
+  in the `#[cfg(test)] mod tests` block to pass a `SensorSpec` argument (14 callers:
+  RG-005, RG-006, RG-008, RG-009, RG-010, RG-014 through RG-022).
+  **TD-VSDD-060 call-site sweep:** Before committing, run
+  `rg 'pipeline_result_to_record_batch' crates/prism-bin/ crates/prism-mcp/` to confirm
+  no callers outside the enumerated 15 (1 production + 14 test). Expect zero prism-mcp hits
+  (the function is prism-bin internal). Run `just iter prism-bin --no-fail-fast`.
+  After T-14A, RG-024 partially passes (signature now accepts `sensor_spec`), but
+  `ocsf_column_naming` branch logic is not yet written — RG-005 still fails on assertion
+  until T-14 adds the conditional. Makes RG-006 confirm green (flag-false path uses
+  `col.name`; no branch logic change needed; compile error E0061 is resolved).
 - T-14: Update `pipeline_result_to_record_batch` to use the conditional branch per
-  ADR-058 §I1 (see §Acceptance Criteria AC-003 for the exact logic). Run
-  `just iter prism-bin`. Makes RG-005 green. (RG-006 confirmed at this `just iter prism-bin`
-  run — causally greened by T-12's `ocsf_column_naming` field addition; `just iter prism-spec-engine`
-  in T-12 cannot observe it.)
+  ADR-058 §I1 Step 2 (see §Acceptance Criteria AC-003 for the exact logic; `sensor_spec`
+  parameter is now present after T-14A). Run `just iter prism-bin`. Makes RG-005 green.
+  Also makes RG-024 fully green (both branches now exercised via the threaded parameter).
 - T-15: In `pipeline_result_to_record_batch`, implement the `ocsf_field == None` →
   `raw_extensions` aggregation path (ADR-058 §I2): when `sensor_spec.ocsf_column_naming =
   true`, suppress columns with `col.ocsf_field == None` from the individual-field schema
@@ -1304,8 +1416,8 @@ implementer MUST load only the files listed, not the full architecture directory
   is retained — only the observability WARN is added. Run `just iter prism-bin`. Makes RG-018
   green.
 - T-19: Run `just iter prism-spec-engine`, `just iter prism-bin`, `just iter prism-mcp`, and
-  `just iter prism-ocsf` — all 23 RGTs must pass (RG-001..002 in prism-spec-engine;
-  RG-003..006/008..010/014..022 in prism-bin; RG-007 in prism-mcp; RG-011/012/023 in
+  `just iter prism-ocsf` — all 24 RGTs must pass (RG-001..002 in prism-spec-engine;
+  RG-003..006/008..010/014..022/024 in prism-bin; RG-007 in prism-mcp; RG-011/012/023 in
   prism-ocsf/tests/; RG-013 in prism-ocsf/src/mappers/spec_driven.rs mod tests).
 - T-20: Run `just check` — full workspace gate. Must stay GREEN per ADR-058 §E1
   blast-radius analysis. If any non-Claroty tests fail, STOP — do not push.
@@ -1387,6 +1499,18 @@ From `architecture/module-decomposition.md`, ADR-023, ADR-028, and ADR-058:
     rejects valid Claroty config (confirmed: two Claroty columns rely on self-match
     legality — `alerts.status` and `devices.risk_score`).
 
+11. `pipeline_result_to_record_batch` MUST NOT construct its `SensorSpec` internally
+    (no placeholder construction via `SensorSpec::default()` or `SensorSpec::new()`).
+    The `sensor_spec: &SensorSpec` parameter MUST be threaded from the `fetch()` call
+    site, which holds the actual parsed spec for the sensor being queried. This is the
+    ADR-022 §C wiring contract: "wiring, not redesign" means adding proper plumbing where
+    it was missing, not constructing a default/placeholder. A placeholder would silently
+    use `ocsf_column_naming = false` for all sensors regardless of their TOML config,
+    defeating the purpose of Stage 2 entirely and producing a hard-to-diagnose bug.
+    Per Standing Rule 3 §4 in CLAUDE.md: "Adding `Arc<dyn Foo>` to a constructor that
+    lacked it is 'wiring, not redesign'" — the same principle applies to adding a
+    required `&SensorSpec` parameter. (Anchored: S-ADR058-OCSF-ROUTING-001 AC-012 / RG-024)
+
 ---
 
 ## Library & Framework Requirements
@@ -1419,13 +1543,13 @@ Do NOT add new `reqwest` dependencies. Do NOT add `native-tls` features.
 | `crates/prism-ocsf/src/class_selector.rs` | Modify: add `CLASS_UID_ENTITY_MANAGEMENT = 3004`; reroute `"audit_activity"` arm and `("armis","audit_log")` arm to entity_management (3004) per AC-009 |
 | `crates/prism-bin/tests/` (e2e test file — TBD at dispatch) | Modify: update `test_BC_2_11_005_e2e_claroty_query_returns_data` assertion |
 | `crates/prism-spec-engine/tests/` (new or existing test file) | Modify: add RG-001..RG-002 |
-| `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: add RG-003..RG-006, RG-008..RG-010, RG-014..RG-022 to `#[cfg(test)] mod tests` block (direct calls to private `ocsf_field_to_arrow_name` and `pipeline_result_to_record_batch` — no public API surface expansion) |
+| `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: add RG-003..RG-006, RG-008..RG-010, RG-014..RG-022, RG-024 to `#[cfg(test)] mod tests` block (direct calls to private `ocsf_field_to_arrow_name` and `pipeline_result_to_record_batch` — no public API surface expansion) |
 | `crates/prism-mcp/tests/` (test file — TBD at dispatch) | Modify: add RG-007 |
 | `crates/prism-ocsf/tests/` (new or existing test file) | Modify: add RG-011, RG-012, RG-023 |
 | `crates/prism-ocsf/src/mappers/spec_driven.rs` (`#[cfg(test)] mod tests` block) | Modify: add RG-013 (calls private `set_nested_field` — unreachable from `tests/` crate; E0603 if placed in integration test) |
 | `crates/prism-bin/Cargo.toml` | Verify/Modify: confirm `tracing-test = "0.2"` is present in `[dev-dependencies]` (added by S-ADR058-OCSF-COERCION-001 for RG-009); add ONLY if absent — do not duplicate | Required for RG-018 `tracing_test` subscriber in `crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests`; COERCION-001 is the upstream provider (depends_on ordering) |
 
-Implementer MUST add private-fn RGs (RG-003..006/008..010/014..022) to the `#[cfg(test)] mod tests` block in `crates/prism-bin/src/spec_driven_adapter.rs` — do NOT place them in `crates/prism-bin/tests/` (separate crate; cannot reach private fns). Similarly, RG-013 calls `set_nested_field`, a private free function in `crates/prism-ocsf/src/mappers/spec_driven.rs`; route RG-013 to the `#[cfg(test)] mod tests` block of that file, NOT to `crates/prism-ocsf/tests/` (E0603 if placed in the integration test crate). For the e2e test update (AC-008), verify file names via `find crates/prism-bin/tests -name "*.rs"` at dispatch.
+Implementer MUST add private-fn RGs (RG-003..006/008..010/014..022/024) to the `#[cfg(test)] mod tests` block in `crates/prism-bin/src/spec_driven_adapter.rs` — do NOT place them in `crates/prism-bin/tests/` (separate crate; cannot reach private fns). Similarly, RG-013 calls `set_nested_field`, a private free function in `crates/prism-ocsf/src/mappers/spec_driven.rs`; route RG-013 to the `#[cfg(test)] mod tests` block of that file, NOT to `crates/prism-ocsf/tests/` (E0603 if placed in the integration test crate). For the e2e test update (AC-008), verify file names via `find crates/prism-bin/tests -name "*.rs"` at dispatch.
 
 Do NOT modify: any other sensor TOML spec (CrowdStrike, Armis, Cyberint); `column_mapping.rs`; any BC or ADR body (product-owner / architect scope). Note: `class_selector.rs` is in scope for this story (AC-009 code obligation).
 
@@ -1444,6 +1568,38 @@ Build-time enforcement rules:
 ---
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
+
+### v1.32 Amendment Sweep (F-P33-MED-001 signature gap: `pipeline_result_to_record_batch` gains `sensor_spec: &SensorSpec` parameter; ADR pin v2.18)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): F-P33-MED-001 is ROUTING-001 scope only —
+`pipeline_result_to_record_batch` parameter threading has no counterpart in COERCION-001,
+which operates on `build_column_array` and `ColumnMapper::coerce_value`. Zero references
+to `pipeline_result_to_record_batch`, `sensor_spec`, or `ocsf_column_naming` in
+COERCION-001's implementation scope. COERCION-001 DOES need an ADR-058 pin bump
+(v2.17→v2.18) for version-tracking consistency; that pin bump is NOT silently edited here
+per user constraint — reported to orchestrator for routing. VERDICT: CONTENT UNAFFECTED;
+ADR PIN BUMP REPORTED TO ORCHESTRATOR (NOT SILENTLY EDITED).
+
+**Dimension 2 — Downstream copy target:**
+
+Five loci carry the `sensor_spec` reference and were updated in this burst to clarify it
+as a threaded parameter (not a free variable): (1) §Authority entry — ADR-058 §D1/§I1
+notes added; (2) AC-003 — parameter threading note added before the code snippet;
+(3) §Architecture Mapping — `pipeline_result_to_record_batch` row updated to note the new
+parameter; (4) §Mandate Anchor table — new §D1 MUST row added; (5) §Architecture
+Compliance Rules — Rule 11 added. All five loci now consistently describe `sensor_spec` as
+the threaded parameter per ADR-058 §D1 v2.18. No downstream artifact copies these loci
+verbatim. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+ADR-058 §D1 v2.18 MUST (`pipeline_result_to_record_batch` MUST gain `SensorSpec` as an
+explicit parameter threaded from `fetch()`): anchored to `S-ADR058-OCSF-ROUTING-001
+AC-012 / RG-024 / T-14A`. VERDICT: DISCHARGED IN THIS AMENDMENT.
+
+---
 
 ### v1.31 Amendment Sweep (F-P32-MED-001 raw_extensions synthesis re-attributed to `pipeline_result_to_record_batch`; AC-003 reconciled to ADR-058 §I1+§I2; ADR pin v2.17)
 
@@ -2105,6 +2261,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.32 | 2026-08-18 | story-writer | OCSF-correctness Claroty SPEC pass-33 fix-burst: F-P33-MED-001 [MED] signature gap — `pipeline_result_to_record_batch` lacked `sensor_spec: &SensorSpec` as an explicit parameter (free-variable defect). Fix: (1) AC-012 added: new AC requiring the parameter addition with full caller enumeration (1 production + 14 test + 1 new RG-024); (2) RG-024 added: E0061 compile-fail Red Gate exercising both ocsf_column_naming=true and false branches from the threaded-parameter path; (3) T-11Q added: Phase A task to write RG-024; (4) T-14A added: Phase B task to add the parameter + update all 15 callers + TD-VSDD-060 grep confirmation; (5) T-14 updated: no longer claims to green RG-006 (now T-14A's responsibility); gains RG-024 full-green note; (6) AC-003 parameter-threading note added (sensor_spec is the threaded parameter from T-14A/AC-012, not a free variable); (7) §Architecture Mapping `pipeline_result_to_record_batch` row updated to note new parameter; (8) Architecture Compliance Rule 11 added: no placeholder construction of SensorSpec; (9) §Mandate Anchor discharge table: §D1 MUST row added; (10) T-GATE/T-19 updated: 23→24 RGTs, density 23/11→24/12=2.00; (11) ADR-058 pin v2.17→v2.18 at §Authority. §v1.32 Amendment Sweep added. Sibling: COERCION-001 ADR pin bump v2.17→v2.18 reported to orchestrator (not silently edited). |
 | 1.31 | 2026-08-18 | story-writer | OCSF-correctness Claroty SPEC pass-32 fix-burst: F-P32-MED-001 [MED]: raw_extensions synthesis re-attributed to `pipeline_result_to_record_batch` (ADR-058 §I2) — AC-003 reconciled to clarified §I1+§I2 (`unwrap_or_else` fallback scoped to `ocsf_field == Some`; `ocsf_field == None` columns diverted by `pipeline_result_to_record_batch` before individual-field naming); AC-007 re-attributed; T-15 re-attributed; §Architecture Mapping `build_column_array raw_extensions handling` row replaced by `pipeline_result_to_record_batch §I2` row; §Purity Classification stale `build_column_array (raw_extensions path)` row removed; §File Structure Requirements `spec_driven_adapter.rs` row updated. ADR-058 pin v2.16→v2.17. Sibling coordination: COERCION-001 amended same burst (v1.29→v1.30 — F-P32-MED-002 SAP-3 annotations + ADR pin). §v1.31 Amendment Sweep added. |
 | 1.30 | 2026-08-18 | story-writer | OCSF-correctness Claroty SPEC pass-31 records-only micro-burst (TD-VSDD-096): F-P31-LOW-001 [LOW, text-sync] — T-11P RG-023 location reworded from "Unit test in `class_selector.rs`" to "Integration test in `crates/prism-ocsf/tests/`", matching §File Structure Requirements (RG-011/012/023 row), §T-GATE, and T-19. `EventClassSelector::select` is `pub fn` — reachable from integration test crate (no E0603). Sibling sweep: COERCION-001 unaffected (no T-11P or class_selector tasks). §v1.30 Amendment Sweep added. |
 | 1.29 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-30: BC-2.16.003 pin v1.12→v1.13 at §Authority and §Behavioral Contracts table (PO bump — §OCSF Field Validation Path-A/Path-B qualifier). Downstream contradiction check: AC-005/AC-010/RG-022 already use Interpretation A; no prose correction needed. Sibling coordination: COERCION-001 amended same burst (v1.28→v1.29). §v1.29 Amendment Sweep added. |
