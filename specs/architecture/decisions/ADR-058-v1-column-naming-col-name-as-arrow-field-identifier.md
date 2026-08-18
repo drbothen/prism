@@ -5,7 +5,7 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-08-18"
-version: "2.18"
+version: "2.19"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -138,7 +138,7 @@ Specifically:
 
 4. **BC-2.01.013 EC-01-025 NON-CONFORMANT status is resolved by this stage** for Claroty.
    The `ColumnMapper` wiring gap is closed when `pipeline_result_to_record_batch` uses
-   `ocsf_flattened_name(col)` instead of `col.name` for the Arrow field name (gated on the
+   `ocsf_field_to_arrow_name(ocsf_field)` instead of `col.name` for the Arrow field name (gated on the
    sensor flag).
 
 ---
@@ -207,7 +207,7 @@ No existing CrowdStrike, Armis, or Cyberint queries are affected until those sen
   No changes needed. Underscore-flattened names are valid identifiers under the existing parser.
 - **DataFusion SQL planning layer:** No changes needed. Standard identifiers.
 - **`pipeline_result_to_record_batch` (`prism-bin::spec_driven_adapter`):** One logic branch added:
-  compute `arrow_field_name_for(col, sensor_spec)` which returns `ocsf_flattened_name(ocsf_field)`
+  the inline naming logic calls `ocsf_field_to_arrow_name(ocsf_field)` (see §I1)
   when `sensor_spec.ocsf_column_naming == true && col.ocsf_field.is_some()`, else `col.name`.
 - **`prism_describe` (`prism-mcp::tools::prism_describe`):** `ColumnDescriptor.name` sourcing
   changes per §F when the sensor has `ocsf_column_naming = true`.
@@ -387,7 +387,7 @@ tests use inline specs without ocsf_field and are not affected by per-sensor sco
 
 Under Interpretation A (when `sensor_spec.ocsf_column_naming == true`):
 
-- `ColumnDescriptor.name` = `arrow_field_name_for(col)` (underscore-flattened ocsf_field, or
+- `ColumnDescriptor.name` = `ocsf_field_to_arrow_name(ocsf_field)` (underscore-flattened ocsf_field, or
   `col.name` fallback for columns without ocsf_field)
 - `ColumnDescriptor.description` = `col.ocsf_field.clone()` (the original dotted OCSF path,
   e.g., `"finding.uid"`, preserved as semantic annotation)
@@ -1027,7 +1027,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.17 (2026-08-18)
+### Status as of v2.19 (2026-08-18)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1102,6 +1102,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.19 | 2026-08-18 | architect | F-P34-LOW-002 + F-P34-OBS-001. LOW-002: §Status heading retitled v2.17→v2.19 (lagged the frontmatter version by two bumps). OBS-001: helper symbol standardized to canonical `ocsf_field_to_arrow_name` across three sections — §B2 item 4 (`ocsf_flattened_name(col)` → `ocsf_field_to_arrow_name(ocsf_field)`), §C4 (`arrow_field_name_for(col, sensor_spec)` / `ocsf_flattened_name(ocsf_field)` → inline-logic description citing `ocsf_field_to_arrow_name(ocsf_field)` and §I1), §G (`arrow_field_name_for(col)` → `ocsf_field_to_arrow_name(ocsf_field)`). All three stale names converged to the §I1-authoritative symbol that S-ADR058-OCSF-ROUTING-001 already uses consistently. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — S-ADR058-OCSF-ROUTING-001 §Authority version pin must be swept to v2.19 (story-writer leg obligation); ROUTING-001 already uses `ocsf_field_to_arrow_name` consistently — no function-name copy-text fix required there; (3) mandate anchor — no new MUST statements introduced. |
 | 2.18 | 2026-08-18 | architect | F-P33-MED-001: §D1 corrected — "transitively … without structural redesign" claim replaced; `pipeline_result_to_record_batch` does not currently receive `SensorSpec`; MUST thread as new parameter from `fetch()` call site (ADR-022 §C wiring; mandate anchor S-ADR058-OCSF-ROUTING-001, specific param-threading AC/RG added by story-writer leg). §I1 code snippet updated — function signature comment shows `sensor_spec: &SensorSpec` as a new parameter with defined provenance from `fetch()`, eliminating the free-variable defect. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §I1 param-threading context is source for ROUTING-001 implementation tasks and authority-pin; story-writer leg must sweep ROUTING-001 §Tasks and §Authority version pin to v2.18; (3) mandate anchor — §D1 MUST anchored to S-ADR058-OCSF-ROUTING-001 (param-threading AC + Red Gate test pending story-writer leg of this fix-burst). |
 | 2.17 | 2026-08-18 | architect | F-P32-MED-001 §I1 clarified: individual-field naming applies to ocsf_field==Some only; ocsf_field==None routes to raw_extensions per §I2, owned by pipeline_result_to_record_batch. |
 | 2.16 | 2026-08-17 | architect | F-P26-OBS-001: §H emission-MUST discharge anchor extended — Path-A build_column_array obligations added: AC-005 (RG-006) String+Object warn; AC-007 (RG-009) Integer+String warn; existing AC-004 (RG-005) Path-B map_record cite retained. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §H anchor is terminal; COERCION-001 §Authority pin and ARCH-INDEX leading pin need sweep to v2.16 (story-writer sweeps); (3) mandate anchor — no new MUST statements. |
