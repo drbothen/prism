@@ -2,12 +2,12 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.29"
+version: "1.30"
 level: "L4"
 status: draft
 producer: story-writer
 timestamp: "2026-08-12T00:00:00Z"
-modified: "2026-08-17"
+modified: "2026-08-18"
 phase: 3
 wave: claroty-live
 epic_id: EPIC-OCSF-ROUTING
@@ -70,7 +70,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "39c3ae3"
+input-hash: "0dcfc7d"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -98,8 +98,8 @@ Observability DEFECT section are the acceptance-criteria source for this story. 
 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.16: v1 Column Naming — OCSF Field-Path Routing.** Version `2.16`, status:
-accepted (2026-08-17). §H (Stage 1 Scope) enumerates the three deliverables this story
+**ADR-058 v2.17: v1 Column Naming — OCSF Field-Path Routing.** Version `2.17`, status:
+accepted (2026-08-18). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
 Note: ADR-058 §K (OCSF schema validation), §I5 (code obligations), and process-gap
@@ -163,24 +163,49 @@ failing with the correct compile-or-test-failure reason.
 - **RG-001:** `test_coerce_value_string_type_array_input_returns_err_coercion_warning` —
   fails until `coerce_value` returns `Err(CoercionWarning)` for String column + Array input
   (currently returns `Ok(Array)` pass-through). Covers AC-001.
+  **SAP-3 reachability note (defense-in-depth):** `coerce_value` is on Path B
+  (`ColumnMapper::coerce_value` in `column_mapping.rs`), which has zero live production
+  callers per ADR-058 §K5; this test is intentionally defense-in-depth / forward-compat
+  per SAP-3 rule 2/3. The equivalent LIVE coercion behavior on Path A is covered by
+  RG-006/RG-008/RG-009 (`build_column_array`).
 
 - **RG-002:** `test_coerce_value_string_type_object_input_returns_err_coercion_warning` —
   fails until `coerce_value` returns `Err(CoercionWarning)` for String column + Object input
   (currently returns `Ok(Object)` pass-through). Covers AC-002.
+  **SAP-3 reachability note (defense-in-depth):** `coerce_value` is on Path B
+  (`ColumnMapper::coerce_value` in `column_mapping.rs`), which has zero live production
+  callers per ADR-058 §K5; this test is intentionally defense-in-depth / forward-compat
+  per SAP-3 rule 2/3. The equivalent LIVE coercion behavior on Path A is covered by
+  RG-006/RG-008/RG-009 (`build_column_array`).
 
 - **RG-003:** `test_coerce_value_integer_type_string_non_numeric_path_parse_success_returns_number` —
   fails until `coerce_value` parses `"42"` as `Value::Number(42)` for Integer column on
   non-numeric OCSF path (currently returns `Ok(String("42"))` pass-through). Covers AC-003.
+  **SAP-3 reachability note (defense-in-depth):** `coerce_value` is on Path B
+  (`ColumnMapper::coerce_value` in `column_mapping.rs`), which has zero live production
+  callers per ADR-058 §K5; this test is intentionally defense-in-depth / forward-compat
+  per SAP-3 rule 2/3. The equivalent LIVE coercion behavior on Path A is covered by
+  RG-006/RG-008/RG-009 (`build_column_array`).
 
 - **RG-004:** `test_coerce_value_integer_type_string_non_numeric_path_parse_failure_returns_err` —
   fails until `coerce_value` returns `Err(CoercionWarning)` for Integer column + String
   `"not-a-number"` on non-numeric OCSF path (currently returns `Ok(String)` pass-through).
   Covers AC-003.
+  **SAP-3 reachability note (defense-in-depth):** `coerce_value` is on Path B
+  (`ColumnMapper::coerce_value` in `column_mapping.rs`), which has zero live production
+  callers per ADR-058 §K5; this test is intentionally defense-in-depth / forward-compat
+  per SAP-3 rule 2/3. The equivalent LIVE coercion behavior on Path A is covered by
+  RG-006/RG-008/RG-009 (`build_column_array`).
 
 - **RG-005:** `test_map_record_string_object_input_demotes_to_raw_extensions_and_emits_warning` —
   fails until (a) `map_record` places Object-valued String-column field in `raw_extensions`
   and (b) a `tracing::warn!(event_type = "column_coercion_failure")` event is emitted.
   Requires a `tracing_test` subscriber in the test. Covers AC-004.
+  **SAP-3 reachability note (defense-in-depth):** `map_record` is on Path B
+  (`ColumnMapper::map_record` in `column_mapping.rs`), which has zero live production
+  callers per ADR-058 §K5; this test is intentionally defense-in-depth / forward-compat
+  per SAP-3 rule 2/3. The equivalent LIVE coercion behavior on Path A is covered by
+  RG-006/RG-008/RG-009 (`build_column_array`).
 
 - **RG-006:** `test_build_column_array_string_type_object_input_returns_null_and_emits_warning` —
   fails until `build_column_array` ColumnType::String arm returns `None` (null cell) AND emits
@@ -650,6 +675,22 @@ dispatch product-owner as part of this story's delivery).
 anchors all three emission paths: AC-004/RG-005 (Path-B map_record),
 AC-005/RG-006 (Path-A String+Object), AC-007/RG-009 (Path-A Integer+String).
 VERDICT: DISCHARGED — see ADR-058 §H emission discharge anchor; no architect action pending.
+
+---
+
+### v1.30 Amendment Sweep (ADR-058 pin v2.16→v2.17 + SAP-3 RG-001..005 annotations — OCSF-correctness Claroty SPEC pass-32 fix-burst)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): ADR-058 pin v2.16→v2.17 swept to both stories in same burst. ROUTING-001 amended in same burst (v1.30→v1.31 — F-P32-MED-001 raw_extensions locus re-attribution). VERDICT: SWEPT; ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+ADR-058 §I1 (v2.17) clarification (individual-field naming applies to `ocsf_field == Some` only) is Stage 2 ROUTING-001 scope. COERCION-001's scope is Stage 1 type coercion; no §I1/§I2 column-routing prose exists in this story. SAP-3 annotations are rationale-only, no normative prose. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+SAP-3 annotations on RG-001..005 are reachability rationale only — no new behavioral MUSTs introduced. ADR-058 pin is records-tier. VERDICT: N/A — no new mandates.
 
 ---
 
@@ -1224,6 +1265,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.30 | 2026-08-18 | story-writer | OCSF-correctness Claroty SPEC pass-32 fix-burst: F-P32-MED-002 [MED, SAP-3]: SAP-3 defense-in-depth annotations added to RG-001..005 — each now carries reachability rationale stating `coerce_value`/`map_record` (Path B, `ColumnMapper::*` in `column_mapping.rs`) has zero live production callers per ADR-058 §K5; tests are intentionally defense-in-depth / forward-compat per SAP-3 rule 2/3; live Path A coercion covered by RG-006/RG-008/RG-009 (`build_column_array`). ADR-058 pin v2.16→v2.17 at §Authority (architect bump — §I1 clarified: individual-field naming for `ocsf_field == Some` only; §I2 raw_extensions routing is ROUTING-001 scope). Sibling coordination: ROUTING-001 amended same burst (v1.30→v1.31 — F-P32-MED-001 raw_extensions locus re-attribution). §v1.30 Amendment Sweep added. |
 | 1.29 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-30 sibling coordination: BC-2.16.003 pin v1.12→v1.13 at §Authority and §Behavioral Contracts table (PO bump — §OCSF Field Validation Path-A/Path-B qualifier). Downstream contradiction check: Stage 1 coercion scope; no §OCSF Field Validation prose in COERCION-001; no correction needed. Sibling coordination: ROUTING-001 amended same burst (v1.28→v1.29). §v1.29 Amendment Sweep added. |
 | 1.28 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-28 sibling coordination: BC-2.16.002 pin v2.27→v2.28 at §Authority entry and §Behavioral Contracts table (PO bumped BC-2.16.002 v2.28 with pending-wiring annotation on §Canonical Structured Event Catalog ocsf.unknown_class_name row). Sibling coordination: ROUTING-001 amended same burst (v1.27→v1.28 — BC-2.16.002 pin v2.27→v2.28). §v1.28 Amendment Sweep added. |
 | 1.27 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-27 fix-burst: F-P27-MED-001 [MED]: §Mandate Anchor #2 rewritten — stale verbatim ADR-058 §H anchor-string copy removed (replaced with section-anchor cite: ADR-058 §H emission discharge anchor); emission MUST table expanded from 1 row to 3 rows tracing each path to its correct AC/RG: Path-B map_record → AC-004/RG-005; Path-A String+Object → AC-005/RG-006; Path-A Integer+String → AC-007/RG-009. §TD-VSDD-097 main Dimension 3 updated to cite all three AC/RG pairs and remove stale verbatim §H quote. §v1.27 Amendment Sweep added. |

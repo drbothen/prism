@@ -4,8 +4,8 @@ adr_id: "ADR-058"
 title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred"
 status: accepted
 date: "2026-08-11"
-modified: "2026-08-17"
-version: "2.16"
+modified: "2026-08-18"
+version: "2.17"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -35,7 +35,7 @@ inputs:
   - crates/prism-ocsf/src/mappers/spec_driven.rs
   - crates/prism-ocsf/src/class_selector.rs
   - crates/prism-ocsf/ocsf-schema/1.7.0/schema.json
-input-hash: "dac0d43"
+input-hash: "091e398"
 ---
 
 # ADR-058: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred
@@ -457,6 +457,19 @@ let arrow_name = if sensor_spec.ocsf_column_naming {
 };
 Field::new(&arrow_name, column_type_to_arrow(&col.column_type), true)
 ```
+
+**§I2 cross-reference:** The naming logic above applies only to columns that receive an
+individual Arrow field slot — columns where `col.ocsf_field == Some(path)`. When
+`sensor_spec.ocsf_column_naming == true`, `pipeline_result_to_record_batch` diverts columns
+with `col.ocsf_field == None` to the aggregated `raw_extensions` Json column (§I2) before any
+individual-field naming occurs; those columns never reach the `Field::new(&arrow_name, ...)` call.
+The `.unwrap_or_else(|| col.name.clone())` fallback in the snippet is the naming rule for the
+individual-field case only — it is not the routing rule for `None` columns (routing is §I2's
+domain). The schema `fields`-vector construction and the `ocsf_field == None → raw_extensions`
+aggregation decision are owned by `pipeline_result_to_record_batch`
+(`prism-bin::spec_driven_adapter`), not by `build_column_array`. `build_column_array` is a
+per-column value function; it cannot suppress a column from the schema or aggregate multiple
+columns into one blob.
 
 ### §I2 raw_extensions Handling
 
@@ -990,7 +1003,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.16 (2026-08-17)
+### Status as of v2.17 (2026-08-18)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1065,6 +1078,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.17 | 2026-08-18 | architect | F-P32-MED-001 §I1 clarified: individual-field naming applies to ocsf_field==Some only; ocsf_field==None routes to raw_extensions per §I2, owned by pipeline_result_to_record_batch. |
 | 2.16 | 2026-08-17 | architect | F-P26-OBS-001: §H emission-MUST discharge anchor extended — Path-A build_column_array obligations added: AC-005 (RG-006) String+Object warn; AC-007 (RG-009) Integer+String warn; existing AC-004 (RG-005) Path-B map_record cite retained. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §H anchor is terminal; COERCION-001 §Authority pin and ARCH-INDEX leading pin need sweep to v2.16 (story-writer sweeps); (3) mandate anchor — no new MUST statements. |
 | 2.15 | 2026-08-17 | architect | F-P25-HIGH-001: §H item 1 corrected — Path-A Object-only null-demote per pass-24 adjudication (EC-016-013-008); `Value::Array` arm correct ENRICH-1 DD-2 behavior MUST NOT change (EC-016-013-026); EC-016-013-007 is Path-B `coerce_value` only; code accurately described (dedicated Array arm + retained wildcard for Number/Bool). TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §H item 1 is source; COERCION-001 §Authority pin and ARCH-INDEX leading pin are version-only refs that need sweep to v2.15; (3) mandate anchor — no new MUST statements. |
 | 2.14 | 2026-08-17 | architect | Pass-22 fix-burst. MED-003 (SAC-2): added S-ADR058-DTU-PARITY-MIGRATION-001 to anchor_stories (§Authority cites ADR-058 §B/§C/§D). OBS-1: §H item 1 now enumerates both Value::Array and Value::Object inputs for the String-arm null-cell fix (consistent with BC-2.16.003 EC-016-013-007/008 and COERCION AC-005/RG-006/RG-007). TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §H item 1 is the source; no independent copy in another artifact; (3) mandate anchor — no new MUST statements. |

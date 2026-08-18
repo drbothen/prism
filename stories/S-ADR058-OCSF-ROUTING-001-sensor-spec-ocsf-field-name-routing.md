@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.30"
+version: "1.31"
 level: "L4"
 status: draft
 producer: story-writer
@@ -85,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "b04aa71"
+input-hash: "d63bedf"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -104,8 +104,8 @@ tags:
 
 ## Authority
 
-**ADR-058 v2.16: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
-Names; DTU Migration Deferred.** Version `2.16`, status: accepted (2026-08-17). Read
+**ADR-058 v2.17: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
+Names; DTU Migration Deferred.** Version `2.17`, status: accepted (2026-08-18). Read
 §B2 (decision), §C (quoting convention — Option 4 chosen), §D (per-sensor scoping, flag
 mechanism), §E (blast radius), §G (prism_describe output spec), §H (Stage 1 confirmed
 separate), §I (implementation guidance including **§I5 TOML + code correction obligations for
@@ -582,7 +582,13 @@ let arrow_name = if sensor_spec.ocsf_column_naming {
 };
 ```
 
-This matches ADR-058 §I1 exactly. When `ocsf_column_naming = true` and `col.ocsf_field`
+This matches ADR-058 §I1 (individual-field naming for `ocsf_field == Some` columns) combined
+with §I2 (raw_extensions routing for `ocsf_field == None` columns, owned by
+`pipeline_result_to_record_batch`). The `.unwrap_or_else(|| col.name.clone())` fallback in
+the `ocsf_column_naming = true` branch applies only to columns where `col.ocsf_field == Some`:
+columns with `col.ocsf_field == None` are diverted to `raw_extensions` aggregation by
+`pipeline_result_to_record_batch` per §I2 BEFORE individual-field naming runs and never
+reach `Field::new(&arrow_name, ...)`. When `ocsf_column_naming = true` and `col.ocsf_field`
 is `Some("finding_info.uid")`, the Arrow schema field is named `"finding_info_uid"`.
 
 (traces to BC-2.16.003 postcondition §Column Routing: "columns with an ocsf_field value
@@ -762,8 +768,13 @@ serialized JSON object.
 
 The `raw_extensions` column is queryable via PrismQL: `SELECT raw_extensions FROM claroty_alerts`.
 
-Per ADR-058 §I2: this is the `ColumnMapper::map_record` design intent for unmapped
-columns. The implementer MUST verify which Claroty columns currently have
+Per ADR-058 §I2: `pipeline_result_to_record_batch` (schema-fields construction loop) is
+the synthesis locus for the `raw_extensions` aggregation. `build_column_array` is a
+per-column value function that receives only columns already included in the schema and
+structurally cannot suppress a column from the schema or aggregate multiple columns into
+a blob. `pipeline_result_to_record_batch` suppresses `ocsf_field == None` columns from
+the individual-field schema and aggregates their values into the `"raw_extensions"` Utf8
+blob. The implementer MUST verify which Claroty columns currently have
 `col.ocsf_field == None` in `claroty.sensor.toml` at dispatch time and confirm they
 go to `raw_extensions` rather than being silently dropped.
 
@@ -969,7 +980,7 @@ SAP-1 standing probe obligation)
 | `SensorSpec::ocsf_column_naming` field | `prism-spec-engine::spec_parser` | Pure (data struct) | New field added |
 | `ocsf_field_to_arrow_name` | `prism-bin::spec_driven_adapter` | Pure | New free function — no I/O, deterministic string transform |
 | `pipeline_result_to_record_batch` | `prism-bin::spec_driven_adapter` | Effectful (Arrow I/O) | Conditional branch added on `sensor_spec.ocsf_column_naming` |
-| `build_column_array` `raw_extensions` handling | `prism-bin::spec_driven_adapter` | Pure (data transformation) | New path: columns with `ocsf_field = None` go to `raw_extensions` JSON when flag=true |
+| `pipeline_result_to_record_batch` `raw_extensions` aggregation (§I2) | `prism-bin::spec_driven_adapter` | Effectful (Arrow I/O) | New path (ADR-058 §I2): when `ocsf_column_naming = true`, columns with `ocsf_field == None` are suppressed from individual Arrow schema fields and aggregated into a single `"raw_extensions"` Utf8 column; synthesis locus is `pipeline_result_to_record_batch` (schema-fields construction), NOT `build_column_array` |
 | `prism_describe` | `prism-mcp::tools::prism_describe` | Effectful (MCP response) | `ColumnDescriptor.name` sourcing branches on `sensor_spec.ocsf_column_naming` per ADR-058 §G |
 | `claroty.sensor.toml` | `prism-sensors/specs/` | Configuration | Add `ocsf_column_naming = true` + all KF-01..KF-12 corrections + §J3 shadow fix (14 TOML changes per AC-005) |
 | `class_selector.rs` | `prism-ocsf/src/` | Pure (lookup table) | Add `CLASS_UID_ENTITY_MANAGEMENT = 3004`; reroute `"audit_activity"` arm + Armis `("armis","audit_log")` arm to entity_management (3004) per AC-009 |
@@ -986,9 +997,8 @@ Architecture section files: `architecture/module-decomposition.md` (SS-01, SS-02
 |-----------|---------------|-----------|
 | `ocsf_field_to_arrow_name` | Pure | `&str` → `String`; replaces `.` with `_`; deterministic, no I/O |
 | `SensorSpec` deserialization | Pure (serde) | Derives `Deserialize`; `#[serde(default)]` is a declarative attribute |
-| `pipeline_result_to_record_batch` | Effectful | Calls `RecordBatch::try_new` (Arrow schema validation error path); writes to caller's batch output |
+| `pipeline_result_to_record_batch` | Effectful | Calls `RecordBatch::try_new` (Arrow schema validation error path); writes to caller's batch output; includes §I2 raw_extensions aggregation (schema-construction logic — not a separate pure function) |
 | `prism_describe` | Effectful | Reads `SensorSpec` from registry, constructs MCP response |
-| `build_column_array` (raw_extensions path) | Pure (data transformation) | JSON serialization of column values to UTF-8 blob; no I/O |
 
 ---
 
@@ -1194,9 +1204,14 @@ implementer MUST load only the files listed, not the full architecture directory
   `just iter prism-bin`. Makes RG-005 green. (RG-006 confirmed at this `just iter prism-bin`
   run — causally greened by T-12's `ocsf_column_naming` field addition; `just iter prism-spec-engine`
   in T-12 cannot observe it.)
-- T-15: Update `build_column_array` to handle `raw_extensions` path when
-  `sensor_spec.ocsf_column_naming = true` and `col.ocsf_field = None`. Run
-  `just iter prism-bin`. Makes RG-008 green.
+- T-15: In `pipeline_result_to_record_batch`, implement the `ocsf_field == None` →
+  `raw_extensions` aggregation path (ADR-058 §I2): when `sensor_spec.ocsf_column_naming =
+  true`, suppress columns with `col.ocsf_field == None` from the individual-field schema
+  and aggregate their values into a single `"raw_extensions"` Utf8 Arrow field (JSON blob).
+  This is schema-construction logic in `pipeline_result_to_record_batch`, NOT
+  `build_column_array` — `build_column_array` is a per-column value function that cannot
+  suppress columns or aggregate multiple columns into a blob. Run `just iter prism-bin`.
+  Makes RG-008 green.
 - T-16: Update `prism_describe` `ColumnDescriptor.name` sourcing per ADR-058 §G.
   Run `just iter prism-mcp`. Makes RG-007 green.
 - T-17: Apply all 14 TOML changes to `claroty.sensor.toml` in a single edit per AC-005:
@@ -1398,7 +1413,7 @@ Do NOT add new `reqwest` dependencies. Do NOT add `native-tls` features.
 | File | Action |
 |------|--------|
 | `crates/prism-spec-engine/src/spec_parser.rs` | Modify: add `#[serde(default)] pub ocsf_column_naming: bool` to `SensorSpec` |
-| `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: add `ocsf_field_to_arrow_name` fn; update `pipeline_result_to_record_batch`; update `build_column_array` `raw_extensions` path |
+| `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: add `ocsf_field_to_arrow_name` fn; update `pipeline_result_to_record_batch` (individual-field naming per ADR-058 §I1 + `ocsf_field == None` → raw_extensions aggregation per ADR-058 §I2); `build_column_array` raw_extensions path NOT added — §I2 aggregation is schema-construction logic in `pipeline_result_to_record_batch`, not a per-column value path |
 | `crates/prism-mcp/src/tools/prism_describe.rs` | Modify: `ColumnDescriptor.name` sourcing branches on `sensor_spec.ocsf_column_naming` |
 | `crates/prism-sensors/specs/claroty.sensor.toml` | Modify: apply all 14 TOML changes per AC-005 (ocsf_column_naming flag + KF-01..KF-12 + §J3 shadow fix — all in one edit) |
 | `crates/prism-ocsf/src/class_selector.rs` | Modify: add `CLASS_UID_ENTITY_MANAGEMENT = 3004`; reroute `"audit_activity"` arm and `("armis","audit_log")` arm to entity_management (3004) per AC-009 |
@@ -1429,6 +1444,22 @@ Build-time enforcement rules:
 ---
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
+
+### v1.31 Amendment Sweep (F-P32-MED-001 raw_extensions synthesis re-attributed to `pipeline_result_to_record_batch`; AC-003 reconciled to ADR-058 §I1+§I2; ADR pin v2.17)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): F-P32-MED-001 is ROUTING-001 scope only — `pipeline_result_to_record_batch` raw_extensions aggregation has no counterpart in COERCION-001. ADR-058 pin v2.16→v2.17 swept to COERCION-001 in same burst (v1.29→v1.30). VERDICT: SWEPT; COERCION-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+AC-003 (§I1+§I2 reconciliation — `unwrap_or_else` fallback scoped to `ocsf_field == Some`), AC-007 (raw_extensions synthesis locus re-attributed to `pipeline_result_to_record_batch`), T-15 (task attribution), §Architecture Mapping (`build_column_array raw_extensions handling` row re-attributed to `pipeline_result_to_record_batch §I2`), §Purity Classification (stale `build_column_array (raw_extensions path)` row removed; `pipeline_result_to_record_batch` row updated to note §I2 aggregation), §File Structure Requirements (`spec_driven_adapter.rs` row — "update `build_column_array` `raw_extensions` path" replaced with ADR-058 §I2 attribution): six loci re-attributed. ADR-058 §Authority entry updated v2.16→v2.17. No downstream artifact copies these loci verbatim. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. Re-attribution corrects synthesis-locus description; no behavioral obligation changes. VERDICT: N/A — no new mandates.
+
+---
 
 ### v1.30 Amendment Sweep (F-P31-LOW-001 T-11P RG-023 location reworded — records-only micro-burst TD-VSDD-096)
 
@@ -2074,6 +2105,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.31 | 2026-08-18 | story-writer | OCSF-correctness Claroty SPEC pass-32 fix-burst: F-P32-MED-001 [MED]: raw_extensions synthesis re-attributed to `pipeline_result_to_record_batch` (ADR-058 §I2) — AC-003 reconciled to clarified §I1+§I2 (`unwrap_or_else` fallback scoped to `ocsf_field == Some`; `ocsf_field == None` columns diverted by `pipeline_result_to_record_batch` before individual-field naming); AC-007 re-attributed; T-15 re-attributed; §Architecture Mapping `build_column_array raw_extensions handling` row replaced by `pipeline_result_to_record_batch §I2` row; §Purity Classification stale `build_column_array (raw_extensions path)` row removed; §File Structure Requirements `spec_driven_adapter.rs` row updated. ADR-058 pin v2.16→v2.17. Sibling coordination: COERCION-001 amended same burst (v1.29→v1.30 — F-P32-MED-002 SAP-3 annotations + ADR pin). §v1.31 Amendment Sweep added. |
 | 1.30 | 2026-08-18 | story-writer | OCSF-correctness Claroty SPEC pass-31 records-only micro-burst (TD-VSDD-096): F-P31-LOW-001 [LOW, text-sync] — T-11P RG-023 location reworded from "Unit test in `class_selector.rs`" to "Integration test in `crates/prism-ocsf/tests/`", matching §File Structure Requirements (RG-011/012/023 row), §T-GATE, and T-19. `EventClassSelector::select` is `pub fn` — reachable from integration test crate (no E0603). Sibling sweep: COERCION-001 unaffected (no T-11P or class_selector tasks). §v1.30 Amendment Sweep added. |
 | 1.29 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-30: BC-2.16.003 pin v1.12→v1.13 at §Authority and §Behavioral Contracts table (PO bump — §OCSF Field Validation Path-A/Path-B qualifier). Downstream contradiction check: AC-005/AC-010/RG-022 already use Interpretation A; no prose correction needed. Sibling coordination: COERCION-001 amended same burst (v1.28→v1.29). §v1.29 Amendment Sweep added. |
 | 1.28 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-28 sibling coordination: BC-2.16.002 pin v2.27→v2.28 at §Authority entry and §Behavioral Contracts table (PO bumped BC-2.16.002 v2.28 with pending-wiring annotation on §Canonical Structured Event Catalog ocsf.unknown_class_name row). Sibling coordination: COERCION-001 amended same burst (v1.27→v1.28 — BC-2.16.002 pin v2.27→v2.28). §v1.28 Amendment Sweep added. |
