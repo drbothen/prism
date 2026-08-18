@@ -2,12 +2,12 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.29"
+version: "1.30"
 level: "L4"
 status: draft
 producer: story-writer
 timestamp: "2026-08-12T00:00:00Z"
-modified: "2026-08-17"
+modified: "2026-08-18"
 phase: 3
 wave: claroty-live
 epic_id: EPIC-OCSF-ROUTING
@@ -1162,7 +1162,7 @@ implementer MUST load only the files listed, not the full architecture directory
   'PLC'` fails. Currently fails because KF-06 TOML correction not yet applied. Covers
   AC-010 (KF-06).
 - T-11P: Write RG-023 — `test_class_selector_claroty_audit_log_select_arm_maps_to_entity_management_3004`
-  (MUST FAIL). Unit test in `class_selector.rs`: call
+  (MUST FAIL). Integration test in `crates/prism-ocsf/tests/`: call
   `select("claroty", "audit_log")` and assert `Ok(3004)` (entity_management). Currently
   fails because the `("claroty", "audit_log")` arm has not yet been updated. Covers
   AC-009(c) Claroty arm.
@@ -1429,6 +1429,22 @@ Build-time enforcement rules:
 ---
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
+
+### v1.30 Amendment Sweep (F-P31-LOW-001 T-11P RG-023 location reworded — records-only micro-burst TD-VSDD-096)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): COERCION-001 has no T-11P or class_selector tasks — no equivalent wording exists to sweep. VERDICT: NO SIBLING IMPACT; COERCION-001 UNAFFECTED.
+
+**Dimension 2 — Downstream copy target:**
+
+T-11P wording is not copied verbatim into any downstream artifact. Verification: §File Structure Requirements (`crates/prism-ocsf/tests/` row, RG-011/012/023), §T-GATE ("RG-011/012/023 in prism-ocsf/tests/"), and T-19 ("RG-011/012/023 in prism-ocsf/tests/") are the three authoritative loci; T-11P now agrees with all three. VERDICT: ALL FOUR LOCI AGREE — RG-023 → `crates/prism-ocsf/tests/`.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. Location-wording correction only. VERDICT: N/A.
+
+---
 
 ### v1.29 Amendment Sweep (BC-2.16.003 pin v1.12→v1.13 — OCSF-correctness Claroty SPEC pass-30 sibling coordination)
 
@@ -2058,6 +2074,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.30 | 2026-08-18 | story-writer | OCSF-correctness Claroty SPEC pass-31 records-only micro-burst (TD-VSDD-096): F-P31-LOW-001 [LOW, text-sync] — T-11P RG-023 location reworded from "Unit test in `class_selector.rs`" to "Integration test in `crates/prism-ocsf/tests/`", matching §File Structure Requirements (RG-011/012/023 row), §T-GATE, and T-19. `EventClassSelector::select` is `pub fn` — reachable from integration test crate (no E0603). Sibling sweep: COERCION-001 unaffected (no T-11P or class_selector tasks). §v1.30 Amendment Sweep added. |
 | 1.29 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-30: BC-2.16.003 pin v1.12→v1.13 at §Authority and §Behavioral Contracts table (PO bump — §OCSF Field Validation Path-A/Path-B qualifier). Downstream contradiction check: AC-005/AC-010/RG-022 already use Interpretation A; no prose correction needed. Sibling coordination: COERCION-001 amended same burst (v1.28→v1.29). §v1.29 Amendment Sweep added. |
 | 1.28 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-28 sibling coordination: BC-2.16.002 pin v2.27→v2.28 at §Authority entry and §Behavioral Contracts table (PO bumped BC-2.16.002 v2.28 with pending-wiring annotation on §Canonical Structured Event Catalog ocsf.unknown_class_name row). Sibling coordination: COERCION-001 amended same burst (v1.27→v1.28 — BC-2.16.002 pin v2.27→v2.28). §v1.28 Amendment Sweep added. |
 | 1.27 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-26 fix-burst: ADR-058 pin v2.15→v2.16 at §Authority (architect bump — §H now cites AC-005/RG-006 for Path-A String+Object warn). Sibling coordination: COERCION-001 amended same burst (v1.25→v1.26 — F-P26-MED-001 RG-006 extended null+warn + pin sweep). §v1.27 Amendment Sweep added. |
