@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.24"
+version: "1.25"
 level: "L4"
 status: draft
 producer: story-writer
@@ -70,7 +70,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "a40f704"
+input-hash: "ad86f7e"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -90,7 +90,7 @@ tags:
 
 ## Authority
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.11`, status: draft
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.12`, status: draft
 (modified 2026-08-17). Primary behavioral authority. The §Type Coercion Algorithm, §Full
 Coercion Matrix, EC-016-013-007/008/009 KNOWN GAP annotations, and §Coercion Warning
 Observability DEFECT section are the acceptance-criteria source for this story. Note: BC-2.16.003
@@ -98,7 +98,7 @@ Observability DEFECT section are the acceptance-criteria source for this story. 
 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.14: v1 Column Naming — OCSF Field-Path Routing.** Version `2.14`, status:
+**ADR-058 v2.15: v1 Column Naming — OCSF Field-Path Routing.** Version `2.15`, status:
 accepted (2026-08-17). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
@@ -146,7 +146,7 @@ The mandate anchor record:
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.11 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
+| BC-2.16.003 | v1.12 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
 | BC-2.02.011 | — | — | Warning-emission obligation for each normalization issue; BC-2.16.003 DEFECT violates this |
 | BC-2.16.002 | v2.27 | active | Canonical Structured Event Catalog obligation — `column_coercion_failure` emit from AC-004/AC-005 must be registered in §Postconditions §Canonical Structured Event Catalog (SAP-1 / PG-LP11-001) |
 
@@ -276,11 +276,18 @@ does NOT emit a tracing::warn! at the point of demotion. This violates BC-2.02.0
 ### AC-005: build_column_array ColumnType::String arm returns null cell for Object input
 
 Returns `null` cell (`None`) for `Value::Object` input (`column_type = "string"`, Path A
-`build_column_array`). The `other => Some(other.to_string())` wildcard arm is replaced with
-an explicit `serde_json::Value::Object(_)` arm returning `None` plus a
-`tracing::warn!(event_type = "column_coercion_failure")` emission. The existing
-`serde_json::Value::Array(arr)` arm — which correctly serializes arrays to JSON-list strings
-per ENRICH-1 Design Decision 2 (BC-2.16.003 EC-016-013-026) — MUST NOT be modified.
+`build_column_array`). An explicit `serde_json::Value::Object(_) => None` arm (plus a
+`tracing::warn!(event_type = "column_coercion_failure", column = %col.name,
+column_type = "string", actual_json_kind = "object")` emission) is **added BEFORE** the
+`other => Some(other.to_string())` wildcard arm. The wildcard is **retained** to stringify
+the remaining scalar variants `Value::Number` and `Value::Bool` — this is correct
+LIVE-DRIFT-003 behavior (BC-2.16.003 §Full Coercion Matrix Path-A Number/Bool rows) and
+MUST NOT be removed. The existing `serde_json::Value::Array(arr)` arm — which correctly
+serializes arrays to JSON-list strings per ENRICH-1 Design Decision 2 (BC-2.16.003
+EC-016-013-026) — MUST NOT be modified.
+
+Resulting match arm order (exhaustive): `Null` | `String(s)` | `Array(arr)` |
+`Object(_)` (new) | `other =>` wildcard (Number, Bool).
 
 **Wire-level null serialization:** The `None` null cell MUST serialize as
 `"<col_name>": null` (key present, JSON null value — not an absent key) when the
@@ -373,7 +380,7 @@ increment are determined at delivery time by the product-owner.
 |-----------|--------|---------------|-------|
 | `ColumnMapper::coerce_value` | `prism-spec-engine::column_mapping` | Pure | Modified: add `Err(CoercionWarning)` arms for Array, Object inputs on String column; extend Integer+String to non-numeric path |
 | `ColumnMapper::map_record` | `prism-spec-engine::column_mapping` | Pure | Modified: add `tracing::warn!(event_type = "column_coercion_failure")` at demotion point |
-| `build_column_array` (ColumnType::String arm) | `prism-bin::spec_driven_adapter` | Pure (data transformation) | Modified: replace wildcard `other => Some(other.to_string())` with explicit `Value::Object(_)` null-cell arm; add tracing emission. Array arm (ENRICH-1 EC-016-013-026) preserved. |
+| `build_column_array` (ColumnType::String arm) | `prism-bin::spec_driven_adapter` | Pure (data transformation) | Modified: add explicit `Value::Object(_) => None` null-cell arm (+ tracing emission) BEFORE the `other => Some(other.to_string())` wildcard; wildcard retained for Number/Bool (LIVE-DRIFT-003). Array arm (ENRICH-1 EC-016-013-026) preserved. |
 | Integration test file (Path B — coerce_value / map_record) | `crates/prism-spec-engine/tests/bc_2_16_003_test.rs` | Pure (tests) | New tests RG-001..RG-005 added |
 | Unit test block (Path A — build_column_array) | `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` | Pure (tests) | New tests RG-006, RG-008, RG-009 added (RG-007 retired — ENRICH-1 Array arm correct per EC-016-013-026) |
 
@@ -507,11 +514,15 @@ splitting.
   column_type = ..., actual_json_kind = ...)` in `ColumnMapper::map_record` at the
   demotion point (where CoercionWarning is converted to raw_extensions placement).
   (AC-004). Makes RG-005 green.
-- T-15: Fix `build_column_array` String arm — replace the wildcard `other => Some(other.to_string())`
-  with an explicit `serde_json::Value::Object(_)` arm returning `None` and emitting
-  `tracing::warn!(event_type = "column_coercion_failure", column = %col.name, column_type = "string",
-  actual_json_kind = "object")`. Do NOT touch the `serde_json::Value::Array(arr)` arm above it —
-  that arm is correct ENRICH-1 behavior (EC-016-013-026). (AC-005). Makes RG-006 green.
+- T-15: Fix `build_column_array` String arm — add an explicit `serde_json::Value::Object(_) => None`
+  arm (plus `tracing::warn!(event_type = "column_coercion_failure", column = %col.name,
+  column_type = "string", actual_json_kind = "object")` emission) BEFORE the existing
+  `other => Some(other.to_string())` wildcard. Do NOT remove or replace the wildcard —
+  it correctly stringifies `Value::Number` and `Value::Bool` (LIVE-DRIFT-003 behavior,
+  BC-2.16.003 §Full Coercion Matrix Path-A). Do NOT touch the `serde_json::Value::Array(arr)`
+  arm above it — that arm is correct ENRICH-1 behavior (EC-016-013-026). Resulting exhaustive
+  arm order: `Null` | `String(s)` | `Array(arr)` | `Object(_)` (new) | `other =>` wildcard.
+  (AC-005). Makes RG-006 green.
 - T-15b: Fix `build_column_array` ColumnType::Integer arm — add explicit `Value::String(s)`
   match arm BEFORE `other => other.as_i64()` wildcard in the ColumnType::Integer block.
   Body: attempt `s.parse::<i64>()`; `Ok(n)` → `Some(n)`; `Err(_)` → emit
@@ -633,6 +644,22 @@ dispatch product-owner as part of this story's delivery).
 anchors it to AC-004 / RG-005. VERDICT: DISCHARGED — ADR-058 §H already reads
 `(Anchored: S-ADR058-OCSF-COERCION-001 AC-004, RG-005)` since v2.1; no architect
 action pending.
+
+---
+
+### v1.25 Amendment Sweep (F-P25-MED-001 AC-005/T-15 add-Object-retain-wildcard; ADR-058 pin v2.15; BC-2.16.003 pin v1.12 — OCSF-correctness Claroty SPEC pass-25 fix-burst)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): F-P25-MED-001 is COERCION-001 scope only — AC-005/T-15 add-Object-retain-wildcard has no counterpart in ROUTING-001. ADR-058 pin v2.14→v2.15 and BC-2.16.003 pin v1.11→v1.12 swept to both stories in same burst. VERDICT: SWEPT; ROUTING-001 AMENDED IN SAME BURST (pin sweeps only).
+
+**Dimension 2 — Downstream copy target:**
+
+AC-005 and T-15 are the authoritative dispatch instructions for the test-writer and implementer. §Architecture Mapping `build_column_array` scope column updated to match add-Object-retain-wildcard semantics. No downstream artifact copies these surfaces verbatim. ADR-058 §Authority entry and BC-2.16.003 §Authority entry and §Behavioral Contracts body table are the sole live pin sites; no downstream artifact copies them. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. F-P25-MED-001 is a behavioral-precision fix: wildcard-retention obligation now explicit in AC-005 and T-15. Existing mandate anchors (AC-004/RG-005 for `column_coercion_failure` emission; AC-007/RG-008/RG-009 for Integer arm) unchanged. VERDICT: N/A — no new mandates.
 
 ---
 
@@ -1127,6 +1154,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.25 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-25 fix-burst: F-P25-MED-001 [MED]: AC-005 rewritten — add explicit `Value::Object(_) => None` arm BEFORE wildcard; retain `other => Some(other.to_string())` wildcard for Number/Bool (LIVE-DRIFT-003 behavior, BC-2.16.003 §Full Coercion Matrix Path-A). T-15 rewritten to match. §Architecture Mapping `build_column_array` scope updated. Exhaustive arm order documented: Null/String/Array/Object/wildcard. ADR-058 pin v2.14→v2.15 at §Authority. BC-2.16.003 pin v1.11→v1.12 at §Authority and §Behavioral Contracts table. Sibling: ROUTING-001 amended same burst (v1.25→v1.26 — pin sweeps only). §v1.25 Amendment Sweep added. |
 | 1.24 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-24 fix-burst: F-P24-HIGH-001 [HIGH]: AC-005 rewritten — Object-only null-demote; Array arm (ENRICH-1 Design Decision 2, EC-016-013-026) preserved. RG-007 (`test_build_column_array_string_type_array_input_returns_null_cell`) retired (asserts wrong behavior); ENRICH-1 array-arm coverage referenced from existing passing tests. T-15 rewritten to Object-only. EC-001 rewritten. §Architecture Mapping `build_column_array` scope updated. Density 9/7=1.29→8/7=1.14. Swept: §Red Gate header, §T-GATE, §Architecture Mapping, §Purity Classification, §File Structure Requirements, T-10a/T-10b, T-17. F-P24-MED-001 [MED]: `coerce_value` signature corrected at §Architecture Compliance Rule 1 and §Purity Classification (fabricated `&self`/`Value`/`&ColumnType` → real `pub fn coerce_value(value: &Value, column: &ColumnSpec, ocsf_field_path: &str)`). BC-2.16.003 pin v1.10→v1.11 (PO bump + EC-016-013-026 addition) at §Authority and §Behavioral Contracts body table. Sibling: ROUTING-001 amended same burst (v1.24→v1.25 — BC-2.16.003 pin sweep only). §v1.24 Amendment Sweep added. |
 | 1.23 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-23 fix-burst: F-P23-MED-001 [MED, text-sync]: §Library & Framework Requirements tracing-test row for RG-009 location corrected from `prism-bin/tests/` to `crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests` — stale text introduced in pass-19 (provisioned together with ROUTING-001 RG-018) before pass-21 relocation propagated to §Architecture Mapping, §T-GATE, and §File Structure but not to §Library & Framework. Complete-sweep grep verified: zero `prism-bin/tests/` references for private-fn RGs remain. Sibling sweep: ROUTING-001 amended in same burst (v1.23→v1.24 — F-P23-MED-001 two loci: §Library & Framework + §File Structure Cargo.toml Notes). §v1.23 Amendment Sweep added. |
 | 1.22 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-22 fix-burst: ADR-058 §Authority pin v2.13→v2.14 (architect bump; `anchor_stories` gain S-ADR058-DTU-PARITY-MIGRATION-001 + §H enumeration fix). Sibling coordination with ROUTING-001 pass-22 fix-burst (v1.22→v1.23 — F-P22-MED-001/002/OBS-2/3; COERCION-001 has no equivalent ROUTING findings). §v1.22 Amendment Sweep added. |
