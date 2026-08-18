@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.12"
+version: "1.13"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -22,7 +22,7 @@ inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
-input-hash: "b73b06e"
+input-hash: "af7ca0a"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -264,9 +264,20 @@ This `event_type` value MUST be registered in BC-2.16.002 §Postconditions Canon
 Structured Event Catalog per PG-LP11-001.
 
 ## OCSF Field Validation
-- At spec load time (BC-2.16.009), each `ocsf_field` value is validated against the compiled OCSF protobuf schema
-- Invalid OCSF field paths produce a warning at load time but do not reject the spec (the mapping is skipped at runtime, and the column goes to `raw_extensions`)
-- This is a warning, not an error, because OCSF schema extensions may introduce fields not in the compiled schema
+- At spec load time (BC-2.16.009), each `ocsf_field` value is validated against the compiled OCSF protobuf schema; this load-time warning fires on both Path A and Path B for schema-invalid `ocsf_field` values, but does not reject the spec on either path.
+
+**Path A — `build_column_array` (`spec_driven_adapter.rs`; sole live production path per ADR-058 §K5):**
+
+Under `ocsf_column_naming = true` (Interpretation A), Arrow field naming is PURELY MECHANICAL: the Arrow field name is computed from the `ocsf_field` string via dot-to-underscore flattening (`ocsf_field_to_arrow_name`). OCSF schema validity is NEVER consulted on the Arrow-materialization surface.
+
+Routing to `raw_extensions` on Path A is governed SOLELY by `ocsf_field == None` (ADR-058 §I2). A schema-invalid or vendor-extended `Some(path)` value — including `"device.type_label"` (KF-06 / §J3) and `"device.type_category"` (§J3) — STILL materializes as a first-class flattened Arrow column (`device_type_label`, `device_type_category`). It is NOT skipped and does NOT go to `raw_extensions` on Path A.
+
+An implementer MUST NOT wire schema-validity-based `raw_extensions` routing into Path A; doing so would silently divert `device_type_label` and `device_type_category` to `raw_extensions`, breaking the demo-critical `WHERE device_type_label = 'PLC'` filter (EC-016-013-021; S-ADR058-OCSF-ROUTING-001).
+
+**Path B — `ColumnMapper::map_record` (`column_mapping.rs`; zero live production callers per ADR-058 §K5):**
+
+Invalid OCSF field paths produce a warning at load time but do not reject the spec; the mapping is skipped at runtime and the column goes to `raw_extensions`. This is a warning, not an error, because OCSF schema extensions may introduce fields not in the compiled schema.
+
 - Columns that write vendor values into OCSF-computed reserved fields (`class_name`, `type_name`, `category_name`, `count`) are NOT caught by schema-path validation (these paths ARE valid OCSF paths); they are caught by semantic review per ADR-058 §K5 Divergence 1; the correct fix is to remove the `ocsf_field` declaration so the column falls to `raw_extensions` (KF-08 through KF-11)
 
 ## Invariants
@@ -395,6 +406,7 @@ via proptest) is recommended as part of S-ADR058-OCSF-COERCION-001.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.13 | ocsf-correctness-pass30-f1-field-validation | 2026-08-17 | product-owner | F-P30-MED-001 §OCSF Field Validation Path-A/Path-B qualifier: Path A (`build_column_array`) naming is purely mechanical; raw_extensions governed by `ocsf_field == None` only (ADR-058 §I2); vendor-extended `Some(path)` values (`device.type_label`, `device.type_category`) stay first-class Arrow columns on Path A. Implementer MUST NOT wire schema-validity routing into Path A — EC-016-013-021 demo-critical filter at risk (S-ADR058-OCSF-ROUTING-001). Skipped→raw_extensions is Path B (`ColumnMapper::map_record`) only. No new ECs added (POL-38: CLEAR). TD-VSDD-097: (1) no split-event twin BC; CLEAR. (2) §OCSF Field Validation not verbatim copy-source in downstream artifacts; CLEAR. (3) new MUST anchored to EC-016-013-021 and S-ADR058-OCSF-ROUTING-001; CLEAR. |
 | 1.12 | ocsf-coercion-pass25-f1-path-a-string-completeness | 2026-08-17 | product-owner | F-P25-MED-001 §Full Coercion Matrix Path-A String-arm completeness: added Path-key preamble (Path A = `build_column_array`, sole live path per ADR-058 §A1; Path B = `coerce_value`, unwired); Number/Bool rows now document Path-A retained-wildcard `other.to_string()` as CORRECT behavior (LIVE-DRIFT-003 — not a defect); Object row now distinguishes Path-A current behavior (`Some(stringified_object)`, WRONG pre-AC-005) from contracted target (`None` + `column_coercion_failure` warn, EC-016-013-008 / AC-005) and Path-B pass-through (WRONG). Array→JSON-list immutable (EC-016-013-026) unchanged. No new ECs added. No AC obligations changed beyond what AC-005 already covers (POL-38: CLEAR). TD-VSDD-097 three-dimension sweep: (1) Sibling pair — BC-2.16.003 has no named split-event twin; CLEAR. (2) Downstream copy target — §Full Coercion Matrix Number/Bool rows are not verbatim copy-sources in downstream artifacts; story-writer handles S-ADR058-OCSF-COERCION-001 AC-005/T-15 wording update per task handoff. (3) Mandate anchor — no new unanchored MUSTs introduced; all existing mandates anchored to AC-005 unchanged; CLEAR. |
 | 1.11 | ocsf-coercion-pass24-f1-enrich1-path-scope | 2026-08-17 | product-owner | **F-P24-HIGH-001 adjudication: scope EC-016-013-007 Array-null-demotion to Path B only; add EC-016-013-026 protecting ENRICH-1 `Value::Array` arm on Path A.** (A) EC-016-013-007 §Edge Cases row: added "Path B (`coerce_value`) only" scope qualifier; documented that Path A `build_column_array` dedicated `Value::Array` arm is correct ENRICH-1 behavior, cross-references EC-016-013-026. (B) §Full Coercion Matrix: narrowed "String \| Array \| any" row to Path B / `coerce_value` only; added Path A behavior column showing JSON-list String (ENRICH-1 preserved, EC-016-013-026). §KNOWN GAPs bullets: EC-016-013-007 scoped to Path B; EC-016-013-008 clarified as both paths. (C) §Error Conditions KNOWN GAP row: scoped Array part to Path B; added Path A ENRICH-1 arm note; retained Object as applying to both paths. (D) Added EC-016-013-026: documents that `build_column_array` Path A `serde_json::Value::Array(arr)` arm is CORRECT behavior (not a gap) — serializes all arrays including ENRICH-1 wildcard source_path results to JSON-list string; empty array → `"[]"`; null-demotion on Path A applies to `Value::Object` only; MUST NOT be changed to null-demotion. Tests: two existing MEDIUM-6 Claroty ip_list/vlan_list tests confirm production behavior. (E) §Story Anchor item 3: removed incorrect "AC-005" citation for the Array fix — AC-005 covers Object only on Path A; Array null-demotion on Path A is WRONG per adjudication. (F) input-hash updated from 08bcb32 to f7d5e31 (pre-existing drift from ADR-058 input changes). TD-VSDD-097 three-dimension sweep: (1) Sibling pair — BC-2.16.003 has no named split-event twin; CLEAR. (2) Downstream copy target — story S-ADR058-OCSF-COERCION-001 AC-005/RG-007/EC-001/T-15 carry pre-adjudication Array null-demotion intent; story-writer must apply adjudication rewrite spec per handoff note in product-owner output. (3) Mandate anchor — EC-016-013-026 `MUST NOT` anchored to ENRICH-1 Design Decision 2 established behavior; no new unanchored story-level obligations. |
 | 1.10 | ocsf-coercion-pass16-f3-path-a-integer-gap | 2026-08-17 | product-owner | **F-P16-MED-003 closure (Option A): add EC-016-013-025 for `build_column_array` Path A Integer+String gap.** ADR-058 §H item 2 explicitly states the fix for EC-016-013-009 applies to `build_column_array` ("or dispatching through it"); the story's own story-level EC-009 described the Path A behavior change but had no BC EC backing it. (A) EC-016-013-009 §Edge Cases row: added "Path B (`coerce_value`) only" qualifier and cross-reference to EC-016-013-025. (B) EC-016-013-009 §Full Coercion Matrix KNOWN GAPs bullet: added Path B qualifier and cross-ref to EC-016-013-025. (C) EC-016-013-009 §Error Conditions row: added Path A complement note. (D) Added EC-016-013-025: `build_column_array` (Path A, sole live production path per ADR-058 §K5) ColumnType::Integer + `Value::String` — parse succeeds → `Some(n)` in Arrow column; parse fails → `None` (null cell) + `column_coercion_failure` warn. Current behavior: `other.as_i64()` silently returns `None` for all String inputs (valid numeric strings silently lost). Fix: S-ADR058-OCSF-COERCION-001 AC-007 (RG-008, RG-009). (E) §Story Anchor Stage 1 item 2: split into Path B (AC-003) and added item 2b for EC-016-013-025 Path A fix (AC-007). (F) §Traceability Known-Gap Story Needed: added EC-016-013-025 / AC-007. TD-VSDD-097 three-dimension sweep: (1) Sibling pair — BC-2.16.003 has no named split-event twin; CLEAR. (2) Downstream copy target — EC-016-013-025 is new content; no prior version to propagate; CLEAR. (3) Mandate anchor — new EC-016-013-025 MUST anchored to S-ADR058-OCSF-COERCION-001 AC-007 RG-008/RG-009; story-writer must add AC-007 / RG-008 / RG-009 per adjudication output. |

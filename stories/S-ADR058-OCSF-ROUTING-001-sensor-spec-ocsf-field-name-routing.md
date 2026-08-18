@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.28"
+version: "1.29"
 level: "L4"
 status: draft
 producer: story-writer
@@ -85,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "a298bd5"
+input-hash: "b04aa71"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -120,7 +120,7 @@ class_selector.rs KF-01 code defect confirmed and Armis sibling sweep)** in full
 implementing.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.12`, status: draft
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.13`, status: draft
 (modified 2026-08-17). §Column Routing postconditions, **§Claroty Contracted OCSF Mappings
 (ground truth for all four Claroty tables with KF-01..KF-12 corrections)**, and
 **§Interpretation A: Arrow Field Naming** govern the obligation that `ocsf_field` declarations
@@ -214,7 +214,7 @@ Until then, `ColumnMapper::map_record` remains test-only.
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.12 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention) |
+| BC-2.16.003 | v1.13 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention) |
 | BC-2.16.002 | v2.28 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
 | BC-2.01.013 | v1.23 | active | EC-01-025 NON-CONFORMANT annotation resolved for Claroty after this story merges; product-owner updates annotation |
 
@@ -1430,6 +1430,22 @@ Build-time enforcement rules:
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
 
+### v1.29 Amendment Sweep (BC-2.16.003 pin v1.12→v1.13 — OCSF-correctness Claroty SPEC pass-30 sibling coordination)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): BC-2.16.003 pin v1.12→v1.13 swept to both stories in same burst. COERCION-001 amended in same burst (v1.28→v1.29). VERDICT: SWEPT; COERCION-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+BC-2.16.003 §OCSF Field Validation (v1.13) adds Path-A/Path-B qualifier: vendor-extended paths (`device.type_label` / `device.type_category`) produce first-class Arrow columns on Path A (Interpretation A, NOT raw_extensions). Downstream contradiction check: AC-005 §Claroty Contracted OCSF Mappings table lists `device_type_label` and `device_type_category` as first-class Arrow columns under Interpretation A; AC-010 / RG-022 asserts `device_type_label` at wire level (serialized JSON). No prose in this story repeats the old unqualified claim. VERDICT: NO DOWNSTREAM CONTRADICTION; no correction needed.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. BC-2.16.003 pin is a version-tracking update (PO bump — §OCSF Field Validation Path-A/Path-B qualifier). VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.28 Amendment Sweep (BC-2.16.002 pin v2.27→v2.28 — OCSF-correctness Claroty SPEC pass-28 sibling coordination)
 
 **Dimension 1 — Sibling pair:**
@@ -2042,6 +2058,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.29 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-30: BC-2.16.003 pin v1.12→v1.13 at §Authority and §Behavioral Contracts table (PO bump — §OCSF Field Validation Path-A/Path-B qualifier). Downstream contradiction check: AC-005/AC-010/RG-022 already use Interpretation A; no prose correction needed. Sibling coordination: COERCION-001 amended same burst (v1.28→v1.29). §v1.29 Amendment Sweep added. |
 | 1.28 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-28 sibling coordination: BC-2.16.002 pin v2.27→v2.28 at §Authority entry and §Behavioral Contracts table (PO bumped BC-2.16.002 v2.28 with pending-wiring annotation on §Canonical Structured Event Catalog ocsf.unknown_class_name row). Sibling coordination: COERCION-001 amended same burst (v1.27→v1.28 — BC-2.16.002 pin v2.27→v2.28). §v1.28 Amendment Sweep added. |
 | 1.27 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-26 fix-burst: ADR-058 pin v2.15→v2.16 at §Authority (architect bump — §H now cites AC-005/RG-006 for Path-A String+Object warn). Sibling coordination: COERCION-001 amended same burst (v1.25→v1.26 — F-P26-MED-001 RG-006 extended null+warn + pin sweep). §v1.27 Amendment Sweep added. |
 | 1.26 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-25 fix-burst: ADR-058 pin v2.14→v2.15 at §Authority. BC-2.16.003 pin v1.11→v1.12 at §Authority and §Behavioral Contracts table. Sibling coordination: COERCION-001 amended same burst (v1.24→v1.25 — F-P25-MED-001 AC-005/T-15 add-Object-retain-wildcard + §Architecture Mapping `build_column_array` scope + pin sweeps). §v1.26 Amendment Sweep added. |

@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.28"
+version: "1.29"
 level: "L4"
 status: draft
 producer: story-writer
@@ -70,7 +70,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "a48f1cf"
+input-hash: "39c3ae3"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -90,7 +90,7 @@ tags:
 
 ## Authority
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.12`, status: draft
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.13`, status: draft
 (modified 2026-08-17). Primary behavioral authority. The §Type Coercion Algorithm, §Full
 Coercion Matrix, EC-016-013-007/008/009 KNOWN GAP annotations, and §Coercion Warning
 Observability DEFECT section are the acceptance-criteria source for this story. Note: BC-2.16.003
@@ -148,7 +148,7 @@ The mandate anchor record:
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.12 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
+| BC-2.16.003 | v1.13 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
 | BC-2.02.011 | — | — | Warning-emission obligation for each normalization issue; BC-2.16.003 DEFECT violates this |
 | BC-2.16.002 | v2.28 | active | Canonical Structured Event Catalog obligation — `column_coercion_failure` emit from AC-004/AC-005 must be registered in §Postconditions §Canonical Structured Event Catalog (SAP-1 / PG-LP11-001) |
 
@@ -650,6 +650,22 @@ dispatch product-owner as part of this story's delivery).
 anchors all three emission paths: AC-004/RG-005 (Path-B map_record),
 AC-005/RG-006 (Path-A String+Object), AC-007/RG-009 (Path-A Integer+String).
 VERDICT: DISCHARGED — see ADR-058 §H emission discharge anchor; no architect action pending.
+
+---
+
+### v1.29 Amendment Sweep (BC-2.16.003 pin v1.12→v1.13 — OCSF-correctness Claroty SPEC pass-30 sibling coordination)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): BC-2.16.003 pin v1.12→v1.13 swept to both stories in same burst. ROUTING-001 amended in same burst (v1.28→v1.29). VERDICT: SWEPT; ROUTING-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+BC-2.16.003 §OCSF Field Validation (v1.13) adds Path-A/Path-B qualifier (vendor-extended paths → first-class Arrow columns on Path A, NOT raw_extensions). Downstream contradiction check: this story's scope is Stage 1 type coercion (§Type Coercion Algorithm, EC-016-013-007/008/009 gap closure) — no §OCSF Field Validation prose exists in COERCION-001. VERDICT: NO DOWNSTREAM CONTRADICTION; no correction needed.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. BC-2.16.003 pin is a version-tracking update (PO bump — §OCSF Field Validation Path-A/Path-B qualifier). VERDICT: N/A — no new mandates.
 
 ---
 
@@ -1208,6 +1224,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.29 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-30 sibling coordination: BC-2.16.003 pin v1.12→v1.13 at §Authority and §Behavioral Contracts table (PO bump — §OCSF Field Validation Path-A/Path-B qualifier). Downstream contradiction check: Stage 1 coercion scope; no §OCSF Field Validation prose in COERCION-001; no correction needed. Sibling coordination: ROUTING-001 amended same burst (v1.28→v1.29). §v1.29 Amendment Sweep added. |
 | 1.28 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-28 sibling coordination: BC-2.16.002 pin v2.27→v2.28 at §Authority entry and §Behavioral Contracts table (PO bumped BC-2.16.002 v2.28 with pending-wiring annotation on §Canonical Structured Event Catalog ocsf.unknown_class_name row). Sibling coordination: ROUTING-001 amended same burst (v1.27→v1.28 — BC-2.16.002 pin v2.27→v2.28). §v1.28 Amendment Sweep added. |
 | 1.27 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-27 fix-burst: F-P27-MED-001 [MED]: §Mandate Anchor #2 rewritten — stale verbatim ADR-058 §H anchor-string copy removed (replaced with section-anchor cite: ADR-058 §H emission discharge anchor); emission MUST table expanded from 1 row to 3 rows tracing each path to its correct AC/RG: Path-B map_record → AC-004/RG-005; Path-A String+Object → AC-005/RG-006; Path-A Integer+String → AC-007/RG-009. §TD-VSDD-097 main Dimension 3 updated to cite all three AC/RG pairs and remove stale verbatim §H quote. §v1.27 Amendment Sweep added. |
 | 1.26 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-26 fix-burst: F-P26-MED-001 [MED]: RG-006 extended — renamed `test_build_column_array_string_type_object_input_returns_null_and_emits_warning`; installs `tracing_test` subscriber; asserts null cell AND `column_coercion_failure` warn (`column_type = "string"`, `actual_json_kind = "object"`) — mirrors RG-009/RG-005. T-09 test name updated. §Purity Classification: RG-006 added to tracing-subscriber list (alongside RG-005/RG-009). §Library & Framework: prism-bin tracing-test row updated RG-009 → RG-006 and RG-009. §Architecture Mapping Constraints item 3: (for RG-009) → (for RG-006 and RG-009). §Architecture Mapping unit-test row: RG-006/RG-009 tracing-test note added. ADR-058 pin v2.15→v2.16 at §Authority (architect bump — §H now cites AC-005/RG-006). Sibling: ROUTING-001 amended same burst (v1.26→v1.27 — ADR-058 pin v2.16 only). §v1.26 Amendment Sweep added. |
