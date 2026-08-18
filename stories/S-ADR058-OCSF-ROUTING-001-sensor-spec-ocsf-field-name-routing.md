@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.26"
+version: "1.27"
 level: "L4"
 status: draft
 producer: story-writer
@@ -85,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "350efc8"
+input-hash: "a298bd5"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -104,8 +104,8 @@ tags:
 
 ## Authority
 
-**ADR-058 v2.15: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
-Names; DTU Migration Deferred.** Version `2.15`, status: accepted (2026-08-17). Read
+**ADR-058 v2.16: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
+Names; DTU Migration Deferred.** Version `2.16`, status: accepted (2026-08-17). Read
 §B2 (decision), §C (quoting convention — Option 4 chosen), §D (per-sensor scoping, flag
 mechanism), §E (blast radius), §G (prism_describe output spec), §H (Stage 1 confirmed
 separate), §I (implementation guidance including **§I5 TOML + code correction obligations for
@@ -1430,6 +1430,22 @@ Build-time enforcement rules:
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
 
+### v1.27 Amendment Sweep (ADR-058 pin v2.15→v2.16 sibling coordination — OCSF-correctness Claroty SPEC pass-26 fix-burst)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): F-P26-MED-001 (RG-006 extension null+warn) is COERCION-001 scope only — ROUTING-001 has no `build_column_array` String arm or null-cell test to extend. ADR-058 pin v2.15→v2.16 swept to both stories in same burst. VERDICT: SWEPT; COERCION-001 AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+ADR-058 §Authority entry is the sole live ADR pin site in this story. Updated v2.15→v2.16. No other live current-state site in ROUTING-001 carries the v2.15 pin. No downstream artifact copies this entry verbatim. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs introduced. This is a records-tier ADR pin update. VERDICT: N/A — no new mandates.
+
+---
+
 ### v1.26 Amendment Sweep (ADR-058 pin v2.15 + BC-2.16.003 pin v1.12 sibling coordination — OCSF-correctness Claroty SPEC pass-25 fix-burst)
 
 **Dimension 1 — Sibling pair:**
@@ -2010,6 +2026,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.27 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-26 fix-burst: ADR-058 pin v2.15→v2.16 at §Authority (architect bump — §H now cites AC-005/RG-006 for Path-A String+Object warn). Sibling coordination: COERCION-001 amended same burst (v1.25→v1.26 — F-P26-MED-001 RG-006 extended null+warn + pin sweep). §v1.27 Amendment Sweep added. |
 | 1.26 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-25 fix-burst: ADR-058 pin v2.14→v2.15 at §Authority. BC-2.16.003 pin v1.11→v1.12 at §Authority and §Behavioral Contracts table. Sibling coordination: COERCION-001 amended same burst (v1.24→v1.25 — F-P25-MED-001 AC-005/T-15 add-Object-retain-wildcard + §Architecture Mapping `build_column_array` scope + pin sweeps). §v1.26 Amendment Sweep added. |
 | 1.25 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-24 fix-burst: BC-2.16.003 pin v1.10→v1.11 (PO bump + EC-016-013-026 addition) at §Authority and §Behavioral Contracts body table. Sibling coordination: COERCION-001 amended same burst (v1.23→v1.24 — F-P24-HIGH-001 Object-only null-demote + RG-007 retirement + F-P24-MED-001 coerce_value signature + BC-2.16.003 pin). §v1.25 Amendment Sweep added. |
 | 1.24 | 2026-08-17 | story-writer | OCSF-correctness Claroty SPEC pass-23 fix-burst: F-P23-MED-001 [MED, text-sync]: two loci corrected — (1) §Library & Framework Requirements tracing-test row: RG-018 location changed from `prism-bin/tests/` to `crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests`; (2) §File Structure Requirements Cargo.toml row Notes cell: RG-018 reference changed from `prism-bin/tests/` to `crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests`. Stale text was introduced in pass-20 (dependency-aware provisioning) before pass-21 relocation propagated to §Architecture Mapping, §T-GATE, and §File Structure prism-bin row but not to these two surfaces. Complete-sweep grep verified: zero `prism-bin/tests/` references for private-fn RGs remain; e2e test row for AC-008 (public surface) correctly retained. Sibling sweep: COERCION-001 amended in same burst (v1.22→v1.23 — F-P23-MED-001 §Library & Framework RG-009 location sync). §v1.24 Amendment Sweep added. |
