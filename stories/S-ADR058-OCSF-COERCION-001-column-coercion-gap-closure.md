@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.34"
+version: "1.35"
 level: "L4"
 status: draft
 producer: story-writer
@@ -70,7 +70,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "4cdc61e"
+input-hash: "51956ac"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -98,13 +98,13 @@ Observability DEFECT section are the acceptance-criteria source for this story. 
 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.21: v1 Column Naming — OCSF Field-Path Routing.** Version `2.21`, status:
+**ADR-058 v2.22: v1 Column Naming — OCSF Field-Path Routing.** Version `2.22`, status:
 accepted (2026-08-18). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
-Note: ADR-058 §K (OCSF schema validation), §I5 (code obligations), and process-gap
-obligation (`ocsf.unknown_class_name` WARN) affect Stage 2 scope only; Stage 1's §H scope
-is unchanged.
+Note: ADR-058 §K (OCSF schema validation), §I5 (code obligations), §B2/§I2/§J2 amendments,
+and process-gap obligation (`ocsf.unknown_class_name` WARN) affect Stage 2 scope only;
+Stage 1's §H scope is unchanged.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
 **BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable
@@ -148,7 +148,7 @@ The mandate anchor record:
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.15 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
+| BC-2.16.003 | v1.16 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
 | BC-2.02.011 | — | — | Warning-emission obligation for each normalization issue; BC-2.16.003 DEFECT violates this |
 | BC-2.16.002 | v2.28 | active | Canonical Structured Event Catalog obligation — `column_coercion_failure` emit from AC-004/AC-005 must be registered in §Postconditions §Canonical Structured Event Catalog (SAP-1 / PG-LP11-001) |
 
@@ -675,6 +675,29 @@ dispatch product-owner as part of this story's delivery).
 anchors all three emission paths: AC-004/RG-005 (Path-B map_record),
 AC-005/RG-006 (Path-A String+Object), AC-007/RG-009 (Path-A Integer+String).
 VERDICT: DISCHARGED — see ADR-058 §H emission discharge anchor; no architect action pending.
+
+---
+
+### v1.35 Amendment Sweep (ADR-058 pin v2.21→v2.22; BC-2.16.003 pin v1.15→v1.16 — OCSF-correctness Claroty fix-burst leg 3 sibling coordination)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): pin bumps v2.21→v2.22 and v1.15→v1.16
+swept to both stories in same burst. ROUTING-001 amended in same burst (v1.37→v1.38
+story-writer leg) with F-P46-MED-001/F-P48-MED-001/F-P48-MED-002 content changes plus
+pin sweeps. This story's content is UNAFFECTED by those findings — EC-016-013-028,
+§J2 reserved-name guard, and EC-016-013-011 corrected text are Stage 2 scope; COERCION-001
+has no ip_list routing, no §J2 guard logic, and no `prism_describe` Tier-1/Tier-2 model.
+VERDICT: CONTENT UNAFFECTED; ADR/BC PIN BUMP ONLY.
+
+**Dimension 2 — Downstream copy target:**
+
+§Authority ADR-058 and §Behavioral Contracts BC-2.16.003 version pins are terminal
+references in this artifact — no downstream artifact copies them verbatim. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUST blocks introduced; no new mandates require anchoring. VERDICT: CLEAR.
 
 ---
 
@@ -1265,6 +1288,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.35 | 2026-08-18 | story-writer | OCSF-correctness Claroty fix-burst leg 3 sibling pin bump: ADR-058 pin v2.21→v2.22 + BC-2.16.003 pin v1.15→v1.16; no prose/AC/RG/mechanism change. input-hash updated 4cdc61e→51956ac (source documents ADR-058 + BC-2.16.003 changed by legs 1-2 of burst: EC-016-013-028, §J2 reserved-name guard, EC-016-013-011 corrected text — all Stage 2 scope, COERCION-001 content unaffected). §v1.35 Amendment Sweep added. |
 | 1.34 | 2026-08-18 | state-manager | D-2243 P43/44/45 fix-burst (state-manager leg): sibling ADR-058 pin v2.20→v2.21 + BC-2.16.003 pin v1.14→v1.15; no prose/AC/RG/mechanism change. input-hash updated 759227b→4cdc61e (source documents ADR-058 + BC-2.16.003 changed in same burst). §v1.34 Amendment Sweep: Dimension 1 (sibling pair) — ROUTING-001 amended same burst (v1.36→v1.37 story-writer leg); CLEAR. Dimension 2 (downstream copy) — §Authority pins are terminal; no independent copy artifact; CLEAR. Dimension 3 (mandate anchor) — no new MUST blocks; CLEAR. |
 | 1.33 | 2026-08-18 | state-manager | D-2242 P40/41/42 fix-burst (state-manager leg): sibling ADR-058 pin v2.19→v2.20 + BC-2.16.003 pin v1.13→v1.14; no content change (P40/41/42 fix-burst). §v1.33 Amendment Sweep: Dimension 1 (sibling pair) — ROUTING-001 amended same burst (v1.35→v1.36 story-writer leg); CLEAR. Dimension 2 (downstream copy) — §Authority pins are terminal; no independent copy artifact; CLEAR. Dimension 3 (mandate anchor) — no new MUST blocks; CLEAR. |
 | 1.32 | 2026-08-18 | state-manager | D-2239 F-P34 fix-burst (state-manager leg): sibling ADR-058 pin v2.18→v2.19; no content change. §v1.32 Amendment Sweep: Dimension 1 (sibling pair) — ROUTING-001 amended same burst (v1.32→v1.33 story-writer leg); CLEAR. Dimension 2 (downstream copy) — §Authority pin is terminal; no independent copy artifact; CLEAR. Dimension 3 (mandate anchor) — no new MUST blocks; CLEAR. |

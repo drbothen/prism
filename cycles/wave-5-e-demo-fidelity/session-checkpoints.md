@@ -487,3 +487,15 @@ ADR-053 ratified EFFECTIVE 2026-07-22 (D-1943) → 9 Wave-A stories (8 draft / 1
 **KEY STATE (D-2193):** Story v2.4 (ready; 8 ACs / 7 RGTs). workspace_test_count 5743. BC-2.01.013 v1.22. BC-2.16.013 v1.41. BC-INDEX v9.17. STORY-INDEX v2.819. total_stories 299. develop_head 791b68c3.
 
 **NOTE: Superseded by D-2194 — BC-5.39.001 LOCAL 3-CLEAN CONVERGENCE: S-CLAROTY-AUDITLOG-TIMEBOX-001 passes 7/8/9 ALL CLEAN(strict)=YES / CLEAN(PR-merge)=YES on frozen HEAD f867a234b; streak 0/3→3/3 CONVERGED; Concurrent Cycles row added; STATE v8.725→v8.726.**
+
+---
+
+## Archived: D-2244 — 2026-08-19; STATE v8.776→v8.777 — SESSION WRAP; OCSF cascade p46/47/48 pending; frozen perimeter ADR-058 v2.21/BC-2.16.003 v1.15/ROUTING-001 v1.37/COERCION-001 v1.34
+
+**RESUME IN ONE BREATH:** Prism Phase-3, OCSF-correctness CLAROTY SPEC adversarial cascade (BC-5.39.001 3-CLEAN) at strict streak 0/3 on frozen perimeter ADR-058 v2.21 / BC-2.16.003 v1.15 / BC-2.16.002 v2.28 / ROUTING-001 v1.37 / COERCION-001 v1.34. PENDING HUMAN DECISION: pause at 3-CLEAN before TDD implementation of COERCION/ROUTING. RESUME NEXT-ACTION: adversary SPEC passes 46/47/48 (parallel, maximally-skeptical) on frozen perimeter; then HALT for human TDD-gate decision. Passes 46/47/48 were subsequently run (p46: 1MED; p47: CLEAN 1/3; p48: 5[2M+1L+2O]) → triggered FB-46/48 fix-burst (D-2245).
+
+**HEADS (D-2244):** `develop` `69d821be` (LOCAL == origin/develop; pushed/clean). factory-artifacts: `git -C .factory log -1`. `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` @`8ae0b5d8` PENDING teardown. `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED. `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch.
+
+**KEY STATE (D-2244):** FROZEN: ADR-058 v2.21 / BC-2.16.003 v1.15 / BC-2.16.002 v2.28 / ROUTING-001 v1.37 / COERCION-001 v1.34. ARCH-INDEX v2.321 / BC-INDEX v9.37 / STORY-INDEX v2.858. total_stories 302. active 252 / draft 4 / total 269. STATE v8.777.
+
+**NOTE: Superseded by D-2245 — FB-46/48 OCSF-correctness fix-burst COMPLETE; ADR-058 v2.21→v2.22; BC-2.16.003 v1.15→v1.16; ROUTING-001 v1.37→v1.38; COERCION-001 v1.34→v1.35; BC-5.39.001 streak RESET 0/3; NEW FROZEN: ADR-058 v2.22/BC-2.16.003 v1.16/ROUTING-001 v1.38/COERCION-001 v1.35; STATE v8.778→v8.779.**
