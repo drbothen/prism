@@ -2,12 +2,12 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.39"
+version: "1.40"
 level: "L4"
 status: draft
 producer: story-writer
 timestamp: "2026-08-12T00:00:00Z"
-modified: "2026-08-18"
+modified: "2026-08-19"
 phase: 3
 wave: claroty-live
 epic_id: EPIC-OCSF-ROUTING
@@ -85,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "90f6a36"
+input-hash: "731ae41"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -104,15 +104,15 @@ tags:
 
 ## Authority
 
-**ADR-058 v2.22: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
-Names; DTU Migration Deferred.** Version `2.22`, status: accepted (2026-08-18). Read
-§B2 (decision — **v2.22 amendment: multi-valued array source fields with `ocsf_field == None`
+**ADR-058 v2.23: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
+Names; DTU Migration Deferred.** Version `2.23`, status: accepted (2026-08-18). Read
+§B2 (decision — **v2.23 amendment: multi-valued array source fields with `ocsf_field == None`
 MUST be serialized as compact JSON-list strings in `raw_extensions`, NOT as nested JSON arrays**),
 §C (quoting convention — Option 4 chosen), §D (per-sensor scoping, flag
 mechanism — **§D1 corrected v2.18: `pipeline_result_to_record_batch` MUST gain
 `sensor_spec: &SensorSpec` as an explicit parameter threaded from the `fetch()` call site;
 this is ADR-022 §C wiring (adding a previously absent parameter), not redesign**),
-§E (blast radius), §G (prism_describe output spec — **v2.22 Tier-1/Tier-2 model:
+§E (blast radius), §G (prism_describe output spec — **v2.23 Tier-1/Tier-2 model:
 Tier-1 columns (`ocsf_field == Some`) emit ColumnDescriptor with
 `name = ocsf_field_to_arrow_name(ocsf_field)` and `description = ocsf_field`;
 Tier-2 columns (`ocsf_field == None`) MUST NOT emit individual ColumnDescriptors —
@@ -123,10 +123,10 @@ four-field shape: `name = "raw_extensions"`, `col_type = prism_core::column::Col
 §H (Stage 1 confirmed
 separate), §I (implementation guidance including **§I1 corrected v2.18: two-step form —
 Step 1 signature addition (`sensor_spec: &SensorSpec` parameter), Step 2 field-name
-computation inside the function body**; **§I1 corrected v2.22: canonical home of
+computation inside the function body**; **§I1 corrected v2.23: canonical home of
 `ocsf_field_to_arrow_name` is `prism-spec-engine::column_mapping` (NOT `prism-bin::spec_driven_adapter`);
 both `prism-bin::spec_driven_adapter` and `prism-mcp::tools::prism_describe` import from there**;
-**§I2 v2.22 amendment: `pipeline_result_to_record_batch` raw_extensions serialization MUST
+**§I2 v2.23 amendment: `pipeline_result_to_record_batch` raw_extensions serialization MUST
 produce compact JSON-list strings for multi-valued array fields (NOT nested JSON arrays)**;
 **§I5 TOML + code correction obligations for
 KF-01 through KF-12**; **§I5 process-gap obligation: `ocsf.unknown_class_name` WARN on
@@ -134,8 +134,8 @@ Err branch before `.unwrap_or(0)` in `pipeline_result_to_record_batch`; Path A /
 liveness determination; `select_by_class_name` two new arms: `"entity_management"→3004` and
 `"inventory_info"→5001`; `"audit_activity"` arm becomes dead code pending deprecation annotation**),
 **§J1–§J4 (flag-transition name shadowing adjudication, normative fail-closed rule, Claroty
-`devices` table resolution, `ocsf_field` count 31 pre-correction / 26 post-correction across
-four tables) — §J2 v2.22 amendment: `pipeline_result_to_record_batch` MUST also fail-closed
+`devices` table resolution, `ocsf_field` count 31 pre-correction per §J4 / 26 post-correction
+per ADR-058 §Status across four tables) — §J2 v2.23 amendment: `pipeline_result_to_record_batch` MUST also fail-closed
 (`Err(ArrowError::SchemaError(...))`) when any `ocsf_field` flattens via
 `ocsf_field_to_arrow_name` to a synthesized/reserved name: `class_uid`, `category_uid`,
 `_sensor`, or `raw_extensions`**, and **§K (OCSF v1.7.0
@@ -144,7 +144,7 @@ class_selector.rs KF-01 code defect confirmed and Armis sibling sweep)** in full
 implementing.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.17`, status: draft
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.18`, status: draft
 (modified 2026-08-18). §Column Routing postconditions, **§Claroty Contracted OCSF Mappings
 (ground truth for all four Claroty tables with KF-01..KF-12 corrections)**, and
 **§Interpretation A: Arrow Field Naming** govern the obligation that `ocsf_field` declarations
@@ -152,24 +152,24 @@ produce queryable Arrow field identifiers. **EC-016-013-023** (KF-01 entity_mana
 = 3004 wire-level postcondition) and **EC-016-013-024** (KF-02 inventory_info class_uid = 5001
 regression-prevention) are the authoritative wire-shape obligations for AC covering class_uid
 Arrow column values. **EC-016-013-027** (Tier-1/Tier-2 `prism_describe` model per
-§Interpretation A v1.17: `ocsf_field == None` columns MUST NOT appear as individual
+§Interpretation A v1.18: `ocsf_field == None` columns MUST NOT appear as individual
 ColumnDescriptor names; `prism_describe` MUST emit exactly ONE `raw_extensions`
 ColumnDescriptor per table with four-field shape `name = "raw_extensions"`,
 `col_type = prism_core::column::ColumnType::Json`, `nullable = true`, and `description`
 enumerating all `ocsf_field == None` source keys) is the
 authoritative obligation for AC-006 Tier-2 prohibition and AC-007b `prism_describe`
-`raw_extensions` ColumnDescriptor emission. **EC-016-013-028** (reworded in v1.17:
+`raw_extensions` ColumnDescriptor emission. **EC-016-013-028** (reworded in v1.18:
 multi-valued array source fields with `ocsf_field == None` MUST be serialized as compact
 JSON-list strings in `raw_extensions` — `pipeline_result_to_record_batch` is the synthesis
 locus per ADR-058 §I2, applying the SAME source_path extraction + ENRICH-1
 `Value::Array`→compact-JSON-list-string normalization as first-class columns — NOT a naive
 `r.get(col.name)`; e.g., `ip_list = ["192.168.1.1","10.0.0.1"]` serializes as
 `"[\"192.168.1.1\",\"10.0.0.1\"]"`) is the authoritative obligation for AC-007c and
-RG-026. **EC-016-013-029** (NEW in v1.17: when any `ocsf_field` value, after applying
+RG-026. **EC-016-013-029** (NEW in v1.18: when any `ocsf_field` value, after applying
 `ocsf_field_to_arrow_name`, equals a synthesized/reserved Arrow column name —
 `class_uid`, `category_uid`, `_sensor`, or `raw_extensions` — `pipeline_result_to_record_batch`
 MUST fail-closed returning `Err(ArrowError::SchemaError)`) is the authoritative obligation
-for AC-013 and RG-027 (§J2 synthesized-name reservation guard, ADR-058 v2.22 §J2).
+for AC-013 and RG-027 (§J2 synthesized-name reservation guard, ADR-058 v2.23 §J2).
 **EC-016-013-011** (corrected: `ocsf.unknown_class_name` WARN is a
 RUNTIME emission on the `Err` branch of `select_by_class_name`, NOT a load-time/startup
 warning) governs AC-011. This story brings the production path into conformance with those
@@ -210,7 +210,7 @@ work correctly.
 
 **ADR-058 §J2 `ANCHOR-NEEDED`: DISCHARGED.** DISCHARGED — ADR-058 §J2 carries the inline
 (Anchored: S-ADR058-OCSF-ROUTING-001 EC-010 / T-21 / RG-010) mark for the flag-transition
-shadow check (A≠B). The v2.22 §J2 synthesized-name reservation amendment is separately
+shadow check (A≠B). The v2.23 §J2 synthesized-name reservation amendment is separately
 anchored to S-ADR058-OCSF-ROUTING-001 AC-013 / T-21 clause (c) / RG-027.
 No architect action required.
 
@@ -221,10 +221,10 @@ The mandate anchor records:
 | `ocsf_column_naming: bool` field MUST be added to `SensorSpec` with `#[serde(default)]` (ADR-058 §D2) | S-ADR058-OCSF-ROUTING-001 | AC-001 | RG-001, RG-002 | DISCHARGED |
 | `pipeline_result_to_record_batch` MUST check, when `ocsf_column_naming == true`, that no flattened `ocsf_field` name equals a DIFFERENT column's `col.name` in the same table (`A ≠ B` exclusion), fail-closed (ADR-058 §J2) | S-ADR058-OCSF-ROUTING-001 | EC-010, T-21 (shadow check extension) | RG-010 | DISCHARGED |
 | `pipeline_result_to_record_batch` MUST gain `sensor_spec: &SensorSpec` as an explicit parameter threaded from the `fetch()` call site in `spec_driven_adapter.rs`; no placeholder construction (ADR-058 §D1 v2.18, ADR-022 §C wiring) | S-ADR058-OCSF-ROUTING-001 | AC-012 | RG-024 | DISCHARGED |
-| `prism_describe` MUST NOT emit an individual ColumnDescriptor for `ocsf_field == None` columns when `ocsf_column_naming = true`; MUST emit exactly ONE `raw_extensions` ColumnDescriptor with four-field shape: `name = "raw_extensions"`, `col_type = prism_core::column::ColumnType::Json`, `nullable = true`, and `description` identifying it as a JSON object and enumerating every `ocsf_field == None` column's `col.name` as a source key (ADR-058 §G v2.22; BC-2.16.003 EC-016-013-027 / §Interpretation A v1.17) | S-ADR058-OCSF-ROUTING-001 | AC-006 (Tier-2), AC-007b | RG-025 | DISCHARGED |
-| `ocsf_field_to_arrow_name` MUST live in `prism-spec-engine::column_mapping`; both `prism-bin::spec_driven_adapter` and `prism-mcp::tools::prism_describe` import it from there (no cycle); placing it in `prism-bin` is FORBIDDEN — `prism-mcp` is Level 6 in the topological ordering and `prism-bin` is Level 7 (`dependency-graph.md` §Dependency Rules Rule 2: lower-layer crates never depend on higher-layer crates); a `prism-mcp → prism-bin` edge would violate this rule (ADR-058 §I1 v2.22) | S-ADR058-OCSF-ROUTING-001 | AC-002 | RG-003, RG-004 | DISCHARGED |
-| Multi-valued array source fields with `ocsf_field == None` MUST be serialized as compact JSON-list strings in `raw_extensions` — NOT nested JSON arrays (BC-2.16.003 EC-016-013-028; ADR-058 v2.22 §B2/§I2) | S-ADR058-OCSF-ROUTING-001 | AC-007c | RG-026 | DISCHARGED |
-| `pipeline_result_to_record_batch` MUST fail-closed (`Err(ArrowError::SchemaError(...))`) when any `ocsf_field` flattens via `ocsf_field_to_arrow_name` to a synthesized/reserved name (`class_uid`, `category_uid`, `_sensor`, or `raw_extensions`) (ADR-058 v2.22 §J2 synthesized-name guard; BC-2.16.003 EC-016-013-029) | S-ADR058-OCSF-ROUTING-001 | AC-013, T-21 clause (c) | RG-027 | DISCHARGED |
+| `prism_describe` MUST NOT emit an individual ColumnDescriptor for `ocsf_field == None` columns when `ocsf_column_naming = true`; MUST emit exactly ONE `raw_extensions` ColumnDescriptor with four-field shape: `name = "raw_extensions"`, `col_type = prism_core::column::ColumnType::Json`, `nullable = true`, and `description` identifying it as a JSON object and enumerating every `ocsf_field == None` column's `col.name` as a source key (ADR-058 §G v2.23; BC-2.16.003 EC-016-013-027 / §Interpretation A v1.18) | S-ADR058-OCSF-ROUTING-001 | AC-006 (Tier-2), AC-007b | RG-025 | DISCHARGED |
+| `ocsf_field_to_arrow_name` MUST live in `prism-spec-engine::column_mapping`; both `prism-bin::spec_driven_adapter` and `prism-mcp::tools::prism_describe` import it from there (no cycle); placing it in `prism-bin` is FORBIDDEN — `prism-mcp` is Level 6 in the topological ordering and `prism-bin` is Level 7 (`dependency-graph.md` §Dependency Rules Rule 2: lower-layer crates never depend on higher-layer crates); a `prism-mcp → prism-bin` edge would violate this rule (ADR-058 §I1 v2.23) | S-ADR058-OCSF-ROUTING-001 | AC-002 | RG-003, RG-004 | DISCHARGED |
+| Multi-valued array source fields with `ocsf_field == None` MUST be serialized as compact JSON-list strings in `raw_extensions` — NOT nested JSON arrays (BC-2.16.003 EC-016-013-028; ADR-058 v2.23 §B2/§I2) | S-ADR058-OCSF-ROUTING-001 | AC-007c | RG-026 | DISCHARGED |
+| `pipeline_result_to_record_batch` MUST fail-closed (`Err(ArrowError::SchemaError(...))`) when any `ocsf_field` flattens via `ocsf_field_to_arrow_name` to a synthesized/reserved name (`class_uid`, `category_uid`, `_sensor`, or `raw_extensions`) (ADR-058 v2.23 §J2 synthesized-name guard; BC-2.16.003 EC-016-013-029) | S-ADR058-OCSF-ROUTING-001 | AC-013, T-21 clause (c) | RG-027 | DISCHARGED |
 
 ---
 
@@ -267,7 +267,7 @@ Until then, `ColumnMapper::map_record` remains test-only.
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.17 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention); EC-016-013-027 (Tier-1/Tier-2 `prism_describe` model: no individual ColumnDescriptor for `ocsf_field == None` columns; exactly one `raw_extensions` ColumnDescriptor with four-field shape: name + col_type=Json + nullable=true + description enumerating source keys); EC-016-013-028 (reworded v1.17: multi-valued array source fields → compact JSON-list string in raw_extensions via `pipeline_result_to_record_batch` source_path extraction + ENRICH-1 normalization — NOT naive `r.get(col.name)` — governs AC-007c / RG-026); EC-016-013-029 (NEW v1.17: flattened `ocsf_field` equal to synthesized reserved name → `Err(ArrowError::SchemaError)` fail-closed — governs AC-013 / RG-027); EC-016-013-011 (runtime `ocsf.unknown_class_name` WARN on Err branch — governs AC-011) |
+| BC-2.16.003 | v1.18 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention); EC-016-013-027 (Tier-1/Tier-2 `prism_describe` model: no individual ColumnDescriptor for `ocsf_field == None` columns; exactly one `raw_extensions` ColumnDescriptor with four-field shape: name + col_type=Json + nullable=true + description enumerating source keys); EC-016-013-028 (reworded v1.18: multi-valued array source fields → compact JSON-list string in raw_extensions via `pipeline_result_to_record_batch` source_path extraction + ENRICH-1 normalization — NOT naive `r.get(col.name)` — governs AC-007c / RG-026); EC-016-013-029 (NEW v1.18: flattened `ocsf_field` equal to synthesized reserved name → `Err(ArrowError::SchemaError)` fail-closed — governs AC-013 / RG-027); EC-016-013-011 (runtime `ocsf.unknown_class_name` WARN on Err branch — governs AC-011) |
 | BC-2.16.002 | v2.28 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
 | BC-2.01.013 | v1.23 | active | EC-01-025 NON-CONFORMANT annotation resolved for Claroty after this story merges; product-owner updates annotation |
 
@@ -291,7 +291,7 @@ Test-writer dispatched FIRST; implementer only after all 27 confirmed failing.
 
 - **RG-003:** `test_ocsf_field_to_arrow_name_replaces_dots_with_underscores` —
   fails until `ocsf_field_to_arrow_name` free function is added to
-  `prism-spec-engine::column_mapping` (ADR-058 §I1 v2.22 canonical home; NOT
+  `prism-spec-engine::column_mapping` (ADR-058 §I1 v2.23 canonical home; NOT
   `prism-bin::spec_driven_adapter` — placing it in prism-bin would be unreachable
   from prism-mcp without a forbidden cycle — `prism-mcp` is Level 6 / `prism-bin` is Level 7 in the
   topological ordering (`dependency-graph.md` §Dependency Rules Rule 2); a `prism-mcp → prism-bin`
@@ -547,8 +547,8 @@ Test-writer dispatched FIRST; implementer only after all 27 confirmed failing.
   as an explicit parameter threaded from `fetch()`; traces to ADR-022 §C: wiring not redesign.
 
 - **RG-025:** `test_prism_describe_ocsf_column_naming_true_raw_extensions_descriptor_and_no_phantom_col_names` —
-  fails until `prism_describe` implements the Tier-1/Tier-2 model per ADR-058 §G v2.22 /
-  BC-2.16.003 §Interpretation A v1.17 EC-016-013-027.
+  fails until `prism_describe` implements the Tier-1/Tier-2 model per ADR-058 §G v2.23 /
+  BC-2.16.003 §Interpretation A v1.18 EC-016-013-027.
 
   The test constructs a `SensorSpec` with `ocsf_column_naming = true` and a mixed-column
   table: column A with `name = "id"`, `ocsf_field = Some("finding_info.uid")` (Tier-1);
@@ -567,9 +567,9 @@ Test-writer dispatched FIRST; implementer only after all 27 confirmed failing.
        identify the aggregated vendor fields so the LLM agent can access them via
        `raw_extensions->'category'` etc.);
   (iv) the `raw_extensions` ColumnDescriptor has `col_type = prism_core::column::ColumnType::Json`
-       (ADR-058 §G v2.22; ADR-024 canonical ColumnType variant for JSON payloads);
+       (ADR-058 §G v2.23; ADR-024 canonical ColumnType variant for JSON payloads);
   (v) the `raw_extensions` ColumnDescriptor has `nullable = true`
-      (ADR-058 §G v2.22 / BC-2.16.003 §Interpretation A v1.17 — `nullable = true`
+      (ADR-058 §G v2.23 / BC-2.16.003 §Interpretation A v1.18 — `nullable = true`
       reflects TWO distinct conditions: (a) per-row: the column is null when ALL
       unmapped source values in a given row are null or absent (no vendor fields to
       aggregate); (b) per-table: a table with zero `ocsf_field == None` columns
@@ -583,15 +583,15 @@ Test-writer dispatched FIRST; implementer only after all 27 confirmed failing.
   four-field shape (assertions (iii)-(v) all fail). Without the fix, all five assertions fail.
 
   Covers AC-006 Tier-2 prohibition and AC-007b `raw_extensions` ColumnDescriptor emission
-  (full four-field shape). Traces to ADR-058 §G v2.22 (Tier-2 MUST NOT emit individual;
+  (full four-field shape). Traces to ADR-058 §G v2.23 (Tier-2 MUST NOT emit individual;
   MUST emit `raw_extensions` ColumnDescriptor with `col_type = Json`, `nullable = true`, and
   description enumerating source keys) and BC-2.16.003 EC-016-013-027 / §Interpretation
-  A v1.16 (POL-38 mandate anchor).
+  A v1.18 (POL-38 mandate anchor).
 
 - **RG-026:** `test_claroty_devices_ip_list_in_raw_extensions_is_compact_json_list_string` —
   fails until `pipeline_result_to_record_batch` correctly serializes multi-valued array source
   fields as compact JSON-list strings in `raw_extensions` (BC-2.16.003 EC-016-013-028;
-  ADR-058 v2.22 §B2/§I2).
+  ADR-058 v2.23 §B2/§I2).
 
   The test constructs a Claroty `devices` `SensorSpec` with `ocsf_column_naming = true` and
   a `devices` table that includes `ip_list` with `source_path = "$.ip_list[*]"` and
@@ -608,11 +608,11 @@ Test-writer dispatched FIRST; implementer only after all 27 confirmed failing.
   `ip_list` as a nested JSON array (violating the compact-string contract), silently drop
   the value, or emit it as null. Without the fix, assertion (iii) fails.
 
-  Covers AC-007c. Traces to BC-2.16.003 EC-016-013-028 + ADR-058 v2.22 §B2/§I2.
+  Covers AC-007c. Traces to BC-2.16.003 EC-016-013-028 + ADR-058 v2.23 §B2/§I2.
 
 - **RG-027:** `test_pipeline_result_to_record_batch_ocsf_field_flattens_to_reserved_name_returns_error` —
   fails until `pipeline_result_to_record_batch` implements the §J2 reserved-name guard from
-  ADR-058 v2.22.
+  ADR-058 v2.23.
 
   The test constructs a `SensorSpec` with `ocsf_column_naming = true` and a table containing
   a column whose `ocsf_field` flattens to one of the four reserved names:
@@ -631,7 +631,7 @@ Test-writer dispatched FIRST; implementer only after all 27 confirmed failing.
   produces a name collision with the synthesized `class_uid` field. Without the fix,
   assertion (i) fails (function returns `Ok(...)` instead of `Err(...)`).
 
-  Covers AC-013 (§J2 synthesized-name fail-closed guard). Traces to ADR-058 v2.22 §J2 +
+  Covers AC-013 (§J2 synthesized-name fail-closed guard). Traces to ADR-058 v2.23 §J2 +
 BC-2.16.003 EC-016-013-029.
 
 ### BC-5.38.001 Density Check
@@ -666,14 +666,14 @@ parameter; both `ocsf_column_naming = true` and `ocsf_column_naming = false` bra
 exercised from the threaded-parameter path).
 RG-025 covers AC-006 Tier-2 prohibition (no phantom ColumnDescriptor for `ocsf_field == None`
 columns) and AC-007b `raw_extensions` ColumnDescriptor four-field shape emission; traces to
-ADR-058 §G v2.22 / BC-2.16.003 §Interpretation A v1.17 EC-016-013-027 / POL-38 mandate anchor.
+ADR-058 §G v2.23 / BC-2.16.003 §Interpretation A v1.18 EC-016-013-027 / POL-38 mandate anchor.
 RG-026 covers AC-007c (multi-valued array source field serialized as compact JSON-list string
 in raw_extensions — wire-shape assertion at serialized output level; traces to
-BC-2.16.003 EC-016-013-028 + ADR-058 v2.22 §B2/§I2).
+BC-2.16.003 EC-016-013-028 + ADR-058 v2.23 §B2/§I2).
 RG-027 covers AC-013 (§J2 synthesized-name fail-closed guard): `pipeline_result_to_record_batch`
 MUST return `Err(ArrowError::SchemaError(...))` when any sensor-table `ocsf_field` flattens
 to a synthesized/reserved name: `class_uid`, `category_uid`, `_sensor`, or `raw_extensions`
-(ADR-058 v2.22 §J2 + BC-2.16.003 EC-016-013-029).
+(ADR-058 v2.23 §J2 + BC-2.16.003 EC-016-013-029).
 The density check is based on the 27 distinct failing tests enumerated above.
 
 ---
@@ -711,7 +711,7 @@ this postcondition in the production path)
 ### AC-002: ocsf_field_to_arrow_name helper correctly flattens dotted OCSF paths
 
 A free function `ocsf_field_to_arrow_name(ocsf_field: &str) -> String` is added to
-`prism-spec-engine::column_mapping` (ADR-058 §I1 v2.22 canonical home). Both
+`prism-spec-engine::column_mapping` (ADR-058 §I1 v2.23 canonical home). Both
 `prism-bin::spec_driven_adapter` and `prism-mcp::tools::prism_describe` import it from
 `prism-spec-engine::column_mapping` — no cycle, both crates already depend on prism-spec-engine.
 The function replaces all occurrences of `.` (dot) in `ocsf_field` with `_` (underscore). Examples:
@@ -948,7 +948,7 @@ once each sensor enables the flag)
 ### AC-006: prism_describe emits Tier-1 ColumnDescriptors for ocsf_field==Some columns and MUST NOT emit individual ColumnDescriptors for ocsf_field==None columns when ocsf_column_naming=true
 
 Under `ocsf_column_naming = true`, `prism_describe` emits `ColumnDescriptor` entries in two
-tiers per ADR-058 §G v2.22 / BC-2.16.003 §Interpretation A v1.17:
+tiers per ADR-058 §G v2.23 / BC-2.16.003 §Interpretation A v1.18:
 
 **Tier-1** (`ocsf_field == Some(path)`): `prism_describe` MUST emit a `ColumnDescriptor` with:
 - `name = ocsf_field_to_arrow_name(ocsf_field)` (the queryable Arrow identifier,
@@ -970,9 +970,9 @@ emitted individually with `name = col.name`, `description = col.ocsf_field`.
 LLM agents read `name: "finding_info_uid"` from `prism_describe` output and use it verbatim
 in PrismQL queries — no quoting needed.
 
-(traces to BC-2.16.003 §Interpretation A v1.17 Tier-1 model: `ocsf_field == Some` columns
+(traces to BC-2.16.003 §Interpretation A v1.18 Tier-1 model: `ocsf_field == Some` columns
 emit ColumnDescriptor with `name = ocsf_field_to_arrow_name(ocsf_field)`;
-ADR-058 §G v2.22: Tier-2 prohibition — `prism_describe` MUST NOT emit an individual
+ADR-058 §G v2.23: Tier-2 prohibition — `prism_describe` MUST NOT emit an individual
 ColumnDescriptor for `ocsf_field == None` columns when `ocsf_column_naming = true`;
 BC-2.16.003 EC-016-013-027)
 
@@ -1003,7 +1003,7 @@ go to `raw_extensions` rather than being silently dropped.
 
 **AC-007b — MCP tool (`prism_describe`):** Under `ocsf_column_naming = true`,
 `prism_describe` MUST emit exactly ONE `raw_extensions` ColumnDescriptor per
-ADR-058 §G v2.22 / BC-2.16.003 §Interpretation A v1.17 EC-016-013-027 with all four fields:
+ADR-058 §G v2.23 / BC-2.16.003 §Interpretation A v1.18 EC-016-013-027 with all four fields:
 - `name = "raw_extensions"`
 - `col_type = prism_core::column::ColumnType::Json`
 - `nullable = true`
@@ -1023,10 +1023,10 @@ is invisible to the agent — it cannot know to write `raw_extensions->'category
 
 (traces to BC-2.16.003 postcondition §Column Routing: "Columns without an ocsf_field
 mapping are preserved in the raw_extensions JSON blob" (AC-007a);
-BC-2.16.003 §Interpretation A v1.17 and EC-016-013-027: `prism_describe` MUST emit
+BC-2.16.003 §Interpretation A v1.18 and EC-016-013-027: `prism_describe` MUST emit
 exactly ONE `raw_extensions` ColumnDescriptor with four-field shape
 (name + col_type=Json + nullable=true + description enumerating source keys) (AC-007b);
-ADR-058 §G v2.22 (AC-007b); RG-025 (falsifiable Red Gate for AC-007b))
+ADR-058 §G v2.23 (AC-007b); RG-025 (falsifiable Red Gate for AC-007b))
 
 **AC-007c — Multi-valued array fields in `raw_extensions`:** When an `ocsf_field == None`
 column's source data is a JSON array (e.g., Claroty `devices.ip_list` with
@@ -1047,7 +1047,7 @@ string; this assertion MUST be verified at the serialized wire-output level (not
 pre-serialization Rust structure).
 
 (traces to BC-2.16.003 EC-016-013-028: multi-valued array source fields in raw_extensions
-are serialized as compact JSON-list strings; ADR-058 v2.22 §B2 / §I2: ip_list has
+are serialized as compact JSON-list strings; ADR-058 v2.23 §B2 / §I2: ip_list has
 `ocsf_field == None` and routes to raw_extensions; RG-026 (wire-shape Red Gate for AC-007c))
 
 ### AC-008: test_BC_2_11_005_e2e_claroty_query_returns_data updated to use device_uid
@@ -1330,7 +1330,7 @@ Covered by RG-027 (`test_pipeline_result_to_record_batch_ocsf_field_flattens_to_
 
 (traces to BC-2.16.003 EC-016-013-029: flattened `ocsf_field` equal to a synthesized
 reserved name MUST produce `Err(ArrowError::SchemaError)` — fail-closed guard, NEW in
-v1.17; ADR-058 v2.22 §J2 synthesized-name reservation guard)
+v1.18; ADR-058 v2.23 §J2 synthesized-name reservation guard)
 
 ---
 
@@ -1339,10 +1339,10 @@ v1.17; ADR-058 v2.22 §J2 synthesized-name reservation guard)
 | Component | Module | Pure/Effectful | Scope |
 |-----------|--------|---------------|-------|
 | `SensorSpec::ocsf_column_naming` field | `prism-spec-engine::spec_parser` | Pure (data struct) | New field added |
-| `ocsf_field_to_arrow_name` | `prism-spec-engine::column_mapping` | Pure | New free function — no I/O, deterministic string transform; canonical home per ADR-058 §I1 v2.22; imported by both `prism-bin::spec_driven_adapter` and `prism-mcp::tools::prism_describe` |
+| `ocsf_field_to_arrow_name` | `prism-spec-engine::column_mapping` | Pure | New free function — no I/O, deterministic string transform; canonical home per ADR-058 §I1 v2.23; imported by both `prism-bin::spec_driven_adapter` and `prism-mcp::tools::prism_describe` |
 | `pipeline_result_to_record_batch` | `prism-bin::spec_driven_adapter` | Effectful (Arrow I/O) | New parameter `sensor_spec: &SensorSpec` threaded from `fetch()` (ADR-058 §D1 v2.18 / ADR-022 §C wiring); conditional branch on `sensor_spec.ocsf_column_naming` |
 | `pipeline_result_to_record_batch` `raw_extensions` aggregation (§I2) | `prism-bin::spec_driven_adapter` | Effectful (Arrow I/O) | New path (ADR-058 §I2): when `ocsf_column_naming = true`, columns with `ocsf_field == None` are suppressed from individual Arrow schema fields and aggregated into a single `"raw_extensions"` Utf8 column; synthesis locus is `pipeline_result_to_record_batch` (schema-fields construction); aggregation loop MUST apply the same source_path extraction + ENRICH-1 `Value::Array`→compact-JSON-list-string normalization as first-class columns (BC-2.16.003 EC-016-013-028 reworded) — NOT naive `r.get(col.name)` |
-| `prism_describe` | `prism-mcp::tools::prism_describe` | Effectful (MCP response) | Tier-1/Tier-2 model per ADR-058 §G v2.22: Tier-1 (`ocsf_field == Some`) → ColumnDescriptor with `name = ocsf_field_to_arrow_name(ocsf_field)` and `description = ocsf_field`; Tier-2 (`ocsf_field == None`) → NO individual ColumnDescriptor emitted; exactly ONE `raw_extensions` ColumnDescriptor emitted per table enumerating all `ocsf_field == None` source keys (col.names) |
+| `prism_describe` | `prism-mcp::tools::prism_describe` | Effectful (MCP response) | Tier-1/Tier-2 model per ADR-058 §G v2.23: Tier-1 (`ocsf_field == Some`) → ColumnDescriptor with `name = ocsf_field_to_arrow_name(ocsf_field)` and `description = ocsf_field`; Tier-2 (`ocsf_field == None`) → NO individual ColumnDescriptor emitted; exactly ONE `raw_extensions` ColumnDescriptor emitted per table enumerating all `ocsf_field == None` source keys (col.names) |
 | `claroty.sensor.toml` | `prism-sensors/specs/` | Configuration | Add `ocsf_column_naming = true` + all KF-01..KF-12 corrections + §J3 shadow fix (14 TOML changes per AC-005) |
 | `class_selector.rs` | `prism-ocsf/src/` | Pure (lookup table) | Add `CLASS_UID_ENTITY_MANAGEMENT = 3004`; reroute `"audit_activity"` arm + Armis `("armis","audit_log")` arm to entity_management (3004) per AC-009 |
 | `#[ignore]`'d e2e test | `crates/prism-bin/tests/` | Test (effectful) | Update `row.get("uid")` → `row.get("device_uid")` |
@@ -1377,8 +1377,8 @@ Architecture section files: `architecture/module-decomposition.md` (SS-01, SS-02
 | EC-008 | `just check` after Stage 2 (blast radius per ADR-058 §E1) | Must stay GREEN: spec-driven-adapter unit tests use inline ColumnSpec with `ocsf_field = None` so they get `col.name`; DTU parity tests assert DTU HTTP response JSON (not Arrow schema); `prism_describe` unit tests use inline ColumnDescriptor constructions; CrowdStrike/Armis/Cyberint unaffected; Claroty e2e test is `#[ignore]`'d |
 | EC-009 | Two columns in the same table have `ocsf_field` values that flatten to the same Arrow name (e.g., `"a.b_c"` and `"a_b.c"` both → `"a_b_c"` via `ocsf_field_to_arrow_name`) | `pipeline_result_to_record_batch` returns `Err(ArrowError::SchemaError(...))` — fail-closed. Arrow 58 does NOT detect duplicate schema field names (`Schema::new` is infallible; `Schema::column_with_name` returns the first match — silent wrong-column resolution for the agent). Current Claroty TOML has no intra-table collision (verified by enumeration: 31 ocsf_field values pre-corrections across four tables — alerts: 9, audit_logs: 8, devices: 8, device_alert_relations: 6; post-KF corrections: 26 — alerts: 6, audit_logs: 6, devices: 8, dar: 6; ADR-058 §J4). Future sensors must be collision-free before enabling the flag. See RG-009. |
 | EC-010 | A flattened `ocsf_field` name from one column equals the `col.name` of a DIFFERENT column in the same table when `ocsf_column_naming = true` (flag-transition name shadowing per ADR-058 §J1/§J2). Example: `device_category` with `ocsf_field = "device.type"` → `device_type`, while column `device_type` has `col.name = "device_type"`. `SELECT device_type FROM claroty_devices` is valid in both flag states but returns different semantic content — high-level category vs type-within-category — with no error and no warning. | `pipeline_result_to_record_batch` returns `Err(ArrowError::SchemaError(...))` — fail-closed. The `A ≠ B` self-match exclusion is mandatory: a column whose flattened ocsf_field name equals its own `col.name` (e.g., `risk_score` → `risk_score`) is legal and MUST NOT fail. This collision class is resolved in `claroty.sensor.toml` by changing `device_category`'s ocsf_field from `"device.type"` to `"device.type_category"` (AC-005, same TOML edit). See RG-010. |
-| EC-016-013-027 | `prism_describe` emits individual ColumnDescriptors for `ocsf_field == None` columns (phantom queryable names) when `ocsf_column_naming = true`, or emits no `raw_extensions` ColumnDescriptor, or emits a `raw_extensions` ColumnDescriptor that fails to enumerate source keys. Pre-fix: agent calls `prism_describe` for a Claroty table, sees `category` as a ColumnDescriptor name, writes `SELECT category FROM claroty_alerts`, gets no data because `category` is aggregated into `raw_extensions` under the OCSF routing model — silent semantic failure at the agent/query interface. | `prism_describe` MUST NOT emit any ColumnDescriptor with `name` equal to an `ocsf_field == None` column's `col.name`; MUST emit exactly ONE ColumnDescriptor with `name = "raw_extensions"` whose description enumerates all `ocsf_field == None` col.name values as source keys. Tested by RG-025 (five assertions: phantom prohibition (i), count exactly 1 (ii), source-key enumeration (iii), col_type=Json (iv), nullable=true (v)). Traces to AC-006 Tier-2, AC-007b, ADR-058 §G v2.22, BC-2.16.003 §Interpretation A v1.17. |
-| EC-016-013-028 | A Claroty `devices` row has a non-empty `ip_list` field (multi-valued array source field). The field has `ocsf_field == None` and routes to `raw_extensions`. Pre-fix risk: `pipeline_result_to_record_batch` could serialize the array value as a nested JSON array inside `raw_extensions` (e.g., `{"ip_list": ["192.168.1.1", "10.0.0.1"]}`), or silently drop the value entirely, or emit it as null. Either scenario produces unexpected query behavior: the LLM agent expecting a compact JSON-list string receives a nested array or null instead, and cannot reliably parse or filter on it. | `pipeline_result_to_record_batch` MUST serialize the `ip_list` array value as a compact JSON-list STRING inside `raw_extensions` — e.g., `{"ip_list": "[\"192.168.1.1\",\"10.0.0.1\"]"}` where the `ip_list` value is the string `"[\"192.168.1.1\",\"10.0.0.1\"]"`, NOT a nested array, NOT null. This assertion MUST be verified at the serialized wire-output level (not pre-serialization Rust struct). Tested by RG-026. Traces to AC-007c, ADR-058 v2.22 §B2 / §I2 (ip_list has `ocsf_field == None` routes to raw_extensions), BC-2.16.003 EC-016-013-028. |
+| EC-016-013-027 | `prism_describe` emits individual ColumnDescriptors for `ocsf_field == None` columns (phantom queryable names) when `ocsf_column_naming = true`, or emits no `raw_extensions` ColumnDescriptor, or emits a `raw_extensions` ColumnDescriptor that fails to enumerate source keys. Pre-fix: agent calls `prism_describe` for a Claroty table, sees `category` as a ColumnDescriptor name, writes `SELECT category FROM claroty_alerts`, gets no data because `category` is aggregated into `raw_extensions` under the OCSF routing model — silent semantic failure at the agent/query interface. | `prism_describe` MUST NOT emit any ColumnDescriptor with `name` equal to an `ocsf_field == None` column's `col.name`; MUST emit exactly ONE ColumnDescriptor with `name = "raw_extensions"` whose description enumerates all `ocsf_field == None` col.name values as source keys. Tested by RG-025 (five assertions: phantom prohibition (i), count exactly 1 (ii), source-key enumeration (iii), col_type=Json (iv), nullable=true (v)). Traces to AC-006 Tier-2, AC-007b, ADR-058 §G v2.23, BC-2.16.003 §Interpretation A v1.18. |
+| EC-016-013-028 | A Claroty `devices` row has a non-empty `ip_list` field (multi-valued array source field). The field has `ocsf_field == None` and routes to `raw_extensions`. Pre-fix risk: `pipeline_result_to_record_batch` could serialize the array value as a nested JSON array inside `raw_extensions` (e.g., `{"ip_list": ["192.168.1.1", "10.0.0.1"]}`), or silently drop the value entirely, or emit it as null. Either scenario produces unexpected query behavior: the LLM agent expecting a compact JSON-list string receives a nested array or null instead, and cannot reliably parse or filter on it. | `pipeline_result_to_record_batch` MUST serialize the `ip_list` array value as a compact JSON-list STRING inside `raw_extensions` — e.g., `{"ip_list": "[\"192.168.1.1\",\"10.0.0.1\"]"}` where the `ip_list` value is the string `"[\"192.168.1.1\",\"10.0.0.1\"]"`, NOT a nested array, NOT null. This assertion MUST be verified at the serialized wire-output level (not pre-serialization Rust struct). Tested by RG-026. Traces to AC-007c, ADR-058 v2.23 §B2 / §I2 (ip_list has `ocsf_field == None` routes to raw_extensions), BC-2.16.003 EC-016-013-028. |
 
 ---
 
@@ -1415,7 +1415,7 @@ implementer MUST load only the files listed, not the full architecture directory
 - T-05: Write RG-002 — `test_sensor_spec_ocsf_column_naming_parses_true_from_toml` (MUST FAIL)
 - T-06: Write RG-003 — `test_ocsf_field_to_arrow_name_replaces_dots_with_underscores` (MUST FAIL).
   Place in `crates/prism-spec-engine/src/column_mapping.rs` `#[cfg(test)] mod tests` (ADR-058 §I1
-  v2.22 canonical home; NOT in prism-bin).
+  v2.23 canonical home; NOT in prism-bin).
 - T-07: Write RG-004 — `test_ocsf_field_to_arrow_name_single_segment_is_unchanged` (MUST FAIL).
   Place in `crates/prism-spec-engine/src/column_mapping.rs` `#[cfg(test)] mod tests` (same
   canonical home as T-06/RG-003).
@@ -1566,7 +1566,7 @@ implementer MUST load only the files listed, not the full architecture directory
   pre-fix `prism_describe` emits phantom ColumnDescriptors for `"category"` and
   `"alert_type_name"` (assertions (i)-(v) all fail) and no `raw_extensions` ColumnDescriptor
   with the correct four-field shape. Covers AC-006 Tier-2 and AC-007b; traces to ADR-058 §G
-  v2.22 / BC-2.16.003 §Interpretation A v1.17 EC-016-013-027.
+  v2.23 / BC-2.16.003 §Interpretation A v1.18 EC-016-013-027.
 - T-11S: Write RG-026 — `test_claroty_devices_ip_list_in_raw_extensions_is_compact_json_list_string`
   (MUST FAIL). In `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests`:
   construct a Claroty `devices` `SensorSpec` with `ocsf_column_naming = true` and a table
@@ -1578,7 +1578,7 @@ implementer MUST load only the files listed, not the full architecture directory
   STRING `"[\"192.168.1.1\",\"10.0.0.1\"]"` — NOT a nested JSON array, NOT null. Assertions
   MUST be made at wire-level (serialized JSON bytes). RED condition: without the fix,
   `ip_list` may be serialized as a nested array (assertion (iii) fails) or dropped/null.
-  Covers AC-007c. Traces to BC-2.16.003 EC-016-013-028 + ADR-058 v2.22 §B2/§I2.
+  Covers AC-007c. Traces to BC-2.16.003 EC-016-013-028 + ADR-058 v2.23 §B2/§I2.
 - T-11T: Write RG-027 — `test_pipeline_result_to_record_batch_ocsf_field_flattens_to_reserved_name_returns_error`
   (MUST FAIL). In `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests`:
   for each of the four reserved names (`class_uid`, `category_uid`, `_sensor`, `raw_extensions`),
@@ -1588,14 +1588,14 @@ implementer MUST load only the files listed, not the full architecture directory
   `ocsf_field = "raw.extensions"` → `raw_extensions`). Call `pipeline_result_to_record_batch`
   and assert `Err(ArrowError::SchemaError(...))` for each sub-case. RED condition: without
   the §J2 guard, the function returns `Ok(...)` with a malformed schema — assertion fails.
-  Covers ADR-058 v2.22 §J2 reserved-name guard.
+  Covers ADR-058 v2.23 §J2 reserved-name guard.
 - T-GATE: Run `just iter prism-spec-engine --no-fail-fast`, `just iter prism-bin --no-fail-fast`,
   `just iter prism-mcp --no-fail-fast`, and `just iter prism-ocsf --no-fail-fast` — confirm
   RG-001..RG-027 fail with correct compile/test-failure reasons (RG-001..004 in
   prism-spec-engine; RG-005..006/008..010/014..022/024/026/027 in prism-bin; RG-007 and
   RG-025 in prism-mcp; RG-011/012/023 in prism-ocsf/tests/; RG-013 in
   prism-ocsf/src/mappers/spec_driven.rs mod tests). Confirm no regressions in non-RG tests.
-  Report density: 27/12 = 2.25 ≥ 0.5. STOP and wait for implementer dispatch.
+  Report density: 27/13 = 2.08 ≥ 0.5. STOP and wait for implementer dispatch.
 
 ### Phase B: Implementation (implementer dispatched AFTER T-GATE)
 
@@ -1611,7 +1611,7 @@ implementer MUST load only the files listed, not the full architecture directory
   `auth_plugin`, `mode`, `probe_table`). Run `just iter prism-spec-engine`. Makes
   RG-001 and RG-002 green.
 - T-13: Add `pub fn ocsf_field_to_arrow_name(ocsf_field: &str) -> String` to
-  `crates/prism-spec-engine/src/column_mapping.rs` (ADR-058 §I1 v2.22 canonical home —
+  `crates/prism-spec-engine/src/column_mapping.rs` (ADR-058 §I1 v2.23 canonical home —
   NOT `spec_driven_adapter.rs`). Implementation: `ocsf_field.replace('.', "_")`. Add
   `pub mod column_mapping;` to `crates/prism-spec-engine/src/lib.rs` if not already
   present. In `crates/prism-bin/src/spec_driven_adapter.rs`, add
@@ -1654,8 +1654,8 @@ implementer MUST load only the files listed, not the full architecture directory
   `pipeline_result_to_record_batch`'s aggregation loop; this ensures `ip_list` in
   `raw_extensions` serializes as `"[\"192.168.1.1\",\"10.0.0.1\"]"` (compact string), not
   a nested JSON array. Run `just iter prism-bin`. Makes RG-008 and RG-026 green.
-- T-16: Update `prism_describe` per the Tier-1/Tier-2 model in ADR-058 §G v2.22 /
-  BC-2.16.003 §Interpretation A v1.17 EC-016-013-027:
+- T-16: Update `prism_describe` per the Tier-1/Tier-2 model in ADR-058 §G v2.23 /
+  BC-2.16.003 §Interpretation A v1.18 EC-016-013-027:
   (a) **Tier-1** (`ocsf_field == Some`): emit ColumnDescriptor with
       `name = ocsf_field_to_arrow_name(ocsf_field)` and `description = ocsf_field`.
   (b) **Tier-2 prohibition** (`ocsf_field == None`): MUST NOT emit an individual
@@ -1664,8 +1664,8 @@ implementer MUST load only the files listed, not the full architecture directory
       `ocsf_column_naming = true` AND at least one column has `ocsf_field == None`,
       emit exactly ONE additional ColumnDescriptor with the FOUR-FIELD SHAPE:
       - `name = "raw_extensions"`
-      - `col_type = prism_core::column::ColumnType::Json` (ADR-058 §G v2.22; ADR-024)
-      - `nullable = true` (ADR-058 §G v2.22 / BC-2.16.003 §Interpretation A v1.17)
+      - `col_type = prism_core::column::ColumnType::Json` (ADR-058 §G v2.23; ADR-024)
+      - `nullable = true` (ADR-058 §G v2.23 / BC-2.16.003 §Interpretation A v1.18)
       - `description` = a string identifying it as a JSON object and enumerating every
         `ocsf_field == None` column's `col.name` as a source key (e.g.,
         `"JSON object containing vendor fields not mapped to OCSF: category, alert_type_name, devices_count, alert_class, ot_devices_count"`)
@@ -1722,7 +1722,7 @@ implementer MUST load only the files listed, not the full architecture directory
   production Claroty config (two columns where ocsf_field flattens to col.name, e.g.,
   `status` → `status`) would be incorrectly rejected.
 
-  **(c) Reserved-name guard (new per ADR-058 v2.22 §J2, makes RG-027 green):**
+  **(c) Reserved-name guard (new per ADR-058 v2.23 §J2, makes RG-027 green):**
   After computing each flattened arrow name `flat = ocsf_field_to_arrow_name(col.ocsf_field)`,
   check if `flat` is one of the four synthesized/reserved names: `"class_uid"`,
   `"category_uid"`, `"_sensor"`, or `"raw_extensions"`. If so, return
@@ -1810,7 +1810,7 @@ Key lessons from the ADR-058 design process:
 From `architecture/module-decomposition.md`, ADR-023, ADR-028, and ADR-058:
 
 1. `ocsf_field_to_arrow_name` MUST live in `prism-spec-engine::column_mapping` (ADR-058
-   §I1 v2.22). Both `prism-bin::spec_driven_adapter` and `prism-mcp::tools::prism_describe`
+   §I1 v2.23). Both `prism-bin::spec_driven_adapter` and `prism-mcp::tools::prism_describe`
    import the helper from `prism-spec-engine::column_mapping`. Placing the helper in
    `prism-bin` is FORBIDDEN — `prism-mcp` is Level 6 in the crate topological ordering and
    `prism-bin` is Level 7 (`dependency-graph.md` §Dependency Rules Rule 2: lower-layer
@@ -1901,7 +1901,7 @@ Do NOT add new `reqwest` dependencies. Do NOT add `native-tls` features.
 | File | Action |
 |------|--------|
 | `crates/prism-spec-engine/src/spec_parser.rs` | Modify: add `#[serde(default)] pub ocsf_column_naming: bool` to `SensorSpec` |
-| `crates/prism-spec-engine/src/column_mapping.rs` | Create/Modify: add `pub fn ocsf_field_to_arrow_name(ocsf_field: &str) -> String` (ADR-058 §I1 v2.22 canonical home); add RG-003..RG-004 to `#[cfg(test)] mod tests` block |
+| `crates/prism-spec-engine/src/column_mapping.rs` | Create/Modify: add `pub fn ocsf_field_to_arrow_name(ocsf_field: &str) -> String` (ADR-058 §I1 v2.23 canonical home); add RG-003..RG-004 to `#[cfg(test)] mod tests` block |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: import `ocsf_field_to_arrow_name` from `prism_spec_engine::column_mapping` (NOT defined here); update `pipeline_result_to_record_batch` (individual-field naming per ADR-058 §I1 + `ocsf_field == None` → raw_extensions aggregation per ADR-058 §I2); the raw_extensions aggregation loop is schema-construction logic owned by `pipeline_result_to_record_batch`; it MUST reuse the same source_path extraction + ENRICH-1 `Value::Array`→compact-JSON-list-string normalization as first-class columns for each `ocsf_field == None` column value (BC-2.16.003 EC-016-013-028 reworded) |
 | `crates/prism-mcp/src/tools/prism_describe.rs` | Modify: `ColumnDescriptor.name` sourcing branches on `sensor_spec.ocsf_column_naming` |
 | `crates/prism-sensors/specs/claroty.sensor.toml` | Modify: apply all 14 TOML changes per AC-005 (ocsf_column_naming flag + KF-01..KF-12 + §J3 shadow fix — all in one edit) |
@@ -1926,7 +1926,7 @@ Build-time enforcement rules:
 
 - `prism-spec-engine` MUST NOT import from `prism-bin`. If `cargo tree -p prism-spec-engine` shows `prism-bin` after this story, a forbidden import was introduced.
 
-- `prism-mcp` MUST NOT import from `prism-bin`. The `ocsf_field_to_arrow_name` helper MUST live in `prism-spec-engine::column_mapping` (ADR-058 §I1 v2.22) so both `prism-bin` and `prism-mcp` can import it without a forbidden edge. `prism-mcp` is Level 6 and `prism-bin` is Level 7 in the crate topological ordering (`dependency-graph.md` §Dependency Rules Rule 2); a `prism-mcp → prism-bin` dependency is forbidden because lower-layer crates never depend on higher-layer crates. If `cargo tree -p prism-mcp` shows `prism-bin` after this story, the helper was placed in the wrong crate.
+- `prism-mcp` MUST NOT import from `prism-bin`. The `ocsf_field_to_arrow_name` helper MUST live in `prism-spec-engine::column_mapping` (ADR-058 §I1 v2.23) so both `prism-bin` and `prism-mcp` can import it without a forbidden edge. `prism-mcp` is Level 6 and `prism-bin` is Level 7 in the crate topological ordering (`dependency-graph.md` §Dependency Rules Rule 2); a `prism-mcp → prism-bin` dependency is forbidden because lower-layer crates never depend on higher-layer crates. If `cargo tree -p prism-mcp` shows `prism-bin` after this story, the helper was placed in the wrong crate.
 
 - `prism-sensors` MUST NOT gain a dependency on `prism-spec-engine`. If `cargo tree -p prism-sensors` shows `prism-spec-engine`, the story introduced a forbidden import.
 
@@ -1935,6 +1935,33 @@ Build-time enforcement rules:
 ---
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
+
+### v1.40 Amendment Sweep (FB-52/53/54 LEG 3: Fix 1 density 27/12→27/13; Fix 2+4 §Interpretation A v1.16→v1.18 (wrapped line); Fix 3 §Authority ocsf_field count per §J4/§Status; version re-pin ADR-058 v2.22→v2.23 + BC-2.16.003 v1.17→v1.18 active body)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): Pin bumps ADR-058 v2.22→v2.23 and BC-2.16.003
+v1.17→v1.18 require sibling pin coordination; COERCION-001 §Authority + §Behavioral Contracts
+table updated to v2.23/v1.18 in the same burst (v1.36→v1.37). Content unaffected in COERCION-001.
+VERDICT: SIBLING PIN BUMP EXECUTED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+The changed surfaces are: (1) density denominator 12→13 and ratio 2.25→2.08 (T-GATE); (2)
+`§Interpretation A v1.16` wrapped-line instance → v1.18 (RG-025 Covers/Traces, combined Fix 2+4);
+(3) §Authority parenthetical rewritten — `31 pre-correction per §J4 / 26 post-correction per
+ADR-058 §Status` (Fix 3); (4) ADR-058 v2.22→v2.23 throughout active body (§Authority, §Mandate
+Anchor, §Behavioral Contracts, RG-025..027, AC-002/006/007b/007c/013, Architecture Mapping,
+Edge Cases, Tasks); (5) BC-2.16.003 v1.17→v1.18 throughout active body (§Authority, §Behavioral
+Contracts, AC-006/007b, RG-025, Edge Cases, Tasks).
+No downstream artifact copies these loci verbatim. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUSTs added. All existing MUST anchors carried forward with updated version pins.
+VERDICT: NO NEW UNANCHORED MUSTs.
+
+---
 
 ### v1.39 Amendment Sweep (F-P51-MED-001 RG-026 orphaned: T-15 extended to name RG-026 as green target + source_path/ENRICH-1 normalization mandate; F-P49-MED-001 AC-007a build_column_array attribution removed; F-P49/51-MED-002 AC-013 added for §J2 synthesized-name guard; F-P49/51-BC-pin-sweep BC-2.16.003 v1.16→v1.17; F-P49-MED-003/F-P51-LOW-001 COERCION-001 §Authority+table pin v1.15/v1.16→v1.17)
 
@@ -2908,6 +2935,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.40 | 2026-08-19 | story-writer | FB-52/53/54 LEG 3 — records-tier fixes + exhaustive residual sweep. Fix 1: T-GATE density denominator 12→13, ratio 2.25→2.08 (AC-013 was added in v1.39 but density not updated). Fix 2+4 combined: `§Interpretation A v1.16` wrapped-line instance in RG-025 Covers/Traces updated to v1.18 (net; was missed by prior sweeps due to line-wrap). Fix 3: §Authority parenthetical rewritten to attribute 31 pre-correction count to §J4 and 26 post-correction count to ADR-058 §Status (section-pointer precision). Version re-pin sweep (Fix 4): all active-body ADR-058 v2.22→v2.23 and BC-2.16.003 v1.17→v1.18 references updated (§Authority, §Mandate Anchor, §Behavioral Contracts, RG-025..027, AC-002/006/007b/007c/013, Architecture Mapping, Edge Cases, Tasks, Architecture Compliance Rules, Forbidden Dependencies, File Structure). Sibling COERCION-001 bumped to v1.37 same burst. §v1.40 Amendment Sweep added. |
 | 1.39 | 2026-08-18 | story-writer | FB-49/51 Leg 2 — round-2 adversary findings closed. F-P51-MED-001: RG-026 orphan resolved — T-15 extended to (a) mandate source_path extraction + ENRICH-1 `Value::Array`→compact-JSON-list-string normalization for `ocsf_field == None` columns in `pipeline_result_to_record_batch` raw_extensions aggregation loop (reuse shared pipeline, NOT naive `r.get(col.name)`; BC-2.16.003 EC-016-013-028 reworded; ADR-058 §I2) and (b) name RG-026 as second green target alongside RG-008. F-P49-MED-001: AC-007a rewritten — removed `build_column_array` attribution sentence; added source_path extraction + ENRICH-1 normalization mandate for `ocsf_field == None` columns. F-P49/51-MED-002: AC-013 added — dedicated AC for §J2 synthesized-name fail-closed guard (`Err(ArrowError::SchemaError)` when any `ocsf_field` flattens to `class_uid`, `category_uid`, `_sensor`, or `raw_extensions`; traces to BC-2.16.003 EC-016-013-029 + ADR-058 v2.22 §J2); RG-027 Covers/Traces updated to reference AC-013 + EC-016-013-029; §Mandate Anchor table §J2 row AC column `EC-010 (extended), T-21 clause (c)` → `AC-013, T-21 clause (c)` + EC-016-013-029 added; §Mandate Anchor §J2 discharge narrative extended with v2.22 synthesized-name guard anchor. BC-pin sweep: §Authority BC-2.16.003 v1.16→v1.17 + EC-016-013-029 note + EC-016-013-028 reworded; §Behavioral Contracts row v1.16→v1.17 + EC-016-013-029 annotation; all 12 `§Interpretation A v1.16` active-text instances → `v1.17`. Density recomputed: 27/13 = 2.08 ≥ 0.5. AC count 12→13. §Architecture Mapping §I2 row and §File Structure spec_driven_adapter.rs row updated to remove misleading `build_column_array NOT added` language and add source_path+ENRICH-1 normalization mandate. input-hash updated aeafdff→90f6a36 (BC-2.16.003 updated in Leg 1). §v1.39 TD-VSDD-097 amendment sweep added. |
 | 1.38 | 2026-08-18 | story-writer | OCSF-correctness Claroty SPEC fix-burst leg 3 (F-P46-MED-001 version-pin sweep AC-006; F-P48-MED-001 EC-016-013-011 trace; F-P48-MED-002 EC-016-013-028 + §J2 guard; F-P48-LOW-001 RG-010 refresh; F-P48-OBS-2 RG-025 nullable dual-condition). Closed six findings. Changes: (1) §Authority ADR-058 v2.21→v2.22 with §B2/§I2/§J2 amendment notes; (2) §Authority BC-2.16.003 v1.15→v1.16 with EC-016-013-028/EC-016-013-011; (3) §Behavioral Contracts BC-2.16.003 row v1.15→v1.16; (4) §Mandate Anchor — §G/§I1 rows v2.21→v2.22; two new rows RG-026 (EC-016-013-028) and RG-027 (§J2 guard); (5) input-hash updated aeafdff (drift from legs 1-2 of burst changing ADR-058 and BC-2.16.003); (6) RG-010 self-match exclusion: inline 5-column enumeration replaced with reference to BC-2.16.003 §Claroty Contracted OCSF Mappings ground-truth devices table (20 columns per PR #236); (7) RG-025 intro v2.21/v1.15→v2.22/v1.16; (8) RG-025 assertion (iv) v2.21→v2.22; (9) RG-025 assertion (v) v2.21/v1.15→v2.22/v1.16 + dual-condition rationale (per-row null AND per-table absence); (10) RG-025 Covers/Traces v2.21/v1.15→v2.22/v1.16; (11) AC-006 preamble v2.20/v1.14→v2.22/v1.16 (THE v1.37 sibling-sweep gap); (12) AC-006 trace v1.14/v2.20→v1.16/v2.22; (13) AC-007b header v2.21/v1.15→v2.22/v1.16; (14) AC-007 traces v1.15/v2.21→v1.16/v2.22; (15) AC-007c NEW — EC-016-013-028 multi-valued array compact JSON-list string obligation; (16) AC-011 trace — added BC-2.16.003 EC-016-013-011 corrected runtime-WARN reference; (17) AC-012 — 14→16 new callers (RG-026/027 added); T-14A 14→16, total 17→19; (18) BC-5.38.001 — 25→27 RGTs, 2.08→2.25, RG-026/027 coverage notes, RG-025 trace v2.22/v1.16; (19) RG-026 NEW; (20) RG-027 NEW; (21) T-11S NEW (write RG-026); (22) T-11T NEW (write RG-027); (23) T-21 clause (c) NEW — §J2 reserved-name guard makes RG-027 green; (24) T-GATE 25→27, density 2.08→2.25, RG-026/027 in prism-bin; (25) T-19 25→27; (26) §Architecture Mapping prism_describe row v2.20→v2.22; all remaining v2.21/v1.15 body pins swept to v2.22/v1.16 (AC-002, RG-003, T-06, T-13, T-16 col_type/nullable, Architecture Compliance Rule 1, Forbidden Dependencies prism-mcp, File Structure column_mapping row); (27) Edge Cases table — EC-016-013-027 v2.20/v1.14→v2.22/v1.16 + RG-025 assertion count corrected from three to five; new EC-016-013-028 row; (28) §v1.38 TD-VSDD-097 Amendment Sweep added. |
 | 1.37 | 2026-08-18 | story-writer | OCSF-correctness Claroty SPEC fix-burst leg 3 (F-P43-HIGH-001 + F-P43-MED-001 + F-P44-OBS-001): closed three findings from adversary passes P43/P44. F-P43-HIGH-001 [HIGH]: swept `ocsf_field_to_arrow_name` canonical home from `prism-bin::spec_driven_adapter` (unreachable from prism-mcp without forbidden cycle) to `prism-spec-engine::column_mapping` per ADR-058 §I1 v2.21. Changes: (1) §Authority ADR-058 pin v2.20→v2.21 with §I1 crate-placement correction note and §G four-field shape; (2) §Authority BC-2.16.003 pin v1.14→v1.15 with EC-016-013-027 four-field shape; (3) §Behavioral Contracts BC-2.16.003 row v1.14→v1.15; (4) RG-003 reworded: `prism-spec-engine::column_mapping` canonical home, no-cycle import contract from both prism-bin and prism-mcp; (5) §Mandate Anchor: §I1 crate-placement MUST row added (AC-002/RG-003/RG-004); (6) AC-002 updated: module ref `prism-spec-engine::column_mapping`; (7) §Architecture Mapping `ocsf_field_to_arrow_name` row relocated to `prism-spec-engine::column_mapping`; (8) §Architecture Compliance Rules Rule 1 reworded: `prism-spec-engine::column_mapping` MUST, forbidden-cycle explanation; (9) §Forbidden Dependencies: first bullet fixed (function not in prism-bin); new `prism-mcp MUST NOT import from prism-bin` bullet added; (10) §File Structure Requirements: `prism-spec-engine/src/column_mapping.rs` row added; prism-bin row updated to "import from"; test row RG-003..RG-006→RG-005..RG-006; (11) T-06/T-07: file location note added; (12) T-13: target changed to `column_mapping.rs` with import instructions for both prism-bin and prism-mcp; (13) T-GATE/T-19: `RG-001..004 in prism-spec-engine` (was `RG-001..002`); F-P43-MED-001 [MED]: §Red Gate intro "twenty-four"/"24" corrected to "twenty-five"/"25". F-P44-OBS-001 [OBS]: (14) RG-025 extended from three assertions (i)-(iii) to five: (iv) `col_type = prism_core::column::ColumnType::Json`; (v) `nullable = true`; RED condition updated; version refs v2.21/v1.15; (15) T-11R five assertions (i)-(v); (16) T-16 four-field ColumnDescriptor shape; (17) §BC-5.38.001 density note updated; (18) AC-007b `col_type`/`nullable` fields; version refs; (19) AC-007 traces updated; (20) §Mandate Anchor §G row updated with four-field shape. §v1.37 Amendment Sweep added. Post-authorship correction (same version — pre-commit): phantom-section cite "ADR-023 §D3" replaced with `dependency-graph.md §Dependency Rules Rule 2` (Level 6 prism-mcp / Level 7 prism-bin; lower-layer crates never depend on higher-layer crates) at four loci: §Mandate Anchor table, RG-003, §Architecture Compliance Rules Rule 1, §Forbidden Dependencies prism-mcp bullet. |

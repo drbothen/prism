@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.780"
+version: "8.781"
 producer: state-manager
-timestamp: 2026-08-19T05:26:00Z
+timestamp: 2026-08-19T08:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -20,17 +20,14 @@ develop_head: "69d821be"
 # NOTE: D-2202 — develop_head corrected 791b68c3→69d821be (fast-forward COMPLETE; develop == origin/develop == 69d821be confirmed). OCSF-mapping schema-validation COMPLETE (ADR-058 v2.4; 12 KF + CODE DEFECT §class_selector.rs); ARCH-INDEX v2.303→v2.304. STATE v8.732→v8.733. D-2201 NOTE archived.
 # NOTE: D-2183 — develop advanced 3197e27a9→791b68c3: PR #238 chore(gitignore) AD-017 live-evidence SQUASH-MERGED to develop 2026-08-15. D-2171 NOTE archived.
 # NOTE: D-2109 — develop advanced ef996a4c0→5d1a30ac7: PR #236 fix/claroty-live-api-fidelity SQUASH-MERGED; BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED (passes 8/9/10 on frozen 386df43c5); HS-014 PASS; worktrees CLAROTY-LIVE + FINDING-R removed. D-2102 NOTE archived.
-bc_index_version: "9.39"
-# NOTE: D-2246 — BC-INDEX v9.38→v9.39: FB-49/51 fix-burst — BC-2.16.003 pin v1.16→v1.17 (§J2 synthesized-name guard propagated to §Invariants/§Error Conditions; F-P49-MED-001/F-P49/51-MED-002 closed). Counts UNCHANGED: active 252/draft 4/total 269. D-2245 NOTE archived.
-# NOTE: D-2245 — BC-INDEX v9.37→v9.38: FB-46/48 fix-burst — BC-2.16.003 pin v1.15→v1.16 (EC-016-013-028 NEW; EC-016-013-011 corrected). Counts UNCHANGED: active 252/draft 4/total 269. D-2243 NOTE archived.
+bc_index_version: "9.40"
+# NOTE: D-2247 — BC-INDEX v9.39→v9.40: FB-52/53/54 records-tier fix-burst — BC-2.16.003 pin v1.17→v1.18 (4 "emits unconditionally" corrected; §G intro pin v2.23). ADR-058 v2.22→v2.23. ROUTING-001 v1.39→v1.40. COERCION-001 v1.36→v1.37. Counts UNCHANGED: active 252/draft 4/total 269. D-2246 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.860"
-# NOTE: D-2246 — STORY-INDEX v2.859→v2.860: FB-49/51 fix-burst — BC-2.16.003 v1.16→v1.17; ROUTING-001 v1.38→v1.39 (AC-013 NEW; density 2.08); COERCION-001 v1.35→v1.36 (sibling pin). total_stories 302 UNCHANGED. D-2245 NOTE archived.
-# NOTE: D-2245 — STORY-INDEX v2.858→v2.859: FB-46/48 fix-burst — ADR-058 v2.21→v2.22; BC-2.16.003 v1.15→v1.16; ROUTING-001 v1.37→v1.38; COERCION-001 v1.34→v1.35. total_stories 302 UNCHANGED. D-2243 NOTE archived.
-arch_index_version: "2.322"
-# NOTE: D-2246 — ARCH-INDEX UNCHANGED v2.322 (ADR-058 UNCHANGED v2.22; no structural changes in FB-49/51). D-2245 NOTE archived.
-# NOTE: D-2245 — ARCH-INDEX v2.321→v2.322: FB-46/48 fix-burst — ADR-058 pin v2.21→v2.22 (§B2 source_path; §I2 MUST; §J2 synthesized-name). D-2243 NOTE archived.
+story_index_version: "2.861"
+# NOTE: D-2247 — STORY-INDEX v2.860→v2.861: FB-52/53/54 records-tier fix-burst — ROUTING-001 v1.39→v1.40 (T-GATE density 27/13; re-pin sweep); COERCION-001 v1.36→v1.37 (sibling pin v1.18). total_stories 302 UNCHANGED. D-2246 NOTE archived.
+arch_index_version: "2.323"
+# NOTE: D-2247 — ARCH-INDEX v2.322→v2.323: FB-52/53/54 records-tier fix-burst — ADR-058 pin v2.22→v2.23 (§J2 raw_extensions-conditional prose correction; input-hash b030dfa). D-2246 NOTE archived.
 workspace_test_count: 5743
 # NOTE: D-2184 — workspace_test_count 5733→5741: S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD-GREEN — RG-001..RG-005 pass. D-2161 NOTE archived.
 # NOTE: D-2160 — 5731→5732: RG-020 added; just check GREEN 5732 at feature HEAD 21df2f6d4. D-2159 NOTE archived.
@@ -39,7 +36,7 @@ workspace_test_count: 5743
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2246 FB-49/51 OCSF-correctness fix-burst COMPLETE — BC-2.16.003 v1.16→v1.17 (§J2 synthesized-name guard propagated to §Invariants/§Error Conditions; F-P49-MED-001/F-P49/51-MED-002 closed); ROUTING-001 v1.38→v1.39 (AC-013 NEW; F-P51-MED-001 orphaned RG-026 task closed); COERCION-001 v1.35→v1.36 (sibling pin; F-P49-MED-003/P51-LOW-001 closed). BC-INDEX v9.38→v9.39. STORY-INDEX v2.859→v2.860. STATE v8.779→v8.780. NEW FROZEN: ADR-058 v2.22 / BC-2.16.003 v1.17 / BC-2.16.002 v2.28 / ROUTING-001 v1.39 / COERCION-001 v1.36. BC-5.39.001 streak RESET 0/3 (perimeter changed). trajectory-tail →5→4→0→3 (p48→p49→p50→p51). RESUME NEXT-ACTION: adversary SPEC passes 52/53/54 (parallel) on new frozen perimeter; then HALT for human TDD-gate decision."
+current_step: "D-2247 FB-52/53/54 OCSF-correctness records-tier fix-burst COMPLETE — ADR-058 v2.22→v2.23 (§J2 conditional prose corrected; input-hash b030dfa); BC-2.16.003 v1.17→v1.18 (4 'emits unconditionally' corrected; §G intro pin v2.23); ROUTING-001 v1.39→v1.40 (T-GATE density 27/13; RG-025 pin; §Authority pointer; re-pin sweep); COERCION-001 v1.36→v1.37 (sibling re-pin; input-hash 3cbb64b). ARCH-INDEX v2.322→v2.323. BC-INDEX v9.39→v9.40. STORY-INDEX v2.860→v2.861. STATE v8.780→v8.781. NEW FROZEN: ADR-058 v2.23 / BC-2.16.003 v1.18 / BC-2.16.002 v2.28 / ROUTING-001 v1.40 / COERCION-001 v1.37. BC-5.39.001 streak RESET 0/3 (perimeter changed). trajectory-tail →3→2→2→2 (p51→p52→p53→p54). RESUME NEXT-ACTION: adversary SPEC passes 55/56/57 (parallel) on NEW perimeter ADR-058 v2.23 / BC-2.16.003 v1.18 / ROUTING-001 v1.40 / COERCION-001 v1.37; then HALT for human TDD-gate decision."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -76,7 +73,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 236 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: +36 | margin from actual: -264 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 235 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: +35 | margin from actual: -265 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -89,7 +86,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-19 D-2246 FB-49/51 fix-burst — BC-2.16.003 v1.16→v1.17; ROUTING-001 v1.38→v1.39; COERCION-001 v1.35→v1.36; STATE v8.779→v8.780; trajectory-tail →5→4→0→3 (p48→p49→p50→p51) |
+| **Last Updated** | 2026-08-19 D-2247 FB-52/53/54 fix-burst — ADR-058 v2.22→v2.23; BC-2.16.003 v1.17→v1.18; ROUTING-001 v1.39→v1.40; COERCION-001 v1.36→v1.37; STATE v8.780→v8.781; trajectory-tail →3→2→2→2 (p51→p52→p53→p54) |
 
 ## Phase Progress
 
@@ -106,10 +103,11 @@ pre_compact_snapshot_at: "2026-08-19"
 | Wave-A spec-evolution LOCAL CASCADE | CONVERGED | 2026-07-23 | 2026-07-23 | BC-5.39.001 strict 3/3 | 47 passes / 36 fix-bursts. CLEAN(strict): 19/24/30/33/36/39/41/42/45/46/47. |
 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 | FULLY VALIDATED | 2026-08-15 | 2026-08-15 | D-2166 AC-LIVE-001 SATISFIED; HS-008..011 CONSUMED | PR #237 squash-merged develop@3197e27a9 2026-08-15 |
 | S-CLAROTY-AUDITLOG-TIMEBOX-001 | MERGED | 2026-08-16 | 2026-08-16 | PR #239 develop@69d821be 2026-08-16T22:51Z | LOCAL 9-pass 3-CLEAN + HOLDOUT PASS 4/4 + LIVE xDome PASS; PR-LEVEL 3-CLEAN on 8ae0b5d8 |
-| OCSF-correctness claroty SPEC adversary cascade | IN PROGRESS | 2026-08-16 | — | pass-51 COMPLETE (D-2246 FB-49/51); streak 0/3 re-gated new perimeter | p29(CLEAN)[1/3]→p30(1MED)→p31(1LOW)→p32(2MED)→p33(1MED)→p34(4)→p35(CLEAN 1/3)→p36(1LOW)→p37(CLEAN 1/3)→p38(CLEAN 2/3)→p39(1LOW)→p40(1HIGH)→p41(2MED)→p42(1HIGH+1LOW)→p43(2[1H+1M])→p44(1OBS)→p45(1MED)→p46(1MED)→p47(CLEAN[1/3])→p48(5[2M+1L+2O])→FB-46/48→p49(4[3M+1O])→p50(CLEAN)→p51(3[2M+1L])→FB-49/51→p52+ PENDING. NEW FROZEN: ADR-058 v2.22/BC-2.16.003 v1.17/BC-2.16.002 v2.28/ROUTING-001 v1.39/COERCION-001 v1.36 |
+| OCSF-correctness claroty SPEC adversary cascade | IN PROGRESS | 2026-08-16 | — | pass-54 COMPLETE (D-2247 FB-52/53/54); streak 0/3 re-gated new perimeter | p29(CLEAN)[1/3]→p30(1MED)→p31(1LOW)→p32(2MED)→p33(1MED)→p34(4)→p35(CLEAN 1/3)→p36(1LOW)→p37(CLEAN 1/3)→p38(CLEAN 2/3)→p39(1LOW)→p40(1HIGH)→p41(2MED)→p42(1HIGH+1LOW)→p43(2[1H+1M])→p44(1OBS)→p45(1MED)→p46(1MED)→p47(CLEAN[1/3])→p48(5[2M+1L+2O])→FB-46/48→p49(4[3M+1O])→p50(CLEAN)→p51(3[2M+1L])→FB-49/51→p52(2[1L+1O])→p53(2MED)→p54(2[1M+1L])→FB-52/53/54→p55+ PENDING. NEW FROZEN: ADR-058 v2.23/BC-2.16.003 v1.18/BC-2.16.002 v2.28/ROUTING-001 v1.40/COERCION-001 v1.37 |
 | D-2238..D-2243 (exhaustive) SPEC fix bursts | COMPLETE | 2026-08-18 | 2026-08-18 | state-manager | F-P33..P45 fix bursts: ADR-058 v2.17→v2.21; BC-2.16.003 v1.13→v1.15; ROUTING-001 v1.31→v1.37; COERCION-001 v1.30→v1.34. NEW FROZEN perimeter established D-2243. |
 | D-2245 FB-46/48 SPEC fix-burst | COMPLETE | 2026-08-18 | 2026-08-18 | state-manager | F-P46-MED-001, F-P48-MED-001/002, F-P48-LOW-001, F-P48-OBS-1/2 closed; architect deep-review; ADR-058 v2.21→v2.22; BC-2.16.003 v1.15→v1.16; ROUTING-001 v1.37→v1.38; COERCION-001 v1.34→v1.35. NEW FROZEN: ADR-058 v2.22/BC-2.16.003 v1.16/BC-2.16.002 v2.28/ROUTING-001 v1.38/COERCION-001 v1.35 |
 | D-2246 FB-49/51 SPEC fix-burst | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | F-P49-MED-001/F-P49/51-MED-002/F-P51-MED-001/F-P49-MED-003/P51-LOW-001 closed; OBS AC-013 ACCEPTED. BC-2.16.003 v1.16→v1.17; ROUTING-001 v1.38→v1.39; COERCION-001 v1.35→v1.36. NEW FROZEN: ADR-058 v2.22/BC-2.16.003 v1.17/BC-2.16.002 v2.28/ROUTING-001 v1.39/COERCION-001 v1.36 |
+| D-2247 FB-52/53/54 SPEC fix-burst | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | F-P53/54-MED-001 T-GATE density corrected; F-P53-MED-002 RG-025 pin corrected; F-P52-OBS-1 §Authority pointer corrected; F-P52-LOW-1≡F-P54-LOW-001 4 "emits unconditionally" corrected. ADR-058 v2.22→v2.23; BC-2.16.003 v1.17→v1.18; ROUTING-001 v1.39→v1.40; COERCION-001 v1.36→v1.37. NEW FROZEN: ADR-058 v2.23/BC-2.16.003 v1.18/BC-2.16.002 v2.28/ROUTING-001 v1.40/COERCION-001 v1.37 |
 
 _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individual story rows PRs #162–#235; fix-burst rows D-2238..D-2243 (exhaustive)) archived to cycles/wave-5-e-demo-fidelity/burst-log.md (D-1794 + D-2237 + D-2244+1 compactions)._
 
@@ -117,12 +115,12 @@ _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individua
 
 | Metric | Value |
 |--------|-------|
-| BC-5.39.001 streak | 0/3 — RESET by FB-49/51 (perimeter changed; D-2246) |
+| BC-5.39.001 streak | 0/3 — RESET by FB-52/53/54 (perimeter changed; D-2247) |
 | Active cascade | OCSF-correctness claroty SPEC adversary |
-| Pass count | 51 complete; pass-52 pending |
-| Last CLEAN(strict) | pass-50 (1/3 reached; p51 had findings; streak reset by FB-49/51) |
-| Finding trajectory | trajectory-tail →5→4→0→3 (p48→p49→p50→p51). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Frozen perimeter | ADR-058 v2.22 / BC-2.16.003 v1.17 / BC-2.16.002 v2.28 / ROUTING-001 v1.39 / COERCION-001 v1.36 |
+| Pass count | 54 complete; pass-55 pending |
+| Last CLEAN(strict) | pass-50 (no strict CLEANs in passes 51-54; streak reset by FB-52/53/54) |
+| Finding trajectory | trajectory-tail →3→2→2→2 (p51→p52→p53→p54). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
+| Frozen perimeter | ADR-058 v2.23 / BC-2.16.003 v1.18 / BC-2.16.002 v2.28 / ROUTING-001 v1.40 / COERCION-001 v1.37 |
 
 ## Concurrent Cycles
 
@@ -132,12 +130,12 @@ _No concurrent cycles in progress. Current cycle: wave-5-e-demo-fidelity._
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| _D-735..D-2241 (exhaustive)_ | — | archived | cycles/wave-5-e-demo-fidelity/burst-log.md (D-1794 + D-2237 + D-2244+1 compactions) |
-| D-2242 | state-manager | 2026-08-18 | P40/41/42 SPEC fix-burst COMPLETE — ADR-058 v2.19→v2.20 (§G Tier-1/Tier-2 describe model; §I5 intro 7→12; §I5(d) device-arm; §G finding_info.uid example). BC-2.16.003 v1.13→v1.14 (§Interpretation A alignment; EC-016-013-027 NEW). ROUTING-001 v1.35→v1.36 (AC-006/AC-007 rewritten; RG-025 NEW; density 25/12=2.08). COERCION-001 v1.32→v1.33 (sibling pin). ARCH-INDEX v2.319→v2.320. BC-INDEX v9.35→v9.36. STORY-INDEX v2.856→v2.857. STATE v8.774→v8.775. |
+| _D-735..D-2242 (exhaustive)_ | — | archived | cycles/wave-5-e-demo-fidelity/burst-log.md (D-1794 + D-2237 + D-2244+1 compactions) |
 | D-2243 | state-manager | 2026-08-18 | P43/44/45 SPEC fix-burst COMPLETE — F-P43-HIGH-001 §I1 ocsf_field_to_arrow_name canonical home relocated to prism-spec-engine::column_mapping; F-P43-MED-001 §Red Gate count 24→25; F-P44-OBS-001 raw_extensions ColumnDescriptor col_type=Json/nullable=true; F-P45-MED-001 phantom ADR-023 §D3 corrected to dependency-graph.md §Dependency Rules Rule 2. ADR-058 v2.20→v2.21; BC-2.16.003 v1.14→v1.15; ROUTING-001 v1.36→v1.37; COERCION-001 v1.33→v1.34. ARCH-INDEX v2.320→v2.321. BC-INDEX v9.36→v9.37. STORY-INDEX v2.857→v2.858. STATE v8.775→v8.776. |
 | D-2244 | state-manager | 2026-08-19 | SESSION WRAP COMPLETE — RESUME SNAPSHOT D-2244 authored; sidecar-learning.md folded in; verify-sha-currency PASS; records-lint exit 0. STATE v8.776→v8.777. |
 | D-2245 | state-manager | 2026-08-19 | FB-46/48 OCSF-correctness fix-burst COMPLETE — ADR-058 v2.21→v2.22 (§B2/§I2/§J2 MUST); BC-2.16.003 v1.15→v1.16 (EC-016-013-028 NEW; EC-016-013-011 corrected); ROUTING-001 v1.37→v1.38 (AC-007c/RG-026/RG-027; density 2.08→2.25); COERCION-001 v1.34→v1.35 (sibling pin). ARCH-INDEX v2.321→v2.322. BC-INDEX v9.37→v9.38. STORY-INDEX v2.858→v2.859. TD-VSDD-097 all dims CLEAR. BC-5.39.001 streak RESET 0/3. records-lint exit 0. STATE v8.778→v8.779. |
 | D-2246 | state-manager | 2026-08-19 | FB-49/51 OCSF-correctness fix-burst COMPLETE — BC-2.16.003 v1.16→v1.17 (§J2 synthesized-name guard → §Invariants/§Error Conditions); ROUTING-001 v1.38→v1.39 (AC-013 NEW); COERCION-001 v1.35→v1.36 (sibling pin). BC-INDEX v9.38→v9.39. STORY-INDEX v2.859→v2.860. TD-VSDD-097 all dims CLEAR. BC-5.39.001 streak RESET 0/3 (perimeter changed). records-lint exit 0. STATE v8.779→v8.780. |
+| D-2247 | state-manager | 2026-08-19 | FB-52/53/54 OCSF-correctness records-tier fix-burst COMPLETE — ADR-058 v2.22→v2.23 (§J2 conditional prose); BC-2.16.003 v1.17→v1.18 (4 "emits unconditionally" corrected); ROUTING-001 v1.39→v1.40 (T-GATE density; RG-025 pin; §Authority pointer); COERCION-001 v1.36→v1.37 (sibling re-pin). ARCH-INDEX v2.322→v2.323. BC-INDEX v9.39→v9.40. STORY-INDEX v2.860→v2.861. TD-VSDD-097 all dims CLEAR. BC-5.39.001 streak RESET 0/3. records-lint exit 0. STATE v8.780→v8.781. |
 
 ## Decisions Log
 
@@ -192,6 +190,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | D-2244 | state-manager | 2026-08-19 | **SINGLE-COMMIT BURST (TD-VSDD-053) — SESSION WRAP complete. RESUME SNAPSHOT D-2244 authored in SESSION-HANDOFF.md (supersedes D-2236). sidecar-learning.md folded into wrap commit. FROZEN PERIMETER UNCHANGED: ADR-058 v2.21 / BC-2.16.003 v1.15 / BC-2.16.002 v2.28 / ROUTING-001 v1.37 / COERCION-001 v1.34. ARCH-INDEX v2.321 / BC-INDEX v9.37 / STORY-INDEX v2.858 / total_stories 302 ALL UNCHANGED. BC-5.39.001 streak 0/3 re-gated on frozen perimeter. PENDING HUMAN DECISION: pause at 3-CLEAN before TDD implementation of COERCION/ROUTING. verify-sha-currency PASS. records-lint exit 0. STATE v8.776→v8.777.** | wave-5-e-demo-fidelity | 2026-08-19 |
 | D-2245 | state-manager | 2026-08-19 | **SINGLE-COMMIT BURST (TD-VSDD-053) — FB-46/48 OCSF-correctness fix-burst COMPLETE. ADR-058 v2.21→v2.22 (§B2 source_path disambiguation; §I2 MUST value-representation; §J2 synthesized-name reservation MUST). BC-2.16.003 v1.15→v1.16 (EC-016-013-028 NEW; EC-016-013-011 corrected; nullable rationale harmonized). ROUTING-001 v1.37→v1.38 (AC-007c NEW; RG-026/RG-027 NEW; density 2.08→2.25). COERCION-001 v1.34→v1.35 (sibling pin). ARCH-INDEX v2.321→v2.322. BC-INDEX v9.37→v9.38. STORY-INDEX v2.858→v2.859. TD-VSDD-097 all dims CLEAR. BC-5.39.001 streak RESET 0/3 (perimeter changed). NEW FROZEN: ADR-058 v2.22 / BC-2.16.003 v1.16 / BC-2.16.002 v2.28 / ROUTING-001 v1.38 / COERCION-001 v1.35. records-lint exit 0. STATE v8.778→v8.779.** | wave-5-e-demo-fidelity | 2026-08-19 |
 | D-2246 | state-manager | 2026-08-19 | **SINGLE-COMMIT BURST (TD-VSDD-053) — FB-49/51 OCSF-correctness fix-burst COMPLETE. BC-2.16.003 v1.16→v1.17 (§J2 synthesized-name guard propagated to §Invariants/§Error Conditions; F-P49-MED-001 EC-028 mechanism closed; F-P49/51-MED-002 synthesized-name guard closed). ROUTING-001 v1.38→v1.39 (AC-013 density rebalance; F-P51-MED-001 orphaned RG-026 task closed). COERCION-001 v1.35→v1.36 (sibling §Authority pin; F-P49-MED-003/P51-LOW-001 closed). Borderline OBS AC-013 ACCEPTED. ADR-058 UNCHANGED v2.22. ARCH-INDEX UNCHANGED v2.322. BC-INDEX v9.38→v9.39. STORY-INDEX v2.859→v2.860. Pass-50 CLEAN(strict)=YES (streak 1/3 on prior perimeter; reset on perimeter change). Passes 49+51 had findings. TD-VSDD-097 all dims CLEAR. BC-5.39.001 streak RESET 0/3 (perimeter changed). NEW FROZEN: ADR-058 v2.22 / BC-2.16.003 v1.17 / BC-2.16.002 v2.28 / ROUTING-001 v1.39 / COERCION-001 v1.36. records-lint exit 0. STATE v8.779→v8.780.** | wave-5-e-demo-fidelity | 2026-08-19 |
+| D-2247 | state-manager | 2026-08-19 | **SINGLE-COMMIT BURST (TD-VSDD-053; TD-VSDD-096) — FB-52/53/54 records-tier fix-burst COMPLETE. ADR-058 v2.22→v2.23 (§J2 raw_extensions-conditional prose corrected; input-hash b030dfa). BC-2.16.003 v1.17→v1.18 (4 "emits unconditionally" corrected at §G intro + §Postconditions §J2 Tier-2 inline; §G intro ADR-058 pin v2.23). ROUTING-001 v1.39→v1.40 (T-GATE density corrected 27/13; RG-025 pin corrected; §Authority pointer corrected; full v2.23/v1.18 re-pin sweep). COERCION-001 v1.36→v1.37 (sibling re-pin; input-hash 3cbb64b). ARCH-INDEX v2.322→v2.323. BC-INDEX v9.39→v9.40. STORY-INDEX v2.860→v2.861. TD-VSDD-097 all dims CLEAR. BC-5.39.001 streak RESET 0/3 (perimeter changed). NEW FROZEN: ADR-058 v2.23 / BC-2.16.003 v1.18 / BC-2.16.002 v2.28 / ROUTING-001 v1.40 / COERCION-001 v1.37. records-lint exit 0. STATE v8.780→v8.781.** | wave-5-e-demo-fidelity | 2026-08-19 |
 
 ## Skip Log
 
@@ -212,18 +211,18 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · convergence-trajectory.md · decisions-archive-D1789-D2199.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · decisions-archive-D1124-D1138.md · decisions-archive-D1165-D1352.md · drift-items-resolved.md · drift-items-open.md · drift-items-deferred.md · blocking-issues-resolved.md · phase-5-deferred-findings.md · frontmatter-cascade-archive.md · session-handoff-archive.md · lessons.md · session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
-## Session Resume Checkpoint (D-2246 — 2026-08-19 — FB-49/51 fix-burst; STATE v8.779→v8.780) [supersedes D-2245]
+## Session Resume Checkpoint (D-2247 — 2026-08-19 — FB-52/53/54 fix-burst; STATE v8.780→v8.781) [supersedes D-2246]
 
 ### RESUME IN ONE BREATH
-Prism Phase-3, OCSF-correctness CLAROTY SPEC adversarial cascade (BC-5.39.001 3-CLEAN) at strict streak 0/3 on NEW frozen perimeter ADR-058 v2.22 / BC-2.16.003 v1.17 / BC-2.16.002 v2.28 / ROUTING-001 v1.39 / COERCION-001 v1.36. FB-49/51 fix-burst JUST COMPLETED (D-2246). VERY NEXT ACTION: adversary SPEC passes 52/53/54 (parallel, maximally-skeptical) on the new frozen perimeter targeting strict 3-CLEAN. On reaching 3-CLEAN, HALT for PENDING HUMAN DECISION (pause before TDD implementation of COERCION/ROUTING) — do NOT auto-proceed to TDD.
+Prism Phase-3, OCSF-correctness CLAROTY SPEC adversarial cascade (BC-5.39.001 3-CLEAN) at strict streak 0/3 on NEW frozen perimeter ADR-058 v2.23 / BC-2.16.003 v1.18 / BC-2.16.002 v2.28 / ROUTING-001 v1.40 / COERCION-001 v1.37. FB-52/53/54 records-tier fix-burst JUST COMPLETED (D-2247). VERY NEXT ACTION: adversary SPEC passes 55/56/57 (parallel, maximally-skeptical) on the new frozen perimeter targeting strict 3-CLEAN. On reaching 3-CLEAN, HALT for PENDING HUMAN DECISION (pause before TDD implementation of COERCION/ROUTING) — do NOT auto-proceed to TDD.
 
-**RESUME NEXT-ACTION:** adversary SPEC passes 52/53/54 (parallel, maximally-skeptical) on frozen perimeter ADR-058 v2.22 / BC-2.16.003 v1.17 / BC-2.16.002 v2.28 / ROUTING-001 v1.39 / COERCION-001 v1.36; then HALT for human TDD-gate decision. ARCH-INDEX v2.322 / BC-INDEX v9.39 / STORY-INDEX v2.860. total_stories 302.
+**RESUME NEXT-ACTION:** adversary SPEC passes 55/56/57 (parallel, maximally-skeptical) on frozen perimeter ADR-058 v2.23 / BC-2.16.003 v1.18 / BC-2.16.002 v2.28 / ROUTING-001 v1.40 / COERCION-001 v1.37; then HALT for human TDD-gate decision. ARCH-INDEX v2.323 / BC-INDEX v9.40 / STORY-INDEX v2.861. total_stories 302.
 
-**SPEC PERIMETER (FROZEN — NEW as of D-2246):** ADR-058 v2.22 / BC-2.16.003 v1.17 / BC-2.16.002 v2.28 / ROUTING-001 v1.39 / COERCION-001 v1.36. Indexes: ARCH-INDEX v2.322 / BC-INDEX v9.39 / STORY-INDEX v2.860. Contract counts active 252 / draft 4 / total 269. total_stories 302.
+**SPEC PERIMETER (FROZEN — NEW as of D-2247):** ADR-058 v2.23 / BC-2.16.003 v1.18 / BC-2.16.002 v2.28 / ROUTING-001 v1.40 / COERCION-001 v1.37. Indexes: ARCH-INDEX v2.323 / BC-INDEX v9.40 / STORY-INDEX v2.861. Contract counts active 252 / draft 4 / total 269. total_stories 302.
 
 **HEADS:**
 - `develop`: `69d821be` (LOCAL == origin/develop; pushed/clean; no open PRs)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2246 burst commit)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2247 burst commit)
 - `.worktrees/S-3.09` @`43c41389d` [feature/S-3.09] KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` [feature/W3-FIX-S307-001] PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, 1 dirty test file)
 
@@ -231,6 +230,6 @@ Prism Phase-3, OCSF-correctness CLAROTY SPEC adversarial cascade (BC-5.39.001 3-
 
 **PENDING HOUSEKEEPING (next session):** (1) SESSION-HANDOFF.md compaction needed (~1.2MB — bloated; compact EARLY next session). (2) Worktree teardown: `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` (PR #239 merged; remote branch deleted). (3) Register self-improvement story for RED-gate/test-location-coherence [process-gap] (6+ recurrences) at cycle-close.
 
-**BACKUP BOUNDARY (D-2246):**
-- PUSHED / safe: `origin/develop` `69d821be` (PR #239 merged 2026-08-16T22:51Z); `factory-artifacts` (this D-2246 burst commit).
+**BACKUP BOUNDARY (D-2247):**
+- PUSHED / safe: `origin/develop` `69d821be` (PR #239 merged 2026-08-16T22:51Z); `factory-artifacts` (this D-2247 burst commit).
 - LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).

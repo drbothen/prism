@@ -4820,3 +4820,46 @@ When a coordinated burst bumps an ADR version:
 **Follow-up obligation:** A self-improvement story or justified deferral against a REAL existing story ID (per Canonical Principle Rule 3) must be registered before this cycle closes. The process-gap is open; do NOT close the wave-5-e-demo-fidelity cycle without resolving it.
 
 **Source:** D-2246 state-manager closing burst (2026-08-19). Pattern family: TD-VSDD-097 §2 downstream-copy sweep miss, coordinated burst sibling §Authority pin sweep, BC §Invariants/§Error Conditions propagation obligation.
+
+---
+
+### Lesson 130 — Fix-Burst Changelog Claiming Sweep Completeness While Residuals Survive (RECURRING ≥3×) [process-gap]
+
+**Category:** process-gap, fix-burst-completeness, changelog-false-claim, records-lint, orchestrator-discipline
+
+**Date recorded:** 2026-08-19
+**D-NNN anchor:** D-2247 (FB-52/53/54 fix-burst; trajectory-tail D-433(e) violation caught by hook)
+**Pattern recurrence count:** ≥3 instances in this cascade:
+- **FB-46/48 (D-2245):** The PO leg wrote a v1.18 changelog claiming "§G intro + §Postconditions §J2 Tier-2 inline" edits were applied. Before dying, it had applied only the §G intro change; the four §J2 §Postconditions instances of "emits unconditionally" survived. Pass-52/54 adversary found them.
+- **FB-49/51 (D-2246):** Same class — changelog declared closure of F-P49-MED-001/F-P49/51-MED-002 but §Invariants/§Error Conditions downstream propagation was incomplete.
+- **FB-52/53/54 (D-2247, this round):** Prior dispatch of the state-manager leg died after writing STATE.md with a trajectory-tail of 7 components instead of the D-433(e) required 4. The changelog entry for STATE v8.780→v8.781 asserted "records-lint exit 0" and "all dims CLEAR" but the commit never landed — meaning the claimed completeness was written into an artifact that had not yet passed the gate.
+
+**Root cause:**
+
+Fix-burst legs (especially PO/spec-writer and state-manager) write their changelog entry and TD-VSDD-097 verdict BEFORE the lint gate runs (or before the commit lands). If the leg dies after writing the changelog but before completing the sweep or committing, the next session inherits an artifact whose changelog describes work that was never completed. The changelog is treated as ground truth by subsequent readers (state-manager, adversary) who then skip re-verification of the claimed closures.
+
+Two compounding factors:
+1. **Changelog written pre-gate:** Agents write the changelog row and TD-VSDD-097 verdict as prose in the artifact before running records-lint and committing. When the agent dies mid-burst, the incomplete state (changelog written, gate not run, commit not made) is exactly what the next session sees — and the next session trusts the prose.
+2. **Orchestrator-level residual grep deferred:** Prior to this incident, the orchestrator did not run an exhaustive residual grep over the modified artifacts before accepting the state-manager's "done" signal. Each fix-burst self-certified completeness; the orchestrator did not independently verify.
+
+**Correct behavior (interim, in force as of D-2247):**
+
+Before accepting any fix-burst completion signal from a leg that modifies spec artifacts:
+1. **Orchestrator-level residual grep:** After each spec leg completes (PO, spec-writer, state-manager), the orchestrator runs a targeted residual grep for the pre-sweep values the changelog claims were replaced. For version-sweep claims: `grep -r "v<old_version>" <modified_files>`. For text-sweep claims: `grep -r "<stale_phrase>" <modified_files>`. Zero hits required before declaring the leg complete.
+2. **Changelog entry deferred until after gate:** The changelog row and TD-VSDD-097 verdict MUST be written AFTER the records-lint gate passes and AFTER the commit is staged — not before. This prevents phantom completeness claims in uncommitted artifacts.
+3. **State-manager trajectory-tail compliance:** Before composing any STATE.md update that includes a trajectory-tail, verify it contains exactly 4 components (the D-433(e) rule). Verify with: `python3 -c "import re; s='<tail>'; print(len(re.findall(r'→', s)))"`. Count must equal 4.
+
+**Recommended mechanical mitigation (for cycle-close self-improvement):**
+
+A records-lint companion check (L11 candidate) that:
+- Detects when a changelog row asserts a version-sweep (e.g., "BC-2.16.003 v1.17→v1.18") or a text-sweep (e.g., "4 'emits unconditionally' corrected")
+- Greps the ACTIVE TEXT of the modified artifact for any residuals of the claimed-swept value (old version string, stale phrase)
+- Fails with `L11: changelog claims sweep complete but residuals found: <list>` if any residual survives
+
+**Follow-up obligation:**
+
+Register either a self-improvement story anchored to the wave-5-e-demo-fidelity cycle-close OR a justified deferral with a REAL existing story ID per Canonical Principle Rule 3. The mechanical L11 gate does not yet exist; without it, this class of false-completeness is detectable only via orchestrator-level grep discipline. Do NOT close the wave-5-e-demo-fidelity cycle without either implementing L11 or recording a deferral against a concrete story ID.
+
+**Transferable principle:** A changelog entry is a CLAIM, not evidence. Any changelog entry that asserts sweep completeness (version bump, phrase correction, lint-gate pass) is unverified until an independent check confirms zero residuals. The records-lint gate is the mechanical independent check for format violations; an analogous content-residual check is the missing mechanical control for sweep-completeness claims.
+
+**Source:** D-2247 state-manager FB-52/53/54 fix-burst hook-block recovery (2026-08-19). Pattern family: fix-burst false-completeness, changelog-pre-gate authorship, orchestrator residual-grep discipline.

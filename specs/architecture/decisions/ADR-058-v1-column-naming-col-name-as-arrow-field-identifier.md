@@ -4,8 +4,8 @@ adr_id: "ADR-058"
 title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred"
 status: accepted
 date: "2026-08-11"
-modified: "2026-08-18"
-version: "2.22"
+modified: "2026-08-19"
+version: "2.23"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -35,7 +35,7 @@ inputs:
   - crates/prism-ocsf/src/mappers/spec_driven.rs
   - crates/prism-ocsf/src/class_selector.rs
   - crates/prism-ocsf/ocsf-schema/1.7.0/schema.json
-input-hash: "302e2bd"
+input-hash: "b030dfa"
 ---
 
 # ADR-058: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred
@@ -719,11 +719,16 @@ ocsf_field_to_arrow_name(A.ocsf_field) ≠ B.col_name   (A ≠ B)
 violation, fail-closed. The check runs in the same collision-detection pass as the existing
 intra-flattened-name duplicate check (T-21 / RG-009, S-ADR058-OCSF-ROUTING-001).
 
-**Synthesized column name reservation:** The §J2 collision rule also applies to the four
-synthesized column names that `pipeline_result_to_record_batch` appends to every spec-driven
-RecordBatch schema regardless of the sensor's TOML column declarations: `class_uid`,
-`category_uid`, `_sensor`, and `raw_extensions`. No flattened `ocsf_field` in any table
-column may equal one of these reserved names. The formal condition extends to:
+**Synthesized column name reservation:** The §J2 collision rule also applies to four reserved
+synthesized column names. Three of them — `class_uid`, `category_uid`, and `_sensor` — are
+unconditionally appended to every spec-driven RecordBatch schema regardless of the sensor's TOML
+column declarations. The fourth, `raw_extensions`, is emitted **conditionally** — only when
+`ocsf_column_naming == true` AND at least one column in the table has `ocsf_field == None` (a
+table with zero `ocsf_field == None` columns produces no `raw_extensions` column, per §G Tier-2,
+§I2, and §B2 item 1). All four names are nonetheless **reserved** against flattened-`ocsf_field`
+collision, fail-closed: a future TOML column whose `ocsf_field` flattens to any of these names
+would produce an Arrow schema conflict with no viable runtime recovery. No flattened `ocsf_field`
+in any table column may equal one of these four reserved names. The formal condition extends to:
 
 ```
 ∀ column A in T where A.ocsf_field is Some:
@@ -1115,7 +1120,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.22 (2026-08-18)
+### Status as of v2.23 (2026-08-19)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1190,6 +1195,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.23 | 2026-08-19 | architect | F-P52-LOW-1 ≡ F-P54-LOW-001. §J2 "Synthesized column name reservation" paragraph corrected — `raw_extensions` was incorrectly described as unconditionally emitted alongside `class_uid`, `category_uid`, and `_sensor` "regardless of the sensor's TOML column declarations." Ground truth from `prism-bin::spec_driven_adapter::pipeline_result_to_record_batch`: only `class_uid`, `category_uid`, and `_sensor` are unconditionally appended to every spec-driven RecordBatch schema; `raw_extensions` is conditionally emitted — only when `ocsf_column_naming == true` AND ≥1 column has `ocsf_field == None`. The internal contradiction with §G Tier-2, §I2, and §B2 item 1 (a table with zero `ocsf_field == None` columns produces no `raw_extensions` column) is resolved. The reservation rule is unchanged: all four names remain reserved against flattened-`ocsf_field` collision, fail-closed, because a TOML column whose `ocsf_field` flattens to any reserved name would produce an Arrow schema conflict with no viable runtime recovery. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy targets — product-owner: sweep BC-2.16.003 §Postconditions / §Invariants / §Error-Conditions / EC-016-013-029 and any EC covering synthesized-column emission to confirm `raw_extensions` is described as conditionally emitted; story-writer: re-pin ADR-058 §Authority version to v2.23 in S-ADR058-OCSF-ROUTING-001; (3) mandate anchor — no new MUST statements; fail-closed reservation guard unchanged. |
 | 2.22 | 2026-08-18 | architect | F-P48-MED-002 + F-P48-OBS-1. MED-002: §B2 item 1 amended — for `source_path` / `ocsf_field == None` columns, the value stored under `col.name` in `raw_extensions` is the `source_path`-extracted, ENRICH-1-normalized result (same Array→JSON-list-string path as first-class columns per EC-016-013-026), NOT the raw top-level JSON value at `col.name`; eliminates ambiguity for Claroty `devices` demo-critical columns `ip_list`/`mac_list`/`network_list`/`vlan_list`. §I2 extended with explicit `source_path` value-representation paragraph — `pipeline_result_to_record_batch` MUST apply ENRICH-1 when aggregating `source_path` + `ocsf_field == None` columns into `raw_extensions`; MUST anchored to S-ADR058-OCSF-ROUTING-001 (story-writer: add AC + Red Gate asserting ENRICH-1-serialized values for the four Claroty network-attribute columns at the `raw_extensions` wire level). OBS-1: §J2 extended — synthesized column name reservation added: `pipeline_result_to_record_batch` collision check MUST also guard against any `ocsf_field` flattening to `{ "class_uid", "category_uid", "_sensor", "raw_extensions" }`; formal condition extended in §J2; all four Claroty tables verified clean against this rule. MUST anchored to S-ADR058-OCSF-ROUTING-001 (story-writer: extend T-21/RG-010 or add dedicated Red Gate for synthesized-name guard). TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy targets — product-owner: BC-2.16.003 §Postconditions — sweep any EC covering `ocsf_field == None` + `source_path` column aggregation to confirm ENRICH-1-normalized value is the contracted `raw_extensions` value; story-writer: S-ADR058-OCSF-ROUTING-001 — add ENRICH-1-in-`raw_extensions` AC + Red Gate (§I2 mandate anchor) and extend T-21/RG-010 or add synthesized-name Red Gate (§J2 mandate anchor); (3) mandate anchors — §I2 MUST and §J2 synthesized-name MUST both anchored to S-ADR058-OCSF-ROUTING-001. |
 | 2.21 | 2026-08-18 | architect | F-P43-HIGH-001 + F-P45-MED-001 + F-P44-OBS-001 + F-P44/P45-LOW-001. HIGH: §I1 canonical crate corrected — `ocsf_field_to_arrow_name` must live in `prism-spec-engine::column_mapping`, not `prism-bin::spec_driven_adapter` or any "prism-bin or prism-spec-engine" ambiguity. `prism-mcp/Cargo.toml` depends on `prism-spec-engine` but not `prism-bin`; `prism-bin` depends on `prism-mcp` — placing the helper in `prism-bin` creates a forbidden workspace cycle that would prevent `prism_describe` from importing it. Both consumers (`pipeline_result_to_record_batch` in `prism-bin::spec_driven_adapter`; `prism_describe` in `prism-mcp::tools::prism_describe`) now stated as importing from `prism_spec_engine::column_mapping`. MED: §B2 item 1 rewritten — columns with `ocsf_field == None` explicitly stated to receive NO individual Arrow field; they are aggregated into the single `raw_extensions` column per §I2/§G Tier-2; `col.name` for unmapped columns is the blob source key only (not an Arrow field name under Interpretation A). Eliminates the reader inference that None-columns get individual `col.name`-named Arrow fields, which contradicted §G/§I2/BC Tier-2. The §I1 snippet's `.unwrap_or_else(|| col.name.clone())` is already explicitly scoped to the `Some` arm in the §I2 cross-reference paragraph; §B2 item 1 no longer requires that paragraph as the sole correction. OBS: §G Tier-2 `raw_extensions` ColumnDescriptor shape extended with `col_type = prism_core::column::ColumnType::Json` (physical `Utf8` column contains serialized JSON object; `Json` is the correct semantic variant) and `nullable = true` (cell may be null when all unmapped source values in a row are null). LOW: §Status heading retitled v2.19 → v2.21. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy targets — story-writer leg (ROUTING-001): update Rule 1 / Forbidden-Dependencies / RG-003 / §File Structure / §Architecture Mapping to reflect `prism-spec-engine::column_mapping` as canonical crate; RG-003 must assert the function is callable from `prism-mcp` scope without a cycle; add RG-025 asserting `raw_extensions` ColumnDescriptor carries `col_type = Json` and `nullable = true`; Red Gate count 24 → 25 for RG-025; product-owner leg (BC-2.16.003): add `col_type = Json` and `nullable = true` to the raw_extensions ColumnDescriptor contract in the relevant EC for EC-016-013-027 (or the raw_extensions descriptor EC); (3) mandate anchor — §I1 crate MUST (`prism-spec-engine::column_mapping`) anchored to S-ADR058-OCSF-ROUTING-001; §G `col_type`/`nullable` MUST anchored to S-ADR058-OCSF-ROUTING-001 (story-writer leg adds RG-025). |
 | 2.20 | 2026-08-18 | architect | F-P40/P42-HIGH-001 + F-P41-MED-001 + F-P41-MED-002 + F-P42-LOW-001. HIGH: §G rewritten — describe↔model consistency with §I2 aggregation model. (a) `prism_describe` MUST NOT emit individual `ColumnDescriptor` for any `ocsf_field == None` column under flag=true (columns reside in `raw_extensions` per §I2/§B2 item 1; advertising them as individual descriptors produces phantom column names causing agent query failures per §C1). (b) `prism_describe` MUST emit exactly one `raw_extensions` ColumnDescriptor (name=`"raw_extensions"`; description enumerates `col.name` of every `ocsf_field == None` column in the queried table — mandatory for agent discoverability). Mandate anchor: S-ADR058-OCSF-ROUTING-001 (story-writer leg of this fix-burst adds AC + Red Gate). LOW (F-P42-LOW-001): §G Tier-1 description example corrected `"finding.uid"` → `"finding_info.uid"` (KF-03 corrected path). MED-001: §I5 intro count corrected from seven (KF-01..KF-07) to twelve — seven schema-validity (KF-01..KF-07) + five PATH-VALID/SEMANTIC-WRONG (KF-08..KF-12). MED-002: §I5(d) `"device"` arm removed from "now-dead" clause; `"device"` is a live transitional alias per §I5(b) (Armis + CrowdStrike retain `ocsf_class = "device"`; live production path `select_by_class_name("device") → 5001`); only `"audit_activity"` is dead. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy targets — §G rewrite must propagate to BC-2.16.003 §Interpretation A (product-owner leg: remove phantom-column describe model, add `raw_extensions` descriptor with source-key enumeration) and ROUTING-001 §G/AC-006/AC-007 (story-writer leg: align ACs to Tier-1/Tier-2 §G model, add raw_extensions describe Red Gate as mandate anchor for §G MUSTs); (3) mandate anchor — two new §G MUSTs anchored to S-ADR058-OCSF-ROUTING-001 (story-writer leg adds AC + Red Gate). |
