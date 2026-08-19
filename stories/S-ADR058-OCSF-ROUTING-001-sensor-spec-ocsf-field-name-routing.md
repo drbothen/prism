@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.41"
+version: "1.42"
 level: "L4"
 status: draft
 producer: story-writer
@@ -105,14 +105,14 @@ tags:
 ## Authority
 
 **ADR-058 v2.23: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow
-Names; DTU Migration Deferred.** Version `2.23`, status: accepted (2026-08-18). Read
-§B2 (decision — **v2.23 amendment: multi-valued array source fields with `ocsf_field == None`
+Names; DTU Migration Deferred.** Version `2.23`, status: accepted (2026-08-19). Read
+§B2 (decision — **multi-valued array source fields with `ocsf_field == None`
 MUST be serialized as compact JSON-list strings in `raw_extensions`, NOT as nested JSON arrays**),
 §C (quoting convention — Option 4 chosen), §D (per-sensor scoping, flag
-mechanism — **§D1 corrected v2.18: `pipeline_result_to_record_batch` MUST gain
+mechanism — **§D1: `pipeline_result_to_record_batch` MUST gain
 `sensor_spec: &SensorSpec` as an explicit parameter threaded from the `fetch()` call site;
 this is ADR-022 §C wiring (adding a previously absent parameter), not redesign**),
-§E (blast radius), §G (prism_describe output spec — **v2.23 Tier-1/Tier-2 model:
+§E (blast radius), §G (prism_describe output spec — **Tier-1/Tier-2 model:
 Tier-1 columns (`ocsf_field == Some`) emit ColumnDescriptor with
 `name = ocsf_field_to_arrow_name(ocsf_field)` and `description = ocsf_field`;
 Tier-2 columns (`ocsf_field == None`) MUST NOT emit individual ColumnDescriptors —
@@ -121,12 +121,12 @@ four-field shape: `name = "raw_extensions"`, `col_type = prism_core::column::Col
 `nullable = true`, and `description` identifying it as a JSON object and enumerating every
 `ocsf_field == None` column's `col.name` as a source key**),
 §H (Stage 1 confirmed
-separate), §I (implementation guidance including **§I1 corrected v2.18: two-step form —
+separate), §I (implementation guidance including **§I1 two-step form —
 Step 1 signature addition (`sensor_spec: &SensorSpec` parameter), Step 2 field-name
-computation inside the function body**; **§I1 corrected v2.21: canonical home of
+computation inside the function body**; **§I1 canonical home of
 `ocsf_field_to_arrow_name` is `prism-spec-engine::column_mapping` (NOT `prism-bin::spec_driven_adapter`);
 both `prism-bin::spec_driven_adapter` and `prism-mcp::tools::prism_describe` import from there**;
-**§I2 v2.23 amendment: `pipeline_result_to_record_batch` raw_extensions serialization MUST
+**§I2: `pipeline_result_to_record_batch` raw_extensions serialization MUST
 produce compact JSON-list strings for multi-valued array fields (NOT nested JSON arrays)**;
 **§I5 TOML + code correction obligations for
 KF-01 through KF-12**; **§I5 process-gap obligation: `ocsf.unknown_class_name` WARN on
@@ -135,7 +135,7 @@ liveness determination; `select_by_class_name` two new arms: `"entity_management
 `"inventory_info"→5001`; `"audit_activity"` arm becomes dead code pending deprecation annotation**),
 **§J1–§J4 (flag-transition name shadowing adjudication, normative fail-closed rule, Claroty
 `devices` table resolution, `ocsf_field` count 31 pre-correction per §J4 / 26 post-correction
-per ADR-058 §Status across four tables) — §J2 v2.23 amendment: `pipeline_result_to_record_batch` MUST also fail-closed
+per ADR-058 §Status across four tables) — §J2: `pipeline_result_to_record_batch` MUST also fail-closed
 (`Err(ArrowError::SchemaError(...))`) when any `ocsf_field` flattens via
 `ocsf_field_to_arrow_name` to a synthesized/reserved name: `class_uid`, `category_uid`,
 `_sensor`, or `raw_extensions`**, and **§K (OCSF v1.7.0
@@ -1936,6 +1936,25 @@ Build-time enforcement rules:
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
 
+### v1.42 Amendment Sweep (FB-58/60 records micro-burst: §Authority version-stamped provenance labels normalized to version-free form; ADR-058 status-date "(2026-08-18)"→"(2026-08-19)")
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): COERCION-001 amended in same burst (v1.38→v1.39) — ADR-058 §Authority status-date parenthetical corrected "(2026-08-18)"→"(2026-08-19)". Dimension-1 sibling sweep confirms COERCION-001 §Authority already uses clean version-free form for all provenance references (no §B2/§I2/§J2/§D1 sub-section version stamps — those stamps existed only in ROUTING-001 §Authority and are the source of the recurring drift class). COERCION-001 needs only the date fix.
+VERDICT: SIBLING AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+The changed surfaces are: (1) §Authority ADR-058 status-date parenthetical "(2026-08-18)"→"(2026-08-19)"; (2) §B2 reference: "v2.23 amendment: multi-valued array source fields" → "multi-valued array source fields"; (3) §D1 reference: "§D1 corrected v2.18:" → "§D1:"; (4) §G reference: "v2.23 Tier-1/Tier-2 model:" → "Tier-1/Tier-2 model:"; (5) §I1 reference (two-step form): "§I1 corrected v2.18: two-step form" → "§I1 two-step form"; (6) §I1 reference (canonical home): "§I1 corrected v2.21: canonical home" → "§I1 canonical home"; (7) §I2 reference: "§I2 v2.23 amendment:" → "§I2:"; (8) §J2 reference: "§J2 v2.23 amendment:" → "§J2:". No downstream artifact copies these §Authority provenance-label loci verbatim.
+VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUST blocks introduced. All existing MUST anchors (§D1, §G, §I1, §I2, §J2) carried forward — the behavioral obligations themselves are unchanged; only the version-stamp decorations are removed.
+VERDICT: NO NEW UNANCHORED MUSTs.
+
+---
+
 ### v1.41 Amendment Sweep (FB-55/56/57 LEG 2: Fix 4 §I1 provenance-label v2.23→v2.21; Fix 5 §Authority BC-2.16.003 modified-date "(modified 2026-08-19)")
 
 **Dimension 1 — Sibling pair:**
@@ -2954,6 +2973,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.42 | 2026-08-19 | story-writer | FB-58/60 records micro-burst — categorically end §Authority provenance-label drift class (F-P58-LOW-002 + F-P58-LOW-001). Fix 1 (F-P58-LOW-002): §Authority §B2/§D1/§G/§I1 (both sub-labels)/§I2/§J2 provenance labels normalized to version-free form — removed "v2.23 amendment:", "corrected v2.18:", "corrected v2.21:", "v2.23 Tier-1/Tier-2 model:", "v2.23 amendment:" stamps per POL-39 (behavioral-anchor cites only; no vX.YZ origin-provenance decorations). The single CURRENT-version dependency pin "Version `2.23`" is retained. Fix 2 (F-P58-LOW-001): ADR-058 §Authority status-date parenthetical corrected "(2026-08-18)"→"(2026-08-19)" (ADR-058 frontmatter `modified:` is 2026-08-19; consistent with sibling BC-2.16.003 "(modified 2026-08-19)" cite corrected in v1.41). Sibling COERCION-001 bumped to v1.39 in same burst. §v1.42 Amendment Sweep added. |
 | 1.41 | 2026-08-19 | story-writer | FB-55/56/57 LEG 2 — records-tier fixes. F-P57-LOW-001: §Authority §I1 provenance-label corrected — "§I1 corrected v2.23" was wrong origin; the canonical-home correction for `ocsf_field_to_arrow_name` landed in ADR-058 v2.21 per ADR §Changelog (§v1.37 Amendment Sweep entry confirms "§Authority ADR-058 pin v2.20→v2.21 with §I1 crate-placement correction note"); relabeled to "§I1 corrected v2.21" (origin-provenance labels are frozen at their originating version per POL-39; peer labels "§D1 corrected v2.18" and "§I1 corrected v2.18 (two-step form)" in the same §Authority block are correctly frozen). Fix 5: §Authority BC-2.16.003 modified-date parenthetical corrected "(modified 2026-08-18)"→"(modified 2026-08-19)" (BC-2.16.003 `modified:` is now 2026-08-19 per Leg 1 of this burst). Sibling COERCION-001 bumped to v1.38 in same burst. §v1.41 Amendment Sweep added. |
 | 1.40 | 2026-08-19 | story-writer | FB-52/53/54 LEG 3 — records-tier fixes + exhaustive residual sweep. Fix 1: T-GATE density denominator 12→13, ratio 2.25→2.08 (AC-013 was added in v1.39 but density not updated). Fix 2+4 combined: `§Interpretation A v1.16` wrapped-line instance in RG-025 Covers/Traces updated to v1.18 (net; was missed by prior sweeps due to line-wrap). Fix 3: §Authority parenthetical rewritten to attribute 31 pre-correction count to §J4 and 26 post-correction count to ADR-058 §Status (section-pointer precision). Version re-pin sweep (Fix 4): all active-body ADR-058 v2.22→v2.23 and BC-2.16.003 v1.17→v1.18 references updated (§Authority, §Mandate Anchor, §Behavioral Contracts, RG-025..027, AC-002/006/007b/007c/013, Architecture Mapping, Edge Cases, Tasks, Architecture Compliance Rules, Forbidden Dependencies, File Structure). Sibling COERCION-001 bumped to v1.37 same burst. §v1.40 Amendment Sweep added. |
 | 1.39 | 2026-08-18 | story-writer | FB-49/51 Leg 2 — round-2 adversary findings closed. F-P51-MED-001: RG-026 orphan resolved — T-15 extended to (a) mandate source_path extraction + ENRICH-1 `Value::Array`→compact-JSON-list-string normalization for `ocsf_field == None` columns in `pipeline_result_to_record_batch` raw_extensions aggregation loop (reuse shared pipeline, NOT naive `r.get(col.name)`; BC-2.16.003 EC-016-013-028 reworded; ADR-058 §I2) and (b) name RG-026 as second green target alongside RG-008. F-P49-MED-001: AC-007a rewritten — removed `build_column_array` attribution sentence; added source_path extraction + ENRICH-1 normalization mandate for `ocsf_field == None` columns. F-P49/51-MED-002: AC-013 added — dedicated AC for §J2 synthesized-name fail-closed guard (`Err(ArrowError::SchemaError)` when any `ocsf_field` flattens to `class_uid`, `category_uid`, `_sensor`, or `raw_extensions`; traces to BC-2.16.003 EC-016-013-029 + ADR-058 v2.22 §J2); RG-027 Covers/Traces updated to reference AC-013 + EC-016-013-029; §Mandate Anchor table §J2 row AC column `EC-010 (extended), T-21 clause (c)` → `AC-013, T-21 clause (c)` + EC-016-013-029 added; §Mandate Anchor §J2 discharge narrative extended with v2.22 synthesized-name guard anchor. BC-pin sweep: §Authority BC-2.16.003 v1.16→v1.17 + EC-016-013-029 note + EC-016-013-028 reworded; §Behavioral Contracts row v1.16→v1.17 + EC-016-013-029 annotation; all 12 `§Interpretation A v1.16` active-text instances → `v1.17`. Density recomputed: 27/13 = 2.08 ≥ 0.5. AC count 12→13. §Architecture Mapping §I2 row and §File Structure spec_driven_adapter.rs row updated to remove misleading `build_column_array NOT added` language and add source_path+ENRICH-1 normalization mandate. input-hash updated aeafdff→90f6a36 (BC-2.16.003 updated in Leg 1). §v1.39 TD-VSDD-097 amendment sweep added. |
