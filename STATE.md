@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.777"
+version: "8.778"
 producer: state-manager
-timestamp: 2026-08-19T00:16:00Z
+timestamp: 2026-08-19T01:20:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -61,7 +61,7 @@ workspace_test_count: 5743
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2244 SESSION WRAP COMPLETE — RESUME SNAPSHOT D-2244 authored. FROZEN PERIMETER UNCHANGED: ADR-058 v2.21 / BC-2.16.003 v1.15 / BC-2.16.002 v2.28 / ROUTING-001 v1.37 / COERCION-001 v1.34. ARCH-INDEX v2.321 / BC-INDEX v9.37 / STORY-INDEX v2.858. BC-5.39.001 streak 0/3 re-gated on frozen perimeter. trajectory-tail →2→2→1→1 (p42→p43→p44→p45). RESUME NEXT-ACTION: adversary SPEC passes 46/47/48 (parallel, maximally-skeptical) on frozen perimeter; then HALT for human TDD-gate decision. STATE v8.776→v8.777."
+current_step: "D-2244+1 compact-state COMPLETE — STATE v8.777→v8.778. convergence-trajectory.md CREATED (OCSF cascade passes 1-45); non-Step4 body sections compacted. FROZEN PERIMETER UNCHANGED: ADR-058 v2.21 / BC-2.16.003 v1.15 / BC-2.16.002 v2.28 / ROUTING-001 v1.37 / COERCION-001 v1.34. trajectory-tail →2→2→1→1. RESUME NEXT-ACTION: adversary SPEC passes 46/47/48 (parallel, maximally-skeptical) on frozen perimeter; then HALT for human TDD-gate decision."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -94,11 +94,11 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial [SUPERSEDED by ADR-053 §D2 — Armis token_exchange EFFECTIVE]"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D1789-D2199.md + session-handoff-archive.md + drift-items-open.md. D-2237 compaction (2026-08-18): decisions D-1789..D-2199 (exhaustive) + Phase Progress historical rows + Convergence Status + Concurrent Cycles + Current Phase Steps D-2059..D-2159 (exhaustive) + resolved/closed drift+blocking items + all open Drift Items archived. Last preserved decision in STATE.md: D-2200. Prior: D-1794 compaction (2026-07-16): frontmatter chains trimmed; D-1785..D-1788 (exhaustive) + archive stubs archived. Git history on factory-artifacts preserves all content."
-pre_compact_snapshot_at: "2026-08-18"
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D1789-D2199.md + session-handoff-archive.md + drift-items-open.md. D-2244+1 compaction (2026-08-19): convergence-trajectory.md CREATED (OCSF cascade passes 1-45); Phase Progress fix-burst rows D-2238..D-2243 (exhaustive) consolidated; Active Objective section removed; Drift Items + Phase-5 Deferred removed. D-2237 compaction (2026-08-18): decisions D-1789..D-2199 (exhaustive) + Phase Progress historical rows + Current Phase Steps D-2059..D-2159 (exhaustive) + resolved/closed drift+blocking items + all open Drift Items archived. Last preserved decision in STATE.md: D-2200. Prior: D-1794 compaction (2026-07-16): frontmatter chains trimmed; D-1785..D-1788 (exhaustive) + archive stubs archived. Git history on factory-artifacts preserves all content."
+pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 269 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: +69 | margin from actual: -231 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 252 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: +52 | margin from actual: -248 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -111,11 +111,7 @@ pre_compact_snapshot_at: "2026-08-18"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-19 D-2244 SESSION WRAP — RESUME SNAPSHOT D-2244 authored; FROZEN PERIMETER ADR-058 v2.21 / BC-2.16.003 v1.15 / BC-2.16.002 v2.28 / ROUTING-001 v1.37 / COERCION-001 v1.34; trajectory-tail →2→2→1→1 (p42→p43→p44→p45); STATE v8.776→v8.777 |
-
-## Active Objective (North Star)
-
-**NORTH STAR: Multi-client SOC-analyst live demo** — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression. Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md`.
+| **Last Updated** | 2026-08-19 D-2244+1 compact-state burst — convergence-trajectory.md created; fix-burst Phase Progress rows consolidated; Active Objective/Drift Items/Phase-5-Deferred sections removed; STATE v8.777→v8.778; trajectory-tail →2→2→1→1 |
 
 ## Phase Progress
 
@@ -133,13 +129,9 @@ pre_compact_snapshot_at: "2026-08-18"
 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 | FULLY VALIDATED | 2026-08-15 | 2026-08-15 | D-2166 AC-LIVE-001 SATISFIED; HS-008..011 CONSUMED | PR #237 squash-merged develop@3197e27a9 2026-08-15 |
 | S-CLAROTY-AUDITLOG-TIMEBOX-001 | MERGED | 2026-08-16 | 2026-08-16 | PR #239 develop@69d821be 2026-08-16T22:51Z | LOCAL 9-pass 3-CLEAN + HOLDOUT PASS 4/4 + LIVE xDome PASS; PR-LEVEL 3-CLEAN on 8ae0b5d8 |
 | OCSF-correctness claroty SPEC adversary cascade | IN PROGRESS | 2026-08-16 | — | pass-45 COMPLETE (D-2243); streak 0/3 re-gated new perimeter | p29(CLEAN)[1/3]→p30(1MED)→p31(1LOW)→p32(2MED)→p33(1MED)→p34(4)→p35(CLEAN 1/3)→p36(1LOW)→p37(CLEAN 1/3)→p38(CLEAN 2/3)→p39(1LOW)→p40(1HIGH)→p41(2MED)→p42(1HIGH+1LOW)→p43(2[1H+1M])→p44(1OBS)→p45(1MED). trajectory-tail →2→2→1→1 (p42→p43→p44→p45). NEW FROZEN: ADR-058 v2.21/BC-2.16.003 v1.15/BC-2.16.002 v2.28/ROUTING-001 v1.37/COERCION-001 v1.34 |
-| D-2238 F-P33-MED-001 fix burst | COMPLETE | 2026-08-18 | 2026-08-18 | D-2238 (exhaustive) | ADR-058 v2.17→v2.18; ROUTING-001 v1.31→v1.32; COERCION-001 v1.30→v1.31. trajectory-tail →1→1→2→1 (p30→p31→p32→p33) |
-| D-2239 F-P34 fix burst | COMPLETE | 2026-08-18 | 2026-08-18 | D-2239 (exhaustive) | ADR-058 v2.18→v2.19; ROUTING-001 v1.32→v1.33; COERCION-001 v1.31→v1.32. trajectory-tail →1→2→1→4 (p31→p32→p33→p34) |
-| D-2242 P40/41/42 SPEC fix burst | COMPLETE | 2026-08-18 | 2026-08-18 | D-2242 (exhaustive) | ADR-058 v2.19→v2.20; BC-2.16.003 v1.13→v1.14; ROUTING-001 v1.35→v1.36; COERCION-001 v1.32→v1.33. trajectory-tail →1→1→2→2 (p39→p40→p41→p42) |
-| D-2243 P43/44/45 SPEC fix burst | COMPLETE | 2026-08-18 | 2026-08-18 | D-2243 (exhaustive) | ADR-058 v2.20→v2.21; BC-2.16.003 v1.14→v1.15; ROUTING-001 v1.36→v1.37; COERCION-001 v1.33→v1.34. trajectory-tail →2→2→1→1 (p42→p43→p44→p45) |
-| D-2244 SESSION WRAP | COMPLETE | 2026-08-19 | 2026-08-19 | TD-VSDD-053 single-commit; records-lint exit 0; verify-sha-currency PASS | RESUME SNAPSHOT D-2244 authored; FROZEN PERIMETER UNCHANGED; sidecar-learning.md folded in |
+| D-2238..D-2243 (exhaustive) SPEC fix bursts | COMPLETE | 2026-08-18 | 2026-08-18 | state-manager | F-P33..P45 fix bursts: ADR-058 v2.17→v2.21; BC-2.16.003 v1.13→v1.15; ROUTING-001 v1.31→v1.37; COERCION-001 v1.30→v1.34. NEW FROZEN perimeter established D-2243. |
 
-_Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individual story rows PRs #162–#235) archived to cycles/wave-5-e-demo-fidelity/burst-log.md (D-2237 compaction)._
+_Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individual story rows PRs #162–#235; fix-burst rows D-2238..D-2243 (exhaustive)) archived to cycles/wave-5-e-demo-fidelity/burst-log.md (D-1794 + D-2237 + D-2244+1 compactions)._
 
 ## Convergence Status
 
@@ -149,7 +141,7 @@ _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individua
 | Active cascade | OCSF-correctness claroty SPEC adversary |
 | Pass count | 45 complete; pass-46 pending |
 | Last CLEAN(strict) | pass-38 (2/3 reached; p39–p45 all had findings) |
-| Finding trajectory | trajectory-tail →2→2→1→1 (p42→p43→p44→p45) |
+| Finding trajectory | trajectory-tail →2→2→1→1 (p42→p43→p44→p45). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
 | Frozen perimeter | ADR-058 v2.21 / BC-2.16.003 v1.15 / BC-2.16.002 v2.28 / ROUTING-001 v1.37 / COERCION-001 v1.34 |
 
 ## Concurrent Cycles
@@ -225,14 +217,6 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | UX Spec | yes | CLI/stdio-only product; no UI surfaces |
 | DTU clone build | deferred | dtu_clones_built: pending — awaiting Phase 3 start |
 
-## Phase-5 Deferred Findings
-
-_Moved to `cycles/wave-5-e-demo-fidelity/phase-5-deferred-findings.md`. Two findings: F-LP12-OBS-001 (E-PLUGIN-008 dual-semantic) + F-LP25-OBS-001 (BC-2.17.002 vacuously true). Both require PO adjudication at Phase-5 PO pass._
-
-## Drift Items (S-7.02 Cycle-Close Checklist)
-
-_All open Drift Items archived to `cycles/wave-5-e-demo-fidelity/drift-items-open.md` (D-2237 compaction — 137 OPEN items). Closed items: `cycles/wave-5-e-demo-fidelity/drift-items-resolved.md`. Deferred (PIVOT-002/v1.0.0-greenfield): `cycles/wave-5-e-demo-fidelity/drift-items-deferred.md` (18 items, D-1368 compaction 2026-06-26)._
-
 ## Blocking Issues
 
 | Issue | Owner | Opened | Resolved | Notes |
@@ -243,7 +227,7 @@ _All open Drift Items archived to `cycles/wave-5-e-demo-fidelity/drift-items-ope
 
 ## Historical Content
 
-Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archive-D1789-D2199.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · decisions-archive-D1124-D1138.md · decisions-archive-D1165-D1352.md · drift-items-resolved.md · drift-items-open.md · drift-items-deferred.md · blocking-issues-resolved.md · phase-5-deferred-findings.md · frontmatter-cascade-archive.md · session-handoff-archive.md · convergence-trajectory.md · lessons.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
+Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · convergence-trajectory.md · decisions-archive-D1789-D2199.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · decisions-archive-D1124-D1138.md · decisions-archive-D1165-D1352.md · drift-items-resolved.md · drift-items-open.md · drift-items-deferred.md · blocking-issues-resolved.md · phase-5-deferred-findings.md · frontmatter-cascade-archive.md · session-handoff-archive.md · lessons.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
 ## Session Resume Checkpoint (D-2244 — 2026-08-19 — SESSION WRAP; STATE v8.776→v8.777) [supersedes D-2243]
 
