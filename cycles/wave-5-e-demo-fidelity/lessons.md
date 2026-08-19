@@ -4863,3 +4863,47 @@ Register either a self-improvement story anchored to the wave-5-e-demo-fidelity 
 **Transferable principle:** A changelog entry is a CLAIM, not evidence. Any changelog entry that asserts sweep completeness (version bump, phrase correction, lint-gate pass) is unverified until an independent check confirms zero residuals. The records-lint gate is the mechanical independent check for format violations; an analogous content-residual check is the missing mechanical control for sweep-completeness claims.
 
 **Source:** D-2247 state-manager FB-52/53/54 fix-burst hook-block recovery (2026-08-19). Pattern family: fix-burst false-completeness, changelog-pre-gate authorship, orchestrator residual-grep discipline.
+
+---
+
+### Lesson 131 — Version-Decoration Edits Must Grep the WHOLE Story Body, Not Just the Edited Section [process-gap]
+
+**Category:** process-gap, section-scoped-sweep-failure, pol-39-normalization, td-vsdd-097
+
+**Date recorded:** 2026-08-19
+**D-NNN anchor:** D-2250 (FB-62/63 TERMINAL whole-story POL-39 normalization; pass-63 [process-gap])
+**Pattern recurrence count:** 3 consecutive normalization bursts, same root cause:
+- **FB-52/53/54 (D-2247):** §Authority section swept for volatile version qualifiers; rest of story body left untouched. Adversary pass-53/54 found 22 additional volatile section-cite version qualifiers in non-§Authority sections.
+- **FB-55/56/57 (D-2248):** §Authority section re-swept (provenance labels); body cohort again not swept.
+- **FB-58/60 (D-2249):** §Authority provenance labels normalized to version-free form; declared "categorical fix to end recurring provenance-drift class" — but 22 non-§Authority volatile section cites survived because sweep was still §Authority-only.
+- **FB-62/63 (D-2250):** Whole-body grep performed for the first time — 22 remaining ADR section-cite version qualifiers found and stripped across the full active body.
+
+**Root cause:**
+
+Each normalization burst was dispatched with a section-scoped brief (e.g., "normalize §Authority provenance labels"). The story-writer (or state-manager) interpreted the scope as permission to sweep ONLY the named section. The TD-VSDD-097 Dimension-1/Dimension-2 discharge was written referencing only the edited section, not the full body. Because no whole-body grep was performed, the residuals in other sections were invisible to the fixer and to the discharge report.
+
+Three bursts in a row followed this pattern. The adversary detected new instances each time because the adversary reads the whole document, while the fixer read only the targeted section.
+
+**Correct behavior (going forward):**
+
+When any version-decoration normalization brief arrives (POL-39 volatile-cite strip, provenance-label normalization, ADR section-cite version removal), the story-writer MUST:
+
+1. Run a whole-body grep for the target pattern before editing: `grep -n "<version_pattern_or_cite_form>" <story_file>` with NO section restriction.
+2. Record the grep result (hit count + line numbers) in the amendment-sweep comment.
+3. Apply the normalization to ALL hits found, not just the hits in the named section.
+4. Re-run the grep after editing to confirm zero residuals.
+5. Report exact hit count (before and after) in the TD-VSDD-097 discharge.
+
+The section name in the dispatch brief describes WHERE the finding was observed — it is NOT a scope boundary for the sweep.
+
+**Recommended mechanical mitigation (for cycle-close self-improvement):**
+
+Tie to the proposed records-lint L11 gate (Lesson 130): the same L11 mechanism that detects changelog-claimed sweeps with surviving residuals would also catch "normalized only 5 of 22 version cites" by grepping the full artifact body, not just the edited section. Story-writer whole-body-grep checklist item should be a named step in the normalization burst brief template.
+
+**Follow-up obligation:**
+
+Register either a self-improvement story anchored to the wave-5-e-demo-fidelity cycle-close OR a justified deferral with a REAL existing story ID per Canonical Principle Rule 3. The whole-body-grep discipline is currently enforced only by this lesson; without a mechanical gate (L11 or a checklist-enforced whole-body sweep), this class of section-scoped miss will recur. Do NOT close the wave-5-e-demo-fidelity cycle without either implementing the gate or recording a deferral against a concrete story ID.
+
+**Transferable principle:** A section-scoped brief describes the finding location, not the sweep boundary. POL-39 normalization sweeps MUST be whole-document. The canonical test: after any normalization burst, run `grep -r "<old_form>" <artifact>` with no file-section restriction and confirm zero hits.
+
+**Source:** D-2250 state-manager FB-62/63 fix-burst (2026-08-19). Pattern family: section-scoped-sweep-failure, version-decoration normalization miss, TD-VSDD-097 §1 sibling-pair scope under-specification.

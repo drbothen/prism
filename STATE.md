@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.783"
+version: "8.784"
 producer: state-manager
-timestamp: 2026-08-19T10:13:00Z
+timestamp: 2026-08-19T17:16:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -24,7 +24,8 @@ bc_index_version: "9.40"
 # NOTE: D-2247 — BC-INDEX v9.39→v9.40: FB-52/53/54 records-tier fix-burst — BC-2.16.003 pin v1.17→v1.18 (4 "emits unconditionally" corrected; §G intro pin v2.23). ADR-058 v2.22→v2.23. ROUTING-001 v1.39→v1.40. COERCION-001 v1.36→v1.37. Counts UNCHANGED: active 252/draft 4/total 269. D-2246 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.863"
+story_index_version: "2.864"
+# NOTE: D-2250 — STORY-INDEX v2.863→v2.864: FB-62/63 TERMINAL POL-39 normalization — ROUTING-001 v1.42→v1.43 (22 ADR section-cite version qualifiers stripped across full active body; §Authority-only v1.42 sweep was incomplete). COERCION-001 UNCHANGED v1.39. ADR-058/BC-2.16.003/BC-2.16.002/BC-INDEX v9.40/ARCH-INDEX v2.323 ALL UNCHANGED. total_stories 302 UNCHANGED. STORY-INDEX v2.863→v2.864. D-2249 NOTE archived.
 # NOTE: D-2249 — STORY-INDEX v2.862→v2.863: FB-58/60 records micro-burst — ROUTING-001 v1.41→v1.42 (§Authority provenance labels normalized to version-free form; ADR status-date 2026-08-18→2026-08-19); COERCION-001 v1.38→v1.39 (ADR status-date 2026-08-18→2026-08-19). total_stories 302 UNCHANGED. D-2248 NOTE archived.
 arch_index_version: "2.323"
 # NOTE: D-2247 — ARCH-INDEX v2.322→v2.323: FB-52/53/54 records-tier fix-burst — ADR-058 pin v2.22→v2.23 (§J2 raw_extensions-conditional prose correction; input-hash b030dfa). D-2246 NOTE archived.
@@ -36,7 +37,7 @@ workspace_test_count: 5743
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2249 FB-58/60 records micro-burst COMPLETE — ROUTING-001 v1.41→v1.42 (§Authority §B2/§D1/§G/§I1/§I2/§J2 provenance labels normalized to version-free form; ADR status-date 2026-08-18→2026-08-19). COERCION-001 v1.38→v1.39 (ADR status-date 2026-08-18→2026-08-19). BC-INDEX UNCHANGED v9.40. ARCH-INDEX UNCHANGED v2.323. STORY-INDEX v2.862→v2.863. STATE v8.782→v8.783. NEW FROZEN: ADR-058 v2.23 / BC-2.16.003 v1.18 / BC-2.16.002 v2.28 / ROUTING-001 v1.42 / COERCION-001 v1.39. BC-5.39.001 streak RESET 0/3 (perimeter changed). trajectory-tail →2→3→2→1 (p56→p57→p58→p60). RESUME NEXT-ACTION: adversary SPEC passes 61/62/63 (parallel) on NEW perimeter ADR-058 v2.23 / BC-2.16.003 v1.18 / ROUTING-001 v1.42 / COERCION-001 v1.39; then HALT for human TDD-gate decision"
+current_step: "D-2250 FB-62/63 TERMINAL whole-story POL-39 normalization COMPLETE — ROUTING-001 v1.42→v1.43 (22 ADR section-cite version qualifiers stripped across full active body; v1.42 §Authority-only sweep was incomplete — now corrected). COERCION-001 UNCHANGED v1.39. BC-INDEX UNCHANGED v9.40. ARCH-INDEX UNCHANGED v2.323. STORY-INDEX v2.863→v2.864. STATE v8.783→v8.784. NEW FROZEN: ADR-058 v2.23 / BC-2.16.003 v1.18 / BC-2.16.002 v2.28 / ROUTING-001 v1.43 / COERCION-001 v1.39. BC-5.39.001 streak RESET 0/3 (perimeter changed). trajectory-tail →1→0→3→1 (p60→p61→p62→p63). RESUME NEXT-ACTION: adversary SPEC passes 64/65/66 (parallel) on perimeter ADR-058 v2.23 / BC-2.16.003 v1.18 / ROUTING-001 v1.43 / COERCION-001 v1.39; then HALT for human TDD-gate decision"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -73,7 +74,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 240 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: +40 | margin from actual: -260 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 241 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: +41 | margin from actual: -259 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -86,7 +87,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-19 D-2249 FB-58/60 records micro-burst — ROUTING-001 v1.41→v1.42; COERCION-001 v1.38→v1.39; STORY-INDEX v2.862→v2.863; STATE v8.782→v8.783; trajectory-tail →2→3→2→1 (p56→p57→p58→p60) |
+| **Last Updated** | 2026-08-19 D-2250 FB-62/63 TERMINAL POL-39 normalization — ROUTING-001 v1.42→v1.43; STORY-INDEX v2.863→v2.864; STATE v8.783→v8.784; trajectory-tail →1→0→3→1 (p60→p61→p62→p63) |
 
 ## Phase Progress
 
@@ -121,8 +122,8 @@ _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individua
 | Active cascade | OCSF-correctness claroty SPEC adversary |
 | Pass count | 60 complete (p59 FAILED-API/no-verdict; not counted); pass-61 pending |
 | Last CLEAN(strict) | pass-50 (no strict CLEANs in passes 51-60; streak reset by FB-58/60) |
-| Finding trajectory | trajectory-tail →2→3→2→1 (p56→p57→p58→p60). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Frozen perimeter | ADR-058 v2.23 / BC-2.16.003 v1.18 / BC-2.16.002 v2.28 / ROUTING-001 v1.42 / COERCION-001 v1.39 |
+| Finding trajectory | trajectory-tail →1→0→3→1 (p60→p61→p62→p63). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
+| Frozen perimeter | ADR-058 v2.23 / BC-2.16.003 v1.18 / BC-2.16.002 v2.28 / ROUTING-001 v1.43 / COERCION-001 v1.39 |
 
 ## Concurrent Cycles
 
