@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.39"
+version: "1.40"
 level: "L4"
 status: draft
 producer: story-writer
@@ -70,7 +70,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "0912bc2"
+input-hash: "cabe74f"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -90,7 +90,7 @@ tags:
 
 ## Authority
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.18`, status: draft
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.19`, status: draft
 (modified 2026-08-19). Primary behavioral authority. The §Type Coercion Algorithm, §Full
 Coercion Matrix, EC-016-013-007/008/009 KNOWN GAP annotations, and §Coercion Warning
 Observability DEFECT section are the acceptance-criteria source for this story. Note: BC-2.16.003
@@ -108,7 +108,7 @@ Stage 1's §H scope is unchanged.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
 **BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable
-Interpolation.** Version `2.28`, status: active (unchanged). Governs the Canonical
+Interpolation.** Version `2.29`, status: active (unchanged). Governs the Canonical
 Structured Event Catalog obligation: AC-004 and AC-005 introduce the
 `column_coercion_failure` tracing emission, which MUST be registered in BC-2.16.002
 §Postconditions §Canonical Structured Event Catalog before the implementing PR merges
@@ -148,9 +148,9 @@ The mandate anchor record:
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.18 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
+| BC-2.16.003 | v1.19 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
 | BC-2.02.011 | — | — | Warning-emission obligation for each normalization issue; BC-2.16.003 DEFECT violates this |
-| BC-2.16.002 | v2.28 | active | Canonical Structured Event Catalog obligation — `column_coercion_failure` emit from AC-004/AC-005 must be registered in §Postconditions §Canonical Structured Event Catalog (SAP-1 / PG-LP11-001) |
+| BC-2.16.002 | v2.29 | active | Canonical Structured Event Catalog obligation — `column_coercion_failure` emit from AC-004/AC-005 must be registered in §Postconditions §Canonical Structured Event Catalog (SAP-1 / PG-LP11-001) |
 
 ---
 
@@ -675,6 +675,22 @@ dispatch product-owner as part of this story's delivery).
 anchors all three emission paths: AC-004/RG-005 (Path-B map_record),
 AC-005/RG-006 (Path-A String+Object), AC-007/RG-009 (Path-A Integer+String).
 VERDICT: DISCHARGED — see ADR-058 §H emission discharge anchor; no architect action pending.
+
+---
+
+### v1.40 Amendment Sweep (Leg 2 pin bump — BC-2.16.003 v1.18→v1.19 + BC-2.16.002 v2.28→v2.29; sibling coordination with ROUTING-001 v1.43→v1.44)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): amended in same burst (v1.43→v1.44) — §Authority BC-2.16.003 pin v1.18→v1.19; §Authority BC-2.16.002 pin v2.28→v2.29; §Behavioral Contracts table pins updated; 13 `§Interpretation A v1.18` inline stamps stripped to version-free form per Bucket B terminal normalization. VERDICT: SIBLING AMENDED IN SAME BURST.
+
+**Dimension 2 — Downstream copy target:**
+
+Changed surfaces in COERCION-001: (1) §Authority BC-2.16.003 `Version \`1.18\`` → `Version \`1.19\``; (2) §Authority BC-2.16.002 `Version \`2.28\`` → `Version \`2.29\``; (3) §Behavioral Contracts table BC-2.16.003 row v1.18→v1.19; (4) §Behavioral Contracts table BC-2.16.002 row v2.28→v2.29. None of these loci are verbatim-copied into any downstream artifact. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUST blocks introduced. All existing MUST anchors carried forward with behavioral content unchanged. VERDICT: NO NEW UNANCHORED MUSTs.
 
 ---
 
@@ -1372,6 +1388,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.40 | 2026-08-19 | story-writer | Leg 2 pin bump — BC-2.16.003 v1.18→v1.19 (BC-2.16.003 updated to v1.19 in Leg 1 of this burst); BC-2.16.002 v2.28→v2.29 (BC-2.16.002 updated to v2.29 in Leg 1); §Authority and §Behavioral Contracts table pins updated to current. No prose/AC/RG/mechanism change — COERCION-001 content is unaffected by BC-2.16.003 v1.19 and BC-2.16.002 v2.29 changes (the §Interpretation A stamp normalization and Leg 1 amendments are ROUTING-001 scope only). Input-hash updated 0912bc2→cabe74f (BC-2.16.003 and BC-2.16.002 updated in Leg 1). Sibling ROUTING-001 bumped to v1.44 in same burst. §v1.40 Amendment Sweep added. |
 | 1.39 | 2026-08-19 | story-writer | FB-58/60 records micro-burst — sibling coordination. F-P58-LOW-001: ADR-058 §Authority status-date parenthetical corrected "(2026-08-18)"→"(2026-08-19)" (ADR-058 frontmatter `modified:` is 2026-08-19). No prose/AC/RG/mechanism change — COERCION-001 §Authority already uses clean version-free provenance form; the §B2/§I2/§J2/§D1 version-stamp normalization (F-P58-LOW-002) applies to ROUTING-001 §Authority only. Sibling ROUTING-001 bumped to v1.42 in same burst. §v1.39 Amendment Sweep added. |
 | 1.38 | 2026-08-19 | story-writer | FB-55/56/57 LEG 2 — records-tier §Authority BC-2.16.003 pin completion. F-P55/56/57-MED-001: §Authority block pin was stale at Version `1.17` (should be `1.18`; §Behavioral Contracts table already at v1.18; BC frontmatter is v1.18) — corrected to Version `1.18`. §Authority modified-date parenthetical corrected "(modified 2026-08-18)"→"(modified 2026-08-19)" (BC-2.16.003 `modified:` is now 2026-08-19). This completes the §Authority half of the pin sweep that the v1.37 changelog row described but did not apply (v1.37 updated §Behavioral Contracts table only; §Authority pin remained stale at v1.17). Sibling ROUTING-001 bumped to v1.41 in same burst. §v1.38 Amendment Sweep added. |
 | 1.37 | 2026-08-19 | story-writer | FB-52/53/54 LEG 3 sibling pin maintenance: ADR-058 §Authority pin v2.22→v2.23; BC-2.16.003 §Behavioral Contracts table pin v1.17→v1.18. No prose/AC/RG/mechanism change — COERCION-001 content is unaffected by the ADR-058 v2.23 and BC-2.16.003 v1.18 changes (§J2 unconditional/conditional raw_extensions reword and §Interpretation A v1.18 corrections are ROUTING-001 scope only). input-hash updated baeb9ab→3cbb64b (ADR-058 + BC-2.16.003 updated in Legs 1-2). §v1.37 Amendment Sweep added. |
