@@ -256,7 +256,54 @@ timestamp: 2026-08-16T00:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **D-2135 (DEFECT-ADAPTER-TLS-XDOME-LIVE-001 LOCAL pass-21 CLEAN(strict)=NO / CLEAN(PR-merge)=YES; story v1.19 / BC-2.08.002 v1.7 / BC-INDEX v9.08 / STORY-INDEX v2.797; streak RESET 0/3; NEXT: strict LOCAL adversary pass-22 on frozen HEAD b3052ce4d + story v1.19 + BC-2.08.002 v1.7 + error-taxonomy v2.76).** (STATE.md frontmatter is authoritative; §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot).
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) is authoritative. §RESUME SNAPSHOT D-2110 is the most recent durable session-wrap snapshot. D-2115 blockquote above captures the D-2115 burst delta. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `69d821be` (local==origin; PR #239 squash-merged 2026-08-16; fast-forward complete §D-2201-SHA-UPDATE). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'`. STATE v8.732 (D-2201). **D-2200 GOVERNING DECISION: DTU work DEFERRED POST-FIRST-RELEASE — S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001 both PARKED. D-2109 GOVERNING DECISION ALSO IN EFFECT: DTUs MUST NOT be reconciled to real without explicit human authorization.** **§RESUME SNAPSHOT D-2244 is the active session-wrap snapshot. OCSF cascade 0/3; frozen perimeter ADR-058 v2.21 / BC-2.16.003 v1.15 / BC-2.16.002 v2.28 / ROUTING-001 v1.37 / COERCION-001 v1.34. NEXT = adversary SPEC passes 46/47/48 then HALT for human TDD-gate decision.**
+> develop HEAD `69d821be` (local==origin; PR #239 squash-merged 2026-08-16; fast-forward complete §D-2201-SHA-UPDATE). factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'`. STATE v8.732 (D-2201). **D-2200 GOVERNING DECISION: DTU work DEFERRED POST-FIRST-RELEASE — S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001 both PARKED. D-2109 GOVERNING DECISION ALSO IN EFFECT: DTUs MUST NOT be reconciled to real without explicit human authorization.** **§RESUME SNAPSHOT D-2252 is the active session-wrap snapshot. OCSF cascade CLOSED (substantive convergence, human decision 2026-08-19). FROZEN FINAL: ADR-058 v2.24 / BC-2.16.002 v2.29 / BC-2.16.003 v1.19 / ROUTING-001 v1.44 / COERCION-001 v1.40. NEXT = present TDD-gate decision to human — do NOT auto-start TDD.**
+
+---
+
+## §RESUME SNAPSHOT — D-2252 (2026-08-19 — SESSION WRAP; OCSF cascade CLOSED substantive; FROZEN FINAL ADR-058 v2.24; STATE v8.785→v8.786) [SUPERSEDES D-2244]
+
+### RESUME IN ONE BREATH
+Prism Phase-3. OCSF-correctness CLAROTY SPEC adversarial cascade CLOSED on SUBSTANTIVE convergence (human decision D-2252 2026-08-19). Spec CONTENT code-verified clean across ~18 consecutive passes; pass-68 fully CLEAN-strict; every finding since ~pass-50 was records-hygiene/version-cite cosmetics with zero mechanism/logic/contract/security impact. Strict BC-5.39.001 zero-findings 3-CLEAN NOT achieved — human halted the self-seeding version-pin grind (each fix-burst bumped a version → re-pin churn → next pass flagged a survivor). Session was execution-environment-degraded (~10+ agent API failures/stalls). Do NOT auto-start TDD.
+
+**RESUME NEXT-ACTION:** Present TDD-gate decision to human — proceed into Phase-3 TDD implementation of COERCION-001 (depends_on []) THEN ROUTING-001 (per architect deep-review sequence), or hold. Both stories tdd_mode:strict, status:draft, enumerated Red Gates ready. Do NOT auto-start TDD; await human go. Also surface 3 accepted cosmetic debt follow-ups: (i) ROUTING/COERCION §Authority ~15 ADR v2.23 §X cites one minor behind ADR v2.24 — deliberately not re-pinned; (ii) records-lint L11 gate-script build deferred (environment-degraded); (iii) F-P67-OBS-2 BC-2.16.002 catalog label-chain gap (out-of-perimeter, S-CLAROTY-AUDITLOG lineage).
+
+### HEADS (D-2252)
+- `develop`: `69d821be` (local==origin; pushed/clean; no open PRs)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2252 wrap commit)
+- `.worktrees/S-3.09` @`43c41389d` [feature/S-3.09] KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` [feature/W3-FIX-S307-001] PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, 1 dirty test file)
+
+### OCSF WORKSTREAM STATE (D-2252)
+**FROZEN FINAL (D-2252):** ADR-058 v2.24 / BC-2.16.002 v2.29 / BC-2.16.003 v1.19 / ROUTING-001 v1.44 / COERCION-001 v1.40. Indexes: ARCH-INDEX v2.325 / BC-INDEX v9.41 / STORY-INDEX v2.865. Contract counts active 252 / draft 4 / total 269. total_stories 302.
+
+**CASCADE STATUS:** CLOSED on SUBSTANTIVE convergence (human decision 2026-08-19). trajectory-tail →1→1→0→1 (p66→p67→p68→p69). Pass-68 CLEAN-strict. Strict 3-CLEAN NOT achieved.
+
+**ACCEPTED COSMETIC DEBT (not fixed this session):**
+- ROUTING/COERCION §Authority ~15 ADR v2.23 §X cites one minor behind ADR v2.24 (deliberately not re-pinned)
+- records-lint L11 gate-script build deferred (environment-degraded)
+- F-P67-OBS-2 BC-2.16.002 catalog label-chain gap (out-of-perimeter, S-CLAROTY-AUDITLOG lineage)
+
+### GOVERNING DECISIONS (D-2252)
+- **D-2252 GOVERNING DECISION:** OCSF cascade CLOSED on SUBSTANTIVE convergence (human decision 2026-08-19). Strict BC-5.39.001 3-CLEAN NOT completed. ADR-058 v2.24 is the frozen final ADR for TDD.
+- **PENDING HUMAN DECISION:** Do NOT auto-proceed to TDD of COERCION-001 + ROUTING-001. HALT and surface to human for TDD-gate decision.
+- **D-2200 GOVERNING DECISION (UNCHANGED):** DTU work DEFERRED POST-FIRST-RELEASE — S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001 both PARKED.
+- **D-2109 GOVERNING DECISION (UNCHANGED):** DTUs MUST NOT be reconciled to real without explicit human authorization.
+
+### DECISION-LOG DELTA (D-2245 through D-2252)
+| ID | Summary |
+|----|---------|
+| D-2245 | FB-46/48 OCSF-correctness fix-burst: ADR-058 v2.21→v2.22; BC-2.16.003 v1.15→v1.16; ROUTING-001 v1.37→v1.38; COERCION-001 v1.34→v1.35; STATE v8.778→v8.779 |
+| D-2246 | FB-49/51 OCSF-correctness fix-burst: BC-2.16.003 v1.16→v1.17; ROUTING-001 v1.38→v1.39; COERCION-001 v1.35→v1.36; STATE v8.779→v8.780 |
+| D-2247 | FB-52/53/54 records-tier fix-burst: ADR-058 v2.22→v2.23; BC-2.16.003 v1.17→v1.18; ROUTING-001 v1.39→v1.40; COERCION-001 v1.36→v1.37; STATE v8.780→v8.781 |
+| D-2248 | FB-55/56/57 surgical records-consolidation: ROUTING-001 v1.40→v1.41; COERCION-001 v1.37→v1.38; STATE v8.781→v8.782 |
+| D-2249 | FB-58/60 records micro-burst: ROUTING-001 v1.41→v1.42; COERCION-001 v1.38→v1.39; STATE v8.782→v8.783 |
+| D-2250 | FB-62/63 TERMINAL POL-39 normalization: ROUTING-001 v1.42→v1.43; STATE v8.783→v8.784 |
+| D-2251 | Perimeter POL-39 terminal normalization: BC-2.16.002 v2.28→v2.29; BC-2.16.003 v1.18→v1.19; ROUTING-001 v1.43→v1.44; COERCION-001 v1.39→v1.40; ARCH-INDEX v2.323→v2.324; STATE v8.784→v8.785 |
+| D-2252 | SESSION WRAP: ADR-058 v2.23→v2.24 (FB-67/69 architect leg: F-P69-LOW-001 §I5 factual correction; F-P67-OBS-1 §E2 header fix; input-hash 18b74fe); ARCH-INDEX v2.324→v2.325; OCSF cascade CLOSED substantive; STATE v8.785→v8.786 |
+
+### BACKUP BOUNDARY (D-2252)
+- PUSHED / safe: `origin/develop` `69d821be` (PR #239 merged 2026-08-16T22:51Z); `factory-artifacts` (this D-2252 wrap commit)
+- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
 
 ---
 
