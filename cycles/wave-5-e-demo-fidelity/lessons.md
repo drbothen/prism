@@ -4790,3 +4790,33 @@ When any records-only micro-burst (or any burst) bumps a BC version, the fixer M
 **Transferable principle:** A BC version bump in any burst creates a downstream-copy obligation against every story's live pin set for that BC. The TD-VSDD-097 §2 "downstream copy target" dimension is not limited to verbatim section copies — it includes version-number reference sites. The standard discharge is a grep for `<BC-id> v<old_version>` across `.factory/stories/`, classify each hit as live-pin vs. historical-attribution, sweep all live pins. Failing to discharge this in the bump burst guarantees a pass-N+1 adversary finding of exactly the class found here.
 
 **Source:** D-2192 state-manager closing burst (2026-08-15). Pattern family: TD-VSDD-097 §2 downstream-copy sweep miss, BC pin bump mid-cascade, live story pin sweep obligation.
+
+---
+
+### Lesson 129 — Coordinated Burst §J2 Change Must Sweep BC §Invariants and §Error Conditions; Sibling-Story §Authority Pins Required [process-gap]
+
+**Context:** FB-46/48 fix-burst (D-2245), which added §J2 synthesized-name reservation to ADR-058 v2.22 and propagated it to BC-2.16.003 v1.16. The TD-VSDD-097 three-dimension sweep for D-2245 declared all dimensions CLEAR. Pass-49 then returned F-P49-MED-001 (EC-028 mechanism missing from §Error Conditions) and F-P49/51-MED-002 (§J2 guard absent from §Invariants). These were valid findings — both §Invariants and §Error Conditions are downstream copy-targets for a synthesized-name behavioral guard added to a BC, and the D-2245 burst did not sweep them. The FB-49/51 fix-burst (D-2246) closed both findings by propagating the guard to §Invariants + §Error Conditions in BC-2.16.003 v1.17.
+
+Separately, F-P49-MED-003 found COERCION-001's §Authority section had a stale ADR-058 pin after the D-2245 coordinated burst bumped ADR-058 from v2.21 to v2.22. A coordinated burst that changes ADR-058 version must sweep both ROUTING-001 and COERCION-001 §Authority pins in the same burst, since both stories cite ADR-058 as their governing authority.
+
+**Root cause (two distinct sweep misses):**
+
+1. **§Invariants/§Error Conditions are downstream copy-targets for BC postcondition additions.** When a new behavioral guard is added to a BC's postconditions (e.g., §J2 synthesized-name check), the identical guard semantics must propagate to §Invariants (where "always true" form of the guard lives) and §Error Conditions (where the enforcement mechanism lives). The D-2245 burst's TD-VSDD-097 §2 verdict swept downstream copy-targets for the ADR → BC propagation but did not identify §Invariants/§Error Conditions as separate copy-targets within the same BC.
+
+2. **ADR version bump in a coordinated burst must sweep all sibling-story §Authority pins.** ROUTING-001 and COERCION-001 are a sibling pair sharing ADR-058 as their governing authority. Any burst that bumps ADR-058 must sweep §Authority blocks in BOTH stories regardless of whether the story's content changed. The D-2245 burst bumped ROUTING-001's §Authority pin but missed COERCION-001's.
+
+**Correct behavior (going forward):**
+
+When a burst adds a behavioral guard to a BC's §Postconditions:
+1. Identify the corresponding §Invariants entry (the always-true form) — add or update it in the SAME burst.
+2. Identify the §Error Conditions entry (the enforcement mechanism) — add or update it in the SAME burst.
+3. Include both in the TD-VSDD-097 §2 discharge report with explicit "swept §Invariants" and "swept §Error Conditions" verdicts.
+
+When a coordinated burst bumps an ADR version:
+1. Grep `.factory/stories/` for every story whose §Authority section cites the ADR at the old version.
+2. Sweep all §Authority pins to the new version in the SAME burst — regardless of whether the story has content changes.
+3. Report the sibling sweep explicitly in the TD-VSDD-097 §1 (sibling pair) and §2 (downstream copy-target) discharge.
+
+**Follow-up obligation:** A self-improvement story or justified deferral against a REAL existing story ID (per Canonical Principle Rule 3) must be registered before this cycle closes. The process-gap is open; do NOT close the wave-5-e-demo-fidelity cycle without resolving it.
+
+**Source:** D-2246 state-manager closing burst (2026-08-19). Pattern family: TD-VSDD-097 §2 downstream-copy sweep miss, coordinated burst sibling §Authority pin sweep, BC §Invariants/§Error Conditions propagation obligation.
