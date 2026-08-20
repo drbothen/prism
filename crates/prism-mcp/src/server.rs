@@ -478,6 +478,9 @@ impl PrismServer {
     ///
     /// Returns `Ok(())` on clean shutdown, or `Err(RmcpError)` on transport/init failure
     /// or if the drain timeout is exceeded (HIGH-3: no process::exit — callers preserve Drop).
+    // rmcp::RmcpError is an external type; boxing the return would ripple through
+    // RunningServer::mcp_server_task, match arms in boot.rs, and test helpers (>10 sites).
+    #[allow(clippy::result_large_err)]
     pub async fn serve_stdio(self) -> Result<(), rmcp::RmcpError> {
         // Build the unified OS signal future: resolves when SIGINT or SIGTERM arrives.
         // OBS-1 fix: SIGTERM registration failure is non-fatal — warn and fall back to
@@ -550,6 +553,9 @@ impl PrismServer {
     /// - Double SIGINT during drain (HIGH-4 / EC-10-019): calls `process::exit(130)`.
     ///   This is the ONLY path that calls `process::exit`; it is intentional (force-kill
     ///   requested by user, 130 = 128 + 2 per Unix convention) and documented.
+    // rmcp::RmcpError is an external type; boxing the return would ripple through
+    // RunningServer::mcp_server_task, match arms in boot.rs, and test helpers (>10 sites).
+    #[allow(clippy::result_large_err)]
     pub(crate) async fn serve_with_transport_and_shutdown<T, E, A>(
         self,
         transport: T,
@@ -578,6 +584,9 @@ impl PrismServer {
     /// - `transport`: any type that satisfies `IntoTransport` (stdio, duplex, etc.)
     /// - `shutdown`: future that resolves when a shutdown signal is received
     /// - `grace`: how long to wait for in-flight drain before returning `Err(TaskError)`
+    // rmcp::RmcpError is an external type; boxing the return would ripple through
+    // RunningServer::mcp_server_task, match arms in boot.rs, and test helpers (>10 sites).
+    #[allow(clippy::result_large_err)]
     async fn serve_with_transport_and_shutdown_inner<T, E, A>(
         self,
         transport: T,
@@ -740,6 +749,9 @@ impl PrismServer {
     /// Thin wrapper around [`serve_with_transport_and_shutdown`] that binds the
     /// stdio transport.  Production code calls this; tests call the generic form
     /// with a `tokio::io::duplex` transport (F-PASS6-HIGH-1 testability fix).
+    // rmcp::RmcpError is an external type; boxing the return would ripple through
+    // RunningServer::mcp_server_task, match arms in boot.rs, and test helpers (>10 sites).
+    #[allow(clippy::result_large_err)]
     pub(crate) async fn serve_stdio_with_shutdown(
         self,
         shutdown: impl std::future::Future<Output = &'static str>,
