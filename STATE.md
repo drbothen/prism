@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.789"
+version: "8.790"
 producer: state-manager
-timestamp: 2026-08-20T05:35:00Z
+timestamp: 2026-08-20T07:50:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -25,9 +25,8 @@ bc_index_version: "9.42"
 # NOTE: D-2251 — BC-INDEX v9.40→v9.41: perimeter POL-39 terminal normalization — BC-2.16.002 pin v2.28→v2.29; BC-2.16.003 pin v1.18→v1.19; ROUTING-001 v1.43→v1.44; COERCION-001 v1.39→v1.40; counts UNCHANGED active 252/draft 4/total 269. D-2247 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.867"
-# NOTE: D-2254 — STORY-INDEX v2.866→v2.867: SAP-1 discharge burst — COERCION-001 v1.42→v1.43 (BC-2.16.002 pin v2.29→v2.30; input-hash fb7a031); ROUTING-001 v1.44→v1.45 (sibling re-pin; input-hash 859dc7f); BC-INDEX v9.41→v9.42. total_stories 302 UNCHANGED. D-2253 NOTE archived.
-# NOTE: D-2253 — STORY-INDEX v2.865→v2.866: TDD gate OPENED (human-approved 2026-08-19) — COERCION-001 story v1.40→v1.42 (4 holdout scenarios authored HS-021 group + RG-005 test-placement correctness fix); total_stories 302 UNCHANGED. D-2250 NOTE archived.
+story_index_version: "2.868"
+# NOTE: D-2255 — STORY-INDEX v2.867→v2.868: LOCAL adversary pass-1 records-only micro-burst (TD-VSDD-096) — COERCION-001 v1.43→v1.44 (AC-004 field-binding prose reconciled to %col.name/%column_type_toml_name; ZERO code/mechanism change; code HEAD 249060a57 UNCHANGED). ROUTING-001/BC-INDEX/ARCH-INDEX/BC-2.16.002 ALL UNCHANGED. total_stories 302 UNCHANGED. D-2254 NOTE archived.
 arch_index_version: "2.325"
 # NOTE: D-2252 — ARCH-INDEX v2.324→v2.325: SESSION WRAP — ADR-058 pin v2.23→v2.24 (FB-67/69 architect leg); OCSF cascade CLOSED substantive. D-2251 NOTE archived.
 # NOTE: D-2251 — ARCH-INDEX v2.323→v2.324: perimeter POL-39 terminal normalization — BC-2.16.002 pin v2.28→v2.29; BC-2.16.003 pin v1.18→v1.19. D-2247 NOTE archived.
@@ -40,7 +39,7 @@ workspace_test_count: 5743
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2254 SAP-1/PG-LP11-001 discharge COMPLETE: BC-2.16.002 catalog row 95 `column_coercion_failure` WARN (product-owner leg); BC-2.16.002 pin v2.29→v2.30; COERCION-001 v1.42→v1.43 (input-hash fb7a031); ROUTING-001 v1.44→v1.45 (sibling re-pin; input-hash 859dc7f pre-existing drift). BC-INDEX v9.41→v9.42. STORY-INDEX v2.866→v2.867. STATE v8.788→v8.789. NEXT: LOCAL adversary 3-CLEAN cascade on worktree HEAD. trajectory-tail →1→1→0→1 (p66→p67→p68→p69)"
+current_step: "D-2255 LOCAL adversary pass-1 records-only micro-burst (TD-VSDD-096) COMPLETE: CLEAN(strict)=no / CLEAN(PR-merge)=yes; F-P1-OBS-001 (AC-004 field-binding prose drift vs ADR-058 §H / BC-2.16.002 catalog row 95). story-writer reconciled §AC-004 to %col.name / %column_type_toml_name(&col.column_type); story v1.43→v1.44. BC-INDEX/ARCH-INDEX/BC-2.16.002 ALL UNCHANGED. BC-5.39.001 strict streak REMAINS 0/3 (perimeter changed by spec fix). STORY-INDEX v2.867→v2.868. STATE v8.789→v8.790. NEXT: re-run LOCAL adversary fresh pass on unchanged code HEAD 249060a57 + corrected spec. trajectory-tail →1→0→1→1 (p67→p68→p69→LOCAL-p1)"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -77,7 +76,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 257 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -57 | margin from actual: 243 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 259 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -59 | margin from actual: 241 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -90,7 +89,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-20 D-2254 SAP-1/PG-LP11-001 discharge COMPLETE — BC-2.16.002 catalog row 95 `column_coercion_failure` WARN registered; BC-2.16.002 v2.29→v2.30; COERCION-001 v1.42→v1.43; ROUTING-001 v1.44→v1.45; BC-INDEX v9.41→v9.42; STORY-INDEX v2.866→v2.867; STATE v8.788→v8.789; trajectory-tail →1→1→0→1 (p66→p67→p68→p69) |
+| **Last Updated** | 2026-08-20 D-2255 LOCAL adversary pass-1 records-only micro-burst COMPLETE — CLEAN(strict)=no / CLEAN(PR-merge)=yes; F-P1-OBS-001 closed; COERCION-001 v1.43→v1.44; STORY-INDEX v2.867→v2.868; STATE v8.789→v8.790; trajectory-tail →1→0→1→1 (p67→p68→p69→LOCAL-p1) |
 
 ## Phase Progress
 
@@ -116,9 +115,10 @@ pre_compact_snapshot_at: "2026-08-19"
 | D-2249 FB-58/60 records micro-burst | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | F-P58-LOW-001≡F-P60-LOW-001 ADR-058 §Authority status-date 2026-08-18→2026-08-19 in both stories. F-P58-LOW-002 ROUTING-001 §Authority §B2/§I2/§I1/§D1 provenance labels normalized to version-free form (categorical fix to end recurring provenance-drift class). ROUTING-001 v1.41→v1.42; COERCION-001 v1.38→v1.39. STORY-INDEX v2.862→v2.863. NEW FROZEN: ADR-058 v2.23/BC-2.16.003 v1.18/BC-2.16.002 v2.28/ROUTING-001 v1.42/COERCION-001 v1.39 |
 | D-2250 FB-62/63 POL-39 whole-story normalization | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | ROUTING-001 v1.42→v1.43 (22 ADR section-cite version qualifiers stripped; L11 inventory-informed). COERCION-001 UNCHANGED v1.39. STORY-INDEX v2.863→v2.864. Streak RESET 0/3. NEW FROZEN: ADR-058 v2.23/BC-2.16.003 v1.18/BC-2.16.002 v2.28/ROUTING-001 v1.43/COERCION-001 v1.39 |
 | D-2251 perimeter POL-39 terminal normalization | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | BC-2.16.002 v2.28→v2.29; BC-2.16.003 v1.18→v1.19; ROUTING-001 v1.43→v1.44; COERCION-001 v1.39→v1.40. BC-INDEX v9.40→v9.41. STORY-INDEX v2.864→v2.865. ARCH-INDEX v2.323→v2.324. NEW FROZEN: ADR-058 v2.23/BC-2.16.002 v2.29/BC-2.16.003 v1.19/ROUTING-001 v1.44/COERCION-001 v1.40. Streak RESET 0/3. |
-| D-2252 SESSION WRAP — OCSF cascade CLOSED | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | ADR-058 v2.23→v2.24 (FB-67/69 architect leg: F-P69-LOW-001 §I5 factual correction; F-P67-OBS-1 §E2 header fix; input-hash 18b74fe). ARCH-INDEX v2.324→v2.325. OCSF cascade CLOSED on SUBSTANTIVE convergence (human decision). STATE v8.785→v8.786. records-lint exit 0. |
-| D-2253 TDD pre-delivery burst (COERCION-001) | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | TDD gate OPENED (human-approved 2026-08-19); 4 holdout scenarios authored (HS-021 group; HOLDOUT-INDEX v1.17→v1.18); RG-005 test-placement correctness fix; story v1.40→v1.42; STORY-INDEX v2.865→v2.866; BC-INDEX v9.41 UNCHANGED. STATE v8.787→v8.788. |
+| D-2252 SESSION WRAP — OCSF cascade CLOSED | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | ADR-058 v2.23→v2.24 (FB-67/69 architect leg: F-P69-LOW-001 §I5 factual correction; F-P67-OBS-1 §E2 header fix; input-hash 18b74fe). ARCH-INDEX v2.324→v2.325. OCSF cascade CLOSED substantive (human decision). trajectory-tail →1→1→0→1 (p66→p67→p68→p69). TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.785→v8.786. |
+| D-2253 TDD pre-delivery burst (COERCION-001) | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | TDD gate OPENED (human-approved 2026-08-19); 4 holdout scenarios authored (HS-021 group; HOLDOUT-INDEX v1.17→v1.18); RG-005 test-placement correctness fix; story v1.40→v1.42; STORY-INDEX v2.865→v2.866; BC-INDEX/ARCH-INDEX UNCHANGED. STATE v8.787→v8.788. |
 | D-2254 SAP-1/PG-LP11-001 discharge burst | COMPLETE | 2026-08-20 | 2026-08-20 | state-manager | SAP-1/PG-LP11-001 discharge COMPLETE — BC-2.16.002 catalog row 95 `column_coercion_failure` WARN registered (v2.29→v2.30); COERCION-001 v1.42→v1.43 (input-hash fb7a031); ROUTING-001 v1.44→v1.45 (sibling re-pin; input-hash 859dc7f). BC-INDEX v9.41→v9.42. STORY-INDEX v2.866→v2.867. TD-VSDD-097 all dims CLEAR: Dim-1 ROUTING-001/COERCION-001 sibling pair CLEAR; Dim-2 §Authority pins terminal CLEAR; Dim-3 no new MUST blocks CLEAR. records-lint exit 0. STATE v8.788→v8.789. |
+| D-2255 LOCAL adversary pass-1 micro-burst (COERCION-001) | COMPLETE | 2026-08-20 | 2026-08-20 | state-manager | CLEAN(strict)=no / CLEAN(PR-merge)=yes; F-P1-OBS-001 (AC-004 field-binding prose drift vs ADR-058 §H / BC-2.16.002 catalog row 95). story v1.43→v1.44. ZERO code/mechanism change; code HEAD 249060a57 UNCHANGED. BC-5.39.001 strict streak REMAINS 0/3 (perimeter changed by spec fix). TD-VSDD-096 micro-burst protocol followed. records-lint exit 0. STORY-INDEX v2.867→v2.868. STATE v8.789→v8.790. |
 
 _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individual story rows PRs #162–#235; fix-burst rows D-2238..D-2243 (exhaustive)) archived to cycles/wave-5-e-demo-fidelity/burst-log.md (D-1794 + D-2237 + D-2244+1 compactions)._
 
@@ -131,7 +131,7 @@ _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individua
 | Pass count | 69 complete (p59/p65 FAILED-API/no-verdict; not counted) |
 | Last CLEAN(strict) | pass-68 (0-finding CLEAN(strict); cascade closed before achieving 3-CLEAN streak) |
 | Finding trajectory | trajectory-tail →1→1→0→1 (p66→p67→p68→p69). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Frozen perimeter | ADR-058 v2.24 / BC-2.16.002 v2.30 / BC-2.16.003 v1.19 / ROUTING-001 v1.45 / COERCION-001 v1.43 |
+| Frozen perimeter | ADR-058 v2.24 / BC-2.16.002 v2.30 / BC-2.16.003 v1.19 / ROUTING-001 v1.45 / COERCION-001 v1.44 |
 
 ## Concurrent Cycles
 
@@ -148,6 +148,7 @@ _No concurrent cycles in progress. Current cycle: wave-5-e-demo-fidelity._
 | D-2252 | state-manager | 2026-08-19 | SESSION WRAP COMPLETE — ADR-058 v2.23→v2.24 (FB-67/69 architect leg; F-P69-LOW-001 §I5 factual correction; F-P67-OBS-1 §E2 header fix; input-hash 18b74fe). ARCH-INDEX v2.324→v2.325. OCSF cascade CLOSED substantive (human decision). trajectory-tail →1→1→0→1 (p66→p67→p68→p69). TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.785→v8.786. |
 | D-2253 | state-manager | 2026-08-19 | TDD GATE OPENED (human-approved 2026-08-19) — pre-delivery burst COMPLETE: 4 hidden holdout scenarios authored (HS-021 group; HOLDOUT-INDEX v1.17→v1.18); RG-005 test-placement correctness fix (§Red Gate Tests, §Tasks T-08/T-GATE, §Architecture Mapping, §Library & Framework, §File Structure corrected); story v1.40→v1.42; STORY-INDEX v2.865→v2.866. BC-INDEX/ARCH-INDEX UNCHANGED. TD-VSDD-097: Dim-1 CLEAR (ROUTING-001 unchanged; no BC sibling pair for story pre-delivery edits); Dim-2 CLEAR (no downstream copy targets for test-placement text); Dim-3 CLEAR (no new MUST blocks). records-lint exit 0. STATE v8.787→v8.788. |
 | D-2254 | state-manager | 2026-08-20 | SAP-1/PG-LP11-001 discharge burst COMPLETE — BC-2.16.002 catalog row 95 `column_coercion_failure` WARN registered (v2.29→v2.30); COERCION-001 v1.42→v1.43 (input-hash fb7a031); ROUTING-001 v1.44→v1.45 (sibling re-pin; input-hash 859dc7f). BC-INDEX v9.41→v9.42. STORY-INDEX v2.866→v2.867. TD-VSDD-097 all dims CLEAR: Dim-1 ROUTING-001/COERCION-001 sibling pair CLEAR; Dim-2 §Authority pins terminal CLEAR; Dim-3 no new MUST blocks CLEAR. records-lint exit 0. STATE v8.788→v8.789. |
+| D-2255 | state-manager | 2026-08-20 | LOCAL adversary pass-1 (S-ADR058-OCSF-COERCION-001) records-only micro-burst COMPLETE — CLEAN(strict)=no / CLEAN(PR-merge)=yes; F-P1-OBS-001 (AC-004 field-binding prose drift vs ADR-058 §H / BC-2.16.002 catalog row 95). story-writer reconciled §AC-004 to %col.name / %column_type_toml_name(&col.column_type); story v1.43→v1.44. BC-INDEX/ARCH-INDEX/BC-2.16.002 ALL UNCHANGED. BC-5.39.001 strict streak REMAINS 0/3 (perimeter changed by spec fix). NEXT: LOCAL adversary fresh pass on frozen code HEAD 249060a57 + corrected spec v1.44. TD-VSDD-097 all dims CLEAR: Dim-1 ROUTING-001 sibling UNCHANGED (AC-004 COERCION-001-specific); Dim-2 no downstream copy targets (story AC prose); Dim-3 no new MUST blocks. TD-VSDD-096 micro-burst protocol followed. records-lint exit 0. STORY-INDEX v2.867→v2.868. STATE v8.789→v8.790. |
 
 ## Decisions Log
 
@@ -210,6 +211,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | D-2252 | state-manager | 2026-08-19 | **SINGLE-COMMIT BURST (TD-VSDD-053) — SESSION WRAP COMPLETE. ADR-058 v2.23→v2.24 (FB-67/69 architect leg: F-P69-LOW-001 §I5 out-of-perimeter-note factual correction; F-P67-OBS-1 §E2 (current TOML) section header fix; input-hash 18b74fe). ARCH-INDEX v2.324→v2.325. OCSF cascade CLOSED on SUBSTANTIVE convergence (human decision 2026-08-19): spec CONTENT code-verified clean across ~18 consecutive passes (pass-68 fully CLEAN-strict); every finding since ~pass-50 was records-hygiene/version-cite cosmetics with zero mechanism/logic/contract/security impact; strict BC-5.39.001 zero-findings 3-CLEAN NOT achieved; halted self-seeding version-pin grind. ACCEPTED COSMETIC DEBT (not fixed): (i) ROUTING/COERCION §Authority ~15 ADR v2.23 §X cites one minor behind ADR v2.24 — not re-pinned; (ii) records-lint L11 gate-script build deferred; (iii) F-P67-OBS-2 BC-2.16.002 catalog label-chain gap (out-of-perimeter). FINAL FROZEN: ADR-058 v2.24/BC-2.16.002 v2.29/BC-2.16.003 v1.19/ROUTING-001 v1.44/COERCION-001 v1.40. trajectory-tail →1→1→0→1 (p66→p67→p68→p69). TD-VSDD-097: Dim-1 CLEAR (no sibling stories changed); Dim-2 CLEAR (§Authority pins not touched); Dim-3 CLEAR (no new MUST blocks). records-lint exit 0. STATE v8.785→v8.786.** | wave-5-e-demo-fidelity | 2026-08-19 |
 | D-2253 | state-manager | 2026-08-19 | **SINGLE-COMMIT BURST (TD-VSDD-053) — TDD gate OPENED (human-approved 2026-08-19). S-ADR058-OCSF-COERCION-001 pre-delivery burst COMPLETE: 4 hidden holdout scenarios authored (HS-021 group; HOLDOUT-INDEX v1.17→v1.18); RG-005 test-placement correctness fix applied (§Red Gate Tests §Tasks T-08/T-GATE §Architecture Mapping §Library & Framework §File Structure corrected; remove-uncertainty pre-delivery pass); story v1.40→v1.42. STORY-INDEX v2.865→v2.866. BC-INDEX v9.41 UNCHANGED. ARCH-INDEX v2.325 UNCHANGED. Frozen spec perimeter UNCHANGED: ADR-058 v2.24/BC-2.16.002 v2.29/BC-2.16.003 v1.19/ROUTING-001 v1.44/COERCION-001 v1.40. Worktree feature/S-ADR058-OCSF-COERCION-001 created @69d821be. TD-VSDD-097: Dim-1 CLEAR (ROUTING-001 unchanged; no BC sibling pair for story pre-delivery edits); Dim-2 CLEAR (no downstream copy targets for test-placement text); Dim-3 CLEAR (no new MUST blocks). records-lint exit 0. STATE v8.787→v8.788.** | wave-5-e-demo-fidelity | 2026-08-19 |
 | D-2254 | state-manager | 2026-08-20 | **SINGLE-COMMIT BURST (TD-VSDD-053) — S-ADR058-OCSF-COERCION-001 Phase-B TDD-GREEN (8/8 Red Gate tests; worktree HEAD 249060a57; just check green 5763 pass on feature branch). SAP-1/PG-LP11-001 discharged: BC-2.16.002 catalog row 95 `column_coercion_failure` registered (v2.29→v2.30). Sibling BC-2.16.002 pins synced v2.29→v2.30 in COERCION-001 (v1.42→v1.43) + ROUTING-001 (v1.44→v1.45). BC-INDEX v9.41→v9.42. NOT merged — develop still @69d821be (workspace_test_count STAYS 5743 until PR merges; feature-branch count 5763 for reference). NEXT: LOCAL adversary 3-CLEAN cascade on worktree HEAD.** | wave-5-e-demo-fidelity | 2026-08-20 |
+| D-2255 | state-manager | 2026-08-20 | **SINGLE-COMMIT BURST (TD-VSDD-053; TD-VSDD-096) — LOCAL adversary pass-1 (S-ADR058-OCSF-COERCION-001) records-only micro-burst COMPLETE. CLEAN(strict)=no / CLEAN(PR-merge)=yes; F-P1-OBS-001 (AC-004 field-binding prose drift vs ADR-058 §H / BC-2.16.002 catalog row 95). story-writer reconciled §AC-004 to %col.name / %column_type_toml_name(&col.column_type); story v1.43→v1.44. ZERO code/mechanism change; code HEAD 249060a57 UNCHANGED. BC-INDEX v9.42 / ARCH-INDEX v2.325 / BC-2.16.002 v2.30 ALL UNCHANGED. BC-5.39.001 strict streak REMAINS 0/3 (perimeter changed by spec fix). TD-VSDD-097 all dims CLEAR: Dim-1 ROUTING-001 sibling UNCHANGED (AC-004 COERCION-001-specific); Dim-2 no downstream copy targets (story AC prose); Dim-3 no new MUST blocks. records-lint exit 0. STORY-INDEX v2.867→v2.868. STATE v8.789→v8.790.** | wave-5-e-demo-fidelity | 2026-08-20 |
 
 ## Skip Log
 
