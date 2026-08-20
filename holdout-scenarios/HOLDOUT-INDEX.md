@@ -1,23 +1,23 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.17"
+version: "1.18"
 status: draft
 producer: product-owner
-timestamp: 2026-08-15T00:00:00Z
+timestamp: 2026-08-19T00:00:00Z
 phase: 3
 inputs: []
 input-hash: null
 traces_to: prd.md
-total_scenarios: 85
+total_scenarios: 89
 ---
 
 # Holdout Scenario Index -- Prism
 
 **Date:** 2026-08-15 (updated)
 **Phase:** 0 (Multi-Repo Synthesis -- Step 5) / Phase 4.B (Wave 4 Holdout Coverage) / Phase 3 Wave 0 Plugin Migration / Phase 3 DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001
-**Total Scenarios:** 85 (81 prior + 4 new HS-019 for DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001; HS-020 retired before shipping)
-**Total Groups:** 14
+**Total Scenarios:** 89 (85 prior + 4 new HS-021 for S-ADR058-OCSF-COERCION-001; HS-020 retired before shipping)
+**Total Groups:** 15
 **Input Sources:** 9 pass-8 deep synthesis files, cross-repo-dependencies.md, unified-security-posture.md; Wave 4 stories S-4.01–S-4.08, BC-INDEX v4.32, ADR-013 §2.1, D-209, ADR-016 §2.5, ADR-008; FB-IMPL-P1-PO fix-burst-1 2026-05-20 (HS-013..HS-018 authored)
 
 ---
@@ -46,6 +46,7 @@ total_scenarios: 85
 | HS-018 | [HS-018-spec-id-filename-mismatch-rejection.md](HS-018-spec-id-filename-mismatch-rejection.md) | Spec sensor_id / Filename Mismatch | 3 | P0 | Negative: sensor_id ≠ filename stem rejected at load time (E-SPEC-017); v1.4 sweeps error-taxonomy.md v1.42→v1.44 at 3 active-prose sites (FB-IMPL-9 transitive cite-pin chain) |
 | HS-019 | [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-001-count-star-no-timeout.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-001-count-star-no-timeout.md), [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-002-bounded-default-window.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-002-bounded-default-window.md), [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-003-explicit-time-filter-not-truncated.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-003-explicit-time-filter-not-truncated.md), [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-004-time-range-both-bounds.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-004-time-range-both-bounds.md) | Claroty audit_logs Push-Down Fix — Single Story (S-CLAROTY-AUDITLOG-TIMEBOX-001) **[CONSUMED 2026-08-15 — D-2195 holdout gate PASS; all 4 scenarios single-use; must NOT be reused]** | 4 | P0 | Push-down fix: COUNT(*) no timeout; unbounded SELECT bounded to 7d default; explicit older-than-7d filter honored (no silent truncation); BETWEEN a AND b pushes both bounds; ASM-CLAROTY-AUDITLOG-001 field-name validation |
 | ~~HS-020~~ | ~~Story B scenarios~~ | ~~Claroty audit_logs Layer 2 — Dynamic Push-Down~~ | ~~2~~ | ~~P0~~ | **RETIRED 2026-08-15 before shipping:** Design reworked to single story. All 4 scenarios consolidated into HS-019 under S-CLAROTY-AUDITLOG-TIMEBOX-001. ID reserved per append_only_numbering (DF-030). |
+| HS-021 | [S-ADR058-OCSF-COERCION-001-HS-001-string-column-object-input-null-cell.md](S-ADR058-OCSF-COERCION-001-HS-001-string-column-object-input-null-cell.md), [S-ADR058-OCSF-COERCION-001-HS-002-integer-column-parseable-string-no-data-loss.md](S-ADR058-OCSF-COERCION-001-HS-002-integer-column-parseable-string-no-data-loss.md), [S-ADR058-OCSF-COERCION-001-HS-003-integer-column-non-parseable-string-null-warn.md](S-ADR058-OCSF-COERCION-001-HS-003-integer-column-non-parseable-string-null-warn.md), [S-ADR058-OCSF-COERCION-001-HS-004-enrich1-array-column-json-list-preserved.md](S-ADR058-OCSF-COERCION-001-HS-004-enrich1-array-column-json-list-preserved.md) | Column Coercion Gap Closure — Single Story (S-ADR058-OCSF-COERCION-001) | 4 | P0 | String+Object null-demotion (AC-005); Integer+parseable-string no-loss (AC-007 happy); Integer+non-parseable-string null+warn (AC-007 fail); ENRICH-1 Array non-regression after Object arm insertion |
 
 ---
 
@@ -243,6 +244,17 @@ Story-level holdout gate for S-CLAROTY-AUDITLOG-TIMEBOX-001 (consolidated single
 | HS-AUDITLOG-001-A-003 | WHERE timestamp > 45d ago returns records from middle group (8–44d) AND recent group (0–7d) — explicit filter honored; no silent truncation to 7-day default | prism-spec-engine, prism-dtu-claroty, prism-sensors |
 | HS-AUDITLOG-001-A-004 | WHERE timestamp BETWEEN a AND b pushes BOTH bounds — result scoped to [a, b]; upper bound (`less_or_equal`) and lower bound (`greater_or_equal`) both injected via compound `and` filter | prism-spec-engine, prism-dtu-claroty, prism-sensors |
 
+### HS-021: Column Coercion Gap Closure (P0) — S-ADR058-OCSF-COERCION-001
+
+Story-level holdout gate for S-ADR058-OCSF-COERCION-001 (ADR-058 Stage 1 coercion fixes). HIDDEN from test-writer and implementer. SINGLE-USE.
+
+| ID | Title | Crates Tested |
+|----|-------|--------------|
+| HS-COERCION-001-A-001 | String column `description` (claroty.alerts) receives JSON Object — null cell present in wire output (not stringified); `column_coercion_failure` warn with `column_type = "string"` and `actual_json_kind = "object"` emitted (AC-005 Path A fix) | prism-bin, prism-spec-engine |
+| HS-COERCION-001-A-002 | Integer column `devices_count` (claroty.alerts) receives JSON string `"42"` — wire output is integer 42 (not null); no `column_coercion_failure` event emitted (AC-007 happy path: parse success) | prism-bin, prism-spec-engine |
+| HS-COERCION-001-A-003 | Integer column `devices_count` (claroty.alerts) receives non-parseable JSON string — null key present in wire output; `column_coercion_failure` warn with `column_type = "integer"` and `actual_json_kind = "string"` emitted; record not dropped (AC-007 failure path) | prism-bin, prism-spec-engine |
+| HS-COERCION-001-A-004 | String column `ip_list` (claroty.devices) receives JSON Array — value serializes as compact JSON-list string (not null); no `column_coercion_failure` event; ENRICH-1 Array arm preserved after AC-005 Object arm insertion (EC-016-013-026 non-regression) | prism-bin, prism-spec-engine, prism-dtu-claroty |
+
 ### ~~HS-020~~: ~~Claroty audit_logs Layer 2 — Dynamic Push-Down~~ — RETIRED before shipping
 
 **RETIRED 2026-08-15:** Single-story design rework collapsed Story B into Story A. HS-020 scenarios HS-AUDITLOG-002-B-001/002 re-keyed to HS-AUDITLOG-001-A-003/004 and moved to HS-019. HS-020 ID reserved per append_only_numbering (DF-030).
@@ -313,9 +325,9 @@ document: holdout-index
 phase: 0_and_4b_and_plugin_migration_and_drift_claroty
 step: 5_and_wave4_and_prereq_and_drift_claroty_auditlog
 status: complete
-total_scenarios: 85
-total_groups: 14
-p0_scenarios: 69
+total_scenarios: 89
+total_groups: 15
+p0_scenarios: 73
 p1_scenarios: 16
 repos_covered: 9/9_brownfield_plus_3_greenfield
 critical_bugs_verified: 14
@@ -325,16 +337,19 @@ plugin_migration_groups_added: 1
 plugin_migration_scenarios_added: 6
 drift_claroty_auditlog_groups_added: 2
 drift_claroty_auditlog_scenarios_added: 4
+ocsf_coercion_groups_added: 1
+ocsf_coercion_scenarios_added: 4
 wave4_must_pass_groups: 3
 wave4_conditional_pass_groups: 1
 d216_closure: true
-timestamp: 2026-08-15T00:00:00Z
+timestamp: 2026-08-19T00:00:00Z
 ```
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.18 | S-ADR058-OCSF-COERCION-001-holdout-authoring | 2026-08-19 | product-owner | Authored HS-021 (4 scenarios for S-ADR058-OCSF-COERCION-001: HS-COERCION-001-A-001..004 covering String+Object null-demotion, Integer+parseable-string no-loss, Integer+non-parseable-string null+warn, ENRICH-1 Array non-regression). total_scenarios 85→89; total_groups 14→15. |
 | 1.17 | S-CLAROTY-AUDITLOG-TIMEBOX-001-holdout-gate-pass | 2026-08-15 | state-manager | HS-019 all 4 scenarios CONSUMED (D-2195 story-level holdout gate PASS; S-CLAROTY-AUDITLOG-TIMEBOX-001 VERDICT=PASS 4/4 on frozen HEAD f867a234b). Scenario files status→consumed; input-hashes populated. HS-019 table row and detail section annotated CONSUMED. HOLDOUT-INDEX v1.16→v1.17. |
 | 1.16 | DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001-registration-burst | 2026-08-15 | state-manager | File renames: S-CLAROTY-AUDITLOG-TIMEBOX-002-HS-001-explicit-time-filter-not-truncated.md → S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-003-explicit-time-filter-not-truncated.md; S-CLAROTY-AUDITLOG-TIMEBOX-002-HS-002-time-range-both-bounds.md → S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-004-time-range-both-bounds.md. HS-019 table links updated to reflect new TIMEBOX-001-HS-003/004 names. HOLDOUT-INDEX v1.15→v1.16. |
 | 1.15 | DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001-po-bc-amendments | 2026-08-15 | product-owner | Design rework: two-layer design collapsed to single story S-CLAROTY-AUDITLOG-TIMEBOX-001. HS-020 retired before shipping (append_only_numbering preserved). All 4 scenarios consolidated under HS-019: HS-AUDITLOG-002-B-001/002 re-keyed to HS-AUDITLOG-001-A-003/004 with `story_source: S-CLAROTY-AUDITLOG-TIMEBOX-001`; "explicit-filter-not-truncated" scenario body updated — asserts CORRECT behavior (older window IS returned, no truncation); Layer-1/2 language removed. total_groups 15→14. |

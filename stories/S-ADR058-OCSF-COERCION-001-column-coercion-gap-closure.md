@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.40"
+version: "1.42"
 level: "L4"
 status: draft
 producer: story-writer
@@ -45,7 +45,11 @@ behavioral_contracts:
 verification_properties:
   - VP-017
   - VP-016
-holdout_scenarios: []
+holdout_scenarios:
+  - "HS-COERCION-001-A-001"
+  - "HS-COERCION-001-A-002"
+  - "HS-COERCION-001-A-003"
+  - "HS-COERCION-001-A-004"
 depends_on: []
 # depends_on is empty: Stage 1 coercion fixes operate within prism-spec-engine and prism-bin
 # independently of the ADR-058 Stage 2 routing story. No upstream prerequisites exist.
@@ -70,7 +74,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "cabe74f"
+input-hash: "67f13c7"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -201,6 +205,16 @@ failing with the correct compile-or-test-failure reason.
   fails until (a) `map_record` places Object-valued String-column field in `raw_extensions`
   and (b) a `tracing::warn!(event_type = "column_coercion_failure")` event is emitted.
   Requires a `tracing_test` subscriber in the test. Covers AC-004.
+  **Placement: in-crate unit test in `crates/prism-spec-engine/src/column_mapping.rs`
+  `#[cfg(test)] mod tests`** (NOT in `tests/bc_2_16_003_test.rs`). Rationale:
+  `tracing-test` (0.2.x, default features) sets env-filter `<test_crate>=trace`. An
+  integration test in `tests/` compiles as its own crate (`bc_2_16_003_test`), so the
+  filter becomes `bc_2_16_003_test=trace`, which excludes events whose target is
+  `prism_spec_engine::column_mapping`. `logs_contain("column_coercion_failure")` would
+  return false even with a correct implementation. An in-crate test uses filter
+  `prism_spec_engine=trace`, which matches the emission target. Mirrors the proven
+  workspace precedent in `prism-spec-engine/src/pipeline.rs`. No `no-env-filter`
+  feature flag is needed — default features are correct for in-crate tests.
   **SAP-3 reachability note (defense-in-depth):** `map_record` is on Path B
   (`ColumnMapper::map_record` in `column_mapping.rs`), which has zero live production
   callers per ADR-058 §K5; this test is intentionally defense-in-depth / forward-compat
@@ -410,7 +424,8 @@ increment are determined at delivery time by the product-owner.
 | `ColumnMapper::coerce_value` | `prism-spec-engine::column_mapping` | Pure | Modified: add `Err(CoercionWarning)` arms for Array, Object inputs on String column; extend Integer+String to non-numeric path |
 | `ColumnMapper::map_record` | `prism-spec-engine::column_mapping` | Pure | Modified: add `tracing::warn!(event_type = "column_coercion_failure")` at demotion point |
 | `build_column_array` (ColumnType::String arm) | `prism-bin::spec_driven_adapter` | Pure (data transformation) | Modified: add explicit `Value::Object(_) => None` null-cell arm (+ tracing emission) BEFORE the `other => Some(other.to_string())` wildcard; wildcard retained for Number/Bool (LIVE-DRIFT-003). Array arm (ENRICH-1 EC-016-013-026) preserved. |
-| Integration test file (Path B — coerce_value / map_record) | `crates/prism-spec-engine/tests/bc_2_16_003_test.rs` | Pure (tests) | New tests RG-001..RG-005 added |
+| Integration test file (Path B — coerce_value) | `crates/prism-spec-engine/tests/bc_2_16_003_test.rs` | Pure (tests) | New tests RG-001..RG-004 added (return-value assertions only — no tracing capture; integration test filter `bc_2_16_003_test=trace` excludes library crate events) |
+| In-crate unit test block (Path B — map_record) | `crates/prism-spec-engine/src/column_mapping.rs` `#[cfg(test)] mod tests` | Pure (tests) | RG-005 placed here (NOT in integration test) — in-crate filter `prism_spec_engine=trace` captures `column_coercion_failure` warn; `tracing_test` subscriber required |
 | Unit test block (Path A — build_column_array) | `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` | Pure (tests) | New tests RG-006, RG-008, RG-009 added (RG-007 retired — ENRICH-1 Array arm correct per EC-016-013-026); RG-006 and RG-009 use `tracing_test` subscriber |
 
 Architecture section files: `architecture/module-decomposition.md` (SS-01, SS-16).
@@ -508,7 +523,11 @@ splitting.
 - T-07: Write RG-004 — `test_coerce_value_integer_type_string_non_numeric_path_parse_failure_returns_err`
   (MUST FAIL before T-13)
 - T-08: Write RG-005 — `test_map_record_string_object_input_demotes_to_raw_extensions_and_emits_warning`
-  with `tracing_test` subscriber (MUST FAIL before T-14)
+  with `tracing_test` subscriber in `crates/prism-spec-engine/src/column_mapping.rs`
+  `#[cfg(test)] mod tests` block (NOT in `bc_2_16_003_test.rs` — in-crate placement
+  required so `tracing-test` default filter `prism_spec_engine=trace` captures the
+  `column_coercion_failure` warn; integration test filter would exclude it).
+  (MUST FAIL before T-14)
 - T-09: Write RG-006 — `test_build_column_array_string_type_object_input_returns_null_and_emits_warning`
   — install `tracing_test` subscriber (same pattern as RG-009) and assert BOTH null cell AND
   `tracing::warn!(event_type = "column_coercion_failure", column_type = "string",
@@ -522,12 +541,15 @@ splitting.
   warn event; assert `None` null cell AND `event_type = "column_coercion_failure"` with
   `column_type = "integer"` and `actual_json_kind = "string"`.
   (MUST FAIL before T-15b)
-- T-GATE: Run `just iter prism-spec-engine --no-fail-fast` — confirm RG-001..RG-005 fail
-  with expected compile/test-failure reasons; confirm all five are in `bc_2_16_003_test.rs`.
+- T-GATE: Run `just iter prism-spec-engine --no-fail-fast` — confirm RG-001..RG-004 fail
+  with expected compile/test-failure reasons in `crates/prism-spec-engine/tests/bc_2_16_003_test.rs`;
+  confirm RG-005 fails in `crates/prism-spec-engine/src/column_mapping.rs` `#[cfg(test)] mod tests`
+  block (in-crate placement — see §Red Gate Tests RG-005 placement note and §Architecture Mapping
+  in-crate row). Confirm AC-006 tests still PASS (prism-spec-engine run).
   Then run `just iter prism-bin --no-fail-fast` — confirm RG-006, RG-008, RG-009 fail with expected
   compile/test-failure reasons; confirm all three are in `crates/prism-bin/src/spec_driven_adapter.rs`
   `#[cfg(test)] mod tests` block (direct private-fn calls per Architecture Compliance Rule 2).
-  Confirm AC-006 tests still PASS (prism-spec-engine run). Report density: 8/7 = 1.14 ≥ 0.5.
+  Report density: 8/7 = 1.14 ≥ 0.5.
   STOP and wait for implementer dispatch.
 
 ### Phase B: Implementation (implementer dispatched AFTER T-GATE)
@@ -618,7 +640,7 @@ Both MUST remain passing after this story's changes (AC-006).
 | Library | Role | Constraint |
 |---------|------|-----------|
 | `tracing` | Structured log emission in `map_record` and `build_column_array` | Workspace-pinned version — do NOT specify version; use workspace inheritance |
-| `tracing-test` | Capture `tracing` events in RG-005 (`prism-spec-engine/tests/`) | `tracing-test = "0.2"` in `prism-spec-engine/Cargo.toml` `[dev-dependencies]` — already present; no change needed |
+| `tracing-test` | Capture `tracing` events in RG-005 (`crates/prism-spec-engine/src/column_mapping.rs` `#[cfg(test)] mod tests` — in-crate placement) | `tracing-test = "0.2"` in `prism-spec-engine/Cargo.toml` `[dev-dependencies]` — already present; no change needed. Do NOT add `no-env-filter` feature — default features are correct for in-crate tests. |
 | `tracing-test` | Capture `tracing` events in RG-006 and RG-009 (`crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests`) | `tracing-test = "0.2"` in `prism-bin/Cargo.toml` `[dev-dependencies]` — NOT yet present; implementer MUST add |
 | `serde_json` | `Value` type for coerce_value inputs | Workspace-pinned version |
 
@@ -631,9 +653,9 @@ non-test code paths.
 
 | File | Action | Notes |
 |------|--------|-------|
-| `crates/prism-spec-engine/src/column_mapping.rs` | Modify: `coerce_value` String branch, `coerce_value` Integer branch, `map_record` demotion point | Primary implementation file |
+| `crates/prism-spec-engine/src/column_mapping.rs` | Modify: `coerce_value` String branch, `coerce_value` Integer branch, `map_record` demotion point; add RG-005 to `#[cfg(test)] mod tests` block | Primary implementation file; RG-005 placed here (in-crate) for tracing capture |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: `build_column_array` ColumnType::String arm wildcard → explicit Array/Object arms | Secondary implementation file |
-| `crates/prism-spec-engine/tests/bc_2_16_003_test.rs` | Modify or create: add RG-001..RG-005 test functions | Test file; create if not present |
+| `crates/prism-spec-engine/tests/bc_2_16_003_test.rs` | Modify or create: add RG-001..RG-004 test functions | Test file; create if not present. RG-005 is NOT placed here — see `column_mapping.rs` row above. |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: add RG-006, RG-008, RG-009 to `#[cfg(test)] mod tests` block (RG-007 retired) | Direct calls to private `build_column_array` — Architecture Compliance Rule 2: no public API surface expansion just for a test |
 | `crates/prism-bin/Cargo.toml` | Modify: add `tracing-test = "0.2"` to `[dev-dependencies]` | Required for RG-009 `tracing_test` subscriber — NOT yet present in prism-bin |
 
@@ -675,6 +697,45 @@ dispatch product-owner as part of this story's delivery).
 anchors all three emission paths: AC-004/RG-005 (Path-B map_record),
 AC-005/RG-006 (Path-A String+Object), AC-007/RG-009 (Path-A Integer+String).
 VERDICT: DISCHARGED — see ADR-058 §H emission discharge anchor; no architect action pending.
+
+---
+
+### v1.42 Amendment Sweep (RG-005 relocation to in-crate unit test — tracing-test filter fix)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): ROUTING-001 has its own unrelated RG-005
+(`test_pipeline_result_to_record_batch_ocsf_flag_true_uses_flattened_names` in
+`crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests`). That test asserts
+on Arrow field naming, not on tracing capture, and its placement was already correct for
+the private-fn direct-call pattern. No mirror of COERCION-001's `bc_2_16_003_test.rs`
+RG-005 placement text exists in ROUTING-001: search confirmed zero occurrences of
+`bc_2_16_003_test` in ROUTING-001, and no `map_record` tracing-subscriber pattern
+anywhere in that file. Absence-of-string verified semantically: ROUTING-001's tracing
+tests (RG-018 etc.) are in `prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests`
+and cover `pipeline_result_to_record_batch`, not `map_record`. VERDICT: NO MIRROR IN
+ROUTING-001; ROUTING-001 UNAFFECTED.
+
+**Dimension 2 — Downstream copy target:**
+
+The RG-005 placement text — §Red Gate Tests placement note, §Architecture Mapping in-crate
+row, §Tasks T-08 file attribution, §Tasks T-GATE split confirmation, §Library & Framework
+tracing-test location cell, and §File Structure Requirements rows — are dispatch instructions
+to the test-writer. No downstream BC, ADR, or index artifact copies these placement
+instructions verbatim. The BC-2.16.002 catalog row obligation (§BC-2.16.002 Catalog Row
+Obligation) cites `S-ADR058-OCSF-COERCION-001 AC-004 RG-005` as the anchor, naming only
+the test ID and AC, not the file location; that anchor is unchanged by relocation.
+VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+RG-005 anchors AC-004 and the ADR-058 §H `column_coercion_failure` emission MUST for Path B
+(`ColumnMapper::map_record`). The §ADR-058 MUST Discharge table row reads:
+"Path B | S-ADR058-OCSF-COERCION-001 | AC-004 | RG-005 | DISCHARGED". Relocation of
+RG-005 from `tests/bc_2_16_003_test.rs` to `src/column_mapping.rs #[cfg(test)] mod tests`
+does not change the test name, AC reference, or mandate anchor binding — it only changes
+which file the test lives in. The anchor remains valid and discharged after relocation.
+VERDICT: MANDATE ANCHOR HOLDS; NO NEW UNANCHORED MUSTs.
 
 ---
 
@@ -1388,6 +1449,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.42 | 2026-08-19 | story-writer | RG-005 relocation to in-crate unit test (pre-TDD remove-uncertainty fix). §Red Gate Tests RG-005 bullet: added placement note — `crates/prism-spec-engine/src/column_mapping.rs #[cfg(test)] mod tests` (NOT `tests/bc_2_16_003_test.rs`); rationale: `tracing-test` default env-filter is `bc_2_16_003_test=trace` in integration test, excluding `prism_spec_engine::column_mapping` events; in-crate filter is `prism_spec_engine=trace`, which captures them. §Architecture Mapping: integration-test row split into two rows — RG-001..RG-004 in `bc_2_16_003_test.rs`; new in-crate row for RG-005 in `column_mapping.rs #[cfg(test)] mod tests`. §Tasks T-08: target file updated to `src/column_mapping.rs` in-crate block. §Tasks T-GATE: split confirmation — RG-001..004 in integration test, RG-005 in in-crate block. §Library & Framework tracing-test RG-005 row: location updated from `prism-spec-engine/tests/` to `src/column_mapping.rs #[cfg(test)] mod tests`; `no-env-filter` explicitly excluded. §File Structure Requirements: `column_mapping.rs` row notes RG-005 added to `#[cfg(test)] mod tests`; `bc_2_16_003_test.rs` row corrected to RG-001..RG-004 only. Version 1.41→1.42. §v1.42 Amendment Sweep added. No AC, RG identity, BC contract, pin, or mandate anchor change — purely test-file placement correction. |
 | 1.40 | 2026-08-19 | story-writer | Leg 2 pin bump — BC-2.16.003 v1.18→v1.19 (BC-2.16.003 updated to v1.19 in Leg 1 of this burst); BC-2.16.002 v2.28→v2.29 (BC-2.16.002 updated to v2.29 in Leg 1); §Authority and §Behavioral Contracts table pins updated to current. No prose/AC/RG/mechanism change — COERCION-001 content is unaffected by BC-2.16.003 v1.19 and BC-2.16.002 v2.29 changes (the §Interpretation A stamp normalization and Leg 1 amendments are ROUTING-001 scope only). Input-hash updated 0912bc2→cabe74f (BC-2.16.003 and BC-2.16.002 updated in Leg 1). Sibling ROUTING-001 bumped to v1.44 in same burst. §v1.40 Amendment Sweep added. |
 | 1.39 | 2026-08-19 | story-writer | FB-58/60 records micro-burst — sibling coordination. F-P58-LOW-001: ADR-058 §Authority status-date parenthetical corrected "(2026-08-18)"→"(2026-08-19)" (ADR-058 frontmatter `modified:` is 2026-08-19). No prose/AC/RG/mechanism change — COERCION-001 §Authority already uses clean version-free provenance form; the §B2/§I2/§J2/§D1 version-stamp normalization (F-P58-LOW-002) applies to ROUTING-001 §Authority only. Sibling ROUTING-001 bumped to v1.42 in same burst. §v1.39 Amendment Sweep added. |
 | 1.38 | 2026-08-19 | story-writer | FB-55/56/57 LEG 2 — records-tier §Authority BC-2.16.003 pin completion. F-P55/56/57-MED-001: §Authority block pin was stale at Version `1.17` (should be `1.18`; §Behavioral Contracts table already at v1.18; BC frontmatter is v1.18) — corrected to Version `1.18`. §Authority modified-date parenthetical corrected "(modified 2026-08-18)"→"(modified 2026-08-19)" (BC-2.16.003 `modified:` is now 2026-08-19). This completes the §Authority half of the pin sweep that the v1.37 changelog row described but did not apply (v1.37 updated §Behavioral Contracts table only; §Authority pin remained stale at v1.17). Sibling ROUTING-001 bumped to v1.41 in same burst. §v1.38 Amendment Sweep added. |

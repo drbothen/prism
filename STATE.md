@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.786"
+version: "8.788"
 producer: state-manager
-timestamp: 2026-08-19T18:44:00Z
+timestamp: 2026-08-20T03:57:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -25,8 +25,8 @@ bc_index_version: "9.41"
 # NOTE: D-2247 — BC-INDEX v9.39→v9.40: FB-52/53/54 records-tier fix-burst — BC-2.16.003 pin v1.17→v1.18 (4 "emits unconditionally" corrected; §G intro pin v2.23). ADR-058 v2.22→v2.23. ROUTING-001 v1.39→v1.40. COERCION-001 v1.36→v1.37. Counts UNCHANGED: active 252/draft 4/total 269. D-2246 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.865"
-# NOTE: D-2251 — STORY-INDEX v2.864→v2.865: perimeter POL-39 terminal normalization — ROUTING-001 v1.43→v1.44; COERCION-001 v1.39→v1.40; total_stories 302 UNCHANGED. D-2250 NOTE archived.
+story_index_version: "2.866"
+# NOTE: D-2253 — STORY-INDEX v2.865→v2.866: TDD gate OPENED (human-approved 2026-08-19) — COERCION-001 story v1.40→v1.42 (4 holdout scenarios authored HS-021 group + RG-005 test-placement correctness fix); total_stories 302 UNCHANGED. D-2251 NOTE archived.
 # NOTE: D-2250 — STORY-INDEX v2.863→v2.864: FB-62/63 TERMINAL POL-39 normalization — ROUTING-001 v1.42→v1.43 (22 ADR section-cite version qualifiers stripped across full active body; §Authority-only v1.42 sweep was incomplete). COERCION-001 UNCHANGED v1.39. ADR-058/BC-2.16.003/BC-2.16.002/BC-INDEX v9.40/ARCH-INDEX v2.323 ALL UNCHANGED. total_stories 302 UNCHANGED. STORY-INDEX v2.863→v2.864. D-2249 NOTE archived.
 # NOTE: D-2249 — STORY-INDEX v2.862→v2.863: FB-58/60 records micro-burst — ROUTING-001 v1.41→v1.42 (§Authority provenance labels normalized to version-free form; ADR status-date 2026-08-18→2026-08-19); COERCION-001 v1.38→v1.39 (ADR status-date 2026-08-18→2026-08-19). total_stories 302 UNCHANGED. D-2248 NOTE archived.
 arch_index_version: "2.325"
@@ -41,11 +41,11 @@ workspace_test_count: 5743
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2252 SESSION WRAP COMPLETE — ADR-058 v2.23→v2.24 (FB-67/69 architect leg; F-P69-LOW-001 §I5 factual correction + F-P67-OBS-1 §E2 header fix). ARCH-INDEX v2.324→v2.325. OCSF cascade CLOSED substantive (human decision 2026-08-19; ~18 consecutive passes spec CONTENT code-verified clean; strict 3-CLEAN NOT achieved; self-seeding version-pin grind halted). FROZEN FINAL: ADR-058 v2.24 / BC-2.16.002 v2.29 / BC-2.16.003 v1.19 / ROUTING-001 v1.44 / COERCION-001 v1.40. trajectory-tail →1→1→0→1 (p66→p67→p68→p69). STATE v8.785→v8.786. RESUME NEXT-ACTION: present TDD-gate decision to human — proceed into Phase-3 TDD of COERCION-001 (depends_on []) THEN ROUTING-001, or hold. Both tdd_mode:strict, status:draft, enumerated Red Gates ready. Do NOT auto-start TDD; await human go."
+current_step: "D-2253 TDD GATE OPENED (human-approved 2026-08-19) — pre-delivery burst COMPLETE: 4 hidden holdout scenarios authored (HS-021 group; HOLDOUT-INDEX v1.17→v1.18); RG-005 test-placement correctness fix applied (§Red Gate Tests, §Tasks T-08/T-GATE, §Architecture Mapping, §Library & Framework, §File Structure corrected); story v1.40→v1.42; STORY-INDEX v2.865→v2.866. Frozen spec perimeter UNCHANGED: ADR-058 v2.24 / BC-2.16.002 v2.29 / BC-2.16.003 v1.19 / ROUTING-001 v1.44 / COERCION-001 v1.40 (BC-INDEX v9.41 UNCHANGED). TDD delivery of COERCION-001 NOW IN PROGRESS (stub→test→impl→LOCAL 3-CLEAN→holdout gate→demo→PR). STATE v8.787→v8.788. trajectory-tail →1→1→0→1 (p66→p67→p68→p69)"
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "Main worktree on develop origin/develop @69d821be (PR #239 squash-merged 2026-08-16T22:51Z). .worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001 @8ae0b5d8 PENDING teardown. PARKED (2): S-3.09 @43c41389d KEEP-PARKED; W3-FIX-S307-001 @fcab8717c PARKED-DIRTY do-NOT-touch."
+worktree_status: "Main worktree on develop origin/develop @69d821be (PR #239 squash-merged 2026-08-16T22:51Z). .worktrees/S-ADR058-OCSF-COERCION-001 @69d821be [ACTIVE TDD]. .worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001 @8ae0b5d8 PENDING teardown. PARKED (2): S-3.09 @43c41389d KEEP-PARKED; W3-FIX-S307-001 @fcab8717c PARKED-DIRTY do-NOT-touch."
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -78,7 +78,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 252 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -52 | margin from actual: 248 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 255 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -55 | margin from actual: 245 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -91,7 +91,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-19 D-2252 SESSION WRAP — ADR-058 v2.23→v2.24 (FB-67/69 architect leg); OCSF cascade CLOSED substantive; ARCH-INDEX v2.324→v2.325; STATE v8.785→v8.786; trajectory-tail →1→1→0→1 (p66→p67→p68→p69) |
+| **Last Updated** | 2026-08-19 D-2253 TDD gate OPENED (human-approved 2026-08-19) — COERCION-001 pre-delivery burst COMPLETE: 4 holdout scenarios (HS-021); RG-005 test-placement fix; story v1.40→v1.42; STORY-INDEX v2.865→v2.866; STATE v8.787→v8.788; trajectory-tail →1→1→0→1 (p66→p67→p68→p69) |
 
 ## Phase Progress
 
@@ -118,6 +118,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | D-2250 FB-62/63 POL-39 whole-story normalization | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | ROUTING-001 v1.42→v1.43 (22 ADR section-cite version qualifiers stripped; L11 inventory-informed). COERCION-001 UNCHANGED v1.39. STORY-INDEX v2.863→v2.864. Streak RESET 0/3. NEW FROZEN: ADR-058 v2.23/BC-2.16.003 v1.18/BC-2.16.002 v2.28/ROUTING-001 v1.43/COERCION-001 v1.39 |
 | D-2251 perimeter POL-39 terminal normalization | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | BC-2.16.002 v2.28→v2.29; BC-2.16.003 v1.18→v1.19; ROUTING-001 v1.43→v1.44; COERCION-001 v1.39→v1.40. BC-INDEX v9.40→v9.41. STORY-INDEX v2.864→v2.865. ARCH-INDEX v2.323→v2.324. NEW FROZEN: ADR-058 v2.23/BC-2.16.002 v2.29/BC-2.16.003 v1.19/ROUTING-001 v1.44/COERCION-001 v1.40. Streak RESET 0/3. |
 | D-2252 SESSION WRAP — OCSF cascade CLOSED | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | ADR-058 v2.23→v2.24 (FB-67/69 architect leg: F-P69-LOW-001 §I5 factual correction; F-P67-OBS-1 §E2 header fix; input-hash 18b74fe). ARCH-INDEX v2.324→v2.325. OCSF cascade CLOSED on SUBSTANTIVE convergence (human decision). STATE v8.785→v8.786. records-lint exit 0. |
+| D-2253 TDD pre-delivery burst (COERCION-001) | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | TDD gate OPENED (human-approved 2026-08-19); 4 holdout scenarios authored (HS-021 group; HOLDOUT-INDEX v1.17→v1.18); RG-005 test-placement correctness fix; story v1.40→v1.42; STORY-INDEX v2.865→v2.866; BC-INDEX v9.41 UNCHANGED. STATE v8.787→v8.788. |
 
 _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individual story rows PRs #162–#235; fix-burst rows D-2238..D-2243 (exhaustive)) archived to cycles/wave-5-e-demo-fidelity/burst-log.md (D-1794 + D-2237 + D-2244+1 compactions)._
 
@@ -140,12 +141,12 @@ _No concurrent cycles in progress. Current cycle: wave-5-e-demo-fidelity._
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| _D-735..D-2247 (exhaustive)_ | — | archived | cycles/wave-5-e-demo-fidelity/burst-log.md (D-1794 + D-2237 + D-2244+1 compactions; D-2244/D-2245/D-2246/D-2247 archived this burst) |
-| D-2248 | state-manager | 2026-08-19 | FB-55/56/57 surgical records-consolidation COMPLETE — ROUTING-001 v1.40→v1.41 (§Authority §I1 provenance label v2.23→v2.21; BC modified-date cite 2026-08-19); COERCION-001 v1.37→v1.38 (§Authority BC pin v1.17→v1.18; modified-date cite 2026-08-19; truthful v1.38 ledger row). BC-2.16.003 modified-date refreshed (v1.18 UNCHANGED). BC-INDEX UNCHANGED v9.40. ARCH-INDEX UNCHANGED v2.323. STORY-INDEX v2.861→v2.862. TD-VSDD-097 all dims CLEAR. BC-5.39.001 streak RESET 0/3. records-lint exit 0. STATE v8.781→v8.782. |
-| D-2249 | state-manager | 2026-08-19 | FB-58/60 records micro-burst COMPLETE — ROUTING-001 v1.41→v1.42 (§Authority §B2/§D1/§G/§I1/§I2/§J2 provenance labels normalized to version-free form; ADR status-date 2026-08-18→2026-08-19). COERCION-001 v1.38→v1.39 (ADR status-date 2026-08-18→2026-08-19). BC-INDEX UNCHANGED v9.40. ARCH-INDEX UNCHANGED v2.323. STORY-INDEX v2.862→v2.863. TD-VSDD-097 all dims CLEAR: Dim-1 ROUTING/COERCION amended same burst (sibling pair CLEAR); Dim-2 §Authority pins terminal (CLEAR); Dim-3 no new MUST blocks (CLEAR). BC-5.39.001 streak RESET 0/3 (perimeter changed). records-lint exit 0. STATE v8.782→v8.783. |
+| _D-735..D-2248 (exhaustive)_ | — | archived | cycles/wave-5-e-demo-fidelity/burst-log.md (D-1794 + D-2237 + D-2244+1 compactions; D-2244..D-2248 archived) |
+| D-2249 | state-manager | 2026-08-19 | FB-58/60 records micro-burst COMPLETE — ROUTING-001 v1.41→v1.42 (§Authority §B2/§D1/§G/§I1/§I2/§J2 provenance labels normalized to version-free form; ADR status-date 2026-08-18→2026-08-19). COERCION-001 v1.38→v1.39 (ADR status-date 2026-08-18→2026-08-19). BC-INDEX UNCHANGED v9.40. ARCH-INDEX UNCHANGED v2.323. STORY-INDEX v2.862→v2.863. TD-VSDD-097 all dims CLEAR: Dim-1 ROUTING-001/COERCION-001 amended same burst (sibling pair CLEAR); Dim-2 §Authority pins terminal (CLEAR); Dim-3 no new MUST blocks (CLEAR). BC-5.39.001 streak RESET 0/3 (perimeter changed). records-lint exit 0. STATE v8.782→v8.783. |
 | D-2250 | state-manager | 2026-08-19 | FB-62/63 TERMINAL whole-story POL-39 normalization COMPLETE — ROUTING-001 v1.42→v1.43 (22 ADR section-cite version qualifiers stripped across full active body; L11 inventory-informed). COERCION-001 UNCHANGED v1.39. BC-INDEX/ARCH-INDEX UNCHANGED. STORY-INDEX v2.863→v2.864. TD-VSDD-097 all dims CLEAR. BC-5.39.001 streak RESET 0/3 (perimeter changed). records-lint exit 0. STATE v8.783→v8.784. |
 | D-2251 | state-manager | 2026-08-19 | perimeter POL-39 terminal normalization (L11-inventory-informed) COMPLETE — BC-2.16.002 v2.28→v2.29 (§I5 ×2); BC-2.16.003 v1.18→v1.19 (§G); ROUTING-001 v1.43→v1.44; COERCION-001 v1.39→v1.40. BC-INDEX v9.40→v9.41. STORY-INDEX v2.864→v2.865. ARCH-INDEX v2.323→v2.324. TD-VSDD-097 all dims CLEAR. BC-5.39.001 streak RESET 0/3. records-lint exit 0. STATE v8.784→v8.785. |
 | D-2252 | state-manager | 2026-08-19 | SESSION WRAP COMPLETE — ADR-058 v2.23→v2.24 (FB-67/69 architect leg; F-P69-LOW-001 §I5 factual correction; F-P67-OBS-1 §E2 header fix; input-hash 18b74fe). ARCH-INDEX v2.324→v2.325. OCSF cascade CLOSED substantive (human decision). trajectory-tail →1→1→0→1 (p66→p67→p68→p69). TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.785→v8.786. |
+| D-2253 | state-manager | 2026-08-19 | TDD GATE OPENED (human-approved 2026-08-19) — pre-delivery burst COMPLETE: 4 hidden holdout scenarios authored (HS-021 group; HOLDOUT-INDEX v1.17→v1.18); RG-005 test-placement correctness fix (§Red Gate Tests, §Tasks T-08/T-GATE, §Architecture Mapping, §Library & Framework, §File Structure corrected); story v1.40→v1.42; STORY-INDEX v2.865→v2.866. BC-INDEX/ARCH-INDEX UNCHANGED. TD-VSDD-097: Dim-1 CLEAR (ROUTING-001 unchanged; no BC sibling pair for story pre-delivery edits); Dim-2 CLEAR (no downstream copy targets for test-placement text); Dim-3 CLEAR (no new MUST blocks). records-lint exit 0. STATE v8.787→v8.788. |
 
 ## Decisions Log
 
@@ -206,6 +207,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | D-2250 | state-manager | 2026-08-19 | **SINGLE-COMMIT BURST (TD-VSDD-053; TD-VSDD-096) — FB-62/63 TERMINAL whole-story POL-39 normalization COMPLETE. ROUTING-001 v1.42→v1.43 (22 ADR section-cite version qualifiers stripped across full active body; v1.42 §Authority-only sweep was incomplete — L11 inventory-informed). COERCION-001 UNCHANGED v1.39. ADR-058/BC-2.16.003/BC-2.16.002/BC-INDEX v9.40/ARCH-INDEX v2.323 ALL UNCHANGED. STORY-INDEX v2.863→v2.864. TD-VSDD-097 all dims CLEAR. BC-5.39.001 streak RESET 0/3 (perimeter changed). NEW FROZEN: ADR-058 v2.23 / BC-2.16.003 v1.18 / BC-2.16.002 v2.28 / ROUTING-001 v1.43 / COERCION-001 v1.39. records-lint exit 0. STATE v8.783→v8.784.** | wave-5-e-demo-fidelity | 2026-08-19 |
 | D-2251 | state-manager | 2026-08-19 | **SINGLE-COMMIT BURST (TD-VSDD-053) — perimeter POL-39 terminal normalization (L11-inventory-informed) COMPLETE. BC-2.16.002 v2.28→v2.29 (§I5 section-cite version stamps stripped ×2); BC-2.16.003 v1.18→v1.19 (§G section-cite version stamp stripped); ROUTING-001 v1.43→v1.44 (sibling re-pin); COERCION-001 v1.39→v1.40 (sibling re-pin). BC-INDEX v9.40→v9.41. STORY-INDEX v2.864→v2.865. ARCH-INDEX v2.323→v2.324. R7 result: pass-61 CLEAN(strict); passes 64/66 records-tier (fixed); pass-65 FAILED (API); L11 gate-SCRIPT build deferred (environment-degraded). TD-VSDD-097 all dims CLEAR: Dim-1 ROUTING-001/COERCION-001 amended same burst (sibling pair CLEAR); Dim-2 §Authority pins terminal (CLEAR); Dim-3 no new MUST blocks (CLEAR). BC-5.39.001 streak RESET 0/3 (perimeter changed). NEW FROZEN: ADR-058 v2.23 / BC-2.16.002 v2.29 / BC-2.16.003 v1.19 / ROUTING-001 v1.44 / COERCION-001 v1.40. records-lint exit 0. STATE v8.784→v8.785.** | wave-5-e-demo-fidelity | 2026-08-19 |
 | D-2252 | state-manager | 2026-08-19 | **SINGLE-COMMIT BURST (TD-VSDD-053) — SESSION WRAP COMPLETE. ADR-058 v2.23→v2.24 (FB-67/69 architect leg: F-P69-LOW-001 §I5 out-of-perimeter-note factual correction; F-P67-OBS-1 §E2 (current TOML) section header fix; input-hash 18b74fe). ARCH-INDEX v2.324→v2.325. OCSF cascade CLOSED on SUBSTANTIVE convergence (human decision 2026-08-19): spec CONTENT code-verified clean across ~18 consecutive passes (pass-68 fully CLEAN-strict); every finding since ~pass-50 was records-hygiene/version-cite cosmetics with zero mechanism/logic/contract/security impact; strict BC-5.39.001 zero-findings 3-CLEAN NOT achieved; halted self-seeding version-pin grind. ACCEPTED COSMETIC DEBT (not fixed): (i) ROUTING/COERCION §Authority ~15 ADR v2.23 §X cites one minor behind ADR v2.24 — not re-pinned; (ii) records-lint L11 gate-script build deferred; (iii) F-P67-OBS-2 BC-2.16.002 catalog label-chain gap (out-of-perimeter). FINAL FROZEN: ADR-058 v2.24/BC-2.16.002 v2.29/BC-2.16.003 v1.19/ROUTING-001 v1.44/COERCION-001 v1.40. trajectory-tail →1→1→0→1 (p66→p67→p68→p69). TD-VSDD-097: Dim-1 CLEAR (no sibling stories changed); Dim-2 CLEAR (§Authority pins not touched); Dim-3 CLEAR (no new MUST blocks). records-lint exit 0. STATE v8.785→v8.786.** | wave-5-e-demo-fidelity | 2026-08-19 |
+| D-2253 | state-manager | 2026-08-19 | **SINGLE-COMMIT BURST (TD-VSDD-053) — TDD gate OPENED (human-approved 2026-08-19). S-ADR058-OCSF-COERCION-001 pre-delivery burst COMPLETE: 4 hidden holdout scenarios authored (HS-021 group; HOLDOUT-INDEX v1.17→v1.18); RG-005 test-placement correctness fix applied (§Red Gate Tests §Tasks T-08/T-GATE §Architecture Mapping §Library & Framework §File Structure corrected; remove-uncertainty pre-delivery pass); story v1.40→v1.42. STORY-INDEX v2.865→v2.866. BC-INDEX v9.41 UNCHANGED. ARCH-INDEX v2.325 UNCHANGED. Frozen spec perimeter UNCHANGED: ADR-058 v2.24/BC-2.16.002 v2.29/BC-2.16.003 v1.19/ROUTING-001 v1.44/COERCION-001 v1.40. Worktree feature/S-ADR058-OCSF-COERCION-001 created @69d821be. TD-VSDD-097: Dim-1 CLEAR (ROUTING-001 unchanged; no BC sibling pair for story pre-delivery edits); Dim-2 CLEAR (no downstream copy targets for test-placement text); Dim-3 CLEAR (no new MUST blocks). records-lint exit 0. STATE v8.787→v8.788.** | wave-5-e-demo-fidelity | 2026-08-19 |
 
 ## Skip Log
 
@@ -218,7 +220,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 
 | Issue | Owner | Opened | Resolved | Notes |
 |-------|-------|--------|----------|-------|
-| ADR-058-SPEC-READINESS-FAIL-001 [blocking-next-action; D-2176/observed 2026-08-15; severity: BLOCKING; status: MITIGATED-PENDING-TDD-GATE] | architect + product-owner + story-writer | 2026-08-15 | — | MITIGATED — spec cascade CLOSED substantive (D-2252); COERCION-001 + ROUTING-001 spec CONTENT code-verified clean. STILL BLOCKING TDD: awaiting human TDD-gate decision (do not auto-start). |
+| ADR-058-SPEC-READINESS-FAIL-001 [blocking-next-action; D-2176/observed 2026-08-15; severity: BLOCKING; status: TDD-DELIVERY-IN-PROGRESS] | architect + product-owner + story-writer | 2026-08-15 | — | MITIGATED — spec cascade CLOSED substantive (D-2252); COERCION-001 spec CONTENT code-verified clean. TDD gate OPENED (D-2253 human-approved 2026-08-19); pre-delivery burst COMPLETE. TDD delivery of COERCION-001 IN PROGRESS. |
 | PROCESS-GAP [D-2092/observed 2026-08-02; status: OPEN] | Orchestrator | 2026-08-02 | — | version-field-sync ambiguity in dispatch brief; process improvement |
 | PROCESS-GAP [D-2091/observed 2026-08-02; anchor: S-MAINT-BURST-COMMIT-COUNT-GATE-001; status: MITIGATED] | Orchestrator | 2026-08-02 | — | S-MAINT-BURST-COMMIT-COUNT-GATE-001 ARCH-QUES-001 pending |
 
@@ -226,18 +228,19 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · convergence-trajectory.md · decisions-archive-D1789-D2199.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · decisions-archive-D1124-D1138.md · decisions-archive-D1165-D1352.md · drift-items-resolved.md · drift-items-open.md · drift-items-deferred.md · blocking-issues-resolved.md · phase-5-deferred-findings.md · frontmatter-cascade-archive.md · session-handoff-archive.md · lessons.md · session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
-## Session Resume Checkpoint (D-2252 — 2026-08-19 — SESSION WRAP; OCSF cascade CLOSED substantive; STATE v8.785→v8.786) [supersedes D-2251]
+## Session Resume Checkpoint (D-2253 — 2026-08-19 — TDD GATE OPENED; COERCION-001 pre-delivery burst COMPLETE; STATE v8.787→v8.788) [supersedes D-2252]
 
 ### RESUME IN ONE BREATH
-Prism Phase-3. OCSF-correctness CLAROTY SPEC adversarial cascade CLOSED on SUBSTANTIVE convergence (human decision, D-2252). Spec CONTENT code-verified clean across ~18 consecutive passes; pass-68 fully CLEAN-strict; every finding since ~pass-50 was records-hygiene/version-cite cosmetics with zero mechanism/logic/contract/security impact. Strict BC-5.39.001 zero-findings 3-CLEAN was NOT achieved — human directed halting the self-seeding version-pin grind (each fix-burst bumped a version → re-pin churn → next pass flagged a survivor). Session was execution-environment-degraded (~10+ agent API failures/stalls). NEXT: present TDD-gate decision to human. Do NOT auto-start TDD.
+Prism Phase-3. OCSF-correctness CLAROTY SPEC adversarial cascade CLOSED on SUBSTANTIVE convergence (human decision, D-2252). TDD gate OPENED (human-approved 2026-08-19; D-2253). Pre-delivery burst COMPLETE: 4 hidden holdout scenarios authored (HS-021 group; HOLDOUT-INDEX v1.18), RG-005 test-placement correctness fix applied (story v1.40→v1.42; STORY-INDEX v2.866). Feature worktree created at develop @69d821be. NEXT: implement COERCION-001 story under TDD (stubs → failing tests → implementation → LOCAL 3-CLEAN → holdout gate → demo → PR).
 
-**RESUME NEXT-ACTION:** Present TDD-gate decision to human — proceed into Phase-3 TDD implementation of COERCION-001 (depends_on []) THEN ROUTING-001 (per architect deep-review sequence), or hold. Both stories tdd_mode:strict, status:draft, enumerated Red Gates ready. Do NOT auto-start TDD; await human go. Also surface 3 accepted cosmetic debt follow-ups: (i) ROUTING/COERCION §Authority ~15 ADR v2.23 §X cites one minor behind ADR v2.24 — deliberately not re-pinned; (ii) records-lint L11 gate-script build deferred (environment-degraded); (iii) F-P67-OBS-2 BC-2.16.002 catalog label-chain gap (out-of-perimeter, S-CLAROTY-AUDITLOG lineage).
+**RESUME NEXT-ACTION:** Begin TDD delivery of S-ADR058-OCSF-COERCION-001 in worktree `.worktrees/S-ADR058-OCSF-COERCION-001`. Sub-workflow: (1) stub-architect generates compilable stubs; (2) test-writer authors RG-001..RG-027 failing tests; (3) implementer TDD-green; (4) LOCAL adversary 3-CLEAN; (5) holdout-evaluator runs HS-COERCION-001-A-001..004; (6) demo-recorder per-AC; (7) PR + pr-manager 9-step cycle; (8) state-manager post-merge burst. ROUTING-001 follows COERCION-001 (after COERCION-001 PR merges).
 
-**SPEC PERIMETER (FROZEN FINAL — D-2252):** ADR-058 v2.24 / BC-2.16.002 v2.29 / BC-2.16.003 v1.19 / ROUTING-001 v1.44 / COERCION-001 v1.40. Indexes: ARCH-INDEX v2.325 / BC-INDEX v9.41 / STORY-INDEX v2.865. Contract counts active 252 / draft 4 / total 269. total_stories 302.
+**SPEC PERIMETER (FROZEN FINAL — D-2252):** ADR-058 v2.24 / BC-2.16.002 v2.29 / BC-2.16.003 v1.19 / ROUTING-001 v1.44 / COERCION-001 v1.40. Indexes: ARCH-INDEX v2.325 / BC-INDEX v9.41 / STORY-INDEX v2.866. Contract counts active 252 / draft 4 / total 269. total_stories 302.
 
 **HEADS:**
 - `develop`: `69d821be` (LOCAL == origin/develop; pushed/clean; no open PRs)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2252 burst commit)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2253 burst commit)
+- `.worktrees/S-ADR058-OCSF-COERCION-001` @`69d821be` [feature/S-ADR058-OCSF-COERCION-001] ACTIVE TDD
 - `.worktrees/S-3.09` @`43c41389d` [feature/S-3.09] KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` [feature/W3-FIX-S307-001] PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, 1 dirty test file)
 
@@ -245,8 +248,8 @@ Prism Phase-3. OCSF-correctness CLAROTY SPEC adversarial cascade CLOSED on SUBST
 
 **PENDING HOUSEKEEPING (next session):** (1) SESSION-HANDOFF.md compaction needed (~1.2MB — bloated; compact EARLY next session). (2) Worktree teardown: `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` (PR #239 merged; remote branch deleted). (3) Register self-improvement story for RED-gate/test-location-coherence [process-gap] (6+ recurrences) at cycle-close. (4) ACCEPTED COSMETIC DEBT sweep in a dedicated records-hygiene burst: ROUTING/COERCION §Authority ADR-058 v2.23→v2.24 cite bump; records-lint L11 gate-script build; F-P67-OBS-2 BC-2.16.002 label-chain fix.
 
-**NOTE (environment):** Execution environment was degraded this session (~10+ agent API failures/stalls). Resume should expect possible retries.
+**NOTE (environment):** Execution environment may be degraded. Resume should expect possible retries.
 
-**BACKUP BOUNDARY (D-2252):**
-- PUSHED / safe: `origin/develop` `69d821be` (PR #239 merged 2026-08-16T22:51Z); `factory-artifacts` (this D-2252 burst commit).
-- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).
+**BACKUP BOUNDARY (D-2253):**
+- PUSHED / safe: `origin/develop` `69d821be` (PR #239 merged 2026-08-16T22:51Z); `factory-artifacts` (this D-2253 burst commit).
+- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
