@@ -2,12 +2,12 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.44"
+version: "1.45"
 level: "L4"
 status: draft
 producer: story-writer
 timestamp: "2026-08-12T00:00:00Z"
-modified: "2026-08-19"
+modified: "2026-08-20"
 phase: 3
 wave: claroty-live
 epic_id: EPIC-OCSF-ROUTING
@@ -85,7 +85,7 @@ inputs:
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-mcp/src/tools/prism_describe.rs"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "f490a3d"
+input-hash: "859dc7f"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.01.013"
@@ -176,8 +176,8 @@ warning) governs AC-011. This story brings the production path into conformance 
 postconditions for Claroty.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation.** Version `2.29`, status: active
-(modified 2026-08-17). Canonical Structured Event Catalog — `ocsf.unknown_class_name`
+**BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation.** Version `2.30`, status: active
+(modified 2026-08-20). Canonical Structured Event Catalog — `ocsf.unknown_class_name`
 WARN — emitted by `pipeline_result_to_record_batch` on the `Err` branch of
 `EventClassSelector::select_by_class_name` before `.unwrap_or(0)`. Fields: `ocsf_class: %display`,
 `sensor_id: %display`, `table_name: %display`. SAP-1 / PG-LP11-001 obligation: the implementer
@@ -268,7 +268,7 @@ Until then, `ColumnMapper::map_record` remains test-only.
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
 | BC-2.16.003 | v1.19 | draft | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention); EC-016-013-027 (Tier-1/Tier-2 `prism_describe` model: no individual ColumnDescriptor for `ocsf_field == None` columns; exactly one `raw_extensions` ColumnDescriptor with four-field shape: name + col_type=Json + nullable=true + description enumerating source keys); EC-016-013-028 (reworded v1.18: multi-valued array source fields → compact JSON-list string in raw_extensions via `pipeline_result_to_record_batch` source_path extraction + ENRICH-1 normalization — NOT naive `r.get(col.name)` — governs AC-007c / RG-026); EC-016-013-029 (NEW v1.18: flattened `ocsf_field` equal to synthesized reserved name → `Err(ArrowError::SchemaError)` fail-closed — governs AC-013 / RG-027); EC-016-013-011 (runtime `ocsf.unknown_class_name` WARN on Err branch — governs AC-011) |
-| BC-2.16.002 | v2.29 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
+| BC-2.16.002 | v2.30 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
 | BC-2.01.013 | v1.23 | active | EC-01-025 NON-CONFORMANT annotation resolved for Claroty after this story merges; product-owner updates annotation |
 
 ---
@@ -3007,6 +3007,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.45 | 2026-08-20 | state-manager | D-2254 SAP-1/PG-LP11-001 discharge burst (state-manager leg): BC-2.16.002 §Authority pin v2.29→v2.30 + §Behavioral Contracts table pin v2.29→v2.30 (product-owner registered catalog row 95 `column_coercion_failure` WARN in BC-2.16.002 §Postconditions §Canonical Structured Event Catalog in same burst). Input-hash updated f490a3d→859dc7f (pre-existing drift from `69d821be5` fix(claroty) commit — `claroty.sensor.toml` and `spec_driven_adapter.rs` changed on develop; hash computed by validate-input-hash hook; BC-2.16.002 is NOT in ROUTING-001 inputs, so drift was from prior develop commit). Sibling COERCION-001 bumped to v1.43 (BC-2.16.002 pin v2.29→v2.30, input-hash 67f13c7→fb7a031) in same burst. NOT merged — develop still @69d821be; workspace_test_count stays 5743. §v1.45 Amendment Sweep: Dimension 1 (sibling pair) — COERCION-001 amended same burst (v1.42→v1.43 state-manager leg); CLEAR. Dimension 2 (downstream copy) — §Authority pin is terminal; no independent copy artifact; CLEAR. Dimension 3 (mandate anchor) — no new MUST blocks; CLEAR. |
 | 1.44 | 2026-08-19 | story-writer | Leg 2 pin bump — BC-2.16.003 v1.18→v1.19 (BC-2.16.003 updated to v1.19 in Leg 1 of this burst); BC-2.16.002 v2.28→v2.29 (BC-2.16.002 updated to v2.29 in Leg 1); §Authority and §Behavioral Contracts table pins updated to current. Also stripped 13 remaining `§Interpretation A v1.18` inline stamps to version-free `§Interpretation A` per Bucket B terminal normalization (POL-39). Input-hash updated 5eac1dc→f490a3d (computed by validate-input-hash hook on first edit — inputs BC-2.16.003 and BC-2.16.002 changed in Leg 1). Sibling COERCION-001 bumped to v1.40 in same burst. §v1.44 Amendment Sweep added. |
 | 1.43 | 2026-08-19 | story-writer | FB-62/63 TERMINAL POL-39 normalization — stripped ALL version qualifiers from ADR-058 section cites across ROUTING-001's entire active body (F-P62-MED-001 ≡ F-P63-MED-001, corroborated by two adversarial passes). The v1.42 sweep incorrectly claimed stamps existed "only in §Authority" — this burst sweeps the complete active body. Sections swept: §Mandate Anchor table (§D1/§G/§I1 row cites); §Red Gate Tests (RG-003 §I1; RG-024 §D1; RG-025 §G × 4 instances); §BC-5.38.001 density check (§G); §Acceptance Criteria (AC-002 §I1; AC-003 §D1; AC-006 §G × 2; AC-007b §G × 2; AC-012 §D1 × 2); §Architecture Mapping table (§I1; §D1; §G); §Architecture Compliance Rules Rule 1 (§I1); §File Structure Requirements column_mapping.rs row (§I1); §Forbidden Dependencies (§I1); §Edge Cases table EC-016-013-027 row (§G); §Tasks T-06 (§I1); T-11R (§G); T-13 (§I1); T-16 (§G × 3). 22 version qualifier strips total. Dependency pins preserved: §Authority "ADR-058 … Version `2.23`" and "BC-2.16.003 … Version `1.18`"; §Behavioral Contracts table rows "ADR-058 \| v2.23" and "BC-2.16.003 \| v1.18". COERCION-001 confirmed clean — no version bump. §v1.43 Amendment Sweep added (honest TD-VSDD-097 3-dim discharge). |
 | 1.42 | 2026-08-19 | story-writer | FB-58/60 records micro-burst — categorically end §Authority provenance-label drift class (F-P58-LOW-002 + F-P58-LOW-001). Fix 1 (F-P58-LOW-002): §Authority §B2/§D1/§G/§I1 (both sub-labels)/§I2/§J2 provenance labels normalized to version-free form — removed "v2.23 amendment:", "corrected v2.18:", "corrected v2.21:", "v2.23 Tier-1/Tier-2 model:", "v2.23 amendment:" stamps per POL-39 (behavioral-anchor cites only; no vX.YZ origin-provenance decorations). The single CURRENT-version dependency pin "Version `2.23`" is retained. Fix 2 (F-P58-LOW-001): ADR-058 §Authority status-date parenthetical corrected "(2026-08-18)"→"(2026-08-19)" (ADR-058 frontmatter `modified:` is 2026-08-19; consistent with sibling BC-2.16.003 "(modified 2026-08-19)" cite corrected in v1.41). Sibling COERCION-001 bumped to v1.39 in same burst. §v1.42 Amendment Sweep added. |

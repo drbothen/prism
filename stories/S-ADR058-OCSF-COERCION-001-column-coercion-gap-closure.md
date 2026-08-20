@@ -2,12 +2,12 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.42"
+version: "1.43"
 level: "L4"
 status: draft
 producer: story-writer
 timestamp: "2026-08-12T00:00:00Z"
-modified: "2026-08-19"
+modified: "2026-08-20"
 phase: 3
 wave: claroty-live
 epic_id: EPIC-OCSF-ROUTING
@@ -74,7 +74,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "67f13c7"
+input-hash: "fb7a031"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -112,7 +112,7 @@ Stage 1's §H scope is unchanged.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
 **BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable
-Interpolation.** Version `2.29`, status: active (unchanged). Governs the Canonical
+Interpolation.** Version `2.30`, status: active (unchanged). Governs the Canonical
 Structured Event Catalog obligation: AC-004 and AC-005 introduce the
 `column_coercion_failure` tracing emission, which MUST be registered in BC-2.16.002
 §Postconditions §Canonical Structured Event Catalog before the implementing PR merges
@@ -154,7 +154,7 @@ The mandate anchor record:
 |----|---------|--------|-----------|
 | BC-2.16.003 | v1.19 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
 | BC-2.02.011 | — | — | Warning-emission obligation for each normalization issue; BC-2.16.003 DEFECT violates this |
-| BC-2.16.002 | v2.29 | active | Canonical Structured Event Catalog obligation — `column_coercion_failure` emit from AC-004/AC-005 must be registered in §Postconditions §Canonical Structured Event Catalog (SAP-1 / PG-LP11-001) |
+| BC-2.16.002 | v2.30 | active | Canonical Structured Event Catalog obligation — `column_coercion_failure` emit from AC-004/AC-005 must be registered in §Postconditions §Canonical Structured Event Catalog (SAP-1 / PG-LP11-001) |
 
 ---
 
@@ -1449,6 +1449,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.43 | 2026-08-20 | state-manager | D-2254 SAP-1/PG-LP11-001 discharge burst (state-manager leg): BC-2.16.002 §Authority pin v2.29→v2.30 + §Behavioral Contracts table pin v2.29→v2.30 (product-owner registered catalog row 95 `column_coercion_failure` WARN in BC-2.16.002 §Postconditions §Canonical Structured Event Catalog in same burst). Input-hash updated 67f13c7→fb7a031 (BC-2.16.002 changed v2.29→v2.30; hash computed by validate-input-hash hook against develop-branch crate files + updated .factory/ specs). Sibling ROUTING-001 bumped to v1.45 (BC-2.16.002 pin v2.29→v2.30) in same burst. NOT merged — develop still @69d821be; workspace_test_count stays 5743. §v1.43 Amendment Sweep: Dimension 1 (sibling pair) — ROUTING-001 amended same burst (v1.44→v1.45 state-manager leg); CLEAR. Dimension 2 (downstream copy) — §Authority pin is terminal; no independent copy artifact; CLEAR. Dimension 3 (mandate anchor) — no new MUST blocks; CLEAR. |
 | 1.42 | 2026-08-19 | story-writer | RG-005 relocation to in-crate unit test (pre-TDD remove-uncertainty fix). §Red Gate Tests RG-005 bullet: added placement note — `crates/prism-spec-engine/src/column_mapping.rs #[cfg(test)] mod tests` (NOT `tests/bc_2_16_003_test.rs`); rationale: `tracing-test` default env-filter is `bc_2_16_003_test=trace` in integration test, excluding `prism_spec_engine::column_mapping` events; in-crate filter is `prism_spec_engine=trace`, which captures them. §Architecture Mapping: integration-test row split into two rows — RG-001..RG-004 in `bc_2_16_003_test.rs`; new in-crate row for RG-005 in `column_mapping.rs #[cfg(test)] mod tests`. §Tasks T-08: target file updated to `src/column_mapping.rs` in-crate block. §Tasks T-GATE: split confirmation — RG-001..004 in integration test, RG-005 in in-crate block. §Library & Framework tracing-test RG-005 row: location updated from `prism-spec-engine/tests/` to `src/column_mapping.rs #[cfg(test)] mod tests`; `no-env-filter` explicitly excluded. §File Structure Requirements: `column_mapping.rs` row notes RG-005 added to `#[cfg(test)] mod tests`; `bc_2_16_003_test.rs` row corrected to RG-001..RG-004 only. Version 1.41→1.42. §v1.42 Amendment Sweep added. No AC, RG identity, BC contract, pin, or mandate anchor change — purely test-file placement correction. |
 | 1.40 | 2026-08-19 | story-writer | Leg 2 pin bump — BC-2.16.003 v1.18→v1.19 (BC-2.16.003 updated to v1.19 in Leg 1 of this burst); BC-2.16.002 v2.28→v2.29 (BC-2.16.002 updated to v2.29 in Leg 1); §Authority and §Behavioral Contracts table pins updated to current. No prose/AC/RG/mechanism change — COERCION-001 content is unaffected by BC-2.16.003 v1.19 and BC-2.16.002 v2.29 changes (the §Interpretation A stamp normalization and Leg 1 amendments are ROUTING-001 scope only). Input-hash updated 0912bc2→cabe74f (BC-2.16.003 and BC-2.16.002 updated in Leg 1). Sibling ROUTING-001 bumped to v1.44 in same burst. §v1.40 Amendment Sweep added. |
 | 1.39 | 2026-08-19 | story-writer | FB-58/60 records micro-burst — sibling coordination. F-P58-LOW-001: ADR-058 §Authority status-date parenthetical corrected "(2026-08-18)"→"(2026-08-19)" (ADR-058 frontmatter `modified:` is 2026-08-19). No prose/AC/RG/mechanism change — COERCION-001 §Authority already uses clean version-free provenance form; the §B2/§I2/§J2/§D1 version-stamp normalization (F-P58-LOW-002) applies to ROUTING-001 §Authority only. Sibling ROUTING-001 bumped to v1.42 in same burst. §v1.39 Amendment Sweep added. |
