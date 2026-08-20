@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.46"
+version: "1.47"
 level: "L4"
 status: draft
 producer: story-writer
@@ -74,7 +74,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "006da3c"
+input-hash: "d67d08f"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -95,8 +95,8 @@ tags:
 
 ## Authority
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.19`, status: draft
-(modified 2026-08-19). Primary behavioral authority. The §Type Coercion Algorithm, §Full
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.20`, status: draft
+(modified 2026-08-20). Primary behavioral authority. The §Type Coercion Algorithm, §Full
 Coercion Matrix, EC-016-013-007/008/009 KNOWN GAP annotations, and §Coercion Warning
 Observability DEFECT section are the acceptance-criteria source for this story. Note: BC-2.16.003
 §Interpretation A (Arrow field naming) and §Claroty Contracted OCSF Mappings are Stage 2
@@ -114,7 +114,7 @@ Stage 1's §H scope is unchanged.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
 **BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable
-Interpolation.** Version `2.30`, status: active (unchanged). Governs the Canonical
+Interpolation.** Version `2.32`, status: active (unchanged). Governs the Canonical
 Structured Event Catalog obligation: AC-004 and AC-005 introduce the
 `column_coercion_failure` tracing emission, which MUST be registered in BC-2.16.002
 §Postconditions §Canonical Structured Event Catalog before the implementing PR merges
@@ -138,7 +138,7 @@ by passing structured JSON into a typed Arrow column.
 ## ADR-058 MUST Discharge: Mandate Anchor #2
 
 **ADR-058 §H `ANCHOR-NEEDED`: DISCHARGED.** ADR-058 §H emission discharge anchor names this
-story as the anchor for all three `column_coercion_failure` emission paths. No architect action required.
+story as the anchor for all four `column_coercion_failure` emission paths. No architect action required.
 
 The mandate anchor record:
 
@@ -147,7 +147,7 @@ The mandate anchor record:
 | `column_coercion_failure` tracing emission MUST be emitted in `ColumnMapper::map_record` at demotion point (ADR-058 §H) | Path B | S-ADR058-OCSF-COERCION-001 | AC-004 | RG-005 | DISCHARGED |
 | `column_coercion_failure` tracing emission MUST be emitted in `build_column_array` String+Object arm (ADR-058 §H) | Path A | S-ADR058-OCSF-COERCION-001 | AC-005 | RG-006 | DISCHARGED |
 | `column_coercion_failure` tracing emission MUST be emitted in `build_column_array` Integer+String arm (ADR-058 §H) | Path A | S-ADR058-OCSF-COERCION-001 | AC-007 | RG-009 | DISCHARGED |
-| Integer+Object null-substitution gap MUST be closed in `build_column_array` Integer arm (Path A: null+warn) and `coerce_value` Integer branch (Path B: Err(CoercionWarning)) (ADR-058 §H item 4) | Path A + B | S-ADR058-OCSF-COERCION-001 | AC-008 | RG-010 (Path A) / RG-011 (Path B) | DISCHARGED-pending-impl |
+| Integer+Object null-substitution gap MUST be closed in `build_column_array` Integer arm (Path A: null+warn) and `coerce_value` Integer branch (Path B: Err(CoercionWarning)) (ADR-058 §H item 4) | Path A + B | S-ADR058-OCSF-COERCION-001 | AC-008 | RG-010 (Path A) / RG-011 (Path B) | DISCHARGED |
 
 ---
 
@@ -155,9 +155,9 @@ The mandate anchor record:
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.19 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
+| BC-2.16.003 | v1.20 | draft | Primary contract — §Type Coercion Algorithm, §Full Coercion Matrix, EC-016-013-007/008/009 KNOWN GAPs, §Coercion Warning Observability DEFECT |
 | BC-2.02.011 | — | — | Warning-emission obligation for each normalization issue; BC-2.16.003 DEFECT violates this |
-| BC-2.16.002 | v2.30 | active | Canonical Structured Event Catalog obligation — `column_coercion_failure` emit from AC-004/AC-005 must be registered in §Postconditions §Canonical Structured Event Catalog (SAP-1 / PG-LP11-001) |
+| BC-2.16.002 | v2.32 | active | Canonical Structured Event Catalog obligation — `column_coercion_failure` emit from AC-004/AC-005 must be registered in §Postconditions §Canonical Structured Event Catalog (SAP-1 / PG-LP11-001) |
 
 ---
 
@@ -1587,6 +1587,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.47 | 2026-08-20 | story-writer | F-COERCE-ADV-P1-MED-002 + F-COERCE-ADV-P1-LOW-001 + stale emission-path count — in-story consistency sweep. §Authority: BC-2.16.003 pin v1.19→v1.20 (modified 2026-08-19→2026-08-20); BC-2.16.002 pin v2.30→v2.32. §Behavioral Contracts table: BC-2.16.003 row v1.19→v1.20; BC-2.16.002 row v2.30→v2.32. §ADR-058 MUST Discharge preamble: "all three `column_coercion_failure` emission paths" → "all four" (AC-008/RG-010/RG-011 added in v1.46; preamble was not updated in that burst). §ADR-058 MUST Discharge table row 4: DISCHARGED-pending-impl → DISCHARGED (RG-010/RG-011 green, production arms shipped). input-hash updated 006da3c→d67d08f (BC-2.16.003 v1.19→v1.20 and BC-2.16.002 v2.30→v2.32; hook-computed on version-bump edit). §v1.47 Amendment Sweep: Dim 1 (sibling pair) — S-ADR058-OCSF-ROUTING-001 BC pin refresh deferred per established scope pattern; content changes (preamble count, table MUST status) are COERCION-001-specific; VERDICT: DEFERRED (intentional, consistent with v1.45/v1.46). Dim 2 (downstream copy) — changed loci are terminal version pins in §Authority and §Behavioral Contracts table, plus records-tier preamble text and MUST-status cell; no downstream artifact copies any of these verbatim; VERDICT: CLEAR. Dim 3 (mandate anchor) — DISCHARGED status change confirms closure of §H item 4 mandate (no new MUST blocks); all existing mandate anchors intact; VERDICT: NO NEW UNANCHORED MUSTs. |
 | 1.46 | 2026-08-20 | story-writer | Human-approved in-scope expansion: Integer+Object coercion gap (EC-016-013-030, ADR-058 §H item 4). Added AC-008 (build_column_array / coerce_value handle Integer column + Value::Object: Path A null+warn; Path B Err(CoercionWarning)). Added RG-010 (`test_build_column_array_integer_type_object_input_returns_null_and_emits_warning` — prism-bin src/spec_driven_adapter.rs #[cfg(test)] mod tests, tracing_test subscriber, covers AC-008 Path A LIVE). Added RG-011 (`test_coerce_value_integer_type_object_input_returns_err_coercion_warning` — prism-spec-engine src/column_mapping.rs #[cfg(test)] mod tests, pure return-value assertion, covers AC-008 Path B). §BC-5.38.001 Density Check: RGT count 8→10, AC count 7→8, density 10/8=1.25. §ADR-058 MUST Discharge table: row 4 added (ADR-058 §H item 4 → AC-008 → RG-010/RG-011, DISCHARGED-pending-impl). §Edge Cases: EC-010 added (Integer+Object via EC-016-013-030). §Architecture Mapping: coerce_value row scope extended (Integer+Object arm); new Integer arm row; in-crate test row extended to RG-005+RG-011; Path-A test row extended to RG-006/008/009/010. §Tasks: T-10c/T-10d added (test-writer Phase A); T-15c added (implementer Phase B); T-GATE density updated 10/8=1.25; T-16/T-17 verify commands updated. §Authority: ADR-058 pin v2.25→v2.26; §H deliverables count three→four. ADR-058 §H item 4 placeholder filled (architect-pre-authorized): "AC-008 (RG-010 Path-A build_column_array Integer+Object null+warn; RG-011 Path-B coerce_value Integer+Object Err(CoercionWarning))". ADR-058 input-hash 18b74fe→ae3047b; story input-hash 638c633→006da3c (both hook-computed at edit time). Tags: ec-016-013-030 added. §v1.46 Amendment Sweep: Dim 1 (sibling) — ROUTING-001 UNAFFECTED; ADR pin refresh deferred per established pattern. Dim 2 (downstream copy) — BC-2.16.003/ADR-058 already correct (source of fix); catalog row 95 covers new trigger via existing field schema; ADR §H anchor filled; both input-hashes resolved. Dim 3 (mandate anchor) — ADR-058 §H item 4 → AC-008 → RG-010/RG-011 bidirectional; DISCHARGED-pending-impl. |
 | 1.45 | 2026-08-20 | story-writer | Fix (a) §RG-001/002 SAP-3 tightening: §RG-001 note corrected — Path A serializes `Value::Array` to JSON-list string per ENRICH-1 DD-2 (EC-016-013-026), NOT demotion; stale "covered by RG-006/RG-008/RG-009" replaced with pointer to `test_build_column_array_claroty_ip_list_string_elements_serialize_to_json_list_string` (see §RG-007 retirement note). §RG-002 note corrected — Path A equivalent for `Value::Object` input is RG-006 only (`build_column_array` String+Object→null+warn); RG-008/RG-009 cover Integer+String and are not Object-case equivalents. Fix (b) §AC-004 note: added shipped `column_type_toml_name` helper as third consistent source alongside ADR-058 §H item 3 and BC-2.16.002 catalog row 95; explicit "all three now consistent" qualifier added. Fix (c) ADR-058 §Authority pin sweep: title and version v2.23→v2.25 (§H item 3 field-expression `%col.column_type` → `%column_type_toml_name(&col.column_type)` now matches BC-2.16.002 catalog row 95 and shipped code); status-date (2026-08-19)→(2026-08-20). Input-hash: fb7a031→638c633 (ADR-058 input updated v2.23→v2.25; recomputed by compute-input-hash hook). TD-VSDD-097 three-dimension sweep — Dim 1 (sibling pair): S-ADR058-OCSF-ROUTING-001 ADR-058 pin refresh DEFERRED to ROUTING-001's own delivery per explicit task scope; §RG-001/002 and §AC-004 content changes are COERCION-001-specific (Path B prism-spec-engine `coerce_value`/`map_record`; no ROUTING-001 mirror); VERDICT: DEFERRED (intentional). Dim 2 (downstream copy): ADR-058 §H item 3 and BC-2.16.002 catalog row 95 are already correct (they drove this fix); no further downstream copy target; VERDICT: CLEAR. Dim 3 (mandate anchor): §AC-004→ADR-058 §H item 3→RG-005 anchor in §ADR-058 MUST Discharge unchanged; no new MUST blocks; VERDICT: NO NEW UNANCHORED MUSTs. |
 | 1.44 | 2026-08-20 | story-writer | F-P1-OBS-001 records-tier reconciliation: §AC-004 field-binding expressions corrected to match ADR-058 §H item 3 + BC-2.16.002 catalog row 95 + shipped `ColumnMapper::map_record` implementation. Stale `%warning.column_name` → `%col.name`; stale `%warning.expected_ocsf_type` → `%column_type_toml_name(&col.column_type)`. One-line note added citing ADR-058 §H item 3 + catalog row 95 as source-of-truth for the emission field schema. Zero code/mechanism change — no AC identity change, no RG change, no BC/pin change, no behavioral change; purely reconciling stale field-binding prose to the already-governing ADR/catalog. §v1.44 Amendment Sweep: Dim 1 (sibling pair) — ROUTING-001 has no mirror of AC-004 field-binding text; AC-004 is COERCION-specific (Path B `ColumnMapper::map_record` in `prism-spec-engine::column_mapping`; ROUTING-001 is Stage 2 field-path routing scope in prism-bin); VERDICT: NO SIBLING MIRROR. Dim 2 (downstream copy) — ADR-058 §H item 3 and catalog row 95 are already correct; this fix aligns story TO them (not vice-versa); no further downstream copy artifact to sweep; VERDICT: CLEAR. Dim 3 (mandate anchor) — AC-004 anchor to ADR-058 §H → RG-005 unchanged per §Mandate Anchor #2 table; no new MUST blocks introduced; VERDICT: UNCHANGED. |
