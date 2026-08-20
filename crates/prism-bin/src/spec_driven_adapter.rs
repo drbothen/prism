@@ -1114,6 +1114,25 @@ fn build_column_array(
                             );
                             arr.into_iter().next().and_then(|v| v.as_i64())
                         }
+                        serde_json::Value::String(s) => {
+                            // AC-007 / EC-016-013-025: String input to Integer column — attempt
+                            // s.parse::<i64>().  Success → Some(n); failure → null cell + structured
+                            // audit warn (consistent with the other two column_coercion_failure sites).
+                            match s.parse::<i64>() {
+                                Ok(n) => Some(n),
+                                Err(_) => {
+                                    tracing::warn!(
+                                        column = %col.name,
+                                        column_type = "integer",
+                                        actual_json_kind = "string",
+                                        event_type = "column_coercion_failure",
+                                        "build_column_array: non-parseable String in Integer \
+                                         column demoted to null (BC-2.16.003 AC-007)"
+                                    );
+                                    None
+                                }
+                            }
+                        }
                         other => other.as_i64(),
                     }
                 })
