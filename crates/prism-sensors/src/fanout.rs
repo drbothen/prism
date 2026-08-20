@@ -478,20 +478,20 @@ async fn execute_target(
     credentials: Arc<dyn CredentialResolver>,
     _fanout_permit: tokio::sync::SemaphorePermit<'_>,
     _http_semaphore: Arc<Semaphore>,
-) -> Result<Vec<RecordBatch>, FanOutError> {
+) -> Result<Vec<RecordBatch>, Box<FanOutError>> {
     // Acquire global HTTP permit (held until function returns)
     let _http_permit = match crate::http::acquire_http_permit().await {
         Ok(p) => p,
         Err(e) => {
             let retry_metadata = error_to_retry_metadata(&e, 1);
             #[allow(deprecated)]
-            return Err(FanOutError {
+            return Err(Box::new(FanOutError {
                 org_id: target.org_id,
                 client_id: target.client_id.clone(),
                 sensor_id: target.sensor_id,
                 error: e,
                 retry_metadata,
-            });
+            }));
         }
     };
 
@@ -501,13 +501,13 @@ async fn execute_target(
         Err(e) => {
             let retry_metadata = error_to_retry_metadata(&e, 1);
             #[allow(deprecated)]
-            return Err(FanOutError {
+            return Err(Box::new(FanOutError {
                 org_id: target.org_id,
                 client_id: target.client_id.clone(),
                 sensor_id: target.sensor_id,
                 error: e,
                 retry_metadata,
-            });
+            }));
         }
     };
 
@@ -520,13 +520,13 @@ async fn execute_target(
             };
             let retry_metadata = error_to_retry_metadata(&e, 1);
             #[allow(deprecated)]
-            return Err(FanOutError {
+            return Err(Box::new(FanOutError {
                 org_id: target.org_id,
                 client_id: target.client_id.clone(),
                 sensor_id: target.sensor_id,
                 error: e,
                 retry_metadata,
-            });
+            }));
         }
     };
 
@@ -544,13 +544,13 @@ async fn execute_target(
         .map_err(|e| {
             let retry_metadata = error_to_retry_metadata(&e, 1);
             #[allow(deprecated)]
-            FanOutError {
+            Box::new(FanOutError {
                 org_id: target.org_id,
                 client_id: target.client_id.clone(),
                 sensor_id: target.sensor_id,
                 error: e,
                 retry_metadata,
-            }
+            })
         })
 }
 
