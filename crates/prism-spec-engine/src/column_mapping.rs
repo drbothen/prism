@@ -154,16 +154,28 @@ impl ColumnMapper {
         // String-type-first: when the spec declares the column as string, normalize any
         // scalar to a JSON string value before the numeric-suffix heuristic is checked.
         if column.column_type == ColumnType::String {
-            return Ok(match value {
-                Value::String(_) => value.clone(),
-                Value::Number(n) => Value::String(n.to_string()),
-                Value::Bool(b) => Value::String(b.to_string()),
+            return match value {
+                Value::String(_) => Ok(value.clone()),
+                Value::Number(n) => Ok(Value::String(n.to_string())),
+                Value::Bool(b) => Ok(Value::String(b.to_string())),
                 // Null passes through and lands in mapped_fields as Value::Null
                 // (only an *absent* key is skipped by map_record, not an explicit null).
-                // Structured types (Array, Object) pass through for the adjacent
-                // Array/Object passthrough deferral (S-ADR058-OCSF-COERCION-001).
-                other => other.clone(),
-            });
+                Value::Null => Ok(value.clone()),
+                // Array and Object are structured types that cannot be safely coerced to a
+                // String column — stringifying them produces opaque JSON blobs that corrupt
+                // downstream typed Arrow columns.  Return CoercionWarning to divert the value
+                // to raw_extensions (AC-001 / AC-002 / EC-016-013-007 / EC-016-013-008).
+                Value::Array(_) => Err(CoercionWarning {
+                    column_name: column.name.clone(),
+                    expected_ocsf_type: "string".to_string(),
+                    actual_value: "array".to_string(),
+                }),
+                Value::Object(_) => Err(CoercionWarning {
+                    column_name: column.name.clone(),
+                    expected_ocsf_type: "string".to_string(),
+                    actual_value: "object".to_string(),
+                }),
+            };
         }
 
         // Determine target type from OCSF field path convention.
