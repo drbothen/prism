@@ -1,0 +1,2 @@
+        PASS [   0.019s] (1/1) prism-spec-engine column_mapping::tests::test_map_record_string_object_input_demotes_to_raw_extensions_and_emits_warning
+     Summary [   0.019s] 1 test run: 1 passed, 803 skipped

@@ -1,0 +1,2 @@
+        PASS [   0.046s] (1/1) prism-bin spec_driven_adapter::tests::test_build_column_array_string_type_object_input_returns_null_and_emits_warning
+     Summary [   0.047s] 1 test run: 1 passed, 231 skipped

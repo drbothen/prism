@@ -1,0 +1,3 @@
+        PASS [   0.039s] (1/2) prism-bin spec_driven_adapter::tests::test_build_column_array_integer_type_string_parseable_returns_integer
+        PASS [   0.041s] (2/2) prism-bin spec_driven_adapter::tests::test_build_column_array_integer_type_string_non_parseable_returns_null_and_emits_warning
+     Summary [   0.042s] 2 tests run: 2 passed, 230 skipped
