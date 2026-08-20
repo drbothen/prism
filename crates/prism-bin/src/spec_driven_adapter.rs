@@ -1133,6 +1133,20 @@ fn build_column_array(
                                 }
                             }
                         }
+                        // AC-008 / EC-016-013-030: Object input to Integer column — null cell
+                        // + structured audit warn (closes the silent-null substitution gap
+                        // identified in BC-2.16.003 §Full Coercion Matrix EC-016-013-030).
+                        serde_json::Value::Object(_) => {
+                            tracing::warn!(
+                                column = %col.name,
+                                column_type = "integer",
+                                actual_json_kind = "object",
+                                event_type = "column_coercion_failure",
+                                "build_column_array: Object value in Integer column demoted to \
+                                 null (BC-2.16.003 AC-008 / EC-016-013-030)"
+                            );
+                            None
+                        }
                         other => other.as_i64(),
                     }
                 })
