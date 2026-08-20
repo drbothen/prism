@@ -291,7 +291,7 @@ mod tests {
 
     use crate::spec_parser::{ColumnSpec, FetchStep, TableSpec};
 
-    use super::ColumnMapper;
+    use super::{CoercionWarning, ColumnMapper};
 
     /// Wire-shape assertion: when `column_type = "string"` and the API returns a JSON integer
     /// (e.g. Claroty alerts `"id": 132`), `coerce_value` must produce `Value::String("132")`.
@@ -421,6 +421,67 @@ mod tests {
              map_record must emit tracing::warn!(event_type = 'column_coercion_failure') \
              when demoting a String+Object value to raw_extensions. \
              Currently no warn is emitted (BC-2.02.011 violation)."
+        );
+    }
+
+    /// RG-011 / AC-008 / BC-2.16.003 §Path-B Integer+Object coercion gap (EC-016-013-030)
+    ///
+    /// `ColumnMapper::coerce_value` with `column_type = ColumnType::Integer` and a
+    /// `Value::Object` input MUST return `Err(CoercionWarning)` — symmetric with the
+    /// String-branch `Value::Object` handling added in AC-002 (`coerce_value` with
+    /// `column_type = ColumnType::String` + `Value::Object`).
+    ///
+    /// **Red gate:** Current code has no explicit `Value::Object` arm in the Integer
+    /// branch.  The Integer+String block (`if column.column_type == ColumnType::Integer &&
+    /// let Value::String(s) = value`) does not match `Value::Object`, and the subsequent
+    /// `is_numeric_ocsf_field` block only acts on `Value::String`.  `Value::Object` falls
+    /// through to the final `Ok(value.clone())` pass-through at the bottom of
+    /// `coerce_value`.  The test asserts `Err(CoercionWarning)` but receives `Ok(Object)`.
+    ///
+    /// This is a pure return-value assertion (no tracing capture needed for RG-011 itself
+    /// — Path B emits the warn via `map_record` at demotion time, not inside
+    /// `coerce_value`).
+    ///
+    /// Covers AC-008 Path B.
+    ///
+    /// SAP-3 reachability note (defense-in-depth): `coerce_value` is on Path B
+    /// (`ColumnMapper::coerce_value` in `column_mapping.rs`), which has zero live
+    /// production callers per ADR-058 §K5.  This test is intentionally defense-in-depth /
+    /// forward-compat per SAP-3 rule 2/3.  The equivalent LIVE coverage on Path A is
+    /// RG-010 (`build_column_array` Integer+Object → null+warn) in `spec_driven_adapter.rs`.
+    #[test]
+    fn test_coerce_value_integer_type_object_input_returns_err_coercion_warning() {
+        let col = ColumnSpec {
+            name: "severity_id".to_string(),
+            column_type: ColumnType::Integer,
+            ocsf_field: Some("finding.severity_id".to_string()),
+            ..Default::default()
+        };
+
+        let object_value = json!({"nested": "object"});
+        let result = ColumnMapper::coerce_value(&object_value, &col, "finding.severity_id");
+
+        assert!(
+            result.is_err(),
+            "AC-008 / EC-016-013-030: coerce_value with Integer column + Object input MUST \
+             return Err(CoercionWarning); current code falls through to Ok(value.clone()) \
+             pass-through (no explicit Value::Object arm in the Integer branch). \
+             Got: Ok({:?})",
+            result.ok()
+        );
+        let warning = result.unwrap_err();
+        assert_eq!(
+            warning.column_name, "severity_id",
+            "AC-008: CoercionWarning must carry the column name"
+        );
+        assert_eq!(
+            warning.expected_ocsf_type, "integer",
+            "AC-008: CoercionWarning must carry expected_ocsf_type = \"integer\""
+        );
+        assert_eq!(
+            warning.actual_value, "object",
+            "AC-008: CoercionWarning must carry actual_value = \"object\" \
+             (matching the actual_json_kind field schema from BC-2.16.002 catalog row 95)"
         );
     }
 }

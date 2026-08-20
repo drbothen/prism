@@ -4066,4 +4066,52 @@ mod tests {
              silently returning None — missing audit trail)"
         );
     }
+
+    /// RG-010 / AC-008 / BC-2.16.003 §Path-A Integer+Object coercion gap (EC-016-013-030)
+    ///
+    /// `build_column_array` on a `ColumnType::Integer` column with a `Value::Object` input MUST:
+    ///   (a) produce a null cell (not a silent None with no audit trail), AND
+    ///   (b) emit `tracing::warn!(event_type = "column_coercion_failure", column_type = "integer",
+    ///       actual_json_kind = "object")` at the demotion point.
+    ///
+    /// **Red gate:** Current code has `other => other.as_i64()` as the wildcard arm in the
+    /// `ColumnType::Integer` match block.  `Value::Object.as_i64()` returns `None` silently —
+    /// no `column_coercion_failure` warn is emitted.  Assertion (a) passes (returns null), but
+    /// assertion (b) fails (no warn).  The silent null substitution violates BC-2.16.003's
+    /// no-silent-data-loss invariant (EC-016-013-030).
+    ///
+    /// Covers AC-008 Path A (LIVE).
+    ///
+    /// SAP-3: `build_column_array` is on Path A (live production callers), so this is a
+    /// standard load-bearing test, NOT defense-in-depth.
+    #[tracing_test::traced_test]
+    #[test]
+    fn test_build_column_array_integer_type_object_input_returns_null_and_emits_warning() {
+        let col = ColumnSpec::new("metadata_obj", ColumnType::Integer, None, vec![]);
+        let records = vec![json!({"metadata_obj": {"nested": "object"}})];
+
+        let array = build_column_array(&records, &col, "test-sensor");
+        let int_array = array
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .expect("Integer column must produce Int64Array");
+
+        // (a) Object input must produce a null cell.
+        assert!(
+            int_array.is_null(0),
+            "AC-008 / EC-016-013-030: Integer column + Object input must produce null cell; \
+             current code falls through `other => other.as_i64()` which returns None — \
+             this assertion passes already, but the warn (b) does not"
+        );
+        // (b) column_coercion_failure warn MUST be emitted (with column_type="integer",
+        //     actual_json_kind="object").  Current code emits NO warn for this path.
+        assert!(
+            logs_contain("column_coercion_failure"),
+            "AC-008 / EC-016-013-030 / BC-2.16.003: build_column_array must emit \
+             tracing::warn!(event_type = \"column_coercion_failure\", column_type = \"integer\", \
+             actual_json_kind = \"object\") for Integer+Object input; \
+             current code silently returns None via `other.as_i64()` with no audit trail \
+             (silent-null substitution violates no-silent-data-loss invariant)"
+        );
+    }
 }
