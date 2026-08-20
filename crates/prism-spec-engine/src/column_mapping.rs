@@ -434,6 +434,24 @@ mod tests {
              when demoting a String+Object value to raw_extensions. \
              Currently no warn is emitted (BC-2.02.011 violation)."
         );
+        // (b-SID-2) Verify structured fields — SID-2 requires asserting the FULL composed
+        // emitted string, not only the event_type key.  These three assertions together verify
+        // the complete structured warn schema (column, column_type, actual_json_kind).
+        assert!(
+            logs_contain("column_type=string"),
+            "SID-2 / AC-004: column_coercion_failure warn must include structured field \
+             column_type=string (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("actual_json_kind=object"),
+            "SID-2 / AC-004: column_coercion_failure warn must include structured field \
+             actual_json_kind=object (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("column=metadata"),
+            "SID-2 / AC-004: column_coercion_failure warn must include structured field \
+             column=metadata identifying the demoted column (BC-2.16.003 §Coercion Warning Observability)"
+        );
     }
 
     /// RG-011 / AC-008 / BC-2.16.003 §Path-B Integer+Object coercion gap (EC-016-013-030)

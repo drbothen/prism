@@ -4010,6 +4010,26 @@ mod tests {
              tracing::warn!(event_type = \"column_coercion_failure\") for String+Object input; \
              no warn emitted by current implementation"
         );
+        // (b-SID-2) Verify structured fields — SID-2 requires asserting the FULL composed
+        // emitted string, not only the event_type key.  These three assertions together verify
+        // the complete structured warn schema (column, column_type, actual_json_kind).
+        // NOTE: tracing formats string literals with quotes (e.g. column_type="string") and
+        // %Display fields without quotes (e.g. column=details).
+        assert!(
+            logs_contain("column_type=\"string\""),
+            "SID-2 / AC-005: column_coercion_failure warn must include structured field \
+             column_type=\"string\" (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("actual_json_kind=\"object\""),
+            "SID-2 / AC-005: column_coercion_failure warn must include structured field \
+             actual_json_kind=\"object\" (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("column=details"),
+            "SID-2 / AC-005: column_coercion_failure warn must include structured field \
+             column=details identifying the demoted column (BC-2.16.003 §Coercion Warning Observability)"
+        );
     }
 
     /// RG-008 / AC-007 / BC-2.16.003 §Path-A Integer+parseable-String coercion gap
@@ -4079,6 +4099,26 @@ mod tests {
              no warn emitted by current implementation (current code uses `other.as_i64()` \
              silently returning None — missing audit trail)"
         );
+        // (b-SID-2) Verify structured fields — SID-2 requires asserting the FULL composed
+        // emitted string, not only the event_type key.  These three assertions together verify
+        // the complete structured warn schema (column, column_type, actual_json_kind).
+        // NOTE: tracing formats string literals with quotes (e.g. column_type="integer") and
+        // %Display fields without quotes (e.g. column=device_count).
+        assert!(
+            logs_contain("column_type=\"integer\""),
+            "SID-2 / AC-007: column_coercion_failure warn must include structured field \
+             column_type=\"integer\" (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("actual_json_kind=\"string\""),
+            "SID-2 / AC-007: column_coercion_failure warn must include structured field \
+             actual_json_kind=\"string\" (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("column=device_count"),
+            "SID-2 / AC-007: column_coercion_failure warn must include structured field \
+             column=device_count identifying the demoted column (BC-2.16.003 §Coercion Warning Observability)"
+        );
     }
 
     /// RG-010 / AC-008 / BC-2.16.003 §Path-A Integer+Object coercion gap (EC-016-013-030)
@@ -4126,6 +4166,26 @@ mod tests {
              actual_json_kind = \"object\") for Integer+Object input; \
              current code silently returns None via `other.as_i64()` with no audit trail \
              (silent-null substitution violates no-silent-data-loss invariant)"
+        );
+        // (b-SID-2) Verify structured fields — SID-2 requires asserting the FULL composed
+        // emitted string, not only the event_type key.  These three assertions together verify
+        // the complete structured warn schema (column, column_type, actual_json_kind).
+        // NOTE: tracing formats string literals with quotes (e.g. column_type="integer") and
+        // %Display fields without quotes (e.g. column=metadata_obj).
+        assert!(
+            logs_contain("column_type=\"integer\""),
+            "SID-2 / AC-008: column_coercion_failure warn must include structured field \
+             column_type=\"integer\" (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("actual_json_kind=\"object\""),
+            "SID-2 / AC-008: column_coercion_failure warn must include structured field \
+             actual_json_kind=\"object\" (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("column=metadata_obj"),
+            "SID-2 / AC-008: column_coercion_failure warn must include structured field \
+             column=metadata_obj identifying the demoted column (BC-2.16.003 §Coercion Warning Observability)"
         );
     }
 }
