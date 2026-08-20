@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.44"
+version: "1.45"
 level: "L4"
 status: draft
 producer: story-writer
@@ -74,7 +74,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "fb7a031"
+input-hash: "638c633"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -102,8 +102,8 @@ Observability DEFECT section are the acceptance-criteria source for this story. 
 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.23: v1 Column Naming — OCSF Field-Path Routing.** Version `2.23`, status:
-accepted (2026-08-19). §H (Stage 1 Scope) enumerates the three deliverables this story
+**ADR-058 v2.25: v1 Column Naming — OCSF Field-Path Routing.** Version `2.25`, status:
+accepted (2026-08-20). §H (Stage 1 Scope) enumerates the three deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
 `ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
 Note: ADR-058 §K (OCSF schema validation), §I5 (code obligations), §B2/§I2/§J2 amendments,
@@ -170,8 +170,12 @@ failing with the correct compile-or-test-failure reason.
   **SAP-3 reachability note (defense-in-depth):** `coerce_value` is on Path B
   (`ColumnMapper::coerce_value` in `column_mapping.rs`), which has zero live production
   callers per ADR-058 §K5; this test is intentionally defense-in-depth / forward-compat
-  per SAP-3 rule 2/3. The equivalent LIVE coercion behavior on Path A is covered by
-  RG-006/RG-008/RG-009 (`build_column_array`).
+  per SAP-3 rule 2/3. Path A intentionally serializes `Value::Array` to a JSON-list
+  string per ENRICH-1 Design Decision 2 (EC-016-013-026) — it does NOT demote. There
+  is no Path-A equivalent of RG-001's String+Array→Err demotion behavior; live Array-arm
+  coverage on Path A is provided by the existing passing test
+  `test_build_column_array_claroty_ip_list_string_elements_serialize_to_json_list_string`
+  (see §RG-007 retirement note).
 
 - **RG-002:** `test_coerce_value_string_type_object_input_returns_err_coercion_warning` —
   fails until `coerce_value` returns `Err(CoercionWarning)` for String column + Object input
@@ -179,8 +183,10 @@ failing with the correct compile-or-test-failure reason.
   **SAP-3 reachability note (defense-in-depth):** `coerce_value` is on Path B
   (`ColumnMapper::coerce_value` in `column_mapping.rs`), which has zero live production
   callers per ADR-058 §K5; this test is intentionally defense-in-depth / forward-compat
-  per SAP-3 rule 2/3. The equivalent LIVE coercion behavior on Path A is covered by
-  RG-006/RG-008/RG-009 (`build_column_array`).
+  per SAP-3 rule 2/3. The equivalent LIVE coercion behavior on Path A for `Value::Object`
+  input is covered by RG-006 (`build_column_array` String+Object→null+warn). RG-008
+  and RG-009 cover Integer+String (Path A) and are not Path-A equivalents for the
+  Object case.
 
 - **RG-003:** `test_coerce_value_integer_type_string_non_numeric_path_parse_success_returns_number` —
   fails until `coerce_value` parses `"42"` as `Value::Number(42)` for Integer column on
@@ -304,7 +310,8 @@ consistent with the spec's stated intent that `column_type` is authoritative.
 - `actual_json_kind = %actual_kind` — the JSON kind that triggered demotion ("array",
   "object", or "string")
 
-This binding matches ADR-058 §H item 3 and BC-2.16.002 catalog row 95 verbatim (source-of-truth for the emission field schema).
+This binding matches ADR-058 §H item 3, BC-2.16.002 catalog row 95, and the shipped
+`column_type_toml_name` helper — all three now consistent (source-of-truth for the emission field schema).
 
 This closes the DEFECT documented in BC-2.16.003 §Coercion Warning Observability.
 This event MUST be registered in BC-2.16.002 §Postconditions Canonical Structured Event
@@ -1451,13 +1458,14 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.45 | 2026-08-20 | story-writer | Fix (a) §RG-001/002 SAP-3 tightening: §RG-001 note corrected — Path A serializes `Value::Array` to JSON-list string per ENRICH-1 DD-2 (EC-016-013-026), NOT demotion; stale "covered by RG-006/RG-008/RG-009" replaced with pointer to `test_build_column_array_claroty_ip_list_string_elements_serialize_to_json_list_string` (see §RG-007 retirement note). §RG-002 note corrected — Path A equivalent for `Value::Object` input is RG-006 only (`build_column_array` String+Object→null+warn); RG-008/RG-009 cover Integer+String and are not Object-case equivalents. Fix (b) §AC-004 note: added shipped `column_type_toml_name` helper as third consistent source alongside ADR-058 §H item 3 and BC-2.16.002 catalog row 95; explicit "all three now consistent" qualifier added. Fix (c) ADR-058 §Authority pin sweep: title and version v2.23→v2.25 (§H item 3 field-expression `%col.column_type` → `%column_type_toml_name(&col.column_type)` now matches BC-2.16.002 catalog row 95 and shipped code); status-date (2026-08-19)→(2026-08-20). Input-hash: fb7a031→638c633 (ADR-058 input updated v2.23→v2.25; recomputed by compute-input-hash hook). TD-VSDD-097 three-dimension sweep — Dim 1 (sibling pair): S-ADR058-OCSF-ROUTING-001 ADR-058 pin refresh DEFERRED to ROUTING-001's own delivery per explicit task scope; §RG-001/002 and §AC-004 content changes are COERCION-001-specific (Path B prism-spec-engine `coerce_value`/`map_record`; no ROUTING-001 mirror); VERDICT: DEFERRED (intentional). Dim 2 (downstream copy): ADR-058 §H item 3 and BC-2.16.002 catalog row 95 are already correct (they drove this fix); no further downstream copy target; VERDICT: CLEAR. Dim 3 (mandate anchor): §AC-004→ADR-058 §H item 3→RG-005 anchor in §ADR-058 MUST Discharge unchanged; no new MUST blocks; VERDICT: NO NEW UNANCHORED MUSTs. |
 | 1.44 | 2026-08-20 | story-writer | F-P1-OBS-001 records-tier reconciliation: §AC-004 field-binding expressions corrected to match ADR-058 §H item 3 + BC-2.16.002 catalog row 95 + shipped `ColumnMapper::map_record` implementation. Stale `%warning.column_name` → `%col.name`; stale `%warning.expected_ocsf_type` → `%column_type_toml_name(&col.column_type)`. One-line note added citing ADR-058 §H item 3 + catalog row 95 as source-of-truth for the emission field schema. Zero code/mechanism change — no AC identity change, no RG change, no BC/pin change, no behavioral change; purely reconciling stale field-binding prose to the already-governing ADR/catalog. §v1.44 Amendment Sweep: Dim 1 (sibling pair) — ROUTING-001 has no mirror of AC-004 field-binding text; AC-004 is COERCION-specific (Path B `ColumnMapper::map_record` in `prism-spec-engine::column_mapping`; ROUTING-001 is Stage 2 field-path routing scope in prism-bin); VERDICT: NO SIBLING MIRROR. Dim 2 (downstream copy) — ADR-058 §H item 3 and catalog row 95 are already correct; this fix aligns story TO them (not vice-versa); no further downstream copy artifact to sweep; VERDICT: CLEAR. Dim 3 (mandate anchor) — AC-004 anchor to ADR-058 §H → RG-005 unchanged per §Mandate Anchor #2 table; no new MUST blocks introduced; VERDICT: UNCHANGED. |
 | 1.43 | 2026-08-20 | state-manager | D-2254 SAP-1/PG-LP11-001 discharge burst (state-manager leg): BC-2.16.002 §Authority pin v2.29→v2.30 + §Behavioral Contracts table pin v2.29→v2.30 (product-owner registered catalog row 95 `column_coercion_failure` WARN in BC-2.16.002 §Postconditions §Canonical Structured Event Catalog in same burst). Input-hash updated 67f13c7→fb7a031 (BC-2.16.002 changed v2.29→v2.30; hash computed by validate-input-hash hook against develop-branch crate files + updated .factory/ specs). Sibling ROUTING-001 bumped to v1.45 (BC-2.16.002 pin v2.29→v2.30) in same burst. NOT merged — develop still @69d821be; workspace_test_count stays 5743. §v1.43 Amendment Sweep: Dimension 1 (sibling pair) — ROUTING-001 amended same burst (v1.44→v1.45 state-manager leg); CLEAR. Dimension 2 (downstream copy) — §Authority pin is terminal; no independent copy artifact; CLEAR. Dimension 3 (mandate anchor) — no new MUST blocks; CLEAR. |
 | 1.42 | 2026-08-19 | story-writer | RG-005 relocation to in-crate unit test (pre-TDD remove-uncertainty fix). §Red Gate Tests RG-005 bullet: added placement note — `crates/prism-spec-engine/src/column_mapping.rs #[cfg(test)] mod tests` (NOT `tests/bc_2_16_003_test.rs`); rationale: `tracing-test` default env-filter is `bc_2_16_003_test=trace` in integration test, excluding `prism_spec_engine::column_mapping` events; in-crate filter is `prism_spec_engine=trace`, which captures them. §Architecture Mapping: integration-test row split into two rows — RG-001..RG-004 in `bc_2_16_003_test.rs`; new in-crate row for RG-005 in `column_mapping.rs #[cfg(test)] mod tests`. §Tasks T-08: target file updated to `src/column_mapping.rs` in-crate block. §Tasks T-GATE: split confirmation — RG-001..004 in integration test, RG-005 in in-crate block. §Library & Framework tracing-test RG-005 row: location updated from `prism-spec-engine/tests/` to `src/column_mapping.rs #[cfg(test)] mod tests`; `no-env-filter` explicitly excluded. §File Structure Requirements: `column_mapping.rs` row notes RG-005 added to `#[cfg(test)] mod tests`; `bc_2_16_003_test.rs` row corrected to RG-001..RG-004 only. Version 1.41→1.42. §v1.42 Amendment Sweep added. No AC, RG identity, BC contract, pin, or mandate anchor change — purely test-file placement correction. |
 | 1.40 | 2026-08-19 | story-writer | Leg 2 pin bump — BC-2.16.003 v1.18→v1.19 (BC-2.16.003 updated to v1.19 in Leg 1 of this burst); BC-2.16.002 v2.28→v2.29 (BC-2.16.002 updated to v2.29 in Leg 1); §Authority and §Behavioral Contracts table pins updated to current. No prose/AC/RG/mechanism change — COERCION-001 content is unaffected by BC-2.16.003 v1.19 and BC-2.16.002 v2.29 changes (the §Interpretation A stamp normalization and Leg 1 amendments are ROUTING-001 scope only). Input-hash updated 0912bc2→cabe74f (BC-2.16.003 and BC-2.16.002 updated in Leg 1). Sibling ROUTING-001 bumped to v1.44 in same burst. §v1.40 Amendment Sweep added. |
 | 1.39 | 2026-08-19 | story-writer | FB-58/60 records micro-burst — sibling coordination. F-P58-LOW-001: ADR-058 §Authority status-date parenthetical corrected "(2026-08-18)"→"(2026-08-19)" (ADR-058 frontmatter `modified:` is 2026-08-19). No prose/AC/RG/mechanism change — COERCION-001 §Authority already uses clean version-free provenance form; the §B2/§I2/§J2/§D1 version-stamp normalization (F-P58-LOW-002) applies to ROUTING-001 §Authority only. Sibling ROUTING-001 bumped to v1.42 in same burst. §v1.39 Amendment Sweep added. |
 | 1.38 | 2026-08-19 | story-writer | FB-55/56/57 LEG 2 — records-tier §Authority BC-2.16.003 pin completion. F-P55/56/57-MED-001: §Authority block pin was stale at Version `1.17` (should be `1.18`; §Behavioral Contracts table already at v1.18; BC frontmatter is v1.18) — corrected to Version `1.18`. §Authority modified-date parenthetical corrected "(modified 2026-08-18)"→"(modified 2026-08-19)" (BC-2.16.003 `modified:` is now 2026-08-19). This completes the §Authority half of the pin sweep that the v1.37 changelog row described but did not apply (v1.37 updated §Behavioral Contracts table only; §Authority pin remained stale at v1.17). Sibling ROUTING-001 bumped to v1.41 in same burst. §v1.38 Amendment Sweep added. |
-| 1.37 | 2026-08-19 | story-writer | FB-52/53/54 LEG 3 sibling pin maintenance: ADR-058 §Authority pin v2.22→v2.23; BC-2.16.003 §Behavioral Contracts table pin v1.17→v1.18. No prose/AC/RG/mechanism change — COERCION-001 content is unaffected by the ADR-058 v2.23 and BC-2.16.003 v1.18 changes (§J2 unconditional/conditional raw_extensions reword and §Interpretation A v1.18 corrections are ROUTING-001 scope only). input-hash updated baeb9ab→3cbb64b (ADR-058 + BC-2.16.003 updated in Legs 1-2). §v1.37 Amendment Sweep added. |
+| 1.37 | 2026-08-19 | story-writer | FB-52/53/54 LEG 3 sibling pin maintenance: ADR-058 §Authority pin v2.22→v2.23; BC-2.16.003 §Behavioral Contracts table pin v1.17→v1.18. No prose/AC/RG/mechanism change — COERCION-001 content is unaffected by those ADR-058 §Authority and BC-2.16.003 §Behavioral Contracts pin changes (§J2 unconditional/conditional raw_extensions reword and §Interpretation A v1.18 corrections are ROUTING-001 scope only). input-hash updated baeb9ab→3cbb64b (ADR-058 + BC-2.16.003 updated in Legs 1-2). §v1.37 Amendment Sweep added. |
 | 1.36 | 2026-08-18 | story-writer | FB-49/51 Leg 2 sibling pin maintenance (F-P49-MED-003/F-P51-LOW-001): BC-2.16.003 §Authority pin was stale at v1.15 (should be v1.17); §Behavioral Contracts table pin was stale at v1.16 (should be v1.17). Both updated to v1.17. No prose/AC/RG/mechanism change — COERCION-001 content is unaffected by BC-2.16.003 v1.17 additions (EC-016-013-029 synthesized-name guard and EC-016-013-028 reworded source_path attribution are ROUTING-001 scope only). input-hash updated 51956ac→baeb9ab (BC-2.16.003 updated in FB-49/51 Leg 1). §v1.36 Amendment Sweep added. |
 | 1.35 | 2026-08-18 | story-writer | OCSF-correctness Claroty fix-burst leg 3 sibling pin bump: ADR-058 pin v2.21→v2.22 + BC-2.16.003 pin v1.15→v1.16; no prose/AC/RG/mechanism change. input-hash updated 4cdc61e→51956ac (source documents ADR-058 + BC-2.16.003 changed by legs 1-2 of burst: EC-016-013-028, §J2 reserved-name guard, EC-016-013-011 corrected text — all Stage 2 scope, COERCION-001 content unaffected). §v1.35 Amendment Sweep added. |
 | 1.34 | 2026-08-18 | state-manager | D-2243 P43/44/45 fix-burst (state-manager leg): sibling ADR-058 pin v2.20→v2.21 + BC-2.16.003 pin v1.14→v1.15; no prose/AC/RG/mechanism change. input-hash updated 759227b→4cdc61e (source documents ADR-058 + BC-2.16.003 changed in same burst). §v1.34 Amendment Sweep: Dimension 1 (sibling pair) — ROUTING-001 amended same burst (v1.36→v1.37 story-writer leg); CLEAR. Dimension 2 (downstream copy) — §Authority pins are terminal; no independent copy artifact; CLEAR. Dimension 3 (mandate anchor) — no new MUST blocks; CLEAR. |
