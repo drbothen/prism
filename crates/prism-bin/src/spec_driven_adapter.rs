@@ -1278,6 +1278,7 @@ fn build_column_array(
                         serde_json::Value::Array(arr) => {
                             // Wildcard result: serialize to compact JSON-list string.
                             // ENRICH-1 Design Decision 2: JSON-list string in string column.
+                            // Empty array → Some("[]") (NOT null) per EC-016-013-026.
                             let strings: Vec<String> = arr
                                 .into_iter()
                                 .map(|v| match v {
@@ -1289,6 +1290,22 @@ fn build_column_array(
                                 serde_json::to_string(&strings)
                                     .unwrap_or_else(|_| "[]".to_string()),
                             )
+                        }
+                        serde_json::Value::Object(_) => {
+                            // AC-005 / EC-016-013-008: Object input to a String column must
+                            // produce a null cell, NOT stringified JSON.  Materializing an
+                            // object as a JSON blob corrupts downstream typed Arrow columns.
+                            // Emit structured audit warn consistent with the other two
+                            // column_coercion_failure sites (T-14 / T-15b).
+                            tracing::warn!(
+                                column = %col.name,
+                                column_type = "string",
+                                actual_json_kind = "object",
+                                event_type = "column_coercion_failure",
+                                "build_column_array: Object value in String column demoted to \
+                                 null (BC-2.16.003 AC-005)"
+                            );
+                            None
                         }
                         other => Some(other.to_string()),
                     }
