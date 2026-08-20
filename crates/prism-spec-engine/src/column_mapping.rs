@@ -198,6 +198,18 @@ impl ColumnMapper {
             };
         }
 
+        // Integer-column Object demotion (AC-008 / EC-016-013-030):
+        // Object values cannot be coerced to an Integer column — they must be diverted to
+        // raw_extensions via CoercionWarning, symmetric with the String-branch Object handling
+        // above (AC-002).  map_record emits the column_coercion_failure warn at demotion time.
+        if column.column_type == ColumnType::Integer && matches!(value, Value::Object(_)) {
+            return Err(CoercionWarning {
+                column_name: column.name.clone(),
+                expected_ocsf_type: "integer".to_string(),
+                actual_value: "object".to_string(),
+            });
+        }
+
         // Integer-column String coercion (AC-003 / EC-016-013-009):
         // When column_type is Integer and the input is a JSON string, attempt s.parse::<i64>()
         // regardless of OCSF path suffix.  The column_type declaration is authoritative and
