@@ -178,9 +178,26 @@ impl ColumnMapper {
             };
         }
 
-        // Determine target type from OCSF field path convention.
-        // For numeric OCSF fields (those ending in standard numeric suffixes),
-        // attempt string-to-number coercion.
+        // Integer-column String coercion (AC-003 / EC-016-013-009):
+        // When column_type is Integer and the input is a JSON string, attempt s.parse::<i64>()
+        // regardless of OCSF path suffix.  The column_type declaration is authoritative and
+        // extends Rule 2 (numeric-suffix heuristic) to ALL Integer-declared columns.
+        if column.column_type == ColumnType::Integer
+            && let Value::String(s) = value
+        {
+            if let Ok(n) = s.parse::<i64>() {
+                return Ok(Value::Number(serde_json::Number::from(n)));
+            }
+            return Err(CoercionWarning {
+                column_name: column.name.clone(),
+                expected_ocsf_type: "integer".to_string(),
+                actual_value: s.clone(),
+            });
+        }
+
+        // Rule 2 (numeric-suffix heuristic): for non-Integer-declared columns whose OCSF path
+        // ends in a known numeric suffix, also attempt String→integer coercion.
+        // (Integer-declared columns with String input are already handled above.)
         let target_is_numeric = is_numeric_ocsf_field(ocsf_field_path);
 
         if target_is_numeric {
