@@ -499,3 +499,15 @@ ADR-053 ratified EFFECTIVE 2026-07-22 (D-1943) → 9 Wave-A stories (8 draft / 1
 **KEY STATE (D-2244):** FROZEN: ADR-058 v2.21 / BC-2.16.003 v1.15 / BC-2.16.002 v2.28 / ROUTING-001 v1.37 / COERCION-001 v1.34. ARCH-INDEX v2.321 / BC-INDEX v9.37 / STORY-INDEX v2.858. total_stories 302. active 252 / draft 4 / total 269. STATE v8.777.
 
 **NOTE: Superseded by D-2245 — FB-46/48 OCSF-correctness fix-burst COMPLETE; ADR-058 v2.21→v2.22; BC-2.16.003 v1.15→v1.16; ROUTING-001 v1.37→v1.38; COERCION-001 v1.34→v1.35; BC-5.39.001 streak RESET 0/3; NEW FROZEN: ADR-058 v2.22/BC-2.16.003 v1.16/ROUTING-001 v1.38/COERCION-001 v1.35; STATE v8.778→v8.779.**
+
+---
+
+## Archived: D-2253 — 2026-08-19; STATE v8.787→v8.788 — TDD gate OPENED; COERCION-001 pre-delivery burst COMPLETE
+
+**RESUME IN ONE BREATH:** Prism Phase-3. TDD gate OPENED (human-approved 2026-08-19) for S-ADR058-OCSF-COERCION-001. Pre-delivery burst COMPLETE: 4 hidden holdout scenarios authored (HS-021 group); RG-005 test-placement correctness fix applied; story v1.40→v1.42. Worktree feature/S-ADR058-OCSF-COERCION-001 created at develop HEAD @69d821be. Frozen spec perimeter: ADR-058 v2.24 / BC-2.16.002 v2.29 / BC-2.16.003 v1.19 / ROUTING-001 v1.44 / COERCION-001 v1.40. NEXT: implement story (test-writer → implementer → LOCAL 3-CLEAN → HOLDOUT gate → demo → PR).
+
+**HEADS (D-2253):** `develop` `69d821be` (LOCAL == origin/develop; pushed/clean). `.worktrees/S-ADR058-OCSF-COERCION-001` @`69d821be` [feature/S-ADR058-OCSF-COERCION-001] JUST CREATED. `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` @`8ae0b5d8` PENDING teardown. `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED. `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch.
+
+**KEY STATE (D-2253):** FROZEN: ADR-058 v2.24 / BC-2.16.002 v2.29 / BC-2.16.003 v1.19 / ROUTING-001 v1.44 / COERCION-001 v1.40. ARCH-INDEX v2.325 / BC-INDEX v9.41 / STORY-INDEX v2.866. total_stories 302. active 252 / draft 4 / total 269. HOLDOUT-INDEX v1.17→v1.18 (HS-021 group: 4 scenarios). STATE v8.788.
+
+**NOTE: Superseded by D-2254 — S-ADR058-OCSF-COERCION-001 Phase-B TDD-GREEN (8/8 Red Gate tests; just check 5763 GREEN); SAP-1/PG-LP11-001 discharged; worktree HEAD 249060a57; BC-2.16.002 v2.29→v2.30; BC-INDEX v9.41→v9.42; STATE v8.788→v8.789. Then superseded by D-2259 — LOCAL cascade CONVERGED (human admin override 2026-08-20); trajectory-tail →1→2→2→3; HOLDOUT GATE PASS 4/4; demo COMPLETE; just check 5765 GREEN; CODE HEAD 26d036224.**
