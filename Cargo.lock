@@ -4712,6 +4712,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
+ "tracing-test",
  "ulid",
  "uuid",
  "wat",

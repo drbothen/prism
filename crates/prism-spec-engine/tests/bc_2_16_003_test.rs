@@ -384,3 +384,143 @@ fn test_BC_2_16_003_invariant_record_never_dropped_integer_column_coercion_failu
         "failed Integer column must NOT appear in mapped_fields"
     );
 }
+
+/// RG-001 / AC-001 / BC-2.16.003 EC-016-013-007 (KNOWN GAP):
+///
+/// `coerce_value` MUST return `Err(CoercionWarning)` for `column_type = "string"` with
+/// `Value::Array` input. The array value must NOT be passed through via `to_string()`.
+///
+/// Before this fix, the wildcard `other => other.clone()` arm in the String-type-first
+/// block (`coerce_value`) passed the Array through as `Ok(Value::Array)`, allowing
+/// structured JSON to reach a typed Arrow string column — silent data corruption.
+///
+/// SAP-3 reachability note (defense-in-depth): `coerce_value` is on Path B
+/// (`ColumnMapper::coerce_value` in `column_mapping.rs`), which has zero live production
+/// callers per ADR-058 §K5. This test is intentionally defense-in-depth / forward-compat
+/// per SAP-3 rule 2/3. The equivalent LIVE coercion behavior on Path A is covered by
+/// RG-006/RG-008/RG-009 (`build_column_array`).
+#[test]
+fn test_coerce_value_string_type_array_input_returns_err_coercion_warning() {
+    let col = ColumnSpec::new(
+        "tags",
+        ColumnType::String,
+        Some("finding.tags".to_string()),
+        vec![],
+    );
+    let array_value = serde_json::json!(["tag1", "tag2"]);
+    let result = ColumnMapper::coerce_value(&array_value, &col, "finding.tags");
+    assert!(
+        result.is_err(),
+        "AC-001 / EC-016-013-007: coerce_value must return Err(CoercionWarning) for \
+         String column + Array input (NOT pass-through via other.clone() or to_string()); \
+         got Ok({:?})",
+        result.ok()
+    );
+}
+
+/// RG-002 / AC-002 / BC-2.16.003 EC-016-013-008 (KNOWN GAP):
+///
+/// `coerce_value` MUST return `Err(CoercionWarning)` for `column_type = "string"` with
+/// `Value::Object` input. The object value must NOT be passed through via `to_string()`.
+///
+/// Before this fix, the wildcard `other => other.clone()` arm in the String-type-first
+/// block passed the Object through as `Ok(Value::Object)`, allowing structured JSON to
+/// reach a typed Arrow string column — silent data corruption.
+///
+/// SAP-3 reachability note (defense-in-depth): `coerce_value` is on Path B, which has
+/// zero live production callers per ADR-058 §K5 — defense-in-depth / forward-compat.
+/// The equivalent LIVE coercion behavior on Path A is covered by RG-006/RG-008/RG-009.
+#[test]
+fn test_coerce_value_string_type_object_input_returns_err_coercion_warning() {
+    let col = ColumnSpec::new(
+        "metadata",
+        ColumnType::String,
+        Some("finding.metadata".to_string()),
+        vec![],
+    );
+    let object_value = serde_json::json!({"key": "value"});
+    let result = ColumnMapper::coerce_value(&object_value, &col, "finding.metadata");
+    assert!(
+        result.is_err(),
+        "AC-002 / EC-016-013-008: coerce_value must return Err(CoercionWarning) for \
+         String column + Object input (NOT pass-through via other.clone() or to_string()); \
+         got Ok({:?})",
+        result.ok()
+    );
+}
+
+/// RG-003 / AC-003 / BC-2.16.003 EC-016-013-009 (KNOWN GAP):
+///
+/// `coerce_value` for `column_type = "integer"` + `Value::String("42")` on a
+/// NON-numeric-suffix OCSF path MUST return `Ok(Value::Number(42))`.
+///
+/// AC-003 extends Rule 2 behavior to ALL Integer+String combinations (not just
+/// numeric-suffix OCSF paths). `column_type` is authoritative: when declared Integer,
+/// a String input must always attempt `s.parse::<i64>()` regardless of OCSF path suffix.
+///
+/// Before this fix, non-numeric-suffix paths fell through to `Ok(value.clone())`
+/// without a parse attempt, returning the raw `Value::String("42")` — data loss.
+///
+/// Non-numeric path: `"device.hostname"` — last segment "hostname" is NOT in the
+/// `is_numeric_ocsf_field` suffix list (event_code, class_uid, uid, port, etc.).
+///
+/// SAP-3 reachability note (defense-in-depth): `coerce_value` is on Path B, zero live
+/// production callers per ADR-058 §K5 — defense-in-depth / forward-compat.
+#[test]
+fn test_coerce_value_integer_type_string_non_numeric_path_parse_success_returns_number() {
+    let col = ColumnSpec::new(
+        "port_number",
+        ColumnType::Integer,
+        Some("device.hostname".to_string()),
+        vec![],
+    );
+    let string_value = serde_json::json!("42");
+    let result = ColumnMapper::coerce_value(&string_value, &col, "device.hostname");
+    assert!(
+        result.is_ok(),
+        "AC-003 / EC-016-013-009: coerce_value must return Ok for Integer column + \
+         parseable String('42') on non-numeric OCSF path ('device.hostname'); \
+         got Err({:?})",
+        result.err()
+    );
+    assert_eq!(
+        result.unwrap(),
+        serde_json::json!(42),
+        "AC-003 / EC-016-013-009: coerce_value must parse String('42') → Number(42) for \
+         Integer column on non-numeric OCSF path; currently falls through to \
+         Ok(String('42')) without parse attempt (non-numeric path skips Rule 2 block)"
+    );
+}
+
+/// RG-004 / AC-003 / BC-2.16.003 EC-016-013-009 (KNOWN GAP):
+///
+/// `coerce_value` for `column_type = "integer"` + non-parseable `Value::String("not-a-number")`
+/// on a NON-numeric-suffix OCSF path MUST return `Err(CoercionWarning)`.
+///
+/// Before this fix, non-numeric-suffix paths fell through to `Ok(value.clone())`
+/// without a parse attempt, returning `Ok(String("not-a-number"))` instead of a
+/// CoercionWarning — silently allowing the wrong type into a typed Arrow Integer column.
+///
+/// Same non-numeric path as RG-003: `"device.hostname"` — "hostname" is NOT in the
+/// `is_numeric_ocsf_field` suffix list.
+///
+/// SAP-3 reachability note (defense-in-depth): `coerce_value` is on Path B, zero live
+/// production callers per ADR-058 §K5 — defense-in-depth / forward-compat.
+#[test]
+fn test_coerce_value_integer_type_string_non_numeric_path_parse_failure_returns_err() {
+    let col = ColumnSpec::new(
+        "source_ip",
+        ColumnType::Integer,
+        Some("device.hostname".to_string()),
+        vec![],
+    );
+    let string_value = serde_json::json!("not-a-number");
+    let result = ColumnMapper::coerce_value(&string_value, &col, "device.hostname");
+    assert!(
+        result.is_err(),
+        "AC-003 / EC-016-013-009: coerce_value must return Err(CoercionWarning) for \
+         Integer column + non-parseable String on non-numeric OCSF path ('device.hostname'); \
+         got Ok({:?}) — currently falls through to Ok(String) without parse attempt",
+        result.ok()
+    );
+}

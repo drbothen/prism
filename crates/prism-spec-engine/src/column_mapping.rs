@@ -224,7 +224,7 @@ mod tests {
     use prism_core::column::ColumnType;
     use serde_json::{Value, json};
 
-    use crate::spec_parser::ColumnSpec;
+    use crate::spec_parser::{ColumnSpec, FetchStep, TableSpec};
 
     use super::ColumnMapper;
 
@@ -287,6 +287,75 @@ mod tests {
             Value::String("analyst".to_string()),
             "string column with uid-path ocsf_field must preserve the string value; \
              got: {result:?}"
+        );
+    }
+
+    /// RG-005 / AC-004 / BC-2.16.003 §Coercion Warning Observability DEFECT:
+    ///
+    /// `map_record` MUST:
+    ///   (a) divert a String+Object value to `raw_extensions` (not `mapped_fields`), AND
+    ///   (b) emit `tracing::warn!(event_type = "column_coercion_failure", ...)` at the
+    ///       demotion point.
+    ///
+    /// **Placement:** in-crate (`prism_spec_engine::column_mapping::tests`). The default
+    /// `tracing-test` env-filter is `<test_crate>=trace`. For an in-crate test the crate is
+    /// `prism_spec_engine`, so the filter captures `column_mapping` warn events.
+    /// An integration test in `tests/bc_2_16_003_test.rs` would use filter
+    /// `bc_2_16_003_test=trace`, which EXCLUDES `prism_spec_engine` events — hence the
+    /// in-crate placement (mirrors pipeline.rs `#[tracing_test::traced_test]` precedent).
+    ///
+    /// **Red gate:** Before AC-001 fix, `coerce_value` returns `Ok(Object)` for String+Object
+    /// → `map_record` places it in `mapped_fields`, not `raw_extensions`. Assertion (a) fails.
+    /// Before AC-004 fix, no `column_coercion_failure` warn is emitted. Assertion (b) fails.
+    ///
+    /// SAP-3 reachability note (defense-in-depth): `map_record` is on Path B (zero live
+    /// production callers per ADR-058 §K5) — this test is intentionally defense-in-depth /
+    /// forward-compat per SAP-3 rule 2/3. LIVE behavior is covered by RG-006/RG-009.
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_map_record_string_object_input_demotes_to_raw_extensions_and_emits_warning() {
+        let table = TableSpec::new_point_in_time(
+            "alerts",
+            "security_finding",
+            vec![ColumnSpec::new(
+                "metadata",
+                ColumnType::String,
+                Some("finding.metadata".to_string()),
+                vec![],
+            )],
+            vec![FetchStep::new(
+                "fetch",
+                "GET",
+                "/data",
+                None,
+                "$.data",
+                None,
+                vec![],
+                None,
+                None,
+            )],
+        );
+        let raw = json!({ "metadata": {"nested": "object"} });
+
+        let result = ColumnMapper::map_record(&raw, &table).expect("map_record must not error");
+
+        // (a) Object value must be diverted to raw_extensions, NOT mapped_fields.
+        assert!(
+            result.raw_extensions.contains_key("metadata"),
+            "AC-004 / EC-016-013-008: String column + Object input must be demoted to \
+             raw_extensions (coerce_value must return Err, not Ok(Object) pass-through)"
+        );
+        assert!(
+            !result.mapped_fields.contains_key("finding.metadata"),
+            "AC-004: String column + Object input must NOT appear in mapped_fields"
+        );
+        // (b) column_coercion_failure warn must be emitted at the demotion point.
+        assert!(
+            logs_contain("column_coercion_failure"),
+            "AC-004 / BC-2.16.003 §Coercion Warning Observability DEFECT: \
+             map_record must emit tracing::warn!(event_type = 'column_coercion_failure') \
+             when demoting a String+Object value to raw_extensions. \
+             Currently no warn is emitted (BC-2.02.011 violation)."
         );
     }
 }

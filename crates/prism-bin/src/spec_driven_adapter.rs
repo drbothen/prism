@@ -3912,4 +3912,122 @@ mod tests {
             batch.num_rows()
         );
     }
+
+    // ──────────────────────────────────────────────────────────────────────────────────────────
+    // RG-006 / RG-008 / RG-009 — S-ADR058-OCSF-COERCION-001 Red Gate tests
+    //
+    // These tests exercise the LIVE production path (Path A: `build_column_array`) for the three
+    // coercion gaps identified in EC-016-013-007/008/009.  They are load-bearing red-gate tests
+    // that MUST FAIL before the AC-005/AC-007 implementation and PASS after it.
+    //
+    // SAP-3 note: `build_column_array` is on Path A (live production callers), so these are
+    // standard load-bearing tests, NOT defense-in-depth.  Full reachability holds here.
+    // ──────────────────────────────────────────────────────────────────────────────────────────
+
+    /// RG-006 / AC-005 / BC-2.16.003 §Path-A String+Object coercion gap
+    ///
+    /// `build_column_array` on a `ColumnType::String` column MUST:
+    ///   (a) produce a null cell (not a stringified JSON blob) when the record value is an Object,
+    ///   (b) emit `tracing::warn!(event_type = "column_coercion_failure")` at the demotion point.
+    ///
+    /// **Red gate:** Current code has `other => Some(other.to_string())` wildcard in the String
+    /// arm of `build_column_array`, which materializes Object values as non-null stringified JSON.
+    /// Assertion (a) fails (non-null).  No `column_coercion_failure` warn is emitted; assertion
+    /// (b) fails.
+    #[tracing_test::traced_test]
+    #[test]
+    fn test_build_column_array_string_type_object_input_returns_null_and_emits_warning() {
+        let col = ColumnSpec::new("details", ColumnType::String, None, vec![]);
+        let records = vec![json!({"details": {"nested": "object"}})];
+
+        let array = build_column_array(&records, &col, "test-sensor");
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("String column must produce StringArray");
+
+        // (a) Object input must produce null cell — NOT Some(other.to_string()).
+        assert!(
+            string_array.is_null(0),
+            "AC-005 / EC-016-013-008: String column + Object input must produce null cell; \
+             current code uses wildcard `other => Some(other.to_string())` which materializes \
+             a non-null stringified JSON blob (got non-null)"
+        );
+        // (b) column_coercion_failure warn must be emitted at the demotion point.
+        assert!(
+            logs_contain("column_coercion_failure"),
+            "AC-005 / BC-2.16.003: build_column_array must emit \
+             tracing::warn!(event_type = \"column_coercion_failure\") for String+Object input; \
+             no warn emitted by current implementation"
+        );
+    }
+
+    /// RG-008 / AC-007 / BC-2.16.003 §Path-A Integer+parseable-String coercion gap
+    ///
+    /// `build_column_array` on a `ColumnType::Integer` column MUST parse a String-encoded
+    /// integer value (`"42"`) into an actual integer cell (`Some(42)`), not drop it as None.
+    ///
+    /// **Red gate:** Current code uses `other.as_i64()` in the Integer arm, which returns
+    /// None for JSON String values — the parseable `"42"` is silently dropped to null.
+    /// Assertion fails (null cell).
+    #[test]
+    fn test_build_column_array_integer_type_string_parseable_returns_integer() {
+        let col = ColumnSpec::new("device_count", ColumnType::Integer, None, vec![]);
+        let records = vec![json!({"device_count": "42"})];
+
+        let array = build_column_array(&records, &col, "test-sensor");
+        let int_array = array
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .expect("Integer column must produce Int64Array");
+
+        // String-encoded integer "42" must be parsed as Some(42), not dropped as None.
+        assert!(
+            !int_array.is_null(0),
+            "AC-007 / EC-016-013-025: Integer column + parseable String(\"42\") must yield \
+             Some(42) in Arrow Int64Array; current code uses `other.as_i64()` which returns \
+             None for String values (got null)"
+        );
+        assert_eq!(
+            int_array.value(0),
+            42i64,
+            "AC-007: String(\"42\") must be materialized as integer 42 in Arrow Int64Array"
+        );
+    }
+
+    /// RG-009 / AC-007 / BC-2.16.003 §Path-A Integer+non-parseable-String coercion gap
+    ///
+    /// `build_column_array` on a `ColumnType::Integer` column with a non-parseable String
+    /// value (`"not-a-number"`) MUST:
+    ///   (a) produce a null cell (no panic — already true with current code), AND
+    ///   (b) emit `tracing::warn!(event_type = "column_coercion_failure")` at the demotion.
+    ///
+    /// **Red gate:** Assertion (a) passes with current code (as_i64() silently returns None).
+    /// Assertion (b) fails — no `column_coercion_failure` warn is emitted by current code.
+    #[tracing_test::traced_test]
+    #[test]
+    fn test_build_column_array_integer_type_string_non_parseable_returns_null_and_emits_warning() {
+        let col = ColumnSpec::new("device_count", ColumnType::Integer, None, vec![]);
+        let records = vec![json!({"device_count": "not-a-number"})];
+
+        let array = build_column_array(&records, &col, "test-sensor");
+        let int_array = array
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .expect("Integer column must produce Int64Array");
+
+        // (a) Non-parseable String must produce null cell (no panic).
+        assert!(
+            int_array.is_null(0),
+            "AC-007: Integer column + non-parseable String must produce null cell"
+        );
+        // (b) column_coercion_failure warn must be emitted at the demotion point.
+        assert!(
+            logs_contain("column_coercion_failure"),
+            "AC-007 / BC-2.16.003: build_column_array must emit \
+             tracing::warn!(event_type = \"column_coercion_failure\") for Integer+non-parseable-String; \
+             no warn emitted by current implementation (current code uses `other.as_i64()` \
+             silently returning None — missing audit trail)"
+        );
+    }
 }
