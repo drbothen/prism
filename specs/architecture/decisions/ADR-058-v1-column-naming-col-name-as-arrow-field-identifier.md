@@ -5,7 +5,7 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-08-20"
-version: "2.25"
+version: "2.26"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -35,7 +35,7 @@ inputs:
   - crates/prism-ocsf/src/mappers/spec_driven.rs
   - crates/prism-ocsf/src/class_selector.rs
   - crates/prism-ocsf/ocsf-schema/1.7.0/schema.json
-input-hash: "18b74fe"
+input-hash: "ae3047b"
 ---
 
 # ADR-058: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred
@@ -491,7 +491,16 @@ Stage 1 deliverables:
    helper (`prism-spec-engine::column_mapping`). A corresponding row must be added to
    BC-2.16.002 §Postconditions Canonical Structured Event Catalog (SAP-1 / PG-LP11-001 obligation).
 
-(Anchored: S-ADR058-OCSF-COERCION-001 AC-004 (RG-005) Path-B ColumnMapper::map_record emission; AC-005 (RG-006) Path-A build_column_array String+Object warn; AC-007 (RG-009) Path-A build_column_array Integer+String warn)
+4. **Fix Integer column + Object input — F-COERCE-ADV-OBS-003 (symmetric silent-data-loss gap):**
+   `build_column_array`'s `ColumnType::Integer` arm has no explicit `Value::Object` arm; `Value::Object` falls through the `other => other.as_i64()` wildcard, producing `None` (null cell) with NO `column_coercion_failure` warn — silent null-substitution on Path A (live). Symmetrically, `coerce_value`'s Integer branch returns `Ok(value.clone())` pass-through for `Value::Object` input on Path B, emitting no warning. Both paths violate the mandate's "no silent data loss" intent (SOUL.md §4, BC-2.16.003 no-silent-data-loss invariant).
+
+   **Path A fix (`build_column_array`):** add an explicit `Value::Object(_)` arm in `ColumnType::Integer`'s match, placed BEFORE the `other => other.as_i64()` wildcard, returning `None` and emitting `tracing::warn!(event_type = "column_coercion_failure", column = %col.name, column_type = "integer", actual_json_kind = "object", ...)`.
+
+   **Path B fix (`coerce_value`):** add `Value::Object(_) => Err(CoercionWarning)` in the Integer branch, symmetric with the String-branch `Value::Object` handling, so the demotion path emits the warn via `map_record`.
+
+   Both paths use the same `column_coercion_failure` event type and field schema (`column`, `column_type`, `actual_json_kind`) already registered in BC-2.16.002 §Canonical Structured Event Catalog — no new `event_type` is introduced. `ColumnType::Integer` + `Value::Array` input is already warned via the existing DD-5 downcast/skip path; this item covers the `ColumnType::Integer` + `Value::Object` case only.
+
+(Anchored: S-ADR058-OCSF-COERCION-001 AC-004 (RG-005) Path-B ColumnMapper::map_record emission; AC-005 (RG-006) Path-A build_column_array String+Object warn; AC-007 (RG-009) Path-A build_column_array Integer+String warn; AC-008 (RG-010 Path-A build_column_array Integer+Object null+warn; RG-011 Path-B coerce_value Integer+Object Err(CoercionWarning)))
 
 ---
 
@@ -1122,7 +1131,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.23 (2026-08-19)
+### Status as of v2.26 (2026-08-20)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1197,6 +1206,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.26 | 2026-08-20 | architect | F-COERCE-ADV-OBS-003 (closes) + F-COERCE-ADV-LOW-002 (§Status heading version lag). §H extended with item 4 — Integer column + Object input coercion-failure mandate added. Path A (`build_column_array`): explicit `Value::Object(_)` arm added to `ColumnType::Integer` match, placed before `other => other.as_i64()` wildcard, returning `None` + `tracing::warn!(event_type = "column_coercion_failure", column = %col.name, column_type = "integer", actual_json_kind = "object", ...)`. Path B (`coerce_value`): `Value::Object(_) => Err(CoercionWarning)` arm added to Integer branch, symmetric with String-branch Object handling, emitting warn via `map_record`. Both paths reuse same `column_coercion_failure` event schema from BC-2.16.002 §Canonical Structured Event Catalog — no new `event_type`. Integer+Array already warned via DD-5 downcast/skip; Integer+Object was the silent-data-loss gap. §H anchor extended to reference new AC + Red Gate (pending story-writer/PO allocation this burst). §Status heading retitled to match new version. TD-VSDD-097: (1) sibling pair — ADR-058 singular, no twin ADR; N/A. (2) downstream copy targets — BC-2.16.003 EC for coercion behavior, BC-2.16.002 §Canonical Structured Event Catalog Integer+Object trigger coverage, and S-ADR058-OCSF-COERCION-001 new AC + Red Gate to be updated by product-owner/story-writer this burst per routing rules; edits not made here. (3) mandate anchor — §H item 4 Integer+Object clause anchored to S-ADR058-OCSF-COERCION-001 (new AC + Red Gate to be allocated this burst by story-writer/PO). |
 | 2.25 | 2026-08-20 | architect | F-COERCE-P1-LOW-001. §H item 3 `column_coercion_failure` emission spec corrected: `%col.column_type` → `%column_type_toml_name(&col.column_type)`. `ColumnType` derives only `Debug, Clone, PartialEq, Eq, Serialize, Deserialize` — no `Display` impl — so `%col.column_type` would not compile. The operative binding — matching shipped `ColumnMapper::map_record` (`prism-spec-engine::column_mapping`) and BC-2.16.002 §Canonical Structured Event Catalog row 95 site (a) — uses the `column_type_toml_name(&ColumnType) -> &str` helper to emit lowercase TOML type names (`"string"`/`"integer"`). §H item 3 was the stale copy-source for catalog row 95; the catalog corrected it at transcription time (site (a) already states `column_type_toml_name`); this fix aligns the source to the downstream-corrected copies. TD-VSDD-097: (1) sibling pair — ADR-058 is singular, no twin ADR; N/A. (2) downstream copy target — BC-2.16.002 catalog row 95 site (a) and S-ADR058-OCSF-COERCION-001 §AC-004 are the downstream copies; both already use `column_type_toml_name` correctly — this fix aligns the source TO them; `grep -rn "%col\.column_type" .factory/` finds zero occurrences outside this file; no remaining stale copy anywhere. (3) mandate anchor — §H item 3 is anchored to S-ADR058-OCSF-COERCION-001 AC-004 (RG-005); unchanged. |
 | 2.24 | 2026-08-19 | architect | F-P69-LOW-001 + F-P67-OBS-1. LOW-001: §I5 "out-of-perimeter note" corrected — false claim that production sensor TOMLs use `ocsf_class = "device_inventory_info"` removed. Ground truth: all four production TOMLs (`claroty`, `crowdstrike`, `armis`, `cyberint`) declare `detection_finding` / `audit_activity` / `device` / `incident_finding`; none uses `device_inventory_info`. Production device tables use `ocsf_class = "device"` → resolves via `select_by_class_name` `"device"` arm to class_uid 5001 (correct, not 0). `device_inventory_info` appears only in test-fixture/embedded-inline specs (`prism-sensors/src/fanout.rs`, `prism-bin/src/boot.rs`, `prism-mcp/src/server.rs`, test files). Follow-up resolver audit scoped to fixture/inline specs accordingly. OBS-1: §E2 `devices` table header `(current TOML)` qualifier dropped — §E2 describes target-state Arrow field names (not current TOML state), consistent with §E2 intro and with the `alerts`/`audit_logs`/`device_alert_relations` tables in the same section. `device_category` row updated to show target-state: `ocsf_field = "device.type_category"` (§J3 settled fix), Arrow name `device_type_category`; Note records current TOML `device.type` → Arrow `device_type` as Stage 2 pending and marks **SHADOW** resolved. `device_type` row already showed target `device.type_label` (settled v2.5); no change. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — story-writer: re-pin S-ADR058-OCSF-ROUTING-001 and S-ADR058-OCSF-COERCION-001 §Authority version to v2.24; (3) mandate anchor — no new MUST statements. |
 | 2.23 | 2026-08-19 | architect | F-P52-LOW-1 ≡ F-P54-LOW-001. §J2 "Synthesized column name reservation" paragraph corrected — `raw_extensions` was incorrectly described as unconditionally emitted alongside `class_uid`, `category_uid`, and `_sensor` "regardless of the sensor's TOML column declarations." Ground truth from `prism-bin::spec_driven_adapter::pipeline_result_to_record_batch`: only `class_uid`, `category_uid`, and `_sensor` are unconditionally appended to every spec-driven RecordBatch schema; `raw_extensions` is conditionally emitted — only when `ocsf_column_naming == true` AND ≥1 column has `ocsf_field == None`. The internal contradiction with §G Tier-2, §I2, and §B2 item 1 (a table with zero `ocsf_field == None` columns produces no `raw_extensions` column) is resolved. The reservation rule is unchanged: all four names remain reserved against flattened-`ocsf_field` collision, fail-closed, because a TOML column whose `ocsf_field` flattens to any reserved name would produce an Arrow schema conflict with no viable runtime recovery. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy targets — product-owner: sweep BC-2.16.003 §Postconditions / §Invariants / §Error-Conditions / EC-016-013-029 and any EC covering synthesized-column emission to confirm `raw_extensions` is described as conditionally emitted; story-writer: re-pin ADR-058 §Authority version to v2.23 in S-ADR058-OCSF-ROUTING-001; (3) mandate anchor — no new MUST statements; fail-closed reservation guard unchanged. |

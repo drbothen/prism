@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
-version: "1.45"
+version: "1.46"
 level: "L4"
 status: draft
 producer: story-writer
@@ -74,7 +74,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "638c633"
+input-hash: "006da3c"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"
@@ -86,6 +86,7 @@ tags:
   - ec-016-013-007
   - ec-016-013-008
   - ec-016-013-009
+  - ec-016-013-030
   - column_coercion_failure
   - claroty-live
 ---
@@ -102,10 +103,11 @@ Observability DEFECT section are the acceptance-criteria source for this story. 
 territory and do not change Stage 1's scope.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**ADR-058 v2.25: v1 Column Naming — OCSF Field-Path Routing.** Version `2.25`, status:
-accepted (2026-08-20). §H (Stage 1 Scope) enumerates the three deliverables this story
+**ADR-058 v2.26: v1 Column Naming — OCSF Field-Path Routing.** Version `2.26`, status:
+accepted (2026-08-20). §H (Stage 1 Scope) enumerates the four deliverables this story
 implements: EC-016-013-008 fix in `build_column_array`, EC-016-013-009 fix via
-`ColumnMapper::coerce_value` integration, and `column_coercion_failure` tracing emission.
+`ColumnMapper::coerce_value` integration, `column_coercion_failure` tracing emission, and
+Integer+Object silent-null gap closure (EC-016-013-030, §H item 4, AC-008/RG-010/RG-011).
 Note: ADR-058 §K (OCSF schema validation), §I5 (code obligations), §B2/§I2/§J2 amendments,
 and process-gap obligation (`ocsf.unknown_class_name` WARN) affect Stage 2 scope only;
 Stage 1's §H scope is unchanged.
@@ -145,6 +147,7 @@ The mandate anchor record:
 | `column_coercion_failure` tracing emission MUST be emitted in `ColumnMapper::map_record` at demotion point (ADR-058 §H) | Path B | S-ADR058-OCSF-COERCION-001 | AC-004 | RG-005 | DISCHARGED |
 | `column_coercion_failure` tracing emission MUST be emitted in `build_column_array` String+Object arm (ADR-058 §H) | Path A | S-ADR058-OCSF-COERCION-001 | AC-005 | RG-006 | DISCHARGED |
 | `column_coercion_failure` tracing emission MUST be emitted in `build_column_array` Integer+String arm (ADR-058 §H) | Path A | S-ADR058-OCSF-COERCION-001 | AC-007 | RG-009 | DISCHARGED |
+| Integer+Object null-substitution gap MUST be closed in `build_column_array` Integer arm (Path A: null+warn) and `coerce_value` Integer branch (Path B: Err(CoercionWarning)) (ADR-058 §H item 4) | Path A + B | S-ADR058-OCSF-COERCION-001 | AC-008 | RG-010 (Path A) / RG-011 (Path B) | DISCHARGED-pending-impl |
 
 ---
 
@@ -160,8 +163,8 @@ The mandate anchor record:
 
 ## Red Gate Tests (SAC-1 — tdd_mode: strict)
 
-All eight tests MUST be failing (RED) before any implementation code is written. The
-test-writer is dispatched FIRST; implementer is dispatched only after all 8 are confirmed
+All ten tests MUST be failing (RED) before any implementation code is written. The
+test-writer is dispatched FIRST; implementer is dispatched only after all 10 are confirmed
 failing with the correct compile-or-test-failure reason.
 
 - **RG-001:** `test_coerce_value_string_type_array_input_returns_err_coercion_warning` —
@@ -255,14 +258,38 @@ Coverage for the ENRICH-1 Array arm is provided by existing passing tests
   Requires a `tracing_test` subscriber (same pattern as RG-005). Both tests go in the same
   prism-bin test file as RG-006. Covers AC-007.
 
+- **RG-010:** `test_build_column_array_integer_type_object_input_returns_null_and_emits_warning` —
+  fails until the `ColumnType::Integer` arm in `build_column_array` returns `None` (null cell)
+  AND emits `tracing::warn!(event_type = "column_coercion_failure", column = %col.name,
+  column_type = "integer", actual_json_kind = "object")` for `Value::Object` input. Installs
+  a `tracing_test` subscriber (same pattern as RG-006 and RG-009). Placed in
+  `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` (same file as
+  RG-006, RG-008, RG-009). Currently `Value::Object` falls through to the `other =>
+  other.as_i64()` wildcard which returns `None` silently without warning. Covers AC-008 Path A (LIVE).
+
+- **RG-011:** `test_coerce_value_integer_type_object_input_returns_err_coercion_warning` —
+  fails until `coerce_value`'s Integer branch returns `Err(CoercionWarning)` for
+  `Value::Object` input (currently returns `Ok(value.clone())` pass-through). Placed in
+  `crates/prism-spec-engine/src/column_mapping.rs` `#[cfg(test)] mod tests` (same in-crate
+  placement as RG-005; do NOT put in the integration test file `bc_2_16_003_test.rs` — the
+  `prism_spec_engine=trace` in-crate filter is required for any tracing capture, and consistent
+  in-crate placement with RG-005 reduces maintenance surface). This is a pure return-value
+  assertion (no tracing capture required for RG-011 itself, since Path B emits the warn via
+  `map_record` at demotion time, not in `coerce_value`). Covers AC-008 Path B.
+  **SAP-3 reachability note (defense-in-depth):** `coerce_value` is on Path B
+  (`ColumnMapper::coerce_value` in `column_mapping.rs`), which has zero live production
+  callers per ADR-058 §K5; this test is intentionally defense-in-depth / forward-compat
+  per SAP-3 rule 2/3. The equivalent LIVE coverage on Path A is RG-010 (`build_column_array`
+  Integer+Object→null+warn).
+
 ### BC-5.38.001 Density Check
 
-Red Gate test count: **8** (RG-001..RG-006, RG-008, RG-009; RG-007 retired).
-Acceptance criteria directly driven by Red Gate tests: 6 (AC-001 through AC-005 and AC-007).
+Red Gate test count: **10** (RG-001..RG-006, RG-008, RG-009, RG-010, RG-011; RG-007 retired).
+Acceptance criteria directly driven by Red Gate tests: 7 (AC-001 through AC-005, AC-007, AC-008).
 AC-006 is a non-regression criterion for already-passing tests — it does not require a
 new failing Red Gate test.
 
-Density: 8 RGTs / 7 ACs = **1.14 ≥ 0.5** — compliant with BC-5.38.001.
+Density: 10 RGTs / 8 ACs = **1.25 ≥ 0.5** — compliant with BC-5.38.001.
 
 ---
 
@@ -393,6 +420,37 @@ amendment is needed.
 
 (traces to BC-2.16.003 EC-016-013-025; ADR-058 §H item 2 'or dispatching through it')
 
+### AC-008: build_column_array / coerce_value handle Integer column + Value::Object input
+
+**Path A (`build_column_array` ColumnType::Integer arm):** An explicit
+`serde_json::Value::Object(_) => None` arm is added BEFORE the `other => other.as_i64()`
+wildcard in the ColumnType::Integer match block, returning `None` (null cell) AND emitting
+`tracing::warn!(event_type = "column_coercion_failure", column = %col.name,
+column_type = "integer", actual_json_kind = "object")`.
+
+**Path B (`coerce_value` Integer branch):** Add `Value::Object(_) => Err(CoercionWarning)`
+symmetric with the String-branch `Value::Object` handling added in AC-002, so the demotion
+path emits the warn via `map_record` (which calls `coerce_value` and handles `CoercionWarning`
+by emitting the structured log and placing the value in `raw_extensions`).
+
+Both paths use the existing `column_coercion_failure` event type and field schema
+(`column`, `column_type`, `actual_json_kind`) already registered in BC-2.16.002
+§Canonical Structured Event Catalog (catalog row 95) — no new `event_type` is introduced,
+and no catalog amendment is required. `ColumnType::Integer` + `Value::Array` input is
+already warned via the existing DD-5 downcast/skip path; this AC covers `ColumnType::Integer`
++ `Value::Object` only.
+
+Without these arms, `Value::Object` on an Integer column falls through `other.as_i64()`
+(Path A, returns `None` silently without warning — a silent-null substitution that violates
+BC-2.16.003's no-silent-data-loss invariant) or returns `Ok(value.clone())` pass-through
+(Path B, emits no warning).
+
+(traces to BC-2.16.003 EC-016-013-030: Integer column + Object input — no-silent-data-loss
+invariant violated by current silent-null pass-through on Path A and silent pass-through
+on Path B; ADR-058 §H item 4: symmetric gap closure for Integer+Object; BC-2.16.002
+§Canonical Structured Event Catalog catalog row 95 trigger (3) — `actual_json_kind =
+"object"` on Integer column reuses existing catalog entry)
+
 ---
 
 ## BC-2.16.002 Catalog Row Obligation
@@ -430,12 +488,13 @@ increment are determined at delivery time by the product-owner.
 
 | Component | Module | Pure/Effectful | Scope |
 |-----------|--------|---------------|-------|
-| `ColumnMapper::coerce_value` | `prism-spec-engine::column_mapping` | Pure | Modified: add `Err(CoercionWarning)` arms for Array, Object inputs on String column; extend Integer+String to non-numeric path |
+| `ColumnMapper::coerce_value` | `prism-spec-engine::column_mapping` | Pure | Modified: add `Err(CoercionWarning)` arms for Array, Object inputs on String column; extend Integer+String to non-numeric path; add `Value::Object(_) => Err(CoercionWarning)` to Integer branch (AC-008 Path B) |
 | `ColumnMapper::map_record` | `prism-spec-engine::column_mapping` | Pure | Modified: add `tracing::warn!(event_type = "column_coercion_failure")` at demotion point |
 | `build_column_array` (ColumnType::String arm) | `prism-bin::spec_driven_adapter` | Pure (data transformation) | Modified: add explicit `Value::Object(_) => None` null-cell arm (+ tracing emission) BEFORE the `other => Some(other.to_string())` wildcard; wildcard retained for Number/Bool (LIVE-DRIFT-003). Array arm (ENRICH-1 EC-016-013-026) preserved. |
+| `build_column_array` (ColumnType::Integer arm) | `prism-bin::spec_driven_adapter` | Pure (data transformation) | Modified (AC-008 Path A): add explicit `Value::Object(_) => None` arm (+ `tracing::warn!(event_type = "column_coercion_failure", column_type = "integer", actual_json_kind = "object")`) BEFORE the `other => other.as_i64()` wildcard; closes EC-016-013-030 silent-null gap. |
 | Integration test file (Path B — coerce_value) | `crates/prism-spec-engine/tests/bc_2_16_003_test.rs` | Pure (tests) | New tests RG-001..RG-004 added (return-value assertions only — no tracing capture; integration test filter `bc_2_16_003_test=trace` excludes library crate events) |
-| In-crate unit test block (Path B — map_record) | `crates/prism-spec-engine/src/column_mapping.rs` `#[cfg(test)] mod tests` | Pure (tests) | RG-005 placed here (NOT in integration test) — in-crate filter `prism_spec_engine=trace` captures `column_coercion_failure` warn; `tracing_test` subscriber required |
-| Unit test block (Path A — build_column_array) | `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` | Pure (tests) | New tests RG-006, RG-008, RG-009 added (RG-007 retired — ENRICH-1 Array arm correct per EC-016-013-026); RG-006 and RG-009 use `tracing_test` subscriber |
+| In-crate unit test block (Path B — map_record + coerce_value Integer+Object) | `crates/prism-spec-engine/src/column_mapping.rs` `#[cfg(test)] mod tests` | Pure (tests) | RG-005 and RG-011 placed here (NOT in integration test) — in-crate filter `prism_spec_engine=trace` captures `column_coercion_failure` warn (RG-005); RG-011 is a pure return-value assertion for Integer+Object → Err(CoercionWarning) |
+| Unit test block (Path A — build_column_array) | `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` | Pure (tests) | New tests RG-006, RG-008, RG-009, RG-010 added (RG-007 retired — ENRICH-1 Array arm correct per EC-016-013-026); RG-006, RG-009, and RG-010 use `tracing_test` subscriber |
 
 Architecture section files: `architecture/module-decomposition.md` (SS-01, SS-16).
 
@@ -448,7 +507,7 @@ Architecture section files: `architecture/module-decomposition.md` (SS-01, SS-16
 | `ColumnMapper::coerce_value` | Pure | Takes `&Value` + `&ColumnSpec` (type read via `column.column_type`) + OCSF field path, returns `Result<Value, CoercionWarning>`; called as `Self::coerce_value(&raw_value, col, ocsf_path)` in `map_record`; no I/O, no mutation |
 | `ColumnMapper::map_record` | Pure (data transformation) + side-effecting (tracing) | The tracing emission added by AC-004 is a side effect; the function's return value (`MappingResult`) is deterministic given the inputs |
 | `build_column_array` (ColumnType::String arm) | Pure (data transformation) + side-effecting (tracing) | Returns `Option<Value>` deterministically; tracing emission added by AC-005 is a side effect |
-| RG-001..RG-006, RG-008, RG-009 test functions | Pure (test assertions) | Test assertions over in-memory data structures; tracing subscribers in RG-005, RG-006, and RG-009 are test infrastructure, not production I/O |
+| RG-001..RG-006, RG-008, RG-009, RG-010, RG-011 test functions | Pure (test assertions) | Test assertions over in-memory data structures; tracing subscribers in RG-005, RG-006, RG-009, and RG-010 are test infrastructure, not production I/O |
 
 ---
 
@@ -492,6 +551,7 @@ From `architecture/module-decomposition.md` and ADR-023:
 | EC-007 | `column_type = "string"` + `Value::Bool(true)` | Rule 1 unchanged — Bool is already handled; not affected |
 | EC-008 | `column_type = "integer"` + `Value::String("42")` on NUMERIC-suffix path | EC-016-013-002 behavior unchanged — this is Rule 2 territory; not affected by this story |
 | EC-009 | `build_column_array` ColumnType::Integer + Value::String on non-numeric path | Should behave consistently with `coerce_value` fix: attempt parse, return null cell on failure |
+| EC-010 | `column_type = "integer"` + `Value::Object({...})` (any object, including empty) → Path A `build_column_array` and Path B `coerce_value` | Path A: explicit `Value::Object(_) => None` arm returns null cell + `column_coercion_failure` warn (`column_type = "integer"`, `actual_json_kind = "object"`). Path B: `Err(CoercionWarning)` returned; demotion and warn emitted via `map_record`. Ties to EC-016-013-030 (ADR-058 §H item 4). |
 
 ---
 
@@ -550,15 +610,28 @@ splitting.
   warn event; assert `None` null cell AND `event_type = "column_coercion_failure"` with
   `column_type = "integer"` and `actual_json_kind = "string"`.
   (MUST FAIL before T-15b)
+- T-10c: Write RG-010 — `test_build_column_array_integer_type_object_input_returns_null_and_emits_warning`
+  in `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` (same file as
+  RG-006, RG-008, RG-009). Install `tracing_test` subscriber. Assert `None` null cell for
+  ColumnType::Integer + Value::Object AND `column_coercion_failure` warn with
+  `column_type = "integer"` and `actual_json_kind = "object"`.
+  (MUST FAIL before T-15c)
+- T-10d: Write RG-011 — `test_coerce_value_integer_type_object_input_returns_err_coercion_warning`
+  in `crates/prism-spec-engine/src/column_mapping.rs` `#[cfg(test)] mod tests` (same in-crate
+  block as RG-005; do NOT put in `bc_2_16_003_test.rs`). Assert `coerce_value` returns
+  `Err(CoercionWarning)` for ColumnType::Integer + Value::Object. No tracing subscriber
+  required (pure return-value assertion).
+  (MUST FAIL before T-15c)
 - T-GATE: Run `just iter prism-spec-engine --no-fail-fast` — confirm RG-001..RG-004 fail
   with expected compile/test-failure reasons in `crates/prism-spec-engine/tests/bc_2_16_003_test.rs`;
-  confirm RG-005 fails in `crates/prism-spec-engine/src/column_mapping.rs` `#[cfg(test)] mod tests`
-  block (in-crate placement — see §Red Gate Tests RG-005 placement note and §Architecture Mapping
-  in-crate row). Confirm AC-006 tests still PASS (prism-spec-engine run).
-  Then run `just iter prism-bin --no-fail-fast` — confirm RG-006, RG-008, RG-009 fail with expected
-  compile/test-failure reasons; confirm all three are in `crates/prism-bin/src/spec_driven_adapter.rs`
-  `#[cfg(test)] mod tests` block (direct private-fn calls per Architecture Compliance Rule 2).
-  Report density: 8/7 = 1.14 ≥ 0.5.
+  confirm RG-005 and RG-011 fail in `crates/prism-spec-engine/src/column_mapping.rs`
+  `#[cfg(test)] mod tests` block (in-crate placement). Confirm AC-006 tests still PASS
+  (prism-spec-engine run).
+  Then run `just iter prism-bin --no-fail-fast` — confirm RG-006, RG-008, RG-009, RG-010
+  fail with expected compile/test-failure reasons; confirm all four are in
+  `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` block (direct
+  private-fn calls per Architecture Compliance Rule 2).
+  Report density: 10/8 = 1.25 ≥ 0.5.
   STOP and wait for implementer dispatch.
 
 ### Phase B: Implementation (implementer dispatched AFTER T-GATE)
@@ -593,10 +666,21 @@ splitting.
   (AC-007). Makes RG-008 and RG-009 green. The `column_coercion_failure` event is already
   covered by the BC-2.16.002 catalog row §BC-2.16.002 Catalog Row Obligation condition (2);
   no catalog amendment needed.
-- T-16: Run `just iter prism-spec-engine` — RG-001..RG-005 must pass; AC-006 tests must
-  pass; no regressions in prism-spec-engine tests.
-- T-17: Run `just iter prism-bin` — confirm RG-006, RG-008, RG-009 pass (build_column_array
-  changes from T-15 and T-15b); no existing prism-bin tests regress.
+- T-15c: Fix Integer+Object gap (AC-008 — both paths):
+  - **Path A:** In `build_column_array` ColumnType::Integer match block, add explicit
+    `serde_json::Value::Object(_) => None` arm BEFORE the `other => other.as_i64()`
+    wildcard (after T-15b's `Value::String(s)` arm). Emit
+    `tracing::warn!(event_type = "column_coercion_failure", column = %col.name,
+    column_type = "integer", actual_json_kind = "object")` before returning `None`.
+    Makes RG-010 green.
+  - **Path B:** In `coerce_value` Integer branch (`prism-spec-engine::column_mapping`), add
+    `Value::Object(_) => Err(CoercionWarning)` arm symmetric with the String-branch Object
+    arm added in T-11/T-12. Makes RG-011 green.
+- T-16: Run `just iter prism-spec-engine` — RG-001..RG-005 and RG-011 must pass; AC-006
+  tests must pass; no regressions in prism-spec-engine tests.
+- T-17: Run `just iter prism-bin` — confirm RG-006, RG-008, RG-009, RG-010 pass
+  (build_column_array changes from T-15, T-15b, and T-15c); no existing prism-bin tests
+  regress.
 - T-18: Run `just check` — full workspace gate. All tests pass.
 
 ---
@@ -662,11 +746,11 @@ non-test code paths.
 
 | File | Action | Notes |
 |------|--------|-------|
-| `crates/prism-spec-engine/src/column_mapping.rs` | Modify: `coerce_value` String branch, `coerce_value` Integer branch, `map_record` demotion point; add RG-005 to `#[cfg(test)] mod tests` block | Primary implementation file; RG-005 placed here (in-crate) for tracing capture |
-| `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: `build_column_array` ColumnType::String arm wildcard → explicit Array/Object arms | Secondary implementation file |
-| `crates/prism-spec-engine/tests/bc_2_16_003_test.rs` | Modify or create: add RG-001..RG-004 test functions | Test file; create if not present. RG-005 is NOT placed here — see `column_mapping.rs` row above. |
-| `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: add RG-006, RG-008, RG-009 to `#[cfg(test)] mod tests` block (RG-007 retired) | Direct calls to private `build_column_array` — Architecture Compliance Rule 2: no public API surface expansion just for a test |
-| `crates/prism-bin/Cargo.toml` | Modify: add `tracing-test = "0.2"` to `[dev-dependencies]` | Required for RG-009 `tracing_test` subscriber — NOT yet present in prism-bin |
+| `crates/prism-spec-engine/src/column_mapping.rs` | Modify: `coerce_value` String branch, `coerce_value` Integer branch (String + Object arms), `map_record` demotion point; add RG-005 and RG-011 to `#[cfg(test)] mod tests` block | Primary implementation file; RG-005 (tracing capture) and RG-011 (Integer+Object return-value assertion) placed here (in-crate) |
+| `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: `build_column_array` ColumnType::String arm (explicit Object arm) and ColumnType::Integer arm (String + Object arms) | Secondary implementation file |
+| `crates/prism-spec-engine/tests/bc_2_16_003_test.rs` | Modify or create: add RG-001..RG-004 test functions | Test file; create if not present. RG-005 and RG-011 are NOT placed here — see `column_mapping.rs` row above. |
+| `crates/prism-bin/src/spec_driven_adapter.rs` | Modify: add RG-006, RG-008, RG-009, RG-010 to `#[cfg(test)] mod tests` block (RG-007 retired) | Direct calls to private `build_column_array` — Architecture Compliance Rule 2: no public API surface expansion just for a test |
+| `crates/prism-bin/Cargo.toml` | Modify: add `tracing-test = "0.2"` to `[dev-dependencies]` | Required for RG-006, RG-009, RG-010 `tracing_test` subscribers — NOT yet present in prism-bin |
 
 Do NOT modify: any TOML sensor spec file; any BC or ADR file (product-owner / architect
 scope); `prism-spec-engine/Cargo.toml` (already carries `tracing-test = "0.2"` — no change
@@ -701,11 +785,56 @@ target is swept in the same atomic commit. VERDICT: MITIGATED (requires product-
 to transcribe the catalog row in the same PR — not auto-satisfied; orchestrator must
 dispatch product-owner as part of this story's delivery).
 
-**Dimension 3 — Mandate anchor:** ADR-058 §H carries `ANCHOR-NEEDED` for the
-`column_coercion_failure` emission MUST. This story's §ADR-058 MUST Discharge section
-anchors all three emission paths: AC-004/RG-005 (Path-B map_record),
-AC-005/RG-006 (Path-A String+Object), AC-007/RG-009 (Path-A Integer+String).
-VERDICT: DISCHARGED — see ADR-058 §H emission discharge anchor; no architect action pending.
+**Dimension 3 — Mandate anchor:** ADR-058 §H carries the `column_coercion_failure` emission
+and gap-closure MUSTs for four items. This story's §ADR-058 MUST Discharge section anchors
+all four: AC-004/RG-005 (Path-B map_record emission), AC-005/RG-006 (Path-A String+Object
+null+warn), AC-007/RG-009 (Path-A Integer+String warn), and AC-008/RG-010+RG-011
+(§H item 4 Integer+Object null+warn Path-A and Err(CoercionWarning) Path-B). ADR-058 §H
+anchor line now cites AC-008/RG-010/RG-011 explicitly (placeholder filled this burst).
+VERDICT: DISCHARGED — bidirectional: §H item 4 → AC-008 → RG-010/RG-011 (story §ADR-058
+MUST Discharge table row 4); AC-008 → ADR-058 §H item 4 (traces-to clause in AC-008 body);
+no architect action pending.
+
+---
+
+### v1.46 Amendment Sweep (AC-008 + RG-010/RG-011 Integer+Object gap — EC-016-013-030 + ADR-058 §H item 4 allocation)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-ROUTING-001* (Stage 2 sibling): AC-008 / RG-010 / RG-011 are COERCION-001
+Stage 1 scope only — the Integer+Object coercion fix is in `build_column_array`
+(ColumnType::Integer arm, prism-bin) and `coerce_value` (Integer branch, prism-spec-engine).
+ROUTING-001 has no Integer+Object AC, no Integer+Object RG, and no EC-016-013-030 scope.
+ADR-058 §Authority pin updated v2.25→v2.26 in this burst; ROUTING-001's ADR-058 pin refresh
+remains deferred to ROUTING-001's own delivery per established scope rule (consistent with
+v1.45 COERCION-001-specific pin bump pattern). VERDICT: ROUTING-001 UNAFFECTED by content
+additions; ADR-058 pin refresh DEFERRED (intentional, consistent with prior bursts).
+
+**Dimension 2 — Downstream copy target:**
+
+(a) EC-016-013-030 and ADR-058 §H item 4 are the sources that drove this amendment — they
+were already added to BC-2.16.003 and ADR-058 by the architect/PO. No further downstream
+copy artifact to sweep. VERDICT: CLEAR.
+(b) BC-2.16.002 §Canonical Structured Event Catalog catalog row 95 covers
+`column_coercion_failure` with `actual_json_kind` as a field; the trigger condition now
+includes `column_type = "integer"` + `Value::Object` input (trigger 3). The catalog row
+prose already covers this case via its generic `actual_json_kind` field definition — no
+catalog amendment is required (no new `event_type`, no new fields). VERDICT: CLEAR.
+(c) ADR-058 §H item 4 anchor line: placeholder "(pending story-writer/PO allocation this
+burst)" replaced with "AC-008 (RG-010 Path-A build_column_array Integer+Object null+warn;
+RG-011 Path-B coerce_value Integer+Object Err(CoercionWarning))". ADR-058 `input-hash`
+updated 18b74fe→ae3047b (hook-computed). Story `input-hash` updated 638c633→006da3c
+(hook-computed). VERDICT: COMPLETE.
+
+**Dimension 3 — Mandate anchor:**
+
+ADR-058 §H item 4 anchor line now names AC-008/RG-010/RG-011 (placeholder filled this
+burst — see ADR-058 §H item 4, post-edit). Story §ADR-058 MUST Discharge table row 4
+anchors: "Integer+Object null-substitution gap MUST be closed" → AC-008 → RG-010 (Path-A)
+/ RG-011 (Path-B), status DISCHARGED-pending-impl. Bidirectional trace confirmed:
+(forward) ADR-058 §H item 4 → "AC-008 (RG-010 ... RG-011 ...)" in anchor line;
+(backward) AC-008 body `(traces to ... ADR-058 §H item 4 ...)` in §Acceptance Criteria.
+VERDICT: MANDATE ANCHOR BIDIRECTIONAL; NO NEW UNANCHORED MUSTs.
 
 ---
 
@@ -1458,6 +1587,7 @@ introduced. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.46 | 2026-08-20 | story-writer | Human-approved in-scope expansion: Integer+Object coercion gap (EC-016-013-030, ADR-058 §H item 4). Added AC-008 (build_column_array / coerce_value handle Integer column + Value::Object: Path A null+warn; Path B Err(CoercionWarning)). Added RG-010 (`test_build_column_array_integer_type_object_input_returns_null_and_emits_warning` — prism-bin src/spec_driven_adapter.rs #[cfg(test)] mod tests, tracing_test subscriber, covers AC-008 Path A LIVE). Added RG-011 (`test_coerce_value_integer_type_object_input_returns_err_coercion_warning` — prism-spec-engine src/column_mapping.rs #[cfg(test)] mod tests, pure return-value assertion, covers AC-008 Path B). §BC-5.38.001 Density Check: RGT count 8→10, AC count 7→8, density 10/8=1.25. §ADR-058 MUST Discharge table: row 4 added (ADR-058 §H item 4 → AC-008 → RG-010/RG-011, DISCHARGED-pending-impl). §Edge Cases: EC-010 added (Integer+Object via EC-016-013-030). §Architecture Mapping: coerce_value row scope extended (Integer+Object arm); new Integer arm row; in-crate test row extended to RG-005+RG-011; Path-A test row extended to RG-006/008/009/010. §Tasks: T-10c/T-10d added (test-writer Phase A); T-15c added (implementer Phase B); T-GATE density updated 10/8=1.25; T-16/T-17 verify commands updated. §Authority: ADR-058 pin v2.25→v2.26; §H deliverables count three→four. ADR-058 §H item 4 placeholder filled (architect-pre-authorized): "AC-008 (RG-010 Path-A build_column_array Integer+Object null+warn; RG-011 Path-B coerce_value Integer+Object Err(CoercionWarning))". ADR-058 input-hash 18b74fe→ae3047b; story input-hash 638c633→006da3c (both hook-computed at edit time). Tags: ec-016-013-030 added. §v1.46 Amendment Sweep: Dim 1 (sibling) — ROUTING-001 UNAFFECTED; ADR pin refresh deferred per established pattern. Dim 2 (downstream copy) — BC-2.16.003/ADR-058 already correct (source of fix); catalog row 95 covers new trigger via existing field schema; ADR §H anchor filled; both input-hashes resolved. Dim 3 (mandate anchor) — ADR-058 §H item 4 → AC-008 → RG-010/RG-011 bidirectional; DISCHARGED-pending-impl. |
 | 1.45 | 2026-08-20 | story-writer | Fix (a) §RG-001/002 SAP-3 tightening: §RG-001 note corrected — Path A serializes `Value::Array` to JSON-list string per ENRICH-1 DD-2 (EC-016-013-026), NOT demotion; stale "covered by RG-006/RG-008/RG-009" replaced with pointer to `test_build_column_array_claroty_ip_list_string_elements_serialize_to_json_list_string` (see §RG-007 retirement note). §RG-002 note corrected — Path A equivalent for `Value::Object` input is RG-006 only (`build_column_array` String+Object→null+warn); RG-008/RG-009 cover Integer+String and are not Object-case equivalents. Fix (b) §AC-004 note: added shipped `column_type_toml_name` helper as third consistent source alongside ADR-058 §H item 3 and BC-2.16.002 catalog row 95; explicit "all three now consistent" qualifier added. Fix (c) ADR-058 §Authority pin sweep: title and version v2.23→v2.25 (§H item 3 field-expression `%col.column_type` → `%column_type_toml_name(&col.column_type)` now matches BC-2.16.002 catalog row 95 and shipped code); status-date (2026-08-19)→(2026-08-20). Input-hash: fb7a031→638c633 (ADR-058 input updated v2.23→v2.25; recomputed by compute-input-hash hook). TD-VSDD-097 three-dimension sweep — Dim 1 (sibling pair): S-ADR058-OCSF-ROUTING-001 ADR-058 pin refresh DEFERRED to ROUTING-001's own delivery per explicit task scope; §RG-001/002 and §AC-004 content changes are COERCION-001-specific (Path B prism-spec-engine `coerce_value`/`map_record`; no ROUTING-001 mirror); VERDICT: DEFERRED (intentional). Dim 2 (downstream copy): ADR-058 §H item 3 and BC-2.16.002 catalog row 95 are already correct (they drove this fix); no further downstream copy target; VERDICT: CLEAR. Dim 3 (mandate anchor): §AC-004→ADR-058 §H item 3→RG-005 anchor in §ADR-058 MUST Discharge unchanged; no new MUST blocks; VERDICT: NO NEW UNANCHORED MUSTs. |
 | 1.44 | 2026-08-20 | story-writer | F-P1-OBS-001 records-tier reconciliation: §AC-004 field-binding expressions corrected to match ADR-058 §H item 3 + BC-2.16.002 catalog row 95 + shipped `ColumnMapper::map_record` implementation. Stale `%warning.column_name` → `%col.name`; stale `%warning.expected_ocsf_type` → `%column_type_toml_name(&col.column_type)`. One-line note added citing ADR-058 §H item 3 + catalog row 95 as source-of-truth for the emission field schema. Zero code/mechanism change — no AC identity change, no RG change, no BC/pin change, no behavioral change; purely reconciling stale field-binding prose to the already-governing ADR/catalog. §v1.44 Amendment Sweep: Dim 1 (sibling pair) — ROUTING-001 has no mirror of AC-004 field-binding text; AC-004 is COERCION-specific (Path B `ColumnMapper::map_record` in `prism-spec-engine::column_mapping`; ROUTING-001 is Stage 2 field-path routing scope in prism-bin); VERDICT: NO SIBLING MIRROR. Dim 2 (downstream copy) — ADR-058 §H item 3 and catalog row 95 are already correct; this fix aligns story TO them (not vice-versa); no further downstream copy artifact to sweep; VERDICT: CLEAR. Dim 3 (mandate anchor) — AC-004 anchor to ADR-058 §H → RG-005 unchanged per §Mandate Anchor #2 table; no new MUST blocks introduced; VERDICT: UNCHANGED. |
 | 1.43 | 2026-08-20 | state-manager | D-2254 SAP-1/PG-LP11-001 discharge burst (state-manager leg): BC-2.16.002 §Authority pin v2.29→v2.30 + §Behavioral Contracts table pin v2.29→v2.30 (product-owner registered catalog row 95 `column_coercion_failure` WARN in BC-2.16.002 §Postconditions §Canonical Structured Event Catalog in same burst). Input-hash updated 67f13c7→fb7a031 (BC-2.16.002 changed v2.29→v2.30; hash computed by validate-input-hash hook against develop-branch crate files + updated .factory/ specs). Sibling ROUTING-001 bumped to v1.45 (BC-2.16.002 pin v2.29→v2.30) in same burst. NOT merged — develop still @69d821be; workspace_test_count stays 5743. §v1.43 Amendment Sweep: Dimension 1 (sibling pair) — ROUTING-001 amended same burst (v1.44→v1.45 state-manager leg); CLEAR. Dimension 2 (downstream copy) — §Authority pin is terminal; no independent copy artifact; CLEAR. Dimension 3 (mandate anchor) — no new MUST blocks; CLEAR. |
