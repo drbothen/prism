@@ -112,7 +112,27 @@ impl ColumnMapper {
                             mapped_fields.insert(ocsf_path.clone(), coerced);
                         }
                         Err(warning) => {
-                            // Coercion failed: put in raw_extensions, record coercion warning
+                            // Coercion failed: emit structured audit warn, then divert to
+                            // raw_extensions.  AC-004 / BC-2.16.003 §Coercion Warning
+                            // Observability: structured fields MUST be column, column_type,
+                            // actual_json_kind (consistent across all 3 emission sites).
+                            let actual_json_kind = if raw_value.is_array() {
+                                "array"
+                            } else if raw_value.is_object() {
+                                "object"
+                            } else if raw_value.is_string() {
+                                "string"
+                            } else {
+                                "unknown"
+                            };
+                            tracing::warn!(
+                                column = %col.name,
+                                column_type = %column_type_toml_name(&col.column_type),
+                                actual_json_kind = %actual_json_kind,
+                                event_type = "column_coercion_failure",
+                                "column coercion failed; value demoted to raw_extensions \
+                                 (BC-2.16.003)"
+                            );
                             raw_extensions.insert(col.name.clone(), raw_value);
                             coercion_warnings.push(warning);
                         }
@@ -243,6 +263,22 @@ fn is_numeric_ocsf_field(path: &str) -> bool {
     ];
     let last_segment = path.split('.').next_back().unwrap_or(path);
     numeric_suffixes.contains(&last_segment)
+}
+
+/// Return the TOML canonical name for a `ColumnType` (lowercase, matching serde rename_all).
+///
+/// Used to populate the `column_type` field of the `column_coercion_failure` structured warn
+/// across all emission sites.  Consistent with the TOML `type =` declaration in sensor specs.
+fn column_type_toml_name(col_type: &ColumnType) -> &'static str {
+    match col_type {
+        ColumnType::String => "string",
+        ColumnType::Integer => "integer",
+        ColumnType::Float => "float",
+        ColumnType::Boolean => "boolean",
+        ColumnType::Datetime => "datetime",
+        ColumnType::Json => "json",
+        _ => "unknown",
+    }
 }
 
 // ---------------------------------------------------------------------------
