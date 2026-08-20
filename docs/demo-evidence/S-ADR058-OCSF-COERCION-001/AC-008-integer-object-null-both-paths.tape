@@ -26,10 +26,10 @@ Set TypingSpeed 50ms
 Hide
 Type "cd /Users/jmagady/Dev/prism/.worktrees/S-ADR058-OCSF-COERCION-001"
 Enter
-Wait+Line /\$/
+Sleep 2s
 Type "clear"
 Enter
-Wait+Line /\$/
+Sleep 2s
 Show
 
 # AC-008: Integer+Object gap (EC-016-013-030) — both Path A and Path B
@@ -38,5 +38,5 @@ Show
 # Before fix: both paths silently passed through / returned None without warning
 Type "cargo nextest run -p prism-spec-engine -p prism-bin -E 'test(integer_type_object_input)' 2>&1 | tail -10"
 Enter
-Wait+Line /PASS|FAIL|Summary/
+Sleep 15s
 Sleep 2s

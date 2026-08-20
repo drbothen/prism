@@ -26,10 +26,10 @@ Set TypingSpeed 50ms
 Hide
 Type "cd /Users/jmagady/Dev/prism/.worktrees/S-ADR058-OCSF-COERCION-001"
 Enter
-Wait+Line /\$/
+Sleep 2s
 Type "clear"
 Enter
-Wait+Line /\$/
+Sleep 2s
 Show
 
 # AC-007: Integer arm — parseable String "42" -> Some(42); non-parseable "not-a-number" -> None+warn
@@ -37,5 +37,5 @@ Show
 # After fix: explicit Value::String(s) arm: parse success->integer; parse fail->null+warn
 Type "cargo nextest run -p prism-bin -E 'test(build_column_array_integer_type_string)' 2>&1 | tail -10"
 Enter
-Wait+Line /PASS|FAIL|Summary/
+Sleep 15s
 Sleep 2s

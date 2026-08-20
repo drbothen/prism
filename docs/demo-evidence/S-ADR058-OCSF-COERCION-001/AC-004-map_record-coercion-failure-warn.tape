@@ -24,10 +24,10 @@ Set TypingSpeed 50ms
 Hide
 Type "cd /Users/jmagady/Dev/prism/.worktrees/S-ADR058-OCSF-COERCION-001"
 Enter
-Wait+Line /\$/
+Sleep 2s
 Type "clear"
 Enter
-Wait+Line /\$/
+Sleep 2s
 Show
 
 # AC-004: map_record places Object-valued String-column field in raw_extensions
@@ -36,5 +36,5 @@ Show
 # After fix: warn includes column/column_type/actual_json_kind fields
 Type "cargo nextest run -p prism-spec-engine -E 'test(test_map_record_string_object_input_demotes_to_raw_extensions_and_emits_warning)' 2>&1 | tail -8"
 Enter
-Wait+Line /PASS|FAIL|Summary/
+Sleep 15s
 Sleep 2s

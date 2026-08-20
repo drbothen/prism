@@ -23,10 +23,10 @@ Set TypingSpeed 50ms
 Hide
 Type "cd /Users/jmagady/Dev/prism/.worktrees/S-ADR058-OCSF-COERCION-001"
 Enter
-Wait+Line /\$/
+Sleep 2s
 Type "clear"
 Enter
-Wait+Line /\$/
+Sleep 2s
 Show
 
 # AC-003: Integer+String — parse "42" succeeds, parse "not-a-number" fails with Err
@@ -34,5 +34,5 @@ Show
 # After fix: "42" -> Ok(Number(42)); "not-a-number" -> Err(CoercionWarning)
 Type "cargo nextest run -p prism-spec-engine -E 'test(coerce_value_integer_type_string_non_numeric_path)' 2>&1 | tail -10"
 Enter
-Wait+Line /PASS|FAIL|Summary/
+Sleep 15s
 Sleep 2s

@@ -25,10 +25,10 @@ Set TypingSpeed 50ms
 Hide
 Type "cd /Users/jmagady/Dev/prism/.worktrees/S-ADR058-OCSF-COERCION-001"
 Enter
-Wait+Line /\$/
+Sleep 2s
 Type "clear"
 Enter
-Wait+Line /\$/
+Sleep 2s
 Show
 
 # AC-005: String column + Object input -> null cell + column_coercion_failure warn (Path A)
@@ -36,5 +36,5 @@ Show
 # After fix: explicit Value::Object(_) => None arm added BEFORE wildcard; warn emitted
 Type "cargo nextest run -p prism-bin -E 'test(test_build_column_array_string_type_object_input_returns_null_and_emits_warning)' 2>&1 | tail -8"
 Enter
-Wait+Line /PASS|FAIL|Summary/
+Sleep 15s
 Sleep 2s

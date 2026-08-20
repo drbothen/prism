@@ -22,10 +22,10 @@ Set TypingSpeed 50ms
 Hide
 Type "cd /Users/jmagady/Dev/prism/.worktrees/S-ADR058-OCSF-COERCION-001"
 Enter
-Wait+Line /\$/
+Sleep 2s
 Type "clear"
 Enter
-Wait+Line /\$/
+Sleep 2s
 Show
 
 # AC-002: String column + Object input must return Err(CoercionWarning)
@@ -33,5 +33,5 @@ Show
 # After fix: returns Err(CoercionWarning) — value diverted to raw_extensions
 Type "cargo nextest run -p prism-spec-engine -E 'test(test_coerce_value_string_type_object_input_returns_err_coercion_warning)' 2>&1 | tail -8"
 Enter
-Wait+Line /PASS|FAIL|Summary/
+Sleep 15s
 Sleep 2s

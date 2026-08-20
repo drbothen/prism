@@ -22,5 +22,5 @@ Enter
 Sleep 0.3s
 Type "cargo nextest run -p prism-spec-engine -E 'test(test_coerce_value_string_type_array_input_returns_err_coercion_warning)' 2>&1 | tail -8"
 Enter
-Wait+Line /Summary/
+Sleep 15s
 Sleep 2s
