@@ -203,11 +203,8 @@ impl DemoHarness {
                         // Stop previously started clones in reverse order (or forward — spec says in order).
                         // The report must list them as cleaned_up_after_failure.
                         // We need to stop pairs[0..started_count].
-                        let already_started: Vec<String> = self
-                            .last_start_report
-                            .successfully_started
-                            .drain(..)
-                            .collect();
+                        let already_started: Vec<String> =
+                            std::mem::take(&mut self.last_start_report.successfully_started);
 
                         for name in &already_started {
                             // Find the pair by name and stop it.
