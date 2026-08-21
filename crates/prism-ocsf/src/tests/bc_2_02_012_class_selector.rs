@@ -31,7 +31,8 @@ use prism_core::PrismError;
 
 use crate::class_selector::{
     EventClassSelector, CLASS_UID_ACCOUNT_CHANGE, CLASS_UID_DETECTION_FINDING,
-    CLASS_UID_DEVICE_INVENTORY_INFO, CLASS_UID_INCIDENT_FINDING, CLASS_UID_VULNERABILITY_FINDING,
+    CLASS_UID_DEVICE_INVENTORY_INFO, CLASS_UID_ENTITY_MANAGEMENT, CLASS_UID_INCIDENT_FINDING,
+    CLASS_UID_VULNERABILITY_FINDING,
 };
 
 // Note: these tests are expected to PASS (the class selector is a lookup table,
@@ -153,7 +154,10 @@ fn test_BC_2_02_012_armis_alert_returns_2004() {
     );
 }
 
-/// BC-2.02.012 / TV-BC-2.02.012-004: Armis audit_log → Audit Activity (3001).
+/// BC-2.02.012 / KF-01 correction (S-ADR058-OCSF-ROUTING-001): Armis audit_log →
+/// Entity Management (3004). Previously returned AccountChange (3001) — updated per
+/// ADR-058 §K5 Div-3: entity_management (3004) has the `comment` attribute required
+/// for note→comment mapping; account_change (3001) lacks it, causing silent data loss.
 #[test]
 fn test_BC_2_02_012_armis_audit_log_returns_3001() {
     let result = EventClassSelector::select("armis", "audit_log");
@@ -163,12 +167,16 @@ fn test_BC_2_02_012_armis_audit_log_returns_3001() {
     );
     assert_eq!(
         result.unwrap(),
-        CLASS_UID_ACCOUNT_CHANGE,
-        "armis/audit_log must map to Audit Activity (3001) (TV-BC-2.02.012-004)"
+        CLASS_UID_ENTITY_MANAGEMENT,
+        "armis/audit_log must map to Entity Management (3004) after KF-01 correction \
+         (S-ADR058-OCSF-ROUTING-001 RG-012). AccountChange (3001) lacks the 'comment' \
+         attribute — every Armis audit_log 'note' value is silently dropped."
     );
 }
 
-/// BC-2.02.012 / TV-BC-2.02.012-004 (claroty): Claroty audit_log → Audit Activity (3001).
+/// BC-2.02.012 / KF-01 correction (S-ADR058-OCSF-ROUTING-001): Claroty audit_log →
+/// Entity Management (3004). Previously returned AccountChange (3001) — updated per
+/// ADR-058 §K5 Div-3.
 #[test]
 fn test_BC_2_02_012_claroty_audit_log_returns_3001() {
     let result = EventClassSelector::select("claroty", "audit_log");
@@ -178,8 +186,10 @@ fn test_BC_2_02_012_claroty_audit_log_returns_3001() {
     );
     assert_eq!(
         result.unwrap(),
-        CLASS_UID_ACCOUNT_CHANGE,
-        "claroty/audit_log must map to Audit Activity (3001) (BC-2.02.012)"
+        CLASS_UID_ENTITY_MANAGEMENT,
+        "claroty/audit_log must map to Entity Management (3004) after KF-01 correction \
+         (S-ADR058-OCSF-ROUTING-001 RG-023). AccountChange (3001) lacks the 'comment' \
+         attribute — every Claroty audit_log 'note' value is silently dropped."
     );
 }
 

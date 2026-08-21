@@ -161,17 +161,13 @@ impl EventClassSelector {
             "audit_activity" => Ok(CLASS_UID_ACCOUNT_CHANGE),
             "device" => Ok(CLASS_UID_DEVICE_INVENTORY_INFO),
             // AC-009 sub-obligation (b): new arms for KF-01/KF-02 corrected TOML values.
-            // RG-011: both arms must be added together (single test asserts both at once).
-            "entity_management" => todo!(
-                "RG-011 (AC-009b): entity_management -> CLASS_UID_ENTITY_MANAGEMENT (3004); \
-                 KF-01 TOML correction routes Claroty/Armis audit_log ocsf_class here; \
-                 without this arm, KF-01 TOML fix regresses class_uid from 3001 to 0 (BASE_EVENT)"
-            ),
-            "inventory_info" => todo!(
-                "RG-011 (AC-009b): inventory_info -> CLASS_UID_DEVICE_INVENTORY_INFO (5001); \
-                 KF-02 TOML correction routes Claroty/Armis devices ocsf_class here; \
-                 without this arm, KF-02 TOML fix silently regresses class_uid from 5001 to 0"
-            ),
+            // RG-011: both arms added together (single test asserts both at once).
+            // KF-01: Claroty/Armis audit_log TOML changed from "audit_activity" to "entity_management".
+            // entity_management (3004) has the `comment` attribute required for note→comment mapping.
+            "entity_management" => Ok(CLASS_UID_ENTITY_MANAGEMENT),
+            // KF-02: Claroty/Armis devices TOML changed from "device" to "inventory_info".
+            // inventory_info (5001) is the correct OCSF class for device inventory records.
+            "inventory_info" => Ok(CLASS_UID_DEVICE_INVENTORY_INFO),
             _ => Err(PrismError::OcsfUnknownEventClass {
                 // "<class-name-lookup>" sentinel: this path is reached via select_by_class_name,
                 // which takes only a class_name — there is no sensor context. Using an empty
@@ -215,12 +211,16 @@ impl EventClassSelector {
             ("claroty", "alert") => Ok(CLASS_UID_DETECTION_FINDING),
             ("claroty", "asset") | ("claroty", "device") => Ok(CLASS_UID_DEVICE_INVENTORY_INFO),
             ("claroty", "vulnerability") => Ok(CLASS_UID_VULNERABILITY_FINDING),
-            ("claroty", "audit_log") => Ok(CLASS_UID_ACCOUNT_CHANGE),
+            // KF-01 correction: Claroty audit_log now routes to entity_management (3004).
+            // AccountChange (3001) lacks the `comment` attribute; entity_management (3004) has it.
+            ("claroty", "audit_log") => Ok(CLASS_UID_ENTITY_MANAGEMENT),
 
             // Armis
             ("armis", "device") => Ok(CLASS_UID_DEVICE_INVENTORY_INFO),
             ("armis", "alert") => Ok(CLASS_UID_DETECTION_FINDING),
-            ("armis", "audit_log") => Ok(CLASS_UID_ACCOUNT_CHANGE),
+            // KF-01 correction: Armis audit_log also routes to entity_management (3004).
+            // TD-VSDD-097 dim-1 sibling sweep: both Claroty and Armis audit_log updated together.
+            ("armis", "audit_log") => Ok(CLASS_UID_ENTITY_MANAGEMENT),
 
             // All other pairs — no mapping defined
             _ => Err(PrismError::OcsfUnknownEventClass {
