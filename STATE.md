@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.796"
+version: "8.797"
 producer: state-manager
-timestamp: 2026-08-21T09:59:00Z
+timestamp: 2026-08-21T11:35:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -27,7 +27,8 @@ bc_index_version: "9.45"
 # NOTE: D-2254 — BC-INDEX v9.41→v9.42: SAP-1/PG-LP11-001 discharge — BC-2.16.002 pin v2.29→v2.30 (catalog row 95 `column_coercion_failure` registered). COERCION-001 v1.42→v1.43 (input-hash fb7a031); ROUTING-001 v1.44→v1.45 (input-hash 859dc7f pre-existing drift). Counts UNCHANGED active 252/draft 4/total 269. D-2251 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.872"
+story_index_version: "2.873"
+# NOTE: D-2263 — STORY-INDEX v2.872→v2.873: S-ADR058-OCSF-ROUTING-001 pre-delivery burst COMPLETE; ROUTING-001 v1.45→v1.46 (ADR-058 pin sweep DISCHARGED; 4 holdout scenarios HS-022; TDD gate opened). total_stories 302 UNCHANGED. D-2261 NOTE archived.
 # NOTE: D-2261 — STORY-INDEX v2.871→v2.872: S-ADR058-OCSF-COERCION-001 status→merged (PR #240); POL-14 BC-2.16.003 v1.20→v1.21 active. total_stories 302 UNCHANGED. D-2259 NOTE archived.
 # NOTE: D-2258 — STORY-INDEX v2.870→v2.871: propagation-sweep fix-burst (S-ADR058-OCSF-COERCION-001) — COERCION-001 v1.46→v1.47 (BC-2.16.003 v1.19→v1.20 + BC-2.16.002 v2.30→v2.32 pins swept; MUST Discharge AC-008 →DISCHARGED; 'all three→all four' emission-path count; F-COERCE-ADV-P1-MED-002 + F-COERCE-ADV-P1-LOW-001). BC-INDEX v9.43→v9.44. total_stories 302 UNCHANGED. D-2257 NOTE archived.
 # NOTE: D-2256 — STORY-INDEX v2.868→v2.869: LOCAL adversary fix-burst (S-ADR058-OCSF-COERCION-001) — COERCION-001 v1.44→v1.45 (RG-001/002 SAP-3 notes + AC-004 note + ADR-058 pin sweep v2.23→v2.25; F-COERCE-P1-LOW-002 + F-COERCE-P1-OBS-001). ADR-058 v2.24→v2.25 (F-COERCE-P1-LOW-001 §H item 3 field-expr). ROUTING-001 pin-refresh DEFERRED to S-ADR058-OCSF-ROUTING-001. total_stories 302 UNCHANGED. D-2255 NOTE archived.
@@ -43,7 +44,7 @@ workspace_test_count: 5765
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2262 HOUSEKEEPING BURST COMPLETE — SESSION-HANDOFF.md compacted 9,259→83 lines; D-2244..D-1236 (exhaustive) archived. COERCION-001+CLAROTY-AUDITLOG worktrees torn down. trajectory-tail →1→2→2→3 (COERCION-001 LOCAL; no active cascade). STATE v8.795→v8.796. NEXT: S-ADR058-OCSF-ROUTING-001."
+current_step: "TDD delivery of S-ADR058-OCSF-ROUTING-001 IN PROGRESS (Phase-B stubs+red next). D-2263 pre-delivery burst COMPLETE — ADR-058 pin sweep v2.23→v2.26 DISCHARGED; 4 holdout scenarios HS-022 group; ROUTING-001 v1.45→v1.46; STORY-INDEX v2.872→v2.873. STATE v8.796→v8.797. trajectory-tail →1→2→2→3 (COERCION-001 LOCAL; ROUTING-001 pre-delivery)."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -80,7 +81,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 264 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -64 | margin from actual: 236 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 266 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -66 | margin from actual: 234 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -93,7 +94,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-21 D-2262 HOUSEKEEPING COMPLETE — trajectory-tail →1→2→2→3 (COERCION-001 LOCAL; no active cascade). SESSION-HANDOFF.md compacted (9,259→83 lines); worktrees COERCION-001 + CLAROTY-AUDITLOG torn down. STATE v8.795→v8.796. |
+| **Last Updated** | 2026-08-21 D-2263 PRE-DELIVERY BURST COMPLETE — S-ADR058-OCSF-ROUTING-001 TDD gate opened; ADR-058 pin sweep v2.23→v2.26 DISCHARGED; 4 holdout scenarios HS-022 group; ROUTING-001 v1.45→v1.46; STORY-INDEX v2.872→v2.873. STATE v8.796→v8.797. trajectory-tail →1→2→2→3 (COERCION-001 LOCAL; ROUTING-001 pre-delivery). |
 
 ## Phase Progress
 
@@ -222,6 +223,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | D-2260 | state-manager | 2026-08-20 | **PR #241 (clippy 1.98.0 adoption + h2 RUSTSEC-2026-0258 advisory resolution) MERGED to develop @40c667916 (human-authorized admin-merge 2026-08-20). develop advanced 69d821be→40c667916. Maintenance-only PR (no new tests; no spec changes). BC-INDEX/STORY-INDEX/ARCH-INDEX ALL UNCHANGED. workspace_test_count STAYS 5743 at this point (feature-branch count 5765 confirmed at merge).** | wave-5-e-demo-fidelity | 2026-08-20 |
 | D-2261 | state-manager | 2026-08-20 | **RECOVERY+WRAP COMPLETE — S-ADR058-OCSF-COERCION-001 MERGED to develop @362e4f85 (PR #240, human-authorized admin-merge 2026-08-20). develop advanced 40c667916→362e4f85. POL-14 auto-promotion: BC-2.16.003 v1.20→v1.21 draft→active. active_contracts 252→253; draft_contracts 4→3; total 269 UNCHANGED. workspace_test_count 5743→5765 (5765 on develop). BC-INDEX v9.44→v9.45. STORY-INDEX v2.871→v2.872 (COERCION-001 status→merged). ARCH-INDEX v2.327 UNCHANGED. ADR-058-SPEC-READINESS-FAIL-001 CLOSED (COERCION-001 delivered). RESUME SNAPSHOT D-2261 authored in SESSION-HANDOFF.md (supersedes D-2252). records-lint exit 0. STATE v8.794→v8.795.** | wave-5-e-demo-fidelity | 2026-08-20 |
 | D-2262 | state-manager | 2026-08-21 | **HOUSEKEEPING BURST COMPLETE (TD-VSDD-053) — SESSION-HANDOFF.md compacted 9,259→83 lines; snapshots D-2244..D-1236 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. sidecar-learning.md folded. Worktrees torn down: S-ADR058-OCSF-COERCION-001 (PR #240) + S-CLAROTY-AUDITLOG-TIMEBOX-001 (PR #239). trajectory-tail →1→2→2→3 (COERCION-001 LOCAL; no active cascade). TD-VSDD-097 Dim-1/Dim-2/Dim-3 all CLEAR. records-lint exit 0. STATE v8.795→v8.796.** | wave-5-e-demo-fidelity | 2026-08-21 |
+| D-2263 | state-manager | 2026-08-21 | **SINGLE-COMMIT BURST (TD-VSDD-053) — S-ADR058-OCSF-ROUTING-001 pre-delivery burst COMPLETE. Deferred ADR-058 pin-refresh DISCHARGED (closes D-2256/D-2259(d) deferral): ROUTING-001 v1.45→v1.46 (ADR-058 v2.23→v2.26 pin sweep; BC-2.16.002 v2.30→v2.32 pin; BC-2.16.003 v1.19→v1.21 pin; remove-uncertainty ZERO; SAC-1 COMPLIANT 27 RGT/13 AC density 2.08; SAC-2 SATISFIED). 4 holdout scenarios authored (HS-022 group; HOLDOUT-INDEX v1.18→v1.19). TDD gate OPENED (per wave-5 autonomy D-989). BC-INDEX v9.45 UNCHANGED. ARCH-INDEX v2.327 UNCHANGED. STORY-INDEX v2.872→v2.873. TD-VSDD-097 Dim-1 COERCION-001 MERGED/terminal CLEAR; Dim-2 story-pins-only CLEAR; Dim-3 no new MUST CLEAR. trajectory-tail →1→2→2→3 (COERCION-001 LOCAL; ROUTING-001 pre-delivery). records-lint exit 0. STATE v8.796→v8.797.** | wave-5-e-demo-fidelity | 2026-08-21 |
 
 ## Skip Log
 
