@@ -933,8 +933,19 @@ fn pipeline_result_to_record_batch(
     // EventClassSelector::select_by_class_name — looks up by OCSF class-name string,
     // not by (sensor_id, record_type) pair. Falls back to 0 (BASE_EVENT) for unmapped
     // tables per D-925 (intentional unwrap_or fallback, not a production error path).
-    let derived_class_uid: i32 =
-        EventClassSelector::select_by_class_name(&table.ocsf_class).unwrap_or(0) as i32;
+    // AC-011 (RG-018): emit structured warn before fallback when class name is unrecognized.
+    // BC-2.16.002 catalog: ocsf.unknown_class_name.
+    let class_uid_result = EventClassSelector::select_by_class_name(&table.ocsf_class);
+    if class_uid_result.is_err() {
+        tracing::warn!(
+            event_type = "ocsf.unknown_class_name",
+            ocsf_class = %table.ocsf_class,
+            sensor_id = %sensor_id,
+            table_name = %table.table_name,
+            "OCSF class name not recognized; falling back to BASE_EVENT (class_uid=0)"
+        );
+    }
+    let derived_class_uid: i32 = class_uid_result.unwrap_or(0) as i32;
     // OCSF standard encoding: category_uid = class_uid / 1000
     // e.g. class_uid=2004 → category_uid=2 (Findings), class_uid=3001 → category_uid=3 (IAM)
     let derived_category_uid: i32 = derived_class_uid / 1000;
@@ -943,23 +954,131 @@ fn pipeline_result_to_record_batch(
     // when false (default), col.name is used (existing behavior). AC-007: ocsf_field==None columns
     // route to raw_extensions instead of individual schema fields. AC-013 (§J2): fail-closed on
     // reserved synthesized names. RG-005/RG-008/RG-009/RG-010/RG-026/RG-027 cover these branches.
-    // The OCSF-naming path (sensor_spec.ocsf_column_naming == true) is stubbed as todo!() below.
     if sensor_spec.ocsf_column_naming {
-        // STUB: RG-005/RG-008/RG-009/RG-010/RG-014..RG-022/RG-024/RG-026/RG-027 will fail RED
-        // until the implementer fills in this branch. The existing flag-false path is used for now.
-        // The `ocsf_field_to_arrow_name` import is present but this call site is not yet wired.
-        let _ = ocsf_field_to_arrow_name; // suppress unused-import warning during stub phase
-        todo!(
-            "RG-005/RG-008 (AC-003/AC-007): implement OCSF-naming schema construction branch: \
-             (1) Tier-1 columns (ocsf_field==Some) -> Field::new(ocsf_field_to_arrow_name(ocsf_field), ...); \
-             (2) Tier-2 columns (ocsf_field==None) -> aggregate into raw_extensions Utf8 field; \
-             (3) RG-009: detect intra-table flattening collisions -> Err(ArrowError::SchemaError); \
-             (4) RG-010 (EC-010): detect flag-transition shadow collision (A!=B check) -> Err; \
-             (5) RG-027 (AC-013): reserved-name guard (class_uid/category_uid/_sensor/raw_extensions) -> Err; \
-             (6) RG-026 (AC-007c): raw_extensions ip_list as compact JSON-list string, NOT nested array; \
-             (7) RG-018 (AC-011): tracing::warn! ocsf.unknown_class_name before .unwrap_or(0); \
-             ADR-058 §I1/§I2/§J2; BC-2.16.003 EC-016-013-028/029; BC-2.16.002 catalog ocsf.unknown_class_name"
-        )
+        // Partition columns into Tier-1 (ocsf_field==Some) and Tier-2 (ocsf_field==None).
+        let tier1_cols: Vec<&prism_spec_engine::spec_parser::ColumnSpec> = table
+            .columns
+            .iter()
+            .filter(|col| col.ocsf_field.is_some())
+            .collect();
+        let tier2_cols: Vec<&prism_spec_engine::spec_parser::ColumnSpec> = table
+            .columns
+            .iter()
+            .filter(|col| col.ocsf_field.is_none())
+            .collect();
+
+        // AC-013 (RG-027/§J2): reserved-name guard — fail-closed if any Tier-1 flattened name
+        // equals a synthesized column name (class_uid, category_uid, _sensor, raw_extensions).
+        const RESERVED: &[&str] = &["class_uid", "category_uid", "_sensor", "raw_extensions"];
+        for col in &tier1_cols {
+            let ocsf_field = col.ocsf_field.as_deref().unwrap();
+            let arrow_name = ocsf_field_to_arrow_name(ocsf_field);
+            if RESERVED.contains(&arrow_name.as_str()) {
+                return Err(arrow::error::ArrowError::SchemaError(format!(
+                    "ocsf_field '{}' flattens to reserved synthesized Arrow column name '{}'; \
+                     refusing to build schema (ADR-058 §J2 / AC-013)",
+                    ocsf_field, arrow_name
+                )));
+            }
+        }
+
+        // EC-009 (RG-009/§J4): intra-table collision guard — fail-closed if two Tier-1 columns
+        // produce the same flattened Arrow name.
+        let mut seen_arrow_names: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        for col in &tier1_cols {
+            let arrow_name = ocsf_field_to_arrow_name(col.ocsf_field.as_deref().unwrap());
+            if !seen_arrow_names.insert(arrow_name.clone()) {
+                return Err(arrow::error::ArrowError::SchemaError(format!(
+                    "two columns produce the same flattened Arrow field name '{}'; \
+                     duplicate Arrow field names are not allowed (ADR-058 §J4)",
+                    arrow_name
+                )));
+            }
+        }
+
+        // EC-010 (RG-010/§J1): shadow collision guard — fail-closed if a Tier-1 column's
+        // flattened ocsf_field name equals a DIFFERENT column's col.name (A ≠ B check).
+        // Self-match (A == B: col's own flattened name == col.name) is allowed.
+        let all_col_names: std::collections::HashSet<&str> =
+            table.columns.iter().map(|col| col.name.as_str()).collect();
+        for tier1_col in &tier1_cols {
+            let arrow_name = ocsf_field_to_arrow_name(tier1_col.ocsf_field.as_deref().unwrap());
+            // A ≠ B: cross-match is forbidden; A == B: self-match is allowed.
+            if arrow_name != tier1_col.name && all_col_names.contains(arrow_name.as_str()) {
+                return Err(arrow::error::ArrowError::SchemaError(format!(
+                    "flattened ocsf_field name '{}' shadows another column's col.name \
+                     (A ≠ B shadow collision per ADR-058 §J1)",
+                    arrow_name
+                )));
+            }
+        }
+
+        // Build Arrow schema: Tier-1 fields + raw_extensions (if Tier-2 exist) + class_uid + _sensor.
+        // Note: category_uid is NOT emitted in OCSF mode (class_uid / 1000 is derivable by the
+        // LLM agent; RG-019 asserts its absence). class_uid and _sensor are the canonical routing keys.
+        let mut fields: Vec<Field> = Vec::new();
+        for col in &tier1_cols {
+            let arrow_name = ocsf_field_to_arrow_name(col.ocsf_field.as_deref().unwrap());
+            fields.push(Field::new(
+                &arrow_name,
+                column_type_to_arrow(&col.column_type),
+                true,
+            ));
+        }
+        if !tier2_cols.is_empty() {
+            fields.push(Field::new("raw_extensions", DataType::Utf8, true));
+        }
+        fields.push(Field::new("class_uid", DataType::Int32, true));
+        fields.push(Field::new("_sensor", DataType::Utf8, true));
+        let schema = Arc::new(Schema::new(fields));
+
+        // Build arrays for Tier-1 columns (same data extraction as flag-false path).
+        let mut col_arrays: Vec<Arc<dyn Array>> = Vec::new();
+        for col in &tier1_cols {
+            col_arrays.push(build_column_array(&result.records, col, sensor_id));
+        }
+
+        // Build raw_extensions array: JSON object per record containing Tier-2 column values.
+        // AC-007c (RG-026): array values are serialized as compact JSON-list strings, not nested arrays.
+        if !tier2_cols.is_empty() {
+            let raw_ext_vals: Vec<Option<String>> = result
+                .records
+                .iter()
+                .map(|record| {
+                    let mut raw_obj = serde_json::Map::new();
+                    for col in &tier2_cols {
+                        if let Some(v) = record.get(&col.name).cloned() {
+                            // AC-007c: JSON arrays → compact JSON-list string.
+                            let serialized = if let serde_json::Value::Array(_) = &v {
+                                serde_json::Value::String(v.to_string())
+                            } else {
+                                v
+                            };
+                            raw_obj.insert(col.name.clone(), serialized);
+                        }
+                    }
+                    if raw_obj.is_empty() {
+                        None
+                    } else {
+                        Some(
+                            serde_json::to_string(&raw_obj)
+                                .expect("raw_extensions JSON serialization cannot fail"),
+                        )
+                    }
+                })
+                .collect();
+            col_arrays
+                .push(Arc::new(arrow::array::StringArray::from(raw_ext_vals)) as Arc<dyn Array>);
+        }
+
+        // Synthesized columns: class_uid and _sensor (category_uid omitted in OCSF mode).
+        let class_uid_vals: Vec<Option<i32>> = vec![Some(derived_class_uid); n];
+        col_arrays.push(Arc::new(Int32Array::from(class_uid_vals)) as Arc<dyn Array>);
+        let sensor_vals: Vec<Option<&str>> = vec![Some(sensor_id); n];
+        col_arrays.push(Arc::new(StringArray::from(sensor_vals)) as Arc<dyn Array>);
+
+        return RecordBatch::try_new(schema, col_arrays);
     }
 
     // Build schema: spec-declared data columns first, then OCSF envelope.

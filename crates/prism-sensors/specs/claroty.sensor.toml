@@ -188,11 +188,14 @@ ocsf_class = "entity_management"
 # Gap-CL-006 CLOSED by S-DEMO-CLAROTY-AUDIT-DTU-001.
 # POST /api/v1/audit_log/get route registered in prism-dtu-claroty.
 
-  # KF-05: ocsf_field removed per PO decision (audit record ID → raw_extensions under
-  # ocsf_column_naming = true; activity_uid is not a valid OCSF v1.7.0 entity_management field).
+  # OQ-005 (human decision 2026-08-21): audit record ID maps to OCSF metadata.uid —
+  # first-class Tier-1 Arrow column "metadata_uid" under ocsf_column_naming = true.
+  # ocsf_field_to_arrow_name("metadata.uid") = "metadata_uid".
+  # Overrides KF-05 (which had removed ocsf_field entirely).
   [[tables.columns]]
   name = "id"
   column_type = "string"
+  ocsf_field = "metadata.uid"
   options = ["REQUIRED"]
 
   [[tables.columns]]
