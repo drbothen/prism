@@ -343,7 +343,10 @@ fn build_ocsf_column_descriptors(
         .collect();
 
     if !tier2_names.is_empty() {
-        let desc = format!("vendor-only fields: {}", tier2_names.join(", "));
+        let desc = format!(
+            "JSON object containing un-mapped source columns: {}",
+            tier2_names.join(", ")
+        );
         descriptors.push(ColumnDescriptor {
             name: "raw_extensions".to_string(),
             col_type: prism_core::column::ColumnType::Json,

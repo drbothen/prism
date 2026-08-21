@@ -1040,7 +1040,10 @@ fn pipeline_result_to_record_batch(
         }
 
         // Build raw_extensions array: JSON object per record containing Tier-2 column values.
-        // AC-007c (RG-026): array values are serialized as compact JSON-list strings, not nested arrays.
+        // AC-007c / ADR-058 §I2 (RG-026): use source_path-aware extraction (NOT naive
+        // record.get(col.name)) to avoid silent data loss when source_path root ≠ col.name.
+        // ENRICH-1 DD-2: array elements are individually stringified so integer array elements
+        // appear as JSON strings (e.g. vlan_list [100,200] → "[\"100\",\"200\"]").
         if !tier2_cols.is_empty() {
             let raw_ext_vals: Vec<Option<String>> = result
                 .records
@@ -1048,12 +1051,45 @@ fn pipeline_result_to_record_batch(
                 .map(|record| {
                     let mut raw_obj = serde_json::Map::new();
                     for col in &tier2_cols {
-                        if let Some(v) = record.get(&col.name).cloned() {
-                            // AC-007c: JSON arrays → compact JSON-list string.
-                            let serialized = if let serde_json::Value::Array(_) = &v {
-                                serde_json::Value::String(v.to_string())
-                            } else {
-                                v
+                        // ADR-058 §I2: honor source_path so that source_path root ≠ col.name
+                        // cases (e.g. network_list with source_path $.network_segments[*]) do not
+                        // silently drop data.  Mirrors extract_raw in build_column_array.
+                        let extracted = if let Some(ref path) = col.source_path {
+                            match extract_at_path(record, path) {
+                                Ok(v) => Some(v),
+                                Err(e) => {
+                                    tracing::warn!(
+                                        column = %col.name,
+                                        source_path = %path,
+                                        error = %e,
+                                        "raw_extensions: source_path extraction failed; \
+                                         column skipped"
+                                    );
+                                    None
+                                }
+                            }
+                        } else {
+                            record.get(&col.name).cloned()
+                        };
+                        if let Some(v) = extracted {
+                            // ENRICH-1 DD-2: JSON arrays → compact JSON-list string with every
+                            // element stringified (integers become JSON strings, preserving the
+                            // contract that raw_extensions values are always scalar-or-string).
+                            let serialized = match v {
+                                serde_json::Value::Array(arr) => {
+                                    let strings: Vec<String> = arr
+                                        .into_iter()
+                                        .map(|elem| match elem {
+                                            serde_json::Value::String(s) => s,
+                                            other => other.to_string(),
+                                        })
+                                        .collect();
+                                    serde_json::Value::String(
+                                        serde_json::to_string(&strings)
+                                            .unwrap_or_else(|_| "[]".to_string()),
+                                    )
+                                }
+                                other => other,
                             };
                             raw_obj.insert(col.name.clone(), serialized);
                         }
@@ -1061,10 +1097,19 @@ fn pipeline_result_to_record_batch(
                     if raw_obj.is_empty() {
                         None
                     } else {
-                        Some(
-                            serde_json::to_string(&raw_obj)
-                                .expect("raw_extensions JSON serialization cannot fail"),
-                        )
+                        // F-P1-LOW-002: safe fallback instead of .expect() — serialization of a
+                        // serde_json::Map of scalar/string values cannot fail in practice, but the
+                        // structured warn + None path is safer than a production panic.
+                        match serde_json::to_string(&raw_obj) {
+                            Ok(s) => Some(s),
+                            Err(e) => {
+                                tracing::warn!(
+                                    error = %e,
+                                    "raw_extensions JSON serialization failed; cell is null"
+                                );
+                                None
+                            }
+                        }
                     }
                 })
                 .collect();

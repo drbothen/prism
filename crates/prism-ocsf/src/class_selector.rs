@@ -34,8 +34,10 @@
 //! | `"security_finding"`             | 2004        | Transitional alias; maps to 2004 (NOT 2001); emits `ocsf.deprecated_class_alias` WARN |
 //! | `"incident_finding"`             | 2005        | CrowdStrike incidents, Cyberint incidents |
 //! | `"vulnerability_finding"`        | 2002        | Claroty vulnerabilities |
-//! | `"device"`                       | 5001        | Claroty/Armis devices |
-//! | `"audit_activity"`               | 3001        | Claroty/Armis audit logs |
+//! | `"device"`                       | 5001        | Claroty/Armis devices (transitional; superseded by `"inventory_info"` via KF-02) |
+//! | `"audit_activity"`               | 3001        | Claroty/Armis audit logs (transitional; superseded by `"entity_management"` via KF-01) |
+//! | `"entity_management"`            | 3004        | Claroty/Armis audit logs (KF-01; has `comment` attr) |
+//! | `"inventory_info"`               | 5001        | Claroty/Armis devices (KF-02; replaces `"device"`) |
 //!
 //! # Stub Status
 //!
@@ -120,8 +122,10 @@ impl EventClassSelector {
     /// | `"security_finding"`      | 2004      | 2 (Findings)  | Transitional alias; resolves to 2004 (NOT 2001); emits `ocsf.deprecated_class_alias` WARN |
     /// | `"vulnerability_finding"` | 2002      | 2 (Findings)  | |
     /// | `"incident_finding"`      | 2005      | 2 (Findings)  | |
-    /// | `"audit_activity"`        | 3001      | 3 (IAM)       | |
-    /// | `"device"`                | 5001      | 5 (Discovery) | |
+    /// | `"audit_activity"`        | 3001      | 3 (IAM)       | Transitional; superseded by `"entity_management"` via KF-01 |
+    /// | `"device"`                | 5001      | 5 (Discovery) | Transitional; superseded by `"inventory_info"` via KF-02 |
+    /// | `"entity_management"`     | 3004      | 3 (IAM)       | KF-01: Claroty/Armis audit logs; has `comment` attr |
+    /// | `"inventory_info"`        | 5001      | 5 (Discovery) | KF-02: Claroty/Armis devices |
     ///
     /// # Behaviour
     ///
