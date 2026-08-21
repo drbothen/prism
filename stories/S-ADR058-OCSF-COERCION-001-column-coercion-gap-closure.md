@@ -4,7 +4,7 @@ story_id: S-ADR058-OCSF-COERCION-001
 title: "ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission"
 version: "1.47"
 level: "L4"
-status: draft
+status: merged
 producer: story-writer
 timestamp: "2026-08-12T00:00:00Z"
 modified: "2026-08-20"
@@ -74,7 +74,7 @@ inputs:
   - "crates/prism-spec-engine/src/column_mapping.rs"
   - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-spec-engine/tests/bc_2_16_003_test.rs"
-input-hash: "d67d08f"
+input-hash: "de78873"
 traces_to:
   - "BC-2.16.003"
   - "BC-2.02.011"

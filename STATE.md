@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.794"
+version: "8.795"
 producer: state-manager
-timestamp: 2026-08-20T18:45:00Z
+timestamp: 2026-08-20T21:25:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,22 +16,26 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "69d821be"
+develop_head: "362e4f85"
+# NOTE: D-2261 — develop_head advanced 69d821be→362e4f85: PR #241 clippy-1.98.0+h2 MERGED @40c667916; PR #240 S-ADR058-OCSF-COERCION-001 MERGED @362e4f85. Both human-authorized admin-merges 2026-08-20. workspace_test_count→5765. STATE v8.794→v8.795.
 # NOTE: D-2202 — develop_head corrected 791b68c3→69d821be (fast-forward COMPLETE; develop == origin/develop == 69d821be confirmed). OCSF-mapping schema-validation COMPLETE (ADR-058 v2.4; 12 KF + CODE DEFECT §class_selector.rs); ARCH-INDEX v2.303→v2.304. STATE v8.732→v8.733. D-2201 NOTE archived.
 # NOTE: D-2183 — develop advanced 3197e27a9→791b68c3: PR #238 chore(gitignore) AD-017 live-evidence SQUASH-MERGED to develop 2026-08-15. D-2171 NOTE archived.
 # NOTE: D-2109 — develop advanced ef996a4c0→5d1a30ac7: PR #236 fix/claroty-live-api-fidelity SQUASH-MERGED; BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED (passes 8/9/10 on frozen 386df43c5); HS-014 PASS; worktrees CLAROTY-LIVE + FINDING-R removed. D-2102 NOTE archived.
-bc_index_version: "9.44"
+bc_index_version: "9.45"
+# NOTE: D-2261 — BC-INDEX v9.44→v9.45: post-merge POL-14 burst — S-ADR058-OCSF-COERCION-001 MERGED PR #240; BC-2.16.003 v1.20→v1.21 draft→active (POL-14). active_contracts 252→253; draft_contracts 4→3; total 269 UNCHANGED. D-2259 NOTE archived.
 # NOTE: D-2258 — BC-INDEX v9.43→v9.44: propagation-sweep fix-burst — BC-2.16.002 pin v2.31→v2.32 (F-COERCE-ADV-P1-MED-001: catalog row 95 'Three→Four emission sites'; site (d) Integer+Object added). COERCION-001 v1.46→v1.47 (F-COERCE-ADV-P1-MED-002 + F-COERCE-ADV-P1-LOW-001: BC pins swept + MUST Discharge AC-008 →DISCHARGED). Counts UNCHANGED active 252/draft 4/total 269. D-2257 NOTE archived.
 # NOTE: D-2254 — BC-INDEX v9.41→v9.42: SAP-1/PG-LP11-001 discharge — BC-2.16.002 pin v2.29→v2.30 (catalog row 95 `column_coercion_failure` registered). COERCION-001 v1.42→v1.43 (input-hash fb7a031); ROUTING-001 v1.44→v1.45 (input-hash 859dc7f pre-existing drift). Counts UNCHANGED active 252/draft 4/total 269. D-2251 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.871"
+story_index_version: "2.872"
+# NOTE: D-2261 — STORY-INDEX v2.871→v2.872: S-ADR058-OCSF-COERCION-001 status→merged (PR #240); POL-14 BC-2.16.003 v1.20→v1.21 active. total_stories 302 UNCHANGED. D-2259 NOTE archived.
 # NOTE: D-2258 — STORY-INDEX v2.870→v2.871: propagation-sweep fix-burst (S-ADR058-OCSF-COERCION-001) — COERCION-001 v1.46→v1.47 (BC-2.16.003 v1.19→v1.20 + BC-2.16.002 v2.30→v2.32 pins swept; MUST Discharge AC-008 →DISCHARGED; 'all three→all four' emission-path count; F-COERCE-ADV-P1-MED-002 + F-COERCE-ADV-P1-LOW-001). BC-INDEX v9.43→v9.44. total_stories 302 UNCHANGED. D-2257 NOTE archived.
 # NOTE: D-2256 — STORY-INDEX v2.868→v2.869: LOCAL adversary fix-burst (S-ADR058-OCSF-COERCION-001) — COERCION-001 v1.44→v1.45 (RG-001/002 SAP-3 notes + AC-004 note + ADR-058 pin sweep v2.23→v2.25; F-COERCE-P1-LOW-002 + F-COERCE-P1-OBS-001). ADR-058 v2.24→v2.25 (F-COERCE-P1-LOW-001 §H item 3 field-expr). ROUTING-001 pin-refresh DEFERRED to S-ADR058-OCSF-ROUTING-001. total_stories 302 UNCHANGED. D-2255 NOTE archived.
 arch_index_version: "2.327"
 # NOTE: D-2257 — ARCH-INDEX v2.326→v2.327: LOCAL adversary re-gate fix-burst (S-ADR058-OCSF-COERCION-001) — ADR-058 pin v2.25→v2.26 (F-COERCE-ADV-LOW-002 §Status heading retitle; F-COERCE-ADV-OBS-003 §H item 4 Integer+Object). COERCION-001 v1.45→v1.46. BC-INDEX v9.42→v9.43. STORY-INDEX v2.869→v2.870. D-2256 NOTE archived.
 # NOTE: D-2256 — ARCH-INDEX v2.325→v2.326: LOCAL adversary fix-burst (S-ADR058-OCSF-COERCION-001) — ADR-058 pin v2.24→v2.25 (F-COERCE-P1-LOW-001 §H item 3 field-expr corrected; input-hash 638c633). COERCION-001 v1.44→v1.45. ROUTING-001 pin-refresh DEFERRED. D-2252 NOTE archived.
-workspace_test_count: 5743
+workspace_test_count: 5765
+# NOTE: D-2261 — workspace_test_count 5743→5765: S-ADR058-OCSF-COERCION-001 MERGED develop@362e4f85 (PR #240); 5765 tests on develop. D-2259 NOTE archived.
 # NOTE: D-2184 — workspace_test_count 5733→5741: S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD-GREEN — RG-001..RG-005 pass. D-2161 NOTE archived.
 # NOTE: D-2160 — 5731→5732: RG-020 added; just check GREEN 5732 at feature HEAD 21df2f6d4. D-2159 NOTE archived.
 # NOTE: D-2155 — 5724→5730: pass-38 fix-burst CODE commit a5b61b35b (RG-017+RG-018; just check 5730 green). D-2125 NOTE archived.
@@ -39,11 +43,11 @@ workspace_test_count: 5743
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2259 DECISION RECORD trajectory-tail →1→2→2→3 — S-ADR058-OCSF-COERCION-001 LOCAL adversary cascade CONVERGED (HUMAN ADMIN OVERRIDE 2026-08-20). Code HEAD 26d036224 verified correct across 4 fresh LOCAL passes (p1: 1 OBS; p2: 2 LOW; p3: 1 MED+1 OBS [Integer+Object in-scope expansion AC-008/RG-010/RG-011]; p4: 2 MED+1 LOW propagation-sweep misses); ALL findings fixed; ZERO code defects survived. Strict BC-5.39.001 3-CLEAN NOT achieved — human halted self-seeding version-pin/propagation churn. HOLDOUT GATE PASS 4/4 (HS-001..HS-004 real MCP stdio). Demo COMPLETE (feature c1d8cea13; 8 ACs; POL-10). just check GREEN 5765. FINAL FROZEN: ADR-058 v2.26 / BC-2.16.002 v2.32 / BC-2.16.003 v1.20 / COERCION-001 v1.47. ARCH-INDEX/BC-INDEX/STORY-INDEX UNCHANGED. NEXT: push feature branch + PR to develop (pr-manager)."
+current_step: "D-2261 DECISION RECORD trajectory-tail →1→2→2→3 — S-ADR058-OCSF-COERCION-001 MERGED to develop (PR #240 @362e4f85, human-authorized admin-merge 2026-08-20). PR #241 (clippy 1.98.0 + h2 RUSTSEC-2026-0258) also MERGED @40c667916. BC-2.16.003 active (POL-14). active_contracts 253. workspace_test_count 5765. develop_head @362e4f85. STATE v8.795. NEXT: S-ADR058-OCSF-ROUTING-001 delivery (ROUTING-001 follows COERCION-001). Housekeeping: SESSION-HANDOFF.md compaction + worktree teardowns."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "Main worktree on develop origin/develop @69d821be (PR #239 squash-merged 2026-08-16T22:51Z). .worktrees/S-ADR058-OCSF-COERCION-001 @26d036224 [feature/S-ADR058-OCSF-COERCION-001] LOCAL-CONVERGED READY-TO-PUSH (D-2259). .worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001 @8ae0b5d8 PENDING teardown. PARKED (2): S-3.09 @43c41389d KEEP-PARKED; W3-FIX-S307-001 @fcab8717c PARKED-DIRTY do-NOT-touch."
+worktree_status: "Main worktree on develop origin/develop @362e4f85 (PR #241 squash-merged 2026-08-20; PR #240 squash-merged 2026-08-20). .worktrees/S-ADR058-OCSF-COERCION-001 @26d036224 [feature/S-ADR058-OCSF-COERCION-001] PENDING teardown (PR #240 MERGED). .worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001 @8ae0b5d8 PENDING teardown (PR #239 merged 2026-08-16). PARKED (2): S-3.09 @43c41389d KEEP-PARKED; W3-FIX-S307-001 @fcab8717c PARKED-DIRTY do-NOT-touch."
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -76,7 +80,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 260 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -60 | margin from actual: 240 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 266 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -66 | margin from actual: 234 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -89,7 +93,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-20 D-2259 trajectory-tail →1→2→2→3 — S-ADR058-OCSF-COERCION-001 LOCAL adversary cascade CONVERGED (human admin override); HOLDOUT GATE PASS 4/4; demo COMPLETE; just check 5765 GREEN; ARCH-INDEX/BC-INDEX/STORY-INDEX UNCHANGED; STATE v8.793→v8.794 |
+| **Last Updated** | 2026-08-20 D-2261 trajectory-tail →1→2→2→3 — S-ADR058-OCSF-COERCION-001 MERGED (PR #240 @362e4f85); PR #241 (clippy 1.98.0+h2) MERGED @40c667916. Both human-authorized admin-merges. BC-2.16.003 active (POL-14). active_contracts 253. workspace_test_count 5765. STATE v8.794→v8.795. |
 
 ## Phase Progress
 
@@ -102,7 +106,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 3: Waves 0–3 + Plugin Prereqs | COMPLETE | 2026-04-21 | 2026-05-27 | wave gates converged | PRs #1–161; 3711 tests; develop@af79f160 |
-| 3: Post-Wave-3 DTU+Demo+PRs #162–239 | COMPLETE | 2026-05-27 | 2026-08-16 | all MERGED develop@69d821be | PR #239 squash-merged 2026-08-16T22:51Z; 5743 tests; workspace CI green |
+| 3: Post-Wave-3 DTU+Demo+PRs #162–241 | COMPLETE | 2026-05-27 | 2026-08-20 | all MERGED develop@362e4f85 | PR #241 squash-merged 2026-08-20; 5765 tests; workspace CI green |
 | Wave-A spec-evolution LOCAL CASCADE | CONVERGED | 2026-07-23 | 2026-07-23 | BC-5.39.001 strict 3/3 | 47 passes / 36 fix-bursts. CLEAN(strict): 19/24/30/33/36/39/41/42/45/46/47. |
 | DEFECT-ADAPTER-TLS-XDOME-LIVE-001 | FULLY VALIDATED | 2026-08-15 | 2026-08-15 | D-2166 AC-LIVE-001 SATISFIED; HS-008..011 CONSUMED | PR #237 squash-merged develop@3197e27a9 2026-08-15 |
 | S-CLAROTY-AUDITLOG-TIMEBOX-001 | MERGED | 2026-08-16 | 2026-08-16 | PR #239 develop@69d821be 2026-08-16T22:51Z | LOCAL 9-pass 3-CLEAN + HOLDOUT PASS 4/4 + LIVE xDome PASS; PR-LEVEL 3-CLEAN on 8ae0b5d8 |
@@ -117,8 +121,8 @@ pre_compact_snapshot_at: "2026-08-19"
 | D-2251 perimeter POL-39 terminal normalization | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | BC-2.16.002 v2.28→v2.29; BC-2.16.003 v1.18→v1.19; ROUTING-001 v1.43→v1.44; COERCION-001 v1.39→v1.40. BC-INDEX v9.40→v9.41. STORY-INDEX v2.864→v2.865. ARCH-INDEX v2.323→v2.324. NEW FROZEN: ADR-058 v2.23/BC-2.16.002 v2.29/BC-2.16.003 v1.19/ROUTING-001 v1.44/COERCION-001 v1.40. Streak RESET 0/3. |
 | D-2252 SESSION WRAP — OCSF cascade CLOSED | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | ADR-058 v2.23→v2.24 (FB-67/69 architect leg: F-P69-LOW-001 §I5 factual correction; F-P67-OBS-1 §E2 header fix; input-hash 18b74fe). ARCH-INDEX v2.324→v2.325. OCSF cascade CLOSED substantive (human decision). trajectory-tail →1→1→0→1 (p66→p67→p68→p69). TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.785→v8.786. |
 | D-2253 TDD pre-delivery burst (COERCION-001) | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | TDD gate OPENED (human-approved 2026-08-19); 4 holdout scenarios authored (HS-021 group; HOLDOUT-INDEX v1.17→v1.18); RG-005 test-placement correctness fix; story v1.40→v1.42; STORY-INDEX v2.865→v2.866; BC-INDEX/ARCH-INDEX UNCHANGED. STATE v8.787→v8.788. |
-| D-2254 SAP-1/PG-LP11-001 discharge burst | COMPLETE | 2026-08-20 | 2026-08-20 | state-manager | SAP-1/PG-LP11-001 discharge COMPLETE — BC-2.16.002 catalog row 95 `column_coercion_failure` WARN registered (v2.29→v2.30); COERCION-001 v1.42→v1.43 (input-hash fb7a031); ROUTING-001 v1.44→v1.45 (sibling re-pin; input-hash 859dc7f). BC-INDEX v9.41→v9.42. STORY-INDEX v2.866→v2.867. TD-VSDD-097 all dims CLEAR: Dim-1 ROUTING-001/COERCION-001 sibling pair CLEAR; Dim-2 §Authority pins terminal CLEAR; Dim-3 no new MUST blocks CLEAR. records-lint exit 0. STATE v8.788→v8.789. |
-| S-ADR058-OCSF-COERCION-001 LOCAL adversary cascade | CONVERGED (human admin override D-2259) | 2026-08-20 | 2026-08-20 | human decision D-2259 | trajectory-tail →1→2→2→3 (LOCAL p1→p4; all fixed); ZERO code defects; HOLDOUT PASS 4/4 (HS-001..HS-004 real MCP stdio); demo COMPLETE; just check 5765 GREEN; FINAL FROZEN ADR-058 v2.26/BC-2.16.002 v2.32/BC-2.16.003 v1.20/COERCION-001 v1.47 |
+| D-2254 SAP-1/PG-LP11-001 discharge burst | COMPLETE | 2026-08-20 | 2026-08-20 | state-manager | SAP-1/PG-LP11-001 discharge COMPLETE — BC-2.16.002 catalog row 95 `column_coercion_failure` WARN registered (v2.29→v2.30); COERCION-001 v1.42→v1.43 (input-hash fb7a031); ROUTING-001 v1.44→v1.45 (sibling re-pin; input-hash 859dc7f). BC-INDEX v9.41→v9.42. STORY-INDEX v2.866→v2.867. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.788→v8.789. |
+| S-ADR058-OCSF-COERCION-001 TDD + PR cycle | MERGED | 2026-08-20 | 2026-08-20 | PR #240 develop@362e4f85 2026-08-20 (human-authorized admin-merge) | LOCAL cascade CONVERGED (human admin override D-2259); HOLDOUT PASS 4/4 (HS-001..HS-004 real MCP stdio); demo COMPLETE; just check 5765 GREEN; FINAL FROZEN ADR-058 v2.26/BC-2.16.002 v2.32/BC-2.16.003 v1.21/COERCION-001 v1.47; active_contracts 252→253 |
 
 _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individual story rows PRs #162–#235; fix-burst rows D-2238..D-2243 (exhaustive)) archived to cycles/wave-5-e-demo-fidelity/burst-log.md (D-1794 + D-2237 + D-2244+1 compactions)._
 
@@ -126,12 +130,12 @@ _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individua
 
 | Metric | Value |
 |--------|-------|
-| BC-5.39.001 streak | 0/3 — S-ADR058-OCSF-COERCION-001 LOCAL cascade CONVERGED by HUMAN ADMIN OVERRIDE (D-2259); strict zero-finding 3-CLEAN NOT achieved (version-pin/propagation churn halted by human). SPEC cascade closed substantive D-2252. |
-| Active cascade | S-ADR058-OCSF-COERCION-001 LOCAL adversary — CONVERGED (human admin override D-2259); NEXT: push feature branch + PR to develop |
-| Pass count | 4 LOCAL passes (p1: 1 OBS; p2: 2 LOW; p3: 1 MED+1 OBS; p4: 2 MED+1 LOW; all findings fixed). SPEC cascade: 69 passes (D-2252). |
-| Last CLEAN(strict) | none — LOCAL cascade converged without CLEAN(strict) pass; all 4 passes had findings, all fixed |
-| Finding trajectory | trajectory-tail →1→2→2→3 (LOCAL p1→p4; all fixed). Prior SPEC cascade tail: →1→1→0→1 (p66→p67→p68→p69). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Frozen perimeter | ADR-058 v2.26 / BC-2.16.002 v2.32 / BC-2.16.003 v1.20 / ROUTING-001 v1.45 / COERCION-001 v1.47 |
+| BC-5.39.001 streak | N/A — no active cascade. COERCION-001 MERGED develop@362e4f85 (PR #240 2026-08-20). NEXT story: S-ADR058-OCSF-ROUTING-001. |
+| Active cascade | none — COERCION-001 MERGED; ROUTING-001 delivery not yet started |
+| Pass count | COERCION-001 LOCAL: 4 passes (all findings fixed; CONVERGED human admin override). SPEC cascade: 69 passes (D-2252). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
+| Last CLEAN(strict) | none (COERCION-001 LOCAL converged without CLEAN(strict); human admin override). SPEC cascade: pass-68 CLEAN(strict). |
+| Finding trajectory | COERCION-001 LOCAL trajectory-tail →1→2→2→3 (all fixed). Prior SPEC cascade tail: →1→1→0→1 (p66→p67→p68→p69). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
+| Frozen perimeter | ADR-058 v2.26 / BC-2.16.002 v2.32 / BC-2.16.003 v1.21 (active) / ROUTING-001 v1.45 / COERCION-001 v1.47 (merged) |
 
 ## Concurrent Cycles
 
@@ -141,12 +145,12 @@ _No concurrent cycles in progress. Current cycle: wave-5-e-demo-fidelity._
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| _D-735..D-2254 (exhaustive)_ | — | archived | cycles/wave-5-e-demo-fidelity/burst-log.md (D-1794 + D-2237 + D-2244+1 + D-2259 compactions; D-2244..D-2254 archived) |
-| D-2255 | state-manager | 2026-08-20 | LOCAL adversary pass-1 (S-ADR058-OCSF-COERCION-001) records-only micro-burst COMPLETE — CLEAN(strict)=no / CLEAN(PR-merge)=yes; F-P1-OBS-001 (AC-004 field-binding prose drift vs ADR-058 §H / BC-2.16.002 catalog row 95). story-writer reconciled §AC-004 to %col.name / %column_type_toml_name(&col.column_type); story v1.43→v1.44. BC-INDEX/ARCH-INDEX/BC-2.16.002 ALL UNCHANGED. BC-5.39.001 strict streak REMAINS 0/3 (perimeter changed by spec fix). TD-VSDD-097 all dims CLEAR: Dim-1 ROUTING-001 sibling UNCHANGED; Dim-2 no downstream copy targets; Dim-3 no new MUST blocks. TD-VSDD-096 micro-burst followed. records-lint exit 0. STORY-INDEX v2.867→v2.868. STATE v8.789→v8.790. |
-| D-2256 | state-manager | 2026-08-20 | LOCAL adversary fix-burst COMPLETE — ADR-058 v2.24→v2.25 (F-COERCE-P1-LOW-001 §H item 3 field-expr); COERCION-001 v1.44→v1.45 (F-COERCE-P1-LOW-002 + F-COERCE-P1-OBS-001: RG-001/002 SAP-3 notes + AC-004 note + ADR-058 pin sweep). ROUTING-001 pin-refresh DEFERRED (anchor: S-ADR058-OCSF-ROUTING-001). ARCH-INDEX v2.325→v2.326. STORY-INDEX v2.868→v2.869. records-lint exit 0. STATE v8.790→v8.791. |
+| _D-735..D-2256 (exhaustive)_ | — | archived | cycles/wave-5-e-demo-fidelity/burst-log.md (D-1794 + D-2237 + D-2244+1 + D-2261 compactions; D-2244..D-2256 archived) |
 | D-2257 | state-manager | 2026-08-20 | SINGLE-COMMIT BURST (TD-VSDD-053) LOCAL adversary re-gate fix-burst COMPLETE — ADR-058 v2.25→v2.26 (§Status heading retitle; §H item 4 Integer+Object mandate). BC-2.16.002 v2.30→v2.31 (catalog row 95 trigger(3) Integer+Object). BC-2.16.003 v1.19→v1.20 (EC-016-013-030 Integer+Object NEW). COERCION-001 v1.45→v1.46 (AC-008/RG-010/RG-011). ARCH-INDEX v2.326→v2.327. BC-INDEX v9.42→v9.43. STORY-INDEX v2.869→v2.870. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.791→v8.792. |
 | D-2258 | state-manager | 2026-08-20 | SINGLE-COMMIT BURST (TD-VSDD-053) propagation-sweep fix-burst COMPLETE — BC-2.16.002 v2.31→v2.32 (catalog row 95 'Three→Four emission sites'; site (d) Integer+Object added). COERCION-001 v1.46→v1.47 (BC pins swept; MUST Discharge AC-008 →DISCHARGED). BC-INDEX v9.43→v9.44. STORY-INDEX v2.870→v2.871. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.792→v8.793. |
-| D-2259 | state-manager | 2026-08-20 | DECISION RECORD — S-ADR058-OCSF-COERCION-001 LOCAL adversary cascade CONVERGED (HUMAN ADMIN OVERRIDE 2026-08-20). Code HEAD 26d036224; 4 LOCAL passes; all findings fixed; ZERO code defects. HOLDOUT GATE PASS 4/4 (HS-001..HS-004 real MCP stdio). Demo COMPLETE (feature c1d8cea13; 8 ACs; POL-10). just check GREEN 5765. FINAL FROZEN ADR-058 v2.26/BC-2.16.002 v2.32/BC-2.16.003 v1.20/COERCION-001 v1.47. Residuals: (a) POST-MERGE BC-2.16.003 KNOWN GAP labels; (b) PROCESS-GAP SAP-1 granularity→lessons.md; (c) PROCESS-GAP NEW version-pin-churn→lessons.md; (d) ROUTING-001 pin→S-ADR058-OCSF-ROUTING-001. ARCH-INDEX/BC-INDEX/STORY-INDEX UNCHANGED. records-lint exit 0. STATE v8.793→v8.794. |
+| D-2259 | state-manager | 2026-08-20 | DECISION RECORD — S-ADR058-OCSF-COERCION-001 LOCAL adversary cascade CONVERGED (HUMAN ADMIN OVERRIDE 2026-08-20). Code HEAD 26d036224; 4 LOCAL passes; all findings fixed; ZERO code defects. HOLDOUT GATE PASS 4/4 (HS-001..HS-004 real MCP stdio). Demo COMPLETE (feature c1d8cea13; 8 ACs; POL-10). just check GREEN 5765. FINAL FROZEN ADR-058 v2.26/BC-2.16.002 v2.32/BC-2.16.003 v1.20/COERCION-001 v1.47. records-lint exit 0. STATE v8.793→v8.794. |
+| D-2260 | state-manager | 2026-08-20 | PR #241 (clippy 1.98.0 adoption + h2 RUSTSEC-2026-0258 advisory resolution) MERGED to develop @40c667916 (human-authorized admin-merge 2026-08-20). develop advanced 69d821be→40c667916. Maintenance-only PR (no new tests; no spec changes). BC-INDEX/STORY-INDEX/ARCH-INDEX ALL UNCHANGED. |
+| D-2261 | state-manager | 2026-08-20 | RECOVERY+WRAP COMPLETE — S-ADR058-OCSF-COERCION-001 MERGED to develop @362e4f85 (PR #240, human-authorized admin-merge 2026-08-20). develop advanced 40c667916→362e4f85. POL-14: BC-2.16.003 v1.20→v1.21 draft→active. active_contracts 252→253; draft_contracts 4→3; total 269 UNCHANGED. workspace_test_count 5743→5765. BC-INDEX v9.44→v9.45. STORY-INDEX v2.871→v2.872. ARCH-INDEX v2.327 UNCHANGED. ADR-058-SPEC-READINESS-FAIL-001 CLOSED. SESSION-HANDOFF.md RESUME SNAPSHOT D-2261 authored (supersedes D-2252). records-lint exit 0. STATE v8.794→v8.795. |
 
 ## Decisions Log
 
@@ -213,7 +217,9 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | D-2256 | state-manager | 2026-08-20 | **SINGLE-COMMIT BURST (TD-VSDD-053; TD-VSDD-096) — LOCAL adversary fresh pass-1 fix-burst (S-ADR058-OCSF-COERCION-001) COMPLETE. CLEAN(strict)=no / CLEAN(PR-merge)=yes; 2 LOW + 1 OBS, all spec-text/records-tier, ZERO code defects. Fix-burst: architect corrected ADR-058 §H item 3 field-expr (v2.24→v2.25, F-COERCE-P1-LOW-001); story-writer COERCION-001 RG-001/002 SAP-3 notes (F-COERCE-P1-OBS-001) + AC-004 note + complete ADR-058 pin sweep v2.23→v2.25 (F-COERCE-P1-LOW-002), v1.44→v1.45. Code HEAD 249060a57 UNCHANGED. ROUTING-001 ADR-058 pin refresh DEFERRED to ROUTING-001 own delivery (anchor: S-ADR058-OCSF-ROUTING-001; Canonical Principle Rule 3). BC-2.16.002 v2.30 / BC-INDEX v9.42 UNCHANGED. workspace_test_count STAYS 5743. BC-5.39.001 strict streak REMAINS 0/3 (perimeter changed). NEXT: re-run LOCAL adversary fresh pass on unchanged code HEAD + corrected spec.** | wave-5-e-demo-fidelity | 2026-08-20 |
 | D-2257 | state-manager | 2026-08-20 | **SINGLE-COMMIT BURST (TD-VSDD-053) — LOCAL adversary re-gate fix-burst (S-ADR058-OCSF-COERCION-001) COMPLETE. CLEAN(strict)=no / CLEAN(PR-merge)=yes; 1 MED + 1 LOW + 1 OBS, all spec-text defects. ADR-058 v2.25→v2.26 (F-COERCE-ADV-LOW-002 §Status heading retitle; F-COERCE-ADV-OBS-003 §H item 4 Integer+Object mandate). BC-2.16.002 v2.30→v2.31 (F-COERCE-ADV-MED-001 catalog row 95 trigger(3) Integer+Object; stale clause removed). BC-2.16.003 v1.19→v1.20 (F-COERCE-ADV-OBS-003 EC-016-013-030 Integer+Object NEW). COERCION-001 v1.45→v1.46 (AC-008/RG-010/RG-011; density 10/8; MUST Discharge row 4). ARCH-INDEX v2.326→v2.327. BC-INDEX v9.42→v9.43. STORY-INDEX v2.869→v2.870. Code HEAD 249060a57 UNCHANGED. TD-VSDD-097 all dims CLEAR: Dim-1 ROUTING-001/COERCION-001 sibling pair — ROUTING-001 pin-refresh DEFERRED (anchor S-ADR058-OCSF-ROUTING-001); COERCION-001 amended this burst (CLEAR). Dim-2 §Authority pins terminal CLEAR. Dim-3 COERCION-001 AC-008 MUST anchored to own story RG-010/RG-011 (CLEAR). BC-5.39.001 strict streak RESET 0/3 (perimeter changed). records-lint exit 0. STATE v8.791→v8.792.** | wave-5-e-demo-fidelity | 2026-08-20 |
 | D-2258 | state-manager | 2026-08-20 | **SINGLE-COMMIT BURST (TD-VSDD-053) — propagation-sweep fix-burst (S-ADR058-OCSF-COERCION-001) COMPLETE. F-COERCE-ADV-P1-MED-001 CLOSED: BC-2.16.002 v2.31→v2.32 (catalog row 95 'Three→Four emission sites'; site (d) Integer+Object path added). F-COERCE-ADV-P1-MED-002 CLOSED: COERCION-001 v1.46→v1.47 (BC-2.16.003 v1.19→v1.20 + BC-2.16.002 v2.30→v2.32 pins swept). F-COERCE-ADV-P1-LOW-001 CLOSED: MUST Discharge AC-008 →DISCHARGED; 'all three→all four'. BC-INDEX v9.43→v9.44. STORY-INDEX v2.870→v2.871. Code HEAD 249060a57 UNCHANGED (spec-only burst). TD-VSDD-097 Dim-1 CLEAR; Dim-2 CLEAR (BC-2.16.003 EC row + COERCION-001 swept); Dim-3 CLEAR (AC-008 DISCHARGED per existing RG-010/RG-011). Deferred: (a) POST-MERGE: product-owner adds BC-2.16.003 KNOWN GAP labels at COERCION-001 merge (not blocking); (b) PROCESS-GAP LOW: codify SAP-1 call-site granularity lesson to lessons.md (low-urgency, no blocker). records-lint exit 0. STATE v8.792→v8.793.** | wave-5-e-demo-fidelity | 2026-08-20 |
-| D-2259 | state-manager | 2026-08-20 | **SINGLE-COMMIT BURST (TD-VSDD-053) — DECISION RECORD. S-ADR058-OCSF-COERCION-001 LOCAL adversary cascade CONVERGED by HUMAN ADMIN OVERRIDE (2026-08-20). Code HEAD 26d036224 verified correct across 4 fresh LOCAL passes (p1: 1 OBS; p2: 2 LOW; p3: 1 MED+1 OBS [Integer+Object AC-008/RG-010/RG-011 in-scope expansion]; p4: 2 MED+1 LOW propagation-sweep misses); ALL findings fixed; ZERO code defects survived. Strict BC-5.39.001 3-CLEAN NOT achieved — human halted self-seeding version-pin/propagation churn (story-writer diagnosis: in-story version pins diagnostic-not-operational, redundant with mechanical input-hash; ~30% changelog is pin-bump churn). Story-level HOLDOUT GATE: PASS 4/4 (HS-001..HS-004: String+Object→null+warn; Integer+parseable→42; Integer+non-parseable→null+warn; ENRICH-1 Array→JSON-list preserved) via real MCP stdio. Demo evidence COMPLETE (feature commit c1d8cea13; 8 ACs; POL-10). just check GREEN 5765 on feature branch. FINAL FROZEN PERIMETER: ADR-058 v2.26 / BC-2.16.002 v2.32 / BC-2.16.003 v1.20 / COERCION-001 v1.47. Accepted residuals: (a) POST-MERGE product-owner adds BC-2.16.003 KNOWN GAP labels at COERCION-001 merge (anchor: COERCION-001 merge); (b) PROCESS-GAP [lessons.md]: SAP-1 emission-site granularity per-call-site codification (already noted D-2258); (c) PROCESS-GAP NEW [lessons.md]: version-pin-churn — evaluate relaxing adversary in-story version-pin probe vs mechanical input-hash (anchor: cycles/wave-5-e-demo-fidelity/lessons.md at cycle-close); (d) ROUTING-001 ADR-058 pin DEFERRED to S-ADR058-OCSF-ROUTING-001 delivery (confirmed from D-2256). ARCH-INDEX/BC-INDEX/STORY-INDEX UNCHANGED (decision record only). records-lint exit 0. STATE v8.793→v8.794.** | wave-5-e-demo-fidelity | 2026-08-20 |
+| D-2259 | state-manager | 2026-08-20 | **SINGLE-COMMIT BURST (TD-VSDD-053) — DECISION RECORD. S-ADR058-OCSF-COERCION-001 LOCAL adversary cascade CONVERGED by HUMAN ADMIN OVERRIDE (2026-08-20). Code HEAD 26d036224 verified correct across 4 fresh LOCAL passes (p1: 1 OBS; p2: 2 LOW; p3: 1 MED+1 OBS [Integer+Object AC-008/RG-010/RG-011 in-scope expansion]; p4: 2 MED+1 LOW propagation-sweep misses); ALL findings fixed; ZERO code defects survived. Strict BC-5.39.001 3-CLEAN NOT achieved — human halted self-seeding version-pin/propagation churn. Story-level HOLDOUT GATE: PASS 4/4 (HS-001..HS-004: String+Object→null+warn; Integer+parseable→42; Integer+non-parseable→null+warn; ENRICH-1 Array→JSON-list preserved) via real MCP stdio. Demo evidence COMPLETE (feature commit c1d8cea13; 8 ACs; POL-10). just check GREEN 5765 on feature branch. FINAL FROZEN PERIMETER: ADR-058 v2.26 / BC-2.16.002 v2.32 / BC-2.16.003 v1.20 / COERCION-001 v1.47. Accepted residuals: (a) POST-MERGE product-owner adds BC-2.16.003 KNOWN GAP labels at COERCION-001 merge (anchor: COERCION-001 merge); (b) PROCESS-GAP [lessons.md]: SAP-1 emission-site granularity per-call-site codification (already noted D-2258); (c) PROCESS-GAP NEW [lessons.md]: version-pin-churn — evaluate relaxing adversary in-story version-pin probe vs mechanical input-hash (anchor: cycles/wave-5-e-demo-fidelity/lessons.md at cycle-close); (d) ROUTING-001 ADR-058 pin DEFERRED to S-ADR058-OCSF-ROUTING-001 delivery (confirmed from D-2256). ARCH-INDEX/BC-INDEX/STORY-INDEX UNCHANGED (decision record only). records-lint exit 0. STATE v8.793→v8.794.** | wave-5-e-demo-fidelity | 2026-08-20 |
+| D-2260 | state-manager | 2026-08-20 | **PR #241 (clippy 1.98.0 adoption + h2 RUSTSEC-2026-0258 advisory resolution) MERGED to develop @40c667916 (human-authorized admin-merge 2026-08-20). develop advanced 69d821be→40c667916. Maintenance-only PR (no new tests; no spec changes). BC-INDEX/STORY-INDEX/ARCH-INDEX ALL UNCHANGED. workspace_test_count STAYS 5743 at this point (feature-branch count 5765 confirmed at merge).** | wave-5-e-demo-fidelity | 2026-08-20 |
+| D-2261 | state-manager | 2026-08-20 | **RECOVERY+WRAP COMPLETE — S-ADR058-OCSF-COERCION-001 MERGED to develop @362e4f85 (PR #240, human-authorized admin-merge 2026-08-20). develop advanced 40c667916→362e4f85. POL-14 auto-promotion: BC-2.16.003 v1.20→v1.21 draft→active. active_contracts 252→253; draft_contracts 4→3; total 269 UNCHANGED. workspace_test_count 5743→5765 (5765 on develop). BC-INDEX v9.44→v9.45. STORY-INDEX v2.871→v2.872 (COERCION-001 status→merged). ARCH-INDEX v2.327 UNCHANGED. ADR-058-SPEC-READINESS-FAIL-001 CLOSED (COERCION-001 delivered). RESUME SNAPSHOT D-2261 authored in SESSION-HANDOFF.md (supersedes D-2252). records-lint exit 0. STATE v8.794→v8.795.** | wave-5-e-demo-fidelity | 2026-08-20 |
 
 ## Skip Log
 
@@ -226,7 +232,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 
 | Issue | Owner | Opened | Resolved | Notes |
 |-------|-------|--------|----------|-------|
-| ADR-058-SPEC-READINESS-FAIL-001 [blocking-next-action; D-2176/observed 2026-08-15; severity: BLOCKING; status: TDD-DELIVERY-IN-PROGRESS] | architect + product-owner + story-writer | 2026-08-15 | — | MITIGATED — spec cascade CLOSED substantive (D-2252); COERCION-001 spec CONTENT code-verified clean. TDD gate OPENED (D-2253 human-approved 2026-08-19); LOCAL cascade CONVERGED (D-2259 human admin override); READY TO PUSH. |
+| ADR-058-SPEC-READINESS-FAIL-001 [blocking-next-action; D-2176/observed 2026-08-15; severity: BLOCKING; status: CLOSED] | architect + product-owner + story-writer | 2026-08-15 | 2026-08-20 | CLOSED — COERCION-001 MERGED (PR #240 @362e4f85 2026-08-20, human-authorized admin-merge). Spec cascade closed substantive D-2252; TDD gate opened D-2253; LOCAL cascade converged D-2259 (human override); PR cycle complete. |
 | PROCESS-GAP [D-2092/observed 2026-08-02; status: OPEN] | Orchestrator | 2026-08-02 | — | version-field-sync ambiguity in dispatch brief; process improvement |
 | PROCESS-GAP [D-2091/observed 2026-08-02; anchor: S-MAINT-BURST-COMMIT-COUNT-GATE-001; status: MITIGATED] | Orchestrator | 2026-08-02 | — | S-MAINT-BURST-COMMIT-COUNT-GATE-001 ARCH-QUES-001 pending |
 
@@ -234,27 +240,27 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · convergence-trajectory.md · decisions-archive-D1789-D2199.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · decisions-archive-D1124-D1138.md · decisions-archive-D1165-D1352.md · drift-items-resolved.md · drift-items-open.md · drift-items-deferred.md · blocking-issues-resolved.md · phase-5-deferred-findings.md · frontmatter-cascade-archive.md · session-handoff-archive.md · lessons.md · session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
-## Session Resume Checkpoint (D-2259 — 2026-08-20 — COERCION-001 LOCAL cascade CONVERGED; PR-ready; STATE v8.793→v8.794) [supersedes D-2253]
+## Session Resume Checkpoint (D-2261 — 2026-08-20 — RECOVERY+WRAP COMPLETE; PRs #240 + #241 MERGED; STATE v8.794→v8.795) [supersedes D-2259]
 
 ### RESUME IN ONE BREATH
-Prism Phase-3. S-ADR058-OCSF-COERCION-001 LOCAL adversary cascade CONVERGED by HUMAN ADMIN OVERRIDE (D-2259, 2026-08-20). ALL code defects fixed across 4 LOCAL passes. HOLDOUT GATE PASS 4/4 (HS-001..HS-004 via real MCP stdio). Demo evidence COMPLETE (feature commit c1d8cea13; 8 ACs; POL-10). just check GREEN 5765 on feature branch at code HEAD 26d036224. NEXT: push feature branch to origin + create PR to develop via pr-manager.
+Prism Phase-3. S-ADR058-OCSF-COERCION-001 MERGED to develop (PR #240 @362e4f85, human-authorized admin-merge 2026-08-20). PR #241 (clippy 1.98.0 + h2 RUSTSEC-2026-0258) also MERGED @40c667916. develop is now @362e4f85 (5765 tests). BC-2.16.003 promoted draft→active (POL-14). active_contracts 253. NEXT: S-ADR058-OCSF-ROUTING-001 delivery (follows COERCION-001). Housekeeping due early next session.
 
-**RESUME NEXT-ACTION:** Push feature/S-ADR058-OCSF-COERCION-001 to origin and create PR to develop via pr-manager (9-step cycle). Worktree: `.worktrees/S-ADR058-OCSF-COERCION-001` @`26d036224` [feature/S-ADR058-OCSF-COERCION-001] LOCAL-CONVERGED READY-TO-PUSH. ROUTING-001 follows COERCION-001 (after COERCION-001 PR merges).
+**RESUME NEXT-ACTION:** (1) SESSION-HANDOFF.md compaction (bloated ~1.2MB — do FIRST). (2) Worktree teardowns: `.worktrees/S-ADR058-OCSF-COERCION-001` (PR #240 merged) + `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` (PR #239 merged 2026-08-16). (3) Start S-ADR058-OCSF-ROUTING-001 (next story in OCSF correctness chain; follows COERCION-001).
 
-**SPEC PERIMETER (FROZEN FINAL — D-2259):** ADR-058 v2.26 / BC-2.16.002 v2.32 / BC-2.16.003 v1.20 / ROUTING-001 v1.45 / COERCION-001 v1.47. Indexes: ARCH-INDEX v2.327 / BC-INDEX v9.44 / STORY-INDEX v2.871. Contract counts active 252 / draft 4 / total 269. total_stories 302.
+**SPEC PERIMETER (post-COERCION-001 merge):** ADR-058 v2.26 / BC-2.16.002 v2.32 / BC-2.16.003 v1.21 (active) / ROUTING-001 v1.45 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.327 / BC-INDEX v9.45 / STORY-INDEX v2.872. Contract counts active 253 / draft 3 / total 269. total_stories 302.
 
 **HEADS:**
-- `develop`: `69d821be` (LOCAL == origin/develop; pushed/clean; no open PRs)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2259 burst commit)
-- `.worktrees/S-ADR058-OCSF-COERCION-001` @`26d036224` [feature/S-ADR058-OCSF-COERCION-001] — LOCAL cascade CONVERGED (human override D-2259); HOLDOUT PASS 4/4; demo COMPLETE; READY TO PUSH
-- `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` @`8ae0b5d8` PENDING teardown (PR #239 merged; remote branch deleted)
+- `develop`: `362e4f85` (LOCAL == origin/develop; PR #241 @40c667916 + PR #240 @362e4f85 both merged 2026-08-20; no open PRs)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2261 burst commit)
+- `.worktrees/S-ADR058-OCSF-COERCION-001` @`26d036224` [feature/S-ADR058-OCSF-COERCION-001] — PENDING TEARDOWN (PR #240 merged)
+- `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` @`8ae0b5d8` PENDING teardown (PR #239 merged 2026-08-16; remote branch deleted)
 - `.worktrees/S-3.09` @`43c41389d` [feature/S-3.09] KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` [feature/W3-FIX-S307-001] PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, 1 dirty test file)
 
 **GOVERNING DECISION (alongside D-2109):** DTU work DEFERRED to POST-FIRST-RELEASE per human decision 2026-08-16 — S-ADR058-DTU-PARITY-MIGRATION-001 AND DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001 both PARKED until after v1 ships. Do NOT pick up DTU-fidelity work before v1.
 
-**PENDING HOUSEKEEPING (next session):** (1) SESSION-HANDOFF.md compaction needed (~1.2MB — bloated; compact EARLY next session). (2) Worktree teardown: `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` (PR #239 merged; remote branch deleted). (3) Register self-improvement story for RED-gate/test-location-coherence [process-gap] (6+ recurrences) at cycle-close. (4) Accepted residuals to close at cycle-close: BC-2.16.003 KNOWN GAP labels at COERCION-001 merge; SAP-1 granularity + version-pin-churn evaluation to lessons.md (D-2259 (b)+(c)).
+**PENDING HOUSEKEEPING (next session):** (1) SESSION-HANDOFF.md compaction needed (~1.2MB — bloated; compact EARLY next session). (2) Worktree teardowns: `.worktrees/S-ADR058-OCSF-COERCION-001` (PR #240 merged) + `.worktrees/S-CLAROTY-AUDITLOG-TIMEBOX-001` (PR #239 merged 2026-08-16). (3) Register self-improvement story for RED-gate/test-location-coherence [process-gap] (6+ recurrences) at cycle-close. (4) Accepted residuals from COERCION-001 cascade: BC-2.16.003 KNOWN GAP labels post-merge; SAP-1 granularity + version-pin-churn evaluation to lessons.md (D-2259 (b)+(c)).
 
-**BACKUP BOUNDARY (D-2259):**
-- PUSHED / safe: `origin/develop` `69d821be` (PR #239 merged 2026-08-16T22:51Z); `factory-artifacts` (this D-2259 burst commit).
-- LOCAL-ONLY AT RISK: `.worktrees/S-ADR058-OCSF-COERCION-001` @`26d036224` (feature branch NOT YET PUSHED to origin); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
+**BACKUP BOUNDARY (D-2261):**
+- PUSHED / safe: `origin/develop` `362e4f85` (PR #241 merged 2026-08-20; PR #240 merged 2026-08-20); `factory-artifacts` (this D-2261 burst commit).
+- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
