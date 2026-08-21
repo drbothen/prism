@@ -29,13 +29,7 @@
 ///
 /// Covers AC-002; RG-003, RG-004.
 pub fn ocsf_field_to_arrow_name(ocsf_field: &str) -> String {
-    // Suppress unused-parameter warning in stub; implementer uses ocsf_field directly.
-    let _ = ocsf_field;
-    todo!(
-        "RG-003/RG-004 (AC-002): replace all '.' with '_' in ocsf_field path; \
-           e.g. 'finding.uid' -> 'finding_uid', 'actor.user.name' -> 'actor_user_name'; \
-           single-segment names like 'status' are unchanged; ADR-058 §C2 Option 4"
-    )
+    ocsf_field.replace('.', "_")
 }
 
 use prism_core::{PrismError, column::ColumnType};
