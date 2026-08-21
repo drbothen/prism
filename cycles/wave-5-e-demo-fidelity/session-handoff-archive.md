@@ -165,3 +165,40 @@ _Archived at D-1106 pause-checkpoint burst (2026-06-12T09:00Z). Superseded by D-
 **Summary:** Review cycle COMPLETE — all 3 fix-PRs merged: QRY PR #183 → develop@f88b10e3 (2026-06-11T15:47Z; LOCAL 16p + PR-LEVEL 3p strict), MCP PR #184 → develop@c200d5a2 (2026-06-12T03:37Z; LOCAL 12p + PR-LEVEL 11p strict; BC-INDEX v6.26), DTU PR #182 → develop@939f36ce (2026-06-12T05:18Z; LOCAL 33p + PR-LEVEL 3p strict); all CI 43/43 GREEN; pr-reviewer APPROVE each; security MAY PROCEED. Register burst COMPLETE (25 items). POL-14 idempotent: fix-PR cycle; no BC promotions; active_contracts 232/draft_contracts 5 UNCHANGED. STATE v7.754. develop HEAD 939f36ce. BC-INDEX v6.26 (250/232/5/6). STORY-INDEX v2.348 (194). VP-INDEX v1.78 (157). NEXT at supersession: T5 — story-writer dispatch for S-DEMO-DTU-LIVE-SCENARIO-001-B per D-1090 envelope.
 
 _Full snapshot content available in git history on factory-artifacts branch at commit 27f72c08 (factory D-1105/D-1103 burst chain)._
+
+---
+
+## D-2262 Compaction (2026-08-21) — SESSION-HANDOFF.md Compaction
+
+**Archived from:** SESSION-HANDOFF.md at factory-artifacts commit 23df3430c (D-2261 RECOVERY+WRAP wrap commit)
+**Compacted by:** state-manager D-2262 housekeeping burst (2026-08-21)
+**Reason:** SESSION-HANDOFF.md bloated to ~1.25MB / 9,259 lines; compacted to lean resume-ready doc (~77 lines)
+**Before:** 9,259 lines / 1,248,072 bytes
+**After:** ~77 lines (frontmatter + title + D-2261 snapshot + §Standing Orchestrator Process Rules)
+
+### Archived Content Index (D-2262 compaction)
+
+All content below was removed from SESSION-HANDOFF.md and is preserved here for historical reference.
+Full content of all entries is available in git history on `factory-artifacts` at commit `23df3430c`.
+
+| Content | D-NNN / Date | Notes |
+|---------|-------------|-------|
+| Historical top-note running block (lines 10–261) | D-2093 to D-2261 / 2026-08-02..20 | Running blockquote summaries of sessions; final entry updated develop HEAD to 362e4f85 |
+| §RESUME SNAPSHOT D-2244 | 2026-08-19 | OCSF cascade 0/3; FROZEN PERIMETER; dev@69d821be; STATE v8.776→v8.777 [SUPERSEDED by D-2261] |
+| §RESUME SNAPSHOT D-2236 | 2026-08-18 | pass-33 F-P33-MED-001; NEXT = fix-burst; dev@69d821be; STATE v8.766→v8.767 [SUPERSEDED by D-2244] |
+| §RESUME SNAPSHOT D-2218 | 2026-08-17 | OCSF cascade streak 0/3 pass-15 F1 reset; dev@69d821be; STATE v8.748→v8.749 [SUPERSEDED by D-2236] |
+| §RESUME SNAPSHOT D-2201 | 2026-08-16 | PR #239 MERGED dev@69d821be; STATE v8.731→v8.732 [SUPERSEDED by D-2218] |
+| §RESUME SNAPSHOT D-2185 | 2026-08-15 | TDD-GREEN d1b7c0c47 + LOCAL pass-1 4 findings; dev@791b68c3; STATE v8.718→v8.719 [SUPERSEDED by D-2201] |
+| §RESUME SNAPSHOT D-2182 | 2026-08-15 | REGISTRATION BURST COMPLETE; S-CLAROTY-AUDITLOG-TIMEBOX-001 REGISTERED; dev@3197e27a9; STATE v8.717→v8.718 [SUPERSEDED by D-2185] |
+| §RESUME SNAPSHOT D-2170 | 2026-08-15 | SESSION WRAP; PR #237 OPEN HEAD fed0db1c9; dev LOCAL/origin DIVERGED; STATE v8.715→v8.716 [SUPERSEDED by D-2182] |
+| §RESUME SNAPSHOT D-2154 | 2026-08-14 | SESSION WRAP; pass-37 fix-burst; story v1.28; dev_head 5d1a30ac7; STATE v8.703→v8.704 [SUPERSEDED by D-2170] |
+| §RESUME SNAPSHOT D-2110 | 2026-08-13 | SESSION WRAP; API keys ROTATED; LIVE-xDome next; dev_head 5d1a30ac7; STATE v8.658→v8.659 [SUPERSEDED by D-2154] |
+| §RESUME SNAPSHOT D-2102 | 2026-08-12 | SESSION WRAP; 42 cumulative findings; streak 0/3; dev_head ef996a4c0; STATE v8.651 [SUPERSEDED by D-2110] |
+| §RESUME SNAPSHOT D-2095 | 2026-08-03 | SENSOR-CRITICAL REGISTRATION BURST; 7 stories; total_stories 283→290; STATE v8.644 [SUPERSEDED] |
+| §RESUME SNAPSHOT D-2094 | 2026-08-03 | LIVE-DEMO ENGINE-DEFECT REGISTRATION BURST; 18 stories; total_stories 265→283; STATE v8.643 [SUPERSEDED] |
+| §RESUME SNAPSHOT D-2093 | 2026-08-02 | records-only micro-burst; 39 cumulative findings; STATE v8.642 [SUPERSEDED] |
+| §RESUME SNAPSHOT D-2092 through D-1284 | 2026-07..08 | Multiple snapshots from DEFECT-ADAPTER-TLS work and Wave-A spec evolution |
+| §ACTIVE OBJECTIVE — Multi-Client SOC-Analyst Live Demo | Inserted D-1242 area | North Star; `.factory/objectives/DEMO-SCOPE.md` is authoritative; STILL IN FORCE |
+| §RESUME SNAPSHOT D-1282 through D-1236 | 2026-06-19..22 | Wave-A spec evolution; S-5.03/S-5.04; PIVOT-002/003 stories |
+
+_Full snapshot content for all entries above available in git history on factory-artifacts at commit `23df3430c`._
