@@ -525,6 +525,83 @@ mod tests {
     /// production callers per ADR-058 §K5.  This test is intentionally defense-in-depth /
     /// forward-compat per SAP-3 rule 2/3.  The equivalent LIVE coverage on Path A is
     /// RG-010 (`build_column_array` Integer+Object → null+warn) in `spec_driven_adapter.rs`.
+    // ── S-ADR058-OCSF-ROUTING-001 Red Gate Tests ───────────────────────────────
+
+    /// RG-003 / AC-002 / ADR-058 §C2 Option 4 / BC-2.16.003 §Column Routing
+    ///
+    /// `ocsf_field_to_arrow_name` MUST replace every `.` in an OCSF field path with `_`.
+    ///
+    /// **SAP-3 reachability:** `ocsf_field_to_arrow_name` is the canonical home per ADR-058 §I1
+    /// and is imported by both `prism-bin::spec_driven_adapter` and `prism-mcp::tools::prism_describe`.
+    /// This unit test exercises Path A of the function directly; end-to-end reachability via
+    /// `pipeline_result_to_record_batch` is covered by RG-005/RG-015/RG-020/RG-022 in prism-bin.
+    ///
+    /// **Red gate:** the function body is `todo!()` — panics with "not yet implemented".
+    #[test]
+    fn test_ocsf_field_to_arrow_name_replaces_dots_with_underscores() {
+        // Two-segment path: "finding.uid" → "finding_uid"
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("finding.uid"),
+            "finding_uid",
+            "AC-002 (RG-003): 'finding.uid' must flatten to 'finding_uid' \
+             (single dot replaced by underscore)"
+        );
+        // Three-segment path: "actor.user.name" → "actor_user_name"
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("actor.user.name"),
+            "actor_user_name",
+            "AC-002 (RG-003): 'actor.user.name' must flatten to 'actor_user_name' \
+             (two dots both replaced by underscores)"
+        );
+        // BC-2.16.003 contracted mapping: "finding_info.uid" → "finding_info_uid" (KF-03)
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("finding_info.uid"),
+            "finding_info_uid",
+            "AC-002 (RG-003): 'finding_info.uid' must flatten to 'finding_info_uid' \
+             (KF-03 contracted Claroty mapping)"
+        );
+        // Four-segment: "device.hw_info.vendor_name" → "device_hw_info_vendor_name"
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("device.hw_info.vendor_name"),
+            "device_hw_info_vendor_name",
+            "AC-002 (RG-003): 'device.hw_info.vendor_name' must flatten all three dots"
+        );
+    }
+
+    /// RG-004 / AC-002 / ADR-058 §C2 Option 4
+    ///
+    /// `ocsf_field_to_arrow_name` on a single-segment field (no dot) MUST return the
+    /// input string unchanged. No underscore appended, no modification.
+    ///
+    /// **SAP-3 reachability:** defense-in-depth unit test; same path as RG-003 above.
+    /// Full reachability via RG-005 in prism-bin.
+    ///
+    /// **Red gate:** the function body is `todo!()` — panics with "not yet implemented".
+    #[test]
+    fn test_ocsf_field_to_arrow_name_single_segment_is_unchanged() {
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("status"),
+            "status",
+            "AC-002 (RG-004): single-segment 'status' (no dot) must be unchanged"
+        );
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("time"),
+            "time",
+            "AC-002 (RG-004): single-segment 'time' must be unchanged"
+        );
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("message"),
+            "message",
+            "AC-002 (RG-004): single-segment 'message' must be unchanged"
+        );
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("comment"),
+            "comment",
+            "AC-002 (RG-004): single-segment 'comment' (Claroty audit_logs note→comment mapping) \
+             must be unchanged per BC-2.16.003 contracted mapping"
+        );
+    }
+
     #[test]
     fn test_coerce_value_integer_type_object_input_returns_err_coercion_warning() {
         let col = ColumnSpec {

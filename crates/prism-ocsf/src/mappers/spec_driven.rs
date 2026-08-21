@@ -502,3 +502,84 @@ fn parse_timestamp_to_epoch_ms(
         raw: value.to_string(),
     })
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S-ADR058-OCSF-ROUTING-001 Red Gate Test — RG-013
+//
+// Defense-in-depth test for `set_nested_field` under EntityManagement (3004).
+// This test is likely GREEN-BY-DESIGN: `set_nested_field` is already implemented,
+// and EntityManagement v1.7.0 inherits `comment` from BaseEvent.
+//
+// SAP-3 annotation: `set_nested_field` is private; this test covers the
+// private implementation path. The public reachability path is via
+// `SpecDrivenMapper::map()` → exercised by RG-016/019 end-to-end tests.
+// ─────────────────────────────────────────────────────────────────────────────
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
+mod tests {
+    use prost_reflect::Value as ProtoValue;
+
+    use super::set_nested_field;
+    use crate::pool::OcsfDescriptors;
+
+    /// RG-013 / AC-005 / BC-2.16.003 KF-03/04 — EntityManagement `comment` field preserved
+    ///
+    /// `set_nested_field(&mut entity_management_msg, "comment", ProtoValue::String("reviewed"))`
+    /// MUST write the field — EntityManagement (3004) inherits `comment` from BaseEvent
+    /// in OCSF v1.7.0.
+    ///
+    /// This guards against the historical class mismatch where Claroty `audit_log` was routed
+    /// to AccountChange (3001) instead of EntityManagement (3004). AccountChange was believed
+    /// to LACK `comment`; if `set_nested_field` silently no-ops for AccountChange, every
+    /// `note → comment` mapping drops the value.
+    ///
+    /// **SAP-3 annotation (defense-in-depth):** `set_nested_field` is a private function.
+    /// This test exercises it directly and is classified DEFENSE-IN-DEPTH under SAP-3.
+    /// The load-bearing public-surface reachability path is via `SpecDrivenMapper::map()`
+    /// → `pipeline_result_to_record_batch` exercised by RG-016..019/022.
+    ///
+    /// **GREEN-BY-DESIGN note:** `set_nested_field` has a real implementation; EntityManagement
+    /// inherits `comment` from BaseEvent. This test documents the invariant and passes
+    /// immediately on an environment with compiled-in real OCSF descriptors. When the pool
+    /// is a stub (ocsf-proto-gen not run), the test gracefully skips via the Err-arm.
+    #[test]
+    fn test_claroty_note_comment_not_silently_dropped_under_entity_management() {
+        let pool = OcsfDescriptors::get();
+
+        // Get the EntityManagement (3004) descriptor.
+        let em_desc = match pool.get_message_by_name("ocsf.v1_7_0.events.iam.EntityManagement") {
+            Some(d) => d,
+            None => {
+                // Stub pool (ocsf-proto-gen not yet run) — graceful skip.
+                // The load-bearing assertion runs on the CI build which has real descriptors.
+                return;
+            }
+        };
+
+        let mut msg = prost_reflect::DynamicMessage::new(em_desc.clone());
+
+        // Call the private `set_nested_field` with the `note → comment` mapping.
+        // "comment" is a single-segment path (flat, not dotted) — uses set_field_by_name.
+        set_nested_field(
+            &mut msg,
+            "comment",
+            ProtoValue::String("reviewed".to_owned()),
+        );
+
+        // Assert "comment" field was written.
+        let comment_desc = em_desc.get_field_by_name("comment").expect(
+            "AC-005 (RG-013): EntityManagement (3004) descriptor MUST have a 'comment' field \
+             (inherited from BaseEvent in OCSF v1.7.0); missing field means wrong descriptor \
+             or wrong class_uid (AccountChange 3001 does not carry 'comment' in OCSF v1.7.0 schema)"
+        );
+        let written_val = msg.get_field(&comment_desc);
+        assert_eq!(
+            written_val.as_ref(),
+            &ProtoValue::String("reviewed".to_owned()),
+            "AC-005 (RG-013): set_nested_field('comment', 'reviewed') under EntityManagement \
+             MUST write the value. If it returns the default empty string, 'comment' is \
+             absent from the EntityManagement descriptor (wrong class_uid or schema mismatch). \
+             Every Claroty audit_log 'note' value would be silently dropped."
+        );
+    }
+}

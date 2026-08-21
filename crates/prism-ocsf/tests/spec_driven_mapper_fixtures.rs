@@ -1044,3 +1044,136 @@ fn test_F_LP2_HIGH_002_dynamic_message_field_value_written_to_real_descriptor() 
          set_nested_field (flat path) must write the actual value, not no-op"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S-ADR058-OCSF-ROUTING-001 Red Gate Tests — RG-011, RG-012, RG-023
+//
+// These tests cover AC-009 class_selector path:
+// - RG-011: select_by_class_name("entity_management") and ("inventory_info") new arms
+// - RG-012: select("armis", "audit_log") corrected to 3004 (EntityManagement)
+// - RG-023: select("claroty", "audit_log") corrected to 3004 (EntityManagement)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RG-011 / AC-009(a) / ADR-058 §K5 Div-3 / BC-2.16.003 EC-016-013-023/024
+///
+/// `select_by_class_name` MUST handle two new TOML `ocsf_class` values introduced by
+/// KF-01 ("entity_management" → 3004) and KF-02 ("inventory_info" → 5001).
+///
+/// **KF-01 rationale:** Claroty/Armis `audit_log` must map to EntityManagement (3004),
+/// NOT AccountChange (3001). AccountChange lacks the `comment` attribute, silently dropping
+/// every `note` field value. EntityManagement carries `comment` (inherited from BaseEvent).
+///
+/// **KF-02 rationale:** Claroty/Armis `devices` must map to DeviceInventoryInfo (5001).
+/// The previous `ocsf_class = "device"` arm (5001) is preserved for compatibility; the
+/// new `"inventory_info"` arm is added as the KF-02-corrected canonical value.
+///
+/// **Red gate:** both arms are `todo!()` — the first call panics.
+#[test]
+fn test_class_selector_entity_management_and_inventory_info_arms() {
+    use prism_ocsf::{class_selector::CLASS_UID_ENTITY_MANAGEMENT, EventClassSelector};
+
+    // Sub-case 1: "entity_management" → 3004 (KF-01)
+    let em_result = EventClassSelector::select_by_class_name("entity_management");
+    assert!(
+        em_result.is_ok(),
+        "AC-009(a) (RG-011): select_by_class_name('entity_management') MUST return Ok(3004); \
+         KF-01 TOML correction routes Claroty/Armis audit_log here. Got Err: {:?}",
+        em_result.err()
+    );
+    assert_eq!(
+        em_result.unwrap(),
+        CLASS_UID_ENTITY_MANAGEMENT,
+        "AC-009(a) (RG-011): select_by_class_name('entity_management') MUST return \
+         CLASS_UID_ENTITY_MANAGEMENT (3004). Without this arm, KF-01 TOML correction \
+         regresses class_uid from 3001 to 0 (BASE_EVENT fallback via .unwrap_or(0))."
+    );
+
+    // Sub-case 2: "inventory_info" → 5001 (KF-02)
+    let ii_result = EventClassSelector::select_by_class_name("inventory_info");
+    assert!(
+        ii_result.is_ok(),
+        "AC-009(a) (RG-011): select_by_class_name('inventory_info') MUST return Ok(5001); \
+         KF-02 TOML correction routes Claroty/Armis devices here. Got Err: {:?}",
+        ii_result.err()
+    );
+    assert_eq!(
+        ii_result.unwrap(),
+        prism_ocsf::class_selector::CLASS_UID_DEVICE_INVENTORY_INFO,
+        "AC-009(a) (RG-011): select_by_class_name('inventory_info') MUST return \
+         CLASS_UID_DEVICE_INVENTORY_INFO (5001). Without this arm, KF-02 TOML correction \
+         regresses class_uid from 5001 to 0."
+    );
+}
+
+/// RG-012 / AC-009(a) / ADR-058 §K5 Div-3 / BC-2.16.003 EC-016-013-023
+///
+/// `select("armis", "audit_log")` MUST return 3004 (EntityManagement) after KF-01
+/// correction. Currently returns 3001 (AccountChange) — this is the pre-KF stale arm.
+///
+/// **Why 3004 is required:** AccountChange (3001) lacks the `comment` attribute in
+/// OCSF v1.7.0. Armis `audit_log` maps `note → comment`. Without 3004, the
+/// `note` value silently disappears from every protobuf-normalized Armis audit event.
+///
+/// **Red gate:** `select("armis", "audit_log")` returns `CLASS_UID_ACCOUNT_CHANGE` (3001)
+/// — the assertion `== 3004` fails.
+#[test]
+fn test_class_selector_armis_audit_log_maps_to_entity_management_3004() {
+    use prism_ocsf::{class_selector::CLASS_UID_ENTITY_MANAGEMENT, EventClassSelector};
+
+    let result = EventClassSelector::select("armis", "audit_log");
+    assert!(
+        result.is_ok(),
+        "AC-009(a) (RG-012): select('armis', 'audit_log') MUST return Ok(3004); \
+         it is a known sensor+record_type pair. Got Err: {:?}",
+        result.err()
+    );
+    let uid = result.unwrap();
+    assert_eq!(
+        uid, CLASS_UID_ENTITY_MANAGEMENT,
+        "AC-009(a) (RG-012): select('armis', 'audit_log') MUST return \
+         CLASS_UID_ENTITY_MANAGEMENT (3004) after KF-01 correction. \
+         Currently returns 3001 (AccountChange) — the stale pre-KF arm. \
+         AccountChange (3001) lacks the 'comment' attribute; every Armis audit_log \
+         'note' value is silently dropped during protobuf normalization."
+    );
+    assert_ne!(
+        uid, 3001u32,
+        "AC-009(a) (RG-012): result MUST NOT be 3001 (AccountChange)"
+    );
+}
+
+/// RG-023 / AC-009(a) / ADR-058 §K5 Div-3 / BC-2.16.003 EC-016-013-023
+///
+/// `select("claroty", "audit_log")` MUST return 3004 (EntityManagement) after KF-01
+/// correction. Currently returns 3001 (AccountChange) — this is the pre-KF stale arm.
+///
+/// **Why 3004 is required:** Same rationale as RG-012 (Armis sibling).
+/// Claroty `audit_log` maps `note → comment`. AccountChange (3001) lacks `comment`.
+///
+/// **Red gate:** `select("claroty", "audit_log")` returns `CLASS_UID_ACCOUNT_CHANGE` (3001)
+/// — the assertion `== 3004` fails.
+#[test]
+fn test_class_selector_claroty_audit_log_select_arm_maps_to_entity_management_3004() {
+    use prism_ocsf::{class_selector::CLASS_UID_ENTITY_MANAGEMENT, EventClassSelector};
+
+    let result = EventClassSelector::select("claroty", "audit_log");
+    assert!(
+        result.is_ok(),
+        "AC-009(a) (RG-023): select('claroty', 'audit_log') MUST return Ok(3004); \
+         it is a known sensor+record_type pair. Got Err: {:?}",
+        result.err()
+    );
+    let uid = result.unwrap();
+    assert_eq!(
+        uid, CLASS_UID_ENTITY_MANAGEMENT,
+        "AC-009(a) (RG-023): select('claroty', 'audit_log') MUST return \
+         CLASS_UID_ENTITY_MANAGEMENT (3004) after KF-01 correction. \
+         Currently returns 3001 (AccountChange) — the stale pre-KF arm. \
+         AccountChange (3001) lacks 'comment'; every Claroty audit_log 'note' value \
+         (e.g., 'reviewed') is silently dropped during protobuf normalization."
+    );
+    assert_ne!(
+        uid, 3001u32,
+        "AC-009(a) (RG-023): result MUST NOT be 3001 (AccountChange)"
+    );
+}
