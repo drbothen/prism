@@ -21,7 +21,8 @@
 //! | Incident Finding          | 2005      | CrowdStrike incidents              |
 //! | Vulnerability Finding     | 2002      | Claroty vulnerabilities            |
 //! | Device Inventory Info     | 5001      | Claroty/Armis devices              |
-//! | Account Change            | 3001      | Claroty/Armis audit logs (closest OCSF v1.7.0 IAM class) |
+//! | Account Change            | 3001      | (transitional; Claroty/Armis audit logs pre-KF-01 — now superseded by Entity Management 3004) |
+//! | Entity Management         | 3004      | Claroty/Armis audit logs (KF-01 correction per ADR-058 §K5 Div-3; has `comment` attr) |
 //! | Base Event                | 0         | Fallback for unmapped record types |
 //! | Security Finding (DEPRECATED) | 2001  | NOT used in `select()` or `select_by_class_name()` — deprecated OCSF v1.1.0. `select_by_class_name("security_finding")` returns 2004 with a deprecation WARN (BC-2.02.012 Option A, OCSF-CLASS-MIGRATION-001). |
 //!
@@ -64,6 +65,17 @@ pub const CLASS_UID_DEVICE_INVENTORY_INFO: u32 = 5001;
 /// here as the closest available IAM-category event class. S-1.05 field mappers will
 /// verify this is semantically correct or propose an alternative class_uid.
 pub const CLASS_UID_ACCOUNT_CHANGE: u32 = 3001;
+
+/// OCSF `class_uid` for Entity Management (uid=3004) in OCSF v1.7.0.
+///
+/// Replaces the incorrect `"audit_activity"` TOML value used by Claroty/Armis
+/// `audit_log` records (KF-01 correction per ADR-058 §K5 Divergence 3).
+/// `entity_management` (3004) has the `comment` attribute required for the
+/// `note → comment` mapping in Claroty `audit_logs`. `account_change` (3001) lacks
+/// `comment`, causing silent data loss of every `note` value.
+///
+/// (AC-009 sub-obligations a+b; S-ADR058-OCSF-ROUTING-001)
+pub const CLASS_UID_ENTITY_MANAGEMENT: u32 = 3004;
 
 /// OCSF `class_uid` for Base Event — used for unmapped record types. (BC-2.02.012)
 pub const CLASS_UID_BASE_EVENT: u32 = 0;
@@ -142,8 +154,24 @@ impl EventClassSelector {
             }
             "vulnerability_finding" => Ok(CLASS_UID_VULNERABILITY_FINDING),
             "incident_finding" => Ok(CLASS_UID_INCIDENT_FINDING),
+            // DEPRECATED: "audit_activity" was a non-OCSF string; no production TOML uses this
+            // after KF-01 correction (S-ADR058-OCSF-ROUTING-001). Claroty/Armis sensor TOMLs
+            // now declare `ocsf_class = "entity_management"` (3004). Remove after confirming
+            // zero TOML instances across all deployed sensors.
             "audit_activity" => Ok(CLASS_UID_ACCOUNT_CHANGE),
             "device" => Ok(CLASS_UID_DEVICE_INVENTORY_INFO),
+            // AC-009 sub-obligation (b): new arms for KF-01/KF-02 corrected TOML values.
+            // RG-011: both arms must be added together (single test asserts both at once).
+            "entity_management" => todo!(
+                "RG-011 (AC-009b): entity_management -> CLASS_UID_ENTITY_MANAGEMENT (3004); \
+                 KF-01 TOML correction routes Claroty/Armis audit_log ocsf_class here; \
+                 without this arm, KF-01 TOML fix regresses class_uid from 3001 to 0 (BASE_EVENT)"
+            ),
+            "inventory_info" => todo!(
+                "RG-011 (AC-009b): inventory_info -> CLASS_UID_DEVICE_INVENTORY_INFO (5001); \
+                 KF-02 TOML correction routes Claroty/Armis devices ocsf_class here; \
+                 without this arm, KF-02 TOML fix silently regresses class_uid from 5001 to 0"
+            ),
             _ => Err(PrismError::OcsfUnknownEventClass {
                 // "<class-name-lookup>" sentinel: this path is reached via select_by_class_name,
                 // which takes only a class_name — there is no sensor context. Using an empty

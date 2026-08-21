@@ -32,6 +32,7 @@
 //! — must never be feature-gated). It is wired into the `#[tool_router]` block in
 //! `server.rs`. No `Arc<dyn TableRegistry>` injection — see architecture compliance.
 
+use prism_spec_engine::column_mapping::ocsf_field_to_arrow_name;
 use rmcp::model::CallToolResult;
 use serde::{Deserialize, Serialize};
 
@@ -330,16 +331,33 @@ fn build_tables_for_client(
                 .flat_map(|((_org, sensor_id), resolved)| {
                     let spec = &resolved.spec;
                     spec.tables.iter().map(move |table| {
-                        let columns: Vec<ColumnDescriptor> = table
-                            .columns
-                            .iter()
-                            .map(|col| ColumnDescriptor {
-                                name: col.name.clone(),
-                                col_type: col.column_type.clone(),
-                                description: col.ocsf_field.clone(),
-                                nullable: true,
-                            })
-                            .collect();
+                        // ADR-058 §G: when ocsf_column_naming is true, emit Tier-1/Tier-2
+                        // ColumnDescriptor model (stub — RG-007/RG-025, AC-006).
+                        let columns: Vec<ColumnDescriptor> = if spec.ocsf_column_naming {
+                            let _ = ocsf_field_to_arrow_name; // suppress unused-import during stub phase
+                            todo!(
+                                "RG-007/RG-025 (AC-006): Tier-1/Tier-2 ColumnDescriptor model (multi-tenant path): \
+                                 Tier-1 cols (ocsf_field==Some) -> ColumnDescriptor {{ \
+                                     name: ocsf_field_to_arrow_name(ocsf_field), \
+                                     description: Some(ocsf_field.clone()), col_type, nullable: true }}; \
+                                 Tier-2 cols (ocsf_field==None) -> suppressed (MUST NOT emit individual ColumnDescriptors); \
+                                 MUST emit exactly ONE raw_extensions ColumnDescriptor \
+                                     {{ name: raw_extensions, col_type: Json, nullable: true, \
+                                        description: enumerating source col names }}; \
+                                 ADR-058 §G; BC-2.16.003 EC-016-013-028/029"
+                            )
+                        } else {
+                            table
+                                .columns
+                                .iter()
+                                .map(|col| ColumnDescriptor {
+                                    name: col.name.clone(),
+                                    col_type: col.column_type.clone(),
+                                    description: col.ocsf_field.clone(),
+                                    nullable: true,
+                                })
+                                .collect()
+                        };
                         // BC-2.10.012 AUDIT-001: table name must be sensor-prefixed so that
                         // AI agents build valid `FROM crowdstrike_alerts | ...` queries, NOT
                         // bare `FROM alerts | ...` (which silently routes to E-SENSOR-030).
@@ -386,16 +404,30 @@ fn build_tables_for_client(
         .tables
         .iter()
         .map(|table| {
-            let columns: Vec<ColumnDescriptor> = table
-                .columns
-                .iter()
-                .map(|col| ColumnDescriptor {
-                    name: col.name.clone(),
-                    col_type: col.column_type.clone(),
-                    description: col.ocsf_field.clone(),
-                    nullable: true,
-                })
-                .collect();
+            // ADR-058 §G: when ocsf_column_naming is true, emit Tier-1/Tier-2
+            // ColumnDescriptor model (stub — RG-007/RG-025, AC-006).
+            let columns: Vec<ColumnDescriptor> = if sensor_spec.ocsf_column_naming {
+                todo!(
+                    "RG-007/RG-025 (AC-006): Tier-1/Tier-2 ColumnDescriptor model (single-tenant path): \
+                     same Tier-1/Tier-2 logic as multi-tenant path; \
+                     Tier-1 (ocsf_field==Some) -> ColumnDescriptor {{ \
+                         name: ocsf_field_to_arrow_name(ocsf_field), description: Some(ocsf_field) }}; \
+                     Tier-2 (ocsf_field==None) -> suppressed; \
+                     ONE raw_extensions ColumnDescriptor emitted; \
+                     ADR-058 §G; BC-2.16.003 EC-016-013-028/029"
+                )
+            } else {
+                table
+                    .columns
+                    .iter()
+                    .map(|col| ColumnDescriptor {
+                        name: col.name.clone(),
+                        col_type: col.column_type.clone(),
+                        description: col.ocsf_field.clone(),
+                        nullable: true,
+                    })
+                    .collect()
+            };
 
             // BC-2.10.012 AUDIT-001: table name must be sensor-prefixed so that AI agents
             // build valid `FROM crowdstrike_alerts | ...` queries (not bare `FROM alerts`).

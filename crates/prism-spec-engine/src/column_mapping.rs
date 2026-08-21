@@ -5,6 +5,39 @@
 //! four-tier field resolution (BC-2.02.008). Columns without mappings go to
 //! `raw_extensions`. Type coercion is applied with non-fatal fallback.
 
+/// Converts a dotted OCSF field path to an underscore-flattened Arrow field name.
+///
+/// This is the canonical home of this helper per ADR-058 §I1. Both
+/// `prism-bin::spec_driven_adapter` and `prism-mcp::tools::prism_describe` import
+/// this from here — no `prism-mcp → prism-bin` cycle required.
+///
+/// # Underscore-flattening convention (ADR-058 §C2 Option 4)
+///
+/// All `.` (dots) in the OCSF field path are replaced with `_` (underscores).
+///
+/// | ocsf_field               | Arrow field name           |
+/// |--------------------------|----------------------------|
+/// | `"finding.uid"`          | `"finding_uid"`            |
+/// | `"actor.user.name"`      | `"actor_user_name"`        |
+/// | `"status"`               | `"status"` (unchanged)     |
+///
+/// # Arrow legality
+///
+/// Arrow 58 `Field::new` accepts any valid UTF-8 name. Underscore-flattened names
+/// composed of lowercase alphanumeric and `_` are unconditionally legal as Arrow field
+/// names and as unquoted DataFusion SQL identifiers (PrismQL pipe grammar guarantees).
+///
+/// Covers AC-002; RG-003, RG-004.
+pub fn ocsf_field_to_arrow_name(ocsf_field: &str) -> String {
+    // Suppress unused-parameter warning in stub; implementer uses ocsf_field directly.
+    let _ = ocsf_field;
+    todo!(
+        "RG-003/RG-004 (AC-002): replace all '.' with '_' in ocsf_field path; \
+           e.g. 'finding.uid' -> 'finding_uid', 'actor.user.name' -> 'actor_user_name'; \
+           single-segment names like 'status' are unchanged; ADR-058 §C2 Option 4"
+    )
+}
+
 use prism_core::{PrismError, column::ColumnType};
 use serde_json::Value;
 

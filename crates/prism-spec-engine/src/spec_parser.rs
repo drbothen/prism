@@ -513,6 +513,18 @@ pub struct SensorSpec {
     ///
     #[serde(default)]
     pub probe_table: Option<String>,
+
+    /// When `true`, `pipeline_result_to_record_batch` uses `ocsf_field_to_arrow_name(col.ocsf_field)`
+    /// as the Arrow schema field name for columns with an `ocsf_field` declaration, and aggregates
+    /// columns with `ocsf_field == None` into a single `raw_extensions` JSON blob.
+    ///
+    /// When `false` (default), the existing `col.name` path is used (backward-compatible with
+    /// CrowdStrike, Armis, Cyberint sensors). Only Claroty activates this flag per AC-005.
+    ///
+    /// `#[serde(default)]` uses `bool::default()` = `false`; all existing sensor TOMLs without
+    /// this field deserialize as `ocsf_column_naming = false`. (AC-001, ADR-058 §D2)
+    #[serde(default)]
+    pub ocsf_column_naming: bool,
 }
 
 impl Default for SensorSpec {
@@ -544,6 +556,7 @@ impl Default for SensorSpec {
             source_path: String::new(),
             mode: crate::types::DtuMode::default(),
             probe_table: None,
+            ocsf_column_naming: false,
         }
     }
 }
@@ -597,6 +610,7 @@ impl SensorSpec {
             source_path: String::new(),
             mode: crate::types::DtuMode::default(),
             probe_table: None,
+            ocsf_column_naming: false,
         }
     }
 }

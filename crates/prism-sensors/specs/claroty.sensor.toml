@@ -36,6 +36,10 @@ name = "Claroty xDome"
 auth_type = "bearer_static"
 base_url = "${env.CLAROTY_INSTANCE_URL}"
 version = "1.0.0"
+# ADR-058 Stage 2: activates OCSF field-name routing for this sensor. Arrow schema
+# field names use ocsf_field_to_arrow_name(col.ocsf_field) for Tier-1 columns;
+# Tier-2 columns (ocsf_field absent) aggregate into raw_extensions. (AC-005)
+ocsf_column_naming = true
 
 # ---------------------------------------------------------------------------
 # Credential references
@@ -77,23 +81,26 @@ ocsf_class = "detection_finding"
   # Polymorphic ID: Claroty returns IDs as JSON integers or UUID strings.
   # Normalized to string at the spec parser boundary (EC-016-013-004).
   # DTU ClarotyAlert.id: u32 — normalized to string by pipeline.
+  # KF-03: finding.uid → finding_info.uid (OCSF v1.7.0 restructuring; ADR-058 §K5 Divergence 1).
   [[tables.columns]]
   name = "id"
   column_type = "string"
-  ocsf_field = "finding.uid"
+  ocsf_field = "finding_info.uid"
   options = ["REQUIRED"]
 
   # DTU ClarotyAlert.alert_type_name: String — the alert type label.
+  # KF-09: ocsf_field removed — no matching OCSF v1.7.0 field_path for detection_finding.
+  # Tier-2 column: aggregates into raw_extensions under ocsf_column_naming = true.
   [[tables.columns]]
   name = "alert_type_name"
   column_type = "string"
-  ocsf_field = "type_name"
 
   # DTU ClarotyAlert.category: String — alert category.
+  # KF-08: ocsf_field removed — class_name is a computed field, not a detection_finding attribute.
+  # Tier-2 column: aggregates into raw_extensions under ocsf_column_naming = true.
   [[tables.columns]]
   name = "category"
   column_type = "string"
-  ocsf_field = "class_name"
 
   [[tables.columns]]
   name = "status"
@@ -107,16 +114,18 @@ ocsf_class = "detection_finding"
   ocsf_field = "time"
 
   # DTU ClarotyAlert.updated_time: String — ISO 8601 last update timestamp.
+  # KF-12: end_time → finding_info.modified_time (OCSF v1.7.0; ADR-058 §K5 Divergence 1).
   [[tables.columns]]
   name = "updated_time"
   column_type = "datetime"
-  ocsf_field = "end_time"
+  ocsf_field = "finding_info.modified_time"
 
   # DTU ClarotyAlert.devices_count: u32 — count of affected devices.
+  # KF-10: ocsf_field removed — "count" is not an OCSF v1.7.0 detection_finding attribute.
+  # Tier-2 column: aggregates into raw_extensions under ocsf_column_naming = true.
   [[tables.columns]]
   name = "devices_count"
   column_type = "integer"
-  ocsf_field = "count"
 
   [[tables.columns]]
   name = "description"
@@ -136,11 +145,12 @@ ocsf_class = "detection_finding"
   column_type = "integer"
 
   # DTU ClarotyAlert.alert_name: String — human-readable alert name (distinct from type).
-  # Tier 2 column: in Alert fields_enum (xDome OpenAPI 2026-06-20, verified 2026-08-11).
+  # KF-04: finding.title → finding_info.title (OCSF v1.7.0; ADR-058 §K5 Divergence 1).
+  # Tier-1 column: ocsf_field present → Arrow field name = "finding_info_title".
   [[tables.columns]]
   name = "alert_name"
   column_type = "string"
-  ocsf_field = "finding.title"
+  ocsf_field = "finding_info.title"
 
   # POST-for-read step with offset pagination
   # DTU route: POST /api/v1/alerts (crates/prism-dtu-claroty/src/clone.rs build_router())
@@ -171,14 +181,18 @@ ocsf_class = "detection_finding"
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "audit_logs"
-ocsf_class = "audit_activity"
+# KF-01: audit_activity → entity_management (OCSF v1.7.0 class_uid=3004; ADR-058 §K5 Divergence 3).
+# entity_management carries the `comment` attribute required for note→comment mapping;
+# account_change (3001) lacks it, causing silent data loss of every `note` value.
+ocsf_class = "entity_management"
 # Gap-CL-006 CLOSED by S-DEMO-CLAROTY-AUDIT-DTU-001.
 # POST /api/v1/audit_log/get route registered in prism-dtu-claroty.
 
+  # KF-05: ocsf_field removed per PO decision (audit record ID → raw_extensions under
+  # ocsf_column_naming = true; activity_uid is not a valid OCSF v1.7.0 entity_management field).
   [[tables.columns]]
   name = "id"
   column_type = "string"
-  ocsf_field = "activity_uid"
   options = ["REQUIRED"]
 
   [[tables.columns]]
@@ -194,10 +208,11 @@ ocsf_class = "audit_activity"
   ocsf_field = "actor.user.name"
 
   # Real xDome field: category — audit event category.
+  # KF-11: ocsf_field removed — category_name is a computed field, not an OCSF v1.7.0
+  # entity_management attribute. Tier-2: aggregates into raw_extensions.
   [[tables.columns]]
   name = "category"
   column_type = "string"
-  ocsf_field = "category_name"
 
   [[tables.columns]]
   name = "timestamp"
@@ -276,7 +291,8 @@ ocsf_class = "audit_activity"
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "devices"
-ocsf_class = "device"
+# KF-02: device → inventory_info (OCSF v1.7.0 class_uid=5001; ADR-058 §K5 Divergence 2).
+ocsf_class = "inventory_info"
 
   # DTU ClarotyDevice.uid: String — Claroty's unique device identifier (UUID form).
   [[tables.columns]]
@@ -293,16 +309,22 @@ ocsf_class = "device"
 
   # DTU ClarotyDevice.device_category: String — high-level device category
   #   (e.g. "OT Device", "IT Device", "Medical Device").
+  # §J3 shadow fix: device.type → device.type_category to avoid collision with device.type_label
+  # after KF-06 renames device_type's ocsf_field to device.type_label. Without this fix,
+  # ocsf_field_to_arrow_name("device.type") = "device_type" would shadow
+  # ocsf_field_to_arrow_name("device.type_label") — intra-table collision → ArrowError::SchemaError
+  # (RG-009 guard; ADR-058 §J1).
   [[tables.columns]]
   name = "device_category"
   column_type = "string"
-  ocsf_field = "device.type"
+  ocsf_field = "device.type_category"
 
   # DTU ClarotyDevice.device_type: String — device type within category.
+  # KF-06: device.type_name → device.type_label (OCSF v1.7.0; ADR-058 §K5 Divergence 4).
   [[tables.columns]]
   name = "device_type"
   column_type = "string"
-  ocsf_field = "device.type_name"
+  ocsf_field = "device.type_label"
 
   # DTU ClarotyDevice.risk_score: String — Claroty risk score (string-typed in DTU;
   #   may be numeric string like "7.5" or label like "High"). String column to preserve
@@ -461,10 +483,11 @@ ocsf_class = "detection_finding"
   options = ["REQUIRED"]
 
   # DTU ClarotyDeviceAlertRelation.alert_id: u32 — normalized to string by pipeline (polymorphic alert-ID support at the real-API boundary; matches alerts.id per EC-016-013-004).
+  # KF-07: finding.uid → finding_info.uid (OCSF v1.7.0; ADR-058 §K5 Divergence 1).
   [[tables.columns]]
   name = "alert_id"
   column_type = "string"
-  ocsf_field = "finding.uid"
+  ocsf_field = "finding_info.uid"
 
   # DTU ClarotyDeviceAlertRelation.device_alert_detected_time: String (ISO 8601).
   # Verified in AlertedDevicesPairs__fields_enum (xDome OpenAPI 2026-06-20).

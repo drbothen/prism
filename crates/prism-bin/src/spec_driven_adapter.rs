@@ -56,6 +56,7 @@ use prism_sensors::{
 };
 use prism_spec_engine::{
     AuthProvider, AuthToken, PluginAuthProvider, ResolvedSensorSpec, ResolvedSpecKey,
+    column_mapping::ocsf_field_to_arrow_name,
     error::SpecEngineError,
     extract_at_path, parse_datetime_to_micros,
     pipeline::{FetchContext, PipelineExecutor, PipelineResult},
@@ -735,6 +736,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
                     table,
                     &self.sensor_spec.spec.sensor_id,
                     &params.filters,
+                    &self.sensor_spec.spec, // ADR-058 §D1: thread sensor_spec from fetch() (AC-012)
                 );
                 match batch {
                     Ok(b) => all_batches.push(b),
@@ -904,11 +906,17 @@ fn map_spec_engine_error_to_sensor_error(
 /// Without injection, the `aql` column would be NULL in every row → DataFusion
 /// would filter out all rows (NULL != 'in:devices'). With injection, every row
 /// has `aql = 'in:devices'` → DataFusion's WHERE clause correctly matches.
+/// `sensor_spec` is threaded from the `fetch()` call site per ADR-058 §D1 (ADR-022 §C wiring).
+/// The `sensor_spec.ocsf_column_naming` flag controls whether Arrow schema field names are
+/// OCSF-flattened (`ocsf_field_to_arrow_name`) or kept as `col.name` (existing behavior).
+/// See AC-003 (flag-true path), AC-004 (flag-false path), AC-007 (raw_extensions), AC-012
+/// (parameter threading obligation). RG-024 enforces the signature at compile time.
 fn pipeline_result_to_record_batch(
     result: PipelineResult,
     table: &TableSpec,
     sensor_id: &str,
     push_down_filters: &prism_sensors::types::FilterMap,
+    sensor_spec: &SpecEngineSensorSpec,
 ) -> Result<RecordBatch, arrow::error::ArrowError> {
     // CR-004: caller guards `if !result.records.is_empty()` before calling here (see fetch()).
     // The n==0 early-return was a dead branch — replaced with a debug_assert to catch
@@ -931,7 +939,31 @@ fn pipeline_result_to_record_batch(
     // e.g. class_uid=2004 → category_uid=2 (Findings), class_uid=3001 → category_uid=3 (IAM)
     let derived_category_uid: i32 = derived_class_uid / 1000;
 
+    // AC-003/AC-004: When ocsf_column_naming=true, schema field names use ocsf_field_to_arrow_name;
+    // when false (default), col.name is used (existing behavior). AC-007: ocsf_field==None columns
+    // route to raw_extensions instead of individual schema fields. AC-013 (§J2): fail-closed on
+    // reserved synthesized names. RG-005/RG-008/RG-009/RG-010/RG-026/RG-027 cover these branches.
+    // The OCSF-naming path (sensor_spec.ocsf_column_naming == true) is stubbed as todo!() below.
+    if sensor_spec.ocsf_column_naming {
+        // STUB: RG-005/RG-008/RG-009/RG-010/RG-014..RG-022/RG-024/RG-026/RG-027 will fail RED
+        // until the implementer fills in this branch. The existing flag-false path is used for now.
+        // The `ocsf_field_to_arrow_name` import is present but this call site is not yet wired.
+        let _ = ocsf_field_to_arrow_name; // suppress unused-import warning during stub phase
+        todo!(
+            "RG-005/RG-008 (AC-003/AC-007): implement OCSF-naming schema construction branch: \
+             (1) Tier-1 columns (ocsf_field==Some) -> Field::new(ocsf_field_to_arrow_name(ocsf_field), ...); \
+             (2) Tier-2 columns (ocsf_field==None) -> aggregate into raw_extensions Utf8 field; \
+             (3) RG-009: detect intra-table flattening collisions -> Err(ArrowError::SchemaError); \
+             (4) RG-010 (EC-010): detect flag-transition shadow collision (A!=B check) -> Err; \
+             (5) RG-027 (AC-013): reserved-name guard (class_uid/category_uid/_sensor/raw_extensions) -> Err; \
+             (6) RG-026 (AC-007c): raw_extensions ip_list as compact JSON-list string, NOT nested array; \
+             (7) RG-018 (AC-011): tracing::warn! ocsf.unknown_class_name before .unwrap_or(0); \
+             ADR-058 §I1/§I2/§J2; BC-2.16.003 EC-016-013-028/029; BC-2.16.002 catalog ocsf.unknown_class_name"
+        )
+    }
+
     // Build schema: spec-declared data columns first, then OCSF envelope.
+    // This is the existing flag-false path (AC-004 / col.name behavior preserved).
     let mut fields: Vec<Field> = table
         .columns
         .iter()
@@ -3911,11 +3943,24 @@ mod tests {
             serde_json::Value::String("2024-01-15T10:30:00.000Z".to_string()),
         );
 
+        // AC-012: sensor_spec parameter added per ADR-058 §D1 (RG-024 compile gate).
+        // ocsf_column_naming=false: existing FIX-1 test exercises the flag-false path only.
+        let sensor_spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike Test",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![],
+            None,
+            "1.0.0",
+            vec![],
+        );
         let batch_result = super::pipeline_result_to_record_batch(
             result,
             &table,
             "crowdstrike",
             &push_down_filters,
+            &sensor_spec,
         );
 
         // LOAD-BEARING (FIX-1 type-gate regression — cycle-4 BLOCKING-1):
