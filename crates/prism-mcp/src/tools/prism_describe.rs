@@ -305,6 +305,71 @@ pub async fn handle_prism_describe(
         })
 }
 
+/// Build OCSF-mode ColumnDescriptors for a table when `ocsf_column_naming == true`.
+///
+/// Partitions columns into Tier-1 (ocsf_field == Some) and Tier-2 (ocsf_field == None):
+/// - Tier-1 → ColumnDescriptor with name = ocsf_field_to_arrow_name(ocsf_field),
+///   description = Some(ocsf_field), nullable = true
+/// - Tier-2 → suppressed (not emitted individually)
+/// - If any Tier-2 exist → ONE `raw_extensions` ColumnDescriptor (col_type=Json)
+///   whose description enumerates the Tier-2 source column names
+/// - Always appends `class_uid` (Integer, nullable=false) and `_sensor` (String,
+///   nullable=false) as the last two entries (OQ-003, AC-015, RG-028).
+///
+/// ADR-058 §G; BC-2.16.003 EC-016-013-028/029.
+fn build_ocsf_column_descriptors(
+    table: &prism_spec_engine::spec_parser::TableSpec,
+) -> Vec<ColumnDescriptor> {
+    let tier2_names: Vec<&str> = table
+        .columns
+        .iter()
+        .filter(|col| col.ocsf_field.is_none())
+        .map(|col| col.name.as_str())
+        .collect();
+
+    let mut descriptors: Vec<ColumnDescriptor> = table
+        .columns
+        .iter()
+        .filter(|col| col.ocsf_field.is_some())
+        .map(|col| {
+            let ocsf_field = col.ocsf_field.as_deref().unwrap();
+            ColumnDescriptor {
+                name: ocsf_field_to_arrow_name(ocsf_field),
+                col_type: col.column_type.clone(),
+                description: Some(ocsf_field.to_string()),
+                nullable: true,
+            }
+        })
+        .collect();
+
+    if !tier2_names.is_empty() {
+        let desc = format!("vendor-only fields: {}", tier2_names.join(", "));
+        descriptors.push(ColumnDescriptor {
+            name: "raw_extensions".to_string(),
+            col_type: prism_core::column::ColumnType::Json,
+            description: Some(desc),
+            nullable: true,
+        });
+    }
+
+    // OQ-003 (AC-015): synthesize class_uid and _sensor as the last two descriptors
+    // so LLM agents can filter on `WHERE class_uid = 3004` and `WHERE _sensor = 'claroty'`.
+    descriptors.push(ColumnDescriptor {
+        name: "class_uid".to_string(),
+        col_type: prism_core::column::ColumnType::Integer,
+        description: None,
+        nullable: false,
+    });
+    descriptors.push(ColumnDescriptor {
+        name: "_sensor".to_string(),
+        col_type: prism_core::column::ColumnType::String,
+        description: None,
+        nullable: false,
+    });
+
+    descriptors
+}
+
 /// Build table descriptors for a client.
 ///
 /// Multi-tenant path: when `query_engine` is wired and its `resolved_spec_map` is
@@ -332,20 +397,9 @@ fn build_tables_for_client(
                     let spec = &resolved.spec;
                     spec.tables.iter().map(move |table| {
                         // ADR-058 §G: when ocsf_column_naming is true, emit Tier-1/Tier-2
-                        // ColumnDescriptor model (stub — RG-007/RG-025, AC-006).
+                        // ColumnDescriptor model (AC-006, RG-007/RG-025/RG-028).
                         let columns: Vec<ColumnDescriptor> = if spec.ocsf_column_naming {
-                            let _ = ocsf_field_to_arrow_name; // suppress unused-import during stub phase
-                            todo!(
-                                "RG-007/RG-025 (AC-006): Tier-1/Tier-2 ColumnDescriptor model (multi-tenant path): \
-                                 Tier-1 cols (ocsf_field==Some) -> ColumnDescriptor {{ \
-                                     name: ocsf_field_to_arrow_name(ocsf_field), \
-                                     description: Some(ocsf_field.clone()), col_type, nullable: true }}; \
-                                 Tier-2 cols (ocsf_field==None) -> suppressed (MUST NOT emit individual ColumnDescriptors); \
-                                 MUST emit exactly ONE raw_extensions ColumnDescriptor \
-                                     {{ name: raw_extensions, col_type: Json, nullable: true, \
-                                        description: enumerating source col names }}; \
-                                 ADR-058 §G; BC-2.16.003 EC-016-013-028/029"
-                            )
+                            build_ocsf_column_descriptors(table)
                         } else {
                             table
                                 .columns
@@ -405,17 +459,9 @@ fn build_tables_for_client(
         .iter()
         .map(|table| {
             // ADR-058 §G: when ocsf_column_naming is true, emit Tier-1/Tier-2
-            // ColumnDescriptor model (stub — RG-007/RG-025, AC-006).
+            // ColumnDescriptor model (AC-006, RG-007/RG-025/RG-028).
             let columns: Vec<ColumnDescriptor> = if sensor_spec.ocsf_column_naming {
-                todo!(
-                    "RG-007/RG-025 (AC-006): Tier-1/Tier-2 ColumnDescriptor model (single-tenant path): \
-                     same Tier-1/Tier-2 logic as multi-tenant path; \
-                     Tier-1 (ocsf_field==Some) -> ColumnDescriptor {{ \
-                         name: ocsf_field_to_arrow_name(ocsf_field), description: Some(ocsf_field) }}; \
-                     Tier-2 (ocsf_field==None) -> suppressed; \
-                     ONE raw_extensions ColumnDescriptor emitted; \
-                     ADR-058 §G; BC-2.16.003 EC-016-013-028/029"
-                )
+                build_ocsf_column_descriptors(table)
             } else {
                 table
                     .columns
@@ -2244,7 +2290,7 @@ mod build_example_query_tests {
 //
 // These tests exercise `build_tables_for_client` with ocsf_column_naming=true
 // sensors (AC-006 / ADR-058 §G Tier-1/Tier-2 ColumnDescriptor model).
-// Both fail at the todo!() in the ocsf_column_naming branch.
+// Both exercise `build_ocsf_column_descriptors` in the ocsf_column_naming=true branch.
 // ─────────────────────────────────────────────────────────────────────────────
 #[cfg(test)]
 mod ocsf_routing_tests {
@@ -2321,7 +2367,7 @@ ocsf_column_naming = true
     /// is a module-private function; this test is in a `#[cfg(test)]` module in the same file
     /// (same-module access, not synthetic-AST coverage).
     ///
-    /// **Red gate:** `ocsf_column_naming == true` branch is `todo!()` — panics.
+    /// **Red gate resolved:** branch now implemented via `build_ocsf_column_descriptors`.
     #[test]
     fn test_prism_describe_ocsf_column_naming_true_returns_flattened_name_and_dotted_description() {
         // Use Claroty audit_logs (post-KF-01): note→comment (Tier-1, ocsf_field=Some).
@@ -2396,10 +2442,10 @@ variables_produced = []
             .expect("Full Claroty TOML with tables must parse");
 
         let cm = arc_cm("claroty", spec_with_tables);
-        // This will panic at todo!() in the ocsf_column_naming=true branch.
+        // Calls build_ocsf_column_descriptors via the ocsf_column_naming=true branch.
         let tables = build_tables_for_client("claroty", None, Some(&cm));
 
-        // After implementation: assert Tier-1 columns have flattened ocsf_field names.
+        // Assert Tier-1 columns have flattened ocsf_field names.
         // column "note" with ocsf_field="comment" → name="comment" (single-segment, unchanged).
         let audio_table = tables
             .iter()
@@ -2449,7 +2495,7 @@ variables_produced = []
     ///
     /// Wire-shape annotation (SAP-3): same-module access to `build_tables_for_client`.
     ///
-    /// **Red gate:** `ocsf_column_naming == true` branch is `todo!()` — panics.
+    /// **Red gate resolved:** branch now implemented via `build_ocsf_column_descriptors`.
     #[test]
     fn test_prism_describe_ocsf_column_naming_true_raw_extensions_descriptor_and_no_phantom_col_names(
     ) {
@@ -2489,7 +2535,7 @@ variables_produced = []
             toml::from_str::<SensorSpec>(full_toml).expect("Full Claroty devices TOML must parse");
 
         let cm = arc_cm("claroty", spec);
-        // This will panic at todo!() in the ocsf_column_naming=true branch.
+        // Calls build_ocsf_column_descriptors via the ocsf_column_naming=true branch.
         let tables = build_tables_for_client("claroty", None, Some(&cm));
 
         let devices_table = tables
@@ -2572,8 +2618,8 @@ variables_produced = []
     /// `prism_describe`. Without these ColumnDescriptors, the LLM agent cannot learn that
     /// `WHERE class_uid = 3004` and `WHERE _sensor = 'claroty'` are valid filter targets.
     ///
-    /// **Red gate:** `build_tables_for_client` panics at `todo!()` in the ocsf_column_naming=true
-    /// branch — all four assertions fail (test FAILS at panic).
+    /// **Red gate resolved:** branch now implemented via `build_ocsf_column_descriptors`;
+    /// all four assertions pass.
     ///
     /// Wire-shape assertion (CLAUDE.md §Conventions): serialize the `prism_describe` table
     /// list to JSON and assert both ColumnDescriptor entries appear with the exact `name`,
@@ -2610,7 +2656,7 @@ variables_produced = []
         let spec = ocsf_sensor_spec_toml("claroty", toml_tables);
         let cm = arc_cm("claroty", spec);
 
-        // This panics at todo!() in the ocsf_column_naming=true branch — RED gate.
+        // Calls build_ocsf_column_descriptors via the ocsf_column_naming=true branch.
         let tables = build_tables_for_client("claroty", None, Some(&cm));
         let audit_table = tables
             .iter()
