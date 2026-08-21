@@ -392,6 +392,10 @@ pub fn extract_time_window_from_ast(
 
     // Collect all ColumnSpec entries for the given source_names, looking up datetime INDEX cols.
     // ADR-033 T1: match lhs column names against columns with column_type=datetime + options=[INDEX].
+    // AC-014 (OQ-001): when ocsf_field is present, also insert the OCSF-flattened Arrow name
+    // so that LLM agents can filter on the flattened name (e.g. `WHERE time > '...'` for
+    // claroty.audit_logs.timestamp which has ocsf_field="time"). Without this, a filter on the
+    // OCSF Arrow name would fall through to full scan. RG-PD-001.
     let mut datetime_index_cols: std::collections::HashSet<String> =
         std::collections::HashSet::new();
     for source_name in source_names {
@@ -401,6 +405,12 @@ pub fn extract_time_window_from_ast(
                     && col.options.contains(&ColumnOptions::Index)
                 {
                     datetime_index_cols.insert(col.name.clone());
+                    // AC-014 (OQ-001): also insert the OCSF-flattened Arrow name (same col).
+                    if let Some(ref ocsf_field) = col.ocsf_field {
+                        let arrow_name =
+                            prism_spec_engine::column_mapping::ocsf_field_to_arrow_name(ocsf_field);
+                        datetime_index_cols.insert(arrow_name);
+                    }
                 }
             }
         }
