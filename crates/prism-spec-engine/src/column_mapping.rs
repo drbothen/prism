@@ -123,6 +123,13 @@ impl ColumnMapper {
                             } else if raw_value.is_string() {
                                 "string"
                             } else {
+                                // N4 defensive fallback: BC-2.16.002 row 95 declares
+                                // `actual_json_kind` as one of "array"/"object"/"string".
+                                // All current Err-producing code paths reach array/object/string,
+                                // so this arm is unreachable today.  If a new Err variant is added
+                                // in a future story, the emitted "unknown" will be outside the
+                                // declared domain — update this chain and BC-2.16.002 row 95 at
+                                // that time.
                                 "unknown"
                             };
                             tracing::warn!(
@@ -289,6 +296,12 @@ fn column_type_toml_name(col_type: &ColumnType) -> &'static str {
         ColumnType::Boolean => "boolean",
         ColumnType::Datetime => "datetime",
         ColumnType::Json => "json",
+        // N4 defensive fallback: BC-2.16.002 row 95 declares `column_type` as one of the six
+        // TOML type names above.  The wildcard arm is required because `ColumnType` is
+        // `#[non_exhaustive]` — adding a new variant here without extending the match would
+        // silently emit "unknown" (outside the declared domain) rather than failing at compile
+        // time.  If a new `ColumnType` variant is added, extend this match and update
+        // BC-2.16.002 row 95's declared domain at the same time.
         _ => "unknown",
     }
 }
@@ -303,7 +316,7 @@ mod tests {
 
     use crate::spec_parser::{ColumnSpec, FetchStep, TableSpec};
 
-    use super::{CoercionWarning, ColumnMapper};
+    use super::ColumnMapper;
 
     /// Wire-shape assertion: when `column_type = "string"` and the API returns a JSON integer
     /// (e.g. Claroty alerts `"id": 132`), `coerce_value` must produce `Value::String("132")`.
