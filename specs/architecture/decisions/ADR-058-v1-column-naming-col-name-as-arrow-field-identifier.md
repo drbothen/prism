@@ -4,8 +4,8 @@ adr_id: "ADR-058"
 title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred"
 status: accepted
 date: "2026-08-11"
-modified: "2026-08-20"
-version: "2.26"
+modified: "2026-08-21"
+version: "2.27"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -35,7 +35,7 @@ inputs:
   - crates/prism-ocsf/src/mappers/spec_driven.rs
   - crates/prism-ocsf/src/class_selector.rs
   - crates/prism-ocsf/ocsf-schema/1.7.0/schema.json
-input-hash: "ae3047b"
+input-hash: "35db605"
 ---
 
 # ADR-058: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred
@@ -329,7 +329,7 @@ is not yet in the TOML, and the `device_category` `ocsf_field` fix (`"device.typ
 
 | col.name | ocsf_field | Arrow name under Interp. A | Note |
 |----------|-----------|---------------------------|------|
-| `id` | `activity_uid` | `activity_uid` | KF-05: `activity_uid` absent from OCSF v1.7.0 dictionary_attributes; no direct standard path; recommend remove ocsf_field (→ `raw_extensions`) or vendor-extend; TOML fix pending §K4 |
+| `id` | `metadata.uid` | `metadata_uid` | KF-05 RESOLVED (human-directed 2026-08-21): Tier-1 retention — `metadata.uid` is the standard OCSF event-occurrence unique identifier (`metadata` base object, required on all OCSF classes including `entity_management`); Arrow name `metadata_uid`; no col.name or ocsf_field collision; push-down-eligible; TOML correction pending S-ADR058-OCSF-ROUTING-001 (RG-021 flip: assert Tier-1, not raw_extensions) |
 | `action` | `activity_name` | `activity_name` | single segment, unchanged |
 | `user_display_name` | `actor.user.name` | `actor_user_name` | dotted path |
 | `category` | `category_name` | `category_name` | KF-11: SEMANTIC-WRONG — `category_name` is OCSF-computed from `category_uid`; remove `ocsf_field` pending §I5 |
@@ -338,8 +338,9 @@ is not yet in the TOML, and the `device_category` `ocsf_field` fix (`"device.typ
 | `username` | `actor.user.uid` | `actor_user_uid` | dotted path; `column_type = "string"` — Rule 1 preempts `uid` heuristic (EC-016-013-005) |
 | `note` | `comment` | `comment` | single segment, unchanged; `entity_management` has `comment` — this attribute drives class selection over `api_activity` (which lacks `comment`) |
 
-All audit_logs columns currently carry an ocsf_field declaration; if KF-05 recommendation to
-remove `activity_uid` is adopted, `id` goes to `raw_extensions`.
+All audit_logs columns carry an ocsf_field declaration. With KF-05 resolved to `metadata.uid`
+(Tier-1 retention, human-directed 2026-08-21), `id` stays Tier-1 as `metadata_uid`. After KF-11
+TOML correction (remove `category_name` for `category`), `category` moves to `raw_extensions`.
 
 **Claroty `devices` table (8 ocsf_field declarations; ocsf_class = `device` — WRONG per KF-02; correct class: `inventory_info`, class_uid 5001; `device.*` fields resolve via the required `device` attribute on `inventory_info`; `device_category` pending §J3 fix; TOML fixes pending §K4):**
 
@@ -443,6 +444,27 @@ source-key list to understand what fields are inside (e.g., `alert_class`).
 
 `ColumnDescriptor` output for Interpretation B sensors (`ocsf_column_naming == false`) is unchanged:
 all columns are emitted as individual descriptors with `ColumnDescriptor.name = col.name`.
+
+**Synthesized column discoverability (OQ-003):** When `ocsf_column_naming = true`, `prism_describe`
+MUST also emit `ColumnDescriptor` entries for the two unconditionally synthesized Arrow columns
+appended by `pipeline_result_to_record_batch` to every spec-driven RecordBatch:
+
+- `class_uid`: `name = "class_uid"`, `col_type = prism_core::column::ColumnType::Integer`,
+  `nullable = false`, `description = "OCSF event class identifier derived from sensor TOML
+  ocsf_class. Example: 3004 for entity_management (audit_logs), 2004 for detection_finding
+  (alerts, device_alert_relations), 5001 for inventory_info (devices)."`
+- `_sensor`: `name = "_sensor"`, `col_type = prism_core::column::ColumnType::String`,
+  `nullable = false`, `description = "Sensor identifier. Value: <sensor_id> (e.g., 'claroty')."`
+
+These descriptors are appended AFTER the Tier-1 column descriptors (and after the single
+`raw_extensions` Tier-2 descriptor, if any). Without them, an LLM agent cannot discover that
+`WHERE class_uid = 3004` is a valid filter or that `_sensor = 'claroty'` is a valid correlation
+predicate — producing phantom-column failures at query time.
+
+(Mandate anchor: S-ADR058-OCSF-ROUTING-001 — story-writer leg must add an AC and Red Gate test
+asserting that `prism_describe` for a Claroty table with `ocsf_column_naming = true` emits
+`ColumnDescriptor` entries for `class_uid` (Integer, non-nullable) and `_sensor` (String,
+non-nullable) in addition to Tier-1 and Tier-2 descriptors.)
 
 ---
 
@@ -610,9 +632,22 @@ product-owner must adjudicate scope. Corrections required:
 - **KF-04:** `alerts.alert_name` column — change `ocsf_field` from `"finding.title"` to
   `"finding_info.title"`. Arrow field name changes from `finding_title` → `finding_info_title`.
 - **KF-05:** `audit_logs.id` column — `ocsf_field = "activity_uid"` is invalid (`activity_uid`
-  absent from OCSF v1.7.0 dictionary_attributes). Product-owner decides: (a) remove `ocsf_field`
-  (column goes to `raw_extensions`), or (b) use vendor-extended path. No standard direct path
-  for Claroty audit log record identifier exists in OCSF v1.7.0.
+  absent from OCSF v1.7.0 `dictionary_attributes`). **Settled (human-directed 2026-08-21;
+  Tier-1 retention required):** change `ocsf_field` to `"metadata.uid"`. Arrow field name:
+  `metadata_uid`. Rationale: `metadata` is a required attribute of the OCSF `base_event` class,
+  inherited by all OCSF classes including `entity_management` (3004); confirmed present in OCSF
+  v1.7.0 schema at `crates/prism-ocsf/ocsf-schema/1.7.0/schema.json`. `metadata.uid` is the
+  standard OCSF field for "A unique identifier assigned to the OCSF event" — the semantically
+  correct mapping for the Claroty audit log record ID. `metadata_uid` does not collide with any
+  existing `audit_logs` Arrow field (`activity_name`, `actor_user_name`, `time`, `message`,
+  `actor_user_uid`, `comment`) nor with any `audit_logs` `col.name`, nor with any synthesized
+  column name (`class_uid`, `category_uid`, `_sensor`, `raw_extensions`). The `audit_logs.id`
+  field is correlation-critical (enables cross-table joins between audit records and alert/device
+  events for investigation workflows) and MUST remain Tier-1, Arrow-queryable, and
+  push-down-eligible.
+  (Mandate anchor: S-ADR058-OCSF-ROUTING-001 — story-writer leg must flip RG-021: assert that
+  `pipeline_result_to_record_batch` for the `audit_logs` table with `ocsf_column_naming = true`
+  emits `metadata_uid` as a top-level Arrow Tier-1 column, NOT aggregated into `raw_extensions`.)
 - **KF-06:** `devices.device_type` column — `ocsf_field = "device.type_name"` is invalid
   (`device` object has no `type_name` attribute; only `type` and `type_id` exist). Settled
   (§K4): change `ocsf_field` to `"device.type_label"` (vendor-extended path). Arrow field
@@ -667,6 +702,39 @@ decision on vendor extension vs omission.
 **Process-gap obligation (§I5 — silent-fallback warn):** `spec_driven_adapter.rs::pipeline_result_to_record_batch` uses `EventClassSelector::select_by_class_name(&table.ocsf_class).unwrap_or(0)` with a comment citing intentional fallback (D-925). This silently converts any unknown `ocsf_class` string to `class_uid = 0` (BASE_EVENT) with no diagnostic. This is SOUL.md #4: a silent failure that let CRIT-001 (unknown class names producing 0) pass CI undetected. Obligation (anchored to `S-ADR058-OCSF-ROUTING-001`): replace `.unwrap_or(0)` with a match that emits `tracing::warn!(event_type = "ocsf.unknown_class_name", ocsf_class = %table.ocsf_class, sensor_id = %sensor_id, table_name = %table.table_name, "sensor TOML declares unrecognised ocsf_class; class_uid defaulted to 0 (BASE_EVENT)")` on the `Err` branch before returning 0. SAP-1 obligation: the new `event_type = "ocsf.unknown_class_name"` requires a BC-2.16.002 Canonical Structured Event Catalog row with full field schema, audit role, and recurrence policy before the PR merges.
 
 **Out-of-perimeter note (follow-up recommendation, not in this cascade's scope):** `ocsf_class = "device_inventory_info"` appears only in test-fixture and embedded-inline specs (e.g., `prism-sensors/src/fanout.rs`, `prism-bin/src/boot.rs`, `prism-mcp/src/server.rs`, and test files) — it is absent from all four production sensor TOMLs (`claroty`, `crowdstrike`, `armis`, `cyberint`). The four production device tables use `ocsf_class = "device"`, which resolves via the existing `"device" => Ok(CLASS_UID_DEVICE_INVENTORY_INFO)` arm to class_uid 5001 (correct, not 0). A follow-up resolver audit is recommended, scoped to fixture/inline specs where `"device_inventory_info"` actually appears. The process-gap `tracing::warn!` above will make any unresolved strings observable at runtime once implemented.
+
+### §I6 Push-Down Match Invariant for OCSF-Named Sensors (OQ-001)
+
+When `ocsf_column_naming = true` is active for a sensor, datetime INDEX-eligible columns are
+stored under their POST-flip Arrow field name (e.g., `time` for `claroty.audit_logs.timestamp`
+with `ocsf_field = "time"`; `finding_info_modified_time` for `alerts.updated_time` with
+`ocsf_field = "finding_info.modified_time"` per KF-12 correction). A push-down filter that
+references only the original `col.name` (e.g., `WHERE timestamp < '...'`) would miss the index
+column entirely, causing a silent full-table scan with no error signal.
+
+**Invariant (OQ-001):** When constructing `datetime_index_cols` for push-down eligibility in
+`prism-query::pushdown::extract_time_window_from_ast`, the implementation MUST insert BOTH
+the `col.name` AND `ocsf_field_to_arrow_name(ocsf_field)` (imported from
+`prism-spec-engine::column_mapping`) for any datetime column that carries an `ocsf_field`
+declaration AND belongs to a sensor with `ocsf_column_naming = true`. Registering only `col.name`
+leaves the OCSF-flattened Arrow field name unrecognized as an index key, silently bypassing the
+RocksDB time-range index for any query that uses the post-flip name.
+
+**Required implementation change:** `prism-query::pushdown::extract_time_window_from_ast` must,
+for each datetime INDEX-eligible column in a sensor spec with `ocsf_column_naming = true`, add
+BOTH entries to `datetime_index_cols`:
+1. `col.name` — backward-compatible; catches any query still using the raw sensor column name.
+2. `ocsf_field_to_arrow_name(col.ocsf_field)` when `col.ocsf_field.is_some()` — catches
+   post-flip Arrow field name queries.
+
+Example: for `claroty.audit_logs.timestamp` (`ocsf_field = "time"`), both `"timestamp"` and
+`"time"` must be registered. A PrismQL filter `WHERE time > '2024-01-01T00:00:00Z'` then hits
+the RocksDB index; without the dual registration it performs a full scan silently.
+
+(Mandate anchor: S-ADR058-OCSF-ROUTING-001 — story-writer leg must add RG-PD-001 asserting that
+a push-down filter on `time` (the OCSF-flattened Arrow name for `claroty.audit_logs.timestamp`
+with `ocsf_field = "time"`) is recognized as INDEX-eligible by `extract_time_window_from_ast`
+and does not trigger a full scan.)
 
 ---
 
@@ -933,7 +1001,7 @@ All 31 `ocsf_field` declarations across four tables validated against OCSF v1.7.
 
 | col.name | ocsf_field (current TOML) | Verdict | Notes |
 |----------|--------------------------|---------|-------|
-| `id` | `activity_uid` | WRONG (KF-05) | `activity_uid` absent from OCSF v1.7.0 `dictionary_attributes`; `activity_id` (numeric enum) exists but is not a record UID; no standard direct path; recommend remove or vendor-extend |
+| `id` | `activity_uid` | WRONG (KF-05) | `activity_uid` absent from OCSF v1.7.0 `dictionary_attributes`; `activity_id` (numeric enum) exists but is not a record UID; settled fix (human-directed 2026-08-21): `metadata.uid` (standard OCSF event-occurrence unique identifier on base_event, confirmed in `entity_management`; Arrow: `metadata_uid`; Tier-1 retention required) |
 | `action` | `activity_name` | VALID | `entity_management.activity_name` confirmed |
 | `user_display_name` | `actor.user.name` | VALID | `actor.user` resolves to `user` object; `user.name` confirmed |
 | `category` | `category_name` | WRONG (semantic) (KF-11) | path `entity_management.category_name` confirmed; semantic defect: OCSF `category_name` = "event category name, as defined by category_uid" — writing vendor category string (e.g., "Login") overwrites OCSF computed category label; remove `ocsf_field` (→ `raw_extensions`) |
@@ -976,7 +1044,7 @@ Under `inventory_info`, `device.*` paths resolve via the required `device` objec
 | KF-02 | `devices` table `ocsf_class` | `device` | WRONG — OCSF object, not class | `inventory_info` |
 | KF-03 | `alerts.id` `ocsf_field` | `finding.uid` | WRONG — no `finding` attr on detection_finding | `finding_info.uid` |
 | KF-04 | `alerts.alert_name` `ocsf_field` | `finding.title` | WRONG — same root as KF-03 | `finding_info.title` |
-| KF-05 | `audit_logs.id` `ocsf_field` | `activity_uid` | WRONG — attr absent from v1.7.0 | remove or vendor-extend (PO decision) |
+| KF-05 | `audit_logs.id` `ocsf_field` | `activity_uid` | WRONG — attr absent from v1.7.0 | `metadata.uid` (Arrow: `metadata_uid`; Tier-1 retention — human-directed 2026-08-21) |
 | KF-06 | `devices.device_type` `ocsf_field` | `device.type_name` | WRONG — attr absent on device object | `device.type_label` (Arrow: `device_type_label`; vendor-extended; settled §K4) |
 | KF-07 | `device_alert_relations.alert_id` `ocsf_field` | `finding.uid` | WRONG — same root as KF-03 | `finding_info.uid` |
 | KF-08 | `alerts.category` `ocsf_field` | `class_name` | PATH-VALID / SEMANTIC-WRONG — `class_name` is OCSF-computed from `class_uid`; vendor value overwrites | remove `ocsf_field` (→ `raw_extensions`) |
@@ -993,8 +1061,9 @@ KF-03, KF-04, KF-07, KF-12 are definitive — single correct replacement confirm
 KF-10, KF-11 are definitively recommended for removal (→ `raw_extensions`); PO may override with
 documented semantic acceptance of the OCSF metadata corruption. KF-01, KF-02 are definitive —
 unique correct replacement confirmed; KF-01 also requires the `class_selector.rs` code change
-documented in §I5. KF-05, KF-06 require product-owner semantic decision (no standard OCSF path
-exists for the underlying concept). TOML and code fix obligations: see §I5.
+documented in §I5. KF-05 settled (human-directed 2026-08-21): `metadata.uid` (Arrow:
+`metadata_uid`; Tier-1 retention required; see §I5). KF-06 settled (see §K4): `device.type_label`
+(Arrow: `device_type_label`; vendor-extended). TOML and code fix obligations: see §I5.
 
 ### §K5 Divergence Adjudication and Path-Liveness Determination
 
@@ -1131,7 +1200,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.26 (2026-08-20)
+### Status as of v2.27 (2026-08-21)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1150,6 +1219,9 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 | BC-2.16.003 EC-016-013-023/024 — EC text reflects `entity_management` (3004) | DISCHARGED | BC-2.16.003 EC-016-013-023 wire-level postcondition: `class_uid = 3004` for audit_logs; EC-016-013-024: `class_uid = 5001` regression-guard for devices |
 | BC-2.16.002 §Canonical Structured Event Catalog — `ocsf.unknown_class_name` row | DISCHARGED | The `ocsf.unknown_class_name` catalog row already exists in BC-2.16.002 §Canonical Structured Event Catalog with `ocsf_class`, `sensor_id`, `table_name` fields and per-batch recurrence |
 | BC-2.16.003 SS-07/SS-12 subsystem reconciliation | DISCHARGED | BC-2.16.003 has no SS-07/SS-12 refs; its `subsystem:` frontmatter is single-valued SS-16 (F8 fix-burst finding) |
+| BC-2.16.003 audit_logs EC — KF-05 settled to `metadata.uid` for `audit_logs.id` (OQ-005) | PENDING TDD | PO must update any EC row that reflected `activity_uid` drop-to-raw; EC must reflect `metadata_uid` as Tier-1 Arrow column; S-ADR058-OCSF-ROUTING-001 RG-021 flip |
+| BC-2.16.003 OQ-003 — synthesized-column visibility: `class_uid` + `_sensor` in prism_describe | PENDING TDD | PO must add EC asserting `prism_describe` emits `class_uid` (Integer) and `_sensor` (String) descriptors when `ocsf_column_naming = true`; S-ADR058-OCSF-ROUTING-001 (story-writer adds RG) |
+| BC-2.16.003 OQ-001 — push-down match invariant: dual `col.name` + `ocsf_field_to_arrow_name` in `extract_time_window_from_ast` | PENDING TDD | PO must add EC or AC asserting datetime push-down uses POST-flip Arrow field names when `ocsf_column_naming = true`; S-ADR058-OCSF-ROUTING-001 RG-PD-001 |
 
 **Handoff obligation discharge status (story-writer/implementer):**
 
@@ -1162,6 +1234,9 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 | §EC-003 and §EC-009 stale §E2/§J copy-text | DISCHARGED | ROUTING EC-003: `username → actor.user.uid → actor_user_uid` correct; EC-009: count 31 pre / 26 post-KF corrections |
 | Both stories' `subsystems:` — ROUTING SS-01/02/10/16, COERCION SS-01/10/16 | DISCHARGED | ROUTING carries `[SS-01, SS-02, SS-10, SS-16]`; COERCION carries `[SS-01, SS-10, SS-16]` — SS-02 correctly absent (COERCION does not touch prism-ocsf) |
 | `class_selector.rs` in-file doc-table updates | PENDING TDD | Module-doc `select()` and `select_by_class_name` tables; implementer execution at KF-01 code delivery |
+| KF-05 TOML correction: `metadata.uid` for `audit_logs.id` (OQ-005) | PENDING TDD | `claroty.sensor.toml` KF-05 fix; S-ADR058-OCSF-ROUTING-001 RG-021 flip (assert Tier-1 `metadata_uid`, not `raw_extensions`) |
+| §I6 push-down invariant: dual-name registration in `extract_time_window_from_ast` (OQ-001) | PENDING TDD | `prism-query::pushdown::extract_time_window_from_ast` must insert both `col.name` and `ocsf_field_to_arrow_name(ocsf_field)` for datetime columns when `ocsf_column_naming = true`; S-ADR058-OCSF-ROUTING-001 RG-PD-001 |
+| §G synthesized-column describe: `class_uid` + `_sensor` ColumnDescriptors (OQ-003) | PENDING TDD | `prism-mcp::tools::prism_describe` must emit `class_uid` and `_sensor` ColumnDescriptors when `ocsf_column_naming = true`; S-ADR058-OCSF-ROUTING-001 (story-writer adds RG) |
 
 ## Alternatives Considered
 
@@ -1206,12 +1281,13 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.27 | 2026-08-21 | architect | Human-directed product decisions (ROUTING-001 spec-augmentation burst). (1) **OQ-005 / KF-05 Tier-1 retention:** `audit_logs.id` MUST remain Arrow-queryable. KF-05 updated from 'remove or vendor-extend (PO decision)' to settled `metadata.uid` (Arrow: `metadata_uid`). `metadata` is the OCSF `base_event` required object, confirmed present in `entity_management` (3004) via OCSF v1.7.0 schema. `metadata.uid` = "A unique identifier assigned to the OCSF event" — semantically correct for a Claroty audit log record ID. `metadata_uid` does not collide with any existing `audit_logs` ocsf_field Arrow name, col.name, or synthesized column name. Changes: §E2 `audit_logs` `id` row (ocsf_field + note corrected); §E2 footer (drop-to-raw removed); §I5 KF-05 bullet (settled value + mandate anchor for RG-021 flip); §K3 `audit_logs` `id` row (note updated); §K4 KF-05 corrected value; §K4 footer (KF-05/KF-06 statuses updated). (2) **OQ-001 push-down invariant (§I6 added):** when `ocsf_column_naming = true`, `prism-query::pushdown::extract_time_window_from_ast` MUST register BOTH `col.name` AND `ocsf_field_to_arrow_name(ocsf_field)` for each datetime INDEX-eligible column; failure causes silent full-scan regression with no error signal. Mandate anchor: S-ADR058-OCSF-ROUTING-001 (story-writer adds RG-PD-001). (3) **OQ-003 synthesized-column visibility (§G extended):** when `ocsf_column_naming = true`, `prism_describe` MUST emit `ColumnDescriptor` entries for `class_uid` (Integer, non-nullable) and `_sensor` (String, non-nullable) appended after Tier-1/Tier-2 descriptors; required for LLM agent discoverability of these filters. Mandate anchor: S-ADR058-OCSF-ROUTING-001 (story-writer adds RG). §Status: heading v2.26 → v2.27; PO table: three PENDING TDD rows (OQ-005, OQ-003, OQ-001 BC-2.16.003 obligations); SW table: three PENDING TDD rows (corresponding story RGs). Pre-existing pipe-escape fix: 2.21 changelog row `.unwrap_or_else(\|\| ...)` escaped to satisfy validate-table-cell-count hook. TD-VSDD-097: (1) sibling pair — ADR-058 singular, no twin ADR; N/A. (2) downstream copy targets — BC-2.16.003 carries copy-text of §E2 `audit_logs` mapping and §G prism_describe spec; PO must update the EC rows that reflect `audit_logs.id` mapping (change `activity_uid` → `metadata.uid`/`metadata_uid`) and add ECs for OQ-003 (synthesized-column describe) and OQ-001 (push-down invariant); full PO handoff list in §Status PO table. (3) mandate anchor — KF-05 Tier-1 MUST anchored to S-ADR058-OCSF-ROUTING-001 RG-021 flip; OQ-001 push-down MUST anchored to S-ADR058-OCSF-ROUTING-001 RG-PD-001; OQ-003 describe MUST anchored to S-ADR058-OCSF-ROUTING-001 (story-writer adds RG for synthesized-column describe). |
 | 2.26 | 2026-08-20 | architect | F-COERCE-ADV-OBS-003 (closes) + F-COERCE-ADV-LOW-002 (§Status heading version lag). §H extended with item 4 — Integer column + Object input coercion-failure mandate added. Path A (`build_column_array`): explicit `Value::Object(_)` arm added to `ColumnType::Integer` match, placed before `other => other.as_i64()` wildcard, returning `None` + `tracing::warn!(event_type = "column_coercion_failure", column = %col.name, column_type = "integer", actual_json_kind = "object", ...)`. Path B (`coerce_value`): `Value::Object(_) => Err(CoercionWarning)` arm added to Integer branch, symmetric with String-branch Object handling, emitting warn via `map_record`. Both paths reuse same `column_coercion_failure` event schema from BC-2.16.002 §Canonical Structured Event Catalog — no new `event_type`. Integer+Array already warned via DD-5 downcast/skip; Integer+Object was the silent-data-loss gap. §H anchor extended to reference new AC + Red Gate (pending story-writer/PO allocation this burst). §Status heading retitled to match new version. TD-VSDD-097: (1) sibling pair — ADR-058 singular, no twin ADR; N/A. (2) downstream copy targets — BC-2.16.003 EC for coercion behavior, BC-2.16.002 §Canonical Structured Event Catalog Integer+Object trigger coverage, and S-ADR058-OCSF-COERCION-001 new AC + Red Gate to be updated by product-owner/story-writer this burst per routing rules; edits not made here. (3) mandate anchor — §H item 4 Integer+Object clause anchored to S-ADR058-OCSF-COERCION-001 (new AC + Red Gate to be allocated this burst by story-writer/PO). |
 | 2.25 | 2026-08-20 | architect | F-COERCE-P1-LOW-001. §H item 3 `column_coercion_failure` emission spec corrected: `%col.column_type` → `%column_type_toml_name(&col.column_type)`. `ColumnType` derives only `Debug, Clone, PartialEq, Eq, Serialize, Deserialize` — no `Display` impl — so `%col.column_type` would not compile. The operative binding — matching shipped `ColumnMapper::map_record` (`prism-spec-engine::column_mapping`) and BC-2.16.002 §Canonical Structured Event Catalog row 95 site (a) — uses the `column_type_toml_name(&ColumnType) -> &str` helper to emit lowercase TOML type names (`"string"`/`"integer"`). §H item 3 was the stale copy-source for catalog row 95; the catalog corrected it at transcription time (site (a) already states `column_type_toml_name`); this fix aligns the source to the downstream-corrected copies. TD-VSDD-097: (1) sibling pair — ADR-058 is singular, no twin ADR; N/A. (2) downstream copy target — BC-2.16.002 catalog row 95 site (a) and S-ADR058-OCSF-COERCION-001 §AC-004 are the downstream copies; both already use `column_type_toml_name` correctly — this fix aligns the source TO them; `grep -rn "%col\.column_type" .factory/` finds zero occurrences outside this file; no remaining stale copy anywhere. (3) mandate anchor — §H item 3 is anchored to S-ADR058-OCSF-COERCION-001 AC-004 (RG-005); unchanged. |
 | 2.24 | 2026-08-19 | architect | F-P69-LOW-001 + F-P67-OBS-1. LOW-001: §I5 "out-of-perimeter note" corrected — false claim that production sensor TOMLs use `ocsf_class = "device_inventory_info"` removed. Ground truth: all four production TOMLs (`claroty`, `crowdstrike`, `armis`, `cyberint`) declare `detection_finding` / `audit_activity` / `device` / `incident_finding`; none uses `device_inventory_info`. Production device tables use `ocsf_class = "device"` → resolves via `select_by_class_name` `"device"` arm to class_uid 5001 (correct, not 0). `device_inventory_info` appears only in test-fixture/embedded-inline specs (`prism-sensors/src/fanout.rs`, `prism-bin/src/boot.rs`, `prism-mcp/src/server.rs`, test files). Follow-up resolver audit scoped to fixture/inline specs accordingly. OBS-1: §E2 `devices` table header `(current TOML)` qualifier dropped — §E2 describes target-state Arrow field names (not current TOML state), consistent with §E2 intro and with the `alerts`/`audit_logs`/`device_alert_relations` tables in the same section. `device_category` row updated to show target-state: `ocsf_field = "device.type_category"` (§J3 settled fix), Arrow name `device_type_category`; Note records current TOML `device.type` → Arrow `device_type` as Stage 2 pending and marks **SHADOW** resolved. `device_type` row already showed target `device.type_label` (settled v2.5); no change. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — story-writer: re-pin S-ADR058-OCSF-ROUTING-001 and S-ADR058-OCSF-COERCION-001 §Authority version to v2.24; (3) mandate anchor — no new MUST statements. |
 | 2.23 | 2026-08-19 | architect | F-P52-LOW-1 ≡ F-P54-LOW-001. §J2 "Synthesized column name reservation" paragraph corrected — `raw_extensions` was incorrectly described as unconditionally emitted alongside `class_uid`, `category_uid`, and `_sensor` "regardless of the sensor's TOML column declarations." Ground truth from `prism-bin::spec_driven_adapter::pipeline_result_to_record_batch`: only `class_uid`, `category_uid`, and `_sensor` are unconditionally appended to every spec-driven RecordBatch schema; `raw_extensions` is conditionally emitted — only when `ocsf_column_naming == true` AND ≥1 column has `ocsf_field == None`. The internal contradiction with §G Tier-2, §I2, and §B2 item 1 (a table with zero `ocsf_field == None` columns produces no `raw_extensions` column) is resolved. The reservation rule is unchanged: all four names remain reserved against flattened-`ocsf_field` collision, fail-closed, because a TOML column whose `ocsf_field` flattens to any reserved name would produce an Arrow schema conflict with no viable runtime recovery. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy targets — product-owner: sweep BC-2.16.003 §Postconditions / §Invariants / §Error-Conditions / EC-016-013-029 and any EC covering synthesized-column emission to confirm `raw_extensions` is described as conditionally emitted; story-writer: re-pin ADR-058 §Authority version to v2.23 in S-ADR058-OCSF-ROUTING-001; (3) mandate anchor — no new MUST statements; fail-closed reservation guard unchanged. |
 | 2.22 | 2026-08-18 | architect | F-P48-MED-002 + F-P48-OBS-1. MED-002: §B2 item 1 amended — for `source_path` / `ocsf_field == None` columns, the value stored under `col.name` in `raw_extensions` is the `source_path`-extracted, ENRICH-1-normalized result (same Array→JSON-list-string path as first-class columns per EC-016-013-026), NOT the raw top-level JSON value at `col.name`; eliminates ambiguity for Claroty `devices` demo-critical columns `ip_list`/`mac_list`/`network_list`/`vlan_list`. §I2 extended with explicit `source_path` value-representation paragraph — `pipeline_result_to_record_batch` MUST apply ENRICH-1 when aggregating `source_path` + `ocsf_field == None` columns into `raw_extensions`; MUST anchored to S-ADR058-OCSF-ROUTING-001 (story-writer: add AC + Red Gate asserting ENRICH-1-serialized values for the four Claroty network-attribute columns at the `raw_extensions` wire level). OBS-1: §J2 extended — synthesized column name reservation added: `pipeline_result_to_record_batch` collision check MUST also guard against any `ocsf_field` flattening to `{ "class_uid", "category_uid", "_sensor", "raw_extensions" }`; formal condition extended in §J2; all four Claroty tables verified clean against this rule. MUST anchored to S-ADR058-OCSF-ROUTING-001 (story-writer: extend T-21/RG-010 or add dedicated Red Gate for synthesized-name guard). TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy targets — product-owner: BC-2.16.003 §Postconditions — sweep any EC covering `ocsf_field == None` + `source_path` column aggregation to confirm ENRICH-1-normalized value is the contracted `raw_extensions` value; story-writer: S-ADR058-OCSF-ROUTING-001 — add ENRICH-1-in-`raw_extensions` AC + Red Gate (§I2 mandate anchor) and extend T-21/RG-010 or add synthesized-name Red Gate (§J2 mandate anchor); (3) mandate anchors — §I2 MUST and §J2 synthesized-name MUST both anchored to S-ADR058-OCSF-ROUTING-001. |
-| 2.21 | 2026-08-18 | architect | F-P43-HIGH-001 + F-P45-MED-001 + F-P44-OBS-001 + F-P44/P45-LOW-001. HIGH: §I1 canonical crate corrected — `ocsf_field_to_arrow_name` must live in `prism-spec-engine::column_mapping`, not `prism-bin::spec_driven_adapter` or any "prism-bin or prism-spec-engine" ambiguity. `prism-mcp/Cargo.toml` depends on `prism-spec-engine` but not `prism-bin`; `prism-bin` depends on `prism-mcp` — placing the helper in `prism-bin` creates a forbidden workspace cycle that would prevent `prism_describe` from importing it. Both consumers (`pipeline_result_to_record_batch` in `prism-bin::spec_driven_adapter`; `prism_describe` in `prism-mcp::tools::prism_describe`) now stated as importing from `prism_spec_engine::column_mapping`. MED: §B2 item 1 rewritten — columns with `ocsf_field == None` explicitly stated to receive NO individual Arrow field; they are aggregated into the single `raw_extensions` column per §I2/§G Tier-2; `col.name` for unmapped columns is the blob source key only (not an Arrow field name under Interpretation A). Eliminates the reader inference that None-columns get individual `col.name`-named Arrow fields, which contradicted §G/§I2/BC Tier-2. The §I1 snippet's `.unwrap_or_else(|| col.name.clone())` is already explicitly scoped to the `Some` arm in the §I2 cross-reference paragraph; §B2 item 1 no longer requires that paragraph as the sole correction. OBS: §G Tier-2 `raw_extensions` ColumnDescriptor shape extended with `col_type = prism_core::column::ColumnType::Json` (physical `Utf8` column contains serialized JSON object; `Json` is the correct semantic variant) and `nullable = true` (cell may be null when all unmapped source values in a row are null). LOW: §Status heading retitled v2.19 → v2.21. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy targets — story-writer leg (ROUTING-001): update Rule 1 / Forbidden-Dependencies / RG-003 / §File Structure / §Architecture Mapping to reflect `prism-spec-engine::column_mapping` as canonical crate; RG-003 must assert the function is callable from `prism-mcp` scope without a cycle; add RG-025 asserting `raw_extensions` ColumnDescriptor carries `col_type = Json` and `nullable = true`; Red Gate count 24 → 25 for RG-025; product-owner leg (BC-2.16.003): add `col_type = Json` and `nullable = true` to the raw_extensions ColumnDescriptor contract in the relevant EC for EC-016-013-027 (or the raw_extensions descriptor EC); (3) mandate anchor — §I1 crate MUST (`prism-spec-engine::column_mapping`) anchored to S-ADR058-OCSF-ROUTING-001; §G `col_type`/`nullable` MUST anchored to S-ADR058-OCSF-ROUTING-001 (story-writer leg adds RG-025). |
+| 2.21 | 2026-08-18 | architect | F-P43-HIGH-001 + F-P45-MED-001 + F-P44-OBS-001 + F-P44/P45-LOW-001. HIGH: §I1 canonical crate corrected — `ocsf_field_to_arrow_name` must live in `prism-spec-engine::column_mapping`, not `prism-bin::spec_driven_adapter` or any "prism-bin or prism-spec-engine" ambiguity. `prism-mcp/Cargo.toml` depends on `prism-spec-engine` but not `prism-bin`; `prism-bin` depends on `prism-mcp` — placing the helper in `prism-bin` creates a forbidden workspace cycle that would prevent `prism_describe` from importing it. Both consumers (`pipeline_result_to_record_batch` in `prism-bin::spec_driven_adapter`; `prism_describe` in `prism-mcp::tools::prism_describe`) now stated as importing from `prism_spec_engine::column_mapping`. MED: §B2 item 1 rewritten — columns with `ocsf_field == None` explicitly stated to receive NO individual Arrow field; they are aggregated into the single `raw_extensions` column per §I2/§G Tier-2; `col.name` for unmapped columns is the blob source key only (not an Arrow field name under Interpretation A). Eliminates the reader inference that None-columns get individual `col.name`-named Arrow fields, which contradicted §G/§I2/BC Tier-2. The §I1 snippet's `.unwrap_or_else(\|\| col.name.clone())` is already explicitly scoped to the `Some` arm in the §I2 cross-reference paragraph; §B2 item 1 no longer requires that paragraph as the sole correction. OBS: §G Tier-2 `raw_extensions` ColumnDescriptor shape extended with `col_type = prism_core::column::ColumnType::Json` (physical `Utf8` column contains serialized JSON object; `Json` is the correct semantic variant) and `nullable = true` (cell may be null when all unmapped source values in a row are null). LOW: §Status heading retitled v2.19 → v2.21. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy targets — story-writer leg (ROUTING-001): update Rule 1 / Forbidden-Dependencies / RG-003 / §File Structure / §Architecture Mapping to reflect `prism-spec-engine::column_mapping` as canonical crate; RG-003 must assert the function is callable from `prism-mcp` scope without a cycle; add RG-025 asserting `raw_extensions` ColumnDescriptor carries `col_type = Json` and `nullable = true`; Red Gate count 24 → 25 for RG-025; product-owner leg (BC-2.16.003): add `col_type = Json` and `nullable = true` to the raw_extensions ColumnDescriptor contract in the relevant EC for EC-016-013-027 (or the raw_extensions descriptor EC); (3) mandate anchor — §I1 crate MUST (`prism-spec-engine::column_mapping`) anchored to S-ADR058-OCSF-ROUTING-001; §G `col_type`/`nullable` MUST anchored to S-ADR058-OCSF-ROUTING-001 (story-writer leg adds RG-025). |
 | 2.20 | 2026-08-18 | architect | F-P40/P42-HIGH-001 + F-P41-MED-001 + F-P41-MED-002 + F-P42-LOW-001. HIGH: §G rewritten — describe↔model consistency with §I2 aggregation model. (a) `prism_describe` MUST NOT emit individual `ColumnDescriptor` for any `ocsf_field == None` column under flag=true (columns reside in `raw_extensions` per §I2/§B2 item 1; advertising them as individual descriptors produces phantom column names causing agent query failures per §C1). (b) `prism_describe` MUST emit exactly one `raw_extensions` ColumnDescriptor (name=`"raw_extensions"`; description enumerates `col.name` of every `ocsf_field == None` column in the queried table — mandatory for agent discoverability). Mandate anchor: S-ADR058-OCSF-ROUTING-001 (story-writer leg of this fix-burst adds AC + Red Gate). LOW (F-P42-LOW-001): §G Tier-1 description example corrected `"finding.uid"` → `"finding_info.uid"` (KF-03 corrected path). MED-001: §I5 intro count corrected from seven (KF-01..KF-07) to twelve — seven schema-validity (KF-01..KF-07) + five PATH-VALID/SEMANTIC-WRONG (KF-08..KF-12). MED-002: §I5(d) `"device"` arm removed from "now-dead" clause; `"device"` is a live transitional alias per §I5(b) (Armis + CrowdStrike retain `ocsf_class = "device"`; live production path `select_by_class_name("device") → 5001`); only `"audit_activity"` is dead. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy targets — §G rewrite must propagate to BC-2.16.003 §Interpretation A (product-owner leg: remove phantom-column describe model, add `raw_extensions` descriptor with source-key enumeration) and ROUTING-001 §G/AC-006/AC-007 (story-writer leg: align ACs to Tier-1/Tier-2 §G model, add raw_extensions describe Red Gate as mandate anchor for §G MUSTs); (3) mandate anchor — two new §G MUSTs anchored to S-ADR058-OCSF-ROUTING-001 (story-writer leg adds AC + Red Gate). |
 | 2.19 | 2026-08-18 | architect | F-P34-LOW-002 + F-P34-OBS-001. LOW-002: §Status heading retitled v2.17→v2.19 (lagged the frontmatter version by two bumps). OBS-001: helper symbol standardized to canonical `ocsf_field_to_arrow_name` across three sections — §B2 item 4 (`ocsf_flattened_name(col)` → `ocsf_field_to_arrow_name(ocsf_field)`), §C4 (`arrow_field_name_for(col, sensor_spec)` / `ocsf_flattened_name(ocsf_field)` → inline-logic description citing `ocsf_field_to_arrow_name(ocsf_field)` and §I1), §G (`arrow_field_name_for(col)` → `ocsf_field_to_arrow_name(ocsf_field)`). All three stale names converged to the §I1-authoritative symbol that S-ADR058-OCSF-ROUTING-001 already uses consistently. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — S-ADR058-OCSF-ROUTING-001 §Authority version pin must be swept to v2.19 (story-writer leg obligation); ROUTING-001 already uses `ocsf_field_to_arrow_name` consistently — no function-name copy-text fix required there; (3) mandate anchor — no new MUST statements introduced. |
 | 2.18 | 2026-08-18 | architect | F-P33-MED-001: §D1 corrected — "transitively … without structural redesign" claim replaced; `pipeline_result_to_record_batch` does not currently receive `SensorSpec`; MUST thread as new parameter from `fetch()` call site (ADR-022 §C wiring; mandate anchor S-ADR058-OCSF-ROUTING-001, specific param-threading AC/RG added by story-writer leg). §I1 code snippet updated — function signature comment shows `sensor_spec: &SensorSpec` as a new parameter with defined provenance from `fetch()`, eliminating the free-variable defect. TD-VSDD-097: (1) sibling pair — no ADR twin; N/A; (2) downstream copy target — §I1 param-threading context is source for ROUTING-001 implementation tasks and authority-pin; story-writer leg must sweep ROUTING-001 §Tasks and §Authority version pin to v2.18; (3) mandate anchor — §D1 MUST anchored to S-ADR058-OCSF-ROUTING-001 (param-threading AC + Red Gate test pending story-writer leg of this fix-burst). |
