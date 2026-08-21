@@ -1114,6 +1114,39 @@ fn build_column_array(
                             );
                             arr.into_iter().next().and_then(|v| v.as_i64())
                         }
+                        serde_json::Value::String(s) => {
+                            // AC-007 / EC-016-013-025: String input to Integer column — attempt
+                            // s.parse::<i64>().  Success → Some(n); failure → null cell + structured
+                            // audit warn (consistent with the other two column_coercion_failure sites).
+                            match s.parse::<i64>() {
+                                Ok(n) => Some(n),
+                                Err(_) => {
+                                    tracing::warn!(
+                                        column = %col.name,
+                                        column_type = "integer",
+                                        actual_json_kind = "string",
+                                        event_type = "column_coercion_failure",
+                                        "build_column_array: non-parseable String in Integer \
+                                         column demoted to null (BC-2.16.003 AC-007)"
+                                    );
+                                    None
+                                }
+                            }
+                        }
+                        // AC-008 / EC-016-013-030: Object input to Integer column — null cell
+                        // + structured audit warn (closes the silent-null substitution gap
+                        // identified in BC-2.16.003 §Full Coercion Matrix EC-016-013-030).
+                        serde_json::Value::Object(_) => {
+                            tracing::warn!(
+                                column = %col.name,
+                                column_type = "integer",
+                                actual_json_kind = "object",
+                                event_type = "column_coercion_failure",
+                                "build_column_array: Object value in Integer column demoted to \
+                                 null (BC-2.16.003 AC-008 / EC-016-013-030)"
+                            );
+                            None
+                        }
                         other => other.as_i64(),
                     }
                 })
@@ -1278,6 +1311,7 @@ fn build_column_array(
                         serde_json::Value::Array(arr) => {
                             // Wildcard result: serialize to compact JSON-list string.
                             // ENRICH-1 Design Decision 2: JSON-list string in string column.
+                            // Empty array → Some("[]") (NOT null) per EC-016-013-026.
                             let strings: Vec<String> = arr
                                 .into_iter()
                                 .map(|v| match v {
@@ -1289,6 +1323,22 @@ fn build_column_array(
                                 serde_json::to_string(&strings)
                                     .unwrap_or_else(|_| "[]".to_string()),
                             )
+                        }
+                        serde_json::Value::Object(_) => {
+                            // AC-005 / EC-016-013-008: Object input to a String column must
+                            // produce a null cell, NOT stringified JSON.  Materializing an
+                            // object as a JSON blob corrupts downstream typed Arrow columns.
+                            // Emit structured audit warn consistent with the other two
+                            // column_coercion_failure sites (T-14 / T-15b).
+                            tracing::warn!(
+                                column = %col.name,
+                                column_type = "string",
+                                actual_json_kind = "object",
+                                event_type = "column_coercion_failure",
+                                "build_column_array: Object value in String column demoted to \
+                                 null (BC-2.16.003 AC-005)"
+                            );
+                            None
                         }
                         other => Some(other.to_string()),
                     }
@@ -3910,6 +3960,232 @@ mod tests {
             "FIX-1 REGRESSION (type-gate wire-shape): batch must contain exactly 1 row (one record fed in). \
              Got {} rows.",
             batch.num_rows()
+        );
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────────────────────
+    // RG-006 / RG-008 / RG-009 — S-ADR058-OCSF-COERCION-001 Red Gate tests
+    //
+    // These tests exercise the LIVE production path (Path A: `build_column_array`) for the three
+    // coercion gaps identified in EC-016-013-007/008/009.  They are load-bearing red-gate tests
+    // that MUST FAIL before the AC-005/AC-007 implementation and PASS after it.
+    //
+    // SAP-3 note: `build_column_array` is on Path A (live production callers), so these are
+    // standard load-bearing tests, NOT defense-in-depth.  Full reachability holds here.
+    // ──────────────────────────────────────────────────────────────────────────────────────────
+
+    /// RG-006 / AC-005 / BC-2.16.003 §Path-A String+Object coercion gap
+    ///
+    /// `build_column_array` on a `ColumnType::String` column MUST:
+    ///   (a) produce a null cell (not a stringified JSON blob) when the record value is an Object,
+    ///   (b) emit `tracing::warn!(event_type = "column_coercion_failure")` at the demotion point.
+    ///
+    /// **Red gate:** Current code has `other => Some(other.to_string())` wildcard in the String
+    /// arm of `build_column_array`, which materializes Object values as non-null stringified JSON.
+    /// Assertion (a) fails (non-null).  No `column_coercion_failure` warn is emitted; assertion
+    /// (b) fails.
+    #[tracing_test::traced_test]
+    #[test]
+    fn test_build_column_array_string_type_object_input_returns_null_and_emits_warning() {
+        let col = ColumnSpec::new("details", ColumnType::String, None, vec![]);
+        let records = vec![json!({"details": {"nested": "object"}})];
+
+        let array = build_column_array(&records, &col, "test-sensor");
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("String column must produce StringArray");
+
+        // (a) Object input must produce null cell — NOT Some(other.to_string()).
+        assert!(
+            string_array.is_null(0),
+            "AC-005 / EC-016-013-008: String column + Object input must produce null cell; \
+             current code uses wildcard `other => Some(other.to_string())` which materializes \
+             a non-null stringified JSON blob (got non-null)"
+        );
+        // (b) column_coercion_failure warn must be emitted at the demotion point.
+        assert!(
+            logs_contain("column_coercion_failure"),
+            "AC-005 / BC-2.16.003: build_column_array must emit \
+             tracing::warn!(event_type = \"column_coercion_failure\") for String+Object input; \
+             no warn emitted by current implementation"
+        );
+        // (b-SID-2) Verify structured fields — SID-2 requires asserting the FULL composed
+        // emitted string, not only the event_type key.  These three assertions together verify
+        // the complete structured warn schema (column, column_type, actual_json_kind).
+        // NOTE: tracing formats string literals with quotes (e.g. column_type="string") and
+        // %Display fields without quotes (e.g. column=details).
+        assert!(
+            logs_contain("column_type=\"string\""),
+            "SID-2 / AC-005: column_coercion_failure warn must include structured field \
+             column_type=\"string\" (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("actual_json_kind=\"object\""),
+            "SID-2 / AC-005: column_coercion_failure warn must include structured field \
+             actual_json_kind=\"object\" (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("column=details"),
+            "SID-2 / AC-005: column_coercion_failure warn must include structured field \
+             column=details identifying the demoted column (BC-2.16.003 §Coercion Warning Observability)"
+        );
+    }
+
+    /// RG-008 / AC-007 / BC-2.16.003 §Path-A Integer+parseable-String coercion gap
+    ///
+    /// `build_column_array` on a `ColumnType::Integer` column MUST parse a String-encoded
+    /// integer value (`"42"`) into an actual integer cell (`Some(42)`), not drop it as None.
+    ///
+    /// **Red gate:** Current code uses `other.as_i64()` in the Integer arm, which returns
+    /// None for JSON String values — the parseable `"42"` is silently dropped to null.
+    /// Assertion fails (null cell).
+    #[test]
+    fn test_build_column_array_integer_type_string_parseable_returns_integer() {
+        let col = ColumnSpec::new("device_count", ColumnType::Integer, None, vec![]);
+        let records = vec![json!({"device_count": "42"})];
+
+        let array = build_column_array(&records, &col, "test-sensor");
+        let int_array = array
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .expect("Integer column must produce Int64Array");
+
+        // String-encoded integer "42" must be parsed as Some(42), not dropped as None.
+        assert!(
+            !int_array.is_null(0),
+            "AC-007 / EC-016-013-025: Integer column + parseable String(\"42\") must yield \
+             Some(42) in Arrow Int64Array; current code uses `other.as_i64()` which returns \
+             None for String values (got null)"
+        );
+        assert_eq!(
+            int_array.value(0),
+            42i64,
+            "AC-007: String(\"42\") must be materialized as integer 42 in Arrow Int64Array"
+        );
+    }
+
+    /// RG-009 / AC-007 / BC-2.16.003 §Path-A Integer+non-parseable-String coercion gap
+    ///
+    /// `build_column_array` on a `ColumnType::Integer` column with a non-parseable String
+    /// value (`"not-a-number"`) MUST:
+    ///   (a) produce a null cell (no panic — already true with current code), AND
+    ///   (b) emit `tracing::warn!(event_type = "column_coercion_failure")` at the demotion.
+    ///
+    /// **Red gate:** Assertion (a) passes with current code (as_i64() silently returns None).
+    /// Assertion (b) fails — no `column_coercion_failure` warn is emitted by current code.
+    #[tracing_test::traced_test]
+    #[test]
+    fn test_build_column_array_integer_type_string_non_parseable_returns_null_and_emits_warning() {
+        let col = ColumnSpec::new("device_count", ColumnType::Integer, None, vec![]);
+        let records = vec![json!({"device_count": "not-a-number"})];
+
+        let array = build_column_array(&records, &col, "test-sensor");
+        let int_array = array
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .expect("Integer column must produce Int64Array");
+
+        // (a) Non-parseable String must produce null cell (no panic).
+        assert!(
+            int_array.is_null(0),
+            "AC-007: Integer column + non-parseable String must produce null cell"
+        );
+        // (b) column_coercion_failure warn must be emitted at the demotion point.
+        assert!(
+            logs_contain("column_coercion_failure"),
+            "AC-007 / BC-2.16.003: build_column_array must emit \
+             tracing::warn!(event_type = \"column_coercion_failure\") for Integer+non-parseable-String; \
+             no warn emitted by current implementation (current code uses `other.as_i64()` \
+             silently returning None — missing audit trail)"
+        );
+        // (b-SID-2) Verify structured fields — SID-2 requires asserting the FULL composed
+        // emitted string, not only the event_type key.  These three assertions together verify
+        // the complete structured warn schema (column, column_type, actual_json_kind).
+        // NOTE: tracing formats string literals with quotes (e.g. column_type="integer") and
+        // %Display fields without quotes (e.g. column=device_count).
+        assert!(
+            logs_contain("column_type=\"integer\""),
+            "SID-2 / AC-007: column_coercion_failure warn must include structured field \
+             column_type=\"integer\" (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("actual_json_kind=\"string\""),
+            "SID-2 / AC-007: column_coercion_failure warn must include structured field \
+             actual_json_kind=\"string\" (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("column=device_count"),
+            "SID-2 / AC-007: column_coercion_failure warn must include structured field \
+             column=device_count identifying the demoted column (BC-2.16.003 §Coercion Warning Observability)"
+        );
+    }
+
+    /// RG-010 / AC-008 / BC-2.16.003 §Path-A Integer+Object coercion gap (EC-016-013-030)
+    ///
+    /// `build_column_array` on a `ColumnType::Integer` column with a `Value::Object` input MUST:
+    ///   (a) produce a null cell (not a silent None with no audit trail), AND
+    ///   (b) emit `tracing::warn!(event_type = "column_coercion_failure", column_type = "integer",
+    ///       actual_json_kind = "object")` at the demotion point.
+    ///
+    /// **Red gate:** Current code has `other => other.as_i64()` as the wildcard arm in the
+    /// `ColumnType::Integer` match block.  `Value::Object.as_i64()` returns `None` silently —
+    /// no `column_coercion_failure` warn is emitted.  Assertion (a) passes (returns null), but
+    /// assertion (b) fails (no warn).  The silent null substitution violates BC-2.16.003's
+    /// no-silent-data-loss invariant (EC-016-013-030).
+    ///
+    /// Covers AC-008 Path A (LIVE).
+    ///
+    /// SAP-3: `build_column_array` is on Path A (live production callers), so this is a
+    /// standard load-bearing test, NOT defense-in-depth.
+    #[tracing_test::traced_test]
+    #[test]
+    fn test_build_column_array_integer_type_object_input_returns_null_and_emits_warning() {
+        let col = ColumnSpec::new("metadata_obj", ColumnType::Integer, None, vec![]);
+        let records = vec![json!({"metadata_obj": {"nested": "object"}})];
+
+        let array = build_column_array(&records, &col, "test-sensor");
+        let int_array = array
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .expect("Integer column must produce Int64Array");
+
+        // (a) Object input must produce a null cell.
+        assert!(
+            int_array.is_null(0),
+            "AC-008 / EC-016-013-030: Integer column + Object input must produce null cell; \
+             current code falls through `other => other.as_i64()` which returns None — \
+             this assertion passes already, but the warn (b) does not"
+        );
+        // (b) column_coercion_failure warn MUST be emitted (with column_type="integer",
+        //     actual_json_kind="object").  Current code emits NO warn for this path.
+        assert!(
+            logs_contain("column_coercion_failure"),
+            "AC-008 / EC-016-013-030 / BC-2.16.003: build_column_array must emit \
+             tracing::warn!(event_type = \"column_coercion_failure\", column_type = \"integer\", \
+             actual_json_kind = \"object\") for Integer+Object input; \
+             current code silently returns None via `other.as_i64()` with no audit trail \
+             (silent-null substitution violates no-silent-data-loss invariant)"
+        );
+        // (b-SID-2) Verify structured fields — SID-2 requires asserting the FULL composed
+        // emitted string, not only the event_type key.  These three assertions together verify
+        // the complete structured warn schema (column, column_type, actual_json_kind).
+        // NOTE: tracing formats string literals with quotes (e.g. column_type="integer") and
+        // %Display fields without quotes (e.g. column=metadata_obj).
+        assert!(
+            logs_contain("column_type=\"integer\""),
+            "SID-2 / AC-008: column_coercion_failure warn must include structured field \
+             column_type=\"integer\" (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("actual_json_kind=\"object\""),
+            "SID-2 / AC-008: column_coercion_failure warn must include structured field \
+             actual_json_kind=\"object\" (BC-2.16.003 §Coercion Warning Observability)"
+        );
+        assert!(
+            logs_contain("column=metadata_obj"),
+            "SID-2 / AC-008: column_coercion_failure warn must include structured field \
+             column=metadata_obj identifying the demoted column (BC-2.16.003 §Coercion Warning Observability)"
         );
     }
 }

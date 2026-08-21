@@ -1,0 +1,2 @@
+        PASS [   0.013s] (1/1) prism-spec-engine::bc_2_16_003_test test_coerce_value_string_type_object_input_returns_err_coercion_warning
+     Summary [   0.014s] 1 test run: 1 passed, 803 skipped
