@@ -5579,43 +5579,83 @@ ocsf_column_naming = true
         );
     }
 
-    /// RG-026 / AC-007c / BC-2.16.003 EC-016-013-028 / ADR-058 §B2/§I2
+    /// RG-026 / AC-007c / BC-2.16.003 EC-016-013-028 / ADR-058 §I2
     ///
-    /// A Claroty `devices` row with `ip_list = ["192.168.1.1", "10.0.0.1"]` where
-    /// `ip_list.ocsf_field == None` (routes to raw_extensions) MUST serialize the
-    /// array as a compact JSON-LIST STRING inside raw_extensions, NOT as a nested
-    /// JSON array and NOT as null.
+    /// `pipeline_result_to_record_batch` MUST apply source_path extraction + ENRICH-1
+    /// normalization for `ocsf_field == None` columns in the raw_extensions aggregation,
+    /// NOT naive `r.get(col.name)`.
     ///
-    /// Wire-shape assertion (mandatory): MUST be verified at the serialized wire-output
-    /// level — the LLM agent receives raw_extensions as a STRING, not a nested structure.
+    /// Three sub-cases covering the §I2 structural risk:
     ///
-    /// **Red gate:** OCSF branch is `todo!()` — panics.
+    /// (A) ip_list with source_path = "$.ip_list[*]": string array elements → compact
+    ///     JSON-list STRING "[\"1.2.3.4\",\"10.0.0.1\"]".
+    ///     Naive `r.get("ip_list")` returns the raw JSON array → fails is_string() assertion.
+    ///
+    /// (B) vlan_list with source_path = "$.vlan_list[*]": integer elements [100, 200] → MUST
+    ///     be stringified per EC-016-013-026 ENRICH-1 DD-2: "[\"100\",\"200\"]",
+    ///     NOT "[100,200]". Each element inside the JSON-list string must be a JSON string,
+    ///     not a JSON number.
+    ///
+    /// (C) source_path root ≠ col.name guard (§I2 silent-empty-data risk):
+    ///     network_list (col.name) with source_path "$.network_segments[*]". The record
+    ///     has "network_segments" key but NO "network_list" key. Naive `r.get("network_list")`
+    ///     returns None → raw_extensions would lack "network_list" entirely (silent data loss).
+    ///     Source_path-aware extraction extracts from "$.network_segments[*]" correctly.
+    ///
+    /// Wire-shape assertions: all verified at the serialized raw_extensions JSON string level
+    /// (CLAUDE.md §Conventions wire-shape assertion discipline).
+    ///
+    /// **Red gate:** OCSF branch is `todo!()` — panics before any source_path/ENRICH-1 logic.
+    /// After todo!() removal, naive r.get(col.name) implementation:
+    ///   - (A) fails: ip_list value is a JSON array, not a String
+    ///   - (B) fails: vlan_list elements are JSON numbers 100/200, not strings "100"/"200"
+    ///   - (C) fails: no "network_list" key in raw_extensions (missed source_path≠col.name)
     #[test]
     fn test_claroty_devices_ip_list_in_raw_extensions_is_compact_json_list_string() {
         use arrow::array::StringArray as ArrowStringArray;
         use prism_spec_engine::pipeline::PipelineResult;
 
         let sensor_spec = ocsf_sensor_spec();
-        // ip_list: ocsf_field=None → routes to raw_extensions.
-        // In the record, ip_list arrives as a JSON array from the pipeline.
-        let col_ip_list = ColumnSpec::new("ip_list", ColumnType::String, None, vec![]);
+
+        // Tier-1 column — device.uid anchor (entity_management class for inventory_info).
         let col_uid = ColumnSpec::new(
             "device_uid",
             ColumnType::String,
             Some("device.uid".to_string()),
             vec![],
         );
+
+        // (A) ip_list: source_path="$.ip_list[*]", ocsf_field=None → Tier-2 raw_extensions.
+        // source_path root == col.name. Production TOML shape: claroty.sensor.toml devices.
+        let mut col_ip_list = ColumnSpec::new("ip_list", ColumnType::String, None, vec![]);
+        col_ip_list.source_path = Some("$.ip_list[*]".to_string());
+
+        // (B) vlan_list: source_path="$.vlan_list[*]", integer elements → must be stringified.
+        // EC-016-013-026 ENRICH-1 DD-2: Value::Number → String in JSON-list output.
+        let mut col_vlan_list = ColumnSpec::new("vlan_list", ColumnType::String, None, vec![]);
+        col_vlan_list.source_path = Some("$.vlan_list[*]".to_string());
+
+        // (C) network_list: source_path root "$.network_segments" ≠ col.name "network_list".
+        // §I2 structural risk: naive r.get("network_list") returns None → silent data loss.
+        let mut col_network_list =
+            ColumnSpec::new("network_list", ColumnType::String, None, vec![]);
+        col_network_list.source_path = Some("$.network_segments[*]".to_string());
+
         let table = TableSpec::new_point_in_time(
             "devices",
             "inventory_info",
-            vec![col_uid, col_ip_list],
+            vec![col_uid, col_ip_list, col_vlan_list, col_network_list],
             vec![minimal_fetch_step()],
         );
-        // ip_list is an array (ENRICH-1 multi-valued) in the pipeline record.
+
+        // Record: ip_list and vlan_list at their source_path roots;
+        // network_segments at the source_path root — no "network_list" key (§I2 guard).
         let result = PipelineResult::new(
             vec![serde_json::json!({
                 "device_uid": "dev-001",
-                "ip_list": ["192.168.1.1", "10.0.0.1"]
+                "ip_list": ["1.2.3.4", "10.0.0.1"],
+                "vlan_list": [100, 200],
+                "network_segments": ["office-net", "vpn"]
             })],
             "devices",
             1,
@@ -5628,9 +5668,9 @@ ocsf_column_naming = true
             &std::collections::HashMap::new(),
             &sensor_spec,
         )
-        .expect("Claroty devices ip_list raw_extensions compact-JSON-string test must succeed");
+        .expect("Claroty devices source_path + ENRICH-1 raw_extensions test must succeed");
 
-        // Wire-shape (i): raw_extensions column exists.
+        // Extract raw_extensions column.
         let raw_col = batch
             .column_by_name("raw_extensions")
             .expect("AC-007c (RG-026): 'raw_extensions' column must exist");
@@ -5638,45 +5678,82 @@ ocsf_column_naming = true
             .as_any()
             .downcast_ref::<ArrowStringArray>()
             .expect("raw_extensions must be StringArray");
-
-        // Wire-shape (ii): raw_extensions JSON object contains "ip_list" key.
         let raw_json: serde_json::Value = serde_json::from_str(raw_arr.value(0))
             .expect("raw_extensions must be valid JSON object string");
+
+        // ── Sub-case (A): ip_list string array → compact JSON-list STRING ────────────────
+        let ip_list_val = raw_json.get("ip_list").expect(
+            "AC-007c (RG-026/A): raw_extensions MUST contain 'ip_list'. \
+             source_path='$.ip_list[*]' extracts from the ip_list array in the record.",
+        );
         assert!(
-            raw_json.get("ip_list").is_some(),
-            "AC-007c (RG-026): raw_extensions JSON MUST contain 'ip_list' key. \
-             The multi-valued ip_list field (ocsf_field==None) routes to raw_extensions."
+            ip_list_val.is_string(),
+            "AC-007c (RG-026/A): raw_extensions 'ip_list' value MUST be a STRING \
+             (compact JSON-list string), NOT a nested JSON array. \
+             Naive r.get(\"ip_list\") returns the raw JSON array — fails ENRICH-1 contract. \
+             Got: {ip_list_val:?}"
+        );
+        let ip_list_str = ip_list_val.as_str().unwrap();
+        // Wire-shape: exact compact JSON-list string.
+        assert_eq!(
+            ip_list_str, r#"["1.2.3.4","10.0.0.1"]"#,
+            "AC-007c (RG-026/A): ip_list compact JSON-list string must be \
+             '[\"1.2.3.4\",\"10.0.0.1\"]'; got: {ip_list_str:?}"
         );
 
-        // Wire-shape (iii): "ip_list" value IS a JSON-list STRING, NOT a nested array.
-        let ip_list_value = raw_json.get("ip_list").unwrap();
-        assert!(
-            ip_list_value.is_string(),
-            "AC-007c (RG-026): raw_extensions 'ip_list' value MUST be a STRING \
-             (compact JSON-list string e.g. '[\"192.168.1.1\",\"10.0.0.1\"]'), \
-             NOT a nested JSON array. LLM agents receive raw_extensions as a single \
-             Utf8 string; a nested array inside that string breaks reliable parsing. \
-             Got: {:?}",
-            ip_list_value
-        );
-        let ip_list_str = ip_list_value.as_str().unwrap();
-        // The string itself must be parseable as a JSON array.
-        let parsed_list: serde_json::Value = serde_json::from_str(ip_list_str)
-            .expect("ip_list string value must itself be valid JSON");
-        assert!(
-            parsed_list.is_array(),
-            "AC-007c (RG-026): ip_list compact JSON-list string must parse as a JSON array; \
-             got: {:?}",
-            parsed_list
-        );
-        let arr = parsed_list.as_array().unwrap();
-        assert!(
-            arr.iter().any(|v| v.as_str() == Some("192.168.1.1")),
-            "AC-007c (RG-026): ip_list compact list must contain '192.168.1.1'"
+        // ── Sub-case (B): vlan_list integer array → elements STRINGIFIED ─────────────────
+        // EC-016-013-026 ENRICH-1 DD-2: integer elements → string elements in JSON-list.
+        let vlan_val = raw_json.get("vlan_list").expect(
+            "AC-007c (RG-026/B): raw_extensions MUST contain 'vlan_list'. \
+             source_path='$.vlan_list[*]' extracts from the vlan_list integer array.",
         );
         assert!(
-            arr.iter().any(|v| v.as_str() == Some("10.0.0.1")),
-            "AC-007c (RG-026): ip_list compact list must contain '10.0.0.1'"
+            vlan_val.is_string(),
+            "AC-007c (RG-026/B): raw_extensions 'vlan_list' value MUST be a STRING. \
+             Got: {vlan_val:?}"
+        );
+        let vlan_str = vlan_val.as_str().unwrap();
+        // Wire-shape: exact compact JSON-list string with STRINGIFIED integer elements.
+        // "[\"100\",\"200\"]" NOT "[100,200]" — EC-016-013-026 ENRICH-1 integer stringification.
+        assert_eq!(
+            vlan_str, r#"["100","200"]"#,
+            "AC-007c (RG-026/B): vlan_list compact JSON-list string MUST stringify integer \
+             elements: '[\"100\",\"200\"]' per EC-016-013-026 ENRICH-1 DD-2. \
+             Got: {vlan_str:?}. '[100,200]' (number elements) is a contract violation."
+        );
+        // Extra guard: each element inside the JSON-list string must be a JSON string, not number.
+        let vlan_parsed: Vec<serde_json::Value> =
+            serde_json::from_str(vlan_str).expect("vlan_list string must parse as JSON array");
+        for (i, elem) in vlan_parsed.iter().enumerate() {
+            assert!(
+                elem.is_string(),
+                "AC-007c (RG-026/B): vlan_list element[{i}] must be a JSON STRING after \
+                 ENRICH-1 stringification; got {elem:?} (a number — contract violation)"
+            );
+        }
+
+        // ── Sub-case (C): source_path root ≠ col.name (§I2 silent-data-loss guard) ──────
+        // network_list (col.name) has source_path "$.network_segments[*]".
+        // Record has "network_segments" but NO "network_list" key.
+        // Naive r.get("network_list") → None → silent data loss.
+        // Correct source_path extraction → value from "$.network_segments[*]".
+        let net_val = raw_json.get("network_list").expect(
+            "AC-007c (RG-026/C): raw_extensions MUST contain 'network_list' key. \
+             The record has no 'network_list' key — only 'network_segments'. \
+             source_path='$.network_segments[*]' MUST route the data to 'network_list' \
+             in raw_extensions. Naive r.get(\"network_list\") returns None → silent data loss \
+             (§I2 structural risk).",
+        );
+        assert!(
+            net_val.is_string(),
+            "AC-007c (RG-026/C): raw_extensions 'network_list' value must be STRING. \
+             Got: {net_val:?}"
+        );
+        let net_str = net_val.as_str().unwrap();
+        assert_eq!(
+            net_str, r#"["office-net","vpn"]"#,
+            "AC-007c (RG-026/C): network_list compact JSON-list string must be \
+             '[\"office-net\",\"vpn\"]'; got: {net_str:?}"
         );
     }
 
