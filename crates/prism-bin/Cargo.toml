@@ -316,6 +316,10 @@ prism-dtu-cyberint = { path = "../prism-dtu-cyberint", version = "0.1.0", featur
 # prism-dtu-harness: transitively pulls prism-dtu-common/fixture-gen via its own dep chain.
 prism-dtu-harness = { path = "../prism-dtu-harness", version = "0.1.0", features = ["dtu"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "http2"] }
+# S-ADR058-OCSF-COERCION-001 RG-006/RG-009: tracing subscriber for log-capture assertions
+# in build_column_array in-crate tests (column_coercion_failure warn verification).
+# Same version as prism-spec-engine (tracing-test = "0.2" in that crate's dev-deps).
+tracing-test = "0.2"
 
 [lints.clippy]
 # Inherited from workspace: workspace lint inheritance is not yet available

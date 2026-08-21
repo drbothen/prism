@@ -1,0 +1,3 @@
+        PASS [   0.016s] (1/2) prism-spec-engine column_mapping::tests::test_coerce_value_string_type_normalizes_integer_to_string
+        PASS [   0.018s] (2/2) prism-spec-engine column_mapping::tests::test_coerce_value_string_type_preserves_string_username_against_uid_heuristic
+     Summary [   0.018s] 2 tests run: 2 passed, 802 skipped
