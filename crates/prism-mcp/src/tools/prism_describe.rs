@@ -2556,4 +2556,152 @@ variables_produced = []
              as an individual ColumnDescriptor."
         );
     }
+
+    /// RG-028 / AC-015 / OQ-003 — `prism_describe` emits `class_uid` and `_sensor`
+    /// synthesized ColumnDescriptors when `ocsf_column_naming = true`.
+    ///
+    /// When `ocsf_column_naming = true`, `build_tables_for_client` MUST emit two synthesized
+    /// ColumnDescriptors appended after the Tier-1 OCSF-flattened descriptors and the single
+    /// `raw_extensions` descriptor:
+    ///   1. `class_uid` (ColumnType::Integer, nullable=false) — the OCSF class UID injected by
+    ///      `pipeline_result_to_record_batch` so the LLM agent can use it as a filter target.
+    ///   2. `_sensor` (ColumnType::String, nullable=false) — the sensor identifier column.
+    ///
+    /// These synthesized columns exist in the Arrow schema produced by
+    /// `pipeline_result_to_record_batch` but are currently invisible to the LLM agent via
+    /// `prism_describe`. Without these ColumnDescriptors, the LLM agent cannot learn that
+    /// `WHERE class_uid = 3004` and `WHERE _sensor = 'claroty'` are valid filter targets.
+    ///
+    /// **Red gate:** `build_tables_for_client` panics at `todo!()` in the ocsf_column_naming=true
+    /// branch — all four assertions fail (test FAILS at panic).
+    ///
+    /// Wire-shape assertion (CLAUDE.md §Conventions): serialize the `prism_describe` table
+    /// list to JSON and assert both ColumnDescriptor entries appear with the exact `name`,
+    /// `col_type`, and `nullable` values at the wire level.
+    ///
+    /// SAP-3: end-to-end from `build_tables_for_client` (the MCP surface) not internal handler.
+    /// Covers AC-015.
+    /// Traces to BC-2.16.003 §Interpretation A (synthesized columns produced by
+    /// `pipeline_result_to_record_batch` must be advertised by `prism_describe`; OQ-003
+    /// human decision 2026-08-21).
+    #[test]
+    fn test_prism_describe_ocsf_column_naming_true_emits_class_uid_and_sensor_descriptors() {
+        let toml_tables = r#"
+[[tables]]
+table_name = "audit_logs"
+ocsf_class = "entity_management"
+
+[[tables.columns]]
+name = "note"
+column_type = "string"
+ocsf_field = "comment"
+
+[[tables.columns]]
+name = "category"
+column_type = "string"
+
+[[tables.steps]]
+name = "fetch"
+method = "GET"
+path_template = "/api/v1/audit_logs"
+response_path = "$.data"
+variables_produced = []
+"#;
+        let spec = ocsf_sensor_spec_toml("claroty", toml_tables);
+        let cm = arc_cm("claroty", spec);
+
+        // This panics at todo!() in the ocsf_column_naming=true branch — RED gate.
+        let tables = build_tables_for_client("claroty", None, Some(&cm));
+        let audit_table = tables
+            .iter()
+            .find(|t| t.name == "claroty_audit_logs")
+            .expect("AC-015 (RG-028): 'claroty_audit_logs' table must exist");
+
+        // (i): class_uid ColumnDescriptor — Integer, non-nullable.
+        let class_uid_col = audit_table.columns.iter().find(|c| c.name == "class_uid");
+        assert!(
+            class_uid_col.is_some(),
+            "AC-015 (RG-028/OQ-003): 'class_uid' ColumnDescriptor MUST be emitted by \
+             prism_describe when ocsf_column_naming=true. Got columns: {:?}",
+            audit_table
+                .columns
+                .iter()
+                .map(|c| &c.name)
+                .collect::<Vec<_>>()
+        );
+        let class_uid_descriptor = class_uid_col.unwrap();
+        assert_eq!(
+            class_uid_descriptor.col_type,
+            prism_core::column::ColumnType::Integer,
+            "AC-015 (RG-028/OQ-003): class_uid ColumnDescriptor MUST have col_type=Integer"
+        );
+        assert!(
+            !class_uid_descriptor.nullable,
+            "AC-015 (RG-028/OQ-003): class_uid ColumnDescriptor MUST have nullable=false"
+        );
+
+        // (ii): _sensor ColumnDescriptor — String, non-nullable.
+        let sensor_col = audit_table.columns.iter().find(|c| c.name == "_sensor");
+        assert!(
+            sensor_col.is_some(),
+            "AC-015 (RG-028/OQ-003): '_sensor' ColumnDescriptor MUST be emitted by \
+             prism_describe when ocsf_column_naming=true. Got columns: {:?}",
+            audit_table
+                .columns
+                .iter()
+                .map(|c| &c.name)
+                .collect::<Vec<_>>()
+        );
+        let sensor_descriptor = sensor_col.unwrap();
+        assert_eq!(
+            sensor_descriptor.col_type,
+            prism_core::column::ColumnType::String,
+            "AC-015 (RG-028/OQ-003): _sensor ColumnDescriptor MUST have col_type=String"
+        );
+        assert!(
+            !sensor_descriptor.nullable,
+            "AC-015 (RG-028/OQ-003): _sensor ColumnDescriptor MUST have nullable=false"
+        );
+
+        // (iii)+(iv): ordering — class_uid and _sensor MUST appear AFTER all Tier-1 and
+        // raw_extensions descriptors. They MUST be the last two entries.
+        let ncols = audit_table.columns.len();
+        assert!(
+            ncols >= 4,
+            "AC-015 (RG-028/OQ-003): MUST have at least 4 ColumnDescriptors: \
+             Tier-1 (comment), raw_extensions, class_uid, _sensor. Got {ncols}"
+        );
+        let last_two: Vec<&str> = audit_table
+            .columns
+            .iter()
+            .rev()
+            .take(2)
+            .map(|c| c.name.as_str())
+            .collect();
+        assert!(
+            last_two.contains(&"class_uid") && last_two.contains(&"_sensor"),
+            "AC-015 (RG-028/OQ-003): 'class_uid' and '_sensor' MUST be the last two \
+             ColumnDescriptors (after Tier-1 and raw_extensions). Last two: {last_two:?}"
+        );
+
+        // Wire-shape assertion: serialize to JSON and assert both entries appear with
+        // exact name, col_type, nullable values (CLAUDE.md §Conventions wire-shape discipline).
+        let json_bytes = serde_json::to_string(&audit_table.columns)
+            .expect("ColumnDescriptor list must serialize to JSON");
+        assert!(
+            json_bytes.contains(r#""name":"class_uid""#),
+            "AC-015 (RG-028/OQ-003): wire-level JSON must contain '\"name\":\"class_uid\"'. \
+             Got: {json_bytes}"
+        );
+        assert!(
+            json_bytes.contains(r#""name":"_sensor""#),
+            "AC-015 (RG-028/OQ-003): wire-level JSON must contain '\"name\":\"_sensor\"'. \
+             Got: {json_bytes}"
+        );
+        assert!(
+            json_bytes.contains(r#""nullable":false"#),
+            "AC-015 (RG-028/OQ-003): wire-level JSON must contain '\"nullable\":false' \
+             for the synthesized descriptors. Got: {json_bytes}"
+        );
+    }
 }

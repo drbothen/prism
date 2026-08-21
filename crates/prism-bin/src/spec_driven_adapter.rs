@@ -5201,24 +5201,40 @@ ocsf_column_naming = true
         );
     }
 
-    /// RG-021 / AC-010 / BC-2.16.003 KF-05 — Claroty audit_logs id goes to raw_extensions
+    /// RG-021 / AC-010 / BC-2.16.003 OQ-005 — Claroty audit_logs id produces metadata_uid
+    /// top-level Arrow field
     ///
-    /// Post-KF-05: `audit_logs.id.ocsf_field` is removed (None). The id value goes to
-    /// raw_extensions, NOT to a first-class Arrow field named "activity_uid".
+    /// Post-OQ-005 (human decision 2026-08-21): `audit_logs.id.ocsf_field = "metadata.uid"`.
+    /// The id value is Tier-1 — routed to Arrow column `"metadata_uid"` (top-level first-class
+    /// field), NOT placed in `raw_extensions`.
+    ///
+    /// `ocsf_field_to_arrow_name("metadata.uid")` = `"metadata_uid"` (dot → underscore).
     ///
     /// **Red gate:** OCSF branch is `todo!()` — panics.
     #[test]
-    fn test_claroty_audit_logs_id_column_goes_to_raw_extensions_not_activity_uid() {
+    fn test_claroty_audit_logs_id_produces_metadata_uid_top_level_arrow_field() {
         use arrow::array::StringArray as ArrowStringArray;
         use prism_spec_engine::pipeline::PipelineResult;
 
         let sensor_spec = ocsf_sensor_spec();
         let cols = vec![
-            ColumnSpec::new("id", ColumnType::String, None, vec![]), // KF-05: ocsf_field removed
+            // OQ-005: id gets ocsf_field="metadata.uid" → Tier-1 Arrow column "metadata_uid"
+            ColumnSpec::new(
+                "id",
+                ColumnType::String,
+                Some("metadata.uid".to_string()),
+                vec![],
+            ),
             ColumnSpec::new(
                 "action",
                 ColumnType::String,
                 Some("activity_name".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "note",
+                ColumnType::String,
+                Some("comment".to_string()),
                 vec![],
             ),
         ];
@@ -5229,7 +5245,7 @@ ocsf_column_naming = true
             vec![minimal_fetch_step()],
         );
         let result = PipelineResult::new(
-            vec![serde_json::json!({"id": "al-999", "action": "Login"})],
+            vec![serde_json::json!({"id": "al-999", "action": "Login", "note": "reviewed"})],
             "audit_logs",
             1,
             false,
@@ -5241,34 +5257,51 @@ ocsf_column_naming = true
             &std::collections::HashMap::new(),
             &sensor_spec,
         )
-        .expect("Claroty audit_logs KF-05 id-in-raw_extensions test must succeed");
+        .expect("Claroty audit_logs OQ-005 metadata_uid Tier-1 test must succeed");
 
-        // Wire-shape (1): no top-level "activity_uid" (pre-KF-05 wrong mapping).
-        assert!(
-            batch.column_by_name("activity_uid").is_none(),
-            "AC-010/KF-05 (RG-021): 'activity_uid' MUST NOT exist as a first-class Arrow \
-             field; `activity_uid` is absent from OCSF v1.7.0 (PO decision KF-05)."
+        // Wire-shape (1): top-level "metadata_uid" (Tier-1 String) contains "al-999".
+        // ocsf_field_to_arrow_name("metadata.uid") = "metadata_uid" (dot → underscore).
+        let meta_uid_col = batch.column_by_name("metadata_uid").expect(
+            "AC-010/OQ-005 (RG-021): Arrow field 'metadata_uid' MUST exist as a \
+                     top-level Tier-1 column; id routed via ocsf_field='metadata.uid'",
         );
-        // Wire-shape (2): no top-level "id" (col.name suppressed in OCSF mode).
-        assert!(
-            batch.column_by_name("id").is_none(),
-            "AC-010/KF-05 (RG-021): col.name 'id' MUST NOT appear as a first-class Arrow \
-             field when ocsf_column_naming=true and ocsf_field==None (routes to raw_extensions)."
-        );
-        // Wire-shape (3): raw_extensions contains "id" = "al-999".
-        let raw_col = batch
-            .column_by_name("raw_extensions")
-            .expect("RG-021: raw_extensions column must exist");
-        let raw_arr = raw_col
+        let meta_uid_arr = meta_uid_col
             .as_any()
             .downcast_ref::<ArrowStringArray>()
-            .expect("raw_extensions must be StringArray");
-        let raw_json: serde_json::Value =
-            serde_json::from_str(raw_arr.value(0)).expect("raw_extensions must be valid JSON");
+            .expect("metadata_uid must be StringArray");
         assert_eq!(
-            raw_json.get("id").and_then(|v| v.as_str()),
-            Some("al-999"),
-            "AC-010/KF-05 (RG-021): raw_extensions must contain 'id'='al-999'"
+            meta_uid_arr.value(0),
+            "al-999",
+            "AC-010/OQ-005 (RG-021): 'metadata_uid' Arrow field MUST contain 'al-999' \
+             (the id value routed as Tier-1 via ocsf_field='metadata.uid')"
+        );
+
+        // Wire-shape (2): "id" NOT in raw_extensions (it has ocsf_field → Tier-1, not Tier-2).
+        if let Some(raw_col) = batch.column_by_name("raw_extensions") {
+            if let Some(raw_arr) = raw_col.as_any().downcast_ref::<ArrowStringArray>() {
+                let raw_json: serde_json::Value =
+                    serde_json::from_str(raw_arr.value(0)).unwrap_or(serde_json::Value::Null);
+                assert!(
+                    raw_json.get("id").is_none(),
+                    "AC-010/OQ-005 (RG-021): 'id' MUST NOT appear in raw_extensions; \
+                     it is Tier-1 via ocsf_field='metadata.uid' (OQ-005 human decision \
+                     2026-08-21). Got raw_extensions: {raw_json}"
+                );
+            }
+        }
+
+        // Wire-shape (3): "activity_name" contains "Login" (action→activity_name mapping).
+        let action_col = batch
+            .column_by_name("activity_name")
+            .expect("RG-021: 'activity_name' Arrow field must exist");
+        let action_arr = action_col
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("activity_name must be StringArray");
+        assert_eq!(
+            action_arr.value(0),
+            "Login",
+            "AC-010/OQ-005 (RG-021): 'activity_name' must contain 'Login'"
         );
     }
 

@@ -1247,4 +1247,75 @@ mod pushdown_red_gate_tests {
              FilterMap. Got: {guard_map:?}"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // RG-PD-001 / AC-014 / OQ-001 — OCSF-flattened Arrow name is INDEX-eligible
+    // -----------------------------------------------------------------------
+
+    /// AC-014 / OQ-001 — `extract_time_window_from_ast` recognizes OCSF-flattened Arrow
+    /// name as index-eligible push-down target.
+    ///
+    /// When `ocsf_column_naming = true`, the datetime INDEX column
+    /// `claroty.audit_logs.timestamp` has `ocsf_field = "time"`.
+    /// After `ocsf_field_to_arrow_name("time")` = `"time"` (single-segment, no change),
+    /// PrismQL queries authored by the LLM agent use `WHERE time > '...'`.
+    ///
+    /// **Before the fix:** `datetime_index_cols` is built from `col.name` only
+    /// (`{"timestamp"}`). A filter on `"time"` is not in that set → full scan.
+    ///
+    /// **After the fix:** `datetime_index_cols` contains BOTH `"timestamp"` (col.name) AND
+    /// `"time"` (ocsf_field_to_arrow_name(ocsf_field)) → filter on `"time"` is INDEX-eligible.
+    ///
+    /// **Red gate:** `datetime_index_cols` only contains `"timestamp"`. A filter on `"time"`
+    /// falls through to `(None, None)`. Assertion `start_time.is_some()` fails.
+    ///
+    /// SAP-3: end-to-end from parsed PrismQL predicate → `extract_time_window_from_ast`.
+    /// Covers AC-014.
+    /// Traces to BC-2.16.003 §Interpretation A (OCSF-flattened Arrow names usable verbatim
+    /// by LLM agents in index-eligible filter positions; OQ-001 human decision 2026-08-21).
+    #[test]
+    fn test_extract_time_window_from_ast_recognizes_ocsf_flattened_time_column_as_index_eligible() {
+        use prism_core::ColumnOptions;
+
+        // Claroty audit_logs.timestamp: datetime INDEX col, ocsf_field = "time"
+        // ocsf_field_to_arrow_name("time") = "time" (single-segment path, unchanged).
+        let mut col = ColumnSpec::default();
+        col.name = "timestamp".to_string();
+        col.column_type = ColumnType::Datetime;
+        col.options = vec![ColumnOptions::Index];
+        col.ocsf_field = Some("time".to_string());
+
+        let mut spec_map: HashMap<String, Vec<ColumnSpec>> = HashMap::new();
+        spec_map.insert("claroty.audit_logs".to_string(), vec![col]);
+
+        // PrismQL filter on the OCSF-flattened Arrow name "time" (what the LLM agent emits).
+        let query = "SELECT * FROM claroty.audit_logs WHERE time > '2024-01-01T00:00:00Z'";
+        let predicate = parse_where(query);
+
+        let (start_time, end_time) =
+            extract_time_window_from_ast(&predicate, &["claroty.audit_logs"], Some(&spec_map));
+
+        // AC-014 (RG-PD-001/OQ-001): filter on "time" (OCSF-flattened Arrow name) MUST be
+        // INDEX-eligible → start_time must be Some.
+        // Before fix: datetime_index_cols = {"timestamp"} only. "time" is absent.
+        // extract_time_bounds_from_predicate falls through → (None, None). Assertion fails.
+        assert!(
+            start_time.is_some(),
+            "AC-014 (RG-PD-001/OQ-001): filter on OCSF-flattened Arrow column 'time' \
+             (claroty.audit_logs.timestamp with ocsf_field='time') MUST be INDEX-eligible. \
+             Got start_time=None — extract_time_window_from_ast fell through to full scan \
+             because datetime_index_cols only contains 'timestamp', not 'time'. \
+             Fix: for each datetime INDEX column with non-empty ocsf_field, insert BOTH \
+             col.name AND ocsf_field_to_arrow_name(ocsf_field) into datetime_index_cols."
+        );
+        assert!(
+            start_time.as_deref().unwrap_or("").contains("2024-01-01"),
+            "AC-014 (RG-PD-001/OQ-001): start_time must contain '2024-01-01'; got: {start_time:?}"
+        );
+        assert!(
+            end_time.is_none(),
+            "AC-014 (RG-PD-001/OQ-001): no upper-bound predicate — end_time must be None; \
+             got: {end_time:?}"
+        );
+    }
 }
