@@ -2,8 +2,8 @@
 document_type: demo-scope
 level: ops
 producer: state-manager
-version: "1.7"
-timestamp: 2026-07-08T00:00:00Z
+version: "1.8"
+timestamp: 2026-08-21T12:00:00Z
 project: prism
 ---
 
@@ -14,6 +14,46 @@ project: prism
 > A zero-context restart MUST read this file to understand what the demo includes, what is already built, and what the honest gaps are.
 
 > **READ ORDER NOTE (cold-resume agents):** STATUS values in this document track build progress (MERGED / SCOPED-NOT-BUILT). For the AUTHORITATIVE current pipeline position, next action, and develop HEAD, the source-of-truth is **STATE.md frontmatter** + **SESSION-HANDOFF.md §RESUME SNAPSHOT**. This document is the demo SCOPE and NARRATIVE reference — not the live pipeline position.
+
+---
+
+## v1 FIRST RELEASE — Claroty xDome (Authoritative, 2026-08-21)
+
+> **GOVERNING DECISION (D-2264, human-directed 2026-08-21).** This section supersedes the broader multi-sensor SOC-analyst demo framing below for the purposes of v1. The multi-sensor demo remains the long-term product vision; for v1, scope is intentionally narrowed to Claroty xDome.
+
+### v1 Target
+
+The **v1 FIRST RELEASE** is defined as: a fully-working, stable **Claroty xDome** sensor, end-to-end.
+
+### Validation Approach
+
+Validation is performed against the **REAL Claroty xDome tenant (live API)** — true live acceptance. AD-017 opaque-credential path applies: credentials never transit AI context.
+
+### v1 Claroty-xDome Analyst-Path Scope
+
+The complete Claroty-xDome SOC-analyst path:
+
+1. **Client + sensor onboarding** — onboarding a client and their xDome sensor
+2. **OCSF field-mapping correctness** — correct normalization of xDome device and audit_log data to OCSF shapes (delivered: COERCION Stage 1 via S-ADR058-OCSF-COERCION-001 / ROUTING Stage 2 via S-ADR058-OCSF-ROUTING-001)
+3. **All query shapes working** — devices, audit_logs, all supported PrismQL query patterns
+4. **Push-down working correctly** — filter push-down, time-box push-down, predicate push-down to the xDome API
+5. **SOC-analyst Q&A loop** — what questions an analyst can ask and prism returning the data needed to answer
+6. **Stability under real use** — validated against the real xDome tenant (live API)
+
+### Release Gate
+
+Immediately after **S-ADR058-OCSF-ROUTING-001** merges (completing Claroty OCSF correctness: COERCION Stage 1 + ROUTING Stage 2), the pipeline shifts to comprehensive live end-to-end xDome validation as the **v1 release gate**.
+
+### Explicitly DE-SCOPED to POST-v1
+
+The following stories are NOT v1 blockers and are de-scoped to post-v1:
+
+- **S-OCSF-FIDELITY-CROWDSTRIKE-001** — CrowdStrike OCSF fidelity stub
+- **S-OCSF-FIDELITY-CYBERINT-001** — Cyberint OCSF fidelity stub
+- **S-OCSF-FIDELITY-ARMIS-001** — Armis OCSF fidelity stub
+- **S-ADR058-DTU-PARITY-MIGRATION-001** — DTU parity test migration (already parked post-v1)
+
+These stories remain in the backlog for post-v1 work. They are not v1 blockers.
 
 ---
 

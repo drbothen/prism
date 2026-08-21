@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.797"
+version: "8.798"
 producer: state-manager
-timestamp: 2026-08-21T11:35:00Z
+timestamp: 2026-08-21T12:10:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -34,7 +34,7 @@ story_index_version: "2.873"
 # NOTE: D-2256 — STORY-INDEX v2.868→v2.869: LOCAL adversary fix-burst (S-ADR058-OCSF-COERCION-001) — COERCION-001 v1.44→v1.45 (RG-001/002 SAP-3 notes + AC-004 note + ADR-058 pin sweep v2.23→v2.25; F-COERCE-P1-LOW-002 + F-COERCE-P1-OBS-001). ADR-058 v2.24→v2.25 (F-COERCE-P1-LOW-001 §H item 3 field-expr). ROUTING-001 pin-refresh DEFERRED to S-ADR058-OCSF-ROUTING-001. total_stories 302 UNCHANGED. D-2255 NOTE archived.
 arch_index_version: "2.327"
 # NOTE: D-2257 — ARCH-INDEX v2.326→v2.327: LOCAL adversary re-gate fix-burst (S-ADR058-OCSF-COERCION-001) — ADR-058 pin v2.25→v2.26 (F-COERCE-ADV-LOW-002 §Status heading retitle; F-COERCE-ADV-OBS-003 §H item 4 Integer+Object). COERCION-001 v1.45→v1.46. BC-INDEX v9.42→v9.43. STORY-INDEX v2.869→v2.870. D-2256 NOTE archived.
-# NOTE: D-2256 — ARCH-INDEX v2.325→v2.326: LOCAL adversary fix-burst (S-ADR058-OCSF-COERCION-001) — ADR-058 pin v2.24→v2.25 (F-COERCE-P1-LOW-001 §H item 3 field-expr corrected; input-hash 638c633). COERCION-001 v1.44→v1.45. ROUTING-001 pin-refresh DEFERRED. D-2252 NOTE archived.
+# NOTE: D-2256 — ARCH-INDEX v2.325→v2.326: LOCAL adversary fix-burst (S-ADR058-OCSF-COERCION-001) — ADR-058 v2.24→v2.25 (F-COERCE-P1-LOW-001 §H item 3 field-expr corrected; input-hash 638c633). COERCION-001 v1.44→v1.45. ROUTING-001 pin-refresh DEFERRED. D-2252 NOTE archived.
 workspace_test_count: 5765
 # NOTE: D-2261 — workspace_test_count 5743→5765: S-ADR058-OCSF-COERCION-001 MERGED develop@362e4f85 (PR #240); 5765 tests on develop. D-2259 NOTE archived.
 # NOTE: D-2184 — workspace_test_count 5733→5741: S-CLAROTY-AUDITLOG-TIMEBOX-001 TDD-GREEN — RG-001..RG-005 pass. D-2161 NOTE archived.
@@ -44,7 +44,7 @@ workspace_test_count: 5765
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "TDD delivery of S-ADR058-OCSF-ROUTING-001 IN PROGRESS (Phase-B stubs+red next). D-2263 pre-delivery burst COMPLETE — ADR-058 pin sweep v2.23→v2.26 DISCHARGED; 4 holdout scenarios HS-022 group; ROUTING-001 v1.45→v1.46; STORY-INDEX v2.872→v2.873. STATE v8.796→v8.797. trajectory-tail →1→2→2→3 (COERCION-001 LOCAL; ROUTING-001 pre-delivery)."
+current_step: "TDD delivery of S-ADR058-OCSF-ROUTING-001 IN PROGRESS. Upon merge → v1 Claroty-xDome live validation gate (D-2264 GOVERNING DECISION 2026-08-21). D-2263 pre-delivery burst COMPLETE — ADR-058 pin sweep v2.23→v2.26 DISCHARGED; 4 holdout scenarios HS-022 group; ROUTING-001 v1.45→v1.46; STORY-INDEX v2.872→v2.873. D-2264 decision recorded. STATE v8.797→v8.798. trajectory-tail →1→2→2→3 (COERCION-001 LOCAL; no active cascade)."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -57,7 +57,7 @@ dtu_assessment_approved: 2026-04-20
 dtu_clones_built: in_progress
 dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
-active_objective: "multi-client SOC-analyst live demo (real per-client data; TDE deferred) — see SESSION-HANDOFF §ACTIVE OBJECTIVE"
+active_objective: "v1 FIRST RELEASE: fully-working Claroty xDome sensor, end-to-end (D-2264 GOVERNING DECISION 2026-08-21). Validation: REAL Claroty xDome tenant (live API; AD-017 opaque). v1 scope: client+sensor onboarding → OCSF correctness (COERCION+ROUTING) → all query shapes → push-down → SOC-analyst Q&A loop → stability. Release gate: live xDome validation after ROUTING-001 merges. POST-v1 de-scoped: S-OCSF-FIDELITY-CROWDSTRIKE/CYBERINT/ARMIS-001 + S-ADR058-DTU-PARITY-MIGRATION-001."
 task_ledger: ".factory/objectives/multi-client-soc-demo-tasks.md"
 demo_scope_doc: ".factory/objectives/DEMO-SCOPE.md"
 api_specs_reference: ".factory/reference/api-specs/"
@@ -81,7 +81,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 266 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -66 | margin from actual: 234 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 267 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -67 | margin from actual: 233 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -94,7 +94,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-21 D-2263 PRE-DELIVERY BURST COMPLETE — S-ADR058-OCSF-ROUTING-001 TDD gate opened; ADR-058 pin sweep v2.23→v2.26 DISCHARGED; 4 holdout scenarios HS-022 group; ROUTING-001 v1.45→v1.46; STORY-INDEX v2.872→v2.873. STATE v8.796→v8.797. trajectory-tail →1→2→2→3 (COERCION-001 LOCAL; ROUTING-001 pre-delivery). |
+| **Last Updated** | 2026-08-21 D-2264 GOVERNING PRODUCT-BUSINESS DECISION — v1 FIRST RELEASE defined as fully-working Claroty xDome sensor (live-xDome validation gate); post-v1 de-scoped: 3 OCSF fidelity stubs + DTU-parity migration. DEMO-SCOPE.md v1.7→v1.8. STATE v8.797→v8.798. trajectory-tail →1→2→2→3. |
 
 ## Phase Progress
 
@@ -224,6 +224,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | D-2261 | state-manager | 2026-08-20 | **RECOVERY+WRAP COMPLETE — S-ADR058-OCSF-COERCION-001 MERGED to develop @362e4f85 (PR #240, human-authorized admin-merge 2026-08-20). develop advanced 40c667916→362e4f85. POL-14 auto-promotion: BC-2.16.003 v1.20→v1.21 draft→active. active_contracts 252→253; draft_contracts 4→3; total 269 UNCHANGED. workspace_test_count 5743→5765 (5765 on develop). BC-INDEX v9.44→v9.45. STORY-INDEX v2.871→v2.872 (COERCION-001 status→merged). ARCH-INDEX v2.327 UNCHANGED. ADR-058-SPEC-READINESS-FAIL-001 CLOSED (COERCION-001 delivered). RESUME SNAPSHOT D-2261 authored in SESSION-HANDOFF.md (supersedes D-2252). records-lint exit 0. STATE v8.794→v8.795.** | wave-5-e-demo-fidelity | 2026-08-20 |
 | D-2262 | state-manager | 2026-08-21 | **HOUSEKEEPING BURST COMPLETE (TD-VSDD-053) — SESSION-HANDOFF.md compacted 9,259→83 lines; snapshots D-2244..D-1236 (exhaustive) archived to cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. sidecar-learning.md folded. Worktrees torn down: S-ADR058-OCSF-COERCION-001 (PR #240) + S-CLAROTY-AUDITLOG-TIMEBOX-001 (PR #239). trajectory-tail →1→2→2→3 (COERCION-001 LOCAL; no active cascade). TD-VSDD-097 Dim-1/Dim-2/Dim-3 all CLEAR. records-lint exit 0. STATE v8.795→v8.796.** | wave-5-e-demo-fidelity | 2026-08-21 |
 | D-2263 | state-manager | 2026-08-21 | **SINGLE-COMMIT BURST (TD-VSDD-053) — S-ADR058-OCSF-ROUTING-001 pre-delivery burst COMPLETE. Deferred ADR-058 pin-refresh DISCHARGED (closes D-2256/D-2259(d) deferral): ROUTING-001 v1.45→v1.46 (ADR-058 v2.23→v2.26 pin sweep; BC-2.16.002 v2.30→v2.32 pin; BC-2.16.003 v1.19→v1.21 pin; remove-uncertainty ZERO; SAC-1 COMPLIANT 27 RGT/13 AC density 2.08; SAC-2 SATISFIED). 4 holdout scenarios authored (HS-022 group; HOLDOUT-INDEX v1.18→v1.19). TDD gate OPENED (per wave-5 autonomy D-989). BC-INDEX v9.45 UNCHANGED. ARCH-INDEX v2.327 UNCHANGED. STORY-INDEX v2.872→v2.873. TD-VSDD-097 Dim-1 COERCION-001 MERGED/terminal CLEAR; Dim-2 story-pins-only CLEAR; Dim-3 no new MUST CLEAR. trajectory-tail →1→2→2→3 (COERCION-001 LOCAL; ROUTING-001 pre-delivery). records-lint exit 0. STATE v8.796→v8.797.** | wave-5-e-demo-fidelity | 2026-08-21 |
+| D-2264 | state-manager | 2026-08-21 | **GOVERNING PRODUCT-BUSINESS DECISION (human-directed 2026-08-21) — v1 FIRST RELEASE TARGET DEFINED. Target: fully-working, stable Claroty xDome sensor, end-to-end. Validation: REAL Claroty xDome tenant (live API; AD-017 opaque-credential path; credentials never transit AI context). v1 scope: client+sensor onboarding → OCSF field-mapping correctness (COERCION Stage 1 delivered PR #240; ROUTING Stage 2 S-ADR058-OCSF-ROUTING-001 in flight) → all query shapes → push-down (filter/time-box/predicate push-down to xDome API) → SOC-analyst Q&A loop → stability under real use. Release gate: immediately after ROUTING-001 merges, pipeline shifts to comprehensive live end-to-end xDome validation as the v1 release gate. DE-SCOPED to POST-v1: S-OCSF-FIDELITY-CROWDSTRIKE-001 / S-OCSF-FIDELITY-CYBERINT-001 / S-OCSF-FIDELITY-ARMIS-001 (per-sensor OCSF fidelity stubs) + S-ADR058-DTU-PARITY-MIGRATION-001 (DTU parity test migration, already parked post-v1). active_objective updated. DEMO-SCOPE.md v1.7→v1.8. TD-VSDD-097: Dim-1 CLEAR (no BC/ADR mechanism change); Dim-2 CLEAR (no downstream copy target); Dim-3 CLEAR (no new MUST). trajectory-tail →1→2→2→3. records-lint exit 0. STATE v8.797→v8.798.** | wave-5-e-demo-fidelity | 2026-08-21 |
 
 ## Skip Log
 
