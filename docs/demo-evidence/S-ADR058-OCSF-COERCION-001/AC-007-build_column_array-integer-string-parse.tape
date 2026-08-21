@@ -2,7 +2,7 @@
 # RG-008: test_build_column_array_integer_type_string_parseable_returns_integer
 # RG-009: test_build_column_array_integer_type_string_non_parseable_returns_null_and_emits_warning
 # Coverage: Path A (LIVE) — build_column_array Integer arm in prism-bin::spec_driven_adapter
-# Wire evidence: see AC-007-live-mcp-transcript.json
+# Wire evidence: holdout HS-002/HS-003 confirmed (transcript not committed per AD-017)
 #   "devices_count": null — key present, JSON null
 #   WARN column_coercion_failure column=devices_count column_type=integer actual_json_kind=string
 

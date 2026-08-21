@@ -2,7 +2,7 @@
 # RG-010: test_build_column_array_integer_type_object_input_returns_null_and_emits_warning (Path A)
 # RG-011: test_coerce_value_integer_type_object_input_returns_err_coercion_warning (Path B)
 # Coverage: Path A (LIVE) + Path B (defense-in-depth) — EC-016-013-030 gap closure
-# Wire evidence: see AC-008-live-mcp-transcript.json
+# Wire evidence: holdout HS-004 confirmed (transcript not committed per AD-017)
 #   "devices_count": null — key present, JSON null
 #   WARN column_coercion_failure column=devices_count column_type=integer actual_json_kind=object
 

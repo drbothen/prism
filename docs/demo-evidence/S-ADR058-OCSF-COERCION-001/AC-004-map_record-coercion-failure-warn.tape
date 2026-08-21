@@ -2,7 +2,7 @@
 # RG-005: test_map_record_string_object_input_demotes_to_raw_extensions_and_emits_warning
 # Coverage: Path B — ColumnMapper::map_record in prism-spec-engine (in-crate unit test)
 # Note: tracing-test subscriber captures prism_spec_engine=trace events; in-crate placement required
-# Path-A live MCP evidence: see AC-004-live-mcp-transcript.json
+# Path-A live MCP evidence: holdout HS-001 confirmed wire-level null+warn (transcript not committed per AD-017)
 
 Output docs/demo-evidence/S-ADR058-OCSF-COERCION-001/AC-004-map_record-coercion-failure-warn.gif
 Output docs/demo-evidence/S-ADR058-OCSF-COERCION-001/AC-004-map_record-coercion-failure-warn.webm

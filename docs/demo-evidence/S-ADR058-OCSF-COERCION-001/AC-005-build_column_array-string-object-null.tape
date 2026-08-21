@@ -1,7 +1,7 @@
 # AC-005: build_column_array ColumnType::String arm returns null cell for Object input
 # RG-006: test_build_column_array_string_type_object_input_returns_null_and_emits_warning
 # Coverage: Path A (LIVE) — build_column_array in prism-bin::spec_driven_adapter
-# Wire evidence: see AC-005-live-mcp-transcript.json
+# Wire evidence: holdout HS-001 confirmed (transcript not committed per AD-017)
 #   "description": null — key present, JSON null (BC-2.11.001 EC-11-079 explicit_nulls=true)
 #   WARN column_coercion_failure column=description column_type=string actual_json_kind=object
 
