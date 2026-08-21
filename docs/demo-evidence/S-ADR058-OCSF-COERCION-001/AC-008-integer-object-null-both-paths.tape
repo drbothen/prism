@@ -38,5 +38,5 @@ Show
 # Before fix: both paths silently passed through / returned None without warning
 Type "cargo nextest run -p prism-spec-engine -p prism-bin -E 'test(integer_type_object_input)' 2>&1 | tail -10"
 Enter
-Sleep 15s
+Sleep 200s
 Sleep 2s

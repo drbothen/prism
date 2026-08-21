@@ -17,10 +17,7 @@ Type "cd /Users/jmagady/Dev/prism/.worktrees/S-ADR058-OCSF-COERCION-001 && clear
 Enter
 Sleep 0.5s
 Show
-Type "# AC-001 RG-001: coerce_value String+Array -> Err(CoercionWarning)"
-Enter
-Sleep 0.3s
 Type "cargo nextest run -p prism-spec-engine -E 'test(test_coerce_value_string_type_array_input_returns_err_coercion_warning)' 2>&1 | tail -8"
 Enter
-Sleep 15s
+Sleep 60s
 Sleep 2s

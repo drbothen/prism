@@ -36,5 +36,5 @@ Show
 # After fix: warn includes column/column_type/actual_json_kind fields
 Type "cargo nextest run -p prism-spec-engine -E 'test(test_map_record_string_object_input_demotes_to_raw_extensions_and_emits_warning)' 2>&1 | tail -8"
 Enter
-Sleep 15s
+Sleep 60s
 Sleep 2s
