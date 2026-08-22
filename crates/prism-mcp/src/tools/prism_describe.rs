@@ -357,16 +357,23 @@ fn build_ocsf_column_descriptors(
 
     // OQ-003 (AC-015): synthesize class_uid and _sensor as the last two descriptors
     // so LLM agents can filter on `WHERE class_uid = 3004` and `WHERE _sensor = 'claroty'`.
+    // AC-015 canonical descriptions from ADR-058 §G v2.28 / BC-2.16.003 v1.23 / story AC-015 v1.48.
     descriptors.push(ColumnDescriptor {
         name: "class_uid".to_string(),
         col_type: prism_core::column::ColumnType::Integer,
-        description: None,
+        description: Some(
+            "OCSF event class identifier derived from sensor TOML ocsf_class. \
+             Example: 3004 for entity_management (audit_logs), \
+             2004 for detection_finding (alerts, device_alert_relations), \
+             5001 for inventory_info (devices)."
+                .to_string(),
+        ),
         nullable: false,
     });
     descriptors.push(ColumnDescriptor {
         name: "_sensor".to_string(),
         col_type: prism_core::column::ColumnType::String,
-        description: None,
+        description: Some("Sensor identifier. Value: <sensor_id> (e.g., 'claroty').".to_string()),
         nullable: false,
     });
 
