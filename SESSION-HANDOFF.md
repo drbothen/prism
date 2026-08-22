@@ -1,18 +1,94 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.000"
+version: "8.001"
 status: current
-timestamp: 2026-08-21T05:20:00Z
+timestamp: 2026-08-22T17:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2262 (2026-08-21): SESSION-HANDOFF.md compacted. Before: 9,259 lines / 1,248,072 bytes. Superseded snapshots D-2244 and earlier archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md` (D-2262 compaction section). §Standing Orchestrator Process Rules and D-2261 (current) snapshot preserved below. sidecar-learning.md session-end marker folded. Worktrees S-ADR058-OCSF-COERCION-001 + S-CLAROTY-AUDITLOG-TIMEBOX-001 torn down. STATE v8.795→v8.796.**
+> **D-2273 (2026-08-22): SESSION WRAP. S-ADR058-OCSF-ROUTING-001 query-surface OCSF fix delivered+green (feature 396af5722, just check 5805). Re-cascade pass-1 → 1 LOW + 3 OBS; human chose fix-everything-strictly. Strict-fix plan written to cycles/wave-5-e-demo-fidelity/routing-001-strict-fix-plan.md. sidecar-learning.md session-end markers folded. STATE v8.806→v8.807.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2261 (2026-08-20 — RECOVERY+WRAP; PRs #240+#241 MERGED to develop; BC-2.16.003 active (POL-14); STATE v8.794→v8.795) [SUPERSEDES D-2259]
+## §RESUME SNAPSHOT — D-2273 (2026-08-22 — SESSION WRAP; ROUTING-001 strict-fix plan; STATE v8.806→v8.807) [SUPERSEDES D-2261]
+
+### RESUME IN ONE BREATH
+Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 query-surface OCSF fix delivered+green (feature 396af5722, pushed origin, just check 5805); the story holdout gate caught+fixed a query-planning split-brain + a multi-tenant/pipe sibling. Re-cascade pass-1 (on 396af5722) → 1 edge LOW + 3 OBS; human chose FIX-EVERYTHING-STRICTLY. NEXT: execute `cycles/wave-5-e-demo-fidelity/routing-001-strict-fix-plan.md` (spec burst → RG-Q-010..015 → implementer → re-run 3-CLEAN → re-run holdout with FRESH scenarios → demo → PR → merge).
+
+**RESUME NEXT-ACTION:** Read `cycles/wave-5-e-demo-fidelity/routing-001-strict-fix-plan.md` then execute Step 1 (spec burst: architect ADR-058 three new clauses → product-owner BC-2.11.016/BC-2.16.003/error-taxonomy → story-writer ROUTING-001 ACs+RG-Q-010..015 → state-manager commit).
+
+### HEADS (D-2273)
+- `develop`: `362e4f85` (local == origin; PRs #241+#240 squash-merged 2026-08-20; clean)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this wrap commit)
+- `feature/S-ADR058-OCSF-ROUTING-001`: `396af5722` (PUSHED origin — backed up)
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, dirty)
+
+### ROUTING-001 WORKSTREAM STATE (D-2273)
+**FROZEN PERIMETER:** ADR-058 v2.28 / BC-2.16.002 v2.33 / BC-2.16.003 v1.23 (active) / BC-2.11.016 v1.28 / ROUTING-001 story v1.51 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.329 / BC-INDEX v9.50 / STORY-INDEX v2.879. Code HEAD: `396af5722` / just check GREEN 5805.
+
+**BC-5.39.001 LOCAL STREAK: 0/3** on frozen HEAD `396af5722`. Re-cascade pass-1 findings: LOW-1 (zero-col ST gate), OBS-1 (projection duplication — no shared helper), OBS-2 (§J collision guards runtime-only), OBS-3 (SAP-1 clean). ALL to be fixed strictly per `routing-001-strict-fix-plan.md`.
+
+**RE-CASCADE PASS-1 FINDINGS DETAIL** (on HEAD 396af5722):
+- LOW-1: `register_sensor` OCSF branch has `if !table.columns.is_empty()` outer guard — zero-column OCSF table falls through ST gate without registering `class_uid` + `_sensor`.
+- OBS-1: Projection logic duplicated across table_registry / engine (2 MT sites) / prism-mcp describe / prism-bin record_batch — no shared authoritative impl.
+- OBS-2: §J1/§J2/§J4 collision guards in `pipeline_result_to_record_batch` only — no spec-load validation; invalid TOMLs accepted at boot, fail at query time.
+- OBS-3: SAP-1 clean — no missing tracing catalog entries.
+
+**HOLDOUT STATUS:** HS-022 group (4 scenarios) CONSUMED at D-2270 (1 pass / 3 fail; all failures were valid defects, fixed in D-2272). Re-gate requires FRESH product-owner-authored holdout scenarios (NEVER reuse consumed scenarios).
+
+### GOVERNING DECISIONS (D-2273)
+- **D-2273 THIS WRAP:** Strict-fix plan written; strict-fix sequence = spec burst → RG-Q-010..015 → implementer → re-run LOCAL 3-CLEAN → re-run holdout (FRESH HS) → demo → PR → merge.
+- **D-2272 GOVERNING DECISION (2026-08-22):** Re-cascade P1 fix (HIGH-001/MED-002) COMPLETE. Site E (`get_initial_available_columns` multi-tenant pipe-stage seed) OCSF-aware via `ocsf_or_raw_column_names_for_table`; RG-Q-008/009 added; code @396af5722; just check GREEN 5805.
+- **D-2270 GOVERNING DECISION (2026-08-21):** ROUTING-001 story holdout gate FAIL (1/4 pass, 3/4 fail). BC-5.39.001 LOCAL streak RESET 0/3.
+- **D-2264 GOVERNING DECISION (2026-08-21):** v1 FIRST RELEASE governs. v1 scope = live Claroty-xDome end-to-end. S-OCSF-FIDELITY-CROWDSTRIKE/CYBERINT/ARMIS-001 + DTU parity migration de-scoped post-v1.
+- **D-2200 GOVERNING DECISION (UNCHANGED):** DTU work DEFERRED POST-FIRST-RELEASE.
+- **D-2109 GOVERNING DECISION (UNCHANGED):** DTUs MUST NOT be reconciled to real without explicit human authorization.
+
+### V1 DEMO-RELEASE ROADMAP (D-2264)
+1. **ROUTING-001 strict fix** (this plan) — query-surface OCSF name-routing complete + zero-col fix + spec-load collision validation.
+2. **S-JSON-EXTRACT-UDF-001** — Tier-2 filtering (depends_on ROUTING-001; not yet started).
+3. **v1 live Claroty-xDome validation** — 97-item matrix at `.factory/objectives/xdome-v1-validation/live-validation-matrix.md` + `soc-analyst-qa-catalog.md` (real tenant; AD-017 opaque credentials).
+
+### PENDING USER-APPROVED-BUT-UNSTARTED WORK
+- "fix everything strictly" on re-cascade pass-1 findings → **this plan**
+- Live xDome validation against real tenant (post-ROUTING-001 merge)
+- Lever-2 index compaction (optional, D-2268 decision)
+- Lever-2 ratchet L11 follow-up (records-lint develop PR, `S-MAINT-INDEX-RATCHET-001`)
+
+### WORKTREE INVENTORY (D-2273)
+| Worktree | SHA | Status | Action |
+|----------|-----|--------|--------|
+| main `.` (develop) | `362e4f85` | clean, local==origin | active main |
+| `.worktrees/S-ADR058-OCSF-ROUTING-001` | `396af5722` | pushed origin | ACTIVE — resume here for delivery |
+| `.worktrees/S-3.09` | `43c41389d` | LOCAL-ONLY | KEEP-PARKED (unpushed) |
+| `.worktrees/W3-FIX-S307-001` | `fcab8717c` | LOCAL-ONLY dirty | PARKED — do NOT touch |
+
+### DECISION-LOG DELTA (D-2262 through D-2273)
+| ID | Summary |
+|----|---------|
+| D-2262 | SESSION-HANDOFF.md compacted; worktrees COERCION-001 + AUDITLOG-TIMEBOX torn down; sidecar-learning session-end marker folded |
+| D-2263 | (housekeeping row — archived in burst-log) |
+| D-2264 | v1 GOVERNING DECISION: live Claroty-xDome is v1 target; OCSF-FIDELITY/DTU-PARITY de-scoped post-v1 |
+| D-2265 | Spec-augmentation burst: ADR-058 v2.26→v2.27 (KF-05 revised; §I6 push-down; §G synthesized-descriptor MUST); BC-2.16.003 v1.21→v1.22; ROUTING-001 v1.46→v1.47 |
+| D-2266 | LOCAL pass-2 spec-side fix-burst: ADR-058 v2.27→v2.28 (§J2 within-doc contradiction resolved); BC-2.16.003 v1.22→v1.23; ROUTING-001 v1.47→v1.48; ARCH-INDEX v2.328→v2.329 |
+| D-2267 | (pass-3 catalog entry — archived in burst-log) |
+| D-2268 | Lever-2 index compaction decision (optional) |
+| D-2269 | Pin sweep; perimeter corrected passes 4-8 |
+| D-2270 | ROUTING-001 story holdout gate FAIL (1/4 pass; 3/4 fail; HS-022 group CONSUMED; BC-5.39.001 LOCAL streak RESET 0/3) |
+| D-2271 | BC-2.11.016 v1.27→v1.28: EC-11-079 query-surface OCSF-resolution contract; holdout-gap closure; BC-INDEX v9.49→v9.50 |
+| D-2272 | Re-cascade P1 fix (HIGH-001/MED-002): Site E OCSF-aware; RG-Q-008/009 added; ROUTING-001 v1.50→v1.51 (density 2.11); code 61aac7b06→396af5722; just check 5805; STORY-INDEX v2.878→v2.879; STATE v8.805→v8.806 |
+| D-2273 | SESSION WRAP: strict-fix plan written; sidecar-learning folded; STATE v8.806→v8.807 |
+
+### BACKUP BOUNDARY (D-2273)
+- PUSHED / safe: `origin/develop` `362e4f85`; `origin/feature/S-ADR058-OCSF-ROUTING-001` `396af5722`; `factory-artifacts` (this wrap commit)
+- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
+
+---
+
+## §RESUME SNAPSHOT — D-2261 (2026-08-20 — RECOVERY+WRAP; PRs #240+#241 MERGED to develop; BC-2.16.003 active (POL-14); STATE v8.794→v8.795) [SUPERSEDED by D-2273]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3. S-ADR058-OCSF-COERCION-001 TDD complete and MERGED to develop (PR #240 @362e4f85, human-authorized admin-merge 2026-08-20). PR #241 (clippy 1.98.0 + h2 RUSTSEC-2026-0258 security advisory) also MERGED @40c667916. BC-2.16.003 promoted draft→active (POL-14). workspace_test_count 5743→5765. NEXT: S-ADR058-OCSF-ROUTING-001 delivery (ROUTING-001 follows COERCION-001 per spec sequence). Housekeeping COMPLETE (D-2262): SESSION-HANDOFF.md compacted; worktrees torn down.

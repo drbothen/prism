@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.50"
+version: "1.51"
 level: "L4"
 status: draft
 producer: story-writer
@@ -229,7 +229,7 @@ The mandate anchor records:
 | `pipeline_result_to_record_batch` MUST fail-closed (`Err(ArrowError::SchemaError(...))`) when any `ocsf_field` flattens via `ocsf_field_to_arrow_name` to a synthesized/reserved name (`class_uid`, `category_uid`, `_sensor`, or `raw_extensions`) (ADR-058 v2.28 §J2 synthesized-name guard; BC-2.16.003 EC-016-013-029) | S-ADR058-OCSF-ROUTING-001 | AC-013, T-21 clause (c) | RG-027 | DISCHARGED |
 | `TableRegistry` MUST register OCSF-flattened names (`ocsf_field_to_arrow_name(ocsf_field)` for each Tier-1 column) for `ocsf_column_naming = true` sensor tables; raw `col.name` values for Tier-1 columns MUST NOT be registered; E-QUERY-038 `available_columns` in error responses MUST list OCSF-flattened names only (BC-2.11.016 EC-11-079 sub-cases (a) and (b)) | S-ADR058-OCSF-ROUTING-001 | AC-016 | RG-Q-001, RG-Q-002, RG-Q-004, RG-Q-005, RG-Q-006 | PENDING (Fix A — T-26) |
 | E-QUERY-002/041 type-compat gate MUST resolve column types by OCSF-flattened name for `ocsf_column_naming = true` tables (BC-2.11.016 EC-11-079 sub-case (c)) | S-ADR058-OCSF-ROUTING-001 | AC-017 | RG-Q-003 | PENDING (Fix C — T-27) |
-| The set of columns reported by E-QUERY-038 `available_columns`, `prism_describe`, and `SELECT *` MUST all agree on the OCSF-flattened name set for `ocsf_column_naming = true` tables (BC-2.11.016 EC-11-079 sub-case (d) name-agreement invariant) | S-ADR058-OCSF-ROUTING-001 | AC-018 | RG-Q-001..RG-Q-007 | PENDING (Fix A/B/C — T-26/T-27) |
+| The set of columns reported by E-QUERY-038 `available_columns`, `prism_describe`, and `SELECT *` MUST all agree on the OCSF-flattened name set for `ocsf_column_naming = true` tables (BC-2.11.016 EC-11-079 sub-case (d) name-agreement invariant) | S-ADR058-OCSF-ROUTING-001 | AC-018 | RG-Q-001..RG-Q-009 | PENDING (Fix A/B/C — T-26/T-27) |
 | When `ocsf_column_naming = false` (flag-false green-lock), no OCSF-flattened name routing occurs; existing column resolution behavior MUST be unchanged (BC-2.11.016 EC-11-079 sub-case (b) flag-false invariant) | S-ADR058-OCSF-ROUTING-001 | AC-016 (green-lock) | RG-Q-007 | PENDING (Fix A — T-26) |
 
 ---
@@ -276,14 +276,14 @@ Until then, `ColumnMapper::map_record` remains test-only.
 | BC-2.16.003 | v1.23 | active | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention); EC-016-013-027 (Tier-1/Tier-2 `prism_describe` model: no individual ColumnDescriptor for `ocsf_field == None` columns; exactly one `raw_extensions` ColumnDescriptor with four-field shape: name + col_type=Json + nullable=true + description enumerating source keys); EC-016-013-028 (reworded v1.18: multi-valued array source fields → compact JSON-list string in raw_extensions via `pipeline_result_to_record_batch` source_path extraction + ENRICH-1 normalization — NOT naive `r.get(col.name)` — governs AC-007c / RG-026); EC-016-013-029 (NEW v1.18: flattened `ocsf_field` equal to synthesized reserved name → `Err(ArrowError::SchemaError)` fail-closed — governs AC-013 / RG-027); EC-016-013-011 (runtime `ocsf.unknown_class_name` WARN on Err branch — governs AC-011) |
 | BC-2.16.002 | v2.33 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
 | BC-2.01.013 | v1.23 | active | EC-01-025 NON-CONFORMANT annotation resolved for Claroty after this story merges; product-owner updates annotation |
-| BC-2.11.016 | v1.28 | active | EC-11-079: E-QUERY-038 column-resolution gate and E-QUERY-002/041 type-compat gate MUST operate against the OCSF-flattened schema (not raw TOML `col.name`) for `ocsf_column_naming = true` tables; `available_columns` payload MUST list OCSF-flattened names only; raw `col.name` refs rejected as-if-absent; describe/select/query name-agreement invariant; covered by AC-016/AC-017/AC-018 and RG-Q-001..RG-Q-007 |
+| BC-2.11.016 | v1.28 | active | EC-11-079: E-QUERY-038 column-resolution gate and E-QUERY-002/041 type-compat gate MUST operate against the OCSF-flattened schema (not raw TOML `col.name`) for `ocsf_column_naming = true` tables; `available_columns` payload MUST list OCSF-flattened names only; raw `col.name` refs rejected as-if-absent; describe/select/query name-agreement invariant; covered by AC-016/AC-017/AC-018 and RG-Q-001..RG-Q-009 (RG-Q-008/009 cover multi-tenant `resolved_spec_map` path) |
 
 ---
 
 ## Red Gate Tests (SAC-1 — tdd_mode: strict)
 
-All thirty-six tests MUST be failing (RED) before any implementation code is written.
-Test-writer dispatched FIRST; implementer only after all 36 confirmed failing.
+All thirty-eight tests MUST be failing (RED) before any implementation code is written.
+Test-writer dispatched FIRST; implementer only after all 38 confirmed failing.
 
 - **RG-001:** `test_sensor_spec_ocsf_column_naming_defaults_to_false` —
   fails until `SensorSpec` gains the `ocsf_column_naming` field (with `#[serde(default)]`).
@@ -770,13 +770,39 @@ BC-2.16.003 EC-016-013-029.
   Covers AC-016 flag-false backward-compatibility. Traces to BC-2.11.016 EC-11-079
   invariant (flag-false: existing behavior unchanged, FP-001 preserved).
 
+- **RG-Q-008:** `test_BC_2_11_016_RG_Q_008_multitenant_ocsf_head_projection` — multi-tenant
+  (`resolved_spec_map`) OCSF head-gate: when `ocsf_column_naming = true`, a SELECT using the
+  OCSF-flattened name (e.g., `finding_info_uid`) resolves via `check_column_availability`
+  (which calls the shared helper `ocsf_or_raw_column_names_for_table` in `engine.rs`), and a
+  SELECT using the raw `col.name` (e.g., `id`) is rejected with E-QUERY-038 with
+  `available_columns` listing only OCSF-flattened names. This test exercises the
+  multi-tenant code path through `resolved_spec_map` — distinct from the single-tenant
+  `TableRegistry` path exercised by RG-Q-001..007.
+  Place in `crates/prism-query/src/tests/ocsf_column_routing_tests.rs`.
+  Covers AC-016 (multi-tenant head-gate path) and AC-018 (name-agreement invariant — head
+  surface). Traces to BC-2.11.016 EC-11-079 postcondition (a) and (b): OCSF-flattened name
+  resolves; raw col.name rejected with OCSF `available_columns`.
+
+- **RG-Q-009:** `test_BC_2_11_016_RG_Q_009_multitenant_ocsf_pipe_stage` — multi-tenant OCSF
+  PIPE stage: when `ocsf_column_naming = true`, `| where message` (OCSF-flattened name)
+  resolves in the pipe stage and `| where description` (raw col.name) is rejected. Exercises
+  `get_initial_available_columns` (Site E of the TD-VSDD-060 5-site sweep — the pipe-stage
+  binding seed, which calls `ocsf_or_raw_column_names_for_table` via the multi-tenant
+  `resolved_spec_map` code path). Verifies that the shared helper is consistently applied
+  across BOTH the head gate (`check_column_availability`) and the pipe-stage seed
+  (`get_initial_available_columns`) under multi-tenant dispatch.
+  Place in `crates/prism-query/src/tests/ocsf_column_routing_tests.rs`.
+  Covers AC-016 (multi-tenant pipe-stage path) and AC-018 (name-agreement invariant — pipe
+  surface). Traces to BC-2.11.016 EC-11-079 postcondition (a): OCSF-flattened pipe
+  predicate resolves; raw col.name pipe predicate rejected.
+
 ### BC-5.38.001 Density Check
 
-Red Gate test count: **36** (RG-001..RG-027, RG-PD-001, RG-028, RG-Q-001..RG-Q-007).
+Red Gate test count: **38** (RG-001..RG-027, RG-PD-001, RG-028, RG-Q-001..RG-Q-009).
 Acceptance criteria: 18 (AC-001..AC-018). AC-008 is an `#[ignore]`'d test update — its
 Red Gate is RG-005 (same mechanism: Arrow field name must be `device_uid` not `uid`).
 
-Density: 36 RGTs / 18 ACs = **2.00 ≥ 0.5** — compliant with BC-5.38.001.
+Density: 38 RGTs / 18 ACs = **2.11 ≥ 0.5** — compliant with BC-5.38.001.
 
 Note: AC-005 (claroty.sensor.toml — ocsf_column_naming + KF-01..KF-04, OQ-005, KF-06..KF-12 + flag + §J3 shadow fix)
 is validated by wire-shape RGs that require the corrected TOML to pass: RG-014..RG-022
@@ -816,6 +842,10 @@ RG-028 covers AC-015 (prism_describe emits `class_uid` + `_sensor` synthesized C
 after Tier-1 and `raw_extensions` descriptors under `ocsf_column_naming = true`).
 RG-Q-001..RG-Q-007 cover AC-016 (OCSF-mode column resolution), AC-017 (type-compat by OCSF
 name), and AC-018 (describe/select/query name-agreement invariant) per BC-2.11.016 EC-11-079.
+RG-Q-008 covers AC-016 multi-tenant head-gate path (`resolved_spec_map` →
+`check_column_availability` via shared helper `ocsf_or_raw_column_names_for_table`).
+RG-Q-009 covers AC-016/AC-018 multi-tenant pipe-stage path (`get_initial_available_columns`
+— Site E of the TD-VSDD-060 5-site sweep; same shared helper seeded consistently).
 
 ---
 
@@ -1582,7 +1612,7 @@ plus the synthesized names `"class_uid"`, `"_sensor"`, and `"raw_extensions"` (w
 Tier-2 column exists). Raw `col.name` values MUST NOT be registered for OCSF-mode tables
 (they are rejected at the TOML layer, not available to queries).
 
-Covered by RG-Q-001..RG-Q-007.
+Covered by RG-Q-001..RG-Q-009 (RG-Q-008/009 cover the multi-tenant `resolved_spec_map` path).
 
 (traces to BC-2.11.016 EC-11-079: E-QUERY-038 column-resolution and `available_columns`
 payload MUST use the OCSF-flattened schema for `ocsf_column_naming = true` tables; raw
@@ -1634,8 +1664,9 @@ causing `SELECT *` (OCSF-flattened Arrow schema) to succeed while
 violating this invariant. AC-016 (Fix A — TableRegistry) and AC-017 (Fix C — type-compat)
 close this gap.
 
-Covered by RG-Q-001..RG-Q-007 (all seven tests together verify this invariant: projection
-OK, WHERE OK, type-compat OK, raw rejected, available_columns wire-shape, flag-false intact).
+Covered by RG-Q-001..RG-Q-009 (all nine tests together verify this invariant: projection
+OK, WHERE OK, type-compat OK, raw rejected, available_columns wire-shape, flag-false intact;
+RG-Q-008/009 extend coverage to the multi-tenant `resolved_spec_map` code path).
 
 (traces to BC-2.11.016 EC-11-079 sub-case (d): describe/select/query name-agreement
 invariant — the `available` set used by the E-QUERY-038 gate for `ocsf_column_naming = true`
@@ -1959,13 +1990,13 @@ implementer MUST load only the files listed, not the full architecture directory
 - T-GATE: Run `just iter prism-spec-engine --no-fail-fast`, `just iter prism-bin --no-fail-fast`,
   `just iter prism-mcp --no-fail-fast`, `just iter prism-ocsf --no-fail-fast`, and
   `just iter prism-query --no-fail-fast` — confirm RG-001..RG-027, RG-PD-001, RG-028, and
-  RG-Q-001..RG-Q-007 fail with correct compile/test-failure reasons (RG-001..004 in
+  RG-Q-001..RG-Q-009 fail with correct compile/test-failure reasons (RG-001..004 in
   prism-spec-engine; RG-005..006/008..010/014..022/024/026/027 in prism-bin; RG-007, RG-025,
   and RG-028 in prism-mcp; RG-011/012/023 in prism-ocsf/tests/; RG-013 in
-  prism-ocsf/src/mappers/spec_driven.rs mod tests; RG-PD-001 and RG-Q-001..007 in
+  prism-ocsf/src/mappers/spec_driven.rs mod tests; RG-PD-001 and RG-Q-001..009 in
   prism-query). Confirm no regressions in non-RG tests (note: RG-Q-007 is a backward-compat
   green-lock test — it MUST pass before Fix A; confirm it passes).
-  Report density: 36/18 = 2.00 ≥ 0.5. STOP and wait for implementer dispatch.
+  Report density: 38/18 = 2.11 ≥ 0.5. STOP and wait for implementer dispatch.
 
 ### Phase B: Implementation (implementer dispatched AFTER T-GATE)
 
@@ -2195,14 +2226,18 @@ implementer MUST load only the files listed, not the full architecture directory
   (b) Fix C: Verify that the E-QUERY-002/041 type-compat gate resolves column types by
   the OCSF-flattened name via the same registry. If type lookups are keyed on raw col.name
   (outside the registry), update them to use the OCSF-flattened name for OCSF-mode tables.
-  Run `just iter prism-query`. Makes RG-Q-003 and RG-Q-006 green. Traces to AC-017 (Fix C)
-  and AC-016 `available_columns` wire-shape (Fix B).
+  Run `just iter prism-query`. Makes RG-Q-003 and RG-Q-006 green. Also makes RG-Q-008 and
+  RG-Q-009 green — these test the multi-tenant `resolved_spec_map` path through the shared
+  helper `ocsf_or_raw_column_names_for_table` in `engine.rs`, which calls
+  `check_column_availability` (head gate) and `get_initial_available_columns` (pipe-stage
+  seed, Site E of the TD-VSDD-060 5-site sweep). Traces to AC-017 (Fix C), AC-016
+  `available_columns` wire-shape (Fix B), and AC-016/AC-018 multi-tenant path (Fix B — Site E).
 - T-19: Run `just iter prism-spec-engine`, `just iter prism-bin`, `just iter prism-mcp`,
-  `just iter prism-ocsf`, and `just iter prism-query` — all 36 RGTs must pass
+  `just iter prism-ocsf`, and `just iter prism-query` — all 38 RGTs must pass
   (RG-001..004 in prism-spec-engine;
   RG-005..006/008..010/014..022/024/026/027 in prism-bin; RG-007/RG-025/RG-028 in prism-mcp;
   RG-011/012/023 in prism-ocsf/tests/; RG-013 in prism-ocsf/src/mappers/spec_driven.rs
-  mod tests; RG-PD-001 and RG-Q-001..RG-Q-007 in prism-query/src/tests/
+  mod tests; RG-PD-001 and RG-Q-001..RG-Q-009 in prism-query/src/tests/
   ocsf_column_routing_tests.rs).
 - T-20: Run `just check` — full workspace gate. Must stay GREEN per ADR-058 §E1
   blast-radius analysis. If any non-Claroty tests fail, STOP — do not push.
@@ -2342,8 +2377,8 @@ Do NOT add new `reqwest` dependencies. Do NOT add `native-tls` features.
 | `crates/prism-ocsf/src/mappers/spec_driven.rs` (`#[cfg(test)] mod tests` block) | Modify: add RG-013 (calls private `set_nested_field` — unreachable from `tests/` crate; E0603 if placed in integration test) |
 | `crates/prism-bin/Cargo.toml` | Verify/Modify: confirm `tracing-test = "0.2"` is present in `[dev-dependencies]` (added by S-ADR058-OCSF-COERCION-001 for RG-009); add ONLY if absent — do not duplicate | Required for RG-018 `tracing_test` subscriber in `crates/prism-bin/src/spec_driven_adapter.rs #[cfg(test)] mod tests`; COERCION-001 is the upstream provider (depends_on ordering) |
 | `crates/prism-query/src/table_registry.rs` | Modify: when `ocsf_column_naming = true`, register OCSF-flattened column names (`ocsf_field_to_arrow_name(ocsf_field)` for each Tier-1 column) instead of raw `col.name`; also register synthesized columns `class_uid` (Integer) and `_sensor` (String), and `raw_extensions` (Json) when ≥1 Tier-2 column exists. Import `ocsf_field_to_arrow_name` from `prism_spec_engine::column_mapping`. Raw `col.name` values for OCSF-mode Tier-1 columns MUST NOT be registered. (Fix A — AC-016, AC-018, RG-Q-001..005, RG-Q-007) |
-| `crates/prism-query/src/engine.rs` | Modify: verify E-QUERY-038 column-existence gate reads registered column names from `TableRegistry` (which now returns OCSF-flattened names post-Fix-A); verify E-QUERY-002/041 type-compat gate looks up column types by OCSF-flattened name for OCSF-mode tables. If any hardcoded raw col.name lookup bypasses the registry, fix it to use the registry. (Fix B/C — AC-016 `available_columns` wire-shape, AC-017, RG-Q-003, RG-Q-006) |
-| `crates/prism-query/src/tests/ocsf_column_routing_tests.rs` | Create: new test file containing RG-Q-001 through RG-Q-007 (`test_BC_2_11_016_RG_Q_001` through `test_BC_2_11_016_RG_Q_007`). These tests verify OCSF-flattened column resolution, raw col.name rejection, `available_columns` OCSF-name wire-shape, and the flag-false green-lock invariant. (AC-016, AC-017, AC-018, BC-2.11.016 EC-11-079) |
+| `crates/prism-query/src/engine.rs` | Modify: verify E-QUERY-038 column-existence gate reads registered column names from `TableRegistry` (which now returns OCSF-flattened names post-Fix-A); verify E-QUERY-002/041 type-compat gate looks up column types by OCSF-flattened name for OCSF-mode tables. If any hardcoded raw col.name lookup bypasses the registry, fix it to use the registry. (Fix B/C — AC-016 `available_columns` wire-shape, AC-017, RG-Q-003, RG-Q-006) — **Shared-helper note (re-cascade P1 fix):** the fix introduced `ocsf_or_raw_column_names_for_table` as a shared private helper in this file (single source of truth for OCSF vs raw name set selection); it is called by BOTH `check_column_availability` (head gate — Site B/C) AND `get_initial_available_columns` (pipe-stage seed — Site E). TD-VSDD-060 5-site sweep: (A) `table_registry.rs` register_sensor seed; (B/C/E) `engine.rs` via shared helper; (D) `materialization.rs` `build_bundled_spec_schemas` = test-only path (unaffected, confirmed). |
+| `crates/prism-query/src/tests/ocsf_column_routing_tests.rs` | Create: new test file containing RG-Q-001 through RG-Q-009 (`test_BC_2_11_016_RG_Q_001` through `test_BC_2_11_016_RG_Q_009`). These tests verify OCSF-flattened column resolution, raw col.name rejection, `available_columns` OCSF-name wire-shape, and the flag-false green-lock invariant. RG-Q-008 and RG-Q-009 additionally verify the multi-tenant `resolved_spec_map` path through the shared helper `ocsf_or_raw_column_names_for_table` in `engine.rs` (head gate and pipe-stage seed respectively — Site E of the TD-VSDD-060 5-site sweep). (AC-016, AC-017, AC-018, BC-2.11.016 EC-11-079) |
 
 Implementer MUST add private-fn RGs (RG-005..006/008..010/014..022/024/026/027) to the `#[cfg(test)] mod tests` block in `crates/prism-bin/src/spec_driven_adapter.rs` — do NOT place them in `crates/prism-bin/tests/` (separate crate; cannot reach private fns). Similarly, RG-013 calls `set_nested_field`, a private free function in `crates/prism-ocsf/src/mappers/spec_driven.rs`; route RG-013 to the `#[cfg(test)] mod tests` block of that file, NOT to `crates/prism-ocsf/tests/` (E0603 if placed in the integration test crate). For the e2e test update (AC-008), verify file names via `find crates/prism-bin/tests -name "*.rs"` at dispatch.
 
@@ -2366,6 +2401,25 @@ Build-time enforcement rules:
 ---
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
+
+### v1.51 Amendment Sweep (re-cascade P1 HIGH-001/MED-002 closure — RG-Q-008/009 multi-tenant + pipe coverage; shared-helper Site-E fix; human-directed 2026-08-22)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): merged and terminal at v1.47 snapshot (ADR-058 v2.26, BC-2.16.003 v1.21, BC-2.16.002 v2.32). This v1.51 burst adds two multi-tenant RGTs (RG-Q-008/009) and documents the shared-helper `ocsf_or_raw_column_names_for_table` in `engine.rs`. COERCION-001 carries no `engine.rs` column-routing surface, no `check_column_availability` or `get_initial_available_columns` obligations, and no `resolved_spec_map` multi-tenant path. VERDICT: SIBLING HISTORICAL SNAPSHOT PRESERVED — NO CHANGE NEEDED.
+
+**Dimension 2 — Downstream copy target:**
+
+Changed surfaces: (1) frontmatter version 1.50→1.51; (2) §Red Gate Tests preamble — "thirty-six"→"thirty-eight", "36"→"38"; (3) RG-Q-008 entry added (multi-tenant head-gate `check_column_availability` via shared helper); (4) RG-Q-009 entry added (multi-tenant pipe-stage `get_initial_available_columns` — Site E); (5) §BC-5.38.001 Density Check — count 36→38, range RG-Q-001..007→RG-Q-001..009, density 2.00→2.11; RG-Q-008/009 coverage note added; (6) AC-016 "Covered by" line updated to RG-Q-001..009; (7) AC-018 "Covered by" line updated to nine tests; (8) §Mandate Anchor table — AC-018 row RG range updated to RG-Q-001..009; (9) §Behavioral Contracts table — BC-2.11.016 row RG range updated; (10) T-GATE count 36→38, range RG-Q-001..007→RG-Q-001..009; density 36/18→38/18; (11) T-27 "Makes green" extended to include RG-Q-008/009 with shared-helper explanation; (12) T-19 count 36→38, range updated; (13) §File Structure Requirements — `engine.rs` row extended with shared-helper note and 5-site sweep; `ocsf_column_routing_tests.rs` row extended with RG-Q-008/009; (14) §TD-VSDD-097 — this v1.51 sweep added at top. None of the changed loci are verbatim-copied into any downstream artifact — they are story-body prose consumed by implementer/test-writer agents at dispatch time. The shared-helper name `ocsf_or_raw_column_names_for_table` is recorded as an implementation fact for traceability; it is not a BC or ADR obligation that propagates downstream. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUST statements introduced. The shared helper `ocsf_or_raw_column_names_for_table` is recorded as implementation guidance (how the fix was delivered), not as a new MUST obligation. The MUST obligations that RG-Q-008/009 exercise are already anchored:
+- AC-016 MUST (a): `TableRegistry` OCSF-flattened name registration → anchored to RG-Q-001/002/004/005/006 + T-26 (unchanged)
+- AC-018 MUST: Name-agreement invariant → anchored to RG-Q-001..009 (range extended to include multi-tenant path)
+- No new unanchored MUSTs introduced. VERDICT: ALL MUSTs ANCHORED.
+
+SAC-1 re-verified: 38 RGTs, density 38/18 = 2.11 ≥ 0.5, red-then-green ordering (Phase A test-writing tasks precede Phase B implementation tasks; RG-Q-008/009 were written as part of the Fix B extension in T-27 scope, consistent with the existing red-then-green discipline for this cascade).
 
 ### v1.50 Amendment Sweep (holdout-gap query-surface formalization — BC-2.11.016 added; AC-016/017/018 + RG-Q-001..007; T-26/T-27 Fix A/B/C; file structure additions; human-directed 2026-08-22)
 
@@ -3514,6 +3568,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.51 | 2026-08-22 | story-writer | Re-cascade P1 HIGH-001/MED-002 closure: RG-Q-008/009 multi-tenant + pipe coverage; shared-helper Site-E fix; human-directed 2026-08-22. Changes: (1) version 1.50→1.51. (2) §Red Gate Tests preamble — "thirty-six"→"thirty-eight"; "36 confirmed failing"→"38 confirmed failing". (3) RG-Q-008 (`test_BC_2_11_016_RG_Q_008_multitenant_ocsf_head_projection`) added: multi-tenant `resolved_spec_map` OCSF head-gate via `check_column_availability` + shared helper `ocsf_or_raw_column_names_for_table`; OCSF name resolves, raw col.name rejected with OCSF `available_columns`; covers AC-016 multi-tenant head path + AC-018. (4) RG-Q-009 (`test_BC_2_11_016_RG_Q_009_multitenant_ocsf_pipe_stage`) added: multi-tenant OCSF pipe-stage `get_initial_available_columns` (Site E, TD-VSDD-060 5-site sweep); `| where message` resolves, `| where description` rejected; same shared helper; covers AC-016 multi-tenant pipe path + AC-018. (5) §BC-5.38.001 Density Check — count 36→38, range RG-Q-001..007→RG-Q-001..009, density 2.00→2.11 ≥ 0.5; coverage notes for RG-Q-008/009 added. (6) AC-016 "Covered by" → RG-Q-001..009. (7) AC-018 "Covered by" → nine tests. (8) §Mandate Anchor — AC-018 row range → RG-Q-001..009. (9) §Behavioral Contracts table — BC-2.11.016 row RG range → RG-Q-001..009. (10) T-GATE: count/range → 38/RG-Q-001..009; density → 38/18=2.11. (11) T-27: "Makes green" extended for RG-Q-008/009 with shared-helper + Site-E explanation. (12) T-19: count 36→38; range → RG-Q-001..009. (13) §File Structure Requirements — `engine.rs` row: shared-helper `ocsf_or_raw_column_names_for_table` noted + 5-site TD-VSDD-060 sweep (A table_registry.rs; B/C/E engine.rs via helper; D materialization.rs=test-only unaffected); `ocsf_column_routing_tests.rs` row: RG-Q-001..009. (14) §TD-VSDD-097 — v1.51 three-dim sweep added at top. Pins UNCHANGED: ADR-058 v2.28, BC-2.16.002 v2.33, BC-2.16.003 v1.23, BC-2.11.016 v1.28. Input-hash unchanged (no tracked input files modified). SAC-1: 38 RGTs, density 2.11≥0.5, red-then-green ordering preserved. |
 | 1.50 | 2026-08-22 | story-writer | Holdout-gap query-surface formalization: BC-2.11.016 added to story; AC-016/017/018 + RG-Q-001..007; T-26/T-27 Fix A/B/C; human-directed 2026-08-22. Changes: (1) version 1.49→1.50; modified 2026-08-21→2026-08-22. (2) `behavioral_contracts:` frontmatter — BC-2.11.016 added as fourth entry. (3) §Behavioral Contracts body table — BC-2.11.016 row added (v1.28, active; EC-11-079 relevance: OCSF-mode column-resolution gate — E-QUERY-038 and E-QUERY-002/041 type-compat operate against OCSF-flattened schema). (4) Token Budget table — "3 BCs" → "4 BCs", ~6.5k → ~8k. (5) §Red Gate Tests preamble — updated to 36 tests; RG-Q-001 through RG-Q-007 individual test entries added (`test_BC_2_11_016_RG_Q_001` through `test_BC_2_11_016_RG_Q_007` in `crates/prism-query/src/tests/ocsf_column_routing_tests.rs`) before §BC-5.38.001 Density Check. (6) §BC-5.38.001 Density Check — updated to 36 RGTs / 18 ACs = 2.00 ≥ 0.5. (7) §Acceptance Criteria — AC-016 (OCSF-mode column resolution: E-QUERY-038 gate on OCSF-flattened schema, 3 sub-cases, Fix A anchor; traces to BC-2.11.016 EC-11-079), AC-017 (E-QUERY-002/041 type-compat by OCSF-flattened name, Fix C; traces to BC-2.11.016 EC-11-079), AC-018 (describe/select/query name-agreement invariant; traces to BC-2.11.016 EC-11-079) added after AC-015. (8) §Tasks Phase A — T-11W (write RG-Q-001/002), T-11X (write RG-Q-003), T-11Y (write RG-Q-004/005/006/007) added; T-GATE updated to 36 tests with density 36/18=2.00. (9) §Tasks Phase B — T-26 (Fix A: `table_registry.rs` OCSF-flattened name seeding), T-27 (Fix B/C: `engine.rs` E-QUERY-038 + E-QUERY-002/041 gates use OCSF-flattened names) added; T-19 updated to 36 RGTs with RG-Q-001..007 distribution in `prism-query/src/tests/ocsf_column_routing_tests.rs`. (10) §File Structure Requirements — three new rows: `crates/prism-query/src/table_registry.rs` (Fix A — AC-016/018/RG-Q-001..005/007), `crates/prism-query/src/engine.rs` (Fix B/C — AC-016 available_columns, AC-017, RG-Q-003/006), `crates/prism-query/src/tests/ocsf_column_routing_tests.rs` (Create: RG-Q-001..007). (11) §Mandate Anchor table — four new PENDING rows for BC-2.11.016 EC-11-079 MUSTs: TableRegistry OCSF-name registration (RG-Q-001/002/004/005/006; Fix A); E-QUERY-002/041 type-compat by OCSF-flattened name (RG-Q-003; Fix C); name-agreement invariant (RG-Q-001..007; Fix A/B/C); flag-false green-lock (RG-Q-007; Fix A). (12) §TD-VSDD-097 — v1.50 sweep added at top: Dim-1 COERCION-001 historical snapshot preserved; Dim-2 BC-2.11.016 EC-11-079 cited not copied, no downstream copy targets; Dim-3 all new MUSTs anchored to RG-Q-001..007. SAC-1 re-verified: 36 RGTs, density 2.00≥0.5, red-then-green ordering (T-11W/T-11X/T-11Y in Phase A precede T-26/T-27/T-19 in Phase B). |
 | 1.49 | 2026-08-21 | spec-steward | Records-tier pin-consistency sweep closing LOCAL pass-8 OBS-1 + straggler ADR-058 v2.26 refs (human-directed 2026-08-21). (1) version 1.48→1.49. (2) §Authority BC-2.16.002 Version `2.32`→`2.33` + §Behavioral Contracts table BC-2.16.002 row v2.32→v2.33 (BC-2.16.002 updated to v2.33 in same burst; BC-2.16.002 is NOT in ROUTING-001 tracked inputs per v1.45 changelog, so input-hash b49d41f unchanged). (3) Three straggler ADR-058 v2.26 current-context refs advanced to v2.28: §Authority BC-2.16.003 paragraph EC-016-013-029 inline (`ADR-058 v2.26 §J2`→`ADR-058 v2.28 §J2`); RG-026 intro (`ADR-058 v2.26 §B2/§I2)`→`ADR-058 v2.28 §B2/§I2)`); AC-007c trace (`ADR-058 v2.26 §B2 / §I2`→`ADR-058 v2.28 §B2 / §I2`). These three v2.26 refs were not matched by the "ADR-058 v2.26 §" replace_all form used in v1.47 (compound sub-section forms §B2/§I2 and §J2-with-trailing-parens were not selected by the bare-§ pattern). Historical COERCION-001 sibling records in §v1.48/v1.47/v1.46 dim-1 entries (ADR-058 v2.26, BC-2.16.002 v2.32) preserved unchanged as correct frozen merge snapshots. TD-VSDD-097: Dim-1 COERCION-001 historical snapshot preserved (NO CHANGE); Dim-2 six active-body loci changed, no downstream copy targets; Dim-3 no new MUSTs. |
 | 1.48 | 2026-08-21 | story-writer | LOCAL pass-2 MED-1 + HIGH-1 spec-side closure. (1) version 1.47→1.48; input-hash f23f905→b49d41f (ADR-058 v2.28, BC-2.16.003 v1.23 are the new input versions). (2) AC-015 class_uid description aligned to canonical ADR-058 §G / BC-2.16.003 string: "OCSF event class identifier derived from sensor TOML ocsf_class. Example: 3004 for entity_management (audit_logs), 2004 for detection_finding (alerts, device_alert_relations), 5001 for inventory_info (devices)." (3) AC-015 _sensor description aligned to canonical: "Sensor identifier. Value: <sensor_id> (e.g., 'claroty')." (4) AC-015 wire-shape assertion requirement: "name, col_type, and nullable" → "name, col_type, nullable, and description." (5) RG-028 "asserts ALL FOUR"→"ALL SIX": assertions (v)+(vi) added for class_uid/_sensor description text verbatim from canonical ADR-058 §G / BC-2.16.003; wire-shape updated to include description; RED condition "(i)-(iv)"→"(i)-(vi)." (6) T-11V "assert ALL FOUR"→"ALL SIX": matching updates for assertions (v)+(vi) and wire-shape note "(name + col_type + nullable + description)." (7) T-16B class_uid description: "OCSF class identifier synthesized from ocsf_class; queryable as INTEGER column" → canonical ADR-058 §G string. (8) T-16B _sensor description: "Sensor identifier synthesized by pipeline_result_to_record_batch; queryable as STRING column" → canonical ADR-058 §G string. (9) §Authority ADR-058 v2.27→v2.28 (11 active-body occurrences via replace_all + 4 special cases: title pin, Version `2.27`→`2.28`, "The v2.27 §J2" mandate narrative, "ADR-058 v2.27." RG-027 intro). (10) §Authority BC-2.16.003 v1.22→v1.23 (§Authority + §Behavioral Contracts table). (11) §v1.48 TD-VSDD-097 three-dimension sweep added. SAC-1 re-verified: 29 RGTs (RG-028 gains assertions (v)+(vi), count still 1 test), density 1.93≥0.5, red-then-green ordering intact. Root cause: AC-015/T-16B specified non-canonical description strings → implementer emitted description: None (MED-1); RG-028/T-11V omitted description assertion → paper-green gap (HIGH-1/SID-2). |
