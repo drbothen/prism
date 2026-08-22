@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.807"
+version: "8.808"
 producer: state-manager
-timestamp: 2026-08-22T23:24:00Z
+timestamp: 2026-08-23T00:01:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -21,15 +21,15 @@ develop_head: "362e4f85"
 # NOTE: D-2202 — develop_head corrected 791b68c3→69d821be (fast-forward COMPLETE; develop == origin/develop == 69d821be confirmed). OCSF-mapping schema-validation COMPLETE (ADR-058 v2.4; 12 KF + CODE DEFECT §class_selector.rs); ARCH-INDEX v2.303→v2.304. STATE v8.732→v8.733.
 # NOTE: D-2183 — develop advanced 3197e27a9→791b68c3: PR #238 chore(gitignore) AD-017 live-evidence SQUASH-MERGED to develop 2026-08-15. D-2171 NOTE archived.
 # NOTE: D-2109 — develop advanced ef996a4c0→5d1a30ac7: PR #236 fix/claroty-live-api-fidelity SQUASH-MERGED; BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED (passes 8/9/10 on frozen 386df43c5); HS-014 PASS; worktrees CLAROTY-LIVE + FINDING-R removed. D-2102 NOTE archived.
-bc_index_version: "9.50"
-# NOTE: D-2271 — BC-INDEX v9.49→v9.50: BC-2.11.016 v1.27→v1.28 (EC-11-079 query-surface OCSF-resolution contract; holdout-gap closure). Counts UNCHANGED active 253/draft 3/total 269. D-2268 NOTE archived.
+bc_index_version: "9.51"
+# NOTE: D-2274 — BC-INDEX v9.50→v9.51: BC-2.16.003 pin v1.23→v1.24 (EC-016-013-032 spec-load §J collision validation). BC-2.11.016 v1.28→v1.29 (EC-11-080 zero-col OCSF table). ADR-058 v2.28→v2.30. ROUTING-001 v1.51→v1.52 (AC-019/020/021; RG-Q-010..015; density 2.10). Counts UNCHANGED: active 253/draft 3/total 269. D-2271 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.879"
-# NOTE: D-2273 — SESSION WRAP. ROUTING-001 v1.51 physical file committed to factory-artifacts (was recorded in STATE.md as v1.51 per D-2272 but physical commit was pending). total_stories 303 UNCHANGED. STATE v8.806→v8.807.
+story_index_version: "2.880"
+# NOTE: D-2274 — STORY-INDEX v2.879→v2.880: strict-fix spec burst COMPLETE (S-ADR058-OCSF-ROUTING-001 Step 1) — ROUTING-001 v1.51→v1.52 (AC-019/020/021; RG-Q-010..015; density 2.10; input-hash 6b4456e; §Authority ADR-058 v2.30/BC-2.11.016 v1.29/BC-2.16.003 v1.24). total_stories 303 UNCHANGED. D-2273 NOTE archived.
 # NOTE: D-2272 — STORY-INDEX v2.878→v2.879: ROUTING-001 v1.50→v1.51 (RG-Q-008 multi-tenant head green-lock + RG-Q-009 multi-tenant pipe now green; Site E ocsf_or_raw_column_names_for_table; density 2.11). total_stories 303 UNCHANGED. D-2271 NOTE archived.
-arch_index_version: "2.329"
-# NOTE: D-2266 — ARCH-INDEX v2.328→v2.329: LOCAL pass-2 SPEC-SIDE fix-burst (S-ADR058-OCSF-ROUTING-001) — ADR-058 pin v2.27→v2.28 (§J2 within-document contradiction resolved: OCSF mode TWO synthesized columns; category_uid legacy-mode-only). BC-2.16.003 pin v1.22→v1.23. ROUTING-001 v1.47→v1.48. D-2265 NOTE archived.
+arch_index_version: "2.330"
+# NOTE: D-2274 — ARCH-INDEX v2.329→v2.330: strict-fix spec burst COMPLETE (S-ADR058-OCSF-ROUTING-001 Step 1) — ADR-058 pin v2.28→v2.30 (§I7 Consolidated-Projection Invariant; §J6 Zero-Column OCSF Tables; §J7 Spec-Load §J Collision Validation with E-SPEC-030). BC-2.16.003 pin v1.23→v1.24. BC-2.11.016 v1.28→v1.29. ROUTING-001 v1.51→v1.52. D-2266 NOTE archived.
 # NOTE: D-2265 — ARCH-INDEX v2.327→v2.328: spec-augmentation burst (human decisions 2026-08-21) — ADR-058 pin v2.26→v2.27 (KF-05 revised: audit_logs.id metadata_uid Tier-1; §I6 push-down invariant; §G synthesized-descriptor MUST). BC-2.16.003 v1.21→v1.22. ROUTING-001 v1.46→v1.47. D-2257 NOTE archived.
 # NOTE: D-2257 — ARCH-INDEX v2.326→v2.327: LOCAL adversary re-gate fix-burst (S-ADR058-OCSF-COERCION-001) — ADR-058 pin v2.25→v2.26 (F-COERCE-ADV-LOW-002 §Status heading retitle; F-COERCE-ADV-OBS-003 §H item 3 Integer+Object). D-2256 NOTE archived.
 # NOTE: D-2256 — ARCH-INDEX v2.325→v2.326: LOCAL adversary fix-burst (S-ADR058-OCSF-COERCION-001) — ADR-058 v2.24→v2.25 (F-COERCE-P1-LOW-001 §H item 3 field-expr corrected; input-hash 638c633). D-2252 NOTE archived.
@@ -42,7 +42,7 @@ workspace_test_count: 5765
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2273 SESSION WRAP — strict-fix plan written to cycles/wave-5-e-demo-fidelity/routing-001-strict-fix-plan.md (re-cascade pass-1 findings: LOW-1 zero-col ST gate, OBS-1 projection duplication, OBS-2 spec-load collision guards missing, OBS-3 SAP-1 clean; human: fix-everything-strictly). HS-022 CONSUMED; re-gate needs FRESH holdout scenarios. SESSION-HANDOFF.md D-2273 snapshot written; D-2261 SUPERSEDED. STATE v8.806→v8.807. NEXT: spec burst (architect ADR-058 3 clauses → PO BC-2.11.016/BC-2.16.003/error-taxonomy → story-writer ROUTING-001 ACs+RG-Q-010..015) then test-writer RG-Q-010..015 RED then implementer. trajectory-tail →3→2→0→3."
+current_step: "D-2274 strict-fix Step 1 SPEC BURST COMPLETE (single commit TD-VSDD-053) — ADR-058 v2.28→v2.30 (§I7 Consolidated-Projection Invariant; §J6 Zero-Column OCSF Tables; §J7 Spec-Load §J Collision Validation + E-SPEC-030 NEW). BC-2.11.016 v1.28→v1.29 (EC-11-080 NEW: zero-col OCSF table presents class_uid+_sensor synthesized columns). BC-2.16.003 v1.23→v1.24 (EC-016-013-032 NEW: spec-load §J1/§J2/§J4 collision validation). error-taxonomy v2.77→v2.78 (E-SPEC-030 registered). ROUTING-001 v1.51→v1.52 (AC-019/020/021 + RG-Q-010..015; density 44/21=2.10; POL-39 body normalization; input-hash 6b4456e). Code HEAD UNCHANGED @396af5722. BC-5.39.001 LOCAL streak RESET 0/3. ARCH-INDEX v2.329→v2.330 / BC-INDEX v9.50→v9.51 / STORY-INDEX v2.879→v2.880. STATE v8.807→v8.808. NEXT: Step 2 test-writer RG-Q-010..015 RED (assert E-SPEC-030), preceded by dclaude:remove-uncertainty on ROUTING-001. trajectory-tail →3→2→0→3."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -92,7 +92,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-22 D-2273 SESSION WRAP — strict-fix plan written. Re-cascade pass-1 findings LOW-1/OBS-1/OBS-2/OBS-3. Human: fix-everything-strictly. ROUTING-001 @396af5722 just check GREEN 5805. STATE v8.806→v8.807. trajectory-tail →3→2→0→3. |
+| **Last Updated** | 2026-08-22 D-2274 SPEC BURST COMPLETE — ADR-058 v2.28→v2.30 (§I7/§J6/§J7; E-SPEC-030); BC-2.11.016 v1.28→v1.29 (EC-11-080); BC-2.16.003 v1.23→v1.24 (EC-016-013-032); ROUTING-001 v1.51→v1.52 (AC-019/020/021; RG-Q-010..015; density 2.10). ARCH-INDEX v2.329→v2.330 / BC-INDEX v9.50→v9.51 / STORY-INDEX v2.879→v2.880. STATE v8.807→v8.808. trajectory-tail →3→2→0→3. |
 
 ## Phase Progress
 
@@ -130,11 +130,11 @@ _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individua
 | Metric | Value |
 |--------|-------|
 | BC-5.39.001 streak | 0/3 — ROUTING-001 LOCAL re-cascade pass-1 (2026-08-22; D-2273) found 3 findings (LOW-1/OBS-1/OBS-2; OBS-3 SAP-1 clean). Human: fix-everything-strictly. Strict-fix plan: cycles/wave-5-e-demo-fidelity/routing-001-strict-fix-plan.md. Re-gate pending after spec+test+impl burst. |
-| Active cascade | S-ADR058-OCSF-ROUTING-001 LOCAL — re-cascade pass-1 (on HEAD @396af5722) COMPLETE: 3 findings (LOW-1 zero-col ST gate, OBS-1 projection duplication, OBS-2 spec-load collision guards; OBS-3 SAP-1 clean). Human: fix-everything-strictly. Strict-fix plan written. NEXT: execute routing-001-strict-fix-plan.md (spec burst → RG-Q-010..015 → implementer → LOCAL 3-CLEAN → holdout FRESH → demo → PR → merge). |
+| Active cascade | S-ADR058-OCSF-ROUTING-001 LOCAL — strict-fix Step 1 spec burst COMPLETE (D-2274). NEXT: Step 2 test-writer RG-Q-010..015 RED (assert E-SPEC-030) → Step 3 implementer → LOCAL 3-CLEAN → holdout FRESH → demo → PR → merge. |
 | Pass count | ROUTING-001 LOCAL: 9 passes (pass-1 CLEAN(strict); pass-2 3 spec-side; pass-3 2 code+catalog; passes 4-8 records-tier; re-cascade pass-1=3 findings). COERCION-001 LOCAL: 4 passes. SPEC cascade: 69 passes. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
 | Last CLEAN(strict) | ROUTING-001 LOCAL pass-1 (2026-08-21 pre-D-2266). COERCION-001 LOCAL: none (human admin override). SPEC cascade: pass-68. |
 | Finding trajectory | ROUTING-001 LOCAL →0→3→2→0→3 (p1=0/CLEAN, p2=3, p3=2, p4-8=0/records-tier, re-cascade-p1=3; holdout FAIL is separate gate). COERCION-001 LOCAL →1→2→2→3 (all fixed). Prior SPEC cascade tail: →1→1→0→1. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Frozen perimeter | ADR-058 v2.28 / BC-2.16.002 v2.33 / BC-2.16.003 v1.23 (active) / BC-2.11.016 v1.28 / ROUTING-001 v1.51 / COERCION-001 v1.47 (merged) — code @396af5722 / ARCH-INDEX v2.329 / BC-INDEX v9.50 / STORY-INDEX v2.879 |
+| Frozen perimeter | ADR-058 v2.30 / BC-2.16.002 v2.33 / BC-2.16.003 v1.24 (active) / BC-2.11.016 v1.29 / ROUTING-001 v1.52 / COERCION-001 v1.47 (merged) — code @396af5722 (spec-only burst; code unchanged) / ARCH-INDEX v2.330 / BC-INDEX v9.51 / STORY-INDEX v2.880 |
 
 ## Concurrent Cycles
 

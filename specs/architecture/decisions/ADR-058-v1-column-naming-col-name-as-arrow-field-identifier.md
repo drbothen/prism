@@ -4,8 +4,8 @@ adr_id: "ADR-058"
 title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred"
 status: accepted
 date: "2026-08-11"
-modified: "2026-08-21"
-version: "2.28"
+modified: "2026-08-22"
+version: "2.30"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -35,7 +35,7 @@ inputs:
   - crates/prism-ocsf/src/mappers/spec_driven.rs
   - crates/prism-ocsf/src/class_selector.rs
   - crates/prism-ocsf/ocsf-schema/1.7.0/schema.json
-input-hash: "0c69615"
+input-hash: "c1b8834"
 ---
 
 # ADR-058: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred
@@ -736,6 +736,40 @@ a push-down filter on `time` (the OCSF-flattened Arrow name for `claroty.audit_l
 with `ocsf_field = "time"`) is recognized as INDEX-eligible by `extract_time_window_from_ast`
 and does not trigger a full scan.)
 
+### §I7 Consolidated-Projection Invariant
+
+`ocsf_projected_column_names(tbl: &TableSpec, ocsf_column_naming: bool) -> Vec<String>` and
+`ocsf_projected_column_types(tbl: &TableSpec, ocsf_column_naming: bool) -> HashMap<String, ColumnType>`
+(both in `prism-spec-engine::column_mapping`) are the **single authoritative OCSF projection implementations**
+for computing the set of queryable column names and their types for any table spec.
+
+`ocsf_column_naming = true` behavior:
+- Returns Tier-1 `ocsf_field_to_arrow_name` names + `"class_uid"` + `"_sensor"` +
+  `"raw_extensions"` if at least one Tier-2 column exists (`ocsf_field == None`).
+- Zero-column OCSF table (no Tier-1 columns at all) returns `["class_uid", "_sensor"]` — see §J6.
+
+`ocsf_column_naming = false` behavior: raw `col.name` list (or `col.name`→`ColumnType` pairs for
+`ocsf_projected_column_types`).
+
+Two sites that cannot fully delegate to `ocsf_projected_column_names` are documented shape-exception
+sites, bound by RG-Q-015 name-set-agreement gate:
+
+- **`build_ocsf_column_descriptors`** (`prism-mcp::tools::prism_describe`): requires Arrow type annotation
+  and human-readable descriptor text; cannot fully delegate. MUST produce a column name set identical to
+  `ocsf_projected_column_names(tbl, true)` for the same table.
+- **`pipeline_result_to_record_batch`** (`prism-bin::spec_driven_adapter`): requires concrete Arrow
+  `DataType` for `Field::new` construction; cannot fully delegate. MUST produce a RecordBatch schema whose
+  field names equal `ocsf_projected_column_names(tbl, true)` for the same table.
+
+`ocsf_or_raw_column_names_for_table` (`prism-query::engine`) MUST be a thin forward to
+`ocsf_projected_column_names` — no independent projection logic permitted. The
+`check_operator_type_compatibility` per-column `effective_name` inline computation is correct as-is
+and is not subject to this invariant.
+
+(Mandate anchor: S-ADR058-OCSF-ROUTING-001 — RG-Q-015 enforces name-set agreement:
+`registry.columns_for_table` MUST equal `ocsf_projected_column_names` output, byte-equal sorted,
+for any OCSF-named sensor table.)
+
 ---
 
 ## §J Flag-Transition Name Shadowing (Architectural Adjudication)
@@ -933,6 +967,92 @@ Shadow verification (6 ocsf_field columns, 10 col.names total, A ≠ B rule):
 **Conclusion:** `device_alert_relations` has zero flag-transition shadows. When a future
 migration story enables `ocsf_column_naming = true` scope to include this table, the
 pre-activation shadow check required by §J2 passes cleanly with the current column set.
+
+### §J6 Zero-Column OCSF Tables
+
+When `ocsf_column_naming = true` and a table's TOML spec contains **no Tier-1 columns** (zero
+columns carry a non-`None` `ocsf_field` declaration), the table's queryable column set is exactly:
+
+- `class_uid` (Integer, non-nullable) — unconditionally synthesized per §G OQ-003
+- `_sensor` (String, non-nullable) — unconditionally synthesized per §G OQ-003
+
+`raw_extensions` is **NOT registered** for such a table. Per §G Tier-2 / §I2 / §B2 item 1, a
+`raw_extensions` column is emitted only when `ocsf_column_naming == true` AND at least one column
+has `ocsf_field == None` within a table that also has Tier-1 columns. A table with zero Tier-1
+columns has every column carrying `ocsf_field == None`, but no Tier-1 routing context is
+established — the correct representation is the two unconditionally synthesized columns only, with
+no `raw_extensions` aggregate.
+
+**Invariant:** `ocsf_projected_column_names(tbl, true)` MUST return `["class_uid", "_sensor"]`
+when called on a table with zero Tier-1 columns (§I7 authoritative impl).
+
+The plan-gate ST (schema-table) gate in `prism-query::table_registry` (`register_sensor`) MUST
+accept PrismQL queries against `class_uid` and `_sensor` for zero-column OCSF tables. It MUST NOT
+accept queries against any raw `col.name` for such tables (no raw `col.name` is registered as a
+queryable field under `ocsf_column_naming = true`).
+
+(Mandate anchor: S-ADR058-OCSF-ROUTING-001 — RG-Q-010 asserts the ST gate accepts `class_uid`
+and `_sensor` queries against a zero-column OCSF table; RG-Q-011 asserts
+`available_columns == ["_sensor", "class_uid"]` only — no raw `col.name` present.)
+
+### §J7 Spec-Load §J Collision Validation
+
+The §J collision checks (flag-transition shadow §J2 Normative Rule, reserved-name guard §J2
+Synthesized-column reservation, intra-table duplicate §J1 / RG-009) currently have runtime
+enforcement in `pipeline_result_to_record_batch` (`prism-bin::spec_driven_adapter`), triggered at
+query execution time. This is fail-closed but too late: an invalid sensor TOML is accepted at boot
+and surfaces a schema error only when a query runs against that table.
+
+**Decision:** Move §J collision detection to spec-load time via a new private helper
+`validate_ocsf_column_collisions(spec: &SensorSpec, source_path: &Path) -> Vec<String>` in
+`prism-spec-engine::add_sensor_spec`, called from `parse_and_validate_spec_toml` as Validation
+Rule 8 (after existing Rule 7). The helper returns a `Vec<String>` of error strings; if non-empty,
+`parse_and_validate_spec_toml` fails.
+
+The helper enforces three collision categories, each carrying a `§J` discriminator tag in the
+E-SPEC-030 error string:
+
+- **§J2 tag (reserved-name collision):** Tier-1 `ocsf_field_to_arrow_name(ocsf_field)` equals a
+  reserved synthesized name (`class_uid`, `category_uid`, `_sensor`, `raw_extensions`) as defined
+  in §J2 "Synthesized column name reservation." Error string: `E-SPEC-030 [§J2]
+  sensor=<sensor_id> table=<table_name>: ocsf_field "<ocsf_field>" flattens to reserved name
+  "<arrow_name>"`.
+
+- **§J4 tag (intra-table duplicate):** Two Tier-1 columns in the same table flatten to the same
+  arrow name (the duplicate guard described in §J1 / RG-009). Error string: `E-SPEC-030 [§J4]
+  sensor=<sensor_id> table=<table_name>: columns "<col_a>" and "<col_b>" both flatten to
+  "<arrow_name>"`.
+
+- **§J1 tag (shadow collision):** A Tier-1 arrow name equals another column's raw `col.name`
+  within the same table (the flag-transition shadow defect described in §J1 and the §J2 Normative
+  Rule). Error string: `E-SPEC-030 [§J1] sensor=<sensor_id> table=<table_name>: ocsf_field
+  "<ocsf_field>" flattens to "<arrow_name>" which shadows col.name of column "<col_b>"`.
+
+New error code **E-SPEC-030**: OCSF column collision at spec-load time. Discriminator: §J tag
+(§J1 shadow / §J2 reserved-name / §J4 intra-table duplicate). `ValidationError` uses `Vec<String>`
+— no new enum variant is required. E-SPEC-030 MUST be added as a comment entry to
+`crates/prism-core/src/error.rs` and as a new row in
+`.factory/specs/prd-supplements/error-taxonomy.md` — both handled by the product-owner leg per
+the delivery sequence.
+
+Boot path: `ConfigInvalid` → exit 2 (existing `ValidationError` handling).
+Hot-reload: keeps prior spec on error (existing `ValidationError` handling).
+
+**Runtime defense-in-depth:** The `pipeline_result_to_record_batch` §J guard (fail-closed
+`Err(ArrowError::SchemaError(...))`) MUST NOT be removed. After spec-load validation ships, this
+guard is unreachable in production for any spec that has passed `parse_and_validate_spec_toml`,
+but MUST remain as belt-and-suspenders defense against any path that bypasses spec-load
+validation.
+
+**Consistency with §J2:** §J2 "Normative Rule" states `pipeline_result_to_record_batch` MUST
+check the collision condition and return `Err` fail-closed. §J7 does not supersede §J2; it adds an
+earlier detection layer at spec-load time. Both gates are required.
+
+(Mandate anchor: S-ADR058-OCSF-ROUTING-001 — RG-Q-012 asserts `parse_and_validate_spec_toml`
+returns `Err` containing `E-SPEC-030 [§J2]` for a Tier-1 `ocsf_field` flattening to a reserved
+name; RG-Q-013 asserts `Err` containing `E-SPEC-030 [§J4]` for two Tier-1 columns in the same
+table with the same flattened arrow name; RG-Q-014 asserts `Err` containing `E-SPEC-030 [§J1]`
+for a Tier-1 arrow name shadowing another column's raw `col.name`.)
 
 ---
 
@@ -1205,7 +1325,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.28 (2026-08-21)
+### Status as of v2.30 (2026-08-22)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1286,6 +1406,8 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.30 | 2026-08-22 | architect | S-ADR058-OCSF-ROUTING-001 strict-fix Step 1.1b (D-2273): §J7 error code corrected E-SPEC-027 → E-SPEC-030 (E-SPEC-027 already assigned to header_scheme validation per ADR-053 D2; E-SPEC-030 is next-free per error-taxonomy.md ground truth). §J7 body: all 9 E-SPEC-027 occurrences replaced with E-SPEC-030 (error string examples, `New error code` declaration, MUST-add obligation, and RG-Q-012/013/014 mandate anchor assertions). v2.29 changelog row likewise corrected to E-SPEC-030. No other content change. §Status heading retitled v2.29 → v2.30. |
+| 2.29 | 2026-08-22 | architect | S-ADR058-OCSF-ROUTING-001 strict-fix Step 1.1 (D-2273). Three new clauses added: (1) §I7 Consolidated-Projection Invariant — `ocsf_projected_column_names` + `ocsf_projected_column_types` (prism-spec-engine::column_mapping) are the SINGLE authoritative OCSF projection implementations; `build_ocsf_column_descriptors` (prism-mcp::tools::prism_describe) and `pipeline_result_to_record_batch` (prism-bin::spec_driven_adapter) are documented shape-exception sites bound by RG-Q-015 name-set-agreement gate; `ocsf_or_raw_column_names_for_table` (prism-query::engine) becomes a thin forward to the authoritative impl. (2) §J6 Zero-column OCSF tables — when `ocsf_column_naming = true` and a table has zero Tier-1 columns, the table registers exactly `class_uid` + `_sensor` (no `raw_extensions`, no raw col.name); `ocsf_projected_column_names` returns `["class_uid", "_sensor"]`; ST gate MUST accept queries against these two names and MUST NOT accept raw col.name; anchored to RG-Q-010/RG-Q-011. (3) §J7 Spec-load §J collision validation — `parse_and_validate_spec_toml` (prism-spec-engine::add_sensor_spec) enforces §J1 (shadow), §J2 (reserved-name), §J4 (intra-table duplicate) via new `validate_ocsf_column_collisions` helper as Validation Rule 8; error code E-SPEC-030 with §J discriminator tag; boot exit 2; hot-reload keeps prior spec; runtime `pipeline_result_to_record_batch` §J guard REMAINS as defense-in-depth and MUST NOT be removed; anchored to RG-Q-012/RG-Q-013/RG-Q-014. §Status heading retitled v2.28 → v2.29. TD-VSDD-097: (1) sibling pair — existing §J1/§J2/§J4 clauses verified internally consistent with new §J7: §J7 explicitly states "§J7 does not supersede §J2" and "runtime guard MUST NOT be removed" — additive, not contradictory; §I7 zero-column return `["class_uid", "_sensor"]` matches §J6 invariant exactly. (2) downstream copy targets — §J6: PO must transcribe into BC-2.11.016 new EC (zero-column OCSF table presents class_uid/_sensor in available set; anchored to RG-Q-010/011); §J7: PO must transcribe into BC-2.16.003 new EC (spec-load rejects §J1/§J2/§J4 with E-SPEC-030; boot exit 2; hot-reload keeps prior spec; defense-in-depth runtime guard remains; anchored to RG-Q-012/013/014) and add E-SPEC-030 row to error-taxonomy.md; §I7 shape-exception sites: story-writer must add RG-Q-015 AC and wire `ocsf_or_raw_column_names_for_table` thin-forward impl. (3) mandate anchors — §I7 shape-exception MUSTs anchored to RG-Q-015; §J6 ST-gate MUST/MUST-NOT anchored to RG-Q-010/RG-Q-011; §J7 spec-load MUST anchored to RG-Q-012/RG-Q-013/RG-Q-014; §J7 runtime-guard MUST-NOT-remove is a prohibition (belt-and-suspenders; no test anchor required). |
 | 2.28 | 2026-08-21 | architect | LOCAL pass-2 HIGH-2 closure (S-ADR058-OCSF-ROUTING-001). §J2 "Synthesized column name reservation" corrected — mode-accurate description of unconditionally appended synthesized columns. Prior text claimed three columns (`class_uid`, `category_uid`, `_sensor`) were "unconditionally appended to every spec-driven RecordBatch schema regardless of the sensor's TOML column declarations"; this contradicted §G (OQ-003), the code (`spec_driven_adapter.rs` `pipeline_result_to_record_batch`), and RG-019, all of which are authoritative-correct. Resolution (§G is authoritative — human OQ-003 decision 2026-08-21): in `ocsf_column_naming = true` mode, exactly two Arrow columns are unconditionally appended: `class_uid` and `_sensor`. `category_uid` is NOT appended in OCSF mode; it is emitted only in the legacy (`ocsf_column_naming = false`) branch. `category_uid` remains in the reserved-name set {class_uid, category_uid, _sensor, raw_extensions} for defensive collision-avoidance: a TOML column whose `ocsf_field` flattens to `category_uid` would collide on any sensor running `ocsf_column_naming = false`, and enabling OCSF mode on such a sensor in a future story would face an unrecoverable Arrow schema conflict. §G cross-referenced from §J2 with explicit OQ-003 cite. §Status heading retitled v2.27 → v2.28. TD-VSDD-097: (1) sibling pair — ADR-058 is singular, no twin ADR; N/A. (2) downstream copy target — BC-2.16.003 §Postconditions carries "three envelope columns" language reflecting the pre-correction §J2 text; PO must sweep it next leg to reflect two-column OCSF-mode append (`class_uid` + `_sensor`) and `category_uid` legacy-mode-only accuracy. (3) no new MUST statements introduced; existing reservation-guard MUST unchanged. |
 | 2.27 | 2026-08-21 | architect | Human-directed product decisions (ROUTING-001 spec-augmentation burst). (1) **OQ-005 / KF-05 Tier-1 retention:** `audit_logs.id` MUST remain Arrow-queryable. KF-05 updated from 'remove or vendor-extend (PO decision)' to settled `metadata.uid` (Arrow: `metadata_uid`). `metadata` is the OCSF `base_event` required object, confirmed present in `entity_management` (3004) via OCSF v1.7.0 schema. `metadata.uid` = "A unique identifier assigned to the OCSF event" — semantically correct for a Claroty audit log record ID. `metadata_uid` does not collide with any existing `audit_logs` ocsf_field Arrow name, col.name, or synthesized column name. Changes: §E2 `audit_logs` `id` row (ocsf_field + note corrected); §E2 footer (drop-to-raw removed); §I5 KF-05 bullet (settled value + mandate anchor for RG-021 flip); §K3 `audit_logs` `id` row (note updated); §K4 KF-05 corrected value; §K4 footer (KF-05/KF-06 statuses updated). (2) **OQ-001 push-down invariant (§I6 added):** when `ocsf_column_naming = true`, `prism-query::pushdown::extract_time_window_from_ast` MUST register BOTH `col.name` AND `ocsf_field_to_arrow_name(ocsf_field)` for each datetime INDEX-eligible column; failure causes silent full-scan regression with no error signal. Mandate anchor: S-ADR058-OCSF-ROUTING-001 (story-writer adds RG-PD-001). (3) **OQ-003 synthesized-column visibility (§G extended):** when `ocsf_column_naming = true`, `prism_describe` MUST emit `ColumnDescriptor` entries for `class_uid` (Integer, non-nullable) and `_sensor` (String, non-nullable) appended after Tier-1/Tier-2 descriptors; required for LLM agent discoverability of these filters. Mandate anchor: S-ADR058-OCSF-ROUTING-001 (story-writer adds RG). §Status: heading v2.26 → v2.27; PO table: three PENDING TDD rows (OQ-005, OQ-003, OQ-001 BC-2.16.003 obligations); SW table: three PENDING TDD rows (corresponding story RGs). Pre-existing pipe-escape fix: 2.21 changelog row `.unwrap_or_else(\|\| ...)` escaped to satisfy validate-table-cell-count hook. TD-VSDD-097: (1) sibling pair — ADR-058 singular, no twin ADR; N/A. (2) downstream copy targets — BC-2.16.003 carries copy-text of §E2 `audit_logs` mapping and §G prism_describe spec; PO must update the EC rows that reflect `audit_logs.id` mapping (change `activity_uid` → `metadata.uid`/`metadata_uid`) and add ECs for OQ-003 (synthesized-column describe) and OQ-001 (push-down invariant); full PO handoff list in §Status PO table. (3) mandate anchor — KF-05 Tier-1 MUST anchored to S-ADR058-OCSF-ROUTING-001 RG-021 flip; OQ-001 push-down MUST anchored to S-ADR058-OCSF-ROUTING-001 RG-PD-001; OQ-003 describe MUST anchored to S-ADR058-OCSF-ROUTING-001 (story-writer adds RG for synthesized-column describe). |
 | 2.26 | 2026-08-20 | architect | F-COERCE-ADV-OBS-003 (closes) + F-COERCE-ADV-LOW-002 (§Status heading version lag). §H extended with item 4 — Integer column + Object input coercion-failure mandate added. Path A (`build_column_array`): explicit `Value::Object(_)` arm added to `ColumnType::Integer` match, placed before `other => other.as_i64()` wildcard, returning `None` + `tracing::warn!(event_type = "column_coercion_failure", column = %col.name, column_type = "integer", actual_json_kind = "object", ...)`. Path B (`coerce_value`): `Value::Object(_) => Err(CoercionWarning)` arm added to Integer branch, symmetric with String-branch Object handling, emitting warn via `map_record`. Both paths reuse same `column_coercion_failure` event schema from BC-2.16.002 §Canonical Structured Event Catalog — no new `event_type`. Integer+Array already warned via DD-5 downcast/skip; Integer+Object was the silent-data-loss gap. §H anchor extended to reference new AC + Red Gate (pending story-writer/PO allocation this burst). §Status heading retitled to match new version. TD-VSDD-097: (1) sibling pair — ADR-058 singular, no twin ADR; N/A. (2) downstream copy targets — BC-2.16.003 EC for coercion behavior, BC-2.16.002 §Canonical Structured Event Catalog Integer+Object trigger coverage, and S-ADR058-OCSF-COERCION-001 new AC + Red Gate to be updated by product-owner/story-writer this burst per routing rules; edits not made here. (3) mandate anchor — §H item 4 Integer+Object clause anchored to S-ADR058-OCSF-COERCION-001 (new AC + Red Gate to be allocated this burst by story-writer/PO). |

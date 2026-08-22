@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.50"
+version: "9.51"
 status: draft
 producer: state-manager
-timestamp: 2026-08-22T00:00:00Z
+timestamp: 2026-08-22T23:30:00Z
+# NOTE: D-2274 — BC-INDEX v9.50→v9.51: strict-fix spec burst COMPLETE (S-ADR058-OCSF-ROUTING-001 Step 1) — BC-2.16.003 leading pin v1.23→v1.24 (EC-016-013-032 NEW: spec-load §J collision validation — E-SPEC-030 on ocsf_field-flattened name collision with reserved/synthesized name; §J1/§J2/§J4 gate; anchor ROUTING-001 AC-019/020/021). BC-2.11.016 v1.28→v1.29 (EC-11-080 NEW: zero-column OCSF table presents class_uid+_sensor synthesized columns only; anchor RG-Q-010/011). ADR-058 v2.28→v2.30 pin (§I7/§J6/§J7). ROUTING-001 v1.51→v1.52 (AC-019/020/021; RG-Q-010..015; density 2.10). Counts UNCHANGED: active_contracts 253/draft_contracts 3/total 269. D-2271 NOTE archived.
 # NOTE: D-2271 — BC-INDEX v9.49→v9.50: query-surface spec-formalization burst — BC-2.11.016 v1.27→v1.28 (EC-11-079 query-surface OCSF-name-resolution contract + name-agreement invariant; holdout-gap closure). Counts UNCHANGED: active 253/draft 3/total 269.
 # NOTE: spec-steward lever-2 compaction 2026-08-21 — BC-INDEX v9.48→v9.49: stripped per-row inline changelog-history chains from Status column cells; left one-line current-state pins (active (vX.Y current) for L10-verified rows; active vX.Y for nopin rows). Pre-compaction content preserved at factory-artifacts HEAD 13b1bbb48 and in per-artifact §Changelog sections. Zero current-state changes — all BC IDs, versions, and status markers preserved. POL-40 index_rows_current_state_pins_only.
 # NOTE: D-2267 — BC-INDEX v9.47→v9.48: LOCAL pass-3 CODE+CATALOG fix-burst (S-ADR058-OCSF-ROUTING-001) — BC-2.16.002 leading pin v2.32→v2.33 (SAP-1 MED-1: catalog row 95 `column_source_path_extraction_failed` scope extended to THREE emission sites; site (c) pipeline_result_to_record_batch OCSF-branch raw_extensions builder added; POL-30 Fork B; catalog count UNCHANGED 95). Counts UNCHANGED: active_contracts 253/draft_contracts 3/total 269. D-2266 NOTE archived.
@@ -324,7 +325,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active v1.9 |
 | BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (v2.33 current) |
-| BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | active (v1.23 current) |
+| BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | active (v1.24 current) |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.006 | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | 16 - Spec Engine | CAP-030 | P1 | draft |
