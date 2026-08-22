@@ -333,8 +333,12 @@ mod tests {
         // `extract_time_window_from_ast` takes a Predicate (not an Ast), which is
         // exactly what `extract_time_window_from_ast_from_query` extracts from the
         // Ast::SqlPipe head.where_ after the HIGH-1 fix.
-        let (start_time, end_time) =
-            extract_time_window_from_ast(where_pred, &["crowdstrike.detections"], Some(&spec_map));
+        let (start_time, end_time) = extract_time_window_from_ast(
+            where_pred,
+            &["crowdstrike.detections"],
+            Some(&spec_map),
+            None, // crowdstrike: ocsf_column_naming=false
+        );
 
         assert!(
             start_time.is_some(),
