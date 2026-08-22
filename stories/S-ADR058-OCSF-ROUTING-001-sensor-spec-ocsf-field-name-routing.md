@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.48"
+version: "1.49"
 level: "L4"
 status: draft
 producer: story-writer
@@ -170,14 +170,14 @@ RG-026. **EC-016-013-029** (NEW in v1.18: when any `ocsf_field` value, after app
 `ocsf_field_to_arrow_name`, equals a synthesized/reserved Arrow column name —
 `class_uid`, `category_uid`, `_sensor`, or `raw_extensions` — `pipeline_result_to_record_batch`
 MUST fail-closed returning `Err(ArrowError::SchemaError)`) is the authoritative obligation
-for AC-013 and RG-027 (§J2 synthesized-name reservation guard, ADR-058 v2.26 §J2).
+for AC-013 and RG-027 (§J2 synthesized-name reservation guard, ADR-058 v2.28 §J2).
 **EC-016-013-011** (corrected: `ocsf.unknown_class_name` WARN is a
 RUNTIME emission on the `Err` branch of `select_by_class_name`, NOT a load-time/startup
 warning) governs AC-011. This story brings the production path into conformance with those
 postconditions for Claroty.
 Path: `.factory/specs/behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md`.
 
-**BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation.** Version `2.32`, status: active
+**BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation.** Version `2.33`, status: active
 (modified 2026-08-20). Canonical Structured Event Catalog — `ocsf.unknown_class_name`
 WARN — emitted by `pipeline_result_to_record_batch` on the `Err` branch of
 `EventClassSelector::select_by_class_name` before `.unwrap_or(0)`. Fields: `ocsf_class: %display`,
@@ -269,7 +269,7 @@ Until then, `ColumnMapper::map_record` remains test-only.
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
 | BC-2.16.003 | v1.23 | active | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention); EC-016-013-027 (Tier-1/Tier-2 `prism_describe` model: no individual ColumnDescriptor for `ocsf_field == None` columns; exactly one `raw_extensions` ColumnDescriptor with four-field shape: name + col_type=Json + nullable=true + description enumerating source keys); EC-016-013-028 (reworded v1.18: multi-valued array source fields → compact JSON-list string in raw_extensions via `pipeline_result_to_record_batch` source_path extraction + ENRICH-1 normalization — NOT naive `r.get(col.name)` — governs AC-007c / RG-026); EC-016-013-029 (NEW v1.18: flattened `ocsf_field` equal to synthesized reserved name → `Err(ArrowError::SchemaError)` fail-closed — governs AC-013 / RG-027); EC-016-013-011 (runtime `ocsf.unknown_class_name` WARN on Err branch — governs AC-011) |
-| BC-2.16.002 | v2.32 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
+| BC-2.16.002 | v2.33 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011) |
 | BC-2.01.013 | v1.23 | active | EC-01-025 NON-CONFORMANT annotation resolved for Claroty after this story merges; product-owner updates annotation |
 
 ---
@@ -597,7 +597,7 @@ Test-writer dispatched FIRST; implementer only after all 29 confirmed failing.
 - **RG-026:** `test_claroty_devices_ip_list_in_raw_extensions_is_compact_json_list_string` —
   fails until `pipeline_result_to_record_batch` correctly serializes multi-valued array source
   fields as compact JSON-list strings in `raw_extensions` (BC-2.16.003 EC-016-013-028;
-  ADR-058 v2.26 §B2/§I2).
+  ADR-058 v2.28 §B2/§I2).
 
   The test constructs a Claroty `devices` `SensorSpec` with `ocsf_column_naming = true` and
   a `devices` table that includes `ip_list` with `source_path = "$.ip_list[*]"` and
@@ -1123,7 +1123,7 @@ string; this assertion MUST be verified at the serialized wire-output level (not
 pre-serialization Rust structure).
 
 (traces to BC-2.16.003 EC-016-013-028: multi-valued array source fields in raw_extensions
-are serialized as compact JSON-list strings; ADR-058 v2.26 §B2 / §I2: ip_list has
+are serialized as compact JSON-list strings; ADR-058 v2.28 §B2 / §I2: ip_list has
 `ocsf_field == None` and routes to raw_extensions; RG-026 (wire-shape Red Gate for AC-007c))
 
 ### AC-008: test_BC_2_11_005_e2e_claroty_query_returns_data updated to use device_uid
@@ -2142,6 +2142,20 @@ Build-time enforcement rules:
 ---
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
+
+### v1.49 Amendment Sweep (records-tier pin-consistency sweep — BC-2.16.002 v2.32→v2.33; ADR-058 v2.26 straggler refs →v2.28; human-directed 2026-08-21)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): merged and terminal at v1.47 snapshot (ADR-058 v2.26, BC-2.16.003 v1.21, BC-2.16.002 v2.32). These are the correct frozen pins for COERCION-001 at its merge state — this v1.49 sweep applies only to ROUTING-001 scope. VERDICT: SIBLING HISTORICAL SNAPSHOT PRESERVED — NO CHANGE NEEDED.
+
+**Dimension 2 — Downstream copy target:**
+
+Changed surfaces: (1) frontmatter version 1.48→1.49; (2) §Authority BC-2.16.002 Version `2.32`→`2.33`; (3) §Behavioral Contracts table BC-2.16.002 row v2.32→v2.33; (4) §Authority BC-2.16.003 paragraph EC-016-013-029 inline `ADR-058 v2.26 §J2`→`ADR-058 v2.28 §J2` (straggler — never advanced past v2.26 in v1.47/v1.48 because not matched by the `"ADR-058 v2.26 §"` replace_all pattern; this ref has suffix `§J2` preceded by a space+parens boundary, not `§` with trailing alphanumeric directly); (5) RG-026 intro `ADR-058 v2.26 §B2/§I2)`→`ADR-058 v2.28 §B2/§I2)` (same straggler class — compound sub-section reference); (6) AC-007c trace `ADR-058 v2.26 §B2 / §I2`→`ADR-058 v2.28 §B2 / §I2` (same straggler class — slash-spaced compound form). Input-hash unchanged at b49d41f — BC-2.16.002 is NOT in ROUTING-001 tracked inputs (confirmed by v1.45 changelog: "BC-2.16.002 is NOT in ROUTING-001 inputs"), and no tracked input files (ADR-058 at v2.28, BC-2.16.003 at v1.23, code files at frozen feature HEAD dad86a1dc) were modified in this sweep. None of these loci are verbatim-copied into any downstream artifact — they are story-body spec prose consumed by implementer/test-writer agents at dispatch time. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUST blocks introduced. All existing MUST anchors carried forward with behavioral content unchanged — only version-pin numerals updated. VERDICT: NO NEW UNANCHORED MUSTs.
 
 ### v1.48 Amendment Sweep (LOCAL pass-2 MED-1 + HIGH-1 spec-side closure — AC-015/T-16B description strings aligned to canonical; RG-028/T-11V strengthened with description assertions; ADR-058 v2.27→v2.28; BC-2.16.003 v1.22→v1.23; 2026-08-21)
 
@@ -3256,6 +3270,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.49 | 2026-08-21 | spec-steward | Records-tier pin-consistency sweep closing LOCAL pass-8 OBS-1 + straggler ADR-058 v2.26 refs (human-directed 2026-08-21). (1) version 1.48→1.49. (2) §Authority BC-2.16.002 Version `2.32`→`2.33` + §Behavioral Contracts table BC-2.16.002 row v2.32→v2.33 (BC-2.16.002 updated to v2.33 in same burst; BC-2.16.002 is NOT in ROUTING-001 tracked inputs per v1.45 changelog, so input-hash b49d41f unchanged). (3) Three straggler ADR-058 v2.26 current-context refs advanced to v2.28: §Authority BC-2.16.003 paragraph EC-016-013-029 inline (`ADR-058 v2.26 §J2`→`ADR-058 v2.28 §J2`); RG-026 intro (`ADR-058 v2.26 §B2/§I2)`→`ADR-058 v2.28 §B2/§I2)`); AC-007c trace (`ADR-058 v2.26 §B2 / §I2`→`ADR-058 v2.28 §B2 / §I2`). These three v2.26 refs were not matched by the "ADR-058 v2.26 §" replace_all form used in v1.47 (compound sub-section forms §B2/§I2 and §J2-with-trailing-parens were not selected by the bare-§ pattern). Historical COERCION-001 sibling records in §v1.48/v1.47/v1.46 dim-1 entries (ADR-058 v2.26, BC-2.16.002 v2.32) preserved unchanged as correct frozen merge snapshots. TD-VSDD-097: Dim-1 COERCION-001 historical snapshot preserved (NO CHANGE); Dim-2 six active-body loci changed, no downstream copy targets; Dim-3 no new MUSTs. |
 | 1.48 | 2026-08-21 | story-writer | LOCAL pass-2 MED-1 + HIGH-1 spec-side closure. (1) version 1.47→1.48; input-hash f23f905→b49d41f (ADR-058 v2.28, BC-2.16.003 v1.23 are the new input versions). (2) AC-015 class_uid description aligned to canonical ADR-058 §G / BC-2.16.003 string: "OCSF event class identifier derived from sensor TOML ocsf_class. Example: 3004 for entity_management (audit_logs), 2004 for detection_finding (alerts, device_alert_relations), 5001 for inventory_info (devices)." (3) AC-015 _sensor description aligned to canonical: "Sensor identifier. Value: <sensor_id> (e.g., 'claroty')." (4) AC-015 wire-shape assertion requirement: "name, col_type, and nullable" → "name, col_type, nullable, and description." (5) RG-028 "asserts ALL FOUR"→"ALL SIX": assertions (v)+(vi) added for class_uid/_sensor description text verbatim from canonical ADR-058 §G / BC-2.16.003; wire-shape updated to include description; RED condition "(i)-(iv)"→"(i)-(vi)." (6) T-11V "assert ALL FOUR"→"ALL SIX": matching updates for assertions (v)+(vi) and wire-shape note "(name + col_type + nullable + description)." (7) T-16B class_uid description: "OCSF class identifier synthesized from ocsf_class; queryable as INTEGER column" → canonical ADR-058 §G string. (8) T-16B _sensor description: "Sensor identifier synthesized by pipeline_result_to_record_batch; queryable as STRING column" → canonical ADR-058 §G string. (9) §Authority ADR-058 v2.27→v2.28 (11 active-body occurrences via replace_all + 4 special cases: title pin, Version `2.27`→`2.28`, "The v2.27 §J2" mandate narrative, "ADR-058 v2.27." RG-027 intro). (10) §Authority BC-2.16.003 v1.22→v1.23 (§Authority + §Behavioral Contracts table). (11) §v1.48 TD-VSDD-097 three-dimension sweep added. SAC-1 re-verified: 29 RGTs (RG-028 gains assertions (v)+(vi), count still 1 test), density 1.93≥0.5, red-then-green ordering intact. Root cause: AC-015/T-16B specified non-canonical description strings → implementer emitted description: None (MED-1); RG-028/T-11V omitted description assertion → paper-green gap (HIGH-1/SID-2). |
 | 1.47 | 2026-08-21 | story-writer | Stage 2 spec-augmentation burst (OQ-001/OQ-003/OQ-005 human decisions 2026-08-21). (1) version 1.46→1.47; crates_touched gains prism-query; input-hash ca528ff→f23f905 (ADR-058 and BC-2.16.003 updated to v2.27/v1.22 in architect+PO leg of same burst). (2) §Authority ADR-058 v2.26→v2.27, date 2026-08-20→2026-08-21; ocsf_field count 26→27 (audit_logs.id gains OQ-005 mapping). (3) §Authority BC-2.16.003 v1.21→v1.22, date 2026-08-20→2026-08-21. (4) §Behavioral Contracts table BC-2.16.003 v1.21→v1.22. (5) Red Gate preamble 27→29 confirmed failing. (6) Mandate Anchor §J2 rows v2.26→v2.27. (7) RG-026/RG-027 traces v2.26→v2.27. (8) RG-021 FLIPPED: was `test_claroty_audit_logs_id_column_goes_to_raw_extensions_not_activity_uid` (KF-05 raw_extensions assertion) → now `test_claroty_audit_logs_id_produces_metadata_uid_top_level_arrow_field` (OQ-005 Tier-1 Arrow column `metadata_uid` wire-shape assertion). (9) RG-PD-001 NEW: `test_extract_time_window_from_ast_recognizes_ocsf_flattened_time_column_as_index_eligible` — OQ-001 push-down eligibility for OCSF-flattened Arrow name `"time"`. (10) RG-028 NEW: `test_prism_describe_ocsf_column_naming_true_emits_class_uid_and_sensor_descriptors` — OQ-003 synthesized descriptor emission. (11) BC-5.38.001 density 27/13=2.08→29/15=1.93 ≥ 0.5 — compliant. (12) AC-005 header and entry 6: KF-05 remove → OQ-005 set `ocsf_field = "metadata.uid"`. (13) audit_logs contracted mapping table id row: KF-05→OQ-005 (metadata.uid / metadata_uid). (14) Post-corrections ocsf_field count 26(audit_logs:6)→27(audit_logs:7). (15) AC-010 header and assertion 5: KF-05→OQ-005 Tier-1 metadata_uid. (16) AC-013 trace v2.26→v2.27. (17) EC-009 count 26→27, audit_logs 6→7. (18) EC-016-013-028 trace v2.26→v2.27. (19) AC-014 NEW: OQ-001 push-down eligibility; covered by RG-PD-001. (20) AC-015 NEW: OQ-003 prism_describe synthesized descriptors; covered by RG-028. (21) §Architecture Mapping: new row for `extract_time_window_from_ast` in prism-query::pushdown (Pure, OQ-001/AC-014/RG-PD-001). (22) T-11N updated: writes RG-021 (OQ-005 Tier-1 assertion). (23) T-11S/T-11T traces v2.26→v2.27. (24) T-11U NEW: write RG-PD-001 in prism-query/pushdown.rs mod tests. (25) T-11V NEW: write RG-028 in prism-mcp/tests/. (26) T-GATE: 27→29, adds prism-query, density 1.93. (27) T-16B NEW: prism_describe emit class_uid/_sensor synthesized ColumnDescriptors under ocsf_column_naming; makes RG-028 green. (28) T-17 item 6 and note: KF-05 remove → OQ-005 ocsf_field set. (29) T-21 clause (c) v2.26→v2.27. (30) T-19: 27→29 RGTs + adds prism-query + RG-PD-001/RG-028 distribution. (31) T-25 NEW: extract_time_window_from_ast dual-name datetime_index_cols insert + stale doc comment update; makes RG-PD-001 green. (32) §File Structure: prism-mcp/tests/ row adds RG-028; new prism-query/pushdown.rs row (OQ-001/AC-014). (33) §v1.47 TD-VSDD-097 three-dimension sweep added. SAC-1 re-verified: 29 RGTs, density 1.93≥0.5, red-then-green ordering preserved. |
 | 1.46 | 2026-08-21 | story-writer | Pre-delivery burst: (1) Pin sweep — ADR-058 v2.23→v2.26 (18 occurrences: §Authority leading pin + status-date; 14 active-body "ADR-058 v2.23 §" via replace_all; "The v2.23 §J2" special case; "ADR-058 v2.23." RG-027 special case). (2) BC pin sweep — BC-2.16.003 v1.19 draft→v1.21 active (§Authority + §Behavioral Contracts table); BC-2.16.002 v2.30→v2.32 (§Authority + §Behavioral Contracts table). (3) input-hash refreshed 859dc7f→ca528ff (inputs drifted via `69d821be5` fix(claroty) PR on develop; ca528ff is the current computed hash of all story inputs). (4) holdout_scenarios wired: []→[HS-ROUTING-001-A-001, HS-ROUTING-001-A-002, HS-ROUTING-001-A-003, HS-ROUTING-001-A-004]. (5) §v1.46 TD-VSDD-097 three-dimension sweep added. SAC-1 confirmed compliant (27 RGTs, density 2.08≥0.5, red-then-green task ordering). SAC-2 confirmed (ADR-058 anchor_stories includes S-ADR058-OCSF-ROUTING-001). Remove-uncertainty pass: Arrow 58.2.0 ✓, DataFusion 53.1 ✓, tracing-test 0.2 ✓, SensorSpec exists in spec_parser.rs ✓, pipeline_result_to_record_batch exists in spec_driven_adapter.rs ✓, EventClassSelector::select_by_class_name exists in class_selector.rs ✓ — no uncertainties. Sibling COERCION-001 merged at v1.47 with correct pins — no sibling edit required. HOLDOUT-INDEX.md updated (HS-022 group registered, total_scenarios 89→93, total_groups 15→16, v1.18→v1.19). |

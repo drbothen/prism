@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.876"
+version: "2.877"
 status: draft
 producer: state-manager
-timestamp: 2026-08-21T17:00:00Z
+timestamp: 2026-08-21T22:30:00Z
 phase: 3
 total_stories: 303
+# D-2269: records-tier comprehensive pin-consistency sweep COMPLETE (LOCAL pass-8 OBS-1 + straggler ADR-058 v2.26 refs) — ROUTING-001 v1.48→v1.49 (6 current-context pins normalized to authoritative BC-2.16.002 v2.33 / ADR-058 v2.28; historical/sibling refs preserved; zero remaining stale current-context pins). total_stories 303 UNCHANGED. STORY-INDEX v2.876→v2.877. D-2268 NOTE archived.
 # D-2266: LOCAL pass-2 SPEC-SIDE fix-burst (S-ADR058-OCSF-ROUTING-001) — ROUTING-001 v1.47→v1.48 (AC-015/T-16B/RG-028 aligned to verbatim canonical description strings; RG-028 description-text assertion; ADR-058 v2.27→v2.28 pin; BC-2.16.003 v1.22→v1.23 pin; density 1.93 UNCHANGED). total_stories 303 UNCHANGED. STORY-INDEX v2.874→v2.875. D-2265 NOTE archived.
 # D-2264: Stage 2 spec-augmentation burst (story-writer + OQ-001/003/005 human decisions 2026-08-21) — ROUTING-001 v1.46→v1.47 (ADR-058 v2.26→v2.27; BC-2.16.003 v1.21→v1.22; RG-021 flip OQ-005; RG-PD-001/RG-028 NEW; AC-014/015 NEW; T-11U/T-11V/T-16B/T-25 NEW; density 29/15=1.93; crates_touched adds prism-query; input-hash f23f905); S-JSON-EXTRACT-UDF-001 REGISTERED v0.1 (DataFusion json_extract_string ScalarUDF stub; P1; depends_on ROUTING-001; BC status pending PO authorship). total_stories 302→303. STORY-INDEX v2.873→v2.874.
 # D-2263: pre-delivery burst COMPLETE (S-ADR058-OCSF-ROUTING-001) — deferred ADR-058 pin sweep v2.23→v2.26 DISCHARGED (D-2256/D-2259(d) deferral closed); BC pins →BC-2.16.002 v2.32/BC-2.16.003 v1.21; remove-uncertainty ZERO; 4 holdout scenarios HS-022 group (HOLDOUT-INDEX v1.18→v1.19); SAC-1/SAC-2 verified; TDD gate opened. ROUTING-001 v1.45→v1.46. total_stories 302 UNCHANGED. STORY-INDEX v2.872→v2.873.
@@ -1012,7 +1013,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-DEMO-CLAROTY-DAR-001 | prism-dtu-claroty + claroty.sensor.toml: Add device_alert_relations table — DTU route and TOML spec (closes DTU-EXT-006) [draft v1.3] | prism-dtu-claroty,prism-sensors | 2 (BC-2.16.013, BC-2.01.013) | VP-148 | 5 | -- |
 | S-DEMO-CLAROTY-HARNESS-DAR-001 | prism-dtu-harness: Add POST /api/v1/device_alert_relations/ to Claroty in-process clone (closes INV-HARNESS-ROUTE-PARITY for device_alert_relations) [draft v1.0] | prism-dtu-harness | 1 (BC-2.16.013) | -- | 2 | S-DEMO-CLAROTY-DAR-001 |
 | S-ADR058-OCSF-COERCION-001 | ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission [merged v1.47] | prism-spec-engine,prism-bin | 3 (BC-2.16.003, BC-2.02.011, BC-2.16.002) | VP-017, VP-016 | 5 | -- |
-| S-ADR058-OCSF-ROUTING-001 | ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation [draft v1.48]
+| S-ADR058-OCSF-ROUTING-001 | ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation [draft v1.49]
 | S-JSON-EXTRACT-UDF-001 | DataFusion json_extract_string ScalarUDF — Tier-2 Filtering via JSON Path Extraction [draft v0.1] | prism-query | 0 (pending PO authorship) | -- | tbd | -- |
 | S-ADR058-DTU-PARITY-MIGRATION-001 | DTU Parity Test Migration for ADR-058 Stage 2 OCSF Field-Path Routing [draft v1.0] | prism-dtu-claroty,prism-dtu-crowdstrike,prism-dtu-armis,prism-dtu-cyberint,prism-bin | 2 (BC-2.16.003, BC-2.01.013) | -- | 5 | -- |
 | S-OCSF-FIDELITY-CROWDSTRIKE-001 | CrowdStrike OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
