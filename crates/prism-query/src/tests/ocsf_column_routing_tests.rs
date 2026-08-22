@@ -1,4 +1,4 @@
-//! Red Gate tests RG-Q-001..RG-Q-007 — OCSF column-name routing through the
+//! Red Gate tests RG-Q-001..RG-Q-009 — OCSF column-name routing through the
 //! E-QUERY-038 plan-time column gate (S-ADR058-OCSF-ROUTING-001).
 //!
 //! # Defect being locked in
@@ -23,6 +23,8 @@
 //! | RG-Q-005 | Err(ColumnNotFound) | Ok (raw col.name found) |
 //! | RG-Q-006 | Err(ColumnNotFound), wire available_columns = OCSF names | available_columns = raw TOML col.names |
 //! | RG-Q-007 | Ok (green-lock) | stays green |
+//! | RG-Q-008 | Ok + Err(ColumnNotFound w/ OCSF avail) (green-lock) | multi-tenant HEAD gate already fixed by Fix B |
+//! | RG-Q-009 | Ok (pipe `message` ok) + Err (pipe `description` rejected) | FAIL: pipe-stage binding-seed still raw col.names |
 //!
 //! # SAP-3 compliance
 //! All tests invoke `engine.execute()` from the public query engine surface (SQL or pipe
@@ -32,19 +34,23 @@
 //! - BC-2.11.016 (E-QUERY-038 plan-time column gate)
 //! - ADR-058 §D (ocsf_column_naming field) / §I6 (flag-gate for index column registration)
 //!
-//! Story: S-ADR058-OCSF-ROUTING-001 holdout gap (RG-Q-001..007).
+//! Story: S-ADR058-OCSF-ROUTING-001 holdout gap (RG-Q-001..009, re-cascade P1).
 
 // Test code — allow expect/unwrap per the project pattern for prism-query test files.
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     engine::{QueryEngine, QueryEngineConfig, QueryOptions},
     table_registry::TableRegistry,
 };
-use prism_core::error::PrismError;
-use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec};
+use prism_core::{error::PrismError, OrgSlug, SensorId};
+use prism_spec_engine::{
+    overlay::{OverlayLoader, SensorInstanceOverlay},
+    spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+    ResolvedSensorSpec, ResolvedSpecKey,
+};
 
 // ── Fixture helpers ───────────────────────────────────────────────────────────
 
@@ -617,4 +623,270 @@ async fn test_BC_2_11_016_RG_Q_007_non_ocsf_sensor_raw_colname_still_passes_gree
          Got Err: {:?}",
         result.err()
     );
+}
+
+// ── Multi-tenant fixture helper ───────────────────────────────────────────────
+
+/// Build a `(ResolvedSpecKey, ResolvedSensorSpec)` pair for the Claroty sensor with
+/// `ocsf_column_naming = true`, scoped to `org`.
+///
+/// Pattern mirrors `make_resolved` in `e_query_pedagogical.rs` and
+/// `make_sec003_resolved_spec_map` in `explain_tests.rs`.
+fn make_claroty_resolved(org: &str) -> (ResolvedSpecKey, ResolvedSensorSpec) {
+    use prism_core::ColumnType;
+
+    let mut spec = SensorSpec::new(
+        "claroty",
+        "Claroty xDome (multi-tenant OCSF fixture)",
+        AuthType::BearerStatic,
+        "https://claroty.invalid",
+        vec![TableSpec::new_point_in_time(
+            "alerts",
+            "detection_finding",
+            vec![
+                ColumnSpec::new(
+                    "id",
+                    ColumnType::String,
+                    Some("finding_info.uid".to_string()),
+                    vec![],
+                ),
+                ColumnSpec::new(
+                    "status",
+                    ColumnType::String,
+                    Some("status".to_string()),
+                    vec![],
+                ),
+                ColumnSpec::new(
+                    "detected_time",
+                    ColumnType::Datetime,
+                    Some("time".to_string()),
+                    vec![],
+                ),
+                ColumnSpec::new(
+                    "updated_time",
+                    ColumnType::Datetime,
+                    Some("finding_info.modified_time".to_string()),
+                    vec![],
+                ),
+                ColumnSpec::new(
+                    "description",
+                    ColumnType::String,
+                    Some("message".to_string()),
+                    vec![],
+                ),
+                ColumnSpec::new(
+                    "alert_name",
+                    ColumnType::String,
+                    Some("finding_info.title".to_string()),
+                    vec![],
+                ),
+                // Tier-2 column: no ocsf_field → aggregates into raw_extensions
+                ColumnSpec::new("alert_type_name", ColumnType::String, None, vec![]),
+            ],
+            vec![],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    spec.ocsf_column_naming = true;
+
+    let overlay_toml = format!("extends = \"claroty\"\ninstance_id = \"claroty@{org}\"");
+    let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+        .expect("RG-Q-008/009 fixture: SensorInstanceOverlay TOML must parse");
+    let org_slug = OrgSlug::new(org);
+    let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+    let key: ResolvedSpecKey = (org_slug, SensorId::new("claroty"));
+    (key, resolved)
+}
+
+/// Build a multi-tenant `QueryEngine` with the Claroty OCSF spec wired via
+/// `with_resolved_spec_map` + `with_table_registry`.
+///
+/// The registry is populated from the same spec so E-QUERY-037 (table gate) passes.
+/// Engine executes queries on behalf of org "acme".
+fn make_claroty_multitenant_engine() -> QueryEngine {
+    let (key, resolved) = make_claroty_resolved("acme");
+    let sensor_spec = resolved.spec.clone();
+
+    let registry = Arc::new(TableRegistry::new());
+    registry
+        .register_sensor(&sensor_spec)
+        .expect("RG-Q-008/009 fixture: register claroty sensor must not fail");
+
+    let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    spec_map.insert(key, resolved);
+
+    QueryEngine::new_with_cache_config(
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(NoopCs),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        crate::cache::CacheConfig::default(),
+    )
+    .with_resolved_spec_map(Arc::new(spec_map))
+    .with_table_registry(registry)
+}
+
+// ── RG-Q-008 ─────────────────────────────────────────────────────────────────
+
+/// RG-Q-008 — Multi-tenant HEAD gate: OCSF-flattened SELECT passes; raw col.name rejected.
+///
+/// This is a **green-lock** test for the multi-tenant HEAD gate path
+/// (`check_column_availability` with `resolved_spec_map = Some`) which was already
+/// repaired by Fix B (re-cascade P1 HIGH-001 coverage).  It MUST PASS.
+///
+/// Sub-case A (must Ok): `SELECT finding_info_uid FROM claroty_alerts` via multi-tenant engine.
+///   The multi-tenant `check_column_availability` path (Fix B) now returns OCSF-flattened
+///   names; `finding_info_uid` must be found.
+///
+/// Sub-case B (must Err ColumnNotFound): `SELECT id FROM claroty_alerts` — raw col.name.
+///   After Fix B the multi-tenant path returns OCSF names only; raw `id` is absent.
+///   `available_columns` must contain `finding_info_uid` and NOT contain `id`.
+///
+/// If this test unexpectedly fails, it signals Fix B regressed in this engine path.
+///
+/// SAP-3: SQL SELECT via `engine.execute()` public surface.
+#[tokio::test]
+async fn test_BC_2_11_016_RG_Q_008_multitenant_ocsf_head_projection() {
+    let engine = make_claroty_multitenant_engine();
+
+    // Sub-case A: OCSF-flattened name must pass E-QUERY-038 on the multi-tenant HEAD gate.
+    let result_a = engine
+        .execute(
+            "SELECT finding_info_uid FROM claroty_alerts",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result_a.is_ok(),
+        "RG-Q-008A (S-ADR058-OCSF-ROUTING-001 green-lock, re-cascade P1 HIGH-001): \
+         `SELECT finding_info_uid FROM claroty_alerts` (MULTI-TENANT) must return Ok — \
+         Fix B wired OCSF-flattened names into check_column_availability multi-tenant path. \
+         Unexpected failure signals Fix B regression. Got Err: {:?}",
+        result_a.err()
+    );
+
+    // Sub-case B: raw col.name must be rejected on the multi-tenant HEAD gate.
+    let result_b = engine
+        .execute("SELECT id FROM claroty_alerts", QueryOptions::default())
+        .await;
+
+    assert!(
+        result_b.is_err(),
+        "RG-Q-008B (S-ADR058-OCSF-ROUTING-001 green-lock): \
+         `SELECT id FROM claroty_alerts` (MULTI-TENANT) must return Err(ColumnNotFound) — \
+         raw TOML col.name 'id' is not a valid OCSF-mode Arrow column. Got Ok."
+    );
+
+    if let Err(PrismError::ColumnNotFound(ref d)) = result_b {
+        assert_eq!(
+            d.column, "id",
+            "RG-Q-008B: ColumnNotFoundDetails.column must be 'id'; got: '{}'",
+            d.column
+        );
+        assert!(
+            d.available_columns
+                .contains(&"finding_info_uid".to_string()),
+            "RG-Q-008B: available_columns must contain OCSF name 'finding_info_uid'; \
+             got: {:?}",
+            d.available_columns
+        );
+        assert!(
+            !d.available_columns.contains(&"id".to_string()),
+            "RG-Q-008B: available_columns must NOT contain raw col.name 'id'; \
+             got: {:?}",
+            d.available_columns
+        );
+    }
+}
+
+// ── RG-Q-009 ─────────────────────────────────────────────────────────────────
+
+/// RG-Q-009 — Multi-tenant pipe-stage binding-seed: OCSF gap in
+/// `get_initial_available_columns` (re-cascade P1 MED-002, the RED test).
+///
+/// `get_initial_available_columns` (engine.rs multi-tenant branch) seeds the pipe-stage
+/// binding context with `c.name.clone()` — raw TOML col.names — instead of
+/// OCSF-flattened Arrow names.  This means:
+///
+///   - `FROM claroty_alerts | where message = 'x'` — OCSF name `message` is not in
+///     the binding seed (`description` is) → plan-time rejection → Err(ColumnNotFound).
+///     **Post-fix this MUST return Ok.**
+///
+///   - `FROM claroty_alerts | where description = 'x'` — raw col.name `description` IS
+///     in the binding seed (wrongly) → plan-time acceptance → Ok.
+///     **Post-fix this MUST return Err(ColumnNotFound).**
+///
+/// Pre-fix state (RED):
+///   - pipe `message` query → Err(ColumnNotFound) when it SHOULD be Ok
+///   - pipe `description` query → Ok when it SHOULD be Err
+///
+/// Both sub-cases fail together before the fix; both must pass after.
+///
+/// SAP-3: pipe-mode query via `engine.execute()` public surface (FROM … | where syntax).
+#[tokio::test]
+async fn test_BC_2_11_016_RG_Q_009_multitenant_ocsf_pipe_stage() {
+    let engine = make_claroty_multitenant_engine();
+
+    // Sub-case A: pipe WHERE with OCSF-flattened name must return Ok post-fix.
+    // Pre-fix: `message` absent from get_initial_available_columns → Err(ColumnNotFound). RED.
+    let result_pipe_ocsf = engine
+        .execute(
+            "FROM claroty_alerts | where message = 'x'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result_pipe_ocsf.is_ok(),
+        "RG-Q-009A (S-ADR058-OCSF-ROUTING-001 RED, re-cascade P1 MED-002): \
+         `FROM claroty_alerts | where message = 'x'` (MULTI-TENANT pipe) must return Ok — \
+         `get_initial_available_columns` multi-tenant branch must seed the pipe binding \
+         context with OCSF-flattened names so 'message' (= ocsf_field_to_arrow_name(\"message\")) \
+         is valid. Pre-fix: Err(ColumnNotFound) because binding seed still uses raw col.names. \
+         Got Err: {:?}",
+        result_pipe_ocsf.err()
+    );
+
+    // Sub-case B: pipe WHERE with raw col.name must return Err(ColumnNotFound) post-fix.
+    // Pre-fix: `description` IS in get_initial_available_columns (raw seed) → Ok. RED.
+    let result_pipe_raw = engine
+        .execute(
+            "FROM claroty_alerts | where description = 'x'",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result_pipe_raw.is_err(),
+        "RG-Q-009B (S-ADR058-OCSF-ROUTING-001 RED, re-cascade P1 MED-002): \
+         `FROM claroty_alerts | where description = 'x'` (MULTI-TENANT pipe) must return \
+         Err(ColumnNotFound) — raw TOML col.name 'description' must be rejected in OCSF mode \
+         (the Arrow column is 'message'). \
+         Pre-fix: Ok because binding seed still carries raw col.name 'description'. \
+         Got Ok."
+    );
+
+    if let Err(PrismError::ColumnNotFound(ref d)) = result_pipe_raw {
+        assert_eq!(
+            d.column, "description",
+            "RG-Q-009B: ColumnNotFoundDetails.column must be 'description'; got: '{}'",
+            d.column
+        );
+        assert!(
+            d.available_columns.contains(&"message".to_string()),
+            "RG-Q-009B: available_columns must contain OCSF name 'message'; \
+             got: {:?}",
+            d.available_columns
+        );
+        assert!(
+            !d.available_columns.contains(&"description".to_string()),
+            "RG-Q-009B: available_columns must NOT contain raw col.name 'description'; \
+             got: {:?}",
+            d.available_columns
+        );
+    }
 }
