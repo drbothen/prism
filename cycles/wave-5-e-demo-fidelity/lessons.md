@@ -4907,3 +4907,9 @@ Register either a self-improvement story anchored to the wave-5-e-demo-fidelity 
 **Transferable principle:** A section-scoped brief describes the finding location, not the sweep boundary. POL-39 normalization sweeps MUST be whole-document. The canonical test: after any normalization burst, run `grep -r "<old_form>" <artifact>` with no file-section restriction and confirm zero hits.
 
 **Source:** D-2250 state-manager FB-62/63 fix-burst (2026-08-19). Pattern family: section-scoped-sweep-failure, version-decoration normalization miss, TD-VSDD-097 §1 sibling-pair scope under-specification.
+
+---
+
+### [process-gap] 2026-08-21 — State-manager burst latency root cause (35–70 min/burst)
+
+[process-gap] 2026-08-21 — State-manager burst latency (35–70 min) root-caused to the 73-plugin PostToolUse hook chain + bloated index/changelog files. Diagnosis + ranked remediation levers in state-manager-latency-analysis-2026-08-21.md. DIAGNOSIS ONLY — remediation deferred; promote levers #1/#2 to a self-improvement story at cycle close.
