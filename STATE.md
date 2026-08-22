@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.800"
+version: "8.801"
 producer: state-manager
-timestamp: 2026-08-21T17:22:00Z
+timestamp: 2026-08-21T18:08:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -21,7 +21,8 @@ develop_head: "362e4f85"
 # NOTE: D-2202 — develop_head corrected 791b68c3→69d821be (fast-forward COMPLETE; develop == origin/develop == 69d821be confirmed). OCSF-mapping schema-validation COMPLETE (ADR-058 v2.4; 12 KF + CODE DEFECT §class_selector.rs); ARCH-INDEX v2.303→v2.304. STATE v8.732→v8.733. D-2201 NOTE archived.
 # NOTE: D-2183 — develop advanced 3197e27a9→791b68c3: PR #238 chore(gitignore) AD-017 live-evidence SQUASH-MERGED to develop 2026-08-15. D-2171 NOTE archived.
 # NOTE: D-2109 — develop advanced ef996a4c0→5d1a30ac7: PR #236 fix/claroty-live-api-fidelity SQUASH-MERGED; BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED (passes 8/9/10 on frozen 386df43c5); HS-014 PASS; worktrees CLAROTY-LIVE + FINDING-R removed. D-2102 NOTE archived.
-bc_index_version: "9.47"
+bc_index_version: "9.48"
+# NOTE: D-2267 — BC-INDEX v9.47→v9.48: LOCAL pass-3 CODE+CATALOG fix-burst (S-ADR058-OCSF-ROUTING-001) — BC-2.16.002 leading pin v2.32→v2.33 (SAP-1 MED-1: catalog row 95 scope extended to THREE emission sites; site (c) pipeline_result_to_record_batch OCSF-branch raw_extensions builder; POL-30 Fork B; count UNCHANGED 95). Counts UNCHANGED: active 253/draft 3/total 269. D-2266 NOTE archived.
 # NOTE: D-2266 — BC-INDEX v9.46→v9.47: LOCAL pass-2 SPEC-SIDE fix-burst (S-ADR058-OCSF-ROUTING-001) — BC-2.16.003 leading pin v1.22→v1.23 (§Postconditions three→two OCSF-mode; description strings verbatim-identical; ADR-058 v2.27→v2.28 pin). ROUTING-001 v1.47→v1.48. Counts UNCHANGED: active 253/draft 3/total 269. D-2265 NOTE archived.
 # NOTE: D-2265 — BC-INDEX v9.45→v9.46: spec-augmentation burst (human decisions 2026-08-21) — BC-2.16.003 leading pin v1.21→v1.22 (OQ-005 KF-05 revised audit_logs.id metadata_uid Tier-1; OQ-003 synthesized-descriptor contracted; OQ-001 EC-016-013-031 push-down guard NEW; 3 test vectors; ADR-058 v2.27 pin). ADR-058 v2.26→v2.27. ROUTING-001 v1.46→v1.47. S-JSON-EXTRACT-UDF-001 REGISTERED v0.1. Counts UNCHANGED: active 253/draft 3/total 269. D-2261 NOTE archived.
 # NOTE: D-2261 — BC-INDEX v9.44→v9.45: post-merge POL-14 burst — S-ADR058-OCSF-COERCION-001 MERGED PR #240; BC-2.16.003 v1.20→v1.21 draft→active (POL-14). active_contracts 252→253; draft_contracts 4→3; total 269 UNCHANGED. D-2259 NOTE archived.
@@ -47,7 +48,7 @@ workspace_test_count: 5765
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2266 LOCAL pass-2 SPEC-SIDE fix-burst COMPLETE (S-ADR058-OCSF-ROUTING-001 2026-08-21) — HIGH-2 (ADR-058 §J2↔§G within-document contradiction resolved; §J2 mode-accurate; ADR-058 v2.27→v2.28); MED-1 (class_uid/_sensor synthesized-descriptor canonical description strings reconciled verbatim-identical across ADR §G/BC-2.16.003/story AC-015+T-16B); HIGH-1 spec-side (RG-028 strengthened to assert description text — SID-2 paper-green gap closed). BC-2.16.003 v1.22→v1.23; ROUTING-001 v1.47→v1.48. Indexes: ARCH-INDEX v2.329/BC-INDEX v9.47/STORY-INDEX v2.875. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.799→v8.800. BC-5.39.001 streak 0/3; pass-3 re-gate pending on new frozen HEAD after code+test fix. trajectory-tail →2→3→0→3."
+current_step: "D-2267 LOCAL pass-3 CODE+CATALOG fix-burst COMPLETE (S-ADR058-OCSF-ROUTING-001 2026-08-21) — MED-1 CLOSED (raw_extensions `column_source_path_extraction_failed` catalog row 95 scope extended to THREE emission sites; site (c) pipeline_result_to_record_batch OCSF-branch raw_extensions builder added; code @5ae11e0d3 + focused capture test; BC-2.16.002 v2.32→v2.33). OBS-1 CLOSED (synthesized class_uid/_sensor Arrow fields set nullable=false; code @5ae11e0d3). BC-INDEX v9.47→v9.48. ARCH-INDEX/STORY-INDEX UNCHANGED v2.329/v2.875. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.800→v8.801. BC-5.39.001 streak 0/3; pass-4 re-gate pending on new frozen HEAD 5ae11e0d3 + spec BC-2.16.002 v2.33. trajectory-tail →3→0→3→2."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -84,7 +85,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 272 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -72 | margin from actual: 228 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 275 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -75 | margin from actual: 225 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -97,7 +98,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-21 D-2266 SINGLE-COMMIT BURST (TD-VSDD-053) — LOCAL pass-2 SPEC-SIDE fix-burst (S-ADR058-OCSF-ROUTING-001) — HIGH-2 ADR-058 §J2 contradiction resolved (v2.27→v2.28); MED-1 description strings verbatim-identical; HIGH-1 spec-side RG-028 strengthened (SID-2). BC-2.16.003 v1.22→v1.23; ROUTING-001 v1.47→v1.48; indexes: ARCH-INDEX v2.329/BC-INDEX v9.47/STORY-INDEX v2.875. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.799→v8.800. streak 0/3; pass-3 re-gate pending. trajectory-tail →2→3→0→3. |
+| **Last Updated** | 2026-08-21 D-2267 SINGLE-COMMIT BURST (TD-VSDD-053) — LOCAL pass-3 CODE+CATALOG fix-burst (S-ADR058-OCSF-ROUTING-001) — MED-1 CLOSED: catalog row 95 THREE emission sites; OBS-1 CLOSED: nullable=false; BC-2.16.002 v2.32→v2.33; BC-INDEX v9.47→v9.48. ARCH-INDEX/STORY-INDEX UNCHANGED v2.329/v2.875. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.800→v8.801. streak 0/3; pass-4 re-gate pending. trajectory-tail →3→0→3→2. |
 
 ## Phase Progress
 
@@ -134,12 +135,12 @@ _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individua
 
 | Metric | Value |
 |--------|-------|
-| BC-5.39.001 streak | 0/3 — ROUTING-001 LOCAL active. Pass-2 had 3 spec-side findings (HIGH-2/MED-1/HIGH-1); streak reset to 0/3 (perimeter changed: ADR-058 v2.28/BC-2.16.003 v1.23/ROUTING-001 v1.48). |
-| Active cascade | S-ADR058-OCSF-ROUTING-001 LOCAL — pass-2 SPEC-SIDE fix-burst COMPLETE (D-2266 2026-08-21); pass-3 re-gate pending on new frozen perimeter |
-| Pass count | ROUTING-001 LOCAL: 2 passes (pass-1 CLEAN(strict) streak 1/3; pass-2 3 spec-side findings reset to 0/3). COERCION-001 LOCAL: 4 passes. SPEC cascade: 69 passes. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
+| BC-5.39.001 streak | 0/3 — ROUTING-001 LOCAL active. Pass-3 had 2 code+catalog findings (MED-1/OBS-1); streak reset to 0/3 (perimeter changed: code @5ae11e0d3 + BC-2.16.002 v2.33). |
+| Active cascade | S-ADR058-OCSF-ROUTING-001 LOCAL — pass-3 CODE+CATALOG fix-burst COMPLETE (D-2267 2026-08-21); pass-4 re-gate pending on new frozen HEAD 5ae11e0d3 |
+| Pass count | ROUTING-001 LOCAL: 3 passes (pass-1 CLEAN(strict) streak 1/3; pass-2 3 spec-side findings; pass-3 2 code+catalog findings). COERCION-001 LOCAL: 4 passes. SPEC cascade: 69 passes. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
 | Last CLEAN(strict) | ROUTING-001 LOCAL pass-1 (2026-08-21 pre-D-2266). COERCION-001 LOCAL: none (human admin override). SPEC cascade: pass-68. |
-| Finding trajectory | ROUTING-001 LOCAL →0→3 (p1→p2; p2 streak reset). COERCION-001 LOCAL →1→2→2→3 (all fixed). Prior SPEC cascade tail: →1→1→0→1 (p66→p67→p68→p69). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Frozen perimeter | ADR-058 v2.28 / BC-2.16.002 v2.32 / BC-2.16.003 v1.23 (active) / ROUTING-001 v1.48 / COERCION-001 v1.47 (merged) |
+| Finding trajectory | ROUTING-001 LOCAL →0→3→2 (p1→p2→p3). COERCION-001 LOCAL →1→2→2→3 (all fixed). Prior SPEC cascade tail: →1→1→0→1. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
+| Frozen perimeter | ADR-058 v2.28 / BC-2.16.002 v2.33 / BC-2.16.003 v1.23 (active) / ROUTING-001 v1.48 / COERCION-001 v1.47 (merged) |
 
 ## Concurrent Cycles
 
@@ -155,6 +156,7 @@ _No concurrent cycles in progress. Current cycle: wave-5-e-demo-fidelity._
 | D-2264 | state-manager | 2026-08-21 | GOVERNING PRODUCT-BUSINESS DECISION (human-directed 2026-08-21) — v1 FIRST RELEASE TARGET DEFINED: fully-working Claroty xDome sensor end-to-end. DE-SCOPED post-v1: S-OCSF-FIDELITY-CROWDSTRIKE/CYBERINT/ARMIS-001 + S-ADR058-DTU-PARITY-MIGRATION-001. DEMO-SCOPE.md v1.7→v1.8. STORY-INDEX v2.873→v2.874. trajectory-tail →1→2→2→3. records-lint exit 0. STATE v8.797→v8.798. |
 | D-2265 | state-manager | 2026-08-21 | SINGLE-COMMIT BURST (TD-VSDD-053) — spec-augmentation burst COMPLETE (human decisions 2026-08-21). ADR-058 v2.26→v2.27. BC-2.16.003 v1.21→v1.22. ROUTING-001 v1.46→v1.47. S-JSON-EXTRACT-UDF-001 REGISTERED v0.1 (stub; total_stories 303). BC-INDEX v9.45→v9.46. STORY-INDEX v2.873→v2.874. ARCH-INDEX v2.327→v2.328. TD-VSDD-097 all dims CLEAR. trajectory-tail →1→2→2→3. records-lint exit 0. STATE v8.798→v8.799. |
 | D-2266 | state-manager | 2026-08-21 | SINGLE-COMMIT BURST (TD-VSDD-053) — LOCAL pass-2 SPEC-SIDE fix-burst COMPLETE (S-ADR058-OCSF-ROUTING-001). HIGH-2: ADR-058 §J2 within-doc contradiction resolved → v2.28 (OCSF mode exactly TWO synthesized columns: class_uid/_sensor; category_uid legacy-mode-only). MED-1: canonical description strings reconciled verbatim-identical. HIGH-1 spec-side: RG-028 strengthened (SID-2 paper-green gap closed). BC-2.16.003 v1.22→v1.23. ROUTING-001 v1.47→v1.48. ARCH-INDEX v2.329/BC-INDEX v9.47/STORY-INDEX v2.875. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.799→v8.800. trajectory-tail →2→3→0→3. |
+| D-2267 | state-manager | 2026-08-21 | SINGLE-COMMIT BURST (TD-VSDD-053) — LOCAL pass-3 CODE+CATALOG fix-burst COMPLETE (S-ADR058-OCSF-ROUTING-001). MED-1 CLOSED: raw_extensions `column_source_path_extraction_failed` catalog row 95 scope extended to THREE emission sites; site (c) pipeline_result_to_record_batch OCSF-branch raw_extensions builder; code @5ae11e0d3 + focused capture test; BC-2.16.002 v2.32→v2.33. OBS-1 CLOSED: synthesized class_uid/_sensor Arrow fields set nullable=false; code @5ae11e0d3. BC-INDEX v9.47→v9.48. ARCH-INDEX/STORY-INDEX UNCHANGED v2.329/v2.875. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.800→v8.801. streak 0/3; pass-4 re-gate pending. trajectory-tail →3→0→3→2. |
 
 ## Decisions Log
 
@@ -229,6 +231,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | D-2264 | state-manager | 2026-08-21 | **GOVERNING PRODUCT-BUSINESS DECISION (human-directed 2026-08-21) — v1 FIRST RELEASE TARGET DEFINED. Target: fully-working, stable Claroty xDome sensor, end-to-end. Validation: REAL Claroty xDome tenant (live API; AD-017 opaque-credential path; credentials never transit AI context). v1 scope: client+sensor onboarding → OCSF field-mapping correctness (COERCION Stage 1 delivered PR #240; ROUTING Stage 2 S-ADR058-OCSF-ROUTING-001 in flight) → all query shapes → push-down (filter/time-box/predicate push-down to xDome API) → SOC-analyst Q&A loop → stability under real use. Release gate: immediately after ROUTING-001 merges, pipeline shifts to comprehensive live end-to-end xDome validation as the v1 release gate. DE-SCOPED to POST-v1: S-OCSF-FIDELITY-CROWDSTRIKE-001 / S-OCSF-FIDELITY-CYBERINT-001 / S-OCSF-FIDELITY-ARMIS-001 (per-sensor OCSF fidelity stubs) + S-ADR058-DTU-PARITY-MIGRATION-001 (DTU parity test migration, already parked post-v1). active_objective updated. DEMO-SCOPE.md v1.7→v1.8. TD-VSDD-097: Dim-1 CLEAR (no BC/ADR mechanism change); Dim-2 CLEAR (no downstream copy target); Dim-3 CLEAR (no new MUST). trajectory-tail →1→2→2→3. records-lint exit 0. STATE v8.797→v8.798.** | wave-5-e-demo-fidelity | 2026-08-21 |
 | D-2265 | state-manager | 2026-08-21 | **SINGLE-COMMIT BURST (TD-VSDD-053) — D-2265 spec-augmentation burst COMPLETE (human decisions 2026-08-21). ADR-058 v2.26→v2.27 (KF-05 revised: audit_logs.id ocsf_field "metadata.uid"/Arrow metadata_uid Tier-1; §I6 push-down invariant; §G synthesized-descriptor MUST contracted). BC-2.16.003 v1.21→v1.22 (OQ-005/OQ-003/OQ-001 EC-016-013-031; 3 canonical test vectors; ADR-058 v2.27 pin). ROUTING-001 v1.46→v1.47 (RG-021 flip, RG-PD-001, RG-028; AC-015; density 1.93). S-JSON-EXTRACT-UDF-001 REGISTERED v0.1 (stub; total_stories 302→303). BC-INDEX v9.45→v9.46. STORY-INDEX v2.873→v2.874. ARCH-INDEX v2.327→v2.328. TD-VSDD-097 THREE-DIMENSION VERDICTS: sibling CLEAR (BC-2.16.003 amended; BC-2.16.002 UNCHANGED v2.32) / downstream CLEAR (BC-2.16.003 is ADR-058 §E2/§G copy-target swept; validation matrix OQ-resolution downstream swept) / mandate CLEAR (RG-PD-001 anchored AC-014; RG-028 anchored AC-015; no unanchored MUSTs). Counts UNCHANGED: active 253/draft 3/total 269. trajectory-tail →1→2→2→3. records-lint exit 0. STATE v8.798→v8.799.** | wave-5-e-demo-fidelity | 2026-08-21 |
 | D-2266 | state-manager | 2026-08-21 | **SINGLE-COMMIT BURST (TD-VSDD-053) — LOCAL pass-2 SPEC-SIDE fix-burst COMPLETE (S-ADR058-OCSF-ROUTING-001 2026-08-21). HIGH-2 CLOSED: ADR-058 §J2 within-document contradiction resolved (§J2 now agrees with §G: OCSF mode appends exactly TWO synthesized columns class_uid/_sensor; category_uid is legacy-mode-only; reserved-set {class_uid, category_uid, _sensor, raw_extensions} intact) → ADR-058 v2.27→v2.28. HIGH-1 spec-side CLOSED: RG-028 strengthened to require description-text assertion (SID-2 paper-green gap closed). MED-1 CLOSED: class_uid/_sensor synthesized-descriptor canonical description strings reconciled verbatim-identical across ADR §G / BC-2.16.003 §Postconditions / story AC-015+T-16B → BC-2.16.003 v1.22→v1.23; ROUTING-001 v1.47→v1.48. Indexes: ARCH-INDEX v2.328→v2.329; BC-INDEX v9.46→v9.47; STORY-INDEX v2.874→v2.875. HOLDOUT-INDEX UNCHANGED. Contract counts UNCHANGED: active 253/draft 3/total 269. TD-VSDD-097 THREE-DIMENSION VERDICTS: Dim-1 (sibling) CLEAR (BC-2.16.003 amended; BC-2.16.002 v2.32 UNCHANGED); Dim-2 (downstream) CLEAR (ADR-058 §G/§J2 is BC-2.16.003 copy-source — swept and reconciled in this burst); Dim-3 (mandate) CLEAR (RG-028 mandate anchored AC-015; no unanchored MUSTs). BC-5.39.001 streak RESET 0/3 (perimeter changed). New frozen perimeter: ADR-058 v2.28/BC-2.16.002 v2.32/BC-2.16.003 v1.23/ROUTING-001 v1.48. Pass-3 re-gate pending on new frozen perimeter. trajectory-tail →2→3→0→3. records-lint exit 0. STATE v8.799→v8.800.** | wave-5-e-demo-fidelity | 2026-08-21 |
+| D-2267 | state-manager | 2026-08-21 | **SINGLE-COMMIT BURST (TD-VSDD-053) — LOCAL pass-3 CODE+CATALOG fix-burst COMPLETE (S-ADR058-OCSF-ROUTING-001 2026-08-21). MED-1 CLOSED: raw_extensions `column_source_path_extraction_failed` emission captured in `pipeline_result_to_record_batch` OCSF-branch `raw_extensions` builder; BC-2.16.002 catalog row 95 scope bullet now enumerates THREE emission sites (site (c) added); BC-2.16.002 v2.32→v2.33; BC-INDEX v9.47→v9.48 (SAP-1 discharge; POL-30 Fork B; catalog count UNCHANGED 95); code @5ae11e0d3 + focused capture test. OBS-1 CLOSED: synthesized class_uid/_sensor Arrow fields set nullable=false to match describe contract + all-Some reality; code @5ae11e0d3. ARCH-INDEX v2.329 UNCHANGED. STORY-INDEX v2.875 UNCHANGED. Contract counts UNCHANGED: active 253/draft 3/total 269. TD-VSDD-097 THREE-DIMENSION VERDICTS: Dim-1 (sibling) CLEAR (BC-2.16.003 mirror not required per PO; no sibling pair for catalog row 95 scope extension); Dim-2 (downstream) CLEAR (BC-2.16.002 catalog row 95 is the downstream target — updated in this burst); Dim-3 (mandate) CLEAR (no new MUST). BC-5.39.001 streak RESET 0/3 (code+catalog perimeter changed). New frozen perimeter: code @5ae11e0d3 / ADR-058 v2.28 / BC-2.16.002 v2.33 / BC-2.16.003 v1.23 / ROUTING-001 v1.48. Pass-4 re-gate pending on new frozen HEAD. trajectory-tail →3→0→3→2. records-lint exit 0. STATE v8.800→v8.801.** | wave-5-e-demo-fidelity | 2026-08-21 |
 
 ## Skip Log
 
@@ -249,24 +252,24 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · convergence-trajectory.md · decisions-archive-D1789-D2199.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · decisions-archive-D1124-D1138.md · decisions-archive-D1165-D1352.md · drift-items-resolved.md · drift-items-open.md · drift-items-deferred.md · blocking-issues-resolved.md · phase-5-deferred-findings.md · frontmatter-cascade-archive.md · session-handoff-archive.md · lessons.md · session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
-## Session Resume Checkpoint (D-2266 — 2026-08-21 — LOCAL pass-2 SPEC-SIDE fix-burst COMPLETE; STATE v8.799→v8.800) [supersedes D-2265]
+## Session Resume Checkpoint (D-2267 — 2026-08-21 — LOCAL pass-3 CODE+CATALOG fix-burst COMPLETE; STATE v8.800→v8.801) [supersedes D-2266]
 
 ### RESUME IN ONE BREATH
-Prism Phase-3. D-2266 LOCAL pass-2 SPEC-SIDE fix-burst COMPLETE (S-ADR058-OCSF-ROUTING-001 2026-08-21): ADR-058 v2.28, BC-2.16.003 v1.23, ROUTING-001 v1.48. develop @362e4f85 (5765 tests). BC-2.16.003 active (POL-14). active_contracts 253. NEXT: LOCAL pass-3 re-gate (frozen perimeter: ADR-058 v2.28/BC-2.16.003 v1.23/ROUTING-001 v1.48). Code+test fix in flight in feature worktree (separate git tree).
+Prism Phase-3. D-2267 LOCAL pass-3 CODE+CATALOG fix-burst COMPLETE (S-ADR058-OCSF-ROUTING-001 2026-08-21): code @5ae11e0d3 (MED-1+OBS-1 closed). BC-2.16.002 v2.33. develop @362e4f85 (5765 tests). BC-2.16.003 active (POL-14). active_contracts 253. NEXT: LOCAL pass-4 re-gate (new frozen HEAD 5ae11e0d3 + spec perimeter BC-2.16.002 v2.33).
 
-**RESUME NEXT-ACTION:** Run LOCAL adversary pass-3 on ROUTING-001 frozen perimeter (ADR-058 v2.28/BC-2.16.003 v1.23/ROUTING-001 v1.48). BC-5.39.001 streak 0/3 (reset by pass-2 spec-side findings). Pass-3 must be on new frozen HEAD (code+test fix committed in feature worktree before pass-3 dispatched).
+**RESUME NEXT-ACTION:** Run LOCAL adversary pass-4 on ROUTING-001 frozen perimeter (code @5ae11e0d3 / ADR-058 v2.28 / BC-2.16.002 v2.33 / BC-2.16.003 v1.23 / ROUTING-001 v1.48). BC-5.39.001 streak 0/3 (reset by pass-3 code+catalog findings). Pass-4 must be on new frozen HEAD.
 
-**SPEC PERIMETER:** ADR-058 v2.28 / BC-2.16.002 v2.32 / BC-2.16.003 v1.23 (active) / ROUTING-001 v1.48 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.329 / BC-INDEX v9.47 / STORY-INDEX v2.875. Contract counts active 253 / draft 3 / total 269. total_stories 303.
+**SPEC PERIMETER:** code @5ae11e0d3 / ADR-058 v2.28 / BC-2.16.002 v2.33 / BC-2.16.003 v1.23 (active) / ROUTING-001 v1.48 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.329 / BC-INDEX v9.48 / STORY-INDEX v2.875. Contract counts active 253 / draft 3 / total 269. total_stories 303.
 
 **HEADS:**
 - `develop`: `362e4f85` (LOCAL == origin/develop; PR #241 + PR #240 both merged 2026-08-20; no open PRs)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2266 burst commit)
-- `feature/S-ADR058-OCSF-ROUTING-001`: code+test fix in progress in feature worktree (LOCAL-ONLY AT RISK — not yet pushed)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2267 burst commit)
+- `feature/S-ADR058-OCSF-ROUTING-001`: code+test fix committed in feature worktree @5ae11e0d3 (LOCAL-ONLY AT RISK — not yet pushed)
 - `.worktrees/S-3.09` @`43c41389d` [feature/S-3.09] KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` [feature/W3-FIX-S307-001] PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, 1 dirty test file)
 
 **GOVERNING DECISION (alongside D-2109):** DTU work DEFERRED to POST-FIRST-RELEASE per human decision 2026-08-16.
 
-**BACKUP BOUNDARY (D-2266):**
-- PUSHED / safe: `origin/develop` `362e4f85` (PR #241 merged 2026-08-20; PR #240 merged 2026-08-20); `factory-artifacts` (this D-2266 burst commit).
-- LOCAL-ONLY AT RISK: feature/S-ADR058-OCSF-ROUTING-001 (code+test fix, not yet pushed); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
+**BACKUP BOUNDARY (D-2267):**
+- PUSHED / safe: `origin/develop` `362e4f85` (PR #241 merged 2026-08-20; PR #240 merged 2026-08-20); `factory-artifacts` (this D-2267 burst commit).
+- LOCAL-ONLY AT RISK: feature/S-ADR058-OCSF-ROUTING-001 code @5ae11e0d3 (not yet pushed); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
