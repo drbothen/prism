@@ -227,16 +227,64 @@ impl TableRegistry {
             sensor_by_table.insert(full_name.clone(), spec.sensor_id.clone());
             // M1 fix: retain column names for single-tenant E-QUERY-038 gate.
             // Only populated when the spec has explicit columns defined.
+            //
+            // ADR-058 §G / S-ADR058-OCSF-ROUTING-001 holdout gap (Fix A):
+            // When ocsf_column_naming=true, the plan-time schema must present the SAME
+            // OCSF-flattened names that RecordBatch + prism_describe use, so that
+            // explicit SELECT/WHERE by OCSF name passes E-QUERY-038.
+            // Tier-1 (ocsf_field == Some) → arrow name via ocsf_field_to_arrow_name.
+            // Tier-2 (ocsf_field == None) → aggregated into "raw_extensions"; raw names omitted.
+            // Synthesized pseudo-cols: "class_uid" (Integer), "_sensor" (String).
+            // When ocsf_column_naming=false: keep existing col.name behavior exactly.
             if !table.columns.is_empty() {
-                let col_names: Vec<String> = table.columns.iter().map(|c| c.name.clone()).collect();
-                columns_by_table.insert(full_name.clone(), col_names);
-                // ADR-052 / HIGH-1: retain column types for schema-aware E-QUERY-041 gate.
-                let type_map: HashMap<String, ColumnType> = table
-                    .columns
-                    .iter()
-                    .map(|c| (c.name.clone(), c.column_type.clone()))
-                    .collect();
-                column_types_by_table.insert(full_name, type_map);
+                if spec.ocsf_column_naming {
+                    let has_tier2 = table.columns.iter().any(|c| c.ocsf_field.is_none());
+                    let mut col_names: Vec<String> = table
+                        .columns
+                        .iter()
+                        .filter_map(|c| {
+                            c.ocsf_field.as_deref().map(|f| {
+                                prism_spec_engine::column_mapping::ocsf_field_to_arrow_name(f)
+                            })
+                        })
+                        .collect();
+                    col_names.push("class_uid".to_string());
+                    col_names.push("_sensor".to_string());
+                    if has_tier2 {
+                        col_names.push("raw_extensions".to_string());
+                    }
+                    columns_by_table.insert(full_name.clone(), col_names);
+
+                    let mut type_map: HashMap<String, ColumnType> = table
+                        .columns
+                        .iter()
+                        .filter_map(|c| {
+                            c.ocsf_field.as_deref().map(|f| {
+                                let arrow_name =
+                                    prism_spec_engine::column_mapping::ocsf_field_to_arrow_name(f);
+                                (arrow_name, c.column_type.clone())
+                            })
+                        })
+                        .collect();
+                    type_map.insert("class_uid".to_string(), ColumnType::Integer);
+                    type_map.insert("_sensor".to_string(), ColumnType::String);
+                    if has_tier2 {
+                        type_map.insert("raw_extensions".to_string(), ColumnType::Json);
+                    }
+                    column_types_by_table.insert(full_name, type_map);
+                } else {
+                    // flag=false: keep existing col.name behavior exactly (byte-for-byte).
+                    let col_names: Vec<String> =
+                        table.columns.iter().map(|c| c.name.clone()).collect();
+                    columns_by_table.insert(full_name.clone(), col_names);
+                    // ADR-052 / HIGH-1: retain column types for schema-aware E-QUERY-041 gate.
+                    let type_map: HashMap<String, ColumnType> = table
+                        .columns
+                        .iter()
+                        .map(|c| (c.name.clone(), c.column_type.clone()))
+                        .collect();
+                    column_types_by_table.insert(full_name, type_map);
+                }
             }
         }
 
