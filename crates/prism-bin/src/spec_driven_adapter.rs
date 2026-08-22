@@ -6190,4 +6190,112 @@ ocsf_column_naming = true
             "AC-013 (RG-027): ocsf_field='raw.extensions' → 'raw_extensions' MUST return Err"
         );
     }
+
+    /// RG-Q-015 (ADR-058 §I7 shape-exception binding) — `pipeline_result_to_record_batch`
+    /// Arrow schema field-names MUST agree with `ocsf_projected_column_names(table, true)`.
+    ///
+    /// `pipeline_result_to_record_batch` is a documented ADR-058 §I7 shape-exception site:
+    /// it cannot fully delegate to `ocsf_projected_column_names` because it must build full
+    /// Arrow `Field` objects with typed schema and populate per-column arrays. However,
+    /// the **field-name set** in the produced Arrow schema MUST equal the name set from
+    /// the canonical helper.
+    ///
+    /// Without this binding test, the two surfaces could drift independently, causing
+    /// DataFusion to see a different schema from what `prism_describe` and the registry
+    /// advertise, leading to silent query failures at runtime.
+    ///
+    /// Uses a 2-Tier-1 + 1-Tier-2 OCSF spec (same pattern as the prism-mcp binding test)
+    /// and calls `pipeline_result_to_record_batch` directly (in-module access).
+    ///
+    /// # Expected result
+    ///
+    /// PASS — sites currently agree (the invariant is being upheld). This test is a
+    /// forward-looking GATE: if the OCSF branch drifts from the helper in a future change,
+    /// this test will fail and catch the drift before runtime.
+    ///
+    /// ADR-058 §I7; S-ADR058-OCSF-ROUTING-001.
+    #[test]
+    fn test_RG_Q_015_record_batch_schema_names_agree_with_projection_helper() {
+        use prism_spec_engine::column_mapping::ocsf_projected_column_names;
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+
+        // 2 Tier-1 columns + 1 Tier-2 column — same topology as the prism-mcp binding test.
+        let cols = vec![
+            ColumnSpec::new(
+                "finding_uid_raw",
+                ColumnType::String,
+                Some("finding.uid".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "actor_user",
+                ColumnType::String,
+                Some("actor.user.name".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "vendor_raw_blob",
+                ColumnType::String,
+                None, // Tier-2: no ocsf_field → aggregated into raw_extensions
+                vec![],
+            ),
+        ];
+        let table = TableSpec::new_point_in_time(
+            "alerts",
+            "detection_finding",
+            cols,
+            vec![minimal_fetch_step()],
+        );
+
+        // Helper path: canonical name set.
+        let mut helper_names = ocsf_projected_column_names(&table, true);
+        helper_names.sort();
+
+        // pipeline_result_to_record_batch path: produce an actual RecordBatch.
+        // One record is sufficient; we only care about the schema field names.
+        let result = PipelineResult::new(
+            vec![
+                serde_json::json!({"finding_uid_raw": "fid-001", "actor_user": "alice", "vendor_raw_blob": "blob"}),
+            ],
+            "alerts",
+            1,
+            false,
+        );
+
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "rg015-sensor",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect(
+            "RG-Q-015 (prism-bin): pipeline_result_to_record_batch with ocsf_column_naming=true \
+             and valid columns must succeed",
+        );
+
+        // Arrow schema path: extract and sort field names from the produced schema.
+        let mut schema_names: Vec<String> = batch
+            .schema()
+            .fields()
+            .iter()
+            .map(|f| f.name().clone())
+            .collect();
+        schema_names.sort();
+
+        // ADR-058 §I7 invariant: sorted name sets must be byte-equal.
+        assert_eq!(
+            schema_names, helper_names,
+            "RG-Q-015 (ADR-058 §I7 shape-exception binding — prism-bin): \
+             pipeline_result_to_record_batch Arrow schema field-names MUST agree with \
+             ocsf_projected_column_names(table, true) when sorted. \
+             Drift means DataFusion exposes a different column set from what \
+             prism_describe and the table registry advertise, causing silent query failures. \
+             schema_names (pipeline_result_to_record_batch): {:?}. \
+             helper_names (ocsf_projected_column_names): {:?}.",
+            schema_names, helper_names
+        );
+    }
 }

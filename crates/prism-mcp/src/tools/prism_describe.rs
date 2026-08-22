@@ -2815,4 +2815,103 @@ variables_produced = []
              canonical description text (LLM agent receives this field). Got: {json_bytes}"
         );
     }
+
+    /// RG-Q-015 (ADR-058 §I7 shape-exception binding) — `build_ocsf_column_descriptors`
+    /// name-set MUST agree with `ocsf_projected_column_names(table, true)`.
+    ///
+    /// `build_ocsf_column_descriptors` is a documented ADR-058 §I7 shape-exception site:
+    /// it cannot fully delegate to `ocsf_projected_column_names` because it must also emit
+    /// per-column Arrow-descriptor metadata. However, the **name set** produced by
+    /// `build_ocsf_column_descriptors` MUST equal the name set from the canonical helper.
+    ///
+    /// Without this binding test, the two surfaces could drift independently (one
+    /// updated, the other not), causing silent schema mismatches at runtime.
+    ///
+    /// This test exercises the ADR-058 §I7 invariant directly by comparing:
+    ///   - `build_tables_for_client` descriptor names (exercises `build_ocsf_column_descriptors`)
+    ///   - `ocsf_projected_column_names(table, true)` (canonical helper)
+    ///
+    /// Uses a 2-Tier-1 + 1-Tier-2 OCSF spec as a representative fixture.
+    ///
+    /// # Expected result
+    ///
+    /// PASS — sites currently agree (the invariant is being upheld). This test is a
+    /// forward-looking GATE: if `build_ocsf_column_descriptors` drifts from the helper
+    /// in a future change, this test will fail and catch the drift before runtime.
+    ///
+    /// ADR-058 §I7; S-ADR058-OCSF-ROUTING-001.
+    #[test]
+    fn test_RG_Q_015_prism_describe_names_agree_with_projection_helper() {
+        use prism_spec_engine::column_mapping::ocsf_projected_column_names;
+
+        let toml_tables = r#"
+[[tables]]
+table_name = "alerts"
+ocsf_class = "detection_finding"
+
+[[tables.columns]]
+name = "finding_uid_raw"
+column_type = "string"
+ocsf_field = "finding.uid"
+
+[[tables.columns]]
+name = "actor_user"
+column_type = "string"
+ocsf_field = "actor.user.name"
+
+[[tables.columns]]
+name = "vendor_raw_blob"
+column_type = "string"
+
+[[tables.steps]]
+name = "fetch"
+method = "GET"
+path_template = "/api/v1/alerts"
+response_path = "$.data"
+variables_produced = []
+"#;
+        // Tier-1: "finding.uid" → "finding_uid", "actor.user.name" → "actor_user_name"
+        // Tier-2: "vendor_raw_blob" → aggregated into "raw_extensions"
+        // Synthesized: "class_uid", "_sensor"
+        // Helper output (sorted): ["_sensor", "actor_user_name", "class_uid", "finding_uid", "raw_extensions"]
+
+        let spec = ocsf_sensor_spec_toml("rg015-sensor", toml_tables);
+        let table = spec
+            .tables
+            .first()
+            .expect("RG-Q-015 (prism-mcp): fixture spec must have at least one table");
+
+        // Helper path: canonical ocsf_projected_column_names.
+        let mut helper_names = ocsf_projected_column_names(table, true);
+        helper_names.sort();
+
+        // Describe path: build_tables_for_client → build_ocsf_column_descriptors (§I7 site).
+        let cm = arc_cm("rg015-sensor", spec);
+        let tables = build_tables_for_client("rg015-sensor", None, Some(&cm));
+        let alerts_table = tables
+            .iter()
+            .find(|t| t.name == "rg015-sensor_alerts")
+            .expect(
+                "RG-Q-015 (prism-mcp): 'rg015-sensor_alerts' table must exist in describe response",
+            );
+        let mut describe_names: Vec<String> = alerts_table
+            .columns
+            .iter()
+            .map(|d| d.name.clone())
+            .collect();
+        describe_names.sort();
+
+        // ADR-058 §I7 invariant: sorted name sets must be byte-equal.
+        assert_eq!(
+            describe_names, helper_names,
+            "RG-Q-015 (ADR-058 §I7 shape-exception binding — prism-mcp): \
+             build_ocsf_column_descriptors name-set MUST agree with \
+             ocsf_projected_column_names(table, true) when sorted. \
+             Drift means the LLM agent receives a column list that differs from what \
+             DataFusion will actually expose in queries. \
+             describe_names (build_ocsf_column_descriptors): {:?}. \
+             helper_names (ocsf_projected_column_names): {:?}.",
+            describe_names, helper_names
+        );
+    }
 }

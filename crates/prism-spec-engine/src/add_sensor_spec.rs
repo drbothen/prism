@@ -810,6 +810,32 @@ steps = []
             "RG-Q-013: error must name the duplicate arrow name 'finding_uid'; \
              got: {all_error_text}"
         );
+
+        // ── M1 (POL-24 verbatim template) ────────────────────────────────────────
+        // error-taxonomy.md v2.79 E-SPEC-030 §J4 template (b):
+        //   `E-SPEC-030 [§J4] sensor=<id> table=<tbl>: columns "<col_a>" and "<col_b>" both flatten to "<arrow_name>"`
+        //
+        // Current code inserts `(ocsf_field="...")` clauses after each column name,
+        // producing:
+        //   `... columns "col_a" (ocsf_field="finding.uid") and "col_b" (ocsf_field="finding_uid") both flatten to ...`
+        //
+        // Both assertions below FAIL against the current code (RED gate for M1).
+        assert!(
+            !all_error_text.contains("(ocsf_field="),
+            "RG-Q-013 (M1 verbatim-template): §J4 error message MUST NOT contain \
+             '(ocsf_field=...' clauses — error-taxonomy.md E-SPEC-030 §J4 template is \
+             `columns \"<col_a>\" and \"<col_b>\" both flatten to \"<arrow_name>\"` with \
+             no ocsf_field annotation. Current code inserts these extra clauses. \
+             Got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains(r#"columns "col_a" and "col_b" both flatten to "finding_uid""#),
+            "RG-Q-013 (M1 verbatim-template): §J4 error message MUST match the \
+             error-taxonomy.md template shape \
+             `columns \"col_a\" and \"col_b\" both flatten to \"finding_uid\"` verbatim. \
+             Current code inserts '(ocsf_field=...)' between the column names, breaking \
+             the verbatim match. Got: {all_error_text}"
+        );
     }
 
     /// RG-Q-014 — E-SPEC-030 §J1: shadow collision (Tier-1 arrow name ↔ Tier-2 col.name) must
@@ -894,6 +920,119 @@ steps = []
         assert!(
             all_error_text.contains("device_info"),
             "RG-Q-014: error must name the shadow arrow name 'device_info'; \
+             got: {all_error_text}"
+        );
+    }
+
+    /// RG-Q-016 — E-SPEC-030 §J1: Tier-1-vs-Tier-1 shadow must be rejected at spec-load.
+    ///
+    /// BC-2.16.003 §J1 shadow condition requires comparison against ANY other column
+    /// (`col.name`) in the same table, Tier-1 OR Tier-2. Current
+    /// `validate_ocsf_column_collisions` only iterates `tier2_names` (columns with
+    /// `ocsf_field.is_none()`), missing the Tier-1-vs-Tier-1 case where a Tier-1
+    /// column's flattened arrow name equals a DIFFERENT Tier-1 column's raw `col.name`.
+    ///
+    /// Canonical fixture:
+    ///
+    ///   Col `device_category`: `ocsf_field = "device.type"`
+    ///     → `ocsf_field_to_arrow_name("device.type")` = `"device_type"` (Tier-1 arrow name)
+    ///
+    ///   Col `device_type`:     `ocsf_field = "device.type_name"`
+    ///     → `ocsf_field_to_arrow_name("device.type_name")` = `"device_type_name"` (Tier-1 arrow name)
+    ///     → raw `col.name` = `"device_type"`
+    ///
+    /// Col `device_category`'s arrow name `"device_type"` equals col `device_type`'s raw
+    /// `col.name` `"device_type"` → §J1 shadow between two Tier-1 columns.
+    ///
+    /// # Red Gate failure (pre-fix)
+    ///
+    /// `validate_ocsf_column_collisions` checks only `tier2_names` (columns with
+    /// `ocsf_field.is_none()`). Col `device_type` has `ocsf_field = Some(...)` → Tier-1 →
+    /// absent from `tier2_names` → §J1 loop never fires →
+    /// `parse_and_validate_spec_toml` returns `Ok(spec)` →
+    /// `result.is_err()` assertion fails → RED.
+    ///
+    /// # Post-fix expected behaviour
+    ///
+    /// `validate_ocsf_column_collisions` checks ALL other columns' `col.name` (not just
+    /// Tier-2). Shadow detected → `parse_and_validate_spec_toml` returns `Err` containing
+    /// `E-SPEC-030 [§J1]` naming `"device_type"`.
+    ///
+    /// BC: BC-2.16.003 §J1 / error-taxonomy.md E-SPEC-030 template (c).
+    #[test]
+    fn test_BC_2_16_003_ocsf_collision_j1_shadow_tier1_vs_tier1_rejected_at_spec_load() {
+        let collision_j1_t1t1_toml = r#"
+sensor_id = "collision-j1-t1t1"
+name = "Collision Test J1 Tier1-vs-Tier1"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "device_category"
+  column_type = "string"
+  ocsf_field = "device.type"
+
+  [[tables.columns]]
+  name = "device_type"
+  column_type = "string"
+  ocsf_field = "device.type_name"
+"#;
+        // Col "device_category": ocsf_field="device.type"
+        //   → ocsf_field_to_arrow_name → "device_type"  (Tier-1 arrow name)
+        // Col "device_type":     ocsf_field="device.type_name"
+        //   → ocsf_field_to_arrow_name → "device_type_name"  (Tier-1 arrow name)
+        //   → raw col.name = "device_type"
+        //
+        // "device_category" arrow name "device_type" == "device_type" raw col.name → §J1 shadow.
+        // Both columns are Tier-1 (have ocsf_field). Current code only checks tier2_names
+        // (columns with ocsf_field.is_none()) — "device_type" is Tier-1, absent from
+        // tier2_names → §J1 loop never fires → current code misses this shadow.
+
+        let result = parse_and_validate_spec_toml(collision_j1_t1t1_toml, "<test-j1-t1t1>");
+
+        // Primary RED gate assertion.
+        // Pre-fix: returns Ok (validate_ocsf_column_collisions only iterates tier2_names;
+        // col "device_type" is Tier-1 and absent from tier2_names → §J1 loop does not fire)
+        // → result.is_err() assertion fails → RED.
+        assert!(
+            result.is_err(),
+            "RG-Q-016 (BC-2.16.003 §J1): spec where Tier-1 arrow name 'device_type' \
+             (ocsf_field_to_arrow_name(\"device.type\")) shadows ANOTHER Tier-1 column's \
+             raw col.name 'device_type' (col 'device_type', ocsf_field=\"device.type_name\") \
+             MUST be rejected with E-SPEC-030 [§J1]. \
+             Pre-fix: returns Ok because validate_ocsf_column_collisions checks tier2_names \
+             only — col 'device_type' is Tier-1 (ocsf_field is Some), so it is absent from \
+             tier2_names and the §J1 loop never fires. Got Ok: {:?}",
+            result.ok()
+        );
+
+        // Post-fix assertions: verify §J1 sub-case with correct identifiers.
+        let errs = result.unwrap_err();
+        let all_error_text = errs
+            .iter()
+            .flat_map(|ve| ve.errors.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+        assert!(
+            all_error_text.contains("E-SPEC-030"),
+            "RG-Q-016: error must contain error code 'E-SPEC-030'; got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("J1") || all_error_text.contains("§J1"),
+            "RG-Q-016: error must identify the §J1 sub-case (shadow); got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("device_type"),
+            "RG-Q-016: error must name the shadowed name 'device_type'; \
              got: {all_error_text}"
         );
     }
