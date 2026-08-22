@@ -37,6 +37,51 @@ use serde_json::Value;
 
 use crate::spec_parser::{ColumnSpec, TableSpec};
 
+/// Compute the OCSF-projected column names that a table will expose in its Arrow schema.
+///
+/// When `ocsf_column_naming` is `true`:
+///   - Tier-1 columns (`ocsf_field == Some`) → `ocsf_field_to_arrow_name(ocsf_field)`
+///   - Tier-2 columns (`ocsf_field == None`) → aggregated into `"raw_extensions"` (if any)
+///   - Synthesized pseudo-columns: `"class_uid"` (Integer) and `"_sensor"` (String), always
+///
+/// When `ocsf_column_naming` is `false`, returns raw `col.name` values unchanged.
+///
+/// This helper is the **canonical source of truth** for the projected column-name set,
+/// so that `TableRegistry::register_sensor` and `check_column_availability` stay in sync
+/// without duplicating the projection logic.
+///
+/// # Red Gate stub (RG-Q-015)
+///
+/// The function body is `todo!()` — implementer replaces it (ADR-058 LOW-1/OBS-1 fix,
+/// S-ADR058-OCSF-ROUTING-001 AC-L-1). The `todo!()` panic causes
+/// `test_ocsf_projected_names_all_surfaces_agree` to FAIL (RED) until the real logic lands.
+///
+/// Canonical home per ADR-058 §I1.
+#[allow(clippy::todo)]
+pub fn ocsf_projected_column_names(_tbl: &TableSpec, _ocsf_column_naming: bool) -> Vec<String> {
+    todo!("ocsf_projected_column_names: implement per ADR-058 §J5 — RG-Q-015 red gate stub")
+}
+
+/// Compute the OCSF-projected column type map for a table's Arrow schema.
+///
+/// Companion to `ocsf_projected_column_names`. Returns a `{arrow_name → ColumnType}` map for
+/// all projected columns, including the synthesized `"class_uid"` (Integer) and
+/// `"_sensor"` (String) pseudo-columns.
+///
+/// # Red Gate stub (RG-Q-015)
+///
+/// The function body is `todo!()` — implementer replaces it alongside
+/// `ocsf_projected_column_names` (ADR-058 LOW-1/OBS-1 fix).
+///
+/// Canonical home per ADR-058 §I1.
+#[allow(clippy::todo)]
+pub fn ocsf_projected_column_types(
+    _tbl: &TableSpec,
+    _ocsf_column_naming: bool,
+) -> std::collections::HashMap<String, ColumnType> {
+    todo!("ocsf_projected_column_types: implement per ADR-058 §J5 — RG-Q-015 red gate stub")
+}
+
 /// Result of mapping a single raw record to OCSF fields.
 #[derive(Debug, Clone)]
 pub struct MappingResult {

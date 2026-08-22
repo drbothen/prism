@@ -523,4 +523,262 @@ mod tests {
             );
         }
     }
+
+    // ── RG-Q-012 / RG-Q-013 / RG-Q-014 — OCSF collision validation (Rule 8) ──
+    //
+    // These three tests exercise BC-2.16.003 §J1/§J2/§J4 (E-SPEC-030 sub-cases).
+    // Rule 8 (`validate_ocsf_column_collisions`) is NOT YET wired into
+    // `parse_and_validate_spec_toml`.  Today all three TOML specs parse as Ok —
+    // the `is_err()` assertion fails → RED gate holds per BC-5.38.001.
+    //
+    // Post-fix: `parse_and_validate_spec_toml` calls `validate_ocsf_column_collisions`
+    // as Rule 8; the collision is detected and a `Vec<ValidationError>` containing
+    // `"E-SPEC-030 [§Jn]"` is returned.
+
+    /// RG-Q-012 — E-SPEC-030 §J2: reserved-name collision must be rejected at spec-load time.
+    ///
+    /// A column whose `ocsf_field` value flattens to `"class_uid"` (a synthesized
+    /// pseudo-column name) collides with the ADR-058 §G reserved name.
+    ///
+    /// `ocsf_field_to_arrow_name("class.uid")` → `"class_uid"` (reserved).
+    ///
+    /// # Red Gate failure (pre-fix)
+    ///
+    /// Rule 8 is not wired → `parse_and_validate_spec_toml` returns `Ok(spec)` →
+    /// `result.is_err()` assertion fails → RED.
+    ///
+    /// # Post-fix expected behaviour
+    ///
+    /// `parse_and_validate_spec_toml` returns `Err([ValidationError { errors: ["E-SPEC-030
+    /// [§J2] sensor=collision-j2 table=events: ocsf_field \"class.uid\" flattens to reserved
+    /// name \"class_uid\""] }])`.
+    ///
+    /// BC: BC-2.16.003 §J2 / error-taxonomy.md E-SPEC-030 §J2.
+    #[test]
+    fn test_BC_2_16_003_ocsf_collision_j2_reserved_name_rejected_at_spec_load() {
+        let collision_j2_toml = r#"
+sensor_id = "collision-j2"
+name = "Collision Test J2"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "my_class_uid"
+  column_type = "string"
+  ocsf_field = "class.uid"
+"#;
+
+        let result = parse_and_validate_spec_toml(collision_j2_toml, "<test-j2>");
+
+        // Primary RED gate assertion: collision detection must cause Err.
+        // Pre-fix: returns Ok (Rule 8 not wired) → this fails → RED.
+        assert!(
+            result.is_err(),
+            "RG-Q-012 (BC-2.16.003 §J2): spec with ocsf_field \"class.uid\" (flattens to \
+             reserved name \"class_uid\") must be rejected by parse_and_validate_spec_toml \
+             with E-SPEC-030 [§J2]. Pre-fix: returns Ok (Rule 8 not yet wired). \
+             Got Ok: {:?}",
+            result.ok()
+        );
+
+        // Post-fix assertions: verify the error message contains the expected E-SPEC-030 §J2
+        // sub-case with correct sensor, table, field, and arrow name identifiers.
+        let errs = result.unwrap_err();
+        let all_error_text = errs
+            .iter()
+            .flat_map(|ve| ve.errors.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+        assert!(
+            all_error_text.contains("E-SPEC-030"),
+            "RG-Q-012: error must contain error code 'E-SPEC-030'; got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("J2") || all_error_text.contains("§J2"),
+            "RG-Q-012: error must identify the §J2 sub-case (reserved name); got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("class_uid"),
+            "RG-Q-012: error must name the reserved arrow name 'class_uid'; got: {all_error_text}"
+        );
+    }
+
+    /// RG-Q-013 — E-SPEC-030 §J4: intra-table duplicate arrow names must be rejected at spec-load.
+    ///
+    /// Two columns with different `ocsf_field` values that both flatten to the same
+    /// Arrow name constitute a duplicate.
+    ///
+    /// `ocsf_field_to_arrow_name("finding.uid")` → `"finding_uid"`
+    /// `ocsf_field_to_arrow_name("finding_uid")` → `"finding_uid"` (no dots, unchanged)
+    ///
+    /// # Red Gate failure (pre-fix)
+    ///
+    /// Rule 8 not wired → `parse_and_validate_spec_toml` returns `Ok(spec)` →
+    /// `result.is_err()` assertion fails → RED.
+    ///
+    /// # Post-fix expected behaviour
+    ///
+    /// Returns `Err` with E-SPEC-030 §J4, naming both `"col_a"` and `"col_b"` and the
+    /// duplicate arrow name `"finding_uid"`.
+    ///
+    /// BC: BC-2.16.003 §J4 / error-taxonomy.md E-SPEC-030 §J4.
+    #[test]
+    fn test_BC_2_16_003_ocsf_collision_j4_intra_table_duplicate_rejected_at_spec_load() {
+        let collision_j4_toml = r#"
+sensor_id = "collision-j4"
+name = "Collision Test J4"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "col_a"
+  column_type = "string"
+  ocsf_field = "finding.uid"
+
+  [[tables.columns]]
+  name = "col_b"
+  column_type = "string"
+  ocsf_field = "finding_uid"
+"#;
+        // Both "finding.uid" and "finding_uid" flatten to "finding_uid" — §J4 duplicate.
+
+        let result = parse_and_validate_spec_toml(collision_j4_toml, "<test-j4>");
+
+        // Primary RED gate assertion.
+        // Pre-fix: returns Ok (Rule 8 not wired) → this fails → RED.
+        assert!(
+            result.is_err(),
+            "RG-Q-013 (BC-2.16.003 §J4): spec where two columns both flatten to \
+             'finding_uid' (via ocsf_field_to_arrow_name) must be rejected with \
+             E-SPEC-030 [§J4]. Pre-fix: returns Ok (Rule 8 not yet wired). \
+             Got Ok: {:?}",
+            result.ok()
+        );
+
+        // Post-fix assertions: verify the §J4 sub-case with correct identifiers.
+        let errs = result.unwrap_err();
+        let all_error_text = errs
+            .iter()
+            .flat_map(|ve| ve.errors.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+        assert!(
+            all_error_text.contains("E-SPEC-030"),
+            "RG-Q-013: error must contain error code 'E-SPEC-030'; got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("J4") || all_error_text.contains("§J4"),
+            "RG-Q-013: error must identify the §J4 sub-case (intra-table duplicate); \
+             got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("finding_uid"),
+            "RG-Q-013: error must name the duplicate arrow name 'finding_uid'; \
+             got: {all_error_text}"
+        );
+    }
+
+    /// RG-Q-014 — E-SPEC-030 §J1: shadow collision (Tier-1 arrow name ↔ Tier-2 col.name) must
+    /// be rejected at spec-load time.
+    ///
+    /// A Tier-1 column's arrow name shadows a Tier-2 column's raw `col.name`:
+    ///
+    ///   Col A: `name = "raw_device"`, `ocsf_field = "device.info"` →
+    ///          arrow name = `ocsf_field_to_arrow_name("device.info")` = `"device_info"` (Tier-1)
+    ///
+    ///   Col B: `name = "device_info"`, no `ocsf_field` →
+    ///          raw col.name = `"device_info"` (Tier-2, goes to `raw_extensions`)
+    ///
+    /// Col A's arrow name `"device_info"` shadows Col B's raw `col.name` `"device_info"`.
+    ///
+    /// # Red Gate failure (pre-fix)
+    ///
+    /// Rule 8 not wired → returns `Ok` → `is_err()` assertion fails → RED.
+    ///
+    /// # Post-fix expected behaviour
+    ///
+    /// Returns `Err` with E-SPEC-030 §J1, naming the ocsf_field, the flattened arrow name,
+    /// and the shadowed Tier-2 column name.
+    ///
+    /// BC: BC-2.16.003 §J1 / error-taxonomy.md E-SPEC-030 §J1.
+    #[test]
+    fn test_BC_2_16_003_ocsf_collision_j1_shadow_rejected_at_spec_load() {
+        let collision_j1_toml = r#"
+sensor_id = "collision-j1"
+name = "Collision Test J1"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "raw_device"
+  column_type = "string"
+  ocsf_field = "device.info"
+
+  [[tables.columns]]
+  name = "device_info"
+  column_type = "integer"
+"#;
+        // Col A ocsf arrow name "device_info" shadows Col B raw col.name "device_info" — §J1.
+
+        let result = parse_and_validate_spec_toml(collision_j1_toml, "<test-j1>");
+
+        // Primary RED gate assertion.
+        // Pre-fix: returns Ok (Rule 8 not wired) → this fails → RED.
+        assert!(
+            result.is_err(),
+            "RG-Q-014 (BC-2.16.003 §J1): spec where Tier-1 arrow name 'device_info' \
+             (ocsf_field_to_arrow_name(\"device.info\")) shadows Tier-2 col.name 'device_info' \
+             must be rejected with E-SPEC-030 [§J1]. \
+             Pre-fix: returns Ok (Rule 8 not yet wired). Got Ok: {:?}",
+            result.ok()
+        );
+
+        // Post-fix assertions: verify the §J1 sub-case with correct identifiers.
+        let errs = result.unwrap_err();
+        let all_error_text = errs
+            .iter()
+            .flat_map(|ve| ve.errors.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+        assert!(
+            all_error_text.contains("E-SPEC-030"),
+            "RG-Q-014: error must contain error code 'E-SPEC-030'; got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("J1") || all_error_text.contains("§J1"),
+            "RG-Q-014: error must identify the §J1 sub-case (shadow); got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("device_info"),
+            "RG-Q-014: error must name the shadow arrow name 'device_info'; \
+             got: {all_error_text}"
+        );
+    }
 }

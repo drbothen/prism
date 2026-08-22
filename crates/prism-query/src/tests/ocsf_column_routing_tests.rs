@@ -890,3 +890,235 @@ async fn test_BC_2_11_016_RG_Q_009_multitenant_ocsf_pipe_stage() {
         );
     }
 }
+
+// ── Zero-column OCSF fixture helpers ─────────────────────────────────────────
+
+/// Build a `SensorSpec` with `ocsf_column_naming = true` and ZERO TOML columns.
+///
+/// This exercises the §J5 edge case: when no Tier-1 or Tier-2 columns are declared,
+/// the table should still expose the synthesized pseudo-columns `"class_uid"` (Integer)
+/// and `"_sensor"` (String) in the Arrow schema (ADR-058 §G).
+///
+/// The registered table name is `"zerosensor_alerts"` (`{sensor_id}_{table_name}`).
+///
+/// Pre-fix: `register_sensor` skips the OCSF branch entirely for this spec because
+/// `if !table.columns.is_empty()` prevents entry even when `ocsf_column_naming = true`.
+fn make_zero_col_ocsf_spec() -> prism_spec_engine::spec_parser::SensorSpec {
+    use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+    let mut spec = SensorSpec::new(
+        "zerosensor",
+        "Zero Column OCSF Sensor",
+        AuthType::ApiKey,
+        "https://zero.invalid",
+        vec![TableSpec::new_point_in_time(
+            "alerts",
+            "detection_finding",
+            vec![], // ZERO TOML columns — exercises the §J5 synthesized-column-only path
+            vec![],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    spec.ocsf_column_naming = true;
+    spec
+}
+
+/// Build a `QueryEngine` wired with the zero-column OCSF sensor spec.
+///
+/// The registry is pre-populated via `register_sensor` on the zero-col spec.
+/// Used by RG-Q-010 to drive `engine.execute()` with a zero-column OCSF sensor.
+fn make_zero_col_ocsf_engine() -> crate::engine::QueryEngine {
+    use crate::{
+        engine::{QueryEngine, QueryEngineConfig},
+        table_registry::TableRegistry,
+    };
+    let spec = make_zero_col_ocsf_spec();
+    let registry = Arc::new(TableRegistry::new());
+    registry
+        .register_sensor(&spec)
+        .expect("RG-Q-010/011 fixture: zero-col OCSF sensor must register without error");
+
+    QueryEngine::new_with_cache_config(
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(NoopCs),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        crate::cache::CacheConfig::default(),
+    )
+    .with_table_registry(registry)
+}
+
+// ── RG-Q-010 ─────────────────────────────────────────────────────────────────
+
+/// RG-Q-010 — Zero-column OCSF table: `SELECT class_uid FROM zerosensor_alerts` must Ok.
+///
+/// When `ocsf_column_naming = true` and a table has NO TOML columns (§J5 edge case),
+/// the synthesized pseudo-column `"class_uid"` must still be registered in the
+/// `TableRegistry` so that an explicit `SELECT class_uid` passes E-QUERY-038.
+///
+/// # Red Gate failure (pre-fix)
+///
+/// `register_sensor` is guarded by `if !table.columns.is_empty()` which skips the
+/// entire OCSF branch for zero-column tables.  `columns_for_table("zerosensor_alerts")`
+/// returns `[]`, so `check_column_availability` cannot find `"class_uid"` →
+/// `E-QUERY-038 ColumnNotFound` → `result.is_ok()` assertion fails → RED.
+///
+/// # Post-fix expected behaviour
+///
+/// The outer `if !table.columns.is_empty()` guard is removed for the OCSF branch.
+/// Even with zero TOML columns, `"class_uid"` and `"_sensor"` are inserted →
+/// `columns_for_table` returns `["_sensor", "class_uid"]` →
+/// `SELECT class_uid FROM zerosensor_alerts` → Ok.
+///
+/// SAP-3: query enters via `engine.execute()` public surface.
+/// BC: BC-2.11.016 / ADR-058 §G §J5.
+#[tokio::test]
+async fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_accepts_class_uid_and_sensor() {
+    let engine = make_zero_col_ocsf_engine();
+
+    let result = engine
+        .execute(
+            "SELECT class_uid FROM zerosensor_alerts",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "RG-Q-010 (S-ADR058-OCSF-ROUTING-001 §J5): \
+         `SELECT class_uid FROM zerosensor_alerts` must return Ok — \
+         zero-column OCSF table must still register synthesized pseudo-column 'class_uid'. \
+         Pre-fix: E-QUERY-038 ColumnNotFound (if !table.columns.is_empty() guard skips \
+         OCSF branch for zero-col tables, so class_uid is never inserted). \
+         Got Err: {:?}",
+        result.err()
+    );
+}
+
+// ── RG-Q-011 ─────────────────────────────────────────────────────────────────
+
+/// RG-Q-011 — Zero-column OCSF table: registry must surface synthesized columns.
+///
+/// Direct `TableRegistry` assertion (sync test, no engine).  After
+/// `register_sensor` on a zero-column OCSF spec,
+/// `columns_for_table("zerosensor_alerts")` must contain `"class_uid"` and `"_sensor"`.
+///
+/// This is a stronger, more focused assertion than RG-Q-010: it checks the registry state
+/// directly rather than going through the engine's E-QUERY-038 gate.
+///
+/// # Red Gate failure (pre-fix)
+///
+/// `if !table.columns.is_empty()` guard prevents the OCSF branch from running →
+/// no entry is inserted in `columns_by_table` → `columns_for_table` returns `[]` →
+/// both `contains("class_uid")` and `contains("_sensor")` → false → RED.
+///
+/// BC: BC-2.11.016 / ADR-058 §G §J5.
+#[test]
+fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_rejects_raw_col_name() {
+    use crate::table_registry::TableRegistry;
+
+    let spec = make_zero_col_ocsf_spec();
+    let registry = TableRegistry::new();
+    registry
+        .register_sensor(&spec)
+        .expect("RG-Q-011: zero-col OCSF sensor must register without error");
+
+    let cols = registry.columns_for_table("zerosensor_alerts");
+
+    // After the §J5 fix, synthesized pseudo-columns must be present even when no
+    // TOML columns are declared.  Pre-fix: both assertions fail because cols == [].
+    assert!(
+        cols.contains(&"class_uid".to_string()),
+        "RG-Q-011 (S-ADR058-OCSF-ROUTING-001 §J5): zero-col OCSF table \
+         'zerosensor_alerts' must have synthesized pseudo-column 'class_uid' in \
+         TableRegistry after register_sensor; got: {:?} \
+         (pre-fix: if !table.columns.is_empty() guard skips OCSF branch → [] returned)",
+        cols
+    );
+    assert!(
+        cols.contains(&"_sensor".to_string()),
+        "RG-Q-011 (S-ADR058-OCSF-ROUTING-001 §J5): zero-col OCSF table \
+         'zerosensor_alerts' must have synthesized pseudo-column '_sensor' in \
+         TableRegistry; got: {:?}",
+        cols
+    );
+    // Confirm no phantom raw col.names leaked in — zero-col table has no TOML columns,
+    // so the registered set must be ONLY the two synthesized pseudo-columns.
+    // (Pre-fix: cols is empty so this loop body never executes — not a false green.)
+    for col in &cols {
+        assert!(
+            col == "class_uid" || col == "_sensor",
+            "RG-Q-011: zero-col OCSF table should register ONLY synthesized pseudo-columns \
+             ('class_uid', '_sensor'); found unexpected column '{}' in: {:?}",
+            col,
+            cols
+        );
+    }
+}
+
+// ── RG-Q-015 ─────────────────────────────────────────────────────────────────
+
+/// RG-Q-015 — Cross-surface agreement: `TableRegistry::columns_for_table` must equal
+/// `prism_spec_engine::column_mapping::ocsf_projected_column_names`, byte-equal when sorted.
+///
+/// This test exercises the shared-helper contract (ADR-058 LOW-1/OBS-1 fix):
+/// `ocsf_projected_column_names` must return the SAME column set that the
+/// `TableRegistry` registers.  Without this helper, the two surfaces could drift
+/// independently (one updated, the other not), causing silent schema mismatches at runtime.
+///
+/// Uses the Claroty alerts spec (7 TOML columns, `ocsf_column_naming = true`) as a
+/// representative multi-column OCSF sensor — it exercises Tier-1 columns (with
+/// `ocsf_field`), a Tier-2 column (without `ocsf_field`) → `raw_extensions`, and the
+/// two synthesized pseudo-columns `class_uid` + `_sensor`.
+///
+/// # Red Gate failure (pre-fix)
+///
+/// `ocsf_projected_column_names` is a `todo!()` stub → panics at the call site →
+/// nextest captures the panic as a FAILED test → RED.
+///
+/// # Post-fix expected behaviour
+///
+/// Both `registry.columns_for_table("claroty_alerts")` and
+/// `ocsf_projected_column_names(table, true)` return identical sorted sets →
+/// `assert_eq!` passes → GREEN.
+///
+/// BC: ADR-058 §I1 / S-ADR058-OCSF-ROUTING-001 AC-L-1 (shared projection helper).
+#[test]
+fn test_ocsf_projected_names_all_surfaces_agree() {
+    use crate::table_registry::TableRegistry;
+    use prism_spec_engine::column_mapping::ocsf_projected_column_names;
+
+    // Use the Claroty alerts spec: 6 Tier-1 columns + 1 Tier-2 + 2 synthesized.
+    let spec = make_claroty_alerts_spec();
+    let table = spec
+        .tables
+        .first()
+        .expect("RG-Q-015 fixture: claroty alerts spec must have at least one table");
+
+    // Registry path: register_sensor populates columns_by_table.
+    let registry = Arc::new(TableRegistry::new());
+    registry
+        .register_sensor(&spec)
+        .expect("RG-Q-015 fixture: claroty alerts spec must register without error");
+
+    let mut registry_cols = registry.columns_for_table("claroty_alerts");
+    registry_cols.sort();
+
+    // Helper path: ocsf_projected_column_names is a todo!() stub before the fix.
+    // The call below PANICS (todo!()) → test FAILS → RED gate holds.
+    // After the fix: returns the same set as the registry computed above.
+    let mut helper_cols = ocsf_projected_column_names(table, true);
+    helper_cols.sort();
+
+    assert_eq!(
+        registry_cols, helper_cols,
+        "RG-Q-015 (S-ADR058-OCSF-ROUTING-001 ADR-058 LOW-1/OBS-1): \
+         TableRegistry::columns_for_table and ocsf_projected_column_names must return \
+         the same OCSF-projected column set (byte-equal when sorted). \
+         Without this shared helper, the two surfaces can drift independently. \
+         Registry: {:?}. Helper: {:?}.",
+        registry_cols, helper_cols
+    );
+}
