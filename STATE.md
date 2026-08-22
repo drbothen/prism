@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.805"
+version: "8.806"
 producer: state-manager
-timestamp: 2026-08-22T06:47:00Z
+timestamp: 2026-08-22T08:56:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -25,8 +25,8 @@ bc_index_version: "9.50"
 # NOTE: D-2271 — BC-INDEX v9.49→v9.50: BC-2.11.016 v1.27→v1.28 (EC-11-079 query-surface OCSF-resolution contract; holdout-gap closure). Counts UNCHANGED active 253/draft 3/total 269. D-2268 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.878"
-# NOTE: D-2271 — STORY-INDEX v2.877→v2.878: ROUTING-001 v1.49→v1.50 (BC-2.11.016 added; AC-016/017/018; RG-Q-001..007; density 2.00; holdout-gap closure). total_stories 303 UNCHANGED. D-2269 NOTE archived.
+story_index_version: "2.879"
+# NOTE: D-2272 — STORY-INDEX v2.878→v2.879: ROUTING-001 v1.50→v1.51 (RG-Q-008 multi-tenant head green-lock + RG-Q-009 multi-tenant pipe now green; Site E ocsf_or_raw_column_names_for_table; density 2.11). total_stories 303 UNCHANGED. D-2271 NOTE archived.
 arch_index_version: "2.329"
 # NOTE: D-2266 — ARCH-INDEX v2.328→v2.329: LOCAL pass-2 SPEC-SIDE fix-burst (S-ADR058-OCSF-ROUTING-001) — ADR-058 pin v2.27→v2.28 (§J2 within-document contradiction resolved: OCSF mode TWO synthesized columns; category_uid legacy-mode-only). BC-2.16.003 pin v1.22→v1.23. ROUTING-001 v1.47→v1.48. D-2265 NOTE archived.
 # NOTE: D-2265 — ARCH-INDEX v2.327→v2.328: spec-augmentation burst (human decisions 2026-08-21) — ADR-058 pin v2.26→v2.27 (KF-05 revised: audit_logs.id metadata_uid Tier-1; §I6 push-down invariant; §G synthesized-descriptor MUST). BC-2.16.003 v1.21→v1.22. ROUTING-001 v1.46→v1.47. D-2257 NOTE archived.
@@ -41,7 +41,7 @@ workspace_test_count: 5765
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2271 SINGLE-COMMIT BURST (TD-VSDD-053) — query-surface spec-formalization burst COMPLETE (holdout-gap closure). BC-2.11.016 v1.27→v1.28 (EC-11-079 OCSF-name-resolution contract + name-agreement invariant). ROUTING-001 v1.49→v1.50 (BC-2.11.016 added; AC-016/017/018; RG-Q-001..007; density 2.00). Fix A/B/C @61aac7b06 (just check GREEN 5803). SAP-3 gap CLOSED. BC-5.39.001 LOCAL 0/3. NEXT: LOCAL adversarial 3-CLEAN cascade on frozen HEAD 61aac7b06 + holdout re-gate. STATE v8.804→v8.805. trajectory-tail →0→3→2→0."
+current_step: "D-2272 SINGLE-COMMIT BURST (TD-VSDD-053) — re-cascade P1 fix (HIGH-001/MED-002) COMPLETE. Site E (get_initial_available_columns multi-tenant pipe-stage seed) OCSF-aware via shared helper ocsf_or_raw_column_names_for_table in engine.rs. RG-Q-008 (multi-tenant head green-lock) + RG-Q-009 (multi-tenant pipe, was RED, now green) added. Story v1.50→v1.51 (density 2.11). Feature code HEAD 61aac7b06→396af5722; just check GREEN 5805. BC-5.39.001 LOCAL 0/3. STORY-INDEX v2.878→v2.879. NEXT: re-run LOCAL adversarial cascade on frozen HEAD 396af5722, then holdout re-gate. STATE v8.805→v8.806. trajectory-tail →0→3→2→0."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -78,7 +78,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 276 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -76 | margin from actual: 224 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 278 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -78 | margin from actual: 222 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -91,7 +91,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-22 D-2271 SINGLE-COMMIT BURST (TD-VSDD-053) — query-surface spec-formalization burst COMPLETE (holdout-gap closure). BC-2.11.016 v1.27→v1.28 (EC-11-079 OCSF-name-resolution contract + name-agreement invariant). ROUTING-001 v1.49→v1.50 (BC-2.11.016 added; AC-016/017/018; RG-Q-001..007; density 2.00). Fix A/B/C @61aac7b06 (just check GREEN). SAP-3 gap CLOSED. BC-5.39.001 LOCAL 0/3. STATE v8.804→v8.805. trajectory-tail →0→3→2→0. |
+| **Last Updated** | 2026-08-22 D-2272 SINGLE-COMMIT BURST (TD-VSDD-053) — re-cascade P1 fix (HIGH-001/MED-002) COMPLETE. Site E (get_initial_available_columns multi-tenant pipe-stage seed) OCSF-aware via shared helper ocsf_or_raw_column_names_for_table. RG-Q-008 + RG-Q-009 added. ROUTING-001 v1.50→v1.51 (density 2.11). Feature code @61aac7b06→396af5722; just check GREEN 5805. BC-5.39.001 LOCAL 0/3. STATE v8.805→v8.806. trajectory-tail →0→3→2→0. |
 
 ## Phase Progress
 
@@ -129,11 +129,11 @@ _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individua
 | Metric | Value |
 |--------|-------|
 | BC-5.39.001 streak | 0/3 — ROUTING-001 LOCAL holdout gate FAIL (D-2270 2026-08-21); BLOCKING per CLAUDE.md story-level holdout gate protocol. 1/4 PASS; 3/4 FAIL (all P0 must-pass); mean satisfaction ~0.58 (gate requires mean ≥0.85 / every critical ≥0.60). Fix cascade in progress; re-gate pending on new code+spec perimeter. |
-| Active cascade | S-ADR058-OCSF-ROUTING-001 LOCAL — D-2271 spec-formalization burst COMPLETE (2026-08-22). Fix A/B/C @61aac7b06 (planning/validation schema OCSF-aware). NEXT: LOCAL adversarial 3-CLEAN cascade on frozen HEAD 61aac7b06 + holdout re-gate (fresh HS-022 scenarios). |
+| Active cascade | S-ADR058-OCSF-ROUTING-001 LOCAL — D-2272 re-cascade P1 fix (HIGH-001/MED-002) COMPLETE (2026-08-22). Site E (get_initial_available_columns) OCSF-aware via ocsf_or_raw_column_names_for_table; RG-Q-008/009 added; code @396af5722 (just check GREEN 5805). NEXT: re-run LOCAL adversarial 3-CLEAN cascade on frozen HEAD 396af5722, then holdout re-gate (fresh HS-022 scenarios). |
 | Pass count | ROUTING-001 LOCAL: 8 recorded passes (pass-1 CLEAN(strict) streak 1/3; pass-2 3 spec-side findings; pass-3 2 code+catalog findings; passes 4-8 complete — D-2269 perimeter corrected). SAP-3 coverage gap exposed by holdout gate. COERCION-001 LOCAL: 4 passes. SPEC cascade: 69 passes. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
 | Last CLEAN(strict) | ROUTING-001 LOCAL pass-1 (2026-08-21 pre-D-2266). COERCION-001 LOCAL: none (human admin override). SPEC cascade: pass-68. |
 | Finding trajectory | ROUTING-001 LOCAL →0→3→2→0 (p1=0/CLEAN, p2=3, p3=2, p4-8=0/records-tier; holdout FAIL is separate gate). COERCION-001 LOCAL →1→2→2→3 (all fixed). Prior SPEC cascade tail: →1→1→0→1. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Frozen perimeter | ADR-058 v2.28 / BC-2.16.002 v2.33 / BC-2.16.003 v1.23 (active) / BC-2.11.016 v1.28 / ROUTING-001 v1.50 / COERCION-001 v1.47 (merged) — code @61aac7b06 / ARCH-INDEX v2.329 / BC-INDEX v9.50 / STORY-INDEX v2.878 |
+| Frozen perimeter | ADR-058 v2.28 / BC-2.16.002 v2.33 / BC-2.16.003 v1.23 (active) / BC-2.11.016 v1.28 / ROUTING-001 v1.51 / COERCION-001 v1.47 (merged) — code @396af5722 / ARCH-INDEX v2.329 / BC-INDEX v9.50 / STORY-INDEX v2.879 |
 
 ## Concurrent Cycles
 
@@ -154,6 +154,7 @@ _No concurrent cycles in progress. Current cycle: wave-5-e-demo-fidelity._
 | D-2269 | state-manager | 2026-08-21 | SINGLE-COMMIT BURST (TD-VSDD-053; TD-VSDD-096) — records-tier comprehensive pin-consistency sweep COMPLETE (LOCAL pass-8 OBS-1 + straggler ADR-058 v2.26 refs). ROUTING-001 v1.48→v1.49 (6 current-context pins normalized to authoritative BC-2.16.002 v2.33 / ADR-058 v2.28); historical/sibling refs preserved; zero remaining stale current-context pins. FROZEN CODE HEAD dad86a1dc UNCHANGED (no code change). BC-5.39.001 strict streak RESET 0/3 (perimeter changed by story pin sweep); pass-9 re-gate pending on corrected perimeter. story_index_version→2.877. BC-INDEX/ARCH-INDEX UNCHANGED. STATE v8.802→v8.803. |
 | D-2270 | state-manager | 2026-08-21 | SINGLE-COMMIT BURST (TD-VSDD-053) — ROUTING-001 story-level holdout gate FAIL recorded (BLOCKING). 1/4 PASS (prism_describe/raw_extensions Tier-2 scenario); 3/4 FAIL (all P0 must-pass). Mean satisfaction ~0.58 (gate requires mean ≥0.85 / every critical ≥0.60). SPLIT-BRAIN (OBSERVED): query-engine column-resolution/validation schema still uses raw TOML col names → E-QUERY-038 on explicit projection/WHERE by OCSF-flattened name; execution Arrow RecordBatch + prism_describe report OCSF names correctly. SAP-3 coverage gap: 11 adversary passes + 5796 unit tests missed it (RGs asserted SELECT*/RecordBatch/describe only, never explicit projection end-to-end from MCP surface). BC-5.39.001 LOCAL 3-CLEAN RESET 0/3 (BLOCKING per CLAUDE.md holdout gate protocol). Frozen code HEAD dad86a1dc UNCHANGED. 3 consumed HS-022 scenarios FAILED and marked used; feedback routed observed-behavior-only (contamination control preserved). Fix cascade in progress. sidecar-learning.md folded. STATE v8.803→v8.804. |
 | D-2271 | state-manager | 2026-08-22 | SINGLE-COMMIT BURST (TD-VSDD-053) — query-surface spec-formalization burst COMPLETE (holdout-gap closure). BC-2.11.016 v1.27→v1.28 (EC-11-079 OCSF-name-resolution contract + name-agreement invariant). ROUTING-001 v1.49→v1.50 (BC-2.11.016 added; AC-016/017/018; RG-Q-001..007; density 2.00). Fix A/B/C @61aac7b06 (just check GREEN 5803). SAP-3 gap CLOSED. BC-5.39.001 LOCAL 0/3. records-lint exit 0. STATE v8.804→v8.805. trajectory-tail →0→3→2→0. |
+| D-2272 | state-manager | 2026-08-22 | SINGLE-COMMIT BURST (TD-VSDD-053) — re-cascade P1 fix (HIGH-001/MED-002) COMPLETE. Site E (get_initial_available_columns multi-tenant pipe-stage seed) OCSF-aware via shared helper ocsf_or_raw_column_names_for_table in engine.rs. RG-Q-008 (multi-tenant head green-lock) + RG-Q-009 (multi-tenant pipe, was RED, now green) added. ROUTING-001 v1.50→v1.51 (density 2.11). Feature code HEAD @61aac7b06→396af5722; just check GREEN 5805/5805. TD-VSDD-060 5-site sweep COMPLETE. BC-5.39.001 LOCAL 0/3. STORY-INDEX v2.878→v2.879. records-lint exit 0. STATE v8.805→v8.806. trajectory-tail →0→3→2→0. |
 
 ## Decisions Log
 
@@ -233,6 +234,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | D-2269 | state-manager | 2026-08-21 | **SINGLE-COMMIT BURST (TD-VSDD-053) — records-tier comprehensive pin-consistency sweep COMPLETE (LOCAL pass-8 OBS-1 + straggler ADR-058 v2.26 refs). Story v1.48→v1.49; 6 current-context pins normalized to authoritative (BC-2.16.002 v2.33 / ADR-058 v2.28); historical/sibling refs preserved; zero remaining stale current-context pins. FROZEN CODE HEAD dad86a1dc UNCHANGED (no code change). BC-5.39.001 strict streak RESET 0/3 (perimeter changed by story pin sweep); pass-9 re-gate pending on corrected perimeter. story_index_version→2.877. BC-INDEX/ARCH-INDEX UNCHANGED; contract counts/workspace_test_count/develop_head UNCHANGED. TD-VSDD-097 THREE-DIMENSION VERDICTS: Dim-1 (sibling) CLEAR (records-only, no content-mechanism change); Dim-2 (downstream) CLEAR (historical refs and COERCION-001 sibling refs preserved; no copy-source sections modified); Dim-3 (mandate) CLEAR (no new MUSTs). records-lint exit 0. STATE v8.802→v8.803.** | wave-5-e-demo-fidelity | 2026-08-21 |
 | D-2270 | state-manager | 2026-08-21 | **SINGLE-COMMIT BURST (TD-VSDD-053) — S-ADR058-OCSF-ROUTING-001 story-level holdout gate FAIL recorded (BLOCKING per CLAUDE.md holdout gate protocol). Holdout evaluation result: 1/4 scenarios PASS (prism_describe/raw_extensions Tier-2 scenario); 3/4 FAIL (all P0 must-pass scenarios). Mean satisfaction ~0.58 (gate requires mean ≥0.85 AND every critical ≥0.60). ROOT CAUSE (OBSERVED BEHAVIOR ONLY): SPLIT-BRAIN between query-engine column-resolution/validation schema (still raw TOML column names → E-QUERY-038 "column not found" on explicit OCSF-name projection or WHERE-filter) and execution Arrow RecordBatch + prism_describe (correctly report OCSF-flattened names). Under ocsf_column_naming=true: SELECT * works; SELECT explicit_ocsf_name and WHERE explicit_ocsf_name fail. SAP-3 coverage gap: 11 adversary passes + 5796 unit tests missed it — RGs asserted SELECT*/RecordBatch/describe only, never explicit projection end-to-end from MCP surface (wire-level). BC-5.39.001 LOCAL 3-CLEAN RESET 0/3 (holdout gate is BLOCKING; failure resets streak). Frozen code HEAD dad86a1dc UNCHANGED. 3 consumed HS-022 scenarios FAILED and marked used; feedback routed observed-behavior-only (contamination control preserved — hidden scenario text NOT disclosed to fixers). Fix cascade in progress: architect scoping query-engine planning-vs-execution schema alignment → spec AC/EC (query-surface OCSF-resolution contract) → new RGs (explicit projection + WHERE by OCSF name, end-to-end MCP stdio wire-level assertions) → implementer → LOCAL 3-CLEAN re-cascade → holdout re-gate (fresh scenarios). Re-gate scenario provenance deferred to holdout-evaluator at gate time. BC-INDEX/ARCH-INDEX/STORY-INDEX/contract counts/workspace_test_count/develop_head ALL UNCHANGED. sidecar-learning.md folded. TD-VSDD-097: Dim-1 CLEAR (decision/record only); Dim-2 CLEAR (no copy-source modified); Dim-3 CLEAR (no new MUSTs). records-lint exit 0. STATE v8.803→v8.804.** | wave-5-e-demo-fidelity | 2026-08-21 |
 | D-2271 | state-manager | 2026-08-22 | **SINGLE-COMMIT BURST (TD-VSDD-053) — query-surface spec-formalization burst COMPLETE (holdout-gap closure). BC-2.11.016 v1.27→v1.28 (EC-11-079 query-surface OCSF-name-resolution contract + name-agreement invariant; anchored RG-Q-001..007; SAP-3 gap closure). ROUTING-001 v1.49→v1.50 (BC-2.11.016 added to behavioral_contracts + body table; AC-016/017/018 NEW; RG-Q-001..007 enumerated; density 36/18=2.00; §File Structure adds table_registry.rs/engine.rs/tests/ocsf_column_routing_tests.rs). BC-INDEX v9.49→v9.50; STORY-INDEX v2.877→v2.878. ARCH-INDEX UNCHANGED. Contract counts UNCHANGED (BC-2.11.016 already active). workspace_test_count UNCHANGED on develop. develop_head UNCHANGED. TD-VSDD-097 THREE-DIMENSION VERDICTS: Dim-1 (sibling) CLEAR (BC-2.11.016 has no paired sibling BC; ROUTING-001 is the sole anchor story and was updated); Dim-2 (downstream) CLEAR (BC-2.11.016 §Postconditions query-surface contract is not a copy-source for any other artifact; no downstream copy target); Dim-3 (mandate) CLEAR (RG-Q-001..007 are anchored to AC-016/017/018 in ROUTING-001; no unanchored MUSTs). records-lint exit 0. trajectory-tail →0→3→2→0. STATE v8.804→v8.805.** | wave-5-e-demo-fidelity | 2026-08-22 |
+| D-2272 | state-manager | 2026-08-22 | **SINGLE-COMMIT BURST (TD-VSDD-053) — re-cascade P1 fix (HIGH-001/MED-002) COMPLETE. Site E (get_initial_available_columns multi-tenant pipe-stage seed) made OCSF-aware via NEW shared helper ocsf_or_raw_column_names_for_table in engine.rs (single source of truth; check_column_availability Fix-B de-duped to call it). RG-Q-008 (multi-tenant head green-lock) + RG-Q-009 (multi-tenant pipe, was RED, now green) added. Story v1.50→v1.51 (density 2.11). Feature code HEAD 61aac7b06→396af5722; just check GREEN 5805/5805. TD-VSDD-060 5-site sweep complete (A table_registry.register_sensor / B,C,E engine.rs / D materialization.rs=test-only). BC-5.39.001 LOCAL streak 0/3; NEXT: re-run LOCAL adversarial cascade on frozen HEAD 396af5722, then holdout re-gate. STORY-INDEX v2.878→v2.879. BC-INDEX/ARCH-INDEX UNCHANGED; contract counts/workspace_test_count(develop)/develop_head UNCHANGED. TD-VSDD-097 THREE-DIMENSION VERDICTS: Dim-1 (sibling) CLEAR (ROUTING-001 story is sole anchor; updated); Dim-2 (downstream) CLEAR (RG-Q-008/009 not a copy-source for other artifacts); Dim-3 (mandate) CLEAR (all anchored RGs). records-lint exit 0. STATE v8.805→v8.806. trajectory-tail →0→3→2→0.** | wave-5-e-demo-fidelity | 2026-08-22 |
 
 ## Skip Log
 
@@ -253,24 +255,24 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · convergence-trajectory.md · decisions-archive-D1789-D2199.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · decisions-archive-D1124-D1138.md · decisions-archive-D1165-D1352.md · drift-items-resolved.md · drift-items-open.md · drift-items-deferred.md · blocking-issues-resolved.md · phase-5-deferred-findings.md · frontmatter-cascade-archive.md · session-handoff-archive.md · lessons.md · session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
-## Session Resume Checkpoint (D-2271 — 2026-08-22 — ROUTING-001 spec-formalization burst; STATE v8.804→v8.805) [supersedes D-2270]
+## Session Resume Checkpoint (D-2272 — 2026-08-22 — ROUTING-001 re-cascade P1 fix; STATE v8.805→v8.806) [supersedes D-2271]
 
 ### RESUME IN ONE BREATH
-Prism Phase-3. D-2271 query-surface spec-formalization burst COMPLETE (2026-08-22): BC-2.11.016 v1.28 (EC-11-079 OCSF-name-resolution contract); ROUTING-001 v1.50 (BC-2.11.016 added; AC-016/017/018; RG-Q-001..007; density 2.00). Fix A/B/C @61aac7b06 (planning/validation schema OCSF-aware; just check GREEN 5803/5803). SAP-3 gap CLOSED. BC-5.39.001 LOCAL 0/3. NEXT: LOCAL adversarial 3-CLEAN cascade on frozen HEAD 61aac7b06 + holdout re-gate (fresh HS-022 scenarios).
+Prism Phase-3. D-2272 re-cascade P1 fix (HIGH-001/MED-002) COMPLETE (2026-08-22): Site E (get_initial_available_columns multi-tenant pipe-stage seed) OCSF-aware via shared helper ocsf_or_raw_column_names_for_table; RG-Q-008 (multi-tenant head green-lock) + RG-Q-009 (multi-tenant pipe, was RED, now GREEN); ROUTING-001 v1.51 (density 2.11); feature code @396af5722; just check GREEN 5805/5805. BC-5.39.001 LOCAL 0/3. NEXT: re-run LOCAL adversarial 3-CLEAN cascade on frozen HEAD 396af5722, then holdout re-gate (fresh HS-022 scenarios).
 
-**RESUME NEXT-ACTION:** Run LOCAL adversarial 3-CLEAN cascade (adversary) on frozen feature code HEAD 61aac7b06 against updated perimeter (BC-2.11.016 v1.28 / ROUTING-001 v1.50). After 3-CLEAN: re-run story holdout gate (fresh HS-022 scenarios, NOT consumed ones).
+**RESUME NEXT-ACTION:** Run LOCAL adversarial 3-CLEAN cascade (adversary) on frozen feature code HEAD 396af5722 against updated perimeter (BC-2.11.016 v1.28 / ROUTING-001 v1.51). After 3-CLEAN: re-run story holdout gate (fresh HS-022 scenarios, NOT consumed ones — 3 consumed scenarios marked used; new scenarios from holdout-evaluator).
 
-**SPEC PERIMETER (FROZEN):** code @61aac7b06 / ADR-058 v2.28 / BC-2.16.002 v2.33 / BC-2.16.003 v1.23 / BC-2.11.016 v1.28 / ROUTING-001 v1.50 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.329 / BC-INDEX v9.50 / STORY-INDEX v2.878. Contract counts active 253 / draft 3 / total 269. total_stories 303.
+**SPEC PERIMETER (FROZEN):** code @396af5722 / ADR-058 v2.28 / BC-2.16.002 v2.33 / BC-2.16.003 v1.23 / BC-2.11.016 v1.28 / ROUTING-001 v1.51 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.329 / BC-INDEX v9.50 / STORY-INDEX v2.879. Contract counts active 253 / draft 3 / total 269. total_stories 303.
 
 **HEADS:**
 - `develop`: `362e4f85` (LOCAL == origin/develop; PR #241 + PR #240 both merged 2026-08-20; no open PRs)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2271 burst commit)
-- `feature/S-ADR058-OCSF-ROUTING-001`: code HEAD @61aac7b06 (Fix A/B/C committed; LOCAL-ONLY AT RISK — not yet pushed)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this D-2272 burst commit)
+- `feature/S-ADR058-OCSF-ROUTING-001`: code HEAD @396af5722 (Fix D/E committed; LOCAL-ONLY AT RISK — not yet pushed)
 - `.worktrees/S-3.09` @`43c41389d` [feature/S-3.09] KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` [feature/W3-FIX-S307-001] PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, 1 dirty test file)
 
 **GOVERNING DECISION (alongside D-2109):** DTU work DEFERRED to POST-FIRST-RELEASE per human decision 2026-08-16.
 
-**BACKUP BOUNDARY (D-2271):**
-- PUSHED / safe: `origin/develop` `362e4f85` (PR #241 merged 2026-08-20; PR #240 merged 2026-08-20); `factory-artifacts` (this D-2271 burst commit, after push).
-- LOCAL-ONLY AT RISK: feature/S-ADR058-OCSF-ROUTING-001 code @61aac7b06 (not yet pushed); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
+**BACKUP BOUNDARY (D-2272):**
+- PUSHED / safe: `origin/develop` `362e4f85` (PR #241 merged 2026-08-20; PR #240 merged 2026-08-20); `factory-artifacts` (this D-2272 burst commit, after push).
+- LOCAL-ONLY AT RISK: feature/S-ADR058-OCSF-ROUTING-001 code @396af5722 (not yet pushed); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
