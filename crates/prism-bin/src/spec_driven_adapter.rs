@@ -1029,8 +1029,10 @@ fn pipeline_result_to_record_batch(
         if !tier2_cols.is_empty() {
             fields.push(Field::new("raw_extensions", DataType::Utf8, true));
         }
-        fields.push(Field::new("class_uid", DataType::Int32, true));
-        fields.push(Field::new("_sensor", DataType::Utf8, true));
+        // OBS-1: class_uid and _sensor are always-Some synthesized columns (nullable=false).
+        // Matches the prism_describe ColumnDescriptor nullable=false contract (AC-015/OQ-003).
+        fields.push(Field::new("class_uid", DataType::Int32, false));
+        fields.push(Field::new("_sensor", DataType::Utf8, false));
         let schema = Arc::new(Schema::new(fields));
 
         // Build arrays for Tier-1 columns (same data extraction as flag-false path).
@@ -1058,10 +1060,17 @@ fn pipeline_result_to_record_batch(
                             match extract_at_path(record, path) {
                                 Ok(v) => Some(v),
                                 Err(e) => {
+                                    // F-P3-MED-1 / SAP-1: tag with catalogued event_type so
+                                    // audit tooling can correlate this path with the
+                                    // build_column_array extract_raw path (same event, same
+                                    // field schema: column, source_path, error).
+                                    // BC-2.16.002 catalog row updated by product-owner
+                                    // (3rd emission site for column_source_path_extraction_failed).
                                     tracing::warn!(
                                         column = %col.name,
                                         source_path = %path,
                                         error = %e,
+                                        event_type = "column_source_path_extraction_failed",
                                         "raw_extensions: source_path extraction failed; \
                                          column skipped"
                                     );
@@ -5799,6 +5808,206 @@ ocsf_column_naming = true
             net_str, r#"["office-net","vpn"]"#,
             "AC-007c (RG-026/C): network_list compact JSON-list string must be \
              '[\"office-net\",\"vpn\"]'; got: {net_str:?}"
+        );
+    }
+
+    /// F-P3-MED-1 / BC-2.16.003 EC-016-013-028 / SAP-1 catalog-parity:
+    ///
+    /// When a Tier-2 column's `source_path` extraction fails in the raw_extensions
+    /// aggregation loop (OCSF branch of `pipeline_result_to_record_batch`), the
+    /// warn emission MUST carry `event_type = "column_source_path_extraction_failed"`
+    /// with schema `{column, source_path, error}` — matching the `build_column_array`
+    /// `extract_raw` path.
+    ///
+    /// **Red gate:** current raw_extensions warn has no `event_type` field. The
+    /// WarnCapture below only collects events WITH `event_type`, so the captured
+    /// list stays empty → `assert!(!captured.is_empty())` FAILS before the fix.
+    /// After adding `event_type = "column_source_path_extraction_failed"`, the event
+    /// is captured and all assertions pass.
+    ///
+    /// This is a focused in-process unit test per SID-1 (no external dep, no #[ignore]).
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_raw_extensions_source_path_failure_emits_tagged_event_type() {
+        use std::sync::Mutex;
+        use tracing_subscriber::layer::SubscriberExt;
+
+        // ── WarnCapture: capture events bearing event_type + column + source_path ────────
+
+        #[derive(Default, Clone, Debug)]
+        struct WarnEvent {
+            event_type: Option<String>,
+            column: Option<String>,
+            source_path: Option<String>,
+            error: Option<String>,
+        }
+
+        #[derive(Default)]
+        struct WarnFieldVisitor {
+            event: WarnEvent,
+        }
+
+        impl tracing::field::Visit for WarnFieldVisitor {
+            fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
+                match field.name() {
+                    "event_type" => self.event.event_type = Some(val.to_owned()),
+                    _ => {}
+                }
+            }
+            fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+                let s = format!("{value:?}");
+                match field.name() {
+                    "event_type" => {
+                        if self.event.event_type.is_none() {
+                            self.event.event_type = Some(s);
+                        }
+                    }
+                    "column" => {
+                        if self.event.column.is_none() {
+                            self.event.column = Some(s);
+                        }
+                    }
+                    "source_path" => {
+                        if self.event.source_path.is_none() {
+                            self.event.source_path = Some(s);
+                        }
+                    }
+                    "error" => {
+                        if self.event.error.is_none() {
+                            self.event.error = Some(s);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        struct WarnCapture {
+            events: Arc<Mutex<Vec<WarnEvent>>>,
+        }
+
+        impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnCapture {
+            fn on_event(
+                &self,
+                event: &tracing::Event<'_>,
+                _ctx: tracing_subscriber::layer::Context<'_, S>,
+            ) {
+                if *event.metadata().level() == tracing::Level::WARN {
+                    let mut visitor = WarnFieldVisitor::default();
+                    event.record(&mut visitor);
+                    // Only collect events carrying an event_type field (SAP-1 / catalog rows).
+                    if visitor.event.event_type.is_some() {
+                        self.events.lock().unwrap().push(visitor.event);
+                    }
+                }
+            }
+        }
+
+        // ── Setup ─────────────────────────────────────────────────────────────────────
+
+        let sensor_spec = ocsf_sensor_spec();
+
+        // Tier-1 column (has ocsf_field → goes to regular schema, not raw_extensions).
+        let col_uid = ColumnSpec::new(
+            "device_uid",
+            ColumnType::String,
+            Some("device.uid".to_string()),
+            vec![],
+        );
+
+        // Tier-2 column with a source_path that will FAIL for the record below.
+        // Record has no "nonexistent_key" → extract_at_path returns Err → warn fires.
+        let mut col_bad = ColumnSpec::new("bad_col", ColumnType::String, None, vec![]);
+        col_bad.source_path = Some("$.nonexistent_key[*]".to_string());
+
+        let table = TableSpec::new_point_in_time(
+            "devices",
+            "inventory_info",
+            vec![col_uid, col_bad],
+            vec![minimal_fetch_step()],
+        );
+
+        let result = prism_spec_engine::pipeline::PipelineResult::new(
+            vec![serde_json::json!({ "device_uid": "dev-001" })], // no "nonexistent_key"
+            "devices",
+            1,
+            false,
+        );
+
+        // ── Execute under tracing subscriber ─────────────────────────────────────────
+
+        let captured: Arc<Mutex<Vec<WarnEvent>>> = Arc::new(Mutex::new(Vec::new()));
+        let layer = WarnCapture {
+            events: captured.clone(),
+        };
+        let subscriber = tracing_subscriber::registry().with(layer);
+
+        tracing::subscriber::with_default(subscriber, || {
+            super::pipeline_result_to_record_batch(
+                result,
+                &table,
+                "claroty",
+                &std::collections::HashMap::new(),
+                &sensor_spec,
+            )
+            .expect("pipeline_result_to_record_batch must succeed even when source_path fails")
+        });
+
+        // ── Assertions ────────────────────────────────────────────────────────────────
+
+        let warnings = captured.lock().unwrap();
+
+        // (1) F-P3-MED-1 RED GATE: before fix, no event_type in raw_extensions warn →
+        //     WarnCapture ignores it → list is empty → this assertion fails.
+        //     After fix: event_type = "column_source_path_extraction_failed" is present →
+        //     event captured → list non-empty → assertion passes.
+        assert!(
+            !warnings.is_empty(),
+            "F-P3-MED-1: raw_extensions source_path failure MUST emit \
+             event_type=\"column_source_path_extraction_failed\" (SAP-1 catalog parity). \
+             Got 0 tagged WARN events — the warn in the OCSF raw_extensions aggregation \
+             loop must carry event_type like the build_column_array extract_raw path does."
+        );
+
+        // (2) The captured event must be specifically column_source_path_extraction_failed.
+        let ev = &warnings[0];
+        assert_eq!(
+            ev.event_type.as_deref(),
+            Some("column_source_path_extraction_failed"),
+            "F-P3-MED-1: captured event_type must be 'column_source_path_extraction_failed'; \
+             got: {:?}",
+            ev.event_type
+        );
+
+        // (3) The `column` field must be present (= "bad_col").
+        assert!(
+            ev.column.is_some(),
+            "F-P3-MED-1: warn must include `column` field; got None"
+        );
+        assert!(
+            ev.column.as_deref().unwrap().contains("bad_col"),
+            "F-P3-MED-1: `column` field must contain 'bad_col'; got: {:?}",
+            ev.column
+        );
+
+        // (4) The `source_path` field must be present (= "$.nonexistent_key[*]").
+        assert!(
+            ev.source_path.is_some(),
+            "F-P3-MED-1: warn must include `source_path` field; got None"
+        );
+        assert!(
+            ev.source_path
+                .as_deref()
+                .unwrap()
+                .contains("nonexistent_key"),
+            "F-P3-MED-1: `source_path` field must contain 'nonexistent_key'; got: {:?}",
+            ev.source_path
+        );
+
+        // (5) The `error` field must be present (non-empty extract_at_path error msg).
+        assert!(
+            ev.error.is_some(),
+            "F-P3-MED-1: warn must include `error` field; got None"
         );
     }
 
