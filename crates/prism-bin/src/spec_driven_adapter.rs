@@ -911,6 +911,22 @@ fn map_spec_engine_error_to_sensor_error(
 /// OCSF-flattened (`ocsf_field_to_arrow_name`) or kept as `col.name` (existing behavior).
 /// See AC-003 (flag-true path), AC-004 (flag-false path), AC-007 (raw_extensions), AC-012
 /// (parameter threading obligation). RG-024 enforces the signature at compile time.
+///
+/// # ADR-058 §I7 Shape-Exception Site
+///
+/// This function is a **documented shape-exception** under ADR-058 §I7: it cannot fully
+/// delegate to `prism_spec_engine::column_mapping::ocsf_projected_column_names` because it
+/// must build full Arrow `Field` objects with typed schema and populate per-column arrays from
+/// raw JSON — responsibilities the shared helper (which returns only a `Vec<String>` of names)
+/// does not cover. The Arrow schema construction requires types, nullability, and data values
+/// beyond the name set alone.
+///
+/// **Invariant (ADR-058 §I7):** The set of column names in the produced Arrow schema's
+/// `ocsf_column_naming=true` path MUST agree with the name set returned by
+/// `prism_spec_engine::column_mapping::ocsf_projected_column_names(table, true)`.
+/// `test_ocsf_projected_names_all_surfaces_agree` (RG-Q-015, S-ADR058-OCSF-ROUTING-001)
+/// enforces this agreement via `TableRegistry::columns_for_table` — any drift between
+/// this site and the canonical helper will cause that test to fail.
 fn pipeline_result_to_record_batch(
     result: PipelineResult,
     table: &TableSpec,

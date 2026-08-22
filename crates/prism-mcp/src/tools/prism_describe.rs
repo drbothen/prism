@@ -317,6 +317,22 @@ pub async fn handle_prism_describe(
 ///   nullable=false) as the last two entries (OQ-003, AC-015, RG-028).
 ///
 /// ADR-058 §G; BC-2.16.003 EC-016-013-028/029.
+///
+/// # ADR-058 §I7 Shape-Exception Site
+///
+/// This function is a **documented shape-exception** under ADR-058 §I7: it cannot fully
+/// delegate to `prism_spec_engine::column_mapping::ocsf_projected_column_names` because
+/// it must also emit per-column Arrow-descriptor metadata (description text, nullable flag,
+/// column type) that the shared helper does not produce. The shared helper returns only
+/// the *name set*; this function enriches each name with descriptor content.
+///
+/// **Invariant (ADR-058 §I7):** The projected column-name set produced by this function
+/// (i.e., `descriptors.iter().map(|d| d.name.clone()).collect::<Vec<_>>()`) MUST agree
+/// with the name set returned by
+/// `prism_spec_engine::column_mapping::ocsf_projected_column_names(table, true)`.
+/// `test_ocsf_projected_names_all_surfaces_agree` (RG-Q-015, S-ADR058-OCSF-ROUTING-001)
+/// enforces this agreement via `TableRegistry::columns_for_table` — any drift between
+/// this site and the canonical helper will cause that test to fail.
 fn build_ocsf_column_descriptors(
     table: &prism_spec_engine::spec_parser::TableSpec,
 ) -> Vec<ColumnDescriptor> {

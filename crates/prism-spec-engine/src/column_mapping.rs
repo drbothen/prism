@@ -608,7 +608,11 @@ mod tests {
     /// This unit test exercises Path A of the function directly; end-to-end reachability via
     /// `pipeline_result_to_record_batch` is covered by RG-005/RG-015/RG-020/RG-022 in prism-bin.
     ///
-    /// **Red gate:** the function body is `todo!()` — panics with "not yet implemented".
+    /// **Implemented behavior:** `ocsf_field_to_arrow_name(path)` replaces every `'.'` in `path`
+    /// with `'_'` and returns the result. Single-segment paths (no dot) are returned unchanged.
+    /// This function is the canonical dot-to-underscore flattening helper per ADR-058 §C2 Option 4
+    /// and ADR-058 §I1; `ocsf_projected_column_names` and `ocsf_projected_column_types` delegate
+    /// to it for all Tier-1 column name computation.
     #[test]
     fn test_ocsf_field_to_arrow_name_replaces_dots_with_underscores() {
         // Two-segment path: "finding.uid" → "finding_uid"
@@ -648,7 +652,10 @@ mod tests {
     /// **SAP-3 reachability:** defense-in-depth unit test; same path as RG-003 above.
     /// Full reachability via RG-005 in prism-bin.
     ///
-    /// **Red gate:** the function body is `todo!()` — panics with "not yet implemented".
+    /// **Implemented behavior:** `ocsf_field_to_arrow_name(path)` with a single-segment
+    /// `path` (containing no `'.'`) returns the input string unchanged — `replace('.', "_")`
+    /// finds no dots to replace. This covers the common case of flat OCSF fields like
+    /// `"status"`, `"time"`, `"message"` that need no flattening.
     #[test]
     fn test_ocsf_field_to_arrow_name_single_segment_is_unchanged() {
         assert_eq!(
