@@ -23,12 +23,17 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 document_type: governance-policy-registry
-version: "1.41"
-last_amended: 2026-07-30
+version: "1.42"
+last_amended: 2026-08-21
 
 metadata:
-  version: "1.41"
+  version: "1.42"
   changelog:
+    - version: "1.42"
+      date: 2026-08-21
+      burst: spec-steward-lever2-compaction-pol40
+      findings: []
+      change: "v1.41 → v1.42 2026-08-21 — POL-40 index_rows_current_state_pins_only registered (id: 40, severity: MEDIUM): STORY-INDEX.md Full Story List rows and BC-INDEX.md BC table rows must be one-line current-state pins only; inline changelog-history chains ([**status vX.Y** (D-NNN: ...)] blocks) are forbidden. Codified as part of lever-2 governance compaction (human-directed 2026-08-21). Mechanical enforcement pending via future records-lint L11. Policy count 35 → 36."
     - version: "1.41"
       date: 2026-07-30
       burst: FB98-spec-steward-pol23-pol39-amend
@@ -1090,3 +1095,27 @@ policies:
       - "EXEMPT — correctly-scoped historical prose: a past-tense statement about what a specific prior version did (e.g., 'corrected in BC-2.02.006 v1.8') is a true historical record, not a normative pin. Editing it corrupts the audit trail. Adjudicate by grammatical form — normative present-tense 'per ADR-028 v1.5' is a violation; historical past-tense describing what that version did is exempt. When in doubt, rewrite as section-anchor form."
       - "Provenance check: when reviewing whether a story or BC adequately traces its dependencies, use `vsdd-factory:check-input-drift` against each artifact's `input-hash:` rather than relying on a prose version pin to indicate currency."
       - "Until records-lint L11 is implemented (lint_hook: null), adversary must manually apply this check during each adversarial pass: grep staged additions in narrative-tier .factory/ artifacts for the pattern `(BC|VP|ADR|DI|CAP|HS|TD)-[A-Za-z0-9._-]+ v[0-9]+\\.[0-9]+` and flag any match in a non-exempt position (not in changelog rows, not in frontmatter blocks, not in index files) as a violation."
+
+  - id: 40
+    name: index_rows_current_state_pins_only
+    description: |
+      Index table rows in STORY-INDEX.md (Full Story List table) and BC-INDEX.md (BC table)
+      must be ONE-LINE CURRENT-STATE PINs only. Per-artifact version history lives in the
+      artifact's own ## Changelog section and git history. Inline [**status vX.Y**
+      (D-NNN: ...)] changelog-history chains in table rows are forbidden. A compliant
+      STORY-INDEX row has no [**...**] blocks (bold-annotated brackets with parenthetical
+      D-NNN chains). A compliant BC-INDEX Status cell contains at most: the base status
+      keyword (active/draft/removed/retired) plus optionally one version pin in
+      (vX.Y current) or bare vX.Y format.
+      Mechanical enforcement pending via a future records-lint L11 check.
+    adopted: "spec-steward lever-2 governance compaction human-directed 2026-08-21"
+    severity: MEDIUM
+    enforced_by: [adversary-prompt, state-manager, records-lint-L11-proposed]
+    scope: [story-index, bc-index]
+    codified_at: null
+    lint_hook: null
+    verification_steps:
+      - "For STORY-INDEX.md: grep for [** patterns in table rows within the Full Story List section (grep '\\[\\*\\*' .factory/stories/STORY-INDEX.md). Any hit within the Full Story List table (between ## Full Story List and ## Changelog headers) is a violation. The section boundary is detected by the ## Changelog heading that immediately follows the story table."
+      - "For BC-INDEX.md: grep for [** patterns in BC table rows (grep '\\[\\*\\*' .factory/specs/behavioral-contracts/BC-INDEX.md). Any hit in a line starting with '| BC-' is a violation."
+      - "For BC-INDEX.md Status cells: each Status cell must contain only: base keyword (active/draft/removed/retired/~~...~~) plus at most one version qualifier in (vX.Y current) or bare vX.Y form. Multiple parenthetical entries like (vX.Y D-NNN: ...) (vX.(Y-1) D-MMM: ...) in a single cell are a violation."
+      - "Until records-lint L11 is implemented (lint_hook: null), adversary manually scans both index files for [** patterns in table rows during each adversarial pass touching STORY-INDEX.md or BC-INDEX.md."
