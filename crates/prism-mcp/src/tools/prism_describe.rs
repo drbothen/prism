@@ -2752,5 +2752,44 @@ variables_produced = []
             "AC-015 (RG-028/OQ-003): wire-level JSON must contain '\"nullable\":false' \
              for the synthesized descriptors. Got: {json_bytes}"
         );
+
+        // ── F-P2-HIGH-1: description text assertions (RG-028 v1.48 strengthening) ──
+        //
+        // The previous test was paper-green: it checked name/col_type/nullable/ordering but NOT
+        // the description text, allowing `description: None` to slip through.  These assertions
+        // require the EXACT canonical strings from ADR-058 §G v2.28 / BC-2.16.003 v1.23 / AC-015.
+        //
+        // Rust struct level (description field value):
+        let class_uid_desc = class_uid_descriptor.description.as_deref().unwrap_or("");
+        assert_eq!(
+            class_uid_desc,
+            "OCSF event class identifier derived from sensor TOML ocsf_class. \
+             Example: 3004 for entity_management (audit_logs), \
+             2004 for detection_finding (alerts, device_alert_relations), \
+             5001 for inventory_info (devices).",
+            "AC-015 (RG-028/OQ-003/F-P2-HIGH-1): class_uid ColumnDescriptor MUST have \
+             the canonical description text per ADR-058 §G / BC-2.16.003 AC-015; \
+             current code emits description:None"
+        );
+        let sensor_desc = sensor_descriptor.description.as_deref().unwrap_or("");
+        assert_eq!(
+            sensor_desc, "Sensor identifier. Value: <sensor_id> (e.g., 'claroty').",
+            "AC-015 (RG-028/OQ-003/F-P2-HIGH-1): _sensor ColumnDescriptor MUST have \
+             the canonical description text per ADR-058 §G / BC-2.16.003 AC-015; \
+             current code emits description:None"
+        );
+
+        // Wire-shape level: description text must appear in the serialized JSON that the
+        // LLM agent receives (CLAUDE.md §Conventions wire-shape discipline, SID-2).
+        assert!(
+            json_bytes.contains("OCSF event class identifier derived from sensor TOML ocsf_class"),
+            "AC-015 (RG-028/OQ-003/F-P2-HIGH-1): wire-level JSON must contain class_uid \
+             canonical description text (LLM agent receives this field). Got: {json_bytes}"
+        );
+        assert!(
+            json_bytes.contains("Sensor identifier. Value: <sensor_id>"),
+            "AC-015 (RG-028/OQ-003/F-P2-HIGH-1): wire-level JSON must contain _sensor \
+             canonical description text (LLM agent receives this field). Got: {json_bytes}"
+        );
     }
 }
