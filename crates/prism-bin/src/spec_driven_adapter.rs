@@ -1036,6 +1036,27 @@ fn pipeline_result_to_record_batch(
         let schema = Arc::new(Schema::new(fields));
 
         // Build arrays for Tier-1 columns (same data extraction as flag-false path).
+        //
+        // INTENTIONAL OMISSION — no String+INDEX pseudo-column push-down injection here.
+        //
+        // The legacy (ocsf_column_naming=false) branch injects the push-down filter value into
+        // INDEX+String columns (e.g. Armis `aql`/`fql`) so DataFusion can evaluate `WHERE aql =
+        // 'in:devices'` correctly.  This injection is deliberately absent in the OCSF branch:
+        //
+        //   1. A String+INDEX pseudo-column (query INPUT, not real sensor data) has no
+        //      `ocsf_field` annotation → it is Tier-2 → aggregated into `raw_extensions` rather
+        //      than materialized as a first-class queryable Arrow column.  Injecting a push-down
+        //      value into a `raw_extensions` JSON blob is semantically meaningless.
+        //
+        //   2. A pseudo-column WITH an `ocsf_field` annotation would be an incoherent
+        //      configuration: it maps a query-language filter variable to an OCSF semantic field
+        //      name, which conflates two orthogonal concerns.  No current OCSF sensor TOML
+        //      declares such a config, and no coherent future one should.
+        //
+        // Therefore OCSF-mode pseudo-column push-down injection does not exist.  If a coherent
+        // need ever arises (e.g. a future sensor with a queryable OCSF field that requires
+        // push-down injection), the injection must be added here — mirroring the guard in the
+        // legacy branch (`col.options.contains(Index) && col.column_type == String`).
         let mut col_arrays: Vec<Arc<dyn Array>> = Vec::new();
         for col in &tier1_cols {
             col_arrays.push(build_column_array(&result.records, col, sensor_id));
