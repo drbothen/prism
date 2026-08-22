@@ -21,9 +21,9 @@
 //! | Incident Finding          | 2005      | CrowdStrike incidents              |
 //! | Vulnerability Finding     | 2002      | Claroty vulnerabilities            |
 //! | Device Inventory Info     | 5001      | Claroty/Armis devices              |
-//! | Account Change            | 3001      | (transitional; Claroty/Armis audit logs pre-KF-01 — now superseded by Entity Management 3004) |
 //! | Entity Management         | 3004      | Claroty/Armis audit logs (KF-01 correction per ADR-058 §K5 Div-3; has `comment` attr) |
 //! | Base Event                | 0         | Fallback for unmapped record types |
+//! | Account Change (3001)     | —         | NOT returned by `select()` — `("claroty","audit_log")` and `("armis","audit_log")` route to 3004 (Entity Management) post-KF-01. 3001 is still reachable via `select_by_class_name("audit_activity")` (see table below). |
 //! | Security Finding (DEPRECATED) | 2001  | NOT used in `select()` or `select_by_class_name()` — deprecated OCSF v1.1.0. `select_by_class_name("security_finding")` returns 2004 with a deprecation WARN (BC-2.02.012 Option A, OCSF-CLASS-MIGRATION-001). |
 //!
 //! ## `select_by_class_name(class_name)` path mappings (BC-2.02.012)

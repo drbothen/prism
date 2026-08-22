@@ -942,7 +942,7 @@ fn pipeline_result_to_record_batch(
             ocsf_class = %table.ocsf_class,
             sensor_id = %sensor_id,
             table_name = %table.table_name,
-            "OCSF class name not recognized; falling back to BASE_EVENT (class_uid=0)"
+            "sensor TOML declares unrecognised ocsf_class; class_uid defaulted to 0 (BASE_EVENT)"
         );
     }
     let derived_class_uid: i32 = class_uid_result.unwrap_or(0) as i32;
