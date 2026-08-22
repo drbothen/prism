@@ -645,13 +645,11 @@ mod tests {
     // ── RG-Q-012 / RG-Q-013 / RG-Q-014 — OCSF collision validation (Rule 8) ──
     //
     // These three tests exercise BC-2.16.003 §J1/§J2/§J4 (E-SPEC-030 sub-cases).
-    // Rule 8 (`validate_ocsf_column_collisions`) is NOT YET wired into
-    // `parse_and_validate_spec_toml`.  Today all three TOML specs parse as Ok —
-    // the `is_err()` assertion fails → RED gate holds per BC-5.38.001.
-    //
-    // Post-fix: `parse_and_validate_spec_toml` calls `validate_ocsf_column_collisions`
-    // as Rule 8; the collision is detected and a `Vec<ValidationError>` containing
-    // `"E-SPEC-030 [§Jn]"` is returned.
+    // Rule 8 (`validate_ocsf_column_collisions`) is wired into `parse_and_validate_spec_toml`
+    // (S-ADR058-OCSF-ROUTING-001 fix burst). `parse_and_validate_spec_toml` calls
+    // `validate_ocsf_column_collisions` as Rule 8; the collision is detected and a
+    // `Vec<ValidationError>` containing `"E-SPEC-030 [§Jn]"` is returned.
+    // All three tests are GREEN (was RED pre-fix: rule was not wired).
 
     /// RG-Q-012 — E-SPEC-030 §J2: reserved-name collision must be rejected at spec-load time.
     ///
