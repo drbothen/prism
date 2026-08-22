@@ -43,43 +43,76 @@ use crate::spec_parser::{ColumnSpec, TableSpec};
 ///   - Tier-1 columns (`ocsf_field == Some`) → `ocsf_field_to_arrow_name(ocsf_field)`
 ///   - Tier-2 columns (`ocsf_field == None`) → aggregated into `"raw_extensions"` (if any)
 ///   - Synthesized pseudo-columns: `"class_uid"` (Integer) and `"_sensor"` (String), always
+///   - §J5 zero-Tier-1 edge case: when no Tier-1 columns exist → `["class_uid", "_sensor"]`
+///     (no `raw_extensions`, since no Tier-2 columns contribute without co-existing Tier-1)
 ///
 /// When `ocsf_column_naming` is `false`, returns raw `col.name` values unchanged.
 ///
-/// This helper is the **canonical source of truth** for the projected column-name set,
-/// so that `TableRegistry::register_sensor` and `check_column_availability` stay in sync
-/// without duplicating the projection logic.
+/// This helper is the **canonical source of truth** for the projected column-name set
+/// per ADR-058 §I1 (Consolidated-Projection Invariant). Both `TableRegistry::register_sensor`
+/// and `check_column_availability` delegate here to prevent independent drift.
 ///
-/// # Red Gate stub (RG-Q-015)
-///
-/// The function body is `todo!()` — implementer replaces it (ADR-058 LOW-1/OBS-1 fix,
-/// S-ADR058-OCSF-ROUTING-001 AC-L-1). The `todo!()` panic causes
-/// `test_ocsf_projected_names_all_surfaces_agree` to FAIL (RED) until the real logic lands.
-///
-/// Canonical home per ADR-058 §I1.
-#[allow(clippy::todo)]
-pub fn ocsf_projected_column_names(_tbl: &TableSpec, _ocsf_column_naming: bool) -> Vec<String> {
-    todo!("ocsf_projected_column_names: implement per ADR-058 §J5 — RG-Q-015 red gate stub")
+/// Canonical home per ADR-058 §I1. RG-Q-015 enforces agreement across all surfaces.
+pub fn ocsf_projected_column_names(tbl: &TableSpec, ocsf_column_naming: bool) -> Vec<String> {
+    if ocsf_column_naming {
+        let has_tier2 = tbl.columns.iter().any(|c| c.ocsf_field.is_none());
+        let mut names: Vec<String> = tbl
+            .columns
+            .iter()
+            .filter_map(|c| c.ocsf_field.as_deref().map(ocsf_field_to_arrow_name))
+            .collect();
+        // Synthesized pseudo-columns are always present (ADR-058 §G).
+        names.push("class_uid".to_string());
+        names.push("_sensor".to_string());
+        // raw_extensions is added only when at least one Tier-2 column exists (ADR-058 §J5).
+        if has_tier2 {
+            names.push("raw_extensions".to_string());
+        }
+        names
+    } else {
+        tbl.columns.iter().map(|c| c.name.clone()).collect()
+    }
 }
 
 /// Compute the OCSF-projected column type map for a table's Arrow schema.
 ///
 /// Companion to `ocsf_projected_column_names`. Returns a `{arrow_name → ColumnType}` map for
 /// all projected columns, including the synthesized `"class_uid"` (Integer) and
-/// `"_sensor"` (String) pseudo-columns.
+/// `"_sensor"` (String) pseudo-columns (and `"raw_extensions"` (Json) when Tier-2 columns
+/// exist).
 ///
-/// # Red Gate stub (RG-Q-015)
+/// When `ocsf_column_naming` is `false`, returns `{col.name → col.column_type}` pairs.
 ///
-/// The function body is `todo!()` — implementer replaces it alongside
-/// `ocsf_projected_column_names` (ADR-058 LOW-1/OBS-1 fix).
-///
-/// Canonical home per ADR-058 §I1.
-#[allow(clippy::todo)]
+/// Canonical home per ADR-058 §I1. Consumed by `TableRegistry::register_sensor` and
+/// `check_operator_type_compatibility` (prism-query) for schema-aware gate logic.
 pub fn ocsf_projected_column_types(
-    _tbl: &TableSpec,
-    _ocsf_column_naming: bool,
+    tbl: &TableSpec,
+    ocsf_column_naming: bool,
 ) -> std::collections::HashMap<String, ColumnType> {
-    todo!("ocsf_projected_column_types: implement per ADR-058 §J5 — RG-Q-015 red gate stub")
+    if ocsf_column_naming {
+        let has_tier2 = tbl.columns.iter().any(|c| c.ocsf_field.is_none());
+        let mut type_map: std::collections::HashMap<String, ColumnType> = tbl
+            .columns
+            .iter()
+            .filter_map(|c| {
+                c.ocsf_field.as_deref().map(|f| {
+                    let arrow_name = ocsf_field_to_arrow_name(f);
+                    (arrow_name, c.column_type.clone())
+                })
+            })
+            .collect();
+        type_map.insert("class_uid".to_string(), ColumnType::Integer);
+        type_map.insert("_sensor".to_string(), ColumnType::String);
+        if has_tier2 {
+            type_map.insert("raw_extensions".to_string(), ColumnType::Json);
+        }
+        type_map
+    } else {
+        tbl.columns
+            .iter()
+            .map(|c| (c.name.clone(), c.column_type.clone()))
+            .collect()
+    }
 }
 
 /// Result of mapping a single raw record to OCSF fields.

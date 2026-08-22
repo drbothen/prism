@@ -143,11 +143,129 @@ pub fn parse_and_validate_spec_toml(
         }]);
     }
 
+    // BC-2.16.003 §J1/§J2/§J4 — Rule 8: OCSF column collision validation.
+    //
+    // Runs AFTER all other validation rules. Validates that no Tier-1 column's
+    // `ocsf_field_to_arrow_name` result collides with:
+    //   §J2 — an ADR-058 §G reserved synthesized-pseudo-column name
+    //   §J4 — another Tier-1 column in the same table (intra-table duplicate)
+    //   §J1 — a Tier-2 column's raw `col.name` (shadow collision)
+    // Only active when `ocsf_column_naming = true`. E-SPEC-030. S-ADR058-OCSF-ROUTING-001 AC-020.
+    {
+        let collision_errors = validate_ocsf_column_collisions(&spec, source_path);
+        if !collision_errors.is_empty() {
+            return Err(vec![ValidationError {
+                sensor_id: Some(spec.sensor_id.clone()),
+                source_path: source_path.to_string(),
+                errors: collision_errors,
+            }]);
+        }
+    }
+
     // Note: `file_hash`, `source_path`, and `mode` are NOT set here — they are
     // post-parse metadata set by the caller (config_manager, hot_reload, add_sensor_spec).
     // The returned spec has `file_hash = ""`, `source_path = ""`, `mode = DtuMode::Shared`
     // (defaults from #[serde(default)]). The caller overwrites these fields after this call.
     Ok(spec)
+}
+
+/// BC-2.16.003 §J1/§J2/§J4 — OCSF column collision validation (Rule 8).
+///
+/// Checks all tables in `spec` for three classes of OCSF arrow-name collision:
+///
+/// - §J2 Reserved-name collision: a Tier-1 column's `ocsf_field_to_arrow_name` result equals
+///   one of the ADR-058 §G reserved synthesized-pseudo-column names
+///   (`class_uid`, `category_uid`, `_sensor`, `raw_extensions`).
+///
+/// - §J4 Intra-table duplicate: two different Tier-1 columns in the same table flatten to the
+///   same arrow name via `ocsf_field_to_arrow_name`.
+///
+/// - §J1 Shadow collision: a Tier-1 column's arrow name equals the raw `col.name` of a
+///   Tier-2 column (one whose `ocsf_field` is `None`) in the same table.
+///
+/// Returns a `Vec<String>` of E-SPEC-030 error messages (one per collision found).
+/// Returns an empty `Vec` when there are no collisions or when
+/// `spec.ocsf_column_naming == false` (OCSF arrow names are not in use).
+///
+/// Called only when `spec.ocsf_column_naming == true` (checked by the caller).
+///
+/// Error format templates:
+///   §J2: `E-SPEC-030 [§J2] sensor={} table={}: ocsf_field "{}" flattens to reserved name "{}"`
+///   §J4: `E-SPEC-030 [§J4] sensor={} table={}: columns "{}" and "{}" both flatten to "{}"`
+///   §J1: `E-SPEC-030 [§J1] sensor={} table={}: ocsf_field "{}" flattens to "{}" which shadows col.name of column "{}"`
+fn validate_ocsf_column_collisions(spec: &SensorSpec, _source_path: &str) -> Vec<String> {
+    if !spec.ocsf_column_naming {
+        return Vec::new();
+    }
+
+    const RESERVED: &[&str] = &["class_uid", "category_uid", "_sensor", "raw_extensions"];
+
+    let mut errors: Vec<String> = Vec::new();
+
+    for table in &spec.tables {
+        let sensor_id = &spec.sensor_id;
+        let table_name = &table.table_name;
+
+        // Separate Tier-1 (ocsf_field=Some) and Tier-2 (ocsf_field=None) columns.
+        let tier1_cols: Vec<(&str, &str)> = table
+            .columns
+            .iter()
+            .filter_map(|c| c.ocsf_field.as_deref().map(|f| (c.name.as_str(), f)))
+            .collect();
+
+        let tier2_names: Vec<&str> = table
+            .columns
+            .iter()
+            .filter(|c| c.ocsf_field.is_none())
+            .map(|c| c.name.as_str())
+            .collect();
+
+        // Build arrow-name map: arrow_name → (col_name, ocsf_field) for Tier-1 cols.
+        // Detect §J2 and §J4 in a single pass.
+        let mut seen: std::collections::HashMap<String, (&str, &str)> =
+            std::collections::HashMap::new();
+
+        for (col_name, ocsf_field) in &tier1_cols {
+            let arrow_name = crate::column_mapping::ocsf_field_to_arrow_name(ocsf_field);
+
+            // §J2: reserved-name collision.
+            if RESERVED.contains(&arrow_name.as_str()) {
+                errors.push(format!(
+                    "E-SPEC-030 [§J2] sensor={sensor_id} table={table_name}: \
+                     ocsf_field \"{ocsf_field}\" flattens to reserved name \"{arrow_name}\""
+                ));
+                // Do not add to `seen` — the reserved name itself is not an ordinary column.
+                continue;
+            }
+
+            // §J4: intra-table duplicate (two Tier-1 cols produce the same arrow name).
+            if let Some((prior_col_name, prior_ocsf_field)) = seen.get(&arrow_name) {
+                // Only emit §J4 if it was not already emitted for this arrow_name in this table
+                // (the map keeps only the first encounter; the second encounter fires the error).
+                errors.push(format!(
+                    "E-SPEC-030 [§J4] sensor={sensor_id} table={table_name}: \
+                     columns \"{prior_col_name}\" (ocsf_field=\"{prior_ocsf_field}\") and \
+                     \"{col_name}\" (ocsf_field=\"{ocsf_field}\") both flatten to \"{arrow_name}\""
+                ));
+                // Leave the first entry in `seen` so further duplicates also fire.
+            } else {
+                seen.insert(arrow_name.clone(), (col_name, ocsf_field));
+            }
+
+            // §J1: shadow collision — Tier-1 arrow name equals a Tier-2 col.name.
+            for tier2_name in &tier2_names {
+                if arrow_name == *tier2_name {
+                    errors.push(format!(
+                        "E-SPEC-030 [§J1] sensor={sensor_id} table={table_name}: \
+                         ocsf_field \"{ocsf_field}\" flattens to \"{arrow_name}\" \
+                         which shadows col.name of column \"{tier2_name}\""
+                    ));
+                }
+            }
+        }
+    }
+
+    errors
 }
 
 /// Generate a write-gate confirmation token for updating an existing spec.

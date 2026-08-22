@@ -3561,26 +3561,10 @@ fn ocsf_or_raw_column_names_for_table(
     tbl: &prism_spec_engine::spec_parser::TableSpec,
     ocsf_column_naming: bool,
 ) -> Vec<String> {
-    if ocsf_column_naming {
-        let has_tier2 = tbl.columns.iter().any(|c| c.ocsf_field.is_none());
-        let mut names: Vec<String> = tbl
-            .columns
-            .iter()
-            .filter_map(|c| {
-                c.ocsf_field
-                    .as_deref()
-                    .map(prism_spec_engine::column_mapping::ocsf_field_to_arrow_name)
-            })
-            .collect();
-        names.push("class_uid".to_string());
-        names.push("_sensor".to_string());
-        if has_tier2 {
-            names.push("raw_extensions".to_string());
-        }
-        names
-    } else {
-        tbl.columns.iter().map(|c| c.name.clone()).collect()
-    }
+    // ADR-058 §I1 Consolidated-Projection Invariant: canonical logic lives in the
+    // shared helper; this function is a thin forward so engine.rs and table_registry.rs
+    // never diverge (OBS-1 fix, S-ADR058-OCSF-ROUTING-001).
+    prism_spec_engine::column_mapping::ocsf_projected_column_names(tbl, ocsf_column_naming)
 }
 
 /// Compute the initial available column set for a table from schema sources.

@@ -226,65 +226,41 @@ impl TableRegistry {
             registered.insert(full_name.clone());
             sensor_by_table.insert(full_name.clone(), spec.sensor_id.clone());
             // M1 fix: retain column names for single-tenant E-QUERY-038 gate.
-            // Only populated when the spec has explicit columns defined.
             //
-            // ADR-058 §G / S-ADR058-OCSF-ROUTING-001 holdout gap (Fix A):
-            // When ocsf_column_naming=true, the plan-time schema must present the SAME
-            // OCSF-flattened names that RecordBatch + prism_describe use, so that
-            // explicit SELECT/WHERE by OCSF name passes E-QUERY-038.
-            // Tier-1 (ocsf_field == Some) → arrow name via ocsf_field_to_arrow_name.
-            // Tier-2 (ocsf_field == None) → aggregated into "raw_extensions"; raw names omitted.
-            // Synthesized pseudo-cols: "class_uid" (Integer), "_sensor" (String).
-            // When ocsf_column_naming=false: keep existing col.name behavior exactly.
-            if !table.columns.is_empty() {
-                if spec.ocsf_column_naming {
-                    let has_tier2 = table.columns.iter().any(|c| c.ocsf_field.is_none());
-                    let mut col_names: Vec<String> = table
-                        .columns
-                        .iter()
-                        .filter_map(|c| {
-                            c.ocsf_field.as_deref().map(|f| {
-                                prism_spec_engine::column_mapping::ocsf_field_to_arrow_name(f)
-                            })
-                        })
-                        .collect();
-                    col_names.push("class_uid".to_string());
-                    col_names.push("_sensor".to_string());
-                    if has_tier2 {
-                        col_names.push("raw_extensions".to_string());
-                    }
-                    columns_by_table.insert(full_name.clone(), col_names);
+            // ADR-058 §G / §J5 / S-ADR058-OCSF-ROUTING-001 LOW-1 fix:
+            // When ocsf_column_naming=true, ALWAYS insert columns_by_table and
+            // column_types_by_table using the shared helpers from prism_spec_engine —
+            // even for zero-column OCSF tables (§J5: synthesized pseudo-columns are
+            // always present, so the entry must exist with at least class_uid + _sensor).
+            // The previous outer `if !table.columns.is_empty()` guard prevented this
+            // for zero-column OCSF tables, causing E-QUERY-038 to fire on class_uid / _sensor
+            // queries (RG-Q-010/011 red gate).
+            //
+            // When ocsf_column_naming=false, keep the existing `!columns.is_empty()`
+            // fail-open guard to preserve legacy behavior for non-OCSF sensors.
+            if spec.ocsf_column_naming {
+                // §J5: always insert, even for zero-Tier-1 OCSF tables (RG-Q-010/011 fix).
+                // Canonical projection logic lives in ocsf_projected_column_names /
+                // ocsf_projected_column_types (ADR-058 §I1 Consolidated-Projection Invariant).
+                let col_names =
+                    prism_spec_engine::column_mapping::ocsf_projected_column_names(table, true);
+                columns_by_table.insert(full_name.clone(), col_names);
 
-                    let mut type_map: HashMap<String, ColumnType> = table
-                        .columns
-                        .iter()
-                        .filter_map(|c| {
-                            c.ocsf_field.as_deref().map(|f| {
-                                let arrow_name =
-                                    prism_spec_engine::column_mapping::ocsf_field_to_arrow_name(f);
-                                (arrow_name, c.column_type.clone())
-                            })
-                        })
-                        .collect();
-                    type_map.insert("class_uid".to_string(), ColumnType::Integer);
-                    type_map.insert("_sensor".to_string(), ColumnType::String);
-                    if has_tier2 {
-                        type_map.insert("raw_extensions".to_string(), ColumnType::Json);
-                    }
-                    column_types_by_table.insert(full_name, type_map);
-                } else {
-                    // flag=false: keep existing col.name behavior exactly (byte-for-byte).
-                    let col_names: Vec<String> =
-                        table.columns.iter().map(|c| c.name.clone()).collect();
-                    columns_by_table.insert(full_name.clone(), col_names);
-                    // ADR-052 / HIGH-1: retain column types for schema-aware E-QUERY-041 gate.
-                    let type_map: HashMap<String, ColumnType> = table
-                        .columns
-                        .iter()
-                        .map(|c| (c.name.clone(), c.column_type.clone()))
-                        .collect();
-                    column_types_by_table.insert(full_name, type_map);
-                }
+                let type_map =
+                    prism_spec_engine::column_mapping::ocsf_projected_column_types(table, true);
+                column_types_by_table.insert(full_name, type_map);
+            } else if !table.columns.is_empty() {
+                // flag=false: keep existing col.name behavior exactly (byte-for-byte).
+                // Fail-open guard preserved for non-OCSF sensors.
+                let col_names: Vec<String> = table.columns.iter().map(|c| c.name.clone()).collect();
+                columns_by_table.insert(full_name.clone(), col_names);
+                // ADR-052 / HIGH-1: retain column types for schema-aware E-QUERY-041 gate.
+                let type_map: HashMap<String, ColumnType> = table
+                    .columns
+                    .iter()
+                    .map(|c| (c.name.clone(), c.column_type.clone()))
+                    .collect();
+                column_types_by_table.insert(full_name, type_map);
             }
         }
 
