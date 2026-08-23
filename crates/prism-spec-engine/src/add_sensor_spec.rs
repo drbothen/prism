@@ -152,7 +152,7 @@ pub fn parse_and_validate_spec_toml(
     //   §J1 — any other column's raw `col.name` (shadow collision; Tier-1 or Tier-2)
     // Only active when `ocsf_column_naming = true`. E-SPEC-030. S-ADR058-OCSF-ROUTING-001 AC-020.
     {
-        let collision_errors = validate_ocsf_column_collisions(&spec, source_path);
+        let collision_errors = validate_ocsf_column_collisions(&spec);
         if !collision_errors.is_empty() {
             return Err(vec![ValidationError {
                 sensor_id: Some(spec.sensor_id.clone()),
@@ -197,7 +197,7 @@ pub fn parse_and_validate_spec_toml(
 ///   §J2: `E-SPEC-030 [§J2] sensor={} table={}: ocsf_field "{}" flattens to reserved name "{}"`
 ///   §J4: `E-SPEC-030 [§J4] sensor={} table={}: columns "{}" and "{}" both flatten to "{}"`
 ///   §J1: `E-SPEC-030 [§J1] sensor={} table={}: ocsf_field "{}" flattens to "{}" which shadows col.name of column "{}"`
-fn validate_ocsf_column_collisions(spec: &SensorSpec, _source_path: &str) -> Vec<String> {
+fn validate_ocsf_column_collisions(spec: &SensorSpec) -> Vec<String> {
     if !spec.ocsf_column_naming {
         return Vec::new();
     }
