@@ -150,7 +150,7 @@ pub fn parse_and_validate_spec_toml(
     //   §J2 — an ADR-058 §G reserved synthesized-pseudo-column name
     //   §J4 — another Tier-1 column in the same table (intra-table duplicate)
     //   §J1 — any other column's raw `col.name` (shadow collision; Tier-1 or Tier-2)
-    // Only active when `ocsf_column_naming = true`. E-SPEC-030. S-ADR058-OCSF-ROUTING-001 AC-020.
+    // Only active when `ocsf_column_naming = true`. E-SPEC-030. S-ADR058-OCSF-ROUTING-001 AC-021.
     {
         let collision_errors = validate_ocsf_column_collisions(&spec);
         if !collision_errors.is_empty() {

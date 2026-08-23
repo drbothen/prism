@@ -43,8 +43,11 @@ use crate::spec_parser::{ColumnSpec, TableSpec};
 ///   - Tier-1 columns (`ocsf_field == Some`) → `ocsf_field_to_arrow_name(ocsf_field)`
 ///   - Tier-2 columns (`ocsf_field == None`) → aggregated into `"raw_extensions"` (if any)
 ///   - Synthesized pseudo-columns: `"class_uid"` (Integer) and `"_sensor"` (String), always
-///   - §J6 zero-Tier-1 edge case: when no Tier-1 columns exist → `["class_uid", "_sensor"]`
-///     (no `raw_extensions`, since no Tier-2 columns contribute without co-existing Tier-1)
+///   - §J6 zero-Tier-1 case: `raw_extensions` is emitted whenever the table has ≥1 Tier-2
+///     column, INDEPENDENT of Tier-1 count (A+W, ADR-058 §J6) — so a zero-Tier-1 table
+///     WITH ≥1 Tier-2 column projects `["class_uid", "_sensor", "raw_extensions"]` (Tier-2
+///     data preserved via raw_extensions). Only a truly-empty table (zero Tier-1 AND zero
+///     Tier-2) projects `["class_uid", "_sensor"]`.
 ///
 /// When `ocsf_column_naming` is `false`, returns raw `col.name` values unchanged.
 ///
