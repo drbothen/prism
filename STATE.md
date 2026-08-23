@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.811"
+version: "8.812"
 producer: state-manager
-timestamp: 2026-08-23T02:35:00Z
+timestamp: 2026-08-23T07:05:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -21,15 +21,16 @@ develop_head: "362e4f85"
 # NOTE: D-2202 — develop_head corrected 791b68c3→69d821be (fast-forward COMPLETE; develop == origin/develop == 69d821be confirmed). OCSF-mapping schema-validation COMPLETE (ADR-058 v2.4; 12 KF + CODE DEFECT §class_selector.rs); ARCH-INDEX v2.303→v2.304. STATE v8.732→v8.733.
 # NOTE: D-2183 — develop advanced 3197e27a9→791b68c3: PR #238 chore(gitignore) AD-017 live-evidence SQUASH-MERGED to develop 2026-08-15. D-2171 NOTE archived.
 # NOTE: D-2109 — develop advanced ef996a4c0→5d1a30ac7: PR #236 fix/claroty-live-api-fidelity SQUASH-MERGED; BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED (passes 8/9/10 on frozen 386df43c5); HS-014 PASS; worktrees CLAROTY-LIVE + FINDING-R removed. D-2102 NOTE archived.
-bc_index_version: "9.52"
+bc_index_version: "9.53"
+# NOTE: D-2278 — BC-INDEX v9.52→v9.53: §7-AUTHORIZED A+W spec burst COMPLETE — BC-2.11.016 v1.29→v1.30 (EC-11-080 MED-1 §J6 A+W: raw_extensions emitted iff ocsf_column_naming==true AND ≥1 Tier-2 col; OBS-1 sig drop validate_ocsf_column_collisions source_path removed; RG-Q-017 coverage MED-2 closed; non-pinned row NOT updated per index format). BC-2.16.002 pin v2.33→v2.34 (multi-step pipeline §D canonical). BC-2.16.003 pin v1.25→v1.26. Counts UNCHANGED: active 253/draft 3/total 269. D-2277 NOTE archived.
 # NOTE: D-2277 — BC-INDEX v9.51→v9.52: ROUTING-001 LOCAL re-gate spec-prose fix — BC-2.16.003 leading pin v1.24→v1.25 (F1 MED EC-016-013-032 error-dispatch corrected to real two-layer mechanism parse_and_validate_spec_toml/Err(Vec<ValidationError>)/add_sensor_spec/AddSensorSpecResult::ValidationFailed; RG-Q-012/013/014 assertion descriptions aligned; F2 LOW stale architect-must-amend-ADR-058-§J7 directive removed — ADR-058 v2.30 had already applied §J7 in D-2274). error-taxonomy v2.79→v2.80 (F2 stale directive removed). Counts UNCHANGED: active 253/draft 3/total 269. D-2274 NOTE archived.
-# NOTE: D-2274 — BC-INDEX v9.50→v9.51: BC-2.16.003 pin v1.23→v1.24 (EC-016-013-032 spec-load §J collision validation). BC-2.11.016 v1.28→v1.29 (EC-11-080 zero-col OCSF table). ADR-058 v2.28→v2.30. ROUTING-001 v1.51→v1.52 (AC-019/020/021; RG-Q-010..015; density 2.10). Counts UNCHANGED: active 253/draft 3/total 269. D-2271 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.881"
+story_index_version: "2.882"
+# NOTE: D-2278 — STORY-INDEX v2.881→v2.882: §7-AUTHORIZED A+W spec burst — ROUTING-001 v1.53→v1.54 (RG-Q-017 RG-Q-016 MED-2 closed; AC-019..021 A+W density 46/21=2.19; zero-Tier-1 WARN ocsf.zero_tier1_table per-spec-load; OBS-1 sig drop; input-hash e7455fb). total_stories 303 UNCHANGED. D-2276 NOTE archived.
 # NOTE: D-2276 — STORY-INDEX v2.880→v2.881: ROUTING-001 LOCAL re-cascade pass-1 fix-burst — ROUTING-001 v1.52→v1.53 (RG-Q-016 §J1 Tier-1-vs-Tier-1 RED; RG-Q-013 strengthened verbatim M1; RG-Q-015 §I7-binding sub-tests M2; density 45/21=2.14; code @891ee536c). BC-5.39.001 LOCAL streak RESET 0/3 (code HEAD changed); re-gate pending on 891ee536c. total_stories 303 UNCHANGED. D-2274 NOTE archived.
-# NOTE: D-2272 — STORY-INDEX v2.878→v2.879: ROUTING-001 v1.50→v1.51 (RG-Q-008 multi-tenant head green-lock + RG-Q-009 multi-tenant pipe now green; Site E ocsf_or_raw_column_names_for_table; density 2.11). total_stories 303 UNCHANGED. D-2271 NOTE archived.
-arch_index_version: "2.330"
+arch_index_version: "2.331"
+# NOTE: D-2278 — ARCH-INDEX v2.330→v2.331: §7-AUTHORIZED A+W spec burst — ADR-058 pin v2.30→v2.31 (§J6 A+W amendment: raw_extensions emitted iff ocsf_column_naming==true AND ≥1 Tier-2; ocsf.zero_tier1_table WARN non-blocking; BC-2.11.016 v1.29→v1.30). BC-2.16.002 pin v2.33→v2.34. BC-2.16.003 pin v1.25→v1.26. D-2274 NOTE archived.
 # NOTE: D-2274 — ARCH-INDEX v2.329→v2.330: strict-fix spec burst COMPLETE (S-ADR058-OCSF-ROUTING-001 Step 1) — ADR-058 pin v2.28→v2.30 (§I7 Consolidated-Projection Invariant; §J6 Zero-Column OCSF Tables; §J7 Spec-Load §J Collision Validation with E-SPEC-030). BC-2.16.003 pin v1.23→v1.24. BC-2.11.016 v1.28→v1.29. ROUTING-001 v1.51→v1.52. D-2266 NOTE archived.
 # NOTE: D-2265 — ARCH-INDEX v2.327→v2.328: spec-augmentation burst (human decisions 2026-08-21) — ADR-058 pin v2.26→v2.27 (KF-05 revised: audit_logs.id metadata_uid Tier-1; §I6 push-down invariant; §G synthesized-descriptor MUST). BC-2.16.003 v1.21→v1.22. ROUTING-001 v1.46→v1.47. D-2257 NOTE archived.
 # NOTE: D-2257 — ARCH-INDEX v2.326→v2.327: LOCAL adversary re-gate fix-burst (S-ADR058-OCSF-COERCION-001) — ADR-058 pin v2.25→v2.26 (F-COERCE-ADV-LOW-002 §Status heading retitle; F-COERCE-ADV-OBS-003 §H item 3 Integer+Object). D-2256 NOTE archived.

@@ -4,8 +4,8 @@ adr_id: "ADR-058"
 title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred"
 status: accepted
 date: "2026-08-11"
-modified: "2026-08-22"
-version: "2.30"
+modified: "2026-08-23"
+version: "2.31"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -35,7 +35,7 @@ inputs:
   - crates/prism-ocsf/src/mappers/spec_driven.rs
   - crates/prism-ocsf/src/class_selector.rs
   - crates/prism-ocsf/ocsf-schema/1.7.0/schema.json
-input-hash: "c1b8834"
+input-hash: "71e765d"
 ---
 
 # ADR-058: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred
@@ -743,10 +743,18 @@ and does not trigger a full scan.)
 (both in `prism-spec-engine::column_mapping`) are the **single authoritative OCSF projection implementations**
 for computing the set of queryable column names and their types for any table spec.
 
-`ocsf_column_naming = true` behavior:
-- Returns Tier-1 `ocsf_field_to_arrow_name` names + `"class_uid"` + `"_sensor"` +
-  `"raw_extensions"` if at least one Tier-2 column exists (`ocsf_field == None`).
-- Zero-column OCSF table (no Tier-1 columns at all) returns `["class_uid", "_sensor"]` — see §J6.
+`ocsf_column_naming = true` behavior (four cases; **projection code unchanged from v2.30** —
+`raw_extensions` gate is `ocsf_column_naming == true && has_tier2_column`, independent of Tier-1
+count):
+- **Normal table** (≥1 Tier-1, ≥1 Tier-2): Tier-1 `ocsf_field_to_arrow_name` names +
+  `"class_uid"` + `"_sensor"` + `"raw_extensions"`.
+- **Tier-1-only** (≥1 Tier-1, 0 Tier-2): Tier-1 `ocsf_field_to_arrow_name` names +
+  `"class_uid"` + `"_sensor"`. No `raw_extensions`.
+- **Zero-Tier-1 with Tier-2** (0 Tier-1, ≥1 Tier-2): `["class_uid", "_sensor",
+  "raw_extensions"]` — Tier-2 data IS preserved; `ocsf.zero_tier1_table` warning fires once at
+  spec-load. See §J6 A+W rule and RG-Q-017.
+- **Truly empty** (0 Tier-1, 0 Tier-2): `["class_uid", "_sensor"]`. `ocsf.zero_tier1_table`
+  warning fires once at spec-load. See §J6.
 
 `ocsf_column_naming = false` behavior: raw `col.name` list (or `col.name`→`ColumnType` pairs for
 `ocsf_projected_column_types`).
@@ -838,9 +846,12 @@ unconditionally appended to every spec-driven RecordBatch by `pipeline_result_to
 `class_uid` and `_sensor` (per §G — OQ-003 synthesized-column discoverability). `category_uid`
 is **not** appended in OCSF (`ocsf_column_naming = true`) mode; it is emitted only in the legacy
 (`ocsf_column_naming = false`) branch. The fourth name, `raw_extensions`, is emitted
-**conditionally** — only when `ocsf_column_naming == true` AND at least one column in the table
-has `ocsf_field == None` (a table with zero `ocsf_field == None` columns produces no
-`raw_extensions` column, per §G Tier-2, §I2, and §B2 item 1). All four names are nonetheless
+**conditionally** — only when `ocsf_column_naming == true` AND the table has ≥1 Tier-2 column
+(at least one column has `ocsf_field == None`). This holds regardless of whether the table has
+any Tier-1 columns — a zero-Tier-1 table WITH ≥1 Tier-2 columns still emits `raw_extensions`
+and preserves the Tier-2 data (see §J6 A+W rule; human decision 2026-08-23). A table with zero
+Tier-2 columns produces no `raw_extensions` column (per §G Tier-2, §I2, and §B2 item 1). All
+four names are nonetheless
 **reserved** against flattened-`ocsf_field` collision, fail-closed: `category_uid` is reserved
 because it is appended in the legacy (`ocsf_column_naming = false`) branch — a TOML column whose
 `ocsf_field` flattens to `category_uid` would collide on any sensor running `ocsf_column_naming =
@@ -971,29 +982,58 @@ pre-activation shadow check required by §J2 passes cleanly with the current col
 ### §J6 Zero-Column OCSF Tables
 
 When `ocsf_column_naming = true` and a table's TOML spec contains **no Tier-1 columns** (zero
-columns carry a non-`None` `ocsf_field` declaration), the table's queryable column set is exactly:
+columns carry a non-`None` `ocsf_field` declaration), behavior depends on whether Tier-2 columns
+are present. **Governing rule: Option A+Warning (human decision 2026-08-23, §7-AUTHORIZED;
+supersedes the interim §J6-drop direction).**
+
+**Sub-case A: Zero-Tier-1 with ≥1 Tier-2 columns.** The table's queryable column set is:
+
+- `class_uid` (Integer, non-nullable) — unconditionally synthesized per §G OQ-003
+- `_sensor` (String, non-nullable) — unconditionally synthesized per §G OQ-003
+- `raw_extensions` (Json, nullable) — synthesized per §I2; Tier-2 data IS preserved (no data loss)
+
+**Sub-case B: Truly empty (0 Tier-1, 0 Tier-2).** The table's queryable column set is:
 
 - `class_uid` (Integer, non-nullable) — unconditionally synthesized per §G OQ-003
 - `_sensor` (String, non-nullable) — unconditionally synthesized per §G OQ-003
 
-`raw_extensions` is **NOT registered** for such a table. Per §G Tier-2 / §I2 / §B2 item 1, a
-`raw_extensions` column is emitted only when `ocsf_column_naming == true` AND at least one column
-has `ocsf_field == None` within a table that also has Tier-1 columns. A table with zero Tier-1
-columns has every column carrying `ocsf_field == None`, but no Tier-1 routing context is
-established — the correct representation is the two unconditionally synthesized columns only, with
-no `raw_extensions` aggregate.
+In both sub-cases, no raw `col.name` is registered as a queryable field under
+`ocsf_column_naming = true`.
 
-**Invariant:** `ocsf_projected_column_names(tbl, true)` MUST return `["class_uid", "_sensor"]`
-when called on a table with zero Tier-1 columns (§I7 authoritative impl).
+**Probable-misconfiguration WARNING (A+W).** For both sub-cases, the spec-load/registration step
+emits `tracing::warn!(event_type = "ocsf.zero_tier1_table", sensor_id = %sensor_id, table_name = %table.table_name, tier2_column_count = tier2_count, "OCSF table with ocsf_column_naming=true has zero Tier-1 ocsf_field mappings; class_uid + _sensor presented (+ raw_extensions when tier2_column_count > 0)")` ONCE per offending table — NOT per-query, NOT per-record.
+
+**`ocsf.zero_tier1_table` event specification** (SAP-1 / PG-LP11-001 obligation — product-owner
+MUST add a BC-2.16.002 §Postconditions Canonical Structured Event Catalog row before the PR
+merges):
+- `event_type`: `"ocsf.zero_tier1_table"` — follows the `ocsf.*` prefix convention (parallels `ocsf.unknown_class_name`)
+- `sensor_id` (string): sensor identifier (e.g., `"claroty"`)
+- `table_name` (string): the table with the zero-Tier-1 configuration gap
+- `tier2_column_count` (integer): count of Tier-2 (`ocsf_field == None`) columns in the offending table (≥0)
+- Audit role: configuration-quality warning; aids TOML authoring diagnostics; not security-relevant
+- Recurrence: ONCE per table at spec-load/registration time — not per-query, not per-record
+- Emission site: `prism-spec-engine::add_sensor_spec` — after Validation Rule 8 in `parse_and_validate_spec_toml`, or as a post-validation step in `add_sensor_spec`
+
+The warning does NOT block spec-load; zero-Tier-1 OCSF tables are valid and load successfully.
+The warning is a diagnostic signal that the TOML author likely omitted `ocsf_field` declarations.
+
+**Invariant** (`ocsf_projected_column_names(tbl, true)` for zero-Tier-1 tables; §I7 authoritative
+impl; **projection code unchanged from v2.30** — `raw_extensions` gate is
+`ocsf_column_naming == true && has_tier2_column`, independent of Tier-1 count):
+- 0 Tier-1 + ≥1 Tier-2 → `["class_uid", "_sensor", "raw_extensions"]`
+- 0 Tier-1 + 0 Tier-2 → `["class_uid", "_sensor"]`
 
 The plan-gate ST (schema-table) gate in `prism-query::table_registry` (`register_sensor`) MUST
-accept PrismQL queries against `class_uid` and `_sensor` for zero-column OCSF tables. It MUST NOT
-accept queries against any raw `col.name` for such tables (no raw `col.name` is registered as a
-queryable field under `ocsf_column_naming = true`).
+accept PrismQL queries against `class_uid` and `_sensor` for any zero-Tier-1 OCSF table. When
+Tier-2 columns are present (sub-case A), MUST also accept queries against `raw_extensions`. MUST
+NOT accept queries against any raw `col.name` for such tables.
 
 (Mandate anchor: S-ADR058-OCSF-ROUTING-001 — RG-Q-010 asserts the ST gate accepts `class_uid`
-and `_sensor` queries against a zero-column OCSF table; RG-Q-011 asserts
-`available_columns == ["_sensor", "class_uid"]` only — no raw `col.name` present.)
+and `_sensor` queries against a zero-Tier-1 OCSF table; RG-Q-011 asserts
+`available_columns == ["_sensor", "class_uid"]` for a truly-empty (0 Tier-1, 0 Tier-2) table;
+**RG-Q-017** asserts both (a) a zero-Tier-1-with-Tier-2 table projects `["class_uid", "_sensor",
+"raw_extensions"]` AND (b) the `ocsf.zero_tier1_table` warning fires at spec-load time for that
+table — the mandate covers BOTH the A+W projection and the warning emission.)
 
 ### §J7 Spec-Load §J Collision Validation
 
@@ -1004,10 +1044,12 @@ query execution time. This is fail-closed but too late: an invalid sensor TOML i
 and surfaces a schema error only when a query runs against that table.
 
 **Decision:** Move §J collision detection to spec-load time via a new private helper
-`validate_ocsf_column_collisions(spec: &SensorSpec, source_path: &Path) -> Vec<String>` in
+`validate_ocsf_column_collisions(spec: &SensorSpec) -> Vec<String>` in
 `prism-spec-engine::add_sensor_spec`, called from `parse_and_validate_spec_toml` as Validation
 Rule 8 (after existing Rule 7). The helper returns a `Vec<String>` of error strings; if non-empty,
-`parse_and_validate_spec_toml` fails.
+`parse_and_validate_spec_toml` fails. (The `source_path` parameter present in earlier drafts is
+dropped: the helper only returns collision-error strings; the caller `parse_and_validate_spec_toml`
+already holds the source path and populates `ValidationError.source_path` independently.)
 
 The helper enforces three collision categories, each carrying a `§J` discriminator tag in the
 E-SPEC-030 error string:
@@ -1325,7 +1367,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.30 (2026-08-22)
+### Status as of v2.31 (2026-08-23)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1406,6 +1448,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.31 | 2026-08-23 | architect | §7-AUTHORIZED spec amendment (human decision 2026-08-23). MED-1 resolved via Option A+Warning (supersedes interim §J6-drop direction): zero-Tier-1 OCSF table PRESERVES Tier-2 data via `raw_extensions` (`raw_extensions` gate is `ocsf_column_naming == true && has≥1-Tier-2`, independent of Tier-1 count — projection code UNCHANGED from v2.30). NEW spec-load WARNING: `ocsf.zero_tier1_table` event (fields: `sensor_id`, `table_name`, `tier2_column_count`; audit role: config-quality diagnostic; SAP-1/PG-LP11-001; ONCE per offending table at spec-load, not per-query; BC-2.16.002 catalog row required before PR merges). §J2 `raw_extensions` paragraph updated to `has≥1-Tier-2` rule independent of Tier-1 count (A+W). §J6 rewritten to A+W: sub-case A (0T1+≥1T2 → [class_uid, _sensor, raw_extensions] + warning), sub-case B (0T1+0T2 → [class_uid, _sensor] + warning); §J6-wins/intentional-drop language removed. §I7 rewritten to four-case description (projection code unchanged). RG-Q-017 anchor covers BOTH A+W projection ([class_uid, _sensor, raw_extensions] for 0T1+≥1T2) AND warning emission. OBS-1 §J7 signature drop (`source_path: &Path` removed → `validate_ocsf_column_collisions(spec: &SensorSpec) -> Vec<String>`) retained unchanged. TD-VSDD-097: (1) sibling pair — §J2/§J6/§I7 all state `has≥1-Tier-2` rule uniformly; §J7 isolated. (2) downstream copy targets — BC-2.11.016 EC-11-080 (A+W: 0T1+≥1T2 → [class_uid, _sensor, raw_extensions] + warning; anchor RG-Q-017); BC-2.16.002 NEW `ocsf.zero_tier1_table` catalog row (SAP-1 obligation); BC-2.16.003/error-taxonomy.md for §J7 OBS-1 signature; RG-Q-017 must assert both projection and warning. (3) mandate anchors — §J6 Invariant anchored to RG-Q-010/RG-Q-011/RG-Q-017; `ocsf.zero_tier1_table` SAP-1: BC-2.16.002 catalog row required; §J7 signature-only correction, no new behavioral MUST. |
 | 2.30 | 2026-08-22 | architect | S-ADR058-OCSF-ROUTING-001 strict-fix Step 1.1b (D-2273): §J7 error code corrected E-SPEC-027 → E-SPEC-030 (E-SPEC-027 already assigned to header_scheme validation per ADR-053 D2; E-SPEC-030 is next-free per error-taxonomy.md ground truth). §J7 body: all 9 E-SPEC-027 occurrences replaced with E-SPEC-030 (error string examples, `New error code` declaration, MUST-add obligation, and RG-Q-012/013/014 mandate anchor assertions). v2.29 changelog row likewise corrected to E-SPEC-030. No other content change. §Status heading retitled v2.29 → v2.30. |
 | 2.29 | 2026-08-22 | architect | S-ADR058-OCSF-ROUTING-001 strict-fix Step 1.1 (D-2273). Three new clauses added: (1) §I7 Consolidated-Projection Invariant — `ocsf_projected_column_names` + `ocsf_projected_column_types` (prism-spec-engine::column_mapping) are the SINGLE authoritative OCSF projection implementations; `build_ocsf_column_descriptors` (prism-mcp::tools::prism_describe) and `pipeline_result_to_record_batch` (prism-bin::spec_driven_adapter) are documented shape-exception sites bound by RG-Q-015 name-set-agreement gate; `ocsf_or_raw_column_names_for_table` (prism-query::engine) becomes a thin forward to the authoritative impl. (2) §J6 Zero-column OCSF tables — when `ocsf_column_naming = true` and a table has zero Tier-1 columns, the table registers exactly `class_uid` + `_sensor` (no `raw_extensions`, no raw col.name); `ocsf_projected_column_names` returns `["class_uid", "_sensor"]`; ST gate MUST accept queries against these two names and MUST NOT accept raw col.name; anchored to RG-Q-010/RG-Q-011. (3) §J7 Spec-load §J collision validation — `parse_and_validate_spec_toml` (prism-spec-engine::add_sensor_spec) enforces §J1 (shadow), §J2 (reserved-name), §J4 (intra-table duplicate) via new `validate_ocsf_column_collisions` helper as Validation Rule 8; error code E-SPEC-030 with §J discriminator tag; boot exit 2; hot-reload keeps prior spec; runtime `pipeline_result_to_record_batch` §J guard REMAINS as defense-in-depth and MUST NOT be removed; anchored to RG-Q-012/RG-Q-013/RG-Q-014. §Status heading retitled v2.28 → v2.29. TD-VSDD-097: (1) sibling pair — existing §J1/§J2/§J4 clauses verified internally consistent with new §J7: §J7 explicitly states "§J7 does not supersede §J2" and "runtime guard MUST NOT be removed" — additive, not contradictory; §I7 zero-column return `["class_uid", "_sensor"]` matches §J6 invariant exactly. (2) downstream copy targets — §J6: PO must transcribe into BC-2.11.016 new EC (zero-column OCSF table presents class_uid/_sensor in available set; anchored to RG-Q-010/011); §J7: PO must transcribe into BC-2.16.003 new EC (spec-load rejects §J1/§J2/§J4 with E-SPEC-030; boot exit 2; hot-reload keeps prior spec; defense-in-depth runtime guard remains; anchored to RG-Q-012/013/014) and add E-SPEC-030 row to error-taxonomy.md; §I7 shape-exception sites: story-writer must add RG-Q-015 AC and wire `ocsf_or_raw_column_names_for_table` thin-forward impl. (3) mandate anchors — §I7 shape-exception MUSTs anchored to RG-Q-015; §J6 ST-gate MUST/MUST-NOT anchored to RG-Q-010/RG-Q-011; §J7 spec-load MUST anchored to RG-Q-012/RG-Q-013/RG-Q-014; §J7 runtime-guard MUST-NOT-remove is a prohibition (belt-and-suspenders; no test anchor required). |
 | 2.28 | 2026-08-21 | architect | LOCAL pass-2 HIGH-2 closure (S-ADR058-OCSF-ROUTING-001). §J2 "Synthesized column name reservation" corrected — mode-accurate description of unconditionally appended synthesized columns. Prior text claimed three columns (`class_uid`, `category_uid`, `_sensor`) were "unconditionally appended to every spec-driven RecordBatch schema regardless of the sensor's TOML column declarations"; this contradicted §G (OQ-003), the code (`spec_driven_adapter.rs` `pipeline_result_to_record_batch`), and RG-019, all of which are authoritative-correct. Resolution (§G is authoritative — human OQ-003 decision 2026-08-21): in `ocsf_column_naming = true` mode, exactly two Arrow columns are unconditionally appended: `class_uid` and `_sensor`. `category_uid` is NOT appended in OCSF mode; it is emitted only in the legacy (`ocsf_column_naming = false`) branch. `category_uid` remains in the reserved-name set {class_uid, category_uid, _sensor, raw_extensions} for defensive collision-avoidance: a TOML column whose `ocsf_field` flattens to `category_uid` would collide on any sensor running `ocsf_column_naming = false`, and enabling OCSF mode on such a sensor in a future story would face an unrecoverable Arrow schema conflict. §G cross-referenced from §J2 with explicit OQ-003 cite. §Status heading retitled v2.27 → v2.28. TD-VSDD-097: (1) sibling pair — ADR-058 is singular, no twin ADR; N/A. (2) downstream copy target — BC-2.16.003 §Postconditions carries "three envelope columns" language reflecting the pre-correction §J2 text; PO must sweep it next leg to reflect two-column OCSF-mode append (`class_uid` + `_sensor`) and `category_uid` legacy-mode-only accuracy. (3) no new MUST statements introduced; existing reservation-guard MUST unchanged. |

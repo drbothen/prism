@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.881"
+version: "2.882"
 status: draft
 producer: state-manager
-timestamp: 2026-08-23T00:50:00Z
+timestamp: 2026-08-23T06:00:00Z
 phase: 3
 total_stories: 303
+# D-2278: A+W spec burst (§7-AUTHORIZED human decision 2026-08-23) — ROUTING-001 v1.53→v1.54 (RG-Q-017 NEW zero_tier1 raw_extensions preservation end-to-end; density 46/21=2.19; AC-019 A+W two-sub-case; T-11AC + T-31 ocsf.zero_tier1_table warning; ADR-058 v2.31/BC-2.11.016 v1.30/BC-2.16.002 v2.34/BC-2.16.003 v1.26 pins updated; error-taxonomy v2.81; input-hash e7455fb). total_stories 303 UNCHANGED. STORY-INDEX v2.881→v2.882. D-2276 NOTE archived.
 # D-2276: ROUTING-001 LOCAL re-cascade pass-1 fix-burst — ROUTING-001 v1.52→v1.53 (RG-Q-016 §J1 Tier-1-vs-Tier-1 RED; RG-Q-013 strengthened verbatim M1; RG-Q-015 §I7-binding sub-tests M2; density 45/21=2.14; code @891ee536c). BC-5.39.001 LOCAL streak RESET 0/3; re-gate pending on 891ee536c. total_stories 303 UNCHANGED. STORY-INDEX v2.880→v2.881. D-2274 NOTE archived.
 # D-2274: strict-fix spec burst COMPLETE (S-ADR058-OCSF-ROUTING-001 Step 1) — ROUTING-001 v1.51→v1.52 (AC-019/020/021 NEW: spec-load §J1/§J2/§J4 collision guard; RG-Q-010..015 NEW: zero-col OCSF table + spec-load collision gate tests; density 44/21=2.10; POL-39 body normalization; input-hash b49d41f→6b4456e; §Authority pinned ADR-058 v2.30/BC-2.11.016 v1.29/BC-2.16.003 v1.24). total_stories 303 UNCHANGED. STORY-INDEX v2.879→v2.880. D-2272 NOTE archived.
 # D-2272: re-cascade P1 fix (HIGH-001/MED-002) COMPLETE — ROUTING-001 v1.50→v1.51 (RG-Q-008 multi-tenant head green-lock + RG-Q-009 multi-tenant pipe now green; Site E ocsf_or_raw_column_names_for_table; density 2.11; feature code HEAD 396af5722). total_stories 303 UNCHANGED. STORY-INDEX v2.878→v2.879. D-2271 NOTE archived.
@@ -1016,7 +1017,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-DEMO-CLAROTY-DAR-001 | prism-dtu-claroty + claroty.sensor.toml: Add device_alert_relations table — DTU route and TOML spec (closes DTU-EXT-006) [draft v1.3] | prism-dtu-claroty,prism-sensors | 2 (BC-2.16.013, BC-2.01.013) | VP-148 | 5 | -- |
 | S-DEMO-CLAROTY-HARNESS-DAR-001 | prism-dtu-harness: Add POST /api/v1/device_alert_relations/ to Claroty in-process clone (closes INV-HARNESS-ROUTE-PARITY for device_alert_relations) [draft v1.0] | prism-dtu-harness | 1 (BC-2.16.013) | -- | 2 | S-DEMO-CLAROTY-DAR-001 |
 | S-ADR058-OCSF-COERCION-001 | ADR-058 Stage 1 — Column Coercion Gap Closure: EC-016-013-007/008/009 Fixes and column_coercion_failure Tracing Emission [merged v1.47] | prism-spec-engine,prism-bin | 3 (BC-2.16.003, BC-2.02.011, BC-2.16.002) | VP-017, VP-016 | 5 | -- |
-| S-ADR058-OCSF-ROUTING-001 | ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation [draft v1.53] | prism-spec-engine,prism-bin,prism-mcp,prism-ocsf,prism-sensors | 4 (BC-2.16.003, BC-2.16.002, BC-2.01.013, BC-2.11.016) | VP-017, VP-016 | 8 | S-ADR058-OCSF-COERCION-001 |
+| S-ADR058-OCSF-ROUTING-001 | ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation [draft v1.54] | prism-spec-engine,prism-bin,prism-mcp,prism-ocsf,prism-sensors | 4 (BC-2.16.003, BC-2.16.002, BC-2.01.013, BC-2.11.016) | VP-017, VP-016 | 8 | S-ADR058-OCSF-COERCION-001 |
 | S-JSON-EXTRACT-UDF-001 | DataFusion json_extract_string ScalarUDF — Tier-2 Filtering via JSON Path Extraction [draft v0.1] | prism-query | 0 (pending PO authorship) | -- | tbd | -- |
 | S-ADR058-DTU-PARITY-MIGRATION-001 | DTU Parity Test Migration for ADR-058 Stage 2 OCSF Field-Path Routing [draft v1.0] | prism-dtu-claroty,prism-dtu-crowdstrike,prism-dtu-armis,prism-dtu-cyberint,prism-bin | 2 (BC-2.16.003, BC-2.01.013) | -- | 5 | -- |
 | S-OCSF-FIDELITY-CROWDSTRIKE-001 | CrowdStrike OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
@@ -1582,6 +1583,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.882 | 2026-08-23 | state-manager D-2278: A+W spec burst COMPLETE — ROUTING-001 v1.53→v1.54 (RG-Q-017 NEW: zero_tier1 raw_extensions preservation end-to-end; density 46/21=2.19; AC-019 A+W two-sub-case; T-11AC + T-31 ocsf.zero_tier1_table warning + OBS-1 param drop; ADR-058 v2.31/BC-2.11.016 v1.30/BC-2.16.002 v2.34/BC-2.16.003 v1.26 pins). total_stories 303 UNCHANGED. |
 | v2.881 | 2026-08-23 | state-manager D-2276: ROUTING-001 LOCAL re-cascade pass-1 fix-burst COMPLETE — ROUTING-001 v1.52→v1.53 (RG-Q-016 §J1 Tier-1-vs-Tier-1 RED; RG-Q-013 strengthened verbatim M1; RG-Q-015 §I7-binding sub-tests M2; density 45/21=2.14; code @891ee536c). total_stories 303 UNCHANGED. |
 | v2.880 | 2026-08-23 | state-manager D-2274: strict-fix spec burst COMPLETE (S-ADR058-OCSF-ROUTING-001 Step 1) — ROUTING-001 v1.51→v1.52 (AC-019/020/021 spec-load §J collision validation; RG-Q-010..015 zero-col OCSF table + spec-load collision gate tests; density 44/21=2.10). total_stories 303 UNCHANGED. |
 | v2.879 | 2026-08-22 | state-manager D-2272: re-cascade P1 fix (HIGH-001/MED-002) COMPLETE — ROUTING-001 v1.50→v1.51 (RG-Q-008 multi-tenant head green-lock + RG-Q-009 multi-tenant pipe now green; Site E `ocsf_or_raw_column_names_for_table` shared helper; density 2.11); restored missing trailing columns (crate/BCs/VPs/pts/depends_on) from D-2268 compaction artifact; BCs count 3→4 (BC-2.11.016 added at v1.50). feature code HEAD 396af5722. total_stories 303 UNCHANGED. |
