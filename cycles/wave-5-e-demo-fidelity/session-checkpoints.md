@@ -511,3 +511,15 @@ ADR-053 ratified EFFECTIVE 2026-07-22 (D-1943) → 9 Wave-A stories (8 draft / 1
 **KEY STATE (D-2253):** FROZEN: ADR-058 v2.24 / BC-2.16.002 v2.29 / BC-2.16.003 v1.19 / ROUTING-001 v1.44 / COERCION-001 v1.40. ARCH-INDEX v2.325 / BC-INDEX v9.41 / STORY-INDEX v2.866. total_stories 302. active 252 / draft 4 / total 269. HOLDOUT-INDEX v1.17→v1.18 (HS-021 group: 4 scenarios). STATE v8.788.
 
 **NOTE: Superseded by D-2254 — S-ADR058-OCSF-COERCION-001 Phase-B TDD-GREEN (8/8 Red Gate tests; just check 5763 GREEN); SAP-1/PG-LP11-001 discharged; worktree HEAD 249060a57; BC-2.16.002 v2.29→v2.30; BC-INDEX v9.41→v9.42; STATE v8.788→v8.789. Then superseded by D-2259 — LOCAL cascade CONVERGED (human admin override 2026-08-20); trajectory-tail →1→2→2→3; HOLDOUT GATE PASS 4/4; demo COMPLETE; just check 5765 GREEN; CODE HEAD 26d036224.**
+
+---
+
+## Archived: D-2273 — 2026-08-22; STATE v8.806→v8.807 — SESSION WRAP; routing-001-strict-fix-plan.md written
+
+**RESUME IN ONE BREATH:** Prism Phase-3, v1 = live Claroty-xDome. ROUTING-001 query-surface OCSF fix delivered+green (feature @396af5722, pushed origin; just check 5805). Re-cascade pass-1 → LOW-1 (zero-col ST gate) + OBS-1 (projection duplication) + OBS-2 (spec-load collision guards) + OBS-3 (SAP-1 clean). Human: fix-everything-strictly. Strict-fix plan written at cycles/wave-5-e-demo-fidelity/routing-001-strict-fix-plan.md.
+
+**HEADS (D-2273):** `develop` `362e4f85` (LOCAL == origin/develop; no open PRs). `feature/S-ADR058-OCSF-ROUTING-001` @`396af5722` (pushed origin). `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed). `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch. factory-artifacts: D-2273 burst HEAD.
+
+**KEY STATE (D-2273):** FROZEN: code @396af5722 / ADR-058 v2.28 / BC-2.16.002 v2.33 / BC-2.16.003 v1.23 / BC-2.11.016 v1.28 / ROUTING-001 v1.51 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.329 / BC-INDEX v9.50 / STORY-INDEX v2.879. active 253/draft 3/total 269/stories 303. HOLDOUT: HS-022 group CONSUMED (3 FAIL + 1 PASS; D-2270). Re-gate requires FRESH scenarios. STATE v8.807.
+
+**NOTE: Superseded by D-2276 — ROUTING-001 LOCAL re-cascade strict-fix pass-1 fix-burst COMPLETE; ROUTING-001 v1.52→v1.53; code @891ee536c; just check GREEN 5814; STORY-INDEX v2.880→v2.881; STATE v8.809→v8.810.**
