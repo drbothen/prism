@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.813"
+version: "8.814"
 producer: state-manager
-timestamp: 2026-08-23T08:35:00Z
+timestamp: 2026-08-23T11:33:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -41,7 +41,7 @@ workspace_test_count: 5765
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2279 warning emission-site reconcile (TD-VSDD-053) — ocsf.zero_tier1_table WARN in register_sensor, not add_sensor_spec; single-emission covers boot-direct + dynamic-add. ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.11.016 v1.31 / ROUTING-001 v1.55 / T-31 A+W code @510d1299e / ARCH-INDEX v2.332 / BC-INDEX v9.54 / STORY-INDEX v2.883. BC-5.39.001 LOCAL 0/3 RESET (code HEAD changed); re-gate pending on 510d1299e. TD-VSDD-097 all dims CLEAR. trajectory-tail →2→0→3→4. records-lint exit 0. STATE v8.812→v8.813."
+current_step: "D-2280 ROUTING-001 LOCAL pass-C fix-burst COMPLETE (TD-VSDD-053; code+test only; no spec change) — F-1 MED CLOSED: ocsf.zero_tier1_table WARN emits table_name=%table.table_name (bare); RG-Q-017 (b) corrected to logs_contain(\"table_name=events\") + sensor_id=zero_t1_sensor + tier2_column_count=2 value assertions tightened + doc-comment BC-verbatim; RED pre-fix / GREEN post-fix. OBS-1 CLOSED (stale doc-comment + presence-only assertions). TD-VSDD-060 single-site confirmed. Spec perimeter UNCHANGED: ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.11.016 v1.31 / ROUTING-001 v1.55. FROZEN CODE HEAD 510d1299e→8877c7c88; just check GREEN 5815/5815. BC-5.39.001 LOCAL streak 0/3 RESET (code HEAD changed); re-gate pending on 8877c7c88. trajectory-tail →0→3→4→2. records-lint exit 0. STATE v8.813→v8.814."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -78,7 +78,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 285 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -85 | margin from actual: 215 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 287 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -87 | margin from actual: 213 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -91,7 +91,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-23 D-2279 warning emission-site reconcile COMPLETE — ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.11.016 v1.31 / ROUTING-001 v1.55 / code @510d1299e; BC-INDEX v9.54 / ARCH-INDEX v2.332 / STORY-INDEX v2.883; trajectory-tail →2→0→3→4; STATE v8.812→v8.813 |
+| **Last Updated** | 2026-08-23 D-2280 ROUTING-001 LOCAL pass-C fix-burst COMPLETE (code+test only; no spec change) — code @8877c7c88; F-1 MED + OBS-1 fixed; spec perimeter UNCHANGED (ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.11.016 v1.31 / ROUTING-001 v1.55); trajectory-tail →0→3→4→2; STATE v8.813→v8.814 |
 
 ## Phase Progress
 
@@ -126,12 +126,12 @@ _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individua
 
 | Metric | Value |
 |--------|-------|
-| BC-5.39.001 streak | 0/3 — T-31 A+W code delivered @510d1299e (D-2279; 2026-08-23); emission-site spec reconcile committed. Re-gate pending on 510d1299e (fresh LOCAL adversary pass). |
-| Active cascade | S-ADR058-OCSF-ROUTING-001 A+W code delivered @510d1299e + emission-site spec reconcile committed; re-gate pending fresh on final A+W perimeter. NEXT: LOCAL adversary re-cascade on 510d1299e → BC-5.39.001 3-CLEAN → holdout FRESH → demo → PR → merge. |
-| Pass count | ROUTING-001 LOCAL: 9 passes + re-cascade p1 (4 findings, FIXED D-2276). COERCION-001 LOCAL: 4 passes. SPEC cascade: 69 passes. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
+| BC-5.39.001 streak | 0/3 — pass-C F-1/OBS-1 fixed code+test @8877c7c88 (D-2280; 2026-08-23); no spec change. Re-gate pending on 8877c7c88 (fresh LOCAL adversary pass). |
+| Active cascade | S-ADR058-OCSF-ROUTING-001 pass-C F-1/OBS-1 fixed code+test @8877c7c88 (D-2280); no spec change; re-gate pending fresh on code @8877c7c88. NEXT: LOCAL adversary re-cascade on 8877c7c88 → BC-5.39.001 3-CLEAN → holdout FRESH → demo → PR → merge. |
+| Pass count | ROUTING-001 LOCAL: 9 passes + re-cascade p1 (4 findings, FIXED D-2276) + pass-C (2 findings, FIXED D-2280). COERCION-001 LOCAL: 4 passes. SPEC cascade: 69 passes. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
 | Last CLEAN(strict) | ROUTING-001 LOCAL pass-1 (2026-08-21 pre-D-2266). COERCION-001 LOCAL: none (human admin override). SPEC cascade: pass-68. |
-| Finding trajectory | ROUTING-001 LOCAL →0→3→2→0→3→4 (p1=0/CLEAN, p2=3, p3=2, p4-8=0/records-tier, re-cascade-p1=3, strict-fix-p1=4; fix-burst COMPLETE @891ee536c; T-31 A+W code @510d1299e; re-gate pending on 510d1299e). COERCION-001 LOCAL →1→2→2→3 (all fixed). Prior SPEC cascade tail: →1→1→0→1. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Frozen perimeter | ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.16.003 v1.25 (active) / BC-2.11.016 v1.31 / ROUTING-001 v1.55 / COERCION-001 v1.47 (merged) — code @510d1299e / ARCH-INDEX v2.332 / BC-INDEX v9.54 / STORY-INDEX v2.883 |
+| Finding trajectory | ROUTING-001 LOCAL →0→3→2→0→3→4→2 (p1=0/CLEAN, p2=3, p3=2, p4-8=0/records-tier, re-cascade-p1=3, strict-fix-p1=4, pass-C=2 MED+OBS fixed @8877c7c88; re-gate pending on 8877c7c88). COERCION-001 LOCAL →1→2→2→3 (all fixed). Prior SPEC cascade tail: →1→1→0→1. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
+| Frozen perimeter | ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.16.003 v1.25 (active) / BC-2.11.016 v1.31 / ROUTING-001 v1.55 / COERCION-001 v1.47 (merged) — code @8877c7c88 / ARCH-INDEX v2.332 / BC-INDEX v9.54 / STORY-INDEX v2.883 |
 
 ## Concurrent Cycles
 
@@ -158,6 +158,7 @@ _No concurrent cycles in progress. Current cycle: wave-5-e-demo-fidelity._
 | D-2276 | state-manager | 2026-08-23 | SINGLE-COMMIT BURST (TD-VSDD-053) — ROUTING-001 LOCAL re-cascade strict-fix pass-1 fix-burst COMPLETE. 4 findings ALL FIXED. test-writer: RG-Q-016 (§J1 Tier-1-vs-Tier-1 RED); RG-Q-013 strengthened (M1 verbatim); 2 RG-Q-015 §I7-binding sub-tests (M2; PASS). implementer @891ee536c: §J1 all-columns self-exclusion + §J4 double-report guard [H1]; §J4 verbatim [M1]; §-citations corrected [L1]. ROUTING-001 v1.52→v1.53 (density 45/21=2.14). just check GREEN 5814. BC-5.39.001 LOCAL streak RESET 0/3 (code HEAD changed); re-gate pending on 891ee536c. STORY-INDEX v2.880→v2.881. trajectory-tail →2→0→3→4. records-lint exit 0. STATE v8.809→v8.810. |
 | D-2277 | state-manager | 2026-08-23 | SINGLE-COMMIT BURST (TD-VSDD-053; TD-VSDD-096) — ROUTING-001 LOCAL re-gate spec-prose fix COMPLETE. BC-2.16.003 v1.24→v1.25 (F1 MED EC-016-013-032 error-dispatch corrected to real two-layer mechanism parse_and_validate_spec_toml/Err(Vec<ValidationError>)/add_sensor_spec/AddSensorSpecResult::ValidationFailed; RG-Q-012/013/014 assertion descriptions aligned). error-taxonomy v2.79→v2.80 (F2 LOW: stale architect-must-amend-ADR-058-§J7 directive removed — ADR-058 v2.30 §J7 ALREADY APPLIED in D-2274). BC-INDEX v9.51→v9.52. Counts UNCHANGED: active 253/draft 3/total 269. D-2275 sibling sweep CONFIRMED. TD-VSDD-097 all dims CLEAR. trajectory-tail →2→0→3→4. records-lint exit 0. STATE v8.810→v8.811. |
 | D-2279 | state-manager | 2026-08-23 | SINGLE-COMMIT BURST (TD-VSDD-053) — warning emission-site reconcile COMPLETE: `ocsf.zero_tier1_table` WARN emits in `register_sensor` (prism-query::table_registry), NOT `add_sensor_spec`; single-emission covers boot-direct + dynamic-add (config_manager→hot-reload→register_sensor). ADR-058 v2.31→v2.32 (§J6 emission-site). BC-2.16.002 v2.34→v2.35 (catalog row 96 emission-site). BC-2.11.016 v1.30→v1.31 (EC-11-080 emission-site). T-31 A+W code delivered feature @510d1299e: emit `ocsf.zero_tier1_table` WARN in `register_sensor` (fields sensor_id/table_name/tier2_column_count); OBS-1 `validate_ocsf_column_collisions` drops `source_path` param; RG-Q-017 (a)+(b) GREEN; just check 5815/5815 exit 0. ROUTING-001 v1.54→v1.55 (§Authority+BC pins synced; input-hash e7455fb→503dea7). BC-INDEX v9.53→v9.54. ARCH-INDEX v2.331→v2.332. STORY-INDEX v2.882→v2.883. BC-5.39.001 LOCAL streak RESET 0/3 (code HEAD changed @510d1299e; re-gate pending). TD-VSDD-097 all dims CLEAR. trajectory-tail →2→0→3→4. records-lint exit 0. STATE v8.812→v8.813. |
+| D-2280 | state-manager | 2026-08-23 | SINGLE-COMMIT BURST (TD-VSDD-053) — ROUTING-001 LOCAL pass-C fix-burst COMPLETE (code+test only; no spec change). F-1 MED CLOSED: `ocsf.zero_tier1_table` WARN now emits `table_name = %table.table_name` (bare); RG-Q-017 (b) corrected to `logs_contain("table_name=events")` + `sensor_id=zero_t1_sensor` + `tier2_column_count=2` value assertions tightened + doc-comment corrected to BC-verbatim message; RED pre-fix / GREEN post-fix. OBS-1 CLOSED (stale doc-comment + presence-only field assertions). TD-VSDD-060 single-site confirmed. just check GREEN 5815/5815 exit 0. FROZEN CODE HEAD 510d1299e→8877c7c88. Spec perimeter UNCHANGED (ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.11.016 v1.31 / ROUTING-001 v1.55 / ARCH-INDEX v2.332 / BC-INDEX v9.54 / STORY-INDEX v2.883). BC-5.39.001 LOCAL streak 0/3 RESET (code HEAD changed); re-gate pending on 8877c7c88. trajectory-tail →0→3→4→2. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.813→v8.814. |
 
 ## Decisions Log
 
@@ -243,6 +244,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | D-2276 | state-manager | 2026-08-23 | **SINGLE-COMMIT BURST (TD-VSDD-053) — ROUTING-001 LOCAL re-cascade strict-fix pass-1 fix-burst COMPLETE. 4 findings ALL FIXED (H1/M1/M2/L1). ROUTING-001 v1.52→v1.53 (density 45/21=2.14); code @891ee536c; just check GREEN 5814. BC-5.39.001 LOCAL streak RESET 0/3 (code HEAD changed). STORY-INDEX v2.880→v2.881. TD-VSDD-097 all dims CLEAR. trajectory-tail →2→0→3→4. records-lint exit 0. STATE v8.809→v8.810.** | wave-5-e-demo-fidelity | 2026-08-23 |
 | D-2277 | state-manager | 2026-08-23 | **SINGLE-COMMIT BURST (TD-VSDD-053; TD-VSDD-096) — ROUTING-001 LOCAL re-gate spec-prose fix-burst COMPLETE. BC-2.16.003 v1.24→v1.25 (F1 MED EC-016-013-032 error-dispatch corrected to real two-layer mechanism parse_and_validate_spec_toml/Err(Vec<ValidationError>)/add_sensor_spec/AddSensorSpecResult::ValidationFailed; RG-Q-012/013/014 assertion descriptions aligned). error-taxonomy v2.79→v2.80 (F2 LOW stale architect-must-amend-ADR-058-§J7 directive removed — ADR-058 v2.30 §J7 already applied in D-2274). BC-INDEX v9.51→v9.52. Counts UNCHANGED: active 253/draft 3/total 269. D-2275 sibling sweep CONFIRMED. TD-VSDD-097: Dim-1 (sibling) CLEAR (BC-2.16.003 amended; BC-2.16.002 v2.33 UNCHANGED); Dim-2 (downstream) CLEAR (no copy-source section changed); Dim-3 (mandate) CLEAR (no new MUSTs). trajectory-tail →2→0→3→4. records-lint exit 0. STATE v8.810→v8.811.** | wave-5-e-demo-fidelity | 2026-08-23 |
 | D-2279 | state-manager | 2026-08-23 | **SINGLE-COMMIT BURST (TD-VSDD-053) — warning-emission-site reconcile: `ocsf.zero_tier1_table` WARN emits in `register_sensor` (prism-query::table_registry), NOT `add_sensor_spec`; single-emission covers boot-direct + dynamic-add (config_manager→hot-reload→register_sensor). ADR-058 v2.31→v2.32 (§J6 emission-site). BC-2.16.002 v2.34→v2.35 (catalog row 96 emission-site). BC-2.11.016 v1.30→v1.31 (EC-11-080 emission-site). T-31 A+W code delivered feature @510d1299e (implementer): emit `ocsf.zero_tier1_table` WARN in `register_sensor` (fields sensor_id/table_name/tier2_column_count); OBS-1 `validate_ocsf_column_collisions` drops `source_path` param; RG-Q-017 (a)+(b) GREEN; just check 5815/5815 exit 0. ROUTING-001 v1.54→v1.55 (§Authority+BC pins synced; input-hash e7455fb→503dea7). BC-INDEX v9.53→v9.54. ARCH-INDEX v2.331→v2.332. STORY-INDEX v2.882→v2.883. BC-5.39.001 LOCAL streak RESET 0/3 (code HEAD changed @510d1299e; re-gate pending). TD-VSDD-097 all dims CLEAR. trajectory-tail →2→0→3→4. records-lint exit 0. STATE v8.812→v8.813.** | wave-5-e-demo-fidelity | 2026-08-23 |
+| D-2280 | state-manager | 2026-08-23 | **SINGLE-COMMIT BURST (TD-VSDD-053) — ROUTING-001 LOCAL pass-C fix-burst COMPLETE (code+test only; no spec change). F-1 MED CLOSED: `ocsf.zero_tier1_table` WARN emits `table_name = %table.table_name` (bare); RG-Q-017 (b) corrected to `logs_contain("table_name=events")` + `sensor_id=zero_t1_sensor` + `tier2_column_count=2` value assertions tightened + doc-comment corrected to BC-verbatim message; RED pre-fix / GREEN post-fix. OBS-1 CLOSED (stale doc-comment + presence-only field assertions). TD-VSDD-060 single-site confirmed. just check GREEN 5815/5815 exit 0. FROZEN CODE HEAD 510d1299e→8877c7c88. Spec perimeter UNCHANGED (ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.11.016 v1.31 / ROUTING-001 v1.55 / ARCH-INDEX v2.332 / BC-INDEX v9.54 / STORY-INDEX v2.883). BC-5.39.001 LOCAL streak 0/3 RESET (code HEAD changed); re-gate pending on 8877c7c88. trajectory-tail →0→3→4→2. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.813→v8.814.** | wave-5-e-demo-fidelity | 2026-08-23 |
 
 ## Skip Log
 
@@ -263,23 +265,23 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · convergence-trajectory.md · decisions-archive-D1789-D2199.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · decisions-archive-D1124-D1138.md · decisions-archive-D1165-D1352.md · drift-items-resolved.md · drift-items-open.md · drift-items-deferred.md · blocking-issues-resolved.md · phase-5-deferred-findings.md · frontmatter-cascade-archive.md · session-handoff-archive.md · lessons.md · session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
-## Session Resume Checkpoint (D-2279 — 2026-08-23 — warning emission-site reconcile COMPLETE; STATE v8.812→v8.813) [supersedes D-2277]
+## Session Resume Checkpoint (D-2280 — 2026-08-23 — ROUTING-001 pass-C fix-burst COMPLETE; STATE v8.813→v8.814) [supersedes D-2279]
 
 ### RESUME IN ONE BREATH
-Prism Phase-3, v1 = live Claroty-xDome. ROUTING-001 T-31 A+W code delivered @510d1299e (warning emission-site reconcile: `ocsf.zero_tier1_table` WARN emits in `register_sensor`, not `add_sensor_spec`; single-emission covers boot-direct + dynamic-add). ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.11.016 v1.31 / ROUTING-001 v1.55. BC-5.39.001 LOCAL streak 0/3; re-gate pending on 510d1299e.
+Prism Phase-3, v1 = live Claroty-xDome. ROUTING-001 pass-C fix-burst COMPLETE @8877c7c88 (F-1 MED + OBS-1 fixed: `ocsf.zero_tier1_table` WARN now emits `table_name=%table.table_name` bare; RG-Q-017 (b) tightened; no spec change). ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.11.016 v1.31 / ROUTING-001 v1.55. BC-5.39.001 LOCAL streak 0/3; re-gate pending on 8877c7c88.
 
-**RESUME NEXT-ACTION:** LOCAL adversary re-cascade on frozen HEAD 510d1299e → BC-5.39.001 3-CLEAN → holdout FRESH (new scenarios from holdout-evaluator; HS-022 CONSUMED) → demo → PR → merge.
+**RESUME NEXT-ACTION:** LOCAL adversary re-cascade on frozen HEAD 8877c7c88 → BC-5.39.001 3-CLEAN → holdout FRESH (new scenarios from holdout-evaluator; HS-022 CONSUMED) → demo → PR → merge.
 
-**SPEC PERIMETER (FROZEN):** code @510d1299e / ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.16.003 v1.25 / BC-2.11.016 v1.31 / ROUTING-001 v1.55 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.332 / BC-INDEX v9.54 / STORY-INDEX v2.883. active 253/draft 3/total 269/stories 303.
+**SPEC PERIMETER (FROZEN):** code @8877c7c88 / ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.16.003 v1.25 / BC-2.11.016 v1.31 / ROUTING-001 v1.55 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.332 / BC-INDEX v9.54 / STORY-INDEX v2.883. active 253/draft 3/total 269/stories 303.
 
 **HEADS:**
 - `develop`: `362e4f85` (LOCAL == origin/develop; no open PRs)
 - `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
-- `feature/S-ADR058-OCSF-ROUTING-001`: `510d1299e` (confirm push before cascade)
+- `feature/S-ADR058-OCSF-ROUTING-001`: `8877c7c88` (confirm push before cascade)
 - `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch
 
 **HOLDOUT:** HS-022 group CONSUMED (3 FAIL + 1 PASS; D-2270). Re-gate requires FRESH scenarios.
 
-**BACKUP BOUNDARY (D-2279):**
-- PUSHED / safe: `origin/develop` `362e4f85`; `factory-artifacts` (D-2279 burst).
+**BACKUP BOUNDARY (D-2280):**
+- PUSHED / safe: `origin/develop` `362e4f85`; `factory-artifacts` (D-2280 burst).
