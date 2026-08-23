@@ -1,23 +1,23 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.19"
+version: "1.20"
 status: draft
 producer: product-owner
-timestamp: 2026-08-21T00:00:00Z
+timestamp: 2026-08-23T00:00:00Z
 phase: 3
 inputs: []
 input-hash: null
 traces_to: prd.md
-total_scenarios: 93
+total_scenarios: 96
 ---
 
 # Holdout Scenario Index -- Prism
 
-**Date:** 2026-08-15 (updated)
-**Phase:** 0 (Multi-Repo Synthesis -- Step 5) / Phase 4.B (Wave 4 Holdout Coverage) / Phase 3 Wave 0 Plugin Migration / Phase 3 DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001
-**Total Scenarios:** 93 (89 prior + 4 new HS-022 for S-ADR058-OCSF-ROUTING-001)
-**Total Groups:** 16
+**Date:** 2026-08-23 (updated)
+**Phase:** 0 (Multi-Repo Synthesis -- Step 5) / Phase 4.B (Wave 4 Holdout Coverage) / Phase 3 Wave 0 Plugin Migration / Phase 3 DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 / Phase 3 S-ADR058-OCSF-ROUTING-001 A+W re-gate
+**Total Scenarios:** 96 (93 prior + 3 new HS-023 for S-ADR058-OCSF-ROUTING-001 A+W re-gate)
+**Total Groups:** 17
 **Input Sources:** 9 pass-8 deep synthesis files, cross-repo-dependencies.md, unified-security-posture.md; Wave 4 stories S-4.01–S-4.08, BC-INDEX v4.32, ADR-013 §2.1, D-209, ADR-016 §2.5, ADR-008; FB-IMPL-P1-PO fix-burst-1 2026-05-20 (HS-013..HS-018 authored)
 
 ---
@@ -47,7 +47,8 @@ total_scenarios: 93
 | HS-019 | [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-001-count-star-no-timeout.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-001-count-star-no-timeout.md), [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-002-bounded-default-window.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-002-bounded-default-window.md), [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-003-explicit-time-filter-not-truncated.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-003-explicit-time-filter-not-truncated.md), [S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-004-time-range-both-bounds.md](S-CLAROTY-AUDITLOG-TIMEBOX-001-HS-004-time-range-both-bounds.md) | Claroty audit_logs Push-Down Fix — Single Story (S-CLAROTY-AUDITLOG-TIMEBOX-001) **[CONSUMED 2026-08-15 — D-2195 holdout gate PASS; all 4 scenarios single-use; must NOT be reused]** | 4 | P0 | Push-down fix: COUNT(*) no timeout; unbounded SELECT bounded to 7d default; explicit older-than-7d filter honored (no silent truncation); BETWEEN a AND b pushes both bounds; ASM-CLAROTY-AUDITLOG-001 field-name validation |
 | ~~HS-020~~ | ~~Story B scenarios~~ | ~~Claroty audit_logs Layer 2 — Dynamic Push-Down~~ | ~~2~~ | ~~P0~~ | **RETIRED 2026-08-15 before shipping:** Design reworked to single story. All 4 scenarios consolidated into HS-019 under S-CLAROTY-AUDITLOG-TIMEBOX-001. ID reserved per append_only_numbering (DF-030). |
 | HS-021 | [S-ADR058-OCSF-COERCION-001-HS-001-string-column-object-input-null-cell.md](S-ADR058-OCSF-COERCION-001-HS-001-string-column-object-input-null-cell.md), [S-ADR058-OCSF-COERCION-001-HS-002-integer-column-parseable-string-no-data-loss.md](S-ADR058-OCSF-COERCION-001-HS-002-integer-column-parseable-string-no-data-loss.md), [S-ADR058-OCSF-COERCION-001-HS-003-integer-column-non-parseable-string-null-warn.md](S-ADR058-OCSF-COERCION-001-HS-003-integer-column-non-parseable-string-null-warn.md), [S-ADR058-OCSF-COERCION-001-HS-004-enrich1-array-column-json-list-preserved.md](S-ADR058-OCSF-COERCION-001-HS-004-enrich1-array-column-json-list-preserved.md) | Column Coercion Gap Closure — Single Story (S-ADR058-OCSF-COERCION-001) | 4 | P0 | String+Object null-demotion (AC-005); Integer+parseable-string no-loss (AC-007 happy); Integer+non-parseable-string null+warn (AC-007 fail); ENRICH-1 Array non-regression after Object arm insertion |
-| HS-022 | [S-ADR058-OCSF-ROUTING-001-HS-001-claroty-alerts-ocsf-field-name-wire-shape.md](S-ADR058-OCSF-ROUTING-001-HS-001-claroty-alerts-ocsf-field-name-wire-shape.md), [S-ADR058-OCSF-ROUTING-001-HS-002-prism-describe-raw-extensions-tier2-prohibition.md](S-ADR058-OCSF-ROUTING-001-HS-002-prism-describe-raw-extensions-tier2-prohibition.md), [S-ADR058-OCSF-ROUTING-001-HS-003-claroty-audit-logs-class-uid-3004-wire-shape.md](S-ADR058-OCSF-ROUTING-001-HS-003-claroty-audit-logs-class-uid-3004-wire-shape.md), [S-ADR058-OCSF-ROUTING-001-HS-004-claroty-devices-device-type-label-filter.md](S-ADR058-OCSF-ROUTING-001-HS-004-claroty-devices-device-type-label-filter.md) | OCSF Field-Name Routing — Single Story (S-ADR058-OCSF-ROUTING-001) | 4 | P0 | Claroty alerts ocsf_field Arrow name wire shape (AC-003); prism_describe raw_extensions Tier-2 prohibition (AC-006/AC-007b); claroty audit_logs class_uid 3004 wire shape (AC-009); claroty devices device_type_label filter (AC-005/AC-010) |
+| HS-022 | [S-ADR058-OCSF-ROUTING-001-HS-001-claroty-alerts-ocsf-field-name-wire-shape.md](S-ADR058-OCSF-ROUTING-001-HS-001-claroty-alerts-ocsf-field-name-wire-shape.md), [S-ADR058-OCSF-ROUTING-001-HS-002-prism-describe-raw-extensions-tier2-prohibition.md](S-ADR058-OCSF-ROUTING-001-HS-002-prism-describe-raw-extensions-tier2-prohibition.md), [S-ADR058-OCSF-ROUTING-001-HS-003-claroty-audit-logs-class-uid-3004-wire-shape.md](S-ADR058-OCSF-ROUTING-001-HS-003-claroty-audit-logs-class-uid-3004-wire-shape.md), [S-ADR058-OCSF-ROUTING-001-HS-004-claroty-devices-device-type-label-filter.md](S-ADR058-OCSF-ROUTING-001-HS-004-claroty-devices-device-type-label-filter.md) | OCSF Field-Name Routing — Single Story (S-ADR058-OCSF-ROUTING-001) **[CONSUMED — D-2270; A+W amendment (2026-08-23) post-dates HS-022; re-gate required via HS-023; must NOT be reused]** | 4 | P0 | Claroty alerts ocsf_field Arrow name wire shape (AC-003); prism_describe raw_extensions Tier-2 prohibition (AC-006/AC-007b); claroty audit_logs class_uid 3004 wire shape (AC-009); claroty devices device_type_label filter (AC-005/AC-010) |
+| HS-023 | [S-ADR058-OCSF-ROUTING-001-B-HS-001-zero-tier1-aw-warning-and-available-set.md](S-ADR058-OCSF-ROUTING-001-B-HS-001-zero-tier1-aw-warning-and-available-set.md), [S-ADR058-OCSF-ROUTING-001-B-HS-002-spec-load-j4-collision-e-spec-030-rejection.md](S-ADR058-OCSF-ROUTING-001-B-HS-002-spec-load-j4-collision-e-spec-030-rejection.md), [S-ADR058-OCSF-ROUTING-001-B-HS-003-audit-logs-metadata-uid-wire-shape-and-e-query-038-available-columns.md](S-ADR058-OCSF-ROUTING-001-B-HS-003-audit-logs-metadata-uid-wire-shape-and-e-query-038-available-columns.md) | OCSF Field-Name Routing A+W Re-Gate — Single Story (S-ADR058-OCSF-ROUTING-001) — HIDDEN, SINGLE-USE | 3 | P0 | Zero-Tier-1 A+W warning + raw_extensions available-set (EC-11-080 A+W sub-case); §J4 intra-table collision E-SPEC-030 rejection at spec-load (ADR-058 §J7); audit_logs metadata_uid OQ-005 wire shape + E-QUERY-038 available_columns (EC-11-079) |
 
 ---
 
@@ -256,9 +257,9 @@ Story-level holdout gate for S-ADR058-OCSF-COERCION-001 (ADR-058 Stage 1 coercio
 | HS-COERCION-001-A-003 | Integer column `devices_count` (claroty.alerts) receives non-parseable JSON string — null key present in wire output; `column_coercion_failure` warn with `column_type = "integer"` and `actual_json_kind = "string"` emitted; record not dropped (AC-007 failure path) | prism-bin, prism-spec-engine |
 | HS-COERCION-001-A-004 | String column `ip_list` (claroty.devices) receives JSON Array — value serializes as compact JSON-list string (not null); no `column_coercion_failure` event; ENRICH-1 Array arm preserved after AC-005 Object arm insertion (EC-016-013-026 non-regression) | prism-bin, prism-spec-engine, prism-dtu-claroty |
 
-### HS-022: OCSF Field-Name Routing (P0) — S-ADR058-OCSF-ROUTING-001
+### HS-022: OCSF Field-Name Routing (P0) — S-ADR058-OCSF-ROUTING-001 **[CONSUMED — D-2270; A+W amendment post-dates HS-022; superseded by HS-023]**
 
-Story-level holdout gate for S-ADR058-OCSF-ROUTING-001 (ADR-058 Stage 2 — ocsf_column_naming flag, underscore-flattened Arrow names, Claroty activation). HIDDEN from test-writer and implementer. SINGLE-USE.
+Story-level holdout gate for S-ADR058-OCSF-ROUTING-001 (ADR-058 Stage 2 — ocsf_column_naming flag, underscore-flattened Arrow names, Claroty activation). HIDDEN from test-writer and implementer. SINGLE-USE. **All 4 scenarios CONSUMED (D-2270; A+W amendment human-decision 2026-08-23 post-dates these scenarios; re-gate required; must NOT be reused). Fresh re-gate scenarios registered as HS-023.**
 
 | ID | Title | Crates Tested |
 |----|-------|--------------|
@@ -266,6 +267,16 @@ Story-level holdout gate for S-ADR058-OCSF-ROUTING-001 (ADR-058 Stage 2 — ocsf
 | HS-ROUTING-001-A-002 | `prism_describe` Tier-2 prohibition — no individual ColumnDescriptor emitted for `ocsf_field == None` columns; exactly one `raw_extensions` ColumnDescriptor present with source-key enumeration (BC-2.16.003 EC-016-013-027 / ADR-058 §G) | prism-mcp, prism-spec-engine, prism-dtu-claroty |
 | HS-ROUTING-001-A-003 | Claroty audit_logs class_uid 3004 wire shape — Arrow column `class_uid` value is 3004 (entity_management, not 3001 account_change); `ocsf.unknown_class_name` WARN absent on happy path (AC-009 / BC-2.16.003 EC-016-013-023) | prism-bin, prism-ocsf, prism-dtu-claroty |
 | HS-ROUTING-001-A-004 | Claroty devices device_type_label filter — `WHERE device_type_label = 'PLC'` returns rows where KF-06 correction applies; `device_type_label` Arrow field present in schema (not `device_type`); AC-005 / AC-010 assertion 6 | prism-bin, prism-spec-engine, prism-dtu-claroty |
+
+### HS-023: OCSF Field-Name Routing A+W Re-Gate (P0) — S-ADR058-OCSF-ROUTING-001
+
+Story-level holdout re-gate for S-ADR058-OCSF-ROUTING-001 covering the A+W amendment (human decision 2026-08-23: zero-Tier-1 table warning + raw_extensions available-set) and new surfaces not covered by consumed HS-022. HIDDEN from test-writer and implementer. SINGLE-USE. Supersedes HS-022 for the re-gate surface.
+
+| ID | Title | Crates Tested |
+|----|-------|--------------|
+| HS-ROUTING-001-B-001 | Zero-Tier-1 OCSF table: synthetic sensor with `ocsf_column_naming = true` + 2 Tier-2-only columns → `ocsf.zero_tier1_table` WARN emitted ONCE at registration (not per-query); `raw_extensions` absent from E-QUERY-038; Tier-2 raw col.name rejected with available_columns = {raw_extensions, class_uid, _sensor} (BC-2.11.016 EC-11-080 A+W sub-case; BC-2.16.002 catalog row; ADR-058 §J6) | prism-bin, prism-spec-engine |
+| HS-ROUTING-001-B-002 | §J4 intra-table collision: synthetic sensor TOML with two columns whose `ocsf_field` values both flatten to the same Arrow name (`src.ip` + `src_ip` → `src_ip`) → spec REJECTED at load with E-SPEC-030 [§J4] in stderr; boot exits non-zero (exit 2 ConfigInvalid); no MCP I/O (ADR-058 §J7 Validation Rule 8) | prism-bin, prism-spec-engine |
+| HS-ROUTING-001-B-003 | Claroty audit_logs OQ-005 fix — `metadata_uid` (ocsf_field `metadata.uid` → Arrow `metadata_uid`) present in wire RecordBatch (not `id`); SELECT `id` triggers E-QUERY-038 with `available_columns` containing "metadata_uid" (not "id"); BC-2.11.016 EC-11-079 sub-cases (a)+(b) | prism-bin, prism-spec-engine, prism-dtu-claroty |
 
 ### ~~HS-020~~: ~~Claroty audit_logs Layer 2 — Dynamic Push-Down~~ — RETIRED before shipping
 
@@ -334,12 +345,12 @@ Minimum acceptance: All P0 scenarios PASS. P1 scenarios at least PARTIAL.
 
 ```yaml
 document: holdout-index
-phase: 0_and_4b_and_plugin_migration_and_drift_claroty
-step: 5_and_wave4_and_prereq_and_drift_claroty_auditlog
+phase: 0_and_4b_and_plugin_migration_and_drift_claroty_and_ocsf_routing_regate
+step: 5_and_wave4_and_prereq_and_drift_claroty_auditlog_and_hs023
 status: complete
-total_scenarios: 93
-total_groups: 16
-p0_scenarios: 77
+total_scenarios: 96
+total_groups: 17
+p0_scenarios: 80
 p1_scenarios: 16
 repos_covered: 9/9_brownfield_plus_3_greenfield
 critical_bugs_verified: 14
@@ -353,16 +364,22 @@ ocsf_coercion_groups_added: 1
 ocsf_coercion_scenarios_added: 4
 ocsf_routing_groups_added: 1
 ocsf_routing_scenarios_added: 4
+ocsf_routing_regate_groups_added: 1
+ocsf_routing_regate_scenarios_added: 3
 wave4_must_pass_groups: 3
 wave4_conditional_pass_groups: 1
 d216_closure: true
-timestamp: 2026-08-21T00:00:00Z
+hs022_consumed: true
+hs022_consumed_ref: D-2270
+hs023_aw_amendment_coverage: true
+timestamp: 2026-08-23T00:00:00Z
 ```
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.20 | S-ADR058-OCSF-ROUTING-001-aw-regate-holdout-authoring | 2026-08-23 | product-owner | Registered HS-023 (3 scenarios for S-ADR058-OCSF-ROUTING-001 A+W re-gate: HS-ROUTING-001-B-001 zero-Tier-1 A+W warning + raw_extensions available-set, HS-ROUTING-001-B-002 §J4 intra-table collision E-SPEC-030 rejection, HS-ROUTING-001-B-003 audit_logs metadata_uid OQ-005 wire shape + E-QUERY-038 available_columns). HS-022 annotated CONSUMED (D-2270; A+W amendment 2026-08-23 post-dates original scenarios; re-gate required). total_scenarios 93→96; total_groups 16→17; p0_scenarios 77→80. State Checkpoint updated. |
 | 1.19 | S-ADR058-OCSF-ROUTING-001-pre-delivery | 2026-08-21 | story-writer | Registered HS-022 (4 scenarios for S-ADR058-OCSF-ROUTING-001: HS-ROUTING-001-A-001 claroty alerts ocsf_field Arrow name wire shape, HS-ROUTING-001-A-002 prism_describe raw_extensions Tier-2 prohibition, HS-ROUTING-001-A-003 claroty audit_logs class_uid 3004 wire shape, HS-ROUTING-001-A-004 claroty devices device_type_label filter). total_scenarios 89→93; total_groups 15→16. State Checkpoint updated. |
 | 1.18 | S-ADR058-OCSF-COERCION-001-holdout-authoring | 2026-08-19 | product-owner | Authored HS-021 (4 scenarios for S-ADR058-OCSF-COERCION-001: HS-COERCION-001-A-001..004 covering String+Object null-demotion, Integer+parseable-string no-loss, Integer+non-parseable-string null+warn, ENRICH-1 Array non-regression). total_scenarios 85→89; total_groups 14→15. |
 | 1.17 | S-CLAROTY-AUDITLOG-TIMEBOX-001-holdout-gate-pass | 2026-08-15 | state-manager | HS-019 all 4 scenarios CONSUMED (D-2195 story-level holdout gate PASS; S-CLAROTY-AUDITLOG-TIMEBOX-001 VERDICT=PASS 4/4 on frozen HEAD f867a234b). Scenario files status→consumed; input-hashes populated. HS-019 table row and detail section annotated CONSUMED. HOLDOUT-INDEX v1.16→v1.17. |

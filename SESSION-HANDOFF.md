@@ -3,16 +3,70 @@ document_type: session-handoff
 level: ops
 version: "8.001"
 status: current
-timestamp: 2026-08-22T17:00:00Z
+timestamp: 2026-08-23T19:33:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2273 (2026-08-22): SESSION WRAP. S-ADR058-OCSF-ROUTING-001 query-surface OCSF fix delivered+green (feature 396af5722, just check 5805). Re-cascade pass-1 → 1 LOW + 3 OBS; human chose fix-everything-strictly. Strict-fix plan written to cycles/wave-5-e-demo-fidelity/routing-001-strict-fix-plan.md. sidecar-learning.md session-end markers folded. STATE v8.806→v8.807.**
+> **D-2284 (2026-08-23): SESSION WRAP. ROUTING-001 A+W LOCAL 3-CLEAN CONVERGED @8aeaf06c4 (feature PUSHED origin). HS-023 holdout scenarios authored (HOLDOUT-INDEX v1.20; 3 P0 scenarios; HS-022 CONSUMED D-2270). Holdout re-gate NEXT. STATE v8.817→v8.818.**
 
 ---
 
-## §RESUME SNAPSHOT — D-2273 (2026-08-22 — SESSION WRAP; ROUTING-001 strict-fix plan; STATE v8.806→v8.807) [SUPERSEDES D-2261]
+## §RESUME SNAPSHOT — D-2284 (2026-08-23 — SESSION WRAP; ROUTING-001 A+W LOCAL 3-CLEAN CONVERGED; HS-023 authored; STATE v8.817→v8.818) [SUPERSEDES D-2273]
+
+### RESUME IN ONE BREATH
+Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 A+W amendment DELIVERED and LOCAL 3-CLEAN CONVERGED at feature @8aeaf06c4 (PUSHED origin — backed up) / specs frozen @factory-artifacts. Step 5 story-level holdout RE-GATE is the current gate: fresh HS-023 group authored (3 P0 scenarios; HOLDOUT-INDEX v1.20; HS-022 CONSUMED D-2270). NEXT: dispatch holdout-evaluator to run HS-023 against the built binary, then Step 6 (demo → PR 9-step → merge).
+
+**RESUME NEXT-ACTION:** dispatch vsdd-factory:holdout-evaluator (strict info asymmetry; tools Bash+Read only) on the HS-023 group — holdout-scenarios/S-ADR058-OCSF-ROUTING-001-B-HS-001-zero-tier1-aw-warning-and-available-set.md (P0, thr 0.75), -B-HS-002-spec-load-j4-collision-e-spec-030-rejection.md (P0, thr 0.80), -B-HS-003-audit-logs-metadata-uid-wire-shape-and-e-query-038-available-columns.md (P0, thr 0.75) — against the story's built binary in the feature worktree @8aeaf06c4, wire-level assertions, scoped to ROUTING-001's touched surface. BLOCKING gate: mean satisfaction ≥0.85 AND every critical ≥0.60. If PASS → Step 6 (demo-recorder per-AC → pr-manager 9-step PR incl. PR-LEVEL 3-CLEAN + security review → squash-merge to develop → post-merge state burst incl. POL-14). If FAIL → route findings OBSERVED-BEHAVIOR-ONLY (contamination control), fix, LOCAL streak resets 0/3, re-converge.
+
+### HEADS (D-2284)
+- `develop`: `362e4f85` (local == origin; clean)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
+- `feature/S-ADR058-OCSF-ROUTING-001`: `8aeaf06c4` (PUSHED origin — backed up; just check 5815 green)
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, dirty)
+
+### ROUTING-001 WORKSTREAM STATE (D-2284)
+**FROZEN PERIMETER:** ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.16.003 v1.26 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.81 / ROUTING-001 v1.56 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.332 / BC-INDEX v9.54 / STORY-INDEX v2.884 / HOLDOUT-INDEX v1.20. active 253/draft 3/total 269/stories 303.
+
+**BC-5.39.001 LOCAL STREAK: 3/3 CONVERGED** on frozen @8aeaf06c4/fc0776dad (ROUTING-001 v1.56). CLEAN(strict)=YES+CLEAN(PR-merge)=YES on all three parallel passes D-2283. just check 5815 exit 0.
+
+### A+W GOVERNING DECISION (§7-authorized 2026-08-23)
+Zero-Tier-1 OCSF table PRESERVES its Tier-2 data via raw_extensions (raw_extensions ⟺ ocsf_column_naming && ≥1 Tier-2, independent of Tier-1 count) AND emits an `ocsf.zero_tier1_table` WARN once at register_sensor (probable-misconfiguration diagnostic). This SUPERSEDED the interim §J6-drop lean.
+
+### HOLDOUT STATUS (D-2284)
+HS-022 CONSUMED D-2270 (1/4 pass; 3/4 fail). HS-023 group AUTHORED (product-owner 2026-08-23; 3 P0 scenarios; HOLDOUT-INDEX v1.20). Re-gate PENDING — NEXT blocking action.
+
+### DECISION-LOG DELTA (D-2274 through D-2284)
+| ID | Summary |
+|----|---------|
+| D-2274 | (ADR-058 §J7 spec-load collision validation burst — archived in burst-log) |
+| D-2275 | error-taxonomy v2.78→v2.79 E-SPEC-030 prose accuracy; sidecar-learning folded |
+| D-2276 | ROUTING-001 LOCAL re-cascade pass-1 strict-fix: 4 findings FIXED (H1/M1/M2/L1); ROUTING-001 v1.52→v1.53; code @891ee536c; just check 5814 |
+| D-2277 | spec-prose fix: BC-2.16.003 v1.24→v1.25 (EC-016-013-032 error-dispatch corrected); error-taxonomy v2.79→v2.80 |
+| D-2278 | §7-AUTHORIZED A+W spec burst: BC-2.11.016 v1.29→v1.30; BC-2.16.002 v2.33→v2.34; BC-2.16.003 v1.25→v1.26; BC-INDEX v9.52→v9.53 |
+| D-2279 | A+W code+emission-site reconcile: ADR-058 v2.31→v2.32; BC-2.16.002 v2.34→v2.35; BC-2.11.016 v1.30→v1.31; T-31 code @510d1299e; just check 5815; BC/ARCH/STORY-INDEX updated |
+| D-2280 | LOCAL pass-C code+test fix: RG-Q-017 tightened; code @8877c7c88; just check 5815 |
+| D-2281 | LOCAL pass-D CLEAN(1/3)→pass-E 2 findings (F-1 MED §J6-drop rustdoc residue; F-2 LOW AC cite); code-COMMENT fix @dce5237e2; just check 5815; streak RESET 0/3 |
+| D-2282 | pass-H OBS-1 test-only fix (RG-Q-011 strengthened); T-31 story canonical alignment (v1.55→v1.56); parallel 3-clean batch 2/3; code @8aeaf06c4; STORY-INDEX v2.884 |
+| D-2283 | BC-5.39.001 LOCAL CASCADE CONVERGED — parallel re-gate batch 3/3 CLEAN(strict)=YES on @8aeaf06c4; trajectory-tail →0→0→0 COMPLETE |
+| D-2284 | SESSION WRAP: HS-023 authored (HOLDOUT-INDEX v1.20; 3 P0 scenarios); feature @8aeaf06c4 PUSHED origin; STATE v8.817→v8.818 |
+
+### WORKTREE INVENTORY (D-2284)
+| Worktree | SHA | Status | Action |
+|----------|-----|--------|--------|
+| main `.` (develop) | `362e4f85` | clean, local==origin | active main |
+| `.worktrees/S-ADR058-OCSF-ROUTING-001` | `8aeaf06c4` | pushed origin | ACTIVE — holdout-evaluator runs here |
+| `.worktrees/S-3.09` | `43c41389d` | LOCAL-ONLY | KEEP-PARKED (unpushed) |
+| `.worktrees/W3-FIX-S307-001` | `fcab8717c` | LOCAL-ONLY dirty | PARKED — do NOT touch |
+
+### BACKUP BOUNDARY (D-2284)
+- PUSHED / safe: `origin/develop` `362e4f85`; `origin/feature/S-ADR058-OCSF-ROUTING-001` `8aeaf06c4`; `factory-artifacts` (this wrap commit)
+- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
+
+---
+
+## §RESUME SNAPSHOT — D-2273 (2026-08-22 — SESSION WRAP; ROUTING-001 strict-fix plan; STATE v8.806→v8.807) [SUPERSEDED by D-2284]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 query-surface OCSF fix delivered+green (feature 396af5722, pushed origin, just check 5805); the story holdout gate caught+fixed a query-planning split-brain + a multi-tenant/pipe sibling. Re-cascade pass-1 (on 396af5722) → 1 edge LOW + 3 OBS; human chose FIX-EVERYTHING-STRICTLY. NEXT: execute `cycles/wave-5-e-demo-fidelity/routing-001-strict-fix-plan.md` (spec burst → RG-Q-010..015 → implementer → re-run 3-CLEAN → re-run holdout with FRESH scenarios → demo → PR → merge).
