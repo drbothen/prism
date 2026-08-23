@@ -999,26 +999,42 @@ async fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_accepts_class_uid_and_sens
 
 // ── RG-Q-011 ─────────────────────────────────────────────────────────────────
 
-/// RG-Q-011 — Zero-column OCSF table: registry must surface synthesized columns.
+/// RG-Q-011 — Zero-column OCSF table: registry surfaces synthesized columns AND
+/// E-QUERY-038 fires with `available_columns == ["_sensor", "class_uid"]` for a
+/// raw col name query (EC-11-080 direct pin).
 ///
-/// Direct `TableRegistry` assertion (sync test, no engine).  After
-/// `register_sensor` on a zero-column OCSF spec,
-/// `columns_for_table("zerosensor_alerts")` must contain `"class_uid"` and `"_sensor"`.
+/// Two layers of assertion:
 ///
-/// This is a stronger, more focused assertion than RG-Q-010: it checks the registry state
-/// directly rather than going through the engine's E-QUERY-038 gate.
+/// **Layer 1 — Registry-state (sync assertions):**
+/// After `register_sensor` on a zero-column OCSF spec,
+/// `columns_for_table("zerosensor_alerts")` must contain `"class_uid"` and `"_sensor"`
+/// and NOTHING else.
+///
+/// **Layer 2 — Engine gate (EC-11-080 wire-shape assertion):**
+/// `engine.execute("SELECT some_raw_col FROM zerosensor_alerts")` must return
+/// `E-QUERY-038 ColumnNotFound` with `available_columns` sorted ==
+/// `["_sensor", "class_uid"]` — no raw col name, no `raw_extensions`.
+/// This directly pins the EC-11-080 wire-shape promise and makes the test name
+/// accurate: a raw col name IS now rejected via the E-QUERY-038 gate.
 ///
 /// # Red Gate failure (pre-fix)
 ///
-/// `if !table.columns.is_empty()` guard prevents the OCSF branch from running →
+/// Layer 1: `if !table.columns.is_empty()` guard prevents the OCSF branch from running →
 /// no entry is inserted in `columns_by_table` → `columns_for_table` returns `[]` →
 /// both `contains("class_uid")` and `contains("_sensor")` → false → RED.
 ///
-/// BC: BC-2.11.016 / ADR-058 §G §J6.
-#[test]
-fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_rejects_raw_col_name() {
+/// Layer 2 (also RED pre-fix via Layer 1 cascade): the engine cannot find
+/// `zerosensor_alerts` columns at all, so `available_columns` is empty instead of
+/// `["_sensor", "class_uid"]` → exact-set assertion fails → RED.
+///
+/// BC: BC-2.11.016 EC-11-080 / ADR-058 §G §J6.
+/// SAP-3: Layer 2 enters via `engine.execute()` public surface — not synthetic AST.
+/// SID-2: wire-shape JSON assertion on `available_columns` serialized form.
+#[tokio::test]
+async fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_rejects_raw_col_name() {
     use crate::table_registry::TableRegistry;
 
+    // ── Layer 1: Registry-state assertions ───────────────────────────────────
     let spec = make_zero_col_ocsf_spec();
     let registry = TableRegistry::new();
     registry
@@ -1031,7 +1047,7 @@ fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_rejects_raw_col_name() {
     // TOML columns are declared.  Pre-fix: both assertions fail because cols == [].
     assert!(
         cols.contains(&"class_uid".to_string()),
-        "RG-Q-011 (S-ADR058-OCSF-ROUTING-001 §J6): zero-col OCSF table \
+        "RG-Q-011 Layer 1 (S-ADR058-OCSF-ROUTING-001 §J6): zero-col OCSF table \
          'zerosensor_alerts' must have synthesized pseudo-column 'class_uid' in \
          TableRegistry after register_sensor; got: {:?} \
          (pre-fix: if !table.columns.is_empty() guard skips OCSF branch → [] returned)",
@@ -1039,7 +1055,7 @@ fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_rejects_raw_col_name() {
     );
     assert!(
         cols.contains(&"_sensor".to_string()),
-        "RG-Q-011 (S-ADR058-OCSF-ROUTING-001 §J6): zero-col OCSF table \
+        "RG-Q-011 Layer 1 (S-ADR058-OCSF-ROUTING-001 §J6): zero-col OCSF table \
          'zerosensor_alerts' must have synthesized pseudo-column '_sensor' in \
          TableRegistry; got: {:?}",
         cols
@@ -1050,12 +1066,85 @@ fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_rejects_raw_col_name() {
     for col in &cols {
         assert!(
             col == "class_uid" || col == "_sensor",
-            "RG-Q-011: zero-col OCSF table should register ONLY synthesized pseudo-columns \
-             ('class_uid', '_sensor'); found unexpected column '{}' in: {:?}",
+            "RG-Q-011 Layer 1: zero-col OCSF table should register ONLY synthesized \
+             pseudo-columns ('class_uid', '_sensor'); found unexpected column '{}' in: {:?}",
             col,
             cols
         );
     }
+
+    // ── Layer 2: Engine gate — EC-11-080 wire-shape assertion ────────────────
+    //
+    // Query a column name that is NOT in the zero-col OCSF table's projected set.
+    // The only valid columns are class_uid and _sensor; any other name must fire
+    // E-QUERY-038 ColumnNotFound with available_columns == ["_sensor", "class_uid"].
+    //
+    // This layer was absent in the original RG-Q-011 (OBS-1 finding): the test only
+    // made a registry-state assertion and never invoked engine.execute(), meaning the
+    // E-QUERY-038 gate was only TRANSITIVELY guaranteed, not directly asserted.
+    let engine = make_zero_col_ocsf_engine();
+
+    let result = engine
+        .execute(
+            "SELECT some_raw_col FROM zerosensor_alerts",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "RG-Q-011 Layer 2 (EC-11-080): \
+         `SELECT some_raw_col FROM zerosensor_alerts` must return Err(ColumnNotFound) — \
+         the zero-col OCSF table exposes only ['_sensor', 'class_uid']; \
+         'some_raw_col' is not in the projected set. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let PrismError::ColumnNotFound(ref d) = err else {
+        panic!("RG-Q-011 Layer 2: error must be PrismError::ColumnNotFound; got: {err:?}");
+    };
+
+    // Wire-shape assertion (EC-11-080 + CLAUDE.md wire-shape discipline 2026-07-13):
+    // Serialize available_columns to the JSON array string the MCP error_mapping layer
+    // would emit — `error_obj["available_columns"]` in `prism_error_to_structured_call_result`.
+    let available_json = serde_json::to_string(&d.available_columns)
+        .expect("RG-Q-011 Layer 2: available_columns must be JSON-serializable");
+
+    // Exact-set assertion: available_columns must be EXACTLY ["_sensor", "class_uid"].
+    // No raw col names (e.g. no phantom "some_raw_col"), no "raw_extensions"
+    // (zero-col table has no Tier-2 columns either).
+    let mut available_sorted = d.available_columns.clone();
+    available_sorted.sort();
+
+    assert_eq!(
+        available_sorted,
+        vec!["_sensor".to_string(), "class_uid".to_string()],
+        "RG-Q-011 Layer 2 (EC-11-080 wire-shape): \
+         E-QUERY-038 ColumnNotFoundDetails.available_columns must be exactly \
+         [\"_sensor\", \"class_uid\"] (sorted) for a zero-col OCSF table — \
+         no raw col names, no raw_extensions. \
+         Wire JSON: {}. Got sorted: {:?}",
+        available_json,
+        available_sorted
+    );
+
+    // SID-2: assert on the serialized JSON wire form to confirm the MCP wire shape.
+    assert!(
+        available_json.contains("\"_sensor\""),
+        "RG-Q-011 Layer 2 (wire): serialized available_columns must contain '\"_sensor\"'; \
+         got: {available_json}"
+    );
+    assert!(
+        available_json.contains("\"class_uid\""),
+        "RG-Q-011 Layer 2 (wire): serialized available_columns must contain '\"class_uid\"'; \
+         got: {available_json}"
+    );
+    // No phantom raw_extensions in the wire output (zero Tier-2 columns).
+    assert!(
+        !available_json.contains("raw_extensions"),
+        "RG-Q-011 Layer 2 (wire): serialized available_columns must NOT contain \
+         'raw_extensions' (zero-col table has no Tier-2 columns); got: {available_json}"
+    );
 }
 
 // ── RG-Q-015 ─────────────────────────────────────────────────────────────────
