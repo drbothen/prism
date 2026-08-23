@@ -1,0 +1,22 @@
+# AC-016 + AC-017 + AC-018: E-QUERY-038 OCSF column resolution (RG-Q-001 through RG-Q-009)
+# AC-016: OCSF-flattened name passes, raw col.name fires E-QUERY-038 with OCSF available_columns
+# AC-017: type-compat gate resolves by OCSF-flattened name
+# AC-018: describe/select/query name-agreement invariant (multi-tenant head + pipe stage)
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.67s
+    Starting 13 tests across 18 binaries (1697 tests skipped)
+        PASS [   0.050s] ( 1/13) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_RG_Q_004_raw_colname_description_rejected_post_ocsf_fix
+        PASS [   0.070s] ( 2/13) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_RG_Q_002_ocsf_select_finding_info_title_passes_e_query_038
+        PASS [   0.070s] ( 3/13) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_zero_tier1_with_tier2_projects_raw_extensions_and_emits_warning
+        PASS [   0.070s] ( 4/13) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_RG_Q_001_ocsf_select_finding_info_uid_passes_e_query_038
+        PASS [   0.075s] ( 5/13) prism-query tests::ocsf_column_routing_tests::test_ocsf_projected_names_all_surfaces_agree
+        PASS [   0.078s] ( 6/13) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_zero_col_ocsf_table_st_gate_accepts_class_uid_and_sensor
+        PASS [   0.082s] ( 7/13) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_RG_Q_005_tier2_raw_colname_alert_type_name_rejected_post_ocsf_fix
+        PASS [   0.083s] ( 8/13) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_RG_Q_009_multitenant_ocsf_pipe_stage
+        PASS [   0.086s] ( 9/13) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_zero_col_ocsf_table_st_gate_rejects_raw_col_name
+        PASS [   0.086s] (10/13) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_RG_Q_008_multitenant_ocsf_head_projection
+        PASS [   0.087s] (11/13) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_RG_Q_006_ocsf_error_available_columns_wire_shape
+        PASS [   0.092s] (12/13) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_RG_Q_003_ocsf_where_message_passes_e_query_038
+        PASS [   0.092s] (13/13) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_RG_Q_007_non_ocsf_sensor_raw_colname_still_passes_green_lock
+     Summary [   0.093s] 13 tests run: 13 passed, 1697 skipped
+--- Exit 0

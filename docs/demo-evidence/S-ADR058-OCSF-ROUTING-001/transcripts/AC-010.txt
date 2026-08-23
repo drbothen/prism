@@ -1,0 +1,13 @@
+# AC-010: Wire-shape assertions on KF-03/04/06/07/08/09/10/11/12 corrections + OQ-005
+# All assertions on serialized JSON output (wire-level bytes the LLM agent consumes)
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.50s
+    Starting 6 tests across 22 binaries (245 tests skipped)
+        PASS [   0.050s] (1/6) prism-bin spec_driven_adapter::tests::test_claroty_alerts_finding_info_fields_wire_shape
+        PASS [   0.051s] (2/6) prism-bin spec_driven_adapter::tests::test_claroty_devices_device_type_produces_device_type_label_arrow_field
+        PASS [   0.052s] (3/6) prism-bin spec_driven_adapter::tests::test_claroty_alerts_reserved_fields_go_to_raw_extensions_not_first_class_columns
+        PASS [   0.052s] (4/6) prism-bin spec_driven_adapter::tests::test_claroty_audit_logs_record_batch_kf11_category_in_raw_extensions
+        PASS [   0.053s] (5/6) prism-bin spec_driven_adapter::tests::test_claroty_audit_logs_id_produces_metadata_uid_top_level_arrow_field
+        PASS [   0.066s] (6/6) prism-bin spec_driven_adapter::tests::test_claroty_device_alert_relations_record_batch_finding_info_uid_wire_shape
+     Summary [   0.067s] 6 tests run: 6 passed, 245 skipped
+--- Exit 0

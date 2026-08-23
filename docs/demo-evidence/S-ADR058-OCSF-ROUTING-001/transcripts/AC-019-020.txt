@@ -1,0 +1,11 @@
+# AC-019: Zero-Tier-1 OCSF table registers class_uid+_sensor (basic) + A+W sub-case (raw_extensions + WARN)
+# AC-020: Consolidated-projection invariant — registry name-set byte-equal to ocsf_projected_column_names
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.56s
+    Starting 4 tests across 18 binaries (1706 tests skipped)
+        PASS [   0.046s] (1/4) prism-query tests::ocsf_column_routing_tests::test_ocsf_projected_names_all_surfaces_agree
+        PASS [   0.047s] (2/4) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_zero_tier1_with_tier2_projects_raw_extensions_and_emits_warning
+        PASS [   0.096s] (3/4) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_zero_col_ocsf_table_st_gate_rejects_raw_col_name
+        PASS [   0.096s] (4/4) prism-query tests::ocsf_column_routing_tests::test_BC_2_11_016_zero_col_ocsf_table_st_gate_accepts_class_uid_and_sensor
+     Summary [   0.097s] 4 tests run: 4 passed, 1706 skipped
+--- Exit 0

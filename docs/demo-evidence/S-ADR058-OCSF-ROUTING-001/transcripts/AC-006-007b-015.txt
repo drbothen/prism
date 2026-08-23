@@ -1,0 +1,11 @@
+# AC-006 + AC-007b + AC-015: prism_describe Tier-1/Tier-2 model (RG-007, RG-025, RG-028)
+# Tier-2 prohibition (no phantom col.names), raw_extensions 4-field shape, class_uid + _sensor synthesized
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.66s
+    Starting 4 tests across 25 binaries (491 tests skipped)
+        PASS [   0.042s] (1/4) prism-mcp tools::prism_describe::ocsf_routing_tests::test_prism_describe_ocsf_column_naming_true_emits_class_uid_and_sensor_descriptors
+        PASS [   0.043s] (2/4) prism-mcp tools::prism_describe::ocsf_routing_tests::test_prism_describe_ocsf_column_naming_true_returns_flattened_name_and_dotted_description
+        PASS [   0.044s] (3/4) prism-mcp tools::prism_describe::ocsf_routing_tests::test_RG_Q_015_prism_describe_names_agree_with_projection_helper
+        PASS [   0.047s] (4/4) prism-mcp tools::prism_describe::ocsf_routing_tests::test_prism_describe_ocsf_column_naming_true_raw_extensions_descriptor_and_no_phantom_col_names
+     Summary [   0.047s] 4 tests run: 4 passed, 491 skipped
+--- Exit 0
