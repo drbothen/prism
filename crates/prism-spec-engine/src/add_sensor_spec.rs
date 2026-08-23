@@ -149,7 +149,7 @@ pub fn parse_and_validate_spec_toml(
     // `ocsf_field_to_arrow_name` result collides with:
     //   §J2 — an ADR-058 §G reserved synthesized-pseudo-column name
     //   §J4 — another Tier-1 column in the same table (intra-table duplicate)
-    //   §J1 — a Tier-2 column's raw `col.name` (shadow collision)
+    //   §J1 — any other column's raw `col.name` (shadow collision; Tier-1 or Tier-2)
     // Only active when `ocsf_column_naming = true`. E-SPEC-030. S-ADR058-OCSF-ROUTING-001 AC-020.
     {
         let collision_errors = validate_ocsf_column_collisions(&spec, source_path);
@@ -180,8 +180,12 @@ pub fn parse_and_validate_spec_toml(
 /// - §J4 Intra-table duplicate: two different Tier-1 columns in the same table flatten to the
 ///   same arrow name via `ocsf_field_to_arrow_name`.
 ///
-/// - §J1 Shadow collision: a Tier-1 column's arrow name equals the raw `col.name` of a
-///   Tier-2 column (one whose `ocsf_field` is `None`) in the same table.
+/// - §J1 Shadow collision: a Tier-1 column's arrow name equals the raw `col.name` of any
+///   other column in the same table (Tier-1 or Tier-2), with a self-match exclusion
+///   (a Tier-1 column whose arrow name equals its own `col.name` is not a shadow).
+///   §J4 duplicates are not double-reported as §J1: when the shadowed column is itself a
+///   Tier-1 column whose arrow_name equals the current column's arrow_name, the conflict is
+///   already categorised as §J4 and is skipped here.
 ///
 /// Returns a `Vec<String>` of E-SPEC-030 error messages (one per collision found).
 /// Returns an empty `Vec` when there are no collisions or when
@@ -206,18 +210,11 @@ fn validate_ocsf_column_collisions(spec: &SensorSpec, _source_path: &str) -> Vec
         let sensor_id = &spec.sensor_id;
         let table_name = &table.table_name;
 
-        // Separate Tier-1 (ocsf_field=Some) and Tier-2 (ocsf_field=None) columns.
+        // Collect Tier-1 columns (ocsf_field=Some).
         let tier1_cols: Vec<(&str, &str)> = table
             .columns
             .iter()
             .filter_map(|c| c.ocsf_field.as_deref().map(|f| (c.name.as_str(), f)))
-            .collect();
-
-        let tier2_names: Vec<&str> = table
-            .columns
-            .iter()
-            .filter(|c| c.ocsf_field.is_none())
-            .map(|c| c.name.as_str())
             .collect();
 
         // Build arrow-name map: arrow_name → (col_name, ocsf_field) for Tier-1 cols.
@@ -239,26 +236,57 @@ fn validate_ocsf_column_collisions(spec: &SensorSpec, _source_path: &str) -> Vec
             }
 
             // §J4: intra-table duplicate (two Tier-1 cols produce the same arrow name).
-            if let Some((prior_col_name, prior_ocsf_field)) = seen.get(&arrow_name) {
+            if let Some((prior_col_name, _prior_ocsf_field)) = seen.get(&arrow_name) {
                 // Only emit §J4 if it was not already emitted for this arrow_name in this table
                 // (the map keeps only the first encounter; the second encounter fires the error).
+                // M1 fix (POL-24 verbatim template): no (ocsf_field="...") annotations —
+                // error-taxonomy.md E-SPEC-030 §J4 template uses raw col.names only.
                 errors.push(format!(
                     "E-SPEC-030 [§J4] sensor={sensor_id} table={table_name}: \
-                     columns \"{prior_col_name}\" (ocsf_field=\"{prior_ocsf_field}\") and \
-                     \"{col_name}\" (ocsf_field=\"{ocsf_field}\") both flatten to \"{arrow_name}\""
+                     columns \"{prior_col_name}\" and \"{col_name}\" both flatten to \"{arrow_name}\""
                 ));
                 // Leave the first entry in `seen` so further duplicates also fire.
             } else {
                 seen.insert(arrow_name.clone(), (col_name, ocsf_field));
             }
 
-            // §J1: shadow collision — Tier-1 arrow name equals a Tier-2 col.name.
-            for tier2_name in &tier2_names {
-                if arrow_name == *tier2_name {
+            // §J1: shadow collision — Tier-1 arrow name equals the raw `col.name` of any
+            // other column in the table (Tier-1 OR Tier-2), with two exclusions:
+            //
+            //   1. Self-match: skip when the other column IS the current column
+            //      (identified by col.name == *col_name). A Tier-1 column whose
+            //      arrow_name happens to equal its own col.name is not a shadow.
+            //
+            //   2. §J4 double-report avoidance: skip when the other column is Tier-1
+            //      and produces the SAME arrow_name as the current column — that
+            //      conflict is already categorised as §J4 and must not be re-reported.
+            //
+            // This mirrors the runtime guard in `pipeline_result_to_record_batch`
+            // (prism-bin::spec_driven_adapter §J1 block) which builds `all_col_names`
+            // from ALL table columns and applies the A ≠ B self-exclusion.
+            for other_col in &table.columns {
+                // Self-exclusion (1): skip the current column itself.
+                if other_col.name == *col_name {
+                    continue;
+                }
+                if arrow_name == other_col.name {
+                    // §J4 double-report avoidance (2): if the other col is Tier-1 and
+                    // also flattens to the same arrow_name, this pair is already covered
+                    // by §J4 — skip to avoid emitting two different error codes for the
+                    // same underlying conflict.
+                    let shadowed_is_j4_duplicate = other_col
+                        .ocsf_field
+                        .as_deref()
+                        .map(|f| crate::column_mapping::ocsf_field_to_arrow_name(f) == arrow_name)
+                        .unwrap_or(false);
+                    if shadowed_is_j4_duplicate {
+                        continue;
+                    }
                     errors.push(format!(
                         "E-SPEC-030 [§J1] sensor={sensor_id} table={table_name}: \
                          ocsf_field \"{ocsf_field}\" flattens to \"{arrow_name}\" \
-                         which shadows col.name of column \"{tier2_name}\""
+                         which shadows col.name of column \"{}\"",
+                        other_col.name
                     ));
                 }
             }

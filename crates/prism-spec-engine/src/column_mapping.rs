@@ -43,16 +43,16 @@ use crate::spec_parser::{ColumnSpec, TableSpec};
 ///   - Tier-1 columns (`ocsf_field == Some`) → `ocsf_field_to_arrow_name(ocsf_field)`
 ///   - Tier-2 columns (`ocsf_field == None`) → aggregated into `"raw_extensions"` (if any)
 ///   - Synthesized pseudo-columns: `"class_uid"` (Integer) and `"_sensor"` (String), always
-///   - §J5 zero-Tier-1 edge case: when no Tier-1 columns exist → `["class_uid", "_sensor"]`
+///   - §J6 zero-Tier-1 edge case: when no Tier-1 columns exist → `["class_uid", "_sensor"]`
 ///     (no `raw_extensions`, since no Tier-2 columns contribute without co-existing Tier-1)
 ///
 /// When `ocsf_column_naming` is `false`, returns raw `col.name` values unchanged.
 ///
 /// This helper is the **canonical source of truth** for the projected column-name set
-/// per ADR-058 §I1 (Consolidated-Projection Invariant). Both `TableRegistry::register_sensor`
+/// per ADR-058 §I7 (Consolidated-Projection Invariant). Both `TableRegistry::register_sensor`
 /// and `check_column_availability` delegate here to prevent independent drift.
 ///
-/// Canonical home per ADR-058 §I1. RG-Q-015 enforces agreement across all surfaces.
+/// Canonical home per ADR-058 §I7. RG-Q-015 enforces agreement across all surfaces.
 pub fn ocsf_projected_column_names(tbl: &TableSpec, ocsf_column_naming: bool) -> Vec<String> {
     if ocsf_column_naming {
         let has_tier2 = tbl.columns.iter().any(|c| c.ocsf_field.is_none());
@@ -64,7 +64,7 @@ pub fn ocsf_projected_column_names(tbl: &TableSpec, ocsf_column_naming: bool) ->
         // Synthesized pseudo-columns are always present (ADR-058 §G).
         names.push("class_uid".to_string());
         names.push("_sensor".to_string());
-        // raw_extensions is added only when at least one Tier-2 column exists (ADR-058 §J5).
+        // raw_extensions is added only when at least one Tier-2 column exists (ADR-058 §J6).
         if has_tier2 {
             names.push("raw_extensions".to_string());
         }
@@ -83,7 +83,7 @@ pub fn ocsf_projected_column_names(tbl: &TableSpec, ocsf_column_naming: bool) ->
 ///
 /// When `ocsf_column_naming` is `false`, returns `{col.name → col.column_type}` pairs.
 ///
-/// Canonical home per ADR-058 §I1. Consumed by `TableRegistry::register_sensor` and
+/// Canonical home per ADR-058 §I7. Consumed by `TableRegistry::register_sensor` and
 /// `check_operator_type_compatibility` (prism-query) for schema-aware gate logic.
 pub fn ocsf_projected_column_types(
     tbl: &TableSpec,

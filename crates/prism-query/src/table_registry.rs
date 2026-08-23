@@ -227,10 +227,10 @@ impl TableRegistry {
             sensor_by_table.insert(full_name.clone(), spec.sensor_id.clone());
             // M1 fix: retain column names for single-tenant E-QUERY-038 gate.
             //
-            // ADR-058 §G / §J5 / S-ADR058-OCSF-ROUTING-001 LOW-1 fix:
+            // ADR-058 §G / §J6 / S-ADR058-OCSF-ROUTING-001 LOW-1 fix:
             // When ocsf_column_naming=true, ALWAYS insert columns_by_table and
             // column_types_by_table using the shared helpers from prism_spec_engine —
-            // even for zero-column OCSF tables (§J5: synthesized pseudo-columns are
+            // even for zero-column OCSF tables (§J6: synthesized pseudo-columns are
             // always present, so the entry must exist with at least class_uid + _sensor).
             // The previous outer `if !table.columns.is_empty()` guard prevented this
             // for zero-column OCSF tables, causing E-QUERY-038 to fire on class_uid / _sensor
@@ -239,9 +239,9 @@ impl TableRegistry {
             // When ocsf_column_naming=false, keep the existing `!columns.is_empty()`
             // fail-open guard to preserve legacy behavior for non-OCSF sensors.
             if spec.ocsf_column_naming {
-                // §J5: always insert, even for zero-Tier-1 OCSF tables (RG-Q-010/011 fix).
+                // §J6: always insert, even for zero-Tier-1 OCSF tables (RG-Q-010/011 fix).
                 // Canonical projection logic lives in ocsf_projected_column_names /
-                // ocsf_projected_column_types (ADR-058 §I1 Consolidated-Projection Invariant).
+                // ocsf_projected_column_types (ADR-058 §I7 Consolidated-Projection Invariant).
                 let col_names =
                     prism_spec_engine::column_mapping::ocsf_projected_column_names(table, true);
                 columns_by_table.insert(full_name.clone(), col_names);

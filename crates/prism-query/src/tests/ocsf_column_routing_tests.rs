@@ -895,7 +895,7 @@ async fn test_BC_2_11_016_RG_Q_009_multitenant_ocsf_pipe_stage() {
 
 /// Build a `SensorSpec` with `ocsf_column_naming = true` and ZERO TOML columns.
 ///
-/// This exercises the §J5 edge case: when no Tier-1 or Tier-2 columns are declared,
+/// This exercises the §J6 edge case: when no Tier-1 or Tier-2 columns are declared,
 /// the table should still expose the synthesized pseudo-columns `"class_uid"` (Integer)
 /// and `"_sensor"` (String) in the Arrow schema (ADR-058 §G).
 ///
@@ -913,7 +913,7 @@ fn make_zero_col_ocsf_spec() -> prism_spec_engine::spec_parser::SensorSpec {
         vec![TableSpec::new_point_in_time(
             "alerts",
             "detection_finding",
-            vec![], // ZERO TOML columns — exercises the §J5 synthesized-column-only path
+            vec![], // ZERO TOML columns — exercises the §J6 synthesized-column-only path
             vec![],
         )],
         None,
@@ -954,7 +954,7 @@ fn make_zero_col_ocsf_engine() -> crate::engine::QueryEngine {
 
 /// RG-Q-010 — Zero-column OCSF table: `SELECT class_uid FROM zerosensor_alerts` must Ok.
 ///
-/// When `ocsf_column_naming = true` and a table has NO TOML columns (§J5 edge case),
+/// When `ocsf_column_naming = true` and a table has NO TOML columns (§J6 edge case),
 /// the synthesized pseudo-column `"class_uid"` must still be registered in the
 /// `TableRegistry` so that an explicit `SELECT class_uid` passes E-QUERY-038.
 ///
@@ -973,7 +973,7 @@ fn make_zero_col_ocsf_engine() -> crate::engine::QueryEngine {
 /// `SELECT class_uid FROM zerosensor_alerts` → Ok.
 ///
 /// SAP-3: query enters via `engine.execute()` public surface.
-/// BC: BC-2.11.016 / ADR-058 §G §J5.
+/// BC: BC-2.11.016 / ADR-058 §G §J6.
 #[tokio::test]
 async fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_accepts_class_uid_and_sensor() {
     let engine = make_zero_col_ocsf_engine();
@@ -987,7 +987,7 @@ async fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_accepts_class_uid_and_sens
 
     assert!(
         result.is_ok(),
-        "RG-Q-010 (S-ADR058-OCSF-ROUTING-001 §J5): \
+        "RG-Q-010 (S-ADR058-OCSF-ROUTING-001 §J6): \
          `SELECT class_uid FROM zerosensor_alerts` must return Ok — \
          zero-column OCSF table must still register synthesized pseudo-column 'class_uid'. \
          Pre-fix: E-QUERY-038 ColumnNotFound (if !table.columns.is_empty() guard skips \
@@ -1014,7 +1014,7 @@ async fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_accepts_class_uid_and_sens
 /// no entry is inserted in `columns_by_table` → `columns_for_table` returns `[]` →
 /// both `contains("class_uid")` and `contains("_sensor")` → false → RED.
 ///
-/// BC: BC-2.11.016 / ADR-058 §G §J5.
+/// BC: BC-2.11.016 / ADR-058 §G §J6.
 #[test]
 fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_rejects_raw_col_name() {
     use crate::table_registry::TableRegistry;
@@ -1027,11 +1027,11 @@ fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_rejects_raw_col_name() {
 
     let cols = registry.columns_for_table("zerosensor_alerts");
 
-    // After the §J5 fix, synthesized pseudo-columns must be present even when no
+    // After the §J6 fix, synthesized pseudo-columns must be present even when no
     // TOML columns are declared.  Pre-fix: both assertions fail because cols == [].
     assert!(
         cols.contains(&"class_uid".to_string()),
-        "RG-Q-011 (S-ADR058-OCSF-ROUTING-001 §J5): zero-col OCSF table \
+        "RG-Q-011 (S-ADR058-OCSF-ROUTING-001 §J6): zero-col OCSF table \
          'zerosensor_alerts' must have synthesized pseudo-column 'class_uid' in \
          TableRegistry after register_sensor; got: {:?} \
          (pre-fix: if !table.columns.is_empty() guard skips OCSF branch → [] returned)",
@@ -1039,7 +1039,7 @@ fn test_BC_2_11_016_zero_col_ocsf_table_st_gate_rejects_raw_col_name() {
     );
     assert!(
         cols.contains(&"_sensor".to_string()),
-        "RG-Q-011 (S-ADR058-OCSF-ROUTING-001 §J5): zero-col OCSF table \
+        "RG-Q-011 (S-ADR058-OCSF-ROUTING-001 §J6): zero-col OCSF table \
          'zerosensor_alerts' must have synthesized pseudo-column '_sensor' in \
          TableRegistry; got: {:?}",
         cols

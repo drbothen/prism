@@ -1789,7 +1789,8 @@ pub enum SpecErrorCode {
 //          (class_uid, category_uid, _sensor, raw_extensions).
 //   §J4 — Two Tier-1 columns in the same table flatten to the same arrow name via
 //          ocsf_field_to_arrow_name.
-//   §J1 — Tier-1 arrow name shadows the raw col.name of a Tier-2 column in the same table.
+//   §J1 — Tier-1 arrow name shadows the raw col.name of any other column (Tier-1 or Tier-2)
+//          in the same table, with a self-match exclusion.
 //
 //   Emitted by `validate_ocsf_column_collisions` in
 //   `crates/prism-spec-engine/src/add_sensor_spec.rs` (Rule 8 of parse_and_validate_spec_toml).

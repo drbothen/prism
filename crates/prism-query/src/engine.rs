@@ -3561,7 +3561,7 @@ fn ocsf_or_raw_column_names_for_table(
     tbl: &prism_spec_engine::spec_parser::TableSpec,
     ocsf_column_naming: bool,
 ) -> Vec<String> {
-    // ADR-058 §I1 Consolidated-Projection Invariant: canonical logic lives in the
+    // ADR-058 §I7 Consolidated-Projection Invariant: canonical logic lives in the
     // shared helper; this function is a thin forward so engine.rs and table_registry.rs
     // never diverge (OBS-1 fix, S-ADR058-OCSF-ROUTING-001).
     prism_spec_engine::column_mapping::ocsf_projected_column_names(tbl, ocsf_column_naming)
