@@ -273,7 +273,7 @@ impl TableRegistry {
                     tracing::warn!(
                         event_type = "ocsf.zero_tier1_table",
                         sensor_id = %spec.sensor_id,
-                        table_name = %full_name,
+                        table_name = %table.table_name,
                         tier2_column_count = tier2_count,
                         "OCSF table with ocsf_column_naming=true has zero Tier-1 ocsf_field \
                          mappings; class_uid + _sensor presented \

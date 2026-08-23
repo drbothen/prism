@@ -1153,17 +1153,19 @@ fn test_ocsf_projected_names_all_surfaces_agree() {
 /// All field-level sub-assertions (sensor_id, table_name, tier2_column_count) are
 /// also RED because no matching log lines are captured.
 ///
-/// # Post-fix expected behaviour (implementer T-31)
+/// # Post-fix expected behaviour (implementer T-31 — DONE)
 ///
 /// `register_sensor` detects a zero-Tier-1 / ≥1-Tier-2 OCSF table and emits:
 ///
 /// ```text
 /// tracing::warn!(
 ///     event_type    = "ocsf.zero_tier1_table",
-///     sensor_id     = %sensor_id,
+///     sensor_id     = %spec.sensor_id,
 ///     table_name    = %table.table_name,
 ///     tier2_column_count = tier2_count,
-///     "OCSF table has no Tier-1 columns; Tier-2 data preserved in raw_extensions"
+///     "OCSF table with ocsf_column_naming=true has zero Tier-1 ocsf_field \
+///      mappings; class_uid + _sensor presented \
+///      (+ raw_extensions when tier2_column_count > 0)"
 /// )
 /// ```
 ///
@@ -1283,45 +1285,66 @@ fn test_BC_2_11_016_zero_tier1_with_tier2_projects_raw_extensions_and_emits_warn
     // BC-2.16.002 §Postconditions catalog row `ocsf.zero_tier1_table` requires a
     // `tracing::warn!` with:
     //   event_type        = "ocsf.zero_tier1_table"
-    //   sensor_id         = "zero_t1_sensor"
-    //   table_name        = "events"
-    //   tier2_column_count = 2
+    //   sensor_id         = "zero_t1_sensor"   (rendered: sensor_id=zero_t1_sensor)
+    //   table_name        = "events"            (rendered: table_name=events — BARE name)
+    //   tier2_column_count = 2                  (rendered: tier2_column_count=2)
     //
     // The "exactly once" cardinality is enforced by the single-table fixture — only
     // one table is registered, so the warning can fire at most once.
     //
-    // ALL four sub-assertions below MUST FAIL (RED) against current code because
-    // `register_sensor` does not yet emit this event (T-31 implements it).
+    // Implementation T-31 is DONE.  The `table_name` field was initially emitting
+    // `%full_name` (e.g. "zero_t1_sensor_events") instead of `%table.table_name`
+    // (e.g. "events").  F-1 MED fix corrects this.  The `table_name=events` assertion
+    // is RED against the pre-fix `%full_name` code and GREEN after the fix.
     assert!(
         logs_contain("ocsf.zero_tier1_table"),
-        "RG-Q-017 assertion (b) PRIMARY RED (S-ADR058-OCSF-ROUTING-001 A+W amendment): \
+        "RG-Q-017 assertion (b) PRIMARY (S-ADR058-OCSF-ROUTING-001 A+W amendment): \
          `register_sensor` must emit `tracing::warn!` with \
          event_type = \"ocsf.zero_tier1_table\" when an OCSF table has zero Tier-1 \
          columns but ≥1 Tier-2 column. \
-         Pre-fix: no such warning exists → logs_contain returns false → RED. \
          BC-2.16.002 §Postconditions catalog row `ocsf.zero_tier1_table` required."
     );
 
     // Field: sensor_id = "zero_t1_sensor"
+    // OBS-1 precision: assert the FIELD-PREFIXED form `sensor_id=zero_t1_sensor` so
+    // the assertion targets the `sensor_id` field specifically, not any occurrence of
+    // the sensor name in other fields (e.g. the registered table key).
     assert!(
-        logs_contain("zero_t1_sensor"),
-        "RG-Q-017 assertion (b) field sensor_id RED: WARN event must carry \
-         sensor_id = \"zero_t1_sensor\". Pre-fix: not emitted → RED."
+        logs_contain("sensor_id=zero_t1_sensor"),
+        "RG-Q-017 assertion (b) field sensor_id: WARN event must carry \
+         sensor_id = %spec.sensor_id → renders as sensor_id=zero_t1_sensor. \
+         BC-2.16.002 §Postconditions catalog row `ocsf.zero_tier1_table` field schema."
     );
 
-    // Field: table_name = "events" (checked via full qualified form for specificity)
+    // Field: table_name = "events" (BARE table name per BC-2.16.002 catalog row 96).
+    //
+    // The spec mandates `table_name = %table.table_name` (the BARE name, e.g. "events"),
+    // NOT `%full_name` (e.g. "zero_t1_sensor_events").  Three concordant sources:
+    //   - BC-2.16.002 v2.35 catalog row 96: table_name: %display = "the name of the
+    //     offending table from TableSpec.table_name"
+    //   - ADR-058 §J6 emission snippet: `table_name = %table.table_name`
+    //   - This test's own doc-comment Post-fix snippet
+    //
+    // Assertion uses the FIELD-PREFIXED form `table_name=events` to guarantee the
+    // assertion is genuinely RED against code that emits `table_name=zero_t1_sensor_events`:
+    // "table_name=events" is NOT a substring of "table_name=zero_t1_sensor_events"
+    // (the "zero_t1_sensor_" prefix intervenes), so RED is structural, not coincidental.
     assert!(
-        logs_contain("zero_t1_sensor_events"),
-        "RG-Q-017 assertion (b) field table_name RED: WARN event must carry \
-         table_name = \"events\" (verified via full table key \"zero_t1_sensor_events\" \
-         to avoid substring false-positives). Pre-fix: not emitted → RED."
+        logs_contain("table_name=events"),
+        "RG-Q-017 assertion (b) field table_name: WARN event must carry \
+         table_name = %table.table_name → renders as table_name=events (BARE name). \
+         BC-2.16.002 catalog row 96 / ADR-058 §J6: the sensor_id prefix must NOT appear \
+         in this field (sensor_id field already carries it). \
+         If this fails with current code: code is emitting table_name=zero_t1_sensor_events \
+         (full_name) instead of table_name=events (bare table.table_name) — F-1 MED fix needed."
     );
 
     // Field: tier2_column_count = 2 (fixture has exactly 2 Tier-2 columns)
+    // OBS-1 precision: assert the VALUE `tier2_column_count=2`, not just the field name.
     assert!(
-        logs_contain("tier2_column_count"),
-        "RG-Q-017 assertion (b) field tier2_column_count RED: WARN event must carry \
-         tier2_column_count field (value 2 for this 2-Tier-2-column fixture). \
-         Pre-fix: not emitted → RED."
+        logs_contain("tier2_column_count=2"),
+        "RG-Q-017 assertion (b) field tier2_column_count: WARN event must carry \
+         tier2_column_count=2 (this fixture registers 2 Tier-2 columns: ext_field_1, ext_field_2). \
+         BC-2.16.002 §Postconditions catalog row `ocsf.zero_tier1_table` field schema."
     );
 }
