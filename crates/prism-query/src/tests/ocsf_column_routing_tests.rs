@@ -1122,3 +1122,206 @@ fn test_ocsf_projected_names_all_surfaces_agree() {
         registry_cols, helper_cols
     );
 }
+
+// ── RG-Q-017 ─────────────────────────────────────────────────────────────────
+
+/// RG-Q-017 — A+W amendment: zero-Tier-1 table with Tier-2 columns must preserve
+/// Tier-2 data via `raw_extensions` AND emit `ocsf.zero_tier1_table` WARN once at
+/// spec-load/registration.
+///
+/// # Context (A+W amendment, human decision 2026-08-23)
+///
+/// A table with `ocsf_column_naming = true`, ZERO Tier-1 columns (no column has
+/// `ocsf_field`), and ≥1 Tier-2 column (column with `ocsf_field = None`) must:
+///
+/// (a) Project EXACTLY `["_sensor", "class_uid", "raw_extensions"]` (sorted) —
+///     Tier-2 data PRESERVED via `raw_extensions`. This is ALREADY the code's
+///     behavior (`raw_extensions ⟺ has_tier2` in `ocsf_projected_column_names`).
+///     This assertion MUST **PASS** against current code (green, load-bearing guard).
+///
+/// (b) Emit a `ocsf.zero_tier1_table` WARN structured event ONCE at spec-load /
+///     `register_sensor` time, with fields: `event_type`, `sensor_id`,
+///     `table_name`, `tier2_column_count`.
+///     BC-2.16.002 §Postconditions catalog row `ocsf.zero_tier1_table`.
+///     This is NOT yet implemented — the primary assertion MUST **FAIL** (RED).
+///
+/// # Red Gate failure mode
+///
+/// `register_sensor` in `table_registry.rs` contains no `tracing::warn!` call for
+/// `event_type = "ocsf.zero_tier1_table"`. After calling `register_sensor`,
+/// `logs_contain("ocsf.zero_tier1_table")` returns `false` → assertion fails → RED.
+/// All field-level sub-assertions (sensor_id, table_name, tier2_column_count) are
+/// also RED because no matching log lines are captured.
+///
+/// # Post-fix expected behaviour (implementer T-31)
+///
+/// `register_sensor` detects a zero-Tier-1 / ≥1-Tier-2 OCSF table and emits:
+///
+/// ```text
+/// tracing::warn!(
+///     event_type    = "ocsf.zero_tier1_table",
+///     sensor_id     = %sensor_id,
+///     table_name    = %table.table_name,
+///     tier2_column_count = tier2_count,
+///     "OCSF table has no Tier-1 columns; Tier-2 data preserved in raw_extensions"
+/// )
+/// ```
+///
+/// Emitted once per such table per `register_sensor` call.
+///
+/// # BC traceability
+/// - BC-2.11.016 EC-11-080 (zero-Tier-1 + Tier-2 WARN requirement)
+/// - BC-2.16.002 §Postconditions catalog row `ocsf.zero_tier1_table`
+/// - ADR-058 v2.31 A+W amendment (human decision 2026-08-23)
+/// - S-ADR058-OCSF-ROUTING-001 RG-Q-017
+///
+/// # SAP-3 compliance
+/// Assertion (a) exercises the `TableRegistry::register_sensor` + `columns_for_table`
+/// surface — the spec-load path — not a synthetic AST. Assertion (b) exercises the
+/// same registration path which is the specified emission site.
+#[test]
+#[tracing_test::traced_test]
+fn test_BC_2_11_016_zero_tier1_with_tier2_projects_raw_extensions_and_emits_warning() {
+    use crate::table_registry::TableRegistry;
+    use prism_core::ColumnType;
+    use prism_spec_engine::{
+        column_mapping::ocsf_projected_column_names,
+        spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+    };
+
+    // ── Fixture ──────────────────────────────────────────────────────────────
+    //
+    // Sensor `zero_t1_sensor`: `ocsf_column_naming = true`.
+    // Table `events`: ZERO Tier-1 columns (no column has `ocsf_field`),
+    //                 TWO  Tier-2 columns (`ocsf_field = None` on both).
+    //
+    // Full registered table name: `"zero_t1_sensor_events"`.
+    //
+    // Tier-2 column count = 2 → `tier2_column_count = 2` in the expected WARN.
+    let mut spec = SensorSpec::new(
+        "zero_t1_sensor",
+        "Zero Tier-1 OCSF Sensor (RG-Q-017 A+W amendment fixture)",
+        AuthType::ApiKey,
+        "https://zero-t1.invalid",
+        vec![TableSpec::new_point_in_time(
+            "events",
+            "detection_finding",
+            vec![
+                // Tier-2 column #1: no ocsf_field → aggregates to raw_extensions.
+                ColumnSpec::new("ext_field_1", ColumnType::String, None, vec![]),
+                // Tier-2 column #2: no ocsf_field → aggregates to raw_extensions.
+                ColumnSpec::new("ext_field_2", ColumnType::Integer, None, vec![]),
+            ],
+            vec![],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    // Enable OCSF column naming — required for both assertions.
+    spec.ocsf_column_naming = true;
+
+    // ── Registration (spec-load path) ─────────────────────────────────────────
+    //
+    // This is the site where assertion (b) expects `ocsf.zero_tier1_table` WARN.
+    let registry = TableRegistry::new();
+    registry
+        .register_sensor(&spec)
+        .expect("RG-Q-017 fixture: zero-Tier-1 OCSF sensor must register without error");
+
+    // ── Assertion (a): Tier-2 data preserved — raw_extensions present ─────────
+    //
+    // Expected: `["_sensor", "class_uid", "raw_extensions"]` (exactly, sorted).
+    //
+    // Rationale: `has_tier2 = true` (2 columns have `ocsf_field = None`).
+    // `ocsf_projected_column_names` adds `raw_extensions` when `has_tier2`.
+    // No Tier-1 columns → no OCSF-flattened names in the set.
+    // Synthesized pseudo-columns `class_uid` and `_sensor` always present.
+    //
+    // THIS ASSERTION MUST PASS against current code (load-bearing data-preservation guard).
+    let mut registry_cols = registry.columns_for_table("zero_t1_sensor_events");
+    registry_cols.sort();
+
+    assert_eq!(
+        registry_cols,
+        vec![
+            "_sensor".to_string(),
+            "class_uid".to_string(),
+            "raw_extensions".to_string(),
+        ],
+        "RG-Q-017 assertion (a) MUST PASS (S-ADR058-OCSF-ROUTING-001 A+W amendment): \
+         zero-Tier-1 + Tier-2 table must project exactly \
+         [\"_sensor\", \"class_uid\", \"raw_extensions\"] — Tier-2 data preserved via \
+         raw_extensions. If this fails, the `ocsf_projected_column_names` / \
+         `register_sensor` data-preservation behavior regressed. Got: {:?}",
+        registry_cols
+    );
+
+    // Cross-check with `ocsf_projected_column_names` helper (RG-Q-015 agreement invariant).
+    let table = spec
+        .tables
+        .first()
+        .expect("RG-Q-017 fixture: zero-t1 spec must have exactly one table");
+    let mut helper_cols = ocsf_projected_column_names(table, true);
+    helper_cols.sort();
+
+    assert_eq!(
+        helper_cols,
+        vec![
+            "_sensor".to_string(),
+            "class_uid".to_string(),
+            "raw_extensions".to_string(),
+        ],
+        "RG-Q-017 assertion (a) cross-check: `ocsf_projected_column_names` must agree \
+         with `columns_for_table` — both must return \
+         [\"_sensor\", \"class_uid\", \"raw_extensions\"]. Got: {:?}",
+        helper_cols
+    );
+
+    // ── Assertion (b): ocsf.zero_tier1_table WARN emitted once at registration ─
+    //
+    // BC-2.16.002 §Postconditions catalog row `ocsf.zero_tier1_table` requires a
+    // `tracing::warn!` with:
+    //   event_type        = "ocsf.zero_tier1_table"
+    //   sensor_id         = "zero_t1_sensor"
+    //   table_name        = "events"
+    //   tier2_column_count = 2
+    //
+    // The "exactly once" cardinality is enforced by the single-table fixture — only
+    // one table is registered, so the warning can fire at most once.
+    //
+    // ALL four sub-assertions below MUST FAIL (RED) against current code because
+    // `register_sensor` does not yet emit this event (T-31 implements it).
+    assert!(
+        logs_contain("ocsf.zero_tier1_table"),
+        "RG-Q-017 assertion (b) PRIMARY RED (S-ADR058-OCSF-ROUTING-001 A+W amendment): \
+         `register_sensor` must emit `tracing::warn!` with \
+         event_type = \"ocsf.zero_tier1_table\" when an OCSF table has zero Tier-1 \
+         columns but ≥1 Tier-2 column. \
+         Pre-fix: no such warning exists → logs_contain returns false → RED. \
+         BC-2.16.002 §Postconditions catalog row `ocsf.zero_tier1_table` required."
+    );
+
+    // Field: sensor_id = "zero_t1_sensor"
+    assert!(
+        logs_contain("zero_t1_sensor"),
+        "RG-Q-017 assertion (b) field sensor_id RED: WARN event must carry \
+         sensor_id = \"zero_t1_sensor\". Pre-fix: not emitted → RED."
+    );
+
+    // Field: table_name = "events" (checked via full qualified form for specificity)
+    assert!(
+        logs_contain("zero_t1_sensor_events"),
+        "RG-Q-017 assertion (b) field table_name RED: WARN event must carry \
+         table_name = \"events\" (verified via full table key \"zero_t1_sensor_events\" \
+         to avoid substring false-positives). Pre-fix: not emitted → RED."
+    );
+
+    // Field: tier2_column_count = 2 (fixture has exactly 2 Tier-2 columns)
+    assert!(
+        logs_contain("tier2_column_count"),
+        "RG-Q-017 assertion (b) field tier2_column_count RED: WARN event must carry \
+         tier2_column_count field (value 2 for this 2-Tier-2-column fixture). \
+         Pre-fix: not emitted → RED."
+    );
+}
