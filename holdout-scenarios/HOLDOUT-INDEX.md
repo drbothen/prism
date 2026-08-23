@@ -1,10 +1,10 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.20"
+version: "1.21"
 status: draft
 producer: product-owner
-timestamp: 2026-08-23T00:00:00Z
+timestamp: 2026-08-23T21:00:00Z
 phase: 3
 inputs: []
 input-hash: null

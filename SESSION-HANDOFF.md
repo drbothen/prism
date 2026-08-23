@@ -1,18 +1,41 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.001"
+version: "8.002"
 status: current
-timestamp: 2026-08-23T19:33:00Z
+timestamp: 2026-08-23T20:45:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2284 (2026-08-23): SESSION WRAP. ROUTING-001 A+W LOCAL 3-CLEAN CONVERGED @8aeaf06c4 (feature PUSHED origin). HS-023 holdout scenarios authored (HOLDOUT-INDEX v1.20; 3 P0 scenarios; HS-022 CONSUMED D-2270). Holdout re-gate NEXT. STATE v8.817→v8.818.**
+> **D-2285 (2026-08-23): ROUTING-001 HOLDOUT PASS (HS-023 3/3 P0, mean 1.00, CONSUMED) + DEMO COMPLETE 21/21 ACs @dc37a57a7. pr-manager 9-step PR cycle IN PROGRESS. STATE v8.818→v8.819. [D-2284 SUPERSEDED by D-2285]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2284 (2026-08-23 — SESSION WRAP; ROUTING-001 A+W LOCAL 3-CLEAN CONVERGED; HS-023 authored; STATE v8.817→v8.818) [SUPERSEDES D-2273]
+## §RESUME SNAPSHOT — D-2285 (2026-08-23 — ROUTING-001 HOLDOUT PASS + DEMO COMPLETE; STATE v8.818→v8.819) [SUPERSEDES D-2284]
+
+### RESUME IN ONE BREATH
+ROUTING-001 story-level holdout gate PASSED (HS-023 3/3 P0 scenarios, mean satisfaction 1.00; CONSUMED — HOLDOUT-INDEX v1.21). Demo COMPLETE: 21/21 ACs recorded @dc37a57a7 (docs-only commit; code remains @8aeaf06c4, LOCAL 3-CLEAN unchanged). pr-manager 9-step PR cycle IN PROGRESS (PR targeting develop).
+
+**RESUME NEXT-ACTION:** pr-manager 9-step PR cycle is in progress (PR being created targeting develop). After CI + code reviews pass: orchestrator drives PR-LEVEL adversary 3-CLEAN (BC-5.39.001) + security-reviewer, then squash-merge to develop + POL-14 post-merge burst (state-manager). OBS-A/OBS-B candidate follow-ups logged in STATE.md §D-2285 for post-merge routing.
+
+### HEADS (D-2285)
+- `develop`: `362e4f85` (local == origin; clean)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
+- `feature/S-ADR058-OCSF-ROUTING-001`: `8aeaf06c4` (PUSHED origin; LOCAL 3-CLEAN; demo @dc37a57a7 docs-only)
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, dirty)
+
+### ROUTING-001 WORKSTREAM STATE (D-2285)
+**FROZEN PERIMETER:** ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.16.003 v1.26 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.81 / ROUTING-001 v1.56 / COERCION-001 v1.47 (merged). Code HEAD: `8aeaf06c4` / just check GREEN 5815.
+
+**BC-5.39.001 LOCAL STREAK: 3/3 CONVERGED** @8aeaf06c4. PR-LEVEL cascade NOT YET STARTED — begins after PR creation.
+
+**HOLDOUT STATUS (D-2285):** HS-023 group PASSED (3/3 P0, mean 1.00) and CONSUMED. HOLDOUT-INDEX v1.21.
+
+---
+
+## §RESUME SNAPSHOT — D-2284 (2026-08-23 — SESSION WRAP; ROUTING-001 A+W LOCAL 3-CLEAN CONVERGED; HS-023 authored; STATE v8.817→v8.818) [SUPERSEDED by D-2285]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 A+W amendment DELIVERED and LOCAL 3-CLEAN CONVERGED at feature @8aeaf06c4 (PUSHED origin — backed up) / specs frozen @factory-artifacts. Step 5 story-level holdout RE-GATE is the current gate: fresh HS-023 group authored (3 P0 scenarios; HOLDOUT-INDEX v1.20; HS-022 CONSUMED D-2270). NEXT: dispatch holdout-evaluator to run HS-023 against the built binary, then Step 6 (demo → PR 9-step → merge).
