@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.55"
+version: "1.56"
 level: "L4"
 status: draft
 producer: story-writer
@@ -2615,19 +2615,20 @@ implementer MUST load only the files listed, not the full architecture directory
   guard. Add a comment in `crates/prism-core/src/error.rs` at the E-SPEC-030 entry identifying
   it as the spec-load OCSF collision error code. Run `just iter prism-spec-engine`. Makes
   RG-Q-012, RG-Q-013, and RG-Q-014 green. Traces to AC-021.
-- T-31: A+W-FIX — When `register_sensor` (or the equivalent registration path in
-  `crates/prism-spec-engine/src/add_sensor_spec.rs` or `crates/prism-query/src/table_registry.rs`)
-  processes an OCSF-mode table (`ocsf_column_naming = true`) that has **zero Tier-1 columns**
+- T-31: A+W-FIX — When `register_sensor` (`prism-query::table_registry`,
+  `crates/prism-query/src/table_registry.rs`) processes an OCSF-mode table
+  (`ocsf_column_naming = true`) that has **zero Tier-1 columns**
   (no column carries `ocsf_field = Some(...)`) and **at least one Tier-2 column** (at least one
   column carries `ocsf_field = None`), two changes are required in the same commit:
   (a) Register `raw_extensions` (Json column type) in the plan-gate available set, so the final
       set is exactly `["_sensor", "class_uid", "raw_extensions"]` (matches `ocsf_projected_column_names`
       output for this case — AC-019 A+W sub-case).
-  (b) Emit `tracing::warn!(sensor_id = %sensor_id, table_name = %table_name, event_type = "ocsf.zero_tier1_table",
-      "OCSF table has zero Tier-1 columns but ≥1 Tier-2 columns; raw_extensions added to available set")`.
-      Emit EXACTLY ONCE at spec-load/registration time (SAP-1 / PG-LP11-001 — BC-2.16.002 v2.34
-      `ocsf.zero_tier1_table` catalog row; fields: sensor_id, table_name; recurrence: ONCE per table
-      at registration). Do NOT emit on every query.
+  (b) Emit `tracing::warn!(sensor_id = %spec.sensor_id, table_name = %table.table_name,
+      tier2_column_count = tier2_count, event_type = "ocsf.zero_tier1_table",
+      "OCSF table with ocsf_column_naming=true has zero Tier-1 ocsf_field mappings; class_uid + _sensor presented (+ raw_extensions when tier2_column_count > 0)")`.
+      Emit EXACTLY ONCE at spec-load/registration time (SAP-1 / PG-LP11-001 — BC-2.16.002 v2.35
+      `ocsf.zero_tier1_table` catalog row; fields: sensor_id, table_name, tier2_column_count (u32);
+      recurrence: ONCE per table at registration). Do NOT emit on every query.
   Update `ocsf_projected_column_names` helper (introduced in T-29) to return
   `["class_uid", "_sensor", "raw_extensions"]` when both tier-1 count == 0 and tier-2 count > 0
   (the A+W case), continuing to return `["class_uid", "_sensor"]` when tier-2 count == 0 as well.
@@ -2809,6 +2810,22 @@ Build-time enforcement rules:
 ---
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
+
+### v1.56 Amendment Sweep (records-tier T-31 task-body alignment — LOCAL parallel pass-2 OBS-1; warn! snippet aligned to BC-2.16.002 row 96 canonical contract; no code/BC/ADR change)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): merged and terminal at v1.47 snapshot (ADR-058 v2.26, BC-2.16.003 v1.21, BC-2.16.002 v2.32). This v1.56 records-tier fix aligns the T-31 task body illustrative snippet to the shipped BC-2.16.002 row 96 contract — no AC, RG, or behavioral obligation change. COERCION-001 carries no `ocsf.zero_tier1_table` warning obligation. VERDICT: SIBLING HISTORICAL SNAPSHOT PRESERVED — NO CHANGE NEEDED.
+
+**Dimension 2 — Downstream copy target:**
+
+Changed surface: T-31 task body illustrative `tracing::warn!` snippet — three corrections aligned to BC-2.16.002 row 96 canonical contract (verbatim match to shipped `register_sensor` implementation @510d1299e): (1) `tier2_column_count = tier2_count` field added (was missing; canonical three-field schema is `sensor_id: %display`, `table_name: %display`, `tier2_column_count: u32`); (2) message string replaced with verbatim BC-2.16.002 row 96 text (`"OCSF table with ocsf_column_naming=true has zero Tier-1 ocsf_field mappings; class_uid + _sensor presented (+ raw_extensions when tier2_column_count > 0)"`); (3) emission-site prose unambiguated from "or equivalent path in add_sensor_spec.rs" to `register_sensor` (`prism-query::table_registry`) — the "or add_sensor_spec.rs" alternative removed (BC-2.16.002 v2.35: emission is in `register_sensor` only); (4) `table_name = %table.table_name` bare form used (matching shipped code). T-31 task body is the downstream copy-target of BC-2.16.002 row 96 — the BC is the upstream authoritative form; T-31 carries the illustrative snippet consumed by implementer and test-writer agents at dispatch time. This was the OBS-1 residual from LOCAL parallel pass 2: v1.55 updated BC-2.16.002 version pins but left the stale snippet in T-31 body. VERDICT: DOWNSTREAM COPY-TARGET RESIDUAL CLOSED — T-31 NOW MATCHES BC-2.16.002 ROW 96.
+
+**Dimension 3 — Mandate anchor:**
+
+No new MUST statements introduced. Existing mandates (AC-019 A+W → RG-Q-017 → T-31) are unchanged. This is a records-tier prose alignment — no new behavioral obligation added. VERDICT: NO NEW MUSTs — EXISTING ANCHORS UNCHANGED.
+
+SAC-1 re-verified: 46 RGTs, density 46/21 = 2.19 ≥ 0.5, red-then-green ordering preserved (T-11AC precedes T-31 — unchanged).
 
 ### v1.54 Amendment Sweep (A+W amendment — human decision 2026-08-23: zero-Tier-1-with-Tier-2 PRESERVES Tier-2 via raw_extensions; NEW ocsf.zero_tier1_table spec-load warning; RG-Q-017 added; density 46/21=2.19; §Authority re-pinned ADR-058 v2.31 / BC-2.11.016 v1.30 / BC-2.16.002 v2.34 / BC-2.16.003 v1.26)
 
@@ -4029,6 +4046,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.56 | 2026-08-23 | story-writer | T-31 task-body alignment (LOCAL parallel pass-2 OBS-1, records-tier): illustrative warn! snippet updated to the canonical BC-2.16.002 row 96 contract — added tier2_column_count field, verbatim message string, emission site pinned to register_sensor (prism-query::table_registry), bare table.table_name; no code/BC/ADR change (all already correct). §TD-VSDD-097 v1.56 sweep added (dim-2 downstream-copy residual closed). |
 | 1.55 | 2026-08-23 | state-manager | §Authority pin sync — ADR-058 v2.31→v2.32, BC-2.16.002 v2.34→v2.35, BC-2.11.016 v1.30→v1.31 (warning-emission-site reconcile add_sensor_spec→register_sensor; D-2279); T-31 A+W code delivered feature @510d1299e; no story body/AC change. |
 | 1.54 | 2026-08-23 | story-writer | A+W amendment (human decision 2026-08-23, supersedes interim §J6-drop): zero-Tier-1-with-Tier-2 PRESERVES Tier-2 via raw_extensions; NEW ocsf.zero_tier1_table spec-load warning (BC-2.16.002 v2.34 catalog row: fields sensor_id + table_name; ONCE per table); RG-Q-017 added (SAC-1: 46 RGTs, density 46/21=2.19); §Authority re-pinned ADR-058 v2.30→v2.31 + BC-2.11.016 v1.29→v1.30 + BC-2.16.002 v2.33→v2.34 + BC-2.16.003 v1.24→v1.26; OBS-1 §J7 signature drop (validate_ocsf_column_collisions loses source_path param) anchored to T-30/T-31. Changes: (1) version 1.53→1.54. (2) §Authority ADR-058 v2.30→v2.31 + status-date 2026-08-23. (3) §Authority BC-2.11.016 v1.29→v1.30 + A+W sub-case paragraph: EC-11-080 A+W — zero-Tier-1-with-Tier-2 OCSF table MUST register raw_extensions (Json) in available set AND emit ocsf.zero_tier1_table WARN ONCE at spec-load. (4) §Authority BC-2.16.002 v2.33→v2.34 + ocsf.zero_tier1_table catalog row note (SAP-1/PG-LP11-001). (5) §Authority BC-2.16.003 v1.24→v1.26 + OBS-1 §J7 signature-drop note (validate_ocsf_column_collisions source_path removed). (6) §Behavioral Contracts table BC-2.11.016/BC-2.16.002/BC-2.16.003 version pins updated. (7) §Red Gate Tests preamble "forty-five"→"forty-six", "45"→"46". (8) RG-Q-017 entry added: three assertions (E-QUERY-038 Ok for raw_extensions; E-QUERY-038 Err for raw col.name; ocsf.zero_tier1_table WARN exactly once). Placed in ocsf_column_routing_tests.rs. (9) §BC-5.38.001 Density Check 45→46 RGTs, range ..RG-Q-016→..RG-Q-017, density 2.14→2.19; RG-Q-017 A+W coverage note added. (10) AC-019 extended with A+W sub-case (two sub-cases: zero-Tier-1+zero-Tier-2 → ["_sensor","class_uid"]; zero-Tier-1+≥1-Tier-2 A+W → ["_sensor","class_uid","raw_extensions"] + emit ocsf.zero_tier1_table WARN; implementation in T-31). (11) §Mandate Anchor table — AC-019 A+W row added (RG-Q-017, T-31, PENDING A+W-FIX). (12) §Tasks Phase A — T-11AC added (write RG-Q-017, MUST FAIL, before T-GATE); T-GATE range ..RG-Q-016→..RG-Q-017; density 45/21=2.14→46/21=2.19. (13) §Tasks Phase B — T-31 added (A+W-FIX: register raw_extensions for zero-Tier-1-with-Tier-2 OCSF table; emit ocsf.zero_tier1_table WARN ONCE; update ocsf_projected_column_names A+W branch; OBS-1 param drop if not done in T-30); T-19 count 45→46; range extended to RG-Q-017. (14) §TD-VSDD-097 — v1.54 sweep added at top (3-dim: Sibling COERCION-001 unaffected/terminal; Downstream no verbatim copy; Mandate anchored to RG-Q-017+T-31). (15) §Changelog — this v1.54 row added at top. SAC-1 re-verified: 46 RGTs, density 46/21=2.19 ≥ 0.5, red-then-green ordering preserved (T-11AC in Phase A precedes T-31 in Phase B). |
 | 1.53 | 2026-08-22 | story-writer | LOCAL pass-1 fix-burst — RG-Q-016 added (H1 §J1 Tier-1-vs-Tier-1 closure); RG-Q-015 strengthened to bind §I7 shape-exception sites (M2 closure); §J4 message made verbatim per E-SPEC-030 template (M1 closure, POL-24); ADR §-citation drift corrected §J5→§J6/§I1→§I7 in code (L1 closure). Density 45/21=2.14. Code fix @891ee536c. No spec (ADR/BC/error-taxonomy) change. Changes: (1) version 1.52→1.53. (2) §Red Gate Tests preamble 44→45. (3) RG-Q-015 entry: note added that it now also binds the two ADR-058 §I7 shape-exception sites (prism-mcp `build_ocsf_column_descriptors` name-set == `ocsf_projected_column_names` assertion and prism-bin `pipeline_result_to_record_batch` Arrow schema field-names == `ocsf_projected_column_names` assertion); these are RG-Q-015 sub-assertions, closing M2 (RG-Q-015 was previously tautological). (4) RG-Q-016 (`test_BC_2_16_003_ocsf_collision_j1_shadow_tier1_vs_tier1_rejected_at_spec_load`) added to SAC-1 list: §J1 Tier-1-vs-Tier-1 shadow sub-case (a Tier-1 column's flattened arrow name equals another Tier-1 column's raw col.name in the same table); prism-spec-engine add_sensor_spec mod tests; E-SPEC-030 [§J1]; traces BC-2.16.003 EC-016-013-032 / ADR-058 §J7. Closes H1. (5) §BC-5.38.001 Density Check 44→45 RGTs, range RG-Q-001..015→RG-Q-001..016, density 2.10→2.14; RG-Q-016 coverage note added. (6) §Mandate Anchor table AC-021 row: RG-Q-012/013/014 → RG-Q-012/013/014/016. (7) §Behavioral Contracts table BC-2.16.003 row: EC-016-013-032 governs /013/014 → /013/014/016. (8) T-GATE: range RG-Q-001..015→RG-Q-001..016; prism-spec-engine list RG-Q-012/013/014→RG-Q-012/013/014/016; density 44/21=2.10→45/21=2.14. (9) T-19: count 44→45; prism-spec-engine list updated. (10) §TD-VSDD-097 — v1.53 sweep added at top. SAC-1 re-verified: 45 RGTs, density 45/21=2.14 ≥ 0.5, red-then-green ordering preserved (no new Phase A task required — RG-Q-016 was written in LOCAL pass-1 fix-burst post-implementation; documented here for SAC-1 traceability only). |

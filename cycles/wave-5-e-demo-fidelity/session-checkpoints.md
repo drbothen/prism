@@ -11,6 +11,16 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 
 ---
 
+## Archived: D-2281 — 2026-08-23; STATE v8.814→v8.815 — ROUTING-001 pass-D CLEAN 1/3 + pass-E fixes @dce5237e2
+
+**RESUME IN ONE BREATH:** Prism Phase-3, v1 = live Claroty-xDome. ROUTING-001 pass-D CLEAN(strict)=YES 1/3 (frozen @8877c7c88); pass-E F-1 MED (stale rustdoc bullet `ocsf_projected_column_names`, §J6-drop residue) + F-2 LOW (Rule 8 wiring comment AC-020→AC-021) fixed code-COMMENT @dce5237e2 (no spec change). ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.11.016 v1.31 / ROUTING-001 v1.55. BC-5.39.001 LOCAL streak 0/3 RESET; re-gate pending on dce5237e2.
+
+**HEADS (D-2281 2026-08-23):** develop `362e4f85`; feature/S-ADR058-OCSF-ROUTING-001 @`dce5237e2`; factory-artifacts: `git -C .factory log -1`; `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED; `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY.
+
+**NOTE: Superseded by D-2282 — pass-H OBS-1 (LOW) RG-Q-011 test-only fix @8aeaf06c4 + parallel 3-clean batch (2/3-clean) + T-31 canonical alignment story v1.56; streak 0/3; re-gate pending code @8aeaf06c4 + story v1.56. STATE v8.815→v8.816.**
+
+---
+
 ## Archived: D-2012 — 2026-07-24; STATE v8.560 — Wave-A RE-GATE CONVERGED; BC-5.39.001 strict 3/3
 
 **RESUME IN ONE BREATH:** Wave-A spec-evolution LOCAL adversary cascade RE-GATE CONVERGED — BC-5.39.001 strict 3/3 at passes 58/59/60 on frozen post-FB43/FB44 perimeter. 60 passes / 44 fix-bursts total. Converged spec package: BC-2.16.014 v1.18 / VP-159 v1.26 / ADR-054 v0.52 / ADR-053 v0.32 / BC-2.01.018 v1.4 / BC-2.01.006 v1.8 / BC-2.02.004 v1.10 / BC-2.16.009 v1.23 / error-taxonomy v2.66 / VP-153 v0.28 / BC-2.01.016 v1.14 / BC-2.01.017 v1.10 / invariants v1.11 / ADR-026 v1.41 / ADR-028 v1.28. BC-INDEX v8.69 / VP-INDEX v2.12 / ARCH-INDEX v2.272 / STORY-INDEX v2.722. NEXT SESSION FIRST ACTION: D-1944 step 6 — Wave-A STORY DECOMPOSITION via story-writer (ADR-054 D7 sequencing: engine story FIRST, ADR-054 story SECOND, sensor stories after); dclaude:remove-uncertainty per D-1110 immediately after each story materializes AND again before TDD delivery; per-story delivery per per-story-delivery.md with LOCAL 3-CLEAN + story-level holdout gates.
