@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.889"
+version: "2.890"
 status: draft
 producer: state-manager
 timestamp: 2026-08-24T00:00:00Z
 phase: 3
-total_stories: 306
+total_stories: 307
 # D-2282: pass-H OBS-1 test-only fix @8aeaf06c4 + parallel 3-clean batch (2/3) + T-31 canonical alignment — ROUTING-001 v1.55→v1.56 (story-body T-31 illustrative warn! aligned to BC-2.16.002 row 96: tier2_column_count added, verbatim message, emission site pinned to register_sensor; §Authority pins UNCHANGED: ADR-058 v2.32/BC-2.11.016 v1.31/BC-2.16.003 v1.26/BC-2.16.002 v2.35; code @8aeaf06c4). total_stories 303 UNCHANGED. STORY-INDEX v2.883→v2.884. D-2279 NOTE archived.
 # D-2279: warning emission-site reconcile — ROUTING-001 v1.54→v1.55 (§Authority+BC pins synced: ADR-058 v2.31→v2.32, BC-2.16.002 v2.34→v2.35, BC-2.11.016 v1.30→v1.31; input-hash e7455fb→503dea7; D-2279). total_stories 303 UNCHANGED. STORY-INDEX v2.882→v2.883. D-2278 NOTE archived.
 # D-2278: A+W spec burst (§7-AUTHORIZED human decision 2026-08-23) — ROUTING-001 v1.53→v1.54 (RG-Q-017 NEW zero_tier1 raw_extensions preservation end-to-end; density 46/21=2.19; AC-019 A+W two-sub-case; T-11AC + T-31 ocsf.zero_tier1_table warning; ADR-058 v2.31/BC-2.11.016 v1.30/BC-2.16.002 v2.34/BC-2.16.003 v1.26 pins updated; error-taxonomy v2.81; input-hash e7455fb). total_stories 303 UNCHANGED. STORY-INDEX v2.881→v2.882. D-2276 NOTE archived.
@@ -1036,7 +1036,18 @@ xdome-endpoint-expansion-plan.md §Governing Directive.
 
 | Story ID | Title | Crate | BCs | VPs | pts | Depends On |
 |----------|-------|-------|-----|-----|-----|------------|
-| S-CLAROTY-DEVVULNREL-001 | Claroty xDome Device-Vulnerability Relations Table — claroty_device_vulnerability_relations TOML block, 13-column Tier-1/Tier-2 spec, composite PK (vulnerability_name + device_uid), live structural tests (Wave B G3) [draft v1.0] | prism-sensors, prism-spec-engine | 1 (BC-2.16.017 v1.0) | -- | 5 | S-CLAROTY-VULNS-001 |
+| S-CLAROTY-DEVVULNREL-001 | Claroty xDome Device-Vulnerability Relations Table — claroty_device_vulnerability_relations TOML block, 13-column Tier-1/Tier-2 spec, composite PK (vulnerability_name + device_uid), live structural tests (Wave B G3) [draft v1.2] | prism-sensors, prism-spec-engine | 1 (BC-2.16.017 v1.0) | -- | 5 | S-CLAROTY-VULNS-001 |
+
+## Sensor-Critical Stories (Wave C — Claroty xDome Endpoint Expansion)
+
+Wave C stories add the next set of xDome tables (G4: collection servers + server interfaces).
+All Wave C stories follow the no-DTU / live-monroe test approach per
+xdome-endpoint-expansion-plan.md §Governing Directive. Both tables use the existing
+inventory_info/5001 OCSF class arm.
+
+| Story ID | Title | Crate | BCs | VPs | pts | Depends On |
+|----------|-------|-------|-----|-----|-----|------------|
+| S-CLAROTY-SERVERS-001 | Claroty xDome Collection Servers + Server Interfaces Tables — claroty_servers TOML block (17 cols: 2 Tier-1 device_name REQUIRED + status_code, 15 Tier-2) + claroty_server_interfaces TOML block (10 cols: 2 Tier-1, 8 Tier-2, composite PK server_name+interface_name), live structural tests (Wave C G4) [draft v1.2] | prism-sensors, prism-spec-engine | 2 (BC-2.16.018 v1.0, BC-2.16.019 v1.0) | -- | 5 | -- |
 
 ## Feature-Mode Release Engineering (Wave F-A / F-B)
 
@@ -1597,6 +1608,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.890 | 2026-08-24 | story-writer F3 materialization burst — S-CLAROTY-SERVERS-001 v1.0 REGISTERED (Wave C G4: claroty_servers TOML block 17 columns: 2 Tier-1 device_name REQUIRED [server_name→device.name] + status_code [server_status→status_code], 15 Tier-2 into raw_extensions; claroty_server_interfaces TOML block 10 columns: 2 Tier-1 device_name REQUIRED [server_name→device.name] + status_code [interface_status→status_code], 8 Tier-2 into raw_extensions incl. composite PK element interface_name; BC-2.16.018 v1.0 + BC-2.16.019 v1.0; 16 ACs; 16 RGTs; density 1.0; tdd_mode: strict; SAP-2 N/A no DTU D-2200; composite PK server_name+interface_name for server_interfaces; HS-027 holdout BLOCKING; depends_on: []; input-hash ae98e4f). Wave C section added to STORY-INDEX. total_stories 306→307. STORY-INDEX v2.889→v2.890. |
 | v2.889 | 2026-08-24 | story-writer F3 materialization burst — S-CLAROTY-DEVVULNREL-001 v1.0 REGISTERED (Wave B G3: claroty_device_vulnerability_relations TOML block, 13 columns: 2 Tier-1 finding_info_title REQUIRED + time, 11 Tier-2 into raw_extensions; BC-2.16.017 v1.0; 9 ACs; 9 RGTs; density 1.0; tdd_mode: strict; SAP-2 N/A no DTU D-2200; composite PK vulnerability_name+device_uid; HS-026 holdout; depends_on S-CLAROTY-VULNS-001; input-hash 6cf115e). total_stories 305→306. STORY-INDEX v2.888→v2.889. |
 | v2.888 | 2026-08-24 | story-writer F3 materialization burst — S-CLAROTY-VULNS-001 v1.0 REGISTERED (Wave A G1: claroty_vulnerabilities TOML block, 19 columns, BC-2.16.015 v1.0, 8 ACs, 8 RGTs, density 1.0, tdd_mode: strict, SAP-2 deferred D-2200); S-CLAROTY-OT-EVENTS-001 v1.0 REGISTERED (Wave A G2: claroty_ot_activity_events TOML block, 21 columns, BC-2.16.016 v1.0, 9 ACs, 8 RGTs, density 0.89, tdd_mode: strict, SAP-2 N/A, no DTU). total_stories 303→305. STORY-INDEX v2.886→v2.888. |
 | v2.886 | 2026-08-24 | state-manager D-2288+D-2289: post-merge burst COMPLETE + v1 milestone recorded. S-ADR058-OCSF-ROUTING-001 story status draft→merged (PR #242 squash-merged develop@3f1e66179). D-2289: v1 LIVE CLAROTY xDOME VALIDATION MILESTONE PASS (D-2264 release gate MET; VARIANT 1 121/121 PASS; VARIANT 2 agent-in-the-loop PASS). total_stories 303 UNCHANGED. |

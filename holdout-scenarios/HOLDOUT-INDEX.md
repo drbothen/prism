@@ -1,7 +1,7 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.23"
+version: "1.24"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -9,15 +9,15 @@ phase: 3
 inputs: []
 input-hash: null
 traces_to: prd.md
-total_scenarios: 105
+total_scenarios: 108
 ---
 
 # Holdout Scenario Index -- Prism
 
 **Date:** 2026-08-24 (updated)
-**Phase:** 0 (Multi-Repo Synthesis -- Step 5) / Phase 4.B (Wave 4 Holdout Coverage) / Phase 3 Wave 0 Plugin Migration / Phase 3 DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 / Phase 3 S-ADR058-OCSF-ROUTING-001 A+W re-gate / Phase 3 Wave A xDome Expansion (S-CLAROTY-VULNS-001 + S-CLAROTY-OT-EVENTS-001) / Phase 3 Wave B xDome Expansion (S-CLAROTY-DEVVULNREL-001)
-**Total Scenarios:** 105 (102 prior + 3 new HS-026 for S-CLAROTY-DEVVULNREL-001)
-**Total Groups:** 20
+**Phase:** 0 (Multi-Repo Synthesis -- Step 5) / Phase 4.B (Wave 4 Holdout Coverage) / Phase 3 Wave 0 Plugin Migration / Phase 3 DRIFT-CLAROTY-AUDITLOG-TIMEOUT-001 / Phase 3 S-ADR058-OCSF-ROUTING-001 A+W re-gate / Phase 3 Wave A xDome Expansion (S-CLAROTY-VULNS-001 + S-CLAROTY-OT-EVENTS-001) / Phase 3 Wave B xDome Expansion (S-CLAROTY-DEVVULNREL-001) / Phase 3 Wave C xDome Expansion (S-CLAROTY-SERVERS-001)
+**Total Scenarios:** 108 (105 prior + 3 new HS-027 for S-CLAROTY-SERVERS-001)
+**Total Groups:** 21
 **Input Sources:** 9 pass-8 deep synthesis files, cross-repo-dependencies.md, unified-security-posture.md; Wave 4 stories S-4.01–S-4.08, BC-INDEX v4.32, ADR-013 §2.1, D-209, ADR-016 §2.5, ADR-008; FB-IMPL-P1-PO fix-burst-1 2026-05-20 (HS-013..HS-018 authored)
 
 ---
@@ -52,6 +52,7 @@ total_scenarios: 105
 | HS-024 | [S-CLAROTY-VULNS-001-HS-001-vulnerability-wire-shape-class-uid.md](S-CLAROTY-VULNS-001-HS-001-vulnerability-wire-shape-class-uid.md), [S-CLAROTY-VULNS-001-HS-002-finding-info-title-queryable.md](S-CLAROTY-VULNS-001-HS-002-finding-info-title-queryable.md), [S-CLAROTY-VULNS-001-HS-003-tier2-raw-extensions-content.md](S-CLAROTY-VULNS-001-HS-003-tier2-raw-extensions-content.md) | Claroty xDome Vulnerabilities Table — Single Story (S-CLAROTY-VULNS-001) — HIDDEN, SINGLE-USE | 3 | P0 | class_uid=2002 wire shape and finding_info_title Tier-1 present (BC-2.16.015 §PC1/2); Tier-1 OCSF column queryable; no E-QUERY-038 on finding_info_title; Tier-2 raw_extensions non-empty with cve_ids + severity_score keys |
 | HS-025 | [S-CLAROTY-OT-EVENTS-001-HS-001-ot-event-wire-shape-class-uid.md](S-CLAROTY-OT-EVENTS-001-HS-001-ot-event-wire-shape-class-uid.md), [S-CLAROTY-OT-EVENTS-001-HS-002-tier2-source-ip-not-standalone.md](S-CLAROTY-OT-EVENTS-001-HS-002-tier2-source-ip-not-standalone.md), [S-CLAROTY-OT-EVENTS-001-HS-003-detection-time-time-column.md](S-CLAROTY-OT-EVENTS-001-HS-003-detection-time-time-column.md) | Claroty xDome OT Activity Events Table — Single Story (S-CLAROTY-OT-EVENTS-001) — HIDDEN, SINGLE-USE, NO DTU | 3 | P0 | class_uid=2004 Option B wire shape + finding_info_uid REQUIRED Tier-1 present (BC-2.16.016 §PC1/2/3); Tier-2 network field (source_ip) raises E-QUERY-038 + raw_extensions queryable; Tier-1 `time` OCSF rename accepts; `detection_time` raw name rejected |
 | HS-026 | [S-CLAROTY-DEVVULNREL-001-HS-001-wire-shape-class-uid-finding-info-title.md](S-CLAROTY-DEVVULNREL-001-HS-001-wire-shape-class-uid-finding-info-title.md), [S-CLAROTY-DEVVULNREL-001-HS-002-join-key-raw-extensions-content.md](S-CLAROTY-DEVVULNREL-001-HS-002-join-key-raw-extensions-content.md), [S-CLAROTY-DEVVULNREL-001-HS-003-detection-date-time-tier1-rename.md](S-CLAROTY-DEVVULNREL-001-HS-003-detection-date-time-tier1-rename.md) | Claroty xDome Device-Vulnerability Relations Table — Single Story (S-CLAROTY-DEVVULNREL-001) — HIDDEN, SINGLE-USE, NO DTU | 3 | P0 | class_uid=2002 wire shape + finding_info_title REQUIRED Tier-1 present (BC-2.16.017 §PC1/2); composite join keys (vulnerability_name + device_uid) in raw_extensions; Tier-2 plan-gate: SELECT device_uid raises E-QUERY-038; Tier-1 rename: SELECT time accepts; SELECT device_vulnerability_detection_date rejected |
+| HS-027 | [S-CLAROTY-SERVERS-001-HS-001-servers-wire-shape-class-uid-5001.md](S-CLAROTY-SERVERS-001-HS-001-servers-wire-shape-class-uid-5001.md), [S-CLAROTY-SERVERS-001-HS-002-servers-tier1-device-name-rename.md](S-CLAROTY-SERVERS-001-HS-002-servers-tier1-device-name-rename.md), [S-CLAROTY-SERVERS-001-HS-003-server-interfaces-separate-endpoint-tier2-plan-gate.md](S-CLAROTY-SERVERS-001-HS-003-server-interfaces-separate-endpoint-tier2-plan-gate.md) | Claroty xDome Servers + Server Interfaces Tables — Single Story (S-CLAROTY-SERVERS-001) — HIDDEN, SINGLE-USE, NO DTU | 3 | P0 | claroty_servers SELECT * wire shape: class_uid=5001 + device_name Tier-1 REQUIRED + raw_extensions with inventory keys (BC-2.16.018 §PC1/2); claroty_servers Tier-1 rename: server_name rejected E-QUERY-038 + device_name and status_code accepted (BC-2.16.018 §PC2 + §Invariants); claroty_server_interfaces: separate /api/v1/server_interfaces/ endpoint queryable + class_uid=5001 + interface_status rejected E-QUERY-038 + raw_extensions with interface keys (BC-2.16.019 §PC1/2/3) |
 
 ---
 
@@ -311,6 +312,16 @@ Story-level holdout gate for S-CLAROTY-DEVVULNREL-001 (Wave B G3 — claroty_dev
 | HS-DEVVULNREL-001-002 | SELECT raw_extensions returns JSON object with vulnerability_name + device_uid composite join keys (BC-2.16.017 §PC2 Tier-2 + §PC3 composite PK); SELECT device_uid raises E-QUERY-038 with raw_extensions in available_columns (BC-2.16.017 §Invariants) | prism-bin, prism-spec-engine, claroty-live |
 | HS-DEVVULNREL-001-003 | SELECT time (OCSF Arrow name for device_vulnerability_detection_date) succeeds (no E-QUERY-038); SELECT device_vulnerability_detection_date (raw col.name) raises E-QUERY-038 with time in available_columns (BC-2.16.017 §PC2 Tier-1 datetime rename + §Invariants) | prism-bin, prism-spec-engine, claroty-live |
 
+### HS-027: Claroty xDome Servers + Server Interfaces Tables (P0) — S-CLAROTY-SERVERS-001
+
+Story-level holdout gate for S-CLAROTY-SERVERS-001 (Wave C G4 — claroty_servers and claroty_server_interfaces tables, OCSF inventory_info/5001, separate endpoints, first Tier-1 device_name mapping across both tables). HIDDEN from test-writer and implementer. SINGLE-USE. Live monroe sensor — NO DTU (SAP-2 N/A per D-2200 deferred DTU).
+
+| ID | Title | Crates Tested |
+|----|-------|--------------|
+| HS-SERVERS-001-001 | claroty_servers SELECT *: class_uid=5001 in wire output; device_name Tier-1 REQUIRED column (server_name→device.name via ocsf_field_to_arrow_name) present as non-null string; raw_extensions JSON object with at least one server inventory Tier-2 key (BC-2.16.018 §Postconditions 1 and 2) | prism-bin, prism-spec-engine, claroty-live |
+| HS-SERVERS-001-002 | claroty_servers Tier-1 rename enforcement: SELECT server_name (raw col.name) raises E-QUERY-038 with device_name in available_columns; SELECT device_name (Arrow field name) succeeds with non-null value; SELECT status_code (second Tier-1 from server_status) succeeds with non-null value (BC-2.16.018 §Postconditions 2 Tier-1 plan-gate + §Invariants) | prism-bin, prism-spec-engine, claroty-live |
+| HS-SERVERS-001-003 | claroty_server_interfaces: separate POST /api/v1/server_interfaces/ endpoint independently queryable (not routed via servers endpoint); class_uid=5001 in wire output; SELECT interface_status (raw col.name) raises E-QUERY-038 with status_code in available_columns; SELECT raw_extensions returns JSON object with at least one interface Tier-2 key (BC-2.16.019 §Postconditions 1/2/3) | prism-bin, prism-spec-engine, claroty-live |
+
 ### ~~HS-020~~: ~~Claroty audit_logs Layer 2 — Dynamic Push-Down~~ — RETIRED before shipping
 
 **RETIRED 2026-08-15:** Single-story design rework collapsed Story B into Story A. HS-020 scenarios HS-AUDITLOG-002-B-001/002 re-keyed to HS-AUDITLOG-001-A-003/004 and moved to HS-019. HS-020 ID reserved per append_only_numbering (DF-030).
@@ -378,12 +389,12 @@ Minimum acceptance: All P0 scenarios PASS. P1 scenarios at least PARTIAL.
 
 ```yaml
 document: holdout-index
-phase: 0_and_4b_and_plugin_migration_and_drift_claroty_and_ocsf_routing_regate_and_wave_a_xdome_and_wave_b_xdome
-step: 5_and_wave4_and_prereq_and_drift_claroty_auditlog_and_hs023_and_hs024_hs025_and_hs026
+phase: 0_and_4b_and_plugin_migration_and_drift_claroty_and_ocsf_routing_regate_and_wave_a_xdome_and_wave_b_xdome_and_wave_c_xdome
+step: 5_and_wave4_and_prereq_and_drift_claroty_auditlog_and_hs023_and_hs024_hs025_and_hs026_and_hs027
 status: complete
-total_scenarios: 105
-total_groups: 20
-p0_scenarios: 89
+total_scenarios: 108
+total_groups: 21
+p0_scenarios: 92
 p1_scenarios: 16
 repos_covered: 9/9_brownfield_plus_3_greenfield
 critical_bugs_verified: 14
@@ -403,6 +414,8 @@ wave_a_xdome_groups_added: 2
 wave_a_xdome_scenarios_added: 6
 wave_b_xdome_groups_added: 1
 wave_b_xdome_scenarios_added: 3
+wave_c_xdome_groups_added: 1
+wave_c_xdome_scenarios_added: 3
 wave4_must_pass_groups: 3
 wave4_conditional_pass_groups: 1
 d216_closure: true
@@ -412,6 +425,7 @@ hs023_aw_amendment_coverage: true
 hs024_claroty_vulns_001: true
 hs025_claroty_ot_events_001: true
 hs026_claroty_devvulnrel_001: true
+hs027_claroty_servers_001: true
 timestamp: 2026-08-24T00:00:00Z
 ```
 
@@ -419,6 +433,7 @@ timestamp: 2026-08-24T00:00:00Z
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.24 | xdome-wave-c-f2-spec-evolution | 2026-08-24 | product-owner | Registered HS-027 (3 scenarios for S-CLAROTY-SERVERS-001: HS-SERVERS-001-001 claroty_servers SELECT * wire shape [class_uid=5001, device_name Tier-1 REQUIRED from server_name→device.name, raw_extensions with inventory keys], HS-SERVERS-001-002 claroty_servers Tier-1 rename enforcement [SELECT server_name→E-QUERY-038 with device_name in available_columns; SELECT device_name and status_code accepted], HS-SERVERS-001-003 claroty_server_interfaces separate /api/v1/server_interfaces/ endpoint [class_uid=5001; SELECT interface_status→E-QUERY-038 with status_code in available_columns; SELECT raw_extensions with interface Tier-2 keys]). All 3 against live monroe sensor (no DTU per D-2200). BC-2.16.018 Wave C G4 (17-field Servers, POST /api/v1/servers/) + BC-2.16.019 Wave C G4 (10-field ServerInterfaces, SEPARATE endpoint POST /api/v1/server_interfaces/, composite PK server_name+interface_name). total_scenarios 105→108; total_groups 20→21; p0_scenarios 89→92. |
 | 1.23 | xdome-wave-b-f2-spec-evolution | 2026-08-24 | product-owner | Registered HS-026 (3 scenarios for S-CLAROTY-DEVVULNREL-001: HS-DEVVULNREL-001-001 class_uid=2002 wire shape + finding_info_title Tier-1 REQUIRED [vulnerability_name→finding_info.title], HS-DEVVULNREL-001-002 composite join-key correctness [vulnerability_name + device_uid in raw_extensions] + Tier-2 plan-gate [SELECT device_uid → E-QUERY-038], HS-DEVVULNREL-001-003 Tier-1 detection-date→time rename [SELECT time accepts; SELECT device_vulnerability_detection_date → E-QUERY-038]). All 3 against live monroe sensor (no DTU per D-2200). BC-2.16.017 Wave B G3 (214-field DeviceVulnerability; first cut 13 cols; composite PK). total_scenarios 102→105; total_groups 19→20; p0_scenarios 86→89. |
 | 1.22 | xdome-wave-a-f2-spec-evolution | 2026-08-24 | product-owner | Registered HS-024 (3 scenarios for S-CLAROTY-VULNS-001: HS-VULNS-001-001 class_uid=2002 wire shape + finding_info_title Tier-1, HS-VULNS-001-002 Tier-1 OCSF column plan-gate acceptance + raw col.name rejection, HS-VULNS-001-003 raw_extensions Tier-2 aggregation content with cve_ids + severity_score keys) and HS-025 (3 scenarios for S-CLAROTY-OT-EVENTS-001: HS-OTEVTS-001-001 class_uid=2004 Option B wire shape + finding_info_uid REQUIRED Tier-1, HS-OTEVTS-001-002 Tier-2 network 5-tuple source_ip E-QUERY-038 rejection + raw_extensions plan-gate acceptance, HS-OTEVTS-001-003 Tier-1 detection_time→time OCSF rename). All 6 against live monroe sensor (no DTU for G2 per D-2200). total_scenarios 96→102; total_groups 17→19; p0_scenarios 80→86. |
 | 1.20 | S-ADR058-OCSF-ROUTING-001-aw-regate-holdout-authoring | 2026-08-23 | product-owner | Registered HS-023 (3 scenarios for S-ADR058-OCSF-ROUTING-001 A+W re-gate: HS-ROUTING-001-B-001 zero-Tier-1 A+W warning + raw_extensions available-set, HS-ROUTING-001-B-002 §J4 intra-table collision E-SPEC-030 rejection, HS-ROUTING-001-B-003 audit_logs metadata_uid OQ-005 wire shape + E-QUERY-038 available_columns). HS-022 annotated CONSUMED (D-2270; A+W amendment 2026-08-23 post-dates original scenarios; re-gate required). total_scenarios 93→96; total_groups 16→17; p0_scenarios 77→80. State Checkpoint updated. |
