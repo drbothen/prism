@@ -972,10 +972,17 @@ fn pipeline_result_to_record_batch(
     // reserved synthesized names. RG-005/RG-008/RG-009/RG-010/RG-026/RG-027 cover these branches.
     if sensor_spec.ocsf_column_naming {
         // Partition columns into Tier-1 (ocsf_field==Some) and Tier-2 (ocsf_field==None).
-        let tier1_cols: Vec<&prism_spec_engine::spec_parser::ColumnSpec> = table
+        //
+        // tier1_cols carries both the ColumnSpec ref AND the already-unwrapped ocsf_field &str.
+        // This eliminates the four guarded `.unwrap()` calls that previously appeared at every
+        // `ocsf_field_to_arrow_name` call site inside the OCSF branch (F-SEC-PR242-001).
+        // The §J5 charset gate in validate_ocsf_column_collisions (called at spec-load time)
+        // ensures every ocsf_field that reaches this path is well-formed, making the filter_map
+        // structurally equivalent to the prior filter+unwrap pattern: only Some(f) columns enter.
+        let tier1_cols: Vec<(&prism_spec_engine::spec_parser::ColumnSpec, &str)> = table
             .columns
             .iter()
-            .filter(|col| col.ocsf_field.is_some())
+            .filter_map(|col| col.ocsf_field.as_deref().map(|f| (col, f)))
             .collect();
         let tier2_cols: Vec<&prism_spec_engine::spec_parser::ColumnSpec> = table
             .columns
@@ -986,8 +993,7 @@ fn pipeline_result_to_record_batch(
         // AC-013 (RG-027/§J2): reserved-name guard — fail-closed if any Tier-1 flattened name
         // equals a synthesized column name (class_uid, category_uid, _sensor, raw_extensions).
         const RESERVED: &[&str] = &["class_uid", "category_uid", "_sensor", "raw_extensions"];
-        for col in &tier1_cols {
-            let ocsf_field = col.ocsf_field.as_deref().unwrap();
+        for (_, ocsf_field) in &tier1_cols {
             let arrow_name = ocsf_field_to_arrow_name(ocsf_field);
             if RESERVED.contains(&arrow_name.as_str()) {
                 return Err(arrow::error::ArrowError::SchemaError(format!(
@@ -1002,8 +1008,8 @@ fn pipeline_result_to_record_batch(
         // produce the same flattened Arrow name.
         let mut seen_arrow_names: std::collections::HashSet<String> =
             std::collections::HashSet::new();
-        for col in &tier1_cols {
-            let arrow_name = ocsf_field_to_arrow_name(col.ocsf_field.as_deref().unwrap());
+        for (_, ocsf_field) in &tier1_cols {
+            let arrow_name = ocsf_field_to_arrow_name(ocsf_field);
             if !seen_arrow_names.insert(arrow_name.clone()) {
                 return Err(arrow::error::ArrowError::SchemaError(format!(
                     "two columns produce the same flattened Arrow field name '{}'; \
@@ -1018,8 +1024,8 @@ fn pipeline_result_to_record_batch(
         // Self-match (A == B: col's own flattened name == col.name) is allowed.
         let all_col_names: std::collections::HashSet<&str> =
             table.columns.iter().map(|col| col.name.as_str()).collect();
-        for tier1_col in &tier1_cols {
-            let arrow_name = ocsf_field_to_arrow_name(tier1_col.ocsf_field.as_deref().unwrap());
+        for (tier1_col, ocsf_field) in &tier1_cols {
+            let arrow_name = ocsf_field_to_arrow_name(ocsf_field);
             // A ≠ B: cross-match is forbidden; A == B: self-match is allowed.
             if arrow_name != tier1_col.name && all_col_names.contains(arrow_name.as_str()) {
                 return Err(arrow::error::ArrowError::SchemaError(format!(
@@ -1034,8 +1040,8 @@ fn pipeline_result_to_record_batch(
         // Note: category_uid is NOT emitted in OCSF mode (class_uid / 1000 is derivable by the
         // LLM agent; RG-019 asserts its absence). class_uid and _sensor are the canonical routing keys.
         let mut fields: Vec<Field> = Vec::new();
-        for col in &tier1_cols {
-            let arrow_name = ocsf_field_to_arrow_name(col.ocsf_field.as_deref().unwrap());
+        for (col, ocsf_field) in &tier1_cols {
+            let arrow_name = ocsf_field_to_arrow_name(ocsf_field);
             fields.push(Field::new(
                 &arrow_name,
                 column_type_to_arrow(&col.column_type),
@@ -1074,7 +1080,7 @@ fn pipeline_result_to_record_batch(
         // push-down injection), the injection must be added here — mirroring the guard in the
         // legacy branch (`col.options.contains(Index) && col.column_type == String`).
         let mut col_arrays: Vec<Arc<dyn Array>> = Vec::new();
-        for col in &tier1_cols {
+        for (col, _) in &tier1_cols {
             col_arrays.push(build_column_array(&result.records, col, sensor_id));
         }
 

@@ -39,6 +39,21 @@ static SENSOR_ID_RE: LazyLock<Regex> = LazyLock::new(|| {
         .expect("SEC-001 sensor_id regex must compile — pattern is a literal constant")
 });
 
+/// BC-2.16.003 §J5 (ADR-058 §J8): Regex for validating `ocsf_field` values at spec-load.
+///
+/// `ocsf_field` strings must contain only ASCII letters, digits, underscores, and dots.
+/// Any other character (space, hyphen, slash, etc.) is rejected BEFORE `ocsf_field_to_arrow_name`
+/// runs, so that the flattening logic never receives malformed input.
+///
+/// Pattern: `^[A-Za-z0-9_.]+$` (non-empty; every character must be in the allowed set).
+/// Valid examples: `"finding_info.uid"`, `"device.type"`, `"class.uid"`.
+/// Invalid: `"finding info.uid"` (space), `"finding-info.uid"` (hyphen).
+static OCSF_FIELD_CHARSET_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^[A-Za-z0-9_.]+$").expect(
+        "BC-2.16.003 §J5 ocsf_field charset regex must compile — pattern is a literal constant",
+    )
+});
+
 /// Parse and validate a TOML spec string.
 /// Returns the parsed `spec_parser::SensorSpec` or a list of validation errors.
 ///
@@ -223,6 +238,29 @@ fn validate_ocsf_column_collisions(spec: &SensorSpec) -> Vec<String> {
             std::collections::HashMap::new();
 
         for (col_name, ocsf_field) in &tier1_cols {
+            // §J5 (ADR-058 §J8: first inner-loop check) — charset validation.
+            //
+            // Runs BEFORE ocsf_field_to_arrow_name so malformed `ocsf_field` values never
+            // enter the flattening logic. Any character outside [A-Za-z0-9_.] is rejected
+            // with E-SPEC-030 [§J5]. The `continue` after pushing the error skips §J2/§J4/§J1
+            // for this field — those checks are only meaningful for well-formed fields.
+            if !OCSF_FIELD_CHARSET_RE.is_match(ocsf_field) {
+                // Truncate to 200 bytes for the error message (find safe UTF-8 boundary).
+                let display_field = if ocsf_field.len() <= 200 {
+                    ocsf_field
+                } else {
+                    let mut end = 200;
+                    while end > 0 && !ocsf_field.is_char_boundary(end) {
+                        end -= 1;
+                    }
+                    &ocsf_field[..end]
+                };
+                errors.push(format!(
+                    "E-SPEC-030 [§J5] sensor={sensor_id} table={table_name}: \
+                     ocsf_field \"{display_field}\" contains characters outside the allowed set [A-Za-z0-9_.]+"
+                ));
+                continue;
+            }
             let arrow_name = crate::column_mapping::ocsf_field_to_arrow_name(ocsf_field);
 
             // §J2: reserved-name collision.
@@ -950,6 +988,209 @@ steps = []
             "RG-Q-014: error must name the shadow arrow name 'device_info'; \
              got: {all_error_text}"
         );
+    }
+
+    /// RG-Q-018 — E-SPEC-030 §J5: `ocsf_field` containing a character outside `[A-Za-z0-9_.]+`
+    /// must be rejected at spec-load with E-SPEC-030 [§J5], BEFORE `ocsf_field_to_arrow_name` runs.
+    ///
+    /// BC-2.16.003 §J5 / EC-016-013-032(d) / EC-016-013-033 / ADR-058 §J8 / error-taxonomy E-SPEC-030 §J5.
+    ///
+    /// # Test cases
+    ///
+    /// - `ocsf_field = "finding info.uid"` (SPACE — outside `[A-Za-z0-9_.]+`) → Err containing
+    ///   both `"E-SPEC-030"` and `"[§J5]"`.
+    /// - `ocsf_field = "finding-info.uid"` (HYPHEN — outside `[A-Za-z0-9_.]+`) → Err containing
+    ///   both `"E-SPEC-030"` and `"[§J5]"`.
+    /// - `ocsf_field = "finding_info.uid"` (valid: alphanumeric + underscores + dots) → must NOT
+    ///   produce an E-SPEC-030 [§J5] charset error (§J5 gate must not over-reject). The result may
+    ///   be `Ok` or may carry other non-§J5 errors; only a §J5 charset error fails this assertion.
+    ///   NOTE: `finding_info.uid` may trigger the KNOWN_OCSF_FIELDS warning at the warning level;
+    ///   that is a warning, not a §J5 charset error, and MUST NOT be asserted as an error here.
+    ///
+    /// # SAP-3 reachability
+    ///
+    /// The test drives through `parse_and_validate_spec_toml` — the real spec-load entry point —
+    /// with `ocsf_column_naming = true`. This ensures the §J5 gate is on the reachable path
+    /// (not a direct call to an internal function with a synthetic argument).
+    ///
+    /// # SID-2 compliance
+    ///
+    /// Both discriminator substrings `"E-SPEC-030"` and `"[§J5]"` are asserted on the full
+    /// composed error string (not component fields separately).
+    ///
+    /// # Red Gate failure (pre-fix)
+    ///
+    /// No charset validation exists in `validate_ocsf_column_collisions`. The function calls
+    /// `ocsf_field_to_arrow_name("finding info.uid")` which silently returns `"finding info_uid"`,
+    /// finds no §J1/§J2/§J4 collision, and returns an empty error Vec. Consequently
+    /// `parse_and_validate_spec_toml` returns `Ok(spec)`, the `result.is_err()` assertion in the
+    /// SPACE case fails, and the test panics → RED.
+    ///
+    /// # Post-fix expected behaviour
+    ///
+    /// `validate_ocsf_column_collisions` (or a pre-step in `parse_and_validate_spec_toml`) checks
+    /// each Tier-1 column's `ocsf_field` against `^[A-Za-z0-9_.]+$` BEFORE calling
+    /// `ocsf_field_to_arrow_name`. A field failing the charset check returns an error string
+    /// containing `"E-SPEC-030"` and `"[§J5]"`.
+    #[test]
+    fn test_BC_2_16_003_ocsf_field_invalid_charset_rejected_at_spec_load() {
+        // ── Case 1: SPACE in ocsf_field ──────────────────────────────────────────────────────
+        //
+        // `ocsf_field = "finding info.uid"` contains a space — outside [A-Za-z0-9_.]+.
+        // Pre-fix: ocsf_field_to_arrow_name("finding info.uid") → "finding info_uid" (no collision
+        // with reserved names, no §J4/§J1 match) → validate_ocsf_column_collisions returns [] →
+        // parse_and_validate_spec_toml returns Ok → result.is_err() fails → RED.
+        let space_toml = r#"
+sensor_id = "charset-j5-space"
+name = "Charset Test J5 Space"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "finding_uid"
+  column_type = "string"
+  ocsf_field = "finding info.uid"
+"#;
+        let space_result = parse_and_validate_spec_toml(space_toml, "<test-j5-space>");
+
+        // Primary RED gate assertion — Case 1.
+        // Pre-fix: returns Ok (no charset check) → this fails → RED.
+        assert!(
+            space_result.is_err(),
+            "RG-Q-018 (BC-2.16.003 §J5): ocsf_field \"finding info.uid\" contains a SPACE \
+             (outside [A-Za-z0-9_.]+) and MUST be rejected by parse_and_validate_spec_toml \
+             with E-SPEC-030 [§J5]. ADR-058 §J8: rejection MUST occur BEFORE \
+             ocsf_field_to_arrow_name runs. Pre-fix: returns Ok (no charset check). Got Ok."
+        );
+
+        // Post-fix: verify the composed error message contains both required discriminators.
+        // SID-2: assert on the FULL composed string, not components separately.
+        let space_errs = space_result.unwrap_err();
+        let space_error_text = space_errs
+            .iter()
+            .flat_map(|ve| ve.errors.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+        assert!(
+            space_error_text.contains("E-SPEC-030"),
+            "RG-Q-018 §J5 (space): error must contain 'E-SPEC-030'; got: {space_error_text}"
+        );
+        assert!(
+            space_error_text.contains("[§J5]"),
+            "RG-Q-018 §J5 (space): error must contain '[§J5]' (charset sub-case discriminator); \
+             got: {space_error_text}"
+        );
+
+        // ── Case 2: HYPHEN in ocsf_field ─────────────────────────────────────────────────────
+        //
+        // `ocsf_field = "finding-info.uid"` contains a hyphen — outside [A-Za-z0-9_.]+.
+        // Pre-fix: same reasoning as Case 1; no collision detected → Ok → RED.
+        let hyphen_toml = r#"
+sensor_id = "charset-j5-hyphen"
+name = "Charset Test J5 Hyphen"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "finding_uid"
+  column_type = "string"
+  ocsf_field = "finding-info.uid"
+"#;
+        let hyphen_result = parse_and_validate_spec_toml(hyphen_toml, "<test-j5-hyphen>");
+
+        // Primary RED gate assertion — Case 2.
+        // Pre-fix: returns Ok (no charset check) → if Case 1 panicked first, execution never
+        // reaches here; if somehow Case 1 passed, this would fail → RED.
+        assert!(
+            hyphen_result.is_err(),
+            "RG-Q-018 (BC-2.16.003 §J5): ocsf_field \"finding-info.uid\" contains a HYPHEN \
+             (outside [A-Za-z0-9_.]+) and MUST be rejected with E-SPEC-030 [§J5]. \
+             Pre-fix: returns Ok (no charset check). Got Ok."
+        );
+
+        // Post-fix: verify both discriminators.
+        let hyphen_errs = hyphen_result.unwrap_err();
+        let hyphen_error_text = hyphen_errs
+            .iter()
+            .flat_map(|ve| ve.errors.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+        assert!(
+            hyphen_error_text.contains("E-SPEC-030"),
+            "RG-Q-018 §J5 (hyphen): error must contain 'E-SPEC-030'; got: {hyphen_error_text}"
+        );
+        assert!(
+            hyphen_error_text.contains("[§J5]"),
+            "RG-Q-018 §J5 (hyphen): error must contain '[§J5]' (charset sub-case discriminator); \
+             got: {hyphen_error_text}"
+        );
+
+        // ── Case 3: Contrasting PASS — valid charset (alphanumeric + underscores + dots) ─────
+        //
+        // `ocsf_field = "finding_info.uid"` uses only [A-Za-z0-9_.] — valid per §J5.
+        // The §J5 charset gate MUST NOT fire for this field.
+        // Note: `finding_info.uid` may trigger a KNOWN_OCSF_FIELDS *warning* at runtime;
+        // that is a warning, not a §J5 charset error, and is not surfaced as Err here.
+        // We accept Ok (ideal) or Err-without-§J5 (some other gate may legitimately fire);
+        // only an E-SPEC-030 [§J5] charset error on a valid field fails this assertion.
+        let valid_toml = r#"
+sensor_id = "charset-j5-valid"
+name = "Charset Test J5 Valid"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "finding_uid"
+  column_type = "string"
+  ocsf_field = "finding_info.uid"
+"#;
+        let valid_result = parse_and_validate_spec_toml(valid_toml, "<test-j5-valid>");
+
+        // Guard against over-rejection: the §J5 charset gate must not fire on valid chars.
+        // If the result is Err, confirm the errors do NOT include "E-SPEC-030" + "[§J5]" together.
+        if let Err(ref errs) = valid_result {
+            let valid_error_text = errs
+                .iter()
+                .flat_map(|ve| ve.errors.iter())
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(" | ");
+            let has_j5_charset_error =
+                valid_error_text.contains("E-SPEC-030") && valid_error_text.contains("[§J5]");
+            assert!(
+                !has_j5_charset_error,
+                "RG-Q-018 (BC-2.16.003 §J5 contrasting PASS): ocsf_field 'finding_info.uid' \
+                 contains ONLY valid charset chars [A-Za-z0-9_.] and MUST NOT produce an \
+                 E-SPEC-030 [§J5] charset error. The §J5 gate must not over-reject. \
+                 Got E-SPEC-030 [§J5] error: {valid_error_text}"
+            );
+        }
+        // Ok result or Err without §J5 are both acceptable — §J5 gate did not mis-fire.
     }
 
     /// RG-Q-016 — E-SPEC-030 §J1: Tier-1-vs-Tier-1 shadow must be rejected at spec-load.
