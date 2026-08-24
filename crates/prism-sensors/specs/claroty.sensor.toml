@@ -312,11 +312,11 @@ ocsf_class = "inventory_info"
 
   # DTU ClarotyDevice.device_category: String — high-level device category
   #   (e.g. "OT Device", "IT Device", "Medical Device").
-  # §J3 shadow fix: device.type → device.type_category to avoid collision with device.type_label
-  # after KF-06 renames device_type's ocsf_field to device.type_label. Without this fix,
-  # ocsf_field_to_arrow_name("device.type") = "device_type" would shadow
-  # ocsf_field_to_arrow_name("device.type_label") — intra-table collision → ArrowError::SchemaError
-  # (RG-009 guard; ADR-058 §J1).
+  # §J1 shadow fix: device.type → device.type_category to avoid §J1 A≠B shadow with sibling
+  # device_type column (col.name). Without this fix, ocsf_field_to_arrow_name("device.type")
+  # = "device_type" would equal the sibling device_type column's raw col.name — a §J1 A≠B
+  # shadow collision (RG-010 / ADR-058 §J1) → ArrowError::SchemaError; the fix
+  # (device.type_category, flattening to device_type_category) avoids it.
   [[tables.columns]]
   name = "device_category"
   column_type = "string"

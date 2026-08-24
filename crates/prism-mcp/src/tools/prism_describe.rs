@@ -346,15 +346,15 @@ fn build_ocsf_column_descriptors(
     let mut descriptors: Vec<ColumnDescriptor> = table
         .columns
         .iter()
-        .filter(|col| col.ocsf_field.is_some())
-        .map(|col| {
-            let ocsf_field = col.ocsf_field.as_deref().unwrap();
-            ColumnDescriptor {
-                name: ocsf_field_to_arrow_name(ocsf_field),
-                col_type: col.column_type.clone(),
-                description: Some(ocsf_field.to_string()),
-                nullable: true,
-            }
+        .filter_map(|col| {
+            col.ocsf_field
+                .as_deref()
+                .map(|ocsf_field| ColumnDescriptor {
+                    name: ocsf_field_to_arrow_name(ocsf_field),
+                    col_type: col.column_type.clone(),
+                    description: Some(ocsf_field.to_string()),
+                    nullable: true,
+                })
         })
         .collect();
 
