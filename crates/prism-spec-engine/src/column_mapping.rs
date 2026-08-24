@@ -5,10 +5,118 @@
 //! four-tier field resolution (BC-2.02.008). Columns without mappings go to
 //! `raw_extensions`. Type coercion is applied with non-fatal fallback.
 
+/// Converts a dotted OCSF field path to an underscore-flattened Arrow field name.
+///
+/// This is the canonical home of this helper per ADR-058 §I1. Both
+/// `prism-bin::spec_driven_adapter` and `prism-mcp::tools::prism_describe` import
+/// this from here — no `prism-mcp → prism-bin` cycle required.
+///
+/// # Underscore-flattening convention (ADR-058 §C2 Option 4)
+///
+/// All `.` (dots) in the OCSF field path are replaced with `_` (underscores).
+///
+/// | ocsf_field               | Arrow field name           |
+/// |--------------------------|----------------------------|
+/// | `"finding.uid"`          | `"finding_uid"`            |
+/// | `"actor.user.name"`      | `"actor_user_name"`        |
+/// | `"status"`               | `"status"` (unchanged)     |
+///
+/// # Arrow legality
+///
+/// Arrow 58 `Field::new` accepts any valid UTF-8 name. Underscore-flattened names
+/// composed of lowercase alphanumeric and `_` are unconditionally legal as Arrow field
+/// names and as unquoted DataFusion SQL identifiers (PrismQL pipe grammar guarantees).
+///
+/// Covers AC-002; RG-003, RG-004.
+pub fn ocsf_field_to_arrow_name(ocsf_field: &str) -> String {
+    ocsf_field.replace('.', "_")
+}
+
 use prism_core::{PrismError, column::ColumnType};
 use serde_json::Value;
 
 use crate::spec_parser::{ColumnSpec, TableSpec};
+
+/// Compute the OCSF-projected column names that a table will expose in its Arrow schema.
+///
+/// When `ocsf_column_naming` is `true`:
+///   - Tier-1 columns (`ocsf_field == Some`) → `ocsf_field_to_arrow_name(ocsf_field)`
+///   - Tier-2 columns (`ocsf_field == None`) → aggregated into `"raw_extensions"` (if any)
+///   - Synthesized pseudo-columns: `"class_uid"` (Integer) and `"_sensor"` (String), always
+///   - §J6 zero-Tier-1 case: `raw_extensions` is emitted whenever the table has ≥1 Tier-2
+///     column, INDEPENDENT of Tier-1 count (A+W, ADR-058 §J6) — so a zero-Tier-1 table
+///     WITH ≥1 Tier-2 column projects `["class_uid", "_sensor", "raw_extensions"]` (Tier-2
+///     data preserved via raw_extensions). Only a truly-empty table (zero Tier-1 AND zero
+///     Tier-2) projects `["class_uid", "_sensor"]`.
+///
+/// When `ocsf_column_naming` is `false`, returns raw `col.name` values unchanged.
+///
+/// This helper is the **canonical source of truth** for the projected column-name set
+/// per ADR-058 §I7 (Consolidated-Projection Invariant). Both `TableRegistry::register_sensor`
+/// and `check_column_availability` delegate here to prevent independent drift.
+///
+/// Canonical home per ADR-058 §I7. RG-Q-015 enforces agreement across all surfaces.
+pub fn ocsf_projected_column_names(tbl: &TableSpec, ocsf_column_naming: bool) -> Vec<String> {
+    if ocsf_column_naming {
+        let has_tier2 = tbl.columns.iter().any(|c| c.ocsf_field.is_none());
+        let mut names: Vec<String> = tbl
+            .columns
+            .iter()
+            .filter_map(|c| c.ocsf_field.as_deref().map(ocsf_field_to_arrow_name))
+            .collect();
+        // Synthesized pseudo-columns are always present (ADR-058 §G).
+        names.push("class_uid".to_string());
+        names.push("_sensor".to_string());
+        // raw_extensions is added only when at least one Tier-2 column exists (ADR-058 §J6).
+        if has_tier2 {
+            names.push("raw_extensions".to_string());
+        }
+        names
+    } else {
+        tbl.columns.iter().map(|c| c.name.clone()).collect()
+    }
+}
+
+/// Compute the OCSF-projected column type map for a table's Arrow schema.
+///
+/// Companion to `ocsf_projected_column_names`. Returns a `{arrow_name → ColumnType}` map for
+/// all projected columns, including the synthesized `"class_uid"` (Integer) and
+/// `"_sensor"` (String) pseudo-columns (and `"raw_extensions"` (Json) when Tier-2 columns
+/// exist).
+///
+/// When `ocsf_column_naming` is `false`, returns `{col.name → col.column_type}` pairs.
+///
+/// Canonical home per ADR-058 §I7. Consumed by `TableRegistry::register_sensor` and
+/// `check_operator_type_compatibility` (prism-query) for schema-aware gate logic.
+pub fn ocsf_projected_column_types(
+    tbl: &TableSpec,
+    ocsf_column_naming: bool,
+) -> std::collections::HashMap<String, ColumnType> {
+    if ocsf_column_naming {
+        let has_tier2 = tbl.columns.iter().any(|c| c.ocsf_field.is_none());
+        let mut type_map: std::collections::HashMap<String, ColumnType> = tbl
+            .columns
+            .iter()
+            .filter_map(|c| {
+                c.ocsf_field.as_deref().map(|f| {
+                    let arrow_name = ocsf_field_to_arrow_name(f);
+                    (arrow_name, c.column_type.clone())
+                })
+            })
+            .collect();
+        type_map.insert("class_uid".to_string(), ColumnType::Integer);
+        type_map.insert("_sensor".to_string(), ColumnType::String);
+        if has_tier2 {
+            type_map.insert("raw_extensions".to_string(), ColumnType::Json);
+        }
+        type_map
+    } else {
+        tbl.columns
+            .iter()
+            .map(|c| (c.name.clone(), c.column_type.clone()))
+            .collect()
+    }
+}
 
 /// Result of mapping a single raw record to OCSF fields.
 #[derive(Debug, Clone)]
@@ -492,6 +600,90 @@ mod tests {
     /// production callers per ADR-058 §K5.  This test is intentionally defense-in-depth /
     /// forward-compat per SAP-3 rule 2/3.  The equivalent LIVE coverage on Path A is
     /// RG-010 (`build_column_array` Integer+Object → null+warn) in `spec_driven_adapter.rs`.
+    // ── S-ADR058-OCSF-ROUTING-001 Red Gate Tests ───────────────────────────────
+
+    /// RG-003 / AC-002 / ADR-058 §C2 Option 4 / BC-2.16.003 §Column Routing
+    ///
+    /// `ocsf_field_to_arrow_name` MUST replace every `.` in an OCSF field path with `_`.
+    ///
+    /// **SAP-3 reachability:** `ocsf_field_to_arrow_name` is the canonical home per ADR-058 §I1
+    /// and is imported by both `prism-bin::spec_driven_adapter` and `prism-mcp::tools::prism_describe`.
+    /// This unit test exercises Path A of the function directly; end-to-end reachability via
+    /// `pipeline_result_to_record_batch` is covered by RG-005/RG-015/RG-020/RG-022 in prism-bin.
+    ///
+    /// **Implemented behavior:** `ocsf_field_to_arrow_name(path)` replaces every `'.'` in `path`
+    /// with `'_'` and returns the result. Single-segment paths (no dot) are returned unchanged.
+    /// This function is the canonical dot-to-underscore flattening helper per ADR-058 §C2 Option 4
+    /// and ADR-058 §I1; `ocsf_projected_column_names` and `ocsf_projected_column_types` delegate
+    /// to it for all Tier-1 column name computation.
+    #[test]
+    fn test_ocsf_field_to_arrow_name_replaces_dots_with_underscores() {
+        // Two-segment path: "finding.uid" → "finding_uid"
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("finding.uid"),
+            "finding_uid",
+            "AC-002 (RG-003): 'finding.uid' must flatten to 'finding_uid' \
+             (single dot replaced by underscore)"
+        );
+        // Three-segment path: "actor.user.name" → "actor_user_name"
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("actor.user.name"),
+            "actor_user_name",
+            "AC-002 (RG-003): 'actor.user.name' must flatten to 'actor_user_name' \
+             (two dots both replaced by underscores)"
+        );
+        // BC-2.16.003 contracted mapping: "finding_info.uid" → "finding_info_uid" (KF-03)
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("finding_info.uid"),
+            "finding_info_uid",
+            "AC-002 (RG-003): 'finding_info.uid' must flatten to 'finding_info_uid' \
+             (KF-03 contracted Claroty mapping)"
+        );
+        // Four-segment: "device.hw_info.vendor_name" → "device_hw_info_vendor_name"
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("device.hw_info.vendor_name"),
+            "device_hw_info_vendor_name",
+            "AC-002 (RG-003): 'device.hw_info.vendor_name' must flatten all three dots"
+        );
+    }
+
+    /// RG-004 / AC-002 / ADR-058 §C2 Option 4
+    ///
+    /// `ocsf_field_to_arrow_name` on a single-segment field (no dot) MUST return the
+    /// input string unchanged. No underscore appended, no modification.
+    ///
+    /// **SAP-3 reachability:** defense-in-depth unit test; same path as RG-003 above.
+    /// Full reachability via RG-005 in prism-bin.
+    ///
+    /// **Implemented behavior:** `ocsf_field_to_arrow_name(path)` with a single-segment
+    /// `path` (containing no `'.'`) returns the input string unchanged — `replace('.', "_")`
+    /// finds no dots to replace. This covers the common case of flat OCSF fields like
+    /// `"status"`, `"time"`, `"message"` that need no flattening.
+    #[test]
+    fn test_ocsf_field_to_arrow_name_single_segment_is_unchanged() {
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("status"),
+            "status",
+            "AC-002 (RG-004): single-segment 'status' (no dot) must be unchanged"
+        );
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("time"),
+            "time",
+            "AC-002 (RG-004): single-segment 'time' must be unchanged"
+        );
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("message"),
+            "message",
+            "AC-002 (RG-004): single-segment 'message' must be unchanged"
+        );
+        assert_eq!(
+            super::ocsf_field_to_arrow_name("comment"),
+            "comment",
+            "AC-002 (RG-004): single-segment 'comment' (Claroty audit_logs note→comment mapping) \
+             must be unchanged per BC-2.16.003 contracted mapping"
+        );
+    }
+
     #[test]
     fn test_coerce_value_integer_type_object_input_returns_err_coercion_warning() {
         let col = ColumnSpec {

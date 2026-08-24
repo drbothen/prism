@@ -1,0 +1,11 @@
+# AC-001 + AC-002: SensorSpec ocsf_column_naming field + ocsf_field_to_arrow_name helper
+# RG-001 (defaults false), RG-002 (parses true), RG-003 (dots->underscores), RG-004 (single segment)
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.63s
+    Starting 4 tests across 43 binaries (808 tests skipped)
+        PASS [   0.018s] (1/4) prism-spec-engine column_mapping::tests::test_ocsf_field_to_arrow_name_single_segment_is_unchanged
+        PASS [   0.019s] (2/4) prism-spec-engine column_mapping::tests::test_ocsf_field_to_arrow_name_replaces_dots_with_underscores
+        PASS [   0.022s] (3/4) prism-spec-engine spec_parser::timestamp_column_type_validation_tests::test_sensor_spec_ocsf_column_naming_parses_true_from_toml
+        PASS [   0.023s] (4/4) prism-spec-engine spec_parser::timestamp_column_type_validation_tests::test_sensor_spec_ocsf_column_naming_defaults_to_false
+     Summary [   0.024s] 4 tests run: 4 passed, 808 skipped
+--- Exit 0

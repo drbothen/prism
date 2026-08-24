@@ -1,0 +1,11 @@
+# AC-021: parse_and_validate_spec_toml rejects §J1/§J2/§J4 OCSF column collisions with E-SPEC-030
+# §J2: reserved synthesized name, §J4: intra-table duplicate, §J1: Tier-1-vs-Tier-2 shadow, §J1: Tier-1-vs-Tier-1
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.45s
+    Starting 4 tests across 43 binaries (808 tests skipped)
+        PASS [   0.042s] (1/4) prism-spec-engine add_sensor_spec::tests::test_BC_2_16_003_ocsf_collision_j1_shadow_tier1_vs_tier1_rejected_at_spec_load
+        PASS [   0.042s] (2/4) prism-spec-engine add_sensor_spec::tests::test_BC_2_16_003_ocsf_collision_j2_reserved_name_rejected_at_spec_load
+        PASS [   0.042s] (3/4) prism-spec-engine add_sensor_spec::tests::test_BC_2_16_003_ocsf_collision_j4_intra_table_duplicate_rejected_at_spec_load
+        PASS [   0.042s] (4/4) prism-spec-engine add_sensor_spec::tests::test_BC_2_16_003_ocsf_collision_j1_shadow_rejected_at_spec_load
+     Summary [   0.043s] 4 tests run: 4 passed, 808 skipped
+--- Exit 0

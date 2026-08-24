@@ -1,0 +1,13 @@
+# AC-007c: ip_list multi-valued array -> compact JSON-list string in raw_extensions (RG-026)
+# AC-014: OCSF-flattened 'time' column recognized as INDEX-eligible by extract_time_window_from_ast (RG-PD-001)
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.90s
+    Starting 1 test across 22 binaries (250 tests skipped)
+        PASS [   0.066s] (1/1) prism-bin spec_driven_adapter::tests::test_claroty_devices_ip_list_in_raw_extensions_is_compact_json_list_string
+     Summary [   0.067s] 1 test run: 1 passed, 250 skipped
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.56s
+    Starting 1 test across 18 binaries (1709 tests skipped)
+        PASS [   0.063s] (1/1) prism-query pushdown::pushdown_red_gate_tests::test_extract_time_window_from_ast_recognizes_ocsf_flattened_time_column_as_index_eligible
+     Summary [   0.064s] 1 test run: 1 passed, 1709 skipped
+--- Exit 0

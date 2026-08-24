@@ -402,15 +402,26 @@ async fn test_BC_2_11_005_e2e_claroty_query_returns_data() {
         "AC-005: expected at least 1 row from claroty_alerts; response: {alerts_response:?}"
     );
 
-    // Assert Gap-CL-005 column names (alert_type_name, detected_time — NOT type/created_at).
+    // Assert Stage 2 OCSF-flattened column names for Claroty alerts (ocsf_column_naming=true):
+    // - alert_type_name is Tier-2 (KF-09 removed ocsf_field) → lives in raw_extensions
+    // - detected_time OCSF-flattened → Arrow field 'time' (ocsf_field='time', single segment)
     let first_alert = &alert_rows[0];
+    // AC-005: raw_extensions must exist and contain alert_type_name (Tier-2 column after KF-09).
+    let raw_ext_val = first_alert.get("raw_extensions").expect(
+        "AC-005: raw_extensions must be present for Claroty alerts under ocsf_column_naming=true",
+    );
+    let raw_ext_str = raw_ext_val
+        .as_str()
+        .expect("AC-005: raw_extensions must be a JSON string");
+    let raw_ext_obj: serde_json::Value =
+        serde_json::from_str(raw_ext_str).expect("AC-005: raw_extensions must be valid JSON");
     assert!(
-        first_alert.get("alert_type_name").is_some(),
-        "AC-005: alert_type_name must be present (Gap-CL-005 fix — column renamed from 'type'); row: {first_alert:?}"
+        raw_ext_obj.get("alert_type_name").is_some(),
+        "AC-005: alert_type_name must be in raw_extensions (Tier-2 column after KF-09 removes ocsf_field); raw_extensions: {raw_ext_str}"
     );
     assert!(
-        first_alert.get("detected_time").is_some(),
-        "AC-005: detected_time must be present (Gap-CL-005 fix — column renamed from 'created_at'); row: {first_alert:?}"
+        first_alert.get("time").is_some(),
+        "AC-005: time must be present (Stage 2 OCSF-flattened Arrow name for detected_time → ocsf_field='time'); row: {first_alert:?}"
     );
     assert_response_has_no_error(&alerts_response);
 
@@ -426,15 +437,16 @@ async fn test_BC_2_11_005_e2e_claroty_query_returns_data() {
         "AC-005: expected at least 1 row from claroty_devices (Gap-CL-003 fix — table was missing); response: {devices_response:?}"
     );
 
-    // Assert uid present and non-null (Gap-CL-003 regression sentinel).
+    // Assert device_uid present and non-null (uid OCSF-flattened → Arrow field 'device_uid'
+    // because ocsf_field='device.uid', dot-separated → underscore-joined by Stage 2 routing).
     let first_device = &device_rows[0];
     assert!(
-        first_device.get("uid").is_some(),
-        "AC-005: uid must be present in claroty_devices result (Gap-CL-003 regression sentinel); row: {first_device:?}"
+        first_device.get("device_uid").is_some(),
+        "AC-005: device_uid must be present in claroty_devices result (Stage 2 OCSF-flattened Arrow name for uid → ocsf_field='device.uid'); row: {first_device:?}"
     );
     assert!(
-        first_device.get("uid") != Some(&serde_json::Value::Null),
-        "AC-005: uid must be non-null in claroty_devices result (Gap-CL-003 regression sentinel); row: {first_device:?}"
+        first_device.get("device_uid") != Some(&serde_json::Value::Null),
+        "AC-005: device_uid must be non-null in claroty_devices result (Stage 2 OCSF-flattened Arrow name for uid → ocsf_field='device.uid'); row: {first_device:?}"
     );
 
     assert_response_has_no_error(&devices_response);

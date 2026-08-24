@@ -1778,6 +1778,26 @@ pub enum SpecErrorCode {
     ESpec026,
 }
 
+// ---------------------------------------------------------------------------
+// E-SPEC-027 through E-SPEC-029 are defined in error-taxonomy.md but do not have
+// SpecErrorCode enum variants — they are emitted as formatted strings by the
+// prism-spec-engine validation layer (ValidationError.errors Vec) rather than as
+// typed Rust errors.
+//
+// E-SPEC-030: OCSF column collision detected at spec-load time (ADR-058 §J1/§J2/§J4).
+//   §J2 — Tier-1 arrow name collides with a reserved synthesized-pseudo-column name
+//          (class_uid, category_uid, _sensor, raw_extensions).
+//   §J4 — Two Tier-1 columns in the same table flatten to the same arrow name via
+//          ocsf_field_to_arrow_name.
+//   §J1 — Tier-1 arrow name shadows the raw col.name of any other column (Tier-1 or Tier-2)
+//          in the same table, with a self-match exclusion.
+//
+//   Emitted by `validate_ocsf_column_collisions` in
+//   `crates/prism-spec-engine/src/add_sensor_spec.rs` (Rule 8 of parse_and_validate_spec_toml).
+//   Only active when `ocsf_column_naming = true`. Spec-load gate; spec write is blocked.
+//   BC-2.16.003 §J1/§J2/§J4. S-ADR058-OCSF-ROUTING-001 AC-020.
+// ---------------------------------------------------------------------------
+
 /// A structured spec validation or runtime error carrying an E-SPEC-* code,
 /// a human-readable message, and an optional TOML path for actionable correction.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]

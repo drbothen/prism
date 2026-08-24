@@ -56,6 +56,7 @@ use prism_sensors::{
 };
 use prism_spec_engine::{
     AuthProvider, AuthToken, PluginAuthProvider, ResolvedSensorSpec, ResolvedSpecKey,
+    column_mapping::ocsf_field_to_arrow_name,
     error::SpecEngineError,
     extract_at_path, parse_datetime_to_micros,
     pipeline::{FetchContext, PipelineExecutor, PipelineResult},
@@ -735,6 +736,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
                     table,
                     &self.sensor_spec.spec.sensor_id,
                     &params.filters,
+                    &self.sensor_spec.spec, // ADR-058 §D1: thread sensor_spec from fetch() (AC-012)
                 );
                 match batch {
                     Ok(b) => all_batches.push(b),
@@ -904,11 +906,33 @@ fn map_spec_engine_error_to_sensor_error(
 /// Without injection, the `aql` column would be NULL in every row → DataFusion
 /// would filter out all rows (NULL != 'in:devices'). With injection, every row
 /// has `aql = 'in:devices'` → DataFusion's WHERE clause correctly matches.
+/// `sensor_spec` is threaded from the `fetch()` call site per ADR-058 §D1 (ADR-022 §C wiring).
+/// The `sensor_spec.ocsf_column_naming` flag controls whether Arrow schema field names are
+/// OCSF-flattened (`ocsf_field_to_arrow_name`) or kept as `col.name` (existing behavior).
+/// See AC-003 (flag-true path), AC-004 (flag-false path), AC-007 (raw_extensions), AC-012
+/// (parameter threading obligation). RG-024 enforces the signature at compile time.
+///
+/// # ADR-058 §I7 Shape-Exception Site
+///
+/// This function is a **documented shape-exception** under ADR-058 §I7: it cannot fully
+/// delegate to `prism_spec_engine::column_mapping::ocsf_projected_column_names` because it
+/// must build full Arrow `Field` objects with typed schema and populate per-column arrays from
+/// raw JSON — responsibilities the shared helper (which returns only a `Vec<String>` of names)
+/// does not cover. The Arrow schema construction requires types, nullability, and data values
+/// beyond the name set alone.
+///
+/// **Invariant (ADR-058 §I7):** The set of column names in the produced Arrow schema's
+/// `ocsf_column_naming=true` path MUST agree with the name set returned by
+/// `prism_spec_engine::column_mapping::ocsf_projected_column_names(table, true)`.
+/// `test_ocsf_projected_names_all_surfaces_agree` (RG-Q-015, S-ADR058-OCSF-ROUTING-001)
+/// enforces this agreement via `TableRegistry::columns_for_table` — any drift between
+/// this site and the canonical helper will cause that test to fail.
 fn pipeline_result_to_record_batch(
     result: PipelineResult,
     table: &TableSpec,
     sensor_id: &str,
     push_down_filters: &prism_sensors::types::FilterMap,
+    sensor_spec: &SpecEngineSensorSpec,
 ) -> Result<RecordBatch, arrow::error::ArrowError> {
     // CR-004: caller guards `if !result.records.is_empty()` before calling here (see fetch()).
     // The n==0 early-return was a dead branch — replaced with a debug_assert to catch
@@ -925,13 +949,237 @@ fn pipeline_result_to_record_batch(
     // EventClassSelector::select_by_class_name — looks up by OCSF class-name string,
     // not by (sensor_id, record_type) pair. Falls back to 0 (BASE_EVENT) for unmapped
     // tables per D-925 (intentional unwrap_or fallback, not a production error path).
-    let derived_class_uid: i32 =
-        EventClassSelector::select_by_class_name(&table.ocsf_class).unwrap_or(0) as i32;
+    // AC-011 (RG-018): emit structured warn before fallback when class name is unrecognized.
+    // BC-2.16.002 catalog: ocsf.unknown_class_name.
+    let class_uid_result = EventClassSelector::select_by_class_name(&table.ocsf_class);
+    if class_uid_result.is_err() {
+        tracing::warn!(
+            event_type = "ocsf.unknown_class_name",
+            ocsf_class = %table.ocsf_class,
+            sensor_id = %sensor_id,
+            table_name = %table.table_name,
+            "sensor TOML declares unrecognised ocsf_class; class_uid defaulted to 0 (BASE_EVENT)"
+        );
+    }
+    let derived_class_uid: i32 = class_uid_result.unwrap_or(0) as i32;
     // OCSF standard encoding: category_uid = class_uid / 1000
     // e.g. class_uid=2004 → category_uid=2 (Findings), class_uid=3001 → category_uid=3 (IAM)
     let derived_category_uid: i32 = derived_class_uid / 1000;
 
+    // AC-003/AC-004: When ocsf_column_naming=true, schema field names use ocsf_field_to_arrow_name;
+    // when false (default), col.name is used (existing behavior). AC-007: ocsf_field==None columns
+    // route to raw_extensions instead of individual schema fields. AC-013 (§J2): fail-closed on
+    // reserved synthesized names. RG-005/RG-008/RG-009/RG-010/RG-026/RG-027 cover these branches.
+    if sensor_spec.ocsf_column_naming {
+        // Partition columns into Tier-1 (ocsf_field==Some) and Tier-2 (ocsf_field==None).
+        //
+        // tier1_cols carries both the ColumnSpec ref AND the already-unwrapped ocsf_field &str.
+        // This eliminates the four guarded `.unwrap()` calls that previously appeared at every
+        // `ocsf_field_to_arrow_name` call site inside the OCSF branch (F-SEC-PR242-001).
+        // The §J5 charset gate in validate_ocsf_column_collisions (called at spec-load time)
+        // ensures every ocsf_field that reaches this path is well-formed, making the filter_map
+        // structurally equivalent to the prior filter+unwrap pattern: only Some(f) columns enter.
+        let tier1_cols: Vec<(&prism_spec_engine::spec_parser::ColumnSpec, &str)> = table
+            .columns
+            .iter()
+            .filter_map(|col| col.ocsf_field.as_deref().map(|f| (col, f)))
+            .collect();
+        let tier2_cols: Vec<&prism_spec_engine::spec_parser::ColumnSpec> = table
+            .columns
+            .iter()
+            .filter(|col| col.ocsf_field.is_none())
+            .collect();
+
+        // AC-013 (RG-027/§J2): reserved-name guard — fail-closed if any Tier-1 flattened name
+        // equals a synthesized column name (class_uid, category_uid, _sensor, raw_extensions).
+        const RESERVED: &[&str] = &["class_uid", "category_uid", "_sensor", "raw_extensions"];
+        for (_, ocsf_field) in &tier1_cols {
+            let arrow_name = ocsf_field_to_arrow_name(ocsf_field);
+            if RESERVED.contains(&arrow_name.as_str()) {
+                return Err(arrow::error::ArrowError::SchemaError(format!(
+                    "ocsf_field '{}' flattens to reserved synthesized Arrow column name '{}'; \
+                     refusing to build schema (ADR-058 §J2 / AC-013)",
+                    ocsf_field, arrow_name
+                )));
+            }
+        }
+
+        // EC-009 (RG-009/§J4): intra-table collision guard — fail-closed if two Tier-1 columns
+        // produce the same flattened Arrow name.
+        let mut seen_arrow_names: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        for (_, ocsf_field) in &tier1_cols {
+            let arrow_name = ocsf_field_to_arrow_name(ocsf_field);
+            if !seen_arrow_names.insert(arrow_name.clone()) {
+                return Err(arrow::error::ArrowError::SchemaError(format!(
+                    "two columns produce the same flattened Arrow field name '{}'; \
+                     duplicate Arrow field names are not allowed (ADR-058 §J4)",
+                    arrow_name
+                )));
+            }
+        }
+
+        // EC-010 (RG-010/§J1): shadow collision guard — fail-closed if a Tier-1 column's
+        // flattened ocsf_field name equals a DIFFERENT column's col.name (A ≠ B check).
+        // Self-match (A == B: col's own flattened name == col.name) is allowed.
+        let all_col_names: std::collections::HashSet<&str> =
+            table.columns.iter().map(|col| col.name.as_str()).collect();
+        for (tier1_col, ocsf_field) in &tier1_cols {
+            let arrow_name = ocsf_field_to_arrow_name(ocsf_field);
+            // A ≠ B: cross-match is forbidden; A == B: self-match is allowed.
+            if arrow_name != tier1_col.name && all_col_names.contains(arrow_name.as_str()) {
+                return Err(arrow::error::ArrowError::SchemaError(format!(
+                    "flattened ocsf_field name '{}' shadows another column's col.name \
+                     (A ≠ B shadow collision per ADR-058 §J1)",
+                    arrow_name
+                )));
+            }
+        }
+
+        // Build Arrow schema: Tier-1 fields + raw_extensions (if Tier-2 exist) + class_uid + _sensor.
+        // Note: category_uid is NOT emitted in OCSF mode (class_uid / 1000 is derivable by the
+        // LLM agent; RG-019 asserts its absence). class_uid and _sensor are the canonical routing keys.
+        let mut fields: Vec<Field> = Vec::new();
+        for (col, ocsf_field) in &tier1_cols {
+            let arrow_name = ocsf_field_to_arrow_name(ocsf_field);
+            fields.push(Field::new(
+                &arrow_name,
+                column_type_to_arrow(&col.column_type),
+                true,
+            ));
+        }
+        if !tier2_cols.is_empty() {
+            fields.push(Field::new("raw_extensions", DataType::Utf8, true));
+        }
+        // OBS-1: class_uid and _sensor are always-Some synthesized columns (nullable=false).
+        // Matches the prism_describe ColumnDescriptor nullable=false contract (AC-015/OQ-003).
+        fields.push(Field::new("class_uid", DataType::Int32, false));
+        fields.push(Field::new("_sensor", DataType::Utf8, false));
+        let schema = Arc::new(Schema::new(fields));
+
+        // Build arrays for Tier-1 columns (same data extraction as flag-false path).
+        //
+        // INTENTIONAL OMISSION — no String+INDEX pseudo-column push-down injection here.
+        //
+        // The legacy (ocsf_column_naming=false) branch injects the push-down filter value into
+        // INDEX+String columns (e.g. Armis `aql`/`fql`) so DataFusion can evaluate `WHERE aql =
+        // 'in:devices'` correctly.  This injection is deliberately absent in the OCSF branch:
+        //
+        //   1. A String+INDEX pseudo-column (query INPUT, not real sensor data) has no
+        //      `ocsf_field` annotation → it is Tier-2 → aggregated into `raw_extensions` rather
+        //      than materialized as a first-class queryable Arrow column.  Injecting a push-down
+        //      value into a `raw_extensions` JSON blob is semantically meaningless.
+        //
+        //   2. A pseudo-column WITH an `ocsf_field` annotation would be an incoherent
+        //      configuration: it maps a query-language filter variable to an OCSF semantic field
+        //      name, which conflates two orthogonal concerns.  No current OCSF sensor TOML
+        //      declares such a config, and no coherent future one should.
+        //
+        // Therefore OCSF-mode pseudo-column push-down injection does not exist.  If a coherent
+        // need ever arises (e.g. a future sensor with a queryable OCSF field that requires
+        // push-down injection), the injection must be added here — mirroring the guard in the
+        // legacy branch (`col.options.contains(Index) && col.column_type == String`).
+        let mut col_arrays: Vec<Arc<dyn Array>> = Vec::new();
+        for (col, _) in &tier1_cols {
+            col_arrays.push(build_column_array(&result.records, col, sensor_id));
+        }
+
+        // Build raw_extensions array: JSON object per record containing Tier-2 column values.
+        // AC-007c / ADR-058 §I2 (RG-026): use source_path-aware extraction (NOT naive
+        // record.get(col.name)) to avoid silent data loss when source_path root ≠ col.name.
+        // ENRICH-1 DD-2: array elements are individually stringified so integer array elements
+        // appear as JSON strings (e.g. vlan_list [100,200] → "[\"100\",\"200\"]").
+        if !tier2_cols.is_empty() {
+            let raw_ext_vals: Vec<Option<String>> = result
+                .records
+                .iter()
+                .map(|record| {
+                    let mut raw_obj = serde_json::Map::new();
+                    for col in &tier2_cols {
+                        // ADR-058 §I2: honor source_path so that source_path root ≠ col.name
+                        // cases (e.g. network_list with source_path $.network_segments[*]) do not
+                        // silently drop data.  Mirrors extract_raw in build_column_array.
+                        let extracted = if let Some(ref path) = col.source_path {
+                            match extract_at_path(record, path) {
+                                Ok(v) => Some(v),
+                                Err(e) => {
+                                    // F-P3-MED-1 / SAP-1: tag with catalogued event_type so
+                                    // audit tooling can correlate this path with the
+                                    // build_column_array extract_raw path (same event, same
+                                    // field schema: column, source_path, error).
+                                    // BC-2.16.002 catalog row updated by product-owner
+                                    // (3rd emission site for column_source_path_extraction_failed).
+                                    tracing::warn!(
+                                        column = %col.name,
+                                        source_path = %path,
+                                        error = %e,
+                                        event_type = "column_source_path_extraction_failed",
+                                        "raw_extensions: source_path extraction failed; \
+                                         column skipped"
+                                    );
+                                    None
+                                }
+                            }
+                        } else {
+                            record.get(&col.name).cloned()
+                        };
+                        if let Some(v) = extracted {
+                            // ENRICH-1 DD-2: JSON arrays → compact JSON-list string with every
+                            // element stringified (integers become JSON strings, preserving the
+                            // contract that raw_extensions values are always scalar-or-string).
+                            let serialized = match v {
+                                serde_json::Value::Array(arr) => {
+                                    let strings: Vec<String> = arr
+                                        .into_iter()
+                                        .map(|elem| match elem {
+                                            serde_json::Value::String(s) => s,
+                                            other => other.to_string(),
+                                        })
+                                        .collect();
+                                    serde_json::Value::String(
+                                        serde_json::to_string(&strings)
+                                            .unwrap_or_else(|_| "[]".to_string()),
+                                    )
+                                }
+                                other => other,
+                            };
+                            raw_obj.insert(col.name.clone(), serialized);
+                        }
+                    }
+                    if raw_obj.is_empty() {
+                        None
+                    } else {
+                        // F-P1-LOW-002: safe fallback instead of .expect() — serialization of a
+                        // serde_json::Map of scalar/string values cannot fail in practice, but the
+                        // structured warn + None path is safer than a production panic.
+                        match serde_json::to_string(&raw_obj) {
+                            Ok(s) => Some(s),
+                            Err(e) => {
+                                tracing::warn!(
+                                    error = %e,
+                                    "raw_extensions JSON serialization failed; cell is null"
+                                );
+                                None
+                            }
+                        }
+                    }
+                })
+                .collect();
+            col_arrays
+                .push(Arc::new(arrow::array::StringArray::from(raw_ext_vals)) as Arc<dyn Array>);
+        }
+
+        // Synthesized columns: class_uid and _sensor (category_uid omitted in OCSF mode).
+        let class_uid_vals: Vec<Option<i32>> = vec![Some(derived_class_uid); n];
+        col_arrays.push(Arc::new(Int32Array::from(class_uid_vals)) as Arc<dyn Array>);
+        let sensor_vals: Vec<Option<&str>> = vec![Some(sensor_id); n];
+        col_arrays.push(Arc::new(StringArray::from(sensor_vals)) as Arc<dyn Array>);
+
+        return RecordBatch::try_new(schema, col_arrays);
+    }
+
     // Build schema: spec-declared data columns first, then OCSF envelope.
+    // This is the existing flag-false path (AC-004 / col.name behavior preserved).
     let mut fields: Vec<Field> = table
         .columns
         .iter()
@@ -3911,11 +4159,24 @@ mod tests {
             serde_json::Value::String("2024-01-15T10:30:00.000Z".to_string()),
         );
 
+        // AC-012: sensor_spec parameter added per ADR-058 §D1 (RG-024 compile gate).
+        // ocsf_column_naming=false: existing FIX-1 test exercises the flag-false path only.
+        let sensor_spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike Test",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![],
+            None,
+            "1.0.0",
+            vec![],
+        );
         let batch_result = super::pipeline_result_to_record_batch(
             result,
             &table,
             "crowdstrike",
             &push_down_filters,
+            &sensor_spec,
         );
 
         // LOAD-BEARING (FIX-1 type-gate regression — cycle-4 BLOCKING-1):
@@ -4186,6 +4447,1861 @@ mod tests {
             logs_contain("column=metadata_obj"),
             "SID-2 / AC-008: column_coercion_failure warn must include structured field \
              column=metadata_obj identifying the demoted column (BC-2.16.003 §Coercion Warning Observability)"
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // S-ADR058-OCSF-ROUTING-001 Red Gate Tests — RG-005..RG-027
+    //
+    // These tests cover the OCSF field-name routing branch in
+    // `pipeline_result_to_record_batch` (AC-003/AC-004/AC-007/AC-011/AC-012/AC-013)
+    // and the AC-009 class_selector path. Most fail with todo!() in the OCSF
+    // branch; a few fail on assertion (RG-006 flag-false path and RG-009/010
+    // collision detection). GBD tests are marked accordingly.
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /// Return a `SensorSpec` with `ocsf_column_naming = true`.
+    ///
+    /// `SensorSpec::new()` hardcodes `ocsf_column_naming = false`; `#[non_exhaustive]`
+    /// blocks struct-literal construction outside the defining crate.
+    /// TOML deserialization is the only external construction path per ADR-058 §I1.
+    fn ocsf_sensor_spec() -> SensorSpec {
+        toml::from_str::<SensorSpec>(
+            r#"
+sensor_id = "ocsf_test"
+name = "OCSF Test Sensor"
+auth_type = "api_key"
+base_url = "https://example.com"
+version = "1.0.0"
+ocsf_column_naming = true
+"#,
+        )
+        .expect("minimal OCSF TOML must parse")
+    }
+
+    /// Minimal `FetchStep` for TableSpec construction in unit tests.
+    fn minimal_fetch_step() -> FetchStep {
+        FetchStep::new(
+            "fetch",
+            "GET",
+            "/api/v1/items",
+            None,
+            "$.data",
+            None,
+            vec![],
+            None,
+            None,
+        )
+    }
+
+    /// RG-005 / AC-003 / ADR-058 §I1 / BC-2.16.003 §Column Routing
+    ///
+    /// When `sensor_spec.ocsf_column_naming == true`, `pipeline_result_to_record_batch`
+    /// MUST use `ocsf_field_to_arrow_name(ocsf_field)` as the Arrow schema field name
+    /// for columns with `ocsf_field == Some(...)`.
+    ///
+    /// Wire-shape assertion (CLAUDE.md §Conventions): the Arrow schema field name
+    /// IS the queryable column name the LLM agent sees via DataFusion.
+    ///
+    /// **Red gate:** OCSF branch is `todo!()` — panics.
+    #[test]
+    fn test_pipeline_result_to_record_batch_ocsf_flag_true_uses_flattened_names() {
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+        let col = ColumnSpec::new(
+            "id",
+            ColumnType::String,
+            Some("finding_info.uid".to_string()),
+            vec![],
+        );
+        let table = TableSpec::new_point_in_time(
+            "alerts",
+            "detection_finding",
+            vec![col],
+            vec![minimal_fetch_step()],
+        );
+        let result = PipelineResult::new(
+            vec![serde_json::json!({"id": "alert-001"})],
+            "alerts",
+            1,
+            false,
+        );
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "ocsf_test",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect("pipeline_result_to_record_batch with ocsf_column_naming=true must succeed");
+
+        // Wire-shape: Arrow field "finding_info_uid" must exist (not "id").
+        assert!(
+            batch.column_by_name("finding_info_uid").is_some(),
+            "AC-003 (RG-005): ocsf_column_naming=true + ocsf_field='finding_info.uid' \
+             MUST produce Arrow field named 'finding_info_uid' (dot-to-underscore flattening). \
+             DataFusion exposes Arrow field names as queryable column names."
+        );
+        assert!(
+            batch.column_by_name("id").is_none(),
+            "AC-003 (RG-005): col.name 'id' MUST NOT appear as an Arrow field when \
+             ocsf_column_naming=true and ocsf_field is set; the flattened OCSF name replaces it."
+        );
+    }
+
+    /// RG-006 / AC-004 / BC-2.01.013 §Postcondition 1
+    ///
+    /// When `sensor_spec.ocsf_column_naming == false` (the default), col.name is
+    /// used for Arrow schema field names — unchanged from pre-Stage-2 behavior.
+    /// This is a REGRESSION GUARD for CrowdStrike/Armis/Cyberint (non-flagged sensors).
+    ///
+    /// GREEN-BY-DESIGN: the flag-false path uses col.name unconditionally. This test
+    /// is a load-bearing regression guard.
+    ///
+    /// Wire-shape assertion: the Arrow field name IS the queryable column name.
+    #[test]
+    fn test_pipeline_result_to_record_batch_ocsf_flag_false_uses_col_name() {
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        // ocsf_column_naming = false (default via SensorSpec::new)
+        let sensor_spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike Test",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![],
+            None,
+            "1.0.0",
+            vec![],
+        );
+        let col = ColumnSpec::new(
+            "id",
+            ColumnType::String,
+            Some("finding_info.uid".to_string()), // ocsf_field set but flag=false → col.name wins
+            vec![],
+        );
+        let table = TableSpec::new_point_in_time(
+            "alerts",
+            "detection_finding",
+            vec![col],
+            vec![minimal_fetch_step()],
+        );
+        let result = PipelineResult::new(
+            vec![serde_json::json!({"id": "alert-001"})],
+            "alerts",
+            1,
+            false,
+        );
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "crowdstrike",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect("pipeline_result_to_record_batch with ocsf_column_naming=false must succeed");
+
+        // Wire-shape: col.name "id" must be used (not the flattened ocsf_field name).
+        assert!(
+            batch.column_by_name("id").is_some(),
+            "AC-004 (RG-006): ocsf_column_naming=false MUST use col.name 'id' as Arrow \
+             field name regardless of ocsf_field value. CrowdStrike regression guard."
+        );
+        assert!(
+            batch.column_by_name("finding_info_uid").is_none(),
+            "AC-004 (RG-006): ocsf_column_naming=false MUST NOT use ocsf_field-derived \
+             name 'finding_info_uid'; col.name path is the flag-false invariant."
+        );
+    }
+
+    /// RG-008 / AC-007 / ADR-058 §I2 / BC-2.16.003 EC-016-013-028
+    ///
+    /// When `ocsf_column_naming == true`, columns with `ocsf_field == None` MUST be
+    /// aggregated into a single `"raw_extensions"` Utf8 column rather than emitting
+    /// individual Arrow schema fields.
+    ///
+    /// Wire-shape assertion: the `raw_extensions` column MUST exist in the schema.
+    ///
+    /// **Red gate:** OCSF branch is `todo!()` — panics.
+    #[test]
+    fn test_spec_driven_adapter_columns_without_ocsf_field_go_to_raw_extensions_schema() {
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+        // col_a has ocsf_field (Tier-1 → first-class Arrow field)
+        let col_a = ColumnSpec::new(
+            "id",
+            ColumnType::String,
+            Some("finding_info.uid".to_string()),
+            vec![],
+        );
+        // col_b has no ocsf_field (Tier-2 → raw_extensions)
+        let col_b = ColumnSpec::new("vendor_category", ColumnType::String, None, vec![]);
+        let table = TableSpec::new_point_in_time(
+            "alerts",
+            "detection_finding",
+            vec![col_a, col_b],
+            vec![minimal_fetch_step()],
+        );
+        let result = PipelineResult::new(
+            vec![serde_json::json!({"id": "001", "vendor_category": "OT Security"})],
+            "alerts",
+            1,
+            false,
+        );
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "ocsf_test",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect("pipeline_result_to_record_batch with mixed-ocsf_field columns must succeed");
+
+        // Wire-shape (i): raw_extensions column MUST exist.
+        assert!(
+            batch.column_by_name("raw_extensions").is_some(),
+            "AC-007 (RG-008): ocsf_column_naming=true + ocsf_field==None column MUST \
+             produce a 'raw_extensions' Arrow Utf8 column; Tier-2 columns are suppressed \
+             from individual schema fields and aggregated here."
+        );
+        // Wire-shape (ii): vendor_category must NOT appear as a first-class field.
+        assert!(
+            batch.column_by_name("vendor_category").is_none(),
+            "AC-007 (RG-008): Tier-2 column 'vendor_category' (ocsf_field==None) MUST \
+             NOT appear as an independent Arrow field when ocsf_column_naming=true."
+        );
+    }
+
+    /// RG-009 / EC-009 / ADR-058 §J4 — intra-table flattening collision
+    ///
+    /// When two columns' `ocsf_field` values flatten to the same Arrow name
+    /// (e.g., `"a.b_c"` → `"a_b_c"` and `"a_b.c"` → `"a_b_c"`),
+    /// `pipeline_result_to_record_batch` MUST return `Err(ArrowError::SchemaError(...))`.
+    ///
+    /// Arrow 58 does not detect duplicate schema field names — `Schema::column_with_name`
+    /// silently returns the first match, discarding the second. Fail-closed is mandatory.
+    ///
+    /// **Red gate:** no collision check exists — currently returns Ok (fails assertion).
+    #[test]
+    fn test_pipeline_result_to_record_batch_ocsf_collision_returns_error() {
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+        // "a.b_c" and "a_b.c" both flatten to "a_b_c" — intra-table collision.
+        let col_a = ColumnSpec::new(
+            "field_a",
+            ColumnType::String,
+            Some("a.b_c".to_string()),
+            vec![],
+        );
+        let col_b = ColumnSpec::new(
+            "field_b",
+            ColumnType::String,
+            Some("a_b.c".to_string()),
+            vec![],
+        );
+        let table = TableSpec::new_point_in_time(
+            "test_table",
+            "detection_finding",
+            vec![col_a, col_b],
+            vec![minimal_fetch_step()],
+        );
+        let result = PipelineResult::new(
+            vec![serde_json::json!({"field_a": "x", "field_b": "y"})],
+            "test_table",
+            1,
+            false,
+        );
+        let batch_result = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "ocsf_test",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        );
+
+        assert!(
+            batch_result.is_err(),
+            "EC-009 (RG-009): two columns whose ocsf_field values flatten to the same \
+             Arrow name ('a.b_c' and 'a_b.c' both → 'a_b_c') MUST produce \
+             Err(ArrowError::SchemaError). Without this guard, Arrow silently returns \
+             the first-matched column on SELECT, hiding the second. Got Ok instead of Err."
+        );
+    }
+
+    /// RG-010 / EC-010 / ADR-058 §J1/§J2 — flag-transition shadow collision
+    ///
+    /// When a column's flattened `ocsf_field` name equals a DIFFERENT column's `col.name`
+    /// (shadow collision), `pipeline_result_to_record_batch` MUST return `Err`.
+    ///
+    /// ALSO: a self-match (column whose flattened ocsf_field equals its OWN col.name)
+    /// MUST NOT trigger an error (self-match A == B exclusion is mandatory).
+    ///
+    /// Example shadow: `device_category.ocsf_field = "device.type"` → `"device_type"` ==
+    /// column `device_type`'s `col.name` = `"device_type"`.
+    ///
+    /// **Red gate:** no shadow check exists — shadow case returns Ok (fails assertion).
+    #[test]
+    fn test_pipeline_result_to_record_batch_ocsf_shadow_collision_returns_error() {
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+
+        // Shadow collision: device_category.ocsf_field "device.type" → "device_type",
+        // which equals device_type.col.name "device_type" (A ≠ B shadow).
+        let col_device_category = ColumnSpec::new(
+            "device_category",
+            ColumnType::String,
+            Some("device.type".to_string()), // flattens to "device_type" = col_device_type.name
+            vec![],
+        );
+        let col_device_type = ColumnSpec::new(
+            "device_type",
+            ColumnType::String,
+            Some("device.type_name".to_string()),
+            vec![],
+        );
+        let table_shadow = TableSpec::new_point_in_time(
+            "devices",
+            "inventory_info",
+            vec![col_device_category, col_device_type],
+            vec![minimal_fetch_step()],
+        );
+        let result_shadow = PipelineResult::new(
+            vec![serde_json::json!({"device_category": "OT", "device_type": "PLC"})],
+            "devices",
+            1,
+            false,
+        );
+        let shadow_result = super::pipeline_result_to_record_batch(
+            result_shadow,
+            &table_shadow,
+            "ocsf_test",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        );
+
+        assert!(
+            shadow_result.is_err(),
+            "EC-010 (RG-010): shadow collision — 'device_category'.ocsf_field='device.type' \
+             flattens to 'device_type' == 'device_type'.col.name (A ≠ B) — MUST return Err. \
+             Without the §J1 shadow guard, DataFusion queries on 'device_type' silently return \
+             high-level category data instead of type-within-category. Got Ok instead of Err."
+        );
+
+        // Self-match MUST NOT trigger error: risk_score.ocsf_field = "risk_score"
+        // → flattens to "risk_score" == col.name "risk_score" (A == B self-match).
+        let col_self = ColumnSpec::new(
+            "risk_score",
+            ColumnType::String,
+            Some("risk_score".to_string()), // single-segment, equals col.name — self-match
+            vec![],
+        );
+        let table_self = TableSpec::new_point_in_time(
+            "devices",
+            "inventory_info",
+            vec![col_self],
+            vec![minimal_fetch_step()],
+        );
+        let result_self = PipelineResult::new(
+            vec![serde_json::json!({"risk_score": "5"})],
+            "devices",
+            1,
+            false,
+        );
+        let self_result = super::pipeline_result_to_record_batch(
+            result_self,
+            &table_self,
+            "ocsf_test",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        );
+
+        assert!(
+            self_result.is_ok(),
+            "EC-010 (RG-010): self-match — 'risk_score'.ocsf_field='risk_score' == col.name \
+             'risk_score' (A == B) — MUST NOT return Err. The A ≠ B exclusion must permit \
+             columns where flattened ocsf_field is identical to col.name. Got Err: {:?}",
+            self_result.err()
+        );
+    }
+
+    /// RG-014 / AC-010 / BC-2.16.003 EC-016-013-013/014/015 — KF-08/09/10
+    ///
+    /// Claroty `alerts` reserved fields (category, alert_type_name, devices_count) have
+    /// NO `ocsf_field` after KF-08/09/10 corrections (they route to raw_extensions).
+    ///
+    /// Wire-shape assertion: no first-class Arrow fields for the vendor-only columns;
+    /// raw_extensions JSON blob contains the vendor values.
+    ///
+    /// **Red gate:** OCSF branch is `todo!()` — panics.
+    #[test]
+    fn test_claroty_alerts_reserved_fields_go_to_raw_extensions_not_first_class_columns() {
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+        // Post-KF-08/09/10: category, alert_type_name, devices_count have no ocsf_field.
+        let cols = vec![
+            ColumnSpec::new(
+                "id",
+                ColumnType::String,
+                Some("finding_info.uid".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new("category", ColumnType::String, None, vec![]), // KF-08
+            ColumnSpec::new("alert_type_name", ColumnType::String, None, vec![]), // KF-09
+            ColumnSpec::new("devices_count", ColumnType::Integer, None, vec![]), // KF-10
+        ];
+        let table = TableSpec::new_point_in_time(
+            "alerts",
+            "detection_finding",
+            cols,
+            vec![minimal_fetch_step()],
+        );
+        let result = PipelineResult::new(
+            vec![serde_json::json!({
+                "id": "alert-001",
+                "category": "OT Security",
+                "alert_type_name": "Protocol Violation",
+                "devices_count": 3
+            })],
+            "alerts",
+            1,
+            false,
+        );
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "claroty",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect("Claroty alerts with KF-08/09/10 corrections must produce valid RecordBatch");
+
+        // Wire-shape: no stale OCSF-computed names that would corrupt OCSF metadata.
+        assert!(
+            batch.column_by_name("class_name").is_none(),
+            "AC-010/KF-08 (RG-014): 'class_name' (OCSF-computed from class_uid) MUST NOT \
+             appear as a first-class Arrow field; vendor 'category' routes to raw_extensions."
+        );
+        assert!(
+            batch.column_by_name("type_name").is_none(),
+            "AC-010/KF-09 (RG-014): 'type_name' (OCSF-computed from type_uid) MUST NOT \
+             appear as a first-class Arrow field; vendor 'alert_type_name' routes to raw_extensions."
+        );
+        assert!(
+            batch.column_by_name("count").is_none(),
+            "AC-010/KF-10 (RG-014): 'count' (OCSF dedup counter) MUST NOT appear as a \
+             first-class Arrow field; vendor 'devices_count' routes to raw_extensions."
+        );
+        // Wire-shape: raw_extensions blob contains the vendor values.
+        let raw_ext_col = batch
+            .column_by_name("raw_extensions")
+            .expect("raw_extensions column must exist");
+        let raw_arr = raw_ext_col
+            .as_any()
+            .downcast_ref::<arrow::array::StringArray>()
+            .expect("raw_extensions must be StringArray");
+        let raw_json: serde_json::Value =
+            serde_json::from_str(raw_arr.value(0)).expect("raw_extensions cell must be valid JSON");
+        assert!(
+            raw_json.get("category").is_some(),
+            "AC-010/KF-08 (RG-014): raw_extensions JSON must contain 'category' vendor value"
+        );
+        assert!(
+            raw_json.get("alert_type_name").is_some(),
+            "AC-010/KF-09 (RG-014): raw_extensions JSON must contain 'alert_type_name' vendor value"
+        );
+        assert!(
+            raw_json.get("devices_count").is_some(),
+            "AC-010/KF-10 (RG-014): raw_extensions JSON must contain 'devices_count' vendor value"
+        );
+    }
+
+    /// RG-015 / AC-010 / BC-2.16.003 KF-03/04/12 — finding_info fields wire shape
+    ///
+    /// Post-KF corrections: `id.ocsf_field = "finding_info.uid"`,
+    /// `alert_name.ocsf_field = "finding_info.title"`,
+    /// `updated_time.ocsf_field = "finding_info.modified_time"`.
+    ///
+    /// Wire-shape assertions on Arrow field names and values.
+    ///
+    /// **Red gate:** OCSF branch is `todo!()` — panics.
+    #[test]
+    fn test_claroty_alerts_finding_info_fields_wire_shape() {
+        use arrow::array::StringArray as ArrowStringArray;
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+        let cols = vec![
+            ColumnSpec::new(
+                "id",
+                ColumnType::String,
+                Some("finding_info.uid".to_string()),
+                vec![],
+            ), // KF-03
+            ColumnSpec::new(
+                "alert_name",
+                ColumnType::String,
+                Some("finding_info.title".to_string()),
+                vec![],
+            ), // KF-04
+            ColumnSpec::new(
+                "updated_time",
+                ColumnType::String,
+                Some("finding_info.modified_time".to_string()),
+                vec![],
+            ), // KF-12
+        ];
+        let table = TableSpec::new_point_in_time(
+            "alerts",
+            "detection_finding",
+            cols,
+            vec![minimal_fetch_step()],
+        );
+        let result = PipelineResult::new(
+            vec![serde_json::json!({
+                "id": "132",
+                "alert_name": "Modbus Violation",
+                "updated_time": "2024-01-15T10:30:00Z"
+            })],
+            "alerts",
+            1,
+            false,
+        );
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "claroty",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect("Claroty alerts KF-03/04/12 wire shape test must produce valid RecordBatch");
+
+        // Wire-shape (1): "finding_info_uid" exists and contains "132" (KF-03).
+        let uid_col = batch
+            .column_by_name("finding_info_uid")
+            .expect("AC-010/KF-03 (RG-015): Arrow field 'finding_info_uid' must exist");
+        let uid_arr = uid_col.as_any().downcast_ref::<ArrowStringArray>().unwrap();
+        assert_eq!(
+            uid_arr.value(0),
+            "132",
+            "AC-010/KF-03 (RG-015): 'finding_info_uid' must contain '132'"
+        );
+
+        // Wire-shape (2): "finding_info_title" exists and contains "Modbus Violation" (KF-04).
+        let title_col = batch
+            .column_by_name("finding_info_title")
+            .expect("AC-010/KF-04 (RG-015): Arrow field 'finding_info_title' must exist");
+        let title_arr = title_col
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .unwrap();
+        assert_eq!(
+            title_arr.value(0),
+            "Modbus Violation",
+            "AC-010/KF-04 (RG-015): 'finding_info_title' must contain 'Modbus Violation'"
+        );
+
+        // Wire-shape (3): "finding_info_modified_time" exists and contains the timestamp (KF-12).
+        let mtime_col = batch
+            .column_by_name("finding_info_modified_time")
+            .expect("AC-010/KF-12 (RG-015): Arrow field 'finding_info_modified_time' must exist");
+        let mtime_arr = mtime_col
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .unwrap();
+        assert_eq!(
+            mtime_arr.value(0),
+            "2024-01-15T10:30:00Z",
+            "AC-010/KF-12 (RG-015): 'finding_info_modified_time' must contain the timestamp"
+        );
+
+        // Wire-shape (4): stale pre-KF names MUST NOT exist.
+        assert!(
+            batch.column_by_name("finding_uid").is_none(),
+            "AC-010/KF-03 (RG-015): stale pre-KF 'finding_uid' must NOT exist"
+        );
+        assert!(
+            batch.column_by_name("finding_title").is_none(),
+            "AC-010/KF-04 (RG-015): stale pre-KF 'finding_title' must NOT exist"
+        );
+        assert!(
+            batch.column_by_name("end_time").is_none(),
+            "AC-010/KF-12 (RG-015): stale pre-KF 'end_time' must NOT exist"
+        );
+    }
+
+    /// RG-016 / AC-009(b) / BC-2.16.003 EC-016-013-023 — Claroty audit_logs class_uid
+    ///
+    /// With `ocsf_class = "entity_management"` (post-KF-01), the Arrow `class_uid`
+    /// column MUST equal 3004 (EntityManagement). MUST NOT be 3001 (AccountChange) or
+    /// 0 (BASE_EVENT fallback).
+    ///
+    /// **Red gate:** `select_by_class_name("entity_management")` is `todo!()` — panics.
+    #[test]
+    fn test_claroty_audit_logs_record_batch_class_uid_is_3004() {
+        use arrow::array::Int32Array;
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+        let cols = vec![
+            ColumnSpec::new(
+                "action",
+                ColumnType::String,
+                Some("activity_name".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "note",
+                ColumnType::String,
+                Some("comment".to_string()),
+                vec![],
+            ),
+        ];
+        let table = TableSpec::new_point_in_time(
+            "audit_logs",
+            "entity_management", // KF-01 corrected ocsf_class
+            cols,
+            vec![minimal_fetch_step()],
+        );
+        let result = PipelineResult::new(
+            vec![serde_json::json!({"action": "Login", "note": "reviewed"})],
+            "audit_logs",
+            1,
+            false,
+        );
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "claroty",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect("Claroty audit_logs entity_management class_uid test must succeed");
+
+        let class_uid_col = batch
+            .column_by_name("class_uid")
+            .expect("AC-009(b) (RG-016): 'class_uid' Arrow column must exist");
+        let class_uid_arr = class_uid_col
+            .as_any()
+            .downcast_ref::<Int32Array>()
+            .expect("class_uid must be Int32Array");
+        assert_eq!(
+            class_uid_arr.value(0),
+            3004,
+            "AC-009(b) (RG-016): Claroty audit_logs with ocsf_class='entity_management' \
+             MUST produce class_uid=3004 (EntityManagement). \
+             Got {} (3001=AccountChange, 0=BASE_EVENT). \
+             Without 'entity_management' arm in select_by_class_name, falls to .unwrap_or(0).",
+            class_uid_arr.value(0)
+        );
+        assert_ne!(
+            class_uid_arr.value(0),
+            3001,
+            "AC-009(b) (RG-016): class_uid must NOT be 3001 (AccountChange); \
+             that was the pre-KF-01 incorrect class that silently drops 'comment'."
+        );
+        assert_ne!(
+            class_uid_arr.value(0),
+            0,
+            "AC-009(b) (RG-016): class_uid must NOT be 0 (BASE_EVENT fallback); \
+             'entity_management' arm missing causes .unwrap_or(0)."
+        );
+    }
+
+    /// RG-017 / AC-009(b) regression guard / BC-2.16.003 EC-016-013-024
+    ///
+    /// With `ocsf_class = "inventory_info"` (post-KF-02), the Arrow `class_uid`
+    /// column MUST equal 5001 (DeviceInventoryInfo). Without the `"inventory_info"` arm,
+    /// the KF-02 TOML change silently regresses class_uid from 5001 → 0.
+    ///
+    /// **Red gate:** `select_by_class_name("inventory_info")` is `todo!()` — panics.
+    #[test]
+    fn test_claroty_devices_record_batch_class_uid_is_5001_regression_guard() {
+        use arrow::array::Int32Array;
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+        let cols = vec![ColumnSpec::new(
+            "device_uid",
+            ColumnType::String,
+            Some("device.uid".to_string()),
+            vec![],
+        )];
+        let table = TableSpec::new_point_in_time(
+            "devices",
+            "inventory_info", // KF-02 corrected ocsf_class
+            cols,
+            vec![minimal_fetch_step()],
+        );
+        let result = PipelineResult::new(
+            vec![serde_json::json!({"device_uid": "dev-001"})],
+            "devices",
+            1,
+            false,
+        );
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "claroty",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect("Claroty devices inventory_info class_uid regression guard must succeed");
+
+        let class_uid_col = batch
+            .column_by_name("class_uid")
+            .expect("AC-009(b) (RG-017): 'class_uid' Arrow column must exist");
+        let class_uid_arr = class_uid_col
+            .as_any()
+            .downcast_ref::<Int32Array>()
+            .expect("class_uid must be Int32Array");
+        assert_eq!(
+            class_uid_arr.value(0),
+            5001,
+            "AC-009(b) (RG-017): Claroty devices with ocsf_class='inventory_info' MUST \
+             produce class_uid=5001 (DeviceInventoryInfo). Got {}. \
+             KF-02 TOML change 'device' → 'inventory_info' would silently regress \
+             class_uid from 5001 to 0 without the 'inventory_info' arm in select_by_class_name.",
+            class_uid_arr.value(0)
+        );
+        assert_ne!(
+            class_uid_arr.value(0),
+            0,
+            "AC-009(b) (RG-017): class_uid=0 means 'inventory_info' arm is missing; \
+             .unwrap_or(0) fallback — KF-02 TOML regression guard failure."
+        );
+    }
+
+    /// RG-018 / AC-011 / BC-2.16.002 §Canonical Structured Event Catalog `ocsf.unknown_class_name`
+    ///
+    /// When `pipeline_result_to_record_batch` is called with an unrecognized `ocsf_class`
+    /// value, it MUST emit a structured `tracing::warn!` with `event_type = "ocsf.unknown_class_name"`
+    /// BEFORE the `.unwrap_or(0)` fallback, and the function MUST still return `Ok(...)`.
+    ///
+    /// **Red gate:** the warn emission does not exist yet — panics on todo!() (ocsf branch).
+    #[tracing_test::traced_test]
+    #[test]
+    fn test_pipeline_result_to_record_batch_unknown_ocsf_class_emits_warn() {
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        // SensorSpec with ocsf_column_naming=false — tests the warn emission path
+        // regardless of the OCSF naming branch (select_by_class_name fires first).
+        let sensor_spec = SensorSpec::new(
+            "mystery_sensor",
+            "Mystery Sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![],
+            None,
+            "1.0.0",
+            vec![],
+        );
+        let cols = vec![ColumnSpec::new("field_x", ColumnType::String, None, vec![])];
+        let table = TableSpec::new_point_in_time(
+            "mystery_table",
+            "completely_unknown_class", // not in select_by_class_name
+            cols,
+            vec![minimal_fetch_step()],
+        );
+        let result = PipelineResult::new(
+            vec![serde_json::json!({"field_x": "value"})],
+            "mystery_table",
+            1,
+            false,
+        );
+        let batch_result = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "mystery_sensor",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        );
+
+        // AC-011: function MUST return Ok (graceful fallback preserved).
+        assert!(
+            batch_result.is_ok(),
+            "AC-011 (RG-018): pipeline_result_to_record_batch with unknown ocsf_class MUST \
+             return Ok (graceful .unwrap_or(0) fallback preserved); got Err: {:?}",
+            batch_result.err()
+        );
+
+        // AC-011: WARN event with event_type="ocsf.unknown_class_name" MUST be emitted.
+        assert!(
+            logs_contain("ocsf.unknown_class_name"),
+            "AC-011 (RG-018): MUST emit tracing::warn! with \
+             event_type=\"ocsf.unknown_class_name\" before .unwrap_or(0) fallback. \
+             BC-2.16.002 §Canonical Structured Event Catalog ocsf.unknown_class_name."
+        );
+        assert!(
+            logs_contain("completely_unknown_class"),
+            "AC-011 (RG-018): warn event MUST include the unrecognized ocsf_class value \
+             'completely_unknown_class' in structured field ocsf_class."
+        );
+    }
+
+    /// RG-019 / AC-010 / BC-2.16.003 KF-11 — Claroty audit_logs KF-11 category in raw_extensions
+    ///
+    /// Post-KF-11: audit_logs `category` has NO `ocsf_field` → routes to raw_extensions.
+    /// Also tests KF-01 entity_management integration: action → activity_name, note → comment.
+    ///
+    /// **Red gate:** OCSF branch is `todo!()` — panics.
+    #[test]
+    fn test_claroty_audit_logs_record_batch_kf11_category_in_raw_extensions() {
+        use arrow::array::StringArray as ArrowStringArray;
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+        let cols = vec![
+            ColumnSpec::new("category", ColumnType::String, None, vec![]), // KF-11: no ocsf_field
+            ColumnSpec::new(
+                "action",
+                ColumnType::String,
+                Some("activity_name".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "note",
+                ColumnType::String,
+                Some("comment".to_string()),
+                vec![],
+            ),
+        ];
+        let table = TableSpec::new_point_in_time(
+            "audit_logs",
+            "entity_management", // KF-01
+            cols,
+            vec![minimal_fetch_step()],
+        );
+        let result = PipelineResult::new(
+            vec![serde_json::json!({
+                "category": "Authentication",
+                "action": "Login",
+                "note": "reviewed"
+            })],
+            "audit_logs",
+            1,
+            false,
+        );
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "claroty",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect("Claroty audit_logs KF-11 category-in-raw_extensions test must succeed");
+
+        // Wire-shape (1): no first-class category_uid or category_name fields.
+        assert!(
+            batch.column_by_name("category_uid").is_none(),
+            "AC-010/KF-11 (RG-019): 'category_uid' (OCSF-computed) MUST NOT appear \
+             as first-class Arrow field; vendor 'category' routes to raw_extensions."
+        );
+        assert!(
+            batch.column_by_name("category_name").is_none(),
+            "AC-010/KF-11 (RG-019): 'category_name' (OCSF-computed) MUST NOT appear \
+             as first-class Arrow field."
+        );
+        // Wire-shape (2): raw_extensions blob contains category vendor value.
+        let raw_ext_col = batch
+            .column_by_name("raw_extensions")
+            .expect("RG-019: raw_extensions column must exist");
+        let raw_arr = raw_ext_col
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("raw_extensions must be StringArray");
+        let raw_json: serde_json::Value =
+            serde_json::from_str(raw_arr.value(0)).expect("raw_extensions must be valid JSON");
+        assert_eq!(
+            raw_json.get("category").and_then(|v| v.as_str()),
+            Some("Authentication"),
+            "AC-010/KF-11 (RG-019): raw_extensions must contain category='Authentication'"
+        );
+        // Wire-shape (3): activity_name (action → activity_name mapping) exists.
+        let action_col = batch
+            .column_by_name("activity_name")
+            .expect("RG-019: 'activity_name' Arrow field must exist for action col");
+        let action_arr = action_col
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .unwrap();
+        assert_eq!(
+            action_arr.value(0),
+            "Login",
+            "AC-010/KF-11 (RG-019): 'activity_name' must contain 'Login'"
+        );
+        // Wire-shape (4): comment (note → comment mapping) exists.
+        let comment_col = batch
+            .column_by_name("comment")
+            .expect("RG-019: 'comment' Arrow field must exist for note col");
+        let comment_arr = comment_col
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .unwrap();
+        assert_eq!(
+            comment_arr.value(0),
+            "reviewed",
+            "AC-010/KF-11 (RG-019): 'comment' must contain 'reviewed'"
+        );
+    }
+
+    /// RG-020 / AC-010 / BC-2.16.003 KF-07 — device_alert_relations finding_info.uid wire shape
+    ///
+    /// Post-KF-07: `device_alert_relations.alert_id.ocsf_field = "finding_info.uid"`.
+    ///
+    /// **Red gate:** OCSF branch is `todo!()` — panics.
+    #[test]
+    fn test_claroty_device_alert_relations_record_batch_finding_info_uid_wire_shape() {
+        use arrow::array::StringArray as ArrowStringArray;
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+        let cols = vec![
+            ColumnSpec::new(
+                "device_uid",
+                ColumnType::String,
+                Some("device.uid".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "alert_id",
+                ColumnType::String,
+                Some("finding_info.uid".to_string()),
+                vec![],
+            ), // KF-07
+        ];
+        let table = TableSpec::new_point_in_time(
+            "device_alert_relations",
+            "detection_finding",
+            cols,
+            vec![minimal_fetch_step()],
+        );
+        let result = PipelineResult::new(
+            vec![serde_json::json!({"device_uid": "dev-001", "alert_id": "alert-123"})],
+            "device_alert_relations",
+            1,
+            false,
+        );
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "claroty",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect("Claroty device_alert_relations KF-07 finding_info_uid test must succeed");
+
+        // Wire-shape (1): "finding_info_uid" contains "alert-123".
+        let uid_col = batch
+            .column_by_name("finding_info_uid")
+            .expect("AC-010/KF-07 (RG-020): 'finding_info_uid' Arrow field must exist");
+        let uid_arr = uid_col.as_any().downcast_ref::<ArrowStringArray>().unwrap();
+        assert_eq!(
+            uid_arr.value(0),
+            "alert-123",
+            "AC-010/KF-07 (RG-020): 'finding_info_uid' must contain 'alert-123'"
+        );
+        // Wire-shape (2): stale pre-KF "finding_uid" must NOT exist.
+        assert!(
+            batch.column_by_name("finding_uid").is_none(),
+            "AC-010/KF-07 (RG-020): stale pre-KF 'finding_uid' MUST NOT exist"
+        );
+        // Wire-shape (3): dotted "finding.uid" must NOT exist (not a valid Arrow field name).
+        assert!(
+            batch.column_by_name("finding.uid").is_none(),
+            "AC-010/KF-07 (RG-020): dotted 'finding.uid' MUST NOT appear as Arrow field name"
+        );
+    }
+
+    /// RG-021 / AC-010 / BC-2.16.003 OQ-005 — Claroty audit_logs id produces metadata_uid
+    /// top-level Arrow field
+    ///
+    /// Post-OQ-005 (human decision 2026-08-21): `audit_logs.id.ocsf_field = "metadata.uid"`.
+    /// The id value is Tier-1 — routed to Arrow column `"metadata_uid"` (top-level first-class
+    /// field), NOT placed in `raw_extensions`.
+    ///
+    /// `ocsf_field_to_arrow_name("metadata.uid")` = `"metadata_uid"` (dot → underscore).
+    ///
+    /// **Red gate:** OCSF branch is `todo!()` — panics.
+    #[test]
+    fn test_claroty_audit_logs_id_produces_metadata_uid_top_level_arrow_field() {
+        use arrow::array::StringArray as ArrowStringArray;
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+        let cols = vec![
+            // OQ-005: id gets ocsf_field="metadata.uid" → Tier-1 Arrow column "metadata_uid"
+            ColumnSpec::new(
+                "id",
+                ColumnType::String,
+                Some("metadata.uid".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "action",
+                ColumnType::String,
+                Some("activity_name".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "note",
+                ColumnType::String,
+                Some("comment".to_string()),
+                vec![],
+            ),
+        ];
+        let table = TableSpec::new_point_in_time(
+            "audit_logs",
+            "entity_management",
+            cols,
+            vec![minimal_fetch_step()],
+        );
+        let result = PipelineResult::new(
+            vec![serde_json::json!({"id": "al-999", "action": "Login", "note": "reviewed"})],
+            "audit_logs",
+            1,
+            false,
+        );
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "claroty",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect("Claroty audit_logs OQ-005 metadata_uid Tier-1 test must succeed");
+
+        // Wire-shape (1): top-level "metadata_uid" (Tier-1 String) contains "al-999".
+        // ocsf_field_to_arrow_name("metadata.uid") = "metadata_uid" (dot → underscore).
+        let meta_uid_col = batch.column_by_name("metadata_uid").expect(
+            "AC-010/OQ-005 (RG-021): Arrow field 'metadata_uid' MUST exist as a \
+                     top-level Tier-1 column; id routed via ocsf_field='metadata.uid'",
+        );
+        let meta_uid_arr = meta_uid_col
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("metadata_uid must be StringArray");
+        assert_eq!(
+            meta_uid_arr.value(0),
+            "al-999",
+            "AC-010/OQ-005 (RG-021): 'metadata_uid' Arrow field MUST contain 'al-999' \
+             (the id value routed as Tier-1 via ocsf_field='metadata.uid')"
+        );
+
+        // Wire-shape (2): "id" NOT in raw_extensions (it has ocsf_field → Tier-1, not Tier-2).
+        if let Some(raw_col) = batch.column_by_name("raw_extensions") {
+            if let Some(raw_arr) = raw_col.as_any().downcast_ref::<ArrowStringArray>() {
+                let raw_json: serde_json::Value =
+                    serde_json::from_str(raw_arr.value(0)).unwrap_or(serde_json::Value::Null);
+                assert!(
+                    raw_json.get("id").is_none(),
+                    "AC-010/OQ-005 (RG-021): 'id' MUST NOT appear in raw_extensions; \
+                     it is Tier-1 via ocsf_field='metadata.uid' (OQ-005 human decision \
+                     2026-08-21). Got raw_extensions: {raw_json}"
+                );
+            }
+        }
+
+        // Wire-shape (3): "activity_name" contains "Login" (action→activity_name mapping).
+        let action_col = batch
+            .column_by_name("activity_name")
+            .expect("RG-021: 'activity_name' Arrow field must exist");
+        let action_arr = action_col
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("activity_name must be StringArray");
+        assert_eq!(
+            action_arr.value(0),
+            "Login",
+            "AC-010/OQ-005 (RG-021): 'activity_name' must contain 'Login'"
+        );
+    }
+
+    /// RG-022 / AC-010 / BC-2.16.003 KF-06 — Claroty devices device_type → device_type_label
+    ///
+    /// Post-KF-06: `devices.device_type.ocsf_field = "device.type_label"`.
+    /// Arrow field must be "device_type_label" (not "device_type_name" pre-KF or "device_type").
+    ///
+    /// Demo-critical: `WHERE device_type_label = 'PLC'` requires this field.
+    ///
+    /// **Red gate:** OCSF branch is `todo!()` — panics.
+    #[test]
+    fn test_claroty_devices_device_type_produces_device_type_label_arrow_field() {
+        use arrow::array::StringArray as ArrowStringArray;
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+        let cols = vec![
+            ColumnSpec::new(
+                "device_uid",
+                ColumnType::String,
+                Some("device.uid".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "device_type",
+                ColumnType::String,
+                Some("device.type_label".to_string()),
+                vec![],
+            ), // KF-06
+        ];
+        let table = TableSpec::new_point_in_time(
+            "devices",
+            "inventory_info",
+            cols,
+            vec![minimal_fetch_step()],
+        );
+        let result = PipelineResult::new(
+            vec![serde_json::json!({"device_uid": "dev-001", "device_type": "PLC"})],
+            "devices",
+            1,
+            false,
+        );
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "claroty",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect("Claroty devices KF-06 device_type_label test must succeed");
+
+        // Wire-shape (1): "device_type_label" exists and contains "PLC".
+        let label_col = batch.column_by_name("device_type_label").expect(
+            "AC-010/KF-06 (RG-022): 'device_type_label' Arrow field must exist; \
+                     demo-critical for WHERE device_type_label = 'PLC'",
+        );
+        let label_arr = label_col
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .unwrap();
+        assert_eq!(
+            label_arr.value(0),
+            "PLC",
+            "AC-010/KF-06 (RG-022): 'device_type_label' must contain 'PLC'"
+        );
+        // Wire-shape (2): stale "device_type_name" must NOT exist.
+        assert!(
+            batch.column_by_name("device_type_name").is_none(),
+            "AC-010/KF-06 (RG-022): stale pre-KF 'device_type_name' \
+             (device.type_name absent from OCSF v1.7.0) MUST NOT exist"
+        );
+    }
+
+    /// RG-024 / AC-012 / ADR-058 §D1 — sensor_spec parameter compile-gate
+    ///
+    /// `pipeline_result_to_record_batch` must accept `sensor_spec: &SensorSpec` and
+    /// correctly route both branches (ocsf_column_naming=true → flattened, =false → col.name).
+    ///
+    /// The stub commit already added the parameter; this test now exercises the parameter
+    /// routing. The todo!() in the OCSF branch causes a panic on the true-branch call.
+    ///
+    /// **Red gate:** OCSF branch is `todo!()` — panics on the first call (ocsf_column_naming=true).
+    #[test]
+    fn test_pipeline_result_to_record_batch_sensor_spec_parameter_gates_both_branches() {
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec_true = ocsf_sensor_spec();
+
+        let col = ColumnSpec::new(
+            "id",
+            ColumnType::String,
+            Some("finding_info.uid".to_string()),
+            vec![],
+        );
+        let table = TableSpec::new_point_in_time(
+            "alerts",
+            "detection_finding",
+            vec![col],
+            vec![minimal_fetch_step()],
+        );
+
+        // Branch 1: ocsf_column_naming=true → Arrow field should be "finding_info_uid".
+        let result_true =
+            PipelineResult::new(vec![serde_json::json!({"id": "001"})], "alerts", 1, false);
+        let batch_true = super::pipeline_result_to_record_batch(
+            result_true,
+            &table,
+            "ocsf_test",
+            &std::collections::HashMap::new(),
+            &sensor_spec_true,
+        )
+        .expect("ocsf_column_naming=true branch must succeed");
+        assert!(
+            batch_true.column_by_name("finding_info_uid").is_some(),
+            "AC-012 (RG-024): ocsf_column_naming=true + ocsf_field='finding_info.uid' \
+             MUST produce Arrow field 'finding_info_uid' (flattened name)"
+        );
+
+        // Branch 2: ocsf_column_naming=false → Arrow field should be "id" (col.name).
+        let sensor_spec_false = SensorSpec::new(
+            "ocsf_test",
+            "OCSF Test",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![],
+            None,
+            "1.0.0",
+            vec![],
+        );
+        let col_false = ColumnSpec::new(
+            "id",
+            ColumnType::String,
+            Some("finding_info.uid".to_string()),
+            vec![],
+        );
+        let table_false = TableSpec::new_point_in_time(
+            "alerts",
+            "detection_finding",
+            vec![col_false],
+            vec![minimal_fetch_step()],
+        );
+        let result_false =
+            PipelineResult::new(vec![serde_json::json!({"id": "001"})], "alerts", 1, false);
+        let batch_false = super::pipeline_result_to_record_batch(
+            result_false,
+            &table_false,
+            "ocsf_test",
+            &std::collections::HashMap::new(),
+            &sensor_spec_false,
+        )
+        .expect("ocsf_column_naming=false branch must succeed");
+        assert!(
+            batch_false.column_by_name("id").is_some(),
+            "AC-012 (RG-024): ocsf_column_naming=false MUST use col.name 'id' as Arrow field name"
+        );
+    }
+
+    /// RG-026 / AC-007c / BC-2.16.003 EC-016-013-028 / ADR-058 §I2
+    ///
+    /// `pipeline_result_to_record_batch` MUST apply source_path extraction + ENRICH-1
+    /// normalization for `ocsf_field == None` columns in the raw_extensions aggregation,
+    /// NOT naive `r.get(col.name)`.
+    ///
+    /// Three sub-cases covering the §I2 structural risk:
+    ///
+    /// (A) ip_list with source_path = "$.ip_list[*]": string array elements → compact
+    ///     JSON-list STRING "[\"1.2.3.4\",\"10.0.0.1\"]".
+    ///     Naive `r.get("ip_list")` returns the raw JSON array → fails is_string() assertion.
+    ///
+    /// (B) vlan_list with source_path = "$.vlan_list[*]": integer elements [100, 200] → MUST
+    ///     be stringified per EC-016-013-026 ENRICH-1 DD-2: "[\"100\",\"200\"]",
+    ///     NOT "[100,200]". Each element inside the JSON-list string must be a JSON string,
+    ///     not a JSON number.
+    ///
+    /// (C) source_path root ≠ col.name guard (§I2 silent-empty-data risk):
+    ///     network_list (col.name) with source_path "$.network_segments[*]". The record
+    ///     has "network_segments" key but NO "network_list" key. Naive `r.get("network_list")`
+    ///     returns None → raw_extensions would lack "network_list" entirely (silent data loss).
+    ///     Source_path-aware extraction extracts from "$.network_segments[*]" correctly.
+    ///
+    /// Wire-shape assertions: all verified at the serialized raw_extensions JSON string level
+    /// (CLAUDE.md §Conventions wire-shape assertion discipline).
+    ///
+    /// **Red gate:** OCSF branch is `todo!()` — panics before any source_path/ENRICH-1 logic.
+    /// After todo!() removal, naive r.get(col.name) implementation:
+    ///   - (A) fails: ip_list value is a JSON array, not a String
+    ///   - (B) fails: vlan_list elements are JSON numbers 100/200, not strings "100"/"200"
+    ///   - (C) fails: no "network_list" key in raw_extensions (missed source_path≠col.name)
+    #[test]
+    fn test_claroty_devices_ip_list_in_raw_extensions_is_compact_json_list_string() {
+        use arrow::array::StringArray as ArrowStringArray;
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+
+        // Tier-1 column — device.uid anchor (entity_management class for inventory_info).
+        let col_uid = ColumnSpec::new(
+            "device_uid",
+            ColumnType::String,
+            Some("device.uid".to_string()),
+            vec![],
+        );
+
+        // (A) ip_list: source_path="$.ip_list[*]", ocsf_field=None → Tier-2 raw_extensions.
+        // source_path root == col.name. Production TOML shape: claroty.sensor.toml devices.
+        let mut col_ip_list = ColumnSpec::new("ip_list", ColumnType::String, None, vec![]);
+        col_ip_list.source_path = Some("$.ip_list[*]".to_string());
+
+        // (B) vlan_list: source_path="$.vlan_list[*]", integer elements → must be stringified.
+        // EC-016-013-026 ENRICH-1 DD-2: Value::Number → String in JSON-list output.
+        let mut col_vlan_list = ColumnSpec::new("vlan_list", ColumnType::String, None, vec![]);
+        col_vlan_list.source_path = Some("$.vlan_list[*]".to_string());
+
+        // (C) network_list: source_path root "$.network_segments" ≠ col.name "network_list".
+        // §I2 structural risk: naive r.get("network_list") returns None → silent data loss.
+        let mut col_network_list =
+            ColumnSpec::new("network_list", ColumnType::String, None, vec![]);
+        col_network_list.source_path = Some("$.network_segments[*]".to_string());
+
+        let table = TableSpec::new_point_in_time(
+            "devices",
+            "inventory_info",
+            vec![col_uid, col_ip_list, col_vlan_list, col_network_list],
+            vec![minimal_fetch_step()],
+        );
+
+        // Record: ip_list and vlan_list at their source_path roots;
+        // network_segments at the source_path root — no "network_list" key (§I2 guard).
+        let result = PipelineResult::new(
+            vec![serde_json::json!({
+                "device_uid": "dev-001",
+                "ip_list": ["1.2.3.4", "10.0.0.1"],
+                "vlan_list": [100, 200],
+                "network_segments": ["office-net", "vpn"]
+            })],
+            "devices",
+            1,
+            false,
+        );
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "claroty",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect("Claroty devices source_path + ENRICH-1 raw_extensions test must succeed");
+
+        // Extract raw_extensions column.
+        let raw_col = batch
+            .column_by_name("raw_extensions")
+            .expect("AC-007c (RG-026): 'raw_extensions' column must exist");
+        let raw_arr = raw_col
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("raw_extensions must be StringArray");
+        let raw_json: serde_json::Value = serde_json::from_str(raw_arr.value(0))
+            .expect("raw_extensions must be valid JSON object string");
+
+        // ── Sub-case (A): ip_list string array → compact JSON-list STRING ────────────────
+        let ip_list_val = raw_json.get("ip_list").expect(
+            "AC-007c (RG-026/A): raw_extensions MUST contain 'ip_list'. \
+             source_path='$.ip_list[*]' extracts from the ip_list array in the record.",
+        );
+        assert!(
+            ip_list_val.is_string(),
+            "AC-007c (RG-026/A): raw_extensions 'ip_list' value MUST be a STRING \
+             (compact JSON-list string), NOT a nested JSON array. \
+             Naive r.get(\"ip_list\") returns the raw JSON array — fails ENRICH-1 contract. \
+             Got: {ip_list_val:?}"
+        );
+        let ip_list_str = ip_list_val.as_str().unwrap();
+        // Wire-shape: exact compact JSON-list string.
+        assert_eq!(
+            ip_list_str, r#"["1.2.3.4","10.0.0.1"]"#,
+            "AC-007c (RG-026/A): ip_list compact JSON-list string must be \
+             '[\"1.2.3.4\",\"10.0.0.1\"]'; got: {ip_list_str:?}"
+        );
+
+        // ── Sub-case (B): vlan_list integer array → elements STRINGIFIED ─────────────────
+        // EC-016-013-026 ENRICH-1 DD-2: integer elements → string elements in JSON-list.
+        let vlan_val = raw_json.get("vlan_list").expect(
+            "AC-007c (RG-026/B): raw_extensions MUST contain 'vlan_list'. \
+             source_path='$.vlan_list[*]' extracts from the vlan_list integer array.",
+        );
+        assert!(
+            vlan_val.is_string(),
+            "AC-007c (RG-026/B): raw_extensions 'vlan_list' value MUST be a STRING. \
+             Got: {vlan_val:?}"
+        );
+        let vlan_str = vlan_val.as_str().unwrap();
+        // Wire-shape: exact compact JSON-list string with STRINGIFIED integer elements.
+        // "[\"100\",\"200\"]" NOT "[100,200]" — EC-016-013-026 ENRICH-1 integer stringification.
+        assert_eq!(
+            vlan_str, r#"["100","200"]"#,
+            "AC-007c (RG-026/B): vlan_list compact JSON-list string MUST stringify integer \
+             elements: '[\"100\",\"200\"]' per EC-016-013-026 ENRICH-1 DD-2. \
+             Got: {vlan_str:?}. '[100,200]' (number elements) is a contract violation."
+        );
+        // Extra guard: each element inside the JSON-list string must be a JSON string, not number.
+        let vlan_parsed: Vec<serde_json::Value> =
+            serde_json::from_str(vlan_str).expect("vlan_list string must parse as JSON array");
+        for (i, elem) in vlan_parsed.iter().enumerate() {
+            assert!(
+                elem.is_string(),
+                "AC-007c (RG-026/B): vlan_list element[{i}] must be a JSON STRING after \
+                 ENRICH-1 stringification; got {elem:?} (a number — contract violation)"
+            );
+        }
+
+        // ── Sub-case (C): source_path root ≠ col.name (§I2 silent-data-loss guard) ──────
+        // network_list (col.name) has source_path "$.network_segments[*]".
+        // Record has "network_segments" but NO "network_list" key.
+        // Naive r.get("network_list") → None → silent data loss.
+        // Correct source_path extraction → value from "$.network_segments[*]".
+        let net_val = raw_json.get("network_list").expect(
+            "AC-007c (RG-026/C): raw_extensions MUST contain 'network_list' key. \
+             The record has no 'network_list' key — only 'network_segments'. \
+             source_path='$.network_segments[*]' MUST route the data to 'network_list' \
+             in raw_extensions. Naive r.get(\"network_list\") returns None → silent data loss \
+             (§I2 structural risk).",
+        );
+        assert!(
+            net_val.is_string(),
+            "AC-007c (RG-026/C): raw_extensions 'network_list' value must be STRING. \
+             Got: {net_val:?}"
+        );
+        let net_str = net_val.as_str().unwrap();
+        assert_eq!(
+            net_str, r#"["office-net","vpn"]"#,
+            "AC-007c (RG-026/C): network_list compact JSON-list string must be \
+             '[\"office-net\",\"vpn\"]'; got: {net_str:?}"
+        );
+    }
+
+    /// F-P3-MED-1 / BC-2.16.003 EC-016-013-028 / SAP-1 catalog-parity:
+    ///
+    /// When a Tier-2 column's `source_path` extraction fails in the raw_extensions
+    /// aggregation loop (OCSF branch of `pipeline_result_to_record_batch`), the
+    /// warn emission MUST carry `event_type = "column_source_path_extraction_failed"`
+    /// with schema `{column, source_path, error}` — matching the `build_column_array`
+    /// `extract_raw` path.
+    ///
+    /// **Red gate:** current raw_extensions warn has no `event_type` field. The
+    /// WarnCapture below only collects events WITH `event_type`, so the captured
+    /// list stays empty → `assert!(!captured.is_empty())` FAILS before the fix.
+    /// After adding `event_type = "column_source_path_extraction_failed"`, the event
+    /// is captured and all assertions pass.
+    ///
+    /// This is a focused in-process unit test per SID-1 (no external dep, no #[ignore]).
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_raw_extensions_source_path_failure_emits_tagged_event_type() {
+        use std::sync::Mutex;
+        use tracing_subscriber::layer::SubscriberExt;
+
+        // ── WarnCapture: capture events bearing event_type + column + source_path ────────
+
+        #[derive(Default, Clone, Debug)]
+        struct WarnEvent {
+            event_type: Option<String>,
+            column: Option<String>,
+            source_path: Option<String>,
+            error: Option<String>,
+        }
+
+        #[derive(Default)]
+        struct WarnFieldVisitor {
+            event: WarnEvent,
+        }
+
+        impl tracing::field::Visit for WarnFieldVisitor {
+            fn record_str(&mut self, field: &tracing::field::Field, val: &str) {
+                match field.name() {
+                    "event_type" => self.event.event_type = Some(val.to_owned()),
+                    _ => {}
+                }
+            }
+            fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+                let s = format!("{value:?}");
+                match field.name() {
+                    "event_type" => {
+                        if self.event.event_type.is_none() {
+                            self.event.event_type = Some(s);
+                        }
+                    }
+                    "column" => {
+                        if self.event.column.is_none() {
+                            self.event.column = Some(s);
+                        }
+                    }
+                    "source_path" => {
+                        if self.event.source_path.is_none() {
+                            self.event.source_path = Some(s);
+                        }
+                    }
+                    "error" => {
+                        if self.event.error.is_none() {
+                            self.event.error = Some(s);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        struct WarnCapture {
+            events: Arc<Mutex<Vec<WarnEvent>>>,
+        }
+
+        impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for WarnCapture {
+            fn on_event(
+                &self,
+                event: &tracing::Event<'_>,
+                _ctx: tracing_subscriber::layer::Context<'_, S>,
+            ) {
+                if *event.metadata().level() == tracing::Level::WARN {
+                    let mut visitor = WarnFieldVisitor::default();
+                    event.record(&mut visitor);
+                    // Only collect events carrying an event_type field (SAP-1 / catalog rows).
+                    if visitor.event.event_type.is_some() {
+                        self.events.lock().unwrap().push(visitor.event);
+                    }
+                }
+            }
+        }
+
+        // ── Setup ─────────────────────────────────────────────────────────────────────
+
+        let sensor_spec = ocsf_sensor_spec();
+
+        // Tier-1 column (has ocsf_field → goes to regular schema, not raw_extensions).
+        let col_uid = ColumnSpec::new(
+            "device_uid",
+            ColumnType::String,
+            Some("device.uid".to_string()),
+            vec![],
+        );
+
+        // Tier-2 column with a source_path that will FAIL for the record below.
+        // Record has no "nonexistent_key" → extract_at_path returns Err → warn fires.
+        let mut col_bad = ColumnSpec::new("bad_col", ColumnType::String, None, vec![]);
+        col_bad.source_path = Some("$.nonexistent_key[*]".to_string());
+
+        let table = TableSpec::new_point_in_time(
+            "devices",
+            "inventory_info",
+            vec![col_uid, col_bad],
+            vec![minimal_fetch_step()],
+        );
+
+        let result = prism_spec_engine::pipeline::PipelineResult::new(
+            vec![serde_json::json!({ "device_uid": "dev-001" })], // no "nonexistent_key"
+            "devices",
+            1,
+            false,
+        );
+
+        // ── Execute under tracing subscriber ─────────────────────────────────────────
+
+        let captured: Arc<Mutex<Vec<WarnEvent>>> = Arc::new(Mutex::new(Vec::new()));
+        let layer = WarnCapture {
+            events: captured.clone(),
+        };
+        let subscriber = tracing_subscriber::registry().with(layer);
+
+        tracing::subscriber::with_default(subscriber, || {
+            super::pipeline_result_to_record_batch(
+                result,
+                &table,
+                "claroty",
+                &std::collections::HashMap::new(),
+                &sensor_spec,
+            )
+            .expect("pipeline_result_to_record_batch must succeed even when source_path fails")
+        });
+
+        // ── Assertions ────────────────────────────────────────────────────────────────
+
+        let warnings = captured.lock().unwrap();
+
+        // (1) F-P3-MED-1 RED GATE: before fix, no event_type in raw_extensions warn →
+        //     WarnCapture ignores it → list is empty → this assertion fails.
+        //     After fix: event_type = "column_source_path_extraction_failed" is present →
+        //     event captured → list non-empty → assertion passes.
+        assert!(
+            !warnings.is_empty(),
+            "F-P3-MED-1: raw_extensions source_path failure MUST emit \
+             event_type=\"column_source_path_extraction_failed\" (SAP-1 catalog parity). \
+             Got 0 tagged WARN events — the warn in the OCSF raw_extensions aggregation \
+             loop must carry event_type like the build_column_array extract_raw path does."
+        );
+
+        // (2) The captured event must be specifically column_source_path_extraction_failed.
+        let ev = &warnings[0];
+        assert_eq!(
+            ev.event_type.as_deref(),
+            Some("column_source_path_extraction_failed"),
+            "F-P3-MED-1: captured event_type must be 'column_source_path_extraction_failed'; \
+             got: {:?}",
+            ev.event_type
+        );
+
+        // (3) The `column` field must be present (= "bad_col").
+        assert!(
+            ev.column.is_some(),
+            "F-P3-MED-1: warn must include `column` field; got None"
+        );
+        assert!(
+            ev.column.as_deref().unwrap().contains("bad_col"),
+            "F-P3-MED-1: `column` field must contain 'bad_col'; got: {:?}",
+            ev.column
+        );
+
+        // (4) The `source_path` field must be present (= "$.nonexistent_key[*]").
+        assert!(
+            ev.source_path.is_some(),
+            "F-P3-MED-1: warn must include `source_path` field; got None"
+        );
+        assert!(
+            ev.source_path
+                .as_deref()
+                .unwrap()
+                .contains("nonexistent_key"),
+            "F-P3-MED-1: `source_path` field must contain 'nonexistent_key'; got: {:?}",
+            ev.source_path
+        );
+
+        // (5) The `error` field must be present (non-empty extract_at_path error msg).
+        assert!(
+            ev.error.is_some(),
+            "F-P3-MED-1: warn must include `error` field; got None"
+        );
+    }
+
+    /// RG-027 / AC-013 / ADR-058 v2.26 §J2 / BC-2.16.003 EC-016-013-029
+    ///
+    /// When any `ocsf_field` flattens to one of the four reserved synthesized Arrow
+    /// column names (`class_uid`, `category_uid`, `_sensor`, `raw_extensions`),
+    /// `pipeline_result_to_record_batch` MUST return `Err(ArrowError::SchemaError)`.
+    ///
+    /// This prevents user-declared `ocsf_field` from silently colliding with
+    /// synthesized columns (silent wrong-column resolution in DataFusion).
+    ///
+    /// **Red gate:** §J2 guard does not exist — currently returns Ok (fails assertion).
+    #[test]
+    fn test_pipeline_result_to_record_batch_ocsf_field_flattens_to_reserved_name_returns_error() {
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+
+        // Sub-case 1: ocsf_field = "class.uid" → flattens to "class_uid" (reserved).
+        let col_class_uid = ColumnSpec::new(
+            "vendor_class",
+            ColumnType::String,
+            Some("class.uid".to_string()), // flattens to "class_uid"
+            vec![],
+        );
+        let table_class = TableSpec::new_point_in_time(
+            "test",
+            "detection_finding",
+            vec![col_class_uid],
+            vec![minimal_fetch_step()],
+        );
+        let result_class = PipelineResult::new(
+            vec![serde_json::json!({"vendor_class": "finding"})],
+            "test",
+            1,
+            false,
+        );
+        assert!(
+            super::pipeline_result_to_record_batch(
+                result_class,
+                &table_class,
+                "test",
+                &std::collections::HashMap::new(),
+                &sensor_spec,
+            )
+            .is_err(),
+            "AC-013 (RG-027): ocsf_field='class.uid' → 'class_uid' (synthesized reserved name) \
+             MUST return Err(ArrowError::SchemaError). Without this guard, 'class_uid' would \
+             have two Arrow columns — the synthesized one and the user-declared one."
+        );
+
+        // Sub-case 2: ocsf_field = "category.uid" → flattens to "category_uid" (reserved).
+        let col_cat_uid = ColumnSpec::new(
+            "vendor_cat",
+            ColumnType::String,
+            Some("category.uid".to_string()), // flattens to "category_uid"
+            vec![],
+        );
+        let table_cat = TableSpec::new_point_in_time(
+            "test",
+            "detection_finding",
+            vec![col_cat_uid],
+            vec![minimal_fetch_step()],
+        );
+        let result_cat = PipelineResult::new(
+            vec![serde_json::json!({"vendor_cat": "1"})],
+            "test",
+            1,
+            false,
+        );
+        assert!(
+            super::pipeline_result_to_record_batch(
+                result_cat,
+                &table_cat,
+                "test",
+                &std::collections::HashMap::new(),
+                &sensor_spec,
+            )
+            .is_err(),
+            "AC-013 (RG-027): ocsf_field='category.uid' → 'category_uid' MUST return Err"
+        );
+
+        // Sub-case 3: ocsf_field = "_sensor" → flattens to "_sensor" (reserved, single-segment).
+        let col_sensor = ColumnSpec::new(
+            "vendor_sensor",
+            ColumnType::String,
+            Some("_sensor".to_string()), // single-segment, already equals reserved name
+            vec![],
+        );
+        let table_sensor = TableSpec::new_point_in_time(
+            "test",
+            "detection_finding",
+            vec![col_sensor],
+            vec![minimal_fetch_step()],
+        );
+        let result_sensor = PipelineResult::new(
+            vec![serde_json::json!({"vendor_sensor": "claroty"})],
+            "test",
+            1,
+            false,
+        );
+        assert!(
+            super::pipeline_result_to_record_batch(
+                result_sensor,
+                &table_sensor,
+                "test",
+                &std::collections::HashMap::new(),
+                &sensor_spec,
+            )
+            .is_err(),
+            "AC-013 (RG-027): ocsf_field='_sensor' → '_sensor' MUST return Err"
+        );
+
+        // Sub-case 4: ocsf_field = "raw.extensions" → flattens to "raw_extensions" (reserved).
+        let col_raw = ColumnSpec::new(
+            "vendor_raw",
+            ColumnType::String,
+            Some("raw.extensions".to_string()), // flattens to "raw_extensions"
+            vec![],
+        );
+        let table_raw = TableSpec::new_point_in_time(
+            "test",
+            "detection_finding",
+            vec![col_raw],
+            vec![minimal_fetch_step()],
+        );
+        let result_raw = PipelineResult::new(
+            vec![serde_json::json!({"vendor_raw": "blob"})],
+            "test",
+            1,
+            false,
+        );
+        assert!(
+            super::pipeline_result_to_record_batch(
+                result_raw,
+                &table_raw,
+                "test",
+                &std::collections::HashMap::new(),
+                &sensor_spec,
+            )
+            .is_err(),
+            "AC-013 (RG-027): ocsf_field='raw.extensions' → 'raw_extensions' MUST return Err"
+        );
+    }
+
+    /// RG-Q-015 (ADR-058 §I7 shape-exception binding) — `pipeline_result_to_record_batch`
+    /// Arrow schema field-names MUST agree with `ocsf_projected_column_names(table, true)`.
+    ///
+    /// `pipeline_result_to_record_batch` is a documented ADR-058 §I7 shape-exception site:
+    /// it cannot fully delegate to `ocsf_projected_column_names` because it must build full
+    /// Arrow `Field` objects with typed schema and populate per-column arrays. However,
+    /// the **field-name set** in the produced Arrow schema MUST equal the name set from
+    /// the canonical helper.
+    ///
+    /// Without this binding test, the two surfaces could drift independently, causing
+    /// DataFusion to see a different schema from what `prism_describe` and the registry
+    /// advertise, leading to silent query failures at runtime.
+    ///
+    /// Uses a 2-Tier-1 + 1-Tier-2 OCSF spec (same pattern as the prism-mcp binding test)
+    /// and calls `pipeline_result_to_record_batch` directly (in-module access).
+    ///
+    /// # Expected result
+    ///
+    /// PASS — sites currently agree (the invariant is being upheld). This test is a
+    /// forward-looking GATE: if the OCSF branch drifts from the helper in a future change,
+    /// this test will fail and catch the drift before runtime.
+    ///
+    /// ADR-058 §I7; S-ADR058-OCSF-ROUTING-001.
+    #[test]
+    fn test_RG_Q_015_record_batch_schema_names_agree_with_projection_helper() {
+        use prism_spec_engine::column_mapping::ocsf_projected_column_names;
+        use prism_spec_engine::pipeline::PipelineResult;
+
+        let sensor_spec = ocsf_sensor_spec();
+
+        // 2 Tier-1 columns + 1 Tier-2 column — same topology as the prism-mcp binding test.
+        let cols = vec![
+            ColumnSpec::new(
+                "finding_uid_raw",
+                ColumnType::String,
+                Some("finding.uid".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "actor_user",
+                ColumnType::String,
+                Some("actor.user.name".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "vendor_raw_blob",
+                ColumnType::String,
+                None, // Tier-2: no ocsf_field → aggregated into raw_extensions
+                vec![],
+            ),
+        ];
+        let table = TableSpec::new_point_in_time(
+            "alerts",
+            "detection_finding",
+            cols,
+            vec![minimal_fetch_step()],
+        );
+
+        // Helper path: canonical name set.
+        let mut helper_names = ocsf_projected_column_names(&table, true);
+        helper_names.sort();
+
+        // pipeline_result_to_record_batch path: produce an actual RecordBatch.
+        // One record is sufficient; we only care about the schema field names.
+        let result = PipelineResult::new(
+            vec![
+                serde_json::json!({"finding_uid_raw": "fid-001", "actor_user": "alice", "vendor_raw_blob": "blob"}),
+            ],
+            "alerts",
+            1,
+            false,
+        );
+
+        let batch = super::pipeline_result_to_record_batch(
+            result,
+            &table,
+            "rg015-sensor",
+            &std::collections::HashMap::new(),
+            &sensor_spec,
+        )
+        .expect(
+            "RG-Q-015 (prism-bin): pipeline_result_to_record_batch with ocsf_column_naming=true \
+             and valid columns must succeed",
+        );
+
+        // Arrow schema path: extract and sort field names from the produced schema.
+        let mut schema_names: Vec<String> = batch
+            .schema()
+            .fields()
+            .iter()
+            .map(|f| f.name().clone())
+            .collect();
+        schema_names.sort();
+
+        // ADR-058 §I7 invariant: sorted name sets must be byte-equal.
+        assert_eq!(
+            schema_names, helper_names,
+            "RG-Q-015 (ADR-058 §I7 shape-exception binding — prism-bin): \
+             pipeline_result_to_record_batch Arrow schema field-names MUST agree with \
+             ocsf_projected_column_names(table, true) when sorted. \
+             Drift means DataFusion exposes a different column set from what \
+             prism_describe and the table registry advertise, causing silent query failures. \
+             schema_names (pipeline_result_to_record_batch): {:?}. \
+             helper_names (ocsf_projected_column_names): {:?}.",
+            schema_names, helper_names
         );
     }
 }

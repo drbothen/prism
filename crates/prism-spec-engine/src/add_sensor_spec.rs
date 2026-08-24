@@ -39,6 +39,21 @@ static SENSOR_ID_RE: LazyLock<Regex> = LazyLock::new(|| {
         .expect("SEC-001 sensor_id regex must compile — pattern is a literal constant")
 });
 
+/// BC-2.16.003 §J5 (ADR-058 §J8): Regex for validating `ocsf_field` values at spec-load.
+///
+/// `ocsf_field` strings must contain only ASCII letters, digits, underscores, and dots.
+/// Any other character (space, hyphen, slash, etc.) is rejected BEFORE `ocsf_field_to_arrow_name`
+/// runs, so that the flattening logic never receives malformed input.
+///
+/// Pattern: `^[A-Za-z0-9_.]+$` (non-empty; every character must be in the allowed set).
+/// Valid examples: `"finding_info.uid"`, `"device.type"`, `"class.uid"`.
+/// Invalid: `"finding info.uid"` (space), `"finding-info.uid"` (hyphen).
+static OCSF_FIELD_CHARSET_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^[A-Za-z0-9_.]+$").expect(
+        "BC-2.16.003 §J5 ocsf_field charset regex must compile — pattern is a literal constant",
+    )
+});
+
 /// Parse and validate a TOML spec string.
 /// Returns the parsed `spec_parser::SensorSpec` or a list of validation errors.
 ///
@@ -143,11 +158,180 @@ pub fn parse_and_validate_spec_toml(
         }]);
     }
 
+    // BC-2.16.003 §J1/§J2/§J4 — Rule 8: OCSF column collision validation.
+    //
+    // Runs AFTER all other validation rules. Validates that no Tier-1 column's
+    // `ocsf_field_to_arrow_name` result collides with:
+    //   §J2 — an ADR-058 §G reserved synthesized-pseudo-column name
+    //   §J4 — another Tier-1 column in the same table (intra-table duplicate)
+    //   §J1 — any other column's raw `col.name` (shadow collision; Tier-1 or Tier-2)
+    // Only active when `ocsf_column_naming = true`. E-SPEC-030. S-ADR058-OCSF-ROUTING-001 AC-021.
+    {
+        let collision_errors = validate_ocsf_column_collisions(&spec);
+        if !collision_errors.is_empty() {
+            return Err(vec![ValidationError {
+                sensor_id: Some(spec.sensor_id.clone()),
+                source_path: source_path.to_string(),
+                errors: collision_errors,
+            }]);
+        }
+    }
+
     // Note: `file_hash`, `source_path`, and `mode` are NOT set here — they are
     // post-parse metadata set by the caller (config_manager, hot_reload, add_sensor_spec).
     // The returned spec has `file_hash = ""`, `source_path = ""`, `mode = DtuMode::Shared`
     // (defaults from #[serde(default)]). The caller overwrites these fields after this call.
     Ok(spec)
+}
+
+/// BC-2.16.003 §J1/§J2/§J4 — OCSF column collision validation (Rule 8).
+///
+/// Checks all tables in `spec` for three classes of OCSF arrow-name collision:
+///
+/// - §J2 Reserved-name collision: a Tier-1 column's `ocsf_field_to_arrow_name` result equals
+///   one of the ADR-058 §G reserved synthesized-pseudo-column names
+///   (`class_uid`, `category_uid`, `_sensor`, `raw_extensions`).
+///
+/// - §J4 Intra-table duplicate: two different Tier-1 columns in the same table flatten to the
+///   same arrow name via `ocsf_field_to_arrow_name`.
+///
+/// - §J1 Shadow collision: a Tier-1 column's arrow name equals the raw `col.name` of any
+///   other column in the same table (Tier-1 or Tier-2), with a self-match exclusion
+///   (a Tier-1 column whose arrow name equals its own `col.name` is not a shadow).
+///   §J4 duplicates are not double-reported as §J1: when the shadowed column is itself a
+///   Tier-1 column whose arrow_name equals the current column's arrow_name, the conflict is
+///   already categorised as §J4 and is skipped here.
+///
+/// Returns a `Vec<String>` of E-SPEC-030 error messages (one per collision found).
+/// Returns an empty `Vec` when there are no collisions or when
+/// `spec.ocsf_column_naming == false` (OCSF arrow names are not in use).
+///
+/// Called only when `spec.ocsf_column_naming == true` (checked by the caller).
+///
+/// Error format templates:
+///   §J2: `E-SPEC-030 [§J2] sensor={} table={}: ocsf_field "{}" flattens to reserved name "{}"`
+///   §J4: `E-SPEC-030 [§J4] sensor={} table={}: columns "{}" and "{}" both flatten to "{}"`
+///   §J1: `E-SPEC-030 [§J1] sensor={} table={}: ocsf_field "{}" flattens to "{}" which shadows col.name of column "{}"`
+fn validate_ocsf_column_collisions(spec: &SensorSpec) -> Vec<String> {
+    if !spec.ocsf_column_naming {
+        return Vec::new();
+    }
+
+    const RESERVED: &[&str] = &["class_uid", "category_uid", "_sensor", "raw_extensions"];
+
+    let mut errors: Vec<String> = Vec::new();
+
+    for table in &spec.tables {
+        let sensor_id = &spec.sensor_id;
+        let table_name = &table.table_name;
+
+        // Collect Tier-1 columns (ocsf_field=Some).
+        let tier1_cols: Vec<(&str, &str)> = table
+            .columns
+            .iter()
+            .filter_map(|c| c.ocsf_field.as_deref().map(|f| (c.name.as_str(), f)))
+            .collect();
+
+        // Build arrow-name map: arrow_name → (col_name, ocsf_field) for Tier-1 cols.
+        // Detect §J2 and §J4 in a single pass.
+        let mut seen: std::collections::HashMap<String, (&str, &str)> =
+            std::collections::HashMap::new();
+
+        for (col_name, ocsf_field) in &tier1_cols {
+            // §J5 (ADR-058 §J8: first inner-loop check) — charset validation.
+            //
+            // Runs BEFORE ocsf_field_to_arrow_name so malformed `ocsf_field` values never
+            // enter the flattening logic. Any character outside [A-Za-z0-9_.] is rejected
+            // with E-SPEC-030 [§J5]. The `continue` after pushing the error skips §J2/§J4/§J1
+            // for this field — those checks are only meaningful for well-formed fields.
+            if !OCSF_FIELD_CHARSET_RE.is_match(ocsf_field) {
+                // Truncate to 200 bytes for the error message (find safe UTF-8 boundary).
+                let display_field = if ocsf_field.len() <= 200 {
+                    ocsf_field
+                } else {
+                    let mut end = 200;
+                    while end > 0 && !ocsf_field.is_char_boundary(end) {
+                        end -= 1;
+                    }
+                    &ocsf_field[..end]
+                };
+                errors.push(format!(
+                    "E-SPEC-030 [§J5] sensor={sensor_id} table={table_name}: \
+                     ocsf_field \"{display_field}\" contains characters outside the allowed set [A-Za-z0-9_.]+"
+                ));
+                continue;
+            }
+            let arrow_name = crate::column_mapping::ocsf_field_to_arrow_name(ocsf_field);
+
+            // §J2: reserved-name collision.
+            if RESERVED.contains(&arrow_name.as_str()) {
+                errors.push(format!(
+                    "E-SPEC-030 [§J2] sensor={sensor_id} table={table_name}: \
+                     ocsf_field \"{ocsf_field}\" flattens to reserved name \"{arrow_name}\""
+                ));
+                // Do not add to `seen` — the reserved name itself is not an ordinary column.
+                continue;
+            }
+
+            // §J4: intra-table duplicate (two Tier-1 cols produce the same arrow name).
+            if let Some((prior_col_name, _prior_ocsf_field)) = seen.get(&arrow_name) {
+                // Only emit §J4 if it was not already emitted for this arrow_name in this table
+                // (the map keeps only the first encounter; the second encounter fires the error).
+                // M1 fix (POL-24 verbatim template): no (ocsf_field="...") annotations —
+                // error-taxonomy.md E-SPEC-030 §J4 template uses raw col.names only.
+                errors.push(format!(
+                    "E-SPEC-030 [§J4] sensor={sensor_id} table={table_name}: \
+                     columns \"{prior_col_name}\" and \"{col_name}\" both flatten to \"{arrow_name}\""
+                ));
+                // Leave the first entry in `seen` so further duplicates also fire.
+            } else {
+                seen.insert(arrow_name.clone(), (col_name, ocsf_field));
+            }
+
+            // §J1: shadow collision — Tier-1 arrow name equals the raw `col.name` of any
+            // other column in the table (Tier-1 OR Tier-2), with two exclusions:
+            //
+            //   1. Self-match: skip when the other column IS the current column
+            //      (identified by col.name == *col_name). A Tier-1 column whose
+            //      arrow_name happens to equal its own col.name is not a shadow.
+            //
+            //   2. §J4 double-report avoidance: skip when the other column is Tier-1
+            //      and produces the SAME arrow_name as the current column — that
+            //      conflict is already categorised as §J4 and must not be re-reported.
+            //
+            // This mirrors the runtime guard in `pipeline_result_to_record_batch`
+            // (prism-bin::spec_driven_adapter §J1 block) which builds `all_col_names`
+            // from ALL table columns and applies the A ≠ B self-exclusion.
+            for other_col in &table.columns {
+                // Self-exclusion (1): skip the current column itself.
+                if other_col.name == *col_name {
+                    continue;
+                }
+                if arrow_name == other_col.name {
+                    // §J4 double-report avoidance (2): if the other col is Tier-1 and
+                    // also flattens to the same arrow_name, this pair is already covered
+                    // by §J4 — skip to avoid emitting two different error codes for the
+                    // same underlying conflict.
+                    let shadowed_is_j4_duplicate = other_col
+                        .ocsf_field
+                        .as_deref()
+                        .map(|f| crate::column_mapping::ocsf_field_to_arrow_name(f) == arrow_name)
+                        .unwrap_or(false);
+                    if shadowed_is_j4_duplicate {
+                        continue;
+                    }
+                    errors.push(format!(
+                        "E-SPEC-030 [§J1] sensor={sensor_id} table={table_name}: \
+                         ocsf_field \"{ocsf_field}\" flattens to \"{arrow_name}\" \
+                         which shadows col.name of column \"{}\"",
+                        other_col.name
+                    ));
+                }
+            }
+        }
+    }
+
+    errors
 }
 
 /// Generate a write-gate confirmation token for updating an existing spec.
@@ -522,5 +706,603 @@ mod tests {
                 "SEC-001: production sensor_id '{id}' must be accepted; got: {result:?}"
             );
         }
+    }
+
+    // ── RG-Q-012 / RG-Q-013 / RG-Q-014 — OCSF collision validation (Rule 8) ──
+    //
+    // These three tests exercise BC-2.16.003 §J1/§J2/§J4 (E-SPEC-030 sub-cases).
+    // Rule 8 (`validate_ocsf_column_collisions`) is wired into `parse_and_validate_spec_toml`
+    // (S-ADR058-OCSF-ROUTING-001 fix burst). `parse_and_validate_spec_toml` calls
+    // `validate_ocsf_column_collisions` as Rule 8; the collision is detected and a
+    // `Vec<ValidationError>` containing `"E-SPEC-030 [§Jn]"` is returned.
+    // All three tests are GREEN (was RED pre-fix: rule was not wired).
+
+    /// RG-Q-012 — E-SPEC-030 §J2: reserved-name collision must be rejected at spec-load time.
+    ///
+    /// A column whose `ocsf_field` value flattens to `"class_uid"` (a synthesized
+    /// pseudo-column name) collides with the ADR-058 §G reserved name.
+    ///
+    /// `ocsf_field_to_arrow_name("class.uid")` → `"class_uid"` (reserved).
+    ///
+    /// # Red Gate failure (pre-fix)
+    ///
+    /// Rule 8 is not wired → `parse_and_validate_spec_toml` returns `Ok(spec)` →
+    /// `result.is_err()` assertion fails → RED.
+    ///
+    /// # Post-fix expected behaviour
+    ///
+    /// `parse_and_validate_spec_toml` returns `Err([ValidationError { errors: ["E-SPEC-030
+    /// [§J2] sensor=collision-j2 table=events: ocsf_field \"class.uid\" flattens to reserved
+    /// name \"class_uid\""] }])`.
+    ///
+    /// BC: BC-2.16.003 §J2 / error-taxonomy.md E-SPEC-030 §J2.
+    #[test]
+    fn test_BC_2_16_003_ocsf_collision_j2_reserved_name_rejected_at_spec_load() {
+        let collision_j2_toml = r#"
+sensor_id = "collision-j2"
+name = "Collision Test J2"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "my_class_uid"
+  column_type = "string"
+  ocsf_field = "class.uid"
+"#;
+
+        let result = parse_and_validate_spec_toml(collision_j2_toml, "<test-j2>");
+
+        // Primary RED gate assertion: collision detection must cause Err.
+        // Pre-fix: returns Ok (Rule 8 not wired) → this fails → RED.
+        assert!(
+            result.is_err(),
+            "RG-Q-012 (BC-2.16.003 §J2): spec with ocsf_field \"class.uid\" (flattens to \
+             reserved name \"class_uid\") must be rejected by parse_and_validate_spec_toml \
+             with E-SPEC-030 [§J2]. Pre-fix: returns Ok (Rule 8 not yet wired). \
+             Got Ok: {:?}",
+            result.ok()
+        );
+
+        // Post-fix assertions: verify the error message contains the expected E-SPEC-030 §J2
+        // sub-case with correct sensor, table, field, and arrow name identifiers.
+        let errs = result.unwrap_err();
+        let all_error_text = errs
+            .iter()
+            .flat_map(|ve| ve.errors.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+        assert!(
+            all_error_text.contains("E-SPEC-030"),
+            "RG-Q-012: error must contain error code 'E-SPEC-030'; got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("J2") || all_error_text.contains("§J2"),
+            "RG-Q-012: error must identify the §J2 sub-case (reserved name); got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("class_uid"),
+            "RG-Q-012: error must name the reserved arrow name 'class_uid'; got: {all_error_text}"
+        );
+    }
+
+    /// RG-Q-013 — E-SPEC-030 §J4: intra-table duplicate arrow names must be rejected at spec-load.
+    ///
+    /// Two columns with different `ocsf_field` values that both flatten to the same
+    /// Arrow name constitute a duplicate.
+    ///
+    /// `ocsf_field_to_arrow_name("finding.uid")` → `"finding_uid"`
+    /// `ocsf_field_to_arrow_name("finding_uid")` → `"finding_uid"` (no dots, unchanged)
+    ///
+    /// # Red Gate failure (pre-fix)
+    ///
+    /// Rule 8 not wired → `parse_and_validate_spec_toml` returns `Ok(spec)` →
+    /// `result.is_err()` assertion fails → RED.
+    ///
+    /// # Post-fix expected behaviour
+    ///
+    /// Returns `Err` with E-SPEC-030 §J4, naming both `"col_a"` and `"col_b"` and the
+    /// duplicate arrow name `"finding_uid"`.
+    ///
+    /// BC: BC-2.16.003 §J4 / error-taxonomy.md E-SPEC-030 §J4.
+    #[test]
+    fn test_BC_2_16_003_ocsf_collision_j4_intra_table_duplicate_rejected_at_spec_load() {
+        let collision_j4_toml = r#"
+sensor_id = "collision-j4"
+name = "Collision Test J4"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "col_a"
+  column_type = "string"
+  ocsf_field = "finding.uid"
+
+  [[tables.columns]]
+  name = "col_b"
+  column_type = "string"
+  ocsf_field = "finding_uid"
+"#;
+        // Both "finding.uid" and "finding_uid" flatten to "finding_uid" — §J4 duplicate.
+
+        let result = parse_and_validate_spec_toml(collision_j4_toml, "<test-j4>");
+
+        // Primary RED gate assertion.
+        // Pre-fix: returns Ok (Rule 8 not wired) → this fails → RED.
+        assert!(
+            result.is_err(),
+            "RG-Q-013 (BC-2.16.003 §J4): spec where two columns both flatten to \
+             'finding_uid' (via ocsf_field_to_arrow_name) must be rejected with \
+             E-SPEC-030 [§J4]. Pre-fix: returns Ok (Rule 8 not yet wired). \
+             Got Ok: {:?}",
+            result.ok()
+        );
+
+        // Post-fix assertions: verify the §J4 sub-case with correct identifiers.
+        let errs = result.unwrap_err();
+        let all_error_text = errs
+            .iter()
+            .flat_map(|ve| ve.errors.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+        assert!(
+            all_error_text.contains("E-SPEC-030"),
+            "RG-Q-013: error must contain error code 'E-SPEC-030'; got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("J4") || all_error_text.contains("§J4"),
+            "RG-Q-013: error must identify the §J4 sub-case (intra-table duplicate); \
+             got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("finding_uid"),
+            "RG-Q-013: error must name the duplicate arrow name 'finding_uid'; \
+             got: {all_error_text}"
+        );
+
+        // ── M1 (POL-24 verbatim template) ────────────────────────────────────────
+        // error-taxonomy.md v2.79 E-SPEC-030 §J4 template (b):
+        //   `E-SPEC-030 [§J4] sensor=<id> table=<tbl>: columns "<col_a>" and "<col_b>" both flatten to "<arrow_name>"`
+        //
+        // Current code inserts `(ocsf_field="...")` clauses after each column name,
+        // producing:
+        //   `... columns "col_a" (ocsf_field="finding.uid") and "col_b" (ocsf_field="finding_uid") both flatten to ...`
+        //
+        // Both assertions below FAIL against the current code (RED gate for M1).
+        assert!(
+            !all_error_text.contains("(ocsf_field="),
+            "RG-Q-013 (M1 verbatim-template): §J4 error message MUST NOT contain \
+             '(ocsf_field=...' clauses — error-taxonomy.md E-SPEC-030 §J4 template is \
+             `columns \"<col_a>\" and \"<col_b>\" both flatten to \"<arrow_name>\"` with \
+             no ocsf_field annotation. Current code inserts these extra clauses. \
+             Got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains(r#"columns "col_a" and "col_b" both flatten to "finding_uid""#),
+            "RG-Q-013 (M1 verbatim-template): §J4 error message MUST match the \
+             error-taxonomy.md template shape \
+             `columns \"col_a\" and \"col_b\" both flatten to \"finding_uid\"` verbatim. \
+             Current code inserts '(ocsf_field=...)' between the column names, breaking \
+             the verbatim match. Got: {all_error_text}"
+        );
+    }
+
+    /// RG-Q-014 — E-SPEC-030 §J1: shadow collision (Tier-1 arrow name ↔ Tier-2 col.name) must
+    /// be rejected at spec-load time.
+    ///
+    /// A Tier-1 column's arrow name shadows a Tier-2 column's raw `col.name`:
+    ///
+    ///   Col A: `name = "raw_device"`, `ocsf_field = "device.info"` →
+    ///          arrow name = `ocsf_field_to_arrow_name("device.info")` = `"device_info"` (Tier-1)
+    ///
+    ///   Col B: `name = "device_info"`, no `ocsf_field` →
+    ///          raw col.name = `"device_info"` (Tier-2, goes to `raw_extensions`)
+    ///
+    /// Col A's arrow name `"device_info"` shadows Col B's raw `col.name` `"device_info"`.
+    ///
+    /// # Red Gate failure (pre-fix)
+    ///
+    /// Rule 8 not wired → returns `Ok` → `is_err()` assertion fails → RED.
+    ///
+    /// # Post-fix expected behaviour
+    ///
+    /// Returns `Err` with E-SPEC-030 §J1, naming the ocsf_field, the flattened arrow name,
+    /// and the shadowed Tier-2 column name.
+    ///
+    /// BC: BC-2.16.003 §J1 / error-taxonomy.md E-SPEC-030 §J1.
+    #[test]
+    fn test_BC_2_16_003_ocsf_collision_j1_shadow_rejected_at_spec_load() {
+        let collision_j1_toml = r#"
+sensor_id = "collision-j1"
+name = "Collision Test J1"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "raw_device"
+  column_type = "string"
+  ocsf_field = "device.info"
+
+  [[tables.columns]]
+  name = "device_info"
+  column_type = "integer"
+"#;
+        // Col A ocsf arrow name "device_info" shadows Col B raw col.name "device_info" — §J1.
+
+        let result = parse_and_validate_spec_toml(collision_j1_toml, "<test-j1>");
+
+        // Primary RED gate assertion.
+        // Pre-fix: returns Ok (Rule 8 not wired) → this fails → RED.
+        assert!(
+            result.is_err(),
+            "RG-Q-014 (BC-2.16.003 §J1): spec where Tier-1 arrow name 'device_info' \
+             (ocsf_field_to_arrow_name(\"device.info\")) shadows Tier-2 col.name 'device_info' \
+             must be rejected with E-SPEC-030 [§J1]. \
+             Pre-fix: returns Ok (Rule 8 not yet wired). Got Ok: {:?}",
+            result.ok()
+        );
+
+        // Post-fix assertions: verify the §J1 sub-case with correct identifiers.
+        let errs = result.unwrap_err();
+        let all_error_text = errs
+            .iter()
+            .flat_map(|ve| ve.errors.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+        assert!(
+            all_error_text.contains("E-SPEC-030"),
+            "RG-Q-014: error must contain error code 'E-SPEC-030'; got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("J1") || all_error_text.contains("§J1"),
+            "RG-Q-014: error must identify the §J1 sub-case (shadow); got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("device_info"),
+            "RG-Q-014: error must name the shadow arrow name 'device_info'; \
+             got: {all_error_text}"
+        );
+    }
+
+    /// RG-Q-018 — E-SPEC-030 §J5: `ocsf_field` containing a character outside `[A-Za-z0-9_.]+`
+    /// must be rejected at spec-load with E-SPEC-030 [§J5], BEFORE `ocsf_field_to_arrow_name` runs.
+    ///
+    /// BC-2.16.003 §J5 / EC-016-013-032(d) / EC-016-013-033 / ADR-058 §J8 / error-taxonomy E-SPEC-030 §J5.
+    ///
+    /// # Test cases
+    ///
+    /// - `ocsf_field = "finding info.uid"` (SPACE — outside `[A-Za-z0-9_.]+`) → Err containing
+    ///   both `"E-SPEC-030"` and `"[§J5]"`.
+    /// - `ocsf_field = "finding-info.uid"` (HYPHEN — outside `[A-Za-z0-9_.]+`) → Err containing
+    ///   both `"E-SPEC-030"` and `"[§J5]"`.
+    /// - `ocsf_field = "finding_info.uid"` (valid: alphanumeric + underscores + dots) → must NOT
+    ///   produce an E-SPEC-030 [§J5] charset error (§J5 gate must not over-reject). The result may
+    ///   be `Ok` or may carry other non-§J5 errors; only a §J5 charset error fails this assertion.
+    ///   NOTE: `finding_info.uid` may trigger the KNOWN_OCSF_FIELDS warning at the warning level;
+    ///   that is a warning, not a §J5 charset error, and MUST NOT be asserted as an error here.
+    ///
+    /// # SAP-3 reachability
+    ///
+    /// The test drives through `parse_and_validate_spec_toml` — the real spec-load entry point —
+    /// with `ocsf_column_naming = true`. This ensures the §J5 gate is on the reachable path
+    /// (not a direct call to an internal function with a synthetic argument).
+    ///
+    /// # SID-2 compliance
+    ///
+    /// Both discriminator substrings `"E-SPEC-030"` and `"[§J5]"` are asserted on the full
+    /// composed error string (not component fields separately).
+    ///
+    /// # Red Gate failure (pre-fix)
+    ///
+    /// No charset validation exists in `validate_ocsf_column_collisions`. The function calls
+    /// `ocsf_field_to_arrow_name("finding info.uid")` which silently returns `"finding info_uid"`,
+    /// finds no §J1/§J2/§J4 collision, and returns an empty error Vec. Consequently
+    /// `parse_and_validate_spec_toml` returns `Ok(spec)`, the `result.is_err()` assertion in the
+    /// SPACE case fails, and the test panics → RED.
+    ///
+    /// # Post-fix expected behaviour
+    ///
+    /// `validate_ocsf_column_collisions` (or a pre-step in `parse_and_validate_spec_toml`) checks
+    /// each Tier-1 column's `ocsf_field` against `^[A-Za-z0-9_.]+$` BEFORE calling
+    /// `ocsf_field_to_arrow_name`. A field failing the charset check returns an error string
+    /// containing `"E-SPEC-030"` and `"[§J5]"`.
+    #[test]
+    fn test_BC_2_16_003_ocsf_field_invalid_charset_rejected_at_spec_load() {
+        // ── Case 1: SPACE in ocsf_field ──────────────────────────────────────────────────────
+        //
+        // `ocsf_field = "finding info.uid"` contains a space — outside [A-Za-z0-9_.]+.
+        // Pre-fix: ocsf_field_to_arrow_name("finding info.uid") → "finding info_uid" (no collision
+        // with reserved names, no §J4/§J1 match) → validate_ocsf_column_collisions returns [] →
+        // parse_and_validate_spec_toml returns Ok → result.is_err() fails → RED.
+        let space_toml = r#"
+sensor_id = "charset-j5-space"
+name = "Charset Test J5 Space"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "finding_uid"
+  column_type = "string"
+  ocsf_field = "finding info.uid"
+"#;
+        let space_result = parse_and_validate_spec_toml(space_toml, "<test-j5-space>");
+
+        // Primary RED gate assertion — Case 1.
+        // Pre-fix: returns Ok (no charset check) → this fails → RED.
+        assert!(
+            space_result.is_err(),
+            "RG-Q-018 (BC-2.16.003 §J5): ocsf_field \"finding info.uid\" contains a SPACE \
+             (outside [A-Za-z0-9_.]+) and MUST be rejected by parse_and_validate_spec_toml \
+             with E-SPEC-030 [§J5]. ADR-058 §J8: rejection MUST occur BEFORE \
+             ocsf_field_to_arrow_name runs. Pre-fix: returns Ok (no charset check). Got Ok."
+        );
+
+        // Post-fix: verify the composed error message contains both required discriminators.
+        // SID-2: assert on the FULL composed string, not components separately.
+        let space_errs = space_result.unwrap_err();
+        let space_error_text = space_errs
+            .iter()
+            .flat_map(|ve| ve.errors.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+        assert!(
+            space_error_text.contains("E-SPEC-030"),
+            "RG-Q-018 §J5 (space): error must contain 'E-SPEC-030'; got: {space_error_text}"
+        );
+        assert!(
+            space_error_text.contains("[§J5]"),
+            "RG-Q-018 §J5 (space): error must contain '[§J5]' (charset sub-case discriminator); \
+             got: {space_error_text}"
+        );
+
+        // ── Case 2: HYPHEN in ocsf_field ─────────────────────────────────────────────────────
+        //
+        // `ocsf_field = "finding-info.uid"` contains a hyphen — outside [A-Za-z0-9_.]+.
+        // Pre-fix: same reasoning as Case 1; no collision detected → Ok → RED.
+        let hyphen_toml = r#"
+sensor_id = "charset-j5-hyphen"
+name = "Charset Test J5 Hyphen"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "finding_uid"
+  column_type = "string"
+  ocsf_field = "finding-info.uid"
+"#;
+        let hyphen_result = parse_and_validate_spec_toml(hyphen_toml, "<test-j5-hyphen>");
+
+        // Primary RED gate assertion — Case 2.
+        // Pre-fix: returns Ok (no charset check) → if Case 1 panicked first, execution never
+        // reaches here; if somehow Case 1 passed, this would fail → RED.
+        assert!(
+            hyphen_result.is_err(),
+            "RG-Q-018 (BC-2.16.003 §J5): ocsf_field \"finding-info.uid\" contains a HYPHEN \
+             (outside [A-Za-z0-9_.]+) and MUST be rejected with E-SPEC-030 [§J5]. \
+             Pre-fix: returns Ok (no charset check). Got Ok."
+        );
+
+        // Post-fix: verify both discriminators.
+        let hyphen_errs = hyphen_result.unwrap_err();
+        let hyphen_error_text = hyphen_errs
+            .iter()
+            .flat_map(|ve| ve.errors.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+        assert!(
+            hyphen_error_text.contains("E-SPEC-030"),
+            "RG-Q-018 §J5 (hyphen): error must contain 'E-SPEC-030'; got: {hyphen_error_text}"
+        );
+        assert!(
+            hyphen_error_text.contains("[§J5]"),
+            "RG-Q-018 §J5 (hyphen): error must contain '[§J5]' (charset sub-case discriminator); \
+             got: {hyphen_error_text}"
+        );
+
+        // ── Case 3: Contrasting PASS — valid charset (alphanumeric + underscores + dots) ─────
+        //
+        // `ocsf_field = "finding_info.uid"` uses only [A-Za-z0-9_.] — valid per §J5.
+        // The §J5 charset gate MUST NOT fire for this field.
+        // Note: `finding_info.uid` may trigger a KNOWN_OCSF_FIELDS *warning* at runtime;
+        // that is a warning, not a §J5 charset error, and is not surfaced as Err here.
+        // We accept Ok (ideal) or Err-without-§J5 (some other gate may legitimately fire);
+        // only an E-SPEC-030 [§J5] charset error on a valid field fails this assertion.
+        let valid_toml = r#"
+sensor_id = "charset-j5-valid"
+name = "Charset Test J5 Valid"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "finding_uid"
+  column_type = "string"
+  ocsf_field = "finding_info.uid"
+"#;
+        let valid_result = parse_and_validate_spec_toml(valid_toml, "<test-j5-valid>");
+
+        // Guard against over-rejection: the §J5 charset gate must not fire on valid chars.
+        // If the result is Err, confirm the errors do NOT include "E-SPEC-030" + "[§J5]" together.
+        if let Err(ref errs) = valid_result {
+            let valid_error_text = errs
+                .iter()
+                .flat_map(|ve| ve.errors.iter())
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(" | ");
+            let has_j5_charset_error =
+                valid_error_text.contains("E-SPEC-030") && valid_error_text.contains("[§J5]");
+            assert!(
+                !has_j5_charset_error,
+                "RG-Q-018 (BC-2.16.003 §J5 contrasting PASS): ocsf_field 'finding_info.uid' \
+                 contains ONLY valid charset chars [A-Za-z0-9_.] and MUST NOT produce an \
+                 E-SPEC-030 [§J5] charset error. The §J5 gate must not over-reject. \
+                 Got E-SPEC-030 [§J5] error: {valid_error_text}"
+            );
+        }
+        // Ok result or Err without §J5 are both acceptable — §J5 gate did not mis-fire.
+    }
+
+    /// RG-Q-016 — E-SPEC-030 §J1: Tier-1-vs-Tier-1 shadow must be rejected at spec-load.
+    ///
+    /// BC-2.16.003 §J1 shadow condition requires comparison against ANY other column
+    /// (`col.name`) in the same table, Tier-1 OR Tier-2. Current
+    /// `validate_ocsf_column_collisions` only iterates `tier2_names` (columns with
+    /// `ocsf_field.is_none()`), missing the Tier-1-vs-Tier-1 case where a Tier-1
+    /// column's flattened arrow name equals a DIFFERENT Tier-1 column's raw `col.name`.
+    ///
+    /// Canonical fixture:
+    ///
+    ///   Col `device_category`: `ocsf_field = "device.type"`
+    ///     → `ocsf_field_to_arrow_name("device.type")` = `"device_type"` (Tier-1 arrow name)
+    ///
+    ///   Col `device_type`:     `ocsf_field = "device.type_name"`
+    ///     → `ocsf_field_to_arrow_name("device.type_name")` = `"device_type_name"` (Tier-1 arrow name)
+    ///     → raw `col.name` = `"device_type"`
+    ///
+    /// Col `device_category`'s arrow name `"device_type"` equals col `device_type`'s raw
+    /// `col.name` `"device_type"` → §J1 shadow between two Tier-1 columns.
+    ///
+    /// # Red Gate failure (pre-fix)
+    ///
+    /// `validate_ocsf_column_collisions` checks only `tier2_names` (columns with
+    /// `ocsf_field.is_none()`). Col `device_type` has `ocsf_field = Some(...)` → Tier-1 →
+    /// absent from `tier2_names` → §J1 loop never fires →
+    /// `parse_and_validate_spec_toml` returns `Ok(spec)` →
+    /// `result.is_err()` assertion fails → RED.
+    ///
+    /// # Post-fix expected behaviour
+    ///
+    /// `validate_ocsf_column_collisions` checks ALL other columns' `col.name` (not just
+    /// Tier-2). Shadow detected → `parse_and_validate_spec_toml` returns `Err` containing
+    /// `E-SPEC-030 [§J1]` naming `"device_type"`.
+    ///
+    /// BC: BC-2.16.003 §J1 / error-taxonomy.md E-SPEC-030 template (c).
+    #[test]
+    fn test_BC_2_16_003_ocsf_collision_j1_shadow_tier1_vs_tier1_rejected_at_spec_load() {
+        let collision_j1_t1t1_toml = r#"
+sensor_id = "collision-j1-t1t1"
+name = "Collision Test J1 Tier1-vs-Tier1"
+auth_type = "api_key"
+base_url = "https://test.invalid"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "events"
+ocsf_class = "detection_finding"
+steps = []
+
+  [[tables.columns]]
+  name = "device_category"
+  column_type = "string"
+  ocsf_field = "device.type"
+
+  [[tables.columns]]
+  name = "device_type"
+  column_type = "string"
+  ocsf_field = "device.type_name"
+"#;
+        // Col "device_category": ocsf_field="device.type"
+        //   → ocsf_field_to_arrow_name → "device_type"  (Tier-1 arrow name)
+        // Col "device_type":     ocsf_field="device.type_name"
+        //   → ocsf_field_to_arrow_name → "device_type_name"  (Tier-1 arrow name)
+        //   → raw col.name = "device_type"
+        //
+        // "device_category" arrow name "device_type" == "device_type" raw col.name → §J1 shadow.
+        // Both columns are Tier-1 (have ocsf_field). Current code only checks tier2_names
+        // (columns with ocsf_field.is_none()) — "device_type" is Tier-1, absent from
+        // tier2_names → §J1 loop never fires → current code misses this shadow.
+
+        let result = parse_and_validate_spec_toml(collision_j1_t1t1_toml, "<test-j1-t1t1>");
+
+        // Primary RED gate assertion.
+        // Pre-fix: returns Ok (validate_ocsf_column_collisions only iterates tier2_names;
+        // col "device_type" is Tier-1 and absent from tier2_names → §J1 loop does not fire)
+        // → result.is_err() assertion fails → RED.
+        assert!(
+            result.is_err(),
+            "RG-Q-016 (BC-2.16.003 §J1): spec where Tier-1 arrow name 'device_type' \
+             (ocsf_field_to_arrow_name(\"device.type\")) shadows ANOTHER Tier-1 column's \
+             raw col.name 'device_type' (col 'device_type', ocsf_field=\"device.type_name\") \
+             MUST be rejected with E-SPEC-030 [§J1]. \
+             Pre-fix: returns Ok because validate_ocsf_column_collisions checks tier2_names \
+             only — col 'device_type' is Tier-1 (ocsf_field is Some), so it is absent from \
+             tier2_names and the §J1 loop never fires. Got Ok: {:?}",
+            result.ok()
+        );
+
+        // Post-fix assertions: verify §J1 sub-case with correct identifiers.
+        let errs = result.unwrap_err();
+        let all_error_text = errs
+            .iter()
+            .flat_map(|ve| ve.errors.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+        assert!(
+            all_error_text.contains("E-SPEC-030"),
+            "RG-Q-016: error must contain error code 'E-SPEC-030'; got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("J1") || all_error_text.contains("§J1"),
+            "RG-Q-016: error must identify the §J1 sub-case (shadow); got: {all_error_text}"
+        );
+        assert!(
+            all_error_text.contains("device_type"),
+            "RG-Q-016: error must name the shadowed name 'device_type'; \
+             got: {all_error_text}"
+        );
     }
 }
