@@ -4,10 +4,10 @@ story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
 version: "1.57"
 level: "L4"
-status: draft
+status: merged
 producer: story-writer
 timestamp: "2026-08-12T00:00:00Z"
-modified: "2026-08-23"
+modified: "2026-08-24"
 phase: 3
 wave: claroty-live
 epic_id: EPIC-OCSF-ROUTING

@@ -1,18 +1,64 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.004"
+version: "8.005"
 status: current
-timestamp: 2026-08-23T22:00:03Z
+timestamp: 2026-08-24T00:10:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2287 (2026-08-23): ROUTING-001 fix-burst-2 COMPLETE (code-only) — 2 LOW closed (F-PR242-P2-LOW-001 filter_map + F-PR242-P3-LOW-001 §J1 comment); code @5645c8506; just check 5816/5816 GREEN; BC-5.39.001 PR-LEVEL streak RESET 0/3 on new frozen HEAD. NEXT: PR-LEVEL 3-CLEAN re-gate on @5645c8506. STATE v8.820→v8.821. [D-2286 SUPERSEDED by D-2287]**
+> **D-2290 (2026-08-24): SESSION WRAP — v1 LIVE Claroty xDome MILESTONE PASS (D-2289 gate MET). PR #242 (S-ADR058-OCSF-ROUTING-001) MERGED develop@3f1e66179; Variant-1 121/121 + Variant-2 agent-in-loop PASS. Endpoint expansion plan + live-sensor runbook committed to .factory/objectives/. NEXT: compact STATE.md + add all xDome endpoint stories + v1.0.0 release. [D-2287 SUPERSEDED by D-2290]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2287 (2026-08-23 — fix-burst-2 COMPLETE code-only; STATE v8.820→v8.821) [SUPERSEDES D-2286]
+## §RESUME SNAPSHOT — D-2290 (2026-08-24 — SESSION WRAP; v1 LIVE milestone; STATE v8.823) [SUPERSEDES D-2287]
+
+### RESUME IN ONE BREATH
+
+Prism Phase-3. v1 LIVE Claroty xDome validation MILESTONE PASS (D-2264 gate MET, read-only scope): Variant-1 structural 121/121 + Variant-2 agent-in-the-loop, live monroe @api.claroty.com. PR #242 (S-ADR058-OCSF-ROUTING-001) MERGED develop@3f1e66179; deployment (binary+spec) synced to 3f1e66179. Confirmed boundaries: read-only surface only; scale/multi-page-pagination/rate-limits + write-back UNPROVEN (small tenant).
+
+### RESUME NEXT-ACTIONS (in order)
+
+1. **COMPACT STATE.md** — bloated (~314 lines); stalled 3 state bursts this session; compaction deferred from D-2290 wrap and is the #1 resume task. Use targeted block-by-block Edits → cycle files, never full-file Write.
+2. **Create near-term + deferred-DTU stories** per `.factory/objectives/xdome-endpoint-expansion-plan.md`. Wave order: A (S-CLAROTY-VULNS-001, S-CLAROTY-OT-EVENTS-001) → B (S-CLAROTY-DEVVULNREL-001) → C (S-CLAROTY-SERVERS-001, S-CLAROTY-ORGPOLICY-001, S-CLAROTY-ACLPOLICY-001).
+3. **Begin Wave A** — S-CLAROTY-VULNS-001 (nearly spec-only; DTU + OCSF class already exist).
+4. **FIRST STABLE RELEASE v1.0.0** via the release pipeline (`/vsdd-factory:release`, `release-config.yaml`) — GATED on live-functional confirmation of everything testable on monroe, with read-only/scale/write-back boundaries recorded honestly in release notes.
+
+### HEADS (D-2290)
+
+- `develop`: `3f1e66179` (local == origin; clean; PR #242 merged here)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
+- `feature/S-ADR058-OCSF-ROUTING-001`: deleted post-merge
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, dirty)
+
+### SPEC PERIMETER (D-2290)
+
+ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / BC-2.01.013 v1.23 (active) / error-taxonomy v2.82 / ROUTING-001 v1.57 (merged) / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.333 / BC-INDEX v9.55 / STORY-INDEX v2.886 / HOLDOUT-INDEX v1.21. active 253 / draft 3 / total 269 / stories 303. Workspace tests: 5816 GREEN.
+
+### OPEN ITEMS (D-2290)
+
+- **STATE.md compaction** — deferred, #1 next session task
+- **test-soc/.mcp.json** — Perplexity+Tavily API keys in PLAINTEXT → operator must rotate + move to references (deferred to operator)
+- **live-soc/README.md** stale onboarding-gate trigger — FIXED this session
+- **OBS-A (carry-forward):** PrismQL identifier grammar rejects hyphens — no quoting escape; sensor_id with hyphen produces unreachable table name
+- **OBS-B (carry-forward):** sensor_id with underscores causes E-QUERY-036/037/038 source-table resolver + sensor plan-gate disagreement on canonical table name
+
+### BACKUP BOUNDARY (D-2290)
+
+- PUSHED / safe: `origin/develop` `3f1e66179`; `factory-artifacts` (this wrap commit)
+- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
+
+### KEY REFERENCES
+
+- Endpoint expansion plan: `.factory/objectives/xdome-endpoint-expansion-plan.md`
+- Live sensor runbook: `.factory/objectives/live-sensor-runbook.md`
+- Live validation matrix: `.factory/objectives/xdome-v1-validation/live-validation-matrix.md`
+
+---
+
+## §RESUME SNAPSHOT — D-2287 (2026-08-23 — fix-burst-2 COMPLETE code-only; STATE v8.820→v8.821) [SUPERSEDED by D-2290]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 PR-LEVEL fix-burst-2 COMPLETE (code-only) — 2 LOW closed: F-PR242-P2-LOW-001 (build_ocsf_column_descriptors refactored to filter_map, zero ocsf_field unwrap/expect in production; sibling-sweep done), F-PR242-P3-LOW-001 (claroty.sensor.toml device_category comment corrected to §J1 A≠B shadow per RG-010/ADR-058 §J1; SAP-2 clean, column values UNCHANGED). Feature code HEAD advanced @2393470cd→@5645c8506; just check 5816/5816 GREEN. Security re-review CLOSED (no new findings). BC-5.39.001 PR-LEVEL streak RESET 0/3 on new frozen HEAD @5645c8506.
