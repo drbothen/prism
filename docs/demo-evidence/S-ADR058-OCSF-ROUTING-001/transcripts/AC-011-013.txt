@@ -1,0 +1,12 @@
+# AC-011 + AC-013: Error paths — ocsf.unknown_class_name WARN (AC-011) + fail-closed guards (AC-013)
+# AC-011 (RG-018): unknown ocsf_class -> Ok(class_uid=0) + WARN emitted
+# AC-013 (RG-027): ocsf_field flattens to reserved name -> Err(ArrowError::SchemaError)
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.49s
+    Starting 4 tests across 22 binaries (247 tests skipped)
+        PASS [   0.036s] (1/4) prism-bin spec_driven_adapter::tests::test_pipeline_result_to_record_batch_ocsf_field_flattens_to_reserved_name_returns_error
+        PASS [   0.038s] (2/4) prism-bin spec_driven_adapter::tests::test_pipeline_result_to_record_batch_ocsf_shadow_collision_returns_error
+        PASS [   0.042s] (3/4) prism-bin spec_driven_adapter::tests::test_pipeline_result_to_record_batch_ocsf_collision_returns_error
+        PASS [   0.043s] (4/4) prism-bin spec_driven_adapter::tests::test_pipeline_result_to_record_batch_unknown_ocsf_class_emits_warn
+     Summary [   0.044s] 4 tests run: 4 passed, 247 skipped
+--- Exit 0

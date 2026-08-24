@@ -1229,7 +1229,11 @@ async fn test_BC_2_01_013_claroty_audit_logs_timestamp_index_option_required_for
     // Step 6: Run FULL production pipeline from a PrismQL string (SAP-3 entry point).
     // 2025-01-01T00:00:00Z is ~7.5 months before 2026-08-16, well outside the 7-day default.
     // If the explicit bound is ignored, the LOAD-BEARING assertion FAILS.
-    let pql_query = "SELECT * FROM claroty_audit_logs WHERE timestamp > '2025-01-01T00:00:00Z'";
+    // ADR-058 §G (ocsf_column_naming=true): audit_logs.timestamp ocsf_field="time" →
+    // Arrow field is "time". LLM must query WHERE time > ..., not WHERE timestamp > ...
+    // The pushdown (extract_time_window_from_ast) recognizes "time" as INDEX-eligible
+    // because RG-PD-001 inserts both col.name and ocsf_field_to_arrow_name into datetime_index_cols.
+    let pql_query = "SELECT * FROM claroty_audit_logs WHERE time > '2025-01-01T00:00:00Z'";
 
     let options = QueryOptions {
         clients: Some(vec![org_slug_typed]),
@@ -1421,7 +1425,9 @@ async fn test_BC_2_01_013_claroty_audit_logs_ec01033_compound_and_parser_surface
     };
 
     // Both-bounds PrismQL query — forces EC-01-033 compound `and` path.
-    let pql_query = "SELECT * FROM claroty_audit_logs WHERE timestamp > '2025-01-01T00:00:00Z' AND timestamp < '2025-02-01T00:00:00Z'";
+    // ADR-058 §G (ocsf_column_naming=true): audit_logs.timestamp ocsf_field="time" →
+    // Arrow field is "time". Both-bounds filter uses the OCSF-flattened name.
+    let pql_query = "SELECT * FROM claroty_audit_logs WHERE time > '2025-01-01T00:00:00Z' AND time < '2025-02-01T00:00:00Z'";
 
     let output =
         run_materialization_pipeline(pql_query, &options, &mut mat_ctx, &session_ctx).await;
@@ -2031,7 +2037,9 @@ async fn test_BC_2_01_013_claroty_audit_logs_ec01032_end_only_parser_surface() {
     // Uses 2025-02-01 (well before now-7d) to prove no synthetic 7-day floor is injected.
     // If a 7-day lower bound were added: end_time(2025-02-01) < floor(now-7d) → inverted window.
     let end_bound = "2025-02-01T00:00:00Z";
-    let pql_query = "SELECT * FROM claroty_audit_logs WHERE timestamp < '2025-02-01T00:00:00Z'";
+    // ADR-058 §G (ocsf_column_naming=true): audit_logs.timestamp ocsf_field="time" →
+    // Arrow field is "time". End-only filter uses the OCSF-flattened name.
+    let pql_query = "SELECT * FROM claroty_audit_logs WHERE time < '2025-02-01T00:00:00Z'";
 
     let _output =
         run_materialization_pipeline(pql_query, &options, &mut mat_ctx, &session_ctx).await;

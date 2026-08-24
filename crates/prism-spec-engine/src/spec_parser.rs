@@ -513,6 +513,18 @@ pub struct SensorSpec {
     ///
     #[serde(default)]
     pub probe_table: Option<String>,
+
+    /// When `true`, `pipeline_result_to_record_batch` uses `ocsf_field_to_arrow_name(col.ocsf_field)`
+    /// as the Arrow schema field name for columns with an `ocsf_field` declaration, and aggregates
+    /// columns with `ocsf_field == None` into a single `raw_extensions` JSON blob.
+    ///
+    /// When `false` (default), the existing `col.name` path is used (backward-compatible with
+    /// CrowdStrike, Armis, Cyberint sensors). Only Claroty activates this flag per AC-005.
+    ///
+    /// `#[serde(default)]` uses `bool::default()` = `false`; all existing sensor TOMLs without
+    /// this field deserialize as `ocsf_column_naming = false`. (AC-001, ADR-058 §D2)
+    #[serde(default)]
+    pub ocsf_column_naming: bool,
 }
 
 impl Default for SensorSpec {
@@ -544,6 +556,7 @@ impl Default for SensorSpec {
             source_path: String::new(),
             mode: crate::types::DtuMode::default(),
             probe_table: None,
+            ocsf_column_naming: false,
         }
     }
 }
@@ -597,6 +610,7 @@ impl SensorSpec {
             source_path: String::new(),
             mode: crate::types::DtuMode::default(),
             probe_table: None,
+            ocsf_column_naming: false,
         }
     }
 }
@@ -1559,6 +1573,65 @@ REPLACE_TIMESTAMP_FIELDS
         assert!(
             SpecLoader::parse(&toml).is_ok(),
             "String column with empty timestamp fields must pass validation (backward compat)"
+        );
+    }
+
+    // ── S-ADR058-OCSF-ROUTING-001 Red Gate Tests ───────────────────────────────
+
+    /// RG-001 / AC-001 / BC-2.16.003 §Column Routing
+    ///
+    /// `SensorSpec` deserialized from TOML without `ocsf_column_naming` key MUST default
+    /// to `false` via `#[serde(default)]`. This exercises the serde default path.
+    ///
+    /// GREEN-BY-DESIGN: the field + `#[serde(default)]` + Default impl were added in the
+    /// stub commit. This test is a LOAD-BEARING REGRESSION GUARD that prevents the default
+    /// from silently flipping to `true` in a future refactor.
+    #[test]
+    fn test_sensor_spec_ocsf_column_naming_defaults_to_false() {
+        let toml = r#"
+sensor_id = "test"
+name = "Test Sensor"
+auth_type = "api_key"
+base_url = "https://example.com"
+version = "1.0.0"
+"#;
+        let spec =
+            SpecLoader::parse(toml).expect("minimal TOML without ocsf_column_naming must parse");
+        assert!(
+            !spec.ocsf_column_naming,
+            "AC-001 (RG-001): SensorSpec deserialized without ocsf_column_naming must default \
+             to false via #[serde(default)]; got ocsf_column_naming = {}. \
+             A true default would route every non-Claroty sensor through the OCSF naming branch, \
+             breaking CrowdStrike/Armis/Cyberint col.name semantics (AC-004 regression).",
+            spec.ocsf_column_naming
+        );
+    }
+
+    /// RG-002 / AC-001 / BC-2.16.003 §Column Routing
+    ///
+    /// `SensorSpec` deserialized from TOML WITH `ocsf_column_naming = true` MUST parse
+    /// the field as `true` (not silently ignored or rejected).
+    ///
+    /// GREEN-BY-DESIGN: the field + `#[serde(default)]` were added in the stub commit.
+    /// This test is a LOAD-BEARING REGRESSION GUARD.
+    #[test]
+    fn test_sensor_spec_ocsf_column_naming_parses_true_from_toml() {
+        let toml = r#"
+sensor_id = "claroty"
+name = "Claroty Test"
+auth_type = "api_key"
+base_url = "https://example.com"
+version = "1.0.0"
+ocsf_column_naming = true
+"#;
+        let spec = SpecLoader::parse(toml)
+            .expect("TOML with ocsf_column_naming = true must parse successfully");
+        assert!(
+            spec.ocsf_column_naming,
+            "AC-001 (RG-002): SensorSpec deserialized with ocsf_column_naming = true must \
+             carry true; got ocsf_column_naming = {}. \
+             A false result means the serde field name or attribute is wrong.",
+            spec.ocsf_column_naming
         );
     }
 }

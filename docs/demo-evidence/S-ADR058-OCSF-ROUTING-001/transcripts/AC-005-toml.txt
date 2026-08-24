@@ -1,0 +1,46 @@
+# AC-005: claroty.sensor.toml — ocsf_column_naming=true + KF-01..KF-12 corrections + OQ-005 + §J3 shadow fix
+
+## ocsf_column_naming flag
+42:ocsf_column_naming = true
+93:  # Tier-2 column: aggregates into raw_extensions under ocsf_column_naming = true.
+100:  # Tier-2 column: aggregates into raw_extensions under ocsf_column_naming = true.
+125:  # Tier-2 column: aggregates into raw_extensions under ocsf_column_naming = true.
+192:  # first-class Tier-1 Arrow column "metadata_uid" under ocsf_column_naming = true.
+
+## ocsf_class values (KF-01 entity_management, KF-02 inventory_info)
+79:ocsf_class = "detection_finding"
+187:ocsf_class = "entity_management"
+298:ocsf_class = "inventory_info"
+478:ocsf_class = "detection_finding"
+
+## Key ocsf_field corrections (KF-03/04/06/07/12 + OQ-005 + §J3)
+88:  ocsf_field = "finding_info.uid"
+108:  ocsf_field = "status"
+114:  ocsf_field = "time"
+121:  ocsf_field = "finding_info.modified_time"
+133:  ocsf_field = "message"
+153:  ocsf_field = "finding_info.title"
+198:  ocsf_field = "metadata.uid"
+204:  ocsf_field = "activity_name"
+211:  ocsf_field = "actor.user.name"
+223:  ocsf_field = "time"
+234:  ocsf_field = "message"
+242:  ocsf_field = "actor.user.uid"
+248:  ocsf_field = "comment"
+304:  ocsf_field = "device.uid"
+311:  ocsf_field = "device.instance_uid"
+323:  ocsf_field = "device.type_category"
+330:  ocsf_field = "device.type_label"
+338:  ocsf_field = "risk_score"
+344:  ocsf_field = "status_code"
+421:  ocsf_field = "device.name"
+440:  ocsf_field = "device.os.name"
+485:  ocsf_field = "device.uid"
+493:  ocsf_field = "finding_info.uid"
+501:  ocsf_field = "time"
+508:  ocsf_field = "risk_score"
+533:  ocsf_field = "comment"
+546:  ocsf_field = "status"
+
+## Post-correction Tier-1 ocsf_field count by table
+Total Tier-1 columns: 27

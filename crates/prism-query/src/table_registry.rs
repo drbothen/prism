@@ -226,8 +226,65 @@ impl TableRegistry {
             registered.insert(full_name.clone());
             sensor_by_table.insert(full_name.clone(), spec.sensor_id.clone());
             // M1 fix: retain column names for single-tenant E-QUERY-038 gate.
-            // Only populated when the spec has explicit columns defined.
-            if !table.columns.is_empty() {
+            //
+            // ADR-058 §G / §J6 / S-ADR058-OCSF-ROUTING-001 LOW-1 fix:
+            // When ocsf_column_naming=true, ALWAYS insert columns_by_table and
+            // column_types_by_table using the shared helpers from prism_spec_engine —
+            // even for zero-column OCSF tables (§J6: synthesized pseudo-columns are
+            // always present, so the entry must exist with at least class_uid + _sensor).
+            // The previous outer `if !table.columns.is_empty()` guard prevented this
+            // for zero-column OCSF tables, causing E-QUERY-038 to fire on class_uid / _sensor
+            // queries (RG-Q-010/011 red gate).
+            //
+            // When ocsf_column_naming=false, keep the existing `!columns.is_empty()`
+            // fail-open guard to preserve legacy behavior for non-OCSF sensors.
+            if spec.ocsf_column_naming {
+                // §J6: always insert, even for zero-Tier-1 OCSF tables (RG-Q-010/011 fix).
+                // Canonical projection logic lives in ocsf_projected_column_names /
+                // ocsf_projected_column_types (ADR-058 §I7 Consolidated-Projection Invariant).
+                let col_names =
+                    prism_spec_engine::column_mapping::ocsf_projected_column_names(table, true);
+                columns_by_table.insert(full_name.clone(), col_names);
+
+                let type_map =
+                    prism_spec_engine::column_mapping::ocsf_projected_column_types(table, true);
+
+                // ADR-058 §J6 A+W amendment (human decision 2026-08-23):
+                // Emit ocsf.zero_tier1_table WARN for OCSF tables with zero Tier-1 columns.
+                // BC-2.16.002 §Postconditions catalog row `ocsf.zero_tier1_table` (PG-LP11-001).
+                // Fires for BOTH sub-cases:
+                //   (A) zero-Tier-1 with ≥1 Tier-2 columns — tier2_column_count ≥ 1
+                //   (B) truly-empty (0 Tier-1, 0 Tier-2) — tier2_column_count = 0
+                // Recurrence: ONCE per offending table per register_sensor call — NOT per-query.
+                // Does NOT block registration — the table loads successfully with synthesized
+                // pseudo-columns only (ADR-058 §G: class_uid + _sensor [+ raw_extensions]).
+                // RG-Q-017: test_BC_2_11_016_zero_tier1_with_tier2_projects_raw_extensions_and_emits_warning
+                let tier1_count = table
+                    .columns
+                    .iter()
+                    .filter(|c| c.ocsf_field.is_some())
+                    .count();
+                if tier1_count == 0 {
+                    let tier2_count: u32 = table
+                        .columns
+                        .iter()
+                        .filter(|c| c.ocsf_field.is_none())
+                        .count() as u32;
+                    tracing::warn!(
+                        event_type = "ocsf.zero_tier1_table",
+                        sensor_id = %spec.sensor_id,
+                        table_name = %table.table_name,
+                        tier2_column_count = tier2_count,
+                        "OCSF table with ocsf_column_naming=true has zero Tier-1 ocsf_field \
+                         mappings; class_uid + _sensor presented \
+                         (+ raw_extensions when tier2_column_count > 0)"
+                    );
+                }
+
+                column_types_by_table.insert(full_name, type_map);
+            } else if !table.columns.is_empty() {
+                // flag=false: keep existing col.name behavior exactly (byte-for-byte).
+                // Fail-open guard preserved for non-OCSF sensors.
                 let col_names: Vec<String> = table.columns.iter().map(|c| c.name.clone()).collect();
                 columns_by_table.insert(full_name.clone(), col_names);
                 // ADR-052 / HIGH-1: retain column types for schema-aware E-QUERY-041 gate.

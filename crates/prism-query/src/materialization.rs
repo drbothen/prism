@@ -742,8 +742,19 @@ pub async fn run_materialization_pipeline(
         .resolved_spec_map
         .as_deref()
         .map(|spec_map| build_source_column_map(spec_map, &source_names));
-    let (extracted_start_time, extracted_end_time) =
-        extract_time_window_from_ast_from_query(&ast, &source_names, resolved_col_map.as_ref());
+    // ADR-058 §I6 (OQ-001): build per-source ocsf_column_naming flag map so the
+    // push-down logic only registers OCSF-flattened Arrow names for sensors that
+    // actually use ocsf_column_naming=true (gated flattened-name registration).
+    let ocsf_naming_map = mat_ctx
+        .resolved_spec_map
+        .as_deref()
+        .map(|spec_map| build_source_ocsf_naming_map(spec_map, &source_names));
+    let (extracted_start_time, extracted_end_time) = extract_time_window_from_ast_from_query(
+        &ast,
+        &source_names,
+        resolved_col_map.as_ref(),
+        ocsf_naming_map.as_ref(),
+    );
 
     // Step 2: Resolve client scope.
     let all_clients: Vec<OrgSlug> = options.clients.clone().unwrap_or_default();
@@ -2176,8 +2187,45 @@ fn build_source_column_map(
     result
 }
 
+/// Build a per-source `ocsf_column_naming` flag map from the resolved spec map.
+///
+/// Used alongside `build_source_column_map` to thread the ADR-058 §I6 flag into
+/// `pushdown::extract_time_window_from_ast`. Both dot-separated and underscore-separated
+/// source name forms are inserted (matching `build_source_column_map` conventions) so
+/// the lookup succeeds regardless of how the source name appears in the PrismQL AST.
+///
+/// Only source names matching entries in `source_names` are included.
+fn build_source_ocsf_naming_map(
+    spec_map: &std::collections::HashMap<
+        prism_spec_engine::ResolvedSpecKey,
+        prism_spec_engine::ResolvedSensorSpec,
+    >,
+    source_names: &[String],
+) -> std::collections::HashMap<String, bool> {
+    let mut result: std::collections::HashMap<String, bool> = std::collections::HashMap::new();
+
+    for resolved in spec_map.values() {
+        let sensor_id = resolved.spec.sensor_id.as_str();
+        let flag = resolved.spec.ocsf_column_naming;
+        for table in &resolved.spec.tables {
+            let dot_key = format!("{sensor_id}.{}", table.table_name);
+            let underscore_key = format!("{sensor_id}_{}", table.table_name);
+            let is_referenced = source_names
+                .iter()
+                .any(|s| *s == dot_key || *s == underscore_key);
+            if is_referenced {
+                result.entry(dot_key).or_insert(flag);
+                result.entry(underscore_key).or_insert(flag);
+            }
+        }
+    }
+
+    result
+}
+
 /// Wrapper that extracts time-window bounds from the PrismQL AST by delegating
-/// to `pushdown::extract_time_window_from_ast` with the pre-built column map.
+/// to `pushdown::extract_time_window_from_ast` with the pre-built column and
+/// OCSF-naming maps.
 ///
 /// Returns `(start_time, end_time)` as `Option<String>` (ISO8601 formatted).
 /// Both are `None` when no datetime INDEX column Compare predicates are present,
@@ -2188,6 +2236,7 @@ fn extract_time_window_from_ast_from_query(
     resolved_col_map: Option<
         &std::collections::HashMap<String, Vec<prism_spec_engine::spec_parser::ColumnSpec>>,
     >,
+    ocsf_naming_map: Option<&std::collections::HashMap<String, bool>>,
 ) -> (Option<String>, Option<String>) {
     use crate::ast::{Ast, SqlStatement};
 
@@ -2209,7 +2258,12 @@ fn extract_time_window_from_ast_from_query(
 
     let source_name_refs: Vec<&str> = source_names.iter().map(String::as_str).collect();
 
-    crate::pushdown::extract_time_window_from_ast(pred, &source_name_refs, resolved_col_map)
+    crate::pushdown::extract_time_window_from_ast(
+        pred,
+        &source_name_refs,
+        resolved_col_map,
+        ocsf_naming_map,
+    )
 }
 
 // ---------------------------------------------------------------------------

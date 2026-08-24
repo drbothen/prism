@@ -2997,15 +2997,22 @@ fn check_column_availability(
         return Ok(());
     }
 
+    // ADR-058 §G / S-ADR058-OCSF-ROUTING-001 holdout gap (Fix B, de-duplicated):
+    // Delegate to shared helper ocsf_or_raw_column_names_for_table — single source of
+    // truth for OCSF-aware column-name projection, shared with get_initial_available_columns.
     let mut available_columns: Vec<String> = org_visible_entries
         .iter()
-        .flat_map(|spec| {
-            let sensor_id = spec.spec.sensor_id.clone();
-            spec.spec
+        .flat_map(|spec_entry| {
+            let sensor_id = spec_entry.spec.sensor_id.clone();
+            let ocsf_naming = spec_entry.spec.ocsf_column_naming;
+            spec_entry
+                .spec
                 .tables
                 .iter()
                 .filter(move |tbl| format!("{sensor_id}_{}", tbl.table_name) == table_name)
-                .flat_map(|tbl| tbl.columns.iter().map(|c| c.name.clone()))
+                .flat_map(move |tbl| {
+                    ocsf_or_raw_column_names_for_table(tbl, ocsf_naming).into_iter()
+                })
         })
         .collect();
 
@@ -3535,6 +3542,31 @@ pub(crate) fn check_query_column_availability(
     Ok(())
 }
 
+/// Derive queryable column names for a single table, OCSF-aware.
+///
+/// ADR-058 §G / S-ADR058-OCSF-ROUTING-001 — shared projection helper.
+/// Single source of truth for "which Arrow-level names are queryable for this table?"
+/// Used by `check_column_availability` (multi-tenant arm) and
+/// `get_initial_available_columns` (multi-tenant arm) to prevent future divergence.
+///
+/// When `ocsf_column_naming=true`:
+///   - Tier-1 columns: `ocsf_field_to_arrow_name(ocsf_field)` for cols with `ocsf_field.is_some()`
+///   - Synthesized pseudo-cols always present: `class_uid` (Integer), `_sensor` (String)
+///   - `raw_extensions` (Json) added iff any Tier-2 col (`ocsf_field.is_none()`) exists
+///   - Tier-2 raw `col.name` values are NOT included
+///
+/// When `ocsf_column_naming=false`:
+///   - Raw `col.name` for every column (existing behavior, byte-for-byte)
+fn ocsf_or_raw_column_names_for_table(
+    tbl: &prism_spec_engine::spec_parser::TableSpec,
+    ocsf_column_naming: bool,
+) -> Vec<String> {
+    // ADR-058 §I7 Consolidated-Projection Invariant: canonical logic lives in the
+    // shared helper; this function is a thin forward so engine.rs and table_registry.rs
+    // never diverge (OBS-1 fix, S-ADR058-OCSF-ROUTING-001).
+    prism_spec_engine::column_mapping::ocsf_projected_column_names(tbl, ocsf_column_naming)
+}
+
 /// Compute the initial available column set for a table from schema sources.
 ///
 /// Returns `Some(sorted_deduped_columns)` when a schema source provides columns for
@@ -3575,15 +3607,22 @@ fn get_initial_available_columns(
         if !table_in_schema {
             return None; // Table not in schema — fail-open.
         }
+        // ADR-058 §G / S-ADR058-OCSF-ROUTING-001 Fix (re-cascade P1 HIGH-001):
+        // Use shared helper ocsf_or_raw_column_names_for_table so that OCSF-flattened
+        // Arrow names are seeded here exactly as in check_column_availability Fix B.
+        // Single source of truth prevents future divergence between the two paths.
         let mut cols: Vec<String> = org_visible
             .iter()
             .flat_map(|spec| {
                 let sid = spec.spec.sensor_id.clone();
+                let ocsf_naming = spec.spec.ocsf_column_naming;
                 spec.spec
                     .tables
                     .iter()
                     .filter(move |tbl| format!("{sid}_{}", tbl.table_name) == table_name)
-                    .flat_map(|tbl| tbl.columns.iter().map(|c| c.name.clone()))
+                    .flat_map(move |tbl| {
+                        ocsf_or_raw_column_names_for_table(tbl, ocsf_naming).into_iter()
+                    })
             })
             .collect();
         cols.sort();
@@ -4677,7 +4716,11 @@ fn check_operator_type_compatibility(
         return Ok(());
     };
 
-    // Find the ColumnType for this column from the org-visible spec entries.
+    // ADR-058 §G / S-ADR058-OCSF-ROUTING-001 holdout gap (Fix C):
+    // When spec.ocsf_column_naming=true, match column_name against the OCSF-flattened Arrow name
+    // (ocsf_field_to_arrow_name(col.ocsf_field)). Synthesized pseudo-cols (class_uid, _sensor,
+    // raw_extensions) are not in tbl.columns, so fail-open for them — type is correct by
+    // construction (Integer, String, Json). When ocsf_column_naming=false, match col.name.
     let column_type = spec_map
         .values()
         .filter(|spec| {
@@ -4687,19 +4730,29 @@ fn check_operator_type_compatibility(
                 true
             }
         })
-        .flat_map(|spec| {
-            let sensor_id = spec.spec.sensor_id.clone();
-            spec.spec
+        .flat_map(|spec_entry| {
+            let sensor_id = spec_entry.spec.sensor_id.clone();
+            let ocsf_naming = spec_entry.spec.ocsf_column_naming;
+            spec_entry
+                .spec
                 .tables
                 .iter()
                 .filter(move |tbl| format!("{sensor_id}_{}", tbl.table_name) == table_name)
-                .flat_map(|tbl| tbl.columns.iter())
-                .filter_map(|col| {
-                    if col.name == column_name {
-                        Some(col.column_type.clone())
-                    } else {
-                        None
-                    }
+                .flat_map(move |tbl| {
+                    tbl.columns.iter().filter_map(move |col| {
+                        let effective_name = if ocsf_naming {
+                            col.ocsf_field.as_deref().map(|f| {
+                                prism_spec_engine::column_mapping::ocsf_field_to_arrow_name(f)
+                            })
+                        } else {
+                            Some(col.name.clone())
+                        };
+                        if effective_name.as_deref() == Some(column_name) {
+                            Some(col.column_type.clone())
+                        } else {
+                            None
+                        }
+                    })
                 })
         })
         .next();

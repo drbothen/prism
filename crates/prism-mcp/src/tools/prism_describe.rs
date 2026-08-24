@@ -32,6 +32,7 @@
 //! — must never be feature-gated). It is wired into the `#[tool_router]` block in
 //! `server.rs`. No `Arc<dyn TableRegistry>` injection — see architecture compliance.
 
+use prism_spec_engine::column_mapping::ocsf_field_to_arrow_name;
 use rmcp::model::CallToolResult;
 use serde::{Deserialize, Serialize};
 
@@ -304,6 +305,97 @@ pub async fn handle_prism_describe(
         })
 }
 
+/// Build OCSF-mode ColumnDescriptors for a table when `ocsf_column_naming == true`.
+///
+/// Partitions columns into Tier-1 (ocsf_field == Some) and Tier-2 (ocsf_field == None):
+/// - Tier-1 → ColumnDescriptor with name = ocsf_field_to_arrow_name(ocsf_field),
+///   description = Some(ocsf_field), nullable = true
+/// - Tier-2 → suppressed (not emitted individually)
+/// - If any Tier-2 exist → ONE `raw_extensions` ColumnDescriptor (col_type=Json)
+///   whose description enumerates the Tier-2 source column names
+/// - Always appends `class_uid` (Integer, nullable=false) and `_sensor` (String,
+///   nullable=false) as the last two entries (OQ-003, AC-015, RG-028).
+///
+/// ADR-058 §G; BC-2.16.003 EC-016-013-028/029.
+///
+/// # ADR-058 §I7 Shape-Exception Site
+///
+/// This function is a **documented shape-exception** under ADR-058 §I7: it cannot fully
+/// delegate to `prism_spec_engine::column_mapping::ocsf_projected_column_names` because
+/// it must also emit per-column Arrow-descriptor metadata (description text, nullable flag,
+/// column type) that the shared helper does not produce. The shared helper returns only
+/// the *name set*; this function enriches each name with descriptor content.
+///
+/// **Invariant (ADR-058 §I7):** The projected column-name set produced by this function
+/// (i.e., `descriptors.iter().map(|d| d.name.clone()).collect::<Vec<_>>()`) MUST agree
+/// with the name set returned by
+/// `prism_spec_engine::column_mapping::ocsf_projected_column_names(table, true)`.
+/// `test_ocsf_projected_names_all_surfaces_agree` (RG-Q-015, S-ADR058-OCSF-ROUTING-001)
+/// enforces this agreement via `TableRegistry::columns_for_table` — any drift between
+/// this site and the canonical helper will cause that test to fail.
+fn build_ocsf_column_descriptors(
+    table: &prism_spec_engine::spec_parser::TableSpec,
+) -> Vec<ColumnDescriptor> {
+    let tier2_names: Vec<&str> = table
+        .columns
+        .iter()
+        .filter(|col| col.ocsf_field.is_none())
+        .map(|col| col.name.as_str())
+        .collect();
+
+    let mut descriptors: Vec<ColumnDescriptor> = table
+        .columns
+        .iter()
+        .filter_map(|col| {
+            col.ocsf_field
+                .as_deref()
+                .map(|ocsf_field| ColumnDescriptor {
+                    name: ocsf_field_to_arrow_name(ocsf_field),
+                    col_type: col.column_type.clone(),
+                    description: Some(ocsf_field.to_string()),
+                    nullable: true,
+                })
+        })
+        .collect();
+
+    if !tier2_names.is_empty() {
+        let desc = format!(
+            "JSON object containing un-mapped source columns: {}",
+            tier2_names.join(", ")
+        );
+        descriptors.push(ColumnDescriptor {
+            name: "raw_extensions".to_string(),
+            col_type: prism_core::column::ColumnType::Json,
+            description: Some(desc),
+            nullable: true,
+        });
+    }
+
+    // OQ-003 (AC-015): synthesize class_uid and _sensor as the last two descriptors
+    // so LLM agents can filter on `WHERE class_uid = 3004` and `WHERE _sensor = 'claroty'`.
+    // AC-015 canonical descriptions from ADR-058 §G v2.28 / BC-2.16.003 v1.23 / story AC-015 v1.48.
+    descriptors.push(ColumnDescriptor {
+        name: "class_uid".to_string(),
+        col_type: prism_core::column::ColumnType::Integer,
+        description: Some(
+            "OCSF event class identifier derived from sensor TOML ocsf_class. \
+             Example: 3004 for entity_management (audit_logs), \
+             2004 for detection_finding (alerts, device_alert_relations), \
+             5001 for inventory_info (devices)."
+                .to_string(),
+        ),
+        nullable: false,
+    });
+    descriptors.push(ColumnDescriptor {
+        name: "_sensor".to_string(),
+        col_type: prism_core::column::ColumnType::String,
+        description: Some("Sensor identifier. Value: <sensor_id> (e.g., 'claroty').".to_string()),
+        nullable: false,
+    });
+
+    descriptors
+}
+
 /// Build table descriptors for a client.
 ///
 /// Multi-tenant path: when `query_engine` is wired and its `resolved_spec_map` is
@@ -330,16 +422,22 @@ fn build_tables_for_client(
                 .flat_map(|((_org, sensor_id), resolved)| {
                     let spec = &resolved.spec;
                     spec.tables.iter().map(move |table| {
-                        let columns: Vec<ColumnDescriptor> = table
-                            .columns
-                            .iter()
-                            .map(|col| ColumnDescriptor {
-                                name: col.name.clone(),
-                                col_type: col.column_type.clone(),
-                                description: col.ocsf_field.clone(),
-                                nullable: true,
-                            })
-                            .collect();
+                        // ADR-058 §G: when ocsf_column_naming is true, emit Tier-1/Tier-2
+                        // ColumnDescriptor model (AC-006, RG-007/RG-025/RG-028).
+                        let columns: Vec<ColumnDescriptor> = if spec.ocsf_column_naming {
+                            build_ocsf_column_descriptors(table)
+                        } else {
+                            table
+                                .columns
+                                .iter()
+                                .map(|col| ColumnDescriptor {
+                                    name: col.name.clone(),
+                                    col_type: col.column_type.clone(),
+                                    description: col.ocsf_field.clone(),
+                                    nullable: true,
+                                })
+                                .collect()
+                        };
                         // BC-2.10.012 AUDIT-001: table name must be sensor-prefixed so that
                         // AI agents build valid `FROM crowdstrike_alerts | ...` queries, NOT
                         // bare `FROM alerts | ...` (which silently routes to E-SENSOR-030).
@@ -386,16 +484,22 @@ fn build_tables_for_client(
         .tables
         .iter()
         .map(|table| {
-            let columns: Vec<ColumnDescriptor> = table
-                .columns
-                .iter()
-                .map(|col| ColumnDescriptor {
-                    name: col.name.clone(),
-                    col_type: col.column_type.clone(),
-                    description: col.ocsf_field.clone(),
-                    nullable: true,
-                })
-                .collect();
+            // ADR-058 §G: when ocsf_column_naming is true, emit Tier-1/Tier-2
+            // ColumnDescriptor model (AC-006, RG-007/RG-025/RG-028).
+            let columns: Vec<ColumnDescriptor> = if sensor_spec.ocsf_column_naming {
+                build_ocsf_column_descriptors(table)
+            } else {
+                table
+                    .columns
+                    .iter()
+                    .map(|col| ColumnDescriptor {
+                        name: col.name.clone(),
+                        col_type: col.column_type.clone(),
+                        description: col.ocsf_field.clone(),
+                        nullable: true,
+                    })
+                    .collect()
+            };
 
             // BC-2.10.012 AUDIT-001: table name must be sensor-prefixed so that AI agents
             // build valid `FROM crowdstrike_alerts | ...` queries (not bare `FROM alerts`).
@@ -2203,6 +2307,611 @@ mod build_example_query_tests {
             q, "SELECT * FROM claroty_devices LIMIT 25",
             "OBS-2 (LOCAL pass-18): claroty_devices (no severity, no datetime) must \
              use column-free fallback; got: {q}"
+        );
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S-ADR058-OCSF-ROUTING-001 Red Gate Tests — RG-007 and RG-025
+//
+// These tests exercise `build_tables_for_client` with ocsf_column_naming=true
+// sensors (AC-006 / ADR-058 §G Tier-1/Tier-2 ColumnDescriptor model).
+// Both exercise `build_ocsf_column_descriptors` in the ocsf_column_naming=true branch.
+// ─────────────────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod ocsf_routing_tests {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use arc_swap::ArcSwap;
+    use prism_core::column::ColumnType;
+    use prism_spec_engine::config_manager::ConfigManager;
+    use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
+    use prism_spec_engine::types::ConfigSnapshot;
+
+    use super::build_tables_for_client;
+
+    /// Build a `SensorSpec` with `ocsf_column_naming = true`.
+    ///
+    /// `SensorSpec::new()` hardcodes `ocsf_column_naming = false`; `#[non_exhaustive]`
+    /// blocks struct-literal construction outside the defining crate. TOML deserialization
+    /// is the only external construction path per ADR-058 §I1.
+    fn ocsf_sensor_spec_toml(sensor_id: &str, toml_tables: &str) -> SensorSpec {
+        let toml = format!(
+            r#"
+sensor_id = "{sensor_id}"
+name = "OCSF Test"
+auth_type = "api_key"
+base_url = "https://example.com"
+version = "1.0.0"
+ocsf_column_naming = true
+{toml_tables}
+"#
+        );
+        toml::from_str::<SensorSpec>(&toml).expect("OCSF TOML must parse")
+    }
+
+    /// Minimal FetchStep for test TableSpec construction.
+    fn minimal_fetch_step() -> FetchStep {
+        FetchStep::new(
+            "fetch",
+            "GET",
+            "/api/v1/items",
+            None,
+            "$.data",
+            None,
+            vec![],
+            None,
+            None,
+        )
+    }
+
+    /// Wrap `ConfigManager` into the `Arc<ArcSwap<ConfigManager>>` required by
+    /// `build_tables_for_client`.
+    fn arc_cm(sensor_id: &str, spec: SensorSpec) -> Arc<ArcSwap<ConfigManager>> {
+        let snapshot = ConfigSnapshot {
+            sensor_specs: HashMap::from([(sensor_id.to_string(), spec)]),
+            failed_specs: HashMap::new(),
+            snapshot_hash: String::new(),
+            org_display_names: HashMap::new(),
+        };
+        Arc::new(ArcSwap::new(Arc::new(ConfigManager::new(snapshot))))
+    }
+
+    /// RG-007 / AC-006 / ADR-058 §G / BC-2.16.003 EC-016-013-028/029
+    ///
+    /// When `sensor_spec.ocsf_column_naming == true`, `build_tables_for_client` MUST
+    /// return `ColumnDescriptor.name == ocsf_field_to_arrow_name(ocsf_field)` for Tier-1
+    /// columns (those with `ocsf_field == Some`), NOT `col.name`.
+    ///
+    /// The LLM agent calls `prism_describe` before authoring PrismQL queries. The column
+    /// names returned here ARE the queryable identifiers the LLM uses — if they are
+    /// pre-flattening `col.name` values, the LLM writes queries that DataFusion rejects.
+    ///
+    /// Wire-shape annotation (SAP-3): this test calls the public surface (`build_tables_for_client`)
+    /// rather than the internal column-builder directly. The `build_tables_for_client` function
+    /// is a module-private function; this test is in a `#[cfg(test)]` module in the same file
+    /// (same-module access, not synthetic-AST coverage).
+    ///
+    /// **Red gate resolved:** branch now implemented via `build_ocsf_column_descriptors`.
+    #[test]
+    fn test_prism_describe_ocsf_column_naming_true_returns_flattened_name_and_dotted_description() {
+        // Use Claroty audit_logs (post-KF-01): note→comment (Tier-1, ocsf_field=Some).
+        let cols = vec![
+            ColumnSpec::new(
+                "note",
+                ColumnType::String,
+                Some("comment".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "action",
+                ColumnType::String,
+                Some("activity_name".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new("category", ColumnType::String, None, vec![]), // Tier-2
+        ];
+        let table = TableSpec::new_point_in_time(
+            "audit_logs",
+            "entity_management",
+            cols,
+            vec![minimal_fetch_step()],
+        );
+        let spec = toml::from_str::<SensorSpec>(
+            r#"
+sensor_id = "claroty"
+name = "Claroty"
+auth_type = "api_key"
+base_url = "https://example.com"
+version = "1.0.0"
+ocsf_column_naming = true
+"#,
+        )
+        .expect("Claroty TOML must parse");
+        // Inject the table manually via TOML struct construction is not possible for tables;
+        // instead use a full TOML spec with embedded table definition.
+        let full_toml = r#"
+sensor_id = "claroty"
+name = "Claroty"
+auth_type = "api_key"
+base_url = "https://example.com"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "audit_logs"
+ocsf_class = "entity_management"
+
+[[tables.columns]]
+name = "note"
+column_type = "string"
+ocsf_field = "comment"
+
+[[tables.columns]]
+name = "action"
+column_type = "string"
+ocsf_field = "activity_name"
+
+[[tables.columns]]
+name = "category"
+column_type = "string"
+
+[[tables.steps]]
+name = "fetch"
+method = "GET"
+path_template = "/api/v1/audit_logs"
+response_path = "$.data"
+variables_produced = []
+"#;
+        let spec_with_tables = toml::from_str::<SensorSpec>(full_toml)
+            .expect("Full Claroty TOML with tables must parse");
+
+        let cm = arc_cm("claroty", spec_with_tables);
+        // Calls build_ocsf_column_descriptors via the ocsf_column_naming=true branch.
+        let tables = build_tables_for_client("claroty", None, Some(&cm));
+
+        // Assert Tier-1 columns have flattened ocsf_field names.
+        // column "note" with ocsf_field="comment" → name="comment" (single-segment, unchanged).
+        let audio_table = tables
+            .iter()
+            .find(|t| t.name == "claroty_audit_logs")
+            .expect("AC-006 (RG-007): 'claroty_audit_logs' table MUST exist in describe response");
+
+        let comment_col = audio_table.columns.iter().find(|c| c.name == "comment");
+        assert!(
+            comment_col.is_some(),
+            "AC-006 (RG-007): Tier-1 column 'note' (ocsf_field='comment') MUST return \
+             ColumnDescriptor.name='comment' (single-segment ocsf_field is unchanged). \
+             LLM must query `WHERE comment = 'value'`, not `WHERE note = 'value'`."
+        );
+        assert_eq!(
+            comment_col.unwrap().description.as_deref(),
+            Some("comment"),
+            "AC-006 (RG-007): description MUST equal the original dotted ocsf_field path \
+             ('comment') so LLM agents understand the OCSF provenance."
+        );
+
+        // col.name "note" MUST NOT appear as a ColumnDescriptor (Tier-1 replaces it).
+        let note_col = audio_table.columns.iter().find(|c| c.name == "note");
+        assert!(
+            note_col.is_none(),
+            "AC-006 (RG-007): col.name 'note' MUST NOT appear as a ColumnDescriptor \
+             when ocsf_column_naming=true; it is replaced by the flattened ocsf_field name."
+        );
+
+        // col.name "category" (Tier-2, ocsf_field=None) MUST NOT appear as individual col.
+        let cat_col = audio_table.columns.iter().find(|c| c.name == "category");
+        assert!(
+            cat_col.is_none(),
+            "AC-006 (RG-007): Tier-2 column 'category' (ocsf_field=None) MUST NOT appear \
+             as an individual ColumnDescriptor. LLM agents must not query it directly."
+        );
+    }
+
+    /// RG-025 / AC-006 / ADR-058 §G — raw_extensions descriptor presence + no phantom names
+    ///
+    /// When `ocsf_column_naming == true`, `build_tables_for_client` MUST emit exactly ONE
+    /// `ColumnDescriptor` with `name == "raw_extensions"` and `col_type == Json` when any
+    /// Tier-2 column (ocsf_field == None) exists, AND must not emit any individual
+    /// ColumnDescriptors for those Tier-2 columns.
+    ///
+    /// The raw_extensions descriptor's `description` MUST enumerate the source Tier-2 column
+    /// names so LLM agents know what vendor-specific data they can parse from the blob.
+    ///
+    /// Wire-shape annotation (SAP-3): same-module access to `build_tables_for_client`.
+    ///
+    /// **Red gate resolved:** branch now implemented via `build_ocsf_column_descriptors`.
+    #[test]
+    fn test_prism_describe_ocsf_column_naming_true_raw_extensions_descriptor_and_no_phantom_col_names(
+    ) {
+        let full_toml = r#"
+sensor_id = "claroty"
+name = "Claroty"
+auth_type = "api_key"
+base_url = "https://example.com"
+version = "1.0.0"
+ocsf_column_naming = true
+
+[[tables]]
+table_name = "devices"
+ocsf_class = "inventory_info"
+
+[[tables.columns]]
+name = "device_uid"
+column_type = "string"
+ocsf_field = "device.uid"
+
+[[tables.columns]]
+name = "ip_list"
+column_type = "string"
+
+[[tables.columns]]
+name = "device_type"
+column_type = "string"
+
+[[tables.steps]]
+name = "fetch"
+method = "GET"
+path_template = "/api/v1/devices"
+response_path = "$.data"
+variables_produced = []
+"#;
+        let spec =
+            toml::from_str::<SensorSpec>(full_toml).expect("Full Claroty devices TOML must parse");
+
+        let cm = arc_cm("claroty", spec);
+        // Calls build_ocsf_column_descriptors via the ocsf_column_naming=true branch.
+        let tables = build_tables_for_client("claroty", None, Some(&cm));
+
+        let devices_table = tables
+            .iter()
+            .find(|t| t.name == "claroty_devices")
+            .expect("AC-006 (RG-025): 'claroty_devices' table MUST exist in describe response");
+
+        // (i): exactly ONE raw_extensions ColumnDescriptor.
+        let raw_ext_cols: Vec<_> = devices_table
+            .columns
+            .iter()
+            .filter(|c| c.name == "raw_extensions")
+            .collect();
+        assert_eq!(
+            raw_ext_cols.len(),
+            1,
+            "AC-006 (RG-025): MUST emit exactly ONE 'raw_extensions' ColumnDescriptor \
+             when any Tier-2 column (ocsf_field==None) exists; got {} entries.",
+            raw_ext_cols.len()
+        );
+
+        // (ii): col_type == Json.
+        assert_eq!(
+            raw_ext_cols[0].col_type,
+            ColumnType::Json,
+            "AC-006 (RG-025): raw_extensions ColumnDescriptor MUST have col_type=Json; \
+             LLM agents use this to know they must parse JSON from the blob."
+        );
+
+        // (iii): description enumerates the Tier-2 source column names.
+        let desc = raw_ext_cols[0].description.as_deref().unwrap_or("");
+        assert!(
+            desc.contains("ip_list"),
+            "AC-006 (RG-025): raw_extensions description MUST enumerate Tier-2 source \
+             column names so LLM agents know what vendor data is in the blob; \
+             'ip_list' MUST appear in description. Got: {:?}",
+            desc
+        );
+        assert!(
+            desc.contains("device_type"),
+            "AC-006 (RG-025): 'device_type' MUST appear in raw_extensions description. \
+             Got: {:?}",
+            desc
+        );
+
+        // (iv): no phantom col.name entries for Tier-2 columns.
+        let ip_list_col = devices_table.columns.iter().find(|c| c.name == "ip_list");
+        assert!(
+            ip_list_col.is_none(),
+            "AC-006 (RG-025): Tier-2 column 'ip_list' (ocsf_field==None) MUST NOT appear \
+             as an individual ColumnDescriptor; LLM would build broken queries like \
+             `WHERE ip_list = 'x'` which DataFusion rejects because 'ip_list' is \
+             not a first-class Arrow field when ocsf_column_naming=true."
+        );
+
+        // (v): Tier-1 column "device.uid" → "device_uid" name appears.
+        let device_uid_col = devices_table
+            .columns
+            .iter()
+            .find(|c| c.name == "device_uid");
+        assert!(
+            device_uid_col.is_some(),
+            "AC-006 (RG-025): Tier-1 column 'device_uid' (device.uid flattened) MUST appear \
+             as an individual ColumnDescriptor."
+        );
+    }
+
+    /// RG-028 / AC-015 / OQ-003 — `prism_describe` emits `class_uid` and `_sensor`
+    /// synthesized ColumnDescriptors when `ocsf_column_naming = true`.
+    ///
+    /// When `ocsf_column_naming = true`, `build_tables_for_client` MUST emit two synthesized
+    /// ColumnDescriptors appended after the Tier-1 OCSF-flattened descriptors and the single
+    /// `raw_extensions` descriptor:
+    ///   1. `class_uid` (ColumnType::Integer, nullable=false) — the OCSF class UID injected by
+    ///      `pipeline_result_to_record_batch` so the LLM agent can use it as a filter target.
+    ///   2. `_sensor` (ColumnType::String, nullable=false) — the sensor identifier column.
+    ///
+    /// These synthesized columns exist in the Arrow schema produced by
+    /// `pipeline_result_to_record_batch` but are currently invisible to the LLM agent via
+    /// `prism_describe`. Without these ColumnDescriptors, the LLM agent cannot learn that
+    /// `WHERE class_uid = 3004` and `WHERE _sensor = 'claroty'` are valid filter targets.
+    ///
+    /// **Red gate resolved:** branch now implemented via `build_ocsf_column_descriptors`;
+    /// all four assertions pass.
+    ///
+    /// Wire-shape assertion (CLAUDE.md §Conventions): serialize the `prism_describe` table
+    /// list to JSON and assert both ColumnDescriptor entries appear with the exact `name`,
+    /// `col_type`, and `nullable` values at the wire level.
+    ///
+    /// SAP-3: end-to-end from `build_tables_for_client` (the MCP surface) not internal handler.
+    /// Covers AC-015.
+    /// Traces to BC-2.16.003 §Interpretation A (synthesized columns produced by
+    /// `pipeline_result_to_record_batch` must be advertised by `prism_describe`; OQ-003
+    /// human decision 2026-08-21).
+    #[test]
+    fn test_prism_describe_ocsf_column_naming_true_emits_class_uid_and_sensor_descriptors() {
+        let toml_tables = r#"
+[[tables]]
+table_name = "audit_logs"
+ocsf_class = "entity_management"
+
+[[tables.columns]]
+name = "note"
+column_type = "string"
+ocsf_field = "comment"
+
+[[tables.columns]]
+name = "category"
+column_type = "string"
+
+[[tables.steps]]
+name = "fetch"
+method = "GET"
+path_template = "/api/v1/audit_logs"
+response_path = "$.data"
+variables_produced = []
+"#;
+        let spec = ocsf_sensor_spec_toml("claroty", toml_tables);
+        let cm = arc_cm("claroty", spec);
+
+        // Calls build_ocsf_column_descriptors via the ocsf_column_naming=true branch.
+        let tables = build_tables_for_client("claroty", None, Some(&cm));
+        let audit_table = tables
+            .iter()
+            .find(|t| t.name == "claroty_audit_logs")
+            .expect("AC-015 (RG-028): 'claroty_audit_logs' table must exist");
+
+        // (i): class_uid ColumnDescriptor — Integer, non-nullable.
+        let class_uid_col = audit_table.columns.iter().find(|c| c.name == "class_uid");
+        assert!(
+            class_uid_col.is_some(),
+            "AC-015 (RG-028/OQ-003): 'class_uid' ColumnDescriptor MUST be emitted by \
+             prism_describe when ocsf_column_naming=true. Got columns: {:?}",
+            audit_table
+                .columns
+                .iter()
+                .map(|c| &c.name)
+                .collect::<Vec<_>>()
+        );
+        let class_uid_descriptor = class_uid_col.unwrap();
+        assert_eq!(
+            class_uid_descriptor.col_type,
+            prism_core::column::ColumnType::Integer,
+            "AC-015 (RG-028/OQ-003): class_uid ColumnDescriptor MUST have col_type=Integer"
+        );
+        assert!(
+            !class_uid_descriptor.nullable,
+            "AC-015 (RG-028/OQ-003): class_uid ColumnDescriptor MUST have nullable=false"
+        );
+
+        // (ii): _sensor ColumnDescriptor — String, non-nullable.
+        let sensor_col = audit_table.columns.iter().find(|c| c.name == "_sensor");
+        assert!(
+            sensor_col.is_some(),
+            "AC-015 (RG-028/OQ-003): '_sensor' ColumnDescriptor MUST be emitted by \
+             prism_describe when ocsf_column_naming=true. Got columns: {:?}",
+            audit_table
+                .columns
+                .iter()
+                .map(|c| &c.name)
+                .collect::<Vec<_>>()
+        );
+        let sensor_descriptor = sensor_col.unwrap();
+        assert_eq!(
+            sensor_descriptor.col_type,
+            prism_core::column::ColumnType::String,
+            "AC-015 (RG-028/OQ-003): _sensor ColumnDescriptor MUST have col_type=String"
+        );
+        assert!(
+            !sensor_descriptor.nullable,
+            "AC-015 (RG-028/OQ-003): _sensor ColumnDescriptor MUST have nullable=false"
+        );
+
+        // (iii)+(iv): ordering — class_uid and _sensor MUST appear AFTER all Tier-1 and
+        // raw_extensions descriptors. They MUST be the last two entries.
+        let ncols = audit_table.columns.len();
+        assert!(
+            ncols >= 4,
+            "AC-015 (RG-028/OQ-003): MUST have at least 4 ColumnDescriptors: \
+             Tier-1 (comment), raw_extensions, class_uid, _sensor. Got {ncols}"
+        );
+        let last_two: Vec<&str> = audit_table
+            .columns
+            .iter()
+            .rev()
+            .take(2)
+            .map(|c| c.name.as_str())
+            .collect();
+        assert!(
+            last_two.contains(&"class_uid") && last_two.contains(&"_sensor"),
+            "AC-015 (RG-028/OQ-003): 'class_uid' and '_sensor' MUST be the last two \
+             ColumnDescriptors (after Tier-1 and raw_extensions). Last two: {last_two:?}"
+        );
+
+        // Wire-shape assertion: serialize to JSON and assert both entries appear with
+        // exact name, col_type, nullable values (CLAUDE.md §Conventions wire-shape discipline).
+        let json_bytes = serde_json::to_string(&audit_table.columns)
+            .expect("ColumnDescriptor list must serialize to JSON");
+        assert!(
+            json_bytes.contains(r#""name":"class_uid""#),
+            "AC-015 (RG-028/OQ-003): wire-level JSON must contain '\"name\":\"class_uid\"'. \
+             Got: {json_bytes}"
+        );
+        assert!(
+            json_bytes.contains(r#""name":"_sensor""#),
+            "AC-015 (RG-028/OQ-003): wire-level JSON must contain '\"name\":\"_sensor\"'. \
+             Got: {json_bytes}"
+        );
+        assert!(
+            json_bytes.contains(r#""nullable":false"#),
+            "AC-015 (RG-028/OQ-003): wire-level JSON must contain '\"nullable\":false' \
+             for the synthesized descriptors. Got: {json_bytes}"
+        );
+
+        // ── F-P2-HIGH-1: description text assertions (RG-028 v1.48 strengthening) ──
+        //
+        // The previous test was paper-green: it checked name/col_type/nullable/ordering but NOT
+        // the description text, allowing `description: None` to slip through.  These assertions
+        // require the EXACT canonical strings from ADR-058 §G v2.28 / BC-2.16.003 v1.23 / AC-015.
+        //
+        // Rust struct level (description field value):
+        let class_uid_desc = class_uid_descriptor.description.as_deref().unwrap_or("");
+        assert_eq!(
+            class_uid_desc,
+            "OCSF event class identifier derived from sensor TOML ocsf_class. \
+             Example: 3004 for entity_management (audit_logs), \
+             2004 for detection_finding (alerts, device_alert_relations), \
+             5001 for inventory_info (devices).",
+            "AC-015 (RG-028/OQ-003/F-P2-HIGH-1): class_uid ColumnDescriptor MUST have \
+             the canonical description text per ADR-058 §G / BC-2.16.003 AC-015; \
+             current code emits description:None"
+        );
+        let sensor_desc = sensor_descriptor.description.as_deref().unwrap_or("");
+        assert_eq!(
+            sensor_desc, "Sensor identifier. Value: <sensor_id> (e.g., 'claroty').",
+            "AC-015 (RG-028/OQ-003/F-P2-HIGH-1): _sensor ColumnDescriptor MUST have \
+             the canonical description text per ADR-058 §G / BC-2.16.003 AC-015; \
+             current code emits description:None"
+        );
+
+        // Wire-shape level: description text must appear in the serialized JSON that the
+        // LLM agent receives (CLAUDE.md §Conventions wire-shape discipline, SID-2).
+        assert!(
+            json_bytes.contains("OCSF event class identifier derived from sensor TOML ocsf_class"),
+            "AC-015 (RG-028/OQ-003/F-P2-HIGH-1): wire-level JSON must contain class_uid \
+             canonical description text (LLM agent receives this field). Got: {json_bytes}"
+        );
+        assert!(
+            json_bytes.contains("Sensor identifier. Value: <sensor_id>"),
+            "AC-015 (RG-028/OQ-003/F-P2-HIGH-1): wire-level JSON must contain _sensor \
+             canonical description text (LLM agent receives this field). Got: {json_bytes}"
+        );
+    }
+
+    /// RG-Q-015 (ADR-058 §I7 shape-exception binding) — `build_ocsf_column_descriptors`
+    /// name-set MUST agree with `ocsf_projected_column_names(table, true)`.
+    ///
+    /// `build_ocsf_column_descriptors` is a documented ADR-058 §I7 shape-exception site:
+    /// it cannot fully delegate to `ocsf_projected_column_names` because it must also emit
+    /// per-column Arrow-descriptor metadata. However, the **name set** produced by
+    /// `build_ocsf_column_descriptors` MUST equal the name set from the canonical helper.
+    ///
+    /// Without this binding test, the two surfaces could drift independently (one
+    /// updated, the other not), causing silent schema mismatches at runtime.
+    ///
+    /// This test exercises the ADR-058 §I7 invariant directly by comparing:
+    ///   - `build_tables_for_client` descriptor names (exercises `build_ocsf_column_descriptors`)
+    ///   - `ocsf_projected_column_names(table, true)` (canonical helper)
+    ///
+    /// Uses a 2-Tier-1 + 1-Tier-2 OCSF spec as a representative fixture.
+    ///
+    /// # Expected result
+    ///
+    /// PASS — sites currently agree (the invariant is being upheld). This test is a
+    /// forward-looking GATE: if `build_ocsf_column_descriptors` drifts from the helper
+    /// in a future change, this test will fail and catch the drift before runtime.
+    ///
+    /// ADR-058 §I7; S-ADR058-OCSF-ROUTING-001.
+    #[test]
+    fn test_RG_Q_015_prism_describe_names_agree_with_projection_helper() {
+        use prism_spec_engine::column_mapping::ocsf_projected_column_names;
+
+        let toml_tables = r#"
+[[tables]]
+table_name = "alerts"
+ocsf_class = "detection_finding"
+
+[[tables.columns]]
+name = "finding_uid_raw"
+column_type = "string"
+ocsf_field = "finding.uid"
+
+[[tables.columns]]
+name = "actor_user"
+column_type = "string"
+ocsf_field = "actor.user.name"
+
+[[tables.columns]]
+name = "vendor_raw_blob"
+column_type = "string"
+
+[[tables.steps]]
+name = "fetch"
+method = "GET"
+path_template = "/api/v1/alerts"
+response_path = "$.data"
+variables_produced = []
+"#;
+        // Tier-1: "finding.uid" → "finding_uid", "actor.user.name" → "actor_user_name"
+        // Tier-2: "vendor_raw_blob" → aggregated into "raw_extensions"
+        // Synthesized: "class_uid", "_sensor"
+        // Helper output (sorted): ["_sensor", "actor_user_name", "class_uid", "finding_uid", "raw_extensions"]
+
+        let spec = ocsf_sensor_spec_toml("rg015-sensor", toml_tables);
+        let table = spec
+            .tables
+            .first()
+            .expect("RG-Q-015 (prism-mcp): fixture spec must have at least one table");
+
+        // Helper path: canonical ocsf_projected_column_names.
+        let mut helper_names = ocsf_projected_column_names(table, true);
+        helper_names.sort();
+
+        // Describe path: build_tables_for_client → build_ocsf_column_descriptors (§I7 site).
+        let cm = arc_cm("rg015-sensor", spec);
+        let tables = build_tables_for_client("rg015-sensor", None, Some(&cm));
+        let alerts_table = tables
+            .iter()
+            .find(|t| t.name == "rg015-sensor_alerts")
+            .expect(
+                "RG-Q-015 (prism-mcp): 'rg015-sensor_alerts' table must exist in describe response",
+            );
+        let mut describe_names: Vec<String> = alerts_table
+            .columns
+            .iter()
+            .map(|d| d.name.clone())
+            .collect();
+        describe_names.sort();
+
+        // ADR-058 §I7 invariant: sorted name sets must be byte-equal.
+        assert_eq!(
+            describe_names, helper_names,
+            "RG-Q-015 (ADR-058 §I7 shape-exception binding — prism-mcp): \
+             build_ocsf_column_descriptors name-set MUST agree with \
+             ocsf_projected_column_names(table, true) when sorted. \
+             Drift means the LLM agent receives a column list that differs from what \
+             DataFusion will actually expose in queries. \
+             describe_names (build_ocsf_column_descriptors): {:?}. \
+             helper_names (ocsf_projected_column_names): {:?}.",
+            describe_names, helper_names
         );
     }
 }

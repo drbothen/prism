@@ -1,0 +1,10 @@
+# AC-003 + AC-004 + AC-012: pipeline_result_to_record_batch flag branches + sensor_spec parameter (RG-005, RG-006, RG-024)
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+    Starting 4 tests across 22 binaries (247 tests skipped)
+        PASS [   0.041s] (1/4) prism-bin spec_driven_adapter::tests::test_pipeline_result_to_record_batch_ocsf_flag_true_uses_flattened_names
+        PASS [   0.043s] (2/4) prism-bin spec_driven_adapter::tests::test_pipeline_result_to_record_batch_ocsf_flag_false_uses_col_name
+        PASS [   0.046s] (3/4) prism-bin spec_driven_adapter::tests::test_pipeline_result_to_record_batch_sensor_spec_parameter_gates_both_branches
+        PASS [   0.046s] (4/4) prism-bin spec_driven_adapter::tests::test_spec_driven_adapter_columns_without_ocsf_field_go_to_raw_extensions_schema
+     Summary [   0.046s] 4 tests run: 4 passed, 247 skipped
+--- Exit 0

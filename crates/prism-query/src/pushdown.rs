@@ -383,6 +383,11 @@ pub fn extract_time_window_from_ast(
     resolved_spec_map: Option<
         &std::collections::HashMap<String, Vec<prism_spec_engine::spec_parser::ColumnSpec>>,
     >,
+    // Per-source `ocsf_column_naming` flag map (ADR-058 §I6).
+    // When `Some`, the flattened OCSF Arrow name is inserted into `datetime_index_cols`
+    // only when the entry for the source name is `true`. When `None` or the source is
+    // absent, defaults to `false` (safe: no flattened-name registration).
+    ocsf_naming_map: Option<&std::collections::HashMap<String, bool>>,
 ) -> (Option<String>, Option<String>) {
     // ADR-033 §Consequences — safe default: None spec_map → no push-down, no panic.
     let spec_map = match resolved_spec_map {
@@ -392,6 +397,10 @@ pub fn extract_time_window_from_ast(
 
     // Collect all ColumnSpec entries for the given source_names, looking up datetime INDEX cols.
     // ADR-033 T1: match lhs column names against columns with column_type=datetime + options=[INDEX].
+    // AC-014 (OQ-001): when ocsf_field is present, also insert the OCSF-flattened Arrow name
+    // so that LLM agents can filter on the flattened name (e.g. `WHERE time > '...'` for
+    // claroty.audit_logs.timestamp which has ocsf_field="time"). Without this, a filter on the
+    // OCSF Arrow name would fall through to full scan. RG-PD-001.
     let mut datetime_index_cols: std::collections::HashSet<String> =
         std::collections::HashSet::new();
     for source_name in source_names {
@@ -401,6 +410,25 @@ pub fn extract_time_window_from_ast(
                     && col.options.contains(&ColumnOptions::Index)
                 {
                     datetime_index_cols.insert(col.name.clone());
+                    // AC-014 (OQ-001 / ADR-058 §I6): insert the OCSF-flattened Arrow name
+                    // only when this source's sensor has ocsf_column_naming = true.
+                    // For flag=false sensors the Arrow field names use col.name, so
+                    // registering the flattened name would be a latent collision risk:
+                    // a real column named after another column's flattened OCSF path
+                    // would receive an incorrect push-down bound → silent under-fetch.
+                    if let Some(ref ocsf_field) = col.ocsf_field {
+                        let sensor_has_ocsf_naming = ocsf_naming_map
+                            .and_then(|m| m.get(*source_name))
+                            .copied()
+                            .unwrap_or(false);
+                        if sensor_has_ocsf_naming {
+                            let arrow_name =
+                                prism_spec_engine::column_mapping::ocsf_field_to_arrow_name(
+                                    ocsf_field,
+                                );
+                            datetime_index_cols.insert(arrow_name);
+                        }
+                    }
                 }
             }
         }
@@ -690,8 +718,12 @@ mod pushdown_red_gate_tests {
         let mut spec_map: HashMap<String, Vec<ColumnSpec>> = HashMap::new();
         spec_map.insert("crowdstrike.detections".to_string(), vec![col]);
 
-        let (start_time, end_time) =
-            extract_time_window_from_ast(&predicate, &["crowdstrike.detections"], Some(&spec_map));
+        let (start_time, end_time) = extract_time_window_from_ast(
+            &predicate,
+            &["crowdstrike.detections"],
+            Some(&spec_map),
+            None, // crowdstrike: ocsf_column_naming=false (no flattened-name registration needed)
+        );
 
         // AC-WIRE-001 item (a): start_time must be populated from the Gt predicate.
         assert!(
@@ -730,7 +762,7 @@ mod pushdown_red_gate_tests {
         let predicate = parse_where(query);
 
         let (start_time, end_time) =
-            extract_time_window_from_ast(&predicate, &["crowdstrike.detections"], None);
+            extract_time_window_from_ast(&predicate, &["crowdstrike.detections"], None, None);
 
         assert!(
             start_time.is_none(),
@@ -982,8 +1014,12 @@ mod pushdown_red_gate_tests {
                      AND updated_at < '2026-06-01T00:00:00Z'";
         let predicate = parse_where(query);
 
-        let (start_time, end_time) =
-            extract_time_window_from_ast(&predicate, &["crowdstrike.detections"], Some(&spec_map));
+        let (start_time, end_time) = extract_time_window_from_ast(
+            &predicate,
+            &["crowdstrike.detections"],
+            Some(&spec_map),
+            None, // crowdstrike: ocsf_column_naming=false
+        );
 
         // Both bounds should be extracted (first-wins: created_timestamp → start, updated_at → end).
         assert!(
@@ -1035,6 +1071,7 @@ mod pushdown_red_gate_tests {
             &inverted_predicate,
             &["crowdstrike.detections"],
             Some(&spec_map),
+            None, // crowdstrike: ocsf_column_naming=false
         );
 
         // Both bounds must still be returned (DataFusion backstop correctness preserved).
@@ -1084,6 +1121,7 @@ mod pushdown_red_gate_tests {
             &normal_predicate,
             &["crowdstrike.detections"],
             Some(&spec_map),
+            None, // crowdstrike: ocsf_column_naming=false
         );
 
         assert!(
@@ -1147,8 +1185,12 @@ mod pushdown_red_gate_tests {
                      WHERE updated_at > '2026-01-01T00:00:00Z'";
         let predicate = parse_where(query);
 
-        let (start_time, end_time) =
-            extract_time_window_from_ast(&predicate, &["crowdstrike.detections"], Some(&spec_map2));
+        let (start_time, end_time) = extract_time_window_from_ast(
+            &predicate,
+            &["crowdstrike.detections"],
+            Some(&spec_map2),
+            None, // crowdstrike: ocsf_column_naming=false
+        );
 
         // updated_at has no INDEX option → predicate MUST be silently skipped.
         assert!(
@@ -1245,6 +1287,168 @@ mod pushdown_red_gate_tests {
             "BC-2.11.024 F-P9-LOW-1 guard: case-sensitive `severity = 'low'` \
              (case_insensitive: false) MUST still be collected into the push-down \
              FilterMap. Got: {guard_map:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // RG-PD-001 / AC-014 / OQ-001 — OCSF-flattened Arrow name is INDEX-eligible
+    // -----------------------------------------------------------------------
+
+    /// AC-014 / OQ-001 — `extract_time_window_from_ast` recognizes OCSF-flattened Arrow
+    /// name as index-eligible push-down target.
+    ///
+    /// When `ocsf_column_naming = true`, the datetime INDEX column
+    /// `claroty.audit_logs.timestamp` has `ocsf_field = "time"`.
+    /// After `ocsf_field_to_arrow_name("time")` = `"time"` (single-segment, no change),
+    /// PrismQL queries authored by the LLM agent use `WHERE time > '...'`.
+    ///
+    /// **Before the fix:** `datetime_index_cols` is built from `col.name` only
+    /// (`{"timestamp"}`). A filter on `"time"` is not in that set → full scan.
+    ///
+    /// **After the fix:** `datetime_index_cols` contains BOTH `"timestamp"` (col.name) AND
+    /// `"time"` (ocsf_field_to_arrow_name(ocsf_field)) → filter on `"time"` is INDEX-eligible.
+    ///
+    /// **Red gate:** `datetime_index_cols` only contains `"timestamp"`. A filter on `"time"`
+    /// falls through to `(None, None)`. Assertion `start_time.is_some()` fails.
+    ///
+    /// SAP-3: end-to-end from parsed PrismQL predicate → `extract_time_window_from_ast`.
+    /// Covers AC-014.
+    /// Traces to BC-2.16.003 §Interpretation A (OCSF-flattened Arrow names usable verbatim
+    /// by LLM agents in index-eligible filter positions; OQ-001 human decision 2026-08-21).
+    #[test]
+    fn test_extract_time_window_from_ast_recognizes_ocsf_flattened_time_column_as_index_eligible() {
+        use prism_core::ColumnOptions;
+
+        // Claroty audit_logs.timestamp: datetime INDEX col, ocsf_field = "time"
+        // ocsf_field_to_arrow_name("time") = "time" (single-segment path, unchanged).
+        let mut col = ColumnSpec::default();
+        col.name = "timestamp".to_string();
+        col.column_type = ColumnType::Datetime;
+        col.options = vec![ColumnOptions::Index];
+        col.ocsf_field = Some("time".to_string());
+
+        let mut spec_map: HashMap<String, Vec<ColumnSpec>> = HashMap::new();
+        spec_map.insert("claroty.audit_logs".to_string(), vec![col]);
+
+        // claroty has ocsf_column_naming=true (ADR-058 §G): must register both "timestamp"
+        // and the flattened OCSF name "time" in datetime_index_cols.
+        let mut naming_map: HashMap<String, bool> = HashMap::new();
+        naming_map.insert("claroty.audit_logs".to_string(), true);
+
+        // PrismQL filter on the OCSF-flattened Arrow name "time" (what the LLM agent emits).
+        let query = "SELECT * FROM claroty.audit_logs WHERE time > '2024-01-01T00:00:00Z'";
+        let predicate = parse_where(query);
+
+        let (start_time, end_time) = extract_time_window_from_ast(
+            &predicate,
+            &["claroty.audit_logs"],
+            Some(&spec_map),
+            Some(&naming_map),
+        );
+
+        // AC-014 (RG-PD-001/OQ-001): filter on "time" (OCSF-flattened Arrow name) MUST be
+        // INDEX-eligible → start_time must be Some.
+        // Before fix: datetime_index_cols = {"timestamp"} only. "time" is absent.
+        // extract_time_bounds_from_predicate falls through → (None, None). Assertion fails.
+        assert!(
+            start_time.is_some(),
+            "AC-014 (RG-PD-001/OQ-001): filter on OCSF-flattened Arrow column 'time' \
+             (claroty.audit_logs.timestamp with ocsf_field='time') MUST be INDEX-eligible. \
+             Got start_time=None — extract_time_window_from_ast fell through to full scan \
+             because datetime_index_cols only contains 'timestamp', not 'time'. \
+             Fix: for each datetime INDEX column with non-empty ocsf_field, insert BOTH \
+             col.name AND ocsf_field_to_arrow_name(ocsf_field) into datetime_index_cols."
+        );
+        assert!(
+            start_time.as_deref().unwrap_or("").contains("2024-01-01"),
+            "AC-014 (RG-PD-001/OQ-001): start_time must contain '2024-01-01'; got: {start_time:?}"
+        );
+        assert!(
+            end_time.is_none(),
+            "AC-014 (RG-PD-001/OQ-001): no upper-bound predicate — end_time must be None; \
+             got: {end_time:?}"
+        );
+    }
+
+    /// ADR-058 §I6 (OQ-001) — `ocsf_column_naming` flag gates OCSF-flattened Arrow name
+    /// registration in `datetime_index_cols`.
+    ///
+    /// For a sensor with `ocsf_column_naming = false`, a datetime+INDEX column with
+    /// `ocsf_field = "time"` MUST NOT register the flattened name ("time") in
+    /// `datetime_index_cols`. Only `col.name` ("timestamp") is registered. A PrismQL
+    /// filter on "time" MUST fall through to `(None, None)` — the sensor does not serve
+    /// OCSF-named Arrow fields, so registering the flattened name is a latent collision
+    /// risk (a real column named "time" on a different sensor would get a push-down
+    /// bound from the wrong column — silent under-fetch).
+    ///
+    /// For a sensor with `ocsf_column_naming = true`, the same column MUST register both
+    /// "timestamp" and "time" → the filter on "time" MUST be INDEX-eligible. This is the
+    /// positive guard, ensuring RG-PD-001 semantics are preserved for flag=true sensors.
+    ///
+    /// **Red gate (flag=false assertion fails before the gate):**
+    /// Without the `ocsf_column_naming` flag gate, `datetime_index_cols` unconditionally
+    /// contains "time" for any sensor with a non-empty `ocsf_field` — so the flag=false
+    /// case incorrectly returns `Some(start_time)`.
+    ///
+    /// Traces to ADR-058 §I6 invariant OQ-001.
+    #[test]
+    fn test_extract_time_window_ocsf_naming_flag_gates_flattened_name_registration() {
+        use prism_core::ColumnOptions;
+
+        // Column: datetime INDEX, ocsf_field = "time" (mirrors Claroty audit_logs.timestamp).
+        let mut col = ColumnSpec::default();
+        col.name = "timestamp".to_string();
+        col.column_type = ColumnType::Datetime;
+        col.options = vec![ColumnOptions::Index];
+        col.ocsf_field = Some("time".to_string());
+
+        let mut spec_map: HashMap<String, Vec<ColumnSpec>> = HashMap::new();
+        spec_map.insert("mysensor.audit_logs".to_string(), vec![col]);
+
+        // Query filters on the OCSF-flattened Arrow name "time" (not col.name "timestamp").
+        let query = "SELECT * FROM mysensor.audit_logs WHERE time > '2024-01-01T00:00:00Z'";
+        let predicate = parse_where(query);
+
+        // --- flag=false: flattened name MUST NOT be INDEX-eligible ---
+        let mut naming_false: HashMap<String, bool> = HashMap::new();
+        naming_false.insert("mysensor.audit_logs".to_string(), false);
+
+        let (start_false, _) = extract_time_window_from_ast(
+            &predicate,
+            &["mysensor.audit_logs"],
+            Some(&spec_map),
+            Some(&naming_false),
+        );
+        assert!(
+            start_false.is_none(),
+            "ADR-058 §I6 (OQ-001): for ocsf_column_naming=false, a filter on the \
+             OCSF-flattened name 'time' MUST NOT be INDEX-eligible — only col.name \
+             'timestamp' is registered. Got start_time=Some({start_false:?}) — the \
+             flag gate is missing; 'time' was incorrectly inserted into \
+             datetime_index_cols for a flag=false sensor."
+        );
+
+        // --- flag=true: flattened name MUST be INDEX-eligible (RG-PD-001 regression guard) ---
+        let mut naming_true: HashMap<String, bool> = HashMap::new();
+        naming_true.insert("mysensor.audit_logs".to_string(), true);
+
+        let (start_true, _) = extract_time_window_from_ast(
+            &predicate,
+            &["mysensor.audit_logs"],
+            Some(&spec_map),
+            Some(&naming_true),
+        );
+        assert!(
+            start_true.is_some(),
+            "ADR-058 §I6 (OQ-001): for ocsf_column_naming=true, a filter on the \
+             OCSF-flattened name 'time' MUST be INDEX-eligible (both 'timestamp' and \
+             'time' registered). Got start_time=None — the gate incorrectly blocked \
+             flag=true registration."
+        );
+        assert!(
+            start_true.as_deref().unwrap_or("").contains("2024-01-01"),
+            "ADR-058 §I6: start_time must contain '2024-01-01' for flag=true; \
+             got: {start_true:?}"
         );
     }
 }

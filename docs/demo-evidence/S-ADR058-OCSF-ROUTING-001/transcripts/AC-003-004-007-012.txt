@@ -1,0 +1,13 @@
+# AC-003+004+007+012: pipeline_result_to_record_batch ocsf_flag branches + sensor_spec parameter gate + raw_extensions schema
+# Tests: prism-bin -- test(pipeline_result_to_record_batch_ocsf_flag) | test(pipeline_result_to_record_batch_sensor_spec_parameter) | test(spec_driven_adapter_columns_without_ocsf_field)
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.78s
+────────────
+ Nextest run ID c16934d9-29ea-45bb-b2f3-c91418ebeaea with nextest profile: default
+    Starting 4 tests across 22 binaries (247 tests skipped)
+        PASS [   0.044s] (1/4) prism-bin spec_driven_adapter::tests::test_pipeline_result_to_record_batch_ocsf_flag_false_uses_col_name
+        PASS [   0.044s] (2/4) prism-bin spec_driven_adapter::tests::test_pipeline_result_to_record_batch_ocsf_flag_true_uses_flattened_names
+        PASS [   0.046s] (3/4) prism-bin spec_driven_adapter::tests::test_pipeline_result_to_record_batch_sensor_spec_parameter_gates_both_branches
+        PASS [   0.050s] (4/4) prism-bin spec_driven_adapter::tests::test_spec_driven_adapter_columns_without_ocsf_field_go_to_raw_extensions_schema
+────────────
+     Summary [   0.050s] 4 tests run: 4 passed, 247 skipped

@@ -1,0 +1,17 @@
+# AC-009: class_selector KF-01/KF-02 fix — entity_management=3004, inventory_info=5001 + Armis sibling
+# Sub-obligations (a)(b)(c): constant + select_by_class_name arms + select() audit_log arms
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.46s
+    Starting 3 tests across 2 binaries (80 tests skipped)
+        PASS [   0.016s] (1/3) prism-ocsf::spec_driven_mapper_fixtures test_class_selector_armis_audit_log_maps_to_entity_management_3004
+        PASS [   0.017s] (2/3) prism-ocsf::spec_driven_mapper_fixtures test_class_selector_claroty_audit_log_select_arm_maps_to_entity_management_3004
+        PASS [   0.019s] (3/3) prism-ocsf::spec_driven_mapper_fixtures test_class_selector_entity_management_and_inventory_info_arms
+     Summary [   0.019s] 3 tests run: 3 passed, 80 skipped
+
+# Wire-shape integration: audit_logs class_uid=3004 (not 3001/0), devices class_uid=5001 (not 0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.64s
+    Starting 2 tests across 22 binaries (249 tests skipped)
+        PASS [   0.054s] (1/2) prism-bin spec_driven_adapter::tests::test_claroty_devices_record_batch_class_uid_is_5001_regression_guard
+        PASS [   0.054s] (2/2) prism-bin spec_driven_adapter::tests::test_claroty_audit_logs_record_batch_class_uid_is_3004
+     Summary [   0.054s] 2 tests run: 2 passed, 249 skipped
+--- Exit 0
