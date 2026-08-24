@@ -5,7 +5,7 @@ title: "v1 Column Naming: OCSF Field-Path Routing with Underscore-Flattened Arro
 status: accepted
 date: "2026-08-11"
 modified: "2026-08-23"
-version: "2.32"
+version: "2.33"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-10, SS-16]
 supersedes: null
@@ -35,7 +35,7 @@ inputs:
   - crates/prism-ocsf/src/mappers/spec_driven.rs
   - crates/prism-ocsf/src/class_selector.rs
   - crates/prism-ocsf/ocsf-schema/1.7.0/schema.json
-input-hash: "60e106c"
+input-hash: "7514455"
 ---
 
 # ADR-058: v1 Column Naming — OCSF Field-Path Routing with Underscore-Flattened Arrow Names; DTU Migration Deferred
@@ -1096,6 +1096,67 @@ name; RG-Q-013 asserts `Err` containing `E-SPEC-030 [§J4]` for two Tier-1 colum
 table with the same flattened arrow name; RG-Q-014 asserts `Err` containing `E-SPEC-030 [§J1]`
 for a Tier-1 arrow name shadowing another column's raw `col.name`.)
 
+### §J8 Safe-Character Validation for `ocsf_field` Paths (CWE-20 Closure)
+
+Every `ocsf_field` declaration in any Tier-1 column MUST match the safe OCSF-field-path
+character set `^[A-Za-z0-9_.]+$` before any other §J collision check runs. This is a
+**hard rejection** with discriminator tag **[§J5]** (the next free E-SPEC-030 discriminator
+after [§J4]).
+
+**Rationale:** `ocsf_field_to_arrow_name` in `prism-spec-engine::column_mapping` is a bare
+`str::replace('.', "_")` with no character-set validation. An `ocsf_field` value containing
+null bytes, control characters, spaces, or other non-ASCII characters passes
+`ocsf_field_to_arrow_name` unmodified, embedding those characters in the resulting Arrow field
+name. Arrow field names with null/control bytes cause undefined behavior in Arrow metadata
+handling and confuse DataFusion column lookup (CWE-20 / Input Validation). Trust boundary:
+operator (TOML spec-file author), not end-user/LLM-agent — but under the production-grade
+default (CLAUDE.md) this must be closed in-scope.
+
+**Character set rationale:** `^[A-Za-z0-9_.]+$` covers every OCSF v1.7.0 field path verified
+in §K3. The `+` quantifier means an empty `ocsf_field` string is also rejected — an empty
+path would produce an empty Arrow field name, another Arrow metadata hazard. Vendor-extended
+paths (`device.type_category`, `device.type_label` per §J3 / KF-06) conform to this character
+set; the restriction introduces zero false positives against all 31 Claroty `ocsf_field`
+values in §E2.
+
+**Boundary with `validate_ocsf_field_path` / KNOWN_OCSF_FIELDS membership check:** The
+existing `validate_ocsf_field_path` function in `prism-spec-engine::validation` compares
+`ocsf_field` values against a compiled `KNOWN_OCSF_FIELDS` set and pushes findings to
+`warnings` — not `errors`. This behavior is **intentionally preserved** as a soft check.
+OCSF schema extensions and vendor-extended paths are valid configurations that produce correct
+output even when absent from the embedded schema subset. Promoting KNOWN_OCSF_FIELDS membership
+to a hard error would break these legitimate configurations. The §J8 charset check is orthogonal
+to and does NOT supersede the soft membership check.
+
+**Error string:** `"E-SPEC-030 [§J5] sensor=<sensor_id> table=<table_name>: ocsf_field \"<ocsf_field>\" contains characters outside the allowed set [A-Za-z0-9_.]+"`
+
+Placeholders: `sensor_id` = sensor canonical ID; `table_name` = TOML table name;
+`ocsf_field` = the raw TOML `ocsf_field` value containing unsafe characters (possibly
+truncated to 200 bytes to bound unbounded output). The placeholder value is operator-supplied
+config text, NOT a credential — safe to echo per AD-017.
+
+**Enforcement order:** `validate_ocsf_column_collisions(spec: &SensorSpec) -> Vec<String>`
+runs the §J8 charset check as the **first** inner loop before any §J1/§J2/§J4 collision
+check for the same column. A column with charset violations generates a §J5 error; the §J1,
+§J2, §J4 checks are still executed and any additional errors are collected in the same
+`Vec<String>` return. `parse_and_validate_spec_toml` folds all errors into
+`ValidationError { errors: Vec<String> }` and returns `Err(Vec<ValidationError>)`. Boot path:
+`ConfigInvalid` → exit 2; hot-reload keeps prior spec (identical error dispatch as §J7).
+
+**Runtime defense-in-depth note:** The `pipeline_result_to_record_batch` §J guard (§J2 and
+§J7) does not independently cover charset safety — `ocsf_field_to_arrow_name` would be called
+before the §J2 collision check has a chance to fire. The §J8 spec-load pre-pass is therefore
+the **only** gate preventing malformed characters from reaching Arrow field name construction.
+No belt-and-suspenders runtime guard exists for §J8; the spec-load gate is authoritative.
+
+(Mandate anchor: S-ADR058-OCSF-ROUTING-001 — story-writer leg adds AC and Red Gate test
+RG-Q-018 (`test_BC_2_16_003_ocsf_field_invalid_charset_rejected_at_spec_load` in
+`crates/prism-spec-engine`) that calls `parse_and_validate_spec_toml` with a TOML spec
+containing `ocsf_field = "finding_info\x00uid"` [null byte] and asserts the result is
+`Err(Vec<ValidationError>)` containing the E-SPEC-030 [§J5] message. Additional test
+vectors: `"actor user.name"` [space], `""` [empty], `"finding\tinfo.uid"` [tab] — all must
+return `Err` with [§J5]. Passing control: `"finding_info.uid"` → no §J5 error.)
+
 ---
 
 ## §K OCSF v1.7.0 Schema Validation
@@ -1367,7 +1428,7 @@ provenance. The detailed quoting convention analysis (four options evaluated) is
 - BC-2.01.013, BC-2.16.003, and BC-2.16.002 each require product-owner amendment after Stage 2
   ships (see §I3 for the full amendment obligation list).
 
-### Status as of v2.32 (2026-08-23)
+### Status as of v2.33 (2026-08-23)
 
 Decision accepted. Stage 1 (coercion fixes, `column_coercion_failure` emission) is implemented by
 `S-ADR058-OCSF-COERCION-001` (status: draft; mandate anchor discharged at §H). Stage 2
@@ -1448,6 +1509,7 @@ the `devices` table collision is resolved per §J3. `device_alert_relations` (fo
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 2.33 | 2026-08-23 | product-owner | **F-SEC-PR242-002 (CWE-20) closure — §J8 safe-character validation rule.** New §J8 section added to §J family: charset pre-pass in `validate_ocsf_column_collisions` rejects Tier-1 `ocsf_field` values containing characters outside `^[A-Za-z0-9_.]+$` (null bytes, control characters, spaces, non-ASCII) with discriminator E-SPEC-030 [§J5]. Pre-pass runs as the FIRST inner loop BEFORE `ocsf_field_to_arrow_name` is called, preventing unsafe characters from reaching Arrow field name construction. Character set rationale: covers all 31 Claroty `ocsf_field` values in §E2 plus all OCSF v1.7.0 field paths in §K3; vendor-extended paths (`device.type_category`, `device.type_label` per §J3/KF-06) conform; `+` quantifier rejects empty string. Boundary: `KNOWN_OCSF_FIELDS` membership check remains WARNING (intentionally preserved). Error string: `"E-SPEC-030 [§J5] sensor=<sensor_id> table=<table_name>: ocsf_field \"<ocsf_field>\" contains characters outside the allowed set [A-Za-z0-9_.]+"`. Enforcement: §J8 errors accumulate alongside §J1/§J2/§J4 errors in same `Vec<String>` return from `validate_ocsf_column_collisions`; `parse_and_validate_spec_toml` folds into `ValidationError { errors: Vec<String> }` → `Err(Vec<ValidationError>)`; boot path: `ConfigInvalid` → exit 2; hot-reload keeps prior spec. No belt-and-suspenders runtime guard for §J8 (spec-load pre-pass is authoritative). §Status heading retitled v2.32 → v2.33. BC-2.16.003 v1.27 and error-taxonomy.md v2.82 amended in same burst (EC-016-013-032 sub-case d + EC-016-013-033; E-SPEC-030 sub-case d). TD-VSDD-097: (1) Sibling pair — ADR-058 has no twin ADR; CLEAR. (2) Downstream copy target — BC-2.16.003 EC-016-013-032 is the PO-transcribed copy target of §J (EC traces to §J7); swept in same burst (BC v1.27 adds sub-case d + EC-016-013-033); error-taxonomy.md E-SPEC-030 row swept in same burst (v2.82 adds sub-case d description); CLEAR. (3) Mandate anchor — §J8 MUST anchored to S-ADR058-OCSF-ROUTING-001 RG-Q-018 (`test_BC_2_16_003_ocsf_field_invalid_charset_rejected_at_spec_load` in `crates/prism-spec-engine`); story-writer Leg 2 adds AC + Red Gate test; anchor INTENT recorded per POL-38; CLEAR. |
 | 2.32 | 2026-08-23 | architect | `ocsf.zero_tier1_table` warning emission SITE corrected `add_sensor_spec` → `register_sensor` (`prism-query::table_registry`) — the common load chokepoint covering both boot (direct) and dynamic-add (via config_manager→hot-reload) paths; verified by implementer load-path topology at commit 510d1299e; behavioral contract unchanged (warn once per zero-Tier-1 OCSF table at registration); RG-Q-017 anchor unchanged. §J6 `Emission site` bullet updated; §I7 references the warning only as "fires once at spec-load" without naming a function (no edit required; consistent with `register_sensor` being the spec-load chokepoint). §J7 `add_sensor_spec` references cover collision-detection (`validate_ocsf_column_collisions` Validation Rule 8), not the `zero_tier1_table` warn — unchanged. §Status heading retitled v2.31 → v2.32. TD-VSDD-097: (1) sibling pair — §J6 emission-site bullet corrected; §I7 carries no function name, consistent post-fix; no ADR twin. (2) downstream copy target — BC-2.16.002 §Canonical Structured Event Catalog `ocsf.zero_tier1_table` row emission-site field being reconciled by product-owner in same burst; no other spec artifact names `add_sensor_spec` as the `zero_tier1_table` emission site. (3) mandate anchor — RG-Q-017 anchor unchanged (asserts both A+W projection and warning emission; behavioral contract not affected by site correction). |
 | 2.31 | 2026-08-23 | architect | §7-AUTHORIZED spec amendment (human decision 2026-08-23). MED-1 resolved via Option A+Warning (supersedes interim §J6-drop direction): zero-Tier-1 OCSF table PRESERVES Tier-2 data via `raw_extensions` (`raw_extensions` gate is `ocsf_column_naming == true && has≥1-Tier-2`, independent of Tier-1 count — projection code UNCHANGED from v2.30). NEW spec-load WARNING: `ocsf.zero_tier1_table` event (fields: `sensor_id`, `table_name`, `tier2_column_count`; audit role: config-quality diagnostic; SAP-1/PG-LP11-001; ONCE per offending table at spec-load, not per-query; BC-2.16.002 catalog row required before PR merges). §J2 `raw_extensions` paragraph updated to `has≥1-Tier-2` rule independent of Tier-1 count (A+W). §J6 rewritten to A+W: sub-case A (0T1+≥1T2 → [class_uid, _sensor, raw_extensions] + warning), sub-case B (0T1+0T2 → [class_uid, _sensor] + warning); §J6-wins/intentional-drop language removed. §I7 rewritten to four-case description (projection code unchanged). RG-Q-017 anchor covers BOTH A+W projection ([class_uid, _sensor, raw_extensions] for 0T1+≥1T2) AND warning emission. OBS-1 §J7 signature drop (`source_path: &Path` removed → `validate_ocsf_column_collisions(spec: &SensorSpec) -> Vec<String>`) retained unchanged. TD-VSDD-097: (1) sibling pair — §J2/§J6/§I7 all state `has≥1-Tier-2` rule uniformly; §J7 isolated. (2) downstream copy targets — BC-2.11.016 EC-11-080 (A+W: 0T1+≥1T2 → [class_uid, _sensor, raw_extensions] + warning; anchor RG-Q-017); BC-2.16.002 NEW `ocsf.zero_tier1_table` catalog row (SAP-1 obligation); BC-2.16.003/error-taxonomy.md for §J7 OBS-1 signature; RG-Q-017 must assert both projection and warning. (3) mandate anchors — §J6 Invariant anchored to RG-Q-010/RG-Q-011/RG-Q-017; `ocsf.zero_tier1_table` SAP-1: BC-2.16.002 catalog row required; §J7 signature-only correction, no new behavioral MUST. |
 | 2.30 | 2026-08-22 | architect | S-ADR058-OCSF-ROUTING-001 strict-fix Step 1.1b (D-2273): §J7 error code corrected E-SPEC-027 → E-SPEC-030 (E-SPEC-027 already assigned to header_scheme validation per ADR-053 D2; E-SPEC-030 is next-free per error-taxonomy.md ground truth). §J7 body: all 9 E-SPEC-027 occurrences replaced with E-SPEC-030 (error string examples, `New error code` declaration, MUST-add obligation, and RG-Q-012/013/014 mandate anchor assertions). v2.29 changelog row likewise corrected to E-SPEC-030. No other content change. §Status heading retitled v2.29 → v2.30. |

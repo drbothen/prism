@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.54"
+version: "9.55"
 status: draft
 producer: state-manager
-timestamp: 2026-08-23T08:00:00Z
+timestamp: 2026-08-23T21:30:00Z
+# NOTE: D-2286 — BC-INDEX v9.54→v9.55: PR-LEVEL fix-burst complete (S-ADR058-OCSF-ROUTING-001) — BC-2.16.003 leading pin v1.26→v1.27 (F-SEC-PR242-001: 4 guarded .unwrap() eliminated via filter_map in §pipeline_result_to_record_batch §J OCSF branch; F-SEC-PR242-002: §J5 ocsf_field charset hard-rejection NEW E-SPEC-030 §J5 + RG-Q-018 GREEN; F-PR242-A-OBS-001: AC-008 #[ignore] comment reconciled spec-side only). ADR-058 v2.32→v2.33; error-taxonomy v2.81→v2.82; ROUTING-001 v1.56→v1.57. Counts UNCHANGED: active_contracts 253/draft_contracts 3/total 269. D-2279 NOTE archived.
 # NOTE: D-2279 — BC-INDEX v9.53→v9.54: warning emission-site reconcile — BC-2.16.002 leading pin v2.34→v2.35 (catalog row 96 emission-site: ocsf.zero_tier1_table WARN in register_sensor, not add_sensor_spec; §J6 corrected). BC-2.11.016 non-pinned row unchanged (row NOT updated; confirmed non-pinned). Counts UNCHANGED: active_contracts 253/draft_contracts 3/total 269. D-2278 NOTE archived.
 # NOTE: D-2278 — BC-INDEX v9.52→v9.53: A+W spec burst (§7-AUTHORIZED human decision 2026-08-23) — ADR-058 v2.30→v2.31 pin (MED-1 A+W; ocsf.zero_tier1_table WARN; OBS-1 sig drop). BC-2.16.002 leading pin v2.33→v2.34 (catalog row 96 ocsf.zero_tier1_table NEW; SAP-1/PG-LP11-001). BC-2.16.003 leading pin v1.25→v1.26 (EC-016-013-033 NEW zero-Tier-1+Tier-2 A+W sub-case; ocsf.zero_tier1_table warning contract). BC-2.11.016 v1.29→v1.30 (EC-11-080 A+W sub-case + warning sub-case; non-pinned row confirmed — row NOT updated). error-taxonomy v2.80→v2.81 (OBS-1 validate_ocsf_column_collisions sig drop). ROUTING-001 v1.53→v1.54 (RG-Q-017; density 46/21=2.19; AC-019 A+W sub-case; T-11AC + T-31). Counts UNCHANGED: active_contracts 253/draft_contracts 3/total 269. D-2277 NOTE archived.
 # NOTE: D-2277 — BC-INDEX v9.51→v9.52: ROUTING-001 LOCAL re-gate spec-prose fix — BC-2.16.003 leading pin v1.24→v1.25 (F1 MED EC-016-013-032 error-dispatch mechanism corrected to real two-layer parse_and_validate_spec_toml/Err(Vec<ValidationError>) + add_sensor_spec/AddSensorSpecResult::ValidationFailed; RG-Q-012/013/014 assertion descriptions aligned; F2 LOW stale architect-must-amend-ADR-058-§J7 directive removed — ADR-058 v2.30 had already applied §J7). error-taxonomy v2.79→v2.80 (F2 stale directive removed). Counts UNCHANGED: active_contracts 253/draft_contracts 3/total 269. D-2274 NOTE archived.
@@ -328,7 +329,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active v1.9 |
 | BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (v2.35 current) |
-| BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | active (v1.26 current) |
+| BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | active (v1.27 current) |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.006 | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | 16 - Spec Engine | CAP-030 | P1 | draft |

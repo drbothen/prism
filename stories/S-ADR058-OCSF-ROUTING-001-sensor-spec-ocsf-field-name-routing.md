@@ -2,7 +2,7 @@
 document_type: story
 story_id: S-ADR058-OCSF-ROUTING-001
 title: "ADR-058 Stage 2 — OCSF Field-Name Routing: ocsf_column_naming Flag, Underscore-Flattened Arrow Names, Claroty Activation"
-version: "1.56"
+version: "1.57"
 level: "L4"
 status: draft
 producer: story-writer
@@ -146,7 +146,7 @@ class_selector.rs KF-01 code defect confirmed and Armis sibling sweep)** in full
 implementing.
 Path: `.factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md`.
 
-**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.26`, status: active
+**BC-2.16.003: Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec.** Version `1.27`, status: active
 (modified 2026-08-23). §Column Routing postconditions, **§Claroty Contracted OCSF Mappings
 (ground truth for all four Claroty tables with KF-01..KF-12 corrections)**, and
 **§Interpretation A: Arrow Field Naming** govern the obligation that `ocsf_field` declarations
@@ -178,6 +178,16 @@ Rule 8); error contains E-SPEC-030 + collision tag ([§J1]/[§J2]/[§J4]); boot
 ConfigInvalid → exit 2; hot-reload keeps prior spec; runtime `pipeline_result_to_record_batch`
 §J guard remains as defense-in-depth) is the authoritative obligation for AC-021 and
 RG-Q-012/013/014.
+**EC-016-013-032(d)** (NEW in v1.27: §J5 hard-rejection sub-case — at spec-load,
+`parse_and_validate_spec_toml` MUST reject any Tier-1 `ocsf_field` not matching
+`^[A-Za-z0-9_.]+$` with E-SPEC-030 [§J5] BEFORE `ocsf_field_to_arrow_name` runs; exact
+error template: `E-SPEC-030 [§J5] sensor=<sensor_id> table=<table_name>: ocsf_field
+"<ocsf_field>" contains characters outside the allowed set [A-Za-z0-9_.]+`; boot
+ConfigInvalid → exit 2; hot-reload keeps prior spec; KNOWN_OCSF_FIELDS membership check
+remains a WARNING — do not conflate) and **EC-016-013-033** (NEW in v1.27: test vectors
+for §J5 charset rejection — at least two sub-cases: `ocsf_field` containing a space,
+`ocsf_field` containing a hyphen; contrasting PASS case: valid `ocsf_field` with chars
+matching `[A-Za-z0-9_.]+`) are the authoritative obligations for AC-022 and RG-Q-018.
 **EC-016-013-011** (corrected: `ocsf.unknown_class_name` WARN is a
 RUNTIME emission on the `Err` branch of `select_by_class_name`, NOT a load-time/startup
 warning) governs AC-011. This story brings the production path into conformance with those
@@ -266,6 +276,7 @@ The mandate anchor records:
 | When `ocsf_column_naming = true` and a table has zero Tier-1 columns with ≥1 Tier-2 column, `register_sensor` MUST register `raw_extensions` (Json) in the plan-gate available set AND emit `ocsf.zero_tier1_table` WARN ONCE at spec-load/registration; available set MUST be exactly `["_sensor", "class_uid", "raw_extensions"]`; `ocsf_projected_column_names` helper MUST return this set for zero-Tier-1-with-Tier-2 tables (BC-2.11.016 EC-11-080 A+W sub-case; BC-2.16.002 `ocsf.zero_tier1_table` catalog row; ADR-058 §J6) | S-ADR058-OCSF-ROUTING-001 | AC-019 (A+W sub-case) | RG-Q-017 | PENDING (A+W-FIX — T-31) |
 | `ocsf_projected_column_names` + `ocsf_projected_column_types` MUST be the single authoritative projection impl in `prism-spec-engine::column_mapping`; `ocsf_or_raw_column_names_for_table` in `engine.rs` MUST be a thin forward to `ocsf_projected_column_names`; registry column-name set MUST be byte-equal sorted to shared helper output (ADR-058 §I7) | S-ADR058-OCSF-ROUTING-001 | AC-020 | RG-Q-015 | PENDING (OBS-1-FIX — T-29) |
 | `parse_and_validate_spec_toml` MUST reject §J1/§J2/§J4 OCSF column collisions via `validate_ocsf_column_collisions` (Validation Rule 8); error MUST contain E-SPEC-030 + collision tag ([§J1]/[§J2]/[§J4]); boot ConfigInvalid → exit 2; hot-reload keeps prior spec (ADR-058 §J7; BC-2.16.003 EC-016-013-032) | S-ADR058-OCSF-ROUTING-001 | AC-021 | RG-Q-012, RG-Q-013, RG-Q-014, RG-Q-016 | PENDING (OBS-2-FIX — T-30) |
+| Any Tier-1 `ocsf_field` not matching `^[A-Za-z0-9_.]+$` MUST be rejected at spec-load time via `validate_ocsf_column_collisions` §J5 clause with E-SPEC-030 [§J5] BEFORE `ocsf_field_to_arrow_name` runs; exact template: `E-SPEC-030 [§J5] sensor=<sensor_id> table=<table_name>: ocsf_field "<ocsf_field>" contains characters outside the allowed set [A-Za-z0-9_.]+`; boot ConfigInvalid → exit 2; hot-reload keeps prior spec; KNOWN_OCSF_FIELDS check remains WARNING (ADR-058 §J8; BC-2.16.003 §J5/EC-016-013-032(d); error-taxonomy v2.82 E-SPEC-030 [§J5]) | S-ADR058-OCSF-ROUTING-001 | AC-022 | RG-Q-018 | PENDING (§J5-FIX — T-30 extension) |
 
 ---
 
@@ -308,7 +319,7 @@ Until then, `ColumnMapper::map_record` remains test-only.
 
 | BC | Version | Status | Relevance |
 |----|---------|--------|-----------|
-| BC-2.16.003 | v1.26 | active | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention); EC-016-013-027 (Tier-1/Tier-2 `prism_describe` model: no individual ColumnDescriptor for `ocsf_field == None` columns; exactly one `raw_extensions` ColumnDescriptor with four-field shape: name + col_type=Json + nullable=true + description enumerating source keys); EC-016-013-028 (reworded v1.18: multi-valued array source fields → compact JSON-list string in raw_extensions via `pipeline_result_to_record_batch` source_path extraction + ENRICH-1 normalization — NOT naive `r.get(col.name)` — governs AC-007c / RG-026); EC-016-013-029 (NEW v1.18: flattened `ocsf_field` equal to synthesized reserved name → `Err(ArrowError::SchemaError)` fail-closed — governs AC-013 / RG-027); EC-016-013-032 (NEW v1.24: `parse_and_validate_spec_toml` rejects §J1/§J2/§J4 collisions with E-SPEC-030 at spec-load time; boot ConfigInvalid → exit 2; hot-reload keeps prior spec — governs AC-021 / RG-Q-012/013/014/016); EC-016-013-011 (runtime `ocsf.unknown_class_name` WARN on Err branch — governs AC-011); OBS-1 (v1.26): `validate_ocsf_column_collisions` §J7 signature drop — parameter removed per ADR-058 §J7 amendment (governs T-30/RG-Q-016) |
+| BC-2.16.003 | v1.27 | active | §Column Routing postconditions, §Claroty Contracted OCSF Mappings (ground truth — KF-01..KF-12 corrections for all four tables), §Interpretation A: Arrow Field Naming — `ocsf_field` declarations produce queryable Arrow field identifiers; EC-016-013-023 (audit_logs class_uid = 3004 wire-level) and EC-016-013-024 (devices class_uid = 5001 regression-prevention); EC-016-013-027 (Tier-1/Tier-2 `prism_describe` model: no individual ColumnDescriptor for `ocsf_field == None` columns; exactly one `raw_extensions` ColumnDescriptor with four-field shape: name + col_type=Json + nullable=true + description enumerating source keys); EC-016-013-028 (reworded v1.18: multi-valued array source fields → compact JSON-list string in raw_extensions via `pipeline_result_to_record_batch` source_path extraction + ENRICH-1 normalization — NOT naive `r.get(col.name)` — governs AC-007c / RG-026); EC-016-013-029 (NEW v1.18: flattened `ocsf_field` equal to synthesized reserved name → `Err(ArrowError::SchemaError)` fail-closed — governs AC-013 / RG-027); EC-016-013-032 (NEW v1.24: `parse_and_validate_spec_toml` rejects §J1/§J2/§J4 collisions with E-SPEC-030 at spec-load time; boot ConfigInvalid → exit 2; hot-reload keeps prior spec — governs AC-021 / RG-Q-012/013/014/016); EC-016-013-032(d) (NEW v1.27: §J5 charset hard-rejection — Tier-1 `ocsf_field` not matching `^[A-Za-z0-9_.]+$` rejected with E-SPEC-030 [§J5] BEFORE `ocsf_field_to_arrow_name` runs — governs AC-022 / RG-Q-018; ADR-058 §J8 CWE-20 closure); EC-016-013-033 (NEW v1.27: §J5 test vectors — space, hyphen sub-cases + contrasting PASS case — governs AC-022 / RG-Q-018); EC-016-013-011 (runtime `ocsf.unknown_class_name` WARN on Err branch — governs AC-011); OBS-1 (v1.26): `validate_ocsf_column_collisions` §J7 signature drop — parameter removed per ADR-058 §J7 amendment (governs T-30/RG-Q-016) |
 | BC-2.16.002 | v2.35 | active | Canonical Structured Event Catalog `ocsf.unknown_class_name` WARN — fields `ocsf_class`, `sensor_id`, `table_name`; SAP-1/PG-LP11-001 obligation on implementer to add the warn emission in the same commit as the `select_by_class_name` arm additions (AC-011); NEW v2.34: `ocsf.zero_tier1_table` WARN — emitted ONCE at spec-load/registration when `ocsf_column_naming = true` and table has zero Tier-1 + ≥1 Tier-2 columns; fields `sensor_id`, `table_name`; governs AC-019 A+W sub-case and RG-Q-017 |
 | BC-2.01.013 | v1.23 | active | EC-01-025 NON-CONFORMANT annotation resolved for Claroty after this story merges; product-owner updates annotation |
 | BC-2.11.016 | v1.31 | active | EC-11-079: E-QUERY-038 column-resolution gate and E-QUERY-002/041 type-compat gate MUST operate against the OCSF-flattened schema (not raw TOML `col.name`) for `ocsf_column_naming = true` tables; `available_columns` payload MUST list OCSF-flattened names only; raw `col.name` refs rejected as-if-absent; describe/select/query name-agreement invariant; covered by AC-016/AC-017/AC-018 and RG-Q-001..RG-Q-009 (RG-Q-008/009 cover multi-tenant `resolved_spec_map` path). EC-11-080 (A+W amendment v1.30): zero-Tier-1-with-Tier-2 OCSF table MUST project `["_sensor", "class_uid", "raw_extensions"]` + emit `ocsf.zero_tier1_table` WARN at registration; covered by AC-019 and RG-Q-010/011/017 |
@@ -317,8 +328,8 @@ Until then, `ColumnMapper::map_record` remains test-only.
 
 ## Red Gate Tests (SAC-1 — tdd_mode: strict)
 
-All forty-six tests MUST be failing (RED) before any implementation code is written.
-Test-writer dispatched FIRST; implementer only after all 46 confirmed failing.
+All forty-seven tests MUST be failing (RED) before any implementation code is written.
+Test-writer dispatched FIRST; implementer only after all 47 confirmed failing.
 
 - **RG-001:** `test_sensor_spec_ocsf_column_naming_defaults_to_false` —
   fails until `SensorSpec` gains the `ocsf_column_naming` field (with `#[serde(default)]`).
@@ -943,13 +954,49 @@ BC-2.16.003 EC-016-013-029.
   `ocsf.zero_tier1_table` WARN at registration (ADR-058 §J6; BC-2.16.002 `ocsf.zero_tier1_table`
   catalog row v2.34).
 
+- **RG-Q-018:** `test_BC_2_16_003_ocsf_field_invalid_charset_rejected_at_spec_load`
+  (prism-spec-engine): a sensor TOML with a Tier-1 column whose `ocsf_field` value contains
+  characters outside `[A-Za-z0-9_.]+` causes `parse_and_validate_spec_toml` to return `Err`
+  where the error string contains `"E-SPEC-030"` and `"[§J5]"`.
+
+  The test exercises at least two invalid-charset sub-cases: (1) an `ocsf_field` containing
+  a space (e.g., `ocsf_field = "finding info.uid"`); (2) an `ocsf_field` containing a hyphen
+  (e.g., `ocsf_field = "finding-info.uid"`). For each sub-case, assert `Err(e)` where `e`
+  contains both `"E-SPEC-030"` and `"[§J5]"`. The error MUST match the canonical template:
+  `E-SPEC-030 [§J5] sensor=<sensor_id> table=<table_name>: ocsf_field "<ocsf_field>"
+  contains characters outside the allowed set [A-Za-z0-9_.]+`
+
+  A contrasting PASS assertion MUST also be included: an `ocsf_field` value using only valid
+  characters (e.g., `ocsf_field = "finding_info.uid"` — all ASCII letters/digits/underscores/dots)
+  MUST NOT trigger §J5 rejection (must return `Ok(...)`), confirming the charset gate fires
+  only for genuinely disallowed characters.
+
+  **§J5 runs BEFORE `ocsf_field_to_arrow_name`:** The charset check MUST be the first validation
+  applied to each `ocsf_field` value — before any dot-to-underscore flattening. An `ocsf_field`
+  with disallowed characters (spaces, hyphens, slashes, Unicode, etc.) would produce an invalid
+  Arrow field name if allowed through `ocsf_field_to_arrow_name`.
+
+  **KNOWN_OCSF_FIELDS boundary:** The KNOWN_OCSF_FIELDS membership check (which verifies that
+  the `ocsf_field` path exists in the OCSF v1.7.0 schema) is and remains a WARNING-level check.
+  Do NOT conflate it with §J5 hard-rejection: §J5 is a charset/syntax gate; KNOWN_OCSF_FIELDS
+  is a semantic schema-membership warning.
+
+  **RED condition:** Before the §J5 charset check is added to `validate_ocsf_column_collisions`
+  (T-30 extension), `parse_and_validate_spec_toml` accepts `"finding info.uid"` without
+  error — the test asserts `Err` but gets `Ok(...)`. Both invalid-charset sub-cases fail.
+
+  Place in `crates/prism-spec-engine/src/add_sensor_spec.rs` `#[cfg(test)] mod tests`.
+  Covers AC-022. Traces to BC-2.16.003 §J5 + EC-016-013-032(d) + EC-016-013-033 (charset
+  hard-rejection at spec-load with E-SPEC-030 [§J5] BEFORE `ocsf_field_to_arrow_name`; ADR-058
+  §J8 CWE-20 closure rationale; error-taxonomy v2.82 E-SPEC-030 [§J5]).
+
 ### BC-5.38.001 Density Check
 
-Red Gate test count: **46** (RG-001..RG-027, RG-PD-001, RG-028, RG-Q-001..RG-Q-017).
-Acceptance criteria: 21 (AC-001..AC-021). AC-008 is an `#[ignore]`'d test update — its
+Red Gate test count: **47** (RG-001..RG-027, RG-PD-001, RG-028, RG-Q-001..RG-Q-018).
+Acceptance criteria: 22 (AC-001..AC-022). AC-008 is an `#[ignore]`'d test update — its
 Red Gate is RG-005 (same mechanism: Arrow field name must be `device_uid` not `uid`).
 
-Density: 46 RGTs / 21 ACs = **2.19 ≥ 0.5** — compliant with BC-5.38.001.
+Density: 47 RGTs / 22 ACs = **2.14 ≥ 0.5** — compliant with BC-5.38.001.
 
 Note: AC-005 (claroty.sensor.toml — ocsf_column_naming + KF-01..KF-04, OQ-005, KF-06..KF-12 + flag + §J3 shadow fix)
 is validated by wire-shape RGs that require the corrected TOML to pass: RG-014..RG-022
@@ -1393,9 +1440,8 @@ The `#[ignore]`'d test `test_BC_2_11_005_e2e_claroty_query_returns_data` (in
 column has `ocsf_field = "device.uid"` → Arrow name `"device_uid"` after Stage 2).
 
 The test remains `#[ignore]`'d after this update (it requires a live Claroty server or
-a running DTU clone per SID-1 rule 4). The `#[ignore]` attribute comment is updated to:
-`// Requires live Claroty DTU server; SID-1 dependency: DTU parity tests pending
-// S-ADR058-DTU-PARITY-MIGRATION-001`.
+a running DTU clone per SID-1 rule 4). The `#[ignore]` attribute is updated to:
+`#[ignore = "E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile."]`
 
 The non-`#[ignore]`'d companion unit test RG-005 and RG-006 provide the non-live
 verification that the column naming logic branches correctly.
@@ -1968,6 +2014,45 @@ spec; ADR-058 §J7)
 
 ---
 
+### AC-022: Spec-load charset validation — any Tier-1 ocsf_field not matching [A-Za-z0-9_.]+ is rejected with E-SPEC-030 [§J5]
+
+At spec-load time, `parse_and_validate_spec_toml` MUST reject any Tier-1 column whose
+`ocsf_field` value contains characters outside the allowed set `[A-Za-z0-9_.]+` by
+returning an error whose string contains `"E-SPEC-030"` and `"[§J5]"`. The exact error
+template is:
+
+```
+E-SPEC-030 [§J5] sensor=<sensor_id> table=<table_name>: ocsf_field "<ocsf_field>" contains characters outside the allowed set [A-Za-z0-9_.]+
+```
+
+This hard-rejection is the **§J5** clause of `validate_ocsf_column_collisions`. It runs
+**BEFORE** `ocsf_field_to_arrow_name` is called and before any §J1/§J2/§J4 collision
+check. Valid characters are ASCII letters (`A-Za-z`), digits (`0-9`), underscores (`_`),
+and dots (`.`) — exactly the character set that produces a valid Arrow field name after
+underscore-flattening. An `ocsf_field` with disallowed characters (e.g., spaces, hyphens,
+slashes, Unicode code points) would produce an invalid Arrow field name if passed through
+`ocsf_field_to_arrow_name`.
+
+**Boot path:** `ConfigInvalid → exit 2` (identical behavior to existing §J1/§J2/§J4
+collision errors). **Hot-reload path:** keeps the prior valid spec (existing behavior).
+
+**KNOWN_OCSF_FIELDS membership boundary:** The KNOWN_OCSF_FIELDS field-set membership
+check (which verifies that the `ocsf_field` path exists in the OCSF v1.7.0 schema) is
+and remains a WARNING-level check. This §J5 hard-rejection is a charset/syntax gate that
+fires before any OCSF schema lookup. Do NOT conflate the two: §J5 fires for chars outside
+`[A-Za-z0-9_.]+`; KNOWN_OCSF_FIELDS fires for a syntactically valid path that is not
+in the OCSF v1.7.0 schema dictionary.
+
+**Covered by RG-Q-018** (`test_BC_2_16_003_ocsf_field_invalid_charset_rejected_at_spec_load`).
+
+(traces to BC-2.16.003 §J5 postcondition (v1.27): any Tier-1 `ocsf_field` not matching
+`^[A-Za-z0-9_.]+$` MUST be rejected at spec-load with E-SPEC-030 [§J5]; EC-016-013-032(d):
+§J5 hard-rejection as new sub-case of `validate_ocsf_column_collisions`; EC-016-013-033:
+test vectors for §J5 (space sub-case, hyphen sub-case, contrasting PASS with valid chars);
+ADR-058 §J8: CWE-20 closure rationale for charset gate; error-taxonomy v2.82: E-SPEC-030 [§J5])
+
+---
+
 ## Architecture Mapping
 
 | Component | Module | Pure/Effectful | Scope |
@@ -2338,18 +2423,28 @@ implementer MUST load only the files listed, not the full architecture directory
   Covers AC-019 A+W sub-case. Traces to BC-2.11.016 EC-11-080 A+W + BC-2.16.002 v2.34
   `ocsf.zero_tier1_table` catalog row + ADR-058 §J6.
 
+- T-11AD: Write RG-Q-018 — `test_BC_2_16_003_ocsf_field_invalid_charset_rejected_at_spec_load`
+  (MUST FAIL). Place in `crates/prism-spec-engine/src/add_sensor_spec.rs` `#[cfg(test)] mod tests`.
+  Write at least two invalid-charset sub-cases: (1) a Tier-1 column with
+  `ocsf_field = "finding info.uid"` (space); (2) a Tier-1 column with
+  `ocsf_field = "finding-info.uid"` (hyphen). For each sub-case call `parse_and_validate_spec_toml`
+  and assert `Err(e)` where `e` contains both `"E-SPEC-030"` and `"[§J5]"`. Also write the
+  contrasting PASS assertion: a column with `ocsf_field = "finding_info.uid"` (all valid chars)
+  MUST return `Ok(...)`. RED condition: before T-30 §J5 extension, no charset check exists —
+  the function accepts `"finding info.uid"` without error. Both `Err` sub-cases fail. Covers AC-022.
+
 - T-GATE: Run `just iter prism-spec-engine --no-fail-fast`, `just iter prism-bin --no-fail-fast`,
   `just iter prism-mcp --no-fail-fast`, `just iter prism-ocsf --no-fail-fast`, and
   `just iter prism-query --no-fail-fast` — confirm RG-001..RG-027, RG-PD-001, RG-028, and
-  RG-Q-001..RG-Q-017 fail with correct compile/test-failure reasons (RG-001..004 in
-  prism-spec-engine; RG-Q-012/013/014/016 in prism-spec-engine (add_sensor_spec mod tests);
+  RG-Q-001..RG-Q-018 fail with correct compile/test-failure reasons (RG-001..004 in
+  prism-spec-engine; RG-Q-012/013/014/016/018 in prism-spec-engine (add_sensor_spec mod tests);
   RG-005..006/008..010/014..022/024/026/027 in prism-bin; RG-007, RG-025,
   and RG-028 in prism-mcp; RG-011/012/023 in prism-ocsf/tests/; RG-013 in
   prism-ocsf/src/mappers/spec_driven.rs mod tests; RG-PD-001 and RG-Q-001..015/RG-Q-017 in
-  prism-query; RG-Q-016 in prism-spec-engine add_sensor_spec mod tests). Confirm no regressions
-  in non-RG tests (note: RG-Q-007 is a backward-compat green-lock test — it MUST pass before
-  Fix A; confirm it passes).
-  Report density: 46/21 = 2.19 ≥ 0.5. STOP and wait for implementer dispatch.
+  prism-query; RG-Q-016 and RG-Q-018 in prism-spec-engine add_sensor_spec mod tests). Confirm no
+  regressions in non-RG tests (note: RG-Q-007 is a backward-compat green-lock test — it MUST pass
+  before Fix A; confirm it passes).
+  Report density: 47/22 = 2.14 ≥ 0.5. STOP and wait for implementer dispatch.
 
 ### Phase B: Implementation (implementer dispatched AFTER T-GATE)
 
@@ -2602,19 +2697,36 @@ implementer MUST load only the files listed, not the full architecture directory
   The registry column-name set seeded in T-28 MUST produce a byte-equal sorted set to the output of
   `ocsf_projected_column_names`. Run `just iter prism-spec-engine` then `just iter prism-query`.
   Makes RG-Q-015 green. Traces to AC-020.
-- T-30: OBS-2-FIX — Add `validate_ocsf_column_collisions` as Validation Rule 8 in
+- T-30: OBS-2-FIX + §J5-FIX — Add `validate_ocsf_column_collisions` as Validation Rule 8 in
   `crates/prism-spec-engine/src/add_sensor_spec.rs`. The function must be called inside
   `parse_and_validate_spec_toml` (or equivalent spec-load entry point) before the spec is
-  accepted. On a §J1 (Tier-1 name shadows raw col.name of another column), §J2 (flattened name
-  equals a synthesized/reserved name: `class_uid`, `category_uid`, `_sensor`, `raw_extensions`),
-  or §J4 (two `ocsf_field` declarations flatten to the same Arrow name) collision, return an
-  error that contains error code E-SPEC-030 and the applicable collision tag ([§J1], [§J2], or
-  [§J4]). At boot this produces a `ConfigInvalid` error and exit 2; on hot-reload, the prior
-  valid spec is retained. The runtime `pipeline_result_to_record_batch` §J guard (T-21) MUST
-  remain as defense-in-depth — T-30 adds the spec-load gate, it does NOT remove the runtime
+  accepted. The function enforces FOUR checks in order:
+
+  **(§J5 — FIRST, before ocsf_field_to_arrow_name):** For each Tier-1 column, check whether
+  the `ocsf_field` value matches `^[A-Za-z0-9_.]+$`. If it does NOT match, return an error
+  containing `"E-SPEC-030"` and `"[§J5]"` with the exact template:
+  `E-SPEC-030 [§J5] sensor=<sensor_id> table=<table_name>: ocsf_field "<ocsf_field>"
+  contains characters outside the allowed set [A-Za-z0-9_.]+`
+  This check MUST run BEFORE any call to `ocsf_field_to_arrow_name` — an `ocsf_field` with
+  disallowed characters must never reach the flattening function (ADR-058 §J8; BC-2.16.003 §J5).
+
+  **(§J1 — shadow collision):** A Tier-1 arrow name that equals another column's raw `col.name`
+  within the same table produces an error containing `"E-SPEC-030"` and `"[§J1]"`.
+
+  **(§J2 — reserved name):** A flattened name equal to a synthesized/reserved name
+  (`class_uid`, `category_uid`, `_sensor`, `raw_extensions`) produces an error containing
+  `"E-SPEC-030"` and `"[§J2]"`.
+
+  **(§J4 — intra-table duplicate):** Two `ocsf_field` declarations in the same table that
+  flatten to the same Arrow name produce an error containing `"E-SPEC-030"` and `"[§J4]"`.
+
+  At boot, any of these errors produce a `ConfigInvalid` error and exit 2; on hot-reload, the
+  prior valid spec is retained. The runtime `pipeline_result_to_record_batch` §J guard (T-21)
+  MUST remain as defense-in-depth — T-30 adds the spec-load gate, it does NOT remove the runtime
   guard. Add a comment in `crates/prism-core/src/error.rs` at the E-SPEC-030 entry identifying
-  it as the spec-load OCSF collision error code. Run `just iter prism-spec-engine`. Makes
-  RG-Q-012, RG-Q-013, and RG-Q-014 green. Traces to AC-021.
+  it as the spec-load OCSF collision/charset error code. Run `just iter prism-spec-engine`. Makes
+  RG-Q-012, RG-Q-013, RG-Q-014, and RG-Q-018 green. Traces to AC-021 (§J1/§J2/§J4) and
+  AC-022 (§J5).
 - T-31: A+W-FIX — When `register_sensor` (`prism-query::table_registry`,
   `crates/prism-query/src/table_registry.rs`) processes an OCSF-mode table
   (`ocsf_column_naming = true`) that has **zero Tier-1 columns**
@@ -2639,13 +2751,13 @@ implementer MUST load only the files listed, not the full architecture directory
   RG-Q-017 green. Traces to AC-019 A+W sub-case.
 
 - T-19: Run `just iter prism-spec-engine`, `just iter prism-bin`, `just iter prism-mcp`,
-  `just iter prism-ocsf`, and `just iter prism-query` — all 46 RGTs must pass
-  (RG-001..004 in prism-spec-engine; RG-Q-012/RG-Q-013/RG-Q-014/RG-Q-016 in prism-spec-engine
-  (add_sensor_spec mod tests); RG-005..006/008..010/014..022/024/026/027 in prism-bin;
-  RG-007/RG-025/RG-028 in prism-mcp; RG-011/012/023 in prism-ocsf/tests/; RG-013 in
+  `just iter prism-ocsf`, and `just iter prism-query` — all 47 RGTs must pass
+  (RG-001..004 in prism-spec-engine; RG-Q-012/RG-Q-013/RG-Q-014/RG-Q-016/RG-Q-018 in
+  prism-spec-engine (add_sensor_spec mod tests); RG-005..006/008..010/014..022/024/026/027 in
+  prism-bin; RG-007/RG-025/RG-028 in prism-mcp; RG-011/012/023 in prism-ocsf/tests/; RG-013 in
   prism-ocsf/src/mappers/spec_driven.rs mod tests; RG-PD-001 and
   RG-Q-001..RG-Q-017 in prism-query/src/tests/ocsf_column_routing_tests.rs, except
-  RG-Q-012..014 which live in prism-spec-engine add_sensor_spec mod tests,
+  RG-Q-012..014 and RG-Q-018 which live in prism-spec-engine add_sensor_spec mod tests,
   RG-Q-015 which lives in prism-query/src/table_registry.rs mod tests, and
   RG-Q-017 which lives in prism-query/src/tests/ocsf_column_routing_tests.rs).
 - T-20: Run `just check` — full workspace gate. Must stay GREEN per ADR-058 §E1
@@ -2810,6 +2922,28 @@ Build-time enforcement rules:
 ---
 
 ## TD-VSDD-097 / POL-29 Three-Dimension Sweep Verdict
+
+### v1.57 Amendment Sweep (PR-LEVEL fix-burst Leg 2: AC-022 + RG-Q-018 for BC-2.16.003 §J5 charset hard-rejection; AC-008 stale #[ignore] comment fixed; §Authority + BC table re-pinned to BC-2.16.003 v1.27; density 47/22=2.14)
+
+**Dimension 1 — Sibling pair:**
+
+*S-ADR058-OCSF-COERCION-001* (Stage 1 sibling): merged and terminal at v1.47 snapshot (ADR-058 v2.26, BC-2.16.003 v1.21, BC-2.16.002 v2.32). This v1.57 burst adds the §J5 charset hard-rejection clause (a new sub-case of `validate_ocsf_column_collisions`) and the corresponding RG-Q-018 / AC-022 / T-30 extension. COERCION-001 carries no `validate_ocsf_column_collisions` §J5 charset obligation; the §J5 charset check is specific to OCSF field-name routing (Stage 2 spec-load validation). VERDICT: SIBLING HISTORICAL SNAPSHOT PRESERVED — NO CHANGE NEEDED.
+
+**Dimension 2 — Downstream copy target:**
+
+Changed surfaces in this burst: (1) frontmatter version 1.56→1.57; (2) §Authority BC-2.16.003 pin v1.26→v1.27 + EC-016-013-032(d) and EC-016-013-033 notes (§J5 hard-rejection, test vectors); (3) §Behavioral Contracts table BC-2.16.003 row v1.26→v1.27, EC-016-013-032(d)/033 coverage notes added; (4) §Red Gate Tests preamble "forty-six"→"forty-seven", "46"→"47"; (5) RG-Q-018 entry added (`test_BC_2_16_003_ocsf_field_invalid_charset_rejected_at_spec_load`; two invalid-charset sub-cases — space + hyphen — plus contrasting PASS case; §J5 runs BEFORE `ocsf_field_to_arrow_name`; KNOWN_OCSF_FIELDS boundary clarification); (6) §BC-5.38.001 Density Check 46→47 RGTs, 21→22 ACs, range RG-Q-001..017→RG-Q-001..018, density 2.19→2.14; (7) AC-022 added (§J5 charset hard-rejection at spec-load with E-SPEC-030 [§J5]; exact error template; KNOWN_OCSF_FIELDS boundary; traces to BC-2.16.003 §J5/EC-016-013-032(d)/EC-016-013-033); (8) AC-008 #[ignore] comment prescription updated: stale `// Requires live Claroty DTU server; SID-1 dependency: DTU parity tests pending // S-ADR058-DTU-PARITY-MIGRATION-001` → `#[ignore = "E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile."]` (governing decision D-2264 de-scoped S-ADR058-DTU-PARITY-MIGRATION-001); (9) §Mandate Anchor table — AC-022 §J5 MUST row added (RG-Q-018, T-30 extension, PENDING §J5-FIX); (10) §Tasks Phase A — T-11AD added (write RG-Q-018, MUST FAIL, before T-GATE); T-GATE range RG-Q-001..017→RG-Q-001..018; density 46/21=2.19→47/22=2.14; T-GATE prism-spec-engine distribution updated to include RG-Q-018; (11) §Tasks Phase B — T-30 extended to §J5-FIX (§J5 charset check added as FIRST check in `validate_ocsf_column_collisions`, before §J1/§J2/§J4; makes RG-Q-018 green); T-19 count 46→47; T-19 prism-spec-engine distribution updated to include RG-Q-018; (12) §TD-VSDD-097 — this v1.57 sweep added at top; (13) §Changelog — v1.57 row added at top.
+
+None of the changed loci are verbatim-copied into any downstream artifact — they are story-body spec prose consumed by implementer/test-writer agents at dispatch time. The §Authority BC-2.16.003 pin is a machine-readable version string consumed by spec-steward tooling; no independent copy artifact transcribes it verbatim. The AC-008 `#[ignore]` comment text is consumed by the implementer to set the code comment verbatim — the implementer (Leg 4) is the downstream copy target, not a persistent artifact. VERDICT: CLEAR.
+
+**Dimension 3 — Mandate anchor:**
+
+New MUST introduced: "Any Tier-1 `ocsf_field` not matching `^[A-Za-z0-9_.]+$` MUST be rejected at spec-load time via `validate_ocsf_column_collisions` §J5 clause with E-SPEC-030 [§J5] BEFORE `ocsf_field_to_arrow_name` runs; boot ConfigInvalid → exit 2; hot-reload keeps prior spec (ADR-058 §J8; BC-2.16.003 §J5/EC-016-013-032(d); error-taxonomy v2.82 E-SPEC-030 [§J5])."
+
+This new MUST is anchored to: AC-022 → RG-Q-018 (`test_BC_2_16_003_ocsf_field_invalid_charset_rejected_at_spec_load`) + T-30 (§J5-FIX — §J5 charset check added as first check in `validate_ocsf_column_collisions`). Both anchor targets are in this same burst. BC-2.16.003 §J5/EC-016-013-032(d) is the contract source; ADR-058 §J8 is the architectural decision (CWE-20 closure rationale); error-taxonomy v2.82 E-SPEC-030 [§J5] is the error code source. VERDICT: NEW MUST ANCHORED TO RG-Q-018 + T-30 (§J5-FIX) IN SAME BURST.
+
+SAC-1 re-verified: 47 RGTs, density 47/22 = 2.14 ≥ 0.5, red-then-green ordering preserved (T-11AD test-authoring task in Phase A precedes T-30 §J5-FIX implementation task in Phase B).
+
+**RG ID correction note:** The dispatch prompt assigned "RG-Q-016" to `test_BC_2_16_003_ocsf_field_invalid_charset_rejected_at_spec_load`. However, RG-Q-016 is already in use in this story for `test_BC_2_16_003_ocsf_collision_j1_shadow_tier1_vs_tier1_rejected_at_spec_load` (added in v1.53). The next available ID is **RG-Q-018** (RG-Q-017 is also taken by `test_BC_2_11_016_zero_tier1_with_tier2_projects_raw_extensions_and_emits_warning`, added in v1.54). This v1.57 burst uses RG-Q-018 as the correct next sequential ID. The dispatch was authored from BC analysis without cross-referencing the story's current RG high-water mark.
 
 ### v1.56 Amendment Sweep (records-tier T-31 task-body alignment — LOCAL parallel pass-2 OBS-1; warn! snippet aligned to BC-2.16.002 row 96 canonical contract; no code/BC/ADR change)
 
@@ -4046,6 +4180,7 @@ RG-017 T-11J` respectively. VERDICT: DISCHARGED IN THIS AMENDMENT.
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.57 | 2026-08-23 | story-writer | PR-LEVEL fix-burst Leg 2: TASK A — AC-022 added (§J5 charset hard-rejection: Tier-1 ocsf_field not matching ^[A-Za-z0-9_.]+$ rejected with E-SPEC-030 [§J5] at spec-load BEFORE ocsf_field_to_arrow_name; traces to BC-2.16.003 §J5/EC-016-013-032(d)/EC-016-013-033/ADR-058 §J8/error-taxonomy v2.82); RG-Q-018 added (test_BC_2_16_003_ocsf_field_invalid_charset_rejected_at_spec_load; space + hyphen invalid sub-cases + PASS contrast; prism-spec-engine add_sensor_spec mod tests); §BC-5.38.001 density 46/21=2.19→47/22=2.14; §Authority BC-2.16.003 re-pinned v1.26→v1.27; §Behavioral Contracts table BC-2.16.003 updated to v1.27 with EC-016-013-032(d)/033 notes; T-11AD added (write RG-Q-018 before T-GATE); T-GATE + T-19 updated to 47 RGTs with RG-Q-018 in prism-spec-engine distribution; T-30 extended to §J5-FIX (§J5 charset check FIRST in validate_ocsf_column_collisions); §Mandate Anchor new row for AC-022/RG-Q-018/T-30; §TD-VSDD-097 v1.57 sweep added. TASK B — AC-008 #[ignore] comment prescription updated to #[ignore = "E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile."] (de-scoped story S-ADR058-DTU-PARITY-MIGRATION-001 reference removed per D-2264). RG ID correction: dispatch said RG-Q-016 but that ID is taken; RG-Q-018 used as next available. |
 | 1.56 | 2026-08-23 | story-writer | T-31 task-body alignment (LOCAL parallel pass-2 OBS-1, records-tier): illustrative warn! snippet updated to the canonical BC-2.16.002 row 96 contract — added tier2_column_count field, verbatim message string, emission site pinned to register_sensor (prism-query::table_registry), bare table.table_name; no code/BC/ADR change (all already correct). §TD-VSDD-097 v1.56 sweep added (dim-2 downstream-copy residual closed). |
 | 1.55 | 2026-08-23 | state-manager | §Authority pin sync — ADR-058 v2.31→v2.32, BC-2.16.002 v2.34→v2.35, BC-2.11.016 v1.30→v1.31 (warning-emission-site reconcile add_sensor_spec→register_sensor; D-2279); T-31 A+W code delivered feature @510d1299e; no story body/AC change. |
 | 1.54 | 2026-08-23 | story-writer | A+W amendment (human decision 2026-08-23, supersedes interim §J6-drop): zero-Tier-1-with-Tier-2 PRESERVES Tier-2 via raw_extensions; NEW ocsf.zero_tier1_table spec-load warning (BC-2.16.002 v2.34 catalog row: fields sensor_id + table_name; ONCE per table); RG-Q-017 added (SAC-1: 46 RGTs, density 46/21=2.19); §Authority re-pinned ADR-058 v2.30→v2.31 + BC-2.11.016 v1.29→v1.30 + BC-2.16.002 v2.33→v2.34 + BC-2.16.003 v1.24→v1.26; OBS-1 §J7 signature drop (validate_ocsf_column_collisions loses source_path param) anchored to T-30/T-31. Changes: (1) version 1.53→1.54. (2) §Authority ADR-058 v2.30→v2.31 + status-date 2026-08-23. (3) §Authority BC-2.11.016 v1.29→v1.30 + A+W sub-case paragraph: EC-11-080 A+W — zero-Tier-1-with-Tier-2 OCSF table MUST register raw_extensions (Json) in available set AND emit ocsf.zero_tier1_table WARN ONCE at spec-load. (4) §Authority BC-2.16.002 v2.33→v2.34 + ocsf.zero_tier1_table catalog row note (SAP-1/PG-LP11-001). (5) §Authority BC-2.16.003 v1.24→v1.26 + OBS-1 §J7 signature-drop note (validate_ocsf_column_collisions source_path removed). (6) §Behavioral Contracts table BC-2.11.016/BC-2.16.002/BC-2.16.003 version pins updated. (7) §Red Gate Tests preamble "forty-five"→"forty-six", "45"→"46". (8) RG-Q-017 entry added: three assertions (E-QUERY-038 Ok for raw_extensions; E-QUERY-038 Err for raw col.name; ocsf.zero_tier1_table WARN exactly once). Placed in ocsf_column_routing_tests.rs. (9) §BC-5.38.001 Density Check 45→46 RGTs, range ..RG-Q-016→..RG-Q-017, density 2.14→2.19; RG-Q-017 A+W coverage note added. (10) AC-019 extended with A+W sub-case (two sub-cases: zero-Tier-1+zero-Tier-2 → ["_sensor","class_uid"]; zero-Tier-1+≥1-Tier-2 A+W → ["_sensor","class_uid","raw_extensions"] + emit ocsf.zero_tier1_table WARN; implementation in T-31). (11) §Mandate Anchor table — AC-019 A+W row added (RG-Q-017, T-31, PENDING A+W-FIX). (12) §Tasks Phase A — T-11AC added (write RG-Q-017, MUST FAIL, before T-GATE); T-GATE range ..RG-Q-016→..RG-Q-017; density 45/21=2.14→46/21=2.19. (13) §Tasks Phase B — T-31 added (A+W-FIX: register raw_extensions for zero-Tier-1-with-Tier-2 OCSF table; emit ocsf.zero_tier1_table WARN ONCE; update ocsf_projected_column_names A+W branch; OBS-1 param drop if not done in T-30); T-19 count 45→46; range extended to RG-Q-017. (14) §TD-VSDD-097 — v1.54 sweep added at top (3-dim: Sibling COERCION-001 unaffected/terminal; Downstream no verbatim copy; Mandate anchored to RG-Q-017+T-31). (15) §Changelog — this v1.54 row added at top. SAC-1 re-verified: 46 RGTs, density 46/21=2.19 ≥ 0.5, red-then-green ordering preserved (T-11AC in Phase A precedes T-31 in Phase B). |

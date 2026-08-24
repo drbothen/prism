@@ -1,18 +1,41 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.002"
+version: "8.003"
 status: current
-timestamp: 2026-08-23T20:45:00Z
+timestamp: 2026-08-23T21:34:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2285 (2026-08-23): ROUTING-001 HOLDOUT PASS (HS-023 3/3 P0, mean 1.00, CONSUMED) + DEMO COMPLETE 21/21 ACs @dc37a57a7. pr-manager 9-step PR cycle IN PROGRESS. STATE v8.818→v8.819. [D-2284 SUPERSEDED by D-2285]**
+> **D-2286 (2026-08-23): ROUTING-001 PR-LEVEL fix-burst COMPLETE — 3 findings closed (F-SEC-PR242-001/002/A-OBS-001); code @2393470cd; just check 5816/5816 GREEN; BC-5.39.001 PR-LEVEL streak RESET 0/3. NEXT: push feature branch + PR-LEVEL re-gate. STATE v8.819→v8.820. [D-2285 SUPERSEDED by D-2286]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2285 (2026-08-23 — ROUTING-001 HOLDOUT PASS + DEMO COMPLETE; STATE v8.818→v8.819) [SUPERSEDES D-2284]
+## §RESUME SNAPSHOT — D-2286 (2026-08-23 — PR-LEVEL FIX-BURST COMPLETE; STATE v8.819→v8.820) [SUPERSEDES D-2285]
+
+### RESUME IN ONE BREATH
+Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 PR-LEVEL fix-burst COMPLETE — 3 PR-LEVEL findings closed: F-SEC-PR242-001 (4 guarded `.unwrap()` eliminated via `filter_map` in `§pipeline_result_to_record_batch` §J OCSF branch), F-SEC-PR242-002 (new §J5 `ocsf_field` charset hard-rejection + E-SPEC-030 §J5 + RG-Q-018 GREEN), F-PR242-A-OBS-001 (AC-008 `#[ignore]` comment reconciled spec-side only). Feature code HEAD advanced to @2393470cd; just check 5816/5816 GREEN. BC-5.39.001 PR-LEVEL streak RESET 0/3 (code+spec HEAD changed by this fix-burst). Spec perimeter updated: BC-2.16.003 v1.27 / error-taxonomy v2.82 / ADR-058 v2.33 / ROUTING-001 v1.57.
+
+**RESUME NEXT-ACTION:** (1) Push `feature/S-ADR058-OCSF-ROUTING-001` to origin (current HEAD @2393470cd — NOT YET PUSHED); (2) dispatch security-reviewer on PR #242 diff on frozen HEAD @2393470cd; (3) dispatch adversary 3-CLEAN on frozen HEAD @2393470cd (BC-5.39.001 PR-LEVEL streak 0/3). OBS-A/OBS-B carry-forward in STATE.md §D-2285 for post-merge routing.
+
+### HEADS (D-2286)
+- `develop`: `362e4f85` (local == origin; clean)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
+- `feature/S-ADR058-OCSF-ROUTING-001`: `2393470cd` (PR-LEVEL fix-burst HEAD — NOT YET PUSHED; push is STEP 1 of RESUME-NEXT-ACTION)
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, dirty)
+
+### ROUTING-001 WORKSTREAM STATE (D-2286)
+**FROZEN PERIMETER (POST-FIX-BURST):** ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.333 / BC-INDEX v9.55 / STORY-INDEX v2.885 / HOLDOUT-INDEX v1.21. active 253/draft 3/total 269/stories 303.
+
+**BC-5.39.001 PR-LEVEL STREAK: 0/3 RESET** (code+spec HEAD changed to @2393470cd by D-2286 fix-burst). LOCAL 3/3 CONVERGED @8aeaf06c4/fc0776dad UNCHANGED. HOLDOUT PASS HS-023 3/3 P0 UNCHANGED.
+
+**HOLDOUT STATUS (D-2286):** HS-023 group PASSED (3/3 P0, mean 1.00) and CONSUMED (D-2285). HOLDOUT-INDEX v1.21. No further holdout needed for ROUTING-001.
+
+---
+
+## §RESUME SNAPSHOT — D-2285 (2026-08-23 — ROUTING-001 HOLDOUT PASS + DEMO COMPLETE; STATE v8.818→v8.819) [SUPERSEDED by D-2286]
 
 ### RESUME IN ONE BREATH
 ROUTING-001 story-level holdout gate PASSED (HS-023 3/3 P0 scenarios, mean satisfaction 1.00; CONSUMED — HOLDOUT-INDEX v1.21). Demo COMPLETE: 21/21 ACs recorded @dc37a57a7 (docs-only commit; code remains @8aeaf06c4, LOCAL 3-CLEAN unchanged). pr-manager 9-step PR cycle IN PROGRESS (PR targeting develop).
