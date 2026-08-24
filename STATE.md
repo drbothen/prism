@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.820"
+version: "8.821"
 producer: state-manager
-timestamp: 2026-08-23T21:34:00Z
+timestamp: 2026-08-23T22:00:03Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -43,7 +43,7 @@ workspace_test_count: 5765
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2286 PR-LEVEL fix-burst COMPLETE (S-ADR058-OCSF-ROUTING-001) — 3 PR-LEVEL findings closed (F-SEC-PR242-001/F-SEC-PR242-002/F-PR242-A-OBS-001); specs BC-2.16.003 v1.27/error-taxonomy v2.82/ADR-058 v2.33/ROUTING-001 v1.57; code @2393470cd; just check 5816/5816 GREEN. BC-5.39.001 PR-LEVEL streak RESET 0/3 (code+spec HEAD changed). NEXT: push feature/S-ADR058-OCSF-ROUTING-001 to origin then PR-LEVEL re-gate (security-reviewer + adversary 3-CLEAN on frozen HEAD @2393470cd). trajectory-tail →0→0→0→3. STATE v8.819→v8.820."
+current_step: "D-2287 fix-burst-2 COMPLETE (S-ADR058-OCSF-ROUTING-001 code-only) — F-PR242-P2-LOW-001 (build_ocsf_column_descriptors ocsf_field filter_map; sibling-sweep done) + F-PR242-P3-LOW-001 (claroty.sensor.toml §J1 A≠B shadow comment; RG-010/ADR-058 §J1) closed. code @5645c8506; just check 5816/5816 GREEN. BC-5.39.001 PR-LEVEL streak RESET 0/3 (new frozen HEAD @5645c8506). Security re-review CLOSED (no new findings). NEXT: PR-LEVEL 3-CLEAN re-gate (3 parallel passes) on frozen HEAD @5645c8506 then squash-merge + POL-14. trajectory-tail →0→0→0→3. STATE v8.820→v8.821."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -80,7 +80,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 306 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -106 | margin from actual: 194 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 308 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -108 | margin from actual: 192 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -93,7 +93,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-23 D-2286 PR-LEVEL fix-burst COMPLETE (S-ADR058-OCSF-ROUTING-001): 3 findings closed (F-SEC-PR242-001/002/A-OBS-001). code @2393470cd; just check 5816. NEXT: push + PR-LEVEL re-gate. trajectory-tail →0→0→0→3. STATE v8.819→v8.820 |
+| **Last Updated** | 2026-08-23 D-2287 fix-burst-2 COMPLETE (S-ADR058-OCSF-ROUTING-001 code-only): 2 LOW closed (F-PR242-P2-LOW-001 filter_map + F-PR242-P3-LOW-001 §J1 comment). code @5645c8506; just check 5816. NEXT: PR-LEVEL 3-CLEAN re-gate on @5645c8506. trajectory-tail →0→0→0→3. STATE v8.820→v8.821 |
 
 ## Phase Progress
 
@@ -121,7 +121,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | D-2251 perimeter POL-39 terminal normalization | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | BC-2.16.002 v2.28→v2.29; BC-2.16.003 v1.18→v1.19; ROUTING-001 v1.43→v1.44; COERCION-001 v1.39→v1.40. BC-INDEX v9.40→v9.41. STORY-INDEX v2.864→v2.865. ARCH-INDEX v2.323→v2.324. NEW FROZEN: ADR-058 v2.23/BC-2.16.002 v2.29/BC-2.16.003 v1.19/ROUTING-001 v1.44/COERCION-001 v1.40. Streak RESET 0/3. |
 | D-2252 SESSION WRAP — OCSF cascade CLOSED | COMPLETE | 2026-08-19 | 2026-08-19 | state-manager | ADR-058 v2.23→v2.24 (FB-67/69 architect leg: F-P69-LOW-001 §I5 factual correction; F-P67-OBS-1 §E2 header fix; input-hash 18b74fe). ARCH-INDEX v2.324→v2.325. OCSF cascade CLOSED substantive (human decision). trajectory-tail →1→1→0→1. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.785→v8.786. |
 | S-ADR058-OCSF-COERCION-001 TDD + PR cycle | MERGED | 2026-08-20 | 2026-08-20 | PR #240 develop@362e4f85 2026-08-20 (human-authorized admin-merge) | LOCAL cascade CONVERGED (human admin override D-2259); HOLDOUT PASS 4/4 (HS-001..HS-004 real MCP stdio); demo COMPLETE; just check 5765 GREEN; FINAL FROZEN ADR-058 v2.26/BC-2.16.002 v2.32/BC-2.16.003 v1.21; active_contracts 252→253 |
-| S-ADR058-OCSF-ROUTING-001 LOCAL+HOLDOUT+DEMO + PR-LEVEL FIX-BURST | IN-PROGRESS (PR-LEVEL RE-GATE) | 2026-08-23 | — | BC-5.39.001 PR-LEVEL streak RESET 0/3 (D-2286) | LOCAL 3-CLEAN D-2283 @8aeaf06c4; HOLDOUT PASS D-2285 HS-023 3/3 P0; DEMO @dc37a57a7 (21/21 ACs); PR-LEVEL FIX-BURST D-2286 @2393470cd (F-SEC-PR242-001/002/A-OBS-001; just check 5816; BC-5.39.001 PR-LEVEL RESET 0/3). NEXT: push + PR-LEVEL re-gate. |
+| S-ADR058-OCSF-ROUTING-001 LOCAL+HOLDOUT+DEMO + PR-LEVEL FIX-BURSTS | IN-PROGRESS (PR-LEVEL RE-GATE) | 2026-08-23 | — | BC-5.39.001 PR-LEVEL streak RESET 0/3 (D-2287) | LOCAL 3-CLEAN D-2283 @8aeaf06c4; HOLDOUT PASS D-2285 HS-023 3/3 P0; DEMO @dc37a57a7 (21/21 ACs); FIX-BURST-1 D-2286 @2393470cd (3 findings; just check 5816); FIX-BURST-2 D-2287 @5645c8506 (2 LOW; just check 5816; code-only). NEXT: PR-LEVEL 3-CLEAN re-gate on @5645c8506. |
 
 _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individual story rows PRs #162–#235; fix-burst rows D-2238..D-2243 (exhaustive)) archived to cycles/wave-5-e-demo-fidelity/burst-log.md (D-1794 + D-2237 + D-2244+1 + D-2261 compactions)._
 
@@ -129,12 +129,12 @@ _Historical Phase Progress rows (Wave-A spec-evolution passes 28–47, individua
 
 | Metric | Value |
 |--------|-------|
-| BC-5.39.001 streak | **PR-LEVEL FIX-BURST D-2286 COMPLETE** — 3 findings closed (F-SEC-PR242-001/002/A-OBS-001); code+spec HEAD changed to @2393470cd. BC-5.39.001 PR-LEVEL streak RESET 0/3. LOCAL 3/3 CONVERGED D-2283 @8aeaf06c4/fc0776dad UNCHANGED. HOLDOUT PASS D-2285 UNCHANGED. |
-| Active cascade | S-ADR058-OCSF-ROUTING-001 PR-LEVEL fix-burst D-2286 COMPLETE (code @2393470cd; just check 5816/5816 GREEN). NEXT: push feature/S-ADR058-OCSF-ROUTING-001 to origin → PR-LEVEL re-gate (security-reviewer + adversary 3-CLEAN on frozen HEAD @2393470cd). BC-5.39.001 PR-LEVEL streak 0/3. |
+| BC-5.39.001 streak | **PR-LEVEL FIX-BURST-2 D-2287 COMPLETE** — 2 LOW closed (F-PR242-P2-LOW-001 + F-PR242-P3-LOW-001); code-only @5645c8506. BC-5.39.001 PR-LEVEL streak RESET 0/3 (new frozen HEAD). LOCAL 3/3 CONVERGED D-2283 @8aeaf06c4/fc0776dad UNCHANGED. HOLDOUT PASS D-2285 UNCHANGED. |
+| Active cascade | S-ADR058-OCSF-ROUTING-001 PR-LEVEL fix-burst-2 D-2287 COMPLETE (code @5645c8506; just check 5816/5816 GREEN). NEXT: PR-LEVEL 3-CLEAN re-gate (3 parallel passes) on frozen HEAD @5645c8506. BC-5.39.001 PR-LEVEL streak 0/3. |
 | Pass count | ROUTING-001 LOCAL: 9 passes + re-cascade p1 (4 findings, FIXED D-2276) + pass-C (2 findings, FIXED D-2280) + pass-D (0/CLEAN) + pass-E (2 findings, FIXED D-2281) + pass-H (1 LOW OBS-1 RG-Q-011 gap, fixed @8aeaf06c4) + parallel batch (pass-1 CLEAN / pass-2 1 LOW T-31 fixed v1.56 / pass-3 CLEAN) + parallel re-gate (3/3 CLEAN D-2283). COERCION-001 LOCAL: 4 passes. SPEC cascade: 69 passes. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Last CLEAN(strict) | ROUTING-001 LOCAL 3/3 CLEAN(strict)=YES (D-2283 2026-08-23, frozen @8aeaf06c4/fc0776dad). HOLDOUT PASS D-2285. Demo COMPLETE @dc37a57a7. PR-LEVEL: streak RESET 0/3 (code+spec HEAD changed to @2393470cd by D-2286 fix-burst). |
+| Last CLEAN(strict) | ROUTING-001 LOCAL 3/3 CLEAN(strict)=YES (D-2283 2026-08-23, frozen @8aeaf06c4/fc0776dad). HOLDOUT PASS D-2285. Demo COMPLETE @dc37a57a7. PR-LEVEL: pass-1 CLEAN(strict) on @2393470cd (D-2286 re-gate round 1); pass-2 LOW F-PR242-P2-LOW-001; pass-3 LOW F-PR242-P3-LOW-001. Streak RESET 0/3 on new frozen HEAD @5645c8506 (D-2287). |
 | Finding trajectory | ROUTING-001 LOCAL →0→3→2→0→3→4→2→0→2→1→0→1→0→0→0→0 (…pass-H=1 LOW fixed @8aeaf06c4; parallel batch 2/3: pass-1=0, pass-2=1 LOW T-31 fixed v1.56, pass-3=0; parallel re-gate 3/3: all 0; CONVERGED D-2283 COMPLETE). COERCION-001 LOCAL →1→2→2→3 (all fixed). Prior SPEC cascade tail: →1→1→0→1. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Frozen perimeter | ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 / COERCION-001 v1.47 (merged) — code @2393470cd / ARCH-INDEX v2.333 / BC-INDEX v9.55 / STORY-INDEX v2.885 / HOLDOUT-INDEX v1.21 |
+| Frozen perimeter | ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 / COERCION-001 v1.47 (merged) — code @5645c8506 / ARCH-INDEX v2.333 / BC-INDEX v9.55 / STORY-INDEX v2.885 / HOLDOUT-INDEX v1.21 |
 
 ## Concurrent Cycles
 
@@ -168,6 +168,7 @@ _No concurrent cycles in progress. Current cycle: wave-5-e-demo-fidelity._
 | D-2284 | state-manager | 2026-08-23 | SESSION WRAP COMPLETE (TD-VSDD-053) — HS-023 holdout scenarios authored (HOLDOUT-INDEX v1.20; 3 P0 scenarios; HS-022 CONSUMED D-2270). Feature @8aeaf06c4 PUSHED origin/backed-up. SESSION-HANDOFF.md D-2284 snapshot (D-2273 SUPERSEDED). Holdout re-gate NEXT. trajectory-tail →0→0→0→0 COMPLETE. records-lint exit 0. STATE v8.817→v8.818. |
 | D-2285 | state-manager | 2026-08-23 | SINGLE-COMMIT BURST (TD-VSDD-053) — ROUTING-001 HOLDOUT PASS + DEMO COMPLETE. HS-023 group CONSUMED (3/3 P0; HS-ROUTING-001-B-001 sat 1.00 thr 0.75 PASS; HS-ROUTING-001-B-002 sat 1.00 thr 0.80 PASS; HS-ROUTING-001-B-003 sat 1.00 thr 0.75 PASS; mean 1.00; gate mean ≥0.85 AND every critical ≥0.60 BOTH SATISFIED). DEMO: 21/21 ACs demonstrated; 10 VHS recordings (GIF+WebM) + 11 deterministic transcript backups @dc37a57a7 (docs-only commit; git hooks correctly skipped; code @8aeaf06c4 LOCAL 3-CLEAN CONVERGED UNCHANGED). OBS-A LOGGED (candidate follow-up): PrismQL identifier grammar rejects hyphens — no quoting escape available. OBS-B LOGGED (candidate follow-up): sensor_id with underscores causes E-QUERY-036/037/038 source-table resolver + sensor plan-gate to disagree on canonical table name. HOLDOUT-INDEX v1.20→v1.21 (HS-023 CONSUMED). sidecar-learning.md folded. TD-VSDD-097 all dims CLEAR. trajectory-tail →0→0→0→0. records-lint exit 0. STATE v8.818→v8.819. |
 | D-2286 | state-manager | 2026-08-23 | SINGLE-COMMIT BURST (TD-VSDD-053) — PR-LEVEL fix-burst COMPLETE (S-ADR058-OCSF-ROUTING-001). 3 PR-LEVEL findings closed: F-SEC-PR242-001 (4 guarded .unwrap() eliminated via filter_map in §pipeline_result_to_record_batch §J OCSF branch); F-SEC-PR242-002 (new §J5 ocsf_field charset hard-rejection, E-SPEC-030 §J5, RG-Q-018 GREEN); F-PR242-A-OBS-001 (AC-008 #[ignore] comment reconciled spec-side only). BC-2.16.003 v1.26→v1.27; error-taxonomy v2.81→v2.82; ADR-058 v2.32→v2.33; ROUTING-001 v1.56→v1.57. feature code HEAD @2393470cd; just check 5816/5816 GREEN. BC-5.39.001 PR-LEVEL streak RESET 0/3 (code+spec HEAD changed). BC-INDEX v9.54→v9.55; ARCH-INDEX v2.332→v2.333; STORY-INDEX v2.884→v2.885. TD-VSDD-097 all dims CLEAR. trajectory-tail →0→0→0→3. records-lint exit 0. STATE v8.819→v8.820. |
+| D-2287 | state-manager | 2026-08-23 | SINGLE-COMMIT BURST (TD-VSDD-053) — fix-burst-2 COMPLETE code-only (S-ADR058-OCSF-ROUTING-001). 2 LOW closed: F-PR242-P2-LOW-001 (build_ocsf_column_descriptors filter_map refactor — zero ocsf_field unwrap/expect in production; sibling-sweep confirmed); F-PR242-P3-LOW-001 (claroty.sensor.toml device_category comment corrected §J1 A≠B shadow; RG-010/ADR-058 §J1; SAP-2 clean, column values UNCHANGED). Security re-review CLOSED (F-SEC-PR242-001/002 remain CLOSED; no new findings). feature code HEAD @2393470cd→5645c8506; just check 5816/5816 GREEN. BC-5.39.001 PR-LEVEL streak RESET 0/3 (new frozen HEAD @5645c8506). NO spec artifact changed. Indexes UNCHANGED. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.820→v8.821. |
 
 ## Decisions Log
 
@@ -260,6 +261,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | D-2284 | state-manager | 2026-08-23 | **SESSION WRAP COMPLETE (TD-VSDD-053) — HS-023 holdout scenarios authored (HOLDOUT-INDEX v1.20; 3 P0 scenarios: B-HS-001/002/003; HS-022 CONSUMED D-2270). Feature @8aeaf06c4 PUSHED origin — backed up. SESSION-HANDOFF.md D-2284 resume snapshot (D-2273 SUPERSEDED). Holdout re-gate NEXT (NEXT-ACTION: holdout-evaluator on HS-023 group). trajectory-tail →0→0→0→0 COMPLETE. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.817→v8.818.** | wave-5-e-demo-fidelity | 2026-08-23 |
 | D-2285 | state-manager | 2026-08-23 | **SINGLE-COMMIT BURST (TD-VSDD-053) — ROUTING-001 HOLDOUT PASS + DEMO COMPLETE. HS-023 CONSUMED (3/3 P0; HS-ROUTING-001-B-001 sat 1.00 thr 0.75 PASS; HS-ROUTING-001-B-002 sat 1.00 thr 0.80 PASS; HS-ROUTING-001-B-003 sat 1.00 thr 0.75 PASS; mean 1.00; gate mean ≥0.85 AND every critical ≥0.60 BOTH SATISFIED). DEMO: 21/21 ACs demonstrated; 10 VHS recordings (GIF+WebM) + 11 deterministic transcript backups; docs-only commit @dc37a57a7 (no .rs files; git hooks correctly skipped; code @8aeaf06c4 LOCAL 3-CLEAN CONVERGED UNCHANGED). OBS-A LOGGED: PrismQL identifier grammar rejects hyphens — no quoting escape available; sensor_id with hyphen produces unreachable table name (candidate follow-up; product-owner/architect triage). OBS-B LOGGED: sensor_id with underscores causes E-QUERY-036/037/038 source-table resolver + sensor plan-gate to disagree on canonical table name — underscore-collision artifact in table-name joining, unrelated to ADR-058 OCSF routing (candidate follow-up; product-owner/architect triage). HOLDOUT-INDEX v1.20→v1.21 (HS-023 CONSUMED; changelog row added). sidecar-learning.md folded. TD-VSDD-097: Dim-1 (sibling) CLEAR (no spec changes); Dim-2 (downstream) CLEAR (no copy-source sections changed); Dim-3 (mandate) CLEAR (no new MUSTs authored). records-lint exit 0. STATE v8.818→v8.819.** | wave-5-e-demo-fidelity | 2026-08-23 |
 | D-2286 | state-manager | 2026-08-23 | **SINGLE-COMMIT BURST (TD-VSDD-053) — PR-LEVEL fix-burst COMPLETE (S-ADR058-OCSF-ROUTING-001). 3 PR-LEVEL findings closed: F-SEC-PR242-001 (4 guarded .unwrap() eliminated via filter_map in §pipeline_result_to_record_batch §J OCSF branch); F-SEC-PR242-002 (new §J5 ocsf_field charset hard-rejection, E-SPEC-030 §J5, RG-Q-018 GREEN); F-PR242-A-OBS-001 (AC-008 #[ignore] comment reconciled spec-side only). BC-2.16.003 v1.26→v1.27; error-taxonomy v2.81→v2.82; ADR-058 v2.32→v2.33; ROUTING-001 v1.56→v1.57. feature code HEAD @2393470cd; just check 5816/5816 GREEN. BC-5.39.001 PR-LEVEL streak RESET 0/3 (code+spec HEAD changed). BC-INDEX v9.54→v9.55; ARCH-INDEX v2.332→v2.333; STORY-INDEX v2.884→v2.885. TD-VSDD-097 all dims CLEAR. trajectory-tail →0→0→0→3. records-lint exit 0. STATE v8.819→v8.820.** | wave-5-e-demo-fidelity | 2026-08-23 |
+| D-2287 | state-manager | 2026-08-23 | **SINGLE-COMMIT BURST (TD-VSDD-053) — fix-burst-2 COMPLETE code-only (S-ADR058-OCSF-ROUTING-001). 2 LOW closed: F-PR242-P2-LOW-001 (build_ocsf_column_descriptors filter_map refactor — zero ocsf_field unwrap/expect in production; sibling-sweep confirmed); F-PR242-P3-LOW-001 (claroty.sensor.toml device_category comment corrected §J1 A≠B shadow; RG-010/ADR-058 §J1; SAP-2 clean, column values UNCHANGED). Security re-review CLOSED (F-SEC-PR242-001/002 remain CLOSED; no new findings). feature code HEAD @2393470cd→5645c8506; just check 5816/5816 GREEN. BC-5.39.001 PR-LEVEL streak RESET 0/3 (new frozen HEAD @5645c8506). NO spec artifact changed (BC-2.16.003 v1.27/error-taxonomy v2.82/ADR-058 v2.33/ROUTING-001 v1.57 ALL UNCHANGED). Indexes UNCHANGED (BC-INDEX v9.55/ARCH-INDEX v2.333/STORY-INDEX v2.885). TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.820→v8.821.** | wave-5-e-demo-fidelity | 2026-08-23 |
 
 ## Skip Log
 
@@ -280,27 +282,27 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · convergence-trajectory.md · decisions-archive-D1789-D2199.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · decisions-archive-D1124-D1138.md · decisions-archive-D1165-D1352.md · drift-items-resolved.md · drift-items-open.md · drift-items-deferred.md · blocking-issues-resolved.md · phase-5-deferred-findings.md · frontmatter-cascade-archive.md · session-handoff-archive.md · lessons.md · session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
-## Session Resume Checkpoint (D-2286 — 2026-08-23 — PR-LEVEL FIX-BURST COMPLETE; STATE v8.819→v8.820) [supersedes D-2285]
+## Session Resume Checkpoint (D-2287 — 2026-08-23 — fix-burst-2 COMPLETE code-only; STATE v8.820→v8.821) [supersedes D-2286]
 
 ### RESUME IN ONE BREATH
-Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 PR-LEVEL fix-burst COMPLETE — 3 findings closed: F-SEC-PR242-001 (4 guarded .unwrap() eliminated via filter_map in §pipeline_result_to_record_batch §J OCSF branch), F-SEC-PR242-002 (new §J5 ocsf_field charset hard-rejection + E-SPEC-030 §J5 + RG-Q-018 GREEN), F-PR242-A-OBS-001 (AC-008 #[ignore] comment reconciled spec-side only). Feature code HEAD advanced to @2393470cd; just check 5816/5816 GREEN. BC-5.39.001 PR-LEVEL streak RESET 0/3 (code+spec HEAD changed). NEXT: push feature branch to origin → PR-LEVEL re-gate (security-reviewer + adversary 3-CLEAN on frozen HEAD @2393470cd).
+Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 PR-LEVEL fix-burst-2 COMPLETE (code-only) — 2 LOW closed: F-PR242-P2-LOW-001 (build_ocsf_column_descriptors refactored to filter_map, zero ocsf_field unwrap/expect in production; sibling-sweep done), F-PR242-P3-LOW-001 (claroty.sensor.toml device_category comment corrected to §J1 A≠B shadow per RG-010/ADR-058 §J1; SAP-2 clean, column values UNCHANGED). Feature code HEAD advanced @2393470cd→@5645c8506; just check 5816/5816 GREEN. Security re-review CLOSED (no new findings). BC-5.39.001 PR-LEVEL streak RESET 0/3 on new frozen HEAD @5645c8506.
 
-**RESUME NEXT-ACTION:** (1) Push `feature/S-ADR058-OCSF-ROUTING-001` to origin (current HEAD @2393470cd); (2) dispatch security-reviewer on PR #242 diff (fresh, no prior streak); (3) dispatch adversary 3-CLEAN on frozen HEAD @2393470cd. BC-5.39.001 PR-LEVEL streak 0/3 — reset by this fix-burst (code+spec changed).
+**RESUME NEXT-ACTION:** Dispatch 3 parallel adversary passes on frozen HEAD @5645c8506 (PR-LEVEL 3-CLEAN re-gate). After 3/3 CLEAN(strict): squash-merge PR #242 + POL-14 BC promotion. BC-5.39.001 PR-LEVEL streak 0/3 — reset by fix-burst-2.
 
 **OBS-A (carry-forward — product-owner/architect triage):** PrismQL identifier grammar rejects hyphens; no quoting escape; sensor_id with hyphen produces unreachable table name.
 **OBS-B (carry-forward — product-owner/architect triage):** sensor_id with underscores causes E-QUERY-036/037/038 source-table resolver and sensor plan-gate to disagree on canonical table name; underscore-collision, unrelated to ADR-058 OCSF routing.
 
-**SPEC PERIMETER (POST-FIX-BURST FROZEN):** code @2393470cd / ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.333 / BC-INDEX v9.55 / STORY-INDEX v2.885 / HOLDOUT-INDEX v1.21. active 253/draft 3/total 269/stories 303.
+**SPEC PERIMETER (frozen @5645c8506):** code @5645c8506 / ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.333 / BC-INDEX v9.55 / STORY-INDEX v2.885 / HOLDOUT-INDEX v1.21. active 253/draft 3/total 269/stories 303.
 
 **HEADS:**
 - `develop`: `362e4f85` (local == origin; clean)
 - `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
-- `feature/S-ADR058-OCSF-ROUTING-001`: `2393470cd` (PR-LEVEL fix-burst HEAD — push to origin before re-gate)
+- `feature/S-ADR058-OCSF-ROUTING-001`: `5645c8506` (PR-LEVEL fix-burst-2 HEAD — pushed to origin)
 - `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch
 
 **HOLDOUT:** HS-022 CONSUMED (D-2270). HS-023 CONSUMED (D-2285; all 3 P0 PASS; mean 1.00; gate SATISFIED). No further holdout needed for ROUTING-001.
 
-**BACKUP BOUNDARY (D-2286):**
-- PUSHED / safe: `origin/develop` `362e4f85`; `factory-artifacts` (this burst commit). Feature HEAD @2393470cd NOT YET PUSHED — push is STEP 1 of RESUME-NEXT-ACTION.
-- LOCAL-ONLY AT RISK: `feature/S-ADR058-OCSF-ROUTING-001` @`2393470cd` (not yet pushed); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
+**BACKUP BOUNDARY (D-2287):**
+- PUSHED / safe: `origin/develop` `362e4f85`; `factory-artifacts` (this burst commit); `feature/S-ADR058-OCSF-ROUTING-001` @`5645c8506` (pushed to origin).
+- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)

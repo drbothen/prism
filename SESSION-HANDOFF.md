@@ -1,18 +1,48 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.003"
+version: "8.004"
 status: current
-timestamp: 2026-08-23T21:34:00Z
+timestamp: 2026-08-23T22:00:03Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2286 (2026-08-23): ROUTING-001 PR-LEVEL fix-burst COMPLETE — 3 findings closed (F-SEC-PR242-001/002/A-OBS-001); code @2393470cd; just check 5816/5816 GREEN; BC-5.39.001 PR-LEVEL streak RESET 0/3. NEXT: push feature branch + PR-LEVEL re-gate. STATE v8.819→v8.820. [D-2285 SUPERSEDED by D-2286]**
+> **D-2287 (2026-08-23): ROUTING-001 fix-burst-2 COMPLETE (code-only) — 2 LOW closed (F-PR242-P2-LOW-001 filter_map + F-PR242-P3-LOW-001 §J1 comment); code @5645c8506; just check 5816/5816 GREEN; BC-5.39.001 PR-LEVEL streak RESET 0/3 on new frozen HEAD. NEXT: PR-LEVEL 3-CLEAN re-gate on @5645c8506. STATE v8.820→v8.821. [D-2286 SUPERSEDED by D-2287]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2286 (2026-08-23 — PR-LEVEL FIX-BURST COMPLETE; STATE v8.819→v8.820) [SUPERSEDES D-2285]
+## §RESUME SNAPSHOT — D-2287 (2026-08-23 — fix-burst-2 COMPLETE code-only; STATE v8.820→v8.821) [SUPERSEDES D-2286]
+
+### RESUME IN ONE BREATH
+Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 PR-LEVEL fix-burst-2 COMPLETE (code-only) — 2 LOW closed: F-PR242-P2-LOW-001 (build_ocsf_column_descriptors refactored to filter_map, zero ocsf_field unwrap/expect in production; sibling-sweep done), F-PR242-P3-LOW-001 (claroty.sensor.toml device_category comment corrected to §J1 A≠B shadow per RG-010/ADR-058 §J1; SAP-2 clean, column values UNCHANGED). Feature code HEAD advanced @2393470cd→@5645c8506; just check 5816/5816 GREEN. Security re-review CLOSED (no new findings). BC-5.39.001 PR-LEVEL streak RESET 0/3 on new frozen HEAD @5645c8506.
+
+**RESUME NEXT-ACTION:** Dispatch 3 parallel adversary passes on frozen HEAD @5645c8506 (PR-LEVEL 3-CLEAN re-gate). After 3/3 CLEAN(strict): squash-merge PR #242 + POL-14 BC promotion. BC-5.39.001 PR-LEVEL streak 0/3 — reset by fix-burst-2.
+
+### HEADS (D-2287)
+- `develop`: `362e4f85` (local == origin; clean)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
+- `feature/S-ADR058-OCSF-ROUTING-001`: `5645c8506` (PR-LEVEL fix-burst-2 HEAD — pushed to origin)
+- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
+- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch
+
+### ROUTING-001 WORKSTREAM STATE (D-2287)
+**FROZEN PERIMETER (POST-FIX-BURST-2):** ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.333 / BC-INDEX v9.55 / STORY-INDEX v2.885 / HOLDOUT-INDEX v1.21. active 253/draft 3/total 269/stories 303. Code HEAD: `5645c8506` / just check GREEN 5816.
+
+**BC-5.39.001 PR-LEVEL STREAK: 0/3 RESET** (new frozen HEAD @5645c8506). LOCAL 3/3 CONVERGED @8aeaf06c4 UNCHANGED. HOLDOUT PASS HS-023 3/3 P0 UNCHANGED.
+
+**HOLDOUT STATUS (D-2287):** HS-023 CONSUMED (D-2285; 3/3 P0, mean 1.00). No further holdout needed for ROUTING-001.
+
+**OBS-A (carry-forward):** PrismQL identifier grammar rejects hyphens — no quoting escape; sensor_id with hyphen produces unreachable table name.
+**OBS-B (carry-forward):** sensor_id with underscores causes E-QUERY-036/037/038 source-table resolver + sensor plan-gate disagreement on canonical table name.
+
+### BACKUP BOUNDARY (D-2287)
+- PUSHED / safe: `origin/develop` `362e4f85`; `factory-artifacts` (this burst commit); `feature/S-ADR058-OCSF-ROUTING-001` @`5645c8506` (pushed to origin).
+- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
+
+---
+
+## §RESUME SNAPSHOT — D-2286 (2026-08-23 — PR-LEVEL FIX-BURST COMPLETE; STATE v8.819→v8.820) [SUPERSEDED by D-2287]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 PR-LEVEL fix-burst COMPLETE — 3 PR-LEVEL findings closed: F-SEC-PR242-001 (4 guarded `.unwrap()` eliminated via `filter_map` in `§pipeline_result_to_record_batch` §J OCSF branch), F-SEC-PR242-002 (new §J5 `ocsf_field` charset hard-rejection + E-SPEC-030 §J5 + RG-Q-018 GREEN), F-PR242-A-OBS-001 (AC-008 `#[ignore]` comment reconciled spec-side only). Feature code HEAD advanced to @2393470cd; just check 5816/5816 GREEN. BC-5.39.001 PR-LEVEL streak RESET 0/3 (code+spec HEAD changed by this fix-burst). Spec perimeter updated: BC-2.16.003 v1.27 / error-taxonomy v2.82 / ADR-058 v2.33 / ROUTING-001 v1.57.
