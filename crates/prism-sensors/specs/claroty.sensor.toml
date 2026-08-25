@@ -575,12 +575,12 @@ ocsf_class = "detection_finding"
 #   DTU ClarotyVulnerability struct is parked per D-2200. The DTU route
 #   (list_vulnerabilities) serves from fixtures/vulnerabilities.json and does
 #   not enforce a fields projection; the SAP-2 parity check against the
-#   DTU emission site is deferred to S-CLAROTY-DTU-VULNS-PARITY-001 (D-2200).
+#   DTU emission site is deferred to S-ADR058-DTU-PARITY-MIGRATION-001 (D-2200).
 #
-# SAP-2-deferred: source_url appears in the xDome API vulnerability fields_enum
-#   but is absent from the DTU ClarotyVulnerability struct; DTU struct parity
-#   deferred to S-CLAROTY-DTU-VULNS-PARITY-001 per D-2200. Column is included
-#   in TOML per BC-2.16.015 §2 / spike-findings §Spike 1 first-cut column set.
+# SAP-2-deferred: source_url and source_name appear in the xDome API vulnerability
+#   fields_enum but are absent from the DTU ClarotyVulnerability struct; DTU struct
+#   parity deferred to S-ADR058-DTU-PARITY-MIGRATION-001 per D-2200. Columns are
+#   included in TOML per BC-2.16.015 §2 / spike-findings §Spike 1.
 #
 # body_template: fields projection covers all 18 TOML columns (excludes `id`,
 #   which uses source_path = "$.id" from the root-level id key — NOT in fields
@@ -613,99 +613,103 @@ ocsf_class = "vulnerability_finding"
   # Tier-2 columns below (no ocsf_field) — aggregate into raw_extensions under
   # ocsf_column_naming = true (ADR-058 §J6). Not push-down eligible.
 
-  # DTU ClarotyVulnerability.vulnerability_type: String — vulnerability classification
-  # (e.g., "CVE", "CWE", "RHSA"). Verified in xDome vulnerability fields_enum.
+  # xDome Vulnerability fields_enum: vulnerability_type — vulnerability classification
+  # (e.g., "CVE", "CWE", "RHSA"). Verified in xDome OpenAPI vulnerability fields_enum.
   [[tables.columns]]
   name = "vulnerability_type"
   column_type = "string"
 
-  # DTU ClarotyVulnerability.cve_ids: Vec<String> — associated CVE identifier list.
+  # xDome Vulnerability fields_enum: cve_ids — associated CVE identifier list.
   # column_type = "json": serialized as a JSON array string (e.g., '["CVE-2024-1234"]').
   [[tables.columns]]
   name = "cve_ids"
   column_type = "json"
 
-  # DTU ClarotyVulnerability.cvss_v2_score: Option<f64> — CVSS v2 base score.
-  [[tables.columns]]
-  name = "cvss_v2_score"
-  column_type = "float"
-
-  # DTU ClarotyVulnerability.cvss_v3_score: Option<f64> — CVSS v3 base score.
+  # xDome Vulnerability fields_enum: cvss_v3_score — CVSS v3 base score (0.0–10.0).
   [[tables.columns]]
   name = "cvss_v3_score"
   column_type = "float"
 
-  # DTU ClarotyVulnerability.cvss_v3_vector_string: Option<String> — CVSS v3 vector string.
+  # xDome Vulnerability fields_enum: cvss_v3_exploitability_subscore — CVSS v3
+  # exploitability sub-score component.
+  [[tables.columns]]
+  name = "cvss_v3_exploitability_subscore"
+  column_type = "float"
+
+  # xDome Vulnerability fields_enum: cvss_v3_vector_string — CVSS v3 vector string
+  # (e.g., "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H").
   [[tables.columns]]
   name = "cvss_v3_vector_string"
   column_type = "string"
 
-  # DTU ClarotyVulnerability.affected_products: Option<String> — affected product list.
+  # xDome Vulnerability fields_enum: cvss_v2_score — CVSS v2 base score (0.0–10.0).
   [[tables.columns]]
-  name = "affected_products"
-  column_type = "string"
+  name = "cvss_v2_score"
+  column_type = "float"
 
-  # DTU ClarotyVulnerability.recommendations: Option<String> — remediation recommendations.
-  [[tables.columns]]
-  name = "recommendations"
-  column_type = "string"
-
-  # DTU ClarotyVulnerability.is_known_exploited: Option<bool> — whether a known exploit exists.
+  # xDome Vulnerability fields_enum: is_known_exploited — whether a known exploit exists
+  # (CISA KEV membership or equivalent).
   [[tables.columns]]
   name = "is_known_exploited"
   column_type = "boolean"
 
-  # DTU ClarotyVulnerability.affected_devices_count: Option<u32> — count of affected devices.
+  # xDome Vulnerability fields_enum: affected_devices_count — total count of affected devices.
   [[tables.columns]]
   name = "affected_devices_count"
   column_type = "integer"
 
-  # DTU ClarotyVulnerability.published_date: Option<String> — ISO 8601 publication date.
+  # xDome Vulnerability fields_enum: affected_ot_devices_count — count of affected OT devices.
+  [[tables.columns]]
+  name = "affected_ot_devices_count"
+  column_type = "integer"
+
+  # xDome Vulnerability fields_enum: published_date — ISO 8601 publication date.
   # column_type = "datetime": no timestamp_formats key — resolves to implicit ["iso8601"]
   # default via effective_formats (ADR-028 §D8-B backward compatibility).
   [[tables.columns]]
   name = "published_date"
   column_type = "datetime"
 
-  # DTU ClarotyVulnerability.adjusted_vulnerability_score: Option<f64> — Claroty-adjusted
+  # xDome Vulnerability fields_enum: epss_score — EPSS probability score (0.0–1.0).
+  [[tables.columns]]
+  name = "epss_score"
+  column_type = "float"
+
+  # xDome Vulnerability fields_enum: adjusted_vulnerability_score — Claroty-adjusted
   # composite risk score.
   [[tables.columns]]
   name = "adjusted_vulnerability_score"
   column_type = "float"
 
-  # DTU ClarotyVulnerability.adjusted_vulnerability_score_level: Option<String> — risk level
+  # xDome Vulnerability fields_enum: adjusted_vulnerability_score_level — risk level
   # label corresponding to adjusted_vulnerability_score (e.g., "High", "Medium", "Low").
   [[tables.columns]]
   name = "adjusted_vulnerability_score_level"
   column_type = "string"
 
-  # DTU ClarotyVulnerability.exploits_count: Option<u32> — number of known public exploits.
+  # xDome Vulnerability fields_enum: exploits_count — number of known public exploits.
   [[tables.columns]]
   name = "exploits_count"
   column_type = "integer"
 
-  # DTU ClarotyVulnerability.vulnerability_labels: Option<Vec<String>> — user-defined labels.
-  # column_type = "json": serialized as a JSON array string.
+  # xDome Vulnerability fields_enum: source_name — name of the vulnerability source
+  # (e.g., "NVD", "CISA", "vendor advisory").
+  # SAP-2-deferred: absent from DTU ClarotyVulnerability struct; parity deferred to
+  # S-ADR058-DTU-PARITY-MIGRATION-001 per D-2200. Tier-2: aggregates into raw_extensions.
   [[tables.columns]]
-  name = "vulnerability_labels"
-  column_type = "json"
+  name = "source_name"
+  column_type = "string"
 
-  # DTU ClarotyVulnerability.epss_score: Option<f64> — EPSS probability score (0.0–1.0).
-  [[tables.columns]]
-  name = "epss_score"
-  column_type = "float"
-
-  # source_url: String — link to the vulnerability advisory page.
-  # SAP-2-deferred: source_url appears in the xDome vulnerability API fields_enum but is
-  #   absent from the DTU ClarotyVulnerability struct; DTU struct parity deferred to
-  #   S-CLAROTY-DTU-VULNS-PARITY-001 per D-2200. Tier-2: aggregates into raw_extensions.
+  # xDome Vulnerability fields_enum: source_url — link to the vulnerability advisory page.
+  # SAP-2-deferred: absent from DTU ClarotyVulnerability struct; parity deferred to
+  # S-ADR058-DTU-PARITY-MIGRATION-001 per D-2200. Tier-2: aggregates into raw_extensions.
   [[tables.columns]]
   name = "source_url"
   column_type = "string"
 
-  # id column: source_path = "$.id" extracts the root-level vulnerability ID.
-  # DTU ClarotyVulnerability.id: String (real xDome API may return integer or UUID).
-  # No ocsf_field (not a push-down column); not in body_template fields projection.
+  # id column: source_path = "$.id" extracts the root-level opaque Claroty CJYASHKR id.
+  # No ocsf_field (not a push-down column); not in body_template fields projection
+  # per BC-2.16.015 §Postconditions §2.
   # source_path miss (absent "id" key) → column skipped silently by map_record (ENRICH-1).
   [[tables.columns]]
   name = "id"
@@ -725,7 +729,7 @@ ocsf_class = "vulnerability_finding"
   name = "fetch_vulnerabilities"
   method = "POST"
   path_template = "/api/v1/vulnerabilities/"
-  body_template = '{"fields": ["name", "description", "vulnerability_type", "cve_ids", "cvss_v2_score", "cvss_v3_score", "cvss_v3_vector_string", "affected_products", "recommendations", "is_known_exploited", "affected_devices_count", "published_date", "adjusted_vulnerability_score", "adjusted_vulnerability_score_level", "exploits_count", "vulnerability_labels", "epss_score", "source_url"]}'
+  body_template = '{"fields": ["name", "vulnerability_type", "cve_ids", "cvss_v3_score", "cvss_v3_exploitability_subscore", "cvss_v3_vector_string", "cvss_v2_score", "description", "is_known_exploited", "affected_devices_count", "affected_ot_devices_count", "published_date", "epss_score", "adjusted_vulnerability_score", "adjusted_vulnerability_score_level", "exploits_count", "source_name", "source_url"]}'
   response_path = "$.vulnerabilities"
   variables_produced = []
   [tables.steps.pagination]
