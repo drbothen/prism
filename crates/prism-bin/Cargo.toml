@@ -287,6 +287,16 @@ path = "tests/bc_2_16_002_early_stop_adapter_tests.rs"
 name = "mcp_integration_tests"
 path = "tests/mcp_integration_tests.rs"
 
+# S-CLAROTY-VULNS-001 LOCAL adversary pass-1 fix-burst (F-VULNS-004/F-VULNS-005):
+# Wire-shape mock test (SID-1, non-live class_uid=2002 coverage) and SAP-3 e2e
+# E-QUERY-038 test for Claroty xDome Vulnerability Findings (BC-2.16.015).
+# Tests:
+#   test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock (SID-1 mock, non-live)
+#   test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column (SAP-3 parser-surface)
+[[test]]
+name = "bc_2_16_015_claroty_vulnerabilities_wire_shape"
+path = "tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
