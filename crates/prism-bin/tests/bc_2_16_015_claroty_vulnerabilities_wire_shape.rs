@@ -978,15 +978,22 @@ fn test_BC_2_16_015_claroty_vulnerabilities_production_mcp_serializer_uses_expli
 
 /// BC-2.16.015 §Error Cases EC-008: when the Claroty xDome API returns a non-200
 /// HTTP status for POST /api/v1/vulnerabilities/, `SpecDrivenSensorAdapter::fetch()`
-/// MUST surface `SensorError::HttpError { status }` with `error_code() == "E-SENSOR-001"`.
+/// MUST surface `SensorError::HttpError { status }` with `error_code() == "E-SENSOR-001"`,
+/// AND the rendered error string MUST contain the response body excerpt so that
+/// downstream callers (sensor=claroty, status, body) have full context.
 ///
 /// Pattern mirrors the sibling audit_logs EC-008 assertion in
-/// `bc_2_01_013_claroty_audit_logs_layer2.rs` (RG-005).
+/// `bc_2_01_013_claroty_audit_logs_layer2.rs` (RG-005), which asserts
+/// `rendered.contains("invalid filter")` and a single-`HTTP`-prefix regression guard.
 ///
 /// Assertions:
 ///   1. `fetch()` returns `Err` (not Ok)
 ///   2. The error is `SensorError::HttpError { status: 500 }`
 ///   3. `err.error_code()` == "E-SENSOR-001"
+///   4. `rendered` CONTAINS the body excerpt "vulnerability service temporarily unavailable"
+///      (BC-2.16.015 §Error Cases EC-008 "sensor=claroty, status, BODY")
+///   5. `rendered.matches("HTTP").count() == 1` (single-HTTP-prefix regression guard,
+///      mirrors sibling F-P37-HIGH-001 double-prefix guard in bc_2_01_013)
 ///
 /// No HTTP requests are retried — a non-200 response causes immediate Err.
 /// No pagination halts — the error surfaces before any pagination logic.
@@ -994,17 +1001,19 @@ fn test_BC_2_16_015_claroty_vulnerabilities_production_mcp_serializer_uses_expli
 /// SID-1 compliance: no `#[ignore]`; wiremock mock, no live Claroty DTU needed.
 ///
 /// BC-2.16.015 EC-008; prism-sensors::SensorError::HttpError (E-SENSOR-001).
-/// Story: S-CLAROTY-VULNS-001 F-VULNS-ADV-002 EC-008 (pass-4 fix-burst).
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-P5-003 (pass-5 fix-burst).
 #[tokio::test]
 async fn test_BC_2_16_015_claroty_vulnerabilities_ec008_non_200_e_sensor_001() {
     let mock_server = MockServer::start().await;
 
     // Return HTTP 500 Internal Server Error for the vulnerabilities POST.
-    // The response body is a JSON error envelope (representative of xDome error responses).
+    // The recognizable body string "vulnerability service temporarily unavailable" is
+    // the excerpt asserted below — proving sensor=claroty + status + BODY are all
+    // threaded through the error chain per BC-2.16.015 §Error Cases EC-008.
     Mock::given(method("POST"))
         .and(path("/api/v1/vulnerabilities/"))
         .respond_with(ResponseTemplate::new(500).set_body_string(
-            r#"{"error": "Internal Server Error", "message": "upstream timeout"}"#,
+            r#"{"error": "Internal Server Error", "message": "vulnerability service temporarily unavailable"}"#,
         ))
         .mount(&mock_server)
         .await;
@@ -1070,5 +1079,27 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec008_non_200_e_sensor_001() {
         rendered.contains("500"),
         "EC-008: rendered error MUST contain the HTTP status '500'. \
          Got: {rendered}. BC-2.16.015 EC-008."
+    );
+    // LOAD-BEARING body-excerpt assertion (F-VULNS-P5-003):
+    // BC-2.16.015 §Error Cases EC-008 requires "sensor=claroty, status, BODY" —
+    // the response body must be threaded into the rendered error so callers have full context.
+    // Mirrors sibling bc_2_01_013_claroty_audit_logs_layer2.rs RG-005 assertion on
+    // rendered.contains("invalid filter").
+    assert!(
+        rendered.contains("vulnerability service temporarily unavailable"),
+        "EC-008 LOAD-BEARING (body-excerpt): rendered error MUST contain the response \
+         body excerpt 'vulnerability service temporarily unavailable'. \
+         map_spec_engine_error_to_sensor_error must thread the HttpError body through. \
+         Got: {rendered}. BC-2.16.015 EC-008."
+    );
+    // Single-HTTP-prefix regression guard (mirrors sibling F-P37-HIGH-001 guard):
+    // The rendered error must contain exactly ONE 'HTTP' occurrence — no double-prefix.
+    assert_eq!(
+        rendered.matches("HTTP").count(),
+        1,
+        "EC-008 double-prefix regression guard: rendered error must contain exactly 1 \
+         'HTTP' occurrence (mirrors sibling RG-005 F-P37-HIGH-001 guard). \
+         Got {} occurrences in: {rendered}",
+        rendered.matches("HTTP").count()
     );
 }

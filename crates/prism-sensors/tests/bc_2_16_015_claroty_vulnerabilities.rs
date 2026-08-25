@@ -2,9 +2,9 @@
 //!
 //! Covers S-CLAROTY-VULNS-001 acceptance criteria AC-001..AC-008.
 //! BC-5.38.001 density check: 10 RGTs / 8 ACs = 1.25 (≥ 0.5 threshold).
-//! Story v1.2 enumerates 10 RGTs: RG-001, RG-002, RG-003a [prism-bin e2e],
-//! RG-003b [prism-sensors proxy], RG-004, RG-004b [prism-bin mock],
-//! RG-005, RG-006, RG-007, RG-008.
+//! The story enumerates 10 Red Gate tests: RG-001..RG-008 with RG-003 split into
+//! RG-003a [prism-bin e2e] / RG-003b [prism-sensors proxy] and RG-004b [prism-bin mock]
+//! added alongside RG-004, RG-005, RG-006, RG-007, RG-008.
 //!
 //! ## Red Gate invariant
 //!
@@ -791,8 +791,14 @@ fn test_BC_2_16_015_claroty_vulnerabilities_ec005_cve_ids_empty_array_in_raw_ext
 /// `normalize_timestamp_fields` in pipeline.rs, which uses `is_null_or_absent` to
 /// skip null fields before attempting datetime parsing.  At the `map_record` level
 /// (this test's scope), E-SPEC-018 can never be raised — `map_record` stores the raw
-/// `Value::Null` without parsing.  The full-pipeline null-datetime protection is
-/// exercised by RG-007 (via `PipelineExecutor::execute` with a null-valued response).
+/// `Value::Null` without parsing.  This test gates the **map_record-layer null
+/// passthrough** only: a JSON null `published_date` stores `Value::Null` in
+/// `raw_extensions` without error.  The full-pipeline null-datetime protection
+/// (a record with `published_date: null` passing through `PipelineExecutor::execute`
+/// without E-SPEC-018) is exercised by
+/// `test_BC_2_16_015_claroty_vulnerabilities_ec006_null_published_date_through_pipeline`
+/// below.  RG-007 uses an EMPTY `vulnerabilities` array — no record ever reaches
+/// `normalize_timestamp_fields`, so it does NOT cover the null-passthrough path.
 ///
 /// Story: S-CLAROTY-VULNS-001 F-VULNS-P1-002.
 #[test]
@@ -817,6 +823,107 @@ fn test_BC_2_16_015_claroty_vulnerabilities_ec006_published_date_null_row_materi
         Some(&serde_json::Value::Null),
         "EC-016-015-006: published_date=null must store Value::Null in raw_extensions. \
          raw_extensions: {:?}",
+        row.raw_extensions
+    );
+}
+
+// ── F-VULNS-P5-004: EC-016-015-006 full-pipeline null-datetime coverage ──────
+/// BC-2.16.015 §EC-016-015-006 full-pipeline gate: a record with `published_date: null`
+/// (present key, JSON null value) passes through `PipelineExecutor::execute` without
+/// error — no E-SPEC-018 is raised, and the row materializes in `result.records` with
+/// `published_date` stored as `Value::Null` in `raw_extensions`.
+///
+/// `normalize_timestamp_fields` skips fields where `is_null_or_absent` returns true,
+/// so a JSON null `published_date` is never passed to the ISO-8601 parse chain.
+/// This test verifies that guard path end-to-end via the real pipeline executor.
+///
+/// RG-007 uses an EMPTY `vulnerabilities` array — no record ever reaches
+/// `normalize_timestamp_fields`, so it cannot cover this path.
+/// `test_BC_2_16_015_claroty_vulnerabilities_ec006_published_date_null_row_materializes`
+/// covers the map_record layer only; this test covers the complete
+/// `PipelineExecutor::execute` path including `normalize_timestamp_fields`.
+///
+/// Harness mirrors `test_BC_2_16_015_claroty_vulnerabilities_ec007_non_iso_published_date_e_spec_018`
+/// but expects success (Ok) instead of E-SPEC-018.
+///
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-P5-004 (pass-5 fix-burst).
+/// BC-2.16.015 §EC-016-015-006; PipelineExecutor::execute null-datetime passthrough.
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_ec006_null_published_date_through_pipeline() {
+    let mock_server = MockServer::start().await;
+
+    // Return a vulnerability record with published_date as an explicit JSON null
+    // (present key, null value — NOT absent).  normalize_timestamp_fields must skip
+    // this via is_null_or_absent and NOT raise E-SPEC-018.
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "vulnerabilities": [{
+                "name": "CVE-2024-NULL-DATE",
+                "description": "A mock vulnerability with null published_date",
+                "vulnerability_type": "CVE",
+                "published_date": serde_json::Value::Null
+            }],
+            "total": 1_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let mut test_spec = spec.clone();
+    test_spec.base_url = mock_server.uri();
+
+    let table = test_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&test_spec, table, &context, &http_client, &auth).await;
+
+    // LOAD-BEARING EC-006 full-pipeline assertion: null published_date must NOT raise
+    // E-SPEC-018 — normalize_timestamp_fields skips null via is_null_or_absent.
+    assert!(
+        result.is_ok(),
+        "F-VULNS-P5-004 LOAD-BEARING: PipelineExecutor::execute must return Ok when \
+         published_date is JSON null. normalize_timestamp_fields must skip null fields \
+         via is_null_or_absent — E-SPEC-018 must NOT be raised. \
+         Got Err: {:?}. BC-2.16.015 §EC-016-015-006.",
+        result.as_ref().err()
+    );
+
+    let pipeline_result = result.unwrap();
+    assert_eq!(
+        pipeline_result.records.len(),
+        1,
+        "F-VULNS-P5-004: the record with null published_date must materialize (1 record). \
+         Got {} records. BC-2.16.015 §EC-016-015-006.",
+        pipeline_result.records.len()
+    );
+
+    // Verify null published_date is preserved in raw_extensions (Tier-2 column).
+    // map_record stores the raw Value::Null; normalize_timestamp_fields leaves it intact.
+    let orig_table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist in original spec");
+    let row = ColumnMapper::map_record(&pipeline_result.records[0], orig_table)
+        .expect("F-VULNS-P5-004: map_record must succeed on a record with null published_date");
+
+    assert_eq!(
+        row.raw_extensions.get("published_date"),
+        Some(&serde_json::Value::Null),
+        "F-VULNS-P5-004: published_date=null must be stored as Value::Null in raw_extensions. \
+         raw_extensions: {:?}. BC-2.16.015 §EC-016-015-006.",
         row.raw_extensions
     );
 }
