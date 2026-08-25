@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.892"
+version: "2.893"
 status: draft
 producer: state-manager
 timestamp: 2026-08-24T00:00:00Z
 phase: 3
-total_stories: 309
+total_stories: 314
+# D-2296: story-writer deferred-DTU-stubs burst — 5 DRAFT STUB stories registered (post-v1 DTU-parity batch D-2200/D-2264): S-CLAROTY-OT-EVENTS-DTU-001 (G2; OT activity events route; 5 pts; depends_on S-CLAROTY-OT-EVENTS-001), S-CLAROTY-DEVVULNREL-DTU-001 (G3; device-vulnerability relations route; 8 pts; depends_on S-CLAROTY-DEVVULNREL-001), S-CLAROTY-SERVERS-DTU-001 (G4; servers+server_interfaces routes; 5 pts; depends_on S-CLAROTY-SERVERS-001), S-CLAROTY-ORGPOLICY-DTU-001 (G5; 4 org-policy routes incl. URL↔envelope asymmetry; 8 pts; depends_on S-CLAROTY-ORGPOLICY-001), S-CLAROTY-ACLPOLICY-DTU-001 (G6; ACL policies non-paginated route; 5 pts; depends_on S-CLAROTY-ACLPOLICY-001). All status: draft; behavioral_contracts: [] pending PO authorship; tdd_mode: facade; input-hash: [pending-recompute]. Anchor: S-ADR058-DTU-PARITY-MIGRATION-001 (DTU-parity governing story). New section "Deferred DTU-Parity Stubs (post-v1 — xDome G2–G6)" added after Wave C. total_stories 309→314. STORY-INDEX v2.892→v2.893.
 # D-2282: pass-H OBS-1 test-only fix @8aeaf06c4 + parallel 3-clean batch (2/3) + T-31 canonical alignment — ROUTING-001 v1.55→v1.56 (story-body T-31 illustrative warn! aligned to BC-2.16.002 row 96: tier2_column_count added, verbatim message, emission site pinned to register_sensor; §Authority pins UNCHANGED: ADR-058 v2.32/BC-2.11.016 v1.31/BC-2.16.003 v1.26/BC-2.16.002 v2.35; code @8aeaf06c4). total_stories 303 UNCHANGED. STORY-INDEX v2.883→v2.884. D-2279 NOTE archived.
 # D-2279: warning emission-site reconcile — ROUTING-001 v1.54→v1.55 (§Authority+BC pins synced: ADR-058 v2.31→v2.32, BC-2.16.002 v2.34→v2.35, BC-2.11.016 v1.30→v1.31; input-hash e7455fb→503dea7; D-2279). total_stories 303 UNCHANGED. STORY-INDEX v2.882→v2.883. D-2278 NOTE archived.
 # D-2278: A+W spec burst (§7-AUTHORIZED human decision 2026-08-23) — ROUTING-001 v1.53→v1.54 (RG-Q-017 NEW zero_tier1 raw_extensions preservation end-to-end; density 46/21=2.19; AC-019 A+W two-sub-case; T-11AC + T-31 ocsf.zero_tier1_table warning; ADR-058 v2.31/BC-2.11.016 v1.30/BC-2.16.002 v2.34/BC-2.16.003 v1.26 pins updated; error-taxonomy v2.81; input-hash e7455fb). total_stories 303 UNCHANGED. STORY-INDEX v2.881→v2.882. D-2276 NOTE archived.
@@ -1055,6 +1056,26 @@ Directive. SAP-2 probe N/A for all Wave C tables (D-2200).
 | S-CLAROTY-SERVERS-001 | Claroty xDome Collection Servers + Server Interfaces Tables — claroty_servers TOML block (17 cols: 2 Tier-1 device_name REQUIRED + status_code, 15 Tier-2) + claroty_server_interfaces TOML block (10 cols: 2 Tier-1, 8 Tier-2, composite PK server_name+interface_name), live structural tests (Wave C G4) [draft v1.2] | prism-sensors, prism-spec-engine | 2 (BC-2.16.018 v1.0, BC-2.16.019 v1.0) | -- | 5 | -- |
 | S-CLAROTY-ORGPOLICY-001 | Claroty xDome Org Policy Tables — 4 TOML blocks: claroty_organization_zones (11 cols: 4 Tier-1 zone_name→name REQUIRED + zone_description→comment + enabled→status_code + updated_by→actor_user_name; 7 Tier-2 incl. 1 Json device_conditions) + claroty_organization_zone_policies (13 cols: 4 Tier-1 policy_name→name REQUIRED + policy_action→activity_name + policy_notes→comment + updated_by→actor_user_name; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_zone_pairs; last_updated WITH trailing d) + claroty_organization_firewall_groups (11 cols: 4 Tier-1 same structure; 7 Tier-2 incl. 1 Json device_conditions; fw URL /api/v1/organization_fw_groups/ vs envelope $.organization_firewall_groups asymmetry) + claroty_organization_firewall_policies (13 cols: 4 Tier-1 same structure; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_group_pairs); 8 Json cols total; entity_management/3004; live structural tests (Wave C G5) [draft v1.0] | prism-sensors, prism-spec-engine | 2 (BC-2.16.020 v1.0, BC-2.16.021 v1.0) | -- | 8 | -- |
 | S-CLAROTY-ACLPOLICY-001 | Claroty xDome ACL Policies Table — claroty_organization_acl_policies TOML block (11 cols: 4 Tier-1 policy_id→metadata.uid REQUIRED/metadata_uid + policy_name→name + policy_updated_by→actor_user_name + policy_notes→comment; 7 Tier-2 incl. 1 Json applied_models [array of device model strings]); KEY NOVELTY: pagination type=none (non-paginated single-fetch; no offset/limit injection; only Claroty table of this kind); mandatory policy_acl_syntax="Cisco dACL" in body_template (REQUIRED per OpenAPI schema; not in fields_enum); response envelope $.organization_acl_policies with NO count field; entity_management/3004 (existing arm); live structural tests (Wave C G6) [draft v1.0] | prism-sensors, prism-spec-engine | 1 (BC-2.16.022 v1.0) | -- | 5 | -- |
+
+## Deferred DTU-Parity Stubs (post-v1 — xDome G2–G6)
+
+These 5 stories are placeholder stubs registered now to preserve intent. They are DEFERRED post-first-release
+per D-2200 / D-2264. Execute as a batch when `S-ADR058-DTU-PARITY-MIGRATION-001` (DTU-parity epic) is
+scheduled. Each story adds one or more `prism-dtu-claroty` routes replicating real xDome response shapes,
+enabling SAP-2 DTU↔TOML parity and DTU-based holdout evaluation for the corresponding table. Until
+these ship, SAP-2 probe status for G2–G6 tables remains N/A.
+
+RG lists, full ACs, and input-hashes are authored at scheduling time (SAC-1). `tdd_mode: facade` for all
+(DTU clone routes are structural fakes — mock server pattern). All `behavioral_contracts: []` pending PO
+authorship before status: ready (Spec-First Gate S-7.01).
+
+| Story ID | Title | Crate | BCs | VPs | pts | Depends On |
+|----------|-------|-------|-----|-----|-----|------------|
+| S-CLAROTY-OT-EVENTS-DTU-001 | Claroty DTU — OT Activity Events Route (POST /api/v1/ot_activity_events/, envelope $.ot_activity_events, 23-field OTActivityEvent enum; parity target BC-2.16.016; SAP-2 N/A→applicable on ship; Wave A G2 DTU parity) [draft stub v1.0] | prism-dtu-claroty | 0 (pending PO authorship) | -- | 5 | S-CLAROTY-OT-EVENTS-001 |
+| S-CLAROTY-DEVVULNREL-DTU-001 | Claroty DTU — Device-Vulnerability Relations Route (POST /api/v1/device_vulnerability_relations/, envelope $.devices_vulnerabilities, 214-field DeviceVulnerability enum, first-cut 13 cols; parity target BC-2.16.017; SAP-2 N/A→applicable on ship; Wave B G3 DTU parity) [draft stub v1.0] | prism-dtu-claroty | 0 (pending PO authorship) | -- | 8 | S-CLAROTY-DEVVULNREL-001 |
+| S-CLAROTY-SERVERS-DTU-001 | Claroty DTU — Servers + Server Interfaces Routes (POST /api/v1/servers/ + /api/v1/server_interfaces/, envelopes $.servers/$.server_interfaces, 17+10 fields; parity targets BC-2.16.018+BC-2.16.019; SAP-2 N/A→applicable on ship; Wave C G4 DTU parity) [draft stub v1.0] | prism-dtu-claroty | 0 (pending PO authorship) | -- | 5 | S-CLAROTY-SERVERS-001 |
+| S-CLAROTY-ORGPOLICY-DTU-001 | Claroty DTU — Org Policy Routes (4 endpoints: /api/v1/organization_zones/, /api/v1/organization_zone_policies/, /api/v1/organization_fw_groups/→envelope $.organization_firewall_groups [URL↔envelope asymmetry], /api/v1/organization_fw_group_policies/→envelope $.organization_firewall_policies [asymmetry]; parity targets BC-2.16.020+BC-2.16.021; SAP-2 N/A→applicable on ship; Wave C G5 DTU parity) [draft stub v1.0] | prism-dtu-claroty | 0 (pending PO authorship) | -- | 8 | S-CLAROTY-ORGPOLICY-001 |
+| S-CLAROTY-ACLPOLICY-DTU-001 | Claroty DTU — ACL Policies Route (POST /api/v1/organization_acl_policies/, envelope $.organization_acl_policies NO count field; NON-PAGINATED type=none; mandatory policy_acl_syntax in request; 11-field OrganizationAclPolicyResponseItem; parity target BC-2.16.022; SAP-2 N/A→applicable on ship; Wave C G6 DTU parity) [draft stub v1.0] | prism-dtu-claroty | 0 (pending PO authorship) | -- | 5 | S-CLAROTY-ACLPOLICY-001 |
 
 ## Feature-Mode Release Engineering (Wave F-A / F-B)
 
