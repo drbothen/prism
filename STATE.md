@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.834"
+version: "8.835"
 producer: state-manager
-timestamp: 2026-08-25T19:05:00Z
+timestamp: 2026-08-25T20:35:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -25,13 +25,13 @@ develop_head: "3f1e66179"
 # NOTE: D-2202 — develop_head corrected 791b68c3→69d821be (fast-forward COMPLETE; develop == origin/develop == 69d821be confirmed). OCSF-mapping schema-validation COMPLETE (ADR-058 v2.4; 12 KF + CODE DEFECT §class_selector.rs); ARCH-INDEX v2.303→v2.304. STATE v8.732→v8.733.
 # NOTE: D-2183 — develop advanced 3197e27a9→791b68c3: PR #238 chore(gitignore) AD-017 live-evidence SQUASH-MERGED to develop 2026-08-15. D-2171 NOTE archived.
 # NOTE: D-2109 — develop advanced ef996a4c0→5d1a30ac7: PR #236 fix/claroty-live-api-fidelity SQUASH-MERGED; BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED (passes 8/9/10 on frozen 386df43c5); HS-008..011 CONSUMED; worktrees CLAROTY-LIVE + FINDING-R removed. D-2102 NOTE archived.
-bc_index_version: "9.62"
-# NOTE: D-2301 — BC-INDEX v9.61→v9.62: BC-2.16.015 pin v1.1→v1.2 (F-VULNS-ANCHOR-001: §Architecture Anchors spec_driven_adapter.rs crate prism-spec-engine→prism-bin). draft/active/total UNCHANGED (11/253/277). D-2300 NOTE archived.
+bc_index_version: "9.63"
+# NOTE: D-2302 — BC-INDEX v9.62→v9.63: BC-2.16.015 pin v1.2→v1.3 (F-VULNS-ADV-001 §Invariants + EC-007/§Error-Cases E-SPEC-018 hard-error correction, human-approved Option A). draft/active/total UNCHANGED (11/253/277). D-2301 NOTE archived.
 # NOTE: D-2294 — BC-INDEX v9.58→v9.59: Wave C ORGPOLICY story creation — BC-2.16.020 v1.0 (draft, claroty_org-zone-domain: organization_zones + organization_zone_policies, OCSF entity_management/3004, 8 Json cols) + BC-2.16.021 v1.0 (draft, claroty_org-firewall-domain: organization_firewall_groups + organization_firewall_policies) REGISTERED. draft_contracts 8→10; total_contracts 274→276. active_contracts 253 UNCHANGED. D-2293 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.896"
-# NOTE: D-2301 — STORY-INDEX v2.895→v2.896: S-CLAROTY-VULNS-001 LOCAL cascade pass-3 fix-burst — story v1.2→v1.3 (F-VULNS-ANCHOR-001: story-side §Architecture Mapping + F-VULNS-VER-001 BC-version pins v1.0→v1.2). total_stories 314 UNCHANGED. D-2300 NOTE archived.
+story_index_version: "2.897"
+# NOTE: D-2302 — STORY-INDEX v2.896→v2.897: S-CLAROTY-VULNS-001 LOCAL cascade pass-4 fix-burst — story v1.3→v1.4 (AC-006/EC-001/EC-007 sibling corrections + BC pins v1.2→v1.3). total_stories 314 UNCHANGED. D-2301 NOTE archived.
 # NOTE: D-2296 — STORY-INDEX v2.892→v2.893: xDome deferred DTU-parity stubs — 5 DRAFT stubs registered (S-CLAROTY-OT-EVENTS/DEVVULNREL/SERVERS/ORGPOLICY/ACLPOLICY-DTU-001; facade; post-v1, anchor S-ADR058-DTU-PARITY-MIGRATION-001). total_stories 309→314. xDome story-creation COMPLETE (11 stories G1–G6). D-2295 NOTE archived.
 # NOTE: D-2295 — STORY-INDEX v2.891→v2.892: xDome Wave C ACL story creation — S-CLAROTY-ACLPOLICY-001 REGISTERED (draft, tdd_mode strict, SAC-1, density 1.0; FINAL near-term expansion story). total_stories 308→309. D-2291/D-2288/D-2286 NOTEs archived.
 arch_index_version: "2.333"
@@ -48,11 +48,11 @@ workspace_test_count: 5816
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2301 SINGLE-COMMIT BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 Wave A G1 LOCAL cascade pass-3 fix-burst RECORDED. 1 MED (F-VULNS-ANCHOR-001: §Architecture Anchors spec_driven_adapter.rs crate prism-spec-engine→prism-bin) + 4 LOW + 1 OBS — ALL FIXED: test-writer @c8f21c4d2 + product-owner BC v1.1→v1.2 + story-writer story v1.2→v1.3. Feature code HEAD c8f21c4d2; just check GREEN prism-sensors 200 / prism-bin 230 / prism-spec-engine 798. BC-5.39.001 LOCAL streak 0/3 (fix-burst advanced frozen HEAD to c8f21c4d2; pass-4 re-cascade pending). BC-INDEX v9.61→v9.62; STORY-INDEX v2.895→v2.896. TD-VSDD-097 all dims CLEAR. records-lint exit 0. trajectory-tail →0→11→5→6. STATE v8.833→v8.834."
+current_step: "D-2302 SINGLE-COMMIT BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 Wave A G1 LOCAL cascade pass-4 fix-burst RECORDED. 2 MED [F-VULNS-ADV-001 REQUIRED-semantics misattribution BC §Invariants + story AC-006/EC-001; F-VULNS-ADV-002 EC-007 uncovered E-SPEC-018 arm] + 1 LOW F-VULNS-ADV-003 [wire-test self-mirroring] + 2 OBS [RG-006 misnomer, EC-008] — ALL FIXED: test-writer @cebeba3d6 + product-owner BC v1.2→v1.3 + story-writer story v1.3→v1.4. Feature code HEAD cebeba3d6; just check GREEN prism-sensors 201 / prism-bin 232 / prism-spec-engine 798. BC-5.39.001 LOCAL streak 0/3 (fix-burst advanced frozen HEAD to cebeba3d6; pass-5 re-cascade pending). BC-INDEX v9.62→v9.63; STORY-INDEX v2.896→v2.897. TD-VSDD-097 all dims CLEAR. records-lint exit 0. trajectory-tail →11→5→6→5. STATE v8.834→v8.835."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "Main worktree on develop origin/develop @3f1e66179. ACTIVE: .worktrees/S-CLAROTY-VULNS-001 (feature/S-CLAROTY-VULNS-001 @62f1c6379; Wave A G1 LOCAL pass-3 re-cascade PENDING; feature NOT PUSHED). PARKED (2): S-3.09 @43c41389d KEEP-PARKED; W3-FIX-S307-001 @fcab8717c PARKED-DIRTY do-NOT-touch. PENDING-TEARDOWN: .worktrees/S-ADR058-OCSF-ROUTING-001 (D-2288; PR #242 merged; remote feature branch deleted). Torn down (D-2262): S-ADR058-OCSF-COERCION-001 (PR #240); S-CLAROTY-AUDITLOG-TIMEBOX-001 (PR #239); maint-clippy-1.98 (PR #241)."
+worktree_status: "Main worktree on develop origin/develop @3f1e66179. ACTIVE: .worktrees/S-CLAROTY-VULNS-001 (feature/S-CLAROTY-VULNS-001 @cebeba3d6; Wave A G1 LOCAL pass-5 re-cascade PENDING; feature NOT PUSHED). PARKED (2): S-3.09 @43c41389d KEEP-PARKED; W3-FIX-S307-001 @fcab8717c PARKED-DIRTY do-NOT-touch. PENDING-TEARDOWN: .worktrees/S-ADR058-OCSF-ROUTING-001 (D-2288; PR #242 merged; remote feature branch deleted). Torn down (D-2262): S-ADR058-OCSF-COERCION-001 (PR #240); S-CLAROTY-AUDITLOG-TIMEBOX-001 (PR #239); maint-clippy-1.98 (PR #241)."
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -85,7 +85,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 294 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -94 | margin from actual: 206 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 296 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -96 | margin from actual: 204 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -98,7 +98,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-25 D-2301 SINGLE-COMMIT BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 Wave A G1 LOCAL cascade pass-3 fix-burst recorded. BC-2.16.015 v1.1→v1.2; story v1.2→v1.3; BC-INDEX v9.61→v9.62; STORY-INDEX v2.895→v2.896. Feature HEAD c8f21c4d2; just check GREEN. BC-5.39.001 LOCAL streak 0/3. trajectory-tail →0→11→5→6. STATE v8.833→v8.834. |
+| **Last Updated** | 2026-08-25 D-2302 SINGLE-COMMIT BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 Wave A G1 LOCAL cascade pass-4 fix-burst recorded. BC-2.16.015 v1.2→v1.3; story v1.3→v1.4; BC-INDEX v9.62→v9.63; STORY-INDEX v2.896→v2.897. Feature HEAD cebeba3d6; just check GREEN. BC-5.39.001 LOCAL streak 0/3. trajectory-tail →11→5→6→5. STATE v8.834→v8.835. |
 
 ## Phase Progress
 
@@ -127,12 +127,12 @@ _Historical Phase Progress rows archived to cycles/wave-5-e-demo-fidelity/burst-
 
 | Metric | Value |
 |--------|-------|
-| BC-5.39.001 streak | **S-CLAROTY-VULNS-001 LOCAL 0/3** — pass-1 (2 CRIT, 2 HIGH, 5 MED, 2 OBS ALL FIXED @e2b779800+@3874f8624) + pass-2 (1 MED, 3 LOW, 1 OBS ALL FIXED @62f1c6379) + pass-3 (1 MED F-VULNS-ANCHOR-001 + 4 LOW + 1 OBS ALL FIXED @c8f21c4d2). Feature frozen @c8f21c4d2 for pass-4 re-cascade. |
-| Active cascade | S-CLAROTY-VULNS-001 Wave A G1 LOCAL adversary cascade. Feature HEAD @c8f21c4d2 (NOT pushed). BC-5.39.001 re-cascade pass-4 PENDING. |
-| Pass count | VULNS-001 LOCAL: 3 passes (pass-1 D-2300 fix @e2b779800+@3874f8624; pass-2 D-2300 fix @62f1c6379; pass-3 D-2301 fix @c8f21c4d2). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
+| BC-5.39.001 streak | **S-CLAROTY-VULNS-001 LOCAL 0/3** — pass-1 (2 CRIT, 2 HIGH, 5 MED, 2 OBS ALL FIXED @e2b779800+@3874f8624) + pass-2 (1 MED, 3 LOW, 1 OBS ALL FIXED @62f1c6379) + pass-3 (1 MED F-VULNS-ANCHOR-001 + 4 LOW + 1 OBS ALL FIXED @c8f21c4d2) + pass-4 (2 MED F-VULNS-ADV-001+F-VULNS-ADV-002 + 1 LOW F-VULNS-ADV-003 + 2 OBS ALL FIXED @cebeba3d6). Feature frozen @cebeba3d6 for pass-5 re-cascade. |
+| Active cascade | S-CLAROTY-VULNS-001 Wave A G1 LOCAL adversary cascade. Feature HEAD @cebeba3d6 (NOT pushed). BC-5.39.001 re-cascade pass-5 PENDING. |
+| Pass count | VULNS-001 LOCAL: 4 passes (pass-1 D-2300 fix @e2b779800+@3874f8624; pass-2 D-2300 fix @62f1c6379; pass-3 D-2301 fix @c8f21c4d2; pass-4 D-2302 fix @cebeba3d6). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
 | Last CLEAN(strict) | ROUTING-001 PR-LEVEL 3/3 CLEAN(strict)=YES CONVERGED (D-2288; MERGED develop@3f1e66179 2026-08-23). VULNS-001: no CLEAN pass yet (streak 0/3). |
-| Finding trajectory | VULNS-001 LOCAL →(pass-1: 2C+2H+5M+2O ALL FIXED)→(pass-2: 1M+3L+1O ALL FIXED)→(pass-3: 1M+4L+1O ALL FIXED @c8f21c4d2)→pass-4 PENDING. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Frozen perimeter | ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 (merged) / COERCION-001 v1.47 (merged) / BC-2.16.015 v1.2 (draft, VULNS-001 pass-1+pass-2+pass-3 fixed) — code @3f1e66179 (develop) / feature @c8f21c4d2 (VULNS-001 frozen for pass-4) / ARCH-INDEX v2.333 / BC-INDEX v9.62 / STORY-INDEX v2.896 / HOLDOUT-INDEX v1.26 |
+| Finding trajectory | VULNS-001 LOCAL →(pass-1: 2C+2H+5M+2O ALL FIXED)→(pass-2: 1M+3L+1O ALL FIXED)→(pass-3: 1M+4L+1O ALL FIXED @c8f21c4d2)→(pass-4: 2M+1L+2O ALL FIXED @cebeba3d6)→pass-5 PENDING. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
+| Frozen perimeter | ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 (merged) / COERCION-001 v1.47 (merged) / BC-2.16.015 v1.3 (draft, VULNS-001 pass-1+pass-2+pass-3+pass-4 fixed) — code @3f1e66179 (develop) / feature @cebeba3d6 (VULNS-001 frozen for pass-5) / ARCH-INDEX v2.333 / BC-INDEX v9.63 / STORY-INDEX v2.897 / HOLDOUT-INDEX v1.26 |
 
 ## Concurrent Cycles
 
@@ -179,6 +179,7 @@ _No concurrent cycles in progress. Current cycle: wave-5-e-demo-fidelity._
 | D-2299 | state-manager | 2026-08-24 | SINGLE-COMMIT BURST (TD-VSDD-053) — POL-41 parallelize_against_inflight_state_writes REGISTERED (human-directed 2026-08-24). policies v1.42→v1.43. SESSION-HANDOFF.md Standing Rule 15 added; v8.006→v8.007. CLAUDE.md §Standing Orchestrator Process Rules mirror update deferred to a human-mandated CLAUDE.md edit. TD-VSDD-097: Dim-1 CLEAR (no sibling pairs for policy-only artifact); Dim-2 CLEAR (SESSION-HANDOFF Rule 15 swept; CLAUDE.md deferred per task spec); Dim-3 CLEAR (no new MUSTs introduced). records-lint exit 0. trajectory-tail →3→2→0→0. STATE v8.831→v8.832. |
 | D-2300 | state-manager | 2026-08-25 | SINGLE-COMMIT BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 Wave A G1 LOCAL cascade pass-1/pass-2 fix-bursts RECORDED. pass-1: 2 CRIT, 2 HIGH, 5 MED, 2 OBS — ALL FIXED @e2b779800 + @3874f8624. pass-2: 1 MED, 3 LOW, 1 OBS — ALL FIXED @62f1c6379 + BC-2.16.015 v1.0→v1.1 (F-VULNS-P1-004: §4 SAP-2 DTU-parity mandate annotated D-2200/D-2264 deferral + anchor S-ADR058-DTU-PARITY-MIGRATION-001; TD-VSDD-097 Dim-3 DISCHARGED) + story v1.1→v1.2 (F-VULNS-P1-003: RG-003 split RG-003a/003b, RG-004b mock wire-shape added, density 10/8=1.25, SAC-1 restored). F-VULNS-011: crates_touched synced [prism-sensors, prism-spec-engine]→[prism-sensors, prism-bin] (feature diff @62f1c6379 zero prism-spec-engine files). Feature HEAD 62f1c6379 FROZEN for pass-3 re-cascade. just check GREEN: prism-sensors 199 / prism-bin 229 / prism-spec-engine 798. BC-5.39.001 LOCAL streak 0/3 (re-cascade pending). BC-INDEX v9.60→v9.61. STORY-INDEX v2.894→v2.895. TD-VSDD-097: Dim-1 CLEAR (no sibling pairs affected); Dim-2 CLEAR (BC-2.16.015 §4 is not a copy-source section); Dim-3 DISCHARGED (§4 MUST anchored to story S-ADR058-DTU-PARITY-MIGRATION-001). records-lint exit 0. STATE v8.832→v8.833. |
 | D-2301 | state-manager | 2026-08-25 | SINGLE-COMMIT BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 Wave A G1 LOCAL cascade pass-3 fix-burst RECORDED. 1 MED (F-VULNS-ANCHOR-001: §Architecture Anchors spec_driven_adapter.rs crate prism-spec-engine→prism-bin) + 4 LOW (F-VER-001 BC-version pins, F-DOC-001 test docstring, F-EC004-001 advisory-title test, F-AC003-001 e2e class_uid/_sensor) + 1 OBS (F-EC009-001 id E-QUERY-038) — ALL FIXED: test-writer @c8f21c4d2 + product-owner BC-2.16.015 v1.1→v1.2 + story-writer story v1.2→v1.3. Feature code HEAD c8f21c4d2; just check GREEN prism-sensors 200 / prism-bin 230 / prism-spec-engine 798. BC-5.39.001 LOCAL streak 0/3 (pass-4 re-cascade pending). BC-INDEX v9.61→v9.62; STORY-INDEX v2.895→v2.896. TD-VSDD-097 all dims CLEAR. records-lint exit 0. trajectory-tail →0→11→5→6. STATE v8.833→v8.834. |
+| D-2302 | state-manager | 2026-08-25 | pass-4 fix-burst RECORDED — 2 MED + 1 LOW + 2 OBS fixed; EC-007 E-SPEC-018 hard-error clarified (human-approved Option A); BC v1.3 / story v1.4; code @cebeba3d6 just check GREEN; streak 0/3; pass-5 pending. STATE v8.834→v8.835. |
 
 ## Decisions Log
 
@@ -248,6 +249,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | D-2299 | state-manager | 2026-08-24 | **SINGLE-COMMIT BURST (TD-VSDD-053) — POL-41 parallelize_against_inflight_state_writes REGISTERED (human-directed 2026-08-24). policies v1.42→v1.43. SESSION-HANDOFF.md Standing Rule 15 added; v8.006→v8.007. CLAUDE.md §Standing Orchestrator Process Rules mirror update deferred to a human-mandated CLAUDE.md edit. TD-VSDD-097: Dim-1 CLEAR (no sibling pairs for policy-only artifact); Dim-2 CLEAR (SESSION-HANDOFF Rule 15 swept; CLAUDE.md deferred per task spec); Dim-3 CLEAR (no new MUSTs introduced). records-lint exit 0. trajectory-tail →3→2→0→0. STATE v8.831→v8.832.** | wave-5-e-demo-fidelity | 2026-08-24 |
 | D-2300 | state-manager | 2026-08-25 | **SINGLE-COMMIT BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 Wave A G1 LOCAL cascade pass-1/pass-2 fix-bursts RECORDED. pass-1: 2 CRIT, 2 HIGH, 5 MED, 2 OBS — ALL FIXED @e2b779800 + @3874f8624. pass-2: 1 MED, 3 LOW, 1 OBS — ALL FIXED @62f1c6379 + BC-2.16.015 v1.0→v1.1 (F-VULNS-P1-004: §4 SAP-2 DTU-parity mandate annotated D-2200/D-2264 deferral + anchor S-ADR058-DTU-PARITY-MIGRATION-001; TD-VSDD-097 Dim-3 DISCHARGED) + story v1.1→v1.2 (F-VULNS-P1-003: RG-003 split RG-003a/003b, RG-004b mock wire-shape added, density 10/8=1.25, SAC-1 restored). F-VULNS-011: crates_touched synced [prism-sensors, prism-spec-engine]→[prism-sensors, prism-bin] (feature diff @62f1c6379 zero prism-spec-engine files). Feature HEAD 62f1c6379 FROZEN for pass-3 re-cascade. just check GREEN: prism-sensors 199 / prism-bin 229 / prism-spec-engine 798. BC-5.39.001 LOCAL streak 0/3 (re-cascade pending). BC-INDEX v9.60→v9.61. STORY-INDEX v2.894→v2.895. TD-VSDD-097: Dim-1 CLEAR (no sibling pairs affected); Dim-2 CLEAR (BC-2.16.015 §4 is not a copy-source section); Dim-3 DISCHARGED (§4 MUST anchored to story S-ADR058-DTU-PARITY-MIGRATION-001). records-lint exit 0. STATE v8.832→v8.833.** | wave-5-e-demo-fidelity | 2026-08-25 |
 | D-2301 | state-manager | 2026-08-25 | **SINGLE-COMMIT BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 Wave A G1 LOCAL cascade pass-3 fix-burst RECORDED. 1 MED (F-VULNS-ANCHOR-001: §Architecture Anchors spec_driven_adapter.rs crate prism-spec-engine→prism-bin) + 4 LOW (F-VER-001 BC-version pins, F-DOC-001 test docstring, F-EC004-001 advisory-title test, F-AC003-001 e2e class_uid/_sensor) + 1 OBS (F-EC009-001 id E-QUERY-038) — ALL FIXED: test-writer @c8f21c4d2 + product-owner BC-2.16.015 v1.1→v1.2 + story-writer story v1.2→v1.3. Feature code HEAD c8f21c4d2; just check GREEN prism-sensors 200 / prism-bin 230 / prism-spec-engine 798. BC-5.39.001 LOCAL streak 0/3 (fix-burst advanced frozen HEAD to c8f21c4d2; pass-4 re-cascade pending). BC-INDEX v9.61→v9.62; STORY-INDEX v2.895→v2.896. TD-VSDD-097: Dim-1 CLEAR (§Architecture Anchors in BC-2.16.015 is not a sibling-pair section); Dim-2 CLEAR (§Architecture Anchors is not a copy-source section); Dim-3 CLEAR (no new MUSTs introduced). records-lint exit 0. trajectory-tail →0→11→5→6. STATE v8.833→v8.834.** | wave-5-e-demo-fidelity | 2026-08-25 |
+| D-2302 | state-manager | 2026-08-25 | **SINGLE-COMMIT BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 Wave A G1 LOCAL cascade pass-4 fix-burst RECORDED. 2 MED [F-VULNS-ADV-001 REQUIRED-semantics misattribution BC §Invariants + story AC-006/EC-001; F-VULNS-ADV-002 EC-007 uncovered E-SPEC-018 arm] + 1 LOW F-VULNS-ADV-003 [wire-test self-mirroring] + 2 OBS [RG-006 misnomer, EC-008] — ALL FIXED: test-writer @cebeba3d6 (EC-007 + EC-008 tests, wire-test prod-config gate, RG-006 note) + product-owner BC v1.2→v1.3 + story-writer story v1.3→v1.4. GOVERNING DECISION (human-approved Option A, 2026-08-25): E-SPEC-018 on a PRESENT unparseable datetime HARD-ERRORS (structured TimestampParseFailure) — canonical/professional-grade engine behavior (cross-sensor, live-validated); the spec was inaccurate (claimed demote-to-null) and was corrected to match. Resilient demote-to-null alternative (workspace-wide engine change) NOT adopted; potential future story only (not created speculatively). Feature code HEAD cebeba3d6; just check GREEN prism-sensors 201 / prism-bin 232 / prism-spec-engine 798. BC-5.39.001 LOCAL streak 0/3 (fix-burst advanced frozen HEAD to cebeba3d6; pass-5 re-cascade pending). BC-INDEX v9.62→v9.63; STORY-INDEX v2.896→v2.897. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.834→v8.835.** | wave-5-e-demo-fidelity | 2026-08-25 |
 
 ## Skip Log
 
@@ -268,27 +270,27 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2301 -- 2026-08-25 -- VULNS-001 Wave A G1 LOCAL cascade pass-3 fixed @c8f21c4d2; pass-4 re-cascade pending; STATE v8.833→v8.834) [supersedes D-2300]
+## Session Resume Checkpoint (D-2302 -- 2026-08-25 -- VULNS-001 Wave A G1 LOCAL cascade pass-4 fixed @cebeba3d6; pass-5 re-cascade pending; STATE v8.834→v8.835) [supersedes D-2301]
 
 ### RESUME IN ONE BREATH
-Prism Phase-3, v1 = live Claroty-xDome. S-CLAROTY-VULNS-001 Wave A G1 TDD GREEN. LOCAL adversary cascade: pass-1 (2 CRIT, 2 HIGH, 5 MED, 2 OBS ALL FIXED @e2b779800+@3874f8624) + pass-2 (1 MED, 3 LOW, 1 OBS ALL FIXED @62f1c6379) + pass-3 (1 MED F-VULNS-ANCHOR-001 + 4 LOW + 1 OBS ALL FIXED @c8f21c4d2). Feature HEAD frozen @c8f21c4d2 for pass-4 re-cascade. BC-5.39.001 LOCAL streak 0/3. BC-INDEX v9.62 (active 253/draft 11/total 277). STORY-INDEX v2.896 (314 stories). develop_head 3f1e66179; workspace_test_count 5816 (develop); just check GREEN feature @c8f21c4d2 (prism-sensors 200/prism-bin 230/prism-spec-engine 798).
+Prism Phase-3, v1 = live Claroty-xDome. S-CLAROTY-VULNS-001 Wave A G1 TDD GREEN. LOCAL adversary cascade: pass-1 (2 CRIT, 2 HIGH, 5 MED, 2 OBS ALL FIXED @e2b779800+@3874f8624) + pass-2 (1 MED, 3 LOW, 1 OBS ALL FIXED @62f1c6379) + pass-3 (1 MED F-VULNS-ANCHOR-001 + 4 LOW + 1 OBS ALL FIXED @c8f21c4d2) + pass-4 (2 MED F-VULNS-ADV-001+F-VULNS-ADV-002 + 1 LOW F-VULNS-ADV-003 + 2 OBS ALL FIXED @cebeba3d6). Feature HEAD frozen @cebeba3d6 for pass-5 re-cascade. BC-5.39.001 LOCAL streak 0/3. BC-INDEX v9.63 (active 253/draft 11/total 277). STORY-INDEX v2.897 (314 stories). develop_head 3f1e66179; workspace_test_count 5816 (develop); just check GREEN feature @cebeba3d6 (prism-sensors 201/prism-bin 232/prism-spec-engine 798).
 
-**RESUME NEXT-ACTION:** Dispatch LOCAL adversary pass-4 on frozen feature HEAD @c8f21c4d2. BC-5.39.001 requires 3 consecutive CLEAN(strict) passes to converge. Pass-4 is pass 1-of-3 toward convergence after the pass-3 fix burst. Feature branch NOT pushed to origin (push after LOCAL 3-CLEAN then HOLDOUT then DEMO).
+**RESUME NEXT-ACTION:** Dispatch LOCAL adversary pass-5 on frozen feature HEAD @cebeba3d6. BC-5.39.001 requires 3 consecutive CLEAN(strict) passes to converge. Pass-5 is pass 1-of-3 toward convergence after the pass-4 fix burst. Feature branch NOT pushed to origin (push after LOCAL 3-CLEAN then HOLDOUT then DEMO).
 
-**CRITICAL CONVENTIONS:** xDome baseline = 4 tables (devices/alerts/audit_logs/device_alert_relations). OpenAPI is 4.4 MB — NEVER full-read. ColumnOptions::Required is push-down-eligibility option (pushdown.rs) NOT extraction null/error gate. No AI attribution in commits. prism-spec-engine has ZERO modified files in this story (RG-001/RG-002 are in prism-sensors/tests via public prism-sensors API; subsystems [SS-01, SS-16] are architectural anchors, not crate file lists).
+**CRITICAL CONVENTIONS:** xDome baseline = 4 tables (devices/alerts/audit_logs/device_alert_relations). OpenAPI is 4.4 MB — NEVER full-read. ColumnOptions::Required is push-down-eligibility option (pushdown.rs) NOT extraction null/error gate. No AI attribution in commits. prism-spec-engine has ZERO modified files in this story (RG-001/RG-002 are in prism-sensors/tests via public prism-sensors API; subsystems [SS-01, SS-16] are architectural anchors, not crate file lists). E-SPEC-018 on a PRESENT unparseable datetime HARD-ERRORS (structured TimestampParseFailure) — human-approved Option A 2026-08-25.
 
-**SPEC PERIMETER (develop@3f1e66179 + feature@c8f21c4d2):** ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 (merged) / COERCION-001 v1.47 (merged) / BC-2.16.015 v1.2 (draft, pass-1+pass-2+pass-3 fixed). Indexes: ARCH-INDEX v2.333 / BC-INDEX v9.62 / STORY-INDEX v2.896 / HOLDOUT-INDEX v1.26.
+**SPEC PERIMETER (develop@3f1e66179 + feature@cebeba3d6):** ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 (merged) / COERCION-001 v1.47 (merged) / BC-2.16.015 v1.3 (draft, pass-1+pass-2+pass-3+pass-4 fixed). Indexes: ARCH-INDEX v2.333 / BC-INDEX v9.63 / STORY-INDEX v2.897 / HOLDOUT-INDEX v1.26.
 
 **HEADS:**
 - `develop`: `3f1e66179` (local == origin; clean)
 - `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
-- `.worktrees/S-CLAROTY-VULNS-001`: ACTIVE (feature/S-CLAROTY-VULNS-001 @c8f21c4d2; Wave A G1 LOCAL pass-4 re-cascade PENDING; feature NOT PUSHED)
+- `.worktrees/S-CLAROTY-VULNS-001`: ACTIVE (feature/S-CLAROTY-VULNS-001 @cebeba3d6; Wave A G1 LOCAL pass-5 re-cascade PENDING; feature NOT PUSHED)
 - `.worktrees/S-ADR058-OCSF-ROUTING-001`: PENDING-TEARDOWN (PR #242 merged; remote feature branch deleted)
 - `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK -- unpushed)
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch
 
 **HOLDOUT:** HS-024 (VULNS-001; 3 — AUTHORED, UNREAD; consume ONLY after LOCAL 3-CLEAN). HS-029 (ACLPOLICY-001; 3 — AUTHORED, UNREAD). HS-028 (ORGPOLICY-001; 4 — AUTHORED, UNREAD). HS-027 (SERVERS-001; 3 — AUTHORED, UNREAD). HS-026 (DEVVULNREL-001; 3 — AUTHORED, UNREAD). HS-025 (OT-EVENTS-001; 3 — AUTHORED, UNREAD). HS-022/023 CONSUMED.
 
-**BACKUP BOUNDARY (D-2301):**
+**BACKUP BOUNDARY (D-2302):**
 - PUSHED / safe: `origin/develop` `3f1e66179`; `factory-artifacts` (this burst commit).
-- LOCAL-ONLY AT RISK: `.worktrees/S-CLAROTY-VULNS-001` @`c8f21c4d2` (feature NOT PUSHED — awaiting LOCAL 3-CLEAN); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).
+- LOCAL-ONLY AT RISK: `.worktrees/S-CLAROTY-VULNS-001` @`cebeba3d6` (feature NOT PUSHED — awaiting LOCAL 3-CLEAN); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).

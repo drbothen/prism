@@ -7,10 +7,10 @@ wave: xdome-wave-a
 epic_id: E-XDOME-EXPANSION
 priority: P0
 status: ready
-# BC status: BC-2.16.015 v1.2 draft (promotes to active on PR merge per POL-14). Pre-TDD remove-uncertainty CLEAN (D-1110, 2nd pass, 2026-08-24); status draft→ready.
+# BC status: BC-2.16.015 v1.3 draft (promotes to active on PR merge per POL-14). Pre-TDD remove-uncertainty CLEAN (D-1110, 2nd pass, 2026-08-24); status draft→ready.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.3"
+version: "1.4"
 modified: "2026-08-25"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -20,8 +20,8 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "a325727"
-# input-hash: updated 2026-08-25 — compute-input-hash reported a325727 (inputs include BC-2.16.015, updated v1.0→v1.2 by pass-2/pass-3 fix-bursts; claroty.sensor.toml, modified by S-ADR058-OCSF-ROUTING-001 PR #242)
+input-hash: "6bca9de"
+# input-hash: updated 2026-08-25 — compute-input-hash reported 6bca9de (inputs include BC-2.16.015, updated v1.2→v1.3 by pass-4 fix-burst F-VULNS-ADV-001/EC-007; claroty.sensor.toml, modified by S-ADR058-OCSF-ROUTING-001 PR #242)
 traces_to: "BC-2.16.015"
 points: 5
 estimated_days: 1
@@ -54,7 +54,7 @@ capabilities:
   - CAP-029
 behavioral_contracts:
   - BC-2.16.015
-  # BC-2.16.015 v1.2 — Claroty xDome Vulnerability Findings Table: TOML table contract
+  # BC-2.16.015 v1.3 — Claroty xDome Vulnerability Findings Table: TOML table contract
   # (§Postconditions §1), 19-column Tier-1/Tier-2 classification (§Postconditions §2),
   # PK rationale (§Postconditions §3), SAP-2 DTU parity (§Postconditions §4),
   # EC-016-015-001..006 edge cases. All 8 ACs trace to this BC.
@@ -87,14 +87,14 @@ risk_mitigations: []
 
 ## Authority
 
-**BC-2.16.015 v1.2 §Postconditions §1 — TOML Table Contract** governs the exact `[[tables]]`
+**BC-2.16.015 v1.3 §Postconditions §1 — TOML Table Contract** governs the exact `[[tables]]`
 block structure: `table_name = "claroty_vulnerabilities"`, `ocsf_class = "vulnerability_finding"`,
 step name `"fetch_vulnerabilities"`, `path_template = "/api/v1/vulnerabilities/"`,
 `response_path = "$.vulnerabilities"`, pagination `type = "offset_limit"` / `page_size = 1000`,
 and the 18-field `body_template` (excludes `id` which is NOT in the fields_enum and is captured
 via `source_path = "$.id"` only). Read §Postconditions §1 in full before authoring the TOML.
 
-**BC-2.16.015 v1.2 §Postconditions §2 — Tier-1/Tier-2 Column Classification** governs Arrow
+**BC-2.16.015 v1.3 §Postconditions §2 — Tier-1/Tier-2 Column Classification** governs Arrow
 field naming under `ocsf_column_naming = true`:
 - Tier-1: `name` (`ocsf_field = "finding_info.title"` → Arrow `finding_info_title`, options REQUIRED),
   `description` (`ocsf_field = "message"` → Arrow `message`).
@@ -169,7 +169,7 @@ BLOCKING: unsatisfied scenarios reset the LOCAL streak per BC-5.39.001.
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | v1.2 | §Postconditions §1 TOML table contract (step, path, body_template, pagination, response_path); §Postconditions §2 Tier-1/Tier-2 classification (2 Tier-1, 17 Tier-2 + source_path id); §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 DTU parity deferred; EC-016-015-001..006 edge cases |
+| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | v1.3 | §Postconditions §1 TOML table contract (step, path, body_template, pagination, response_path); §Postconditions §2 Tier-1/Tier-2 classification (2 Tier-1, 17 Tier-2 + source_path id); §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 DTU parity deferred; EC-016-015-001..006 edge cases |
 
 ## Acceptance Criteria
 
@@ -249,10 +249,11 @@ when the live API returns them. No E-QUERY-038 is raised on `raw_extensions` its
 
 ### AC-006: Missing REQUIRED `name` field → null row, no hard error, subsequent rows unaffected (traces to BC-2.16.015 invariant — name MUST be present; edge case EC-016-015-001)
 
-The `name` column carries `options = ["REQUIRED"]` in the TOML. When the API response contains
-a vulnerability row where `name` is absent or null, the spec-engine produces a null row
-(REQUIRED semantics) without raising a hard error. Subsequent rows in the page continue
-to be materialized normally.
+The `name` column carries `options = ["REQUIRED"]` in the TOML. `ColumnOptions::Required`
+marks push-down eligibility in `pushdown.rs` — it is NOT a presence-enforcement gate.
+When the API response contains a vulnerability row where `name` is absent or null,
+the `finding_info_title` Arrow column receives a null cell (default nullable-column behavior);
+no hard error is raised. Subsequent rows in the page continue to be materialized normally.
 
 **Test:** `test_BC_2_16_015_claroty_vulnerabilities_required_name_absent_produces_null_row`
 (unit test with mock response payload containing a row missing `name`)
@@ -327,13 +328,13 @@ Architecture section references:
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | Row where `name` is absent (REQUIRED column) | Null row produced per spec-engine REQUIRED semantics; no hard error; pagination continues (EC-016-015-001) |
+| EC-001 | Row where `name` is absent (REQUIRED column) | `finding_info_title` null (default nullable-column behavior); `ColumnOptions::Required` is push-down eligibility, not presence enforcement; no hard error; pagination continues (EC-016-015-001) |
 | EC-002 | `id` absent from API envelope (outside fields projection) | `id` cell is null; no error; does not halt pagination; SAP-2 probe deferred (EC-016-015-002) |
 | EC-003 | `count` field is null or absent in response envelope | Pagination halts on empty page; no null-deref; consistent with device_alert_relations pattern (EC-016-015-003) |
 | EC-004 | CVE ID format varies (`CVE-YYYY-NNNNN` vs advisory title `ICSMA-21-161-01 (ZOLL...)`) | Preserved as-is in `finding_info_title`; no normalization; any valid string is a valid title (EC-016-015-004) |
 | EC-005 | `cve_ids` field is an empty array `[]` | Serialized as `"[]"` JSON string in `raw_extensions`; not null; consistent with existing Json column behavior (EC-016-015-005) |
 | EC-006 | `published_date` is null for a vulnerability row | Null Datetime cell; ADR-028 §D8-B null-passthrough; no E-SPEC-018 raised (EC-016-015-006) |
-| EC-007 | `published_date` is a non-ISO-8601 string | E-SPEC-018 TimestampParseFailure — null demoted with warning; row continues; no pagination halt |
+| EC-007 | `published_date` is a PRESENT non-ISO-8601 string | Structured `E-SPEC-018 TimestampParseFailure`; fetch hard-errors; previously-fetched pages remain valid |
 | EC-008 | API returns non-200 HTTP for POST /api/v1/vulnerabilities/ | E-SENSOR-001 structured error; sensor=claroty, status, body excerpt; previously fetched pages remain valid |
 | EC-009 | `SELECT id FROM claroty.claroty_vulnerabilities` | E-QUERY-038 — `id` is captured via source_path into raw_extensions; not a standalone Arrow column (Tier-2, not Tier-1) |
 
@@ -343,7 +344,7 @@ Architecture section references:
 |------|-----------------|
 | This story spec | ~7,000 |
 | `crates/prism-sensors/specs/claroty.sensor.toml` (existing 4 tables as pattern reference) | ~5,500 |
-| BC-2.16.015 v1.2 (full) | ~5,000 |
+| BC-2.16.015 v1.3 (full) | ~5,000 |
 | ADR-058 §B2/§C/§D sections (ocsf_column_naming flag mechanism) | ~4,000 |
 | spike-findings §Spike 1 (PK decision, column set) | ~2,000 |
 | prism-spec-engine/src/spec_parser.rs (ColumnSpec + FetchStep section) | ~3,000 |
@@ -503,7 +504,7 @@ new dependency on `prism-sensors` (direction is prism-sensors → prism-spec-eng
 
 ## References
 
-- BC-2.16.015 v1.2 (draft) — §Postconditions §1 TOML contract; §Postconditions §2 19-column Tier-1/Tier-2; §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 deferred; EC-016-015-001..006
+- BC-2.16.015 v1.3 (draft) — §Postconditions §1 TOML contract; §Postconditions §2 19-column Tier-1/Tier-2; §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 deferred; EC-016-015-001..006
 - ADR-058 §B2 — Tier-2 columns aggregate into raw_extensions; §C — underscore-flattened Arrow names; §D — per-sensor ocsf_column_naming flag
 - ADR-028 §D8-B — implicit iso8601 default for datetime columns without timestamp_formats
 - spike-findings §Spike 1 — PK decision authority (name > id); first-cut 19-column set; source_path id rationale; 14-field exclusion list
@@ -517,7 +518,8 @@ new dependency on `prism-sensors` (direction is prism-sensors → prism-spec-eng
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
-| 1.3 | 2026-08-25 | story-writer | F-VULNS-ANCHOR-001 (story-side): §Architecture Mapping `response_path extraction` row crate corrected `prism-spec-engine` → `prism-bin`. F-VULNS-VER-001: BC-2.16.015 version pins refreshed v1.0→v1.2 at all 6 story-side locations (frontmatter BC comment, frontmatter behavioral_contracts comment, §Authority ×2, §Behavioral Contracts table, §Token Budget, §References). input-hash updated c3934ca→a325727 (BC-2.16.015 v1.2 now in inputs). |
+| 1.4 | 2026-08-25 | story-writer | F-VULNS-ADV-001: AC-006/EC-001 REQUIRED-semantics misattribution corrected (ColumnOptions::Required is push-down eligibility in pushdown.rs, not presence enforcement; absent name → finding_info_title null via default nullable-column behavior). EC-007: demote-to-null→hard-error on present-unparseable published_date (human-approved Option A). BC-2.16.015 pin v1.2→v1.3. input-hash refreshed a325727→6bca9de. |
+| 1.3 | 2026-08-25 | story-writer | F-VULNS-ANCHOR-001 (story-side): §Architecture Mapping `response_path extraction` row crate corrected `prism-spec-engine` → `prism-bin`. F-VULNS-VER-001: BC-2.16.015 version pins refreshed v1.0→v1.2 at all 6 story-side locations (frontmatter BC comment, frontmatter behavioral_contracts comment, §Authority ×2, §Behavioral Contracts table, §Token Budget, §References). input-hash updated c3934ca→a325727 (BC-2.16.015 v1.3 now in inputs). |
 | 1.2 | 2026-08-25 | story-writer + state-manager | F-VULNS-P1-003: RG-003 row reconciled to name the real plan-time e2e test (prism-bin, RG-003a: test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column) + proxy defense-in-depth (prism-sensors, RG-003b); RG-004b added for non-live mock wire-shape coverage; RG-list↔test traceability restored (SAC-1); density updated to 10/8 = 1.25. F-VULNS-011 (state-manager): crates_touched synced [prism-sensors, prism-spec-engine]→[prism-sensors, prism-bin] — feature diff @62f1c6379 has zero prism-spec-engine file modifications; RG-001/RG-002 call SpecLoader::parse via prism-sensors public API; prism-bin carries e2e + wire-shape tests (RG-003a, RG-004b). |
 | 1.1 | 2026-08-24 | state-manager | Pre-TDD remove-uncertainty gate CLEAN (D-1110, 2nd pass); status draft→ready; TDD delivery opened. |
 | 1.0 | 2026-08-24 | story-writer | Initial authoring — F3 story materialization for S-CLAROTY-VULNS-001 (Wave A G1). BC-2.16.015 v1.0 traceability; 19-column Tier-1/Tier-2 spec; 8 ACs; 8 RGTs; density 1.0; SAC-1 compliant; SAC-2 N/A (no ADR authored by this story); SAP-2 deferred per D-2200; live-test approach per xdome-endpoint-expansion-plan.md §Per-Story Pipeline. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -175,8 +175,9 @@ update the exclusion count.
 ## Invariants
 
 - DI-005: OCSF schema validity — `vulnerability_finding` class_uid 2002 is a valid OCSF class
-- `name` (REQUIRED) MUST be present in every row; absent `name` produces a null row per
-  spec-engine REQUIRED semantics (not a hard error)
+- `name` carries `ColumnOptions::Required`; REQUIRED marks `name` push-down-eligible in
+  `pushdown.rs` — it does NOT enforce presence at ingest; when the API omits `name`, the
+  `finding_info_title` Arrow column is null (default nullable behavior); this is NOT a hard error
 - Opaque `id` sourced via `source_path = "$.id"` is optional — null when absent from the
   API response; does NOT block pagination
 
@@ -186,7 +187,7 @@ update the exclusion count.
 |-------|-----------|----------|
 | `E-SENSOR-001` | Claroty API returns non-200 HTTP for POST /api/v1/vulnerabilities/ | Structured error with sensor=claroty, status, body; no data loss for previously fetched pages |
 | `E-QUERY-001` | Query references `vulnerability_type`, `cvss_v3_score` or any other Tier-2 column by its raw TOML name (not `raw_extensions`) | E-QUERY-038 column-not-found at plan time; available_columns includes `raw_extensions`, `finding_info_title`, `message`, `class_uid`, `_sensor` |
-| `E-SPEC-018` | Datetime parse failure on `published_date` for a non-null non-ISO-8601 value | `E-SPEC-018 TimestampParseFailure` — null demoted with warning; does not fail the row |
+| `E-SPEC-018` | Datetime parse failure on `published_date` for a PRESENT non-ISO-8601 value | `normalize_timestamp_fields` returns `SpecEngineError::TimestampParseFailure` (attempted_formats + value capped at 50 chars per SEC-002/AD-017); the fetch hard-errors with E-SPEC-018; previously-fetched pages remain valid |
 
 ## Edge Cases
 
@@ -253,6 +254,7 @@ S-CLAROTY-VULNS-001 (draft — Wave A)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | s-claroty-vulns-001-pass-4-fix | 2026-08-25 | product-owner | F-VULNS-ADV-001: §Invariants REQUIRED-semantics misattribution corrected (REQUIRED=push-down eligibility, not presence guarantee). EC-007/§Error-Cases E-SPEC-018: corrected demote-to-null→hard-error on present-unparseable datetime to match canonical engine (human-approved Option A). |
 | 1.2 | s-claroty-vulns-001-pass-3-fix | 2026-08-25 | product-owner | F-VULNS-ANCHOR-001: §Architecture Anchors spec_driven_adapter.rs crate corrected prism-spec-engine→prism-bin (ground-truth: pipeline_result_to_record_batch lives in prism-bin). |
 | 1.1 | s-claroty-vulns-001-pass-2-fix | 2026-08-25 | product-owner | F-VULNS-P1-004: §4 SAP-2 DTU-parity mandate annotated with D-2200 deferral + S-ADR058-DTU-PARITY-MIGRATION-001 anchor (TD-VSDD-097 dim-3). DTU Status traceability row updated to record deferral. |
 | 1.0 | xdome-wave-a-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome vulnerabilities queryable surface contract per xdome-endpoint-expansion-plan.md Wave A G1 and spike-findings §Spike 1. TOML table contract, 19-column Tier-1/Tier-2 classification per ADR-058, PK rationale (name > id), SAP-2 exclusion documentation for 14 excluded fields. |

@@ -1,13 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.896"
+version: "2.897"
 status: draft
 producer: state-manager
-timestamp: 2026-08-25T00:00:00Z
+timestamp: 2026-08-25T20:05:00Z
 phase: 3
 total_stories: 314
-# D-2301: S-CLAROTY-VULNS-001 LOCAL cascade pass-3 fix-burst — story v1.2→v1.3 (F-VULNS-ANCHOR-001: story-side §Architecture Mapping + F-VULNS-VER-001 BC-version pins v1.0→v1.2). total_stories 314 UNCHANGED. STORY-INDEX v2.895→v2.896. D-2300 NOTE archived.
+# D-2302: S-CLAROTY-VULNS-001 LOCAL cascade pass-4 fix-burst — story v1.3→v1.4 (AC-006/EC-001/EC-007 sibling corrections + BC pins v1.2→v1.3). total_stories 314 UNCHANGED. STORY-INDEX v2.896→v2.897. D-2301 NOTE archived.
 # D-2300: S-CLAROTY-VULNS-001 LOCAL cascade pass-1/pass-2 fix-bursts — story v1.1→v1.2 (story-writer F-VULNS-P1-003: RG-003 split RG-003a+RG-003b, RG-004b added, density 10/8=1.25, SAC-1 restored); F-VULNS-011 state-manager crates_touched synced [prism-sensors, prism-spec-engine]→[prism-sensors, prism-bin] (feature diff @62f1c6379 zero prism-spec-engine files). total_stories 314 UNCHANGED. STORY-INDEX v2.894→v2.895. D-2298 NOTE archived.
 # D-2296: story-writer deferred-DTU-stubs burst — 5 DRAFT STUB stories registered (post-v1 DTU-parity batch D-2200/D-2264): S-CLAROTY-OT-EVENTS-DTU-001 (G2; OT activity events route; 5 pts; depends_on S-CLAROTY-OT-EVENTS-001), S-CLAROTY-DEVVULNREL-DTU-001 (G3; device-vulnerability relations route; 8 pts; depends_on S-CLAROTY-DEVVULNREL-001), S-CLAROTY-SERVERS-DTU-001 (G4; servers+server_interfaces routes; 5 pts; depends_on S-CLAROTY-SERVERS-001), S-CLAROTY-ORGPOLICY-DTU-001 (G5; 4 org-policy routes incl. URL↔envelope asymmetry; 8 pts; depends_on S-CLAROTY-ORGPOLICY-001), S-CLAROTY-ACLPOLICY-DTU-001 (G6; ACL policies non-paginated route; 5 pts; depends_on S-CLAROTY-ACLPOLICY-001). All status: draft; behavioral_contracts: [] pending PO authorship; tdd_mode: facade; input-hash: [pending-recompute]. Anchor: S-ADR058-DTU-PARITY-MIGRATION-001 (DTU-parity governing story). New section "Deferred DTU-Parity Stubs (post-v1 — xDome G2–G6)" added after Wave C. total_stories 309→314. STORY-INDEX v2.892→v2.893.
 # D-2282: pass-H OBS-1 test-only fix @8aeaf06c4 + parallel 3-clean batch (2/3) + T-31 canonical alignment — ROUTING-001 v1.55→v1.56 (story-body T-31 illustrative warn! aligned to BC-2.16.002 row 96: tier2_column_count added, verbatim message, emission site pinned to register_sensor; §Authority pins UNCHANGED: ADR-058 v2.32/BC-2.11.016 v1.31/BC-2.16.003 v1.26/BC-2.16.002 v2.35; code @8aeaf06c4). total_stories 303 UNCHANGED. STORY-INDEX v2.883→v2.884. D-2279 NOTE archived.
@@ -1028,7 +1028,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-OCSF-FIDELITY-CROWDSTRIKE-001 | CrowdStrike OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-OCSF-FIDELITY-CYBERINT-001 | Cyberint OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-OCSF-FIDELITY-ARMIS-001 | Armis OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
-| S-CLAROTY-VULNS-001 | Claroty xDome Vulnerabilities Table — claroty_vulnerabilities TOML block with 19-column Tier-1/Tier-2 spec, live structural tests (Wave A G1) [ready v1.3] | prism-sensors, prism-bin | 1 (BC-2.16.015 v1.2) | -- | 5 | -- |
+| S-CLAROTY-VULNS-001 | Claroty xDome Vulnerabilities Table — claroty_vulnerabilities TOML block with 19-column Tier-1/Tier-2 spec, live structural tests (Wave A G1) [ready v1.4] | prism-sensors, prism-bin | 1 (BC-2.16.015 v1.3) | -- | 5 | -- |
 | S-CLAROTY-OT-EVENTS-001 | Claroty xDome OT Activity Events Table — claroty_ot_activity_events TOML block with 21-column Tier-1/Tier-2 spec, no DTU, live structural tests (Wave A G2) [draft v1.0] | prism-sensors, prism-spec-engine | 1 (BC-2.16.016 v1.0) | -- | 5 | -- |
 
 ## Sensor-Critical Stories (Wave B — Claroty xDome Endpoint Expansion)
@@ -1638,6 +1638,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.897 | 2026-08-25 | state-manager D-2302: S-CLAROTY-VULNS-001 LOCAL cascade pass-4 fix-burst — story v1.3→v1.4 (AC-006/EC-001/EC-007 sibling corrections + BC pins v1.2→v1.3). BC-2.16.015 v1.2→v1.3 (F-VULNS-ADV-001 §Invariants + EC-007 E-SPEC-018 hard-error correction, human-approved Option A). total_stories 314 UNCHANGED. STORY-INDEX v2.896→v2.897. |
 | v2.896 | 2026-08-25 | state-manager D-2301: S-CLAROTY-VULNS-001 LOCAL cascade pass-3 fix-burst — story v1.2→v1.3 (F-VULNS-ANCHOR-001: story-side §Architecture Mapping + F-VULNS-VER-001 BC-version pins v1.0→v1.2). BC-2.16.015 v1.1→v1.2 (§Architecture Anchors crate prism-spec-engine→prism-bin). total_stories 314 UNCHANGED. STORY-INDEX v2.895→v2.896. |
 | v2.895 | 2026-08-25 | state-manager D-2300: S-CLAROTY-VULNS-001 LOCAL cascade pass-1/pass-2 fix-bursts — story v1.1→v1.2 (F-VULNS-P1-003: RG-003a/003b split, RG-004b mock wire-shape added, density 10/8=1.25, SAC-1); crates_touched synced [prism-sensors, prism-spec-engine]→[prism-sensors, prism-bin] (F-VULNS-011; feature diff @62f1c6379). BC-2.16.015 v1.0→v1.1 (F-VULNS-P1-004 §4 deferral anchor). total_stories 314 UNCHANGED. STORY-INDEX v2.894→v2.895. |
 | v2.894 | 2026-08-24 | state-manager D-2298: S-CLAROTY-VULNS-001 status draft→ready v1.0→v1.1 (pre-TDD remove-uncertainty CLEAN D-1110 2nd pass; 11 anchors confirmed develop@3f1e66179; worktree feature/S-CLAROTY-VULNS-001 created). STORY-INDEX v2.893→v2.894. |
