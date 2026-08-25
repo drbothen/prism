@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.893"
+version: "2.894"
 status: draft
 producer: state-manager
 timestamp: 2026-08-24T00:00:00Z
@@ -1026,7 +1026,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-OCSF-FIDELITY-CROWDSTRIKE-001 | CrowdStrike OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-OCSF-FIDELITY-CYBERINT-001 | Cyberint OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-OCSF-FIDELITY-ARMIS-001 | Armis OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
-| S-CLAROTY-VULNS-001 | Claroty xDome Vulnerabilities Table — claroty_vulnerabilities TOML block with 19-column Tier-1/Tier-2 spec, live structural tests (Wave A G1) [draft v1.0] | prism-sensors, prism-spec-engine | 1 (BC-2.16.015 v1.0) | -- | 5 | -- |
+| S-CLAROTY-VULNS-001 | Claroty xDome Vulnerabilities Table — claroty_vulnerabilities TOML block with 19-column Tier-1/Tier-2 spec, live structural tests (Wave A G1) [ready v1.1] | prism-sensors, prism-spec-engine | 1 (BC-2.16.015 v1.0) | -- | 5 | -- |
 | S-CLAROTY-OT-EVENTS-001 | Claroty xDome OT Activity Events Table — claroty_ot_activity_events TOML block with 21-column Tier-1/Tier-2 spec, no DTU, live structural tests (Wave A G2) [draft v1.0] | prism-sensors, prism-spec-engine | 1 (BC-2.16.016 v1.0) | -- | 5 | -- |
 
 ## Sensor-Critical Stories (Wave B — Claroty xDome Endpoint Expansion)
@@ -1636,6 +1636,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.894 | 2026-08-24 | state-manager D-2298: S-CLAROTY-VULNS-001 status draft→ready v1.0→v1.1 (pre-TDD remove-uncertainty CLEAN D-1110 2nd pass; 11 anchors confirmed develop@3f1e66179; worktree feature/S-CLAROTY-VULNS-001 created). STORY-INDEX v2.893→v2.894. |
 | v2.892 | 2026-08-24 | story-writer F3 materialization burst — S-CLAROTY-ACLPOLICY-001 v1.0 REGISTERED (Wave C G6: claroty_organization_acl_policies TOML block, 11 columns: 4 Tier-1 [policy_id→metadata.uid REQUIRED/metadata_uid, policy_name→name, policy_updated_by→actor_user_name, policy_notes→comment] + 7 Tier-2 incl. 1 Json applied_models; KEY NOVELTY: pagination type=none (non-paginated single-fetch; no offset/limit injection); mandatory policy_acl_syntax="Cisco dACL" in body_template; response_path $.organization_acl_policies NO count field; entity_management/3004 existing arm; BC-2.16.022 v1.0; 11 ACs; 11 RGTs; density 1.0; tdd_mode: strict; SAP-2 N/A D-2200; HS-029 holdout BLOCKING; depends_on: []; input-hash ede9c3c). Wave C intro updated with G6 + pagination-none novelty. total_stories 308→309. STORY-INDEX v2.891→v2.892. |
 | v2.891 | 2026-08-24 | story-writer F3 materialization burst — S-CLAROTY-ORGPOLICY-001 v1.0 REGISTERED (Wave C G5: 4 TOML blocks entity_management/3004: claroty_organization_zones 11 cols [4 Tier-1: zone_name→name REQUIRED, zone_description→comment, enabled→status_code, updated_by→actor_user_name; 7 Tier-2 incl. 1 Json device_conditions; last_update NO trailing d]; claroty_organization_zone_policies 13 cols [4 Tier-1: policy_name→name REQUIRED, policy_action→activity_name, policy_notes→comment, updated_by→actor_user_name; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_zone_pairs; last_updated WITH trailing d]; claroty_organization_firewall_groups 11 cols [4 Tier-1 same structure; 7 Tier-2 incl. 1 Json device_conditions; URL /api/v1/organization_fw_groups/ vs envelope $.organization_firewall_groups CRITICAL asymmetry; last_update NO trailing d]; claroty_organization_firewall_policies 13 cols [4 Tier-1 same structure; 9 Tier-2 incl. 3 Json: communication_conditions, related_alerts_ids, applied_group_pairs NOT applied_zone_pairs; last_updated WITH trailing d]; 8 Json cols total; BC-2.16.020 v1.0 + BC-2.16.021 v1.0; 26 ACs; 26 RGTs; density 1.0; tdd_mode: strict; SAP-2 N/A D-2200; HS-028 holdout BLOCKING; depends_on: []; input-hash 7189b4b). Wave C intro updated with G5 + entity_management/3004. total_stories 307→308. STORY-INDEX v2.890→v2.891. |
 | v2.890 | 2026-08-24 | story-writer F3 materialization burst — S-CLAROTY-SERVERS-001 v1.0 REGISTERED (Wave C G4: claroty_servers TOML block 17 columns: 2 Tier-1 device_name REQUIRED [server_name→device.name] + status_code [server_status→status_code], 15 Tier-2 into raw_extensions; claroty_server_interfaces TOML block 10 columns: 2 Tier-1 device_name REQUIRED [server_name→device.name] + status_code [interface_status→status_code], 8 Tier-2 into raw_extensions incl. composite PK element interface_name; BC-2.16.018 v1.0 + BC-2.16.019 v1.0; 16 ACs; 16 RGTs; density 1.0; tdd_mode: strict; SAP-2 N/A no DTU D-2200; composite PK server_name+interface_name for server_interfaces; HS-027 holdout BLOCKING; depends_on: []; input-hash ae98e4f). Wave C section added to STORY-INDEX. total_stories 306→307. STORY-INDEX v2.889→v2.890. |

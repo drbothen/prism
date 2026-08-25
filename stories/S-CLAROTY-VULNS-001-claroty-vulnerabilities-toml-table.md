@@ -6,11 +6,11 @@ level: "L4"
 wave: xdome-wave-a
 epic_id: E-XDOME-EXPANSION
 priority: P0
-status: draft
-# BC status: active BCs authored (BC-2.16.015 v1.0 draft); promote to ready after remove-uncertainty pass.
+status: ready
+# BC status: BC-2.16.015 v1.0 draft (promotes to active on PR merge per POL-14). Pre-TDD remove-uncertainty CLEAN (D-1110, 2nd pass, 2026-08-24); status draft→ready.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.0"
+version: "1.1"
 modified: "2026-08-24"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -494,4 +494,5 @@ new dependency on `prism-sensors` (direction is prism-sensors → prism-spec-eng
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-08-24 | state-manager | Pre-TDD remove-uncertainty gate CLEAN (D-1110, 2nd pass); status draft→ready; TDD delivery opened. |
 | 1.0 | 2026-08-24 | story-writer | Initial authoring — F3 story materialization for S-CLAROTY-VULNS-001 (Wave A G1). BC-2.16.015 v1.0 traceability; 19-column Tier-1/Tier-2 spec; 8 ACs; 8 RGTs; density 1.0; SAC-1 compliant; SAC-2 N/A (no ADR authored by this story); SAP-2 deferred per D-2200; live-test approach per xdome-endpoint-expansion-plan.md §Per-Story Pipeline. |
