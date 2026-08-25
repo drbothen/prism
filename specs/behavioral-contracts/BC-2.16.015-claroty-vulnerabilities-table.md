@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -211,7 +211,7 @@ update the exclusion count.
 - `crates/prism-spec-engine/src/spec_parser.rs` — ColumnSpec, FetchStep deserialization
 - `crates/prism-spec-engine/src/pipeline.rs` — OffsetLimit POST-body injection
 - `crates/prism-ocsf/src/class_selector.rs::select_by_class_name` — `"vulnerability_finding"` arm (existing)
-- `crates/prism-spec-engine/src/spec_driven_adapter.rs` — `pipeline_result_to_record_batch`
+- `crates/prism-bin/src/spec_driven_adapter.rs` — `pipeline_result_to_record_batch`
 - `.factory/objectives/xdome-v1-validation/endpoint-spike-findings.md §Spike 1` — PK decision authority
 
 ## Story Anchor
@@ -253,5 +253,6 @@ S-CLAROTY-VULNS-001 (draft — Wave A)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | s-claroty-vulns-001-pass-3-fix | 2026-08-25 | product-owner | F-VULNS-ANCHOR-001: §Architecture Anchors spec_driven_adapter.rs crate corrected prism-spec-engine→prism-bin (ground-truth: pipeline_result_to_record_batch lives in prism-bin). |
 | 1.1 | s-claroty-vulns-001-pass-2-fix | 2026-08-25 | product-owner | F-VULNS-P1-004: §4 SAP-2 DTU-parity mandate annotated with D-2200 deferral + S-ADR058-DTU-PARITY-MIGRATION-001 anchor (TD-VSDD-097 dim-3). DTU Status traceability row updated to record deferral. |
 | 1.0 | xdome-wave-a-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome vulnerabilities queryable surface contract per xdome-endpoint-expansion-plan.md Wave A G1 and spike-findings §Spike 1. TOML table contract, 19-column Tier-1/Tier-2 classification per ADR-058, PK rationale (name > id), SAP-2 exclusion documentation for 14 excluded fields. |

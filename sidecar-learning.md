@@ -18,3 +18,5 @@ _All prior session-end markers folded at D-2297 session wrap (2026-08-24). Archi
 - Session ended at 2026-08-25T07:50:14Z (awaiting /session-review)
 - Session ended at 2026-08-25T07:56:49Z (awaiting /session-review)
 - Session ended at 2026-08-25T08:09:30Z (awaiting /session-review)
+- Session ended at 2026-08-25T09:46:04Z (awaiting /session-review)
+- Session ended at 2026-08-25T09:53:55Z (awaiting /session-review)

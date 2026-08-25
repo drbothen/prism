@@ -7,10 +7,10 @@ wave: xdome-wave-a
 epic_id: E-XDOME-EXPANSION
 priority: P0
 status: ready
-# BC status: BC-2.16.015 v1.0 draft (promotes to active on PR merge per POL-14). Pre-TDD remove-uncertainty CLEAN (D-1110, 2nd pass, 2026-08-24); status draft→ready.
+# BC status: BC-2.16.015 v1.2 draft (promotes to active on PR merge per POL-14). Pre-TDD remove-uncertainty CLEAN (D-1110, 2nd pass, 2026-08-24); status draft→ready.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.2"
+version: "1.3"
 modified: "2026-08-25"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -20,8 +20,8 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "c3934ca"
-# input-hash: updated 2026-08-25 — compute-input-hash reported c3934ca (inputs include claroty.sensor.toml, modified by S-ADR058-OCSF-ROUTING-001 PR #242 after story v1.0 authoring)
+input-hash: "a325727"
+# input-hash: updated 2026-08-25 — compute-input-hash reported a325727 (inputs include BC-2.16.015, updated v1.0→v1.2 by pass-2/pass-3 fix-bursts; claroty.sensor.toml, modified by S-ADR058-OCSF-ROUTING-001 PR #242)
 traces_to: "BC-2.16.015"
 points: 5
 estimated_days: 1
@@ -54,7 +54,7 @@ capabilities:
   - CAP-029
 behavioral_contracts:
   - BC-2.16.015
-  # BC-2.16.015 v1.0 — Claroty xDome Vulnerability Findings Table: TOML table contract
+  # BC-2.16.015 v1.2 — Claroty xDome Vulnerability Findings Table: TOML table contract
   # (§Postconditions §1), 19-column Tier-1/Tier-2 classification (§Postconditions §2),
   # PK rationale (§Postconditions §3), SAP-2 DTU parity (§Postconditions §4),
   # EC-016-015-001..006 edge cases. All 8 ACs trace to this BC.
@@ -87,14 +87,14 @@ risk_mitigations: []
 
 ## Authority
 
-**BC-2.16.015 v1.0 §Postconditions §1 — TOML Table Contract** governs the exact `[[tables]]`
+**BC-2.16.015 v1.2 §Postconditions §1 — TOML Table Contract** governs the exact `[[tables]]`
 block structure: `table_name = "claroty_vulnerabilities"`, `ocsf_class = "vulnerability_finding"`,
 step name `"fetch_vulnerabilities"`, `path_template = "/api/v1/vulnerabilities/"`,
 `response_path = "$.vulnerabilities"`, pagination `type = "offset_limit"` / `page_size = 1000`,
 and the 18-field `body_template` (excludes `id` which is NOT in the fields_enum and is captured
 via `source_path = "$.id"` only). Read §Postconditions §1 in full before authoring the TOML.
 
-**BC-2.16.015 v1.0 §Postconditions §2 — Tier-1/Tier-2 Column Classification** governs Arrow
+**BC-2.16.015 v1.2 §Postconditions §2 — Tier-1/Tier-2 Column Classification** governs Arrow
 field naming under `ocsf_column_naming = true`:
 - Tier-1: `name` (`ocsf_field = "finding_info.title"` → Arrow `finding_info_title`, options REQUIRED),
   `description` (`ocsf_field = "message"` → Arrow `message`).
@@ -169,7 +169,7 @@ BLOCKING: unsatisfied scenarios reset the LOCAL streak per BC-5.39.001.
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | v1.0 | §Postconditions §1 TOML table contract (step, path, body_template, pagination, response_path); §Postconditions §2 Tier-1/Tier-2 classification (2 Tier-1, 17 Tier-2 + source_path id); §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 DTU parity deferred; EC-016-015-001..006 edge cases |
+| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | v1.2 | §Postconditions §1 TOML table contract (step, path, body_template, pagination, response_path); §Postconditions §2 Tier-1/Tier-2 classification (2 Tier-1, 17 Tier-2 + source_path id); §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 DTU parity deferred; EC-016-015-001..006 edge cases |
 
 ## Acceptance Criteria
 
@@ -303,7 +303,7 @@ a string (CJYASHKR-format opaque Claroty identifier).
 | TOML parse validation | `crates/prism-spec-engine/src/spec_parser.rs §spec_parser` | Pure (TOML deserialization; no I/O) |
 | Tier-1/Tier-2 Arrow schema computation | `crates/prism-spec-engine/src/column_mapping.rs §ocsf_field_to_arrow_name` | Pure (string transformation; no I/O) |
 | OffsetLimit POST-body injection | `crates/prism-spec-engine/src/pipeline.rs §PipelineExecutor::execute` | Effectful (HTTP POST to xDome; merges offset/limit into body_template) |
-| response_path extraction | `crates/prism-spec-engine/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` | Effectful (processes HTTP response; builds Arrow RecordBatch) |
+| response_path extraction | `crates/prism-bin/src/spec_driven_adapter.rs §pipeline_result_to_record_batch` | Effectful (processes HTTP response; builds Arrow RecordBatch) |
 | `vulnerability_finding` class arm | `crates/prism-ocsf/src/class_selector.rs::select_by_class_name` | Pure (constant → u32 lookup; arm already exists) |
 
 Architecture section references:
@@ -343,7 +343,7 @@ Architecture section references:
 |------|-----------------|
 | This story spec | ~7,000 |
 | `crates/prism-sensors/specs/claroty.sensor.toml` (existing 4 tables as pattern reference) | ~5,500 |
-| BC-2.16.015 v1.0 (full) | ~5,000 |
+| BC-2.16.015 v1.2 (full) | ~5,000 |
 | ADR-058 §B2/§C/§D sections (ocsf_column_naming flag mechanism) | ~4,000 |
 | spike-findings §Spike 1 (PK decision, column set) | ~2,000 |
 | prism-spec-engine/src/spec_parser.rs (ColumnSpec + FetchStep section) | ~3,000 |
@@ -503,7 +503,7 @@ new dependency on `prism-sensors` (direction is prism-sensors → prism-spec-eng
 
 ## References
 
-- BC-2.16.015 v1.0 (draft) — §Postconditions §1 TOML contract; §Postconditions §2 19-column Tier-1/Tier-2; §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 deferred; EC-016-015-001..006
+- BC-2.16.015 v1.2 (draft) — §Postconditions §1 TOML contract; §Postconditions §2 19-column Tier-1/Tier-2; §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 deferred; EC-016-015-001..006
 - ADR-058 §B2 — Tier-2 columns aggregate into raw_extensions; §C — underscore-flattened Arrow names; §D — per-sensor ocsf_column_naming flag
 - ADR-028 §D8-B — implicit iso8601 default for datetime columns without timestamp_formats
 - spike-findings §Spike 1 — PK decision authority (name > id); first-cut 19-column set; source_path id rationale; 14-field exclusion list
@@ -517,6 +517,7 @@ new dependency on `prism-sensors` (direction is prism-sensors → prism-spec-eng
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.3 | 2026-08-25 | story-writer | F-VULNS-ANCHOR-001 (story-side): §Architecture Mapping `response_path extraction` row crate corrected `prism-spec-engine` → `prism-bin`. F-VULNS-VER-001: BC-2.16.015 version pins refreshed v1.0→v1.2 at all 6 story-side locations (frontmatter BC comment, frontmatter behavioral_contracts comment, §Authority ×2, §Behavioral Contracts table, §Token Budget, §References). input-hash updated c3934ca→a325727 (BC-2.16.015 v1.2 now in inputs). |
 | 1.2 | 2026-08-25 | story-writer + state-manager | F-VULNS-P1-003: RG-003 row reconciled to name the real plan-time e2e test (prism-bin, RG-003a: test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column) + proxy defense-in-depth (prism-sensors, RG-003b); RG-004b added for non-live mock wire-shape coverage; RG-list↔test traceability restored (SAC-1); density updated to 10/8 = 1.25. F-VULNS-011 (state-manager): crates_touched synced [prism-sensors, prism-spec-engine]→[prism-sensors, prism-bin] — feature diff @62f1c6379 has zero prism-spec-engine file modifications; RG-001/RG-002 call SpecLoader::parse via prism-sensors public API; prism-bin carries e2e + wire-shape tests (RG-003a, RG-004b). |
 | 1.1 | 2026-08-24 | state-manager | Pre-TDD remove-uncertainty gate CLEAN (D-1110, 2nd pass); status draft→ready; TDD delivery opened. |
 | 1.0 | 2026-08-24 | story-writer | Initial authoring — F3 story materialization for S-CLAROTY-VULNS-001 (Wave A G1). BC-2.16.015 v1.0 traceability; 19-column Tier-1/Tier-2 spec; 8 ACs; 8 RGTs; density 1.0; SAC-1 compliant; SAC-2 N/A (no ADR authored by this story); SAP-2 deferred per D-2200; live-test approach per xdome-endpoint-expansion-plan.md §Per-Story Pipeline. |
