@@ -287,12 +287,14 @@ path = "tests/bc_2_16_002_early_stop_adapter_tests.rs"
 name = "mcp_integration_tests"
 path = "tests/mcp_integration_tests.rs"
 
-# S-CLAROTY-VULNS-001 LOCAL adversary pass-1 fix-burst (F-VULNS-004/F-VULNS-005):
-# Wire-shape mock test (SID-1, non-live class_uid=2002 coverage) and SAP-3 e2e
-# E-QUERY-038 test for Claroty xDome Vulnerability Findings (BC-2.16.015).
+# S-CLAROTY-VULNS-001 LOCAL adversary pass-1 + pass-2 fix-bursts:
+# Wire-shape mock test (SID-1, non-live class_uid=2002 coverage), SAP-3 e2e
+# E-QUERY-038 test, and serialized-JSON null-not-absent wire assertion for
+# Claroty xDome Vulnerability Findings (BC-2.16.015).
 # Tests:
 #   test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock (SID-1 mock, non-live)
 #   test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column (SAP-3 parser-surface)
+#   test_BC_2_16_015_claroty_vulnerabilities_wire_shape_serialized_json_explicit_nulls (F-VULNS-P1-001 null-not-absent)
 [[test]]
 name = "bc_2_16_015_claroty_vulnerabilities_wire_shape"
 path = "tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs"
@@ -346,6 +348,11 @@ prism-dtu-cyberint = { path = "../prism-dtu-cyberint", version = "0.1.0", featur
 # prism-dtu-harness: transitively pulls prism-dtu-common/fixture-gen via its own dep chain.
 prism-dtu-harness = { path = "../prism-dtu-harness", version = "0.1.0", features = ["dtu"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "http2"] }
+# F-VULNS-P1-001 (S-CLAROTY-VULNS-001 pass-2 fix): arrow-json needed by
+# bc_2_16_015_claroty_vulnerabilities_wire_shape tests to run the production MCP
+# serialization path (WriterBuilder::new().with_explicit_nulls(true)) for
+# wire-shape null-not-absent assertions (CLAUDE.md §Wire-shape assertion discipline).
+arrow-json = "58"
 # S-ADR058-OCSF-COERCION-001 RG-006/RG-009: tracing subscriber for log-capture assertions
 # in build_column_array in-crate tests (column_coercion_failure warn verification).
 # Same version as prism-spec-engine (tracing-test = "0.2" in that crate's dev-deps).

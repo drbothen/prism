@@ -38,7 +38,10 @@ use prism_spec_engine::{
     NullAuthProvider,
 };
 use serde_json::json;
-use wiremock::{matchers::method, Mock, MockServer, ResponseTemplate};
+use wiremock::{
+    matchers::{body_partial_json, method},
+    Mock, MockServer, ResponseTemplate,
+};
 
 const CLAROTY_TOML: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -611,5 +614,183 @@ fn test_BC_2_16_015_claroty_vulnerabilities_source_path_id_null_when_absent() {
         "'name' (ocsf_field=finding_info.title) present in the map_record intermediate \
          when 'name' exists in the record; mapped_fields: {:?}",
         row.mapped_fields
+    );
+}
+
+// ── F-VULNS-P1-005 (RG-007 sibling) ──────────────────────────────────────────
+/// BC-2.16.015 §EC-016-015-003 hardening: when the API returns a NON-empty first page
+/// (1000 records) with `count: null`, pagination must PROCEED (page_record_count ==
+/// page_size == 1000 → NOT < page_size → no halt).  Then an empty second page triggers
+/// the empty-page halt.  Final record count == 1000.
+///
+/// This hardens RG-007 which only covers `count: null` on an EMPTY first page.  That test
+/// proves empty-page halt fires for zero records; this test proves null-count is handled
+/// correctly when records ARE present (i.e., the pipeline does NOT null-deref on `count`
+/// to decide whether to continue — it uses `page_record_count < page_size`).
+///
+/// Two wiremock mocks differentiated by `body_partial_json`:
+///   - offset=0  → 1000 records + count: null  → pagination continues
+///   - offset=1000 → empty array + count: null → empty-page halt
+///
+/// BC-2.16.015 AC-006; BC-2.16.002 §Postconditions OffsetLimit halt condition.
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-P1-005.
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_nullable_count_nonempty_first_page_proceeds() {
+    let mock_server = MockServer::start().await;
+
+    // 1000 minimal vulnerability records for page 1.
+    // Each has a `name` field so finding_info_title maps to a non-null value.
+    let records: Vec<serde_json::Value> = (0..1000_u32)
+        .map(|i| {
+            json!({
+                "name": format!("CVE-2024-{i:04}"),
+                "vulnerability_type": "CVE"
+            })
+        })
+        .collect();
+
+    // Page 1: offset=0 → 1000 records + count: null
+    // page_record_count (1000) == page_size (1000) → NOT < page_size → pagination PROCEEDS.
+    Mock::given(method("POST"))
+        .and(body_partial_json(json!({"offset": 0_u32})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "vulnerabilities": records,
+            "count": serde_json::Value::Null,
+            "total": 1000_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    // Page 2: offset=1000 → empty array + count: null
+    // page_record_count (0) < page_size (1000) → empty-page halt fires.
+    Mock::given(method("POST"))
+        .and(body_partial_json(json!({"offset": 1000_u32})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "vulnerabilities": [],
+            "count": serde_json::Value::Null,
+            "total": 1000_u32,
+            "page": 2_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+    let mut test_spec = spec.clone();
+    test_spec.base_url = mock_server.uri();
+
+    let table = test_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "claroty_vulnerabilities")
+        .expect("claroty_vulnerabilities table must exist");
+
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&test_spec, table, &context, &http_client, &auth)
+        .await
+        .expect(
+            "F-VULNS-P1-005: pipeline must succeed with count: null on a non-empty first page. \
+             BC-2.16.015 AC-006.",
+        );
+
+    assert_eq!(
+        result.records.len(),
+        1000,
+        "F-VULNS-P1-005: all 1000 records from page 1 must materialize. \
+         Pagination PROCEEDED past null-count page 1 and halted on empty page 2. \
+         BC-2.16.015 §EC-016-015-003; OffsetLimit halt condition."
+    );
+}
+
+// ── F-VULNS-P1-002: EC-016-015-005 ───────────────────────────────────────────
+/// BC-2.16.015 §EC-016-015-005: When `cve_ids` is an EMPTY JSON array `[]` in the API
+/// response, `ColumnMapper::map_record` must store it as `Value::Array([])` in
+/// `raw_extensions` — NOT as `Value::Null`, and NOT raise any error.
+///
+/// `cve_ids` is a Tier-2 column (no `ocsf_field`, `column_type = "json"`) that maps to
+/// `raw_extensions` directly.  An empty array `[]` is a valid JSON value distinct from
+/// null; it signals "no CVE IDs" without implying data absence.
+///
+/// NOTE: The downstream ENRICH-1 DD-2 conversion (empty `Value::Array` →
+/// serialized `"[]"` string inside the `raw_extensions` JSON-object column) is
+/// performed by `pipeline_result_to_record_batch` in prism-bin, AFTER `map_record`.
+/// This test asserts the pre-ENRICH-1 form (`Value::Array(vec![])`) which is the correct
+/// assertion at the `map_record` boundary.
+///
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-P1-002.
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_ec005_cve_ids_empty_array_in_raw_extensions() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "claroty_vulnerabilities")
+        .expect("claroty_vulnerabilities table must exist");
+
+    let record = json!({ "cve_ids": [] });
+
+    let row = ColumnMapper::map_record(&record, table).expect(
+        "EC-016-015-005: map_record must succeed when cve_ids is an empty array. \
+         BC-2.16.015 §EC-016-015-005.",
+    );
+
+    assert_eq!(
+        row.raw_extensions.get("cve_ids"),
+        Some(&serde_json::Value::Array(vec![])),
+        "EC-016-015-005: cve_ids=[] must be stored as Value::Array([]) in raw_extensions \
+         (NOT null). \
+         raw_extensions: {:?}",
+        row.raw_extensions
+    );
+}
+
+// ── F-VULNS-P1-002: EC-016-015-006 ───────────────────────────────────────────
+/// BC-2.16.015 §EC-016-015-006: When `published_date` is JSON `null` in the API response,
+/// `ColumnMapper::map_record` must:
+///   1. Store `Value::Null` in `raw_extensions["published_date"]` (row materializes)
+///   2. NOT raise an error (in particular, NOT raise E-SPEC-018 `TimestampParseFailure`)
+///
+/// `published_date` is a Tier-2 datetime column (`column_type = "datetime"`, no
+/// `ocsf_field`).  A null value is valid — it means "unpublished" — and the pipeline
+/// must not attempt datetime parsing on it.
+///
+/// NOTE: The E-SPEC-018 (`TimestampParseFailure`) gate lives in
+/// `normalize_timestamp_fields` in pipeline.rs, which uses `is_null_or_absent` to
+/// skip null fields before attempting datetime parsing.  At the `map_record` level
+/// (this test's scope), E-SPEC-018 can never be raised — `map_record` stores the raw
+/// `Value::Null` without parsing.  The full-pipeline null-datetime protection is
+/// exercised by RG-007 (via `PipelineExecutor::execute` with a null-valued response).
+///
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-P1-002.
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_ec006_published_date_null_row_materializes() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "claroty_vulnerabilities")
+        .expect("claroty_vulnerabilities table must exist");
+
+    let record = json!({ "published_date": null });
+
+    let row = ColumnMapper::map_record(&record, table).expect(
+        "EC-016-015-006: map_record must not error when published_date is JSON null. \
+         No E-SPEC-018 may be raised at this boundary. BC-2.16.015 §EC-016-015-006.",
+    );
+
+    assert_eq!(
+        row.raw_extensions.get("published_date"),
+        Some(&serde_json::Value::Null),
+        "EC-016-015-006: published_date=null must store Value::Null in raw_extensions. \
+         raw_extensions: {:?}",
+        row.raw_extensions
     );
 }

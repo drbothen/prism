@@ -4,10 +4,11 @@
 //!
 //! # Tests in this file
 //!
-//! | ID    | Test name | Assertion |
-//! |-------|-----------|-----------|
-//! | NEW-1 | test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock | class_uid=2002, finding_info_title, message, raw_extensions as JSON object, no Tier-2 top-level keys |
-//! | SAP-3 | test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column | PrismError::ColumnNotFound (E-QUERY-038) when querying a Tier-2 column via QueryEngine::execute() |
+//! | ID           | Test name | Assertion |
+//! |--------------|-----------|-----------|
+//! | NEW-1        | test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock | class_uid=2002, finding_info_title, message, raw_extensions as JSON object, no Tier-2 top-level keys (RecordBatch-level assertions) |
+//! | F-VULNS-P1-001 | test_BC_2_16_015_claroty_vulnerabilities_wire_shape_serialized_json_explicit_nulls | Serialized-JSON wire assertions via production arrow_json path; null-not-absent for missing name |
+//! | SAP-3        | test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column | PrismError::ColumnNotFound (E-QUERY-038) when querying a Tier-2 column via QueryEngine::execute() |
 //!
 //! # F-VULNS-004 / SID-1 compliance (NEW-1)
 //!
@@ -40,6 +41,7 @@
 )]
 extern crate toml;
 
+use arrow_json;
 use std::sync::Arc;
 
 use arrow::array::Array;
@@ -380,6 +382,238 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock
         "raw_extensions object must contain at least one Tier-2 field. \
          BC-2.16.015 AC-005. raw_extensions keys: {:?}",
         raw_ext_obj.keys().collect::<Vec<_>>()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-VULNS-P1-001: Serialized-JSON wire-shape + null-not-absent assertion
+// ---------------------------------------------------------------------------
+
+/// Serialized-JSON wire-shape test: verifies that RecordBatches produced by
+/// `SpecDrivenSensorAdapter::fetch()` for `claroty_vulnerabilities`, when serialized
+/// through the production MCP path (`arrow_json::writer::WriterBuilder::new()
+/// .with_explicit_nulls(true).build::<_, arrow_json::writer::JsonArray>(&mut buf)`),
+/// produce correctly-shaped JSON row objects satisfying the wire-shape discipline.
+///
+/// LOAD-BEARING assertions (CLAUDE.md §Wire-shape assertion discipline):
+///   1. `class_uid` == 2002 present at top level (integer)
+///   2. `finding_info_title` and `message` present at top level
+///   3. `raw_extensions` present as a JSON object containing at least one Tier-2 field
+///   4. No Tier-2 column name appears as a standalone top-level key
+///   5. NULL-NOT-ABSENT (C3/H20 defect class): for a row where API `name` is absent,
+///      `finding_info_title` MUST appear as `null` in the JSON row — NOT be omitted.
+///      `arrow_json` with `explicit_nulls=false` (the DEFAULT) would omit the key;
+///      this test locks in the `explicit_nulls=true` production configuration.
+///
+/// Two mock records:
+///   - Record 0: `name = "CVE-2024-9999"` (Tier-1 present) + Tier-2 fields
+///   - Record 1: no `name` field → `finding_info_title` becomes null in RecordBatch
+///
+/// BC-2.16.015 AC-004 / AC-005; BC-2.11.001 EC-11-079 (null-not-absent);
+/// CLAUDE.md §Wire-shape assertion discipline. Story: S-CLAROTY-VULNS-001 F-VULNS-P1-001.
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_wire_shape_serialized_json_explicit_nulls() {
+    let mock_server = MockServer::start().await;
+
+    // Two records: first has `name`, second lacks it.
+    // This exercises:
+    //   - Row 0: all top-level Tier-1 fields present + raw_extensions non-null
+    //   - Row 1: finding_info_title = null (absent source field → Arrow null cell)
+    Mock::given(method("POST"))
+        .and(path("/api/v1/vulnerabilities/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "vulnerabilities": [
+                {
+                    "name": "CVE-2024-9999",
+                    "description": "A mock vulnerability for serialized JSON wire testing",
+                    "vulnerability_type": "CVE",
+                    "cve_ids": ["CVE-2024-9999"],
+                    "cvss_v3_score": 9.8_f64,
+                    "id": "mock-wire-json-001",
+                    "is_known_exploited": true
+                },
+                {
+                    // No `name` field — finding_info_title becomes Arrow null → "finding_info_title":null in JSON
+                    "description": "No-name vulnerability for null-not-absent test",
+                    "vulnerability_type": "CWE",
+                    "cvss_v3_score": 5.0_f64
+                }
+            ],
+            "total": 2_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_adapter(&mock_server.uri());
+
+    let adapter_spec = SensorAdapterSpec {
+        source_table: "claroty_claroty_vulnerabilities".to_string(),
+        org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
+        #[allow(deprecated)]
+        client_id: "claroty-vulns-wire-json-test".to_string(),
+        sensor_config: serde_json::json!({}),
+    };
+
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: None,
+        end_time: None,
+        filters: Default::default(),
+    };
+
+    let sensor_auth = BearerStaticSensorAuth::new("mock-bearer-token-wire-json-test");
+
+    let batches = adapter
+        .fetch(&adapter_spec, &params, &sensor_auth)
+        .await
+        .expect("fetch() must succeed for a valid two-record mock response. BC-2.16.015 AC-004.");
+
+    assert!(
+        !batches.is_empty(),
+        "fetch() must return at least one RecordBatch for a non-empty response. \
+         BC-2.16.015 AC-004."
+    );
+
+    // ── Production MCP serialization path ─────────────────────────────────────
+    // Mirrors server.rs (prism-mcp) §CRIT-1 fix:
+    //   arrow_json::writer::WriterBuilder::new()
+    //       .with_explicit_nulls(true)
+    //       .build::<_, arrow_json::writer::JsonArray>(&mut buf)
+    //
+    // explicit_nulls=true: NULL-valued Arrow cells → `{"key":null}` in JSON output.
+    // explicit_nulls=false (DEFAULT): NULL cells are OMITTED — the C3/H20 defect class
+    // (BC-2.11.001 EC-11-079; CLAUDE.md §Wire-shape assertion discipline).
+    let mut buf: Vec<u8> = Vec::new();
+    let mut writer = arrow_json::writer::WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, arrow_json::writer::JsonArray>(&mut buf);
+    for batch in &batches {
+        writer.write(batch).expect(
+            "F-VULNS-P1-001: arrow_json write must not fail for claroty_vulnerabilities RecordBatch",
+        );
+    }
+    writer
+        .finish()
+        .expect("F-VULNS-P1-001: arrow_json finish must not fail");
+
+    let json_rows: Vec<serde_json::Value> = serde_json::from_slice::<Vec<serde_json::Value>>(&buf)
+        .expect(
+            "F-VULNS-P1-001: arrow_json output must deserialize as a JSON array of row objects",
+        );
+
+    assert_eq!(
+        json_rows.len(),
+        2,
+        "F-VULNS-P1-001: serialized JSON must contain exactly 2 rows (one per mock record). \
+         BC-2.16.015 AC-004."
+    );
+
+    // ── Row 0: name present → finding_info_title non-null ─────────────────────
+    let row0 = &json_rows[0];
+
+    assert_eq!(
+        row0.get("class_uid"),
+        Some(&serde_json::json!(2002_i32)),
+        "F-VULNS-P1-001 LOAD-BEARING: row0 class_uid must equal 2002 in serialized JSON. \
+         BC-2.16.015 AC-004; ADR-058 §C2."
+    );
+
+    assert_eq!(
+        row0.get("finding_info_title"),
+        Some(&serde_json::json!("CVE-2024-9999")),
+        "F-VULNS-P1-001: row0 finding_info_title must be 'CVE-2024-9999' in serialized JSON. \
+         BC-2.16.015 AC-004."
+    );
+
+    assert!(
+        row0.get("message").is_some(),
+        "F-VULNS-P1-001: row0 message must be present in serialized JSON. BC-2.16.015 AC-004."
+    );
+
+    // raw_extensions must be a StringArray cell containing a JSON object string
+    let raw_ext_str0 = row0.get("raw_extensions").and_then(|v| v.as_str()).expect(
+        "F-VULNS-P1-001: row0 raw_extensions must be present and a JSON string. \
+             BC-2.16.015 AC-005; ADR-058 §J6.",
+    );
+    let raw_ext_json0: serde_json::Value = serde_json::from_str(raw_ext_str0)
+        .expect("F-VULNS-P1-001: row0 raw_extensions must be valid JSON");
+    assert!(
+        raw_ext_json0.is_object(),
+        "F-VULNS-P1-001: row0 raw_extensions must be a JSON object. \
+         Got: {:?}. BC-2.16.015 AC-005; ADR-058 §J6.",
+        raw_ext_json0
+    );
+
+    let raw_ext_obj0 = raw_ext_json0
+        .as_object()
+        .expect("raw_extensions is an object (asserted above)");
+    let tier2_spot_check = ["vulnerability_type", "cve_ids", "cvss_v3_score", "id"];
+    let has_tier2 = tier2_spot_check
+        .iter()
+        .any(|name| raw_ext_obj0.contains_key(*name));
+    assert!(
+        has_tier2,
+        "F-VULNS-P1-001: row0 raw_extensions must contain at least one Tier-2 field. \
+         raw_extensions keys: {:?}. BC-2.16.015 AC-005.",
+        raw_ext_obj0.keys().collect::<Vec<_>>()
+    );
+
+    // No Tier-2 column name must appear as a top-level key in row0
+    let all_tier2 = [
+        "vulnerability_type",
+        "cve_ids",
+        "cvss_v3_score",
+        "cvss_v3_exploitability_subscore",
+        "cvss_v3_vector_string",
+        "cvss_v2_score",
+        "is_known_exploited",
+        "affected_devices_count",
+        "affected_ot_devices_count",
+        "published_date",
+        "epss_score",
+        "adjusted_vulnerability_score",
+        "adjusted_vulnerability_score_level",
+        "exploits_count",
+        "source_name",
+        "source_url",
+        "id",
+    ];
+    for tier2_name in &all_tier2 {
+        assert!(
+            row0.get(*tier2_name).is_none(),
+            "F-VULNS-P1-001: Tier-2 column '{}' MUST NOT appear as a top-level key in \
+             serialized JSON row0. BC-2.16.015 §2; ADR-058 §J6.",
+            tier2_name
+        );
+    }
+
+    // ── Row 1: name absent → finding_info_title null-not-absent ───────────────
+    let row1 = &json_rows[1];
+
+    // NULL-NOT-ABSENT LOAD-BEARING assertion:
+    // When `name` is absent in the API record, `finding_info_title` becomes an Arrow null
+    // cell (nullable=true, value=None). With explicit_nulls=true the JSON row MUST contain
+    // `"finding_info_title": null` — NOT omit the key.
+    // With explicit_nulls=false (the arrow_json DEFAULT), the key would be absent.
+    // This locks in the C3/H20-class defect prevention (BC-2.11.001 EC-11-079).
+    let row1_fit = row1.get("finding_info_title");
+    assert!(
+        row1_fit.is_some(),
+        "F-VULNS-P1-001 LOAD-BEARING (null-not-absent): 'finding_info_title' key MUST be \
+         PRESENT in row1 serialized JSON even when 'name' was absent in the API response. \
+         arrow_json with explicit_nulls=false (DEFAULT) would OMIT this key — \
+         that is the C3/H20 defect class (BC-2.11.001 EC-11-079). \
+         row1 keys present: {:?}",
+        row1.as_object().map(|o| o.keys().collect::<Vec<_>>())
+    );
+    assert_eq!(
+        row1_fit,
+        Some(&serde_json::Value::Null),
+        "F-VULNS-P1-001 LOAD-BEARING (null-not-absent): 'finding_info_title' MUST be \
+         JSON null (not another value) in row1 serialized output. \
+         BC-2.11.001 EC-11-079; BC-2.16.015 AC-004."
     );
 }
 
