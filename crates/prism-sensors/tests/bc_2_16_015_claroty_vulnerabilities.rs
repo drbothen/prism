@@ -1039,6 +1039,142 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_non_iso_published_date_e
     }
 }
 
+// ── F-L2-002: EC-007/EC-008 multi-page atomic-fail ────────────────────────────
+/// BC-2.16.015 §EC-016-015-007 multi-page atomic-fail gate: when page 1 returns a full
+/// page of valid records (1000) and page 2 returns a record with a non-ISO `published_date`,
+/// `PipelineExecutor::execute` MUST return `Err(SpecEngineError::TimestampParseFailure)`
+/// and ZERO records must be materialized.
+///
+/// This tests the atomicity of the E-SPEC-018 failure across pages.  The existing
+/// `test_BC_2_16_015_claroty_vulnerabilities_ec007_non_iso_published_date_e_spec_018`
+/// only covers the single-page case (one record, bad date, one page total).  That test
+/// proves the E-SPEC-018 arm fires; it does NOT prove that page-1 records are atomically
+/// discarded when the failure occurs on a subsequent page.
+///
+/// Architecture of atomicity:
+///   - `PipelineExecutor::execute` uses `?` to propagate `SpecEngineError`.
+///   - `normalize_timestamp_fields` is called per record (before accumulation OR per-page).
+///   - When the E-SPEC-018 error propagates via `?`, the entire `execute` call returns
+///     `Err` — the caller receives no partial `PipelineResult`.
+///   - All records accumulated from page 1 are implicitly discarded because the
+///     `PipelineResult` is never constructed (or is discarded by the `?` operator).
+///
+/// Two wiremock mocks differentiated by `body_partial_json` (offset):
+///   - offset=0:    1000 valid records → page_record_count == page_size → pagination CONTINUES
+///   - offset=1000: 1 record with `published_date = "not-a-timestamp"` → E-SPEC-018 fires
+///
+/// Expected result: `Err(SpecEngineError::TimestampParseFailure)`
+///   - `column_name` = "published_date"
+///   - `sensor_id`   = "claroty"
+///   - 0 records returned (atomically discarded — page-1 records never reach the caller)
+///
+/// BC-2.16.015 §EC-016-015-007; SpecEngineError::TimestampParseFailure (E-SPEC-018).
+/// Story: S-CLAROTY-VULNS-001 F-L2-002 (diverse-lens batch fix-burst).
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_multipage_atomic_fail_discards_all() {
+    let mock_server = MockServer::start().await;
+
+    // Page 1 (offset=0): 1000 fully-valid records.
+    // page_record_count (1000) == page_size (1000) → NOT < page_size → pagination CONTINUES.
+    // All records have valid (absent) published_date — normalize_timestamp_fields skips them.
+    let page1_records: Vec<serde_json::Value> = (0..1000_u32)
+        .map(|i| {
+            serde_json::json!({
+                "name": format!("CVE-2024-{i:04}"),
+                "vulnerability_type": "CVE",
+                "cvss_v3_score": 5.0_f64
+            })
+        })
+        .collect();
+
+    Mock::given(method("POST"))
+        .and(body_partial_json(serde_json::json!({"offset": 0_u32})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "vulnerabilities": page1_records,
+            "total": 1001_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    // Page 2 (offset=1000): 1 record with a non-ISO published_date.
+    // normalize_timestamp_fields processes all datetime columns tier-agnostically;
+    // "not-a-timestamp" fails the implicit ["iso8601"] chain → E-SPEC-018 fires.
+    Mock::given(method("POST"))
+        .and(body_partial_json(serde_json::json!({"offset": 1000_u32})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "vulnerabilities": [{
+                "name": "CVE-2024-BAD-DATE",
+                "vulnerability_type": "CVE",
+                "published_date": "not-a-timestamp"
+            }],
+            "total": 1001_u32,
+            "page": 2_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+    let mut test_spec = spec.clone();
+    test_spec.base_url = mock_server.uri();
+
+    let table = test_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&test_spec, table, &context, &http_client, &auth).await;
+
+    // LOAD-BEARING multi-page atomic-fail assertion:
+    // Even though page 1 returned 1000 valid records, the E-SPEC-018 from page 2
+    // propagates via `?` and the entire execute returns Err — zero records reach the caller.
+    assert!(
+        result.is_err(),
+        "F-L2-002 LOAD-BEARING: PipelineExecutor::execute must return Err when ANY page \
+         contains a non-ISO published_date, even when prior pages returned valid records. \
+         Got Ok with {} records (atomicity violated — page-1 records must be discarded). \
+         BC-2.16.015 §EC-016-015-007.",
+        result.as_ref().map(|r| r.records.len()).unwrap_or(0)
+    );
+
+    let err = result.unwrap_err();
+    match &err {
+        SpecEngineError::TimestampParseFailure {
+            column_name,
+            sensor_id,
+            ..
+        } => {
+            assert_eq!(
+                column_name.as_str(),
+                "published_date",
+                "F-L2-002: TimestampParseFailure.column_name must be 'published_date'; \
+                 got: {column_name:?}. BC-2.16.015 §EC-016-015-007."
+            );
+            assert_eq!(
+                sensor_id.as_str(),
+                "claroty",
+                "F-L2-002: TimestampParseFailure.sensor_id must be 'claroty'; \
+                 got: {sensor_id:?}. BC-2.16.015 §EC-016-015-007."
+            );
+        }
+        other => {
+            panic!(
+                "F-L2-002 LOAD-BEARING: PipelineExecutor::execute must return \
+                 SpecEngineError::TimestampParseFailure (E-SPEC-018) when page 2 contains \
+                 a non-ISO published_date. Got: {other:?}. BC-2.16.015 §EC-016-015-007."
+            );
+        }
+    }
+}
+
 // ── F-VULNS-EC004-001: EC-016-015-004 ────────────────────────────────────────
 /// BC-2.16.015 §EC-016-015-004: A vulnerability row whose `name` is an advisory-title
 /// format (e.g., "ICSMA-21-161-01 (ZOLL Defibrillator Dashboard)") — NOT a CVE-YYYY-NNNNN

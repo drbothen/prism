@@ -177,7 +177,7 @@ impl prism_credentials::CredentialStore for NoopCredentialStore {
 ///   - No Tier-2 column names at top level (Tier-2 isolation, ADR-058 §J6)
 ///
 /// SID-1 compliance: non-ignored, uses wiremock. Provides non-live wire-shape coverage
-/// for RG-004 (which is `#[ignore]`'d pending a live Claroty instance at CLAROTY_INSTANCE_URL).
+/// for RG-004b (which is `#[ignore]`'d pending a live Claroty instance at CLAROTY_INSTANCE_URL).
 ///
 /// F-VULNS-010 note: the wire-null case for a missing `name` field (finding_info_title
 /// serialized as JSON null, not absent) requires the full RecordBatch → arrow_json
@@ -188,7 +188,7 @@ impl prism_credentials::CredentialStore for NoopCredentialStore {
 /// §Wire-shape assertion discipline).
 ///
 /// BC-2.16.015 AC-004 / AC-005; ADR-058 §C2 Option 4, §J6.
-/// Story: S-CLAROTY-VULNS-001 RG-004 (non-live SID-1 coverage).
+/// Story: S-CLAROTY-VULNS-001 RG-004b (non-live SID-1 coverage).
 #[tokio::test]
 async fn test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock() {
     let mock_server = MockServer::start().await;
@@ -650,7 +650,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_wire_shape_serialized_json_exp
 /// No HTTP requests are issued — E-QUERY-038 fires at plan-time before any fan-out.
 ///
 /// BC-2.16.015 AC-003; SAP-3; ADR-058 §I7; S-ADR058-OCSF-ROUTING-001.
-/// Story: S-CLAROTY-VULNS-001 RG-003 (SAP-3 end-to-end gate).
+/// Story: S-CLAROTY-VULNS-001 RG-003a (SAP-3 end-to-end gate).
 #[tokio::test]
 async fn test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column() {
     // Load the production claroty.sensor.toml (ocsf_column_naming = true at sensor level).
@@ -969,6 +969,295 @@ fn test_BC_2_16_015_claroty_vulnerabilities_production_mcp_serializer_uses_expli
          'with_explicit_nulls(false)' — that would disable null-not-absent protection. \
          Found {} occurrence(s). BC-2.11.001 EC-11-079.",
         false_count
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-L2-001: EC-016-015-005 — empty cve_ids wire assertion
+// ---------------------------------------------------------------------------
+
+/// Wire-level assertion for EC-016-015-005: when `cve_ids` is an EMPTY JSON array `[]`
+/// in the Claroty xDome API response, the downstream ENRICH-1 DD-2 transformation in
+/// `pipeline_result_to_record_batch` (`serde_json::Value::Array(arr)` arm) serializes it
+/// as the JSON-list string `"[]"`, which is then stored as a string value inside the
+/// `raw_extensions` JSON blob.
+///
+/// At the wire level (MCP serialized JSON output):
+///   - `raw_extensions` (StringArray cell) deserializes to a JSON object
+///   - The key `cve_ids` MUST be PRESENT in that object (not absent)
+///   - Its value MUST be the STRING `"[]"` (not JSON null, not an actual JSON array,
+///     not the string "null")
+///
+/// This closes the empty-vs-null regression gap identified in F-L2-001:
+/// the existing `test_BC_2_16_015_claroty_vulnerabilities_ec005_cve_ids_empty_array_in_raw_extensions`
+/// (prism-sensors) only asserts the pre-conversion form (`Value::Array(vec![])` in
+/// `map_record`). The DD-2 arm (`serde_json::to_string(&strings)` with empty strings vec)
+/// was not asserted at the wire level before this test.
+///
+/// Wire path: `SpecDrivenSensorAdapter::fetch()` →
+///   `pipeline_result_to_record_batch` (OCSF mode, raw_extensions block, ENRICH-1 DD-2) →
+///   `arrow_json::writer::WriterBuilder::new().with_explicit_nulls(true)` →
+///   serialized JSON row with `raw_extensions` as a JSON-string column.
+///
+/// BC-2.16.015 §EC-016-015-005; ENRICH-1 DD-2; CLAUDE.md §Wire-shape assertion discipline.
+/// Story: S-CLAROTY-VULNS-001 F-L2-001 (diverse-lens batch fix-burst).
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_ec005_empty_cve_ids_wire_serialized_json() {
+    let mock_server = MockServer::start().await;
+
+    // Record with cve_ids as an EMPTY JSON array [].
+    // ENRICH-1 DD-2 arm: Value::Array(vec![]) → serde_json::to_string(&strings) where
+    // strings = vec![] (empty) → "[]" (the JSON-list string for an empty array).
+    Mock::given(method("POST"))
+        .and(path("/api/v1/vulnerabilities/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "vulnerabilities": [{
+                "name": "CVE-2024-EMPTY-CVEIDS",
+                "description": "A mock vulnerability with empty cve_ids",
+                "vulnerability_type": "CVE",
+                "cve_ids": [],
+                "cvss_v3_score": 7.5_f64,
+                "id": "mock-empty-cveids-001"
+            }],
+            "total": 1_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_adapter(&mock_server.uri());
+
+    let adapter_spec = SensorAdapterSpec {
+        source_table: "claroty_vulnerabilities".to_string(),
+        org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
+        #[allow(deprecated)]
+        client_id: "claroty-vulns-ec005-wire-test".to_string(),
+        sensor_config: serde_json::json!({}),
+    };
+
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: None,
+        end_time: None,
+        filters: Default::default(),
+    };
+
+    let sensor_auth = BearerStaticSensorAuth::new("mock-bearer-token-ec005");
+
+    let batches = adapter
+        .fetch(&adapter_spec, &params, &sensor_auth)
+        .await
+        .expect(
+            "F-L2-001: fetch() must succeed for a valid response with empty cve_ids array. \
+             BC-2.16.015 §EC-016-015-005.",
+        );
+
+    assert!(
+        !batches.is_empty(),
+        "F-L2-001: fetch() must return at least one RecordBatch. BC-2.16.015 §EC-016-015-005."
+    );
+
+    // Serialize through the production MCP path (explicit_nulls=true).
+    let mut buf: Vec<u8> = Vec::new();
+    let mut writer = arrow_json::writer::WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, arrow_json::writer::JsonArray>(&mut buf);
+    for batch in &batches {
+        writer
+            .write(batch)
+            .expect("F-L2-001: arrow_json write must not fail for cve_ids=[] RecordBatch");
+    }
+    writer
+        .finish()
+        .expect("F-L2-001: arrow_json finish must not fail");
+
+    let json_rows: Vec<serde_json::Value> = serde_json::from_slice::<Vec<serde_json::Value>>(&buf)
+        .expect("F-L2-001: arrow_json output must deserialize as a JSON array of row objects");
+
+    assert_eq!(
+        json_rows.len(),
+        1,
+        "F-L2-001: serialized JSON must contain exactly 1 row. BC-2.16.015 §EC-016-015-005."
+    );
+
+    let row = &json_rows[0];
+
+    // raw_extensions must be present as a JSON string.
+    let raw_ext_str = row.get("raw_extensions").and_then(|v| v.as_str()).expect(
+        "F-L2-001: raw_extensions must be present and a JSON string in the wire row. \
+             BC-2.16.015 §EC-016-015-005; ADR-058 §J6.",
+    );
+
+    let raw_ext_obj: serde_json::Value = serde_json::from_str(raw_ext_str)
+        .expect("F-L2-001: raw_extensions string must be valid JSON (deserializable as object)");
+    assert!(
+        raw_ext_obj.is_object(),
+        "F-L2-001: raw_extensions must deserialize to a JSON object. Got: {:?}.",
+        raw_ext_obj
+    );
+
+    // LOAD-BEARING EC-005 wire assertion: cve_ids must be PRESENT in raw_extensions
+    // (not absent) and its value must be the STRING "[]" (not JSON null).
+    // ENRICH-1 DD-2: serde_json::to_string(&vec![] as &Vec<String>) = "\"[]\"" → Value::String("[]")
+    // stored in the raw_extensions JSON object, which serializes as {"cve_ids":"[]",...}.
+    let cve_ids_wire = raw_ext_obj.get("cve_ids");
+    assert!(
+        cve_ids_wire.is_some(),
+        "F-L2-001 LOAD-BEARING: 'cve_ids' key MUST be PRESENT in raw_extensions JSON object \
+         even when the API returned an empty array. \
+         Got absent (raw_extensions keys: {:?}). \
+         BC-2.16.015 §EC-016-015-005.",
+        raw_ext_obj
+            .as_object()
+            .map(|o| o.keys().collect::<Vec<_>>())
+    );
+    assert_ne!(
+        cve_ids_wire,
+        Some(&serde_json::Value::Null),
+        "F-L2-001 LOAD-BEARING: 'cve_ids' MUST NOT be JSON null when API returned []. \
+         ENRICH-1 DD-2 serializes empty arrays as the string '[]', not null. \
+         BC-2.16.015 §EC-016-015-005."
+    );
+    assert_eq!(
+        cve_ids_wire,
+        Some(&serde_json::Value::String("[]".to_string())),
+        "F-L2-001 LOAD-BEARING: 'cve_ids' MUST equal the JSON string \"[]\" in raw_extensions. \
+         ENRICH-1 DD-2: serde_json::to_string(&Vec::<String>::new()) produces the string '[]'. \
+         Got: {:?}. BC-2.16.015 §EC-016-015-005.",
+        cve_ids_wire
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-L2-003: EC-016-015-004 — advisory-title verbatim at wire level
+// ---------------------------------------------------------------------------
+
+/// Wire-level assertion for EC-016-015-004: a vulnerability record whose `name` is an
+/// advisory-title format (e.g., "ICSMA-21-161-01 (ZOLL Defibrillator Dashboard)") — NOT
+/// a CVE-YYYY-NNNNN format — is preserved VERBATIM in the serialized `finding_info_title`
+/// key of the wire JSON row.  No normalization is applied at any stage of the pipeline.
+///
+/// The existing EC-004 test in prism-sensors
+/// (`test_BC_2_16_015_claroty_vulnerabilities_ec004_advisory_title_preserved_verbatim`)
+/// asserts verbatim preservation at the `ColumnMapper::map_record` boundary (dot-form
+/// intermediate: `finding_info.title`).  This test closes the remaining gap identified in
+/// F-L2-003: EC-004 was NOT asserted at the wire level (the serialized MCP JSON that an
+/// LLM agent actually consumes).
+///
+/// Wire path: `SpecDrivenSensorAdapter::fetch()` → `pipeline_result_to_record_batch`
+/// (OCSF mode, finding_info_title = dot→underscore flattening of finding_info.title) →
+/// `arrow_json::writer::WriterBuilder::new().with_explicit_nulls(true)` →
+/// serialized JSON row with `finding_info_title` as a top-level string key.
+///
+/// Assertion: the serialized `finding_info_title` value MUST equal the advisory-title
+/// string VERBATIM — no uppercase normalization, no parenthesis stripping, no CVE
+/// re-formatting applied.
+///
+/// BC-2.16.015 §EC-016-015-004; CLAUDE.md §Wire-shape assertion discipline.
+/// Story: S-CLAROTY-VULNS-001 F-L2-003 (diverse-lens batch fix-burst).
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_ec004_advisory_title_verbatim_wire() {
+    let mock_server = MockServer::start().await;
+
+    // Advisory-title format per BC-2.16.015 §EC-016-015-004 exemplar.
+    // NOT a CVE-YYYY-NNNNN identifier — pipeline must not apply any transformation.
+    let advisory_title = "ICSMA-21-161-01 (ZOLL Defibrillator Dashboard)";
+
+    Mock::given(method("POST"))
+        .and(path("/api/v1/vulnerabilities/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "vulnerabilities": [{
+                "name": advisory_title,
+                "description": "ICS Medical Advisory for ZOLL Defibrillator Dashboard",
+                "vulnerability_type": "ICS-Advisory",
+                "cvss_v3_score": 9.4_f64
+            }],
+            "total": 1_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_adapter(&mock_server.uri());
+
+    let adapter_spec = SensorAdapterSpec {
+        source_table: "claroty_vulnerabilities".to_string(),
+        org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
+        #[allow(deprecated)]
+        client_id: "claroty-vulns-ec004-wire-test".to_string(),
+        sensor_config: serde_json::json!({}),
+    };
+
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: None,
+        end_time: None,
+        filters: Default::default(),
+    };
+
+    let sensor_auth = BearerStaticSensorAuth::new("mock-bearer-token-ec004-wire");
+
+    let batches = adapter
+        .fetch(&adapter_spec, &params, &sensor_auth)
+        .await
+        .expect(
+            "F-L2-003: fetch() must succeed for a record with an advisory-title name. \
+             BC-2.16.015 §EC-016-015-004.",
+        );
+
+    assert!(
+        !batches.is_empty(),
+        "F-L2-003: fetch() must return at least one RecordBatch. BC-2.16.015 §EC-016-015-004."
+    );
+
+    // Serialize through the production MCP path.
+    let mut buf: Vec<u8> = Vec::new();
+    let mut writer = arrow_json::writer::WriterBuilder::new()
+        .with_explicit_nulls(true)
+        .build::<_, arrow_json::writer::JsonArray>(&mut buf);
+    for batch in &batches {
+        writer
+            .write(batch)
+            .expect("F-L2-003: arrow_json write must not fail for advisory-title RecordBatch");
+    }
+    writer
+        .finish()
+        .expect("F-L2-003: arrow_json finish must not fail");
+
+    let json_rows: Vec<serde_json::Value> = serde_json::from_slice::<Vec<serde_json::Value>>(&buf)
+        .expect("F-L2-003: arrow_json output must deserialize as a JSON array of row objects");
+
+    assert_eq!(
+        json_rows.len(),
+        1,
+        "F-L2-003: serialized JSON must contain exactly 1 row. BC-2.16.015 §EC-016-015-004."
+    );
+
+    let row = &json_rows[0];
+
+    // LOAD-BEARING EC-004 wire assertion: finding_info_title MUST equal advisory_title VERBATIM.
+    // No normalization may be applied at any stage: not in ColumnMapper::map_record
+    // (dot-form intermediate), not in pipeline_result_to_record_batch (Arrow StringArray),
+    // and not in arrow_json serialization (JSON string).
+    let wire_title = row
+        .get("finding_info_title")
+        .and_then(|v| v.as_str())
+        .expect(
+            "F-L2-003 LOAD-BEARING: 'finding_info_title' key must be present and a string \
+             in the wire JSON row (advisory-title → ocsf_field=finding_info.title → \
+             ADR-058 arrow name finding_info_title). \
+             BC-2.16.015 §EC-016-015-004.",
+        );
+
+    assert_eq!(
+        wire_title, advisory_title,
+        "F-L2-003 LOAD-BEARING: 'finding_info_title' MUST equal the advisory-title string \
+         VERBATIM in the serialized wire JSON. No normalization (uppercase, CVE re-format, \
+         parenthesis stripping) may be applied. \
+         Expected: {:?}. Got: {:?}. BC-2.16.015 §EC-016-015-004.",
+        advisory_title, wire_title
     );
 }
 
