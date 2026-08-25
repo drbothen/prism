@@ -10,8 +10,8 @@ status: ready
 # BC status: BC-2.16.015 v1.0 draft (promotes to active on PR merge per POL-14). Pre-TDD remove-uncertainty CLEAN (D-1110, 2nd pass, 2026-08-24); status draft→ready.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.1"
-modified: "2026-08-24"
+version: "1.2"
+modified: "2026-08-25"
 phase: 3
 cycle: v1.0.0-brownfield
 inputs:
@@ -20,8 +20,8 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "a612e87"
-# input-hash: run `compute-input-hash <this-file> --update` after writing
+input-hash: "c3934ca"
+# input-hash: updated 2026-08-25 — compute-input-hash reported c3934ca (inputs include claroty.sensor.toml, modified by S-ADR058-OCSF-ROUTING-001 PR #242 after story v1.0 authoring)
 traces_to: "BC-2.16.015"
 points: 5
 estimated_days: 1
@@ -39,10 +39,17 @@ subsystems: [SS-01, SS-16]
 #     that exercise SS-16's ColumnSpec and FetchStep deserialization. SS-16 is the
 #     canonical owner of prism-spec-engine per ARCH-INDEX Subsystem Registry.
 target_module: prism-sensors
-crates_touched: [prism-sensors, prism-spec-engine]
-# crates_touched:
-#   prism-sensors: claroty.sensor.toml — new [[tables]] block for claroty_vulnerabilities
-#   prism-spec-engine: RG-001/RG-002 spec-parser unit tests; no production code changes
+crates_touched: [prism-sensors, prism-bin]
+# crates_touched (F-VULNS-011 corrected @62f1c6379):
+#   prism-sensors: claroty.sensor.toml (new [[tables]] block) + Cargo.toml (test dep) +
+#     tests/bc_2_16_015_claroty_vulnerabilities.rs
+#     (RG-003b ocsf_projected_column_names proxy; RG-005 live; RG-006/007/008 unit tests)
+#   prism-bin: tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs
+#     (RG-003a QueryEngine::execute e2e gate; RG-004 live Variant-1; RG-004b mock wire-shape) +
+#     Cargo.toml + Cargo.lock
+#   NOTE: prism-spec-engine has ZERO modified files in the feature diff; RG-001/RG-002
+#     are in prism-sensors/tests and call SpecLoader::parse via the public prism-sensors API.
+#     subsystems: [SS-01, SS-16] anchors remain correct (subsystem anchors, not a file list)
 capabilities:
   - CAP-029
 behavioral_contracts:
@@ -69,8 +76,9 @@ risk: MEDIUM
 #   that must be confirmed present on the live monroe sensor before being relied upon.
 #   Mark as optional (no REQUIRED option) until confirmed. Live tests must run against
 #   monroe; if not accessible at test-authoring time, RG-004/RG-005 (the live Variant-1
-#   tests) are #[ignore]'d until live validation. RG-003 is a non-live plan-time
-#   integration test and is NOT #[ignore]'d. SAP-2 DTU-parity probe is deferred per D-2200.
+#   tests) are #[ignore]'d until live validation. RG-003a is a non-live plan-time
+#   e2e integration test (prism-bin, QueryEngine::execute) and is NOT #[ignore]'d.
+#   RG-003b is the spec-parse proxy companion, also NOT #[ignore]'d. SAP-2 DTU-parity probe is deferred per D-2200.
 assumption_validations: []
 risk_mitigations: []
 ---
@@ -203,8 +211,16 @@ and MUST NOT contain `vulnerability_type` as a standalone column name.
 
 Same applies for any other Tier-2 column (`cvss_v3_score`, `is_known_exploited`, etc.).
 
-**Test:** `test_BC_2_16_015_claroty_vulnerabilities_tier2_column_raises_e_query_038`
-(drives through the plan-time validation path, not just a spec-parse assertion)
+**Primary test (plan-time e2e gate — SAP-3):** `test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column`
+(`crates/prism-bin/tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs` — drives
+`SELECT vulnerability_type` through `QueryEngine::execute()` at the public surface
+→ E-QUERY-038; this is the SAP-3-compliant arm-reachability test)
+
+**Defense-in-depth proxy:** `test_BC_2_16_015_claroty_vulnerabilities_tier2_column_raises_e_query_038`
+(`crates/prism-sensors/tests/bc_2_16_015_claroty_vulnerabilities.rs` — calls
+`ocsf_projected_column_names()` directly on the parsed spec; validates that
+`vulnerability_type` is absent from the OCSF-projected column set at spec-parse time;
+does NOT exercise the full query plan path)
 
 ### AC-004: Live Variant-1 wire-shape: `SELECT * LIMIT 1` serialized JSON contains class_uid=2002, finding_info_title, raw_extensions (traces to BC-2.16.015 postcondition 1 class_uid; postcondition 2 Tier-1/Tier-2 wire representation)
 
@@ -268,14 +284,16 @@ a string (CJYASHKR-format opaque Claroty identifier).
 |----|-----------|-----------|---------------|
 | RG-001 | `test_BC_2_16_015_claroty_vulnerabilities_toml_block_parses` | Unit (SpecLoader::parse) | AC-001: TOML block parses Ok; 19 column entries returned for claroty_vulnerabilities |
 | RG-002 | `test_BC_2_16_015_claroty_vulnerabilities_tier1_columns_two_with_ocsf_field` | Unit (ColumnSpec inspection) | AC-002: exactly 2 Tier-1 columns (ocsf_field == Some); name→finding_info.title REQUIRED; description→message |
-| RG-003 | `test_BC_2_16_015_claroty_vulnerabilities_tier2_column_raises_e_query_038` | Integration (plan-time validation) | AC-003: SELECT vulnerability_type raises E-QUERY-038; available_columns excludes vulnerability_type; includes raw_extensions |
+| RG-003a | `test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column` | Integration — prism-bin, `QueryEngine::execute()` (PRIMARY plan-time gate) | AC-003 PRIMARY: SELECT vulnerability_type drives through `QueryEngine::execute()` at the public surface → E-QUERY-038; `available_columns` includes `raw_extensions`, excludes `vulnerability_type`; SAP-3 arm-reachability gate |
+| RG-003b | `test_BC_2_16_015_claroty_vulnerabilities_tier2_column_raises_e_query_038` | Unit proxy — prism-sensors, `ocsf_projected_column_names()` (defense-in-depth) | AC-003 proxy: spec-parse-derived check — `vulnerability_type` absent from OCSF-projected column names; does NOT exercise full query plan; acceptable only as a companion to RG-003a |
 | RG-004 | `test_BC_2_16_015_claroty_vulnerabilities_live_wire_shape_class_uid_and_tier1` | Live Variant-1 (`#[ignore]`) | AC-004: wire JSON contains class_uid=2002, finding_info_title present, raw_extensions present, no Tier-2 standalone keys |
+| RG-004b | `test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock` | Integration — prism-bin, mock (non-live) | AC-004 non-live coverage: mock wire-shape asserts class_uid=2002, finding_info_title present, raw_extensions present; does not require `CLAROTY_INSTANCE_URL` env var; defense-in-depth companion to live RG-004 |
 | RG-005 | `test_BC_2_16_015_claroty_vulnerabilities_live_raw_extensions_contains_tier2_keys` | Live Variant-1 (`#[ignore]`) | AC-005: raw_extensions JSON object contains vulnerability_type, cvss_v3_score keys; no E-QUERY-038 on raw_extensions |
 | RG-006 | `test_BC_2_16_015_claroty_vulnerabilities_required_name_absent_produces_null_row` | Unit (mock response) | AC-006: row missing name → null row; no hard error; subsequent rows continue |
 | RG-007 | `test_BC_2_16_015_claroty_vulnerabilities_nullable_count_uses_empty_page_halt` | Unit (mock response) | AC-007: count=null in envelope → empty-page halt; no error; no null-ptr deref |
 | RG-008 | `test_BC_2_16_015_claroty_vulnerabilities_source_path_id_null_when_absent` | Unit (mock response) | AC-008: id absent from envelope → null cell; no error; pagination unaffected |
 
-**BC-5.38.001 density check:** 8 Red Gate tests / 8 acceptance criteria = 1.0 ≥ 0.5 threshold. PASS.
+**BC-5.38.001 density check:** 10 Red Gate tests (RG-001, RG-002, RG-003a, RG-003b, RG-004, RG-004b, RG-005, RG-006, RG-007, RG-008) / 8 acceptance criteria = 1.25 ≥ 0.5 threshold. PASS.
 
 ## Architecture Mapping
 
@@ -330,9 +348,9 @@ Architecture section references:
 | spike-findings §Spike 1 (PK decision, column set) | ~2,000 |
 | prism-spec-engine/src/spec_parser.rs (ColumnSpec + FetchStep section) | ~3,000 |
 | prism-spec-engine/src/column_mapping.rs (ocsf_field_to_arrow_name) | ~1,500 |
-| Test files (8 RGTs; unit + live integration) | ~6,000 |
+| Test files (10 RGTs; unit + live integration + mock wire-shape) | ~7,000 |
 | ADR-028 §D8-B (implicit iso8601 default reference) | ~1,000 |
-| **Total estimate** | **~35,000 tokens** |
+| **Total estimate** | **~36,000 tokens** |
 
 Well within 20-30% of a 200K window. If context is tight, load `claroty.sensor.toml` sections
 by reading only the `alerts` table block first as the canonical pattern, then skip to the
@@ -346,7 +364,11 @@ pagination section.
 
 - [ ] **Task 3 (Red Gate — test first):** Write RG-006, RG-007, RG-008 — unit tests using mock HTTP responses (no live sensor required). These test: REQUIRED name absent → null row; nullable count → empty-page halt; source_path id absent → null cell. Place in `crates/prism-sensors/tests/bc_2_16_015_claroty_vulnerabilities.rs` or `crates/prism-spec-engine/src/pipeline.rs #[cfg(test)]`. All MUST fail before Tasks 6–7.
 
-- [ ] **Task 4 (Red Gate — test first):** Write RG-003: `test_BC_2_16_015_claroty_vulnerabilities_tier2_column_raises_e_query_038`. Drive a `SELECT vulnerability_type FROM claroty.claroty_vulnerabilities LIMIT 1` query through the plan-time validation path. Assert E-QUERY-038 raised; `available_columns` includes `raw_extensions`, `finding_info_title`, `message`; excludes `vulnerability_type`. MUST fail before Task 6 (table not yet in spec, so query planning will fail differently — test confirms expected failure mode).
+- [ ] **Task 4 (Red Gate — test first):** Write RG-003a and RG-003b.
+
+  **RG-003a** (`test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column` in `crates/prism-bin/tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs`): Drive `SELECT vulnerability_type FROM claroty.claroty_vulnerabilities LIMIT 1` through `QueryEngine::execute()` at the public surface. Assert E-QUERY-038 raised; `available_columns` includes `raw_extensions`, `finding_info_title`, `message`; excludes `vulnerability_type`. This is the PRIMARY plan-time gate and the SAP-3-compliant arm-reachability test. MUST fail before Task 6.
+
+  **RG-003b** (`test_BC_2_16_015_claroty_vulnerabilities_tier2_column_raises_e_query_038` in `crates/prism-sensors/tests/bc_2_16_015_claroty_vulnerabilities.rs`): Call `ocsf_projected_column_names()` directly on the parsed spec for `claroty_vulnerabilities`. Assert that `"vulnerability_type"` is NOT in the projected set. This is a spec-parse-derived proxy / defense-in-depth companion to RG-003a — it does NOT exercise the full query plan and is not a substitute for RG-003a. MUST fail before Task 6.
 
 - [ ] **Task 5 (Red Gate — test first):** Write RG-004 and RG-005 — live Variant-1 `#[ignore]`'d integration tests in `crates/prism-sensors/tests/bc_2_16_015_claroty_vulnerabilities.rs`. Each test has a comment: `// LIVE-MONROE-001: requires CLAROTY_INSTANCE_URL env var pointing to monroe; run manually or in live-validation CI job`. RG-004 asserts wire-level JSON shape (class_uid=2002, finding_info_title, raw_extensions keys). RG-005 asserts raw_extensions contains Tier-2 keys. Both MUST fail when `#[ignore]` is removed if the TOML block is absent.
 
@@ -360,7 +382,7 @@ pagination section.
 
 - [ ] **Task 9 (SAP-1 self-check):** Confirm no new `tracing::*!(event_type = ...)` emissions are added by this story (TOML-only change + unit tests). If any new emission appears during implementation, add a BC-2.16.002 catalog row per PG-LP11-001.
 
-- [ ] **Task 10 (Final gate):** Run `just check` (full workspace). Confirm all non-`#[ignore]` Red Gate tests pass (RG-001, RG-002, RG-003, RG-006, RG-007, RG-008). Confirm no new `unwrap()`/`expect()` on `Result` in production code paths. Confirm `claroty.sensor.toml` has 5 tables total (existing 4 + `claroty_vulnerabilities`). After `just check` passes, hold for story-level holdout gate before pushing to origin.
+- [ ] **Task 10 (Final gate):** Run `just check` (full workspace). Confirm all non-`#[ignore]` Red Gate tests pass: RG-001, RG-002, RG-003a, RG-003b, RG-004b, RG-006, RG-007, RG-008. (RG-004 and RG-005 are `#[ignore]`'d live tests — excluded from `just check`.) Confirm no new `unwrap()`/`expect()` on `Result` in production code paths. Confirm `claroty.sensor.toml` has 5 tables total (existing 4 + `claroty_vulnerabilities`). After `just check` passes, hold for story-level holdout gate before pushing to origin.
 
 ## Previous Story Intelligence
 
@@ -435,7 +457,8 @@ crate imports in production code.
 | Action | File path | Notes |
 |--------|-----------|-------|
 | MODIFY | `crates/prism-sensors/specs/claroty.sensor.toml` | Add `[[tables]]` block for `claroty_vulnerabilities` after the existing `device_alert_relations` block |
-| CREATE | `crates/prism-sensors/tests/bc_2_16_015_claroty_vulnerabilities.rs` | RG-003..RG-008 integration and unit tests; `#[ignore]` live tests include `LIVE-MONROE-001` comment |
+| CREATE | `crates/prism-sensors/tests/bc_2_16_015_claroty_vulnerabilities.rs` | RG-003b (proxy: `ocsf_projected_column_names` check), RG-005, RG-006, RG-007, RG-008; `#[ignore]` live tests include `LIVE-MONROE-001` comment |
+| CREATE | `crates/prism-bin/tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs` | RG-003a (PRIMARY plan-time e2e: `QueryEngine::execute` → E-QUERY-038), RG-004 (`#[ignore]` live Variant-1 wire-shape), RG-004b (mock wire-shape asserting class_uid=2002) |
 
 Files that MUST NOT be modified:
 - `crates/prism-ocsf/src/class_selector.rs` — `vulnerability_finding` arm already exists; no changes
@@ -494,5 +517,6 @@ new dependency on `prism-sensors` (direction is prism-sensors → prism-spec-eng
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.2 | 2026-08-25 | story-writer + state-manager | F-VULNS-P1-003: RG-003 row reconciled to name the real plan-time e2e test (prism-bin, RG-003a: test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column) + proxy defense-in-depth (prism-sensors, RG-003b); RG-004b added for non-live mock wire-shape coverage; RG-list↔test traceability restored (SAC-1); density updated to 10/8 = 1.25. F-VULNS-011 (state-manager): crates_touched synced [prism-sensors, prism-spec-engine]→[prism-sensors, prism-bin] — feature diff @62f1c6379 has zero prism-spec-engine file modifications; RG-001/RG-002 call SpecLoader::parse via prism-sensors public API; prism-bin carries e2e + wire-shape tests (RG-003a, RG-004b). |
 | 1.1 | 2026-08-24 | state-manager | Pre-TDD remove-uncertainty gate CLEAN (D-1110, 2nd pass); status draft→ready; TDD delivery opened. |
 | 1.0 | 2026-08-24 | story-writer | Initial authoring — F3 story materialization for S-CLAROTY-VULNS-001 (Wave A G1). BC-2.16.015 v1.0 traceability; 19-column Tier-1/Tier-2 spec; 8 ACs; 8 RGTs; density 1.0; SAC-1 compliant; SAC-2 N/A (no ADR authored by this story); SAP-2 deferred per D-2200; live-test approach per xdome-endpoint-expansion-plan.md §Per-Story Pipeline. |

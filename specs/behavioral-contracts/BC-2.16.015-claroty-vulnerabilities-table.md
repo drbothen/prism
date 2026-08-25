@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -20,7 +20,7 @@ input-hash: "f51c2c6"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
 introduced: "2026-08-24"
-modified: null
+modified: "2026-08-25"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -149,6 +149,16 @@ SAP-2 probe is **applicable** for G1 (DTU exists: `prism-dtu-claroty`). The
 `claroty_vulnerabilities` table MUST be registered in the DTU clone route at
 `crates/prism-dtu-claroty/src/clone.rs::build_router()` for DTU-grounded parity tests.
 
+> **Deferral — D-2200 / D-2264 (v1 scope):** SAP-2 DTU-parity registration and validation for
+> `claroty_vulnerabilities` is **DEFERRED post-v1** per governing decision D-2200 (v1-scope
+> confirmed by D-2264); the parity work is anchored to story S-ADR058-DTU-PARITY-MIGRATION-001.
+> Until that story executes, S-CLAROTY-VULNS-001 delivers the table WITHOUT DTU-parity validation
+> (the `prism-dtu-claroty` DTU clone route exists but serves a legacy stub envelope; alignment
+> to `claroty_vulnerabilities` is the parked parity work). The `MUST be registered` requirement
+> retains full force and is binding when S-ADR058-DTU-PARITY-MIGRATION-001 executes. SAP-2
+> adversary passes MUST NOT mint DTU-parity-registration findings against this table until that
+> story merges.
+
 **SAP-2 exclusion documentation:** The `Vulnerability__fields_enum` contains 32 queryable
 fields. The contracted subset is 18 fields (plus the non-enum `id` via source_path). The
 remaining 14 fields are deliberately excluded from the first-cut column set to keep the initial
@@ -237,10 +247,11 @@ S-CLAROTY-VULNS-001 (draft — Wave A)
 | L2 Invariants | DI-005 |
 | Priority | P0 |
 | Story | S-CLAROTY-VULNS-001 |
-| DTU Status | EXISTS — `prism-dtu-claroty`; SAP-2 parity probe applicable |
+| DTU Status | EXISTS — `prism-dtu-claroty`; SAP-2 parity probe applicable; **parity registration DEFERRED post-v1 per D-2200/D-2264 → S-ADR058-DTU-PARITY-MIGRATION-001** |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | s-claroty-vulns-001-pass-2-fix | 2026-08-25 | product-owner | F-VULNS-P1-004: §4 SAP-2 DTU-parity mandate annotated with D-2200 deferral + S-ADR058-DTU-PARITY-MIGRATION-001 anchor (TD-VSDD-097 dim-3). DTU Status traceability row updated to record deferral. |
 | 1.0 | xdome-wave-a-f2-spec-evolution | 2026-08-24 | product-owner | Initial authoring — Claroty xDome vulnerabilities queryable surface contract per xdome-endpoint-expansion-plan.md Wave A G1 and spike-findings §Spike 1. TOML table contract, 19-column Tier-1/Tier-2 classification per ADR-058, PK rationale (name > id), SAP-2 exclusion documentation for 14 excluded fields. |
