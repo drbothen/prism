@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -61,9 +61,15 @@ The `claroty_vulnerabilities` table MUST be declared in `claroty.sensor.toml` wi
 
 ```toml
 [[tables]]
-table_name = "claroty_vulnerabilities"
+table_name = "vulnerabilities"
 ocsf_class = "vulnerability_finding"   # class_uid 2002 (existing arm)
 ```
+
+> **Registration note:** `table_name = "vulnerabilities"` registers in DataFusion as
+> `claroty_vulnerabilities` (`{sensor_id}_{table_name}` per `table_registry.rs`), consistent
+> with the sibling convention (`claroty_alerts`, `claroty_audit_logs`, `claroty_devices`,
+> `claroty_device_alert_relations`). PrismQL queries use the registered flat name
+> `claroty_vulnerabilities`.
 
 **Step definition:**
 
@@ -185,9 +191,9 @@ update the exclusion count.
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-SENSOR-001` | Claroty API returns non-200 HTTP for POST /api/v1/vulnerabilities/ | Structured error with sensor=claroty, status, body; no data loss for previously fetched pages |
+| `E-SENSOR-001` | Claroty API returns non-200 HTTP for POST /api/v1/vulnerabilities/ | Non-200 propagates via `?` in the fetch loop; the entire fetch returns the structured error (sensor=claroty, status, body) and no partial/accumulated pages are returned (atomic-fail; Option-A fail-fast) |
 | `E-QUERY-001` | Query references `vulnerability_type`, `cvss_v3_score` or any other Tier-2 column by its raw TOML name (not `raw_extensions`) | E-QUERY-038 column-not-found at plan time; available_columns includes `raw_extensions`, `finding_info_title`, `message`, `class_uid`, `_sensor` |
-| `E-SPEC-018` | Datetime parse failure on `published_date` for a PRESENT non-ISO-8601 value | `normalize_timestamp_fields` returns `SpecEngineError::TimestampParseFailure` (attempted_formats + value capped at 50 chars per SEC-002/AD-017); the fetch hard-errors with E-SPEC-018; previously-fetched pages remain valid |
+| `E-SPEC-018` | Datetime parse failure on `published_date` for a PRESENT non-ISO-8601 value | `normalize_timestamp_fields` runs post-accumulation (after the pagination loop completes); on parse failure it returns `Err(SpecEngineError::TimestampParseFailure)` (attempted_formats + value capped at 50 chars per SEC-002/AD-017); the `?` discards the entire accumulated result — the fetch fails atomically and NO partial pages are returned (Option-A fail-fast) |
 
 ## Edge Cases
 
@@ -227,10 +233,10 @@ S-CLAROTY-VULNS-001 (draft — Wave A)
 
 | Test Vector ID | Description | Expected |
 |----------------|-------------|----------|
-| TV-BC-2.16.015-001 | `SELECT finding_info_title FROM claroty.claroty_vulnerabilities LIMIT 5` against live or DTU | Succeeds (no E-QUERY-038); rows have non-null `finding_info_title` for CVE-named vulnerabilities |
-| TV-BC-2.16.015-002 | `SELECT * FROM claroty.claroty_vulnerabilities LIMIT 1` | Response wire JSON contains `class_uid = 2002`; `finding_info_title` present; `raw_extensions` object present with Tier-2 fields |
-| TV-BC-2.16.015-003 | `SELECT vulnerability_type FROM claroty.claroty_vulnerabilities LIMIT 1` | E-QUERY-038; `available_columns` contains `finding_info_title`, `message`, `raw_extensions`; does NOT contain `vulnerability_type` |
-| TV-BC-2.16.015-004 | `SELECT raw_extensions FROM claroty.claroty_vulnerabilities LIMIT 5` | Succeeds; raw_extensions JSON contains `vulnerability_type`, `cvss_v3_score` keys |
+| TV-BC-2.16.015-001 | `SELECT finding_info_title FROM claroty_vulnerabilities LIMIT 5` against live or DTU | Succeeds (no E-QUERY-038); rows have non-null `finding_info_title` for CVE-named vulnerabilities |
+| TV-BC-2.16.015-002 | `SELECT * FROM claroty_vulnerabilities LIMIT 1` | Response wire JSON contains `class_uid = 2002`; `finding_info_title` present; `raw_extensions` object present with Tier-2 fields |
+| TV-BC-2.16.015-003 | `SELECT vulnerability_type FROM claroty_vulnerabilities LIMIT 1` | E-QUERY-038; `available_columns` contains `finding_info_title`, `message`, `raw_extensions`; does NOT contain `vulnerability_type` |
+| TV-BC-2.16.015-004 | `SELECT raw_extensions FROM claroty_vulnerabilities LIMIT 5` | Succeeds; raw_extensions JSON contains `vulnerability_type`, `cvss_v3_score` keys |
 | TV-BC-2.16.015-005 | Response envelope with null `count` field | Pagination terminates on empty page; no error |
 
 ## Verification Properties
@@ -254,6 +260,7 @@ S-CLAROTY-VULNS-001 (draft — Wave A)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | s-claroty-vulns-001-pass-5-fix | 2026-08-25 | product-owner | F-VULNS-P5-001: §1 table_name claroty_vulnerabilities→vulnerabilities (registers as claroty_vulnerabilities per sibling convention); queryable-name refs corrected. F-VULNS-P5-002: §Error Cases atomic-fail correction (normalize post-accumulation → whole-result Err; no partial pages; consistent with Option-A fail-fast). |
 | 1.3 | s-claroty-vulns-001-pass-4-fix | 2026-08-25 | product-owner | F-VULNS-ADV-001: §Invariants REQUIRED-semantics misattribution corrected (REQUIRED=push-down eligibility, not presence guarantee). EC-007/§Error-Cases E-SPEC-018: corrected demote-to-null→hard-error on present-unparseable datetime to match canonical engine (human-approved Option A). |
 | 1.2 | s-claroty-vulns-001-pass-3-fix | 2026-08-25 | product-owner | F-VULNS-ANCHOR-001: §Architecture Anchors spec_driven_adapter.rs crate corrected prism-spec-engine→prism-bin (ground-truth: pipeline_result_to_record_batch lives in prism-bin). |
 | 1.1 | s-claroty-vulns-001-pass-2-fix | 2026-08-25 | product-owner | F-VULNS-P1-004: §4 SAP-2 DTU-parity mandate annotated with D-2200 deferral + S-ADR058-DTU-PARITY-MIGRATION-001 anchor (TD-VSDD-097 dim-3). DTU Status traceability row updated to record deferral. |
