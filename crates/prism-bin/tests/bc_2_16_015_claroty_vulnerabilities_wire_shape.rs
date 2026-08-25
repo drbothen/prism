@@ -55,7 +55,7 @@ use prism_query::{
     table_registry::TableRegistry,
 };
 use prism_sensors::{
-    BearerStaticSensorAuth, SensorAdapter, adapter::QueryParams,
+    BearerStaticSensorAuth, SensorAdapter, SensorError, adapter::QueryParams,
     adapter::SensorSpec as SensorAdapterSpec, auth::SensorAuth,
 };
 use prism_spec_engine::{
@@ -884,4 +884,191 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_id_column() {
             );
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// F-VULNS-ADV-003: Production MCP serialization config guard
+// ---------------------------------------------------------------------------
+
+/// Source-scan guard: the production MCP serialization path in
+/// `crates/prism-mcp/src/server.rs` MUST use `with_explicit_nulls(true)` when
+/// serializing RecordBatches to JSON for tool call responses.
+///
+/// ## Why source-scan, not call-level
+///
+/// The production serialization is embedded inside `PrismServer::call_tool` —
+/// a method that requires a wired `QueryEngine`, RocksDB, and MCP server
+/// infrastructure not available in unit tests.  A call-level test would need
+/// the full binary (`prism start`).
+///
+/// A source-scan guard provides a lighter-weight but equally effective ratchet:
+/// it fails immediately if `with_explicit_nulls(true)` is changed to `false`,
+/// removed, or the writer is replaced with one that omits the call — catching
+/// the C3/H20 defect class (BC-2.11.001 EC-11-079) before CI runs.
+///
+/// This test strengthens `test_BC_2_16_015_claroty_vulnerabilities_wire_shape_serialized_json_explicit_nulls`,
+/// which builds its own `WriterBuilder::with_explicit_nulls(true)` and would NOT
+/// detect a regression in the PRODUCTION server.rs configuration (the test
+/// re-implements the builder locally instead of calling the server path).
+///
+/// ## What this guards
+///
+/// - `arrow_json::writer::WriterBuilder::new().with_explicit_nulls(true)` must
+///   appear in the production `server.rs` serialization block.
+/// - If this setting is changed to `false` (or removed), the `finding_info_title`
+///   key would be **absent** from JSON rows where `name` was missing in the API
+///   response — the C3/H20 null-not-absent defect class.
+///
+/// BC-2.16.015 AC-004; BC-2.11.001 EC-11-079 (null-not-absent);
+/// CLAUDE.md §Wire-shape assertion discipline.
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-ADV-003 (pass-4 fix-burst).
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_production_mcp_serializer_uses_explicit_nulls_true() {
+    // Read the production server.rs source.
+    // Path: crates/prism-mcp/src/server.rs relative to the prism-bin CARGO_MANIFEST_DIR.
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .expect("CARGO_MANIFEST_DIR must be set by cargo during test execution");
+    let server_rs_path = std::path::Path::new(&manifest_dir)
+        .join("..")
+        .join("prism-mcp")
+        .join("src")
+        .join("server.rs");
+
+    let server_src = std::fs::read_to_string(&server_rs_path).unwrap_or_else(|e| {
+        panic!(
+            "F-VULNS-ADV-003: Could not read prism-mcp/src/server.rs at {:?}: {}. \
+             Ensure the test runs from the prism-bin crate directory.",
+            server_rs_path, e
+        )
+    });
+
+    // Find the explicit_nulls configuration site.
+    // Production form (BC-2.11.001 EC-11-079 CRIT-1 fix):
+    //   arrow_json::writer::WriterBuilder::new()
+    //       .with_explicit_nulls(true)
+    //       .build::<_, arrow_json::writer::JsonArray>(&mut buf)
+    assert!(
+        server_src.contains("with_explicit_nulls(true)"),
+        "F-VULNS-ADV-003 LOAD-BEARING: prism-mcp/src/server.rs MUST contain \
+         'with_explicit_nulls(true)' in the production RecordBatch → JSON serialization \
+         path (BC-2.11.001 EC-11-079 CRIT-1 fix). \
+         Changing this to 'false' or removing it causes NULL-valued Arrow cells to be \
+         ABSENT from JSON row objects — the C3/H20 null-not-absent defect class. \
+         Source path checked: {server_rs_path:?}"
+    );
+
+    // Verify the setting is NOT `with_explicit_nulls(false)`.
+    // This catches a regression where someone adds a disabled form alongside the enabled one.
+    // NOTE: a comment containing `with_explicit_nulls(false)` as documentation text would
+    // also match this assertion — acceptable false-positive risk given this codebase's
+    // conventions (doc comments use backtick form, not the raw API call form).
+    let false_count = server_src.matches("with_explicit_nulls(false)").count();
+    assert_eq!(
+        false_count, 0,
+        "F-VULNS-ADV-003: prism-mcp/src/server.rs MUST NOT contain \
+         'with_explicit_nulls(false)' — that would disable null-not-absent protection. \
+         Found {} occurrence(s). BC-2.11.001 EC-11-079.",
+        false_count
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-VULNS-ADV-002: EC-008 — non-200 HTTP → E-SENSOR-001 structured error
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.015 §Error Cases EC-008: when the Claroty xDome API returns a non-200
+/// HTTP status for POST /api/v1/vulnerabilities/, `SpecDrivenSensorAdapter::fetch()`
+/// MUST surface `SensorError::HttpError { status }` with `error_code() == "E-SENSOR-001"`.
+///
+/// Pattern mirrors the sibling audit_logs EC-008 assertion in
+/// `bc_2_01_013_claroty_audit_logs_layer2.rs` (RG-005).
+///
+/// Assertions:
+///   1. `fetch()` returns `Err` (not Ok)
+///   2. The error is `SensorError::HttpError { status: 500 }`
+///   3. `err.error_code()` == "E-SENSOR-001"
+///
+/// No HTTP requests are retried — a non-200 response causes immediate Err.
+/// No pagination halts — the error surfaces before any pagination logic.
+///
+/// SID-1 compliance: no `#[ignore]`; wiremock mock, no live Claroty DTU needed.
+///
+/// BC-2.16.015 EC-008; prism-sensors::SensorError::HttpError (E-SENSOR-001).
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-ADV-002 EC-008 (pass-4 fix-burst).
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_ec008_non_200_e_sensor_001() {
+    let mock_server = MockServer::start().await;
+
+    // Return HTTP 500 Internal Server Error for the vulnerabilities POST.
+    // The response body is a JSON error envelope (representative of xDome error responses).
+    Mock::given(method("POST"))
+        .and(path("/api/v1/vulnerabilities/"))
+        .respond_with(ResponseTemplate::new(500).set_body_string(
+            r#"{"error": "Internal Server Error", "message": "upstream timeout"}"#,
+        ))
+        .mount(&mock_server)
+        .await;
+
+    let adapter = make_claroty_adapter(&mock_server.uri());
+
+    let adapter_spec = SensorAdapterSpec {
+        source_table: "claroty_claroty_vulnerabilities".to_string(),
+        org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
+        #[allow(deprecated)]
+        client_id: "claroty-vulns-ec008-test".to_string(),
+        sensor_config: serde_json::json!({}),
+    };
+
+    let params = QueryParams {
+        cursor: None,
+        limit: 10,
+        start_time: None,
+        end_time: None,
+        filters: Default::default(),
+    };
+
+    let sensor_auth = BearerStaticSensorAuth::new("mock-bearer-token-ec008");
+
+    let result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+
+    // LOAD-BEARING EC-008 assertion: non-200 must surface as E-SENSOR-001.
+    assert!(
+        result.is_err(),
+        "EC-008 LOAD-BEARING: fetch() must return Err when xDome returns HTTP 500. \
+         Got Ok. BC-2.16.015 EC-008."
+    );
+
+    let err = result.unwrap_err();
+
+    match &err {
+        SensorError::HttpError { status, .. } => {
+            assert_eq!(
+                *status, 500u16,
+                "EC-008: SensorError::HttpError status must be 500. \
+                 Got: {}. BC-2.16.015 EC-008.",
+                status
+            );
+        }
+        other => {
+            panic!(
+                "EC-008 LOAD-BEARING: fetch() must return SensorError::HttpError{{500}} \
+                 for a 500 xDome /api/v1/vulnerabilities/ response. Got: {other:?}. \
+                 BC-2.16.015 EC-008."
+            );
+        }
+    }
+
+    assert_eq!(
+        err.error_code(),
+        "E-SENSOR-001",
+        "EC-008: error code must be E-SENSOR-001. Got: {:?}. BC-2.16.015 EC-008.",
+        err.error_code()
+    );
+
+    let rendered = err.to_string();
+    assert!(
+        rendered.contains("500"),
+        "EC-008: rendered error MUST contain the HTTP status '500'. \
+         Got: {rendered}. BC-2.16.015 EC-008."
+    );
 }

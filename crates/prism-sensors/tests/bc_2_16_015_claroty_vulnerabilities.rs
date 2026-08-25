@@ -43,7 +43,7 @@ use prism_spec_engine::{
     column_mapping::{ocsf_projected_column_names, ColumnMapper},
     pipeline::{FetchContext, PipelineExecutor},
     spec_parser::SpecLoader,
-    NullAuthProvider,
+    NullAuthProvider, SpecEngineError,
 };
 use serde_json::json;
 use wiremock::{
@@ -463,6 +463,24 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_live_raw_extensions_contains_t
 /// for index-based push-down filtering. It does NOT cause the mapper to error or emit
 /// a null sentinel when the field is absent. The mapper skips absent fields silently.
 ///
+/// ## Traceability clarification (F-VULNS-ADV-003 OBS / pass-4)
+///
+/// This test gates the **map_record-layer contribution** only: when `name` is absent
+/// from the raw API JSON object, `ColumnMapper::map_record` does NOT insert the
+/// `finding_info.title` key into `mapped_fields`.  In other words, the key is absent
+/// at the intermediate DOT-form layer (not yet null).
+///
+/// The downstream **end-to-end wire null-row** assertion — i.e., `finding_info_title`
+/// appears as `null` (not absent) in the serialized MCP JSON when the Arrow column
+/// exists in the schema but carries a null cell — is gated by
+/// `test_BC_2_16_015_claroty_vulnerabilities_wire_shape_serialized_json_explicit_nulls`
+/// (row1) in `crates/prism-bin/tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs`.
+///
+/// The test name suffix `_produces_null_row` refers to the observable outcome from the
+/// caller's perspective (a row with a null finding_info_title cell at the wire level),
+/// not to the intermediate map_record assertion made here.  Do NOT rename this test —
+/// the story RG table references `RG-006` by this name.
+///
 /// RED: panics at the `.expect` because the TOML block has not been added yet.
 #[test]
 fn test_BC_2_16_015_claroty_vulnerabilities_required_name_absent_produces_null_row() {
@@ -801,6 +819,117 @@ fn test_BC_2_16_015_claroty_vulnerabilities_ec006_published_date_null_row_materi
          raw_extensions: {:?}",
         row.raw_extensions
     );
+}
+
+// ── F-VULNS-ADV-002: EC-016-015-007 — non-ISO published_date → E-SPEC-018 ─────
+/// BC-2.16.015 §EC-016-015-007: When `published_date` in the API response carries a
+/// non-null, non-ISO-8601 string (e.g. `"not-a-timestamp"` or `"2024/13/99"`),
+/// `normalize_timestamp_fields` in prism-spec-engine/src/pipeline.rs must fire
+/// `SpecEngineError::TimestampParseFailure` (E-SPEC-018).
+///
+/// `published_date` is a Tier-2 `column_type = "datetime"` column with no declared
+/// `timestamp_formats` — resolving to the implicit `["iso8601"]` default via
+/// `effective_formats` (ADR-028 §D8-B).  `normalize_timestamp_fields` is
+/// tier-agnostic (filters by `column_type == Datetime`) and processes `published_date`
+/// in the raw API record before `ColumnMapper::map_record`.
+///
+/// This test covers the previously-uncovered E-SPEC-018 arm for the
+/// `claroty_vulnerabilities` Tier-2 datetime column path.  The arm is reachable
+/// from the full `PipelineExecutor::execute` path because:
+///
+///   1. The mock returns `{"published_date": "not-a-timestamp", "name": "CVE-2024-1234", ...}`
+///   2. `normalize_timestamp_fields` sees `published_date = "not-a-timestamp"` as a
+///      non-null Datetime field and tries to parse with `["iso8601"]` → all fail.
+///   3. The function returns `Err(SpecEngineError::TimestampParseFailure)`, which
+///      propagates through `PipelineExecutor::execute` via `?`.
+///
+/// The error carries `column_name = "published_date"` and `sensor_id = "claroty"`.
+///
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-ADV-002 (pass-4 fix-burst).
+/// BC-2.16.015 §EC-016-015-007; SpecEngineError::TimestampParseFailure (E-SPEC-018).
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_non_iso_published_date_e_spec_018() {
+    let mock_server = MockServer::start().await;
+
+    // Return a vulnerability record with a non-ISO published_date string.
+    // "not-a-timestamp" fails all ISO-8601 parse attempts in normalize_timestamp_fields.
+    // The record also carries a valid `name` field so that map_record itself succeeds;
+    // the E-SPEC-018 failure is in the timestamp normalization pass, not the mapping pass.
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "vulnerabilities": [{
+                "name": "CVE-2024-1234",
+                "description": "A mock vulnerability with non-ISO published_date",
+                "vulnerability_type": "CVE",
+                "published_date": "not-a-timestamp"
+            }],
+            "total": 1_u32,
+            "page": 1_u32
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let mut test_spec = spec.clone();
+    test_spec.base_url = mock_server.uri();
+
+    let table = test_spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "claroty_vulnerabilities")
+        .expect("claroty_vulnerabilities table must exist");
+
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("http client must build");
+    let auth = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&test_spec, table, &context, &http_client, &auth).await;
+
+    // LOAD-BEARING EC-007 assertion: normalize_timestamp_fields must fire E-SPEC-018
+    // when published_date cannot be parsed as ISO-8601.
+    // The pipeline propagates this Err via ? — no row is materialized.
+    assert!(
+        result.is_err(),
+        "EC-007 LOAD-BEARING: PipelineExecutor::execute must return Err when \
+         published_date is non-ISO ('not-a-timestamp'). \
+         normalize_timestamp_fields (prism-spec-engine/src/pipeline.rs) is \
+         tier-agnostic and processes claroty_vulnerabilities Tier-2 Datetime columns. \
+         Got Ok with {} records. BC-2.16.015 §EC-016-015-007.",
+        result.as_ref().map(|r| r.records.len()).unwrap_or(0)
+    );
+
+    let err = result.unwrap_err();
+    match &err {
+        SpecEngineError::TimestampParseFailure {
+            column_name,
+            sensor_id,
+            ..
+        } => {
+            assert_eq!(
+                column_name.as_str(),
+                "published_date",
+                "EC-007: TimestampParseFailure.column_name must be 'published_date'; \
+                 got: {column_name:?}. BC-2.16.015 §EC-016-015-007."
+            );
+            assert_eq!(
+                sensor_id.as_str(),
+                "claroty",
+                "EC-007: TimestampParseFailure.sensor_id must be 'claroty'; \
+                 got: {sensor_id:?}. BC-2.16.015 §EC-016-015-007."
+            );
+        }
+        other => {
+            panic!(
+                "EC-007 LOAD-BEARING: PipelineExecutor::execute must return \
+                 SpecEngineError::TimestampParseFailure (E-SPEC-018) when published_date \
+                 is non-ISO. Got: {other:?}. BC-2.16.015 §EC-016-015-007."
+            );
+        }
+    }
 }
 
 // ── F-VULNS-EC004-001: EC-016-015-004 ────────────────────────────────────────
