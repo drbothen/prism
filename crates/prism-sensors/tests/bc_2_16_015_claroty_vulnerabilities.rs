@@ -447,8 +447,13 @@ fn test_BC_2_16_015_claroty_vulnerabilities_source_path_id_null_when_absent() {
     );
 
     // Tier-1 columns that ARE present must still map correctly.
+    // map_record stores OCSF paths in DOT form (intermediate); arrow-name flattening
+    // (finding_info_title) is downstream at pipeline_result_to_record_batch. Assert dot-form
+    // here (cf. bc_2_16_003_test).
     assert!(
-        row.mapped_fields.contains_key("finding_info_title"),
-        "'finding_info_title' must be present when 'name' exists in the record"
+        row.mapped_fields.contains_key("finding_info.title"),
+        "'name' (ocsf_field=finding_info.title) present in the map_record intermediate \
+         when 'name' exists in the record; mapped_fields: {:?}",
+        row.mapped_fields
     );
 }
