@@ -1,15 +1,23 @@
 //! Red Gate test suite for BC-2.16.015 — Claroty xDome Vulnerability Findings Table.
 //!
 //! Covers S-CLAROTY-VULNS-001 acceptance criteria AC-001..AC-008.
-//! BC-5.38.001 density check: 8 RGTs / 8 ACs = 1.0 (≥ 0.5 threshold).
+//! BC-5.38.001 density check: 10 RGTs / 8 ACs = 1.25 (≥ 0.5 threshold).
+//! Story v1.2 enumerates 10 RGTs: RG-001, RG-002, RG-003a [prism-bin e2e],
+//! RG-003b [prism-sensors proxy], RG-004, RG-004b [prism-bin mock],
+//! RG-005, RG-006, RG-007, RG-008.
 //!
 //! ## Red Gate invariant
 //!
-//! ALL non-`#[ignore]` tests (RG-001..003, RG-006..008) MUST FAIL before implementation
-//! lands:
+//! Non-`#[ignore]` tests in this file (covering RG-001, RG-002, RG-003b [proxy],
+//! RG-006, RG-007, RG-008) MUST FAIL before implementation lands:
 //!   - Each test finds the `claroty_vulnerabilities` table via `.find()` and panics at
 //!     `.expect("claroty_vulnerabilities table must exist")` because the `[[tables]]`
 //!     block has not yet been added to `claroty.sensor.toml`.
+//! Also in this file (pass-2 additions, non-RGT extra coverage): EC-005 (cve_ids
+//! empty-array), EC-006 (published_date null), F-VULNS-P1-005 (null-count non-empty
+//! page).
+//! Also in this file (pass-3 addition, non-RGT extra coverage): EC-004
+//! (advisory-title verbatim).
 //!
 //! ## SAP-3 compliance (RG-003)
 //!
@@ -792,5 +800,51 @@ fn test_BC_2_16_015_claroty_vulnerabilities_ec006_published_date_null_row_materi
         "EC-016-015-006: published_date=null must store Value::Null in raw_extensions. \
          raw_extensions: {:?}",
         row.raw_extensions
+    );
+}
+
+// ── F-VULNS-EC004-001: EC-016-015-004 ────────────────────────────────────────
+/// BC-2.16.015 §EC-016-015-004: A vulnerability row whose `name` is an advisory-title
+/// format (e.g., "ICSMA-21-161-01 (ZOLL Defibrillator Dashboard)") — NOT a CVE-YYYY-NNNNN
+/// format — is preserved VERBATIM in the `finding_info.title` mapping.  No normalization
+/// is applied; the mapped value must equal the input string exactly.
+///
+/// `ColumnMapper::map_record` stores Tier-1 fields in DOT form (intermediate
+/// representation): `finding_info.title` is the intermediate key stored in
+/// `mapped_fields` (not the Arrow name `finding_info_title`).  Arrow-name flattening
+/// (`finding_info.title` → `finding_info_title`) happens downstream in
+/// `pipeline_result_to_record_batch`.
+///
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-EC004-001 (pass-3 fix-burst).
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_ec004_advisory_title_preserved_verbatim() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "claroty_vulnerabilities")
+        .expect("claroty_vulnerabilities table must exist");
+
+    // Advisory-title format: NOT CVE-YYYY-NNNNN.  Per BC-2.16.015 §EC-016-015-004
+    // this value must be preserved verbatim — no normalisation of any kind.
+    let advisory_title = "ICSMA-21-161-01 (ZOLL Defibrillator Dashboard)";
+    let record = json!({ "name": advisory_title });
+
+    let row = ColumnMapper::map_record(&record, table).expect(
+        "EC-016-015-004: map_record must succeed for an advisory-title format name. \
+         BC-2.16.015 §EC-016-015-004.",
+    );
+
+    // map_record stores Tier-1 fields in DOT form (intermediate); assert the dot-form
+    // key `finding_info.title` (arrow-name flattening is downstream).
+    assert_eq!(
+        row.mapped_fields.get("finding_info.title"),
+        Some(&serde_json::Value::String(advisory_title.to_string())),
+        "EC-016-015-004: advisory-title '{}' MUST be preserved VERBATIM as \
+         finding_info.title in mapped_fields — no normalisation applied. \
+         Got: {:?}. BC-2.16.015 §EC-016-015-004.",
+        advisory_title,
+        row.mapped_fields.get("finding_info.title")
     );
 }

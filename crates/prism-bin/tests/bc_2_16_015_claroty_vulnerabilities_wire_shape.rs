@@ -748,12 +748,138 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column()
                  available_columns (it belongs inside raw_extensions). Got: {:?}",
                 avail
             );
+            // F-VULNS-AC003-001: synthesized pseudo-columns must also be listed.
+            // class_uid is the OCSF event-class synthesized column (AC-003 + E-QUERY-001).
+            assert!(
+                avail.contains(&"class_uid".to_string()),
+                "F-VULNS-AC003-001: available_columns must include 'class_uid' \
+                 (OCSF synthesized pseudo-column). Got: {:?}. \
+                 BC-2.16.015 AC-003; BC Error Case E-QUERY-001.",
+                avail
+            );
+            // _sensor is the per-row sensor-metadata synthesized pseudo-column.
+            assert!(
+                avail.contains(&"_sensor".to_string()),
+                "F-VULNS-AC003-001: available_columns must include '_sensor' \
+                 (synthesized sensor-metadata pseudo-column). Got: {:?}. \
+                 BC-2.16.015 AC-003; BC Error Case E-QUERY-001.",
+                avail
+            );
         }
         other => {
             panic!(
                 "SAP-3 LOAD-BEARING: QueryEngine::execute must return \
                  PrismError::ColumnNotFound (E-QUERY-038) when a Tier-2 column is queried \
                  directly. Got: {:?}. BC-2.16.015 AC-003; SAP-3.",
+                other
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-VULNS-EC009-001: EC-009 SELECT id → E-QUERY-038 (id-specific reachability)
+// ---------------------------------------------------------------------------
+
+/// SAP-3 reachability test for EC-009: querying the `id` column directly via the
+/// REAL `QueryEngine::execute()` surface raises `PrismError::ColumnNotFound`
+/// (E-QUERY-038), with `id` NOT in `available_columns`.
+///
+/// `id` is a Tier-2 column declared with `source_path = "$.id"` (no `ocsf_field`).
+/// It lives inside `raw_extensions` and is NOT a queryable Arrow column.
+/// EC-009 asserts that `SELECT id FROM claroty_claroty_vulnerabilities` fires
+/// E-QUERY-038 at plan-time, exactly as any other Tier-2 column would.
+///
+/// This test closes the id-specific SAP-3 reachability gap identified in
+/// F-VULNS-EC009-001 (pass-3 adversary finding): the existing SAP-3 test only
+/// exercised `vulnerability_type`; `id` has a different semantic shape (source_path
+/// extraction vs. simple field mapping) and its E-QUERY-038 arm was not end-to-end
+/// covered from the public query surface.
+///
+/// No HTTP requests are issued — E-QUERY-038 fires at plan-time before any fan-out.
+///
+/// BC-2.16.015 EC-009; SAP-3; ADR-058 §I7.
+/// Story: S-CLAROTY-VULNS-001 F-VULNS-EC009-001 (pass-3 fix-burst).
+#[tokio::test]
+async fn test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_id_column() {
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/claroty.sensor.toml"),
+    )
+    .expect(
+        "EC-009 test: claroty.sensor.toml must be readable from \
+         CARGO_MANIFEST_DIR/../prism-sensors/specs/",
+    );
+    let spec =
+        SpecLoader::parse(&spec_content).expect("EC-009 test: claroty.sensor.toml must parse");
+
+    let registry = Arc::new(TableRegistry::new());
+    registry
+        .register_sensor(&spec)
+        .expect("EC-009 test: register_sensor must not fail for production claroty.sensor.toml");
+
+    let engine = QueryEngine::new_with_cache_config(
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(NoopCredentialStore),
+        Arc::new(OcsfNormalizer::new()),
+        Arc::new(ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        CacheConfig::default(),
+    )
+    .with_table_registry(registry);
+
+    // `id` is a Tier-2 column (source_path = "$.id", no ocsf_field).
+    // It lives inside raw_extensions and MUST NOT be queryable as a top-level Arrow column.
+    // E-QUERY-038 (PrismError::ColumnNotFound) must fire at plan-time.
+    let result = engine
+        .execute(
+            "SELECT id FROM claroty_claroty_vulnerabilities LIMIT 1",
+            QueryOptions::default(),
+        )
+        .await;
+
+    // LOAD-BEARING EC-009 assertion: must fail at plan-time with E-QUERY-038.
+    assert!(
+        result.is_err(),
+        "F-VULNS-EC009-001 LOAD-BEARING: QueryEngine::execute must return Err when \
+         Tier-2 column 'id' is queried directly (E-QUERY-038). \
+         Got Ok. BC-2.16.015 EC-009; SAP-3.",
+    );
+
+    let err = result.unwrap_err();
+
+    match &err {
+        PrismError::ColumnNotFound(details) => {
+            assert_eq!(
+                details.column, "id",
+                "F-VULNS-EC009-001: ColumnNotFound.column must be 'id'. \
+                 Got: {:?}. BC-2.16.015 EC-009.",
+                details.column
+            );
+            let avail = &details.available_columns;
+            // `id` lives inside raw_extensions — MUST NOT appear as a queryable column.
+            assert!(
+                !avail.contains(&"id".to_string()),
+                "F-VULNS-EC009-001: 'id' MUST NOT appear in available_columns — \
+                 it is Tier-2 and lives inside raw_extensions. Got: {:?}. \
+                 BC-2.16.015 EC-009.",
+                avail
+            );
+            // raw_extensions must be listed as the container that holds `id`.
+            assert!(
+                avail.contains(&"raw_extensions".to_string()),
+                "F-VULNS-EC009-001: available_columns must include 'raw_extensions' \
+                 (the Tier-2 container that holds 'id' and other Tier-2 fields). \
+                 Got: {:?}.",
+                avail
+            );
+        }
+        other => {
+            panic!(
+                "F-VULNS-EC009-001 LOAD-BEARING: QueryEngine::execute must return \
+                 PrismError::ColumnNotFound (E-QUERY-038) when 'id' (Tier-2, \
+                 source_path='$.id') is queried directly. \
+                 Got: {:?}. BC-2.16.015 EC-009; SAP-3.",
                 other
             );
         }
