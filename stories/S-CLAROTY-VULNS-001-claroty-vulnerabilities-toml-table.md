@@ -10,7 +10,7 @@ status: ready
 # BC status: BC-2.16.015 v1.4 draft (promotes to active on PR merge per POL-14). Pre-TDD remove-uncertainty CLEAN (D-1110, 2nd pass, 2026-08-24); status draft→ready.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.5"
+version: "1.6"
 modified: "2026-08-25"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -43,9 +43,9 @@ crates_touched: [prism-sensors, prism-bin]
 # crates_touched (F-VULNS-011 corrected @62f1c6379):
 #   prism-sensors: claroty.sensor.toml (new [[tables]] block) + Cargo.toml (test dep) +
 #     tests/bc_2_16_015_claroty_vulnerabilities.rs
-#     (RG-003b ocsf_projected_column_names proxy; RG-005 live; RG-006/007/008 unit tests)
+#     (RG-001/RG-002 unit; RG-003b ocsf_projected_column_names proxy; RG-004 live #[ignore]; RG-005 live #[ignore]; RG-006/007/008 unit tests)
 #   prism-bin: tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs
-#     (RG-003a QueryEngine::execute e2e gate; RG-004 live Variant-1; RG-004b mock wire-shape) +
+#     (RG-003a QueryEngine::execute e2e gate; RG-004b mock wire-shape) +
 #     Cargo.toml + Cargo.lock
 #   NOTE: prism-spec-engine has ZERO modified files in the feature diff; RG-001/RG-002
 #     are in prism-sensors/tests and call SpecLoader::parse via the public prism-sensors API.
@@ -458,8 +458,8 @@ crate imports in production code.
 | Action | File path | Notes |
 |--------|-----------|-------|
 | MODIFY | `crates/prism-sensors/specs/claroty.sensor.toml` | Add `[[tables]]` block for `claroty_vulnerabilities` after the existing `device_alert_relations` block |
-| CREATE | `crates/prism-sensors/tests/bc_2_16_015_claroty_vulnerabilities.rs` | RG-003b (proxy: `ocsf_projected_column_names` check), RG-005, RG-006, RG-007, RG-008; `#[ignore]` live tests include `LIVE-MONROE-001` comment |
-| CREATE | `crates/prism-bin/tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs` | RG-003a (PRIMARY plan-time e2e: `QueryEngine::execute` → E-QUERY-038), RG-004 (`#[ignore]` live Variant-1 wire-shape), RG-004b (mock wire-shape asserting class_uid=2002) |
+| CREATE | `crates/prism-sensors/tests/bc_2_16_015_claroty_vulnerabilities.rs` | RG-001, RG-002 (unit), RG-003b (proxy: `ocsf_projected_column_names` check), RG-004 (`#[ignore]` live Variant-1 wire-shape), RG-005 (`#[ignore]` live), RG-006, RG-007, RG-008; EC-004/005/006/007 unit tests; `#[ignore]` live tests include `LIVE-MONROE-001` comment |
+| CREATE | `crates/prism-bin/tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs` | RG-003a (PRIMARY plan-time e2e: `QueryEngine::execute` → E-QUERY-038), RG-004b (mock wire-shape asserting class_uid=2002); serialized-JSON wire test; id e2e test; EC-005/EC-008 wire tests |
 
 Files that MUST NOT be modified:
 - `crates/prism-ocsf/src/class_selector.rs` — `vulnerability_finding` arm already exists; no changes
@@ -518,9 +518,10 @@ new dependency on `prism-sensors` (direction is prism-sensors → prism-spec-eng
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.6 | 2026-08-25 | story-writer | F-L3-003: §File Structure + crates_touched RG-004 crate attribution corrected (RG-004 live is in prism-sensors, not prism-bin; prism-bin has RG-004b). F-L3-004: v1.3-row anachronistic BC-input parenthetical v1.4→v1.2. |
 | 1.5 | 2026-08-25 | story-writer | F-VULNS-P5-001 (story-side): query examples corrected to flat registered form claroty_vulnerabilities (table_name now bare 'vulnerabilities'). F-VULNS-P5-002: EC-007/EC-008 pages-remain-valid→atomic-fail. BC-2.16.015 pin v1.3→v1.4. |
 | 1.4 | 2026-08-25 | story-writer | F-VULNS-ADV-001: AC-006/EC-001 REQUIRED-semantics misattribution corrected (ColumnOptions::Required is push-down eligibility in pushdown.rs, not presence enforcement; absent name → finding_info_title null via default nullable-column behavior). EC-007: demote-to-null→hard-error on present-unparseable published_date (human-approved Option A). BC-2.16.015 pin v1.2→v1.3. input-hash refreshed a325727→6bca9de. |
-| 1.3 | 2026-08-25 | story-writer | F-VULNS-ANCHOR-001 (story-side): §Architecture Mapping `response_path extraction` row crate corrected `prism-spec-engine` → `prism-bin`. F-VULNS-VER-001: BC-2.16.015 version pins refreshed v1.0→v1.2 at all 6 story-side locations (frontmatter BC comment, frontmatter behavioral_contracts comment, §Authority ×2, §Behavioral Contracts table, §Token Budget, §References). input-hash updated c3934ca→a325727 (BC-2.16.015 v1.3 now in inputs). |
+| 1.3 | 2026-08-25 | story-writer | F-VULNS-ANCHOR-001 (story-side): §Architecture Mapping `response_path extraction` row crate corrected `prism-spec-engine` → `prism-bin`. F-VULNS-VER-001: BC-2.16.015 version pins refreshed v1.0→v1.2 at all 6 story-side locations (frontmatter BC comment, frontmatter behavioral_contracts comment, §Authority ×2, §Behavioral Contracts table, §Token Budget, §References). input-hash updated c3934ca→a325727 (BC-2.16.015 v1.2 now in inputs). |
 | 1.2 | 2026-08-25 | story-writer + state-manager | F-VULNS-P1-003: RG-003 row reconciled to name the real plan-time e2e test (prism-bin, RG-003a: test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column) + proxy defense-in-depth (prism-sensors, RG-003b); RG-004b added for non-live mock wire-shape coverage; RG-list↔test traceability restored (SAC-1); density updated to 10/8 = 1.25. F-VULNS-011 (state-manager): crates_touched synced [prism-sensors, prism-spec-engine]→[prism-sensors, prism-bin] — feature diff @62f1c6379 has zero prism-spec-engine file modifications; RG-001/RG-002 call SpecLoader::parse via prism-sensors public API; prism-bin carries e2e + wire-shape tests (RG-003a, RG-004b). |
 | 1.1 | 2026-08-24 | state-manager | Pre-TDD remove-uncertainty gate CLEAN (D-1110, 2nd pass); status draft→ready; TDD delivery opened. |
 | 1.0 | 2026-08-24 | story-writer | Initial authoring — F3 story materialization for S-CLAROTY-VULNS-001 (Wave A G1). BC-2.16.015 v1.0 traceability; 19-column Tier-1/Tier-2 spec; 8 ACs; 8 RGTs; density 1.0; SAC-1 compliant; SAC-2 N/A (no ADR authored by this story); SAP-2 deferred per D-2200; live-test approach per xdome-endpoint-expansion-plan.md §Per-Story Pipeline. |

@@ -1,18 +1,52 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.007"
+version: "8.008"
 status: current
-timestamp: 2026-08-24T23:55:00Z
+timestamp: 2026-08-25T21:30:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2297 (2026-08-24): SESSION WRAP — xDome expansion story-creation COMPLETE (11 stories G1–G6; D-2291..D-2296 (exhaustive)). factory-artifacts @0e010dde9. NEXT: Wave A implementation, S-CLAROTY-VULNS-001 first. [D-2290 SUPERSEDED by D-2297]**
+> **D-2304 (2026-08-25): SESSION WRAP — S-CLAROTY-VULNS-001 Wave A G1 CODE-COMPLETE + GREEN; LOCAL cascade (5 passes + 4-lens batch) all findings fixed; NEXT = 3-CLEAN confirmation on frozen feature @4e525126b. [D-2297 SUPERSEDED by D-2304]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2297 (2026-08-24 — SESSION WRAP; xDome story-creation COMPLETE; next = Wave A implementation) [SUPERSEDES D-2290]
+## §RESUME SNAPSHOT — D-2304 (2026-08-25 — WRAP; S-CLAROTY-VULNS-001 Wave A G1; pre-3-CLEAN-confirmation)
+
+### RESUME IN ONE BREATH
+Prism Phase-3, v1 = live Claroty-xDome. Wave A G1 story **S-CLAROTY-VULNS-001** (`claroty_vulnerabilities` TOML table) is CODE-COMPLETE + GREEN. `feature/S-CLAROTY-VULNS-001` @`4e525126b` **PUSHED origin** (`just check` GREEN: prism-sensors 203 / prism-bin 234 / prism-spec-engine 798). LOCAL adversary cascade = 5 serial passes + a 4-lens diverse-lens batch; ALL findings fixed. Specs: BC-2.16.015 v1.4 / story v1.6 / BC-INDEX v9.64 / STORY-INDEX v2.899 / STATE v8.837. BC-5.39.001 LOCAL streak **0/3**.
+
+### FIRST ACTION NEXT SESSION
+**Run `/compact-state` FIRST.** STATE.md ~299 lines caused repeated record-burst API-timeouts/deaths this session; compact (extract Decisions-Log + Phase-Steps history to cycle files, slim to <200 lines) BEFORE resuming the cascade. Then use SMALL targeted Edits for all `.factory/` writes — NEVER full-file/large-span STATE.md Writes (that is what kept dying).
+
+### RESUME NEXT-ACTION
+Run the **3-CONSECUTIVE-CLEAN confirmation** on FROZEN feature HEAD @`4e525126b` (crates) + specs BC-2.16.015 v1.4 / story v1.6. Dispatch fresh-context adversary passes; each reports CLEAN(strict)+CLEAN(PR-merge); 3 consecutive CLEAN(strict) on the UNCHANGED HEAD → LOCAL CONVERGED. **CRITICAL LESSON:** do NOT run `.factory/`-reading adversary passes concurrent with any in-flight `.factory/` state-manager write (that produced the F-L3-001/002 race false-positives this session — verify `.factory/` committed + idle first). Any real finding → route (implementer TOML / test-writer tests / product-owner BC / story-writer story) → re-freeze HEAD → streak resets 0/3.
+
+### AFTER 3-CLEAN (per CLAUDE.md per-story flow)
+story-level HOLDOUT gate **HS-024** (`.factory/holdout-scenarios/S-CLAROTY-VULNS-001-HS-001/002/003`; holdout-evaluator, observed-output-only, wire-level, against built binary; BLOCKING mean≥0.85 + each critical≥0.60) → demo-recorder per-AC → pr-manager 9-step PR to `develop` (PR-LEVEL 3-CLEAN + security-reviewer) → squash-merge → POL-14 post-merge burst (BC-2.16.015 draft→active).
+
+### SETTLED — DO NOT RE-LITIGATE
+(1) E-SPEC-018 present-unparseable datetime **HARD-ERRORS** (human Option A); (2) fetch is **ATOMIC** all-or-nothing, no partial pages (Option A); (3) `ColumnOptions::Required` = push-down eligibility, NOT ingest presence enforcement; (4) SAP-2 DTU-parity DEFERRED D-2200; (5) `published_date` with no `timestamp_formats` VALID (ADR-028 §D8-B); (6) TOML `table_name` = bare `vulnerabilities` → registers as `claroty_vulnerabilities` (sibling convention); (7) engine sensor-agnostic — ZERO prism-spec-engine/prism-ocsf production change is INTENTIONAL.
+
+### HEADS
+- `develop`: `3f1e66179` (unchanged; local==origin)
+- `feature/S-CLAROTY-VULNS-001`: `4e525126b` (PUSHED origin — backed up; `just check` GREEN)
+- `factory-artifacts`: this D-2304 commit
+- Worktrees: `.worktrees/S-CLAROTY-VULNS-001` (active feature); PARKED `.worktrees/S-3.09` @`43c41389d`, `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty, do-NOT-touch); `.worktrees/S-ADR058-OCSF-ROUTING-001` REMOVABLE post-merge (teardown NOT authorized this session).
+
+### CASCADE HISTORY
+pass-1 (2C+2H+5M+2O) → pass-2 (1M+3L+1O) → pass-3 (1M+4L+1O) → pass-4 (2M+1L+2O) → pass-5 (1H+1M+1L+2O) → diverse-lens batch (lens-1 correctness CLEAN; lens-4 wire-shape CLEAN; lens-2 test-coverage 1M+2O; lens-3 naming 2 MED+1 LOW; the 2 HIGH index findings were RACE FALSE-POSITIVES — verified index rows correct). ALL fixed. Detail: STATE Decisions-Log D-2298..D-2304.
+
+### PENDING TASKS
+LOCAL 3-CLEAN confirmation (next) · holdout HS-024 · demo+PR+merge+POL-14. Governance: POL-41 (parallelize-against-inflight-state-writes) registered D-2299; codify the concurrent-`.factory/`-read race lesson next session.
+
+### BACKUP BOUNDARY
+PUSHED/safe: `origin/develop` 3f1e66179; `origin/feature/S-CLAROTY-VULNS-001` 4e525126b; `factory-artifacts` (this commit). LOCAL-ONLY: parked worktrees S-3.09, W3-FIX-S307-001.
+
+---
+
+## §RESUME SNAPSHOT — D-2297 (2026-08-24 — SESSION WRAP; xDome story-creation COMPLETE; next = Wave A implementation) [SUPERSEDED by D-2304]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3; v1 = live Claroty-xDome (milestone PASSED D-2289). xDome endpoint-expansion STORY-CREATION COMPLETE — 11 stories G1–G6 materialized draft (6 near-term D-2291..D-2295 + 5 DTU-parity stubs D-2296), pushed factory-artifacts @0e010dde9; ZERO new OCSF class arms. develop UNCHANGED 3f1e66179 (no code; workspace_test_count 5816). NEXT SESSION: begin Wave A IMPLEMENTATION (F4 TDD), S-CLAROTY-VULNS-001 first.
