@@ -1,18 +1,62 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.005"
+version: "8.006"
 status: current
-timestamp: 2026-08-24T00:10:00Z
+timestamp: 2026-08-24T23:55:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2290 (2026-08-24): SESSION WRAP — v1 LIVE Claroty xDome MILESTONE PASS (D-2289 gate MET). PR #242 (S-ADR058-OCSF-ROUTING-001) MERGED develop@3f1e66179; Variant-1 121/121 + Variant-2 agent-in-loop PASS. Endpoint expansion plan + live-sensor runbook committed to .factory/objectives/. NEXT: compact STATE.md + add all xDome endpoint stories + v1.0.0 release. [D-2287 SUPERSEDED by D-2290]**
+> **D-2297 (2026-08-24): SESSION WRAP — xDome expansion story-creation COMPLETE (11 stories G1–G6; D-2291..D-2296 (exhaustive)). factory-artifacts @0e010dde9. NEXT: Wave A implementation, S-CLAROTY-VULNS-001 first. [D-2290 SUPERSEDED by D-2297]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2290 (2026-08-24 — SESSION WRAP; v1 LIVE milestone; STATE v8.823) [SUPERSEDES D-2287]
+## §RESUME SNAPSHOT — D-2297 (2026-08-24 — SESSION WRAP; xDome story-creation COMPLETE; next = Wave A implementation) [SUPERSEDES D-2290]
+
+### RESUME IN ONE BREATH
+Prism Phase-3; v1 = live Claroty-xDome (milestone PASSED D-2289). xDome endpoint-expansion STORY-CREATION COMPLETE — 11 stories G1–G6 materialized draft (6 near-term D-2291..D-2295 + 5 DTU-parity stubs D-2296), pushed factory-artifacts @0e010dde9; ZERO new OCSF class arms. develop UNCHANGED 3f1e66179 (no code; workspace_test_count 5816). NEXT SESSION: begin Wave A IMPLEMENTATION (F4 TDD), S-CLAROTY-VULNS-001 first.
+
+### RESUME NEXT-ACTION
+1. Wave A impl, S-CLAROTY-VULNS-001 (G1; vuln DTU stub route + OCSF vulnerability_finding arm already exist). F4: run SECOND remove-uncertainty pass (D-1110 pre-TDD) → promote draft→ready → create worktree feature/S-CLAROTY-VULNS-001 → stub-architect → test-writer Red Gate RG-001..008 (live tests #[ignore] until monroe) → implementer adds claroty_vulnerabilities [[tables]] block to crates/prism-sensors/specs/claroty.sensor.toml, TDD green, just check → LOCAL adversary 3-CLEAN → story holdout gate HS-024 (observed-output only) → demo → push → pr-manager 9-step PR (PR-LEVEL 3-CLEAN + security-reviewer) → squash-merge develop → POL-14 post-merge burst.
+2. Then S-CLAROTY-OT-EVENTS-001 (A/G2) → Wave B DEVVULNREL (dep VULNS) → Wave C SERVERS/ORGPOLICY/ACLPOLICY. 5 *-DTU-001 stubs DEFERRED post-v1.
+3. Backlog: STATE.md compaction (deferred; ~340+ lines — do around Wave A); v1.0.0 release (after Wave A merges + monroe validation); S-ADR058-OCSF-ROUTING-001 worktree teardown (removable).
+
+### CRITICAL CONVENTIONS (enforce every dispatch)
+- develop claroty.sensor.toml baseline = 4 tables; sibling xDome expansion stories are DRAFT (not merged); merge order via depends_on only. Story-template "Previous Story Intelligence" is a [process-gap] (mislabels draft siblings as merged) — inject ground truth. (Origin D-2293.)
+- OpenAPI spec .factory/reference/api-specs/xdome_openapi_06.20.2026.json is 4.4 MB — NEVER full-read (stalled an agent); use .factory/objectives/xdome-v1-validation/endpoint-schema-extract.md + endpoint-spike-findings.md or targeted jq.
+
+### HEADS (D-2297)
+- develop: 3f1e66179 (local==origin, clean of tracked changes)
+- factory-artifacts: <fill after commit>
+- .worktrees/S-3.09 @43c41389d KEEP-PARKED (local-only)
+- .worktrees/W3-FIX-S307-001 @fcab8717c PARKED-DIRTY do-NOT-touch (local-only, dirty)
+- .worktrees/S-ADR058-OCSF-ROUTING-001 @5645c8506 REMOVABLE-POST-MERGE (PR #242 merged, remote deleted)
+
+### xDome WORKSTREAM (D-2297 — all materialized draft, remove-uncertainty-clean, ready for F4)
+- S-CLAROTY-VULNS-001 (G1, BC-2.16.015, HS-024) — D-2291
+- S-CLAROTY-OT-EVENTS-001 (G2, BC-2.16.016, HS-025) — D-2291
+- S-CLAROTY-DEVVULNREL-001 (G3, BC-2.16.017, HS-026) v1.2 — D-2292/D-2293
+- S-CLAROTY-SERVERS-001 (G4, BC-2.16.018/019, HS-027) v1.2 — D-2293
+- S-CLAROTY-ORGPOLICY-001 (G5, BC-2.16.020/021, HS-028) — D-2294
+- S-CLAROTY-ACLPOLICY-001 (G6, BC-2.16.022, HS-029) — D-2295
+- 5× S-CLAROTY-*-DTU-001 (G2–G6, draft facade, DEFERRED post-v1, anchor S-ADR058-DTU-PARITY-MIGRATION-001) — D-2296
+
+### SPEC PERIMETER (D-2297)
+BC-INDEX v9.60 (active 253 / draft 11 / total 277) / HOLDOUT-INDEX v1.26 (115 / 23 groups) / STORY-INDEX v2.893 (314 stories) / ARCH-INDEX v2.333. develop_head 3f1e66179; workspace_test_count 5816. ADR-058 v2.33 unchanged.
+
+### PENDING USER-APPROVED WORK
+Wave A→C implementation (next); STATE.md compaction (deferred); v1.0.0 release; ROUTING-001 worktree teardown.
+
+### DECISION DELTA
+D-2291 Wave A stories (spikes, 0 new OCSF arms; BC-2.16.015/016; VULNS+OT-EVENTS) · D-2292 Wave B (BC-2.16.017; DEVVULNREL) · D-2293 Wave C SERVERS (BC-2.16.018/019) + TD-VSDD-060 sibling-baseline fix · D-2294 Wave C ORGPOLICY (BC-2.16.020/021) · D-2295 Wave C ACL (BC-2.16.022) · D-2296 5 DTU stubs (story-creation COMPLETE) · D-2297 SESSION WRAP.
+
+### BACKUP BOUNDARY
+PUSHED/safe: origin/develop 3f1e66179; factory-artifacts (this wrap). LOCAL-ONLY: .worktrees/S-3.09, W3-FIX-S307-001 (dirty), S-ADR058-OCSF-ROUTING-001 (removable).
+
+---
+
+## §RESUME SNAPSHOT — D-2290 (2026-08-24 — SESSION WRAP; v1 LIVE milestone; STATE v8.823) [SUPERSEDED by D-2297]
 
 ### RESUME IN ONE BREATH
 

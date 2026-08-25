@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.829"
+version: "8.830"
 producer: state-manager
-timestamp: 2026-08-24T23:20:00Z
+timestamp: 2026-08-25T00:12:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -17,6 +17,7 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "3f1e66179"
+# NOTE: D-2297 — SESSION WRAP: xDome expansion story-creation COMPLETE (11 stories); SESSION-HANDOFF.md D-2297 snapshot; sidecar-learning.md folded. STATE v8.829→v8.830.
 # NOTE: D-2288 — develop_head advanced 362e4f85→3f1e66179: PR #242 S-ADR058-OCSF-ROUTING-001 SQUASH-MERGED to develop 2026-08-23. Remote feature branch deleted. workspace_test_count→5816. STATE v8.821→v8.822.
 # NOTE: D-2261 — develop_head advanced 69d821be→362e4f85: PR #241 clippy-1.98.0+h2 MERGED @40c667916; PR #240 S-ADR058-OCSF-COERCION-001 MERGED @362e4f85. Both human-authorized admin-merges 2026-08-20. workspace_test_count→5765. STATE v8.794→v8.795.
 # NOTE: D-2202 — develop_head corrected 791b68c3→69d821be (fast-forward COMPLETE; develop == origin/develop == 69d821be confirmed). OCSF-mapping schema-validation COMPLETE (ADR-058 v2.4; 12 KF + CODE DEFECT §class_selector.rs); ARCH-INDEX v2.303→v2.304. STATE v8.732→v8.733.
@@ -45,7 +46,7 @@ workspace_test_count: 5816
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2296 xDome deferred DTU-parity stubs COMPLETE (5 DRAFT stubs; G2-G6): S-CLAROTY-{OT-EVENTS,DEVVULNREL,SERVERS,ORGPOLICY,ACLPOLICY}-DTU-001 registered (facade, post-v1, anchor S-ADR058-DTU-PARITY-MIGRATION-001; each depends_on near-term table story). STORY-INDEX v2.892→v2.893 (total_stories 309→314). xDome expansion story-creation COMPLETE: 6 near-term (D-2291..D-2295 (exhaustive)) + 5 DTU stubs (D-2296) = 11 stories G1-G6; ZERO new OCSF class arms; develop/code UNCHANGED. STATE v8.828→v8.829. trajectory-tail →3→2→0→0"
+current_step: "D-2297 SESSION WRAP COMPLETE (TD-VSDD-053) — xDome expansion story-creation COMPLETE (11 stories G1–G6; D-2291..D-2296 (exhaustive)). SESSION-HANDOFF.md D-2297 RESUME snapshot PREPENDED; D-2290 marked SUPERSEDED by D-2297. sidecar-learning.md folded. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.829→v8.830. trajectory-tail →3→2→0→0."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -82,7 +83,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 281 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -81 | margin from actual: 219 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 283 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -83 | margin from actual: 217 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -95,7 +96,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-24 D-2296 xDome deferred DTU-parity stubs COMPLETE: 5 DRAFT stubs (OT-EVENTS/DEVVULNREL/SERVERS/ORGPOLICY/ACLPOLICY DTU-001) registered (facade, post-v1, anchor S-ADR058-DTU-PARITY-MIGRATION-001). STORY-INDEX v2.893 (314 stories). xDome expansion COMPLETE (11 stories G1–G6). trajectory-tail →3→2→0→0. STATE v8.828→v8.829. |
+| **Last Updated** | 2026-08-24 D-2297 SESSION WRAP: xDome expansion story-creation COMPLETE (11 stories G1–G6; D-2291..D-2296 (exhaustive)). SESSION-HANDOFF.md D-2297 snapshot; sidecar-learning.md folded. STORY-INDEX v2.893 (314 stories). STATE v8.829→v8.830. trajectory-tail →3→2→0→0. |
 
 ## Phase Progress
 
@@ -167,10 +168,11 @@ _No concurrent cycles in progress. Current cycle: wave-5-e-demo-fidelity._
 | D-2288 | state-manager | 2026-08-23 | SINGLE-COMMIT BURST (TD-VSDD-053) — post-merge burst COMPLETE. PR #242 SQUASH-MERGED to develop@3f1e66179. POL-14: all 4 BCs already active. Story status draft→merged. workspace_test_count 5765→5816. STORY-INDEX v2.885→v2.886. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.821→v8.822. |
 | D-2291 | state-manager | 2026-08-24 | SINGLE-COMMIT BURST (TD-VSDD-053) — xDome Wave A story creation COMPLETE. Spike decisions recorded; ZERO new OCSF class arms; OT-events Option B detection_finding/2004; vuln PK=name; ACL pagination type=none. BC-2.16.015 v1.0 (draft, claroty_vulnerabilities) + BC-2.16.016 v1.0 (draft, claroty_ot_activity_events) REGISTERED. HS-024 + HS-025 authored (3 scenarios each). S-CLAROTY-VULNS-001 + S-CLAROTY-OT-EVENTS-001 materialized (draft, tdd_mode strict, SAC-1; densities 1.0/0.89). remove-uncertainty applied. BC-INDEX v9.55→v9.56 (draft_contracts 3→5; total_contracts 269→271). HOLDOUT-INDEX v1.21→v1.22. STORY-INDEX v2.886→v2.888 (total_stories 303→305). develop_head 3f1e66179 UNCHANGED. workspace_test_count 5816 UNCHANGED. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.823→v8.824. |
 | D-2292 | state-manager | 2026-08-24 | SINGLE-COMMIT BURST (TD-VSDD-053) — xDome Wave B story creation COMPLETE. BC-2.16.017 v1.0 (draft, claroty_device_vulnerability_relations, composite PK vulnerability_name+device_uid, OCSF vulnerability_finding/2002 existing arm, 13-col first-cut, 201 fields deferred Groups A/B/C, no DTU, CAP-029, SS-16) REGISTERED. HS-026 holdout group (3 P0 scenarios). S-CLAROTY-DEVVULNREL-001 materialized (draft, tdd_mode strict, SAC-1, density 1.0, depends_on S-CLAROTY-VULNS-001). BC-INDEX v9.56→v9.57 (draft_contracts 5→6; total_contracts 271→272). HOLDOUT-INDEX v1.22→v1.23. STORY-INDEX v2.888→v2.889 (total_stories 305→306). records-lint exit 0. STATE v8.824→v8.825. |
-| D-2293 | state-manager | 2026-08-24 | SINGLE-COMMIT BURST (TD-VSDD-053) — xDome Wave C SERVERS story creation COMPLETE. BC-2.16.018 v1.0 (draft, claroty_servers, 17 cols, OCSF inventory_info/5001) + BC-2.16.019 v1.0 (draft, claroty_server_interfaces, composite PK, SEPARATE /api/v1/server_interfaces/ endpoint) REGISTERED. HS-027 holdout group (3 P0 scenarios). S-CLAROTY-SERVERS-001 materialized (draft, tdd_mode strict, SAC-1, density 1.0, 2 TOML blocks). DEVVULNREL v1.1→v1.2 sibling-baseline correction (TD-VSDD-060 Dim-1). remove-uncertainty CLEAN + MEDIUM baseline-count fix. BC-INDEX v9.57→v9.58 (draft 6→8; total 272→274). HOLDOUT-INDEX v1.23→v1.24 (scenarios 105→108; groups 20→21; p0 89→92). STORY-INDEX v2.889→v2.890 (total 306→307). develop_head 3f1e66179 UNCHANGED. workspace_test_count 5816 UNCHANGED. TD-VSDD-097: Dim-1 DISCHARGED (DEVVULNREL sibling swept v1.1→v1.2); Dim-2 CLEAR; Dim-3 CLEAR. records-lint exit 0. STATE v8.825→v8.826. |
+| D-2293 | state-manager | 2026-08-24 | SINGLE-COMMIT BURST (TD-VSDD-053) — xDome Wave C SERVERS story creation COMPLETE. BC-2.16.018 v1.0 (draft, claroty_servers, 17 cols, OCSF inventory_info/5001 existing arm) + BC-2.16.019 v1.0 (draft, claroty_server_interfaces, composite PK, SEPARATE /api/v1/server_interfaces/ endpoint) REGISTERED. HS-027 holdout group (3 P0 scenarios). S-CLAROTY-SERVERS-001 materialized (draft, tdd_mode strict, SAC-1, density 1.0, 2 TOML blocks). DEVVULNREL v1.1→v1.2 sibling-baseline correction (TD-VSDD-060 Dim-1). remove-uncertainty CLEAN + MEDIUM baseline-count fix. BC-INDEX v9.57→v9.58 (draft 6→8; total 272→274). HOLDOUT-INDEX v1.23→v1.24 (scenarios 105→108; groups 20→21; p0 89→92). STORY-INDEX v2.889→v2.890 (total 306→307). develop_head 3f1e66179 UNCHANGED. workspace_test_count 5816 UNCHANGED. TD-VSDD-097: Dim-1 DISCHARGED (DEVVULNREL sibling swept v1.1→v1.2); Dim-2 CLEAR; Dim-3 CLEAR. records-lint exit 0. STATE v8.825→v8.826. |
 | D-2294 | state-manager | 2026-08-24 | SINGLE-COMMIT BURST (TD-VSDD-053) — Wave C ORGPOLICY story creation COMPLETE. BC-2.16.020 v1.0 (draft, claroty_org-zone-domain: organization_zones + organization_zone_policies, OCSF entity_management/3004, 8 Json cols, URL↔envelope-key asymmetry invariant) + BC-2.16.021 v1.0 (draft, claroty_org-firewall-domain: organization_firewall_groups + organization_firewall_policies) REGISTERED. HS-028 holdout group (4 P0 scenarios). S-CLAROTY-ORGPOLICY-001 materialized (draft, tdd_mode strict, SAC-1, 26 ACs, density 1.0, 4 TOML blocks). remove-uncertainty CLEAN + 1 LOW AC-018 wording fix. BC-INDEX v9.58→v9.59 (draft 8→10; total 274→276). HOLDOUT-INDEX v1.24→v1.25 (scenarios 108→112; groups 21→22; p0 92→96). STORY-INDEX v2.890→v2.891 (total 307→308). develop_head 3f1e66179 UNCHANGED. workspace_test_count 5816 UNCHANGED. TD-VSDD-097: Dim-1 CLEAR; Dim-2 CLEAR; Dim-3 CLEAR. records-lint exit 0. STATE v8.826→v8.827. |
 | D-2295 | state-manager | 2026-08-24 | SINGLE-COMMIT BURST (TD-VSDD-053) — xDome Wave C ACL story creation COMPLETE (FINAL near-term xDome expansion story). BC-2.16.022 v1.0 (draft, claroty_organization_acl_policies; pagination type=none NON-paginated single-page — headline novelty, verified PaginationConfig::None in spec_parser.rs; mandatory policy_acl_syntax="Cisco dACL" body field hardcoded v1; PK policy_id→metadata.uid; OCSF entity_management/3004 existing arm; 11 cols) REGISTERED. HS-029 holdout group (3 P0 scenarios). S-CLAROTY-ACLPOLICY-001 materialized (draft, tdd_mode strict, SAC-1, 11 ACs/11 RGTs density 1.0). remove-uncertainty CONFIRMED CLEAN (no corrections). BC-INDEX v9.59→v9.60 (draft 10→11; total 276→277). HOLDOUT-INDEX v1.25→v1.26 (scenarios 112→115; groups 22→23; p0 96→99). STORY-INDEX v2.891→v2.892 (total 308→309). develop_head 3f1e66179 UNCHANGED. workspace_test_count 5816 UNCHANGED. xDome near-term expansion STORY-CREATION COMPLETE — all 6 stories (VULNS/OT-EVENTS/DEVVULNREL/SERVERS/ORGPOLICY/ACLPOLICY) materialized draft D-2291..D-2295 (exhaustive). NEXT: 5 deferred DTU DRAFT stubs, then implementation waves. TD-VSDD-097: Dim-1 CLEAR; Dim-2 CLEAR; Dim-3 CLEAR. records-lint exit 0. STATE v8.827→v8.828. |
 | D-2296 | state-manager | 2026-08-24 | SINGLE-COMMIT BURST (TD-VSDD-053) — xDome deferred DTU-parity DRAFT stubs COMPLETE. 5 DRAFT stubs (S-CLAROTY-{OT-EVENTS,DEVVULNREL,SERVERS,ORGPOLICY,ACLPOLICY}-DTU-001; facade; post-v1; anchor S-ADR058-DTU-PARITY-MIGRATION-001). STORY-INDEX v2.892→v2.893 (total_stories 309→314). xDome story-creation COMPLETE (11 stories G1–G6). TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.828→v8.829. |
+| D-2297 | state-manager | 2026-08-24 | SESSION WRAP COMPLETE (TD-VSDD-053) — xDome expansion story-creation COMPLETE (11 stories G1–G6; D-2291..D-2296 (exhaustive)). SESSION-HANDOFF.md D-2297 RESUME snapshot PREPENDED; D-2290 marked SUPERSEDED by D-2297. sidecar-learning.md folded. TD-VSDD-097 all dims CLEAR. records-lint exit 0. trajectory-tail →3→2→0→0. STATE v8.829→v8.830. |
 
 ## Decisions Log
 
@@ -235,6 +237,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | D-2294 | state-manager | 2026-08-24 | **SINGLE-COMMIT BURST (TD-VSDD-053) — xDome Wave C ORGPOLICY story creation COMPLETE. BC-2.16.020 v1.0 + BC-2.16.021 v1.0 (both draft). HS-028 holdout group (4 P0 scenarios). S-CLAROTY-ORGPOLICY-001 materialized (draft, tdd_mode strict, SAC-1, 26 ACs/26 RGTs density 1.0, 4 TOML blocks). remove-uncertainty CLEAN + 1 LOW AC-018 wording fix. BC-INDEX v9.58→v9.59 (draft 8→10; total 274→276). HOLDOUT-INDEX v1.24→v1.25 (scenarios 108→112; groups 21→22; p0 92→96). STORY-INDEX v2.890→v2.891 (total 307→308). TD-VSDD-097: Dim-1 CLEAR; Dim-2 CLEAR; Dim-3 CLEAR. records-lint exit 0. STATE v8.826→v8.827.** | wave-5-e-demo-fidelity | 2026-08-24 |
 | D-2295 | state-manager | 2026-08-24 | **SINGLE-COMMIT BURST (TD-VSDD-053) — xDome Wave C ACL story creation COMPLETE (FINAL near-term xDome expansion story). BC-2.16.022 v1.0 (draft, claroty_organization_acl_policies; pagination type=none NON-paginated single-page — headline novelty, verified PaginationConfig::None in spec_parser.rs; mandatory policy_acl_syntax="Cisco dACL" body field hardcoded v1; PK policy_id→metadata.uid; OCSF entity_management/3004 existing arm; 11 cols) REGISTERED. HS-029 holdout group (3 P0 scenarios). S-CLAROTY-ACLPOLICY-001 materialized (draft, tdd_mode strict, SAC-1, 11 ACs/11 RGTs density 1.0). remove-uncertainty CONFIRMED CLEAN (no corrections). BC-INDEX v9.59→v9.60 (draft 10→11; total 276→277). HOLDOUT-INDEX v1.25→v1.26 (scenarios 112→115; groups 22→23; p0 96→99). STORY-INDEX v2.891→v2.892 (total 308→309). develop_head 3f1e66179 UNCHANGED. workspace_test_count 5816 UNCHANGED. xDome near-term expansion STORY-CREATION COMPLETE — all 6 stories (VULNS/OT-EVENTS/DEVVULNREL/SERVERS/ORGPOLICY/ACLPOLICY) materialized draft D-2291..D-2295 (exhaustive). NEXT: 5 deferred DTU DRAFT stubs, then implementation waves. TD-VSDD-097: Dim-1 CLEAR; Dim-2 CLEAR; Dim-3 CLEAR. records-lint exit 0. STATE v8.827→v8.828.** | wave-5-e-demo-fidelity | 2026-08-24 |
 | D-2296 | state-manager | 2026-08-24 | **SINGLE-COMMIT BURST (TD-VSDD-053) — xDome deferred DTU-parity DRAFT stubs COMPLETE. 5 DRAFT stubs registered: S-CLAROTY-{OT-EVENTS,DEVVULNREL,SERVERS,ORGPOLICY,ACLPOLICY}-DTU-001 (tdd_mode facade; all depends_on near-term table story; anchor S-ADR058-DTU-PARITY-MIGRATION-001; DEFERRED post-v1 per D-2200/D-2264). STORY-INDEX v2.892→v2.893 (total_stories 309→314). xDome expansion story-creation COMPLETE: 6 near-term (D-2291..D-2295 (exhaustive)) + 5 DTU stubs (D-2296) = 11 stories G1–G6; ZERO new OCSF class arms; develop/code UNCHANGED. TD-VSDD-097: Dim-1 CLEAR (DTU stub creation; no sibling pairs); Dim-2 CLEAR; Dim-3 CLEAR (stubs deferred — no MUSTs yet; RG/AC materialization at scheduling time). records-lint exit 0. STATE v8.828→v8.829.** | wave-5-e-demo-fidelity | 2026-08-24 |
+| D-2297 | state-manager | 2026-08-24 | **SESSION WRAP COMPLETE (TD-VSDD-053) — xDome expansion story-creation COMPLETE (11 stories G1–G6; D-2291..D-2296 (exhaustive)). SESSION-HANDOFF.md D-2297 RESUME snapshot PREPENDED; D-2290 marked SUPERSEDED by D-2297. sidecar-learning.md folded. TD-VSDD-097 all dims CLEAR. records-lint exit 0. trajectory-tail →3→2→0→0. STATE v8.829→v8.830.** | wave-5-e-demo-fidelity | 2026-08-24 |
 
 ## Skip Log
 
@@ -255,17 +258,16 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2296 -- 2026-08-24 -- xDome deferred DTU-parity stubs; STATE v8.828→v8.829) [supersedes D-2295]
+## Session Resume Checkpoint (D-2297 -- 2026-08-24 -- SESSION WRAP; xDome story-creation complete; Wave A next; STATE v8.829→v8.830) [supersedes D-2296]
 
 ### RESUME IN ONE BREATH
-Prism Phase-3, v1 = live Claroty-xDome. xDome expansion story-creation COMPLETE (D-2291..D-2296 (exhaustive)) — 6 near-term stories (VULNS/OT-EVENTS/DEVVULNREL/SERVERS/ORGPOLICY/ACLPOLICY) + 5 DTU-parity DRAFT stubs (S-CLAROTY-{OT-EVENTS,DEVVULNREL,SERVERS,ORGPOLICY,ACLPOLICY}-DTU-001; all facade, post-v1, anchor S-ADR058-DTU-PARITY-MIGRATION-001). STORY-INDEX v2.893 (314 stories). BC-INDEX v9.60 (draft 11/total 277). HOLDOUT-INDEX v1.26. develop_head 3f1e66179 UNCHANGED; workspace_test_count 5816 UNCHANGED.
+Prism Phase-3, v1 = live Claroty-xDome. xDome expansion story-creation COMPLETE (D-2291..D-2296 (exhaustive)) — 6 near-term stories (VULNS/OT-EVENTS/DEVVULNREL/SERVERS/ORGPOLICY/ACLPOLICY) + 5 DTU-parity DRAFT stubs (facade; post-v1; anchor S-ADR058-DTU-PARITY-MIGRATION-001). STORY-INDEX v2.893 (314 stories). BC-INDEX v9.60 (active 253/draft 11/total 277). HOLDOUT-INDEX v1.26. develop_head 3f1e66179; workspace_test_count 5816.
 
-**RESUME NEXT-ACTION:** Begin TDD delivery for S-CLAROTY-VULNS-001 (Wave A G1) — no DTU blocker for first pass. Dependency order: S-CLAROTY-VULNS-001 must merge before S-CLAROTY-DEVVULNREL-001 can start. DTU-parity stubs (D-2296) deferred post-v1; execute with S-ADR058-DTU-PARITY-MIGRATION-001 DTU-parity batch.
+**RESUME NEXT-ACTION:** Begin TDD delivery for S-CLAROTY-VULNS-001 (Wave A G1) — run remove-uncertainty FIRST per D-1110. Dependency order: VULNS-001 must merge before DEVVULNREL-001 can start. DTU-parity stubs deferred post-v1 (anchor S-ADR058-DTU-PARITY-MIGRATION-001).
 
-**OBS-A (carry-forward):** PrismQL identifier grammar rejects hyphens; sensor_id with hyphen produces unreachable table name.
-**OBS-B (carry-forward):** sensor_id with underscores causes E-QUERY-036/037/038 source-table resolver and sensor plan-gate to disagree on canonical table name.
+**CRITICAL CONVENTIONS:** xDome baseline = 4 tables (devices/alerts/audit_logs/acl_policies). OpenAPI is 4.4 MB — NEVER full-read. Remove-uncertainty before TDD (D-1110). No AI attribution in commits.
 
-**SPEC PERIMETER (develop@3f1e66179):** code @3f1e66179 / ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 (merged) / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.333 / BC-INDEX v9.60 / STORY-INDEX v2.893 / HOLDOUT-INDEX v1.26. active 253/draft 11/total 277/stories 314.
+**SPEC PERIMETER (develop@3f1e66179):** ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 (merged) / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.333 / BC-INDEX v9.60 / STORY-INDEX v2.893 / HOLDOUT-INDEX v1.26.
 
 **HEADS:**
 - `develop`: `3f1e66179` (local == origin; clean)
@@ -274,8 +276,8 @@ Prism Phase-3, v1 = live Claroty-xDome. xDome expansion story-creation COMPLETE 
 - `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK -- unpushed)
 - `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch
 
-**HOLDOUT:** HS-029 (S-CLAROTY-ACLPOLICY-001; 3 scenarios -- AUTHORED, UNREAD). HS-028 (S-CLAROTY-ORGPOLICY-001; 4 scenarios -- AUTHORED, UNREAD). HS-027 (S-CLAROTY-SERVERS-001; 3 scenarios -- AUTHORED, UNREAD). HS-026 (S-CLAROTY-DEVVULNREL-001; 3 scenarios -- AUTHORED, UNREAD). HS-024 (S-CLAROTY-VULNS-001; 3 scenarios -- AUTHORED, UNREAD). HS-025 (S-CLAROTY-OT-EVENTS-001; 3 scenarios -- AUTHORED, UNREAD). HS-022/023 CONSUMED.
+**HOLDOUT:** HS-029 (ACLPOLICY-001; 3 — AUTHORED, UNREAD). HS-028 (ORGPOLICY-001; 4 — AUTHORED, UNREAD). HS-027 (SERVERS-001; 3 — AUTHORED, UNREAD). HS-026 (DEVVULNREL-001; 3 — AUTHORED, UNREAD). HS-025 (OT-EVENTS-001; 3 — AUTHORED, UNREAD). HS-024 (VULNS-001; 3 — AUTHORED, UNREAD). HS-022/023 CONSUMED.
 
-**BACKUP BOUNDARY (D-2296):**
+**BACKUP BOUNDARY (D-2297):**
 - PUSHED / safe: `origin/develop` `3f1e66179`; `factory-artifacts` (this burst commit).
-- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty); `.worktrees/S-ADR058-OCSF-ROUTING-001` (pending teardown).
+- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).
