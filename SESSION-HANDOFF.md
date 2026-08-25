@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.006"
+version: "8.007"
 status: current
 timestamp: 2026-08-24T23:55:00Z
 ---
@@ -375,5 +375,7 @@ These rules are canonical in CLAUDE.md and SESSION-HANDOFF.md. Listed here for r
 13. **Worktree-path read discipline (D-1097, lesson p).** Adversary dispatches MUST instruct "ALL code reads, grep/rg searches, and line-number citations MUST use the worktree absolute path." Orchestrator MUST run ground-truth check (direct rg in worktree) before dispatching any fix-burst on a CRIT claim.
 
 14. **Long-gate discipline (D-1099, lesson r).** Long gates (pre-push `just check`, CI, PR review waits) run harness-tracked in orchestrator context or via Monitor-equipped agents. Sub-agents MUST NOT be dispatched to wait on long gates.
+
+15. **Parallelize against in-flight state writes (POL-41, human-directed 2026-08-24).** While a `.factory/`-writing burst is in flight, dispatch independent non-`.factory/` work (crates/ tests, implementation, research, reviews) in parallel; never idle. Two `.factory/` writers still serialize (single worktree + TD-VSDD-053). Origin: orchestrator idled waiting on a promotion burst during S-CLAROTY-VULNS-001 Wave A delivery instead of proceeding with independent Red Gate/implementation work. CLAUDE.md §Standing Orchestrator Process Rules mirror deferred to a human-mandated CLAUDE.md edit.
 
 ---

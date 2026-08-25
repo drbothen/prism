@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.831"
+version: "8.832"
 producer: state-manager
-timestamp: 2026-08-25T06:00:00Z
+timestamp: 2026-08-25T13:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -17,6 +17,7 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "3f1e66179"
+# NOTE: D-2299 — SINGLE-COMMIT BURST: POL-41 parallelize_against_inflight_state_writes REGISTERED (human-directed 2026-08-24). policies v1.42→v1.43. SESSION-HANDOFF.md Rule 15 + v8.006→v8.007. CLAUDE.md mirror deferred. STATE v8.831→v8.832.
 # NOTE: D-2298 — SINGLE-COMMIT BURST: S-CLAROTY-VULNS-001 draft→ready v1.1 (pre-TDD remove-uncertainty CLEAN D-1110 2nd pass; 11 anchors confirmed develop@3f1e66179). worktree feature/S-CLAROTY-VULNS-001 created. STORY-INDEX v2.893→v2.894. STATE v8.830→v8.831.
 # NOTE: D-2297 — SESSION WRAP: xDome expansion story-creation COMPLETE (11 stories); SESSION-HANDOFF.md D-2297 snapshot; sidecar-learning.md folded. STATE v8.829→v8.830.
 # NOTE: D-2288 — develop_head advanced 362e4f85→3f1e66179: PR #242 S-ADR058-OCSF-ROUTING-001 SQUASH-MERGED to develop 2026-08-23. Remote feature branch deleted. workspace_test_count→5816. STATE v8.821→v8.822.
@@ -47,7 +48,7 @@ workspace_test_count: 5816
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2298 SINGLE-COMMIT BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 pre-TDD remove-uncertainty CLEAN (D-1110 2nd pass); 11 anchors CONFIRMED develop@3f1e66179 (SpecLoader::parse, offset_limit/OffsetLimit{page_size}, ocsf_field_to_arrow_name, vulnerability_finding→2002 arm exists, ColumnSpec.source_path, ocsf_column_naming=true, baseline 4 tables alerts/audit_logs/devices/device_alert_relations, empty-page halt, effective_formats iso8601 default, E-QUERY-038); worktree feature/S-CLAROTY-VULNS-001 created. VULNS-001 draft→ready v1.1. STORY-INDEX v2.893→v2.894. Wave A G1 TDD IN PROGRESS (stubs+Red-Gate next). carry-forward (a): ColumnOptions::Required = push-down option NOT null/error gate. carry-forward (b): baseline 4th table = device_alert_relations NOT acl_policies. trajectory-tail →3→2→0→0. TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.830→v8.831."
+current_step: "D-2299 SINGLE-COMMIT BURST (TD-VSDD-053) — POL-41 parallelize_against_inflight_state_writes REGISTERED (human-directed 2026-08-24). policies v1.42→v1.43. SESSION-HANDOFF.md Standing Rule 15 added; v8.006→v8.007. CLAUDE.md mirror deferred to human-mandated CLAUDE.md edit. TD-VSDD-097: Dim-1 CLEAR (no sibling pairs); Dim-2 CLEAR (SESSION-HANDOFF Rule 15 swept; CLAUDE.md deferred per task spec); Dim-3 CLEAR (no new MUSTs). records-lint exit 0. trajectory-tail →3→2→0→0. STATE v8.831→v8.832."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -84,7 +85,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-19"
 ---
 
-<!-- STATE.md SIZE BUDGET: 287 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -87 | margin from actual: 213 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 290 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: -90 | margin from actual: 210 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -97,7 +98,7 @@ pre_compact_snapshot_at: "2026-08-19"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-24 D-2298 SINGLE-COMMIT BURST: S-CLAROTY-VULNS-001 draft→ready v1.1 (pre-TDD remove-uncertainty CLEAN D-1110 2nd pass; 11 anchors confirmed). STORY-INDEX v2.894. worktree feature/S-CLAROTY-VULNS-001 @3f1e66179. trajectory-tail →3→2→0→0. STATE v8.830→v8.831. |
+| **Last Updated** | 2026-08-24 D-2299 SINGLE-COMMIT BURST (TD-VSDD-053) — POL-41 parallelize_against_inflight_state_writes REGISTERED (human-directed 2026-08-24). policies v1.42→v1.43. SESSION-HANDOFF.md Standing Rule 15; v8.006→v8.007. trajectory-tail →3→2→0→0. STATE v8.831→v8.832. |
 
 ## Phase Progress
 
@@ -175,6 +176,7 @@ _No concurrent cycles in progress. Current cycle: wave-5-e-demo-fidelity._
 | D-2296 | state-manager | 2026-08-24 | SINGLE-COMMIT BURST (TD-VSDD-053) — xDome deferred DTU-parity DRAFT stubs COMPLETE. 5 DRAFT stubs (S-CLAROTY-{OT-EVENTS,DEVVULNREL,SERVERS,ORGPOLICY,ACLPOLICY}-DTU-001; facade; post-v1; anchor S-ADR058-DTU-PARITY-MIGRATION-001). STORY-INDEX v2.892→v2.893 (total_stories 309→314). xDome story-creation COMPLETE (11 stories G1–G6). TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.828→v8.829. |
 | D-2297 | state-manager | 2026-08-24 | SESSION WRAP COMPLETE (TD-VSDD-053) — xDome expansion story-creation COMPLETE (11 stories G1–G6; D-2291..D-2296 (exhaustive)). SESSION-HANDOFF.md D-2297 RESUME snapshot PREPENDED; D-2290 marked SUPERSEDED by D-2297. sidecar-learning.md folded. TD-VSDD-097 all dims CLEAR. records-lint exit 0. trajectory-tail →3→2→0→0. STATE v8.829→v8.830. |
 | D-2298 | state-manager | 2026-08-24 | SINGLE-COMMIT BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 pre-TDD remove-uncertainty CLEAN (D-1110 2nd pass); 11 anchors CONFIRMED develop@3f1e66179. S-CLAROTY-VULNS-001 draft→ready v1.0→v1.1. Worktree feature/S-CLAROTY-VULNS-001 created @3f1e66179. STORY-INDEX v2.893→v2.894. carry-forward (a): ColumnOptions::Required is push-down-eligibility option (pushdown.rs) NOT extraction null/error gate — AC-006 null-row behavior is default null-passthrough; test-writer should assert mechanism accordingly. carry-forward (b): CRITICAL-CONVENTIONS baseline mnemonic corrected — 4th baseline table is device_alert_relations NOT acl_policies (acl_policies added later by G6). trajectory-tail →3→2→0→0. TD-VSDD-097: Dim-1 CLEAR; Dim-2 CLEAR; Dim-3 CLEAR. records-lint exit 0. STATE v8.830→v8.831. |
+| D-2299 | state-manager | 2026-08-24 | SINGLE-COMMIT BURST (TD-VSDD-053) — POL-41 parallelize_against_inflight_state_writes REGISTERED (human-directed 2026-08-24). policies v1.42→v1.43. SESSION-HANDOFF.md Standing Rule 15; v8.006→v8.007. trajectory-tail →3→2→0→0. STATE v8.831→v8.832. |
 
 ## Decisions Log
 
@@ -241,6 +243,7 @@ _D-1789..D-2199 (exhaustive) archived to `cycles/wave-5-e-demo-fidelity/decision
 | D-2296 | state-manager | 2026-08-24 | **SINGLE-COMMIT BURST (TD-VSDD-053) — xDome deferred DTU-parity DRAFT stubs COMPLETE. 5 DRAFT stubs registered: S-CLAROTY-{OT-EVENTS,DEVVULNREL,SERVERS,ORGPOLICY,ACLPOLICY}-DTU-001 (tdd_mode facade; all depends_on near-term table story; anchor S-ADR058-DTU-PARITY-MIGRATION-001; DEFERRED post-v1 per D-2200/D-2264). STORY-INDEX v2.892→v2.893 (total_stories 309→314). xDome expansion story-creation COMPLETE: 6 near-term (D-2291..D-2295 (exhaustive)) + 5 DTU stubs (D-2296) = 11 stories G1–G6; ZERO new OCSF class arms; develop/code UNCHANGED. TD-VSDD-097: Dim-1 CLEAR (DTU stub creation; no sibling pairs); Dim-2 CLEAR; Dim-3 CLEAR (stubs deferred — no MUSTs yet; RG/AC materialization at scheduling time). records-lint exit 0. STATE v8.828→v8.829.** | wave-5-e-demo-fidelity | 2026-08-24 |
 | D-2297 | state-manager | 2026-08-24 | **SESSION WRAP COMPLETE (TD-VSDD-053) — xDome expansion story-creation COMPLETE (11 stories G1–G6; D-2291..D-2296 (exhaustive)). SESSION-HANDOFF.md D-2297 RESUME snapshot PREPENDED; D-2290 marked SUPERSEDED by D-2297. sidecar-learning.md folded. TD-VSDD-097 all dims CLEAR. records-lint exit 0. trajectory-tail →3→2→0→0. STATE v8.829→v8.830.** | wave-5-e-demo-fidelity | 2026-08-24 |
 | D-2298 | state-manager | 2026-08-24 | **SINGLE-COMMIT BURST (TD-VSDD-053) — S-CLAROTY-VULNS-001 pre-TDD remove-uncertainty CLEAN (D-1110 2nd pass); 11 anchors CONFIRMED develop@3f1e66179 (SpecLoader::parse, offset_limit/OffsetLimit{page_size}, ocsf_field_to_arrow_name, vulnerability_finding→2002 arm exists, ColumnSpec.source_path, ocsf_column_naming=true, baseline 4 tables alerts/audit_logs/devices/device_alert_relations, empty-page halt, effective_formats iso8601 default, E-QUERY-038). S-CLAROTY-VULNS-001 draft→ready v1.0→v1.1. Worktree feature/S-CLAROTY-VULNS-001 created @3f1e66179. STORY-INDEX v2.893→v2.894. carry-forward (a): ColumnOptions::Required is push-down-eligibility option (pushdown.rs) NOT extraction null/error gate — AC-006 null-row behavior is default null-passthrough; test-writer should assert mechanism accordingly. carry-forward (b): CRITICAL-CONVENTIONS baseline mnemonic corrected — 4th baseline table is device_alert_relations NOT acl_policies (acl_policies added later by G6). trajectory-tail →3→2→0→0. TD-VSDD-097: Dim-1 CLEAR; Dim-2 CLEAR; Dim-3 CLEAR. records-lint exit 0. STATE v8.830→v8.831.** | wave-5-e-demo-fidelity | 2026-08-24 |
+| D-2299 | state-manager | 2026-08-24 | **SINGLE-COMMIT BURST (TD-VSDD-053) — POL-41 parallelize_against_inflight_state_writes REGISTERED (human-directed 2026-08-24). policies v1.42→v1.43. SESSION-HANDOFF.md Standing Rule 15 added; v8.006→v8.007. CLAUDE.md §Standing Orchestrator Process Rules mirror update deferred to a human-mandated CLAUDE.md edit. TD-VSDD-097: Dim-1 CLEAR (no sibling pairs for policy-only artifact); Dim-2 CLEAR (SESSION-HANDOFF Rule 15 swept; CLAUDE.md deferred per task spec); Dim-3 CLEAR (no new MUSTs introduced). records-lint exit 0. trajectory-tail →3→2→0→0. STATE v8.831→v8.832.** | wave-5-e-demo-fidelity | 2026-08-24 |
 
 ## Skip Log
 

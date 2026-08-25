@@ -23,12 +23,17 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 document_type: governance-policy-registry
-version: "1.42"
-last_amended: 2026-08-21
+version: "1.43"
+last_amended: 2026-08-24
 
 metadata:
-  version: "1.42"
+  version: "1.43"
   changelog:
+    - version: "1.43"
+      date: 2026-08-24
+      burst: state-manager-pol41-parallelize-inflight-state-writes
+      findings: []
+      change: "v1.42 → v1.43 2026-08-24 — POL-41 parallelize_against_inflight_state_writes registered (id: 41, severity: MEDIUM): While a .factory/-writing burst is in flight, the orchestrator MUST dispatch independent non-.factory/ work (crates/ tests, implementation, research, reviews) in parallel; never idle. Two .factory/ writers still serialize (single worktree + TD-VSDD-053). Origin: human directive 2026-08-24 during S-CLAROTY-VULNS-001 Wave A delivery — orchestrator idled waiting on a promotion burst instead of proceeding with independent Red Gate/implementation work. SESSION-HANDOFF.md Standing Rule 15 added. CLAUDE.md §Standing Orchestrator Process Rules mirror deferred to a human-mandated CLAUDE.md edit (noted in D-2299). Policy count 36 → 37."
     - version: "1.42"
       date: 2026-08-21
       burst: spec-steward-lever2-compaction-pol40
@@ -1119,3 +1124,36 @@ policies:
       - "For BC-INDEX.md: grep for [** patterns in BC table rows (grep '\\[\\*\\*' .factory/specs/behavioral-contracts/BC-INDEX.md). Any hit in a line starting with '| BC-' is a violation."
       - "For BC-INDEX.md Status cells: each Status cell must contain only: base keyword (active/draft/removed/retired/~~...~~) plus at most one version qualifier in (vX.Y current) or bare vX.Y form. Multiple parenthetical entries like (vX.Y D-NNN: ...) (vX.(Y-1) D-MMM: ...) in a single cell are a violation."
       - "Until records-lint L11 is implemented (lint_hook: null), adversary manually scans both index files for [** patterns in table rows during each adversarial pass touching STORY-INDEX.md or BC-INDEX.md."
+
+  - id: 41
+    name: parallelize_against_inflight_state_writes
+    description: |
+      When a state-manager burst (or any .factory/-writing burst) is dispatched, the
+      orchestrator MUST immediately dispatch any INDEPENDENT pipeline work (tests,
+      implementation, research, reviews operating on crates/ or feature worktrees) in
+      parallel rather than blocking/idling on the state write. Idling while state saves
+      is a process defect. CONSTRAINT: work that itself writes .factory/ MUST still
+      serialize behind the in-flight state burst (single git worktree on the
+      factory-artifacts orphan branch + TD-VSDD-053 single-commit-per-burst) — the
+      parallelism mandate applies to DIFFERENT-TARGET work only, never to a second
+      concurrent .factory/ writer.
+    adopted: "human-directive-2026-08-24-S-CLAROTY-VULNS-001-Wave-A-delivery"
+    severity: MEDIUM
+    enforced_by: [orchestrator-self-discipline]
+    scope: [orchestrator]
+    codified_at: "D-2299"
+    lint_hook: null
+    rationale: |
+      Origin: human directive 2026-08-24 during S-CLAROTY-VULNS-001 Wave A delivery.
+      Orchestrator idled waiting on a promotion burst (state-manager writing .factory/)
+      instead of proceeding with the independent Red Gate/implementation work in the
+      feature worktree. The state write targets the factory-artifacts worktree; the
+      implementation work targets crates/ in the feature worktree — zero collision.
+      Idling on a serialization constraint that does not apply is a throughput defect.
+      CLAUDE.md §Standing Orchestrator Process Rules mirror deferred to a human-mandated
+      CLAUDE.md edit (per CLAUDE.md Canonical Principle §Boundaries).
+    verification_steps:
+      - "For each adversarial or process-review pass: identify all state-manager burst dispatches that occurred. For each such dispatch, verify the orchestrator ALSO dispatched independent non-.factory/ work (e.g., implementer in feature worktree, test-writer, research-agent) in the same turn — not after the state burst completed."
+      - "A session log showing orchestrator waited idle between 'state-manager dispatched' and 'state-manager completed' before dispatching the next non-.factory/ agent is a MEDIUM violation."
+      - "EXEMPT: work that writes .factory/ (second state-manager burst, spec-steward amendments to .factory/specs/) must serialize per TD-VSDD-053. The exemption applies only to different-target work (crates/, feature worktrees, research)."
+      - "Self-audit question (orchestrator, before idling): 'Is there any non-.factory/ pipeline work (tests, implementation, review) that is UNBLOCKED except for waiting on the state burst?' If YES, dispatch it now in parallel."
