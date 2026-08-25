@@ -10,8 +10,8 @@
 //!
 //! Non-`#[ignore]` tests in this file (covering RG-001, RG-002, RG-003b [proxy],
 //! RG-006, RG-007, RG-008) MUST FAIL before implementation lands:
-//!   - Each test finds the `claroty_vulnerabilities` table via `.find()` and panics at
-//!     `.expect("claroty_vulnerabilities table must exist")` because the `[[tables]]`
+//!   - Each test finds the `vulnerabilities` table via `.find()` and panics at
+//!     `.expect("vulnerabilities table must exist")` because the `[[tables]]`
 //!     block has not yet been added to `claroty.sensor.toml`.
 //! Also in this file (pass-2 additions, non-RGT extra coverage): EC-005 (cve_ids
 //! empty-array), EC-006 (published_date null), F-VULNS-P1-005 (null-count non-empty
@@ -57,7 +57,7 @@ const CLAROTY_TOML: &str = include_str!(concat!(
 ));
 
 // ── RG-001 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.015 §Precondition P1: `[[tables]]` block with `table_name = "claroty_vulnerabilities"`
+/// BC-2.16.015 §Precondition P1: `[[tables]]` block with `table_name = "vulnerabilities"`
 /// must parse without error and appear in the SensorSpec tables list.
 /// Also asserts `ocsf_column_naming = true` on the claroty sensor (AC-001 / ADR-058 §D2).
 ///
@@ -69,12 +69,12 @@ fn test_BC_2_16_015_claroty_vulnerabilities_toml_block_parses() {
     let table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_vulnerabilities")
-        .expect("claroty_vulnerabilities table must exist");
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
 
     assert_eq!(
-        table.table_name, "claroty_vulnerabilities",
-        "table_name must be 'claroty_vulnerabilities'"
+        table.table_name, "vulnerabilities",
+        "table_name must be 'vulnerabilities'"
     );
     assert!(
         spec.ocsf_column_naming,
@@ -83,7 +83,7 @@ fn test_BC_2_16_015_claroty_vulnerabilities_toml_block_parses() {
     assert_eq!(
         table.columns.len(),
         19,
-        "claroty_vulnerabilities must declare exactly 19 ColumnSpec entries (AC-001); \
+        "vulnerabilities must declare exactly 19 ColumnSpec entries (AC-001); \
          got {}: {:?}",
         table.columns.len(),
         table.columns.iter().map(|c| &c.name).collect::<Vec<_>>()
@@ -103,8 +103,8 @@ fn test_BC_2_16_015_claroty_vulnerabilities_tier1_columns_two_with_ocsf_field() 
     let table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_vulnerabilities")
-        .expect("claroty_vulnerabilities table must exist");
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
 
     let tier1: Vec<_> = table
         .columns
@@ -208,8 +208,8 @@ fn test_BC_2_16_015_claroty_vulnerabilities_tier2_column_raises_e_query_038() {
     let table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_vulnerabilities")
-        .expect("claroty_vulnerabilities table must exist");
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
 
     let projected = ocsf_projected_column_names(table, spec.ocsf_column_naming);
 
@@ -284,8 +284,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_live_wire_shape_class_uid_and_
     let live_table = live_spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_vulnerabilities")
-        .expect("claroty_vulnerabilities table must exist");
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
 
     let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new());
     let http_client = reqwest::Client::builder()
@@ -311,8 +311,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_live_wire_shape_class_uid_and_
         let orig_table = spec
             .tables
             .iter()
-            .find(|t| t.table_name == "claroty_vulnerabilities")
-            .expect("claroty_vulnerabilities table must exist in original spec");
+            .find(|t| t.table_name == "vulnerabilities")
+            .expect("vulnerabilities table must exist in original spec");
         let row = ColumnMapper::map_record(raw_record, orig_table)
             .expect("map_record must succeed for live record");
 
@@ -421,8 +421,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_live_raw_extensions_contains_t
     let live_table = live_spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_vulnerabilities")
-        .expect("claroty_vulnerabilities table must exist");
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
 
     let context = FetchContext::new(OrgSlug::new("live-test"), HashMap::new());
     let http_client = reqwest::Client::builder()
@@ -440,8 +440,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_live_raw_extensions_contains_t
         let orig_table = spec
             .tables
             .iter()
-            .find(|t| t.table_name == "claroty_vulnerabilities")
-            .expect("claroty_vulnerabilities table must exist in original spec");
+            .find(|t| t.table_name == "vulnerabilities")
+            .expect("vulnerabilities table must exist in original spec");
         let row = ColumnMapper::map_record(raw_record, orig_table)
             .expect("map_record must succeed for live record");
         assert!(
@@ -489,8 +489,8 @@ fn test_BC_2_16_015_claroty_vulnerabilities_required_name_absent_produces_null_r
     let table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_vulnerabilities")
-        .expect("claroty_vulnerabilities table must exist");
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
 
     // Record that intentionally omits the REQUIRED 'name' field.
     let record_without_name = json!({
@@ -569,8 +569,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_nullable_count_uses_empty_page
     let table = test_spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_vulnerabilities")
-        .expect("claroty_vulnerabilities table must exist");
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
 
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
     let http_client = reqwest::Client::builder()
@@ -591,7 +591,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_nullable_count_uses_empty_page
         result.records.len()
     );
     assert_eq!(
-        result.table_name, "claroty_vulnerabilities",
+        result.table_name, "vulnerabilities",
         "PipelineResult.table_name must match the table spec table_name"
     );
 }
@@ -609,8 +609,8 @@ fn test_BC_2_16_015_claroty_vulnerabilities_source_path_id_null_when_absent() {
     let table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_vulnerabilities")
-        .expect("claroty_vulnerabilities table must exist");
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
 
     // Record that omits the 'id' field (source_path = "$.id" finds nothing).
     let record_without_id = json!({
@@ -708,8 +708,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_nullable_count_nonempty_first_
     let table = test_spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_vulnerabilities")
-        .expect("claroty_vulnerabilities table must exist");
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
 
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
     let http_client = reqwest::Client::builder()
@@ -757,8 +757,8 @@ fn test_BC_2_16_015_claroty_vulnerabilities_ec005_cve_ids_empty_array_in_raw_ext
     let table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_vulnerabilities")
-        .expect("claroty_vulnerabilities table must exist");
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
 
     let record = json!({ "cve_ids": [] });
 
@@ -802,8 +802,8 @@ fn test_BC_2_16_015_claroty_vulnerabilities_ec006_published_date_null_row_materi
     let table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_vulnerabilities")
-        .expect("claroty_vulnerabilities table must exist");
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
 
     let record = json!({ "published_date": null });
 
@@ -877,8 +877,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_non_iso_published_date_e
     let table = test_spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_vulnerabilities")
-        .expect("claroty_vulnerabilities table must exist");
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
 
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
     let http_client = reqwest::Client::builder()
@@ -952,8 +952,8 @@ fn test_BC_2_16_015_claroty_vulnerabilities_ec004_advisory_title_preserved_verba
     let table = spec
         .tables
         .iter()
-        .find(|t| t.table_name == "claroty_vulnerabilities")
-        .expect("claroty_vulnerabilities table must exist");
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
 
     // Advisory-title format: NOT CVE-YYYY-NNNNN.  Per BC-2.16.015 §EC-016-015-004
     // this value must be preserved verbatim — no normalisation of any kind.

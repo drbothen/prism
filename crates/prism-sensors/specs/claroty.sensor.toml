@@ -590,7 +590,7 @@ ocsf_class = "detection_finding"
 #   "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)").
 # ---------------------------------------------------------------------------
 [[tables]]
-table_name = "claroty_vulnerabilities"
+table_name = "vulnerabilities"
 ocsf_class = "vulnerability_finding"
 
   # Tier-1 #1: OCSF finding_info.title — the vulnerability name/title.

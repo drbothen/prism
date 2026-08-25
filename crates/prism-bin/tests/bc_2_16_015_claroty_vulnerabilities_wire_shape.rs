@@ -218,11 +218,11 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock
 
     let adapter = make_claroty_adapter(&mock_server.uri());
 
-    // source_table = "claroty_claroty_vulnerabilities":
-    //   strip "claroty_" prefix → "claroty_vulnerabilities" = table.table_name in the spec.
-    //   (Registered in DataFusion as: format!("{sensor_id}_{table_name}") = "claroty_claroty_vulnerabilities")
+    // source_table = "claroty_vulnerabilities":
+    //   sensor_id = "claroty", table_name = "vulnerabilities" (F-VULNS-P5-001 fix: bare name).
+    //   Registered in DataFusion as: format!("{sensor_id}_{table_name}") = "claroty_vulnerabilities".
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_vulnerabilities".to_string(),
+        source_table: "claroty_vulnerabilities".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-vulns-wire-test".to_string(),
@@ -448,7 +448,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_wire_shape_serialized_json_exp
     let adapter = make_claroty_adapter(&mock_server.uri());
 
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_vulnerabilities".to_string(),
+        source_table: "claroty_vulnerabilities".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-vulns-wire-json-test".to_string(),
@@ -636,7 +636,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_wire_shape_serialized_json_exp
 ///   2. `TableRegistry::register_sensor(&spec)` — populates OCSF-projected names
 ///      (S-ADR058-OCSF-ROUTING-001 fix: stores Arrow names, not raw col.names)
 ///   3. `QueryEngine::new_with_cache_config(...).with_table_registry(registry)` — wires the gate
-///   4. `engine.execute("SELECT vulnerability_type FROM claroty_claroty_vulnerabilities", ...)`
+///   4. `engine.execute("SELECT vulnerability_type FROM claroty_vulnerabilities", ...)`
 ///      — enters via the public query surface, fires E-QUERY-038
 ///
 /// `vulnerability_type` is Tier-2 (no ocsf_field in claroty.sensor.toml):
@@ -644,8 +644,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_wire_shape_serialized_json_exp
 ///   - available_columns contains "raw_extensions", "finding_info_title", "message"
 ///   - available_columns does NOT contain "vulnerability_type"
 ///
-/// Registered table name: `{sensor_id}_{table_name}` = `claroty_claroty_vulnerabilities`
-/// (sensor_id="claroty", table_name="claroty_vulnerabilities" per TOML).
+/// Registered table name: `{sensor_id}_{table_name}` = `claroty_vulnerabilities`
+/// (sensor_id="claroty", table_name="vulnerabilities" per TOML, F-VULNS-P5-001 fix).
 ///
 /// No HTTP requests are issued — E-QUERY-038 fires at plan-time before any fan-out.
 ///
@@ -667,7 +667,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column()
 
     // TableRegistry::register_sensor populates OCSF-projected column names for
     // sensors with ocsf_column_naming = true (S-ADR058-OCSF-ROUTING-001 fix).
-    // For claroty_claroty_vulnerabilities:
+    // For claroty_vulnerabilities:
     //   Tier-1 columns → Arrow names (finding_info_title, message, ...)
     //   Tier-2 columns → aggregated as "raw_extensions"
     //   "vulnerability_type" (Tier-2) → NOT in projected columns → E-QUERY-038
@@ -690,13 +690,13 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column()
     )
     .with_table_registry(registry);
 
-    // Table registered in DataFusion: "{sensor_id}_{table_name}" = "claroty_claroty_vulnerabilities".
+    // Table registered in DataFusion: "{sensor_id}_{table_name}" = "claroty_vulnerabilities".
     // `vulnerability_type` is a Tier-2 column (no ocsf_field) and is NOT in
     // ocsf_projected_column_names. The plan-time check_query_column_availability gate
     // MUST raise E-QUERY-038 (PrismError::ColumnNotFound).
     let result = engine
         .execute(
-            "SELECT vulnerability_type FROM claroty_claroty_vulnerabilities",
+            "SELECT vulnerability_type FROM claroty_vulnerabilities",
             QueryOptions::default(),
         )
         .await;
@@ -787,7 +787,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column()
 ///
 /// `id` is a Tier-2 column declared with `source_path = "$.id"` (no `ocsf_field`).
 /// It lives inside `raw_extensions` and is NOT a queryable Arrow column.
-/// EC-009 asserts that `SELECT id FROM claroty_claroty_vulnerabilities` fires
+/// EC-009 asserts that `SELECT id FROM claroty_vulnerabilities` fires
 /// E-QUERY-038 at plan-time, exactly as any other Tier-2 column would.
 ///
 /// This test closes the id-specific SAP-3 reachability gap identified in
@@ -833,7 +833,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_id_column() {
     // E-QUERY-038 (PrismError::ColumnNotFound) must fire at plan-time.
     let result = engine
         .execute(
-            "SELECT id FROM claroty_claroty_vulnerabilities LIMIT 1",
+            "SELECT id FROM claroty_vulnerabilities LIMIT 1",
             QueryOptions::default(),
         )
         .await;
@@ -1012,7 +1012,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec008_non_200_e_sensor_001() {
     let adapter = make_claroty_adapter(&mock_server.uri());
 
     let adapter_spec = SensorAdapterSpec {
-        source_table: "claroty_claroty_vulnerabilities".to_string(),
+        source_table: "claroty_vulnerabilities".to_string(),
         org_id: OrgId::from_uuid(uuid::Uuid::now_v7()),
         #[allow(deprecated)]
         client_id: "claroty-vulns-ec008-test".to_string(),
