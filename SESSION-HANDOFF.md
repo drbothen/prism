@@ -1,18 +1,62 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.009"
+version: "8.010"
 status: current
-timestamp: 2026-08-26T13:30:00Z
+timestamp: 2026-08-26T23:30:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2310 (2026-08-26): SESSION WRAP — S-CLAROTY-VULNS-001 LOCAL 3-CLEAN CONVERGED (round-5 3/3 @5aae6f0b3) + HOLDOUT HS-024 PASS; merge HELD pending engine fixes ADR-059/060; NEXT = engine stories + live re-validate. [D-2304 SUPERSEDED by D-2310]**
+> **D-2321 (2026-08-26): SESSION WRAP — DEFECT-1 phantom + ADR-059 WITHDRAWN; LIMIT LOCAL round-9 in flight @f73ab0e2f; VULNS merge-held (DEFECT-1 cleared); NEXT = collect round-9 lenses → LIMIT LOCAL CONVERGED → VULNS live re-validate. [D-2310 SUPERSEDED by D-2321]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2310 (2026-08-26 — SESSION WRAP; VULNS live-HELD; engine pivot ADR-059/060)
+## §RESUME SNAPSHOT — D-2321 (2026-08-26 — SESSION WRAP; DEFECT-1 phantom; ADR-059 withdrawn; LIMIT round-9 in flight)
+
+### RESUME IN ONE BREATH
+Prism Phase-3, v1 = live Claroty xDome. This session PROVED DEFECT-1 (claroty_vulnerabilities h2 "stall") a PHANTOM — direct h2 transport to api.claroty.com is healthy (curl --http2 full 1.2 MB ~0.9s + faithful reqwest 0.12.28 repro + the REAL prism binary fetched live CVE rows across 10 paginated pages, zero E-QUERY-004); root cause was transient/edge, since resolved. Consequently: ADR-059 WITHDRAWN v1.2 (h2-window hypothesis falsified — hyper defaults 2 MiB stream / 5 MiB connection already exceed the page); BC-2.16.002 v2.38 (H2 postcondition removed, LIMIT early-stop postcondition kept); S-ENGINE-H2-LARGE-RESPONSE-001 RE-SCOPED (v1.6, draft, P2, blocks:VULNS removed) to a NON-GATING recurrence guard (relay-removal confirmation + live canary + E-QUERY-004 diagnostics + query-CLI wiring); the interim xdome HTTP/1.1 relay is DECOMMISSIONED (prism-live-mcp-wrapper.sh auto-start removed, PID killed, port 8899 closed, monroe overlay base_url direct https://api.claroty.com) so prism-live cannot use it. DEFECT-2 fix = S-ENGINE-LIMIT-EARLY-STOP-001 (LIMIT-aware early-stop pagination per ADR-060) is CODE-COMPLETE + just check GREEN @f73ab0e2f (11 tests); LOCAL 3-CLEAN cascade at round-9, IN FLIGHT (3 read-only adversary lenses on frozen @f73ab0e2f; correctness CLEAN 8 consecutive rounds; the long tail was records/doc/coverage hygiene, all closed — incl. two REAL coverage gaps: CursorToken arm + multi-page k>1). NEXT: collect (or re-dispatch fresh — read-only, deterministic) the round-9 lenses on @f73ab0e2f; a 3/3 CLEAN(strict) batch on the unchanged HEAD = LIMIT LOCAL CONVERGED.
+
+### RESUME NEXT-ACTION (in order)
+1. LIMIT (S-ENGINE-LIMIT-EARLY-STOP-001, feature @f73ab0e2f): collect/re-dispatch the round-9 3-lens adversary batch (correctness / test-coverage / consistency) on frozen @f73ab0e2f. If all 3 CLEAN(strict) → LOCAL CONVERGED. Any finding → route (test-writer for test/coverage, story-writer for story-records, implementer for code) → re-freeze → re-cascade. (All rounds 1-8 findings are CLOSED; the recurring class was stale-test-doc / records hygiene — round-8 exhausted it with a broad multi-pattern grep.)
+2. On LIMIT CONVERGED: story-level HOLDOUT gate (product-owner authors 2-4 hidden single-use HS if none exist for this story) → holdout-evaluator against the built binary → demo-recorder per-AC → pr-manager 9-step PR to develop → PR-LEVEL 3-CLEAN + security-reviewer → squash-merge → POL-14 (BC-2.16.015 draft→active) → post-merge state burst. Redeploy the merged binary to test-soc/bin/prism.
+3. VULNS (S-CLAROTY-VULNS-001, feature @5aae6f0b3, merge-HELD): DEFECT-1 hold reason is CLEARED (phantom). After LIMIT merges + redeploys, re-run LIVE monroe validation of claroty_vulnerabilities (relay OFF, DIRECT h2; expect real rows and LIMIT early-stop working) per .factory/objectives/live-sensor-runbook.md (AD-017 opaque creds; no binary rebuild beyond the LIMIT redeploy). On PASS → VULNS hold clears → demo → pr-manager 9-step PR to develop → PR-LEVEL 3-CLEAN + security → squash-merge → POL-14.
+4. Then S-CLAROTY-OT-EVENTS-001 (Wave A G2) → Wave B/C, per xdome-endpoint-expansion-plan.
+5. POST-v1 (non-gating): deliver the re-scoped S-ENGINE-H2-LARGE-RESPONSE-001 (canary + diagnostics + query-CLI wiring). Its worktree @9e1df825a holds OBSOLETE window RG tests from the withdrawn ADR-059 scope — discard/reset when picked up.
+
+### HEADS
+- develop: 3f1e66179 (local==origin; clean of tracked changes)
+- factory-artifacts: 65e5869fc + this D-2321 wrap commit
+- feature/S-ENGINE-LIMIT-EARLY-STOP-001: f73ab0e2f (PUSHED origin)
+- feature/S-CLAROTY-VULNS-001: 5aae6f0b3 (PUSHED origin; merge-held, DEFECT-1 cleared)
+- feature/S-ENGINE-H2-LARGE-RESPONSE-001: 9e1df825a (LOCAL-ONLY — obsolete window tests; not pushed)
+- Parked: S-3.09 @43c41389d (LOCAL-ONLY, keep); W3-FIX-S307-001 @fcab8717c (LOCAL-ONLY dirty, do-NOT-touch)
+- ROUTING-001 worktree TORN DOWN this session (branch feature/S-ADR058-OCSF-ROUTING-001 -D deleted; PR #242 merged; ~160 GB reclaimed)
+
+### BC-5.39.001 STREAK
+LIMIT LOCAL: 0/3 (reset by the round-8 push to @f73ab0e2f); round-9 batch in flight on frozen @f73ab0e2f — a 3/3 CLEAN(strict) batch on this UNCHANGED HEAD = CONVERGED (frozen-HEAD rule).
+
+### PENDING USER-APPROVED (all executed this session)
+DEFECT-1 accept-transient + ship-direct h2 (no client change); withdraw ADR-059 + re-scope H2 story; decommission the relay; tear down the merged ROUTING-001 worktree (disk reclaim). Standing: D-989 autonomous Wave-5; "no pragmatic convergence".
+
+### DECISION-LOG DELTA (this session)
+D-2311 (engine spec-package: ADR-059 v1.0 + ADR-060 v1.0 + BC-2.16.002 v2.36 + BC-2.16.015 v1.7 + 3 engine stories materialized). D-2312 (DEFECT-1 investigation + pivot: ADR-059 WITHDRAWN v1.2, ADR-060 §D8.1 corrected v1.1, BC-2.16.002 v2.38, H2 story re-scoped, relay decommissioned, ROUTING-001 teardown, [process-win] remove-uncertainty caught falsified ADR). D-2313..D-2320 (LIMIT LOCAL cascade rounds 1-8: CursorToken coverage, ADR-060 §D8.1 code-comment + story sweeps, POL-39 version pins, EC-004 citation, STORY-INDEX crates reconcile, multi-page k>1 coverage, BC-2.16.015 status label, POST wire fidelity, volatile line-cites, POL-7 title, exhaustive test-doc reframe). D-2321 = this wrap.
+
+### WORKTREE INVENTORY
+| Worktree | SHA | Status |
+|----------|-----|--------|
+| LIMIT S-ENGINE-LIMIT-EARLY-STOP-001 | f73ab0e2f | ACTIVE — cascade round-9 in flight |
+| VULNS S-CLAROTY-VULNS-001 | 5aae6f0b3 | ACTIVE — merge-held (DEFECT-1 cleared; awaits LIMIT merge + live re-validate) |
+| H2 S-ENGINE-H2-LARGE-RESPONSE-001 | 9e1df825a | RE-SCOPED follow-up; obsolete window tests, local-only |
+| S-3.09 | 43c41389d | PARKED-keep (local-only) |
+| W3-FIX-S307-001 | fcab8717c | PARKED-dirty do-NOT-touch (local-only) |
+
+### BACKUP BOUNDARY
+PUSHED/safe: origin/develop 3f1e66179; origin/feature/S-ENGINE-LIMIT-EARLY-STOP-001 f73ab0e2f; origin/feature/S-CLAROTY-VULNS-001 5aae6f0b3; factory-artifacts (this wrap). LOCAL-ONLY AT RISK: feature/S-ENGINE-H2-LARGE-RESPONSE-001 @9e1df825a (obsolete), .worktrees/S-3.09 @43c41389d, .worktrees/W3-FIX-S307-001 @fcab8717c (dirty).
+
+---
+
+## §RESUME SNAPSHOT — D-2310 (2026-08-26 — SESSION WRAP; VULNS live-HELD; engine pivot ADR-059/060) [SUPERSEDED by D-2321]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3; v1 = live Claroty xDome. Story S-CLAROTY-VULNS-001 (claroty_vulnerabilities TOML table) is LOCAL 3-CLEAN CONVERGED (round-5 3/3 strict on frozen @5aae6f0b3) + DTU holdout HS-024 PASS (mean 0.967), but MERGE IS HELD pending live-green: live monroe validation proved the TOML CORRECT (schema/routing/class_uid=2002/Tier-1 finding_info_title queryable/E-QUERY-038 all confirmed live) BUT the vulnerabilities fetch times out (E-QUERY-004) from TWO engine bugs. NEXT = build+deliver the two engine stories, re-validate live, then unblock VULNS.
