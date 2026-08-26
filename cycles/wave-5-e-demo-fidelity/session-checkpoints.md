@@ -11,6 +11,16 @@ Current checkpoint lives in `.factory/STATE.md §Session Resume Checkpoint`.
 
 ---
 
+## Archived: D-2303 — 2026-08-25; STATE v8.835→v8.836 — VULNS-001 Wave A G1 LOCAL cascade pass-5 fixed @8f4c25c87
+
+**RESUME IN ONE BREATH:** Prism Phase-3, v1 = live Claroty-xDome. S-CLAROTY-VULNS-001 Wave A G1 LOCAL adversary cascade: 5 serial passes ALL FIXED. Latest HEAD @8f4c25c87 (feature NOT PUSHED — awaiting LOCAL 3-CLEAN). BC-5.39.001 LOCAL streak 0/3; pass-6 re-cascade pending. BC-INDEX v9.64 / STORY-INDEX v2.898 / STATE v8.836. E-SPEC-018 on PRESENT datetime HARD-ERRORS (human Option A). table_name=`vulnerabilities` → registers as `claroty_vulnerabilities`. prism-spec-engine ZERO prod changes intentional.
+
+**HEADS (D-2303 2026-08-25):** develop `3f1e66179` (local==origin); feature/S-CLAROTY-VULNS-001 @`8f4c25c87` (NOT PUSHED); `.worktrees/S-CLAROTY-VULNS-001` ACTIVE; `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED; `.worktrees/W3-FIX-S307-001` @`fcab8717c` DIRTY; `.worktrees/S-ADR058-OCSF-ROUTING-001` PENDING-TEARDOWN (PR #242 merged).
+
+**NOTE: Superseded by D-2310 — SESSION WRAP; VULNS-001 LOCAL 3-CLEAN CONVERGED (round-5 3/3 @5aae6f0b3) + HOLDOUT HS-024 PASS (mean 0.967, all 3 P0); merge HELD pending engine fixes (ADR-059/060). STATE v8.842→v8.843.**
+
+---
+
 ## Archived: D-2281 — 2026-08-23; STATE v8.814→v8.815 — ROUTING-001 pass-D CLEAN 1/3 + pass-E fixes @dce5237e2
 
 **RESUME IN ONE BREATH:** Prism Phase-3, v1 = live Claroty-xDome. ROUTING-001 pass-D CLEAN(strict)=YES 1/3 (frozen @8877c7c88); pass-E F-1 MED (stale rustdoc bullet `ocsf_projected_column_names`, §J6-drop residue) + F-2 LOW (Rule 8 wiring comment AC-020→AC-021) fixed code-COMMENT @dce5237e2 (no spec change). ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.11.016 v1.31 / ROUTING-001 v1.55. BC-5.39.001 LOCAL streak 0/3 RESET; re-gate pending on dce5237e2.

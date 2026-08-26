@@ -1,18 +1,52 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.008"
+version: "8.009"
 status: current
-timestamp: 2026-08-25T21:30:00Z
+timestamp: 2026-08-26T13:30:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2304 (2026-08-25): SESSION WRAP — S-CLAROTY-VULNS-001 Wave A G1 CODE-COMPLETE + GREEN; LOCAL cascade (5 passes + 4-lens batch) all findings fixed; NEXT = 3-CLEAN confirmation on frozen feature @4e525126b. [D-2297 SUPERSEDED by D-2304]**
+> **D-2310 (2026-08-26): SESSION WRAP — S-CLAROTY-VULNS-001 LOCAL 3-CLEAN CONVERGED (round-5 3/3 @5aae6f0b3) + HOLDOUT HS-024 PASS; merge HELD pending engine fixes ADR-059/060; NEXT = engine stories + live re-validate. [D-2304 SUPERSEDED by D-2310]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2304 (2026-08-25 — WRAP; S-CLAROTY-VULNS-001 Wave A G1; pre-3-CLEAN-confirmation)
+## §RESUME SNAPSHOT — D-2310 (2026-08-26 — SESSION WRAP; VULNS live-HELD; engine pivot ADR-059/060)
+
+### RESUME IN ONE BREATH
+Prism Phase-3; v1 = live Claroty xDome. Story S-CLAROTY-VULNS-001 (claroty_vulnerabilities TOML table) is LOCAL 3-CLEAN CONVERGED (round-5 3/3 strict on frozen @5aae6f0b3) + DTU holdout HS-024 PASS (mean 0.967), but MERGE IS HELD pending live-green: live monroe validation proved the TOML CORRECT (schema/routing/class_uid=2002/Tier-1 finding_info_title queryable/E-QUERY-038 all confirmed live) BUT the vulnerabilities fetch times out (E-QUERY-004) from TWO engine bugs. NEXT = build+deliver the two engine stories, re-validate live, then unblock VULNS.
+
+### HEADS
+- develop: 3f1e66179 (local==origin)
+- factory-artifacts: 415848d7e (D-2309) + this D-2310 wrap
+- feature/S-CLAROTY-VULNS-001: 5aae6f0b3 (PUSHED origin; LOCAL converged; merge HELD)
+- Worktrees: ACTIVE .worktrees/S-CLAROTY-VULNS-001 @5aae6f0b3 (held); PARKED S-3.09 @43c41389d (keep), W3-FIX-S307-001 @fcab8717c (DIRTY, do-NOT-touch); REMOVABLE-POST-MERGE S-ADR058-OCSF-ROUTING-001 @5645c8506 (PR #242 merged, teardown pending).
+
+### RESUME NEXT-ACTION (engine stories — v1-critical, block VULNS live-green; ADR-059 + ADR-060 already written & registered D-2309)
+1. product-owner: amend BC-2.16.002 (postcondition: h2 4 MiB stream+conn window + adaptive per ADR-059 §D7; postcondition: FetchContext.early_stop_limit early-stop-at-complete-page per ADR-060 D8 + catalog rows) + BC-2.16.015 (LIMIT test-vector + EC-016-015-007 "LIMIT 1 fetches 1 page").
+2. story-writer: materialize S-ENGINE-H2-LARGE-RESPONSE-001 (crates: prism-spec-engine/pipeline.rs build_http_client_with_timeout, prism-bin/spec_driven_adapter.rs build_http_client_with_custom_timeout, prism-bin/boot.rs 2 PluginRuntime sites) + S-ENGINE-LIMIT-EARLY-STOP-001 (prism-spec-engine/pipeline.rs FetchContext+execute_impl, prism-bin/spec_driven_adapter.rs DataFusion-plan LIMIT extraction) — both SAC-1 enumerated RG lists + tdd_mode strict, independent/parallel; + draft stub S-ENGINE-TIMEOUT-OVERLAY-WIRE-001 (non-blocking, after 1+2). Run remove-uncertainty (D-1110).
+3. Per-story TDD each: stub-architect → test-writer LOCAL Red Gate (H2: local hyper h2 server via http2_prior_knowledge, 2 MB body, tuned <5s vs untuned stall; LIMIT: wiremock multi-page assert early-stop request count) → implementer → just check → LOCAL adversary 3-CLEAN → merge to develop.
+4. DECISIVE: re-run LIVE monroe validation of claroty_vulnerabilities (`FROM claroty_vulnerabilities | limit 5`, expect real rows <10s) via test-soc/.prism-live (spec-only; runbook .factory/objectives/live-sensor-runbook.md; AD-017 opaque cred; no binary rebuild) → on PASS, VULNS hold clears.
+5. VULNS resume: (BC-2.16.015 may need EC-016-015-007 amend + a final LOCAL micro-cascade if touched) → demo-recorder per-AC → pr-manager 9-step PR to develop → PR-LEVEL 3-CLEAN + security-reviewer → squash-merge → POL-14 (BC-2.16.015 draft→active).
+6. Then S-CLAROTY-OT-EVENTS-001 (Wave A G2) → Wave B/C.
+
+### PENDING USER-APPROVED / OPEN
+- User decisions THIS session: HOLD VULNS until live-green (approved); FIX the 2 engine bugs now (approved, work to begin).
+- OPEN (unanswered): whether to also disable the other two STATE.md structure hooks (validate-state-structure, validate-dispatch-advance) OR keep them + adopt the single-MultiEdit STATE-burst rule. DEFAULT pending answer = KEEP + single-MultiEdit rule.
+
+### HARNESS CHANGE (this session)
+`verify-state-timestamp-refresh` PreToolUse hook DISABLED (commented out) in the SHARED plugin cache `~/.claude/plugins/cache/claude-mp/vsdd-factory/1.0.0-rc.23/hooks-registry.toml` (user-directed, to remove STATE.md per-edit timestamp friction). CAVEAT: global to all vsdd-factory projects + OVERWRITTEN on plugin update/reinstall — re-apply after any plugin update if still wanted.
+
+### LESSON [process-gap] (codify)
+DTU story-level holdout gate FALSE-GREEN: HS-024 passed against thin DTU fixtures but the LIVE tenant exposed a merge-blocking timeout (large-payload h2 stall + high-volume no-LIMIT-pushdown) that DTU fixtures structurally cannot reproduce. → For sensors whose DTU is stale/thin, the story-level gate MUST include a live-tenant check before merge (user standing directive: validate against the live sensor). Also: state-manager STATE.md record bursts must be single-MultiEdit (avoids the structure-hook loop that cost ~1.5h this session).
+
+### CASCADE HISTORY (S-CLAROTY-VULNS-001 this session)
+D-2305 STATE compaction 299→191. D-2306 round-2 (BC v1.5/story v1.7; RG-009 + `id` false-green fix). D-2307 round-3 (RG-009 6-site enumeration sweep). D-2308 round-4 (id null→absent precision; TOML comment; ADR-058 v2.34/ADR-028 v1.31 anchor_stories; RG-008 rename). Round-5 3/3 CLEAN → LOCAL CONVERGED @5aae6f0b3. HS-024 holdout PASS. Live monroe → 2 engine bugs → D-2309 pivot (ADR-059/060).
+
+---
+
+## §RESUME SNAPSHOT — D-2304 (2026-08-25 — WRAP; S-CLAROTY-VULNS-001 Wave A G1; pre-3-CLEAN-confirmation) [SUPERSEDED by D-2310]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3, v1 = live Claroty-xDome. Wave A G1 story **S-CLAROTY-VULNS-001** (`claroty_vulnerabilities` TOML table) is CODE-COMPLETE + GREEN. `feature/S-CLAROTY-VULNS-001` @`4e525126b` **PUSHED origin** (`just check` GREEN: prism-sensors 203 / prism-bin 234 / prism-spec-engine 798). LOCAL adversary cascade = 5 serial passes + a 4-lens diverse-lens batch; ALL findings fixed. Specs: BC-2.16.015 v1.4 / story v1.6 / BC-INDEX v9.64 / STORY-INDEX v2.899 / STATE v8.837. BC-5.39.001 LOCAL streak **0/3**.
@@ -194,7 +228,7 @@ Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 PR-LEVEL fix-b
 ### RESUME IN ONE BREATH
 ROUTING-001 story-level holdout gate PASSED (HS-023 3/3 P0 scenarios, mean satisfaction 1.00; CONSUMED — HOLDOUT-INDEX v1.21). Demo COMPLETE: 21/21 ACs recorded @dc37a57a7 (docs-only commit; code remains @8aeaf06c4, LOCAL 3-CLEAN unchanged). pr-manager 9-step PR cycle IN PROGRESS (PR targeting develop).
 
-**RESUME NEXT-ACTION:** pr-manager 9-step PR cycle is in progress (PR being created targeting develop). After CI + code reviews pass: orchestrator drives PR-LEVEL adversary 3-CLEAN (BC-5.39.001) + security-reviewer, then squash-merge to develop + POL-14 post-merge burst (state-manager). OBS-A/OBS-B candidate follow-ups logged in STATE.md §D-2285 for post-merge routing.
+**RESUME NEXT-ACTION:** SUPERSEDED — ROUTING-001 PR-LEVEL cascade COMPLETED; PR #242 SQUASH-MERGED develop@3f1e66179 (D-2288 2026-08-23). See D-2310 §RESUME SNAPSHOT for current next action.
 
 ### HEADS (D-2285)
 - `develop`: `362e4f85` (local == origin; clean)

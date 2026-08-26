@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.842"
+version: "8.843"
 producer: state-manager
-timestamp: 2026-08-26T12:22:00Z
+timestamp: 2026-08-26T13:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -31,7 +31,7 @@ workspace_test_count: 5816
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2309 S-CLAROTY-VULNS-001 live-HELD pending engine fixes. LOCAL 3-CLEAN CONVERGED (round-5 3/3 CLEAN(strict) frozen @5aae6f0b3) + HOLDOUT HS-024 PASS (mean 0.967, all 3 P0). LIVE validation: schema/routing CONFIRMED (class_uid 2002, Tier-1 queryable, E-QUERY-038 raw-col rejection); NO HTTP 500; TOML field projection VALID per xDome OpenAPI. Live E-QUERY-004 timeout = ADR-059 h2-window + ADR-060 early-stop. ADR-059 v1.0 + ADR-060 v1.0 REGISTERED. Next: BC amend + engine story creation (S-ENGINE-H2-LARGE-RESPONSE-001 + S-ENGINE-LIMIT-EARLY-STOP-001 block VULNS live-green; S-ENGINE-TIMEOUT-OVERLAY-WIRE-001 non-blocking). trajectory-tail →3→4→0→0. ARCH-INDEX v2.335 / BC-INDEX v9.66 / STORY-INDEX v2.902 / VP-INDEX v2.22. STATE v8.841→v8.842."
+current_step: "D-2310 SESSION WRAP — S-CLAROTY-VULNS-001 LOCAL 3-CLEAN CONVERGED (round-5 3/3 CLEAN(strict) frozen @5aae6f0b3) + HOLDOUT HS-024 PASS (mean 0.967, all 3 P0). Live E-QUERY-004 = ADR-059 h2-window + ADR-060 early-stop. Merge HELD: S-ENGINE-H2-LARGE-RESPONSE-001 + S-ENGINE-LIMIT-EARLY-STOP-001 blocking live-green. NEXT: engine stories → live re-validate → VULNS unblock. Lesson: DTU holdout gate FALSE-GREEN on thin fixtures; live-tenant check required for stale DTU sensors. Harness: verify-state-timestamp-refresh DISABLED (user-directed). trajectory-tail →3→4→0→0 CONVERGED. ARCH-INDEX v2.335 / BC-INDEX v9.66 / STORY-INDEX v2.902 / VP-INDEX v2.22. STATE v8.842→v8.843."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -68,7 +68,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-26"
 ---
 
-<!-- STATE.md SIZE BUDGET: 194 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: 6 | margin from actual: 306 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 189 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: 11 | margin from actual: 311 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -81,7 +81,7 @@ pre_compact_snapshot_at: "2026-08-26"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-26 D-2309 S-CLAROTY-VULNS-001 live-HELD + engine pivot — LOCAL 3-CLEAN CONVERGED (round-5 3/3 frozen @5aae6f0b3) + HOLDOUT HS-024 PASS. LIVE: schema/routing CONFIRMED; TOML valid per xDome OpenAPI. E-QUERY-004 timeout = ADR-059 h2-window + ADR-060 early-stop. ADR-059/ADR-060 v1.0 REGISTERED. ARCH-INDEX v2.334→v2.335. trajectory-tail →3→4→0→0. STATE v8.841→v8.842. |
+| **Last Updated** | 2026-08-26 D-2310 SESSION WRAP — VULNS LOCAL CONVERGED round-5 3/3 + HOLDOUT HS-024 PASS; merge HELD pending ADR-059/060 engine fixes. trajectory-tail →3→4→0→0 CONVERGED. STATE v8.842→v8.843. |
 
 ## Phase Progress
 
@@ -126,11 +126,11 @@ _No concurrent cycles in progress. Current cycle: wave-5-e-demo-fidelity._
 | Step | Agent | Date | Content |
 |------|-------|------|---------|
 | _D-735..D-2299 (exhaustive)_ | — | archived | cycles/wave-5-e-demo-fidelity/burst-log.md (compactions) |
-| D-2305 | state-manager | 2026-08-26 | compact-state burst: D-2200..D-2299 (exhaustive) + D-2262..D-2299 (exhaustive) CPS archived to cycle files; STATE v8.837→v8.838 |
 | D-2306 | state-manager | 2026-08-26 | round-2 fix-burst: 2M+1L+2O ALL FIXED @fa35b09aa; story v1.6→v1.7; STORY-INDEX v2.900; trajectory-tail →5→5→7→5 |
 | D-2307 | state-manager | 2026-08-26 | round-3 fix-burst: 1M+1L+1O ALL FIXED @551d18196; story v1.7→v1.8; STORY-INDEX v2.901; trajectory-tail →5→7→5→3 |
 | D-2308 | state-manager | 2026-08-26 | round-4 fix-burst: 1 LOW+3 OBS ALL RESOLVED; BC-2.16.015 v1.5→v1.6; story v1.8→v1.9; ADR-058 v2.34/ADR-028 v1.31 anchor_stories; code @5aae6f0b3 PUSHED. trajectory-tail →3→4. |
 | D-2309 | state-manager | 2026-08-26 | live-validation outcome + engine pivot: LOCAL 3-CLEAN CONVERGED (round-5 3/3 @5aae6f0b3) + HOLDOUT HS-024 PASS (mean 0.967, all 3 P0). ADR-059/ADR-060 v1.0 REGISTERED; ARCH-INDEX v2.334→v2.335. Merge HELD. trajectory-tail →3→4→0→0. |
+| D-2310 | state-manager | 2026-08-26 | SESSION WRAP: VULNS LOCAL CONVERGED + HS-024 PASS; merge HELD pending engine fixes (ADR-059/060). Lesson: DTU holdout FALSE-GREEN on thin fixtures; live-tenant check MUST precede merge for stale DTU. trajectory-tail →3→4→0→0 CONVERGED. |
 
 ## Decisions Log
 
@@ -148,6 +148,7 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 | D-2306 | state-manager | 2026-08-26 | **LOCAL cascade round-2 fix-burst (TD-VSDD-053) — 3 parallel fresh-context passes A/B/C on frozen @4e525126b + BC v1.4/story v1.6: 2 MED (F-VULNS-PB-001/PA-L01 `id` `$.id` positive-extraction false-green, corroborated by 2 passes → RG-009 added; F-VULNS-PC-MED-001 BC §Description "18 Tier-2"→"17") + 1 LOW (F-VULNS-PC-LOW-002 test docstrings phantom EC-016-015-007/EC-009 → real §Error Cases E-SPEC-018 / E-QUERY-001 + story §Edge Cases anchors) + 2 OBS (F-VULNS-PA-O01 EC-016-015-006 null-datetime raw_extensions clarification; F-VULNS-PA-O02 §1 body_template TOML→text fence) — ALL FIXED: test-writer @fa35b09aa (RG-009 + 2 strengthened wire assertions + docstring anchors; just check GREEN 5838/5838) + product-owner BC-2.16.015 v1.4→v1.5 + story-writer story v1.6→v1.7 (RG-009 density 11/8=1.375, BC-pin propagation 7 sites, §Authority body_template/count sweep). 2 prior-session HIGH index findings RE-CONFIRMED race false-positives (pass C verified index rows twice on-disk). Feature HEAD @fa35b09aa PUSHED origin (fast-forward 4e525126b..fa35b09aa; pre-push just check GREEN). BC-5.39.001 LOCAL streak RESET 0/3; new frozen HEAD @fa35b09aa; 3-CLEAN confirmation round-3 pending. BC-INDEX v9.64→v9.65; STORY-INDEX v2.899→v2.900. TD-VSDD-097: Dim-a CLEAR; Dim-b DISCHARGED (story §Authority sync); Dim-c CLEAR. records-lint exit 0. trajectory-tail →5→7→5→(round-2). STATE v8.838→v8.839.** | wave-5-e-demo-fidelity | 2026-08-26 |
 | D-2307 | state-manager | 2026-08-26 | **LOCAL cascade round-3 fix-burst (TD-VSDD-053) — 3 parallel passes A/B/C on frozen @fa35b09aa + BC v1.5/story v1.7: 1 MED (F-VULNS-PC3-MED-001 RG-009 enumeration propagation gap, corroborated 2 passes) + 1 LOW (wire-test §Tests-in-this-file table 3→8) + 1 OBS (RG-004 tautological class_uid arm annotated non-load-bearing) — ALL FIXED: story-writer story v1.7→v1.8 (RG-009 swept into 6 enumeration sites: §File Structure, crates_touched, Tasks 3/7/10) + test-writer @551d18196 (docstring density 10→11/1.25→1.375, wire-test table completed, class_uid annotated cites RG-004b; just check GREEN prism-sensors 14/14 + prism-bin 8/8). BC-2.16.015 UNCHANGED v1.5. Feature HEAD @551d18196 PUSHED origin. BC-5.39.001 LOCAL streak RESET 0/3; new frozen HEAD @551d18196; 3-CLEAN round-4 pending. STORY-INDEX v2.900→v2.901. TD-VSDD-097 downstream-copy dimension DISCHARGED (exhaustive RG-enumeration sweep). records-lint exit 0. trajectory-tail →5→7→5→3. STATE v8.839→v8.840.** | wave-5-e-demo-fidelity | 2026-08-26 |
 | D-2308 | state-manager | 2026-08-26 | **LOCAL cascade round-4 fix-burst — 1 LOW (F-VULNS-R4C-LOW-001/F-R4A-LOW-001 id-absent "null"→"absent" precision, 2-pass corroborated) + 3 OBS/deferred (F-VULNS-R4C-OBS-001 TOML comment header→vulnerabilities; F-R4A-OBS-001 engine WARN-on-absent-key ruled to new stub S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001; F-VULNS-R4C-DEF-001 SAC-2 ADR anchor_stories) ALL RESOLVED: BC-2.16.015 v1.5→v1.6 + story v1.8→v1.9 + ADR-058 v2.34/ADR-028 v1.31 anchor_stories + code @5aae6f0b3 (TOML comment + RG-008 test rename id_null_when_absent→id_absent_when_missing). Feature PUSHED origin. BC-5.39.001 LOCAL streak 0/3; frozen @5aae6f0b3; 3-CLEAN round-5 pending. ARCH-INDEX v2.334/BC-INDEX v9.66/STORY-INDEX v2.902 (total 315). TD-VSDD-097 all dims CLEAR. records-lint exit 0. STATE v8.840→v8.841.** | wave-5-e-demo-fidelity | 2026-08-26 |
+| D-2310 | state-manager | 2026-08-26 | **SESSION WRAP (TD-VSDD-053) — S-CLAROTY-VULNS-001 LOCAL 3-CLEAN CONVERGED (round-5 3/3 CLEAN(strict) @5aae6f0b3) + HOLDOUT HS-024 PASS (mean 0.967, all 3 P0). Merge HELD: live E-QUERY-004 = ADR-059 h2-window + ADR-060 early-stop. LESSON [process-gap]: DTU story-level holdout gate FALSE-GREEN on thin fixtures; for sensors with stale/thin DTU, story-level gate MUST include live-tenant check before merge. HARNESS: verify-state-timestamp-refresh PreToolUse hook DISABLED (user-directed; global to vsdd-factory). SESSION-HANDOFF.md D-2310 RESUME SNAPSHOT written. sidecar-learning.md folded. records-lint exit 0. STATE v8.842→v8.843.** | wave-5-e-demo-fidelity | 2026-08-26 |
 
 ## Skip Log
 
@@ -168,27 +169,21 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2303 -- 2026-08-25 -- VULNS-001 Wave A G1 LOCAL cascade pass-5 fixed @8f4c25c87; pass-6 re-cascade pending; STATE v8.835→v8.836) [supersedes D-2302]
+## Session Resume Checkpoint (D-2310 -- 2026-08-26 -- SESSION WRAP; VULNS merge HELD pending engine fixes ADR-059/060; STATE v8.842→v8.843) [supersedes D-2303]
 
 ### RESUME IN ONE BREATH
-Prism Phase-3, v1 = live Claroty-xDome. S-CLAROTY-VULNS-001 Wave A G1 TDD GREEN. LOCAL adversary cascade: pass-1 (2 CRIT, 2 HIGH, 5 MED, 2 OBS ALL FIXED @e2b779800+@3874f8624) + pass-2 (1 MED, 3 LOW, 1 OBS ALL FIXED @62f1c6379) + pass-3 (1 MED F-VULNS-ANCHOR-001 + 4 LOW + 1 OBS ALL FIXED @c8f21c4d2) + pass-4 (2 MED F-VULNS-ADV-001+F-VULNS-ADV-002 + 1 LOW F-VULNS-ADV-003 + 2 OBS ALL FIXED @cebeba3d6) + pass-5 (1 HIGH F-VULNS-P5-001 + 1 MED F-VULNS-P5-002 + 1 LOW F-VULNS-P5-003 + 2 OBS ALL FIXED @8f4c25c87). Feature HEAD frozen @8f4c25c87 for pass-6 re-cascade. BC-5.39.001 LOCAL streak 0/3. BC-INDEX v9.64 (active 253/draft 11/total 277). STORY-INDEX v2.898 (314 stories). develop_head 3f1e66179; workspace_test_count 5816 (develop); just check GREEN feature @8f4c25c87 (prism-sensors 202/prism-bin 232/prism-spec-engine 798).
+Prism Phase-3; v1 = live Claroty xDome. S-CLAROTY-VULNS-001 LOCAL 3-CLEAN CONVERGED (round-5 3/3 strict @5aae6f0b3) + HOLDOUT HS-024 PASS (mean 0.967, all 3 P0). Merge HELD: live E-QUERY-004 = ADR-059 h2-window + ADR-060 early-stop. NEXT: build S-ENGINE-H2-LARGE-RESPONSE-001 + S-ENGINE-LIMIT-EARLY-STOP-001 → live re-validate → unblock VULNS. trajectory-tail →3→4→0→0 CONVERGED.
 
-**RESUME NEXT-ACTION:** Dispatch LOCAL adversary pass-6 on frozen feature HEAD @8f4c25c87. BC-5.39.001 requires 3 consecutive CLEAN(strict) passes to converge. Pass-6 is pass 1-of-3 toward convergence after the pass-5 fix burst. Feature branch NOT pushed to origin (push after LOCAL 3-CLEAN then HOLDOUT then DEMO).
+**SETTLED:** (1) E-SPEC-018 on PRESENT unparseable datetime HARD-ERRORS (Option A). (2) Fetch ATOMIC. (3) ColumnOptions::Required = push-down eligibility only. (4) SAP-2 DTU-parity DEFERRED D-2200. (5) table_name=`vulnerabilities` → registers as `claroty_vulnerabilities`. (6) prism-spec-engine ZERO prod changes intentional.
 
-**CRITICAL CONVENTIONS:** xDome baseline = 4 tables (devices/alerts/audit_logs/device_alert_relations). OpenAPI is 4.4 MB — NEVER full-read. ColumnOptions::Required is push-down-eligibility option (pushdown.rs) NOT extraction null/error gate. No AI attribution in commits. prism-spec-engine has ZERO modified files in this story. E-SPEC-018 on a PRESENT unparseable datetime HARD-ERRORS (structured TimestampParseFailure) — human-approved Option A 2026-08-25. NAMING: table_name in TOML is `vulnerabilities` (F-VULNS-P5-001 fix); queryable name registers as `claroty_vulnerabilities` (sensor_id prefix prepended by SS-16 registry). Code uses vulnerabilities throughout; MCP query surface uses claroty_vulnerabilities.
-
-**SPEC PERIMETER (develop@3f1e66179 + feature@8f4c25c87):** ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 (merged) / COERCION-001 v1.47 (merged) / BC-2.16.015 v1.4 (draft, pass-1+pass-2+pass-3+pass-4+pass-5 fixed). Indexes: ARCH-INDEX v2.333 / BC-INDEX v9.64 / STORY-INDEX v2.898 / HOLDOUT-INDEX v1.26.
+**SPEC PERIMETER:** ADR-058 v2.34 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 / BC-2.16.015 v1.6 (draft) / story v1.9 — ARCH-INDEX v2.335 / BC-INDEX v9.66 / STORY-INDEX v2.902 / VP-INDEX v2.22.
 
 **HEADS:**
-- `develop`: `3f1e66179` (local == origin; clean)
+- `develop`: `3f1e66179` (local==origin; clean)
 - `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
-- `.worktrees/S-CLAROTY-VULNS-001`: ACTIVE (feature/S-CLAROTY-VULNS-001 @8f4c25c87; Wave A G1 LOCAL pass-6 re-cascade PENDING; feature NOT PUSHED)
-- `.worktrees/S-ADR058-OCSF-ROUTING-001`: PENDING-TEARDOWN (PR #242 merged; remote feature branch deleted)
-- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK -- unpushed)
-- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch
+- `feature/S-CLAROTY-VULNS-001`: `5aae6f0b3` (PUSHED; LOCAL 3-CLEAN CONVERGED round-5; merge HELD)
+- Parked: S-3.09 @`43c41389d` KEEP; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch; S-ADR058-ROUTING-001 @`5645c8506` REMOVABLE.
 
-**HOLDOUT:** HS-024 (VULNS-001; 3 — AUTHORED, UNREAD; consume ONLY after LOCAL 3-CLEAN). HS-029 (ACLPOLICY-001; 3 — AUTHORED, UNREAD). HS-028 (ORGPOLICY-001; 4 — AUTHORED, UNREAD). HS-027 (SERVERS-001; 3 — AUTHORED, UNREAD). HS-026 (DEVVULNREL-001; 3 — AUTHORED, UNREAD). HS-025 (OT-EVENTS-001; 3 — AUTHORED, UNREAD). HS-022/023 CONSUMED.
+**HOLDOUT:** HS-024 CONSUMED (PASS mean 0.967 D-2309). HS-025..029 AUTHORED UNREAD.
 
-**BACKUP BOUNDARY (D-2303):**
-- PUSHED / safe: `origin/develop` `3f1e66179`; `factory-artifacts` (this burst commit).
-- LOCAL-ONLY AT RISK: `.worktrees/S-CLAROTY-VULNS-001` @`8f4c25c87` (feature NOT PUSHED — awaiting LOCAL 3-CLEAN); `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty).
+**BACKUP:** PUSHED: origin/develop 3f1e66179; origin/feature/S-CLAROTY-VULNS-001 5aae6f0b3; factory-artifacts (this wrap). LOCAL-ONLY AT RISK: S-3.09 @43c41389d; W3-FIX-S307-001 @fcab8717c (dirty).
