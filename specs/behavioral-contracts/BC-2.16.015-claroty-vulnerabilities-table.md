@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -16,7 +16,7 @@ inputs:
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "f51c2c6"
+input-hash: "c913a02"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
 introduced: "2026-08-24"
@@ -148,7 +148,15 @@ Under `ocsf_column_naming = true`, columns are classified as follows:
 The opaque `id` (CJYASHKR format) is captured as a secondary identifier via
 `source_path = "$.id"` — it appears outside the fields projection in the raw API response.
 It is NOT marked REQUIRED: its presence on the live monroe sensor must be confirmed before
-treating it as guaranteed. Until confirmed, it remains optional (null when absent).
+treating it as guaranteed. Until confirmed, it remains optional — absent from `raw_extensions`
+when the API omits the key, or stored as JSON `null` only if the API sends an EXPLICIT null value.
+
+The `id` column is OPTIONAL. When the key is absent from a row, the pre-existing ENRICH-1
+mechanism (`prism-spec-engine` `column_mapping.rs`) currently emits
+`column_source_path_extraction_failed` at WARN level (pre-existing sensor-agnostic behavior).
+Correcting this to distinguish absent-optional-key (debug) from genuine extraction failure (warn)
+is tracked as story `S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001` (deferred;
+architect-ruled out of this story's engine scope).
 
 ### 4. SAP-2 DTU Parity
 
@@ -185,8 +193,7 @@ update the exclusion count.
 - `name` carries `ColumnOptions::Required`; REQUIRED marks `name` push-down-eligible in
   `pushdown.rs` — it does NOT enforce presence at ingest; when the API omits `name`, the
   `finding_info_title` Arrow column is null (default nullable behavior); this is NOT a hard error
-- Opaque `id` sourced via `source_path = "$.id"` is optional — null when absent from the
-  API response; does NOT block pagination
+- Opaque `id` sourced via `source_path = "$.id"` is optional — when the source `id` key is ABSENT it is simply absent from `raw_extensions` (column skipped, no error); it is stored as JSON `null` only if the API sends an EXPLICIT null value; does NOT block pagination
 
 ## Error Cases
 
@@ -201,7 +208,7 @@ update the exclusion count.
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-016-015-001 | Row missing `name` field (REQUIRED) | Null row produced; no hard error; subsequent rows continue |
-| EC-016-015-002 | Opaque `id` absent from API response envelope | `id` column value is null for those rows; no error; does not affect pagination |
+| EC-016-015-002 | Opaque `id` absent from API response envelope | the `id` key is absent from `raw_extensions` (no standalone `id` column is materialized); no error is raised; pagination is unaffected |
 | EC-016-015-003 | `count` is null or absent in the response envelope | Pagination continues via empty-page check (empty page → halt); not an error |
 | EC-016-015-004 | CVE ID format varies (CVE-YYYY-NNNNN vs advisory title format) | Preserved as-is in `finding_info_title`; no normalization |
 | EC-016-015-005 | `cve_ids` field is an empty array `[]` | Serialized as `[]` JSON in `raw_extensions`; not null |
@@ -261,6 +268,7 @@ S-CLAROTY-VULNS-001 (draft — Wave A)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | s-claroty-vulns-001-r4c-fix | 2026-08-25 | product-owner | F-VULNS-R4C-LOW-001/F-R4A-LOW-001: EC-016-015-002 + §Invariants null→absent precision corrected (absent `id` key = absent from `raw_extensions`, not null; mirrors EC-016-015-006 §published_date precision; TD-VSDD-097 dim-1 sibling sweep). §Postconditions §3 existing "null when absent" phrase corrected to match. F-R4A-OBS-001: §Postconditions §3 interim note added — pre-existing ENRICH-1 `column_source_path_extraction_failed` WARN behavior documented; deferred correction anchored to story `S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001` (architect-ruled out of scope). input-hash refreshed (c913a02) to reflect architect ADR-058/ADR-028 edits in same burst. |
 | 1.5 | s-claroty-vulns-001-pass-6-fix | 2026-08-25 | product-owner | F-VULNS-PC-MED-001: §Description "all remaining 18 columns are Tier-2" corrected to "17 Tier-2" (19 total − 2 Tier-1 = 17; consistent with §Postconditions §2 and RG-002). F-VULNS-PA-O01: EC-016-015-006 reworded — published_date aggregates into raw_extensions as a Tier-2 field; no standalone Datetime Arrow column is materialized. F-VULNS-PA-O02: §1 body_template illustrative block switched from toml to text fence — TOML single-quoted literals do not support backslash line-continuation; presentation is now explicitly illustrative-only. |
 | 1.4 | s-claroty-vulns-001-pass-5-fix | 2026-08-25 | product-owner | F-VULNS-P5-001: §1 table_name claroty_vulnerabilities→vulnerabilities (registers as claroty_vulnerabilities per sibling convention); queryable-name refs corrected. F-VULNS-P5-002: §Error Cases atomic-fail correction (normalize post-accumulation → whole-result Err; no partial pages; consistent with Option-A fail-fast). |
 | 1.3 | s-claroty-vulns-001-pass-4-fix | 2026-08-25 | product-owner | F-VULNS-ADV-001: §Invariants REQUIRED-semantics misattribution corrected (REQUIRED=push-down eligibility, not presence guarantee). EC-007/§Error-Cases E-SPEC-018: corrected demote-to-null→hard-error on present-unparseable datetime to match canonical engine (human-approved Option A). |

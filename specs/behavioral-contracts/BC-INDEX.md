@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.65"
+version: "9.66"
 status: draft
 producer: state-manager
-timestamp: 2026-08-26T01:00:00Z
+timestamp: 2026-08-26T10:00:00Z
+# NOTE: D-2308 — BC-INDEX v9.65→v9.66: BC-2.16.015 pin v1.5→v1.6 (LOCAL cascade round-4 fix-burst — F-VULNS-R4C-LOW-001 id null→absent spec precision corroborated 2 passes; product-owner EC-016-015-002+§Invariants; §3 interim WARN note + anchor S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001). draft/active/total UNCHANGED (11/253/277). D-2306 NOTE archived.
 # NOTE: D-2306 — BC-INDEX v9.64→v9.65: BC-2.16.015 pin v1.4→v1.5 (LOCAL cascade round-2 — 3 parallel passes A/B/C on frozen @4e525126b: F-VULNS-PB-001/PA-L01 MED id $.id extraction RG-009 added; F-VULNS-PC-MED-001 §Description 18→17 columns corrected; F-VULNS-PC-LOW-002 test docstrings phantom EC IDs fixed; F-VULNS-PA-O01 EC-016-015-006 clarified; F-VULNS-PA-O02 body_template fence fixed; code fa35b09aa). draft/active/total UNCHANGED (11/253/277). D-2303 NOTE archived.
 # NOTE: BC-INDEX v9.60→v9.61: S-CLAROTY-VULNS-001 LOCAL cascade pass-1/pass-2 fix-bursts — BC-2.16.015 v1.0→v1.1 (product-owner F-VULNS-P1-004: §4 SAP-2 DTU-parity mandate annotated with D-2200/D-2264 deferral + anchor S-ADR058-DTU-PARITY-MIGRATION-001; TD-VSDD-097 Dim-3 discharge). Pin updated v1.0→v1.1. draft_contracts 11 / active_contracts 253 / total_contracts 277 ALL UNCHANGED. D-2295 NOTE archived.
 # NOTE: BC-INDEX v9.59→v9.60: F2 spec-evolution Wave C G6 — BC-2.16.022 v1.0 (draft, claroty_organization_acl_policies, POST /api/v1/organization_acl_policies/, OCSF entity_management/3004, KEY NOVELTY: type="none" non-paginated single-page fetch [only Claroty table without offset_limit]; mandatory policy_acl_syntax="Cisco dACL" hardcoded in body_template; 4 Tier-1 [policy_id→metadata.uid REQUIRED/metadata_uid, policy_name→name, policy_updated_by→actor_user_name, policy_notes→comment] + 7 Tier-2 including 1 Json [applied_models], no DTU D-2200, CAP-029, SS-16) REGISTERED. draft_contracts 10→11; total_contracts 276→277. active_contracts 253 UNCHANGED. SS-16 summary row 20/17/3→21/18/3 (+BC-2.16.022, P0). HOLDOUT-INDEX HS-029 group added (3 holdout scenarios for S-CLAROTY-ACLPOLICY-001). Story anchor: S-CLAROTY-ACLPOLICY-001 (Wave C).
@@ -348,7 +349,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active v1.33 |
 | BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active v1.42 |
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | 16 - Spec Engine | CAP-029 | P0 | active v1.22 |
-| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | draft v1.5 |
+| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | draft v1.6 |
 | BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
 | BC-2.16.017 | Claroty xDome Device-Vulnerability Relations Table — Queryable Surface, Composite PK, and OCSF vulnerability_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
 | BC-2.16.018 | Claroty xDome Collection Servers Table — Queryable Surface and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |

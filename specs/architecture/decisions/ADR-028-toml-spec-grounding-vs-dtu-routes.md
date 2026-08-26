@@ -4,8 +4,8 @@ adr_id: "ADR-028"
 title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs"
 status: accepted
 date: "2026-05-20"
-modified: "2026-07-30"  # see §Changelog top row
-version: "1.30"
+modified: "2026-08-25"  # see §Changelog top row
+version: "1.31"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -24,6 +24,7 @@ anchor_stories:
   - S-DEMO-001  # legacy pre-§Authority anchor: §D12 Cyberint cookie auth DTU divergence authored for this story; anchor_stories += S-DEMO-001 at v1.12
   - S-DEMO-002  # legacy pre-§Authority anchor: §D13 BearerStaticCredentialAuthProvider pattern authored for this story; anchor_stories += S-DEMO-002 at v1.14
   - S-WAVE-A-ARMIS-SPEC-001  # SAC-2 verified: §Authority cites "ADR-028 §D1 (TOML Spec Grounding vs DTU Routes) is the authority for the DTU column parity requirement"
+  - S-CLAROTY-VULNS-001  # SAC-2 verified: §Authority cites ADR-028 §D8-B (implicit iso8601 default for Datetime columns without timestamp_formats; applied to claroty_vulnerabilities.published_date)
 related_adrs: [ADR-003, ADR-023, ADR-027, ADR-053, ADR-054]
 related_bcs: [BC-2.16.013, BC-2.16.001, BC-2.16.009, BC-2.01.016]
 locked_decisions: ["D-737 Decision 1", "D-737 Decision 4"]
@@ -665,6 +666,7 @@ ADR-053 §D1/§D2/§D5 (2026-07-20, D-1889) supersedes the core §D1/§D2/§D5 g
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.31 | 2026-08-25 | architect | F-VULNS-R4C-DEF-001 (SAC-2): `S-CLAROTY-VULNS-001` added to `anchor_stories` — §Authority cites ADR-028 §D8-B (implicit iso8601 default for Datetime columns without timestamp_formats; applied to `claroty_vulnerabilities.published_date`). Materialization-time convention confirmed: `S-WAVE-A-ARMIS-SPEC-001` was added to ADR-028 before that story merged (v1.29, 2026-07-30); non-merged stories are included at materialization time. No body-content changes. TD-VSDD-097: (1) sibling pair — ADR-028 has no twin ADR from the same split; CLEAR. (2) downstream copy target — `anchor_stories` frontmatter is terminal metadata; no verbatim copy into another artifact; CLEAR. (3) mandate anchor — no new MUST statements; frontmatter-only metadata change; CLEAR. |
 | 1.30 | 2026-07-30 | architect | FB99 — F-WASE-P71-MED-005 + F-WASE-P71-LOW-003: `anchor_stories` expanded to multi-line format with per-entry annotations. (1) F-WASE-P71-MED-005: S-WAVE-A-ARMIS-SPEC-001 annotation corrected — `"ADR-028 v1.28 §D1 (TOML Spec Grounding vs DTU Routes)"` → `"ADR-028 §D1 (TOML Spec Grounding vs DTU Routes)"` (version pin removed; FB94 advanced ADR-028 to v1.29 in the same burst that authored the annotation; FB96 de-pinned story §Authority to version-free form). (2) F-WASE-P71-LOW-003: seven pre-§Authority legacy entries annotated with `legacy pre-§Authority anchor` rationale — all seven predate the §Authority convention; each has a concrete ADR body section recording its relationship to ADR-028 (§D6→001-A; §D11→001-E; §D12→S-DEMO-001; §D13→S-DEMO-002; §D1/§D2 grounding→001-D/-B/-C); removing them would lose genuine traceability. POL-29 9a: ADR-050..056 Wave-A family swept for parallel SPEC-001 `anchor_stories` annotations — none found. 9b: no downstream copy target. 9c: no MUSTs affected. |
 | 1.29 | 2026-07-30 | architect | FB94 SAC-2 (F-WASE-P70-MED-004): `anchor_stories` updated — `S-WAVE-A-ARMIS-SPEC-001` omitted from prior list. `S-WAVE-A-ARMIS-SPEC-001` §Authority verified: cites "ADR-028 v1.28 §D1 (TOML Spec Grounding vs DTU Routes) is the authority for the DTU column parity requirement." Full story corpus sweep 2026-07-30: `S-WAVE-A-ARMIS-SPEC-001` is the only new addition from the Wave-A perimeter; earlier stories (PLUGIN-MIGRATION-001-D/-A/-B/-C/-E, S-DEMO-001, S-DEMO-002) remain. No content changes; metadata addition only. |
 | 1.28 | 2026-07-24 | architect | F-WASE-P52-LOW-001 POL-29 class sweep: two live-body `PipelineExecutor::build_request` citations corrected to accurate free-function form. Line 496 (§D12 S-DEMO-001 Scope Decision): first mention in document expanded to `` `build_request` (module-level free function in `crates/prism-spec-engine/src/pipeline.rs`) ``. Line 511 (§D12 build_request Pipeline Amendment Scope): subsequent mention replaced with plain `` `build_request` ``. `PipelineExecutor::build_request` does not resolve; `build_request` is a module-level free function at `pipeline.rs:975` (8 params, no `&self`). `version` bumped 1.27→1.28. |
