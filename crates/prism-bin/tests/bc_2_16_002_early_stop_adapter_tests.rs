@@ -200,13 +200,12 @@ fn make_page_records(count: usize) -> Vec<serde_json::Value> {
 /// - Page 2 (`up_to_n_times(1)`): 10 records — OffsetLimit would normally continue.
 /// - Terminal page (fallback): 0 records — OffsetLimit terminates naturally.
 ///
-/// **Without AC-005 wiring (current code — RED state):**
-/// `spec_driven_adapter.rs` line 681:
-///   `let context = FetchContext::new(self.sensor_spec.org_slug.clone(), query_filters, None);`
-/// → `early_stop_limit = None`: no early-stop; 3 HTTP requests made.
-/// → `assert_eq!(received.len(), 1)` FAILS with "expected 1 got 3" → RED gate.
+/// **Gate intent (AC-005 wiring):** This test gates the AC-005 wiring: absent the
+/// `params.limit → early_stop_limit` mapping in `SpecDrivenSensorAdapter::fetch`,
+/// `FetchContext::new` would receive `None` and all pages would be fetched (3 requests);
+/// with the wiring, exactly 1 request is issued.
 ///
-/// **With AC-005 wiring (GREEN state):**
+/// **GREEN state (AC-005 wired):**
 ///   `let early_stop_limit = if params.limit == 0 { None } else { Some(params.limit as usize) };`
 ///   `let context = FetchContext::new(..., early_stop_limit);`
 /// → `early_stop_limit = Some(1)`: after page 1 (10 records ≥ 1) → `break 'steps`.
@@ -394,11 +393,12 @@ async fn test_BC_2_16_002_early_stop_spec_driven_adapter_maps_params_limit_to_ea
 /// - Pages 1–3 (`up_to_n_times(1)` each): 1000 records — OffsetLimit continues.
 /// - Terminal page (fallback): 0 records — OffsetLimit terminates.
 ///
-/// **Without AC-005 wiring (current code — RED state):**
-/// → `early_stop_limit = None`: 4 HTTP POST requests (3 data + 1 terminal).
-/// → `assert_eq!(post_requests.len(), 1)` FAILS with "expected 1 got 4" → RED gate.
+/// **Gate intent (AC-005 wiring — Claroty POST scale):** Absent the
+/// `params.limit → early_stop_limit` mapping in `SpecDrivenSensorAdapter::fetch`,
+/// `FetchContext::new` would receive `None`; the OffsetLimit POST loop would make
+/// 4 requests instead of 1. With the wiring, exactly 1 POST request is issued.
 ///
-/// **With AC-005 wiring (GREEN state):**
+/// **GREEN state (AC-005 wired):**
 /// → `early_stop_limit = Some(1)`: after page 1 (1000 records ≥ 1) → `break 'steps`.
 /// → 1 HTTP POST request; fetch returns `Ok(batches)` with 1000 pre-trim records.
 /// → DataFusion applies `LIMIT 1` downstream (not exercised here).

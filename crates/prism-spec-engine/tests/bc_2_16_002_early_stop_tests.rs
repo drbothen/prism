@@ -133,9 +133,9 @@ fn test_BC_2_16_002_early_stop_fetch_context_new_stores_early_stop_limit() {
 ///   - Mocks 1–3 (`up_to_n_times(1)` each): return 10 records (full page → continue).
 ///   - Mock 4 (fallback): returns 0 records (short page → loop terminates naturally).
 ///
-/// **Without** the early-stop check in `execute_impl` (current code):
-///   - All 4 requests are made → 30 records.
-///   - `assert_eq!(result.records.len(), 10)` FAILS with "got 30" → RED gate.
+/// **Gate intent (AC-002 wiring):** Absent the early-stop check in
+/// `PipelineExecutor::execute_impl`, the pipeline would fetch all pages
+/// (4 requests, 30 records); this test gates that check.
 ///
 /// **With** the early-stop check (AC-002 implementation):
 ///   - Page 1 brings `all_records.len()` to 10; check: 10 ≥ 1 → `break 'steps`.
