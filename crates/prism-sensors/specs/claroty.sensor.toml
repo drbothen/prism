@@ -563,7 +563,7 @@ ocsf_class = "detection_finding"
   page_size = 1000
 
 # ---------------------------------------------------------------------------
-# Table: claroty_vulnerabilities
+# Table: vulnerabilities
 # POST-for-read pattern; offset pagination (page_size = 1000)
 # DTU route: POST /api/v1/vulnerabilities/ (crates/prism-dtu-claroty/src/routes/vulnerabilities.rs)
 #
