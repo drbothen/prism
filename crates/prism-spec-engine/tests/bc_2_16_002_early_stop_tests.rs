@@ -14,6 +14,7 @@
 //! | EC-002 | early_stop_limit_exceeds_total_fetches_all_pages                 | GREEN (cov)    | EC-002                 |
 //! | EC-003 | early_stop_limit_equals_page_size_boundary                       | GREEN (cov)    | EC-003                 |
 //! | LOW-1  | early_stop_large_page_size_truncated_false                       | GREEN (cov)    | TV-BC-2.16.015-006     |
+//! | MULTI-PAGE | early_stop_multi_page_stops_after_second_page                | GREEN (cov)    | AC-003 ceil(N/page_size) |
 //!
 //! RG-001 passes now: `FetchContext::new` stub added @9530f3478 already carries
 //!   `early_stop_limit: Option<usize>` and the matching constructor parameter.
@@ -808,6 +809,129 @@ async fn test_BC_2_16_002_early_stop_large_page_size_truncated_false() {
         1,
         "LOW-1: exactly 1 HTTP request expected (early-stop fires after page 1). \
          Got {} requests.",
+        received.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// MULTI-PAGE (GREEN / coverage) — early-stop fires on page 2, not page 1.
+// Closes AC-003 ceil(N/page_size) gap: proves the check fires at EVERY page boundary.
+// Kills the first-iteration-only mutation of the early-stop check.
+// ---------------------------------------------------------------------------
+
+/// MULTI-PAGE (GREEN / coverage): `early_stop_limit = Some(15)` with `page_size = 10`.
+///
+/// Page 1 delivers 10 records (10 < 15 → loop CONTINUES). Page 2 delivers 10 more
+/// records (cumulative 20 >= 15 → `break 'steps`). Page 3 is never fetched.
+///
+/// A "first-iteration-only" mutation of the early-stop check (e.g., the check is placed
+/// only at the start of the loop, before the first page request, or is guarded by a
+/// `page_index == 0` condition) would cause one of two failure modes:
+///   - Stops after page 1 → records.len()==10 ≠ 20 → PRIMARY fails.
+///   - Never fires after page 1 → fetches all 3 pages → records.len()==30 ≠ 20 → PRIMARY fails.
+/// Either way, the mutant is killed.
+///
+/// **Mock setup** (OffsetLimit GET, page_size=10, early_stop_limit=Some(15)):
+///   - Mock 1 (`up_to_n_times(1)`): 10 records (page 1; full page → 10 < 15 → CONTINUE).
+///   - Mock 2 (`up_to_n_times(1)`): 10 records (page 2; full page → 20 >= 15 → BREAK).
+///   - Mock 3 (`up_to_n_times(1)`): 10 records (page 3; must NOT be fetched).
+///   - Fallback: empty records (terminal; must NOT be reached).
+///
+/// **Expected outcome**:
+///   - `received_requests == 2` (page 3 never fetched).
+///   - `records.len() == 20` (pages 1 + 2; no truncation from early-stop).
+///   - `truncated == false` (early-stop does not set truncated, per ADR-060 §D8.3).
+///
+/// Traces to AC-003 `ceil(N/page_size)` promise (BC-2.16.002 LIMIT-Aware Early-Stop).
+#[tokio::test]
+async fn test_BC_2_16_002_early_stop_multi_page_stops_after_second_page() {
+    let mock_server = MockServer::start().await;
+
+    let page_records: Vec<serde_json::Value> =
+        (0u32..10).map(|i| serde_json::json!({"id": i})).collect();
+
+    // Page 1: 10 records (full page; 10 < 15 → OffsetLimit loop CONTINUES).
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": page_records })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Page 2: 10 records (full page; cumulative 20 >= 15 → early-stop BREAKS).
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": page_records })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Page 3: 10 records — must NOT be fetched if early-stop fires correctly after page 2.
+    // If fetched: records.len() becomes 30 → PRIMARY assertion (==20) fails → mutant killed.
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": page_records })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Terminal fallback: empty page — must never be hit (early-stop stops at page 2).
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": [] })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = make_get_offset_spec(&mock_server.uri(), 10);
+    let table = spec.tables[0].clone();
+    // early_stop_limit = Some(15): page_size=10, so page 1 (10 records) < 15 → CONTINUE;
+    // page 2 (cumulative 20 records) >= 15 → BREAK.  ceil(15/10) = 2 pages fetched.
+    let context = FetchContext::new(OrgSlug::new("multi-page-org"), HashMap::new(), Some(15));
+    let http_client = make_http_client();
+    let auth_provider = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("MULTI-PAGE: pipeline execute must return Ok (no HTTP error expected)");
+
+    // PRIMARY: exactly 20 records (pages 1+2 only; page 3 must NOT be fetched).
+    // First-iteration-only mutation: stops after page 1 → records.len()==10 → FAILS here.
+    // No-early-stop mutation: fetches all 3 pages → records.len()==30 → FAILS here.
+    // Correct implementation: stops after page 2 → records.len()==20 → PASSES.
+    assert_eq!(
+        result.records.len(),
+        20,
+        "MULTI-PAGE: early_stop_limit=Some(15) with page_size=10 must stop after page 2. \
+         Page 1: 10 records (10 < 15 → continue). Page 2: 20 cumulative (20 >= 15 → break). \
+         Got {} records (10=first-iteration-only bug; 30=no-early-stop bug).",
+        result.records.len()
+    );
+
+    // SECONDARY: truncated must NOT be set by the early-stop path (ADR-060 §D8.3).
+    assert!(
+        !result.truncated,
+        "MULTI-PAGE: early-stop must NOT set truncated=true (reserved for DI-019 per \
+         ADR-060 §D8.3). Got truncated=true."
+    );
+
+    // TERTIARY: exactly 2 HTTP requests (pages 1 and 2; page 3 suppressed by early-stop).
+    // This assertion also requires page 2 WAS fetched (received==1 fails equally).
+    let received = mock_server
+        .received_requests()
+        .await
+        .expect("wiremock: received_requests() must succeed");
+    assert_eq!(
+        received.len(),
+        2,
+        "MULTI-PAGE: exactly 2 HTTP requests expected — page 1 (10 < 15 → continue) + \
+         page 2 (20 >= 15 → break). Page 3 must never be fetched. Got {} requests \
+         (1=first-iteration-only bug; >=3=no-early-stop bug).",
         received.len()
     );
 }
