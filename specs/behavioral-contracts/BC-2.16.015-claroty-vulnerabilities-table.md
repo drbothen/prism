@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -38,7 +38,7 @@ vulnerability findings as a queryable PrismQL table. The table follows the stand
 POST-for-read pattern with offset/limit pagination, using `vulnerability_finding` (class_uid 2002)
 as its OCSF class. Under `ocsf_column_naming = true`, the primary key field `name` is a Tier-1
 column (exposed as `finding_info_title`), `description` maps to `message`, and all remaining
-18 columns are Tier-2 aggregated into `raw_extensions`. An opaque Claroty-internal `id`
+17 columns are Tier-2 aggregated into `raw_extensions`. An opaque Claroty-internal `id`
 (CJYASHKR-format) is captured via `source_path = "$.id"` as a secondary Tier-2 identifier
 to enable joins against `claroty_device_vulnerability_relations`.
 
@@ -73,7 +73,7 @@ ocsf_class = "vulnerability_finding"   # class_uid 2002 (existing arm)
 
 **Step definition:**
 
-```toml
+```text
 [[tables.steps]]
 name = "fetch_vulnerabilities"
 method = "POST"
@@ -90,6 +90,7 @@ variables_produced = []
 type = "offset_limit"
 page_size = 1000
 ```
+_(Illustrative only — not copy-paste-ready TOML. Normative source: `crates/prism-sensors/specs/claroty.sensor.toml`. TOML single-quoted literals do not support backslash line-continuation; the shipped spec uses a single-line `body_template` value.)_
 
 **Pagination note:** The `vulnerabilities` envelope also carries a `count` field which is
 nullable per the OpenAPI schema. The spec-engine handles nullable `count` via the empty-page
@@ -204,7 +205,7 @@ update the exclusion count.
 | EC-016-015-003 | `count` is null or absent in the response envelope | Pagination continues via empty-page check (empty page → halt); not an error |
 | EC-016-015-004 | CVE ID format varies (CVE-YYYY-NNNNN vs advisory title format) | Preserved as-is in `finding_info_title`; no normalization |
 | EC-016-015-005 | `cve_ids` field is an empty array `[]` | Serialized as `[]` JSON in `raw_extensions`; not null |
-| EC-016-015-006 | `published_date` is null | Null cell in the Datetime column; ADR-028 §D8-B implicit iso8601 default applies only to non-null values |
+| EC-016-015-006 | `published_date` is null | Null value stored in `raw_extensions` for the Tier-2 `published_date` field (no standalone Datetime column is materialized); ADR-028 §D8-B implicit iso8601 default applies only to non-null present values |
 
 ## Related BCs
 
@@ -260,6 +261,7 @@ S-CLAROTY-VULNS-001 (draft — Wave A)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | s-claroty-vulns-001-pass-6-fix | 2026-08-25 | product-owner | F-VULNS-PC-MED-001: §Description "all remaining 18 columns are Tier-2" corrected to "17 Tier-2" (19 total − 2 Tier-1 = 17; consistent with §Postconditions §2 and RG-002). F-VULNS-PA-O01: EC-016-015-006 reworded — published_date aggregates into raw_extensions as a Tier-2 field; no standalone Datetime Arrow column is materialized. F-VULNS-PA-O02: §1 body_template illustrative block switched from toml to text fence — TOML single-quoted literals do not support backslash line-continuation; presentation is now explicitly illustrative-only. |
 | 1.4 | s-claroty-vulns-001-pass-5-fix | 2026-08-25 | product-owner | F-VULNS-P5-001: §1 table_name claroty_vulnerabilities→vulnerabilities (registers as claroty_vulnerabilities per sibling convention); queryable-name refs corrected. F-VULNS-P5-002: §Error Cases atomic-fail correction (normalize post-accumulation → whole-result Err; no partial pages; consistent with Option-A fail-fast). |
 | 1.3 | s-claroty-vulns-001-pass-4-fix | 2026-08-25 | product-owner | F-VULNS-ADV-001: §Invariants REQUIRED-semantics misattribution corrected (REQUIRED=push-down eligibility, not presence guarantee). EC-007/§Error-Cases E-SPEC-018: corrected demote-to-null→hard-error on present-unparseable datetime to match canonical engine (human-approved Option A). |
 | 1.2 | s-claroty-vulns-001-pass-3-fix | 2026-08-25 | product-owner | F-VULNS-ANCHOR-001: §Architecture Anchors spec_driven_adapter.rs crate corrected prism-spec-engine→prism-bin (ground-truth: pipeline_result_to_record_batch lives in prism-bin). |
