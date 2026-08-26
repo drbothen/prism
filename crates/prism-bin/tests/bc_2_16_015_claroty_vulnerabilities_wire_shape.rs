@@ -383,6 +383,22 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock
          BC-2.16.015 AC-005. raw_extensions keys: {:?}",
         raw_ext_obj.keys().collect::<Vec<_>>()
     );
+
+    // ── Wire-shape assertion 7: `id` source_path extraction lands with exact value ──
+    // LOAD-BEARING AC-008 positive assertion: the `id` column uses `source_path = "$.id"`
+    // (root-level scalar JSONPath). The seeded record carries `"id": "mock-vuln-wire-001"`.
+    // This assertion verifies the non-wildcard scalar extraction arm fires and lands the
+    // EXACT value in raw_extensions. A regression breaking this arm silently drops `id`
+    // from raw_extensions with no other test going red — the false-green risk identified
+    // as MED finding FINDING-1 in the LOCAL adversary cascade (passes 1 and 3).
+    assert_eq!(
+        raw_ext_obj.get("id"),
+        Some(&serde_json::json!("mock-vuln-wire-001")),
+        "Wire-shape assertion 7 LOAD-BEARING (AC-008): 'id' MUST be present in \
+         raw_extensions with the exact seeded value 'mock-vuln-wire-001'. \
+         Column 'id' uses source_path = '$.id' (root-level scalar JSONPath extraction). \
+         S-CLAROTY-VULNS-001 §Edge Cases EC-002; BC-2.16.015 AC-008; ADR-058 §J6.",
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -558,6 +574,17 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_wire_shape_serialized_json_exp
         "F-VULNS-P1-001: row0 raw_extensions must contain at least one Tier-2 field. \
          raw_extensions keys: {:?}. BC-2.16.015 AC-005.",
         raw_ext_obj0.keys().collect::<Vec<_>>()
+    );
+
+    // LOAD-BEARING AC-008 positive assertion: verify `id` is present in row0 raw_extensions
+    // with the EXACT seeded value. `id` uses source_path = "$.id" (scalar JSONPath extraction).
+    // A regression dropping `id` would pass the `has_tier2` check above (any-match) silently.
+    assert_eq!(
+        raw_ext_obj0.get("id"),
+        Some(&serde_json::json!("mock-wire-json-001")),
+        "F-VULNS-P1-001 LOAD-BEARING (AC-008): 'id' MUST be present in row0 raw_extensions \
+         with exact seeded value 'mock-wire-json-001'. source_path = '$.id' scalar extraction. \
+         S-CLAROTY-VULNS-001 §Edge Cases EC-002; BC-2.16.015 AC-008.",
     );
 
     // No Tier-2 column name must appear as a top-level key in row0
@@ -787,7 +814,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column()
 ///
 /// `id` is a Tier-2 column declared with `source_path = "$.id"` (no `ocsf_field`).
 /// It lives inside `raw_extensions` and is NOT a queryable Arrow column.
-/// EC-009 asserts that `SELECT id FROM claroty_vulnerabilities` fires
+/// Story §Edge Cases EC-009 asserts that `SELECT id FROM claroty_vulnerabilities` fires
 /// E-QUERY-038 at plan-time, exactly as any other Tier-2 column would.
 ///
 /// This test closes the id-specific SAP-3 reachability gap identified in
@@ -798,7 +825,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_tier2_column()
 ///
 /// No HTTP requests are issued — E-QUERY-038 fires at plan-time before any fan-out.
 ///
-/// BC-2.16.015 EC-009; SAP-3; ADR-058 §I7.
+/// S-CLAROTY-VULNS-001 §Edge Cases EC-009; BC-2.16.015 §Error Cases E-QUERY-001/E-QUERY-038;
+/// SAP-3; ADR-058 §I7.
 /// Story: S-CLAROTY-VULNS-001 F-VULNS-EC009-001 (pass-3 fix-burst).
 #[tokio::test]
 async fn test_BC_2_16_015_claroty_vulnerabilities_e2e_e_query_038_id_column() {

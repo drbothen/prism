@@ -928,8 +928,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec006_null_published_date_thro
     );
 }
 
-// ── F-VULNS-ADV-002: EC-016-015-007 — non-ISO published_date → E-SPEC-018 ─────
-/// BC-2.16.015 §EC-016-015-007: When `published_date` in the API response carries a
+// ── F-VULNS-ADV-002: EC-007 non-ISO published_date → E-SPEC-018 ─────────────────
+/// S-CLAROTY-VULNS-001 §Edge Cases EC-007: When `published_date` in the API response carries a
 /// non-null, non-ISO-8601 string (e.g. `"not-a-timestamp"` or `"2024/13/99"`),
 /// `normalize_timestamp_fields` in prism-spec-engine/src/pipeline.rs must fire
 /// `SpecEngineError::TimestampParseFailure` (E-SPEC-018).
@@ -953,7 +953,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec006_null_published_date_thro
 /// The error carries `column_name = "published_date"` and `sensor_id = "claroty"`.
 ///
 /// Story: S-CLAROTY-VULNS-001 F-VULNS-ADV-002 (pass-4 fix-burst).
-/// BC-2.16.015 §EC-016-015-007; SpecEngineError::TimestampParseFailure (E-SPEC-018).
+/// S-CLAROTY-VULNS-001 §Edge Cases EC-007; BC-2.16.015 §Error Cases E-SPEC-018;
+/// SpecEngineError::TimestampParseFailure (E-SPEC-018).
 #[tokio::test]
 async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_non_iso_published_date_e_spec_018() {
     let mock_server = MockServer::start().await;
@@ -1005,7 +1006,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_non_iso_published_date_e
          published_date is non-ISO ('not-a-timestamp'). \
          normalize_timestamp_fields (prism-spec-engine/src/pipeline.rs) is \
          tier-agnostic and processes claroty_vulnerabilities Tier-2 Datetime columns. \
-         Got Ok with {} records. BC-2.16.015 §EC-016-015-007.",
+         Got Ok with {} records. S-CLAROTY-VULNS-001 §Edge Cases EC-007; \
+         BC-2.16.015 §Error Cases E-SPEC-018.",
         result.as_ref().map(|r| r.records.len()).unwrap_or(0)
     );
 
@@ -1020,27 +1022,30 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_non_iso_published_date_e
                 column_name.as_str(),
                 "published_date",
                 "EC-007: TimestampParseFailure.column_name must be 'published_date'; \
-                 got: {column_name:?}. BC-2.16.015 §EC-016-015-007."
+                 got: {column_name:?}. S-CLAROTY-VULNS-001 §Edge Cases EC-007; \
+                 BC-2.16.015 §Error Cases E-SPEC-018."
             );
             assert_eq!(
                 sensor_id.as_str(),
                 "claroty",
                 "EC-007: TimestampParseFailure.sensor_id must be 'claroty'; \
-                 got: {sensor_id:?}. BC-2.16.015 §EC-016-015-007."
+                 got: {sensor_id:?}. S-CLAROTY-VULNS-001 §Edge Cases EC-007; \
+                 BC-2.16.015 §Error Cases E-SPEC-018."
             );
         }
         other => {
             panic!(
                 "EC-007 LOAD-BEARING: PipelineExecutor::execute must return \
                  SpecEngineError::TimestampParseFailure (E-SPEC-018) when published_date \
-                 is non-ISO. Got: {other:?}. BC-2.16.015 §EC-016-015-007."
+                 is non-ISO. Got: {other:?}. S-CLAROTY-VULNS-001 §Edge Cases EC-007; \
+                 BC-2.16.015 §Error Cases E-SPEC-018."
             );
         }
     }
 }
 
 // ── F-L2-002: EC-007/EC-008 multi-page atomic-fail ────────────────────────────
-/// BC-2.16.015 §EC-016-015-007 multi-page atomic-fail gate: when page 1 returns a full
+/// S-CLAROTY-VULNS-001 §Edge Cases EC-007/EC-008 multi-page atomic-fail gate: when page 1 returns a full
 /// page of valid records (1000) and page 2 returns a record with a non-ISO `published_date`,
 /// `PipelineExecutor::execute` MUST return `Err(SpecEngineError::TimestampParseFailure)`
 /// and ZERO records must be materialized.
@@ -1068,7 +1073,8 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_non_iso_published_date_e
 ///   - `sensor_id`   = "claroty"
 ///   - 0 records returned (atomically discarded — page-1 records never reach the caller)
 ///
-/// BC-2.16.015 §EC-016-015-007; SpecEngineError::TimestampParseFailure (E-SPEC-018).
+/// S-CLAROTY-VULNS-001 §Edge Cases EC-007/EC-008; BC-2.16.015 §Error Cases E-SPEC-018;
+/// SpecEngineError::TimestampParseFailure (E-SPEC-018).
 /// Story: S-CLAROTY-VULNS-001 F-L2-002 (diverse-lens batch fix-burst).
 #[tokio::test]
 async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_multipage_atomic_fail_discards_all() {
@@ -1141,7 +1147,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_multipage_atomic_fail_di
         "F-L2-002 LOAD-BEARING: PipelineExecutor::execute must return Err when ANY page \
          contains a non-ISO published_date, even when prior pages returned valid records. \
          Got Ok with {} records (atomicity violated — page-1 records must be discarded). \
-         BC-2.16.015 §EC-016-015-007.",
+         S-CLAROTY-VULNS-001 §Edge Cases EC-007/EC-008; BC-2.16.015 §Error Cases E-SPEC-018.",
         result.as_ref().map(|r| r.records.len()).unwrap_or(0)
     );
 
@@ -1156,23 +1162,77 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_multipage_atomic_fail_di
                 column_name.as_str(),
                 "published_date",
                 "F-L2-002: TimestampParseFailure.column_name must be 'published_date'; \
-                 got: {column_name:?}. BC-2.16.015 §EC-016-015-007."
+                 got: {column_name:?}. S-CLAROTY-VULNS-001 §Edge Cases EC-007/EC-008; \
+                 BC-2.16.015 §Error Cases E-SPEC-018."
             );
             assert_eq!(
                 sensor_id.as_str(),
                 "claroty",
                 "F-L2-002: TimestampParseFailure.sensor_id must be 'claroty'; \
-                 got: {sensor_id:?}. BC-2.16.015 §EC-016-015-007."
+                 got: {sensor_id:?}. S-CLAROTY-VULNS-001 §Edge Cases EC-007/EC-008; \
+                 BC-2.16.015 §Error Cases E-SPEC-018."
             );
         }
         other => {
             panic!(
                 "F-L2-002 LOAD-BEARING: PipelineExecutor::execute must return \
                  SpecEngineError::TimestampParseFailure (E-SPEC-018) when page 2 contains \
-                 a non-ISO published_date. Got: {other:?}. BC-2.16.015 §EC-016-015-007."
+                 a non-ISO published_date. Got: {other:?}. \
+                 S-CLAROTY-VULNS-001 §Edge Cases EC-007/EC-008; \
+                 BC-2.16.015 §Error Cases E-SPEC-018."
             );
         }
     }
+}
+
+// ── RG-008 positive (AC-008 / EC-002) ────────────────────────────────────────
+/// BC-2.16.015 AC-008 positive case: the `id` column uses `source_path = "$.id"`.
+/// When the raw record CARRIES a root-level `id` key, `ColumnMapper::map_record`
+/// extracts it via the non-wildcard scalar JSONPath arm (`Ok(v) => v`) and stores
+/// the EXACT value in `raw_extensions["id"]`.
+///
+/// This is the POSITIVE counterpart of RG-008
+/// (`test_BC_2_16_015_claroty_vulnerabilities_source_path_id_null_when_absent`),
+/// which only covers the absent case. Without this test, a regression breaking the
+/// `source_path = "$.id"` scalar extraction arm silently drops `id` from
+/// `raw_extensions` and no test goes red — the false-green risk identified in
+/// MED finding FINDING-1 of the LOCAL adversary cascade (passes 1 and 3).
+///
+/// S-CLAROTY-VULNS-001 §Edge Cases EC-002; BC-2.16.015 AC-008.
+#[test]
+fn test_BC_2_16_015_claroty_vulnerabilities_source_path_id_present_when_supplied() {
+    let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "vulnerabilities")
+        .expect("vulnerabilities table must exist");
+
+    // Record WITH a root-level `id` field — source_path = "$.id" must extract it.
+    let record_with_id = json!({
+        "name": "CVE-2024-1234",
+        "description": "Test vulnerability with id field present",
+        "vulnerability_type": "CVE",
+        "id": "test-vuln-id-positive-001"
+    });
+
+    let row = ColumnMapper::map_record(&record_with_id, table)
+        .expect("map_record must not error when source_path '$.id' finds a match");
+
+    // LOAD-BEARING AC-008 positive assertion: `id` MUST be present in raw_extensions
+    // with the EXACT value from the record. source_path = "$.id" uses the non-wildcard
+    // scalar JSONPath extraction arm (Ok(v) => v in column_mapping.rs). A regression
+    // breaking this arm silently drops `id` with no other test going red.
+    assert_eq!(
+        row.raw_extensions.get("id"),
+        Some(&serde_json::json!("test-vuln-id-positive-001")),
+        "LOAD-BEARING AC-008 positive: 'id' MUST be present in raw_extensions with the \
+         exact seeded value 'test-vuln-id-positive-001' when source_path '$.id' finds a \
+         match. raw_extensions: {:?}. \
+         S-CLAROTY-VULNS-001 §Edge Cases EC-002; BC-2.16.015 AC-008.",
+        row.raw_extensions
+    );
 }
 
 // ── F-VULNS-EC004-001: EC-016-015-004 ────────────────────────────────────────
