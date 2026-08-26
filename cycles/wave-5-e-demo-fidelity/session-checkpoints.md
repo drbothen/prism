@@ -543,3 +543,15 @@ ADR-053 ratified EFFECTIVE 2026-07-22 (D-1943) → 9 Wave-A stories (8 draft / 1
 **KEY STATE (D-2273):** FROZEN: code @396af5722 / ADR-058 v2.28 / BC-2.16.002 v2.33 / BC-2.16.003 v1.23 / BC-2.11.016 v1.28 / ROUTING-001 v1.51 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.329 / BC-INDEX v9.50 / STORY-INDEX v2.879. active 253/draft 3/total 269/stories 303. HOLDOUT: HS-022 group CONSUMED (3 FAIL + 1 PASS; D-2270). Re-gate requires FRESH scenarios. STATE v8.807.
 
 **NOTE: Superseded by D-2276 — ROUTING-001 LOCAL re-cascade strict-fix pass-1 fix-burst COMPLETE; ROUTING-001 v1.52→v1.53; code @891ee536c; just check GREEN 5814; STORY-INDEX v2.880→v2.881; STATE v8.809→v8.810.**
+
+---
+
+## Archived: D-2317 — 2026-08-26; STATE v8.849→v8.850 — LIMIT LOCAL round-5 fix-burst; BC-2.16.015 label + RG-006 POST fidelity
+
+**RESUME IN ONE BREATH:** Prism Phase-3; v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-5 fix-burst COMPLETE (D-2317; lens-A CLEAN(strict)=YES 5th consecutive; F-R5-MED-001 BC-2.16.015 status label FIXED story v1.4; F-R5-OBS-001 RG-006 GET→POST FIXED @ad756e1f9; STORY-INDEX v2.909; frozen HEAD @ad756e1f9 PUSHED); round-6 3-CLEAN re-cascade pending. VULNS-001 LOCAL 3-CLEAN CONVERGED (round-5 @5aae6f0b3 + HOLDOUT HS-024 PASS; merge HELD pending LIMIT). DEFECT-1 CLEARED (D-2312). NEXT: LIMIT LOCAL round-6 cascade → merge → redeploy → VULNS live re-validation → VULNS demo/PR/merge. trajectory-tail →3→5→2→2.
+
+**SPEC PERIMETER (D-2317):** ADR-058 v2.34 / ADR-059 v1.2 (WITHDRAWN) / ADR-060 v1.1 / BC-2.16.002 v2.38 / BC-2.16.003 v1.27 / BC-2.16.015 v1.7 (draft) / VULNS story v1.9 / LIMIT story v1.4 — ARCH-INDEX v2.337 / BC-INDEX v9.68 / STORY-INDEX v2.909 / VP-INDEX v2.22.
+
+**HEADS (D-2317):** develop `3f1e66179` (local==origin; clean); feature/S-CLAROTY-VULNS-001 `5aae6f0b3` (PUSHED; LOCAL 3-CLEAN CONVERGED round-5; merge HELD pending LIMIT); feature/S-ENGINE-LIMIT-EARLY-STOP-001 `ad756e1f9` (PUSHED; round-5 fix-burst; BC-5.39.001 0/3 round-6 pending); Parked: S-3.09 `43c41389d` KEEP; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch.
+
+**NOTE: Superseded by D-2318 — LIMIT LOCAL round-6 records-only micro-burst (TD-VSDD-096); story v1.4→v1.5 volatile-cite strip (TD-VSDD-091); STORY-INDEX v2.910; HEAD @ad756e1f9 UNCHANGED; BC-5.39.001 0/3 round-7 pending. STATE v8.850→v8.851.**

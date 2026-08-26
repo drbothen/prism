@@ -12,7 +12,7 @@ status: draft
 # TV-BC-2.16.015-006 authored and anchored to this story; POL-14 auto-promotes BC-2.16.015 to active when this story merges.
 producer: story-writer
 timestamp: "2026-08-26T00:00:00Z"
-version: "1.4"
+version: "1.5"
 modified: "2026-08-26"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -392,7 +392,7 @@ pattern) to minimize context consumption.
 
 - [ ] **Task 7 (Implementation — execute_impl early-stop check):** Insert the early-stop block
   in `PipelineExecutor::execute_impl` in `crates/prism-spec-engine/src/pipeline.rs` immediately
-  after the DI-019 block (after `break 'steps;` on line ~564):
+  after the DI-019 `MAX_PIPELINE_RECORDS` truncation block (the block ending in `truncated = true; break 'steps;`):
   ```rust
   // ADR-060 §D8.2: LIMIT-aware early-stop. Fires at COMPLETE page boundary, after DI-019.
   // truncated is NOT set — this is a success-path query-driven early exit, not a capacity overflow.
@@ -461,12 +461,12 @@ pattern) to minimize context consumption.
    `execute_impl` is the exact branch where the early-stop check fires.
 
 2. **S-ADR058-OCSF-ROUTING-001 / S-ADR058-OCSF-COERCION-001 (merged):** These stories modified
-   pipeline.rs. Read the current pipeline.rs to confirm the DI-019 check is at the expected
-   location (around line 551-565) before inserting the early-stop check. Do not rely on line
-   numbers — use the `// AC-8 / DI-019` comment as the anchor (TD-VSDD-091).
+   pipeline.rs. Read the current pipeline.rs to confirm the DI-019 check is at the DI-019
+   `MAX_PIPELINE_RECORDS` truncation block before inserting the early-stop check. Use the
+   `// AC-8 / DI-019` comment as the anchor (TD-VSDD-091).
 
 3. **`FetchContext::new` call-site distribution (confirmed from codebase):** The in-file pipeline.rs
-   test sites use the helper `default_context()` (line ~3667) which calls `FetchContext::new(OrgSlug::new("test-org"), HashMap::new())`. This helper must ALSO be updated to pass `None`. The integration
+   test sites use the `default_context()` helper in the `pipeline.rs` `#[cfg(test)]` test module, which calls `FetchContext::new(OrgSlug::new("test-org"), HashMap::new())`. This helper must ALSO be updated to pass `None`. The integration
    tests that call `FetchContext::new` directly are enumerated in `crates_touched` above.
 
 4. **Wiremock multi-page mock pattern:** Existing tests in `pipeline_http_integration.rs`,
@@ -560,6 +560,7 @@ prism-spec-engine import added to prism-bin.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.5 | 2026-08-26 | story-writer | Volatile-line-cite strip (TD-VSDD-091/L9): removed three numeric line-number cites in §Tasks Task 7 and §Previous Story Intelligence; replaced with symbol/section anchors (`MAX_PIPELINE_RECORDS` truncation block, `// AC-8 / DI-019` comment anchor, `pipeline.rs` `#[cfg(test)]` test module). |
 | 1.4 | 2026-08-26 | story-writer | Fix governance lifecycle mislabel (F-R5-MED-001): BC-2.16.015 status label corrected from "active" to "draft" in frontmatter BC-status comment; POL-14 auto-promotion note added. Comprehensive audit: BC-2.16.002 active claim verified correct; no ADR status mislabels found in file body. |
 | 1.3 | 2026-08-26 | story-writer | POL-39 anti-pin sweep (F-R3-MED-001): stripped numeric release pins for BC-2.16.002, BC-2.16.015, and ADR-060 from all narrative prose (~15 sites); updated BC-2.16.002 §Behavioral Contracts structural table Version column to current (was stale); BC-2.16.015 structural table pin verified current (unchanged). EC-004 test citation added per F-EARLYSTOP-P3-LOW-001 (shared coverage with AC-004/RG-004). |
 | 1.2 | 2026-08-26 | story-writer | Comprehensive R2 adversarial sweep: (1) Task 8 prescribed comment rewritten to DELIVERED form per ADR-060 v1.1; (2) risk frontmatter comment updated to RESOLVED; (3) §Authority RESOLVED paragraph rewritten to remove quoted old phrasing; (4) assumption_validations claim reworded to remove quoted old phrasing; (5) AC-003 Some-case phantom test replaced with RG-002 test (test_BC_2_16_002_early_stop_pipeline_stops_without_setting_truncated); (6) AC-006 phantom compilation-sentinel test removed — compile gate only; (7) EC-001 and EC-005 annotated as intentionally non-behavioral-tested with rationale; (8) EC-002 and EC-003 cited with test-writer-added test names; (9) RG-006 augmented with test_BC_2_16_002_early_stop_large_page_size_truncated_false for TV-BC-2.16.015-006 truncated=false discharge. |
