@@ -607,13 +607,16 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_nullable_count_uses_empty_page
 }
 
 // ── RG-008 ────────────────────────────────────────────────────────────────────
-/// BC-2.16.015 §EC-016-015-002: The `id` column uses `source_path = "$.id"`.
-/// When the raw record lacks a root-level `id` key, `ColumnMapper::map_record`
-/// skips the extraction silently (no error); `id` is absent from `raw_extensions`.
+/// BC-2.16.015 §EC-016-015-002 / AC-008 / RG-008: The `id` column uses
+/// `source_path = "$.id"`.  When the raw record lacks a root-level `id` key,
+/// `ColumnMapper::map_record` skips the extraction silently (no error);
+/// `id` is **absent** from `raw_extensions` — not stored as null, not present
+/// at all.  This is the absent-key semantics: a missing source path yields no
+/// entry in the map, not a null entry.
 ///
 /// RED: panics at the `.expect` because the TOML block has not been added yet.
 #[test]
-fn test_BC_2_16_015_claroty_vulnerabilities_source_path_id_null_when_absent() {
+fn test_BC_2_16_015_claroty_vulnerabilities_source_path_id_absent_when_missing() {
     let spec = SpecLoader::parse(CLAROTY_TOML).expect("claroty.sensor.toml must parse");
 
     let table = spec
@@ -1202,7 +1205,7 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_ec007_multipage_atomic_fail_di
 /// the EXACT value in `raw_extensions["id"]`.
 ///
 /// This is the POSITIVE counterpart of RG-008
-/// (`test_BC_2_16_015_claroty_vulnerabilities_source_path_id_null_when_absent`),
+/// (`test_BC_2_16_015_claroty_vulnerabilities_source_path_id_absent_when_missing`),
 /// which only covers the absent case. Without this test, a regression breaking the
 /// `source_path = "$.id"` scalar extraction arm silently drops `id` from
 /// `raw_extensions` and no test goes red — the false-green risk identified in
