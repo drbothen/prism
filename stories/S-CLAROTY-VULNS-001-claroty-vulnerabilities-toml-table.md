@@ -10,7 +10,7 @@ status: ready
 # BC status: BC-2.16.015 v1.5 draft (promotes to active on PR merge per POL-14). Pre-TDD remove-uncertainty CLEAN (D-1110, 2nd pass, 2026-08-24); status draft→ready.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.7"
+version: "1.8"
 modified: "2026-08-25"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -43,7 +43,7 @@ crates_touched: [prism-sensors, prism-bin]
 # crates_touched (F-VULNS-011 corrected @62f1c6379):
 #   prism-sensors: claroty.sensor.toml (new [[tables]] block) + Cargo.toml (test dep) +
 #     tests/bc_2_16_015_claroty_vulnerabilities.rs
-#     (RG-001/RG-002 unit; RG-003b ocsf_projected_column_names proxy; RG-004 live #[ignore]; RG-005 live #[ignore]; RG-006/007/008 unit tests)
+#     (RG-001/RG-002 unit; RG-003b ocsf_projected_column_names proxy; RG-004 live #[ignore]; RG-005 live #[ignore]; RG-006/007/008/009 unit tests)
 #   prism-bin: tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs
 #     (RG-003a QueryEngine::execute e2e gate; RG-004b mock wire-shape) +
 #     Cargo.toml + Cargo.lock
@@ -370,7 +370,7 @@ pagination section.
 
 - [ ] **Task 2 (Red Gate — test first):** Write RG-002: `test_BC_2_16_015_claroty_vulnerabilities_tier1_columns_two_with_ocsf_field` in same test module. Parse TOML; find `claroty_vulnerabilities` table; assert exactly 2 columns have `ocsf_field == Some(_)`: `name` → `"finding_info.title"` with `options = ["REQUIRED"]`, and `description` → `"message"`. Assert 17 columns have `ocsf_field == None`. MUST fail before Task 6.
 
-- [ ] **Task 3 (Red Gate — test first):** Write RG-006, RG-007, RG-008 — unit tests using mock HTTP responses (no live sensor required). These test: REQUIRED name absent → null row; nullable count → empty-page halt; source_path id absent → null cell. Place in `crates/prism-sensors/tests/bc_2_16_015_claroty_vulnerabilities.rs` or `crates/prism-spec-engine/src/pipeline.rs #[cfg(test)]`. All MUST fail before Tasks 6–7.
+- [ ] **Task 3 (Red Gate — test first):** Write RG-006, RG-007, RG-008, RG-009 — unit tests using mock HTTP responses (no live sensor required). These test: REQUIRED name absent → null row; nullable count → empty-page halt; source_path id absent → null cell; source_path id present → value extracted into raw_extensions (AC-008 positive case). Place in `crates/prism-sensors/tests/bc_2_16_015_claroty_vulnerabilities.rs` or `crates/prism-spec-engine/src/pipeline.rs #[cfg(test)]`. All MUST fail before Tasks 6–7.
 
 - [ ] **Task 4 (Red Gate — test first):** Write RG-003a and RG-003b.
 
@@ -384,13 +384,13 @@ pagination section.
 
   After editing: run `just iter prism-spec-engine` — RG-001 and RG-002 MUST turn GREEN.
 
-- [ ] **Task 7 (Implementation — verify parse + unit test green):** Run `just iter prism-spec-engine --no-fail-fast`. Confirm RG-001, RG-002, RG-006, RG-007, RG-008 all GREEN. Confirm no existing tests regressed. Run `just iter prism-sensors` to confirm TOML file is valid.
+- [ ] **Task 7 (Implementation — verify parse + unit test green):** Run `just iter prism-spec-engine --no-fail-fast`. Confirm RG-001, RG-002, RG-006, RG-007, RG-008, RG-009 all GREEN. Confirm no existing tests regressed. Run `just iter prism-sensors` to confirm TOML file is valid.
 
 - [ ] **Task 8 (SAP-2 self-check — deferred):** SAP-2 DTU-parity probe is deferred for this delivery per the D-2200 governing decision (all DTU-parity work PARKED post-first-release; S-ADR058-DTU-PARITY-MIGRATION-001 parked). NOTE: a `vulnerabilities` route DOES already exist and is registered in `prism-dtu-claroty` (`clone.rs::build_router` → `routes/vulnerabilities.rs`), but it serves a legacy stub envelope (`total`/`page`, not `count`) whose fixture is not yet aligned to the 19-column `ocsf_column_naming=true` contract. Do NOT attempt to reconcile that route/fixture in this story — the alignment is the parked parity work. Record this as a known gap in the story comment.
 
 - [ ] **Task 9 (SAP-1 self-check):** Confirm no new `tracing::*!(event_type = ...)` emissions are added by this story (TOML-only change + unit tests). If any new emission appears during implementation, add a BC-2.16.002 catalog row per PG-LP11-001.
 
-- [ ] **Task 10 (Final gate):** Run `just check` (full workspace). Confirm all non-`#[ignore]` Red Gate tests pass: RG-001, RG-002, RG-003a, RG-003b, RG-004b, RG-006, RG-007, RG-008. (RG-004 and RG-005 are `#[ignore]`'d live tests — excluded from `just check`.) Confirm no new `unwrap()`/`expect()` on `Result` in production code paths. Confirm `claroty.sensor.toml` has 5 tables total (existing 4 + `claroty_vulnerabilities`). After `just check` passes, hold for story-level holdout gate before pushing to origin.
+- [ ] **Task 10 (Final gate):** Run `just check` (full workspace). Confirm all non-`#[ignore]` Red Gate tests pass: RG-001, RG-002, RG-003a, RG-003b, RG-004b, RG-006, RG-007, RG-008, RG-009. (RG-004 and RG-005 are `#[ignore]`'d live tests — excluded from `just check`.) Confirm no new `unwrap()`/`expect()` on `Result` in production code paths. Confirm `claroty.sensor.toml` has 5 tables total (existing 4 + `claroty_vulnerabilities`). After `just check` passes, hold for story-level holdout gate before pushing to origin.
 
 ## Previous Story Intelligence
 
@@ -465,7 +465,7 @@ crate imports in production code.
 | Action | File path | Notes |
 |--------|-----------|-------|
 | MODIFY | `crates/prism-sensors/specs/claroty.sensor.toml` | Add `[[tables]]` block for `claroty_vulnerabilities` after the existing `device_alert_relations` block |
-| CREATE | `crates/prism-sensors/tests/bc_2_16_015_claroty_vulnerabilities.rs` | RG-001, RG-002 (unit), RG-003b (proxy: `ocsf_projected_column_names` check), RG-004 (`#[ignore]` live Variant-1 wire-shape), RG-005 (`#[ignore]` live), RG-006, RG-007, RG-008; EC-004/005/006/007 unit tests; `#[ignore]` live tests include `LIVE-MONROE-001` comment |
+| CREATE | `crates/prism-sensors/tests/bc_2_16_015_claroty_vulnerabilities.rs` | RG-001, RG-002 (unit), RG-003b (proxy: `ocsf_projected_column_names` check), RG-004 (`#[ignore]` live Variant-1 wire-shape), RG-005 (`#[ignore]` live), RG-006, RG-007, RG-008, RG-009; EC-004/005/006/007 unit tests; `#[ignore]` live tests include `LIVE-MONROE-001` comment |
 | CREATE | `crates/prism-bin/tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs` | RG-003a (PRIMARY plan-time e2e: `QueryEngine::execute` → E-QUERY-038), RG-004b (mock wire-shape asserting class_uid=2002); serialized-JSON wire test; id e2e test; EC-005/EC-008 wire tests |
 
 Files that MUST NOT be modified:
@@ -525,6 +525,7 @@ new dependency on `prism-sensors` (direction is prism-sensors → prism-spec-eng
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.8 | 2026-08-25 | story-writer | F-VULNS-PC3-MED-001: RG-009 swept into §File Structure §CREATE prism-sensors/tests row + frontmatter crates_touched comment (2 mandated sites); Task §3 updated to include RG-009 (AC-008 positive mock case); Task §7 updated to include RG-009 in GREEN confirmation list; Task §10 updated to include RG-009 in non-#[ignore] gate list. 6 enumeration sites total corrected. |
 | 1.7 | 2026-08-25 | story-writer | BC-2.16.015 pin v1.4→v1.5 propagated at 7 sites: frontmatter BC comment, behavioral_contracts comment, §Authority §Postconditions §1 and §2 headers, §Behavioral Contracts table, §Token Budget, §References. EC-006 (§Edge Cases) reworded: null `published_date` stored in `raw_extensions` as Tier-2; no standalone Datetime Arrow column materialized; ADR-028 §D8-B applies to non-null present values only (F-VULNS-PA-O01, BC EC-016-015-006). §Authority §D8-B paragraph updated to match; body_template illustrative-only note added to §Authority §Postconditions §1 (TD-VSDD-097 dim-b). RG-009 added: `test_BC_2_16_015_claroty_vulnerabilities_source_path_id_present_when_supplied` (AC-008 positive case, prism-sensors §source_path_id); density check updated 10/8→11/8=1.375 (SAC-1). input-hash refreshed 86c5990→4be85a0 (BC-2.16.015 v1.5 now in inputs). |
 | 1.6 | 2026-08-25 | story-writer | F-L3-003: §File Structure + crates_touched RG-004 crate attribution corrected (RG-004 live is in prism-sensors, not prism-bin; prism-bin has RG-004b). F-L3-004: v1.3-row anachronistic BC-input parenthetical v1.4→v1.2. |
 | 1.5 | 2026-08-25 | story-writer | F-VULNS-P5-001 (story-side): query examples corrected to flat registered form claroty_vulnerabilities (table_name now bare 'vulnerabilities'). F-VULNS-P5-002: EC-007/EC-008 pages-remain-valid→atomic-fail. BC-2.16.015 pin v1.3→v1.4. |
