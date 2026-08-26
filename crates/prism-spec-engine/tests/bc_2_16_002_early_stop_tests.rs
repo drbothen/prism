@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 //! RG-001..RG-004 for S-ENGINE-LIMIT-EARLY-STOP-001: LIMIT-aware early-stop pagination.
 //! BC-2.16.002 postconditions — LIMIT-Aware Early-Stop Pagination (ADR-060 §D8).
+//! OBS-1 regression guard: CursorToken early-stop arm (ADR-060 §D8.4).
 //!
 //! | RG  | Name                                                              | Color          | Traces to |
 //! |-----|-------------------------------------------------------------------|----------------|-----------|
@@ -8,6 +9,7 @@
 //! | 002 | early_stop_pipeline_stops_without_setting_truncated               | RED            | AC-002    |
 //! | 003 | early_stop_none_fetches_all_pages                                 | GREEN (sentry) | AC-003    |
 //! | 004 | early_stop_di019_fires_before_early_stop_check                    | GREEN (sentry) | AC-004    |
+//! | OBS-1 | early_stop_cursor_token_stops_after_first_page                | GREEN (guard)  | ADR-060 §D8.4 |
 //!
 //! RG-001 passes now: `FetchContext::new` stub added @9530f3478 already carries
 //!   `early_stop_limit: Option<usize>` and the matching constructor parameter.
@@ -377,5 +379,139 @@ async fn test_BC_2_16_002_early_stop_di019_fires_before_early_stop_check() {
         "RG-004 ORDERING SENTINEL: DI-019 must truncate to exactly 10 000 records. \
          Got {} records.",
         result.records.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// OBS-1 regression guard — CursorToken early-stop arm coverage
+// ---------------------------------------------------------------------------
+
+/// OBS-1 regression guard: `early_stop_limit` fires for `PaginationConfig::CursorToken`
+/// sensors (CrowdStrike/Armis pattern) just as it does for OffsetLimit sensors.
+///
+/// **Finding OBS-1** (BC-2.16.002 §Postconditions + ADR-060 §D8.4): the early-stop
+/// check sits above the pagination-advance `match` arm, so it fires mode-agnostically.
+/// Without this test, a future refactor relocating the early-stop check INTO the
+/// `OffsetLimit` match arm would silently break CursorToken sensors with no failing test.
+///
+/// **Mock setup** (CursorToken GET, `page_size: None`):
+///   - Mock 1 (`up_to_n_times(1)`): returns 5 records + `next_cursor: "cursor_page_2"`.
+///   - Mock 2 (`up_to_n_times(1)`): returns 5 records + `next_cursor: "cursor_page_3"`
+///     (would be reached without early-stop).
+///   - Mock 3 (fallback): returns empty / no cursor (terminal page, should never be hit).
+///
+/// **With** `early_stop_limit = Some(1)`:
+///   - Page 1 delivers 5 records; `all_records.len()=5 >= 1` fires early-stop → `break 'steps`.
+///   - Pages 2+ are never fetched; exactly 1 HTTP request is issued.
+///
+/// Traces to BC-2.16.002 §Postconditions LIMIT-Aware Early-Stop; ADR-060 §D8.4.
+#[tokio::test]
+async fn test_BC_2_16_002_early_stop_cursor_token_stops_after_first_page() {
+    let mock_server = MockServer::start().await;
+
+    let page_records: Vec<serde_json::Value> =
+        (0u32..5).map(|i| serde_json::json!({"id": i})).collect();
+
+    // Page 1: 5 records + cursor (loop would continue without early-stop).
+    Mock::given(method("GET"))
+        .and(path("/cursor-items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "items": page_records,
+            "next_cursor": "cursor_page_2"
+        })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Page 2: would be reached without early-stop (5 records + advancing cursor).
+    Mock::given(method("GET"))
+        .and(path("/cursor-items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "items": page_records,
+            "next_cursor": "cursor_page_3"
+        })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Page 3: terminal fallback (no cursor, empty records — should never be reached).
+    Mock::given(method("GET"))
+        .and(path("/cursor-items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": [] })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec::new(
+        "cursor-early-stop-sensor",
+        "Cursor Early Stop Sensor",
+        AuthType::BearerStatic,
+        &mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
+            "cursor_items",
+            "security_finding",
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_cursor_items",
+                "GET",
+                "/cursor-items",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::CursorToken {
+                    cursor_response_path: "$.next_cursor".to_string(),
+                    page_size: None,
+                }),
+            )],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+
+    let table = spec.tables[0].clone();
+    // early_stop_limit = Some(1): fires after the first page (5 records >= 1).
+    let context = FetchContext::new(OrgSlug::new("obs1-cursor-org"), HashMap::new(), Some(1));
+    let http_client = make_http_client();
+    let auth_provider = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("OBS-1: pipeline execute must return Ok (no HTTP error expected)");
+
+    // PRIMARY: only 1 page was fetched (5 records from page 1).
+    // If early-stop is not mode-agnostic (e.g., guarded inside OffsetLimit arm only),
+    // the cursor loop continues: 5 + 5 = 10 records → assertion fails → regression caught.
+    assert_eq!(
+        result.records.len(),
+        5,
+        "OBS-1 REGRESSION GUARD: early-stop with CursorToken must halt after the first page. \
+         `early_stop_limit=Some(1)` + 5 records/page: after page 1, all_records.len()=5 >= 1 \
+         → `break 'steps`. Got {} records (>5 means pages 2+ were fetched — early-stop does \
+         not cover CursorToken).",
+        result.records.len()
+    );
+
+    // SECONDARY: truncated must NOT be set by the early-stop path (ADR-060 §D8.3).
+    // `truncated = true` is reserved exclusively for DI-019.
+    assert!(
+        !result.truncated,
+        "OBS-1: early-stop must NOT set truncated=true (reserved for DI-019 per \
+         ADR-060 §D8.3). Got truncated=true."
+    );
+
+    // TERTIARY: exactly 1 HTTP request (page 1 only; pages 2+ suppressed by early-stop).
+    let received = mock_server
+        .received_requests()
+        .await
+        .expect("wiremock: received_requests() must succeed");
+    assert_eq!(
+        received.len(),
+        1,
+        "OBS-1 REGRESSION GUARD: exactly 1 HTTP request expected (early-stop after first \
+         CursorToken page). Got {} requests — if >1, the early-stop check does not fire for \
+         CursorToken pagination (e.g., was moved inside OffsetLimit arm).",
+        received.len()
     );
 }
