@@ -14,21 +14,20 @@
 //! BC-2.16.002 postcondition — LIMIT-Aware Early-Stop (ADR-060 §D8);
 //! BC-2.16.015 EC-016-015-007 / TV-BC-2.16.015-006.
 //!
-//! | RG  | Test Name                                                              | Color | Traces to |
-//! |-----|------------------------------------------------------------------------|-------|-----------|
-//! | 005 | early_stop_spec_driven_adapter_maps_params_limit_to_early_stop_limit   | RED   | AC-005    |
-//! | 006 | early_stop_claroty_page_size_1000_limit_1_single_page                  | RED   | AC-005/6  |
+//! | RG  | Test Name                                                              | Status        | Traces to |
+//! |-----|------------------------------------------------------------------------|---------------|-----------|
+//! | 005 | early_stop_spec_driven_adapter_maps_params_limit_to_early_stop_limit   | GREEN (impl)  | AC-005    |
+//! | 006 | early_stop_claroty_page_size_1000_limit_1_single_page                  | GREEN (impl)  | AC-005/6  |
 //!
-//! **RED gate for both RG-005 and RG-006:**
-//! `spec_driven_adapter.rs` currently passes `None` as the third argument to
-//! `FetchContext::new` (the `early_stop_limit` field stub added at @9530f3478).
-//! With `None`, no early-stop fires; the pagination loop runs to exhaustion,
-//! fetching ALL available pages. Both tests assert that exactly 1 HTTP request
-//! was issued, which FAILS because 3–4 requests are made instead.
+//! **Gate intent (RG-005 and RG-006):**
+//! Absent the `params.limit → early_stop_limit` mapping in `SpecDrivenSensorAdapter::fetch`,
+//! `FetchContext::new` receives `None` (the `early_stop_limit` field stub added at @9530f3478)
+//! and the pagination loop runs to exhaustion, fetching ALL available pages.
+//! Both tests gate that exactly 1 HTTP request is issued; without the mapping,
+//! 3–4 requests are made instead.
 //!
-//! **GREEN after AC-005:**
-//! The adapter is updated so that `params.limit > 0` maps to
-//! `Some(params.limit as usize)` and `params.limit == 0` maps to `None`.
+//! **AC-005 wiring (implemented):**
+//! `params.limit > 0` maps to `Some(params.limit as usize)`; `params.limit == 0` maps to `None`.
 //! With `early_stop_limit = Some(1)` and `page_size = P`, after the first
 //! page `all_records.len() = P ≥ 1` → `break 'steps` → 1 HTTP request.
 
@@ -221,7 +220,7 @@ async fn test_BC_2_16_002_early_stop_spec_driven_adapter_maps_params_limit_to_ea
     const PAGE_SIZE: u32 = 10;
 
     // -----------------------------------------------------------------------
-    // Part A (RED gate): params.limit=1 → early_stop_limit=Some(1) → 1 request
+    // Part A (gate intent): params.limit=1 → early_stop_limit=Some(1) → 1 request
     // -----------------------------------------------------------------------
     {
         let mock_server = MockServer::start().await;
@@ -280,19 +279,19 @@ async fn test_BC_2_16_002_early_stop_spec_driven_adapter_maps_params_limit_to_ea
             .await
             .expect("wiremock: received_requests() must succeed");
 
-        // PRIMARY RED GATE: exactly 1 HTTP request expected.
-        // Without AC-005: None passed to FetchContext → 3 requests (2 data + 1 terminal).
+        // PRIMARY GATE: exactly 1 HTTP request expected.
+        // Absent AC-005: None passed to FetchContext → 3 requests (2 data + 1 terminal).
         // With AC-005: Some(1) → stop after page 1 (PAGE_SIZE records ≥ 1) → 1 request.
         assert_eq!(
             received.len(),
             1,
-            "RG-005 RED GATE: `params.limit=1` must produce `early_stop_limit=Some(1)` in \
+            "RG-005 GATE: `params.limit=1` must produce `early_stop_limit=Some(1)` in \
              FetchContext, stopping the OffsetLimit loop after 1 page ({PAGE_SIZE} records ≥ 1 → \
-             `break 'steps`). Current code passes `None` → all pages fetched (3 requests). \
+             `break 'steps`). Absent the AC-005 wiring, None is passed to FetchContext and \
+             all pages are fetched (3 requests). \
              Got {} requests. \
-             Fix: in spec_driven_adapter.rs, before FetchContext::new: \
-             `let early_stop_limit = if params.limit == 0 {{ None }} else {{ Some(params.limit as usize) }};` \
-             then pass `early_stop_limit` as the third arg. \
+             AC-005 wiring: `let early_stop_limit = if params.limit == 0 {{ None }} \
+             else {{ Some(params.limit as usize) }};` passed as the third arg to FetchContext::new. \
              AC-005; BC-2.16.002 LIMIT-Aware Early-Stop; ADR-060 §D8.",
             received.len()
         );
@@ -486,19 +485,21 @@ async fn test_BC_2_16_002_early_stop_claroty_page_size_1000_limit_1_single_page(
         .filter(|r| r.method == wiremock::http::Method::POST)
         .collect();
 
-    // PRIMARY RED GATE: exactly 1 HTTP POST request expected.
-    // Without AC-005: None → 4 POST requests (3 × 1000 records + terminal).
+    // PRIMARY GATE: exactly 1 HTTP POST request expected.
+    // Absent AC-005: None passed to FetchContext → 4 POST requests (3 × 1000 records + terminal).
     // With AC-005: Some(1) → after page 1 (1000 ≥ 1) → break → 1 POST request.
     assert_eq!(
         post_received.len(),
         1,
-        "RG-006 RED GATE — BC-2.16.015 EC-016-015-007 / TV-BC-2.16.015-006: \
+        "RG-006 GATE — BC-2.16.015 EC-016-015-007 / TV-BC-2.16.015-006: \
          `LIMIT 1` against a claroty-scale sensor (POST /vulnerabilities, page_size=1000, \
          3 pages available) must issue exactly 1 HTTP POST request. \
          After page 1: all_records.len()=1000 ≥ 1 → `break 'steps` (ADR-060 §D8.2). \
-         Current code passes `None` → 4 POST requests (3 data + 1 terminal). \
+         Absent the AC-005 wiring, None is passed to FetchContext and 4 POST requests \
+         are issued (3 data + 1 terminal). \
          Got {} POST requests (total requests: {}). \
-         Fix: AC-005 adapter wiring in spec_driven_adapter.rs (ADR-060 §D8). \
+         AC-005 wiring: adapter maps params.limit > 0 to Some(params.limit as usize) \
+         in spec_driven_adapter.rs (ADR-060 §D8). \
          DataFusion trims to 1 row downstream (not asserted here — pipeline returns 1000 pre-trim). \
          BC-2.16.002 LIMIT-Aware Early-Stop; BC-2.16.015 EC-016-015-007 / TV-BC-2.16.015-006.",
         post_received.len(),

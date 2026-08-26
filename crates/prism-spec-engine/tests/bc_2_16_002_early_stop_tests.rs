@@ -4,10 +4,10 @@
 //! OBS-1 regression guard: CursorToken early-stop arm (ADR-060 §D8.4).
 //! Round-2 coverage: EC-002 (limit>total), EC-003 (limit==page_size boundary), LOW-1 (claroty-scale truncated=false).
 //!
-//! | RG    | Name                                                              | Color          | Traces to              |
+//! | RG    | Name                                                              | Status         | Traces to              |
 //! |-------|-------------------------------------------------------------------|----------------|------------------------|
 //! | 001   | early_stop_fetch_context_new_stores_early_stop_limit              | GREEN (stub)   | AC-001                 |
-//! | 002   | early_stop_pipeline_stops_without_setting_truncated               | RED            | AC-002                 |
+//! | 002   | early_stop_pipeline_stops_without_setting_truncated               | GREEN (impl)   | AC-002                 |
 //! | 003   | early_stop_none_fetches_all_pages                                 | GREEN (sentry) | AC-003                 |
 //! | 004   | early_stop_di019_fires_before_early_stop_check                    | GREEN (sentry) | AC-004                 |
 //! | OBS-1 | early_stop_cursor_token_stops_after_first_page                    | GREEN (guard)  | ADR-060 §D8.4          |
@@ -16,16 +16,16 @@
 //! | LOW-1  | early_stop_large_page_size_truncated_false                       | GREEN (cov)    | TV-BC-2.16.015-006     |
 //! | MULTI-PAGE | early_stop_multi_page_stops_after_second_page                | GREEN (cov)    | AC-003 ceil(N/page_size) |
 //!
-//! RG-001 passes now: `FetchContext::new` stub added @9530f3478 already carries
+//! RG-001 gates `FetchContext::new`: stub added @9530f3478 carries
 //!   `early_stop_limit: Option<usize>` and the matching constructor parameter.
 //!
-//! RG-002 is RED: `execute_impl` does not yet contain the early-stop `break 'steps`
-//!   immediately after the DI-019 block. Without it the pipeline fetches all pages.
+//! RG-002 gates the early-stop `break 'steps` in `execute_impl` immediately after the
+//!   DI-019 block. Absent that check, the pipeline fetches all pages.
 //!
-//! RG-003 passes now and after implementation: `None` must leave full-pagination
-//!   behaviour untouched. Regression sentinel.
+//! RG-003 gates the None-branch: `None` must leave full-pagination behaviour untouched.
+//!   Regression sentinel (passes both before and after the early-stop check is wired).
 //!
-//! RG-004 passes now and after CORRECT implementation: DI-019 fires before early-stop,
+//! RG-004 gates DI-019 ordering: DI-019 must fire before the early-stop check,
 //!   so `truncated` is set by DI-019, not by the early-stop path. This test catches the
 //!   ordering bug where early-stop is mistakenly placed BEFORE DI-019.
 
@@ -178,8 +178,9 @@ async fn test_BC_2_16_002_early_stop_pipeline_stops_without_setting_truncated() 
         .await
         .expect("RG-002: pipeline execute must return Ok (no HTTP error expected)");
 
-    // PRIMARY RED GATE: records must be from the first page only (10 records).
-    // Without early-stop: 3 full pages → 30 records; assertion FAILS → RED gate fires.
+    // PRIMARY GATE: records must be from the first page only (10 records).
+    // Absent the early-stop check: all pages are fetched (3 full pages → 30 records);
+    // this assertion is the red-gate discriminator.
     assert_eq!(
         result.records.len(),
         10,
@@ -298,7 +299,7 @@ async fn test_BC_2_16_002_early_stop_none_fetches_all_pages() {
 /// But per ADR-060 §D8.2 the early-stop check lives IMMEDIATELY AFTER the DI-019
 /// block — DI-019 must fire first, set `truncated = true`, and `break 'steps`.
 ///
-/// **Current code** (no early-stop at all): DI-019 fires → `truncated = true` → GREEN.
+/// **DI-019 precedence:** DI-019 fires first → `truncated = true` (independent of early-stop).
 ///
 /// **Correct implementation** (early-stop after DI-019): DI-019 still fires first → GREEN.
 ///
