@@ -56,7 +56,7 @@ use wiremock::{
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-/// Build a minimal BearerStatic sensor spec with OffsetLimit pagination.
+/// Build a minimal BearerStatic sensor spec with OffsetLimit pagination (GET method).
 ///
 /// The table is named "items" with a single String column "id". The fetch step
 /// is `GET /items` with `$.items` as the response path.
@@ -76,6 +76,46 @@ fn make_offset_limit_spec(sensor_id: &str, base_url: &str, page_size: u32) -> Se
                 "/items",
                 None,
                 "$.items",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::OffsetLimit { page_size }),
+            )],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    )
+}
+
+/// Build a Claroty-style BearerStatic sensor spec with POST-method OffsetLimit pagination.
+///
+/// Mirrors the real claroty `fetch_vulnerabilities` step (TV-BC-2.16.015-006 fidelity):
+/// - Method: POST (OffsetLimit injects offset/limit into the POST JSON body)
+/// - Path: /vulnerabilities
+/// - Response path: $.vulnerabilities
+///
+/// Used by RG-006 to discharge TV-BC-2.16.015-006 with faithful POST wire shape.
+fn make_claroty_vulnerabilities_post_spec(
+    sensor_id: &str,
+    base_url: &str,
+    page_size: u32,
+) -> SensorSpec {
+    SensorSpec::new(
+        sensor_id,
+        &format!("{sensor_id} claroty-scale POST early-stop test sensor"),
+        AuthType::BearerStatic,
+        base_url,
+        vec![TableSpec::new_point_in_time(
+            "vulnerabilities",
+            "vulnerability_finding",
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_vulnerabilities",
+                "POST",
+                "/vulnerabilities",
+                None,
+                "$.vulnerabilities",
                 None,
                 vec![],
                 None,
@@ -337,27 +377,34 @@ async fn test_BC_2_16_002_early_stop_spec_driven_adapter_maps_params_limit_to_ea
 // RG-006 (RED) — Claroty-scale: page_size=1000, 3 pages, limit=1 → 1 request
 // ---------------------------------------------------------------------------
 
-/// RG-006 (RED): Claroty-scale behavioral proof — page_size=1000, 3 data pages of
-/// 1000 records each, `params.limit=1` → exactly 1 HTTP request issued.
+/// RG-006 (RED): Claroty-scale behavioral proof with faithful POST wire shape —
+/// page_size=1000, 3 data pages of 1000 records each, `params.limit=1` → exactly
+/// 1 HTTP POST request issued.
 ///
 /// This is the direct test vector for **BC-2.16.015 EC-016-015-007 /
-/// TV-BC-2.16.015-006** ("LIMIT 1 against claroty_vulnerabilities: 1 page fetched,
+/// TV-BC-2.16.015-006** ("LIMIT 1 against claroty_vulnerabilities: 1 POST page fetched,
 /// truncated=false; DataFusion trims to 1 row downstream").
 ///
-/// **Mock topology (OffsetLimit GET, page_size=1000):**
+/// Wire shape matches the real claroty `fetch_vulnerabilities` step:
+/// - Method: POST (OffsetLimit injects offset/limit into the POST JSON body)
+/// - Path: /vulnerabilities
+/// - Response envelope: `{"vulnerabilities": [...]}`
+///
+/// **Mock topology (OffsetLimit POST, page_size=1000):**
 /// - Pages 1–3 (`up_to_n_times(1)` each): 1000 records — OffsetLimit continues.
 /// - Terminal page (fallback): 0 records — OffsetLimit terminates.
 ///
 /// **Without AC-005 wiring (current code — RED state):**
-/// → `early_stop_limit = None`: 4 HTTP requests (3 data + 1 terminal).
-/// → `assert_eq!(received.len(), 1)` FAILS with "expected 1 got 4" → RED gate.
+/// → `early_stop_limit = None`: 4 HTTP POST requests (3 data + 1 terminal).
+/// → `assert_eq!(post_requests.len(), 1)` FAILS with "expected 1 got 4" → RED gate.
 ///
 /// **With AC-005 wiring (GREEN state):**
 /// → `early_stop_limit = Some(1)`: after page 1 (1000 records ≥ 1) → `break 'steps`.
-/// → 1 HTTP request; fetch returns `Ok(batches)` with 1000 pre-trim records.
+/// → 1 HTTP POST request; fetch returns `Ok(batches)` with 1000 pre-trim records.
 /// → DataFusion applies `LIMIT 1` downstream (not exercised here).
 ///
 /// Traces to AC-005 (BC-2.16.002), BC-2.16.015 EC-016-015-007 / TV-BC-2.16.015-006.
+/// F-R5-OBS-001 fix: GET → POST wire fidelity (2026-08-26).
 #[tokio::test]
 async fn test_BC_2_16_002_early_stop_claroty_page_size_1000_limit_1_single_page() {
     const PAGE_SIZE: u32 = 1000;
@@ -366,43 +413,50 @@ async fn test_BC_2_16_002_early_stop_claroty_page_size_1000_limit_1_single_page(
     let page = make_page_records(PAGE_SIZE as usize);
 
     // Page 1 (1000 records — OffsetLimit continues without early-stop):
-    Mock::given(method("GET"))
-        .and(path("/items"))
+    Mock::given(method("POST"))
+        .and(path("/vulnerabilities"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": page })),
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({ "vulnerabilities": page })),
         )
         .up_to_n_times(1)
         .mount(&mock_server)
         .await;
 
     // Page 2 (1000 records):
-    Mock::given(method("GET"))
-        .and(path("/items"))
+    Mock::given(method("POST"))
+        .and(path("/vulnerabilities"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": page })),
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({ "vulnerabilities": page })),
         )
         .up_to_n_times(1)
         .mount(&mock_server)
         .await;
 
     // Page 3 (1000 records):
-    Mock::given(method("GET"))
-        .and(path("/items"))
+    Mock::given(method("POST"))
+        .and(path("/vulnerabilities"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": page })),
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({ "vulnerabilities": page })),
         )
         .up_to_n_times(1)
         .mount(&mock_server)
         .await;
 
-    // Terminal page (0 records — OffsetLimit terminates):
-    Mock::given(method("GET"))
-        .and(path("/items"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": [] })))
+    // Terminal page (0 records — OffsetLimit terminates on short page):
+    Mock::given(method("POST"))
+        .and(path("/vulnerabilities"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "vulnerabilities": [] })),
+        )
         .mount(&mock_server)
         .await;
 
-    let spec = make_offset_limit_spec("rg006-sensor", &mock_server.uri(), PAGE_SIZE);
+    // Use claroty POST spec mirroring real fetch_vulnerabilities step (TV-BC-2.16.015-006).
+    let spec =
+        make_claroty_vulnerabilities_post_spec("rg006-sensor", &mock_server.uri(), PAGE_SIZE);
     let resolved = make_resolved(spec, "rg006-org");
     let adapter = SpecDrivenSensorAdapter::new(
         Arc::new(resolved),
@@ -421,25 +475,33 @@ async fn test_BC_2_16_002_early_stop_claroty_page_size_1000_limit_1_single_page(
         result.err()
     );
 
-    let received = mock_server
+    let all_received = mock_server
         .received_requests()
         .await
         .expect("wiremock: received_requests() must succeed");
 
-    // PRIMARY RED GATE: exactly 1 HTTP request expected.
-    // Without AC-005: None → 4 requests (3 × 1000 records + terminal).
-    // With AC-005: Some(1) → after page 1 (1000 ≥ 1) → break → 1 request.
+    // Filter to POST requests only for the explicit TV-BC-2.16.015-006 wire assertion.
+    let post_received: Vec<_> = all_received
+        .iter()
+        .filter(|r| r.method == wiremock::http::Method::POST)
+        .collect();
+
+    // PRIMARY RED GATE: exactly 1 HTTP POST request expected.
+    // Without AC-005: None → 4 POST requests (3 × 1000 records + terminal).
+    // With AC-005: Some(1) → after page 1 (1000 ≥ 1) → break → 1 POST request.
     assert_eq!(
-        received.len(),
+        post_received.len(),
         1,
         "RG-006 RED GATE — BC-2.16.015 EC-016-015-007 / TV-BC-2.16.015-006: \
-         `LIMIT 1` against a claroty-scale sensor (page_size=1000, 3 pages available) \
-         must issue exactly 1 HTTP request. \
+         `LIMIT 1` against a claroty-scale sensor (POST /vulnerabilities, page_size=1000, \
+         3 pages available) must issue exactly 1 HTTP POST request. \
          After page 1: all_records.len()=1000 ≥ 1 → `break 'steps` (ADR-060 §D8.2). \
-         Current code passes `None` → 4 HTTP requests (3 data + 1 terminal). Got {} requests. \
+         Current code passes `None` → 4 POST requests (3 data + 1 terminal). \
+         Got {} POST requests (total requests: {}). \
          Fix: AC-005 adapter wiring in spec_driven_adapter.rs (ADR-060 §D8). \
          DataFusion trims to 1 row downstream (not asserted here — pipeline returns 1000 pre-trim). \
          BC-2.16.002 LIMIT-Aware Early-Stop; BC-2.16.015 EC-016-015-007 / TV-BC-2.16.015-006.",
-        received.len()
+        post_received.len(),
+        all_received.len()
     );
 }
