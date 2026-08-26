@@ -1,15 +1,19 @@
 #![allow(non_snake_case)]
-//! RG-001..RG-004 for S-ENGINE-LIMIT-EARLY-STOP-001: LIMIT-aware early-stop pagination.
+//! RG-001..RG-004 + EC-002/EC-003/LOW-1 for S-ENGINE-LIMIT-EARLY-STOP-001: LIMIT-aware early-stop pagination.
 //! BC-2.16.002 postconditions — LIMIT-Aware Early-Stop Pagination (ADR-060 §D8).
 //! OBS-1 regression guard: CursorToken early-stop arm (ADR-060 §D8.4).
+//! Round-2 coverage: EC-002 (limit>total), EC-003 (limit==page_size boundary), LOW-1 (claroty-scale truncated=false).
 //!
-//! | RG  | Name                                                              | Color          | Traces to |
-//! |-----|-------------------------------------------------------------------|----------------|-----------|
-//! | 001 | early_stop_fetch_context_new_stores_early_stop_limit              | GREEN (stub)   | AC-001    |
-//! | 002 | early_stop_pipeline_stops_without_setting_truncated               | RED            | AC-002    |
-//! | 003 | early_stop_none_fetches_all_pages                                 | GREEN (sentry) | AC-003    |
-//! | 004 | early_stop_di019_fires_before_early_stop_check                    | GREEN (sentry) | AC-004    |
-//! | OBS-1 | early_stop_cursor_token_stops_after_first_page                | GREEN (guard)  | ADR-060 §D8.4 |
+//! | RG    | Name                                                              | Color          | Traces to              |
+//! |-------|-------------------------------------------------------------------|----------------|------------------------|
+//! | 001   | early_stop_fetch_context_new_stores_early_stop_limit              | GREEN (stub)   | AC-001                 |
+//! | 002   | early_stop_pipeline_stops_without_setting_truncated               | RED            | AC-002                 |
+//! | 003   | early_stop_none_fetches_all_pages                                 | GREEN (sentry) | AC-003                 |
+//! | 004   | early_stop_di019_fires_before_early_stop_check                    | GREEN (sentry) | AC-004                 |
+//! | OBS-1 | early_stop_cursor_token_stops_after_first_page                    | GREEN (guard)  | ADR-060 §D8.4          |
+//! | EC-002 | early_stop_limit_exceeds_total_fetches_all_pages                 | GREEN (cov)    | EC-002                 |
+//! | EC-003 | early_stop_limit_equals_page_size_boundary                       | GREEN (cov)    | EC-003                 |
+//! | LOW-1  | early_stop_large_page_size_truncated_false                       | GREEN (cov)    | TV-BC-2.16.015-006     |
 //!
 //! RG-001 passes now: `FetchContext::new` stub added @9530f3478 already carries
 //!   `early_stop_limit: Option<usize>` and the matching constructor parameter.
@@ -512,6 +516,298 @@ async fn test_BC_2_16_002_early_stop_cursor_token_stops_after_first_page() {
         "OBS-1 REGRESSION GUARD: exactly 1 HTTP request expected (early-stop after first \
          CursorToken page). Got {} requests — if >1, the early-stop check does not fire for \
          CursorToken pagination (e.g., was moved inside OffsetLimit arm).",
+        received.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// EC-002 (GREEN / coverage) — early_stop_limit > total records: all pages fetched
+// ---------------------------------------------------------------------------
+
+/// EC-002 (GREEN / coverage): `early_stop_limit = Some(1000)` with ~13 total records.
+///
+/// Early-stop never fires because `all_records.len()` never reaches 1000.
+/// The pipeline must complete via normal OffsetLimit short-page termination.
+///
+/// **Mock setup** (OffsetLimit GET, page_size=5):
+///   - Mock 1 (`up_to_n_times(1)`): 5 records (full page → continue).
+///   - Mock 2 (`up_to_n_times(1)`): 5 records (full page → continue).
+///   - Mock 3 (`up_to_n_times(1)`): 3 records (partial page < page_size → OffsetLimit
+///     terminates naturally; or triggers an empty confirmation request, see fallback).
+///   - Fallback: empty records (terminal confirmation page, if reached).
+///
+/// After page 1: 5 < 1000 → no early-stop.
+/// After page 2: 10 < 1000 → no early-stop.
+/// After page 3: 13 < 1000 → no early-stop; loop terminates (short or empty page).
+///
+/// Traces to EC-002 (BC-2.16.002 LIMIT-Aware Early-Stop edge case).
+#[tokio::test]
+async fn test_BC_2_16_002_early_stop_limit_exceeds_total_fetches_all_pages() {
+    let mock_server = MockServer::start().await;
+
+    let full_page: Vec<serde_json::Value> =
+        (0u32..5).map(|i| serde_json::json!({"id": i})).collect();
+
+    // Page 1: 5 records (full page → OffsetLimit continues).
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": full_page })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Page 2: 5 records (full page → OffsetLimit continues).
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": full_page })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Page 3: 3 records (partial page < page_size=5 → OffsetLimit terminates naturally).
+    let partial_page: Vec<serde_json::Value> =
+        (10u32..13).map(|i| serde_json::json!({"id": i})).collect();
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": partial_page })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Fallback: empty terminal page (defensive — handles implementations that require
+    // an explicit empty response to confirm end-of-stream after a short page).
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": [] })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = make_get_offset_spec(&mock_server.uri(), 5);
+    let table = spec.tables[0].clone();
+    // early_stop_limit = Some(1000): exceeds the ~13 total records; early-stop never fires.
+    let context = FetchContext::new(OrgSlug::new("ec002-org"), HashMap::new(), Some(1000));
+    let http_client = make_http_client();
+    let auth_provider = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("EC-002: pipeline execute must return Ok");
+
+    // PRIMARY: all 13 data records must be present; early-stop with limit=1000 must never fire.
+    // If early-stop fires incorrectly at < 1000 records, fewer than 13 records are returned.
+    assert_eq!(
+        result.records.len(),
+        13,
+        "EC-002: early_stop_limit=Some(1000) with ~13 total records must fetch ALL pages. \
+         After pages 1 (5), 2 (5), 3 (3): all_records.len()=13 < 1000 at every check. \
+         Loop terminates normally via short/empty page, not via early-stop. \
+         Got {} records.",
+        result.records.len()
+    );
+
+    // SECONDARY: truncated must be false (no DI-019 cap hit; no early-stop fired).
+    assert!(
+        !result.truncated,
+        "EC-002: truncated must be false when early_stop_limit=Some(1000) \
+         and total records (13) is well below DI-019 cap."
+    );
+
+    // TERTIARY: at least 3 HTTP requests must be issued (pages 1, 2, 3 each fetched).
+    let received = mock_server
+        .received_requests()
+        .await
+        .expect("wiremock: received_requests() must succeed");
+    assert!(
+        received.len() >= 3,
+        "EC-002: at least 3 HTTP requests expected (3 data pages). \
+         Got {} requests.",
+        received.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// EC-003 (GREEN / coverage) — early_stop_limit == page_size: exact page-boundary check
+// ---------------------------------------------------------------------------
+
+/// EC-003 (GREEN / coverage): `early_stop_limit = Some(P)` where P equals the page_size.
+///
+/// After exactly one full page, `all_records.len() = P` and `P >= P` fires early-stop.
+/// This exercises the N==page_size boundary (strictly-equal branch of the `>=` check).
+///
+/// **Mock setup** (OffsetLimit GET, page_size=5, early_stop_limit=Some(5)):
+///   - Mock 1 (`up_to_n_times(1)`): 5 records (full page; after this, 5 >= 5 → early-stop).
+///   - Fallback: 5 records (page 2; must NOT be fetched if early-stop fires correctly).
+///
+/// **With** correct implementation:
+///   - Page 1 delivers 5 records; `all_records.len()=5 >= 5` → `break 'steps`.
+///   - Exactly 1 HTTP request; 5 records; `truncated = false`.
+///
+/// **Without** early-stop (or with off-by-one `>`):
+///   - Loop continues to page 2 → records > 5 → assertion fails.
+///
+/// Traces to EC-003 (BC-2.16.002 LIMIT-Aware Early-Stop edge case; ADR-060 §D8 boundary).
+#[tokio::test]
+async fn test_BC_2_16_002_early_stop_limit_equals_page_size_boundary() {
+    let mock_server = MockServer::start().await;
+
+    let page_records: Vec<serde_json::Value> =
+        (0u32..5).map(|i| serde_json::json!({"id": i})).collect();
+
+    // Page 1: exactly page_size=5 records (full page → loop would continue without early-stop).
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": page_records })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Page 2 fallback: 5 records — reached ONLY if early-stop does not fire (off-by-one bug
+    // using `>` instead of `>=`). If any request reaches this mock, early-stop is broken.
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": page_records })),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let spec = make_get_offset_spec(&mock_server.uri(), 5);
+    let table = spec.tables[0].clone();
+    // early_stop_limit = Some(5) = Some(page_size): fires when all_records.len() >= 5.
+    // After page 1: 5 >= 5 → break.  Tests the N==page_size boundary (not just N<page_size).
+    let context = FetchContext::new(OrgSlug::new("ec003-org"), HashMap::new(), Some(5));
+    let http_client = make_http_client();
+    let auth_provider = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("EC-003: pipeline execute must return Ok");
+
+    // PRIMARY: exactly page_size=5 records from page 1 only.
+    // Off-by-one (`>` instead of `>=`): loop continues to page 2 → 10 records → FAILS.
+    assert_eq!(
+        result.records.len(),
+        5,
+        "EC-003 PAGE-BOUNDARY: early_stop_limit=Some(5) with page_size=5 must fire \
+         after the FIRST page (all_records.len()=5 >= 5 → break). \
+         Off-by-one using `>` would fetch page 2 and return 10 records. Got {} records.",
+        result.records.len()
+    );
+
+    // SECONDARY: truncated must be false (early-stop does not set truncated, per ADR-060 §D8.3).
+    assert!(
+        !result.truncated,
+        "EC-003: early-stop must NOT set truncated=true (reserved for DI-019 per \
+         ADR-060 §D8.3). Got truncated=true."
+    );
+
+    // TERTIARY: exactly 1 HTTP request (page 1 only; page 2 fallback must not be reached).
+    let received = mock_server
+        .received_requests()
+        .await
+        .expect("wiremock: received_requests() must succeed");
+    assert_eq!(
+        received.len(),
+        1,
+        "EC-003 PAGE-BOUNDARY: exactly 1 HTTP request expected. \
+         Got {} — if >1, early-stop did not fire at the N==page_size boundary.",
+        received.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// LOW-1 (GREEN / coverage) — large page_size (claroty scale), truncated=false
+// Discharges TV-BC-2.16.015-006: PipelineResult.truncated=false at page_size=1000.
+// ---------------------------------------------------------------------------
+
+/// LOW-1 (GREEN / coverage): `page_size=1000` with `early_stop_limit=Some(1)`.
+///
+/// Claroty-scale test: page_size=1000 matches the Claroty sensor's real page budget.
+/// This test directly asserts `PipelineResult.truncated == false` at the
+/// `PipelineExecutor::execute` layer — the surface RG-006 (adapter-layer RecordBatch
+/// assertion) cannot reach. Closes TV-BC-2.16.015-006.
+///
+/// **Mock setup** (OffsetLimit GET, page_size=1000):
+///   - Mock 1 (`up_to_n_times(1)`): 1000 records (full page).
+///   - Fallback: empty records (should never be hit; defensive only).
+///
+/// **With** `early_stop_limit = Some(1)`:
+///   - Page 1 delivers 1000 records; `all_records.len()=1000 >= 1` fires early-stop.
+///   - 1 HTTP request; `records.len() = 1000` (one full pre-DataFusion-trim page);
+///     `truncated = false` (early-stop never sets truncated, per ADR-060 §D8.3).
+///
+/// Traces to TV-BC-2.16.015-006 (BC-2.16.002 claroty-scale truncated=false assertion).
+#[tokio::test]
+async fn test_BC_2_16_002_early_stop_large_page_size_truncated_false() {
+    let mock_server = MockServer::start().await;
+
+    // Page 1: 1000 records (claroty-scale full page; triggers early-stop after fetch).
+    let page_records: Vec<serde_json::Value> =
+        (0u32..1000).map(|i| serde_json::json!({"id": i})).collect();
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": page_records })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Fallback: empty (should never be reached; early-stop fires after page 1).
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": [] })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = make_get_offset_spec(&mock_server.uri(), 1000);
+    let table = spec.tables[0].clone();
+    // early_stop_limit = Some(1): fires immediately after page 1 (1000 records >= 1).
+    let context = FetchContext::new(OrgSlug::new("low1-claroty-org"), HashMap::new(), Some(1));
+    let http_client = make_http_client();
+    let auth_provider = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("LOW-1: pipeline execute must return Ok");
+
+    // PRIMARY (TV-BC-2.16.015-006): truncated must be FALSE.
+    // Early-stop at page_size=1000 must NOT set truncated=true — that flag is reserved
+    // exclusively for DI-019 (ADR-060 §D8.3).  This is the surface RG-006 cannot cover.
+    assert!(
+        !result.truncated,
+        "LOW-1 TV-BC-2.16.015-006: early-stop with page_size=1000 must NOT set truncated=true. \
+         truncated=true is reserved for DI-019, not for early-stop. Got truncated=true."
+    );
+
+    // SECONDARY: 1000 records from the single fetched page (pre-DataFusion-trim).
+    assert_eq!(
+        result.records.len(),
+        1000,
+        "LOW-1: exactly 1000 records expected from the single fetched page. \
+         early_stop_limit=Some(1) fires after page 1 (1000 >= 1 → break). \
+         Got {} records.",
+        result.records.len()
+    );
+
+    // TERTIARY: exactly 1 HTTP request (only page 1 fetched; early-stop prevents page 2).
+    let received = mock_server
+        .received_requests()
+        .await
+        .expect("wiremock: received_requests() must succeed");
+    assert_eq!(
+        received.len(),
+        1,
+        "LOW-1: exactly 1 HTTP request expected (early-stop fires after page 1). \
+         Got {} requests.",
         received.len()
     );
 }
