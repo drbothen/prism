@@ -12,7 +12,7 @@ status: draft
 # TV-BC-2.16.015-006 authored and anchored to this story; POL-14 auto-promotes BC-2.16.015 to active when this story merges.
 producer: story-writer
 timestamp: "2026-08-26T00:00:00Z"
-version: "1.5"
+version: "1.6"
 modified: "2026-08-26"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -178,7 +178,7 @@ streak per BC-5.39.001.
 | BC | Title | Version | Role |
 |----|-------|---------|------|
 | BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | v2.38 | §Postconditions "LIMIT-Aware Early-Stop Pagination (ADR-060 §D8)": FetchContext field, execute_impl check placement, truncated=false semantics, applicable pagination modes, D8.5 ORDER BY limitation. Atomicity-reconciliation scope clause. |
-| BC-2.16.015 | Claroty xDome Vulnerability Findings Table | v1.7 | EC-016-015-007 (LIMIT 1 early-stop, 1 page, truncated=false); TV-BC-2.16.015-006 (LIMIT 1 single-page test vector, ≤1 HTTP POST request) |
+| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | v1.7 | EC-016-015-007 (LIMIT 1 early-stop, 1 page, truncated=false); TV-BC-2.16.015-006 (LIMIT 1 single-page test vector, ≤1 HTTP POST request) |
 
 ## Acceptance Criteria
 
@@ -560,6 +560,7 @@ prism-spec-engine import added to prism-bin.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.6 | 2026-08-26 | story-writer | POL-7 title-sync fix (F-R7-MED-001): BC-2.16.015 §Behavioral Contracts Title cell corrected to verbatim H1 — appended "— Queryable Surface and OCSF vulnerability_finding Mapping" suffix. BC-2.16.002 Title cell confirmed verbatim-correct (unchanged). |
 | 1.5 | 2026-08-26 | story-writer | Volatile-line-cite strip (TD-VSDD-091/L9): removed three numeric line-number cites in §Tasks Task 7 and §Previous Story Intelligence; replaced with symbol/section anchors (`MAX_PIPELINE_RECORDS` truncation block, `// AC-8 / DI-019` comment anchor, `pipeline.rs` `#[cfg(test)]` test module). |
 | 1.4 | 2026-08-26 | story-writer | Fix governance lifecycle mislabel (F-R5-MED-001): BC-2.16.015 status label corrected from "active" to "draft" in frontmatter BC-status comment; POL-14 auto-promotion note added. Comprehensive audit: BC-2.16.002 active claim verified correct; no ADR status mislabels found in file body. |
 | 1.3 | 2026-08-26 | story-writer | POL-39 anti-pin sweep (F-R3-MED-001): stripped numeric release pins for BC-2.16.002, BC-2.16.015, and ADR-060 from all narrative prose (~15 sites); updated BC-2.16.002 §Behavioral Contracts structural table Version column to current (was stale); BC-2.16.015 structural table pin verified current (unchanged). EC-004 test citation added per F-EARLYSTOP-P3-LOW-001 (shared coverage with AC-004/RG-004). |
