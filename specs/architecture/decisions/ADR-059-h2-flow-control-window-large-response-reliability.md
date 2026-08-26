@@ -2,17 +2,18 @@
 document_type: adr
 adr_id: "ADR-059"
 title: "H2 Flow-Control Window Sizing for Large-Response Sensor APIs"
-status: ACCEPTED
+status: WITHDRAWN
 date: "2026-08-26"
 modified: "2026-08-26"
-version: "1.1"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-01, SS-16]
 supersedes: []
 superseded_by: null
-amends: "ADR-050"
+withdrawn_reason: "D7 h2 flow-control window hypothesis falsified by live wire evidence (2026-08-26). reqwest/hyper 1.9 defaults (2 MiB stream + 5 MiB connection) exceed the observed ~1.2 MB page size — the initial-window hypothesis was numerically impossible. Direct h2 transport to api.claroty.com confirmed healthy across single-page and multi-page fetches. No client transport change adopted."
+amends: null
 anchor_stories:
-  - S-ENGINE-H2-LARGE-RESPONSE-001   # story to be created; §Authority will cite this ADR
+  - S-ENGINE-H2-LARGE-RESPONSE-001   # re-scoped to canary regression + diagnostics; no longer cites D7
 related_adrs: [ADR-050]
 related_bcs: [BC-2.16.002, BC-2.16.015]
 locked_decisions: []
@@ -23,15 +24,73 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.1 (2026-08-26) — D7: fixed 4 MiB h2 stream and connection windows on all production
-outbound sensor reqwest clients; `http2_adaptive_window` explicitly omitted (it overrides
-explicit setters back to 65,535 bytes, silently negating the fix). Extends ADR-050 §D5 without
-superseding any prior decision. v1.1 corrects the internal contradiction in v1.0 where combining
-`http2_adaptive_window(true)` with explicit window setters rendered the setters as no-ops.
+WITHDRAWN v1.2 (2026-08-26) — D7 is WITHDRAWN. The h2 flow-control window hypothesis was
+falsified by live wire evidence. No client transport change is adopted. The direct negotiated-h2
+transport to api.claroty.com is confirmed healthy and ships as-is. See §Withdrawal Rationale below.
+
+Prior accepted versions (historical record only — not active mandates):
+- v1.1 accepted D7 (fixed 4 MiB stream + connection windows, `http2_adaptive_window` omitted).
+- v1.0 initial D7 h2 window sizing decision.
+
+---
+
+## Withdrawal Rationale
+
+### Evidence That Falsified the D7 Hypothesis
+
+**reqwest/hyper 1.9 defaults exceed the observed page size.** The §Context hypothesis assumed
+reqwest 0.12 / h2 0.4 used the RFC 7540 default initial window sizes (65,535 bytes). Live
+investigation confirmed that reqwest 0.12.28 with the `http2` feature resolves through hyper 1.x,
+whose h2 layer uses 2 MiB stream window and 5 MiB connection window by default — both exceeding
+the ~1.2 MB `claroty_vulnerabilities` page. The numeric precondition for window exhaustion did not
+hold. The initial-window hypothesis was arithmetically impossible against the actual defaults.
+
+**Direct h2 confirmed healthy in multiple reproduction paths:**
+- `curl --http2` against POST `api.claroty.com/api/v1/vulnerabilities/` (~1.2 MB/page): HTTP 200,
+  full body received, ~0.9s — faster than HTTP/1.1 for the same payload.
+- Byte-faithful reqwest 0.12.28 reproduction of the production client builder (no window
+  overrides): succeeded with clean END_STREAM; no stall observed.
+- 6-page / ~7 MB multi-page fetch: drained correctly with observed WINDOW_UPDATE replenishment;
+  the connection-window hypothesis was also falsified.
+- Pre-fix prism binary (BEFORE any D7 changes): fetched live CVE rows across 10 paginated pages
+  in ~17s with zero E-QUERY-004 / timeout errors when run directly on 2026-08-26.
+
+**Diagnosis: transient network/edge condition.** The original 30s stall observation is most
+consistent with a transient condition at `api.claroty.com`'s network edge at the time of the
+live monroe validation, since resolved. A client-code root cause is ruled out: the same unmodified
+binary succeeds in direct reproduction.
+
+### Decision on Withdrawal
+
+- **D7 is NOT adopted.** Do not add `http2_initial_stream_window_size` or
+  `http2_initial_connection_window_size` overrides to production client builders. The defaults are
+  sufficient for all observed sensor page sizes.
+- **Do NOT force HTTP/1.1.** `http1_only()` on any production client would be a paper-fix for a
+  non-problem and would degrade h2 multiplexing on capable endpoints (§Context §Option A remains
+  correctly rejected).
+- **Do NOT add per-sensor transport tuning.** §Context §Option C remains correctly rejected.
+- **The interim relay is decommissioned.** The Python urllib HTTP/1.1 relay served as bisection
+  evidence during investigation; it is not a production path and is already decommissioned.
+- **Production-grade recurrence guard:** add a live canary regression and improved E-QUERY-004
+  timeout diagnostics as the operational response to transient edge stalls. This is tracked in the
+  re-scoped story S-ENGINE-H2-LARGE-RESPONSE-001 (canary + diagnostics, not D7 implementation).
+
+### Downstream Impact
+
+- **BC-2.16.002 §Postconditions "H2 Flow-Control Window Sizing":** any transcribed D7 mandate
+  must be removed by the product-owner in the same session burst.
+- **S-ENGINE-H2-LARGE-RESPONSE-001:** must be re-scoped by the story-writer from D7 implementation
+  to live canary regression + E-QUERY-004 diagnostics. The D7 Red Gate assertion (SETTINGS frame
+  check) is retired; the story's new acceptance criteria govern canary/diagnostic behavior only.
 
 ---
 
 ## Context
+
+> **FALSIFIED HYPOTHESIS — HISTORICAL RECORD ONLY.** The root-cause analysis and mechanism
+> selection below were produced before live wire evidence was available. The D7 decision derived
+> from this context is WITHDRAWN (see §Withdrawal Rationale). This section is preserved for
+> audit continuity; it does NOT represent an active mandate or a correct diagnosis.
 
 ### Defect Evidence
 
@@ -243,5 +302,6 @@ instantly, confirming auth and routing are not the cause.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-08-26 | architect | WITHDRAWN. D7 hypothesis falsified by live wire evidence: reqwest/hyper 1.9 defaults (2 MiB stream + 5 MiB connection) exceed the observed page size; direct h2 transport confirmed healthy end-to-end. No client transport change adopted. §Status rewritten, §Withdrawal Rationale added, §Context/§Decision annotated as falsified. Story re-scoped to canary + diagnostics. |
 | 1.1 | 2026-08-26 | architect | Corrects v1.0 internal contradiction: `http2_adaptive_window(true)` overrides explicit window setters back to 65,535 bytes; dropped. D7 now specifies fixed 4 MiB stream + connection windows only. Red Gate redesigned from loopback-timing experiment to deterministic `SETTINGS_INITIAL_WINDOW_SIZE` assertion via `h2`-crate server. Aligns with Option A selection. |
 | 1.0 | 2026-08-26 | architect | Initial — D7 h2 window sizing decision, extends ADR-050. |
