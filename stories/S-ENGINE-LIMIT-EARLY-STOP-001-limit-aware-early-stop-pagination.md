@@ -12,7 +12,7 @@ status: draft
 # TV-BC-2.16.015-006 anchored to this story. Status remains draft until remove-uncertainty CLEAN.
 producer: story-writer
 timestamp: "2026-08-26T00:00:00Z"
-version: "1.0"
+version: "1.1"
 modified: "2026-08-26"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -20,8 +20,8 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.015-claroty-vulnerabilities-table.md"
   - ".factory/specs/architecture/decisions/ADR-060-limit-aware-early-stop-pagination.md"
-input-hash: "607852f"
-# input-hash: computed 2026-08-26 D-2311 — BC-2.16.002 v2.37 + BC-2.16.015 v1.7 + ADR-060 v1.1
+input-hash: "07db7cb"
+# input-hash: recomputed 2026-08-26 after §Authority sweep (v1.1) — BC-2.16.002 v2.37 + BC-2.16.015 v1.7 + ADR-060 v1.1
 traces_to: ["BC-2.16.002", "BC-2.16.015"]
 points: 8
 estimated_days: 2
@@ -104,8 +104,8 @@ risk: MEDIUM
 assumption_validations:
   - claim: "Expanding FetchContext::new (constructor of a #[non_exhaustive] struct) by one parameter is source-compatible in-workspace when all callers are updated in-tree; no API-surface gate beyond the non-exhaustive audit is triggered."
     verdict: "CONFIRMED (remove-uncertainty 2026-08-26). Ground-truthed against code: crates/prism-spec-engine/src/pipeline.rs FetchContext is #[non_exhaustive] #[derive(Debug, Clone)] with new(client_id, query_filters). Adding a parameter to `new` is a signature change requiring all callers updated (breaking only if external callers existed — none do; #[non_exhaustive] blocks external struct-literal construction and the crate is workspace-internal). Adding a FIELD to an already-registered #[non_exhaustive] type introduces NO new symbol, so EXPECTED_SYMBOLS in scripts/check-non-exhaustive-per-symbol.py needs no update. Story AC-001 and §Architecture Compliance Rules state this correctly."
-  - claim: "No DataFusion research/dependency is needed: LIMIT is available as QueryParams.limit: u64 at the adapter; ADR-060 §D8.1 'extract from DataFusion physical plan' is documentation imprecision."
-    verdict: "CONFIRMED (remove-uncertainty 2026-08-26). Ground-truthed: crates/prism-sensors/src/adapter.rs:79 defines `pub limit: u64` on QueryParams; the 0 = no-limit sentinel is corroborated by crates/prism-query/src/materialization.rs (`options.limit...unwrap_or(0)`). SpecDrivenSensorAdapter::fetch receives params.limit pre-extracted; no physical-plan inspection required. Story already flags the §D8.1 prose imprecision in §Authority and Task 8 for a minor architect correction — no ADR edit by implementer, no DataFusion API research required."
+  - claim: "No DataFusion research/dependency is needed: LIMIT is available as QueryParams.limit: u64 at the adapter; ADR-060 §D8.1 previously said 'extract from DataFusion physical plan' — corrected to match this reality in ADR-060 v1.1."
+    verdict: "CONFIRMED (remove-uncertainty 2026-08-26). Ground-truthed: QueryParams.limit: u64 field defined in prism-sensors sensor adapter module; the 0 = no-limit sentinel corroborated by materialization options.limit.unwrap_or(0) in prism-query materialization module. SpecDrivenSensorAdapter::fetch receives params.limit pre-extracted; no physical-plan inspection required. ADR-060 v1.1 corrected §D8.1 to match this implementation; §Authority note updated accordingly (v1.1 sweep, 2026-08-26); discrepancy RESOLVED. No DataFusion API research required."
 risk_mitigations:
   - "FetchContext::new signature expansion is fully swept in Task 5 (TD-VSDD-060); all in-file + integration callers pass None. Verified constructor shape against live code 2026-08-26."
 ---
@@ -131,13 +131,13 @@ page; `PipelineResult.truncated=false`; DataFusion trims to 1 row.
 check placement, post-break semantics, applicable pagination modes, ORDER BY documentation).
 §D8.6 (timeout_secs overlay wiring) is DEFERRED to S-ENGINE-TIMEOUT-OVERLAY-WIRE-001.
 
-**IMPORTANT — ADR-060 §D8.1 phrasing discrepancy:** §D8.1 says "Callers (`spec_driven_adapter.rs`)
-extract the LIMIT from the DataFusion physical plan and pass it." This is imprecise. The actual
-code shows that `params.limit: u64` is already pre-extracted into `QueryParams` by the time
-`SpecDrivenSensorAdapter::fetch` is called — no DataFusion physical plan inspection is needed.
-The wiring is: `if params.limit == 0 { None } else { Some(params.limit as usize) }`. Flag this
-phrasing discrepancy for a minor architect correction (ADR-060 §D8.1 prose update); do NOT
-edit ADR-060 yourself.
+**ADR-060 §D8.1 phrasing discrepancy — RESOLVED (ADR-060 v1.1):** §D8.1 previously said
+"Callers (`spec_driven_adapter.rs`) extract the LIMIT from the DataFusion physical plan and
+pass it," which was imprecise. ADR-060 v1.1 has corrected §D8.1 to specify reading
+`QueryParams.limit: u64` (0 = no limit); no DataFusion physical-plan inspection is required.
+The wiring `if params.limit == 0 { None } else { Some(params.limit as usize) }` is exactly
+what the corrected ADR describes. The implementation and the ADR now AGREE; no further
+architect correction is outstanding.
 
 **ADR-060 §Atomicity Reconciliation ruling:** "Atomic" means all-or-nothing on HTTP ERROR, not
 "must fetch the entire dataset." LIMIT early-stop is a SUCCESS-PATH non-error exit at a
@@ -562,4 +562,5 @@ prism-spec-engine import added to prism-bin.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-08-26 | story-writer | §Authority sweep — ADR-060 v1.1 correction propagated; §D8.1 phrasing discrepancy marked RESOLVED; assumption_validations second entry updated to remove open-discrepancy framing (F-LENS3-OBS-001 closure). ACs, RG list, and tasks unchanged. |
 | 1.0 | 2026-08-26 | story-writer | Initial authoring — ADR-060 §D8 implementation story. 6 ACs, 6 RGTs, density 1.0. SAC-1 compliant. TD-VSDD-060 sibling-sweep fully enumerated in Task 5 with all ~14 integration test file names. ADR-060 §D8.1 phrasing discrepancy noted in §Authority and Task 8. |

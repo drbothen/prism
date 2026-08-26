@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.904"
+version: "2.905"
 status: draft
 producer: state-manager
 timestamp: 2026-08-26T14:00:00Z
 phase: 3
 total_stories: 318
+# D-2313: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-1 fix-burst — story v1.0→v1.1 (§Authority sweep: ADR-060 v1.1 §D8.1 discrepancy RESOLVED; assumption_validations updated; stale volatile line-cite removed; input-hash 607852f→07db7cb). total_stories 318 UNCHANGED. STORY-INDEX v2.904→v2.905. D-2312 NOTE archived.
 # D-2312: DEFECT-1 resolution — S-ENGINE-H2-LARGE-RESPONSE-001 v1.1→v1.2 RE-SCOPED (title: direct-h2 confirmation + recurrence guard; P0→P2; strict→facade; blocks:VULNS REMOVED; new ACs: direct-transport confirmation + large-response canary + E-QUERY-004 timeout diagnostics + query-CLI wiring). total_stories 318 UNCHANGED. STORY-INDEX v2.903→v2.904. D-2311 NOTE archived.
 # D-2311: engine spec-package burst — 3 new engine stories REGISTERED: S-ENGINE-H2-LARGE-RESPONSE-001 v1.1 draft (P0, strict, 4 RG/5 AC, BC-2.16.002 v2.37, prism-bin+prism-sensors, 5 pts); S-ENGINE-LIMIT-EARLY-STOP-001 v1.0 draft (P0, strict, 6 RG/6 AC, BC-2.16.002 v2.37+BC-2.16.015 v1.7, prism-bin+prism-sensors, 8 pts); S-ENGINE-TIMEOUT-OVERLAY-WIRE-001 v1.0 draft stub (P2, depends_on LIMIT-001, BC pending). total_stories 315→318. STORY-INDEX v2.902→v2.903. D-2308 NOTE archived.
 # D-2308: S-CLAROTY-VULNS-001 LOCAL round-4 fix-burst — story v1.8→v1.9 (BC pin v1.5→v1.6; AC-008/EC-002 reword; RG-008 rename id_null_when_absent→id_absent_when_missing). BC-2.16.015 v1.5→v1.6. S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001 draft stub REGISTERED. total_stories 314→315. STORY-INDEX v2.901→v2.902. D-2307 NOTE archived.
@@ -1035,7 +1036,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-CLAROTY-OT-EVENTS-001 | Claroty xDome OT Activity Events Table — claroty_ot_activity_events TOML block with 21-column Tier-1/Tier-2 spec, no DTU, live structural tests (Wave A G2) [draft v1.0] | prism-sensors, prism-spec-engine | 1 (BC-2.16.016 v1.0) | -- | 5 | -- |
 | S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001 | prism-spec-engine: distinguish KeyNotFound from ExtractionFailed in source_path extraction — debug log level for absent optional keys [draft v1.0] | prism-spec-engine | 1 (BC-2.16.002) | -- | 3 | -- |
 | S-ENGINE-H2-LARGE-RESPONSE-001 | Claroty xDome large-response transport — direct-h2 confirmation + recurrence guard (canary + timeout diagnostics + query-CLI wiring) [draft v1.2] | prism-bin, prism-sensors | 1 (BC-2.16.002 v2.38) | -- | 3 | -- |
-| S-ENGINE-LIMIT-EARLY-STOP-001 | LIMIT-aware early-stop pagination — FetchContext.early_stop_limit + execute_impl check + spec_driven_adapter wiring (ADR-060 v1.1 §D8); LIMIT read from QueryParams.limit [draft v1.0] | prism-bin, prism-sensors | 2 (BC-2.16.002 v2.37, BC-2.16.015 v1.7) | -- | 8 | -- |
+| S-ENGINE-LIMIT-EARLY-STOP-001 | LIMIT-aware early-stop pagination — FetchContext.early_stop_limit + execute_impl check + spec_driven_adapter wiring (ADR-060 v1.1 §D8); LIMIT read from QueryParams.limit [draft v1.1] | prism-bin, prism-sensors | 2 (BC-2.16.002 v2.37, BC-2.16.015 v1.7) | -- | 8 | -- |
 | S-ENGINE-TIMEOUT-OVERLAY-WIRE-001 | timeout_secs overlay wiring — per-org request timeout via ResolvedSensorSpec provenance flag into per-request reqwest client (ADR-060 v1.1 §D8.6, deferred) [draft v1.0 stub] | prism-bin, prism-sensors | 0 (BC pending PO authorship) | -- | tbd | S-ENGINE-LIMIT-EARLY-STOP-001 |
 
 ## Sensor-Critical Stories (Wave B — Claroty xDome Endpoint Expansion)
@@ -1645,6 +1646,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.905 | 2026-08-26 | state-manager D-2313: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-1 fix-burst — story v1.0→v1.1 (§Authority sweep: ADR-060 v1.1 §D8.1 discrepancy RESOLVED; assumption_validations updated; stale volatile line-cite removed; input-hash 607852f→07db7cb). total_stories 318 UNCHANGED. STORY-INDEX v2.904→v2.905. |
 | v2.904 | 2026-08-26 | state-manager D-2312: DEFECT-1 resolution — S-ENGINE-H2-LARGE-RESPONSE-001 v1.1→v1.2 RE-SCOPED (title: direct-h2 confirmation + recurrence guard; P0→P2; strict→facade; blocks:VULNS REMOVED; 3 pts). total_stories 318 UNCHANGED. STORY-INDEX v2.903→v2.904. |
 | v2.903 | 2026-08-26 | state-manager D-2311: engine spec-package burst — 3 engine stories registered: S-ENGINE-H2-LARGE-RESPONSE-001 v1.1 draft P0 strict (4 RG/5 AC; BC-2.16.002 v2.37; prism-bin+prism-sensors; 5 pts); S-ENGINE-LIMIT-EARLY-STOP-001 v1.0 draft P0 strict (6 RG/6 AC; BC-2.16.002 v2.37+BC-2.16.015 v1.7; 8 pts); S-ENGINE-TIMEOUT-OVERLAY-WIRE-001 v1.0 draft stub P2 (depends_on LIMIT-001; BC pending). total_stories 315→318. STORY-INDEX v2.902→v2.903. |
 | v2.902 | 2026-08-26 | state-manager D-2308: S-CLAROTY-VULNS-001 LOCAL round-4 fix-burst — story v1.8→v1.9 (BC pin v1.5→v1.6; AC-008/EC-002 reword; RG-008 test rename). BC-2.16.015 v1.5→v1.6. S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001 draft stub registered. total_stories 314→315. STORY-INDEX v2.901→v2.902. |
