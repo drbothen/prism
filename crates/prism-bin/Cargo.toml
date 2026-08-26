@@ -267,6 +267,15 @@ path = "tests/defect_adapter_tls_xdome_live_001.rs"
 name = "bc_2_01_013_claroty_audit_logs_layer2"
 path = "tests/bc_2_01_013_claroty_audit_logs_layer2.rs"
 
+# S-ENGINE-LIMIT-EARLY-STOP-001: RG-005/RG-006 — adapter-level LIMIT wiring tests.
+# Tests that SpecDrivenSensorAdapter::fetch maps params.limit → FetchContext.early_stop_limit.
+# Uses wiremock request-count assertions to verify early-stop fires at the right page boundary.
+# BCs: BC-2.16.002 LIMIT-Aware Early-Stop (ADR-060 §D8); BC-2.16.015 EC-016-015-007 / TV-BC-2.16.015-006.
+# No required-features: uses BearerStaticSensorAuth directly (no test-helpers needed).
+[[test]]
+name = "bc_2_16_002_early_stop_adapter_tests"
+path = "tests/bc_2_16_002_early_stop_adapter_tests.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
