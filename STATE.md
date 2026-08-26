@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.841"
+version: "8.842"
 producer: state-manager
-timestamp: 2026-08-26T10:48:00Z
+timestamp: 2026-08-26T12:22:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -24,18 +24,18 @@ vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
 story_index_version: "2.902"
 # NOTE: D-2308 — STORY-INDEX v2.901→v2.902: story v1.8→v1.9; S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001 stub registered; total_stories 314→315. D-2307 NOTE archived.
-arch_index_version: "2.334"
-# NOTE: D-2308 — ARCH-INDEX v2.333→v2.334: ADR-058 v2.33→v2.34 + ADR-028 v1.30→v1.31 anchor_stories (SAC-2; F-VULNS-R4C-DEF-001). D-2286 NOTE archived.
+arch_index_version: "2.335"
+# NOTE: D-2309 — ARCH-INDEX v2.334→v2.335: ADR-059 v1.0 + ADR-060 v1.0 NEW ACCEPTED. S-CLAROTY-VULNS-001 live-validation: merge HELD pending engine fixes (S-ENGINE-H2-LARGE-RESPONSE-001 + S-ENGINE-LIMIT-EARLY-STOP-001).
 workspace_test_count: 5816
 # NOTE: D-2288 — workspace_test_count 5765→5816: S-ADR058-OCSF-ROUTING-001 MERGED develop@3f1e66179 (PR #242); 5816 tests on develop (merged content; pre-merge just check confirmed GREEN). STATE v8.821→v8.822.
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2308 LOCAL cascade round-4 fix-burst (TD-VSDD-053) — 3 parallel passes A/B/C on frozen @551d18196+BC v1.5/story v1.8: 1 LOW (F-VULNS-R4C-LOW-001/F-R4A-LOW-001 id-absent null→absent spec precision, corroborated 2 passes) + 3 OBS/deferred (F-VULNS-R4C-OBS-001 TOML comment; F-R4A-OBS-001 engine WARN-on-absent-optional deferred→S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001; F-VULNS-R4C-DEF-001 SAC-2 ADR anchor_stories) — ALL RESOLVED: BC-2.16.015 v1.5→v1.6 + story v1.8→v1.9 + ADR-058 v2.34 + ADR-028 v1.31 + code @5aae6f0b3 PUSHED origin; ARCH-INDEX v2.334; BC-INDEX v9.66; STORY-INDEX v2.902 (315). BC-5.39.001 LOCAL streak RESET 0/3; new frozen HEAD @5aae6f0b3; 3-CLEAN round-5 pending. trajectory-tail →7→5→3→4. STATE v8.840→v8.841."
+current_step: "D-2309 S-CLAROTY-VULNS-001 live-HELD pending engine fixes. LOCAL 3-CLEAN CONVERGED (round-5 3/3 CLEAN(strict) frozen @5aae6f0b3) + HOLDOUT HS-024 PASS (mean 0.967, all 3 P0). LIVE validation: schema/routing CONFIRMED (class_uid 2002, Tier-1 queryable, E-QUERY-038 raw-col rejection); NO HTTP 500; TOML field projection VALID per xDome OpenAPI. Live E-QUERY-004 timeout = ADR-059 h2-window + ADR-060 early-stop. ADR-059 v1.0 + ADR-060 v1.0 REGISTERED. Next: BC amend + engine story creation (S-ENGINE-H2-LARGE-RESPONSE-001 + S-ENGINE-LIMIT-EARLY-STOP-001 block VULNS live-green; S-ENGINE-TIMEOUT-OVERLAY-WIRE-001 non-blocking). trajectory-tail →3→4→0→0. ARCH-INDEX v2.335 / BC-INDEX v9.66 / STORY-INDEX v2.902 / VP-INDEX v2.22. STATE v8.841→v8.842."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
-worktree_status: "Main worktree on develop origin/develop @3f1e66179. ACTIVE: .worktrees/S-CLAROTY-VULNS-001 (feature/S-CLAROTY-VULNS-001 @5aae6f0b3; Wave A G1 LOCAL 3-CLEAN confirmation PENDING on frozen @5aae6f0b3; feature PUSHED origin). PARKED (2): S-3.09 @43c41389d KEEP-PARKED; W3-FIX-S307-001 @fcab8717c PARKED-DIRTY do-NOT-touch. PENDING-TEARDOWN: .worktrees/S-ADR058-OCSF-ROUTING-001 (D-2288; PR #242 merged; remote feature branch deleted). Torn down (D-2262): S-ADR058-OCSF-COERCION-001 (PR #240); S-CLAROTY-AUDITLOG-TIMEBOX-001 (PR #239); maint-clippy-1.98 (PR #241)."
+worktree_status: "Main worktree on develop origin/develop @3f1e66179. ACTIVE: .worktrees/S-CLAROTY-VULNS-001 (feature/S-CLAROTY-VULNS-001 @5aae6f0b3; LOCAL 3-CLEAN CONVERGED round-5 3/3 + HOLDOUT HS-024 PASS; merge HELD pending engine fixes — S-ENGINE-H2-LARGE-RESPONSE-001 + S-ENGINE-LIMIT-EARLY-STOP-001; feature PUSHED origin). PARKED (2): S-3.09 @43c41389d KEEP-PARKED; W3-FIX-S307-001 @fcab8717c PARKED-DIRTY do-NOT-touch. PENDING-TEARDOWN: .worktrees/S-ADR058-OCSF-ROUTING-001 (D-2288; PR #242 merged; remote feature branch deleted). Torn down (D-2262): S-ADR058-OCSF-COERCION-001 (PR #240); S-CLAROTY-AUDITLOG-TIMEBOX-001 (PR #239); maint-clippy-1.98 (PR #241)."
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -68,7 +68,7 @@ pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/: decisions-archive-D17
 pre_compact_snapshot_at: "2026-08-26"
 ---
 
-<!-- STATE.md SIZE BUDGET: 193 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: 7 | margin from actual: 307 | compact eligible: safe_to_compact: true -->
+<!-- STATE.md SIZE BUDGET: 194 lines (wc-l) | target 200 lines (soft) | hard-cap 500 | margin from soft-target: 6 | margin from actual: 306 | compact eligible: safe_to_compact: true -->
 
 # VSDD Pipeline State — Prism
 
@@ -81,7 +81,7 @@ pre_compact_snapshot_at: "2026-08-26"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-26 D-2308 LOCAL round-4 fix-burst — BC-2.16.015 v1.6/story v1.9; ADR-058 v2.34/ADR-028 v1.31 anchor_stories; engine-loglevel stub; code @5aae6f0b3 PUSHED; streak 0/3 frozen @5aae6f0b3; ARCH-INDEX v2.334/BC-INDEX v9.66/STORY-INDEX v2.902 (315). trajectory-tail →7→5→3→4. STATE v8.840→v8.841. |
+| **Last Updated** | 2026-08-26 D-2309 S-CLAROTY-VULNS-001 live-HELD + engine pivot — LOCAL 3-CLEAN CONVERGED (round-5 3/3 frozen @5aae6f0b3) + HOLDOUT HS-024 PASS. LIVE: schema/routing CONFIRMED; TOML valid per xDome OpenAPI. E-QUERY-004 timeout = ADR-059 h2-window + ADR-060 early-stop. ADR-059/ADR-060 v1.0 REGISTERED. ARCH-INDEX v2.334→v2.335. trajectory-tail →3→4→0→0. STATE v8.841→v8.842. |
 
 ## Phase Progress
 
@@ -110,12 +110,12 @@ _Historical Phase Progress rows archived to cycles/wave-5-e-demo-fidelity/burst-
 
 | Metric | Value |
 |--------|-------|
-| BC-5.39.001 streak | **S-CLAROTY-VULNS-001 LOCAL 0/3** — pass-1 (2 CRIT, 2 HIGH, 5 MED, 2 OBS ALL FIXED @e2b779800+@3874f8624) + pass-2 (1 MED, 3 LOW, 1 OBS ALL FIXED @62f1c6379) + pass-3 (1 MED F-VULNS-ANCHOR-001 + 4 LOW + 1 OBS ALL FIXED @c8f21c4d2) + pass-4 (2 MED F-VULNS-ADV-001+F-VULNS-ADV-002 + 1 LOW F-VULNS-ADV-003 + 2 OBS ALL FIXED @cebeba3d6) + pass-5 (1 HIGH F-VULNS-P5-001 + 1 MED F-VULNS-P5-002 + 1 LOW F-VULNS-P5-003 + 2 OBS ALL FIXED @8f4c25c87) + diverse-lens batch (lens-1 CLEAN; lens-4 CLEAN; lens-2 F-L2-001/002/003 + lens-3 F-L3-003/004/005 ALL FIXED @4e525126b+story v1.6; 2 HIGH race-FP discarded) + round-2 fix-burst D-2306 (3 passes A/B/C; 2 MED+1 LOW+2 OBS ALL FIXED @fa35b09aa) + round-3 fix-burst D-2307 (3 passes A/B/C; 1 MED+1 LOW+1 OBS ALL FIXED @551d18196; story v1.8). Feature HEAD @551d18196 frozen for round-4 confirmation. |
-| Active cascade | S-CLAROTY-VULNS-001 Wave A G1 LOCAL adversary cascade. Feature HEAD @551d18196 (PUSHED origin). BC-5.39.001 3-CLEAN confirmation round-4 PENDING. |
-| Pass count | VULNS-001 LOCAL: 5 serial passes + 4-lens diverse-lens batch (D-2304; lens-1 CLEAN; lens-2 1M+2O; lens-3 2M+1L+1O; lens-4 CLEAN; 2H FP discarded; fix @4e525126b+story v1.6) + round-2 fix-burst D-2306 (3 passes A/B/C on frozen @4e525126b; 2 MED+1 LOW+2 OBS ALL FIXED @fa35b09aa) + round-3 fix-burst D-2307 (3 passes A/B/C on frozen @fa35b09aa; 1 MED+1 LOW+1 OBS ALL FIXED @551d18196). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Last CLEAN(strict) | ROUTING-001 PR-LEVEL 3/3 CLEAN(strict)=YES CONVERGED (D-2288; MERGED develop@3f1e66179 2026-08-23). VULNS-001: no CLEAN pass yet (streak 0/3). |
-| Finding trajectory | VULNS-001 LOCAL →(pass-1: 2C+2H+5M+2O)→(pass-2: 1M+3L+1O)→(pass-3: 1M+4L+1O)→(pass-4: 2M+1L+2O)→(pass-5: 1H+1M+1L+2O)→(diverse-lens: 4 lenses; real: 1M+2O+2M+1L+1O; 2H FP discarded; ALL FIXED @4e525126b)→(round-2: 3 passes A/B/C; 2M+1L+2O ALL FIXED @fa35b09aa)→(round-3: 3 passes A/B/C; 1M+1L+1O ALL FIXED @551d18196). trajectory-tail →5→7→5→3. 3-CLEAN confirmation round-4 PENDING. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Frozen perimeter | ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 (merged) / COERCION-001 v1.47 (merged) / BC-2.16.015 v1.5 (draft, VULNS-001 round-3 fixed) / story v1.8 — code @3f1e66179 (develop) / feature @551d18196 (PUSHED; VULNS-001 frozen for round-4) / ARCH-INDEX v2.333 / BC-INDEX v9.65 / STORY-INDEX v2.901 / HOLDOUT-INDEX v1.26 |
+| BC-5.39.001 streak | **S-CLAROTY-VULNS-001 LOCAL 3/3 CONVERGED** — pass-1 (2 CRIT, 2 HIGH, 5 MED, 2 OBS ALL FIXED @e2b779800+@3874f8624) + pass-2 (1 MED, 3 LOW, 1 OBS ALL FIXED @62f1c6379) + pass-3 (1 MED F-VULNS-ANCHOR-001 + 4 LOW + 1 OBS ALL FIXED @c8f21c4d2) + pass-4 (2 MED F-VULNS-ADV-001+F-VULNS-ADV-002 + 1 LOW F-VULNS-ADV-003 + 2 OBS ALL FIXED @cebeba3d6) + pass-5 (1 HIGH F-VULNS-P5-001 + 1 MED F-VULNS-P5-002 + 1 LOW F-VULNS-P5-003 + 2 OBS ALL FIXED @8f4c25c87) + diverse-lens batch (lens-1 CLEAN; lens-4 CLEAN; lens-2 F-L2-001/002/003 + lens-3 F-L3-003/004/005 ALL FIXED @4e525126b+story v1.6; 2 HIGH race-FP discarded) + round-2 fix-burst D-2306 (3 passes A/B/C; 2 MED+1 LOW+2 OBS ALL FIXED @fa35b09aa) + round-3 fix-burst D-2307 (3 passes A/B/C; 1 MED+1 LOW+1 OBS ALL FIXED @551d18196; story v1.8) + round-4 fix-burst D-2308 (1 LOW+3 OBS ALL RESOLVED @5aae6f0b3) + round-5 (3 passes A/B/C ALL CLEAN(strict) @5aae6f0b3; D-2309). HOLDOUT HS-024 PASS (mean 0.967, all 3 P0). Merge HELD: engine fixes pending. |
+| Active cascade | S-CLAROTY-VULNS-001 LOCAL 3-CLEAN CONVERGED (round-5 3/3 CLEAN(strict) @5aae6f0b3; D-2309). HOLDOUT HS-024 PASS (mean 0.967, all 3 P0). Merge HELD: S-ENGINE-H2-LARGE-RESPONSE-001 + S-ENGINE-LIMIT-EARLY-STOP-001 blocking live-green. |
+| Pass count | VULNS-001 LOCAL: 5 serial passes + 4-lens diverse-lens batch (D-2304; lens-1 CLEAN; lens-2 1M+2O; lens-3 2M+1L+1O; lens-4 CLEAN; 2H FP discarded; fix @4e525126b+story v1.6) + round-2 fix-burst D-2306 (3 passes A/B/C; 2M+1L+2O ALL FIXED @fa35b09aa) + round-3 fix-burst D-2307 (3 passes A/B/C; 1M+1L+1O ALL FIXED @551d18196) + round-4 fix-burst D-2308 (1L+3OBS ALL RESOLVED @5aae6f0b3) + round-5 (3 passes A/B/C ALL CLEAN(strict) CONVERGED @5aae6f0b3). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
+| Last CLEAN(strict) | VULNS-001 LOCAL round-5 3/3 CLEAN(strict)=YES CONVERGED (D-2309 @5aae6f0b3 2026-08-26). Prior: ROUTING-001 PR-LEVEL 3/3 CLEAN(strict)=YES (D-2288; MERGED develop@3f1e66179 2026-08-23). |
+| Finding trajectory | VULNS-001 LOCAL →(pass-1: 2C+2H+5M+2O)→(pass-2: 1M+3L+1O)→(pass-3: 1M+4L+1O)→(pass-4: 2M+1L+2O)→(pass-5: 1H+1M+1L+2O)→(diverse-lens: 4 lenses; real: 1M+2O+2M+1L+1O; 2H FP discarded; ALL FIXED @4e525126b)→(round-2: 3 passes A/B/C; 2M+1L+2O ALL FIXED @fa35b09aa)→(round-3: 3 passes A/B/C; 1M+1L+1O ALL FIXED @551d18196)→(round-4: 1L+3OBS ALL RESOLVED @5aae6f0b3)→(round-5: 3/3 CLEAN(strict) CONVERGED). trajectory-tail →3→4→0→0 CONVERGED. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
+| Frozen perimeter | ADR-058 v2.34 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 (merged) / COERCION-001 v1.47 (merged) / BC-2.16.015 v1.6 (draft, VULNS-001 round-4 fixed) / story v1.9 — code @3f1e66179 (develop) / feature @5aae6f0b3 (PUSHED; VULNS-001 LOCAL 3-CLEAN CONVERGED round-5) / ARCH-INDEX v2.335 / BC-INDEX v9.66 / STORY-INDEX v2.902 / HOLDOUT-INDEX v1.26 |
 
 ## Concurrent Cycles
 
@@ -126,10 +126,11 @@ _No concurrent cycles in progress. Current cycle: wave-5-e-demo-fidelity._
 | Step | Agent | Date | Content |
 |------|-------|------|---------|
 | _D-735..D-2299 (exhaustive)_ | — | archived | cycles/wave-5-e-demo-fidelity/burst-log.md (compactions) |
-| D-2304 | state-manager | 2026-08-25 | diverse-lens batch: 4 lenses; lens-1+lens-4 CLEAN; lens-2+lens-3 real 1M+2O+2M+1L+1O ALL FIXED @4e525126b+story v1.6; trajectory-tail →6→5→5→7 |
 | D-2305 | state-manager | 2026-08-26 | compact-state burst: D-2200..D-2299 (exhaustive) + D-2262..D-2299 (exhaustive) CPS archived to cycle files; STATE v8.837→v8.838 |
 | D-2306 | state-manager | 2026-08-26 | round-2 fix-burst: 2M+1L+2O ALL FIXED @fa35b09aa; story v1.6→v1.7; STORY-INDEX v2.900; trajectory-tail →5→5→7→5 |
 | D-2307 | state-manager | 2026-08-26 | round-3 fix-burst: 1M+1L+1O ALL FIXED @551d18196; story v1.7→v1.8; STORY-INDEX v2.901; trajectory-tail →5→7→5→3 |
+| D-2308 | state-manager | 2026-08-26 | round-4 fix-burst: 1 LOW+3 OBS ALL RESOLVED; BC-2.16.015 v1.5→v1.6; story v1.8→v1.9; ADR-058 v2.34/ADR-028 v1.31 anchor_stories; code @5aae6f0b3 PUSHED. trajectory-tail →3→4. |
+| D-2309 | state-manager | 2026-08-26 | live-validation outcome + engine pivot: LOCAL 3-CLEAN CONVERGED (round-5 3/3 @5aae6f0b3) + HOLDOUT HS-024 PASS (mean 0.967, all 3 P0). ADR-059/ADR-060 v1.0 REGISTERED; ARCH-INDEX v2.334→v2.335. Merge HELD. trajectory-tail →3→4→0→0. |
 
 ## Decisions Log
 
