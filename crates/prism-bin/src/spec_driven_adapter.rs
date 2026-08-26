@@ -678,11 +678,8 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
                 });
         }
 
-        // ADR-060 §D8: map params.limit to early_stop_limit for LIMIT-aware early-stop pagination.
-        // params.limit == 0 means "no LIMIT clause" (QueryParams convention); map to None → unchanged behavior.
-        // NOTE: ADR-060 §D8.1 says "extract from DataFusion physical plan" — this is imprecise.
-        // params.limit is already pre-extracted into QueryParams.limit before this call. See
-        // S-ENGINE-LIMIT-EARLY-STOP-001 §Authority for the minor architect correction note.
+        // ADR-060 §D8.1: the query LIMIT is pre-extracted into QueryParams.limit (u64) before this call;
+        // map 0 => None (no early-stop) else Some(n) into FetchContext.early_stop_limit.
         let early_stop_limit = if params.limit == 0 {
             None
         } else {
