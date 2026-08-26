@@ -12,7 +12,7 @@ status: draft
 # TV-BC-2.16.015-006 anchored to this story. Status remains draft until remove-uncertainty CLEAN.
 producer: story-writer
 timestamp: "2026-08-26T00:00:00Z"
-version: "1.1"
+version: "1.2"
 modified: "2026-08-26"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -21,7 +21,7 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.015-claroty-vulnerabilities-table.md"
   - ".factory/specs/architecture/decisions/ADR-060-limit-aware-early-stop-pagination.md"
 input-hash: "07db7cb"
-# input-hash: recomputed 2026-08-26 after §Authority sweep (v1.1) — BC-2.16.002 v2.37 + BC-2.16.015 v1.7 + ADR-060 v1.1
+# input-hash: recomputed 2026-08-26 after §Authority sweep (v1.1); v1.2 spec-only sweep — inputs unchanged; state-manager to recompute on next burst
 traces_to: ["BC-2.16.002", "BC-2.16.015"]
 points: 8
 estimated_days: 2
@@ -100,11 +100,11 @@ risk: MEDIUM
 #   The `#[non_exhaustive]` attribute on FetchContext prevents struct-literal construction
 #   outside the crate, so the only callers affected are those using FetchContext::new —
 #   enumerated in the crates_touched comment above and in Task 5.
-#   ADR-060 §D8.1 phrasing discrepancy noted (see AC-006 and Task 8).
+#   ADR-060 §D8.1 phrasing discrepancy: RESOLVED (ADR-060 v1.1).
 assumption_validations:
   - claim: "Expanding FetchContext::new (constructor of a #[non_exhaustive] struct) by one parameter is source-compatible in-workspace when all callers are updated in-tree; no API-surface gate beyond the non-exhaustive audit is triggered."
     verdict: "CONFIRMED (remove-uncertainty 2026-08-26). Ground-truthed against code: crates/prism-spec-engine/src/pipeline.rs FetchContext is #[non_exhaustive] #[derive(Debug, Clone)] with new(client_id, query_filters). Adding a parameter to `new` is a signature change requiring all callers updated (breaking only if external callers existed — none do; #[non_exhaustive] blocks external struct-literal construction and the crate is workspace-internal). Adding a FIELD to an already-registered #[non_exhaustive] type introduces NO new symbol, so EXPECTED_SYMBOLS in scripts/check-non-exhaustive-per-symbol.py needs no update. Story AC-001 and §Architecture Compliance Rules state this correctly."
-  - claim: "No DataFusion research/dependency is needed: LIMIT is available as QueryParams.limit: u64 at the adapter; ADR-060 §D8.1 previously said 'extract from DataFusion physical plan' — corrected to match this reality in ADR-060 v1.1."
+  - claim: "No DataFusion research/dependency is needed: LIMIT is available as QueryParams.limit: u64 at the adapter, pre-extracted before the call to SpecDrivenSensorAdapter::fetch. ADR-060 §D8.1 previously contained an inaccurate description of the LIMIT-extraction path; ADR-060 v1.1 corrected §D8.1 to match this reality."
     verdict: "CONFIRMED (remove-uncertainty 2026-08-26). Ground-truthed: QueryParams.limit: u64 field defined in prism-sensors sensor adapter module; the 0 = no-limit sentinel corroborated by materialization options.limit.unwrap_or(0) in prism-query materialization module. SpecDrivenSensorAdapter::fetch receives params.limit pre-extracted; no physical-plan inspection required. ADR-060 v1.1 corrected §D8.1 to match this implementation; §Authority note updated accordingly (v1.1 sweep, 2026-08-26); discrepancy RESOLVED. No DataFusion API research required."
 risk_mitigations:
   - "FetchContext::new signature expansion is fully swept in Task 5 (TD-VSDD-060); all in-file + integration callers pass None. Verified constructor shape against live code 2026-08-26."
@@ -131,13 +131,13 @@ page; `PipelineResult.truncated=false`; DataFusion trims to 1 row.
 check placement, post-break semantics, applicable pagination modes, ORDER BY documentation).
 §D8.6 (timeout_secs overlay wiring) is DEFERRED to S-ENGINE-TIMEOUT-OVERLAY-WIRE-001.
 
-**ADR-060 §D8.1 phrasing discrepancy — RESOLVED (ADR-060 v1.1):** §D8.1 previously said
-"Callers (`spec_driven_adapter.rs`) extract the LIMIT from the DataFusion physical plan and
-pass it," which was imprecise. ADR-060 v1.1 has corrected §D8.1 to specify reading
-`QueryParams.limit: u64` (0 = no limit); no DataFusion physical-plan inspection is required.
-The wiring `if params.limit == 0 { None } else { Some(params.limit as usize) }` is exactly
-what the corrected ADR describes. The implementation and the ADR now AGREE; no further
-architect correction is outstanding.
+**ADR-060 §D8.1 phrasing discrepancy — RESOLVED (ADR-060 v1.1):** ADR-060 v1.1 §D8.1 now
+correctly specifies reading `QueryParams.limit: u64` (0 = no limit). The `limit` value is
+pre-extracted into `QueryParams` before the call to `SpecDrivenSensorAdapter::fetch`; no
+DataFusion plan-step inspection is required. The wiring
+`if params.limit == 0 { None } else { Some(params.limit as usize) }` matches the corrected
+ADR exactly. The implementation and the ADR now AGREE; no further architect correction is
+outstanding.
 
 **ADR-060 §Atomicity Reconciliation ruling:** "Atomic" means all-or-nothing on HTTP ERROR, not
 "must fetch the entire dataset." LIMIT early-stop is a SUCCESS-PATH non-error exit at a
@@ -218,7 +218,7 @@ Behavioral proof via wiremock multi-page mock (page_size=10, 3 pages available):
 - `early_stop_limit = Some(1)` → 1 HTTP request issued (first page has 10 rows ≥ 1); `truncated = false`.
 
 **Test:** `test_BC_2_16_002_early_stop_none_fetches_all_pages` (None case)
-**Test:** `test_BC_2_16_002_early_stop_fires_after_one_page_when_limit_satisfied` (Some case)
+**Test:** `test_BC_2_16_002_early_stop_pipeline_stops_without_setting_truncated` (RG-002; covers Some case: 1 page fetched when early_stop_limit=Some(1), truncated=false)
 
 ### AC-004: DI-019 10K truncation check fires BEFORE early-stop; `truncated = true` when DI-019 fires (traces to BC-2.16.002 postcondition — LIMIT-Aware Early-Stop §D8 ordering; DI-019 unchanged)
 
@@ -251,7 +251,7 @@ All non-production callers of `FetchContext::new` (the ~15 in-file pipeline.rs t
 argument. The workspace builds without error and all existing tests continue to pass.
 Verification: `just check` exits 0.
 
-**Test:** Compilation success (`just check` gate); `test_BC_2_16_002_early_stop_all_existing_callers_compile_with_none` (a single compilation-sentinel test confirming the updated test files compile)
+**Test:** Compilation success (`just check` gate — a missed `FetchContext::new` caller produces a compile error, enforcing the sweep automatically; there is no single named compilation-sentinel test for this gate).
 
 ## Red Gate Tests
 
@@ -262,7 +262,7 @@ Verification: `just check` exits 0.
 | RG-003 | `test_BC_2_16_002_early_stop_none_fetches_all_pages` | Integration — prism-spec-engine, wiremock (3 pages, page_size=10); `early_stop_limit=None` | AC-003 None case: all 3 pages fetched (3 mock requests); `truncated = false`; 30 records returned. Passes before and after (no early-stop when None). Regression sentinel. |
 | RG-004 | `test_BC_2_16_002_early_stop_di019_fires_before_early_stop_check` | Unit — prism-spec-engine, pipeline internal; inject 10001 records on first page with `early_stop_limit=Some(5)` | AC-004: DI-019 check fires; `truncated = true`; records truncated to 10000. Fails if early-stop check is placed BEFORE DI-019 check (ordering validation). |
 | RG-005 | `test_BC_2_16_002_early_stop_spec_driven_adapter_maps_params_limit_to_early_stop_limit` | Integration — prism-bin, wiremock claroty-style mock (page_size=1000, 1 record returned); `params.limit=1` | AC-005: `FetchContext` constructed with `early_stop_limit=Some(1)`; 1 mock request issued; `truncated=false`. Fails before AC-005 wiring. Also tests `params.limit=0 → None`. |
-| RG-006 | `test_BC_2_16_002_early_stop_claroty_page_size_1000_limit_1_single_page` | Integration — prism-spec-engine or prism-bin, wiremock claroty-style (page_size=1000, 3 pages available, each 1000 records); `early_stop_limit=Some(1)` | BC-2.16.015 EC-016-015-007 / TV-BC-2.16.015-006: exactly 1 mock request issued (NOT 3); `truncated=false`; result has 1000 records pre-DataFusion-trim. This is the concrete claroty_vulnerabilities behavioral proof. |
+| RG-006 | `test_BC_2_16_002_early_stop_claroty_page_size_1000_limit_1_single_page` + `test_BC_2_16_002_early_stop_large_page_size_truncated_false` | Integration — prism-spec-engine or prism-bin, wiremock claroty-style (page_size=1000, 3 pages available, each 1000 records); `early_stop_limit=Some(1)` | BC-2.16.015 EC-016-015-007 / TV-BC-2.16.015-006: exactly 1 mock request issued (NOT 3); `truncated=false`; result has 1000 records pre-DataFusion-trim. This is the concrete claroty_vulnerabilities behavioral proof. `test_BC_2_16_002_early_stop_large_page_size_truncated_false` (PipelineExecutor layer, page_size=1000, asserts `!truncated`) explicitly discharges TV-BC-2.16.015-006's `truncated=false` promise at claroty scale. |
 
 **BC-5.38.001 density check:** 6 Red Gate tests (RG-001 through RG-006, where RG-003 is a regression sentinel that passes in both states) / 6 acceptance criteria = 1.0 ≥ 0.5 threshold. PASS.
 
@@ -305,11 +305,11 @@ effectful behavior change is fetching FEWER pages, never adding new I/O.
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | `early_stop_limit = Some(0)` | Check `all_records.len() >= 0` fires immediately (0 records always >= 0); loop exits after 0 records. Not a practical input (params.limit=0 maps to None), but the check is mathematically sound. |
-| EC-002 | `early_stop_limit = Some(N)` where N > total available records | Early-stop never fires; pagination loop completes normally when API signals exhaustion (empty page or null cursor). `truncated = false`. |
-| EC-003 | `early_stop_limit = Some(N)` where N exactly equals `page_size` | Early-stop fires at end of first page (exactly N records). 1 page request issued. |
+| EC-001 | `early_stop_limit = Some(0)` | Check `all_records.len() >= 0` fires immediately (0 records always >= 0); loop exits after 0 records. **Coverage note: intentionally non-behavioral-tested.** `Some(0)` is unreachable in production: `params.limit == 0` maps to `None` at the adapter boundary (QueryParams sentinel), so `Some(0)` never reaches the pipeline. Covered at the constructor level by RG-001 (stores any `Option<usize>` value); no separate behavioral test warranted. |
+| EC-002 | `early_stop_limit = Some(N)` where N > total available records | Early-stop never fires; pagination loop completes normally when API signals exhaustion (empty page or null cursor). `truncated = false`. **Test:** `test_BC_2_16_002_early_stop_limit_exceeds_total_fetches_all_pages` |
+| EC-003 | `early_stop_limit = Some(N)` where N exactly equals `page_size` | Early-stop fires at end of first page (exactly N records). 1 page request issued. **Test:** `test_BC_2_16_002_early_stop_limit_equals_page_size_boundary` |
 | EC-004 | DI-019 cap (10000) reached before `early_stop_limit` | DI-019 fires first; `truncated = true`; early-stop block NOT reached. Both checks present simultaneously; DI-019 order-precedence preserved. |
-| EC-005 | `PaginationConfig::None` (single-page fetch) with `early_stop_limit = Some(1)` | Pagination loop body executes once then breaks at `Some(PaginationConfig::None) \| None => break`. Early-stop check fires at end of the single page (after DI-019 check). Effectively a no-op since pagination already terminates after one page. |
+| EC-005 | `PaginationConfig::None` (single-page fetch) with `early_stop_limit = Some(1)` | Pagination loop body executes once then breaks at `Some(PaginationConfig::None) \| None => break`. Early-stop check fires at end of the single page (after DI-019 check). **Coverage note: intentionally non-behavioral-tested.** This is a documented no-op: `PaginationConfig::None` exits the loop after one page regardless of `early_stop_limit`; there is no multi-page loop to terminate early. The early-stop check evaluates and breaks, but the loop was already about to exit — net behavior is identical to the `None` case. No separate behavioral test warranted; the single-page termination path is covered by existing `PaginationConfig::None` pipeline tests. |
 | EC-006 | `ORDER BY` combined with `LIMIT` in query | DataFusion applies ORDER BY on the early-stopped result. Records are in API-declared order (not globally sorted top N). Documented in BC-2.16.002 D8.5 limitation text and in story §Background (no implementation impact). |
 
 ## Token Budget Estimate
@@ -410,11 +410,9 @@ pattern) to minimize context consumption.
   in `crates/prism-bin/src/spec_driven_adapter.rs`, insert immediately before
   `let context = FetchContext::new(...)`:
   ```rust
-  // ADR-060 §D8: map params.limit to early_stop_limit for LIMIT-aware early-stop pagination.
+  // ADR-060 §D8.1: the query LIMIT is pre-extracted into QueryParams.limit (u64) before this call;
+  // map 0 => None else Some(n) into FetchContext.early_stop_limit.
   // params.limit == 0 means "no LIMIT clause" (QueryParams convention); map to None → unchanged behavior.
-  // NOTE: ADR-060 §D8.1 says "extract from DataFusion physical plan" — this is imprecise.
-  // params.limit is already pre-extracted into QueryParams.limit before this call. Flag for
-  // a minor architect correction to ADR-060 §D8.1 prose (no ADR edit by implementer).
   let early_stop_limit = if params.limit == 0 { None } else { Some(params.limit as usize) };
   ```
   Update the `FetchContext::new` call to:
@@ -562,5 +560,6 @@ prism-spec-engine import added to prism-bin.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.2 | 2026-08-26 | story-writer | Comprehensive R2 adversarial sweep: (1) Task 8 prescribed comment rewritten to DELIVERED form per ADR-060 v1.1; (2) risk frontmatter comment updated to RESOLVED; (3) §Authority RESOLVED paragraph rewritten to remove quoted old phrasing; (4) assumption_validations claim reworded to remove quoted old phrasing; (5) AC-003 Some-case phantom test replaced with RG-002 test (test_BC_2_16_002_early_stop_pipeline_stops_without_setting_truncated); (6) AC-006 phantom compilation-sentinel test removed — compile gate only; (7) EC-001 and EC-005 annotated as intentionally non-behavioral-tested with rationale; (8) EC-002 and EC-003 cited with test-writer-added test names; (9) RG-006 augmented with test_BC_2_16_002_early_stop_large_page_size_truncated_false for TV-BC-2.16.015-006 truncated=false discharge. |
 | 1.1 | 2026-08-26 | story-writer | §Authority sweep — ADR-060 v1.1 correction propagated; §D8.1 phrasing discrepancy marked RESOLVED; assumption_validations second entry updated to remove open-discrepancy framing (F-LENS3-OBS-001 closure). ACs, RG list, and tasks unchanged. |
 | 1.0 | 2026-08-26 | story-writer | Initial authoring — ADR-060 §D8 implementation story. 6 ACs, 6 RGTs, density 1.0. SAC-1 compliant. TD-VSDD-060 sibling-sweep fully enumerated in Task 5 with all ~14 integration test file names. ADR-060 §D8.1 phrasing discrepancy noted in §Authority and Task 8. |
