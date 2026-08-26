@@ -8,11 +8,11 @@ epic_id: E-XDOME-EXPANSION
 priority: P0
 status: draft
 # BC status: BC-2.16.002 active — §Postconditions "LIMIT-Aware Early-Stop Pagination (ADR-060 §D8)" postcondition
-# authored and anchored to this story ID. BC-2.16.015 active — EC-016-015-007 and
-# TV-BC-2.16.015-006 anchored to this story. Status remains draft until remove-uncertainty CLEAN.
+# authored and anchored to this story ID. BC-2.16.015 draft — EC-016-015-007 and
+# TV-BC-2.16.015-006 authored and anchored to this story; POL-14 auto-promotes BC-2.16.015 to active when this story merges.
 producer: story-writer
 timestamp: "2026-08-26T00:00:00Z"
-version: "1.3"
+version: "1.4"
 modified: "2026-08-26"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -560,6 +560,7 @@ prism-spec-engine import added to prism-bin.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.4 | 2026-08-26 | story-writer | Fix governance lifecycle mislabel (F-R5-MED-001): BC-2.16.015 status label corrected from "active" to "draft" in frontmatter BC-status comment; POL-14 auto-promotion note added. Comprehensive audit: BC-2.16.002 active claim verified correct; no ADR status mislabels found in file body. |
 | 1.3 | 2026-08-26 | story-writer | POL-39 anti-pin sweep (F-R3-MED-001): stripped numeric release pins for BC-2.16.002, BC-2.16.015, and ADR-060 from all narrative prose (~15 sites); updated BC-2.16.002 §Behavioral Contracts structural table Version column to current (was stale); BC-2.16.015 structural table pin verified current (unchanged). EC-004 test citation added per F-EARLYSTOP-P3-LOW-001 (shared coverage with AC-004/RG-004). |
 | 1.2 | 2026-08-26 | story-writer | Comprehensive R2 adversarial sweep: (1) Task 8 prescribed comment rewritten to DELIVERED form per ADR-060 v1.1; (2) risk frontmatter comment updated to RESOLVED; (3) §Authority RESOLVED paragraph rewritten to remove quoted old phrasing; (4) assumption_validations claim reworded to remove quoted old phrasing; (5) AC-003 Some-case phantom test replaced with RG-002 test (test_BC_2_16_002_early_stop_pipeline_stops_without_setting_truncated); (6) AC-006 phantom compilation-sentinel test removed — compile gate only; (7) EC-001 and EC-005 annotated as intentionally non-behavioral-tested with rationale; (8) EC-002 and EC-003 cited with test-writer-added test names; (9) RG-006 augmented with test_BC_2_16_002_early_stop_large_page_size_truncated_false for TV-BC-2.16.015-006 truncated=false discharge. |
 | 1.1 | 2026-08-26 | story-writer | §Authority sweep — ADR-060 v1.1 correction propagated; §D8.1 phrasing discrepancy marked RESOLVED; assumption_validations second entry updated to remove open-discrepancy framing (F-LENS3-OBS-001 closure). ACs, RG list, and tasks unchanged. |

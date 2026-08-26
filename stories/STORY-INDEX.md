@@ -1,14 +1,14 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.908"
+version: "2.909"
 status: draft
 producer: state-manager
 timestamp: 2026-08-26T18:00:00Z
 phase: 3
 total_stories: 318
+# D-2317: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-5 fix-burst — story v1.3→v1.4 (F-R5-MED-001 BC-2.16.015 status label corrected draft; POL-14 note added; full BC-status comment audit clean). Code @ad756e1f9 (F-R5-OBS-001 RG-006 POST wire fidelity; feature PUSHED origin). BC-5.39.001 RESET 0/3; round-6 pending. total_stories 318 UNCHANGED. STORY-INDEX v2.908→v2.909. D-2316 NOTE archived.
 # D-2316: ROUND-4 crates-column reconciliation — 3 engine rows corrected (prism-sensors→prism-spec-engine): H2 crates prism-bin,prism-spec-engine; LIMIT crates prism-spec-engine,prism-bin; TIMEOUT crates prism-bin,prism-spec-engine + pts tbd→5. Registration-time error D-2311. Feature HEAD @9202642bc. total_stories 318 UNCHANGED. STORY-INDEX v2.907→v2.908. D-2315 NOTE archived.
-# D-2315: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-3 records-tier fix (TD-VSDD-096) — story v1.2→v1.3 (POL-39 strip + EC-004 citation; BC-2.16.002 pin v2.37→v2.38); STORY-INDEX row pin v1.2→v1.3 + BC pin v2.37→v2.38. Feature HEAD @01efe9c0e UNCHANGED. total_stories 318 UNCHANGED. STORY-INDEX v2.906→v2.907. D-2314 NOTE archived.
 # D-2314: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-2 fix-burst — story v1.1→v1.2 (Task 8 prescribed-comment corrected to match ADR-060 v1.1; risk-comment marked RESOLVED; AC-003/AC-006 → real RG-002 + compile gate; EC-002/EC-003 cite new tests; EC-001/EC-005 annotated non-behavioral; RG-006/TV cite claroty-scale truncated test). total_stories 318 UNCHANGED. STORY-INDEX v2.905→v2.906. D-2313 NOTE archived.
 # D-2313: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-1 fix-burst — story v1.0→v1.1 (§Authority sweep: ADR-060 v1.1 §D8.1 discrepancy RESOLVED; assumption_validations updated; stale volatile line-cite removed; input-hash 607852f→07db7cb). total_stories 318 UNCHANGED. STORY-INDEX v2.904→v2.905. D-2312 NOTE archived.
 # D-2312: DEFECT-1 resolution — S-ENGINE-H2-LARGE-RESPONSE-001 v1.1→v1.2 RE-SCOPED (title: direct-h2 confirmation + recurrence guard; P0→P2; strict→facade; blocks:VULNS REMOVED; new ACs: direct-transport confirmation + large-response canary + E-QUERY-004 timeout diagnostics + query-CLI wiring). total_stories 318 UNCHANGED. STORY-INDEX v2.903→v2.904. D-2311 NOTE archived.
@@ -1037,7 +1037,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-CLAROTY-OT-EVENTS-001 | Claroty xDome OT Activity Events Table — claroty_ot_activity_events TOML block with 21-column Tier-1/Tier-2 spec, no DTU, live structural tests (Wave A G2) [draft v1.0] | prism-sensors, prism-spec-engine | 1 (BC-2.16.016 v1.0) | -- | 5 | -- |
 | S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001 | prism-spec-engine: distinguish KeyNotFound from ExtractionFailed in source_path extraction — debug log level for absent optional keys [draft v1.0] | prism-spec-engine | 1 (BC-2.16.002) | -- | 3 | -- |
 | S-ENGINE-H2-LARGE-RESPONSE-001 | Claroty xDome large-response transport — direct-h2 confirmation + recurrence guard (canary + timeout diagnostics + query-CLI wiring) [draft v1.2] | prism-bin, prism-spec-engine | 1 (BC-2.16.002 v2.38) | -- | 3 | -- |
-| S-ENGINE-LIMIT-EARLY-STOP-001 | LIMIT-aware early-stop pagination — FetchContext.early_stop_limit + execute_impl check + spec_driven_adapter wiring (ADR-060 v1.1 §D8); LIMIT read from QueryParams.limit [draft v1.3] | prism-spec-engine, prism-bin | 2 (BC-2.16.002 v2.38, BC-2.16.015 v1.7) | -- | 8 | -- |
+| S-ENGINE-LIMIT-EARLY-STOP-001 | LIMIT-aware early-stop pagination — FetchContext.early_stop_limit + execute_impl check + spec_driven_adapter wiring (ADR-060 v1.1 §D8); LIMIT read from QueryParams.limit [draft v1.4] | prism-spec-engine, prism-bin | 2 (BC-2.16.002 v2.38, BC-2.16.015 v1.7) | -- | 8 | -- |
 | S-ENGINE-TIMEOUT-OVERLAY-WIRE-001 | timeout_secs overlay wiring — per-org request timeout via ResolvedSensorSpec provenance flag into per-request reqwest client (ADR-060 v1.1 §D8.6, deferred) [draft v1.0 stub] | prism-bin, prism-spec-engine | 0 (BC pending PO authorship) | -- | 5 | S-ENGINE-LIMIT-EARLY-STOP-001 |
 
 ## Sensor-Critical Stories (Wave B — Claroty xDome Endpoint Expansion)
@@ -1647,6 +1647,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.909 | 2026-08-26 | state-manager D-2317: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-5 fix-burst — story v1.3→v1.4 (F-R5-MED-001 BC-2.16.015 status label corrected from "active" to "draft" in BC-status comment; POL-14 auto-promote note added; full BC-status audit clean). Code @ad756e1f9 (F-R5-OBS-001 RG-006 GET→POST POST-wire fidelity; feature PUSHED origin). BC-5.39.001 RESET 0/3; round-6 pending. total_stories 318 UNCHANGED. STORY-INDEX v2.908→v2.909. |
 | v2.908 | 2026-08-26 | state-manager D-2316: ROUND-4 STORY-INDEX crates-column reconciliation — 3 engine story rows corrected (prism-sensors→prism-spec-engine): S-ENGINE-H2-LARGE-RESPONSE-001 crates prism-bin,prism-spec-engine; S-ENGINE-LIMIT-EARLY-STOP-001 crates prism-spec-engine,prism-bin; S-ENGINE-TIMEOUT-OVERLAY-WIRE-001 crates prism-bin,prism-spec-engine + pts tbd→5. Registration-time error D-2311 reconciled. Feature HEAD @01efe9c0e→@9202642bc (lens-B multi-page test fix). total_stories 318 UNCHANGED. STORY-INDEX v2.907→v2.908. |
 | v2.907 | 2026-08-26 | state-manager D-2315: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-3 records-tier fix (TD-VSDD-096) — story v1.2→v1.3 (POL-39 strip: all narrative BC-2.16.002/BC-2.16.015/ADR-060 version pins stripped; BC-2.16.002 Version cell set to v2.38; EC-004 citation test_BC_2_16_002_early_stop_di019_fires_before_early_stop_check added; AC-001..006 + EC-001..005 citation-complete); STORY-INDEX row pin v1.2→v1.3 + BC-2.16.002 pin reconciled v2.37→v2.38. Feature HEAD @01efe9c0e UNCHANGED. total_stories 318 UNCHANGED. STORY-INDEX v2.906→v2.907. |
 | v2.906 | 2026-08-26 | state-manager D-2314: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-2 fix-burst — story v1.1→v1.2 (comprehensive sweep: Task 8 comment + risk-comment corrected to ADR-060 v1.1; AC-003/AC-006 → real tests; EC-002/EC-003 cite new tests; EC-001/EC-005 non-behavioral annotations; RG-006/TV cite claroty-scale truncated test). total_stories 318 UNCHANGED. STORY-INDEX v2.905→v2.906. |
