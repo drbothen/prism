@@ -575,6 +575,15 @@ impl PipelineExecutor {
                         break 'steps;
                     }
 
+                    // ADR-060 §D8.2: LIMIT-aware early-stop. Fires at COMPLETE page boundary,
+                    // immediately after DI-019. truncated is NOT set — this is a success-path
+                    // query-driven early exit, not a capacity overflow (ADR-060 §D8.3).
+                    if let Some(limit) = context.early_stop_limit
+                        && all_records.len() >= limit
+                    {
+                        break 'steps;
+                    }
+
                     // Advance pagination or break.
                     // Cursor read from raw body (before encoding); stored raw for
                     // next iteration where it will be encoded by build_paged_url.

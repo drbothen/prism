@@ -678,7 +678,21 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
                 });
         }
 
-        let context = FetchContext::new(self.sensor_spec.org_slug.clone(), query_filters, None);
+        // ADR-060 §D8: map params.limit to early_stop_limit for LIMIT-aware early-stop pagination.
+        // params.limit == 0 means "no LIMIT clause" (QueryParams convention); map to None → unchanged behavior.
+        // NOTE: ADR-060 §D8.1 says "extract from DataFusion physical plan" — this is imprecise.
+        // params.limit is already pre-extracted into QueryParams.limit before this call. See
+        // S-ENGINE-LIMIT-EARLY-STOP-001 §Authority for the minor architect correction note.
+        let early_stop_limit = if params.limit == 0 {
+            None
+        } else {
+            Some(params.limit as usize)
+        };
+        let context = FetchContext::new(
+            self.sensor_spec.org_slug.clone(),
+            query_filters,
+            early_stop_limit,
+        );
 
         // Resolve which sensor table to execute.
         //
