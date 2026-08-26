@@ -5,7 +5,7 @@ title: "H2 Flow-Control Window Sizing for Large-Response Sensor APIs"
 status: ACCEPTED
 date: "2026-08-26"
 modified: "2026-08-26"
-version: "1.0"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-01, SS-16]
 supersedes: []
@@ -23,9 +23,11 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.0 (2026-08-26) — D7: h2 initial stream/connection window sizing and adaptive window
-enabled on all production outbound sensor reqwest clients. Extends ADR-050 §D5 without
-superseding any prior decision.
+ACCEPTED v1.1 (2026-08-26) — D7: fixed 4 MiB h2 stream and connection windows on all production
+outbound sensor reqwest clients; `http2_adaptive_window` explicitly omitted (it overrides
+explicit setters back to 65,535 bytes, silently negating the fix). Extends ADR-050 §D5 without
+superseding any prior decision. v1.1 corrects the internal contradiction in v1.0 where combining
+`http2_adaptive_window(true)` with explicit window setters rendered the setters as no-ops.
 
 ---
 
@@ -73,13 +75,16 @@ the WAF fingerprint issue for sensors behind h2-preferring cloud edges (AWS GA, 
 (3) not address the root cause (window sizing), leaving the defect class open for any future
 HTTP/1.1 → h2 migration on another sensor backend.
 
-**Option B — H2 window tuning** (`.http2_initial_stream_window_size`, `.http2_initial_connection_window_size`,
-`.http2_adaptive_window`): ACCEPTED. Sets the initial flow-control window to 4 MB (4 194 304 bytes),
-which covers the observed maximum page size (~1.1 MB) with a 3.7× safety margin. Enables the h2
-crate's bandwidth-delay-product (BDP) adaptive window so the window expands further at runtime for
-even larger future pages. This fix is surgical: it applies to the reqwest ClientBuilder and has
-zero behavioral impact on sensors with small pages (the larger initial window just means fewer
-WINDOW_UPDATE round trips, which is a performance improvement, not a regression).
+**Option B — H2 fixed window sizing** (`.http2_initial_stream_window_size`,
+`.http2_initial_connection_window_size`): ACCEPTED. Sets the initial flow-control window to
+4 MiB (4 194 304 bytes), which covers the observed maximum page size (~1.1 MB) with a 3.7× safety
+margin. `http2_adaptive_window` is NOT included: setting it to `true` overrides both explicit
+window setters by resetting them to SPEC_WINDOW_SIZE = 65,535 bytes and enabling BDP estimation
+from that baseline — silently negating the fix. Fixed windows guarantee the server can transmit a
+full 1.1 MB/page with zero WINDOW_UPDATE round-trips, directly eliminating the peer flow-control
+deadlock. This fix is surgical: it applies to the reqwest ClientBuilder and has zero behavioral
+impact on sensors with small pages (the larger initial window just means fewer WINDOW_UPDATE round
+trips, which is a performance improvement, not a regression).
 
 **Option C — Per-sensor transport opt-in via TOML**: Rejected. H2 window sizing is a client-side
 transport parameter, not a sensor-protocol concern. The defect arises from a client default that is
@@ -100,8 +105,8 @@ It does NOT:
 
 ## Decision
 
-**D7 — All production outbound sensor reqwest client builders MUST configure h2 initial window
-sizes and enable adaptive window (amends ADR-050)**
+**D7 — All production outbound sensor reqwest client builders MUST configure fixed 4 MiB h2
+stream and connection windows; `http2_adaptive_window` MUST be omitted (amends ADR-050)**
 
 Every production `reqwest::Client::builder()` chain that produces an outbound sensor/plugin HTTP
 client — enumerated in ADR-050 §D6 — MUST also include:
@@ -109,7 +114,8 @@ client — enumerated in ADR-050 §D6 — MUST also include:
 ```rust
 .http2_initial_stream_window_size(4 * 1024 * 1024)      // 4 MiB stream window
 .http2_initial_connection_window_size(4 * 1024 * 1024)  // 4 MiB connection window
-.http2_adaptive_window(true)                             // BDP-based expansion at runtime
+// NOTE: http2_adaptive_window(true) MUST NOT be added — it overrides the above setters
+// back to 65,535 bytes (SPEC_WINDOW_SIZE), silently negating this fix.
 ```
 
 **Scope (same as ADR-050 §D6):**
@@ -127,13 +133,17 @@ plain HTTP, and DTU client construction must not be altered.
 - 1 MB: marginal — still requires WINDOW_UPDATE on 1.1 MB responses.
 - **4 MB (selected):** covers the observed 1.1 MB page with 3.7× margin and handles any page size
   up to 4 MB without any mid-response WINDOW_UPDATE overhead.
-- 8 MB+: over-provisioning; h2 adaptive window covers any exceptional future cases.
+- 8 MB+: over-provisioning; no page in the observed corpus exceeds 4 MiB. Pages >4 MiB would
+  still require WINDOW_UPDATE frames, which is an accepted, documented limit.
 
-**`http2_adaptive_window(true)` justification:** The h2 BDP algorithm increases the window
-dynamically based on measured RTT and throughput. On a high-latency WAN path (e.g., `api.claroty.com`
-behind AWS Global Accelerator), BDP will push the window above the 4 MB initial value
-automatically, preventing future stalls on pages larger than 4 MB without requiring another ADR
-amendment.
+**`http2_adaptive_window` is explicitly excluded:** reqwest 0.12.28 applies builder setters in
+fixed order at `.build()` time — window-size setters first, adaptive window last. When
+`http2_adaptive_window(true)` is set, both `http2_initial_stream_window_size` and
+`http2_initial_connection_window_size` are overridden back to `SPEC_WINDOW_SIZE = 65,535` bytes,
+and the BDP estimator grows from that 64 KiB baseline — silently negating the fix. The adaptive
+window also cannot resolve DEFECT-1: BDP estimation requires successful WINDOW_UPDATE exchanges
+to grow, but DEFECT-1 is precisely a stall in the WINDOW_UPDATE path. Fixed 4 MiB windows bypass
+the WINDOW_UPDATE path entirely for all observed page sizes.
 
 ---
 
@@ -144,15 +154,34 @@ h2 crate 0.4.18 uses the spec minimum (65535 bytes) as its default, which is cor
 compliance but operationally inadequate for APIs that return MB-scale pages in a single response
 (which is common for vulnerability and device inventory APIs in the OT/ICS sensor space).
 
-Increasing the initial window to 4 MB eliminates the stall for all sensor page sizes observed in
-the prism corpus (max: ~1.1 MB for `claroty_vulnerabilities`). The adaptive window provides a
-self-tuning safety net for sensors not yet onboarded.
+Increasing the initial window to 4 MiB eliminates the stall for all sensor page sizes observed in
+the prism corpus (max: ~1.1 MB for `claroty_vulnerabilities`). No adaptive window is used; the
+fixed 4 MiB guarantee is sufficient for the observed corpus and avoids the WINDOW_UPDATE
+dependency that is the root cause of DEFECT-1.
 
-**Confirmation experiment** (required for story RG): spin up a local hyper h2 server using
-`.http2_prior_knowledge()` on plain TCP (avoids TLS/ALPN setup in tests while exercising h2
-flow control at full fidelity), serve a 2 MB response body, assert the response arrives in < 5s
-with the tuned client and either stalls or exceeds 5s with the default 64 KB window. This
-provides a deterministic local proof of the fix without the live tenant.
+**Red Gate assertion** (required for story RG, replaces the discarded loopback-latency experiment):
+A loopback h2 server cannot reproduce DEFECT-1: on 127.0.0.1 RTT is microseconds, so WINDOW_UPDATE
+round-trips are free and a compliant h2 server delivers any response in milliseconds with ANY
+initial window — the timing assertion passes before and after the fix. DEFECT-1 is a peer
+flow-control deadlock, not generic slowness.
+
+The deterministic gate is a SETTINGS frame assertion:
+
+1. Bind a plain TCP listener on localhost (plain TCP, no TLS; use `.http2_prior_knowledge()` on
+   the reqwest client in the test to bypass ALPN negotiation).
+2. Spawn the production reqwest client under test with the D7 builder chain applied.
+3. Have the client issue any GET request to the listener.
+4. Server-side: call `h2::server::handshake(stream).await` — `h2` at v0.4.18 is already a
+   transitive dependency of `reqwest`; add `h2 = "0.4"` to the test crate's `[dev-dependencies]`.
+5. After the handshake future resolves, read
+   `conn.remote_settings().initial_window_size()` — this returns the
+   `SETTINGS_INITIAL_WINDOW_SIZE` value from the client's initial SETTINGS frame.
+6. Assert `initial_window_size == Some(4_194_304)`.
+
+**This test FAILS before the fix** (default `SETTINGS_INITIAL_WINDOW_SIZE` = 65,535 bytes) and
+**PASSES after** (the two explicit `http2_initial_stream_window_size` setters inject 4,194,304
+into the SETTINGS frame). `h2::server::Connection::remote_settings()` is available immediately
+after `.handshake()` resolves; `Settings::initial_window_size()` returns `Option<u32>`.
 
 ---
 
@@ -164,7 +193,8 @@ provides a deterministic local proof of the fix without the live tenant.
 - All current sensors with small pages (claroty_alerts ~5 KB, crowdstrike ~50 KB typical) are
   unaffected; larger initial window simply means fewer WINDOW_UPDATE frames — a performance
   improvement, not a behavioral change.
-- The adaptive window prevents recurrence for future sensors with larger pages.
+- Pages up to 4 MiB are transmitted with zero WINDOW_UPDATE overhead. Pages >4 MiB (none in the
+  current corpus) would still require WINDOW_UPDATE frames; this is an accepted, documented limit.
 
 ### Negative / Trade-offs
 - Very slightly higher initial memory per h2 stream (4 MB send budget allocated by the remote
@@ -189,7 +219,14 @@ path. If h2 0.4.x has a known bug, an upgrade is a valid complement but not a su
 
 **Alt-D: Increase only stream window (not connection window)** — Rejected. A large stream window
 with a small connection window (64 KB) would still stall when a single large page is the only
-active stream, because the connection window would be exhausted. Both must be set to 4 MB.
+active stream, because the connection window would be exhausted. Both must be set to 4 MiB.
+
+**Alt-E: `http2_adaptive_window(true)` only (drop explicit setters)** — Rejected. This was v1.0's
+unintended effective configuration. `http2_adaptive_window(true)` overrides both explicit window
+setters back to SPEC_WINDOW_SIZE = 65,535 bytes and enables BDP estimation from that 64 KiB
+baseline. BDP estimation requires successful WINDOW_UPDATE exchanges to grow the window; DEFECT-1
+is precisely a stall in the WINDOW_UPDATE path — the peer is waiting for WINDOW_UPDATE frames that
+are delayed. Fixed 4 MiB windows (Option A) bypass that path entirely for all observed page sizes.
 
 ---
 
@@ -206,4 +243,5 @@ instantly, confirming auth and routing are not the cause.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-08-26 | architect | Corrects v1.0 internal contradiction: `http2_adaptive_window(true)` overrides explicit window setters back to 65,535 bytes; dropped. D7 now specifies fixed 4 MiB stream + connection windows only. Red Gate redesigned from loopback-timing experiment to deterministic `SETTINGS_INITIAL_WINDOW_SIZE` assertion via `h2`-crate server. Aligns with Option A selection. |
 | 1.0 | 2026-08-26 | architect | Initial — D7 h2 window sizing decision, extends ADR-050. |

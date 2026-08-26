@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-08-24T00:00:00Z
@@ -20,7 +20,7 @@ input-hash: "c913a02"
 traces_to: ["CAP-029"]
 extracted_from: ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
 introduced: "2026-08-24"
-modified: "2026-08-25"
+modified: "2026-08-26"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -213,12 +213,14 @@ update the exclusion count.
 | EC-016-015-004 | CVE ID format varies (CVE-YYYY-NNNNN vs advisory title format) | Preserved as-is in `finding_info_title`; no normalization |
 | EC-016-015-005 | `cve_ids` field is an empty array `[]` | Serialized as `[]` JSON in `raw_extensions`; not null |
 | EC-016-015-006 | `published_date` is null | Null value stored in `raw_extensions` for the Tier-2 `published_date` field (no standalone Datetime column is materialized); ADR-028 §D8-B implicit iso8601 default applies only to non-null present values |
+| EC-016-015-007 | `LIMIT 1` early-stop: page_size=1000, ~1.1 MB/page; only 1 record requested | Early-stop fires after the first complete page (1000 raw records fetched and fully parsed); `PipelineResult.truncated=false` (early-stop is NOT a DI-019 capacity overflow — `truncated` is reserved for DI-019 only, per ADR-060 §D8.3); DataFusion trims the 1000-record batch to 1 row; second and subsequent HTTP POST requests are NOT issued (ADR-060 §D8.2 check fires at COMPLETE page boundary, immediately after DI-019 check). Anchor: BC-2.16.002 §Postconditions LIMIT-Aware Early-Stop (ADR-060 §D8). |
 
 ## Related BCs
 
 - BC-2.16.013: Bundled Sensor Spec Authoring — parent spec for the Claroty sensor; this BC adds the `claroty_vulnerabilities` table to the Claroty sensor surface (depends on)
 - BC-2.02.005: Claroty xDome Field Mapping to OCSF (9 Data Sources) — OCSF class mapping for all Claroty sources; `vulnerability_finding` class_uid 2002 covered (composes with)
 - BC-2.01.007: Claroty Bearer Token Auth — auth mechanism unchanged; preconditions satisfied (depends on)
+- BC-2.16.002: Multi-Step Fetch Pipeline Execution — LIMIT-Aware Early-Stop Pagination postcondition (ADR-060 §D8) is the contract anchor for EC-016-015-007 and TV-BC-2.16.015-006 (depends on)
 
 ## Architecture Anchors
 
@@ -246,6 +248,7 @@ S-CLAROTY-VULNS-001 (draft — Wave A)
 | TV-BC-2.16.015-003 | `SELECT vulnerability_type FROM claroty_vulnerabilities LIMIT 1` | E-QUERY-038; `available_columns` contains `finding_info_title`, `message`, `raw_extensions`; does NOT contain `vulnerability_type` |
 | TV-BC-2.16.015-004 | `SELECT raw_extensions FROM claroty_vulnerabilities LIMIT 5` | Succeeds; raw_extensions JSON contains `vulnerability_type`, `cvss_v3_score` keys |
 | TV-BC-2.16.015-005 | Response envelope with null `count` field | Pagination terminates on empty page; no error |
+| TV-BC-2.16.015-006 | `SELECT * FROM claroty_vulnerabilities \| LIMIT 1` — LIMIT early-stop: page_size=1000, ~1.1 MB/page | Exactly 1 HTTP POST request issued (1 complete page fetched); `PipelineResult.truncated=false`; DataFusion trims result to 1 row; elapsed time within per-page budget (ADR-060 §D8 + §Consequences) |
 
 ## Verification Properties
 
@@ -268,6 +271,7 @@ S-CLAROTY-VULNS-001 (draft — Wave A)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | adr060-limit-early-stop-vuln | 2026-08-26 | product-owner | **ADR-060 §D8 LIMIT-aware early-stop — TV-BC-2.16.015-006 and EC-016-015-007.** (1) TV-BC-2.16.015-006: canonical test vector for `SELECT * FROM claroty_vulnerabilities \| LIMIT 1` — 1 complete page fetched (page_size=1000, ~1.1 MB), `PipelineResult.truncated=false`, DataFusion trims to 1 row (ADR-060 §D8 + §Consequences). (2) EC-016-015-007: "LIMIT 1 fetches 1 page — early-stop" — early-stop fires after first complete page, `truncated=false`, DataFusion trims, no second HTTP POST issued; anchor: BC-2.16.002 §Postconditions LIMIT-Aware Early-Stop (ADR-060 §D8). (3) Related BCs: BC-2.16.002 added as dependency (early-stop contract anchor). TD-VSDD-097: (1) Sibling pair — BC-2.16.015 (vulnerabilities) and BC-2.16.003 (devices) are distinct table-contract BCs; BC-2.16.003 uses OffsetLimit pagination but has no LIMIT early-stop BC anchor requiring a mirror EC at this time; CLEAR. (2) Downstream copy target — TV and EC rows are not verbatim copy-sources in downstream artifacts; CLEAR. (3) Mandate anchors — EC-016-015-007 explicitly anchors to BC-2.16.002 §Postconditions LIMIT-Aware Early-Stop; TV-BC-2.16.015-006 references ADR-060 §D8 + §Consequences; implementing story is S-ENGINE-LIMIT-EARLY-STOP-001; no unanchored MUSTs introduced. |
 | 1.6 | s-claroty-vulns-001-r4c-fix | 2026-08-25 | product-owner | F-VULNS-R4C-LOW-001/F-R4A-LOW-001: EC-016-015-002 + §Invariants null→absent precision corrected (absent `id` key = absent from `raw_extensions`, not null; mirrors EC-016-015-006 §published_date precision; TD-VSDD-097 dim-1 sibling sweep). §Postconditions §3 existing "null when absent" phrase corrected to match. F-R4A-OBS-001: §Postconditions §3 interim note added — pre-existing ENRICH-1 `column_source_path_extraction_failed` WARN behavior documented; deferred correction anchored to story `S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001` (architect-ruled out of scope). input-hash refreshed (c913a02) to reflect architect ADR-058/ADR-028 edits in same burst. |
 | 1.5 | s-claroty-vulns-001-pass-6-fix | 2026-08-25 | product-owner | F-VULNS-PC-MED-001: §Description "all remaining 18 columns are Tier-2" corrected to "17 Tier-2" (19 total − 2 Tier-1 = 17; consistent with §Postconditions §2 and RG-002). F-VULNS-PA-O01: EC-016-015-006 reworded — published_date aggregates into raw_extensions as a Tier-2 field; no standalone Datetime Arrow column is materialized. F-VULNS-PA-O02: §1 body_template illustrative block switched from toml to text fence — TOML single-quoted literals do not support backslash line-continuation; presentation is now explicitly illustrative-only. |
 | 1.4 | s-claroty-vulns-001-pass-5-fix | 2026-08-25 | product-owner | F-VULNS-P5-001: §1 table_name claroty_vulnerabilities→vulnerabilities (registers as claroty_vulnerabilities per sibling convention); queryable-name refs corrected. F-VULNS-P5-002: §Error Cases atomic-fail correction (normalize post-accumulation → whole-result Err; no partial pages; consistent with Option-A fail-fast). |

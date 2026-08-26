@@ -5,7 +5,7 @@ title: "LIMIT-Aware Early-Stop Pagination for Offset/Limit and Cursor Sensor Tab
 status: ACCEPTED
 date: "2026-08-26"
 modified: "2026-08-26"
-version: "1.0"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-01, SS-16]
 supersedes: []
@@ -23,10 +23,11 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.0 (2026-08-26) — D8: pagination loop in `PipelineExecutor::execute_impl` stops
+ACCEPTED v1.1 (2026-08-26) — D8: pagination loop in `PipelineExecutor::execute_impl` stops
 fetching pages once accumulated records satisfy the query's LIMIT. Atomicity reconciliation
 ruling: "atomic" in existing BCs means all-or-nothing on HTTP ERROR, not "always fetch the
-entire dataset."
+entire dataset." v1.1 corrects §D8.1 prose: LIMIT is read from `QueryParams.limit: u64`
+(pre-extracted; 0 = no limit), not from DataFusion physical-plan inspection.
 
 ---
 
@@ -122,8 +123,11 @@ e.g., CrowdStrike `DetectionListParams.limit`). The two are independent:
 - `early_stop_limit` = limit on how many records prism will accumulate before stopping pagination
 
 `FetchContext::new()` gains a parameter `early_stop_limit: Option<usize>`. Callers
-(`spec_driven_adapter.rs`) extract the LIMIT from the DataFusion physical plan and pass it.
-When no LIMIT is specified in the query, callers pass `None` and the behavior is unchanged.
+(`spec_driven_adapter.rs`) read `QueryParams.limit: u64` — the pre-extracted query LIMIT field
+already present on `QueryParams` before `FetchContext` is constructed; no DataFusion physical-plan
+inspection is required. Callers pass `Some(params.limit as usize)` when `params.limit > 0`, or
+`None` when `params.limit == 0` (meaning no LIMIT was specified in the query). The behavior is
+unchanged when no LIMIT is present.
 
 ### D8.2 — Check point in execute_impl
 
@@ -262,4 +266,5 @@ atomicity contract.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-08-26 | architect | §D8.1 prose correction: LIMIT is read from `QueryParams.limit: u64` (pre-extracted; 0 = no limit), not from DataFusion physical-plan inspection. Behavioral decision D8 unchanged. |
 | 1.0 | 2026-08-26 | architect | Initial — D8 LIMIT-aware early-stop pagination, atomicity reconciliation ruling, timeout_secs deferral. |
