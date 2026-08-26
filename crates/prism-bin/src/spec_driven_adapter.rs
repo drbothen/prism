@@ -678,7 +678,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
                 });
         }
 
-        let context = FetchContext::new(self.sensor_spec.org_slug.clone(), query_filters);
+        let context = FetchContext::new(self.sensor_spec.org_slug.clone(), query_filters, None);
 
         // Resolve which sensor table to execute.
         //

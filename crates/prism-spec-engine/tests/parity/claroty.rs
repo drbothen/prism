@@ -143,7 +143,7 @@ async fn test_BC_2_16_013_dtu_parity_claroty() {
         .expect("claroty spec must declare an 'alerts' table");
 
     // Step 4: FetchContext.
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
 
     // Step 5: HTTP client with 30-second timeout.
     let http_client = reqwest::Client::builder()
@@ -217,7 +217,7 @@ async fn test_BC_2_16_013_dtu_parity_claroty_polymorphic_integer_id_normalized_t
         .find(|t| t.table_name == "alerts")
         .expect("alerts table must exist");
 
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()

@@ -146,7 +146,7 @@ async fn test_BC_2_16_013_dtu_parity_cyberint() {
     // per BC-2.01.017 §Postconditions P2 / ADR-031 §D3-a. When this test is ungated
     // (S-6.09), replace NullAuthProvider with StaticCookieAuthProvider wired to the DTU
     // test credential to exercise the full auth path.
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
 
     // Step 5: HTTP client with 30-second timeout.
     let http_client = reqwest::Client::builder()

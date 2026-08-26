@@ -67,6 +67,15 @@ pub struct FetchContext {
     pub client_id: OrgSlug,
     /// Push-down filter values from the query planner (${query.filter.*}).
     pub query_filters: std::collections::HashMap<String, String>,
+    /// ADR-060 §D8.1: LIMIT-aware early-stop pagination threshold.
+    ///
+    /// When `Some(n)`, `PipelineExecutor::execute_impl` stops fetching pages once
+    /// `all_records.len() >= n` (checked at complete page boundaries, immediately
+    /// after the DI-019 truncation check). `None` = unchanged full pagination.
+    ///
+    /// Wired by `SpecDrivenSensorAdapter::fetch` via `params.limit` mapping
+    /// (S-ENGINE-LIMIT-EARLY-STOP-001 AC-005). Test callers pass `None`.
+    pub early_stop_limit: Option<usize>,
 }
 
 impl FetchContext {
@@ -77,10 +86,12 @@ impl FetchContext {
     pub fn new(
         client_id: OrgSlug,
         query_filters: std::collections::HashMap<String, String>,
+        early_stop_limit: Option<usize>,
     ) -> Self {
         Self {
             client_id,
             query_filters,
+            early_stop_limit,
         }
     }
 }
@@ -2199,7 +2210,7 @@ mod execute_step_tests {
         let spec = make_single_step_spec(&mock_server.uri(), step_name);
         let step = spec.tables[0].steps[0].clone();
         let prior_vars = HashMap::new();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         let auth_provider = MockAuthProvider::new("real-token");
 
@@ -2268,7 +2279,7 @@ mod execute_step_tests {
         let spec = make_single_step_spec(&mock_server.uri(), step_name);
         let step = spec.tables[0].steps[0].clone();
         let prior_vars = HashMap::new();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         let auth_provider = NullAuthProvider;
 
@@ -2334,7 +2345,7 @@ mod execute_step_tests {
         let spec = make_single_step_spec(&mock_server.uri(), step_name);
         let step = spec.tables[0].steps[0].clone();
         let prior_vars = HashMap::new();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         let auth_provider = FailingAuthProvider::new();
 
@@ -2461,7 +2472,7 @@ mod execute_step_tests {
 
         let spec = make_execute_spec(&mock_server.uri());
         let table = spec.tables[0].clone();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         let auth_provider = FailingAuthProvider::new();
 
@@ -2529,7 +2540,7 @@ mod execute_step_tests {
 
         let spec = make_execute_spec(&mock_server.uri());
         let table = spec.tables[0].clone();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         // MockAuthProvider: Ok on every call (both initial acquire and refresh).
         let auth_provider = MockAuthProvider::new("token1");
@@ -2594,7 +2605,7 @@ mod execute_step_tests {
 
         let spec = make_execute_spec(&mock_server.uri());
         let table = spec.tables[0].clone();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         let auth_provider = MockAuthProvider::new("token1");
 
@@ -2651,7 +2662,7 @@ mod execute_step_tests {
 
         let spec = make_execute_spec(&mock_server.uri());
         let table = spec.tables[0].clone();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         // Call 0: initial acquire → Ok. Call 1: refresh → Err.
         let auth_provider = ChainAuthProvider::new(vec![
@@ -2717,7 +2728,7 @@ mod execute_step_tests {
 
         let spec = make_execute_spec(&mock_server.uri());
         let table = spec.tables[0].clone();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::new();
         // MockAuthProvider: Ok on both calls (acquire + refresh succeed; double-401 is the
         // server side, not the auth provider side).
@@ -3664,7 +3675,7 @@ mod pagination_post_body_tests {
     }
 
     fn default_context() -> FetchContext {
-        FetchContext::new(OrgSlug::new("test-org"), HashMap::new())
+        FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None)
     }
 
     // -----------------------------------------------------------------------
@@ -4573,7 +4584,7 @@ mod pagination_post_body_tests {
             .expect("claroty sensor spec must have an 'alerts' table")
             .clone();
 
-        let context = FetchContext::new(OrgSlug::new("demo-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("demo-org"), HashMap::new(), None);
         let http_client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .build()
@@ -4842,7 +4853,7 @@ mod non_2xx_body_snippet_tests {
 
         let spec = single_step_spec(&mock_server.uri(), "/api/v1/devices");
         let table = spec.tables[0].clone();
-        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
         let http_client = reqwest::Client::builder()
             .build()
             .expect("RG-003: reqwest::Client build must succeed");
@@ -5143,7 +5154,7 @@ mod rg004_pipeline_json_filter_tests {
             "_fql_filter".to_string(),
             "created_timestamp:>2026-01-01".to_string(),
         );
-        let context = FetchContext::new(OrgSlug::new("claroty-rg004-org"), query_filters);
+        let context = FetchContext::new(OrgSlug::new("claroty-rg004-org"), query_filters, None);
 
         let http_client = reqwest::Client::new(); // in-process test client
         let auth_provider = MockAuthProvider::new("claroty-rg004-test-token");
@@ -5351,7 +5362,7 @@ mod rg004_pipeline_json_filter_tests {
             "bad_json_filter".to_string(),
             "{not-valid-json".to_string(), // starts with `{` but not parseable
         );
-        let context = FetchContext::new(OrgSlug::new("ec005-warn-test-org"), query_filters);
+        let context = FetchContext::new(OrgSlug::new("ec005-warn-test-org"), query_filters, None);
 
         let http_client = reqwest::Client::new();
         let auth_provider = MockAuthProvider::new("ec005-warn-test-token");
@@ -5478,7 +5489,7 @@ mod rg004_pipeline_json_filter_tests {
             r#"{"field": "timestamp", "operation": "greater_or_equal", "value": "2026-01-01T00:00:00Z"}"#
                 .to_string(),
         );
-        let context = FetchContext::new(OrgSlug::new("claroty-no-warn-org"), query_filters);
+        let context = FetchContext::new(OrgSlug::new("claroty-no-warn-org"), query_filters, None);
 
         let http_client = reqwest::Client::new();
         let auth_provider = MockAuthProvider::new("claroty-no-warn-token");

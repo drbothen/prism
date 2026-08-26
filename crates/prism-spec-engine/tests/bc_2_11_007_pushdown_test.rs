@@ -112,7 +112,7 @@ async fn test_ac_cws_001_crowdstrike_limit_reaches_detection_list_params() {
     // Red Gate: without the wiring, DTU returns 50 records → `result.len() <= 5` FAILS.
     let mut filters = HashMap::new();
     filters.insert("query.limit".to_string(), "5".to_string());
-    let context = FetchContext::new(OrgSlug::new("test-org"), filters);
+    let context = FetchContext::new(OrgSlug::new("test-org"), filters, None);
 
     // Step 5: HTTP client with 30s timeout per CLAUDE.md.
     let http_client = reqwest::Client::builder()
@@ -260,7 +260,7 @@ async fn test_ac_cws_002_wire_level_fql_both_bounds_via_pipeline_executor() {
 
     let mut filters_with_fql = HashMap::new();
     filters_with_fql.insert("_fql".to_string(), fql.clone());
-    let ctx_with_fql = FetchContext::new(OrgSlug::new("test-org"), filters_with_fql);
+    let ctx_with_fql = FetchContext::new(OrgSlug::new("test-org"), filters_with_fql, None);
 
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
@@ -322,7 +322,7 @@ async fn test_ac_cws_002_wire_level_fql_both_bounds_via_pipeline_executor() {
         .expect("AC-CWS-002: clone reset must succeed");
 
     // Also execute without FQL filter to get baseline count.
-    let ctx_no_filter = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let ctx_no_filter = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let result_unfiltered =
         PipelineExecutor::execute(&spec, &table, &ctx_no_filter, &http_client, &auth_provider)
             .await
@@ -417,7 +417,7 @@ async fn test_ac_cws_003_no_filter_param_when_no_time_predicates() {
 
     // Execute pipeline with no time filters.
     let table = detections_table.clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
 
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
@@ -526,7 +526,7 @@ async fn test_ac_armis_001_aql_passthrough_no_maxresults_no_timeframe() {
     let aql_value = "in:devices after:2026-01-01T00:00:00";
     let mut filters = HashMap::new();
     filters.insert("aql".to_string(), aql_value.to_string());
-    let context = FetchContext::new(OrgSlug::new("test-org"), filters);
+    let context = FetchContext::new(OrgSlug::new("test-org"), filters, None);
 
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
@@ -671,7 +671,7 @@ async fn test_ac_armis_002_no_additional_params_beyond_aql_offset_limit() {
     filters.insert("aql".to_string(), "in:devices".to_string());
     // Simulating: WHERE aql = 'in:devices' AND detected_time > '2026-01-01T00:00:00Z'
     // The detected_time filter is post-filtered; only aql goes to DTU.
-    let context = FetchContext::new(OrgSlug::new("test-org"), filters);
+    let context = FetchContext::new(OrgSlug::new("test-org"), filters, None);
 
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
@@ -829,7 +829,7 @@ async fn test_ac_cyb_001_no_from_date_to_date_page_size_in_alert_list_params() {
         "2026-01-01T00:00:00Z".to_string(),
     );
     filters.insert("_end_time".to_string(), "2026-06-01T00:00:00Z".to_string());
-    let context = FetchContext::new(OrgSlug::new("test-org"), filters);
+    let context = FetchContext::new(OrgSlug::new("test-org"), filters, None);
 
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
@@ -951,7 +951,7 @@ async fn test_ac_clar_001_claroty_body_template_has_fields_projection_no_time_fi
         "2026-01-01T00:00:00Z".to_string(),
     );
     filters.insert("_end_time".to_string(), "2026-06-01T00:00:00Z".to_string());
-    let context = FetchContext::new(OrgSlug::new("test-org"), filters);
+    let context = FetchContext::new(OrgSlug::new("test-org"), filters, None);
 
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
@@ -1084,7 +1084,7 @@ async fn test_ac_equiv_001_fql_subset_invariant_via_pipeline_executor_boundary()
     let fql_a = "created_timestamp:>'2026-01-15T00:00:00Z'";
     let mut filters_a = HashMap::new();
     filters_a.insert("_fql".to_string(), fql_a.to_string());
-    let ctx_a = FetchContext::new(OrgSlug::new("test-org"), filters_a);
+    let ctx_a = FetchContext::new(OrgSlug::new("test-org"), filters_a, None);
     let result_a = PipelineExecutor::execute(
         &spec,
         &detections_table,
@@ -1132,7 +1132,7 @@ async fn test_ac_equiv_001_fql_subset_invariant_via_pipeline_executor_boundary()
         .expect("AC-EQUIV-001: clone reset must succeed");
 
     // Execution B: WITHOUT push-down (no FQL filter; empty string = no filter in DTU).
-    let ctx_b = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let ctx_b = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let result_b = PipelineExecutor::execute(
         &spec,
         &detections_table,
@@ -1386,7 +1386,7 @@ async fn test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu() {
     let mut filters = HashMap::new();
     filters.insert("_fql".to_string(), fql.to_string());
     filters.insert("query.limit".to_string(), "3".to_string());
-    let ctx = FetchContext::new(OrgSlug::new("test-org"), filters);
+    let ctx = FetchContext::new(OrgSlug::new("test-org"), filters, None);
 
     let result =
         PipelineExecutor::execute(&spec, &detections_table, &ctx, &http_client, &auth_provider)

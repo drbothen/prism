@@ -24,7 +24,7 @@ use wiremock::{
 };
 
 fn default_context() -> FetchContext {
-    FetchContext::new(OrgSlug::new("test-org"), HashMap::new())
+    FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None)
 }
 
 /// Build a one-step `SensorSpec` for auth-retry tests.
@@ -455,7 +455,7 @@ async fn test_BC_2_01_017_dtu_401_surfaces_e_auth_004_no_retry() {
     );
 
     let table = spec.tables[0].clone();
-    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new(), None);
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
