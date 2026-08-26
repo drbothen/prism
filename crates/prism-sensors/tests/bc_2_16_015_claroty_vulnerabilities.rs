@@ -1,15 +1,13 @@
 //! Red Gate test suite for BC-2.16.015 — Claroty xDome Vulnerability Findings Table.
 //!
 //! Covers S-CLAROTY-VULNS-001 acceptance criteria AC-001..AC-008.
-//! BC-5.38.001 density check: 10 RGTs / 8 ACs = 1.25 (≥ 0.5 threshold).
-//! The story enumerates 10 Red Gate tests: RG-001..RG-008 with RG-003 split into
-//! RG-003a [prism-bin e2e] / RG-003b [prism-sensors proxy] and RG-004b [prism-bin mock]
-//! added alongside RG-004, RG-005, RG-006, RG-007, RG-008.
+//! BC-5.38.001 density check: 11 RGTs / 8 ACs = 1.375 (≥ 0.5 threshold).
+//! The story enumerates 11 Red Gate tests: RG-001..RG-009 (with RG-003a/003b + RG-004b splits).
 //!
 //! ## Red Gate invariant
 //!
 //! Non-`#[ignore]` tests in this file (covering RG-001, RG-002, RG-003b [proxy],
-//! RG-006, RG-007, RG-008) MUST FAIL before implementation lands:
+//! RG-006, RG-007, RG-008, RG-009) MUST FAIL before implementation lands:
 //!   - Each test finds the `vulnerabilities` table via `.find()` and panics at
 //!     `.expect("vulnerabilities table must exist")` because the `[[tables]]`
 //!     block has not yet been added to `claroty.sensor.toml`.
@@ -336,11 +334,23 @@ async fn test_BC_2_16_015_claroty_vulnerabilities_live_wire_shape_class_uid_and_
             );
         }
 
+        // NON-LOAD-BEARING / ILLUSTRATIVE-ONLY: the class_uid=2002 value was inserted
+        // by this test's own literal (`simulated_wire_row.insert("class_uid", json!(2002))`),
+        // so asserting it back is a tautology — it exercises no production code path.
+        // The REAL class_uid=2002 provenance test is RG-004b:
+        //   crates/prism-bin/tests/bc_2_16_015_claroty_vulnerabilities_wire_shape.rs
+        //   test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock
+        // which uses SpecDrivenSensorAdapter::fetch() → RecordBatch → asserts the actual
+        // EventClassSelector("vulnerability_finding") = 2002 assignment through the pipeline.
+        // Keep this arm as documentation of the expected wire shape; rely on RG-004b for coverage.
         assert_eq!(
             simulated_wire_row.get("class_uid"),
             Some(&json!(2002_i32)),
             "simulated wire row must have class_uid = 2002 (vulnerability_finding). \
-             BC-2.16.015 AC-004."
+             BC-2.16.015 AC-004. \
+             NOTE: this arm is ILLUSTRATIVE-ONLY — class_uid=2002 was inserted by this \
+             test literal, not by the pipeline. The load-bearing class_uid=2002 assertion \
+             is in RG-004b (test_BC_2_16_015_claroty_vulnerabilities_wire_shape_class_uid_2002_mock)."
         );
 
         let tier1_present = simulated_wire_row.contains_key("finding_info_title")
