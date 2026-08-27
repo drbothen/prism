@@ -831,22 +831,20 @@ pub async fn run_materialization_pipeline(
     // pushed into every fan-out target's `QueryParams.limit`. 0 = no-limit
     // sentinel (EC-008).
     //
-    // PLAN-SHAPE GATE (ADR-060 §D8.7): `ast_is_reducing_plan` returns `true`
-    // when the query contains an aggregation, GROUP BY, DISTINCT, HAVING clause,
-    // pipe `stats` or `dedup` stage, or a non-temporal equality WHERE predicate.
-    // For reducing plans, early-stop is suppressed by forcing `fetch_limit = 0`
-    // (the no-limit sentinel), ensuring all pages are fetched before the reducing
-    // operation executes. For bare projections and ORDER-BY–only queries the gate
-    // returns `false` and early-stop fires normally (ADR-060 §D8.5).
+    // PLAN-SHAPE GATE (ADR-060 §D8.7 v1.3): `ast_is_reducing_plan` returns `true`
+    // when the query plan would produce incorrect results under early-stop.
+    // Conditions A–J + conservative default (see `ast_is_reducing_plan` doc).
+    // Note: `where_filters` is NOT passed — the gate performs its own AST walk
+    // via `has_client_side_where` (ADR-060 §D8.7 v1.3 signature change).
+    // `where_filters` continues to be used for push-down and cache key derivation.
     //
-    // SINGLE-BINDING COHERENCE (P1-01 / BC-2.07.005 §Invariants, architect
-    // adjudication D1; ADR-060 §D8.8): this binding feeds BOTH the
+    // SINGLE-BINDING COHERENCE (ADR-060 §D8.8): this binding feeds BOTH the
     // response-cache key derivation AND the fan-out target construction below.
     // Do NOT introduce a second derivation of the pushed limit — the limit
     // hashed into `push_down_hash` must always be the limit actually fetched.
     // Reducing plans hash `0` as `fetch_limit`, so they share a full-dataset
     // cache entry (ADR-060 §D8.8 cache-key coherence).
-    let fetch_limit: u64 = if ast_is_reducing_plan(&ast, &where_filters) {
+    let fetch_limit: u64 = if ast_is_reducing_plan(&ast) {
         0
     } else {
         options.limit.map(|l| l as u64).unwrap_or(0)
@@ -1238,6 +1236,25 @@ pub async fn run_materialization_pipeline(
         mat_ctx.table_registry.as_deref(),
     )
     .await?;
+
+    // ADR-060 §D8.7 v1.3 — post-execution result cap (BC-2.01.013 tool-level limit).
+    //
+    // Apply `options.limit` as a final row cap on the DataFusion result. For SQL queries
+    // that carry an explicit LIMIT clause, DataFusion has already applied the limit and
+    // this truncation is a no-op (returned rows ≤ limit). For pipe and filter queries
+    // where the plan-shape gate suppressed early-stop (`fetch_limit = 0`), DataFusion
+    // returns all matching rows; this cap ensures the caller receives at most
+    // `options.limit` rows, honouring the tool-level size contract (BC-2.11.001).
+    //
+    // The engine.rs caller performs the same truncation again (Step 6), but that is
+    // idempotent: if this step already capped to N, the engine sees total_rows ≤ N and
+    // `is_truncated = false` — consistent with how SQL-LIMIT queries behave (DataFusion
+    // applies the LIMIT, the engine sees the capped count, `is_truncated = false`).
+    let collected = if let Some(limit) = options.limit {
+        truncate_result_to_limit(collected, limit)
+    } else {
+        collected
+    };
 
     Ok(MaterializationOutput {
         batches: collected,
@@ -2315,105 +2332,313 @@ fn extract_push_down_filters_as_map(ast: &crate::ast::Ast) -> prism_sensors::typ
 }
 
 // ---------------------------------------------------------------------------
-// ast_is_reducing_plan (ADR-060 §D8.7)
+// truncate_result_to_limit (ADR-060 §D8.7 v1.3 post-execution result cap)
+// ---------------------------------------------------------------------------
+
+/// Cap the result set to at most `limit` rows, preserving RecordBatch boundaries
+/// where possible and slicing the first batch that exceeds the remaining budget.
+///
+/// Used in `run_materialization_pipeline` to apply `options.limit` to the
+/// DataFusion result (ADR-060 §D8.7 v1.3 / BC-2.01.013). For SQL queries with
+/// an explicit LIMIT, this is a no-op because DataFusion already enforced the
+/// limit. For pipe and filter queries where the plan-shape gate suppressed
+/// early-stop, this ensures the caller receives at most `limit` rows.
+fn truncate_result_to_limit(
+    batches: Vec<arrow::record_batch::RecordBatch>,
+    limit: usize,
+) -> Vec<arrow::record_batch::RecordBatch> {
+    let mut result = Vec::new();
+    let mut remaining = limit;
+    for batch in batches {
+        if remaining == 0 {
+            break;
+        }
+        if batch.num_rows() <= remaining {
+            remaining -= batch.num_rows();
+            result.push(batch);
+        } else {
+            result.push(batch.slice(0, remaining));
+            remaining = 0;
+        }
+    }
+    result
+}
+
+// ---------------------------------------------------------------------------
+// ast_is_reducing_plan (ADR-060 §D8.7 v1.3 — Comprehensive Plan-Shape Gate)
 // ---------------------------------------------------------------------------
 
 /// Returns `true` when the query plan would produce incorrect results if sensor
-/// fan-out stops early — i.e., when result-set correctness depends on ALL pages
-/// being fetched before the plan executes.
+/// fan-out stops early (i.e., early-stop must be SUPPRESSED — `fetch_limit = 0`).
 ///
 /// This gate drives `fetch_limit` in `run_materialization_pipeline`: a `true`
 /// return forces `fetch_limit = 0` (no-limit sentinel), suppressing early-stop.
 /// A `false` return allows the caller-supplied `options.limit` to propagate as
 /// `fetch_limit`, enabling early-stop for bare projections (ADR-060 §D8.5).
 ///
-/// # Conditions (ADR-060 §D8.7)
+/// # Conditions (ADR-060 §D8.7 v1.3)
 ///
-/// - **A** — Aggregate function in SELECT items (e.g. `COUNT(*)`, `SUM(x)`)
+/// - **A** — Aggregate/window function in SELECT items OR in ORDER BY expressions.
+///   Closes F-R12-CRIT-001: recurses into `FuncCall::Scalar::args` for nested aggs.
 /// - **B** — Non-empty `GROUP BY` clause
 /// - **C** — `SELECT DISTINCT`
 /// - **D** — `HAVING` clause present
-/// - **E** — Any `PipeStage::Stats` in the pipe stages
-/// - **F** — Any `PipeStage::Dedup` in the pipe stages
-/// - **G** — Non-empty `where_filters` (equality predicate pushed down via
-///   `extract_push_down_filters_as_map`; matching rows may appear on any page)
+/// - **E** — Any `PipeStage::Stats` in pipe stages
+/// - **F** — Any `PipeStage::Dedup` in pipe stages
+/// - **G** — `has_client_side_where`: any non-temporal WHERE predicate in ANY AST mode.
+///   Replaces v1.2 `where_filters` check (which was empty for Filter/Pipe modes and
+///   missed non-equality SQL predicates). `where_filters` param removed (ADR-060 §D8.7).
+/// - **H** — SQL JOIN present (`sql.joins` non-empty). Closes F-R12-HIGH-001.
+/// - **I** — Any `PipeStage::Tail` in pipe stages (last-N requires full dataset).
+/// - **J** — Any `PipeStage::Join` in pipe stages (defensive; closes F-R12-HIGH-001).
 ///
-/// ORDER BY alone does NOT trigger suppression (ADR-060 §D8.5).
-fn ast_is_reducing_plan(
-    ast: &crate::ast::Ast,
-    where_filters: &prism_sensors::types::FilterMap,
-) -> bool {
+/// Conservative default: `_ => true` for unknown/future `Ast` variants.
+/// Pipe-stage scan uses a PERMIT allow-list; unlisted stages suppress.
+///
+/// ORDER BY alone (without aggregate in the ORDER BY expression) does NOT
+/// trigger suppression (ADR-060 §D8.5).
+fn ast_is_reducing_plan(ast: &crate::ast::Ast) -> bool {
     use crate::ast::{Ast, PipeStage, SelectItem, SqlStatement};
 
-    // Condition G: non-temporal equality WHERE push-down filters (ADR-060 §D8.7).
-    // A non-empty FilterMap means the query contains equality predicates whose
-    // matches may appear in any page — fetching only page 1 would miss them.
-    if !where_filters.is_empty() {
+    // Condition G (revised): client-side WHERE predicate in any AST mode
+    // (ADR-060 §D8.7 v1.3). Replaces the old `!where_filters.is_empty()` check.
+    if has_client_side_where(ast) {
         return true;
     }
 
     match ast {
         Ast::Sql(SqlStatement::Select(sql)) => {
-            // Condition A: aggregate function in SELECT items.
-            let has_agg = sql.select.items.iter().any(|item| match item {
-                SelectItem::Expr { expr, .. } => expr_contains_aggregate(expr),
+            // Condition A: aggregate/window in SELECT items.
+            let has_agg_in_select = sql.select.items.iter().any(|item| match item {
+                SelectItem::Expr { expr, .. } => expr_contains_aggregate_or_window(expr),
                 _ => false,
             });
+            // Condition A (revised): aggregate/window in ORDER BY expressions.
+            let has_agg_in_order_by = sql
+                .order_by
+                .iter()
+                .any(|oe| expr_contains_aggregate_or_window(&oe.expr));
             // Condition B: non-empty GROUP BY.
             let has_group_by = !sql.group_by.is_empty();
             // Condition C: SELECT DISTINCT.
             let has_distinct = sql.select.distinct;
             // Condition D: HAVING clause present.
             let has_having = sql.having.is_some();
-            has_agg || has_group_by || has_distinct || has_having
+            // Condition H: SQL JOIN present (closes F-R12-HIGH-001).
+            let has_join = !sql.joins.is_empty();
+            has_agg_in_select
+                || has_agg_in_order_by
+                || has_group_by
+                || has_distinct
+                || has_having
+                || has_join
         }
         Ast::SqlPipe(spq) => {
-            // SQL head conditions (A, B, C, D) on the head SqlQuery.
             let head = &spq.head;
-            let has_agg = head.select.items.iter().any(|item| match item {
-                SelectItem::Expr { expr, .. } => expr_contains_aggregate(expr),
+            // Condition A: aggregate/window in SELECT items.
+            let has_agg_in_select = head.select.items.iter().any(|item| match item {
+                SelectItem::Expr { expr, .. } => expr_contains_aggregate_or_window(expr),
                 _ => false,
             });
+            // Condition A (revised): aggregate/window in ORDER BY expressions.
+            let has_agg_in_order_by = head
+                .order_by
+                .iter()
+                .any(|oe| expr_contains_aggregate_or_window(&oe.expr));
+            // Condition B, C, D, H on the SQL head.
             let has_group_by = !head.group_by.is_empty();
             let has_distinct = head.select.distinct;
             let has_having = head.having.is_some();
-            // Pipe stage conditions (E, F) on the trailing pipe stages.
-            let has_stats = spq.stages.iter().any(|s| matches!(s, PipeStage::Stats(_)));
-            let has_dedup = spq.stages.iter().any(|s| matches!(s, PipeStage::Dedup(_)));
-            has_agg || has_group_by || has_distinct || has_having || has_stats || has_dedup
+            let has_join = !head.joins.is_empty();
+            // Pipe stage conditions (E, F, I, J) on trailing stages.
+            // PERMIT allow-list: Where (temporal already handled by G), Sort, Limit,
+            // Fields, Enrich. All other/unknown stages SUPPRESS (conservative default).
+            let has_reducing_stage = spq.stages.iter().any(|s| match s {
+                PipeStage::Stats(_) => true, // Condition E
+                PipeStage::Dedup(_) => true, // Condition F
+                PipeStage::Tail(_) => true,  // Condition I
+                PipeStage::Join(_) => true,  // Condition J (defensive)
+                PipeStage::Where(_)
+                | PipeStage::Sort(_)
+                | PipeStage::Limit(_)
+                | PipeStage::Fields(_)
+                | PipeStage::Enrich(_) => false,
+                // PipeStage is #[non_exhaustive]; future variants SUPPRESS conservatively.
+                #[allow(unreachable_patterns)]
+                _ => true,
+            });
+            has_agg_in_select
+                || has_agg_in_order_by
+                || has_group_by
+                || has_distinct
+                || has_having
+                || has_join
+                || has_reducing_stage
         }
         Ast::Pipe(pipe) => {
-            // Condition E: Stats stage.
-            let has_stats = pipe.stages.iter().any(|s| matches!(s, PipeStage::Stats(_)));
-            // Condition F: Dedup stage.
-            let has_dedup = pipe.stages.iter().any(|s| matches!(s, PipeStage::Dedup(_)));
-            has_stats || has_dedup
+            // PERMIT allow-list for pipe stages (same as SqlPipe arm above).
+            pipe.stages.iter().any(|s| match s {
+                PipeStage::Stats(_) => true, // Condition E
+                PipeStage::Dedup(_) => true, // Condition F
+                PipeStage::Tail(_) => true,  // Condition I
+                PipeStage::Join(_) => true,  // Condition J (defensive)
+                PipeStage::Where(_)
+                | PipeStage::Sort(_)
+                | PipeStage::Limit(_)
+                | PipeStage::Fields(_)
+                | PipeStage::Enrich(_) => false,
+                // PipeStage is #[non_exhaustive]; future variants SUPPRESS conservatively.
+                #[allow(unreachable_patterns)]
+                _ => true,
+            })
         }
-        // Filter mode (bare predicate) and future Ast variants are not reducing.
+        // Filter mode: no aggregates or other reducing ops.
+        // has_client_side_where already handled non-temporal predicates above.
+        // A temporal-only Filter predicate is fully server-side → early-stop safe.
+        Ast::Filter(_) => false,
+        // Conservative default (ADR-060 §D8.7 v1.3): unknown/future Ast variants
+        // SUPPRESS early-stop. Incorrect SUPPRESS degrades performance; incorrect
+        // PERMIT causes silent data-correctness regression.
+        // Ast is #[non_exhaustive]; wildcard required for future variants.
+        #[allow(unreachable_patterns)]
+        _ => true,
+    }
+}
+
+/// Returns `true` iff the AST contains any WHERE-position predicate that will be
+/// applied client-side by DataFusion after fetching (i.e., is NOT guaranteed to
+/// be fully resolved server-side via ADR-033 T1 push-down).
+///
+/// Covers all four `Ast` modes: `Sql`, `SqlPipe`, `Pipe`, `Filter` (ADR-060 §D8.7 v1.3).
+/// Replaces the v1.2 `!where_filters.is_empty()` check, which was always empty for
+/// `Ast::Filter` and `Ast::Pipe` modes and missed non-equality SQL predicates.
+fn has_client_side_where(ast: &crate::ast::Ast) -> bool {
+    use crate::ast::{Ast, PipeStage, SqlStatement};
+    match ast {
+        // Filter mode: the predicate always applies client-side unless it is purely
+        // temporal (ADR-033 T1 consumes temporal range predicates server-side).
+        Ast::Filter(f) => !is_purely_temporal_predicate(&f.predicate),
+        // SQL SELECT mode: inspect the WHERE clause predicate.
+        Ast::Sql(SqlStatement::Select(sql)) => sql
+            .where_
+            .as_ref()
+            .map(|p| !is_purely_temporal_predicate(p))
+            .unwrap_or(false),
+        // Pipe mode: any Where stage with a non-temporal predicate is client-side.
+        Ast::Pipe(pipe) => pipe.stages.iter().any(|s| {
+            if let PipeStage::Where(pred) = s {
+                !is_purely_temporal_predicate(pred)
+            } else {
+                false
+            }
+        }),
+        // SqlPipe mode: check both the SQL head WHERE and any pipe Where stages.
+        Ast::SqlPipe(spq) => {
+            let head_client_side = spq
+                .head
+                .where_
+                .as_ref()
+                .map(|p| !is_purely_temporal_predicate(p))
+                .unwrap_or(false);
+            let stages_client_side = spq.stages.iter().any(|s| {
+                if let PipeStage::Where(pred) = s {
+                    !is_purely_temporal_predicate(pred)
+                } else {
+                    false
+                }
+            });
+            head_client_side || stages_client_side
+        }
+        // DML and unknown Ast variants: no WHERE to inspect here; the outer
+        // `ast_is_reducing_plan` catch-all handles unknown variants.
         _ => false,
     }
 }
 
-/// Returns `true` when `expr` contains (or is) an `FuncCall::Aggregate` node.
+/// Returns `true` iff the entire predicate tree consists only of temporal range
+/// comparisons that `extract_time_window_from_ast_from_query` (ADR-033 T1) fully
+/// consumes server-side — i.e., the predicate introduces no client-side filtering.
 ///
-/// Used by `ast_is_reducing_plan` (Condition A) to detect aggregate functions
-/// in SELECT items, including expressions nested inside arithmetic or comparison.
-fn expr_contains_aggregate(expr: &crate::ast::Expr) -> bool {
+/// A predicate is purely temporal iff every leaf is a `Predicate::Compare` where:
+/// - one side is `Expr::Field` (a timestamp field), and
+/// - the other is `Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic`, or
+///   `Expr::Literal(Literal::Timestamp)` (an ISO-8601 timestamp literal),
+///
+/// and the only logical combinator is AND (`Predicate::Logical { op: And, .. }`).
+/// All other predicate variants (OR, NOT, IN, BETWEEN, CIDR, StringOp, etc.) are
+/// treated as client-side and return `false`.
+fn is_purely_temporal_predicate(pred: &crate::ast::Predicate) -> bool {
+    use crate::ast::{Expr, Literal, LogicalOp, Predicate};
+
+    /// Returns `true` iff `expr` is a temporal value expression (right-hand side
+    /// of a temporal range comparison).
+    fn is_temporal_expr(expr: &Expr) -> bool {
+        matches!(
+            expr,
+            Expr::Now
+                | Expr::Interval(_)
+                | Expr::TimestampArithmetic { .. }
+                | Expr::Literal(Literal::Timestamp(_))
+        )
+    }
+
+    match pred {
+        // A single temporal comparison: `field op temporal_expr`.
+        Predicate::Compare { lhs, rhs, .. } => {
+            (matches!(lhs.as_ref(), Expr::Field(_)) && is_temporal_expr(rhs))
+                || (matches!(rhs.as_ref(), Expr::Field(_)) && is_temporal_expr(lhs))
+        }
+        // AND-combined temporal comparisons: both branches must be purely temporal.
+        // OR-combined predicates are NOT purely temporal (OR requires full scan).
+        Predicate::Logical {
+            op: LogicalOp::And,
+            predicates,
+        } => predicates.iter().all(is_purely_temporal_predicate),
+        // All other predicate variants (OR, NOT, IN, BETWEEN, CIDR, StringOp,
+        // InSubquery, Regex, Has, Missing, IsNull, Wildcard, RecoveryError)
+        // are treated as client-side.
+        _ => false,
+    }
+}
+
+/// Returns `true` when `expr` contains (or is) an `FuncCall::Aggregate` or
+/// `FuncCall::Window` node, including when nested inside `FuncCall::Scalar` args.
+///
+/// Used by `ast_is_reducing_plan` (Condition A) to detect aggregate/window functions
+/// in SELECT items and ORDER BY expressions (ADR-060 §D8.7 v1.3).
+///
+/// Closes F-R12-CRIT-001: v1.2's `expr_contains_aggregate` did not recurse into
+/// `FuncCall::Scalar::args`, allowing `severity_label(max(x))` to escape detection.
+fn expr_contains_aggregate_or_window(expr: &crate::ast::Expr) -> bool {
     use crate::ast::{Expr, FuncCall};
     match expr {
         // Direct aggregate call (e.g. `COUNT(*)`, `SUM(x)`).
         Expr::FuncCall(FuncCall::Aggregate { .. }) => true,
-        // Scalar/window UDF — not an aggregate.
-        Expr::FuncCall(_) => false,
-        // Recursive cases: binary comparison / logical combinations.
+        // Window function stub (S-3.06) — full frame required regardless of stub state.
+        Expr::FuncCall(FuncCall::Window { .. }) => true,
+        // Scalar UDF — recurse into args to detect nested aggregates (F-R12-CRIT-001).
+        Expr::FuncCall(FuncCall::Scalar { args, .. }) => {
+            args.iter().any(expr_contains_aggregate_or_window)
+        }
+        // Unknown FuncCall variants — conservatively treat as potential aggregate.
+        // FuncCall is #[non_exhaustive]; wildcard required for future variants.
+        #[allow(unreachable_patterns)]
+        Expr::FuncCall(_) => true,
+        // Recursive cases: binary comparison, logical combinations, negation.
         Expr::Compare { lhs, rhs, .. } => {
-            expr_contains_aggregate(lhs) || expr_contains_aggregate(rhs)
+            expr_contains_aggregate_or_window(lhs) || expr_contains_aggregate_or_window(rhs)
         }
         Expr::Logical { lhs, rhs, .. } => {
-            expr_contains_aggregate(lhs) || expr_contains_aggregate(rhs)
+            expr_contains_aggregate_or_window(lhs) || expr_contains_aggregate_or_window(rhs)
         }
-        Expr::Not(inner) => expr_contains_aggregate(inner),
-        // Literals, field paths, virtual fields, star, now, interval — not aggregates.
+        Expr::Not(inner) => expr_contains_aggregate_or_window(inner),
+        Expr::TimestampArithmetic { base, .. } => expr_contains_aggregate_or_window(base),
+        // InSubquery: the subquery's SELECT is a separate SqlQuery; the outer Expr
+        // does not contain the subquery's aggregate. The IN predicate itself is
+        // caught by has_client_side_where via Condition G (ADR-060 §D8.7 v1.3).
+        Expr::InSubquery { .. } => false,
+        // Leaf nodes: Literal, Field, VirtualField, Star, Now, Interval, In —
+        // not aggregates (conservative catch-all: leaf assumption).
         _ => false,
     }
 }
@@ -7215,6 +7440,191 @@ mod temporal_walker_unit_tests {
                 "F-HIGH-1: value_prefix must contain the raw literal substring; got: {value_prefix:?}"
             );
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// In-crate unit tests — PSG-009, PSG-012, PSG-019 (plan-shape gate unit tests)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod plan_shape_gate_unit_tests {
+    //! In-crate unit tests for plan-shape gate conditions that are NOT isolatable
+    //! via E2E tests through `run_materialization_pipeline`:
+    //!
+    //! - PSG-009 (Condition D — HAVING in isolation): Condition D already exists
+    //!   in v1.2, so any isolated HAVING-only E2E test passes against v1.2
+    //!   (vacuously true). The in-crate test uses the v1.3 signature change as
+    //!   the Red Gate.
+    //! - PSG-012 (Condition A revised — FuncCall::Window): `FuncCall::Window` is
+    //!   not producible from the PrismQL grammar (no OVER clause syntax, S-3.06
+    //!   stub). Requires a manually constructed AST. SAP-3 rule 3 defense-in-depth.
+    //! - PSG-019 (conservative default — PERMIT allow-list): The `_ => true`
+    //!   catch-all for unknown/future PipeStage variants cannot be exercised from
+    //!   a grammar query string. Tests the PERMIT boundary instead. SAP-3 rule 3.
+    //!
+    //! # Red Gate Mechanism
+    //!
+    //! These tests call `ast_is_reducing_plan(&ast)` using the v1.3 signature
+    //! (single `&Ast` argument, no `where_filters` parameter). Against v1.2 (which
+    //! requires `&Ast, &FilterMap`), this call FAILS TO COMPILE. Compilation failure
+    //! is the Red Gate for PSG-009, PSG-012, and PSG-019.
+    //!
+    //! After the implementer changes the function signature to v1.3 and updates
+    //! the gate logic, compilation succeeds and the assertions drive behavior.
+
+    use crate::ast::{
+        Ast, Expr, FromClause, FuncCall, PipeQuery, PipeStage, SelectClause, SelectItem, SourceRef,
+        SqlQuery, SqlStatement,
+    };
+
+    use super::ast_is_reducing_plan;
+
+    // -----------------------------------------------------------------------
+    // PSG-009 — Condition D: HAVING clause in isolation
+    // -----------------------------------------------------------------------
+
+    /// RG-PSG-009 — AC-007 Condition D: `having.is_some()` in isolation
+    ///
+    /// `SELECT * FROM t HAVING status = 'page2'`
+    ///
+    /// A=false (no SELECT-item aggregate), B=false (no GROUP BY), C=false
+    /// (no DISTINCT) — HAVING is the ONLY reducing condition present.
+    ///
+    /// COMPILE FAILS against v1.2 (v1.3 signature, no `where_filters`).
+    ///
+    /// SAP-3: HAVING is grammar-reachable from the SQL parser (standard SQL).
+    /// However, isolated E2E testing of Condition D is impossible: v1.2 already
+    /// implements `having.is_some()` as Condition D. Any isolated HAVING-only E2E
+    /// test that doesn't fire A/B/C would PASS against v1.2 (not RED). The
+    /// v1.3 SIGNATURE CHANGE is the only reliable Red Gate for this isolated test.
+    ///
+    /// F-LENSB-MED-001 fix: the prior PSG-009 E2E test used COUNT(*) + GROUP BY
+    /// which fired Conditions A and B, masking the isolation of Condition D.
+    #[test]
+    fn test_BC_2_16_002_plan_shape_gate_having_suppresses_early_stop() {
+        // POSITIVE: HAVING present, no aggregate or GROUP BY in SELECT.
+        let ast = crate::parse_and_plan("SELECT * FROM t HAVING status = 'page2'")
+            .expect("PSG-009: HAVING-without-GROUP-BY query must parse successfully");
+
+        assert!(
+            ast_is_reducing_plan(&ast), // v1.3 signature — compile fails against v1.2
+            "PSG-009 (Condition D — HAVING isolated): `having.is_some()` must suppress \
+             early-stop even with no SELECT-item aggregate (A=false) and no GROUP BY \
+             (B=false). Gate must detect HAVING alone as Condition D."
+        );
+
+        // NEGATIVE control: bare SELECT without HAVING must NOT suppress.
+        let ast_bare = crate::parse_and_plan("SELECT * FROM t LIMIT 25")
+            .expect("PSG-009 negative: bare SELECT must parse");
+        assert!(
+            !ast_is_reducing_plan(&ast_bare),
+            "PSG-009 negative: bare SELECT without any reducing condition must NOT \
+             suppress early-stop."
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // PSG-012 — Condition A revised: FuncCall::Window in SELECT items
+    // -----------------------------------------------------------------------
+
+    /// RG-PSG-012 — AC-007 Condition A revised: `FuncCall::Window` in SELECT
+    ///
+    /// `SELECT WINDOW() FROM t` (manually constructed AST — not grammar-producible).
+    ///
+    /// COMPILE FAILS against v1.2 (v1.3 signature, no `where_filters`).
+    ///
+    /// SAP-3 rule 3 — defense-in-depth, NOT grammar-reachable:
+    /// `FuncCall::Window` is an S-3.06 stub with no fields. The PrismQL grammar has
+    /// no OVER clause syntax to produce it from a query string. This test constructs
+    /// a synthetic AST to verify that `expr_contains_aggregate_or_window` (v1.3)
+    /// detects `FuncCall::Window` in SELECT items.
+    ///
+    /// Additionally: v1.2's `expr_contains_aggregate` has `Expr::FuncCall(_) => false`
+    /// as the non-aggregate FuncCall catch-all, so it would miss Window even if
+    /// the grammar did produce it.
+    #[test]
+    fn test_BC_2_16_002_plan_shape_gate_window_function_suppresses_early_stop() {
+        // Manually construct: SELECT WINDOW() FROM t
+        // `FuncCall::Window {}` is an S-3.06 stub — not parseable from the grammar.
+        let from = FromClause::new(SourceRef::from_raw("t"));
+        let select = SelectClause::new(vec![SelectItem::Expr {
+            expr: Expr::FuncCall(FuncCall::Window {}),
+            alias: None,
+        }]);
+        let ast = Ast::Sql(SqlStatement::Select(SqlQuery::new(select, from)));
+
+        assert!(
+            ast_is_reducing_plan(&ast), // v1.3 signature — compile fails against v1.2
+            "PSG-012 (Condition A revised — FuncCall::Window): Window function stub in \
+             SELECT must suppress early-stop. `expr_contains_aggregate_or_window` (v1.3) \
+             must detect `FuncCall::Window`. v1.2's `expr_contains_aggregate` uses \
+             `Expr::FuncCall(_) => false` and would miss it."
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // PSG-019 — Conservative default: PERMIT allow-list boundary verification
+    // -----------------------------------------------------------------------
+
+    /// RG-PSG-019 — AC-007 conservative default: PERMIT allow-list posture
+    ///
+    /// EC-016-002-018 (ADR-060 §D8.7 conservative default posture).
+    ///
+    /// COMPILE FAILS against v1.2 (v1.3 signature, no `where_filters`).
+    ///
+    /// SAP-3 rule 3 — the `_ => true` catch-all for unknown/future PipeStage
+    /// variants is NOT grammar-testable: the PrismQL grammar only produces
+    /// variants in the current `PipeStage` enum, and every current variant is
+    /// explicitly PERMIT or SUPPRESS per ADR-060 §D8.7. No grammar query string
+    /// can produce a future unknown variant to exercise the catch-all directly.
+    ///
+    /// This test instead verifies the PERMIT/SUPPRESS boundary is correctly drawn:
+    /// - PERMIT stages (Sort, Limit) must NOT suppress early-stop.
+    /// - SUPPRESS stages (Stats) must suppress.
+    ///
+    /// The conservative default `_ => true` is structurally proven by:
+    /// (a) `PipeStage` is `#[non_exhaustive]` — any external match arm MUST have
+    ///     `_ =>` to compile, making ADR-060's `_ => true` a load-bearing arm;
+    /// (b) the PERMIT allow-list is exhaustively enumerated and verified here.
+    #[test]
+    fn test_BC_2_16_002_plan_shape_gate_conservative_default_suppresses_early_stop() {
+        // --- PERMIT stages: must NOT suppress early-stop ---
+
+        // PERMIT: PipeStage::Sort — sorting does not change set membership.
+        let ast_sort = Ast::Pipe(PipeQuery::new(
+            SourceRef::from_raw("t"),
+            vec![PipeStage::Sort(vec![])], // empty sort; type is Vec<SortExpr>
+        ));
+        assert!(
+            !ast_is_reducing_plan(&ast_sort), // v1.3 signature — compile fails against v1.2
+            "PSG-019 (PERMIT: PipeStage::Sort): Sort must NOT suppress early-stop. \
+             ADR-060 §D8.7 PERMIT allow-list."
+        );
+
+        // PERMIT: PipeStage::Limit — a LIMIT N does not change relative ordering
+        // or set membership; early-stop is still safe.
+        let ast_limit = Ast::Pipe(PipeQuery::new(
+            SourceRef::from_raw("t"),
+            vec![PipeStage::Limit(100)],
+        ));
+        assert!(
+            !ast_is_reducing_plan(&ast_limit),
+            "PSG-019 (PERMIT: PipeStage::Limit): Limit must NOT suppress early-stop. \
+             ADR-060 §D8.7 PERMIT allow-list."
+        );
+
+        // --- SUPPRESS stage: must suppress early-stop ---
+
+        // SUPPRESS: PipeStage::Stats (Condition E — already in v1.2, included here
+        // to verify the PERMIT/SUPPRESS boundary is intact in v1.3).
+        let ast_stats = crate::parse_and_plan("t | stats count(*)")
+            .expect("PSG-019: pipe stats query must parse successfully");
+        assert!(
+            ast_is_reducing_plan(&ast_stats),
+            "PSG-019 (SUPPRESS: PipeStage::Stats / Condition E): Stats must suppress \
+             early-stop. ADR-060 §D8.7 Condition E."
+        );
     }
 }
 

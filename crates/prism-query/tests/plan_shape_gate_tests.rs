@@ -1,4 +1,4 @@
-//! Plan-Shape Gate Red Gate Tests — RG-PSG-001..RG-PSG-009
+//! Plan-Shape Gate Red Gate Tests — RG-PSG-001..RG-PSG-019
 //!
 //! Traces to: S-ENGINE-LIMIT-EARLY-STOP-001 AC-007, ADR-060 §D8.7,
 //!            BC-2.16.002 (Multi-Step Fetch Pipeline Execution)
@@ -12,15 +12,18 @@
 //!
 //! # SAP-3 Compliance
 //!
-//! Every test reaches the gate end-to-end through `run_materialization_pipeline`
+//! Every E2E test reaches the gate end-to-end through `run_materialization_pipeline`
 //! from a real PrismQL/SQL query string — not via a synthetic AST injected into
 //! an internal handler. This satisfies the spec-arm reachability requirement
 //! from SAP-3.
 //!
+//! Three tests (PSG-009, PSG-012, PSG-019) are in-crate unit tests in
+//! `materialization.rs` and carry explicit SAP-3 rule 3 reachability comments.
+//!
 //! # Mock Adapter Design
 //!
 //! `PlanShapeGateMockAdapter` observes `params.limit` (the `fetch_limit` value
-//! from `run_materialization_pipeline` line 840):
+//! from `run_materialization_pipeline` — the `fetch_limit` binding):
 //!
 //! - `params.limit == 0`: early-stop is SUPPRESSED → return all 300 rows (3 pages × 100)
 //! - `params.limit > 0`: early-stop is ACTIVE → return 100 rows (page 1 only)
@@ -46,17 +49,30 @@
 //!
 //! # Test Matrix
 //!
-//! | Test name (RG-ID)                                       | Condition | Red? |
-//! |--------------------------------------------------------|-----------|------|
-//! | test_BC_2_16_002_plan_shape_gate_count_suppresses_early_stop           (PSG-001) | A | RED  |
-//! | test_BC_2_16_002_plan_shape_gate_group_by_suppresses_early_stop        (PSG-002) | B | RED  |
-//! | test_BC_2_16_002_plan_shape_gate_distinct_suppresses_early_stop        (PSG-003) | C | RED  |
-//! | test_BC_2_16_002_plan_shape_gate_non_temporal_where_suppresses_early_stop (PSG-004) | G | RED  |
-//! | test_BC_2_16_002_plan_shape_gate_pipe_stats_suppresses_early_stop      (PSG-005) | E | RED  |
-//! | test_BC_2_16_002_plan_shape_gate_pipe_dedup_suppresses_early_stop      (PSG-006) | F | RED  |
-//! | test_BC_2_16_002_plan_shape_gate_bare_projection_early_stop_fires      (PSG-007) | — | GREEN|
-//! | test_BC_2_16_002_plan_shape_gate_order_by_limit_early_stop_fires       (PSG-008) | — | GREEN|
-//! | test_BC_2_16_002_plan_shape_gate_having_suppresses_early_stop          (PSG-009) | D | RED  |
+//! | Test name (RG-ID)                                                                       | Cond  | Kind       |
+//! |----------------------------------------------------------------------------------------|-------|------------|
+//! | test_BC_2_16_002_plan_shape_gate_count_suppresses_early_stop (PSG-001)                 | A     | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_group_by_suppresses_early_stop (PSG-002)              | B     | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_distinct_suppresses_early_stop (PSG-003)              | C     | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_non_temporal_where_suppresses_early_stop (PSG-004)    | G     | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_pipe_stats_suppresses_early_stop (PSG-005)            | E     | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_pipe_dedup_suppresses_early_stop (PSG-006)            | F     | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_bare_projection_early_stop_fires (PSG-007)            | —     | GREEN, E2E |
+//! | test_BC_2_16_002_plan_shape_gate_order_by_limit_early_stop_fires (PSG-008)             | —     | GREEN, E2E |
+//! | test_BC_2_16_002_plan_shape_gate_having_suppresses_early_stop (PSG-009)                | D     | RED, unit  |
+//! | test_BC_2_16_002_plan_shape_gate_nested_agg_in_scalar_suppresses_early_stop (PSG-010)  | A rev | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_order_by_aggregate_suppresses_early_stop (PSG-011)    | A rev | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_window_function_suppresses_early_stop (PSG-012)       | A rev | RED, unit  |
+//! | test_BC_2_16_002_plan_shape_gate_filter_mode_where_suppresses_early_stop (PSG-013)     | G rev | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_pipe_where_suppresses_early_stop (PSG-014)            | G rev | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_non_equality_sql_where_suppresses_early_stop (PSG-015)| G rev | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_sql_join_suppresses_early_stop (PSG-016)              | H     | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_pipe_tail_suppresses_early_stop (PSG-017)             | I     | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_pipe_join_suppresses_early_stop (PSG-018)             | J     | RED, E2E   |
+//! | test_BC_2_16_002_plan_shape_gate_conservative_default_suppresses_early_stop (PSG-019)  | def   | RED, unit  |
+//!
+//! Tests marked "unit" live in `crates/prism-query/src/materialization.rs`
+//! (module `plan_shape_gate_unit_tests`) and carry SAP-3 rule 3 reachability comments.
 
 #![allow(
     clippy::unwrap_used,
@@ -309,22 +325,27 @@ async fn test_BC_2_16_002_plan_shape_gate_count_suppresses_early_stop() {
 // PSG-002 — Condition B: GROUP BY suppresses early-stop
 // ===========================================================================
 
-/// RG-PSG-002 — AC-007 Condition B: non-empty GROUP BY clause
+/// RG-PSG-002 — AC-007 Condition B: non-empty GROUP BY clause (isolated)
 ///
-/// `SELECT status, COUNT(*) as cnt FROM mock_events GROUP BY status LIMIT 25`
+/// `SELECT status FROM mock_events GROUP BY status LIMIT 25`
 ///
-/// Before gate: 100 rows (all "page1") → 1 group in result.
-/// After gate: 300 rows (3 pages) → 3 groups: page1, page2, page3.
+/// No aggregate in SELECT (A=false), no DISTINCT (C=false) — Condition B in
+/// isolation. GROUP BY without an aggregate is valid SQL (equivalent to DISTINCT
+/// on the grouped columns) and exercises only Condition B.
+///
+/// Before gate: 100 rows (all "page1") → 1 distinct status value.
+/// After gate: 300 rows (3 pages) → 3 distinct statuses: page1, page2, page3.
 ///
 /// SAP-3: reaches `ast_is_reducing_plan` through `run_materialization_pipeline`.
+/// F-LENSB-MED-001 fix: prior query used COUNT(*) (Condition A), which masked B.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_group_by_suppresses_early_stop() {
     let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
-    // Condition B: GROUP BY non-empty.
-    let query = "SELECT status, COUNT(*) as cnt FROM mock_events GROUP BY status LIMIT 25";
+    // Condition B isolated: GROUP BY without aggregate.
+    let query = "SELECT status FROM mock_events GROUP BY status LIMIT 25";
     let out = run_materialization_pipeline(query, &opts(25), &mut mat_ctx, &session_ctx)
         .await
         .expect("PSG-002: pipeline must not error");
@@ -637,56 +658,391 @@ async fn test_BC_2_16_002_plan_shape_gate_order_by_limit_early_stop_fires() {
 }
 
 // ===========================================================================
-// PSG-009 — Condition D: HAVING suppresses early-stop
+// PSG-009 — Condition D: HAVING (in-crate unit test in materialization.rs)
+// ===========================================================================
+//
+// PSG-009 is an in-crate unit test in `crates/prism-query/src/materialization.rs`
+// (module `plan_shape_gate_unit_tests`) because Condition D (HAVING) already
+// exists in v1.2, making an isolated E2E test vacuously green against v1.2.
+// The in-crate test uses the v1.3 signature change as the Red Gate mechanism:
+// calling `ast_is_reducing_plan(&ast)` (no `where_filters` arg) fails to compile
+// against v1.2, making the test RED. See F-LENSB-MED-001 isolation fix.
+
+// ===========================================================================
+// PSG-010 — Condition A revised: nested aggregate inside FuncCall::Scalar args
 // ===========================================================================
 
-/// RG-PSG-009 — AC-007 Condition D: HAVING clause present
+/// RG-PSG-010 — AC-007 Condition A revised: `FuncCall::Scalar` args recursion
 ///
-/// `SELECT status, COUNT(*) as cnt FROM mock_events GROUP BY status HAVING COUNT(*) > 50 LIMIT 25`
+/// `SELECT severity_label(max(status)) FROM mock_events LIMIT 5`
 ///
-/// HAVING is parsed by `build_having_predicate_parser` in `sql_parser.rs` and
-/// stored in `SqlQuery.having: Option<Predicate>`. `ast_is_reducing_plan` must
-/// detect `having.is_some()` as Condition D, independently of Condition B (GROUP BY).
+/// `severity_label(max(status))` is a `FuncCall::Scalar` whose args contain
+/// `FuncCall::Aggregate(max)`. v1.2's `expr_contains_aggregate` stops at the
+/// outer `FuncCall` (`Expr::FuncCall(_) => false`) without recursing into args.
+/// v1.3's `expr_contains_aggregate_or_window` recurses into `FuncCall::Scalar::args`
+/// and detects the nested `max` aggregate.
 ///
-/// Before gate: 100 rows (all "page1") → 1 group (cnt=100, qualifies HAVING > 50)
-///   → 1 result row.
-/// After gate: 300 rows → 3 groups (page1:100, page2:100, page3:100, all qualify)
-///   → 3 result rows.
+/// Because `severity_label` is an unknown UDF, DataFusion will error at execution.
+/// However the adapter is called BEFORE DataFusion runs (during the fan-out phase),
+/// so `last_limit` is set correctly by the time the DataFusion error is returned.
 ///
-/// SAP-3: HAVING is end-to-end reachable from the SQL parser input; this test
-/// reaches `ast_is_reducing_plan` via `run_materialization_pipeline` from a
-/// real SQL string.
+/// RED:  v1.2 misses the nested aggregate → `fetch_limit=5` → `last_limit=5`.
+/// GREEN: v1.3 detects it → `fetch_limit=0` → `last_limit=0`.
+///
+/// SAP-3: query is parsed from a real SQL string. The scalar UDF wrapper is
+/// grammar-reachable (any function call can wrap an aggregate).
 #[tokio::test]
-async fn test_BC_2_16_002_plan_shape_gate_having_suppresses_early_stop() {
+async fn test_BC_2_16_002_plan_shape_gate_nested_agg_in_scalar_suppresses_early_stop() {
     let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
-    // Condition D: HAVING clause present.
-    // All groups have cnt=100 which is > 50, so HAVING does not filter any out.
-    // The distinction between RED and GREEN is the number of groups fetched.
-    let query =
-        "SELECT status, COUNT(*) as cnt FROM mock_events GROUP BY status HAVING COUNT(*) > 50 LIMIT 25";
-    let out = run_materialization_pipeline(query, &opts(25), &mut mat_ctx, &session_ctx)
-        .await
-        .expect("PSG-009: pipeline must not error");
+    // Condition A revised: scalar UDF wrapping aggregate.
+    let query = "SELECT severity_label(max(status)) FROM mock_events LIMIT 5";
+    // Do NOT .expect() — DataFusion will error (unknown UDF), but last_limit
+    // is already set by the adapter call before DataFusion runs.
+    let _result = run_materialization_pipeline(query, &opts(5), &mut mat_ctx, &session_ctx).await;
 
-    // PRIMARY: 3 result groups when gate suppresses early-stop.
-    // RED: 1 group (only page1 from 100 rows, cnt=100 > 50 qualifies — still 1 group).
-    // GREEN: 3 groups (page1, page2, page3 — all have cnt=100 > 50).
-    let group_count = total_rows(&out.batches);
-    assert_eq!(
-        group_count, 3,
-        "PSG-009 (Condition D — HAVING): must produce 3 groups when gate suppresses \
-         early-stop; got {group_count}. \
-         If 1, the gate is not yet implemented (fetch_limit=25 → only page1 fetched)."
-    );
-
-    // SECONDARY: gate must have set fetch_limit=0.
+    // PRIMARY mechanism assertion: gate must set fetch_limit=0.
+    // RED: last_limit=5 (v1.2 misses nested aggregate, no recursion into Scalar args).
+    // GREEN: last_limit=0 (v1.3 recurses, detects max → suppresses early-stop).
     let seen_limit = last_limit.load(Ordering::SeqCst);
     assert_eq!(
         seen_limit, 0,
-        "PSG-009 (Condition D — HAVING): gate must suppress early-stop (fetch_limit=0); \
-         adapter saw params.limit={seen_limit}."
+        "PSG-010 (Condition A revised — nested aggregate in Scalar args): gate must \
+         suppress early-stop (fetch_limit=0); adapter saw params.limit={seen_limit}. \
+         If 5, v1.2 `expr_contains_aggregate` does not recurse into `FuncCall::Scalar::args`."
     );
 }
+
+// ===========================================================================
+// PSG-011 — Condition A revised: aggregate in ORDER BY
+// ===========================================================================
+
+/// RG-PSG-011 — AC-007 Condition A revised: aggregate expression in ORDER BY
+///
+/// `SELECT * FROM mock_events ORDER BY MAX(status) LIMIT 5`
+///
+/// v1.2's `expr_contains_aggregate` only checks `select_clause.items`. It does not
+/// check ORDER BY expressions. v1.3's `ast_is_reducing_plan` extends Condition A to
+/// also check ORDER BY expression items for aggregates/windows.
+///
+/// DataFusion may error at execution (aggregate in ORDER BY without GROUP BY),
+/// but the adapter is called in the fan-out phase before DataFusion runs.
+///
+/// RED:  v1.2 skips ORDER BY scan → `fetch_limit=5` → `last_limit=5`.
+/// GREEN: v1.3 scans ORDER BY → detects MAX → `fetch_limit=0` → `last_limit=0`.
+///
+/// SAP-3: `ORDER BY MAX(status)` is grammar-reachable (standard SQL).
+#[tokio::test]
+async fn test_BC_2_16_002_plan_shape_gate_order_by_aggregate_suppresses_early_stop() {
+    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // Condition A revised: aggregate in ORDER BY.
+    let query = "SELECT * FROM mock_events ORDER BY MAX(status) LIMIT 5";
+    // DataFusion may reject aggregate in ORDER BY without GROUP BY, but
+    // last_limit is set before DataFusion executes.
+    let _result = run_materialization_pipeline(query, &opts(5), &mut mat_ctx, &session_ctx).await;
+
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-011 (Condition A revised — aggregate in ORDER BY): gate must suppress \
+         early-stop (fetch_limit=0); adapter saw params.limit={seen_limit}. \
+         If 5, v1.2 only checks SELECT items for aggregates, missing ORDER BY."
+    );
+}
+
+// ===========================================================================
+// PSG-012 — Condition A revised: FuncCall::Window (in-crate unit test)
+// ===========================================================================
+//
+// PSG-012 is an in-crate unit test in `crates/prism-query/src/materialization.rs`
+// (module `plan_shape_gate_unit_tests`). `FuncCall::Window` (S-3.06 stub with no
+// fields) is not producible from the PrismQL grammar (no OVER clause syntax exists
+// yet), so a SAP-3 rule 3 defense-in-depth in-crate test with a manually constructed
+// AST is the correct form. The Red Gate is the v1.3 signature change.
+
+// ===========================================================================
+// PSG-013 — Condition G revised: Filter mode non-temporal predicate
+// ===========================================================================
+
+/// RG-PSG-013 — AC-007 Condition G revised: `Ast::Filter` non-temporal predicate
+///
+/// `mock_events | status = 'page2'` — Filter mode.
+///
+/// v1.2's `ast_is_reducing_plan` uses `_ => false` as the catch-all, which covers
+/// `Ast::Filter`. Any non-SQL, non-Pipe AST shape — including Filter mode — returns
+/// false. This is the v1.2 BUG for Condition G in Filter mode.
+///
+/// v1.3's `has_client_side_where(&ast)` handles all 4 AST modes including Filter.
+/// A non-temporal predicate in Filter mode suppresses early-stop.
+///
+/// RED:  `_ => false` → `fetch_limit=25` → `last_limit=25`.
+/// GREEN: `has_client_side_where` detects Filter predicate → `fetch_limit=0` → `last_limit=0`.
+///
+/// Note: our mock adapter does not apply the filter predicate (it returns all rows
+/// for the given limit), so the assertion is on `last_limit` only, not row count.
+///
+/// SAP-3: `mock_events | status = 'page2'` is Filter mode, grammar-reachable.
+#[tokio::test]
+async fn test_BC_2_16_002_plan_shape_gate_filter_mode_where_suppresses_early_stop() {
+    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // Condition G revised: Filter mode with non-temporal predicate.
+    let query = "mock_events | status = 'page2'";
+    // Pipeline result may succeed (returning rows of any status from mock).
+    // Assertion is on last_limit — the effect that matters for early-stop correctness.
+    let _result = run_materialization_pipeline(query, &opts(25), &mut mat_ctx, &session_ctx).await;
+
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-013 (Condition G revised — Filter mode): gate must suppress early-stop \
+         (fetch_limit=0); adapter saw params.limit={seen_limit}. \
+         If 25, v1.2 `_ => false` catch-all does not handle Ast::Filter mode."
+    );
+}
+
+// ===========================================================================
+// PSG-014 — Condition G revised: Pipe WHERE non-temporal predicate
+// ===========================================================================
+
+/// RG-PSG-014 — AC-007 Condition G revised: `PipeStage::Where` non-temporal
+///
+/// `mock_events | where status = 'page2'` — pipe WHERE.
+///
+/// v1.2 only checks `PipeStage::Stats` and `PipeStage::Dedup` inside `Ast::Pipe`.
+/// It does not detect `PipeStage::Where` as a client-side reducing operation when
+/// the predicate is non-temporal. v1.3's `has_client_side_where` checks for any
+/// pipe WHERE stage with a non-temporal predicate.
+///
+/// The pipe WHERE is emitted to DataFusion SQL as `WHERE status = 'page2'`.
+/// Our mock returns "page1" rows when `params.limit > 0`, so:
+///   RED: 100 rows of "page1" → DataFusion WHERE → 0 rows matching "page2" → 0 rows.
+///   GREEN: 300 rows (page1+page2+page3) → DataFusion WHERE → 100 rows of "page2"
+///     → LIMIT 25 → 25 rows.
+///
+/// SAP-3: `mock_events | where status = 'page2'` is grammar-reachable pipe syntax.
+#[tokio::test]
+async fn test_BC_2_16_002_plan_shape_gate_pipe_where_suppresses_early_stop() {
+    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // Condition G revised: pipe WHERE with non-temporal predicate.
+    let query = "mock_events | where status = 'page2'";
+    let out = run_materialization_pipeline(query, &opts(25), &mut mat_ctx, &session_ctx)
+        .await
+        .expect("PSG-014: pipeline must not error for pipe WHERE query");
+
+    // PRIMARY behavioral assertion (row count distinguishes RED from GREEN).
+    // RED: 0 rows (100 page1 rows fetched; none match WHERE status='page2').
+    // GREEN: 25 rows (300 rows fetched; 100 match; LIMIT 25 applied).
+    let row_count = total_rows(&out.batches);
+    assert_eq!(
+        row_count, 25,
+        "PSG-014 (Condition G revised — pipe WHERE): must return 25 rows when gate \
+         suppresses early-stop (300 rows fetched, WHERE filters to 100 page2 rows, \
+         LIMIT 25 applied); got {row_count}. \
+         If 0, v1.2 pipe arm does not detect PipeStage::Where as client-side filter."
+    );
+
+    // SECONDARY mechanism assertion.
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-014 (Condition G revised — pipe WHERE): gate must suppress early-stop \
+         (fetch_limit=0); adapter saw params.limit={seen_limit}."
+    );
+}
+
+// ===========================================================================
+// PSG-015 — Condition G revised: SQL WHERE LIKE (non-equality client-side filter)
+// ===========================================================================
+
+/// RG-PSG-015 — AC-007 Condition G revised: non-equality SQL WHERE predicate
+///
+/// `SELECT * FROM mock_events WHERE status LIKE '%page2%' LIMIT 100`
+///
+/// v1.2's `where_filters` (Condition G) only captures equality predicates passed
+/// as external query parameters, NOT predicates embedded in the SQL AST's WHERE
+/// clause. A LIKE predicate in the SQL AST is not in `where_filters` and is thus
+/// invisible to v1.2's Condition G.
+///
+/// v1.3's `has_client_side_where` inspects the SQL `WHERE` clause in the AST
+/// directly and detects non-temporal predicates including LIKE.
+///
+/// DataFusion applies the LIKE predicate to the fetched rows.
+///   RED: 100 rows of "page1" → WHERE status LIKE '%page2%' → 0 rows.
+///   GREEN: 300 rows → LIKE filter → 100 rows of "page2" → LIMIT 100 → 100 rows.
+///
+/// SAP-3: `WHERE status LIKE '%page2%'` is grammar-reachable standard SQL.
+#[tokio::test]
+async fn test_BC_2_16_002_plan_shape_gate_non_equality_sql_where_suppresses_early_stop() {
+    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // Condition G revised: SQL WHERE LIKE predicate (non-equality).
+    let query = "SELECT * FROM mock_events WHERE status LIKE '%page2%' LIMIT 100";
+    let out = run_materialization_pipeline(query, &opts(100), &mut mat_ctx, &session_ctx)
+        .await
+        .expect("PSG-015: pipeline must not error for SQL LIKE query");
+
+    // PRIMARY behavioral assertion.
+    // RED: 0 rows (100 page1 fetched; none match LIKE '%page2%').
+    // GREEN: 100 rows (300 fetched; 100 page2 rows match; LIMIT 100 applied).
+    let row_count = total_rows(&out.batches);
+    assert_eq!(
+        row_count, 100,
+        "PSG-015 (Condition G revised — SQL LIKE): must return 100 rows when gate \
+         suppresses early-stop (300 rows fetched, LIKE filter yields 100 page2 rows); \
+         got {row_count}. \
+         If 0, v1.2 does not inspect SQL WHERE AST for non-temporal predicates."
+    );
+
+    // SECONDARY mechanism assertion.
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-015 (Condition G revised — SQL LIKE): gate must suppress early-stop \
+         (fetch_limit=0); adapter saw params.limit={seen_limit}."
+    );
+}
+
+// ===========================================================================
+// PSG-016 — Condition H: SQL JOIN suppresses early-stop
+// ===========================================================================
+
+/// RG-PSG-016 — AC-007 Condition H: SQL JOIN present
+///
+/// `SELECT a.status FROM mock_events a JOIN mock_events b ON a.status = b.status LIMIT 5`
+///
+/// v1.2 does not check `sql.joins`. v1.3 detects `!sql.joins.is_empty()` as
+/// Condition H.
+///
+/// DataFusion may error on the self-join with aliases, but the adapter is called
+/// before DataFusion runs and `last_limit` is set correctly.
+///
+/// RED:  `sql.joins` not checked → `fetch_limit=5` → `last_limit=5`.
+/// GREEN: Condition H detected → `fetch_limit=0` → `last_limit=0`.
+///
+/// SAP-3: SQL JOIN is grammar-reachable (standard SQL syntax).
+#[tokio::test]
+async fn test_BC_2_16_002_plan_shape_gate_sql_join_suppresses_early_stop() {
+    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // Condition H: SQL JOIN.
+    let query =
+        "SELECT a.status FROM mock_events a JOIN mock_events b ON a.status = b.status LIMIT 5";
+    // DataFusion may reject the self-join or succeed; assertion is on last_limit.
+    let _result = run_materialization_pipeline(query, &opts(5), &mut mat_ctx, &session_ctx).await;
+
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-016 (Condition H — SQL JOIN): gate must suppress early-stop \
+         (fetch_limit=0); adapter saw params.limit={seen_limit}. \
+         If 5, v1.2 does not check `sql.joins` for Condition H."
+    );
+}
+
+// ===========================================================================
+// PSG-017 — Condition I: PipeStage::Tail suppresses early-stop
+// ===========================================================================
+
+/// RG-PSG-017 — AC-007 Condition I: `PipeStage::Tail` present
+///
+/// `mock_events | tail 250` with `opts(300)`.
+///
+/// `| tail N` requests the last N rows — the pipeline must fetch ALL pages to
+/// guarantee correctness. v1.2 only checks `PipeStage::Stats` and `PipeStage::Dedup`
+/// in the Pipe arm; `PipeStage::Tail` returns false → early-stop fires.
+/// v1.3 adds Condition I: `PipeStage::Tail` → returns true → suppresses.
+///
+/// `opts(300)` ensures LIMIT 300 does not mask the row count difference:
+///   RED:  `fetch_limit=300` → mock returns 100 rows (limit > 0) → tail applied
+///         to 100 rows → ≤ 100 rows in result.
+///   GREEN: `fetch_limit=0` → mock returns 300 rows → tail 250 → 250 rows.
+///
+/// DataFusion may error if the pipe tail emitter is not yet implemented.
+/// `last_limit` is set before DataFusion runs.
+///
+/// SAP-3: `mock_events | tail 250` is grammar-reachable pipe syntax.
+#[tokio::test]
+async fn test_BC_2_16_002_plan_shape_gate_pipe_tail_suppresses_early_stop() {
+    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // Condition I: PipeStage::Tail.
+    let query = "mock_events | tail 250";
+    // DataFusion may error if the tail emitter is not implemented; assertion
+    // is on last_limit which is set before DataFusion runs.
+    let _result = run_materialization_pipeline(query, &opts(300), &mut mat_ctx, &session_ctx).await;
+
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-017 (Condition I — PipeStage::Tail): gate must suppress early-stop \
+         (fetch_limit=0); adapter saw params.limit={seen_limit}. \
+         If 300, v1.2 pipe arm does not detect PipeStage::Tail."
+    );
+}
+
+// ===========================================================================
+// PSG-018 — Condition J: PipeStage::Join suppresses early-stop
+// ===========================================================================
+
+/// RG-PSG-018 — AC-007 Condition J (defensive): `PipeStage::Join` present
+///
+/// `mock_events | join inner mock_events on status` with `opts(25)`.
+///
+/// `PipeStage::Join` in a pipe query requires fetching complete data from all
+/// joined sources. v1.2 only checks `PipeStage::Stats` and `PipeStage::Dedup`;
+/// `PipeStage::Join` returns false. v1.3 adds Condition J (defensive).
+///
+/// The join emitter may error during DataFusion execution. The adapter is called
+/// during the fan-out phase before DataFusion runs, so `last_limit` is set.
+///
+/// RED:  v1.2 misses PipeStage::Join → `fetch_limit=25` → `last_limit=25`.
+/// GREEN: Condition J detected → `fetch_limit=0` → `last_limit=0`.
+///
+/// SAP-3: `mock_events | join inner mock_events on status` is grammar-reachable
+/// pipe syntax (PipeStage::Join has grammar productions unlike FuncCall::Window).
+#[tokio::test]
+async fn test_BC_2_16_002_plan_shape_gate_pipe_join_suppresses_early_stop() {
+    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // Condition J: PipeStage::Join.
+    let query = "mock_events | join inner mock_events on status";
+    // DataFusion may error on the pipe join emitter; assertion is on last_limit.
+    let _result = run_materialization_pipeline(query, &opts(25), &mut mat_ctx, &session_ctx).await;
+
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-018 (Condition J — PipeStage::Join): gate must suppress early-stop \
+         (fetch_limit=0); adapter saw params.limit={seen_limit}. \
+         If 25, v1.2 pipe arm does not detect PipeStage::Join."
+    );
+}
+
+// ===========================================================================
+// PSG-019 — Conservative default (in-crate unit test in materialization.rs)
+// ===========================================================================
+//
+// PSG-019 is an in-crate unit test in `crates/prism-query/src/materialization.rs`
+// (module `plan_shape_gate_unit_tests`). The `_ => true` conservative default for
+// unknown Ast/PipeStage variants cannot be exercised from a grammar query string
+// (the grammar only produces known variants). The in-crate test uses the v1.3
+// signature change as the Red Gate mechanism and carries a SAP-3 rule 3 comment.
