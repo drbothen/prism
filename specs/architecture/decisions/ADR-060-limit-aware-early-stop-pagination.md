@@ -12,7 +12,7 @@ supersedes: []
 superseded_by: null
 amends: null
 anchor_stories:
-  - S-ENGINE-LIMIT-EARLY-STOP-001   # story to be created; §Authority will cite this ADR
+  - S-ENGINE-LIMIT-EARLY-STOP-001
 related_adrs: [ADR-028, ADR-033]
 related_bcs: [BC-2.16.002, BC-2.16.015, BC-2.01.010]
 locked_decisions: []
