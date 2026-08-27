@@ -4035,3 +4035,246 @@ async fn test_BC_2_11_001_tool_limit_truncation_signal_on_suppressed_filter() {
     );
 }
 // See `crates/prism-query/src/lib.rs` mod tests::high002_*
+
+// ---------------------------------------------------------------------------
+// RG-PSG-025: exact-limit is_truncated soundness (round-15)
+// ADR-060 §D8.3 — early-stop at exact LIMIT boundary must set is_truncated = true
+// ---------------------------------------------------------------------------
+
+/// RG-PSG-025 — ADR-060 §D8.3: `is_truncated` must be `true` when early-stop fires
+/// at the exact LIMIT boundary (total_rows == limit with more pages remaining).
+///
+/// ## Defect Being Caught
+///
+/// Engine Step 6 computes `is_truncated = total_rows > limit`. When early-stop fires
+/// after exactly `limit` rows are accumulated (i.e., `all_records.len() >= limit`
+/// triggers the break), the pipeline returns exactly `limit` rows. DataFusion's
+/// LIMIT clause also returns exactly `limit` rows. Step 6 then sees:
+///
+///   `is_truncated = limit > limit = false`
+///
+/// This is WRONG: early-stop halted pagination with pages remaining (the mock has
+/// 3 × limit rows total). The honest signal is `is_truncated = true`.
+///
+/// ## Round-15 Fix (ADR-060 v1.5 §D8.3)
+///
+/// Propagate an `early_stopped` flag from `run_materialization_pipeline` to
+/// `QueryEngine::execute`. Engine Step 6 uses:
+///
+///   `is_truncated = early_stopped` (if early-stop fires, more data may exist,
+///   so always report truncated regardless of `total_rows vs limit` comparison).
+///
+/// Or equivalently: `is_truncated = total_rows >= limit` (since `>= limit` covers
+/// both the `> limit` case and the `== limit` early-stop case).
+///
+/// ## Mock Setup
+///
+/// `EarlyStopExactLimitMockAdapter`:
+/// - `params.limit  > 0`: returns exactly `EXACT_LIMIT` rows (one "full page")
+/// - `params.limit == 0`: returns `3 × EXACT_LIMIT` rows (all pages, gate suppressed)
+///
+/// Query: `SELECT * FROM mock_events LIMIT 1000` — bare projection, no WHERE/agg/DISTINCT.
+/// `ast_is_reducing_plan = false` → early-stop fires → `fetch_limit = 1000`.
+/// Mock returns 1000 rows. DataFusion LIMIT 1000 → 1000 rows to engine.
+/// Engine Step 6: `total_rows = 1000`, `limit = 1000`,
+///   `is_truncated = 1000 > 1000 = false` ← WRONG (2 more pages exist).
+///
+/// ## RED / GREEN
+///
+/// RED  (current — `is_truncated = total_rows > limit`):
+///   `is_truncated = 1000 > 1000 = false` → assertion `is_truncated == true` FAILS.
+/// RED  (post-Task-12, same formula unchanged):
+///   same → still FAILS.
+/// GREEN (round-15 fix — `early_stopped` propagated):
+///   `is_truncated = true` (early-stop fired) → PASSES.
+///
+/// SAP-3: query goes through the full `QueryEngine::execute` path from a real SQL
+/// query string — not through a synthetic AST or `run_materialization_pipeline` directly.
+#[tokio::test]
+async fn test_psg_exact_limit_is_truncated_true() {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::Arc;
+
+    use arrow::array::StringArray;
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+    use async_trait::async_trait;
+    use prism_core::{OrgId, OrgSlug, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+        AdapterRegistry,
+    };
+
+    // -----------------------------------------------------------------------
+    // The exact limit constant used by this test.
+    // -----------------------------------------------------------------------
+    const EXACT_LIMIT: usize = 1000;
+
+    // -----------------------------------------------------------------------
+    // EarlyStopExactLimitMockAdapter
+    //
+    // Returns EXACT_LIMIT rows when params.limit > 0 (early-stop active, one page).
+    // Returns 3 × EXACT_LIMIT rows when params.limit == 0 (gate suppressed, all pages).
+    //
+    // This simulates: server has 3 pages of 1000 rows each (3000 total). When
+    // early-stop fires after page 1 (1000 rows ≥ LIMIT 1000), we stop fetching.
+    // The 2 remaining pages (2000 rows) are never fetched.
+    // -----------------------------------------------------------------------
+    struct EarlyStopExactLimitMockAdapter {
+        fetch_count: Arc<AtomicU64>,
+        /// 1 page × EXACT_LIMIT rows — returned when params.limit > 0.
+        page1_batches: Vec<RecordBatch>,
+        /// 3 pages × EXACT_LIMIT rows — returned when params.limit == 0.
+        full_batches: Vec<RecordBatch>,
+    }
+
+    impl std::fmt::Debug for EarlyStopExactLimitMockAdapter {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("EarlyStopExactLimitMockAdapter")
+                .field("fetch_count", &self.fetch_count.load(Ordering::Relaxed))
+                .finish()
+        }
+    }
+
+    #[async_trait]
+    impl SensorAdapter for EarlyStopExactLimitMockAdapter {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("mock")
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "mock"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            self.fetch_count.fetch_add(1, Ordering::SeqCst);
+            if params.limit == 0 {
+                // Gate suppressed → return all 3000 rows (3 pages × EXACT_LIMIT).
+                Ok(self.full_batches.clone())
+            } else {
+                // Early-stop active → return EXACT_LIMIT rows (page 1 only).
+                // This simulates the boundary case: one full page = exactly the limit.
+                Ok(self.page1_batches.clone())
+            }
+        }
+    }
+
+    // Build RecordBatch with `n` rows; single "status" column (Utf8).
+    fn make_data_batch(n: usize) -> RecordBatch {
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "status",
+            DataType::Utf8,
+            true,
+        )]));
+        let values: Vec<Option<&str>> = std::iter::repeat_n(Some("data"), n).collect();
+        let array = Arc::new(StringArray::from(values)) as Arc<dyn arrow::array::Array>;
+        RecordBatch::try_new(schema, vec![array]).expect("make_data_batch must succeed")
+    }
+
+    // 3 pages × EXACT_LIMIT rows each.
+    let page1 = make_data_batch(EXACT_LIMIT);
+    let page2 = make_data_batch(EXACT_LIMIT);
+    let page3 = make_data_batch(EXACT_LIMIT);
+
+    let fetch_count = Arc::new(AtomicU64::new(0));
+    let adapter = Arc::new(EarlyStopExactLimitMockAdapter {
+        fetch_count: Arc::clone(&fetch_count),
+        page1_batches: vec![page1.clone()],
+        full_batches: vec![page1, page2, page3],
+    });
+
+    let org_id = OrgId::new();
+    let org_slug = OrgSlug::new_unchecked("test-org");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, adapter);
+
+    // Build engine using the helpers::make_engine factory (StubCredentialResolver wired).
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        sensors: None,
+        limit: Some(EXACT_LIMIT),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    // Bare projection — no WHERE, no aggregation, no DISTINCT, no JOIN.
+    // ast_is_reducing_plan = false → early-stop fires → fetch_limit = EXACT_LIMIT.
+    // Mock: params.limit = EXACT_LIMIT > 0 → returns EXACT_LIMIT rows (page 1 only).
+    // DataFusion LIMIT EXACT_LIMIT → returns EXACT_LIMIT rows to engine.
+    // Engine Step 6: total_rows = EXACT_LIMIT, limit = EXACT_LIMIT.
+    //   is_truncated = EXACT_LIMIT > EXACT_LIMIT = false  ← WRONG (2 more pages exist)
+    //   returned_results = min(EXACT_LIMIT, EXACT_LIMIT) = EXACT_LIMIT
+    let result = engine
+        .execute(
+            &format!("SELECT * FROM mock_events LIMIT {EXACT_LIMIT}"),
+            options,
+        )
+        .await
+        .expect("PSG-025: execute must not error for bare projection");
+
+    // Precondition: adapter must have been called (not a vacuous short-circuit).
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-025 (exact-limit is_truncated): adapter must have been called at least once \
+         (fetch_count={fc}). A count of 0 means the pipeline short-circuited and all \
+         result assertions are vacuous."
+    );
+
+    // PRIMARY — is_truncated must be true when early-stop fires at the exact boundary.
+    //
+    // RED  (current code): is_truncated = EXACT_LIMIT > EXACT_LIMIT = false → FAILS.
+    // RED  (post-Task-12, same formula): same → still FAILS.
+    // GREEN (round-15 fix — propagate early_stopped flag):
+    //   is_truncated = early_stopped = true → PASSES.
+    //
+    // There are 2 remaining pages (2 × EXACT_LIMIT rows) that were never fetched.
+    // The consumer sees EXACT_LIMIT rows with is_truncated=false and has no signal
+    // that additional data exists — this is the defect being caught.
+    assert!(
+        result.is_truncated,
+        "PSG-025 (ADR-060 §D8.3 — exact-limit truncation signal): is_truncated must be \
+         true when early-stop fires at the exact LIMIT boundary ({EXACT_LIMIT} rows \
+         accumulated >= limit {EXACT_LIMIT}); got is_truncated=false. \
+         Engine Step 6 computes is_truncated = total_rows > limit = {EXACT_LIMIT} > \
+         {EXACT_LIMIT} = false — this misses the early-stop case where total_rows == \
+         limit but more pages exist. Fix: propagate early_stopped signal from \
+         run_materialization_pipeline and set is_truncated = true when early_stopped."
+    );
+
+    // SECONDARY — total_available must equal EXACT_LIMIT (Step 6 sole-owner, EC-11-093).
+    //
+    // This assertion passes both in RED and GREEN state; it verifies that materialization
+    // returns the full pre-cap count to engine Step 6 WITHOUT applying a tool-level pre-cap.
+    // A pre-cap inside run_materialization_pipeline would cause Step 6 to see fewer rows,
+    // producing a wrong total_available and potentially a wrong is_truncated signal.
+    //
+    // In both RED and GREEN: mock returns EXACT_LIMIT rows (page 1); DataFusion LIMIT
+    // EXACT_LIMIT → EXACT_LIMIT rows reach engine Step 6; total_available = EXACT_LIMIT.
+    assert_eq!(
+        result.total_available, EXACT_LIMIT,
+        "PSG-025 (EC-11-093 Step-6 sole-owner): total_available must equal the pre-cap \
+         row count ({EXACT_LIMIT}) returned by materialization; got {}. \
+         If total_available < EXACT_LIMIT, materialization applied a tool-level pre-cap \
+         before returning to engine Step 6, which violates the Step-6 sole-owner property \
+         and breaks is_truncated signal computation (F-R13-CRIT-001 prohibited behavior).",
+        result.total_available
+    );
+
+    // SECONDARY — returned_results must be the tool limit (EXACT_LIMIT rows delivered).
+    // This assertion passes both in RED and GREEN state; included as a sanity check.
+    assert_eq!(
+        result.returned_results, EXACT_LIMIT,
+        "PSG-025: returned_results must equal the tool LIMIT ({EXACT_LIMIT}); got {}.",
+        result.returned_results
+    );
+}

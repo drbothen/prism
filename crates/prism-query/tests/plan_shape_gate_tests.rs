@@ -1,4 +1,4 @@
-//! Plan-Shape Gate Red Gate Tests — RG-PSG-001..RG-PSG-019
+//! Plan-Shape Gate Red Gate Tests — RG-PSG-001..RG-PSG-019, RG-PSG-021..RG-PSG-024
 //!
 //! Traces to: S-ENGINE-LIMIT-EARLY-STOP-001 AC-007, ADR-060 §D8.7,
 //!            BC-2.16.002 (Multi-Step Fetch Pipeline Execution)
@@ -70,9 +70,22 @@
 //! | test_BC_2_16_002_plan_shape_gate_pipe_tail_suppresses_early_stop (PSG-017)             | I     | RED, E2E   |
 //! | test_BC_2_16_002_plan_shape_gate_pipe_join_suppresses_early_stop (PSG-018)             | J     | RED, E2E   |
 //! | test_BC_2_16_002_plan_shape_gate_conservative_default_suppresses_early_stop (PSG-019)  | def   | RED, unit  |
+//! | (PSG-020 is in execute_integration_tests.rs — F-R13-MED-002 truncation signal)         | —     | RED, E2E   |
+//! | test_psg_filter_mode_temporal_suppresses_early_stop (PSG-021)                           | G v1.5| RED, E2E   |
+//! | test_psg_pipe_where_temporal_suppresses_early_stop (PSG-022)                            | G v1.5| RED, E2E   |
+//! | test_psg_sql_eq_temporal_suppresses_early_stop (PSG-023)                                | G v1.5| RED, E2E   |
+//! | test_psg_sql_non_index_temporal_suppresses_early_stop (PSG-024)                         | G v1.5| RED, E2E   |
+//! | (PSG-025 is in execute_integration_tests.rs — exact-limit is_truncated soundness)       | —     | RED, E2E   |
 //!
 //! Tests marked "unit" live in `crates/prism-query/src/materialization.rs`
 //! (module `plan_shape_gate_unit_tests`) and carry SAP-3 rule 3 reachability comments.
+//!
+//! PSG-021..PSG-024 are the **round-15 permitted-path soundness remediation** tests.
+//! They assert that temporal predicates in Filter and Pipe-WHERE modes — as well as
+//! SQL Eq temporal and non-INDEX datetime predicates — correctly suppress early-stop.
+//! ADR-060 v1.4's temporal exemption in `has_client_side_where` is UNSOUND for these
+//! modes because the predicates are applied client-side by DataFusion, not pushed
+//! server-side. These tests are RED after Task 12 until the v1.5 soundness fix lands.
 
 #![allow(
     clippy::unwrap_used,
@@ -1147,3 +1160,315 @@ async fn test_BC_2_16_002_plan_shape_gate_pipe_join_suppresses_early_stop() {
 // unknown Ast/PipeStage variants cannot be exercised from a grammar query string
 // (the grammar only produces known variants). The in-crate test uses the v1.3
 // signature change as the Red Gate mechanism and carries a SAP-3 rule 3 comment.
+
+// ===========================================================================
+// PSG-021 — Temporal-exemption soundness: Filter mode (round-15)
+// ===========================================================================
+
+/// RG-PSG-021 — ADR-060 §D8.7 v1.5: `Ast::Filter` temporal predicate must suppress
+///
+/// `mock_events | timestamp > '2024-01-01T00:00:00Z'`
+///
+/// ## Soundness Defect (ADR-060 v1.4)
+///
+/// ADR-060 v1.4's `has_client_side_where` for `Ast::Filter` returns
+/// `!is_purely_temporal_predicate(&f.predicate)`. For a temporal GT comparison,
+/// `is_purely_temporal_predicate` returns `true` → `has_client_side_where` returns
+/// `false` → early-stop is NOT suppressed.
+///
+/// This is UNSOUND: in `Ast::Filter` mode ALL predicates are applied client-side
+/// by DataFusion. ADR-033 T1 server-side temporal push-down applies ONLY to
+/// `Ast::Sql` queries on INDEX-designated datetime columns — it does NOT cover
+/// Filter mode. The v1.4 exemption incorrectly treats filter-mode temporal
+/// predicates as if they were pushed server-side, allowing early-stop to fire and
+/// truncating results without signalling `is_truncated = true`.
+///
+/// ## Round-15 Fix (ADR-060 v1.5 §D8.7)
+///
+/// Remove the temporal exemption from the `Ast::Filter` arm of `has_client_side_where`.
+/// Filter-mode predicates are ALWAYS client-side regardless of whether they are
+/// temporal. After the fix: `has_client_side_where = true` → gate suppresses →
+/// `fetch_limit = 0` → `last_limit = 0`.
+///
+/// ## RED / GREEN mechanics
+///
+/// RED (current code — no gate):
+///   `fetch_limit = opts.limit = 25 > 0` → `last_limit = 25` ≠ 0.
+/// RED (post-Task-12 with v1.4 temporal exemption):
+///   `is_purely_temporal_predicate(GT, Literal::Timestamp)` = true →
+///   `has_client_side_where(Ast::Filter)` = false → `fetch_limit = 25` →
+///   `last_limit = 25` ≠ 0.
+/// GREEN (ADR-060 v1.5 fix applied):
+///   Filter-mode temporal exemption removed → `has_client_side_where` = true →
+///   `fetch_limit = 0` → `last_limit = 0`.
+///
+/// `'2024-01-01T00:00:00Z'` parses as `Literal::Timestamp` (RFC-3339 succeeds;
+/// no `RawTemporalLiteral` schema-aware validation required).
+///
+/// SAP-3: `mock_events | timestamp > '2024-01-01T00:00:00Z'` is grammar-reachable
+/// Filter mode; runs end-to-end through `run_materialization_pipeline`.
+#[tokio::test]
+async fn test_psg_filter_mode_temporal_suppresses_early_stop() {
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx();
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // Filter-mode temporal GT predicate.
+    // Predicate: Compare { op: Gt, lhs: Field("timestamp"), rhs: Literal::Timestamp }.
+    // is_purely_temporal_predicate returns true (range comparison with Timestamp literal).
+    // has_client_side_where(Ast::Filter) -> !true = false -> no suppression in v1.4.
+    // fetch_limit = opts.limit = 25 > 0 -> adapter sees params.limit = 25.
+    //
+    // DataFusion may report no 'timestamp' column in mock data — assertion is on
+    // last_limit which is recorded before DataFusion runs.
+    let query = "mock_events | timestamp > '2024-01-01T00:00:00Z'";
+    let _result = run_materialization_pipeline(query, &opts(25), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002 hardening: adapter must have been called (not vacuous init value).
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-021 (filter-mode temporal): adapter must have been called at least once \
+         (fetch_count={fc}). A count of 0 means last_limit==0 is the init value, not gate evidence."
+    );
+
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-021 (ADR-060 v1.5 — filter-mode temporal soundness): gate must suppress \
+         early-stop for filter-mode temporal predicate (fetch_limit=0); adapter saw \
+         params.limit={seen_limit}. If 25, the temporal exemption in \
+         has_client_side_where(Ast::Filter) is incorrectly permitting early-stop for a \
+         client-side predicate. ADR-033 T1 server-side push-down does NOT apply to \
+         Filter mode — filter predicates are always evaluated by DataFusion client-side."
+    );
+}
+
+// ===========================================================================
+// PSG-022 — Temporal-exemption soundness: Pipe-WHERE mode (round-15)
+// ===========================================================================
+
+/// RG-PSG-022 — ADR-060 §D8.7 v1.5: `PipeStage::Where` temporal predicate must suppress
+///
+/// `mock_events | where timestamp > '2024-01-01T00:00:00Z'`
+///
+/// ## Soundness Defect (ADR-060 v1.4)
+///
+/// ADR-060 v1.4's `has_client_side_where` for `Ast::Pipe` returns `true` if ANY
+/// `PipeStage::Where(pred)` satisfies `!is_purely_temporal_predicate(pred)`. For a
+/// temporal GT predicate, `is_purely_temporal_predicate` returns `true`, so the
+/// stage's contribution is `!true = false`. If all Where stages are temporal,
+/// `has_client_side_where` returns `false` → no suppression.
+///
+/// This is UNSOUND: `PipeStage::Where` predicates are always applied client-side by
+/// DataFusion. The pipe-WHERE stage runs AFTER the server fetch, not during it.
+/// ADR-033 T1 push-down cannot apply to pipe-WHERE stages.
+///
+/// ## Round-15 Fix (ADR-060 v1.5 §D8.7)
+///
+/// Remove the temporal exemption from the `Ast::Pipe` arm's Where-stage check. Any
+/// `PipeStage::Where` stage → `has_client_side_where = true` → gate suppresses →
+/// `fetch_limit = 0` → `last_limit = 0`.
+///
+/// ## RED / GREEN mechanics
+///
+/// RED (current code — no gate):
+///   `fetch_limit = opts.limit = 25 > 0` → `last_limit = 25` ≠ 0.
+/// RED (post-Task-12 with v1.4 temporal exemption):
+///   `is_purely_temporal_predicate(GT, Literal::Timestamp)` = true →
+///   Where-stage contribution = false → `has_client_side_where = false` →
+///   `fetch_limit = 25` → `last_limit = 25` ≠ 0.
+/// GREEN (ADR-060 v1.5 fix applied):
+///   Pipe-WHERE temporal exemption removed → `has_client_side_where = true` →
+///   `fetch_limit = 0` → `last_limit = 0`.
+///
+/// SAP-3: `mock_events | where timestamp > '2024-01-01T00:00:00Z'` is grammar-reachable
+/// pipe syntax; runs end-to-end through `run_materialization_pipeline`.
+#[tokio::test]
+async fn test_psg_pipe_where_temporal_suppresses_early_stop() {
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx();
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // Pipe-WHERE temporal GT predicate.
+    // PipeStage::Where(Compare { op: Gt, lhs: Field("timestamp"), rhs: Literal::Timestamp }).
+    // is_purely_temporal_predicate returns true -> Where-stage contribution = !true = false.
+    // has_client_side_where(Ast::Pipe) -> false (all Where stages are temporal) -> no suppress.
+    // fetch_limit = opts.limit = 25 > 0 -> adapter sees params.limit = 25.
+    //
+    // DataFusion may report no 'timestamp' column in mock data — assertion is on
+    // last_limit which is recorded before DataFusion runs.
+    let query = "mock_events | where timestamp > '2024-01-01T00:00:00Z'";
+    let _result = run_materialization_pipeline(query, &opts(25), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002 hardening: adapter must have been called.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-022 (pipe-WHERE temporal): adapter must have been called at least once \
+         (fetch_count={fc}). A count of 0 means last_limit==0 is the init value, not gate evidence."
+    );
+
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-022 (ADR-060 v1.5 — pipe-WHERE temporal soundness): gate must suppress \
+         early-stop for pipe-WHERE temporal predicate (fetch_limit=0); adapter saw \
+         params.limit={seen_limit}. If 25, the temporal exemption in \
+         has_client_side_where(Ast::Pipe) is incorrectly permitting early-stop for a \
+         client-side predicate. PipeStage::Where is applied by DataFusion after the \
+         server fetch — it is always client-side."
+    );
+}
+
+// ===========================================================================
+// PSG-023 — Temporal-exemption soundness: SQL Eq (non-range) temporal (round-15)
+// ===========================================================================
+
+/// RG-PSG-023 — ADR-060 §D8.7 v1.5: SQL `WHERE timestamp = '<iso>'` must suppress
+///
+/// `SELECT * FROM mock_events WHERE timestamp = '2024-01-01T00:00:00Z' LIMIT 25`
+///
+/// ## Soundness Defect
+///
+/// If `is_purely_temporal_predicate` accepts equality (`Eq`) operators in addition to
+/// range operators (Gt, Lt, Gte, Lte), it would classify `timestamp = 'iso'` as a
+/// "purely temporal predicate" and grant the temporal exemption. But `Eq` comparisons
+/// on datetime columns are NOT pushed to the sensor server (only range-window queries
+/// are pushed via ADR-033 T1). An `Eq` comparison is applied client-side by DataFusion.
+///
+/// ## Round-15 Fix
+///
+/// Restrict `is_purely_temporal_predicate` to range operators ONLY (Gt, Gte, Lt, Lte,
+/// Between). Eq on a temporal field → `is_purely_temporal_predicate = false` →
+/// `has_client_side_where = true` → gate suppresses → `fetch_limit = 0`.
+///
+/// ## RED / GREEN mechanics
+///
+/// RED (current code — no gate):
+///   `fetch_limit = opts.limit = 25 > 0` → `last_limit = 25` ≠ 0.
+/// RED (post-Task-12, if `is_purely_temporal_predicate` includes Eq):
+///   `is_purely_temporal_predicate(Eq, Timestamp)` = true (incorrect) →
+///   `has_client_side_where(Ast::Sql)` = false → `fetch_limit = 25` →
+///   `last_limit = 25` ≠ 0.
+/// GREEN (v1.5 fix — Eq excluded from purely-temporal):
+///   `is_purely_temporal_predicate(Eq, Timestamp)` = false →
+///   `has_client_side_where` = true → `fetch_limit = 0` → `last_limit = 0`.
+///
+/// SAP-3: standard SQL `WHERE timestamp = '...' LIMIT 25` is grammar-reachable.
+#[tokio::test]
+async fn test_psg_sql_eq_temporal_suppresses_early_stop() {
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx();
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // SQL Eq temporal predicate (point equality, not a range comparison).
+    // If is_purely_temporal_predicate includes Eq: returns true -> no suppression.
+    // fetch_limit = opts.limit = 25 > 0 -> adapter sees params.limit = 25.
+    //
+    // DataFusion may report no 'timestamp' column in mock data — assertion is on
+    // last_limit which is recorded before DataFusion runs.
+    let query = "SELECT * FROM mock_events WHERE timestamp = '2024-01-01T00:00:00Z' LIMIT 25";
+    let _result = run_materialization_pipeline(query, &opts(25), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002 hardening: adapter must have been called.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-023 (SQL Eq temporal): adapter must have been called at least once \
+         (fetch_count={fc}). A count of 0 means last_limit==0 is the init value, not gate evidence."
+    );
+
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-023 (ADR-060 v1.5 — SQL Eq temporal soundness): gate must suppress \
+         early-stop for SQL timestamp equality predicate (fetch_limit=0); adapter saw \
+         params.limit={seen_limit}. If 25, is_purely_temporal_predicate is incorrectly \
+         classifying an Eq comparison as a temporal range push-down candidate. \
+         Only GT/GTE/LT/LTE/BETWEEN are pushed server-side (ADR-033 T1); Eq is always \
+         applied client-side by DataFusion."
+    );
+}
+
+// ===========================================================================
+// PSG-024 — Temporal-exemption soundness: non-INDEX datetime column (round-15)
+// ===========================================================================
+
+/// RG-PSG-024 — ADR-060 §D8.7 v1.5: SQL non-INDEX datetime column must suppress
+///
+/// `SELECT * FROM mock_events WHERE created_at > '2024-01-01T00:00:00Z' LIMIT 25`
+///
+/// ## Soundness Defect
+///
+/// If `is_purely_temporal_predicate` classifies any range comparison involving a
+/// datetime-valued field as "purely temporal" without checking whether the column is
+/// declared INDEX in the sensor TOML spec, it would grant the temporal exemption
+/// for columns that cannot actually be pushed server-side. ADR-033 T1 server-side
+/// temporal push-down requires the column to be designated INDEX; non-INDEX datetime
+/// comparisons are applied client-side by DataFusion.
+///
+/// ## Round-15 Fix
+///
+/// Add INDEX-awareness to the temporal exemption: only grant the temporal exemption
+/// (return false from `has_client_side_where`) when the datetime column is declared
+/// INDEX in the resolved sensor spec. For unknown columns or non-INDEX columns,
+/// return true (conservative — treat as client-side) → gate suppresses.
+///
+/// ## Mock arrangement note
+///
+/// The `PlanShapeGateMockAdapter` provides no sensor-spec column metadata. The round-15
+/// fix must use a conservative default of "non-INDEX" for columns whose INDEX status
+/// cannot be determined (e.g., columns not present in a resolved sensor spec). This
+/// test uses `created_at` as a clearly non-primary datetime field distinct from any
+/// INDEX-designated timestamp column. The implementer must ensure `has_client_side_where`
+/// defaults to client-side (suppress) for any column it cannot verify is INDEX.
+///
+/// ## RED / GREEN mechanics
+///
+/// RED (current code — no gate):
+///   `fetch_limit = opts.limit = 25 > 0` → `last_limit = 25` ≠ 0.
+/// RED (post-Task-12, if temporal exemption ignores INDEX status):
+///   `is_purely_temporal_predicate(GT, Timestamp on 'created_at')` = true
+///   (no INDEX check) → `has_client_side_where = false` → `fetch_limit = 25` →
+///   `last_limit = 25` ≠ 0.
+/// GREEN (v1.5 fix — conservative non-INDEX default):
+///   `created_at` has no INDEX declaration → conservative default = client-side →
+///   `has_client_side_where = true` → `fetch_limit = 0` → `last_limit = 0`.
+///
+/// SAP-3: standard SQL `WHERE created_at > '...' LIMIT 25` is grammar-reachable.
+#[tokio::test]
+async fn test_psg_sql_non_index_temporal_suppresses_early_stop() {
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx();
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // SQL GT predicate on a non-INDEX datetime column ('created_at').
+    // 'created_at' is not a primary temporal INDEX column; it cannot be pushed server-side.
+    // If is_purely_temporal_predicate ignores INDEX status: returns true -> no suppression.
+    // fetch_limit = opts.limit = 25 > 0 -> adapter sees params.limit = 25.
+    //
+    // DataFusion may report no 'created_at' column in mock data — assertion is on
+    // last_limit which is recorded before DataFusion runs.
+    let query = "SELECT * FROM mock_events WHERE created_at > '2024-01-01T00:00:00Z' LIMIT 25";
+    let _result = run_materialization_pipeline(query, &opts(25), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002 hardening: adapter must have been called.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-024 (non-INDEX datetime): adapter must have been called at least once \
+         (fetch_count={fc}). A count of 0 means last_limit==0 is the init value, not gate evidence."
+    );
+
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-024 (ADR-060 v1.5 — non-INDEX datetime soundness): gate must suppress \
+         early-stop for a non-INDEX datetime column predicate (fetch_limit=0); adapter saw \
+         params.limit={seen_limit}. If 25, is_purely_temporal_predicate is classifying \
+         'created_at > timestamp' as a server-side push-down candidate without verifying \
+         the column is declared INDEX. ADR-033 T1 push-down requires INDEX designation; \
+         unknown or non-INDEX datetime columns must default to client-side (suppress)."
+    );
+}
