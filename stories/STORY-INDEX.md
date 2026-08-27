@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.912"
+version: "2.913"
 status: draft
 producer: state-manager
 timestamp: 2026-08-26T00:00:00Z
 phase: 3
 total_stories: 318
+# D-2326: F-R11-CRIT-001 REMEDIATED — S-ENGINE-LIMIT-EARLY-STOP-001 story v1.7→v1.9 (v1.8: AC-007+RG-PSG-001..008+crates_touched +prism-query+BC-2.16.002 v2.39 pin+BC-2.16.015 trace-only demotion+F-R11-LOW-001 AC-003 citation; v1.9: RG-PSG-009 HAVING + density 15/7≈2.14). plan-shape gate `ast_is_reducing_plan`/`expr_contains_aggregate` in materialization.rs + 9 RG-PSG tests GREEN. just check 5836 GREEN. Feature HEAD e014bf25b→e59116ea8 PUSHED. total_stories 318 UNCHANGED. STORY-INDEX v2.912→v2.913. D-2324 NOTE archived.
 # D-2324: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-10 result + F-R10-LOW-001 fix — story v1.6→v1.7 (SAC-1 task-ordering fix: RG-005/RG-006 authoring moved to Task 8 Red Gate first, before spec_driven_adapter wiring Task 9; ordinals renumbered). Feature HEAD UNCHANGED @e014bf25b. total_stories 318 UNCHANGED. STORY-INDEX v2.911→v2.912. D-2319 NOTE archived.
 # D-2316: ROUND-4 crates-column reconciliation — 3 engine rows corrected (prism-sensors→prism-spec-engine): H2 crates prism-bin,prism-spec-engine; LIMIT crates prism-spec-engine,prism-bin; TIMEOUT crates prism-bin,prism-spec-engine + pts tbd→5. Registration-time error D-2311. Feature HEAD @9202642bc. total_stories 318 UNCHANGED. STORY-INDEX v2.907→v2.908. D-2315 NOTE archived.
 # D-2314: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-2 fix-burst — story v1.1→v1.2 (Task 8 prescribed-comment corrected to match ADR-060 v1.1; risk-comment marked RESOLVED; AC-003/AC-006 → real RG-002 + compile gate; EC-002/EC-003 cite new tests; EC-001/EC-005 annotated non-behavioral; RG-006/TV cite claroty-scale truncated test). total_stories 318 UNCHANGED. STORY-INDEX v2.905→v2.906. D-2313 NOTE archived.
@@ -1037,7 +1038,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-CLAROTY-OT-EVENTS-001 | Claroty xDome OT Activity Events Table — claroty_ot_activity_events TOML block with 21-column Tier-1/Tier-2 spec, no DTU, live structural tests (Wave A G2) [draft v1.0] | prism-sensors, prism-spec-engine | 1 (BC-2.16.016 v1.0) | -- | 5 | -- |
 | S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001 | prism-spec-engine: distinguish KeyNotFound from ExtractionFailed in source_path extraction — debug log level for absent optional keys [draft v1.0] | prism-spec-engine | 1 (BC-2.16.002) | -- | 3 | -- |
 | S-ENGINE-H2-LARGE-RESPONSE-001 | Claroty xDome large-response transport — direct-h2 confirmation + recurrence guard (canary + timeout diagnostics + query-CLI wiring) [draft v1.2] | prism-bin, prism-spec-engine | 1 (BC-2.16.002 v2.38) | -- | 3 | -- |
-| S-ENGINE-LIMIT-EARLY-STOP-001 | LIMIT-aware early-stop pagination — FetchContext.early_stop_limit + execute_impl check + spec_driven_adapter wiring (ADR-060 v1.1 §D8); LIMIT read from QueryParams.limit [draft v1.7] | prism-spec-engine, prism-bin | 2 (BC-2.16.002 v2.38, BC-2.16.015 v1.7) | -- | 8 | -- |
+| S-ENGINE-LIMIT-EARLY-STOP-001 | LIMIT-aware early-stop pagination — FetchContext.early_stop_limit + execute_impl check + spec_driven_adapter wiring + plan-shape gate `ast_is_reducing_plan`/`expr_contains_aggregate` in materialization.rs (ADR-060 v1.2 §D8.7); suppressed for reducing plans [draft v1.9] | prism-spec-engine, prism-bin, prism-query | 1 (BC-2.16.002 v2.39; trace: BC-2.16.015 v1.8) | -- | 8 | -- |
 | S-ENGINE-TIMEOUT-OVERLAY-WIRE-001 | timeout_secs overlay wiring — per-org request timeout via ResolvedSensorSpec provenance flag into per-request reqwest client (ADR-060 v1.1 §D8.6, deferred) [draft v1.0 stub] | prism-bin, prism-spec-engine | 0 (BC pending PO authorship) | -- | 5 | S-ENGINE-LIMIT-EARLY-STOP-001 |
 
 ## Sensor-Critical Stories (Wave B — Claroty xDome Endpoint Expansion)
@@ -1647,6 +1648,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.913 | 2026-08-26 | state-manager D-2326: F-R11-CRIT-001 REMEDIATED — S-ENGINE-LIMIT-EARLY-STOP-001 story v1.7→v1.9 (v1.8: AC-007 plan-shape gate + RG-PSG-001..008 + crates_touched +prism-query + BC-2.16.002 v2.39 pin + BC-2.16.015 trace-only demotion per F-R11-OBS-001 PO adjudication + F-R11-LOW-001 AC-003 k>1 citation; v1.9: RG-PSG-009 HAVING + density 15/7≈2.14). Guard `ast_is_reducing_plan`/`expr_contains_aggregate` in materialization.rs (fetch_limit=0 for reducing plans) + 9 RG-PSG tests GREEN. just check 5836 GREEN. Feature HEAD e014bf25b→e59116ea8 PUSHED. BC-5.39.001 LOCAL streak RESET 0/3; round-12 re-cascade pending. total_stories 318 UNCHANGED. STORY-INDEX v2.912→v2.913. |
 | v2.912 | 2026-08-26 | state-manager D-2324: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-10 result + F-R10-LOW-001 fix — story v1.6→v1.7 (SAC-1 task-ordering fix: RG-005/RG-006 authoring moved to Task 8 Red Gate first, before spec_driven_adapter wiring Task 9; ordinals renumbered; no AC/RG/EC/BC/code change). Feature HEAD UNCHANGED @e014bf25b. BC-5.39.001 LOCAL streak 0/3; round-11 re-cascade pending on UNCHANGED @e014bf25b. total_stories 318 UNCHANGED. STORY-INDEX v2.911→v2.912. |
 | v2.911 | 2026-08-26 | state-manager D-2319: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-7 fix-burst — story v1.5→v1.6 (F-R7-MED-001: BC-2.16.015 §Behavioral Contracts Title cell corrected to verbatim H1 per POL-7). Code HEAD @6a7768b1b (F-R7-OBS-001 test-doc reframe comment-only). BC-5.39.001 LOCAL streak RESET 0/3; round-8 re-cascade pending. total_stories 318 UNCHANGED. STORY-INDEX v2.910→v2.911. |
 | v2.910 | 2026-08-26 | state-manager D-2318: S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-6 records-only micro-burst (TD-VSDD-096) — story v1.4→v1.5 (F-R6-LOW-001: 3 volatile line-cites stripped in §Tasks Task 7 + §Previous Story Intelligence per TD-VSDD-091; final grep zero volatile cites). Code HEAD UNCHANGED @ad756e1f9. BC-5.39.001 LOCAL streak 0/3; round-7 re-cascade pending. total_stories 318 UNCHANGED. STORY-INDEX v2.909→v2.910. |

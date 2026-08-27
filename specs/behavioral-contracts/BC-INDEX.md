@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.68"
+version: "9.69"
 status: draft
 producer: state-manager
 timestamp: 2026-08-26T14:00:00Z
+# NOTE: D-2326 — BC-INDEX v9.68→v9.69: F-R11-CRIT-001 REMEDIATED — BC-2.16.002 pin v2.38→v2.39 (§Postconditions plan-shape gate clause per ADR-060 §D8.7 + 7 new ECs EC-016-002-001..007 plan-shape edge cases). BC-2.16.015 pin v1.7→v1.8 (EC-016-015-008 COUNT full-count; trace-only from LIMIT perimeter per F-R11-OBS-001 PO adjudication). draft/active/total UNCHANGED (11/253/277). D-2312 NOTE archived.
 # NOTE: D-2312 — BC-INDEX v9.67→v9.68: DEFECT-1 resolution — BC-2.16.002 pin v2.37→v2.38 (H2 flow-control §Postconditions entry REMOVED — ADR-059 §D7 falsified by live wire evidence; LIMIT early-stop postcondition + atomicity reconciliation KEPT). draft/active/total UNCHANGED (11/253/277). D-2311 NOTE archived.
 # NOTE: D-2311 — BC-INDEX v9.66→v9.67: engine spec-package burst — BC-2.16.002 pin v2.35→v2.37 (H2 flow-control postcondition + LIMIT early-stop postcondition + atomicity reconciliation; anchors S-ENGINE-H2-LARGE-RESPONSE-001 + S-ENGINE-LIMIT-EARLY-STOP-001). BC-2.16.015 pin v1.6→v1.7 (TV-BC-2.16.015-006 + EC-016-015-007 LIMIT early-stop; anchor S-ENGINE-LIMIT-EARLY-STOP-001). draft/active/total UNCHANGED (11/253/277). D-2308 NOTE archived.
 # NOTE: D-2308 — BC-INDEX v9.65→v9.66: BC-2.16.015 pin v1.5→v1.6 (LOCAL cascade round-4 fix-burst — F-VULNS-R4C-LOW-001 id null→absent spec precision corroborated 2 passes; product-owner EC-016-015-002+§Invariants; §3 interim WARN note + anchor S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001). draft/active/total UNCHANGED (11/253/277). D-2306 NOTE archived.
@@ -338,7 +339,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft (v1.4 current) |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active v1.9 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (v2.38 current) |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (v2.39 current) |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | active (v1.27 current) |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -351,7 +352,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active v1.33 |
 | BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active v1.42 |
 | BC-2.16.014 | Declarative Auth Acquisition Token Lifecycle | 16 - Spec Engine | CAP-029 | P0 | active v1.22 |
-| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | draft v1.7 |
+| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | 16 - Spec Engine | CAP-029 | P0 | draft v1.8 |
 | BC-2.16.016 | Claroty xDome OT Activity Events Table — Queryable Surface and OCSF detection_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
 | BC-2.16.017 | Claroty xDome Device-Vulnerability Relations Table — Queryable Surface, Composite PK, and OCSF vulnerability_finding Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
 | BC-2.16.018 | Claroty xDome Collection Servers Table — Queryable Surface and OCSF inventory_info Mapping (No DTU) | 16 - Spec Engine | CAP-029 | P0 | draft v1.0 |
