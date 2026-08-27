@@ -83,10 +83,10 @@ fn make_http_client() -> reqwest::Client {
 }
 
 // ---------------------------------------------------------------------------
-// RG-001 (GREEN) — FetchContext constructor stores early_stop_limit field
+// RG-001 — FetchContext constructor stores early_stop_limit field
 // ---------------------------------------------------------------------------
 
-/// RG-001 (GREEN): `FetchContext::new` stores `early_stop_limit` field correctly.
+/// RG-001: `FetchContext::new` stores `early_stop_limit` field correctly.
 ///
 /// Passes now — stub committed @9530f3478 already adds the field and constructor param.
 /// Fails only before the field and constructor were added (pre-stub phase).
@@ -123,10 +123,10 @@ fn test_BC_2_16_002_early_stop_fetch_context_new_stores_early_stop_limit() {
 }
 
 // ---------------------------------------------------------------------------
-// RG-002 (RED) — pipeline stops after first complete page, truncated stays false
+// RG-002 — pipeline stops after first complete page, truncated stays false
 // ---------------------------------------------------------------------------
 
-/// RG-002 (RED): pipeline stops after the first complete page when
+/// RG-002: pipeline stops after the first complete page when
 /// `early_stop_limit = Some(1)` with `page_size = 10`.
 ///
 /// **Mock setup** (OffsetLimit GET, page_size=10):
@@ -213,10 +213,10 @@ async fn test_BC_2_16_002_early_stop_pipeline_stops_without_setting_truncated() 
 }
 
 // ---------------------------------------------------------------------------
-// RG-003 (GREEN / regression sentinel) — None fetches all available pages
+// RG-003 (regression sentinel) — None fetches all available pages
 // ---------------------------------------------------------------------------
 
-/// RG-003 (GREEN / regression sentinel): `early_stop_limit = None` fetches every page.
+/// RG-003 (regression sentinel): `early_stop_limit = None` fetches every page.
 ///
 /// Must pass BOTH before and after the early-stop implementation. Verifies that
 /// `None` leaves the full-pagination behaviour completely unchanged.
@@ -289,10 +289,10 @@ async fn test_BC_2_16_002_early_stop_none_fetches_all_pages() {
 }
 
 // ---------------------------------------------------------------------------
-// RG-004 (GREEN / DI-019 ordering sentinel)
+// RG-004 (DI-019 ordering sentinel)
 // ---------------------------------------------------------------------------
 
-/// RG-004 (GREEN / ordering sentinel): DI-019 fires BEFORE the early-stop check.
+/// RG-004 (ordering sentinel): DI-019 fires BEFORE the early-stop check.
 ///
 /// A single page returns 10 001 records. `early_stop_limit = Some(5)` would stop
 /// the loop very early if placed BEFORE DI-019, leaving `truncated = false`.
@@ -523,10 +523,10 @@ async fn test_BC_2_16_002_early_stop_cursor_token_stops_after_first_page() {
 }
 
 // ---------------------------------------------------------------------------
-// EC-002 (GREEN / coverage) — early_stop_limit > total records: all pages fetched
+// EC-002 (coverage) — early_stop_limit > total records: all pages fetched
 // ---------------------------------------------------------------------------
 
-/// EC-002 (GREEN / coverage): `early_stop_limit = Some(1000)` with ~13 total records.
+/// EC-002 (coverage): `early_stop_limit = Some(1000)` with ~13 total records.
 ///
 /// Early-stop never fires because `all_records.len()` never reaches 1000.
 /// The pipeline must complete via normal OffsetLimit short-page termination.
@@ -634,10 +634,10 @@ async fn test_BC_2_16_002_early_stop_limit_exceeds_total_fetches_all_pages() {
 }
 
 // ---------------------------------------------------------------------------
-// EC-003 (GREEN / coverage) — early_stop_limit == page_size: exact page-boundary check
+// EC-003 (coverage) — early_stop_limit == page_size: exact page-boundary check
 // ---------------------------------------------------------------------------
 
-/// EC-003 (GREEN / coverage): `early_stop_limit = Some(P)` where P equals the page_size.
+/// EC-003 (coverage): `early_stop_limit = Some(P)` where P equals the page_size.
 ///
 /// After exactly one full page, `all_records.len() = P` and `P >= P` fires early-stop.
 /// This exercises the N==page_size boundary (strictly-equal branch of the `>=` check).
@@ -726,11 +726,11 @@ async fn test_BC_2_16_002_early_stop_limit_equals_page_size_boundary() {
 }
 
 // ---------------------------------------------------------------------------
-// LOW-1 (GREEN / coverage) — large page_size (claroty scale), truncated=false
+// LOW-1 (coverage) — large page_size (claroty scale), truncated=false
 // Discharges TV-BC-2.16.015-006: PipelineResult.truncated=false at page_size=1000.
 // ---------------------------------------------------------------------------
 
-/// LOW-1 (GREEN / coverage): `page_size=1000` with `early_stop_limit=Some(1)`.
+/// LOW-1 (coverage): `page_size=1000` with `early_stop_limit=Some(1)`.
 ///
 /// Claroty-scale test: page_size=1000 matches the Claroty sensor's real page budget.
 /// This test directly asserts `PipelineResult.truncated == false` at the
@@ -815,12 +815,12 @@ async fn test_BC_2_16_002_early_stop_large_page_size_truncated_false() {
 }
 
 // ---------------------------------------------------------------------------
-// MULTI-PAGE (GREEN / coverage) — early-stop fires on page 2, not page 1.
+// MULTI-PAGE (coverage) — early-stop fires on page 2, not page 1.
 // Closes AC-003 ceil(N/page_size) gap: proves the check fires at EVERY page boundary.
 // Kills the first-iteration-only mutation of the early-stop check.
 // ---------------------------------------------------------------------------
 
-/// MULTI-PAGE (GREEN / coverage): `early_stop_limit = Some(15)` with `page_size = 10`.
+/// MULTI-PAGE (coverage): `early_stop_limit = Some(15)` with `page_size = 10`.
 ///
 /// Page 1 delivers 10 records (10 < 15 → loop CONTINUES). Page 2 delivers 10 more
 /// records (cumulative 20 >= 15 → `break 'steps`). Page 3 is never fetched.

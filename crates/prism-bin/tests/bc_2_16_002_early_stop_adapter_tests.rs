@@ -187,10 +187,10 @@ fn make_page_records(count: usize) -> Vec<serde_json::Value> {
 }
 
 // ---------------------------------------------------------------------------
-// RG-005 (RED) — adapter maps params.limit to early_stop_limit
+// RG-005 — adapter maps params.limit to early_stop_limit
 // ---------------------------------------------------------------------------
 
-/// RG-005 (RED): `SpecDrivenSensorAdapter::fetch` must map `params.limit=1` to
+/// RG-005: `SpecDrivenSensorAdapter::fetch` must map `params.limit=1` to
 /// `FetchContext.early_stop_limit = Some(1)`, causing the pipeline to stop after
 /// exactly 1 page (page_size=10, 2 data pages + 1 terminal page available).
 ///
@@ -298,7 +298,7 @@ async fn test_BC_2_16_002_early_stop_spec_driven_adapter_maps_params_limit_to_ea
     }
 
     // -----------------------------------------------------------------------
-    // Part B (GREEN sentinel): params.limit=0 → None → all pages fetched
+    // Part B (sentinel): params.limit=0 → None → all pages fetched
     // -----------------------------------------------------------------------
     {
         let mock_server_0 = MockServer::start().await;
@@ -372,10 +372,10 @@ async fn test_BC_2_16_002_early_stop_spec_driven_adapter_maps_params_limit_to_ea
 }
 
 // ---------------------------------------------------------------------------
-// RG-006 (RED) — Claroty-scale: page_size=1000, 3 pages, limit=1 → 1 request
+// RG-006 — Claroty-scale: page_size=1000, 3 pages, limit=1 → 1 request
 // ---------------------------------------------------------------------------
 
-/// RG-006 (RED): Claroty-scale behavioral proof with faithful POST wire shape —
+/// RG-006: Claroty-scale behavioral proof with faithful POST wire shape —
 /// page_size=1000, 3 data pages of 1000 records each, `params.limit=1` → exactly
 /// 1 HTTP POST request issued.
 ///
