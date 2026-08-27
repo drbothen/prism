@@ -12,7 +12,7 @@ status: draft
 # TV-BC-2.16.015-006 authored and anchored to this story; POL-14 auto-promotes BC-2.16.015 to active when this story merges.
 producer: story-writer
 timestamp: "2026-08-26T00:00:00Z"
-version: "1.6"
+version: "1.7"
 modified: "2026-08-26"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -20,8 +20,8 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.015-claroty-vulnerabilities-table.md"
   - ".factory/specs/architecture/decisions/ADR-060-limit-aware-early-stop-pagination.md"
-input-hash: "07db7cb"
-# input-hash: recomputed 2026-08-26 after §Authority sweep (v1.1); v1.2 spec-only sweep — inputs unchanged; state-manager to recompute on next burst
+input-hash: "2218487"
+# input-hash: updated 2026-08-26 after F-R10-LOW-001 task-ordering fix (v1.7); state-manager to recompute on next burst if inputs change
 traces_to: ["BC-2.16.002", "BC-2.16.015"]
 points: 8
 estimated_days: 2
@@ -406,7 +406,21 @@ pattern) to minimize context consumption.
   both; `PaginationConfig::None` breaks naturally after one iteration). After editing: run
   `just iter prism-spec-engine` — RG-002 MUST turn GREEN; RG-003 MUST remain GREEN.
 
-- [ ] **Task 8 (Implementation — spec_driven_adapter wiring):** In `SpecDrivenSensorAdapter::fetch`
+- [ ] **Task 8 (Red Gate — test first):** Write RG-005:
+  `test_BC_2_16_002_early_stop_spec_driven_adapter_maps_params_limit_to_early_stop_limit`
+  in `crates/prism-bin/tests/` or adjacent integration test file. Use wiremock mock with
+  page_size=1000, 2 pages, `params.limit=1`. Assert mock received exactly 1 request.
+  Assert `truncated=false`. Also test `params.limit=0 → None` (3 pages all fetched).
+  MUST FAIL before Task 9 (spec_driven_adapter wiring not yet in place).
+
+  Write RG-006:
+  `test_BC_2_16_002_early_stop_claroty_page_size_1000_limit_1_single_page`
+  in the same file. Use wiremock mock with `page_size=1000`, 3 pages of 1000 records each,
+  `early_stop_limit=Some(1)`. Assert exactly 1 request issued. `truncated=false`.
+  Records count = 1000 (first page; DataFusion trims to 1 downstream).
+  This is the direct test vector for BC-2.16.015 TV-BC-2.16.015-006.
+
+- [ ] **Task 9 (Implementation — spec_driven_adapter wiring):** In `SpecDrivenSensorAdapter::fetch`
   in `crates/prism-bin/src/spec_driven_adapter.rs`, insert immediately before
   `let context = FetchContext::new(...)`:
   ```rust
@@ -421,25 +435,12 @@ pattern) to minimize context consumption.
   ```
   After editing: run `just iter prism-bin` — RG-005 MUST turn GREEN.
 
-- [ ] **Task 9 (Integration sweep — update all remaining callers):** Run `just check --no-fail-fast`
+- [ ] **Task 10 (Integration sweep — update all remaining callers):** Run `just check --no-fail-fast`
   across the full workspace. All integration test files listed in `crates_touched` that were
   updated in Task 5 should compile. If any callers were missed in Task 5, find them now via the
   compile errors and update each to pass `None`. Run `just iter prism-spec-engine` to confirm
   all pipeline.rs-adjacent tests pass. Run `just iter prism-bin` to confirm all prism-bin tests
   pass.
-
-- [ ] **Task 10 (Red Gate — tests for RG-005 and RG-006):** Write RG-005:
-  `test_BC_2_16_002_early_stop_spec_driven_adapter_maps_params_limit_to_early_stop_limit`
-  in `crates/prism-bin/tests/` or adjacent integration test file. Use wiremock mock with
-  page_size=1000, 2 pages, `params.limit=1`. Assert mock received exactly 1 request.
-  Assert `truncated=false`. Also test `params.limit=0 → None` (3 pages all fetched).
-
-  Write RG-006:
-  `test_BC_2_16_002_early_stop_claroty_page_size_1000_limit_1_single_page`
-  in the same file. Use wiremock mock with `page_size=1000`, 3 pages of 1000 records each,
-  `early_stop_limit=Some(1)`. Assert exactly 1 request issued. `truncated=false`.
-  Records count = 1000 (first page; DataFusion trims to 1 downstream).
-  This is the direct test vector for BC-2.16.015 TV-BC-2.16.015-006.
 
 - [ ] **Task 11 (SAP-1 self-check):** Confirm that no new `tracing::*!(event_type = ...)` emissions
   are added. BC-2.16.002 SAP-1 declaration states: "ADR-060 introduces NO new `event_type`
@@ -560,6 +561,7 @@ prism-spec-engine import added to prism-bin.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.7 | 2026-08-26 | story-writer | SAC-1 rule-3 task-ordering fix (F-R10-LOW-001): moved RG-005/RG-006 test authoring from old Task 10 to new Task 8, positioned before spec_driven_adapter wiring (new Task 9); restored "(Red Gate — test first)" label on Task 8; added "MUST FAIL before Task 9" clause; old Tasks 8 and 9 renumbered to Tasks 9 and 10 respectively; Tasks 11 and 12 unchanged. Dim-2 cross-reference sweep: no task-ordinal references outside §Tasks section required updating (all inter-task references in body use Task 5 and Task 6, both of which retain their ordinals). No AC, RG, EC, BC, or code content changed. |
 | 1.6 | 2026-08-26 | story-writer | POL-7 title-sync fix (F-R7-MED-001): BC-2.16.015 §Behavioral Contracts Title cell corrected to verbatim H1 — appended "— Queryable Surface and OCSF vulnerability_finding Mapping" suffix. BC-2.16.002 Title cell confirmed verbatim-correct (unchanged). |
 | 1.5 | 2026-08-26 | story-writer | Volatile-line-cite strip (TD-VSDD-091/L9): removed three numeric line-number cites in §Tasks Task 7 and §Previous Story Intelligence; replaced with symbol/section anchors (`MAX_PIPELINE_RECORDS` truncation block, `// AC-8 / DI-019` comment anchor, `pipeline.rs` `#[cfg(test)]` test module). |
 | 1.4 | 2026-08-26 | story-writer | Fix governance lifecycle mislabel (F-R5-MED-001): BC-2.16.015 status label corrected from "active" to "draft" in frontmatter BC-status comment; POL-14 auto-promotion note added. Comprehensive audit: BC-2.16.002 active claim verified correct; no ADR status mislabels found in file body. |
