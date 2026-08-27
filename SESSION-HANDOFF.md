@@ -1,493 +1,72 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.010"
+version: "8.011"
 status: current
-timestamp: 2026-08-26T23:30:00Z
+timestamp: 2026-08-27T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2321 (2026-08-26): SESSION WRAP — DEFECT-1 phantom + ADR-059 WITHDRAWN; LIMIT LOCAL round-9 in flight @f73ab0e2f; VULNS merge-held (DEFECT-1 cleared); NEXT = collect round-9 lenses → LIMIT LOCAL CONVERGED → VULNS live re-validate. [D-2310 SUPERSEDED by D-2321]**
+> **D-2332 (2026-08-27): SESSION WRAP — round-15 SPEC-REMEDIATED (BC-2.16.002 v2.41 + BC-2.11.001 v1.26 + story v1.13 committed); ADR-060 v1.5 PENDING architect; round-16 CODE-PENDING; NEXT = architect writes ADR-060 v1.5 → test-writer RG-PSG-021..025 → implementer 7-file → re-cascade. [D-2331 SUPERSEDED by D-2332]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2321 (2026-08-26 — SESSION WRAP; DEFECT-1 phantom; ADR-059 withdrawn; LIMIT round-9 in flight)
+## §RESUME SNAPSHOT — D-2332 (2026-08-27 — SESSION WRAP; round-15 SPEC-REMEDIATED; round-16 CODE-PENDING)
 
 ### RESUME IN ONE BREATH
-Prism Phase-3, v1 = live Claroty xDome. This session PROVED DEFECT-1 (claroty_vulnerabilities h2 "stall") a PHANTOM — direct h2 transport to api.claroty.com is healthy (curl --http2 full 1.2 MB ~0.9s + faithful reqwest 0.12.28 repro + the REAL prism binary fetched live CVE rows across 10 paginated pages, zero E-QUERY-004); root cause was transient/edge, since resolved. Consequently: ADR-059 WITHDRAWN v1.2 (h2-window hypothesis falsified — hyper defaults 2 MiB stream / 5 MiB connection already exceed the page); BC-2.16.002 v2.38 (H2 postcondition removed, LIMIT early-stop postcondition kept); S-ENGINE-H2-LARGE-RESPONSE-001 RE-SCOPED (v1.6, draft, P2, blocks:VULNS removed) to a NON-GATING recurrence guard (relay-removal confirmation + live canary + E-QUERY-004 diagnostics + query-CLI wiring); the interim xdome HTTP/1.1 relay is DECOMMISSIONED (prism-live-mcp-wrapper.sh auto-start removed, PID killed, port 8899 closed, monroe overlay base_url direct https://api.claroty.com) so prism-live cannot use it. DEFECT-2 fix = S-ENGINE-LIMIT-EARLY-STOP-001 (LIMIT-aware early-stop pagination per ADR-060) is CODE-COMPLETE + just check GREEN @f73ab0e2f (11 tests); LOCAL 3-CLEAN cascade at round-9, IN FLIGHT (3 read-only adversary lenses on frozen @f73ab0e2f; correctness CLEAN 8 consecutive rounds; the long tail was records/doc/coverage hygiene, all closed — incl. two REAL coverage gaps: CursorToken arm + multi-page k>1). NEXT: collect (or re-dispatch fresh — read-only, deterministic) the round-9 lenses on @f73ab0e2f; a 3/3 CLEAN(strict) batch on the unchanged HEAD = LIMIT LOCAL CONVERGED.
+Prism Phase-3, v1 = live Claroty xDome. DEFECT-1 PHANTOM (ADR-059 WITHDRAWN v1.2). DEFECT-2 = S-ENGINE-LIMIT-EARLY-STOP-001: round-15 SPEC-REMEDIATED (D-2332 SESSION WRAP committed to factory-artifacts). Round-15 found two PERMITTED-path defects: F-R15-LENSA-CRIT-001 (temporal-WHERE exemption unsound — `has_client_side_where`/`is_purely_temporal_predicate` incorrectly permitted early-stop for Ast::Filter/Pipe WHERE; `extract_time_window` returns None for Filter/Pipe → zero server push-down → silent under-return regression vs pre-story full-pagination) and F-R15-LENSA-HIGH-001 (exact-limit truncation-signal loss — `limit % page_size == 0` → `is_truncated=false` + `total_available` understated). Both are SPEC-REMEDIATED D-2332. SPEC PACKAGE committed: BC-2.16.002 v2.41 (EC-01-030..033: `is_pushed_temporal_predicate` redesign mirrors `extract_time_bounds_from_predicate` — Ast::Literal/Comparison only; Ast::Filter+Ast::Pipe unconditionally SUPPRESS; `datetime_index_cols: &[&str]` param threads through call stack; Expr catch-all `_ => false`→`_ => true` conservative; `early_stopped` truncation-signal flag chain PipelineResult→FetchOutput→FanOutResult→MaterializationOutput→engine Step 6 `is_truncated = total_rows > limit || output.any_early_stopped`) + BC-2.11.001 v1.26 (EC-11-092/093: `any_early_stopped` surfaced on `prism_query` tool response) + story v1.13 (RG-PSG-021..025 enumerated RED gates; 7-file implementer directive; ADR-060 v1.5 design target). ADR-060 v1.5 NOT YET ON DISK (architect must write next session — on-disk v1.4; ARCH-INDEX retains v1.4 per POL-37). Feature branch @c4c297466 FROZEN — DO NOT PUSH NEW COMMITS until round-16 implementation complete (frozen-HEAD streak rule BC-5.39.001).
 
 ### RESUME NEXT-ACTION (in order)
-1. LIMIT (S-ENGINE-LIMIT-EARLY-STOP-001, feature @f73ab0e2f): collect/re-dispatch the round-9 3-lens adversary batch (correctness / test-coverage / consistency) on frozen @f73ab0e2f. If all 3 CLEAN(strict) → LOCAL CONVERGED. Any finding → route (test-writer for test/coverage, story-writer for story-records, implementer for code) → re-freeze → re-cascade. (All rounds 1-8 findings are CLOSED; the recurring class was stale-test-doc / records hygiene — round-8 exhausted it with a broad multi-pattern grep.)
-2. On LIMIT CONVERGED: story-level HOLDOUT gate (product-owner authors 2-4 hidden single-use HS if none exist for this story) → holdout-evaluator against the built binary → demo-recorder per-AC → pr-manager 9-step PR to develop → PR-LEVEL 3-CLEAN + security-reviewer → squash-merge → POL-14 (BC-2.16.015 draft→active) → post-merge state burst. Redeploy the merged binary to test-soc/bin/prism.
-3. VULNS (S-CLAROTY-VULNS-001, feature @5aae6f0b3, merge-HELD): DEFECT-1 hold reason is CLEARED (phantom). After LIMIT merges + redeploys, re-run LIVE monroe validation of claroty_vulnerabilities (relay OFF, DIRECT h2; expect real rows and LIMIT early-stop working) per .factory/objectives/live-sensor-runbook.md (AD-017 opaque creds; no binary rebuild beyond the LIMIT redeploy). On PASS → VULNS hold clears → demo → pr-manager 9-step PR to develop → PR-LEVEL 3-CLEAN + security → squash-merge → POL-14.
-4. Then S-CLAROTY-OT-EVENTS-001 (Wave A G2) → Wave B/C, per xdome-endpoint-expansion-plan.
-5. POST-v1 (non-gating): deliver the re-scoped S-ENGINE-H2-LARGE-RESPONSE-001 (canary + diagnostics + query-CLI wiring). Its worktree @9e1df825a holds OBSOLETE window RG tests from the withdrawn ADR-059 scope — discard/reset when picked up.
+1. **architect**: write ADR-060 v1.5 to disk at `.factory/specs/architecture/decisions/ADR-060-*.md`. Design is fully specified in story v1.13 §Architecture: `is_pushed_temporal_predicate(expr, datetime_index_cols)` — Ast::Literal(Value::Datetime) → true, Ast::Comparison where lhs is a datetime index col → true, Ast::Filter|Ast::Pipe → false (unconditional), Ast::BooleanOp → recurse (AND all, OR any), `_ => true`. §D8.7 Expr text fix `_ => false`→`_ => true`. Early_stopped chain. `datetime_index_cols` threading. Bump version 1.4→1.5, update ARCH-INDEX ADR-060 row v1.4→v1.5, ARCH-INDEX version 2.341→2.342, bump state indices. (ARCH-INDEX row MUST stay v1.4 until v1.5 is on disk — POL-37.)
+2. **test-writer**: author RG-PSG-021..025 RED tests in `.worktrees/S-ENGINE-LIMIT-EARLY-STOP-001` (MUST FAIL before implementation): RG-PSG-021 (`is_pushed_temporal_predicate` Filter arm SUPPRESS), RG-PSG-022 (Pipe arm SUPPRESS), RG-PSG-023 (datetime_index_cols param wires), RG-PSG-024 (early_stopped flag propagates PipelineResult→engine), RG-PSG-025 (any_early_stopped surfaces on prism_query response). Tests MUST fail with `todo!()` or compilation error before implementation begins.
+3. **implementer**: 7-file directive (after RG-PSG-021..025 are RED): `crates/prism-spec-engine/src/pipeline/materialization.rs` (FetchContext.datetime_index_cols field, execute_impl early_stop check using `is_pushed_temporal_predicate`, run_materialization_pipeline pass-through); `crates/prism-spec-engine/src/pipeline/sensor.rs` (FetchOutput.any_early_stopped: bool); `crates/prism-spec-engine/src/pipeline/fanout.rs` (FanOutResult.any_early_stopped: bool, aggregated from FetchOutput); `crates/prism-spec-engine/src/pipeline/spec_driven_adapter.rs` (early_stopped propagation from PipelineResult into FetchOutput); `crates/prism-query/src/engine.rs` (Step 6 `is_truncated = total_rows > limit || output.any_early_stopped`). Make each RG test GREEN in order.
+4. **re-cascade**: round-16 LOCAL adversary 3-CLEAN cascade on frozen HEAD after implementation complete.
+5. On LIMIT LOCAL CONVERGED: story-level HOLDOUT gate (product-owner HS-030..033 if not yet authored) → holdout-evaluator → demo-recorder per-AC → pr-manager 9-step PR to develop → PR-LEVEL 3-CLEAN + security-reviewer → squash-merge → POL-14 (BC-2.16.015 draft→active) → post-merge state burst.
+6. VULNS (S-CLAROTY-VULNS-001, feature @5aae6f0b3): merge still HELD pending LIMIT merge. After LIMIT merges + redeploys, re-run LIVE monroe validation then unblock VULNS.
 
 ### HEADS
-- develop: 3f1e66179 (local==origin; clean of tracked changes)
-- factory-artifacts: 65e5869fc + this D-2321 wrap commit
-- feature/S-ENGINE-LIMIT-EARLY-STOP-001: f73ab0e2f (PUSHED origin)
-- feature/S-CLAROTY-VULNS-001: 5aae6f0b3 (PUSHED origin; merge-held, DEFECT-1 cleared)
-- feature/S-ENGINE-H2-LARGE-RESPONSE-001: 9e1df825a (LOCAL-ONLY — obsolete window tests; not pushed)
+- develop: 3f1e66179 (local==origin; clean)
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053; this D-2332 commit)
+- feature/S-ENGINE-LIMIT-EARLY-STOP-001: c4c297466 (PUSHED; round-15 SPEC-REMEDIATED D-2332; round-16 CODE-PENDING; FROZEN)
+- feature/S-CLAROTY-VULNS-001: 5aae6f0b3 (PUSHED origin; LOCAL 3-CLEAN CONVERGED round-5; merge-HELD pending LIMIT)
+- feature/S-ENGINE-H2-LARGE-RESPONSE-001: 9e1df825a (LOCAL-ONLY — obsolete; re-scoped)
 - Parked: S-3.09 @43c41389d (LOCAL-ONLY, keep); W3-FIX-S307-001 @fcab8717c (LOCAL-ONLY dirty, do-NOT-touch)
-- ROUTING-001 worktree TORN DOWN this session (branch feature/S-ADR058-OCSF-ROUTING-001 -D deleted; PR #242 merged; ~160 GB reclaimed)
 
 ### BC-5.39.001 STREAK
-LIMIT LOCAL: 0/3 (reset by the round-8 push to @f73ab0e2f); round-9 batch in flight on frozen @f73ab0e2f — a 3/3 CLEAN(strict) batch on this UNCHANGED HEAD = CONVERGED (frozen-HEAD rule).
+LIMIT LOCAL: 0/3 (reset required — round-16 code not yet implemented; round-15 was SPEC-REMEDIATION not a code pass; new streak starts after RG-PSG-021..025 RED → implementer → re-cascade). Frozen-HEAD rule: streak counts only on the unchanged HEAD after implementation commits.
 
-### PENDING USER-APPROVED (all executed this session)
-DEFECT-1 accept-transient + ship-direct h2 (no client change); withdraw ADR-059 + re-scope H2 story; decommission the relay; tear down the merged ROUTING-001 worktree (disk reclaim). Standing: D-989 autonomous Wave-5; "no pragmatic convergence".
+### SPEC PERIMETER (D-2332)
+ADR-058 v2.34 / ADR-059 v1.2 (WITHDRAWN) / ADR-060 v1.4 (v1.5 PENDING — architect writes next session; SUPPRESSION §D8.1..D8.6 CORRECT; §D8.7 Expr text `_ => false` stale — fix in v1.5) / BC-2.16.002 v2.41 (EC-01-030..033 ADDED D-2332) / BC-2.11.001 v1.26 (EC-11-092/093 ADDED D-2332) / BC-2.16.003 v1.27 / BC-2.16.015 v1.8 (draft; trace-only) / VULNS story v1.9 / LIMIT story v1.13 (RG-PSG-021..025 uncommitted RED gates; round-16 CODE-PENDING) — ARCH-INDEX v2.341 / BC-INDEX v9.71 / STORY-INDEX v2.917 / VP-INDEX v2.22.
 
-### DECISION-LOG DELTA (this session)
-D-2311 (engine spec-package: ADR-059 v1.0 + ADR-060 v1.0 + BC-2.16.002 v2.36 + BC-2.16.015 v1.7 + 3 engine stories materialized). D-2312 (DEFECT-1 investigation + pivot: ADR-059 WITHDRAWN v1.2, ADR-060 §D8.1 corrected v1.1, BC-2.16.002 v2.38, H2 story re-scoped, relay decommissioned, ROUTING-001 teardown, [process-win] remove-uncertainty caught falsified ADR). D-2313..D-2320 (LIMIT LOCAL cascade rounds 1-8: CursorToken coverage, ADR-060 §D8.1 code-comment + story sweeps, POL-39 version pins, EC-004 citation, STORY-INDEX crates reconcile, multi-page k>1 coverage, BC-2.16.015 status label, POST wire fidelity, volatile line-cites, POL-7 title, exhaustive test-doc reframe). D-2321 = this wrap.
+### DECISION-LOG DELTA (this session D-2326..D-2332)
+D-2326 (round-12 SPEC PACKAGE: ADR-060 v1.3 + BC-2.16.002 v2.38). D-2327 (round-13 BLOCKED: truncate_result_to_limit pre-cap wrong-layer). D-2328 (round-14 SUPPRESSION VERIFY PASS — Conditions A–J + conservative `_ => true` confirmed correct; EC-01-025..029 ADDED). D-2329 (truncate_result_to_limit PRE-CAP REMOVED — wrong-layer fix reverted). D-2330 (`_ => true` terminal codified per D-2329 lesson; BC-2.16.002 v2.40 EC-01-025..029 sweeps). D-2331 (round-15 lens-A CRIT+HIGH on permitted path — F-R15-LENSA-CRIT-001 temporal exemption unsound; F-R15-LENSA-HIGH-001 exact-limit truncation-signal loss; SPEC-REMEDIATION STARTED; STATE v8.863→v8.864). D-2332 = this wrap (round-15 SPEC-REMEDIATED; is_pushed_temporal_predicate redesign; Filter/Pipe unconditional SUPPRESS; datetime_index_cols; early_stopped chain; BC-2.16.002 v2.41 + BC-2.11.001 v1.26 + story v1.13 COMMITTED; ADR-060 v1.5 PENDING; STATE v8.864→v8.865).
 
 ### WORKTREE INVENTORY
 | Worktree | SHA | Status |
 |----------|-----|--------|
-| LIMIT S-ENGINE-LIMIT-EARLY-STOP-001 | f73ab0e2f | ACTIVE — cascade round-9 in flight |
-| VULNS S-CLAROTY-VULNS-001 | 5aae6f0b3 | ACTIVE — merge-held (DEFECT-1 cleared; awaits LIMIT merge + live re-validate) |
-| H2 S-ENGINE-H2-LARGE-RESPONSE-001 | 9e1df825a | RE-SCOPED follow-up; obsolete window tests, local-only |
+| LIMIT S-ENGINE-LIMIT-EARLY-STOP-001 | c4c297466 | ACTIVE — round-16 CODE-PENDING; spec files committed D-2332 |
+| VULNS S-CLAROTY-VULNS-001 | 5aae6f0b3 | ACTIVE — merge-held (awaits LIMIT merge) |
+| H2 S-ENGINE-H2-LARGE-RESPONSE-001 | 9e1df825a | RE-SCOPED follow-up; obsolete tests, local-only |
 | S-3.09 | 43c41389d | PARKED-keep (local-only) |
 | W3-FIX-S307-001 | fcab8717c | PARKED-dirty do-NOT-touch (local-only) |
 
 ### BACKUP BOUNDARY
-PUSHED/safe: origin/develop 3f1e66179; origin/feature/S-ENGINE-LIMIT-EARLY-STOP-001 f73ab0e2f; origin/feature/S-CLAROTY-VULNS-001 5aae6f0b3; factory-artifacts (this wrap). LOCAL-ONLY AT RISK: feature/S-ENGINE-H2-LARGE-RESPONSE-001 @9e1df825a (obsolete), .worktrees/S-3.09 @43c41389d, .worktrees/W3-FIX-S307-001 @fcab8717c (dirty).
+PUSHED/safe: origin/develop 3f1e66179; origin/feature/S-ENGINE-LIMIT-EARLY-STOP-001 c4c297466; origin/feature/S-CLAROTY-VULNS-001 5aae6f0b3; factory-artifacts (this D-2332 wrap commit). LOCAL-ONLY AT RISK: feature/S-ENGINE-H2-LARGE-RESPONSE-001 @9e1df825a (obsolete), .worktrees/S-3.09 @43c41389d, .worktrees/W3-FIX-S307-001 @fcab8717c (dirty). NOTE: RG-PSG-021..025 RED tests NOT YET WRITTEN — first task for test-writer in round-16; only spec files (BC-2.16.002 v2.41, BC-2.11.001 v1.26, story v1.13) were committed in D-2332 burst.
 
 ---
 
-## §RESUME SNAPSHOT — D-2310 (2026-08-26 — SESSION WRAP; VULNS live-HELD; engine pivot ADR-059/060) [SUPERSEDED by D-2321]
+## §RESUME SNAPSHOT — D-2331 (2026-08-27 — round-15 CRIT+HIGH lens-A; STATE v8.863→v8.864) [SUPERSEDED by D-2332]
 
 ### RESUME IN ONE BREATH
-Prism Phase-3; v1 = live Claroty xDome. Story S-CLAROTY-VULNS-001 (claroty_vulnerabilities TOML table) is LOCAL 3-CLEAN CONVERGED (round-5 3/3 strict on frozen @5aae6f0b3) + DTU holdout HS-024 PASS (mean 0.967), but MERGE IS HELD pending live-green: live monroe validation proved the TOML CORRECT (schema/routing/class_uid=2002/Tier-1 finding_info_title queryable/E-QUERY-038 all confirmed live) BUT the vulnerabilities fetch times out (E-QUERY-004) from TWO engine bugs. NEXT = build+deliver the two engine stories, re-validate live, then unblock VULNS.
+Prism Phase-3, v1 = live Claroty xDome. DEFECT-1 PHANTOM (ADR-059 WITHDRAWN). DEFECT-2 = S-ENGINE-LIMIT-EARLY-STOP-001: round-15 NOT CONVERGED (D-2331). CRIT: temporal-WHERE exemption UNSOUND — has_client_side_where/is_purely_temporal_predicate permits early-stop for Filter/Pipe WHERE (extract_time_window returns None for Filter/Pipe → zero server push-down) → silent under-return REGRESSION vs pre-story full-pagination. HIGH: exact-limit truncation-signal loss — limit % page_size == 0 → is_truncated=false + total_available understated. SUPPRESSION Conditions A–J + conservative default CONFIRMED CORRECT (lens-A). Feature HEAD @c4c297466 FROZEN. Remediation: is_pushed_temporal_predicate redesign → EC-01-030..033 → early_stopped chain → story v1.13 → re-cascade.
 
-### HEADS
-- develop: 3f1e66179 (local==origin)
-- factory-artifacts: 415848d7e (D-2309) + this D-2310 wrap
-- feature/S-CLAROTY-VULNS-001: 5aae6f0b3 (PUSHED origin; LOCAL converged; merge HELD)
-- Worktrees: ACTIVE .worktrees/S-CLAROTY-VULNS-001 @5aae6f0b3 (held); PARKED S-3.09 @43c41389d (keep), W3-FIX-S307-001 @fcab8717c (DIRTY, do-NOT-touch); REMOVABLE-POST-MERGE S-ADR058-OCSF-ROUTING-001 @5645c8506 (PR #242 merged, teardown pending).
-
-### RESUME NEXT-ACTION (engine stories — v1-critical, block VULNS live-green; ADR-059 + ADR-060 already written & registered D-2309)
-1. product-owner: amend BC-2.16.002 (postcondition: h2 4 MiB stream+conn window + adaptive per ADR-059 §D7; postcondition: FetchContext.early_stop_limit early-stop-at-complete-page per ADR-060 D8 + catalog rows) + BC-2.16.015 (LIMIT test-vector + EC-016-015-007 "LIMIT 1 fetches 1 page").
-2. story-writer: materialize S-ENGINE-H2-LARGE-RESPONSE-001 (crates: prism-spec-engine/pipeline.rs build_http_client_with_timeout, prism-bin/spec_driven_adapter.rs build_http_client_with_custom_timeout, prism-bin/boot.rs 2 PluginRuntime sites) + S-ENGINE-LIMIT-EARLY-STOP-001 (prism-spec-engine/pipeline.rs FetchContext+execute_impl, prism-bin/spec_driven_adapter.rs DataFusion-plan LIMIT extraction) — both SAC-1 enumerated RG lists + tdd_mode strict, independent/parallel; + draft stub S-ENGINE-TIMEOUT-OVERLAY-WIRE-001 (non-blocking, after 1+2). Run remove-uncertainty (D-1110).
-3. Per-story TDD each: stub-architect → test-writer LOCAL Red Gate (H2: local hyper h2 server via http2_prior_knowledge, 2 MB body, tuned <5s vs untuned stall; LIMIT: wiremock multi-page assert early-stop request count) → implementer → just check → LOCAL adversary 3-CLEAN → merge to develop.
-4. DECISIVE: re-run LIVE monroe validation of claroty_vulnerabilities (`FROM claroty_vulnerabilities | limit 5`, expect real rows <10s) via test-soc/.prism-live (spec-only; runbook .factory/objectives/live-sensor-runbook.md; AD-017 opaque cred; no binary rebuild) → on PASS, VULNS hold clears.
-5. VULNS resume: (BC-2.16.015 may need EC-016-015-007 amend + a final LOCAL micro-cascade if touched) → demo-recorder per-AC → pr-manager 9-step PR to develop → PR-LEVEL 3-CLEAN + security-reviewer → squash-merge → POL-14 (BC-2.16.015 draft→active).
-6. Then S-CLAROTY-OT-EVENTS-001 (Wave A G2) → Wave B/C.
-
-### PENDING USER-APPROVED / OPEN
-- User decisions THIS session: HOLD VULNS until live-green (approved); FIX the 2 engine bugs now (approved, work to begin).
-- OPEN (unanswered): whether to also disable the other two STATE.md structure hooks (validate-state-structure, validate-dispatch-advance) OR keep them + adopt the single-MultiEdit STATE-burst rule. DEFAULT pending answer = KEEP + single-MultiEdit rule.
-
-### HARNESS CHANGE (this session)
-`verify-state-timestamp-refresh` PreToolUse hook DISABLED (commented out) in the SHARED plugin cache `~/.claude/plugins/cache/claude-mp/vsdd-factory/1.0.0-rc.23/hooks-registry.toml` (user-directed, to remove STATE.md per-edit timestamp friction). CAVEAT: global to all vsdd-factory projects + OVERWRITTEN on plugin update/reinstall — re-apply after any plugin update if still wanted.
-
-### LESSON [process-gap] (codify)
-DTU story-level holdout gate FALSE-GREEN: HS-024 passed against thin DTU fixtures but the LIVE tenant exposed a merge-blocking timeout (large-payload h2 stall + high-volume no-LIMIT-pushdown) that DTU fixtures structurally cannot reproduce. → For sensors whose DTU is stale/thin, the story-level gate MUST include a live-tenant check before merge (user standing directive: validate against the live sensor). Also: state-manager STATE.md record bursts must be single-MultiEdit (avoids the structure-hook loop that cost ~1.5h this session).
-
-### CASCADE HISTORY (S-CLAROTY-VULNS-001 this session)
-D-2305 STATE compaction 299→191. D-2306 round-2 (BC v1.5/story v1.7; RG-009 + `id` false-green fix). D-2307 round-3 (RG-009 6-site enumeration sweep). D-2308 round-4 (id null→absent precision; TOML comment; ADR-058 v2.34/ADR-028 v1.31 anchor_stories; RG-008 rename). Round-5 3/3 CLEAN → LOCAL CONVERGED @5aae6f0b3. HS-024 holdout PASS. Live monroe → 2 engine bugs → D-2309 pivot (ADR-059/060).
+### HEADS (D-2331)
+- develop: 3f1e66179 / factory-artifacts: (run git log) / feature/S-ENGINE-LIMIT-EARLY-STOP-001: c4c297466 (PUSHED; round-15 NOT CONVERGED; CRIT+HIGH on permitted path) / feature/S-CLAROTY-VULNS-001: 5aae6f0b3 (merge-HELD)
 
 ---
 
-## §RESUME SNAPSHOT — D-2304 (2026-08-25 — WRAP; S-CLAROTY-VULNS-001 Wave A G1; pre-3-CLEAN-confirmation) [SUPERSEDED by D-2310]
+## §RESUME SNAPSHOT — D-2321 (2026-08-26 — SESSION WRAP; DEFECT-1 phantom; ADR-059 withdrawn; LIMIT round-9 in flight) [SUPERSEDED by D-2332]
 
 ### RESUME IN ONE BREATH
-Prism Phase-3, v1 = live Claroty-xDome. Wave A G1 story **S-CLAROTY-VULNS-001** (`claroty_vulnerabilities` TOML table) is CODE-COMPLETE + GREEN. `feature/S-CLAROTY-VULNS-001` @`4e525126b` **PUSHED origin** (`just check` GREEN: prism-sensors 203 / prism-bin 234 / prism-spec-engine 798). LOCAL adversary cascade = 5 serial passes + a 4-lens diverse-lens batch; ALL findings fixed. Specs: BC-2.16.015 v1.4 / story v1.6 / BC-INDEX v9.64 / STORY-INDEX v2.899 / STATE v8.837. BC-5.39.001 LOCAL streak **0/3**.
-
-### FIRST ACTION NEXT SESSION
-**Run `/compact-state` FIRST.** STATE.md ~299 lines caused repeated record-burst API-timeouts/deaths this session; compact (extract Decisions-Log + Phase-Steps history to cycle files, slim to <200 lines) BEFORE resuming the cascade. Then use SMALL targeted Edits for all `.factory/` writes — NEVER full-file/large-span STATE.md Writes (that is what kept dying).
-
-### RESUME NEXT-ACTION
-Run the **3-CONSECUTIVE-CLEAN confirmation** on FROZEN feature HEAD @`4e525126b` (crates) + specs BC-2.16.015 v1.4 / story v1.6. Dispatch fresh-context adversary passes; each reports CLEAN(strict)+CLEAN(PR-merge); 3 consecutive CLEAN(strict) on the UNCHANGED HEAD → LOCAL CONVERGED. **CRITICAL LESSON:** do NOT run `.factory/`-reading adversary passes concurrent with any in-flight `.factory/` state-manager write (that produced the F-L3-001/002 race false-positives this session — verify `.factory/` committed + idle first). Any real finding → route (implementer TOML / test-writer tests / product-owner BC / story-writer story) → re-freeze HEAD → streak resets 0/3.
-
-### AFTER 3-CLEAN (per CLAUDE.md per-story flow)
-story-level HOLDOUT gate **HS-024** (`.factory/holdout-scenarios/S-CLAROTY-VULNS-001-HS-001/002/003`; holdout-evaluator, observed-output-only, wire-level, against built binary; BLOCKING mean≥0.85 + each critical≥0.60) → demo-recorder per-AC → pr-manager 9-step PR to `develop` (PR-LEVEL 3-CLEAN + security-reviewer) → squash-merge → POL-14 post-merge burst (BC-2.16.015 draft→active).
-
-### SETTLED — DO NOT RE-LITIGATE
-(1) E-SPEC-018 present-unparseable datetime **HARD-ERRORS** (human Option A); (2) fetch is **ATOMIC** all-or-nothing, no partial pages (Option A); (3) `ColumnOptions::Required` = push-down eligibility, NOT ingest presence enforcement; (4) SAP-2 DTU-parity DEFERRED D-2200; (5) `published_date` with no `timestamp_formats` VALID (ADR-028 §D8-B); (6) TOML `table_name` = bare `vulnerabilities` → registers as `claroty_vulnerabilities` (sibling convention); (7) engine sensor-agnostic — ZERO prism-spec-engine/prism-ocsf production change is INTENTIONAL.
-
-### HEADS
-- `develop`: `3f1e66179` (unchanged; local==origin)
-- `feature/S-CLAROTY-VULNS-001`: `4e525126b` (PUSHED origin — backed up; `just check` GREEN)
-- `factory-artifacts`: this D-2304 commit
-- Worktrees: `.worktrees/S-CLAROTY-VULNS-001` (active feature); PARKED `.worktrees/S-3.09` @`43c41389d`, `.worktrees/W3-FIX-S307-001` @`fcab8717c` (dirty, do-NOT-touch); `.worktrees/S-ADR058-OCSF-ROUTING-001` REMOVABLE post-merge (teardown NOT authorized this session).
-
-### CASCADE HISTORY
-pass-1 (2C+2H+5M+2O) → pass-2 (1M+3L+1O) → pass-3 (1M+4L+1O) → pass-4 (2M+1L+2O) → pass-5 (1H+1M+1L+2O) → diverse-lens batch (lens-1 correctness CLEAN; lens-4 wire-shape CLEAN; lens-2 test-coverage 1M+2O; lens-3 naming 2 MED+1 LOW; the 2 HIGH index findings were RACE FALSE-POSITIVES — verified index rows correct). ALL fixed. Detail: STATE Decisions-Log D-2298..D-2304.
-
-### PENDING TASKS
-LOCAL 3-CLEAN confirmation (next) · holdout HS-024 · demo+PR+merge+POL-14. Governance: POL-41 (parallelize-against-inflight-state-writes) registered D-2299; codify the concurrent-`.factory/`-read race lesson next session.
-
-### BACKUP BOUNDARY
-PUSHED/safe: `origin/develop` 3f1e66179; `origin/feature/S-CLAROTY-VULNS-001` 4e525126b; `factory-artifacts` (this commit). LOCAL-ONLY: parked worktrees S-3.09, W3-FIX-S307-001.
-
----
-
-## §RESUME SNAPSHOT — D-2297 (2026-08-24 — SESSION WRAP; xDome story-creation COMPLETE; next = Wave A implementation) [SUPERSEDED by D-2304]
-
-### RESUME IN ONE BREATH
-Prism Phase-3; v1 = live Claroty-xDome (milestone PASSED D-2289). xDome endpoint-expansion STORY-CREATION COMPLETE — 11 stories G1–G6 materialized draft (6 near-term D-2291..D-2295 + 5 DTU-parity stubs D-2296), pushed factory-artifacts @0e010dde9; ZERO new OCSF class arms. develop UNCHANGED 3f1e66179 (no code; workspace_test_count 5816). NEXT SESSION: begin Wave A IMPLEMENTATION (F4 TDD), S-CLAROTY-VULNS-001 first.
-
-### RESUME NEXT-ACTION
-1. Wave A impl, S-CLAROTY-VULNS-001 (G1; vuln DTU stub route + OCSF vulnerability_finding arm already exist). F4: run SECOND remove-uncertainty pass (D-1110 pre-TDD) → promote draft→ready → create worktree feature/S-CLAROTY-VULNS-001 → stub-architect → test-writer Red Gate RG-001..008 (live tests #[ignore] until monroe) → implementer adds claroty_vulnerabilities [[tables]] block to crates/prism-sensors/specs/claroty.sensor.toml, TDD green, just check → LOCAL adversary 3-CLEAN → story holdout gate HS-024 (observed-output only) → demo → push → pr-manager 9-step PR (PR-LEVEL 3-CLEAN + security-reviewer) → squash-merge develop → POL-14 post-merge burst.
-2. Then S-CLAROTY-OT-EVENTS-001 (A/G2) → Wave B DEVVULNREL (dep VULNS) → Wave C SERVERS/ORGPOLICY/ACLPOLICY. 5 *-DTU-001 stubs DEFERRED post-v1.
-3. Backlog: STATE.md compaction (deferred; ~340+ lines — do around Wave A); v1.0.0 release (after Wave A merges + monroe validation); S-ADR058-OCSF-ROUTING-001 worktree teardown (removable).
-
-### CRITICAL CONVENTIONS (enforce every dispatch)
-- develop claroty.sensor.toml baseline = 4 tables; sibling xDome expansion stories are DRAFT (not merged); merge order via depends_on only. Story-template "Previous Story Intelligence" is a [process-gap] (mislabels draft siblings as merged) — inject ground truth. (Origin D-2293.)
-- OpenAPI spec .factory/reference/api-specs/xdome_openapi_06.20.2026.json is 4.4 MB — NEVER full-read (stalled an agent); use .factory/objectives/xdome-v1-validation/endpoint-schema-extract.md + endpoint-spike-findings.md or targeted jq.
-
-### HEADS (D-2297)
-- develop: 3f1e66179 (local==origin, clean of tracked changes)
-- factory-artifacts: <fill after commit>
-- .worktrees/S-3.09 @43c41389d KEEP-PARKED (local-only)
-- .worktrees/W3-FIX-S307-001 @fcab8717c PARKED-DIRTY do-NOT-touch (local-only, dirty)
-- .worktrees/S-ADR058-OCSF-ROUTING-001 @5645c8506 REMOVABLE-POST-MERGE (PR #242 merged, remote deleted)
-
-### xDome WORKSTREAM (D-2297 — all materialized draft, remove-uncertainty-clean, ready for F4)
-- S-CLAROTY-VULNS-001 (G1, BC-2.16.015, HS-024) — D-2291
-- S-CLAROTY-OT-EVENTS-001 (G2, BC-2.16.016, HS-025) — D-2291
-- S-CLAROTY-DEVVULNREL-001 (G3, BC-2.16.017, HS-026) v1.2 — D-2292/D-2293
-- S-CLAROTY-SERVERS-001 (G4, BC-2.16.018/019, HS-027) v1.2 — D-2293
-- S-CLAROTY-ORGPOLICY-001 (G5, BC-2.16.020/021, HS-028) — D-2294
-- S-CLAROTY-ACLPOLICY-001 (G6, BC-2.16.022, HS-029) — D-2295
-- 5× S-CLAROTY-*-DTU-001 (G2–G6, draft facade, DEFERRED post-v1, anchor S-ADR058-DTU-PARITY-MIGRATION-001) — D-2296
-
-### SPEC PERIMETER (D-2297)
-BC-INDEX v9.60 (active 253 / draft 11 / total 277) / HOLDOUT-INDEX v1.26 (115 / 23 groups) / STORY-INDEX v2.893 (314 stories) / ARCH-INDEX v2.333. develop_head 3f1e66179; workspace_test_count 5816. ADR-058 v2.33 unchanged.
-
-### PENDING USER-APPROVED WORK
-Wave A→C implementation (next); STATE.md compaction (deferred); v1.0.0 release; ROUTING-001 worktree teardown.
-
-### DECISION DELTA
-D-2291 Wave A stories (spikes, 0 new OCSF arms; BC-2.16.015/016; VULNS+OT-EVENTS) · D-2292 Wave B (BC-2.16.017; DEVVULNREL) · D-2293 Wave C SERVERS (BC-2.16.018/019) + TD-VSDD-060 sibling-baseline fix · D-2294 Wave C ORGPOLICY (BC-2.16.020/021) · D-2295 Wave C ACL (BC-2.16.022) · D-2296 5 DTU stubs (story-creation COMPLETE) · D-2297 SESSION WRAP.
-
-### BACKUP BOUNDARY
-PUSHED/safe: origin/develop 3f1e66179; factory-artifacts (this wrap). LOCAL-ONLY: .worktrees/S-3.09, W3-FIX-S307-001 (dirty), S-ADR058-OCSF-ROUTING-001 (removable).
-
----
-
-## §RESUME SNAPSHOT — D-2290 (2026-08-24 — SESSION WRAP; v1 LIVE milestone; STATE v8.823) [SUPERSEDED by D-2297]
-
-### RESUME IN ONE BREATH
-
-Prism Phase-3. v1 LIVE Claroty xDome validation MILESTONE PASS (D-2264 gate MET, read-only scope): Variant-1 structural 121/121 + Variant-2 agent-in-the-loop, live monroe @api.claroty.com. PR #242 (S-ADR058-OCSF-ROUTING-001) MERGED develop@3f1e66179; deployment (binary+spec) synced to 3f1e66179. Confirmed boundaries: read-only surface only; scale/multi-page-pagination/rate-limits + write-back UNPROVEN (small tenant).
-
-### RESUME NEXT-ACTIONS (in order)
-
-1. **COMPACT STATE.md** — bloated (~314 lines); stalled 3 state bursts this session; compaction deferred from D-2290 wrap and is the #1 resume task. Use targeted block-by-block Edits → cycle files, never full-file Write.
-2. **Create near-term + deferred-DTU stories** per `.factory/objectives/xdome-endpoint-expansion-plan.md`. Wave order: A (S-CLAROTY-VULNS-001, S-CLAROTY-OT-EVENTS-001) → B (S-CLAROTY-DEVVULNREL-001) → C (S-CLAROTY-SERVERS-001, S-CLAROTY-ORGPOLICY-001, S-CLAROTY-ACLPOLICY-001).
-3. **Begin Wave A** — S-CLAROTY-VULNS-001 (nearly spec-only; DTU + OCSF class already exist).
-4. **FIRST STABLE RELEASE v1.0.0** via the release pipeline (`/vsdd-factory:release`, `release-config.yaml`) — GATED on live-functional confirmation of everything testable on monroe, with read-only/scale/write-back boundaries recorded honestly in release notes.
-
-### HEADS (D-2290)
-
-- `develop`: `3f1e66179` (local == origin; clean; PR #242 merged here)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
-- `feature/S-ADR058-OCSF-ROUTING-001`: deleted post-merge
-- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
-- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, dirty)
-
-### SPEC PERIMETER (D-2290)
-
-ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / BC-2.01.013 v1.23 (active) / error-taxonomy v2.82 / ROUTING-001 v1.57 (merged) / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.333 / BC-INDEX v9.55 / STORY-INDEX v2.886 / HOLDOUT-INDEX v1.21. active 253 / draft 3 / total 269 / stories 303. Workspace tests: 5816 GREEN.
-
-### OPEN ITEMS (D-2290)
-
-- **STATE.md compaction** — deferred, #1 next session task
-- **test-soc/.mcp.json** — Perplexity+Tavily API keys in PLAINTEXT → operator must rotate + move to references (deferred to operator)
-- **live-soc/README.md** stale onboarding-gate trigger — FIXED this session
-- **OBS-A (carry-forward):** PrismQL identifier grammar rejects hyphens — no quoting escape; sensor_id with hyphen produces unreachable table name
-- **OBS-B (carry-forward):** sensor_id with underscores causes E-QUERY-036/037/038 source-table resolver + sensor plan-gate disagreement on canonical table name
-
-### BACKUP BOUNDARY (D-2290)
-
-- PUSHED / safe: `origin/develop` `3f1e66179`; `factory-artifacts` (this wrap commit)
-- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
-
-### KEY REFERENCES
-
-- Endpoint expansion plan: `.factory/objectives/xdome-endpoint-expansion-plan.md`
-- Live sensor runbook: `.factory/objectives/live-sensor-runbook.md`
-- Live validation matrix: `.factory/objectives/xdome-v1-validation/live-validation-matrix.md`
-
----
-
-## §RESUME SNAPSHOT — D-2287 (2026-08-23 — fix-burst-2 COMPLETE code-only; STATE v8.820→v8.821) [SUPERSEDED by D-2290]
-
-### RESUME IN ONE BREATH
-Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 PR-LEVEL fix-burst-2 COMPLETE (code-only) — 2 LOW closed: F-PR242-P2-LOW-001 (build_ocsf_column_descriptors refactored to filter_map, zero ocsf_field unwrap/expect in production; sibling-sweep done), F-PR242-P3-LOW-001 (claroty.sensor.toml device_category comment corrected to §J1 A≠B shadow per RG-010/ADR-058 §J1; SAP-2 clean, column values UNCHANGED). Feature code HEAD advanced @2393470cd→@5645c8506; just check 5816/5816 GREEN. Security re-review CLOSED (no new findings). BC-5.39.001 PR-LEVEL streak RESET 0/3 on new frozen HEAD @5645c8506.
-
-**RESUME NEXT-ACTION:** Dispatch 3 parallel adversary passes on frozen HEAD @5645c8506 (PR-LEVEL 3-CLEAN re-gate). After 3/3 CLEAN(strict): squash-merge PR #242 + POL-14 BC promotion. BC-5.39.001 PR-LEVEL streak 0/3 — reset by fix-burst-2.
-
-### HEADS (D-2287)
-- `develop`: `362e4f85` (local == origin; clean)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
-- `feature/S-ADR058-OCSF-ROUTING-001`: `5645c8506` (PR-LEVEL fix-burst-2 HEAD — pushed to origin)
-- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
-- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch
-
-### ROUTING-001 WORKSTREAM STATE (D-2287)
-**FROZEN PERIMETER (POST-FIX-BURST-2):** ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.333 / BC-INDEX v9.55 / STORY-INDEX v2.885 / HOLDOUT-INDEX v1.21. active 253/draft 3/total 269/stories 303. Code HEAD: `5645c8506` / just check GREEN 5816.
-
-**BC-5.39.001 PR-LEVEL STREAK: 0/3 RESET** (new frozen HEAD @5645c8506). LOCAL 3/3 CONVERGED @8aeaf06c4 UNCHANGED. HOLDOUT PASS HS-023 3/3 P0 UNCHANGED.
-
-**HOLDOUT STATUS (D-2287):** HS-023 CONSUMED (D-2285; 3/3 P0, mean 1.00). No further holdout needed for ROUTING-001.
-
-**OBS-A (carry-forward):** PrismQL identifier grammar rejects hyphens — no quoting escape; sensor_id with hyphen produces unreachable table name.
-**OBS-B (carry-forward):** sensor_id with underscores causes E-QUERY-036/037/038 source-table resolver + sensor plan-gate disagreement on canonical table name.
-
-### BACKUP BOUNDARY (D-2287)
-- PUSHED / safe: `origin/develop` `362e4f85`; `factory-artifacts` (this burst commit); `feature/S-ADR058-OCSF-ROUTING-001` @`5645c8506` (pushed to origin).
-- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
-
----
-
-## §RESUME SNAPSHOT — D-2286 (2026-08-23 — PR-LEVEL FIX-BURST COMPLETE; STATE v8.819→v8.820) [SUPERSEDED by D-2287]
-
-### RESUME IN ONE BREATH
-Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 PR-LEVEL fix-burst COMPLETE — 3 PR-LEVEL findings closed: F-SEC-PR242-001 (4 guarded `.unwrap()` eliminated via `filter_map` in `§pipeline_result_to_record_batch` §J OCSF branch), F-SEC-PR242-002 (new §J5 `ocsf_field` charset hard-rejection + E-SPEC-030 §J5 + RG-Q-018 GREEN), F-PR242-A-OBS-001 (AC-008 `#[ignore]` comment reconciled spec-side only). Feature code HEAD advanced to @2393470cd; just check 5816/5816 GREEN. BC-5.39.001 PR-LEVEL streak RESET 0/3 (code+spec HEAD changed by this fix-burst). Spec perimeter updated: BC-2.16.003 v1.27 / error-taxonomy v2.82 / ADR-058 v2.33 / ROUTING-001 v1.57.
-
-**RESUME NEXT-ACTION:** (1) Push `feature/S-ADR058-OCSF-ROUTING-001` to origin (current HEAD @2393470cd — NOT YET PUSHED); (2) dispatch security-reviewer on PR #242 diff on frozen HEAD @2393470cd; (3) dispatch adversary 3-CLEAN on frozen HEAD @2393470cd (BC-5.39.001 PR-LEVEL streak 0/3). OBS-A/OBS-B carry-forward in STATE.md §D-2285 for post-merge routing.
-
-### HEADS (D-2286)
-- `develop`: `362e4f85` (local == origin; clean)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
-- `feature/S-ADR058-OCSF-ROUTING-001`: `2393470cd` (PR-LEVEL fix-burst HEAD — NOT YET PUSHED; push is STEP 1 of RESUME-NEXT-ACTION)
-- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
-- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, dirty)
-
-### ROUTING-001 WORKSTREAM STATE (D-2286)
-**FROZEN PERIMETER (POST-FIX-BURST):** ADR-058 v2.33 / BC-2.16.002 v2.35 / BC-2.16.003 v1.27 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.333 / BC-INDEX v9.55 / STORY-INDEX v2.885 / HOLDOUT-INDEX v1.21. active 253/draft 3/total 269/stories 303.
-
-**BC-5.39.001 PR-LEVEL STREAK: 0/3 RESET** (code+spec HEAD changed to @2393470cd by D-2286 fix-burst). LOCAL 3/3 CONVERGED @8aeaf06c4/fc0776dad UNCHANGED. HOLDOUT PASS HS-023 3/3 P0 UNCHANGED.
-
-**HOLDOUT STATUS (D-2286):** HS-023 group PASSED (3/3 P0, mean 1.00) and CONSUMED (D-2285). HOLDOUT-INDEX v1.21. No further holdout needed for ROUTING-001.
-
----
-
-## §RESUME SNAPSHOT — D-2285 (2026-08-23 — ROUTING-001 HOLDOUT PASS + DEMO COMPLETE; STATE v8.818→v8.819) [SUPERSEDED by D-2286]
-
-### RESUME IN ONE BREATH
-ROUTING-001 story-level holdout gate PASSED (HS-023 3/3 P0 scenarios, mean satisfaction 1.00; CONSUMED — HOLDOUT-INDEX v1.21). Demo COMPLETE: 21/21 ACs recorded @dc37a57a7 (docs-only commit; code remains @8aeaf06c4, LOCAL 3-CLEAN unchanged). pr-manager 9-step PR cycle IN PROGRESS (PR targeting develop).
-
-**RESUME NEXT-ACTION:** SUPERSEDED — ROUTING-001 PR-LEVEL cascade COMPLETED; PR #242 SQUASH-MERGED develop@3f1e66179 (D-2288 2026-08-23). See D-2310 §RESUME SNAPSHOT for current next action.
-
-### HEADS (D-2285)
-- `develop`: `362e4f85` (local == origin; clean)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
-- `feature/S-ADR058-OCSF-ROUTING-001`: `8aeaf06c4` (PUSHED origin; LOCAL 3-CLEAN; demo @dc37a57a7 docs-only)
-- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
-- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, dirty)
-
-### ROUTING-001 WORKSTREAM STATE (D-2285)
-**FROZEN PERIMETER:** ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.16.003 v1.26 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.81 / ROUTING-001 v1.56 / COERCION-001 v1.47 (merged). Code HEAD: `8aeaf06c4` / just check GREEN 5815.
-
-**BC-5.39.001 LOCAL STREAK: 3/3 CONVERGED** @8aeaf06c4. PR-LEVEL cascade NOT YET STARTED — begins after PR creation.
-
-**HOLDOUT STATUS (D-2285):** HS-023 group PASSED (3/3 P0, mean 1.00) and CONSUMED. HOLDOUT-INDEX v1.21.
-
----
-
-## §RESUME SNAPSHOT — D-2284 (2026-08-23 — SESSION WRAP; ROUTING-001 A+W LOCAL 3-CLEAN CONVERGED; HS-023 authored; STATE v8.817→v8.818) [SUPERSEDED by D-2285]
-
-### RESUME IN ONE BREATH
-Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 A+W amendment DELIVERED and LOCAL 3-CLEAN CONVERGED at feature @8aeaf06c4 (PUSHED origin — backed up) / specs frozen @factory-artifacts. Step 5 story-level holdout RE-GATE is the current gate: fresh HS-023 group authored (3 P0 scenarios; HOLDOUT-INDEX v1.20; HS-022 CONSUMED D-2270). NEXT: dispatch holdout-evaluator to run HS-023 against the built binary, then Step 6 (demo → PR 9-step → merge).
-
-**RESUME NEXT-ACTION:** dispatch vsdd-factory:holdout-evaluator (strict info asymmetry; tools Bash+Read only) on the HS-023 group — holdout-scenarios/S-ADR058-OCSF-ROUTING-001-B-HS-001-zero-tier1-aw-warning-and-available-set.md (P0, thr 0.75), -B-HS-002-spec-load-j4-collision-e-spec-030-rejection.md (P0, thr 0.80), -B-HS-003-audit-logs-metadata-uid-wire-shape-and-e-query-038-available-columns.md (P0, thr 0.75) — against the story's built binary in the feature worktree @8aeaf06c4, wire-level assertions, scoped to ROUTING-001's touched surface. BLOCKING gate: mean satisfaction ≥0.85 AND every critical ≥0.60. If PASS → Step 6 (demo-recorder per-AC → pr-manager 9-step PR incl. PR-LEVEL 3-CLEAN + security review → squash-merge to develop → post-merge state burst incl. POL-14). If FAIL → route findings OBSERVED-BEHAVIOR-ONLY (contamination control), fix, LOCAL streak resets 0/3, re-converge.
-
-### HEADS (D-2284)
-- `develop`: `362e4f85` (local == origin; clean)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'`
-- `feature/S-ADR058-OCSF-ROUTING-001`: `8aeaf06c4` (PUSHED origin — backed up; just check 5815 green)
-- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
-- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, dirty)
-
-### ROUTING-001 WORKSTREAM STATE (D-2284)
-**FROZEN PERIMETER:** ADR-058 v2.32 / BC-2.16.002 v2.35 / BC-2.16.003 v1.26 (active) / BC-2.11.016 v1.31 / error-taxonomy v2.81 / ROUTING-001 v1.56 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.332 / BC-INDEX v9.54 / STORY-INDEX v2.884 / HOLDOUT-INDEX v1.20. active 253/draft 3/total 269/stories 303.
-
-**BC-5.39.001 LOCAL STREAK: 3/3 CONVERGED** on frozen @8aeaf06c4/fc0776dad (ROUTING-001 v1.56). CLEAN(strict)=YES+CLEAN(PR-merge)=YES on all three parallel passes D-2283. just check 5815 exit 0.
-
-### A+W GOVERNING DECISION (§7-authorized 2026-08-23)
-Zero-Tier-1 OCSF table PRESERVES its Tier-2 data via raw_extensions (raw_extensions ⟺ ocsf_column_naming && ≥1 Tier-2, independent of Tier-1 count) AND emits an `ocsf.zero_tier1_table` WARN once at register_sensor (probable-misconfiguration diagnostic). This SUPERSEDED the interim §J6-drop lean.
-
-### HOLDOUT STATUS (D-2284)
-HS-022 CONSUMED D-2270 (1/4 pass; 3/4 fail). HS-023 group AUTHORED (product-owner 2026-08-23; 3 P0 scenarios; HOLDOUT-INDEX v1.20). Re-gate PENDING — NEXT blocking action.
-
-### DECISION-LOG DELTA (D-2274 through D-2284)
-| ID | Summary |
-|----|---------|
-| D-2274 | (ADR-058 §J7 spec-load collision validation burst — archived in burst-log) |
-| D-2275 | error-taxonomy v2.78→v2.79 E-SPEC-030 prose accuracy; sidecar-learning folded |
-| D-2276 | ROUTING-001 LOCAL re-cascade pass-1 strict-fix: 4 findings FIXED (H1/M1/M2/L1); ROUTING-001 v1.52→v1.53; code @891ee536c; just check 5814 |
-| D-2277 | spec-prose fix: BC-2.16.003 v1.24→v1.25 (EC-016-013-032 error-dispatch corrected); error-taxonomy v2.79→v2.80 |
-| D-2278 | §7-AUTHORIZED A+W spec burst: BC-2.11.016 v1.29→v1.30; BC-2.16.002 v2.33→v2.34; BC-2.16.003 v1.25→v1.26; BC-INDEX v9.52→v9.53 |
-| D-2279 | A+W code+emission-site reconcile: ADR-058 v2.31→v2.32; BC-2.16.002 v2.34→v2.35; BC-2.11.016 v1.30→v1.31; T-31 code @510d1299e; just check 5815; BC/ARCH/STORY-INDEX updated |
-| D-2280 | LOCAL pass-C code+test fix: RG-Q-017 tightened; code @8877c7c88; just check 5815 |
-| D-2281 | LOCAL pass-D CLEAN(1/3)→pass-E 2 findings (F-1 MED §J6-drop rustdoc residue; F-2 LOW AC cite); code-COMMENT fix @dce5237e2; just check 5815; streak RESET 0/3 |
-| D-2282 | pass-H OBS-1 test-only fix (RG-Q-011 strengthened); T-31 story canonical alignment (v1.55→v1.56); parallel 3-clean batch 2/3; code @8aeaf06c4; STORY-INDEX v2.884 |
-| D-2283 | BC-5.39.001 LOCAL CASCADE CONVERGED — parallel re-gate batch 3/3 CLEAN(strict)=YES on @8aeaf06c4; trajectory-tail →0→0→0 COMPLETE |
-| D-2284 | SESSION WRAP: HS-023 authored (HOLDOUT-INDEX v1.20; 3 P0 scenarios); feature @8aeaf06c4 PUSHED origin; STATE v8.817→v8.818 |
-
-### WORKTREE INVENTORY (D-2284)
-| Worktree | SHA | Status | Action |
-|----------|-----|--------|--------|
-| main `.` (develop) | `362e4f85` | clean, local==origin | active main |
-| `.worktrees/S-ADR058-OCSF-ROUTING-001` | `8aeaf06c4` | pushed origin | ACTIVE — holdout-evaluator runs here |
-| `.worktrees/S-3.09` | `43c41389d` | LOCAL-ONLY | KEEP-PARKED (unpushed) |
-| `.worktrees/W3-FIX-S307-001` | `fcab8717c` | LOCAL-ONLY dirty | PARKED — do NOT touch |
-
-### BACKUP BOUNDARY (D-2284)
-- PUSHED / safe: `origin/develop` `362e4f85`; `origin/feature/S-ADR058-OCSF-ROUTING-001` `8aeaf06c4`; `factory-artifacts` (this wrap commit)
-- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
-
----
-
-## §RESUME SNAPSHOT — D-2273 (2026-08-22 — SESSION WRAP; ROUTING-001 strict-fix plan; STATE v8.806→v8.807) [SUPERSEDED by D-2284]
-
-### RESUME IN ONE BREATH
-Prism Phase-3, v1 = live Claroty-xDome. S-ADR058-OCSF-ROUTING-001 query-surface OCSF fix delivered+green (feature 396af5722, pushed origin, just check 5805); the story holdout gate caught+fixed a query-planning split-brain + a multi-tenant/pipe sibling. Re-cascade pass-1 (on 396af5722) → 1 edge LOW + 3 OBS; human chose FIX-EVERYTHING-STRICTLY. NEXT: execute `cycles/wave-5-e-demo-fidelity/routing-001-strict-fix-plan.md` (spec burst → RG-Q-010..015 → implementer → re-run 3-CLEAN → re-run holdout with FRESH scenarios → demo → PR → merge).
-
-**RESUME NEXT-ACTION:** Read `cycles/wave-5-e-demo-fidelity/routing-001-strict-fix-plan.md` then execute Step 1 (spec burst: architect ADR-058 three new clauses → product-owner BC-2.11.016/BC-2.16.003/error-taxonomy → story-writer ROUTING-001 ACs+RG-Q-010..015 → state-manager commit).
-
-### HEADS (D-2273)
-- `develop`: `362e4f85` (local == origin; PRs #241+#240 squash-merged 2026-08-20; clean)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD (this wrap commit)
-- `feature/S-ADR058-OCSF-ROUTING-001`: `396af5722` (PUSHED origin — backed up)
-- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
-- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, dirty)
-
-### ROUTING-001 WORKSTREAM STATE (D-2273)
-**FROZEN PERIMETER:** ADR-058 v2.28 / BC-2.16.002 v2.33 / BC-2.16.003 v1.23 (active) / BC-2.11.016 v1.28 / ROUTING-001 story v1.51 / COERCION-001 v1.47 (merged). Indexes: ARCH-INDEX v2.329 / BC-INDEX v9.50 / STORY-INDEX v2.879. Code HEAD: `396af5722` / just check GREEN 5805.
-
-**BC-5.39.001 LOCAL STREAK: 0/3** on frozen HEAD `396af5722`. Re-cascade pass-1 findings: LOW-1 (zero-col ST gate), OBS-1 (projection duplication — no shared helper), OBS-2 (§J collision guards runtime-only), OBS-3 (SAP-1 clean). ALL to be fixed strictly per `routing-001-strict-fix-plan.md`.
-
-**RE-CASCADE PASS-1 FINDINGS DETAIL** (on HEAD 396af5722):
-- LOW-1: `register_sensor` OCSF branch has `if !table.columns.is_empty()` outer guard — zero-column OCSF table falls through ST gate without registering `class_uid` + `_sensor`.
-- OBS-1: Projection logic duplicated across table_registry / engine (2 MT sites) / prism-mcp describe / prism-bin record_batch — no shared authoritative impl.
-- OBS-2: §J1/§J2/§J4 collision guards in `pipeline_result_to_record_batch` only — no spec-load validation; invalid TOMLs accepted at boot, fail at query time.
-- OBS-3: SAP-1 clean — no missing tracing catalog entries.
-
-**HOLDOUT STATUS:** HS-022 group (4 scenarios) CONSUMED at D-2270 (1 pass / 3 fail; all failures were valid defects, fixed in D-2272). Re-gate requires FRESH product-owner-authored holdout scenarios (NEVER reuse consumed scenarios).
-
-### GOVERNING DECISIONS (D-2273)
-- **D-2273 THIS WRAP:** Strict-fix plan written; strict-fix sequence = spec burst → RG-Q-010..015 → implementer → re-run LOCAL 3-CLEAN → re-run holdout (FRESH HS) → demo → PR → merge.
-- **D-2272 GOVERNING DECISION (2026-08-22):** Re-cascade P1 fix (HIGH-001/MED-002) COMPLETE. Site E (`get_initial_available_columns` multi-tenant pipe-stage seed) OCSF-aware via `ocsf_or_raw_column_names_for_table`; RG-Q-008/009 added; code @396af5722; just check GREEN 5805.
-- **D-2270 GOVERNING DECISION (2026-08-21):** ROUTING-001 story holdout gate FAIL (1/4 pass, 3/4 fail). BC-5.39.001 LOCAL streak RESET 0/3.
-- **D-2264 GOVERNING DECISION (2026-08-21):** v1 FIRST RELEASE governs. v1 scope = live Claroty-xDome end-to-end. S-OCSF-FIDELITY-CROWDSTRIKE/CYBERINT/ARMIS-001 + DTU parity migration de-scoped post-v1.
-- **D-2200 GOVERNING DECISION (UNCHANGED):** DTU work DEFERRED POST-FIRST-RELEASE.
-- **D-2109 GOVERNING DECISION (UNCHANGED):** DTUs MUST NOT be reconciled to real without explicit human authorization.
-
-### V1 DEMO-RELEASE ROADMAP (D-2264)
-1. **ROUTING-001 strict fix** (this plan) — query-surface OCSF name-routing complete + zero-col fix + spec-load collision validation.
-2. **S-JSON-EXTRACT-UDF-001** — Tier-2 filtering (depends_on ROUTING-001; not yet started).
-3. **v1 live Claroty-xDome validation** — 97-item matrix at `.factory/objectives/xdome-v1-validation/live-validation-matrix.md` + `soc-analyst-qa-catalog.md` (real tenant; AD-017 opaque credentials).
-
-### PENDING USER-APPROVED-BUT-UNSTARTED WORK
-- "fix everything strictly" on re-cascade pass-1 findings → **this plan**
-- Live xDome validation against real tenant (post-ROUTING-001 merge)
-- Lever-2 index compaction (optional, D-2268 decision)
-- Lever-2 ratchet L11 follow-up (records-lint develop PR, `S-MAINT-INDEX-RATCHET-001`)
-
-### WORKTREE INVENTORY (D-2273)
-| Worktree | SHA | Status | Action |
-|----------|-----|--------|--------|
-| main `.` (develop) | `362e4f85` | clean, local==origin | active main |
-| `.worktrees/S-ADR058-OCSF-ROUTING-001` | `396af5722` | pushed origin | ACTIVE — resume here for delivery |
-| `.worktrees/S-3.09` | `43c41389d` | LOCAL-ONLY | KEEP-PARKED (unpushed) |
-| `.worktrees/W3-FIX-S307-001` | `fcab8717c` | LOCAL-ONLY dirty | PARKED — do NOT touch |
-
-### DECISION-LOG DELTA (D-2262 through D-2273)
-| ID | Summary |
-|----|---------|
-| D-2262 | SESSION-HANDOFF.md compacted; worktrees COERCION-001 + AUDITLOG-TIMEBOX torn down; sidecar-learning session-end marker folded |
-| D-2263 | (housekeeping row — archived in burst-log) |
-| D-2264 | v1 GOVERNING DECISION: live Claroty-xDome is v1 target; OCSF-FIDELITY/DTU-PARITY de-scoped post-v1 |
-| D-2265 | Spec-augmentation burst: ADR-058 v2.26→v2.27 (KF-05 revised; §I6 push-down; §G synthesized-descriptor MUST); BC-2.16.003 v1.21→v1.22; ROUTING-001 v1.46→v1.47 |
-| D-2266 | LOCAL pass-2 spec-side fix-burst: ADR-058 v2.27→v2.28 (§J2 within-doc contradiction resolved); BC-2.16.003 v1.22→v1.23; ROUTING-001 v1.47→v1.48; ARCH-INDEX v2.328→v2.329 |
-| D-2267 | (pass-3 catalog entry — archived in burst-log) |
-| D-2268 | Lever-2 index compaction decision (optional) |
-| D-2269 | Pin sweep; perimeter corrected passes 4-8 |
-| D-2270 | ROUTING-001 story holdout gate FAIL (1/4 pass; 3/4 fail; HS-022 group CONSUMED; BC-5.39.001 LOCAL streak RESET 0/3) |
-| D-2271 | BC-2.11.016 v1.27→v1.28: EC-11-079 query-surface OCSF-resolution contract; holdout-gap closure; BC-INDEX v9.49→v9.50 |
-| D-2272 | Re-cascade P1 fix (HIGH-001/MED-002): Site E OCSF-aware; RG-Q-008/009 added; ROUTING-001 v1.50→v1.51 (density 2.11); code 61aac7b06→396af5722; just check 5805; STORY-INDEX v2.878→v2.879; STATE v8.805→v8.806 |
-| D-2273 | SESSION WRAP: strict-fix plan written; sidecar-learning folded; STATE v8.806→v8.807 |
-
-### BACKUP BOUNDARY (D-2273)
-- PUSHED / safe: `origin/develop` `362e4f85`; `origin/feature/S-ADR058-OCSF-ROUTING-001` `396af5722`; `factory-artifacts` (this wrap commit)
-- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
-
----
-
-## §RESUME SNAPSHOT — D-2261 (2026-08-20 — RECOVERY+WRAP; PRs #240+#241 MERGED to develop; BC-2.16.003 active (POL-14); STATE v8.794→v8.795) [SUPERSEDED by D-2273]
-
-### RESUME IN ONE BREATH
-Prism Phase-3. S-ADR058-OCSF-COERCION-001 TDD complete and MERGED to develop (PR #240 @362e4f85, human-authorized admin-merge 2026-08-20). PR #241 (clippy 1.98.0 + h2 RUSTSEC-2026-0258 security advisory) also MERGED @40c667916. BC-2.16.003 promoted draft→active (POL-14). workspace_test_count 5743→5765. NEXT: S-ADR058-OCSF-ROUTING-001 delivery (ROUTING-001 follows COERCION-001 per spec sequence). Housekeeping COMPLETE (D-2262): SESSION-HANDOFF.md compacted; worktrees torn down.
-
-**RESUME NEXT-ACTION:** Start S-ADR058-OCSF-ROUTING-001 delivery (story status:draft, tdd_mode:strict). Confirm remove-uncertainty pass before TDD.
-
-### HEADS (D-2261 / updated D-2262)
-- `develop`: `362e4f85` (local==origin; PRs #241+#240 squash-merged 2026-08-20; clean)
-- `factory-artifacts`: run `git -C .factory log -1 --format='%H'` for current HEAD
-- `.worktrees/S-3.09` @`43c41389d` KEEP-PARKED (LOCAL-ONLY AT RISK — unpushed)
-- `.worktrees/W3-FIX-S307-001` @`fcab8717c` PARKED-DIRTY do-NOT-touch (LOCAL-ONLY AT RISK — unpushed, dirty)
-
-### OCSF WORKSTREAM STATE (D-2261)
-**FROZEN FINAL (D-2261):** ADR-058 v2.26 / BC-2.16.002 v2.32 / BC-2.16.003 v1.21 / ROUTING-001 v1.45 / COERCION-001 v1.47. Indexes: ARCH-INDEX v2.327 / BC-INDEX v9.45 / STORY-INDEX v2.872. Contract counts active 253 / draft 3 / total 269. total_stories 302. workspace_test_count 5765.
-
-**CASCADE STATUS (COERCION-001 LOCAL):** CONVERGED — human admin override 2026-08-20 (D-2259). trajectory-tail →1→2→2→3 (p1→p4; all findings fixed; ZERO code defects survived). HOLDOUT GATE PASS 4/4 (HS-001..HS-004 real MCP stdio). Demo COMPLETE (8 ACs; POL-10). just check GREEN 5765. PR #240 MERGED.
-
-### GOVERNING DECISIONS (D-2261)
-- **D-2261 GOVERNING DECISION:** PRs #240+#241 MERGED to develop. BC-2.16.003 active (POL-14). active_contracts 253. workspace_test_count 5765. develop_head 362e4f85.
-- **D-2259 GOVERNING DECISION:** S-ADR058-OCSF-COERCION-001 LOCAL adversary cascade CONVERGED (human admin override). All 4 LOCAL passes; all findings fixed. HOLDOUT GATE PASS 4/4.
-- **D-2200 GOVERNING DECISION (UNCHANGED):** DTU work DEFERRED POST-FIRST-RELEASE — S-ADR058-DTU-PARITY-MIGRATION-001 + DRIFT-DTU-CLAROTY-AUDITLOG-FILTERBODY-001 both PARKED.
-- **D-2109 GOVERNING DECISION (UNCHANGED):** DTUs MUST NOT be reconciled to real without explicit human authorization.
-
-### DECISION-LOG DELTA (D-2260 through D-2261)
-| ID | Summary |
-|----|---------|
-| D-2260 | MERGE RECORDED — PR #241 (clippy 1.98.0 + h2 RUSTSEC-2026-0258) squash-merged to develop @40c667916 (human-authorized admin-merge 2026-08-20); develop_head 69d821be→40c667916 |
-| D-2261 | RECOVERY+WRAP — PR #240 (S-ADR058-OCSF-COERCION-001) squash-merged to develop @362e4f85 (human-authorized admin-merge 2026-08-20); BC-2.16.003 draft→active (POL-14); active_contracts 252→253; workspace_test_count 5743→5765; develop_head 40c667916→362e4f85; ARCH-INDEX/BC-INDEX/STORY-INDEX updated; STATE v8.794→v8.795 |
-
-### BACKUP BOUNDARY (D-2261 / updated D-2262)
-- PUSHED / safe: `origin/develop` `362e4f85` (PRs #241+#240 merged 2026-08-20); `factory-artifacts` (D-2262 housekeeping burst commit)
-- LOCAL-ONLY AT RISK: `.worktrees/S-3.09` @`43c41389d` (unpushed); `.worktrees/W3-FIX-S307-001` @`fcab8717c` (unpushed, dirty)
-
----
-
-## §Standing Orchestrator Process Rules
-
-These rules are canonical in CLAUDE.md and SESSION-HANDOFF.md. Listed here for reference.
-
-1. **BC-5.39.001 3-CLEAN strict convergence (D-779).** CLEAN(strict) = zero findings of ANY severity. CLEAN(PR-merge) = zero CRIT+HIGH+MED. Streak advances ONLY on CLEAN(strict). Adversary CLEAN reports MUST specify both criteria.
-
-2. **Single-commit-per-burst (TD-VSDD-053).** Each logical burst → ONE commit in `.factory/`. Multi-commit chains trigger MULTI_COMMIT_CHAIN_NOT_ALLOWED. No Stage-1/Stage-2/backfill chains.
-
-3. **Anti-volatile-pin (TD-VSDD-091).** Narrative spec content must cite function names + behavioral anchors, NOT `file.rs:NNN` line numbers. Justified citations (Red Gate test tables, AC source-of-truth tables, pass-report changelogs) excepted.
-
-4. **Paper-fix detection (TD-VSDD-059).** Adversary must verify every claimed closure has a load-bearing test or assertion, not just doc-comment or rename.
-
-5. **Sibling-site sweep (TD-VSDD-060).** When changing a function signature, constant, or canonical identifier, grep ALL callsites in the same crate (and adjacent crates if pub) before committing.
-
-6. **AD-017 credential opaqueness.** Credentials never transit AI context; reference-based model with CLI/env/vault paths. OrgSlug::new_unchecked is test-helpers-feature-gated.
-
-7. **Source-of-Truth Precedence.** Later/more-specific artifact wins. Story spec supersedes BC for implementation scope. ADR supersedes earlier ADR. Code vs spec: SPEC WINS (Standing Rule for VSDD). Only human can authorize spec amendment to match code (§7).
-
-8. **POL-14 auto-promotion.** When a story's PR merges, BCs in `behavioral_contracts` frontmatter auto-promote draft→active. State-manager runs this transition.
-
-9. **D-989 autonomy scope.** Full autonomous Wave-5 execution. Pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit.
-
-10. **factory-artifacts PUSH-AFTER-EACH-BURST (user-authorized D-1066, 2026-06-08).** The state-manager PUSHES factory-artifacts to origin/factory-artifacts as the FINAL step of every state burst (off-machine durability). Push is `git -C .factory push origin factory-artifacts` (normal push, NOT force-push, NOT to main/develop).
-
-11. **PR-LEVEL push-before-regate (DRIFT-ORCH-PRLEVEL-PUSH-001, D-1065).** After ANY PR-LEVEL fix-burst, PUSH the fix commits to `origin/feature/<branch>` BEFORE re-running the PR-LEVEL adversary cascade. LOCAL passes review the local worktree (no push needed); PR-LEVEL passes review the REMOTE PR (`gh pr diff`) — an unpushed local fix-commit causes the adversary to review stale code.
-
-12. **Review-cycle pinned merge order (D-1091, updated D-1101).** QRY MERGED. MCP merge-reconciliation COMPLETE (head 08fdc38c) — pr-manager delivery NEXT. DTU last because PR #182 custody + DTU cascade must run to LOCAL CONVERGED first.
-
-13. **Worktree-path read discipline (D-1097, lesson p).** Adversary dispatches MUST instruct "ALL code reads, grep/rg searches, and line-number citations MUST use the worktree absolute path." Orchestrator MUST run ground-truth check (direct rg in worktree) before dispatching any fix-burst on a CRIT claim.
-
-14. **Long-gate discipline (D-1099, lesson r).** Long gates (pre-push `just check`, CI, PR review waits) run harness-tracked in orchestrator context or via Monitor-equipped agents. Sub-agents MUST NOT be dispatched to wait on long gates.
-
-15. **Parallelize against in-flight state writes (POL-41, human-directed 2026-08-24).** While a `.factory/`-writing burst is in flight, dispatch independent non-`.factory/` work (crates/ tests, implementation, research, reviews) in parallel; never idle. Two `.factory/` writers still serialize (single worktree + TD-VSDD-053). Origin: orchestrator idled waiting on a promotion burst during S-CLAROTY-VULNS-001 Wave A delivery instead of proceeding with independent Red Gate/implementation work. CLAUDE.md §Standing Orchestrator Process Rules mirror deferred to a human-mandated CLAUDE.md edit.
-
----
+Prism Phase-3, v1 = live Claroty xDome. This session PROVED DEFECT-1 (claroty_vulnerabilities h2 "stall") a PHANTOM — direct h2 transport to api.claroty.com is healthy. ADR-059 WITHDRAWN v1.2. BC-2.16.002 v2.38 (H2 postcondition removed, LIMIT early-stop postcondition kept). S-ENGINE-H2-LARGE-RESPONSE-001 RE-SCOPED (v1.6, draft, P2, non-gating). DEFECT-2 fix = S-ENGINE-LIMIT-EARLY-STOP-001 CODE-COMPLETE @f73ab0e2f; LOCAL 3-CLEAN cascade at round-9, IN FLIGHT. [Full detail archived in cycles/wave-5-e-demo-fidelity/session-checkpoints.md]
