@@ -1237,24 +1237,17 @@ pub async fn run_materialization_pipeline(
     )
     .await?;
 
-    // ADR-060 §D8.7 v1.3 — post-execution result cap (BC-2.01.013 tool-level limit).
+    // Materialization returns the FULL filtered/aggregated result set.
     //
-    // Apply `options.limit` as a final row cap on the DataFusion result. For SQL queries
-    // that carry an explicit LIMIT clause, DataFusion has already applied the limit and
-    // this truncation is a no-op (returned rows ≤ limit). For pipe and filter queries
-    // where the plan-shape gate suppressed early-stop (`fetch_limit = 0`), DataFusion
-    // returns all matching rows; this cap ensures the caller receives at most
-    // `options.limit` rows, honouring the tool-level size contract (BC-2.11.001).
+    // The tool-level row cap (`options.limit`) and truncation-signal computation
+    // (`is_truncated`, `total_available`) are EXCLUSIVELY owned by engine.rs Step 6
+    // (`truncate_batches_to_limit` + `total_rows > limit` guard).  A pre-cap here
+    // would cause engine.rs Step 6 to see ≤ limit rows, compute `total_rows ≤ limit`,
+    // and emit `is_truncated = false` with an understated `total_available` — silently
+    // under-reporting truncation to the MCP caller (F-R13-CRIT-001).
     //
-    // The engine.rs caller performs the same truncation again (Step 6), but that is
-    // idempotent: if this step already capped to N, the engine sees total_rows ≤ N and
-    // `is_truncated = false` — consistent with how SQL-LIMIT queries behave (DataFusion
-    // applies the LIMIT, the engine sees the capped count, `is_truncated = false`).
-    let collected = if let Some(limit) = options.limit {
-        truncate_result_to_limit(collected, limit)
-    } else {
-        collected
-    };
+    // ADR-060 §D8.7 specifies only the `fetch_limit` fan-out gate; it does NOT
+    // authorize a materialization-layer result cap.
 
     Ok(MaterializationOutput {
         batches: collected,
@@ -2329,39 +2322,6 @@ fn extract_push_down_filters_as_map(ast: &crate::ast::Ast) -> prism_sensors::typ
     };
 
     crate::pushdown::predicate_tree_to_filter_map(pred)
-}
-
-// ---------------------------------------------------------------------------
-// truncate_result_to_limit (ADR-060 §D8.7 v1.3 post-execution result cap)
-// ---------------------------------------------------------------------------
-
-/// Cap the result set to at most `limit` rows, preserving RecordBatch boundaries
-/// where possible and slicing the first batch that exceeds the remaining budget.
-///
-/// Used in `run_materialization_pipeline` to apply `options.limit` to the
-/// DataFusion result (ADR-060 §D8.7 v1.3 / BC-2.01.013). For SQL queries with
-/// an explicit LIMIT, this is a no-op because DataFusion already enforced the
-/// limit. For pipe and filter queries where the plan-shape gate suppressed
-/// early-stop, this ensures the caller receives at most `limit` rows.
-fn truncate_result_to_limit(
-    batches: Vec<arrow::record_batch::RecordBatch>,
-    limit: usize,
-) -> Vec<arrow::record_batch::RecordBatch> {
-    let mut result = Vec::new();
-    let mut remaining = limit;
-    for batch in batches {
-        if remaining == 0 {
-            break;
-        }
-        if batch.num_rows() <= remaining {
-            remaining -= batch.num_rows();
-            result.push(batch);
-        } else {
-            result.push(batch.slice(0, remaining));
-            remaining = 0;
-        }
-    }
-    result
 }
 
 // ---------------------------------------------------------------------------

@@ -3823,4 +3823,215 @@ async fn test_high003_discriminating_sqlpipe_in_window_row_returned() {
 // ---------------------------------------------------------------------------
 
 // HIGH-002 tests are unit tests in lib.rs (pub(crate) access to inject_now).
+
+// ---------------------------------------------------------------------------
+// F-R13-MED-002: truncation signal correctness when plan-shape gate suppresses
+// early-stop — BC-2.11.001 `is_truncated` / `total_available` / `returned_results`
+// ---------------------------------------------------------------------------
+
+/// F-R13-MED-002 (BC-2.11.001): `QueryEngine::execute` must set `is_truncated = true`
+/// and report `total_available = 100` (true match count) when:
+///   1. the plan-shape gate suppresses early-stop (`fetch_limit = 0`), AND
+///   2. the filter yields MORE rows than the tool limit (100 > 25).
+///
+/// ## Defect being caught
+///
+/// `run_materialization_pipeline` contains a `truncate_result_to_limit` call that
+/// caps the DataFusion output to `options.limit` **before** returning to the caller.
+/// `engine.rs::execute` Step 6 then sees `total_rows = 25` (already capped) instead
+/// of `total_rows = 100`, so it computes `is_truncated = 25 > 25 = false` and
+/// `total_available = 25` — the truncation signal is silently lost.
+///
+/// The fix is to REMOVE `truncate_result_to_limit` from `run_materialization_pipeline`
+/// so Step 6 sees the raw 100 filtered rows and correctly computes
+/// `is_truncated = true`, `total_available = 100`, `returned_results = 25`.
+///
+/// ## Red-Gate mechanics
+///
+/// RED  (pre-cap present, current state):
+///   - Gate: `fetch_limit = 0` → 300 rows fetched.
+///   - DataFusion WHERE: 100 "page2" rows.
+///   - `truncate_result_to_limit(100, 25)` → 25 rows returned to engine.
+///   - Engine Step 6: total_rows=25, is_truncated=25>25=false, returned_results=25.
+///   - Assertions: `is_truncated == true` → FAIL; `total_available == 100` → FAIL.
+///
+/// GREEN (pre-cap removed):
+///   - `run_materialization_pipeline` returns 100 rows untruncated.
+///   - Engine Step 6: total_rows=100, is_truncated=100>25=true, returned_results=25.
+///   - All three assertions pass.
+///
+/// ## Setup
+///
+/// Uses `TruncSignalMockAdapter` (local to this test) whose `sensor_name() = "mock"`
+/// so the table reference `mock_events` resolves through `sensor_id_from_table_name`.
+/// The adapter replicates `PlanShapeGateMockAdapter` behavior:
+///   - `params.limit == 0`: gate suppressed → returns 300 rows (page1+page2+page3).
+///   - `params.limit > 0`: early-stop active → returns 100 rows (page1 only).
+///
+/// SAP-3: query goes through the full `QueryEngine::execute` path — not through a
+/// synthetic AST or `run_materialization_pipeline` directly.
+#[tokio::test]
+async fn test_BC_2_11_001_tool_limit_truncation_signal_on_suppressed_filter() {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::Arc;
+
+    use arrow::array::StringArray;
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+    use async_trait::async_trait;
+    use prism_core::{OrgId, OrgSlug, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+        AdapterRegistry,
+    };
+
+    // -----------------------------------------------------------------------
+    // TruncSignalMockAdapter
+    // -----------------------------------------------------------------------
+    // Returns different data based on params.limit:
+    //   limit == 0: gate suppressed → 300 rows (100 page1 + 100 page2 + 100 page3)
+    //   limit >  0: early-stop active → 100 rows (page1 only)
+    //
+    // The query `mock_events | where status = 'page2'` with a non-temporal predicate
+    // triggers Condition G in `ast_is_reducing_plan`, setting fetch_limit=0.
+    // DataFusion then filters the 300-row full set to 100 "page2" rows.
+    // With the pre-cap in place: those 100 rows are capped to 25 before engine Step 6.
+    // After pre-cap removal: engine Step 6 sees 100 rows and sets is_truncated=true.
+
+    struct TruncSignalMockAdapter {
+        fetch_count: Arc<AtomicU64>,
+        full_batches: Vec<RecordBatch>, // 300 rows — returned when limit == 0
+        page1_batches: Vec<RecordBatch>, // 100 rows — returned when limit > 0
+    }
+
+    impl std::fmt::Debug for TruncSignalMockAdapter {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("TruncSignalMockAdapter")
+                .field("fetch_count", &self.fetch_count.load(Ordering::Relaxed))
+                .finish()
+        }
+    }
+
+    #[async_trait]
+    impl SensorAdapter for TruncSignalMockAdapter {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("mock")
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "mock"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            self.fetch_count.fetch_add(1, Ordering::SeqCst);
+            if params.limit == 0 {
+                Ok(self.full_batches.clone())
+            } else {
+                Ok(self.page1_batches.clone())
+            }
+        }
+    }
+
+    // Build 300-row full set (100 page1 + 100 page2 + 100 page3).
+    fn make_status_batch(value: &str, n: usize) -> RecordBatch {
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "status",
+            DataType::Utf8,
+            true,
+        )]));
+        let values: Vec<Option<&str>> = std::iter::repeat_n(Some(value), n).collect();
+        let array = Arc::new(StringArray::from(values)) as Arc<dyn arrow::array::Array>;
+        RecordBatch::try_new(schema, vec![array]).expect("make_status_batch must succeed")
+    }
+
+    let fetch_count = Arc::new(AtomicU64::new(0));
+    let page1 = make_status_batch("page1", 100);
+    let page2 = make_status_batch("page2", 100);
+    let page3 = make_status_batch("page3", 100);
+
+    let adapter = Arc::new(TruncSignalMockAdapter {
+        fetch_count: Arc::clone(&fetch_count),
+        full_batches: vec![page1.clone(), page2, page3],
+        page1_batches: vec![page1],
+    });
+
+    let org_id = OrgId::new();
+    let org_slug = OrgSlug::new_unchecked("test-org");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, adapter);
+
+    // Build engine using the same helper used by AC-1..AC-7.
+    // `make_engine` wires StubCredentialResolver so fan_out can call the adapter.
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        sensors: None,
+        limit: Some(25),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    // Condition G: `| where status = 'page2'` is a non-temporal pipe WHERE predicate.
+    // `ast_is_reducing_plan` must detect it and set fetch_limit=0 (gate suppresses).
+    // DataFusion WHERE then filters 300 rows to 100 "page2" rows.
+    //
+    // With pre-cap:    materialization returns 25 → engine sees 25 → is_truncated=false.
+    // Without pre-cap: materialization returns 100 → engine sees 100 → is_truncated=true.
+    let result = engine
+        .execute("mock_events | where status = 'page2'", options)
+        .await
+        .expect("F-R13-MED-002: execute must not error for pipe WHERE query");
+
+    // Precondition: adapter must have been called (not vacuously empty pipeline).
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "F-R13-MED-002: adapter must have been called at least once (fetch_count={fc}). \
+         A count of 0 means the pipeline short-circuited and all result assertions are vacuous."
+    );
+
+    // PRIMARY — truncation signal: is_truncated must be true when 100 rows > limit 25.
+    //
+    // RED  (pre-cap): engine sees total_rows=25 → is_truncated=false → FAIL.
+    // GREEN (fix):    engine sees total_rows=100 → is_truncated=true  → PASS.
+    assert!(
+        result.is_truncated,
+        "F-R13-MED-002 (BC-2.11.001): is_truncated must be true when 100 matching rows \
+         exceed the tool limit of 25; got is_truncated=false. \
+         This means truncate_result_to_limit pre-capped the output to 25 inside \
+         run_materialization_pipeline before engine Step 6 could compute the signal."
+    );
+
+    // PRIMARY — total_available must reflect the TRUE match count before the cap.
+    //
+    // RED  (pre-cap): total_available=25 (already capped) → FAIL.
+    // GREEN (fix):    total_available=100 (raw filtered count) → PASS.
+    assert_eq!(
+        result.total_available, 100,
+        "F-R13-MED-002 (BC-2.11.001): total_available must equal the true filtered \
+         match count (100); got {}. \
+         The pre-cap truncates before engine Step 6, so total_available reports 25 \
+         (the cap) instead of 100 (the real count).",
+        result.total_available
+    );
+
+    // PRIMARY — returned_results must honour the tool limit (25 rows delivered).
+    //
+    // PASSES both before and after fix (25 rows are returned either way).
+    // Included to confirm the cap still applies correctly at the engine layer.
+    assert_eq!(
+        result.returned_results, 25,
+        "F-R13-MED-002 (BC-2.11.001): returned_results must equal the tool limit (25); \
+         got {}.",
+        result.returned_results
+    );
+}
 // See `crates/prism-query/src/lib.rs` mod tests::high002_*

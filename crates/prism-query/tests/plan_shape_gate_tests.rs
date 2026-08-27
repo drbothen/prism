@@ -117,9 +117,18 @@ use prism_sensors::{
 ///
 /// - `params.limit == 0`: gate suppressed early-stop → all 300 rows available
 /// - `params.limit > 0`: early-stop active → only page 1 (100 rows) returned
+///
+/// F-LENSB-P13-002 hardening: `fetch_count` increments on every `fetch()` call.
+/// Tests that assert only `last_limit == 0` must ALSO assert `fetch_count >= 1`
+/// so the init value of `0` cannot vacuously satisfy `last_limit == 0` when
+/// the adapter was never actually called.
 struct PlanShapeGateMockAdapter {
     /// The last `params.limit` received — lets tests assert on gate output.
     last_limit: Arc<AtomicU64>,
+    /// Total number of `fetch()` calls received (hardening counter).
+    /// A value of 0 after the pipeline completes means the adapter was never
+    /// invoked — any `last_limit == 0` assertion would be vacuously true.
+    fetch_count: Arc<AtomicU64>,
     /// 300 rows (3 pages × 100) — returned when `params.limit == 0`.
     full_batches: Vec<RecordBatch>,
     /// 100 rows (page 1 only) — returned when `params.limit > 0`.
@@ -130,6 +139,7 @@ impl std::fmt::Debug for PlanShapeGateMockAdapter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PlanShapeGateMockAdapter")
             .field("last_limit", &self.last_limit.load(Ordering::Relaxed))
+            .field("fetch_count", &self.fetch_count.load(Ordering::Relaxed))
             .finish()
     }
 }
@@ -150,6 +160,11 @@ impl SensorAdapter for PlanShapeGateMockAdapter {
         params: &QueryParams,
         _auth: &dyn SensorAuth,
     ) -> Result<Vec<RecordBatch>, SensorError> {
+        // F-LENSB-P13-002: increment fetch_count so tests can assert >= 1.
+        // A final fetch_count of 0 means the adapter was never invoked and any
+        // `last_limit == 0` assertion would be vacuously satisfied by init state.
+        self.fetch_count.fetch_add(1, Ordering::SeqCst);
+
         // Record the fetch_limit the pipeline wired into params.limit.
         self.last_limit.store(params.limit, Ordering::SeqCst);
 
@@ -228,10 +243,15 @@ fn first_i64(batches: &[RecordBatch], col: &str) -> i64 {
 
 /// Construct a fresh `MaterializationContext` with the plan-shape gate mock adapter.
 ///
-/// Returns the context AND the shared `last_limit` arc so individual tests can
-/// assert on the `params.limit` value the pipeline wired to the adapter.
-fn plan_gate_mat_ctx() -> (MaterializationContext, Arc<AtomicU64>) {
+/// Returns the context, the shared `last_limit` arc, and the `fetch_count` arc so
+/// individual tests can assert on both:
+/// - the `params.limit` value the pipeline wired to the adapter, AND
+/// - that the adapter was actually called (fetch_count >= 1, per F-LENSB-P13-002).
+///
+/// Tests that do not need `fetch_count` should bind it as `_fetch_count` or `_`.
+fn plan_gate_mat_ctx() -> (MaterializationContext, Arc<AtomicU64>, Arc<AtomicU64>) {
     let last_limit = Arc::new(AtomicU64::new(0));
+    let fetch_count = Arc::new(AtomicU64::new(0));
 
     // Data pages — each 100 rows with a distinct status value.
     let page1 = make_status_batch("page1", 100);
@@ -240,6 +260,7 @@ fn plan_gate_mat_ctx() -> (MaterializationContext, Arc<AtomicU64>) {
 
     let adapter = Arc::new(PlanShapeGateMockAdapter {
         last_limit: Arc::clone(&last_limit),
+        fetch_count: Arc::clone(&fetch_count),
         full_batches: vec![page1.clone(), page2, page3], // 300 rows total
         page1_batches: vec![page1],                      // 100 rows — early-stop fires
     });
@@ -257,7 +278,7 @@ fn plan_gate_mat_ctx() -> (MaterializationContext, Arc<AtomicU64>) {
         None, // resolved_spec_map absent — no push-down spec
     );
 
-    (mat_ctx, last_limit)
+    (mat_ctx, last_limit, fetch_count)
 }
 
 /// Build `QueryOptions` with an explicit `limit`.
@@ -290,7 +311,7 @@ fn opts(limit: usize) -> QueryOptions {
 /// from a SQL query string — NOT via a synthetic AST.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_count_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, _fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -340,7 +361,7 @@ async fn test_BC_2_16_002_plan_shape_gate_count_suppresses_early_stop() {
 /// F-LENSB-MED-001 fix: prior query used COUNT(*) (Condition A), which masked B.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_group_by_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, _fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -384,7 +405,7 @@ async fn test_BC_2_16_002_plan_shape_gate_group_by_suppresses_early_stop() {
 /// SAP-3: reaches `ast_is_reducing_plan` through `run_materialization_pipeline`.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_distinct_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, _fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -436,7 +457,7 @@ async fn test_BC_2_16_002_plan_shape_gate_distinct_suppresses_early_stop() {
 /// SAP-3: reaches `ast_is_reducing_plan` through `run_materialization_pipeline`.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_non_temporal_where_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, _fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -486,7 +507,7 @@ async fn test_BC_2_16_002_plan_shape_gate_non_temporal_where_suppresses_early_st
 /// SAP-3: reaches `ast_is_reducing_plan` through `run_materialization_pipeline`.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_pipe_stats_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, _fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -533,7 +554,7 @@ async fn test_BC_2_16_002_plan_shape_gate_pipe_stats_suppresses_early_stop() {
 /// SAP-3: reaches `ast_is_reducing_plan` through `run_materialization_pipeline`.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_pipe_dedup_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, _fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -581,7 +602,7 @@ async fn test_BC_2_16_002_plan_shape_gate_pipe_dedup_suppresses_early_stop() {
 /// SAP-3: reaches the gate decision path through `run_materialization_pipeline`.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_bare_projection_early_stop_fires() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, _fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -629,7 +650,7 @@ async fn test_BC_2_16_002_plan_shape_gate_bare_projection_early_stop_fires() {
 /// SAP-3: reaches the gate decision path through `run_materialization_pipeline`.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_order_by_limit_early_stop_fires() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, _fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -693,7 +714,7 @@ async fn test_BC_2_16_002_plan_shape_gate_order_by_limit_early_stop_fires() {
 /// grammar-reachable (any function call can wrap an aggregate).
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_nested_agg_in_scalar_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -702,6 +723,18 @@ async fn test_BC_2_16_002_plan_shape_gate_nested_agg_in_scalar_suppresses_early_
     // Do NOT .expect() — DataFusion will error (unknown UDF), but last_limit
     // is already set by the adapter call before DataFusion runs.
     let _result = run_materialization_pipeline(query, &opts(5), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002 hardening: adapter MUST have been called at least once.
+    // A fetch_count of 0 means the pipeline short-circuited before reaching the
+    // adapter — the `last_limit == 0` assertion below would be vacuously satisfied
+    // by the AtomicU64 init state, not by the gate's suppression.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-010 (Condition A revised — nested aggregate in Scalar args): \
+         adapter must have been called at least once (fetch_count={fc}). \
+         A fetch_count of 0 means last_limit==0 is the init value, not gate evidence."
+    );
 
     // PRIMARY mechanism assertion: gate must set fetch_limit=0.
     // RED: last_limit=5 (v1.2 misses nested aggregate, no recursion into Scalar args).
@@ -736,7 +769,7 @@ async fn test_BC_2_16_002_plan_shape_gate_nested_agg_in_scalar_suppresses_early_
 /// SAP-3: `ORDER BY MAX(status)` is grammar-reachable (standard SQL).
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_order_by_aggregate_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -745,6 +778,15 @@ async fn test_BC_2_16_002_plan_shape_gate_order_by_aggregate_suppresses_early_st
     // DataFusion may reject aggregate in ORDER BY without GROUP BY, but
     // last_limit is set before DataFusion executes.
     let _result = run_materialization_pipeline(query, &opts(5), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002 hardening: adapter must have been invoked.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-011 (Condition A revised — aggregate in ORDER BY): \
+         adapter must have been called at least once (fetch_count={fc}). \
+         A fetch_count of 0 means last_limit==0 is the init value, not gate evidence."
+    );
 
     let seen_limit = last_limit.load(Ordering::SeqCst);
     assert_eq!(
@@ -789,7 +831,7 @@ async fn test_BC_2_16_002_plan_shape_gate_order_by_aggregate_suppresses_early_st
 /// SAP-3: `mock_events | status = 'page2'` is Filter mode, grammar-reachable.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_filter_mode_where_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, _fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -814,45 +856,68 @@ async fn test_BC_2_16_002_plan_shape_gate_filter_mode_where_suppresses_early_sto
 
 /// RG-PSG-014 — AC-007 Condition G revised: `PipeStage::Where` non-temporal
 ///
-/// `mock_events | where status = 'page2'` — pipe WHERE.
+/// `mock_events | where status = 'page2'` — pipe WHERE, NO explicit LIMIT clause.
 ///
 /// v1.2 only checks `PipeStage::Stats` and `PipeStage::Dedup` inside `Ast::Pipe`.
 /// It does not detect `PipeStage::Where` as a client-side reducing operation when
 /// the predicate is non-temporal. v1.3's `has_client_side_where` checks for any
 /// pipe WHERE stage with a non-temporal predicate.
 ///
-/// The pipe WHERE is emitted to DataFusion SQL as `WHERE status = 'page2'`.
-/// Our mock returns "page1" rows when `params.limit > 0`, so:
-///   RED: 100 rows of "page1" → DataFusion WHERE → 0 rows matching "page2" → 0 rows.
-///   GREEN: 300 rows (page1+page2+page3) → DataFusion WHERE → 100 rows of "page2"
-///     → LIMIT 25 → 25 rows.
+/// ## F-R13-MED-001 remediation — raw filtered count (pre-cap layer fix)
+///
+/// The CORRECT postcondition for `run_materialization_pipeline` is to return the
+/// FULL filtered result set (100 page2 rows) — the tool-level cap (`is_truncated`
+/// signal) belongs in `engine.rs::execute` Step 6, NOT inside materialization.
+///
+/// The buggy `truncate_result_to_limit` pre-cap in `run_materialization_pipeline`
+/// silently caps the output to `options.limit` (25), making `engine.rs` see
+/// `total_rows = 25 ≤ 25`, so `is_truncated = false` — the truncation signal
+/// is lost.  The implementer's task is to REMOVE that pre-cap.
+///
+/// Assertion semantics:
+///   RED  (pre-cap present, current): 100 page2 rows → capped to 25 → 25 ≠ 100 FAIL.
+///   GREEN (pre-cap removed):         100 page2 rows returned as-is → 100 == 100 PASS.
+///
+/// Note: `opts(25).limit = Some(25)` but the query has NO explicit `LIMIT k` clause,
+/// so DataFusion does not apply a LIMIT internally. Only the pre-cap (to be removed)
+/// can reduce the 100 filtered rows below 100. Do NOT change this test to carry an
+/// explicit LIMIT clause — that would route through DataFusion's cap and be correct.
 ///
 /// SAP-3: `mock_events | where status = 'page2'` is grammar-reachable pipe syntax.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_pipe_where_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, _fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
-    // Condition G revised: pipe WHERE with non-temporal predicate.
+    // Condition G revised: pipe WHERE with non-temporal predicate, no explicit LIMIT.
     let query = "mock_events | where status = 'page2'";
     let out = run_materialization_pipeline(query, &opts(25), &mut mat_ctx, &session_ctx)
         .await
         .expect("PSG-014: pipeline must not error for pipe WHERE query");
 
-    // PRIMARY behavioral assertion (row count distinguishes RED from GREEN).
-    // RED: 0 rows (100 page1 rows fetched; none match WHERE status='page2').
-    // GREEN: 25 rows (300 rows fetched; 100 match; LIMIT 25 applied).
+    // PRIMARY behavioral assertion — RAW filtered count, NOT the tool-level cap.
+    //
+    // F-R13-MED-001: `run_materialization_pipeline` MUST return the full filtered
+    // set (100 page2 rows) after the pre-cap is removed.  The tool-level
+    // is_truncated / returned_results computation belongs in engine.rs Step 6.
+    //
+    // RED  (pre-cap present): gate suppresses → 300 rows fetched → 100 page2 rows →
+    //   truncate_result_to_limit caps to 25 → row_count = 25 ≠ 100 FAIL.
+    // GREEN (pre-cap removed): 100 page2 rows returned unchanged → row_count = 100 PASS.
     let row_count = total_rows(&out.batches);
     assert_eq!(
-        row_count, 25,
-        "PSG-014 (Condition G revised — pipe WHERE): must return 25 rows when gate \
-         suppresses early-stop (300 rows fetched, WHERE filters to 100 page2 rows, \
-         LIMIT 25 applied); got {row_count}. \
-         If 0, v1.2 pipe arm does not detect PipeStage::Where as client-side filter."
+        row_count, 100,
+        "PSG-014 (Condition G revised — pipe WHERE): run_materialization_pipeline must \
+         return the RAW filtered count (100 page2 rows) without pre-capping to \
+         opts.limit; got {row_count}. \
+         If 25, truncate_result_to_limit is still applying the tool-level cap inside \
+         materialization — that cap must move to engine.rs Step 6 (F-R13-MED-001). \
+         If 0, the gate is not yet implemented (fetch_limit=25 → only page1 fetched, \
+         none match page2)."
     );
 
-    // SECONDARY mechanism assertion.
+    // SECONDARY mechanism assertion: gate must have suppressed early-stop.
     let seen_limit = last_limit.load(Ordering::SeqCst);
     assert_eq!(
         seen_limit, 0,
@@ -884,7 +949,7 @@ async fn test_BC_2_16_002_plan_shape_gate_pipe_where_suppresses_early_stop() {
 /// SAP-3: `WHERE status LIKE '%page2%'` is grammar-reachable standard SQL.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_non_equality_sql_where_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, _fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -935,7 +1000,7 @@ async fn test_BC_2_16_002_plan_shape_gate_non_equality_sql_where_suppresses_earl
 /// SAP-3: SQL JOIN is grammar-reachable (standard SQL syntax).
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_sql_join_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -944,6 +1009,15 @@ async fn test_BC_2_16_002_plan_shape_gate_sql_join_suppresses_early_stop() {
         "SELECT a.status FROM mock_events a JOIN mock_events b ON a.status = b.status LIMIT 5";
     // DataFusion may reject the self-join or succeed; assertion is on last_limit.
     let _result = run_materialization_pipeline(query, &opts(5), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002 hardening: adapter must have been invoked.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-016 (Condition H — SQL JOIN): \
+         adapter must have been called at least once (fetch_count={fc}). \
+         A fetch_count of 0 means last_limit==0 is the init value, not gate evidence."
+    );
 
     let seen_limit = last_limit.load(Ordering::SeqCst);
     assert_eq!(
@@ -978,7 +1052,7 @@ async fn test_BC_2_16_002_plan_shape_gate_sql_join_suppresses_early_stop() {
 /// SAP-3: `mock_events | tail 250` is grammar-reachable pipe syntax.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_pipe_tail_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -987,6 +1061,15 @@ async fn test_BC_2_16_002_plan_shape_gate_pipe_tail_suppresses_early_stop() {
     // DataFusion may error if the tail emitter is not implemented; assertion
     // is on last_limit which is set before DataFusion runs.
     let _result = run_materialization_pipeline(query, &opts(300), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002 hardening: adapter must have been invoked.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-017 (Condition I — PipeStage::Tail): \
+         adapter must have been called at least once (fetch_count={fc}). \
+         A fetch_count of 0 means last_limit==0 is the init value, not gate evidence."
+    );
 
     let seen_limit = last_limit.load(Ordering::SeqCst);
     assert_eq!(
@@ -1019,7 +1102,7 @@ async fn test_BC_2_16_002_plan_shape_gate_pipe_tail_suppresses_early_stop() {
 /// pipe syntax (PipeStage::Join has grammar productions unlike FuncCall::Window).
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_pipe_join_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -1027,6 +1110,15 @@ async fn test_BC_2_16_002_plan_shape_gate_pipe_join_suppresses_early_stop() {
     let query = "mock_events | join inner mock_events on status";
     // DataFusion may error on the pipe join emitter; assertion is on last_limit.
     let _result = run_materialization_pipeline(query, &opts(25), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002 hardening: adapter must have been invoked.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-018 (Condition J — PipeStage::Join): \
+         adapter must have been called at least once (fetch_count={fc}). \
+         A fetch_count of 0 means last_limit==0 is the init value, not gate evidence."
+    );
 
     let seen_limit = last_limit.load(Ordering::SeqCst);
     assert_eq!(
