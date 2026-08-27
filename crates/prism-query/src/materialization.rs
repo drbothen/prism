@@ -831,13 +831,26 @@ pub async fn run_materialization_pipeline(
     // pushed into every fan-out target's `QueryParams.limit`. 0 = no-limit
     // sentinel (EC-008).
     //
+    // PLAN-SHAPE GATE (ADR-060 §D8.7): `ast_is_reducing_plan` returns `true`
+    // when the query contains an aggregation, GROUP BY, DISTINCT, HAVING clause,
+    // pipe `stats` or `dedup` stage, or a non-temporal equality WHERE predicate.
+    // For reducing plans, early-stop is suppressed by forcing `fetch_limit = 0`
+    // (the no-limit sentinel), ensuring all pages are fetched before the reducing
+    // operation executes. For bare projections and ORDER-BY–only queries the gate
+    // returns `false` and early-stop fires normally (ADR-060 §D8.5).
+    //
     // SINGLE-BINDING COHERENCE (P1-01 / BC-2.07.005 §Invariants, architect
-    // adjudication D1): this binding feeds BOTH the response-cache key
-    // derivation AND the fan-out target construction below. Do NOT introduce a
-    // second derivation of the pushed limit — the limit hashed into
-    // `push_down_hash` must always be the limit actually fetched, including
-    // under any future pushdown-suppression logic.
-    let fetch_limit: u64 = options.limit.map(|l| l as u64).unwrap_or(0);
+    // adjudication D1; ADR-060 §D8.8): this binding feeds BOTH the
+    // response-cache key derivation AND the fan-out target construction below.
+    // Do NOT introduce a second derivation of the pushed limit — the limit
+    // hashed into `push_down_hash` must always be the limit actually fetched.
+    // Reducing plans hash `0` as `fetch_limit`, so they share a full-dataset
+    // cache entry (ADR-060 §D8.8 cache-key coherence).
+    let fetch_limit: u64 = if ast_is_reducing_plan(&ast, &where_filters) {
+        0
+    } else {
+        options.limit.map(|l| l as u64).unwrap_or(0)
+    };
 
     // F-LP1-CRIT-2/3: use fan_out() with CredentialResolver.
     // Process each target independently so virtual field injection uses the
@@ -2299,6 +2312,110 @@ fn extract_push_down_filters_as_map(ast: &crate::ast::Ast) -> prism_sensors::typ
     };
 
     crate::pushdown::predicate_tree_to_filter_map(pred)
+}
+
+// ---------------------------------------------------------------------------
+// ast_is_reducing_plan (ADR-060 §D8.7)
+// ---------------------------------------------------------------------------
+
+/// Returns `true` when the query plan would produce incorrect results if sensor
+/// fan-out stops early — i.e., when result-set correctness depends on ALL pages
+/// being fetched before the plan executes.
+///
+/// This gate drives `fetch_limit` in `run_materialization_pipeline`: a `true`
+/// return forces `fetch_limit = 0` (no-limit sentinel), suppressing early-stop.
+/// A `false` return allows the caller-supplied `options.limit` to propagate as
+/// `fetch_limit`, enabling early-stop for bare projections (ADR-060 §D8.5).
+///
+/// # Conditions (ADR-060 §D8.7)
+///
+/// - **A** — Aggregate function in SELECT items (e.g. `COUNT(*)`, `SUM(x)`)
+/// - **B** — Non-empty `GROUP BY` clause
+/// - **C** — `SELECT DISTINCT`
+/// - **D** — `HAVING` clause present
+/// - **E** — Any `PipeStage::Stats` in the pipe stages
+/// - **F** — Any `PipeStage::Dedup` in the pipe stages
+/// - **G** — Non-empty `where_filters` (equality predicate pushed down via
+///   `extract_push_down_filters_as_map`; matching rows may appear on any page)
+///
+/// ORDER BY alone does NOT trigger suppression (ADR-060 §D8.5).
+fn ast_is_reducing_plan(
+    ast: &crate::ast::Ast,
+    where_filters: &prism_sensors::types::FilterMap,
+) -> bool {
+    use crate::ast::{Ast, PipeStage, SelectItem, SqlStatement};
+
+    // Condition G: non-temporal equality WHERE push-down filters (ADR-060 §D8.7).
+    // A non-empty FilterMap means the query contains equality predicates whose
+    // matches may appear in any page — fetching only page 1 would miss them.
+    if !where_filters.is_empty() {
+        return true;
+    }
+
+    match ast {
+        Ast::Sql(SqlStatement::Select(sql)) => {
+            // Condition A: aggregate function in SELECT items.
+            let has_agg = sql.select.items.iter().any(|item| match item {
+                SelectItem::Expr { expr, .. } => expr_contains_aggregate(expr),
+                _ => false,
+            });
+            // Condition B: non-empty GROUP BY.
+            let has_group_by = !sql.group_by.is_empty();
+            // Condition C: SELECT DISTINCT.
+            let has_distinct = sql.select.distinct;
+            // Condition D: HAVING clause present.
+            let has_having = sql.having.is_some();
+            has_agg || has_group_by || has_distinct || has_having
+        }
+        Ast::SqlPipe(spq) => {
+            // SQL head conditions (A, B, C, D) on the head SqlQuery.
+            let head = &spq.head;
+            let has_agg = head.select.items.iter().any(|item| match item {
+                SelectItem::Expr { expr, .. } => expr_contains_aggregate(expr),
+                _ => false,
+            });
+            let has_group_by = !head.group_by.is_empty();
+            let has_distinct = head.select.distinct;
+            let has_having = head.having.is_some();
+            // Pipe stage conditions (E, F) on the trailing pipe stages.
+            let has_stats = spq.stages.iter().any(|s| matches!(s, PipeStage::Stats(_)));
+            let has_dedup = spq.stages.iter().any(|s| matches!(s, PipeStage::Dedup(_)));
+            has_agg || has_group_by || has_distinct || has_having || has_stats || has_dedup
+        }
+        Ast::Pipe(pipe) => {
+            // Condition E: Stats stage.
+            let has_stats = pipe.stages.iter().any(|s| matches!(s, PipeStage::Stats(_)));
+            // Condition F: Dedup stage.
+            let has_dedup = pipe.stages.iter().any(|s| matches!(s, PipeStage::Dedup(_)));
+            has_stats || has_dedup
+        }
+        // Filter mode (bare predicate) and future Ast variants are not reducing.
+        _ => false,
+    }
+}
+
+/// Returns `true` when `expr` contains (or is) an `FuncCall::Aggregate` node.
+///
+/// Used by `ast_is_reducing_plan` (Condition A) to detect aggregate functions
+/// in SELECT items, including expressions nested inside arithmetic or comparison.
+fn expr_contains_aggregate(expr: &crate::ast::Expr) -> bool {
+    use crate::ast::{Expr, FuncCall};
+    match expr {
+        // Direct aggregate call (e.g. `COUNT(*)`, `SUM(x)`).
+        Expr::FuncCall(FuncCall::Aggregate { .. }) => true,
+        // Scalar/window UDF — not an aggregate.
+        Expr::FuncCall(_) => false,
+        // Recursive cases: binary comparison / logical combinations.
+        Expr::Compare { lhs, rhs, .. } => {
+            expr_contains_aggregate(lhs) || expr_contains_aggregate(rhs)
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            expr_contains_aggregate(lhs) || expr_contains_aggregate(rhs)
+        }
+        Expr::Not(inner) => expr_contains_aggregate(inner),
+        // Literals, field paths, virtual fields, star, now, interval — not aggregates.
+        _ => false,
+    }
 }
 
 /// Extract all source table names from a PrismQL AST (shallow — top-level only).
