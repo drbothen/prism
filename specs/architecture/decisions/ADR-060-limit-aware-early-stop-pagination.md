@@ -5,9 +5,9 @@ title: "LIMIT-Aware Early-Stop Pagination for Offset/Limit and Cursor Sensor Tab
 status: ACCEPTED
 date: "2026-08-26"
 modified: "2026-08-27"
-version: "1.3"
+version: "1.4"
 producer: architect
-subsystems_affected: [SS-01, SS-16]
+subsystems_affected: [SS-01, SS-07, SS-11, SS-16]
 supersedes: []
 superseded_by: null
 amends: null
@@ -23,7 +23,7 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.3 (2026-08-27) — Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
+ACCEPTED v1.4 (2026-08-27) — Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
 (aggregate recursion gap) and F-R12-HIGH-001 (JOIN not suppressed), plus six additional gaps
 discovered by exhaustive grammar enumeration: ORDER BY aggregate escapes Condition A; Condition G
 was based on `where_filters` (equality push-down map) which is always empty for `Ast::Filter` mode
@@ -270,6 +270,11 @@ Every expressible plan shape classified as SUPPRESS (early-stop off) or PERMIT (
 
 `materialization.rs::run_materialization_pipeline` — at the `fetch_limit` derivation, BEFORE
 fan-out targets are constructed. The gate is a guard on the single `fetch_limit` binding.
+
+Subsystem scope: SS-11 (Query Execution) owns `run_materialization_pipeline` — the `fetch_limit`
+derivation and `ast_is_reducing_plan` call site. SS-07 (Adapter Pagination & Response Cache) owns
+`execute_impl` — the per-page early-stop check (§D8.2) — and the response-cache-key coherence
+path where `fetch_limit` is the cache-key limit component (§D8.8).
 
 Note: `where_filters` (the `FilterMap` from `extract_push_down_filters_as_map`) is no longer
 passed to `ast_is_reducing_plan`. The gate performs its own AST inspection for client-side
@@ -646,6 +651,7 @@ conservative default posture. All closed in v1.3.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-08-27 | architect | Subsystem-anchoring correction (F-R13-LENSC-HIGH-001): SS-11 (Query Execution) and SS-07 (Adapter Pagination & Response Cache) added to `subsystems_affected`. SS-11 owns `prism-query::materialization.rs` — the `fetch_limit` derivation and plan-shape gate enforcement site (§D8.7). SS-07 owns `execute_impl` — the per-page early-stop check (§D8.2) — and the response-cache-key coherence path where `fetch_limit` is the cache-key limit component (§D8.8). No behavioral change; frontmatter correction only. |
 | 1.3 | 2026-08-27 | architect | §D8.7 comprehensive plan-shape surface audit. Closes F-R12-CRIT-001 (aggregate recursion gap: `expr_contains_aggregate_or_window` now recurses into `FuncCall::Scalar` args and detects `FuncCall::Window`). Closes F-R12-HIGH-001 (SQL JOIN → Condition H; Pipe Join stage → Condition J). Six additional gaps closed: Condition A extended to scan `order_by` expressions; Condition G redesigned — replaced `where_filters` (equality push-down map, always empty for Filter/Pipe modes) with `has_client_side_where()` covering all four AST modes and all non-temporal predicate forms; Condition I added (PipeStage::Tail); conservative default posture added (`_ => true` catch-all for unknown AST/PipeStage variants). Signature change: `where_filters` parameter removed — gate performs its own AST inspection. Out-of-grammar shapes documented (UNION/INTERSECT/EXCEPT, CTEs, FROM subquery, OFFSET: not gated). Complete shape-classification table added. §D8.7 replaced in full; §D8.8 coherence note updated for new signature; §Consequences updated; §Source updated. |
 | 1.2 | 2026-08-26 | architect | §D8.7 plan-shape gate: closes F-R11-CRIT-001. Suppresses early-stop (`fetch_limit=0`) for reducing plans (aggregation, GROUP BY, DISTINCT, HAVING, Stats, Dedup, non-temporal WHERE). §D8.1 annotated with gating precondition. §D8.8 single-binding coherence clarification. §Consequences and §Alternatives updated. |
 | 1.1 | 2026-08-26 | architect | §D8.1 prose correction: LIMIT is read from `QueryParams.limit: u64` (pre-extracted; 0 = no limit), not from DataFusion physical-plan inspection. Behavioral decision D8 unchanged. |
