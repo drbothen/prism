@@ -555,3 +555,15 @@ ADR-053 ratified EFFECTIVE 2026-07-22 (D-1943) → 9 Wave-A stories (8 draft / 1
 **HEADS (D-2317):** develop `3f1e66179` (local==origin; clean); feature/S-CLAROTY-VULNS-001 `5aae6f0b3` (PUSHED; LOCAL 3-CLEAN CONVERGED round-5; merge HELD pending LIMIT); feature/S-ENGINE-LIMIT-EARLY-STOP-001 `ad756e1f9` (PUSHED; round-5 fix-burst; BC-5.39.001 0/3 round-6 pending); Parked: S-3.09 `43c41389d` KEEP; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch.
 
 **NOTE: Superseded by D-2318 — LIMIT LOCAL round-6 records-only micro-burst (TD-VSDD-096); story v1.4→v1.5 volatile-cite strip (TD-VSDD-091); STORY-INDEX v2.910; HEAD @ad756e1f9 UNCHANGED; BC-5.39.001 0/3 round-7 pending. STATE v8.850→v8.851.**
+
+---
+
+## Archived: D-2324 — 2026-08-26; STATE v8.856→v8.857 — LIMIT round-10 COMPLETE; F-R10-LOW-001 SAC-1 task-ordering FIXED; round-11 pending
+
+**RESUME IN ONE BREATH:** Prism Phase-3; v1 = live Claroty xDome. DEFECT-1 (claroty_vulnerabilities h2 stall) PROVED PHANTOM — direct h2 transport to api.claroty.com confirmed healthy; ADR-059 WITHDRAWN v1.2; xdome HTTP/1.1 relay DECOMMISSIONED. S-ENGINE-LIMIT-EARLY-STOP-001 LOCAL round-10 COMPLETE (D-2324): lens-A CLEAN(strict)=YES (10th consecutive); lens-C CLEAN(strict)=YES; F-R10-LOW-001 (SAC-1 task-ordering LOW) FIXED — story v1.6→v1.7 (RG-005/RG-006 now Task 8 Red Gate first; Task 9 = spec_driven_adapter wiring); STORY-INDEX v2.912; feature HEAD UNCHANGED @e014bf25b FROZEN; BC-5.39.001 0/3; round-11 pending. VULNS-001 LOCAL 3-CLEAN CONVERGED (round-5 @5aae6f0b3 + HOLDOUT HS-024 PASS; merge HELD pending LIMIT). NEXT: LIMIT LOCAL round-11 cascade → converge → merge → redeploy → VULNS live re-validation → VULNS demo/PR/merge. trajectory-tail →2→2→2→1.
+
+**SPEC PERIMETER (D-2324):** ADR-058 v2.34 / ADR-059 v1.2 (WITHDRAWN) / ADR-060 v1.1 / BC-2.16.002 v2.38 / BC-2.16.003 v1.27 / BC-2.16.015 v1.7 (draft) / VULNS story v1.9 / LIMIT story v1.7 — ARCH-INDEX v2.337 / BC-INDEX v9.68 / STORY-INDEX v2.912 / VP-INDEX v2.22.
+
+**HEADS (D-2324):** develop `3f1e66179` (local==origin; clean); feature/S-CLAROTY-VULNS-001 `5aae6f0b3` (PUSHED; LOCAL 3-CLEAN CONVERGED round-5; merge HELD pending LIMIT); feature/S-ENGINE-LIMIT-EARLY-STOP-001 `e014bf25b` (PUSHED; round-10 F-R10-LOW-001 FIXED story v1.7; BC-5.39.001 0/3 round-11 pending); Parked: S-3.09 `43c41389d` KEEP; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch.
+
+**NOTE: Superseded by D-2325 — LIMIT round-11 CRIT F-R11-CRIT-001 RECORDED: LIMIT early-stop keyed to tool result-cap (server.rs §build_query_options default 25), not query data-need; unconditional push-down into QueryParams.limit via materialization.rs §fetch_limit precedes DataFusion — silently corrupts aggregation/GROUP BY/DISTINCT/WHERE-filtered multi-page queries with truncated=false (REGRESSION). BLOCKING ISSUE F-R11-CRIT-001 OPENED. BC-5.39.001 LOCAL streak RESET 0/3 (CRIT). trajectory-tail →2→1→1→3 (REGRESSION). STATE v8.857→v8.858.**
