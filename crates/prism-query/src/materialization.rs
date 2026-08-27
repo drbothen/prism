@@ -163,6 +163,13 @@ pub struct MaterializationOutput {
     /// Used to populate `QueryResultContext.sensors_queried` (BC-2.11.001).
     /// (ADV-W3MT-P58-HIGH-005)
     pub sensors_queried: Vec<String>,
+    /// `true` when the sensor fan-out stopped early because the total rows returned
+    /// by live fan-out calls reached the pushed `fetch_limit` (ADR-060 §D8.3).
+    ///
+    /// This propagates to engine Step 6 to compute the correct `is_truncated` signal
+    /// for the boundary case where `total_rows == limit` (and more pages exist but
+    /// were never fetched). See AC-009 / RG-PSG-025/026.
+    pub any_early_stopped: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -831,8 +838,8 @@ pub async fn run_materialization_pipeline(
     // pushed into every fan-out target's `QueryParams.limit`. 0 = no-limit
     // sentinel (EC-008).
     //
-    // PLAN-SHAPE GATE (ADR-060 §D8.7 v1.3): `ast_is_reducing_plan` returns `true`
-    // when the query plan would produce incorrect results under early-stop.
+    // PLAN-SHAPE GATE (ADR-060 §D8.7 v1.5): `ast_is_reducing_plan_with_index_cols` returns
+    // `true` when the query plan would produce incorrect results under early-stop.
     // Conditions A–J + conservative default (see `ast_is_reducing_plan` doc).
     // Note: `where_filters` is NOT passed — the gate performs its own AST walk
     // via `has_client_side_where` (ADR-060 §D8.7 v1.3 signature change).
@@ -844,11 +851,43 @@ pub async fn run_materialization_pipeline(
     // hashed into `push_down_hash` must always be the limit actually fetched.
     // Reducing plans hash `0` as `fetch_limit`, so they share a full-dataset
     // cache entry (ADR-060 §D8.8 cache-key coherence).
-    let fetch_limit: u64 = if ast_is_reducing_plan(&ast) {
+    //
+    // ADR-060 §D8.7 v1.5: derive INDEX-designated datetime column names for the
+    // temporal-exemption soundness check. Only range comparisons (Gt/Ge/Lt/Le) on
+    // INDEX-designated Datetime columns are guaranteed server-side push-down (ADR-033 T1).
+    // All other predicates (Eq, non-INDEX datetime, Filter-mode, Pipe-WHERE) are
+    // applied client-side by DataFusion and must suppress early-stop.
+    // Conservative default: when resolved_spec_map is None (test/MVP mode with no
+    // sensor spec wired), datetime_index_cols is empty → ALL temporal comparisons
+    // are treated as client-side → early-stop suppressed.
+    let datetime_index_cols: Vec<String> = mat_ctx
+        .resolved_spec_map
+        .as_ref()
+        .map(|map| {
+            map.values()
+                .flat_map(|rss| rss.spec.tables.iter())
+                .flat_map(|t| t.columns.iter())
+                .filter(|col| {
+                    col.column_type == prism_core::column::ColumnType::Datetime
+                        && col
+                            .options
+                            .contains(&prism_core::column::ColumnOptions::Index)
+                })
+                .map(|col| col.name.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+    let datetime_index_refs: Vec<&str> = datetime_index_cols.iter().map(|s| s.as_str()).collect();
+
+    let fetch_limit: u64 = if ast_is_reducing_plan_with_index_cols(&ast, &datetime_index_refs) {
         0
     } else {
         options.limit.map(|l| l as u64).unwrap_or(0)
     };
+
+    // ADR-060 §D8.9 (RG-PSG-025): track total rows returned by live fan-out calls.
+    // Used after the targets loop to compute `any_early_stopped`.
+    let mut total_fetched_rows: usize = 0;
 
     // F-LP1-CRIT-2/3: use fan_out() with CredentialResolver.
     // Process each target independently so virtual field injection uses the
@@ -1033,6 +1072,10 @@ pub async fn run_materialization_pipeline(
                 let mut fetched_batches: Vec<RecordBatch> = Vec::new();
                 for batch in fan_result.successes {
                     let n = batch.num_rows();
+                    // ADR-060 §D8.9 (RG-PSG-025): accumulate live fan-out rows for
+                    // early-stop detection. Cache-hit paths are excluded (they are
+                    // complete prior fetches, not early-stopped partial responses).
+                    total_fetched_rows += n;
                     mat_ctx.increment_record_count(n)?;
                     // Inject virtual fields (_sensor, _client, _source_table).
                     // Uses this target's client_id for correct per-client attribution (AC-6).
@@ -1158,6 +1201,14 @@ pub async fn run_materialization_pipeline(
         }
     }
 
+    // ADR-060 §D8.9 (RG-PSG-025): detect early-stop.
+    // Fires when fetch_limit > 0 (early-stop was active) AND the total rows returned
+    // by live fan-out calls reached the fetch_limit (more pages may exist but were
+    // not fetched). Engine Step 6 uses this to compute is_truncated correctly for
+    // the boundary case where total_rows == limit but additional data was silently
+    // dropped (AC-009 / EC-11-092 / EC-11-093).
+    let any_early_stopped = fetch_limit > 0 && total_fetched_rows >= fetch_limit as usize;
+
     // Step 5: Register each source as a DataFusion MemTable.
     // Track how many external tables were successfully registered with data.
     let mut any_external_table_registered = false;
@@ -1222,6 +1273,8 @@ pub async fn run_materialization_pipeline(
             sensor_errors,
             registered_tables,
             sensors_queried: sensors_queried.into_iter().collect(),
+            // No fan-out data was registered → early-stop cannot have fired.
+            any_early_stopped: false,
         });
     }
 
@@ -1254,6 +1307,7 @@ pub async fn run_materialization_pipeline(
         sensor_errors,
         registered_tables,
         sensors_queried: sensors_queried.into_iter().collect(),
+        any_early_stopped,
     })
 }
 
@@ -2357,12 +2411,38 @@ fn extract_push_down_filters_as_map(ast: &crate::ast::Ast) -> prism_sensors::typ
 ///
 /// ORDER BY alone (without aggregate in the ORDER BY expression) does NOT
 /// trigger suppression (ADR-060 §D8.5).
+/// Single-arg public wrapper for `ast_is_reducing_plan_with_index_cols`.
+///
+/// Passes an empty `datetime_index_cols` slice → conservative suppress for
+/// all temporal predicates. Used EXCLUSIVELY by in-crate unit tests (PSG-009,
+/// PSG-012, PSG-019) that compile-gate against this exact
+/// `fn ast_is_reducing_plan(&Ast) -> bool` signature — do NOT change the
+/// signature or remove this function.
+///
+/// Production callers use `ast_is_reducing_plan_with_index_cols` directly
+/// (via `run_materialization_pipeline`) to pass the real INDEX column list.
+/// The `#[cfg(test)]` annotation keeps this from appearing in release builds;
+/// the compile-gate tests live in `#[cfg(test)] mod plan_shape_gate_unit_tests`
+/// which can access this via `use super::ast_is_reducing_plan`.
+#[cfg(test)]
 fn ast_is_reducing_plan(ast: &crate::ast::Ast) -> bool {
+    ast_is_reducing_plan_with_index_cols(ast, &[])
+}
+
+/// Returns `true` when the query plan would produce incorrect results if sensor
+/// fan-out stops early (i.e., early-stop must be SUPPRESSED — `fetch_limit = 0`).
+///
+/// See `ast_is_reducing_plan` for the full condition list (A–J + Condition G v1.5).
+/// `datetime_index_cols`: names of INDEX-designated Datetime columns; passed to
+/// `has_client_side_where` for the temporal-exemption soundness check (§D8.7 v1.5).
+fn ast_is_reducing_plan_with_index_cols(
+    ast: &crate::ast::Ast,
+    datetime_index_cols: &[&str],
+) -> bool {
     use crate::ast::{Ast, PipeStage, SelectItem, SqlStatement};
 
-    // Condition G (revised): client-side WHERE predicate in any AST mode
-    // (ADR-060 §D8.7 v1.3). Replaces the old `!where_filters.is_empty()` check.
-    if has_client_side_where(ast) {
+    // Condition G (v1.5): client-side WHERE predicate in any AST mode.
+    if has_client_side_where(ast, datetime_index_cols) {
         return true;
     }
 
@@ -2469,44 +2549,54 @@ fn ast_is_reducing_plan(ast: &crate::ast::Ast) -> bool {
 /// applied client-side by DataFusion after fetching (i.e., is NOT guaranteed to
 /// be fully resolved server-side via ADR-033 T1 push-down).
 ///
-/// Covers all four `Ast` modes: `Sql`, `SqlPipe`, `Pipe`, `Filter` (ADR-060 §D8.7 v1.3).
-/// Replaces the v1.2 `!where_filters.is_empty()` check, which was always empty for
-/// `Ast::Filter` and `Ast::Pipe` modes and missed non-equality SQL predicates.
-fn has_client_side_where(ast: &crate::ast::Ast) -> bool {
+/// **ADR-060 §D8.7 v1.5 soundness fix**: the v1.4 temporal exemption was unsound for
+/// three modes:
+/// 1. `Ast::Filter` — ALL predicates are DataFusion client-side in Filter mode.
+///    ADR-033 T1 server-side temporal push-down does NOT apply to Filter mode.
+/// 2. `PipeStage::Where` — pipe-WHERE stages execute after the fetch; they are
+///    always DataFusion client-side regardless of predicate type.
+/// 3. SQL `Eq` on a datetime field — point-equality is NOT a range push-down
+///    candidate (ADR-033 T1 pushes only Gt/Ge/Lt/Le range windows).
+/// 4. Non-INDEX datetime columns — ADR-033 T1 push-down requires INDEX designation.
+///    Columns not in `datetime_index_cols` must be treated as client-side.
+///
+/// The exemption is preserved ONLY for SQL/SqlPipe HEAD WHERE predicates that are
+/// verified range comparisons (Gt/Ge/Lt/Le) on INDEX-designated datetime columns
+/// with a timestamp-literal RHS — checked via `is_pushed_temporal_predicate`.
+///
+/// `datetime_index_cols`: names of columns that are `column_type = Datetime` AND
+/// have `ColumnOptions::Index`. Pass `&[]` to conservatively suppress (no exemptions).
+fn has_client_side_where(ast: &crate::ast::Ast, datetime_index_cols: &[&str]) -> bool {
     use crate::ast::{Ast, PipeStage, SqlStatement};
     match ast {
-        // Filter mode: the predicate always applies client-side unless it is purely
-        // temporal (ADR-033 T1 consumes temporal range predicates server-side).
-        Ast::Filter(f) => !is_purely_temporal_predicate(&f.predicate),
+        // Filter mode: ALL predicates are DataFusion client-side in Filter mode.
+        // ADR-033 T1 server-side temporal push-down does NOT apply to Ast::Filter.
+        // Remove v1.4 temporal exemption → unconditionally suppress (ADR-060 §D8.7 v1.5).
+        Ast::Filter(_) => true,
         // SQL SELECT mode: inspect the WHERE clause predicate.
+        // Temporal exemption applies ONLY when the predicate is fully pushed server-side:
+        // range op (Gt/Ge/Lt/Le) on an INDEX-designated Datetime column with Timestamp RHS.
         Ast::Sql(SqlStatement::Select(sql)) => sql
             .where_
             .as_ref()
-            .map(|p| !is_purely_temporal_predicate(p))
+            .map(|p| !is_pushed_temporal_predicate(p, datetime_index_cols))
             .unwrap_or(false),
-        // Pipe mode: any Where stage with a non-temporal predicate is client-side.
-        Ast::Pipe(pipe) => pipe.stages.iter().any(|s| {
-            if let PipeStage::Where(pred) = s {
-                !is_purely_temporal_predicate(pred)
-            } else {
-                false
-            }
-        }),
-        // SqlPipe mode: check both the SQL head WHERE and any pipe Where stages.
+        // Pipe mode: ANY PipeStage::Where stage makes this client-side.
+        // PipeStage::Where executes after the server fetch — it is always DataFusion
+        // client-side. Remove v1.4 temporal exemption → unconditionally suppress
+        // when any Where stage is present (ADR-060 §D8.7 v1.5).
+        Ast::Pipe(pipe) => pipe.stages.iter().any(|s| matches!(s, PipeStage::Where(_))),
+        // SqlPipe mode: check both the SQL head WHERE and pipe Where stages.
+        // Head WHERE may be pushed (same rule as SQL mode).
+        // Pipe-WHERE stages are ALWAYS client-side (same rule as Pipe mode).
         Ast::SqlPipe(spq) => {
             let head_client_side = spq
                 .head
                 .where_
                 .as_ref()
-                .map(|p| !is_purely_temporal_predicate(p))
+                .map(|p| !is_pushed_temporal_predicate(p, datetime_index_cols))
                 .unwrap_or(false);
-            let stages_client_side = spq.stages.iter().any(|s| {
-                if let PipeStage::Where(pred) = s {
-                    !is_purely_temporal_predicate(pred)
-                } else {
-                    false
-                }
-            });
+            let stages_client_side = spq.stages.iter().any(|s| matches!(s, PipeStage::Where(_)));
             head_client_side || stages_client_side
         }
         // DML and unknown Ast variants: no WHERE to inspect here; the outer
@@ -2515,20 +2605,30 @@ fn has_client_side_where(ast: &crate::ast::Ast) -> bool {
     }
 }
 
-/// Returns `true` iff the entire predicate tree consists only of temporal range
-/// comparisons that `extract_time_window_from_ast_from_query` (ADR-033 T1) fully
-/// consumes server-side — i.e., the predicate introduces no client-side filtering.
+/// Returns `true` iff the predicate is a pushed server-side temporal predicate —
+/// i.e., a range comparison that `extract_time_window_from_ast_from_query` (ADR-033 T1)
+/// will fully consume server-side, introducing no client-side filtering.
 ///
-/// A predicate is purely temporal iff every leaf is a `Predicate::Compare` where:
-/// - one side is `Expr::Field` (a timestamp field), and
-/// - the other is `Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic`, or
-///   `Expr::Literal(Literal::Timestamp)` (an ISO-8601 timestamp literal),
+/// A predicate is a pushed temporal predicate iff every leaf is a `Predicate::Compare`
+/// where:
+/// - the operator is a range op (Gt, Gte, Lt, Lte) — NOT Eq, which is client-side only
+/// - one side is `Expr::Field(col_name)` where `col_name` is in `datetime_index_cols`
+///   (INDEX-designated Datetime column per ADR-033 T1 requirements)
+/// - the other side is `Expr::Literal(Literal::Timestamp(_))` (an ISO-8601 literal),
+///   `Expr::Now`, `Expr::Interval`, or `Expr::TimestampArithmetic`
 ///
-/// and the only logical combinator is AND (`Predicate::Logical { op: And, .. }`).
-/// All other predicate variants (OR, NOT, IN, BETWEEN, CIDR, StringOp, etc.) are
-/// treated as client-side and return `false`.
-fn is_purely_temporal_predicate(pred: &crate::ast::Predicate) -> bool {
-    use crate::ast::{Expr, Literal, LogicalOp, Predicate};
+/// and the only logical combinator is AND. All other predicate variants (OR, NOT, IN,
+/// BETWEEN, CIDR, StringOp, Eq on datetime, non-INDEX columns) return `false`.
+///
+/// **Conservative defaults (ADR-060 §D8.7 v1.5):**
+/// - Eq on a datetime field → `false` (not a range push-down candidate)
+/// - Any datetime field NOT in `datetime_index_cols` → `false` (no INDEX designation)
+/// - Empty `datetime_index_cols` → `false` for all Compare arms (no push-down possible)
+fn is_pushed_temporal_predicate(
+    pred: &crate::ast::Predicate,
+    datetime_index_cols: &[&str],
+) -> bool {
+    use crate::ast::{CompareOp, Expr, Literal, LogicalOp, Predicate};
 
     /// Returns `true` iff `expr` is a temporal value expression (right-hand side
     /// of a temporal range comparison).
@@ -2543,17 +2643,45 @@ fn is_purely_temporal_predicate(pred: &crate::ast::Predicate) -> bool {
     }
 
     match pred {
-        // A single temporal comparison: `field op temporal_expr`.
-        Predicate::Compare { lhs, rhs, .. } => {
-            (matches!(lhs.as_ref(), Expr::Field(_)) && is_temporal_expr(rhs))
-                || (matches!(rhs.as_ref(), Expr::Field(_)) && is_temporal_expr(lhs))
+        // A pushed temporal comparison: range-op AND INDEX-datetime-field AND temporal RHS.
+        // Eq is explicitly excluded — point-equality on datetime is client-side only.
+        // `case_insensitive` is ignored (not relevant to push-down eligibility).
+        Predicate::Compare { op, lhs, rhs, .. } => {
+            // Only range operators qualify for server-side push-down (ADR-033 T1).
+            // AST uses Ge/Le (not Gte/Lte) per crate::ast::CompareOp.
+            let is_range_op = matches!(
+                op,
+                CompareOp::Gt | CompareOp::Ge | CompareOp::Lt | CompareOp::Le
+            );
+            if !is_range_op {
+                return false;
+            }
+            // Check field ∈ datetime_index_cols AND temporal RHS.
+            // FieldPath.segments.join(".") gives the dot-notation column name
+            // (e.g. "timestamp", "created_at"); sensor spec columns are simple
+            // single-segment names in practice.
+            let lhs_pushed = if let Expr::Field(fp) = lhs.as_ref() {
+                let col_name = fp.segments.join(".");
+                datetime_index_cols.contains(&col_name.as_str()) && is_temporal_expr(rhs)
+            } else {
+                false
+            };
+            let rhs_pushed = if let Expr::Field(fp) = rhs.as_ref() {
+                let col_name = fp.segments.join(".");
+                datetime_index_cols.contains(&col_name.as_str()) && is_temporal_expr(lhs)
+            } else {
+                false
+            };
+            lhs_pushed || rhs_pushed
         }
-        // AND-combined temporal comparisons: both branches must be purely temporal.
-        // OR-combined predicates are NOT purely temporal (OR requires full scan).
+        // AND-combined pushed temporal comparisons: all branches must be pushed.
+        // OR-combined predicates are NOT pushed (OR requires a full scan).
         Predicate::Logical {
             op: LogicalOp::And,
             predicates,
-        } => predicates.iter().all(is_purely_temporal_predicate),
+        } => predicates
+            .iter()
+            .all(|p| is_pushed_temporal_predicate(p, datetime_index_cols)),
         // All other predicate variants (OR, NOT, IN, BETWEEN, CIDR, StringOp,
         // InSubquery, Regex, Has, Missing, IsNull, Wildcard, RecoveryError)
         // are treated as client-side.

@@ -1095,7 +1095,13 @@ impl QueryEngine {
         // Step 6: Apply tool-level limit truncation.
         let limit = options.limit.unwrap_or(usize::MAX);
         let total_rows: usize = output.batches.iter().map(|b| b.num_rows()).sum();
-        let is_truncated = total_rows > limit;
+        // ADR-060 §D8.3 (RG-PSG-025/026): is_truncated must be true when the sensor
+        // fan-out stopped early (any_early_stopped) regardless of whether total_rows
+        // exceeds limit. The boundary case total_rows == limit is TRUNCATED when early-
+        // stop fired (more pages exist but were not fetched). Without the OR term, a
+        // sensor returning exactly `limit` rows appears complete even though 2+ pages
+        // were never fetched (AC-009 / EC-11-092).
+        let is_truncated = total_rows > limit || output.any_early_stopped;
         let returned_results = total_rows.min(limit);
 
         // Truncate to limit (if needed).
