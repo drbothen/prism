@@ -276,6 +276,17 @@ path = "tests/bc_2_01_013_claroty_audit_logs_layer2.rs"
 name = "bc_2_16_002_early_stop_adapter_tests"
 path = "tests/bc_2_16_002_early_stop_adapter_tests.rs"
 
+# S-ENGINE-LIMIT-EARLY-STOP-001: RG-PSG-026 — MCP wire-level truncation signal.
+# Asserts on the SERIALIZED CallToolResult.content[0].text JSON (wire bytes) for two
+# prism_query scenarios per AC-009(d) / BC-2.11.001 EC-11-092/093.
+# Wire-shape assertion discipline (CLAUDE.md 2026-07-13): any test covering an
+# MCP-visible surface MUST assert on the serialized JSON output.
+# Uses in-process QueryEngine with mock adapter — no subprocess/DTU required.
+# No required-features.
+[[test]]
+name = "mcp_integration_tests"
+path = "tests/mcp_integration_tests.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
