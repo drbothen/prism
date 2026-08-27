@@ -2597,9 +2597,23 @@ fn expr_contains_aggregate_or_window(expr: &crate::ast::Expr) -> bool {
         // does not contain the subquery's aggregate. The IN predicate itself is
         // caught by has_client_side_where via Condition G (ADR-060 §D8.7 v1.3).
         Expr::InSubquery { .. } => false,
-        // Leaf nodes: Literal, Field, VirtualField, Star, Now, Interval, In —
-        // not aggregates (conservative catch-all: leaf assumption).
-        _ => false,
+        // Leaf nodes — none of these contain aggregate or window functions.
+        // Enumerated explicitly so that any future #[non_exhaustive] Expr variant
+        // (e.g. Expr::Case { ... then: max(x) ... }) falls through to the conservative
+        // default below rather than being silently absorbed as a non-aggregate.
+        Expr::Literal(_)
+        | Expr::Field(_)
+        | Expr::VirtualField(_)
+        | Expr::In { .. }
+        | Expr::Star
+        | Expr::Now
+        | Expr::Interval(_) => false,
+        // Conservative default — an unknown/future #[non_exhaustive] Expr variant is
+        // treated as potentially containing an aggregate → suppress early-stop.
+        // Prevents silent Condition-A escape; mirrors the Ast/PipeStage/FuncCall
+        // conservative defaults; ADR-060 §D8.7 conservative-default philosophy.
+        #[allow(unreachable_patterns)]
+        _ => true,
     }
 }
 

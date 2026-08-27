@@ -831,7 +831,7 @@ async fn test_BC_2_16_002_plan_shape_gate_order_by_aggregate_suppresses_early_st
 /// SAP-3: `mock_events | status = 'page2'` is Filter mode, grammar-reachable.
 #[tokio::test]
 async fn test_BC_2_16_002_plan_shape_gate_filter_mode_where_suppresses_early_stop() {
-    let (mut mat_ctx, last_limit, _fetch_count) = plan_gate_mat_ctx();
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx();
     let session_ctx =
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
@@ -840,6 +840,15 @@ async fn test_BC_2_16_002_plan_shape_gate_filter_mode_where_suppresses_early_sto
     // Pipeline result may succeed (returning rows of any status from mock).
     // Assertion is on last_limit — the effect that matters for early-stop correctness.
     let _result = run_materialization_pipeline(query, &opts(25), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002 hardening: adapter must have been invoked.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-013 (Condition G revised — Filter mode): \
+         adapter must have been called at least once (fetch_count={fc}). \
+         A fetch_count of 0 means last_limit==0 is the init value, not gate evidence."
+    );
 
     let seen_limit = last_limit.load(Ordering::SeqCst);
     assert_eq!(
