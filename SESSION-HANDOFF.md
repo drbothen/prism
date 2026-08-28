@@ -1,18 +1,59 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.012"
+version: "8.013"
 status: current
-timestamp: 2026-08-28T18:00:00Z
+timestamp: 2026-08-28T23:59:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2339 (2026-08-28): SESSION WRAP — round-16 LOCAL cascade at pass-14, streak 0/3. ADR-061 v1.1→v1.2 (§D8 fix F-R16-P9/P10 committed). LIMIT feature @7cb7885d8 pushed. RG-PSG-028 paper-gate OPEN (sibling-sweep miss). NEXT = test-writer exhaustive paper-gate grep + RG-PSG-028 real-handler fix → re-cascade to 3-CLEAN. [D-2332 SUPERSEDED by D-2339]**
+> **D-2344 (2026-08-28): SESSION WRAP — round-16 pass-19 fix-burst COMPLETE. lens-A LOW + lens-B MED (RG-PSG-037/038) + lens-C MED (FetchOutput 3-field) ALL FIXED. Feature @d486f3ec8 PUSHED (frozen for pass-20). Correctness core CONVERGED. streak 0/3; pass-20 = fresh 3-CLEAN pass 1. [D-2339 SUPERSEDED by D-2344]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2339 (2026-08-28 — SESSION WRAP; round-16 pass-14; RG-PSG-028 OPEN; LIMIT feature @7cb7885d8)
+## §RESUME SNAPSHOT — D-2344 (2026-08-28 — SESSION WRAP; pass-19 fix-burst COMPLETE; LIMIT feature @d486f3ec8; streak 0/3; pass-20 pending)
+
+### RESUME IN ONE BREATH
+Prism Phase-3, v1 = live Claroty xDome. Story S-ENGINE-LIMIT-EARLY-STOP-001 (LIMIT early-stop + plan-shape gate + multi-tenant cache-key isolation + early-stop & DI-019 cache-completeness) round-16 LOCAL 3-CLEAN cascade IN PROGRESS. Correctness core CONVERGED (gate structurally unified with authoritative extractor via shared collect_datetime_index_cols; DI-019 any_pipeline_truncated chain complete; multi-tenant isolation sound). Streak 0/3 — recent passes closed a records/test-coverage tail. Feature @d486f3ec8 PUSHED origin.
+
+### NEXT ACTIONS (in order)
+1. pass-20 = 3 fresh-context adversary lenses (A correctness/security, B test-coverage/wire, C consistency/records) on FROZEN @d486f3ec8; inject policies.yaml + SAP-1/2/3; pass 1 of a fresh 3-CLEAN streak.
+2. All 3 CLEAN(strict) → streak 1/3 → pass-21/22 on UNCHANGED @d486f3ec8 (frozen-HEAD rule; no pushes between counted passes) → 3-CLEAN = LOCAL CONVERGED; any finding → route to owner, fix-burst (records-only → TD-VSDD-096 micro-burst; content → full ceremony), advance HEAD, reset streak.
+3. LOCAL CONVERGED → STORY-LEVEL HOLDOUT GATE (product-owner authors HS-025..029 if not yet; holdout-evaluator vs built binary, real MCP stdio + DTU, wire-level, BLOCKING) → demo-recorder per-AC → pr-manager 9-step PR to develop → PR-LEVEL 3-CLEAN + security-reviewer → squash-merge → POL-14 (BC-2.16.002/BC-2.16.015 draft→active) → post-merge state burst.
+4. Then unblock S-CLAROTY-VULNS-001 (@5aae6f0b3, merge-HELD): after LIMIT merges + redeploys, re-run LIVE monroe xDome validation, then merge VULNS.
+
+### SPEC PERIMETER (D-2344)
+ADR-060 v1.9 (§D8.7 gate / §D8.9 temporal-soundness+source-scoping / §D8.10 DI-019 chain) / ADR-061 v1.2 / BC-2.16.002 v2.47 (EC-01-030..040) / BC-2.11.001 v1.27 / BC-2.16.015 v1.8 draft / ADR-059 WITHDRAWN / LIMIT story v1.26 (53 RGs incl RG-PSG-030b/c/d/032/033/034/035/036/037/038 + RG-SLUG-001..006; AC-001..013) — ARCH-INDEX v2.348 / BC-INDEX v9.77 / STORY-INDEX v2.930 / VP-INDEX v2.22. Decisions committed: D-2333..D-2344 (exhaustive this session).
+
+### DISCIPLINE REMINDERS
+VERIFY story-writer/PO sweep claims by ground-truth grep on disk (recurring false clean-sweep self-certs passes 15-19); struct-shape/signal reconciliations must sweep ALL artifacts (story+BC+ADR); pre-scout heavy test harnesses (cold >10K / cache-harness reads stalled agents); ~10 transient API/stream agent deaths this session, ALL recovered by inspect-on-disk + re-drive from delta — on resume, if an agent died mid-.factory/-edit, check git status + frontmatter-vs-body consistency before re-dispatching.
+
+### CYCLE-CLOSE PROCESS-GAP CANDIDATES (S-7.02)
+(a) records-lint check for narrative artifact-version pins in .factory/ body prose (POL-39 gated only for line-cites L9 + index-version L10) — recurred passes 15-19; (b) SAP-3 sub-probe: every PipelineResult→FetchOutput signal needs a real-adapter test not a mock hardcode; (c) mandatory pasted-grep evidence on story-writer/PO sweep bursts (anti false-cert TD-VSDD-059).
+
+### BUILD ENV
+sccache DISABLED (2.38% hit rate; incremental restored). 600s agent watchdog kills cold Rust builds.
+
+### HEADS
+- `develop`: `3f1e66179` (local==origin; clean)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: `d486f3ec8` (FROZEN D-2344; PUSHED; pass-20 pending)
+- `feature/S-CLAROTY-VULNS-001`: `5aae6f0b3` (PUSHED; 3-CLEAN CONVERGED round-5; merge HELD pending LIMIT)
+- Parked: S-3.09 @`43c41389d` KEEP; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
+
+### BC-5.39.001 STREAK
+LIMIT LOCAL: 0/3. pass-20 = first pass of fresh 3-CLEAN attempt on frozen HEAD @d486f3ec8. Frozen-HEAD rule: streak counts only on unchanged HEAD; any push resets to 0/3.
+
+### HOLDOUT
+HS-025..029 AUTHORED UNREAD (product-owner). Story-level holdout gate is BLOCKING: runs AFTER LOCAL 3-CLEAN converges, BEFORE demo-recorder/push.
+
+### BACKUP BOUNDARY
+PUSHED/safe: origin/develop 3f1e66179; origin/feature/S-ENGINE-LIMIT-EARLY-STOP-001 d486f3ec8; origin/feature/S-CLAROTY-VULNS-001 5aae6f0b3; factory-artifacts (this D-2344 wrap commit). LOCAL-ONLY AT RISK: feature/S-ENGINE-H2-LARGE-RESPONSE-001 @9e1df825a (obsolete); S-3.09 @43c41389d; W3-FIX-S307-001 @fcab8717c (dirty).
+
+---
+
+## §RESUME SNAPSHOT — D-2339 (2026-08-28 — SESSION WRAP; round-16 pass-14; RG-PSG-028 OPEN; LIMIT feature @7cb7885d8) [SUPERSEDED by D-2344]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3, v1 = live Claroty xDome. Story S-ENGINE-LIMIT-EARLY-STOP-001 (LIMIT early-stop + multi-tenant cache-key isolation) round-16 LOCAL 3-CLEAN cascade IN PROGRESS. Feature branch feature/S-ENGINE-LIMIT-EARLY-STOP-001 HEAD @7cb7885d8 (12 round-16 commits; pushed origin for backup during this wrap). Code correctness/security has been adversary-confirmed SOUND since pass-2; the cascade has been closing test-coverage/spec-prose defects. Streak 0/3.
