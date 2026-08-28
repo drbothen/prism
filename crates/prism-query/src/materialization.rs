@@ -792,13 +792,48 @@ pub async fn run_materialization_pipeline(
         && !mat_ctx.adapter_registry.is_empty()
     {
         // Enumerate all (OrgId, SensorId) pairs registered in the adapter registry.
-        // For each pair, synthesize a FanOutTarget using sensor_id as source_table.
-        // client_id uses the same synthetic-slug fallback as resolve_source_refs lines
-        // 1284-1311 (no OrgRegistry available in bare-filter test path).
+        // For each pair, derive the client_id via ADR-061 D1/D2/D3 authoritative
+        // OrgSlug resolution — the previous comment claiming "no OrgRegistry available
+        // in bare-filter test path" was WRONG: mat_ctx.org_registry IS present and
+        // populated in production (ADR-061 D4).
         for sensor_id in mat_ctx.adapter_registry.registered_sensor_ids() {
             let adapters = mat_ctx.adapter_registry.get_all_for_sensor(&sensor_id);
             for (org_id, _adapter) in adapters {
-                let client_id = OrgSlug::new(format!("org-{}", &org_id.to_string()[..8]));
+                // ADR-061 D4 (Site 1 fix): consult org_registry for authoritative slug.
+                // D1: client_id MUST come from OrgRegistry when registry is present.
+                // D2: registry present + slug missing → SKIP + warn (fail-closed).
+                // D3: registry absent → synthetic slug acceptable (test/MVP mode).
+                let client_id = match mat_ctx
+                    .org_registry
+                    .as_ref()
+                    .and_then(|reg| reg.slug_for(&org_id))
+                {
+                    Some(slug) => slug,
+                    None if mat_ctx.org_registry.is_some() => {
+                        // D2: registry IS present but no slug for this OrgId.
+                        // Skip this target — do NOT synthesize a slug.
+                        tracing::warn!(
+                            org_id = %org_id,
+                            event_type = "query.org_slug_resolution_failure",
+                            "OrgId has no slug mapping in OrgRegistry; skipping bare-filter \
+                             fan-out target (ADR-061 D2 fail-closed: no data served under \
+                             synthetic identity)"
+                        );
+                        continue; // skip this OrgId — do NOT push to targets
+                    }
+                    None => {
+                        // D3: registry absent — test/MVP mode, synthetic slug acceptable.
+                        let synthetic_candidate = format!("org-{}", &org_id.to_string()[..8]);
+                        let candidate = OrgSlug::new(&synthetic_candidate);
+                        if candidate.is_ok() {
+                            candidate
+                        } else {
+                            // UUID prefix starts with a digit — use "org-x" prefix.
+                            OrgSlug::new(format!("org-x{}", &org_id.to_string()[..7]))
+                                .expect("org-x prefix with 7-char UUID must be valid")
+                        }
+                    }
+                };
                 let source_table = sensor_id.as_ref().to_string();
                 targets.push(FanOutTarget {
                     sensor_id: sensor_id.clone(),
@@ -1960,48 +1995,46 @@ pub(crate) async fn resolve_source_refs(
                 // F-LP2-LOW-2: if no slug is found, emit a warn and SKIP this target.
                 // BC-2.11.011 EC-005: orgs with no configured sensors are skipped silently.
                 // Using a sentinel `_all` value would expose implementation details in result rows.
-                let Some(client_slug) = org_registry.as_ref().and_then(|reg| reg.slug_for(&org_id))
-                else {
-                    // OrgRegistry absent (test/MVP mode) — fall back to test slug if available,
-                    // or skip. In production (OrgRegistry present), this path means the adapter
-                    // is registered for an OrgId not in the registry (configuration inconsistency).
-                    // CWE-117: sanitize source_name before log emission (F-CSD-P21-OBS-002 sibling sweep).
-                    tracing::warn!(
-                        org_id = %org_id,
-                        source_table = %sanitize_for_log(source_name),
-                        "resolve_source_refs: OrgId has no slug mapping in OrgRegistry; \
-                         skipping target (BC-2.11.011 EC-005)"
-                    );
-                    // When OrgRegistry is absent (test mode), fall back to a synthetic slug
-                    // derived from the org_id hex rather than `_all` sentinel.
-                    // HIGH-006 (S-PLUGIN-PREREQ-C): use OrgSlug::new() (validated constructor)
-                    // instead of new_unchecked(). The 8-char prefix of a UUID v7 is always
-                    // valid for OrgSlug ([a-zA-Z0-9_-]{1,64}), but using the validated path
-                    // removes the silent dependency on OrgId::Display format.
-                    let synthetic_candidate = format!("org-{}", &org_id.to_string()[..8]);
-                    let synthetic_slug_candidate = OrgSlug::new(&synthetic_candidate);
-                    let synthetic_slug = if synthetic_slug_candidate.is_ok() {
-                        synthetic_slug_candidate
-                    } else {
-                        // Fallback: if somehow the UUID prefix produces an invalid slug,
-                        // use a hardcoded sentinel rather than crashing or corrupting state.
-                        OrgSlug::new("synthetic-unmapped")
-                    };
-                    targets.push(FanOutTarget {
-                        sensor_id: sensor_id.clone(),
-                        client_id: synthetic_slug.clone(),
-                        org_id,
-                        sensor_spec: SensorSpec {
-                            source_table: source_name.clone(),
-                            #[allow(deprecated)]
-                            client_id: synthetic_slug.as_str().to_string(),
-                            org_id,
-                            sensor_config: serde_json::Value::Null,
-                        },
-                        source_table: source_name.clone(),
-                        push_down_plan: PushDownPlan::default(),
-                    });
-                    continue;
+                // ADR-061 D1/D2/D3: authoritative OrgSlug resolution.
+                // D1: client_id MUST come from OrgRegistry when registry is present.
+                // D2: registry present + slug missing → SKIP this target (fail-closed).
+                // D3: registry absent (test/MVP mode) → synthetic slug is acceptable.
+                let client_slug = match org_registry.as_ref().and_then(|reg| reg.slug_for(&org_id))
+                {
+                    Some(slug) => slug,
+                    None if org_registry.is_some() => {
+                        // D2: registry IS present but slug_for returned None.
+                        // Configuration inconsistency — skip this org's target entirely.
+                        // Do NOT synthesize; do NOT push a FanOutTarget.
+                        // (ADR-061 D2 fail-closed: no data served under synthetic identity)
+                        tracing::warn!(
+                            org_id = %org_id,
+                            event_type = "query.org_slug_resolution_failure",
+                            "OrgId has no slug mapping in OrgRegistry; skipping fan-out \
+                             target (ADR-061 D2 fail-closed: no data served under \
+                             synthetic identity)"
+                        );
+                        continue; // skip this OrgId — do NOT push to targets
+                    }
+                    None => {
+                        // D3: registry absent — test/MVP mode, synthetic slug is acceptable.
+                        // HIGH-006 (S-PLUGIN-PREREQ-C): use OrgSlug::new() (validated
+                        // constructor). The 8-char prefix of a UUID v7 is almost always
+                        // valid for OrgSlug ([a-zA-Z0-9_-]{1,64}); for UUIDs whose prefix
+                        // starts with a digit (rare), use an "org-x" prefix for per-org
+                        // isolation without collapsing all affected orgs to one partition
+                        // (ADR-061 D3 sentinel-removal requirement).
+                        let synthetic_candidate = format!("org-{}", &org_id.to_string()[..8]);
+                        let candidate = OrgSlug::new(&synthetic_candidate);
+                        if candidate.is_ok() {
+                            candidate
+                        } else {
+                            // UUID prefix starts with a digit — use "org-x" prefix.
+                            // This preserves per-org isolation in test mode.
+                            OrgSlug::new(format!("org-x{}", &org_id.to_string()[..7]))
+                                .expect("org-x prefix with 7-char UUID must be valid")
+                        }
+                    }
                 };
 
                 targets.push(FanOutTarget {
@@ -2614,8 +2647,14 @@ fn has_client_side_where(ast: &crate::ast::Ast, datetime_index_cols: &[&str]) ->
 /// - the operator is a range op (Gt, Gte, Lt, Lte) — NOT Eq, which is client-side only
 /// - one side is `Expr::Field(col_name)` where `col_name` is in `datetime_index_cols`
 ///   (INDEX-designated Datetime column per ADR-033 T1 requirements)
-/// - the other side is `Expr::Literal(Literal::Timestamp(_))` (an ISO-8601 literal),
-///   `Expr::Now`, `Expr::Interval`, or `Expr::TimestampArithmetic`
+/// - the other side is **`Expr::Literal(Literal::Timestamp(_))` only** — a concrete
+///   absolute ISO-8601 timestamp. Relative expressions (`Expr::Now`, `Expr::Interval`,
+///   `Expr::TimestampArithmetic`) are evaluated post-fetch by DataFusion and must NOT
+///   be treated as server-side pushable (ADR-060 §D8.7 v1.5, §D8.9). `inject_now`
+///   folds all relative temporal expressions to `Literal::Timestamp` before this gate
+///   is reached, so the relative-expression arms are unreachable in production; they
+///   are excluded here to guarantee correct conservative behavior if an unfolded
+///   expression ever reached this gate.
 ///
 /// and the only logical combinator is AND. All other predicate variants (OR, NOT, IN,
 /// BETWEEN, CIDR, StringOp, Eq on datetime, non-INDEX columns) return `false`.
@@ -2624,22 +2663,23 @@ fn has_client_side_where(ast: &crate::ast::Ast, datetime_index_cols: &[&str]) ->
 /// - Eq on a datetime field → `false` (not a range push-down candidate)
 /// - Any datetime field NOT in `datetime_index_cols` → `false` (no INDEX designation)
 /// - Empty `datetime_index_cols` → `false` for all Compare arms (no push-down possible)
+/// - `Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic` → `false` (relative;
+///   evaluated post-fetch by DataFusion — ADR-060 §D8.9 requirement)
 fn is_pushed_temporal_predicate(
     pred: &crate::ast::Predicate,
     datetime_index_cols: &[&str],
 ) -> bool {
     use crate::ast::{CompareOp, Expr, Literal, LogicalOp, Predicate};
 
-    /// Returns `true` iff `expr` is a temporal value expression (right-hand side
-    /// of a temporal range comparison).
+    /// Returns `true` iff `expr` is a concrete absolute timestamp literal (right-hand side
+    /// of a temporal range comparison that is pushed server-side by ADR-033 T1).
+    ///
+    /// Only `Expr::Literal(Literal::Timestamp(_))` qualifies — `inject_now` must have
+    /// already folded any relative temporal expression to this form. Relative expressions
+    /// (`Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic`) are evaluated
+    /// post-fetch by DataFusion and return `false` here (ADR-060 §D8.9).
     fn is_temporal_expr(expr: &Expr) -> bool {
-        matches!(
-            expr,
-            Expr::Now
-                | Expr::Interval(_)
-                | Expr::TimestampArithmetic { .. }
-                | Expr::Literal(Literal::Timestamp(_))
-        )
+        matches!(expr, Expr::Literal(Literal::Timestamp(_)))
     }
 
     match pred {
@@ -7869,48 +7909,6 @@ mod check_ci_column_types_guard_tests {
     }
 }
 
-// ---------------------------------------------------------------------------
-// RG-SLUG-006 — sentinel that "synthetic-unmapped" literal is absent
-// ---------------------------------------------------------------------------
-
-#[cfg(test)]
-mod slug_isolation_tests {
-    /// RG-SLUG-006 — ADR-061 D7: `"synthetic-unmapped"` fallback sentinel absent
-    ///
-    /// The `"synthetic-unmapped"` string literal in `resolve_source_refs` (the
-    /// fallback inside the `OrgSlug::new("synthetic-unmapped")` else-branch) is a
-    /// code smell scheduled for removal under ADR-061 D7.  It is unreachable at
-    /// runtime because UUID v7 hex prefixes always produce valid OrgSlug strings,
-    /// but its presence in source code signals that the correct D2 fix (skip + warn
-    /// when registry present + slug missing) has NOT been applied.
-    ///
-    /// ## RED / GREEN mechanics
-    ///
-    /// RED (current code — D7 not applied):
-    ///   `materialization.rs` contains the literal string `"synthetic-unmapped"` as
-    ///   the fallback in the `OrgSlug::new` else-branch.  `include_str!` captures it.
-    ///   Assertion `!src.contains(…)` FAILS.
-    ///
-    /// GREEN (after ADR-061 D7 — fallback deleted):
-    ///   The `OrgSlug::new("synthetic-unmapped")` branch is removed (it is now dead
-    ///   code — the D2 fix returns early for the registry-present case, and the D3
-    ///   synthetic-slug path no longer needs a fallback).  `include_str!` no longer
-    ///   contains the string.  Assertion PASSES.
-    ///
-    /// SAP-3 note: this is an in-crate source-text invariant test, not an E2E test
-    /// for a behavioural arm.  It is intentionally in-crate (SAP-3 rule 3 exception:
-    /// an invariant about dead-code presence/absence cannot be reached from the public
-    /// surface by definition).
-    #[test]
-    fn test_rg_slug_006_synthetic_unmapped_sentinel_absent() {
-        let src = include_str!("materialization.rs");
-        assert!(
-            !src.contains(r#""synthetic-unmapped""#),
-            "RG-SLUG-006 (ADR-061 D7): the `\"synthetic-unmapped\"` fallback sentinel \
-             must not exist in materialization.rs source. Its presence indicates that the \
-             `OrgSlug::new(\"synthetic-unmapped\")` dead-code branch has not been removed \
-             (ADR-061 D7: delete the unreachable fallback once D2 skips the registry-present \
-             case before it reaches the synthetic-slug else-branch)."
-        );
-    }
-}
+// RG-SLUG-006: test relocated to tests/slug_isolation_tests.rs to break the
+// self-reference that prevented the in-file include_str! from working correctly.
+// See: crates/prism-query/tests/slug_isolation_tests.rs::test_rg_slug_006_*

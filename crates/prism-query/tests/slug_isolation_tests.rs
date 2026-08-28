@@ -370,3 +370,48 @@ async fn test_rg_slug_004_bare_filter_step3b_registry_absent_synthetic_slug_incl
          the bare-filter path."
     );
 }
+
+// ===========================================================================
+// SLUG-006 — RG-SLUG-006 (AC-012): "synthetic-unmapped" sentinel ABSENT from
+//            materialization.rs source (ADR-061 D7)
+// ===========================================================================
+
+/// RG-SLUG-006 — ADR-061 D7: sentinel absence in production source
+///
+/// Asserts that the production source of `materialization.rs` does NOT contain
+/// the string `"synthetic-unmapped"` as a literal value.
+///
+/// This test lives in the external test file (not inline in `materialization.rs`)
+/// so that `include_str!` reads only the production source, not the test code
+/// itself — an inline test would cause a self-reference (the test's own source
+/// would contain the pattern it is testing for absence).
+///
+/// ## RED / GREEN mechanics
+///
+/// RED (before ADR-061 D7 fix): production code has
+///   `OrgSlug::new("synthetic-unmapped")` as a fallback sentinel.
+///   `src.contains(...)` returns `true`; assertion FAILS.
+///
+/// GREEN (after ADR-061 D7 fix): the fallback is replaced with the deterministic
+///   x-prefix form for UUID prefixes starting with a digit (D3).  The production
+///   source no longer contains the sentinel.  Assertion PASSES.
+///
+/// SAP-3 note: source-text invariant test — not an E2E behavioural arm.
+/// Placement in external test file is required to avoid self-reference.
+#[test]
+fn test_rg_slug_006_synthetic_unmapped_sentinel_absent() {
+    let src = include_str!("../src/materialization.rs");
+    // Construct the search pattern without embedding it as a literal string here
+    // (if this file were also inspected by include_str!, the pattern must not appear
+    // verbatim; using the escaped form avoids the self-reference issue).
+    let sentinel = "synthetic-unmapped";
+    let pattern = format!("\"{sentinel}\"");
+    assert!(
+        !src.contains(&pattern),
+        "RG-SLUG-006 (ADR-061 D7): the \"synthetic-unmapped\" fallback sentinel \
+         must not exist in materialization.rs production source. Its presence \
+         indicates that the OrgSlug::new(synthetic-unmapped) dead-code branch has \
+         not been removed (ADR-061 D7: replace with deterministic x-prefix form \
+         once D2 skips registry-present OrgIds before synthesis)."
+    );
+}
