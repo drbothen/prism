@@ -4646,7 +4646,7 @@ async fn test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated
 /// `"org-deadbeef:crowdstrike:crowdstrike:..."`.  Adapter-B's key is identical →
 /// cache HIT → adapter-B is NEVER called → "beta-001" rows are absent from result.
 ///
-/// Assertion `wire_json.contains("\"beta-001\"")` FAILS → RED GATE.
+/// Assertion `provider_values_contain_beta` FAILS → RED GATE.
 ///
 /// ## Correct behaviour (post-D2 fix — GREEN)
 ///
@@ -4656,11 +4656,21 @@ async fn test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated
 /// Distinct slugs → distinct in-query cache keys → adapter-B fetched independently
 /// → "beta-001" rows present → assertion PASSES.
 ///
-/// ## Wire-level assertion (wire-shape assertion discipline, 2026-07-13)
+/// ## Engine-layer defense-in-depth assertion (NOT the wire-level MCP assertion)
 ///
-/// Collects all values from the `"provider"` column across result batches and
-/// serializes to JSON. The assertion operates on the serialized string
-/// `wire_json` rather than pre-serialization Rust structures.
+/// This test operates on `QueryResult.batches` (Arrow `RecordBatch` structs) —
+/// a pre-serialization Rust structure.  It verifies the engine-layer isolation
+/// property directly.
+///
+/// The MCP wire-level assertion — routing through `PrismServer::query` and
+/// asserting on `CallToolResult.content[0].text` (the exact bytes the LLM agent
+/// consumes) — is in `crates/prism-bin/tests/mcp_integration_tests.rs`
+/// `test_rg_slug_005_wire_cross_tenant_isolation_collision_resistant_cache_keys`
+/// (F-R16-P15-LENSB-MED-001 fix).
+///
+/// Both tests are load-bearing: this test catches engine-layer isolation
+/// failures before they reach the wire; the wire test catches envelope-path
+/// bugs that this test cannot see.
 ///
 /// SAP-3: the query reaches the fan-out path through `QueryEngine::execute`
 /// from a real bare-filter string, not a synthetic AST.
@@ -4808,8 +4818,10 @@ async fn test_rg_slug_005_cross_tenant_wire_isolation_collision_resistant_cache_
              (provider IS NOT NULL against crowdstrike adapters)",
         );
 
-    // Collect 'provider' column values across all result batches and serialize
-    // to JSON for wire-level assertion (wire-shape assertion discipline 2026-07-13).
+    // Engine-layer defense-in-depth: collect 'provider' column values from
+    // QueryResult.batches (Arrow RecordBatch — pre-serialization Rust structs).
+    // Verifies the engine-layer isolation property. This does NOT exercise the
+    // MCP wire path; see mcp_integration_tests.rs for the real wire-level assertion.
     let provider_values: Vec<String> = result
         .batches
         .iter()
@@ -4830,26 +4842,29 @@ async fn test_rg_slug_005_cross_tenant_wire_isolation_collision_resistant_cache_
                 .unwrap_or_default()
         })
         .collect();
-    let wire_json =
-        serde_json::to_string(&provider_values).expect("serialize provider values to JSON");
 
-    // Wire-level assertion: "beta-001" must appear in the serialized result.
+    // Engine-layer assertion: "beta-001" must appear in the result batches.
     //
     // RED (current code — Step 3b collision):
     //   Both org_ids get slug "org-deadbeef" → cache collision → adapter-B never called
-    //   → result contains only "alpha-001" rows → `wire_json` does NOT contain "beta-001" → FAILS.
+    //   → result contains only "alpha-001" rows → provider_values does NOT contain "beta-001"
+    //   → FAILS.
     //
     // GREEN (post-D2 fix):
     //   org_id_B → slug "tenant-beta" → distinct cache key → adapter-B fetched
-    //   → "beta-001" row in result → `wire_json` CONTAINS "beta-001" → PASSES.
+    //   → "beta-001" row in result → provider_values CONTAINS "beta-001" → PASSES.
+    let provider_values_contain_beta = provider_values.iter().any(|v| v == "beta-001");
     assert!(
-        wire_json.contains("\"beta-001\""),
-        "RG-SLUG-005 (ADR-061 D4 — collision-resistant cache keys via OrgRegistry): \
-         'beta-001' rows from adapter-B must appear in the result wire JSON. \
-         Current wire_json={wire_json:?}. \
+        provider_values_contain_beta,
+        "RG-SLUG-005 (ADR-061 D4 — collision-resistant cache keys via OrgRegistry, \
+         engine-layer defense-in-depth): \
+         'beta-001' rows from adapter-B must appear in QueryResult.batches. \
+         Got provider_values={provider_values:?}. \
          If absent, Step 3b synthesized the same slug 'org-deadbeef' for both org_ids \
          (UUID prefix collision), causing an in-query cache HIT for adapter-B that served \
          adapter-A's rows. Fix: Step 3b must consult mat_ctx.org_registry when present \
-         (ADR-061 D2 for the bare-filter path)."
+         (ADR-061 D2 for the bare-filter path). \
+         NOTE: the MCP wire-level assertion is in \
+         test_rg_slug_005_wire_cross_tenant_isolation_collision_resistant_cache_keys."
     );
 }

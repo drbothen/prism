@@ -752,3 +752,325 @@ async fn test_psg_rg028_wire_multi_sensor_fanout_no_early_stop_is_not_truncated(
          and incorrectly signals incomplete data when the result set is actually complete.",
     );
 }
+
+// ---------------------------------------------------------------------------
+// RG-SLUG-005 wire-level: cross-tenant isolation — collision-resistant cache keys
+// SECURITY CRITICAL (AC-013 / CWE-284/340/OWASP-A01)
+// ADR-061 D4 — in-query cache keys must be collision-resistant
+// ---------------------------------------------------------------------------
+
+/// RG-SLUG-005 wire-level — `CallToolResult.content[0].text` must contain
+/// `"beta-001"` rows from tenant-beta when a bare-filter ALL-scope fan-out drives
+/// two tenants whose org_ids share an identical first-8-hex prefix.
+///
+/// ## Wire-shape assertion discipline (CLAUDE.md 2026-07-13)
+///
+/// Dispatches through the REAL `PrismServer::query` tool handler — the same code
+/// path that production MCP clients hit.  The handler runs the query through
+/// `QueryEngine::execute`, serializes the `RecordBatch` rows via `arrow-json`, wraps
+/// the payload in `SafetyEnvelopeBuilder::wrap`, and returns the serialized
+/// `ResponseEnvelope` as `CallToolResult`.
+///
+/// The test asserts on `call_result.content[0].text` — the exact bytes the LLM
+/// agent consumes — confirming that both tenants' rows appear in the wire output.
+///
+/// ## SECURITY CRITICAL: cross-tenant isolation (AC-013, CWE-284/340/OWASP-A01)
+///
+/// This is NOT merely a correctness test.  If the collision is present:
+/// - Tenant-beta's adapter is NEVER called
+/// - Tenant-alpha's cached rows are served in place of tenant-beta's rows
+/// - The LLM agent receives rows from the wrong tenant without any error signal
+/// - This is a cross-tenant data leakage / isolation failure at the wire level
+///
+/// ## Collision mechanism (RED)
+///
+/// Two `OrgId`s built from bytes with prefix `[0xde, 0xad, 0xbe, 0xef, ...]`
+/// both stringify to `"deadbeef-..."` — first 8 chars are "deadbeef" for both.
+/// Step 3b in `run_materialization_pipeline` (bare-filter ALL-scope path with
+/// empty `ClientRegistry`) synthesizes slugs via `format!("org-{}", &org_id.to_string()[..8])`.
+/// Both synthetic slugs = "org-deadbeef".
+/// In-query cache key = `format!("{}:{}:...", client_id, sensor_id, ...)`.
+/// With the same slug, adapter-A fetches first and its rows cache under
+/// "org-deadbeef:crowdstrike:...".  Adapter-B's key is identical → cache HIT →
+/// adapter-B NEVER called → "beta-001" rows absent from wire output.
+///
+/// `wire_text.contains("\"beta-001\"")` FAILS → RED GATE.
+///
+/// ## Correct behaviour (post-D2 fix — GREEN)
+///
+/// Step 3b consults `mat_ctx.org_registry`:
+/// - org_id_A → slug "tenant-alpha" (from OrgRegistry)
+/// - org_id_B → slug "tenant-beta"  (from OrgRegistry)
+/// Distinct slugs → distinct in-query cache keys → adapter-B fetched independently
+/// → "beta-001" rows present in wire output → assertion PASSES.
+///
+/// ## Non-vacuity precondition
+///
+/// `fetch_count_b >= 1` verifies adapter-B was actually dispatched (not just
+/// short-circuited via cache).  In the RED state this precondition fires first
+/// and directly names the root cause: adapter-B was never called.
+///
+/// ## Topology (mirrors PSG-026/PSG-028 pattern)
+///
+/// Empty ClientRegistry + `clients: None` → Step 3b enumerates `adapter_registry`.
+/// OrgRegistry wired on the engine (not on the server) to satisfy Step 3b resolution
+/// post-fix while keeping the MCP-server constructor minimal (no AuditWriter).
+///
+/// ## Traces
+///
+/// - AC-013 of S-ENGINE-LIMIT-EARLY-STOP-001
+/// - ADR-061 D4 (collision-resistant in-query cache keys)
+/// - BC-2.01.002 (multi-tenant fan-out isolation)
+/// - CWE-284 / CWE-340 / OWASP A01
+#[tokio::test]
+async fn test_rg_slug_005_wire_cross_tenant_isolation_collision_resistant_cache_keys() {
+    use prism_core::{OrgId, OrgRegistry};
+    use uuid::Uuid;
+
+    // Two OrgIds whose first-8-hex chars are identical ("deadbeef").
+    // bytes[0..4] = [0xde, 0xad, 0xbe, 0xef] → UUID display starts "deadbeef-".
+    // bytes[15] differs so the UUIDs are distinct.
+    let uuid_a = Uuid::from_bytes([
+        0xde, 0xad, 0xbe, 0xef, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01,
+    ]);
+    let uuid_b = Uuid::from_bytes([
+        0xde, 0xad, 0xbe, 0xef, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x02,
+    ]);
+    let org_id_a = OrgId::from_uuid(uuid_a);
+    let org_id_b = OrgId::from_uuid(uuid_b);
+
+    // Collision precondition: both share the "deadbeef" first-8-hex prefix.
+    assert_eq!(
+        &org_id_a.to_string()[..8],
+        "deadbeef",
+        "SLUG-005 wire precondition: org_id_a first-8-hex must be 'deadbeef'"
+    );
+    assert_eq!(
+        &org_id_b.to_string()[..8],
+        "deadbeef",
+        "SLUG-005 wire precondition: org_id_b first-8-hex must be 'deadbeef'"
+    );
+
+    // -----------------------------------------------------------------------
+    // ProviderAdapter — returns a single row with the specified provider value.
+    //
+    // fetch_count: Arc<AtomicU64> — non-vacuousness gate; confirms the engine
+    // dispatched a live fetch call rather than serving from the in-query cache.
+    // -----------------------------------------------------------------------
+    struct ProviderAdapter {
+        sensor_id: prism_core::SensorId,
+        provider_value: &'static str,
+        fetch_count: Arc<AtomicU64>,
+    }
+
+    impl std::fmt::Debug for ProviderAdapter {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("ProviderAdapter")
+                .field("provider_value", &self.provider_value)
+                .finish()
+        }
+    }
+
+    #[async_trait]
+    impl SensorAdapter for ProviderAdapter {
+        fn sensor_type(&self) -> prism_core::SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<FetchOutput, SensorError> {
+            self.fetch_count.fetch_add(1, Ordering::SeqCst);
+            let schema = Arc::new(Schema::new(vec![Field::new(
+                "provider",
+                DataType::Utf8,
+                false,
+            )]));
+            let arr = Arc::new(StringArray::from(vec![self.provider_value]))
+                as Arc<dyn arrow::array::Array>;
+            let batch = RecordBatch::try_new(schema, vec![arr])
+                .expect("SLUG-005 wire: ProviderAdapter batch must build");
+            Ok(FetchOutput::new(vec![batch], false))
+        }
+    }
+
+    let fetch_count_a = Arc::new(AtomicU64::new(0));
+    let fetch_count_b = Arc::new(AtomicU64::new(0));
+
+    let mut registry = AdapterRegistry::new();
+    registry.register(
+        org_id_a,
+        Arc::new(ProviderAdapter {
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            provider_value: "alpha-001",
+            fetch_count: Arc::clone(&fetch_count_a),
+        }),
+    );
+    registry.register(
+        org_id_b,
+        Arc::new(ProviderAdapter {
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            provider_value: "beta-001",
+            fetch_count: Arc::clone(&fetch_count_b),
+        }),
+    );
+
+    // OrgRegistry maps distinct slugs to each org_id.
+    // Post-fix: Step 3b consults this registry instead of synthesizing from first-8-hex.
+    let org_a = OrgSlug::new_unchecked("tenant-alpha");
+    let org_b = OrgSlug::new_unchecked("tenant-beta");
+
+    let org_registry = OrgRegistry::new();
+    org_registry
+        .register(org_a.clone(), org_id_a)
+        .expect("SLUG-005 wire: register tenant-alpha must succeed");
+    org_registry
+        .register(org_b.clone(), org_id_b)
+        .expect("SLUG-005 wire: register tenant-beta must succeed");
+
+    // -----------------------------------------------------------------------
+    // Engine setup: EMPTY ClientRegistry → Step 3b fires on bare-filter query.
+    //
+    // With a populated ClientRegistry ("tenant-alpha", "tenant-beta"):
+    //   resolve_clients(None, registry) returns those slugs as an explicit list.
+    //   The pipeline routes through resolve_source_refs with explicit clients,
+    //   which correctly uses OrgRegistry — BYPASSING Step 3b entirely.
+    //   The test would pass even with the collision bug (vacuous non-RED gate).
+    //
+    // With an EMPTY ClientRegistry:
+    //   resolve_clients(None, empty) returns [].
+    //   all_clients = [] → targets empty after Steps 1-3a → Step 3b fires.
+    //   Step 3b iterates adapter_registry and synthesizes slugs from first-8-hex.
+    //   Collision: both org_ids get "org-deadbeef" → same cache key → adapter-B
+    //   served from adapter-A's cache → "beta-001" absent → RED GATE.
+    // -----------------------------------------------------------------------
+    let engine = make_wire_engine(registry, vec![]).with_org_registry(Arc::new(org_registry));
+
+    // -----------------------------------------------------------------------
+    // Build PrismServer with the engine wired — same pattern as RG-PSG-026/028.
+    //
+    // PrismServer::new() is the test-only constructor (no audit_writer).
+    // Audit emission with no AuditWriter returns Ok(None) per emit_tool_audit's
+    // None branch — the query proceeds with audit_warning = None.
+    //
+    // No server-level OrgRegistry needed: validate_client_ids is a FORMAT check
+    // only ([a-zA-Z0-9_-]{1,64}), not an allowlist check.  The engine's
+    // OrgRegistry (wired above) handles slug→OrgId resolution in Step 3b post-fix.
+    // -----------------------------------------------------------------------
+    let server = PrismServer::new().with_query_engine(Arc::new(engine));
+
+    // -----------------------------------------------------------------------
+    // Bare-filter query with clients: None → ALL-scope → Step 3b fires.
+    //
+    // QueryToolParams is #[non_exhaustive] — use serde_json deserialization for
+    // cross-crate construction (struct literal syntax is forbidden outside prism-mcp).
+    //
+    // clients field OMITTED (None) so the pipeline does not receive an explicit
+    // client list and must enumerate adapter_registry via Step 3b.
+    // -----------------------------------------------------------------------
+    let params: QueryToolParams = serde_json::from_value(serde_json::json!({
+        "query":         "provider IS NOT NULL",
+        "limit":         10_u32,
+        "force_refresh": false
+    }))
+    .expect("SLUG-005 wire: QueryToolParams must deserialize from known-field JSON object");
+
+    let call_result = server.query(Parameters(params)).await.expect(
+        "SLUG-005 wire: PrismServer::query must return Ok(CallToolResult) for bare-filter \
+         ALL-scope fan-out against ProviderAdapters (Err here means an internal PrismError — \
+         check query parse or engine wiring)",
+    );
+
+    // NON-VACUITY PRECONDITION (RED state diagnostic):
+    //
+    // In the RED state (collision):
+    //   adapter-B never called (fetch_count_b == 0) because Step 3b produces
+    //   slug "org-deadbeef" for both org_ids → identical cache key → adapter-B
+    //   served from adapter-A's cache entry → "beta-001" rows absent.
+    //
+    // In the GREEN state (fix):
+    //   adapter-B called with slug "tenant-beta" → distinct cache key → live fetch
+    //   → "beta-001" rows present.
+    //
+    // This precondition fires BEFORE the primary wire assertion and names the
+    // isolation failure root cause explicitly (cache collision → missing fan-out).
+    let fc_b = fetch_count_b.load(Ordering::SeqCst);
+    assert!(
+        fc_b >= 1,
+        "SLUG-005 wire precondition (SECURITY CRITICAL — cross-tenant isolation): \
+         adapter-B (tenant-beta / 'beta-001' rows) must have been dispatched at least once \
+         (fetch_count_b={fc_b}). \
+         A count of 0 means Step 3b produced slug 'org-deadbeef' for both org_ids \
+         (UUID first-8-hex collision: 'deadbeef'), causing an in-query cache HIT for \
+         adapter-B that served adapter-A's rows. \
+         This is a cross-tenant data isolation failure (CWE-284/CWE-340/OWASP-A01): \
+         tenant-beta's data is invisible to the LLM agent. \
+         Fix: Step 3b must consult mat_ctx.org_registry when present (ADR-061 D2)."
+    );
+
+    // Extract the ACTUAL wire bytes from the real SafetyEnvelopeBuilder serialization.
+    //
+    // content[0].text = serde_json::to_value(&ResponseEnvelope {
+    //   results: { rows: [{"provider": "alpha-001"}, {"provider": "beta-001"}], ... },
+    //   content: [{ type: "text", text: "N results found" }],
+    //   ...
+    // }).to_string()
+    let wire_text = call_result
+        .content
+        .first()
+        .and_then(|c| c.as_text())
+        .map(|t| t.text.clone())
+        .expect(
+            "SLUG-005 wire: CallToolResult::structured must produce a text content[0] item \
+             (the serialized SafetyEnvelope JSON)",
+        );
+
+    // PRIMARY ASSERTION (RED gate driver — wire level, SECURITY CRITICAL):
+    //
+    // RED  (collision — current Step 3b):
+    //   Slug "org-deadbeef" for both org_ids → cache collision → adapter-B never called
+    //   → "beta-001" rows absent from wire output
+    //   → wire_text does NOT contain "\"beta-001\"" → FAILS → RED GATE.
+    //
+    // GREEN (post-ADR-061 D2 fix):
+    //   Step 3b resolves slug "tenant-beta" for org_id_b via OrgRegistry
+    //   → distinct cache key → adapter-B fetched independently
+    //   → "beta-001" rows present in wire output
+    //   → wire_text CONTAINS "\"beta-001\"" → PASSES.
+    assert!(
+        wire_text.contains("\"beta-001\""),
+        "SLUG-005 wire (ADR-061 D4 — SECURITY CRITICAL — cross-tenant wire isolation, RED GATE): \
+         CallToolResult.content[0].text must contain 'beta-001' rows from tenant-beta adapter. \
+         Got wire JSON: {wire_text}. \
+         \n\nDiagnosis: Step 3b synthesized slug 'org-deadbeef' for BOTH org_ids \
+         (UUID first-8-hex collision: bytes[0..4] = [0xde,0xad,0xbe,0xef]), causing an \
+         in-query cache HIT for adapter-B that served adapter-A's 'alpha-001' rows. \
+         Tenant-beta's data is completely invisible to the LLM agent — this is a \
+         cross-tenant data leakage / isolation failure at the MCP wire level. \
+         Fix: Step 3b must consult mat_ctx.org_registry when present (ADR-061 D2 / \
+         S-ENGINE-LIMIT-EARLY-STOP-001 AC-013)."
+    );
+
+    // ISOLATION POSITIVE CONTROL: adapter-A (alpha-001) must also be present.
+    // Verifies both tenants are represented in the wire output, not just beta.
+    let fc_a = fetch_count_a.load(Ordering::SeqCst);
+    assert!(
+        fc_a >= 1,
+        "SLUG-005 wire isolation control: adapter-A (tenant-alpha) fetch_count_a must be >= 1; \
+         got {fc_a}. Adapter-A should always be dispatched first regardless of the collision fix."
+    );
+    assert!(
+        wire_text.contains("\"alpha-001\""),
+        "SLUG-005 wire isolation control: wire output must also contain 'alpha-001' rows from \
+         tenant-alpha. Got: {wire_text}."
+    );
+}
