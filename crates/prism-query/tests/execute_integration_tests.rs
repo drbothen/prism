@@ -4278,3 +4278,324 @@ async fn test_psg_exact_limit_is_truncated_true() {
         result.returned_results
     );
 }
+
+// ---------------------------------------------------------------------------
+// RG-PSG-027 / RG-PSG-028: multi-sensor fan-out any_early_stopped correctness
+// (round-16 remediation)
+// ADR-060 §D8.3 — any_early_stopped OR-aggregated across fan-out sensors
+// BC-2.11.001 EC-11-092/EC-11-093
+// ---------------------------------------------------------------------------
+
+/// RG-PSG-027 — ADR-060 §D8.3: `is_truncated = true` when at least one sensor
+/// in a 2-sensor fan-out early-stops at the exact LIMIT boundary.
+///
+/// ## Topology
+///
+/// 2-sensor fan-out, `options.limit = 50`:
+/// - sensor1 (org1): returns 40 rows (no early-stop — sensor has exactly 40 rows)
+/// - sensor2 (org2): returns 10 rows (models early-stop at page boundary — sensor
+///   stopped pagination after page 1, more pages exist)
+/// - total = 40 + 10 = 50 == limit
+///
+/// ## Expected behavior (ADR-060 §D8.3)
+///
+/// `is_truncated = (total_rows > limit) OR any_early_stopped`
+///   = (50 > 50) OR true
+///   = false OR true
+///   = true
+///
+/// ## Current state (heuristic path)
+///
+/// The current implementation at `materialization.rs` computes:
+///   `any_early_stopped = fetch_limit > 0 && total_fetched_rows >= fetch_limit`
+///   = `50 > 0 && 50 >= 50` = `true`
+///
+/// By coincidence, this gives the CORRECT answer for this topology (sum equals
+/// limit), so `is_truncated = true` and the assertion PASSES with the current code.
+///
+/// NOTE: This test becomes RED in the intermediate state (post-Task-11 heuristic
+/// removal, pre-Task-16 per-sensor chain wiring). It is written now so the
+/// implementer has a green target to hit when wiring the correct chain.
+///
+/// ## SAP-3 compliance
+///
+/// The query goes through `QueryEngine::execute` from a real SQL string (not a
+/// synthetic AST or direct `run_materialization_pipeline` call).
+#[tokio::test]
+async fn test_psg_multi_sensor_fanout_exact_limit_one_early_stopped_is_truncated_true() {
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+
+    const LIMIT: usize = 50;
+
+    // Register two StubAdapters: sensor1 returns 40 rows, sensor2 returns 10 rows.
+    // Total = 50 == LIMIT.
+    //
+    // sensor2 models a sensor that early-stopped at the page boundary (it has more
+    // pages, but pagination halted after returning exactly 10 rows that completed
+    // the limit). StubAdapter does not simulate internal pagination — the "early-stop"
+    // signal is provided by the any_early_stopped chain wired in Task 16.
+    //
+    // HARNESS NOTE — why explicit OrgRegistry + clients: Some(...):
+    //
+    // UUID v7 uses a 48-bit millisecond timestamp in the high bits.  Two consecutive
+    // OrgId::new() calls within the same millisecond produce UUIDs whose first 8 hex
+    // characters are IDENTICAL.  The materialization pipeline builds in-query cache
+    // keys as:
+    //
+    //   format!("{}:{:?}:{}:{}", target.client_id.as_str(), ...)
+    //
+    // When the pipeline runs without an OrgRegistry, it synthesises client_id as
+    // "org-{first8_of_org_uuid}".  Identical first-8 chars → identical cache keys
+    // → the second adapter is served from the in-query cache (skips live fan-out,
+    // skips total_fetched_rows accumulation).  Result: total_fetched_rows = 40 (or 10)
+    // instead of 50, heuristic does not fire, both tests fail for the WRONG reason.
+    //
+    // Fix: wire an OrgRegistry that maps deterministic slug strings ("org1"/"org2")
+    // to each distinct OrgId.  The pipeline's explicit-client path (resolve_org_id
+    // Path 1) maps "org1" → org_id1 and "org2" → org_id2, giving unique cache keys
+    // "org1:..." and "org2:..." regardless of UUID timestamp similarity.
+    let org_id1 = OrgId::new();
+    let org_id2 = OrgId::new();
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(
+        org_id1,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 40,
+            client_slug: "org1".to_string(),
+        }),
+    );
+    registry.register(
+        org_id2,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 10,
+            client_slug: "org2".to_string(),
+        }),
+    );
+
+    let org_registry = prism_core::OrgRegistry::new();
+    org_registry
+        .register(helpers::org("org1"), org_id1)
+        .expect("PSG-027: register org1 must succeed");
+    org_registry
+        .register(helpers::org("org2"), org_id2)
+        .expect("PSG-027: register org2 must succeed");
+
+    let engine = helpers::make_engine(registry, vec![helpers::org("org1"), helpers::org("org2")])
+        .with_org_registry(std::sync::Arc::new(org_registry));
+
+    let options = QueryOptions {
+        clients: Some(vec![helpers::org("org1"), helpers::org("org2")]),
+        sensors: None,
+        limit: Some(LIMIT),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute(
+            &format!("SELECT * FROM crowdstrike_detections LIMIT {LIMIT}"),
+            options,
+        )
+        .await
+        .expect(
+            "PSG-027: QueryEngine::execute must not error for 2-sensor fan-out \
+             (40+10 rows, limit=50) against StubAdapters",
+        );
+
+    // PRECONDITION: total rows must be exactly LIMIT (non-vacuous execution check).
+    assert_eq!(
+        result.total_available, LIMIT,
+        "PSG-027 precondition: total_available must be {LIMIT} (40 + 10 rows from fan-out); \
+         got {}. A lower count means one or both adapters short-circuited.",
+        result.total_available
+    );
+
+    // PRECONDITION: returned_results must equal LIMIT (no silent cap below limit).
+    assert_eq!(
+        result.returned_results, LIMIT,
+        "PSG-027 precondition: returned_results must be {LIMIT}; got {}.",
+        result.returned_results
+    );
+
+    // PRIMARY — is_truncated must be true: sensor2 early-stopped, more data exists.
+    //
+    // ADR-060 §D8.3: is_truncated = (total_rows > limit) OR any_early_stopped
+    //   = (50 > 50) OR true = false OR true = true.
+    //
+    // CURRENT (heuristic): total_fetched=50 >= fetch_limit=50 → any_early_stopped=true
+    //   → is_truncated=true → PASSES (correct result, wrong mechanism).
+    // POST-ROUND-16 (correct chain): any_early_stopped OR-aggregated from per-sensor
+    //   FetchOutput.early_stopped → same result via proper chain → PASSES.
+    assert!(
+        result.is_truncated,
+        "PSG-027 (ADR-060 §D8.3 — 2-sensor fan-out, one sensor early-stopped): \
+         is_truncated must be true when sensor2 (10 rows) early-stopped at the page \
+         boundary (total_rows={total}==limit={LIMIT}, any_early_stopped=true). \
+         Engine Step 6: is_truncated = (total > limit) OR any_early_stopped \
+         = ({total} > {LIMIT}) OR true = true. \
+         Got is_truncated=false.",
+        total = result.total_available
+    );
+}
+
+/// RG-PSG-028 — ADR-060 §D8.3: `is_truncated = false` when all sensors in a
+/// 2-sensor fan-out return rows WITHOUT early-stopping, even though the sum
+/// equals the query limit exactly.
+///
+/// ## Topology
+///
+/// 2-sensor fan-out, `options.limit = 50`:
+/// - sensor1 (org1): returns 25 rows (no early-stop — sensor exhausted)
+/// - sensor2 (org2): returns 25 rows (no early-stop — sensor exhausted)
+/// - total = 25 + 25 = 50 == limit
+///
+/// ## Expected behavior (ADR-060 §D8.3)
+///
+/// `is_truncated = (total_rows > limit) OR any_early_stopped`
+///   = (50 > 50) OR false
+///   = false OR false
+///   = false
+///
+/// ## RED Gate — WHY THIS MUST FAIL NOW
+///
+/// The current heuristic at `materialization.rs`:
+///   `any_early_stopped = fetch_limit > 0 && total_fetched_rows >= fetch_limit`
+///   = `50 > 0 && 50 >= 50` = `true`
+///
+/// This is a FALSE POSITIVE: no sensor actually early-stopped. Both sensors
+/// exhausted their full result set. The heuristic cannot distinguish this case
+/// from a case where sensors did stop early.
+///
+/// Therefore:
+///   `is_truncated = (50 > 50) OR true (FALSE POSITIVE) = true`
+///
+/// The assertion `is_truncated == false` FAILS → RED GATE.
+///
+/// ## GREEN (post-round-16)
+///
+/// After implementing per-sensor `FetchOutput.early_stopped` tracking and wiring
+/// `any_early_stopped` as an OR-aggregation across all sensors:
+///   `any_early_stopped = false OR false = false`
+///   `is_truncated = false OR false = false` → assertion PASSES.
+///
+/// ## SAP-3 compliance
+///
+/// The query goes through `QueryEngine::execute` from a real SQL string.
+#[tokio::test]
+async fn test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated() {
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+
+    const LIMIT: usize = 50;
+
+    // Register two StubAdapters each returning 25 rows — no early-stop on either.
+    // Total = 50 == LIMIT.  Both sensors exhausted their full result set.
+    //
+    // HARNESS NOTE — why explicit OrgRegistry + clients: Some(...):
+    // (See PSG-027 for the full explanation of the UUID v7 collision root cause.)
+    //
+    // Without OrgRegistry: both OrgId::new() calls in the same millisecond produce
+    // UUIDs with identical first-8 hex chars → synthetic cache key "org-{first8}:..."
+    // collides for both adapters → second adapter served from in-query cache →
+    // total_fetched_rows = 25 (not 50) → heuristic 25 < 50 = false → any_early_stopped=false
+    // → is_truncated=false → assertion !is_truncated PASSES for the WRONG reason.
+    //
+    // With OrgRegistry: unique slugs "org1"/"org2" → cache keys "org1:..." and "org2:..."
+    // → both adapters execute live fan-out → total_fetched_rows = 50 → heuristic
+    // 50 >= 50 = TRUE (FALSE POSITIVE) → any_early_stopped=true → is_truncated=true
+    // → assertion !is_truncated FAILS → RED GATE (correct).
+    let org_id1 = OrgId::new();
+    let org_id2 = OrgId::new();
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(
+        org_id1,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 25,
+            client_slug: "org1".to_string(),
+        }),
+    );
+    registry.register(
+        org_id2,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 25,
+            client_slug: "org2".to_string(),
+        }),
+    );
+
+    let org_registry = prism_core::OrgRegistry::new();
+    org_registry
+        .register(helpers::org("org1"), org_id1)
+        .expect("PSG-028: register org1 must succeed");
+    org_registry
+        .register(helpers::org("org2"), org_id2)
+        .expect("PSG-028: register org2 must succeed");
+
+    let engine = helpers::make_engine(registry, vec![helpers::org("org1"), helpers::org("org2")])
+        .with_org_registry(std::sync::Arc::new(org_registry));
+
+    let options = QueryOptions {
+        clients: Some(vec![helpers::org("org1"), helpers::org("org2")]),
+        sensors: None,
+        limit: Some(LIMIT),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute(
+            &format!("SELECT * FROM crowdstrike_detections LIMIT {LIMIT}"),
+            options,
+        )
+        .await
+        .expect(
+            "PSG-028: QueryEngine::execute must not error for 2-sensor fan-out \
+             (25+25 rows, limit=50) against StubAdapters",
+        );
+
+    // PRECONDITION: total rows must be exactly LIMIT (both sensors fully exhausted).
+    assert_eq!(
+        result.total_available, LIMIT,
+        "PSG-028 precondition: total_available must be {LIMIT} (25 + 25 rows from fan-out); \
+         got {}. A lower count means one or both adapters short-circuited.",
+        result.total_available
+    );
+
+    // PRECONDITION: returned_results must equal LIMIT (no silent cap below limit).
+    assert_eq!(
+        result.returned_results, LIMIT,
+        "PSG-028 precondition: returned_results must be {LIMIT}; got {}.",
+        result.returned_results
+    );
+
+    // PRIMARY — is_truncated must be false: no sensor early-stopped, all data returned.
+    //
+    // ADR-060 §D8.3: is_truncated = (total_rows > limit) OR any_early_stopped
+    //   = (50 > 50) OR false = false OR false = false.
+    //
+    // RED  (current heuristic): total_fetched=50 >= fetch_limit=50 → any_early_stopped=TRUE
+    //   → is_truncated = false OR TRUE = TRUE → assertion FAILS → RED GATE.
+    //   The heuristic cannot distinguish "50 rows because sensors exhausted at 25+25"
+    //   from "50 rows because sensors stopped early at the limit boundary".
+    //
+    // GREEN (post-round-16): per-sensor FetchOutput.early_stopped=false for both sensors
+    //   → any_early_stopped = false OR false = false
+    //   → is_truncated = false OR false = false → assertion PASSES.
+    assert!(
+        !result.is_truncated,
+        "PSG-028 (ADR-060 §D8.3 — RED GATE — 2-sensor fan-out, no early-stop): \
+         is_truncated must be false when both sensors fully exhausted their result sets \
+         (sensor1=25 rows, sensor2=25 rows, total=50==limit={LIMIT}, any_early_stopped=false). \
+         Engine Step 6 should compute: is_truncated = (50>50) OR false = false. \
+         Got is_truncated=true. \
+         \n\nDiagnosis: The heuristic `total_fetched_rows >= fetch_limit` (50>=50=true) \
+         produces a FALSE POSITIVE — it cannot distinguish sensor exhaustion from \
+         early-stop pagination. Fix: implement per-sensor FetchOutput.early_stopped \
+         and OR-aggregate into FanOutResult.any_early_stopped (ADR-060 §D8.3, \
+         S-ENGINE-LIMIT-EARLY-STOP-001 Task 16)."
+    );
+}
