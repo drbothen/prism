@@ -823,15 +823,12 @@ pub async fn run_materialization_pipeline(
                     }
                     None => {
                         // D3: registry absent — test/MVP mode, synthetic slug acceptable.
-                        let synthetic_candidate = format!("org-{}", &org_id.to_string()[..8]);
-                        let candidate = OrgSlug::new(&synthetic_candidate);
-                        if candidate.is_ok() {
-                            candidate
-                        } else {
-                            // UUID prefix starts with a digit — use "org-x" prefix.
-                            OrgSlug::new(format!("org-x{}", &org_id.to_string()[..7]))
-                                .expect("org-x prefix with 7-char UUID must be valid")
-                        }
+                        // "org-" followed by the first 8 hex chars of the UUID is always
+                        // valid against ORG_SLUG_PATTERN (^[a-zA-Z0-9_-]{1,64}$): the
+                        // "org-" prefix guarantees all characters are in-charset and the
+                        // 12-char result is well within the 64-char limit. No fallback
+                        // branch is needed — unreachable-by-construction.
+                        OrgSlug::new(format!("org-{}", &org_id.to_string()[..8]))
                     }
                 };
                 let source_table = sensor_id.as_ref().to_string();
@@ -2019,21 +2016,13 @@ pub(crate) async fn resolve_source_refs(
                     None => {
                         // D3: registry absent — test/MVP mode, synthetic slug is acceptable.
                         // HIGH-006 (S-PLUGIN-PREREQ-C): use OrgSlug::new() (validated
-                        // constructor). The 8-char prefix of a UUID v7 is almost always
-                        // valid for OrgSlug ([a-zA-Z0-9_-]{1,64}); for UUIDs whose prefix
-                        // starts with a digit (rare), use an "org-x" prefix for per-org
-                        // isolation without collapsing all affected orgs to one partition
-                        // (ADR-061 D3 sentinel-removal requirement).
-                        let synthetic_candidate = format!("org-{}", &org_id.to_string()[..8]);
-                        let candidate = OrgSlug::new(&synthetic_candidate);
-                        if candidate.is_ok() {
-                            candidate
-                        } else {
-                            // UUID prefix starts with a digit — use "org-x" prefix.
-                            // This preserves per-org isolation in test mode.
-                            OrgSlug::new(format!("org-x{}", &org_id.to_string()[..7]))
-                                .expect("org-x prefix with 7-char UUID must be valid")
-                        }
+                        // constructor). "org-" followed by the first 8 hex chars of the
+                        // UUID is always valid against ORG_SLUG_PATTERN
+                        // (^[a-zA-Z0-9_-]{1,64}$): the "org-" prefix guarantees all
+                        // characters are in-charset and the 12-char result is well within
+                        // the 64-char limit. No fallback branch is needed —
+                        // unreachable-by-construction (ADR-061 D3).
+                        OrgSlug::new(format!("org-{}", &org_id.to_string()[..8]))
                     }
                 };
 
