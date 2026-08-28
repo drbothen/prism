@@ -214,10 +214,10 @@ impl SensorAdapter for PlanShapeGateMockAdapter {
 
         if params.limit == 0 {
             // fetch_limit == 0 means early-stop is suppressed — return all 300 rows.
-            Ok(FetchOutput::new(self.full_batches.clone(), false))
+            Ok(FetchOutput::new(self.full_batches.clone(), false, false))
         } else {
             // fetch_limit > 0 means early-stop is active — return page 1 only.
-            Ok(FetchOutput::new(self.page1_batches.clone(), false))
+            Ok(FetchOutput::new(self.page1_batches.clone(), false, false))
         }
     }
 }

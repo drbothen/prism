@@ -273,7 +273,7 @@ mod helpers {
                 ids.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
             )) as _;
             let batch = RecordBatch::try_new(schema, vec![arr]).expect("stub batch must be valid");
-            Ok(FetchOutput::new(vec![batch], self.any_early_stopped))
+            Ok(FetchOutput::new(vec![batch], self.any_early_stopped, false))
         }
     }
 
@@ -538,7 +538,7 @@ async fn test_AC_4_filter_pushdown_passed_to_adapter() {
             let hostnames = Arc::new(StringArray::from(vec!["target"])) as _;
             let batch =
                 RecordBatch::try_new(schema, vec![hostnames]).expect("spy batch must be valid");
-            Ok(FetchOutput::new(vec![batch], false))
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -1911,7 +1911,7 @@ async fn test_LP2_MED_2_cache_key_includes_filters() {
             ]));
             let arr = Arc::new(arrow::array::StringArray::from(vec!["row1"])) as _;
             let batch = RecordBatch::try_new(schema, vec![arr]).unwrap();
-            Ok(FetchOutput::new(vec![batch], false))
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -2141,7 +2141,7 @@ async fn test_AC_timeout_returns_query_timeout_error() {
             _auth: &dyn SensorAuth,
         ) -> Result<FetchOutput, SensorError> {
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-            Ok(FetchOutput::new(vec![], false))
+            Ok(FetchOutput::new(vec![], false, false))
         }
     }
 
@@ -2344,7 +2344,11 @@ impl prism_sensors::adapter::SensorAdapter for FetchCountingAdapter {
         ]));
         let arr = Arc::new(arrow::array::StringArray::from(vec!["det-1", "det-2"])) as _;
         let batch = RecordBatch::try_new(schema, vec![arr]).expect("counting batch");
-        Ok(prism_sensors::adapter::FetchOutput::new(vec![batch], false))
+        Ok(prism_sensors::adapter::FetchOutput::new(
+            vec![batch],
+            false,
+            false,
+        ))
     }
 }
 
@@ -2549,7 +2553,11 @@ impl prism_sensors::adapter::SensorAdapter for TogglingFailureAdapter {
         ]));
         let arr = Arc::new(arrow::array::StringArray::from(vec!["det-1", "det-2"])) as _;
         let batch = RecordBatch::try_new(schema, vec![arr]).expect("toggling batch");
-        Ok(prism_sensors::adapter::FetchOutput::new(vec![batch], false))
+        Ok(prism_sensors::adapter::FetchOutput::new(
+            vec![batch],
+            false,
+            false,
+        ))
     }
 }
 
@@ -2673,7 +2681,11 @@ impl prism_sensors::adapter::SensorAdapter for EarlyStopCountingAdapter {
         )) as _;
         let batch = RecordBatch::try_new(schema, vec![arr]).expect("early-stop batch");
         // any_early_stopped = true: sensor stopped after page 1 with more rows upstream.
-        Ok(prism_sensors::adapter::FetchOutput::new(vec![batch], true))
+        Ok(prism_sensors::adapter::FetchOutput::new(
+            vec![batch],
+            true,
+            false,
+        ))
     }
 }
 
@@ -2846,10 +2858,15 @@ impl prism_sensors::adapter::SensorAdapter for Di019CountingAdapter {
         let batch = RecordBatch::try_new(schema, vec![arr]).expect("di019 counting batch");
         // any_early_stopped=false: DI-019 is a pipeline record-count cap
         // (PipelineResult.truncated=true), NOT a LIMIT-driven early-stop
-        // (PipelineResult.early_stopped=false). The current FetchOutput API cannot
-        // carry the DI-019 truncated signal; the implementer will add
-        // `any_pipeline_truncated` to FetchOutput and update this mock accordingly.
-        Ok(prism_sensors::adapter::FetchOutput::new(vec![batch], false))
+        // (PipelineResult.early_stopped=false).
+        // pipeline_truncated=true: this mock simulates the DI-019 signal that
+        // `spec_driven_adapter.rs` propagates from PipelineResult.truncated
+        // (ADR-060 §D8.10; S-ENGINE-LIMIT-EARLY-STOP-001 F-R16-P18-LENSA-MED-001).
+        Ok(prism_sensors::adapter::FetchOutput::new(
+            vec![batch],
+            false,
+            true,
+        ))
     }
 }
 
@@ -3191,7 +3208,7 @@ async fn test_crit1b_sql_mode_now_substituted_before_datafusion() {
             let ts_arr = Arc::new(StringArray::from(vec![ts_str.as_str()])) as _;
             let batch =
                 RecordBatch::try_new(schema, vec![ids, ts_arr]).expect("timestamp stub batch");
-            Ok(FetchOutput::new(vec![batch], false))
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -3275,7 +3292,7 @@ async fn test_crit1b_sqlpipe_head_now_substituted_before_datafusion() {
                 ],
             )
             .expect("sqlpipe timestamp stub batch");
-            Ok(FetchOutput::new(vec![batch], false))
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -3543,7 +3560,7 @@ async fn test_crit1_pipe_now_interval_executes_end_to_end() {
                 ],
             )
             .expect("pipe timestamp stub batch");
-            Ok(FetchOutput::new(vec![batch], false))
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -3631,7 +3648,7 @@ async fn test_high1_forbid_both_fires_with_empty_vec_sensor() {
         ) -> Result<FetchOutput, SensorError> {
             // Return an empty vec — no batches at all.
             // This is different from row_count:0 (which returns vec![0-row-batch]).
-            Ok(FetchOutput::new(vec![], false))
+            Ok(FetchOutput::new(vec![], false, false))
         }
     }
 
@@ -3743,7 +3760,7 @@ async fn test_high001_pushdown_spy_start_time_populated_for_relative_time_query(
                 ],
             )
             .expect("spy batch");
-            Ok(FetchOutput::new(vec![batch], false))
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -3949,7 +3966,7 @@ async fn test_high003_discriminating_pipe_in_window_row_returned() {
                 ],
             )
             .expect("two-row stub batch");
-            Ok(FetchOutput::new(vec![batch], false))
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -4070,7 +4087,7 @@ async fn test_high003_discriminating_sql_in_window_row_returned() {
                 ],
             )
             .expect("two-row sql stub batch");
-            Ok(FetchOutput::new(vec![batch], false))
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -4180,7 +4197,7 @@ async fn test_high003_discriminating_sqlpipe_in_window_row_returned() {
                 ],
             )
             .expect("two-row sqlpipe stub batch");
-            Ok(FetchOutput::new(vec![batch], false))
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -4345,9 +4362,9 @@ async fn test_BC_2_11_001_tool_limit_truncation_signal_on_suppressed_filter() {
         ) -> Result<FetchOutput, SensorError> {
             self.fetch_count.fetch_add(1, Ordering::SeqCst);
             if params.limit == 0 {
-                Ok(FetchOutput::new(self.full_batches.clone(), false))
+                Ok(FetchOutput::new(self.full_batches.clone(), false, false))
             } else {
-                Ok(FetchOutput::new(self.page1_batches.clone(), true))
+                Ok(FetchOutput::new(self.page1_batches.clone(), true, false))
             }
         }
     }
@@ -4570,11 +4587,11 @@ async fn test_psg_exact_limit_is_truncated_true() {
             self.fetch_count.fetch_add(1, Ordering::SeqCst);
             if params.limit == 0 {
                 // Gate suppressed → return all 3000 rows (3 pages × EXACT_LIMIT).
-                Ok(FetchOutput::new(self.full_batches.clone(), false))
+                Ok(FetchOutput::new(self.full_batches.clone(), false, false))
             } else {
                 // Early-stop active → return EXACT_LIMIT rows (page 1 only).
                 // This simulates the boundary case: one full page = exactly the limit.
-                Ok(FetchOutput::new(self.page1_batches.clone(), true))
+                Ok(FetchOutput::new(self.page1_batches.clone(), true, false))
             }
         }
     }
@@ -5142,7 +5159,11 @@ async fn test_rg_slug_005_cross_tenant_wire_isolation_collision_resistant_cache_
                     as _;
             let batch =
                 arrow::record_batch::RecordBatch::try_new(schema, vec![arr]).expect("batch");
-            Ok(prism_sensors::adapter::FetchOutput::new(vec![batch], false))
+            Ok(prism_sensors::adapter::FetchOutput::new(
+                vec![batch],
+                false,
+                false,
+            ))
         }
     }
 

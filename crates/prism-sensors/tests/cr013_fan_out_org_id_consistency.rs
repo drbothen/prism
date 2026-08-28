@@ -54,7 +54,7 @@ impl SensorAdapter for NoopAdapter {
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
     ) -> Result<FetchOutput, SensorError> {
-        Ok(FetchOutput::new(vec![], false))
+        Ok(FetchOutput::new(vec![], false, false))
     }
 }
 

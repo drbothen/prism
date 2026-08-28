@@ -159,7 +159,7 @@ impl SensorAdapter for SeverityStubAdapter {
         let arr = Arc::new(StringArray::from(severities)) as _;
         let batch =
             RecordBatch::try_new(schema, vec![arr]).expect("stub severity batch must be valid");
-        Ok(FetchOutput::new(vec![batch], false))
+        Ok(FetchOutput::new(vec![batch], false, false))
     }
 }
 

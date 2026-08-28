@@ -149,7 +149,7 @@ impl SensorAdapter for ReturnsOneRowAdapter {
             .collect();
         let batch = RecordBatch::try_new(Arc::clone(&self.schema), arrays)
             .expect("ReturnsOneRowAdapter: stub RecordBatch construction must not fail");
-        Ok(FetchOutput::new(vec![batch], false))
+        Ok(FetchOutput::new(vec![batch], false, false))
     }
 }
 

@@ -128,7 +128,7 @@ impl SensorAdapter for MockAdapterOk {
         _auth: &dyn SensorAuth,
     ) -> Result<FetchOutput, SensorError> {
         // Simulate a successful empty probe (LIMIT 0).
-        Ok(FetchOutput::new(vec![], false))
+        Ok(FetchOutput::new(vec![], false, false))
     }
 
     fn sensor_name(&self) -> &'static str {
@@ -418,7 +418,7 @@ impl SensorAdapter for MockAdapterCapturingSpec {
             .lock()
             .unwrap_or_else(|p| p.into_inner());
         *guard = Some(spec.source_table.clone());
-        Ok(FetchOutput::new(vec![], false))
+        Ok(FetchOutput::new(vec![], false, false))
     }
 
     fn sensor_name(&self) -> &'static str {
@@ -2008,7 +2008,7 @@ impl SensorAdapter for MockAdapterStripPrefix {
                     .resolved_table
                     .lock()
                     .unwrap_or_else(|p| p.into_inner()) = Some(table_name.to_owned());
-                Ok(FetchOutput::new(vec![], false))
+                Ok(FetchOutput::new(vec![], false, false))
             }
             None => {
                 // source_table did NOT start with "{sensor_id}_" — the probe used the wrong form.

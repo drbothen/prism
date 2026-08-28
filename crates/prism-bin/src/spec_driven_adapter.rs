@@ -713,6 +713,9 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
         // ADR-060 §D8.3: OR-aggregate early_stopped across all executed tables.
         // True when any table's pipeline fired the §D8.2 early-stop break 'steps.
         let mut any_early_stopped = false;
+        // ADR-060 §D8.10: OR-aggregate DI-019 truncation signal across all executed tables.
+        // True when any table's pipeline set PipelineResult.truncated = true (10K cap).
+        let mut any_pipeline_truncated = false;
 
         for table in &self.sensor_spec.spec.tables {
             // Skip tables that don't match the queried source_table.
@@ -738,6 +741,8 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             })?;
             // ADR-060 §D8.3: propagate early-stop signal from this table's pipeline.
             any_early_stopped |= result.early_stopped;
+            // ADR-060 §D8.10: propagate DI-019 truncation signal from this table's pipeline.
+            any_pipeline_truncated |= result.truncated;
 
             // Convert PipelineResult.records (raw JSON) → Arrow RecordBatch
             // with OCSF envelope columns (category_uid, class_uid, _sensor) and
@@ -769,7 +774,11 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             }
         }
 
-        Ok(FetchOutput::new(all_batches, any_early_stopped))
+        Ok(FetchOutput::new(
+            all_batches,
+            any_early_stopped,
+            any_pipeline_truncated,
+        ))
     }
 }
 

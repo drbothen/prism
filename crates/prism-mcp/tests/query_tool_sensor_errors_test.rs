@@ -692,7 +692,7 @@ mod tests {
                 vec![StdArc::new(StringArray::from(vec!["rg017_success_row"]))],
             )
             .expect("RG-017 StubSuccessAdapter: RecordBatch construction must not fail");
-            Ok(FetchOutput::new(vec![batch], false))
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 

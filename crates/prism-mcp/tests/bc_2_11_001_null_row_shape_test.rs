@@ -142,7 +142,7 @@ mod tests {
                 ],
             )
             .expect("RecordBatch construction must not fail in stub");
-            Ok(FetchOutput::new(vec![batch], false))
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
@@ -799,7 +799,7 @@ mod tests {
 
             let batch = RecordBatch::try_new(schema, vec![Arc::new(float_data)])
                 .expect("RecordBatch construction must not fail in stub");
-            Ok(FetchOutput::new(vec![batch], false))
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 

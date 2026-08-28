@@ -301,6 +301,7 @@ async fn test_BC_2_01_010_fan_out_five_succeed_one_503_returns_partial_result() 
             Ok(FetchOutput {
                 batches: vec![batch],
                 any_early_stopped: false,
+                pipeline_truncated: false,
             })
         }
     }

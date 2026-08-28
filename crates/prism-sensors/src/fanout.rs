@@ -144,6 +144,11 @@ impl std::fmt::Display for FanOutError {
 /// `any_early_stopped` is OR-aggregated across all successful sensor calls —
 /// `true` when at least one sensor's `FetchOutput.any_early_stopped` was true
 /// (ADR-060 §D8.3; S-ENGINE-LIMIT-EARLY-STOP-001 AC-009(a)).
+///
+/// `any_pipeline_truncated` is OR-aggregated across all successful sensor calls —
+/// `true` when at least one sensor's `FetchOutput.pipeline_truncated` was true,
+/// meaning the spec-engine pipeline hit the DI-019 `MAX_PIPELINE_RECORDS = 10_000`
+/// cap (ADR-060 §D8.10; S-ENGINE-LIMIT-EARLY-STOP-001 F-R16-P18-LENSA-MED-001).
 #[derive(Debug, Default)]
 pub struct FanOutResult {
     /// All `RecordBatch`es returned by successful targets.
@@ -155,6 +160,13 @@ pub struct FanOutResult {
     /// Engine Step 6 uses this to compute the correct `is_truncated` signal
     /// for the multi-sensor fan-out exact-limit boundary (EC-11-092 / RG-PSG-027/028).
     pub any_early_stopped: bool,
+    /// `true` when at least one sensor's spec-engine pipeline set
+    /// `PipelineResult.truncated = true` (DI-019: records capped at 10K).
+    /// OR-aggregated across all successful fetch calls.
+    /// Propagates to `MaterializationOutput.any_pipeline_truncated` → cache-completeness
+    /// gate → engine Step 6 `is_truncated` formula (ADR-060 §D8.10;
+    /// S-ENGINE-LIMIT-EARLY-STOP-001 F-R16-P18-LENSA-MED-001/OBS-001).
+    pub any_pipeline_truncated: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -413,6 +425,9 @@ pub async fn fan_out(
                 // ADR-060 §D8.3: OR-aggregate early-stop signal across all sensors.
                 // If ANY sensor's pipeline fired the §D8.2 early-stop, propagate true.
                 result.any_early_stopped |= fetch_output.any_early_stopped;
+                // ADR-060 §D8.10: OR-aggregate DI-019 truncation signal across all sensors.
+                // If ANY sensor's pipeline hit the 10K record cap, propagate true.
+                result.any_pipeline_truncated |= fetch_output.pipeline_truncated;
                 result.successes.extend(fetch_output.batches);
             }
             Ok(Err(fan_err)) => result.errors.push(fan_err),
@@ -959,6 +974,7 @@ base_url = "{overlay_base_url}"
             Ok(FetchOutput {
                 batches: vec![],
                 any_early_stopped: false,
+                pipeline_truncated: false,
             })
         }
     }

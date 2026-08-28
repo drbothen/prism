@@ -92,7 +92,7 @@ impl SensorAdapter for StubAdapter {
                 query_org_id: spec.org_id,
             });
         }
-        Ok(FetchOutput::new(vec![], false))
+        Ok(FetchOutput::new(vec![], false, false))
     }
 }
 

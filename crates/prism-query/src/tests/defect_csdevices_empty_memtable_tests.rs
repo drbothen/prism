@@ -2711,7 +2711,11 @@ mod tests {
             _params: &prism_sensors::adapter::QueryParams,
             _auth: &dyn prism_sensors::SensorAuth,
         ) -> Result<prism_sensors::adapter::FetchOutput, prism_sensors::SensorError> {
-            Ok(prism_sensors::adapter::FetchOutput::new(vec![], false))
+            Ok(prism_sensors::adapter::FetchOutput::new(
+                vec![],
+                false,
+                false,
+            ))
         }
     }
 
@@ -2742,6 +2746,7 @@ mod tests {
         ) -> Result<prism_sensors::adapter::FetchOutput, prism_sensors::SensorError> {
             Ok(prism_sensors::adapter::FetchOutput::new(
                 vec![make_batch("device_id", &["stub-dev-001"])],
+                false,
                 false,
             ))
         }

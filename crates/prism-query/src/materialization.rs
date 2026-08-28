@@ -170,6 +170,14 @@ pub struct MaterializationOutput {
     /// for the boundary case where `total_rows == limit` (and more pages exist but
     /// were never fetched). See AC-009 / RG-PSG-025/026.
     pub any_early_stopped: bool,
+    /// `true` when at least one sensor's spec-engine pipeline set
+    /// `PipelineResult.truncated = true` (DI-019: records capped at `MAX_PIPELINE_RECORDS = 10_000`).
+    /// OR-aggregated across all successful live fan-out calls.
+    ///
+    /// Propagates to engine Step 6 `is_truncated` formula and the cross-query response-cache
+    /// completeness gate: a DI-019-truncated partial must NOT be cached as complete
+    /// (ADR-060 §D8.10; S-ENGINE-LIMIT-EARLY-STOP-001 F-R16-P18-LENSA-MED-001/OBS-001).
+    pub any_pipeline_truncated: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -921,6 +929,11 @@ pub async fn run_materialization_pipeline(
     // and do not constitute an early-stop. Engine Step 6 uses this signal to compute
     // is_truncated = (total_rows > limit) || any_early_stopped.
     let mut any_early_stopped = false;
+    // ADR-060 §D8.10: accumulate the DI-019 pipeline-truncation signal across live fan-out calls.
+    // True when any sensor's spec-engine pipeline hit MAX_PIPELINE_RECORDS (10K).
+    // Prevents DI-019-truncated partials from being cached as complete responses and
+    // contributes to the engine Step 6 `is_truncated` formula.
+    let mut any_pipeline_truncated = false;
 
     // F-LP1-CRIT-2/3: use fan_out() with CredentialResolver.
     // Process each target independently so virtual field injection uses the
@@ -1092,10 +1105,15 @@ pub async fn run_materialization_pipeline(
                 // asymmetry). TTL selection by source data type happens inside
                 // `put` (60s alerts / 300s devices / health not cached).
                 if let (Some(cache), Some(key)) = (&response_cache, &response_cache_key) {
-                    // EC-01-039 / BC-2.07.003: an early-stopped partial is never
-                    // cached as complete — the next identical query must re-fetch
+                    // EC-01-039 / BC-2.07.003: an early-stopped or DI-019-truncated partial
+                    // is never cached as complete — the next identical query must re-fetch
                     // and recompute the truncation signal from live data.
-                    let complete = fan_result.errors.is_empty() && !fan_result.any_early_stopped;
+                    // ADR-060 §D8.10: `any_pipeline_truncated` extends the guard so DI-019
+                    // partials (PipelineResult.truncated=true, early_stopped=false) are also
+                    // excluded from the cache (S-ENGINE-LIMIT-EARLY-STOP-001 F-R16-P18-LENSA-MED-001).
+                    let complete = fan_result.errors.is_empty()
+                        && !fan_result.any_early_stopped
+                        && !fan_result.any_pipeline_truncated;
                     store_or_invalidate_response_cache(
                         cache,
                         key,
@@ -1107,6 +1125,8 @@ pub async fn run_materialization_pipeline(
                 // ADR-060 §D8.3: capture the real early-stop signal before consuming batches.
                 // This must precede the `for batch in fan_result.successes` move.
                 any_early_stopped |= fan_result.any_early_stopped;
+                // ADR-060 §D8.10: capture the DI-019 pipeline-truncation signal.
+                any_pipeline_truncated |= fan_result.any_pipeline_truncated;
 
                 // Collect successes with per-target virtual field injection.
                 let mut fetched_batches: Vec<RecordBatch> = Vec::new();
@@ -1307,8 +1327,9 @@ pub async fn run_materialization_pipeline(
             sensor_errors,
             registered_tables,
             sensors_queried: sensors_queried.into_iter().collect(),
-            // No fan-out data was registered → early-stop cannot have fired.
+            // No fan-out data was registered → early-stop and DI-019 cannot have fired.
             any_early_stopped: false,
+            any_pipeline_truncated: false,
         });
     }
 
@@ -1342,6 +1363,7 @@ pub async fn run_materialization_pipeline(
         registered_tables,
         sensors_queried: sensors_queried.into_iter().collect(),
         any_early_stopped,
+        any_pipeline_truncated,
     })
 }
 
@@ -6678,7 +6700,7 @@ mod armis_discriminator_wiring_seam_tests {
                 .expect("RecordingAdapter: captured_filters lock must not be poisoned")
                 .push(params.filters.clone());
             // Return zero rows — we only care about the captured filters, not the result.
-            Ok(FetchOutput::new(vec![], false))
+            Ok(FetchOutput::new(vec![], false, false))
         }
     }
 

@@ -199,6 +199,7 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
             Ok(FetchOutput {
                 batches: vec![batch],
                 any_early_stopped: false,
+                pipeline_truncated: false,
             })
         }
     }

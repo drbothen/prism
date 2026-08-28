@@ -90,7 +90,7 @@ impl SensorAdapter for FixedBatchAdapter {
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
     ) -> Result<FetchOutput, SensorError> {
-        Ok(FetchOutput::new(self.batches.clone(), false))
+        Ok(FetchOutput::new(self.batches.clone(), false, false))
     }
 }
 

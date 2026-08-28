@@ -194,7 +194,7 @@ impl SensorAdapter for RealHttpDispatchAdapter {
         }
 
         // Return empty success — the routing proof is in the server-side counter, not data.
-        Ok(FetchOutput::new(vec![], false))
+        Ok(FetchOutput::new(vec![], false, false))
     }
 }
 

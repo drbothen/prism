@@ -112,7 +112,7 @@ impl SensorAdapter for SlugSpyAdapter {
         )]));
         let arr = Arc::new(StringArray::from(vec!["spy-row-0"])) as _;
         let batch = RecordBatch::try_new(schema, vec![arr]).expect("spy batch must be valid");
-        Ok(FetchOutput::new(vec![batch], false))
+        Ok(FetchOutput::new(vec![batch], false, false))
     }
 }
 

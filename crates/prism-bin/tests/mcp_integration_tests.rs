@@ -303,10 +303,10 @@ async fn test_psg_rg026_prism_query_wire_surfaces_truncation_signal() {
             self.fetch_count.fetch_add(1, Ordering::SeqCst);
             if params.limit == 0 {
                 // Gate suppressed (Condition G) → return all 3000 rows.
-                Ok(FetchOutput::new(self.full_batches.clone(), false))
+                Ok(FetchOutput::new(self.full_batches.clone(), false, false))
             } else {
                 // Early-stop active → return exactly EXACT_LIMIT rows (page 1 of 3).
-                Ok(FetchOutput::new(self.page1_batches.clone(), true))
+                Ok(FetchOutput::new(self.page1_batches.clone(), true, false))
             }
         }
     }
@@ -610,7 +610,7 @@ async fn test_psg_rg028_wire_multi_sensor_fanout_no_early_stop_is_not_truncated(
         ) -> Result<FetchOutput, SensorError> {
             self.fetch_count.fetch_add(1, Ordering::SeqCst);
             // Unconditionally return the pre-built batches — no early-stop behavior.
-            Ok(FetchOutput::new(self.batches.clone(), false))
+            Ok(FetchOutput::new(self.batches.clone(), false, false))
         }
     }
 
@@ -899,7 +899,7 @@ async fn test_rg_slug_005_wire_cross_tenant_isolation_collision_resistant_cache_
                 as Arc<dyn arrow::array::Array>;
             let batch = RecordBatch::try_new(schema, vec![arr])
                 .expect("SLUG-005 wire: ProviderAdapter batch must build");
-            Ok(FetchOutput::new(vec![batch], false))
+            Ok(FetchOutput::new(vec![batch], false, false))
         }
     }
 
