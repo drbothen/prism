@@ -231,7 +231,7 @@ mod helpers {
 
     use prism_core::{OrgId, SensorId};
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -242,6 +242,9 @@ mod helpers {
         pub sensor_id: SensorId,
         pub row_count: usize,
         pub client_slug: String,
+        /// Whether this adapter signals early-stop in FetchOutput (ADR-060 §D8.3).
+        /// Set to true to model a sensor that stopped after the first page.
+        pub any_early_stopped: bool,
     }
 
     #[async_trait]
@@ -259,7 +262,7 @@ mod helpers {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let schema = Arc::new(Schema::new(vec![Field::new(
                 "detection_id",
                 DataType::Utf8,
@@ -270,7 +273,7 @@ mod helpers {
                 ids.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
             )) as _;
             let batch = RecordBatch::try_new(schema, vec![arr]).expect("stub batch must be valid");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], self.any_early_stopped))
         }
     }
 
@@ -319,6 +322,7 @@ mod helpers {
                 sensor_id: SensorId::from("crowdstrike"),
                 row_count,
                 client_slug: "acme".to_string(),
+                any_early_stopped: false,
             }),
         );
         let normalizer = Arc::new(OcsfNormalizer::new());
@@ -363,6 +367,7 @@ async fn test_AC_1_query_engine_execute_with_dtu_returns_results() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 3,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -494,7 +499,7 @@ async fn test_AC_4_filter_pushdown_passed_to_adapter() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
         types::FilterMap,
     };
@@ -520,7 +525,7 @@ async fn test_AC_4_filter_pushdown_passed_to_adapter() {
             _spec: &SensorSpec,
             params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let mut guard = self.captured.lock().unwrap_or_else(|e| e.into_inner());
             guard.push(params.filters.clone());
 
@@ -533,7 +538,7 @@ async fn test_AC_4_filter_pushdown_passed_to_adapter() {
             let hostnames = Arc::new(StringArray::from(vec!["target"])) as _;
             let batch =
                 RecordBatch::try_new(schema, vec![hostnames]).expect("spy batch must be valid");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false))
         }
     }
 
@@ -683,6 +688,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     registry.register(
@@ -691,6 +697,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "beta".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -786,6 +793,7 @@ async fn test_AC_7_virtual_fields_present_in_all_results() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 3,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -1171,6 +1179,7 @@ async fn test_AC_3_bis_size_limit_at_10k_boundary() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 6_000,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     registry.register(
@@ -1179,6 +1188,7 @@ async fn test_AC_3_bis_size_limit_at_10k_boundary() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 6_000,
             client_slug: "beta".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -1463,6 +1473,7 @@ async fn test_LP2_CRIT_1_subquery_in_where_blocked_without_audit_read() {
             sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -1531,6 +1542,7 @@ async fn test_LP2_CRIT_1_with_audit_read_capability_subquery_allowed() {
             sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -1599,6 +1611,7 @@ async fn test_LP2_CRIT_1_having_subquery_blocked_without_audit_read() {
             sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -1863,7 +1876,7 @@ async fn test_LP2_MED_2_cache_key_includes_filters() {
     use prism_core::OrgId;
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -1886,7 +1899,7 @@ async fn test_LP2_MED_2_cache_key_includes_filters() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             self.call_count
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             let schema = Arc::new(arrow::datatypes::Schema::new(vec![
@@ -1898,7 +1911,7 @@ async fn test_LP2_MED_2_cache_key_includes_filters() {
             ]));
             let arr = Arc::new(arrow::array::StringArray::from(vec!["row1"])) as _;
             let batch = RecordBatch::try_new(schema, vec![arr]).unwrap();
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false))
         }
     }
 
@@ -2056,6 +2069,7 @@ async fn test_HIGH_7_limit_exactly_1000_pipeline_success_with_stub() {
             sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 5,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
 
@@ -2103,7 +2117,7 @@ async fn test_AC_timeout_returns_query_timeout_error() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::{QueryEngine, QueryEngineConfig, QueryOptions};
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -2125,9 +2139,9 @@ async fn test_AC_timeout_returns_query_timeout_error() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<arrow::record_batch::RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-            Ok(vec![])
+            Ok(FetchOutput::new(vec![], false))
         }
     }
 
@@ -2262,6 +2276,7 @@ async fn test_resolve_source_refs_unknown_table_returns_e_query_036() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 0,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     let org_slug = OrgSlug::new("acme");
@@ -2321,7 +2336,7 @@ impl prism_sensors::adapter::SensorAdapter for FetchCountingAdapter {
         _spec: &prism_sensors::adapter::SensorSpec,
         _params: &prism_sensors::adapter::QueryParams,
         _auth: &dyn prism_sensors::auth::SensorAuth,
-    ) -> Result<Vec<RecordBatch>, prism_sensors::adapter::SensorError> {
+    ) -> Result<prism_sensors::adapter::FetchOutput, prism_sensors::adapter::SensorError> {
         self.call_count
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let schema = Arc::new(arrow::datatypes::Schema::new(vec![
@@ -2329,7 +2344,7 @@ impl prism_sensors::adapter::SensorAdapter for FetchCountingAdapter {
         ]));
         let arr = Arc::new(arrow::array::StringArray::from(vec!["det-1", "det-2"])) as _;
         let batch = RecordBatch::try_new(schema, vec![arr]).expect("counting batch");
-        Ok(vec![batch])
+        Ok(prism_sensors::adapter::FetchOutput::new(vec![batch], false))
     }
 }
 
@@ -2521,7 +2536,7 @@ impl prism_sensors::adapter::SensorAdapter for TogglingFailureAdapter {
         _spec: &prism_sensors::adapter::SensorSpec,
         _params: &prism_sensors::adapter::QueryParams,
         _auth: &dyn prism_sensors::auth::SensorAuth,
-    ) -> Result<Vec<RecordBatch>, prism_sensors::adapter::SensorError> {
+    ) -> Result<prism_sensors::adapter::FetchOutput, prism_sensors::adapter::SensorError> {
         self.call_count
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         if self.fail.load(std::sync::atomic::Ordering::SeqCst) {
@@ -2534,7 +2549,7 @@ impl prism_sensors::adapter::SensorAdapter for TogglingFailureAdapter {
         ]));
         let arr = Arc::new(arrow::array::StringArray::from(vec!["det-1", "det-2"])) as _;
         let batch = RecordBatch::try_new(schema, vec![arr]).expect("toggling batch");
-        Ok(vec![batch])
+        Ok(prism_sensors::adapter::FetchOutput::new(vec![batch], false))
     }
 }
 
@@ -2645,6 +2660,7 @@ async fn test_crit1_sqlpipe_executes_via_engine_not_empty() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 5,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
@@ -2689,6 +2705,7 @@ async fn test_crit2_sqlpipe_forbid_both_via_engine_returns_e_query_040() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 5,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
@@ -2745,7 +2762,7 @@ async fn test_crit1b_sql_mode_now_substituted_before_datafusion() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -2767,7 +2784,7 @@ async fn test_crit1b_sql_mode_now_substituted_before_datafusion() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Return one row with a `timestamp` column as a recent ISO-8601 string.
             // This is a recent timestamp so it falls within `NOW() - INTERVAL '7d'`.
             let schema = Arc::new(Schema::new(vec![
@@ -2780,7 +2797,7 @@ async fn test_crit1b_sql_mode_now_substituted_before_datafusion() {
             let ts_arr = Arc::new(StringArray::from(vec![ts_str.as_str()])) as _;
             let batch =
                 RecordBatch::try_new(schema, vec![ids, ts_arr]).expect("timestamp stub batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false))
         }
     }
 
@@ -2831,7 +2848,7 @@ async fn test_crit1b_sqlpipe_head_now_substituted_before_datafusion() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -2850,7 +2867,7 @@ async fn test_crit1b_sqlpipe_head_now_substituted_before_datafusion() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let schema = Arc::new(Schema::new(vec![
                 Field::new("detection_id", DataType::Utf8, false),
                 Field::new("timestamp", DataType::Utf8, false),
@@ -2864,7 +2881,7 @@ async fn test_crit1b_sqlpipe_head_now_substituted_before_datafusion() {
                 ],
             )
             .expect("sqlpipe timestamp stub batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false))
         }
     }
 
@@ -2923,6 +2940,7 @@ async fn test_forbid_both_fires_with_zero_row_sensor() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 0,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
@@ -2977,6 +2995,7 @@ async fn test_high2_did_you_mean_near_miss_via_engine() {
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 0,
             client_slug: "acme".to_string(),
+            any_early_stopped: false,
         }),
     );
     let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
@@ -3094,7 +3113,7 @@ async fn test_crit1_pipe_now_interval_executes_end_to_end() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -3116,7 +3135,7 @@ async fn test_crit1_pipe_now_interval_executes_end_to_end() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let schema = Arc::new(Schema::new(vec![
                 Field::new("detection_id", DataType::Utf8, false),
                 Field::new("event_timestamp", DataType::Utf8, false),
@@ -3130,7 +3149,7 @@ async fn test_crit1_pipe_now_interval_executes_end_to_end() {
                 ],
             )
             .expect("pipe timestamp stub batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false))
         }
     }
 
@@ -3193,7 +3212,7 @@ async fn test_high1_forbid_both_fires_with_empty_vec_sensor() {
     use prism_core::{OrgId, PrismError, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -3215,10 +3234,10 @@ async fn test_high1_forbid_both_fires_with_empty_vec_sensor() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Return an empty vec — no batches at all.
             // This is different from row_count:0 (which returns vec![0-row-batch]).
-            Ok(vec![])
+            Ok(FetchOutput::new(vec![], false))
         }
     }
 
@@ -3287,7 +3306,7 @@ async fn test_high001_pushdown_spy_start_time_populated_for_relative_time_query(
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -3309,7 +3328,7 @@ async fn test_high001_pushdown_spy_start_time_populated_for_relative_time_query(
             _spec: &SensorSpec,
             params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let mut guard = self
                 .captured_start
                 .lock()
@@ -3330,7 +3349,7 @@ async fn test_high001_pushdown_spy_start_time_populated_for_relative_time_query(
                 ],
             )
             .expect("spy batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false))
         }
     }
 
@@ -3496,7 +3515,7 @@ async fn test_high003_discriminating_pipe_in_window_row_returned() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -3516,7 +3535,7 @@ async fn test_high003_discriminating_pipe_in_window_row_returned() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Row A: now (inside 24h window)
             // Row B: 30 days ago (outside 24h window)
             let schema = Arc::new(Schema::new(vec![
@@ -3536,7 +3555,7 @@ async fn test_high003_discriminating_pipe_in_window_row_returned() {
                 ],
             )
             .expect("two-row stub batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false))
         }
     }
 
@@ -3617,7 +3636,7 @@ async fn test_high003_discriminating_sql_in_window_row_returned() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -3636,7 +3655,7 @@ async fn test_high003_discriminating_sql_in_window_row_returned() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let schema = Arc::new(Schema::new(vec![
                 Field::new("detection_id", DataType::Utf8, false),
                 Field::new("event_time", DataType::Utf8, false),
@@ -3657,7 +3676,7 @@ async fn test_high003_discriminating_sql_in_window_row_returned() {
                 ],
             )
             .expect("two-row sql stub batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false))
         }
     }
 
@@ -3727,7 +3746,7 @@ async fn test_high003_discriminating_sqlpipe_in_window_row_returned() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -3746,7 +3765,7 @@ async fn test_high003_discriminating_sqlpipe_in_window_row_returned() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let schema = Arc::new(Schema::new(vec![
                 Field::new("detection_id", DataType::Utf8, false),
                 Field::new("event_time", DataType::Utf8, false),
@@ -3767,7 +3786,7 @@ async fn test_high003_discriminating_sqlpipe_in_window_row_returned() {
                 ],
             )
             .expect("two-row sqlpipe stub batch");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false))
         }
     }
 
@@ -3882,7 +3901,7 @@ async fn test_BC_2_11_001_tool_limit_truncation_signal_on_suppressed_filter() {
     use prism_core::{OrgId, OrgSlug, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
         AdapterRegistry,
     };
@@ -3929,12 +3948,12 @@ async fn test_BC_2_11_001_tool_limit_truncation_signal_on_suppressed_filter() {
             _spec: &SensorSpec,
             params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             self.fetch_count.fetch_add(1, Ordering::SeqCst);
             if params.limit == 0 {
-                Ok(self.full_batches.clone())
+                Ok(FetchOutput::new(self.full_batches.clone(), false))
             } else {
-                Ok(self.page1_batches.clone())
+                Ok(FetchOutput::new(self.page1_batches.clone(), true))
             }
         }
     }
@@ -4102,7 +4121,7 @@ async fn test_psg_exact_limit_is_truncated_true() {
     use prism_core::{OrgId, OrgSlug, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
         AdapterRegistry,
     };
@@ -4153,15 +4172,15 @@ async fn test_psg_exact_limit_is_truncated_true() {
             _spec: &SensorSpec,
             params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             self.fetch_count.fetch_add(1, Ordering::SeqCst);
             if params.limit == 0 {
                 // Gate suppressed → return all 3000 rows (3 pages × EXACT_LIMIT).
-                Ok(self.full_batches.clone())
+                Ok(FetchOutput::new(self.full_batches.clone(), false))
             } else {
                 // Early-stop active → return EXACT_LIMIT rows (page 1 only).
                 // This simulates the boundary case: one full page = exactly the limit.
-                Ok(self.page1_batches.clone())
+                Ok(FetchOutput::new(self.page1_batches.clone(), true))
             }
         }
     }
@@ -4364,6 +4383,7 @@ async fn test_psg_multi_sensor_fanout_exact_limit_one_early_stopped_is_truncated
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 40,
             client_slug: "org1".to_string(),
+            any_early_stopped: false,
         }),
     );
     registry.register(
@@ -4372,6 +4392,7 @@ async fn test_psg_multi_sensor_fanout_exact_limit_one_early_stopped_is_truncated
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 10,
             client_slug: "org2".to_string(),
+            any_early_stopped: true,
         }),
     );
 
@@ -4516,6 +4537,7 @@ async fn test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 25,
             client_slug: "org1".to_string(),
+            any_early_stopped: false,
         }),
     );
     registry.register(
@@ -4524,6 +4546,7 @@ async fn test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated
             sensor_id: SensorId::from("crowdstrike"),
             row_count: 25,
             client_slug: "org2".to_string(),
+            any_early_stopped: false,
         }),
     );
 

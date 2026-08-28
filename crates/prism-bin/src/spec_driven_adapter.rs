@@ -51,7 +51,7 @@ use prism_core::{ColumnType, OrgId, SensorId};
 use prism_ocsf::{EventClassSelector, OCSF_ENUM_LABEL_FIELDS, OcsfEnumMap};
 use prism_sensors::{
     BearerStaticSensorAuth, SensorAdapter,
-    adapter::{QueryParams, SensorError, SensorSpec},
+    adapter::{FetchOutput, QueryParams, SensorError, SensorSpec},
     auth::SensorAuth,
 };
 use prism_spec_engine::{
@@ -518,7 +518,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
         spec: &SensorSpec,
         params: &QueryParams,
         auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         // Select the auth provider based on the held auth_strategy (OQ-1 Resolution).
         // ADR-028 §D10: Plugin and StaticCookie ignore the SensorAuth arg.
         // BearerStatic extracts the token from the SensorAuth arg via downcast.
@@ -710,6 +710,9 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
         // Delegate to PipelineExecutor::execute() for each table in the sensor spec.
         // Collect all RecordBatches by normalizing JSON records → Arrow (BC-2.11.005).
         let mut all_batches: Vec<RecordBatch> = Vec::new();
+        // ADR-060 §D8.3: OR-aggregate early_stopped across all executed tables.
+        // True when any table's pipeline fired the §D8.2 early-stop break 'steps.
+        let mut any_early_stopped = false;
 
         for table in &self.sensor_spec.spec.tables {
             // Skip tables that don't match the queried source_table.
@@ -733,6 +736,8 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
                     &table.table_name,
                 )
             })?;
+            // ADR-060 §D8.3: propagate early-stop signal from this table's pipeline.
+            any_early_stopped |= result.early_stopped;
 
             // Convert PipelineResult.records (raw JSON) → Arrow RecordBatch
             // with OCSF envelope columns (category_uid, class_uid, _sensor) and
@@ -764,7 +769,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             }
         }
 
-        Ok(all_batches)
+        Ok(FetchOutput::new(all_batches, any_early_stopped))
     }
 }
 

@@ -53,7 +53,7 @@ use prism_query::{
     memory::{build_session_context, QUERY_MEMORY_POOL_BYTES},
 };
 use prism_sensors::{
-    adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+    adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
     auth::SensorAuth,
     AdapterRegistry, CredentialResolver,
 };
@@ -89,8 +89,8 @@ impl SensorAdapter for FixedBatchAdapter {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
-        Ok(self.batches.clone())
+    ) -> Result<FetchOutput, SensorError> {
+        Ok(FetchOutput::new(self.batches.clone(), false))
     }
 }
 

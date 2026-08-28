@@ -384,7 +384,7 @@ async fn test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_bearer_static() {
         result.err()
     );
 
-    let batches = result.unwrap();
+    let batches = result.unwrap().batches;
 
     // LOAD-BEARING assertion (TD-VSDD-059):
     // This FAILS with the current implementation because fetch() returns Vec::new()
@@ -472,7 +472,7 @@ async fn test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_plugin() {
         result.err()
     );
 
-    let batches = result.unwrap();
+    let batches = result.unwrap().batches;
 
     // LOAD-BEARING: fails because fetch() discards pipeline records.
     assert!(
@@ -535,7 +535,7 @@ async fn test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_static_cookie() {
         result.err()
     );
 
-    let batches = result.unwrap();
+    let batches = result.unwrap().batches;
 
     // LOAD-BEARING: fails because fetch() discards pipeline records.
     assert!(
@@ -626,7 +626,7 @@ async fn test_BC_2_01_013_spec_driven_adapter_crowdstrike_delegates_to_pipeline_
         result.err()
     );
 
-    let batches = result.unwrap();
+    let batches = result.unwrap().batches;
 
     // LOAD-BEARING (F-001): fails because fetch() discards pipeline records.
     assert!(
@@ -689,7 +689,7 @@ async fn test_BC_2_01_013_spec_driven_adapter_bearer_static_extracts_token_from_
         result.err()
     );
 
-    let batches = result.unwrap();
+    let batches = result.unwrap().batches;
 
     // LOAD-BEARING (F-001): fails because fetch() discards pipeline records.
     assert!(
@@ -761,7 +761,7 @@ async fn test_BC_2_01_013_spec_driven_adapter_cyberint_cookie_auth_injects_acces
         result.err()
     );
 
-    let batches = result.unwrap();
+    let batches = result.unwrap().batches;
 
     // LOAD-BEARING (F-001): fails because fetch() discards pipeline records.
     assert!(
@@ -852,7 +852,7 @@ async fn test_BC_2_01_013_static_cookie_auth_strategy_injects_access_token_not_b
         result.err()
     );
 
-    let batches = result.unwrap();
+    let batches = result.unwrap().batches;
 
     // LOAD-BEARING (F-001): also fails because fetch() discards pipeline records.
     assert!(
@@ -943,7 +943,7 @@ async fn test_BC_2_01_013_spec_driven_adapter_double_401_returns_auth_refresh_fa
         result.is_err(),
         "AC-012: double-401 must return Err. Got Ok({:?}). \
          BC-2.01.013 error case; S-DEMO-001 AC-012.",
-        result.ok().map(|b| b.len())
+        result.ok().map(|b| b.batches.len())
     );
 
     let err = result.unwrap_err();
@@ -1728,7 +1728,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
         result.err()
     );
 
-    let batches = result.unwrap();
+    let batches = result.unwrap().batches;
 
     assert!(
         !batches.is_empty(),
@@ -1855,7 +1855,7 @@ async fn test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied() {
         result.err()
     );
 
-    let batches = result.unwrap();
+    let batches = result.unwrap().batches;
     assert!(
         !batches.is_empty(),
         "F-001-R item 2: must return at least one RecordBatch."
@@ -1974,7 +1974,7 @@ async fn test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_se
         result.err()
     );
 
-    let batches = result.unwrap();
+    let batches = result.unwrap().batches;
     assert!(
         !batches.is_empty(),
         "F-001-R item 3: must return at least one RecordBatch."
@@ -2628,7 +2628,7 @@ async fn test_crowdstrike_fetch_with_limit_seeds_query_limit_reaches_dtu() {
         result.err()
     );
 
-    let batches = result.unwrap();
+    let batches = result.unwrap().batches;
     let total_records: usize = batches.iter().map(|b| b.num_rows()).sum();
 
     // LOAD-BEARING (F-P1-CRIT-004): DTU must honor limit=3 from params.limit.

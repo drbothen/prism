@@ -112,7 +112,7 @@ use prism_query::{
     memory::{build_session_context, QUERY_MEMORY_POOL_BYTES},
 };
 use prism_sensors::{
-    adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+    adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
     auth::SensorAuth,
     AdapterRegistry, CredentialResolver,
 };
@@ -172,7 +172,7 @@ impl SensorAdapter for PlanShapeGateMockAdapter {
         _spec: &SensorSpec,
         params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         // F-LENSB-P13-002: increment fetch_count so tests can assert >= 1.
         // A final fetch_count of 0 means the adapter was never invoked and any
         // `last_limit == 0` assertion would be vacuously satisfied by init state.
@@ -183,10 +183,10 @@ impl SensorAdapter for PlanShapeGateMockAdapter {
 
         if params.limit == 0 {
             // fetch_limit == 0 means early-stop is suppressed — return all 300 rows.
-            Ok(self.full_batches.clone())
+            Ok(FetchOutput::new(self.full_batches.clone(), false))
         } else {
             // fetch_limit > 0 means early-stop is active — return page 1 only.
-            Ok(self.page1_batches.clone())
+            Ok(FetchOutput::new(self.page1_batches.clone(), false))
         }
     }
 }

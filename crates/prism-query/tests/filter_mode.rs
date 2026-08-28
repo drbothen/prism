@@ -37,7 +37,7 @@ use prism_query::{
     scoping::ClientRegistry,
 };
 use prism_sensors::{
-    adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+    adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
     auth::SensorAuth,
     AdapterRegistry,
 };
@@ -145,7 +145,7 @@ impl SensorAdapter for SeverityStubAdapter {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         // Schema: one `severity` column (Utf8).
         let schema = Arc::new(Schema::new(vec![Field::new(
             "severity",
@@ -159,7 +159,7 @@ impl SensorAdapter for SeverityStubAdapter {
         let arr = Arc::new(StringArray::from(severities)) as _;
         let batch =
             RecordBatch::try_new(schema, vec![arr]).expect("stub severity batch must be valid");
-        Ok(vec![batch])
+        Ok(FetchOutput::new(vec![batch], false))
     }
 }
 

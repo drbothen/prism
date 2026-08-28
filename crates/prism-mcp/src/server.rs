@@ -10451,7 +10451,7 @@ mod tests {
             table_registry::TableRegistry,
         };
         use prism_sensors::{
-            adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+            adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
             auth::SensorAuth,
             registry::AdapterRegistry,
         };
@@ -10470,8 +10470,8 @@ mod tests {
                 _spec: &SensorSpec,
                 _params: &QueryParams,
                 _auth: &dyn SensorAuth,
-            ) -> Result<Vec<RecordBatch>, SensorError> {
-                Ok(vec![])
+            ) -> Result<FetchOutput, SensorError> {
+                Ok(FetchOutput::new(vec![], false))
             }
         }
 

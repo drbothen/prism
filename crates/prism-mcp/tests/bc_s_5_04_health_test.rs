@@ -98,7 +98,7 @@ use prism_mcp::{
     resources::{render_sensors_health_resource, RateLimitInfo, SensorHealthResult},
 };
 use prism_sensors::{
-    adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+    adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
     auth::SensorAuth,
     registry::AdapterRegistry,
 };
@@ -126,9 +126,9 @@ impl SensorAdapter for MockAdapterOk {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         // Simulate a successful empty probe (LIMIT 0).
-        Ok(vec![])
+        Ok(FetchOutput::new(vec![], false))
     }
 
     fn sensor_name(&self) -> &'static str {
@@ -152,7 +152,7 @@ impl SensorAdapter for MockAdapterUnauthorized {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         Err(SensorError::HttpError {
             sensor: "crowdstrike".to_string(),
             status: 401,
@@ -179,7 +179,7 @@ impl SensorAdapter for MockAdapterForbidden {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         Err(SensorError::HttpError {
             sensor: "crowdstrike".to_string(),
             status: 403,
@@ -209,7 +209,7 @@ impl SensorAdapter for MockAdapterUnauthorizedArmis {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         Err(SensorError::HttpError {
             sensor: "armis".to_string(),
             status: 401,
@@ -238,7 +238,7 @@ impl SensorAdapter for MockAdapterConnectionRefused {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         Err(SensorError::Timeout {
             sensor: "crowdstrike".to_string(),
             elapsed_ms: 30_000,
@@ -269,7 +269,7 @@ impl SensorAdapter for MockAdapterConnectionRefusedArmis {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         Err(SensorError::Timeout {
             sensor: "armis".to_string(),
             elapsed_ms: 30_000,
@@ -300,7 +300,7 @@ impl SensorAdapter for MockAdapterRateLimited {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         Err(SensorError::RateLimited {
             sensor: "crowdstrike".to_string(),
             retry_after_ms: 30_000,
@@ -329,7 +329,7 @@ impl SensorAdapter for MockAdapterRateLimitedArmis {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         Err(SensorError::RateLimited {
             sensor: "armis".to_string(),
             retry_after_ms: 30_000,
@@ -359,7 +359,7 @@ impl SensorAdapter for MockAdapterHostileBody {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         // Hostile body: 2000 chars + embedded control characters (ANSI escape + null + newline)
         // The sanitizer should truncate at 512 chars and strip control chars.
         let long_body = format!("INJECTED\x1b[31mRED\x1b[0m\x00\n\r{}", "A".repeat(2000));
@@ -412,13 +412,13 @@ impl SensorAdapter for MockAdapterCapturingSpec {
         spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         let mut guard = self
             .captured_source_table
             .lock()
             .unwrap_or_else(|p| p.into_inner());
         *guard = Some(spec.source_table.clone());
-        Ok(vec![])
+        Ok(FetchOutput::new(vec![], false))
     }
 
     fn sensor_name(&self) -> &'static str {
@@ -1916,7 +1916,7 @@ impl SensorAdapter for MockAdapterServiceUnavailable {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         Err(SensorError::HttpError {
             sensor: "crowdstrike".to_string(),
             status: 503,
@@ -1946,7 +1946,7 @@ impl SensorAdapter for MockAdapterServiceUnavailableArmis {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         Err(SensorError::HttpError {
             sensor: "armis".to_string(),
             status: 503,
@@ -1998,7 +1998,7 @@ impl SensorAdapter for MockAdapterStripPrefix {
         spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         // Replicate SpecDrivenSensorAdapter::fetch strip_prefix logic (spec_driven_adapter.rs §647-649).
         let prefix = format!("{}_", self.sensor_id);
         match spec.source_table.strip_prefix(&prefix) {
@@ -2008,7 +2008,7 @@ impl SensorAdapter for MockAdapterStripPrefix {
                     .resolved_table
                     .lock()
                     .unwrap_or_else(|p| p.into_inner()) = Some(table_name.to_owned());
-                Ok(vec![])
+                Ok(FetchOutput::new(vec![], false))
             }
             None => {
                 // source_table did NOT start with "{sensor_id}_" — the probe used the wrong form.

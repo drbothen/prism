@@ -1601,3 +1601,20 @@ pub fn v97_pipeline_result() {
     };
     let _ = _result;
 }
+
+/// Violation 98: prism_sensors::adapter::FetchOutput struct literal (E0639).
+///
+/// `FetchOutput` is the return type of `SensorAdapter::fetch`. It carries the
+/// fetched RecordBatches plus the `any_early_stopped` signal from ADR-060 §D8.3.
+/// `#[non_exhaustive]` enforces that external callers use `FetchOutput::new`.
+/// Registered by S-ENGINE-LIMIT-EARLY-STOP-001 (ADR-060 any_early_stopped chain).
+#[allow(dead_code)]
+pub fn v98_fetch_output() {
+    use prism_sensors::adapter::FetchOutput;
+    // Triggers E0639 (#[non_exhaustive]).
+    let _out = FetchOutput {
+        batches: vec![],
+        any_early_stopped: false,
+    };
+    let _ = _out;
+}

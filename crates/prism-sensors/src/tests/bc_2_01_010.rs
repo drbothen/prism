@@ -17,7 +17,7 @@
 
 use prism_core::SensorId;
 
-use crate::adapter::SensorError;
+use crate::adapter::{FetchOutput, SensorError};
 
 // ---------------------------------------------------------------------------
 // Structural: FanOutError fields accessible
@@ -163,7 +163,7 @@ async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() 
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             Err(SensorError::HttpError {
                 sensor: "crowdstrike".into(),
                 status: 503,
@@ -285,7 +285,7 @@ async fn test_BC_2_01_010_fan_out_five_succeed_one_503_returns_partial_result() 
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             let n = CALL_COUNT.fetch_add(1, Ordering::SeqCst);
             if n == 5 {
                 // 6th call (0-indexed) fails with 503
@@ -298,7 +298,10 @@ async fn test_BC_2_01_010_fan_out_five_succeed_one_503_returns_partial_result() 
             let schema = Arc::new(Schema::new(vec![Field::new("id", DataType::Int32, false)]));
             let batch = RecordBatch::try_new(schema, vec![Arc::new(Int32Array::from(vec![1i32]))])
                 .expect("valid batch");
-            Ok(vec![batch])
+            Ok(FetchOutput {
+                batches: vec![batch],
+                any_early_stopped: false,
+            })
         }
     }
 

@@ -404,7 +404,7 @@ async fn test_BC_2_11_001_step8_adapter_registry_not_empty() {
     use datafusion::arrow::record_batch::RecordBatch;
     use prism_core::OrgId;
     use prism_sensors::{
-        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
         auth::SensorAuth,
     };
 
@@ -434,7 +434,7 @@ async fn test_BC_2_11_001_step8_adapter_registry_not_empty() {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             Err(SensorError::Internal {
                 detail: "stub — not used in wiring test".into(),
             })

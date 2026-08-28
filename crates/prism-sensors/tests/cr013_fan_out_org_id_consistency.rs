@@ -28,7 +28,7 @@ use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use prism_core::{OrgId, SensorId};
 use prism_sensors::{
-    adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+    adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
     auth::SensorAuth,
     fanout::{CredentialResolver, FanOutTarget},
     AdapterRegistry,
@@ -53,8 +53,8 @@ impl SensorAdapter for NoopAdapter {
         _spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
-        Ok(vec![])
+    ) -> Result<FetchOutput, SensorError> {
+        Ok(FetchOutput::new(vec![], false))
     }
 }
 

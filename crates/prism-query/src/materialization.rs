@@ -885,9 +885,11 @@ pub async fn run_materialization_pipeline(
         options.limit.map(|l| l as u64).unwrap_or(0)
     };
 
-    // ADR-060 §D8.9 (RG-PSG-025): track total rows returned by live fan-out calls.
-    // Used after the targets loop to compute `any_early_stopped`.
-    let mut total_fetched_rows: usize = 0;
+    // ADR-060 §D8.3: accumulate the real early-stop signal across live fan-out calls.
+    // This is set only by live fetches — cache-hit paths are complete prior responses
+    // and do not constitute an early-stop. Engine Step 6 uses this signal to compute
+    // is_truncated = (total_rows > limit) || any_early_stopped.
+    let mut any_early_stopped = false;
 
     // F-LP1-CRIT-2/3: use fan_out() with CredentialResolver.
     // Process each target independently so virtual field injection uses the
@@ -1068,14 +1070,14 @@ pub async fn run_materialization_pipeline(
                     )?;
                 }
 
+                // ADR-060 §D8.3: capture the real early-stop signal before consuming batches.
+                // This must precede the `for batch in fan_result.successes` move.
+                any_early_stopped |= fan_result.any_early_stopped;
+
                 // Collect successes with per-target virtual field injection.
                 let mut fetched_batches: Vec<RecordBatch> = Vec::new();
                 for batch in fan_result.successes {
                     let n = batch.num_rows();
-                    // ADR-060 §D8.9 (RG-PSG-025): accumulate live fan-out rows for
-                    // early-stop detection. Cache-hit paths are excluded (they are
-                    // complete prior fetches, not early-stopped partial responses).
-                    total_fetched_rows += n;
                     mat_ctx.increment_record_count(n)?;
                     // Inject virtual fields (_sensor, _client, _source_table).
                     // Uses this target's client_id for correct per-client attribution (AC-6).
@@ -1201,13 +1203,11 @@ pub async fn run_materialization_pipeline(
         }
     }
 
-    // ADR-060 §D8.9 (RG-PSG-025): detect early-stop.
-    // Fires when fetch_limit > 0 (early-stop was active) AND the total rows returned
-    // by live fan-out calls reached the fetch_limit (more pages may exist but were
-    // not fetched). Engine Step 6 uses this to compute is_truncated correctly for
-    // the boundary case where total_rows == limit but additional data was silently
-    // dropped (AC-009 / EC-11-092 / EC-11-093).
-    let any_early_stopped = fetch_limit > 0 && total_fetched_rows >= fetch_limit as usize;
+    // ADR-060 §D8.3: `any_early_stopped` was accumulated per-target above by
+    // OR-ing fan_result.any_early_stopped — the real signal propagated from
+    // PipelineResult.early_stopped → FetchOutput.any_early_stopped → FanOutResult.
+    // No heuristic needed: only a true PipelineResult §D8.2 early-stop sets this.
+    // Engine Step 6: is_truncated = (total_rows > limit) || any_early_stopped.
 
     // Step 5: Register each source as a DataFusion MemTable.
     // Track how many external tables were successfully registered with data.
@@ -5860,7 +5860,7 @@ mod cross_org_isolation_tests {
     use async_trait::async_trait;
     use prism_core::{OrgId, OrgRegistry, OrgSlug, PrismError, SensorId};
     use prism_sensors::{
-        adapter::{QueryParams, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorSpec},
         AdapterRegistry, SensorAdapter, SensorAuth, SensorError,
     };
 
@@ -5887,7 +5887,7 @@ mod cross_org_isolation_tests {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<arrow::record_batch::RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Never called in this test — the path under test returns early with E-QUERY-032.
             unreachable!("MinimalStubAdapter::fetch must not be called in the isolation test")
         }
@@ -6092,7 +6092,7 @@ mod unknown_source_table_tests {
     use async_trait::async_trait;
     use prism_core::{OrgId, PrismError, SensorId};
     use prism_sensors::{
-        adapter::{QueryParams, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorSpec},
         AdapterRegistry, SensorAdapter, SensorAuth, SensorError,
     };
 
@@ -6115,7 +6115,7 @@ mod unknown_source_table_tests {
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<arrow::record_batch::RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Never called — the path under test returns UnknownSourceTable before adapter dispatch.
             unreachable!("StubAdapterForUnknownTest::fetch must not be called in E-QUERY-036 test")
         }
@@ -6441,7 +6441,7 @@ mod armis_discriminator_wiring_seam_tests {
     use async_trait::async_trait;
     use prism_core::{OrgId, SensorId};
     use prism_sensors::{
-        adapter::{QueryParams, SensorSpec},
+        adapter::{FetchOutput, QueryParams, SensorSpec},
         AdapterRegistry, BearerStaticSensorAuth, CredentialResolver, SensorAdapter, SensorAuth,
         SensorError,
     };
@@ -6483,14 +6483,14 @@ mod armis_discriminator_wiring_seam_tests {
             _spec: &SensorSpec,
             params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<arrow::record_batch::RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Record the filters map received from the pipeline.
             self.captured_filters
                 .lock()
                 .expect("RecordingAdapter: captured_filters lock must not be poisoned")
                 .push(params.filters.clone());
             // Return zero rows — we only care about the captured filters, not the result.
-            Ok(vec![])
+            Ok(FetchOutput::new(vec![], false))
         }
     }
 

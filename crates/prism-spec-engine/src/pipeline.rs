@@ -111,6 +111,13 @@ pub struct PipelineResult {
     pub request_count: u32,
     /// True if `records` was truncated at the 10K DI-019 limit (AC-8).
     pub truncated: bool,
+    /// True when `execute_impl` fired the ADR-060 §D8.2 early-stop `break 'steps`
+    /// because `all_records.len() >= early_stop_limit`. False when the pipeline
+    /// completed normally (pagination exhausted, DI-019 cap, or `early_stop_limit = None`).
+    /// Propagates to `FetchOutput.any_early_stopped` → `FanOutResult.any_early_stopped`
+    /// → `MaterializationOutput.any_early_stopped` → engine Step 6 `is_truncated` formula
+    /// (ADR-060 §D8.3; S-ENGINE-LIMIT-EARLY-STOP-001 AC-009(a)).
+    pub early_stopped: bool,
 }
 
 impl PipelineResult {
@@ -133,6 +140,7 @@ impl PipelineResult {
             table_name: table_name.into(),
             request_count,
             truncated,
+            early_stopped: false,
         }
     }
 }
@@ -226,6 +234,9 @@ impl PipelineExecutor {
         // step_vars: keyed as "step_name.field" -> JSON value
         let mut step_vars: HashMap<String, serde_json::Value> = HashMap::new();
         let mut truncated = false;
+        // ADR-060 §D8.3: tracks whether §D8.2 early-stop fired (early_stop_limit reached).
+        // Set to true BEFORE break 'steps in the early-stop block; false for all other exits.
+        let mut early_stopped = false;
 
         // AC-7 (F-LP1-HIGH-002): rate-limit flag is pipeline-scoped, not step-scoped.
         // Hoisted OUTSIDE the steps loop so the delay applies between ALL API calls
@@ -578,9 +589,16 @@ impl PipelineExecutor {
                     // ADR-060 §D8.2: LIMIT-aware early-stop. Fires at COMPLETE page boundary,
                     // immediately after DI-019. truncated is NOT set — this is a success-path
                     // query-driven early exit, not a capacity overflow (ADR-060 §D8.3).
+                    // CRITICAL: early_stopped MUST be set to true BEFORE break 'steps so that
+                    // PipelineResult.early_stopped is true when the caller reads it. This is
+                    // the root of the ADR-060 §D8.3 propagation chain:
+                    // PipelineResult.early_stopped → FetchOutput.any_early_stopped
+                    // → FanOutResult.any_early_stopped → MaterializationOutput.any_early_stopped
+                    // → engine Step 6 is_truncated formula (EC-11-092 / RG-PSG-025/028).
                     if let Some(limit) = context.early_stop_limit
                         && all_records.len() >= limit
                     {
+                        early_stopped = true; // ADR-060 §D8.3: set BEFORE break
                         break 'steps;
                     }
 
@@ -639,6 +657,7 @@ impl PipelineExecutor {
             table_name: table.table_name.clone(),
             request_count,
             truncated,
+            early_stopped,
         })
     }
 

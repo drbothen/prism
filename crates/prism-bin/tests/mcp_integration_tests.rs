@@ -58,7 +58,7 @@ use prism_query::{
 };
 use prism_sensors::{
     AdapterRegistry, CredentialResolver,
-    adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+    adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
     auth::SensorAuth,
 };
 use secrecy::SecretString;
@@ -280,14 +280,14 @@ async fn test_psg_rg026_prism_query_wire_surfaces_truncation_signal() {
             _spec: &SensorSpec,
             params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             self.fetch_count.fetch_add(1, Ordering::SeqCst);
             if params.limit == 0 {
                 // Gate suppressed (Condition G) → return all 3000 rows.
-                Ok(self.full_batches.clone())
+                Ok(FetchOutput::new(self.full_batches.clone(), false))
             } else {
                 // Early-stop active → return exactly EXACT_LIMIT rows (page 1 of 3).
-                Ok(self.page1_batches.clone())
+                Ok(FetchOutput::new(self.page1_batches.clone(), true))
             }
         }
     }
@@ -550,9 +550,9 @@ async fn test_psg_rg028_wire_multi_sensor_fanout_no_early_stop_is_not_truncated(
             _spec: &SensorSpec,
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Unconditionally return the pre-built batches — no early-stop behavior.
-            Ok(self.batches.clone())
+            Ok(FetchOutput::new(self.batches.clone(), false))
         }
     }
 

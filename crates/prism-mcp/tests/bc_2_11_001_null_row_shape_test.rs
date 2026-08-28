@@ -46,8 +46,9 @@ mod tests {
         table_registry::TableRegistry,
     };
     use prism_sensors::{
-        AdapterRegistry, CredentialResolver, QueryParams as SensorQueryParams, SensorAdapter,
-        SensorAuth, SensorError, SensorSpec as SensorAdapterSpec,
+        adapter::FetchOutput, AdapterRegistry, CredentialResolver,
+        QueryParams as SensorQueryParams, SensorAdapter, SensorAuth, SensorError,
+        SensorSpec as SensorAdapterSpec,
     };
     use prism_spec_engine::{
         overlay::{OverlayLoader, ResolvedSensorSpec, ResolvedSpecKey, SensorInstanceOverlay},
@@ -120,7 +121,7 @@ mod tests {
             _spec: &SensorAdapterSpec,
             _params: &SensorQueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Schema: severity (non-nullable String), sensor_ip (nullable String).
             // `nullable=true` on `sensor_ip` is the key: Arrow will produce a NULL value
             // in the serialized JSON, which `WriterBuilder::new()` omits (the defect).
@@ -141,7 +142,7 @@ mod tests {
                 ],
             )
             .expect("RecordBatch construction must not fail in stub");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false))
         }
     }
 
@@ -773,7 +774,7 @@ mod tests {
             _spec: &SensorAdapterSpec,
             _params: &SensorQueryParams,
             _auth: &dyn SensorAuth,
-        ) -> Result<Vec<RecordBatch>, SensorError> {
+        ) -> Result<FetchOutput, SensorError> {
             // Schema: float_col (nullable Float64).
             // `nullable=true` allows Arrow-null (row 4) to appear in the validity bitmap.
             let schema = Arc::new(Schema::new(vec![Field::new(
@@ -798,7 +799,7 @@ mod tests {
 
             let batch = RecordBatch::try_new(schema, vec![Arc::new(float_data)])
                 .expect("RecordBatch construction must not fail in stub");
-            Ok(vec![batch])
+            Ok(FetchOutput::new(vec![batch], false))
         }
     }
 

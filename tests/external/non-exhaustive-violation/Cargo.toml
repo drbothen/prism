@@ -57,6 +57,9 @@ prism-dtu-harness = { path = "../../../crates/prism-dtu-harness", features = ["d
 # GetDeviceAlertsResponse carry #[non_exhaustive] (violations v93-v95); dtu feature required to
 # expose the types module (gated #[cfg(any(test, feature = "dtu"))]).
 prism-dtu-claroty = { path = "../../../crates/prism-dtu-claroty", features = ["dtu"] }
+# S-ENGINE-LIMIT-EARLY-STOP-001 AC-009(a): prism-sensors::adapter::FetchOutput carries
+# #[non_exhaustive] (violation v98). prism-sensors dep is required for the import to resolve.
+prism-sensors = { path = "../../../crates/prism-sensors" }
 
 # Empty workspace table: opts this crate out of the parent workspace resolver.
 [workspace]

@@ -120,6 +120,7 @@ EXPECTED_SYMBOLS = [
     # ── commit but were never registered in this gate. Fixed in-scope. ─────────────────────
     "FetchContext",               # v96 prism_spec_engine::pipeline::FetchContext
     "PipelineResult",             # v97 prism_spec_engine::pipeline::PipelineResult
+    "FetchOutput",                # v98 prism_sensors::adapter::FetchOutput
     # ── E0004 enum match violations (23 entries; 22 unique after prism_core::ColumnType dedup) ──
     # Names are the last path segment from `note: \`path::TypeName\` defined here`.
     "PaginationConfig",      # v07 spec_parser::PaginationConfig

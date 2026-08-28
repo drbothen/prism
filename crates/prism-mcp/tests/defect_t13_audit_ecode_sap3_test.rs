@@ -71,8 +71,8 @@ use prism_query::{
     PrismQlParser,
 };
 use prism_sensors::{
-    AdapterRegistry, CredentialResolver, QueryParams as SensorQueryParams, SensorAdapter,
-    SensorAuth, SensorError, SensorSpec as SensorAdapterSpec,
+    adapter::FetchOutput, AdapterRegistry, CredentialResolver, QueryParams as SensorQueryParams,
+    SensorAdapter, SensorAuth, SensorError, SensorSpec as SensorAdapterSpec,
 };
 use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec};
 
@@ -142,14 +142,14 @@ impl SensorAdapter for ReturnsOneRowAdapter {
         _spec: &SensorAdapterSpec,
         _params: &SensorQueryParams,
         _auth: &dyn SensorAuth,
-    ) -> Result<Vec<RecordBatch>, SensorError> {
+    ) -> Result<FetchOutput, SensorError> {
         let n_cols = self.schema.fields().len();
         let arrays: Vec<Arc<dyn arrow::array::Array>> = (0..n_cols)
             .map(|_| Arc::new(StringArray::from(vec!["stub"])) as Arc<dyn arrow::array::Array>)
             .collect();
         let batch = RecordBatch::try_new(Arc::clone(&self.schema), arrays)
             .expect("ReturnsOneRowAdapter: stub RecordBatch construction must not fail");
-        Ok(vec![batch])
+        Ok(FetchOutput::new(vec![batch], false))
     }
 }
 
