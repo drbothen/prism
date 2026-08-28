@@ -162,6 +162,10 @@ use secrecy::SecretString;
 /// so the init value of `0` cannot vacuously satisfy `last_limit == 0` when
 /// the adapter was never actually called.
 struct PlanShapeGateMockAdapter {
+    /// Sensor type reported by `sensor_type()`. Defaults to `"mock"` for existing
+    /// tests; set to `"armis"` or `"crowdstrike"` for cross-sensor source-scope tests
+    /// (PSG-032, PSG-033, PSG-030b) where the source table prefix must match.
+    sensor_type_id: SensorId,
     /// The last `params.limit` received — lets tests assert on gate output.
     last_limit: Arc<AtomicU64>,
     /// Total number of `fetch()` calls received (hardening counter).
@@ -177,6 +181,7 @@ struct PlanShapeGateMockAdapter {
 impl std::fmt::Debug for PlanShapeGateMockAdapter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PlanShapeGateMockAdapter")
+            .field("sensor_type_id", &self.sensor_type_id)
             .field("last_limit", &self.last_limit.load(Ordering::Relaxed))
             .field("fetch_count", &self.fetch_count.load(Ordering::Relaxed))
             .finish()
@@ -186,7 +191,7 @@ impl std::fmt::Debug for PlanShapeGateMockAdapter {
 #[async_trait]
 impl SensorAdapter for PlanShapeGateMockAdapter {
     fn sensor_type(&self) -> SensorId {
-        SensorId::from("mock")
+        self.sensor_type_id.clone()
     }
 
     fn sensor_name(&self) -> &'static str {
@@ -356,6 +361,7 @@ fn plan_gate_mat_ctx() -> (MaterializationContext, Arc<AtomicU64>, Arc<AtomicU64
     let page3 = make_status_batch("page3", 100);
 
     let adapter = Arc::new(PlanShapeGateMockAdapter {
+        sensor_type_id: SensorId::from("mock"),
         last_limit: Arc::clone(&last_limit),
         fetch_count: Arc::clone(&fetch_count),
         full_batches: vec![page1.clone(), page2, page3], // 300 rows total
@@ -1607,6 +1613,7 @@ async fn test_psg_relative_temporal_now_interval_suppresses_early_stop() {
     let page3 = make_status_batch("page3", 100);
 
     let adapter = Arc::new(PlanShapeGateMockAdapter {
+        sensor_type_id: SensorId::from("mock"),
         last_limit: Arc::clone(&last_limit),
         fetch_count: Arc::clone(&fetch_count),
         full_batches: vec![page1.clone(), page2, page3],
@@ -1797,6 +1804,7 @@ fn plan_gate_mat_ctx_with_spec(
     let page3 = make_status_batch("page3", 100);
 
     let adapter = Arc::new(PlanShapeGateMockAdapter {
+        sensor_type_id: SensorId::from("mock"),
         last_limit: Arc::clone(&last_limit),
         fetch_count: Arc::clone(&fetch_count),
         full_batches: vec![page1.clone(), page2, page3], // 300 rows total
@@ -1813,6 +1821,253 @@ fn plan_gate_mat_ctx_with_spec(
         prism_query::memory::MAX_MATERIALIZED_RECORDS,
         Arc::new(StubCredentialResolver),
         None,           // org_registry absent — test mode (resolve_org_id falls back to Path 2)
+        Some(spec_map), // resolved_spec_map → datetime_index_cols non-empty
+    );
+
+    (mat_ctx, last_limit, fetch_count)
+}
+
+// ---------------------------------------------------------------------------
+// Cross-sensor source-scoping helpers — PSG-032 / PSG-033 / PSG-030b
+// ---------------------------------------------------------------------------
+//
+// ADR-060 v1.8 (F-R16-P16-LENSA-HIGH-001): `datetime_index_cols` must be
+// scoped to the source sensor being queried, not aggregated globally across all
+// sensors in `resolved_spec_map`.  Without source-scoping, an INDEX designation
+// in sensor A bleeds into sensor B's gate decision.
+//
+// The tests use three helpers:
+//   `make_psg_armis_spec_map()`          — armis only; last_seen Datetime+INDEX.
+//   `make_psg_cross_sensor_spec_map()`   — armis (INDEX) + crowdstrike (no INDEX).
+//   `plan_gate_mat_ctx_for_sensor_type_and_spec(sensor_type, spec_map)` — mat_ctx
+//       with a mock adapter whose `sensor_type_id` is set to `sensor_type` so the
+//       source table prefix in the query (e.g. "crowdstrike_devices") routes to it.
+// ---------------------------------------------------------------------------
+
+/// Low-level helper: build one resolved spec entry for use in spec maps.
+///
+/// Parameters:
+/// - `org_slug_str`: org slug for the key; uses `OrgSlug::new_unchecked` (test-only).
+/// - `sensor_id_str`: sensor_id for both the key and the TOML spec.
+/// - `table_name`: DataFusion-visible table name (source prefix + "_" + suffix), e.g.
+///   `"armis_devices"` or `"crowdstrike_devices"`.
+/// - `col_name`: Datetime column to add to the table spec.
+/// - `has_index`: whether `col_name` carries `ColumnOptions::Index`.
+///
+/// OrgSlug::new_unchecked: test-only identity — never used in production code paths.
+fn make_psg_sensor_spec_entry(
+    org_slug_str: &str,
+    sensor_id_str: &str,
+    table_name: &str,
+    col_name: &str,
+    has_index: bool,
+) -> (
+    prism_spec_engine::ResolvedSpecKey,
+    prism_spec_engine::ResolvedSensorSpec,
+) {
+    use prism_core::{ColumnOptions, ColumnType};
+    use prism_spec_engine::{
+        ColumnSpec, OverlayLoader, SensorInstanceOverlay, SensorSpec as EngineSpec, TableSpec,
+    };
+
+    let options = if has_index {
+        vec![ColumnOptions::Index]
+    } else {
+        vec![]
+    };
+    let col = ColumnSpec::new(col_name, ColumnType::Datetime, None, options);
+    let table = TableSpec::new_point_in_time(table_name, "security_finding", vec![col], vec![]);
+
+    // SensorSpec is #[non_exhaustive] — construct via TOML round-trip (E0639 guard).
+    let spec_toml = format!(
+        "sensor_id = \"{sensor_id_str}\"\n\
+         name = \"{sensor_id_str} Mock\"\n\
+         auth_type = \"api_key\"\n\
+         base_url = \"https://example.com\"\n\
+         version = \"1.0.0\"\n\
+         ocsf_column_naming = false\n"
+    );
+    let mut spec: EngineSpec = toml::from_str(&spec_toml)
+        .unwrap_or_else(|e| panic!("make_psg_sensor_spec_entry: TOML parse failed: {e}"));
+    spec.tables = vec![table];
+
+    // OrgSlug::new_unchecked: test-only client identity — mirrors `opts()` helper pattern.
+    let org_slug = OrgSlug::new_unchecked(org_slug_str);
+    let sensor_id = SensorId::from(sensor_id_str);
+
+    let overlay_toml =
+        format!("extends = \"{sensor_id_str}\"\ninstance_id = \"{sensor_id_str}@{org_slug_str}\"");
+    let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+        .unwrap_or_else(|e| panic!("make_psg_sensor_spec_entry: overlay TOML parse failed: {e}"));
+    let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+
+    ((org_slug, sensor_id), resolved)
+}
+
+/// Build a spec map with only the armis sensor.
+///
+/// armis: `sensor_id="armis"`, table `"armis_devices"`, column `"last_seen"`
+/// Datetime + `ColumnOptions::Index`. Mirrors the `last_seen` INDEX designation in
+/// the real `armis.sensor.toml`.
+///
+/// `datetime_index_cols` derived from this map: `["last_seen"]`.
+fn make_psg_armis_spec_map() -> Arc<
+    std::collections::HashMap<
+        prism_spec_engine::ResolvedSpecKey,
+        prism_spec_engine::ResolvedSensorSpec,
+    >,
+> {
+    let (key, val) =
+        make_psg_sensor_spec_entry("test-org", "armis", "armis_devices", "last_seen", true);
+    let mut map = std::collections::HashMap::new();
+    map.insert(key, val);
+    Arc::new(map)
+}
+
+/// Build a spec map with BOTH armis and crowdstrike sensors.
+///
+/// armis:       `last_seen` Datetime + `ColumnOptions::Index` (INDEX).
+/// crowdstrike: `last_seen` Datetime, NO Index.
+///
+/// This mirrors the real sensor TOML files:
+///   - `armis.sensor.toml`: `name = "last_seen"`, `column_type = "datetime"`,
+///     `options = ["INDEX"]`
+///   - `crowdstrike.sensor.toml`: `name = "last_seen"`, `column_type = "datetime"`,
+///     NO `options = ["INDEX"]`
+///
+/// Used by PSG-032 (cross-sensor source-scope SUPPRESS): the defect under test is
+/// that the current global `datetime_index_cols` collection iterates ALL spec map
+/// values, so armis's INDEX classification bleeds into crowdstrike's gate decision.
+fn make_psg_cross_sensor_spec_map() -> Arc<
+    std::collections::HashMap<
+        prism_spec_engine::ResolvedSpecKey,
+        prism_spec_engine::ResolvedSensorSpec,
+    >,
+> {
+    let (armis_key, armis_val) = make_psg_sensor_spec_entry(
+        "test-org",
+        "armis",
+        "armis_devices",
+        "last_seen",
+        true, // INDEX
+    );
+    let (cs_key, cs_val) = make_psg_sensor_spec_entry(
+        "test-org",
+        "crowdstrike",
+        "crowdstrike_devices",
+        "last_seen",
+        false, // NO INDEX
+    );
+    let mut map = std::collections::HashMap::new();
+    map.insert(armis_key, armis_val);
+    map.insert(cs_key, cs_val);
+    Arc::new(map)
+}
+
+/// Build a spec map for a single mock sensor whose table has TWO Datetime+INDEX columns.
+///
+/// sensor: `sensor_id="mock"`, table `"mock_events"`.
+/// Columns: `"ts_start"` Datetime+INDEX and `"ts_end"` Datetime+INDEX.
+///
+/// Used by PSG-030d (Condition K — multi-index-datetime SUPPRESS): when the gate is
+/// queried against a table with multiple INDEX datetime columns, it must SUPPRESS
+/// because the push-down handling is ambiguous for a temporal predicate that targets
+/// only one of the INDEX columns (Condition K, ADR-060 v1.8 §D8.7).
+fn make_psg_multi_index_spec_map() -> Arc<
+    std::collections::HashMap<
+        prism_spec_engine::ResolvedSpecKey,
+        prism_spec_engine::ResolvedSensorSpec,
+    >,
+> {
+    use prism_core::{ColumnOptions, ColumnType};
+    use prism_spec_engine::{
+        ColumnSpec, OverlayLoader, SensorInstanceOverlay, SensorSpec as EngineSpec, TableSpec,
+    };
+
+    let ts_start_col = ColumnSpec::new(
+        "ts_start",
+        ColumnType::Datetime,
+        None,
+        vec![ColumnOptions::Index],
+    );
+    let ts_end_col = ColumnSpec::new(
+        "ts_end",
+        ColumnType::Datetime,
+        None,
+        vec![ColumnOptions::Index],
+    );
+
+    let table = TableSpec::new_point_in_time(
+        "mock_events",
+        "security_finding",
+        vec![ts_start_col, ts_end_col],
+        vec![],
+    );
+
+    let spec_toml = "sensor_id = \"mock\"\n\
+                     name = \"Mock Multi-Index\"\n\
+                     auth_type = \"api_key\"\n\
+                     base_url = \"https://example.com\"\n\
+                     version = \"1.0.0\"\n\
+                     ocsf_column_naming = false\n";
+    let mut spec: EngineSpec = toml::from_str(spec_toml)
+        .expect("make_psg_multi_index_spec_map: SensorSpec TOML parse failed");
+    spec.tables = vec![table];
+
+    // OrgSlug::new_unchecked: test-only client identity.
+    let org_slug = OrgSlug::new_unchecked("test-org");
+    let sensor_id = SensorId::from("mock");
+
+    let overlay_toml = "extends = \"mock\"\ninstance_id = \"mock@test-org\"";
+    let overlay: SensorInstanceOverlay = toml::from_str(overlay_toml)
+        .expect("make_psg_multi_index_spec_map: overlay TOML parse failed");
+    let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+
+    let mut map = std::collections::HashMap::new();
+    map.insert((org_slug, sensor_id), resolved);
+    Arc::new(map)
+}
+
+/// Like `plan_gate_mat_ctx_with_spec` but with a configurable `sensor_type_id`.
+///
+/// Used when the query source table prefix must match the adapter's sensor_type
+/// for fan-out routing, e.g.:
+/// - `sensor_type = "crowdstrike"` for `SELECT * FROM crowdstrike_devices …`
+/// - `sensor_type = "armis"` for `SELECT * FROM armis_devices …`
+fn plan_gate_mat_ctx_for_sensor_type_and_spec(
+    sensor_type: &str,
+    spec_map: Arc<
+        std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+) -> (MaterializationContext, Arc<AtomicU64>, Arc<AtomicU64>) {
+    let last_limit = Arc::new(AtomicU64::new(0));
+    let fetch_count = Arc::new(AtomicU64::new(0));
+
+    let page1 = make_status_batch("page1", 100);
+    let page2 = make_status_batch("page2", 100);
+    let page3 = make_status_batch("page3", 100);
+
+    let adapter = Arc::new(PlanShapeGateMockAdapter {
+        sensor_type_id: SensorId::from(sensor_type),
+        last_limit: Arc::clone(&last_limit),
+        fetch_count: Arc::clone(&fetch_count),
+        full_batches: vec![page1.clone(), page2, page3], // 300 rows total
+        page1_batches: vec![page1],                      // 100 rows — early-stop fires
+    });
+
+    let org_id = OrgId::new();
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, adapter);
+
+    let mat_ctx = MaterializationContext::new_with_resolver(
+        Arc::new(registry),
+        Arc::new(OcsfNormalizer::new()),
+        prism_query::memory::MAX_MATERIALIZED_RECORDS,
+        Arc::new(StubCredentialResolver),
+        None,           // org_registry absent — test mode (Path 2 fallback)
         Some(spec_map), // resolved_spec_map → datetime_index_cols non-empty
     );
 
@@ -2095,5 +2350,334 @@ async fn test_psg_canonical_time_window_still_permitted() {
          one Ge lower + one Lt upper bound are DIFFERENT operators and represent a fully \
          server-pushed range (no first-wins ambiguity). Only SAME-direction redundant \
          bounds (`> A AND > B`) should be suppressed."
+    );
+}
+
+// ===========================================================================
+// PSG-032 — ADR-060 v1.8 HIGH-001 (F-R16-P16-LENSA-HIGH-001): cross-sensor
+// source-scope SUPPRESSES (TRUE RED GATE)
+// ===========================================================================
+
+/// RG-PSG-032 — Cross-sensor source-scope: crowdstrike query SUPPRESSES early-stop
+///
+/// Fixture: `resolved_spec_map` contains BOTH
+///   - `("test-org", "armis")`:       `armis_devices.last_seen` Datetime + INDEX
+///   - `("test-org", "crowdstrike")`: `crowdstrike_devices.last_seen` Datetime, NO INDEX
+///
+/// Query: `SELECT * FROM crowdstrike_devices WHERE last_seen > '2026-01-01T00:00:00Z' LIMIT 100`
+///
+/// ## Current defect (ADR-060 v1.7, F-R16-P16-LENSA-HIGH-001)
+///
+/// `datetime_index_cols` is built by iterating `resolved_spec_map.values()` globally —
+/// it does not filter to the source sensor being queried. Because armis's `last_seen` is
+/// Datetime+INDEX, "last_seen" appears in `datetime_index_cols`. The gate then checks:
+///
+///   `is_pushed_temporal_predicate("last_seen", ["last_seen"])` → `true`
+///
+/// → `has_client_side_where = false` → PERMIT → `fetch_limit = 100`.
+///
+/// But crowdstrike's `last_seen` has NO INDEX designation. The push-down guarantee
+/// (ADR-033 T1) does not apply — early-stop is INCORRECT for this query.
+///
+/// ## v1.8 fix (ADR-060 §D8.7 source-scoping)
+///
+/// Filter `resolved_spec_map` to only the sensor(s) serving the source table being
+/// queried before building `datetime_index_cols`. Armis's INDEX classification is
+/// excluded when the query targets `crowdstrike_devices`.
+///
+/// After fix: `datetime_index_cols = []` (crowdstrike's `last_seen` has no INDEX) →
+/// `is_pushed_temporal_predicate("last_seen", [])` → `false` →
+/// `has_client_side_where = true` → SUPPRESS → `fetch_limit = 0`.
+///
+/// ## RED / GREEN mechanics
+///
+/// RED (current): global collection finds armis "last_seen" INDEX → PERMIT →
+///   `last_limit = 100 ≠ 0` → assertion FAILS.
+/// GREEN (v1.8 fix): source-scoped collection → crowdstrike "last_seen" has no INDEX →
+///   SUPPRESS → `last_limit = 0` → assertion passes.
+///
+/// F-LENSB-P13-002: assert `fetch_count >= 1` before `last_limit == 0`.
+///
+/// SAP-3: end-to-end from `run_materialization_pipeline` with a real SQL query string.
+/// Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-032, ADR-060 v1.8 §D8.7.
+#[tokio::test]
+async fn test_psg_rg032_cross_sensor_source_scope_suppresses_early_stop() {
+    // Spec map: armis (last_seen INDEX) + crowdstrike (last_seen NO INDEX).
+    // Current bug: datetime_index_cols collects from ALL sensors → includes "last_seen"
+    // from armis → wrongly PERMITs the crowdstrike query.
+    let spec_map = make_psg_cross_sensor_spec_map();
+    // Mock adapter sensor_type="crowdstrike" so `crowdstrike_devices` routes to it.
+    let (mut mat_ctx, last_limit, fetch_count) =
+        plan_gate_mat_ctx_for_sensor_type_and_spec("crowdstrike", spec_map);
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // crowdstrike_devices.last_seen has NO INDEX — push-down not guaranteed.
+    // Gate MUST suppress early-stop.
+    // DataFusion may error (no "last_seen" in mock schema) — assertion is on last_limit,
+    // recorded inside fetch() before DataFusion executes.
+    let query = "SELECT * FROM crowdstrike_devices \
+                 WHERE last_seen > '2026-01-01T00:00:00Z' \
+                 LIMIT 100";
+    let _result = run_materialization_pipeline(query, &opts(100), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002: adapter must have been invoked.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-032 (cross-sensor source-scope SUPPRESS): adapter must have been called at \
+         least once (fetch_count={fc}). A count of 0 means last_limit=0 is the AtomicU64 \
+         init value, not evidence of gate suppression."
+    );
+
+    // PRIMARY: gate must SUPPRESS early-stop (fetch_limit = 0).
+    //
+    // RED (current v1.7 — global datetime_index_cols):
+    //   armis last_seen INDEX bleeds into crowdstrike's gate decision →
+    //   datetime_index_cols = ["last_seen"] → is_pushed_temporal_predicate = true →
+    //   has_client_side_where = false → PERMIT → fetch_limit = 100 → last_limit = 100 ≠ 0.
+    //   Assertion FAILS.
+    //
+    // GREEN (v1.8 fix — source-scoped datetime_index_cols):
+    //   datetime_index_cols scoped to crowdstrike → "last_seen" not INDEX → [] →
+    //   is_pushed_temporal_predicate("last_seen", []) = false →
+    //   has_client_side_where = true → SUPPRESS → fetch_limit = 0 → last_limit = 0.
+    //   Assertion passes.
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-032 (ADR-060 v1.8 §D8.7 — F-R16-P16-LENSA-HIGH-001 cross-sensor source-scope): \
+         gate must SUPPRESS early-stop for crowdstrike_devices.last_seen (NO INDEX); \
+         adapter saw params.limit={seen_limit}. \
+         If 100: global datetime_index_cols includes armis last_seen INDEX, incorrectly \
+         classifying crowdstrike's non-INDEX column as push-down-eligible. \
+         Fix: scope datetime_index_cols construction to the source sensor being queried. \
+         Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-032, ADR-060 v1.8 §D8.7."
+    );
+}
+
+// ===========================================================================
+// PSG-033 — ADR-060 v1.8 regression guard: armis source-scope PERMITS
+// ===========================================================================
+
+/// RG-PSG-033 — Armis source-scope: armis query PERMITS early-stop (regression guard)
+///
+/// Fixture: `resolved_spec_map` contains ONLY the armis sensor.
+///   `("test-org", "armis")`: `armis_devices.last_seen` Datetime + INDEX.
+///
+/// Query: `SELECT * FROM armis_devices WHERE last_seen > '2026-01-01T00:00:00Z' LIMIT 100`
+///
+/// Guards against over-suppression: after the PSG-032 source-scoping fix, the gate
+/// must still PERMIT early-stop for armis where `last_seen` IS INDEX-designated.
+///
+/// This test PASSES before AND after the v1.8 fix. It exists to discriminate a
+/// regression where the source-scoping fix accidentally suppresses armis queries.
+///
+/// SAP-3: end-to-end from `run_materialization_pipeline` with a real SQL query string.
+/// Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-033, ADR-060 v1.8 §D8.7.
+#[tokio::test]
+async fn test_psg_rg033_armis_source_scope_permits_early_stop() {
+    // Spec map: armis only (last_seen Datetime+INDEX).
+    // datetime_index_cols = ["last_seen"] → gate PERMITs for armis queries.
+    let spec_map = make_psg_armis_spec_map();
+    let (mut mat_ctx, last_limit, fetch_count) =
+        plan_gate_mat_ctx_for_sensor_type_and_spec("armis", spec_map);
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // armis_devices.last_seen has INDEX — push-down is guaranteed (ADR-033 T1).
+    // Gate MUST PERMIT early-stop.
+    let query = "SELECT * FROM armis_devices \
+                 WHERE last_seen > '2026-01-01T00:00:00Z' \
+                 LIMIT 100";
+    let _result = run_materialization_pipeline(query, &opts(100), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002: adapter must have been invoked.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-033 (armis source-scope PERMIT regression guard): adapter must have been \
+         called at least once (fetch_count={fc}). A count of 0 means last_limit is the \
+         init value, not gate evidence."
+    );
+
+    // Regression guard: gate must PERMIT early-stop (fetch_limit = 100 > 0).
+    //
+    // Before fix: datetime_index_cols = ["last_seen"] → is_pushed_temporal_predicate = true →
+    //   PERMIT → last_limit = 100 > 0. PASSES.
+    //
+    // After v1.8 fix (source-scoped): datetime_index_cols scoped to armis only →
+    //   still ["last_seen"] → is_pushed_temporal_predicate = true → PERMIT → last_limit > 0.
+    //   PASSES.
+    //
+    // If this test FAILS after the PSG-032 fix, the fix over-suppressed armis queries.
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert!(
+        seen_limit > 0,
+        "PSG-033 (ADR-060 v1.8 §D8.7 — armis source-scope PERMIT regression guard): \
+         gate must PERMIT early-stop for armis_devices.last_seen (INDEX) \
+         (fetch_limit > 0 expected); adapter saw params.limit={seen_limit}. \
+         If 0: the PSG-032 source-scoping fix over-suppressed armis queries — armis's \
+         last_seen IS INDEX-designated and must still PERMIT. \
+         Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-033, ADR-060 v1.8 §D8.7."
+    );
+}
+
+// ===========================================================================
+// PSG-030b — redundant UPPER bound SUPPRESSES (mutation-coverage guard)
+// ===========================================================================
+
+/// RG-PSG-030b — Redundant same-direction upper bounds SUPPRESS (mutation-coverage guard)
+///
+/// Query: `SELECT * FROM armis_devices
+///   WHERE last_seen < '2026-06-01T00:00:00Z' AND last_seen < '2026-07-01T00:00:00Z'
+///   LIMIT 100`
+///
+/// Fixture: armis only (`last_seen` Datetime+INDEX); `datetime_index_cols = ["last_seen"]`.
+///
+/// Both predicates are `Lt` (upper-direction) on the same INDEX column.
+/// `count_temporal_bound_directions` returns `(lower=0, upper=2)`. The v1.7 check
+/// `lower <= 1 && upper <= 1` evaluates to `false` → SUPPRESS.
+///
+/// This test PASSES against current code (v1.7 already implements `upper <= 1`).
+/// Its purpose is mutation-coverage: killing the mutant that drops the `upper <= 1`
+/// clause from the `is_pushed_temporal_predicate` AND arm.
+///
+/// PSG-030 covers `lower > 1` (redundant lower bound). PSG-030b covers `upper > 1`
+/// (redundant upper bound). Together they ensure both halves of the `lower <= 1 && upper <= 1`
+/// condition are exercised by a concrete test, preventing silent deletion of either
+/// half by a mutation tool.
+///
+/// SAP-3: end-to-end from `run_materialization_pipeline` with a real SQL query string.
+/// Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-030b, ADR-060 §D8.7 v1.7.
+#[tokio::test]
+async fn test_psg_rg030b_redundant_upper_bound_suppresses_early_stop() {
+    let spec_map = make_psg_armis_spec_map();
+    let (mut mat_ctx, last_limit, fetch_count) =
+        plan_gate_mat_ctx_for_sensor_type_and_spec("armis", spec_map);
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // Two same-direction (Lt) upper bounds on the same INDEX datetime column.
+    // count_temporal_bound_directions → (lower=0, upper=2) → upper > 1 → SUPPRESS.
+    let query = "SELECT * FROM armis_devices \
+                 WHERE last_seen < '2026-06-01T00:00:00Z' \
+                 AND last_seen < '2026-07-01T00:00:00Z' \
+                 LIMIT 100";
+    let _result = run_materialization_pipeline(query, &opts(100), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002: adapter must have been invoked.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-030b (redundant upper bound — mutation-coverage guard): adapter must have \
+         been called at least once (fetch_count={fc})."
+    );
+
+    // Guard: gate must SUPPRESS (fetch_limit = 0).
+    // extract_time_bounds_from_predicate is first-wins: takes the first Lt as end_time,
+    // drops the second Lt to DataFusion client-side. Two upper bounds → upper=2 > 1 →
+    // `is_pushed_temporal_predicate` AND arm returns false → SUPPRESS.
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-030b (ADR-060 §D8.7 v1.7 — redundant upper bound suppression): gate must \
+         SUPPRESS when two same-direction Lt bounds target the same INDEX column \
+         (fetch_limit=0); adapter saw params.limit={seen_limit}. \
+         If non-zero: the `upper <= 1` clause in is_pushed_temporal_predicate is missing \
+         or broken — mutation killing this clause must cause PSG-030b to fail. \
+         Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-030b, ADR-060 §D8.7 v1.7."
+    );
+}
+
+// ===========================================================================
+// PSG-030d — Condition K: multi-index-datetime SUPPRESSES (TRUE RED GATE)
+// ===========================================================================
+
+/// RG-PSG-030d — Condition K: table with multiple Datetime+INDEX columns SUPPRESSES
+///
+/// Fixture: spec map with `sensor_id="mock"`, table `"mock_events"` containing
+/// TWO Datetime+INDEX columns: `"ts_start"` and `"ts_end"`.
+///
+/// Query: `SELECT * FROM mock_events WHERE ts_start > '2026-01-01T00:00:00Z' LIMIT 100`
+///
+/// ## Defect under test (Condition K, ADR-060 v1.8)
+///
+/// When a table has multiple INDEX-designated Datetime columns, a temporal predicate
+/// targeting only one of them is NOT fully server-pushed. `extract_time_bounds_from_predicate`
+/// (pushdown.rs) can extract a push-down window on `ts_start`, but `ts_end` has no
+/// constraint and the server may return rows that DataFusion later filters out by
+/// post-fetch DataFusion evaluation. With early-stop active, those rows may never be
+/// fetched — the result set could be incorrect.
+///
+/// The current code (v1.7) collects ALL INDEX datetime col names:
+///   `datetime_index_cols = ["ts_start", "ts_end"]`
+///
+/// The predicate `ts_start > '2026-01-01'` satisfies:
+///   `is_pushed_temporal_predicate` → `true` (ts_start ∈ datetime_index_cols, range op, ts RHS)
+///   `has_client_side_where = false` → PERMIT → `fetch_limit = 100`.
+///
+/// Condition K says: when `|datetime_index_cols| > 1`, suppress early-stop regardless,
+/// because multi-column INDEX tables have ambiguous push-down coverage.
+///
+/// ## RED / GREEN mechanics
+///
+/// RED (current v1.7 — no Condition K):
+///   `datetime_index_cols = ["ts_start", "ts_end"]`; single predicate on ts_start →
+///   `is_pushed_temporal_predicate` = true → PERMIT → `last_limit = 100 ≠ 0`.
+///   Assertion FAILS.
+///
+/// GREEN (v1.8 Condition K):
+///   `|datetime_index_cols| > 1` → SUPPRESS → `last_limit = 0`.
+///   Assertion passes.
+///
+/// F-LENSB-P13-002: assert `fetch_count >= 1` before `last_limit == 0`.
+///
+/// SAP-3: end-to-end from `run_materialization_pipeline` with a real SQL query string.
+/// Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-030d, ADR-060 v1.8 §D8.7 Condition K.
+#[tokio::test]
+async fn test_psg_rg030d_multi_index_datetime_suppresses_early_stop() {
+    // Spec map: mock sensor with TWO Datetime+INDEX columns (ts_start, ts_end).
+    // Current v1.7: datetime_index_cols = ["ts_start", "ts_end"] → PERMIT for ts_start query.
+    // After Condition K: |datetime_index_cols| > 1 → SUPPRESS.
+    let spec_map = make_psg_multi_index_spec_map();
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx_with_spec(spec_map);
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // ts_start is INDEX, ts_end is INDEX — two INDEX datetime cols on the same table.
+    // Gate must SUPPRESS when Condition K is implemented.
+    let query = "SELECT * FROM mock_events \
+                 WHERE ts_start > '2026-01-01T00:00:00Z' \
+                 LIMIT 100";
+    let _result = run_materialization_pipeline(query, &opts(100), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002: adapter must have been invoked.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-030d (Condition K — multi-index-datetime SUPPRESS): adapter must have been \
+         called at least once (fetch_count={fc}). A count of 0 means last_limit=0 is the \
+         AtomicU64 init value, not evidence of gate suppression."
+    );
+
+    // PRIMARY: gate must SUPPRESS early-stop (fetch_limit = 0).
+    //
+    // RED (current v1.7 — no Condition K):
+    //   datetime_index_cols = ["ts_start", "ts_end"]; ts_start ∈ set → PERMIT →
+    //   last_limit = 100 ≠ 0. Assertion FAILS.
+    //
+    // GREEN (v1.8 Condition K):
+    //   |datetime_index_cols| > 1 for this table → SUPPRESS → last_limit = 0. Passes.
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-030d (ADR-060 v1.8 §D8.7 — Condition K multi-index-datetime SUPPRESS): \
+         gate must SUPPRESS early-stop when the queried table has multiple INDEX datetime \
+         columns (fetch_limit=0); adapter saw params.limit={seen_limit}. \
+         If 100: Condition K is not yet implemented — the gate PERMITs because ts_start \
+         is individually in datetime_index_cols, but a table with multiple INDEX datetime \
+         cols has ambiguous push-down coverage and early-stop is incorrect. \
+         Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-030d, ADR-060 v1.8 §D8.7 Condition K."
     );
 }

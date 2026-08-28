@@ -7839,6 +7839,93 @@ mod plan_shape_gate_unit_tests {
              early-stop. ADR-060 §D8.7 Condition E."
         );
     }
+
+    // =======================================================================
+    // PSG-030c — reversed-operand `Literal > Field` predicate SUPPRESSES
+    // (TRUE RED GATE — F-R16-P16-LENSB)
+    // =======================================================================
+
+    /// RG-PSG-030c — Reversed-operand `Literal > Field` predicate SUPPRESSES
+    ///
+    /// SAP-3 Rule 3 — Defense-in-depth: grammar-unreachable AST form.
+    ///
+    /// The PQL parser always emits `Field OP Literal` comparisons (temporal comparisons
+    /// are `field > 'timestamp'`). The reversed `Literal OP Field` form
+    /// (`'2026-01-01' > field`) cannot be produced by the grammar. This test exercises
+    /// the `rhs_pushed` branch of `is_pushed_temporal_predicate` directly with a
+    /// synthetic AST predicate.
+    ///
+    /// Defect under test (ADR-060 v1.8, F-R16-P16-LENSB): the `rhs_pushed` branch
+    /// checks `field ∈ datetime_index_cols && is_temporal_expr(lhs)`. For a reversed
+    /// `Literal Gt Field` predicate, `lhs` = `Literal::Timestamp` and `rhs` =
+    /// `Field("last_seen")`. The current v1.7 `rhs_pushed` path returns `true` for this
+    /// — classifying the reversed-operand form as push-down-safe.
+    ///
+    /// ADR-033 T1 push-down guarantee requires `Field OP Literal`, not `Literal OP Field`.
+    /// A reversed comparison is semantically ambiguous (Op semantics may differ by
+    /// direction), and the server API contract only guarantees ordered field-first form.
+    ///
+    /// ## RED / GREEN mechanics
+    ///
+    /// RED (current v1.7 — `rhs_pushed` PERMITs reversed operand):
+    ///   `rhs_pushed` finds Field on rhs, Timestamp on lhs → returns `true` →
+    ///   `is_pushed_temporal_predicate` returns `true`.
+    ///   Assertion `!result` FAILS.
+    ///
+    /// GREEN (v1.8 fix — `rhs_pushed` branch removed or suppressed):
+    ///   No branch matches reversed-operand → `is_pushed_temporal_predicate` returns
+    ///   `false`. Assertion passes.
+    ///
+    /// SAP-3 Rule 3: this test exercises a grammar-unreachable AST form (parser cannot
+    /// emit `Literal OP Field`). It is defense-in-depth, not a full-surface E2E path.
+    /// Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-030c, ADR-060 v1.8 F-R16-P16-LENSB.
+    #[test]
+    fn test_psg_rg030c_reversed_operand_suppresses() {
+        use crate::ast::{CompareOp, Expr, FieldPath, Literal, Predicate, TimestampLiteral};
+
+        // SAP-3 Rule 3 — Defense-in-depth for grammar-unreachable AST form:
+        // The PQL grammar always emits `Field OP Literal` for temporal comparisons.
+        // `Literal OP Field` (reversed operand) is syntactically impossible from normal
+        // query paths. This test exercises `is_pushed_temporal_predicate`'s `rhs_pushed`
+        // branch directly to verify it does NOT classify the reversed form as
+        // push-down-eligible (ADR-033 T1 requires Field-first ordering).
+        let ts_lit = TimestampLiteral::new("2026-01-01T00:00:00Z")
+            .expect("PSG-030c: fixed ISO-8601 string must parse");
+
+        // Reversed operand: `Literal::Timestamp Gt Field("last_seen")`.
+        // lhs = Timestamp literal, rhs = Field("last_seen").
+        // This is the form the `rhs_pushed` branch matches.
+        let pred = Predicate::Compare {
+            lhs: Box::new(Expr::Literal(Literal::Timestamp(ts_lit))),
+            op: CompareOp::Gt,
+            rhs: Box::new(Expr::Field(FieldPath::new(["last_seen"]))),
+            case_insensitive: false,
+        };
+
+        // "last_seen" is in datetime_index_cols — if rhs_pushed is active, returns true.
+        let result = super::is_pushed_temporal_predicate(&pred, &["last_seen"]);
+
+        // PRIMARY assertion: reversed-operand predicate must NOT be push-down-eligible.
+        //
+        // RED (v1.7 — rhs_pushed PERMITs):
+        //   rhs_pushed: rhs = Field("last_seen") ∈ ["last_seen"] AND lhs = Timestamp →
+        //   true → is_pushed_temporal_predicate returns true.
+        //   Assertion `!result` FAILS.
+        //
+        // GREEN (v1.8 — rhs_pushed removed/suppressed):
+        //   No branch matches reversed-operand → false. Assertion passes.
+        assert!(
+            !result,
+            "PSG-030c (ADR-060 v1.8 F-R16-P16-LENSB — reversed-operand SUPPRESS): \
+             is_pushed_temporal_predicate must return false for reversed Literal > Field \
+             predicates; got true. The rhs_pushed branch incorrectly classifies \
+             reversed-operand predicates as push-down-eligible. ADR-033 T1 guarantees \
+             server-side push-down only for Field-first `Field OP Literal` form. \
+             Fix: remove or gate the rhs_pushed branch in is_pushed_temporal_predicate. \
+             Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-030c, \
+             ADR-060 v1.8 F-R16-P16-LENSB."
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
