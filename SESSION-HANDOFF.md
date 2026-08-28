@@ -1,18 +1,61 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.011"
+version: "8.012"
 status: current
-timestamp: 2026-08-27T00:00:00Z
+timestamp: 2026-08-28T18:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2332 (2026-08-27): SESSION WRAP — round-15 SPEC-REMEDIATED (BC-2.16.002 v2.41 + BC-2.11.001 v1.26 + story v1.13 committed); ADR-060 v1.5 PENDING architect; round-16 CODE-PENDING; NEXT = architect writes ADR-060 v1.5 → test-writer RG-PSG-021..025 → implementer 7-file → re-cascade. [D-2331 SUPERSEDED by D-2332]**
+> **D-2339 (2026-08-28): SESSION WRAP — round-16 LOCAL cascade at pass-14, streak 0/3. ADR-061 v1.1→v1.2 (§D8 fix F-R16-P9/P10 committed). LIMIT feature @7cb7885d8 pushed. RG-PSG-028 paper-gate OPEN (sibling-sweep miss). NEXT = test-writer exhaustive paper-gate grep + RG-PSG-028 real-handler fix → re-cascade to 3-CLEAN. [D-2332 SUPERSEDED by D-2339]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2332 (2026-08-27 — SESSION WRAP; round-15 SPEC-REMEDIATED; round-16 CODE-PENDING)
+## §RESUME SNAPSHOT — D-2339 (2026-08-28 — SESSION WRAP; round-16 pass-14; RG-PSG-028 OPEN; LIMIT feature @7cb7885d8)
+
+### RESUME IN ONE BREATH
+Prism Phase-3, v1 = live Claroty xDome. Story S-ENGINE-LIMIT-EARLY-STOP-001 (LIMIT early-stop + multi-tenant cache-key isolation) round-16 LOCAL 3-CLEAN cascade IN PROGRESS. Feature branch feature/S-ENGINE-LIMIT-EARLY-STOP-001 HEAD @7cb7885d8 (12 round-16 commits; pushed origin for backup during this wrap). Code correctness/security has been adversary-confirmed SOUND since pass-2; the cascade has been closing test-coverage/spec-prose defects. Streak 0/3.
+
+### CASCADE PASS HISTORY (round-16, all on evolving HEAD)
+P1 CRIT-001(relative-temporal, later found false-positive via inject_now)+HIGH-001(cross-tenant cache-key collision, elevated CRITICAL by security-reviewer)+MED-001(ADR-060 ADR-059 stale cite). P2 security fix SOUND. P3 MED spec-drift(AC-013 vehicle). P4 LOW(dead org-x branch). P5+P6 stale-rationale sweep-misses (ADR-061 §D3, RG-SLUG-006 doc, story Task-19/§FileStructure). P7 MED(RG-SLUG-001/003 warn-capture gap FIXED @45f1fba7b). P8 CLEAN(1/3). P9+P10 concurrent MED/OBS — ADR-061 §D8 org_id field-schema drift (stale "8-char prefix for diagnostics" vs full UUID in D2 `org_id = %org_id` emission; security-reviewer: full UUID correct, AD-017 N/A — org UUID is tenant identifier not credential; §Alternatives Alt-B AD-017 characterization stale — cache-key-miss is operative rejection); FIXED D-2339 ADR-061 v1.1→v1.2. P11 CLEAN. P12 MED(RG-PSG-026 paper-gate: hand-reconstructed payload, not real MCP handler — FIXED @7cb7885d8, now drives real PrismServer::query→SafetyEnvelopeBuilder, both cases pass, production confirmed correct). P13 CLEAN. P14 MED F-R16-P14-MED-001 OPEN: RG-PSG-028 (twin of RG-PSG-026) carries the SAME paper-gate anti-pattern; sibling-sweep miss.
+
+### NEXT ACTIONS (in order)
+1. **test-writer**: fix RG-PSG-028 (`test_psg_rg028_...`, `crates/prism-bin/tests/mcp_integration_tests.rs`) — route through the REAL `PrismServer::new().with_query_engine(...).query(Parameters(...))` handler (proven RG-PSG-026 pattern; 2-sensor topology, org_registry already wired) and assert `is_truncated` on the real `SafetyEnvelope` `content[0].text`; keep the struct-level guard. EXHAUSTIVELY grep ALL `prism-bin` + `prism-mcp` tests for the paper-gate anti-pattern (`serde_json::json!(...) + CallToolResult::structured + contains`-assertion claiming wire coverage); fix EVERY occurrence; report all hits. If any real-handler assertion FAILS → production emission defect → implementer. Feature branch; no push during cascade.
+2. Orchestrator independently greps for the anti-pattern to verify completeness (do not trust self-cert — sibling-sweep misses have recurred).
+3. Re-run round-16 LOCAL adversary cascade to 3 CONSECUTIVE CLEAN(strict) on the new frozen HEAD (BC-5.39.001; frozen-HEAD rule — no pushes between counted passes). Inject `policies.yaml` rubric + SAP-1/2/3. Concurrent passes on the same frozen HEAD are acceptable.
+4. On LOCAL CONVERGED: state burst logging convergence. Then STORY-LEVEL HOLDOUT GATE (product-owner authors 2-4 hidden HS scenarios if not yet authored; holdout-evaluator runs vs built binary, real MCP stdio + DTU, wire-level, BLOCKING). Then demo-recorder per-AC → push → pr-manager 9-step PR to develop → PR-LEVEL 3-CLEAN + security-reviewer → squash-merge → POL-14 (BC-2.16.015 draft→active) → post-merge state burst.
+5. Then unblock S-CLAROTY-VULNS-001 (feature @5aae6f0b3, merge-HELD pending LIMIT merge): after LIMIT merges + redeploys, re-run LIVE monroe xDome validation, then merge VULNS.
+
+### SPEC PERIMETER (D-2339)
+ADR-060 v1.6 / ADR-061 v1.2 (D-2339: §D8 corrected; D-2337: §D3; D-2333 NEW CWE-284/340/200) / BC-2.16.002 v2.42 (catalog row 97; EC-01-030..033) / BC-2.11.001 v1.26 (EC-11-092/093) / BC-2.16.003 v1.27 / BC-2.16.015 v1.8 (draft; trace-only) / VULNS story v1.9 / LIMIT story v1.21 (AC-010..013; RG-PSG-026..029+RG-SLUG-001..006 RED uncommitted; CODE-PENDING) — ARCH-INDEX v2.345 / BC-INDEX v9.72 / STORY-INDEX v2.925 / VP-INDEX v2.22. Decisions committed this session: D-2333..D-2339 (exhaustive).
+
+### PROCESS-GAP LESSONS TO CODIFY (S-7.02 cycle close)
+(a) Fix-bursts repeatedly missed SIBLING/TWIN sites — P5/P6 (stale x-prefix rationale across ADR/story/test-doc) and P14 (RG-PSG-028 twin of RG-PSG-026). Orchestrator fix-dispatches MUST mandate an exhaustive sibling/twin sweep + per-dimension report (TD-VSDD-097 Dim-1); orchestrator should independently grep-verify.
+(b) MCP-wire paper-gate class: tests that hand-reconstruct a `CallToolResult::structured` payload and assert wire coverage without dispatching the real MCP handler (RG-PSG-026, RG-PSG-028). Propose a standing adversary probe / lint: any test claiming wire-shape-discipline coverage MUST dispatch the real `prism_mcp::server` handler.
+
+### BUILD ENV
+sccache installed but DISABLED in `~/.cargo/config.toml` (2.38% hit rate on prism; incremental restored — fast default). The 600s agent watchdog repeatedly kills cold Rust builds; user may raise it. Background long builds + narrow test filters.
+
+### HEADS
+- `develop`: `3f1e66179` (local==origin; clean)
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: `7cb7885d8` (PUSHED origin during wrap; round-16 P7-P13 fixed; RG-PSG-028 OPEN)
+- `feature/S-CLAROTY-VULNS-001`: `5aae6f0b3` (PUSHED; LOCAL 3-CLEAN CONVERGED round-5; merge HELD pending LIMIT)
+- Parked: S-3.09 @`43c41389d` KEEP; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch. H2 worktree obsolete.
+
+### BC-5.39.001 STREAK
+LIMIT LOCAL: 0/3. Frozen-HEAD rule: streak counts only on unchanged HEAD after RG-PSG-028 fix + any additional fixes. P8/P11/P13 were CLEAN(strict) but each was reset by a subsequent finding before the 3-CLEAN streak completed.
+
+### HOLDOUT
+HS-025..029 AUTHORED UNREAD (product-owner). Story-level holdout gate is BLOCKING: runs AFTER LOCAL 3-CLEAN converges, BEFORE demo-recorder/push.
+
+### BACKUP BOUNDARY
+PUSHED/safe: origin/develop 3f1e66179; origin/feature/S-ENGINE-LIMIT-EARLY-STOP-001 7cb7885d8 (pushed during this wrap); origin/feature/S-CLAROTY-VULNS-001 5aae6f0b3; factory-artifacts (this D-2339 wrap commit). LOCAL-ONLY AT RISK: feature/S-ENGINE-H2-LARGE-RESPONSE-001 @9e1df825a (obsolete); S-3.09 @43c41389d; W3-FIX-S307-001 @fcab8717c (dirty).
+
+---
+
+## §RESUME SNAPSHOT — D-2332 (2026-08-27 — SESSION WRAP; round-15 SPEC-REMEDIATED; round-16 CODE-PENDING) [SUPERSEDED by D-2339]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3, v1 = live Claroty xDome. DEFECT-1 PHANTOM (ADR-059 WITHDRAWN v1.2). DEFECT-2 = S-ENGINE-LIMIT-EARLY-STOP-001: round-15 SPEC-REMEDIATED (D-2332 SESSION WRAP committed to factory-artifacts). Round-15 found two PERMITTED-path defects: F-R15-LENSA-CRIT-001 (temporal-WHERE exemption unsound — `has_client_side_where`/`is_purely_temporal_predicate` incorrectly permitted early-stop for Ast::Filter/Pipe WHERE; `extract_time_window` returns None for Filter/Pipe → zero server push-down → silent under-return regression vs pre-story full-pagination) and F-R15-LENSA-HIGH-001 (exact-limit truncation-signal loss — `limit % page_size == 0` → `is_truncated=false` + `total_available` understated). Both are SPEC-REMEDIATED D-2332. SPEC PACKAGE committed: BC-2.16.002 v2.41 (EC-01-030..033: `is_pushed_temporal_predicate` redesign mirrors `extract_time_bounds_from_predicate` — Ast::Literal/Comparison only; Ast::Filter+Ast::Pipe unconditionally SUPPRESS; `datetime_index_cols: &[&str]` param threads through call stack; Expr catch-all `_ => false`→`_ => true` conservative; `early_stopped` truncation-signal flag chain PipelineResult→FetchOutput→FanOutResult→MaterializationOutput→engine Step 6 `is_truncated = total_rows > limit || output.any_early_stopped`) + BC-2.11.001 v1.26 (EC-11-092/093: `any_early_stopped` surfaced on `prism_query` tool response) + story v1.13 (RG-PSG-021..025 enumerated RED gates; 7-file implementer directive; ADR-060 v1.5 design target). ADR-060 v1.5 NOT YET ON DISK (architect must write next session — on-disk v1.4; ARCH-INDEX retains v1.4 per POL-37). Feature branch @c4c297466 FROZEN — DO NOT PUSH NEW COMMITS until round-16 implementation complete (frozen-HEAD streak rule BC-5.39.001).

@@ -5,7 +5,7 @@ title: "Multi-Tenant Cache-Key Isolation via Authoritative OrgSlug Resolution"
 status: ACCEPTED
 date: "2026-08-27"
 modified: "2026-08-28"
-version: "1.1"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-07, SS-11]
 supersedes: []
@@ -22,6 +22,13 @@ wiring_deferred_to: null
 # ADR-061: Multi-Tenant Cache-Key Isolation via Authoritative OrgSlug Resolution
 
 ## Status
+
+ACCEPTED v1.2 (amended 2026-08-28; F-R16-P9-MED-001 / F-R16-P10-OBS-001): §D8 field schema
+corrected — `org_id` field description changed from stale "8-char prefix for diagnostics" to
+full OrgId UUID via `%display`; one-line AD-017 inapplicability note added (org UUID is a
+tenant identifier, not a credential). §Alternatives Alt-B AD-017 characterization corrected —
+cache-key-miss is the operative rejection ground; AD-017 governs credential values and does not
+prohibit tenant identifier emission in operator tracing. No behavioral change to D1–D9.
 
 ACCEPTED v1.1 (amended 2026-08-28; F-R16-P5-HIGH-001): §D3 code example and prose corrected —
 non-compiling false-premise synthesis removed; actual infallible `OrgSlug::new` call valid by
@@ -299,7 +306,11 @@ SAP-1 / PG-LP11-001.
 
 Required fields for the catalog row:
 - `event_type`: `"query.org_slug_resolution_failure"`
-- Fields: `org_id` (8-char prefix for diagnostics)
+- Fields: `org_id` (full OrgId UUID via `%display` — the 36-char tenant identifier; an `OrgId`
+  UUID is a tenant identifier, not a credential; AD-017 governs credential values and does not
+  prohibit tenant identifier emission in operator tracing; the full UUID is required to
+  unambiguously identify the misconfigured org without risk of the ~65-second UUIDv7
+  collision class this ADR was created to close)
 - Audit role: diagnostic / config-gap signal
 - Recurrence: per-org per-query (fires once per unresolved org_id per query execution)
 
@@ -375,8 +386,12 @@ receive correct results. The structured warn event ensures the gap surfaces to o
 
 **Alt-B: Use full OrgId UUID string as synthetic slug** — Rejected. A full UUID string is not
 an authoritative `OrgSlug` — it differs from the registry slug for the same org, causing a
-query with an explicit client list to miss the cache entry created by the ALL-scope path. Using
-the full UUID would also expose internal org UUIDs in structured log events (AD-017 concern).
+query with an explicit client list to miss the cache entry created by the ALL-scope path. This
+cache-key-miss is the operative rejection reason. (The v1.0 text also cited an AD-017 concern
+about exposing org UUIDs in structured log events; that characterization was imprecise — `OrgId`
+UUIDs are tenant identifiers, not credentials; AD-017 governs credential values and does not
+prohibit tenant identifier emission in operator tracing; the D2 `tracing::warn!` correctly
+emits `org_id = %org_id` as a full UUID.)
 
 **Alt-C: Amend an existing ADR** — The existing multi-tenant ADRs (ADR-006, ADR-008, ADR-034)
 address different subsystems. ADR-060 addresses the same pipeline function but a different
@@ -401,5 +416,6 @@ the fix into S-ENGINE-LIMIT-EARLY-STOP-001 (2026-08-27).
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-08-28 | architect | F-R16-P9-MED-001 / F-R16-P10-OBS-001: §D8 `org_id` field description corrected from stale "8-char prefix for diagnostics" to full OrgId UUID via `%display`; AD-017 inapplicability note added (OrgId UUID is a tenant identifier, not a credential; full UUID required for unambiguous misconfigured-org identification; emitting it in operator tracing is acceptable under AD-017). §Alternatives Alt-B AD-017 characterization corrected — cache-key-miss is the operative rejection ground; v1.0 AD-017 cite was imprecise given D2 already emits `org_id = %org_id` as full UUID. No behavioral change to D1–D9. |
 | 1.1 | 2026-08-28 | architect | F-R16-P5-HIGH-001: §D3 corrected — non-compiling false-premise synthesis example replaced with actual infallible `OrgSlug::new` call valid by construction; §Context Site 3 false "starts with a digit" premise corrected (the `"org-"` literal prefix ensures ORG_SLUG_PATTERN compliance unconditionally; sentinel path is unreachable by construction); §D3 prose "x-prefix form resolves digit-start collision" false rationale removed. No behavioral change to D1, D2, D4, D5, D6, D7, D8, or D9. Closes F-R16-P5-HIGH-001. |
 | 1.0 | 2026-08-27 | architect | Initial — three defect sites (Site 1: Step 3b bare-filter; Site 2: resolve_source_refs ALL-scope fallback; Site 3: "synthetic-unmapped" sentinel). D1 cache-key identity invariant; D2 fail-closed skip-with-structured-warn policy (justification vs hard-error); D3 test-mode synthetic preservation; D4 Site 1 fix; D5 Site 2 fix; D6 SINGLE-BINDING COHERENCE extension; D7 test-removal obligation; D8 SAP-1 catalog row obligation; D9 Red Gate gates anchored to S-ENGINE-LIMIT-EARLY-STOP-001. Severity CRITICAL (CWE-284/CWE-340/CWE-200, OWASP A01). Closes F-R16-P1-HIGH-001. |
