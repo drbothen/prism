@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.77"
+version: "9.78"
 status: draft
 producer: state-manager
-timestamp: 2026-08-28T23:30:00Z
+timestamp: 2026-08-28T23:59:00Z
+# NOTE: D-2346 — BC-INDEX v9.77→v9.78: pass-21 3-lens batch COMPLETE (lens-A CLEAN(strict); lens-B CLEAN(strict); lens-C 3 findings ALL FIXED: F-P21-LENSC-MED-001 stale condition-set label A–J→A–K per ADR-060 §D8.7 (PO BC-2.16.002 v2.47→v2.48); F-P21-LENSC-MED-002 ADR-061 §Authority/§References omission (story-writer story v1.27→v1.28); F-P21-LENSC-LOW-001 ADR-060 §Status banner stale (architect records-tier sync; NO version bump)). BC-2.16.002 pin v2.47→v2.48. Story v1.27→v1.28 (A–J→A–K sweep + ADR-061 §D1/D2/D4/D5/D7/D9 §Authority+§References). Feature HEAD @d486f3ec8 FROZEN (no code change). BC-5.39.001 streak 0/3; pass-22 = fresh 3-CLEAN pass 1 on frozen HEAD @d486f3ec8. draft/active/total UNCHANGED (11/253/277). D-2344 NOTE archived.
 # NOTE: D-2344 — BC-INDEX v9.76→v9.77: round-16 pass-19 fix-burst COMPLETE (F-R16-P19-LENSB-MED-001 RG-PSG-037/038 real-adapter propagation guards; F-R16-P19-LENSC-MED-001 FetchOutput literals reconciled 3-field {batches,any_early_stopped,pipeline_truncated}; F-R16-P19-LENSA-LOW-001 is_purely_temporal_predicate comment retirement). BC-2.16.002 pin v2.46→v2.47 (FetchOutput literal reconciliation). BC-2.11.001 pin v1.26→v1.27 (comprehensive sibling sweep). Story v1.25→v1.26 (53 RGTs/13 ACs≈4.08; RG-PSG-037/038; AC-004 cites RG-037; AC-009 cites RG-038). Feature HEAD @d486f3ec8 PUSHED. draft/active/total UNCHANGED (11/253/277). D-2343 NOTE archived.
 # NOTE: D-2343 — BC-INDEX v9.75→v9.76: round-16 pass-18 3-lens batch + DI-019 in-scope fix-burst COMPLETE (lens-B CLEAN(strict); lens-A F-R16-P18-LENSA-MED-001 DI-019 partials cached as complete + OBS-001 scheduled-path is_truncated hardcoded false; lens-C F-R16-P18-LENSC-MED-001 EC-016-002-004/008 POL-39 pins + false v2.45 cert + LOW-001 story changelog line-cite — ALL FIXED human-directed in-scope). ADR-060 v1.8→v1.9 (§D8.10 DI-019 any_pipeline_truncated chain + scheduled-path). BC-2.16.002 pin v2.45→v2.46 (EC-01-040 DI-019 cache-completeness; Step-6 formula any_pipeline_truncated; EC-016-002-004/008 pins stripped). Story v1.24→v1.25 (51 RGTs/13 ACs≈3.92; AC-004 amended DI-019; RG-PSG-035/036). Feature HEAD @58e996268 GREEN. draft/active/total UNCHANGED (11/253/277). D-2342 NOTE archived.
 # NOTE: D-2342 — BC-INDEX v9.74→v9.75: round-16 pass-17 batch + fix-burst COMPLETE (LENSA-MED-001 cache-completeness gate; LENSB-MED-001 phantom RG symbols; LENSB-MED-002 RG-PSG-030d trigger desc; LENSC-HIGH-001 narrative ADR-060 version pins; LENSC-MED-001 FetchOutput #[non_exhaustive] contradiction; LENSC-MED-002 POL-39 full-body sweep; LENSC-MED-003 STORY-INDEX LIMIT row compaction POL-40; LENSC-LOW-001/2 volatile-cite + v2.925 gap). BC-2.16.002 pin v2.44→v2.45 (EC-01-039 early-stopped response not cached as complete; POL-39 full-body sweep EC-01-030..033/EC-016-002-009..018). Story v1.23→v1.24 (49 RGTs/13 ACs≈3.77). Feature HEAD @97e77fdf0 GREEN 5871. draft/active/total UNCHANGED (11/253/277). D-2341 NOTE archived.
@@ -346,7 +347,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft (v1.4 current) |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active v1.9 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (v2.47 current) |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (v2.48 current) |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | active (v1.27 current) |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
