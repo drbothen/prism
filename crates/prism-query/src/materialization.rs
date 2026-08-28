@@ -892,21 +892,48 @@ pub async fn run_materialization_pipeline(
     // Conservative default: when resolved_spec_map is None (test/MVP mode with no
     // sensor spec wired), datetime_index_cols is empty → ALL temporal comparisons
     // are treated as client-side → early-stop suppressed.
+    // ADR-060 §D8.9 v1.7: also register the OCSF-flattened Arrow name (e.g. "time"
+    // for a column with ocsf_field="time" on an ocsf_column_naming=true sensor) so
+    // that LLM-agent queries authored against the flattened OCSF schema are
+    // recognised as server-pushed. Mirrors extract_time_window_from_ast in pushdown.rs.
+    // The ocsf_naming_map built above covers the push-down path; this registration
+    // covers the plan-shape gate path — both must be consistent (ADR-060 §D8.9, MED-001).
     let datetime_index_cols: Vec<String> = mat_ctx
         .resolved_spec_map
         .as_ref()
         .map(|map| {
-            map.values()
-                .flat_map(|rss| rss.spec.tables.iter())
-                .flat_map(|t| t.columns.iter())
-                .filter(|col| {
-                    col.column_type == prism_core::column::ColumnType::Datetime
-                        && col
-                            .options
-                            .contains(&prism_core::column::ColumnOptions::Index)
-                })
-                .map(|col| col.name.clone())
-                .collect()
+            let mut cols: Vec<String> = Vec::new();
+            for rss in map.values() {
+                let ocsf_naming = rss.spec.ocsf_column_naming;
+                for table in &rss.spec.tables {
+                    for col in &table.columns {
+                        if col.column_type == prism_core::column::ColumnType::Datetime
+                            && col
+                                .options
+                                .contains(&prism_core::column::ColumnOptions::Index)
+                        {
+                            cols.push(col.name.clone());
+                            // When the sensor uses OCSF column naming, also register
+                            // ocsf_field_to_arrow_name(ocsf_field) so predicates on the
+                            // flattened Arrow name (e.g. `WHERE time > …`) are treated as
+                            // server-pushed rather than client-side (ADR-060 §D8.9 MED-001).
+                            // Guard: only when ocsf_column_naming=true; registering the
+                            // flattened name for non-OCSF sensors risks silent collision with
+                            // a real column of the same name.
+                            if ocsf_naming {
+                                if let Some(ref ocsf_field) = col.ocsf_field {
+                                    cols.push(
+                                        prism_spec_engine::column_mapping::ocsf_field_to_arrow_name(
+                                            ocsf_field,
+                                        ),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            cols
         })
         .unwrap_or_default();
     let datetime_index_refs: Vec<&str> = datetime_index_cols.iter().map(|s| s.as_str()).collect();
@@ -2708,13 +2735,68 @@ fn is_pushed_temporal_predicate(
         Predicate::Logical {
             op: LogicalOp::And,
             predicates,
-        } => predicates
-            .iter()
-            .all(|p| is_pushed_temporal_predicate(p, datetime_index_cols)),
+        } => {
+            // Step 1: every leaf must individually be a pushed temporal predicate.
+            if !predicates
+                .iter()
+                .all(|p| is_pushed_temporal_predicate(p, datetime_index_cols))
+            {
+                return false;
+            }
+            // Step 2 (ADR-060 §D8.7 v1.7 HIGH-001): mirror first-wins semantics of
+            // extract_time_bounds_from_predicate (pushdown.rs). That function takes
+            // the first Gt/Ge as start_time and first Lt/Le as end_time, silently
+            // dropping any additional same-direction bound to DataFusion client-side.
+            // If two same-direction bounds are present, the dropped bound is evaluated
+            // post-fetch — early-stop with a server-side LIMIT could yield incorrect
+            // results. Suppress (return false) when lower > 1 or upper > 1.
+            let (lower, upper) = count_temporal_bound_directions(pred);
+            lower <= 1 && upper <= 1
+        }
         // All other predicate variants (OR, NOT, IN, BETWEEN, CIDR, StringOp,
         // InSubquery, Regex, Has, Missing, IsNull, Wildcard, RecoveryError)
         // are treated as client-side.
         _ => false,
+    }
+}
+
+/// Count lower-direction (Gt/Ge) and upper-direction (Lt/Le) bound leaves in a
+/// flattened AND-predicate tree.
+///
+/// Recurses only into AND nodes; ignores non-Compare/non-AND nodes. Does NOT check
+/// whether Compare fields are in `datetime_index_cols` — that precondition is already
+/// verified by Step 1 (`is_pushed_temporal_predicate` `.all()`) before this is called.
+///
+/// Returns `(lower_count, upper_count)`.
+///
+/// Used by the AND arm of `is_pushed_temporal_predicate` to detect redundant same-direction
+/// bounds. `extract_time_bounds_from_predicate` (pushdown.rs) is first-wins: it takes the
+/// first Gt/Ge as `start_time` and the first Lt/Le as `end_time`, silently dropping any
+/// additional same-direction bound to DataFusion client-side. When `lower > 1` or
+/// `upper > 1`, the dropped bound will be evaluated post-fetch, making early-stop
+/// incorrect (ADR-060 §D8.7 v1.7 HIGH-001).
+fn count_temporal_bound_directions(pred: &crate::ast::Predicate) -> (usize, usize) {
+    use crate::ast::{CompareOp, LogicalOp, Predicate};
+    match pred {
+        Predicate::Compare { op, .. } => match op {
+            CompareOp::Gt | CompareOp::Ge => (1, 0),
+            CompareOp::Lt | CompareOp::Le => (0, 1),
+            _ => (0, 0),
+        },
+        Predicate::Logical {
+            op: LogicalOp::And,
+            predicates,
+        } => {
+            let mut lower = 0usize;
+            let mut upper = 0usize;
+            for p in predicates {
+                let (l, u) = count_temporal_bound_directions(p);
+                lower += l;
+                upper += u;
+            }
+            (lower, upper)
+        }
+        _ => (0, 0),
     }
 }
 
