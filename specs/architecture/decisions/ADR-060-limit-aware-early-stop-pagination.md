@@ -5,7 +5,7 @@ title: "LIMIT-Aware Early-Stop Pagination for Offset/Limit and Cursor Sensor Tab
 status: ACCEPTED
 date: "2026-08-26"
 modified: "2026-08-28"
-version: "1.9"
+version: "1.10"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-11, SS-16]
 supersedes: []
@@ -631,22 +631,33 @@ pipeline and into the fan-out layer:
 pub struct FetchOutput {
     pub batches: Vec<RecordBatch>,
     pub any_early_stopped: bool,
+    pub pipeline_truncated: bool,
 }
 ```
 
 `any_early_stopped` is set from `PipelineResult.early_stopped` of the sensor's pipeline
-execution.
+execution. `pipeline_truncated` is set from `PipelineResult.truncated` (DI-019 capacity cap;
+see §D8.10 for the full chain).
 
 #### Propagation Chain
 
-The `any_early_stopped` signal propagates from the per-sensor level to engine.rs Step 6:
+Both truncation signals propagate from the per-sensor level to engine.rs Step 6:
 
 ```
-PipelineResult.early_stopped
-  → FetchOutput.any_early_stopped
-  → FanOutResult.any_early_stopped   (OR-combined across all sensors in the fan-out)
-  → MaterializationOutput.any_early_stopped
-  → engine.rs Step 6: is_truncated = (total_rows > limit) || any_early_stopped
+any_early_stopped chain (query-driven early exit):
+  PipelineResult.early_stopped
+    → FetchOutput.any_early_stopped
+    → FanOutResult.any_early_stopped   (OR-combined across all sensors in the fan-out)
+    → MaterializationOutput.any_early_stopped
+
+pipeline_truncated chain (DI-019 capacity cap — §D8.10):
+  PipelineResult.truncated
+    → FetchOutput.pipeline_truncated
+    → FanOutResult.any_pipeline_truncated   (OR-combined across all sensors in the fan-out)
+    → MaterializationOutput.any_pipeline_truncated
+
+Both signals feed engine.rs Step 6:
+  is_truncated = (total_rows > limit) || any_early_stopped || any_pipeline_truncated
 ```
 
 #### `is_truncated` Formula at Step 6 (BC-2.11.001 EC-11-092; updated §D8.10)
@@ -1015,6 +1026,7 @@ Closed by v1.8 Condition K: conservative suppression when `collect_datetime_inde
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.10 | 2026-08-28 | architect | F-P20-LENSC-MED-001 (§D8.9 source-vs-copy struct inversion). §D8.9 `FetchOutput Return Type` struct block reconciled to the canonical 3-field form matching §D8.10 authoritative definition: `pub pipeline_truncated: bool` added as third field. §D8.9 Propagation Chain extended with parallel DI-019 truncation arm: `PipelineResult.truncated → FetchOutput.pipeline_truncated → FanOutResult.any_pipeline_truncated → MaterializationOutput.any_pipeline_truncated`, feeding the same engine.rs Step 6 `is_truncated` formula. The §D8.9 struct block was the only remaining artifact carrying the 2-field shape; downstream copies (S-ENGINE-LIMIT-EARLY-STOP-001 story, BC-2.11.001 §EC-11-092) were already reconciled at the §D8.10 introduction. |
 | 1.9 | 2026-08-28 | architect | F-R16-P18-LENSA-MED-001 + F-R16-P18-LENSA-OBS-001. §D8.10 DI-019 truncation-signal propagation chain: `PipelineResult.truncated` was dropped at the `spec_driven_adapter.rs` adapter boundary — `FetchOutput::new()` consumed only `result.early_stopped`, not `result.truncated`. A >10K single-sensor fetch produced `truncated = true, early_stopped = false`; `FanOutResult.any_early_stopped = false`; cache-completeness gate passed; DI-019-capped partial cached as COMPLETE. Subsequent cache hit served it with `is_truncated = false` (same class as EC-01-039/RG-PSG-034, on the DI-019 sibling path). Fix mirrors the established `any_early_stopped` plumbing: (1) `FetchOutput` gains `pipeline_truncated: bool` field (signals DI-019 cap from `PipelineResult.truncated`); `FetchOutput::new()` gains 3rd argument; 21+ construction sites updated; (2) `spec_driven_adapter.rs` `fetch` OR-aggregates `result.truncated` into `any_pipeline_truncated` and passes to `FetchOutput::new()`; (3) `FanOutResult` gains `any_pipeline_truncated: bool` (OR-aggregate, derives `Default = false`); (4) `MaterializationOutput` gains `any_pipeline_truncated: bool`; (5) cache-completeness gate (ADR-060 §D8.3) updated: `complete = errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`; (6) engine.rs analyst Step 6 formula updated: `is_truncated = (total_rows > limit) \|\| any_early_stopped \|\| any_pipeline_truncated`; §D8.9 formula updated; (7) F-R16-P18-LENSA-OBS-001 (TD-VSDD-060 dim-b sibling-sweep): `execute_scheduled_inner` hardcoded `is_truncated: false` replaced by `output.any_early_stopped \|\| output.any_pipeline_truncated` — latent but preventable; scheduled path has `early_stop_limit = None` so `any_early_stopped` is always `false`, but DI-019 can fire on large scans. Two new Red Gate tests required: RG-PSG-035 (`test_psg_rg035_di019_truncated_response_not_cached_as_complete` — cache-completeness gate), RG-PSG-036 (`test_psg_rg036_di019_truncated_step6_is_truncated_true` — analyst Step 6 formula). Product-owner amends BC-2.16.002 to add EC-01-040 (DI-019 cache-completeness) and update EC-01-039 Step 6 formula reference; update Step 6 postcondition bullet; update `is_truncated` formula bullet. |
 | 1.8 | 2026-08-28 | architect | F-R16-P16-LENSA-HIGH-001 + F-R16-P16-LENSA-LOW-001 + F-R16-P16-LENSB-LOW-001. §D8.9 source-scoped `datetime_index_cols` (HIGH-001): construction now uses source-scoped `resolved_col_map` from `build_source_column_map(spec_map, source_names)` rather than `resolved_spec_map.values()` (all sensors); eliminates cross-sensor column-name pollution (Armis INDEX `last_seen` appearing in CrowdStrike query's index set). Shared `collect_datetime_index_cols(col_map, ocsf_naming_map) -> (Vec<String>, bool)` helper introduced in `materialization.rs`; both gate and `extract_time_window_from_ast` (pushdown.rs) MUST call it to prevent future column-eligibility divergence. §D8.7 reversed-operand prohibition explicit (LOW-001): `Literal::Timestamp OP Field` returns `false` (SUPPRESS); mirrors `extract_time_bounds_from_predicate` which requires Field on LHS. Implementer removes `rhs_pushed` branch from code (ADR spec was already correct; code deviated from spec). §D8.7 Condition K (LENSB-LOW-001): conservative suppression when any queried source table has ≥2 Datetime+INDEX columns; prevents direction-count global-vs-per-column semantic gap from producing incorrect PERMIT if a future TOML adds a second INDEX Datetime column. Three new Red Gate tests required: RG-PSG-032 (`crowdstrike_devices WHERE last_seen > '...' LIMIT 100` → SUPPRESS; cross-sensor source-scope), RG-PSG-033 (`armis_devices WHERE last_seen > '...' LIMIT 100` → PERMIT; Armis last_seen IS INDEX), RG-PSG-030b (two-upper-bound `(0,2)` → SUPPRESS). Product-owner amends BC-2.16.002 v2.43→v2.44: source-scoped `datetime_index_cols` description; EC for cross-sensor SUPPRESS; EC for reversed-operand SUPPRESS; EC for multi-INDEX-datetime SUPPRESS; POL-39 fixes in EC-01-034/035 (strip bare version pins to section anchors). |
 | 1.7 | 2026-08-28 | architect | F-R16-P15-LENSA-HIGH-001 + F-R16-P15-LENSA-MED-001 + F-R16-P15-LENSC-LOW-001. §D8.7 `is_pushed_temporal_predicate` AND-arm soundness redesign (HIGH-001): AND-arm gains a second step — after all-leaves-individually-pushed check, a direction-count helper `count_temporal_bound_directions` verifies at most one Gt/Ge leaf and at most one Lt/Le leaf exist in the flattened AND tree; mirrors `extract_time_bounds_from_predicate` first-wins semantics (single-lower + single-upper fully consumed server-side; any second same-direction bound silently dropped to DataFusion client-side). Previously, `WHERE col > X AND col > Y` was incorrectly classified PERMIT → silent LIMIT under-return; now correctly SUPPRESS. §D8.9 `datetime_index_cols` OCSF-name gap (MED-001): `datetime_index_cols` construction MUST mirror `extract_time_window_from_ast` — per-source lookup consulting `ocsf_naming_map`; when sensor `ocsf_column_naming = true` AND `col.ocsf_field` is Some, `ocsf_field_to_arrow_name(ocsf_field)` is also inserted. Previously, OCSF-named sensors (e.g., claroty.audit_logs `col.name="timestamp"`, Arrow field `"time"`) had early-stop wrongly suppressed for `WHERE time > '...'`. §Status banner (LOW-001): updated to ACCEPTED v1.7 (2026-08-28). `related_adrs` gains ADR-058 (OCSF column naming). Anchored: S-ENGINE-LIMIT-EARLY-STOP-001 AC-007; two new Red Gate tests required (IDs RG-PSG-030 + RG-PSG-031 — next available after RG-PSG-029 per story; story-writer assigns): (1) RG-PSG-030 — redundant-lower-bound suppresses early-stop; (2) RG-PSG-031 — OCSF-flattened Arrow name permits early-stop. Product-owner amends BC-2.16.002 v2.41→v2.42 (EC-01-034 redundant-bound suppress; EC-01-035 OCSF-name permit; "mirrors" claim correction; AND-arm direction-count spec; RG-PSG-030/031 anchors). |
