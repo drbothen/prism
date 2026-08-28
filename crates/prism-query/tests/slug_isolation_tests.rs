@@ -392,9 +392,11 @@ async fn test_rg_slug_004_bare_filter_step3b_registry_absent_synthetic_slug_incl
 ///   `OrgSlug::new("synthetic-unmapped")` as a fallback sentinel.
 ///   `src.contains(...)` returns `true`; assertion FAILS.
 ///
-/// GREEN (after ADR-061 D7 fix): the fallback is replaced with the deterministic
-///   x-prefix form for UUID prefixes starting with a digit (D3).  The production
-///   source no longer contains the sentinel.  Assertion PASSES.
+/// GREEN (after ADR-061 D7 fix): the `"synthetic-unmapped"` sentinel is removed.
+///   The D3 synthesis path uses `format!("org-{}", &org_id.to_string()[..8])`,
+///   which is valid by construction — the fixed "org-" prefix satisfies
+///   ORG_SLUG_PATTERN without any x-prefix or digit special-casing.
+///   The production source no longer contains the sentinel.  Assertion PASSES.
 ///
 /// SAP-3 note: source-text invariant test — not an E2E behavioural arm.
 /// Placement in external test file is required to avoid self-reference.
@@ -410,8 +412,9 @@ fn test_rg_slug_006_synthetic_unmapped_sentinel_absent() {
         !src.contains(&pattern),
         "RG-SLUG-006 (ADR-061 D7): the \"synthetic-unmapped\" fallback sentinel \
          must not exist in materialization.rs production source. Its presence \
-         indicates that the OrgSlug::new(synthetic-unmapped) dead-code branch has \
-         not been removed (ADR-061 D7: replace with deterministic x-prefix form \
-         once D2 skips registry-present OrgIds before synthesis)."
+         indicates that the OrgSlug::new(\"synthetic-unmapped\") dead-code branch \
+         has not been removed. D3 synthesis uses format!(\"org-{{first-8-hex}}\"), \
+         valid by construction — the fixed \"org-\" prefix satisfies \
+         ORG_SLUG_PATTERN; no x-prefix or digit special-casing exists."
     );
 }
