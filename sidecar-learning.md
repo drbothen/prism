@@ -242,3 +242,12 @@ The phantom-RG-symbols pattern is particularly insidious: the story-writer minte
 1. **records-lint L11 — narrative artifact-version pin check:** Add a check to `scripts/records-lint.sh` that flags body prose in BC/story files containing patterns like `ADR-NNN v1.N` (version references in narrative text rather than changelog rows). The intent of POL-39 is already codified but the mechanical gate only covers `file.rs:NNN` cites; narrative version pins slip through.
 
 2. **story-writer burst post-condition: RG-name↔on-disk-symbol verification + pasted evidence:** When a story-writer burst mints or modifies Red Gate test entries, the burst MUST include: (a) a grep of `crates/` for each RG symbol name; (b) paste of the actual function signature found (or ABSENT if not found). A self-certification of "symbols verified" without grep output is not evidence. This closes the phantom-symbol failure mode — a name that passes casual review can still be wrong if it was never executed on disk.
+- Session ended at 2026-08-28T17:42:43Z (awaiting /session-review)
+- Session ended at 2026-08-28T17:46:27Z (awaiting /session-review)
+- Session ended at 2026-08-28T17:51:56Z (awaiting /session-review)
+- Session ended at 2026-08-28T17:58:58Z (awaiting /session-review)
+- Session ended at 2026-08-28T18:17:17Z (awaiting /session-review)
+- Session ended at 2026-08-28T18:26:00Z (awaiting /session-review)
+- Session ended at 2026-08-28T18:30:43Z (awaiting /session-review)
+- Session ended at 2026-08-28T18:59:31Z (awaiting /session-review)
+- Session ended at 2026-08-28T19:01:08Z (awaiting /session-review)
