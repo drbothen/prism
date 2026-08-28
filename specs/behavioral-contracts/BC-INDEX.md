@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.72"
+version: "9.73"
 status: draft
 producer: state-manager
-timestamp: 2026-08-27T10:00:00Z
+timestamp: 2026-08-28T20:00:00Z
+# NOTE: D-2340 — BC-INDEX v9.72→v9.73: round-16 pass-14 fix (F-R16-P14-MED-001 RG-PSG-028 real-handler @6e3c969ca) + pass-15 batch + fix-burst COMPLETE. BC-2.16.002 pin v2.42→v2.43 (EC-01-034 redundant same-direction temporal bound suppress; EC-01-035 OCSF Arrow-name permit; "mirrors" claim corrected; AND-arm two-step direction-count soundness; RG-PSG-030+031 required). draft/active/total UNCHANGED (11/253/277). D-2333 NOTE archived.
 # NOTE: D-2333 — BC-INDEX v9.71→v9.72: ADR-061 D8 SAP-1 catalog registration — BC-2.16.002 pin v2.41→v2.42 (added query.org_slug_resolution_failure WARN catalog row 97 for two emission sites in materialization.rs; fail-closed per ADR-061 D2; catalog count 96→97; catalog label v1.70→v1.71). draft/active/total UNCHANGED (11/253/277). D-2332 NOTE archived.
 # NOTE: D-2332 — BC-INDEX v9.70→v9.71: S-ENGINE-LIMIT-EARLY-STOP-001 round-15 remediation spec package — BC-2.16.002 pin v2.40→v2.41 (EC-01-030..033: permitted-path soundness redesign — is_pushed_temporal_predicate mirrors extract_time_bounds_from_predicate; Ast::Filter+Ast::Pipe unconditionally SUPPRESS; datetime_index_cols param; Expr catch-all `_ => false`→`_ => true`; early_stopped truncation-signal chain PipelineResult→FetchOutput→FanOutResult→MaterializationOutput→engine Step 6 is_truncated). BC-2.11.001 pin v1.25→v1.26 (EC-11-092/093: exact-limit any_early_stopped truncation-signal + API response shape). story v1.12→v1.13 (RG-PSG-021..025 RED uncommitted; 7-file implementer directive per ADR-060 v1.5 design). ADR-060 v1.5 PENDING (on-disk v1.4; ARCH-INDEX retains v1.4 per POL-37; architect must write next session). draft/active/total UNCHANGED (11/253/277). D-2328 NOTE archived.
 # NOTE: D-2328 — BC-INDEX v9.69→v9.70: S-ENGINE-LIMIT-EARLY-STOP-001 comprehensive plan-shape completeness remediation — BC-2.16.002 pin v2.39→v2.40 (§Postconditions complete condition set A–J + 11 new ECs EC-016-002-008..018 incl. EC-016-002-011 HAVING — closes round-12 MED-2 gap). draft/active/total UNCHANGED (11/253/277). D-2326 NOTE archived.
@@ -342,7 +343,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft (v1.4 current) |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active v1.9 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (v2.42 current) |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (v2.43 current) |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | active (v1.27 current) |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -517,6 +518,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v9.73 (2026-08-28, D-2340):** state-manager | round-16 pass-14 fix (F-R16-P14-MED-001 RG-PSG-028 paper-gate routed through real PrismServer::query handler @6e3c969ca; exhaustive prism-bin/prism-mcp sweep, 1 hit) + pass-15 3-lens batch (LENSA-HIGH-001 AND-arm over-permitted redundant same-direction temporal bounds; LENSA-MED-001 OCSF-flattened Arrow name omitted from `datetime_index_cols`; LENSB-MED-001 RG-SLUG-005 wire-shape gap FIXED @2de2419b4; LENSC-MED-001 story POL-39 strip; LENSC-LOW-001 ADR-060 §Status banner — ALL FIXED in fix-burst @12c39fd6c). BC-2.16.002 pin **v2.42→v2.43** (product-owner: EC-01-034 redundant same-direction temporal bound suppress; EC-01-035 OCSF Arrow-name permit; "mirrors" claim corrected; AND-arm two-step direction-count soundness; RG-PSG-030+031 required per ADR-060 v1.7). BC-5.39.001 LOCAL streak RESET 0/3 (fix-burst advanced HEAD to @12c39fd6c). **No BC lifecycle/status/count changes:** active_contracts 253 / draft_contracts 11 / total_contracts 277 ALL UNCHANGED. [PROCESS-GAP NOTE for cycle-close: MCP-wire paper-gate class has now recurred 3× (RG-PSG-026, RG-PSG-028, RG-SLUG-005) — meeting the 3-recurrence codification threshold. Transferable lesson: paper-gate sweeps must be CLAIM-scoped not code-pattern-scoped. Standing adversary probe warranted.] BC-INDEX v9.72→v9.73.
 
 **v9.46 (2026-08-21, D-2265):** state-manager | BC-2.16.003 leading pin **v1.21**→**v1.22** (spec-augmentation burst (human decisions 2026-08-21) — OQ-005 KF-05 revised audit_logs.id ocsf_field "metadata.uid"/Arrow metadata_uid Tier-1 (was drop-to-raw_extensions); OQ-003 synthesized-descriptor emission contracted: class_uid/_sensor/_category_uid descriptors emitted by prism_describe; OQ-001 EC-016-013-031 NEW: push-down eligibility guard; 3 new canonical test vectors; ADR-058 v2.27 pin). ADR-058 v2.26→v2.27. ROUTING-001 v1.46→v1.47. S-JSON-EXTRACT-UDF-001 REGISTERED v0.1. BC-2.16.002 UNCHANGED v2.32. TD-VSDD-097 THREE-DIMENSION VERDICTS: sibling CLEAR (BC-2.16.003 amended; BC-2.16.002 UNCHANGED v2.32 — no structural twin for OQ changes) / downstream CLEAR (BC-2.16.003 is ADR-058 §E2/§G copy-target, swept this burst; validation matrix is OQ-resolution downstream copy, swept this burst) / mandate CLEAR (RG-PD-001 anchored AC-014; RG-028 anchored AC-015; no unanchored MUSTs). **No BC lifecycle/status/count changes:** active_contracts 253 / draft_contracts 3 / total_contracts 269 ALL UNCHANGED. BC-INDEX v9.45→v9.46.
 

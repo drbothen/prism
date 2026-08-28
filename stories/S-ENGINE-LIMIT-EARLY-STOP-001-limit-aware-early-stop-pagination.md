@@ -12,7 +12,7 @@ status: draft
 # TV-BC-2.16.015-006 referenced (trace-only); promoted to active by S-CLAROTY-VULNS-001 merge per POL-14, not this story.
 producer: story-writer
 timestamp: "2026-08-26T00:00:00Z"
-version: "1.21"
+version: "1.22"
 modified: "2026-08-28"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -21,8 +21,8 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.015-claroty-vulnerabilities-table.md"
   - ".factory/specs/architecture/decisions/ADR-060-limit-aware-early-stop-pagination.md"
   - ".factory/specs/architecture/decisions/ADR-061-multi-tenant-cache-key-isolation-authoritative-slug-resolution.md"
-input-hash: "95fd5e3"
-# input-hash: updated 2026-08-27 (v1.17); ADR-061 v1.0 added (cache-key isolation); BC-2.16.002 v2.42 (query.org_slug_resolution_failure catalog row)
+input-hash: "d127c30"
+# input-hash: updated 2026-08-28 (v1.22); ADR-060 v1.7 (two-step AND-arm gate soundness + OCSF-flattened datetime_index_cols); BC-2.16.002 v2.43 (EC-01-034 redundant-bound suppress, EC-01-035 OCSF Arrow-name permit)
 traces_to: ["BC-2.16.002", "BC-2.16.015", "BC-2.11.001"]
 points: 8
 estimated_days: 2
@@ -154,7 +154,7 @@ blocks: [S-CLAROTY-VULNS-001]
 #   fetches ALL pages (DEFECT-2, ADR-060 §Context), exhausting the 30s budget. This story
 #   prevents that by stopping after ceil(1/1000) = 1 page (ADR-060 §Consequences).
 acceptance_criteria_count: 13
-red_gate_tests: 41
+red_gate_tests: 43
 risk: MEDIUM
 # Risk justification:
 #   FetchContext::new signature expansion is a BREAKING CHANGE for all callers.
@@ -195,10 +195,10 @@ referenced.
 
 **ADR-060 §D8** is the decision. Read §D8.1 through §D8.5 (FetchContext field, execute_impl
 check placement, post-break semantics, applicable pagination modes, ORDER BY documentation).
-**Read §D8.7 (Plan-Shape Gate v1.3) and §D8.9 (temporal-exemption soundness v1.5):**
+**Read §D8.7 (Plan-Shape Gate) and §D8.9 (temporal-exemption soundness):**
 `ast_is_reducing_plan(&ast)` function in `materialization.rs`; Conditions A–J + conservative default;
 `where_filters` computed for push-down and cache key derivation but NOT forwarded to gate (gate performs
-own AST inspection via `has_client_side_where(ast, datetime_index_cols)`); **v1.5 temporal-exemption
+own AST inspection via `has_client_side_where(ast, datetime_index_cols)`); **temporal-exemption
 soundness**: `Ast::Filter` unconditionally suppressed; `PipeStage::Where` unconditionally suppressed;
 `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate` for SQL/SqlPipe-head WHERE only
 (requires range-op + INDEX datetime column + `Literal::Timestamp`); ORDER BY non-suppression;
@@ -255,9 +255,9 @@ streak per BC-5.39.001.
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | v2.42 | §Postconditions "LIMIT-Aware Early-Stop Pagination (ADR-060 §D8)": FetchContext field, execute_impl check placement, truncated=false semantics, applicable pagination modes, D8.5 ORDER BY limitation. Plan-Shape Gate (ADR-060 §D8.7 v1.3 / §D8.9 v1.5): Conditions A–J + conservative default suppress early-stop; where_filters NOT forwarded to gate; `fetch_limit=0` sentinel flow through `QueryParams.limit=0` → `FetchContext::early_stop_limit=None`; EC-016-002-001..018, EC-01-030..033 edge cases. Temporal-exemption soundness (§D8.9 v1.5): `Ast::Filter` unconditionally suppressed; `PipeStage::Where` unconditionally suppressed; `is_pushed_temporal_predicate` (range-op + INDEX datetime column + `Literal::Timestamp` RHS) replaces `is_purely_temporal_predicate` for SQL/SqlPipe-head WHERE. `PipelineResult.early_stopped: bool` + `FetchOutput { batches, any_early_stopped }` return-type contract; `any_early_stopped` propagation chain: FetchOutput → FanOutResult → MaterializationOutput → engine Step 6. Atomicity-reconciliation scope clause. |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | v2.43 | §Postconditions "LIMIT-Aware Early-Stop Pagination (ADR-060 §D8)": FetchContext field, execute_impl check placement, truncated=false semantics, applicable pagination modes, D8.5 ORDER BY limitation. Plan-Shape Gate (ADR-060 §D8.7 / §D8.9): Conditions A–J + conservative default suppress early-stop; where_filters NOT forwarded to gate; `fetch_limit=0` sentinel flow through `QueryParams.limit=0` → `FetchContext::early_stop_limit=None`; EC-016-002-001..018, EC-01-030..033 edge cases. Temporal-exemption soundness (§D8.9): `Ast::Filter` unconditionally suppressed; `PipeStage::Where` unconditionally suppressed; `is_pushed_temporal_predicate` (range-op + INDEX datetime column + `Literal::Timestamp` RHS) replaces `is_purely_temporal_predicate` for SQL/SqlPipe-head WHERE. `PipelineResult.early_stopped: bool` + `FetchOutput { batches, any_early_stopped }` return-type contract; `any_early_stopped` propagation chain: FetchOutput → FanOutResult → MaterializationOutput → engine Step 6. Atomicity-reconciliation scope clause. |
 
-*BC-2.16.002 v2.42 addendum (ADR-061 D8): Canonical Structured Event Catalog row 97 — `query.org_slug_resolution_failure` WARN added (two emission sites in `crates/prism-query/src/materialization.rs`: `resolve_source_refs` ALL-scope D5 arm and bare-filter Step 3b D4 arm). Catalog count 96→97; catalog label `(v1.70)` → `(v1.71)`. SAP-1 obligation: both `tracing::warn!` emission sites must appear in the same commit as the ADR-061 D2/D4/D5 fix (anchored to RG-SLUG-001, RG-SLUG-003).*
+*BC-2.16.002 addendum (ADR-061 D8): Canonical Structured Event Catalog row 97 — `query.org_slug_resolution_failure` WARN added (two emission sites in `crates/prism-query/src/materialization.rs`: `resolve_source_refs` ALL-scope D5 arm and bare-filter Step 3b D4 arm). Catalog count 96→97. SAP-1 obligation: both `tracing::warn!` emission sites must appear in the same commit as the ADR-061 D2/D4/D5 fix (anchored to RG-SLUG-001, RG-SLUG-003).*
 
 *BC-2.16.015 (trace-only — not in behavioral_contracts): EC-016-015-007 (LIMIT 1 early-stop, unaffected by §D8.7), EC-016-015-008 (COUNT suppresses early-stop), TV-BC-2.16.015-006. Core contract delivered by S-CLAROTY-VULNS-001; promoted to active on that story's merge per POL-14, not this story. See §References.*
 
@@ -341,7 +341,7 @@ Verification: `just check` exits 0.
 
 A new function `ast_is_reducing_plan(ast: &Ast) -> bool` in
 `crates/prism-query/src/materialization.rs` classifies the plan shape. The
-`where_filters: &FilterMap` parameter present in v1.2 is REMOVED — the gate performs its own
+`where_filters: &FilterMap` parameter is REMOVED — the gate performs its own
 AST inspection via `has_client_side_where`; `where_filters` continues to be computed and used
 for push-down and cache key derivation but is NOT forwarded to the gate. It returns `true`
 (early-stop suppressed, `fetch_limit = 0`) when ANY of the following conditions holds:
@@ -370,7 +370,7 @@ for push-down and cache key derivation but is NOT forwarded to the gate. It retu
 - **Condition J** (new; defensive) — Pipe Join stage: any `PipeStage::Join(_)` in `pipe.stages`
   or `spq.stages`; currently errors at runtime (not yet supported, ENRICH-4-C); gate is
   future-proofed so that when Pipe Join is implemented, early-stop is already suppressed
-- **Conservative Default** (new in v1.3) — the conservative-default posture applies at ALL
+- **Conservative Default** — the conservative-default posture applies at ALL
   dispatch levels, including the `Expr`-recursion level in `expr_contains_aggregate_or_window`:
   unknown `Ast` variants, unknown `PipeStage` variants, unknown `FuncCall` variants, and unknown
   `Expr` variants all SUPPRESS (`_ => true` catch-all at each level). Specifically,
@@ -405,17 +405,17 @@ early-stop does NOT fire; full pagination to DI-019 10K cap (pre-story behavior)
 
 **Tests:** RG-PSG-001 through RG-PSG-019 (see §Red Gate Tests).
 
-### AC-008: `has_client_side_where` temporal-exemption soundness — Filter-mode and Pipe-`|where` are unconditionally suppressed; SQL temporal PERMIT requires range-op + INDEX-datetime column + `Literal::Timestamp` RHS (traces to BC-2.16.002 postcondition — LIMIT-Aware Early-Stop Condition G revised v1.5, ADR-060 §D8.7/§D8.9)
+### AC-008: `has_client_side_where` temporal-exemption soundness — Filter-mode and Pipe-`|where` are unconditionally suppressed; SQL temporal PERMIT requires range-op + INDEX-datetime column + `Literal::Timestamp` RHS (traces to BC-2.16.002 postcondition — LIMIT-Aware Early-Stop Condition G revised, ADR-060 §D8.7/§D8.9)
 
 `has_client_side_where(ast, datetime_index_cols)` implements temporal-exemption soundness per ADR-060 §D8.9:
 
-(a) **Filter-mode unconditional suppression** (`Ast::Filter`): returns `true` UNCONDITIONALLY for all filter-mode predicates, including purely temporal ones. `extract_time_bounds_from_predicate` (ADR-033 T1) does NOT process `Ast::Filter` mode — temporal predicates in filter-mode queries are DataFusion client-side filters. The v1.3 `!is_purely_temporal_predicate` check for this arm was UNSOUND and is removed.
+(a) **Filter-mode unconditional suppression** (`Ast::Filter`): returns `true` UNCONDITIONALLY for all filter-mode predicates, including purely temporal ones. `extract_time_bounds_from_predicate` (ADR-033 T1) does NOT process `Ast::Filter` mode — temporal predicates in filter-mode queries are DataFusion client-side filters. The `!is_purely_temporal_predicate` check for this arm was UNSOUND and is removed.
 
 (b) **Pipe `| where` unconditional suppression** (`Ast::Pipe`, `Ast::SqlPipe` stages): returns `true` UNCONDITIONALLY whenever any `PipeStage::Where(_)` is present, regardless of predicate form. Pipe `| where` stages push NOTHING server-side; `PipeStage::Where` is REMOVED from the PERMIT allow-list.
 
 (c) **SQL temporal PERMIT preconditions** (`Ast::Sql`, `Ast::SqlPipe` head WHERE only): `is_pushed_temporal_predicate(pred, datetime_index_cols)` returns `true` (PERMIT) iff ALL hold: range operator (Gt/Ge/Lt/Le — NOT Eq/Ne), LHS field in `datetime_index_cols` (INDEX datetime column), RHS `Expr::Literal(Literal::Timestamp)` (concrete absolute timestamp). Temporal equality, `Expr::Now`, `Expr::Interval`, relative expressions, and non-INDEX datetime columns SUPPRESS.
 
-**Tests:** RG-PSG-021, RG-PSG-022, RG-PSG-023, RG-PSG-024, RG-PSG-029
+**Tests:** RG-PSG-021, RG-PSG-022, RG-PSG-023, RG-PSG-024, RG-PSG-029, RG-PSG-030, RG-PSG-031
 
 ### AC-009: `any_early_stopped` propagates through FetchOutput → engine Step 6; `is_truncated = (total_rows > limit) OR any_early_stopped`; Step 6 is the SOLE owner of tool-level cap (traces to BC-2.11.001 EC-11-092, EC-11-093; ADR-060 §D8.3/§D8.9)
 
@@ -431,7 +431,7 @@ early-stop does NOT fire; full pagination to DI-019 10K cap (pre-story behavior)
 
 **Test:** RG-PSG-025 (Rust-struct layer), RG-PSG-026 (MCP wire layer)
 
-### AC-010: `resolve_source_refs` ALL-scope — `org_registry: Some(reg)` + slug missing → fan-out target SKIPPED + `tracing::warn!(event_type = "query.org_slug_resolution_failure")`; `org_registry: None` → D3 synthetic slug used, target IS included (traces to BC-2.16.002 §`query.org_slug_resolution_failure` catalog row v2.42; ADR-061 D2, D3, D5)
+### AC-010: `resolve_source_refs` ALL-scope — `org_registry: Some(reg)` + slug missing → fan-out target SKIPPED + `tracing::warn!(event_type = "query.org_slug_resolution_failure")`; `org_registry: None` → D3 synthetic slug used, target IS included (traces to BC-2.16.002 §`query.org_slug_resolution_failure` catalog row; ADR-061 D2, D3, D5)
 
 The unified `let Some(client_slug) = org_registry.as_ref().and_then(...)` `else` branch in `resolve_source_refs` (`crates/prism-query/src/materialization.rs`) is replaced with a three-arm `match` dispatch per ADR-061 D5:
 
@@ -443,7 +443,7 @@ The unified `else` branch that previously synthesized a slug for BOTH conditions
 
 **Tests:** RG-SLUG-001 (D2 path: skip + warn), RG-SLUG-002 (D3 path: synthetic slug included)
 
-### AC-011: Bare-filter fan-out Step 3b (`Ast::Filter` adapter loop) — same three-arm dispatch: `org_registry: Some(reg)` + slug missing → target NOT pushed, warn fired; `org_registry: None` → synthetic slug, target IS pushed (traces to BC-2.16.002 §`query.org_slug_resolution_failure` catalog row v2.42; ADR-061 D2, D3, D4)
+### AC-011: Bare-filter fan-out Step 3b (`Ast::Filter` adapter loop) — same three-arm dispatch: `org_registry: Some(reg)` + slug missing → target NOT pushed, warn fired; `org_registry: None` → synthetic slug, target IS pushed (traces to BC-2.16.002 §`query.org_slug_resolution_failure` catalog row; ADR-061 D2, D3, D4)
 
 The bare-filter `Ast::Filter` adapter loop in `crates/prism-query/src/materialization.rs` (bare-filter fan-out Step 3b) is updated per ADR-061 D4. The existing line that synthesized `OrgSlug::new(format!("org-{}", &org_id.to_string()[..8]))` **without ever consulting `mat_ctx.org_registry`** is replaced with the same three-arm dispatch pattern as AC-010. `mat_ctx.org_registry` is already available at this callsite via `pub(crate) org_registry` on `MaterializationContext` — no new field threading required.
 
@@ -459,7 +459,7 @@ The static sentinel `OrgSlug::new("synthetic-unmapped")` is removed unconditiona
 
 **Test:** RG-SLUG-006 (`test_rg_slug_006_synthetic_unmapped_sentinel_absent`)
 
-### AC-013: Wire-level cross-tenant isolation — two `OrgId`s with matching first-8-hex-char prefixes produce DISTINCT cache keys via `OrgRegistry`; serialized JSON for tenant B contains ZERO rows from tenant A (traces to ADR-061 D1, D9 RG-SLUG-005; CWE-284/CWE-340/OWASP A01 regression closed; BC-2.16.002 §`query.org_slug_resolution_failure` catalog row v2.42)
+### AC-013: Wire-level cross-tenant isolation — two `OrgId`s with matching first-8-hex-char prefixes produce DISTINCT cache keys via `OrgRegistry`; serialized JSON for tenant B contains ZERO rows from tenant A (traces to ADR-061 D1, D9 RG-SLUG-005; CWE-284/CWE-340/OWASP A01 regression closed; BC-2.16.002 §`query.org_slug_resolution_failure` catalog row)
 
 Two `OrgId` values engineered so that `org_id_a.to_string()[..8] == org_id_b.to_string()[..8]` (simulating concurrent onboarding within the same ~65-second UUIDv7 timestamp window) are registered in an `OrgRegistry` with DISTINCT slugs (`"tenant-alpha"` / `"tenant-beta"`). Each org has a distinct adapter seeded with a distinct provider value — adapter-A returns `"alpha-001"` rows, adapter-B returns `"beta-001"` rows.
 
@@ -494,17 +494,17 @@ This confirms ADR-061 D1 (cache-key identity invariant): after the D4 fix, `deri
 | RG-PSG-008 | `test_BC_2_16_002_plan_shape_gate_order_by_limit_early_stop_fires` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter`; `ORDER BY col LIMIT N`, 3-page mock | POSITIVE CONTROL (§D8.5): ORDER BY alone is NOT a suppression condition → `ast_is_reducing_plan = false` → `fetch_limit = N` → early-stop fires; records in API-declared order within fetched subset. Confirms ORDER BY non-suppression (§D8.5 accepted limitation). MUST PASS after Task 12. |
 | RG-PSG-009 | `test_BC_2_16_002_plan_shape_gate_having_suppresses_early_stop` | IN-CRATE UNIT on the gate (defense-in-depth, SAP-3 rule-3 reachability rationale; located in `materialization.rs` `#[cfg(test)] mod plan_shape_gate_unit_tests`) | AC-007 Condition D: calls `ast_is_reducing_plan` directly with AST for `GROUP BY col HAVING count(*) > N LIMIT 25`; asserts `ast_is_reducing_plan = true` → gate suppresses. HAVING path is reachable from the parser; unit test provides defense-in-depth isolation of Condition D. MUST FAIL before Task 12. |
 | RG-PSG-010 | `test_BC_2_16_002_plan_shape_gate_nested_agg_in_scalar_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-007 Condition A revised (F-R12-CRIT-001): aggregate nested inside scalar UDF arg (`severity_label(max(severity_id))`) — `expr_contains_aggregate_or_window` recurses into `FuncCall::Scalar::args` and detects inner aggregate → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL before Task 12 (without `FuncCall::Scalar::args` recursion, outer Scalar escapes Condition A → early-stop fires after 1 page). |
-| RG-PSG-011 | `test_BC_2_16_002_plan_shape_gate_order_by_aggregate_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-007 Condition A revised: aggregate in ORDER BY (`ORDER BY MAX(severity)` without GROUP BY) → `expr_contains_aggregate_or_window` applied to `OrderExpr` → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL before Task 12 (ORDER BY expressions not scanned in v1.2). |
-| RG-PSG-012 | `test_BC_2_16_002_plan_shape_gate_window_function_suppresses_early_stop` | IN-CRATE UNIT on the gate (defense-in-depth, SAP-3 rule-3 reachability rationale; located in `materialization.rs` `#[cfg(test)] mod plan_shape_gate_unit_tests`) | AC-007 Condition A revised: calls `ast_is_reducing_plan` directly with AST containing `FuncCall::Window` in SELECT → `expr_contains_aggregate_or_window` detects `FuncCall::Window` → `ast_is_reducing_plan = true`. Window functions require full frame materialization; early-stop severs the frame. MUST FAIL before Task 12 (`FuncCall::Window` not detected in v1.2). |
-| RG-PSG-013 | `test_BC_2_16_002_plan_shape_gate_filter_mode_where_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-007 Condition G revised: Filter-mode non-temporal predicate (`Ast::Filter` with severity equality) → `has_client_side_where` returns `true` → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL before Task 12 (v1.2 `where_filters` always empty for `Ast::Filter` mode → Condition G INCORRECTLY PERMITTED early-stop, under-returning rows). |
-| RG-PSG-014 | `test_BC_2_16_002_plan_shape_gate_pipe_where_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-007 Condition G revised: Pipe-stage WHERE non-temporal predicate (`PipeStage::Where(severity = 'HIGH')`) → `has_client_side_where` iterates pipe stages → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched; asserts RAW filtered count (100 rows, gate suppressed, `fetch_limit = 0`) on `run_materialization_pipeline` output — materialization returns the FULL filtered set; tool-level cap + truncation signal (`is_truncated`/`total_available`) are engine.rs Step 6's responsibility, NOT materialization's (materialization MUST NOT apply a tool-level pre-cap). MUST FAIL before Task 12 (v1.2 `where_filters` always empty for `Ast::Pipe` stages → Condition G INCORRECTLY PERMITTED early-stop). |
-| RG-PSG-015 | `test_BC_2_16_002_plan_shape_gate_non_equality_sql_where_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-007 Condition G revised: non-equality SQL WHERE (`WHERE status LIKE '%page2%'` — LIKE predicate, non-equality SQL form; CONTAINS is a pipe StringOp/UDF, not a SQL predicate) → `has_client_side_where` returns `true` → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL before Task 12 (v1.2 `where_filters` equality-only — non-equality predicates missed → early-stop INCORRECTLY PERMITTED, under-returning rows). Note: BC-2.16.002 EC-016-002-014 CONTAINS example remains valid (CONTAINS also suppresses via `has_client_side_where`); only this story RG row is aligned to the test's actual LIKE vehicle — no BC change needed. |
-| RG-PSG-016 | `test_BC_2_16_002_plan_shape_gate_sql_join_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-007 Condition H (closes F-R12-HIGH-001): SQL JOIN (`!sql.joins.is_empty()`) → `ast_is_reducing_plan = true` → `fetch_limit = 0`; both inputs fully paginated to DI-019 cap. MUST FAIL before Task 12 (JOIN not a suppression condition in v1.2 → early-stop truncated join input). |
+| RG-PSG-011 | `test_BC_2_16_002_plan_shape_gate_order_by_aggregate_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-007 Condition A revised: aggregate in ORDER BY (`ORDER BY MAX(severity)` without GROUP BY) → `expr_contains_aggregate_or_window` applied to `OrderExpr` → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL before Task 12 (ORDER BY expressions not scanned in the prior gate implementation). |
+| RG-PSG-012 | `test_BC_2_16_002_plan_shape_gate_window_function_suppresses_early_stop` | IN-CRATE UNIT on the gate (defense-in-depth, SAP-3 rule-3 reachability rationale; located in `materialization.rs` `#[cfg(test)] mod plan_shape_gate_unit_tests`) | AC-007 Condition A revised: calls `ast_is_reducing_plan` directly with AST containing `FuncCall::Window` in SELECT → `expr_contains_aggregate_or_window` detects `FuncCall::Window` → `ast_is_reducing_plan = true`. Window functions require full frame materialization; early-stop severs the frame. MUST FAIL before Task 12 (`FuncCall::Window` not detected in the prior gate implementation). |
+| RG-PSG-013 | `test_BC_2_16_002_plan_shape_gate_filter_mode_where_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-007 Condition G revised: Filter-mode non-temporal predicate (`Ast::Filter` with severity equality) → `has_client_side_where` returns `true` → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL before Task 12 (prior gate's `where_filters` was always empty for `Ast::Filter` mode → Condition G INCORRECTLY PERMITTED early-stop, under-returning rows). |
+| RG-PSG-014 | `test_BC_2_16_002_plan_shape_gate_pipe_where_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-007 Condition G revised: Pipe-stage WHERE non-temporal predicate (`PipeStage::Where(severity = 'HIGH')`) → `has_client_side_where` iterates pipe stages → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched; asserts RAW filtered count (100 rows, gate suppressed, `fetch_limit = 0`) on `run_materialization_pipeline` output — materialization returns the FULL filtered set; tool-level cap + truncation signal (`is_truncated`/`total_available`) are engine.rs Step 6's responsibility, NOT materialization's (materialization MUST NOT apply a tool-level pre-cap). MUST FAIL before Task 12 (prior gate's `where_filters` was always empty for `Ast::Pipe` stages → Condition G INCORRECTLY PERMITTED early-stop). |
+| RG-PSG-015 | `test_BC_2_16_002_plan_shape_gate_non_equality_sql_where_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-007 Condition G revised: non-equality SQL WHERE (`WHERE status LIKE '%page2%'` — LIKE predicate, non-equality SQL form; CONTAINS is a pipe StringOp/UDF, not a SQL predicate) → `has_client_side_where` returns `true` → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL before Task 12 (prior gate's `where_filters` was equality-only — non-equality predicates missed → early-stop INCORRECTLY PERMITTED, under-returning rows). Note: BC-2.16.002 EC-016-002-014 CONTAINS example remains valid (CONTAINS also suppresses via `has_client_side_where`); only this story RG row is aligned to the test's actual LIKE vehicle — no BC change needed. |
+| RG-PSG-016 | `test_BC_2_16_002_plan_shape_gate_sql_join_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-007 Condition H (closes F-R12-HIGH-001): SQL JOIN (`!sql.joins.is_empty()`) → `ast_is_reducing_plan = true` → `fetch_limit = 0`; both inputs fully paginated to DI-019 cap. MUST FAIL before Task 12 (JOIN was not a suppression condition in the prior gate → early-stop truncated join input). |
 | RG-PSG-017 | `test_BC_2_16_002_plan_shape_gate_pipe_tail_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-007 Condition I: Pipe Tail stage (`PipeStage::Tail(_)`) → `ast_is_reducing_plan = true` → `fetch_limit = 0`; full pagination. `| tail N` selects last N rows — requires all rows; early-stop returns tail of truncated subset. MUST FAIL before Task 12. |
 | RG-PSG-018 | `test_BC_2_16_002_plan_shape_gate_pipe_join_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-007 Condition J (defensive): Pipe Join stage (`PipeStage::Join(_)`) → `ast_is_reducing_plan = true` → `fetch_limit = 0`; full pagination. Note: Pipe Join currently errors at runtime (not yet supported, ENRICH-4-C); gate is defensive and future-proofed. MUST FAIL before Task 12. |
-| RG-PSG-019 | `test_BC_2_16_002_plan_shape_gate_conservative_default_suppresses_early_stop` | IN-CRATE UNIT on the gate (defense-in-depth, SAP-3 rule-3 reachability rationale; located in `materialization.rs` `#[cfg(test)] mod plan_shape_gate_unit_tests`) | AC-007 Conservative Default: calls `ast_is_reducing_plan` directly with `PipeStage::Stats` (SUPPRESS — in the deny set) and `PipeStage::Sort` (PERMIT — in the allow set), verifying the PERMIT/SUPPRESS boundary of the allowlist. The conservative `_ => true` catch-all in the pipe-stage scan loop is structurally guaranteed by the allowlist posture and is NOT reachable by any test today — all `PipeStage` variants are enumerated in current grammar; the catch-all fires only for a future `#[non_exhaustive]` variant (SAP-3 rule-3 defense-in-depth; unreachable by current grammar). MUST FAIL before Task 12 (no conservative default in v1.2). |
+| RG-PSG-019 | `test_BC_2_16_002_plan_shape_gate_conservative_default_suppresses_early_stop` | IN-CRATE UNIT on the gate (defense-in-depth, SAP-3 rule-3 reachability rationale; located in `materialization.rs` `#[cfg(test)] mod plan_shape_gate_unit_tests`) | AC-007 Conservative Default: calls `ast_is_reducing_plan` directly with `PipeStage::Stats` (SUPPRESS — in the deny set) and `PipeStage::Sort` (PERMIT — in the allow set), verifying the PERMIT/SUPPRESS boundary of the allowlist. The conservative `_ => true` catch-all in the pipe-stage scan loop is structurally guaranteed by the allowlist posture and is NOT reachable by any test today — all `PipeStage` variants are enumerated in current grammar; the catch-all fires only for a future `#[non_exhaustive]` variant (SAP-3 rule-3 defense-in-depth; unreachable by current grammar). MUST FAIL before Task 12 (no conservative default in the prior gate). |
 | RG-PSG-020 | `test_BC_2_11_001_tool_limit_truncation_signal_on_suppressed_filter` | END-TO-END / Integration via `QueryEngine::execute` (in `crates/prism-query/tests/execute_integration_tests.rs`) | Truncation signal correctness: for a filter query whose WHERE clause suppresses early-stop (gate fires, `fetch_limit = 0`, full pagination), assert `is_truncated = true`, `total_available = 100` (true pre-cap count from materialization), `returned_results = 25` (tool-level cap applied by engine.rs Step 6). Verifies that materialization returns the FULL filtered set (100 rows) and engine.rs Step 6 is responsible for the cap + signal — a `truncate_result_to_limit` pre-cap in materialization would cause Step 6 to see only 25 rows as `total_available`, producing `is_truncated = false` (incorrect). MUST FAIL if materialization applies a tool-level pre-cap before returning to Step 6. |
-| RG-PSG-021 | `test_psg_filter_mode_temporal_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-008(a) EC-01-030: Filter-mode temporal predicate (e.g., `timestamp >= '2024-01-01T00:00:00Z' AND timestamp < '2025-01-01T00:00:00Z'` in filter-mode query) — `Ast::Filter` → `has_client_side_where` returns `true` UNCONDITIONALLY → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL if Filter-mode temporal predicates are permitted (v1.3 unsound behavior: `!is_purely_temporal_predicate` = false → early-stop fires → under-returned rows). Located in `plan_shape_gate_tests.rs`. |
+| RG-PSG-021 | `test_psg_filter_mode_temporal_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-008(a) EC-01-030: Filter-mode temporal predicate (e.g., `timestamp >= '2024-01-01T00:00:00Z' AND timestamp < '2025-01-01T00:00:00Z'` in filter-mode query) — `Ast::Filter` → `has_client_side_where` returns `true` UNCONDITIONALLY → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL if Filter-mode temporal predicates are permitted (prior unsound behavior: `!is_purely_temporal_predicate` = false → early-stop fires → under-returned rows). Located in `plan_shape_gate_tests.rs`. |
 | RG-PSG-022 | `test_psg_pipe_where_temporal_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-008(b) EC-01-031: Pipe-mode `PipeStage::Where` with temporal predicate (e.g., `FROM table \| where timestamp >= '2024-01-01T00:00:00Z' AND timestamp < '2025-01-01T00:00:00Z' \| head 100`) — `Ast::Pipe` with `PipeStage::Where` → `has_client_side_where` returns `true` UNCONDITIONALLY → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL if Pipe-WHERE temporal predicates are permitted. `PipeStage::Where` removed from PERMIT allow-list. Located in `plan_shape_gate_tests.rs`. |
 | RG-PSG-023 | `test_psg_sql_eq_temporal_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-008(c) EC-01-032: SQL temporal equality predicate (`WHERE timestamp = '2024-06-15T00:00:00Z'` — Eq operator, not a range op) — `is_pushed_temporal_predicate` returns `false` (Eq is NOT Gt/Ge/Lt/Le; `extract_time_bounds_from_predicate` does not extract temporal equality predicates) → `has_client_side_where = true` → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL if temporal equality is treated as a server-side push-down. Located in `plan_shape_gate_tests.rs`. |
 | RG-PSG-024 | `test_psg_sql_non_index_temporal_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-008(c) EC-01-033: SQL temporal range on non-INDEX datetime column (`WHERE updated_at >= '2024-01-01T00:00:00Z'` where `updated_at` is NOT in `datetime_index_cols`) — `is_pushed_temporal_predicate` returns `false` (column not in `datetime_index_cols` — only columns declared `index: true` + `column_type = "Datetime"` in sensor TOML are eligible) → `has_client_side_where = true` → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL if non-INDEX temporal ranges are treated as pushed. Located in `plan_shape_gate_tests.rs`. |
@@ -514,6 +514,8 @@ This confirms ADR-061 D1 (cache-key identity invariant): after the D4 fix, `deri
 | RG-PSG-027 | `test_psg_multi_sensor_fanout_exact_limit_one_early_stopped_is_truncated_true` | END-TO-END / Integration via `QueryEngine::execute` (in `crates/prism-query/tests/execute_integration_tests.rs`) | AC-009(a) multi-sensor OR-aggregation: 2-sensor fan-out, `options.limit = 50`; sensor1 returns 40 rows (no early-stop); sensor2 returns 10 rows and early-stops at the page boundary; `FanOutResult.any_early_stopped = true` (OR-aggregate of sensor1.any_early_stopped=false OR sensor2.any_early_stopped=true); `total_rows = 50 = limit`; Step 6: `is_truncated = (50 > 50) || true = true`. MUST FAIL before `FetchOutput.any_early_stopped` propagation chain is implemented (any_early_stopped will be false if chain is missing → is_truncated=false wrongly). Gates the OR-aggregation path through fanout.rs → MaterializationOutput → engine.rs Step 6 on a multi-sensor exact-limit boundary. |
 | RG-PSG-028 | `test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated` | END-TO-END / Integration via `QueryEngine::execute` (`crates/prism-query/tests/execute_integration_tests.rs`) + wire-level MCP assertion (`crates/prism-bin/tests/mcp_integration_tests.rs`) | AC-009(a) heuristic-rejection gate: 2-sensor fan-out, `options.limit = 50`; sensor1 returns 25 rows (no early-stop); sensor2 returns 25 rows (no early-stop); `FanOutResult.any_early_stopped = false`; `total_rows = 50 = limit`; Step 6: `is_truncated = (50 > 50) || false = false`. MUST FAIL with the heuristic `total_fetched_rows >= fetch_limit` (50 >= 50 = true → wrong is_truncated=true). MUST PASS only with the correct `any_early_stopped` OR term. Wire-level assertion in `crates/prism-bin/tests/mcp_integration_tests.rs` asserts `"is_truncated": false` in the serialized `CallToolResult.content[0].text` JSON (wire-shape discipline, CLAUDE.md 2026-07-13). This is the canonical multi-sensor heuristic-rejection test: the heuristic gives the wrong answer; the correct chain gives the right answer. |
 | RG-PSG-029 | `test_psg_relative_temporal_now_interval_suppresses_early_stop` | END-TO-END via `QueryEngine::execute` from a real SQL string (`crates/prism-query/tests/plan_shape_gate_tests.rs`) | AC-008(c) regression guard — folded relative-temporal path (F-R16-P1-CRIT-001): SQL `WHERE <non_index_datetime_col> >= now() - interval '7d' LIMIT N`. Real mechanism: `inject_now` folds `now() - interval '7d'` to `Expr::Literal(Literal::Timestamp)` BEFORE `ast_is_reducing_plan` is called; the plan-shape gate never sees `Expr::Now`/`Expr::Interval`/`Expr::TimestampArithmetic`. After folding, `is_pushed_temporal_predicate` receives a concrete absolute timestamp RHS but returns `false` because the column is NOT in `datetime_index_cols` (non-INDEX datetime column; precondition (b) fails — same suppression mechanism as RG-PSG-024) → `has_client_side_where = true` → `ast_is_reducing_plan = true` → `fetch_limit = 0` → early-stop SUPPRESSED. Retained as regression guard overlapping RG-PSG-024; unique value: exercises the `inject_now` fold path. MUST FAIL against current code (which PERMITs via `is_temporal_expr` inspecting the pre-fold AST, before `inject_now` runs). Located in `crates/prism-query/tests/plan_shape_gate_tests.rs`. |
+| RG-PSG-030 | `test_psg_rg030_redundant_lower_bound_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, `PlanShapeGateMockAdapter` | AC-008 EC-01-034: SQL temporal AND-predicate with two same-direction bounds (`WHERE ts > X AND ts > Y LIMIT 1`) → `count_temporal_bound_directions` yields lower=2 → Step-2 fails → `ast_is_reducing_plan = true` → `fetch_limit = 0` (SUPPRESS). First-wins soundness: second lower bound dropped server-side; permitting early-stop risks silent under-return. MUST FAIL before the ADR-060 §D8.7 fix. Located in `plan_shape_gate_tests.rs`. Anchor BC-2.16.002 EC-01-034, ADR-060 §D8.7. |
+| RG-PSG-031 | `test_psg_rg031_ocsf_arrow_name_permits_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, OCSF-named fixture | AC-008 EC-01-035: SQL temporal range on OCSF-flattened Arrow name (`WHERE time > '...' LIMIT 5`) on an `ocsf_column_naming=true` sensor → `"time"` now in `datetime_index_cols` → `ast_is_reducing_plan = false` (PERMIT), early-stop fires after page 1. MUST FAIL before the ADR-060 §D8.9 fix (prior implementation had only `["timestamp"]` → wrongly SUPPRESSED). Located in `plan_shape_gate_tests.rs`. Anchor BC-2.16.002 EC-01-035, ADR-060 §D8.9. |
 
 | RG-SLUG-001 | `test_rg_slug_001_resolve_source_refs_registry_present_slug_missing_skips_target_emits_warn` | Unit — prism-query, `resolve_source_refs` with `org_registry: Some(reg)` populated but no slug for test org_id (`crates/prism-query/tests/slug_isolation_tests.rs` or in-crate unit test) | AC-010 D2 path: after `resolve_source_refs` executes, the target list does NOT contain a `FanOutTarget` for the unmapped org_id; a `tracing::warn!` with `event_type = "query.org_slug_resolution_failure"` and `org_id = %unmapped_org_id` was captured. MUST FAIL before Task 18 (D5 fix not applied — unified `else` branch still synthesizes a slug and pushes the target). |
 | RG-SLUG-002 | `test_rg_slug_002_resolve_source_refs_registry_absent_synthetic_slug_included` | Unit — prism-query, `resolve_source_refs` with `org_registry: None` (no registry injected — D3 test mode) | AC-010 D3 path: synthetic slug is generated from org_id prefix; `FanOutTarget` IS included in the result list. Regression sentinel — PASSES both before and after Task 18 (D3 preservation must not be broken). |
@@ -522,7 +524,7 @@ This confirms ADR-061 D1 (cache-key identity invariant): after the D4 fix, `deri
 | RG-SLUG-005 | `test_rg_slug_005_cross_tenant_wire_isolation_collision_resistant_cache_keys` | END-TO-END — `QueryEngine::execute` in `crates/prism-query/tests/execute_integration_tests.rs`; two `OrgId`s constructed so their first-8-hex-char prefix values are identical (`"deadbeef"`); both registered in a shared `OrgRegistry` with DISTINCT slugs (`"tenant-alpha"` / `"tenant-beta"`); adapter-A seeded with `"alpha-001"` rows, adapter-B with `"beta-001"` rows; **SINGLE ALL-scope bare-filter query** (`clients: None`) with an **EMPTY `ClientRegistry`** — forces `resolve_clients(None, empty)` → `[]` → D4 bare-filter Step 3b fan-out fires; WIRE-LEVEL assertion on serialized JSON of collected `provider` column values. (A populated `ClientRegistry` would route through D5 `resolve_source_refs`, bypassing Step 3b and making the test vacuously pass.) | AC-013: serialized wire JSON CONTAINS `"beta-001"` — both tenants' adapter rows present, proving distinct cache keys survive the first-8-hex-char UUID prefix collision. Before the fix: Step 3b synthesizes slug `"org-deadbeef"` for both org_ids → same `CacheKey` partition → adapter-B cache HIT returns adapter-A's rows → `"beta-001"` ABSENT → FAILS. After fix: distinct slugs `"tenant-alpha"` / `"tenant-beta"` from `OrgRegistry` → distinct cache keys → both adapters fetched → `"beta-001"` PRESENT → PASSES. Confirms ADR-061 D1 cache-key identity invariant. Wire-shape discipline (CLAUDE.md §Conventions): assertion on serialized bytes, not pre-serialization Rust structs. MUST FAIL before Task 18 (D4 Step 3b fix not applied). |
 | RG-SLUG-006 | `test_rg_slug_006_synthetic_unmapped_sentinel_absent` | `crates/prism-query/tests/slug_isolation_tests.rs` (EXTERNAL — in-crate placement avoided: an in-crate `include_str!` test would include the test file's own source in the scan, false-passing after production removal because the test body contains the string `"synthetic-unmapped"`); reads `crates/prism-query/src/materialization.rs` via `include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/materialization.rs"))` and asserts that the string literal `"synthetic-unmapped"` is absent from the production source | AC-012: `"synthetic-unmapped"` sentinel removed. MUST FAIL before Task 19 (Site 3 sentinel not yet removed). Green after Task 19. |
 
-**BC-5.38.001 density check:** 41 Red Gate tests (RG-001 through RG-006 + RG-PSG-001 through RG-PSG-029 + RG-SLUG-001 through RG-SLUG-006; RG-003, RG-PSG-007, RG-PSG-008, RG-SLUG-002, RG-SLUG-004 are regression/positive-control sentinels that pass in both states) / 13 acceptance criteria ≈ 3.15 ≥ 0.5 threshold. PASS.
+**BC-5.38.001 density check:** 43 Red Gate tests (RG-001 through RG-006 + RG-PSG-001 through RG-PSG-031 + RG-SLUG-001 through RG-SLUG-006; RG-003, RG-PSG-007, RG-PSG-008, RG-SLUG-002, RG-SLUG-004 are regression/positive-control sentinels that pass in both states) / 13 acceptance criteria ≈ 3.31 ≥ 0.5 threshold. PASS.
 
 **Note on RG-003 semantics:** RG-003 (`early_stop_limit=None` fetches all pages) passes BOTH before and after the implementation because `None` must preserve the current behavior. It is a regression gate confirming the existing full-pagination path is not broken.
 
@@ -544,7 +546,7 @@ Architecture section references:
 - `architecture/module-decomposition.md` §SS-11 Query Execution (prism-query; `ast_is_reducing_plan` plan-shape gate; `run_materialization_pipeline` `fetch_limit` derivation)
 - `architecture/module-decomposition.md` §SS-07 Adapter Pagination & Response Cache (execute_impl per-page early-stop check §D8.2; `fetch_limit` coherence §D8.8)
 - ADR-060 §D8 — FetchContext field, execute_impl check placement, truncated semantics, pagination modes
-- ADR-060 §D8.7 v1.3 — Plan-Shape Gate: `ast_is_reducing_plan(&ast)` Conditions A–J + conservative default; `where_filters` NOT forwarded; enforcement in `materialization.rs §run_materialization_pipeline` before fan-out construction; temporal WHERE safety; ORDER BY non-suppression
+- ADR-060 §D8.7 — Plan-Shape Gate: `ast_is_reducing_plan(&ast)` Conditions A–J + conservative default; `where_filters` NOT forwarded; enforcement in `materialization.rs §run_materialization_pipeline` before fan-out construction; temporal WHERE safety; ORDER BY non-suppression
 - ADR-060 §D8.8 — Single-Binding Coherence: `fetch_limit` feeds both cache-key derivation and fan-out construction; gate preserves the invariant
 - ADR-060 §Atomicity Reconciliation — why early-stop is compatible with "all-or-nothing" error-path invariant
 - ADR-028 §D1 (OffsetLimit and CursorToken pagination configs)
@@ -748,14 +750,14 @@ pattern) to minimize context consumption.
     `ast_is_reducing_plan = true` (Condition A revised; `OrderExpr` scanned). MUST FAIL before Task 12.
   - RG-PSG-013 (`test_BC_2_16_002_plan_shape_gate_filter_mode_where_suppresses_early_stop`):
     `Ast::Filter` with non-temporal predicate. Assert `has_client_side_where = true`;
-    `ast_is_reducing_plan = true`. MUST FAIL before Task 12 (v1.2 `where_filters` empty for Filter mode).
+    `ast_is_reducing_plan = true`. MUST FAIL before Task 12 (prior gate's `where_filters` empty for Filter mode).
   - RG-PSG-014 (`test_BC_2_16_002_plan_shape_gate_pipe_where_suppresses_early_stop`):
     `Ast::Pipe` with `PipeStage::Where(non-temporal-pred)`. Assert `has_client_side_where = true`;
-    `ast_is_reducing_plan = true`. MUST FAIL before Task 12 (v1.2 `where_filters` empty for Pipe stages).
+    `ast_is_reducing_plan = true`. MUST FAIL before Task 12 (prior gate's `where_filters` empty for Pipe stages).
   - RG-PSG-015 (`test_BC_2_16_002_plan_shape_gate_non_equality_sql_where_suppresses_early_stop`):
     SQL WHERE with LIKE predicate (`WHERE status LIKE '%page2%'` — non-equality SQL predicate form;
     CONTAINS is a pipe StringOp/UDF, not a SQL predicate). Assert `has_client_side_where = true`;
-    `ast_is_reducing_plan = true`. MUST FAIL before Task 12 (v1.2 `where_filters` equality-only).
+    `ast_is_reducing_plan = true`. MUST FAIL before Task 12 (prior gate's `where_filters` equality-only).
   - RG-PSG-016 (`test_BC_2_16_002_plan_shape_gate_sql_join_suppresses_early_stop`): AST with
     SQL JOIN (`!sql.joins.is_empty()`). Assert `ast_is_reducing_plan = true`. MUST FAIL before Task 12.
   - RG-PSG-017 (`test_BC_2_16_002_plan_shape_gate_pipe_tail_suppresses_early_stop`): AST with
@@ -801,10 +803,10 @@ pattern) to minimize context consumption.
   - RG-PSG-021 (`test_psg_filter_mode_temporal_suppresses_early_stop`) in
     `crates/prism-query/tests/plan_shape_gate_tests.rs`. Filter-mode query with purely temporal
     predicate. Assert `ast_is_reducing_plan = true`; `fetch_limit = 0`; all pages fetched.
-    MUST FAIL before Task 12 (v1.3 unsound: temporal filter-mode → PERMIT → under-returned rows).
+    MUST FAIL before Task 12 (prior unsound behavior: temporal filter-mode → PERMIT → under-returned rows).
   - RG-PSG-022 (`test_psg_pipe_where_temporal_suppresses_early_stop`) in the same file.
     Pipe-mode query with `PipeStage::Where` containing temporal predicate. Assert
-    `ast_is_reducing_plan = true`; `fetch_limit = 0`. MUST FAIL before Task 12 (v1.3 unsound:
+    `ast_is_reducing_plan = true`; `fetch_limit = 0`. MUST FAIL before Task 12 (prior unsound behavior:
     pipe `| where` temporal → PERMIT → under-returned rows).
   - RG-PSG-023 (`test_psg_sql_eq_temporal_suppresses_early_stop`) in the same file.
     SQL query `WHERE timestamp = '2024-06-15T00:00:00Z'` (Eq operator). Assert
@@ -823,6 +825,18 @@ pattern) to minimize context consumption.
     fetched. Regression guard overlapping RG-PSG-024; also exercises the `inject_now` fold path.
     MUST FAIL against current code (which PERMITs via `is_temporal_expr` before fold).
     Write RED; Task 12 makes it GREEN. (Anchored: AC-008(c); F-R16-P1-CRIT-001)
+  - RG-PSG-030 (`test_psg_rg030_redundant_lower_bound_suppresses_early_stop`) in
+    `crates/prism-query/tests/plan_shape_gate_tests.rs`. SQL temporal AND-predicate with two
+    same-direction bounds (`WHERE ts > X AND ts > Y LIMIT 1`); `count_temporal_bound_directions`
+    yields lower=2 → Step-2 fails → `ast_is_reducing_plan = true` → `fetch_limit = 0` (SUPPRESS).
+    MUST FAIL before the ADR-060 §D8.7 fix. Write RED; Task 12 makes it GREEN.
+    (Anchored: AC-008 EC-01-034; ADR-060 §D8.7)
+  - RG-PSG-031 (`test_psg_rg031_ocsf_arrow_name_permits_early_stop`) in
+    `crates/prism-query/tests/plan_shape_gate_tests.rs`. SQL temporal range on OCSF-flattened
+    Arrow column name (`WHERE time > '...' LIMIT 5`) on `ocsf_column_naming=true` sensor →
+    `"time"` in `datetime_index_cols` → `ast_is_reducing_plan = false` (PERMIT), early-stop fires.
+    MUST FAIL before the ADR-060 §D8.9 fix (prior code had only `["timestamp"]` → wrongly SUPPRESSED).
+    Write RED; Task 12 makes it GREEN. (Anchored: AC-008 EC-01-035; ADR-060 §D8.9)
 
   **`any_early_stopped` propagation / exact-limit truncation signal (END-TO-END via `QueryEngine::execute`):**
   - RG-PSG-025 (`test_psg_exact_limit_is_truncated_true`) in
@@ -881,7 +895,7 @@ pattern) to minimize context consumption.
   In `crates/prism-query/src/materialization.rs`, add:
 
   ```rust
-  // ADR-060 §D8.7 Condition A (revised v1.3): detects FuncCall::Aggregate, FuncCall::Window,
+  // ADR-060 §D8.7 Condition A (revised): detects FuncCall::Aggregate, FuncCall::Window,
   // and recurses into FuncCall::Scalar::args to find nested aggregates.
   fn expr_contains_aggregate_or_window(expr: &Expr) -> bool {
       match expr {
@@ -897,7 +911,7 @@ pattern) to minimize context consumption.
       }
   }
 
-  // ADR-060 §D8.7 v1.3: returns true (suppress early-stop, fetch_limit=0) for reducing plans.
+  // ADR-060 §D8.7: returns true (suppress early-stop, fetch_limit=0) for reducing plans.
   // where_filters is NOT a parameter — gate performs its own AST inspection via has_client_side_where.
   fn ast_is_reducing_plan(ast: &Ast) -> bool {
       // Condition A (revised): aggregation or window in SELECT/ORDER BY, recursive into Scalar args
@@ -911,7 +925,7 @@ pattern) to minimize context consumption.
       // Condition I: PipeStage::Tail
       // Condition J: PipeStage::Join (defensive)
       // Conservative default: _ => true for unknown Ast/PipeStage/FuncCall variants
-      // ... full implementation per ADR-060 §D8.7 v1.3 Conditions A–J + conservative default
+      // ... full implementation per ADR-060 §D8.7 Conditions A–J + conservative default
   }
   ```
 
@@ -932,13 +946,15 @@ pattern) to minimize context consumption.
   (per existing `if params.limit == 0 { None }` mapping in `spec_driven_adapter.rs`).
 
   After editing: run `just iter prism-query` — RG-PSG-001 through RG-PSG-006, RG-PSG-009 through
-  RG-PSG-019, RG-PSG-021 through RG-PSG-024, RG-PSG-029 MUST turn GREEN; RG-PSG-007 and
-  RG-PSG-008 (positive controls) MUST remain GREEN. (RG-PSG-021..024 test temporal-exemption
-  soundness via the updated `has_client_side_where` logic: Filter-mode unconditional suppress,
-  Pipe-WHERE unconditional suppress, Eq-operator temporal suppress, non-INDEX column suppress.
-  RG-PSG-029 tests the folded relative-temporal path: `inject_now` folds `now() - interval '7d'`
-  to `Literal::Timestamp` BEFORE the gate; suppression is then via non-INDEX column check —
-  same mechanism as RG-PSG-024, also exercises the `inject_now` fold path.)
+  RG-PSG-019, RG-PSG-021 through RG-PSG-024, RG-PSG-029 through RG-PSG-031 MUST turn GREEN;
+  RG-PSG-007 and RG-PSG-008 (positive controls) MUST remain GREEN. (RG-PSG-021..024 test
+  temporal-exemption soundness via the updated `has_client_side_where` logic: Filter-mode
+  unconditional suppress, Pipe-WHERE unconditional suppress, Eq-operator temporal suppress,
+  non-INDEX column suppress. RG-PSG-029 tests the folded relative-temporal path: `inject_now`
+  folds `now() - interval '7d'` to `Literal::Timestamp` BEFORE the gate; suppression is then
+  via non-INDEX column check — same mechanism as RG-PSG-024, also exercises the `inject_now`
+  fold path. RG-PSG-030 gates redundant-same-direction-bound suppression (EC-01-034).
+  RG-PSG-031 gates OCSF Arrow-name PERMIT path (EC-01-035).)
 
 - [ ] **Task 13 (Integration sweep — update all remaining callers):** Run `just check --no-fail-fast`
   across the full workspace. All integration test files listed in `crates_touched` that were
@@ -955,7 +971,7 @@ pattern) to minimize context consumption.
 
 - [ ] **Task 15 (Final gate — ADR-060 paths):** Run `just check` (full workspace). Confirm all
   non-`#[ignore]` Red Gate tests pass: RG-001, RG-002, RG-003, RG-004, RG-005, RG-006,
-  RG-PSG-001 through RG-PSG-029. Confirm `EXPECTED_SYMBOLS` in
+  RG-PSG-001 through RG-PSG-031. Confirm `EXPECTED_SYMBOLS` in
   `scripts/check-non-exhaustive-per-symbol.py` does NOT need updating for private functions
   (`ast_is_reducing_plan`, `expr_contains_aggregate_or_window`, `has_client_side_where`,
   `is_pushed_temporal_predicate`). `FetchOutput` is a new `pub` struct — ADD it to
@@ -1164,8 +1180,8 @@ From ADR-060 §D8.7 (plan-shape gate enforcement):
   `has_client_side_where`; it does NOT read `where_filters`. `where_filters` continues to be
   computed (for push-down and cache key derivation per §D8.8) but is NOT passed to the gate.
   Passing `where_filters` to the gate would be WRONG: it is equality-only and SQL-mode-only,
-  and was the root cause of v1.2 under-detection for Filter-mode, Pipe-stage WHERE, and
-  non-equality SQL predicates (ADR-060 §D8.7 Condition G revised, v1.3).
+  and was the root cause of under-detection for Filter-mode, Pipe-stage WHERE, and
+  non-equality SQL predicates (ADR-060 §D8.7 Condition G revised).
 
 From ADR-060 §D8.7 Condition G revised (temporal-only WHERE safety):
 - Temporal-only WHERE predicates flow server-side via ADR-033 T1 push-down.
@@ -1201,11 +1217,11 @@ From ADR-060 §D8.7 Condition A, `expr_contains_aggregate_or_window` conservativ
   Conservative Default). This is a design-time invariant; there is no reachable test for unknown
   `Expr` variants today — the rule is enforced by code review, not a Red Gate test.
 
-From ADR-060 §D8.7/§D8.9 (temporal-exemption soundness — v1.5):
+From ADR-060 §D8.7/§D8.9 (temporal-exemption soundness):
 - `has_client_side_where` MUST treat `Ast::Filter` mode as UNCONDITIONALLY SUPPRESSED regardless
   of predicate form. Filter-mode predicates are always DataFusion client-side filters;
   `extract_time_bounds_from_predicate` (ADR-033 T1) does NOT process `Ast::Filter` predicates.
-  The v1.3 `!is_purely_temporal_predicate` check for this arm was UNSOUND and is removed.
+  The `!is_purely_temporal_predicate` check for this arm was UNSOUND and is removed.
 - `has_client_side_where` MUST treat any `PipeStage::Where(_)` in `Ast::Pipe` or `Ast::SqlPipe`
   stages as UNCONDITIONALLY SUPPRESSED. Pipe `| where` stages push NOTHING server-side.
   `PipeStage::Where` is REMOVED from the PERMIT allow-list. Do NOT add it back.
@@ -1308,7 +1324,7 @@ prism-spec-engine import added to prism-bin.
 - BC-2.16.015 EC-016-015-008 (trace reference) — COUNT suppresses early-stop via §D8.7 Condition A; full dataset fetched
 - BC-2.16.015 TV-BC-2.16.015-006 (trace reference) — LIMIT 1 single-page test vector; promoted to active by S-CLAROTY-VULNS-001 merge per POL-14
 - ADR-060 §D8 — FetchContext field, execute_impl check, truncated semantics, modes, ORDER BY, timeout deferral
-- ADR-060 §D8.7 v1.3 / §D8.9 v1.5 — Plan-Shape Gate: `ast_is_reducing_plan(&ast)` Conditions A–J + conservative default; `where_filters` NOT forwarded to gate; enforcement in `run_materialization_pipeline` before fan-out construction; temporal-exemption soundness (`has_client_side_where` Filter-mode/Pipe-WHERE unconditional suppress; `is_pushed_temporal_predicate` for SQL/SqlPipe-head); `FetchOutput`/`any_early_stopped` propagation chain; ORDER BY non-suppression
+- ADR-060 §D8.7 / §D8.9 — Plan-Shape Gate: `ast_is_reducing_plan(&ast)` Conditions A–J + conservative default; `where_filters` NOT forwarded to gate; enforcement in `run_materialization_pipeline` before fan-out construction; temporal-exemption soundness (`has_client_side_where` Filter-mode/Pipe-WHERE unconditional suppress; `is_pushed_temporal_predicate` for SQL/SqlPipe-head); `FetchOutput`/`any_early_stopped` propagation chain; ORDER BY non-suppression
 - ADR-060 §D8.8 — Single-Binding Coherence: `fetch_limit` feeds cache-key derivation and fan-out construction
 - ADR-060 §Atomicity Reconciliation — "atomic" = error-path invariant; early-stop is compatible
 - `crates/prism-spec-engine/src/pipeline.rs §FetchContext` — struct + constructor to modify
@@ -1322,6 +1338,7 @@ prism-spec-engine import added to prism-bin.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.22 | 2026-08-28 | story-writer | **EC-01-034/035 coverage + BC v2.43 + POL-39 sweep.** (1) RG-PSG-030 (`test_psg_rg030_redundant_lower_bound_suppresses_early_stop`) + RG-PSG-031 (`test_psg_rg031_ocsf_arrow_name_permits_early_stop`) added to §Red Gate Tests table; each row includes test type, description, AC anchor, and BC/ADR section cite. (2) BC-5.38.001 density paragraph updated: 41→43 RGTs, range `RG-PSG-001 through RG-PSG-031`, ratio 3.15→3.31. (3) AC-008 Tests citation extended to include RG-PSG-030/031; Task 10 temporal-exemption soundness bullet list extended with RG-PSG-030/031 authoring bullets (red-then-green ordering preserved); Task 12 green-gate range extended `...RG-PSG-029` → `...RG-PSG-031`; Task 15 final gate range extended to RG-PSG-031. (4) BC-2.16.002 Version column cell v2.42 → v2.43 (POL-39-exempt pin location). (5) POL-39 narrative-version-pin sweep: stripped `v1.2`/`v1.3`/`v1.5` labels from: BC table Role cell (`§D8.7 v1.3/§D8.9 v1.5` → `§D8.7/§D8.9`; `§D8.9 v1.5` → `§D8.9`); BC addendum note (`BC-2.16.002 v2.42 addendum` → `BC-2.16.002 addendum`; catalog label `(v1.70)→(v1.71)` → removed); AC-007 Conservative Default `(new in v1.3)` parenthetical; AC-008 heading `Condition G revised v1.5` → `Condition G revised`; AC-008 body `The v1.3 \`!is_purely_temporal_predicate\`` → `The \`!is_purely_temporal_predicate\``; AC-010/011/013 heading `catalog row v2.42` → `catalog row`; Architecture Mapping `§D8.7 v1.3 —` → `§D8.7 —`; Task 12 code comment `§D8.7 v1.3:` → `§D8.7:`; Architecture Compliance Rules: `v1.2 under-detection` → `under-detection`, `Condition G revised, v1.3` → `Condition G revised`, `soundness — v1.5` → `soundness`, `The v1.3 \`!is_purely_temporal_predicate\`` → `The \`!is_purely_temporal_predicate\``; References bullet `§D8.7 v1.3 / §D8.9 v1.5 —` → `§D8.7 / §D8.9 —`. Frontmatter `v1.3` in BC comment (line 139) is EXEMPT (inside `---` block). TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; ADR-060 has no sibling ADR at the same decision level; CLEAR. Dim-2 — `red_gate_tests: 43` consistent in frontmatter and density paragraph (43/13≈3.31) and Task 10 (RG-PSG-030/031 bullets) and Task 12 (range extended) and Task 15 (range extended); AC-008 Tests citation updated; BC Version cell v2.43; POL-39 sweep comprehensive (all 15 identified non-exempt `v[0-9]+\.[0-9]+` occurrences in body prose stripped); FULL. Dim-3 — RG-PSG-030 MUST anchored to AC-008 EC-01-034 + `test_psg_rg030_redundant_lower_bound_suppresses_early_stop` + ADR-060 §D8.7; RG-PSG-031 MUST anchored to AC-008 EC-01-035 + `test_psg_rg031_ocsf_arrow_name_permits_early_stop` + ADR-060 §D8.9; no unanchored MUSTs introduced; CLEAR. STORY-INDEX row version-pin update deferred to state-manager (target pin v1.22). |
 | 1.21 | 2026-08-28 | story-writer | **F-R16-P6-MED-001 — Full-document sweep: Task 19 + §File Structure Requirements item (i) false `x`-prefix form corrected.** v1.20 corrected AC-012 + Task 18 but left two live false references. (1) Task 19 §"Site 3 — sentinel removal": replaced "the deterministic `x`-prefix form from Task 18" with "the D3 deterministic-prefix form from Task 18 (`format!("org-{}", &org_id.to_string()[..8])` — valid by construction; no digit-prefix special case, no fallback)". (2) §File Structure Requirements, materialization.rs row item (i): replaced "replace with deterministic `x`-prefix form" with "replace with the D3 deterministic-prefix form (`format!("org-{}", &org_id.to_string()[..8])` — valid by construction; no `x`-prefix, no digit special case, no fallback)". Input-hash updated 248f3c0→95fd5e3 (ADR-061 v1.1 input drift). No AC, RG, task count, or behavior changes; spec-content-only corrections. TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; ADR-061 has no sibling ADR at the same decision level; CLEAR. Dim-2 — grepped ENTIRE document (all sections: frontmatter, ACs 1–13, all Tasks 1–19, §File Structure Requirements, §Architecture, §Red Gate Tests, §Changelog, all prose); only 2 live false references found at Task 19 and §File Structure item (i); AC-012 body (line 456) and Task 18 D3-helper paragraph (lines 1064–1069) already use correct "D3 deterministic-prefix form" and `format!("org-{}", ...)` language from v1.20; both updated consistently; frontmatter `version: "1.20"→"1.21"` and `modified: "2026-08-28"` (unchanged); `acceptance_criteria_count: 13` and `red_gate_tests: 41` UNCHANGED; STORY-INDEX row updated; FULL. Dim-3 — no new MUSTs introduced; CLEAR. |
 | 1.20 | 2026-08-28 | story-writer | **F-R16-P4-LOW-001 — AC-012 and Task 18 false digit-prefix rationale corrected.** AC-012 heading + body and Task 18 D3-helper paragraph described a false `"org-x{}"` branch for digit-prefixed hex UUIDs. The actual synthesis is `format!("org-{}", &org_id.to_string()[..8])`; the `"org-"` literal prefix guarantees ORG_SLUG_PATTERN compliance regardless of the hex characters, so no digit-prefix special case exists. The `"org-x"` branch is unreachable by construction, not a digit-prefix workaround. (1) AC-012 heading: replaced "deterministic `x`-prefix form used for D3 test-mode UUID-prefix-validation failures" with "D3 test-mode synthesis produces `org-{8hex}` OrgSlug valid by construction". (2) AC-012 body: removed false two-branch conditional description; replaced with single `format!("org-{}", &org_id.to_string()[..8])` valid-by-construction explanation; added `"org-"` prefix / ORG_SLUG_PATTERN rationale; noted this is TEST-MODE-ONLY (`org_registry == None`) and that any defensive fallback is unreachable by construction. (3) Task 18 D3-helper paragraph: replaced digit-conditional branching with single `format!("org-{}", ...)` instruction plus note that any defensive fallback is unreachable by construction. No AC, RG, task, or count changes; spec-content-only corrections. TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; ADR-061 has no sibling ADR at the same decision level; CLEAR. Dim-2 — AC-012 heading, body, and Task 18 D3 paragraph updated consistently; frontmatter `version: "1.19"→"1.20"` and `modified: "2026-08-28"` (date unchanged); `acceptance_criteria_count: 13` and `red_gate_tests: 41` UNCHANGED; STORY-INDEX row updated; FULL. Dim-3 — no new MUSTs introduced; corrected text describes the existing anchored test `test_rg_slug_006_synthetic_unmapped_sentinel_absent` (already anchored to AC-012); CLEAR. |
 | 1.19 | 2026-08-28 | story-writer | **F-R16-P3-MED-001 — AC-013 and RG-SLUG-005 test-vehicle reconciliation.** The prior description of AC-013 and RG-SLUG-005 specified issuing a bare-predicate filter query **as each tenant separately** (per-tenant explicit-client-scoped queries), with mutual-exclusion assertions (tenant-A response has zero tenant-B rows, tenant-B response has zero tenant-A rows). This vehicle is VACUOUS for the D4 defect: per-tenant explicit-client queries route through `resolve_source_refs` (D5), which already consults `OrgRegistry` correctly — bypassing D4 bare-filter Step 3b entirely. The test would false-green even with the D4 collision present. The actual test (`test_rg_slug_005_cross_tenant_wire_isolation_collision_resistant_cache_keys`) correctly uses a **single ALL-scope query** (`clients: None`) with an **EMPTY `ClientRegistry`**, forcing `resolve_clients(None, empty)` → `[]` → Step 3b fires. The single assertion: serialized wire JSON CONTAINS `"beta-001"`, proving both tenants' rows appear under distinct cache keys (collision-resistance). (1) AC-013 body: replaced per-tenant two-query vehicle with single ALL-scope / empty `ClientRegistry` vehicle; updated assertion to `wire_json.contains("\"beta-001\"")`; added explicit note explaining why per-tenant explicit-client queries cannot exercise D4. (2) §Red Gate Tests RG-SLUG-005 row: replaced per-tenant description with single ALL-scope + EMPTY `ClientRegistry` description; replaced mutual-exclusion assertion with collision-resistance assertion (`"beta-001"` present). (3) Task 17 RG-SLUG-005 description: replaced per-tenant two-query setup with single ALL-scope / empty `ClientRegistry` setup; updated assertion. Security intent intact (CWE-284/CWE-340 cross-tenant cache-key isolation still proven; no weakening). TD-VSDD-097: Dim-1 — no named story-twin; CLEAR. Dim-2 — AC-013 body, §Red Gate Tests RG-SLUG-005 row, and Task 17 RG-SLUG-005 description all updated consistently to the corrected vehicle; frontmatter counts (`acceptance_criteria_count: 13`, `red_gate_tests: 41`) and density paragraph UNCHANGED (no ACs or RGs added/removed); FULL. Dim-3 — no new MUSTs introduced; corrected text describes existing anchored test `test_rg_slug_005_cross_tenant_wire_isolation_collision_resistant_cache_keys` already anchored to AC-013 and ADR-061 D4; CLEAR. |

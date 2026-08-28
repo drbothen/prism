@@ -609,3 +609,15 @@ Prism Phase-3, v1 = live Claroty xDome. DEFECT-2 = S-ENGINE-LIMIT-EARLY-STOP-001
 **HEADS (D-2333):** develop `3f1e66179` (local==origin; clean); factory-artifacts: run `git -C .factory log -1 --format='%h %s'`; feature/S-CLAROTY-VULNS-001 `5aae6f0b3` (PUSHED; LOCAL 3-CLEAN CONVERGED round-5; merge HELD pending LIMIT); feature/S-ENGINE-LIMIT-EARLY-STOP-001 `67dfe7f20` (CODE-PENDING round-16; streak 0/3); Parked: S-3.09 `43c41389d` KEEP; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch.
 
 **NOTE: Superseded by D-2334 — round-16 pass-2 SOUND (records-only); story v1.17→v1.18; STORY-INDEX v2.921→v2.922; feature HEAD dcf0bd3ff; pass-3 PENDING. STATE v8.866→v8.867.**
+
+---
+
+## Archived: D-2339 — 2026-08-28; SESSION WRAP; ADR-061 v1.2; LIMIT feature @7cb7885d8; round-16 pass-14; RG-PSG-028 OPEN; STATE v8.871→v8.872
+
+Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 LOCAL cascade IN PROGRESS at pass-14, streak 0/3. Feature branch feature/S-ENGINE-LIMIT-EARLY-STOP-001 HEAD @7cb7885d8 (12 round-16 commits; pushed origin). Code correctness/security SOUND since pass-2 (ADR-061 CRIT security fix). Cascade closing test-coverage/spec-prose defects. P7 MED(RG-SLUG warn-capture FIXED). P8 CLEAN. P9+P10 MED/OBS(ADR-061 §D8 drift FIXED D-2339). P11 CLEAN. P12 MED(RG-PSG-026 paper-gate FIXED @7cb7885d8 — real PrismServer handler). P13 CLEAN. P14 MED F-R16-P14-MED-001 OPEN: RG-PSG-028 paper-gate twin sibling-sweep miss.
+
+**SPEC PERIMETER (D-2339):** ADR-060 v1.6 / ADR-061 v1.2 (D-2339: §D8; D-2337: §D3; D-2333 NEW) / BC-2.16.002 v2.42 / BC-2.11.001 v1.26 / LIMIT story v1.21 (RG-PSG-026..029+RG-SLUG-001..006 RED uncommitted; CODE-PENDING) — ARCH-INDEX v2.345 / BC-INDEX v9.72 / STORY-INDEX v2.925 / VP-INDEX v2.22.
+
+**HEADS (D-2339):** develop `3f1e66179` (local==origin; clean); factory-artifacts: run `git -C .factory log -1 --format='%h %s'`; feature/S-CLAROTY-VULNS-001 `5aae6f0b3` (PUSHED; 3-CLEAN CONVERGED round-5; merge HELD pending LIMIT); feature/S-ENGINE-LIMIT-EARLY-STOP-001 `7cb7885d8` (PUSHED; round-16 p7-p13 fixed; RG-PSG-028 OPEN); Parked: S-3.09 `43c41389d` KEEP; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch.
+
+**NOTE: Superseded by D-2340 — round-16 pass-14 FIXED + pass-15 batch + fix-burst COMPLETE. ADR-060 v1.7 (AND-arm direction-count + OCSF datetime_index_cols). BC-2.16.002 v2.43. Story v1.22. Feature HEAD @12c39fd6c (new frozen HEAD). streak RESET 0/3. STATE v8.872→v8.873.**
