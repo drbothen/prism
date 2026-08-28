@@ -99,7 +99,13 @@ prism-storage = { path = "../prism-storage", features = ["test-utils"] }
 secrecy = { version = "0.8", features = ["serde"] }
 # S-PLUGIN-PREREQ-E Task 7d — tracing event field schema capture for AC-9 third-test (BC-2.16.002 row 33).
 # Minor-band pin per prism conservative-pinning convention.
-tracing-test = "0.2"
+# no-env-filter: required for integration tests (tests/ directory) — these are compiled into a
+# separate crate from prism-query; without this feature the env-filter defaults to capturing only
+# the test binary's own crate, filtering out logs emitted by prism_query::materialization and
+# other production modules. See tracing-test 0.2 docs §"Per-crate Filtering".
+# Scope isolation is preserved by traced_test's span-name injection (logs_with_scope_contain).
+# S-ENGINE-LIMIT-EARLY-STOP-001 F-R16-P7-MED-001 (RG-SLUG-001/003 warn-emission assertions).
+tracing-test = { version = "0.2", features = ["no-env-filter"] }
 # S-PRISMQL-CASE-INSENSITIVE-001 RG-022: DynamicMessage field extraction in the
 # GROUP BY normalization test — requires prost_reflect::Value to read severity
 # back from the normalized DynamicMessage. Matches prism-ocsf production dep version.

@@ -207,7 +207,8 @@ fn all_scope_opts() -> QueryOptions {
 ///
 /// ADR-061 D2: "when registry is present, treat absent slug as configuration
 /// inconsistency: skip target and emit `query.org_slug_resolution_failure`."
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
+#[tracing_test::traced_test]
 async fn test_rg_slug_001_resolve_source_refs_registry_present_slug_missing_skips_target_emits_warn(
 ) {
     let org_id = OrgId::new();
@@ -232,6 +233,23 @@ async fn test_rg_slug_001_resolve_source_refs_registry_present_slug_missing_skip
          adapter must be SKIPPED when OrgRegistry is present but contains no slug for the \
          OrgId (fetch_count={fc}). If non-zero, `resolve_source_refs` synthesized a slug \
          instead of skipping, violating D2 fail-closed dispatch."
+    );
+    // SAP-1 / AC-010: assert the query.org_slug_resolution_failure WARN was emitted.
+    // TD-VSDD-059: load-bearing assertion — the warn emission is the audit trail that
+    // a target was skipped; asserting only fetch_count==0 does not verify the emission.
+    assert!(
+        logs_contain("query.org_slug_resolution_failure"),
+        "RG-SLUG-001 (AC-010 / SAP-1 / F-R16-P7-MED-001): \
+         'query.org_slug_resolution_failure' not found in captured warn logs — \
+         the ADR-061 D2 skip path in resolve_source_refs must emit this event_type \
+         (tracing::warn!(event_type = \"query.org_slug_resolution_failure\", ...))."
+    );
+    assert!(
+        logs_contain(&org_id.to_string()),
+        "RG-SLUG-001 (AC-010 / SAP-1 / F-R16-P7-MED-001): \
+         org_id={org_id} not found in captured warn log — the structured field \
+         `org_id = %org_id` must carry the skipped OrgId for auditability \
+         (ADR-061 D2: no data served under synthetic identity)."
     );
 }
 
@@ -302,7 +320,8 @@ async fn test_rg_slug_002_resolve_source_refs_registry_absent_synthetic_slug_inc
 ///
 /// ADR-061 D2 applies to BOTH `resolve_source_refs` AND Step 3b (the story groups
 /// them under AC-011 as the Step 3b variant of the same D2 behaviour).
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
+#[tracing_test::traced_test]
 async fn test_rg_slug_003_bare_filter_step3b_registry_present_slug_missing_skips_target_emits_warn()
 {
     let org_id = OrgId::new();
@@ -327,6 +346,23 @@ async fn test_rg_slug_003_bare_filter_step3b_registry_present_slug_missing_skips
          adapter must be SKIPPED when OrgRegistry is present but contains no slug for the \
          OrgId (fetch_count={fc}). If non-zero, Step 3b synthesised a slug without consulting \
          `mat_ctx.org_registry`, violating D2 fail-closed dispatch for bare-filter queries."
+    );
+    // SAP-1 / AC-011: assert the query.org_slug_resolution_failure WARN was emitted.
+    // TD-VSDD-059: load-bearing assertion — the warn emission is the audit trail that
+    // a target was skipped; asserting only fetch_count==0 does not verify the emission.
+    assert!(
+        logs_contain("query.org_slug_resolution_failure"),
+        "RG-SLUG-003 (AC-011 / SAP-1 / F-R16-P7-MED-001): \
+         'query.org_slug_resolution_failure' not found in captured warn logs — \
+         the ADR-061 D2 skip path in Step 3b bare-filter must emit this event_type \
+         (tracing::warn!(event_type = \"query.org_slug_resolution_failure\", ...))."
+    );
+    assert!(
+        logs_contain(&org_id.to_string()),
+        "RG-SLUG-003 (AC-011 / SAP-1 / F-R16-P7-MED-001): \
+         org_id={org_id} not found in captured warn log — the structured field \
+         `org_id = %org_id` must carry the skipped OrgId for auditability \
+         (ADR-061 D2: no data served under synthetic identity)."
     );
 }
 
