@@ -4622,3 +4622,234 @@ async fn test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated
          S-ENGINE-LIMIT-EARLY-STOP-001 Task 16)."
     );
 }
+
+// ===========================================================================
+// SLUG-005 — RG-SLUG-005 (AC-013): cross-tenant cache-key collision
+//            resistance — collision-resistant cache keys via OrgRegistry
+// ===========================================================================
+
+/// RG-SLUG-005 — ADR-061 D4 collision-resistant in-query cache keys
+///
+/// Verifies that two `OrgId`s whose UUIDs share an identical first-8-hex prefix
+/// produce DISTINCT in-query cache keys after the D2 fix for Step 3b, so that
+/// adapter-B is called independently of adapter-A and its rows appear in the result.
+///
+/// ## Collision mechanism (current code — RED)
+///
+/// Step 3b synthesizes a slug via `format!("org-{}", &org_id.to_string()[..8])`.
+/// Two `OrgId`s built from bytes with prefix `[0xde, 0xad, 0xbe, 0xef, ...]`
+/// both stringify to `"deadbeef-..."` — first 8 chars are "deadbeef" for both.
+/// Synthetic slugs are identical: `"org-deadbeef"`.
+///
+/// In-query cache key: `format!("{}:{:?}:{}:{}", target.client_id, sensor_id, …)`.
+/// With the same slug, adapter-A fetches first and its rows are cached under
+/// `"org-deadbeef:crowdstrike:crowdstrike:..."`.  Adapter-B's key is identical →
+/// cache HIT → adapter-B is NEVER called → "beta-001" rows are absent from result.
+///
+/// Assertion `wire_json.contains("\"beta-001\"")` FAILS → RED GATE.
+///
+/// ## Correct behaviour (post-D2 fix — GREEN)
+///
+/// Step 3b checks `mat_ctx.org_registry`:
+/// - org_id_A → `"tenant-alpha"` (from OrgRegistry)
+/// - org_id_B → `"tenant-beta"`  (from OrgRegistry)
+/// Distinct slugs → distinct in-query cache keys → adapter-B fetched independently
+/// → "beta-001" rows present → assertion PASSES.
+///
+/// ## Wire-level assertion (wire-shape assertion discipline, 2026-07-13)
+///
+/// Collects all values from the `"provider"` column across result batches and
+/// serializes to JSON. The assertion operates on the serialized string
+/// `wire_json` rather than pre-serialization Rust structures.
+///
+/// SAP-3: the query reaches the fan-out path through `QueryEngine::execute`
+/// from a real bare-filter string, not a synthetic AST.
+#[tokio::test]
+async fn test_rg_slug_005_cross_tenant_wire_isolation_collision_resistant_cache_keys() {
+    use prism_core::{OrgId, OrgRegistry, OrgSlug, SensorId};
+    use prism_query::engine::QueryOptions;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use uuid::Uuid;
+
+    // Build two OrgIds whose first-8-hex chars are identical ("deadbeef").
+    // bytes[0..4] = [0xde, 0xad, 0xbe, 0xef] → UUID display starts "deadbeef-".
+    // bytes[15] differs so the UUIDs are distinct.
+    let uuid_a = Uuid::from_bytes([
+        0xde, 0xad, 0xbe, 0xef, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01,
+    ]);
+    let uuid_b = Uuid::from_bytes([
+        0xde, 0xad, 0xbe, 0xef, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x02,
+    ]);
+    let org_id_a = OrgId::from_uuid(uuid_a);
+    let org_id_b = OrgId::from_uuid(uuid_b);
+
+    // Verify the collision precondition: both produce the same first-8-hex prefix.
+    assert_eq!(
+        &org_id_a.to_string()[..8],
+        "deadbeef",
+        "SLUG-005 precondition: org_id_a first-8-hex must be 'deadbeef'"
+    );
+    assert_eq!(
+        &org_id_b.to_string()[..8],
+        "deadbeef",
+        "SLUG-005 precondition: org_id_b first-8-hex must be 'deadbeef'"
+    );
+
+    // ---------------------------------------------------------------------------
+    // Two inline adapters: adapter-A returns "alpha-001", adapter-B "beta-001".
+    // ---------------------------------------------------------------------------
+    struct ProviderAdapter {
+        sensor_id: SensorId,
+        provider_value: &'static str,
+        fetch_count: std::sync::Arc<AtomicU64>,
+    }
+
+    impl std::fmt::Debug for ProviderAdapter {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("ProviderAdapter")
+                .field("provider_value", &self.provider_value)
+                .finish()
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl prism_sensors::adapter::SensorAdapter for ProviderAdapter {
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &prism_sensors::adapter::SensorSpec,
+            _params: &prism_sensors::adapter::QueryParams,
+            _auth: &dyn prism_sensors::auth::SensorAuth,
+        ) -> Result<prism_sensors::adapter::FetchOutput, prism_sensors::adapter::SensorError>
+        {
+            self.fetch_count.fetch_add(1, Ordering::SeqCst);
+            let schema = std::sync::Arc::new(arrow::datatypes::Schema::new(vec![
+                arrow::datatypes::Field::new("provider", arrow::datatypes::DataType::Utf8, false),
+            ]));
+            let arr =
+                std::sync::Arc::new(arrow::array::StringArray::from(vec![self.provider_value]))
+                    as _;
+            let batch =
+                arrow::record_batch::RecordBatch::try_new(schema, vec![arr]).expect("batch");
+            Ok(prism_sensors::adapter::FetchOutput::new(vec![batch], false))
+        }
+    }
+
+    let fetch_count_a = std::sync::Arc::new(AtomicU64::new(0));
+    let fetch_count_b = std::sync::Arc::new(AtomicU64::new(0));
+
+    let mut adapter_registry = prism_sensors::AdapterRegistry::new();
+    adapter_registry.register(
+        org_id_a,
+        std::sync::Arc::new(ProviderAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            provider_value: "alpha-001",
+            fetch_count: std::sync::Arc::clone(&fetch_count_a),
+        }),
+    );
+    adapter_registry.register(
+        org_id_b,
+        std::sync::Arc::new(ProviderAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            provider_value: "beta-001",
+            fetch_count: std::sync::Arc::clone(&fetch_count_b),
+        }),
+    );
+
+    // OrgRegistry with both orgs mapped — after D2 fix, Step 3b will use these
+    // distinct slugs instead of the identical "org-deadbeef" synthetic slug.
+    let org_registry = OrgRegistry::new();
+    org_registry
+        .register(helpers::org("tenant-alpha"), org_id_a)
+        .expect("register tenant-alpha");
+    org_registry
+        .register(helpers::org("tenant-beta"), org_id_b)
+        .expect("register tenant-beta");
+
+    // CRITICAL: use an EMPTY ClientRegistry so Step 3b (bare-filter ALL-scope fan-out) fires.
+    //
+    // With a populated ClientRegistry containing "tenant-alpha"/"tenant-beta",
+    // `resolve_clients(None, registry)` returns those slugs as an explicit list.
+    // `run_materialization_pipeline` then routes through `resolve_source_refs` with
+    // explicit clients, which already looks up OrgRegistry correctly — bypassing Step 3b
+    // entirely and making the test pass vacuously (the bug is never exercised).
+    //
+    // With an empty ClientRegistry: `resolve_clients(None, empty)` returns `[]`.
+    // In the pipeline `all_clients = []` → targets remain empty after Steps 1–3a →
+    // Step 3b fires: iterates adapter_registry, synthesizes slugs from first-8-hex.
+    // Collision: both org_ids get "org-deadbeef" → same cache key → adapter-B skipped.
+    let engine = helpers::make_engine(adapter_registry, vec![])
+        .with_org_registry(std::sync::Arc::new(org_registry));
+
+    // Bare-filter query (no explicit source) → Step 3b fan-out to ALL adapters.
+    // With collision (current code): both get slug "org-deadbeef" → same cache key
+    //   → adapter-B hits adapter-A's cache → adapter-B NEVER called → "beta-001" absent.
+    // After fix: distinct slugs "tenant-alpha"/"tenant-beta" → distinct cache keys
+    //   → both adapters fetched → "beta-001" present.
+    let options = QueryOptions {
+        clients: None, // ALL scope — Step 3b enumerates all registered adapters
+        sensors: None,
+        limit: Some(10),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+    let result = engine
+        .execute("provider IS NOT NULL", options)
+        .await
+        .expect(
+            "SLUG-005: QueryEngine::execute must not error for bare-filter fan-out \
+             (provider IS NOT NULL against crowdstrike adapters)",
+        );
+
+    // Collect 'provider' column values across all result batches and serialize
+    // to JSON for wire-level assertion (wire-shape assertion discipline 2026-07-13).
+    let provider_values: Vec<String> = result
+        .batches
+        .iter()
+        .flat_map(|b| {
+            b.schema()
+                .index_of("provider")
+                .ok()
+                .map(|col_idx| {
+                    let arr = b
+                        .column(col_idx)
+                        .as_any()
+                        .downcast_ref::<arrow::array::StringArray>()
+                        .expect("provider column must be StringArray");
+                    (0..arr.len())
+                        .map(|i| arr.value(i).to_string())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default()
+        })
+        .collect();
+    let wire_json =
+        serde_json::to_string(&provider_values).expect("serialize provider values to JSON");
+
+    // Wire-level assertion: "beta-001" must appear in the serialized result.
+    //
+    // RED (current code — Step 3b collision):
+    //   Both org_ids get slug "org-deadbeef" → cache collision → adapter-B never called
+    //   → result contains only "alpha-001" rows → `wire_json` does NOT contain "beta-001" → FAILS.
+    //
+    // GREEN (post-D2 fix):
+    //   org_id_B → slug "tenant-beta" → distinct cache key → adapter-B fetched
+    //   → "beta-001" row in result → `wire_json` CONTAINS "beta-001" → PASSES.
+    assert!(
+        wire_json.contains("\"beta-001\""),
+        "RG-SLUG-005 (ADR-061 D4 — collision-resistant cache keys via OrgRegistry): \
+         'beta-001' rows from adapter-B must appear in the result wire JSON. \
+         Current wire_json={wire_json:?}. \
+         If absent, Step 3b synthesized the same slug 'org-deadbeef' for both org_ids \
+         (UUID prefix collision), causing an in-query cache HIT for adapter-B that served \
+         adapter-A's rows. Fix: Step 3b must consult mat_ctx.org_registry when present \
+         (ADR-061 D2 for the bare-filter path)."
+    );
+}

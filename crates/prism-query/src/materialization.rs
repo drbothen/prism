@@ -7868,3 +7868,49 @@ mod check_ci_column_types_guard_tests {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// RG-SLUG-006 — sentinel that "synthetic-unmapped" literal is absent
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod slug_isolation_tests {
+    /// RG-SLUG-006 — ADR-061 D7: `"synthetic-unmapped"` fallback sentinel absent
+    ///
+    /// The `"synthetic-unmapped"` string literal in `resolve_source_refs` (the
+    /// fallback inside the `OrgSlug::new("synthetic-unmapped")` else-branch) is a
+    /// code smell scheduled for removal under ADR-061 D7.  It is unreachable at
+    /// runtime because UUID v7 hex prefixes always produce valid OrgSlug strings,
+    /// but its presence in source code signals that the correct D2 fix (skip + warn
+    /// when registry present + slug missing) has NOT been applied.
+    ///
+    /// ## RED / GREEN mechanics
+    ///
+    /// RED (current code — D7 not applied):
+    ///   `materialization.rs` contains the literal string `"synthetic-unmapped"` as
+    ///   the fallback in the `OrgSlug::new` else-branch.  `include_str!` captures it.
+    ///   Assertion `!src.contains(…)` FAILS.
+    ///
+    /// GREEN (after ADR-061 D7 — fallback deleted):
+    ///   The `OrgSlug::new("synthetic-unmapped")` branch is removed (it is now dead
+    ///   code — the D2 fix returns early for the registry-present case, and the D3
+    ///   synthetic-slug path no longer needs a fallback).  `include_str!` no longer
+    ///   contains the string.  Assertion PASSES.
+    ///
+    /// SAP-3 note: this is an in-crate source-text invariant test, not an E2E test
+    /// for a behavioural arm.  It is intentionally in-crate (SAP-3 rule 3 exception:
+    /// an invariant about dead-code presence/absence cannot be reached from the public
+    /// surface by definition).
+    #[test]
+    fn test_rg_slug_006_synthetic_unmapped_sentinel_absent() {
+        let src = include_str!("materialization.rs");
+        assert!(
+            !src.contains(r#""synthetic-unmapped""#),
+            "RG-SLUG-006 (ADR-061 D7): the `\"synthetic-unmapped\"` fallback sentinel \
+             must not exist in materialization.rs source. Its presence indicates that the \
+             `OrgSlug::new(\"synthetic-unmapped\")` dead-code branch has not been removed \
+             (ADR-061 D7: delete the unreachable fallback once D2 skips the registry-present \
+             case before it reaches the synthetic-slug else-branch)."
+        );
+    }
+}

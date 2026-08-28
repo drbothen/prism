@@ -76,6 +76,7 @@
 //! | test_psg_sql_eq_temporal_suppresses_early_stop (PSG-023)                                | G v1.5| RED, E2E   |
 //! | test_psg_sql_non_index_temporal_suppresses_early_stop (PSG-024)                         | G v1.5| RED, E2E   |
 //! | (PSG-025 is in execute_integration_tests.rs — exact-limit is_truncated soundness)       | —     | RED, E2E   |
+//! | test_psg_relative_temporal_now_interval_suppresses_early_stop (PSG-029)               | G v1.6| RED, E2E   |
 //!
 //! Tests marked "unit" live in `crates/prism-query/src/materialization.rs`
 //! (module `plan_shape_gate_unit_tests`) and carry SAP-3 rule 3 reachability comments.
@@ -86,6 +87,13 @@
 //! ADR-060 v1.4's temporal exemption in `has_client_side_where` is UNSOUND for these
 //! modes because the predicates are applied client-side by DataFusion, not pushed
 //! server-side. These tests are RED after Task 12 until the v1.5 soundness fix lands.
+//!
+//! PSG-029 is the **round-16 relative-temporal via `QueryEngine::execute`** test.
+//! It verifies `now() - interval '7d'` suppresses early-stop end-to-end through
+//! the public `QueryEngine::execute` surface (SAP-3 — end-to-end from public surface).
+//! PSG-021..024 exercise the same gate via `run_materialization_pipeline` directly;
+//! PSG-029 adds the missing public-surface path for the relative `now()` arithmetic
+//! variant (AC-008(c) of S-ENGINE-LIMIT-EARLY-STOP-001).
 
 #![allow(
     clippy::unwrap_used,
@@ -105,17 +113,20 @@ use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use prism_core::{OrgId, OrgSlug, SensorId};
+use prism_credentials::{namespace::CredentialName, CredentialStore};
 use prism_ocsf::OcsfNormalizer;
 use prism_query::{
-    engine::QueryOptions,
+    engine::{QueryEngine, QueryEngineConfig, QueryOptions},
     materialization::{run_materialization_pipeline, MaterializationContext},
     memory::{build_session_context, QUERY_MEMORY_POOL_BYTES},
+    scoping::ClientRegistry,
 };
 use prism_sensors::{
     adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
     auth::SensorAuth,
     AdapterRegistry, CredentialResolver,
 };
+use secrecy::SecretString;
 
 // ---------------------------------------------------------------------------
 // PlanShapeGateMockAdapter
@@ -213,6 +224,64 @@ impl CredentialResolver for StubCredentialResolver {
             }
         }
         Ok(Box::new(StubAuth))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// PsgNullCredentialStore — no-op CredentialStore for PSG-029 QueryEngine::new
+// ---------------------------------------------------------------------------
+
+/// No-op [`CredentialStore`] satisfying the `QueryEngine::new` constructor contract.
+///
+/// PSG-029 uses `QueryEngine::new` which requires an `Arc<dyn CredentialStore>`.
+/// Actual credential storage is never consulted — `StubCredentialResolver`
+/// handles sensor auth at the fan-out level.
+struct PsgNullCredentialStore;
+
+#[async_trait]
+impl CredentialStore for PsgNullCredentialStore {
+    async fn get(
+        &self,
+        _tenant: &OrgSlug,
+        _sensor: &str,
+        _name: &CredentialName,
+    ) -> Result<Option<SecretString>, prism_core::PrismError> {
+        Ok(None)
+    }
+
+    async fn set(
+        &self,
+        _tenant: &OrgSlug,
+        _sensor: &str,
+        _name: &CredentialName,
+        _value: SecretString,
+    ) -> Result<(), prism_core::PrismError> {
+        Ok(())
+    }
+
+    async fn delete(
+        &self,
+        _tenant: &OrgSlug,
+        _sensor: &str,
+        _name: &CredentialName,
+    ) -> Result<bool, prism_core::PrismError> {
+        Ok(false)
+    }
+
+    async fn list(
+        &self,
+        _tenant: &OrgSlug,
+    ) -> Result<Vec<(String, CredentialName)>, prism_core::PrismError> {
+        Ok(vec![])
+    }
+
+    async fn exists(
+        &self,
+        _tenant: &OrgSlug,
+        _sensor: &str,
+        _name: &CredentialName,
+    ) -> Result<bool, prism_core::PrismError> {
+        Ok(false)
     }
 }
 
@@ -1470,5 +1539,121 @@ async fn test_psg_sql_non_index_temporal_suppresses_early_stop() {
          'created_at > timestamp' as a server-side push-down candidate without verifying \
          the column is declared INDEX. ADR-033 T1 push-down requires INDEX designation; \
          unknown or non-INDEX datetime columns must default to client-side (suppress)."
+    );
+}
+
+// ===========================================================================
+// PSG-029 — RG-PSG-029 (AC-008(c)): relative-temporal now()-interval suppresses
+//           early-stop — SAP-3 end-to-end via QueryEngine::execute
+// ===========================================================================
+
+/// RG-PSG-029 — AC-008(c) — `WHERE <dt> >= now() - interval '7d' LIMIT N` suppress
+///
+/// SQL: `SELECT * FROM mock_events WHERE timestamp >= now() - interval '7d' LIMIT 25`
+/// via `QueryEngine::execute` (SAP-3: end-to-end from public surface).
+///
+/// PSG-021..PSG-024 exercise the same plan-shape gate via `run_materialization_pipeline`
+/// directly.  PSG-029 adds the missing public-surface path for the relative `now()`
+/// arithmetic variant — the full `QueryEngine::execute` stack (parser →
+/// `check_temporal_literals` → `resolve_clients` → materialization pipeline →
+/// `inject_now` → `ast_is_reducing_plan_with_index_cols`).
+///
+/// ## RED / GREEN mechanics
+///
+/// RED (current code — story `S-ENGINE-LIMIT-EARLY-STOP-001` is `status: draft`):
+///   `ast_is_reducing_plan_with_index_cols` does not exist; the pipeline computes
+///   `fetch_limit = opts.limit = 25` unconditionally. Adapter records
+///   `params.limit = 25`. Assertion `last_limit == 0` fails (25 ≠ 0).
+///
+/// GREEN (post-Task-12, gate implemented):
+///   `resolved_spec_map = None` → `datetime_index_cols = []` (conservative default).
+///   `inject_now` folds `now() - interval '7d'` to `Literal::Timestamp(now - 7d)`.
+///   `is_pushed_temporal_predicate(GtEq, folded-ts, "timestamp", [])` = false
+///   (column "timestamp" absent from empty `datetime_index_cols`) →
+///   `has_client_side_where = true` → gate returns `fetch_limit = 0` →
+///   `last_limit = 0` → passes.
+///
+/// DataFusion may error on the unknown "timestamp" column after the adapter is called;
+/// the assertion operates on `last_limit` which is set inside `fetch()` before DataFusion.
+///
+/// F-LENSB-P13-002: assert `fetch_count >= 1` before `last_limit == 0` — the init
+/// value of `last_limit` is `0`, which would vacuously satisfy the assertion if the
+/// adapter is never called.
+///
+/// SAP-3 compliance: query reaches the gate end-to-end through `QueryEngine::execute`
+/// from a real SQL string, not via a synthetic AST injected into an internal handler.
+#[tokio::test]
+async fn test_psg_relative_temporal_now_interval_suppresses_early_stop() {
+    let last_limit = Arc::new(AtomicU64::new(0));
+    let fetch_count = Arc::new(AtomicU64::new(0));
+
+    let page1 = make_status_batch("page1", 100);
+    let page2 = make_status_batch("page2", 100);
+    let page3 = make_status_batch("page3", 100);
+
+    let adapter = Arc::new(PlanShapeGateMockAdapter {
+        last_limit: Arc::clone(&last_limit),
+        fetch_count: Arc::clone(&fetch_count),
+        full_batches: vec![page1.clone(), page2, page3],
+        page1_batches: vec![page1],
+    });
+
+    let org_id = OrgId::new();
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, adapter);
+
+    // OrgSlug::new_unchecked: test-only client setup, same pattern as opts() helper
+    // above (line ~303). Not a production code path.
+    let client_slug = OrgSlug::new_unchecked("test-org");
+    let client_registry = Arc::new(ClientRegistry::new(vec![client_slug.clone()]));
+    let credential_store: Arc<dyn CredentialStore> = Arc::new(PsgNullCredentialStore);
+
+    // QueryEngine::new: org_registry = None (test mode); resolve_org_id falls back
+    // to Path 2 (first adapter registered for the "mock" sensor_id).
+    // resolved_spec_map = None → datetime_index_cols = [] → conservative suppress.
+    let engine = QueryEngine::new(
+        Arc::new(adapter_registry),
+        credential_store,
+        Arc::new(OcsfNormalizer::new()),
+        client_registry,
+        QueryEngineConfig::default(),
+    )
+    .with_credential_resolver(Arc::new(StubCredentialResolver));
+
+    let options = QueryOptions {
+        clients: Some(vec![client_slug]),
+        sensors: None,
+        limit: Some(25),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    // `inject_now` folds `now() - interval '7d'` → `Literal::Timestamp(now - 7d)`.
+    // DataFusion may reject the "timestamp" column as absent from mock schema;
+    // `last_limit` is recorded inside `fetch()` before DataFusion evaluation.
+    let _result = engine
+        .execute(
+            "SELECT * FROM mock_events WHERE timestamp >= now() - interval '7d' LIMIT 25",
+            options,
+        )
+        .await;
+
+    // F-LENSB-P13-002: adapter must be invoked at least once.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-029 (relative-temporal suppress — QueryEngine::execute): adapter must be \
+         called at least once (fetch_count={fc}). fetch_count=0 means last_limit==0 is \
+         the init value, which vacuously satisfies the next assertion."
+    );
+
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-029 (ADR-060 §D8.7 — relative-temporal suppress via QueryEngine::execute): \
+         gate must set fetch_limit=0 for `timestamp >= now() - interval '7d'`; adapter \
+         saw params.limit={seen_limit}. If non-zero ({seen_limit}=25), the Task-12 gate \
+         `ast_is_reducing_plan_with_index_cols` is not yet implemented \
+         (story status: draft → pipeline uses fetch_limit=opts.limit=25 unconditionally)."
     );
 }
