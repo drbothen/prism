@@ -77,6 +77,21 @@
 //! | test_psg_sql_non_index_temporal_suppresses_early_stop (PSG-024)                         | G v1.5| RED, E2E   |
 //! | (PSG-025 is in execute_integration_tests.rs — exact-limit is_truncated soundness)       | —     | RED, E2E   |
 //! | test_psg_relative_temporal_now_interval_suppresses_early_stop (PSG-029)               | G v1.6| RED, E2E   |
+//! | test_psg_rg030_redundant_lower_bound_suppresses_early_stop (PSG-030)                  | G v1.7| RED, E2E   |
+//! | test_psg_rg031_ocsf_arrow_name_permits_early_stop (PSG-031)                           | G v1.7| RED, E2E   |
+//! | test_psg_canonical_time_window_still_permitted (regression guard)                     | —     | GREEN, E2E |
+//!
+//! PSG-030 and PSG-031 are the **round-17 ADR-060 v1.7 soundness remediation** tests.
+//! PSG-030 asserts that two same-direction lower temporal bounds (`> X AND > Y` on the same
+//! INDEX col) are SUPPRESSED — the v1.5/v1.6 AND-arm `.all()` wrongly PERMITs this case
+//! because `extract_time_bounds_from_predicate` is first-wins and silently drops the second
+//! bound to DataFusion, creating a risk of incorrect LIMIT results (ADR-060 §D8.7, HIGH-001).
+//! PSG-031 asserts that a temporal predicate on the OCSF-flattened Arrow name (`time`) is
+//! PERMITTED — the v1.5/v1.6 gate only registered `col.name` ("timestamp") in
+//! `datetime_index_cols`, missing the OCSF flattened name, so it wrongly SUPPRESSED for
+//! `WHERE time > ...` on an `ocsf_column_naming=true` sensor (ADR-060 §D8.9, MED-001).
+//! Both require a `resolved_spec_map` wired into `MaterializationContext` so
+//! `datetime_index_cols` is non-empty; tests use `plan_gate_mat_ctx_with_spec(make_psg_spec_map(...))`.
 //!
 //! Tests marked "unit" live in `crates/prism-query/src/materialization.rs`
 //! (module `plan_shape_gate_unit_tests`) and carry SAP-3 rule 3 reachability comments.
@@ -1655,5 +1670,430 @@ async fn test_psg_relative_temporal_now_interval_suppresses_early_stop() {
          saw params.limit={seen_limit}. If non-zero ({seen_limit}=25), the Task-12 gate \
          `ast_is_reducing_plan_with_index_cols` is not yet implemented \
          (story status: draft → pipeline uses fetch_limit=opts.limit=25 unconditionally)."
+    );
+}
+
+// ===========================================================================
+// PSG-030 / PSG-031 / Regression Guard — ADR-060 §D8.7 v1.7 soundness fixes
+// ===========================================================================
+//
+// These three tests exercise the v1.7 soundness fixes:
+//   PSG-030 (HIGH-001): redundant same-direction lower temporal bounds (`> X AND > Y`)
+//     wrongly PERMIT early-stop under the v1.5/v1.6 AND-arm `.all()` logic.
+//   PSG-031 (MED-001): OCSF-flattened Arrow name (`time`) is absent from
+//     `datetime_index_cols` (which only contains `col.name="timestamp"`), causing the
+//     gate to wrongly SUPPRESS for `WHERE time > …` on an `ocsf_column_naming=true` sensor.
+//   Regression guard: canonical one-lower+one-upper time window (`>= X AND < Y`) must
+//     still PERMIT early-stop after the PSG-030 fix (this test should pass before AND after).
+//
+// Both PSG-030 and PSG-031 require a `resolved_spec_map` wired into the
+// `MaterializationContext` so `datetime_index_cols` is non-empty. With
+// `resolved_spec_map = None` the conservative-suppress default would mask the defect
+// under test: PSG-030 would vacuously SUPPRESS (correct behavior, wrong reason) and
+// PSG-031 would also SUPPRESS (conservative), preventing the RED gate from firing.
+//
+// Helpers:
+//   `make_psg_spec_map(ocsf_naming)` — builds the minimal resolved_spec_map.
+//   `plan_gate_mat_ctx_with_spec(spec_map)` — like `plan_gate_mat_ctx` but wires the map.
+// ---------------------------------------------------------------------------
+
+/// Build a minimal `resolved_spec_map` for PSG-030 / PSG-031 / regression guard.
+///
+/// Produces a sensor spec with a single table `mock_events` that has one column:
+/// - `name = "timestamp"`, `column_type = Datetime`, `ColumnOptions::Index`
+/// - `ocsf_field = Some("time")` and `ocsf_column_naming = true` iff `ocsf_naming` is true
+///
+/// Registered under key `("test-org", "mock")` (matching the `opts()` client slug and
+/// `PlanShapeGateMockAdapter::sensor_type()`).
+///
+/// With `ocsf_naming=false`: `datetime_index_cols = ["timestamp"]` → queries on "timestamp"
+///   can be PERMITTED; queries on "time" are NOT in the set → SUPPRESSED.
+/// With `ocsf_naming=true` (after v1.7 fix): `datetime_index_cols = ["timestamp", "time"]`
+///   → queries on either name PERMITTED; before fix only ["timestamp"].
+fn make_psg_spec_map(
+    ocsf_naming: bool,
+) -> Arc<
+    std::collections::HashMap<
+        prism_spec_engine::ResolvedSpecKey,
+        prism_spec_engine::ResolvedSensorSpec,
+    >,
+> {
+    use prism_core::{ColumnOptions, ColumnType};
+    use prism_spec_engine::{
+        ColumnSpec, OverlayLoader, SensorInstanceOverlay, SensorSpec as EngineSpec, TableSpec,
+    };
+
+    // ColumnSpec::new() is the public constructor — forward-compatible with #[non_exhaustive].
+    // Signature: new(name, column_type, ocsf_field: Option<String>, options: Vec<ColumnOptions>).
+    // Datetime INDEX column; ocsf_field only set when sensor uses OCSF naming.
+    let ts_col = ColumnSpec::new(
+        "timestamp",
+        ColumnType::Datetime,
+        if ocsf_naming {
+            Some("time".to_string())
+        } else {
+            None
+        },
+        vec![ColumnOptions::Index],
+    );
+
+    // Empty steps — no HTTP fetching in the gate test; the mock adapter handles data.
+    let table =
+        TableSpec::new_point_in_time("mock_events", "security_finding", vec![ts_col], vec![]);
+
+    // SensorSpec is #[non_exhaustive]; struct-literal construction is forbidden outside the
+    // defining crate (E0639). SensorSpec::new() predates ocsf_column_naming and does not
+    // expose it. Use TOML round-trip deserialization — the canonical external construction path.
+    // All #[serde(default)] fields not listed default correctly; ocsf_column_naming must be
+    // explicit because it governs which Arrow names appear in datetime_index_cols.
+    let spec_toml = format!(
+        "sensor_id = \"mock\"\n\
+         name = \"Mock\"\n\
+         auth_type = \"api_key\"\n\
+         base_url = \"https://example.com\"\n\
+         version = \"1.0.0\"\n\
+         ocsf_column_naming = {}\n",
+        ocsf_naming
+    );
+    let mut spec: EngineSpec =
+        toml::from_str(&spec_toml).expect("PSG spec map fixture: SensorSpec TOML parse failed");
+    // spec.tables is a pub field — direct assignment is allowed on #[non_exhaustive] types
+    // (the restriction applies only to struct-expression syntax, not field access/mutation).
+    spec.tables = vec![table];
+
+    // OrgSlug::new_unchecked: test-only client identity — same pattern as `opts()` helper.
+    let org_slug = OrgSlug::new_unchecked("test-org");
+    let sensor_id = SensorId::from("mock");
+
+    // Use the canonical external construction path (ResolvedSensorSpec is #[non_exhaustive]).
+    let overlay_toml = "extends = \"mock\"\ninstance_id = \"mock@test-org\"";
+    let overlay: SensorInstanceOverlay = toml::from_str(overlay_toml)
+        .expect("PSG spec map fixture: SensorInstanceOverlay TOML parse failed");
+    let resolved = OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+
+    let mut map = std::collections::HashMap::new();
+    map.insert((org_slug, sensor_id), resolved);
+    Arc::new(map)
+}
+
+/// Like `plan_gate_mat_ctx` but injects a `resolved_spec_map` so the plan-shape gate
+/// derives `datetime_index_cols` from the sensor spec rather than using the conservative
+/// empty default.
+///
+/// Used by PSG-030, PSG-031, and the canonical time-window regression guard.
+fn plan_gate_mat_ctx_with_spec(
+    spec_map: Arc<
+        std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+) -> (MaterializationContext, Arc<AtomicU64>, Arc<AtomicU64>) {
+    let last_limit = Arc::new(AtomicU64::new(0));
+    let fetch_count = Arc::new(AtomicU64::new(0));
+
+    let page1 = make_status_batch("page1", 100);
+    let page2 = make_status_batch("page2", 100);
+    let page3 = make_status_batch("page3", 100);
+
+    let adapter = Arc::new(PlanShapeGateMockAdapter {
+        last_limit: Arc::clone(&last_limit),
+        fetch_count: Arc::clone(&fetch_count),
+        full_batches: vec![page1.clone(), page2, page3], // 300 rows total
+        page1_batches: vec![page1],                      // 100 rows — early-stop fires
+    });
+
+    let org_id = OrgId::new();
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, adapter);
+
+    let mat_ctx = MaterializationContext::new_with_resolver(
+        Arc::new(registry),
+        Arc::new(OcsfNormalizer::new()),
+        prism_query::memory::MAX_MATERIALIZED_RECORDS,
+        Arc::new(StubCredentialResolver),
+        None,           // org_registry absent — test mode (resolve_org_id falls back to Path 2)
+        Some(spec_map), // resolved_spec_map → datetime_index_cols non-empty
+    );
+
+    (mat_ctx, last_limit, fetch_count)
+}
+
+// ===========================================================================
+// PSG-030 — ADR-060 §D8.7 v1.7 HIGH-001: redundant lower bound SUPPRESSES
+// ===========================================================================
+
+/// RG-PSG-030 — ADR-060 §D8.7 v1.7 HIGH-001: two Gt bounds on the same INDEX col
+///
+/// `SELECT * FROM mock_events WHERE timestamp > '2026-01-01T00:00:00Z'
+///   AND timestamp > '2026-06-01T00:00:00Z' LIMIT 1`
+///
+/// ## Soundness Defect (ADR-060 v1.5/v1.6)
+///
+/// `extract_time_bounds_from_predicate` is first-wins: it picks up `timestamp > '2026-01-01'`
+/// as the server-side lower bound and silently drops `timestamp > '2026-06-01'` to DataFusion
+/// client-side filtering. With LIMIT 1 and early-stop, the pipeline may stop after page 1
+/// (100 rows), apply the dropped bound via DataFusion, and return fewer than the correct rows
+/// — or return a row from the first page that would not survive the second bound if it were
+/// evaluated on a larger result set.
+///
+/// The v1.5/v1.6 AND-arm uses `.all(|p| is_pushed_temporal_predicate(p, ...))`. Both
+/// `Compare(Gt, "timestamp", A)` and `Compare(Gt, "timestamp", B)` satisfy
+/// `is_pushed_temporal_predicate` (range op + INDEX col + temporal RHS), so `.all()` = true
+/// → `has_client_side_where = false` → gate PERMITS (wrongly).
+///
+/// ## v1.7 Fix
+///
+/// Detect AND predicates that contain two or more same-direction lower bounds on the same
+/// INDEX column. When found, classify the AND predicate as NOT fully server-pushed →
+/// `has_client_side_where = true` → gate SUPPRESSES → `fetch_limit = 0`.
+///
+/// ## RED / GREEN mechanics
+///
+/// RED (current code — spec_map provides `datetime_index_cols = ["timestamp"]`):
+///   Both Gt leaves pass `is_pushed_temporal_predicate` → AND `.all()` = true →
+///   `has_client_side_where = false` → gate PERMITS → `fetch_limit = 1` → `last_limit = 1 ≠ 0`.
+/// GREEN (v1.7 fix applied):
+///   Redundant same-direction lower bounds detected → classified as client-side →
+///   `fetch_limit = 0` → `last_limit = 0` → assertion passes.
+///
+/// F-LENSB-P13-002: assert `fetch_count >= 1` before `last_limit == 0` — the init value of
+/// `last_limit` is `0`, which would vacuously satisfy the assertion if the adapter is never
+/// called.
+///
+/// SAP-3: `WHERE timestamp > A AND timestamp > B LIMIT 1` is grammar-reachable standard SQL.
+/// Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-030, BC-2.16.002 EC-01-034, ADR-060 §D8.7.
+#[tokio::test]
+async fn test_psg_rg030_redundant_lower_bound_suppresses_early_stop() {
+    // Spec map: datetime_index_cols = ["timestamp"]. This is required so the gate
+    // uses the permission path (with the INDEX col known) rather than the conservative
+    // suppress default (datetime_index_cols = []). Without the spec map, the gate would
+    // SUPPRESS regardless, masking the defect.
+    let spec_map = make_psg_spec_map(false);
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx_with_spec(spec_map);
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // Two same-direction (Gt) lower bounds on the same INDEX datetime column.
+    // extract_time_bounds_from_predicate consumes only `timestamp > '2026-01-01'`;
+    // the second `timestamp > '2026-06-01'` is silently dropped to DataFusion.
+    // DataFusion may report no 'timestamp' column in the mock schema — assertion is on
+    // last_limit, which is recorded inside fetch() before DataFusion executes.
+    let query = "SELECT * FROM mock_events \
+                 WHERE timestamp > '2026-01-01T00:00:00Z' \
+                 AND timestamp > '2026-06-01T00:00:00Z' \
+                 LIMIT 1";
+    let _result = run_materialization_pipeline(query, &opts(1), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002: adapter must have been invoked (not vacuous init value).
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-030 (redundant lower bound): adapter must have been called at least once \
+         (fetch_count={fc}). A count of 0 means last_limit==0 is the AtomicU64 init value, \
+         not evidence of suppression."
+    );
+
+    // PRIMARY: gate must suppress early-stop (fetch_limit = 0).
+    //
+    // RED (current v1.5/v1.6 — AND-arm .all() wrongly PERMITs):
+    //   Both `Compare(Gt, "timestamp", ts_A)` and `Compare(Gt, "timestamp", ts_B)` pass
+    //   is_pushed_temporal_predicate → .all() = true → has_client_side_where = false →
+    //   fetch_limit = opts.limit = 1 → last_limit = 1 ≠ 0 → assertion FAILS.
+    //
+    // GREEN (v1.7 fix: redundant same-direction bounds → suppress):
+    //   Detected two Gt leaves on "timestamp" → classified as NOT fully server-pushed →
+    //   has_client_side_where = true → fetch_limit = 0 → last_limit = 0 → passes.
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert_eq!(
+        seen_limit, 0,
+        "PSG-030 (ADR-060 §D8.7 v1.7 — HIGH-001 redundant lower bound): gate must \
+         SUPPRESS early-stop when two same-direction Gt bounds target the same INDEX \
+         column (fetch_limit=0); adapter saw params.limit={seen_limit}. \
+         If 1: v1.5/v1.6 AND-arm .all() wrongly classified `timestamp > A AND \
+         timestamp > B` as fully server-pushed. extract_time_bounds_from_predicate is \
+         first-wins — the second Gt bound is dropped to DataFusion client-side, making \
+         LIMIT-1 early-stop incorrect. \
+         Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-030, BC-2.16.002 EC-01-034, \
+         ADR-060 §D8.7."
+    );
+}
+
+// ===========================================================================
+// PSG-031 — ADR-060 §D8.9 MED-001: OCSF Arrow name PERMITS early-stop
+// ===========================================================================
+
+/// RG-PSG-031 — ADR-060 §D8.9 MED-001: OCSF-flattened Arrow name `time` PERMITS early-stop
+///
+/// Fixture sensor spec: `ocsf_column_naming = true`, `col.name = "timestamp"`,
+/// `ocsf_field = "time"`, `column_type = Datetime`, `ColumnOptions::Index`.
+/// Query: `SELECT * FROM mock_events WHERE time > '2026-01-01T00:00:00Z' LIMIT 5`
+///
+/// ## Soundness Defect (ADR-060 v1.5/v1.6)
+///
+/// The plan-shape gate computes `datetime_index_cols` by iterating `resolved_spec_map` and
+/// collecting `col.name` for every `Datetime + Index` column. For the fixture spec:
+///   `datetime_index_cols = ["timestamp"]`
+/// The query uses the OCSF-flattened Arrow name `"time"` (the name DataFusion exposes and
+/// LLM agents author after schema introspection on an `ocsf_column_naming=true` sensor).
+/// `is_pushed_temporal_predicate("time", ["timestamp"])` returns `false` because `"time"` is
+/// absent from `datetime_index_cols`. Consequently:
+///   `has_client_side_where = true` → gate SUPPRESSES → `fetch_limit = 0`
+/// This is WRONG: the `time` column IS an INDEX-designated datetime column (via its
+/// `ocsf_field` mapping). Suppressing here causes unnecessary full-dataset fetches for every
+/// temporal query authored by an LLM agent against a Claroty/OCSF-named sensor.
+///
+/// ## v1.7 Fix (ADR-060 §D8.9)
+///
+/// When iterating `resolved_spec_map` to build `datetime_index_cols`, also insert
+/// `ocsf_field_to_arrow_name(col.ocsf_field)` when `spec.ocsf_column_naming = true` and
+/// `col.ocsf_field` is non-empty. After the fix:
+///   `datetime_index_cols = ["timestamp", "time"]`
+/// `is_pushed_temporal_predicate("time", ["timestamp", "time"])` = true →
+/// `has_client_side_where = false` → gate PERMITS → `fetch_limit = 5`.
+///
+/// ## RED / GREEN mechanics
+///
+/// RED (current v1.5/v1.6 — only col.name in datetime_index_cols):
+///   `datetime_index_cols = ["timestamp"]`; "time" absent → `is_pushed_temporal_predicate`
+///   returns false → gate SUPPRESSES → `fetch_limit = 0` → `last_limit = 0`.
+///   Assertion `last_limit > 0` FAILS.
+/// GREEN (v1.7 fix — OCSF Arrow name registered):
+///   `datetime_index_cols = ["timestamp", "time"]`; "time" present → PERMITS →
+///   `fetch_limit = 5` → `last_limit = 5 > 0` → passes.
+///
+/// DataFusion may report no "time" column in the mock schema (the mock returns only a
+/// "status" column). The assertion operates on `last_limit`, recorded inside `fetch()`
+/// before DataFusion executes, so a DataFusion error does not affect the test.
+///
+/// F-LENSB-P13-002: assert `fetch_count >= 1` before the `last_limit > 0` assertion.
+///
+/// SAP-3: `WHERE time > '...' LIMIT 5` is grammar-reachable standard SQL.
+/// Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-031, BC-2.16.002 EC-01-035, ADR-060 §D8.9.
+#[tokio::test]
+async fn test_psg_rg031_ocsf_arrow_name_permits_early_stop() {
+    // Spec map: ocsf_column_naming=true, col.name="timestamp", ocsf_field="time", INDEX+Datetime.
+    // Before v1.7 fix: datetime_index_cols = ["timestamp"] only.
+    // After v1.7 fix: datetime_index_cols = ["timestamp", "time"].
+    let spec_map = make_psg_spec_map(true);
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx_with_spec(spec_map);
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // Query uses the OCSF-flattened Arrow name "time" — the column name an LLM agent
+    // would use after introspecting the schema on an ocsf_column_naming=true sensor.
+    // DataFusion may reject "time" as an unknown column in the mock schema; assertion is
+    // on last_limit which is recorded before DataFusion evaluation.
+    let query = "SELECT * FROM mock_events WHERE time > '2026-01-01T00:00:00Z' LIMIT 5";
+    let _result = run_materialization_pipeline(query, &opts(5), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002: adapter must have been invoked (not vacuous init value).
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG-031 (OCSF Arrow name permits): adapter must have been called at least once \
+         (fetch_count={fc}). A count of 0 means last_limit==0 is the AtomicU64 init value, \
+         not evidence of gate behavior."
+    );
+
+    // PRIMARY: gate must PERMIT early-stop (fetch_limit = 5 > 0).
+    //
+    // RED (current v1.5/v1.6 — col.name only in datetime_index_cols):
+    //   datetime_index_cols = ["timestamp"]. "time" is absent.
+    //   is_pushed_temporal_predicate("time", ["timestamp"]) = false →
+    //   has_client_side_where = true → gate SUPPRESSES → fetch_limit = 0 →
+    //   last_limit = 0. Assertion last_limit > 0 FAILS.
+    //
+    // GREEN (v1.7 fix: OCSF Arrow name registered in datetime_index_cols):
+    //   datetime_index_cols = ["timestamp", "time"]. "time" is present.
+    //   is_pushed_temporal_predicate("time", ["timestamp", "time"]) = true →
+    //   has_client_side_where = false → gate PERMITS → fetch_limit = 5 →
+    //   last_limit = 5 > 0. Assertion passes.
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert!(
+        seen_limit > 0,
+        "PSG-031 (ADR-060 §D8.9 v1.7 — MED-001 OCSF Arrow name permits early-stop): \
+         gate must PERMIT early-stop for `WHERE time > …` on an ocsf_column_naming=true \
+         sensor with col.name=\"timestamp\" and ocsf_field=\"time\" (fetch_limit > 0); \
+         adapter saw params.limit={seen_limit}. \
+         If 0: v1.5/v1.6 gate only registered col.name=\"timestamp\" in \
+         datetime_index_cols; the OCSF-flattened Arrow name \"time\" is absent, so \
+         the predicate is classified as client-side and early-stop is wrongly suppressed. \
+         Fix: for each datetime+INDEX column with non-empty ocsf_field on a sensor where \
+         ocsf_column_naming=true, insert ocsf_field_to_arrow_name(ocsf_field) into \
+         datetime_index_cols. \
+         Anchors: S-ENGINE-LIMIT-EARLY-STOP-001 RG-PSG-031, BC-2.16.002 EC-01-035, \
+         ADR-060 §D8.9."
+    );
+}
+
+// ===========================================================================
+// PSG canonical time-window — regression guard (must pass before AND after fix)
+// ===========================================================================
+
+/// Regression guard — canonical one-lower+one-upper time window still PERMITS early-stop.
+///
+/// `SELECT * FROM mock_events
+///   WHERE timestamp >= '2026-01-01T00:00:00Z' AND timestamp < '2026-07-01T00:00:00Z'
+///   LIMIT 5`
+///
+/// This is the standard time-window filter: one `Ge` (≥) lower bound and one `Lt` (<)
+/// upper bound on the same single INDEX datetime column. Both bounds are of DIFFERENT
+/// operators (no first-wins ambiguity). `extract_time_bounds_from_predicate` correctly
+/// captures both: `start_time = '2026-01-01'`, `end_time = '2026-07-01'`. The full range
+/// is pushed server-side; no DataFusion-side residual. Early-stop is SAFE → gate PERMITS.
+///
+/// This test PASSES before the v1.7 fix AND after. Its purpose is to confirm that the
+/// PSG-030 soundness fix (which suppresses redundant SAME-direction lower bounds) does NOT
+/// accidentally regress the canonical DIFFERENT-direction lower+upper time-window pattern.
+///
+/// SAP-3: `WHERE ts >= X AND ts < Y LIMIT N` is grammar-reachable standard SQL.
+#[tokio::test]
+async fn test_psg_canonical_time_window_still_permitted() {
+    // Spec map: datetime_index_cols = ["timestamp"]. Standard non-OCSF sensor.
+    let spec_map = make_psg_spec_map(false);
+    let (mut mat_ctx, last_limit, fetch_count) = plan_gate_mat_ctx_with_spec(spec_map);
+    let session_ctx =
+        build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
+
+    // Canonical time-window: one Ge lower bound + one Lt upper bound — different operators.
+    // Both fully pushed server-side. No DataFusion residual. Early-stop is safe.
+    // DataFusion may report no 'timestamp' column in mock schema — assertion is on last_limit.
+    let query = "SELECT * FROM mock_events \
+                 WHERE timestamp >= '2026-01-01T00:00:00Z' \
+                 AND timestamp < '2026-07-01T00:00:00Z' \
+                 LIMIT 5";
+    let _result = run_materialization_pipeline(query, &opts(5), &mut mat_ctx, &session_ctx).await;
+
+    // F-LENSB-P13-002: adapter must have been called.
+    let fc = fetch_count.load(Ordering::SeqCst);
+    assert!(
+        fc >= 1,
+        "PSG canonical time-window (regression guard): adapter must have been called at \
+         least once (fetch_count={fc}). A count of 0 means last_limit is the init value."
+    );
+
+    // Regression guard: gate must PERMIT early-stop (fetch_limit > 0).
+    //
+    // Before v1.7 fix: `Ge("timestamp", A)` and `Lt("timestamp", B)` both pass
+    //   is_pushed_temporal_predicate → .all() = true → has_client_side_where = false →
+    //   fetch_limit = 5 → last_limit = 5 > 0. PASSES.
+    //
+    // After v1.7 fix (PSG-030 redundant-lower-bound suppression): one Ge + one Lt are
+    //   DIFFERENT operators → not "redundant same-direction" → still PERMITS →
+    //   fetch_limit = 5 → last_limit = 5 > 0. PASSES.
+    //
+    // If this test FAILS after the PSG-030 fix, the fix over-suppressed the canonical
+    // time-window pattern.
+    let seen_limit = last_limit.load(Ordering::SeqCst);
+    assert!(
+        seen_limit > 0,
+        "PSG canonical time-window (regression guard): gate must PERMIT early-stop for \
+         `WHERE ts >= X AND ts < Y LIMIT N` on a single INDEX col \
+         (fetch_limit > 0 expected); adapter saw params.limit={seen_limit}. \
+         If 0: the PSG-030 v1.7 fix over-suppressed the canonical time-window pattern — \
+         one Ge lower + one Lt upper bound are DIFFERENT operators and represent a fully \
+         server-pushed range (no first-wins ambiguity). Only SAME-direction redundant \
+         bounds (`> A AND > B`) should be suppressed."
     );
 }
