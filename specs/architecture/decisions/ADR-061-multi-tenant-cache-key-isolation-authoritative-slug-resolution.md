@@ -4,8 +4,8 @@ adr_id: "ADR-061"
 title: "Multi-Tenant Cache-Key Isolation via Authoritative OrgSlug Resolution"
 status: ACCEPTED
 date: "2026-08-27"
-modified: "2026-08-27"
-version: "1.0"
+modified: "2026-08-28"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-07, SS-11]
 supersedes: []
@@ -22,6 +22,11 @@ wiring_deferred_to: null
 # ADR-061: Multi-Tenant Cache-Key Isolation via Authoritative OrgSlug Resolution
 
 ## Status
+
+ACCEPTED v1.1 (amended 2026-08-28; F-R16-P5-HIGH-001): §D3 code example and prose corrected —
+non-compiling false-premise synthesis removed; actual infallible `OrgSlug::new` call valid by
+construction. §Context Site 3 false "starts with a digit" premise corrected. No behavioral
+change to D1, D2, D4–D9.
 
 ACCEPTED v1.0 (2026-08-27) — F-R16-P1-HIGH-001 (ELEVATED to CRITICAL by security review,
 CWE-284/CWE-340/CWE-200, OWASP A01): cross-tenant cache-key collision via truncated synthetic
@@ -101,14 +106,19 @@ OrgSlug::new("synthetic-unmapped")
 // used as fallback when the 8-hex synthesis itself fails OrgSlug validation
 ```
 
-The sentinel `"synthetic-unmapped"` is a **static constant** reached by multiple orgs whose
-`OrgId::to_string()[..8]` happens to fail `OrgSlug` validation (e.g., starts with a digit).
-Every such org hashes to the same `"synthetic-unmapped"` cache partition — a **single shared
-entry across all of them**. This is a total cross-tenant collapse for those org IDs.
+The sentinel `"synthetic-unmapped"` is a **static constant** introduced under the false
+premise that `OrgId::to_string()[..8]` could fail `OrgSlug` validation when the hex substring
+begins with a digit. This premise is incorrect: the `"org-"` literal prefix always produces
+`"org-HHHHHHHH"` where the first character is `'o'`; `ORG_SLUG_PATTERN`
+(`^[a-zA-Z0-9_-]{1,64}$`) permits digits in any position, and the `"org-"` prefix satisfies
+the pattern unconditionally. The sentinel path is **unreachable by construction** from the
+synthesis call. Should the sentinel be reached through any other code path, every affected org
+hashes to the same `"synthetic-unmapped"` partition — a **single shared entry across all of
+them** and a total cross-tenant collapse for those org IDs.
 
 This sentinel MUST be removed unconditionally. It has no valid use case in either production
 or test mode: in production, the registry provides authoritative slugs; in test mode, the
-8-hex prefix is sufficient for isolation (all test orgs are distinct per test run).
+`"org-{8hex}"` synthesis is always valid by construction (all test orgs produce distinct keys).
 
 ---
 
@@ -197,24 +207,28 @@ obligation, anchored to S-ENGINE-LIMIT-EARLY-STOP-001).
 ### D3 — Test/MVP Mode: Synthetic Slug When Registry Is Entirely Absent
 
 When `org_registry: None` (the registry was not injected — test harness or single-tenant
-MVP mode), the existing synthetic-slug fallback is preserved:
+MVP mode), the synthetic-slug path uses the following infallible call:
 
 ```rust
-let synthetic = format!("org-{}", &org_id.to_string()[..8])
-    .map(OrgSlug::new)
-    .unwrap_or_else(|_| {
-        // UUIDs starting with a digit fail OrgSlug validation; use a deterministic prefix.
-        // D3: test mode only; in production, org_registry.is_some() and D2 handles this.
-        OrgSlug::new(format!("org-x{}", &org_id.to_string()[..7]))
-            .expect("x-prefix ensures valid slug")
-    });
+// D3: org_registry is None — test/MVP mode.
+// Valid by construction: the "org-" literal prefix ensures ORG_SLUG_PATTERN
+// (^[a-zA-Z0-9_-]{1,64}$) compliance regardless of the hex characters that follow.
+// All hex chars [a-f0-9] are within [a-zA-Z0-9]; total string length is 12 <= 64;
+// the first character is always 'o'. No digit-start special case; no fallback branch.
+let client_id = OrgSlug::new(format!("org-{}", &org_id.to_string()[..8]));
 ```
 
-The `"synthetic-unmapped"` sentinel MUST be replaced with this deterministic prefix form.
-The sentinel produces a single partition key for all orgs whose UUID prefix fails validation;
-the deterministic prefix form preserves per-org isolation (all valid UUIDs in test mode
-produce distinct 8-char prefixes modulo the digit-start collision which the `x-prefix` form
-resolves).
+`OrgSlug::new` returns `OrgSlug` directly with embedded validity state (see
+`prism_core::tenant::OrgSlug` — infallible constructor that carries an `OrgSlugInner::Valid`
+or `OrgSlugInner::Invalid` state; callers call `.unwrap()` or `.expect()` when needed). The
+`"org-"` prefix guarantees ORG_SLUG_PATTERN compliance: the result is always `"org-HHHHHHHH"`
+(12 chars ≤ 64; first char `'o'`; all hex chars are `[a-f0-9] ⊆ [a-zA-Z0-9]`). No fallback
+branch exists — this path is valid by construction.
+
+The `"synthetic-unmapped"` sentinel MUST be removed unconditionally (see §Context Site 3). It
+was introduced under a false premise and its synthesis path is unreachable by construction.
+Distinct org IDs in test mode produce distinct `"org-HHHHHHHH"` keys, preserving per-org
+isolation without any digit-start special casing.
 
 **The `"synthetic-unmapped"` sentinel is removed unconditionally from both Site 1 and Site 2.**
 
@@ -387,4 +401,5 @@ the fix into S-ENGINE-LIMIT-EARLY-STOP-001 (2026-08-27).
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-08-28 | architect | F-R16-P5-HIGH-001: §D3 corrected — non-compiling false-premise synthesis example replaced with actual infallible `OrgSlug::new` call valid by construction; §Context Site 3 false "starts with a digit" premise corrected (the `"org-"` literal prefix ensures ORG_SLUG_PATTERN compliance unconditionally; sentinel path is unreachable by construction); §D3 prose "x-prefix form resolves digit-start collision" false rationale removed. No behavioral change to D1, D2, D4, D5, D6, D7, D8, or D9. Closes F-R16-P5-HIGH-001. |
 | 1.0 | 2026-08-27 | architect | Initial — three defect sites (Site 1: Step 3b bare-filter; Site 2: resolve_source_refs ALL-scope fallback; Site 3: "synthetic-unmapped" sentinel). D1 cache-key identity invariant; D2 fail-closed skip-with-structured-warn policy (justification vs hard-error); D3 test-mode synthetic preservation; D4 Site 1 fix; D5 Site 2 fix; D6 SINGLE-BINDING COHERENCE extension; D7 test-removal obligation; D8 SAP-1 catalog row obligation; D9 Red Gate gates anchored to S-ENGINE-LIMIT-EARLY-STOP-001. Severity CRITICAL (CWE-284/CWE-340/CWE-200, OWASP A01). Closes F-R16-P1-HIGH-001. |
