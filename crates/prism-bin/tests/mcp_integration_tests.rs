@@ -61,7 +61,7 @@ use prism_credentials::{CredentialStore, namespace::CredentialName};
 use prism_mcp::server::{PrismServer, QueryToolParams};
 use prism_ocsf::OcsfNormalizer;
 use prism_query::{
-    engine::{QueryEngine, QueryEngineConfig, QueryOptions},
+    engine::{QueryEngine, QueryEngineConfig},
     scoping::ClientRegistry,
 };
 use prism_sensors::{
@@ -501,17 +501,21 @@ async fn test_psg_rg026_prism_query_wire_surfaces_truncation_signal() {
 /// `"is_truncated":false` when 2 sensors fan out, both exhaust their full result
 /// sets (25 rows each, total=50==limit), and neither early-stops.
 ///
-/// ## What this test verifies
+/// ## What this test verifies (F-R16-P14-MED-001 fix)
 ///
-/// Drives the full `QueryEngine::execute` path for the PSG-028 multi-sensor
-/// no-early-stop topology, then builds the MCP wire payload in the same way the
-/// `prism_query` handler does.  The serialized `content[0].text` string is
-/// asserted at the raw-byte level.
+/// Dispatches through the REAL `PrismServer::query` tool handler — the same code
+/// path that production MCP clients hit.  The handler calls `QueryEngine::execute`,
+/// builds the wire payload, and wraps it via `SafetyEnvelopeBuilder::wrap`, producing
+/// a `ResponseEnvelope` that is serialized and returned as `CallToolResult`.
 ///
-/// This closes the MCP wire gap: `result.is_truncated` at the struct level
-/// (covered by `test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated`
-/// in `execute_integration_tests.rs`) must survive serialization into the wire
-/// payload that the LLM agent consumes.
+/// The test asserts on `call_result.content[0].text` — the exact bytes the LLM agent
+/// consumes — which contains the full serialized `ResponseEnvelope` JSON including
+/// `results.is_truncated` and `structuredContent.results.is_truncated`.
+///
+/// A regression that drops `is_truncated` from the envelope (e.g., a bug in
+/// `SafetyEnvelopeBuilder::wrap` or the payload construction) is caught here but
+/// invisible to any test that hand-builds a `serde_json::json!` payload and bypasses
+/// the real handler (the previous paper-gate defect class closed by this fix).
 ///
 /// ## Topology
 ///
@@ -536,13 +540,30 @@ async fn test_psg_rg026_prism_query_wire_surfaces_truncation_signal() {
 ///
 /// ## SAP-3 compliance
 ///
-/// Query goes through `QueryEngine::execute` (full engine path from query string,
-/// not a synthetic AST or direct `run_materialization_pipeline` call).
+/// Query goes through `PrismServer::query` → `QueryEngine::execute` (full engine
+/// path from query string, not a synthetic AST or direct `run_materialization_pipeline`
+/// call).
 ///
 /// ## Wire-shape assertion discipline (CLAUDE.md 2026-07-13)
 ///
-/// At least one assertion on the SERIALIZED JSON output (the exact bytes the LLM
-/// agent consumes), not only on the pre-serialization Rust struct field.
+/// Asserts on the SERIALIZED JSON output (the exact bytes the LLM agent consumes),
+/// exercising the real `SafetyEnvelopeBuilder::wrap` path — not a hand-built
+/// `serde_json::json!` payload that bypasses envelope construction.
+///
+/// ## HARNESS NOTE — why explicit OrgRegistry + clients:
+///
+/// UUID v7 uses a 48-bit millisecond timestamp in the high bits.  Two consecutive
+/// OrgId::new() calls within the same millisecond produce UUIDs with identical
+/// first-8 hex chars.  Without an OrgRegistry the pipeline synthesises client_id
+/// as "org-{first8}" → both adapters share the same in-query cache key → second
+/// adapter is served from cache (no live fan-out, total_fetched_rows = 25 not 50)
+/// → heuristic 25 < 50 = false → is_truncated=false → wire assertion PASSES for
+/// the WRONG reason (silent false negative, not a RED gate).
+///
+/// With OrgRegistry: "org-a" → org_id1, "org-b" → org_id2 → unique cache keys
+/// → both adapters execute live fan-out → total_fetched_rows = 50 → heuristic
+/// 50 >= 50 = TRUE (FALSE POSITIVE) → is_truncated=true → wire JSON contains
+/// "is_truncated":true → assertion contains("\"is_truncated\":false") FAILS → RED.
 #[tokio::test]
 async fn test_psg_rg028_wire_multi_sensor_fanout_no_early_stop_is_not_truncated() {
     const LIMIT: usize = 50;
@@ -553,14 +574,19 @@ async fn test_psg_rg028_wire_multi_sensor_fanout_no_early_stop_is_not_truncated(
     // Neither adapter early-stops: each returns its full result set.
     // This simulates two sensors that exhausted their data (25 rows each)
     // without hitting a pagination limit.
+    //
+    // fetch_count: Arc<AtomicU64> — non-vacuousness precondition; confirms the
+    // handler dispatched to both adapters (not a cache hit or short-circuit).
     // -----------------------------------------------------------------------
     struct FanoutStubAdapter {
+        fetch_count: Arc<AtomicU64>,
         batches: Vec<RecordBatch>,
     }
 
     impl std::fmt::Debug for FanoutStubAdapter {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.debug_struct("FanoutStubAdapter")
+                .field("fetch_count", &self.fetch_count.load(Ordering::Relaxed))
                 .field("batch_count", &self.batches.len())
                 .finish()
         }
@@ -582,6 +608,7 @@ async fn test_psg_rg028_wire_multi_sensor_fanout_no_early_stop_is_not_truncated(
             _params: &QueryParams,
             _auth: &dyn SensorAuth,
         ) -> Result<FetchOutput, SensorError> {
+            self.fetch_count.fetch_add(1, Ordering::SeqCst);
             // Unconditionally return the pre-built batches — no early-stop behavior.
             Ok(FetchOutput::new(self.batches.clone(), false))
         }
@@ -601,36 +628,23 @@ async fn test_psg_rg028_wire_multi_sensor_fanout_no_early_stop_is_not_truncated(
         RecordBatch::try_new(schema, vec![arr]).expect("PSG-028 wire: make_batch must succeed")
     }
 
-    // sensor1: 25 rows (no early-stop)
-    // sensor2: 25 rows (no early-stop)
-    // total = 50 == LIMIT
-    //
-    // HARNESS NOTE — why explicit OrgRegistry + clients: Some(...):
-    //
-    // UUID v7 uses a 48-bit millisecond timestamp in the high bits.  Two consecutive
-    // OrgId::new() calls within the same millisecond produce UUIDs with identical
-    // first-8 hex chars.  Without an OrgRegistry the pipeline synthesises client_id
-    // as "org-{first8}" → both adapters share the same in-query cache key → second
-    // adapter is served from cache (no live fan-out, total_fetched_rows = 25 not 50)
-    // → heuristic 25 < 50 = false → is_truncated=false → wire assertion PASSES for
-    // the WRONG reason (silent false negative, not a RED gate).
-    //
-    // With OrgRegistry: "org-a" → org_id1, "org-b" → org_id2 → unique cache keys
-    // → both adapters execute live fan-out → total_fetched_rows = 50 → heuristic
-    // 50 >= 50 = TRUE (FALSE POSITIVE) → is_truncated=true → wire JSON contains
-    // "is_truncated":true → assertion contains("\"is_truncated\":false") FAILS → RED.
+    let fetch_count1 = Arc::new(AtomicU64::new(0));
+    let fetch_count2 = Arc::new(AtomicU64::new(0));
+
     let org_id1 = OrgId::new();
     let org_id2 = OrgId::new();
     let mut registry = AdapterRegistry::new();
     registry.register(
         org_id1,
         Arc::new(FanoutStubAdapter {
+            fetch_count: Arc::clone(&fetch_count1),
             batches: vec![make_batch(25)],
         }),
     );
     registry.register(
         org_id2,
         Arc::new(FanoutStubAdapter {
+            fetch_count: Arc::clone(&fetch_count2),
             batches: vec![make_batch(25)],
         }),
     );
@@ -646,51 +660,74 @@ async fn test_psg_rg028_wire_multi_sensor_fanout_no_early_stop_is_not_truncated(
         .register(org_b.clone(), org_id2)
         .expect("PSG-028 wire: register org-b must succeed");
 
-    let engine = make_wire_engine(registry, vec![org_a.clone(), org_b.clone()])
-        .with_org_registry(Arc::new(org_registry));
+    let engine =
+        make_wire_engine(registry, vec![org_a, org_b]).with_org_registry(Arc::new(org_registry));
 
-    let options = QueryOptions {
-        clients: Some(vec![org_a, org_b]),
-        sensors: None,
-        limit: Some(LIMIT),
-        force_refresh: false,
-        ..QueryOptions::default()
-    };
+    // -----------------------------------------------------------------------
+    // Build PrismServer with the engine wired — same pattern as RG-PSG-026.
+    //
+    // PrismServer::new() is the test-only constructor (no audit_writer).
+    // No server-level OrgRegistry is needed for the query path: validate_client_ids
+    // in the query handler is a FORMAT check only ([a-zA-Z0-9_-]{1,64}), not an
+    // allowlist check — "org-a" and "org-b" satisfy it.  The engine's OrgRegistry
+    // (wired above) handles client-slug → OrgId resolution during fan-out.
+    //
+    // Audit emission with no AuditWriter returns Ok(None) per emit_tool_audit's
+    // None branch — the query proceeds with audit_warning = None.
+    // -----------------------------------------------------------------------
+    let server = PrismServer::new().with_query_engine(Arc::new(engine));
 
-    let result = engine
-        .execute(
-            &format!("SELECT * FROM crowdstrike_detections LIMIT {LIMIT}"),
-            options,
-        )
-        .await
-        .expect(
-            "PSG-028 wire: QueryEngine::execute must not error for 2-sensor fan-out \
-             (25+25 rows, limit=50) against FanoutStubAdapters",
-        );
+    // -----------------------------------------------------------------------
+    // Build QueryToolParams via serde_json (QueryToolParams is #[non_exhaustive]
+    // — struct literal syntax is forbidden outside prism-mcp; use serde_json
+    // deserialization per the established PSG-026 pattern).
+    // -----------------------------------------------------------------------
+    let params: QueryToolParams = serde_json::from_value(serde_json::json!({
+        "query":         format!("SELECT * FROM crowdstrike_detections LIMIT {LIMIT}"),
+        "clients":       ["org-a", "org-b"],
+        "limit":         LIMIT as u32,
+        "force_refresh": false,
+    }))
+    .expect("PSG-028 wire: QueryToolParams must deserialize from known-field JSON object");
 
-    // PRECONDITION: both adapters must have been fanned out to (non-vacuous check).
-    assert_eq!(
-        result.total_available, LIMIT,
-        "PSG-028 wire precondition: total_available must be {LIMIT} (25+25 rows); \
-         got {}. A lower count means one or both adapters short-circuited.",
-        result.total_available
+    let call_result = server.query(Parameters(params)).await.expect(
+        "PSG-028 wire: PrismServer::query must return Ok(CallToolResult) for 2-sensor \
+         fan-out against FanoutStubAdapters (Err here means an internal PrismError — \
+         check query parse or engine wiring)",
     );
 
-    // Build the MCP wire payload as the prism_query handler does:
-    //   serde_json::json!({ "returned_results": ..., "total_available": ..., "is_truncated": ... })
-    // Pass it through CallToolResult::structured to produce the MCP wire result.
-    let wire_payload = serde_json::json!({
-        "returned_results": result.returned_results,
-        "total_available":  result.total_available,
-        "is_truncated":     result.is_truncated,
-    });
-    let call_result = rmcp::model::CallToolResult::structured(wire_payload);
+    // PRECONDITION: both adapters must have been fanned out to (non-vacuous check).
+    // Verifies the pipeline dispatched live fetch calls to both adapters rather than
+    // short-circuiting via cache or client-resolution failure.
+    let fc1 = fetch_count1.load(Ordering::SeqCst);
+    let fc2 = fetch_count2.load(Ordering::SeqCst);
+    assert!(
+        fc1 >= 1 && fc2 >= 1,
+        "PSG-028 wire precondition: both adapters must have been fetched at least once \
+         (fetch_count1={fc1}, fetch_count2={fc2}); a count of 0 means the pipeline \
+         short-circuited before reaching that adapter and all wire assertions are vacuous."
+    );
+
+    // Extract the ACTUAL wire bytes from the real SafetyEnvelopeBuilder serialization.
+    //
+    // content[0].text = serde_json::to_value(&ResponseEnvelope {
+    //   _meta: { has_more: result.is_truncated, ... },
+    //   results: { rows: [...], returned_results: N, total_available: N, is_truncated: X },
+    //   content: [{ type: "text", text: "N results found" }],
+    //   structuredContent: { results: { ... is_truncated: X ... } }
+    // }).to_string()
+    //
+    // is_truncated appears in both results.is_truncated and
+    // structuredContent.results.is_truncated within the serialized envelope.
     let wire_text = call_result
         .content
         .first()
         .and_then(|c| c.as_text())
         .map(|t| t.text.clone())
-        .expect("PSG-028 wire: CallToolResult::structured must produce content[0] text");
+        .expect(
+            "PSG-028 wire: CallToolResult::structured must produce a text content[0] item \
+             (the serialized SafetyEnvelope JSON)",
+        );
 
     // PRIMARY ASSERTION (RED gate driver — wire level):
     //
@@ -704,7 +741,7 @@ async fn test_psg_rg028_wire_multi_sensor_fanout_no_early_stop_is_not_truncated(
         wire_text.contains("\"is_truncated\":false"),
         "PSG-028 wire (ADR-060 §D8.3 — RED GATE — 2-sensor fan-out no-early-stop, wire level): \
          CallToolResult.content[0].text must contain \"is_truncated\":false when both sensors \
-         fully exhausted their result sets (sensor1=25 rows, sensor2=25 rows, total={total}==limit={LIMIT}, \
+         fully exhausted their result sets (sensor1=25 rows, sensor2=25 rows, total=50==limit={LIMIT}, \
          any_early_stopped=false). \
          Got wire JSON: {wire_text}. \
          \n\nDiagnosis: The heuristic `total_fetched_rows >= fetch_limit` (50>=50=true) is a \
@@ -713,6 +750,5 @@ async fn test_psg_rg028_wire_multi_sensor_fanout_no_early_stop_is_not_truncated(
          OR-aggregate into FanOutResult.any_early_stopped (ADR-060 §D8.3, \
          S-ENGINE-LIMIT-EARLY-STOP-001 Task 16). The LLM agent sees `\"is_truncated\":true` \
          and incorrectly signals incomplete data when the result set is actually complete.",
-        total = result.total_available
     );
 }
