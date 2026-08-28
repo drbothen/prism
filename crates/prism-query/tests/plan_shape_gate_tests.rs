@@ -1262,8 +1262,8 @@ async fn test_BC_2_16_002_plan_shape_gate_pipe_join_suppresses_early_stop() {
 /// ## Soundness Defect (ADR-060 v1.4)
 ///
 /// ADR-060 v1.4's `has_client_side_where` for `Ast::Filter` returns
-/// `!is_purely_temporal_predicate(&f.predicate)`. For a temporal GT comparison,
-/// `is_purely_temporal_predicate` returns `true` → `has_client_side_where` returns
+/// `!is_pushed_temporal_predicate(&f.predicate)`. For a temporal GT comparison,
+/// `is_pushed_temporal_predicate` returns `true` → `has_client_side_where` returns
 /// `false` → early-stop is NOT suppressed.
 ///
 /// This is UNSOUND: in `Ast::Filter` mode ALL predicates are applied client-side
@@ -1285,7 +1285,7 @@ async fn test_BC_2_16_002_plan_shape_gate_pipe_join_suppresses_early_stop() {
 /// RED (current code — no gate):
 ///   `fetch_limit = opts.limit = 25 > 0` → `last_limit = 25` ≠ 0.
 /// RED (post-Task-12 with v1.4 temporal exemption):
-///   `is_purely_temporal_predicate(GT, Literal::Timestamp)` = true →
+///   `is_pushed_temporal_predicate(GT, Literal::Timestamp)` = true →
 ///   `has_client_side_where(Ast::Filter)` = false → `fetch_limit = 25` →
 ///   `last_limit = 25` ≠ 0.
 /// GREEN (ADR-060 v1.5 fix applied):
@@ -1305,7 +1305,7 @@ async fn test_psg_filter_mode_temporal_suppresses_early_stop() {
 
     // Filter-mode temporal GT predicate.
     // Predicate: Compare { op: Gt, lhs: Field("timestamp"), rhs: Literal::Timestamp }.
-    // is_purely_temporal_predicate returns true (range comparison with Timestamp literal).
+    // is_pushed_temporal_predicate returns true (range comparison with Timestamp literal).
     // has_client_side_where(Ast::Filter) -> !true = false -> no suppression in v1.4.
     // fetch_limit = opts.limit = 25 > 0 -> adapter sees params.limit = 25.
     //
@@ -1345,8 +1345,8 @@ async fn test_psg_filter_mode_temporal_suppresses_early_stop() {
 /// ## Soundness Defect (ADR-060 v1.4)
 ///
 /// ADR-060 v1.4's `has_client_side_where` for `Ast::Pipe` returns `true` if ANY
-/// `PipeStage::Where(pred)` satisfies `!is_purely_temporal_predicate(pred)`. For a
-/// temporal GT predicate, `is_purely_temporal_predicate` returns `true`, so the
+/// `PipeStage::Where(pred)` satisfies `!is_pushed_temporal_predicate(pred)`. For a
+/// temporal GT predicate, `is_pushed_temporal_predicate` returns `true`, so the
 /// stage's contribution is `!true = false`. If all Where stages are temporal,
 /// `has_client_side_where` returns `false` → no suppression.
 ///
@@ -1365,7 +1365,7 @@ async fn test_psg_filter_mode_temporal_suppresses_early_stop() {
 /// RED (current code — no gate):
 ///   `fetch_limit = opts.limit = 25 > 0` → `last_limit = 25` ≠ 0.
 /// RED (post-Task-12 with v1.4 temporal exemption):
-///   `is_purely_temporal_predicate(GT, Literal::Timestamp)` = true →
+///   `is_pushed_temporal_predicate(GT, Literal::Timestamp)` = true →
 ///   Where-stage contribution = false → `has_client_side_where = false` →
 ///   `fetch_limit = 25` → `last_limit = 25` ≠ 0.
 /// GREEN (ADR-060 v1.5 fix applied):
@@ -1382,7 +1382,7 @@ async fn test_psg_pipe_where_temporal_suppresses_early_stop() {
 
     // Pipe-WHERE temporal GT predicate.
     // PipeStage::Where(Compare { op: Gt, lhs: Field("timestamp"), rhs: Literal::Timestamp }).
-    // is_purely_temporal_predicate returns true -> Where-stage contribution = !true = false.
+    // is_pushed_temporal_predicate returns true -> Where-stage contribution = !true = false.
     // has_client_side_where(Ast::Pipe) -> false (all Where stages are temporal) -> no suppress.
     // fetch_limit = opts.limit = 25 > 0 -> adapter sees params.limit = 25.
     //
@@ -1421,7 +1421,7 @@ async fn test_psg_pipe_where_temporal_suppresses_early_stop() {
 ///
 /// ## Soundness Defect
 ///
-/// If `is_purely_temporal_predicate` accepts equality (`Eq`) operators in addition to
+/// If `is_pushed_temporal_predicate` accepts equality (`Eq`) operators in addition to
 /// range operators (Gt, Lt, Gte, Lte), it would classify `timestamp = 'iso'` as a
 /// "purely temporal predicate" and grant the temporal exemption. But `Eq` comparisons
 /// on datetime columns are NOT pushed to the sensor server (only range-window queries
@@ -1429,20 +1429,20 @@ async fn test_psg_pipe_where_temporal_suppresses_early_stop() {
 ///
 /// ## Round-15 Fix
 ///
-/// Restrict `is_purely_temporal_predicate` to range operators ONLY (Gt, Gte, Lt, Lte,
-/// Between). Eq on a temporal field → `is_purely_temporal_predicate = false` →
+/// Restrict `is_pushed_temporal_predicate` to range operators ONLY (Gt, Gte, Lt, Lte,
+/// Between). Eq on a temporal field → `is_pushed_temporal_predicate = false` →
 /// `has_client_side_where = true` → gate suppresses → `fetch_limit = 0`.
 ///
 /// ## RED / GREEN mechanics
 ///
 /// RED (current code — no gate):
 ///   `fetch_limit = opts.limit = 25 > 0` → `last_limit = 25` ≠ 0.
-/// RED (post-Task-12, if `is_purely_temporal_predicate` includes Eq):
-///   `is_purely_temporal_predicate(Eq, Timestamp)` = true (incorrect) →
+/// RED (post-Task-12, if `is_pushed_temporal_predicate` includes Eq):
+///   `is_pushed_temporal_predicate(Eq, Timestamp)` = true (incorrect) →
 ///   `has_client_side_where(Ast::Sql)` = false → `fetch_limit = 25` →
 ///   `last_limit = 25` ≠ 0.
 /// GREEN (v1.5 fix — Eq excluded from purely-temporal):
-///   `is_purely_temporal_predicate(Eq, Timestamp)` = false →
+///   `is_pushed_temporal_predicate(Eq, Timestamp)` = false →
 ///   `has_client_side_where` = true → `fetch_limit = 0` → `last_limit = 0`.
 ///
 /// SAP-3: standard SQL `WHERE timestamp = '...' LIMIT 25` is grammar-reachable.
@@ -1453,7 +1453,7 @@ async fn test_psg_sql_eq_temporal_suppresses_early_stop() {
         build_session_context(QUERY_MEMORY_POOL_BYTES).expect("build_session_context");
 
     // SQL Eq temporal predicate (point equality, not a range comparison).
-    // If is_purely_temporal_predicate includes Eq: returns true -> no suppression.
+    // If is_pushed_temporal_predicate includes Eq: returns true -> no suppression.
     // fetch_limit = opts.limit = 25 > 0 -> adapter sees params.limit = 25.
     //
     // DataFusion may report no 'timestamp' column in mock data — assertion is on
@@ -1474,7 +1474,7 @@ async fn test_psg_sql_eq_temporal_suppresses_early_stop() {
         seen_limit, 0,
         "PSG-023 (ADR-060 v1.5 — SQL Eq temporal soundness): gate must suppress \
          early-stop for SQL timestamp equality predicate (fetch_limit=0); adapter saw \
-         params.limit={seen_limit}. If 25, is_purely_temporal_predicate is incorrectly \
+         params.limit={seen_limit}. If 25, is_pushed_temporal_predicate is incorrectly \
          classifying an Eq comparison as a temporal range push-down candidate. \
          Only GT/GTE/LT/LTE/BETWEEN are pushed server-side (ADR-033 T1); Eq is always \
          applied client-side by DataFusion."
@@ -1491,7 +1491,7 @@ async fn test_psg_sql_eq_temporal_suppresses_early_stop() {
 ///
 /// ## Soundness Defect
 ///
-/// If `is_purely_temporal_predicate` classifies any range comparison involving a
+/// If `is_pushed_temporal_predicate` classifies any range comparison involving a
 /// datetime-valued field as "purely temporal" without checking whether the column is
 /// declared INDEX in the sensor TOML spec, it would grant the temporal exemption
 /// for columns that cannot actually be pushed server-side. ADR-033 T1 server-side
@@ -1519,7 +1519,7 @@ async fn test_psg_sql_eq_temporal_suppresses_early_stop() {
 /// RED (current code — no gate):
 ///   `fetch_limit = opts.limit = 25 > 0` → `last_limit = 25` ≠ 0.
 /// RED (post-Task-12, if temporal exemption ignores INDEX status):
-///   `is_purely_temporal_predicate(GT, Timestamp on 'created_at')` = true
+///   `is_pushed_temporal_predicate(GT, Timestamp on 'created_at')` = true
 ///   (no INDEX check) → `has_client_side_where = false` → `fetch_limit = 25` →
 ///   `last_limit = 25` ≠ 0.
 /// GREEN (v1.5 fix — conservative non-INDEX default):
@@ -1535,7 +1535,7 @@ async fn test_psg_sql_non_index_temporal_suppresses_early_stop() {
 
     // SQL GT predicate on a non-INDEX datetime column ('created_at').
     // 'created_at' is not a primary temporal INDEX column; it cannot be pushed server-side.
-    // If is_purely_temporal_predicate ignores INDEX status: returns true -> no suppression.
+    // If is_pushed_temporal_predicate ignores INDEX status: returns true -> no suppression.
     // fetch_limit = opts.limit = 25 > 0 -> adapter sees params.limit = 25.
     //
     // DataFusion may report no 'created_at' column in mock data — assertion is on
@@ -1556,7 +1556,7 @@ async fn test_psg_sql_non_index_temporal_suppresses_early_stop() {
         seen_limit, 0,
         "PSG-024 (ADR-060 v1.5 — non-INDEX datetime soundness): gate must suppress \
          early-stop for a non-INDEX datetime column predicate (fetch_limit=0); adapter saw \
-         params.limit={seen_limit}. If 25, is_purely_temporal_predicate is classifying \
+         params.limit={seen_limit}. If 25, is_pushed_temporal_predicate is classifying \
          'created_at > timestamp' as a server-side push-down candidate without verifying \
          the column is declared INDEX. ADR-033 T1 push-down requires INDEX designation; \
          unknown or non-INDEX datetime columns must default to client-side (suppress)."
