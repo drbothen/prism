@@ -2632,6 +2632,148 @@ async fn test_QRY_P1_05_forced_refresh_failed_fetch_invalidates_entry() {
 }
 
 // ---------------------------------------------------------------------------
+// RG-PSG-034 (S-ENGINE-LIMIT-EARLY-STOP-001): EC-01-039 / F-R16-P17-LENSA-MED-001
+// Early-stopped response must NOT be cached as complete — `is_truncated` must
+// survive a cache round-trip.
+// ---------------------------------------------------------------------------
+
+/// Sensor adapter that (a) counts `fetch` invocations and (b) always signals
+/// early-stop in `FetchOutput` — models a sensor whose first page fills the
+/// requested limit exactly (LIMIT == page_size) while more upstream rows exist.
+struct EarlyStopCountingAdapter {
+    call_count: Arc<std::sync::atomic::AtomicUsize>,
+    /// Number of rows to emit per fetch (always == requested limit in this test).
+    row_count: usize,
+}
+
+#[async_trait]
+impl prism_sensors::adapter::SensorAdapter for EarlyStopCountingAdapter {
+    fn sensor_type(&self) -> prism_core::SensorId {
+        prism_core::SensorId::from("crowdstrike")
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "crowdstrike"
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &prism_sensors::adapter::SensorSpec,
+        _params: &prism_sensors::adapter::QueryParams,
+        _auth: &dyn prism_sensors::auth::SensorAuth,
+    ) -> Result<prism_sensors::adapter::FetchOutput, prism_sensors::adapter::SensorError> {
+        self.call_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("detection_id", arrow::datatypes::DataType::Utf8, false),
+        ]));
+        let ids: Vec<String> = (0..self.row_count).map(|i| format!("early-{i}")).collect();
+        let arr = Arc::new(arrow::array::StringArray::from(
+            ids.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+        )) as _;
+        let batch = RecordBatch::try_new(schema, vec![arr]).expect("early-stop batch");
+        // any_early_stopped = true: sensor stopped after page 1 with more rows upstream.
+        Ok(prism_sensors::adapter::FetchOutput::new(vec![batch], true))
+    }
+}
+
+/// Build a `QueryEngine` backed by a single `EarlyStopCountingAdapter`.
+fn make_early_stop_engine(
+    row_count: usize,
+) -> (
+    prism_query::engine::QueryEngine,
+    Arc<std::sync::atomic::AtomicUsize>,
+) {
+    use prism_core::OrgId;
+
+    let call_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let mut registry = AdapterRegistry::new();
+    registry.register(
+        OrgId::new(),
+        Arc::new(EarlyStopCountingAdapter {
+            call_count: Arc::clone(&call_count),
+            row_count,
+        }),
+    );
+    let engine = helpers::make_engine(registry, vec![helpers::org("acme")]);
+    (engine, call_count)
+}
+
+/// RG-PSG-034 / EC-01-039 (F-R16-P17-LENSA-MED-001, BC-2.16.002):
+/// An early-stopped response MUST NOT be cached as "complete".
+///
+/// Scenario: the adapter returns exactly `limit` rows with `any_early_stopped=true`
+/// (LIMIT == page_size; more data exists upstream). The first `execute` populates
+/// the response cache. The second identical `execute` is a cache HIT (sensor NOT
+/// fetched again). `is_truncated` must be `true` on the cached-response path.
+///
+/// CURRENT (RED): `complete = fan_result.errors.is_empty()` ignores
+/// `any_early_stopped` → the early-stopped partial is cached as "complete" →
+/// the cache-hit path never restores `any_early_stopped` → Engine Step 6 computes
+/// `is_truncated = (total_rows > limit) || false = (2 > 2) || false = false`.
+/// The assertion below therefore FAILS against HEAD @ce196ae7b.
+///
+/// GREEN CONTRACT (implementer fix):
+/// `complete = errors.is_empty() && !fan_result.any_early_stopped`
+/// → early-stopped responses are NOT cached → Query 2 re-fetches or the
+/// cache-hit path restores `any_early_stopped` → `is_truncated = true`.
+#[tokio::test]
+async fn test_psg_rg034_early_stopped_response_not_cached_as_complete() {
+    use prism_query::engine::QueryOptions;
+
+    // 2 rows returned, limit = 2 → early-stop condition (LIMIT == page_size).
+    // any_early_stopped=true means more data exists upstream.
+    let limit = 2_usize;
+    let (engine, call_count) = make_early_stop_engine(limit);
+
+    let make_options = || QueryOptions {
+        clients: Some(vec![helpers::org("acme")]),
+        limit: Some(limit),
+        ..QueryOptions::default()
+    };
+
+    // Query 1: live fetch → sensor called once → early-stop response cached (bug)
+    // or NOT cached (correct).
+    let r1 = engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options())
+        .await
+        .expect("Query 1 must succeed");
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "RG-PSG-034: Query 1 must invoke the sensor adapter exactly once"
+    );
+    // Query 1 must itself report is_truncated=true (early-stop signal present).
+    assert!(
+        r1.is_truncated,
+        "RG-PSG-034: Query 1 (live fetch) must report is_truncated=true \
+         when the adapter sets any_early_stopped=true (EC-01-039)"
+    );
+
+    // Query 2: identical SQL + same options → may be a cache HIT (if the bug
+    // incorrectly cached the partial) or a cache MISS (if correctly NOT cached).
+    // Either way, is_truncated MUST be true because more data exists upstream.
+    let r2 = engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options())
+        .await
+        .expect("Query 2 must succeed");
+
+    // PRIMARY ASSERTION (the discriminating test): is_truncated must survive
+    // the cache round-trip. With the current bug:
+    //   - cache stores the early-stopped partial as "complete" (errors.is_empty())
+    //   - cache-hit path never restores any_early_stopped
+    //   - Engine Step 6: is_truncated = (2 > 2) || false = false  ← FAILS HERE
+    assert!(
+        r2.is_truncated,
+        "RG-PSG-034 / EC-01-039: Query 2 must report is_truncated=true even \
+         when served from the response cache; an early-stopped partial response \
+         must NOT be cached as complete (complete = errors.is_empty() ignores \
+         any_early_stopped; got is_truncated=false — cached partial lost the \
+         truncation signal)"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: CRIT-1 / CRIT-2
 // SqlPipe end-to-end via QueryEngine::execute (not via bare plan_sqlpipe_query)
 // ---------------------------------------------------------------------------
