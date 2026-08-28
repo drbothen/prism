@@ -5,7 +5,7 @@ title: "LIMIT-Aware Early-Stop Pagination for Offset/Limit and Cursor Sensor Tab
 status: ACCEPTED
 date: "2026-08-26"
 modified: "2026-08-27"
-version: "1.4"
+version: "1.6"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-11, SS-16]
 supersedes: []
@@ -23,7 +23,7 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.4 (2026-08-27) — Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
+ACCEPTED v1.5 (2026-08-27) — Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate`; `Ast::Filter` + `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where`; `expr_contains_aggregate_or_window` catch-all `_ => false` → `_ => true`; `any_early_stopped` truncation-signal chain added (§D8.9). v1.4: Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
 (aggregate recursion gap) and F-R12-HIGH-001 (JOIN not suppressed), plus six additional gaps
 discovered by exhaustive grammar enumeration: ORDER BY aggregate escapes Condition A; Condition G
 was based on `where_filters` (equality push-down map) which is always empty for `Ast::Filter` mode
@@ -41,10 +41,18 @@ v1.1: §D8.1 prose correction. v1.0: initial D8 LIMIT-aware early-stop.
 
 ### Defect Evidence
 
-Live monroe validation of S-CLAROTY-VULNS-001 revealed that even after DEFECT-1 (h2 window fix,
-ADR-059) is applied, a query `SELECT * FROM claroty_vulnerabilities | LIMIT 1` downloads the
-FULL dataset (5000+ vulnerability records across multiple pages) before DataFusion applies the
-LIMIT clause, consistently exceeding the 30s query budget (E-QUERY-004).
+Live monroe validation of S-CLAROTY-VULNS-001 revealed that a query
+`SELECT * FROM claroty_vulnerabilities | LIMIT 1` downloads the FULL dataset (5000+
+vulnerability records across multiple pages) before DataFusion applies the LIMIT clause,
+consistently exceeding the 30s query budget (E-QUERY-004).
+
+**Note on DEFECT-1 (ADR-059, WITHDRAWN):** ADR-059 is WITHDRAWN (D-2312: the h2
+flow-control window hypothesis was falsified by live wire evidence; no transport change was
+applied). DEFECT-2 (this ADR) is **independent** — the LIMIT over-fetching defect exists
+regardless of h2 transport behavior. The original framing that implied DEFECT-2 was observed
+"even after ADR-059 was applied" was imprecise and is corrected here: both defects were
+investigated in the same S-CLAROTY-VULNS-001 live session, but DEFECT-2 does not depend on
+DEFECT-1 having been resolved first.
 
 Root cause: `PipelineExecutor::execute_impl` fetches ALL pages until the API signals pagination
 exhaustion or the 10K DI-019 cap is hit. There is no mechanism to stop fetching when the
@@ -160,11 +168,14 @@ the entire page arrives (and is accumulated), or a fetch error discards everythi
 
 ### D8.3 — Post-break semantics
 
-When early-stop fires (not DI-019 cap), the `truncated` flag is NOT set. The pipeline returns a
-valid `PipelineResult` with `truncated: false` containing at most `limit + (page_size - 1)` records.
-DataFusion applies the precise LIMIT on this result. The implementer MUST NOT set `truncated: true`
-for LIMIT early-stop — `truncated` is semantically reserved for capacity-exceeded conditions
-(DI-019), not for query-driven early stops.
+When early-stop fires (not DI-019 cap), the `truncated` flag is NOT set. Instead,
+`PipelineResult.early_stopped = true` is set (§D8.9). The pipeline returns a valid
+`PipelineResult` with `truncated: false` and `early_stopped: true` containing at most
+`limit + (page_size - 1)` records. DataFusion applies the precise LIMIT on this result.
+The implementer MUST NOT set `truncated: true` for LIMIT early-stop — `truncated` is
+semantically reserved for capacity-exceeded conditions (DI-019), not for query-driven early
+stops. The `early_stopped` signal propagates to engine Step 6 where it contributes to the
+`is_truncated` formula (§D8.9).
 
 ### D8.4 — Applicable pagination modes
 
@@ -323,53 +334,101 @@ fn expr_contains_aggregate_or_window(expr: &Expr) -> bool
 `Expr::Literal`, `Expr::Field`, `Expr::VirtualField`, `Expr::Star`, `Expr::Now`,
 `Expr::Interval`, `Expr::In { .. }` (literal values, no sub-expressions)
 
-**Conservative catch-all:** `_ => false` for unknown future `Expr` variants (leaf assumption).
-Exception: for `FuncCall` variants, the catch-all is `_ => true` (unknown function call types
-may be aggregates; conservative suppression is preferred over a false PERMIT).
+**Conservative catch-all:** `_ => true` for all unknown future `Expr` variants. Known
+non-aggregate leaf variants (`Expr::Literal`, `Expr::Field`, `Expr::VirtualField`, `Expr::Star`,
+`Expr::Now`, `Expr::Interval`, `Expr::In`) are enumerated explicitly returning `false`; unknown
+or future `Expr` variants (e.g., a CASE expression) are treated as potentially-aggregate →
+SUPPRESS. This extends the conservative-default posture to the Expr-recursion level: the
+terminal arm MUST be `_ => true`, NOT `_ => false`. The prior v1.3 description erroneously
+stated `_ => false` (leaf assumption); v1.5 corrects this per F-R14-LOW-001. For `FuncCall`
+variants specifically, the catch-all is also `_ => true` (unknown function call types may be
+aggregates; conservative suppression preferred over a false PERMIT). (Anchored:
+S-ENGINE-LIMIT-EARLY-STOP-001 AC-007; correctness enforced by exhaustive explicit enumeration
+of all known non-aggregate leaf Exprs returning `false` — any unlisted variant hits `_ => true`.)
 
 #### Supporting Function: `has_client_side_where`
 
 ```
-fn has_client_side_where(ast: &Ast) -> bool
+fn has_client_side_where(ast: &Ast, datetime_index_cols: &[&str]) -> bool
 ```
 
 Returns `true` iff any WHERE-position predicate in the AST will be applied client-side by
 DataFusion after fetching (i.e., is NOT guaranteed to be fully resolved server-side).
 
-Currently only temporal range predicates extracted by `extract_time_window_from_ast_from_query`
-(ADR-033 T1) are guaranteed server-side. All other predicate forms — equality comparisons, IN
-lists, `InSubquery`, CONTAINS/STARTSWITH/ENDSWITH (StringOp), BETWEEN, CIDR, Regex, Has,
-Missing, IsNull, Wildcard, and any logical combinations — are client-side.
+Only temporal range predicates on INDEX datetime columns with concrete `Literal::Timestamp` RHS,
+as determined by `is_pushed_temporal_predicate(pred, datetime_index_cols)` (§D8.9), are
+guaranteed server-side for `Ast::Sql` and `Ast::SqlPipe` head WHERE. **`Ast::Filter` predicates
+and `Ast::Pipe / Ast::SqlPipe` pipe-stage WHERE predicates are ALWAYS client-side regardless of
+predicate form** (v1.5 unconditional suppression; see arm descriptions below). All other
+predicate forms — equality comparisons, IN lists, `InSubquery`, CONTAINS/STARTSWITH/ENDSWITH
+(StringOp), BETWEEN, CIDR, Regex, Has, Missing, IsNull, Wildcard, and any logical combinations
+— are client-side.
 
 **AST-mode dispatch:**
 
-- `Ast::Filter(f)`: returns `!is_purely_temporal_predicate(&f.predicate)`. Filter-mode
-  predicates always exist and are always client-side unless the entire predicate is a temporal
-  range expression. Note: the v1.2 `where_filters` approach was INCORRECT for this mode —
+- `Ast::Filter(f)`: returns `true` UNCONDITIONALLY for all filter-mode predicates, including
+  purely temporal ones. `extract_time_bounds_from_predicate` (ADR-033 T1) does NOT process
+  `Ast::Filter` mode — temporal predicates in filter-mode queries are evaluated client-side by
+  DataFusion after the full fetch, not server-side. The v1.3 `!is_purely_temporal_predicate`
+  check for this arm was UNSOUND and is removed in v1.5; closes F-R15-LENSA-CRIT-001
+  (filter-mode path). Note: the v1.2 `where_filters` approach was also INCORRECT for this mode —
   `extract_push_down_filters_as_map` always returned an empty map for `Ast::Filter`.
 
-- `Ast::Sql(SqlStatement::Select(sql))`: returns `sql.where_.as_ref().map(|p| !is_purely_temporal_predicate(p)).unwrap_or(false)`. Note: the v1.2 `where_filters` approach was correct for
-  the equality-predicate sub-case but missed non-equality client-side predicates (CONTAINS,
-  BETWEEN, etc.).
+- `Ast::Sql(SqlStatement::Select(sql))`: returns
+  `sql.where_.as_ref().map(|p| !is_pushed_temporal_predicate(p, datetime_index_cols)).unwrap_or(false)`.
+  When the WHERE clause is absent, returns `false` (no client-side filter). When present,
+  PERMIT (`false`) only if `is_pushed_temporal_predicate` determines the whole predicate is
+  a fully server-side temporal range on an INDEX datetime column with concrete `Literal::Timestamp`
+  RHS. Note: the v1.2 `where_filters` approach was correct for the equality-predicate sub-case
+  but missed non-equality client-side predicates (CONTAINS, BETWEEN, etc.).
 
-- `Ast::Pipe(pipe)`: returns `true` iff any `PipeStage::Where(pred)` in `pipe.stages` has
-  `!is_purely_temporal_predicate(pred)`. Note: the v1.2 `where_filters` approach was INCORRECT
-  for this mode — `extract_push_down_filters_as_map` always returned an empty map for
-  `Ast::Pipe`.
+- `Ast::Pipe(pipe)`: returns `true` UNCONDITIONALLY whenever any `PipeStage::Where(_)` is
+  present in `pipe.stages`, regardless of predicate form. Pipe `| where` stages push NOTHING
+  server-side; `PipeStage::Where` is removed from the PERMIT allow-list in v1.5. The v1.3
+  `!is_purely_temporal_predicate(pred)` check for this arm was UNSOUND because `Ast::Pipe`
+  predicates are never resolved server-side by `extract_time_bounds_from_predicate`; closes
+  F-R15-LENSA-CRIT-001 (pipe-mode path). Note: the v1.2 `where_filters` approach was also
+  INCORRECT — `extract_push_down_filters_as_map` always returned an empty map for `Ast::Pipe`.
 
-- `Ast::SqlPipe(spq)`: returns `true` iff (`spq.head.where_` is non-temporal) OR any
-  `PipeStage::Where(pred)` in `spq.stages` is non-temporal.
+- `Ast::SqlPipe(spq)`: returns `true` iff (`spq.head.where_` is present AND
+  `!is_pushed_temporal_predicate(where_pred, datetime_index_cols)`) OR any `PipeStage::Where(_)`
+  is present in `spq.stages` (pipe-WHERE stages are unconditionally suppressed in v1.5;
+  see `Ast::Pipe` arm rationale above).
 
 - `Ast::Sql(SqlStatement::Dml(_))` and `_ =>`: returns `false` (DML does not use this
   pipeline; unknown variants handled by the outer gate's `_ => true` catch-all).
 
-**`is_purely_temporal_predicate(pred: &Predicate) -> bool`:** Returns `true` iff the entire
-predicate tree consists only of temporal range comparisons — specifically, `Predicate::Compare`
-nodes where one side is `Expr::Field` (a timestamp field) and the other is `Expr::Now`,
-`Expr::Interval`, `Expr::TimestampArithmetic`, or `Expr::Literal(Literal::Timestamp)` — and
-`Predicate::Logical { op: AND, .. }` nodes combining only such comparisons. All other predicate
-variants return `false`. This is the predicate shape that `extract_time_window_from_ast_from_query`
-(ADR-033 T1) fully consumes server-side.
+**`is_pushed_temporal_predicate(pred: &Predicate, datetime_index_cols: &[&str]) -> bool`:**
+Returns `true` (PERMIT early-stop for the calling WHERE clause) iff the predicate is fully
+handled server-side by the ADR-033 T1 temporal push-down mechanism. Mirrors
+`extract_time_bounds_from_predicate` exactly. Replaces the v1.3 `is_purely_temporal_predicate`
+which unsoundly permitted `Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic` (relative
+time expressions evaluated post-fetch) and non-INDEX datetime columns.
+
+**Returns `true` (PERMIT) iff ALL THREE preconditions hold:**
+1. **Range operator:** `Gt | Ge | Lt | Le` — NOT `Eq` or `Ne`. Temporal equality predicates
+   (`timestamp = X`) are not extractable by `extract_time_bounds_from_predicate` and remain
+   client-side.
+2. **LHS is an INDEX datetime column:** `Expr::Field(name)` where `name` appears in
+   `datetime_index_cols` (columns declared `index: true` + `column_type = "Datetime"` in sensor
+   TOML). Non-INDEX datetime columns are not pushed server-side.
+3. **RHS is a concrete absolute timestamp:** `Expr::Literal(Literal::Timestamp)`. Relative
+   expressions — `Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic` — are evaluated
+   by DataFusion after fetch, not by the server.
+
+**`Predicate::Logical { op: AND, lhs, rhs }`:** Recurses — returns `true` only if BOTH
+`is_pushed_temporal_predicate(lhs, datetime_index_cols)` AND
+`is_pushed_temporal_predicate(rhs, datetime_index_cols)` are `true`. Models AND-combined
+temporal ranges (e.g., `timestamp >= X AND timestamp < Y`) that `extract_time_bounds_from_predicate`
+can fully push server-side.
+
+**All other predicates return `false` (SUPPRESS):**
+- Temporal equality (`Eq` operator): not range-extractable
+- `Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic`: relative; evaluated post-fetch
+- LHS field not in `datetime_index_cols`: non-INDEX columns not pushed server-side
+- `Predicate::Logical { op: OR, .. }`: OR-combined predicates not handled by
+  `extract_time_bounds_from_predicate`; conservative suppression
+- Any other predicate form: conservative suppression
 
 #### Complete Condition Set
 
@@ -519,6 +578,88 @@ does not affect coherence. `where_filters` continues to be computed and used in 
 derivation; it is no longer forwarded to the gate function. The single `fetch_limit` binding
 remains the sole source feeding both cache key and `QueryParams.limit`.
 
+### D8.9 — `any_early_stopped` Truncation-Signal Propagation Chain and `datetime_index_cols` Threading
+
+#### Motivation
+
+When the §D8.2 early-stop `break 'steps` fires at the exact-limit boundary
+(`all_records.len() == limit`, so `total_rows == limit`), the naive formula `total_rows > limit`
+evaluates to `false`. Without a separate signal, engine Step 6 would emit `is_truncated: false`
+— silently hiding that pagination was halted before dataset exhaustion. A consumer receiving
+`is_truncated: false` at the exact-limit boundary has no signal that more data may exist.
+
+#### `PipelineResult.early_stopped: bool`
+
+When the §D8.2 `break 'steps` fires (early-stop, NOT DI-019), `PipelineResult.early_stopped = true`
+is set. This field is DISTINCT from `truncated`: `truncated` signals DI-019 capacity overflow
+(§D8.3 invariant: implementer MUST NOT set `truncated` on early-stop); `early_stopped` signals
+a query-driven early exit at the limit boundary.
+
+#### `FetchOutput` Return Type
+
+`SensorAdapter::fetch` return type changes to carry the early-stop signal out of the per-sensor
+pipeline and into the fan-out layer:
+
+```rust
+pub struct FetchOutput {
+    pub batches: Vec<RecordBatch>,
+    pub any_early_stopped: bool,
+}
+```
+
+`any_early_stopped` is set from `PipelineResult.early_stopped` of the sensor's pipeline
+execution.
+
+#### Propagation Chain
+
+The `any_early_stopped` signal propagates from the per-sensor level to engine.rs Step 6:
+
+```
+PipelineResult.early_stopped
+  → FetchOutput.any_early_stopped
+  → FanOutResult.any_early_stopped   (OR-combined across all sensors in the fan-out)
+  → MaterializationOutput.any_early_stopped
+  → engine.rs Step 6: is_truncated = (total_rows > limit) || any_early_stopped
+```
+
+#### `is_truncated` Formula at Step 6 (BC-2.11.001 EC-11-092)
+
+```rust
+let is_truncated = total_rows > limit || materialization_output.any_early_stopped;
+```
+
+When `total_rows == limit` (exact-limit boundary) AND `any_early_stopped = true`:
+- `total_rows > limit` = false
+- `any_early_stopped` = true
+- Result: `is_truncated = true` — correctly signals to the MCP consumer that pagination was
+  halted and more data may be available.
+
+`total_available` is a LOWER BOUND when `any_early_stopped = true`: the true dataset size is
+unknown because pagination was stopped before exhaustion.
+
+#### Step 6 is the SOLE Owner of Tool-Level Cap (BC-2.11.001 EC-11-093)
+
+`run_materialization_pipeline` MUST return the full filtered/aggregated result set to engine.rs
+Step 6 WITHOUT applying a tool-level pre-cap. Engine.rs Step 6 reads the full pre-cap row count
+from the materialization output, computes `total_available`, sets `is_truncated`, and then
+applies the cap. A `truncate_result_to_limit` pre-cap inside `run_materialization_pipeline`
+causes Step 6 to see the pre-capped count as `total_available`, silently producing
+`is_truncated: false` when the unfiltered count exceeds the tool limit (F-R13-CRIT-001
+prohibited behavior).
+
+The `fetch_limit` binding controls ONLY the early-stop check in the pagination loop; it does
+NOT authorize `run_materialization_pipeline` to cap the result set returned to Step 6.
+(Anchored: RG-PSG-025 `test_psg_exact_limit_is_truncated_true`)
+
+#### `datetime_index_cols` Threading
+
+`has_client_side_where(ast, datetime_index_cols)` (§D8.7) receives `datetime_index_cols` from
+`run_materialization_pipeline`. The caller derives `datetime_index_cols` from the resolved
+sensor spec: the set of column names declared `index: true` AND `column_type = "Datetime"` in
+the sensor TOML. These are the columns whose temporal range predicates ADR-033 T1 pushes
+server-side. The parameter is passed through to `is_pushed_temporal_predicate` at the predicate
+inspection level.
+
 ---
 
 ## Rationale
@@ -620,10 +761,12 @@ it only changes which N rows are returned.
 ## Source / Origin
 
 DEFECT-2 (S-CLAROTY-VULNS-001 live monroe validation, 2026-08-26). The `| LIMIT 1` query
-exhausted the 30s query budget fetching the full `claroty_vulnerabilities` dataset even after
-the h2 window fix (ADR-059) was applied. The DI-019 precedent (10K truncation as non-error
-early stop) confirmed that page-boundary early stopping is consistent with the existing
-atomicity contract.
+exhausted the 30s query budget fetching the full `claroty_vulnerabilities` dataset. ADR-059
+is WITHDRAWN (D-2312: h2 flow-control window hypothesis falsified; no transport change was
+adopted); DEFECT-2 is independent — the LIMIT over-fetching defect was observed in isolation
+and does not depend on any h2 fix. The DI-019 precedent (10K truncation as non-error early
+stop) confirmed that page-boundary early stopping is consistent with the existing atomicity
+contract.
 
 **F-R11-CRIT-001** (LOCAL cascade round-11, 2026-08-26): early-stop was firing for reducing
 queries (`SELECT COUNT(*)`, `GROUP BY severity`, WHERE-filtered projections) because
@@ -651,6 +794,8 @@ conservative default posture. All closed in v1.3.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.6 | 2026-08-27 | architect | MED-001 (F-R16-P1-MED-001): ADR-059 citation reframe — §Context §Defect Evidence and §Source/Origin clauses corrected. ADR-059 is WITHDRAWN (hypothesis falsified, D-2312); DEFECT-2 (this ADR) is independent and was observed in isolation. The prior framing implied DEFECT-2 was contingent on DEFECT-1 being applied first; that is false — the LIMIT over-fetching defect exists regardless of h2 transport behavior. No behavioral decision changes. |
+| 1.5 | 2026-08-27 | architect | Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate(pred, datetime_index_cols: &[&str])` replaces `is_purely_temporal_predicate`; mirrors `extract_time_bounds_from_predicate` (ADR-033 T1) exactly — requires range op (Gt/Ge/Lt/Le) + LHS in `datetime_index_cols` (INDEX datetime col) + RHS `Expr::Literal(Literal::Timestamp)`. `Ast::Filter` unconditionally SUPPRESS in `has_client_side_where` (closes F-R15-LENSA-CRIT-001 filter-mode path). `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where` (closes F-R15-LENSA-CRIT-001 pipe-mode path). `expr_contains_aggregate_or_window` catch-all corrected: `_ => false` (stale) → `_ => true` (conservative SUPPRESS; per F-R14-LOW-001). `datetime_index_cols: &[&str]` param threaded through `has_client_side_where` and `is_pushed_temporal_predicate`. §D8.9 `any_early_stopped` truncation-signal propagation chain: `PipelineResult.early_stopped` → `FetchOutput { batches, any_early_stopped }` → `FanOutResult.any_early_stopped` → `MaterializationOutput.any_early_stopped` → engine Step 6 `is_truncated = (total_rows > limit) \|\| any_early_stopped` (closes F-R15-LENSA-HIGH-001 exact-limit boundary). |
 | 1.4 | 2026-08-27 | architect | Subsystem-anchoring correction (F-R13-LENSC-HIGH-001): SS-11 (Query Execution) and SS-07 (Adapter Pagination & Response Cache) added to `subsystems_affected`. SS-11 owns `prism-query::materialization.rs` — the `fetch_limit` derivation and plan-shape gate enforcement site (§D8.7). SS-07 owns `execute_impl` — the per-page early-stop check (§D8.2) — and the response-cache-key coherence path where `fetch_limit` is the cache-key limit component (§D8.8). No behavioral change; frontmatter correction only. |
 | 1.3 | 2026-08-27 | architect | §D8.7 comprehensive plan-shape surface audit. Closes F-R12-CRIT-001 (aggregate recursion gap: `expr_contains_aggregate_or_window` now recurses into `FuncCall::Scalar` args and detects `FuncCall::Window`). Closes F-R12-HIGH-001 (SQL JOIN → Condition H; Pipe Join stage → Condition J). Six additional gaps closed: Condition A extended to scan `order_by` expressions; Condition G redesigned — replaced `where_filters` (equality push-down map, always empty for Filter/Pipe modes) with `has_client_side_where()` covering all four AST modes and all non-temporal predicate forms; Condition I added (PipeStage::Tail); conservative default posture added (`_ => true` catch-all for unknown AST/PipeStage variants). Signature change: `where_filters` parameter removed — gate performs its own AST inspection. Out-of-grammar shapes documented (UNION/INTERSECT/EXCEPT, CTEs, FROM subquery, OFFSET: not gated). Complete shape-classification table added. §D8.7 replaced in full; §D8.8 coherence note updated for new signature; §Consequences updated; §Source updated. |
 | 1.2 | 2026-08-26 | architect | §D8.7 plan-shape gate: closes F-R11-CRIT-001. Suppresses early-stop (`fetch_limit=0`) for reducing plans (aggregation, GROUP BY, DISTINCT, HAVING, Stats, Dedup, non-temporal WHERE). §D8.1 annotated with gating precondition. §D8.8 single-binding coherence clarification. §Consequences and §Alternatives updated. |

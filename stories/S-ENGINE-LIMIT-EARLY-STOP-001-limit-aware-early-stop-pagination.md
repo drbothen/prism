@@ -12,7 +12,7 @@ status: draft
 # TV-BC-2.16.015-006 referenced (trace-only); promoted to active by S-CLAROTY-VULNS-001 merge per POL-14, not this story.
 producer: story-writer
 timestamp: "2026-08-26T00:00:00Z"
-version: "1.13"
+version: "1.17"
 modified: "2026-08-27"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -20,8 +20,9 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.015-claroty-vulnerabilities-table.md"
   - ".factory/specs/architecture/decisions/ADR-060-limit-aware-early-stop-pagination.md"
-input-hash: "b60edc0"
-# input-hash: updated 2026-08-27 (v1.13); ADR-060 v1.5 + BC-2.16.002 v2.41 + BC-2.16.015 v1.8 inputs
+  - ".factory/specs/architecture/decisions/ADR-061-multi-tenant-cache-key-isolation-authoritative-slug-resolution.md"
+input-hash: "248f3c0"
+# input-hash: updated 2026-08-27 (v1.17); ADR-061 v1.0 added (cache-key isolation); BC-2.16.002 v2.42 (query.org_slug_resolution_failure catalog row)
 traces_to: ["BC-2.16.002", "BC-2.16.015", "BC-2.11.001"]
 points: 8
 estimated_days: 2
@@ -46,7 +47,7 @@ subsystems: [SS-01, SS-07, SS-11, SS-16]
 #     invariant that ties cache key to fan-out target. SS-07 governs the adapter pagination
 #     and response cache surface per ARCH-INDEX Subsystem Registry.
 target_module: prism-spec-engine
-crates_touched: [prism-spec-engine, prism-bin, prism-query]
+crates_touched: [prism-spec-engine, prism-bin, prism-query, prism-sensors, prism-core]
 # crates_touched:
 #   prism-query:
 #     MODIFY src/materialization.rs:
@@ -55,16 +56,37 @@ crates_touched: [prism-spec-engine, prism-bin, prism-query]
 #       (c) Update `fetch_limit` derivation in `run_materialization_pipeline` to use plan-shape gate
 #           (BEFORE fan-out target construction; where_filters computed for push-down + cache key
 #            but NOT passed to gate) per ADR-060 §D8.7
+#       (d) Add `pub any_early_stopped: bool` field to `MaterializationOutput`
+#       (e) Pick up `any_early_stopped` from `FanOutResult` after fan-out completes
+#       (f) DO NOT add heuristic `total_fetched_rows >= fetch_limit` — this is wrong on
+#           multi-sensor fan-out (multiple sensors each return < fetch_limit but their sum
+#           equals fetch_limit, none early-stopped → heuristic produces wrong is_truncated=true)
+#     MODIFY src/engine.rs:
+#       Step 6: change `let is_truncated = total_rows > limit;`
+#           to `let is_truncated = total_rows > limit || materialization_output.any_early_stopped;`
+#           (ADR-060 §D8.9 authoritative formula)
+#   prism-sensors:
+#     MODIFY src/adapter.rs:
+#       (a) Define `pub struct FetchOutput { pub batches: Vec<RecordBatch>, pub any_early_stopped: bool }`
+#       (b) Change `SensorAdapter::fetch` return type from `Result<Vec<RecordBatch>, SensorError>`
+#           to `Result<FetchOutput, SensorError>` (all impl sites must update)
+#     MODIFY src/fanout.rs:
+#       (a) Add `pub any_early_stopped: bool` field to `FanOutResult`
+#       (b) OR-aggregate `any_early_stopped` across all sensor results in `fan_out()`
+#           (`any_early_stopped = results.iter().any(|r| r.any_early_stopped)`)
 #   prism-spec-engine:
 #     MODIFY src/pipeline.rs:
 #       (a) Add `early_stop_limit: Option<usize>` field to `FetchContext` struct
 #       (b) Add `early_stop_limit: Option<usize>` parameter to `FetchContext::new`
-#       (c) Add early-stop check in `PipelineExecutor::execute_impl` loop (after DI-019 check)
+#       (c) Add `pub early_stopped: bool` field to `PipelineResult`
+#       (d) Add early-stop check in `PipelineExecutor::execute_impl` loop (after DI-019 check)
+#       (e) SET `early_stopped = true` BEFORE `break 'steps` in the §D8.2 early-stop block
 #     Callers inside pipeline.rs #[cfg(test)] blocks: ~15 in-file test sites — all pass `None`
 #   prism-bin:
 #     MODIFY src/spec_driven_adapter.rs:
-#       `SpecDrivenSensorAdapter::fetch` — map `params.limit` to `early_stop_limit` and
-#       pass to `FetchContext::new`
+#       `SpecDrivenSensorAdapter::fetch` — map `params.limit` to `early_stop_limit`,
+#       pass to `FetchContext::new`, and return
+#       `FetchOutput { batches: result.batches, any_early_stopped: pipeline_result.early_stopped }`
 #   Integration test files that call FetchContext::new must be updated to pass `None`:
 #     crates/prism-spec-engine/tests/pipeline_http_integration.rs
 #     crates/prism-spec-engine/tests/bc_2_11_007_pushdown_test.rs
@@ -81,6 +103,30 @@ crates_touched: [prism-spec-engine, prism-bin, prism-query]
 #     crates/prism-spec-engine/tests/plugin_integration_tests.rs
 #     crates/prism-spec-engine/tests/defect_csdevices_fetch_devices_fan_out.rs
 #     tests/external/non-exhaustive-violation/src/struct_violations.rs (doc-comment; read-only verify)
+#   SensorAdapter::fetch return-type sweep (all impl stubs must wrap batches as FetchOutput):
+#     PRODUCTION (returns real early_stopped signal):
+#       crates/prism-bin/src/spec_driven_adapter.rs — `FetchOutput { batches, any_early_stopped: pipeline_result.early_stopped }`
+#     TEST STUBS (mechanical wrap — `any_early_stopped: false`):
+#       crates/prism-bin/tests/boot_steps_7_8_tests.rs
+#       crates/prism-bin/tests/defect_adapter_tls_xdome_live_001.rs
+#       crates/prism-mcp/src/server.rs
+#       crates/prism-mcp/tests/bc_2_11_001_null_row_shape_test.rs
+#       crates/prism-mcp/tests/bc_s_5_04_health_test.rs
+#       crates/prism-mcp/tests/defect_t13_audit_ecode_sap3_test.rs
+#       crates/prism-mcp/tests/normalized_pql.rs
+#       crates/prism-mcp/tests/query_tool_sensor_errors_test.rs
+#       crates/prism-query/src/materialization.rs (3 in-crate mock stubs)
+#       crates/prism-query/src/tests/defect_csdevices_empty_memtable_tests.rs
+#       crates/prism-query/tests/execute_integration_tests.rs
+#       crates/prism-query/tests/filter_mode.rs
+#       crates/prism-query/tests/pipe_execution_tests.rs
+#       crates/prism-sensors/src/tests/bc_2_01_002.rs
+#       crates/prism-sensors/src/tests/bc_2_01_010.rs
+#       crates/prism-sensors/src/tests/bc_2_01_013.rs
+#       crates/prism-sensors/src/tests/bc_2_01_013_sensorid.rs
+#       crates/prism-sensors/tests/cr013_fan_out_org_id_consistency.rs
+#       crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs
+#       crates/prism-sensors/tests/org_id_binding.rs
 capabilities:
   - CAP-029
 behavioral_contracts:
@@ -107,7 +153,8 @@ blocks: [S-CLAROTY-VULNS-001]
 #   (S-ENGINE-H2-LARGE-RESPONSE-001), a `SELECT * LIMIT 1` against claroty_vulnerabilities
 #   fetches ALL pages (DEFECT-2, ADR-060 §Context), exhausting the 30s budget. This story
 #   prevents that by stopping after ceil(1/1000) = 1 page (ADR-060 §Consequences).
-acceptance_criteria_count: 9
+acceptance_criteria_count: 13
+red_gate_tests: 41
 risk: MEDIUM
 # Risk justification:
 #   FetchContext::new signature expansion is a BREAKING CHANGE for all callers.
@@ -208,7 +255,9 @@ streak per BC-5.39.001.
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | v2.41 | §Postconditions "LIMIT-Aware Early-Stop Pagination (ADR-060 §D8)": FetchContext field, execute_impl check placement, truncated=false semantics, applicable pagination modes, D8.5 ORDER BY limitation. Plan-Shape Gate (ADR-060 §D8.7 v1.3 / §D8.9 v1.5): Conditions A–J + conservative default suppress early-stop; where_filters NOT forwarded to gate; `fetch_limit=0` sentinel flow through `QueryParams.limit=0` → `FetchContext::early_stop_limit=None`; EC-016-002-001..018, EC-01-030..033 edge cases. Temporal-exemption soundness (§D8.9 v1.5): `Ast::Filter` unconditionally suppressed; `PipeStage::Where` unconditionally suppressed; `is_pushed_temporal_predicate` (range-op + INDEX datetime column + `Literal::Timestamp` RHS) replaces `is_purely_temporal_predicate` for SQL/SqlPipe-head WHERE. `PipelineResult.early_stopped: bool` + `FetchOutput { batches, any_early_stopped }` return-type contract; `any_early_stopped` propagation chain: FetchOutput → FanOutResult → MaterializationOutput → engine Step 6. Atomicity-reconciliation scope clause. |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | v2.42 | §Postconditions "LIMIT-Aware Early-Stop Pagination (ADR-060 §D8)": FetchContext field, execute_impl check placement, truncated=false semantics, applicable pagination modes, D8.5 ORDER BY limitation. Plan-Shape Gate (ADR-060 §D8.7 v1.3 / §D8.9 v1.5): Conditions A–J + conservative default suppress early-stop; where_filters NOT forwarded to gate; `fetch_limit=0` sentinel flow through `QueryParams.limit=0` → `FetchContext::early_stop_limit=None`; EC-016-002-001..018, EC-01-030..033 edge cases. Temporal-exemption soundness (§D8.9 v1.5): `Ast::Filter` unconditionally suppressed; `PipeStage::Where` unconditionally suppressed; `is_pushed_temporal_predicate` (range-op + INDEX datetime column + `Literal::Timestamp` RHS) replaces `is_purely_temporal_predicate` for SQL/SqlPipe-head WHERE. `PipelineResult.early_stopped: bool` + `FetchOutput { batches, any_early_stopped }` return-type contract; `any_early_stopped` propagation chain: FetchOutput → FanOutResult → MaterializationOutput → engine Step 6. Atomicity-reconciliation scope clause. |
+
+*BC-2.16.002 v2.42 addendum (ADR-061 D8): Canonical Structured Event Catalog row 97 — `query.org_slug_resolution_failure` WARN added (two emission sites in `crates/prism-query/src/materialization.rs`: `resolve_source_refs` ALL-scope D5 arm and bare-filter Step 3b D4 arm). Catalog count 96→97; catalog label `(v1.70)` → `(v1.71)`. SAP-1 obligation: both `tracing::warn!` emission sites must appear in the same commit as the ADR-061 D2/D4/D5 fix (anchored to RG-SLUG-001, RG-SLUG-003).*
 
 *BC-2.16.015 (trace-only — not in behavioral_contracts): EC-016-015-007 (LIMIT 1 early-stop, unaffected by §D8.7), EC-016-015-008 (COUNT suppresses early-stop), TV-BC-2.16.015-006. Core contract delivered by S-CLAROTY-VULNS-001; promoted to active on that story's merge per POL-14, not this story. See §References.*
 
@@ -366,7 +415,7 @@ early-stop does NOT fire; full pagination to DI-019 10K cap (pre-story behavior)
 
 (c) **SQL temporal PERMIT preconditions** (`Ast::Sql`, `Ast::SqlPipe` head WHERE only): `is_pushed_temporal_predicate(pred, datetime_index_cols)` returns `true` (PERMIT) iff ALL hold: range operator (Gt/Ge/Lt/Le — NOT Eq/Ne), LHS field in `datetime_index_cols` (INDEX datetime column), RHS `Expr::Literal(Literal::Timestamp)` (concrete absolute timestamp). Temporal equality, `Expr::Now`, `Expr::Interval`, relative expressions, and non-INDEX datetime columns SUPPRESS.
 
-**Tests:** RG-PSG-021, RG-PSG-022, RG-PSG-023, RG-PSG-024
+**Tests:** RG-PSG-021, RG-PSG-022, RG-PSG-023, RG-PSG-024, RG-PSG-029
 
 ### AC-009: `any_early_stopped` propagates through FetchOutput → engine Step 6; `is_truncated = (total_rows > limit) OR any_early_stopped`; Step 6 is the SOLE owner of tool-level cap (traces to BC-2.11.001 EC-11-092, EC-11-093; ADR-060 §D8.3/§D8.9)
 
@@ -376,7 +425,50 @@ early-stop does NOT fire; full pagination to DI-019 10K cap (pre-story behavior)
 
 (c) **Step 6 is the SOLE owner of tool-level cap**: `run_materialization_pipeline` MUST return the full filtered/aggregated result set to engine.rs Step 6 WITHOUT applying a tool-level pre-cap. Engine.rs Step 6 computes `total_available` from the full pre-cap count returned by materialization, then applies the cap. A pre-cap inside materialization causes Step 6 to see the pre-capped count as `total_available`, producing `is_truncated: false` (incorrect) when the unfiltered count exceeds the tool limit (F-R13-CRIT-001 prohibited behavior).
 
-**Test:** RG-PSG-025
+(d) **Wire-level MCP assertion (wire-shape discipline):** The `is_truncated` signal MUST be verifiable at the serialized JSON layer of the `prism_query` MCP tool response — not only at the pre-serialization Rust-struct layer (`QueryResult` is not `Serialize`; RG-PSG-025 covers only the struct layer). Two wire assertions are required (traces to BC-2.11.001 EC-11-092, EC-11-093):
+- **Exact-limit (bare projection):** a `prism_query` MCP call with bare-projection `LIMIT N` where N equals the mock page_size (exact-limit boundary, `any_early_stopped = true`) returns `"is_truncated": true` in the serialized `CallToolResult` JSON, confirming the `any_early_stopped` OR term of EC-11-092 propagates through to the MCP wire.
+- **Temporal-WHERE suppression:** a `prism_query` MCP call with a temporal `| where` predicate + `LIMIT N` at the exact boundary returns `"is_truncated": false` in the JSON (`ast_is_reducing_plan = true` via Condition G unconditional Pipe-WHERE suppression → early-stop disabled → `any_early_stopped = false` → formula reduces to `total_rows > limit = false`). Confirms suppression logic does not bleed through to produce false-positive `is_truncated: true` at the wire.
+
+**Test:** RG-PSG-025 (Rust-struct layer), RG-PSG-026 (MCP wire layer)
+
+### AC-010: `resolve_source_refs` ALL-scope — `org_registry: Some(reg)` + slug missing → fan-out target SKIPPED + `tracing::warn!(event_type = "query.org_slug_resolution_failure")`; `org_registry: None` → D3 synthetic slug used, target IS included (traces to BC-2.16.002 §`query.org_slug_resolution_failure` catalog row v2.42; ADR-061 D2, D3, D5)
+
+The unified `let Some(client_slug) = org_registry.as_ref().and_then(...)` `else` branch in `resolve_source_refs` (`crates/prism-query/src/materialization.rs`) is replaced with a three-arm `match` dispatch per ADR-061 D5:
+
+- **`Some(slug)` arm**: authoritative slug from `OrgRegistry` — D1 path. `FanOutTarget` constructed with this `client_id`. Cache-key derivation receives an authoritative `OrgSlug`.
+- **`None if org_registry.is_some()` arm**: registry present, slug absent — D2 fail-closed path. No `FanOutTarget` pushed for this org; a structured `tracing::warn!` with `event_type = "query.org_slug_resolution_failure"` and `org_id = %org_id` is emitted; `continue` to next org. AD-017 tenant isolation is satisfied (no data served under wrong identity).
+- **`None` arm** (D3 test/MVP mode): `org_registry` is entirely absent. Synthetic slug from deterministic prefix form used; `FanOutTarget` IS included.
+
+The unified `else` branch that previously synthesized a slug for BOTH conditions (registry absent AND registry present but slug missing) is removed. `mat_ctx.org_registry` is already available at this callsite.
+
+**Tests:** RG-SLUG-001 (D2 path: skip + warn), RG-SLUG-002 (D3 path: synthetic slug included)
+
+### AC-011: Bare-filter fan-out Step 3b (`Ast::Filter` adapter loop) — same three-arm dispatch: `org_registry: Some(reg)` + slug missing → target NOT pushed, warn fired; `org_registry: None` → synthetic slug, target IS pushed (traces to BC-2.16.002 §`query.org_slug_resolution_failure` catalog row v2.42; ADR-061 D2, D3, D4)
+
+The bare-filter `Ast::Filter` adapter loop in `crates/prism-query/src/materialization.rs` (bare-filter fan-out Step 3b) is updated per ADR-061 D4. The existing line that synthesized `OrgSlug::new(format!("org-{}", &org_id.to_string()[..8]))` **without ever consulting `mat_ctx.org_registry`** is replaced with the same three-arm dispatch pattern as AC-010. `mat_ctx.org_registry` is already available at this callsite via `pub(crate) org_registry` on `MaterializationContext` — no new field threading required.
+
+The code comment at Site 1 claiming "no OrgRegistry available in bare-filter test path" is factually wrong in the current codebase and is removed as part of this fix.
+
+**Tests:** RG-SLUG-003 (D2 path: skip + warn), RG-SLUG-004 (D3 path: synthetic slug included)
+
+### AC-012: `"synthetic-unmapped"` sentinel ABSENT from all production code paths; deterministic `x`-prefix form used for D3 test-mode UUID-prefix-validation failures; `crates/prism-core/tests/org_slug_from_uuid_prefix.rs` deleted (traces to ADR-061 D3, D7)
+
+The static sentinel `OrgSlug::new("synthetic-unmapped")` is removed unconditionally from all production (non-`#[cfg(test)]`) code paths in `crates/prism-query/src/materialization.rs`. It is superseded by the D3 deterministic-prefix form: `format!("org-{}", &org_id.to_string()[..8])` when the prefix is a valid `OrgSlug`, and `format!("org-x{}", &org_id.to_string()[..7])` when the prefix starts with a digit (preserving per-org isolation for all test-mode UUIDs). The `"synthetic-unmapped"` constant collapses ALL orgs whose UUID prefix fails `OrgSlug` validation into a SINGLE shared cache partition — this is a total cross-tenant collapse risk with no valid production use case.
+
+`crates/prism-core/tests/org_slug_from_uuid_prefix.rs` is deleted per ADR-061 D7. This test asserts the 8-hex synthesis pattern as correct behavior; leaving it would allow adversarial review to class-close the defect as "tested and valid."
+
+**Test:** RG-SLUG-006 (`test_rg_slug_006_synthetic_unmapped_sentinel_absent`)
+
+### AC-013: Wire-level cross-tenant isolation — two `OrgId`s with matching first-8-hex-char prefixes produce DISTINCT cache keys via `OrgRegistry`; serialized JSON for tenant B contains ZERO rows from tenant A (traces to ADR-061 D1, D9 RG-SLUG-005; CWE-284/CWE-340/OWASP A01 regression closed; BC-2.16.002 §`query.org_slug_resolution_failure` catalog row v2.42)
+
+Two `OrgId` values engineered so that `org_id_a.to_string()[..8] == org_id_b.to_string()[..8]` (simulating concurrent onboarding within the same ~65-second UUIDv7 timestamp window) are registered in an `OrgRegistry` with DISTINCT slugs (`"tenant-alpha"` / `"tenant-beta"`). Each tenant has distinct seeded rows — tenant A's rows carry a distinguishing field value that tenant B's rows do not. A bare-predicate filter query (e.g., `severity = 'HIGH'`) is issued as each tenant via `QueryEngine::execute` respectively. Assertion is on the **serialized JSON** response (wire-shape discipline, CLAUDE.md §Conventions):
+
+- Tenant A query: serialized response contains tenant A's rows; ZERO occurrences of tenant B's distinguishing value in the JSON bytes.
+- Tenant B query: serialized response contains ZERO occurrences of tenant A's distinguishing field value in the JSON bytes.
+
+This confirms ADR-061 D1 (cache-key identity invariant): `derive_response_cache_key` receives an authoritative `OrgSlug` for each tenant, producing distinct cache partitions. Before the fix, `client_id` was `"org-<8-hex>"` for both tenants (same prefix → same partition → tenant B reads tenant A's cached sensor rows).
+
+**Test:** RG-SLUG-005 (`test_rg_slug_005_cross_tenant_wire_isolation_collision_resistant_cache_keys`)
 
 ## Red Gate Tests
 
@@ -414,8 +506,20 @@ early-stop does NOT fire; full pagination to DI-019 10K cap (pre-story behavior)
 | RG-PSG-023 | `test_psg_sql_eq_temporal_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-008(c) EC-01-032: SQL temporal equality predicate (`WHERE timestamp = '2024-06-15T00:00:00Z'` — Eq operator, not a range op) — `is_pushed_temporal_predicate` returns `false` (Eq is NOT Gt/Ge/Lt/Le; `extract_time_bounds_from_predicate` does not extract temporal equality predicates) → `has_client_side_where = true` → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL if temporal equality is treated as a server-side push-down. Located in `plan_shape_gate_tests.rs`. |
 | RG-PSG-024 | `test_psg_sql_non_index_temporal_suppresses_early_stop` | END-TO-END / Integration via `run_materialization_pipeline`, in-process `PlanShapeGateMockAdapter` | AC-008(c) EC-01-033: SQL temporal range on non-INDEX datetime column (`WHERE updated_at >= '2024-01-01T00:00:00Z'` where `updated_at` is NOT in `datetime_index_cols`) — `is_pushed_temporal_predicate` returns `false` (column not in `datetime_index_cols` — only columns declared `index: true` + `column_type = "Datetime"` in sensor TOML are eligible) → `has_client_side_where = true` → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages fetched. MUST FAIL if non-INDEX temporal ranges are treated as pushed. Located in `plan_shape_gate_tests.rs`. |
 | RG-PSG-025 | `test_psg_exact_limit_is_truncated_true` | END-TO-END / Integration via `QueryEngine::execute` (in `crates/prism-query/tests/execute_integration_tests.rs`) | AC-009(b) EC-11-092/EC-11-093: early-stop fires at the exact-limit boundary (`options.limit = 100`, 3-page mock where first page returns exactly 100 rows, `any_early_stopped = true`); `is_truncated = (total_rows > limit) OR any_early_stopped = true` even though `total_rows == limit` (so `total_rows > limit` is false). Without the `any_early_stopped` OR term, the response would return `is_truncated: false` at the boundary — silently hiding that pagination was halted. Also verifies Step 6 sole-owner (EC-11-093): `total_available = 100` (full pre-cap count; materialization did not pre-cap), `returned_results = 100` (cap = limit = 100). MUST FAIL before `any_early_stopped` propagation chain is implemented. |
+| RG-PSG-026 | `test_psg_rg026_prism_query_wire_surfaces_truncation_signal` | MCP integration — prism-bin MCP tool tests (`crates/prism-bin/tests/mcp_integration_tests.rs` or equivalent MCP stdio test file; spawns prism start subprocess or uses in-process MCP dispatch with a DTU-style mock) | AC-009(d) EC-11-092/EC-11-093 wire-level: issues two `prism_query` MCP calls and asserts on the SERIALIZED `CallToolResult.content[0].text` JSON — (1) bare-projection `LIMIT N` where N equals mock page_size (exact-limit boundary, `any_early_stopped = true`): asserts `"is_truncated": true` in wire JSON; (2) temporal `\| where` + `LIMIT N` at same exact boundary (gate Condition G unconditional Pipe-WHERE suppression → early-stop disabled → `any_early_stopped = false` → `total_rows == limit` → `total_rows > limit` false): asserts `"is_truncated": false` in wire JSON. Wire-shape discipline (CLAUDE.md 2026-07-13): any test covering an MCP-visible surface MUST assert on the serialized JSON the LLM agent consumes. RG-PSG-025 covers only the Rust-struct layer (`QueryResult` is not `Serialize`); this test closes the MCP wire gap. MUST FAIL before `any_early_stopped` propagation chain is implemented AND before the `prism_query` tool response correctly serializes `is_truncated` from the `(total_rows > limit) OR any_early_stopped` formula. |
 
-**BC-5.38.001 density check:** 31 Red Gate tests (RG-001 through RG-006 + RG-PSG-001 through RG-PSG-025; RG-003, RG-PSG-007, RG-PSG-008 are regression/positive-control sentinels that pass in both states) / 9 acceptance criteria ≈ 3.44 ≥ 0.5 threshold. PASS.
+| RG-PSG-027 | `test_psg_multi_sensor_fanout_exact_limit_one_early_stopped_is_truncated_true` | END-TO-END / Integration via `QueryEngine::execute` (in `crates/prism-query/tests/execute_integration_tests.rs`) | AC-009(a) multi-sensor OR-aggregation: 2-sensor fan-out, `options.limit = 50`; sensor1 returns 40 rows (no early-stop); sensor2 returns 10 rows and early-stops at the page boundary; `FanOutResult.any_early_stopped = true` (OR-aggregate of sensor1.any_early_stopped=false OR sensor2.any_early_stopped=true); `total_rows = 50 = limit`; Step 6: `is_truncated = (50 > 50) || true = true`. MUST FAIL before `FetchOutput.any_early_stopped` propagation chain is implemented (any_early_stopped will be false if chain is missing → is_truncated=false wrongly). Gates the OR-aggregation path through fanout.rs → MaterializationOutput → engine.rs Step 6 on a multi-sensor exact-limit boundary. |
+| RG-PSG-028 | `test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated` | END-TO-END / Integration via `QueryEngine::execute` (`crates/prism-query/tests/execute_integration_tests.rs`) + wire-level MCP assertion (`crates/prism-bin/tests/mcp_integration_tests.rs`) | AC-009(a) heuristic-rejection gate: 2-sensor fan-out, `options.limit = 50`; sensor1 returns 25 rows (no early-stop); sensor2 returns 25 rows (no early-stop); `FanOutResult.any_early_stopped = false`; `total_rows = 50 = limit`; Step 6: `is_truncated = (50 > 50) || false = false`. MUST FAIL with the heuristic `total_fetched_rows >= fetch_limit` (50 >= 50 = true → wrong is_truncated=true). MUST PASS only with the correct `any_early_stopped` OR term. Wire-level assertion in `crates/prism-bin/tests/mcp_integration_tests.rs` asserts `"is_truncated": false` in the serialized `CallToolResult.content[0].text` JSON (wire-shape discipline, CLAUDE.md 2026-07-13). This is the canonical multi-sensor heuristic-rejection test: the heuristic gives the wrong answer; the correct chain gives the right answer. |
+| RG-PSG-029 | `test_psg_relative_temporal_now_interval_suppresses_early_stop` | END-TO-END via `QueryEngine::execute` from a real SQL string (`crates/prism-query/tests/plan_shape_gate_tests.rs`) | AC-008(c) relative-temporal RHS soundness gap (F-R16-P1-CRIT-001): SQL `WHERE <index_datetime_col> >= now() - interval '7d' LIMIT N` — `Expr::Now`/`Expr::Interval`/`Expr::TimestampArithmetic` RHS → `is_pushed_temporal_predicate` returns `false` (precondition (c) requires `Expr::Literal(Literal::Timestamp)` RHS; relative-temporal forms fail this precondition) → `has_client_side_where = true` → `ast_is_reducing_plan = true` → `fetch_limit = 0` → early-stop SUPPRESSED → full pagination (`fetch_limit=0` → `early_stop_limit=None`). MUST FAIL against current code which PERMITs relative-temporal via `is_temporal_expr` accepting `Now`/`Interval`/`TimestampArithmetic`. Optional sub-case: `Expr::TimestampArithmetic` RHS for completeness. Located in `crates/prism-query/tests/plan_shape_gate_tests.rs`. |
+
+| RG-SLUG-001 | `test_rg_slug_001_resolve_source_refs_registry_present_slug_missing_skips_target_emits_warn` | Unit — prism-query, `resolve_source_refs` with `org_registry: Some(reg)` populated but no slug for test org_id (`crates/prism-query/tests/slug_isolation_tests.rs` or in-crate unit test) | AC-010 D2 path: after `resolve_source_refs` executes, the target list does NOT contain a `FanOutTarget` for the unmapped org_id; a `tracing::warn!` with `event_type = "query.org_slug_resolution_failure"` and `org_id = %unmapped_org_id` was captured. MUST FAIL before Task 18 (D5 fix not applied — unified `else` branch still synthesizes a slug and pushes the target). |
+| RG-SLUG-002 | `test_rg_slug_002_resolve_source_refs_registry_absent_synthetic_slug_included` | Unit — prism-query, `resolve_source_refs` with `org_registry: None` (no registry injected — D3 test mode) | AC-010 D3 path: synthetic slug is generated from org_id prefix; `FanOutTarget` IS included in the result list. Regression sentinel — PASSES both before and after Task 18 (D3 preservation must not be broken). |
+| RG-SLUG-003 | `test_rg_slug_003_bare_filter_step3b_registry_present_slug_missing_skips_target_emits_warn` | Unit — prism-query, bare-filter Step 3b `Ast::Filter` adapter loop with `org_registry: Some(reg)` but no slug for test org_id | AC-011 D2 path: `FanOutTarget` NOT pushed in the bare-filter adapter loop for the unmapped org; a `tracing::warn!` with `event_type = "query.org_slug_resolution_failure"` captured. MUST FAIL before Task 18 (D4 fix not applied — bare-filter Step 3b never consulted `mat_ctx.org_registry`, so the unmapped org gets a synthetic `client_id` and a `FanOutTarget` IS pushed). |
+| RG-SLUG-004 | `test_rg_slug_004_bare_filter_step3b_registry_absent_synthetic_slug_included` | Unit — prism-query, bare-filter Step 3b `Ast::Filter` adapter loop with `org_registry: None` (D3 test mode) | AC-011 D3 path: synthetic slug generated; `FanOutTarget` IS pushed. Regression sentinel — PASSES both before and after Task 18. |
+| RG-SLUG-005 | `test_rg_slug_005_cross_tenant_wire_isolation_collision_resistant_cache_keys` | END-TO-END — `QueryEngine::execute` in `crates/prism-query/tests/execute_integration_tests.rs`; two `OrgId`s constructed so their first-8-hex-char prefix values are identical; both registered in a shared `OrgRegistry` with DISTINCT slugs; distinct seeded rows per tenant; bare-predicate filter query issued once per tenant; WIRE-LEVEL assertion on serialized JSON response bytes | AC-013: tenant-A query serialized JSON contains tenant A rows and ZERO occurrences of tenant B's distinguishing field value. Tenant-B query serialized JSON contains ZERO occurrences of tenant A's distinguishing field value. Confirms ADR-061 D1 cache-key identity invariant: distinct `OrgSlug`s produce distinct `CacheKey` partitions even when org_id UUID prefixes collide. Wire-shape discipline (CLAUDE.md §Conventions): assertion on serialized bytes, not pre-serialization Rust structs. MUST FAIL before Task 18 (Sites 1+2 not fixed: 8-hex `client_id` for both tenants → same `CacheKey` partition → tenant B reads tenant A's cached rows). |
+| RG-SLUG-006 | `test_rg_slug_006_synthetic_unmapped_sentinel_absent` | In-crate unit test — `materialization.rs` `#[cfg(test)] mod slug_isolation_tests`; reads production module source via `include_str!` or checks a `const`; asserts that the string literal `"synthetic-unmapped"` is absent from non-`#[cfg(test)]` production code paths | AC-012: `"synthetic-unmapped"` sentinel removed. MUST FAIL before Task 19 (Site 3 sentinel not yet removed). Green after Task 19. |
+
+**BC-5.38.001 density check:** 41 Red Gate tests (RG-001 through RG-006 + RG-PSG-001 through RG-PSG-029 + RG-SLUG-001 through RG-SLUG-006; RG-003, RG-PSG-007, RG-PSG-008, RG-SLUG-002, RG-SLUG-004 are regression/positive-control sentinels that pass in both states) / 13 acceptance criteria ≈ 3.15 ≥ 0.5 threshold. PASS.
 
 **Note on RG-003 semantics:** RG-003 (`early_stop_limit=None` fetches all pages) passes BOTH before and after the implementation because `None` must preserve the current behavior. It is a regression gate confirming the existing full-pagination path is not broken.
 
@@ -475,7 +579,7 @@ effectful behavior change is fetching FEWER pages, never adding new I/O.
 
 | Item | Estimated tokens |
 |------|-----------------|
-| This story spec | ~10,000 |
+| This story spec | ~10,500 |
 | BC-2.16.002 §Postconditions LIMIT-Aware Early-Stop section + §D8.7/§D8.9 plan-shape gate + EC-016-002-001..018 + EC-01-030..033 + §Atomicity Reconciliation clause (1 BC in behavioral_contracts) | ~3,000 |
 | BC-2.11.001 EC-11-092, EC-11-093 (trace reference — not in behavioral_contracts; relevant sections only) | ~500 |
 | BC-2.16.015 EC-016-015-007, EC-016-015-008 + TV-BC-2.16.015-006 (trace reference — not in behavioral_contracts; relevant sections only) | ~500 |
@@ -485,7 +589,8 @@ effectful behavior change is fetching FEWER pages, never adding new I/O.
 | `crates/prism-query/src/materialization.rs` (`fetch_limit` derivation + `ast_is_reducing_plan` gate + `run_materialization_pipeline`) | ~3,000 |
 | ~14 integration test files (skimmed for FetchContext::new call sites; read only affected lines) | ~5,000 |
 | ~15 in-file test sites (pipeline.rs #[cfg(test)] FetchContext::new calls) | ~3,000 |
-| **Total estimate** | **~32,500 tokens** |
+| `crates/prism-bin/tests/mcp_integration_tests.rs` (MCP wire test region; RG-PSG-026 — read only the relevant `prism_query` tool test area) | ~1,500 |
+| **Total estimate** | **~34,500 tokens** |
 
 Well within 20-30% of a 200K context window. For the sibling sweep (Task 5), load each
 integration test file targeted by reading only the `FetchContext::new` call site (grep-then-read
@@ -551,18 +656,23 @@ pattern) to minimize context consumption.
   to confirm the crate compiles. Then run `just iter prism-spec-engine` — RG-001 MUST turn GREEN.
   All in-file test sites that were updated in Task 5 must compile.
 
-- [ ] **Task 7 (Implementation — execute_impl early-stop check):** Insert the early-stop block
-  in `PipelineExecutor::execute_impl` in `crates/prism-spec-engine/src/pipeline.rs` immediately
-  after the DI-019 `MAX_PIPELINE_RECORDS` truncation block (the block ending in `truncated = true; break 'steps;`):
+- [ ] **Task 7 (Implementation — execute_impl early-stop check + PipelineResult.early_stopped field):**
+  First, add `pub early_stopped: bool` to `PipelineResult` in `crates/prism-spec-engine/src/pipeline.rs`
+  and initialize `let mut early_stopped = false;` before the `'steps:` loop in `execute_impl`.
+  Then insert the early-stop block immediately after the DI-019 `MAX_PIPELINE_RECORDS` truncation
+  block (the block ending in `truncated = true; break 'steps;`):
   ```rust
   // ADR-060 §D8.2: LIMIT-aware early-stop. Fires at COMPLETE page boundary, after DI-019.
   // truncated is NOT set — this is a success-path query-driven early exit, not a capacity overflow.
+  // CRITICAL: early_stopped MUST be set to true BEFORE break 'steps.
   if let Some(limit) = context.early_stop_limit {
       if all_records.len() >= limit {
+          early_stopped = true;  // ADR-060 §D8.3: set BEFORE break — propagates to FetchOutput.any_early_stopped
           break 'steps;
       }
   }
   ```
+  Set `early_stopped` in the returned `PipelineResult` so the production adapter can read it.
   Applies to `OffsetLimit` and `CursorToken` pagination (the outer loop label `'steps:` covers
   both; `PaginationConfig::None` breaks naturally after one iteration). After editing: run
   `just iter prism-spec-engine` — RG-002 MUST turn GREEN; RG-003 MUST remain GREEN.
@@ -581,9 +691,9 @@ pattern) to minimize context consumption.
   Records count = 1000 (first page; DataFusion trims to 1 downstream).
   This is the direct test vector for BC-2.16.015 TV-BC-2.16.015-006.
 
-- [ ] **Task 9 (Implementation — spec_driven_adapter wiring):** In `SpecDrivenSensorAdapter::fetch`
-  in `crates/prism-bin/src/spec_driven_adapter.rs`, insert immediately before
-  `let context = FetchContext::new(...)`:
+- [ ] **Task 9 (Implementation — spec_driven_adapter wiring + FetchOutput return):** In
+  `SpecDrivenSensorAdapter::fetch` in `crates/prism-bin/src/spec_driven_adapter.rs`, insert
+  immediately before `let context = FetchContext::new(...)`:
   ```rust
   // ADR-060 §D8.1: the query LIMIT is pre-extracted into QueryParams.limit (u64) before this call;
   // map 0 => None else Some(n) into FetchContext.early_stop_limit.
@@ -593,6 +703,10 @@ pattern) to minimize context consumption.
   Update the `FetchContext::new` call to:
   ```rust
   let context = FetchContext::new(self.sensor_spec.org_slug.clone(), query_filters, early_stop_limit);
+  ```
+  Update the return to wrap in `FetchOutput` (ADR-060 §D8.3/§D8.9 chain):
+  ```rust
+  Ok(FetchOutput { batches: pipeline_result.batches, any_early_stopped: pipeline_result.early_stopped })
   ```
   After editing: run `just iter prism-bin` — RG-005 MUST turn GREEN.
 
@@ -696,6 +810,13 @@ pattern) to minimize context consumption.
     SQL query `WHERE updated_at >= '2024-01-01T00:00:00Z'` where `updated_at` is NOT an INDEX
     datetime column. Assert `ast_is_reducing_plan = true`; `fetch_limit = 0`. MUST FAIL before
     Task 12.
+  - RG-PSG-029 (`test_psg_relative_temporal_now_interval_suppresses_early_stop`) in the same file.
+    SQL query `WHERE <index_datetime_col> >= now() - interval '7d' LIMIT N` — relative-temporal
+    RHS (`Expr::Now`/`Expr::Interval`/`Expr::TimestampArithmetic`) → `is_pushed_temporal_predicate`
+    returns `false` (precondition (c) requires `Expr::Literal(Literal::Timestamp)` RHS) →
+    `has_client_side_where = true` → `ast_is_reducing_plan = true` → `fetch_limit = 0`; all pages
+    fetched. MUST FAIL against current code (which PERMITs relative-temporal). Write RED; Task 12
+    makes it GREEN. (Anchored: AC-008(c); F-R16-P1-CRIT-001)
 
   **`any_early_stopped` propagation / exact-limit truncation signal (END-TO-END via `QueryEngine::execute`):**
   - RG-PSG-025 (`test_psg_exact_limit_is_truncated_true`) in
@@ -706,6 +827,37 @@ pattern) to minimize context consumption.
     `returned_results = 100`. MUST FAIL before `any_early_stopped` propagation chain is
     implemented. Write RED; Task 11 (`any_early_stopped` wiring) or Task 12 (gate impl)
     makes it GREEN.
+
+  **MCP wire-level (MCP integration in `crates/prism-bin/tests/mcp_integration_tests.rs` or equivalent MCP stdio test file):**
+  - RG-PSG-026 (`test_psg_rg026_prism_query_wire_surfaces_truncation_signal`): spawns the MCP
+    server (or uses in-process MCP dispatch) with a DTU-style mock returning exactly N records
+    per page. Makes two `prism_query` MCP calls: (1) bare-projection `LIMIT N` at exact
+    boundary — asserts `"is_truncated": true` in the serialized `CallToolResult` JSON content
+    text; (2) temporal `| where` predicate + `LIMIT N` at same boundary (gate Condition G
+    unconditional Pipe-WHERE suppression → early-stop disabled → `any_early_stopped = false`
+    → `total_rows == limit` → formula `total_rows > limit = false`) — asserts
+    `"is_truncated": false` in wire JSON. Wire-shape discipline (CLAUDE.md 2026-07-13):
+    MCP-visible surfaces MUST be asserted at the serialized JSON level; `QueryResult` is not
+    `Serialize` so RG-PSG-025 cannot reach the wire. MUST FAIL before `any_early_stopped`
+    chain is wired through to MCP serialization. Write RED; GREEN after Tasks 11 and 12 both
+    complete AND `is_truncated` MCP serialization correctly applies the formula.
+
+  **Multi-sensor fan-out / heuristic-rejection (in `crates/prism-query/tests/execute_integration_tests.rs` and `crates/prism-bin/tests/mcp_integration_tests.rs`):**
+  - RG-PSG-027 (`test_psg_multi_sensor_fanout_exact_limit_one_early_stopped_is_truncated_true`):
+    2-sensor fan-out with `options.limit = 50`; sensor1 returns 40 rows (no early-stop);
+    sensor2 returns 10 rows and early-stops. `FanOutResult.any_early_stopped = true` via
+    OR-aggregation. `total_rows = 50 = limit`. Assert `is_truncated = true` (from
+    `any_early_stopped` OR term). MUST FAIL before the `FetchOutput.any_early_stopped`
+    propagation chain is implemented. Write RED; GREEN after Task 16 (chain wiring) completes.
+    (Anchored: AC-009(a); test multi-sensor OR-aggregation path through fanout.rs)
+  - RG-PSG-028 (`test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated`):
+    2-sensor fan-out with `options.limit = 50`; both sensors return 25 rows WITHOUT
+    early-stopping. `FanOutResult.any_early_stopped = false`. `total_rows = 50 = limit`.
+    Assert `is_truncated = false` (formula: `(50 > 50) || false = false`).
+    MUST FAIL if heuristic `total_fetched_rows >= fetch_limit` is used (50 >= 50 = true → wrong).
+    Wire-level assertion: also assert `"is_truncated": false` in serialized `CallToolResult`
+    JSON in `crates/prism-bin/tests/mcp_integration_tests.rs`. Write RED; GREEN after Task 16.
+    (Anchored: AC-009(a); canonical heuristic-rejection test)
 
 - [ ] **Task 11 (Implementation — materialization result boundary):** Remove any
   `truncate_result_to_limit` pre-cap applied within `run_materialization_pipeline` before
@@ -774,10 +926,12 @@ pattern) to minimize context consumption.
   (per existing `if params.limit == 0 { None }` mapping in `spec_driven_adapter.rs`).
 
   After editing: run `just iter prism-query` — RG-PSG-001 through RG-PSG-006, RG-PSG-009 through
-  RG-PSG-019, RG-PSG-021 through RG-PSG-024 MUST turn GREEN; RG-PSG-007 and RG-PSG-008
-  (positive controls) MUST remain GREEN. (RG-PSG-021..024 test temporal-exemption soundness
-  via the updated `has_client_side_where` logic: Filter-mode unconditional suppress,
-  Pipe-WHERE unconditional suppress, Eq-operator temporal suppress, non-INDEX column suppress.)
+  RG-PSG-019, RG-PSG-021 through RG-PSG-024, RG-PSG-029 MUST turn GREEN; RG-PSG-007 and
+  RG-PSG-008 (positive controls) MUST remain GREEN. (RG-PSG-021..024 test temporal-exemption
+  soundness via the updated `has_client_side_where` logic: Filter-mode unconditional suppress,
+  Pipe-WHERE unconditional suppress, Eq-operator temporal suppress, non-INDEX column suppress.
+  RG-PSG-029 tests the relative-temporal RHS case: `Expr::Now`/`Expr::Interval`/
+  `Expr::TimestampArithmetic` → `is_pushed_temporal_predicate` returns `false` → SUPPRESS.)
 
 - [ ] **Task 13 (Integration sweep — update all remaining callers):** Run `just check --no-fail-fast`
   across the full workspace. All integration test files listed in `crates_touched` that were
@@ -792,15 +946,137 @@ pattern) to minimize context consumption.
   count unchanged at 96." The early-stop branch and the plan-shape gate have no emissions —
   this is intentional and documented.
 
-- [ ] **Task 15 (Final gate):** Run `just check` (full workspace). Confirm all non-`#[ignore]`
-  Red Gate tests pass: RG-001, RG-002, RG-003, RG-004, RG-005, RG-006, RG-PSG-001 through
-  RG-PSG-025. Confirm `EXPECTED_SYMBOLS` in `scripts/check-non-exhaustive-per-symbol.py` does
-  NOT need updating (no new `#[non_exhaustive]` type is introduced by the plan-shape gate —
-  `ast_is_reducing_plan`, `expr_contains_aggregate_or_window`, `has_client_side_where`, and
-  `is_pushed_temporal_predicate` are private functions; `FetchOutput` is a new struct that
-  requires `#[non_exhaustive]` IF it is `pub` — verify and add to `EXPECTED_SYMBOLS` if so).
-  Confirm no new `unwrap()`/`expect()` in production code paths. After `just check` passes,
-  hold for story-level holdout gate before pushing to origin.
+- [ ] **Task 15 (Final gate — ADR-060 paths):** Run `just check` (full workspace). Confirm all
+  non-`#[ignore]` Red Gate tests pass: RG-001, RG-002, RG-003, RG-004, RG-005, RG-006,
+  RG-PSG-001 through RG-PSG-029. Confirm `EXPECTED_SYMBOLS` in
+  `scripts/check-non-exhaustive-per-symbol.py` does NOT need updating for private functions
+  (`ast_is_reducing_plan`, `expr_contains_aggregate_or_window`, `has_client_side_where`,
+  `is_pushed_temporal_predicate`). `FetchOutput` is a new `pub` struct — ADD it to
+  `EXPECTED_SYMBOLS` with `#[non_exhaustive]` attribute.
+  Confirm no new `unwrap()`/`expect()` in production code paths. NOTE: RG-SLUG-001..006
+  (ADR-061) are authored in Task 17 and green in Tasks 18–19; Task 15 covers only the ADR-060
+  gate range. See Task 19 for the ADR-061 final gate.
+
+- [ ] **Task 16 (Implementation — full `any_early_stopped` chain wiring):** Wire the
+  `any_early_stopped` signal through the complete propagation chain (ADR-060 §D8.9):
+
+  **Step A — `crates/prism-sensors/src/adapter.rs`:** Define `FetchOutput` struct and change
+  `SensorAdapter::fetch` return type (done in Task 9 prep; verify trait definition is updated).
+
+  **Step B — `crates/prism-sensors/src/fanout.rs`:** Add `pub any_early_stopped: bool` to
+  `FanOutResult`. In `fan_out()`, OR-aggregate across results:
+  ```rust
+  any_early_stopped: results.iter().any(|r| r.any_early_stopped),
+  ```
+
+  **Step C — `crates/prism-query/src/materialization.rs`:** Add `pub any_early_stopped: bool`
+  to `MaterializationOutput`. After `fan_out()` completes, propagate:
+  ```rust
+  any_early_stopped: fan_out_result.any_early_stopped,
+  ```
+  DO NOT add `total_fetched_rows >= fetch_limit` heuristic. The `any_early_stopped` chain IS
+  the correct mechanism (RG-PSG-028 enforces this).
+
+  **Step D — `crates/prism-query/src/engine.rs` Step 6:** Update `is_truncated` formula:
+  ```rust
+  let is_truncated = total_rows > limit || materialization_output.any_early_stopped;
+  ```
+
+  **Step E — test-stub sweep (21 files):** Update all test stubs that implement `SensorAdapter`
+  to return `Ok(FetchOutput { batches, any_early_stopped: false })`. See `crates_touched`
+  frontmatter comment for the complete list. This is a mechanical change.
+
+  After steps A–E: run `just iter prism-query` — RG-PSG-027 and RG-PSG-028 MUST turn GREEN.
+  Run `just iter prism-sensors` — fan-out tests must pass. Run `just iter prism-bin` — MCP
+  integration tests including RG-PSG-028 wire assertion must pass.
+
+- [ ] **Task 17 (Red Gate — test first):** Write RG-SLUG-001 through RG-SLUG-006 in
+  `crates/prism-query/tests/slug_isolation_tests.rs` (new file, or extend `materialization_tests.rs`
+  if it exists). RG-SLUG-006 MAY be an in-crate unit test in
+  `materialization.rs #[cfg(test)] mod slug_isolation_tests`. ALL SIX tests MUST be authored
+  and RED before Task 18 begins (SAC-1 red-then-green ordering).
+
+  **D2 skip-with-warn gates (RG-SLUG-001, RG-SLUG-003):** Build an `OrgRegistry` with a
+  slug entry for `org_id_A` but NO entry for `org_id_B`. Exercise `resolve_source_refs`
+  (RG-SLUG-001) and the bare-filter Step 3b adapter loop (RG-SLUG-003) respectively.
+  Capture `tracing::warn!` events using `tracing_test::traced_test` or a
+  `tracing::subscriber::with_default` block. Assert: (a) no `FanOutTarget` in the result list
+  for `org_id_B`; (b) exactly one `warn!` event captured with `event_type` field equal to
+  `"query.org_slug_resolution_failure"` and the `org_id` field matching `org_id_B`.
+  MUST FAIL before Task 18 — the current code pushes a target with a synthetic `client_id`
+  and emits NO warn event.
+
+  **D3 synthetic-slug preservation (RG-SLUG-002, RG-SLUG-004):** Set `org_registry = None`.
+  Assert: a synthetic slug is generated and the `FanOutTarget` IS included. These PASS before
+  AND after Task 18 (regression sentinels for D3 test-mode preservation).
+
+  **Wire-level cross-tenant isolation gate (RG-SLUG-005):** Construct two `OrgId` values
+  `A` and `B` so that `A.to_string()[..8] == B.to_string()[..8]` (identical 8-hex timestamp
+  prefix — simulates same UUIDv7 window). Register both in a shared `OrgRegistry` with
+  DISTINCT slugs (`"tenant-alpha"` / `"tenant-beta"`). Seed tenant A with rows carrying a
+  distinguishing field value absent from tenant B's rows (e.g., a unique `sensor_id` string).
+  Issue a bare-predicate filter query as each tenant via `QueryEngine::execute`. Serialize
+  the `QueryResult` rows to JSON bytes (use the MCP tool path's serialization, or
+  `serde_json::to_string` on the result rows). Assert on the **serialized JSON bytes**:
+  - Tenant A response: tenant A's distinguishing value IS present; tenant B's distinguishing
+    value is ABSENT.
+  - Tenant B response: tenant A's distinguishing value is ABSENT.
+  MUST FAIL before Task 18 — current code uses 8-hex `client_id` for both tenants → same
+  `CacheKey` partition → tenant B reads tenant A's cached sensor rows.
+
+  **Sentinel absence gate (RG-SLUG-006):** Write an in-crate unit test in
+  `materialization.rs #[cfg(test)]` that reads the production module source via
+  `include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/materialization.rs"))` and asserts
+  that the string `"synthetic-unmapped"` does not appear in it. (Alternatively: extract
+  the sentinel as a `pub(crate) const SYNTHETIC_UNMAPPED: &str = "synthetic-unmapped"` and
+  then `#[deny(dead_code)]` will catch it at compile time when it is removed from use.)
+  MUST FAIL before Task 19 (sentinel not yet removed).
+
+  After authoring all six tests: run `just iter prism-query` — all six MUST be RED
+  (RG-SLUG-002 and RG-SLUG-004 may be GREEN already — they are regression sentinels).
+
+- [ ] **Task 18 (Implementation — ADR-061 Sites 1+2: `resolve_source_refs` ALL-scope + bare-filter Step 3b):**
+  In `crates/prism-query/src/materialization.rs`, apply the three-arm registry-first dispatch
+  to BOTH defect sites per ADR-061 D4 + D5:
+
+  **Site 2 — `resolve_source_refs` ALL-scope (ADR-061 D5):** Replace the unified
+  `let Some(client_slug) = org_registry.as_ref().and_then(...) else { /* synthesize */ }` pattern
+  with the `match` dispatch: `Some(slug) → slug` (D1 authoritative path);
+  `None if org_registry.is_some() → tracing::warn!(event_type = "query.org_slug_resolution_failure") + continue` (D2 fail-closed);
+  `None → synthetic_from_org_id_d3(&org_id)` (D3 test mode). Per AC-010.
+
+  **Site 1 — bare-filter Step 3b (ADR-061 D4):** Replace the `OrgSlug::new(format!("org-{}", &org_id.to_string()[..8]))` line that never consulted `mat_ctx.org_registry` with the same three-arm dispatch. The comment claiming `mat_ctx.org_registry` is unavailable is INCORRECT and MUST be removed. Per AC-011.
+
+  For D3, the deterministic-prefix helper (usable at both sites):
+  Extract the first 8 hex chars of `org_id.to_string()`. If the first char is an ASCII digit,
+  use `format!("org-x{}", &org_id.to_string()[..7])` with `expect("x-prefix ensures valid slug")`.
+  Otherwise use `format!("org-{}", &org_id.to_string()[..8])` with `expect("non-digit prefix")`.
+
+  After editing: run `just iter prism-query` — RG-SLUG-001, RG-SLUG-002, RG-SLUG-003,
+  RG-SLUG-004, and RG-SLUG-005 MUST turn GREEN. RG-SLUG-006 remains RED (sentinel not removed until Task 19).
+
+- [ ] **Task 19 (Implementation — ADR-061 Site 3 sentinel removal + D7 test deletion):**
+
+  **Site 3 (ADR-061 D3 sentinel removal):** Remove `OrgSlug::new("synthetic-unmapped")` from
+  ALL production (non-`#[cfg(test)]`) code paths in `crates/prism-query/src/materialization.rs`.
+  The `"synthetic-unmapped"` literal MUST NOT appear in any non-test code path. It is
+  unconditionally superseded by the deterministic `x`-prefix form from Task 18. Verify by
+  grep: `rg '"synthetic-unmapped"' crates/prism-query/src/ --type rust` must return no hits.
+
+  **D7 (ADR-061 D7 test deletion):** Delete `crates/prism-core/tests/org_slug_from_uuid_prefix.rs`.
+  This test asserts the 8-hex synthesis pattern is always correct — it legitimizes the defect.
+  Before deleting: verify the file covers ONLY the synthesis pattern. If it covers other
+  unrelated behavior, extract those assertions to `crates/prism-core/tests/org_slug_tests.rs`
+  before deletion (TD-VSDD-060 sibling-sweep for test coverage). Commit the deletion with:
+  "ADR-061 D7: remove org_slug_from_uuid_prefix.rs — test legitimized the defect (8-hex synthesis
+  bypasses OrgRegistry); replaced by RG-SLUG-001/003/005 in prism-query."
+
+  After editing: run `just iter prism-query` — RG-SLUG-006 MUST turn GREEN.
+  Run `just iter prism-core` — workspace compiles without the deleted test file.
+  Run `just check` — full workspace GREEN including `EXPECTED_SYMBOLS`
+  in `scripts/check-non-exhaustive-per-symbol.py` (no new types; the deleted test file
+  has no registered symbols). After `just check` passes, hold for story-level holdout
+  gate before pushing to origin.
 
 ## Previous Story Intelligence
 
@@ -920,17 +1196,38 @@ From ADR-060 §D8.7/§D8.9 (temporal-exemption soundness — v1.5):
   `Expr::Literal(Literal::Timestamp)` (concrete absolute timestamp). Temporal equality (`Eq`),
   `Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic`, and non-INDEX datetime columns
   MUST SUPPRESS. This mirrors `extract_time_bounds_from_predicate` (ADR-033 T1) exactly.
-  (Anchored: RG-PSG-021 through RG-PSG-024)
+  (Anchored: RG-PSG-021 through RG-PSG-024, RG-PSG-029)
 
 From ADR-060 §D8.3/§D8.9 (`any_early_stopped` propagation chain):
 - `PipelineResult.early_stopped: bool` MUST be set `true` on the §D8.2 `break 'steps` exit
   (DISTINCT from `truncated`: `truncated` = DI-019 capacity exceeded; `early_stopped` =
   query-driven early exit at the limit boundary).
-- `SensorAdapter::fetch` return type changes to `FetchOutput { batches: Vec<RecordBatch>,
-  any_early_stopped: bool }`. The `any_early_stopped` signal MUST propagate through:
-  `FetchOutput → FanOutResult → MaterializationOutput → engine.rs Step 6` to implement
-  `is_truncated = (total_rows > limit) OR any_early_stopped` (BC-2.11.001 EC-11-092).
+  **CRITICAL ORDER:** `early_stopped = true` MUST be assigned BEFORE `break 'steps`. Setting it
+  after the break (or omitting it) silently zeros the signal on every pipeline exit.
+  (Anchored: RG-PSG-025 `test_psg_exact_limit_is_truncated_true`)
+- `SensorAdapter::fetch` return type MUST change from `Result<Vec<RecordBatch>, SensorError>` to
+  `Result<FetchOutput, SensorError>` where `pub struct FetchOutput { pub batches: Vec<RecordBatch>, pub any_early_stopped: bool }`.
+  Defined in `crates/prism-sensors/src/adapter.rs`. All 21 test stubs MUST return
+  `Ok(FetchOutput { batches, any_early_stopped: false })`. The production adapter MUST return
+  `Ok(FetchOutput { batches: result.batches, any_early_stopped: pipeline_result.early_stopped })`.
+- `FanOutResult.any_early_stopped: bool` MUST be added and OR-aggregated across all sensor results
+  in `fan_out()`: `any_early_stopped = results.iter().any(|r| r.any_early_stopped)`.
+  This is the AUTHORITATIVE OR-aggregation point (ADR-060 §D8.9).
+  (Anchored: RG-PSG-027 `test_psg_multi_sensor_fanout_exact_limit_one_early_stopped_is_truncated_true`)
+- **HEURISTIC REJECTION (Anchored: RG-PSG-028):** The `is_truncated` signal MUST NOT be derived
+  from `total_fetched_rows >= fetch_limit`. This heuristic produces wrong `is_truncated=true` on
+  multi-sensor fan-out when multiple sensors each return fewer than `fetch_limit` rows but their
+  sum equals `fetch_limit` and none early-stopped. The ONLY correct formula is
+  `is_truncated = (total_rows > limit) || any_early_stopped` (engine.rs Step 6; ADR-060 §D8.9).
+  RG-PSG-028 (`test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated`) MUST FAIL
+  if the heuristic is used — the test is specifically designed to expose the heuristic's blind spot.
+  (Anchored: RG-PSG-028 `test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated`)
+- `MaterializationOutput.any_early_stopped: bool` MUST be added and populated from `FanOutResult`.
+  The `any_early_stopped` signal MUST propagate the full chain:
+  `FetchOutput → FanOutResult → MaterializationOutput → engine.rs Step 6` (ADR-060 §D8.9).
   Do NOT lose or discard the `any_early_stopped` signal at any intermediate layer.
+- Engine.rs Step 6 MUST use `let is_truncated = total_rows > limit || materialization_output.any_early_stopped;`.
+  This is the SOLE site where `is_truncated` is computed from the `any_early_stopped` chain.
 - `run_materialization_pipeline` MUST NOT apply a tool-level pre-cap before returning to
   engine.rs Step 6. The full filtered/aggregated result is returned; Step 6 is the SOLE owner
   of the tool-level cap and `is_truncated`/`total_available` semantics (BC-2.11.001 EC-11-093;
@@ -951,14 +1248,21 @@ No new Cargo.toml production dependencies. The `Option<usize>` field uses only s
 
 | Action | File path | Notes |
 |--------|-----------|-------|
-| MODIFY | `crates/prism-spec-engine/src/pipeline.rs` | (a) Add `early_stop_limit` field to `FetchContext`; (b) expand `FetchContext::new` signature; (c) add early-stop check after DI-019 in `execute_impl`; (d) update ~15 in-file test sites (including `default_context()` helper) to pass `None` |
-| MODIFY | `crates/prism-bin/src/spec_driven_adapter.rs` | Add `early_stop_limit` mapping and pass to `FetchContext::new` |
+| MODIFY | `crates/prism-sensors/src/adapter.rs` | (a) Define `pub struct FetchOutput { pub batches: Vec<RecordBatch>, pub any_early_stopped: bool }`; (b) change `SensorAdapter::fetch` return type from `Result<Vec<RecordBatch>, SensorError>` to `Result<FetchOutput, SensorError>` — all impl sites must update |
+| MODIFY | `crates/prism-sensors/src/fanout.rs` | (a) Add `pub any_early_stopped: bool` field to `FanOutResult`; (b) OR-aggregate `any_early_stopped` across all sensor results in `fan_out()` — set to `true` if ANY sensor result's `any_early_stopped` flag is `true`, using `Iterator::any` on the results slice (ADR-060 §D8.9) |
+| MODIFY | `crates/prism-spec-engine/src/pipeline.rs` | (a) Add `early_stop_limit` field to `FetchContext`; (b) expand `FetchContext::new` signature; (c) add `pub early_stopped: bool` field to `PipelineResult`; (d) add early-stop check after DI-019 in `execute_impl`; (e) **SET `early_stopped = true` BEFORE `break 'steps`** in the §D8.2 early-stop block; (f) update ~15 in-file test sites (including `default_context()` helper) to pass `None` |
+| MODIFY | `crates/prism-bin/src/spec_driven_adapter.rs` | Add `early_stop_limit` mapping and `FetchContext::new` pass; return `FetchOutput { batches: result.batches, any_early_stopped: pipeline_result.early_stopped }` |
+| MODIFY | `crates/prism-query/src/materialization.rs` | (a) Add `expr_contains_aggregate_or_window(expr: &Expr) -> bool` helper (three-part: Aggregate variants, FuncCall::Window, recursion into FuncCall::Scalar::args); (b) add `ast_is_reducing_plan(ast: &Ast) -> bool` function (Conditions A–J + conservative default; `where_filters` NOT a parameter); (c) update `fetch_limit` derivation in `run_materialization_pipeline` to use plan-shape gate (before fan-out construction; `where_filters` NOT passed to gate); (d) add `pub any_early_stopped: bool` to `MaterializationOutput`; (e) pick up `any_early_stopped` from `FanOutResult` after fan-out; (f) **DO NOT add heuristic `total_fetched_rows >= fetch_limit`** — wrong on multi-sensor fan-out; **(g) ADR-061 D5 — `resolve_source_refs` ALL-scope: split unified `else` branch into three-arm `match` dispatch (D1 authoritative / D2 skip-with-warn / D3 synthetic); remove unified synthesis path**; **(h) ADR-061 D4 — bare-filter Step 3b: replace unconditional 8-hex `client_id` synthesis with registry-first dispatch; remove incorrect "no OrgRegistry available" code comment**; **(i) ADR-061 D3/Site 3: remove `"synthetic-unmapped"` sentinel from ALL production code paths; replace with deterministic `x`-prefix form** |
+| MODIFY | `crates/prism-query/src/engine.rs` | Step 6: update `is_truncated` formula to `(total_rows > limit) OR materialization_output.any_early_stopped` — adds the `any_early_stopped` OR-term per ADR-060 §D8.9 authoritative formula. |
 | MODIFY (×14) | Integration test files listed in `crates_touched` frontmatter comment | Update each `FetchContext::new` call to pass `None` as third arg |
+| MODIFY (×21) | Test stub sweep — all `impl SensorAdapter` in test files (see `crates_touched` frontmatter comment) | Mechanical wrap: `Ok(Vec<RecordBatch>)` → `Ok(FetchOutput { batches, any_early_stopped: false })` for all test stubs |
 | CREATE or EXTEND | `crates/prism-spec-engine/tests/bc_2_16_002_early_stop_tests.rs` OR extend `bc_2_16_002_test.rs` | RG-001, RG-002, RG-003, RG-004 |
 | CREATE or EXTEND | `crates/prism-bin/tests/bc_2_16_002_early_stop_adapter_tests.rs` OR extend existing | RG-005, RG-006 |
-| MODIFY | `crates/prism-query/src/materialization.rs` | (a) Add `expr_contains_aggregate_or_window(expr: &Expr) -> bool` helper (three-part: Aggregate variants, FuncCall::Window, recursion into FuncCall::Scalar::args); (b) add `ast_is_reducing_plan(ast: &Ast) -> bool` function (Conditions A–J + conservative default; `where_filters` NOT a parameter); (c) update `fetch_limit` derivation in `run_materialization_pipeline` to use plan-shape gate (before fan-out construction; `where_filters` NOT passed to gate) |
 | CREATE or EXTEND | `crates/prism-query/tests/plan_shape_gate_tests.rs` OR extend `materialization_tests.rs` | RG-PSG-001 through RG-PSG-019, RG-PSG-021 through RG-PSG-024; RG-PSG-009/012/019 are in-crate unit tests in `materialization.rs` `#[cfg(test)] mod plan_shape_gate_unit_tests`; RG-PSG-021..024 are temporal-exemption soundness E2E tests (Filter-mode/Pipe-WHERE/SQL-Eq/non-INDEX) |
-| MODIFY or EXTEND | `crates/prism-query/tests/execute_integration_tests.rs` | RG-PSG-020: `test_BC_2_11_001_tool_limit_truncation_signal_on_suppressed_filter` (suppressed-filter full-pagination signal); RG-PSG-025: `test_psg_exact_limit_is_truncated_true` (exact-limit boundary `any_early_stopped → is_truncated=true`) |
+| MODIFY or EXTEND | `crates/prism-query/tests/execute_integration_tests.rs` | RG-PSG-020: `test_BC_2_11_001_tool_limit_truncation_signal_on_suppressed_filter` (suppressed-filter full-pagination signal); RG-PSG-025: `test_psg_exact_limit_is_truncated_true` (exact-limit boundary `any_early_stopped → is_truncated=true`); RG-PSG-027: `test_psg_multi_sensor_fanout_exact_limit_one_early_stopped_is_truncated_true`; RG-PSG-028: `test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated` |
+| CREATE or EXTEND | `crates/prism-bin/tests/mcp_integration_tests.rs` (or equivalent MCP stdio test file in `crates/prism-bin/tests/`) | RG-PSG-026: `test_psg_rg026_prism_query_wire_surfaces_truncation_signal` — MCP wire-level assertion on `prism_query` `CallToolResult` JSON for `is_truncated`; RG-PSG-028 wire assertion: `"is_truncated": false` for 2-sensor no-early-stop exact-total scenario; wire-shape discipline (CLAUDE.md 2026-07-13) |
+| CREATE or EXTEND | `crates/prism-query/tests/slug_isolation_tests.rs` (new file, or extend `materialization_tests.rs`) | RG-SLUG-001: `test_rg_slug_001_resolve_source_refs_registry_present_slug_missing_skips_target_emits_warn`; RG-SLUG-002: `test_rg_slug_002_resolve_source_refs_registry_absent_synthetic_slug_included`; RG-SLUG-003: `test_rg_slug_003_bare_filter_step3b_registry_present_slug_missing_skips_target_emits_warn`; RG-SLUG-004: `test_rg_slug_004_bare_filter_step3b_registry_absent_synthetic_slug_included`; RG-SLUG-005: `test_rg_slug_005_cross_tenant_wire_isolation_collision_resistant_cache_keys` (END-TO-END via `QueryEngine::execute`, wire-level JSON assertion); RG-SLUG-006 MAY be in-crate unit `materialization.rs #[cfg(test)] mod slug_isolation_tests` |
+| DELETE | `crates/prism-core/tests/org_slug_from_uuid_prefix.rs` | ADR-061 D7 — this test asserts the 8-hex synthesis pattern as correct behavior; it legitimizes the defect. Must be deleted (or its non-synthesis assertions migrated to a separate test file) before the PR merges. |
 
 Files that MUST NOT be modified:
 - `tests/external/non-exhaustive-violation/src/struct_violations.rs` — read-only verification; no changes
@@ -999,6 +1303,10 @@ prism-spec-engine import added to prism-bin.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.17 | 2026-08-27 | story-writer | **F-R16-P1-HIGH-001 (CRITICAL cache-key isolation) — ADR-061 multi-tenant cache-key isolation folded in.** CWE-284/CWE-340/CWE-200, OWASP A01: three `prism-query::materialization` sites synthesize `client_id` from 8-hex `OrgId` truncation or `"synthetic-unmapped"` sentinel, bypassing `OrgRegistry`. (1) AC-010 added: `resolve_source_refs` ALL-scope fail-closed dispatch — `org_registry: Some(reg)` + slug missing → SKIP + `tracing::warn!(event_type = "query.org_slug_resolution_failure")`; `org_registry: None` → D3 synthetic slug preserved (ADR-061 D2/D3/D5; traces to BC-2.16.002 v2.42 catalog row). (2) AC-011 added: bare-filter Step 3b same dispatch — `mat_ctx.org_registry: Some(reg)` + slug missing → target NOT pushed, warn fired; `None` → D3 synthetic (ADR-061 D2/D3/D4). (3) AC-012 added: `"synthetic-unmapped"` sentinel ABSENT from production code paths; `org_slug_from_uuid_prefix.rs` deleted (ADR-061 D3/D7). (4) AC-013 added: wire-level cross-tenant isolation gate — two OrgIds with identical first-8-hex-char prefix, DISTINCT registry slugs, distinct seeded rows; serialized JSON for tenant B contains ZERO tenant A rows (ADR-061 D1/D9 RG-SLUG-005; wire-shape discipline). (5) RG-SLUG-001..006 added to §Red Gate Tests: warn+skip (001, 003), synthetic-slug preservation (002, 004), wire-level collision-resistance (005), sentinel-absence (006). (6) Tasks 17–19 added (SAC-1 red-then-green: Task 17 RG-SLUG-001..006 authoring RED; Task 18 Sites 1+2 implementation; Task 19 Site 3 + D7 deletion). (7) §File Structure Requirements: materialization.rs items (g)/(h)/(i) added; DELETE row for `crates/prism-core/tests/org_slug_from_uuid_prefix.rs`; CREATE/EXTEND row for slug isolation tests. (8) Frontmatter: `acceptance_criteria_count: 9→13`; `red_gate_tests: 35→41`; `crates_touched` extended with `prism-core` (D7 deletion); BC-2.16.002 body-table pin v2.41→v2.42. BC-5.38.001 density: 41/13≈3.15 ≥ 0.5. PASS. TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; ADR-061 has no sibling ADR at same decision level; CLEAR. Dim-2 — BC-2.16.002 v2.42 catalog row already added by PO in that file (confirmed); story body-table BC-2.16.002 version updated v2.41→v2.42; `red_gate_tests: 41` consistent in frontmatter, density paragraph (41/13≈3.15), Task 17 (RG-SLUG-001..006 bullets), Task 18 (green-gate range extended); `acceptance_criteria_count: 13` consistent with 13 ACs in body; `crates_touched` array includes `prism-core`; §File Structure Requirements DELETE row; FULL. Dim-3 — RG-SLUG-001..006 MUSTs anchored to named tests + AC references; AC-010..013 MUSTs anchored to ADR-061 D-section + BC-2.16.002 catalog row; no unanchored MUSTs introduced; CLEAR. |
+| 1.16 | 2026-08-27 | story-writer | **F-R16-P1-CRIT-001 remediation: RG-PSG-029 relative-temporal RHS soundness gap.** `WHERE <index_col> >= now() - interval '7d' LIMIT N` was incorrectly PERMITting early-stop because `is_temporal_expr` accepted `Expr::Now`/`Expr::Interval`/`Expr::TimestampArithmetic`; `is_pushed_temporal_predicate` precondition (c) requires `Expr::Literal(Literal::Timestamp)` RHS and was already correct, but no Red Gate existed to enforce the boundary. (1) RG-PSG-029 (`test_psg_relative_temporal_now_interval_suppresses_early_stop`) added to §Red Gate Tests table: END-TO-END via `QueryEngine::execute` from real SQL string; relative-temporal RHS → `is_pushed_temporal_predicate=false` → `has_client_side_where=true` → `fetch_limit=0` → early-stop SUPPRESSED; MUST FAIL against current code; optional `Expr::TimestampArithmetic` sub-case. (2) Frontmatter: `red_gate_tests: 34→35`. (3) BC-5.38.001 density check: 34→35 RGTs, `RG-PSG-001 through RG-PSG-029`, ≈3.78→≈3.89. (4) AC-008(c) Tests citation: extended to include RG-PSG-029. (5) §Architecture Compliance Rules `is_pushed_temporal_predicate` MUST anchor: `(Anchored: RG-PSG-021 through RG-PSG-024, RG-PSG-029)`. (6) Task 10 temporal-exemption soundness bullets: RG-PSG-029 authoring bullet added after RG-PSG-024. (7) Task 12 green-gate range: extended to include RG-PSG-029 with relative-temporal description. (8) Task 15 final gate range: `RG-PSG-001 through RG-PSG-029`. TD-VSDD-097: Dim-1 — no named twin for this story; CLEAR. Dim-2 — `red_gate_tests: 35` consistent in frontmatter, density paragraph (35/9≈3.89), Task 10 (RG-PSG-029 bullet added), Task 12 (range extended), Task 15 (range extended); `acceptance_criteria_count: 9` UNCHANGED (RG-PSG-029 closes gap in existing AC-008(c)); FULL. Dim-3 — RG-PSG-029 MUST anchored to AC-008(c) + `test_psg_relative_temporal_now_interval_suppresses_early_stop` + F-R16-P1-CRIT-001 in §Red Gate Tests, Task 10, §Architecture Compliance Rules; no unanchored MUSTs introduced; CLEAR. |
+| 1.15 | 2026-08-27 | story-writer | **Round-16 remediation: AC-009(a) `any_early_stopped` chain spec-completion + multi-sensor coverage (RG-PSG-027/028, heuristic-rejection gate).** The round-16 implementer substituted `total_fetched_rows >= fetch_limit` for the real `any_early_stopped` propagation chain, producing wrong `is_truncated=true` on multi-sensor fan-out where sensors each return fewer rows than `fetch_limit` but their sum equals `fetch_limit` (none early-stopped). This version completes the spec: (1) §File Structure Requirements expanded: `crates/prism-sensors/src/adapter.rs` (define `FetchOutput { batches, any_early_stopped }` struct; change `SensorAdapter::fetch` return type); `crates/prism-sensors/src/fanout.rs` (add `FanOutResult.any_early_stopped: bool`; OR-aggregate in `fan_out()`); `crates/prism-query/src/engine.rs` (Step 6 `is_truncated = total_rows > limit \|\| any_early_stopped`); all-test-stub sweep (21 files, mechanical wrap `Ok(FetchOutput { batches, any_early_stopped: false })`); `crates/prism-spec-engine/src/pipeline.rs` note extended (add `PipelineResult.early_stopped: bool` field; set `early_stopped = true` before `break 'steps` in §D8.2 block); `crates/prism-bin/src/spec_driven_adapter.rs` note extended (return `FetchOutput { batches, any_early_stopped: pipeline_result.early_stopped }`); `crates/prism-query/src/materialization.rs` note extended (add `MaterializationOutput.any_early_stopped`; REMOVE heuristic). (2) RG-PSG-027 (`test_psg_multi_sensor_fanout_exact_limit_one_early_stopped_is_truncated_true`): 2-sensor `execute_integration_tests.rs` test; sensor1=40 rows (no early-stop), sensor2=10 rows (early-stopped at exact limit boundary); total=50=limit, any_early_stopped=true via OR-aggregation → is_truncated=true; gates the OR-aggregation path and exact-limit multi-sensor case. (3) RG-PSG-028 (`test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated`): 2-sensor `execute_integration_tests.rs` test plus wire-level assertion in `crates/prism-bin/tests/mcp_integration_tests.rs`; both sensors return 25 rows without early-stopping; total=50=limit, any_early_stopped=false → is_truncated=false; MUST FAIL with heuristic `total_fetched_rows >= fetch_limit` (50 >= 50 = true → wrong); wire assertion confirms `"is_truncated": false` in serialized MCP response. (4) Task 7 updated: `early_stopped = true` required before `break 'steps`; `PipelineResult.early_stopped: bool` field addition specified. (5) Task 10 extended: RG-PSG-027/028 authoring bullets. (6) Task 15 gate range extended →028. (7) Task 16 added: full chain wiring (`adapter.rs` + `fanout.rs` + `spec_driven_adapter.rs` + `materialization.rs` + `engine.rs`). (8) §Architecture Compliance Rules: heuristic-rejection MUST + chain-wiring MUST + OR-aggregation MUST added. (9) `red_gate_tests: 34`; density 34/9≈3.78. (10) Frontmatter: `crates_touched` extended with `prism-sensors`; `risk` comment updated. TD-VSDD-097: Dim-1 — no named twin for this story; CLEAR. Dim-2 — whole-artifact sweep: `red_gate_tests: 34` consistent in frontmatter, density paragraph (34/9≈3.78), Task 10 (RG-PSG-027/028 bullets added), Task 15 (range →028); §File Structure Requirements 5 updated/new rows + 1 test-stub sweep row; `acceptance_criteria_count: 9` UNCHANGED (no new ACs — RG-PSG-027/028 gate AC-009(a) via existing AC); `crates_touched` extended `prism-sensors` consistent with new §File Structure rows; FULL. Dim-3 — RG-PSG-027 MUST anchored to AC-009(a) + `test_psg_multi_sensor_fanout_exact_limit_one_early_stopped_is_truncated_true`; RG-PSG-028 MUST anchored to AC-009(a) + `test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated` + heuristic-rejection named; chain-wiring MUSTs anchored to ADR-060 §D8.9 + RG-PSG-027/028; no unanchored MUSTs; CLEAR. |
+| 1.14 | 2026-08-27 | story-writer | **Wire-level MCP coverage gap closure: RG-PSG-026 + AC-009(d).** EC-11-092/093 (BC-2.11.001) contracts that `any_early_stopped`/`is_truncated` surface on the `prism_query` MCP tool response — an MCP-visible surface. Wire-shape assertion discipline (CLAUDE.md 2026-07-13) requires at least one test asserting on the serialized JSON. RG-PSG-025 reaches only `QueryEngine::execute` at the Rust-struct level (`QueryResult` is not `Serialize`) — wire-level gap confirmed genuinely missing. (1) Frontmatter: `red_gate_tests: 32` added (new field); version 1.13→1.14; input-hash b60edc0→fd3b8df. (2) AC-009: sub-section (d) added — wire-level MCP assertion for `is_truncated` in serialized `CallToolResult` JSON; exact-limit case (`any_early_stopped = true → is_truncated: true`) and temporal-WHERE suppression case (`any_early_stopped = false → is_truncated: false`); traces to BC-2.11.001 EC-11-092/093. (3) §Red Gate Tests: RG-PSG-026 (`test_psg_rg026_prism_query_wire_surfaces_truncation_signal`) added in `crates/prism-bin/tests/mcp_integration_tests.rs`; density recomputed 31→32 RGTs / 9 ACs ≈ 3.56. (4) §Tasks: RG-PSG-026 authoring bullet added to Task 10 (red-then-green preserved); Task 15 final gate range extended to RG-PSG-026. (5) Token Budget: story spec ~10,000→~10,500; MCP test file row added (~1,500); total ~32,500→~34,500. (6) §File Structure Requirements: MCP integration test file row added. TD-VSDD-097: Dim-1 — no named twin for this story; additive-only change; CLEAR. Dim-2 — whole-artifact sweep: `red_gate_tests: 32` (frontmatter), RG-PSG-026 row (§Red Gate Tests table, 32 rows), density paragraph (32/9≈3.56), Task 10 (PSG-026 bullet added), Task 15 (range →026), Token Budget (story spec + MCP file rows), §File Structure Requirements (MCP file row); `acceptance_criteria_count: 9` UNCHANGED (no new AC; sub-section extends existing AC-009); FULL. Dim-3 — RG-PSG-026 wire-shape MUST anchored to S-ENGINE-LIMIT-EARLY-STOP-001 AC-009(d) + named test `test_psg_rg026_prism_query_wire_surfaces_truncation_signal`; no unanchored MUSTs; CLEAR. |
 | 1.13 | 2026-08-27 | story-writer | **Round-15 remediation: temporal-exemption soundness (EC-01-030..033), `any_early_stopped` truncation signal (EC-11-092/093), BC-2.11.001 trace addition, RG-PSG-019 desc fix, BC-2.16.002 v2.41 pin.** (1) Frontmatter: `traces_to` extended with `BC-2.11.001` (trace-only, resolves lens-C FINDING-2); `acceptance_criteria_count` 7→9; version 1.12→1.13; input-hash comment: ADR-060 v1.4→v1.5, BC-2.16.002 v2.40→v2.41. (2) §Behavioral Contracts table: BC-2.16.002 version pin v2.40→v2.41; description extended with §D8.9 temporal-soundness redesign (Filter-mode/Pipe-WHERE unconditional suppress; `is_pushed_temporal_predicate`; `FetchOutput`/`any_early_stopped` propagation chain; EC-01-030..033); BC-2.11.001 trace-only row added. (3) AC-008 added: temporal-exemption soundness (Filter-mode unconditional suppress; Pipe-WHERE unconditional suppress; SQL `is_pushed_temporal_predicate` with range-op + INDEX-column + `Literal::Timestamp` preconditions; EC-01-030..033; RG-PSG-021..024). (4) AC-009 added: `any_early_stopped` propagation chain and `is_truncated = (total_rows > limit) OR any_early_stopped` formula; Step 6 as SOLE owner of tool-level cap (EC-11-092/EC-11-093; RG-PSG-025). (5) §Red Gate Tests: RG-PSG-021..025 registered; density recomputed 26→31 RGTs / 9 ACs ≈ 3.44; RG-PSG-019 description corrected (PERMIT/SUPPRESS boundary; catch-all structurally guaranteed, NOT reachable by any test; SAP-3 rule-3); §Note reachability claims corrected for PSG-012/PSG-019. (6) §Architecture Compliance Rules: temporal-exemption soundness rules added (Filter/Pipe-WHERE unconditional suppress; `is_pushed_temporal_predicate` preconditions); `any_early_stopped` propagation chain rules added (`FetchOutput`; `is_truncated` formula; Step-6 sole-owner; anchored to RG-PSG-025). (7) §References: BC-2.11.001 EC-11-092/EC-11-093 trace entries added. (8) §Tasks: RG-PSG-021..025 authoring bullets added to Task 10; Task 12 green-gate range extended to RG-PSG-024; Task 15 final gate range extended to RG-PSG-025; implementer NOTE for module-doc Task-11 comment fix added to §Previous Story Intelligence. (9) §File Structure Requirements: plan_shape_gate_tests.rs and execute_integration_tests.rs notes updated. TD-VSDD-097: Dim-1 — no named twin for this story; CLEAR. Dim-2 — whole-artifact sweep: RG count 31 consistent in §Red Gate Tests table (31 rows), density paragraph (31/9≈3.44), Task 10 (RG-PSG-021..025 added), Task 15 (..025); `acceptance_criteria_count: 9` consistent with 9 ACs in body; `traces_to` carries BC-2.11.001 and BC-2.11.001 appears in §Behavioral Contracts trace note + §References; FULL. Dim-3 — RG-PSG-021..025 MUSTs anchored to story + named tests + ECs; `any_early_stopped` MUST anchored to RG-PSG-025 + EC-11-092/093; no unanchored MUSTs; CLEAR. |
 | 1.12 | 2026-08-27 | story-writer | **Round-14 records-tier story fixes (OBS-1 dedicated impl task + F-R14-LOW-001 Expr-level conservative-default note).** (1) OBS-1 (SAC-1 task-structure hygiene): added dedicated Task 11 (Implementation — materialization result boundary) between old Task 10 (RG-PSG-020 test authoring) and old Task 11 (ast_is_reducing_plan implementation); trimmed "make it GREEN by..." implementation guidance from the Task 10 RG-PSG-020 authoring bullet; old Tasks 11–14 renumbered to Tasks 12–15. All "MUST FAIL before Task 11" updated to "MUST FAIL before Task 12"; "MUST PASS after Task 11" and "MUST PASS before AND after Task 11" updated to Task 12; positive-controls note updated. Red-then-green ordering preserved: Task 10 (test authoring) → Task 11 (truncation-signal impl) → Task 12 (gate impl). RG count UNCHANGED at 26; density UNCHANGED at 26/7≈3.71. (2) F-R14-LOW-001 (Expr-level conservative default): AC-007 Conservative Default description expanded to state the posture applies at ALL dispatch levels including the Expr-recursion level; `expr_contains_aggregate_or_window` terminal arm documented as `_ => true` (conservative SUPPRESS) with explicit leaf-variant enumeration; noted as defensive/design-level — no CASE variant exists today, no new RG added. Code stub in new Task 12 updated: `_ => false` → `_ => true` with corresponding comment. New §Architecture Compliance Rules entry added for the Expr-level conservative default invariant. TD-VSDD-097: Dim-1 — no named twin for this story; CLEAR. Dim-2 — whole-artifact task-ordinal sweep: "MUST FAIL before Task 12/12" updated consistently in §Red Gate Tests (19 occurrences), §Note on positive controls (2 occurrences), Task 10 body (1 cross-ref added); task headings 11–15 consistent; RG count 26 unchanged in §Red Gate Tests table, density paragraph, Task 10 list, Task 12 green-gate range, Task 15 final gate list; FULL. Dim-3 — no new MUSTs added beyond existing; Expr-level conservative default is design-level defensive with no new test anchor required (per-instructions: not reachable today); CLEAR. |
 | 1.11 | 2026-08-27 | story-writer | **Round-13 propagation: SS-07/SS-11 subsystem anchoring, truncation-signal remediation, RG-PSG-015 LIKE alignment.** (1) Frontmatter `subsystems:` updated from `[SS-01, SS-16]` to `[SS-01, SS-07, SS-11, SS-16]` per ADR-060 v1.4 `subsystems_affected` (F-R13-LENSC-HIGH-001); SS-11 and SS-07 justification comments added; §Architecture Mapping "Architecture section references" list extended with `module-decomposition.md §SS-11` (Query Execution: ast_is_reducing_plan plan-shape gate, run_materialization_pipeline fetch_limit derivation) and `§SS-07` (Adapter Pagination & Response Cache: execute_impl per-page early-stop check §D8.2, fetch_limit coherence §D8.8). (2) Truncation-signal remediation (F-R13-CRIT-001 / MED-001 / MED-002): RG-PSG-014 (pipe-WHERE) row updated to assert RAW filtered count (100 rows, gate suppressed, fetch_limit=0) on `run_materialization_pipeline` output — materialization returns FULL set; tool-level cap + signal are engine.rs Step 6's responsibility, NOT materialization's. RG-PSG-020 registered (`test_BC_2_11_001_tool_limit_truncation_signal_on_suppressed_filter`, END-TO-END via QueryEngine::execute, `crates/prism-query/tests/execute_integration_tests.rs`): asserts is_truncated=true / total_available=100 / returned_results=25 for filter query whose match count exceeds tool limit. Materialization-no-cap rule added to §Architecture Compliance Rules (anchored to RG-PSG-020). RG-PSG-020 added to §Tasks Task 10 (red-then-green) and Task 14 final gate list. (3) RG-PSG-015 LIKE alignment (F-LENSB-P13-004): test vehicle updated from CONTAINS/StringOp to `WHERE status LIKE '%page2%'` (LIKE predicate; CONTAINS is a pipe StringOp/UDF, not a SQL predicate) in §Red Gate Tests row and §Tasks Task 10; BC-2.16.002 EC-016-002-014 CONTAINS example is unchanged (CONTAINS also suppresses via `has_client_side_where`). (4) Density recomputed: 25→26 RGTs (RG-001..006 + RG-PSG-001..020) / 7 ACs ≈ 3.71. (5) input-hash comment updated: ADR-060 v1.3→v1.4. TD-VSDD-097: Dim-1 — ADR-060 v1.4 `subsystems_affected=[SS-01,SS-07,SS-11,SS-16]`; story subsystems now MATCH; CONFIRMED. Dim-2 — whole-artifact sweep: RG count 26 consistent in §Red Gate Tests table (26 rows), density paragraph (26/7≈3.71), Task 10 (RG-PSG-020 added), Task 14 (..020); subsystems `[SS-01,SS-07,SS-11,SS-16]` consistent in frontmatter and justification block and §Architecture Mapping refs; FULL. Dim-3 — RG-PSG-020 MUST anchored to `test_BC_2_11_001_tool_limit_truncation_signal_on_suppressed_filter` in §Red Gate Tests + §Architecture Compliance Rules + §Tasks; materialization-no-cap rule MUST anchored to RG-PSG-020; no unanchored MUSTs introduced; CLEAR. |
