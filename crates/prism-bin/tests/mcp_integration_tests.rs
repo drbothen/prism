@@ -11,16 +11,23 @@
 //! `"is_truncated"` key in `CallToolResult.content[0].text` would be invisible
 //! to PSG-025 but caught here.
 //!
-//! ## In-process approach
+//! ## In-process approach (F-R16-P12-MED-001 fix)
 //!
-//! Uses `QueryEngine::execute` with a local mock `SensorAdapter` (same pattern
-//! as `test_psg_exact_limit_is_truncated_true` in
-//! `crates/prism-query/tests/execute_integration_tests.rs`) to drive the query
-//! through the full engine stack.  The resulting `QueryResult` is used to build
-//! a wire payload JSON (matching the structure of the `prism_query` MCP handler
-//! in `prism_mcp::server`), which is then passed through
-//! `rmcp::model::CallToolResult::structured` — the same call the MCP handler
-//! makes — and the serialized `content[0].text` string is asserted.
+//! Dispatches through the REAL `PrismServer::query` tool handler — the same
+//! code path that production MCP clients hit — using a local mock `SensorAdapter`
+//! to force the exact-limit boundary and the temporal-WHERE-suppression scenarios.
+//!
+//! The handler builds the query payload, runs it through
+//! `SafetyEnvelopeBuilder::wrap("query", DataSource::Multiple(...), payload, 1,
+//! result.is_truncated, None, audit_warning)`, serializes the `ResponseEnvelope`
+//! to JSON, and returns `CallToolResult::structured(envelope_val)`.  The test
+//! asserts on `call_result.content[0].text` — the exact bytes the LLM agent
+//! consumes — which contains the full serialized `ResponseEnvelope` JSON.
+//!
+//! The `is_truncated` key appears at `results.is_truncated` and
+//! `structuredContent.results.is_truncated` within that envelope.  A regression
+//! that drops or renames `is_truncated` in the envelope path would be caught here
+//! but invisible to any test that bypasses `SafetyEnvelopeBuilder::wrap`.
 //!
 //! Spawning the `prism` binary as a subprocess is NOT required; the test runs
 //! entirely in-process without `#[ignore]` and verifies the RED gate via
@@ -51,6 +58,7 @@ use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use prism_core::{OrgId, OrgSlug, PrismError, SensorId};
 use prism_credentials::{CredentialStore, namespace::CredentialName};
+use prism_mcp::server::{PrismServer, QueryToolParams};
 use prism_ocsf::OcsfNormalizer;
 use prism_query::{
     engine::{QueryEngine, QueryEngineConfig, QueryOptions},
@@ -61,6 +69,7 @@ use prism_sensors::{
     adapter::{FetchOutput, QueryParams, SensorAdapter, SensorError, SensorSpec},
     auth::SensorAuth,
 };
+use rmcp::handler::server::wrapper::Parameters;
 use secrecy::SecretString;
 
 // ---------------------------------------------------------------------------
@@ -174,13 +183,22 @@ fn make_wire_engine(registry: AdapterRegistry, clients: Vec<OrgSlug>) -> QueryEn
 /// tool `CallToolResult.content[0].text` JSON carries the correct `is_truncated`
 /// signal for two scenarios.
 ///
-/// ## What this test verifies
+/// ## What this test verifies (F-R16-P12-MED-001 fix)
 ///
-/// Drives the full `QueryEngine::execute` path for two scenarios, then builds the
-/// MCP wire payload in the same way the `prism_query` handler does (per
-/// `prism_mcp::server` §query handler: `serde_json::json!({ "is_truncated": result.is_truncated, ... })`).
-/// The payload is passed through `rmcp::model::CallToolResult::structured`, and
-/// the serialized `content[0].text` string is asserted at the raw-byte level.
+/// Dispatches through the REAL `PrismServer::query` tool handler using a local
+/// mock `SensorAdapter`.  The handler runs the query through `QueryEngine::execute`,
+/// builds the payload, wraps it via `SafetyEnvelopeBuilder::wrap`, serializes the
+/// `ResponseEnvelope` to JSON, and returns `CallToolResult::structured(envelope_val)`.
+///
+/// The test asserts on `call_result.content[0].text` — `envelope_val.to_string()`,
+/// the exact bytes the LLM agent consumes — which is the full serialized
+/// `ResponseEnvelope`.  The `"is_truncated"` key appears at `results.is_truncated`
+/// and `structuredContent.results.is_truncated` within that envelope.
+///
+/// A regression that drops or renames `is_truncated` in the envelope serialization
+/// path (e.g., a bug in `SafetyEnvelopeBuilder::wrap` or in the `results` payload
+/// construction) would be caught here but invisible to any test that bypasses
+/// `SafetyEnvelopeBuilder::wrap` (the previous paper-gate defect class).
 ///
 /// ## Scenarios
 ///
@@ -192,12 +210,12 @@ fn make_wire_engine(registry: AdapterRegistry, clients: Vec<OrgSlug>) -> QueryEn
 /// (page 1 of 3).  Engine Step 6: `total_rows = EXACT_LIMIT, limit = EXACT_LIMIT`.
 ///
 /// RED  (pre-round-16): `is_truncated = total_rows > limit = 1000 > 1000 = false`.
-///   Wire JSON: `{"is_truncated":false,...}`.
+///   Wire envelope: `results.is_truncated = false`.
 ///   Assertion `wire_text.contains("\"is_truncated\":true")` → FAILS.
 ///
 /// GREEN (post-round-16 — `any_early_stopped` propagated):
 ///   `is_truncated = (total_rows > limit) OR any_early_stopped = false OR true = true`.
-///   Wire JSON: `{"is_truncated":true,...}`.
+///   Wire envelope: `results.is_truncated = true`.
 ///   Assertion → PASSES.
 ///
 /// ### Case 2 — SQL WHERE suppresses early-stop (positive control)
@@ -214,7 +232,7 @@ fn make_wire_engine(registry: AdapterRegistry, clients: Vec<OrgSlug>) -> QueryEn
 /// Pre-round-16 (Condition G not yet implemented): `params.limit = 1000 > 0` → mock
 /// returns 1000 rows → same result via `total_rows > limit = false`.
 ///
-/// Wire JSON: `{"is_truncated":false,...}`.
+/// Wire envelope: `results.is_truncated = false`.
 /// Assertion `wire_text.contains("\"is_truncated\":false")` → PASSES in both states.
 ///
 /// ## RED / GREEN
@@ -224,8 +242,9 @@ fn make_wire_engine(registry: AdapterRegistry, clients: Vec<OrgSlug>) -> QueryEn
 ///
 /// ## SAP-3 compliance
 ///
-/// Both queries go through `QueryEngine::execute` (full engine path from query string, not
-/// a synthetic AST or direct `run_materialization_pipeline` call).
+/// Both queries reach the PrismServer `query` tool handler end-to-end, driving
+/// `QueryEngine::execute` from a query string (not a synthetic AST or direct
+/// `run_materialization_pipeline` call).
 #[tokio::test]
 async fn test_psg_rg026_prism_query_wire_surfaces_truncation_signal() {
     // -----------------------------------------------------------------------
@@ -323,39 +342,55 @@ async fn test_psg_rg026_prism_query_wire_surfaces_truncation_signal() {
     let mut registry = AdapterRegistry::new();
     registry.register(org_id, adapter);
 
-    let engine = make_wire_engine(registry, vec![org_slug.clone()]);
+    let engine = make_wire_engine(registry, vec![org_slug]);
+
+    // -----------------------------------------------------------------------
+    // Build PrismServer with the engine wired.
+    //
+    // PrismServer::new() is the test-only constructor (no audit_writer, no
+    // org_registry).  Audit emission with no AuditWriter returns Ok(None) per
+    // emit_tool_audit's None branch — the query proceeds with audit_warning = None.
+    //
+    // With no OrgRegistry, resolve_org_id falls back to the first registered
+    // adapter for sensor "mock" (Path 2 in materialization.rs) — which is the
+    // WireExactLimitMockAdapter registered above.
+    //
+    // The "test-org" slug passes validate_client_ids (alphanumeric + dash, ≤ 64
+    // chars) and is present in ClientRegistry, so resolve_clients succeeds.
+    // -----------------------------------------------------------------------
+    let server = PrismServer::new().with_query_engine(Arc::new(engine));
 
     // -----------------------------------------------------------------------
     // Case 1: bare projection LIMIT N at exact boundary
     //
+    // params.limit = 1000 → build_query_options sets QueryOptions.limit = 1000
+    // → early-stop active (fetch_limit = 1000 > 0) → mock returns 1000 rows.
+    //
     // Engine Step 6 (current code): is_truncated = total_rows > limit
     //   = EXACT_LIMIT > EXACT_LIMIT = false
     //
-    // Wire JSON contains "is_truncated":false.
+    // Wire envelope results.is_truncated = false.
     // Assertion `contains("\"is_truncated\":true")` → FAILS → RED gate.
     //
     // Post-round-16: is_truncated = (total_rows > limit) OR any_early_stopped
     //   = false OR true = true
-    // Wire JSON contains "is_truncated":true → assertion PASSES → GREEN.
+    // Wire envelope results.is_truncated = true → assertion PASSES → GREEN.
     // -----------------------------------------------------------------------
-    let options_case1 = QueryOptions {
-        clients: Some(vec![org_slug.clone()]),
-        sensors: None,
-        limit: Some(EXACT_LIMIT),
-        force_refresh: false,
-        ..QueryOptions::default()
-    };
+    // QueryToolParams is #[non_exhaustive] — use serde_json deserialization for
+    // cross-crate construction (struct literal syntax is forbidden outside prism-mcp).
+    let params_case1: QueryToolParams = serde_json::from_value(serde_json::json!({
+        "query":         format!("SELECT * FROM mock_events LIMIT {EXACT_LIMIT}"),
+        "clients":       ["test-org"],
+        "limit":         EXACT_LIMIT as u32,
+        "force_refresh": false
+    }))
+    .expect("PSG-026 case 1: QueryToolParams must deserialize from known-field JSON object");
 
-    let result_case1 = engine
-        .execute(
-            &format!("SELECT * FROM mock_events LIMIT {EXACT_LIMIT}"),
-            options_case1,
-        )
-        .await
-        .expect(
-            "PSG-026 case 1: QueryEngine::execute must not error for bare projection \
-             against mock adapter",
-        );
+    let call_result_case1 = server.query(Parameters(params_case1)).await.expect(
+        "PSG-026 case 1: PrismServer::query must return Ok(CallToolResult) for bare \
+             projection against mock adapter (Err here means an internal PrismError — \
+             check query parse or engine wiring)",
+    );
 
     // Precondition: adapter must have been called (not a vacuous short-circuit).
     let fc_after_case1 = fetch_count.load(Ordering::SeqCst);
@@ -363,30 +398,36 @@ async fn test_psg_rg026_prism_query_wire_surfaces_truncation_signal() {
         fc_after_case1 >= 1,
         "PSG-026 case 1 precondition: adapter must have been fetched at least once \
          (fetch_count={fc_after_case1}); a count of 0 means the pipeline short-circuited \
-         and all wire assertions are vacuous."
+         before reaching the mock adapter and all wire assertions are vacuous."
     );
 
-    // Build the wire payload as the prism_query MCP handler does:
-    //   serde_json::json!({ "returned_results": ..., "total_available": ..., "is_truncated": ... })
-    // Then pass it through CallToolResult::structured to produce the MCP wire result.
-    // content[0].text == payload.to_string() (compact JSON, no spaces around colons).
-    let wire_payload_case1 = serde_json::json!({
-        "returned_results": result_case1.returned_results,
-        "total_available":  result_case1.total_available,
-        "is_truncated":     result_case1.is_truncated,
-    });
-    let call_result_case1 = rmcp::model::CallToolResult::structured(wire_payload_case1);
+    // Extract the ACTUAL wire bytes from the real SafetyEnvelopeBuilder serialization.
+    //
+    // content[0].text = serde_json::to_value(&ResponseEnvelope {
+    //   _meta: { has_more: result.is_truncated, ... },
+    //   results: { rows: [...], returned_results: N, total_available: N, is_truncated: X },
+    //   content: [{ type: "text", text: "N results found" }],
+    //   structuredContent: { results: { ... is_truncated: X ... } }
+    // }).to_string()
+    //
+    // is_truncated appears in both results.is_truncated and
+    // structuredContent.results.is_truncated within the serialized envelope.
     let wire_text_case1 = call_result_case1
         .content
         .first()
         .and_then(|c| c.as_text())
         .map(|t| t.text.clone())
-        .expect("PSG-026 case 1: CallToolResult::structured must produce content[0] text");
+        .expect(
+            "PSG-026 case 1: CallToolResult::structured must produce a text content[0] item \
+             (the serialized SafetyEnvelope JSON)",
+        );
 
     // PRIMARY ASSERTION (RED gate driver):
     //
-    // RED  (pre-round-16): wire_text contains "is_truncated":false → FAILS.
-    // GREEN (post-round-16): wire_text contains "is_truncated":true → PASSES.
+    // RED  (pre-round-16): envelope results.is_truncated = false
+    //   → wire_text contains "is_truncated\":false → FAILS.
+    // GREEN (post-round-16): envelope results.is_truncated = true
+    //   → wire_text contains "is_truncated\":true → PASSES.
     assert!(
         wire_text_case1.contains("\"is_truncated\":true"),
         "PSG-026 case 1 (AC-009(d) EC-11-092 wire-level — RED gate driver): \
@@ -414,39 +455,29 @@ async fn test_psg_rg026_prism_query_wire_surfaces_truncation_signal() {
     // Pre-round-16 (Condition G not yet wired for SQL equality):
     // params.limit = 1000 > 0 → mock returns 1000 rows → same is_truncated = false.
     //
-    // Wire JSON contains "is_truncated":false → assertion PASSES in both states.
+    // Wire envelope results.is_truncated = false → assertion PASSES in both states.
     // -----------------------------------------------------------------------
-    let options_case2 = QueryOptions {
-        clients: Some(vec![org_slug.clone()]),
-        sensors: None,
-        limit: Some(EXACT_LIMIT),
-        force_refresh: false,
-        ..QueryOptions::default()
-    };
+    let params_case2: QueryToolParams = serde_json::from_value(serde_json::json!({
+        "query":         format!("SELECT * FROM mock_events WHERE status = 'data' LIMIT {EXACT_LIMIT}"),
+        "clients":       ["test-org"],
+        "limit":         EXACT_LIMIT as u32,
+        "force_refresh": false
+    }))
+    .expect(
+        "PSG-026 case 2: QueryToolParams must deserialize from known-field JSON object",
+    );
 
-    let result_case2 = engine
-        .execute(
-            &format!("SELECT * FROM mock_events WHERE status = 'data' LIMIT {EXACT_LIMIT}"),
-            options_case2,
-        )
-        .await
-        .expect(
-            "PSG-026 case 2: QueryEngine::execute must not error for SQL WHERE query \
-             against mock adapter",
-        );
+    let call_result_case2 = server.query(Parameters(params_case2)).await.expect(
+        "PSG-026 case 2: PrismServer::query must return Ok(CallToolResult) for SQL WHERE \
+             query against mock adapter",
+    );
 
-    let wire_payload_case2 = serde_json::json!({
-        "returned_results": result_case2.returned_results,
-        "total_available":  result_case2.total_available,
-        "is_truncated":     result_case2.is_truncated,
-    });
-    let call_result_case2 = rmcp::model::CallToolResult::structured(wire_payload_case2);
     let wire_text_case2 = call_result_case2
         .content
         .first()
         .and_then(|c| c.as_text())
         .map(|t| t.text.clone())
-        .expect("PSG-026 case 2: CallToolResult::structured must produce content[0] text");
+        .expect("PSG-026 case 2: CallToolResult::structured must produce a text content[0] item");
 
     // POSITIVE CONTROL: is_truncated must be false when early-stop is suppressed.
     // PASSES in both RED and GREEN states — validates the suppression path.
