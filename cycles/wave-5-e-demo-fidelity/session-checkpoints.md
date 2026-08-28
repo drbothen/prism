@@ -593,3 +593,19 @@ ADR-053 ratified EFFECTIVE 2026-07-22 (D-1943) → 9 Wave-A stories (8 draft / 1
 **HEADS (D-2326):** develop `3f1e66179` (local==origin; clean); feature/S-CLAROTY-VULNS-001 `5aae6f0b3` (PUSHED; LOCAL 3-CLEAN CONVERGED round-5; merge HELD pending LIMIT); feature/S-ENGINE-LIMIT-EARLY-STOP-001 `e59116ea8` (PUSHED; plan-shape gate LANDED; round-12 3-CLEAN re-cascade pending); Parked: S-3.09 `43c41389d` KEEP; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch. HOLDOUT: HS-024 CONSUMED (PASS D-2309); HS-025..029 AUTHORED UNREAD.
 
 **NOTE: Superseded by D-2327 — ROUND-12 REGRESSION: F-R12-CRIT-001 (CRITICAL): `expr_contains_aggregate` non-recursive on `Expr::FuncCall` args — nested/scalar-wrapped aggregate escapes Condition A; F-R12-HIGH-001 (HIGH): JOIN not in suppression set (ADR-060 §D8.7 scope gap). Comprehensive plan-shape completeness audit + remediation cascade in flight. BC-5.39.001 LOCAL streak 0/3 (CRIT). trajectory-tail →1→1→3→8 (REGRESSION). STATE v8.859→v8.860.**
+
+---
+
+## Archived: D-2333 — 2026-08-28; STATE v8.865→v8.866 — round-16 adversary pass-1 SPEC-REMEDIATED; CODE-PENDING
+
+Prism Phase-3, v1 = live Claroty xDome. DEFECT-2 = S-ENGINE-LIMIT-EARLY-STOP-001: round-16 adversary pass-1 SPEC-REMEDIATED (D-2333). F-R16-P1-CRIT-001 (relative-temporal PERMIT bug) + F-R16-P1-HIGH-001 (CWE-284/340/200 cross-tenant cache-key collision) + F-R16-P1-MED-001 (ADR-059 stale citation) ALL SPEC-REMEDIATED D-2333: ADR-061 v1.0 NEW (multi-tenant cache-key isolation; 3 defect sites; D2 fail-closed; RG-SLUG-001..006) + ADR-060 v1.6 (MED-001 ADR-059 citation reframe) + BC-2.16.002 v2.42 (catalog row 97 query.org_slug_resolution_failure) + story v1.17 (AC-010..013; RG-PSG-026..029+RG-SLUG-001..006 RED uncommitted). F-R15-LENSA-CRIT-001 + F-R15-LENSA-HIGH-001 SPEC-REMEDIATED D-2332 (CODE-PENDING). Feature HEAD 67dfe7f20 (streak 0/3). ADR-060 v1.5 committed (D-2332 architect write; v1.6 D-2333 citation reframe).
+
+**ROUND-16 CODE DIRECTIVE:** (1) test-writer: author RG-PSG-021..025 RED (story v1.13 design) + RG-PSG-026..029 + RG-SLUG-001..006 RED tests (all MUST FAIL before implementation). (2) implementer: 7-file directive + ADR-061 §D1 invariant: OrgRegistry::slug_for gates derive_response_cache_key; 3 site fixes in materialization.rs. (3) re-cascade round-16.
+
+**SETTLED:** (1)-(18) per D-2332. (19) D-2333: ADR-061 v1.0 (CWE-284/340/200 3-site isolation); ADR-060 v1.6 citation reframe; BC-2.16.002 v2.42 catalog row 97; story v1.17 AC-010..013 + RG-PSG-026..029 + RG-SLUG-001..006; F-R16-P1 ALL SPEC-REMEDIATED.
+
+**SPEC PERIMETER:** ADR-058 v2.34 / ADR-059 v1.2 (WITHDRAWN) / ADR-060 v1.6 (D-2333 citation reframe) / ADR-061 v1.0 (D-2333 NEW CWE-284/340/200) / BC-2.16.002 v2.42 (EC-01-030..033 D-2332; catalog row 97 D-2333) / BC-2.11.001 v1.26 (EC-11-092/093 D-2332) / BC-2.16.003 v1.27 / BC-2.16.015 v1.8 (draft; trace-only) / VULNS story v1.9 / LIMIT story v1.17 (AC-010..013; RG-PSG-026..029+RG-SLUG-001..006 RED uncommitted) — ARCH-INDEX v2.343 / BC-INDEX v9.72 / STORY-INDEX v2.921 / VP-INDEX v2.22.
+
+**HEADS (D-2333):** develop `3f1e66179` (local==origin; clean); factory-artifacts: run `git -C .factory log -1 --format='%h %s'`; feature/S-CLAROTY-VULNS-001 `5aae6f0b3` (PUSHED; LOCAL 3-CLEAN CONVERGED round-5; merge HELD pending LIMIT); feature/S-ENGINE-LIMIT-EARLY-STOP-001 `67dfe7f20` (CODE-PENDING round-16; streak 0/3); Parked: S-3.09 `43c41389d` KEEP; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch.
+
+**NOTE: Superseded by D-2334 — round-16 pass-2 SOUND (records-only); story v1.17→v1.18; STORY-INDEX v2.921→v2.922; feature HEAD dcf0bd3ff; pass-3 PENDING. STATE v8.866→v8.867.**
