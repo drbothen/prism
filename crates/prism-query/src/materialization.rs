@@ -1092,7 +1092,10 @@ pub async fn run_materialization_pipeline(
                 // asymmetry). TTL selection by source data type happens inside
                 // `put` (60s alerts / 300s devices / health not cached).
                 if let (Some(cache), Some(key)) = (&response_cache, &response_cache_key) {
-                    let complete = fan_result.errors.is_empty();
+                    // EC-01-039 / BC-2.07.003: an early-stopped partial is never
+                    // cached as complete — the next identical query must re-fetch
+                    // and recompute the truncation signal from live data.
+                    let complete = fan_result.errors.is_empty() && !fan_result.any_early_stopped;
                     store_or_invalidate_response_cache(
                         cache,
                         key,
