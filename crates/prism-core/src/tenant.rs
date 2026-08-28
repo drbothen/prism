@@ -85,10 +85,15 @@ impl OrgSlug {
     /// (`prism-credentials/`, `prism-query/tests/`, `prism-query/src/write_dispatch.rs`)
     /// need this function and `#[cfg(test)]` does not propagate downstream.
     ///
-    /// # History (MED-001 update, S-PLUGIN-PREREQ-C fix-burst-2)
-    /// The prior production caller in `prism-query/src/materialization.rs` was migrated
-    /// to `OrgSlug::new()` with `"synthetic-unmapped"` sentinel fallback (HIGH-006 closure,
-    /// fix-burst-1). No production caller of `new_unchecked` remains.
+    /// # History (MED-001 update, S-PLUGIN-PREREQ-C fix-burst-2; ADR-061, S-ENGINE-LIMIT-EARLY-STOP-001)
+    /// The prior production caller in `prism-query/src/materialization.rs` was initially migrated
+    /// to `OrgSlug::new()` with a `"synthetic-unmapped"` sentinel fallback (HIGH-006 closure,
+    /// fix-burst-1). That sentinel was removed unconditionally by ADR-061 D3/D7
+    /// (S-ENGINE-LIMIT-EARLY-STOP-001) — it collapsed multiple orgs into one cache partition
+    /// (CWE-284). The current fallback when `org_registry: Some(_)` is present but has no slug
+    /// for an org is SKIP-with-structured-warn (`query.org_slug_resolution_failure`). Truncated
+    /// synthesis (`org-{8hex}`) exists only in the `org_registry: None` test-mode carve-out
+    /// (ADR-061 D3). No production caller of `new_unchecked` remains.
     ///
     /// # Audit guardrail
     /// Locked by `crates/prism-core/tests/new_unchecked_audit.rs` allowlist tuple
