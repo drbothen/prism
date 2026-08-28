@@ -884,61 +884,33 @@ pub async fn run_materialization_pipeline(
     // Reducing plans hash `0` as `fetch_limit`, so they share a full-dataset
     // cache entry (ADR-060 §D8.8 cache-key coherence).
     //
-    // ADR-060 §D8.7 v1.5: derive INDEX-designated datetime column names for the
-    // temporal-exemption soundness check. Only range comparisons (Gt/Ge/Lt/Le) on
-    // INDEX-designated Datetime columns are guaranteed server-side push-down (ADR-033 T1).
-    // All other predicates (Eq, non-INDEX datetime, Filter-mode, Pipe-WHERE) are
-    // applied client-side by DataFusion and must suppress early-stop.
-    // Conservative default: when resolved_spec_map is None (test/MVP mode with no
-    // sensor spec wired), datetime_index_cols is empty → ALL temporal comparisons
-    // are treated as client-side → early-stop suppressed.
-    // ADR-060 §D8.9 v1.7: also register the OCSF-flattened Arrow name (e.g. "time"
-    // for a column with ocsf_field="time" on an ocsf_column_naming=true sensor) so
-    // that LLM-agent queries authored against the flattened OCSF schema are
-    // recognised as server-pushed. Mirrors extract_time_window_from_ast in pushdown.rs.
-    // The ocsf_naming_map built above covers the push-down path; this registration
-    // covers the plan-shape gate path — both must be consistent (ADR-060 §D8.9, MED-001).
-    let datetime_index_cols: Vec<String> = mat_ctx
-        .resolved_spec_map
-        .as_ref()
-        .map(|map| {
-            let mut cols: Vec<String> = Vec::new();
-            for rss in map.values() {
-                let ocsf_naming = rss.spec.ocsf_column_naming;
-                for table in &rss.spec.tables {
-                    for col in &table.columns {
-                        if col.column_type == prism_core::column::ColumnType::Datetime
-                            && col
-                                .options
-                                .contains(&prism_core::column::ColumnOptions::Index)
-                        {
-                            cols.push(col.name.clone());
-                            // When the sensor uses OCSF column naming, also register
-                            // ocsf_field_to_arrow_name(ocsf_field) so predicates on the
-                            // flattened Arrow name (e.g. `WHERE time > …`) are treated as
-                            // server-pushed rather than client-side (ADR-060 §D8.9 MED-001).
-                            // Guard: only when ocsf_column_naming=true; registering the
-                            // flattened name for non-OCSF sensors risks silent collision with
-                            // a real column of the same name.
-                            if ocsf_naming {
-                                if let Some(ref ocsf_field) = col.ocsf_field {
-                                    cols.push(
-                                        prism_spec_engine::column_mapping::ocsf_field_to_arrow_name(
-                                            ocsf_field,
-                                        ),
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            cols
-        })
-        .unwrap_or_default();
+    // ADR-060 v1.8 §D8.7: derive source-scoped INDEX-designated datetime column names for the
+    // temporal-exemption soundness check (F-R16-P16-LENSA-HIGH-001).
+    //
+    // v1.8 changes vs v1.7:
+    //   HIGH-001 (source-scope): only columns from the QUERIED source sensors are included.
+    //     v1.7 iterated resolved_spec_map.values() (ALL sensors), causing INDEX designations
+    //     from unqueried sensors (e.g. armis's last_seen INDEX) to bleed into other sensors'
+    //     gate decisions (e.g. crowdstrike's last_seen, which has no INDEX designation).
+    //     Fix: use collect_datetime_index_cols on the source-scoped resolved_col_map.
+    //   Condition K (ADR-060 §D8.7 v1.8): suppress when any queried table has ≥2 Datetime+INDEX
+    //     cols — push-down coverage is ambiguous for multi-index tables.
+    //   OCSF-flattened names (ADR-060 §D8.9 MED-001, unchanged): still registered via
+    //     collect_datetime_index_cols when ocsf_column_naming=true for the source.
+    //
+    // Conservative default: resolved_col_map = None (no spec wired) → collect_datetime_index_cols
+    // returns ([], false) → ALL temporal comparisons treated as client-side → early-stop suppressed.
+    let source_name_refs: Vec<&str> = source_names.iter().map(String::as_str).collect();
+    let (datetime_index_cols, suppress_multi_index) = collect_datetime_index_cols(
+        resolved_col_map.as_ref(),
+        &source_name_refs,
+        ocsf_naming_map.as_ref(),
+    );
     let datetime_index_refs: Vec<&str> = datetime_index_cols.iter().map(|s| s.as_str()).collect();
 
-    let fetch_limit: u64 = if ast_is_reducing_plan_with_index_cols(&ast, &datetime_index_refs) {
+    let fetch_limit: u64 = if suppress_multi_index
+        || ast_is_reducing_plan_with_index_cols(&ast, &datetime_index_refs)
+    {
         0
     } else {
         options.limit.map(|l| l as u64).unwrap_or(0)
@@ -2296,15 +2268,25 @@ fn build_source_column_map(
             let dot_key = format!("{sensor_id}.{}", table.table_name);
             let underscore_key = format!("{sensor_id}_{}", table.table_name);
             // Only include if referenced by the query (avoids unnecessary work).
-            let is_referenced = source_names
-                .iter()
-                .any(|s| *s == dot_key || *s == underscore_key);
+            // Three key forms:
+            // 1. dot form: "{sensor_id}.{table_name}" (e.g. "armis.devices")
+            // 2. underscore form: "{sensor_id}_{table_name}" (e.g. "armis_devices")
+            // 3. direct form: "{table_name}" — backward-compat for test fixtures where
+            //    table_name is already compound (e.g. "armis_devices"). Real sensor TOMLs
+            //    use short table names ("devices") so dot/underscore forms cover them.
+            let is_referenced = source_names.iter().any(|s| {
+                *s == dot_key || *s == underscore_key || s.as_str() == table.table_name.as_str()
+            });
             if is_referenced {
                 result
                     .entry(dot_key.clone())
                     .or_insert_with(|| table.columns.clone());
                 result
                     .entry(underscore_key)
+                    .or_insert_with(|| table.columns.clone());
+                // Direct key for test fixtures and any caller using table_name as source.
+                result
+                    .entry(table.table_name.clone())
                     .or_insert_with(|| table.columns.clone());
             }
         }
@@ -2336,17 +2318,107 @@ fn build_source_ocsf_naming_map(
         for table in &resolved.spec.tables {
             let dot_key = format!("{sensor_id}.{}", table.table_name);
             let underscore_key = format!("{sensor_id}_{}", table.table_name);
-            let is_referenced = source_names
-                .iter()
-                .any(|s| *s == dot_key || *s == underscore_key);
+            let is_referenced = source_names.iter().any(|s| {
+                *s == dot_key || *s == underscore_key || s.as_str() == table.table_name.as_str()
+            });
             if is_referenced {
                 result.entry(dot_key).or_insert(flag);
                 result.entry(underscore_key).or_insert(flag);
+                // Direct key for test fixtures and callers using table_name as source.
+                result.entry(table.table_name.clone()).or_insert(flag);
             }
         }
     }
 
     result
+}
+
+/// Collect Datetime+INDEX column names for the query-scoped source column map.
+///
+/// SOURCE-SCOPED: only columns visible in `source_names` are included — no global
+/// cross-sensor bleed (F-R16-P16-LENSA-HIGH-001, ADR-060 v1.8 §D8.7).
+///
+/// Also registers the OCSF-flattened Arrow name (ADR-060 §D8.9) when `ocsf_column_naming=true`
+/// for the source, mirroring the logic in `extract_time_window_from_ast` (pushdown.rs).
+///
+/// ## Condition K (ADR-060 v1.8 §D8.7)
+///
+/// Returns `suppress_multi_index = true` when any queried source table has ≥2 Datetime+INDEX
+/// columns. Such tables have ambiguous push-down coverage — a temporal predicate targeting
+/// only one INDEX column does not guarantee the server filters on the other, so early-stop
+/// (LIMIT push-down) can yield incorrect results.
+///
+/// ## Safe default
+///
+/// `resolved_col_map = None` → returns `(Vec::new(), false)` (conservative: empty index set
+/// causes all predicates to be treated as client-side, suppressing early-stop).
+///
+/// # ADR-060 v1.8 anchors: F-R16-P16-LENSA-HIGH-001 (HIGH-001, source-scope),
+/// F-R16-P16-LENSB-LOW-001 (Condition K). Shared by gate (Change 2) and
+/// `pushdown::extract_time_window_from_ast` (Change 4).
+pub(crate) fn collect_datetime_index_cols(
+    resolved_col_map: Option<
+        &std::collections::HashMap<String, Vec<prism_spec_engine::spec_parser::ColumnSpec>>,
+    >,
+    source_names: &[&str],
+    ocsf_naming_map: Option<&std::collections::HashMap<String, bool>>,
+) -> (Vec<String>, bool) {
+    let Some(col_map) = resolved_col_map else {
+        return (Vec::new(), false);
+    };
+
+    let mut cols: Vec<String> = Vec::new();
+    let mut suppress_multi_index = false;
+
+    for source_name in source_names {
+        let Some(columns) = col_map.get(*source_name) else {
+            continue;
+        };
+
+        // Condition K (ADR-060 v1.8 §D8.7): suppress early-stop when a queried table
+        // has ≥2 Datetime+INDEX columns. first-wins semantics in extract_time_bounds_from_predicate
+        // can only capture one bound per direction; with multiple INDEX datetime cols the
+        // unselected column has no server-side constraint, making early-stop incorrect.
+        let dt_idx_count = columns
+            .iter()
+            .filter(|col| {
+                col.column_type == prism_core::column::ColumnType::Datetime
+                    && col
+                        .options
+                        .contains(&prism_core::column::ColumnOptions::Index)
+            })
+            .count();
+        if dt_idx_count >= 2 {
+            suppress_multi_index = true;
+        }
+
+        let ocsf_naming = ocsf_naming_map
+            .and_then(|m| m.get(*source_name))
+            .copied()
+            .unwrap_or(false);
+
+        for col in columns {
+            if col.column_type == prism_core::column::ColumnType::Datetime
+                && col
+                    .options
+                    .contains(&prism_core::column::ColumnOptions::Index)
+            {
+                cols.push(col.name.clone());
+                // ADR-060 §D8.9: register the OCSF-flattened Arrow name when the sensor uses
+                // ocsf_column_naming=true so predicates on the flattened name are push-eligible.
+                // Guard: only when ocsf_naming=true to avoid silent collision on non-OCSF sensors.
+                if ocsf_naming {
+                    if let Some(ref ocsf_field) = col.ocsf_field {
+                        cols.push(prism_spec_engine::column_mapping::ocsf_field_to_arrow_name(
+                            ocsf_field,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    (cols, suppress_multi_index)
 }
 
 /// Wrapper that extracts time-window bounds from the PrismQL AST by delegating
@@ -2716,19 +2788,21 @@ fn is_pushed_temporal_predicate(
             // FieldPath.segments.join(".") gives the dot-notation column name
             // (e.g. "timestamp", "created_at"); sensor spec columns are simple
             // single-segment names in practice.
+            // ADR-060 v1.8 F-R16-P16-LENSB: only `Field OP Literal` (lhs=Field, rhs=Timestamp)
+            // qualifies for server-side push-down. The reversed `Literal OP Field` form
+            // (rhs=Field, lhs=Timestamp) is NOT push-down-eligible: ADR-033 T1 guarantees
+            // server-side filtering only for the canonical Field-first ordering. The reversed
+            // form is grammar-unreachable from normal PQL queries (the parser always emits
+            // `Field OP Literal` for temporal comparisons), but must return false defensively.
+            // v1.7 `rhs_pushed` branch incorrectly returned true for reversed operands —
+            // removed in v1.8 (RG-PSG-030c).
             let lhs_pushed = if let Expr::Field(fp) = lhs.as_ref() {
                 let col_name = fp.segments.join(".");
                 datetime_index_cols.contains(&col_name.as_str()) && is_temporal_expr(rhs)
             } else {
                 false
             };
-            let rhs_pushed = if let Expr::Field(fp) = rhs.as_ref() {
-                let col_name = fp.segments.join(".");
-                datetime_index_cols.contains(&col_name.as_str()) && is_temporal_expr(lhs)
-            } else {
-                false
-            };
-            lhs_pushed || rhs_pushed
+            lhs_pushed
         }
         // AND-combined pushed temporal comparisons: all branches must be pushed.
         // OR-combined predicates are NOT pushed (OR requires a full scan).
