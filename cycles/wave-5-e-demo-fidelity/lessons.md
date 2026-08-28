@@ -4913,3 +4913,25 @@ Register either a self-improvement story anchored to the wave-5-e-demo-fidelity 
 ### [process-gap] 2026-08-21 — State-manager burst latency root cause (35–70 min/burst)
 
 [process-gap] 2026-08-21 — State-manager burst latency (35–70 min) root-caused to the 73-plugin PostToolUse hook chain + bloated index/changelog files. Diagnosis + ranked remediation levers in state-manager-latency-analysis-2026-08-21.md. DIAGNOSIS ONLY — remediation deferred; promote levers #1/#2 to a self-improvement story at cycle close.
+
+---
+
+### [process-gap] 2026-08-28 D-2342 — RECORDS/STORY-ACCURACY tail recurrence across passes 15/16/17 (3-recurrence codification threshold met)
+
+**Pattern:** Adversary passes 15, 16, and 17 of the S-ENGINE-LIMIT-EARLY-STOP-001 round-16 cascade each returned findings in the RECORDS/STORY-ACCURACY class, despite SAP-1/2/3 probe disciplines being in force:
+
+- Pass 15 (LENSB-MED-001, LENSB-MED-002): AC↔test inversion (RG-SLUG-005 test name matched AC label; vehicle exercised wrong mechanism — cascaded from faulty story authoring). LENSC-MED-001 POL-39 story body version pins.
+- Pass 16 (LENSB-MED-001, LENSC-MED-002, LENSC-LOW-001): 5 phantom RG test symbol names in story v1.23 (plausible names, wrong — minted by story-writer burst without on-disk verification). BC-2.16.002 POL-39 body prose not swept in the dedicated POL-39 sweep burst.
+- Pass 17 (LENSC-MED-003, LENSC-LOW-002): STORY-INDEX LIMIT row not compacted (POL-40). Missing v2.925 changelog row (D-2338 genuine bump never written).
+
+**Root-cause diagnosis:** The phantom-symbol pattern (pass 16) is the most actionable: story-writer mints RG symbol names from spec text during authoring rather than confirming against `crates/` disk. The adversary's probe catches them when it greps for function names, but this is a remediation loop that could be short-circuited by a burst post-condition. The section-scoped-sweep failure (BC-2.16.002 POL-39 missing body sections) is a recurrence of Lesson 130 — whole-body-grep discipline not yet mechanically enforced.
+
+**Two codification candidates (cycle-close self-improvement follow-up):**
+
+1. **records-lint L11 — narrative artifact-version pin check in body prose.** Extend `scripts/records-lint.sh` to scan BC/story body prose for narrative version-pin forms (`ADR-NNN vX.Y`, `BC-N.NN.NNN vX.Y` in non-changelog sections). These slip through the current L9 gate which targets volatile line-cites only.
+
+2. **story-writer burst post-condition: RG-name↔on-disk-symbol grep + pasted evidence requirement.** When a burst mints or modifies Red Gate test entries (red_gate_tests frontmatter changed, or §Red Gate Tests rows added/modified), the burst MUST include: (a) `grep -r <rg_symbol_name> crates/ --include='*.rs'` for each RG symbol; (b) pasted function signature or explicit `ABSENT` notation. Self-certification without grep evidence is insufficient.
+
+**Follow-up obligation:** Register a self-improvement story at wave-5-e-demo-fidelity cycle close, or a justified deferral with a REAL story ID per Canonical Principle Rule 3. Without a mechanical gate, this class will recur on every story with story-writer-authored RG test lists.
+
+**Source:** D-2342 state-manager (2026-08-28). Pattern family: phantom-symbol authoring, section-scoped-sweep-failure, POL-39 body-prose version pin, POL-40 index-row compaction missed.

@@ -213,3 +213,32 @@ _All prior session-end markers folded at D-2310 session wrap (2026-08-26). Archi
 - Session ended at 2026-08-28T15:21:29Z (awaiting /session-review)
 - Session ended at 2026-08-28T15:22:47Z (awaiting /session-review)
 - Session ended at 2026-08-28T15:29:25Z (awaiting /session-review)
+- Session ended at 2026-08-28T16:04:18Z (awaiting /session-review)
+- Session ended at 2026-08-28T16:08:26Z (awaiting /session-review)
+- Session ended at 2026-08-28T16:10:45Z (awaiting /session-review)
+- Session ended at 2026-08-28T16:15:47Z (awaiting /session-review)
+- Session ended at 2026-08-28T16:21:47Z (awaiting /session-review)
+- Session ended at 2026-08-28T16:30:48Z (awaiting /session-review)
+- Session ended at 2026-08-28T16:37:54Z (awaiting /session-review)
+- Session ended at 2026-08-28T16:44:16Z (awaiting /session-review)
+- Session ended at 2026-08-28T16:49:09Z (awaiting /session-review)
+- Session ended at 2026-08-28T16:53:32Z (awaiting /session-review)
+- Session ended at 2026-08-28T17:03:26Z (awaiting /session-review)
+- Session ended at 2026-08-28T17:15:51Z (awaiting /session-review)
+
+## Process-Gap Note — D-2342 (2026-08-28)
+
+**RECORDS/STORY-ACCURACY tail recurrence — 3-recurrence codification threshold met (passes 15/16/17).**
+
+Pattern observed: adversary passes 15, 16, and 17 of the S-ENGINE-LIMIT-EARLY-STOP-001 round-16 cascade each returned findings in the RECORDS/STORY-ACCURACY class:
+- Pass 15: POL-39 narrative version pins in story body (LENSC-MED-001 volatile-ref strip)
+- Pass 16: §File Structure phantom rows; LENSB-MED-002 AC↔test inversion (RG-SLUG-005 test name matched AC label but vehicle exercised wrong mechanism)
+- Pass 17: 5 phantom RG test symbol names in story v1.23 (LENSB-MED-001 — symbols matched story text but did not exist on disk); POL-39 BC-2.16.002 full-body sweep (LENSC-MED-002)
+
+The phantom-RG-symbols pattern is particularly insidious: the story-writer minted test names that were plausible but wrong. The adversary's pass-17 probe caught them because they greppable-verified against disk. This recurred DESPITE SAP-1/2/3 probes, because none of those probes check RG symbol names against disk.
+
+**Two codification candidates (cycle-close follow-up, not blocking):**
+
+1. **records-lint L11 — narrative artifact-version pin check:** Add a check to `scripts/records-lint.sh` that flags body prose in BC/story files containing patterns like `ADR-NNN v1.N` (version references in narrative text rather than changelog rows). The intent of POL-39 is already codified but the mechanical gate only covers `file.rs:NNN` cites; narrative version pins slip through.
+
+2. **story-writer burst post-condition: RG-name↔on-disk-symbol verification + pasted evidence:** When a story-writer burst mints or modifies Red Gate test entries, the burst MUST include: (a) a grep of `crates/` for each RG symbol name; (b) paste of the actual function signature found (or ABSENT if not found). A self-certification of "symbols verified" without grep output is not evidence. This closes the phantom-symbol failure mode — a name that passes casual review can still be wrong if it was never executed on disk.
