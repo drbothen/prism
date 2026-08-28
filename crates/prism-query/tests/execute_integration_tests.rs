@@ -2774,6 +2774,258 @@ async fn test_psg_rg034_early_stopped_response_not_cached_as_complete() {
 }
 
 // ---------------------------------------------------------------------------
+// RG-PSG-035/036 (S-ENGINE-LIMIT-EARLY-STOP-001): DI-019 cache-completeness
+// and Step-6 truncation-signal red gates.
+//
+// DI-019 scenario: the spec-engine pipeline (`PipelineExecutor::execute_impl`)
+// truncates at `MAX_PIPELINE_RECORDS = 10_000` and sets `PipelineResult.truncated
+// = true`, but `early_stopped` remains `false`. This `truncated` signal is NOT
+// propagated through `FetchOutput` → `FanOutResult` → `MaterializationOutput` to
+// the cache-completeness check or engine Step 6. As a result:
+//   • The 10K-capped response is incorrectly cached as "complete" (bug: should
+//     be a cache miss on re-query so the analyst gets fresh, complete data).
+//   • Engine Step 6 computes `is_truncated = total_rows > limit || false = false`
+//     when `limit=None` → usize::MAX, suppressing the truncation signal.
+//
+// These tests exercise the mock-adapter approximation of DI-019:
+//   • `Di019CountingAdapter` returns 10,001 rows with `any_early_stopped=false`
+//     (simulating the 10K-capped fetch output before `any_pipeline_truncated` is
+//     added to `FetchOutput` by the implementer).
+//   • `make_di019_engine` raises `max_materialized_records` to `usize::MAX` so
+//     the materialization layer does NOT hard-error (E-QUERY-005) on 10,001 rows
+//     — the DI-019 cap fires in the spec-engine pipeline level, not here.
+//
+// GREEN CONTRACT for both tests: the implementer adds `any_pipeline_truncated:
+// bool` to `FetchOutput`, propagates it through `FanOutResult` →
+// `MaterializationOutput`, updates the cache-completeness guard in
+// `materialization.rs`, extends engine Step 6, and updates this mock to set
+// `any_pipeline_truncated = true`.
+// ---------------------------------------------------------------------------
+
+/// Sensor adapter that counts `fetch` invocations and returns exactly 10,001 rows
+/// with `any_early_stopped=false` — models the surface output of a DI-019 pipeline
+/// truncation event (`PipelineResult.truncated=true`, `PipelineResult.early_stopped=
+/// false`). Row generator uses a lightweight string index column (no hand-written
+/// literals); one batch per fetch call.
+///
+/// NOTE: `FetchOutput::new(batch, false)` is the CURRENT call — it cannot set
+/// `any_pipeline_truncated` because that field does not yet exist on `FetchOutput`.
+/// The implementer will extend this mock as part of making RG-PSG-035/036 GREEN.
+struct Di019CountingAdapter {
+    call_count: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+#[async_trait]
+impl prism_sensors::adapter::SensorAdapter for Di019CountingAdapter {
+    fn sensor_type(&self) -> prism_core::SensorId {
+        prism_core::SensorId::from("crowdstrike")
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "crowdstrike"
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &prism_sensors::adapter::SensorSpec,
+        _params: &prism_sensors::adapter::QueryParams,
+        _auth: &dyn prism_sensors::auth::SensorAuth,
+    ) -> Result<prism_sensors::adapter::FetchOutput, prism_sensors::adapter::SensorError> {
+        self.call_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("detection_id", arrow::datatypes::DataType::Utf8, false),
+        ]));
+        // 10,001 rows: one more than MAX_PIPELINE_RECORDS (10,000). Lightweight
+        // generator — no hand-written literals. In the spec-engine pipeline this
+        // volume causes DI-019 to fire (truncate to 10K, PipelineResult.truncated=true).
+        let ids: Vec<String> = (0..10_001_usize).map(|i| format!("di019-{i}")).collect();
+        let arr = Arc::new(arrow::array::StringArray::from(
+            ids.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+        )) as _;
+        let batch = RecordBatch::try_new(schema, vec![arr]).expect("di019 counting batch");
+        // any_early_stopped=false: DI-019 is a pipeline record-count cap
+        // (PipelineResult.truncated=true), NOT a LIMIT-driven early-stop
+        // (PipelineResult.early_stopped=false). The current FetchOutput API cannot
+        // carry the DI-019 truncated signal; the implementer will add
+        // `any_pipeline_truncated` to FetchOutput and update this mock accordingly.
+        Ok(prism_sensors::adapter::FetchOutput::new(vec![batch], false))
+    }
+}
+
+/// Build a `QueryEngine` backed by a single `Di019CountingAdapter`.
+///
+/// `max_materialized_records = usize::MAX` (DI-019 tests only): the DI-019 record-count
+/// cap fires in the spec-engine pipeline layer (`PipelineExecutor::execute_impl`), not
+/// in the materialization layer. A direct mock adapter bypasses the spec-engine, so
+/// raising the materialization cap prevents the engine from hard-erroring
+/// (E-QUERY-005 `QueryMaterializationLimitExceeded`) on the 10,001-row batch. Without
+/// this, `execute()` would return `Err` rather than `Ok(QueryResult)`, making the
+/// cache-completeness and `is_truncated` assertions unreachable.
+fn make_di019_engine() -> (
+    prism_query::engine::QueryEngine,
+    Arc<std::sync::atomic::AtomicUsize>,
+) {
+    use prism_core::OrgId;
+    use prism_query::engine::QueryEngineConfig;
+
+    let call_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let mut registry = AdapterRegistry::new();
+    registry.register(
+        OrgId::new(),
+        Arc::new(Di019CountingAdapter {
+            call_count: Arc::clone(&call_count),
+        }),
+    );
+    let adapter_registry = Arc::new(registry);
+    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
+        Arc::new(helpers::NullCredentialStore);
+    let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
+    let client_registry = Arc::new(prism_query::scoping::ClientRegistry::new(vec![
+        helpers::org("acme"),
+    ]));
+    let config = QueryEngineConfig {
+        // Must be > 10_001 to prevent E-QUERY-005 `QueryMaterializationLimitExceeded`.
+        // DI-019 cap fires in the spec-engine pipeline layer; these tests exercise
+        // the cache-completeness guard and `is_truncated` signal that depend on
+        // `any_pipeline_truncated`, not the materialization record limit.
+        max_materialized_records: usize::MAX,
+        ..QueryEngineConfig::default()
+    };
+    let engine = prism_query::engine::QueryEngine::new(
+        adapter_registry,
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        config,
+    )
+    .with_credential_resolver(Arc::new(helpers::StubCredentialResolver));
+    (engine, call_count)
+}
+
+/// RG-PSG-035 / EC-01-039 / F-R16-P18-LENSA-MED-001 (DI-019 cache-completeness):
+/// A pipeline-level record-count truncation (DI-019) must NOT be cached as a
+/// "complete" response. A second identical query must re-fetch from the sensor.
+///
+/// Scenario: `Di019CountingAdapter` returns 10,001 rows with `any_early_stopped=false`
+/// (the DI-019 profile). Two identical queries are executed against the same engine.
+/// The first populates the cross-query response cache; the second must be a cache
+/// MISS (adapter called again) because the first response was DI-019-truncated and
+/// therefore incomplete.
+///
+/// CURRENT (RED): `complete = fan_result.errors.is_empty() && !fan_result.any_early_stopped`
+/// `= true && !false = true` — DI-019's `truncated=true` is not propagated →
+/// response is incorrectly cached as "complete" → Query 2 is a cache HIT → adapter
+/// call count stays at 1 → the `== 2` assertion below FAILS.
+///
+/// GREEN CONTRACT (implementer + gate extension):
+///   1. Add `any_pipeline_truncated: bool` to `FetchOutput`; expose via new constructor.
+///   2. Propagate `PipelineResult.truncated` → `FetchOutput.any_pipeline_truncated`
+///      → `FanOutResult.any_pipeline_truncated` → `MaterializationOutput.any_pipeline_truncated`.
+///   3. Update cache-completeness guard in `materialization.rs`:
+///      `complete = errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`.
+///   4. Update this mock to set `any_pipeline_truncated = true`.
+///   After the fix: not cached → Query 2 re-fetches → call count == 2.
+#[tokio::test]
+async fn test_psg_rg035_di019_truncated_response_not_cached_as_complete() {
+    use prism_query::engine::QueryOptions;
+
+    let (engine, call_count) = make_di019_engine();
+    let make_options = || QueryOptions {
+        clients: Some(vec![helpers::org("acme")]),
+        ..QueryOptions::default()
+    };
+
+    // Query 1: live fetch — adapter is called once.
+    let _r1 = engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options())
+        .await
+        .expect("RG-PSG-035: Query 1 must succeed");
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "RG-PSG-035: Query 1 must invoke the sensor adapter exactly once"
+    );
+
+    // Query 2: identical SQL + same options.
+    // MUST be a cache MISS (adapter called again) because the DI-019-truncated
+    // partial is not a complete response and must not be cached.
+    //
+    // CURRENTLY (RED): the result IS cached (because the DI-019 truncated signal
+    // is not propagated to the cache-completeness guard), so the adapter is NOT
+    // called — call count stays 1 — and this assertion FAILS.
+    let _r2 = engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options())
+        .await
+        .expect("RG-PSG-035: Query 2 must succeed");
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        2,
+        "RG-PSG-035 / EC-01-039 (F-R16-P18-LENSA-MED-001): a DI-019-truncated \
+         response (PipelineResult.truncated=true, any_early_stopped=false) must \
+         NOT be cached as complete — Query 2 must re-fetch from the sensor \
+         (expected call_count == 2, got {}). \
+         Root cause: `complete = errors.is_empty() && !any_early_stopped` does \
+         not account for `any_pipeline_truncated` → DI-019 partial is stored as \
+         a complete cache entry → Query 2 is a cache HIT → adapter not called. \
+         Fix: add `&& !fan_result.any_pipeline_truncated` to the completeness guard.",
+        call_count.load(std::sync::atomic::Ordering::SeqCst)
+    );
+}
+
+/// RG-PSG-036 / EC-01-039 / F-R16-P18-LENSA-MED-001 (DI-019 Step-6 truncation signal):
+/// When a pipeline-level record-count truncation (DI-019) fires and `options.limit=None`
+/// (no user-specified row limit), `QueryResult.is_truncated` must be `true`.
+///
+/// Scenario: `Di019CountingAdapter` returns 10,001 rows with `any_early_stopped=false`
+/// (the DI-019 profile). Query is executed with `options.limit = None`.
+///
+/// CURRENT (RED): Engine Step 6 formula:
+///   `is_truncated = total_rows > limit || any_early_stopped`
+///              = `10_001 > usize::MAX   || false`
+///              = `false                 || false`
+///              = `false`
+/// DI-019's `PipelineResult.truncated=true` is never propagated to
+/// `MaterializationOutput`, so Step 6 has no `any_pipeline_truncated` term →
+/// `is_truncated=false` → the assertion below FAILS.
+///
+/// GREEN CONTRACT (implementer):
+///   Extend engine Step 6 to:
+///   `is_truncated = total_rows > limit || output.any_early_stopped || output.any_pipeline_truncated`
+///   After propagating `any_pipeline_truncated = true` from the mock adapter:
+///   `is_truncated = false || false || true = true`.
+#[tokio::test]
+async fn test_psg_rg036_di019_truncated_step6_is_truncated_true() {
+    use prism_query::engine::QueryOptions;
+
+    let (engine, _call_count) = make_di019_engine();
+    let options = QueryOptions {
+        clients: Some(vec![helpers::org("acme")]),
+        // limit=None → effective_limit = usize::MAX in engine Step 6.
+        // With 10,001 rows: `10_001 > usize::MAX` is false, so the truncation
+        // signal MUST come from `any_pipeline_truncated`, not `total_rows > limit`.
+        limit: None,
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute("SELECT * FROM crowdstrike_detections", options)
+        .await
+        .expect("RG-PSG-036: execute must succeed (10,001 rows within usize::MAX mat-cap)");
+
+    assert!(
+        result.is_truncated,
+        "RG-PSG-036 / EC-01-039 (F-R16-P18-LENSA-MED-001): \
+         QueryResult.is_truncated must be true when DI-019 fires \
+         (PipelineResult.truncated=true, any_early_stopped=false, limit=None). \
+         Current engine Step 6 formula `total_rows > limit || any_early_stopped` = \
+         `10_001 > usize::MAX || false` = false — the `any_pipeline_truncated` \
+         term is missing. Fix: extend Step 6 to \
+         `is_truncated = total_rows > limit || any_early_stopped || any_pipeline_truncated`."
+    );
+}
+
+// ---------------------------------------------------------------------------
 // S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: CRIT-1 / CRIT-2
 // SqlPipe end-to-end via QueryEngine::execute (not via bare plan_sqlpipe_query)
 // ---------------------------------------------------------------------------
