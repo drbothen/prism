@@ -5,7 +5,7 @@ title: "LIMIT-Aware Early-Stop Pagination for Offset/Limit and Cursor Sensor Tab
 status: ACCEPTED
 date: "2026-08-26"
 modified: "2026-08-28"
-version: "1.7"
+version: "1.8"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-11, SS-16]
 supersedes: []
@@ -23,13 +23,13 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.7 (2026-08-28) — AND-arm direction-count constraint (§D8.7 v1.7) + OCSF-name gap in `datetime_index_cols` (§D8.9 v1.7). v1.6: ADR-059 citation reframe. v1.5 (2026-08-27) — Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate`; `Ast::Filter` + `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where`; `expr_contains_aggregate_or_window` catch-all `_ => false` → `_ => true`; `any_early_stopped` truncation-signal chain added (§D8.9). v1.4: Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
+ACCEPTED v1.8 (2026-08-28) — F-R16-P16-LENSA-HIGH-001: source-scoped `datetime_index_cols` via `resolved_col_map` (§D8.9); F-R16-P16-LENSA-LOW-001: reversed-operand prohibition explicit in `is_pushed_temporal_predicate` (§D8.7); F-R16-P16-LENSB-LOW-001: Condition K multi-INDEX-datetime conservative suppression (§D8.7); structural-reuse `collect_datetime_index_cols` helper; RG-PSG-032/033/030b required. v1.7 (2026-08-28) — AND-arm direction-count constraint (§D8.7) + OCSF-name gap in `datetime_index_cols` (§D8.9). v1.6: ADR-059 citation reframe. v1.5 (2026-08-27) — Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate`; `Ast::Filter` + `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where`; `expr_contains_aggregate_or_window` catch-all `_ => false` → `_ => true`; `any_early_stopped` truncation-signal chain added (§D8.9). v1.4: Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
 (aggregate recursion gap) and F-R12-HIGH-001 (JOIN not suppressed), plus six additional gaps
 discovered by exhaustive grammar enumeration: ORDER BY aggregate escapes Condition A; Condition G
 was based on `where_filters` (equality push-down map) which is always empty for `Ast::Filter` mode
 and `Ast::Pipe` stages, and misses non-equality client-side predicates (CONTAINS, BETWEEN, etc.);
 `PipeStage::Tail` not suppressed; `FuncCall::Window` not suppressed; no conservative default
-posture for unknown AST/PipeStage variants. Gate redesigned with complete condition set A–J plus
+posture for unknown AST/PipeStage variants. Gate redesigned with complete condition set A–K plus
 conservative allowlist default. Signature change: `where_filters` parameter removed (gate performs
 its own AST inspection). All out-of-grammar shapes documented. Verdict: surface is bounded and
 complete — no deferral recommended. v1.2: §D8.7 plan-shape gate, Conditions A–G.
@@ -276,6 +276,7 @@ Every expressible plan shape classified as SUPPRESS (early-stop off) or PERMIT (
 | SQL DML (INSERT/UPDATE/DELETE) | SUPPRESS | Default posture: DML uses `write_pipeline.rs`, not `run_materialization_pipeline`; gate result is irrelevant but must safely return SUPPRESS for any path that reaches it |
 | Unknown/future `Ast` variant | SUPPRESS | Conservative default: `_ => true` catch-all |
 | Unknown/future `PipeStage` variant | SUPPRESS | Conservative default: stage loop falls through to SUPPRESS |
+| Any queried source table with ≥2 Datetime+INDEX columns | SUPPRESS | Condition K (v1.8): `count_temporal_bound_directions` does not track per-column direction; single-datetime-INDEX-per-table invariant enforced structurally |
 
 #### Enforcement Site
 
@@ -416,6 +417,8 @@ time expressions evaluated post-fetch) and non-INDEX datetime columns.
    expressions — `Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic` — are evaluated
    by DataFusion after fetch, not by the server.
 
+**Reversed-operand form (`Literal::Timestamp OP Field`) returns `false` (SUPPRESS):** A predicate where a `Literal::Timestamp` appears on the LHS and a `Field` appears on the RHS is NOT permitted. `extract_time_bounds_from_predicate` (ADR-033 T1) only processes predicates where `lhs` is `Expr::Field`; the reversed form is not extracted server-side and remains client-side. The gate MUST mirror the extractor: only Field-on-LHS predicates receive PERMIT. This form is grammar-unreachable in the PrismQL parser today (latent), but any code path permitting reversed operands is unsound in the PERMIT direction — it would classify a DataFusion-client-side filter as server-pushed, enabling early-stop against an unfiltered server result set. (F-R16-P16-LENSA-LOW-001)
+
 **`Predicate::Logical { op: AND, predicates }`:** Two-step check (v1.7 — replaces single-step `all()` of v1.5/v1.6):
 
 **Step 1 — all leaves individually pushed:** `predicates.iter().all(|p| is_pushed_temporal_predicate(p, datetime_index_cols))` must return `true`. Catches non-range operators, non-INDEX datetime columns, and relative-expression RHS in any leaf.
@@ -505,6 +508,26 @@ Any `PipeStage::Join(_)` in `pipe.stages` or `spq.stages`. Same reasoning as Con
 Note: `pipe_sql_emitter.rs` currently returns an error for `PipeStage::Join` (not yet supported,
 ENRICH-4-C), so this condition is defensive and future-proof. When Pipe Join is implemented, the
 gate MUST already suppress early-stop for it.
+
+**Condition K — Multi-INDEX-datetime conservative suppression (v1.8; F-R16-P16-LENSB-LOW-001):**
+When `collect_datetime_index_cols` (§D8.9) returns `suppress_multi_index = true` — at least one
+source table in the queried `source_names` exposes ≥2 Datetime+INDEX columns — `fetch_limit = 0`
+(SUPPRESS) regardless of other gate results.
+
+Rationale: `count_temporal_bound_directions` (§D8.7 AND-arm Step 2) counts Gt/Ge and Lt/Le
+leaves GLOBALLY across the AND-tree, not per-column. For a table with two INDEX Datetime columns
+`col_a` and `col_b`, `WHERE col_a > X AND col_b < Y` yields `(lower=1, upper=1)` → Step 2
+PERMIT. But `extract_time_bounds_from_predicate` first-wins takes start from `col_a` and end
+from `col_b`, fabricating a mixed-column time window that the server may not correctly apply
+to both columns independently. No current shipped sensor TOML has two Datetime+INDEX columns
+per table (the single-datetime-INDEX-per-table invariant holds throughout all Wave 3+ sensors);
+Condition K never fires in production today and costs zero performance. It prevents an incorrect
+PERMIT if a future TOML violates this invariant.
+
+`collect_datetime_index_cols` tracks per-source Datetime+INDEX column counts while building
+the column name set (§D8.9). If any source in `resolved_col_map` contributes ≥2 such columns,
+the helper sets `suppress_multi_index = true` in its return tuple. The call site in
+`run_materialization_pipeline` checks this flag and short-circuits to `fetch_limit = 0`.
 
 #### Conservative Default Posture (new in v1.3)
 
@@ -663,25 +686,63 @@ sensor spec. Construction MUST mirror `extract_time_window_from_ast`'s `datetime
 (ADR-033 T1 / ADR-058 §I6) — both functions determine which column names receive server-side
 temporal push-down; they must agree on the set.
 
-**Construction rules (v1.7):** For each resolved sensor spec entry and each table therein,
-for each column declared `index: true` AND `column_type = "Datetime"`:
+**Construction rules (v1.8):** Use the source-scoped `resolved_col_map` built by
+`build_source_column_map(spec_map, source_names)` — already computed earlier in
+`run_materialization_pipeline` for the push-down path. Do NOT iterate
+`resolved_spec_map.values()`, which spans all sensors regardless of the current query's
+`source_names`. For each column in `resolved_col_map[source_name]` for each queried
+`source_name`, where the column is declared `column_type = "Datetime"` AND
+`options.contains(Index)`:
 1. Insert `col.name` (always).
-2. When `ocsf_column_naming = true` for this sensor AND `col.ocsf_field` is `Some(field)`:
-   also insert `ocsf_field_to_arrow_name(field)` (the OCSF-flattened Arrow name, e.g. `"time"`
-   for claroty.audit_logs `col.name = "timestamp"`, `ocsf_field = "time"`).
+2. When `ocsf_column_naming = true` for this source AND `col.ocsf_field` is `Some(field)`:
+   also insert `ocsf_field_to_arrow_name(field)` (e.g. `"time"` for claroty.audit_logs
+   `col.name = "timestamp"`, `ocsf_field = "time"`).
 
-The per-sensor `ocsf_column_naming` flag is read from `ocsf_naming_map` (already computed by
-`build_source_ocsf_naming_map` earlier in `run_materialization_pipeline`) keyed by the
-`"{sensor_id}.{table_name}"` dot-separated source name.
+The per-source `ocsf_column_naming` flag is read from `ocsf_naming_map` keyed by the
+`"{sensor_id}.{table_name}"` dot-separated source name. Deduplicate insertions via a `HashSet`
+or `seen: HashSet<String>` guard (`resolved_col_map` stores both dot-separated and
+underscore-separated key forms pointing to the same column list; iterating all keys without
+deduplication would double-insert column names).
 
-**Why this matters:** `extract_time_window_from_ast` already registers the OCSF Arrow name
-`"time"` when `ocsf_column_naming = true` (ADR-058 §I6 / OQ-001). A query
-`WHERE time > '...' LIMIT n` on claroty.audit_logs is therefore pushed server-side. But the
-v1.5/v1.6 `datetime_index_cols` construction only collected `col.name` → `["timestamp"]`,
-missing `"time"` → `is_pushed_temporal_predicate("time", ["timestamp"])` returned `false` →
-`has_client_side_where = true` → early-stop incorrectly SUPPRESSED. After v1.7, both
-`extract_time_window_from_ast` and the gate's `datetime_index_cols` use the same registration
-logic, closing the divergence.
+**Structural reuse — `collect_datetime_index_cols` shared helper (F-R16-P16-LENSA-HIGH-001):**
+Introduce a private helper in `materialization.rs`:
+
+```
+fn collect_datetime_index_cols(
+    col_map: &HashMap<String, Vec<ColumnSpec>>,
+    ocsf_naming_map: Option<&HashMap<String, bool>>,
+) -> (Vec<String>, bool /* suppress_multi_index */)
+```
+
+This helper encapsulates the construction rules above and is called from TWO sites:
+1. **Gate** (`run_materialization_pipeline`): provides the `datetime_index_cols` argument
+   for `has_client_side_where(ast, &datetime_index_cols)`.
+2. **Push-down** (`extract_time_window_from_ast`, pushdown.rs): replaces the inline
+   `datetime_index_cols: HashSet<String>` construction that currently mirrors this logic
+   independently.
+
+Sharing the helper eliminates the possibility of independent re-implementations drifting apart
+— the root-cause structural defect class that produced F-R16-P16-LENSA-HIGH-001 (two
+implementations that diverged on source-scoping) and the predecessor finding it corrects.
+
+The second return value `suppress_multi_index` is `true` when any source in `col_map`
+contributes ≥2 Datetime+INDEX column names (before deduplication within that source). The
+call site checks this flag and applies Condition K (§D8.7).
+
+**Why source-scoping matters (F-R16-P16-LENSA-HIGH-001):** Prior to v1.8, construction
+iterated `resolved_spec_map.values()` without filtering to the queried `source_names`. Example:
+Armis `devices.last_seen` is declared `options = ["INDEX"]` (required for AQL time-window
+augmentation per ADR-033 T1); CrowdStrike `devices.last_seen` is NOT (`column_type = "datetime"`
+only, no `options`). A query `SELECT * FROM crowdstrike_devices WHERE last_seen > '...' LIMIT 100`
+caused the gate to find `"last_seen"` in the (unscoped) `datetime_index_cols` — contributed by
+Armis — and PERMIT early-stop. The push-down extractor (`extract_time_window_from_ast`, always
+source-scoped) correctly excluded CrowdStrike `last_seen` from push-down. DataFusion applied the
+`WHERE last_seen > '...'` filter client-side against an early-stopped page set → silent under-return.
+
+**OCSF-name gap (preserved from v1.7):** `extract_time_window_from_ast` registers the OCSF Arrow
+name `"time"` when `ocsf_column_naming = true` (ADR-058 §I6). A query `WHERE time > '...' LIMIT n`
+on claroty.audit_logs is therefore pushed server-side. The construction rules above include this
+registration; `collect_datetime_index_cols` implements it for both the gate and push-down sites.
 
 The parameter is passed through to `is_pushed_temporal_predicate` at the predicate inspection level.
 
@@ -813,12 +874,42 @@ based on `where_filters` (always empty for Filter/Pipe modes, and missing non-eq
 SQL predicates); PipeStage::Tail not suppressed; FuncCall::Window not suppressed; no
 conservative default posture. All closed in v1.3.
 
+**F-R16-P16-LENSA-HIGH-001** (correctness round 16 pass 16, 2026-08-28): `datetime_index_cols`
+construction in `run_materialization_pipeline` iterated `resolved_spec_map.values()` (all sensors)
+rather than the source-scoped `resolved_col_map` (filtered to the queried `source_names`). Armis
+`devices.last_seen` is declared `options = ["INDEX"]`; CrowdStrike `devices.last_seen` is NOT.
+A query `SELECT * FROM crowdstrike_devices WHERE last_seen > '...' LIMIT 100` caused the gate to
+find `"last_seen"` in the unscoped `datetime_index_cols` (contributed by Armis), PERMIT early-stop,
+while the push-down extractor — which IS source-scoped — correctly excluded CrowdStrike `last_seen`
+from push-down. DataFusion applied the client-side filter against the early-stopped page set →
+silent under-return. Root cause: the gate's column-eligibility classifier was an independent
+parallel implementation of the push-down extractor's column set, rather than a shared helper.
+Closed by v1.8 §D8.9 source-scoped construction + `collect_datetime_index_cols` shared helper.
+
+**F-R16-P16-LENSA-LOW-001** (correctness round 16 pass 16, 2026-08-28): `is_pushed_temporal_predicate`
+implementation contained a `rhs_pushed` branch permitting reversed-operand form
+`Literal::Timestamp OP Field`. `extract_time_bounds_from_predicate` (ADR-033 T1) only extracts
+when `lhs` is `Expr::Field`; the reversed form is not processed server-side. The `rhs_pushed`
+branch was parser-unreachable (PrismQL grammar does not emit this form) but unsound in the PERMIT
+direction. The ADR §D8.7 precondition spec was already correct (it specified LHS=Field,
+RHS=Timestamp); the implementation deviated from the spec. Closed by v1.8 §D8.7 explicit
+reversed-operand prohibition (implementer removes `rhs_pushed` branch from code to match spec).
+
+**F-R16-P16-LENSB-LOW-001** (correctness round 16 pass 16, 2026-08-28): `count_temporal_bound_directions`
+counts direction totals globally, not per-column. The single-datetime-INDEX-per-table invariant
+(upheld by all shipped Wave 3+ sensor TOMLs) ensures correctness today, but the gate did not
+enforce this invariant. A future TOML adding a second Datetime+INDEX column to any table would
+enable an incorrect PERMIT via global `(lower=1, upper=1)` from mixed-column predicates.
+Closed by v1.8 Condition K: conservative suppression when `collect_datetime_index_cols` detects
+≥2 Datetime+INDEX columns on any queried source table.
+
 ---
 
 ## Changelog
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.8 | 2026-08-28 | architect | F-R16-P16-LENSA-HIGH-001 + F-R16-P16-LENSA-LOW-001 + F-R16-P16-LENSB-LOW-001. §D8.9 source-scoped `datetime_index_cols` (HIGH-001): construction now uses source-scoped `resolved_col_map` from `build_source_column_map(spec_map, source_names)` rather than `resolved_spec_map.values()` (all sensors); eliminates cross-sensor column-name pollution (Armis INDEX `last_seen` appearing in CrowdStrike query's index set). Shared `collect_datetime_index_cols(col_map, ocsf_naming_map) -> (Vec<String>, bool)` helper introduced in `materialization.rs`; both gate and `extract_time_window_from_ast` (pushdown.rs) MUST call it to prevent future column-eligibility divergence. §D8.7 reversed-operand prohibition explicit (LOW-001): `Literal::Timestamp OP Field` returns `false` (SUPPRESS); mirrors `extract_time_bounds_from_predicate` which requires Field on LHS. Implementer removes `rhs_pushed` branch from code (ADR spec was already correct; code deviated from spec). §D8.7 Condition K (LENSB-LOW-001): conservative suppression when any queried source table has ≥2 Datetime+INDEX columns; prevents direction-count global-vs-per-column semantic gap from producing incorrect PERMIT if a future TOML adds a second INDEX Datetime column. Three new Red Gate tests required: RG-PSG-032 (`crowdstrike_devices WHERE last_seen > '...' LIMIT 100` → SUPPRESS; cross-sensor source-scope), RG-PSG-033 (`armis_devices WHERE last_seen > '...' LIMIT 100` → PERMIT; Armis last_seen IS INDEX), RG-PSG-030b (two-upper-bound `(0,2)` → SUPPRESS). Product-owner amends BC-2.16.002 v2.43→v2.44: source-scoped `datetime_index_cols` description; EC for cross-sensor SUPPRESS; EC for reversed-operand SUPPRESS; EC for multi-INDEX-datetime SUPPRESS; POL-39 fixes in EC-01-034/035 (strip bare version pins to section anchors). |
 | 1.7 | 2026-08-28 | architect | F-R16-P15-LENSA-HIGH-001 + F-R16-P15-LENSA-MED-001 + F-R16-P15-LENSC-LOW-001. §D8.7 `is_pushed_temporal_predicate` AND-arm soundness redesign (HIGH-001): AND-arm gains a second step — after all-leaves-individually-pushed check, a direction-count helper `count_temporal_bound_directions` verifies at most one Gt/Ge leaf and at most one Lt/Le leaf exist in the flattened AND tree; mirrors `extract_time_bounds_from_predicate` first-wins semantics (single-lower + single-upper fully consumed server-side; any second same-direction bound silently dropped to DataFusion client-side). Previously, `WHERE col > X AND col > Y` was incorrectly classified PERMIT → silent LIMIT under-return; now correctly SUPPRESS. §D8.9 `datetime_index_cols` OCSF-name gap (MED-001): `datetime_index_cols` construction MUST mirror `extract_time_window_from_ast` — per-source lookup consulting `ocsf_naming_map`; when sensor `ocsf_column_naming = true` AND `col.ocsf_field` is Some, `ocsf_field_to_arrow_name(ocsf_field)` is also inserted. Previously, OCSF-named sensors (e.g., claroty.audit_logs `col.name="timestamp"`, Arrow field `"time"`) had early-stop wrongly suppressed for `WHERE time > '...'`. §Status banner (LOW-001): updated to ACCEPTED v1.7 (2026-08-28). `related_adrs` gains ADR-058 (OCSF column naming). Anchored: S-ENGINE-LIMIT-EARLY-STOP-001 AC-007; two new Red Gate tests required (IDs RG-PSG-030 + RG-PSG-031 — next available after RG-PSG-029 per story; story-writer assigns): (1) RG-PSG-030 — redundant-lower-bound suppresses early-stop; (2) RG-PSG-031 — OCSF-flattened Arrow name permits early-stop. Product-owner amends BC-2.16.002 v2.41→v2.42 (EC-01-034 redundant-bound suppress; EC-01-035 OCSF-name permit; "mirrors" claim correction; AND-arm direction-count spec; RG-PSG-030/031 anchors). |
 | 1.6 | 2026-08-27 | architect | MED-001 (F-R16-P1-MED-001): ADR-059 citation reframe — §Context §Defect Evidence and §Source/Origin clauses corrected. ADR-059 is WITHDRAWN (hypothesis falsified, D-2312); DEFECT-2 (this ADR) is independent and was observed in isolation. The prior framing implied DEFECT-2 was contingent on DEFECT-1 being applied first; that is false — the LIMIT over-fetching defect exists regardless of h2 transport behavior. No behavioral decision changes. |
 | 1.5 | 2026-08-27 | architect | Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate(pred, datetime_index_cols: &[&str])` replaces `is_purely_temporal_predicate`; mirrors `extract_time_bounds_from_predicate` (ADR-033 T1) exactly — requires range op (Gt/Ge/Lt/Le) + LHS in `datetime_index_cols` (INDEX datetime col) + RHS `Expr::Literal(Literal::Timestamp)`. `Ast::Filter` unconditionally SUPPRESS in `has_client_side_where` (closes F-R15-LENSA-CRIT-001 filter-mode path). `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where` (closes F-R15-LENSA-CRIT-001 pipe-mode path). `expr_contains_aggregate_or_window` catch-all corrected: `_ => false` (stale) → `_ => true` (conservative SUPPRESS; per F-R14-LOW-001). `datetime_index_cols: &[&str]` param threaded through `has_client_side_where` and `is_pushed_temporal_predicate`. §D8.9 `any_early_stopped` truncation-signal propagation chain: `PipelineResult.early_stopped` → `FetchOutput { batches, any_early_stopped }` → `FanOutResult.any_early_stopped` → `MaterializationOutput.any_early_stopped` → engine Step 6 `is_truncated = (total_rows > limit) \|\| any_early_stopped` (closes F-R15-LENSA-HIGH-001 exact-limit boundary). |

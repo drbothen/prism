@@ -621,3 +621,15 @@ Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 L
 **HEADS (D-2339):** develop `3f1e66179` (local==origin; clean); factory-artifacts: run `git -C .factory log -1 --format='%h %s'`; feature/S-CLAROTY-VULNS-001 `5aae6f0b3` (PUSHED; 3-CLEAN CONVERGED round-5; merge HELD pending LIMIT); feature/S-ENGINE-LIMIT-EARLY-STOP-001 `7cb7885d8` (PUSHED; round-16 p7-p13 fixed; RG-PSG-028 OPEN); Parked: S-3.09 `43c41389d` KEEP; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch.
 
 **NOTE: Superseded by D-2340 — round-16 pass-14 FIXED + pass-15 batch + fix-burst COMPLETE. ADR-060 v1.7 (AND-arm direction-count + OCSF datetime_index_cols). BC-2.16.002 v2.43. Story v1.22. Feature HEAD @12c39fd6c (new frozen HEAD). streak RESET 0/3. STATE v8.872→v8.873.**
+
+## Archived: D-2340 — 2026-08-28; BURST COMPLETE; ADR-060 v1.7; BC-2.16.002 v2.43; LIMIT feature @12c39fd6c; round-16 pass-15 ALL FIXED; streak RESET 0/3; STATE v8.872→v8.873
+
+Prism Phase-3, v1 = live Claroty xDome. S-ENGINE-LIMIT-EARLY-STOP-001 round-16 LOCAL cascade IN PROGRESS, streak 0/3 (new frozen HEAD @12c39fd6c). Pass-14 FIXED (RG-PSG-028 @6e3c969ca). Pass-15 batch ALL FIXED: HIGH AND-arm direction-count + MED OCSF datetime_index_cols + MED RG-SLUG-005 wire @2de2419b4 + MED story POL-39 strip + LOW ADR-060 Status banner. Fix-burst: ADR-060 v1.7 / BC-2.16.002 v2.43 / story v1.22 / RG-PSG-030+031 RED+GREEN. Feature @12c39fd6c GREEN 5865/5865 PUSHED origin.
+
+**SPEC PERIMETER (D-2340):** ADR-060 v1.7 (D-2340: AND-arm soundness; OCSF datetime_index_cols; Status banner) / ADR-061 v1.2 / BC-2.16.002 v2.43 (D-2340: EC-01-034+035; RG-PSG-030+031) / BC-2.11.001 v1.26 / LIMIT story v1.22 (RG-PSG-026..031+RG-SLUG-001..006; CODE @12c39fd6c) — ARCH-INDEX v2.346 / BC-INDEX v9.73 / STORY-INDEX v2.926 / VP-INDEX v2.22.
+
+**HEADS (D-2340):** develop `3f1e66179` (local==origin; clean); factory-artifacts: run `git -C .factory log -1 --format='%h %s'`; feature/S-ENGINE-LIMIT-EARLY-STOP-001 `12c39fd6c` (FROZEN D-2340; PUSHED; pass-16 re-cascade pending); feature/S-CLAROTY-VULNS-001 `5aae6f0b3` (PUSHED; 3-CLEAN CONVERGED round-5; merge HELD pending LIMIT); Parked: S-3.09 `43c41389d` KEEP; W3-FIX-S307-001 `fcab8717c` DIRTY do-NOT-touch.
+
+**PROCESS-GAP (D-2340):** MCP-wire paper-gate class recurred 3× round-16 (RG-PSG-026/028/RG-SLUG-005). 3-recurrence threshold met. Standing adversary probe warranted.
+
+**NOTE: Superseded by D-2341 — round-16 pass-16 3-lens batch ALL FIXED. ADR-060 v1.8 (collect_datetime_index_cols shared helper + reversed-operand + Condition K). BC-2.16.002 v2.44. Story v1.23. Feature HEAD @ce196ae7b (new frozen HEAD). streak RESET 0/3. STATE v8.873→v8.874.**

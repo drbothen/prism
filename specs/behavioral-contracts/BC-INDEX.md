@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "9.73"
+version: "9.74"
 status: draft
 producer: state-manager
-timestamp: 2026-08-28T20:00:00Z
+timestamp: 2026-08-28T21:00:00Z
+# NOTE: D-2341 — BC-INDEX v9.73→v9.74: round-16 pass-16 3-lens batch + fix-burst COMPLETE (F-R16-P16-LENSA-HIGH-001 source-scoped datetime_index_cols; F-R16-P16-LENSA-LOW-001 reversed-operand; F-R16-P16-LENSB-LOW-001 Condition K; F-R16-P16-LENSB-MED-001 two-upper-bound; F-R16-P16-LENSB-MED-002 RG-SLUG-005 mapping; F-R16-P16-LENSC-MED-001/MED-002/MED-003/LOW-001). BC-2.16.002 pin v2.43→v2.44 (EC-01-036 cross-sensor SUPPRESS; EC-01-037 reversed-operand SUPPRESS; EC-01-038 Condition K; POL-39 fixes on EC-01-034/035). Feature HEAD @ce196ae7b. draft/active/total UNCHANGED (11/253/277). D-2340 NOTE archived.
 # NOTE: D-2340 — BC-INDEX v9.72→v9.73: round-16 pass-14 fix (F-R16-P14-MED-001 RG-PSG-028 real-handler @6e3c969ca) + pass-15 batch + fix-burst COMPLETE. BC-2.16.002 pin v2.42→v2.43 (EC-01-034 redundant same-direction temporal bound suppress; EC-01-035 OCSF Arrow-name permit; "mirrors" claim corrected; AND-arm two-step direction-count soundness; RG-PSG-030+031 required). draft/active/total UNCHANGED (11/253/277). D-2333 NOTE archived.
 # NOTE: D-2333 — BC-INDEX v9.71→v9.72: ADR-061 D8 SAP-1 catalog registration — BC-2.16.002 pin v2.41→v2.42 (added query.org_slug_resolution_failure WARN catalog row 97 for two emission sites in materialization.rs; fail-closed per ADR-061 D2; catalog count 96→97; catalog label v1.70→v1.71). draft/active/total UNCHANGED (11/253/277). D-2332 NOTE archived.
 # NOTE: D-2332 — BC-INDEX v9.70→v9.71: S-ENGINE-LIMIT-EARLY-STOP-001 round-15 remediation spec package — BC-2.16.002 pin v2.40→v2.41 (EC-01-030..033: permitted-path soundness redesign — is_pushed_temporal_predicate mirrors extract_time_bounds_from_predicate; Ast::Filter+Ast::Pipe unconditionally SUPPRESS; datetime_index_cols param; Expr catch-all `_ => false`→`_ => true`; early_stopped truncation-signal chain PipelineResult→FetchOutput→FanOutResult→MaterializationOutput→engine Step 6 is_truncated). BC-2.11.001 pin v1.25→v1.26 (EC-11-092/093: exact-limit any_early_stopped truncation-signal + API response shape). story v1.12→v1.13 (RG-PSG-021..025 RED uncommitted; 7-file implementer directive per ADR-060 v1.5 design). ADR-060 v1.5 PENDING (on-disk v1.4; ARCH-INDEX retains v1.4 per POL-37; architect must write next session). draft/active/total UNCHANGED (11/253/277). D-2328 NOTE archived.
@@ -343,7 +344,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft (v1.4 current) |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active v1.9 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (v2.43 current) |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (v2.44 current) |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | active (v1.27 current) |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
