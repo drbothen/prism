@@ -485,7 +485,11 @@ impl PipelineExecutor {
                     // indicate no body injection is needed.
                     let active_page_size: u32 = match &step.pagination {
                         Some(PaginationConfig::OffsetLimit { page_size: ps }) => *ps,
-                        _ => 0,
+                        Some(PaginationConfig::CursorToken {
+                            page_size: Some(ps),
+                            ..
+                        }) => *ps,
+                        _ => 0, // CursorToken{page_size:None}/PageNumber/None → conservative early_stopped=true
                     };
 
                     // Issue the request (with 401-retry logic per AC-5).
