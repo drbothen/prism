@@ -2,8 +2,8 @@
 document_type: demo-scope
 level: ops
 producer: state-manager
-version: "1.8"
-timestamp: 2026-08-21T12:00:00Z
+version: "1.9"
+timestamp: 2026-08-29T11:00:00Z
 project: prism
 ---
 
@@ -17,9 +17,11 @@ project: prism
 
 ---
 
-## v1 FIRST RELEASE — Claroty xDome (Authoritative, 2026-08-21)
+## v1 FIRST RELEASE — Claroty xDome (Authoritative, 2026-08-21; amended D-2357 2026-08-29)
 
 > **GOVERNING DECISION (D-2264, human-directed 2026-08-21).** This section supersedes the broader multi-sensor SOC-analyst demo framing below for the purposes of v1. The multi-sensor demo remains the long-term product vision; for v1, scope is intentionally narrowed to Claroty xDome.
+>
+> **SCOPE AMENDMENT (D-2357, human-directed 2026-08-29).** Full xDome endpoint expansion G2–G6 (+4 pre-work spikes) is IN v1 scope. Supersedes the implicit 4-table framing of D-2264 for surface-completeness. See §Endpoint Expansion below.
 
 ### v1 Target
 
@@ -44,7 +46,26 @@ The complete Claroty-xDome SOC-analyst path:
 
 Immediately after **S-ADR058-OCSF-ROUTING-001** merges (completing Claroty OCSF correctness: COERCION Stage 1 + ROUTING Stage 2), the pipeline shifts to comprehensive live end-to-end xDome validation as the **v1 release gate**.
 
+### Endpoint Expansion — Full xDome Surface Coverage (D-2357, IN v1)
+
+**Human decision 2026-08-29 (D-2357):** All xDome endpoint gaps G2–G6 are v1-BLOCKING, plus 4 pre-work spikes. Wave order: LIMIT → VULNS/G1 → Wave-A (G2: network_activity(4001) OCSF ADR required first) → Wave-B (G3) → Wave-C (G4, G5, G6).
+
+| Gap | Table | Pre-work required | Wave |
+|-----|-------|-------------------|------|
+| G1 | claroty_vulnerabilities | Vuln id vs name spike (done) | Pre-wave (in delivery: S-CLAROTY-VULNS-001) |
+| G2 | claroty_ot_activity_events | network_activity(4001) OCSF ADR (Option A vs B) | Wave-A |
+| G3 | claroty_device_vulnerability_relations | None | Wave-B |
+| G4 | claroty_servers + server_interfaces | None | Wave-C |
+| G5 | claroty_organization_zones + 3 policy tables | Nested-field types spike | Wave-C |
+| G6 | claroty_organization_acl_policies | ACL pagination anomaly spike | Wave-C |
+
+DTU-creation stories for G2–G6 remain post-v1 (LIVE-tested against monroe for v1 per the expansion plan).
+
+Reference: `.factory/objectives/xdome-endpoint-expansion-plan.md` (v1.1, D-2357).
+
 ### Explicitly DE-SCOPED to POST-v1
+
+> **Note (D-2357):** G2–G6 Claroty xDome endpoint expansion is NOT in this section — it is IN v1 scope per the amendment above. The items below are the only post-v1 de-scopings.
 
 The following stories are NOT v1 blockers and are de-scoped to post-v1:
 
@@ -52,6 +73,7 @@ The following stories are NOT v1 blockers and are de-scoped to post-v1:
 - **S-OCSF-FIDELITY-CYBERINT-001** — Cyberint OCSF fidelity stub
 - **S-OCSF-FIDELITY-ARMIS-001** — Armis OCSF fidelity stub
 - **S-ADR058-DTU-PARITY-MIGRATION-001** — DTU parity test migration (already parked post-v1)
+- **Write-back / actions (TDE)** — deferred; requires `prism-operations` crate + dead write path
 
 These stories remain in the backlog for post-v1 work. They are not v1 blockers.
 
@@ -320,8 +342,18 @@ All remaining demo stories (S-5.02 / S-5.03 / S-5.04 / S-3.13 / launcher consoli
 | `.factory/objectives/multi-client-soc-demo-tasks.md` | Granular task tracker (task status, next action, story sequence, CURRENT POINTER) |
 | `.factory/SESSION-HANDOFF.md §ACTIVE OBJECTIVE` | Resume-oriented narrative + build sequence mirror |
 | `.factory/STATE.md` | Live pipeline state (current phase, active decision rows) |
+| `.factory/objectives/xdome-endpoint-expansion-plan.md` | Full xDome endpoint expansion plan (G2–G6 wave order, pre-work spikes, per-story pipeline) |
 | `.factory/stories/S-DEMO-DTU-LIVE-SCENARIO-001-B-scenario-progression-enrichment.md` | Story B spec (Story B v2.16, BCs 019+020) |
 | `.factory/specs/architecture/work-orders/WO-D1109-enrichment-pivot.md` | Enrichment pivot design (PIVOT-001/002/003 architecture) |
 | `.factory/specs/behavioral-contracts/BC-2.06.017.md` | Multi-tenant DTU overlay contract (v1.11 active) |
 | `.factory/specs/behavioral-contracts/BC-2.06.019.md` | Scenario progression contract (v1.7 active) |
 | `.factory/specs/behavioral-contracts/BC-2.06.020.md` | Enrichment correlation contract (v1.6 active) |
+
+---
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.9 | 2026-08-29 | state-manager | D-2357: amended §v1 FIRST RELEASE — full xDome G2–G6 expansion + 4 pre-work spikes IN v1 scope (human-directed); §Endpoint Expansion subsection added; §Explicitly DE-SCOPED updated with D-2357 note + write-back entry. xdome-endpoint-expansion-plan.md cross-ref added. |
+| 1.8 | 2026-08-21 | state-manager | D-2264: v1 FIRST RELEASE section added (GOVERNING DECISION — Claroty xDome end-to-end as v1 target; POST-v1 de-scopings listed). |
