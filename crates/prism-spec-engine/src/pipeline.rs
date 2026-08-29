@@ -483,13 +483,14 @@ impl PipelineExecutor {
                     // (BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
                     // POST-body vs GET-URL"). Non-OffsetLimit steps pass page_size=0 to
                     // indicate no body injection is needed.
+                    //
+                    // ADR-060 §D8.4: CursorToken page-fill is not a valid cursor-exhaustion
+                    // signal. All CursorToken sub-cases (page_size Some/None), PageNumber,
+                    // and None fall through to 0 → conservative early_stopped=true. Precise
+                    // cursor-exhaustion detection is deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001.
                     let active_page_size: u32 = match &step.pagination {
                         Some(PaginationConfig::OffsetLimit { page_size: ps }) => *ps,
-                        Some(PaginationConfig::CursorToken {
-                            page_size: Some(ps),
-                            ..
-                        }) => *ps,
-                        _ => 0, // CursorToken{page_size:None}/PageNumber/None → conservative early_stopped=true
+                        _ => 0,
                     };
 
                     // Issue the request (with 401-retry logic per AC-5).
