@@ -12,7 +12,7 @@ status: draft
 # TV-BC-2.16.015-006 referenced (trace-only); promoted to active by S-CLAROTY-VULNS-001 merge per POL-14, not this story.
 producer: story-writer
 timestamp: "2026-08-26T00:00:00Z"
-version: "1.30"
+version: "1.31"
 modified: "2026-08-28"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -56,15 +56,15 @@ crates_touched: [prism-spec-engine, prism-bin, prism-query, prism-sensors, prism
 #       (c) Update `fetch_limit` derivation in `run_materialization_pipeline` to use plan-shape gate
 #           (BEFORE fan-out target construction; where_filters computed for push-down + cache key
 #            but NOT passed to gate) per ADR-060 §D8.7
-#       (d) Add `pub any_early_stopped: bool` field to `MaterializationOutput`
-#       (e) Pick up `any_early_stopped` from `FanOutResult` after fan-out completes
+#       (d) Add `pub any_early_stopped: bool` and `pub any_pipeline_truncated: bool` fields to `MaterializationOutput` (ADR-060 §D8.10)
+#       (e) Pick up both `any_early_stopped` and `any_pipeline_truncated` from `FanOutResult` after fan-out completes
 #       (f) DO NOT add heuristic `total_fetched_rows >= fetch_limit` — this is wrong on
 #           multi-sensor fan-out (multiple sensors each return < fetch_limit but their sum
 #           equals fetch_limit, none early-stopped → heuristic produces wrong is_truncated=true)
 #     MODIFY src/engine.rs:
 #       Step 6: change `let is_truncated = total_rows > limit;`
-#           to `let is_truncated = total_rows > limit || materialization_output.any_early_stopped;`
-#           (ADR-060 §D8.9 authoritative formula)
+#           to `let is_truncated = total_rows > limit || materialization_output.any_early_stopped || materialization_output.any_pipeline_truncated;`
+#           (ADR-060 §D8.10 authoritative formula)
 #   prism-sensors:
 #     MODIFY src/adapter.rs:
 #       (a) Define `pub struct FetchOutput { pub batches: Vec<RecordBatch>, pub any_early_stopped: bool, pub pipeline_truncated: bool }`
@@ -72,8 +72,10 @@ crates_touched: [prism-spec-engine, prism-bin, prism-query, prism-sensors, prism
 #           to `Result<FetchOutput, SensorError>` (all impl sites must update)
 #     MODIFY src/fanout.rs:
 #       (a) Add `pub any_early_stopped: bool` field to `FanOutResult`
-#       (b) OR-aggregate `any_early_stopped` across all sensor results in `fan_out()`
-#           (`any_early_stopped = results.iter().any(|r| r.any_early_stopped)`)
+#       (b) Add `pub any_pipeline_truncated: bool` field to `FanOutResult` (ADR-060 §D8.10)
+#       (c) OR-aggregate both flags across all sensor results in `fan_out()`
+#           (`any_early_stopped = results.iter().any(|r| r.any_early_stopped)`,
+#            `any_pipeline_truncated = results.iter().any(|r| r.pipeline_truncated)`)
 #   prism-spec-engine:
 #     MODIFY src/pipeline.rs:
 #       (a) Add `early_stop_limit: Option<usize>` field to `FetchContext` struct
@@ -1439,6 +1441,7 @@ prism-spec-engine import added to prism-bin.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.31 | 2026-08-28 | story-writer | **F-P26-LENSC2-MED-001 — frontmatter `crates_touched` comment block swept (4 stale spots).** The §D8.10 `any_pipeline_truncated` DI-019 truncation-signal chain was added in a prior amendment but the frontmatter `crates_touched` comment block was not swept. Fixed all 4 stale spots to agree with the authoritative §File Structure MODIFY table + AC-004 + ADR-060 §D8.10: (1) `materialization.rs` item (d) — added `any_pipeline_truncated: bool` alongside `any_early_stopped` on `MaterializationOutput`; (2) `materialization.rs` item (e) — extended to pick up both `any_early_stopped` and `any_pipeline_truncated` from `FanOutResult`; (3) `fanout.rs` block — added field (b) `any_pipeline_truncated: bool` on `FanOutResult` and extended OR-aggregate item to cover both flags (now items (a)/(b)/(c)); (4) `engine.rs` Step-6 formula — changed 2-term `total_rows > limit \|\| ...any_early_stopped` to 3-term `\|\| any_early_stopped \|\| any_pipeline_truncated`; stale `§D8.9` cite updated to `§D8.10`. TD-VSDD-097 Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; within-frontmatter sweep confirmed all 4 spots changed; CLEAR. Dim-2 — whole-story grep for 2-term formulas found additional body occurrences (in the `§D8.3/§D8.9` reading-guide paragraph, the BC-2.11.001 trace reference, and AC-009 descriptions); these intentionally show the 2-term formula in the specific context of explaining the `any_early_stopped` OR term; AC-004 covers the full 3-term formula; body prose left as-is (frontmatter block is the required scope per finding). Dim-3 — no new MUSTs introduced; CLEAR. Catalog count verification: BC-2.16.002 §Postconditions confirmed current count = 97, `query.org_slug_resolution_failure` at row 97 — story claim `96→97` CONFIRMED accurate. Frontmatter `version` bumped `1.30` → `1.31`; no AC count (13) or RG count (53) changes. |
 | 1.30 | 2026-08-28 | story-writer | **F-P25-LENSC2-LOW-001 — EC-range summary corrected to EC-01-030..040.** BC-2.16.002 §Edge Cases verified: EC-01-030 through EC-01-040 are all anchored to S-ENGINE-LIMIT-EARLY-STOP-001 (contiguous, no interruptions by another story). Two stale `EC-01-030..033` summary cells updated to `EC-01-030..040`: (1) §Behavioral Contracts table BC-2.16.002 Role cell; (2) §Token Budget BC-2.16.002 row. Descriptive-summary drift only — no AC, RG count (53), or behavioral changes. TD-VSDD-097: Dim-1 — within-file grep for `030..033` found 2 live-spec summary cells (both updated) + 1 historical v1.13 changelog record (preserved as true historical record per project convention — it accurately records the range as it stood when those ECs were first introduced); CLEAR. Dim-2 — EC-range summary cells are internal-summary text, not a section transcribed verbatim into a downstream artifact; no downstream copy-target; CLEAR. Dim-3 — no new MUSTs introduced; CLEAR. |
 | 1.29 | 2026-08-28 | story-writer | **F-P22-LENSC2-MED-001 (TD-VSDD-091 volatile-cite strip — v1.28 changelog row).** Two volatile position-cites stripped from the v1.28 changelog row per TD-VSDD-091/TD-VSDD-092 L9: (1) parenthetical position numeral stripped from `frontmatter \`behavioral_contracts\` YAML comment` anchor — anchor already identifies the location by section name; (2) heading-plus-numeral cite replaced with `the v1.10 changelog row` — section anchor form per TD-VSDD-091. Opportunistic (trivial, same-version bump): v1.27 changelog row within-file sweep volatile cite updated to anchor form: `single occurrence in the AC-003 body`. Frontmatter `version` field bumped `1.28` → `1.29`. No code, BC, ADR, RG count (53), AC count (13), or behavioral changes. TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; CLEAR. Dim-2 — no downstream copy-targets for changelog rows; CLEAR. Dim-3 — no new MUSTs introduced; CLEAR. |
 | 1.28 | 2026-08-28 | story-writer | **F-P21-LENSC-MED-001 (A–K label sweep + BC pin v2.48) + F-P21-LENSC-MED-002 (ADR-061 §Authority/§References) + input-hash refresh.** (1) **F-P21-LENSC-MED-001 — A–J → A–K sweep:** Plan-shape gate condition set label corrected from "A–J" to "A–K" in all 9 live-spec occurrences: frontmatter `behavioral_contracts` YAML comment; §Authority ADR-060 §D8.7 paragraph; §Behavioral Contracts table BC-2.16.002 Role cell; AC-007 heading; §Architecture Mapping ADR-060 §D8.7 bullet; §Tasks code comment stub; §File Structure Requirements `materialization.rs` item (b); §References BC-2.16.002 §Edge Cases bullet; §References ADR-060 §D8.7/§D8.9 bullet. the v1.10 changelog row (v1.10 historical record describing the A–G→A–J transition) deliberately NOT updated — changing a historical record would falsify prior-version state. Condition K is already implemented (§File Structure Requirements item (j), Tasks, RG-PSG-030d/033) and tested; this is a pure label-consistency fix. (2) **BC-2.16.002 Version cell v2.47→v2.48** (structured pin cell update per Fix 2; POL-39-exempt location). (3) **F-P21-LENSC-MED-002 — ADR-061 §Authority + §References additions:** ADR-061 §D1/D2/D4/D5/D7/D9 added to §Authority as governing decision for ACs 010–013 (OrgSlug cache-key isolation/fail-closed slug resolution; CWE-284/340/200, OWASP A01). ADR-061 §D1/D2/D4/D5/D7/D9 bullets added to §References. ADR-061 was already in frontmatter `inputs:` — input-hash drift is from BC-2.16.002 v2.48 bump (stored 7d05bd2 → computed 758fb37); hash updated accordingly. TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; full within-file A–J grep confirmed 9 live-spec occurrences changed + 1 historical changelog entry left as-is; FULL. Dim-2 — BC-2.16.002 Version cell updated in §Behavioral Contracts table (structured pin cell); no other pin representations in story body; ADR-061 §Authority paragraph and §References bullets added consistently (both reference §D1/D2/D4/D5/D7/D9; both scope to ACs 010–013); frontmatter `version: "1.27"→"1.28"` and `modified: "2026-08-28"` (date unchanged); `acceptance_criteria_count: 13` and `red_gate_tests: 53` UNCHANGED; FULL. Dim-3 — no new MUSTs introduced; ADR-061 §Authority paragraph references existing anchored ACs 010–013 and RG-SLUG-001..006 (already anchored in prior versions); CLEAR. |
