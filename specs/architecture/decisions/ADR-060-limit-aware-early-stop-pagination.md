@@ -5,7 +5,7 @@ title: "LIMIT-Aware Early-Stop Pagination for Offset/Limit and Cursor Sensor Tab
 status: ACCEPTED
 date: "2026-08-26"
 modified: "2026-08-28"
-version: "1.10"
+version: "1.11"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-11, SS-16]
 supersedes: []
@@ -23,7 +23,7 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.10 (2026-08-28) — §D8.9 FetchOutput 3-field reconciliation + DI-019 propagation arm, F-P20-LENSC-MED-001. v1.9 (2026-08-28) — F-R16-P18-LENSA-MED-001 (DI-019 truncation-signal propagation gap): `PipelineResult.truncated` (DI-019 cap) was dropped at the adapter boundary; new §D8.10 threads `pipeline_truncated` through `FetchOutput → FanOutResult.any_pipeline_truncated → MaterializationOutput.any_pipeline_truncated`; cache-completeness gate updated to `errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`; engine Step 6 formula updated to `(total_rows > limit) || any_early_stopped || any_pipeline_truncated`; scheduled path `is_truncated: false` hardcode replaced by `any_early_stopped || any_pipeline_truncated` (F-R16-P18-LENSA-OBS-001 sibling-sweep); RG-PSG-035/036 required. v1.8 (2026-08-28) — F-R16-P16-LENSA-HIGH-001: source-scoped `datetime_index_cols` via `resolved_col_map` (§D8.9); F-R16-P16-LENSA-LOW-001: reversed-operand prohibition explicit in `is_pushed_temporal_predicate` (§D8.7); F-R16-P16-LENSB-LOW-001: Condition K multi-INDEX-datetime conservative suppression (§D8.7); structural-reuse `collect_datetime_index_cols` helper; RG-PSG-032/033/030b required. v1.7 (2026-08-28) — AND-arm direction-count constraint (§D8.7) + OCSF-name gap in `datetime_index_cols` (§D8.9). v1.6: ADR-059 citation reframe. v1.5 (2026-08-27) — Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate`; `Ast::Filter` + `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where`; `expr_contains_aggregate_or_window` catch-all `_ => false` → `_ => true`; `any_early_stopped` truncation-signal chain added (§D8.9). v1.4: Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
+ACCEPTED v1.11 (2026-08-28) — F-P31-LENSA-OBS-001: partial-final-page discriminator for early-stop signal (§D8.2, §D8.3, §D8.9); exact-limit/partial-final-page LIMIT query no longer emits self-contradictory `is_truncated: true` with `total_available == returned_results`. v1.10 (2026-08-28) — §D8.9 FetchOutput 3-field reconciliation + DI-019 propagation arm, F-P20-LENSC-MED-001. v1.9 (2026-08-28) — F-R16-P18-LENSA-MED-001 (DI-019 truncation-signal propagation gap): `PipelineResult.truncated` (DI-019 cap) was dropped at the adapter boundary; new §D8.10 threads `pipeline_truncated` through `FetchOutput → FanOutResult.any_pipeline_truncated → MaterializationOutput.any_pipeline_truncated`; cache-completeness gate updated to `errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`; engine Step 6 formula updated to `(total_rows > limit) || any_early_stopped || any_pipeline_truncated`; scheduled path `is_truncated: false` hardcode replaced by `any_early_stopped || any_pipeline_truncated` (F-R16-P18-LENSA-OBS-001 sibling-sweep); RG-PSG-035/036 required. v1.8 (2026-08-28) — F-R16-P16-LENSA-HIGH-001: source-scoped `datetime_index_cols` via `resolved_col_map` (§D8.9); F-R16-P16-LENSA-LOW-001: reversed-operand prohibition explicit in `is_pushed_temporal_predicate` (§D8.7); F-R16-P16-LENSB-LOW-001: Condition K multi-INDEX-datetime conservative suppression (§D8.7); structural-reuse `collect_datetime_index_cols` helper; RG-PSG-032/033/030b required. v1.7 (2026-08-28) — AND-arm direction-count constraint (§D8.7) + OCSF-name gap in `datetime_index_cols` (§D8.9). v1.6: ADR-059 citation reframe. v1.5 (2026-08-27) — Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate`; `Ast::Filter` + `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where`; `expr_contains_aggregate_or_window` catch-all `_ => false` → `_ => true`; `any_early_stopped` truncation-signal chain added (§D8.9). v1.4: Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
 (aggregate recursion gap) and F-R12-HIGH-001 (JOIN not suppressed), plus six additional gaps
 discovered by exhaustive grammar enumeration: ORDER BY aggregate escapes Condition A; Condition G
 was based on `where_filters` (equality push-down map) which is always empty for `Ast::Filter` mode
@@ -157,6 +157,12 @@ pagination loop adds:
 ```rust
 if let Some(limit) = context.early_stop_limit {
     if all_records.len() >= limit {
+        // Partial-final-page discriminator (§D8.3):
+        // page_record_count = records returned by this page (pre-OCSF count, i.e. raw page len).
+        // page_size         = TOML-declared maximum records per page (available from FetchContext).
+        // Full page (>=):  source may have more pages        → early_stopped = true.
+        // Partial page (<): source is exhausted, no more pages → early_stopped = false.
+        early_stopped = page_record_count >= page_size;
         break 'steps;
     }
 }
@@ -165,17 +171,44 @@ if let Some(limit) = context.early_stop_limit {
 This check fires only after a COMPLETE page has been received and its records appended to
 `all_records`. It does NOT fire mid-page. The page atomicity guarantee is preserved: either
 the entire page arrives (and is accumulated), or a fetch error discards everything.
+The `early_stopped` local variable records the partial-final-page discriminator result so that
+`PipelineResult::early_stopped` is set correctly per §D8.3.
 
 ### D8.3 — Post-break semantics
 
-When early-stop fires (not DI-019 cap), the `truncated` flag is NOT set. Instead,
-`PipelineResult.early_stopped = true` is set (§D8.9). The pipeline returns a valid
-`PipelineResult` with `truncated: false` and `early_stopped: true` containing at most
-`limit + (page_size - 1)` records. DataFusion applies the precise LIMIT on this result.
-The implementer MUST NOT set `truncated: true` for LIMIT early-stop — `truncated` is
-semantically reserved for capacity-exceeded conditions (DI-019), not for query-driven early
-stops. The `early_stopped` signal propagates to engine Step 6 where it contributes to the
-`is_truncated` formula (§D8.9).
+When early-stop fires (not DI-019 cap), the `truncated` flag is NOT set. `PipelineResult.early_stopped`
+is set using the **partial-final-page discriminator** captured at break time (§D8.2):
+
+- **Full final page** (`page_record_count >= page_size`): the source may have more pages —
+  `early_stopped = true`. This includes the exact-full-page-boundary corner (a full final page is
+  treated conservatively as "more may exist" because exhaustion was not confirmed without fetching
+  the next page).
+- **Partial final page** (`page_record_count < page_size`): the source is exhausted (no more pages
+  remain); the returned data IS the complete dataset — `early_stopped = false` (does NOT contribute
+  to `is_truncated`).
+
+The pipeline returns a valid `PipelineResult` with `truncated: false` and `early_stopped` per the
+discriminator, containing at most `limit + (page_size - 1)` records. DataFusion applies the precise
+LIMIT on this result. The implementer MUST NOT set `truncated: true` for LIMIT early-stop — `truncated`
+is semantically reserved for capacity-exceeded conditions (DI-019), not for query-driven early stops.
+(Anchor: S-ENGINE-LIMIT-EARLY-STOP-001 — a new AC and Red Gate test covering the partial-final-page
+discriminator will be added there by the story-writer/test-writer.)
+
+**Worked examples (partial-final-page discriminator):**
+
+| Scenario | page_size | Tenant rows | LIMIT | Final page shape | early_stopped | total_rows > limit | is_truncated | Correctness |
+|----------|-----------|-------------|-------|------------------|---------------|--------------------|--------------|-------------|
+| (a) Exact-limit on exhausted tenant: `LIMIT 5`, tenant has 5 rows | 1000 | 5 | 5 | Partial (5 < 1000) | false | false | false | Correct: complete dataset returned |
+| (b) Normal early-stop: `LIMIT 5`, tenant has 1000+ rows | 1000 | 1000+ | 5 | Full (1000 >= 1000) | true | false | true | Correct: more data exists |
+| (c) Exact-full-page corner: `LIMIT 1000`, tenant has exactly 1000 rows | 1000 | 1000 | 1000 | Full (1000 >= 1000) | true | false | true | Conservative: exhaustion unconfirmed without fetching next page (accepted corner) |
+
+Example (c) is an accepted conservative corner: `is_truncated = true` even though the dataset may be
+complete. An analyst who receives `is_truncated: true` with `total_available == returned_results`
+should re-query without LIMIT to confirm completeness; the full-paginate query returns the same 1000
+rows with `is_truncated: false`.
+
+The `early_stopped` signal propagates to engine Step 6 where it contributes to the `is_truncated`
+formula (§D8.9).
 
 ### D8.4 — Applicable pagination modes
 
@@ -611,16 +644,25 @@ remains the sole source feeding both cache key and `QueryParams.limit`.
 
 When the §D8.2 early-stop `break 'steps` fires at the exact-limit boundary
 (`all_records.len() == limit`, so `total_rows == limit`), the naive formula `total_rows > limit`
-evaluates to `false`. Without a separate signal, engine Step 6 would emit `is_truncated: false`
-— silently hiding that pagination was halted before dataset exhaustion. A consumer receiving
-`is_truncated: false` at the exact-limit boundary has no signal that more data may exist.
+evaluates to `false`. The partial-final-page discriminator (§D8.3) provides the additional signal:
+
+- When the final page was **full** (`page_record_count >= page_size`): more pages may exist →
+  `early_stopped = true` → `is_truncated = true` (correct: data may be incomplete).
+- When the final page was **partial** (`page_record_count < page_size`): the source is exhausted →
+  `early_stopped = false` → `is_truncated = false` (correct: the complete dataset was returned).
+
+Without this discriminator, a LIMIT query whose row-count exactly matches the tenant dataset size
+(partial final page) emits `is_truncated: true` alongside `total_available == returned_results` — a
+self-contradictory signal to the MCP consumer. The discriminator resolves the contradiction.
 
 #### `PipelineResult.early_stopped: bool`
 
-When the §D8.2 `break 'steps` fires (early-stop, NOT DI-019), `PipelineResult.early_stopped = true`
-is set. This field is DISTINCT from `truncated`: `truncated` signals DI-019 capacity overflow
-(§D8.3 invariant: implementer MUST NOT set `truncated` on early-stop); `early_stopped` signals
-a query-driven early exit at the limit boundary.
+When the §D8.2 `break 'steps` fires (early-stop, NOT DI-019), `PipelineResult.early_stopped` is set
+using the partial-final-page discriminator (§D8.3): `true` when the final page was full
+(`page_record_count >= page_size`, more pages may exist); `false` when the final page was partial
+(`page_record_count < page_size`, source exhausted). This field is DISTINCT from `truncated`:
+`truncated` signals DI-019 capacity overflow (§D8.3 invariant: implementer MUST NOT set `truncated`
+on early-stop); `early_stopped = true` signals a query-driven early exit where more pages may exist.
 
 #### `FetchOutput` Return Type
 
@@ -667,11 +709,20 @@ let is_truncated = total_rows > limit || materialization_output.any_early_stoppe
     || materialization_output.any_pipeline_truncated;
 ```
 
-When `total_rows == limit` (exact-limit boundary) AND `any_early_stopped = true`:
+When `total_rows == limit` (exact-limit boundary) AND final page was FULL (`any_early_stopped = true`,
+per §D8.3 discriminator):
 - `total_rows > limit` = false
 - `any_early_stopped` = true
-- Result: `is_truncated = true` — correctly signals to the MCP consumer that pagination was
-  halted and more data may be available.
+- Result: `is_truncated = true` — correctly signals that more data may exist (full-page boundary;
+  conservative: exhaustion unconfirmed without fetching next page).
+
+When `total_rows == limit` (exact-limit boundary) AND final page was PARTIAL (`any_early_stopped = false`,
+per §D8.3 partial-final-page discriminator):
+- `total_rows > limit` = false
+- `any_early_stopped` = false (discriminator: partial page → source exhausted)
+- `any_pipeline_truncated` = false
+- Result: `is_truncated = false` — correctly signals that the complete dataset was returned;
+  `total_available == returned_results` is no longer self-contradictory (closes F-P31-LENSA-OBS-001).
 
 When DI-019 cap fires (no LIMIT query) AND `any_pipeline_truncated = true`:
 - `total_rows > limit` = false (limit = usize::MAX when no LIMIT specified)
@@ -680,8 +731,10 @@ When DI-019 cap fires (no LIMIT query) AND `any_pipeline_truncated = true`:
 - Result: `is_truncated = true` — correctly surfaces DI-019 truncation at the analyst level.
 
 `total_available` is a LOWER BOUND when `any_early_stopped = true` OR `any_pipeline_truncated = true`:
-the true dataset size is unknown because pagination was halted (by early-stop or DI-019 cap) before
-exhaustion. See §D8.10 for the full DI-019 truncation-signal chain.
+the true dataset size is unknown because pagination was halted before exhaustion. When both signals
+are `false` (either no early-stop fired, or early-stop fired on a partial final page per the §D8.3
+discriminator), `total_available` is exact — the source was fully exhausted. See §D8.10 for the full
+DI-019 truncation-signal chain.
 
 #### Step 6 is the SOLE Owner of Tool-Level Cap (BC-2.11.001 EC-11-093)
 
@@ -1026,6 +1079,7 @@ Closed by v1.8 Condition K: conservative suppression when `collect_datetime_inde
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.11 | 2026-08-28 | architect | F-P31-LENSA-OBS-001 (human-approved Option 2 refinement). Introduced **partial-final-page discriminator** for `PipelineResult.early_stopped`: when the §D8.2 break fires and the triggering page was partial (`page_record_count < page_size`), source is exhausted — `early_stopped = false`; when the page was full (`>= page_size`), more pages may exist — `early_stopped = true` (unchanged for full-page case, including exact-full-page corner treated conservatively). Closes self-contradictory `is_truncated: true` + `total_available == returned_results` on exact-limit / partial-final-page queries (e.g., `LIMIT 5` on a 5-row tenant). §D8.2 code sketch updated with discriminator capture; §D8.3 post-break semantics redesigned with discriminator rule + three worked examples (partial-exhausted → `is_truncated: false`; full-page normal → `is_truncated: true`; exact-full-page corner → `is_truncated: true` accepted conservative). §D8.9 Motivation updated; `PipelineResult.early_stopped` description updated; Step 6 formula commentary extended with partial-page CLEAN arm; `total_available` lower-bound note clarified (exact when both signals false). Engine Step 6 `is_truncated` formula (code) UNCHANGED — discriminator operates by setting `early_stopped = false` at source, not by changing formula. Anchor story S-ENGINE-LIMIT-EARLY-STOP-001; story-writer/test-writer add new AC + Red Gate test. Downstream sweep required: BC-2.11.001 §EC-11-092 (Step 6 formula commentary), BC-2.16.002 §Postconditions LIMIT-Aware Early-Stop arm. |
 | 1.10 | 2026-08-28 | architect | F-P20-LENSC-MED-001 (§D8.9 source-vs-copy struct inversion). §D8.9 `FetchOutput Return Type` struct block reconciled to the canonical 3-field form matching §D8.10 authoritative definition: `pub pipeline_truncated: bool` added as third field. §D8.9 Propagation Chain extended with parallel DI-019 truncation arm: `PipelineResult.truncated → FetchOutput.pipeline_truncated → FanOutResult.any_pipeline_truncated → MaterializationOutput.any_pipeline_truncated`, feeding the same engine.rs Step 6 `is_truncated` formula. The §D8.9 struct block was the only remaining artifact carrying the 2-field shape; downstream copies (S-ENGINE-LIMIT-EARLY-STOP-001 story, BC-2.11.001 §EC-11-092) were already reconciled at the §D8.10 introduction. |
 | 1.9 | 2026-08-28 | architect | F-R16-P18-LENSA-MED-001 + F-R16-P18-LENSA-OBS-001. §D8.10 DI-019 truncation-signal propagation chain: `PipelineResult.truncated` was dropped at the `spec_driven_adapter.rs` adapter boundary — `FetchOutput::new()` consumed only `result.early_stopped`, not `result.truncated`. A >10K single-sensor fetch produced `truncated = true, early_stopped = false`; `FanOutResult.any_early_stopped = false`; cache-completeness gate passed; DI-019-capped partial cached as COMPLETE. Subsequent cache hit served it with `is_truncated = false` (same class as EC-01-039/RG-PSG-034, on the DI-019 sibling path). Fix mirrors the established `any_early_stopped` plumbing: (1) `FetchOutput` gains `pipeline_truncated: bool` field (signals DI-019 cap from `PipelineResult.truncated`); `FetchOutput::new()` gains 3rd argument; 21+ construction sites updated; (2) `spec_driven_adapter.rs` `fetch` OR-aggregates `result.truncated` into `any_pipeline_truncated` and passes to `FetchOutput::new()`; (3) `FanOutResult` gains `any_pipeline_truncated: bool` (OR-aggregate, derives `Default = false`); (4) `MaterializationOutput` gains `any_pipeline_truncated: bool`; (5) cache-completeness gate (ADR-060 §D8.3) updated: `complete = errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`; (6) engine.rs analyst Step 6 formula updated: `is_truncated = (total_rows > limit) \|\| any_early_stopped \|\| any_pipeline_truncated`; §D8.9 formula updated; (7) F-R16-P18-LENSA-OBS-001 (TD-VSDD-060 dim-b sibling-sweep): `execute_scheduled_inner` hardcoded `is_truncated: false` replaced by `output.any_early_stopped \|\| output.any_pipeline_truncated` — latent but preventable; scheduled path has `early_stop_limit = None` so `any_early_stopped` is always `false`, but DI-019 can fire on large scans. Two new Red Gate tests required: RG-PSG-035 (`test_psg_rg035_di019_truncated_response_not_cached_as_complete` — cache-completeness gate), RG-PSG-036 (`test_psg_rg036_di019_truncated_step6_is_truncated_true` — analyst Step 6 formula). Product-owner amends BC-2.16.002 to add EC-01-040 (DI-019 cache-completeness) and update EC-01-039 Step 6 formula reference; update Step 6 postcondition bullet; update `is_truncated` formula bullet. |
 | 1.8 | 2026-08-28 | architect | F-R16-P16-LENSA-HIGH-001 + F-R16-P16-LENSA-LOW-001 + F-R16-P16-LENSB-LOW-001. §D8.9 source-scoped `datetime_index_cols` (HIGH-001): construction now uses source-scoped `resolved_col_map` from `build_source_column_map(spec_map, source_names)` rather than `resolved_spec_map.values()` (all sensors); eliminates cross-sensor column-name pollution (Armis INDEX `last_seen` appearing in CrowdStrike query's index set). Shared `collect_datetime_index_cols(col_map, ocsf_naming_map) -> (Vec<String>, bool)` helper introduced in `materialization.rs`; both gate and `extract_time_window_from_ast` (pushdown.rs) MUST call it to prevent future column-eligibility divergence. §D8.7 reversed-operand prohibition explicit (LOW-001): `Literal::Timestamp OP Field` returns `false` (SUPPRESS); mirrors `extract_time_bounds_from_predicate` which requires Field on LHS. Implementer removes `rhs_pushed` branch from code (ADR spec was already correct; code deviated from spec). §D8.7 Condition K (LENSB-LOW-001): conservative suppression when any queried source table has ≥2 Datetime+INDEX columns; prevents direction-count global-vs-per-column semantic gap from producing incorrect PERMIT if a future TOML adds a second INDEX Datetime column. Three new Red Gate tests required: RG-PSG-032 (`crowdstrike_devices WHERE last_seen > '...' LIMIT 100` → SUPPRESS; cross-sensor source-scope), RG-PSG-033 (`armis_devices WHERE last_seen > '...' LIMIT 100` → PERMIT; Armis last_seen IS INDEX), RG-PSG-030b (two-upper-bound `(0,2)` → SUPPRESS). Product-owner amends BC-2.16.002 v2.43→v2.44: source-scoped `datetime_index_cols` description; EC for cross-sensor SUPPRESS; EC for reversed-operand SUPPRESS; EC for multi-INDEX-datetime SUPPRESS; POL-39 fixes in EC-01-034/035 (strip bare version pins to section anchors). |

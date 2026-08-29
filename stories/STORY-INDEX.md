@@ -1,12 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.937"
+version: "2.938"
 status: draft
 producer: state-manager
-timestamp: 2026-08-29T05:00:00Z
+timestamp: 2026-08-29T06:00:00Z
 phase: 3
 total_stories: 318
+# D-2354: S-ENGINE-LIMIT-EARLY-STOP-001 v1.33→v1.34 — F-P31-LENSA-OBS-001 Option 2 COMPLETE. AC-014 NEW (acceptance_criteria_count 13→14); RG-PSG-039/040 NEW (red_gate_tests 53→55; density 55/14≈3.93); BC pins BC-2.16.002 v2.49; BC-2.11.001 v1.28; trace BC-2.16.015 v1.8 UNCHANGED; input-hash 758fb37→6ba0af1. NEW feature HEAD 9c43e0e3c PUSHED (code change; just check 5877 exit 0). BC-5.39.001 streak RESET 0/3; fresh cascade pass-1 pending on new frozen HEAD 9c43e0e3c. total_stories 318 UNCHANGED. STORY-INDEX v2.937→v2.938. D-2353 NOTE archived.
 # D-2353: S-ENGINE-LIMIT-EARLY-STOP-001 v1.32→v1.33 — pass-30 TD-VSDD-096 records-only micro-burst COMPLETE (F-P30-LENSC2-LOW-001 POL-39 bare v1.8 version pin in AC-007 Condition K bullet FIXED by story-writer). BC pins UNCHANGED (BC-2.16.002 v2.48; BC-2.11.001 v1.27; trace BC-2.16.015 v1.8). Feature HEAD @d486f3ec8 FROZEN (no code change). BC-5.39.001 streak 0/3; pass-31 = fresh 3-CLEAN pass 1. total_stories 318 UNCHANGED. STORY-INDEX v2.936→v2.937. D-2347 NOTE archived.
 # D-2345: S-ENGINE-LIMIT-EARLY-STOP-001 v1.26→v1.27 — pass-20 fix-burst COMPLETE (F-P20-LENSB-LOW-001 AC-003 citation Some(11)→Some(15) aligned to on-disk green test; input-hash d9912a6→7d05bd2 ADR-060 v1.10 doc-sync). BC pins UNCHANGED (BC-2.16.002 v2.47; BC-2.11.001 v1.27; trace BC-2.16.015 v1.8). total_stories 318 UNCHANGED. STORY-INDEX v2.930→v2.931. D-2344 NOTE archived.
 # D-2344: S-ENGINE-LIMIT-EARLY-STOP-001 v1.25→v1.26 — round-16 pass-19 fix-burst COMPLETE (F-R16-P19-LENSB-MED-001 RG-PSG-037/038 real-adapter propagation guards; F-R16-P19-LENSC-MED-001 FetchOutput literals reconciled 3-field {batches,any_early_stopped,pipeline_truncated}; F-R16-P19-LENSA-LOW-001 is_purely_temporal_predicate comment retirement). BC-2.16.002 v2.46→v2.47 (FetchOutput literal reconciliation). BC-2.11.001 v1.26→v1.27 (comprehensive sibling sweep). Story 53 RGTs/13 ACs≈4.08; RG-PSG-037/038; AC-004 cites RG-037; AC-009 cites RG-038. Feature HEAD @d486f3ec8 PUSHED. total_stories 318 UNCHANGED. STORY-INDEX v2.929→v2.930. D-2343 NOTE archived.
@@ -1046,7 +1047,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-CLAROTY-OT-EVENTS-001 | Claroty xDome OT Activity Events Table — claroty_ot_activity_events TOML block with 21-column Tier-1/Tier-2 spec, no DTU, live structural tests (Wave A G2) [draft v1.0] | prism-sensors, prism-spec-engine | 1 (BC-2.16.016 v1.0) | -- | 5 | -- |
 | S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001 | prism-spec-engine: distinguish KeyNotFound from ExtractionFailed in source_path extraction — debug log level for absent optional keys [draft v1.0] | prism-spec-engine | 1 (BC-2.16.002) | -- | 3 | -- |
 | S-ENGINE-H2-LARGE-RESPONSE-001 | Claroty xDome large-response transport — direct-h2 confirmation + recurrence guard (canary + timeout diagnostics + query-CLI wiring) [draft v1.2] | prism-bin, prism-spec-engine | 1 (BC-2.16.002 v2.41) | -- | 3 | -- |
-| S-ENGINE-LIMIT-EARLY-STOP-001 | LIMIT-aware early-stop pagination — plan-shape gate `ast_is_reducing_plan` (ADR-060 §D8.7 A–K + conservative default) + `any_early_stopped` chain (ADR-060 §D8.9) + `any_pipeline_truncated` DI-019 chain (ADR-060 §D8.10) + cache-completeness gate (EC-01-039/EC-01-040, RG-PSG-034..038) + OrgSlug cache-key isolation (ADR-061 §D1/D4/D5); 53 RGTs / 13 ACs ≈ 4.08 [draft v1.33] | prism-spec-engine, prism-bin, prism-query, prism-sensors, prism-core | 1 (BC-2.16.002 v2.48; BC-2.11.001 v1.27; trace: BC-2.16.015 v1.8) | -- | 8 | -- |
+| S-ENGINE-LIMIT-EARLY-STOP-001 | LIMIT-aware early-stop pagination — plan-shape gate `ast_is_reducing_plan` (ADR-060 §D8.7 A–K + conservative default) + `any_early_stopped` chain (ADR-060 §D8.9) + `any_pipeline_truncated` DI-019 chain (ADR-060 §D8.10) + cache-completeness gate (EC-01-039/EC-01-040/EC-01-041, RG-PSG-034..040) + OrgSlug cache-key isolation (ADR-061 §D1/D4/D5) + partial-final-page discriminator (ADR-060 §D8.2/§D8.3; AC-014/RG-PSG-039/040); 55 RGTs / 14 ACs ≈ 3.93 [draft v1.34; feature HEAD 9c43e0e3c] | prism-spec-engine, prism-bin, prism-query, prism-sensors, prism-core | 1 (BC-2.16.002 v2.49; BC-2.11.001 v1.28; trace: BC-2.16.015 v1.8) | -- | 8 | -- |
 | S-ENGINE-TIMEOUT-OVERLAY-WIRE-001 | timeout_secs overlay wiring — per-org request timeout via ResolvedSensorSpec provenance flag into per-request reqwest client (ADR-060 v1.1 §D8.6, deferred) [draft v1.0 stub] | prism-bin, prism-spec-engine | 0 (BC pending PO authorship) | -- | 5 | S-ENGINE-LIMIT-EARLY-STOP-001 |
 
 ## Sensor-Critical Stories (Wave B — Claroty xDome Endpoint Expansion)

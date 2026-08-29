@@ -1,18 +1,60 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.013"
+version: "8.014"
 status: current
-timestamp: 2026-08-28T23:59:00Z
+timestamp: 2026-08-29T08:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2344 (2026-08-28): SESSION WRAP — round-16 pass-19 fix-burst COMPLETE. lens-A LOW + lens-B MED (RG-PSG-037/038) + lens-C MED (FetchOutput 3-field) ALL FIXED. Feature @d486f3ec8 PUSHED (frozen for pass-20). Correctness core CONVERGED. streak 0/3; pass-20 = fresh 3-CLEAN pass 1. [D-2339 SUPERSEDED by D-2344]**
+> **D-2355 (2026-08-29): SESSION WRAP — D-2354 F-P31-LENSA-OBS-001 Option 2 partial-final-page refinement DELIVERED (edits were complete on disk; folded into this burst). Feature @9c43e0e3c PUSHED (frozen). BC-5.39.001 LOCAL streak RESET 0/3 (code change). Fresh 4-lens cascade pass-1 pending on @9c43e0e3c. [D-2344 SUPERSEDED by D-2355]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2344 (2026-08-28 — SESSION WRAP; pass-19 fix-burst COMPLETE; LIMIT feature @d486f3ec8; streak 0/3; pass-20 pending)
+## §RESUME SNAPSHOT — D-2355 (2026-08-29 — SESSION WRAP; D-2354 F-P31 refinement DELIVERED; LIMIT feature @9c43e0e3c FROZEN; streak 0/3; pass-1 pending)
+
+### RESUME IN ONE BREATH
+Prism Phase-3 (brownfield, cycle wave-5-e-demo-fidelity), v1 = live Claroty xDome. Story S-ENGINE-LIMIT-EARLY-STOP-001: the F-P31-LENSA-OBS-001 partial-final-page refinement (human-approved Option 2) is DELIVERED — new frozen feature HEAD @9c43e0e3c (PUSHED; `early_stopped = page_record_count >= active_page_size`; RG-PSG-039/040 GREEN; just check 5877/5877 exit 0). BC-5.39.001 LOCAL streak RESET 0/3 (code change; prior 8-clean-pass streak on old HEAD d486f3ec8 SUPERSEDED). NEXT: fresh full LOCAL 4-lens adversary cascade pass-1 on @9c43e0e3c.
+
+### PERIMETER (frozen)
+ADR-060 v1.11 (§D8.2/§D8.3/§D8.9 partial-final-page discriminator; §D8.7 gate A–K; §D8.10 DI-019 chain) / ADR-061 v1.2 / BC-2.16.002 v2.49 (EC-01-030..041; EC-01-041 NEW partial arm) / BC-2.11.001 v1.28 (EC-11-092 FULL arm + EC-11-094 NEW partial arm) / BC-2.16.015 v1.8 draft / LIMIT story v1.34 (55 RGTs incl RG-PSG-039/040 + RG-SLUG-001..006; 14 ACs incl AC-014 partial-final-page). Indices: ARCH-INDEX v2.350 / BC-INDEX v9.79 / STORY-INDEX v2.938 / VP-INDEX v2.22.
+
+### NEXT ACTIONS (in order)
+1. Fresh full LOCAL 4-lens cascade pass-1 on NEW frozen HEAD @9c43e0e3c: lens-A correctness/security, lens-B coverage/wire (lean grep-not-Read), lens-C1 version/index integrity, lens-C2 EXHAUSTIVE content sweep. Inject policies.yaml + SAP-1/2/3. lens-A MUST adjudicate the OffsetLimit-scoping design decision (discriminator refines OffsetLimit mode only; non-OffsetLimit modes keep conservative early_stopped=true because active_page_size=0 there) against ADR-060 §D8.2 intent — if lens-A rules it a gap, route back to architect; if sound, note as ratified.
+2. 3× CLEAN(strict) on UNCHANGED @9c43e0e3c (frozen-HEAD rule; no pushes between counted passes) → LOCAL CONVERGED. Any finding → route to owner, fix-burst (records-only → TD-VSDD-096; content → full ceremony), advance HEAD, reset streak.
+3. LOCAL CONVERGED → STORY-LEVEL HOLDOUT GATE (HS-025..029; product-owner authors if not yet; holdout-evaluator vs built binary, real MCP stdio + DTU, wire-level, BLOCKING) → demo-recorder per-AC → pr-manager 9-step PR to develop → PR-LEVEL 3-CLEAN + security-reviewer → squash-merge → POL-14 (BC-2.16.002/BC-2.16.015 draft→active) → post-merge state burst.
+4. Then unblock S-CLAROTY-VULNS-001 (@5aae6f0b3, merge-HELD; LOCAL 3-CLEAN CONVERGED round-5 + HOLDOUT HS-024 PASS): after LIMIT merges + redeploys, re-run LIVE monroe xDome validation → merge VULNS.
+5. v1 RELEASE GATE: live xDome validation.
+
+### HEADS (backup boundary)
+- `develop`: `3f1e66179` (local==origin; clean). NOT changed this session.
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: `9c43e0e3c` (PUSHED origin; FROZEN D-2354; streak 0/3; pass-1 pending). RED test commit e152d522c → green 9c43e0e3c.
+- `feature/S-CLAROTY-VULNS-001`: `5aae6f0b3` (PUSHED origin; 3-CLEAN CONVERGED round-5; HOLDOUT HS-024 PASS; merge HELD pending LIMIT).
+- Parked (do NOT touch): S-3.09 @`43c41389d` KEEP; W3-FIX-S307-001 @`fcab8717c` DIRTY.
+
+### BC-5.39.001 STREAK
+LIMIT LOCAL: 0/3 on frozen @9c43e0e3c. pass-1 of a fresh 3-CLEAN attempt. Frozen-HEAD rule: streak counts only on unchanged HEAD; any push resets.
+
+### CASCADE OPERATIONS NOTES (carry forward)
+- Use the 4-lens split (C1 mechanical version/index + C2 EXHAUSTIVE content) with lean grep-not-Read discipline: the monolithic lens-C and coverage lens-B repeatedly stalled/died on huge-file reads this session. ~15+ transient API/stream agent deaths occurred, ALL recovered by inspect-on-disk + re-drive from delta.
+- On resume, if any agent died mid-.factory-edit: ALWAYS `git -C .factory status` + verify frontmatter-vs-index-pin consistency BEFORE re-dispatching (this very wrap recovered such a case — D-2354 edits complete on disk but uncommitted).
+- State-manager .factory bursts serialize on the single worktree — never two concurrently. Adversary lenses are read-only: MAY run parallel to a STATE.md-ONLY record burst, but NOT parallel to an index-touching burst (mid-write false-STALE risk).
+- records-lint.sh L9 tilde-less `line NNN` gap is a KNOWN logged follow-up — do NOT action unless the human directs.
+
+### STANDING DECISIONS (this session)
+(a) Human directive: keep grinding strict 3-CLEAN, no tooling change (records tail). (b) Human ruled Option-2 (refine the signal) on F-P31. (c) Autonomy grant D-989 in force: autonomous A→B→C strict convergence + auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit.
+
+### SIDE ARTIFACT
+PERSONA-STORYBOARD-PROCESS.md vendored VERBATIM to .factory/storyboard/ (commit cdee982b8); NO integration; do nothing further unless the human asks.
+
+### DECISION-LOG DELTA (this session)
+D-2348 (pass-23 CLEAN→1/3) · D-2349 (pass-24/25 + EC-range fix, reset) · D-2350 (pass-26 crates_touched fix) · D-2351 (pass-27 comprehensive reconciliation) · D-2352 (pass-28 CLEAN→1/3) · D-2353 (pass-29/30 + POL-39 pin fix, reset) · D-2354 (F-P31 Option-2 partial-final-page refinement; new HEAD 9c43e0e3c) · D-2355 (this wrap). Also: storyboard vendored (cdee982b8).
+
+---
+
+## §RESUME SNAPSHOT — D-2344 (2026-08-28 — SESSION WRAP; pass-19 fix-burst COMPLETE; LIMIT feature @d486f3ec8; streak 0/3; pass-20 pending) [SUPERSEDED by D-2355]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3, v1 = live Claroty xDome. Story S-ENGINE-LIMIT-EARLY-STOP-001 (LIMIT early-stop + plan-shape gate + multi-tenant cache-key isolation + early-stop & DI-019 cache-completeness) round-16 LOCAL 3-CLEAN cascade IN PROGRESS. Correctness core CONVERGED (gate structurally unified with authoritative extractor via shared collect_datetime_index_cols; DI-019 any_pipeline_truncated chain complete; multi-tenant isolation sound). Streak 0/3 — recent passes closed a records/test-coverage tail. Feature @d486f3ec8 PUSHED origin.

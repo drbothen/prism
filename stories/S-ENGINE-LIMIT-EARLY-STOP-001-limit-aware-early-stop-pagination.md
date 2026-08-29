@@ -12,7 +12,7 @@ status: draft
 # TV-BC-2.16.015-006 referenced (trace-only); promoted to active by S-CLAROTY-VULNS-001 merge per POL-14, not this story.
 producer: story-writer
 timestamp: "2026-08-26T00:00:00Z"
-version: "1.33"
+version: "1.34"
 modified: "2026-08-28"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -21,8 +21,8 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.16.015-claroty-vulnerabilities-table.md"
   - ".factory/specs/architecture/decisions/ADR-060-limit-aware-early-stop-pagination.md"
   - ".factory/specs/architecture/decisions/ADR-061-multi-tenant-cache-key-isolation-authoritative-slug-resolution.md"
-input-hash: "758fb37"
-# input-hash: refreshed 2026-08-28 (v1.28); BC-2.16.002 bumped v2.47→v2.48 (input drift from PO version bump); hash recomputed by validate-input-hash hook (stored 7d05bd2 → 758fb37)
+input-hash: "6ba0af1"
+# input-hash: refreshed 2026-08-28 (v1.34); BC-2.16.002 bumped v2.48→v2.49 (EC-01-041 partial-final-page arm); BC-2.11.001 bumped v1.27→v1.28 (EC-11-094); hash recomputed (stored 758fb37 → 6ba0af1)
 traces_to: ["BC-2.16.002", "BC-2.16.015", "BC-2.11.001"]
 points: 8
 estimated_days: 2
@@ -82,7 +82,8 @@ crates_touched: [prism-spec-engine, prism-bin, prism-query, prism-sensors, prism
 #       (b) Add `early_stop_limit: Option<usize>` parameter to `FetchContext::new`
 #       (c) Add `pub early_stopped: bool` field to `PipelineResult`
 #       (d) Add early-stop check in `PipelineExecutor::execute_impl` loop (after DI-019 check)
-#       (e) SET `early_stopped = true` BEFORE `break 'steps` in the §D8.2 early-stop block
+#       (e) SET `early_stopped = (page_record_count >= page_size)` BEFORE `break 'steps` in the §D8.2/§D8.3 early-stop block
+#           (ADR-060 §D8.2 partial-final-page discriminator: FULL page → early_stopped=true; PARTIAL page, source exhausted → early_stopped=false → is_truncated=false)
 #     Callers inside pipeline.rs #[cfg(test)] blocks: ~15 in-file test sites — all pass `None`
 #   prism-bin:
 #     MODIFY src/spec_driven_adapter.rs:
@@ -155,8 +156,8 @@ blocks: [S-CLAROTY-VULNS-001]
 #   (S-ENGINE-H2-LARGE-RESPONSE-001), a `SELECT * LIMIT 1` against claroty_vulnerabilities
 #   fetches ALL pages (DEFECT-2, ADR-060 §Context), exhausting the 30s budget. This story
 #   prevents that by stopping after ceil(1/1000) = 1 page (ADR-060 §Consequences).
-acceptance_criteria_count: 13
-red_gate_tests: 53
+acceptance_criteria_count: 14
+red_gate_tests: 55
 risk: MEDIUM
 # Risk justification:
 #   FetchContext::new signature expansion is a BREAKING CHANGE for all callers.
@@ -270,13 +271,13 @@ streak per BC-5.39.001.
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | v2.48 | §Postconditions "LIMIT-Aware Early-Stop Pagination (ADR-060 §D8)": FetchContext field, execute_impl check placement, truncated=false semantics, applicable pagination modes, D8.5 ORDER BY limitation. Plan-Shape Gate (ADR-060 §D8.7 / §D8.9): Conditions A–K + conservative default suppress early-stop; where_filters NOT forwarded to gate; `fetch_limit=0` sentinel flow through `QueryParams.limit=0` → `FetchContext::early_stop_limit=None`; EC-016-002-001..018, EC-01-030..040 edge cases. Temporal-exemption soundness (§D8.9): `Ast::Filter` unconditionally suppressed; `PipeStage::Where` unconditionally suppressed; `is_pushed_temporal_predicate` (range-op + INDEX datetime column + `Literal::Timestamp` RHS) replaces `is_purely_temporal_predicate` for SQL/SqlPipe-head WHERE. `PipelineResult.early_stopped: bool` + `FetchOutput { batches, any_early_stopped, pipeline_truncated }` return-type contract; `any_early_stopped` propagation chain: FetchOutput → FanOutResult → MaterializationOutput → engine Step 6. Atomicity-reconciliation scope clause. |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | v2.49 | §Postconditions "LIMIT-Aware Early-Stop Pagination (ADR-060 §D8)": FetchContext field, execute_impl check placement, truncated=false semantics, applicable pagination modes, D8.5 ORDER BY limitation. Plan-Shape Gate (ADR-060 §D8.7 / §D8.9): Conditions A–K + conservative default suppress early-stop; where_filters NOT forwarded to gate; `fetch_limit=0` sentinel flow through `QueryParams.limit=0` → `FetchContext::early_stop_limit=None`; EC-016-002-001..018, EC-01-030..041 edge cases. Temporal-exemption soundness (§D8.9): `Ast::Filter` unconditionally suppressed; `PipeStage::Where` unconditionally suppressed; `is_pushed_temporal_predicate` (range-op + INDEX datetime column + `Literal::Timestamp` RHS) replaces `is_purely_temporal_predicate` for SQL/SqlPipe-head WHERE. `PipelineResult.early_stopped: bool` + `FetchOutput { batches, any_early_stopped, pipeline_truncated }` return-type contract; `any_early_stopped` propagation chain: FetchOutput → FanOutResult → MaterializationOutput → engine Step 6. Atomicity-reconciliation scope clause. **EC-01-041 (NEW — partial-final-page PARTIAL arm, ADR-060 §D8.2):** when early-stop fires at a PARTIAL final page (`page_record_count < page_size`, source exhausted), `early_stopped = false`; `is_truncated = false` (complete dataset). Discriminator: `early_stopped = page_record_count >= page_size`. Worked example (a): LIMIT 5 on 5-row tenant, page_size=1000 → is_truncated=false. |
 
 *BC-2.16.002 addendum (ADR-061 D8): Canonical Structured Event Catalog row 97 — `query.org_slug_resolution_failure` WARN added (two emission sites in `crates/prism-query/src/materialization.rs`: `resolve_source_refs` ALL-scope D5 arm and bare-filter Step 3b D4 arm). Catalog count 96→97. SAP-1 obligation: both `tracing::warn!` emission sites must appear in the same commit as the ADR-061 D2/D4/D5 fix (anchored to RG-SLUG-001, RG-SLUG-003).*
 
 *BC-2.16.015 (trace-only — not in behavioral_contracts): EC-016-015-007 (LIMIT 1 early-stop, unaffected by §D8.7), EC-016-015-008 (COUNT suppresses early-stop), TV-BC-2.16.015-006. Core contract delivered by S-CLAROTY-VULNS-001; promoted to active on that story's merge per POL-14, not this story. See §References.*
 
-*BC-2.11.001 (trace-only — not in behavioral_contracts): EC-11-092 (`any_early_stopped` feeds `is_truncated`; exact-limit boundary: `is_truncated = (total_rows > limit) OR any_early_stopped`; `total_available` is a LOWER BOUND when `any_early_stopped = true`), EC-11-093 (Step 6 as SOLE owner of tool-level cap; materialization returns full set without pre-cap; F-R13-CRIT-001 prohibited). Governing contract for the MCP tool response layer. See §References.*
+*BC-2.11.001 (trace-only — not in behavioral_contracts): EC-11-092 (`any_early_stopped` feeds `is_truncated`; exact-limit boundary: `is_truncated = (total_rows > limit) OR any_early_stopped`; `total_available` is a LOWER BOUND when `any_early_stopped = true`), EC-11-093 (Step 6 as SOLE owner of tool-level cap; materialization returns full set without pre-cap; F-R13-CRIT-001 prohibited), EC-11-094 (NEW — partial-final-page PARTIAL arm: when early-stop fires at `page_record_count < page_size`, `early_stopped = false` and `is_truncated = false`; complete dataset; discriminator formula: `early_stopped = page_record_count >= page_size`). Governing contract for the MCP tool response layer. See §References.*
 
 ## Acceptance Criteria
 
@@ -500,6 +501,26 @@ This confirms ADR-061 D1 (cache-key identity invariant): after the D4 fix, `deri
 
 **Test:** RG-SLUG-005 (wire-shape gate: `test_rg_slug_005_wire_cross_tenant_isolation_collision_resistant_cache_keys` in `crates/prism-bin/tests/mcp_integration_tests.rs`; engine-layer defense-in-depth: `test_rg_slug_005_cross_tenant_wire_isolation_collision_resistant_cache_keys` in `crates/prism-query/tests/execute_integration_tests.rs`)
 
+### AC-014: Partial-final-page early-stop yields `early_stopped=false` / `is_truncated=false` (complete dataset) (traces to BC-2.11.001 EC-11-094, BC-2.16.002 EC-01-041, and ADR-060 §D8.2/§D8.3 partial-final-page discriminator worked example (a))
+
+When the early-stop check fires (`all_records.len() >= limit`) but the final page is a PARTIAL page
+(`page_record_count < page_size`, meaning the sensor API has been exhausted), the correct behavior is
+`early_stopped = false`. The discriminator formula is:
+
+```rust
+early_stopped = page_record_count >= page_size;
+```
+
+- **FULL final page** (`page_record_count == page_size`): more pages may exist but were not fetched — `early_stopped = true` → `is_truncated = true`. The dataset may be incomplete.
+- **PARTIAL final page** (`page_record_count < page_size`): source is exhausted, no further pages exist — `early_stopped = false` → `is_truncated = false`. The dataset IS complete within the LIMIT.
+
+**ADR-060 §D8.3 worked example (a):** LIMIT 5 on a 5-row tenant (page_size=1000) — the first page returns 5 records (`page_record_count=5 < page_size=1000`). The early-stop check fires (`all_records.len()=5 >= limit=5`) but the final page is partial → `early_stopped = false` → `is_truncated = false`.
+
+Without the discriminator (unconditional `early_stopped = true`), this case would incorrectly return `"is_truncated": true` even though the entire dataset was retrieved within the LIMIT — a false positive that misleads the LLM agent into thinking results were truncated.
+
+**Test:** `test_BC_2_16_002_early_stop_partial_final_page_not_early_stopped` (RG-PSG-039, pipeline-level unit)
+**Test:** `test_psg_rg040_partial_final_page_is_truncated_false_wire` (RG-PSG-040, MCP wire-level serialized JSON assertion)
+
 ## Red Gate Tests
 
 | ID | Test name | Test type | What it gates |
@@ -553,6 +574,8 @@ This confirms ADR-061 D1 (cache-key identity invariant): after the D4 fix, `deri
 | RG-PSG-036 | `test_psg_rg036_di019_truncated_step6_is_truncated_true` | END-TO-END via `QueryEngine::execute` (in `crates/prism-query/tests/execute_integration_tests.rs`) | AC-004 DI-019 Step-6 formula: DI-019 fires (10,001 rows capped to 10,000; `any_pipeline_truncated=true`; no user LIMIT) → `is_truncated=true`. Confirms `any_pipeline_truncated` OR-term in engine Step 6 formula. MUST FAIL before Task 16 Step D is extended for `any_pipeline_truncated`. Anchor BC-2.16.002 §Postconditions LIMIT-Aware Early-Stop, ADR-060 §D8.10. |
 | RG-PSG-037 | `test_psg_rg037_di019_truncation_propagates_through_real_adapter` | END-TO-END / Integration via real `SpecDrivenSensorAdapter::fetch` + wiremock (in `crates/prism-bin/tests/bc_2_16_002_early_stop_adapter_tests.rs`) | AC-004 DI-019 adapter propagation: wiremock ≥10,001 records → DI-019 cap → asserts `FetchOutput.pipeline_truncated == true` AND `any_early_stopped == false`; closes the spec_driven_adapter boundary-injection coverage gap. Anchor BC-2.16.002 EC-01-040, ADR-060 §D8.10. |
 | RG-PSG-038 | `test_psg_rg038_early_stop_propagates_through_real_adapter` | END-TO-END / Integration via real `SpecDrivenSensorAdapter::fetch` + wiremock (in `crates/prism-bin/tests/bc_2_16_002_early_stop_adapter_tests.rs`) | AC-009 early-stop adapter propagation (sibling): asserts `FetchOutput.any_early_stopped == true` AND `pipeline_truncated == false`. Anchor ADR-060 §D8.9. |
+| RG-PSG-039 | `test_BC_2_16_002_early_stop_partial_final_page_not_early_stopped` | Unit — prism-spec-engine, pipeline internal; `early_stop_limit=Some(5)`, wiremock mock returns exactly 5 records on the first page (page_size=1000) → PARTIAL final page | AC-014 PARTIAL arm (EC-11-094, EC-01-041): early-stop check fires (`all_records.len()=5 >= limit=5`) but `page_record_count=5 < page_size=1000` → `PipelineResult.early_stopped = false` (PARTIAL final page discriminator, ADR-060 §D8.2 worked example (a)). MUST FAIL before discriminator is implemented (without discriminator, `early_stopped = true` unconditionally → false-positive is_truncated). |
+| RG-PSG-040 | `test_psg_rg040_partial_final_page_is_truncated_false_wire` | MCP integration — `crates/prism-bin/tests/mcp_integration_tests.rs` (or equivalent MCP stdio test file); issues `prism_query` MCP call with `LIMIT 5` against a 5-row mock tenant (page_size=1000) | AC-014 wire assertion: serialized `CallToolResult.content[0].text` JSON asserts `"is_truncated": false`. Without discriminator, the MCP surface would return `"is_truncated": true` — false positive misleading the LLM agent. Wire-shape discipline (CLAUDE.md 2026-07-13): MCP-visible surfaces MUST be asserted at the serialized JSON level. MUST FAIL before discriminator is implemented. Anchor BC-2.11.001 EC-11-094, BC-2.16.002 EC-01-041, ADR-060 §D8.3 worked example (a). |
 
 | RG-SLUG-001 | `test_rg_slug_001_resolve_source_refs_registry_present_slug_missing_skips_target_emits_warn` | Unit — prism-query, `resolve_source_refs` with `org_registry: Some(reg)` populated but no slug for test org_id (`crates/prism-query/tests/slug_isolation_tests.rs` or in-crate unit test) | AC-010 D2 path: after `resolve_source_refs` executes, the target list does NOT contain a `FanOutTarget` for the unmapped org_id; a `tracing::warn!` with `event_type = "query.org_slug_resolution_failure"` and `org_id = %unmapped_org_id` was captured. MUST FAIL before Task 18 (D5 fix not applied — unified `else` branch still synthesizes a slug and pushes the target). |
 | RG-SLUG-002 | `test_rg_slug_002_resolve_source_refs_registry_absent_synthetic_slug_included` | Unit — prism-query, `resolve_source_refs` with `org_registry: None` (no registry injected — D3 test mode) | AC-010 D3 path: synthetic slug is generated from org_id prefix; `FanOutTarget` IS included in the result list. Regression sentinel — PASSES both before and after Task 18 (D3 preservation must not be broken). |
@@ -561,7 +584,7 @@ This confirms ADR-061 D1 (cache-key identity invariant): after the D4 fix, `deri
 | RG-SLUG-005 | **Wire-shape gate (AUTHORITATIVE):** `test_rg_slug_005_wire_cross_tenant_isolation_collision_resistant_cache_keys` in `crates/prism-bin/tests/mcp_integration_tests.rs`. **Engine-layer defense-in-depth:** `test_rg_slug_005_cross_tenant_wire_isolation_collision_resistant_cache_keys` in `crates/prism-query/tests/execute_integration_tests.rs` (Arrow RecordBatch structs, pre-serialization). | **Wire-shape gate** (MCP integration): two `OrgId`s with identical first-8-hex-char prefix (`"deadbeef"`), distinct `OrgRegistry` slugs (`"tenant-alpha"` / `"tenant-beta"`), adapter-A seeded with `"alpha-001"`, adapter-B with `"beta-001"`; **SINGLE ALL-scope bare-filter query** with **EMPTY `ClientRegistry`** → D4 bare-filter Step 3b fan-out fires; assertion on the **serialized `CallToolResult` JSON** from the MCP `prism_query` tool call: CONTAINS `"beta-001"` (wire-shape discipline: asserts on the bytes the LLM agent consumes, not pre-serialization Rust structs). **Engine-layer defense-in-depth** (execute_integration_tests.rs): same scenario via `QueryEngine::execute`, assertion on Arrow RecordBatch field values. AC-013: both tests confirm distinct cache keys survive the UUID prefix collision. Before the fix: Step 3b synthesizes `"org-deadbeef"` for both orgs → same `CacheKey` → adapter-B cache HIT returns adapter-A rows → `"beta-001"` ABSENT. After fix: distinct `OrgRegistry` slugs → distinct cache keys → `"beta-001"` PRESENT. Confirms ADR-061 D1 invariant. MUST FAIL before Task 18 (D4 Step 3b fix not applied). |
 | RG-SLUG-006 | `test_rg_slug_006_synthetic_unmapped_sentinel_absent` | `crates/prism-query/tests/slug_isolation_tests.rs` (EXTERNAL — in-crate placement avoided: an in-crate `include_str!` test would include the test file's own source in the scan, false-passing after production removal because the test body contains the string `"synthetic-unmapped"`); reads `crates/prism-query/src/materialization.rs` via `include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/materialization.rs"))` and asserts that the string literal `"synthetic-unmapped"` is absent from the production source | AC-012: `"synthetic-unmapped"` sentinel removed. MUST FAIL before Task 19 (Site 3 sentinel not yet removed). Green after Task 19. |
 
-**BC-5.38.001 density check:** 53 Red Gate tests (RG-001 through RG-006 + RG-PSG-001 through RG-PSG-038 incl. 030b/030c/030d + RG-SLUG-001 through RG-SLUG-006; RG-003, RG-PSG-007, RG-PSG-008, RG-PSG-033, RG-SLUG-002, RG-SLUG-004 are regression/positive-control sentinels that pass in both states; RG-PSG-037 and RG-PSG-038 are adapter-boundary guards — mutation-killing coverage of the `SpecDrivenSensorAdapter::fetch` DI-019 and early-stop propagation paths, pass in both states once real-adapter wiring is built) / 13 acceptance criteria ≈ 4.08 ≥ 0.5 threshold. PASS.
+**BC-5.38.001 density check:** 55 Red Gate tests (RG-001 through RG-006 + RG-PSG-001 through RG-PSG-040 incl. 030b/030c/030d + RG-SLUG-001 through RG-SLUG-006; RG-003, RG-PSG-007, RG-PSG-008, RG-PSG-033, RG-SLUG-002, RG-SLUG-004 are regression/positive-control sentinels that pass in both states; RG-PSG-037 and RG-PSG-038 are adapter-boundary guards — mutation-killing coverage of the `SpecDrivenSensorAdapter::fetch` DI-019 and early-stop propagation paths, pass in both states once real-adapter wiring is built; RG-PSG-039 and RG-PSG-040 gate the ADR-060 §D8.2 partial-final-page discriminator — MUST FAIL before discriminator implemented) / 14 acceptance criteria ≈ 3.93 ≥ 0.5 threshold. PASS.
 
 **Note on RG-003 semantics:** RG-003 (`early_stop_limit=None` fetches all pages) passes BOTH before and after the implementation because `None` must preserve the current behavior. It is a regression gate confirming the existing full-pagination path is not broken.
 
@@ -622,8 +645,8 @@ effectful behavior change is fetching FEWER pages, never adding new I/O.
 | Item | Estimated tokens |
 |------|-----------------|
 | This story spec | ~10,500 |
-| BC-2.16.002 §Postconditions LIMIT-Aware Early-Stop section + §D8.7/§D8.9 plan-shape gate + EC-016-002-001..018 + EC-01-030..040 + §Atomicity Reconciliation clause (1 BC in behavioral_contracts) | ~3,000 |
-| BC-2.11.001 EC-11-092, EC-11-093 (trace reference — not in behavioral_contracts; relevant sections only) | ~500 |
+| BC-2.16.002 §Postconditions LIMIT-Aware Early-Stop section + §D8.7/§D8.9 plan-shape gate + EC-016-002-001..018 + EC-01-030..041 + §Atomicity Reconciliation clause (1 BC in behavioral_contracts) | ~3,000 |
+| BC-2.11.001 EC-11-092, EC-11-093, EC-11-094 (trace reference — not in behavioral_contracts; relevant sections only) | ~500 |
 | BC-2.16.015 EC-016-015-007, EC-016-015-008 + TV-BC-2.16.015-006 (trace reference — not in behavioral_contracts; relevant sections only) | ~500 |
 | ADR-060 §D8 (full, including §D8.7, §D8.8, §D8.9) | ~4,500 |
 | `crates/prism-spec-engine/src/pipeline.rs` (FetchContext struct + execute_impl loop region) | ~4,000 |
@@ -655,6 +678,25 @@ pattern) to minimize context consumption.
   Execute pipeline. Assert: wiremock received exactly 1 request, `PipelineResult.truncated=false`,
   `PipelineResult.records.len() == 10` (one full page; DataFusion trims downstream).
   MUST FAIL before Task 7.
+
+  **After Task 6 adds `early_stopped` field — also write RG-PSG-039 and RG-PSG-040 (AC-014 discriminator, red gates MUST precede Task 7 discriminator extension):**
+
+  Write RG-PSG-039: `test_BC_2_16_002_early_stop_partial_final_page_not_early_stopped`
+  in `crates/prism-spec-engine/tests/bc_2_16_002_early_stop_tests.rs` (or same file as RG-002).
+  Use wiremock mock with page_size=1000 returning exactly 5 records on the first page (PARTIAL
+  page, source exhausted). Set `early_stop_limit=Some(5)`. Execute pipeline. Assert:
+  `PipelineResult.early_stopped == false` (PARTIAL final page → discriminator returns false);
+  `PipelineResult.truncated == false`. MUST FAIL before Task 7 discriminator extension (without
+  discriminator, `early_stopped = true` unconditionally, test fails on the `== false` assertion).
+
+  Write RG-PSG-040: `test_psg_rg040_partial_final_page_is_truncated_false_wire`
+  in `crates/prism-bin/tests/mcp_integration_tests.rs` (or equivalent MCP stdio test file).
+  Issue a `prism_query` MCP call with `LIMIT 5` against a mock returning 5 records on a single
+  page (page_size=1000, source exhausted after first page). Assert on the SERIALIZED
+  `CallToolResult.content[0].text` JSON: `"is_truncated": false`. Wire-shape discipline
+  (CLAUDE.md 2026-07-13): assert at the JSON bytes the LLM agent consumes, not pre-serialization
+  Rust structs. MUST FAIL before Task 7 discriminator extension. Anchor: BC-2.11.001 EC-11-094,
+  BC-2.16.002 EC-01-041, ADR-060 §D8.3 worked example (a).
 
 - [ ] **Task 3 (Red Gate — test first):** Write RG-003:
   `test_BC_2_16_002_early_stop_none_fetches_all_pages` in the same test file.
@@ -706,18 +748,27 @@ pattern) to minimize context consumption.
   ```rust
   // ADR-060 §D8.2: LIMIT-aware early-stop. Fires at COMPLETE page boundary, after DI-019.
   // truncated is NOT set — this is a success-path query-driven early exit, not a capacity overflow.
-  // CRITICAL: early_stopped MUST be set to true BEFORE break 'steps.
+  // CRITICAL: early_stopped discriminator MUST be computed BEFORE break 'steps.
+  // ADR-060 §D8.2 partial-final-page discriminator:
+  //   FULL page (page_record_count >= page_size) → early_stopped=true (data may be truncated).
+  //   PARTIAL page (page_record_count < page_size, source exhausted) → early_stopped=false
+  //   (complete dataset within the LIMIT; is_truncated=false). Worked example (a): LIMIT 5 on
+  //   5-row tenant, page_size=1000 → page_record_count=5 < 1000 → early_stopped=false.
   if let Some(limit) = context.early_stop_limit {
       if all_records.len() >= limit {
-          early_stopped = true;  // ADR-060 §D8.3: set BEFORE break — propagates to FetchOutput.any_early_stopped
+          early_stopped = page_record_count >= page_size;  // ADR-060 §D8.2 partial-final-page discriminator
           break 'steps;
       }
   }
   ```
-  Set `early_stopped` in the returned `PipelineResult` so the production adapter can read it.
+  Where `page_record_count` is the count of records in the most recently fetched page (tracked
+  within the `'steps:` loop, e.g., `let page_record_count = page_records.len();` after each
+  page fetch, before appending to `all_records`). Set `early_stopped` in the returned
+  `PipelineResult` so the production adapter can read it.
   Applies to `OffsetLimit` and `CursorToken` pagination (the outer loop label `'steps:` covers
   both; `PaginationConfig::None` breaks naturally after one iteration). After editing: run
-  `just iter prism-spec-engine` — RG-002 MUST turn GREEN; RG-003 MUST remain GREEN.
+  `just iter prism-spec-engine` — RG-002 MUST turn GREEN; RG-003 MUST remain GREEN;
+  RG-PSG-039 MUST turn GREEN (partial-final-page discriminator); RG-PSG-025 MUST remain GREEN.
 
 - [ ] **Task 8 (Red Gate — test first):** Write RG-005:
   `test_BC_2_16_002_early_stop_spec_driven_adapter_maps_params_limit_to_early_stop_limit`
@@ -1340,13 +1391,18 @@ From ADR-060 §D8.7/§D8.9 (temporal-exemption soundness):
   MUST SUPPRESS. This mirrors `extract_time_bounds_from_predicate` (ADR-033 T1) exactly.
   (Anchored: RG-PSG-021 through RG-PSG-024, RG-PSG-029)
 
-From ADR-060 §D8.3/§D8.9 (`any_early_stopped` propagation chain):
-- `PipelineResult.early_stopped: bool` MUST be set `true` on the §D8.2 `break 'steps` exit
-  (DISTINCT from `truncated`: `truncated` = DI-019 capacity exceeded; `early_stopped` =
-  query-driven early exit at the limit boundary).
-  **CRITICAL ORDER:** `early_stopped = true` MUST be assigned BEFORE `break 'steps`. Setting it
-  after the break (or omitting it) silently zeros the signal on every pipeline exit.
-  (Anchored: RG-PSG-025 `test_psg_exact_limit_is_truncated_true`)
+From ADR-060 §D8.2/§D8.3/§D8.9 (`any_early_stopped` propagation chain + partial-final-page discriminator):
+- `PipelineResult.early_stopped: bool` MUST be set via the partial-final-page discriminator on
+  the §D8.2 `break 'steps` exit (DISTINCT from `truncated`: `truncated` = DI-019 capacity exceeded;
+  `early_stopped` = query-driven early exit).
+  **ADR-060 §D8.2 partial-final-page discriminator:** `early_stopped = page_record_count >= page_size`.
+  FULL page (`page_record_count >= page_size`) → `early_stopped = true` (data may be truncated).
+  PARTIAL page (`page_record_count < page_size`, source exhausted) → `early_stopped = false`
+  (complete dataset; `is_truncated = false`). Worked example (a): LIMIT 5 on 5-row tenant,
+  page_size=1000 → `page_record_count=5 < 1000` → `early_stopped=false` → `is_truncated=false`.
+  **CRITICAL ORDER:** the discriminator assignment MUST be executed BEFORE `break 'steps`. Assigning
+  it after the break (or omitting it) silently zeros the signal on every pipeline exit.
+  (Anchored: RG-PSG-025 `test_psg_exact_limit_is_truncated_true`; RG-PSG-039 `test_BC_2_16_002_early_stop_partial_final_page_not_early_stopped`; RG-PSG-040 `test_psg_rg040_partial_final_page_is_truncated_false_wire`; BC-2.11.001 EC-11-094; BC-2.16.002 EC-01-041)
 - `SensorAdapter::fetch` return type MUST change from `Result<Vec<RecordBatch>, SensorError>` to
   `Result<FetchOutput, SensorError>` where `pub struct FetchOutput { pub batches: Vec<RecordBatch>, pub any_early_stopped: bool, pub pipeline_truncated: bool }`.
   Defined in `crates/prism-sensors/src/adapter.rs`. All 21 test stubs MUST return
@@ -1392,7 +1448,7 @@ No new Cargo.toml production dependencies. The `Option<usize>` field uses only s
 |--------|-----------|-------|
 | MODIFY | `crates/prism-sensors/src/adapter.rs` | (a) Define `pub struct FetchOutput { pub batches: Vec<RecordBatch>, pub any_early_stopped: bool, pub pipeline_truncated: bool }`; `pipeline_truncated` carries the DI-019 truncation signal (ADR-060 §D8.10); (b) change `SensorAdapter::fetch` return type from `Result<Vec<RecordBatch>, SensorError>` to `Result<FetchOutput, SensorError>` — all impl sites must update. `FetchOutput` is NOT `#[non_exhaustive]` (cross-crate by-name construction by test stubs; prism-sensors is out-of-scope for the `#[non_exhaustive]` gate). |
 | MODIFY | `crates/prism-sensors/src/fanout.rs` | (a) Add `pub any_early_stopped: bool` field to `FanOutResult`; (b) Add `pub any_pipeline_truncated: bool` field to `FanOutResult` (ADR-060 §D8.10); (c) OR-aggregate both flags across all sensor results in `fan_out()` — `any_early_stopped = results.iter().any(|r| r.any_early_stopped)`, `any_pipeline_truncated = results.iter().any(|r| r.pipeline_truncated)` |
-| MODIFY | `crates/prism-spec-engine/src/pipeline.rs` | (a) Add `early_stop_limit` field to `FetchContext`; (b) expand `FetchContext::new` signature; (c) add `pub early_stopped: bool` field to `PipelineResult`; (d) add early-stop check after DI-019 in `execute_impl`; (e) **SET `early_stopped = true` BEFORE `break 'steps`** in the §D8.2 early-stop block; (f) update ~15 in-file test sites (including `default_context()` helper) to pass `None` |
+| MODIFY | `crates/prism-spec-engine/src/pipeline.rs` | (a) Add `early_stop_limit` field to `FetchContext`; (b) expand `FetchContext::new` signature; (c) add `pub early_stopped: bool` field to `PipelineResult`; (d) add early-stop check after DI-019 in `execute_impl`; (e) **SET `early_stopped = (page_record_count >= page_size)` BEFORE `break 'steps`** in the §D8.2/§D8.3 early-stop block (ADR-060 §D8.2 partial-final-page discriminator: FULL page → `early_stopped=true`; PARTIAL page → `early_stopped=false`; track `page_record_count` per loop iteration); (f) update ~15 in-file test sites (including `default_context()` helper) to pass `None` |
 | MODIFY | `crates/prism-bin/src/spec_driven_adapter.rs` | Add `early_stop_limit` mapping and `FetchContext::new` pass; return `FetchOutput { batches: result.batches, any_early_stopped: pipeline_result.early_stopped, pipeline_truncated: pipeline_result.truncated }` |
 | MODIFY | `crates/prism-query/src/materialization.rs` | (a) Add `expr_contains_aggregate_or_window(expr: &Expr) -> bool` helper (three-part: Aggregate variants, FuncCall::Window, recursion into FuncCall::Scalar::args); (b) add `ast_is_reducing_plan(ast: &Ast) -> bool` function (Conditions A–K + conservative default; `where_filters` NOT a parameter); (c) update `fetch_limit` derivation in `run_materialization_pipeline` to use plan-shape gate (before fan-out construction; `where_filters` NOT passed to gate); (d) add `pub any_early_stopped: bool` and `pub any_pipeline_truncated: bool` to `MaterializationOutput` (ADR-060 §D8.10); (e) pick up both flags from `FanOutResult` after fan-out (`any_pipeline_truncated: fan_out_result.any_pipeline_truncated`); (f) **DO NOT add heuristic `total_fetched_rows >= fetch_limit`** — wrong on multi-sensor fan-out; **(j) ADR-060 §D8.7 — add `collect_datetime_index_cols(ast: &Ast, spec: &SensorSpec) -> Vec<String>` shared function (Condition K implementation; source-scoped, used by both gate and `extract_time_bounds_from_predicate`)**; `plan_shape_gate_unit_tests` module gains RG-PSG-030c in-crate unit test (reversed-operand defense-in-depth, SAP-3 rule-3); **(g) ADR-061 D5 — `resolve_source_refs` ALL-scope: split unified `else` branch into three-arm `match` dispatch (D1 authoritative / D2 skip-with-warn / D3 synthetic); remove unified synthesis path**; **(h) ADR-061 D4 — bare-filter Step 3b: replace unconditional 8-hex `client_id` synthesis with registry-first dispatch; remove incorrect "no OrgRegistry available" code comment**; **(i) ADR-061 D3/Site 3: remove `"synthetic-unmapped"` sentinel from ALL production code paths; replace with the D3 deterministic-prefix form (`format!("org-{}", &org_id.to_string()[..8])` — valid by construction; no `x`-prefix, no digit special case, no fallback)** |
 | MODIFY | `crates/prism-query/src/engine.rs` | Step 6: update `is_truncated` formula to `(total_rows > limit) || materialization_output.any_early_stopped || materialization_output.any_pipeline_truncated` (ADR-060 §D8.9/§D8.10 authoritative formula). Also update scheduled path `execute_scheduled_inner`: replace hardcoded `is_truncated: false` with `output.any_early_stopped || output.any_pipeline_truncated` (F-R16-P18-LENSA-OBS-001 sibling sweep — DI-019 can fire on large scheduled scans; ADR-060 §D8.10). |
@@ -1427,6 +1483,8 @@ prism-spec-engine import added to prism-bin.
 - BC-2.16.002 §Edge Cases EC-016-002-001..018 — per-condition suppression edge cases (Conditions A–K + conservative default + ORDER BY positive control)
 - BC-2.11.001 EC-11-092 (trace reference — not in behavioral_contracts) — `any_early_stopped` feeds `is_truncated`; exact-limit boundary: `is_truncated = (total_rows > limit) OR any_early_stopped`; `total_available` is a LOWER BOUND when `any_early_stopped = true`; pagination halted, true dataset size unknown
 - BC-2.11.001 EC-11-093 (trace reference) — Step 6 as SOLE owner of tool-level cap; materialization returns full set without pre-cap; `total_available = results_after_DataFusion_before_cap`; pre-cap-removal behavior (F-R13-CRIT-001 — applying the row cap inside materialization before returning to engine) is PROHIBITED
+- BC-2.11.001 EC-11-094 (trace reference, NEW) — partial-final-page PARTIAL arm: when early-stop fires at `page_record_count < page_size`, `early_stopped = false` and `is_truncated = false`; complete dataset; discriminator formula: `early_stopped = page_record_count >= page_size`; worked example (a): LIMIT 5 on 5-row tenant, page_size=1000 → `is_truncated=false`
+- BC-2.16.002 EC-01-041 (NEW) — partial-final-page PARTIAL arm in the pipeline-level early-stop check: `page_record_count < page_size` (source exhausted) → `early_stopped=false`; complements EC-11-092 FULL arm (EC-01-030..040); governed by ADR-060 §D8.2 discriminator
 - BC-2.16.015 EC-016-015-007 (trace reference — not in behavioral_contracts) — Claroty LIMIT 1 early-stop; UNAFFECTED by §D8.7 (bare projection, ast_is_reducing_plan=false)
 - BC-2.16.015 EC-016-015-008 (trace reference) — COUNT suppresses early-stop via §D8.7 Condition A; full dataset fetched
 - BC-2.16.015 TV-BC-2.16.015-006 (trace reference) — LIMIT 1 single-page test vector; promoted to active by S-CLAROTY-VULNS-001 merge per POL-14
@@ -1451,6 +1509,7 @@ prism-spec-engine import added to prism-bin.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.34 | 2026-08-28 | story-writer | **ADR-060 v1.11 partial-final-page discriminator (EC-11-094 + EC-01-041) propagated.** (1) **AC-014 added** (acceptance_criteria_count 13→14): "Partial-final-page early-stop yields `early_stopped=false` / `is_truncated=false` (complete dataset)" — traces to BC-2.11.001 EC-11-094, BC-2.16.002 EC-01-041, and ADR-060 §D8.2/§D8.3 worked example (a); discriminator formula `early_stopped = page_record_count >= page_size` defined. (2) **RG-PSG-039 added** (`test_BC_2_16_002_early_stop_partial_final_page_not_early_stopped`, pipeline-level unit, prism-spec-engine, AC-014 PARTIAL arm); **RG-PSG-040 added** (`test_psg_rg040_partial_final_page_is_truncated_false_wire`, MCP wire-level JSON assertion, prism-bin/tests/mcp_integration_tests.rs, asserts `"is_truncated": false` for LIMIT 5 on 5-row tenant); red_gate_tests 53→55; BC-5.38.001 density 55/14≈3.93 PASS. (3) **BC-2.16.002 Version cell** v2.48→v2.49 (structured pin cell, POL-39-exempt); EC-01-030..040→EC-01-030..041 in §Behavioral Contracts Role cell and §Token Budget row; EC-01-041 NEW description added to Role cell. (4) **BC-2.11.001 trace note** extended with EC-11-094 (PARTIAL arm). (5) **§Architecture Compliance Rules** updated: `early_stopped = true` CRITICAL ORDER → discriminator `early_stopped = (page_record_count >= page_size)` with full ADR-060 §D8.2 rationale; anchored to RG-PSG-039/040/025 and EC-11-094/EC-01-041. (6) **§File Structure Requirements** prism-spec-engine row item (e) updated: `SET early_stopped = true` → `SET early_stopped = (page_record_count >= page_size)` with discriminator description. (7) **frontmatter crates_touched** prism-spec-engine item (e) updated for discriminator; input-hash updated 758fb37→6ba0af1 (BC-2.16.002 v2.49 + BC-2.11.001 v1.28 input drift). (8) **§References** extended with BC-2.11.001 EC-11-094 and BC-2.16.002 EC-01-041 bullets. (9) **Task 2** extended with RG-PSG-039/040 authoring bullets (red-then-green: Task 2 precedes Task 7 discriminator extension; SAC-1 compliant). (10) **Task 7** code snippet updated to discriminator form with `page_record_count` tracking note. TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; within-body grep for `EC-01-030..040` found 2 live-spec occurrences (§Behavioral Contracts Role cell + §Token Budget row) + 1 historical v1.30 changelog record (preserved as-is); both live-spec occurrences updated to `..041`; CLEAR. Dim-2 — BC-2.16.002 Version cell updated in §Behavioral Contracts table (structured pin cell); BC-2.11.001 trace note extended with EC-11-094 consistently across §Behavioral Contracts trace note, §Token Budget row, and §References; `acceptance_criteria_count: 14` consistent with 14 ACs in body; `red_gate_tests: 55` consistent with 55 RG rows in §Red Gate Tests, Task 2 extended bullets (RG-PSG-039/040), Task 7 green-gate note (RG-PSG-039), BC-5.38.001 density paragraph (55/14≈3.93); §Architecture Compliance Rules and §File Structure Requirements discriminator description propagated consistently; FULL. Dim-3 — new AC-014 MUST anchored to RG-PSG-039 + RG-PSG-040 + BC-2.11.001 EC-11-094 + BC-2.16.002 EC-01-041 in AC-014 body and §Red Gate Tests table; §Architecture Compliance Rules discriminator MUST anchored to RG-PSG-039/040/025 and ECs; no unanchored MUSTs introduced; CLEAR. |
 | 1.33 | 2026-08-28 | story-writer | **F-P30-LENSC2-LOW-001 (LOW) — POL-39 version pin removed from AC-007 Condition K bullet.** AC-007 Condition K provenance tag changed from `(v1.8; multi-INDEX-datetime conservative suppression)` to `(new; multi-INDEX-datetime conservative suppression)` — the `v1.8;` was a bare artifact-version pin embedded in live body prose, violating POL-39. Sibling condition annotations (H, I, J) use descriptive provenance tags with no version numbers; Condition K now matches that style. Whole-story bare-version-pin grep confirmed this was the sole non-exempt occurrence: the §Behavioral Contracts table Version cell (`v2.48`) is POL-39-exempt (structured pin cell); the frontmatter `cycle: v1.0.0-brownfield` and `# input-hash:` comment are frontmatter-exempt; all remaining `v1.N` occurrences are in changelog rows (POL-39-exempt historical records). TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; within-body grep for non-exempt version pins confirmed single occurrence changed; CLEAR. Dim-2 — AC-007 Condition K bullet is not a section transcribed verbatim into a downstream artifact; CLEAR. Dim-3 — no new MUSTs introduced; CLEAR. AC count (13), RG count (53), density (4.08) UNCHANGED. |
 | 1.32 | 2026-08-28 | story-writer | **F-P27-LENSC2-MED-001 + F-P27-LENSC2-LOW-001 + Class-D proactive sweep (§Architecture Compliance Rules 2-term formula correction).** (1) **F-P27-LENSC2-LOW-001 (LOW) — stale version pin removed from frontmatter:** frontmatter `behavioral_contracts` comment `(ADR-060 §D8.7 v1.3):` corrected to `(ADR-060 §D8.7):` — Condition K arrived in ADR-060 v1.8, not v1.3; version pin removed per TD-VSDD-091/POL-39. (2) **F-P27-LENSC2-MED-001 (MED) — Condition K added to AC-007 SUPPRESS enumeration:** AC-007 body previously enumerated Conditions A through J then jumped to Conservative Default, silently skipping Condition K even though the AC-007 header and §Red Gate Tests cited `A–K` and listed RG-PSG-030d/033 as Condition-K tests. Condition K bullet inserted between Condition J and Conservative Default, per ADR-060 §D8.7 authoritative wording: `collect_datetime_index_cols` (§D8.9) `suppress_multi_index = true` when ≥2 Datetime+INDEX columns on any queried source table → SUPPRESS; rationale: `count_temporal_bound_directions` counts globally, not per-column; no current shipped sensor TOML triggers it; traces to BC-2.16.002 EC-01-038 postcondition, ADR-060 §D8.7, RG-PSG-030d/033. (3) **Class-D proactive — §Architecture Compliance Rules 2-term MUST formulas corrected to 3-term:** two MUST statements in `§Architecture Compliance Rules (From ADR-060 §D8.3/§D8.9)` presented the full engine Step-6 formula as 2-term but ADR-060 §D8.10 mandates 3-term: (a) "The ONLY correct formula" claim updated from `(total_rows > limit) \|\| any_early_stopped` to `\|\| any_early_stopped \|\| any_pipeline_truncated`, ADR reference extended to `§D8.9/§D8.10`; (b) "Engine.rs Step 6 MUST use" directive updated from `\|\| materialization_output.any_early_stopped;` to `\|\| materialization_output.any_early_stopped \|\| materialization_output.any_pipeline_truncated;` with `(ADR-060 §D8.10)` cite; chain description updated to `any_early_stopped`/`any_pipeline_truncated` propagation chains. Legitimately-scoped 2-term occurrences (§D8.3/§D8.9 reading-guide paragraph, BC-2.11.001 EC-11-092 trace reference, AC-009 body — each explaining the `any_early_stopped` OR term specifically) deliberately left unchanged per v1.31 changelog rationale. AC count (13), RG count (53), density (4.08) UNCHANGED. TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; CLEAR. Dim-2 — whole-artifact grep for `v1.3` confirmed single remaining occurrence in v1.10 historical changelog row (true historical record, not changed); AC-007 body Condition K insertion consistent with AC-007 header `A–K`, §Red Gate Tests RG-PSG-030d/033 anchors, and ADR-060 §D8.7; §Architecture Compliance Rules 2-term formula occurrences: both corrected to 3-term; version `1.31`→`1.32` in frontmatter only; FULL. Dim-3 — no new MUSTs introduced; corrected MUST formulas reference existing anchored tests (RG-PSG-028 for heuristic rejection) and ADR-060 §D8.9/§D8.10; CLEAR. |
 | 1.31 | 2026-08-28 | story-writer | **F-P26-LENSC2-MED-001 — frontmatter `crates_touched` comment block swept (4 stale spots).** The §D8.10 `any_pipeline_truncated` DI-019 truncation-signal chain was added in a prior amendment but the frontmatter `crates_touched` comment block was not swept. Fixed all 4 stale spots to agree with the authoritative §File Structure MODIFY table + AC-004 + ADR-060 §D8.10: (1) `materialization.rs` item (d) — added `any_pipeline_truncated: bool` alongside `any_early_stopped` on `MaterializationOutput`; (2) `materialization.rs` item (e) — extended to pick up both `any_early_stopped` and `any_pipeline_truncated` from `FanOutResult`; (3) `fanout.rs` block — added field (b) `any_pipeline_truncated: bool` on `FanOutResult` and extended OR-aggregate item to cover both flags (now items (a)/(b)/(c)); (4) `engine.rs` Step-6 formula — changed 2-term `total_rows > limit \|\| ...any_early_stopped` to 3-term `\|\| any_early_stopped \|\| any_pipeline_truncated`; stale `§D8.9` cite updated to `§D8.10`. TD-VSDD-097 Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; within-frontmatter sweep confirmed all 4 spots changed; CLEAR. Dim-2 — whole-story grep for 2-term formulas found additional body occurrences (in the `§D8.3/§D8.9` reading-guide paragraph, the BC-2.11.001 trace reference, and AC-009 descriptions); these intentionally show the 2-term formula in the specific context of explaining the `any_early_stopped` OR term; AC-004 covers the full 3-term formula; body prose left as-is (frontmatter block is the required scope per finding). Dim-3 — no new MUSTs introduced; CLEAR. Catalog count verification: BC-2.16.002 §Postconditions confirmed current count = 97, `query.org_slug_resolution_failure` at row 97 — story claim `96→97` CONFIRMED accurate. Frontmatter `version` bumped `1.30` → `1.31`; no AC count (13) or RG count (53) changes. |
