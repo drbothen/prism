@@ -12,7 +12,7 @@ status: draft
 # TV-BC-2.16.015-006 referenced (trace-only); promoted to active by S-CLAROTY-VULNS-001 merge per POL-14, not this story.
 producer: story-writer
 timestamp: "2026-08-26T00:00:00Z"
-version: "1.31"
+version: "1.32"
 modified: "2026-08-28"
 phase: 3
 cycle: v1.0.0-brownfield
@@ -137,7 +137,7 @@ behavioral_contracts:
   # PipelineExecutor::execute_impl stops at complete page boundaries when early_stop_limit
   # satisfied; truncated=false (reserved for DI-019); DataFusion trims post-fetch;
   # OffsetLimit and CursorToken only; D8.5 ORDER BY limitation documented.
-  # Plan-Shape Gate (ADR-060 §D8.7 v1.3): ast_is_reducing_plan Conditions A–K + conservative default suppress early-stop;
+  # Plan-Shape Gate (ADR-060 §D8.7): ast_is_reducing_plan Conditions A–K + conservative default suppress early-stop;
   # where_filters NOT forwarded to gate; EC-016-002-001..018 cover each suppression condition and ORDER BY positive control.
   # (BC-2.16.015 is trace-only — in traces_to: only; promoted by S-CLAROTY-VULNS-001 per POL-14)
 verification_properties: []
@@ -387,6 +387,16 @@ for push-down and cache key derivation but is NOT forwarded to the gate. It retu
 - **Condition J** (new; defensive) — Pipe Join stage: any `PipeStage::Join(_)` in `pipe.stages`
   or `spq.stages`; currently errors at runtime (not yet supported, ENRICH-4-C); gate is
   future-proofed so that when Pipe Join is implemented, early-stop is already suppressed
+- **Condition K** (v1.8; multi-INDEX-datetime conservative suppression) — `collect_datetime_index_cols`
+  (§D8.9) returns `suppress_multi_index = true`, i.e., at least one queried source table in
+  `source_names` exposes ≥2 Datetime+INDEX columns: `fetch_limit = 0` (SUPPRESS) regardless of other
+  gate results; `count_temporal_bound_directions` counts Gt/Ge and Lt/Le leaves globally across the
+  AND-tree, not per-column — a table with two INDEX Datetime columns fabricates a mixed-column time
+  window that `extract_time_bounds_from_predicate` first-wins semantics cannot correctly handle; no
+  current shipped sensor TOML has two Datetime+INDEX columns per table, so Condition K never fires in
+  production today and costs zero performance; prevents an incorrect PERMIT if a future TOML violates
+  the single-datetime-INDEX-per-table invariant (traces to BC-2.16.002 EC-01-038 postcondition;
+  ADR-060 §D8.7; RG-PSG-030d/RG-PSG-033)
 - **Conservative Default** — the conservative-default posture applies at ALL
   dispatch levels, including the `Expr`-recursion level in `expr_contains_aggregate_or_window`:
   unknown `Ast` variants, unknown `PipeStage` variants, unknown `FuncCall` variants, and unknown
@@ -1350,7 +1360,7 @@ From ADR-060 §D8.3/§D8.9 (`any_early_stopped` propagation chain):
   from `total_fetched_rows >= fetch_limit`. This heuristic produces wrong `is_truncated=true` on
   multi-sensor fan-out when multiple sensors each return fewer than `fetch_limit` rows but their
   sum equals `fetch_limit` and none early-stopped. The ONLY correct formula is
-  `is_truncated = (total_rows > limit) || any_early_stopped` (engine.rs Step 6; ADR-060 §D8.9).
+  `is_truncated = (total_rows > limit) || any_early_stopped || any_pipeline_truncated` (engine.rs Step 6; ADR-060 §D8.9/§D8.10).
   RG-PSG-028 (`test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated`) MUST FAIL
   if the heuristic is used — the test is specifically designed to expose the heuristic's blind spot.
   (Anchored: RG-PSG-028 `test_psg_multi_sensor_fanout_exact_total_no_early_stop_is_not_truncated`)
@@ -1358,8 +1368,8 @@ From ADR-060 §D8.3/§D8.9 (`any_early_stopped` propagation chain):
   The `any_early_stopped` signal MUST propagate the full chain:
   `FetchOutput → FanOutResult → MaterializationOutput → engine.rs Step 6` (ADR-060 §D8.9).
   Do NOT lose or discard the `any_early_stopped` signal at any intermediate layer.
-- Engine.rs Step 6 MUST use `let is_truncated = total_rows > limit || materialization_output.any_early_stopped;`.
-  This is the SOLE site where `is_truncated` is computed from the `any_early_stopped` chain.
+- Engine.rs Step 6 MUST use `let is_truncated = total_rows > limit || materialization_output.any_early_stopped || materialization_output.any_pipeline_truncated;` (ADR-060 §D8.10).
+  This is the SOLE site where `is_truncated` is computed from the `any_early_stopped`/`any_pipeline_truncated` propagation chains.
 - `run_materialization_pipeline` MUST NOT apply a tool-level pre-cap before returning to
   engine.rs Step 6. The full filtered/aggregated result is returned; Step 6 is the SOLE owner
   of the tool-level cap and `is_truncated`/`total_available` semantics (BC-2.11.001 EC-11-093;
@@ -1441,6 +1451,7 @@ prism-spec-engine import added to prism-bin.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.32 | 2026-08-28 | story-writer | **F-P27-LENSC2-MED-001 + F-P27-LENSC2-LOW-001 + Class-D proactive sweep (§Architecture Compliance Rules 2-term formula correction).** (1) **F-P27-LENSC2-LOW-001 (LOW) — stale version pin removed from frontmatter:** frontmatter `behavioral_contracts` comment `(ADR-060 §D8.7 v1.3):` corrected to `(ADR-060 §D8.7):` — Condition K arrived in ADR-060 v1.8, not v1.3; version pin removed per TD-VSDD-091/POL-39. (2) **F-P27-LENSC2-MED-001 (MED) — Condition K added to AC-007 SUPPRESS enumeration:** AC-007 body previously enumerated Conditions A through J then jumped to Conservative Default, silently skipping Condition K even though the AC-007 header and §Red Gate Tests cited `A–K` and listed RG-PSG-030d/033 as Condition-K tests. Condition K bullet inserted between Condition J and Conservative Default, per ADR-060 §D8.7 authoritative wording: `collect_datetime_index_cols` (§D8.9) `suppress_multi_index = true` when ≥2 Datetime+INDEX columns on any queried source table → SUPPRESS; rationale: `count_temporal_bound_directions` counts globally, not per-column; no current shipped sensor TOML triggers it; traces to BC-2.16.002 EC-01-038 postcondition, ADR-060 §D8.7, RG-PSG-030d/033. (3) **Class-D proactive — §Architecture Compliance Rules 2-term MUST formulas corrected to 3-term:** two MUST statements in `§Architecture Compliance Rules (From ADR-060 §D8.3/§D8.9)` presented the full engine Step-6 formula as 2-term but ADR-060 §D8.10 mandates 3-term: (a) "The ONLY correct formula" claim updated from `(total_rows > limit) \|\| any_early_stopped` to `\|\| any_early_stopped \|\| any_pipeline_truncated`, ADR reference extended to `§D8.9/§D8.10`; (b) "Engine.rs Step 6 MUST use" directive updated from `\|\| materialization_output.any_early_stopped;` to `\|\| materialization_output.any_early_stopped \|\| materialization_output.any_pipeline_truncated;` with `(ADR-060 §D8.10)` cite; chain description updated to `any_early_stopped`/`any_pipeline_truncated` propagation chains. Legitimately-scoped 2-term occurrences (§D8.3/§D8.9 reading-guide paragraph, BC-2.11.001 EC-11-092 trace reference, AC-009 body — each explaining the `any_early_stopped` OR term specifically) deliberately left unchanged per v1.31 changelog rationale. AC count (13), RG count (53), density (4.08) UNCHANGED. TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; CLEAR. Dim-2 — whole-artifact grep for `v1.3` confirmed single remaining occurrence in v1.10 historical changelog row (true historical record, not changed); AC-007 body Condition K insertion consistent with AC-007 header `A–K`, §Red Gate Tests RG-PSG-030d/033 anchors, and ADR-060 §D8.7; §Architecture Compliance Rules 2-term formula occurrences: both corrected to 3-term; version `1.31`→`1.32` in frontmatter only; FULL. Dim-3 — no new MUSTs introduced; corrected MUST formulas reference existing anchored tests (RG-PSG-028 for heuristic rejection) and ADR-060 §D8.9/§D8.10; CLEAR. |
 | 1.31 | 2026-08-28 | story-writer | **F-P26-LENSC2-MED-001 — frontmatter `crates_touched` comment block swept (4 stale spots).** The §D8.10 `any_pipeline_truncated` DI-019 truncation-signal chain was added in a prior amendment but the frontmatter `crates_touched` comment block was not swept. Fixed all 4 stale spots to agree with the authoritative §File Structure MODIFY table + AC-004 + ADR-060 §D8.10: (1) `materialization.rs` item (d) — added `any_pipeline_truncated: bool` alongside `any_early_stopped` on `MaterializationOutput`; (2) `materialization.rs` item (e) — extended to pick up both `any_early_stopped` and `any_pipeline_truncated` from `FanOutResult`; (3) `fanout.rs` block — added field (b) `any_pipeline_truncated: bool` on `FanOutResult` and extended OR-aggregate item to cover both flags (now items (a)/(b)/(c)); (4) `engine.rs` Step-6 formula — changed 2-term `total_rows > limit \|\| ...any_early_stopped` to 3-term `\|\| any_early_stopped \|\| any_pipeline_truncated`; stale `§D8.9` cite updated to `§D8.10`. TD-VSDD-097 Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; within-frontmatter sweep confirmed all 4 spots changed; CLEAR. Dim-2 — whole-story grep for 2-term formulas found additional body occurrences (in the `§D8.3/§D8.9` reading-guide paragraph, the BC-2.11.001 trace reference, and AC-009 descriptions); these intentionally show the 2-term formula in the specific context of explaining the `any_early_stopped` OR term; AC-004 covers the full 3-term formula; body prose left as-is (frontmatter block is the required scope per finding). Dim-3 — no new MUSTs introduced; CLEAR. Catalog count verification: BC-2.16.002 §Postconditions confirmed current count = 97, `query.org_slug_resolution_failure` at row 97 — story claim `96→97` CONFIRMED accurate. Frontmatter `version` bumped `1.30` → `1.31`; no AC count (13) or RG count (53) changes. |
 | 1.30 | 2026-08-28 | story-writer | **F-P25-LENSC2-LOW-001 — EC-range summary corrected to EC-01-030..040.** BC-2.16.002 §Edge Cases verified: EC-01-030 through EC-01-040 are all anchored to S-ENGINE-LIMIT-EARLY-STOP-001 (contiguous, no interruptions by another story). Two stale `EC-01-030..033` summary cells updated to `EC-01-030..040`: (1) §Behavioral Contracts table BC-2.16.002 Role cell; (2) §Token Budget BC-2.16.002 row. Descriptive-summary drift only — no AC, RG count (53), or behavioral changes. TD-VSDD-097: Dim-1 — within-file grep for `030..033` found 2 live-spec summary cells (both updated) + 1 historical v1.13 changelog record (preserved as true historical record per project convention — it accurately records the range as it stood when those ECs were first introduced); CLEAR. Dim-2 — EC-range summary cells are internal-summary text, not a section transcribed verbatim into a downstream artifact; no downstream copy-target; CLEAR. Dim-3 — no new MUSTs introduced; CLEAR. |
 | 1.29 | 2026-08-28 | story-writer | **F-P22-LENSC2-MED-001 (TD-VSDD-091 volatile-cite strip — v1.28 changelog row).** Two volatile position-cites stripped from the v1.28 changelog row per TD-VSDD-091/TD-VSDD-092 L9: (1) parenthetical position numeral stripped from `frontmatter \`behavioral_contracts\` YAML comment` anchor — anchor already identifies the location by section name; (2) heading-plus-numeral cite replaced with `the v1.10 changelog row` — section anchor form per TD-VSDD-091. Opportunistic (trivial, same-version bump): v1.27 changelog row within-file sweep volatile cite updated to anchor form: `single occurrence in the AC-003 body`. Frontmatter `version` field bumped `1.28` → `1.29`. No code, BC, ADR, RG count (53), AC count (13), or behavioral changes. TD-VSDD-097: Dim-1 — no named story-twin for S-ENGINE-LIMIT-EARLY-STOP-001; CLEAR. Dim-2 — no downstream copy-targets for changelog rows; CLEAR. Dim-3 — no new MUSTs introduced; CLEAR. |
