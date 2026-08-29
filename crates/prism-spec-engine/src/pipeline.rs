@@ -589,16 +589,25 @@ impl PipelineExecutor {
                     // ADR-060 §D8.2: LIMIT-aware early-stop. Fires at COMPLETE page boundary,
                     // immediately after DI-019. truncated is NOT set — this is a success-path
                     // query-driven early exit, not a capacity overflow (ADR-060 §D8.3).
-                    // CRITICAL: early_stopped MUST be set to true BEFORE break 'steps so that
-                    // PipelineResult.early_stopped is true when the caller reads it. This is
+                    // CRITICAL: early_stopped MUST be set BEFORE break 'steps so that
+                    // PipelineResult.early_stopped is readable by the caller. This is
                     // the root of the ADR-060 §D8.3 propagation chain:
                     // PipelineResult.early_stopped → FetchOutput.any_early_stopped
                     // → FanOutResult.any_early_stopped → MaterializationOutput.any_early_stopped
                     // → engine Step 6 is_truncated formula (EC-11-092 / RG-PSG-025/028).
+                    //
+                    // ADR-060 §D8.2 discriminator (AC-014 / RG-PSG-039):
+                    //   FULL page  (page_record_count >= active_page_size): more pages may exist
+                    //              → early_stopped = true
+                    //   PARTIAL page (page_record_count < active_page_size): source exhausted
+                    //              → early_stopped = false (complete dataset retrieved)
+                    // For non-OffsetLimit steps active_page_size=0 → page_record_count >= 0
+                    // is always true (conservative: treat as full page, same as before).
                     if let Some(limit) = context.early_stop_limit
                         && all_records.len() >= limit
                     {
-                        early_stopped = true; // ADR-060 §D8.3: set BEFORE break
+                        // ADR-060 §D8.2 partial-final-page discriminator — set BEFORE break.
+                        early_stopped = page_record_count >= active_page_size as usize;
                         break 'steps;
                     }
 
