@@ -1,18 +1,59 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.018"
+version: "8.019"
 status: current
-timestamp: 2026-08-29T14:00:00Z
+timestamp: 2026-08-29T16:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2361 (2026-08-29): pass-2 crates-drift fix COMPLETE (TD-VSDD-053; TD-VSDD-096) — F-P4-LENSC1-001 MED STORY-INDEX stub Crates cell corrected. Streak had reached 1/3; pass-2 C1 1 MED → RESET 1/3→0/3. STORY-INDEX v2.942. NO code/BC/ADR change. Feature @30e794b2c FROZEN UNCHANGED. Fresh pass-3 3-CLEAN re-gate pending. [D-2360 SUPERSEDED by D-2361]**
+> **D-2362 (2026-08-29): pass-2 anchor fix COMPLETE (TD-VSDD-053; TD-VSDD-096) — RG-PSG-039 §D8.2→§D8.3; story-wide §-anchor sweep clean. LIMIT story v1.36→v1.37. STORY-INDEX v2.942→v2.943. BC-5.39.001 streak RESET 1/3→0/3. Feature @30e794b2c FROZEN UNCHANGED. Fresh 3-CLEAN re-gate pending on ADR-060 v1.15 / story v1.37. [D-2361 SUPERSEDED by D-2362]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2361 (2026-08-29 — pass-2 crates-drift fix COMPLETE; STORY-INDEX v2.942; LIMIT feature @30e794b2c FROZEN CODE UNCHANGED; streak RESET 0/3; fresh pass-3 3-CLEAN re-gate pending)
+## §RESUME SNAPSHOT — D-2362 (2026-08-29 — pass-2 anchor fix COMPLETE; LIMIT story v1.37; STORY-INDEX v2.943; feature @30e794b2c FROZEN CODE UNCHANGED; streak RESET 0/3; fresh 3-CLEAN re-gate pending on ADR-060 v1.15 / story v1.37)
+
+### RESUME IN ONE BREATH
+Prism Phase-3 (brownfield, cycle wave-5-e-demo-fidelity), v1 = live Claroty xDome. Story S-ENGINE-LIMIT-EARLY-STOP-001: LIMIT feature @30e794b2c FROZEN (code CONVERGED — lens-A/B CLEAN across 7+ consecutive passes; engineering done, records tail only). pass-2 anchor fix D-2362 COMPLETE (TD-VSDD-053; TD-VSDD-096) — RG-PSG-039 §D8.2→§D8.3 corrected; story-wide §-anchor sweep clean, no other mis-anchors found; 58 RGTs / 14 ACs UNCHANGED. LIMIT story v1.36→v1.37. STORY-INDEX v2.942→v2.943. BC-5.39.001 LOCAL streak RESET 1/3→0/3 (story change; frozen-HEAD rule — no feature push). Feature HEAD @30e794b2c FROZEN UNCHANGED (PUSHED; just check 5880 exit 0 still valid).
+
+### PERIMETER (frozen)
+ADR-060 v1.15 (§D8.4 OffsetLimit-only `_ => 0` conservative; active_page_size; §D8.7 gate A–K; §D8.10 DI-019 chain) / ADR-061 v1.2 / BC-2.16.002 v2.51 (EC-01-030..041) / BC-2.11.001 v1.30 (EC-11-092 FULL arm + EC-11-094 PARTIAL arm OffsetLimit-only) / BC-2.16.015 v1.8 draft / LIMIT story v1.37 (58 RGTs incl RG-PSG-039..043 + RG-SLUG-001..006; 14 ACs incl AC-014 OffsetLimit-only) / stub story v1.1 — Indices: ARCH-INDEX v2.354 / BC-INDEX v9.81 / STORY-INDEX v2.943 / VP-INDEX v2.22.
+
+### NEXT ACTIONS (in order)
+1. Fresh full LOCAL 4-lens cascade pass-3 on UNCHANGED frozen HEAD @30e794b2c + specs @ ADR-060 v1.15 / story v1.37: lens-A correctness/security (code CLEAN expected), lens-B coverage/wire (lean grep-not-Read; 14/14 AC, 58/58 RGT expected), lens-C1 version/index integrity (STORY-INDEX v2.943 now), lens-C2 EXHAUSTIVE content sweep. Inject policies.yaml + SAP-1/2/3. CARRY FORWARD: (i) POL-39 exemption scope (§Changelog/frontmatter + §Version-History-equivalent incl ADR-060 §Status banner + §D8.7 convention-note decision-history refs); (ii) EC-11-093/AC-009 two-term is_truncated illustration = KNOWN out-of-perimeter observation (behavior-correct; engine enforces three-term) → PO-adjudication follow-up, do NOT re-mint; (iii) story-wide §-anchor sweep clean as of v1.37.
+2. 3× CLEAN(strict) on UNCHANGED @30e794b2c (frozen-HEAD rule; no pushes between counted passes) → LOCAL CONVERGED. Any finding → route to owner, fix-burst (records-only → TD-VSDD-096; content → full ceremony), advance HEAD, reset streak.
+3. LOCAL CONVERGED → STORY-LEVEL HOLDOUT GATE (HS-025..029; holdout-evaluator vs built binary, real MCP stdio + DTU, wire-level, BLOCKING) → demo-recorder per-AC → pr-manager 9-step PR → PR-LEVEL 3-CLEAN + security-reviewer → squash-merge → POL-14 (BC-2.16.002/BC-2.16.015 draft→active) → post-merge state burst.
+4. Unblock S-CLAROTY-VULNS-001 (@5aae6f0b3): after LIMIT merges + redeploys, re-run LIVE monroe xDome validation → merge VULNS.
+5. v1 RELEASE GATE: live xDome validation. Then G2–G6 wave (D-2357 full-expansion v1-blocking).
+
+### HEADS (backup boundary)
+- `develop`: `3f1e66179` (local==origin; clean).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: `30e794b2c` (PUSHED origin; FROZEN D-2358; story v1.37; 58 RGTs; streak 0/3; fresh pass-3 3-CLEAN pending on @30e794b2c + specs @ ADR-060 v1.15 / story v1.37).
+- `feature/S-CLAROTY-VULNS-001`: `5aae6f0b3` (PUSHED origin; 3-CLEAN CONVERGED round-5; HOLDOUT HS-024 PASS; merge HELD pending LIMIT).
+- Parked (do NOT touch): S-3.09 @`43c41389d` KEEP; W3-FIX-S307-001 @`fcab8717c` DIRTY.
+
+### BC-5.39.001 STREAK
+LIMIT LOCAL: 0/3 on frozen @30e794b2c (RESET 1/3→0/3 at D-2362; story v1.36→v1.37 anchor fix; frozen-HEAD rule; fresh pass-3 3-CLEAN pending on @30e794b2c + ADR-060 v1.15 / story v1.37).
+
+### CASCADE OPERATIONS NOTES (carry forward)
+- Use the 4-lens split (C1 mechanical version/index + C2 EXHAUSTIVE content) with lean grep-not-Read discipline.
+- On resume, if any agent died mid-.factory-edit: ALWAYS `git -C .factory status` + verify frontmatter-vs-index-pin consistency BEFORE re-dispatching.
+- State-manager .factory bursts serialize. Adversary lenses are read-only: MAY run parallel to STATE.md-ONLY record burst, NOT parallel to index-touching burst.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: keep grinding strict 3-CLEAN, no tooling change. (b) Autonomy grant D-989 in force: autonomous A→B→C strict convergence + auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit. (c) D-2357 G2–G6 endpoint expansion IN v1 scope; v1-blocking wave order LIMIT→VULNS→G2–G6.
+
+### DECISION-LOG DELTA (this burst)
+D-2362 (pass-2 anchor fix: RG-PSG-039 §D8.2→§D8.3 — was anchoring to §D8.2 (OffsetLimit detection gate), corrected to §D8.3 (early-stop gate); story-wide §-anchor sweep clean, no other mis-anchors found; LIMIT story v1.36→v1.37; STORY-INDEX v2.942→v2.943; NO code/BC/ADR/ARCH-INDEX change; feature HEAD 30e794b2c FROZEN UNCHANGED; just check 5880 exit 0 still valid; BC-5.39.001 streak RESET 1/3→0/3; records-lint exit 0).
+
+### FOLLOW-UP (non-blocking)
+EC-11-093 PO intent adjudication: BC-2.11.001 EC-11-093/AC-009 two-term is_truncated illustration vs authoritative three-term engine behavior. Behavior correct (engine enforces three-term); question is whether illustration scope is intentionally scoped to two-term or a documentation gap. Do NOT re-mint as finding; route to PO when convenient.
+
+---
+
+## §RESUME SNAPSHOT — D-2361 (2026-08-29 — pass-2 crates-drift fix COMPLETE; STORY-INDEX v2.942; LIMIT feature @30e794b2c FROZEN CODE UNCHANGED; streak RESET 0/3; fresh pass-3 3-CLEAN re-gate pending) [SUPERSEDED by D-2362]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3 (brownfield, cycle wave-5-e-demo-fidelity), v1 = live Claroty xDome. Story S-ENGINE-LIMIT-EARLY-STOP-001: LIMIT feature @30e794b2c FROZEN (code CONVERGED). pass-2 crates-drift fix D-2361 COMPLETE (TD-VSDD-053; TD-VSDD-096) — F-P4-LENSC1-001 MED STORY-INDEX stub Crates cell corrected (prism-spec-engine,prism-bin → prism-spec-engine; matches frontmatter). Proactive 2-row reconciliation: LIMIT row ALL 6 columns MATCH. Streak had reached 1/3 (pass-1 on @30e794b2c + ADR-060 v1.15 ALL 4 lenses CLEAN(strict)); pass-2 C1 1 MED → RESET 1/3→0/3. STORY-INDEX v2.941→v2.942. NO code/BC/ADR change. Feature HEAD @30e794b2c FROZEN UNCHANGED (PUSHED; just check 5880 exit 0 still valid).
