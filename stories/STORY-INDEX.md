@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.933"
+version: "2.934"
 status: draft
 producer: state-manager
 timestamp: 2026-08-28T23:59:00Z
@@ -1046,7 +1046,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-CLAROTY-OT-EVENTS-001 | Claroty xDome OT Activity Events Table — claroty_ot_activity_events TOML block with 21-column Tier-1/Tier-2 spec, no DTU, live structural tests (Wave A G2) [draft v1.0] | prism-sensors, prism-spec-engine | 1 (BC-2.16.016 v1.0) | -- | 5 | -- |
 | S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001 | prism-spec-engine: distinguish KeyNotFound from ExtractionFailed in source_path extraction — debug log level for absent optional keys [draft v1.0] | prism-spec-engine | 1 (BC-2.16.002) | -- | 3 | -- |
 | S-ENGINE-H2-LARGE-RESPONSE-001 | Claroty xDome large-response transport — direct-h2 confirmation + recurrence guard (canary + timeout diagnostics + query-CLI wiring) [draft v1.2] | prism-bin, prism-spec-engine | 1 (BC-2.16.002 v2.41) | -- | 3 | -- |
-| S-ENGINE-LIMIT-EARLY-STOP-001 | LIMIT-aware early-stop pagination — plan-shape gate `ast_is_reducing_plan` (ADR-060 §D8.7 A–K + conservative default) + `any_early_stopped` chain (ADR-060 §D8.9) + `any_pipeline_truncated` DI-019 chain (ADR-060 §D8.10) + cache-completeness gate (EC-01-039/EC-01-040, RG-PSG-034..038) + OrgSlug cache-key isolation (ADR-061 §D1/D4/D5); 53 RGTs / 13 ACs ≈ 4.08 [draft v1.29] | prism-spec-engine, prism-bin, prism-query, prism-sensors, prism-core | 1 (BC-2.16.002 v2.48; BC-2.11.001 v1.27; trace: BC-2.16.015 v1.8) | -- | 8 | -- |
+| S-ENGINE-LIMIT-EARLY-STOP-001 | LIMIT-aware early-stop pagination — plan-shape gate `ast_is_reducing_plan` (ADR-060 §D8.7 A–K + conservative default) + `any_early_stopped` chain (ADR-060 §D8.9) + `any_pipeline_truncated` DI-019 chain (ADR-060 §D8.10) + cache-completeness gate (EC-01-039/EC-01-040, RG-PSG-034..038) + OrgSlug cache-key isolation (ADR-061 §D1/D4/D5); 53 RGTs / 13 ACs ≈ 4.08 [draft v1.30] | prism-spec-engine, prism-bin, prism-query, prism-sensors, prism-core | 1 (BC-2.16.002 v2.48; BC-2.11.001 v1.27; trace: BC-2.16.015 v1.8) | -- | 8 | -- |
 | S-ENGINE-TIMEOUT-OVERLAY-WIRE-001 | timeout_secs overlay wiring — per-org request timeout via ResolvedSensorSpec provenance flag into per-request reqwest client (ADR-060 v1.1 §D8.6, deferred) [draft v1.0 stub] | prism-bin, prism-spec-engine | 0 (BC pending PO authorship) | -- | 5 | S-ENGINE-LIMIT-EARLY-STOP-001 |
 
 ## Sensor-Critical Stories (Wave B — Claroty xDome Endpoint Expansion)
@@ -1656,6 +1656,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.934 | 2026-08-28 | state-manager D-2349: passes 24+25 + TD-VSDD-096 micro-burst COMPLETE. S-ENGINE-LIMIT-EARLY-STOP-001 row updated: v1.29→v1.30 (F-P25-LENSC2-LOW-001 EC-range summary corrected EC-01-030..033→EC-01-030..040; historical v1.13 changelog record preserved). BC pins UNCHANGED (BC-2.16.002 v2.48; BC-2.11.001 v1.27; trace: BC-2.16.015 v1.8). Feature HEAD @d486f3ec8 FROZEN (no code change). BC-5.39.001 streak 0/3. total_stories 318 UNCHANGED. STORY-INDEX v2.933→v2.934. |
 | v2.933 | 2026-08-28 | state-manager D-2347: pass-22 TD-VSDD-096 micro-burst COMPLETE. S-ENGINE-LIMIT-EARLY-STOP-001 row updated: v1.28→v1.29 (F-P22-LENSC2-MED-001 two volatile line-cites stripped from v1.28 changelog row by story-writer). BC pins UNCHANGED (BC-2.16.002 v2.48; BC-2.11.001 v1.27; trace: BC-2.16.015 v1.8). Feature HEAD @d486f3ec8 FROZEN (no code change). BC-5.39.001 streak 0/3. total_stories 318 UNCHANGED. STORY-INDEX v2.932→v2.933. |
 | v2.932 | 2026-08-28 | state-manager D-2346: pass-21 3-lens batch COMPLETE. S-ENGINE-LIMIT-EARLY-STOP-001 row updated: v1.27→v1.28; condition-set label A–J→A–K (ADR-060 §D8.7 canonical); BC-2.16.002 pin v2.47→v2.48; ADR-061 §D1/D2/D4/D5/D7/D9 added to §Authority+§References. Feature HEAD @d486f3ec8 FROZEN (no code change). BC-5.39.001 streak 0/3. total_stories 318 UNCHANGED. STORY-INDEX v2.931→v2.932. |
 | v2.931 | 2026-08-28 | state-manager D-2345: pass-20 fix-burst COMPLETE. S-ENGINE-LIMIT-EARLY-STOP-001 row updated: v1.26→v1.27; AC-003 citation Some(11)→Some(15) aligned to on-disk green test; input-hash d9912a6→7d05bd2 (ADR-060 v1.10 doc-sync). BC pins UNCHANGED (BC-2.16.002 v2.47; BC-2.11.001 v1.27; trace BC-2.16.015 v1.8). Feature HEAD @d486f3ec8 FROZEN (no code change). total_stories 318 UNCHANGED. STORY-INDEX v2.930→v2.931. |
