@@ -1094,15 +1094,11 @@ async fn test_BC_2_16_002_early_stop_partial_final_page_not_early_stopped() {
 /// is NOT a valid cursor exhaustion signal; precise detection is deferred to
 /// S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001.
 ///
-/// ## TDD gate (RED against current HEAD)
+/// ## Fix (landed — ADR-060 §D8.4 conservative rule)
 ///
-/// Current code has `CursorToken { page_size: Some(ps), .. } => *ps` arm:
-///   active_page_size = 1000; early_stopped = 5 >= 1000 = false
-///   assertion `assert!(result.early_stopped)` FAILS → RED gate.
-///
-/// After implementer reverts the CursorToken Some(ps) arm (all CursorToken → _ => 0):
-///   active_page_size = 0; early_stopped = 5 >= 0 = true
-///   assertion PASSES → GREEN.
+/// All `CursorToken` variants map to `active_page_size = 0` (via `_ => 0` arm).
+///   `active_page_size = 0`; `early_stopped = 5 >= 0 = true`
+///   assertion `assert!(result.early_stopped)` PASSES.
 ///
 /// ## Regression sentinel (F-FP1-LENSA-001)
 ///

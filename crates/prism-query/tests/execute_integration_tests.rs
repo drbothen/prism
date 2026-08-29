@@ -2719,16 +2719,10 @@ fn make_early_stop_engine(
 /// the response cache. The second identical `execute` is a cache HIT (sensor NOT
 /// fetched again). `is_truncated` must be `true` on the cached-response path.
 ///
-/// CURRENT (RED): `complete = fan_result.errors.is_empty()` ignores
-/// `any_early_stopped` → the early-stopped partial is cached as "complete" →
-/// the cache-hit path never restores `any_early_stopped` → Engine Step 6 computes
-/// `is_truncated = (total_rows > limit) || false = (2 > 2) || false = false`.
-/// The assertion below therefore FAILS against HEAD @ce196ae7b.
-///
-/// GREEN CONTRACT (implementer fix):
-/// `complete = errors.is_empty() && !fan_result.any_early_stopped`
-/// → early-stopped responses are NOT cached → Query 2 re-fetches or the
-/// cache-hit path restores `any_early_stopped` → `is_truncated = true`.
+/// Fix (landed): `complete = errors.is_empty() && !fan_result.any_early_stopped`
+/// ensures early-stopped responses are NOT cached as "complete".
+/// Query 2 therefore re-fetches, and `is_truncated = true` is preserved on
+/// both the live-fetch and cached-response paths.
 #[tokio::test]
 async fn test_psg_rg034_early_stopped_response_not_cached_as_complete() {
     use prism_query::engine::QueryOptions;
@@ -2791,38 +2785,23 @@ async fn test_psg_rg034_early_stopped_response_not_cached_as_complete() {
 //
 // DI-019 scenario: the spec-engine pipeline (`PipelineExecutor::execute_impl`)
 // truncates at `MAX_PIPELINE_RECORDS = 10_000` and sets `PipelineResult.truncated
-// = true`, but `early_stopped` remains `false`. This `truncated` signal is NOT
-// propagated through `FetchOutput` → `FanOutResult` → `MaterializationOutput` to
-// the cache-completeness check or engine Step 6. As a result:
-//   • The 10K-capped response is incorrectly cached as "complete" (bug: should
-//     be a cache miss on re-query so the analyst gets fresh, complete data).
-//   • Engine Step 6 computes `is_truncated = total_rows > limit || false = false`
-//     when `limit=None` → usize::MAX, suppressing the truncation signal.
+// = true`, but `early_stopped` remains `false`. `PipelineResult.truncated` is
+// propagated through `FetchOutput.any_pipeline_truncated` → `FanOutResult` →
+// `MaterializationOutput` to the cache-completeness guard and engine Step 6.
 //
 // These tests exercise the mock-adapter approximation of DI-019:
 //   • `Di019CountingAdapter` returns 10,001 rows with `any_early_stopped=false`
-//     (simulating the 10K-capped fetch output before `any_pipeline_truncated` is
-//     added to `FetchOutput` by the implementer).
+//     and `any_pipeline_truncated=true` (the DI-019 signal).
 //   • `make_di019_engine` raises `max_materialized_records` to `usize::MAX` so
 //     the materialization layer does NOT hard-error (E-QUERY-005) on 10,001 rows
 //     — the DI-019 cap fires in the spec-engine pipeline level, not here.
-//
-// GREEN CONTRACT for both tests: the implementer adds `any_pipeline_truncated:
-// bool` to `FetchOutput`, propagates it through `FanOutResult` →
-// `MaterializationOutput`, updates the cache-completeness guard in
-// `materialization.rs`, extends engine Step 6, and updates this mock to set
-// `any_pipeline_truncated = true`.
 // ---------------------------------------------------------------------------
 
 /// Sensor adapter that counts `fetch` invocations and returns exactly 10,001 rows
-/// with `any_early_stopped=false` — models the surface output of a DI-019 pipeline
-/// truncation event (`PipelineResult.truncated=true`, `PipelineResult.early_stopped=
-/// false`). Row generator uses a lightweight string index column (no hand-written
-/// literals); one batch per fetch call.
-///
-/// NOTE: `FetchOutput::new(batch, false)` is the CURRENT call — it cannot set
-/// `any_pipeline_truncated` because that field does not yet exist on `FetchOutput`.
-/// The implementer will extend this mock as part of making RG-PSG-035/036 GREEN.
+/// with `any_early_stopped=false` and `any_pipeline_truncated=true` — models the
+/// surface output of a DI-019 pipeline truncation event (`PipelineResult.truncated=
+/// true`, `PipelineResult.early_stopped=false`). Row generator uses a lightweight
+/// string index column (no hand-written literals); one batch per fetch call.
 struct Di019CountingAdapter {
     call_count: Arc<std::sync::atomic::AtomicUsize>,
 }
@@ -2930,19 +2909,10 @@ fn make_di019_engine() -> (
 /// MISS (adapter called again) because the first response was DI-019-truncated and
 /// therefore incomplete.
 ///
-/// CURRENT (RED): `complete = fan_result.errors.is_empty() && !fan_result.any_early_stopped`
-/// `= true && !false = true` — DI-019's `truncated=true` is not propagated →
-/// response is incorrectly cached as "complete" → Query 2 is a cache HIT → adapter
-/// call count stays at 1 → the `== 2` assertion below FAILS.
-///
-/// GREEN CONTRACT (implementer + gate extension):
-///   1. Add `any_pipeline_truncated: bool` to `FetchOutput`; expose via new constructor.
-///   2. Propagate `PipelineResult.truncated` → `FetchOutput.any_pipeline_truncated`
-///      → `FanOutResult.any_pipeline_truncated` → `MaterializationOutput.any_pipeline_truncated`.
-///   3. Update cache-completeness guard in `materialization.rs`:
-///      `complete = errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`.
-///   4. Update this mock to set `any_pipeline_truncated = true`.
-///   After the fix: not cached → Query 2 re-fetches → call count == 2.
+/// Fix (landed): cache-completeness guard is
+///   `complete = errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`.
+/// `Di019CountingAdapter` sets `any_pipeline_truncated=true` → DI-019-truncated
+/// responses are NOT cached as complete → Query 2 re-fetches → call count == 2.
 #[tokio::test]
 async fn test_psg_rg035_di019_truncated_response_not_cached_as_complete() {
     use prism_query::engine::QueryOptions;
@@ -2968,9 +2938,8 @@ async fn test_psg_rg035_di019_truncated_response_not_cached_as_complete() {
     // MUST be a cache MISS (adapter called again) because the DI-019-truncated
     // partial is not a complete response and must not be cached.
     //
-    // CURRENTLY (RED): the result IS cached (because the DI-019 truncated signal
-    // is not propagated to the cache-completeness guard), so the adapter is NOT
-    // called — call count stays 1 — and this assertion FAILS.
+    // With the fix, `any_pipeline_truncated=true` prevents caching as complete.
+    // Query 2 therefore re-fetches from the sensor.
     let _r2 = engine
         .execute("SELECT * FROM crowdstrike_detections", make_options())
         .await
@@ -2997,19 +2966,9 @@ async fn test_psg_rg035_di019_truncated_response_not_cached_as_complete() {
 /// Scenario: `Di019CountingAdapter` returns 10,001 rows with `any_early_stopped=false`
 /// (the DI-019 profile). Query is executed with `options.limit = None`.
 ///
-/// CURRENT (RED): Engine Step 6 formula:
-///   `is_truncated = total_rows > limit || any_early_stopped`
-///              = `10_001 > usize::MAX   || false`
-///              = `false                 || false`
-///              = `false`
-/// DI-019's `PipelineResult.truncated=true` is never propagated to
-/// `MaterializationOutput`, so Step 6 has no `any_pipeline_truncated` term →
-/// `is_truncated=false` → the assertion below FAILS.
-///
-/// GREEN CONTRACT (implementer):
-///   Extend engine Step 6 to:
+/// Fix (landed): engine Step 6 formula is
 ///   `is_truncated = total_rows > limit || output.any_early_stopped || output.any_pipeline_truncated`
-///   After propagating `any_pipeline_truncated = true` from the mock adapter:
+/// With `any_pipeline_truncated = true` from the mock adapter:
 ///   `is_truncated = false || false || true = true`.
 #[tokio::test]
 async fn test_psg_rg036_di019_truncated_step6_is_truncated_true() {

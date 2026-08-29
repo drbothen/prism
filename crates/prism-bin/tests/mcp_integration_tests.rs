@@ -237,10 +237,10 @@ fn make_wire_engine(registry: AdapterRegistry, clients: Vec<OrgSlug>) -> QueryEn
 /// Wire envelope: `results.is_truncated = false`.
 /// Assertion `wire_text.contains("\"is_truncated\":false")` → PASSES in both states.
 ///
-/// ## RED / GREEN
+/// ## Test status
 ///
-/// The whole test is RED (fails) because case 1 assertion panics before case 2 is reached.
-/// GREEN: both assertions pass after `any_early_stopped` propagation chain is implemented.
+/// Both case 1 and case 2 assertions pass: `any_early_stopped` propagation is
+/// implemented (post-round-16) and Condition G is active for SQL equality WHERE.
 ///
 /// ## SAP-3 compliance
 ///
@@ -368,15 +368,9 @@ async fn test_psg_rg026_prism_query_wire_surfaces_truncation_signal() {
     // params.limit = 1000 → build_query_options sets QueryOptions.limit = 1000
     // → early-stop active (fetch_limit = 1000 > 0) → mock returns 1000 rows.
     //
-    // Engine Step 6 (current code): is_truncated = total_rows > limit
-    //   = EXACT_LIMIT > EXACT_LIMIT = false
-    //
-    // Wire envelope results.is_truncated = false.
-    // Assertion `contains("\"is_truncated\":true")` → FAILS → RED gate.
-    //
-    // Post-round-16: is_truncated = (total_rows > limit) OR any_early_stopped
+    // Engine Step 6 (post-round-16): is_truncated = (total_rows > limit) OR any_early_stopped
     //   = false OR true = true
-    // Wire envelope results.is_truncated = true → assertion PASSES → GREEN.
+    // Wire envelope results.is_truncated = true → assertion PASSES.
     // -----------------------------------------------------------------------
     // QueryToolParams is #[non_exhaustive] — use serde_json deserialization for
     // cross-crate construction (struct literal syntax is forbidden outside prism-mcp).
