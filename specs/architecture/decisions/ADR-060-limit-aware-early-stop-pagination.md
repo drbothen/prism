@@ -5,7 +5,7 @@ title: "LIMIT-Aware Early-Stop Pagination for Offset/Limit and Cursor Sensor Tab
 status: ACCEPTED
 date: "2026-08-26"
 modified: "2026-08-29"
-version: "1.12"
+version: "1.13"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-11, SS-16]
 supersedes: []
@@ -23,7 +23,7 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.12 (2026-08-29) — F-P1-LENSC2-001/002/003: §D8.2 `page_size` derivation comment extended to all early-stop-eligible modes (OffsetLimit + CursorToken); §D8.3 forward-reference anchor discharged; in-body version-pin sweep: 0 found. v1.11 (2026-08-28) — F-P31-LENSA-OBS-001: partial-final-page discriminator for early-stop signal (§D8.2, §D8.3, §D8.9); exact-limit/partial-final-page LIMIT query no longer emits self-contradictory `is_truncated: true` with `total_available == returned_results`. v1.10 (2026-08-28) — §D8.9 FetchOutput 3-field reconciliation + DI-019 propagation arm, F-P20-LENSC-MED-001. v1.9 (2026-08-28) — F-R16-P18-LENSA-MED-001 (DI-019 truncation-signal propagation gap): `PipelineResult.truncated` (DI-019 cap) was dropped at the adapter boundary; new §D8.10 threads `pipeline_truncated` through `FetchOutput → FanOutResult.any_pipeline_truncated → MaterializationOutput.any_pipeline_truncated`; cache-completeness gate updated to `errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`; engine Step 6 formula updated to `(total_rows > limit) || any_early_stopped || any_pipeline_truncated`; scheduled path `is_truncated: false` hardcode replaced by `any_early_stopped || any_pipeline_truncated` (F-R16-P18-LENSA-OBS-001 sibling-sweep); RG-PSG-035/036 required. v1.8 (2026-08-28) — F-R16-P16-LENSA-HIGH-001: source-scoped `datetime_index_cols` via `resolved_col_map` (§D8.9); F-R16-P16-LENSA-LOW-001: reversed-operand prohibition explicit in `is_pushed_temporal_predicate` (§D8.7); F-R16-P16-LENSB-LOW-001: Condition K multi-INDEX-datetime conservative suppression (§D8.7); structural-reuse `collect_datetime_index_cols` helper; RG-PSG-032/033/030b required. v1.7 (2026-08-28) — AND-arm direction-count constraint (§D8.7) + OCSF-name gap in `datetime_index_cols` (§D8.9). v1.6: ADR-059 citation reframe. v1.5 (2026-08-27) — Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate`; `Ast::Filter` + `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where`; `expr_contains_aggregate_or_window` catch-all `_ => false` → `_ => true`; `any_early_stopped` truncation-signal chain added (§D8.9). v1.4: Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
+ACCEPTED v1.13 (2026-08-29) — F-FP1-LENSA-001 DECISION (B): cursor page-fill discriminator is unsound — revert + narrow + anchor. §D8.2 code comment: CursorToken collapsed to `_ => 0` catch-all (removes `CursorToken { page_size: Some(ps) } => ps as usize` arm added v1.12); comment variable renamed `active_page_size` (was `page_size`) throughout to match §D8.4 + ratified impl naming (F-FP1-LENSC2-002). §D8.4: CursorToken narrowed to conservative-only across ALL sub-cases; rationale: page-fill is NOT a valid cursor exhaustion signal (partial cursor page + non-empty next cursor = more data exists — under-report is the DANGEROUS direction); all CursorToken → `active_page_size = 0` → `early_stopped = true` (safe over-report); precise next-cursor-presence-based detection deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 (post-v1, blocked on S-OCSF-FIDELITY-CYBERINT-001). v1.12 (2026-08-29) — F-P1-LENSC2-001/002/003: §D8.2 `page_size` derivation comment extended to all early-stop-eligible modes (OffsetLimit + CursorToken); §D8.3 forward-reference anchor discharged; in-body version-pin sweep: 0 found. v1.11 (2026-08-28) — F-P31-LENSA-OBS-001: partial-final-page discriminator for early-stop signal (§D8.2, §D8.3, §D8.9); exact-limit/partial-final-page LIMIT query no longer emits self-contradictory `is_truncated: true` with `total_available == returned_results`. v1.10 (2026-08-28) — §D8.9 FetchOutput 3-field reconciliation + DI-019 propagation arm, F-P20-LENSC-MED-001. v1.9 (2026-08-28) — F-R16-P18-LENSA-MED-001 (DI-019 truncation-signal propagation gap): `PipelineResult.truncated` (DI-019 cap) was dropped at the adapter boundary; new §D8.10 threads `pipeline_truncated` through `FetchOutput → FanOutResult.any_pipeline_truncated → MaterializationOutput.any_pipeline_truncated`; cache-completeness gate updated to `errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`; engine Step 6 formula updated to `(total_rows > limit) || any_early_stopped || any_pipeline_truncated`; scheduled path `is_truncated: false` hardcode replaced by `any_early_stopped || any_pipeline_truncated` (F-R16-P18-LENSA-OBS-001 sibling-sweep); RG-PSG-035/036 required. v1.8 (2026-08-28) — F-R16-P16-LENSA-HIGH-001: source-scoped `datetime_index_cols` via `resolved_col_map` (§D8.9); F-R16-P16-LENSA-LOW-001: reversed-operand prohibition explicit in `is_pushed_temporal_predicate` (§D8.7); F-R16-P16-LENSB-LOW-001: Condition K multi-INDEX-datetime conservative suppression (§D8.7); structural-reuse `collect_datetime_index_cols` helper; RG-PSG-032/033/030b required. v1.7 (2026-08-28) — AND-arm direction-count constraint (§D8.7) + OCSF-name gap in `datetime_index_cols` (§D8.9). v1.6: ADR-059 citation reframe. v1.5 (2026-08-27) — Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate`; `Ast::Filter` + `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where`; `expr_contains_aggregate_or_window` catch-all `_ => false` → `_ => true`; `any_early_stopped` truncation-signal chain added (§D8.9). v1.4: Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
 (aggregate recursion gap) and F-R12-HIGH-001 (JOIN not suppressed), plus six additional gaps
 discovered by exhaustive grammar enumeration: ORDER BY aggregate escapes Condition A; Condition G
 was based on `where_filters` (equality push-down map) which is always empty for `Ast::Filter` mode
@@ -159,13 +159,17 @@ if let Some(limit) = context.early_stop_limit {
     if all_records.len() >= limit {
         // Partial-final-page discriminator (§D8.3):
         // page_record_count = records returned by this page (pre-OCSF count, i.e. raw page len).
-        // page_size         = mode's declared maximum records per page:
-        //   OffsetLimit { page_size }           => page_size as usize
-        //   CursorToken { page_size: Some(ps) }  => ps as usize
-        //   CursorToken { page_size: None } | _  => 0  (conservative: 0 ≥ 0 = true → early_stopped always true)
-        // Full page (page_record_count >= page_size): source may have more pages → early_stopped = true.
-        // Partial page (page_record_count < page_size): source is exhausted → early_stopped = false.
-        early_stopped = page_record_count >= page_size;
+        // active_page_size  = mode's declared maximum records per page:
+        //   OffsetLimit { page_size }  => page_size as usize
+        //   CursorToken { .. } | _    => 0  (conservative: page-fill is NOT a valid cursor
+        //                                    exhaustion signal; see §D8.4 for rationale;
+        //                                    precise detection deferred to
+        //                                    S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001)
+        // Full page (page_record_count >= active_page_size): source may have more pages → early_stopped = true.
+        // Partial page (page_record_count < active_page_size): source is exhausted → early_stopped = false.
+        // NOTE: For CursorToken, active_page_size = 0 always → 0 ≥ 0 = true → early_stopped = true
+        //       (conservative over-report on all cursor early-stop exits).
+        early_stopped = page_record_count >= active_page_size;
         break 'steps;
     }
 }
@@ -215,11 +219,44 @@ formula (§D8.9).
 ### D8.4 — Applicable pagination modes
 
 LIMIT early-stop applies to both `PaginationConfig::OffsetLimit` and `PaginationConfig::CursorToken`
-pagination modes. For CursorToken, when `page_size` is declared (`Some(ps)`), the
-partial-final-page discriminator (§D8.3) applies precisely — a partial final page correctly
-emits `early_stopped = false`. When `page_size` is `None`, `active_page_size = 0`, so
-`page_record_count >= 0` is always `true` → `early_stopped = true` (conservative: no declared
-page size means source exhaustion cannot be confirmed without fetching the next cursor page).
+pagination modes.
+
+For **OffsetLimit**, the partial-final-page discriminator (§D8.3) applies precisely:
+`active_page_size = page_size` from the TOML declaration; a partial final page (fewer records
+than the declared page size) correctly emits `early_stopped = false` because a partial offset
+page is a genuine source-exhaustion signal — offset/limit APIs return a full page whenever more
+data exists.
+
+For **CursorToken** (ALL sub-cases, including `page_size: Some(ps)` and `page_size: None`),
+`active_page_size = 0` → `page_record_count >= 0` is always `true` → `early_stopped = true`
+(conservative over-report on all cursor early-stop exits).
+
+**Rationale for CursorToken conservative treatment:** The page-fill discriminator is NOT a
+valid cursor exhaustion signal. A cursor API may return a partial page (fewer records than the
+declared `page_size`) while still providing a non-empty next cursor pointing to additional data.
+Using `page_record_count < page_size` as an exhaustion signal for cursor mode produces the
+DANGEROUS under-report direction: `early_stopped = false` → `is_truncated = false` → the MCP
+consumer believes the dataset is complete when the source has more rows. The authoritative
+exhaustion signal for cursor pagination is next-cursor absence, not page fill. The conservative
+over-report (`early_stopped = true` always for cursor) is safe: an analyst receiving
+`is_truncated: true` can re-query without LIMIT to confirm completeness.
+
+**v1 scope:** No v1 sensor uses cursor pagination (all Claroty xDome tables declare
+`type = "offset_limit"`). The conservative over-report has zero v1 behavioral impact.
+
+**Precise cursor detection deferred:** Next-cursor-presence-based discriminator — when
+early-stop fires in CursorToken mode, read the next cursor from the current page response
+BEFORE breaking; if a non-empty next cursor exists → `early_stopped = true`; if no cursor →
+`early_stopped = false` — is deferred to proposed story `S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001`
+(post-v1; blocked on `S-OCSF-FIDELITY-CYBERINT-001`, the first cursor-pagination sensor
+delivery). Implementer MUST NOT add a `CursorToken { page_size: Some(ps) } => ps as usize`
+arm to the `active_page_size` derivation in `execute_impl` before `S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001`
+ships; any such arm introduces the unsound under-report identified in F-FP1-LENSA-001.
+**TD-VSDD-097 Dim-3 note:** `S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001` does not yet exist;
+story-writer MUST create a draft stub to discharge the Dim-3 mandate-anchor requirement for this
+deferral. Until that story ID is registered in STORY-INDEX, this MUST is a soft prohibitive
+constraint enforced by this ADR text and adversarial review, not by a Red Gate test.
+
 It does NOT apply to `PaginationConfig::None` (single-page fetch; no loop to terminate early)
 or to the 10K DI-019 cap (which remains unchanged and fires before D8 when applicable).
 
@@ -1085,6 +1122,7 @@ Closed by v1.8 Condition K: conservative suppression when `collect_datetime_inde
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.13 | 2026-08-29 | architect | F-FP1-LENSA-001 DECISION (B): cursor page-fill discriminator unsound — revert + narrow + anchor. §D8.2: CursorToken unified under `_ => 0` catch-all (removes `CursorToken { page_size: Some(ps) } => ps as usize` arm from v1.12); comment variable renamed `active_page_size` (was `page_size`) throughout §D8.2 to match §D8.4 + ratified impl naming (F-FP1-LENSC2-002 naming fix). §D8.4: CursorToken narrowed to conservative-only across ALL sub-cases; removes the `Some(ps)` precise arm; rationale: page-fill is NOT a valid cursor exhaustion signal (partial cursor page with non-empty next cursor means more data exists — under-report is DANGEROUS); all CursorToken → `active_page_size = 0` → `early_stopped = true` (safe over-report); precise next-cursor-presence detection deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 (post-v1, blocked on S-OCSF-FIDELITY-CYBERINT-001). No v1 sensor uses cursor pagination; zero v1 behavioral impact. TD-VSDD-097 Dim-3: deferral anchored to real story ID S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001. |
 | 1.12 | 2026-08-29 | architect | F-P1-LENSC2-003 DECISION (A) code-extension: §D8.2 `page_size` derivation comment extended — `OffsetLimit { page_size } => page_size as usize`; `CursorToken { page_size: Some(ps) } => ps as usize`; `CursorToken { page_size: None } \| _ => 0` (conservative full-page). §D8.4 extended to document the `None` fallback and the precise partial-final-page discriminator semantics for CursorToken. §D8.4 decision text unchanged — already correctly declared both modes. F-P1-LENSC2-001 (TD-VSDD-097 Dim-3): §D8.3 forward-reference "will be added" replaced with discharged anchor `AC-014 + RG-PSG-039 + RG-PSG-040 (S-ENGINE-LIMIT-EARLY-STOP-001), GREEN`. F-P1-LENSC2-002 (POL-39 sweep): 0 in-body artifact-version pins found/stripped in ADR-060 body prose; BC-version refs in §Changelog rows are EXEMPT. |
 | 1.11 | 2026-08-28 | architect | F-P31-LENSA-OBS-001 (human-approved Option 2 refinement). Introduced **partial-final-page discriminator** for `PipelineResult.early_stopped`: when the §D8.2 break fires and the triggering page was partial (`page_record_count < page_size`), source is exhausted — `early_stopped = false`; when the page was full (`>= page_size`), more pages may exist — `early_stopped = true` (unchanged for full-page case, including exact-full-page corner treated conservatively). Closes self-contradictory `is_truncated: true` + `total_available == returned_results` on exact-limit / partial-final-page queries (e.g., `LIMIT 5` on a 5-row tenant). §D8.2 code sketch updated with discriminator capture; §D8.3 post-break semantics redesigned with discriminator rule + three worked examples (partial-exhausted → `is_truncated: false`; full-page normal → `is_truncated: true`; exact-full-page corner → `is_truncated: true` accepted conservative). §D8.9 Motivation updated; `PipelineResult.early_stopped` description updated; Step 6 formula commentary extended with partial-page CLEAN arm; `total_available` lower-bound note clarified (exact when both signals false). Engine Step 6 `is_truncated` formula (code) UNCHANGED — discriminator operates by setting `early_stopped = false` at source, not by changing formula. Anchor story S-ENGINE-LIMIT-EARLY-STOP-001; story-writer/test-writer add new AC + Red Gate test. Downstream sweep required: BC-2.11.001 §EC-11-092 (Step 6 formula commentary), BC-2.16.002 §Postconditions LIMIT-Aware Early-Stop arm. |
 | 1.10 | 2026-08-28 | architect | F-P20-LENSC-MED-001 (§D8.9 source-vs-copy struct inversion). §D8.9 `FetchOutput Return Type` struct block reconciled to the canonical 3-field form matching §D8.10 authoritative definition: `pub pipeline_truncated: bool` added as third field. §D8.9 Propagation Chain extended with parallel DI-019 truncation arm: `PipelineResult.truncated → FetchOutput.pipeline_truncated → FanOutResult.any_pipeline_truncated → MaterializationOutput.any_pipeline_truncated`, feeding the same engine.rs Step 6 `is_truncated` formula. The §D8.9 struct block was the only remaining artifact carrying the 2-field shape; downstream copies (S-ENGINE-LIMIT-EARLY-STOP-001 story, BC-2.11.001 §EC-11-092) were already reconciled at the §D8.10 introduction. |
