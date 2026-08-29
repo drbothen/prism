@@ -12,14 +12,14 @@ status: draft
 # BC-\d+\.\d{2}\.\d{3}. No BC covers next-cursor-presence-based exhaustion detection at this time.
 producer: story-writer
 timestamp: "2026-08-29T00:00:00Z"
-version: "1.0"
+version: "1.1"
 modified: "2026-08-29"
 phase: 3
 cycle: v1.0.0-brownfield
 inputs:
   - ".factory/specs/architecture/decisions/ADR-060-limit-aware-early-stop-pagination.md"
-input-hash: "69b70a3"
-# input-hash: 69b70a3 — computed from ADR-060 v1.13 (ADR-060 §D8.4 cursor revert ruling)
+input-hash: "63caee0"
+# input-hash: 63caee0 — computed from ADR-060 v1.14 (ADR-060 §D8.4 cursor conservative ruling + POL-39 sweep)
 traces_to: ["BC-2.16.002", "BC-2.11.001"]
 # traces_to: BC-2.16.002 + BC-2.11.001 govern the early-stop signal and truncation surface
 # that this story extends. Precise BCs pending PO authorship.
@@ -79,19 +79,16 @@ risk_mitigations: []
 
 ## Authority
 
-**ADR-060 §D8.4** is the governing architectural decision. It specifies:
+**ADR-060 §D8.4** is the governing architectural decision. Summarized:
 
-> "Page-fill (`page_record_count >= page_size`) is not a valid cursor exhaustion signal
-> because cursor-paginated APIs do not guarantee full pages — many return variable-size
-> pages even when more pages exist. Permitting early-stop based on page-fill for CursorToken
-> yields incorrect `early_stopped=false` (and thus `is_truncated=false`) on partial pages
-> even when the cursor API has more data to return. Conservative treatment:
-> `CursorToken (all sub-cases) → active_page_size = 0 → early_stopped = true`.
-> The correct discriminator for cursor exhaustion is **next-cursor presence**: if the page
-> response contains a non-empty next-cursor token, more pages exist and `early_stopped = true`;
-> if the cursor is absent or empty, the source is exhausted and `early_stopped = false`.
-> Precise detection deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 (blocked by
-> S-OCSF-FIDELITY-CYBERINT-001, the first cursor-pagination sensor delivery)."
+> Page-fill is not a valid cursor exhaustion signal. A cursor API may return a partial page
+> (fewer records than the declared `page_size`) while still providing a non-empty next cursor
+> pointing to additional data. Conservative treatment: CursorToken (ALL sub-cases) →
+> `active_page_size = 0` → `early_stopped = true` (safe over-report on all cursor early-stop
+> exits). The authoritative exhaustion signal for cursor pagination is next-cursor absence,
+> not page fill. Precise next-cursor-presence-based detection deferred to
+> S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 (blocked on S-OCSF-FIDELITY-CYBERINT-001, the
+> first cursor-pagination sensor delivery).
 
 **BC-2.16.002** and **BC-2.11.001** are the parent behavioral contracts. Precise BCs governing
 next-cursor extraction are pending PO authorship.
@@ -244,4 +241,5 @@ Expected files to modify:
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-08-29 | story-writer | F-P1B-LENSC2-003: §Authority quote-fidelity fix — changed "specifies:" to "Summarized:" and removed enclosing quotation marks from block quote. Content was a paraphrase, not verbatim ADR text; presenting a paraphrase inside quotation marks was misleading. Input-hash refreshed to 63caee0 (ADR-060 v1.14). |
 | 1.0 | 2026-08-29 | story-writer | Initial draft stub. Discharges ADR-060 §D8.4 TD-VSDD-097 Dim-3 mandate anchor obligation: the `MUST remain draft` note in S-ENGINE-LIMIT-EARLY-STOP-001 §D8.4 is now anchored to this concrete story ID. `behavioral_contracts: []` per S-7.01 (pending PO authorship). `depends_on: [S-ENGINE-LIMIT-EARLY-STOP-001, S-OCSF-FIDELITY-CYBERINT-001]` per ADR-060 §D8.4 deferral rationale. |

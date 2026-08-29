@@ -5,7 +5,7 @@ title: "LIMIT-Aware Early-Stop Pagination for Offset/Limit and Cursor Sensor Tab
 status: ACCEPTED
 date: "2026-08-26"
 modified: "2026-08-29"
-version: "1.13"
+version: "1.14"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-11, SS-16]
 supersedes: []
@@ -23,7 +23,7 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.13 (2026-08-29) — F-FP1-LENSA-001 DECISION (B): cursor page-fill discriminator is unsound — revert + narrow + anchor. §D8.2 code comment: CursorToken collapsed to `_ => 0` catch-all (removes `CursorToken { page_size: Some(ps) } => ps as usize` arm added v1.12); comment variable renamed `active_page_size` (was `page_size`) throughout to match §D8.4 + ratified impl naming (F-FP1-LENSC2-002). §D8.4: CursorToken narrowed to conservative-only across ALL sub-cases; rationale: page-fill is NOT a valid cursor exhaustion signal (partial cursor page + non-empty next cursor = more data exists — under-report is the DANGEROUS direction); all CursorToken → `active_page_size = 0` → `early_stopped = true` (safe over-report); precise next-cursor-presence-based detection deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 (post-v1, blocked on S-OCSF-FIDELITY-CYBERINT-001). v1.12 (2026-08-29) — F-P1-LENSC2-001/002/003: §D8.2 `page_size` derivation comment extended to all early-stop-eligible modes (OffsetLimit + CursorToken); §D8.3 forward-reference anchor discharged; in-body version-pin sweep: 0 found. v1.11 (2026-08-28) — F-P31-LENSA-OBS-001: partial-final-page discriminator for early-stop signal (§D8.2, §D8.3, §D8.9); exact-limit/partial-final-page LIMIT query no longer emits self-contradictory `is_truncated: true` with `total_available == returned_results`. v1.10 (2026-08-28) — §D8.9 FetchOutput 3-field reconciliation + DI-019 propagation arm, F-P20-LENSC-MED-001. v1.9 (2026-08-28) — F-R16-P18-LENSA-MED-001 (DI-019 truncation-signal propagation gap): `PipelineResult.truncated` (DI-019 cap) was dropped at the adapter boundary; new §D8.10 threads `pipeline_truncated` through `FetchOutput → FanOutResult.any_pipeline_truncated → MaterializationOutput.any_pipeline_truncated`; cache-completeness gate updated to `errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`; engine Step 6 formula updated to `(total_rows > limit) || any_early_stopped || any_pipeline_truncated`; scheduled path `is_truncated: false` hardcode replaced by `any_early_stopped || any_pipeline_truncated` (F-R16-P18-LENSA-OBS-001 sibling-sweep); RG-PSG-035/036 required. v1.8 (2026-08-28) — F-R16-P16-LENSA-HIGH-001: source-scoped `datetime_index_cols` via `resolved_col_map` (§D8.9); F-R16-P16-LENSA-LOW-001: reversed-operand prohibition explicit in `is_pushed_temporal_predicate` (§D8.7); F-R16-P16-LENSB-LOW-001: Condition K multi-INDEX-datetime conservative suppression (§D8.7); structural-reuse `collect_datetime_index_cols` helper; RG-PSG-032/033/030b required. v1.7 (2026-08-28) — AND-arm direction-count constraint (§D8.7) + OCSF-name gap in `datetime_index_cols` (§D8.9). v1.6: ADR-059 citation reframe. v1.5 (2026-08-27) — Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate`; `Ast::Filter` + `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where`; `expr_contains_aggregate_or_window` catch-all `_ => false` → `_ => true`; `any_early_stopped` truncation-signal chain added (§D8.9). v1.4: Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
+ACCEPTED v1.14 (2026-08-29) — F-P1B-LENSC2-001/002: §D8.4 TD-VSDD-097 Dim-3 note updated (S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 now registered in STORY-INDEX, deferral anchored to existing story, prohibitive MUST active); §D8.7 heading volatile version stamp removed; POL-39 sweep: ~14 normative in-body version pins anchor-ized across §D8.7/§D8.9; ~6 decision-history version refs preserved as intentional with convention note added to §D8.7. v1.13 (2026-08-29) — F-FP1-LENSA-001 DECISION (B): cursor page-fill discriminator is unsound — revert + narrow + anchor. §D8.2 code comment: CursorToken collapsed to `_ => 0` catch-all (removes `CursorToken { page_size: Some(ps) } => ps as usize` arm added v1.12); comment variable renamed `active_page_size` (was `page_size`) throughout to match §D8.4 + ratified impl naming (F-FP1-LENSC2-002). §D8.4: CursorToken narrowed to conservative-only across ALL sub-cases; rationale: page-fill is NOT a valid cursor exhaustion signal (partial cursor page + non-empty next cursor = more data exists — under-report is the DANGEROUS direction); all CursorToken → `active_page_size = 0` → `early_stopped = true` (safe over-report); precise next-cursor-presence-based detection deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 (post-v1, blocked on S-OCSF-FIDELITY-CYBERINT-001). v1.12 (2026-08-29) — F-P1-LENSC2-001/002/003: §D8.2 `page_size` derivation comment extended to all early-stop-eligible modes (OffsetLimit + CursorToken); §D8.3 forward-reference anchor discharged; in-body version-pin sweep: 0 found. v1.11 (2026-08-28) — F-P31-LENSA-OBS-001: partial-final-page discriminator for early-stop signal (§D8.2, §D8.3, §D8.9); exact-limit/partial-final-page LIMIT query no longer emits self-contradictory `is_truncated: true` with `total_available == returned_results`. v1.10 (2026-08-28) — §D8.9 FetchOutput 3-field reconciliation + DI-019 propagation arm, F-P20-LENSC-MED-001. v1.9 (2026-08-28) — F-R16-P18-LENSA-MED-001 (DI-019 truncation-signal propagation gap): `PipelineResult.truncated` (DI-019 cap) was dropped at the adapter boundary; new §D8.10 threads `pipeline_truncated` through `FetchOutput → FanOutResult.any_pipeline_truncated → MaterializationOutput.any_pipeline_truncated`; cache-completeness gate updated to `errors.is_empty() && !any_early_stopped && !any_pipeline_truncated`; engine Step 6 formula updated to `(total_rows > limit) || any_early_stopped || any_pipeline_truncated`; scheduled path `is_truncated: false` hardcode replaced by `any_early_stopped || any_pipeline_truncated` (F-R16-P18-LENSA-OBS-001 sibling-sweep); RG-PSG-035/036 required. v1.8 (2026-08-28) — F-R16-P16-LENSA-HIGH-001: source-scoped `datetime_index_cols` via `resolved_col_map` (§D8.9); F-R16-P16-LENSA-LOW-001: reversed-operand prohibition explicit in `is_pushed_temporal_predicate` (§D8.7); F-R16-P16-LENSB-LOW-001: Condition K multi-INDEX-datetime conservative suppression (§D8.7); structural-reuse `collect_datetime_index_cols` helper; RG-PSG-032/033/030b required. v1.7 (2026-08-28) — AND-arm direction-count constraint (§D8.7) + OCSF-name gap in `datetime_index_cols` (§D8.9). v1.6: ADR-059 citation reframe. v1.5 (2026-08-27) — Temporal-exemption soundness redesign (§D8.9): `is_pushed_temporal_predicate` replaces `is_purely_temporal_predicate`; `Ast::Filter` + `PipeStage::Where` unconditionally SUPPRESS in `has_client_side_where`; `expr_contains_aggregate_or_window` catch-all `_ => false` → `_ => true`; `any_early_stopped` truncation-signal chain added (§D8.9). v1.4: Subsystem-anchoring correction: SS-11 + SS-07 added. v1.3: Comprehensive plan-shape surface audit. §D8.7 closes F-R12-CRIT-001
 (aggregate recursion gap) and F-R12-HIGH-001 (JOIN not suppressed), plus six additional gaps
 discovered by exhaustive grammar enumeration: ORDER BY aggregate escapes Condition A; Condition G
 was based on `where_filters` (equality push-down map) which is always empty for `Ast::Filter` mode
@@ -252,10 +252,11 @@ BEFORE breaking; if a non-empty next cursor exists → `early_stopped = true`; i
 delivery). Implementer MUST NOT add a `CursorToken { page_size: Some(ps) } => ps as usize`
 arm to the `active_page_size` derivation in `execute_impl` before `S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001`
 ships; any such arm introduces the unsound under-report identified in F-FP1-LENSA-001.
-**TD-VSDD-097 Dim-3 note:** `S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001` does not yet exist;
-story-writer MUST create a draft stub to discharge the Dim-3 mandate-anchor requirement for this
-deferral. Until that story ID is registered in STORY-INDEX, this MUST is a soft prohibitive
-constraint enforced by this ADR text and adversarial review, not by a Red Gate test.
+**TD-VSDD-097 Dim-3 (DISCHARGED):** `S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001` exists and is
+registered in STORY-INDEX (v1.0 draft; blocked_by `S-OCSF-FIDELITY-CYBERINT-001`). The
+prohibitive MUST above (do not add a `CursorToken { page_size: Some(ps) } => ps as usize` arm
+before that story ships) is anchored to the registered draft story
+`S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001`. TD-VSDD-097 Dim-3 mandate-anchor: DISCHARGED.
 
 It does NOT apply to `PaginationConfig::None` (single-page fetch; no loop to terminate early)
 or to the 10K DI-019 cap (which remains unchanged and fires before D8 when applicable).
@@ -281,7 +282,7 @@ configured timeout). This is architecturally independent of D8 and adds complexi
 parameterized by the overlay timeout. The PipelineExecutor receives the correctly-configured
 client; no change to `FetchContext` needed.
 
-### D8.7 — Plan-Shape Gate for Early-Stop Suppression (v1.3 — Comprehensive Audit)
+### D8.7 — Plan-Shape Gate for Early-Stop Suppression
 
 #### Problem
 
@@ -352,7 +353,7 @@ Every expressible plan shape classified as SUPPRESS (early-stop off) or PERMIT (
 | SQL DML (INSERT/UPDATE/DELETE) | SUPPRESS | Default posture: DML uses `write_pipeline.rs`, not `run_materialization_pipeline`; gate result is irrelevant but must safely return SUPPRESS for any path that reaches it |
 | Unknown/future `Ast` variant | SUPPRESS | Conservative default: `_ => true` catch-all |
 | Unknown/future `PipeStage` variant | SUPPRESS | Conservative default: stage loop falls through to SUPPRESS |
-| Any queried source table with ≥2 Datetime+INDEX columns | SUPPRESS | Condition K (v1.8): `count_temporal_bound_directions` does not track per-column direction; single-datetime-INDEX-per-table invariant enforced structurally |
+| Any queried source table with ≥2 Datetime+INDEX columns | SUPPRESS | Condition K: `count_temporal_bound_directions` does not track per-column direction; single-datetime-INDEX-per-table invariant enforced structurally |
 
 #### Enforcement Site
 
@@ -369,16 +370,16 @@ passed to `ast_is_reducing_plan`. The gate performs its own AST inspection for c
 predicate detection. `where_filters` continues to be computed and used for push-down and cache
 key derivation; it is simply not forwarded to the gate.
 
-#### Gate Function Signature (v1.3)
+#### Gate Function Signature
 
 ```
 pub(crate) fn ast_is_reducing_plan(ast: &Ast) -> bool
 ```
 
-The `where_filters: &FilterMap` parameter present in v1.2 is REMOVED. The gate was never
-correctly reading Filter-mode or Pipe-mode predicates via `extract_push_down_filters_as_map`
-(that function only processes `Ast::Sql` and `Ast::SqlPipe` head WHERE; it returns an empty map
-for Filter and Pipe modes). The gate must perform its own AST walk via `has_client_side_where`.
+The `where_filters: &FilterMap` parameter is absent; the gate performs its own AST walk via
+`has_client_side_where`. (Decision history: `extract_push_down_filters_as_map` was never correct
+for Filter-mode or Pipe-mode predicates — that function only processes `Ast::Sql` and
+`Ast::SqlPipe` head WHERE; it returned an empty map for Filter and Pipe modes.)
 
 #### Supporting Function: `expr_contains_aggregate_or_window`
 
@@ -436,7 +437,7 @@ Only temporal range predicates on INDEX datetime columns with concrete `Literal:
 as determined by `is_pushed_temporal_predicate(pred, datetime_index_cols)` (§D8.9), are
 guaranteed server-side for `Ast::Sql` and `Ast::SqlPipe` head WHERE. **`Ast::Filter` predicates
 and `Ast::Pipe / Ast::SqlPipe` pipe-stage WHERE predicates are ALWAYS client-side regardless of
-predicate form** (v1.5 unconditional suppression; see arm descriptions below). All other
+predicate form** (unconditional suppression; see arm descriptions below). All other
 predicate forms — equality comparisons, IN lists, `InSubquery`, CONTAINS/STARTSWITH/ENDSWITH
 (StringOp), BETWEEN, CIDR, Regex, Has, Missing, IsNull, Wildcard, and any logical combinations
 — are client-side.
@@ -461,7 +462,7 @@ predicate forms — equality comparisons, IN lists, `InSubquery`, CONTAINS/START
 
 - `Ast::Pipe(pipe)`: returns `true` UNCONDITIONALLY whenever any `PipeStage::Where(_)` is
   present in `pipe.stages`, regardless of predicate form. Pipe `| where` stages push NOTHING
-  server-side; `PipeStage::Where` is removed from the PERMIT allow-list in v1.5. The v1.3
+  server-side; `PipeStage::Where` is not in the PERMIT allow-list. The v1.3
   `!is_purely_temporal_predicate(pred)` check for this arm was UNSOUND because `Ast::Pipe`
   predicates are never resolved server-side by `extract_time_bounds_from_predicate`; closes
   F-R15-LENSA-CRIT-001 (pipe-mode path). Note: the v1.2 `where_filters` approach was also
@@ -469,8 +470,8 @@ predicate forms — equality comparisons, IN lists, `InSubquery`, CONTAINS/START
 
 - `Ast::SqlPipe(spq)`: returns `true` iff (`spq.head.where_` is present AND
   `!is_pushed_temporal_predicate(where_pred, datetime_index_cols)`) OR any `PipeStage::Where(_)`
-  is present in `spq.stages` (pipe-WHERE stages are unconditionally suppressed in v1.5;
-  see `Ast::Pipe` arm rationale above).
+  is present in `spq.stages` (pipe-WHERE stages are unconditionally suppressed; see `Ast::Pipe`
+  arm rationale above).
 
 - `Ast::Sql(SqlStatement::Dml(_))` and `_ =>`: returns `false` (DML does not use this
   pipeline; unknown variants handled by the outer gate's `_ => true` catch-all).
@@ -495,7 +496,7 @@ time expressions evaluated post-fetch) and non-INDEX datetime columns.
 
 **Reversed-operand form (`Literal::Timestamp OP Field`) returns `false` (SUPPRESS):** A predicate where a `Literal::Timestamp` appears on the LHS and a `Field` appears on the RHS is NOT permitted. `extract_time_bounds_from_predicate` (ADR-033 T1) only processes predicates where `lhs` is `Expr::Field`; the reversed form is not extracted server-side and remains client-side. The gate MUST mirror the extractor: only Field-on-LHS predicates receive PERMIT. This form is grammar-unreachable in the PrismQL parser today (latent), but any code path permitting reversed operands is unsound in the PERMIT direction — it would classify a DataFusion-client-side filter as server-pushed, enabling early-stop against an unfiltered server result set. (F-R16-P16-LENSA-LOW-001)
 
-**`Predicate::Logical { op: AND, predicates }`:** Two-step check (v1.7 — replaces single-step `all()` of v1.5/v1.6):
+**`Predicate::Logical { op: AND, predicates }`:** Two-step check:
 
 **Step 1 — all leaves individually pushed:** `predicates.iter().all(|p| is_pushed_temporal_predicate(p, datetime_index_cols))` must return `true`. Catches non-range operators, non-INDEX datetime columns, and relative-expression RHS in any leaf.
 
@@ -503,7 +504,7 @@ time expressions evaluated post-fetch) and non-INDEX datetime columns.
 
 **Rationale:** `extract_time_bounds_from_predicate` uses first-wins semantics: the first Gt/Ge on any INDEX datetime column sets `start_time`; the first Lt/Le sets `end_time`; any subsequent same-direction bound is silently skipped server-side and applied by DataFusion client-side post-fetch. A predicate tree with two Gt/Ge bounds (e.g., `col > X AND col > Y`) passes Step 1 (each leaf individually satisfies the three preconditions) but fails Step 2 — `lower = 2 > 1` → SUPPRESS. Without Step 2, such a tree was incorrectly classified PERMIT → server fetches page 1 filtered by the first bound; DataFusion applies the second bound; rows satisfying only the first but not the second produce zero hits, though matching rows exist on unfetched pages (silent LIMIT under-return). **`count_temporal_bound_directions` MUST NOT be inlined into `is_pushed_temporal_predicate`'s own recursion; it is a standalone private helper in `materialization.rs` that walks only the AND-tree spine**, to avoid double-counting from nested recursion through individual leaf checks.
 
-**Canonical PERMIT case:** `timestamp >= X AND timestamp < Y` → lower=1, upper=1 → Step 1 passes, Step 2 passes → PERMIT (unchanged from v1.5). **Canonical SUPPRESS case (new):** `timestamp > X AND timestamp > Y` → lower=2 > 1 → SUPPRESS. **Multi-column case:** `created_at >= X AND updated_at < Y` (two different INDEX datetime cols) → lower=1, upper=1 → PERMIT (extract_time_bounds_from_predicate extracts start from created_at and end from updated_at; both fully consumed).
+**Canonical PERMIT case:** `timestamp >= X AND timestamp < Y` → lower=1, upper=1 → Step 1 passes, Step 2 passes → PERMIT. **Canonical SUPPRESS case:** `timestamp > X AND timestamp > Y` → lower=2 > 1 → SUPPRESS. **Multi-column case:** `created_at >= X AND updated_at < Y` (two different INDEX datetime cols) → lower=1, upper=1 → PERMIT (extract_time_bounds_from_predicate extracts start from created_at and end from updated_at; both fully consumed).
 
 **All other predicates return `false` (SUPPRESS):**
 - Temporal equality (`Eq` operator): not range-extractable
@@ -519,7 +520,7 @@ time expressions evaluated post-fetch) and non-INDEX datetime columns.
 holds:
 
 **Condition A — Aggregation or window function in SELECT items or ORDER BY expressions
-(revised from v1.2; closes F-R12-CRIT-001):**
+(closes F-R12-CRIT-001):**
 - Any `SelectItem::Expr { expr, .. }` in `select.items` (SQL) or `head.select.items` (SqlPipe)
   where `expr_contains_aggregate_or_window(expr)` returns `true`.
 - Any `OrderExpr { expr, .. }` in `order_by` (SQL or SqlPipe head) where
@@ -529,26 +530,26 @@ holds:
   parseable in ORDER BY position.
 - Applies to: `Ast::Sql(SqlStatement::Select(sql))` and `Ast::SqlPipe(spq)` (head).
 
-**Condition B — GROUP BY (unchanged from v1.2):**
+**Condition B — GROUP BY:**
 `sql.group_by.is_empty() == false` (or `spq.head.group_by`). GROUP BY groups across the full
 dataset; early-stop yields incorrect group membership and counts.
 
-**Condition C — DISTINCT (unchanged from v1.2):**
+**Condition C — DISTINCT:**
 `sql.select.distinct == true` (or `spq.head.select.distinct`). De-duplication requires a full
 dataset scan; early-stop produces false-unique results.
 
-**Condition D — HAVING (unchanged from v1.2):**
+**Condition D — HAVING:**
 `sql.having.is_some()` (or `spq.head.having`). HAVING always implies post-aggregation filtering.
 Conservatively suppresses even `HAVING non_agg_expr` (which is unusual SQL), because HAVING is
 semantically coupled to GROUP BY / aggregation and full-dataset evaluation.
 
-**Condition E — Pipe Stats stage (unchanged from v1.2):**
+**Condition E — Pipe Stats stage:**
 Any `PipeStage::Stats(_)` in `pipe.stages` or `spq.stages`. Aggregation requires full dataset.
 
-**Condition F — Pipe Dedup stage (unchanged from v1.2):**
+**Condition F — Pipe Dedup stage:**
 Any `PipeStage::Dedup(_)` in `pipe.stages` or `spq.stages`. Deduplication requires full dataset.
 
-**Condition G — Client-side WHERE predicate (revised from v1.2):**
+**Condition G — Client-side WHERE predicate:**
 `has_client_side_where(ast)` returns `true`. This replaces the insufficient
 `!where_filters.is_empty()` check. The old check failed for three cases: (1) `Ast::Filter` mode
 (always returned empty `where_filters`), (2) `Ast::Pipe` stages (always returned empty
@@ -585,7 +586,7 @@ Note: `pipe_sql_emitter.rs` currently returns an error for `PipeStage::Join` (no
 ENRICH-4-C), so this condition is defensive and future-proof. When Pipe Join is implemented, the
 gate MUST already suppress early-stop for it.
 
-**Condition K — Multi-INDEX-datetime conservative suppression (v1.8; F-R16-P16-LENSB-LOW-001):**
+**Condition K — Multi-INDEX-datetime conservative suppression (F-R16-P16-LENSB-LOW-001):**
 When `collect_datetime_index_cols` (§D8.9) returns `suppress_multi_index = true` — at least one
 source table in the queried `source_names` exposes ≥2 Datetime+INDEX columns — `fetch_limit = 0`
 (SUPPRESS) regardless of other gate results.
@@ -605,7 +606,7 @@ the column name set (§D8.9). If any source in `resolved_col_map` contributes �
 the helper sets `suppress_multi_index = true` in its return tuple. The call site in
 `run_materialization_pipeline` checks this flag and short-circuits to `fetch_limit = 0`.
 
-#### Conservative Default Posture (new in v1.3)
+#### Conservative Default Posture
 
 The `Ast` enum, `PipeStage` enum, and `FuncCall` enum are all `#[non_exhaustive]`. New variants
 may be added without a compile error in the gate's `match` arm. The default posture is:
@@ -642,7 +643,7 @@ IMPORTANT: `ORDER BY aggregate_fn(col)` WITHOUT GROUP BY DOES suppress early-sto
 Condition A (aggregate in ORDER BY). The non-suppression applies only to ORDER BY expressions
 that contain no aggregate or window function.
 
-#### Gate Application in `run_materialization_pipeline` (v1.3)
+#### Gate Application in `run_materialization_pipeline`
 
 ```
 // Plan-shape gate (ADR-060 §D8.7): suppress early-stop for reducing plans.
@@ -659,6 +660,8 @@ The `0` sentinel flows unchanged through the existing pipeline:
   `if params.limit == 0 { None }` mapping in `spec_driven_adapter.rs`)
 - `FetchContext::early_stop_limit = None` → early-stop check in `execute_impl` does not fire
 - Full pagination proceeds up to the DI-019 10K cap, as before this story
+
+**§D8.7 POL-39 decision-history convention:** "v1.N" references in the arm descriptions above (e.g., "was UNSOUND and is removed in v1.5", "replaces the v1.2 check", "was INCORRECT for this mode") are intentional intra-ADR decision-history prose documenting the gate's design evolution — they are NOT normative version pins and are POL-39-exempt; do not re-mint findings against them.
 
 ### D8.8 — Single-Binding Coherence with Plan-Shape Gate
 
@@ -801,7 +804,7 @@ sensor spec. Construction MUST mirror `extract_time_window_from_ast`'s `datetime
 (ADR-033 T1 / ADR-058 §I6) — both functions determine which column names receive server-side
 temporal push-down; they must agree on the set.
 
-**Construction rules (v1.8):** Use the source-scoped `resolved_col_map` built by
+**Construction rules:** Use the source-scoped `resolved_col_map` built by
 `build_source_column_map(spec_map, source_names)` — already computed earlier in
 `run_materialization_pipeline` for the push-down path. Do NOT iterate
 `resolved_spec_map.values()`, which spans all sensors regardless of the current query's
@@ -854,7 +857,7 @@ Armis — and PERMIT early-stop. The push-down extractor (`extract_time_window_f
 source-scoped) correctly excluded CrowdStrike `last_seen` from push-down. DataFusion applied the
 `WHERE last_seen > '...'` filter client-side against an early-stopped page set → silent under-return.
 
-**OCSF-name gap (preserved from v1.7):** `extract_time_window_from_ast` registers the OCSF Arrow
+**OCSF-name gap:** `extract_time_window_from_ast` registers the OCSF Arrow
 name `"time"` when `ocsf_column_naming = true` (ADR-058 §I6). A query `WHERE time > '...' LIMIT n`
 on claroty.audit_logs is therefore pushed server-side. The construction rules above include this
 registration; `collect_datetime_index_cols` implements it for both the gate and push-down sites.
@@ -1122,6 +1125,7 @@ Closed by v1.8 Condition K: conservative suppression when `collect_datetime_inde
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.14 | 2026-08-29 | architect | F-P1B-LENSC2-001: §D8.4 TD-VSDD-097 Dim-3 note updated — S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 now exists and is registered in STORY-INDEX (v1.0 draft, blocked_by S-OCSF-FIDELITY-CYBERINT-001); prohibitive MUST anchored to registered story; "does not yet exist / MUST create" language removed; Dim-3 status: DISCHARGED. F-P1B-LENSC2-002: (1) §D8.7 heading volatile stamp `(v1.3 — Comprehensive Audit)` removed; (2) POL-39 in-body sweep — 20 normative version pins anchor-ized: `#### Gate Function Signature (v1.3)`, `where_filters present in v1.2 is REMOVED`, `(v1.5 unconditional suppression)`, Pipe-arm `removed from PERMIT allow-list in v1.5`, SqlPipe-arm `unconditionally suppressed in v1.5`, `Two-step check (v1.7 — replaces single-step all() of v1.5/v1.6)`, Condition A `(revised from v1.2)`, Conditions B/C/D/E/F `(unchanged from v1.2)` labels (×5), Condition G `(revised from v1.2)`, shape-table Condition K `(v1.8)`, Condition K header `(v1.8)`, `#### Conservative Default Posture (new in v1.3)`, `#### Gate Application (v1.3)`, `**Construction rules (v1.8)**`, `**OCSF-name gap (preserved from v1.7)**`, canonical-PERMIT `(unchanged from v1.5)`; ~6 decision-history version refs preserved as intentional; §D8.7 POL-39 convention note added. |
 | 1.13 | 2026-08-29 | architect | F-FP1-LENSA-001 DECISION (B): cursor page-fill discriminator unsound — revert + narrow + anchor. §D8.2: CursorToken unified under `_ => 0` catch-all (removes `CursorToken { page_size: Some(ps) } => ps as usize` arm from v1.12); comment variable renamed `active_page_size` (was `page_size`) throughout §D8.2 to match §D8.4 + ratified impl naming (F-FP1-LENSC2-002 naming fix). §D8.4: CursorToken narrowed to conservative-only across ALL sub-cases; removes the `Some(ps)` precise arm; rationale: page-fill is NOT a valid cursor exhaustion signal (partial cursor page with non-empty next cursor means more data exists — under-report is DANGEROUS); all CursorToken → `active_page_size = 0` → `early_stopped = true` (safe over-report); precise next-cursor-presence detection deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 (post-v1, blocked on S-OCSF-FIDELITY-CYBERINT-001). No v1 sensor uses cursor pagination; zero v1 behavioral impact. TD-VSDD-097 Dim-3: deferral anchored to real story ID S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001. |
 | 1.12 | 2026-08-29 | architect | F-P1-LENSC2-003 DECISION (A) code-extension: §D8.2 `page_size` derivation comment extended — `OffsetLimit { page_size } => page_size as usize`; `CursorToken { page_size: Some(ps) } => ps as usize`; `CursorToken { page_size: None } \| _ => 0` (conservative full-page). §D8.4 extended to document the `None` fallback and the precise partial-final-page discriminator semantics for CursorToken. §D8.4 decision text unchanged — already correctly declared both modes. F-P1-LENSC2-001 (TD-VSDD-097 Dim-3): §D8.3 forward-reference "will be added" replaced with discharged anchor `AC-014 + RG-PSG-039 + RG-PSG-040 (S-ENGINE-LIMIT-EARLY-STOP-001), GREEN`. F-P1-LENSC2-002 (POL-39 sweep): 0 in-body artifact-version pins found/stripped in ADR-060 body prose; BC-version refs in §Changelog rows are EXEMPT. |
 | 1.11 | 2026-08-28 | architect | F-P31-LENSA-OBS-001 (human-approved Option 2 refinement). Introduced **partial-final-page discriminator** for `PipelineResult.early_stopped`: when the §D8.2 break fires and the triggering page was partial (`page_record_count < page_size`), source is exhausted — `early_stopped = false`; when the page was full (`>= page_size`), more pages may exist — `early_stopped = true` (unchanged for full-page case, including exact-full-page corner treated conservatively). Closes self-contradictory `is_truncated: true` + `total_available == returned_results` on exact-limit / partial-final-page queries (e.g., `LIMIT 5` on a 5-row tenant). §D8.2 code sketch updated with discriminator capture; §D8.3 post-break semantics redesigned with discriminator rule + three worked examples (partial-exhausted → `is_truncated: false`; full-page normal → `is_truncated: true`; exact-full-page corner → `is_truncated: true` accepted conservative). §D8.9 Motivation updated; `PipelineResult.early_stopped` description updated; Step 6 formula commentary extended with partial-page CLEAN arm; `total_available` lower-bound note clarified (exact when both signals false). Engine Step 6 `is_truncated` formula (code) UNCHANGED — discriminator operates by setting `early_stopped = false` at source, not by changing formula. Anchor story S-ENGINE-LIMIT-EARLY-STOP-001; story-writer/test-writer add new AC + Red Gate test. Downstream sweep required: BC-2.11.001 §EC-11-092 (Step 6 formula commentary), BC-2.16.002 §Postconditions LIMIT-Aware Early-Stop arm. |

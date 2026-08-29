@@ -8,11 +8,49 @@ timestamp: 2026-08-29T13:00:00Z
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2358 (2026-08-29): LOCAL cascade fresh-pass-1 fix-burst — cursor arm REVERT (ADR-060 §D8.4 OffsetLimit-only). Feature @30e794b2c PUSHED (frozen). BC-5.39.001 LOCAL streak RESET 0/3 (code change). Fresh 4-lens pass-2 pending on @30e794b2c. [D-2356 SUPERSEDED by D-2358]**
+> **D-2359 (2026-08-29): pass-1 records micro-burst COMPLETE (TD-VSDD-096) — ADR-060 v1.13→v1.14 (§D8.4 Dim-3 note discharged; §D8.7 pin sweep); stub story v1.0→v1.1; ARCH-INDEX v2.353; STORY-INDEX v2.941. NO code change. Feature @30e794b2c FROZEN UNCHANGED. BC-5.39.001 streak 0/3. Fresh full 4-lens cascade pass-1 pending on @30e794b2c + specs @ ADR-060 v1.14. [D-2358 SUPERSEDED by D-2359]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2358 (2026-08-29 — fresh-pass-1 fix-burst COMPLETE; cursor arm REVERT; ADR-060 §D8.4 OffsetLimit-only; LIMIT feature @30e794b2c FROZEN; streak 0/3; fresh pass-2 pending)
+## §RESUME SNAPSHOT — D-2359 (2026-08-29 — pass-1 records micro-burst COMPLETE; ADR-060 v1.14; ARCH-INDEX v2.353; STORY-INDEX v2.941; LIMIT feature @30e794b2c FROZEN CODE UNCHANGED; streak 0/3; fresh 4-lens cascade pass-1 pending)
+
+### RESUME IN ONE BREATH
+Prism Phase-3 (brownfield, cycle wave-5-e-demo-fidelity), v1 = live Claroty xDome. Story S-ENGINE-LIMIT-EARLY-STOP-001: pass-1 records micro-burst COMPLETE (TD-VSDD-096) — 3 records/consistency findings fixed (F-P1B-LENSC2-001/002/003; NO code/mechanism change). ADR-060 v1.13→v1.14 (§D8.4 stale Dim-3 note discharged; §D8.7 stale heading + 20 normative version-pins anchor-ized). stub story S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 v1.0→v1.1 (§Authority quote reframed). Feature HEAD @30e794b2c FROZEN UNCHANGED (PUSHED; just check 5880/5880 exit 0 still valid). BC-5.39.001 LOCAL streak 0/3 (spec perimeter changed; fresh-3-CLEAN re-gates on @30e794b2c + specs @ ADR-060 v1.14).
+
+### PERIMETER (frozen)
+ADR-060 v1.14 (§D8.4 OffsetLimit-only `_ => 0` conservative; active_page_size; §D8.7 gate A–K; §D8.10 DI-019 chain) / ADR-061 v1.2 / BC-2.16.002 v2.51 (EC-01-030..041) / BC-2.11.001 v1.30 (EC-11-092 FULL arm + EC-11-094 PARTIAL arm OffsetLimit-only) / BC-2.16.015 v1.8 draft / LIMIT story v1.36 (58 RGTs incl RG-PSG-039..043 + RG-SLUG-001..006; 14 ACs incl AC-014 OffsetLimit-only) / stub story v1.1 — Indices: ARCH-INDEX v2.353 / BC-INDEX v9.81 / STORY-INDEX v2.941 / VP-INDEX v2.22.
+
+### NEXT ACTIONS (in order)
+1. Fresh full LOCAL 4-lens cascade pass-1 on UNCHANGED frozen HEAD @30e794b2c + specs @ ADR-060 v1.14: lens-A correctness/security (code CLEAN expected — cursor conservative revert SOUND), lens-B coverage/wire (lean grep-not-Read), lens-C1 version/index integrity, lens-C2 EXHAUSTIVE content sweep. Inject policies.yaml + SAP-1/2/3.
+2. 3× CLEAN(strict) on UNCHANGED @30e794b2c (frozen-HEAD rule; no pushes between counted passes) → LOCAL CONVERGED. Any finding → route to owner, fix-burst (records-only → TD-VSDD-096; content → full ceremony), advance HEAD, reset streak.
+3. LOCAL CONVERGED → STORY-LEVEL HOLDOUT GATE (HS-025..029; holdout-evaluator vs built binary, real MCP stdio + DTU, wire-level, BLOCKING) → demo-recorder per-AC → pr-manager 9-step PR → PR-LEVEL 3-CLEAN + security-reviewer → squash-merge → POL-14 (BC-2.16.002/BC-2.16.015 draft→active) → post-merge state burst.
+4. Unblock S-CLAROTY-VULNS-001 (@5aae6f0b3): after LIMIT merges + redeploys, re-run LIVE monroe xDome validation → merge VULNS.
+5. v1 RELEASE GATE: live xDome validation. Then G2–G6 wave (D-2357).
+
+### HEADS (backup boundary)
+- `develop`: `3f1e66179` (local==origin; clean).
+- `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
+- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: `30e794b2c` (PUSHED origin; FROZEN D-2358; story v1.36; 58 RGTs; streak 0/3; fresh 3-CLEAN pass-1 pending on @30e794b2c + specs @ ADR-060 v1.14).
+- `feature/S-CLAROTY-VULNS-001`: `5aae6f0b3` (PUSHED origin; 3-CLEAN CONVERGED round-5; HOLDOUT HS-024 PASS; merge HELD pending LIMIT).
+- Parked (do NOT touch): S-3.09 @`43c41389d` KEEP; W3-FIX-S307-001 @`fcab8717c` DIRTY.
+
+### BC-5.39.001 STREAK
+LIMIT LOCAL: 0/3 on frozen @30e794b2c (spec perimeter changed ADR-060 v1.14; frozen-HEAD rule; fresh 3-CLEAN pass-1 pending).
+
+### CASCADE OPERATIONS NOTES (carry forward)
+- Use the 4-lens split (C1 mechanical version/index + C2 EXHAUSTIVE content) with lean grep-not-Read discipline.
+- On resume, if any agent died mid-.factory-edit: ALWAYS `git -C .factory status` + verify frontmatter-vs-index-pin consistency BEFORE re-dispatching.
+- State-manager .factory bursts serialize. Adversary lenses are read-only: MAY run parallel to STATE.md-ONLY record burst, NOT parallel to index-touching burst.
+
+### STANDING DECISIONS (carry forward)
+(a) Human directive: keep grinding strict 3-CLEAN, no tooling change. (b) Autonomy grant D-989 in force: autonomous A→B→C strict convergence + auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit. (c) D-2357 G2–G6 endpoint expansion IN v1 scope; v1-blocking wave order LIMIT→VULNS→G2–G6.
+
+### DECISION-LOG DELTA (this burst)
+D-2359 (pass-1 records micro-burst: F-P1B-LENSC2-001 MED §D8.4 Dim-3 note discharged, F-P1B-LENSC2-002 MED §D8.7 stale heading + 20 version-pins anchor-ized, F-P1B-LENSC2-003 LOW stub-story §Authority quote; ADR-060 v1.13→v1.14; stub story v1.0→v1.1; ARCH-INDEX v2.352→v2.353; STORY-INDEX v2.940→v2.941; NO code change; feature HEAD 30e794b2c UNCHANGED; just check 5880 exit 0; BC-INDEX v9.81 UNCHANGED).
+
+---
+
+## §RESUME SNAPSHOT — D-2358 (2026-08-29 — fresh-pass-1 fix-burst COMPLETE; cursor arm REVERT; ADR-060 §D8.4 OffsetLimit-only; LIMIT feature @30e794b2c FROZEN; streak 0/3; fresh pass-2 pending) [SUPERSEDED by D-2359]
 
 ### RESUME IN ONE BREATH
 Prism Phase-3 (brownfield, cycle wave-5-e-demo-fidelity), v1 = live Claroty xDome. Story S-ENGINE-LIMIT-EARLY-STOP-001: LOCAL cascade fresh-pass-1 fix-burst COMPLETE — F-FP1-LENSA-001 cursor arm REVERT to conservative `_ => 0` (ADR-060 §D8.4 OffsetLimit-only; precise detection deferred to new draft story S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 v1.0); active_page_size rename + AC-014 sub-bullet removed. New frozen feature HEAD @30e794b2c (PUSHED; just check 5880/5880 exit 0). BC-5.39.001 LOCAL streak RESET 0/3 (code change; frozen-HEAD rule). NEXT: fresh full LOCAL 4-lens adversary cascade pass-2 on @30e794b2c.
