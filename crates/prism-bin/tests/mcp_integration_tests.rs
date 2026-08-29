@@ -47,6 +47,8 @@
     unused_imports
 )]
 
+extern crate toml;
+
 use std::sync::{
     Arc,
     atomic::{AtomicU64, Ordering},
@@ -1072,5 +1074,274 @@ async fn test_rg_slug_005_wire_cross_tenant_isolation_collision_resistant_cache_
         wire_text.contains("\"alpha-001\""),
         "SLUG-005 wire isolation control: wire output must also contain 'alpha-001' rows from \
          tenant-alpha. Got: {wire_text}."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RG-PSG-040: MCP wire-level partial-final-page is_truncated=false
+// ---------------------------------------------------------------------------
+
+/// RG-PSG-040 — AC-014 (BC-2.11.001 EC-11-094) wire-level: `prism_query` MCP
+/// `CallToolResult.content[0].text` JSON carries `"is_truncated":false` for a
+/// `LIMIT 5` query where the sensor returns exactly 5 records on a page_size=1000
+/// spec (PARTIAL final page — page_record_count=5 < page_size=1000).
+///
+/// ## What this test verifies (ADR-060 §D8.2 discriminator, wire surface)
+///
+/// Uses a REAL `SpecDrivenSensorAdapter` backed by wiremock so the pipeline
+/// traverses `PipelineExecutor::execute_impl` — the production code path that
+/// contains the partial-final-page discriminator bug.  A pure mock adapter that
+/// hardcodes `any_early_stopped` would not automatically turn GREEN when
+/// `pipeline.rs` is fixed; this test does.
+///
+/// ## Execution chain (RED state, pre-discriminator)
+///
+/// 1. Query `SELECT * FROM rg040sensor_items LIMIT 5` → fetch_limit = 5.
+/// 2. `SpecDrivenSensorAdapter::fetch` → `PipelineExecutor::execute_impl`
+///    with `early_stop_limit = Some(5)`, `page_size = 1000`.
+/// 3. wiremock returns 5 records (PARTIAL: page_record_count=5 < page_size=1000).
+/// 4. `all_records.len() (5) >= early_stop_limit (5)` → early-stop fires → BREAK.
+/// 5. Current code: `early_stopped = true` (unconditional) → `any_early_stopped = true`.
+/// 6. Engine Step 6: `is_truncated = (5 > 5) OR true = true`.
+/// 7. Wire JSON: `"is_truncated":true`.
+/// 8. Assertion `contains("\"is_truncated\":false")` → **FAILS** → RED gate.
+///
+/// ## Execution chain (GREEN state, post-discriminator, ADR-060 §D8.2)
+///
+/// 5. Fix: `early_stopped = (page_record_count(5) >= page_size(1000)) = false`.
+/// 6. `any_early_stopped = false` → `is_truncated = (5 > 5) OR false = false`.
+/// 7. Wire JSON: `"is_truncated":false`.
+/// 8. Assertion → **PASSES**.
+///
+/// ## SAP-3 compliance
+///
+/// Reaches `PrismServer::query` end-to-end from a SQL query string, through
+/// `SpecDrivenSensorAdapter` → `PipelineExecutor::execute_impl` (not a synthetic
+/// AST or direct pipeline call).
+///
+/// ## Traces
+///
+/// - BC-2.11.001 EC-11-094 (PARTIAL-final-page wire arm)
+/// - BC-2.16.002 EC-01-041 (PARTIAL-final-page pipeline arm)
+/// - AC-014 of S-ENGINE-LIMIT-EARLY-STOP-001
+/// - ADR-060 §D8.2
+#[tokio::test]
+async fn test_psg_rg040_partial_final_page_is_truncated_false_wire() {
+    use prism_bin::spec_driven_adapter::{AdapterAuthStrategy, SpecDrivenSensorAdapter};
+    use prism_core::column::ColumnType;
+    use prism_sensors::BearerStaticSensorAuth;
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{
+            AuthType, ColumnSpec, FetchStep, PaginationConfig, SensorSpec as PeSensorSpec,
+            TableSpec,
+        },
+    };
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
+
+    // -----------------------------------------------------------------------
+    // BearerStaticCredentialResolver: resolves to BearerStaticSensorAuth.
+    //
+    // `SpecDrivenSensorAdapter` with `AdapterAuthStrategy::BearerStatic`
+    // downcasts `&dyn SensorAuth` to `BearerStaticSensorAuth` in its fetch impl.
+    // `StubCredentialResolver` (used elsewhere in this file) returns `TestStubAuth`,
+    // which would fail that downcast with a SensorError::Internal.  A dedicated
+    // resolver is required for BearerStatic adapters.
+    // -----------------------------------------------------------------------
+    struct BearerStaticCredentialResolver;
+    impl CredentialResolver for BearerStaticCredentialResolver {
+        fn resolve(
+            &self,
+            _client_id: &str,
+            _sensor_id: SensorId,
+        ) -> Result<Box<dyn SensorAuth>, SensorError> {
+            Ok(Box::new(BearerStaticSensorAuth::new("rg040-test-token")))
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // wiremock: page_size=1000, returns exactly 5 records (PARTIAL page).
+    // -----------------------------------------------------------------------
+    let mock_server = MockServer::start().await;
+
+    // Single data page: 5 records.
+    //   PARTIAL: page_record_count=5 < page_size=1000.
+    //   Cumulative: 5 >= early_stop_limit(5) → pipeline breaks after this page.
+    let partial_page: Vec<serde_json::Value> = (0u32..5)
+        .map(|i| serde_json::json!({"id": i.to_string()}))
+        .collect();
+
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": partial_page })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Terminal fallback (defensive — should NOT be reached; break fires after page 1).
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": [] })))
+        .mount(&mock_server)
+        .await;
+
+    // -----------------------------------------------------------------------
+    // Build SpecDrivenSensorAdapter:
+    //   sensor_id = "rg040sensor", table = "items", page_size = 1000.
+    //
+    // Query routing:
+    //   `sensor_id_from_table_name("rg040sensor_items")` → "rg040sensor" ✓
+    //   `queried_table_name = "rg040sensor_items".strip_prefix("rg040sensor_")` = "items" ✓
+    // -----------------------------------------------------------------------
+    let sensor_spec = PeSensorSpec::new(
+        "rg040sensor",
+        "RG-PSG-040 partial-final-page discriminator sensor",
+        AuthType::BearerStatic,
+        &mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
+            "items",
+            "security_finding",
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_items",
+                "GET",
+                "/items",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::OffsetLimit { page_size: 1000 }),
+            )],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+
+    // Build ResolvedSensorSpec via OverlayLoader — only external construction path
+    // (ResolvedSensorSpec is #[non_exhaustive]; struct literal syntax forbidden).
+    let overlay_toml = format!(
+        "extends = \"{}\"\ninstance_id = \"{}@{}\"",
+        sensor_spec.sensor_id, sensor_spec.sensor_id, "rg040-org"
+    );
+    let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+        .expect("RG-PSG-040: SensorInstanceOverlay TOML parse must succeed");
+    let resolved = OverlayLoader::merge_overlay_onto_type_spec(
+        &sensor_spec,
+        &overlay,
+        OrgSlug::new("rg040-org"),
+    );
+
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("RG-PSG-040: reqwest Client build must succeed");
+
+    let adapter: Arc<dyn prism_sensors::SensorAdapter> = Arc::new(SpecDrivenSensorAdapter::new(
+        Arc::new(resolved),
+        AdapterAuthStrategy::BearerStatic,
+        http_client,
+    ));
+
+    // -----------------------------------------------------------------------
+    // Register adapter and build engine with BearerStaticCredentialResolver.
+    // -----------------------------------------------------------------------
+    let org_id = OrgId::new();
+    let org_slug = OrgSlug::new_unchecked("rg040-org");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, adapter);
+
+    let adapter_arc = Arc::new(registry);
+    let credential_store: Arc<dyn CredentialStore> = Arc::new(NullCredentialStore);
+    let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
+    let client_registry = Arc::new(ClientRegistry::new(vec![org_slug]));
+    let config = QueryEngineConfig::default();
+    let engine = QueryEngine::new(
+        adapter_arc,
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        config,
+    )
+    .with_credential_resolver(Arc::new(BearerStaticCredentialResolver));
+
+    let server = PrismServer::new().with_query_engine(Arc::new(engine));
+
+    // -----------------------------------------------------------------------
+    // Query: SELECT * FROM rg040sensor_items LIMIT 5
+    //
+    // params.limit = 5 → fetch_limit = 5 → early_stop_limit = Some(5).
+    // wiremock returns 5 records (PARTIAL page, page_size=1000).
+    // -----------------------------------------------------------------------
+    let params: QueryToolParams = serde_json::from_value(serde_json::json!({
+        "query":         "SELECT * FROM rg040sensor_items LIMIT 5",
+        "clients":       ["rg040-org"],
+        "limit":         5u32,
+        "force_refresh": false
+    }))
+    .expect("RG-PSG-040: QueryToolParams must deserialize from known-field JSON object");
+
+    let call_result = server.query(Parameters(params)).await.expect(
+        "RG-PSG-040: PrismServer::query must return Ok(CallToolResult) for partial-page \
+         LIMIT 5 query against SpecDrivenSensorAdapter (Err here means an internal \
+         PrismError — check auth wiring or engine construction)",
+    );
+
+    // Precondition: wiremock must have been called (non-vacuous assertion).
+    let received = mock_server
+        .received_requests()
+        .await
+        .expect("wiremock: received_requests() must succeed");
+    assert!(
+        !received.is_empty(),
+        "RG-PSG-040 precondition: wiremock must have received at least 1 HTTP request \
+         (0 requests means the pipeline short-circuited before reaching the HTTP adapter \
+         and all wire assertions are vacuous). Check auth wiring or sensor ID routing."
+    );
+
+    // Extract the ACTUAL wire bytes from the real SafetyEnvelopeBuilder serialization.
+    let wire_text = call_result
+        .content
+        .first()
+        .and_then(|c| c.as_text())
+        .map(|t| t.text.clone())
+        .expect(
+            "RG-PSG-040: CallToolResult::structured must produce a text content[0] item \
+             (the serialized SafetyEnvelope JSON)",
+        );
+
+    // PRIMARY ASSERTION (RED gate driver — AC-014 / ADR-060 §D8.2 / BC-2.11.001 EC-11-094):
+    //
+    // RED  (pre-discriminator, current pipeline.rs):
+    //   `early_stopped = true` (unconditional when cumulative >= early_stop_limit)
+    //   → FetchOutput.any_early_stopped = true
+    //   → Engine Step 6: is_truncated = (total_rows(5) > limit(5)) OR true = true
+    //   → wire JSON: "is_truncated":true
+    //   → assertion `contains("\"is_truncated\":false")` → FAILS → RED gate.
+    //
+    // GREEN (post-discriminator, ADR-060 §D8.2):
+    //   `early_stopped = (page_record_count(5) >= page_size(1000)) = false`
+    //   → FetchOutput.any_early_stopped = false
+    //   → Engine Step 6: is_truncated = (5 > 5) OR false = false
+    //   → wire JSON: "is_truncated":false
+    //   → assertion PASSES.
+    assert!(
+        wire_text.contains("\"is_truncated\":false"),
+        "RG-PSG-040 (AC-014 RED gate — ADR-060 §D8.2 discriminator, wire-level): \
+         CallToolResult.content[0].text must contain \"is_truncated\":false when the \
+         final page is PARTIAL (page_record_count=5 < page_size=1000). \
+         Got wire JSON: {wire_text}. \
+         \n\nDiagnosis: Current pipeline.rs early-stop block sets `early_stopped = true` \
+         unconditionally when `all_records.len() >= early_stop_limit`, regardless of \
+         whether the final page was full or partial. \
+         Fix: `early_stopped = (page_record_count >= page_size)` (ADR-060 §D8.2). \
+         With 5 records on page_size=1000: `early_stopped = (5 >= 1000) = false` → \
+         any_early_stopped=false → is_truncated = (total_rows > limit) OR false = false."
     );
 }

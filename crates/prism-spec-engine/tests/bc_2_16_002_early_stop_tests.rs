@@ -15,6 +15,7 @@
 //! | EC-003 | early_stop_limit_equals_page_size_boundary                       | GREEN (cov)    | EC-003                 |
 //! | LOW-1  | early_stop_large_page_size_truncated_false                       | GREEN (cov)    | TV-BC-2.16.015-006     |
 //! | MULTI-PAGE | early_stop_multi_page_stops_after_second_page                | GREEN (cov)    | AC-003 ceil(N/page_size) |
+//! | PSG-039 | early_stop_partial_final_page_not_early_stopped                  | RED            | AC-014 / BC-2.16.002 EC-01-041 |
 //!
 //! RG-001 gates `FetchContext::new`: stub added @9530f3478 carries
 //!   `early_stop_limit: Option<usize>` and the matching constructor parameter.
@@ -934,5 +935,137 @@ async fn test_BC_2_16_002_early_stop_multi_page_stops_after_second_page() {
          page 2 (20 >= 15 → break). Page 3 must never be fetched. Got {} requests \
          (1=first-iteration-only bug; >=3=no-early-stop bug).",
         received.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RG-PSG-039 — AC-014 partial-final-page NOT early-stopped
+// ---------------------------------------------------------------------------
+
+/// RG-PSG-039 — AC-014 (BC-2.16.002 EC-01-041): pipeline-level unit verifying that a
+/// partial final page (page_record_count < page_size) does NOT set `early_stopped = true`,
+/// even when the cumulative record count first reaches the `early_stop_limit`.
+///
+/// ADR-060 §D8.2 discriminator:
+///   `early_stopped = page_record_count >= page_size`
+///   (FULL page → true; PARTIAL page → false)
+///
+/// ## Setup
+///
+/// - `early_stop_limit = Some(5)` — pipeline breaks when cumulative >= 5.
+/// - Mock server: `page_size = 1000`. Single response: 5 records
+///   (PARTIAL: `page_record_count=5 < page_size=1000`).
+/// - No second page needed: after 5 records, cumulative (5) >= early_stop_limit (5) → break.
+///
+/// ## Why this is RED (pre-discriminator implementation)
+///
+/// Current code (pipeline.rs early-stop block):
+/// ```text
+/// if let Some(limit) = context.early_stop_limit && all_records.len() >= limit {
+///     early_stopped = true;   // unconditional — wrong for partial pages
+///     break 'steps;
+/// }
+/// ```
+/// With 5 records and `early_stop_limit=Some(5)`:
+///   `all_records.len() (5) >= limit (5) = true` → sets `early_stopped = true` → breaks.
+///   Assertion `assert!(!result.early_stopped)` → **FAILS** → RED gate.
+///
+/// ## Why this is GREEN (post-discriminator, ADR-060 §D8.2)
+///
+/// After fix: `early_stopped = (page_record_count >= page_size) = (5 >= 1000) = false`.
+///   Still breaks (cumulative >= limit), but sets `early_stopped = false`.
+///   Assertion `assert!(!result.early_stopped)` → **PASSES**.
+///
+/// ## Traces
+///
+/// - BC-2.16.002 EC-01-041 (PARTIAL-final-page arm)
+/// - AC-014 of S-ENGINE-LIMIT-EARLY-STOP-001
+/// - ADR-060 §D8.2
+#[tokio::test]
+async fn test_BC_2_16_002_early_stop_partial_final_page_not_early_stopped() {
+    let mock_server = MockServer::start().await;
+
+    // 5 records: PARTIAL page (page_record_count=5 < page_size=1000).
+    // Cumulative after page 1: 5 >= early_stop_limit(5) → pipeline BREAKS.
+    // Discriminator: page_record_count(5) >= page_size(1000) = false → early_stopped = false.
+    let partial_page: Vec<serde_json::Value> = (0u32..5)
+        .map(|i| serde_json::json!({"id": i.to_string()}))
+        .collect();
+
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": partial_page })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Terminal fallback (defensive — must NOT be hit: break fires before requesting page 2).
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "items": [] })))
+        .mount(&mock_server)
+        .await;
+
+    // page_size = 1000 (Claroty-scale); early_stop_limit = 5.
+    let spec = make_get_offset_spec(&mock_server.uri(), 1000);
+    let table = spec.tables[0].clone();
+    let context = FetchContext::new(OrgSlug::new("rg039-org"), HashMap::new(), Some(5));
+    let http_client = make_http_client();
+    let auth_provider = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("RG-PSG-039: pipeline execute must return Ok (no HTTP error expected)");
+
+    // Precondition: exactly 5 records fetched (partial page).
+    assert_eq!(
+        result.records.len(),
+        5,
+        "RG-PSG-039 precondition: must fetch exactly 5 records (the partial page). \
+         Got {} records.",
+        result.records.len()
+    );
+
+    // Precondition: exactly 1 HTTP request (partial page triggers break; page 2 never hit).
+    let received = mock_server
+        .received_requests()
+        .await
+        .expect("wiremock: received_requests() must succeed");
+    assert_eq!(
+        received.len(),
+        1,
+        "RG-PSG-039 precondition: exactly 1 HTTP request expected (break fires after \
+         partial page 1). Got {} requests.",
+        received.len()
+    );
+
+    // PRIMARY ASSERTION (RED gate driver — AC-014 / ADR-060 §D8.2 discriminator):
+    //
+    // RED  (pre-discriminator, current code):
+    //   `early_stopped = true` (unconditional when `all_records.len() >= limit`)
+    //   → assertion FAILS.
+    //
+    // GREEN (post-discriminator):
+    //   `early_stopped = (page_record_count(5) >= page_size(1000)) = false`
+    //   → assertion PASSES.
+    assert!(
+        !result.early_stopped,
+        "RG-PSG-039 (AC-014 RED gate — ADR-060 §D8.2 discriminator): \
+         `early_stopped` must be false for a PARTIAL final page \
+         (page_record_count=5 < page_size=1000). \
+         Current code sets `early_stopped = true` unconditionally when \
+         `all_records.len() >= early_stop_limit`. \
+         Fix: set `early_stopped = (page_record_count >= page_size)` in the early-stop \
+         block (ADR-060 §D8.2). \
+         Got early_stopped=true."
+    );
+
+    // SECONDARY: truncated must NOT be set by the early-stop path (ADR-060 §D8.3).
+    assert!(
+        !result.truncated,
+        "RG-PSG-039 secondary: `truncated` must be false (reserved for DI-019 per \
+         ADR-060 §D8.3). Got truncated=true."
     );
 }
