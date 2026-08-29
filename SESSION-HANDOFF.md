@@ -1,41 +1,41 @@
 ---
 document_type: session-handoff
 level: ops
-version: "8.017"
+version: "8.018"
 status: current
-timestamp: 2026-08-29T13:00:00Z
+timestamp: 2026-08-29T14:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-2360 (2026-08-29): pass@v1.14 records micro-burst COMPLETE (TD-VSDD-096) — ADR-060 v1.14→v1.15 (§D8.4 discharge note "(v1.0 draft)"→"(draft)"; §Status "~14"→"20"); ARCH-INDEX v2.354. NO code change. Feature @30e794b2c FROZEN UNCHANGED. BC-5.39.001 streak 0/3. Fresh full 4-lens cascade pass-1 pending on @30e794b2c + specs @ ADR-060 v1.15. [D-2359 SUPERSEDED by D-2360]**
+> **D-2361 (2026-08-29): pass-2 crates-drift fix COMPLETE (TD-VSDD-053; TD-VSDD-096) — F-P4-LENSC1-001 MED STORY-INDEX stub Crates cell corrected. Streak had reached 1/3; pass-2 C1 1 MED → RESET 1/3→0/3. STORY-INDEX v2.942. NO code/BC/ADR change. Feature @30e794b2c FROZEN UNCHANGED. Fresh pass-3 3-CLEAN re-gate pending. [D-2360 SUPERSEDED by D-2361]**
 
 ---
 
-## §RESUME SNAPSHOT — D-2360 (2026-08-29 — pass@v1.14 records micro-burst COMPLETE; ADR-060 v1.15; ARCH-INDEX v2.354; LIMIT feature @30e794b2c FROZEN CODE UNCHANGED; streak 0/3; fresh 4-lens cascade pass-1 pending)
+## §RESUME SNAPSHOT — D-2361 (2026-08-29 — pass-2 crates-drift fix COMPLETE; STORY-INDEX v2.942; LIMIT feature @30e794b2c FROZEN CODE UNCHANGED; streak RESET 0/3; fresh pass-3 3-CLEAN re-gate pending)
 
 ### RESUME IN ONE BREATH
-Prism Phase-3 (brownfield, cycle wave-5-e-demo-fidelity), v1 = live Claroty xDome. Story S-ENGINE-LIMIT-EARLY-STOP-001: LIMIT feature @30e794b2c FROZEN (code CONVERGED — lens-A/B clean 3 consecutive passes). pass@v1.14 records micro-burst COMPLETE (TD-VSDD-096) — 2 LOW records findings fixed (F-P2-LENSC2-001/002; NO code/mechanism change). ADR-060 v1.14→v1.15 (§D8.4 discharge note pin "(v1.0 draft)"→"(draft)"; §Status banner "~14"→"20" reconciled to §Changelog). Feature HEAD @30e794b2c FROZEN UNCHANGED (PUSHED; just check 5880/5880 exit 0 still valid). BC-5.39.001 LOCAL streak 0/3 (spec perimeter changed; frozen-HEAD rule).
+Prism Phase-3 (brownfield, cycle wave-5-e-demo-fidelity), v1 = live Claroty xDome. Story S-ENGINE-LIMIT-EARLY-STOP-001: LIMIT feature @30e794b2c FROZEN (code CONVERGED). pass-2 crates-drift fix D-2361 COMPLETE (TD-VSDD-053; TD-VSDD-096) — F-P4-LENSC1-001 MED STORY-INDEX stub Crates cell corrected (prism-spec-engine,prism-bin → prism-spec-engine; matches frontmatter). Proactive 2-row reconciliation: LIMIT row ALL 6 columns MATCH. Streak had reached 1/3 (pass-1 on @30e794b2c + ADR-060 v1.15 ALL 4 lenses CLEAN(strict)); pass-2 C1 1 MED → RESET 1/3→0/3. STORY-INDEX v2.941→v2.942. NO code/BC/ADR change. Feature HEAD @30e794b2c FROZEN UNCHANGED (PUSHED; just check 5880 exit 0 still valid).
 
 ### PERIMETER (frozen)
-ADR-060 v1.15 (§D8.4 OffsetLimit-only `_ => 0` conservative; active_page_size; §D8.7 gate A–K; §D8.10 DI-019 chain) / ADR-061 v1.2 / BC-2.16.002 v2.51 (EC-01-030..041) / BC-2.11.001 v1.30 (EC-11-092 FULL arm + EC-11-094 PARTIAL arm OffsetLimit-only) / BC-2.16.015 v1.8 draft / LIMIT story v1.36 (58 RGTs incl RG-PSG-039..043 + RG-SLUG-001..006; 14 ACs incl AC-014 OffsetLimit-only) / stub story v1.1 — Indices: ARCH-INDEX v2.354 / BC-INDEX v9.81 / STORY-INDEX v2.941 / VP-INDEX v2.22.
+ADR-060 v1.15 (§D8.4 OffsetLimit-only `_ => 0` conservative; active_page_size; §D8.7 gate A–K; §D8.10 DI-019 chain) / ADR-061 v1.2 / BC-2.16.002 v2.51 (EC-01-030..041) / BC-2.11.001 v1.30 (EC-11-092 FULL arm + EC-11-094 PARTIAL arm OffsetLimit-only) / BC-2.16.015 v1.8 draft / LIMIT story v1.36 (58 RGTs incl RG-PSG-039..043 + RG-SLUG-001..006; 14 ACs incl AC-014 OffsetLimit-only) / stub story v1.1 — Indices: ARCH-INDEX v2.354 / BC-INDEX v9.81 / STORY-INDEX v2.942 / VP-INDEX v2.22.
 
 ### NEXT ACTIONS (in order)
-1. Fresh full LOCAL 4-lens cascade pass-1 on UNCHANGED frozen HEAD @30e794b2c + specs @ ADR-060 v1.15: lens-A correctness/security (code CONVERGED expected fast re-confirm), lens-B coverage/wire (lean grep-not-Read; 14/14 AC, 58/58 RGT expected), lens-C1 version/index integrity, lens-C2 EXHAUSTIVE content sweep. Inject policies.yaml + SAP-1/2/3. records tail →6→5→3→2.
+1. Fresh full LOCAL 4-lens cascade pass-3 on UNCHANGED frozen HEAD @30e794b2c + STORY-INDEX v2.942: lens-A correctness/security, lens-B coverage/wire (lean grep-not-Read; 14/14 AC, 58/58 RGT expected), lens-C1 version/index integrity (STORY-INDEX v2.942 now), lens-C2 EXHAUSTIVE content sweep. Inject policies.yaml + SAP-1/2/3. Carry EC-11-093 known out-of-perimeter: AC-009 two-term is_truncated illustration vs authoritative three-term (behavior correct; engine enforces three-term; needs PO adjudication on illustration scope — POL-39 exemption scope applies). records tail →5→3→2→1.
 2. 3× CLEAN(strict) on UNCHANGED @30e794b2c (frozen-HEAD rule; no pushes between counted passes) → LOCAL CONVERGED. Any finding → route to owner, fix-burst (records-only → TD-VSDD-096; content → full ceremony), advance HEAD, reset streak.
 3. LOCAL CONVERGED → STORY-LEVEL HOLDOUT GATE (HS-025..029; holdout-evaluator vs built binary, real MCP stdio + DTU, wire-level, BLOCKING) → demo-recorder per-AC → pr-manager 9-step PR → PR-LEVEL 3-CLEAN + security-reviewer → squash-merge → POL-14 (BC-2.16.002/BC-2.16.015 draft→active) → post-merge state burst.
-4. Unblock S-CLAROTY-VULNS-001 (@5aae6f0b3): after LIMIT merges + redeploys, re-run LIVE monroe xDome validation → merge VULNS.
+4. Unblock S-CLAROTY-VULNS-001 (@5aae6f0b3): after LIMIT merges + redeploys, re-run LIVE xDome validation → merge VULNS.
 5. v1 RELEASE GATE: live xDome validation. Then G2–G6 wave (D-2357).
 
 ### HEADS (backup boundary)
 - `develop`: `3f1e66179` (local==origin; clean).
 - `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
-- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: `30e794b2c` (PUSHED origin; FROZEN D-2358; story v1.36; 58 RGTs; streak 0/3; fresh 3-CLEAN pass-1 pending on @30e794b2c + specs @ ADR-060 v1.15).
+- `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: `30e794b2c` (PUSHED origin; FROZEN D-2358; story v1.36; 58 RGTs; streak 0/3; fresh pass-3 3-CLEAN pending on @30e794b2c + STORY-INDEX v2.942).
 - `feature/S-CLAROTY-VULNS-001`: `5aae6f0b3` (PUSHED origin; 3-CLEAN CONVERGED round-5; HOLDOUT HS-024 PASS; merge HELD pending LIMIT).
 - Parked (do NOT touch): S-3.09 @`43c41389d` KEEP; W3-FIX-S307-001 @`fcab8717c` DIRTY.
 
 ### BC-5.39.001 STREAK
-LIMIT LOCAL: 0/3 on frozen @30e794b2c (spec perimeter changed ADR-060 v1.15; frozen-HEAD rule; fresh 3-CLEAN pass-1 pending).
+LIMIT LOCAL: 0/3 on frozen @30e794b2c (RESET 1/3→0/3 at D-2361; pass-1 CLEAN(strict) → 1/3; pass-2 C1 1 MED → RESET; frozen-HEAD rule; fresh pass-3 3-CLEAN pending + STORY-INDEX v2.942).
 
 ### CASCADE OPERATIONS NOTES (carry forward)
 - Use the 4-lens split (C1 mechanical version/index + C2 EXHAUSTIVE content) with lean grep-not-Read discipline.
@@ -46,7 +46,7 @@ LIMIT LOCAL: 0/3 on frozen @30e794b2c (spec perimeter changed ADR-060 v1.15; fro
 (a) Human directive: keep grinding strict 3-CLEAN, no tooling change. (b) Autonomy grant D-989 in force: autonomous A→B→C strict convergence + auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit. (c) D-2357 G2–G6 endpoint expansion IN v1 scope; v1-blocking wave order LIMIT→VULNS→G2–G6.
 
 ### DECISION-LOG DELTA (this burst)
-D-2360 (pass@v1.14 records micro-burst: F-P2-LENSC2-001 LOW §D8.4 discharge note stale POL-39 pin "(v1.0 draft)"→"(draft)"; F-P2-LENSC2-002 LOW §Status banner "~14"→"20" reconciled to §Changelog; ADR-060 v1.14→v1.15; ARCH-INDEX v2.353→v2.354; NO code/BC/story/other-index change; feature HEAD 30e794b2c FROZEN UNCHANGED; just check 5880 exit 0; BC-INDEX v9.81 / STORY-INDEX v2.941 UNCHANGED).
+D-2361 (pass-2 crates-drift fix: F-P4-LENSC1-001 MED STORY-INDEX stub S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001 Crates cell corrected prism-spec-engine,prism-bin → prism-spec-engine; proactive 2-row reconciliation LIMIT row ALL 6 columns MATCH; STORY-INDEX v2.941→v2.942; NO code/BC/ADR change; feature HEAD 30e794b2c FROZEN UNCHANGED; just check 5880 exit 0 still valid; ARCH-INDEX v2.354 / BC-INDEX v9.81 UNCHANGED; streak RESET 1/3→0/3; trajectory-tail →5→3→2→1).
 
 ---
 
