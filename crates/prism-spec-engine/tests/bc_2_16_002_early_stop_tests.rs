@@ -16,7 +16,7 @@
 //! | LOW-1  | early_stop_large_page_size_truncated_false                       | GREEN (cov)    | TV-BC-2.16.015-006     |
 //! | MULTI-PAGE | early_stop_multi_page_stops_after_second_page                | GREEN (cov)    | AC-003 ceil(N/page_size) |
 //! | PSG-039 | early_stop_partial_final_page_not_early_stopped                  | RED            | AC-014 / BC-2.16.002 EC-01-041 |
-//! | PSG-041 | cursor_token_partial_final_page_not_early_stopped                | RED            | AC-014 / ADR-060 §D8.4         |
+//! | PSG-041 | cursor_token_partial_page_conservative_early_stopped             | RED            | ADR-060 §D8.4 conservative-cursor |
 //! | PSG-042 | cursor_token_full_final_page_is_early_stopped                    | GREEN (guard)  | AC-014 / ADR-060 §D8.4         |
 //! | PSG-043 | cursor_token_no_page_size_conservative                           | GREEN (guard)  | ADR-060 §D8.4 conservative     |
 //!
@@ -1074,61 +1074,56 @@ async fn test_BC_2_16_002_early_stop_partial_final_page_not_early_stopped() {
 }
 
 // ---------------------------------------------------------------------------
-// RG-PSG-041 — CursorToken partial final page: early_stopped = false
-// RG-PSG-042 — CursorToken full final page: early_stopped = true
-// RG-PSG-043 — CursorToken page_size=None: conservative early_stopped = true
+// RG-PSG-041 — CursorToken partial page: conservative early_stopped = true (RED gate)
+// RG-PSG-042 — CursorToken full final page: early_stopped = true (GREEN guard)
+// RG-PSG-043 — CursorToken page_size=None: conservative early_stopped = true (GREEN guard)
 //
-// ADR-060 §D8.4: the discriminator MUST resolve the mode-specific page size
-// for CursorToken. Before this fix, active_page_size=0 for CursorToken, so
-// page_record_count >= 0 is always true → early_stopped was unconditionally
-// true, even on partial pages where the source was exhausted.
-//
-// Fix (architect ruling, ADR-060 v1.12 §D8.2/§D8.4):
-//   PaginationConfig::CursorToken { page_size: Some(ps), .. } => ps
-//   _ (CursorToken{None}, PageNumber, None) => 0  (conservative)
+// ADR-060 §D8.4 (conservative rule): the page-fill discriminator applies to
+// OffsetLimit ONLY. ALL CursorToken sub-cases (page_size=Some(N) or page_size=None)
+// resolve to conservative `early_stopped = true`. Page-fill is NOT a valid cursor
+// exhaustion signal; precise detection is deferred to S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001.
 // ---------------------------------------------------------------------------
 
-/// RG-PSG-041 — AC-014 / ADR-060 §D8.2/§D8.4: CursorToken with `page_size=Some(10)`.
+/// RG-PSG-041 (F-FP1-LENSA-001 sentinel) — ADR-060 §D8.4 conservative-cursor rule.
 ///
-/// A partial final page (8 records < page_size=10) reached via the early-stop limit must
-/// set `early_stopped = false` — the source was exhausted; there is no hidden next page.
+/// CursorToken with `page_size=Some(1000)`, `early_stop_limit=Some(5)`, mock returns
+/// 5 records (partial page: 5 < 1000). Asserts `early_stopped == true`.
 ///
-/// ## Setup
+/// ADR-060 §D8.4 (conservative): the page-fill discriminator applies to OffsetLimit ONLY.
+/// ALL CursorToken sub-cases resolve to conservative `early_stopped = true`. Page-fill
+/// is NOT a valid cursor exhaustion signal; precise detection is deferred to
+/// S-ENGINE-CURSOR-EXHAUSTION-PRECISE-001.
 ///
-/// - `page_size = Some(10)`, `early_stop_limit = Some(8)`.
-/// - Page 1: 8 records (PARTIAL: 8 < page_size=10) + `next_cursor: "cursor_page_2"`.
-///   After page 1: accumulated(8) >= limit(8) → early-stop fires (before cursor advance).
-/// - Page 2 fallback: unreachable — early-stop fires before pagination advance.
+/// ## TDD gate (RED against current HEAD)
 ///
-/// ## Why this is RED (pre-fix)
+/// Current code has `CursorToken { page_size: Some(ps), .. } => *ps` arm:
+///   active_page_size = 1000; early_stopped = 5 >= 1000 = false
+///   assertion `assert!(result.early_stopped)` FAILS → RED gate.
 ///
-/// Current `active_page_size`:
-/// ```text
-/// PaginationConfig::OffsetLimit { page_size: ps } => *ps,
-/// _ => 0,  // CursorToken falls here → active_page_size = 0
-/// ```
-/// `early_stopped = page_record_count(8) >= active_page_size(0) = true`
-/// → assertion `assert!(!result.early_stopped)` FAILS.
+/// After implementer reverts the CursorToken Some(ps) arm (all CursorToken → _ => 0):
+///   active_page_size = 0; early_stopped = 5 >= 0 = true
+///   assertion PASSES → GREEN.
 ///
-/// ## Why this is GREEN (post-fix)
+/// ## Regression sentinel (F-FP1-LENSA-001)
 ///
-/// Fixed `active_page_size`:
-/// `PaginationConfig::CursorToken { page_size: Some(ps), .. } => *ps` → 10
-/// `early_stopped = (8 >= 10) = false` → assertion PASSES.
+/// Any reintroduction of `CursorToken { page_size: Some(ps), .. } => *ps` causes
+/// active_page_size=1000 → 5>=1000=false → this test fails immediately, preventing
+/// the unsound `early_stopped=false` cursor arm from being re-added.
 ///
-/// Traces to AC-014 (S-ENGINE-LIMIT-EARLY-STOP-001), ADR-060 §D8.2/§D8.4.
+/// Traces to AC-014 (S-ENGINE-LIMIT-EARLY-STOP-001), ADR-060 §D8.4.
 #[tokio::test]
-async fn test_cursor_token_partial_final_page_not_early_stopped() {
+async fn test_cursor_token_partial_page_conservative_early_stopped() {
     let mock_server = MockServer::start().await;
 
-    // Page 1: 8 records — PARTIAL page (8 < page_size=10).
-    // next_cursor included to prove early-stop (not cursor exhaustion) triggered the break.
-    let page_records: Vec<serde_json::Value> = (0u32..8)
+    // 5 records: PARTIAL page (page_record_count=5 < page_size=1000).
+    // next_cursor included — early-stop (not cursor exhaustion) causes the break.
+    // Conservative rule: CursorToken always sets early_stopped=true regardless of page fill.
+    let page_records: Vec<serde_json::Value> = (0u32..5)
         .map(|i| serde_json::json!({"id": i.to_string()}))
         .collect();
 
     Mock::given(method("GET"))
-        .and(path("/cursor-items"))
+        .and(path("/cursor-items-conservative"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "items": page_records,
             "next_cursor": "cursor_page_2"
@@ -1139,7 +1134,7 @@ async fn test_cursor_token_partial_final_page_not_early_stopped() {
 
     // Page 2 fallback: must NOT be reached — early-stop fires after page 1.
     Mock::given(method("GET"))
-        .and(path("/cursor-items"))
+        .and(path("/cursor-items-conservative"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "items": page_records,
             "next_cursor": "cursor_page_3"
@@ -1148,18 +1143,18 @@ async fn test_cursor_token_partial_final_page_not_early_stopped() {
         .await;
 
     let spec = SensorSpec::new(
-        "rg041-cursor-sensor",
-        "RG-PSG-041 CursorToken Partial Page Sensor",
+        "rg041-conservative-sensor",
+        "RG-PSG-041 CursorToken Conservative Early-Stop Sensor",
         AuthType::BearerStatic,
         &mock_server.uri(),
         vec![TableSpec::new_point_in_time(
-            "cursor_items",
+            "cursor_items_conservative",
             "security_finding",
             vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
             vec![FetchStep::new(
-                "fetch_cursor_items",
+                "fetch_cursor_items_conservative",
                 "GET",
-                "/cursor-items",
+                "/cursor-items-conservative",
                 None,
                 "$.items",
                 None,
@@ -1167,7 +1162,7 @@ async fn test_cursor_token_partial_final_page_not_early_stopped() {
                 None,
                 Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.next_cursor".to_string(),
-                    page_size: Some(10),
+                    page_size: Some(1000),
                 }),
             )],
         )],
@@ -1177,8 +1172,12 @@ async fn test_cursor_token_partial_final_page_not_early_stopped() {
     );
 
     let table = spec.tables[0].clone();
-    // early_stop_limit = Some(8): fires when accumulated >= 8; page_size = Some(10).
-    let context = FetchContext::new(OrgSlug::new("rg041-org"), HashMap::new(), Some(8));
+    // early_stop_limit = Some(5): fires when accumulated >= 5; page_size = Some(1000).
+    let context = FetchContext::new(
+        OrgSlug::new("rg041-conservative-org"),
+        HashMap::new(),
+        Some(5),
+    );
     let http_client = make_http_client();
     let auth_provider = NullAuthProvider;
 
@@ -1186,11 +1185,11 @@ async fn test_cursor_token_partial_final_page_not_early_stopped() {
         .await
         .expect("RG-PSG-041: pipeline execute must return Ok (no HTTP error expected)");
 
-    // PRECONDITION: exactly 8 records from the partial page.
+    // PRECONDITION: exactly 5 records from the partial page.
     assert_eq!(
         result.records.len(),
-        8,
-        "RG-PSG-041 precondition: must fetch exactly 8 records (the partial page). \
+        5,
+        "RG-PSG-041 precondition: must fetch exactly 5 records (the partial page). \
          Got {} records.",
         result.records.len()
     );
@@ -1208,21 +1207,29 @@ async fn test_cursor_token_partial_final_page_not_early_stopped() {
         received.len()
     );
 
-    // PRIMARY ASSERTION (RED gate driver — AC-014 / ADR-060 §D8.2/§D8.4 discriminator):
+    // PRIMARY ASSERTION (RED gate driver — ADR-060 §D8.4 conservative-cursor rule):
     //
-    // RED  (pre-fix, current code): active_page_size=0 for CursorToken →
-    //   early_stopped = page_record_count(8) >= 0 = true → assertion FAILS.
+    // RED  (current code, CursorToken{Some(ps)} => *ps arm present):
+    //   active_page_size = 1000; early_stopped = 5 >= 1000 = false
+    //   → assertion FAILS.
     //
-    // GREEN (post-fix): active_page_size=10 →
-    //   early_stopped = (8 >= 10) = false → assertion PASSES.
+    // GREEN (post-revert, CursorToken → _ => 0):
+    //   active_page_size = 0; early_stopped = 5 >= 0 = true
+    //   → assertion PASSES.
+    //
+    // Regression sentinel (F-FP1-LENSA-001): any reintroduction of the
+    // CursorToken{Some(ps)} arm causes active_page_size=1000 → 5>=1000=false
+    // → this test fails immediately.
     assert!(
-        !result.early_stopped,
-        "RG-PSG-041 (AC-014 RED gate — ADR-060 §D8.2/§D8.4 discriminator): \
-         `early_stopped` must be false for a PARTIAL CursorToken final page \
-         (page_record_count=8 < page_size=10). \
-         Current code: active_page_size=0 for CursorToken → (8 >= 0) = true. \
-         Fix: resolve CursorToken page_size=Some(10) → (8 >= 10) = false. \
-         Got early_stopped=true."
+        result.early_stopped,
+        "RG-PSG-041 (ADR-060 §D8.4 conservative-cursor RED gate — F-FP1-LENSA-001 sentinel): \
+         `early_stopped` must be TRUE for CursorToken regardless of page fill. \
+         page_size=Some(1000), 5 records fetched (partial page: 5 < 1000). \
+         Conservative rule: ALL CursorToken sub-cases set early_stopped=true (page-fill \
+         is not a valid cursor exhaustion signal per ADR-060 §D8.4). \
+         Current code (CursorToken{{Some(ps)}} arm): active_page_size=1000 → 5>=1000=false \
+         → FAILS. Fix: revert CursorToken arm to _ => 0 → active_page_size=0 → \
+         5>=0=true → PASSES."
     );
 
     // SECONDARY: truncated must NOT be set by the early-stop path (ADR-060 §D8.3).
