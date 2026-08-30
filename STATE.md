@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.909"
+version: "8.910"
 producer: state-manager
-timestamp: 2026-08-30T21:30:00Z
+timestamp: 2026-08-30T22:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ bc_index_version: "9.84"
 # NOTE: D-2373 — BC-INDEX v9.83→v9.84: F-B1V-001 + F-B1V-002 CLOSED; BC-2.16.002 pin v2.53→v2.54 (EC-01-042 concrete AC-015/RG-PSG-044 anchors; worked-example numbers aligned; volatile code-pin removed). Code UNCHANGED (PR #243 HEAD 704aac24a FROZEN). D-2372 NOTE archived.
 vp_index_version: "2.22"
 # NOTE: D-2054 — VP-INDEX v2.21→v2.22: VP-157 and VP-158 promoted to active (v1.1); ADR-056 v0.5 and ADR-057 v0.4 rows added. D-2053 NOTE archived.
-story_index_version: "2.951"
-# NOTE: D-2375 — STORY-INDEX v2.950→v2.951: S-ENGINE-LIMIT-EARLY-STOP-001 status draft→merged (PR #243 squash-merge @c5be059fe; human-authorized). D-2373 NOTE archived.
+story_index_version: "2.952"
+# NOTE: D-2377 — STORY-INDEX v2.951→v2.952: S-CLAROTY-VULNS-001 story v1.9→v2.0 (F-VULNS-REBASE-LOW-001 CLOSED; BC-2.16.015 version-pin drift fixed; input-hash refreshed 0aafc8d→f695bf5). D-2375 NOTE archived.
 arch_index_version: "2.357"
 # NOTE: D-2373 — ARCH-INDEX v2.356→v2.357: ADR-060 v1.17→v1.18 (F-B1V-002: §D8.3 worked example (d) corrected to reachable/test-matched numbers page_size=10/LIMIT=5/partial-page=5/2 batches). D-2372 NOTE archived.
 workspace_test_count: "5880 just check @1c1159c68 (5880 passed / 60 skipped; exit 0)"
@@ -31,7 +31,7 @@ workspace_test_count: "5880 just check @1c1159c68 (5880 passed / 60 skipped; exi
 vsdd_factory_version: "1.0.0-rc.22"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-2376 SHA-RECONCILIATION MICRO-BURST (TD-VSDD-053) — develop_head cite corrected c5be059fe→194a77665 (local develop rebased 95f670284→194a77665 onto merged LIMIT base c5be059fe per D-2375; verify-sha-currency invariant restored). NEXT: S-CLAROTY-VULNS-001 (G1) — rebase @5aae6f0b3 onto c5be059fe + PR-LEVEL re-gate; then G2 network_activity. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.908→v8.909."
+current_step: "D-2377 POST-FIX STATE BURST (TD-VSDD-053) — F-VULNS-REBASE-LOW-001 CLOSED. story v1.9→v2.0; input-hash 0aafc8d→f695bf5; STORY-INDEX v2.951→v2.952. PR-LEVEL cascade on rebased HEAD fee0c64d7 re-gated toward 3-CLEAN. NEXT: re-run PR-LEVEL adversary on frozen fee0c64d7; on 3-CLEAN merge VULNS-001; then G2 network_activity. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.909→v8.910."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -83,7 +83,7 @@ pre_compact_snapshot_at: "2026-08-26"
 | **Mode** | brownfield |
 | **Deploy** | per-analyst stdio (MCP) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-08-30 D-2376: SHA-RECONCILIATION MICRO-BURST — develop_head cite corrected c5be059fe→194a77665 (local develop rebased onto LIMIT base; verify-sha-currency restored). trajectory-tail UNCHANGED →8→0→1→2. STATE v8.908→v8.909. |
+| **Last Updated** | 2026-08-30 D-2377: POST-FIX STATE BURST — F-VULNS-REBASE-LOW-001 CLOSED; VULNS-001 story v1.9→v2.0; input-hash refreshed; STORY-INDEX v2.951→v2.952. trajectory-tail UNCHANGED →8→0→1→2. STATE v8.909→v8.910. |
 
 ## Phase Progress
 
@@ -117,7 +117,7 @@ _Historical Phase Progress rows archived to cycles/wave-5-e-demo-fidelity/burst-
 | Pass count | VULNS-001 LOCAL: 5 serial passes + 4-lens diverse-lens batch (D-2304; lens-1 CLEAN; lens-2 1M+2O; lens-3 2M+1L+1O; lens-4 CLEAN; 2H FP discarded; fix @4e525126b+story v1.6) + round-2 fix-burst D-2306 (3 passes A/B/C; 2M+1L+2O ALL FIXED @fa35b09aa) + round-3 fix-burst D-2307 (3 passes A/B/C; 1M+1L+1O ALL FIXED @551d18196) + round-4 fix-burst D-2308 (1L+3OBS ALL RESOLVED @5aae6f0b3) + round-5 (3 passes A/B/C ALL CLEAN(strict) CONVERGED @5aae6f0b3). Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
 | Last CLEAN(strict) | D-2366 fresh PASS-1 on @1c1159c68 + story v1.39: ALL 4 lenses CLEAN(strict) (streak advanced 0/3→1/3). Pass-2 lens-C2 F-P3-LENSC2-001 MED → FIXED spec-only → streak RESET 1/3→0/3. NOT CLEAN(strict) for streak after fix. [Hist: lens-A/B CLEAN ~9 consecutive passes — engineering converged; records+spec tail only.] VULNS-001 LOCAL round-5 3/3 CONVERGED (@5aae6f0b3 2026-08-26). |
 | Finding trajectory | VULNS-001 LOCAL CONVERGED (round-5 3/3 @5aae6f0b3). LIMIT LOCAL: …→(D-2367 P4 pass-1: 2 sibling findings MED+OBS FIXED; streak RESET 0/3; HEAD FROZEN)→(D-2372 spec closure: ADR-060 v1.17/BC-2.16.002 v2.53/story v1.41; streak RESET 0/3 per frozen-HEAD rule)→(D-2373 spec accuracy fix: ADR-060 v1.18/BC-2.16.002 v2.54/story v1.42; streak RESET 0/3 per frozen-HEAD rule). trajectory-tail UNCHANGED →8→0→1→2. Full history: cycles/wave-5-e-demo-fidelity/convergence-trajectory.md |
-| Frozen perimeter | ADR-058 v2.34 / ADR-059 v1.2 (WITHDRAWN) / ADR-060 v1.18 (D-2373: §D8.3 worked example (d) corrected to reachable/test-matched numbers; §D8.2/§D8.3 fan-out multi-batch is_last_batch discriminator + intra-pipeline-vs-multi-sensor disambiguation; §D8.4 OffsetLimit-only conservative `_ => 0`; None reconciled as conservative corner; active_page_size; §D8.7 gate A–K; §D8.10 DI-019 chain) / ADR-061 v1.2 / BC-2.16.002 v2.54 (EC-01-042 concrete AC-015/RG-PSG-044 anchors symmetric w/ EC-01-041; worked-example numbers aligned) / BC-2.11.001 v1.31 / BC-2.16.003 v1.27 / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 (merged) / COERCION-001 v1.47 (merged) / BC-2.16.015 v1.8 (draft) / VULNS story v1.9 @5aae6f0b3 (PUSHED; 3-CLEAN CONVERGED) / LIMIT story v1.42 (59 RGTs; RG-PSG-026..044 incl. RG-SLUG-001..006; AC-015 multi-batch discriminator; input-hash 6a22a8d; CODE @704aac24a) / cursor stub story v1.2 (D-2367; input-hash f6cae28) — code @95f670284 (develop) / VULNS feature @5aae6f0b3 (PUSHED; 3-CLEAN CONVERGED) / LIMIT feature @704aac24a (PUSHED; PR #243 OPEN BLOCKED; B1 multi-batch fix + spec closure D-2372/D-2373; re-verify + human merge auth required) / ARCH-INDEX v2.357 / BC-INDEX v9.84 / STORY-INDEX v2.950 / HOLDOUT-INDEX v1.28 |
+| Frozen perimeter | ADR-058 v2.34 / ADR-059 v1.2 (WITHDRAWN) / ADR-060 v1.18 (D-2373: §D8.3 worked example (d) corrected to reachable/test-matched numbers; §D8.2/§D8.3 fan-out multi-batch is_last_batch discriminator + intra-pipeline-vs-multi-sensor disambiguation; §D8.4 OffsetLimit-only conservative `_ => 0`; None reconciled as conservative corner; active_page_size; §D8.7 gate A–K; §D8.10 DI-019 chain) / ADR-061 v1.2 / BC-2.16.002 v2.54 (EC-01-042 concrete AC-015/RG-PSG-044 anchors symmetric w/ EC-01-041; worked-example numbers aligned) / BC-2.11.001 v1.31 / BC-2.16.003 v1.27 / BC-2.11.016 v1.31 / error-taxonomy v2.82 / ROUTING-001 v1.57 (merged) / COERCION-001 v1.47 (merged) / BC-2.16.015 v1.8 (draft) / VULNS story v2.0 @fee0c64d7 (PUSHED; LOCAL 3-CLEAN CONVERGED pre-rebase; PR-LEVEL re-gate in progress post-rebase) / LIMIT story v1.42 (59 RGTs; RG-PSG-026..044 incl. RG-SLUG-001..006; AC-015 multi-batch discriminator; input-hash 6a22a8d; CODE @704aac24a) / cursor stub story v1.2 (D-2367; input-hash f6cae28) — code @95f670284 (develop) / VULNS feature @5aae6f0b3 (PUSHED; 3-CLEAN CONVERGED) / LIMIT feature @704aac24a (PUSHED; PR #243 OPEN BLOCKED; B1 multi-batch fix + spec closure D-2372/D-2373; re-verify + human merge auth required) / ARCH-INDEX v2.357 / BC-INDEX v9.84 / STORY-INDEX v2.950 / HOLDOUT-INDEX v1.28 |
 
 ## Concurrent Cycles
 
@@ -223,6 +223,7 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 | D-2374 | state-manager | 2026-08-30 | **SESSION WRAP (TD-VSDD-053) — RESUME SNAPSHOT D-2374 authored. Phase 3 Wave-5-E driving Claroty xDome to FULL functionality by 2026-08-31 (G2–G6 scope). LIMIT PR #243 spec-converged + CI-green; MERGE HELD pending focused adversary re-verify (frozen HEAD 704aac24a + ADR-060 v1.18/BC-2.16.002 v2.54/story v1.42) + explicit human merge authorization. Security-flag: prior pr-manager merge hand-back was manufactured-authorization — requires explicit human go. F-B1V-001/002 CLOSED (D-2373); F-B1-001 REMAINS CLOSED (D-2372). develop @95f670284 LOCAL-ONLY (CLAUDE.md heartbeat commit not pushed to origin). Worktrees: LIMIT @704aac24a (ACTIVE — PR #243); VULNS @5aae6f0b3 (converged+holdout PASS, merge HELD on LIMIT); S-ENGINE-H2-LARGE-RESPONSE-001 @9e1df825a (verify on resume); S-3.09 @43c41389d (KEEP-PARKED); W3-FIX-S307-001 @fcab8717c (PARKED-DIRTY). SESSION-HANDOFF §RESUME SNAPSHOT D-2364 marked SUPERSEDED; §RESUME SNAPSHOT D-2374 inserted. Deferred housekeeping (non-blocking, post-Monday): (1) test doc-comment re-anchor on test_early_stop_multi_batch_partial_page_is_truncated; (2) holdout harness/fixture reconciliation; (3) validator gate for holdout-at-materialization. Heartbeat durable cron b98bd9dc active. TD-VSDD-097 N/A (wrap-only; no spec/code changes). trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.906→v8.907.** | wave-5-e-demo-fidelity | 2026-08-30 |
 | D-2375 | state-manager | 2026-08-30 | **SINGLE-COMMIT POST-MERGE BURST (TD-VSDD-053) — S-ENGINE-LIMIT-EARLY-STOP-001 MERGED. PR #243 squash-merged to origin/develop @c5be059fe (human-authorized; focused adversary re-verify CLEAN strict=yes zero findings on frozen HEAD 704aac24a + ADR-060 v1.18/BC-2.16.002 v2.54/story v1.42). POL-14: BC-2.16.002 already active (lifecycle_status: active on-disk; no promotion). BC-2.16.015 draft — promoted by S-CLAROTY-VULNS-001 merge per story annotation, not this story. STORY-INDEX v2.950→v2.951 (S-ENGINE-LIMIT-EARLY-STOP-001 status draft→merged; row cell updated [draft v1.42; feature HEAD 704aac24a]→[merged c5be059fe; PR #243]). develop_head: origin/develop = c5be059fe; LOCAL develop = 95f670284 DIVERGED/not-pushed (pending human decision to reconcile). feature/S-ENGINE-LIMIT-EARLY-STOP-001: MERGED + remote branch deleted; local worktree .worktrees/S-ENGINE-LIMIT-EARLY-STOP-001 pending devops cleanup. SESSION-HANDOFF §RESUME SNAPSHOT D-2374 marked SUPERSEDED; §RESUME SNAPSHOT D-2375 inserted. NEXT: S-CLAROTY-VULNS-001 (G1) — rebase @5aae6f0b3 onto c5be059fe; streak reset per DRIFT-ORCH-PRLEVEL-PUSH-001; re-run PR-LEVEL cascade; merge → then G2 network_activity (D-2357). TD-VSDD-097 N/A (STATE/STORY-INDEX/SESSION-HANDOFF records-only; no spec/code/count changes). trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.907→v8.908.** | wave-5-e-demo-fidelity | 2026-08-30 |
 | D-2376 | state-manager | 2026-08-30 | **SHA-RECONCILIATION MICRO-BURST (TD-VSDD-053) — develop_head cite corrected c5be059fe→194a77665 to restore verify-sha-currency invariant. Context: D-2375 burst set develop_head to cite origin/develop c5be059fe, but local develop had been rebased 95f670284→194a77665 (CLAUDE.md §Orchestrator Auto-Recovery Heartbeat commit replayed onto merged LIMIT base c5be059fe) → SHA mismatch → pipeline HARD-BLOCKED by validate-wave-gate-prerequisite. Fix: develop_head updated to 194a77665; NOTE updated (D-2375 NOTE archived). origin/develop = c5be059fe is preserved in NOTE (PR #243 LIMIT squash-merge). Local is 1 ahead of origin/develop; heartbeat commit LOCAL-ONLY / not pushed — pushing develop remains pending human decision. SESSION-HANDOFF §RESUME SNAPSHOT D-2375 HEADS block updated (LOCAL develop 95f670284→194a77665). Records-only (no spec/code/index change). TD-VSDD-097 N/A. Count-propagation sweep: no BC/VP/story/ADR count changes. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.908→v8.909.** | wave-5-e-demo-fidelity | 2026-08-30 |
+| D-2377 | state-manager | 2026-08-30 | **POST-FIX STATE BURST (TD-VSDD-053) — F-VULNS-REBASE-LOW-001 CLOSED. story-writer bumped S-CLAROTY-VULNS-001 v1.9→v2.0: BC-2.16.015 version-pin drift fixed (POL-39-compliant; 6 narrative prose pins removed; §Behavioral Contracts Version column updated v1.6→v1.8 per structural-citation exception; EC-016-015-007/008 scope notes added). input-hash refreshed 0aafc8d→f695bf5 (BC-2.16.015 v1.8 now in inputs; validate-input-hash block cleared). Feature HEAD fee0c64d7 UNCHANGED — spec-only fix; zero AC/task/contract content changed. PR-LEVEL cascade pass-1 on rebased HEAD fee0c64d7 was CLEAN(PR-merge)=yes / CLEAN(strict)=no (this LOW finding); after this spec fix the perimeter is re-gated toward 3-CLEAN on frozen fee0c64d7. PROCESS-GAP [OBS] DISPOSED: BC-2.16.015 v1.7/v1.8 bursts did not run POL-25 multi-cite propagation sweep against dependent story S-CLAROTY-VULNS-001, leaving the stale version pin. Concrete follow-up: enhance BC-bump burst checklist to enumerate ALL traces_to/bcs-dependent stories via STORY-INDEX grep before declaring BC-bump complete. Target: attach to S-MAINT-ANTIPIN-SWEEP-001 scope expansion OR register new S-MAINT-BC-BUMP-PROPAGATION-SWEEP-001. Recorded in Blocking Issues PROCESS-GAP with target post-Monday 2026-08-31. STORY-INDEX v2.951→v2.952. TD-VSDD-097 N/A (spec-only story update; no new MUSTs, no sibling-pair artifacts, no downstream copy targets). Count-propagation sweep: no BC/VP/ADR count changes; STORY-INDEX story_index_version bumped. trajectory-tail UNCHANGED →8→0→1→2. records-lint exit 0. STATE v8.909→v8.910.** | wave-5-e-demo-fidelity | 2026-08-30 |
 
 ## Skip Log
 
@@ -247,31 +248,31 @@ _Rows D-2200..D-2299 (exhaustive) archived → cycles/wave-5-e-demo-fidelity/dec
 | PROCESS-GAP [D-2092/observed 2026-08-02; status: OPEN] | Orchestrator | 2026-08-02 | — | version-field-sync ambiguity in dispatch brief; process improvement |
 | PROCESS-GAP [D-2091/observed 2026-08-02; anchor: S-MAINT-BURST-COMMIT-COUNT-GATE-001; status: MITIGATED] | Orchestrator | 2026-08-02 | — | S-MAINT-BURST-COMMIT-COUNT-GATE-001 ARCH-QUES-001 pending |
 | PROCESS-GAP [D-2368/observed 2026-08-30; status: OPEN; target: post-Monday 2026-08-31] | Orchestrator | 2026-08-30 | — | LIMIT story materialized after the last holdout-authoring burst (HOLDOUT-INDEX was v1.26 @2026-08-24; story bursts @2026-08-26+), so its required holdout scenarios were absent when the gate ran — authored retroactively as HS-030 (D-2368). Justified deferral per deadline: consider a validator gate ensuring every story with 1+ BCs has holdout scenarios authored at materialization before it can reach the holdout gate. Target: post-Monday 2026-08-31. |
+| PROCESS-GAP [D-2377/observed 2026-08-30; status: OPEN; target: post-Monday 2026-08-31] | Orchestrator | 2026-08-30 | — | BC-2.16.015 v1.7/v1.8 bursts did not run POL-25 multi-cite propagation sweep against dependent story S-CLAROTY-VULNS-001, leaving a stale version pin that caused F-VULNS-REBASE-LOW-001. Fix-target: enhance BC-bump burst checklist to enumerate ALL traces_to/bcs-dependent stories via STORY-INDEX grep before declaring BC-bump complete. Attach to S-MAINT-ANTIPIN-SWEEP-001 scope expansion OR register new S-MAINT-BC-BUMP-PROPAGATION-SWEEP-001. Target: post-Monday 2026-08-31. |
 
 ## Historical Content
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md, convergence-trajectory.md, decisions-archive-D1789-D2199.md, decisions-archive-D2200-D2299.md, session-handoff-archive.md, lessons.md, session-checkpoints.md. Prior cycles: wave-0-plugin-prereqs/, wave-3-multi-tenant/, wave-4-operations/.
 
-## Session Resume Checkpoint (D-2376 SHA-RECONCILIATION — develop_head cite corrected c5be059fe→194a77665; VULNS-001 needs rebase+re-gate; DEADLINE 2026-08-31) [supersedes D-2375]
+## Session Resume Checkpoint (D-2377 POST-FIX BURST — F-VULNS-REBASE-LOW-001 CLOSED; VULNS-001 re-gate in progress; DEADLINE 2026-08-31) [supersedes D-2376]
 
 ### RESUME IN ONE BREATH
-Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08-31. S-ENGINE-LIMIT-EARLY-STOP-001 MERGED (PR #243 squash-merge @c5be059fe, human-authorized, CLEAN adversary). NEXT: rebase S-CLAROTY-VULNS-001 @5aae6f0b3 onto c5be059fe → re-run PR-LEVEL cascade (DRIFT-ORCH-PRLEVEL-PUSH-001 streak reset on rebase) → merge → G2 network_activity.
+Phase 3, Wave-5-E, driving Claroty xDome to FULL functionality by Monday 2026-08-31. S-ENGINE-LIMIT-EARLY-STOP-001 MERGED @c5be059fe. S-CLAROTY-VULNS-001 rebased + PR-LEVEL adversary pass-1 completed: CLEAN(PR-merge)=yes / CLEAN(strict)=no (LOW finding F-VULNS-REBASE-LOW-001 CLOSED this burst; story v2.0). NEXT: re-run PR-LEVEL adversary pass on frozen fee0c64d7; achieve 3-CLEAN CONVERGED; merge → G2.
 
 **NEXT ACTIONS (in order):**
 0. **RESUME STEP 0:** verify heartbeat cron via CronList; if absent/expired re-arm per .factory/ops/vsdd-heartbeat-autorecovery.md (authoritative rule: CLAUDE.md §Orchestrator Auto-Recovery Heartbeat).
-1. Rebase S-CLAROTY-VULNS-001 feature branch @5aae6f0b3 onto origin/develop c5be059fe (devops-engineer). DRIFT-ORCH-PRLEVEL-PUSH-001: streak resets on rebase push.
-2. Re-run PR-LEVEL 3-CLEAN adversary cascade on rebased VULNS-001 HEAD (frozen-HEAD rule applies).
-3. Once PR-LEVEL 3-CLEAN CONVERGED: merge VULNS-001 → state-manager post-merge burst (POL-14 BC-2.16.015 draft→active).
-4. G2–G6: after VULNS merged, begin G2 network_activity ADR per full G2–G6 expansion plan (D-2357).
-5. DEFERRED HOUSEKEEPING (non-blocking, post-Monday): (a) test doc-comment re-anchor on test_early_stop_multi_batch_partial_page_is_truncated to AC-015/RG-PSG-044/EC-01-042/§D8.2-§D8.3; (b) holdout harness/fixture reconciliation; (c) validator gate for holdout-at-materialization; (d) local develop push/reset pending human decision (D-2376 corrected STATE develop_head cite; actual push of 194a77665 to origin/develop remains human-decided).
+1. Re-run PR-LEVEL adversary cascade on frozen VULNS-001 HEAD fee0c64d7 (streak reset due to spec fix; need 3-CLEAN on this frozen HEAD).
+2. Once PR-LEVEL 3-CLEAN CONVERGED: merge VULNS-001 → state-manager post-merge burst (POL-14 BC-2.16.015 draft→active).
+3. G2–G6: after VULNS merged, begin G2 network_activity ADR per full G2–G6 expansion plan (D-2357).
+4. DEFERRED HOUSEKEEPING (non-blocking, post-Monday): (a) test doc-comment re-anchor on test_early_stop_multi_batch_partial_page_is_truncated; (b) holdout harness/fixture reconciliation; (c) validator gate for holdout-at-materialization; (d) local develop push/reset pending human decision; (e) BC-bump propagation checklist enhancement (D-2377 PROCESS-GAP).
 
-**CONVERGENCE STATE:** S-ENGINE-LIMIT-EARLY-STOP-001 MERGED @c5be059fe. S-CLAROTY-VULNS-001 LOCAL 3-CLEAN CONVERGED @5aae6f0b3 + HOLDOUT HS-024 PASS; needs rebase + PR-LEVEL re-gate before merge.
+**CONVERGENCE STATE:** S-ENGINE-LIMIT-EARLY-STOP-001 MERGED @c5be059fe. S-CLAROTY-VULNS-001 PR-LEVEL pass-1 LOW fixed (story v2.0; feature HEAD fee0c64d7 FROZEN); PR-LEVEL re-gate in progress toward 3-CLEAN.
 
 **HEADS (backup boundary):**
-- `develop`: origin/develop = `c5be059fe` (PR #243 squash-merge D-2375). LOCAL develop = `194a77665` (heartbeat commit rebased onto c5be059fe; 1 ahead of origin/develop; LOCAL-ONLY / not pushed — D-2376 SHA reconciliation; pushing develop pending human decision).
+- `develop`: origin/develop = `c5be059fe` (PR #243 squash-merge D-2375). LOCAL develop = `194a77665` (heartbeat commit rebased onto c5be059fe; 1 ahead of origin/develop; LOCAL-ONLY / not pushed — pushing develop pending human decision).
 - `factory-artifacts`: run `git -C .factory log -1 --format='%h %s'` for current HEAD (TD-VSDD-053)
 - `feature/S-ENGINE-LIMIT-EARLY-STOP-001`: MERGED + remote branch deleted; local worktree pending devops cleanup.
-- `feature/S-CLAROTY-VULNS-001`: `5aae6f0b3` (PUSHED; LOCAL 3-CLEAN CONVERGED; HOLDOUT HS-024 PASS; NEEDS REBASE onto c5be059fe)
+- `feature/S-CLAROTY-VULNS-001`: `fee0c64d7` (PUSHED; rebased onto c5be059fe; PR-LEVEL pass-1 F-VULNS-REBASE-LOW-001 FIXED; PR-LEVEL 3-CLEAN re-gate pending on frozen fee0c64d7)
 - S-ENGINE-H2-LARGE-RESPONSE-001: `9e1df825a` (verify status on resume)
 - Parked: S-3.09 @`43c41389d` KEEP; W3-FIX-S307-001 @`fcab8717c` DIRTY do-NOT-touch.
 

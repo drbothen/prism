@@ -7,11 +7,11 @@ wave: xdome-wave-a
 epic_id: E-XDOME-EXPANSION
 priority: P0
 status: ready
-# BC status: BC-2.16.015 v1.6 draft (promotes to active on PR merge per POL-14). Pre-TDD remove-uncertainty CLEAN (D-1110, 2nd pass, 2026-08-24); status draft→ready.
+# BC status: BC-2.16.015 draft (promotes to active on PR merge per POL-14). Pre-TDD remove-uncertainty CLEAN (D-1110, 2nd pass, 2026-08-24); status draft→ready.
 producer: story-writer
 timestamp: "2026-08-24T00:00:00Z"
-version: "1.9"
-modified: "2026-08-25"
+version: "2.0"
+modified: "2026-08-30"
 phase: 3
 cycle: v1.0.0-brownfield
 inputs:
@@ -20,8 +20,8 @@ inputs:
   - ".factory/objectives/xdome-v1-validation/endpoint-spike-findings.md"
   - ".factory/specs/architecture/decisions/ADR-058-v1-column-naming-col-name-as-arrow-field-identifier.md"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
-input-hash: "0aafc8d"
-# input-hash: updated 2026-08-25 — compute-input-hash reported 0aafc8d (inputs include BC-2.16.015, updated v1.3→v1.4 by pass-5 fix-burst F-VULNS-P5-001/F-VULNS-P5-002, then v1.4→v1.5 by v1.7 story-burst (2026-08-25), then v1.5→v1.6 by F-VULNS-R4C-LOW-001 burst (2026-08-25); claroty.sensor.toml, modified by S-ADR058-OCSF-ROUTING-001 PR #242)
+input-hash: "f695bf5"
+# input-hash: updated 2026-08-30 — compute-input-hash reported f695bf5 (BC-2.16.015 advanced to v1.8 by D-2373+D-2375 bursts; prior 0aafc8d was stale against v1.8; F-VULNS-REBASE-LOW-001 fix)
 traces_to: "BC-2.16.015"
 points: 5
 estimated_days: 1
@@ -54,10 +54,11 @@ capabilities:
   - CAP-029
 behavioral_contracts:
   - BC-2.16.015
-  # BC-2.16.015 v1.6 — Claroty xDome Vulnerability Findings Table: TOML table contract
+  # BC-2.16.015 — Claroty xDome Vulnerability Findings Table: TOML table contract
   # (§Postconditions §1), 19-column Tier-1/Tier-2 classification (§Postconditions §2),
   # PK rationale (§Postconditions §3), SAP-2 DTU parity (§Postconditions §4),
-  # EC-016-015-001..006 edge cases. All 8 ACs trace to this BC.
+  # EC-016-015-001..006 edge cases (EC-016-015-007/008 are LIMIT-owned, covered by
+  # S-ENGINE-LIMIT-EARLY-STOP-001, out of VULNS-001 scope). All 8 ACs trace to this BC.
 verification_properties: []
 holdout_scenarios: []
 # holdout_scenarios: PO authors 2–4 hidden SINGLE-USE scenarios during remove-uncertainty
@@ -87,7 +88,7 @@ risk_mitigations: []
 
 ## Authority
 
-**BC-2.16.015 v1.6 §Postconditions §1 — TOML Table Contract** governs the exact `[[tables]]`
+**BC-2.16.015 §Postconditions §1 — TOML Table Contract** governs the exact `[[tables]]`
 block structure: `table_name = "vulnerabilities"`, `ocsf_class = "vulnerability_finding"`,
 step name `"fetch_vulnerabilities"`, `path_template = "/api/v1/vulnerabilities/"`,
 `response_path = "$.vulnerabilities"`, pagination `type = "offset_limit"` / `page_size = 1000`,
@@ -97,7 +98,7 @@ Note: the `body_template` block in BC §Postconditions §1 is illustrative only 
 copy-paste-ready TOML; the normative source is `crates/prism-sensors/specs/claroty.sensor.toml`
 (single-quoted TOML literals do not support backslash line-continuation).
 
-**BC-2.16.015 v1.6 §Postconditions §2 — Tier-1/Tier-2 Column Classification** governs Arrow
+**BC-2.16.015 §Postconditions §2 — Tier-1/Tier-2 Column Classification** governs Arrow
 field naming under `ocsf_column_naming = true`:
 - Tier-1: `name` (`ocsf_field = "finding_info.title"` → Arrow `finding_info_title`, options REQUIRED),
   `description` (`ocsf_field = "message"` → Arrow `message`).
@@ -175,7 +176,7 @@ BLOCKING: unsatisfied scenarios reset the LOCAL streak per BC-5.39.001.
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | v1.6 | §Postconditions §1 TOML table contract (step, path, body_template, pagination, response_path); §Postconditions §2 Tier-1/Tier-2 classification (2 Tier-1, 17 Tier-2 + source_path id); §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 DTU parity deferred; EC-016-015-001..006 edge cases |
+| BC-2.16.015 | Claroty xDome Vulnerability Findings Table — Queryable Surface and OCSF vulnerability_finding Mapping | v1.8 | §Postconditions §1 TOML table contract (step, path, body_template, pagination, response_path); §Postconditions §2 Tier-1/Tier-2 classification (2 Tier-1, 17 Tier-2 + source_path id); §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 DTU parity deferred; EC-016-015-001..006 edge cases (EC-016-015-007/008 are LIMIT-owned, covered by S-ENGINE-LIMIT-EARLY-STOP-001, out of VULNS-001 scope) |
 
 ## Acceptance Criteria
 
@@ -352,7 +353,7 @@ Architecture section references:
 |------|-----------------|
 | This story spec | ~7,000 |
 | `crates/prism-sensors/specs/claroty.sensor.toml` (existing 4 tables as pattern reference) | ~5,500 |
-| BC-2.16.015 v1.6 (full) | ~5,000 |
+| BC-2.16.015 (full) | ~5,000 |
 | ADR-058 §B2/§C/§D sections (ocsf_column_naming flag mechanism) | ~4,000 |
 | spike-findings §Spike 1 (PK decision, column set) | ~2,000 |
 | prism-spec-engine/src/spec_parser.rs (ColumnSpec + FetchStep section) | ~3,000 |
@@ -512,7 +513,7 @@ new dependency on `prism-sensors` (direction is prism-sensors → prism-spec-eng
 
 ## References
 
-- BC-2.16.015 v1.6 (draft) — §Postconditions §1 TOML contract; §Postconditions §2 19-column Tier-1/Tier-2; §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 deferred; EC-016-015-001..006
+- BC-2.16.015 — §Postconditions §1 TOML contract; §Postconditions §2 19-column Tier-1/Tier-2; §Postconditions §3 PK rationale; §Postconditions §4 SAP-2 deferred; EC-016-015-001..006 (EC-016-015-007/008 LIMIT-owned, out of VULNS-001 scope)
 - ADR-058 §B2 — Tier-2 columns aggregate into raw_extensions; §C — underscore-flattened Arrow names; §D — per-sensor ocsf_column_naming flag
 - ADR-028 §D8-B — implicit iso8601 default for datetime columns without timestamp_formats
 - spike-findings §Spike 1 — PK decision authority (name > id); first-cut 19-column set; source_path id rationale; 14-field exclusion list
@@ -526,6 +527,7 @@ new dependency on `prism-sensors` (direction is prism-sensors → prism-spec-eng
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.0 | 2026-08-30 | story-writer | F-VULNS-REBASE-LOW-001: BC-2.16.015 version-pin currency fix. Removed volatile `v1.X` pins from 6 narrative prose sites (§frontmatter BC-status comment, §frontmatter behavioral_contracts comment, §Authority §Postconditions §1/§2 headers, §Token Budget, §References) per POL-39/TD-VSDD-091. §Behavioral Contracts table Version column updated v1.6→v1.8 (justified structural citation per POL-39 exception — explicit Version column in traceability table). Role text updated at 2 sites to note EC-016-015-007/008 are LIMIT-owned (S-ENGINE-LIMIT-EARLY-STOP-001), out of VULNS-001 scope. Zero AC/task/contract content changed. |
 | 1.9 | 2026-08-25 | story-writer | AC-008/EC-002 null→absent reword (F-VULNS-R4C-LOW-001/F-R4A-LOW-001): §Acceptance Criteria §AC-008 heading and body reworded to reflect absent-key→absent-in-raw_extensions semantics (BC-2.16.015 v1.6 null→absent precision correction); §Edge Cases §EC-002 reworded accordingly; §Red Gate Tests §RG-008 description and test name corrected; §Tasks §Task-3 description updated; BC pin v1.5→v1.6 propagated at 7 sites (§frontmatter BC-status comment, §frontmatter behavioral_contracts comment, §Authority §Postconditions §1/§2 headers, §Behavioral Contracts table, §Token Budget, §References). |
 | 1.8 | 2026-08-25 | story-writer | F-VULNS-PC3-MED-001: RG-009 swept into §File Structure §CREATE prism-sensors/tests row + frontmatter crates_touched comment (2 mandated sites); Task §3 updated to include RG-009 (AC-008 positive mock case); Task §7 updated to include RG-009 in GREEN confirmation list; Task §10 updated to include RG-009 in non-#[ignore] gate list. 6 enumeration sites total corrected. |
 | 1.7 | 2026-08-25 | story-writer | BC-2.16.015 pin v1.4→v1.5 propagated at 7 sites: frontmatter BC comment, behavioral_contracts comment, §Authority §Postconditions §1 and §2 headers, §Behavioral Contracts table, §Token Budget, §References. EC-006 (§Edge Cases) reworded: null `published_date` stored in `raw_extensions` as Tier-2; no standalone Datetime Arrow column materialized; ADR-028 §D8-B applies to non-null present values only (F-VULNS-PA-O01, BC EC-016-015-006). §Authority §D8-B paragraph updated to match; body_template illustrative-only note added to §Authority §Postconditions §1 (TD-VSDD-097 dim-b). RG-009 added: `test_BC_2_16_015_claroty_vulnerabilities_source_path_id_present_when_supplied` (AC-008 positive case, prism-sensors §source_path_id); density check updated 10/8→11/8=1.375 (SAC-1). input-hash refreshed 86c5990→4be85a0 (BC-2.16.015 v1.5 now in inputs). |

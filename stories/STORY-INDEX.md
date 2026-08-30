@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "2.951"
+version: "2.952"
 status: draft
 producer: state-manager
 timestamp: 2026-08-30T21:00:00Z
@@ -1052,7 +1052,7 @@ All 8 D-1889 CRITICALs are now tracked artifacts. Stories below cover the sensor
 | S-OCSF-FIDELITY-CROWDSTRIKE-001 | CrowdStrike OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-OCSF-FIDELITY-CYBERINT-001 | Cyberint OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
 | S-OCSF-FIDELITY-ARMIS-001 | Armis OCSF Schema Validation and Correction (ADR-058 §K Methodology) [draft v0.2] | prism-sensors,prism-ocsf | 0 (pending PO authorship) | -- | tbd | -- |
-| S-CLAROTY-VULNS-001 | Claroty xDome Vulnerabilities Table — claroty_vulnerabilities TOML block with 19-column Tier-1/Tier-2 spec, live structural tests (Wave A G1) [ready v1.9] | prism-sensors, prism-bin | 1 (BC-2.16.015 v1.6) | -- | 5 | -- |
+| S-CLAROTY-VULNS-001 | Claroty xDome Vulnerabilities Table — claroty_vulnerabilities TOML block with 19-column Tier-1/Tier-2 spec, live structural tests (Wave A G1) [ready v2.0] | prism-sensors, prism-bin | 1 (BC-2.16.015 v1.8) | -- | 5 | -- |
 | S-CLAROTY-OT-EVENTS-001 | Claroty xDome OT Activity Events Table — claroty_ot_activity_events TOML block with 21-column Tier-1/Tier-2 spec, no DTU, live structural tests (Wave A G2) [draft v1.0] | prism-sensors, prism-spec-engine | 1 (BC-2.16.016 v1.0) | -- | 5 | -- |
 | S-ENGINE-SOURCE-PATH-ABSENT-KEY-LOGLEVEL-001 | prism-spec-engine: distinguish KeyNotFound from ExtractionFailed in source_path extraction — debug log level for absent optional keys [draft v1.0] | prism-spec-engine | 1 (BC-2.16.002) | -- | 3 | -- |
 | S-ENGINE-H2-LARGE-RESPONSE-001 | Claroty xDome large-response transport — direct-h2 confirmation + recurrence guard (canary + timeout diagnostics + query-CLI wiring) [draft v1.2] | prism-bin, prism-spec-engine | 1 (BC-2.16.002 current) | -- | 3 | -- |
@@ -1667,6 +1667,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.952 | 2026-08-30 | state-manager D-2377: POST-FIX STATE BURST (TD-VSDD-053) — F-VULNS-REBASE-LOW-001 CLOSED. S-CLAROTY-VULNS-001 story v1.9→v2.0 (BC-2.16.015 version-pin drift fixed per POL-39; §Behavioral Contracts Version column updated v1.6→v1.8; input-hash refreshed 0aafc8d→f695bf5). Feature HEAD fee0c64d7 UNCHANGED. total_stories 319 UNCHANGED. STORY-INDEX v2.951→v2.952. |
 | v2.951 | 2026-08-30 | state-manager D-2375: SINGLE-COMMIT BURST (TD-VSDD-053) — POST-MERGE state burst for S-ENGINE-LIMIT-EARLY-STOP-001. PR #243 squash-merged to origin/develop @c5be059fe (human-authorized; adversary re-verify CLEAN strict=yes zero findings on frozen HEAD 704aac24a). S-ENGINE-LIMIT-EARLY-STOP-001 status: draft→merged. POL-14: BC-2.16.002 already active (no promotion needed). BC-2.16.015 draft — promoted by S-CLAROTY-VULNS-001 merge per POL-14 (not this story). total_stories 319 UNCHANGED. STORY-INDEX v2.950→v2.951. |
 | v2.950 | 2026-08-30 | state-manager D-2373: SINGLE-COMMIT BURST (TD-VSDD-053) — F-B1V-001 (MED contract-traceability) + F-B1V-002 (MED spec-accuracy) CLOSED. LIMIT story v1.41→v1.42 (BC-2.16.002 v2.54; input-hash 6a22a8d; TD-VSDD-091 SHA cleanup; AC-015/RG-PSG-044 anchors unchanged; 59 RGTs/15 ACs unchanged). Code UNCHANGED (PR #243 HEAD 704aac24a FROZEN; CI green). BC-5.39.001 LOCAL streak RESET 0/3 (spec perimeter changed; frozen-HEAD rule). total_stories 319 UNCHANGED. STORY-INDEX v2.949→v2.950. |
 | v2.949 | 2026-08-30 | state-manager D-2372: SINGLE-COMMIT BURST (TD-VSDD-053) — F-B1-001 (MED) substantively closed. LIMIT story v1.40→v1.41 (AC-015/RG-PSG-044 anchoring existing test `test_early_stop_multi_batch_partial_page_is_truncated`; 7-locus multi-batch discriminator reconciliation; 59 RGTs/15 ACs; input-hash b8cad49). BC-2.16.002 pin v2.52→v2.53. Feature HEAD 704aac24a (B1 code fix + spec closure). BC-5.39.001 LOCAL streak RESET 0/3 (spec perimeter changed; frozen-HEAD rule). PR #243 HEAD 704aac24a FROZEN (CI green; no code change). total_stories 319 UNCHANGED. STORY-INDEX v2.948→v2.949. |
